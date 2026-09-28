@@ -1,0 +1,19 @@
+---
+description: Use ASCII hyphens in all writing for this repository
+alwaysApply: true
+---
+
+# Hyphens
+
+Write compound titles and asides with ASCII hyphen-minus `-`.
+
+```
+# Good
+# Time to Kill - native PC recompilation
+**Accepted - do not touch.**
+
+# Bad
+# Unicode em dash or en dash between words
+```
+
+Do not insert U+2014 or U+2013. Replace them with `-`.

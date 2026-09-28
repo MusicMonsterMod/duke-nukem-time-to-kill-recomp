@@ -121,7 +121,9 @@ credentials.json
 secrets.*
 .idea/
 .vscode/
-.cursor/
+.cursor/*
+!.cursor/rules/
+!.cursor/rules/**
 .vs/
 *.user
 *.suo

@@ -1,0 +1,17 @@
+---
+description: Duke Nukem Time to Kill repo identity, git hygiene, and job workflow
+alwaysApply: true
+---
+
+# Time to Kill workspace
+
+Owned US SLUS-00583. Public tree is notes and jobs, not the disc.
+
+- GitHub: MusicMonsterMod/duke-nukem-time-to-kill-recomp
+- Use only MusicMonsterMod for git and GitHub on this repo
+- Ignore and never add: CloneCD dump, `research/`, `recomp/`, `.venv/`, BIOS, memcards
+- Vanilla remains available; Modernized is optional
+- `$continue-duke-recomp` shows `MODERNIZATION_JOBS.md` and waits; do not start work unasked
+- Do not hand-edit generated C, overwrite original media, or use player memory cards
+- Do not launch or disturb an active game session unless the user asks
+- ASCII hyphen `-` only; no em dash (U+2014) or en dash (U+2013)

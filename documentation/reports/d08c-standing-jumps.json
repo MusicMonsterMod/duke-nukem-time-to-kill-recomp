@@ -1,0 +1,308 @@
+{
+  "job": "D08C",
+  "date": "2026-09-27",
+  "status": "Historical delivery; superseded by accepted D08C input-order delivery",
+  "scope": "Grounded directional standing/walking jump; accepted running jump and original physics retained",
+  "binary_sha256": "808878cfc35a02451f720f473b0dd141b74326b659833c4bd75d32a9ad69fecf",
+  "source_sha256": {
+    "recomp/src/ttk/modern_controls.cpp": "e022d62eb067d34c2be4309b2acc5c5505c00012193d7e6930ddec28eecbbed4",
+    "recomp/src/ttk/modern_controls.h": "e514b0fd9140bb0f96d1ab3679885c896fa477c53d21ec67ae5e587d8085293f",
+    "recomp/src/ttk/pc_input.cpp": "546cde07d450fc868d8f8282c9ed28f21da96a68f26ce87e13542b347eb3855d",
+    "recomp/src/ttk/pc_input.h": "bd66d10e0feac7ea37a586c161bc7eb8b2a5e7066ab55ce5276b76fd9fd19165",
+    "recomp/src/ttk/control_guards.inc": "d495f5cf599c2262a94d80ed48d9239e9a1020c8f1b12de78b2089b098e9d61d",
+    "recomp/game.local.toml": "551d82f7fa8a5e39d4df80fa6a34072c0e4215f684c55ac227163a1ebee3615e",
+    "recomp/tools/local/standing_jump_probe.py": "41247955bf9f50f65f1e12e2a0103223ef21003ebcc4d64ac91fa7214d4e1f84",
+    "recomp/tools/local/pc_input_probe.py": "becd9a8304fef1a07daef9bf845dcb14d36b12c00b7121f822a4bcf1620b2a3a",
+    "recomp/tests/local/modern_controls_native.cpp": "5e6f289c462e135a48ab0f2d226a0dd176b3b24faf4c3e6a1adfc404675c2071",
+    "recomp/tests/local/pc_input_native.cpp": "f95f1eee9077e94cf03cdb46dc2923b3cf470ad255b2e752112bfae5e3bc7538"
+  },
+  "baseline": {
+    "report": "recomp/analysis/pc-input/d08c-baseline-01/report.json",
+    "animation": 97,
+    "corrections": 0,
+    "observation": "Simultaneous W+jump enters original vertical path; velocity alone does not establish horizontal motion"
+  },
+  "standing": {
+    "report": "recomp/analysis/pc-input/d08c-standing-03/report.json",
+    "exit_code": 0,
+    "assertions": "passed",
+    "results": [
+      {
+        "case": "0-w-0",
+        "animation": 98,
+        "velocity": [
+          4244,
+          -6089,
+          -4267
+        ],
+        "before": [
+          2060,
+          -9718,
+          7208
+        ],
+        "after": [
+          3222,
+          -9723,
+          5998
+        ],
+        "alignment": 0.9999998041441523,
+        "corrected": 1
+      },
+      {
+        "case": "1-s-0",
+        "animation": 98,
+        "velocity": [
+          -4226,
+          -6089,
+          4270
+        ],
+        "before": [
+          3222,
+          -9715,
+          5998
+        ],
+        "after": [
+          1939,
+          -9723,
+          7246
+        ],
+        "alignment": 0.9999994712465267,
+        "corrected": 1
+      },
+      {
+        "case": "2-d-1",
+        "animation": 98,
+        "velocity": [
+          -4286,
+          -5169,
+          -4225
+        ],
+        "before": [
+          1939,
+          -9714,
+          7246
+        ],
+        "after": [
+          667,
+          -9717,
+          6076
+        ],
+        "alignment": 0.9999995716667202,
+        "corrected": 1
+      },
+      {
+        "case": "3-a-1",
+        "animation": 98,
+        "velocity": [
+          4301,
+          -5721,
+          4210
+        ],
+        "before": [
+          667,
+          -9719,
+          6076
+        ],
+        "after": [
+          1832,
+          -9720,
+          7291
+        ],
+        "alignment": 0.9999996677828882,
+        "corrected": 1
+      },
+      {
+        "case": "4-wd-0",
+        "animation": 98,
+        "velocity": [
+          -76,
+          -5169,
+          -6007
+        ],
+        "before": [
+          1832,
+          -9714,
+          7291
+        ],
+        "after": [
+          1746,
+          -9717,
+          5643
+        ],
+        "alignment": 0.999999757985946,
+        "corrected": 1
+      },
+      {
+        "case": "5-sa-0",
+        "animation": 98,
+        "velocity": [
+          88,
+          -5997,
+          6017
+        ],
+        "before": [
+          1746,
+          -9718,
+          5643
+        ],
+        "after": [
+          1711,
+          -9718,
+          7371
+        ],
+        "alignment": 0.9999998261410656,
+        "corrected": 1
+      },
+      {
+        "case": "6-vertical-0",
+        "animation": 97,
+        "velocity": [
+          1900,
+          -9912,
+          -1960
+        ],
+        "before": [
+          1711,
+          -9719,
+          7371
+        ],
+        "after": [
+          1661,
+          -9726,
+          7405
+        ]
+      },
+      {
+        "case": "7-w-3",
+        "animation": 98,
+        "velocity": [
+          4177,
+          -6089,
+          -4317
+        ],
+        "before": [
+          1661,
+          -9721,
+          7405
+        ],
+        "after": [
+          2830,
+          -9714,
+          6155
+        ],
+        "alignment": 0.9999997611070225,
+        "corrected": 1
+      }
+    ],
+    "fixture": "Eight logged health-only longevity writes; no position/velocity/animation fixture; private settings/cards/display"
+  },
+  "automated": {
+    "build_workflow": "recomp/analysis/d08c-research/build.log",
+    "delivery_incremental": "recomp/analysis/d08c-research/build3.log",
+    "python": {
+      "log": "recomp/analysis/d08c-research/python-final.log",
+      "passed": 57,
+      "skipped": 0
+    },
+    "native": {
+      "input": "recomp/analysis/d08c-research/input3.log",
+      "controls": "recomp/analysis/d08c-research/controls3.log",
+      "aim": "recomp/analysis/d08c-research/aim.log",
+      "scene": "recomp/analysis/d08c-research/scene.log"
+    }
+  },
+  "rejected_iterations": [
+    {
+      "report": "recomp/analysis/pc-input/d08c-standing-01/report.json",
+      "reason": "Incomplete initializer caller/camera handoff; still chose 97"
+    },
+    {
+      "report": "recomp/analysis/pc-input/d08c-standing-02/report.json",
+      "reason": "Short W entered original walking handler, which has no jump selection. Trace identified same-update initializer caller."
+    }
+  ],
+  "human_evidence": "User accepts feel of preceding controls iteration and confirms wheel/Alt-wheel functionality. No human acceptance of D08C yet.",
+  "limits": [
+    "Original 96 preparation and 98 standing-directional arc retained; not full running-jump range",
+    "Original clearance may refuse directional takeoff; no wall/low-ceiling bypass",
+    "First-map authenticated normal ground only; precision aim/crouch/active jetpack/unsupported states retain original ownership",
+    "No air steering; subsequent impacts retain original velocity response",
+    "Exact ladder transfer, edge comfort, low ceilings and moving supports need human acceptance; no campaign claim"
+  ],
+  "launch": "python3 /home/spartacus/Desktop/dn-ttk/recomp/tools/local/run.py",
+  "running": {
+    "report": "recomp/analysis/pc-input/d08c-running-01/report.json",
+    "binary_sha256": "808878cfc35a02451f720f473b0dd141b74326b659833c4bd75d32a9ad69fecf",
+    "exit_code": 0,
+    "assertions": {
+      "passed": true,
+      "results": [
+        {
+          "sequence": "d-18",
+          "jump_animation": 103,
+          "direction_alignment": 0.9999994997357776,
+          "landing_animation": 105,
+          "original_impact": true,
+          "clear_running_continuation": false
+        },
+        {
+          "sequence": "a-27",
+          "jump_animation": 103,
+          "direction_alignment": 0.9999998742579993,
+          "landing_animation": 78,
+          "original_impact": false,
+          "clear_running_continuation": true
+        },
+        {
+          "sequence": "d-27",
+          "jump_animation": 103,
+          "direction_alignment": 0.9999999331742746,
+          "landing_animation": 78,
+          "original_impact": false,
+          "clear_running_continuation": true
+        },
+        {
+          "sequence": "a-18",
+          "jump_animation": 103,
+          "direction_alignment": 0.9999997966871947,
+          "landing_animation": 78,
+          "original_impact": false,
+          "clear_running_continuation": true
+        },
+        {
+          "sequence": "w-18",
+          "jump_animation": 103,
+          "direction_alignment": 0.9999997508787531,
+          "landing_animation": 78,
+          "original_impact": false,
+          "clear_running_continuation": true
+        },
+        {
+          "sequence": "s-27",
+          "jump_animation": 103,
+          "direction_alignment": 0.9999999852751049,
+          "landing_animation": 78,
+          "original_impact": false,
+          "clear_running_continuation": true
+        }
+      ]
+    },
+    "escape_assertions": "Original pause releases mouse; Escape resumes automatic Modernized capture",
+    "capture_review": "Final running pose in original first-map street reviewed; not human feel acceptance"
+  },
+  "vanilla": {
+    "report": "recomp/analysis/vanilla-regression/d08c-vanilla-01/report.json",
+    "binary_sha256": "808878cfc35a02451f720f473b0dd141b74326b659833c4bd75d32a9ad69fecf",
+    "exit_code": 0,
+    "checkpoints": 14,
+    "capture_review": "Original vertical jump and inventory reviewed; bounded route, not full firing/campaign acceptance"
+  },
+  "status_at_delivery": "Needs playtest",
+  "acceptance_followup": {
+    "report": "d08c-input-order.json",
+    "status": "Done",
+    "date": "2026-09-27",
+    "accepted_binary_sha256": "92b6cac55a2e83f4f7c9e555a649d382a431b041d4378ed2cc228fc98f1724f5",
+    "note": "Original evidence and binary identity retained; current acceptance includes the subsequent Space-first fix."
+  }
+}

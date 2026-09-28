@@ -1,0 +1,1049 @@
+{
+  "id": 1,
+  "ok": true,
+  "total": 260,
+  "oldest": 0,
+  "entries": [
+    {
+      "seq": 259,
+      "cycle": 1614284723,
+      "frame": 2859,
+      "kind": "exec",
+      "cmd": "0x09",
+      "param_count": 0,
+      "params": [],
+      "stat": "0x02",
+      "request": "0x80",
+      "irq_enable": "0x07",
+      "irq_flag": "0x03",
+      "mode": "0xA0",
+      "seek_msf": [
+        0,
+        13,
+        70
+      ],
+      "read_msf": [
+        0,
+        13,
+        72
+      ],
+      "read_cmd": "0x00",
+      "reading": 0,
+      "pending_cmd": "0x09",
+      "pending": 1,
+      "queued_cmd": "0x00",
+      "queued": 0,
+      "func": "0x00002970",
+      "pc": "0x800B7330",
+      "i_stat": "0x00000000"
+    },
+    {
+      "seq": 258,
+      "cycle": 1613597712,
+      "frame": 2858,
+      "kind": "exec",
+      "cmd": "0x06",
+      "param_count": 0,
+      "params": [],
+      "stat": "0x22",
+      "request": "0x00",
+      "irq_enable": "0x07",
+      "irq_flag": "0x03",
+      "mode": "0xA0",
+      "seek_msf": [
+        0,
+        13,
+        70
+      ],
+      "read_msf": [
+        0,
+        13,
+        70
+      ],
+      "read_cmd": "0x06",
+      "reading": 1,
+      "pending_cmd": "0x15",
+      "pending": 0,
+      "queued_cmd": "0x00",
+      "queued": 0,
+      "func": "0x000029CC",
+      "pc": "0x800B7330",
+      "i_stat": "0x00000000"
+    },
+    {
+      "seq": 257,
+      "cycle": 1613588717,
+      "frame": 2858,
+      "kind": "exec",
+      "cmd": "0x02",
+      "param_count": 3,
+      "params": [
+        "0x00",
+        "0x13",
+        "0x70"
+      ],
+      "stat": "0x22",
+      "request": "0x80",
+      "irq_enable": "0x07",
+      "irq_flag": "0x03",
+      "mode": "0xA0",
+      "seek_msf": [
+        0,
+        13,
+        70
+      ],
+      "read_msf": [
+        5,
+        20,
+        4
+      ],
+      "read_cmd": "0x00",
+      "reading": 0,
+      "pending_cmd": "0x15",
+      "pending": 0,
+      "queued_cmd": "0x00",
+      "queued": 0,
+      "func": "0x000029CC",
+      "pc": "0x800B7330",
+      "i_stat": "0x00000000"
+    },
+    {
+      "seq": 256,
+      "cycle": 1611773747,
+      "frame": 2855,
+      "kind": "exec",
+      "cmd": "0x15",
+      "param_count": 0,
+      "params": [],
+      "stat": "0x42",
+      "request": "0x80",
+      "irq_enable": "0x07",
+      "irq_flag": "0x03",
+      "mode": "0xA0",
+      "seek_msf": [
+        0,
+        13,
+        70
+      ],
+      "read_msf": [
+        5,
+        20,
+        4
+      ],
+      "read_cmd": "0x00",
+      "reading": 0,
+      "pending_cmd": "0x15",
+      "pending": 1,
+      "queued_cmd": "0x00",
+      "queued": 0,
+      "func": "0x000029CC",
+      "pc": "0x800B7330",
+      "i_stat": "0x00000000"
+    },
+    {
+      "seq": 255,
+      "cycle": 1611764045,
+      "frame": 2855,
+      "kind": "exec",
+      "cmd": "0x02",
+      "param_count": 3,
+      "params": [
+        "0x00",
+        "0x13",
+        "0x70"
+      ],
+      "stat": "0x02",
+      "request": "0x80",
+      "irq_enable": "0x07",
+      "irq_flag": "0x03",
+      "mode": "0xA0",
+      "seek_msf": [
+        0,
+        13,
+        70
+      ],
+      "read_msf": [
+        5,
+        20,
+        4
+      ],
+      "read_cmd": "0x00",
+      "reading": 0,
+      "pending_cmd": "0x09",
+      "pending": 0,
+      "queued_cmd": "0x00",
+      "queued": 0,
+      "func": "0x000029CC",
+      "pc": "0x800B7330",
+      "i_stat": "0x00000000"
+    },
+    {
+      "seq": 254,
+      "cycle": 1611753659,
+      "frame": 2855,
+      "kind": "exec",
+      "cmd": "0x0E",
+      "param_count": 1,
+      "params": [
+        "0xA0"
+      ],
+      "stat": "0x02",
+      "request": "0x80",
+      "irq_enable": "0x07",
+      "irq_flag": "0x03",
+      "mode": "0xA0",
+      "seek_msf": [
+        5,
+        20,
+        2
+      ],
+      "read_msf": [
+        5,
+        20,
+        4
+      ],
+      "read_cmd": "0x00",
+      "reading": 0,
+      "pending_cmd": "0x09",
+      "pending": 0,
+      "queued_cmd": "0x00",
+      "queued": 0,
+      "func": "0x000029CC",
+      "pc": "0x800B7330",
+      "i_stat": "0x00000000"
+    },
+    {
+      "seq": 253,
+      "cycle": 1610167833,
+      "frame": 2852,
+      "kind": "exec",
+      "cmd": "0x09",
+      "param_count": 0,
+      "params": [],
+      "stat": "0x02",
+      "request": "0x80",
+      "irq_enable": "0x07",
+      "irq_flag": "0x03",
+      "mode": "0xA0",
+      "seek_msf": [
+        5,
+        20,
+        2
+      ],
+      "read_msf": [
+        5,
+        20,
+        4
+      ],
+      "read_cmd": "0x00",
+      "reading": 0,
+      "pending_cmd": "0x09",
+      "pending": 1,
+      "queued_cmd": "0x00",
+      "queued": 0,
+      "func": "0x00002970",
+      "pc": "0x800B7330",
+      "i_stat": "0x00000000"
+    },
+    {
+      "seq": 252,
+      "cycle": 1609481131,
+      "frame": 2851,
+      "kind": "exec",
+      "cmd": "0x06",
+      "param_count": 0,
+      "params": [],
+      "stat": "0x22",
+      "request": "0x00",
+      "irq_enable": "0x07",
+      "irq_flag": "0x03",
+      "mode": "0xA0",
+      "seek_msf": [
+        5,
+        20,
+        2
+      ],
+      "read_msf": [
+        5,
+        20,
+        2
+      ],
+      "read_cmd": "0x06",
+      "reading": 1,
+      "pending_cmd": "0x15",
+      "pending": 0,
+      "queued_cmd": "0x00",
+      "queued": 0,
+      "func": "0x000029CC",
+      "pc": "0x800B7330",
+      "i_stat": "0x00000000"
+    },
+    {
+      "seq": 251,
+      "cycle": 1609472158,
+      "frame": 2851,
+      "kind": "exec",
+      "cmd": "0x02",
+      "param_count": 3,
+      "params": [
+        "0x05",
+        "0x20",
+        "0x02"
+      ],
+      "stat": "0x22",
+      "request": "0x80",
+      "irq_enable": "0x07",
+      "irq_flag": "0x03",
+      "mode": "0xA0",
+      "seek_msf": [
+        5,
+        20,
+        2
+      ],
+      "read_msf": [
+        5,
+        20,
+        8
+      ],
+      "read_cmd": "0x00",
+      "reading": 0,
+      "pending_cmd": "0x15",
+      "pending": 0,
+      "queued_cmd": "0x00",
+      "queued": 0,
+      "func": "0x000029CC",
+      "pc": "0x800B7330",
+      "i_stat": "0x00000000"
+    },
+    {
+      "seq": 250,
+      "cycle": 1609461884,
+      "frame": 2851,
+      "kind": "exec",
+      "cmd": "0x15",
+      "param_count": 0,
+      "params": [],
+      "stat": "0x42",
+      "request": "0x80",
+      "irq_enable": "0x07",
+      "irq_flag": "0x03",
+      "mode": "0xA0",
+      "seek_msf": [
+        5,
+        20,
+        2
+      ],
+      "read_msf": [
+        5,
+        20,
+        8
+      ],
+      "read_cmd": "0x00",
+      "reading": 0,
+      "pending_cmd": "0x15",
+      "pending": 1,
+      "queued_cmd": "0x00",
+      "queued": 0,
+      "func": "0x000029CC",
+      "pc": "0x800B7330",
+      "i_stat": "0x00000000"
+    },
+    {
+      "seq": 249,
+      "cycle": 1609452182,
+      "frame": 2851,
+      "kind": "exec",
+      "cmd": "0x02",
+      "param_count": 3,
+      "params": [
+        "0x05",
+        "0x20",
+        "0x02"
+      ],
+      "stat": "0x02",
+      "request": "0x80",
+      "irq_enable": "0x07",
+      "irq_flag": "0x03",
+      "mode": "0xA0",
+      "seek_msf": [
+        5,
+        20,
+        2
+      ],
+      "read_msf": [
+        5,
+        20,
+        8
+      ],
+      "read_cmd": "0x00",
+      "reading": 0,
+      "pending_cmd": "0x09",
+      "pending": 0,
+      "queued_cmd": "0x00",
+      "queued": 0,
+      "func": "0x000029CC",
+      "pc": "0x800B7330",
+      "i_stat": "0x00000000"
+    },
+    {
+      "seq": 248,
+      "cycle": 1609441857,
+      "frame": 2851,
+      "kind": "exec",
+      "cmd": "0x0E",
+      "param_count": 1,
+      "params": [
+        "0xA0"
+      ],
+      "stat": "0x02",
+      "request": "0x80",
+      "irq_enable": "0x07",
+      "irq_flag": "0x03",
+      "mode": "0xA0",
+      "seek_msf": [
+        5,
+        20,
+        5
+      ],
+      "read_msf": [
+        5,
+        20,
+        8
+      ],
+      "read_cmd": "0x00",
+      "reading": 0,
+      "pending_cmd": "0x09",
+      "pending": 0,
+      "queued_cmd": "0x00",
+      "queued": 0,
+      "func": "0x000029CC",
+      "pc": "0x800B7330",
+      "i_stat": "0x00000000"
+    },
+    {
+      "seq": 247,
+      "cycle": 1605890578,
+      "frame": 2844,
+      "kind": "exec",
+      "cmd": "0x09",
+      "param_count": 0,
+      "params": [],
+      "stat": "0x02",
+      "request": "0x80",
+      "irq_enable": "0x07",
+      "irq_flag": "0x03",
+      "mode": "0xA0",
+      "seek_msf": [
+        5,
+        20,
+        5
+      ],
+      "read_msf": [
+        5,
+        20,
+        8
+      ],
+      "read_cmd": "0x00",
+      "reading": 0,
+      "pending_cmd": "0x09",
+      "pending": 1,
+      "queued_cmd": "0x00",
+      "queued": 0,
+      "func": "0x00002970",
+      "pc": "0x800B7330",
+      "i_stat": "0x00000000"
+    },
+    {
+      "seq": 246,
+      "cycle": 1604977915,
+      "frame": 2843,
+      "kind": "exec",
+      "cmd": "0x06",
+      "param_count": 0,
+      "params": [],
+      "stat": "0x22",
+      "request": "0x00",
+      "irq_enable": "0x07",
+      "irq_flag": "0x03",
+      "mode": "0xA0",
+      "seek_msf": [
+        5,
+        20,
+        5
+      ],
+      "read_msf": [
+        5,
+        20,
+        5
+      ],
+      "read_cmd": "0x06",
+      "reading": 1,
+      "pending_cmd": "0x15",
+      "pending": 0,
+      "queued_cmd": "0x00",
+      "queued": 0,
+      "func": "0x000029CC",
+      "pc": "0x800B7330",
+      "i_stat": "0x00000000"
+    },
+    {
+      "seq": 245,
+      "cycle": 1604968942,
+      "frame": 2843,
+      "kind": "exec",
+      "cmd": "0x02",
+      "param_count": 3,
+      "params": [
+        "0x05",
+        "0x20",
+        "0x05"
+      ],
+      "stat": "0x22",
+      "request": "0x80",
+      "irq_enable": "0x07",
+      "irq_flag": "0x03",
+      "mode": "0xA0",
+      "seek_msf": [
+        5,
+        20,
+        5
+      ],
+      "read_msf": [
+        5,
+        20,
+        5
+      ],
+      "read_cmd": "0x00",
+      "reading": 0,
+      "pending_cmd": "0x15",
+      "pending": 0,
+      "queued_cmd": "0x00",
+      "queued": 0,
+      "func": "0x000029CC",
+      "pc": "0x800B7330",
+      "i_stat": "0x00000000"
+    },
+    {
+      "seq": 244,
+      "cycle": 1604958786,
+      "frame": 2843,
+      "kind": "exec",
+      "cmd": "0x15",
+      "param_count": 0,
+      "params": [],
+      "stat": "0x42",
+      "request": "0x80",
+      "irq_enable": "0x07",
+      "irq_flag": "0x03",
+      "mode": "0xA0",
+      "seek_msf": [
+        5,
+        20,
+        5
+      ],
+      "read_msf": [
+        5,
+        20,
+        5
+      ],
+      "read_cmd": "0x00",
+      "reading": 0,
+      "pending_cmd": "0x15",
+      "pending": 1,
+      "queued_cmd": "0x00",
+      "queued": 0,
+      "func": "0x000029CC",
+      "pc": "0x800B7330",
+      "i_stat": "0x00000000"
+    },
+    {
+      "seq": 243,
+      "cycle": 1604949252,
+      "frame": 2843,
+      "kind": "exec",
+      "cmd": "0x02",
+      "param_count": 3,
+      "params": [
+        "0x05",
+        "0x20",
+        "0x05"
+      ],
+      "stat": "0x02",
+      "request": "0x80",
+      "irq_enable": "0x07",
+      "irq_flag": "0x03",
+      "mode": "0xA0",
+      "seek_msf": [
+        5,
+        20,
+        5
+      ],
+      "read_msf": [
+        5,
+        20,
+        5
+      ],
+      "read_cmd": "0x00",
+      "reading": 0,
+      "pending_cmd": "0x09",
+      "pending": 0,
+      "queued_cmd": "0x00",
+      "queued": 0,
+      "func": "0x000029CC",
+      "pc": "0x800B7330",
+      "i_stat": "0x00000000"
+    },
+    {
+      "seq": 242,
+      "cycle": 1604938913,
+      "frame": 2843,
+      "kind": "exec",
+      "cmd": "0x0E",
+      "param_count": 1,
+      "params": [
+        "0xA0"
+      ],
+      "stat": "0x02",
+      "request": "0x80",
+      "irq_enable": "0x07",
+      "irq_flag": "0x03",
+      "mode": "0xA0",
+      "seek_msf": [
+        5,
+        20,
+        4
+      ],
+      "read_msf": [
+        5,
+        20,
+        5
+      ],
+      "read_cmd": "0x00",
+      "reading": 0,
+      "pending_cmd": "0x09",
+      "pending": 0,
+      "queued_cmd": "0x00",
+      "queued": 0,
+      "func": "0x000029CC",
+      "pc": "0x800B7330",
+      "i_stat": "0x00000000"
+    },
+    {
+      "seq": 241,
+      "cycle": 1601696766,
+      "frame": 2837,
+      "kind": "exec",
+      "cmd": "0x09",
+      "param_count": 0,
+      "params": [],
+      "stat": "0x02",
+      "request": "0x80",
+      "irq_enable": "0x07",
+      "irq_flag": "0x03",
+      "mode": "0xA0",
+      "seek_msf": [
+        5,
+        20,
+        4
+      ],
+      "read_msf": [
+        5,
+        20,
+        5
+      ],
+      "read_cmd": "0x00",
+      "reading": 0,
+      "pending_cmd": "0x09",
+      "pending": 1,
+      "queued_cmd": "0x00",
+      "queued": 0,
+      "func": "0x00002970",
+      "pc": "0x800B7330",
+      "i_stat": "0x00000000"
+    },
+    {
+      "seq": 240,
+      "cycle": 1601235275,
+      "frame": 2836,
+      "kind": "exec",
+      "cmd": "0x06",
+      "param_count": 0,
+      "params": [],
+      "stat": "0x22",
+      "request": "0x00",
+      "irq_enable": "0x07",
+      "irq_flag": "0x03",
+      "mode": "0xA0",
+      "seek_msf": [
+        5,
+        20,
+        4
+      ],
+      "read_msf": [
+        5,
+        20,
+        4
+      ],
+      "read_cmd": "0x06",
+      "reading": 1,
+      "pending_cmd": "0x15",
+      "pending": 0,
+      "queued_cmd": "0x00",
+      "queued": 0,
+      "func": "0x000029CC",
+      "pc": "0x800B7330",
+      "i_stat": "0x00000000"
+    },
+    {
+      "seq": 239,
+      "cycle": 1601226280,
+      "frame": 2836,
+      "kind": "exec",
+      "cmd": "0x02",
+      "param_count": 3,
+      "params": [
+        "0x05",
+        "0x20",
+        "0x04"
+      ],
+      "stat": "0x22",
+      "request": "0x80",
+      "irq_enable": "0x07",
+      "irq_flag": "0x03",
+      "mode": "0xA0",
+      "seek_msf": [
+        5,
+        20,
+        4
+      ],
+      "read_msf": [
+        0,
+        10,
+        31
+      ],
+      "read_cmd": "0x00",
+      "reading": 0,
+      "pending_cmd": "0x15",
+      "pending": 0,
+      "queued_cmd": "0x00",
+      "queued": 0,
+      "func": "0x000029CC",
+      "pc": "0x800B7330",
+      "i_stat": "0x00000000"
+    },
+    {
+      "seq": 238,
+      "cycle": 1599411329,
+      "frame": 2833,
+      "kind": "exec",
+      "cmd": "0x15",
+      "param_count": 0,
+      "params": [],
+      "stat": "0x42",
+      "request": "0x80",
+      "irq_enable": "0x07",
+      "irq_flag": "0x03",
+      "mode": "0xA0",
+      "seek_msf": [
+        5,
+        20,
+        4
+      ],
+      "read_msf": [
+        0,
+        10,
+        31
+      ],
+      "read_cmd": "0x00",
+      "reading": 0,
+      "pending_cmd": "0x15",
+      "pending": 1,
+      "queued_cmd": "0x00",
+      "queued": 0,
+      "func": "0x000029CC",
+      "pc": "0x800B7330",
+      "i_stat": "0x00000000"
+    },
+    {
+      "seq": 237,
+      "cycle": 1599401627,
+      "frame": 2833,
+      "kind": "exec",
+      "cmd": "0x02",
+      "param_count": 3,
+      "params": [
+        "0x05",
+        "0x20",
+        "0x04"
+      ],
+      "stat": "0x02",
+      "request": "0x80",
+      "irq_enable": "0x07",
+      "irq_flag": "0x03",
+      "mode": "0xA0",
+      "seek_msf": [
+        5,
+        20,
+        4
+      ],
+      "read_msf": [
+        0,
+        10,
+        31
+      ],
+      "read_cmd": "0x00",
+      "reading": 0,
+      "pending_cmd": "0x09",
+      "pending": 0,
+      "queued_cmd": "0x00",
+      "queued": 0,
+      "func": "0x000029CC",
+      "pc": "0x800B7330",
+      "i_stat": "0x00000000"
+    },
+    {
+      "seq": 236,
+      "cycle": 1599391355,
+      "frame": 2833,
+      "kind": "exec",
+      "cmd": "0x0E",
+      "param_count": 1,
+      "params": [
+        "0xA0"
+      ],
+      "stat": "0x02",
+      "request": "0x80",
+      "irq_enable": "0x07",
+      "irq_flag": "0x03",
+      "mode": "0xA0",
+      "seek_msf": [
+        0,
+        8,
+        39
+      ],
+      "read_msf": [
+        0,
+        10,
+        31
+      ],
+      "read_cmd": "0x00",
+      "reading": 0,
+      "pending_cmd": "0x09",
+      "pending": 0,
+      "queued_cmd": "0x00",
+      "queued": 0,
+      "func": "0x000029CC",
+      "pc": "0x800B7330",
+      "i_stat": "0x00000000"
+    },
+    {
+      "seq": 235,
+      "cycle": 1591022487,
+      "frame": 2818,
+      "kind": "exec",
+      "cmd": "0x09",
+      "param_count": 0,
+      "params": [],
+      "stat": "0x02",
+      "request": "0x80",
+      "irq_enable": "0x07",
+      "irq_flag": "0x03",
+      "mode": "0xA0",
+      "seek_msf": [
+        0,
+        8,
+        39
+      ],
+      "read_msf": [
+        0,
+        10,
+        31
+      ],
+      "read_cmd": "0x00",
+      "reading": 0,
+      "pending_cmd": "0x09",
+      "pending": 1,
+      "queued_cmd": "0x00",
+      "queued": 0,
+      "func": "0x00002970",
+      "pc": "0x800B7330",
+      "i_stat": "0x00000000"
+    },
+    {
+      "seq": 234,
+      "cycle": 1558724866,
+      "frame": 2761,
+      "kind": "exec",
+      "cmd": "0x06",
+      "param_count": 0,
+      "params": [],
+      "stat": "0x22",
+      "request": "0x00",
+      "irq_enable": "0x07",
+      "irq_flag": "0x03",
+      "mode": "0xA0",
+      "seek_msf": [
+        0,
+        8,
+        39
+      ],
+      "read_msf": [
+        0,
+        8,
+        39
+      ],
+      "read_cmd": "0x06",
+      "reading": 1,
+      "pending_cmd": "0x15",
+      "pending": 0,
+      "queued_cmd": "0x00",
+      "queued": 0,
+      "func": "0x000029CC",
+      "pc": "0x800B7330",
+      "i_stat": "0x00000000"
+    },
+    {
+      "seq": 233,
+      "cycle": 1558715850,
+      "frame": 2761,
+      "kind": "exec",
+      "cmd": "0x02",
+      "param_count": 3,
+      "params": [
+        "0x00",
+        "0x08",
+        "0x39"
+      ],
+      "stat": "0x22",
+      "request": "0x80",
+      "irq_enable": "0x07",
+      "irq_flag": "0x03",
+      "mode": "0xA0",
+      "seek_msf": [
+        0,
+        8,
+        39
+      ],
+      "read_msf": [
+        0,
+        10,
+        45
+      ],
+      "read_cmd": "0x00",
+      "reading": 0,
+      "pending_cmd": "0x15",
+      "pending": 0,
+      "queued_cmd": "0x00",
+      "queued": 0,
+      "func": "0x000029CC",
+      "pc": "0x800B7330",
+      "i_stat": "0x00000000"
+    },
+    {
+      "seq": 232,
+      "cycle": 1556900815,
+      "frame": 2758,
+      "kind": "exec",
+      "cmd": "0x15",
+      "param_count": 0,
+      "params": [],
+      "stat": "0x42",
+      "request": "0x80",
+      "irq_enable": "0x07",
+      "irq_flag": "0x03",
+      "mode": "0xA0",
+      "seek_msf": [
+        0,
+        8,
+        39
+      ],
+      "read_msf": [
+        0,
+        10,
+        45
+      ],
+      "read_cmd": "0x00",
+      "reading": 0,
+      "pending_cmd": "0x15",
+      "pending": 1,
+      "queued_cmd": "0x00",
+      "queued": 0,
+      "func": "0x000029CC",
+      "pc": "0x800B7330",
+      "i_stat": "0x00000000"
+    },
+    {
+      "seq": 231,
+      "cycle": 1556891113,
+      "frame": 2758,
+      "kind": "exec",
+      "cmd": "0x02",
+      "param_count": 3,
+      "params": [
+        "0x00",
+        "0x08",
+        "0x39"
+      ],
+      "stat": "0x02",
+      "request": "0x80",
+      "irq_enable": "0x07",
+      "irq_flag": "0x03",
+      "mode": "0xA0",
+      "seek_msf": [
+        0,
+        8,
+        39
+      ],
+      "read_msf": [
+        0,
+        10,
+        45
+      ],
+      "read_cmd": "0x00",
+      "reading": 0,
+      "pending_cmd": "0x09",
+      "pending": 0,
+      "queued_cmd": "0x00",
+      "queued": 0,
+      "func": "0x000029CC",
+      "pc": "0x800B7330",
+      "i_stat": "0x00000000"
+    },
+    {
+      "seq": 230,
+      "cycle": 1556880823,
+      "frame": 2758,
+      "kind": "exec",
+      "cmd": "0x0E",
+      "param_count": 1,
+      "params": [
+        "0xA0"
+      ],
+      "stat": "0x02",
+      "request": "0x80",
+      "irq_enable": "0x07",
+      "irq_flag": "0x03",
+      "mode": "0xA0",
+      "seek_msf": [
+        0,
+        10,
+        31
+      ],
+      "read_msf": [
+        0,
+        10,
+        45
+      ],
+      "read_cmd": "0x00",
+      "reading": 0,
+      "pending_cmd": "0x09",
+      "pending": 0,
+      "queued_cmd": "0x00",
+      "queued": 0,
+      "func": "0x000029CC",
+      "pc": "0x800B7330",
+      "i_stat": "0x00000000"
+    }
+  ],
+  "emitted": 30
+}

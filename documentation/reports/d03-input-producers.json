@@ -1,0 +1,135 @@
+{
+  "date": "2026-09-26",
+  "status": "In progress",
+  "run": "d03-input-producers",
+  "exit_code": 0,
+  "changes": [
+    {
+      "checkpoint": "jump",
+      "producer_sites": [
+        {
+          "address": "0x000D7296",
+          "pc": "0x80059D2C",
+          "changed_writes": 19
+        },
+        {
+          "address": "0x000D7298",
+          "pc": "0x80055C5C",
+          "changed_writes": 11
+        },
+        {
+          "address": "0x000D7294",
+          "pc": "0x80055C54",
+          "changed_writes": 11
+        },
+        {
+          "address": "0x000D7298",
+          "pc": "0x8003ECF4",
+          "changed_writes": 11
+        },
+        {
+          "address": "0x000D7296",
+          "pc": "0x8003ECE8",
+          "changed_writes": 11
+        },
+        {
+          "address": "0x000D7294",
+          "pc": "0x8003ECDC",
+          "changed_writes": 11
+        },
+        {
+          "address": "0x000D7298",
+          "pc": "0x800B4B48",
+          "changed_writes": 11
+        },
+        {
+          "address": "0x000D7298",
+          "pc": "0x80059D44",
+          "changed_writes": 11
+        },
+        {
+          "address": "0x000D7294",
+          "pc": "0x800B4B40",
+          "changed_writes": 10
+        },
+        {
+          "address": "0x000D7294",
+          "pc": "0x80059D18",
+          "changed_writes": 6
+        }
+      ]
+    },
+    {
+      "checkpoint": "forward",
+      "producer_sites": [
+        {
+          "address": "0x000D7296",
+          "pc": "0x80059D2C",
+          "changed_writes": 26
+        },
+        {
+          "address": "0x000D7298",
+          "pc": "0x80059D44",
+          "changed_writes": 25
+        },
+        {
+          "address": "0x000D7294",
+          "pc": "0x80059D18",
+          "changed_writes": 25
+        },
+        {
+          "address": "0x000D7298",
+          "pc": "0x800B4B48",
+          "changed_writes": 24
+        },
+        {
+          "address": "0x000D7294",
+          "pc": "0x800B4B40",
+          "changed_writes": 24
+        }
+      ]
+    },
+    {
+      "checkpoint": "turn",
+      "producer_sites": [
+        {
+          "address": "0x000D7296",
+          "pc": "0x80059D2C",
+          "changed_writes": 13
+        },
+        {
+          "address": "0x000D71BC",
+          "pc": "0x800578A0",
+          "changed_writes": 10
+        },
+        {
+          "address": "0x000D7294",
+          "pc": "0x80059D18",
+          "changed_writes": 7
+        },
+        {
+          "address": "0x000D7294",
+          "pc": "0x800B4B40",
+          "changed_writes": 6
+        },
+        {
+          "address": "0x000D7298",
+          "pc": "0x80059D44",
+          "changed_writes": 3
+        },
+        {
+          "address": "0x000D7298",
+          "pc": "0x800B4B48",
+          "changed_writes": 3
+        },
+        {
+          "address": "0x000D71BC",
+          "pc": "0x8005747C",
+          "changed_writes": 1
+        }
+      ]
+    }
+  ],
+  "guard_tests_passed": 5,
+  "overlay_check": "Exact LEVEL00 residency in captured gameplay RAM; new guard verified against that snapshot, not a fresh live run after adding the guard."
+}

@@ -1,0 +1,92 @@
+{
+  "date": "2026-09-27",
+  "binary_sha256": "b382456bc0c02936bf780deda9e5bfacaeb3b965199ad538ea11ffc7c6336f69",
+  "font_pack_sha256": "a1ee7ba8de2b8fc4a682f7084e7ff9d5e1c71b269d0beb8d161c81dc85749511",
+  "jobs": {
+    "D08G1": "Done",
+    "D07C": "Needs playtest",
+    "D08H": "Needs playtest",
+    "D19A": "Done"
+  },
+  "implementation_order": [
+    "D08G1",
+    "D07C",
+    "D08H",
+    "D19A"
+  ],
+  "tests": {
+    "python": {
+      "passed": 60,
+      "skipped": 0
+    },
+    "native": [
+      "input",
+      "controls",
+      "aim",
+      "scene",
+      "font"
+    ],
+    "renderers": [
+      "OpenGL",
+      "Software SDL3"
+    ],
+    "window_sizes": [
+      [
+        320,
+        240
+      ],
+      [
+        640,
+        480
+      ],
+      [
+        1024,
+        768
+      ]
+    ],
+    "vanilla_release_exit": 0
+  },
+  "reproduced_before_fix": [
+    "held-aim body separation",
+    "horizontal RPG alternate caller",
+    "concealed pipe-bomb collection",
+    "animated-foot furniture contact failure",
+    "small-drop stride loss",
+    "switch ray misses"
+  ],
+  "gameplay_evidence": [
+    "iteration40-wording-baseline",
+    "iteration40-families",
+    "iteration40-impact",
+    "iteration40-apartment",
+    "iteration40-apartment-candidate",
+    "iteration40-apartment-final",
+    "iteration40-font-gl",
+    "iteration40-font-gl-final",
+    "iteration40-font-software-final",
+    "iteration40-vanilla-release"
+  ],
+  "evidence_root": "recomp/analysis/pc-input/",
+  "preservation": {
+    "player_files": {
+      "recomp/config/player-profiles.json": "6d3954c466dae37ab374b6011ba0398fd07143aa85f3d9f1bac196663078a6a4",
+      "recomp/saves/local-play/writable-state.log": "8eb56d85aba563e9c334674603404a4559496d8abaaa51abffe055b153e6b592",
+      "recomp/saves/local-play/card2.mcd": "7706c7d43edaf8cb7618e574f03457105153e3bdc196db803a600ad96a8f58e8",
+      "recomp/saves/local-play/card1.mcd": "6599f5b2896d8f4f39d23ea49d04b43c414461833a0abe9ccb39bec2194d5e95",
+      "recomp/saves/local-play/.pst_bios_isolated": "a36d2b03d1975aeda92aecc77617e6a754305aa04b0313bcab87df786d4d515e"
+    },
+    "original_font_archives": {
+      "DukeNukemSmallFont.pk3": "29e75ac7e55aae05eb2512d866856806f55560a8f2ef4c314389022ac3d1a370",
+      "DukeNukemAtomicFont.pk3": "0f2718f980ffc0baf69b74893c90f0a4f3f361844f6473bfaca76816d2084370",
+      "MS-DOS - Duke Nukem 3D - Miscellaneous - Fonts.zip": "d716e22b2e49ff7adcd6cd15ba2f5001326f75dd7c9248a4c5d1153fc118d429"
+    },
+    "final_check": "unchanged after all private sessions exited"
+  },
+  "limits": [
+    "Human aiming and furniture feel awaits playtest",
+    "No full-campaign claim",
+    "Upgrade dispatch used isolated fixtures",
+    "Linux SDL3 verified; other platforms/SDL2 unverified"
+  ],
+  "notes": "documentation/40-feedback-implementation.md"
+}

@@ -1,0 +1,430 @@
+{
+  "schema": 1,
+  "date": "2026-09-26",
+  "job": "D01",
+  "status": "Done",
+  "scope": "Linux headless bounded Vanilla input recording; not full progression/save/audio acceptance",
+  "runs": [
+    {
+      "name": "d01-baseline-01",
+      "local_evidence": "recomp/analysis/vanilla-regression/d01-baseline-01",
+      "binary_sha256": "1d280e754974854393048322b59d65535214eee97cddbcdadc57a58f58d4f038",
+      "runner_sha256": null,
+      "elapsed_seconds": 35.597478089002834,
+      "exit_code": 0,
+      "review": "Failed semantic route: startup inputs too early; attract mode instead of gameplay.",
+      "checkpoints": [
+        {
+          "name": "intro",
+          "frame": 905
+        },
+        {
+          "name": "title",
+          "frame": 1806
+        },
+        {
+          "name": "main-menu",
+          "frame": 1928
+        },
+        {
+          "name": "difficulty",
+          "frame": 2050
+        },
+        {
+          "name": "spawn",
+          "frame": 2952
+        },
+        {
+          "name": "draw",
+          "frame": 3014
+        },
+        {
+          "name": "fire",
+          "frame": 3080
+        },
+        {
+          "name": "jump",
+          "frame": 3119
+        },
+        {
+          "name": "land",
+          "frame": 3239
+        },
+        {
+          "name": "inventory",
+          "frame": 3299
+        },
+        {
+          "name": "inventory-close",
+          "frame": 3359
+        },
+        {
+          "name": "forward",
+          "frame": 3421
+        },
+        {
+          "name": "turn",
+          "frame": 3467
+        }
+      ],
+      "checked_seeks": 3,
+      "failed_seeks": 0,
+      "seek_interpretation": "Diagnostic only; not audible validation."
+    },
+    {
+      "name": "d01-baseline-02",
+      "local_evidence": "recomp/analysis/vanilla-regression/d01-baseline-02",
+      "binary_sha256": "1d280e754974854393048322b59d65535214eee97cddbcdadc57a58f58d4f038",
+      "runner_sha256": null,
+      "elapsed_seconds": 54.37290785799996,
+      "exit_code": 0,
+      "review": "Failed semantic route: Start arrived during startup; title/attract mode remained.",
+      "checkpoints": [
+        {
+          "name": "intro",
+          "frame": 905
+        },
+        {
+          "name": "title",
+          "frame": 3508
+        },
+        {
+          "name": "main-menu",
+          "frame": 3631
+        },
+        {
+          "name": "difficulty",
+          "frame": 3753
+        },
+        {
+          "name": "spawn",
+          "frame": 4654
+        },
+        {
+          "name": "draw",
+          "frame": 4716
+        },
+        {
+          "name": "fire",
+          "frame": 4782
+        },
+        {
+          "name": "jump",
+          "frame": 4817
+        },
+        {
+          "name": "land",
+          "frame": 4937
+        },
+        {
+          "name": "inventory",
+          "frame": 4999
+        },
+        {
+          "name": "inventory-close",
+          "frame": 5060
+        },
+        {
+          "name": "forward",
+          "frame": 5122
+        },
+        {
+          "name": "turn",
+          "frame": 5169
+        }
+      ],
+      "checked_seeks": 2,
+      "failed_seeks": 0,
+      "seek_interpretation": "Diagnostic only; not audible validation."
+    },
+    {
+      "name": "d01-baseline-03",
+      "local_evidence": "recomp/analysis/vanilla-regression/d01-baseline-03",
+      "binary_sha256": "1d280e754974854393048322b59d65535214eee97cddbcdadc57a58f58d4f038",
+      "runner_sha256": null,
+      "elapsed_seconds": 89.44225188600103,
+      "exit_code": 0,
+      "review": "Partial: gameplay reached; jump/inventory/movement/damage observed. Test holstered initially drawn weapon before fire, so no ammo reduction.",
+      "checkpoints": [
+        {
+          "name": "intro",
+          "frame": 905
+        },
+        {
+          "name": "title",
+          "frame": 6908
+        },
+        {
+          "name": "main-menu",
+          "frame": 7031
+        },
+        {
+          "name": "difficulty",
+          "frame": 7151
+        },
+        {
+          "name": "spawn",
+          "frame": 8053
+        },
+        {
+          "name": "draw",
+          "frame": 8114
+        },
+        {
+          "name": "fire",
+          "frame": 8180
+        },
+        {
+          "name": "jump",
+          "frame": 8215
+        },
+        {
+          "name": "land",
+          "frame": 8337
+        },
+        {
+          "name": "inventory",
+          "frame": 8398
+        },
+        {
+          "name": "inventory-close",
+          "frame": 8458
+        },
+        {
+          "name": "forward",
+          "frame": 8518
+        },
+        {
+          "name": "turn",
+          "frame": 8564
+        }
+      ],
+      "checked_seeks": 0,
+      "failed_seeks": 0,
+      "seek_interpretation": "No eligible explicit seek/read pair in the retained end-of-route history; inconclusive, not a pass."
+    },
+    {
+      "name": "d01-baseline-04",
+      "local_evidence": "recomp/analysis/vanilla-regression/d01-baseline-04",
+      "binary_sha256": "1d280e754974854393048322b59d65535214eee97cddbcdadc57a58f58d4f038",
+      "runner_sha256": null,
+      "elapsed_seconds": 87.99537368200254,
+      "exit_code": 0,
+      "review": "Partial: repeats run 03, including the erroneous holster-before-fire step.",
+      "checkpoints": [
+        {
+          "name": "intro",
+          "frame": 905
+        },
+        {
+          "name": "title",
+          "frame": 6908
+        },
+        {
+          "name": "main-menu",
+          "frame": 7031
+        },
+        {
+          "name": "difficulty",
+          "frame": 7151
+        },
+        {
+          "name": "spawn",
+          "frame": 8053
+        },
+        {
+          "name": "draw",
+          "frame": 8114
+        },
+        {
+          "name": "fire",
+          "frame": 8180
+        },
+        {
+          "name": "jump",
+          "frame": 8215
+        },
+        {
+          "name": "land",
+          "frame": 8335
+        },
+        {
+          "name": "inventory",
+          "frame": 8397
+        },
+        {
+          "name": "inventory-close",
+          "frame": 8457
+        },
+        {
+          "name": "forward",
+          "frame": 8520
+        },
+        {
+          "name": "turn",
+          "frame": 8566
+        }
+      ],
+      "checked_seeks": 0,
+      "failed_seeks": 0,
+      "seek_interpretation": "No eligible explicit seek/read pair in the retained end-of-route history; inconclusive, not a pass."
+    },
+    {
+      "name": "d01-baseline-05",
+      "local_evidence": "recomp/analysis/vanilla-regression/d01-baseline-05",
+      "binary_sha256": "1d280e754974854393048322b59d65535214eee97cddbcdadc57a58f58d4f038",
+      "runner_sha256": "495fbe7b6eed5ff73306909de5bfd913de7817b0733b45e1a10a5e74d0522434",
+      "elapsed_seconds": 87.6648622549983,
+      "exit_code": 0,
+      "review": "Pass for bounded visually reviewed inputs only. Ammo 200 to 195; health 100 to 70; jump, inventory, holster/draw, movement and turning observed.",
+      "checkpoints": [
+        {
+          "name": "intro",
+          "frame": 905
+        },
+        {
+          "name": "title",
+          "frame": 6908
+        },
+        {
+          "name": "main-menu",
+          "frame": 7031
+        },
+        {
+          "name": "difficulty",
+          "frame": 7151
+        },
+        {
+          "name": "spawn",
+          "frame": 8052
+        },
+        {
+          "name": "fire",
+          "frame": 8119
+        },
+        {
+          "name": "holster",
+          "frame": 8179
+        },
+        {
+          "name": "draw",
+          "frame": 8241
+        },
+        {
+          "name": "jump",
+          "frame": 8277
+        },
+        {
+          "name": "land",
+          "frame": 8398
+        },
+        {
+          "name": "inventory",
+          "frame": 8458
+        },
+        {
+          "name": "inventory-close",
+          "frame": 8518
+        },
+        {
+          "name": "forward",
+          "frame": 8578
+        },
+        {
+          "name": "turn",
+          "frame": 8624
+        }
+      ],
+      "checked_seeks": 0,
+      "failed_seeks": 0,
+      "seek_interpretation": "No eligible explicit seek/read pair in the retained end-of-route history; inconclusive, not a pass."
+    },
+    {
+      "name": "d01-baseline-06",
+      "local_evidence": "recomp/analysis/vanilla-regression/d01-baseline-06",
+      "binary_sha256": "1d280e754974854393048322b59d65535214eee97cddbcdadc57a58f58d4f038",
+      "runner_sha256": "495fbe7b6eed5ff73306909de5bfd913de7817b0733b45e1a10a5e74d0522434",
+      "elapsed_seconds": 89.38024038299773,
+      "exit_code": 0,
+      "review": "Pass for bounded visually reviewed inputs only. Ammo 200 to 195; health 100 to 70; jump, inventory, holster/draw, movement and turning observed.",
+      "checkpoints": [
+        {
+          "name": "intro",
+          "frame": 905
+        },
+        {
+          "name": "title",
+          "frame": 6908
+        },
+        {
+          "name": "main-menu",
+          "frame": 7031
+        },
+        {
+          "name": "difficulty",
+          "frame": 7151
+        },
+        {
+          "name": "spawn",
+          "frame": 8051
+        },
+        {
+          "name": "fire",
+          "frame": 8118
+        },
+        {
+          "name": "holster",
+          "frame": 8180
+        },
+        {
+          "name": "draw",
+          "frame": 8241
+        },
+        {
+          "name": "jump",
+          "frame": 8277
+        },
+        {
+          "name": "land",
+          "frame": 8398
+        },
+        {
+          "name": "inventory",
+          "frame": 8458
+        },
+        {
+          "name": "inventory-close",
+          "frame": 8519
+        },
+        {
+          "name": "forward",
+          "frame": 8580
+        },
+        {
+          "name": "turn",
+          "frame": 8626
+        }
+      ],
+      "checked_seeks": 0,
+      "failed_seeks": 0,
+      "seek_interpretation": "No eligible explicit seek/read pair in the retained end-of-route history; inconclusive, not a pass."
+    }
+  ],
+  "remaining": [
+    "Recorded security-card route through doorway",
+    "Original save/load round trip",
+    "Death/restart",
+    "Audible movie/voice/music transitions",
+    "Displayed extended route and window close"
+  ],
+  "earlier_user_evidence": "security-card-user-verification.json",
+  "earlier_window_evidence": "window-close-regression.json",
+  "safety_check": "A second runner invocation refused the live test game; no requested output directory was created.",
+  "runtime_modified": false,
+  "game_process_remaining": null,
+  "user_acceptance": {
+    "date": "2026-09-26",
+    "statement": "i can confirm the game is working after playtest to a very high vanilla standard. lock and load",
+    "scope": "Overall user playtest sign-off; individual instrumented gaps remain recorded separately."
+  }
+}

@@ -1,0 +1,972 @@
+{
+  "schema": 1,
+  "date": "2026-09-26",
+  "job": "D04",
+  "status": "Done",
+  "binary_sha256": "fadfb5549be7e0f24026658e5faa62dc089c4e1dd4e0b4eddbc78d13889bdb96",
+  "source_sha256": {
+    "CMakeLists.txt": "a6ffcb6f284d1b5f6561013a61dfb053cdbe5c000ec94bc01f17c669052c6d33",
+    "src/ttk/pc_input.cpp": "337a581744cbb3ab90ada142edc234ffa261ac995a7da4f5f9f7e1999a513873",
+    "src/ttk/pc_input.h": "ca1eb470ff880c1aa71d4fdf525fea0147c20c843f330eb9f40c21867e5041eb",
+    "src/ttk/input_bindings.def": "85a500d340408161a7fe9b3210859fc91f51f34d53febeb1f0f39f4eb1749deb",
+    "tools/local/pc_input.py": "621a37249bf9bd75080ea0feae9d8b9fec950763acd482efb17b22ea1de15c1f",
+    "tools/local/player_profiles.py": "58ce2faab4edffa5b5970ed7f0bc475d9c56a64e374459789c8221d650892ac0",
+    "tools/local/run.py": "2a6f1f82842094069f55d7b7b17234f2e6d0d7bb606efbe618b70cccb2baa63f",
+    "tools/local/pc_input_probe.py": "f7a0cc1f264eca5c33e241e6cb035796bc235d8aead1c9311b6d7ce932628617",
+    "tools/local/apply_runtime_patches.py": "0893bbbe9e1a8a1252da36207a83bcf8de7343823e2526095642cb4d581a212a",
+    "patches/time-to-kill-z-pc-input.patch": "ba91fdecdf96d8785d806042b3aa604f567e5b36313481a6b2e929b2e24737ba",
+    "tests/local/pc_input_native.cpp": "ac1bdd3cf4ec206ac2a3e54ee4e088d153eb07a2866f70d95b1621596b1577fc",
+    "tests/local/test_pc_input.py": "a91646f0e96a10dc5baf94506ae01a88910ad10a6552bf935ae0383d2cfe08c7",
+    "tests/local/test_runtime_patch_stack.py": "5a4d97cac38ed50051a41c5ac00e91290d5de2699d36f3012e4516dc245df607"
+  },
+  "build": {
+    "result": "passed",
+    "native_runtime": true,
+    "native_input_test": true,
+    "movie_cache": "all 19 entries validated; cached shard retained",
+    "existing_configure_warnings": [
+      "OpenBIOS emitter fingerprint mismatch",
+      "dev vs VERSION label mismatch"
+    ]
+  },
+  "python_tests": {
+    "run": 44,
+    "passed": 42,
+    "skipped": 2,
+    "failed": 0,
+    "command": "python3 -m unittest discover -s recomp/tests/local -v"
+  },
+  "native_sdl_test": {
+    "result": "passed",
+    "command": "xvfb-run -a recomp/build-local/ttk-input-test",
+    "checks": [
+      "separate movement axes with neutral PS1 bits",
+      "normalized diagonal and opposing inputs",
+      "Menu context excludes gameplay",
+      "mouse deltas accumulated and cleared once per frame",
+      "focus loss releases keys and capture",
+      "autorepeat does not relatch keys",
+      "Escape/pause/inventory/quit release",
+      "fixed menu navigation and Triangle back",
+      "capture blocked inside host overlays"
+    ]
+  },
+  "interactive_editor": {
+    "result": "passed",
+    "input_sequence": [
+      "2",
+      "6",
+      "jump=W",
+      "6",
+      "jump=J",
+      "5"
+    ],
+    "conflict": "W conflicts: move_forward and jump; bindings unchanged.",
+    "restart": "jump=J restored from isolated saved settings"
+  },
+  "runtime_patches": {
+    "result": "passed",
+    "checks": [
+      "pristine pinned files plus ordered patches exactly match five live modified runtime files",
+      "already-applied stack validates without modifying live source",
+      "synthetic overlap/conflict/unrelated-edit tests pass"
+    ]
+  },
+  "window_runs": {
+    "d04-modernized-acceptance": {
+      "report": "recomp/analysis/pc-input/d04-modernized-acceptance/report.json",
+      "sha256": "01c7a4362561353f899f8a659b4ca4e9ec4599ef1fdb86fe643ccc8fe5dac05a",
+      "exit_code": 0,
+      "checks": [
+        {
+          "name": "fixed menu Up reaches SIO",
+          "input": {
+            "modernized": true,
+            "focused": true,
+            "captured": false,
+            "pad": 65519,
+            "move_x": 0.0,
+            "move_y": 0.0,
+            "look_x": 0.0,
+            "look_y": 0.0,
+            "device": 0
+          },
+          "pad": {
+            "buttons": "0xFFEF",
+            "connected": true,
+            "analog": false,
+            "sticks": [
+              128,
+              128,
+              128,
+              128
+            ]
+          },
+          "frame": 5
+        },
+        {
+          "name": "focus loss releases SIO",
+          "input": {
+            "modernized": true,
+            "focused": false,
+            "captured": false,
+            "pad": 65535,
+            "move_x": 0.0,
+            "move_y": 0.0,
+            "look_x": 0.0,
+            "look_y": 0.0,
+            "device": 0
+          },
+          "pad": {
+            "buttons": "0xFFFF",
+            "connected": true,
+            "analog": false,
+            "sticks": [
+              128,
+              128,
+              128,
+              128
+            ]
+          },
+          "frame": 13
+        },
+        {
+          "name": "focus regain is neutral",
+          "input": {
+            "modernized": true,
+            "focused": true,
+            "captured": false,
+            "pad": 65535,
+            "move_x": 0.0,
+            "move_y": 0.0,
+            "look_x": 0.0,
+            "look_y": 0.0,
+            "device": 0
+          },
+          "pad": {
+            "buttons": "0xFFFF",
+            "connected": true,
+            "analog": false,
+            "sticks": [
+              128,
+              128,
+              128,
+              128
+            ]
+          },
+          "frame": 19
+        },
+        {
+          "name": "explicit mouse capture",
+          "input": {
+            "modernized": true,
+            "focused": true,
+            "captured": true,
+            "pad": 65535,
+            "move_x": 0.0,
+            "move_y": 0.0,
+            "look_x": 0.0,
+            "look_y": 0.0,
+            "device": 0
+          },
+          "pad": {
+            "buttons": "0xFFFF",
+            "connected": true,
+            "analog": false,
+            "sticks": [
+              128,
+              128,
+              128,
+              128
+            ]
+          },
+          "frame": 22
+        },
+        {
+          "name": "independent diagonal without PS1 turn bits",
+          "input": {
+            "modernized": true,
+            "focused": true,
+            "captured": true,
+            "pad": 65535,
+            "move_x": 0.70711,
+            "move_y": 0.70711,
+            "look_x": 0.0,
+            "look_y": 0.0,
+            "device": 1
+          },
+          "pad": {
+            "buttons": "0xFFFF",
+            "connected": true,
+            "analog": false,
+            "sticks": [
+              128,
+              128,
+              128,
+              128
+            ]
+          },
+          "frame": 26
+        },
+        {
+          "name": "persisted rebound jump reaches SIO",
+          "input": {
+            "modernized": true,
+            "focused": true,
+            "captured": true,
+            "pad": 32767,
+            "move_x": 0.0,
+            "move_y": 0.0,
+            "look_x": 0.0,
+            "look_y": 0.0,
+            "device": 1
+          },
+          "pad": {
+            "buttons": "0x7FFF",
+            "connected": true,
+            "analog": false,
+            "sticks": [
+              128,
+              128,
+              128,
+              128
+            ]
+          },
+          "frame": 29
+        },
+        {
+          "name": "mouse fire reaches SIO",
+          "input": {
+            "modernized": true,
+            "focused": true,
+            "captured": true,
+            "pad": 49151,
+            "move_x": 0.0,
+            "move_y": 0.0,
+            "look_x": 0.0,
+            "look_y": 0.0,
+            "device": 2
+          },
+          "pad": {
+            "buttons": "0xBFFF",
+            "connected": true,
+            "analog": false,
+            "sticks": [
+              128,
+              128,
+              128,
+              128
+            ]
+          },
+          "frame": 34
+        },
+        {
+          "name": "focus loss releases capture and held mouse",
+          "input": {
+            "modernized": true,
+            "focused": false,
+            "captured": false,
+            "pad": 65535,
+            "move_x": 0.0,
+            "move_y": 0.0,
+            "look_x": 0.0,
+            "look_y": 0.0,
+            "device": 0
+          },
+          "pad": {
+            "buttons": "0xFFFF",
+            "connected": true,
+            "analog": false,
+            "sticks": [
+              128,
+              128,
+              128,
+              128
+            ]
+          },
+          "frame": 38
+        },
+        {
+          "name": "no automatic recapture",
+          "input": {
+            "modernized": true,
+            "focused": true,
+            "captured": false,
+            "pad": 65535,
+            "move_x": 0.0,
+            "move_y": 0.0,
+            "look_x": 0.0,
+            "look_y": 0.0,
+            "device": 0
+          },
+          "pad": {
+            "buttons": "0xFFFF",
+            "connected": true,
+            "analog": false,
+            "sticks": [
+              128,
+              128,
+              128,
+              128
+            ]
+          },
+          "frame": 44
+        },
+        {
+          "name": "recapture",
+          "input": {
+            "modernized": true,
+            "focused": true,
+            "captured": true,
+            "pad": 65535,
+            "move_x": 0.0,
+            "move_y": 0.0,
+            "look_x": 0.0,
+            "look_y": 0.0,
+            "device": 0
+          },
+          "pad": {
+            "buttons": "0xFFFF",
+            "connected": true,
+            "analog": false,
+            "sticks": [
+              128,
+              128,
+              128,
+              128
+            ]
+          },
+          "frame": 46
+        },
+        {
+          "name": "Escape releases capture",
+          "input": {
+            "modernized": true,
+            "focused": true,
+            "captured": false,
+            "pad": 65535,
+            "move_x": 0.0,
+            "move_y": 0.0,
+            "look_x": 0.0,
+            "look_y": 0.0,
+            "device": 0
+          },
+          "pad": {
+            "buttons": "0xFFFF",
+            "connected": true,
+            "analog": false,
+            "sticks": [
+              128,
+              128,
+              128,
+              128
+            ]
+          },
+          "frame": 49
+        },
+        {
+          "name": "capture before pause",
+          "input": {
+            "modernized": true,
+            "focused": true,
+            "captured": true,
+            "pad": 65535,
+            "move_x": 0.0,
+            "move_y": 0.0,
+            "look_x": 0.0,
+            "look_y": 0.0,
+            "device": 0
+          },
+          "pad": {
+            "buttons": "0xFFFF",
+            "connected": true,
+            "analog": false,
+            "sticks": [
+              128,
+              128,
+              128,
+              128
+            ]
+          },
+          "frame": 52
+        },
+        {
+          "name": "pause releases capture and reaches SIO",
+          "input": {
+            "modernized": true,
+            "focused": true,
+            "captured": false,
+            "pad": 65527,
+            "move_x": 0.0,
+            "move_y": 0.0,
+            "look_x": 0.0,
+            "look_y": 0.0,
+            "device": 0
+          },
+          "pad": {
+            "buttons": "0xFFF7",
+            "connected": true,
+            "analog": false,
+            "sticks": [
+              128,
+              128,
+              128,
+              128
+            ]
+          },
+          "frame": 55
+        },
+        {
+          "name": "main-menu SDL navigation capture",
+          "frame": 7289
+        },
+        {
+          "name": "difficulty SDL navigation capture",
+          "frame": 7666
+        },
+        {
+          "name": "spawn SDL navigation capture",
+          "frame": 8886
+        }
+      ],
+      "review": "Reviewed main menu, difficulty and actual first-level spawn. Real SDL keyboard navigation; 13 input/SIO assertions pass."
+    },
+    "d04-modernized-final": {
+      "report": "recomp/analysis/pc-input/d04-modernized-final/report.json",
+      "sha256": "f8d3c59f7b1ecb0594171fd3fb2bcd4c05a131867a399164a3a6aee9d64e04e7",
+      "exit_code": 0,
+      "checks": [
+        {
+          "name": "fixed menu Up reaches SIO",
+          "input": {
+            "modernized": true,
+            "focused": true,
+            "captured": false,
+            "pad": 65519,
+            "move_x": 0.0,
+            "move_y": 0.0,
+            "look_x": 0.0,
+            "look_y": 0.0,
+            "device": 0
+          },
+          "pad": {
+            "buttons": "0xFFEF",
+            "connected": true,
+            "analog": false,
+            "sticks": [
+              128,
+              128,
+              128,
+              128
+            ]
+          },
+          "frame": 5
+        },
+        {
+          "name": "focus loss releases SIO",
+          "input": {
+            "modernized": true,
+            "focused": false,
+            "captured": false,
+            "pad": 65535,
+            "move_x": 0.0,
+            "move_y": 0.0,
+            "look_x": 0.0,
+            "look_y": 0.0,
+            "device": 0
+          },
+          "pad": {
+            "buttons": "0xFFFF",
+            "connected": true,
+            "analog": false,
+            "sticks": [
+              128,
+              128,
+              128,
+              128
+            ]
+          },
+          "frame": 13
+        },
+        {
+          "name": "focus regain is neutral",
+          "input": {
+            "modernized": true,
+            "focused": true,
+            "captured": false,
+            "pad": 65535,
+            "move_x": 0.0,
+            "move_y": 0.0,
+            "look_x": 0.0,
+            "look_y": 0.0,
+            "device": 0
+          },
+          "pad": {
+            "buttons": "0xFFFF",
+            "connected": true,
+            "analog": false,
+            "sticks": [
+              128,
+              128,
+              128,
+              128
+            ]
+          },
+          "frame": 19
+        },
+        {
+          "name": "explicit mouse capture",
+          "input": {
+            "modernized": true,
+            "focused": true,
+            "captured": true,
+            "pad": 65535,
+            "move_x": 0.0,
+            "move_y": 0.0,
+            "look_x": 0.0,
+            "look_y": 0.0,
+            "device": 0
+          },
+          "pad": {
+            "buttons": "0xFFFF",
+            "connected": true,
+            "analog": false,
+            "sticks": [
+              128,
+              128,
+              128,
+              128
+            ]
+          },
+          "frame": 21
+        },
+        {
+          "name": "independent diagonal without PS1 turn bits",
+          "input": {
+            "modernized": true,
+            "focused": true,
+            "captured": true,
+            "pad": 65535,
+            "move_x": 0.70711,
+            "move_y": 0.70711,
+            "look_x": 0.0,
+            "look_y": 0.0,
+            "device": 1
+          },
+          "pad": {
+            "buttons": "0xFFFF",
+            "connected": true,
+            "analog": false,
+            "sticks": [
+              128,
+              128,
+              128,
+              128
+            ]
+          },
+          "frame": 25
+        },
+        {
+          "name": "persisted rebound jump reaches SIO",
+          "input": {
+            "modernized": true,
+            "focused": true,
+            "captured": true,
+            "pad": 32767,
+            "move_x": 0.0,
+            "move_y": 0.0,
+            "look_x": 0.0,
+            "look_y": 0.0,
+            "device": 1
+          },
+          "pad": {
+            "buttons": "0x7FFF",
+            "connected": true,
+            "analog": false,
+            "sticks": [
+              128,
+              128,
+              128,
+              128
+            ]
+          },
+          "frame": 29
+        },
+        {
+          "name": "mouse fire reaches SIO",
+          "input": {
+            "modernized": true,
+            "focused": true,
+            "captured": true,
+            "pad": 49151,
+            "move_x": 0.0,
+            "move_y": 0.0,
+            "look_x": 0.0,
+            "look_y": 0.0,
+            "device": 2
+          },
+          "pad": {
+            "buttons": "0xBFFF",
+            "connected": true,
+            "analog": false,
+            "sticks": [
+              128,
+              128,
+              128,
+              128
+            ]
+          },
+          "frame": 33
+        },
+        {
+          "name": "focus loss releases capture and held mouse",
+          "input": {
+            "modernized": true,
+            "focused": false,
+            "captured": false,
+            "pad": 65535,
+            "move_x": 0.0,
+            "move_y": 0.0,
+            "look_x": 0.0,
+            "look_y": 0.0,
+            "device": 0
+          },
+          "pad": {
+            "buttons": "0xFFFF",
+            "connected": true,
+            "analog": false,
+            "sticks": [
+              128,
+              128,
+              128,
+              128
+            ]
+          },
+          "frame": 38
+        },
+        {
+          "name": "no automatic recapture",
+          "input": {
+            "modernized": true,
+            "focused": true,
+            "captured": false,
+            "pad": 65535,
+            "move_x": 0.0,
+            "move_y": 0.0,
+            "look_x": 0.0,
+            "look_y": 0.0,
+            "device": 0
+          },
+          "pad": {
+            "buttons": "0xFFFF",
+            "connected": true,
+            "analog": false,
+            "sticks": [
+              128,
+              128,
+              128,
+              128
+            ]
+          },
+          "frame": 42
+        },
+        {
+          "name": "recapture",
+          "input": {
+            "modernized": true,
+            "focused": true,
+            "captured": true,
+            "pad": 65535,
+            "move_x": 0.0,
+            "move_y": 0.0,
+            "look_x": 0.0,
+            "look_y": 0.0,
+            "device": 0
+          },
+          "pad": {
+            "buttons": "0xFFFF",
+            "connected": true,
+            "analog": false,
+            "sticks": [
+              128,
+              128,
+              128,
+              128
+            ]
+          },
+          "frame": 44
+        },
+        {
+          "name": "Escape releases capture",
+          "input": {
+            "modernized": true,
+            "focused": true,
+            "captured": false,
+            "pad": 65535,
+            "move_x": 0.0,
+            "move_y": 0.0,
+            "look_x": 0.0,
+            "look_y": 0.0,
+            "device": 0
+          },
+          "pad": {
+            "buttons": "0xFFFF",
+            "connected": true,
+            "analog": false,
+            "sticks": [
+              128,
+              128,
+              128,
+              128
+            ]
+          },
+          "frame": 47
+        },
+        {
+          "name": "capture before pause",
+          "input": {
+            "modernized": true,
+            "focused": true,
+            "captured": true,
+            "pad": 65535,
+            "move_x": 0.0,
+            "move_y": 0.0,
+            "look_x": 0.0,
+            "look_y": 0.0,
+            "device": 0
+          },
+          "pad": {
+            "buttons": "0xFFFF",
+            "connected": true,
+            "analog": false,
+            "sticks": [
+              128,
+              128,
+              128,
+              128
+            ]
+          },
+          "frame": 49
+        },
+        {
+          "name": "pause releases capture and reaches SIO",
+          "input": {
+            "modernized": true,
+            "focused": true,
+            "captured": false,
+            "pad": 65527,
+            "move_x": 0.0,
+            "move_y": 0.0,
+            "look_x": 0.0,
+            "look_y": 0.0,
+            "device": 0
+          },
+          "pad": {
+            "buttons": "0xFFF7",
+            "connected": true,
+            "analog": false,
+            "sticks": [
+              128,
+              128,
+              128,
+              128
+            ]
+          },
+          "frame": 52
+        },
+        {
+          "name": "main-menu SDL navigation capture",
+          "frame": 7059
+        },
+        {
+          "name": "difficulty SDL navigation capture",
+          "frame": 7206
+        },
+        {
+          "name": "spawn SDL navigation capture",
+          "frame": 8426
+        }
+      ],
+      "review": "Input/SIO assertions and menu-back capture pass. Extra round-trip spawn-labelled capture is difficulty, not gameplay; not counted as level entry."
+    },
+    "d04-vanilla-final": {
+      "report": "recomp/analysis/pc-input/d04-vanilla-final/report.json",
+      "sha256": "a4be57404f89646f5e0fdaf7bab75cae817243b17927781245e4b1108fcd034b",
+      "exit_code": 0,
+      "checks": [
+        {
+          "name": "fixed menu Up reaches SIO",
+          "input": {
+            "modernized": false,
+            "focused": true,
+            "captured": false,
+            "pad": 65535,
+            "move_x": 0.0,
+            "move_y": 0.0,
+            "look_x": 0.0,
+            "look_y": 0.0,
+            "device": 0
+          },
+          "pad": {
+            "buttons": "0xFFEF",
+            "connected": true,
+            "analog": false,
+            "sticks": [
+              128,
+              128,
+              128,
+              128
+            ]
+          },
+          "frame": 5
+        },
+        {
+          "name": "focus loss releases SIO",
+          "input": {
+            "modernized": false,
+            "focused": false,
+            "captured": false,
+            "pad": 65535,
+            "move_x": 0.0,
+            "move_y": 0.0,
+            "look_x": 0.0,
+            "look_y": 0.0,
+            "device": 0
+          },
+          "pad": {
+            "buttons": "0xFFFF",
+            "connected": true,
+            "analog": false,
+            "sticks": [
+              128,
+              128,
+              128,
+              128
+            ]
+          },
+          "frame": 13
+        },
+        {
+          "name": "focus regain is neutral",
+          "input": {
+            "modernized": false,
+            "focused": true,
+            "captured": false,
+            "pad": 65535,
+            "move_x": 0.0,
+            "move_y": 0.0,
+            "look_x": 0.0,
+            "look_y": 0.0,
+            "device": 0
+          },
+          "pad": {
+            "buttons": "0xFFFF",
+            "connected": true,
+            "analog": false,
+            "sticks": [
+              128,
+              128,
+              128,
+              128
+            ]
+          },
+          "frame": 19
+        },
+        {
+          "name": "Vanilla original Triangle translation",
+          "input": {
+            "modernized": false,
+            "focused": true,
+            "captured": false,
+            "pad": 65535,
+            "move_x": 0.0,
+            "move_y": 0.0,
+            "look_x": 0.0,
+            "look_y": 0.0,
+            "device": 0
+          },
+          "pad": {
+            "buttons": "0xEFFF",
+            "connected": true,
+            "analog": false,
+            "sticks": [
+              128,
+              128,
+              128,
+              128
+            ]
+          },
+          "frame": 24
+        },
+        {
+          "name": "Vanilla never captures mouse",
+          "input": {
+            "modernized": false,
+            "focused": true,
+            "captured": false,
+            "pad": 65535,
+            "move_x": 0.0,
+            "move_y": 0.0,
+            "look_x": 0.0,
+            "look_y": 0.0,
+            "device": 0
+          },
+          "pad": {
+            "buttons": "0xFFFF",
+            "connected": true,
+            "analog": false,
+            "sticks": [
+              128,
+              128,
+              128,
+              128
+            ]
+          },
+          "frame": 28
+        },
+        {
+          "name": "main-menu SDL navigation capture",
+          "frame": 7062
+        },
+        {
+          "name": "difficulty SDL navigation capture",
+          "frame": 7208
+        },
+        {
+          "name": "spawn SDL navigation capture",
+          "frame": 8428
+        }
+      ],
+      "review": "Five input/SIO assertions and menu-back capture pass. Extra round-trip spawn-labelled capture is difficulty, not gameplay; level entry separately verified by regression route."
+    }
+  },
+  "vanilla_regression": {
+    "report": "recomp/analysis/vanilla-regression/d04-vanilla-regression/report.json",
+    "report_sha256": "3af050aabfb56c8aca81715f268fc01227c7dfcacfe82068c4f885f089ef46d7",
+    "exit_code": 0,
+    "elapsed_seconds": 91.410611694002,
+    "review": "Reviewed spawn, fire, jump, inventory and turn captures. Ammo 200 at spawn and 195 after fire; airborne jump and inventory overlay visible; changed player/camera view after movement/turn. This is not a trajectory or campaign test."
+  },
+  "acceptance": {
+    "bindings_persist": "CLI restart, interactive editor and actual rebound J->Square in player",
+    "held_inputs_release": "real focus transfers neutralize SIO in both profiles; held mouse and capture clear in Modernized",
+    "capture_release": "native and player Escape/focus/pause checks; no automatic recapture; native quit and overlay checks",
+    "menus_operable": "real keyboard main/difficulty/level entry in Modernized; menu-back captures in both profiles",
+    "movement_independent": "W+D yields normalized action axes with SIO=0xffff"
+  },
+  "earlier_attempts": [
+    "Initial window probe search was too specific and failed before assertions; corrected search completed.",
+    "Combined back/re-enter probe did not establish level entry; preserved as menu/input evidence only. Final separate route reaches first level.",
+    "d04-modernized-route was interrupted with exit 143 and no final report; not counted as acceptance. Probe now flushes intermediate results."
+  ],
+  "user_report": "User reports continued high-standard verification playtests of the preceding build; not represented as user testing of D04.",
+  "limits": [
+    "Xvfb software-renderer checks do not prove physical desktop/compositor behavior or audible playback",
+    "Windows and physical gamepad hardware untested",
+    "D05 camera-relative movement and D06 mouse-camera application not implemented",
+    "D07 ballistics/aiming and D09 modern controller mapping remain separate",
+    "Custom runtime host hotkey conflicts are not imported into the PC editor; keep host shortcuts separate",
+    "No new full-campaign, security-card or save/load acceptance is claimed"
+  ],
+  "isolation": "All tests use private displays or headless mode, new cards and explicit isolated profile paths; original media and player cards untouched."
+}

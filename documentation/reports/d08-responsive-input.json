@@ -1,0 +1,85 @@
+{
+  "binary_sha256": "090695be9bcf4c40b49a5aea5db2e9d5e3b589ee95217bbedc2836c93c602ae0",
+  "source_sha256": {
+    "recomp/src/ttk/pc_input.cpp": "83e3aacc9276e46bb286a9f7522caf8c09715819ed44cd4d0041c5a05bd42422",
+    "recomp/src/ttk/modern_controls.cpp": "41b59e2e6b78a99373f678dd074865e5266a219faa6412d02e831189cc932012",
+    "recomp/src/ttk/weapon_aim.cpp": "fd7bd6784185a3259b7edc5f83f76d60130f419d85675c597cde5cf5545e3b56",
+    "recomp/tests/local/pc_input_native.cpp": "1b723af00c19faf115b416b63f117fcb6f082470f4412bb655b02e5b71d30ea0",
+    "recomp/tools/local/traversal_probe.py": "ba439798eab4b69007722829f67d05268e43e2d491597aa99367211b07e847f6",
+    "recomp/tools/local/pc_input_probe.py": "f0ae93497c3166e773c34f5dc37a52a94e000373092f9af702d18f829736850a"
+  },
+  "native": [
+    "SDL input including tap retention, expiry, repeat suppression, flight exclusion, focus cancellation, Escape Start/resume, F10 opt-out, E no armed Cross",
+    "movement/camera owned EXE+overlay",
+    "weapon aiming owned EXE",
+    "scene-lifetime captured crash RAM original-MIPS equivalence"
+  ],
+  "python": {
+    "run": 56,
+    "passed": 54,
+    "skipped": 2
+  },
+  "gameplay_report": "recomp/analysis/pc-input/d08-responsive-jumps/report.json",
+  "escape": "Original pause releases mouse; Escape resumes automatic Modernized capture",
+  "jumps": {
+    "passed": true,
+    "results": [
+      {
+        "sequence": "d-18",
+        "jump_animation": 103,
+        "direction_alignment": 0.9999999497593879,
+        "landing_animation": 105,
+        "original_impact": true,
+        "clear_running_continuation": false
+      },
+      {
+        "sequence": "a-27",
+        "jump_animation": 103,
+        "direction_alignment": 0.9999994031827937,
+        "landing_animation": 78,
+        "original_impact": false,
+        "clear_running_continuation": true
+      },
+      {
+        "sequence": "d-27",
+        "jump_animation": 103,
+        "direction_alignment": 0.9999999360417843,
+        "landing_animation": 78,
+        "original_impact": false,
+        "clear_running_continuation": true
+      },
+      {
+        "sequence": "a-18",
+        "jump_animation": 103,
+        "direction_alignment": 0.9999994490891249,
+        "landing_animation": 78,
+        "original_impact": false,
+        "clear_running_continuation": true
+      },
+      {
+        "sequence": "w-18",
+        "jump_animation": 103,
+        "direction_alignment": 0.999999939929427,
+        "landing_animation": 105,
+        "original_impact": true,
+        "clear_running_continuation": false
+      },
+      {
+        "sequence": "s-27",
+        "jump_animation": 103,
+        "direction_alignment": 0.9999999679441305,
+        "landing_animation": 78,
+        "original_impact": false,
+        "clear_running_continuation": true
+      }
+    ]
+  },
+  "exit_code": 0,
+  "fixtures": "Private Xvfb, dummy audio, separate profiles/cards, player longevity health=30000; no position, movement, enemy health or animation writes. Jump rebound to J and held one guest frame plus SDL/debug scheduling overhead.",
+  "limits": [
+    "Exact platform-to-second-ladder route not reproduced in this pass",
+    "Buffer fixes short/poll-missed input; does not establish cause of every reported refusal or provide coyote-time",
+    "Airborne E window verified in native input fixture; exact midair ladder catch still needs human playtest",
+    "No new audio listening or campaign acceptance"
+  ]
+}

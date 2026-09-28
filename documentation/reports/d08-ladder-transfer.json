@@ -1,0 +1,140 @@
+{
+  "binary_sha256": "96e227204360a941d65fe6e37db5526fb342a8ac049168047f9a2a15bf47c52d",
+  "source_sha256": {
+    "recomp/src/ttk/modern_controls.cpp": "923e2eb5493a61c8690955a9671cbeeddb2fbc34c57d74238b38823a777b9ee6",
+    "recomp/src/ttk/modern_controls.h": "d1440b2307e90ba482f634bd10517c0a7eb78897ea37d0d501b6601bcd628b01",
+    "recomp/src/ttk/control_guards.inc": "f72edab56aaecc2ce79609af68760a6f493d6600f9a34fdb2f3f5f556e015750",
+    "recomp/src/ttk/pc_input.cpp": "e9f7f41c9b20fb03833704c898dc359d5600316703559b3f21d535439a265aee",
+    "recomp/tests/local/modern_controls_native.cpp": "b964d48e7811bf042e445822782a4c6928c7b692c101991353b8d434a289c320",
+    "recomp/tests/local/pc_input_native.cpp": "79fe14aa8767597d473859fac0406dff37595fd7c9166c9187878029cb239c73",
+    "recomp/tools/local/traversal_probe.py": "eddce4ca7fcf35d500c4acf4629af32435ab2ab888d21291ca3607acece001db",
+    "recomp/analysis/d08-ladder-transfer/route.py": "9c105d98252acfa0569acaf454b6c575aebc937e003963aa5411ad250302931c"
+  },
+  "baseline": {
+    "binary_sha256": "090695be9bcf4c40b49a5aea5db2e9d5e3b589ee95217bbedc2836c93c602ae0",
+    "result": "E held throughout; unarmed Cross stops at animation 109; misses second ladder and falls to street"
+  },
+  "candidate": {
+    "binary_sha256": "7e4c113405040d97fcde41070dae477576f40c742f99824e10a64672f58e37d4",
+    "result": "Holstered running jump catches second ladder and completes climb to upper platform"
+  },
+  "delivery": {
+    "passed": true,
+    "jump_input_frame": 10127,
+    "first_sampled_flight_frame": 10133,
+    "reach_release_frame": 10157,
+    "attachment_frame": 10188,
+    "attachment_position": [
+      4590,
+      -11770,
+      13769
+    ],
+    "upper_platform": [
+      2368,
+      -13821,
+      13706
+    ],
+    "automatic_redraw": true,
+    "ammo_unchanged": 200,
+    "shots": 0,
+    "manual_holster": false
+  },
+  "jump_regression": {
+    "passed": true,
+    "results": [
+      {
+        "sequence": "d-18",
+        "jump_animation": 103,
+        "direction_alignment": 0.9999994840066609,
+        "landing_animation": 78,
+        "original_impact": false,
+        "clear_running_continuation": true
+      },
+      {
+        "sequence": "a-27",
+        "jump_animation": 103,
+        "direction_alignment": 0.9999996586772741,
+        "landing_animation": 78,
+        "original_impact": false,
+        "clear_running_continuation": true
+      },
+      {
+        "sequence": "d-27",
+        "jump_animation": 103,
+        "direction_alignment": 0.9999994575916307,
+        "landing_animation": 78,
+        "original_impact": false,
+        "clear_running_continuation": true
+      },
+      {
+        "sequence": "a-18",
+        "jump_animation": 103,
+        "direction_alignment": 0.9999997482932972,
+        "landing_animation": 105,
+        "original_impact": true,
+        "clear_running_continuation": false
+      },
+      {
+        "sequence": "w-18",
+        "jump_animation": 103,
+        "direction_alignment": 0.9999999993831935,
+        "landing_animation": 78,
+        "original_impact": false,
+        "clear_running_continuation": true
+      },
+      {
+        "sequence": "s-27",
+        "jump_animation": 103,
+        "direction_alignment": 0.9999994113030514,
+        "landing_animation": 78,
+        "original_impact": false,
+        "clear_running_continuation": true
+      }
+    ]
+  },
+  "private_reports": {
+    "baseline": "recomp/analysis/pc-input/d08-ladder-transfer-research/report.json",
+    "candidate": "recomp/analysis/pc-input/d08-ladder-transfer-candidate/report.json",
+    "delivery": "recomp/analysis/pc-input/d08-ladder-transfer-final/report.json",
+    "jump_regression": "recomp/analysis/pc-input/d08-ladder-transfer-jump-regression/report.json"
+  },
+  "native": [
+    "input passes including airborne reach retention, takeoff bridge and no armed Cross",
+    "controls passes including owned 109 and forecast caller/code guards, no player object writes",
+    "aim passes owned EXE fixture",
+    "scene lifetime passes actual captured crash RAM original-MIPS equivalence"
+  ],
+  "python": {
+    "run": 56,
+    "passed": 54,
+    "skipped": 2
+  },
+  "vanilla": {
+    "report": "recomp/analysis/vanilla-regression/d08-ladder-transfer-vanilla/report.json",
+    "exit_code": 0,
+    "checkpoints": 14,
+    "reviewed": [
+      "fire",
+      "jump",
+      "inventory",
+      "turn"
+    ],
+    "limits": "Bounded first-map regression; not save/load/full-campaign or audio listening acceptance"
+  },
+  "fixture_limits": "Private SDL/Xvfb, dummy audio, isolated cards/profiles, logged player-health longevity only. No position/velocity/animation/collision/enemy-health writes. Real SDL keys; jump rebound to J in private profile. Nominal event intervals include debug overhead; actual guest-frame events recorded.",
+  "remaining": [
+    "Human fluidity and oblique/diagonal transfers",
+    "Other ladders/maps, standing/walking jumps, swimming and scripted traversal",
+    "Campaign/security-card regression and audible-output acceptance remain open"
+  ],
+  "player_files_unchanged": true,
+  "user_acceptance": {
+    "date": "2026-09-26",
+    "job": "D08",
+    "status": "Done",
+    "evidence": "User explicitly accepts the current controls and fluidity; reports every tested ladder jump behaved as expected and E reliably grabbed the next ladder.",
+    "remaining_coverage_job": "D08B",
+    "requested_next_job": "D08A",
+    "next_job_status": "Todo; not implemented"
+  }
+}

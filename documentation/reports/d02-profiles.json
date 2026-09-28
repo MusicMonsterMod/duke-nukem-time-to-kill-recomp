@@ -1,0 +1,66 @@
+{
+  "date": "2026-09-26",
+  "status": "Done",
+  "unit_tests": 9,
+  "terminal_check": "PTY menu: select Modernized, select Software, save; separate process --show-settings retained both. Isolated analysis settings file only.",
+  "runtime_runs": [
+    {
+      "name": "d02-modernized-software",
+      "binary_sha256": "1d280e754974854393048322b59d65535214eee97cddbcdadc57a58f58d4f038",
+      "settings": {
+        "version": 1,
+        "active": "modernized",
+        "profiles": {
+          "vanilla": {
+            "presentation": {
+              "renderer": "opengl"
+            }
+          },
+          "modernized": {
+            "presentation": {
+              "renderer": "software"
+            }
+          }
+        }
+      },
+      "exit_code": 0,
+      "elapsed_seconds": 87.29047258699575,
+      "review": "Captured menu, spawn, fire/ammo reduction, jump, inventory, movement/turning and damage visually reviewed. Original gameplay remains active.",
+      "local_evidence": "recomp/analysis/vanilla-regression/d02-modernized-software"
+    },
+    {
+      "name": "d02-vanilla-opengl",
+      "binary_sha256": "1d280e754974854393048322b59d65535214eee97cddbcdadc57a58f58d4f038",
+      "settings": {
+        "version": 1,
+        "active": "vanilla",
+        "profiles": {
+          "vanilla": {
+            "presentation": {
+              "renderer": "opengl"
+            }
+          },
+          "modernized": {
+            "presentation": {
+              "renderer": "opengl"
+            }
+          }
+        }
+      },
+      "exit_code": 0,
+      "elapsed_seconds": 88.85976851200394,
+      "review": "Captured menu, spawn, fire/ammo reduction, jump, inventory, movement/turning and damage visually reviewed. Original gameplay remains active.",
+      "local_evidence": "recomp/analysis/vanilla-regression/d02-vanilla-opengl"
+    }
+  ],
+  "limitations": [
+    "Modernized preview has original gameplay; no WASD/mouse camera implemented",
+    "Only renderer preferences are per-profile",
+    "Native Windows untested"
+  ],
+  "user_verification": {
+    "date": "2026-09-26",
+    "settings_launcher_works": true,
+    "selected_profile": "modernized"
+  }
+}

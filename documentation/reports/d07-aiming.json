@@ -1,0 +1,2435 @@
+{
+  "job": "D07",
+  "date": "2026-09-26",
+  "status": "Done",
+  "acceptance_complete": true,
+  "scope": "Bounded SLUS-00583 LEVEL00 preview; D01-D06 remain user-accepted Done; no D08 work.",
+  "binary_sha256": "0ac41da3915c2ecd49dcd54caf15ec9f1424665699e9eab28f5b339797acd1ca",
+  "enabled_weapon_slots": [
+    4,
+    5,
+    6,
+    7,
+    8,
+    11
+  ],
+  "original_fallback_slots": [
+    0,
+    1,
+    2,
+    3,
+    9,
+    10,
+    12,
+    13,
+    14
+  ],
+  "settings": {
+    "schema": 4,
+    "weapon_aim": [
+      "view",
+      "original"
+    ],
+    "vanilla_forces": "original",
+    "player_saved_profile_modified": false
+  },
+  "automated": {
+    "python": {
+      "discovered": 52,
+      "passed": 50,
+      "skipped": 2,
+      "log": "recomp/analysis/d07/python-final.log"
+    },
+    "native": {
+      "aim": "passed after final coverage tightening",
+      "input": "passed",
+      "movement_camera": "passed",
+      "logs": [
+        "recomp/analysis/d07/aim-harness-final.log",
+        "recomp/analysis/d07/native-final.log"
+      ]
+    },
+    "thin_cover": "Mock original-query plane at X50, muzzle X100 retracts to X42; not retail geometry proof"
+  },
+  "final_cover": {
+    "run": "recomp/analysis/pc-input/d07-acceptance-cover",
+    "binary_sha256": "0ac41da3915c2ecd49dcd54caf15ec9f1424665699e9eab28f5b339797acd1ca",
+    "exit_code": 0,
+    "error": null,
+    "launch_types": {
+      "0": 4
+    },
+    "flight_types": {
+      "0": 6,
+      "9": 52
+    },
+    "impacts": [
+      {
+        "projectile": "800daa38",
+        "type": 0,
+        "point": [
+          7168.0,
+          -9378.0,
+          -349.0
+        ],
+        "launch": {
+          "type": 0,
+          "origin": [
+            2317.0,
+            -9937.0,
+            6890.0
+          ],
+          "direction": [
+            2280.0,
+            263.0,
+            -3402.0
+          ],
+          "aim": {
+            "weapon": 4,
+            "target": [
+              6471.0,
+              -9457.0,
+              692.0
+            ],
+            "direction": [
+              2276.0,
+              263.0,
+              -3395.0
+            ],
+            "cover": 0,
+            "camera_query_kind": -2145578200
+          }
+        },
+        "distance_along_launch": 8731.998765048078,
+        "perpendicular_launch_error": 0.7531260535122066,
+        "distance_to_view_target": 1255.2812433873137
+      },
+      {
+        "projectile": "800daaf8",
+        "type": 0,
+        "point": [
+          6135.0,
+          -9550.0,
+          1023.0
+        ],
+        "launch": {
+          "type": 0,
+          "origin": [
+            2305.0,
+            -9997.0,
+            6902.0
+          ],
+          "direction": [
+            2236.0,
+            262.0,
+            -3431.0
+          ],
+          "aim": {
+            "weapon": 4,
+            "target": [
+              6138.0,
+              -9548.0,
+              1023.0
+            ],
+            "direction": [
+              2232.0,
+              262.0,
+              -3424.0
+            ],
+            "cover": 0,
+            "camera_query_kind": 1
+          }
+        },
+        "distance_along_launch": 7030.742857375139,
+        "perpendicular_launch_error": 2.2075933626575805,
+        "distance_to_view_target": 3.605551275463989
+      },
+      {
+        "projectile": "800dbc98",
+        "type": 0,
+        "point": [
+          6109.0,
+          -10038.0,
+          1023.0
+        ],
+        "launch": {
+          "type": 0,
+          "origin": [
+            5985.0,
+            -9942.0,
+            1095.0
+          ],
+          "direction": [
+            2960.0,
+            -2274.0,
+            -1706.0
+          ],
+          "aim": {
+            "weapon": 4,
+            "target": [
+              6110.0,
+              -10038.0,
+              1023.0
+            ],
+            "direction": [
+              2955.0,
+              -2269.0,
+              -1702.0
+            ],
+            "cover": 0,
+            "camera_query_kind": 1
+          }
+        },
+        "distance_along_launch": 172.5559886081929,
+        "perpendicular_launch_error": 0.656350096520164,
+        "distance_to_view_target": 1.0
+      },
+      {
+        "projectile": "800dbf38",
+        "type": 0,
+        "point": [
+          6109.0,
+          -10037.0,
+          1023.0
+        ],
+        "launch": {
+          "type": 0,
+          "origin": [
+            5983.0,
+            -9932.0,
+            1097.0
+          ],
+          "direction": [
+            2875.0,
+            -2401.0,
+            -1677.0
+          ],
+          "aim": {
+            "weapon": 4,
+            "target": [
+              6110.0,
+              -10038.0,
+              1023.0
+            ],
+            "direction": [
+              2870.0,
+              -2396.0,
+              -1673.0
+            ],
+            "cover": 0,
+            "camera_query_kind": 1
+          }
+        },
+        "distance_along_launch": 179.93526735853575,
+        "perpendicular_launch_error": 0.5473213062390849,
+        "distance_to_view_target": 1.4142135623730951
+      }
+    ],
+    "limits": "Impact records are original collision-consumer calls. Distance to target may differ due to intervening cover, moving actors, spread, gravity or bounce. Synthetic selection does not establish natural acquisition, animation or models.",
+    "samples": [
+      {
+        "name": "weapon-before",
+        "slot": 4,
+        "ammo": 200,
+        "aim": {
+          "reticle": true,
+          "shots": 0,
+          "rejected": 0,
+          "queries": 0,
+          "weapon": 0,
+          "hit_kind": 0,
+          "origin": [
+            0,
+            0,
+            0
+          ],
+          "target": [
+            0,
+            0,
+            0
+          ],
+          "direction": [
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      {
+        "name": "weapon-fire",
+        "slot": 4,
+        "ammo": 198,
+        "aim": {
+          "reticle": true,
+          "shots": 2,
+          "rejected": 0,
+          "queries": 4,
+          "weapon": 4,
+          "hit_kind": 1,
+          "origin": [
+            2305,
+            -9997,
+            6902
+          ],
+          "target": [
+            6138,
+            -9548,
+            1023
+          ],
+          "direction": [
+            2232,
+            262,
+            -3424
+          ]
+        }
+      },
+      {
+        "name": "weapon-after",
+        "slot": 4,
+        "ammo": 198,
+        "aim": {
+          "reticle": true,
+          "shots": 2,
+          "rejected": 0,
+          "queries": 4,
+          "weapon": 4,
+          "hit_kind": 1,
+          "origin": [
+            2305,
+            -9997,
+            6902
+          ],
+          "target": [
+            6138,
+            -9548,
+            1023
+          ],
+          "direction": [
+            2232,
+            262,
+            -3424
+          ]
+        }
+      },
+      {
+        "name": "cover-position",
+        "slot": 4,
+        "ammo": 198,
+        "aim": {
+          "reticle": false,
+          "shots": 2,
+          "rejected": 0,
+          "queries": 4,
+          "weapon": 4,
+          "hit_kind": 1,
+          "origin": [
+            2305,
+            -9997,
+            6902
+          ],
+          "target": [
+            6138,
+            -9548,
+            1023
+          ],
+          "direction": [
+            2232,
+            262,
+            -3424
+          ]
+        }
+      },
+      {
+        "name": "cover-fire",
+        "slot": 4,
+        "ammo": 196,
+        "aim": {
+          "reticle": true,
+          "shots": 4,
+          "rejected": 0,
+          "queries": 8,
+          "weapon": 4,
+          "hit_kind": 1,
+          "origin": [
+            5983,
+            -9932,
+            1097
+          ],
+          "target": [
+            6110,
+            -10038,
+            1023
+          ],
+          "direction": [
+            2870,
+            -2396,
+            -1673
+          ]
+        }
+      },
+      {
+        "name": "aim-released",
+        "slot": 4,
+        "ammo": 196,
+        "aim": {
+          "reticle": false,
+          "shots": 4,
+          "rejected": 0,
+          "queries": 8,
+          "weapon": 4,
+          "hit_kind": 1,
+          "origin": [
+            5983,
+            -9932,
+            1097
+          ],
+          "target": [
+            6110,
+            -10038,
+            1023
+          ],
+          "direction": [
+            2870,
+            -2396,
+            -1673
+          ]
+        }
+      }
+    ]
+  },
+  "final_fallbacks": {
+    "run": "recomp/analysis/pc-input/d07-acceptance-fallbacks",
+    "binary_sha256": "0ac41da3915c2ecd49dcd54caf15ec9f1424665699e9eab28f5b339797acd1ca",
+    "exit_code": 0,
+    "error": null,
+    "launch_types": {
+      "0": 2,
+      "14": 2,
+      "15": 2,
+      "13": 2,
+      "4": 2
+    },
+    "flight_types": {
+      "0": 4,
+      "14": 16
+    },
+    "impacts": [
+      {
+        "projectile": "800daaf8",
+        "type": 0,
+        "point": [
+          6140.0,
+          -9563.0,
+          1023.0
+        ],
+        "launch": {
+          "type": 0,
+          "origin": [
+            2305.0,
+            -9996.0,
+            6902.0
+          ],
+          "direction": [
+            2234.0,
+            253.0,
+            -3424.0
+          ],
+          "aim": {
+            "weapon": 4,
+            "target": [
+              6140.0,
+              -9561.0,
+              1023.0
+            ],
+            "direction": [
+              2234.0,
+              253.0,
+              -3424.0
+            ],
+            "cover": 0,
+            "camera_query_kind": 1
+          }
+        },
+        "distance_along_launch": 7032.59217498718,
+        "perpendicular_launch_error": 1.5166769818908596,
+        "distance_to_view_target": 2.0
+      },
+      {
+        "projectile": "800dad98",
+        "type": 13,
+        "point": [
+          6138.0,
+          -9570.0,
+          1023.0
+        ]
+      },
+      {
+        "projectile": "800dad98",
+        "type": 13,
+        "point": [
+          9377.0,
+          -9279.0,
+          6144.0
+        ]
+      },
+      {
+        "projectile": "800dadf8",
+        "type": 13,
+        "point": [
+          6137.0,
+          -9569.0,
+          1023.0
+        ]
+      },
+      {
+        "projectile": "800dad98",
+        "type": 13,
+        "point": [
+          11499.0,
+          -9088.0,
+          2776.0
+        ]
+      },
+      {
+        "projectile": "800dad98",
+        "type": 13,
+        "point": [
+          11963.0,
+          -9161.0,
+          2047.0
+        ]
+      },
+      {
+        "projectile": "800dadf8",
+        "type": 13,
+        "point": [
+          9146.0,
+          -9216.0,
+          5793.0
+        ]
+      },
+      {
+        "projectile": "800dadf8",
+        "type": 13,
+        "point": [
+          9369.0,
+          -9273.0,
+          6144.0
+        ]
+      },
+      {
+        "projectile": "800dadf8",
+        "type": 13,
+        "point": [
+          12601.0,
+          -9651.0,
+          1023.0
+        ]
+      }
+    ],
+    "limits": "Impact records are original collision-consumer calls. Distance to target may differ due to intervening cover, moving actors, spread, gravity or bounce. Synthetic selection does not establish natural acquisition, animation or models.",
+    "samples": [
+      {
+        "name": "weapon-before",
+        "slot": 4,
+        "ammo": 200,
+        "aim": {
+          "reticle": true,
+          "shots": 0,
+          "rejected": 0,
+          "queries": 0,
+          "weapon": 0,
+          "hit_kind": 0,
+          "origin": [
+            0,
+            0,
+            0
+          ],
+          "target": [
+            0,
+            0,
+            0
+          ],
+          "direction": [
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      {
+        "name": "weapon-fire",
+        "slot": 4,
+        "ammo": 198,
+        "aim": {
+          "reticle": true,
+          "shots": 2,
+          "rejected": 0,
+          "queries": 4,
+          "weapon": 4,
+          "hit_kind": 1,
+          "origin": [
+            2305,
+            -9996,
+            6902
+          ],
+          "target": [
+            6140,
+            -9561,
+            1023
+          ],
+          "direction": [
+            2234,
+            253,
+            -3424
+          ]
+        }
+      },
+      {
+        "name": "weapon-after",
+        "slot": 4,
+        "ammo": 198,
+        "aim": {
+          "reticle": true,
+          "shots": 2,
+          "rejected": 0,
+          "queries": 4,
+          "weapon": 4,
+          "hit_kind": 1,
+          "origin": [
+            2305,
+            -9996,
+            6902
+          ],
+          "target": [
+            6140,
+            -9561,
+            1023
+          ],
+          "direction": [
+            2234,
+            253,
+            -3424
+          ]
+        }
+      },
+      {
+        "name": "slot-9-selected",
+        "slot": 9,
+        "ammo": 200,
+        "aim": {
+          "reticle": false,
+          "shots": 2,
+          "rejected": 0,
+          "queries": 4,
+          "weapon": 4,
+          "hit_kind": 1,
+          "origin": [
+            2305,
+            -9996,
+            6902
+          ],
+          "target": [
+            6140,
+            -9561,
+            1023
+          ],
+          "direction": [
+            2234,
+            253,
+            -3424
+          ]
+        }
+      },
+      {
+        "name": "slot-9-before",
+        "slot": 9,
+        "ammo": 200,
+        "aim": {
+          "reticle": false,
+          "shots": 2,
+          "rejected": 0,
+          "queries": 4,
+          "weapon": 4,
+          "hit_kind": 1,
+          "origin": [
+            2305,
+            -9996,
+            6902
+          ],
+          "target": [
+            6140,
+            -9561,
+            1023
+          ],
+          "direction": [
+            2234,
+            253,
+            -3424
+          ]
+        }
+      },
+      {
+        "name": "slot-9-fire",
+        "slot": 9,
+        "ammo": 198,
+        "aim": {
+          "reticle": false,
+          "shots": 2,
+          "rejected": 0,
+          "queries": 4,
+          "weapon": 4,
+          "hit_kind": 1,
+          "origin": [
+            2305,
+            -9996,
+            6902
+          ],
+          "target": [
+            6140,
+            -9561,
+            1023
+          ],
+          "direction": [
+            2234,
+            253,
+            -3424
+          ]
+        }
+      },
+      {
+        "name": "slot-10-selected",
+        "slot": 10,
+        "ammo": 200,
+        "aim": {
+          "reticle": false,
+          "shots": 2,
+          "rejected": 0,
+          "queries": 4,
+          "weapon": 4,
+          "hit_kind": 1,
+          "origin": [
+            2305,
+            -9996,
+            6902
+          ],
+          "target": [
+            6140,
+            -9561,
+            1023
+          ],
+          "direction": [
+            2234,
+            253,
+            -3424
+          ]
+        }
+      },
+      {
+        "name": "slot-10-before",
+        "slot": 10,
+        "ammo": 200,
+        "aim": {
+          "reticle": false,
+          "shots": 2,
+          "rejected": 0,
+          "queries": 4,
+          "weapon": 4,
+          "hit_kind": 1,
+          "origin": [
+            2305,
+            -9996,
+            6902
+          ],
+          "target": [
+            6140,
+            -9561,
+            1023
+          ],
+          "direction": [
+            2234,
+            253,
+            -3424
+          ]
+        }
+      },
+      {
+        "name": "slot-10-fire",
+        "slot": 10,
+        "ammo": 198,
+        "aim": {
+          "reticle": false,
+          "shots": 2,
+          "rejected": 0,
+          "queries": 4,
+          "weapon": 4,
+          "hit_kind": 1,
+          "origin": [
+            2305,
+            -9996,
+            6902
+          ],
+          "target": [
+            6140,
+            -9561,
+            1023
+          ],
+          "direction": [
+            2234,
+            253,
+            -3424
+          ]
+        }
+      },
+      {
+        "name": "slot-11-selected",
+        "slot": 11,
+        "ammo": 200,
+        "aim": {
+          "reticle": true,
+          "shots": 2,
+          "rejected": 0,
+          "queries": 4,
+          "weapon": 4,
+          "hit_kind": 1,
+          "origin": [
+            2305,
+            -9996,
+            6902
+          ],
+          "target": [
+            6140,
+            -9561,
+            1023
+          ],
+          "direction": [
+            2234,
+            253,
+            -3424
+          ]
+        }
+      },
+      {
+        "name": "slot-11-before",
+        "slot": 11,
+        "ammo": 200,
+        "aim": {
+          "reticle": true,
+          "shots": 2,
+          "rejected": 0,
+          "queries": 4,
+          "weapon": 4,
+          "hit_kind": 1,
+          "origin": [
+            2305,
+            -9996,
+            6902
+          ],
+          "target": [
+            6140,
+            -9561,
+            1023
+          ],
+          "direction": [
+            2234,
+            253,
+            -3424
+          ]
+        }
+      },
+      {
+        "name": "slot-11-fire",
+        "slot": 11,
+        "ammo": 198,
+        "aim": {
+          "reticle": true,
+          "shots": 4,
+          "rejected": 0,
+          "queries": 8,
+          "weapon": 11,
+          "hit_kind": 1,
+          "origin": [
+            2485,
+            -9997,
+            6773
+          ],
+          "target": [
+            6141,
+            -9566,
+            1023
+          ],
+          "direction": [
+            2193,
+            259,
+            -3450
+          ]
+        }
+      },
+      {
+        "name": "slot-12-selected",
+        "slot": 12,
+        "ammo": 200,
+        "aim": {
+          "reticle": false,
+          "shots": 4,
+          "rejected": 0,
+          "queries": 8,
+          "weapon": 11,
+          "hit_kind": 1,
+          "origin": [
+            2485,
+            -9997,
+            6773
+          ],
+          "target": [
+            6141,
+            -9566,
+            1023
+          ],
+          "direction": [
+            2193,
+            259,
+            -3450
+          ]
+        }
+      },
+      {
+        "name": "slot-12-before",
+        "slot": 12,
+        "ammo": 200,
+        "aim": {
+          "reticle": false,
+          "shots": 4,
+          "rejected": 0,
+          "queries": 8,
+          "weapon": 11,
+          "hit_kind": 1,
+          "origin": [
+            2485,
+            -9997,
+            6773
+          ],
+          "target": [
+            6141,
+            -9566,
+            1023
+          ],
+          "direction": [
+            2193,
+            259,
+            -3450
+          ]
+        }
+      },
+      {
+        "name": "slot-12-fire",
+        "slot": 12,
+        "ammo": 198,
+        "aim": {
+          "reticle": false,
+          "shots": 4,
+          "rejected": 0,
+          "queries": 8,
+          "weapon": 11,
+          "hit_kind": 1,
+          "origin": [
+            2485,
+            -9997,
+            6773
+          ],
+          "target": [
+            6141,
+            -9566,
+            1023
+          ],
+          "direction": [
+            2193,
+            259,
+            -3450
+          ]
+        }
+      },
+      {
+        "name": "aim-released",
+        "slot": 12,
+        "ammo": 198,
+        "aim": {
+          "reticle": false,
+          "shots": 4,
+          "rejected": 0,
+          "queries": 8,
+          "weapon": 11,
+          "hit_kind": 1,
+          "origin": [
+            2485,
+            -9997,
+            6773
+          ],
+          "target": [
+            6141,
+            -9566,
+            1023
+          ],
+          "direction": [
+            2193,
+            259,
+            -3450
+          ]
+        }
+      }
+    ]
+  },
+  "earlier_candidate": {
+    "reason": "Before narrowing enabled set from slots 12/13; unchanged 4-8,11 paths remain research evidence, not exact-final-binary replay",
+    "families": {
+      "run": "recomp/analysis/pc-input/d07-final-family-a",
+      "binary_sha256": "491419e058ed57feee6b41635227711fc74faf222eb72e8948f2697c34d28959",
+      "exit_code": 0,
+      "error": null,
+      "launch_types": {
+        "0": 2,
+        "1": 20,
+        "6": 2,
+        "7": 2,
+        "8": 2
+      },
+      "flight_types": {
+        "0": 4,
+        "1": 40,
+        "6": 4,
+        "7": 4,
+        "8": 10
+      },
+      "impacts": [
+        {
+          "projectile": "800daaf8",
+          "type": 0,
+          "point": [
+            6140.0,
+            -9563.0,
+            1023.0
+          ],
+          "launch": {
+            "type": 0,
+            "origin": [
+              2305.0,
+              -9996.0,
+              6902.0
+            ],
+            "direction": [
+              2234.0,
+              253.0,
+              -3424.0
+            ],
+            "aim": {
+              "weapon": 4,
+              "target": [
+                6140.0,
+                -9561.0,
+                1023.0
+              ],
+              "direction": [
+                2234.0,
+                253.0,
+                -3424.0
+              ],
+              "cover": 0,
+              "camera_query_kind": 1
+            }
+          },
+          "distance_along_launch": 7032.59217498718,
+          "perpendicular_launch_error": 1.5166769818908596,
+          "distance_to_view_target": 2.0
+        },
+        {
+          "projectile": "800dab58",
+          "type": 1,
+          "point": [
+            5936.0,
+            -9485.0,
+            1023.0
+          ],
+          "launch": {
+            "type": 1,
+            "origin": [
+              2477.0,
+              -9918.0,
+              6781.0
+            ],
+            "direction": [
+              2106.0,
+              264.0,
+              -3504.0
+            ],
+            "aim": {
+              "weapon": 5,
+              "target": [
+                6141.0,
+                -9566.0,
+                1023.0
+              ],
+              "direction": [
+                2196.0,
+                211.0,
+                -3451.0
+              ],
+              "cover": 0,
+              "camera_query_kind": 1
+            }
+          },
+          "distance_along_launch": 6731.027503646301,
+          "perpendicular_launch_error": 1.6568515469680904,
+          "distance_to_view_target": 220.42232191862965
+        },
+        {
+          "projectile": "800dad38",
+          "type": 1,
+          "point": [
+            7168.0,
+            -9652.0,
+            -62.0
+          ],
+          "launch": {
+            "type": 1,
+            "origin": [
+              2477.0,
+              -9918.0,
+              6781.0
+            ],
+            "direction": [
+              2315.0,
+              132.0,
+              -3377.0
+            ],
+            "aim": {
+              "weapon": 5,
+              "target": [
+                6141.0,
+                -9566.0,
+                1023.0
+              ],
+              "direction": [
+                2196.0,
+                211.0,
+                -3451.0
+              ],
+              "cover": 0,
+              "camera_query_kind": 1
+            }
+          },
+          "distance_along_launch": 8300.776097200807,
+          "perpendicular_launch_error": 1.4778835320027497,
+          "distance_to_view_target": 1496.445789195185
+        },
+        {
+          "projectile": "800dad98",
+          "type": 1,
+          "point": [
+            6133.0,
+            -9690.0,
+            1023.0
+          ],
+          "launch": {
+            "type": 1,
+            "origin": [
+              2477.0,
+              -9918.0,
+              6781.0
+            ],
+            "direction": [
+              2195.0,
+              138.0,
+              -3456.0
+            ],
+            "aim": {
+              "weapon": 5,
+              "target": [
+                6141.0,
+                -9566.0,
+                1023.0
+              ],
+              "direction": [
+                2196.0,
+                211.0,
+                -3451.0
+              ],
+              "cover": 0,
+              "camera_query_kind": 1
+            }
+          },
+          "distance_along_launch": 6824.432546760392,
+          "perpendicular_launch_error": 2.1011229078078384,
+          "distance_to_view_target": 124.25779653607253
+        },
+        {
+          "projectile": "800dadf8",
+          "type": 1,
+          "point": [
+            7168.0,
+            -9619.0,
+            51.0
+          ],
+          "launch": {
+            "type": 1,
+            "origin": [
+              2477.0,
+              -9918.0,
+              6781.0
+            ],
+            "direction": [
+              2341.0,
+              151.0,
+              -3358.0
+            ],
+            "aim": {
+              "weapon": 5,
+              "target": [
+                6141.0,
+                -9566.0,
+                1023.0
+              ],
+              "direction": [
+                2196.0,
+                211.0,
+                -3451.0
+              ],
+              "cover": 0,
+              "camera_query_kind": 1
+            }
+          },
+          "distance_along_launch": 8209.00533387737,
+          "perpendicular_launch_error": 3.6644744348921185,
+          "distance_to_view_target": 1415.0342752032545
+        },
+        {
+          "projectile": "800dae58",
+          "type": 1,
+          "point": [
+            6134.0,
+            -9607.0,
+            1023.0
+          ],
+          "launch": {
+            "type": 1,
+            "origin": [
+              2477.0,
+              -9918.0,
+              6781.0
+            ],
+            "direction": [
+              2194.0,
+              188.0,
+              -3454.0
+            ],
+            "aim": {
+              "weapon": 5,
+              "target": [
+                6141.0,
+                -9566.0,
+                1023.0
+              ],
+              "direction": [
+                2196.0,
+                211.0,
+                -3451.0
+              ],
+              "cover": 0,
+              "camera_query_kind": 1
+            }
+          },
+          "distance_along_launch": 6828.244876719489,
+          "perpendicular_launch_error": 2.4297230379798447,
+          "distance_to_view_target": 41.593268686170845
+        },
+        {
+          "projectile": "800daeb8",
+          "type": 1,
+          "point": [
+            6023.0,
+            -9462.0,
+            1023.0
+          ],
+          "launch": {
+            "type": 1,
+            "origin": [
+              2477.0,
+              -9918.0,
+              6781.0
+            ],
+            "direction": [
+              2144.0,
+              276.0,
+              -3480.0
+            ],
+            "aim": {
+              "weapon": 5,
+              "target": [
+                6141.0,
+                -9566.0,
+                1023.0
+              ],
+              "direction": [
+                2196.0,
+                211.0,
+                -3451.0
+              ],
+              "cover": 0,
+              "camera_query_kind": 1
+            }
+          },
+          "distance_along_launch": 6777.655500307176,
+          "perpendicular_launch_error": 1.3853360189218282,
+          "distance_to_view_target": 157.2895419282541
+        },
+        {
+          "projectile": "800daf78",
+          "type": 1,
+          "point": [
+            5883.0,
+            -9696.0,
+            1023.0
+          ],
+          "launch": {
+            "type": 1,
+            "origin": [
+              2473.0,
+              -9991.0,
+              6799.0
+            ],
+            "direction": [
+              2085.0,
+              182.0,
+              -3530.0
+            ],
+            "aim": {
+              "weapon": 5,
+              "target": [
+                6141.0,
+                -9566.0,
+                1023.0
+              ],
+              "direction": [
+                2192.0,
+                254.0,
+                -3451.0
+              ],
+              "cover": 0,
+              "camera_query_kind": 1
+            }
+          },
+          "distance_along_launch": 6713.962427180805,
+          "perpendicular_launch_error": 3.0864873926893486,
+          "distance_to_view_target": 288.9013672518702
+        },
+        {
+          "projectile": "800db098",
+          "type": 1,
+          "point": [
+            7168.0,
+            -9296.0,
+            -375.0
+          ],
+          "launch": {
+            "type": 1,
+            "origin": [
+              2473.0,
+              -9991.0,
+              6799.0
+            ],
+            "direction": [
+              2240.0,
+              333.0,
+              -3422.0
+            ],
+            "aim": {
+              "weapon": 5,
+              "target": [
+                6141.0,
+                -9566.0,
+                1023.0
+              ],
+              "direction": [
+                2192.0,
+                254.0,
+                -3451.0
+              ],
+              "cover": 0,
+              "camera_query_kind": 1
+            }
+          },
+          "distance_along_launch": 8601.878628072503,
+          "perpendicular_launch_error": 3.172996926512266,
+          "distance_to_view_target": 1755.5719865616447
+        },
+        {
+          "projectile": "800db1b8",
+          "type": 1,
+          "point": [
+            5970.0,
+            -9651.0,
+            1023.0
+          ],
+          "launch": {
+            "type": 1,
+            "origin": [
+              2473.0,
+              -9991.0,
+              6799.0
+            ],
+            "direction": [
+              2119.0,
+              207.0,
+              -3500.0
+            ],
+            "aim": {
+              "weapon": 5,
+              "target": [
+                6141.0,
+                -9566.0,
+                1023.0
+              ],
+              "direction": [
+                2192.0,
+                254.0,
+                -3451.0
+              ],
+              "cover": 0,
+              "camera_query_kind": 1
+            }
+          },
+          "distance_along_launch": 6760.679138375528,
+          "perpendicular_launch_error": 1.6087056686725971,
+          "distance_to_view_target": 190.9607289470796
+        },
+        {
+          "projectile": "800db218",
+          "type": 1,
+          "point": [
+            6041.0,
+            -9586.0,
+            1023.0
+          ],
+          "launch": {
+            "type": 1,
+            "origin": [
+              2473.0,
+              -9991.0,
+              6799.0
+            ],
+            "direction": [
+              2150.0,
+              245.0,
+              -3479.0
+            ],
+            "aim": {
+              "weapon": 5,
+              "target": [
+                6141.0,
+                -9566.0,
+                1023.0
+              ],
+              "direction": [
+                2192.0,
+                254.0,
+                -3451.0
+              ],
+              "cover": 0,
+              "camera_query_kind": 1
+            }
+          },
+          "distance_along_launch": 6801.236680279755,
+          "perpendicular_launch_error": 2.149143371442009,
+          "distance_to_view_target": 101.9803902718557
+        },
+        {
+          "projectile": "800db2d8",
+          "type": 1,
+          "point": [
+            5981.0,
+            -9597.0,
+            1023.0
+          ],
+          "launch": {
+            "type": 1,
+            "origin": [
+              2473.0,
+              -9991.0,
+              6799.0
+            ],
+            "direction": [
+              2123.0,
+              239.0,
+              -3495.0
+            ],
+            "aim": {
+              "weapon": 5,
+              "target": [
+                6141.0,
+                -9566.0,
+                1023.0
+              ],
+              "direction": [
+                2192.0,
+                254.0,
+                -3451.0
+              ],
+              "cover": 0,
+              "camera_query_kind": 1
+            }
+          },
+          "distance_along_launch": 6769.303866355165,
+          "perpendicular_launch_error": 1.079328041854734,
+          "distance_to_view_target": 162.97545827516484
+        },
+        {
+          "projectile": "800db338",
+          "type": 6,
+          "point": [
+            6139.0,
+            -9568.0,
+            1023.0
+          ],
+          "launch": {
+            "type": 6,
+            "origin": [
+              2564.0,
+              -9916.0,
+              6708.0
+            ],
+            "direction": [
+              2182.0,
+              213.0,
+              -3469.0
+            ],
+            "aim": {
+              "weapon": 6,
+              "target": [
+                6141.0,
+                -9566.0,
+                1023.0
+              ],
+              "direction": [
+                2178.0,
+                213.0,
+                -3462.0
+              ],
+              "cover": 0,
+              "camera_query_kind": 1
+            }
+          },
+          "distance_along_launch": 6724.652584767171,
+          "perpendicular_launch_error": 1.2705054953830284,
+          "distance_to_view_target": 2.8284271247461903
+        },
+        {
+          "projectile": "800db3f8",
+          "type": 6,
+          "point": [
+            6138.0,
+            -9567.0,
+            1023.0
+          ],
+          "launch": {
+            "type": 6,
+            "origin": [
+              2562.0,
+              -10017.0,
+              6733.0
+            ],
+            "direction": [
+              2174.0,
+              274.0,
+              -3470.0
+            ],
+            "aim": {
+              "weapon": 6,
+              "target": [
+                6141.0,
+                -9566.0,
+                1023.0
+              ],
+              "direction": [
+                2170.0,
+                274.0,
+                -3463.0
+              ],
+              "cover": 0,
+              "camera_query_kind": 1
+            }
+          },
+          "distance_along_launch": 6752.360619366483,
+          "perpendicular_launch_error": 1.437368672166481,
+          "distance_to_view_target": 3.1622776601683795
+        },
+        {
+          "projectile": "800db4b8",
+          "type": 7,
+          "point": [
+            6139.0,
+            -9568.0,
+            1023.0
+          ],
+          "launch": {
+            "type": 7,
+            "origin": [
+              2477.0,
+              -9874.0,
+              6727.0
+            ],
+            "direction": [
+              2211.0,
+              186.0,
+              -3443.0
+            ],
+            "aim": {
+              "weapon": 7,
+              "target": [
+                6141.0,
+                -9566.0,
+                1023.0
+              ],
+              "direction": [
+                2211.0,
+                186.0,
+                -3443.0
+              ],
+              "cover": 0,
+              "camera_query_kind": 1
+            }
+          },
+          "distance_along_launch": 6785.240663772087,
+          "perpendicular_launch_error": 2.2659862598073395,
+          "distance_to_view_target": 2.8284271247461903
+        },
+        {
+          "projectile": "800db518",
+          "type": 7,
+          "point": [
+            6140.0,
+            -9568.0,
+            1023.0
+          ],
+          "launch": {
+            "type": 7,
+            "origin": [
+              2474.0,
+              -9983.0,
+              6738.0
+            ],
+            "direction": [
+              2208.0,
+              251.0,
+              -3441.0
+            ],
+            "aim": {
+              "weapon": 7,
+              "target": [
+                6141.0,
+                -9566.0,
+                1023.0
+              ],
+              "direction": [
+                2208.0,
+                251.0,
+                -3441.0
+              ],
+              "cover": 0,
+              "camera_query_kind": 1
+            }
+          },
+          "distance_along_launch": 6802.426161207129,
+          "perpendicular_launch_error": 2.078779653430889,
+          "distance_to_view_target": 2.23606797749979
+        }
+      ],
+      "limits": "Impact records are original collision-consumer calls. Distance to target may differ due to intervening cover, moving actors, spread, gravity or bounce. Synthetic selection does not establish natural acquisition, animation or models.",
+      "samples": [
+        {
+          "name": "weapon-before",
+          "slot": 4,
+          "ammo": 200,
+          "aim": {
+            "reticle": true,
+            "shots": 0,
+            "rejected": 0,
+            "queries": 0,
+            "weapon": 0,
+            "hit_kind": 0,
+            "origin": [
+              0,
+              0,
+              0
+            ],
+            "target": [
+              0,
+              0,
+              0
+            ],
+            "direction": [
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "name": "weapon-fire",
+          "slot": 4,
+          "ammo": 198,
+          "aim": {
+            "reticle": true,
+            "shots": 2,
+            "rejected": 0,
+            "queries": 4,
+            "weapon": 4,
+            "hit_kind": 1,
+            "origin": [
+              2305,
+              -9996,
+              6902
+            ],
+            "target": [
+              6140,
+              -9561,
+              1023
+            ],
+            "direction": [
+              2234,
+              253,
+              -3424
+            ]
+          }
+        },
+        {
+          "name": "weapon-after",
+          "slot": 4,
+          "ammo": 198,
+          "aim": {
+            "reticle": true,
+            "shots": 2,
+            "rejected": 0,
+            "queries": 4,
+            "weapon": 4,
+            "hit_kind": 1,
+            "origin": [
+              2305,
+              -9996,
+              6902
+            ],
+            "target": [
+              6140,
+              -9561,
+              1023
+            ],
+            "direction": [
+              2234,
+              253,
+              -3424
+            ]
+          }
+        },
+        {
+          "name": "slot-5-selected",
+          "slot": 5,
+          "ammo": 200,
+          "aim": {
+            "reticle": true,
+            "shots": 2,
+            "rejected": 0,
+            "queries": 4,
+            "weapon": 4,
+            "hit_kind": 1,
+            "origin": [
+              2305,
+              -9996,
+              6902
+            ],
+            "target": [
+              6140,
+              -9561,
+              1023
+            ],
+            "direction": [
+              2234,
+              253,
+              -3424
+            ]
+          }
+        },
+        {
+          "name": "slot-5-before",
+          "slot": 5,
+          "ammo": 200,
+          "aim": {
+            "reticle": true,
+            "shots": 2,
+            "rejected": 0,
+            "queries": 4,
+            "weapon": 4,
+            "hit_kind": 1,
+            "origin": [
+              2305,
+              -9996,
+              6902
+            ],
+            "target": [
+              6140,
+              -9561,
+              1023
+            ],
+            "direction": [
+              2234,
+              253,
+              -3424
+            ]
+          }
+        },
+        {
+          "name": "slot-5-fire",
+          "slot": 5,
+          "ammo": 198,
+          "aim": {
+            "reticle": true,
+            "shots": 4,
+            "rejected": 0,
+            "queries": 8,
+            "weapon": 5,
+            "hit_kind": 1,
+            "origin": [
+              2473,
+              -9991,
+              6799
+            ],
+            "target": [
+              6141,
+              -9566,
+              1023
+            ],
+            "direction": [
+              2192,
+              254,
+              -3451
+            ]
+          }
+        },
+        {
+          "name": "slot-6-selected",
+          "slot": 6,
+          "ammo": 200,
+          "aim": {
+            "reticle": true,
+            "shots": 4,
+            "rejected": 0,
+            "queries": 8,
+            "weapon": 5,
+            "hit_kind": 1,
+            "origin": [
+              2473,
+              -9991,
+              6799
+            ],
+            "target": [
+              6141,
+              -9566,
+              1023
+            ],
+            "direction": [
+              2192,
+              254,
+              -3451
+            ]
+          }
+        },
+        {
+          "name": "slot-6-before",
+          "slot": 6,
+          "ammo": 200,
+          "aim": {
+            "reticle": true,
+            "shots": 4,
+            "rejected": 0,
+            "queries": 8,
+            "weapon": 5,
+            "hit_kind": 1,
+            "origin": [
+              2473,
+              -9991,
+              6799
+            ],
+            "target": [
+              6141,
+              -9566,
+              1023
+            ],
+            "direction": [
+              2192,
+              254,
+              -3451
+            ]
+          }
+        },
+        {
+          "name": "slot-6-fire",
+          "slot": 6,
+          "ammo": 198,
+          "aim": {
+            "reticle": true,
+            "shots": 6,
+            "rejected": 0,
+            "queries": 12,
+            "weapon": 6,
+            "hit_kind": 1,
+            "origin": [
+              2562,
+              -10017,
+              6733
+            ],
+            "target": [
+              6141,
+              -9566,
+              1023
+            ],
+            "direction": [
+              2170,
+              274,
+              -3463
+            ]
+          }
+        },
+        {
+          "name": "slot-7-selected",
+          "slot": 7,
+          "ammo": 200,
+          "aim": {
+            "reticle": true,
+            "shots": 6,
+            "rejected": 0,
+            "queries": 12,
+            "weapon": 6,
+            "hit_kind": 1,
+            "origin": [
+              2562,
+              -10017,
+              6733
+            ],
+            "target": [
+              6141,
+              -9566,
+              1023
+            ],
+            "direction": [
+              2170,
+              274,
+              -3463
+            ]
+          }
+        },
+        {
+          "name": "slot-7-before",
+          "slot": 7,
+          "ammo": 200,
+          "aim": {
+            "reticle": true,
+            "shots": 6,
+            "rejected": 0,
+            "queries": 12,
+            "weapon": 6,
+            "hit_kind": 1,
+            "origin": [
+              2562,
+              -10017,
+              6733
+            ],
+            "target": [
+              6141,
+              -9566,
+              1023
+            ],
+            "direction": [
+              2170,
+              274,
+              -3463
+            ]
+          }
+        },
+        {
+          "name": "slot-7-fire",
+          "slot": 7,
+          "ammo": 198,
+          "aim": {
+            "reticle": true,
+            "shots": 8,
+            "rejected": 0,
+            "queries": 16,
+            "weapon": 7,
+            "hit_kind": 1,
+            "origin": [
+              2474,
+              -9983,
+              6738
+            ],
+            "target": [
+              6141,
+              -9566,
+              1023
+            ],
+            "direction": [
+              2208,
+              251,
+              -3441
+            ]
+          }
+        },
+        {
+          "name": "slot-8-selected",
+          "slot": 8,
+          "ammo": 200,
+          "aim": {
+            "reticle": true,
+            "shots": 8,
+            "rejected": 0,
+            "queries": 16,
+            "weapon": 7,
+            "hit_kind": 1,
+            "origin": [
+              2474,
+              -9983,
+              6738
+            ],
+            "target": [
+              6141,
+              -9566,
+              1023
+            ],
+            "direction": [
+              2208,
+              251,
+              -3441
+            ]
+          }
+        },
+        {
+          "name": "slot-8-before",
+          "slot": 8,
+          "ammo": 200,
+          "aim": {
+            "reticle": true,
+            "shots": 8,
+            "rejected": 0,
+            "queries": 16,
+            "weapon": 7,
+            "hit_kind": 1,
+            "origin": [
+              2474,
+              -9983,
+              6738
+            ],
+            "target": [
+              6141,
+              -9566,
+              1023
+            ],
+            "direction": [
+              2208,
+              251,
+              -3441
+            ]
+          }
+        },
+        {
+          "name": "slot-8-fire",
+          "slot": 8,
+          "ammo": 198,
+          "aim": {
+            "reticle": true,
+            "shots": 10,
+            "rejected": 0,
+            "queries": 20,
+            "weapon": 8,
+            "hit_kind": 1,
+            "origin": [
+              2135,
+              -10036,
+              6967
+            ],
+            "target": [
+              6141,
+              -9566,
+              1023
+            ],
+            "direction": [
+              2284,
+              268,
+              -3389
+            ]
+          }
+        },
+        {
+          "name": "aim-released",
+          "slot": 8,
+          "ammo": 198,
+          "aim": {
+            "reticle": false,
+            "shots": 10,
+            "rejected": 0,
+            "queries": 20,
+            "weapon": 8,
+            "hit_kind": 1,
+            "origin": [
+              2135,
+              -10036,
+              6967
+            ],
+            "target": [
+              6141,
+              -9566,
+              1023
+            ],
+            "direction": [
+              2284,
+              268,
+              -3389
+            ]
+          }
+        }
+      ]
+    },
+    "original_aim": {
+      "run": "recomp/analysis/pc-input/d07-final-original",
+      "binary_sha256": "491419e058ed57feee6b41635227711fc74faf222eb72e8948f2697c34d28959",
+      "exit_code": 0,
+      "error": null,
+      "launch_types": {
+        "0": 2
+      },
+      "flight_types": {
+        "0": 4
+      },
+      "impacts": [
+        {
+          "projectile": "800daa38",
+          "type": 0,
+          "point": [
+            8253.0,
+            -9738.0,
+            1023.0
+          ],
+          "launch": {
+            "type": 0,
+            "origin": [
+              2317.0,
+              -9935.0,
+              6890.0
+            ],
+            "direction": [
+              2923.0,
+              98.0,
+              -2889.0
+            ],
+            "aim": null
+          },
+          "distance_along_launch": 8348.448354510987,
+          "perpendicular_launch_error": 2.017935284369533
+        },
+        {
+          "projectile": "800daaf8",
+          "type": 0,
+          "point": [
+            8213.0,
+            -9874.0,
+            1023.0
+          ],
+          "launch": {
+            "type": 0,
+            "origin": [
+              2305.0,
+              -9996.0,
+              6902.0
+            ],
+            "direction": [
+              2913.0,
+              61.0,
+              -2899.0
+            ],
+            "aim": null
+          },
+          "distance_along_launch": 8335.585515691793,
+          "perpendicular_launch_error": 1.7636862422873263
+        }
+      ],
+      "limits": "Impact records are original collision-consumer calls. Distance to target may differ due to intervening cover, moving actors, spread, gravity or bounce. Synthetic selection does not establish natural acquisition, animation or models.",
+      "samples": [
+        {
+          "name": "weapon-before",
+          "slot": 4,
+          "ammo": 200,
+          "aim": {
+            "reticle": false,
+            "shots": 0,
+            "rejected": 0,
+            "queries": 0,
+            "weapon": 0,
+            "hit_kind": 0,
+            "origin": [
+              0,
+              0,
+              0
+            ],
+            "target": [
+              0,
+              0,
+              0
+            ],
+            "direction": [
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "name": "weapon-fire",
+          "slot": 4,
+          "ammo": 198,
+          "aim": {
+            "reticle": false,
+            "shots": 0,
+            "rejected": 0,
+            "queries": 0,
+            "weapon": 0,
+            "hit_kind": 0,
+            "origin": [
+              0,
+              0,
+              0
+            ],
+            "target": [
+              0,
+              0,
+              0
+            ],
+            "direction": [
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "name": "weapon-after",
+          "slot": 4,
+          "ammo": 198,
+          "aim": {
+            "reticle": false,
+            "shots": 0,
+            "rejected": 0,
+            "queries": 0,
+            "weapon": 0,
+            "hit_kind": 0,
+            "origin": [
+              0,
+              0,
+              0
+            ],
+            "target": [
+              0,
+              0,
+              0
+            ],
+            "direction": [
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "name": "aim-released",
+          "slot": 4,
+          "ammo": 198,
+          "aim": {
+            "reticle": false,
+            "shots": 0,
+            "rejected": 0,
+            "queries": 0,
+            "weapon": 0,
+            "hit_kind": 0,
+            "origin": [
+              0,
+              0,
+              0
+            ],
+            "target": [
+              0,
+              0,
+              0
+            ],
+            "direction": [
+              0,
+              0,
+              0
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "hitscan_and_projectile_distinction": {
+    "pistol": "slot4/type0 uses swept projectile collision, not instantaneous hitscan",
+    "projectile": "launch, flight and wall-impact consumer observed independently; native muzzle/parallax fixtures also passed",
+    "beam": "slot10/type15 target acquisition 0x800587C8 via 0x80073220, target stored +0x14, updater 0x800733C8 overrides endpoint; original aiming retained",
+    "hitscan": "No damaging instantaneous hitscan/beam path implemented or accepted; transient type9 targeting rays are not weapon-hit evidence",
+    "slot11": "launch observed; owner-clearing collision path limits observer flight coverage",
+    "slots12_13": "Experimental launch-only adaptation withdrawn; original fallback in final binary"
+  },
+  "visual_review": {
+    "method": "Agent reviewed composed presentation PNGs; automated input replay is not user playtesting",
+    "final": [
+      "d07-acceptance-cover/cover-fire-present.png",
+      "d07-acceptance-fallbacks/slot-10-fire-present.png",
+      "d07-acceptance-fallbacks/slot-11-fire-present.png",
+      "d07-acceptance-vanilla/fire.png",
+      "d07-acceptance-vanilla/jump.png",
+      "d07-acceptance-vanilla/inventory.png",
+      "d07-acceptance-vanilla/forward.png",
+      "d07-acceptance-vanilla/turn.png"
+    ],
+    "prior": [
+      "d07-final-family-a/weapon-before-present.png",
+      "d07-final-family-a/slot-5-fire-present.png",
+      "d07-final-family-b/slot-10-fire-present.png",
+      "d07-final-original/weapon-fire-present.png"
+    ],
+    "observations": [
+      "Final close-wall crosshair visible, ammo196, health92",
+      "Excluded beam has no crosshair; enabled slot11 has crosshair",
+      "Earlier Software pellet-fire capture lacked reticle despite preceding eligible sample; samples not atomic; unresolved"
+    ]
+  },
+  "failed_or_superseded_runs": [
+    {
+      "names": [
+        "d07-view-pistol-01",
+        "d07-query-debug"
+      ],
+      "reason": "Prototype query result contract rejected valid actor/room -1; corrected; not final acceptance"
+    },
+    {
+      "names": [
+        "d07-weapon-cycle-01",
+        "d07-weapon-cycle-02"
+      ],
+      "reason": "Natural H+Right selection assertion failed; synthetic slot writes are not acquisition/model/animation proof"
+    },
+    {
+      "names": [
+        "d07-final-families",
+        "d07-final-family-c"
+      ],
+      "reason": "Terminal death invalidated full route; preceding live samples retained, cause not established"
+    },
+    {
+      "names": [
+        "d07-final-family-b"
+      ],
+      "reason": "Slot12 experimental adaptation superseded by original fallback"
+    }
+  ],
+  "acceptance_gaps": [
+    {
+      "kind": "implementation",
+      "item": "Damaging hitscan/beam and excluded weapon variants retain original aiming"
+    },
+    {
+      "kind": "verification",
+      "item": "Camera-selected actor shot hit farther wall; final distance1255.28, launch-line perpendicular error0.75 raw units; exact cause unresolved"
+    },
+    {
+      "kind": "verification",
+      "item": "Crosshair visibility through firing/animation and query-failure fallback"
+    },
+    {
+      "kind": "playtest",
+      "item": "Natural acquisition, selection, models, firing animation and damage for every enabled family"
+    },
+    {
+      "kind": "playtest",
+      "item": "Camera-around-corner cover, high/low pitch, moving/fire, original precision aim and original auto-aim on/off"
+    },
+    {
+      "kind": "playtest",
+      "item": "Holster/draw, special states, progression, desktop rendering, Windows and campaign regression"
+    }
+  ],
+  "preservation": {
+    "saved_settings_and_cards_unchanged": true,
+    "preserved_file_count": 7,
+    "preexisting_runtime_changes_preserved": true,
+    "new_runtime_patch_sha256": "81ccf6a1544123ff2cc3cacaa286476f5b828db54b7521be3b465ed8f3121252"
+  },
+  "isolation": "Private Xvfb, owned processes only, fresh cards/preferences, active-game refusal; no save to player cards.",
+  "raw_evidence": "Ignored recomp/analysis/pc-input/<run>, recomp/analysis/vanilla-regression/<run>, recomp/analysis/d07; raw owned-data RAM not redistributed",
+  "source_sha256": {
+    "recomp/src/ttk/weapon_aim.cpp": "d9e225fd12ee1029c3ae464aae576bea46cec8ca2f40ab6111a091b81389b009",
+    "recomp/src/ttk/aim_guards.inc": "53f598dd42f6397ebea4ef7ee3dedbe14d8a41f43cb96a01334838f4e78707ec",
+    "recomp/patches/time-to-kill-zz-aim-reticle.patch": "81ccf6a1544123ff2cc3cacaa286476f5b828db54b7521be3b465ed8f3121252",
+    "recomp/tools/local/player_profiles.py": "1617b36189da4fb911be6f30947e9b1c5ff910b8593549f3fa359683874220bd",
+    "recomp/tools/local/weapon_aim_probe.py": "dda72aa7bf70ec4f3e9c12cb8c570dad50daf1ed30606a77d9cb640a87ebb64b",
+    "recomp/tools/local/summarize_weapon_aim.py": "5a388b517aaa1cdfe71eed7faa7f28f832989c65c7e511a68d3e21fc5eb288bd"
+  },
+  "final_runs": [
+    {
+      "name": "d07-acceptance-cover",
+      "exit_code": 0
+    },
+    {
+      "name": "d07-acceptance-fallbacks",
+      "exit_code": 0
+    },
+    {
+      "name": "d07-acceptance-vanilla",
+      "exit_code": 0
+    }
+  ],
+  "vanilla": {
+    "files_sha256": {
+      "build-local/Duke_Nukem__Time_to_Kill_Recompiled": "0ac41da3915c2ecd49dcd54caf15ec9f1424665699e9eab28f5b339797acd1ca",
+      "tools/local/vanilla_regression.py": "add5dc3d54b807aeaf7f760f0b7d9f82da578c17a57178e17b98cbdce010e53c",
+      "tools/local/run.py": "f83f920d6e81eae6f67ef170e3a2ad94f17c9f06d8b5adabffdd13e47e69b155",
+      "tools/local/player_profiles.py": "1617b36189da4fb911be6f30947e9b1c5ff910b8593549f3fa359683874220bd",
+      "tools/local/ttk_state_probe.py": "dca86e935d84c700dd9a66215c5b6c5da66b4ea56885a14383884d03a39d6df6",
+      "game.local.toml": "1b26ddb8edd5864b6656816a91cc58a2b4c3438277ca789656ccbe05c6256619",
+      "disc/import-receipt.json": "630de1b35887179c1d71e75e9a02336903083524311addf83eaffed8ae4901e1",
+      "build-local/game_options.toml": "d2c0e1fffb2eef571ece075a6619aa9ce547a7aa0de8f87328a5f54642330b88",
+      "build-local/game.toml": "a4b0d46e82ac8dfa4442c0794e57a07adee11de98ce9d043ff370d462eb2832f",
+      "build-local/input.ini": "93c78ec3a5240e59490da98572816ebcf1afe7462d9493f81102315239709803",
+      "build-local/bios/openbios.bin": "fabe498fbf224e4721f12f31b6f5fe0659205e341dc4e5c5f91b9bd1a1011c57",
+      "build-local/cache/SLUS-00583/gcc/linux-x64/cg10_a4319b6f_gc34c7db1f_f0/000CA968_223F1B49.so": "1deff7913e342d3f96ae4657eafc968d5195bae517f05ff3ca6777dcf552c007",
+      "build-local/cache/SLUS-00583/gcc/linux-x64/cg10_a4319b6f_gcc7d16c61_f0/000CA968_223F1B49.so": "1deff7913e342d3f96ae4657eafc968d5195bae517f05ff3ca6777dcf552c007",
+      "build-local/cache/SLUS-00583/gcc/linux-x64/cg10_a4319b6f_gc788b62fb_f0/000CA968_223F1B49.so": "1deff7913e342d3f96ae4657eafc968d5195bae517f05ff3ca6777dcf552c007",
+      "build-local/cache/SLUS-00583/gcc/linux-x64/cg10_a4319b6f_gc61221b2a_f0/000CA968_223F1B49.so": "1deff7913e342d3f96ae4657eafc968d5195bae517f05ff3ca6777dcf552c007",
+      "build-local/cache/SLUS-00583/gcc/linux-x64/cg10_a4319b6f_gcca343c02_f0/000CA968_223F1B49.so": "1deff7913e342d3f96ae4657eafc968d5195bae517f05ff3ca6777dcf552c007",
+      "build-local/cache/SLUS-00583/gcc/linux-x64/cg10_a4319b6f_gcde66880e_f0/000CA968_223F1B49.so": "1deff7913e342d3f96ae4657eafc968d5195bae517f05ff3ca6777dcf552c007",
+      "build-local/cache/SLUS-00583/gcc/linux-x64/cg10_a4319b6f_gc7086761b_f0/000CA968_223F1B49.so": "1deff7913e342d3f96ae4657eafc968d5195bae517f05ff3ca6777dcf552c007",
+      "patches/time-to-kill-cd-seek.patch": "637935396974cb490721322c193bcc19048ece14eae26dafe46408df444b6d9f",
+      "patches/time-to-kill-zz-aim-reticle.patch": "81ccf6a1544123ff2cc3cacaa286476f5b828db54b7521be3b465ed8f3121252",
+      "patches/time-to-kill-stopped-window.patch": "ba93f6385a8b47ef4ec0cf33b27e93e915ab23e9891f47947231b8151f19d40e",
+      "patches/time-to-kill-z-pc-input.patch": "ba91fdecdf96d8785d806042b3aa604f567e5b36313481a6b2e929b2e24737ba"
+    },
+    "exit_code": 0,
+    "driver_result": "completed; gameplay assertions require review",
+    "quit_response": {
+      "ok": false,
+      "err": "emu busy or frozen"
+    },
+    "elapsed_seconds": 89.82250655400276,
+    "review": "Agent-reviewed fire, jump, inventory, forward and turn screenshots; no campaign/save/load/audio or graceful-debug-quit sign-off. Debug quit returned emu busy or frozen; owned process ultimately exited0."
+  },
+  "full_coverage_complete": false,
+  "user_acceptance": {
+    "date": "2026-09-26",
+    "scope": "Explicit acceptance of this bounded iteration with mouse view/shot direction independent of Duke body/gun facing. Existing implementation and verification gaps remain.",
+    "next_job": "D07A \u2014 View-aligned Duke facing and weapon presentation",
+    "new_automated_verification": false
+  }
+}

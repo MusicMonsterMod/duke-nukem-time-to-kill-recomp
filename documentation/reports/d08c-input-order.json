@@ -1,0 +1,263 @@
+{
+  "job": "D08C input-order follow-up",
+  "date": "2026-09-27",
+  "status": "Done",
+  "binary_sha256": "92b6cac55a2e83f4f7c9e555a649d382a431b041d4378ed2cc228fc98f1724f5",
+  "user_evidence": "User explicitly confirmed W then Space worked, then accepted the Space then W follow-up: \"its working!! beautiful. update the docs big time with this one\"",
+  "scope": "Accept a first direction during original standing-jump preparation after a neutral Space press. No full airborne steering.",
+  "source_sha256": {
+    "recomp/src/ttk/modern_controls.cpp": "47d9f3afbb6ada99730dbfef8e40a23d2fa7ddfe4bfbb34bd1cb284c362044d6",
+    "recomp/tests/local/modern_controls_native.cpp": "33335d6417517464a379a9214b157e34afd673fffbaa3a3274afc400dc48dd0a",
+    "recomp/tools/local/standing_jump_probe.py": "5eec6ef2024a94287e8e0f7892681d97ee373730d550c88d1bbb557d88c84277"
+  },
+  "implementation": {
+    "neutral_preparation": "Authenticated original animation 96 owns camera/input but supplies no synthetic Forward until a direction is latched.",
+    "late_direction": "Lower-body update picks up first direction without restarting animation; existing clearance and once-only original-98 correction apply.",
+    "rejection": "Focus/epoch/timeout, wrong caller/code/player, unsupported state, precision aim/crouch and already-airborne vertical-97 rejection remain."
+  },
+  "automated": {
+    "incremental_build": "recomp/analysis/d08c-order-research/build.log",
+    "workflow": "Established imported/generated/patch stack from prior D08C full build; only native C++ and test driver changed, no new generated hooks.",
+    "python": {
+      "passed": 57,
+      "skipped": 0,
+      "log": "recomp/analysis/d08c-order-research/python.log"
+    },
+    "native": {
+      "controls": "recomp/analysis/d08c-order-research/controls-final.log",
+      "input": "recomp/analysis/d08c-order-research/input.log",
+      "aim": "recomp/analysis/d08c-order-research/aim.log",
+      "scene": "recomp/analysis/d08c-order-research/scene.log"
+    }
+  },
+  "sdl": {
+    "report": "recomp/analysis/pc-input/d08c-order-01/report.json",
+    "exit_code": 0,
+    "assertions": "passed",
+    "results": [
+      {
+        "case": "0-w--1",
+        "animation": 98,
+        "velocity": [
+          4244,
+          -6089,
+          -4267
+        ],
+        "before": [
+          2060,
+          -9719,
+          7208
+        ],
+        "after": [
+          3222,
+          -9723,
+          5998
+        ],
+        "alignment": 0.9999998041441523,
+        "corrected": 1
+      },
+      {
+        "case": "1-s--3",
+        "animation": 98,
+        "velocity": [
+          -4226,
+          -6089,
+          4270
+        ],
+        "before": [
+          3222,
+          -9713,
+          5998
+        ],
+        "after": [
+          1939,
+          -9718,
+          7246
+        ],
+        "alignment": 0.9999994712465267,
+        "corrected": 1
+      },
+      {
+        "case": "2-d--2",
+        "animation": 98,
+        "velocity": [
+          -4286,
+          -6089,
+          -4225
+        ],
+        "before": [
+          1939,
+          -9716,
+          7246
+        ],
+        "after": [
+          677,
+          -9719,
+          6092
+        ],
+        "alignment": 0.9999995716667202,
+        "corrected": 1
+      },
+      {
+        "case": "3-a--3",
+        "animation": 98,
+        "velocity": [
+          4300,
+          -6457,
+          4211
+        ],
+        "before": [
+          677,
+          -9716,
+          6092
+        ],
+        "after": [
+          1847,
+          -9717,
+          7328
+        ],
+        "alignment": 0.9999997201248542,
+        "corrected": 1
+      },
+      {
+        "case": "4-wd--1",
+        "animation": 98,
+        "velocity": [
+          -75,
+          -6089,
+          -6007
+        ],
+        "before": [
+          1847,
+          -9718,
+          7328
+        ],
+        "after": [
+          1763,
+          -9714,
+          5652
+        ],
+        "alignment": 0.99999975199827,
+        "corrected": 1
+      },
+      {
+        "case": "5-sa--3",
+        "animation": 98,
+        "velocity": [
+          88,
+          -5997,
+          6017
+        ],
+        "before": [
+          1763,
+          -9721,
+          5652
+        ],
+        "after": [
+          1728,
+          -9715,
+          7381
+        ],
+        "alignment": 0.9999997076352607,
+        "corrected": 1
+      },
+      {
+        "case": "6-vertical-0",
+        "animation": 97,
+        "velocity": [
+          1900,
+          -9912,
+          -1960
+        ],
+        "before": [
+          1728,
+          -9721,
+          7381
+        ],
+        "after": [
+          1678,
+          -9732,
+          7415
+        ]
+      },
+      {
+        "case": "7-w-3",
+        "animation": 98,
+        "velocity": [
+          4176,
+          -4893,
+          -4318
+        ],
+        "before": [
+          1678,
+          -9721,
+          7415
+        ],
+        "after": [
+          2843,
+          -9715,
+          6171
+        ],
+        "alignment": 0.999999828526897,
+        "corrected": 1
+      }
+    ],
+    "direction_start_samples": [
+      {
+        "case": "0-w--1-direction-start",
+        "animation": 96,
+        "requested": 97,
+        "frame": 8625
+      },
+      {
+        "case": "1-s--3-direction-start",
+        "animation": 96,
+        "requested": 97,
+        "frame": 8782
+      },
+      {
+        "case": "2-d--2-direction-start",
+        "animation": 96,
+        "requested": 97,
+        "frame": 8940
+      },
+      {
+        "case": "3-a--3-direction-start",
+        "animation": 96,
+        "requested": 97,
+        "frame": 9102
+      },
+      {
+        "case": "4-wd--1-direction-start",
+        "animation": 96,
+        "requested": 97,
+        "frame": 9265
+      },
+      {
+        "case": "5-sa--3-direction-start",
+        "animation": 96,
+        "requested": 97,
+        "frame": 9436
+      }
+    ],
+    "timing_limit": "Signed nominal waits specify event order in the hashed driver; SDL/debug scheduling adds delay. The events array is a grouped input summary, not a precise per-key timeline. Every Space-first direction-start sample is original preparation 96 requesting vertical 97.",
+    "fixture": "Eight private health-only longevity applications; no player position, velocity or animation fixtures."
+  },
+  "regression_scope": "Working W\u2192Space and Space alone included in this delivery SDL replay. Existing running/ladder contracts pass native regression; prior six-running-jump live route remains historical evidence.",
+  "human_acceptance": {
+    "date": "2026-09-27",
+    "result": "Accepted bounded directional standing/walking jump and both input orders",
+    "quote": "its working!! beautiful. update the docs big time with this one",
+    "prior_confirmation": "W \u2192 Space explicitly reported working before the Space-first follow-up",
+    "accepted_delivery_sha256": "92b6cac55a2e83f4f7c9e555a649d382a431b041d4378ed2cc228fc98f1724f5",
+    "scope_limit": "Input ordering during original takeoff preparation; no claim of human verification of every diagonal, terrain, map or combined traversal case; no midair steering added",
+    "remaining_coverage_job": "D08B"
+  },
+  "launch": "python3 /home/spartacus/Desktop/dn-ttk/recomp/tools/local/run.py",
+  "vanilla": {
+    "report": "recomp/analysis/vanilla-regression/d08c-order-vanilla-01/report.json",
+    "exit_code": 0,
+    "checkpoints": 14,
+    "capture_review": "Original vertical jump reviewed; bounded route, not full campaign acceptance"
+  }
+}

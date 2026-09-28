@@ -1,0 +1,48 @@
+{
+  "id": 1,
+  "ok": true,
+  "taps": [
+    {
+      "name": "spu_out",
+      "frames": 3471405,
+      "nonzero": 2114614,
+      "audible": 1965684,
+      "peak": 27955,
+      "rate": 44100
+    },
+    {
+      "name": "cd_in",
+      "frames": 2081520,
+      "nonzero": 2053637,
+      "audible": 2004977,
+      "peak": 31673,
+      "rate": 44100
+    },
+    {
+      "name": "host",
+      "frames": 3419915,
+      "nonzero": 2106708,
+      "audible": 1957482,
+      "peak": 27922,
+      "rate": 44100
+    }
+  ],
+  "pump_calls": 4723,
+  "pump_skips": 0,
+  "underruns": 0,
+  "queue_hiwater": 280,
+  "queue_lowater": 0,
+  "mutes": 0,
+  "unmutes": 0,
+  "events_total": 9879,
+  "out": {
+    "active": 1,
+    "mode": "bridge-pull",
+    "host_rate": 44100,
+    "fill_ms": 169.6,
+    "target_ms": 180.0,
+    "underruns": 0,
+    "overflow_drops": 55684,
+    "correction": -0.00106
+  }
+}

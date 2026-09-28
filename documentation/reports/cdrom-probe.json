@@ -1,0 +1,57 @@
+{
+  "id": 1,
+  "ok": true,
+  "seq": 383445,
+  "has_disc": 1,
+  "index": 0,
+  "stat": "0x02",
+  "request": "0x80",
+  "irq_enable": "0x07",
+  "irq_flag": "0x00",
+  "mode": "0xA0",
+  "param_count": 0,
+  "response_read": 1,
+  "response_count": 1,
+  "sector_available": 1,
+  "sector_read_pos": 1660,
+  "sector_size": 2340,
+  "reading": 0,
+  "read_msf": [
+    1,
+    22,
+    22
+  ],
+  "read_cmd": "0x00",
+  "read_delay": 0,
+  "read_hold_cycles": 0,
+  "read_hold_events": 0,
+  "int1_pended": 0,
+  "int1_lost": 0,
+  "int1_pending_now": 0,
+  "accel_consumer_waits": 0,
+  "accel_consumer_wait_cycles": 0,
+  "ring_starved": 0,
+  "ring_dropped": 6903,
+  "filter_file": 0,
+  "filter_channel": 0,
+  "muted": 0,
+  "seek_msf": [
+    1,
+    22,
+    20
+  ],
+  "pending": {
+    "cmd": "0x09",
+    "active": 0,
+    "delay": 0,
+    "phase": 1
+  },
+  "last_sector": {
+    "lba": 6021,
+    "size": 2340,
+    "frame": 28894,
+    "mode": "0xA0",
+    "have_raw": 1
+  },
+  "i_stat": "0x00000001"
+}

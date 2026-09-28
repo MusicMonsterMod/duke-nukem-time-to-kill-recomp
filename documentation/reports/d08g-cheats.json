@@ -1,0 +1,86 @@
+{
+  "date": "2026-09-27",
+  "status": {
+    "D08G": "Needs playtest",
+    "D08B": "In progress; latest user furniture feedback remains open"
+  },
+  "binary_sha256": "6efa111e9e838a00273aaef454ac3130563a49c1e03f9e84eb314d8e37e519b6",
+  "source_sha256": {
+    "recomp/src/ttk/cheat_codes.h": "0da6f8a10ed935aa6422e17fa25f0250d4f39e65bd01f915adcbfc130fab279d",
+    "recomp/src/ttk/cheats.inc": "09c4dd7a71eac5bd8011d2172c5de47705cf7663b2b894c0b51698eb0c21c5cd",
+    "recomp/src/ttk/pc_input.cpp": "ed5867c678e20e2a06a07ec2f8a0e8f4a49583bd0e7c2d4706c3b89fe092ac91",
+    "recomp/src/ttk/pc_input.h": "7511fba750fdbf860979bd4af842c24832b3c766b953d3ac86d4abf7909b8fbd",
+    "recomp/src/ttk/modern_controls.cpp": "45d0fa6ccead7b894c4123ce6d81f3ec71efe12b69a9ea5d9cb11805ab896398",
+    "recomp/src/ttk/control_guards.inc": "e420ae6c49af9391250e5b59087c0f19c86d2772b6a54912b6528b15ee66b6c0",
+    "recomp/tests/local/pc_input_native.cpp": "28e06a2409fc726c43ca743c38c586d0e522ac27ca2bce380da317d331983438",
+    "recomp/tests/local/modern_controls_native.cpp": "d13c761455df37189a687cbbb1ca2acfae421a07e469ddb1da9d4853d4d3bfef",
+    "recomp/CMakeLists.txt": "b990b845c4bd52698116fb235930f2696a7e897569575a30d2d83b10b7d2c00c",
+    "recomp/psxrecomp/runtime/src/host_osd.c": "eae142dae6e45ae01efac2fc25375d398976c5b7b3b43af9f2e5a56a797221f4",
+    "recomp/patches/time-to-kill-zzz-cheat-osd.patch": "5705f5683d6c66292108ff1a0020912cf659582d2640c9b2a9e366741a35cbdf"
+  },
+  "tests": {
+    "build": "recomp/analysis/d08g-cheats/build-final.log",
+    "python": {
+      "passed": 57,
+      "owned_disc_integration": true,
+      "log": "recomp/analysis/d08g-cheats/python.log"
+    },
+    "native": {
+      "passed": 4,
+      "logs": [
+        "recomp/analysis/d08g-cheats/input-final.log",
+        "recomp/analysis/d08g-cheats/controls-final.log",
+        "recomp/analysis/d08g-cheats/aim.log",
+        "recomp/analysis/d08g-cheats/scene.log"
+      ]
+    },
+    "runtime_patch_stack": "Reviewed runtime patch stack already applied",
+    "vanilla": {
+      "checkpoints": 14,
+      "exit_code": 0,
+      "capture_review": "Intro/title/menus, spawn, fire ammo reduction, holster/draw, jump/land, inventory open/close, forward/turn reviewed; passed",
+      "report": "recomp/analysis/vanilla-regression/d08g-final/report.json",
+      "contact_sheet": "recomp/analysis/d08g-cheats/vanilla-contact.png"
+    }
+  },
+  "live": {
+    "run": "recomp/analysis/pc-input/d08g-final",
+    "exit_code": 0,
+    "assertion_log": "recomp/analysis/d08g-cheats/final-checks.log",
+    "snapshots": "recomp/analysis/d08g-cheats/final-checks.json",
+    "observations": [
+      "All 12 spellings accepted in actual captured Modernized input",
+      "Hostile actors 9 -> 0 -> 9 while NPCs stayed 3",
+      "A real pistol shot reduced enemy health from 3750 to 2813; hide/show retained 2813",
+      "Original grants set ownership on 36 weapon slots and inventory/key slots; ammo refilled",
+      "Unlimited ammo firing retained 200; disabling then firing reduced ammo to 192",
+      "God OFF allowed incoming damage; God ON plus health refill held 10000 during subsequent live wait",
+      "Steroid timer/active flag set through dnhyper",
+      "On-screen enemy-hidden confirmation reviewed"
+    ]
+  },
+  "fixtures": [
+    "Private cards/settings and private Xvfb",
+    "One player health longevity fixture at initial spawn (30000 raw); no enemy-health or inventory fixtures in final run",
+    "Traversal probe rebinds jump to J; no player preferences changed"
+  ],
+  "excluded_attempts": [
+    "Earlier candidate unlimited-fire operation supplied mouse_down as [1] instead of numeric 1; xdotool rejected the harness argument and probe exited. Not a product failure. Final numeric-argument firing tests passed."
+  ],
+  "player_files_unchanged": {
+    "recomp/config/player-profiles.json": "6d3954c466dae37ab374b6011ba0398fd07143aa85f3d9f1bac196663078a6a4",
+    "recomp/saves/local-play/writable-state.log": "1378c328f9a1e658713235fcf525111e86e0429483b20bc66d87b90d69600c37",
+    "recomp/saves/local-play/card2.mcd": "7706c7d43edaf8cb7618e574f03457105153e3bdc196db803a600ad96a8f58e8",
+    "recomp/saves/local-play/card1.mcd": "6599f5b2896d8f4f39d23ea49d04b43c414461833a0abe9ccb39bec2194d5e95",
+    "recomp/saves/local-play/.pst_bios_isolated": "a36d2b03d1975aeda92aecc77617e6a754305aa04b0313bcab87df786d4d515e"
+  },
+  "limitations": [
+    "First-level live coverage only; broader eras/bosses not accepted",
+    "Hidden enemy ownership is scene/session-local; show enemies before saving/loading; hidden save/load round trips unsupported",
+    "Reactivation uses original AI/animation initialization; health and current position retained, not frame-exact state",
+    "The initial D still acts as strafe; begin typing away from edges",
+    "Duke 3D armor/infinite-jetpack effects not included; unsupported codes listed in documentation/38-debug-cheats.md",
+    "Bed contact, residual run-off slowdown and switch targeting unchanged in this iteration",
+    "No pickup fix implemented; latest user attempt had no early pickup and normal pickup after opening bed"
+  ]
+}

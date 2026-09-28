@@ -1,0 +1,13 @@
+{
+  "user_verified": {
+    "security_card_inserted": true,
+    "progressed_to_next_area": true,
+    "window_close_button_exited": true
+  },
+  "runtime_exit": {
+    "reason": "atexit",
+    "exit_origin": "sdl_window_close",
+    "frame": 12144
+  },
+  "interpretation": "Earlier card freeze not reproduced; its exact cause remains unproven."
+}

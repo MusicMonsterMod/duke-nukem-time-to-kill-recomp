@@ -1,0 +1,138 @@
+# Track only project notes and source-facing files:
+#   README.md, LICENSE, GAME_MANUAL.md, MODERNIZATION_JOBS.md, documentation/
+# Everything below is local, generated, personal, or copyrighted media.
+
+# --- Original game / retail media (never commit) ---
+# CloneCD dump of the owned US SLUS-00583 disc.
+/Duke Nukem*/
+*.img
+*.sub
+*.ccd
+*.bin
+*.cue
+*.iso
+*.chd
+*.ecm
+*.mds
+*.mdf
+*.nrg
+*.pbp
+*.toc
+
+# Duke3D / Build archives and related packs (e.g. DUKE3D.GRP).
+*.grp
+*.GRP
+*.wad
+*.WAD
+*.pk3
+*.PK3
+*.rff
+*.RFF
+*.ssi
+*.con
+*.VOC
+*.voc
+
+# BIOS, memory cards, save data.
+SCPH*.BIN
+SCPH*.bin
+bios.cfg
+disc.cfg
+rom.cfg
+*.mcd
+*.mcr
+*.mcs
+*.gme
+*.vmp
+*.VMP
+memcard*
+
+# --- Nested checkouts (own git history; also contain dumps) ---
+# recomp/ is the pinned upstream tree plus local patches, generated C,
+# imported disc, player saves, and analysis captures. Do not vendor it here.
+/recomp/
+
+# EDuke32 checkout, GRP, manuals, fonts, inventory tiles, reference configs.
+/research/
+
+# --- Local tools and Python ---
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+*.egg-info/
+.Python
+
+# --- Build / generated / runtime ---
+build/
+build-*/
+out/
+dist/
+release-stage/
+generated/
+*.o
+*.a
+*.so
+*.dylib
+*.dll
+*.exe
+*.obj
+*.lib
+*.exp
+*.pdb
+*.ilk
+CMakeCache.txt
+CMakeFiles/
+cmake-build-*/
+compile_commands.json
+.ninja_deps
+.ninja_log
+*.ninja
+
+# --- Diagnostics, captures, logs ---
+/documentation/logs/
+*.log
+*.bmp
+*.dmp
+core
+core.*
+psx_crash.txt
+psx_last_run_report.json
+psx_screenshot.bmp
+psx_freeze_heartbeat.json
+psx_*dump*
+starvation_dump.jsonl
+overlay_captures.json
+overlay_captures.json.d/
+
+# --- Personal / secrets / editor ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials.json
+secrets.*
+.idea/
+.vscode/
+.cursor/
+.vs/
+*.user
+*.suo
+*.swp
+*.swo
+*~
+*.orig
+.DS_Store
+Thumbs.db
+desktop.ini
+ehthumbs.db
+*.tmp
+*.temp
+.cache/

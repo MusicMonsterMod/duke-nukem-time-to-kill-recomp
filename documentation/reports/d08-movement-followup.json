@@ -1,0 +1,321 @@
+{
+  "status": {
+    "D01-D07": "Done; prior accepted scope",
+    "D07A": "Needs playtest",
+    "D07B": "Needs playtest",
+    "D08": "Needs playtest; bounded movement fixes, broader matrix incomplete"
+  },
+  "binary_sha256": "21e062dd4eb6b17d1ee8b9679a69a79d2e2a07e8c6130ac382823407dbb0a64a",
+  "changes": [
+    "Both running-jump animations 103/104 receive once-only takeoff direction correction",
+    "Retain held locomotion input through owned jumps; original clear-landing selector resumes run",
+    "Holstered attached traversal receives original directional/action inputs without modern movement/facing/camera writes",
+    "Additional owned EXE identity guards cover dispatch/landing/attached-state paths"
+  ],
+  "automated": {
+    "build": {
+      "exit_code": 0,
+      "log": "recomp/analysis/d08-feedback/build-final.log"
+    },
+    "python": {
+      "discovered": 55,
+      "passed": 53,
+      "skipped": 2,
+      "log": "recomp/analysis/d08-feedback/python-tests.log"
+    },
+    "native": [
+      {
+        "suite": "controls",
+        "exit_code": 0,
+        "log": "recomp/analysis/d08-feedback/native-controls.log"
+      },
+      {
+        "suite": "input",
+        "exit_code": 0,
+        "log": "recomp/analysis/d08-feedback/native-input.log"
+      },
+      {
+        "suite": "aim",
+        "exit_code": 0,
+        "log": "recomp/analysis/d08-feedback/native-aim.log"
+      }
+    ]
+  },
+  "gameplay": [
+    {
+      "name": "d08-jumps-first",
+      "report": "recomp/analysis/pc-input/d08-jumps-first/report.json",
+      "exit_code": 0,
+      "error": null,
+      "input_checks": 16,
+      "jump_assertions": {
+        "passed": true,
+        "results": [
+          {
+            "sequence": "d-18",
+            "jump_animation": 103,
+            "direction_alignment": 0.9999999525717775,
+            "landing_animation": 105,
+            "original_impact": true,
+            "clear_running_continuation": false
+          },
+          {
+            "sequence": "a-27",
+            "jump_animation": 103,
+            "direction_alignment": 0.9999994031827937,
+            "landing_animation": 78,
+            "original_impact": false,
+            "clear_running_continuation": true
+          },
+          {
+            "sequence": "d-27",
+            "jump_animation": 103,
+            "direction_alignment": 0.9999990963922539,
+            "landing_animation": 78,
+            "original_impact": false,
+            "clear_running_continuation": true
+          },
+          {
+            "sequence": "a-18",
+            "jump_animation": 103,
+            "direction_alignment": 0.999999997812748,
+            "landing_animation": 78,
+            "original_impact": false,
+            "clear_running_continuation": true
+          },
+          {
+            "sequence": "w-18",
+            "jump_animation": 103,
+            "direction_alignment": 0.9999997989732847,
+            "landing_animation": 78,
+            "original_impact": false,
+            "clear_running_continuation": true
+          },
+          {
+            "sequence": "s-27",
+            "jump_animation": 103,
+            "direction_alignment": 0.9999998187583503,
+            "landing_animation": 105,
+            "original_impact": true,
+            "clear_running_continuation": false
+          }
+        ]
+      },
+      "fixture_writes": [
+        {
+          "address": "0x800d71ca",
+          "value": 30000,
+          "purpose": "private player-health longevity fixture; spawn reads 10000 for HUD 100; no movement/state writes"
+        }
+      ],
+      "visual_review": "Reviewed final composed frame: Duke alive, moving in street, HUD health 262 (logged health-only fixture). Direction and landing conclusions come from temporal state assertions, not a still image."
+    },
+    {
+      "name": "d08-back-final",
+      "report": "recomp/analysis/pc-input/d08-back-final/report.json",
+      "exit_code": null,
+      "error": "AssertionError('s-15 clear landing failed to continue running')",
+      "input_checks": 16,
+      "jump_assertions": {
+        "passed": true,
+        "results": [
+          {
+            "sequence": "s-15",
+            "jump_animation": 103,
+            "direction_alignment": 0.9999999525717775,
+            "landing_animation": 78,
+            "original_impact": false,
+            "clear_running_continuation": true
+          }
+        ]
+      },
+      "fixture_writes": [
+        {
+          "address": "0x800d71ca",
+          "value": 30000,
+          "purpose": "private player-health longevity fixture; spawn reads 10000 for HUD 100; no movement/state writes"
+        }
+      ],
+      "post_run_review": "Movement assertions pass after verifier accounts for original state/animation transition ordering; original failed-run error retained. No production change.",
+      "acceptance": "Read-only movement segment accepted after correcting verifier for original state-before-animation transition; failed harness exit retained, not counted as a successful end-to-end route."
+    },
+    {
+      "name": "d08-continuation-final",
+      "report": "recomp/analysis/pc-input/d08-continuation-final/report.json",
+      "exit_code": 0,
+      "error": null,
+      "input_checks": 16,
+      "continuation_assertions": "passed: armed E does not fire; speed transitions; backward running-jump direction and airborne camera ownership",
+      "timing": {
+        "idle": {
+          "guest_fps": 60.26952699308011,
+          "underrun_samples_added": 0
+        },
+        "look": {
+          "guest_fps": 60.020936248052664,
+          "underrun_samples_added": 0
+        }
+      },
+      "visual_review": "Reviewed final composed frame: living Duke after backward jump, HUD health 47; temporal assertions verify 104 direction and camera, releasing movement retains recovery."
+    },
+    {
+      "name": "d08-climb-fixed",
+      "report": "recomp/analysis/pc-input/d08-climb-fixed/report.json",
+      "exit_code": 0,
+      "error": null,
+      "input_checks": 16,
+      "fixture_writes": [
+        {
+          "address": "0x800d71ca",
+          "value": 30000,
+          "purpose": "private player-health longevity fixture; spawn reads 10000 for HUD 100; no movement/state writes"
+        }
+      ],
+      "accepted_segments": [
+        "orient through continue-climb: captured W/E pull-up onto fenced car-park pillar",
+        "alley-left through ladder-exit: W/E ladder mount/ascent/exit to platform"
+      ],
+      "excluded_segments": [
+        "ladder-return/ladder-descend: enemy-fire death during subsequent exploration; not descent acceptance"
+      ],
+      "visual_review": "Reviewed continue-climb standing on pillar; ladder-up original exit animation and ladder-exit standing on platform, alive.",
+      "acceptance": "Only named alive climb segments; subsequent exploratory death excluded."
+    },
+    {
+      "name": "d08-wall-final",
+      "report": "recomp/analysis/pc-input/d08-wall-final/report.json",
+      "exit_code": 0,
+      "error": null,
+      "input_checks": 16,
+      "visual_review": "Reviewed back-after: living Duke outside club entrance, wall escape visible; orbit and speed assertions passed.",
+      "orbit_total_1": 6.284520852930876,
+      "orbit_total_-1": -6.282744137950187,
+      "back_displacement": 552.8082850319811
+    },
+    {
+      "name": "d08-camera-final",
+      "report": "recomp/analysis/pc-input/d08-camera-final/report.json",
+      "exit_code": 0,
+      "error": null,
+      "input_checks": 16,
+      "visual_review": "Reviewed pause-recaptured: live gameplay restored with Duke upright and HUD health 77; camera, fire, focus and pause checks passed."
+    }
+  ],
+  "limitations": [
+    "Original 107/108 obstacle impacts retain recovery; no forced continuation through collisions",
+    "No air steering or new physics",
+    "First-map ledge pull-up and ladder ascent/exit only; descent, swimming, scripts, progression/security card and campaign remain open",
+    "F10 recapture passes bounded checks; no separate timing bug established",
+    "Audio timing uses dummy SDL output; audible choppiness not confirmed resolved",
+    "Long traversal/directional-jump probes use a logged health-only fixture (30000 hundredths); no player movement/state/position fixtures"
+  ],
+  "excluded_experiments": [
+    "d08-movement-before later death (valid preceding wrong-direction observations retained)",
+    "d08-traverse-before unpaused enemy death",
+    "d08-traverse-research old deleted-executable process-detection failure",
+    "d08-traverse-live process suspension triggered existing starvation watchdog",
+    "d08-traverse-paused insufficient pause pulse and enemy death",
+    "d08-climb-fixed ladder-return/ladder-descend tail: enemy death; not descent evidence"
+  ],
+  "preservation": {
+    "player_files_unchanged": true,
+    "baseline": "recomp/analysis/d08-feedback/preservation.json",
+    "preexisting_runtime_diff_unchanged": true,
+    "runtime_baseline": "recomp/analysis/d08-feedback/runtime-before.diff",
+    "generated_c_not_edited": true
+  },
+  "vanilla": {
+    "report": "recomp/analysis/vanilla-regression/d08-vanilla-final/report.json",
+    "exit_code": 0,
+    "cleanup_exit_code": null,
+    "error": null,
+    "semantic_result": "bounded route accepted after state and visual review",
+    "files_sha256": {
+      "build-local/Duke_Nukem__Time_to_Kill_Recompiled": "21e062dd4eb6b17d1ee8b9679a69a79d2e2a07e8c6130ac382823407dbb0a64a",
+      "tools/local/vanilla_regression.py": "b41f175eaea667f2d07f88f7f047330dbaf9374dd88a4c245f09bf633fce2d4c",
+      "tools/local/run.py": "08d504a4bbcc01b23251fb2e9f434892582c0b131f6212f17fee0088b85dd3f8",
+      "tools/local/player_profiles.py": "49a1d91eb3df35e8f7e4170c21153961166d2122d1260addad2ec7d18a3973ae",
+      "tools/local/ttk_state_probe.py": "8cb3d65f2b9c16e5b825b9ef58985cbc1128734280ad0d858a3ac163346df7a8",
+      "game.local.toml": "f18e8ed6bb32de13d4c12c20b4319b74ac8dc5bb3d594916e5539b6ab63a95f1",
+      "disc/import-receipt.json": "630de1b35887179c1d71e75e9a02336903083524311addf83eaffed8ae4901e1",
+      "build-local/game_options.toml": "d2c0e1fffb2eef571ece075a6619aa9ce547a7aa0de8f87328a5f54642330b88",
+      "build-local/game.toml": "a4b0d46e82ac8dfa4442c0794e57a07adee11de98ce9d043ff370d462eb2832f",
+      "build-local/input.ini": "93c78ec3a5240e59490da98572816ebcf1afe7462d9493f81102315239709803",
+      "build-local/bios/openbios.bin": "fabe498fbf224e4721f12f31b6f5fe0659205e341dc4e5c5f91b9bd1a1011c57",
+      "build-local/cache/SLUS-00583/gcc/linux-x64/cg10_a4319b6f_gc34c7db1f_f0/000CA968_223F1B49.so": "1deff7913e342d3f96ae4657eafc968d5195bae517f05ff3ca6777dcf552c007",
+      "build-local/cache/SLUS-00583/gcc/linux-x64/cg10_a4319b6f_gcc7d16c61_f0/000CA968_223F1B49.so": "1deff7913e342d3f96ae4657eafc968d5195bae517f05ff3ca6777dcf552c007",
+      "build-local/cache/SLUS-00583/gcc/linux-x64/cg10_a4319b6f_gc2d86644c_f0/000CA968_223F1B49.so": "1deff7913e342d3f96ae4657eafc968d5195bae517f05ff3ca6777dcf552c007",
+      "build-local/cache/SLUS-00583/gcc/linux-x64/cg10_a4319b6f_gc065f0026_f0/000CA968_223F1B49.so": "1deff7913e342d3f96ae4657eafc968d5195bae517f05ff3ca6777dcf552c007",
+      "build-local/cache/SLUS-00583/gcc/linux-x64/cg10_a4319b6f_gc788b62fb_f0/000CA968_223F1B49.so": "1deff7913e342d3f96ae4657eafc968d5195bae517f05ff3ca6777dcf552c007",
+      "build-local/cache/SLUS-00583/gcc/linux-x64/cg10_a4319b6f_gcfd580a27_f0/000CA968_223F1B49.so": "1deff7913e342d3f96ae4657eafc968d5195bae517f05ff3ca6777dcf552c007",
+      "build-local/cache/SLUS-00583/gcc/linux-x64/cg10_a4319b6f_gc61221b2a_f0/000CA968_223F1B49.so": "1deff7913e342d3f96ae4657eafc968d5195bae517f05ff3ca6777dcf552c007",
+      "build-local/cache/SLUS-00583/gcc/linux-x64/cg10_a4319b6f_gcca343c02_f0/000CA968_223F1B49.so": "1deff7913e342d3f96ae4657eafc968d5195bae517f05ff3ca6777dcf552c007",
+      "build-local/cache/SLUS-00583/gcc/linux-x64/cg10_a4319b6f_gcf21cfb77_f0/000CA968_223F1B49.so": "1deff7913e342d3f96ae4657eafc968d5195bae517f05ff3ca6777dcf552c007",
+      "build-local/cache/SLUS-00583/gcc/linux-x64/cg10_a4319b6f_gcde66880e_f0/000CA968_223F1B49.so": "1deff7913e342d3f96ae4657eafc968d5195bae517f05ff3ca6777dcf552c007",
+      "build-local/cache/SLUS-00583/gcc/linux-x64/cg10_a4319b6f_gc7086761b_f0/000CA968_223F1B49.so": "1deff7913e342d3f96ae4657eafc968d5195bae517f05ff3ca6777dcf552c007",
+      "patches/time-to-kill-cd-seek.patch": "637935396974cb490721322c193bcc19048ece14eae26dafe46408df444b6d9f",
+      "patches/time-to-kill-zz-aim-reticle.patch": "81ccf6a1544123ff2cc3cacaa286476f5b828db54b7521be3b465ed8f3121252",
+      "patches/time-to-kill-stopped-window.patch": "ba93f6385a8b47ef4ec0cf33b27e93e915ab23e9891f47947231b8151f19d40e",
+      "patches/time-to-kill-z-pc-input.patch": "ba91fdecdf96d8785d806042b3aa604f567e5b36313481a6b2e929b2e24737ba"
+    },
+    "events": [
+      {
+        "name": "intro",
+        "frame": 905
+      },
+      {
+        "name": "title",
+        "frame": 6908
+      },
+      {
+        "name": "main-menu",
+        "frame": 7031
+      },
+      {
+        "name": "difficulty",
+        "frame": 7151
+      },
+      {
+        "name": "spawn",
+        "frame": 8053
+      },
+      {
+        "name": "fire",
+        "frame": 8131
+      },
+      {
+        "name": "holster",
+        "frame": 8207
+      },
+      {
+        "name": "draw",
+        "frame": 8283
+      },
+      {
+        "name": "jump",
+        "frame": 8335
+      },
+      {
+        "name": "land",
+        "frame": 8476
+      },
+      {
+        "name": "inventory",
+        "frame": 8563
+      },
+      {
+        "name": "inventory-close",
+        "frame": 8649
+      },
+      {
+        "name": "forward",
+        "frame": 8734
+      },
+      {
+        "name": "turn",
+        "frame": 8809
+      }
+    ],
+    "visual_review": "Reviewed final turn capture: live Duke and HUD health 62 in street; no modern reticle. Original jump 97 returns to idle 63; forward route changes position. This is bounded Vanilla regression, not campaign acceptance."
+  }
+}

@@ -1,0 +1,50 @@
+[
+  {
+    "action": "forward",
+    "buttons": 65519,
+    "frames": 45,
+    "response": {
+      "id": 1,
+      "ok": true
+    }
+  },
+  {
+    "id": 1,
+    "ok": true,
+    "path": "/home/spartacus/Desktop/dn-ttk/recomp/analysis/local-smoke/forward.png",
+    "width": 512,
+    "height": 240
+  },
+  {
+    "action": "turn-right",
+    "buttons": 65503,
+    "frames": 30,
+    "response": {
+      "id": 1,
+      "ok": true
+    }
+  },
+  {
+    "id": 1,
+    "ok": true,
+    "path": "/home/spartacus/Desktop/dn-ttk/recomp/analysis/local-smoke/turn-right.png",
+    "width": 512,
+    "height": 240
+  },
+  {
+    "action": "cross",
+    "buttons": 49151,
+    "frames": 12,
+    "response": {
+      "id": 1,
+      "ok": true
+    }
+  },
+  {
+    "id": 1,
+    "ok": true,
+    "path": "/home/spartacus/Desktop/dn-ttk/recomp/analysis/local-smoke/cross.png",
+    "width": 512,
+    "height": 240
+  }
+]

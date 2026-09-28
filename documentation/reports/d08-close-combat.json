@@ -1,0 +1,216 @@
+{
+  "status": "Needs playtest",
+  "binary_sha256": "c6e6b5a0769ba74a9f49b26a4d1f6c839e7dac052c388b73e243c677ae1d80c4",
+  "interaction": {
+    "passed": true,
+    "ladder": "armed approach -> E auto-holster -> 185 mount -> W climb -> 190 exit -> normal weapon drawn; no C",
+    "ammo_before_and_after_ladder": 200,
+    "shots_before_and_after_ladder": 0,
+    "armed_e_only": "temporarily holstered, automatically redrawn; ammo and shot count unchanged",
+    "manual_holster": "C holsters, E leaves it holstered, C redraws",
+    "pause": "original pause between each exploratory operation preserves restoration ownership"
+  },
+  "combat": [
+    {
+      "report": "recomp/analysis/d08-close-combat/apartment-close-pig-one.json",
+      "actor": "0x801d0ac4",
+      "health_changes": [
+        {
+          "frame": 17997,
+          "health": 3750,
+          "distance": 3131.5,
+          "close_retractions": 0
+        },
+        {
+          "frame": 18082,
+          "health": 2813,
+          "distance": 732.2,
+          "close_retractions": 0
+        },
+        {
+          "frame": 18094,
+          "health": 1876,
+          "distance": 728.2,
+          "close_retractions": 1
+        },
+        {
+          "frame": 18106,
+          "health": 939,
+          "distance": 728.2,
+          "close_retractions": 1
+        },
+        {
+          "frame": 18118,
+          "health": 2,
+          "distance": 726.9,
+          "close_retractions": 1
+        },
+        {
+          "frame": 18130,
+          "health": 0,
+          "distance": 726.9,
+          "close_retractions": 1
+        }
+      ],
+      "original_actor_contacts": 5,
+      "aim_assist": "off",
+      "enemy_health_fixture": false
+    },
+    {
+      "report": "recomp/analysis/d08-close-combat/apartment-close-pig-two.json",
+      "actor": "0x801d0d90",
+      "health_changes": [
+        {
+          "frame": 20340,
+          "health": 3750,
+          "distance": 1800.4,
+          "close_retractions": 1
+        },
+        {
+          "frame": 20456,
+          "health": 3282,
+          "distance": 2033.3,
+          "close_retractions": 1
+        },
+        {
+          "frame": 20468,
+          "health": 2345,
+          "distance": 2034.3,
+          "close_retractions": 1
+        },
+        {
+          "frame": 20480,
+          "health": 1408,
+          "distance": 2034.9,
+          "close_retractions": 1
+        },
+        {
+          "frame": 20496,
+          "health": 471,
+          "distance": 2035.3,
+          "close_retractions": 1
+        },
+        {
+          "frame": 20504,
+          "health": 0,
+          "distance": 2035.1,
+          "close_retractions": 1
+        }
+      ],
+      "original_actor_contacts": 5,
+      "aim_assist": "off",
+      "enemy_health_fixture": false
+    }
+  ],
+  "private_replay": {
+    "report": "recomp/analysis/pc-input/d08-close-final/report.json",
+    "exit_code": 0,
+    "fixture_writes": [
+      {
+        "address": "0x800d71ca",
+        "value": 30000,
+        "purpose": "private player-health longevity fixture; spawn reads 10000 for HUD 100; no movement/state writes"
+      },
+      {
+        "address": "0x800d71ca",
+        "value": 30000,
+        "at": "street-east",
+        "purpose": "renew private player longevity fixture; enemy health and movement untouched"
+      },
+      {
+        "address": "0x800d71ca",
+        "value": 30000,
+        "at": "west-ladder",
+        "purpose": "renew private player longevity fixture; enemy health and movement untouched"
+      },
+      {
+        "address": "0x800d71ca",
+        "value": 30000,
+        "at": "e-mount",
+        "purpose": "renew private player longevity fixture; enemy health and movement untouched"
+      },
+      {
+        "address": "0x800d71ca",
+        "value": 30000,
+        "at": "w-climb",
+        "purpose": "renew private player longevity fixture; enemy health and movement untouched"
+      },
+      {
+        "address": "0x800d71ca",
+        "value": 30000,
+        "at": "exit-redraw",
+        "purpose": "renew private player longevity fixture; enemy health and movement untouched"
+      },
+      {
+        "address": "0x800d71ca",
+        "value": 30000,
+        "at": "apartment-entry",
+        "purpose": "renew private player longevity fixture; enemy health and movement untouched"
+      }
+    ],
+    "visual_review": [
+      "exit-redraw.png: gun drawn on first ladder platform",
+      "apartment-entry.png: entered room armed",
+      "apartment-close-pig-one.png and apartment-close-pig-two.png: original enemy death, Duke alive"
+    ],
+    "method": "Real SDL inputs. Research helper reads actor coordinates to steer mouse aim; health-only player longevity fixtures are logged. Enemy health, player movement, equipment and traversal state were not written."
+  },
+  "native": {
+    "input": "recomp/analysis/d08-close-combat/native-input.log",
+    "controls": "recomp/analysis/d08-close-combat/native-controls.log",
+    "aim": "recomp/analysis/d08-close-combat/native-aim.log",
+    "old_aim_failure": "recomp/analysis/d08-close-combat/old-aim-regression.json"
+  },
+  "python": "recomp/analysis/d08-close-combat/python-tests.log",
+  "preservation": {
+    "player_settings_and_cards_unchanged": true,
+    "runtime_diff_unchanged": true,
+    "baseline": "recomp/analysis/d08-close-combat/preservation.json"
+  },
+  "limits": [
+    "Exact cause of every user-reported miss is not established; reproduced adapter edge case and bounded apartment combat are verified",
+    "Original animation timing remains; restoration waits for normal settled ownership",
+    "Broader weapon/era/state and campaign coverage still open",
+    "Audio choppiness has no new listening acceptance"
+  ],
+  "research_runs": [
+    {
+      "name": "d08-close-baseline",
+      "scope": "old build ladder reproduction; interrupted probe, not complete acceptance"
+    },
+    {
+      "name": "d08-close-candidate",
+      "scope": "temporary holster/no-target E and street damage/cover observations; later enemy death invalidates the ladder-exit segment"
+    }
+  ],
+  "vanilla": {
+    "report": "recomp/analysis/vanilla-regression/d08-close-vanilla/report.json",
+    "exit_code": 0,
+    "checkpoints": [
+      "intro",
+      "title",
+      "main-menu",
+      "difficulty",
+      "spawn",
+      "fire",
+      "holster",
+      "draw",
+      "jump",
+      "land",
+      "inventory",
+      "inventory-close",
+      "forward",
+      "turn"
+    ],
+    "visual_review": "turn.png reviewed: original presentation, Duke alive at HUD 62, no modern reticle; bounded original movement/jump/draw/inventory route only"
+  },
+  "owned_test_processes_exited": true,
+  "source_sha256": {
+    "recomp/src/ttk/pc_input.cpp": "7586cc6adca2caab40eadcef66c6d8a9500f28643b58597b45aa4a989a75f867",
+    "recomp/src/ttk/modern_controls.cpp": "41b59e2e6b78a99373f678dd074865e5266a219faa6412d02e831189cc932012",
+    "recomp/src/ttk/weapon_aim.cpp": "fd7bd6784185a3259b7edc5f83f76d60130f419d85675c597cde5cf5545e3b56",
+    "recomp/tests/local/weapon_aim_native.cpp": "6ced0537cc81ab9511e09ca765753caa819871934bc227ade0d74ddca0371869",
+    "recomp/tools/local/traversal_probe.py": "98ac9cde3092466e2c8a621bf3fe6c97179ca4ea2ead3e1e64f788eeb3e5b016",
+    "recomp/analysis/d08-close-combat/track_fire.py": "98d92fe95ba05bd7daa3c6383b966b26c3bd547d8a0f77c1c3a0af545639752e"
+  }
+}

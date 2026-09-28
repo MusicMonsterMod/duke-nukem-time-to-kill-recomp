@@ -1,0 +1,483 @@
+{
+  "status": {
+    "D07A": "Needs playtest",
+    "D07B": "Needs playtest",
+    "D08": "Needs playtest; bounded control polish, broader progression matrix open"
+  },
+  "binary_sha256": "1acd362bfdfae52853d4199cf082ea47af0243c05be1c3a8420d775f1e17c95c",
+  "priority_requirement": "E is interaction-only and must never fire. Earlier armed-Cross parity proposal was superseded by the user correction.",
+  "changes": [
+    "One original holster pulse, then queued unarmed interaction; no armed Cross from E",
+    "C default holster; version-6 migration preserves unrelated bindings/options and explicit mode choices",
+    "New settings default to Modernized; verified gameplay offers automatic capture/resume; Escape/F10 opt out for the session",
+    "Requested camera boom survives death/temporary original-camera ownership, instead of learning collision-shortened positions",
+    "Owned jump input covers exact 9/0 takeoff and 0/9 landing seams; fresh normal-camera intent supports short run-ups",
+    "Normal stride displacement filtering and shorter braking tail before original collision integration"
+  ],
+  "checks": {
+    "build_logs": [
+      "recomp/analysis/d08-polish/build-final.log",
+      "recomp/analysis/d08-polish/build-short-runup.log",
+      "recomp/analysis/d08-polish/build-takeoff-seam.log"
+    ],
+    "native": [
+      {
+        "name": "controls",
+        "exit_code": 0,
+        "log": "recomp/analysis/d08-polish/native-controls.log"
+      },
+      {
+        "name": "input",
+        "exit_code": 0,
+        "log": "recomp/analysis/d08-polish/native-input.log"
+      },
+      {
+        "name": "aim",
+        "exit_code": 0,
+        "log": "recomp/analysis/d08-polish/native-aim.log"
+      }
+    ],
+    "python": {
+      "discovered": 56,
+      "passed": 54,
+      "skipped": 2,
+      "log": "recomp/analysis/d08-polish/python-final.log"
+    }
+  },
+  "delivery_replays": [
+    {
+      "name": "d08-polish-jumps-verified",
+      "report": "recomp/analysis/pc-input/d08-polish-jumps-verified/report.json",
+      "binary_sha256": "1acd362bfdfae52853d4199cf082ea47af0243c05be1c3a8420d775f1e17c95c",
+      "exit_code": 0,
+      "error": null,
+      "checks": 16,
+      "jump_assertions": {
+        "passed": true,
+        "results": [
+          {
+            "sequence": "d-18",
+            "jump_animation": 103,
+            "direction_alignment": 0.9999999525717775,
+            "landing_animation": 105,
+            "original_impact": true,
+            "clear_running_continuation": false
+          },
+          {
+            "sequence": "a-27",
+            "jump_animation": 103,
+            "direction_alignment": 0.9999994031827937,
+            "landing_animation": 78,
+            "original_impact": false,
+            "clear_running_continuation": true
+          },
+          {
+            "sequence": "d-27",
+            "jump_animation": 103,
+            "direction_alignment": 0.9999999360417843,
+            "landing_animation": 78,
+            "original_impact": false,
+            "clear_running_continuation": true
+          },
+          {
+            "sequence": "a-18",
+            "jump_animation": 103,
+            "direction_alignment": 0.9999995152741021,
+            "landing_animation": 78,
+            "original_impact": false,
+            "clear_running_continuation": true
+          },
+          {
+            "sequence": "w-18",
+            "jump_animation": 104,
+            "direction_alignment": 0.9999999992945325,
+            "landing_animation": 105,
+            "original_impact": true,
+            "clear_running_continuation": false
+          },
+          {
+            "sequence": "s-27",
+            "jump_animation": 103,
+            "direction_alignment": 0.9999997623420531,
+            "landing_animation": 78,
+            "original_impact": false,
+            "clear_running_continuation": true
+          }
+        ]
+      },
+      "fixture_writes": [
+        {
+          "address": "0x800d71ca",
+          "value": 30000,
+          "purpose": "private player-health longevity fixture; spawn reads 10000 for HUD 100; no movement/state writes"
+        }
+      ],
+      "visual_review": "Reviewed composed final image: living Duke in first-map street. Six once-only launch corrections pass direction checks, including animation 104; four clear landings return to run 78 and two original obstacle impacts retain recovery 105."
+    },
+    {
+      "name": "d08-polish-vanilla-final",
+      "report": "recomp/analysis/vanilla-regression/d08-polish-vanilla-final/report.json",
+      "binary_sha256": "1acd362bfdfae52853d4199cf082ea47af0243c05be1c3a8420d775f1e17c95c",
+      "exit_code": 0,
+      "error": null,
+      "cleanup_exit_code": null,
+      "visual_review": "Reviewed final turn: living Duke in the street; original controls and animation route completes. State trace confirms original jump/landing and movement. Bounded first-map Vanilla regression only.",
+      "events": [
+        "intro",
+        "title",
+        "main-menu",
+        "difficulty",
+        "spawn",
+        "fire",
+        "holster",
+        "draw",
+        "jump",
+        "land",
+        "inventory",
+        "inventory-close",
+        "forward",
+        "turn"
+      ]
+    }
+  ],
+  "supporting_replays": [
+    {
+      "name": "d08-polish-delivery",
+      "report": "recomp/analysis/pc-input/d08-polish-delivery/report.json",
+      "binary_sha256": "80978288fa7b8147550171254502ba113ba2c002f34328675b55cea2b7201606",
+      "exit_code": 0,
+      "error": null,
+      "checks": 7,
+      "interaction_assertions": "Tap E holsters and emits only unarmed action; ammunition and shot count unchanged",
+      "automatic_capture_assertions": "Initial gameplay and pause resume capture automatically; pause menu releases capture",
+      "respawn_assertions": "Original enemy death/restart returns captured normal camera; no F10 repair needed",
+      "fixture_writes": [
+        {
+          "address": "0x800d71ca",
+          "value": 100,
+          "purpose": "private HUD 1 health fixture to reproduce enemy death/restart; no camera/position/state write"
+        }
+      ],
+      "visual_review": "Reviewed respawn composed image: live Duke and original respawn effect in the first-map street, normal camera distance. E-only ammo/shot assertions and pause/resume pass; later deliberate Mouse1 engagement is separately labeled.",
+      "selected_observations": [
+        {
+          "name": "interact-before",
+          "anim": 63,
+          "equipment": 2,
+          "ammo": 200,
+          "health": 10000,
+          "distance": 3044.820355948771,
+          "captured": true,
+          "shots": 0
+        },
+        {
+          "name": "interact-4",
+          "anim": 63,
+          "equipment": 0,
+          "ammo": 200,
+          "health": 10000,
+          "distance": 3044.820355948771,
+          "captured": true,
+          "shots": 0
+        },
+        {
+          "name": "c-redraw",
+          "anim": 63,
+          "equipment": 2,
+          "ammo": 200,
+          "health": 10000,
+          "distance": 3044.820355948771,
+          "captured": true,
+          "shots": 0
+        },
+        {
+          "name": "paused",
+          "anim": 63,
+          "equipment": 2,
+          "ammo": 200,
+          "health": 10000,
+          "distance": 3043.355549389522,
+          "captured": false,
+          "shots": 0
+        },
+        {
+          "name": "resumed",
+          "anim": 63,
+          "equipment": 2,
+          "ammo": 200,
+          "health": 10000,
+          "distance": 3044.9270927232396,
+          "captured": true,
+          "shots": 0
+        },
+        {
+          "name": "dead",
+          "anim": 214,
+          "equipment": 0,
+          "ammo": 199,
+          "health": 0,
+          "distance": 2921.362182270456,
+          "captured": true,
+          "shots": 1
+        },
+        {
+          "name": "respawn-11",
+          "anim": 63,
+          "equipment": 0,
+          "ammo": 199,
+          "health": 10000,
+          "distance": 3044.820355948771,
+          "captured": true,
+          "shots": 1
+        },
+        {
+          "name": "released",
+          "anim": 63,
+          "equipment": 0,
+          "ammo": 199,
+          "health": 10000,
+          "distance": 3010.1569726510943,
+          "captured": false,
+          "shots": 1
+        },
+        {
+          "name": "recaptured",
+          "anim": 63,
+          "equipment": 0,
+          "ammo": 199,
+          "health": 10000,
+          "distance": 3044.8916236871223,
+          "captured": true,
+          "shots": 1
+        }
+      ]
+    },
+    {
+      "name": "d08-polish-fourth",
+      "report": "recomp/analysis/pc-input/d08-polish-fourth/report.json",
+      "binary_sha256": "54941db6ac054d28e2f57cb1718b5db165b3c02b01dc13afa782422ff054181d",
+      "exit_code": 0,
+      "error": null,
+      "checks": 7,
+      "interaction_assertions": "Tap E holsters and emits only unarmed action; ammunition and shot count unchanged",
+      "automatic_capture_assertions": "Initial gameplay and pause resume capture automatically; pause menu releases capture",
+      "respawn_assertions": "Original enemy death/restart returns captured normal camera; no F10 repair needed",
+      "fixture_writes": [
+        {
+          "address": "0x800d71ca",
+          "value": 100,
+          "purpose": "private HUD 1 health fixture to reproduce enemy death/restart; no camera/position/state write"
+        }
+      ],
+      "visual_review": "Reviewed respawn composed image: living Duke at original spawn with health 100, original respawn visual effect and enemies present. Camera recovers to 3045 units without F10; after release/recapture 3044. E-only segment: ammo 200 throughout, modern shot count 0, queued Cross only in holstered state. Later deliberate Mouse1 engagement spent one round and is separate from E evidence.",
+      "selected_observations": [
+        {
+          "name": "interact-before",
+          "anim": 63,
+          "equipment": 2,
+          "ammo": 200,
+          "health": 10000,
+          "distance": 3044.820355948771,
+          "captured": true,
+          "shots": 0
+        },
+        {
+          "name": "interact-4",
+          "anim": 63,
+          "equipment": 0,
+          "ammo": 200,
+          "health": 10000,
+          "distance": 3044.820355948771,
+          "captured": true,
+          "shots": 0
+        },
+        {
+          "name": "c-redraw",
+          "anim": 63,
+          "equipment": 2,
+          "ammo": 200,
+          "health": 10000,
+          "distance": 3044.820355948771,
+          "captured": true,
+          "shots": 0
+        },
+        {
+          "name": "paused",
+          "anim": 63,
+          "equipment": 2,
+          "ammo": 200,
+          "health": 10000,
+          "distance": 3043.355549389522,
+          "captured": false,
+          "shots": 0
+        },
+        {
+          "name": "resumed",
+          "anim": 63,
+          "equipment": 2,
+          "ammo": 200,
+          "health": 10000,
+          "distance": 3044.9270927232396,
+          "captured": true,
+          "shots": 0
+        },
+        {
+          "name": "dead",
+          "anim": 214,
+          "equipment": 0,
+          "ammo": 199,
+          "health": 0,
+          "distance": 2920.0001712328717,
+          "captured": true,
+          "shots": 1
+        },
+        {
+          "name": "respawn-11",
+          "anim": 63,
+          "equipment": 0,
+          "ammo": 199,
+          "health": 10000,
+          "distance": 3044.820355948771,
+          "captured": true,
+          "shots": 1
+        },
+        {
+          "name": "released",
+          "anim": 63,
+          "equipment": 0,
+          "ammo": 199,
+          "health": 10000,
+          "distance": 3010.1569726510943,
+          "captured": false,
+          "shots": 1
+        },
+        {
+          "name": "recaptured",
+          "anim": 63,
+          "equipment": 0,
+          "ammo": 199,
+          "health": 10000,
+          "distance": 3044.0767073120874,
+          "captured": true,
+          "shots": 1
+        }
+      ]
+    },
+    {
+      "name": "d08-respawn-manual",
+      "report": "recomp/analysis/pc-input/d08-respawn-manual/report.json",
+      "binary_sha256": "54941db6ac054d28e2f57cb1718b5db165b3c02b01dc13afa782422ff054181d",
+      "exit_code": 0,
+      "error": null,
+      "checks": 16,
+      "fixture_writes": [
+        {
+          "address": "0x800d71ca",
+          "value": 100,
+          "purpose": "private HUD 1 health fixture to reproduce enemy death/restart; no camera/position/state write"
+        }
+      ],
+      "selected_observations": [
+        {
+          "name": "dead",
+          "anim": 215,
+          "equipment": 0,
+          "ammo": 199,
+          "health": 0,
+          "distance": 2915.9427292043993,
+          "captured": true,
+          "shots": 1
+        },
+        {
+          "name": "respawn-11",
+          "anim": 63,
+          "equipment": 0,
+          "ammo": 199,
+          "health": 10000,
+          "distance": 3044.820355948771,
+          "captured": true,
+          "shots": 1
+        },
+        {
+          "name": "released",
+          "anim": 63,
+          "equipment": 0,
+          "ammo": 199,
+          "health": 10000,
+          "distance": 3010.1569726510943,
+          "captured": false,
+          "shots": 1
+        },
+        {
+          "name": "recaptured",
+          "anim": 63,
+          "equipment": 0,
+          "ammo": 199,
+          "health": 10000,
+          "distance": 3044.8916236871223,
+          "captured": true,
+          "shots": 1
+        }
+      ]
+    },
+    {
+      "name": "d08-polish-wall",
+      "report": "recomp/analysis/pc-input/d08-polish-wall/report.json",
+      "binary_sha256": "54941db6ac054d28e2f57cb1718b5db165b3c02b01dc13afa782422ff054181d",
+      "exit_code": 0,
+      "error": null,
+      "checks": 16,
+      "back_displacement": 451.7078701993137
+    },
+    {
+      "name": "d08-polish-vanilla",
+      "report": "recomp/analysis/vanilla-regression/d08-polish-vanilla/report.json",
+      "binary_sha256": "54941db6ac054d28e2f57cb1718b5db165b3c02b01dc13afa782422ff054181d",
+      "exit_code": 0,
+      "error": null,
+      "cleanup_exit_code": null,
+      "visual_review": null,
+      "events": [
+        "intro",
+        "title",
+        "main-menu",
+        "difficulty",
+        "spawn",
+        "fire",
+        "holster",
+        "draw",
+        "jump",
+        "land",
+        "inventory",
+        "inventory-close",
+        "forward",
+        "turn"
+      ]
+    }
+  ],
+  "supporting_evidence_scope": "E, automatic capture/pause, respawn and wall replays were recorded before the final jump-only takeoff guard change. Those paths were unchanged by that change; delivery-native tests, six-jump replay and Vanilla route verify the final binary.",
+  "exclusions": [
+    "d08-polish-baseline: death reached but only first continue confirmation, no respawn acceptance",
+    "d08-respawn-baseline: old binary rejected new C binding payload; input harness failed before gameplay",
+    "d08-polish-first: initial automatic capture was released during startup; candidate superseded",
+    "d08-polish-second: sustained holster request prevented transition completion; E still did not fire; candidate superseded",
+    "d08-polish-third: E/C/pause segments passed but route did not encounter enemy fire; not respawn evidence",
+    "d08-polish-jumps: missing fresh jump intent in one short-approach launch; candidate superseded",
+    "d08-polish-jumps-final: trace established first ballistic update in 9/0, then expired intent at 9/9; candidate superseded"
+  ],
+  "limitations": [
+    "Original geometry impacts retain recovery; no collision bypass or air steering",
+    "Foot animations remain original; subjective movement feel needs playtesting",
+    "Automatic capture/interaction is bounded by authenticated first-map gameplay ownership",
+    "E automatically holsters and stays holstered; C redraws; weapon/era variants and object-specific interactions need broader coverage",
+    "Campaign progression/security card, swimming and other D08 transitions remain open",
+    "Audio choppiness remains unconfirmed by listening"
+  ],
+  "preservation": {
+    "player_files_unchanged": true,
+    "baseline": "recomp/analysis/d08-polish/preservation.json",
+    "runtime_diff_unchanged": true,
+    "runtime_baseline": "recomp/analysis/d08-polish/runtime-before.diff",
+    "profile_migration": "The actual user file remains unchanged during tests; normal launcher load will back it up and migrate H to C under schema 6."
+  }
+}

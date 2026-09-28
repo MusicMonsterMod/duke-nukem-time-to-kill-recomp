@@ -1,0 +1,231 @@
+{
+  "status": "Needs playtest",
+  "scope": "D07A feedback pass only; D01-D07 accepted; D08 not started",
+  "binary_sha256": "ac5f8b1d7df6eccf866df8873aa720ff64014bf286e2b30d3295fbb748de4203",
+  "automated": {
+    "python": "52 cases: 50 passed, 2 owned-disc integration skips",
+    "native": [
+      "SDL input incl saved speed binding, autorun repeat/focus/capture/Vanilla",
+      "owned-data movement/idle-clearance/camera-bump/facing guards",
+      "owned-data aiming and obstruction guards"
+    ]
+  },
+  "routes": {
+    "d07a-wall-before": {
+      "binary_sha256": "1cb5b7be3e9c6d351292f1ec479bbb90db366616885ca78e7137fa0a5e307f1a",
+      "exit_code": 0,
+      "back_displacement": 0.0,
+      "final_candidate": false,
+      "assertions_complete": true,
+      "private_report": "recomp/analysis/pc-input/d07a-wall-before/report.json",
+      "sample_count": 18,
+      "death_observed": false
+    },
+    "d07a-wall-after": {
+      "binary_sha256": "5d5d1b05857be06cdc5cfcb9eb23bbabde1f2db82f32a08f13e02c03594fc14b",
+      "exit_code": 0,
+      "back_displacement": 587.2350466380561,
+      "final_candidate": false,
+      "assertions_complete": true,
+      "private_report": "recomp/analysis/pc-input/d07a-wall-after/report.json",
+      "sample_count": 18,
+      "death_observed": false
+    },
+    "d07a-wall-verified": {
+      "binary_sha256": "5d5d1b05857be06cdc5cfcb9eb23bbabde1f2db82f32a08f13e02c03594fc14b",
+      "exit_code": 0,
+      "back_displacement": 579.6386805588461,
+      "orbit_total_1": 6.217357222382183,
+      "orbit_total_-1": -6.283185307179588,
+      "final_candidate": false,
+      "assertions_complete": true,
+      "private_report": "recomp/analysis/pc-input/d07a-wall-verified/report.json",
+      "sample_count": 35,
+      "death_observed": false
+    },
+    "d07a-wall-entrance": {
+      "binary_sha256": "5d5d1b05857be06cdc5cfcb9eb23bbabde1f2db82f32a08f13e02c03594fc14b",
+      "error": "AssertionError('Camera sweep did not turn through half a circle')",
+      "final_candidate": false,
+      "assertions_complete": false,
+      "private_report": "recomp/analysis/pc-input/d07a-wall-entrance/report.json",
+      "sample_count": 22,
+      "death_observed": false
+    },
+    "d07a-wall-camera-fixed": {
+      "binary_sha256": "dcea23fd7bbfc801cf2e7c6f4b490e90b858361158452f2fae07737c3eabd9f6",
+      "error": "AssertionError('Camera sweep did not turn through half a circle')",
+      "final_candidate": false,
+      "assertions_complete": false,
+      "private_report": "recomp/analysis/pc-input/d07a-wall-camera-fixed/report.json",
+      "sample_count": 22,
+      "death_observed": false
+    },
+    "d07a-wall-orientation": {
+      "binary_sha256": "ac5f8b1d7df6eccf866df8873aa720ff64014bf286e2b30d3295fbb748de4203",
+      "exit_code": 0,
+      "back_displacement": 550.1454353168806,
+      "orbit_total_1": 6.283185307179586,
+      "orbit_total_-1": -6.282744137950187,
+      "final_candidate": true,
+      "assertions_complete": true,
+      "private_report": "recomp/analysis/pc-input/d07a-wall-orientation/report.json",
+      "sample_count": 35,
+      "death_observed": false
+    },
+    "d07a-final-facing": {
+      "binary_sha256": "ac5f8b1d7df6eccf866df8873aa720ff64014bf286e2b30d3295fbb748de4203",
+      "exit_code": 0,
+      "facing_assertions": "passed; images and gameplay acceptance require review",
+      "final_candidate": true,
+      "assertions_complete": true,
+      "private_report": "recomp/analysis/pc-input/d07a-final-facing/report.json",
+      "sample_count": 20,
+      "death_observed": false
+    },
+    "d07a-final-movement": {
+      "binary_sha256": "ac5f8b1d7df6eccf866df8873aa720ff64014bf286e2b30d3295fbb748de4203",
+      "exit_code": 0,
+      "final_candidate": true,
+      "assertions_complete": true,
+      "private_report": "recomp/analysis/pc-input/d07a-final-movement/report.json",
+      "sample_count": 15,
+      "death_observed": false
+    },
+    "d07a-final-camera": {
+      "binary_sha256": "ac5f8b1d7df6eccf866df8873aa720ff64014bf286e2b30d3295fbb748de4203",
+      "exit_code": 0,
+      "final_candidate": true,
+      "assertions_complete": true,
+      "private_report": "recomp/analysis/pc-input/d07a-final-camera/report.json",
+      "sample_count": 11,
+      "death_observed": false
+    },
+    "d07a-final-presentation": {
+      "binary_sha256": "ac5f8b1d7df6eccf866df8873aa720ff64014bf286e2b30d3295fbb748de4203",
+      "exit_code": 0,
+      "final_candidate": true,
+      "assertions_complete": true,
+      "private_report": "recomp/analysis/pc-input/d07a-final-presentation/report.json",
+      "sample_count": 4,
+      "death_observed": false
+    },
+    "d07a-final-original-aim": {
+      "binary_sha256": "ac5f8b1d7df6eccf866df8873aa720ff64014bf286e2b30d3295fbb748de4203",
+      "exit_code": 0,
+      "final_candidate": true,
+      "assertions_complete": true,
+      "private_report": "recomp/analysis/pc-input/d07a-final-original-aim/report.json",
+      "sample_count": 4,
+      "death_observed": false
+    },
+    "d07a-feedback-facing": {
+      "binary_sha256": "5d5d1b05857be06cdc5cfcb9eb23bbabde1f2db82f32a08f13e02c03594fc14b",
+      "exit_code": 0,
+      "facing_assertions": "passed; images and gameplay acceptance require review",
+      "final_candidate": false,
+      "assertions_complete": true,
+      "private_report": "recomp/analysis/pc-input/d07a-feedback-facing/report.json",
+      "sample_count": 20,
+      "death_observed": false
+    },
+    "d07a-feedback-movement": {
+      "binary_sha256": "5d5d1b05857be06cdc5cfcb9eb23bbabde1f2db82f32a08f13e02c03594fc14b",
+      "exit_code": 0,
+      "final_candidate": false,
+      "assertions_complete": true,
+      "private_report": "recomp/analysis/pc-input/d07a-feedback-movement/report.json",
+      "sample_count": 15,
+      "death_observed": false
+    },
+    "d07a-feedback-camera": {
+      "binary_sha256": "5d5d1b05857be06cdc5cfcb9eb23bbabde1f2db82f32a08f13e02c03594fc14b",
+      "exit_code": 0,
+      "final_candidate": false,
+      "assertions_complete": true,
+      "private_report": "recomp/analysis/pc-input/d07a-feedback-camera/report.json",
+      "sample_count": 11,
+      "death_observed": false
+    },
+    "d07a-final-vanilla": {
+      "exit_code": 0,
+      "semantic_result": "requires capture review",
+      "quit_response": {
+        "ok": false,
+        "err": "emu busy or frozen"
+      },
+      "private_report": "recomp/analysis/vanilla-regression/d07a-final-vanilla/report.json"
+    }
+  },
+  "excluded": {
+    "d07a-wall-camera-fixed": "First orientation adapter guard used delay-slot address instead of true return; counter stayed zero. Superseded after correcting RA to 0x80029220.",
+    "d07a-wall-entrance": "Tight-wall sweep reproduced actual yaw pin despite changing requested yaw; superseded by final orientation fix.",
+    "d07a-wall-final": "Long second camera sweep reached death animation 218. Exit 0 is not full route acceptance. Added explicit death rejection and shortened route."
+  },
+  "required_playtest": [
+    "Reported strip-club entrance and enclosed interior, multiple walls/corners, approach/turn/back away without wiggling",
+    "Wall bump with continuous mouse motion, sustained strafe/backpedal and terrain",
+    "Walking by default, Shift/Caps behavior and custom speed bindings",
+    "Body/gun presentation, draw/holster, original aim and capture/focus",
+    "D07 existing weapon acquisition/families, actor hits, reticle continuity, near/around-corner cover, platforms and campaign remain unverified"
+  ],
+  "backlog_only": [
+    "D07B optional assisted view aiming research",
+    "D13 high-resolution settings",
+    "D14 widescreen",
+    "D16A HRP; first-person weapon assets priority, interface/overlays/model replacement",
+    "D19 EDuke32-inspired in-game menus and code-reuse investigation"
+  ],
+  "final_presentation_result": {
+    "route": "d07a-final-presentation",
+    "sampled_pitch_degrees": [
+      -23.0071,
+      27.1926
+    ],
+    "body_pitch": 0,
+    "reticle": "Visible in reviewed upward/armed-walking frames; hidden after release",
+    "remaining": "Body can occupy the screen center; no universal weapon/reticle/cover claim"
+  },
+  "final_wall_result": {
+    "route": "d07a-wall-orientation",
+    "actual_turn_degrees": [
+      360,
+      -359.97
+    ],
+    "maximum_sampled_yaw_error_degrees": 0.189,
+    "back_displacement": 550.1454,
+    "body_fade": "Original close-camera transparency observed; unchanged"
+  },
+  "preservation": {
+    "changed_baseline_files": [
+      "recomp/src/ttk/modern_controls.cpp",
+      "recomp/src/ttk/pc_input.cpp",
+      "recomp/src/ttk/control_guards.inc",
+      "recomp/tools/local/modern_controls_probe.py",
+      "recomp/tools/local/presentation_probe.py",
+      "recomp/tools/local/pc_input.py",
+      "recomp/tools/local/pc_input_probe.py",
+      "recomp/tests/local/modern_controls_native.cpp",
+      "recomp/tests/local/pc_input_native.cpp",
+      "recomp/game.local.toml"
+    ],
+    "missing_baseline_files": [],
+    "settings_cards_changed": [],
+    "existing_runtime_diff_identical": true
+  },
+  "final_original_aim_result": {
+    "route": "d07a-final-original-aim",
+    "modern_facings_arms_shots": 0,
+    "modern_reticle": false,
+    "observed_ammo": "200 to 198",
+    "limits": "Original path verified; no new universal autoaim/weapon-family claim"
+  },
+  "reviewed_captures": [
+    "Wall approach/backpedal and yaw samples (verified route)",
+    "Facing draw/holster, fire, original precision route",
+    "Original-camera directional movement and walk",
+    "Independent camera moving fire and pause recapture",
+    "Vanilla fire 200 to 196, jump, inventory and turn"
+  ],
+  "shutdown_limit": "Vanilla exits 0, but quit RPC reports emu busy or frozen; not graceful-close proof."
+}

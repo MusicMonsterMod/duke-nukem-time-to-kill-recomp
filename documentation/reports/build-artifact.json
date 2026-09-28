@@ -1,0 +1,9 @@
+{
+  "path": "recomp/build-local/Duke_Nukem__Time_to_Kill_Recompiled",
+  "bytes": 136436176,
+  "sha256": "3627c5d077a33d05311a6d8ca7ae0e3985671395b8fbedb86e30d7c0ca3bdd4e",
+  "platform": "linux-x86_64",
+  "preset": "local-dev",
+  "game_profile": "game.local.toml",
+  "windows_tested": false
+}

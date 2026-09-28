@@ -1,0 +1,2461 @@
+{
+  "date": "2026-09-26",
+  "job": "D03",
+  "status": "In progress",
+  "source": "recomp/analysis/vanilla-regression/d03-filtered-trace/report.json",
+  "binary_sha256": "1d280e754974854393048322b59d65535214eee97cddbcdadc57a58f58d4f038",
+  "exit_code": 0,
+  "probe_tests_passed": 4,
+  "guard_ranges": [
+    {
+      "start": "0x8003accc",
+      "end_exclusive": "0x8003ade4",
+      "sha256": "1b945b722149702c29c4344c7eb444994aeedaf18e019688befaa670de4603a7"
+    },
+    {
+      "start": "0x8003ade4",
+      "end_exclusive": "0x8003b474",
+      "sha256": "544fa7cdde4e0b8471d389f443b0cd0e773a45e5d72bd03f1f1e7634f5937bc6"
+    },
+    {
+      "start": "0x80097c04",
+      "end_exclusive": "0x80098204",
+      "sha256": "e4e9f63fa7c73ad4e7584d11ad170fe94e70dc9c02c047c91cd87553b7f4c32f"
+    }
+  ],
+  "samples": [
+    {
+      "checkpoint": "spawn",
+      "frame_before": 8053,
+      "frame_after": 8055,
+      "player_base": "0x800d7198",
+      "camera_base": "0x800d6eb0",
+      "player_position_candidate": [
+        2060,
+        -9717,
+        7208
+      ],
+      "player_rotation_candidate": [
+        1537,
+        0,
+        0
+      ],
+      "player_target_rotation_candidate": [
+        1537,
+        0,
+        0
+      ],
+      "player_delta_candidate": [
+        0,
+        1,
+        0
+      ],
+      "player_room_candidate": 2,
+      "player_camera_anchor_candidate": [
+        2060,
+        -9777,
+        7208
+      ],
+      "camera_14_vector": [
+        -211,
+        -10410,
+        9486
+      ],
+      "camera_64_vector": [
+        -75,
+        -10390,
+        9350
+      ],
+      "state_bytes_22c_233": [
+        0,
+        0,
+        2,
+        2,
+        3,
+        22,
+        0,
+        0
+      ]
+    },
+    {
+      "checkpoint": "fire",
+      "frame_before": 8122,
+      "frame_after": 8123,
+      "player_base": "0x800d7198",
+      "camera_base": "0x800d6eb0",
+      "player_position_candidate": [
+        2060,
+        -9730,
+        7208
+      ],
+      "player_rotation_candidate": [
+        1537,
+        0,
+        0
+      ],
+      "player_target_rotation_candidate": [
+        1537,
+        0,
+        0
+      ],
+      "player_delta_candidate": [
+        0,
+        1,
+        0
+      ],
+      "player_room_candidate": 2,
+      "player_camera_anchor_candidate": [
+        2060,
+        -9777,
+        7208
+      ],
+      "camera_14_vector": [
+        -211,
+        -10410,
+        9486
+      ],
+      "camera_64_vector": [
+        -75,
+        -10390,
+        9350
+      ],
+      "state_bytes_22c_233": [
+        0,
+        0,
+        2,
+        2,
+        3,
+        17,
+        0,
+        0
+      ],
+      "player_write_trace": {
+        "returned_entries": 247,
+        "changed_write_sites": [
+          {
+            "address": "0x000D71A8",
+            "store_pc": "0x800981B4",
+            "count": 96
+          },
+          {
+            "address": "0x000D71A8",
+            "store_pc": "0x80097DE8",
+            "count": 22
+          },
+          {
+            "address": "0x000D71A0",
+            "store_pc": "0x800532AC",
+            "count": 21
+          },
+          {
+            "address": "0x000D71A8",
+            "store_pc": "0x80098A28",
+            "count": 5
+          },
+          {
+            "address": "0x000D71A8",
+            "store_pc": "0x80098784",
+            "count": 4
+          },
+          {
+            "address": "0x000D71A8",
+            "store_pc": "0x80098388",
+            "count": 1
+          },
+          {
+            "address": "0x000D71A8",
+            "store_pc": "0x80098944",
+            "count": 1
+          }
+        ]
+      },
+      "camera_write_trace": {
+        "returned_entries": 512,
+        "changed_write_sites": [
+          {
+            "address": "0x000D6EC0",
+            "store_pc": "0x800B3F34",
+            "count": 8
+          },
+          {
+            "address": "0x000D6EBE",
+            "store_pc": "0x800B3F30",
+            "count": 8
+          },
+          {
+            "address": "0x000D6EBC",
+            "store_pc": "0x800B3F2C",
+            "count": 8
+          },
+          {
+            "address": "0x000D6EB4",
+            "store_pc": "0x800B3EF8",
+            "count": 8
+          },
+          {
+            "address": "0x000D6EB0",
+            "store_pc": "0x800B3EF0",
+            "count": 8
+          },
+          {
+            "address": "0x000D6EBC",
+            "store_pc": "0x8002A598",
+            "count": 8
+          },
+          {
+            "address": "0x000D6EC0",
+            "store_pc": "0x8002A58C",
+            "count": 8
+          },
+          {
+            "address": "0x000D6EBE",
+            "store_pc": "0x8002A57C",
+            "count": 8
+          },
+          {
+            "address": "0x000D6EB4",
+            "store_pc": "0x8002A540",
+            "count": 8
+          },
+          {
+            "address": "0x000D6EB0",
+            "store_pc": "0x8002A524",
+            "count": 8
+          },
+          {
+            "address": "0x000D6F5E",
+            "store_pc": "0x80037064",
+            "count": 2
+          },
+          {
+            "address": "0x000D6F50",
+            "store_pc": "0x80034D40",
+            "count": 1
+          },
+          {
+            "address": "0x000D6F5A",
+            "store_pc": "0x80037060",
+            "count": 1
+          }
+        ]
+      }
+    },
+    {
+      "checkpoint": "holster",
+      "frame_before": 8188,
+      "frame_after": 8189,
+      "player_base": "0x800d7198",
+      "camera_base": "0x800d6eb0",
+      "player_position_candidate": [
+        2060,
+        -9720,
+        7208
+      ],
+      "player_rotation_candidate": [
+        1537,
+        0,
+        0
+      ],
+      "player_target_rotation_candidate": [
+        1537,
+        0,
+        0
+      ],
+      "player_delta_candidate": [
+        0,
+        -1,
+        0
+      ],
+      "player_room_candidate": 2,
+      "player_camera_anchor_candidate": [
+        2060,
+        -9777,
+        7208
+      ],
+      "camera_14_vector": [
+        -201,
+        -10205,
+        9471
+      ],
+      "camera_64_vector": [
+        -64,
+        -10194,
+        9335
+      ],
+      "state_bytes_22c_233": [
+        0,
+        0,
+        7,
+        7,
+        3,
+        22,
+        0,
+        0
+      ],
+      "player_write_trace": {
+        "returned_entries": 236,
+        "changed_write_sites": [
+          {
+            "address": "0x000D71A8",
+            "store_pc": "0x80098A28",
+            "count": 85
+          },
+          {
+            "address": "0x000D71A0",
+            "store_pc": "0x800532AC",
+            "count": 22
+          },
+          {
+            "address": "0x000D71A8",
+            "store_pc": "0x80098944",
+            "count": 17
+          },
+          {
+            "address": "0x000D71A8",
+            "store_pc": "0x800981B4",
+            "count": 17
+          },
+          {
+            "address": "0x000D71A8",
+            "store_pc": "0x80098784",
+            "count": 5
+          },
+          {
+            "address": "0x000D71A8",
+            "store_pc": "0x80097DE8",
+            "count": 4
+          },
+          {
+            "address": "0x000D71A8",
+            "store_pc": "0x80098388",
+            "count": 1
+          }
+        ]
+      },
+      "camera_write_trace": {
+        "returned_entries": 512,
+        "changed_write_sites": [
+          {
+            "address": "0x000D6F50",
+            "store_pc": "0x80034D40",
+            "count": 9
+          },
+          {
+            "address": "0x000D6EE8",
+            "store_pc": "0x8002E4F0",
+            "count": 9
+          },
+          {
+            "address": "0x000D6EDE",
+            "store_pc": "0x8002899C",
+            "count": 9
+          },
+          {
+            "address": "0x000D6EDA",
+            "store_pc": "0x80028984",
+            "count": 8
+          },
+          {
+            "address": "0x000D6ED6",
+            "store_pc": "0x80028914",
+            "count": 8
+          },
+          {
+            "address": "0x000D6ED2",
+            "store_pc": "0x800288A8",
+            "count": 8
+          },
+          {
+            "address": "0x000D6EC0",
+            "store_pc": "0x800B3F34",
+            "count": 8
+          },
+          {
+            "address": "0x000D6EBC",
+            "store_pc": "0x800B3F2C",
+            "count": 8
+          },
+          {
+            "address": "0x000D6EB4",
+            "store_pc": "0x800B3EF8",
+            "count": 8
+          },
+          {
+            "address": "0x000D6EB0",
+            "store_pc": "0x800B3EF0",
+            "count": 8
+          },
+          {
+            "address": "0x000D6EBC",
+            "store_pc": "0x8002A598",
+            "count": 8
+          },
+          {
+            "address": "0x000D6EC0",
+            "store_pc": "0x8002A58C",
+            "count": 8
+          },
+          {
+            "address": "0x000D6EBE",
+            "store_pc": "0x8002A57C",
+            "count": 8
+          },
+          {
+            "address": "0x000D6EBA",
+            "store_pc": "0x8002A570",
+            "count": 8
+          },
+          {
+            "address": "0x000D6EB6",
+            "store_pc": "0x8002A54C",
+            "count": 8
+          },
+          {
+            "address": "0x000D6EB0",
+            "store_pc": "0x8002A524",
+            "count": 8
+          },
+          {
+            "address": "0x000D6F0C",
+            "store_pc": "0x8002926C",
+            "count": 8
+          },
+          {
+            "address": "0x000D6F04",
+            "store_pc": "0x80029250",
+            "count": 8
+          },
+          {
+            "address": "0x000D6EC8",
+            "store_pc": "0x8003B0B4",
+            "count": 8
+          },
+          {
+            "address": "0x000D6F18",
+            "store_pc": "0x8003B08C",
+            "count": 8
+          },
+          {
+            "address": "0x000D6F28",
+            "store_pc": "0x80028E58",
+            "count": 8
+          },
+          {
+            "address": "0x000D6ED4",
+            "store_pc": "0x800288DC",
+            "count": 7
+          },
+          {
+            "address": "0x000D6ED0",
+            "store_pc": "0x80028874",
+            "count": 7
+          },
+          {
+            "address": "0x000D6EBE",
+            "store_pc": "0x800B3F30",
+            "count": 7
+          },
+          {
+            "address": "0x000D6EC8",
+            "store_pc": "0x8002E514",
+            "count": 7
+          },
+          {
+            "address": "0x000D6EB4",
+            "store_pc": "0x8002A540",
+            "count": 7
+          },
+          {
+            "address": "0x000D6EE0",
+            "store_pc": "0x800289A8",
+            "count": 6
+          },
+          {
+            "address": "0x000D6EDC",
+            "store_pc": "0x80028990",
+            "count": 6
+          },
+          {
+            "address": "0x000D6EB2",
+            "store_pc": "0x8002A534",
+            "count": 6
+          },
+          {
+            "address": "0x000D6ED8",
+            "store_pc": "0x8002894C",
+            "count": 6
+          },
+          {
+            "address": "0x000D6EB8",
+            "store_pc": "0x8002A55C",
+            "count": 6
+          },
+          {
+            "address": "0x000D6EB2",
+            "store_pc": "0x800B3EF4",
+            "count": 5
+          },
+          {
+            "address": "0x000D6F2C",
+            "store_pc": "0x80028E60",
+            "count": 5
+          },
+          {
+            "address": "0x000D6EEC",
+            "store_pc": "0x8002E4FC",
+            "count": 5
+          },
+          {
+            "address": "0x000D6F5E",
+            "store_pc": "0x80037064",
+            "count": 4
+          },
+          {
+            "address": "0x000D6F08",
+            "store_pc": "0x8002925C",
+            "count": 4
+          },
+          {
+            "address": "0x000D6ECC",
+            "store_pc": "0x8003B0C0",
+            "count": 4
+          },
+          {
+            "address": "0x000D6F1C",
+            "store_pc": "0x8003B09C",
+            "count": 4
+          },
+          {
+            "address": "0x000D6F24",
+            "store_pc": "0x80028E54",
+            "count": 4
+          },
+          {
+            "address": "0x000D6EE4",
+            "store_pc": "0x8002E4E4",
+            "count": 4
+          },
+          {
+            "address": "0x000D6F5C",
+            "store_pc": "0x80037054",
+            "count": 3
+          },
+          {
+            "address": "0x000D6F10",
+            "store_pc": "0x80029244",
+            "count": 3
+          },
+          {
+            "address": "0x000D6EC4",
+            "store_pc": "0x8003B0A8",
+            "count": 3
+          },
+          {
+            "address": "0x000D6F14",
+            "store_pc": "0x8003B080",
+            "count": 3
+          },
+          {
+            "address": "0x000D6F58",
+            "store_pc": "0x8003705C",
+            "count": 2
+          },
+          {
+            "address": "0x000D6F5A",
+            "store_pc": "0x80037060",
+            "count": 2
+          },
+          {
+            "address": "0x000D6EC4",
+            "store_pc": "0x8002E508",
+            "count": 1
+          }
+        ]
+      }
+    },
+    {
+      "checkpoint": "draw",
+      "frame_before": 8254,
+      "frame_after": 8255,
+      "player_base": "0x800d7198",
+      "camera_base": "0x800d6eb0",
+      "player_position_candidate": [
+        2060,
+        -9721,
+        7208
+      ],
+      "player_rotation_candidate": [
+        1537,
+        0,
+        0
+      ],
+      "player_target_rotation_candidate": [
+        1537,
+        0,
+        0
+      ],
+      "player_delta_candidate": [
+        0,
+        1,
+        0
+      ],
+      "player_room_candidate": 2,
+      "player_camera_anchor_candidate": [
+        2060,
+        -9777,
+        7208
+      ],
+      "camera_14_vector": [
+        -214,
+        -10405,
+        9486
+      ],
+      "camera_64_vector": [
+        -78,
+        -10386,
+        9350
+      ],
+      "state_bytes_22c_233": [
+        0,
+        0,
+        2,
+        2,
+        3,
+        22,
+        0,
+        0
+      ],
+      "player_write_trace": {
+        "returned_entries": 248,
+        "changed_write_sites": [
+          {
+            "address": "0x000D71A8",
+            "store_pc": "0x80098A28",
+            "count": 113
+          },
+          {
+            "address": "0x000D71A8",
+            "store_pc": "0x80098944",
+            "count": 21
+          },
+          {
+            "address": "0x000D71A0",
+            "store_pc": "0x800532AC",
+            "count": 19
+          },
+          {
+            "address": "0x000D71A8",
+            "store_pc": "0x80098784",
+            "count": 5
+          },
+          {
+            "address": "0x000D71A8",
+            "store_pc": "0x80098388",
+            "count": 1
+          }
+        ]
+      },
+      "camera_write_trace": {
+        "returned_entries": 512,
+        "changed_write_sites": [
+          {
+            "address": "0x000D6EE8",
+            "store_pc": "0x8002E4F0",
+            "count": 9
+          },
+          {
+            "address": "0x000D6EDE",
+            "store_pc": "0x8002899C",
+            "count": 9
+          },
+          {
+            "address": "0x000D6EC0",
+            "store_pc": "0x800B3F34",
+            "count": 8
+          },
+          {
+            "address": "0x000D6EB4",
+            "store_pc": "0x800B3EF8",
+            "count": 8
+          },
+          {
+            "address": "0x000D6EB0",
+            "store_pc": "0x800B3EF0",
+            "count": 8
+          },
+          {
+            "address": "0x000D6EC0",
+            "store_pc": "0x8002A58C",
+            "count": 8
+          },
+          {
+            "address": "0x000D6EBE",
+            "store_pc": "0x8002A57C",
+            "count": 8
+          },
+          {
+            "address": "0x000D6EB4",
+            "store_pc": "0x8002A540",
+            "count": 8
+          },
+          {
+            "address": "0x000D6EB0",
+            "store_pc": "0x8002A524",
+            "count": 8
+          },
+          {
+            "address": "0x000D6F0C",
+            "store_pc": "0x8002926C",
+            "count": 8
+          },
+          {
+            "address": "0x000D6EC8",
+            "store_pc": "0x8003B0B4",
+            "count": 8
+          },
+          {
+            "address": "0x000D6F18",
+            "store_pc": "0x8003B08C",
+            "count": 8
+          },
+          {
+            "address": "0x000D6F28",
+            "store_pc": "0x80028E58",
+            "count": 8
+          },
+          {
+            "address": "0x000D6F50",
+            "store_pc": "0x80034D40",
+            "count": 7
+          },
+          {
+            "address": "0x000D6EDA",
+            "store_pc": "0x80028984",
+            "count": 7
+          },
+          {
+            "address": "0x000D6EBC",
+            "store_pc": "0x800B3F2C",
+            "count": 7
+          },
+          {
+            "address": "0x000D6EBC",
+            "store_pc": "0x8002A598",
+            "count": 7
+          },
+          {
+            "address": "0x000D6EBA",
+            "store_pc": "0x8002A570",
+            "count": 7
+          },
+          {
+            "address": "0x000D6ED6",
+            "store_pc": "0x80028914",
+            "count": 7
+          },
+          {
+            "address": "0x000D6EB6",
+            "store_pc": "0x8002A54C",
+            "count": 7
+          },
+          {
+            "address": "0x000D6F04",
+            "store_pc": "0x80029250",
+            "count": 7
+          },
+          {
+            "address": "0x000D6EBE",
+            "store_pc": "0x800B3F30",
+            "count": 6
+          },
+          {
+            "address": "0x000D6EB2",
+            "store_pc": "0x800B3EF4",
+            "count": 6
+          },
+          {
+            "address": "0x000D6EB2",
+            "store_pc": "0x8002A534",
+            "count": 6
+          },
+          {
+            "address": "0x000D6ED4",
+            "store_pc": "0x800288DC",
+            "count": 6
+          },
+          {
+            "address": "0x000D6ED0",
+            "store_pc": "0x80028874",
+            "count": 5
+          },
+          {
+            "address": "0x000D6ED2",
+            "store_pc": "0x800288A8",
+            "count": 4
+          },
+          {
+            "address": "0x000D6EE0",
+            "store_pc": "0x800289A8",
+            "count": 4
+          },
+          {
+            "address": "0x000D6F58",
+            "store_pc": "0x8003705C",
+            "count": 4
+          },
+          {
+            "address": "0x000D6F5C",
+            "store_pc": "0x80037054",
+            "count": 4
+          },
+          {
+            "address": "0x000D6EDC",
+            "store_pc": "0x80028990",
+            "count": 4
+          },
+          {
+            "address": "0x000D6F5E",
+            "store_pc": "0x80037064",
+            "count": 3
+          },
+          {
+            "address": "0x000D6F5A",
+            "store_pc": "0x80037060",
+            "count": 3
+          },
+          {
+            "address": "0x000D6ED8",
+            "store_pc": "0x8002894C",
+            "count": 2
+          },
+          {
+            "address": "0x000D6EB8",
+            "store_pc": "0x8002A55C",
+            "count": 2
+          },
+          {
+            "address": "0x000D6EC8",
+            "store_pc": "0x8002E514",
+            "count": 2
+          },
+          {
+            "address": "0x000D6F10",
+            "store_pc": "0x80029244",
+            "count": 1
+          },
+          {
+            "address": "0x000D6F24",
+            "store_pc": "0x80028E54",
+            "count": 1
+          },
+          {
+            "address": "0x000D6EE4",
+            "store_pc": "0x8002E4E4",
+            "count": 1
+          },
+          {
+            "address": "0x000D6EC4",
+            "store_pc": "0x8003B0A8",
+            "count": 1
+          },
+          {
+            "address": "0x000D6F14",
+            "store_pc": "0x8003B080",
+            "count": 1
+          }
+        ]
+      }
+    },
+    {
+      "checkpoint": "jump",
+      "frame_before": 8297,
+      "frame_after": 8298,
+      "player_base": "0x800d7198",
+      "camera_base": "0x800d6eb0",
+      "player_position_candidate": [
+        2043,
+        -10431,
+        7218
+      ],
+      "player_rotation_candidate": [
+        1537,
+        0,
+        0
+      ],
+      "player_target_rotation_candidate": [
+        1537,
+        0,
+        0
+      ],
+      "player_delta_candidate": [
+        0,
+        -47,
+        0
+      ],
+      "player_room_candidate": 2,
+      "player_camera_anchor_candidate": [
+        2043,
+        -10431,
+        7218
+      ],
+      "camera_14_vector": [
+        -234,
+        -10542,
+        9499
+      ],
+      "camera_64_vector": [
+        -97,
+        -10547,
+        9363
+      ],
+      "state_bytes_22c_233": [
+        9,
+        9,
+        2,
+        2,
+        3,
+        22,
+        0,
+        0
+      ],
+      "player_write_trace": {
+        "returned_entries": 175,
+        "changed_write_sites": [
+          {
+            "address": "0x000D71A8",
+            "store_pc": "0x80098A28",
+            "count": 61
+          },
+          {
+            "address": "0x000D71A8",
+            "store_pc": "0x80098944",
+            "count": 12
+          },
+          {
+            "address": "0x000D71A0",
+            "store_pc": "0x80055D68",
+            "count": 10
+          },
+          {
+            "address": "0x000D71A8",
+            "store_pc": "0x80098784",
+            "count": 10
+          },
+          {
+            "address": "0x000D71A0",
+            "store_pc": "0x80053008",
+            "count": 8
+          },
+          {
+            "address": "0x000D719C",
+            "store_pc": "0x80052FF4",
+            "count": 6
+          },
+          {
+            "address": "0x000D71B3",
+            "store_pc": "0x80041F78",
+            "count": 5
+          },
+          {
+            "address": "0x000D71A4",
+            "store_pc": "0x80053010",
+            "count": 5
+          },
+          {
+            "address": "0x000D71A8",
+            "store_pc": "0x80098388",
+            "count": 2
+          },
+          {
+            "address": "0x000D71A0",
+            "store_pc": "0x800532AC",
+            "count": 2
+          }
+        ]
+      },
+      "camera_write_trace": {
+        "returned_entries": 512,
+        "changed_write_sites": [
+          {
+            "address": "0x000D6F50",
+            "store_pc": "0x80034D40",
+            "count": 9
+          },
+          {
+            "address": "0x000D6EC0",
+            "store_pc": "0x800B3F34",
+            "count": 8
+          },
+          {
+            "address": "0x000D6EB4",
+            "store_pc": "0x800B3EF8",
+            "count": 8
+          },
+          {
+            "address": "0x000D6EB0",
+            "store_pc": "0x800B3EF0",
+            "count": 8
+          },
+          {
+            "address": "0x000D6EBC",
+            "store_pc": "0x8002A598",
+            "count": 8
+          },
+          {
+            "address": "0x000D6EC0",
+            "store_pc": "0x8002A58C",
+            "count": 8
+          },
+          {
+            "address": "0x000D6EBE",
+            "store_pc": "0x8002A57C",
+            "count": 8
+          },
+          {
+            "address": "0x000D6EB0",
+            "store_pc": "0x8002A524",
+            "count": 8
+          },
+          {
+            "address": "0x000D6EBC",
+            "store_pc": "0x800B3F2C",
+            "count": 7
+          },
+          {
+            "address": "0x000D6EB4",
+            "store_pc": "0x8002A540",
+            "count": 7
+          },
+          {
+            "address": "0x000D6F5A",
+            "store_pc": "0x80037060",
+            "count": 7
+          },
+          {
+            "address": "0x000D6EC8",
+            "store_pc": "0x8002E514",
+            "count": 6
+          },
+          {
+            "address": "0x000D6EEC",
+            "store_pc": "0x8002E4FC",
+            "count": 6
+          },
+          {
+            "address": "0x000D6EE8",
+            "store_pc": "0x8002E4F0",
+            "count": 6
+          },
+          {
+            "address": "0x000D6EDE",
+            "store_pc": "0x8002899C",
+            "count": 6
+          },
+          {
+            "address": "0x000D6EDA",
+            "store_pc": "0x80028984",
+            "count": 6
+          },
+          {
+            "address": "0x000D6ED6",
+            "store_pc": "0x80028914",
+            "count": 6
+          },
+          {
+            "address": "0x000D6EBA",
+            "store_pc": "0x8002A570",
+            "count": 6
+          },
+          {
+            "address": "0x000D6EB6",
+            "store_pc": "0x8002A54C",
+            "count": 6
+          },
+          {
+            "address": "0x000D6F0C",
+            "store_pc": "0x8002926C",
+            "count": 6
+          },
+          {
+            "address": "0x000D6F04",
+            "store_pc": "0x80029250",
+            "count": 6
+          },
+          {
+            "address": "0x000D6ECC",
+            "store_pc": "0x8003B0C0",
+            "count": 6
+          },
+          {
+            "address": "0x000D6EC8",
+            "store_pc": "0x8003B0B4",
+            "count": 6
+          },
+          {
+            "address": "0x000D6F1C",
+            "store_pc": "0x8003B09C",
+            "count": 6
+          },
+          {
+            "address": "0x000D6F18",
+            "store_pc": "0x8003B08C",
+            "count": 6
+          },
+          {
+            "address": "0x000D6F24",
+            "store_pc": "0x80028E54",
+            "count": 6
+          },
+          {
+            "address": "0x000D6EE4",
+            "store_pc": "0x8002E4E4",
+            "count": 6
+          },
+          {
+            "address": "0x000D6EC4",
+            "store_pc": "0x8003B0A8",
+            "count": 6
+          },
+          {
+            "address": "0x000D6F14",
+            "store_pc": "0x8003B080",
+            "count": 6
+          },
+          {
+            "address": "0x000D6EE0",
+            "store_pc": "0x800289A8",
+            "count": 5
+          },
+          {
+            "address": "0x000D6EDC",
+            "store_pc": "0x80028990",
+            "count": 5
+          },
+          {
+            "address": "0x000D6ED0",
+            "store_pc": "0x80028874",
+            "count": 5
+          },
+          {
+            "address": "0x000D6EBE",
+            "store_pc": "0x800B3F30",
+            "count": 5
+          },
+          {
+            "address": "0x000D6EB2",
+            "store_pc": "0x8002A534",
+            "count": 5
+          },
+          {
+            "address": "0x000D6F08",
+            "store_pc": "0x8002925C",
+            "count": 5
+          },
+          {
+            "address": "0x000D6F28",
+            "store_pc": "0x80028E58",
+            "count": 5
+          },
+          {
+            "address": "0x000D6F2C",
+            "store_pc": "0x80028E60",
+            "count": 5
+          },
+          {
+            "address": "0x000D6ED4",
+            "store_pc": "0x800288DC",
+            "count": 4
+          },
+          {
+            "address": "0x000D6F5E",
+            "store_pc": "0x80037064",
+            "count": 4
+          },
+          {
+            "address": "0x000D6ED8",
+            "store_pc": "0x8002894C",
+            "count": 4
+          },
+          {
+            "address": "0x000D6EB8",
+            "store_pc": "0x8002A55C",
+            "count": 4
+          },
+          {
+            "address": "0x000D6ED2",
+            "store_pc": "0x800288A8",
+            "count": 3
+          },
+          {
+            "address": "0x000D6EB2",
+            "store_pc": "0x800B3EF4",
+            "count": 3
+          },
+          {
+            "address": "0x000D6ECC",
+            "store_pc": "0x8002E52C",
+            "count": 2
+          },
+          {
+            "address": "0x000D6F10",
+            "store_pc": "0x80029244",
+            "count": 2
+          },
+          {
+            "address": "0x000D6F5C",
+            "store_pc": "0x80037054",
+            "count": 1
+          },
+          {
+            "address": "0x000D6EC4",
+            "store_pc": "0x8002E508",
+            "count": 1
+          }
+        ]
+      }
+    },
+    {
+      "checkpoint": "land",
+      "frame_before": 8425,
+      "frame_after": 8426,
+      "player_base": "0x800d7198",
+      "camera_base": "0x800d6eb0",
+      "player_position_candidate": [
+        2010,
+        -9721,
+        7240
+      ],
+      "player_rotation_candidate": [
+        1537,
+        0,
+        0
+      ],
+      "player_target_rotation_candidate": [
+        1537,
+        0,
+        0
+      ],
+      "player_delta_candidate": [
+        0,
+        1,
+        0
+      ],
+      "player_room_candidate": 2,
+      "player_camera_anchor_candidate": [
+        2010,
+        -9777,
+        7240
+      ],
+      "camera_14_vector": [
+        -262,
+        -10423,
+        9516
+      ],
+      "camera_64_vector": [
+        -126,
+        -10403,
+        9380
+      ],
+      "state_bytes_22c_233": [
+        0,
+        0,
+        2,
+        2,
+        3,
+        22,
+        0,
+        0
+      ],
+      "player_write_trace": {
+        "returned_entries": 533,
+        "changed_write_sites": [
+          {
+            "address": "0x000D71A8",
+            "store_pc": "0x80098A28",
+            "count": 204
+          },
+          {
+            "address": "0x000D71A8",
+            "store_pc": "0x80098944",
+            "count": 41
+          },
+          {
+            "address": "0x000D71A8",
+            "store_pc": "0x80098784",
+            "count": 25
+          },
+          {
+            "address": "0x000D71A0",
+            "store_pc": "0x80055D68",
+            "count": 20
+          },
+          {
+            "address": "0x000D71A0",
+            "store_pc": "0x80053008",
+            "count": 13
+          },
+          {
+            "address": "0x000D71A4",
+            "store_pc": "0x80053010",
+            "count": 12
+          },
+          {
+            "address": "0x000D719C",
+            "store_pc": "0x80052FF4",
+            "count": 12
+          },
+          {
+            "address": "0x000D71A0",
+            "store_pc": "0x800532AC",
+            "count": 10
+          },
+          {
+            "address": "0x000D71A8",
+            "store_pc": "0x80098388",
+            "count": 5
+          },
+          {
+            "address": "0x000D71A0",
+            "store_pc": "0x80058D18",
+            "count": 1
+          }
+        ]
+      },
+      "camera_write_trace": {
+        "returned_entries": 512,
+        "changed_write_sites": [
+          {
+            "address": "0x000D6EC0",
+            "store_pc": "0x800B3F34",
+            "count": 8
+          },
+          {
+            "address": "0x000D6EB4",
+            "store_pc": "0x800B3EF8",
+            "count": 8
+          },
+          {
+            "address": "0x000D6EB0",
+            "store_pc": "0x800B3EF0",
+            "count": 8
+          },
+          {
+            "address": "0x000D6EC0",
+            "store_pc": "0x8002A58C",
+            "count": 8
+          },
+          {
+            "address": "0x000D6EBE",
+            "store_pc": "0x8002A57C",
+            "count": 8
+          },
+          {
+            "address": "0x000D6EB4",
+            "store_pc": "0x8002A540",
+            "count": 8
+          },
+          {
+            "address": "0x000D6EB0",
+            "store_pc": "0x8002A524",
+            "count": 8
+          },
+          {
+            "address": "0x000D6EBE",
+            "store_pc": "0x800B3F30",
+            "count": 7
+          },
+          {
+            "address": "0x000D6EBC",
+            "store_pc": "0x800B3F2C",
+            "count": 7
+          },
+          {
+            "address": "0x000D6F28",
+            "store_pc": "0x80028E58",
+            "count": 7
+          },
+          {
+            "address": "0x000D6EE8",
+            "store_pc": "0x8002E4F0",
+            "count": 7
+          },
+          {
+            "address": "0x000D6EDE",
+            "store_pc": "0x8002899C",
+            "count": 7
+          },
+          {
+            "address": "0x000D6EBC",
+            "store_pc": "0x8002A598",
+            "count": 6
+          },
+          {
+            "address": "0x000D6EDA",
+            "store_pc": "0x80028984",
+            "count": 6
+          },
+          {
+            "address": "0x000D6ED6",
+            "store_pc": "0x80028914",
+            "count": 6
+          },
+          {
+            "address": "0x000D6EBA",
+            "store_pc": "0x8002A570",
+            "count": 6
+          },
+          {
+            "address": "0x000D6EB6",
+            "store_pc": "0x8002A54C",
+            "count": 6
+          },
+          {
+            "address": "0x000D6F0C",
+            "store_pc": "0x8002926C",
+            "count": 6
+          },
+          {
+            "address": "0x000D6EC8",
+            "store_pc": "0x8003B0B4",
+            "count": 6
+          },
+          {
+            "address": "0x000D6F18",
+            "store_pc": "0x8003B08C",
+            "count": 6
+          },
+          {
+            "address": "0x000D6F50",
+            "store_pc": "0x80034D40",
+            "count": 5
+          },
+          {
+            "address": "0x000D6ED0",
+            "store_pc": "0x80028874",
+            "count": 5
+          },
+          {
+            "address": "0x000D6EE0",
+            "store_pc": "0x800289A8",
+            "count": 4
+          },
+          {
+            "address": "0x000D6EDC",
+            "store_pc": "0x80028990",
+            "count": 4
+          },
+          {
+            "address": "0x000D6ED4",
+            "store_pc": "0x800288DC",
+            "count": 4
+          },
+          {
+            "address": "0x000D6EB2",
+            "store_pc": "0x800B3EF4",
+            "count": 4
+          },
+          {
+            "address": "0x000D6F04",
+            "store_pc": "0x80029250",
+            "count": 4
+          },
+          {
+            "address": "0x000D6EB2",
+            "store_pc": "0x8002A534",
+            "count": 4
+          },
+          {
+            "address": "0x000D6F24",
+            "store_pc": "0x80028E54",
+            "count": 3
+          },
+          {
+            "address": "0x000D6EE4",
+            "store_pc": "0x8002E4E4",
+            "count": 3
+          },
+          {
+            "address": "0x000D6EC8",
+            "store_pc": "0x8002E514",
+            "count": 2
+          },
+          {
+            "address": "0x000D6ED2",
+            "store_pc": "0x800288A8",
+            "count": 2
+          },
+          {
+            "address": "0x000D6F2C",
+            "store_pc": "0x80028E60",
+            "count": 2
+          },
+          {
+            "address": "0x000D6F5A",
+            "store_pc": "0x80037060",
+            "count": 2
+          },
+          {
+            "address": "0x000D6EEC",
+            "store_pc": "0x8002E4FC",
+            "count": 2
+          },
+          {
+            "address": "0x000D6EC4",
+            "store_pc": "0x8003B0A8",
+            "count": 2
+          },
+          {
+            "address": "0x000D6F14",
+            "store_pc": "0x8003B080",
+            "count": 2
+          },
+          {
+            "address": "0x000D6ED8",
+            "store_pc": "0x8002894C",
+            "count": 1
+          },
+          {
+            "address": "0x000D6EB8",
+            "store_pc": "0x8002A55C",
+            "count": 1
+          },
+          {
+            "address": "0x000D6ECC",
+            "store_pc": "0x8003B0C0",
+            "count": 1
+          },
+          {
+            "address": "0x000D6F1C",
+            "store_pc": "0x8003B09C",
+            "count": 1
+          },
+          {
+            "address": "0x000D6F5C",
+            "store_pc": "0x80037054",
+            "count": 1
+          }
+        ]
+      }
+    },
+    {
+      "checkpoint": "inventory",
+      "frame_before": 8494,
+      "frame_after": 8496,
+      "player_base": "0x800d7198",
+      "camera_base": "0x800d6eb0",
+      "player_position_candidate": [
+        2010,
+        -9717,
+        7240
+      ],
+      "player_rotation_candidate": [
+        1537,
+        0,
+        0
+      ],
+      "player_target_rotation_candidate": [
+        1537,
+        0,
+        0
+      ],
+      "player_delta_candidate": [
+        0,
+        1,
+        0
+      ],
+      "player_room_candidate": 2,
+      "player_camera_anchor_candidate": [
+        2010,
+        -9777,
+        7240
+      ],
+      "camera_14_vector": [
+        -262,
+        -10423,
+        9516
+      ],
+      "camera_64_vector": [
+        -126,
+        -10403,
+        9380
+      ],
+      "state_bytes_22c_233": [
+        0,
+        0,
+        2,
+        2,
+        3,
+        22,
+        0,
+        0
+      ],
+      "player_write_trace": {
+        "returned_entries": 22,
+        "changed_write_sites": [
+          {
+            "address": "0x000D71A8",
+            "store_pc": "0x80098A28",
+            "count": 10
+          },
+          {
+            "address": "0x000D71A8",
+            "store_pc": "0x80098944",
+            "count": 2
+          },
+          {
+            "address": "0x000D71A0",
+            "store_pc": "0x800532AC",
+            "count": 2
+          }
+        ]
+      },
+      "camera_write_trace": {
+        "returned_entries": 443,
+        "changed_write_sites": [
+          {
+            "address": "0x000D6EC0",
+            "store_pc": "0x800B3F34",
+            "count": 2
+          },
+          {
+            "address": "0x000D6EBE",
+            "store_pc": "0x800B3F30",
+            "count": 2
+          },
+          {
+            "address": "0x000D6EBC",
+            "store_pc": "0x800B3F2C",
+            "count": 2
+          },
+          {
+            "address": "0x000D6EB4",
+            "store_pc": "0x800B3EF8",
+            "count": 2
+          },
+          {
+            "address": "0x000D6EB0",
+            "store_pc": "0x800B3EF0",
+            "count": 2
+          },
+          {
+            "address": "0x000D6EBC",
+            "store_pc": "0x8002A598",
+            "count": 2
+          },
+          {
+            "address": "0x000D6EC0",
+            "store_pc": "0x8002A58C",
+            "count": 2
+          },
+          {
+            "address": "0x000D6EBE",
+            "store_pc": "0x8002A57C",
+            "count": 2
+          },
+          {
+            "address": "0x000D6EB4",
+            "store_pc": "0x8002A540",
+            "count": 2
+          },
+          {
+            "address": "0x000D6EB0",
+            "store_pc": "0x8002A524",
+            "count": 2
+          }
+        ]
+      }
+    },
+    {
+      "checkpoint": "inventory-close",
+      "frame_before": 8568,
+      "frame_after": 8569,
+      "player_base": "0x800d7198",
+      "camera_base": "0x800d6eb0",
+      "player_position_candidate": [
+        2010,
+        -9729,
+        7240
+      ],
+      "player_rotation_candidate": [
+        1537,
+        0,
+        0
+      ],
+      "player_target_rotation_candidate": [
+        1537,
+        0,
+        0
+      ],
+      "player_delta_candidate": [
+        0,
+        -1,
+        0
+      ],
+      "player_room_candidate": 2,
+      "player_camera_anchor_candidate": [
+        2010,
+        -9777,
+        7240
+      ],
+      "camera_14_vector": [
+        -262,
+        -10423,
+        9516
+      ],
+      "camera_64_vector": [
+        -126,
+        -10403,
+        9380
+      ],
+      "state_bytes_22c_233": [
+        0,
+        0,
+        2,
+        2,
+        3,
+        22,
+        0,
+        0
+      ],
+      "player_write_trace": {
+        "returned_entries": 244,
+        "changed_write_sites": [
+          {
+            "address": "0x000D71A8",
+            "store_pc": "0x80098A28",
+            "count": 105
+          },
+          {
+            "address": "0x000D71A8",
+            "store_pc": "0x80098944",
+            "count": 20
+          },
+          {
+            "address": "0x000D71A0",
+            "store_pc": "0x800532AC",
+            "count": 18
+          },
+          {
+            "address": "0x000D71A8",
+            "store_pc": "0x80098784",
+            "count": 15
+          },
+          {
+            "address": "0x000D71A8",
+            "store_pc": "0x80098388",
+            "count": 3
+          }
+        ]
+      },
+      "camera_write_trace": {
+        "returned_entries": 512,
+        "changed_write_sites": [
+          {
+            "address": "0x000D6EC0",
+            "store_pc": "0x800B3F34",
+            "count": 8
+          },
+          {
+            "address": "0x000D6EBE",
+            "store_pc": "0x800B3F30",
+            "count": 8
+          },
+          {
+            "address": "0x000D6EBC",
+            "store_pc": "0x800B3F2C",
+            "count": 8
+          },
+          {
+            "address": "0x000D6EB4",
+            "store_pc": "0x800B3EF8",
+            "count": 8
+          },
+          {
+            "address": "0x000D6EB0",
+            "store_pc": "0x800B3EF0",
+            "count": 8
+          },
+          {
+            "address": "0x000D6EBC",
+            "store_pc": "0x8002A598",
+            "count": 8
+          },
+          {
+            "address": "0x000D6EC0",
+            "store_pc": "0x8002A58C",
+            "count": 8
+          },
+          {
+            "address": "0x000D6EBE",
+            "store_pc": "0x8002A57C",
+            "count": 8
+          },
+          {
+            "address": "0x000D6EB4",
+            "store_pc": "0x8002A540",
+            "count": 8
+          },
+          {
+            "address": "0x000D6EB0",
+            "store_pc": "0x8002A524",
+            "count": 8
+          },
+          {
+            "address": "0x000D6F5E",
+            "store_pc": "0x80037064",
+            "count": 1
+          },
+          {
+            "address": "0x000D6F5A",
+            "store_pc": "0x80037060",
+            "count": 1
+          },
+          {
+            "address": "0x000D6F50",
+            "store_pc": "0x80034D40",
+            "count": 1
+          }
+        ]
+      }
+    },
+    {
+      "checkpoint": "forward",
+      "frame_before": 8639,
+      "frame_after": 8640,
+      "player_base": "0x800d7198",
+      "camera_base": "0x800d6eb0",
+      "player_position_candidate": [
+        3740,
+        -9743,
+        5493
+      ],
+      "player_rotation_candidate": [
+        1537,
+        0,
+        0
+      ],
+      "player_target_rotation_candidate": [
+        1537,
+        0,
+        0
+      ],
+      "player_delta_candidate": [
+        0,
+        6,
+        0
+      ],
+      "player_room_candidate": 2,
+      "player_camera_anchor_candidate": [
+        3740,
+        -9777,
+        5493
+      ],
+      "camera_14_vector": [
+        1354,
+        -10399,
+        7885
+      ],
+      "camera_64_vector": [
+        1490,
+        -10381,
+        7749
+      ],
+      "state_bytes_22c_233": [
+        0,
+        0,
+        2,
+        2,
+        3,
+        22,
+        0,
+        0
+      ],
+      "player_write_trace": {
+        "returned_entries": 324,
+        "changed_write_sites": [
+          {
+            "address": "0x000D71A8",
+            "store_pc": "0x80098A28",
+            "count": 105
+          },
+          {
+            "address": "0x000D71A8",
+            "store_pc": "0x80098784",
+            "count": 37
+          },
+          {
+            "address": "0x000D71A0",
+            "store_pc": "0x8005390C",
+            "count": 23
+          },
+          {
+            "address": "0x000D71A4",
+            "store_pc": "0x80053904",
+            "count": 23
+          },
+          {
+            "address": "0x000D719C",
+            "store_pc": "0x800538F0",
+            "count": 23
+          },
+          {
+            "address": "0x000D71A8",
+            "store_pc": "0x80098944",
+            "count": 20
+          },
+          {
+            "address": "0x000D71B3",
+            "store_pc": "0x80041F78",
+            "count": 8
+          },
+          {
+            "address": "0x000D71A8",
+            "store_pc": "0x80098388",
+            "count": 7
+          },
+          {
+            "address": "0x000D71A0",
+            "store_pc": "0x800532AC",
+            "count": 6
+          }
+        ]
+      },
+      "camera_write_trace": {
+        "returned_entries": 512,
+        "changed_write_sites": [
+          {
+            "address": "0x000D6F50",
+            "store_pc": "0x80034D40",
+            "count": 9
+          },
+          {
+            "address": "0x000D6EEC",
+            "store_pc": "0x8002E4FC",
+            "count": 9
+          },
+          {
+            "address": "0x000D6EE4",
+            "store_pc": "0x8002E4E4",
+            "count": 9
+          },
+          {
+            "address": "0x000D6F5A",
+            "store_pc": "0x80037060",
+            "count": 8
+          },
+          {
+            "address": "0x000D6EC0",
+            "store_pc": "0x800B3F34",
+            "count": 8
+          },
+          {
+            "address": "0x000D6EBC",
+            "store_pc": "0x800B3F2C",
+            "count": 8
+          },
+          {
+            "address": "0x000D6EB4",
+            "store_pc": "0x800B3EF8",
+            "count": 8
+          },
+          {
+            "address": "0x000D6EB2",
+            "store_pc": "0x800B3EF4",
+            "count": 8
+          },
+          {
+            "address": "0x000D6EB0",
+            "store_pc": "0x800B3EF0",
+            "count": 8
+          },
+          {
+            "address": "0x000D6EBC",
+            "store_pc": "0x8002A598",
+            "count": 8
+          },
+          {
+            "address": "0x000D6EC0",
+            "store_pc": "0x8002A58C",
+            "count": 8
+          },
+          {
+            "address": "0x000D6EBE",
+            "store_pc": "0x8002A57C",
+            "count": 8
+          },
+          {
+            "address": "0x000D6EB4",
+            "store_pc": "0x8002A540",
+            "count": 8
+          },
+          {
+            "address": "0x000D6EB2",
+            "store_pc": "0x8002A534",
+            "count": 8
+          },
+          {
+            "address": "0x000D6EB0",
+            "store_pc": "0x8002A524",
+            "count": 8
+          },
+          {
+            "address": "0x000D6ECC",
+            "store_pc": "0x8003B0C0",
+            "count": 8
+          },
+          {
+            "address": "0x000D6EC4",
+            "store_pc": "0x8003B0A8",
+            "count": 8
+          },
+          {
+            "address": "0x000D6F1C",
+            "store_pc": "0x8003B09C",
+            "count": 8
+          },
+          {
+            "address": "0x000D6F14",
+            "store_pc": "0x8003B080",
+            "count": 8
+          },
+          {
+            "address": "0x000D6F2C",
+            "store_pc": "0x80028E60",
+            "count": 8
+          },
+          {
+            "address": "0x000D6F24",
+            "store_pc": "0x80028E54",
+            "count": 8
+          },
+          {
+            "address": "0x000D6F5E",
+            "store_pc": "0x80037064",
+            "count": 8
+          },
+          {
+            "address": "0x000D6F5C",
+            "store_pc": "0x80037054",
+            "count": 7
+          },
+          {
+            "address": "0x000D6EBE",
+            "store_pc": "0x800B3F30",
+            "count": 7
+          },
+          {
+            "address": "0x000D6EDE",
+            "store_pc": "0x8002899C",
+            "count": 5
+          },
+          {
+            "address": "0x000D6F58",
+            "store_pc": "0x8003705C",
+            "count": 4
+          },
+          {
+            "address": "0x000D6EDA",
+            "store_pc": "0x80028984",
+            "count": 4
+          },
+          {
+            "address": "0x000D6ED6",
+            "store_pc": "0x80028914",
+            "count": 4
+          },
+          {
+            "address": "0x000D6ED4",
+            "store_pc": "0x800288DC",
+            "count": 4
+          },
+          {
+            "address": "0x000D6ED0",
+            "store_pc": "0x80028874",
+            "count": 4
+          },
+          {
+            "address": "0x000D6EBA",
+            "store_pc": "0x8002A570",
+            "count": 4
+          },
+          {
+            "address": "0x000D6EB6",
+            "store_pc": "0x8002A54C",
+            "count": 4
+          },
+          {
+            "address": "0x000D6F0C",
+            "store_pc": "0x8002926C",
+            "count": 4
+          },
+          {
+            "address": "0x000D6F04",
+            "store_pc": "0x80029250",
+            "count": 4
+          },
+          {
+            "address": "0x000D6ED2",
+            "store_pc": "0x800288A8",
+            "count": 2
+          },
+          {
+            "address": "0x000D6EC8",
+            "store_pc": "0x8002E514",
+            "count": 1
+          },
+          {
+            "address": "0x000D6EE8",
+            "store_pc": "0x8002E4F0",
+            "count": 1
+          },
+          {
+            "address": "0x000D6EDC",
+            "store_pc": "0x80028990",
+            "count": 1
+          },
+          {
+            "address": "0x000D6ED8",
+            "store_pc": "0x8002894C",
+            "count": 1
+          },
+          {
+            "address": "0x000D6EB8",
+            "store_pc": "0x8002A55C",
+            "count": 1
+          },
+          {
+            "address": "0x000D6EE0",
+            "store_pc": "0x800289A8",
+            "count": 1
+          },
+          {
+            "address": "0x000D6F40",
+            "store_pc": "0x8003B0F8",
+            "count": 1
+          }
+        ]
+      }
+    },
+    {
+      "checkpoint": "turn",
+      "frame_before": 8698,
+      "frame_after": 8699,
+      "player_base": "0x800d7198",
+      "camera_base": "0x800d6eb0",
+      "player_position_candidate": [
+        3740,
+        -9725,
+        5493
+      ],
+      "player_rotation_candidate": [
+        1995,
+        0,
+        0
+      ],
+      "player_target_rotation_candidate": [
+        1995,
+        0,
+        0
+      ],
+      "player_delta_candidate": [
+        0,
+        1,
+        0
+      ],
+      "player_room_candidate": 2,
+      "player_camera_anchor_candidate": [
+        3740,
+        -9777,
+        5493
+      ],
+      "camera_14_vector": [
+        3464,
+        -10404,
+        8714
+      ],
+      "camera_64_vector": [
+        3481,
+        -10385,
+        8523
+      ],
+      "state_bytes_22c_233": [
+        0,
+        0,
+        2,
+        2,
+        3,
+        22,
+        0,
+        0
+      ],
+      "player_write_trace": {
+        "returned_entries": 263,
+        "changed_write_sites": [
+          {
+            "address": "0x000D71A8",
+            "store_pc": "0x80098A28",
+            "count": 86
+          },
+          {
+            "address": "0x000D71A8",
+            "store_pc": "0x80098784",
+            "count": 43
+          },
+          {
+            "address": "0x000D71A8",
+            "store_pc": "0x80098944",
+            "count": 16
+          },
+          {
+            "address": "0x000D71A0",
+            "store_pc": "0x8005335C",
+            "count": 10
+          },
+          {
+            "address": "0x000D71B4",
+            "store_pc": "0x80057ADC",
+            "count": 10
+          },
+          {
+            "address": "0x000D71A8",
+            "store_pc": "0x80098388",
+            "count": 8
+          },
+          {
+            "address": "0x000D71A0",
+            "store_pc": "0x800532AC",
+            "count": 6
+          }
+        ]
+      },
+      "camera_write_trace": {
+        "returned_entries": 512,
+        "changed_write_sites": [
+          {
+            "address": "0x000D6F58",
+            "store_pc": "0x8003705C",
+            "count": 9
+          },
+          {
+            "address": "0x000D6EC4",
+            "store_pc": "0x8002E508",
+            "count": 9
+          },
+          {
+            "address": "0x000D6F50",
+            "store_pc": "0x80034D40",
+            "count": 8
+          },
+          {
+            "address": "0x000D6EE4",
+            "store_pc": "0x8002E4E4",
+            "count": 8
+          },
+          {
+            "address": "0x000D6EE0",
+            "store_pc": "0x800289A8",
+            "count": 8
+          },
+          {
+            "address": "0x000D6EDC",
+            "store_pc": "0x80028990",
+            "count": 8
+          },
+          {
+            "address": "0x000D6ED6",
+            "store_pc": "0x80028914",
+            "count": 8
+          },
+          {
+            "address": "0x000D6ED4",
+            "store_pc": "0x800288DC",
+            "count": 8
+          },
+          {
+            "address": "0x000D6ED0",
+            "store_pc": "0x80028874",
+            "count": 8
+          },
+          {
+            "address": "0x000D6EC0",
+            "store_pc": "0x800B3F34",
+            "count": 8
+          },
+          {
+            "address": "0x000D6EB0",
+            "store_pc": "0x800B3EF0",
+            "count": 8
+          },
+          {
+            "address": "0x000D6EBC",
+            "store_pc": "0x8002A598",
+            "count": 8
+          },
+          {
+            "address": "0x000D6EC0",
+            "store_pc": "0x8002A58C",
+            "count": 8
+          },
+          {
+            "address": "0x000D6EB6",
+            "store_pc": "0x8002A54C",
+            "count": 8
+          },
+          {
+            "address": "0x000D6EB4",
+            "store_pc": "0x8002A540",
+            "count": 8
+          },
+          {
+            "address": "0x000D6F08",
+            "store_pc": "0x8002925C",
+            "count": 8
+          },
+          {
+            "address": "0x000D6F10",
+            "store_pc": "0x80029244",
+            "count": 8
+          },
+          {
+            "address": "0x000D6EC4",
+            "store_pc": "0x8003B0A8",
+            "count": 8
+          },
+          {
+            "address": "0x000D6F14",
+            "store_pc": "0x8003B080",
+            "count": 8
+          },
+          {
+            "address": "0x000D6F24",
+            "store_pc": "0x80028E54",
+            "count": 8
+          },
+          {
+            "address": "0x000D6EDE",
+            "store_pc": "0x8002899C",
+            "count": 7
+          },
+          {
+            "address": "0x000D6ED2",
+            "store_pc": "0x800288A8",
+            "count": 7
+          },
+          {
+            "address": "0x000D6EBC",
+            "store_pc": "0x800B3F2C",
+            "count": 7
+          },
+          {
+            "address": "0x000D6EB2",
+            "store_pc": "0x8002A534",
+            "count": 7
+          },
+          {
+            "address": "0x000D6EB0",
+            "store_pc": "0x8002A524",
+            "count": 7
+          },
+          {
+            "address": "0x000D6F04",
+            "store_pc": "0x80029250",
+            "count": 7
+          },
+          {
+            "address": "0x000D6F2C",
+            "store_pc": "0x80028E60",
+            "count": 7
+          },
+          {
+            "address": "0x000D6ECC",
+            "store_pc": "0x8002E52C",
+            "count": 7
+          },
+          {
+            "address": "0x000D6EEC",
+            "store_pc": "0x8002E4FC",
+            "count": 7
+          },
+          {
+            "address": "0x000D6EBE",
+            "store_pc": "0x8002A57C",
+            "count": 6
+          },
+          {
+            "address": "0x000D6EBE",
+            "store_pc": "0x800B3F30",
+            "count": 6
+          },
+          {
+            "address": "0x000D6ECC",
+            "store_pc": "0x8003B0C0",
+            "count": 6
+          },
+          {
+            "address": "0x000D6F1C",
+            "store_pc": "0x8003B09C",
+            "count": 6
+          },
+          {
+            "address": "0x000D6EB2",
+            "store_pc": "0x800B3EF4",
+            "count": 5
+          },
+          {
+            "address": "0x000D6F5C",
+            "store_pc": "0x80037054",
+            "count": 5
+          },
+          {
+            "address": "0x000D6EDA",
+            "store_pc": "0x80028984",
+            "count": 5
+          },
+          {
+            "address": "0x000D6EBA",
+            "store_pc": "0x8002A570",
+            "count": 5
+          },
+          {
+            "address": "0x000D6F0C",
+            "store_pc": "0x8002926C",
+            "count": 4
+          },
+          {
+            "address": "0x000D6F5A",
+            "store_pc": "0x80037060",
+            "count": 3
+          },
+          {
+            "address": "0x000D6EB4",
+            "store_pc": "0x800B3EF8",
+            "count": 3
+          },
+          {
+            "address": "0x000D6F5E",
+            "store_pc": "0x80037064",
+            "count": 3
+          },
+          {
+            "address": "0x000D6ED8",
+            "store_pc": "0x8002894C",
+            "count": 1
+          },
+          {
+            "address": "0x000D6EB8",
+            "store_pc": "0x8002A55C",
+            "count": 1
+          }
+        ]
+      }
+    }
+  ],
+  "limitations": [
+    "Read-only state correlation, not approved mutation hooks",
+    "Collision/input ownership and active gameplay-overlay identity unresolved",
+    "Weapon aiming boundary unverified",
+    "Trace func field is unreliable in this hybrid path; store PCs checked against original instructions",
+    "Probe target-angle/delta display fields were added during boot of this run; initial file hash predates those additive decoding fields. Core code/pointer guards unchanged."
+  ],
+  "final_probe_source_sha256": "eafc447c2b3759de32f297484fef04baff9535d9be5bb4d68e1c7ef2d3864d23"
+}

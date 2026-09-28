@@ -1,0 +1,23 @@
+[
+  {
+    "case": "healthy",
+    "close_seconds": 0.11569223400147166,
+    "driver_exit_code": 0,
+    "method": "window-manager close request",
+    "passed": true
+  },
+  {
+    "case": "fatal",
+    "close_seconds": 0.11565601199981757,
+    "driver_exit_code": 1,
+    "method": "window-manager close request",
+    "passed": true
+  },
+  {
+    "case": "idle-client",
+    "close_seconds": 0.26609155500045745,
+    "driver_exit_code": 0,
+    "method": "window-manager close request",
+    "passed": true
+  }
+]

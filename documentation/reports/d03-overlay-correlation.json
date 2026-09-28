@@ -1,0 +1,74 @@
+{
+  "ram_sha256": "59f9984c312cf0f4f92e0d6ef3f0c98325b4da7668996a2e789dd82afed538ff",
+  "unique_overlays_examined": 30,
+  "matches": [
+    {
+      "sha256": "f38747adab56fa69347a1b8488a1a25e093a1f428232250d299fd50266568508",
+      "files": [
+        "/D0/DB00/LEVEL00.OVR;1"
+      ],
+      "candidates": [
+        {
+          "load_address_candidate": "0x800ca968",
+          "matching_chunks": 37,
+          "tested_chunks": 37,
+          "equal_bytes": 9668,
+          "size": 9668,
+          "exact_match": true,
+          "first_differing_offsets": []
+        }
+      ]
+    },
+    {
+      "sha256": "09cff18f259bc503a223cb88f9d83eb0a40b556d11ba7a046a5f953de9981750",
+      "files": [
+        "/D0/DB01/LEVEL01.OVR;1"
+      ],
+      "candidates": [
+        {
+          "load_address_candidate": "0x800c9cc4",
+          "matching_chunks": 3,
+          "tested_chunks": 47,
+          "equal_bytes": 3888,
+          "size": 12196,
+          "exact_match": false,
+          "first_differing_offsets": [
+            "0x0",
+            "0x4",
+            "0x5",
+            "0x6",
+            "0x7",
+            "0x8",
+            "0x9",
+            "0xa",
+            "0xb",
+            "0xc",
+            "0xd",
+            "0xe",
+            "0xf",
+            "0x10",
+            "0x11",
+            "0x12",
+            "0x13",
+            "0x14",
+            "0x15",
+            "0x16",
+            "0x17",
+            "0x18",
+            "0x19",
+            "0x1a",
+            "0x1b",
+            "0x1c",
+            "0x1d",
+            "0x1e",
+            "0x1f",
+            "0x20",
+            "0x21",
+            "0x22"
+          ]
+        }
+      ]
+    }
+  ],
+  "limitation": "At least three 256-byte nontrivial chunks must agree on a base. An exact file match proves bytes are resident in this snapshot, not that code executed or that future frames retain this overlay."
+}

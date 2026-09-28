@@ -1,0 +1,105 @@
+{
+  "executable_sha256": "b5c3ba610074bff184f089a49e51a22a35455cfef08757bd673a54f4057d5a7a",
+  "weapons": [
+    {
+      "slot": 0,
+      "name": "MIGHTY BOOT",
+      "selectable": true
+    },
+    {
+      "slot": 1,
+      "name": "THROWING KNIFE",
+      "selectable": true
+    },
+    {
+      "slot": 2,
+      "name": "THROWING AXE",
+      "selectable": true
+    },
+    {
+      "slot": 3,
+      "name": "CROSSBOW",
+      "selectable": true
+    },
+    {
+      "slot": 4,
+      "name": "DESERT EAGLE",
+      "selectable": true
+    },
+    {
+      "slot": 5,
+      "name": "COMBAT SHOTGUN",
+      "selectable": true
+    },
+    {
+      "slot": 6,
+      "name": "BUFFALO RIFLE",
+      "selectable": true
+    },
+    {
+      "slot": 7,
+      "name": "GATLING GUN",
+      "selectable": true
+    },
+    {
+      "slot": 8,
+      "name": "RPG",
+      "selectable": true
+    },
+    {
+      "slot": 9,
+      "name": "FLAME THROWER",
+      "selectable": true
+    },
+    {
+      "slot": 10,
+      "name": "ENERGY WEAPON",
+      "selectable": true
+    },
+    {
+      "slot": 11,
+      "name": "FREEZER",
+      "selectable": true
+    },
+    {
+      "slot": 12,
+      "name": "PIPE BOMB",
+      "selectable": true
+    },
+    {
+      "slot": 13,
+      "name": "HOLY HAND GRENADE",
+      "selectable": true
+    },
+    {
+      "slot": 14,
+      "name": "DYNAMITE",
+      "selectable": true
+    },
+    {
+      "slot": 27,
+      "name": "HITEMP FLAME THROWER",
+      "selectable": true
+    },
+    {
+      "slot": 28,
+      "name": "LASER GATLING GUN",
+      "selectable": true
+    },
+    {
+      "slot": 29,
+      "name": "INCENDIARY RPG",
+      "selectable": true
+    }
+  ],
+  "evidence": "Weapon record +2 string ID through 800c60f4; original selector range 0..14; upgrades resolved at 8003df40",
+  "items": {
+    "1": "Jetpack",
+    "2": "Bio Mask",
+    "3": "Goggles",
+    "4": "Steroids (pickup-activated, hidden inventory label)",
+    "5": "Portable medkit"
+  },
+  "item_capacity_table": "800c2710 is runtime-initialized, not immutable identity material",
+  "not_proven": "Natural ownership/acquisition, all eras, full campaign or human gameplay acceptance"
+}

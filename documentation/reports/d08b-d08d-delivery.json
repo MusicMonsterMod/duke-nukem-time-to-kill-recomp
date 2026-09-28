@@ -1,0 +1,124 @@
+{
+  "status": {
+    "D08B": "In progress; bounded fixes delivered, later re-ascent stall and broader scenarios open",
+    "D08D": "Needs playtest; untouched natural switch-first route not verified"
+  },
+  "binary_sha256": "a2822c303d1ce95ef82d274a564a91d02392cffae8f570367fe2ec91875a4caf",
+  "implementation": [
+    "Gameplay-context guard for attached traversal",
+    "Retain E-owned redraw intent through pause/inventory/suspension without permitting input/draw there",
+    "Offer automatic capture from authenticated attached player update; explicit opt-out retained",
+    "Modernized-only exact LEVEL00 code condition changes (flags & 0x408)==8 to (flags & 0x400)==0; original secret body and dialogue flag untouched"
+  ],
+  "native": {
+    "controls": "recapture-native.log",
+    "input": "native-input.log",
+    "aim": "native-aim.log",
+    "scene": "native-scene.log",
+    "python": "57 passed including owned-disc integration (python-final.log)",
+    "reproductions": "context rejection failed before first fix; lifetime retention failed before second fix; old exploration log exposed F10 fallback before capture fix"
+  },
+  "gameplay": {
+    "apartment": {
+      "run": "recomp/analysis/pc-input/d08b-apartment-delivery",
+      "binary_sha256": "3c5285043806dc79b48f327721179e8c15e66ba8878ecba64444d971b7ddf8e4",
+      "exit_code": 0,
+      "fixture": {
+        "address": "0x800dd878",
+        "before": 8,
+        "after": 0,
+        "frame": 25735,
+        "purpose": "Isolated prerequisite-negative case after natural conversation moved the NPC away from the switch. This is NOT a natural switch-before-dialogue route. Reset conversation bit only; open flag/secret count untouched; never save."
+      },
+      "checks": [
+        "Original switch with prerequisite bit unset opens bed and sets only open bit 0x400",
+        "Repeat toggles keep one secret; original bed settles at Z 8765",
+        "Subsequent dialogue sets bit 8; secret remains counted once",
+        "Natural pickup of five pipe bombs and number 6 selection without throwing"
+      ],
+      "screens_reviewed": [
+        "actual-switch-no-prerequisite.png",
+        "natural-pipebomb-select.png",
+        "exit-redraw.png"
+      ],
+      "scope": "Preceding build; final subsequent change is attached automatic-capture offer only. This is NOT an untouched natural switch-before-conversation replay."
+    },
+    "final_traversal": {
+      "run": "recomp/analysis/pc-input/d08b-recapture-delivery",
+      "exit_code": 0,
+      "strict_auto_capture": {
+        "DNTTK_PROBE_EXPLORE": "1",
+        "DNTTK_REQUIRE_AUTO_CAPTURE": "1",
+        "driver_sha256": "5d644cb67fe1aeb3baae3a0513435d070c825dbcc6f9038a59a144822488fc39"
+      },
+      "descent_y": [
+        -10493,
+        -9871
+      ],
+      "ground_redraw": {
+        "frame": 20366,
+        "position": [
+          9440,
+          -9722,
+          13769
+        ],
+        "state": [
+          0,
+          0
+        ],
+        "equipment": 2,
+        "ammo": 200
+      },
+      "checks": [
+        "Living player throughout samples",
+        "Verified attached mount, pause/resume, original descent and ground exit",
+        "Automatic recapture with F10 fallback disabled and no F10 capture log",
+        "Pistol redraw at ground exit, ammo 200, no manual holster key"
+      ],
+      "unresolved": "Later re-ascent stops at (9425,-10964,13769), animation 186/state 3/3, despite captured W=1 and SIO Up=65519. No cause or fix established; not counted as successful upper exit. Reviewed final-platform-settle.png shows a pig cop occupying the upper landing; original obstruction is plausible but not proven.",
+      "screens_reviewed": [
+        "actual-descent.png",
+        "actual-exit-redraw.png",
+        "final-platform-settle.png"
+      ]
+    },
+    "final_vanilla": {
+      "run": "recomp/analysis/vanilla-regression/d08b-d08d-final",
+      "binary_sha256": "a2822c303d1ce95ef82d274a564a91d02392cffae8f570367fe2ec91875a4caf",
+      "exit_code": 0,
+      "checkpoints": 14,
+      "screens_reviewed": [
+        "fire.png",
+        "jump.png",
+        "inventory.png",
+        "turn.png"
+      ],
+      "result": "Bounded original-control regression passed; no full-campaign claim"
+    }
+  },
+  "excluded": [
+    "Intermediate candidate reached player death; old enemy tracker stopped incorrectly at health 2 instead of death flag",
+    "Earlier descent attempt had entered exit animation before S; not descent evidence",
+    "Early fixed-duration route and some waypoint attempts missed the ladder; only explicit actual-* mounted/descent checkpoints count",
+    "Apartment delivery auto-redraw pass used helper F10 once on attached resume; superseded by final strict recapture route"
+  ],
+  "limits": [
+    "Natural untouched lights-before-conversation route still requires user playtest",
+    "Security-card route not repeated in this pass; historical freeze cause remains unproven",
+    "Swimming, other maps/ledges, broader scripted transitions, campaign and full ascent reliability remain open",
+    "Dummy audio; no new listening or hardware/Windows result"
+  ],
+  "fixtures": "Private cards/settings/displays; logged player-health longevity fixtures; one explicit conversation-bit reset in apartment test; no inventory grants, player position/velocity writes or saves",
+  "source_sha256": {
+    "recomp/src/ttk/modern_controls.cpp": "f83498096b0c9e7815fd372cd9ff10ae5f843cd22addce58ee9a06fc5cd2d397",
+    "recomp/src/ttk/apartment_secret.inc": "8e36e44d0faa863f911aa185da22b1798e67430f3e8f8d9c4def352e3920cd37",
+    "recomp/src/ttk/code_identity.h": "b8a7e735e6ac8b1ad7069273b1c4b662e9e7a50c1c2a8fb047c5c6cd55569644",
+    "recomp/tests/local/modern_controls_native.cpp": "69b2240c6ba16b62ae0c98e4d4ccb90a06805c54af04de4699f54faae3f06577",
+    "recomp/tools/local/traversal_probe.py": "5d644cb67fe1aeb3baae3a0513435d070c825dbcc6f9038a59a144822488fc39"
+  },
+  "preservation": {
+    "player_files": "All recorded player profile and local-play card/state hashes unchanged",
+    "cleanup": "No game or probe processes left running",
+    "source_and_binary_hashes": "Rechecked at final documentation update"
+  }
+}

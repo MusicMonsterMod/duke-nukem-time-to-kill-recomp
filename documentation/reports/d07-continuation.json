@@ -1,0 +1,275 @@
+{
+  "status": {
+    "D01-D07": "Done, prior accepted scope",
+    "D07A": "Needs playtest",
+    "D07B": "Needs playtest",
+    "D08": "Todo; state matrix scaffold"
+  },
+  "binary_sha256": "0758fa99986cac9c54bed12f25f5b760f7cf4e781bc9738f17979b39c57e7558",
+  "automated": {
+    "python": {
+      "discovered": 55,
+      "passed": 53,
+      "skipped": 2,
+      "log": "recomp/analysis/d07-continuation/python-final.log"
+    },
+    "native": [
+      {
+        "command": [
+          "recomp/build-local/ttk-controls-test",
+          "recomp/disc/SLUS_005.83",
+          "recomp/analysis/pc-input/d07-continuation-baseline/level00-guard-fixture.bin"
+        ],
+        "exit_code": 0,
+        "output": "PASS: view facing, holstered/armed, independent pitch, presentation argument and fallback guards\nPASS: camera constraints, duplicate look, capture and original-camera gates\nPASS: Vanilla, actor/caller/overlay/code/state guards; movement/probe alignment; independent facing\n"
+      },
+      {
+        "command": [
+          "recomp/build-local/ttk-aim-test",
+          "recomp/disc/SLUS_005.83"
+        ],
+        "exit_code": 0,
+        "output": "weapon aim guards, parallax, muzzle obstruction and original fallback passed\n"
+      },
+      {
+        "command": [
+          "xvfb-run",
+          "-a",
+          "recomp/build-local/ttk-input-test"
+        ],
+        "exit_code": 0,
+        "output": "[TTK input] Modernized first-map controls preview: F10 capture; Escape/Enter release. Unsupported states use original controls.\n[TTK input] Mouse captured (Escape releases)\n[TTK input] Autorun on\n[TTK input] Mouse captured (Escape releases)\n[TTK input] Autorun off\n[TTK input] Mouse captured (Escape releases)\n[TTK input] Mouse captured (Escape releases)\n[TTK input] Mouse released\n[TTK input] Mouse captured (Escape releases)\n[TTK input] Mouse captured (Escape releases)\n[TTK input] Mouse captured (Escape releases)\n[TTK input] Modernized first-map controls preview: F10 capture; Escape/Enter release. Unsupported states use original controls.\n[TTK input] Mouse captured (Escape releases)\n[TTK input] Mouse captured (Escape releases)\nPASS: independent movement, normalized diagonals, context isolation, mouse deltas, focus loss, repeat suppression, Escape/pause/inventory release, menu fallback and overlay capture guard\n"
+      }
+    ],
+    "build": "Owned-disc import/generation/build/movie-cache workflow completed; final C++ incremental build succeeded."
+  },
+  "routes": {
+    "d07-delivery-controls": {
+      "binary_sha256": "0758fa99986cac9c54bed12f25f5b760f7cf4e781bc9738f17979b39c57e7558",
+      "mode": "modernized",
+      "weapon_aim": "view",
+      "aim_assist": "off",
+      "crosshair": "on",
+      "red_dot": "on",
+      "renderer": "opengl",
+      "exit_code": 0,
+      "visual_review": "Final composed image reviewed: Duke standing alive after backward running jump; HUD health 40. No claim of all traversal states.",
+      "continuation_assertions": "passed: armed E does not fire; speed transitions; backward running-jump direction and airborne camera ownership",
+      "timing": {
+        "idle": {
+          "guest_fps": 59.681623987477714,
+          "underrun_samples_added": 0
+        },
+        "look": {
+          "guest_fps": 59.59123336219786,
+          "underrun_samples_added": 0
+        }
+      },
+      "private_report": "recomp/analysis/pc-input/d07-delivery-controls/report.json"
+    },
+    "d07-delivery-options": {
+      "binary_sha256": "0758fa99986cac9c54bed12f25f5b760f7cf4e781bc9738f17979b39c57e7558",
+      "mode": "modernized",
+      "weapon_aim": "view",
+      "aim_assist": "original-lock",
+      "crosshair": "on",
+      "red_dot": "off",
+      "renderer": "opengl",
+      "exit_code": 0,
+      "visual_review": "Reviewed scan-2: white center crosshair, original red target dot absent; alive health 92/ammo 198. Reviewed number-2: original equipment presentation and ammo 20; slot readback asserts 5, then 4. No natural acquisition claim.",
+      "aim_options_assertions": "passed: selection, independent marker configuration and live assist/contact checks",
+      "actor_contact_assertions": {
+        "contacts": 3,
+        "targets": [
+          "0x801d1328"
+        ],
+        "scope": "original projectile-to-actor contact, not quantified health/damage or all-weapon coverage"
+      },
+      "private_report": "recomp/analysis/pc-input/d07-delivery-options/report.json",
+      "last_counters": {
+        "assisted_shots": 3,
+        "hidden_markers": 171,
+        "last_assisted": false,
+        "reticle": false,
+        "shots": 8,
+        "rejected": 0,
+        "queries": 23,
+        "weapon": 4,
+        "hit_kind": 1,
+        "origin": [
+          2100,
+          -9881,
+          6780
+        ],
+        "target": [
+          3675,
+          -9223,
+          -1025
+        ],
+        "direction": [
+          807,
+          337,
+          -4001
+        ]
+      }
+    },
+    "d07-delivery-hidden": {
+      "binary_sha256": "0758fa99986cac9c54bed12f25f5b760f7cf4e781bc9738f17979b39c57e7558",
+      "mode": "modernized",
+      "weapon_aim": "view",
+      "aim_assist": "original-lock",
+      "crosshair": "off",
+      "red_dot": "off",
+      "renderer": "software",
+      "exit_code": 0,
+      "visual_review": "Software scan-2 composed image reviewed: crosshair and original target marker absent, Duke alive at health 85/ammo 198. Two accepted assisted shots and two player-projectile actor contacts confirm marker visibility did not disable assistance.",
+      "aim_options_assertions": "passed: selection, independent marker configuration and live assist/contact checks",
+      "actor_contact_assertions": {
+        "contacts": 2,
+        "targets": [
+          "0x801d1328"
+        ],
+        "scope": "original projectile-to-actor contact, not quantified health/damage or all-weapon coverage"
+      },
+      "private_report": "recomp/analysis/pc-input/d07-delivery-hidden/report.json",
+      "last_counters": {
+        "assisted_shots": 2,
+        "hidden_markers": 170,
+        "last_assisted": false,
+        "reticle": false,
+        "shots": 8,
+        "rejected": 0,
+        "queries": 20,
+        "weapon": 4,
+        "hit_kind": 1,
+        "origin": [
+          2100,
+          -9883,
+          6780
+        ],
+        "target": [
+          3675,
+          -9223,
+          -1025
+        ],
+        "direction": [
+          807,
+          338,
+          -4001
+        ]
+      }
+    },
+    "d07-delivery-original": {
+      "binary_sha256": "0758fa99986cac9c54bed12f25f5b760f7cf4e781bc9738f17979b39c57e7558",
+      "mode": "modernized",
+      "weapon_aim": "original",
+      "aim_assist": "off",
+      "crosshair": "on",
+      "red_dot": "on",
+      "renderer": "software",
+      "exit_code": 0,
+      "visual_review": "Reviewed weapon-fire-present: Duke alive health 100, pistol ammo 199, original red marker retained, modern crosshair absent. All recorded checkpoints have zero modern shots, assistance, facing and arm callbacks.",
+      "private_report": "recomp/analysis/pc-input/d07-delivery-original/report.json",
+      "scope": "Original aim firing/release, reviewed image and zero modern aiming/presentation counters; not all weapons."
+    },
+    "d07-final-camera": {
+      "binary_sha256": "0758fa99986cac9c54bed12f25f5b760f7cf4e781bc9738f17979b39c57e7558",
+      "mode": "modernized",
+      "weapon_aim": "view",
+      "aim_assist": "off",
+      "crosshair": "on",
+      "red_dot": "on",
+      "renderer": "software",
+      "exit_code": 0,
+      "visual_review": "Reviewed standing-fire-look and pause-recaptured composed images: alive, independent aiming and restored capture; focus/pause checks passed.",
+      "modern_controls_assertions": "passed; screenshots and terrain acceptance require review",
+      "private_report": "recomp/analysis/pc-input/d07-final-camera/report.json"
+    },
+    "d07-final-wall": {
+      "binary_sha256": "0758fa99986cac9c54bed12f25f5b760f7cf4e781bc9738f17979b39c57e7558",
+      "mode": "modernized",
+      "weapon_aim": "view",
+      "aim_assist": "off",
+      "crosshair": "on",
+      "red_dot": "on",
+      "renderer": "opengl",
+      "exit_code": 0,
+      "visual_review": "Reviewed back-after composed game image: Duke alive, health 55, back away from entrance wall. Numeric replay records full yaw turns both ways and 553.27 units of back displacement.",
+      "orbit_total_1": 6.280995598741073,
+      "orbit_total_-1": -6.282744137950187,
+      "back_displacement": 553.2684700938596,
+      "private_report": "recomp/analysis/pc-input/d07-final-wall/report.json"
+    },
+    "d07-continuation-final-vanilla": {
+      "exit_code": 0,
+      "quit_response": {
+        "ok": false,
+        "err": "emu busy or frozen"
+      },
+      "visual_review": "Reviewed fire and turn captures: original marker/pistol firing, ammo 196 then 195, visible turned player and living health 70 at final capture. No modern crosshair. This accepts the bounded gameplay route, not graceful shutdown.",
+      "semantic_result": "Bounded Vanilla gameplay capture review passed; quit RPC returned emu busy or frozen despite process exit 0, so graceful shutdown remains inconclusive.",
+      "private_report": "recomp/analysis/vanilla-regression/d07-continuation-final-vanilla/report.json"
+    }
+  },
+  "preservation": {
+    "user_files_unchanged": true,
+    "preexisting_runtime_diff_unchanged": true,
+    "baseline": "recomp/analysis/d07-continuation/preservation.json",
+    "tests": "private display, cards and profiles; no existing game attachment"
+  },
+  "rejected_or_intermediate": [
+    "d07-continuation-jump: initial state 0/0 assumption rejected; actual jump state 9/9 discovered by trace.",
+    "d07-final-controls: numeric route exited 0 but rejected visually because Duke died before landing; corrected delivery route explicitly rejects dead captures.",
+    "d07-final-original name collision: driver refused existing historical directory; rerun under d07-delivery-original.",
+    "Earlier marker-visible and guard-only timing observations have different binary identities and are supplemental research, not delivery-binary runs."
+  ],
+  "limits": [
+    "No actual listening validation: short SDL dummy-audio windows cannot establish audible choppiness resolved.",
+    "Assistance contact verified for starting pistol and one acquired actor; no quantified damage, moving-target or all-weapon result.",
+    "Number selection uses explicitly logged isolated shotgun inventory fixture; not natural acquisition evidence.",
+    "Interior/corners, traversal/scripts, progression, campaign, sustained performance and Windows remain unverified.",
+    "D08 scaffold does not enable unverified traversal states."
+  ],
+  "sources_sha256": {
+    "recomp/src/ttk/aim_guards.inc": "9e5809d97cf9a658587e62541bbf691227216f17b264da3fc1056312a9d5de88",
+    "recomp/src/ttk/code_identity.h": "163e115cfb301cca4eccb9cca8e6d798e4d36ce2642fb14259a00e4401cc98e3",
+    "recomp/src/ttk/control_guards.inc": "a74592638935a841fd8437e73b18fdb47247e1561c3ff16be9fdddb2fee2d63d",
+    "recomp/src/ttk/control_math.h": "bdf288c49823621a7515994623beb2e2c2d27e6ea785ba303fce79fbef7ed789",
+    "recomp/src/ttk/fmv_poll_math.h": "c818b16c6e59afa57d7908abca313ce45bfb53a5f060410873350cfb85f9a3b5",
+    "recomp/src/ttk/input_bindings.def": "ed2f2bc30d93fc379ae63f86811ad81a85b76ab5b8e0083b8a2d243992ccb2e8",
+    "recomp/src/ttk/modern_controls.cpp": "2a8bd89d10f773df0a8320b0ba27e07fa9d10a1f6c2a512e4a63f9301ae19a6b",
+    "recomp/src/ttk/modern_controls.h": "4e4b8b691b0373e0b92d057661792177ff4e354d8f3bc7bbc747972114a27cd7",
+    "recomp/src/ttk/pc_input.cpp": "8ac9f4009436ae76c124afc9010de5224a6d2cc2a8e894067494269b54c52549",
+    "recomp/src/ttk/pc_input.h": "802fbe2c91758165812e90a1a21d75ecc804d521ce10e90bc468534b43ac6072",
+    "recomp/src/ttk/weapon_aim.cpp": "0e24662cf116182e7f950bdd9897700a2fc7d76c475020b16ca77c01a2247452",
+    "recomp/src/ttk/weapon_aim.h": "fb165b8fc9adcaa1857b1a25294ef7cb83a02263d6007b51a36bc77e8da22bf0",
+    "recomp/tools/local/aim_options_probe.py": "3f31391acd5451a71b31a6cf4a0f7f4009bc9b2dfa6ecfe7318ccc0c9a56f477",
+    "recomp/tools/local/analyze_exe.py": "e439435b7c39d2016d6a4a4d63ccccaebe0c6cce20688693810b78dd39eadd49",
+    "recomp/tools/local/apply_runtime_patches.py": "0893bbbe9e1a8a1252da36207a83bcf8de7343823e2526095642cb4d581a212a",
+    "recomp/tools/local/benchmark_fmv.py": "e4bb0c9b13e7f664d100c924703c2e6b415cfb38e796fa6221494efb7189f5a1",
+    "recomp/tools/local/build.py": "f129f2ca7c31eea616a73a4dcd1ab38cf0f98bdca455a58d18b3692e1bcafb9f",
+    "recomp/tools/local/build_movie_overlay.py": "c3cab4e07596bd2fa8d37500369ac2475ce9621dc4ef1f7483ea3e9e57c9cc30",
+    "recomp/tools/local/check_cd_seeks.py": "b1c1afb55a1924a43244f2f88c9db6aa272328aee12e9248d89c035e8205402f",
+    "recomp/tools/local/continuation_probe.py": "ef2fa0f60b70eee516511b820c30e41514c385da98bce08271c1a26ed3a89eb3",
+    "recomp/tools/local/correlate_overlays.py": "c99ca89e12fd6a8c1c788390c3da88f3a6cadca024daec2397fb09d3161b1cb4",
+    "recomp/tools/local/debug_client.py": "d748b1ad531cbb56fb62bb65d635e5324e37e227c21c74b5f5d89c375e520513",
+    "recomp/tools/local/disc_lab.py": "dccd57a4744b5f61b0f2cd1f33bf7fabb34b90bee73848e6e8595de0a1d1bdbd",
+    "recomp/tools/local/facing_probe.py": "ae4f23466f08a3b95236252344b9d0d4eb49680c1c44019a731a7409bb4b5c95",
+    "recomp/tools/local/facing_research_probe.py": "06da19f89651d1c658e7d949000e0cae54590a2c5d53e19b688251d070922e38",
+    "recomp/tools/local/inspect_object_exit.py": "075d8184749c69bc25b8fa2e609d9b8646a54f6d9b731fcefd21c5ceab5ec7f9",
+    "recomp/tools/local/modern_controls_probe.py": "3ce41a0ffc5dadfa6538daec7c858c72f4fd8b3a895a66418b013b5a8dab342f",
+    "recomp/tools/local/pc_input.py": "591f4dd63bb3f12cef1e35d9d4c41bcd6abcab6c0a1a37a440a3884877a8c78b",
+    "recomp/tools/local/pc_input_probe.py": "8825390460b82248fa5895b9ea86fe212aec42bd549a04c7523c5e077404dcee",
+    "recomp/tools/local/player_profiles.py": "49a1d91eb3df35e8f7e4170c21153961166d2122d1260addad2ec7d18a3973ae",
+    "recomp/tools/local/presentation_probe.py": "ecd832bf5c6ccedc2fefa4037d850bcc4459bcbbf7ea7a03af41b24722ee9938",
+    "recomp/tools/local/run.py": "08d504a4bbcc01b23251fb2e9f434892582c0b131f6212f17fee0088b85dd3f8",
+    "recomp/tools/local/summarize_state_research.py": "f6eab9ce2678909d9701f0d94123901d627cb3d2585a4a911941d206f430b1f1",
+    "recomp/tools/local/summarize_weapon_aim.py": "5a388b517aaa1cdfe71eed7faa7f28f832989c65c7e511a68d3e21fc5eb288bd",
+    "recomp/tools/local/test_window_close.py": "bc147923ac2b155d0130fda73897e892cf9d80eb7c7f856c2df0cac6203a829d",
+    "recomp/tools/local/ttk_hook_contract.py": "8359ff7d95a554130ae5a5c21dce87a9f98cfcd7db9c6488923a4915e7f526ba",
+    "recomp/tools/local/ttk_state_probe.py": "8cb3d65f2b9c16e5b825b9ef58985cbc1128734280ad0d858a3ac163346df7a8",
+    "recomp/tools/local/vanilla_regression.py": "add5dc3d54b807aeaf7f760f0b7d9f82da578c17a57178e17b98cbdce010e53c",
+    "recomp/tools/local/wall_probe.py": "12da310281d7fcf09cfee15c5b8fa087b19a0e03bca6d5db95fd10ee4428f3ee",
+    "recomp/tools/local/weapon_aim_probe.py": "dda72aa7bf70ec4f3e9c12cb8c570dad50daf1ed30606a77d9cb640a87ebb64b"
+  }
+}

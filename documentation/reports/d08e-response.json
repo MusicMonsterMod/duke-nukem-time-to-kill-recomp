@@ -1,0 +1,152 @@
+{
+  "status": {
+    "D08D": "Done; user confirms natural switch-first route",
+    "D08B": "In progress; human ladder redraw confirmation; furniture reproduced, no terrain fix delivered",
+    "D08E": "Needs playtest"
+  },
+  "binary_sha256": "679b0410c3099f49d2202d802a9b5991b407c98bed80587c316dc89b62071306",
+  "source_sha256": {
+    "recomp/src/ttk/modern_controls.cpp": "ee26e0c62945b0bb11e6ace4ed3890cfca8ec1550b2000be01f43a8bd26d87dd",
+    "recomp/src/ttk/modern_controls.h": "a360482a0984c075c0f474357486250e30921f1dbbf6c4c5ef61cd15bb0e06ee",
+    "recomp/src/ttk/pc_input.cpp": "0dbaed959cb3d282b5819205344c5fd09a5732613bbf36722fd2e2edf6ca28f7",
+    "recomp/tests/local/pc_input_native.cpp": "dfb42ac2edaf26c38505edb1e2cda672680918f42986c13511ab062040b7e2d6",
+    "recomp/tests/local/modern_controls_native.cpp": "b4416cc012ccdc88e4f70ca7f14b1c4e94b9b1115caf9b023b15c26bb305be20",
+    "recomp/tools/local/traversal_probe.py": "89bc04ae8b14f615c0e757ef7ce4b49a8ff675cb31dad22deb264522e8f89348"
+  },
+  "implementation": [
+    "Bound fire requests original draw from settled supported holstered ground state; excludes selected Boot, E, C and attached states",
+    "Unarmed Cross suppressed for draw request; held fire subsequently follows original weapon handling, no buffered shot",
+    "1.5x upper-track delta for authenticated equip/stow animations 6/7/13/21/22/30/31/36/40, once per player update; original events retained; firing tracks untouched"
+  ],
+  "validation": {
+    "python": "57 tests including owned-disc integration passed",
+    "native": "input (including rebound G fire), controls, aim, scene pass",
+    "gameplay_run": "recomp/analysis/pc-input/d08e-candidate",
+    "exit_code": 0,
+    "held_fire_ammo": [
+      200,
+      192
+    ],
+    "released_tap_ammo": [
+      192,
+      192
+    ],
+    "screens_reviewed": [
+      "fire-draw-held.png",
+      "fire-tap-release.png",
+      "bed-runup-jump.png",
+      "bed-walk-off.png",
+      "bed-run-off.png"
+    ],
+    "timing": "Original baseline draw sampled upper6 for about16 host frames; candidate tap draw about8. Sampling intervals differ; not an exact latency benchmark. Native test verifies delta multiplier and once-only consumption.",
+    "vanilla": {
+      "run": "recomp/analysis/vanilla-regression/d08e-delivery",
+      "exit_code": 0,
+      "checkpoints": 14,
+      "screens_reviewed": [
+        "fire.png",
+        "holster.png",
+        "draw.png",
+        "jump.png",
+        "inventory.png"
+      ]
+    }
+  },
+  "furniture": {
+    "bed-contact": {
+      "position": [
+        8769,
+        -11763,
+        8597
+      ],
+      "anim": 63,
+      "state": [
+        0,
+        0
+      ],
+      "equipment": 2
+    },
+    "bed-contact-jump": {
+      "position": [
+        8769,
+        -11766,
+        8621
+      ],
+      "anim": 63,
+      "state": [
+        0,
+        0
+      ],
+      "equipment": 2
+    },
+    "bed-back-settle": {
+      "position": [
+        8769,
+        -11766,
+        8732
+      ],
+      "anim": 63,
+      "state": [
+        0,
+        0
+      ],
+      "equipment": 2
+    },
+    "bed-runup-jump": {
+      "position": [
+        8769,
+        -12151,
+        7489
+      ],
+      "anim": 63,
+      "state": [
+        0,
+        0
+      ],
+      "equipment": 2
+    },
+    "bed-walk-off": {
+      "position": [
+        8769,
+        -12150,
+        7985
+      ],
+      "anim": 63,
+      "state": [
+        0,
+        0
+      ],
+      "equipment": 2
+    },
+    "bed-run-off": {
+      "position": [
+        8769,
+        -11788,
+        10000
+      ],
+      "anim": 78,
+      "state": [
+        0,
+        0
+      ],
+      "equipment": 2
+    }
+  },
+  "findings": [
+    "Contact jump selects original vertical97 instead of directional98; initial-clearance refusal, not merely a later airborne wall impact",
+    "Walk dispatch table maps drop result6 to stop; run maps6 to original drop helper789a8; held Shift exits bed without jumping",
+    "Enemy-health zero fixture did not remove actors: flags remain1. Subsequent successful ladder exit is not controlled proof of prior stall cause"
+  ],
+  "fixtures": [
+    "Private cards/settings and logged player-health longevity fixtures",
+    "Two explicit enemy-health zero writes recorded in analysis/d08e-response/obstruction-actors.json; actors remained live; no player position/velocity/inventory grants or save",
+    "Early navigation requests overlapped and missed their intended routes; exclude those as waypoint evidence. Later named bed/weapon checkpoints directly inspected"
+  ],
+  "remaining": [
+    "Close-contact jump improvement and normal walking off furniture remain unimplemented in D08B",
+    "Couch directions not independently replayed; retain user evidence",
+    "Broader weapon/era transitions and subjective 1.5x feel need playtest",
+    "No campaign, audio-listening or Windows claim"
+  ],
+  "preservation": "Recorded player settings and local-play card/state hashes unchanged; private test sessions exited."
+}

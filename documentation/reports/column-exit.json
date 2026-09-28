@@ -1,0 +1,135 @@
+{
+  "status": "Needs playtest",
+  "binary_sha256": "a607e052a401a04a6184af31f557c5a3719bc85ad353117aa95958160e7b78dd",
+  "crash": {
+    "final_pc": "0x00000000",
+    "final_ra": "0x80025C04",
+    "matches_object_dispatch_return": true,
+    "v0": "0x0",
+    "object": "0x801d3054",
+    "note": "A null final PC does not alone prove that the original indirect-call target was null.",
+    "object_state": 255,
+    "table": "0x800ccdc4",
+    "table_slot": "0x800cd1c0",
+    "handler_now": "0x0",
+    "current_animation_buffer_overlap": [
+      {
+        "slot": 4,
+        "base": "0x801d2e00",
+        "end_exclusive": "0x801d3344"
+      }
+    ],
+    "scene_list_memberships": [
+      {
+        "head": "0x800c5694",
+        "node": "0x800ce5f8"
+      }
+    ]
+  },
+  "diagnosis": "stale scene-object reference overlaps current enemy-animation allocation; exact preceding transition not reproduced",
+  "change": "guarded no-callback release of leftover scene lists before known scene-arena resets; both profiles; no object-handler skipping",
+  "native_scene": {
+    "passed": true,
+    "nodes": 42,
+    "reference": "owned original MIPS list-release routines; identical RAM except their temporary stack-save words",
+    "guards": [
+      "wrong caller",
+      "wrong reset argument",
+      "changed resident code",
+      "cyclic list",
+      "shared nodes",
+      "incorrect free count",
+      "call bailout",
+      "already-clean repeated reset"
+    ],
+    "cpu_and_player_unchanged": true
+  },
+  "native_regressions": [
+    "input",
+    "controls",
+    "aim"
+  ],
+  "python": {
+    "ran": 56,
+    "passed": 54,
+    "skipped": 2
+  },
+  "area_replay": {
+    "report": "recomp/analysis/pc-input/d08-column-final/report.json",
+    "exit_code": 0,
+    "list_check": {
+      "frame": 43110,
+      "nodes": 46,
+      "invalid_handlers_or_animation_overlap": [],
+      "cycle": false
+    },
+    "completed_column_overclimb": false,
+    "observed": "approach to fenced atomic-health pillar, standing jumps and real combat; several approaches blocked by geometry/combat",
+    "player_health_fixtures": true,
+    "enemy_health_or_movement_writes": false,
+    "killed_actors": [
+      "0x801d15f4",
+      "0x801d0260"
+    ],
+    "excluded": "initial target 0x801d1328 left at health 2; empty overlapping helper invocation not counted"
+  },
+  "respawn": {
+    "report": "recomp/analysis/pc-input/d08-column-respawn/report.json",
+    "exit_code": 0,
+    "original_enemy_death_and_restart": true,
+    "stable_camera_distance": 3044.82,
+    "fixture": "private player HUD 1 health; original enemy damage triggers death"
+  },
+  "preservation": {
+    "settings_and_cards": true,
+    "runtime_submodule_diff": true,
+    "previous_source_checks": {
+      "recomp/src/ttk/pc_input.cpp": true,
+      "recomp/src/ttk/modern_controls.cpp": true,
+      "recomp/src/ttk/weapon_aim.cpp": true,
+      "recomp/tests/local/weapon_aim_native.cpp": true,
+      "recomp/tools/local/traversal_probe.py": true,
+      "recomp/analysis/d08-close-combat/track_fire.py": true
+    }
+  },
+  "source_sha256": {
+    "src/ttk/scene_lifetime.cpp": "95fe514daa1f78206182e764feafc09690cf471cf134561d45c1d058a5c37076",
+    "tests/local/scene_lifetime_native.cpp": "d68ce19604c17f8abc15ca0b2fd83f4dea6b34b5d60810dd534ba08bd86efa91",
+    "tools/local/inspect_object_exit.py": "6779aa2cdab059b4f9d1bb5cdcec2ae14d1a92b538cbc3e481b6a254abc8cd96",
+    "game.local.toml": "06aa142ae9a55573ecd3d0965fffd01aedabbc433b6d2dacb87fa6ed73400f47",
+    "build-local/Duke_Nukem__Time_to_Kill_Recompiled": "a607e052a401a04a6184af31f557c5a3719bc85ad353117aa95958160e7b78dd"
+  },
+  "limits": [
+    "Exact transition that retained/reintroduced old node remains unknown",
+    "Reset safeguard cannot prove no later stale-reference reintroduction",
+    "Column overclimb was not completed by automation",
+    "No new audio listening or full-campaign acceptance"
+  ],
+  "vanilla": {
+    "report": "recomp/analysis/vanilla-regression/d08-column-vanilla/report.json",
+    "exit_code": 0,
+    "checkpoints": [
+      "intro",
+      "title",
+      "main-menu",
+      "difficulty",
+      "spawn",
+      "fire",
+      "holster",
+      "draw",
+      "jump",
+      "land",
+      "inventory",
+      "inventory-close",
+      "forward",
+      "turn"
+    ],
+    "binary_sha256": "a607e052a401a04a6184af31f557c5a3719bc85ad353117aa95958160e7b78dd",
+    "captures_reviewed": [
+      "turn: alive HUD 70, ammo 195, original presentation",
+      "inventory: weapon inventory and closing route"
+    ],
+    "scope": "bounded first-map smoke; not campaign/card acceptance"
+  },
+  "owned_test_processes_exited": true
+}

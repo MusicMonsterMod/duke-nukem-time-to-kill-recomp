@@ -1,0 +1,336 @@
+{
+  "status": {
+    "D08E": "Done, user accepted",
+    "D08B": "In progress; furniture iteration delivered, needs human playtest"
+  },
+  "binary_sha256": "022a18969f6c682aaf71cf8f53fd5195bd27267ce62c88afb484084e16afda0d",
+  "source_sha256": {
+    "recomp/src/ttk/modern_controls.cpp": "2bbabc019784b589ae9bbf6e623b0d6e1ced29d069a3ab272e2a67e7d53ff773",
+    "recomp/src/ttk/modern_controls.h": "9d8e6a57639bc266777cbff7bf1a0da4fd6764c71efa3f6fcc1e9156bdb67a83",
+    "recomp/src/ttk/pc_input.cpp": "b880041b8d55920d132ba321e8676505ff820a01afdcb1fd5e802df820e1ba96",
+    "recomp/src/ttk/terrain.inc": "ad20f1ac3a00fb8db3c2125ee8303520889aa11fa0cc16d1333ae979bf21925d",
+    "recomp/src/ttk/control_guards.inc": "d994bbf7f438e9678f8b2fb6ce8912aa2ad5cae13d056690f47e63c9911481ef",
+    "recomp/tests/local/modern_controls_native.cpp": "802ac6fe07dc0f58b014de1ac0778d146c865150883ec59eb43db6df508e4f56",
+    "recomp/tests/local/pc_input_native.cpp": "1bf364ee1b4ff53ba0693f30c9670aaf33213b75c265c8426c7c8191cfbc887d"
+  },
+  "live_run": "recomp/analysis/pc-input/d08f-final",
+  "exit_code": 0,
+  "assertions": "Repeated close-contact 97\u219298 with original arc; walk/run bed and sofa walk-off use108\u2192locomotion without105/63 while held; release returns idle; ladder exit weapon drawn; only declared player-health fixtures; zero identity refusals; player files unchanged",
+  "checkpoints": {
+    "exit": {
+      "position": [
+        9168,
+        -11778,
+        13706
+      ],
+      "anim": 63,
+      "state": [
+        0,
+        0
+      ],
+      "equipment": 2
+    },
+    "bed-contact": {
+      "position": [
+        8752,
+        -11763,
+        8608
+      ],
+      "anim": 63,
+      "state": [
+        0,
+        0
+      ],
+      "equipment": 2
+    },
+    "contact-jump": {
+      "position": [
+        8752,
+        -12157,
+        7469
+      ],
+      "anim": 63,
+      "state": [
+        0,
+        0
+      ],
+      "equipment": 2
+    },
+    "contact-jump-repeat": {
+      "position": [
+        8751,
+        -12151,
+        7475
+      ],
+      "anim": 63,
+      "state": [
+        0,
+        0
+      ],
+      "equipment": 2
+    },
+    "jump-third": {
+      "position": [
+        8749,
+        -12157,
+        7470
+      ],
+      "anim": 63,
+      "state": [
+        0,
+        0
+      ],
+      "equipment": 2
+    },
+    "walk-off": {
+      "position": [
+        8752,
+        -11813,
+        9684
+      ],
+      "anim": 72,
+      "state": [
+        0,
+        0
+      ],
+      "equipment": 2
+    },
+    "run-off": {
+      "position": [
+        8750,
+        -11949,
+        8613
+      ],
+      "anim": 108,
+      "state": [
+        9,
+        9
+      ],
+      "equipment": 2
+    },
+    "run-floor-settle": {
+      "position": [
+        8750,
+        -11762,
+        8700
+      ],
+      "anim": 63,
+      "state": [
+        0,
+        0
+      ],
+      "equipment": 2
+    },
+    "run-held-landing": {
+      "position": [
+        8749,
+        -11779,
+        10771
+      ],
+      "anim": 78,
+      "state": [
+        0,
+        0
+      ],
+      "equipment": 2
+    },
+    "couch-contact": {
+      "position": [
+        8122,
+        -11771,
+        11262
+      ],
+      "anim": 63,
+      "state": [
+        0,
+        0
+      ],
+      "equipment": 2
+    },
+    "couch-jump": {
+      "position": [
+        8222,
+        -11763,
+        11245
+      ],
+      "anim": 72,
+      "state": [
+        0,
+        0
+      ],
+      "equipment": 2
+    },
+    "sofa-close-jump": {
+      "position": [
+        11316,
+        -11772,
+        10182
+      ],
+      "anim": 63,
+      "state": [
+        0,
+        0
+      ],
+      "equipment": 2
+    },
+    "sofa-front-jump": {
+      "position": [
+        11962,
+        -12096,
+        9809
+      ],
+      "anim": 76,
+      "state": [
+        0,
+        0
+      ],
+      "equipment": 2
+    },
+    "sofa-walk-off": {
+      "position": [
+        10101,
+        -11819,
+        9798
+      ],
+      "anim": 74,
+      "state": [
+        0,
+        0
+      ],
+      "equipment": 2
+    },
+    "sofa-strafe-jump": {
+      "position": [
+        11023,
+        -11773,
+        9735
+      ],
+      "anim": 63,
+      "state": [
+        0,
+        0
+      ],
+      "equipment": 2
+    },
+    "pillow-scan": {
+      "position": [
+        7955,
+        -12173,
+        7467
+      ],
+      "anim": 72,
+      "state": [
+        0,
+        0
+      ],
+      "equipment": 2
+    }
+  },
+  "native": "Input, controls, aim, scene suites pass. Native controls verify borrowed foot-height restoration, vertical velocity preservation, bounded drops, once-only velocity alignment, expired short-fall lease and Vanilla no-writes. Input checks live held/released movement and focus.",
+  "python": "57 passed including owned-disc integration; no skips",
+  "fixtures": [
+    {
+      "address": "0x800d71ca",
+      "value": 30000,
+      "purpose": "private player-health longevity fixture; spawn reads 10000 for HUD 100; no movement/state writes"
+    },
+    {
+      "address": "0x800d71ca",
+      "value": 30000,
+      "at": "east",
+      "purpose": "renew private player longevity fixture; enemy health and movement untouched"
+    },
+    {
+      "address": "0x800d71ca",
+      "value": 30000,
+      "at": "west",
+      "purpose": "renew private player longevity fixture; enemy health and movement untouched"
+    },
+    {
+      "address": "0x800d71ca",
+      "value": 30000,
+      "at": "ascent",
+      "purpose": "renew private player longevity fixture; enemy health and movement untouched"
+    },
+    {
+      "address": "0x800d71ca",
+      "value": 30000,
+      "at": "exit",
+      "purpose": "renew private player longevity fixture; enemy health and movement untouched"
+    },
+    {
+      "address": "0x800d71ca",
+      "value": 30000,
+      "at": "d08f-final-first-pig",
+      "purpose": "renew private player longevity fixture; enemy health and movement untouched"
+    },
+    {
+      "address": "0x800d71ca",
+      "value": 30000,
+      "at": "west-recovery",
+      "purpose": "renew private player longevity fixture; enemy health and movement untouched"
+    },
+    {
+      "address": "0x800d71ca",
+      "value": 30000,
+      "at": "ascent-recovery",
+      "purpose": "renew private player longevity fixture; enemy health and movement untouched"
+    },
+    {
+      "address": "0x800d71ca",
+      "value": 30000,
+      "at": "exit",
+      "purpose": "renew private player longevity fixture; enemy health and movement untouched"
+    },
+    {
+      "address": "0x800d71ca",
+      "value": 30000,
+      "at": "d08f-final-first-pig",
+      "purpose": "renew private player longevity fixture; enemy health and movement untouched"
+    },
+    {
+      "address": "0x800d71ca",
+      "value": 30000,
+      "at": "d08f-final-second-pig",
+      "purpose": "renew private player longevity fixture; enemy health and movement untouched"
+    }
+  ],
+  "player_files_unchanged": {
+    "recomp/config/player-profiles.json": "6d3954c466dae37ab374b6011ba0398fd07143aa85f3d9f1bac196663078a6a4",
+    "recomp/saves/local-play/writable-state.log": "c244cc7e71914480e9fbd60964de3f0b9904acb2972e86fe24d10e4bd263e10d",
+    "recomp/saves/local-play/card2.mcd": "7706c7d43edaf8cb7618e574f03457105153e3bdc196db803a600ad96a8f58e8",
+    "recomp/saves/local-play/card1.mcd": "6599f5b2896d8f4f39d23ea49d04b43c414461833a0abe9ccb39bec2194d5e95",
+    "recomp/saves/local-play/.pst_bios_isolated": "a36d2b03d1975aeda92aecc77617e6a754305aa04b0313bcab87df786d4d515e"
+  },
+  "limitations": [
+    "Couch entry still varies by approach; outer end and oblique/strafe attempt did not establish success. Central front entry and walk-off did.",
+    "couch-contact/couch-jump names actually target tall wardrobe; screenshot review identifies wall/ceiling obstruction, not couch success.",
+    "Pillow sweep did not reproduce reported early pipebomb pickup: slot12 remains unowned/0; flags and secret count0. No pickup fix delivered.",
+    "Final initial street route missed ladder; recovered via ordinary inputs. No pass inferred from waypoint name.",
+    "First candidate had stale query height and is excluded from successful close-jump evidence; candidate2 long run also exited apartment window, excluded from short-drop assertion.",
+    "Vanilla launch attempted during private probe was refused by harness; rerun only after probe exited.",
+    "Broader maps, high falls, water and campaign transitions remain D08B scope.",
+    "Three-frame sampling missed vertical97 on the second repeated bed jump; delayed-jump counter increments prove the guarded path, while first and third repetitions capture97 and98."
+  ],
+  "vanilla": {
+    "run": "recomp/analysis/vanilla-regression/d08f-final",
+    "exit_code": 0,
+    "checkpoints": 14,
+    "screens_reviewed": [
+      "fire",
+      "holster",
+      "draw",
+      "jump",
+      "inventory"
+    ]
+  },
+  "screens_reviewed": [
+    "contact-jump",
+    "walk-off",
+    "run-held-landing",
+    "sofa-front-jump",
+    "sofa-walk-off",
+    "couch-contact",
+    "sofa-close-jump"
+  ]
+}

@@ -1,0 +1,235 @@
+{
+  "executable_sha256": "b5c3ba610074bff184f089a49e51a22a35455cfef08757bd673a54f4057d5a7a",
+  "seed_count": 1587,
+  "seed_outside_payload": [],
+  "seed_unaligned": [],
+  "seed_not_raw_jal_target": [
+    "0x800ab6fc"
+  ],
+  "strings": [
+    {
+      "address": "0x80012fe8",
+      "text": "**Ack! CD Error",
+      "candidate_lui_references": [
+        "0x8001bdfc"
+      ]
+    },
+    {
+      "address": "0x80012ffc",
+      "text": "** Disk error during SetLoc! Retrying...",
+      "candidate_lui_references": []
+    },
+    {
+      "address": "0x80013028",
+      "text": "** Disk error during seek! Retrying...",
+      "candidate_lui_references": []
+    },
+    {
+      "address": "0x8001324c",
+      "text": "Out of memory: Launchpoint Malloc",
+      "candidate_lui_references": [
+        "0x80023dc8",
+        "0x8002438c"
+      ]
+    },
+    {
+      "address": "0x800137a0",
+      "text": "CAMERA - START ROOM BAD",
+      "candidate_lui_references": [
+        "0x8003adb4",
+        "0x8003b448"
+      ]
+    },
+    {
+      "address": "0x80016cc0",
+      "text": "ERROR: LineUpWithObject, no collide object",
+      "candidate_lui_references": [
+        "0x8007ec88"
+      ]
+    },
+    {
+      "address": "0x80016cec",
+      "text": "ERROR: LineUpWithObject",
+      "candidate_lui_references": [
+        "0x8007ee3c"
+      ]
+    },
+    {
+      "address": "0x80016d08",
+      "text": "ERROR: LineUpWithEdge",
+      "candidate_lui_references": [
+        "0x8007f0cc"
+      ]
+    },
+    {
+      "address": "0x8001759c",
+      "text": "UpdateDukeMatrices: scratchpad is too small for hierarchy",
+      "candidate_lui_references": [
+        "0x80097ce0"
+      ]
+    }
+  ],
+  "warning": "Linear instruction and string-reference scans are candidates, not CFG verification.",
+  "startup_disassembly": [
+    {
+      "address": "0x800ab6fc",
+      "mnemonic": "lui",
+      "operands": "$v0, 0x800d"
+    },
+    {
+      "address": "0x800ab700",
+      "mnemonic": "addiu",
+      "operands": "$v0, $v0, -0x1f50"
+    },
+    {
+      "address": "0x800ab704",
+      "mnemonic": "lui",
+      "operands": "$v1, 0x800f"
+    },
+    {
+      "address": "0x800ab708",
+      "mnemonic": "addiu",
+      "operands": "$v1, $v1, -0x7e18"
+    },
+    {
+      "address": "0x800ab70c",
+      "mnemonic": "sw",
+      "operands": "$zero, ($v0)"
+    },
+    {
+      "address": "0x800ab710",
+      "mnemonic": "addiu",
+      "operands": "$v0, $v0, 4"
+    },
+    {
+      "address": "0x800ab714",
+      "mnemonic": "sltu",
+      "operands": "$at, $v0, $v1"
+    },
+    {
+      "address": "0x800ab718",
+      "mnemonic": "bnez",
+      "operands": "$at, 0x800ab70c"
+    },
+    {
+      "address": "0x800ab71c",
+      "mnemonic": "nop",
+      "operands": ""
+    },
+    {
+      "address": "0x800ab720",
+      "mnemonic": "lui",
+      "operands": "$v0, 0x800c"
+    },
+    {
+      "address": "0x800ab724",
+      "mnemonic": "lw",
+      "operands": "$v0, 0xb48($v0)"
+    },
+    {
+      "address": "0x800ab728",
+      "mnemonic": "nop",
+      "operands": ""
+    },
+    {
+      "address": "0x800ab72c",
+      "mnemonic": "addi",
+      "operands": "$v0, $v0, -8"
+    },
+    {
+      "address": "0x800ab730",
+      "mnemonic": "lui",
+      "operands": "$t0, 0x8000"
+    },
+    {
+      "address": "0x800ab734",
+      "mnemonic": "or",
+      "operands": "$sp, $v0, $t0"
+    },
+    {
+      "address": "0x800ab738",
+      "mnemonic": "lui",
+      "operands": "$a0, 0x800f"
+    },
+    {
+      "address": "0x800ab73c",
+      "mnemonic": "addiu",
+      "operands": "$a0, $a0, -0x7e18"
+    },
+    {
+      "address": "0x800ab740",
+      "mnemonic": "sll",
+      "operands": "$a0, $a0, 3"
+    },
+    {
+      "address": "0x800ab744",
+      "mnemonic": "srl",
+      "operands": "$a0, $a0, 3"
+    },
+    {
+      "address": "0x800ab748",
+      "mnemonic": "lui",
+      "operands": "$v1, 0x800c"
+    },
+    {
+      "address": "0x800ab74c",
+      "mnemonic": "lw",
+      "operands": "$v1, 0xb4c($v1)"
+    },
+    {
+      "address": "0x800ab750",
+      "mnemonic": "nop",
+      "operands": ""
+    },
+    {
+      "address": "0x800ab754",
+      "mnemonic": "subu",
+      "operands": "$a1, $v0, $v1"
+    },
+    {
+      "address": "0x800ab758",
+      "mnemonic": "subu",
+      "operands": "$a1, $a1, $a0"
+    },
+    {
+      "address": "0x800ab75c",
+      "mnemonic": "lui",
+      "operands": "$at, 0x800c"
+    },
+    {
+      "address": "0x800ab760",
+      "mnemonic": "sw",
+      "operands": "$a1, 0x67ac($at)"
+    },
+    {
+      "address": "0x800ab764",
+      "mnemonic": "or",
+      "operands": "$a0, $a0, $t0"
+    },
+    {
+      "address": "0x800ab768",
+      "mnemonic": "lui",
+      "operands": "$at, 0x800c"
+    },
+    {
+      "address": "0x800ab76c",
+      "mnemonic": "sw",
+      "operands": "$a0, 0x67a8($at)"
+    },
+    {
+      "address": "0x800ab770",
+      "mnemonic": "lui",
+      "operands": "$at, 0x800d"
+    },
+    {
+      "address": "0x800ab774",
+      "mnemonic": "sw",
+      "operands": "$ra, -0x1f50($at)"
+    },
+    {
+      "address": "0x800ab778",
+      "mnemonic": "lui",
+      "operands": "$gp, 0x800d"
+    }
+  ]
+}

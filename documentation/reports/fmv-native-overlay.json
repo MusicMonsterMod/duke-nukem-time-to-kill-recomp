@@ -1,0 +1,1517 @@
+{
+  "poll_enabled": true,
+  "samples": [
+    {
+      "wall": 25339.711057863,
+      "frame": {
+        "id": 1,
+        "ok": true,
+        "frame": 905
+      },
+      "audio_stats": {
+        "id": 1,
+        "ok": true,
+        "taps": [
+          {
+            "name": "spu_out",
+            "frames": 664440,
+            "nonzero": 372791,
+            "audible": 348539,
+            "peak": 10533,
+            "rate": 44100
+          },
+          {
+            "name": "cd_in",
+            "frames": 373968,
+            "nonzero": 373968,
+            "audible": 371211,
+            "peak": 30100,
+            "rate": 44100
+          },
+          {
+            "name": "host",
+            "frames": 609745,
+            "nonzero": 363148,
+            "audible": 339046,
+            "peak": 10542,
+            "rate": 44100
+          }
+        ],
+        "pump_calls": 904,
+        "pump_skips": 0,
+        "underruns": 0,
+        "queue_hiwater": 280,
+        "queue_lowater": 0,
+        "mutes": 0,
+        "unmutes": 0,
+        "events_total": 1390,
+        "out": {
+          "active": 1,
+          "mode": "bridge-pull",
+          "host_rate": 44100,
+          "fill_ms": 196.5,
+          "target_ms": 180.0,
+          "underruns": 0,
+          "overflow_drops": 55409,
+          "correction": 0.0023
+        }
+      },
+      "fmv_state": {
+        "id": 1,
+        "ok": true,
+        "config_path": "/home/spartacus/Desktop/dn-ttk/recomp/game.local.toml",
+        "auto_skip_fmv": 0,
+        "fmv_skip_no_xa_hold": 4,
+        "fmv_skip_total_table": "0x00000000",
+        "fmv_skip_movie_id": "0x00000000",
+        "mdec_decode_count": 127,
+        "mdec_decode_macroblocks": 300,
+        "mdec_dma_out_words": 57600,
+        "xa_stream_active": 1,
+        "cd_dataready_fires": 1774,
+        "cd_irq_delivered": 1755,
+        "pad1": "0xFFFF"
+      }
+    },
+    {
+      "wall": 25340.736091633,
+      "frame": {
+        "id": 1,
+        "ok": true,
+        "frame": 967
+      },
+      "audio_stats": {
+        "id": 1,
+        "ok": true,
+        "taps": [
+          {
+            "name": "spu_out",
+            "frames": 710745,
+            "nonzero": 419096,
+            "audible": 393857,
+            "peak": 10533,
+            "rate": 44100
+          },
+          {
+            "name": "cd_in",
+            "frames": 421008,
+            "nonzero": 421008,
+            "audible": 418133,
+            "peak": 30100,
+            "rate": 44100
+          },
+          {
+            "name": "host",
+            "frames": 655374,
+            "nonzero": 408777,
+            "audible": 383853,
+            "peak": 10542,
+            "rate": 44100
+          }
+        ],
+        "pump_calls": 967,
+        "pump_skips": 0,
+        "underruns": 0,
+        "queue_hiwater": 280,
+        "queue_lowater": 0,
+        "mutes": 0,
+        "unmutes": 0,
+        "events_total": 1473,
+        "out": {
+          "active": 1,
+          "mode": "bridge-pull",
+          "host_rate": 44100,
+          "fill_ms": 209.5,
+          "target_ms": 180.0,
+          "underruns": 0,
+          "overflow_drops": 55409,
+          "correction": 0.00198
+        }
+      },
+      "fmv_state": {
+        "id": 1,
+        "ok": true,
+        "config_path": "/home/spartacus/Desktop/dn-ttk/recomp/game.local.toml",
+        "auto_skip_fmv": 0,
+        "fmv_skip_no_xa_hold": 4,
+        "fmv_skip_total_table": "0x00000000",
+        "fmv_skip_movie_id": "0x00000000",
+        "mdec_decode_count": 143,
+        "mdec_decode_macroblocks": 300,
+        "mdec_dma_out_words": 2854,
+        "xa_stream_active": 1,
+        "cd_dataready_fires": 1908,
+        "cd_irq_delivered": 1874,
+        "pad1": "0xFFFF"
+      }
+    },
+    {
+      "wall": 25341.76073639,
+      "frame": {
+        "id": 1,
+        "ok": true,
+        "frame": 1028
+      },
+      "audio_stats": {
+        "id": 1,
+        "ok": true,
+        "taps": [
+          {
+            "name": "spu_out",
+            "frames": 755580,
+            "nonzero": 463931,
+            "audible": 437937,
+            "peak": 10533,
+            "rate": 44100
+          },
+          {
+            "name": "cd_in",
+            "frames": 465696,
+            "nonzero": 465696,
+            "audible": 462705,
+            "peak": 30100,
+            "rate": 44100
+          },
+          {
+            "name": "host",
+            "frames": 700533,
+            "nonzero": 453936,
+            "audible": 428158,
+            "peak": 10542,
+            "rate": 44100
+          }
+        ],
+        "pump_calls": 1028,
+        "pump_skips": 0,
+        "underruns": 0,
+        "queue_hiwater": 280,
+        "queue_lowater": 0,
+        "mutes": 0,
+        "unmutes": 0,
+        "events_total": 1553,
+        "out": {
+          "active": 1,
+          "mode": "bridge-pull",
+          "host_rate": 44100,
+          "fill_ms": 183.6,
+          "target_ms": 180.0,
+          "underruns": 0,
+          "overflow_drops": 55409,
+          "correction": 0.00172
+        }
+      },
+      "fmv_state": {
+        "id": 1,
+        "ok": true,
+        "config_path": "/home/spartacus/Desktop/dn-ttk/recomp/game.local.toml",
+        "auto_skip_fmv": 0,
+        "fmv_skip_no_xa_hold": 4,
+        "fmv_skip_total_table": "0x00000000",
+        "fmv_skip_movie_id": "0x00000000",
+        "mdec_decode_count": 158,
+        "mdec_decode_macroblocks": 300,
+        "mdec_dma_out_words": 51923,
+        "xa_stream_active": 1,
+        "cd_dataready_fires": 2043,
+        "cd_irq_delivered": 1993,
+        "pad1": "0xFFFF"
+      }
+    },
+    {
+      "wall": 25342.790890193,
+      "frame": {
+        "id": 1,
+        "ok": true,
+        "frame": 1089
+      },
+      "audio_stats": {
+        "id": 1,
+        "ok": true,
+        "taps": [
+          {
+            "name": "spu_out",
+            "frames": 800415,
+            "nonzero": 508766,
+            "audible": 481659,
+            "peak": 10533,
+            "rate": 44100
+          },
+          {
+            "name": "cd_in",
+            "frames": 510384,
+            "nonzero": 510384,
+            "audible": 507241,
+            "peak": 30100,
+            "rate": 44100
+          },
+          {
+            "name": "host",
+            "frames": 745221,
+            "nonzero": 498624,
+            "audible": 471810,
+            "peak": 10542,
+            "rate": 44100
+          }
+        ],
+        "pump_calls": 1089,
+        "pump_skips": 0,
+        "underruns": 0,
+        "queue_hiwater": 280,
+        "queue_lowater": 0,
+        "mutes": 0,
+        "unmutes": 0,
+        "events_total": 1633,
+        "out": {
+          "active": 1,
+          "mode": "bridge-pull",
+          "host_rate": 44100,
+          "fill_ms": 185.4,
+          "target_ms": 180.0,
+          "underruns": 0,
+          "overflow_drops": 55409,
+          "correction": 0.00136
+        }
+      },
+      "fmv_state": {
+        "id": 1,
+        "ok": true,
+        "config_path": "/home/spartacus/Desktop/dn-ttk/recomp/game.local.toml",
+        "auto_skip_fmv": 0,
+        "fmv_skip_no_xa_hold": 4,
+        "fmv_skip_total_table": "0x00000000",
+        "fmv_skip_movie_id": "0x00000000",
+        "mdec_decode_count": 173,
+        "mdec_decode_macroblocks": 300,
+        "mdec_dma_out_words": 57600,
+        "xa_stream_active": 1,
+        "cd_dataready_fires": 2177,
+        "cd_irq_delivered": 2112,
+        "pad1": "0xFFFF"
+      }
+    },
+    {
+      "wall": 25343.802719033,
+      "frame": {
+        "id": 1,
+        "ok": true,
+        "frame": 1150
+      },
+      "audio_stats": {
+        "id": 1,
+        "ok": true,
+        "taps": [
+          {
+            "name": "spu_out",
+            "frames": 845250,
+            "nonzero": 553601,
+            "audible": 525215,
+            "peak": 10533,
+            "rate": 44100
+          },
+          {
+            "name": "cd_in",
+            "frames": 555072,
+            "nonzero": 555072,
+            "audible": 551789,
+            "peak": 30100,
+            "rate": 44100
+          },
+          {
+            "name": "host",
+            "frames": 789909,
+            "nonzero": 543312,
+            "audible": 515395,
+            "peak": 10542,
+            "rate": 44100
+          }
+        ],
+        "pump_calls": 1150,
+        "pump_skips": 0,
+        "underruns": 0,
+        "queue_hiwater": 280,
+        "queue_lowater": 0,
+        "mutes": 0,
+        "unmutes": 0,
+        "events_total": 1713,
+        "out": {
+          "active": 1,
+          "mode": "bridge-pull",
+          "host_rate": 44100,
+          "fill_ms": 187.5,
+          "target_ms": 180.0,
+          "underruns": 0,
+          "overflow_drops": 55409,
+          "correction": 0.00096
+        }
+      },
+      "fmv_state": {
+        "id": 1,
+        "ok": true,
+        "config_path": "/home/spartacus/Desktop/dn-ttk/recomp/game.local.toml",
+        "auto_skip_fmv": 0,
+        "fmv_skip_no_xa_hold": 4,
+        "fmv_skip_total_table": "0x00000000",
+        "fmv_skip_movie_id": "0x00000000",
+        "mdec_decode_count": 188,
+        "mdec_decode_macroblocks": 300,
+        "mdec_dma_out_words": 57600,
+        "xa_stream_active": 1,
+        "cd_dataready_fires": 2311,
+        "cd_irq_delivered": 2231,
+        "pad1": "0xFFFF"
+      }
+    },
+    {
+      "wall": 25344.816676867,
+      "frame": {
+        "id": 1,
+        "ok": true,
+        "frame": 1212
+      },
+      "audio_stats": {
+        "id": 1,
+        "ok": true,
+        "taps": [
+          {
+            "name": "spu_out",
+            "frames": 890085,
+            "nonzero": 598435,
+            "audible": 561453,
+            "peak": 10926,
+            "rate": 44100
+          },
+          {
+            "name": "cd_in",
+            "frames": 599760,
+            "nonzero": 599760,
+            "audible": 594271,
+            "peak": 31218,
+            "rate": 44100
+          },
+          {
+            "name": "host",
+            "frames": 835537,
+            "nonzero": 588940,
+            "audible": 552388,
+            "peak": 10930,
+            "rate": 44100
+          }
+        ],
+        "pump_calls": 1211,
+        "pump_skips": 0,
+        "underruns": 0,
+        "queue_hiwater": 280,
+        "queue_lowater": 0,
+        "mutes": 0,
+        "unmutes": 0,
+        "events_total": 1793,
+        "out": {
+          "active": 1,
+          "mode": "bridge-pull",
+          "host_rate": 44100,
+          "fill_ms": 185.1,
+          "target_ms": 180.0,
+          "underruns": 0,
+          "overflow_drops": 55409,
+          "correction": 0.00092
+        }
+      },
+      "fmv_state": {
+        "id": 1,
+        "ok": true,
+        "config_path": "/home/spartacus/Desktop/dn-ttk/recomp/game.local.toml",
+        "auto_skip_fmv": 0,
+        "fmv_skip_no_xa_hold": 4,
+        "fmv_skip_total_table": "0x00000000",
+        "fmv_skip_movie_id": "0x00000000",
+        "mdec_decode_count": 204,
+        "mdec_decode_macroblocks": 300,
+        "mdec_dma_out_words": 33911,
+        "xa_stream_active": 1,
+        "cd_dataready_fires": 2444,
+        "cd_irq_delivered": 2349,
+        "pad1": "0xFFFF"
+      }
+    },
+    {
+      "wall": 25345.849131741,
+      "frame": {
+        "id": 1,
+        "ok": true,
+        "frame": 1272
+      },
+      "audio_stats": {
+        "id": 1,
+        "ok": true,
+        "taps": [
+          {
+            "name": "spu_out",
+            "frames": 934920,
+            "nonzero": 643270,
+            "audible": 604268,
+            "peak": 10926,
+            "rate": 44100
+          },
+          {
+            "name": "cd_in",
+            "frames": 644448,
+            "nonzero": 644448,
+            "audible": 638636,
+            "peak": 31218,
+            "rate": 44100
+          },
+          {
+            "name": "host",
+            "frames": 879755,
+            "nonzero": 633158,
+            "audible": 594593,
+            "peak": 10936,
+            "rate": 44100
+          }
+        ],
+        "pump_calls": 1272,
+        "pump_skips": 0,
+        "underruns": 0,
+        "queue_hiwater": 280,
+        "queue_lowater": 0,
+        "mutes": 0,
+        "unmutes": 0,
+        "events_total": 1873,
+        "out": {
+          "active": 1,
+          "mode": "bridge-pull",
+          "host_rate": 44100,
+          "fill_ms": 181.5,
+          "target_ms": 180.0,
+          "underruns": 0,
+          "overflow_drops": 55409,
+          "correction": 0.00095
+        }
+      },
+      "fmv_state": {
+        "id": 1,
+        "ok": true,
+        "config_path": "/home/spartacus/Desktop/dn-ttk/recomp/game.local.toml",
+        "auto_skip_fmv": 0,
+        "fmv_skip_no_xa_hold": 4,
+        "fmv_skip_total_table": "0x00000000",
+        "fmv_skip_movie_id": "0x00000000",
+        "mdec_decode_count": 219,
+        "mdec_decode_macroblocks": 300,
+        "mdec_dma_out_words": 34656,
+        "xa_stream_active": 1,
+        "cd_dataready_fires": 2575,
+        "cd_irq_delivered": 2465,
+        "pad1": "0xFFFF"
+      }
+    },
+    {
+      "wall": 25346.852763452,
+      "frame": {
+        "id": 1,
+        "ok": true,
+        "frame": 1333
+      },
+      "audio_stats": {
+        "id": 1,
+        "ok": true,
+        "taps": [
+          {
+            "name": "spu_out",
+            "frames": 979755,
+            "nonzero": 688102,
+            "audible": 647154,
+            "peak": 10934,
+            "rate": 44100
+          },
+          {
+            "name": "cd_in",
+            "frames": 689136,
+            "nonzero": 689133,
+            "audible": 683023,
+            "peak": 31247,
+            "rate": 44100
+          },
+          {
+            "name": "host",
+            "frames": 924913,
+            "nonzero": 678316,
+            "audible": 637816,
+            "peak": 10936,
+            "rate": 44100
+          }
+        ],
+        "pump_calls": 1333,
+        "pump_skips": 0,
+        "underruns": 0,
+        "queue_hiwater": 280,
+        "queue_lowater": 0,
+        "mutes": 0,
+        "unmutes": 0,
+        "events_total": 1953,
+        "out": {
+          "active": 1,
+          "mode": "bridge-pull",
+          "host_rate": 44100,
+          "fill_ms": 173.5,
+          "target_ms": 180.0,
+          "underruns": 0,
+          "overflow_drops": 55409,
+          "correction": 0.00061
+        }
+      },
+      "fmv_state": {
+        "id": 1,
+        "ok": true,
+        "config_path": "/home/spartacus/Desktop/dn-ttk/recomp/game.local.toml",
+        "auto_skip_fmv": 0,
+        "fmv_skip_no_xa_hold": 4,
+        "fmv_skip_total_table": "0x00000000",
+        "fmv_skip_movie_id": "0x00000000",
+        "mdec_decode_count": 234,
+        "mdec_decode_macroblocks": 300,
+        "mdec_dma_out_words": 57600,
+        "xa_stream_active": 1,
+        "cd_dataready_fires": 2711,
+        "cd_irq_delivered": 2585,
+        "pad1": "0xFFFF"
+      }
+    },
+    {
+      "wall": 25347.87415047,
+      "frame": {
+        "id": 1,
+        "ok": true,
+        "frame": 1394
+      },
+      "audio_stats": {
+        "id": 1,
+        "ok": true,
+        "taps": [
+          {
+            "name": "spu_out",
+            "frames": 1024590,
+            "nonzero": 732936,
+            "audible": 690435,
+            "peak": 10934,
+            "rate": 44100
+          },
+          {
+            "name": "cd_in",
+            "frames": 733824,
+            "nonzero": 733820,
+            "audible": 727455,
+            "peak": 31247,
+            "rate": 44100
+          },
+          {
+            "name": "host",
+            "frames": 969131,
+            "nonzero": 722534,
+            "audible": 680319,
+            "peak": 10936,
+            "rate": 44100
+          }
+        ],
+        "pump_calls": 1394,
+        "pump_skips": 0,
+        "underruns": 0,
+        "queue_hiwater": 280,
+        "queue_lowater": 0,
+        "mutes": 0,
+        "unmutes": 0,
+        "events_total": 2033,
+        "out": {
+          "active": 1,
+          "mode": "bridge-pull",
+          "host_rate": 44100,
+          "fill_ms": 170.3,
+          "target_ms": 180.0,
+          "underruns": 0,
+          "overflow_drops": 55409,
+          "correction": 0.00035
+        }
+      },
+      "fmv_state": {
+        "id": 1,
+        "ok": true,
+        "config_path": "/home/spartacus/Desktop/dn-ttk/recomp/game.local.toml",
+        "auto_skip_fmv": 0,
+        "fmv_skip_no_xa_hold": 4,
+        "fmv_skip_total_table": "0x00000000",
+        "fmv_skip_movie_id": "0x00000000",
+        "mdec_decode_count": 249,
+        "mdec_decode_macroblocks": 300,
+        "mdec_dma_out_words": 57600,
+        "xa_stream_active": 1,
+        "cd_dataready_fires": 2845,
+        "cd_irq_delivered": 2704,
+        "pad1": "0xFFFF"
+      }
+    },
+    {
+      "wall": 25348.887019892,
+      "frame": {
+        "id": 1,
+        "ok": true,
+        "frame": 1455
+      },
+      "audio_stats": {
+        "id": 1,
+        "ok": true,
+        "taps": [
+          {
+            "name": "spu_out",
+            "frames": 1069425,
+            "nonzero": 777765,
+            "audible": 733526,
+            "peak": 10934,
+            "rate": 44100
+          },
+          {
+            "name": "cd_in",
+            "frames": 778512,
+            "nonzero": 778503,
+            "audible": 771902,
+            "peak": 31247,
+            "rate": 44100
+          },
+          {
+            "name": "host",
+            "frames": 1014289,
+            "nonzero": 767692,
+            "audible": 723764,
+            "peak": 10936,
+            "rate": 44100
+          }
+        ],
+        "pump_calls": 1455,
+        "pump_skips": 0,
+        "underruns": 0,
+        "queue_hiwater": 280,
+        "queue_lowater": 0,
+        "mutes": 0,
+        "unmutes": 0,
+        "events_total": 2113,
+        "out": {
+          "active": 1,
+          "mode": "bridge-pull",
+          "host_rate": 44100,
+          "fill_ms": 196.0,
+          "target_ms": 180.0,
+          "underruns": 0,
+          "overflow_drops": 55409,
+          "correction": 0.00032
+        }
+      },
+      "fmv_state": {
+        "id": 1,
+        "ok": true,
+        "config_path": "/home/spartacus/Desktop/dn-ttk/recomp/game.local.toml",
+        "auto_skip_fmv": 0,
+        "fmv_skip_no_xa_hold": 4,
+        "fmv_skip_total_table": "0x00000000",
+        "fmv_skip_movie_id": "0x00000000",
+        "mdec_decode_count": 264,
+        "mdec_decode_macroblocks": 300,
+        "mdec_dma_out_words": 57600,
+        "xa_stream_active": 1,
+        "cd_dataready_fires": 2976,
+        "cd_irq_delivered": 2820,
+        "pad1": "0xFFFF"
+      }
+    },
+    {
+      "wall": 25349.896968155,
+      "frame": {
+        "id": 1,
+        "ok": true,
+        "frame": 1516
+      },
+      "audio_stats": {
+        "id": 1,
+        "ok": true,
+        "taps": [
+          {
+            "name": "spu_out",
+            "frames": 1113525,
+            "nonzero": 821865,
+            "audible": 775976,
+            "peak": 11083,
+            "rate": 44100
+          },
+          {
+            "name": "cd_in",
+            "frames": 823200,
+            "nonzero": 823191,
+            "audible": 816372,
+            "peak": 31673,
+            "rate": 44100
+          },
+          {
+            "name": "host",
+            "frames": 1059448,
+            "nonzero": 812851,
+            "audible": 767222,
+            "peak": 11069,
+            "rate": 44100
+          }
+        ],
+        "pump_calls": 1515,
+        "pump_skips": 0,
+        "underruns": 0,
+        "queue_hiwater": 280,
+        "queue_lowater": 0,
+        "mutes": 0,
+        "unmutes": 0,
+        "events_total": 2192,
+        "out": {
+          "active": 1,
+          "mode": "bridge-pull",
+          "host_rate": 44100,
+          "fill_ms": 171.8,
+          "target_ms": 180.0,
+          "underruns": 0,
+          "overflow_drops": 55409,
+          "correction": 0.0002
+        }
+      },
+      "fmv_state": {
+        "id": 1,
+        "ok": true,
+        "config_path": "/home/spartacus/Desktop/dn-ttk/recomp/game.local.toml",
+        "auto_skip_fmv": 0,
+        "fmv_skip_no_xa_hold": 4,
+        "fmv_skip_total_table": "0x00000000",
+        "fmv_skip_movie_id": "0x00000000",
+        "mdec_decode_count": 280,
+        "mdec_decode_macroblocks": 300,
+        "mdec_dma_out_words": 33986,
+        "xa_stream_active": 1,
+        "cd_dataready_fires": 3109,
+        "cd_irq_delivered": 2938,
+        "pad1": "0xFFFF"
+      }
+    },
+    {
+      "wall": 25350.922104793,
+      "frame": {
+        "id": 1,
+        "ok": true,
+        "frame": 1577
+      },
+      "audio_stats": {
+        "id": 1,
+        "ok": true,
+        "taps": [
+          {
+            "name": "spu_out",
+            "frames": 1158360,
+            "nonzero": 866700,
+            "audible": 819099,
+            "peak": 11083,
+            "rate": 44100
+          },
+          {
+            "name": "cd_in",
+            "frames": 867888,
+            "nonzero": 867879,
+            "audible": 860809,
+            "peak": 31673,
+            "rate": 44100
+          },
+          {
+            "name": "host",
+            "frames": 1104136,
+            "nonzero": 857539,
+            "audible": 810194,
+            "peak": 11069,
+            "rate": 44100
+          }
+        ],
+        "pump_calls": 1576,
+        "pump_skips": 0,
+        "underruns": 0,
+        "queue_hiwater": 280,
+        "queue_lowater": 0,
+        "mutes": 0,
+        "unmutes": 0,
+        "events_total": 2272,
+        "out": {
+          "active": 1,
+          "mode": "bridge-pull",
+          "host_rate": 44100,
+          "fill_ms": 175.0,
+          "target_ms": 180.0,
+          "underruns": 0,
+          "overflow_drops": 55409,
+          "correction": -4e-05
+        }
+      },
+      "fmv_state": {
+        "id": 1,
+        "ok": true,
+        "config_path": "/home/spartacus/Desktop/dn-ttk/recomp/game.local.toml",
+        "auto_skip_fmv": 0,
+        "fmv_skip_no_xa_hold": 4,
+        "fmv_skip_total_table": "0x00000000",
+        "fmv_skip_movie_id": "0x00000000",
+        "mdec_decode_count": 295,
+        "mdec_decode_macroblocks": 300,
+        "mdec_dma_out_words": 57600,
+        "xa_stream_active": 1,
+        "cd_dataready_fires": 3243,
+        "cd_irq_delivered": 3056,
+        "pad1": "0xFFFF"
+      }
+    },
+    {
+      "wall": 25351.941368899,
+      "frame": {
+        "id": 1,
+        "ok": true,
+        "frame": 1638
+      },
+      "audio_stats": {
+        "id": 1,
+        "ok": true,
+        "taps": [
+          {
+            "name": "spu_out",
+            "frames": 1203930,
+            "nonzero": 912270,
+            "audible": 862896,
+            "peak": 11083,
+            "rate": 44100
+          },
+          {
+            "name": "cd_in",
+            "frames": 912576,
+            "nonzero": 912567,
+            "audible": 905245,
+            "peak": 31673,
+            "rate": 44100
+          },
+          {
+            "name": "host",
+            "frames": 1148824,
+            "nonzero": 902226,
+            "audible": 853184,
+            "peak": 11069,
+            "rate": 44100
+          }
+        ],
+        "pump_calls": 1638,
+        "pump_skips": 0,
+        "underruns": 0,
+        "queue_hiwater": 280,
+        "queue_lowater": 0,
+        "mutes": 0,
+        "unmutes": 0,
+        "events_total": 2353,
+        "out": {
+          "active": 1,
+          "mode": "bridge-pull",
+          "host_rate": 44100,
+          "fill_ms": 178.3,
+          "target_ms": 180.0,
+          "underruns": 0,
+          "overflow_drops": 55409,
+          "correction": -3e-05
+        }
+      },
+      "fmv_state": {
+        "id": 1,
+        "ok": true,
+        "config_path": "/home/spartacus/Desktop/dn-ttk/recomp/game.local.toml",
+        "auto_skip_fmv": 0,
+        "fmv_skip_no_xa_hold": 4,
+        "fmv_skip_total_table": "0x00000000",
+        "fmv_skip_movie_id": "0x00000000",
+        "mdec_decode_count": 310,
+        "mdec_decode_macroblocks": 300,
+        "mdec_dma_out_words": 57600,
+        "xa_stream_active": 1,
+        "cd_dataready_fires": 3377,
+        "cd_irq_delivered": 3175,
+        "pad1": "0xFFFF"
+      }
+    },
+    {
+      "wall": 25352.954873405,
+      "frame": {
+        "id": 1,
+        "ok": true,
+        "frame": 1699
+      },
+      "audio_stats": {
+        "id": 1,
+        "ok": true,
+        "taps": [
+          {
+            "name": "spu_out",
+            "frames": 1248030,
+            "nonzero": 956364,
+            "audible": 905656,
+            "peak": 11083,
+            "rate": 44100
+          },
+          {
+            "name": "cd_in",
+            "frames": 957264,
+            "nonzero": 957249,
+            "audible": 949750,
+            "peak": 31673,
+            "rate": 44100
+          },
+          {
+            "name": "host",
+            "frames": 1193512,
+            "nonzero": 946914,
+            "audible": 896479,
+            "peak": 11069,
+            "rate": 44100
+          }
+        ],
+        "pump_calls": 1698,
+        "pump_skips": 0,
+        "underruns": 0,
+        "queue_hiwater": 280,
+        "queue_lowater": 0,
+        "mutes": 0,
+        "unmutes": 0,
+        "events_total": 2432,
+        "out": {
+          "active": 1,
+          "mode": "bridge-pull",
+          "host_rate": 44100,
+          "fill_ms": 181.7,
+          "target_ms": 180.0,
+          "underruns": 0,
+          "overflow_drops": 55409,
+          "correction": -0.00015
+        }
+      },
+      "fmv_state": {
+        "id": 1,
+        "ok": true,
+        "config_path": "/home/spartacus/Desktop/dn-ttk/recomp/game.local.toml",
+        "auto_skip_fmv": 0,
+        "fmv_skip_no_xa_hold": 4,
+        "fmv_skip_total_table": "0x00000000",
+        "fmv_skip_movie_id": "0x00000000",
+        "mdec_decode_count": 325,
+        "mdec_decode_macroblocks": 300,
+        "mdec_dma_out_words": 57600,
+        "xa_stream_active": 1,
+        "cd_dataready_fires": 3510,
+        "cd_irq_delivered": 3293,
+        "pad1": "0xFFFF"
+      }
+    },
+    {
+      "wall": 25353.967037546,
+      "frame": {
+        "id": 1,
+        "ok": true,
+        "frame": 1760
+      },
+      "audio_stats": {
+        "id": 1,
+        "ok": true,
+        "taps": [
+          {
+            "name": "spu_out",
+            "frames": 1292865,
+            "nonzero": 1001199,
+            "audible": 948891,
+            "peak": 11083,
+            "rate": 44100
+          },
+          {
+            "name": "cd_in",
+            "frames": 1001952,
+            "nonzero": 1001937,
+            "audible": 994218,
+            "peak": 31673,
+            "rate": 44100
+          },
+          {
+            "name": "host",
+            "frames": 1238670,
+            "nonzero": 992072,
+            "audible": 940011,
+            "peak": 11069,
+            "rate": 44100
+          }
+        ],
+        "pump_calls": 1759,
+        "pump_skips": 0,
+        "underruns": 0,
+        "queue_hiwater": 280,
+        "queue_lowater": 0,
+        "mutes": 0,
+        "unmutes": 0,
+        "events_total": 2512,
+        "out": {
+          "active": 1,
+          "mode": "bridge-pull",
+          "host_rate": 44100,
+          "fill_ms": 174.5,
+          "target_ms": 180.0,
+          "underruns": 0,
+          "overflow_drops": 55409,
+          "correction": -8e-05
+        }
+      },
+      "fmv_state": {
+        "id": 1,
+        "ok": true,
+        "config_path": "/home/spartacus/Desktop/dn-ttk/recomp/game.local.toml",
+        "auto_skip_fmv": 0,
+        "fmv_skip_no_xa_hold": 4,
+        "fmv_skip_total_table": "0x00000000",
+        "fmv_skip_movie_id": "0x00000000",
+        "mdec_decode_count": 341,
+        "mdec_decode_macroblocks": 300,
+        "mdec_dma_out_words": 34158,
+        "xa_stream_active": 1,
+        "cd_dataready_fires": 3643,
+        "cd_irq_delivered": 3412,
+        "pad1": "0xFFFF"
+      }
+    },
+    {
+      "wall": 25354.992351485,
+      "frame": {
+        "id": 1,
+        "ok": true,
+        "frame": 1820
+      },
+      "audio_stats": {
+        "id": 1,
+        "ok": true,
+        "taps": [
+          {
+            "name": "spu_out",
+            "frames": 1337700,
+            "nonzero": 1046030,
+            "audible": 992107,
+            "peak": 11083,
+            "rate": 44100
+          },
+          {
+            "name": "cd_in",
+            "frames": 1048992,
+            "nonzero": 1048973,
+            "audible": 1040991,
+            "peak": 31673,
+            "rate": 44100
+          },
+          {
+            "name": "host",
+            "frames": 1283829,
+            "nonzero": 1037231,
+            "audible": 983621,
+            "peak": 11069,
+            "rate": 44100
+          }
+        ],
+        "pump_calls": 1820,
+        "pump_skips": 0,
+        "underruns": 0,
+        "queue_hiwater": 280,
+        "queue_lowater": 0,
+        "mutes": 0,
+        "unmutes": 0,
+        "events_total": 2593,
+        "out": {
+          "active": 1,
+          "mode": "bridge-pull",
+          "host_rate": 44100,
+          "fill_ms": 167.4,
+          "target_ms": 180.0,
+          "underruns": 0,
+          "overflow_drops": 55409,
+          "correction": -0.00019
+        }
+      },
+      "fmv_state": {
+        "id": 1,
+        "ok": true,
+        "config_path": "/home/spartacus/Desktop/dn-ttk/recomp/game.local.toml",
+        "auto_skip_fmv": 0,
+        "fmv_skip_no_xa_hold": 4,
+        "fmv_skip_total_table": "0x00000000",
+        "fmv_skip_movie_id": "0x00000000",
+        "mdec_decode_count": 356,
+        "mdec_decode_macroblocks": 300,
+        "mdec_dma_out_words": 57600,
+        "xa_stream_active": 1,
+        "cd_dataready_fires": 3776,
+        "cd_irq_delivered": 3528,
+        "pad1": "0xFFFF"
+      }
+    },
+    {
+      "wall": 25356.012952488,
+      "frame": {
+        "id": 1,
+        "ok": true,
+        "frame": 1882
+      },
+      "audio_stats": {
+        "id": 1,
+        "ok": true,
+        "taps": [
+          {
+            "name": "spu_out",
+            "frames": 1383270,
+            "nonzero": 1091599,
+            "audible": 1036324,
+            "peak": 11092,
+            "rate": 44100
+          },
+          {
+            "name": "cd_in",
+            "frames": 1093680,
+            "nonzero": 1093661,
+            "audible": 1085523,
+            "peak": 31691,
+            "rate": 44100
+          },
+          {
+            "name": "host",
+            "frames": 1328517,
+            "nonzero": 1081919,
+            "audible": 1026816,
+            "peak": 11131,
+            "rate": 44100
+          }
+        ],
+        "pump_calls": 1882,
+        "pump_skips": 0,
+        "underruns": 0,
+        "queue_hiwater": 280,
+        "queue_lowater": 0,
+        "mutes": 0,
+        "unmutes": 0,
+        "events_total": 2674,
+        "out": {
+          "active": 1,
+          "mode": "bridge-pull",
+          "host_rate": 44100,
+          "fill_ms": 171.1,
+          "target_ms": 180.0,
+          "underruns": 0,
+          "overflow_drops": 55409,
+          "correction": -0.0004
+        }
+      },
+      "fmv_state": {
+        "id": 1,
+        "ok": true,
+        "config_path": "/home/spartacus/Desktop/dn-ttk/recomp/game.local.toml",
+        "auto_skip_fmv": 0,
+        "fmv_skip_no_xa_hold": 4,
+        "fmv_skip_total_table": "0x00000000",
+        "fmv_skip_movie_id": "0x00000000",
+        "mdec_decode_count": 371,
+        "mdec_decode_macroblocks": 300,
+        "mdec_dma_out_words": 57600,
+        "xa_stream_active": 1,
+        "cd_dataready_fires": 3910,
+        "cd_irq_delivered": 3648,
+        "pad1": "0xFFFF"
+      }
+    },
+    {
+      "wall": 25357.02501373,
+      "frame": {
+        "id": 1,
+        "ok": true,
+        "frame": 1943
+      },
+      "audio_stats": {
+        "id": 1,
+        "ok": true,
+        "taps": [
+          {
+            "name": "spu_out",
+            "frames": 1428105,
+            "nonzero": 1136434,
+            "audible": 1079665,
+            "peak": 11092,
+            "rate": 44100
+          },
+          {
+            "name": "cd_in",
+            "frames": 1138368,
+            "nonzero": 1138349,
+            "audible": 1129993,
+            "peak": 31691,
+            "rate": 44100
+          },
+          {
+            "name": "host",
+            "frames": 1373205,
+            "nonzero": 1126607,
+            "audible": 1070124,
+            "peak": 11131,
+            "rate": 44100
+          }
+        ],
+        "pump_calls": 1943,
+        "pump_skips": 0,
+        "underruns": 0,
+        "queue_hiwater": 280,
+        "queue_lowater": 0,
+        "mutes": 0,
+        "unmutes": 0,
+        "events_total": 2754,
+        "out": {
+          "active": 1,
+          "mode": "bridge-pull",
+          "host_rate": 44100,
+          "fill_ms": 191.5,
+          "target_ms": 180.0,
+          "underruns": 0,
+          "overflow_drops": 55409,
+          "correction": -0.00037
+        }
+      },
+      "fmv_state": {
+        "id": 1,
+        "ok": true,
+        "config_path": "/home/spartacus/Desktop/dn-ttk/recomp/game.local.toml",
+        "auto_skip_fmv": 0,
+        "fmv_skip_no_xa_hold": 4,
+        "fmv_skip_total_table": "0x00000000",
+        "fmv_skip_movie_id": "0x00000000",
+        "mdec_decode_count": 387,
+        "mdec_decode_macroblocks": 300,
+        "mdec_dma_out_words": 33749,
+        "xa_stream_active": 1,
+        "cd_dataready_fires": 4045,
+        "cd_irq_delivered": 3768,
+        "pad1": "0xFFFF"
+      }
+    },
+    {
+      "wall": 25358.061245539,
+      "frame": {
+        "id": 1,
+        "ok": true,
+        "frame": 2005
+      },
+      "audio_stats": {
+        "id": 1,
+        "ok": true,
+        "taps": [
+          {
+            "name": "spu_out",
+            "frames": 1472940,
+            "nonzero": 1181266,
+            "audible": 1123041,
+            "peak": 11092,
+            "rate": 44100
+          },
+          {
+            "name": "cd_in",
+            "frames": 1183056,
+            "nonzero": 1183035,
+            "audible": 1174517,
+            "peak": 31691,
+            "rate": 44100
+          },
+          {
+            "name": "host",
+            "frames": 1418833,
+            "nonzero": 1172235,
+            "audible": 1114376,
+            "peak": 11131,
+            "rate": 44100
+          }
+        ],
+        "pump_calls": 2004,
+        "pump_skips": 0,
+        "underruns": 0,
+        "queue_hiwater": 280,
+        "queue_lowater": 0,
+        "mutes": 0,
+        "unmutes": 0,
+        "events_total": 2834,
+        "out": {
+          "active": 1,
+          "mode": "bridge-pull",
+          "host_rate": 44100,
+          "fill_ms": 173.9,
+          "target_ms": 180.0,
+          "underruns": 0,
+          "overflow_drops": 55409,
+          "correction": -0.00037
+        }
+      },
+      "fmv_state": {
+        "id": 1,
+        "ok": true,
+        "config_path": "/home/spartacus/Desktop/dn-ttk/recomp/game.local.toml",
+        "auto_skip_fmv": 0,
+        "fmv_skip_no_xa_hold": 4,
+        "fmv_skip_total_table": "0x00000000",
+        "fmv_skip_movie_id": "0x00000000",
+        "mdec_decode_count": 402,
+        "mdec_decode_macroblocks": 300,
+        "mdec_dma_out_words": 57600,
+        "xa_stream_active": 1,
+        "cd_dataready_fires": 4181,
+        "cd_irq_delivered": 3886,
+        "pad1": "0xFFFF"
+      }
+    },
+    {
+      "wall": 25359.084388383,
+      "frame": {
+        "id": 1,
+        "ok": true,
+        "frame": 2066
+      },
+      "audio_stats": {
+        "id": 1,
+        "ok": true,
+        "taps": [
+          {
+            "name": "spu_out",
+            "frames": 1518510,
+            "nonzero": 1226836,
+            "audible": 1166246,
+            "peak": 11092,
+            "rate": 44100
+          },
+          {
+            "name": "cd_in",
+            "frames": 1227744,
+            "nonzero": 1227723,
+            "audible": 1218871,
+            "peak": 31691,
+            "rate": 44100
+          },
+          {
+            "name": "host",
+            "frames": 1463992,
+            "nonzero": 1217394,
+            "audible": 1157185,
+            "peak": 11131,
+            "rate": 44100
+          }
+        ],
+        "pump_calls": 2066,
+        "pump_skips": 0,
+        "underruns": 0,
+        "queue_hiwater": 280,
+        "queue_lowater": 0,
+        "mutes": 0,
+        "unmutes": 0,
+        "events_total": 2915,
+        "out": {
+          "active": 1,
+          "mode": "bridge-pull",
+          "host_rate": 44100,
+          "fill_ms": 183.7,
+          "target_ms": 180.0,
+          "underruns": 0,
+          "overflow_drops": 55409,
+          "correction": -0.00052
+        }
+      },
+      "fmv_state": {
+        "id": 1,
+        "ok": true,
+        "config_path": "/home/spartacus/Desktop/dn-ttk/recomp/game.local.toml",
+        "auto_skip_fmv": 0,
+        "fmv_skip_no_xa_hold": 4,
+        "fmv_skip_total_table": "0x00000000",
+        "fmv_skip_movie_id": "0x00000000",
+        "mdec_decode_count": 417,
+        "mdec_decode_macroblocks": 300,
+        "mdec_dma_out_words": 57600,
+        "xa_stream_active": 1,
+        "cd_dataready_fires": 4315,
+        "cd_irq_delivered": 4006,
+        "pad1": "0xFFFF"
+      }
+    }
+  ],
+  "profile": {
+    "id": 1,
+    "ok": true,
+    "window_s": 10,
+    "samples": 9491,
+    "interp_samples": 317,
+    "interp_share": 0.0334,
+    "native_samples": 1391,
+    "native_share": 0.1466,
+    "static_samples": 7654,
+    "static_share": 0.8064,
+    "gpu_samples": 91,
+    "gpu_share": 0.0096,
+    "other_samples": 38,
+    "other_share": 0.004,
+    "exc_samples": 1884,
+    "exc_share": 0.1985,
+    "samples_total": 32608,
+    "interp_total": 1539
+  },
+  "overlay": {
+    "id": 1,
+    "ok": true,
+    "active": 1,
+    "registered": 19,
+    "regions_checked": 2,
+    "last_crc": "0x601F5F08",
+    "file_found": 1,
+    "cache_dir": "/home/spartacus/Desktop/dn-ttk/recomp/build-local/cache",
+    "game_id": "SLUS-00583",
+    "last_msg": "loaded /home/spartacus/Desktop/dn-ttk/recomp/build-local/cache/SLUS-00583/gcc/linux-x64/cg10_a4319b6f_gc7086761b_f0/000CA968_223F1B49.so -> 19 manifest candidates",
+    "checked": [
+      "0x00000000",
+      "0x000CB000"
+    ],
+    "regions": 1,
+    "loads": 1,
+    "invalidations": 0,
+    "revalidations": 0,
+    "unregistered_funcs": 0,
+    "dispatch_native": 45873,
+    "dispatch_interp_fallback": 2129903,
+    "stale_blocked": 0,
+    "last_write_pc": "0x00000000",
+    "last_write_addr": "0x00000000",
+    "last_write_size": 0,
+    "r0_valid": 19,
+    "r0_writes_since_invalid": 0,
+    "r0_fn_lo": "0x00000013",
+    "r0_fn_hi": "0x00000001",
+    "r0_crc_live": "0x601F5F08",
+    "reval_attempts": 7575,
+    "reval_crc_miss": 0,
+    "last_reval_crc": "0x601F5F08",
+    "gen_fastpath": 56475,
+    "range_links": 20,
+    "range_index_overflow": 0,
+    "lazy_manifests": 19,
+    "lazy_manifest_overflow": 0,
+    "candidate_overflow": 0,
+    "pair_aliases": 0,
+    "irq_need_defer": 0,
+    "irq_need_delivery": 1342,
+    "irq_skip_none": 0,
+    "irq_skip_sr": 0,
+    "irq_skip_cooldown": 0,
+    "irq_skip_nested": 0,
+    "image_warm_loaded": 0,
+    "image_warm_pending": 0
+  },
+  "guest_fps": 59.9277444217268,
+  "underrun_samples_added": 0
+}

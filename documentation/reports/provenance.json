@@ -1,0 +1,20 @@
+{
+  "recorded_date": "2026-09-25",
+  "upstream_repository": "https://github.com/alexbeavs-ps1-ports/duke-nukem-time-to-kill-recomp",
+  "base_commit": "b2d21e3231d19958b7b04af065ce5397265b8559",
+  "branch": "local/native-pc-bringup",
+  "submodules": [
+    "08ec704a974b1f3a16335b4afeb340b9eff19926 psxrecomp (pin-20260827-runtime-131-g08ec704a)",
+    " 268e74fe718b38fe38643c358588bbc1e0f0af70 psxrecomp/lib/recomp-net (remotes/origin/feat/pipelined-strict-netplay-71-g268e74f)",
+    " ebd94a4729abe2c0615070cef3ffe05b3f9ebf28 psxrecomp/lib/retcomm-rbengine (ebd94a4)",
+    " be8ac1d03ee19d55394b5a5f2d9d1506edd56659 recomp-ui (be8ac1d)"
+  ],
+  "host": "Linux-6.8.0-142-generic-x86_64-with-glibc2.39",
+  "python": "3.12.3",
+  "cmake": "cmake version 3.28.3",
+  "gcc": "gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+  "local_python_requirements": [
+    "ninja==1.13.2",
+    "capstone==5.0.9"
+  ]
+}

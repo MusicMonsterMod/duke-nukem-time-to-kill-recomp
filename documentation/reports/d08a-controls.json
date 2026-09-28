@@ -1,0 +1,114 @@
+{
+  "date": "2026-09-27",
+  "scope": [
+    "D08A",
+    "responsive held crouch",
+    "bounded D10 Alt-wheel distance"
+  ],
+  "status": "Needs playtest; broader D10 remains In progress",
+  "binary_sha256": "fdc8d4ece50a4a98248933684e5efa7f51b182b965b3cf7f347c4971e5065c28",
+  "build": {
+    "workflow": "build.py --image <owned SLUS-00583 image> --jobs 4; subsequent native CMake builds",
+    "full_workflow_log": "recomp/analysis/d08a-research/build.log",
+    "generated_C_hand_edited": false
+  },
+  "source_sha256": {
+    "recomp/game.local.toml": "cbbd5554a5c7f5cc2c1edf9388d1b2e89e808bf1a7440224dc4e06d36cc34f04",
+    "recomp/src/ttk/pc_input.cpp": "99773fea2669ffd90d7c7bacf05abbf4b67e7ddf5eeb7398b535d0301f7fdd1f",
+    "recomp/src/ttk/pc_input.h": "f1786eda16f82385d1a44d1498c885aa2665a41bf73470b7b0f2001aece75a41",
+    "recomp/src/ttk/input_bindings.def": "b770a765bcb7aaf11dd1c05fa28cde10be6c9a00823d486c9b1e4af9b3bf3122",
+    "recomp/src/ttk/modern_controls.cpp": "83a435f62000db3b35331f8ee122df824fb6cc541d48ea1e33ea8d6d787f0226",
+    "recomp/src/ttk/control_guards.inc": "390f8b94987c81649295bced39139bbdd760ac5b0a5f7e5a33af4a9297604601",
+    "recomp/src/ttk/shortcuts.inc": "21fb776f03ceeb2268b2785d662726d326d8a496b9b86b7c44961ee3e7eddae9",
+    "recomp/src/ttk/crouch.inc": "e64d4e9057a1dd86f26ea6470b54b6e734ec8ea25825498c54c2b3ab8a5743c1",
+    "recomp/tools/local/pc_input.py": "0752c3a3033c6344cd0c28d5d25f19fb51ebcf2385249c8dc4b029ca3db93ccf",
+    "recomp/tools/local/player_profiles.py": "b2d2df917bf4ca0279eb0f1204921ab8ef8efae2cf2f9937c4eddb7d12f4157c",
+    "recomp/tools/local/shortcuts_probe.py": "188a7c52e906c85d49e3fc412b8de9d517cb7f80600eb29b62065fa3afe2a165"
+  },
+  "automated_tests": {
+    "python": {
+      "command": "DNTTK_IMAGE=<owned image> python3 -m unittest discover -s recomp/tests/local -p test_*.py",
+      "passed": 57,
+      "skipped": 0,
+      "log": "recomp/analysis/d08a-research/python-tests-full.log"
+    },
+    "native_input": "PASS: action/default migration wire, held release, host/guest command acknowledgement and expiry, repeat suppression, wheel fractions/bursts, Alt exclusion, focus/menu and existing input contracts",
+    "native_controls": "PASS: actor/caller/code/mode/overlay guards, all semantic groups, upgrade ammo, empty remote availability and equipment-1 exit, interrupted-draw history, safe boot-call guards, crouch time budget/clearance, distance clamps/smoothing/preference; existing movement, aiming presentation and jump/reach contracts",
+    "native_controls_log": "recomp/analysis/d08a-research/native-controls.log",
+    "native_aim": "PASS: owned-executable guards, parallax, muzzle obstruction and original fallback",
+    "native_scene": "PASS: captured 42-node scene list retirement, original-MIPS RAM equivalence, free-pool accounting, preservation, repeats and refusals"
+  },
+  "original_game_SDL_replay": {
+    "report": "recomp/analysis/pc-input/d08a-controls-16/report.json",
+    "binary_sha256": "fdc8d4ece50a4a98248933684e5efa7f51b182b965b3cf7f347c4971e5065c28",
+    "exit_code": 0,
+    "samples": 105,
+    "logged_fixture_writes": 91,
+    "live_code_guard_failures": [],
+    "verified": [
+      "frontend X confirmation and automatic gameplay capture",
+      "all base number groups with original equipment completion; repeated 1/6/9 alternatives",
+      "successful Boot/pistol X history",
+      "original Q boot animation; armed Q/R do not consume ammo",
+      "two held Ctrl entry/release cycles and focus-loss standing",
+      "Alt-wheel closer/farther without weapon selection",
+      "ordinary wheel previous/next",
+      "N/B on/off including original gadget and weapon redraw transitions",
+      "J jetpack on/off while grounded",
+      "owned M medkit, unavailable M, brackets/U selected gadget use",
+      "lit dynamite pending selection completes after an explicit test throw"
+    ],
+    "medkit": {
+      "fixture_health_before": 8000,
+      "observed_health_after": 9000,
+      "fixture_charge_before": 1000,
+      "observed_charge_after": 0,
+      "full_health_attempt_remaining_charge": 1000,
+      "caveat": "Enemy fire continued; the full-health attempt is not an isolated damage-free health test."
+    },
+    "distance_preference": {
+      "distance-before": 3050.842,
+      "distance-close": 2282.842,
+      "distance-far": 3050.842
+    },
+    "capture_review": [
+      "crouch-held.png: bent-knee crouched pose",
+      "crouch-released.png: standing pose",
+      "gadgets-complete.png: active first-level scene, no menu overlay"
+    ],
+    "caveat": "Automated original-game replay with logged private health/ownership/charge fixtures, not natural acquisition, terrain-clearance proof or human feel acceptance."
+  },
+  "vanilla_regression": {
+    "report": "recomp/analysis/vanilla-regression/d08a-vanilla-01/report.json",
+    "binary_sha256": "fdc8d4ece50a4a98248933684e5efa7f51b182b965b3cf7f347c4971e5065c28",
+    "exit_code": 0,
+    "checkpoints": 14,
+    "review": "Spawn, inventory and turn captures reviewed. Read-only probes recorded jump animation 97 returning to idle 63, changed position after forward and changed yaw after turn. Driver names alone are not semantic assertions; no full-campaign or firing-fidelity claim."
+  },
+  "earlier_replays": {
+    "01-02": "Rejected mutable item capacity-table guard; code guards retained and live item types checked.",
+    "03-05": "Frontend/attract capture consumed X; original mode-dispatch guard added.",
+    "06-07": "Settled weapon idles and Boot stale drawn ID corrected.",
+    "08": "Host polling could lose taps; guest acknowledgement/short expiry implemented.",
+    "09-12": "Stationary enemy damage, original lit-dynamite delay and blast exposed test-fixture assumptions; no forced stow or production health changes added.",
+    "13-14": "Gadget/remove plus weapon-redraw transitions required waiting before the next test command; production rejection retained.",
+    "15": "Long medkit observation let enemies kill fixture actor; shorter observation and logged health top-up used."
+  },
+  "limitations": [
+    "Human gameplay acceptance pending.",
+    "Shortcuts/crouch and independent camera remain guarded to supported first-map states; other overlays and broader traversal are unverified.",
+    "Q requires Boot already selected, standing still and no upper-body action; independent armed kick unsupported.",
+    "R has no stored steroid dose; original steroids activate on pickup.",
+    "Gadget shortcuts reject unsupported airborne/swimming/traversal states; airborne jetpack toggling unverified/disabled by the lease.",
+    "Original lit dynamite and gadget transitions retain their completion requirements.",
+    "Static low ceilings, dynamic geometry/object-relative supports, tight-room/wall compression and camera comfort need representative playtests.",
+    "Distance preference lasts within the process; shoulder/recenter and broader D10 remain open."
+  ],
+  "safety": {
+    "tests": "private settings/cards and private Xvfb or headless sessions; never attach to existing game",
+    "original_media": "read/validated, not overwritten",
+    "player_cards": "not used",
+    "preexisting_local_changes": "preserved"
+  },
+  "player_launch": "python3 /home/spartacus/Desktop/dn-ttk/recomp/tools/local/run.py"
+}

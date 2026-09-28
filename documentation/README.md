@@ -1,6 +1,6 @@
 # Documentation index
 
-This is the working engineering notebook for the local **SLUS-00583** recompilation project. It describes this workspace and this exact disc, rather than promising general compatibility.
+This is the working engineering notebook for the local **SLUS-00583** recompilation project. It describes this workspace and the owned USA disc. Drop that dump in `game/` (created on first run). Europe/PAL is out of scope.
 
 ## Read first
 

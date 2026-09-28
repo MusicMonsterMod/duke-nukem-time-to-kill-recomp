@@ -12,7 +12,7 @@ Build directly with a C99 compiler or use the adjacent CMakeLists. Windows compi
 
 ## disc_lab.py inspect
 
-Input: raw `.img`; output: JSON manifest. Uses standard-library mmap and an ISO9660 reader specialized to the observed Mode 2 layout. The parser validates directory bounds and paired-endian fields. Multi-extent ISO reconstruction and arbitrary multi-track formats are not implemented; do not use this as a general disc conversion library.
+Input: a `.cue` (with its MODE2/2352 `.bin`), a raw `.bin`/`.img`, or CloneCD `.img`. Output: JSON manifest. Uses standard-library mmap and an ISO9660 reader specialized to the observed Mode 2 layout. The parser validates directory bounds and paired-endian fields. Multi-extent ISO reconstruction and arbitrary multi-track formats are not implemented; do not use this as a general disc conversion library.
 
 Manifest schema version 1 includes image hashes, sector count, executable header, every file's extent and two hashes, XA submode counts, duplicate overlay groups, and candidate extent pairs. New fields can be additive; change the schema version for incompatible meaning changes.
 
@@ -20,7 +20,7 @@ Manifest schema version 1 includes image hashes, sector count, executable header
 
 ## disc_lab.py import
 
-Requires matching CCD/IMG/SUB filenames, the exact supported image/executable identity, a single unscrambled Mode 2 track with index at zero, expected subchannel length, and a fresh successful run of the native validator. No user-supplied old integrity report can bypass validation.
+With no image argument, creates `game/` if needed and searches it (then leftover `Duke Nukem*` folders, skipping `ignore/`) for a USA SLUS-00583 dump. Accepts a `.cue` (with its MODE2/2352 `.bin`), a raw `.bin`/`.img`, or CloneCD `.img`+`.ccd`+`.sub`. Requires a known image SHA-256 (CloneCD `230a34c2...` or Redump USA `708c0404...`) and executable identity `b5c3ba61...`, plus a fresh native validator run. A PAL dump or unknown hash prints `error: no valid USA SLUS-00583 dump found` plus accepted hashes. Subchannel length is checked only when a `.sub` is present.
 
 Outputs: `time-to-kill.bin`, `time-to-kill.cue`, `SLUS_005.83`, and `import-receipt.json`. Refuses different existing prepared data. The image copy is checked after copying. Original files are never written. Interruption can leave a partial prepared copy; a subsequent import rejects it. Remove only that known partial prepared file after checking the error, then rerun. No automatic repair or destructive overwrite is performed.
 
@@ -30,7 +30,7 @@ Requires the exact known executable. Audits seed alignment and range, finds dire
 
 ## build.py
 
-Portable Python orchestration for compiler tools, import, generation, CMake configure, and native runtime build. Stops on failure and uses explicit argv lists. `--configure-only` still performs import and generation, then stops after runtime configuration. `--jobs` controls compilation parallelism.
+Portable Python orchestration for compiler tools, import, generation, CMake configure, and native runtime build. Stops on failure and uses explicit argv lists. Creates `game/` on first run. `--image` is optional; without it, the wrapper searches `game/` for a known USA dump. `--configure-only` still performs import and generation, then stops after runtime configuration. `--jobs` controls compilation parallelism.
 
 The pinned repo and recursive submodules must already be present. The wrapper intentionally does not float or upgrade dependencies. The local virtual environment is added to PATH if found beside the checkout.
 
@@ -57,6 +57,8 @@ route remains separate and must not be inferred from the smoke route.
 
 ## player_profiles.py / run.py
 
+`run.py` creates `game/` on first parse, even for `--settings`. If the prepared
+CUE is missing, it searches `game/` and imports a known USA dump before launch.
 `run.py --settings` provides the launch-time terminal selector. `--mode`,
 `--renderer`, `--reset-profile` and `--show-settings` support scripted use.
 `--settings-file` isolates test preferences. See [schema/recovery](17-player-profiles.md).

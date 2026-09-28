@@ -3,7 +3,11 @@
 # Everything below is local, generated, personal, or copyrighted media.
 
 # --- Original game / retail media (never commit) ---
-# CloneCD dump of the owned US SLUS-00583 disc.
+# Player dump drop folder (README is tracked; dumps are not).
+/game/*
+!/game/README.md
+
+# Legacy CloneCD / Redump drop folders.
 /Duke Nukem*/
 *.img
 *.sub

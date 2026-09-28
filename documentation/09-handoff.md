@@ -1,5 +1,12 @@
 # Next-session handoff
 
+## 2026-09-28 - game/ drop folder (tested)
+
+First run of `run.py` / `build.py` creates `game/` with a README. Importer accepts
+Redump USA `.cue`/`.bin` or CloneCD `.img` (hashes `708c0404...` and `230a34c2...`)
+when the EXE pin matches. Europe/PAL `SLES-01515` prints a console error. User
+tested the drop-folder flow. Original media is never overwritten.
+
 ## 2026-09-28 — D08O closed (accepted); nothing pending from the swim work
 
 Playtest 3 on binary

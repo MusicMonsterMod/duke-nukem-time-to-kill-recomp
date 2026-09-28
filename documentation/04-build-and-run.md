@@ -17,18 +17,18 @@ On Windows use `.venv\Scripts\python.exe`. Capstone is optional executable-analy
 
 ## Rebuild from original inputs
 
-From the workspace root:
+The first run of `run.py` or `build.py` creates `game/` (with a README) if it is missing. Drop your owned USA SLUS-00583 dump there, then from the workspace root:
 
 ```bash
-.venv/bin/python recomp/tools/local/build.py --image 'Duke Nukem - Time to Kill [U] [SLUS-00583]/Duke Nukem - Time to Kill [U] [SLUS-00583].img' --jobs 4
+.venv/bin/python recomp/tools/local/build.py --jobs 4
 ```
 
-From a Windows developer shell, invoke the same Python script with the original `.img` path quoted. Keep `.ccd` and `.sub` alongside it.
+`--image` is optional. If omitted, the tools search `game/` (then leftover `Duke Nukem*` folders) for a valid USA SLUS-00583 MODE2/2352 dump. A `.cue` is preferred when you pass `--image` yourself. A Europe/PAL (`SLES-01515`) disc or an unknown USA hash prints `error: no valid USA SLUS-00583 dump found` plus the accepted SHA-256 values and stops.
 
 The wrapper:
 
 1. Builds the read-only sector checker using CMake.
-2. Checks the descriptor, image/executable identity, sector integrity, and SUB length.
+2. Checks image/executable identity and sector integrity. CloneCD `.ccd`/`.sub` are validated when present.
 3. Creates a byte-identical BIN copy, CUE, boot executable, and import receipt in ignored `disc/`.
 4. Builds `psxrecomp-game` and `psxrecomp-bios` from pinned source.
 5. Generates game C and the bundled OpenBIOS backend through the upstream CLI with `game.local.toml`.
@@ -59,7 +59,7 @@ Windows appends `.exe`. The Linux candidate is approximately 131 MiB including d
 
 ## Run the candidate
 
-Convenient wrapper from workspace root: `python3 recomp/tools/local/run.py`. It supplies absolute paths and uses `recomp/saves/local-play` for writable state. The explicit command below is useful for reproducing the initial probes.
+Convenient wrapper from workspace root: `python3 recomp/tools/local/run.py`. The first invocation creates `game/` even for `--settings`. Ordinary launch uses `recomp/saves/local-play` for writable state. If `recomp/disc/time-to-kill.cue` is missing, the wrapper searches `game/` and imports a known USA dump without touching the original files. The explicit command below is useful for reproducing the initial probes.
 
 From `recomp/`:
 

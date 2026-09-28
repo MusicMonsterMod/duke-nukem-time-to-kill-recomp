@@ -176,3 +176,11 @@ Recorded explicit user acceptance of the bounded D07 iteration, including the
 known body/gun alignment limitation. D07 marked Done; existing evidence gaps
 retained. Added D07A (Todo) for view-aligned facing/weapon presentation before D08.
 Documentation only; no game launch, settings mutation or new verification run.
+
+## 2026-09-28 - USA dump drop folder
+
+`run.py` and `build.py` create `game/` on first run. The importer searches that
+folder for a known USA SLUS-00583 MODE2/2352 dump (Redump `.cue`/`.bin` or
+CloneCD `.img`), accepts both recorded whole-image hashes when the EXE pin
+matches, and prints a console error for Europe/PAL `SLES-01515` or an unknown
+hash. Original media is never overwritten. User tested the flow.

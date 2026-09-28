@@ -2,7 +2,7 @@
 
 ## Original inputs
 
-The original folder contains a CloneCD image, descriptor, and subchannel file. All tooling opens those files read-only. The importer creates a separate raw BIN copy under the ignored `recomp/disc/` directory; it does not rename, repair, or normalize the source image.
+Drop the owned USA dump in `game/` (created on first run of `run.py` or `build.py`). Accepted layouts: Redump `.cue` + MODE2/2352 `.bin`, CloneCD `.img`/`.ccd`/`.sub`, or a raw MODE2/2352 `.bin`/`.img`. Europe/PAL `SLES-01515` is a different SKU and is rejected. All tooling opens those files read-only. The importer creates a separate raw BIN copy under the ignored `recomp/disc/` directory; it does not rename, repair, or normalize the source image.
 
 | Property | Value |
 |---|---|
@@ -15,7 +15,7 @@ The original folder contains a CloneCD image, descriptor, and subchannel file. A
 | Files | 548; eight have zero length |
 | Form 1 / Form 2 sectors | 126,372 / 64,858 |
 
-Image SHA-256:
+Image SHA-256 (CloneCD dump used for local bring-up):
 
 ```
 230a34c2512c6db1708657f9452c42cc4b0db95caefd7ebd32035d8ba9933f5d
@@ -25,17 +25,15 @@ Image MD5: `52783a66e40cb36b551d496ff9a1b318`
 
 Image SHA-1: `59a03640ea2d80c6fac7f63dd8cf17e5a75de787`
 
-Subchannel SHA-256: `faf5edc202d4fc0bfb4af5441c3ee73b7a8153ec6dd6f84b30796b2e3c82f3aa`
+Redump USA `.cue`/`.bin` (same `SLUS_005.83`): SHA-256 `708c040436c4a8bfe0ef43379e934172d0b94131ee3db47e406767c9d306a8c1`, MD5 `82d6ef06544ac72aab26ba8b94345f8e`, SHA-1 `a782825520939da0560ef031daa78db8ef720957`. The importer accepts either image when the executable hash matches.
+
+Subchannel SHA-256 (CloneCD `.sub` only): `faf5edc202d4fc0bfb4af5441c3ee73b7a8153ec6dd6f84b30796b2e3c82f3aa`
 
 Descriptor SHA-256: `3aa9cdccfb6b6995767f194c8a40c235260f757033267e32f03ea3b092014621`
 
 ## Difference from upstream
 
-The upstream disc probe records the same image length, serial, executable layout, and executable SHA-256. Its whole-image MD5 is `82d6ef06544ac72aab26ba8b94345f8e`, which differs from this image.
-
-No second disc image is present for a sector-by-sector comparison. Consequently the cause of the discrepancy is **unresolved**. Passing parity does not prove equivalence with upstream media: different valid data can have valid parity. Possibilities such as mastering differences, padding differences, or modified sectors remain hypotheses.
-
-The local profile registers only this exact hash after validation. The upstream profile remains intact for comparison. Do not replace identity checking with size-only matching or `--skip-hash-check`.
+The upstream disc probe records the same image length, serial, executable layout, and executable SHA-256. Its whole-image MD5 is `82d6ef06544ac72aab26ba8b94345f8e`, which is the Redump USA dump now also accepted. The CloneCD image remains a second known-good copy of the same `SLUS_005.83`. Whole-image bytes still differ between those two dumps; sector parity on either does not prove they are identical masters. Europe/PAL `SLES-01515` matches the USA image length but is a different SKU and is rejected. Do not replace identity checking with size-only matching or `--skip-hash-check`.
 
 ## Validation actually performed
 
@@ -61,8 +59,11 @@ From the workspace root:
 
 ```bash
 cc -O2 -Wall -Wextra -Werror recomp/tools/local/sector_check.c -o recomp/build-tools/sector_check
-recomp/build-tools/sector_check 'Duke Nukem - Time to Kill [U] [SLUS-00583]/Duke Nukem - Time to Kill [U] [SLUS-00583].img'
-python3 recomp/tools/local/disc_lab.py inspect 'Duke Nukem - Time to Kill [U] [SLUS-00583]/Duke Nukem - Time to Kill [U] [SLUS-00583].img' --output documentation/reports/disc-manifest.json
+recomp/build-tools/sector_check game/your-dump.bin
+python3 recomp/tools/local/disc_lab.py inspect game/your-dump.cue --output documentation/reports/disc-manifest.json
+python3 recomp/tools/local/disc_lab.py import --output recomp/disc --validator recomp/build-tools/sector_check
 ```
+
+Use the actual `.cue` or `.img` path under `game/` for inspect and sector_check. Import with no image argument searches `game/` itself.
 
 The portable build wrapper uses CMake to compile the checker instead of assuming `cc` on Windows.

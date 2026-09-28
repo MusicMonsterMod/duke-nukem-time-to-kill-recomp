@@ -6,13 +6,13 @@ GitHub: https://github.com/MusicMonsterMod/duke-nukem-time-to-kill-recomp
 ## What this tree is
 
 This GitHub repo holds `GAME_MANUAL.md`, `MODERNIZATION_JOBS.md`, `documentation/`, and agent rules.
-The nested `recomp/` checkout, CloneCD dump, `research/`, and `.venv/` are local only.
+The nested `recomp/` checkout, player dumps under `game/`, `research/`, and `.venv/` are local only. `game/README.md` is tracked.
 
 ## Git and GitHub
 
 - Use only the MusicMonsterMod account on this repository.
 - Commit and push as MusicMonsterMod. Do not attribute work to any other GitHub user.
-- Never commit retail media, GRP/ISO/BIN dumps, BIOS, memory cards, `research/`, or `recomp/`.
+- Never commit retail media, GRP/ISO/BIN dumps, BIOS, memory cards, `research/`, `recomp/`, or anything under `game/` except `game/README.md`.
 
 ## Game work
 

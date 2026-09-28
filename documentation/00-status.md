@@ -17,5 +17,5 @@ rows still await their own playtests).
 Binary `78b68e42ab05ad831a6668c8b4a084413f014a449b08bd74bb09e776059e75bb`.
 
 ```sh
-python3 /home/spartacus/Desktop/dn-ttk/recomp/tools/local/run.py
+python3 /home/spartacus/CODE/duke-nukem-time-to-kill-recomp/recomp/tools/local/run.py
 ```

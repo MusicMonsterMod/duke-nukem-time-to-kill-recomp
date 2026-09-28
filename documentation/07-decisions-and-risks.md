@@ -4,13 +4,13 @@
 
 Accepted by user. Reuse its pinned build/runtime setup and matching executable seed list. Keep independent evidence rather than inheriting its gameplay claims. This saves bootstrap work without assuming full compatibility.
 
-## ADR-002 — preserve the original CloneCD dump
+## ADR-002 - preserve the original player dump
 
-Original files remain untouched. Prepared runtime media is a byte-identical copy. Hashes, descriptor structure, and full sector checks gate import. Original subchannels remain available even though the initial CUE runtime does not consume them.
+Original files remain untouched, whether they live in `game/` or a leftover dump folder. Prepared runtime media is a byte-identical copy. Known USA image hashes, executable identity, and full sector checks gate import. Original subchannels remain available when a CloneCD `.sub` is present; the CUE runtime does not consume them.
 
-## ADR-003 — separate local identity profile
+## ADR-003 - separate local identity profile
 
-`game.local.toml` describes this validated image. Upstream `game.toml` remains a reference. Matching executable hashes permit reuse of resident-code analysis; different disc hashes prevent declaring all media equivalent. The local profile carries no unverified upstream netplay identity.
+`game.local.toml` describes this validated USA executable. Upstream `game.toml` remains a reference. Matching executable hashes permit reuse of resident-code analysis. Two known-good USA whole-image hashes are accepted (CloneCD bring-up dump and Redump USA); other images, including Europe/PAL `SLES-01515`, are rejected. The local profile carries no unverified upstream netplay identity.
 
 ## ADR-004 — pinned OpenBIOS first
 
@@ -28,7 +28,7 @@ Implementation lives in the nested upstream Git checkout. Detailed notes live in
 
 | Risk | Evidence | Mitigation / next evidence |
 |---|---|---|
-| Different raw image from upstream | Whole-image hashes disagree; executable identical | Register exact local identity; parity validated; do not claim asset equivalence |
+| Different raw image from upstream | CloneCD and Redump USA whole-image hashes differ; executable identical | Accept both known USA hashes after EXE match; reject PAL and unknown images |
 | Streamed executable overlays | 50 files / 30 unique contents; MIPS calls/returns | Recover loading and coexistence rules; observe real memory writes |
 | Data misidentified as code | Generator reports 426 suppressed reserved-opcode sites | Audit mixed code/data and actual callers; keep exception behavior |
 | Incomplete seed boundaries | JAL-derived seeds; out-of-function warnings | Ghidra CFG work, indirect-target recovery, runtime comparison |
@@ -40,6 +40,6 @@ Implementation lives in the nested upstream Git checkout. Detailed notes live in
 
 ## Questions not yet answered
 
-Where do all overlay families load? Is the four-byte prefix copied or skipped? Are base overlays embedded in resident code or loaded via another table? What dispatch paths use runtime interpretation? Does OpenBIOS behave correctly through every level? What exactly differs between local and upstream raw images? Which asset groups represent campaign, bonus, and multiplayer contexts?
+Where do all overlay families load? Is the four-byte prefix copied or skipped? Are base overlays embedded in resident code or loaded via another table? What dispatch paths use runtime interpretation? Does OpenBIOS behave correctly through every level? Which CloneCD vs Redump USA sectors differ, if any, beyond whole-image hashing? Which asset groups represent campaign, bonus, and multiplayer contexts?
 
 Do not convert an unanswered question into a configuration constant. Prefer a bounded experiment and record its result.

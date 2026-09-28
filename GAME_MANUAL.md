@@ -4,7 +4,15 @@ This project brings your USA PlayStation copy of **Duke Nukem: Time to Kill** to
 
 ## Start playing
 
-Open a terminal in this folder and run:
+The first time you run the launcher or build script, it creates `game/` in this folder (with a short README). Put your owned **USA SLUS-00583** dump there: the dump folder itself, or the image files. Europe/PAL (`SLES-01515`) is a different SKU and will not work.
+
+Accepted dump layouts:
+
+- Redump-style `.cue` + `.bin` (`TRACK 01 MODE2/2352`)
+- CloneCD `.img` + `.ccd` + `.sub`
+- A raw MODE2/2352 `.bin` or `.img`
+
+Then open a terminal in this folder and run:
 
 ```sh
 python3 recomp/tools/local/run.py
@@ -12,7 +20,9 @@ python3 recomp/tools/local/run.py
 
 Click the game window to give it keyboard focus. Press **Enter** to skip the intro or pause. Use the arrow keys in menus and **X** to confirm. Choose a new game to start Duke's campaign.
 
-If the executable is missing, follow [build and run](documentation/04-build-and-run.md). The game requires the prepared files from your disc in `recomp/disc/`.
+If the executable is missing, follow [build and run](documentation/04-build-and-run.md). If the prepared disc is missing, the launcher searches `game/` for a known USA dump and copies it into ignored `recomp/disc/`. Original files are never overwritten.
+
+The tools accept a dump whose image SHA-256 matches a known USA copy (CloneCD or Redump USA MODE2/2352) and whose boot EXE is `SLUS_005.83`. A Europe/PAL disc, or a USA image with a different hash, prints an error on the console with the accepted SHA-256 values and does not launch.
 
 ## Profiles and settings
 

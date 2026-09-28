@@ -5,7 +5,7 @@
 From the workspace root:
 
 ```bash
-DNTTK_IMAGE="$PWD/Duke Nukem - Time to Kill [U] [SLUS-00583]/Duke Nukem - Time to Kill [U] [SLUS-00583].img" python3 -m unittest discover -s recomp/tests/local -v
+DNTTK_IMAGE="$PWD/game/your-dump.bin" python3 -m unittest discover -s recomp/tests/local -v
 ```
 
 Without `DNTTK_IMAGE`, media-dependent integration tests skip and synthetic parser tests still run. Build `sector_check` before enabling integration tests. No test modifies original media: deliberate corruption uses a sector copied into a temporary directory.

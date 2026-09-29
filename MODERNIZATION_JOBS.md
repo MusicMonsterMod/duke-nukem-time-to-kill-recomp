@@ -59,7 +59,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08N | Duke3D-style scuba gear item | Cancelled (out of scope) | — |
 | D08P | Crystal-2 turret / scripted-camera control recovery | Done | D08 |
 | D08Q | Modern jetpack flight controls | Done | D08 |
-| D08R | Selectable jetpack scheme: Modern / Classic (WASD) | Todo | D08Q |
+| D08R | Selectable jetpack scheme: Modern / Classic (WASD), CLI quick ship | Todo | D08Q |
 | D08S | Duke3D-style jetpack scheme (instant J on/off, midair) | Todo | D08R |
 | D09 | Modern controller support | Todo | D05, D06, D07 |
 | D10 | Third-person camera polish | In progress | D08 |
@@ -76,7 +76,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D18 | FMV and audio presentation safeguards | Todo | D01, D02 |
 | D18A | Voice/music/gunfire crackle investigation | Done | D01, D02 |
 | D18B | Concurrent voice with music (no music mute) | Todo | D18, D21 |
-| D19 | Modern in-game menus, settings and input prompts | Todo | D02, D04, D13 |
+| D19 | Modern in-game menus, settings and input prompts (Sonic 3 A.I.R.-style customization; plan mode + artifact first) | Todo | D02, D04, D13 |
 | D19A | Duke font assets for host messages and modern UI | Done | D04 |
 | D19B | Responsive modern menu navigation and transitions | Todo | D02, D04 |
 | D20 | Save management and optional quick saves | Todo | D01, D02 |
@@ -814,9 +814,15 @@ landing; fuel-out behaves the same as J; Vanilla flight unchanged.
 classic jetpack controls instead of the D08Q modern flight, and classic must
 still work with WASD.
 
-Scope: add a Modernized profile setting (for example `jetpack` =
-`modern` | `classic`) in `player_profiles.py`, the terminal settings menu,
-`run.py` flags and the environment passed to the runtime. **Modern** is the
+**Scope revised 2026-09-29:** ship this as a CLI switch only. The scheme
+choice is one of many customizations that will later live in the D19
+in-game customization menu (Sonic 3 A.I.R.-style), not a jetpack-specific
+screen. Do not build menu UI for it here.
+
+Scope: add a persisted Modernized profile setting (for example `jetpack` =
+`modern` | `classic`) in `player_profiles.py`, a `run.py` flag and the
+environment passed to the runtime. The terminal settings menu may list it
+only if that is trivial; in-game menu exposure belongs to D19. **Modern** is the
 current D08Q behaviour and stays the default. **Classic** runs the original
 TTK mode-10 flight as the game intended: body-relative thrust, original
 hover toggle, original lift and gravity, no host hover-on-release, no Ctrl
@@ -827,8 +833,8 @@ heading not turnable, idle sink). Decide and document whether the mouse
 camera stays live in Classic (camera-only lease) or the original camera is
 used. Vanilla is untouched in either case.
 
-**Acceptance:** the setting persists and can be switched from the menu and
-CLI; Classic flight is controllable with WASD + Space and matches the
+**Acceptance:** the setting persists and can be switched from the CLI;
+Classic flight is controllable with WASD + Space and matches the
 original's thrust, hover toggle, lift, fuel and cut-out rules; Modern is
 unchanged from D08Q; switching schemes needs no rebuild; Vanilla flight
 unchanged. Tests cover the profile migration and the pad mapping.
@@ -1034,6 +1040,19 @@ recorded; volume-channel hooks prepared for D21 without requiring the full menu.
 
 ### D19 — Modern in-game menus, settings and input prompts
 
+**Direction set by the user 2026-09-29 (backlog; not started).** The target
+is a customization menu in the spirit of Sonic 3 A.I.R.: one aesthetically
+pleasing place to pick Modernized options (control schemes such as the D08R
+jetpack scheme, camera, aim, crosshair, display, audio and later
+customizations), with clear per-option descriptions and good defaults.
+Preferred approach: hack the original TTK in-game menu rather than bolt on a
+separate host screen, and give it a responsiveness overhaul (see D19B) as part
+of the same work. Until then, new options ship as persisted profile settings
+with `run.py` CLI switches. **Before any implementation:** design in plan
+mode and publish a design artifact (menu structure, option list, visual
+style, navigation and how it hooks the original menu) for user review. There
+is a lot to consider; this is a dedicated future session, not a side task.
+
 Build a modern in-game menu system, using EDuke32 as a design reference for navigation, option organization and customization. Investigate reuse of suitable open-source menu code, recording its exact revision/license and compatibility with this runtime before adopting it; source availability alone does not establish integration suitability. Preserve the original menus as an option and support safe pause/resume, keyboard/mouse and controller navigation. Build an accessible Time to Kill settings surface for mode, implemented controls, display and audio options. Show actual bindings in help and prompts; provide reset and safe handling of display changes. Avoid exposing developer terminology in normal player flows.
 
 **Acceptance:** a player can select a mode, change bindings/display settings and recover defaults without editing files. Keyboard/controller navigation works. The root [game manual](GAME_MANUAL.md) matches the shipped build and labels planned features separately.
@@ -1066,7 +1085,9 @@ Do not silently download substitute assets or remove original credits.
 
 ### D19B — Responsive modern menu navigation and transitions
 
-**Todo; deferred with D19 menu design.** User reports the menu system is clunky,
+**Todo; deferred with D19 menu design.** The user wants the responsiveness
+overhaul done on the hacked original in-game menu as part of the D19 design
+(2026-09-29). User reports the menu system is clunky,
 laggy and has terrible responsiveness. Profile navigation, selection, back,
 opening/closing and screen transitions separately from gameplay performance.
 Measure event receipt, guest processing, presentation delay, repeat/debounce and
@@ -2596,3 +2617,13 @@ the user comments on in-game stutter.
 User playtest: "the in game stutter fix works fine". D23A moves to Done. D18A's historical club starvation
 was not re-measured; if it recurs, check `identity_checks` and
 `audio_stats.out.fill_ms` first (58-modernized-frame-budget.md).
+
+## 2026-09-29 - Menu system backlogged; D08R narrowed to CLI
+
+User direction: player-selectable options (starting with the D08R jetpack
+scheme) should eventually live in a general Sonic 3 A.I.R.-style
+customization menu built by hacking the original in-game menu, with a
+responsiveness overhaul (D19B). Recorded as the D19 direction. D19 needs a
+plan-mode design and a design artifact before implementation; not scheduled
+yet. D08R scope revised to a persisted profile setting and `run.py` flag
+only. Docs only; no code, build or launch.

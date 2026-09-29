@@ -59,6 +59,8 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08N | Duke3D-style scuba gear item | Cancelled (out of scope) | — |
 | D08P | Crystal-2 turret / scripted-camera control recovery | Done | D08 |
 | D08Q | Modern jetpack flight controls | Done | D08 |
+| D08R | Selectable jetpack scheme: Modern / Classic (WASD) | Todo | D08Q |
+| D08S | Duke3D-style jetpack scheme (instant J on/off, midair) | Todo | D08R |
 | D09 | Modern controller support | Todo | D05, D06, D07 |
 | D10 | Third-person camera polish | In progress | D08 |
 | D10A | Rapid mouse turning and Shift-running investigation | Done | D06, D07C, D08 |
@@ -805,6 +807,58 @@ useful speed and level height, releasing everything hovers, Ctrl descends
 until a soft landing, Space climbs, J switches off in the air with a
 controlled fall and the mouse still live, and the ground controls resume on
 landing; fuel-out behaves the same as J; Vanilla flight unchanged.
+
+### D08R - Selectable jetpack scheme: Modern / Classic (WASD)
+
+**Todo.** User (2026-09-29): Modernized players should be able to choose
+classic jetpack controls instead of the D08Q modern flight, and classic must
+still work with WASD.
+
+Scope: add a Modernized profile setting (for example `jetpack` =
+`modern` | `classic`) in `player_profiles.py`, the terminal settings menu,
+`run.py` flags and the environment passed to the runtime. **Modern** is the
+current D08Q behaviour and stays the default. **Classic** runs the original
+TTK mode-10 flight as the game intended: body-relative thrust, original
+hover toggle, original lift and gravity, no host hover-on-release, no Ctrl
+descent and no `face_view` camera coupling. The only change is WASD mapped
+to the original pads (W/S to Up/Down, A/D to turn or strafe per the layout)
+so it is playable without the tank fallback surprises D08Q found (body
+heading not turnable, idle sink). Decide and document whether the mouse
+camera stays live in Classic (camera-only lease) or the original camera is
+used. Vanilla is untouched in either case.
+
+**Acceptance:** the setting persists and can be switched from the menu and
+CLI; Classic flight is controllable with WASD + Space and matches the
+original's thrust, hover toggle, lift, fuel and cut-out rules; Modern is
+unchanged from D08Q; switching schemes needs no rebuild; Vanilla flight
+unchanged. Tests cover the profile migration and the pad mapping.
+
+### D08S - Duke3D-style jetpack scheme (instant J on/off, midair)
+
+**Todo (later).** User (2026-09-29): a third jetpack scheme that replicates
+Duke Nukem 3D. **J** starts flying immediately and pressing **J** again stops
+flying immediately - no graceful lift-off, landing or cut-out animation.
+It must also work **in midair** (while jumping or falling), which TTK does
+not allow: the original entry `8004aaf8` requires Square on the ground and
+rejects the airborne/landing states (anim 105/106 and the `+0x224 & 0x241`
+flags). Controls while flying: **Space** ascends, **Ctrl** descends,
+**WASD** moves relative to the view, mouse turns camera and Duke together.
+No input holds position (Duke3D hover).
+
+Research first: whether mode 10 can be entered directly from airborne
+modes with the original handler kept intact, or whether this scheme needs a
+host flight model that drives the root position and state flags itself;
+what the instant J-off should do (Duke3D drops straight into a fall);
+fuel drain rules (Duke3D drains while the pack is on); animation choice
+for instant take-off; collision with ceilings and water. Keep all writes
+gated on Modernized + the selected scheme; Vanilla and the other two
+schemes unchanged.
+
+**Acceptance:** with the Duke3D scheme selected, J toggles flight instantly
+on the ground and in midair; Space/Ctrl climb and descend at steady rates;
+WASD flies relative to the view; releasing input holds position; J off drops
+Duke into a normal fall with controls live; fuel-out behaves like J off;
+Modern, Classic and Vanilla unchanged.
 
 ### D08K — True crouch walking and animation feasibility
 

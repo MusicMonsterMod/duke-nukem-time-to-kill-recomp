@@ -182,7 +182,26 @@ python3 recomp/tools/local/run.py --camera-distance 3000 --shoulder right --show
 ```
 
 `--camera-distance` takes `original` or 768-6144 game units; `--shoulder` takes
-`center`, `right` or `left`. Both update your saved Modernized preferences. Ctrl crouch uses a quicker original transition, not toggle or
+`center`, `right` or `left`. Both update your saved Modernized preferences.
+
+**P** toggles **first person** (prototype, Modernized with the independent
+camera). The view moves to Duke's eyes with a wider field of view; the mouse
+looks, WASD moves relative to the view, and shots go to the crosshair. Crouch
+lowers the view, and jumps keep it. Duke's head and body are hidden, and no
+held weapon is drawn yet. Swimming and jetpack flight switch back to third
+person on their own and return when you land; ladders, ledges, scripted and
+turret cameras, death and menus use the original camera as before. Pressing P
+again returns to third person. The choice is saved; to set it without
+launching:
+
+```sh
+python3 recomp/tools/local/run.py --view first --show-settings
+python3 recomp/tools/local/run.py --view third --show-settings
+```
+
+Known prototype limit: pressed against a wall and looking along it at a steep
+angle, part of that wall can turn black or break up. Step back and it returns.
+The key is rebindable (`camera_view`). Ctrl crouch uses a quicker original transition, not toggle or
 Z fallback. Controls are currently bounded to supported first-map states and
 still need gameplay acceptance. Existing customized bindings are retained; use
 `--show-bindings` to see migrated keys. These actions assume the game's default

@@ -71,3 +71,12 @@ With the feature off, behavior must match the baseline. With it on, controls mus
 See [D03 live state research](18-player-camera-research.md) for guarded,
 input-correlated player/camera addresses and remaining hook boundaries.
 The `0x800137A0` anchor above is a string address, not a function entry.
+
+## 2026-09-29 D11 prototype
+
+The first playable eye-level view, its verified hooks, evidence and limits are
+in [D11 first person](61-d11-first-person.md). Research questions answered
+there: head visibility (joint skip bit during Duke's draw), body visibility
+(original joint near cull), room culling (camera room follows the eye; no
+missing rooms on the first-map route) and near-plane clipping (partly solved;
+steep wall contact remains, job D11B).

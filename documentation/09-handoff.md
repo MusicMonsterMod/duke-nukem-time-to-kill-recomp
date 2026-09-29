@@ -1,5 +1,36 @@
 # Next-session handoff
 
+## 2026-09-29 - D11 first-person prototype (Done, user accepted)
+
+Code: `recomp/src/ttk/first_person.inc` (header comment lists every original
+address it relies on), wired in `modern_controls.cpp` (`fp_blend`,
+`eye_jump`, `orbit_constraint` blend, hooks `0x800348d8`, `0x8001ca4c`,
+`0x8002a038`, `0x800b4d9c`), `pc_input` action `camera_view` (P) placed after
+`camera_shoulder` (wire payload now 39 entries), profile schema 13 `view`,
+`--view`. New `game.local.toml` hooks `0x800348D8`, `0x8002A038`,
+`0x800B4D9C`; regenerated with the built recompiler (one file per hook); the
+launcher rebuilt the movie shard.
+
+Findings worth keeping: camera `+0x42` is H = 160/tan(angle at `+0x40`/2) =
+386; the camera sits H/2 behind its anchor; the world renderer flags vertices
+nearer than H/2 and the joint draw skips joints nearer than H. Duke's model
+record at `[player+0x40]`: 19 joints, record `+0x44+0x28*j`, byte 0 bit 0 skips
+the joint, byte 2 level; joint 9 is the neck/head. The original camera eases
+per axis through `0x8002a038` with rates from `0x800c0d4c`. Save states are
+taken at scheduler boundaries (VSync waits), but the debug server reads mid
+frame, so a debug read can see the relaxed 768 word; the runtime repairs any
+captured value.
+
+Probe helpers are in the session scratchpad (`g.py`, `route.py`,
+`wallcheck.py`, `perf.sh`, `launch.sh`/`start.sh`/`stop.sh`; private port 9177,
+display :77). Fixture copies: `recomp/analysis/d11-first-person/` (profile,
+cards from D10, `route-cards` slot 1 = club main room, first person; the D10
+binary backup `d10-accepted-84669bb6.bin`). Developer override
+`DNTTK_FP_PROJECTION=160..386` for FOV/near tests. User accepted D11 after extended play. Next:
+D11B (near-wall polygons), D11A (wheel into first person) and D12 (hands and
+weapon) follow. Binary
+`dd7b85b49eda500bf5646830dd7fddf4a061986bd3982dda7ae8533507d271c5`. No commits.
+
 ## 2026-09-29 - D10 Done (user accepted); D08S cancelled
 
 User: "it's done, fully accepted" after about five minutes of play. D11 (first-person

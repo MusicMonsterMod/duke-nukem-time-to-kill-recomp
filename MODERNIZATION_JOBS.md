@@ -65,7 +65,8 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D09 | Modern controller support | Todo | D05, D06, D07 |
 | D10 | Third-person camera polish | Done | D08 |
 | D10A | Rapid mouse turning and Shift-running investigation | Done | D06, D07C, D08 |
-| D11 | First-person playable prototype | Todo | D08, D10 |
+| D11 | First-person playable prototype | Done | D08, D10 |
+| D11B | First-person near-wall polygon clipping | Todo | D11 |
 | D11A | Scroll-wheel zoom lock into first-person | Todo | D10, D11 |
 | D12 | First-person weapons and state polish | Todo | D11 |
 | D13 | Higher internal resolution and display scaling | Todo | D02 |
@@ -976,6 +977,33 @@ constraints intact. Full matrix: [current brief](documentation/45-playtest-turni
 Build an optional eye-level camera using the verified movement and aiming foundation. Investigate head/body visibility, near-plane clipping and room/portal culling. Keep third-person available as a fallback for unsupported states.
 
 **Acceptance:** a documented first-level route is playable with correct collision and shot direction, no obstructing head geometry and no missing rooms caused by the camera offset. Mark unsupported states explicitly; moving the camera alone does not complete the job.
+
+**Done - user accepted 2026-09-29** after an extended play session: "i have been playing it for a while, and im insanely happy with it. mark all as accepted. this is phenomenal, and it's like a dream come true."
+**P** toggles an eye-level view in Modernized
+(independent camera); saved as profile schema 13 `view`, `--view first|third`.
+The eye follows Duke's neck joint through the original camera solve, the head
+joint is skipped only during Duke's draw, and the render gets a shorter
+projection distance (about 64 degrees). An isolated first-level route (street,
+club door fight, doorway threshold, entry hall, main room, jump, crouch, P
+toggle) passed its 14 checks. Swimming and jetpack flight blend back to third
+person. Known limit: steep-angle wall contact can drop wall polygons (D11B).
+See [D11 first person](documentation/61-d11-first-person.md).
+
+### D11B - First-person near-wall polygon clipping
+
+**Todo from D11 (2026-09-29).** Pressed against a wall and looking along it at
+a steep angle, the first-person view loses or tears the wall polygons that
+reach beside or behind the eye (club side wall, about 60 degrees off its
+normal). The world renderer rejects polygons with vertices nearer than GTE H/2
+(outcode bit `0x10` from `0x8002f1e0`) instead of clipping them. A shorter
+projection distance (192-256) and moving the eye back 64-128 did not fix it.
+Trace the polygon emit path that consumes the outcodes, then add bounded near
+clipping or subdivision for the eye view only, or keep the eye off walls with
+a verified original collision query.
+
+**Acceptance:** the documented D11 wall-contact cases (head-on and 30-90 degree
+oblique in the club and a first-map corridor) render without black or torn
+wall polygons; third person, Vanilla and the frame budget are unchanged.
 
 ### D11A — Scroll-wheel zoom lock into first-person
 
@@ -2801,3 +2829,62 @@ acceptance. The evidence is that play session plus the automated and
 isolated-probe results above (two level-1 rooms). No per-location campaign
 playtest of doors, corners, tight rooms or vertical traversal was recorded.
 D11 is now ready (D08, D10 Done). No commits.
+
+## 2026-09-29 - D11 first-person prototype (Needs playtest)
+
+Modernized with the independent camera gets an optional eye-level view. **P**
+(new action `camera_view`, after `camera_shoulder` so it is an edge, not a
+guest command) toggles it; profile schema 13 adds control `view` (third by
+default) and the action; `--view first|third`; the runtime side file now
+carries `view`, merged by `run.py` like distance and shoulder. Vanilla and the
+`original` camera option never use it.
+
+Implementation (`recomp/src/ttk/first_person.inc`, wired from
+`modern_controls.cpp`; hooks `0x800348D8`, `0x8002A038`, `0x800B4D9C` added to
+`game.local.toml`, regenerated): the eye is Duke's neck joint (joint 9 of the
+19-joint model at `[player+0x3c]`) plus 96 up, with only the neck's sway about
+the root smoothed. It is fed through the D06 orbit anchor into the unchanged
+original camera update. The original 768 minimum distance is relaxed only
+inside the constraint call and restored before the update ends (a captured
+relaxed value is repaired). The follow easing rates go to 1 so the eye does
+not trail. Duke's head joint record gets the original skip bit only between
+his draw and the next object-list step. The render's per-frame `SetGeomScreen`
+call gets H 256 instead of 386 (`camera[+0x42]` is never written): at 386 a
+wall Duke faced went black because the renderer drops vertices nearer than
+H/2. A Space-only standing jump keeps a camera-only lease while the eye view
+is live (no motion change). Swimming and jetpack flight blend back to third
+person; unleased states switch to the original camera as before.
+
+Evidence on binary
+`dd7b85b49eda500bf5646830dd7fddf4a061986bd3982dda7ae8533507d271c5`: 74 Python
+tests (new: v12->v13 migration without taking a custom P, optional side-file
+view, `--view` env); `ttk-input-test` (P toggle), `ttk-controls-test` (new D11
+case: anchor, boom relax/restore/repair, projection argument, head flag
+window, lease loss, third person untouched) and `ttk-aim-test` PASS. Isolated
+Xvfb route with fresh private cards (`recomp/analysis/d11-first-person/runs/
+route-final`): all 14 checks pass - first-level spawn in first person, 7
+view-aimed shots with actor hits and 0 rejections, club door waypoints,
+doorway threshold sweep with street and club both rendered, entry hall and
+main room sweeps, look up/down with no body in view, Space-only jump stays
+active, crouch lowers the eye, P to third person and back with original
+globals, no fallbacks. Earlier runs: eye within about 25 of the neck while
+running; death falls back to the original camera. Frame budget in the club:
+59.87 fps third person, 59.94 first person, 0 underruns. Vanilla regression
+route `d11-vanilla` exit 0. Movie shard current (native decoder active).
+
+Limits: steep-angle wall contact can still drop or tear the nearest wall
+polygons (new job D11B); the original obstruction rays did not report the
+touched wall; no hands or held weapon are drawn (D12); switching to an
+unleased state is a hard cut to the original camera; field of view fixed at
+about 64 degrees (FOV options are D14). Tested on the first map's street and
+club interior and the turret-room corridor, not the campaign. Needs playtest
+for feel (eye height, FOV, bob) and the user's own route. No commits.
+
+## 2026-09-29 - D11 accepted (Done)
+
+User after playing binary
+`dd7b85b49eda500bf5646830dd7fddf4a061986bd3982dda7ae8533507d271c5` for a while:
+"i have been playing it for a while, and im insanely happy with it. mark all as accepted. this is phenomenal, and it's like a dream come true." D11 moves to Done on explicit user acceptance, with the
+automated route and test evidence above. The recorded limits stand: steep-angle
+wall contact (D11B), no hands or held weapon (D12), fixed field of view (D14),
+first-map coverage only. D11A and D12 are now ready.

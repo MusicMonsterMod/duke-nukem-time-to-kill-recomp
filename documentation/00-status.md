@@ -1,5 +1,18 @@
 # Current status — 2026-09-29
 
+**D11 first-person prototype - Done (user: "this is phenomenal, and it's like a dream come true").** Modernized (independent
+camera): **P** toggles an eye-level view with a wider field of view (about 64
+degrees); saved in profile schema 13 (`--view first|third`, default third).
+The eye follows Duke's neck through the original camera solve; his head is
+hidden only during his own draw; mouse look, camera-relative WASD, view aiming,
+crouch and jumps all work in it. Swimming and jetpack flight return to third
+person. An isolated first-level route (street, club door fight, doorway,
+entry hall, main room) passed all 14 checks at 59.9 fps with 0 underruns;
+Vanilla route exit 0. Known limit: steep-angle wall contact can drop wall
+polygons (new job D11B). No hands/weapon drawn yet (D12). Details:
+documentation/61-d11-first-person.md. Binary
+`dd7b85b49eda500bf5646830dd7fddf4a061986bd3982dda7ae8533507d271c5`.
+
 **D10 Done (user: "it's done, fully accepted"); D08S cancelled (may revisit).** Modernized
 camera: **V** recenters (smooth swing to the original follow angle; the mouse
 cancels it), **H** cycles centered / right / left shoulder (off by default),

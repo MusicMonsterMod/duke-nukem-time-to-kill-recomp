@@ -11,4 +11,4 @@ Faithful Vanilla play plus an opt-in Modernized mode (WASD, mouse aim, and quali
 
 This GitHub tree holds the notes, job board, player manual, and validation reports. The first run of `python3 recomp/tools/local/run.py` or `recomp/tools/local/build.py` creates `game/`. Drop your owned USA dump there (Redump `.cue`/`.bin`, CloneCD `.img`/`.ccd`/`.sub`, or a raw MODE2/2352 image). The nested `recomp/` checkout, `research/` references, and local `.venv/` stay on the development machine and are gitignored.
 
-Invoke `$continue-duke-recomp` to list jobs from `MODERNIZATION_JOBS.md` and choose one.
+Invoke `$continue-duke-recomp` (Codex) or `/continue-duke-recomp` (Claude Code, from `.claude/skills/`) to list jobs from `MODERNIZATION_JOBS.md` and choose one.

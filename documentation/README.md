@@ -29,7 +29,7 @@ This is the working engineering notebook for the local **SLUS-00583** recompilat
 
 For players: [game manual and controls](../GAME_MANUAL.md).
 
-For the next development job: [modernization backlog and acceptance criteria](../MODERNIZATION_JOBS.md). Invoke `$continue-duke-recomp` to review the current list and choose work.
+For the next development job: [modernization backlog and acceptance criteria](../MODERNIZATION_JOBS.md). Invoke `$continue-duke-recomp` (Codex) or `/continue-duke-recomp` (Claude Code) to review the current list and choose work.
 
 ## Machine-readable evidence
 

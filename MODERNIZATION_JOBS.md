@@ -2,7 +2,7 @@
 
 This is the canonical job list for our **Duke Nukem: Time to Kill** PC project, targeting the owned US SLUS-00583 disc. The ambition is a polished, game-specific PC edition: faithful original play plus an optional modern experience. This is a plan, not a list of features already available.
 
-Invoke **`$continue-duke-recomp`** to see the current jobs and choose one. You can also request a job directly: **`$continue-duke-recomp work on D01`**. The skill reads this file rather than keeping a second backlog. It must not automatically start the next job.
+Invoke **`$continue-duke-recomp`** (Codex) or **`/continue-duke-recomp`** (Claude Code) to see the current jobs and choose one. You can also request a job directly: **`$continue-duke-recomp work on D01`** or **`/continue-duke-recomp work on D01`**. The skill reads this file rather than keeping a second backlog. It must not automatically start the next job.
 
 ## The experience we are building
 

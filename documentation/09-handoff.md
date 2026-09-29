@@ -1,5 +1,36 @@
 # Next-session handoff
 
+## 2026-09-29 - D08R Done; D08Q1 faster Modern Ctrl descent (Done)
+
+D08R accepted ("it's absolutely rock solid"). D08Q1: `k_jet_descend_velocity`
+5500 in `jetpack.inc` (Modern only) gives 29.5 units/frame, the underwater
+Ctrl dive rate from `/tmp/swimlab/deep4.log`. User: "verified working!!!". Probe script `descent` in the
+scratchpad `jet_probe.py`; health is `player+0x32`. Binary
+`9c01cae0183eb90824cc8fe56308871145010a2a243908e66c24a5801bebaf5f`. No commits.
+
+## 2026-09-29 - D08R selectable jetpack scheme (revision 2, now Done)
+
+`--jetpack classic|modern` -> profile schema 11 control `jetpack` ->
+`DNTTK_JETPACK`. Gate `jetpack_classic()` in `modern_controls.cpp`. Classic
+shares the entire Modern control path (lease, `face_view`, WASD bridge, J,
+fall grace); `jetpack_update()` in `jetpack.inc` returns before the host
+vertical layer (hover, Ctrl descent, trim). Do not give Classic the original
+camera or D-pad turning again: the user rejected that (revision 1) because
+mouse turning failed and controls slipped out of modern. Probe harness copy
+lives in the session scratchpad (D08Q `/tmp/jetlab/jet_probe.py` plus
+`classic2`, `wcheck`, `turn2`, `tables`; `PORT`/`EXTRA` env). Binary
+`1a8907148aadaa80902b34c644f61631c627845739cf6f525590666d197f03c2`. No
+commits until asked.
+
+## 2026-09-29 - D08B accepted (Done)
+
+User: "d08b can be marked as completely done man, its fine. accept it all"
+and "i have tested all of them!". The user playtested the old D08B limits
+(contact jumps, bed run-off slowdown, unopened-bed pipe bomb, oblique couch
+entry, pig-cop ladder stall) and accepted them. Board and status updated; no
+build or automated replay. D10 is the only
+In progress job. No commits until asked.
+
 ## 2026-09-29 - D23B intro FMV stranded movie shard (Done)
 
 Intro-only stutter after D23A. Cause: `psxrecomp-game --overlay-config-hash`

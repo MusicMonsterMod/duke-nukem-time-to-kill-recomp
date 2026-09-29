@@ -222,11 +222,27 @@ Underwater air remains automatic; there is no scuba item and none will be added.
 **Space** lifts off and climbs. In the air the **mouse** turns Duke and the
 camera together, **W/A/S/D** fly relative to the camera at level height
 (strafe is a little slower, as in the original), releasing every key
-**hovers** in place, **Ctrl** descends steadily until a soft landing, and
+**hovers** in place, **Ctrl** descends quickly (the same speed as diving
+underwater) until a soft landing, and
 **J** switches the pack off for a controlled fall with the camera still live.
 Fuel drains while flying and while hovering (the original rule); when it runs
 out Duke falls the same way. The ground controls return the moment he lands.
 Details: [documentation/57-jetpack-controls.md](documentation/57-jetpack-controls.md).
+
+**Classic jetpack (optional, Modernized only)**: modern controls with the
+original burst-style flight. Select it once from the terminal; it is remembered:
+
+```
+python3 recomp/tools/local/run.py --jetpack classic --show-settings
+python3 recomp/tools/local/run.py --jetpack modern --show-settings
+```
+
+Modern (above) is the default. Classic keeps the same controls - mouse turns
+Duke and the camera, **W/A/S/D** fly relative to the camera, **J** toggles the
+pack - but the flight is the original burst style: **Space** boosts, and the
+original gravity pulls Duke down whenever you are not boosting. There is no
+hover on release and no **Ctrl** descent; **Shift** toggles the original hover.
+Fuel, lift and cut-out are the original's. Vanilla is unaffected by this choice.
 Standing-jump input ordering and feel are accepted;
 broader terrain and campaign coverage remain separate work.
 For a fully original camera in Modernized, select **7 Camera** in settings and

@@ -193,3 +193,11 @@ Python's standard library. These are local derived art/provenance, kept in the
 ignored build tree. Keep both with a copied local build. Originals are read only;
 no substitute font is downloaded. Without a valid pack, the existing generic
 host font remains available. Vanilla and original TTK text are unchanged.
+
+## Jetpack scheme (D08R)
+
+`run.py --jetpack classic|modern` saves the Modernized jetpack scheme
+(profile schema 11; older files migrate with a backup). Append
+`--show-settings` to save without launching. Modern is the default D08Q
+flight; Classic keeps the modern controls with the original burst physics. Vanilla ignores it. See
+[57-jetpack-controls.md](57-jetpack-controls.md).

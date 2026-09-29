@@ -1,5 +1,18 @@
 # Current status — 2026-09-29
 
+**D08R Done (user-accepted: "it's absolutely rock solid").** **D08Q1 Done
+(user: "verified working!!!"):** Modern jetpack Ctrl descent 2800 -> 5500, steady 29.5
+units/frame to match the underwater Ctrl dive; soft landings, no damage.
+Binary `9c01cae0183eb90824cc8fe56308871145010a2a243908e66c24a5801bebaf5f`.
+
+**D08R selectable jetpack scheme (Done).** `run.py --jetpack
+classic|modern` (persisted, Modernized, default modern). Classic (revision 2,
+after user feedback) keeps all modern controls - mouse look, camera-relative
+WASD, J - with the original burst physics: Space boost, gravity, no host
+hover or Ctrl descent. Details: documentation/57-jetpack-controls.md (D08R
+section). Binary
+`1a8907148aadaa80902b34c644f61631c627845739cf6f525590666d197f03c2`.
+
 **D23B Done - intro FMV stutter was a stranded native movie shard.** The
 shard's cache folder is keyed by the `game.local.toml` hook list; the 28 Sep
 hook additions moved it, so the intro decoder ran interpreted (~52 fps,
@@ -52,8 +65,9 @@ wall idles as in the original; turn the view to resume. Details:
 documentation/56-scripted-camera-controls.md (iteration 6).
 
 Pending playtest jobs D07A, D07B, D08A, D08H and D10 distance were **Done** on
-user acceptance of ongoing play. D08N scuba remains cancelled. D08B/D10 broader
-work stays In progress.
+user acceptance of ongoing play. D08N scuba remains cancelled. D10 broader work
+stays In progress. D08B is Done on 2026-09-29 after the user playtested all
+of its recorded limits (see the job board work log).
 
 Previous binary `79a3fd5b4cd7eb535d472089e680982516100fc65b1a00c3a5dd546b85ea527a`
 (D08P acceptance).

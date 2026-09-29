@@ -42,7 +42,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08A | EDuke32-style weapon and item shortcuts | Done | D04, D08 |
 | D08A1 | Visible EDuke32-style inventory cycling | Done | D04, D19A |
 | D08A2 | EDuke32 bottom-left inventory icon and green % | Done (revised: strip + green %) | D08A1, D19A |
-| D08B | Broader traversal and scripted-camera coverage | In progress | D08 |
+| D08B | Broader traversal and scripted-camera coverage | Done | D08 |
 | D08C | Directional jumps from standstill — accepted both input orders | Done | D08 |
 | D08D | Apartment light-switch secret convenience | Done | D08 |
 | D08E | Responsive holstered fire and weapon transitions | Done | D08 |
@@ -59,7 +59,8 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08N | Duke3D-style scuba gear item | Cancelled (out of scope) | — |
 | D08P | Crystal-2 turret / scripted-camera control recovery | Done | D08 |
 | D08Q | Modern jetpack flight controls | Done | D08 |
-| D08R | Selectable jetpack scheme: Modern / Classic (WASD), CLI quick ship | Todo | D08Q |
+| D08R | Selectable jetpack scheme: Modern / Classic (WASD), CLI quick ship | Done | D08Q |
+| D08Q1 | Faster Modern jetpack Ctrl descent (underwater dive speed) | Done | D08Q |
 | D08S | Duke3D-style jetpack scheme (instant J on/off, midair) | Todo | D08R |
 | D09 | Modern controller support | Todo | D05, D06, D07 |
 | D10 | Third-person camera polish | In progress | D08 |
@@ -358,6 +359,11 @@ captured; M is message-only; no persistent bottom-left host gadget; Vanilla
 preserved.
 
 ### D08B — Broader traversal and scripted-camera coverage
+
+**Done on user acceptance (2026-09-29).** User: "d08b can be marked as
+completely done man, its fine. accept it all" and "i have tested all of
+them!". The user reports playtesting every limit recorded below; they are
+kept as history only.
 
 **Latest user feedback supersedes the earlier replay:** contact jumps remain
 inconsistent; running off the bed still has residual slowdown; early pipe-bomb
@@ -810,6 +816,16 @@ landing; fuel-out behaves the same as J; Vanilla flight unchanged.
 
 ### D08R - Selectable jetpack scheme: Modern / Classic (WASD)
 
+**Done on user acceptance (2026-09-29):** "it's absolutely rock solid."
+
+**Revision 2 (2026-09-29).** `run.py --jetpack classic|modern`
+persists a Modernized `jetpack` control (schema 11, default `modern`). Per user
+direction Classic keeps every modern control (mouse facing, camera-relative
+WASD, J) and uses the original burst physics: Space boost, gravity, no host
+hover/Ctrl descent. Revision 1 (original camera + D-pad turning) was rejected
+in playtest: mouse turning failed and controls "slipped" out of modern. See
+[D08R section](documentation/57-jetpack-controls.md#d08r---selectable-jetpack-scheme-modern--classic).
+
 **Todo.** User (2026-09-29): Modernized players should be able to choose
 classic jetpack controls instead of the D08Q modern flight, and classic must
 still work with WASD.
@@ -838,6 +854,28 @@ Classic flight is controllable with WASD + Space and matches the
 original's thrust, hover toggle, lift, fuel and cut-out rules; Modern is
 unchanged from D08Q; switching schemes needs no rebuild; Vanilla flight
 unchanged. Tests cover the profile migration and the pad mapping.
+
+### D08Q1 - Faster Modern jetpack Ctrl descent (underwater dive speed)
+
+**Done on user acceptance (2026-09-29):** "verified working!!!"
+
+`k_jet_descend_velocity` 2800 -> 5500: steady
+Modern Ctrl descent 29.5 units/frame (was ~16), matching the underwater dive;
+soft landings, no health loss. See
+[D08Q1 section](documentation/57-jetpack-controls.md#d08q1---faster-modern-ctrl-descent).
+
+User (2026-09-29): "for jetpack modern, i'd like ctrl to
+descend be faster. basically the speed of ctrl in water to descend".
+
+Scope: Modern scheme only; raise the host Ctrl descent velocity
+(`k_jet_descend_velocity`, `jetpack.inc`) so steady descent matches the
+underwater Ctrl dive (~29 units/frame measured in the D08O deep-water lab,
+`/tmp/swimlab/deep4.log`: y -1438 -> -888 over 19 frames). Classic, Vanilla,
+hover, WASD flight and Space unchanged.
+
+**Acceptance:** Modern Ctrl descent measured near the underwater dive rate;
+landing still ends in the original soft landing without extra damage; Classic
+and the other Modern inputs unchanged; user confirms the feel.
 
 ### D08S - Duke3D-style jetpack scheme (instant J on/off, midair)
 
@@ -2627,3 +2665,83 @@ responsiveness overhaul (D19B). Recorded as the D19 direction. D19 needs a
 plan-mode design and a design artifact before implementation; not scheduled
 yet. D08R scope revised to a persisted profile setting and `run.py` flag
 only. Docs only; no code, build or launch.
+
+## 2026-09-29 - D08B accepted (Done)
+
+User direction: "d08b can be marked as completely done man, its fine. accept
+it all", then "i have tested all of them!". D08B moves to Done on user
+playtest. The user reports testing every previously recorded limit
+(inconsistent contact jumps, residual bed run-off slowdown, early pipe-bomb
+pickup from the unopened bed, outer-end/oblique couch entry, ladder ascent
+stall with a pig cop on the landing) and accepting the results. No automated
+replay or build was run for this change. D08L still covers inertial edge
+run-off as a separate feature. Docs only; no code, build or launch.
+
+## 2026-09-29 - D08R selectable jetpack scheme (Needs playtest)
+
+Implementation: `player_profiles.py` schema 11 adds Modernized control
+`jetpack` (`modern` | `classic`, v10 and older migrate to `modern` with a
+backup); `run.py --jetpack` saves it and exports `DNTTK_JETPACK` (`modern` in
+Vanilla); `describe()` prints the scheme. Runtime: `jetpack_classic()` gate;
+Classic drops the `jet` camera lease clause, the host hover/descent/face_view
+layer and the fall grace; `jetpack_classic_input_ready()` bridges W/S/A/D to
+D-pad Up/Down/Left/Right in `input_pad()` (no tank fallback) and keeps the J
+shortcut in flight. No terminal-menu entry (D19 owns in-game exposure).
+
+Research: the original flight turns with D-pad Left/Right (live probe) even
+though `8004ade0` never reads them; turning is not thrust, so gravity applies
+unless Up/Down/Square is held. The original hover toggle table `800d1cf0`
+resolves to physical L1 = Modernized walk (Shift).
+
+Evidence (binary
+`b588f926cf3cc300bdbf5873a3a0a4e7b78074c3fd0eccbe6acd060361e2da6d`,
+isolated Xvfb, scratch copy of the D08Q cards, user's game closed): Classic W
+along the body, A/D turn (yaw -421 / +391 in 30 frames), W identical to the
+arrow-key D-pad Up, Shift hover holds (dy -28 / 60 frames), Ctrl inert, J cut-out
+fall then ground lease, no tank fallback. Modern re-probed matching D08Q
+numbers. 68 Python tests, `ttk-input-test` (new Classic pad case),
+`ttk-controls-test`, `ttk-aim-test` PASS.
+
+Limits: user playtest of Classic outstanding; fuel-out mid-flight, ceilings,
+water, damage and controller not probed. The player's saved settings file
+migrates to schema 11 (with a backup) on the next launch. No commits.
+
+## 2026-09-29 - D08R revision 2: Classic keeps modern controls (Needs playtest)
+
+User playtest of revision 1: "with jetpack classic, im having trouble turning
+with the mouse ... the controls are slipping in and out of our non-modern
+controls ... jetpack classic should basically be that, burst style jetpack with
+space to boost ... but the modern controls, wasd, mouse look, should all be
+retained". Classic now shares the Modern camera lease, `face_view`, WASD bridge,
+J shortcut and cut-out fall grace; `jetpack_update()` skips only the host
+vertical layer (hover on release, Ctrl descent, level trim). The D-pad
+Left/Right bridge and the lease exclusion were removed. Isolated probe on
+binary `1a8907148aadaa80902b34c644f61631c627845739cf6f525590666d197f03c2`:
+lease held on every flight sample, mouse turns Duke in the air, W and D follow
+the camera, release sinks with no host hover, Ctrl adds nothing, J fall keeps
+the mouse, no tank-fallback messages. 68 Python tests and the three native
+suites PASS. Classic playtest outstanding. No commits.
+
+## 2026-09-29 - D08R accepted (Done); D08Q1 opened
+
+User playtest of revision 2: "it's absolutely rock solid." D08R moves to Done.
+Same message requests faster Modern Ctrl descent at the underwater dive speed;
+scoped as D08Q1 (In progress).
+
+## 2026-09-29 - D08Q1 faster Modern Ctrl descent (Needs playtest)
+
+`jetpack.inc` `k_jet_descend_velocity` 2800 -> 5500 (Modern only; Classic
+returns before the host vertical layer). Target: underwater Ctrl dive,
+~29 units/frame from the D08O deep lab log (`/tmp/swimlab/deep4.log`,
+y -1438 -> -888 over 19 frames). Isolated probe on binary
+`9c01cae0183eb90824cc8fe56308871145010a2a243908e66c24a5801bebaf5f`: steady
+Ctrl 29.5 units/frame (5100 gave 27.0), Ctrl+W ~26-33, landing to anim 63 with
+health 10000 -> 10000; Ctrl 30 frames dy 955 (D08Q 459). Modern hover, W/S/A/D
+headings, mouse and Space re-probed unchanged; Classic re-probed unchanged
+(0 lease losses, no host descent). `ttk-input-test`, `ttk-controls-test`,
+`ttk-aim-test` PASS. User feel check outstanding. No commits.
+
+## 2026-09-29 - D08Q1 accepted (Done)
+
+User playtest: "verified working!!!" D08Q1 moves to Done. Binary
+`9c01cae0183eb90824cc8fe56308871145010a2a243908e66c24a5801bebaf5f`.

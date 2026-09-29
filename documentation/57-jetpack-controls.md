@@ -106,3 +106,97 @@ another 130–300 units (floor approach) before holding; strafe is the
 original half gain; fuel drains while hovering. Not probed: low ceilings,
 water below, damage/death in flight, fuel-out mid-flight (same handler path
 as J), controller.
+
+# D08R - Selectable jetpack scheme: Modern / Classic
+
+**Done (2026-09-29, user: "it's absolutely rock solid"; revision 2).** A persisted Modernized control
+`jetpack` = `modern` (default, D08Q unchanged) | `classic`. CLI only:
+`run.py --jetpack classic|modern` (append `--show-settings` to save without
+launching). Profile schema 11 (v10 and older migrate with a
+`.recovered-*` backup, adding `modern`). `run.py` exports `DNTTK_JETPACK`
+(`modern` whenever Vanilla is active); the runtime reads it once, so a
+switch needs only a relaunch. In-game menu exposure belongs to D19.
+
+## Scheme definition (user direction)
+
+Classic keeps **all modern controls** - mouse look with Duke facing the view,
+camera-relative WASD, J, the cut-out fall with a live camera - and changes only
+the **flight physics** to the original burst style: Space lifts (original
+Square), the original gravity pulls Duke down whenever he is not thrusting,
+no host hover on release, no Ctrl descent, no level trim. The original hover
+toggle (physical L1 = Modernized walk, Shift) still reaches the game.
+
+Revision 1 (same day) ran Classic with the original camera and D-pad turning
+(A/D -> Left/Right) and no camera lease. User: "having trouble turning with
+the mouse ... the controls are slipping in and out of our non-modern
+controls". Rejected; revision 2 shares the Modern lease.
+
+## Runtime
+
+| Piece | Behaviour |
+| --- | --- |
+| `jetpack_classic()` (`modern_controls.cpp`) | `DNTTK_JETPACK == "classic"`, cached. |
+| `state()`, `jetpack_input_ready()`, `input_pad()`, `shortcuts.inc` | Identical in both schemes: camera-only `jet` lease, W/S -> Up/Down, A/D -> layout strafe pads, J in flight. |
+| `jetpack_update()` | Both: fall grace and `face_view()`. Classic then returns before the host vertical layer (hover engage, Ctrl descent `+0x1f8 = 2800`, WASD level trim) and counts `jet_classic_updates`. |
+| Debug JSON | `jet_scheme`, `jet_classic`, `jet_classic_updates`. |
+
+Vanilla: every path is behind `input_modernized()`; `input_pad()` returns
+early outside Modernized.
+
+## Research kept from revision 1 (read-only)
+
+Original flight turns with D-pad Left/Right (live probe; yaw 3762 -> 3423
+over 30 frames) although `8004ade0` never reads them; turning is not thrust
+for the no-gravity bit 31. Pad tables (layout 0) index the button-word array
+at `800d1450` in PS bit order from Start: Up 1, Right 2, Down 3, Left 4,
+L2 5, R2 6, hover toggle `800d1cf0` -> 7 = **L1**, `800d1b58` -> 9 =
+Triangle, Cross 11, Square 12.
+
+## Evidence (binary `1a8907148aad...`)
+
+Isolated Xvfb instance, scratch copy of the D08Q level-1 cards (slot 1),
+`dninventory`, real keys and mouse; no player cards; the user's game closed.
+
+| Check | Classic |
+| --- | --- |
+| Lease in flight | `jet` true on every mode-10 sample (0 losses), 197 updates; no tank-fallback / ORIGINAL MOVEMENT messages |
+| Mouse in the air | body 3759 -> 25, camera -0.518 -> 0.111 rad, mode 10 |
+| W / D | dir -32 / 64 vs camera -30 (expected -30 / 60) |
+| W + mouse | body 313 deg, camera 312 deg |
+| Release 30 frames | sinks 306, hover lock clear, `jet_hovers` 0 |
+| Ctrl 20 frames | gravity only, `jet_descents` 0 |
+| J in the air | 108 fall mode 9 with mouse live (looks +1), landing, ground lease ready |
+
+S and A headings in the same run were skewed by carried momentum between
+bursts and one gravity landing (original inertia, no host zeroing). Modern
+was re-probed on revision 1 (same Modern code path): hover -19, W/S/A/D
+-33/154/-120/61 vs camera -30, Ctrl 459 - matching D08Q. Tests: 68 Python
+(`JetpackSchemeTest`), `ttk-input-test` (D08Q jetpack pad case covers both
+schemes), `ttk-controls-test`, `ttk-aim-test` PASS.
+
+## Remaining
+
+Accepted. Not probed: fuel-out mid-flight, low ceilings,
+water below, damage in flight, controller.
+
+# D08Q1 - Faster Modern Ctrl descent
+
+**Done (2026-09-29, user: "verified working!!!").** User: "for jetpack modern, i'd like ctrl to
+descend be faster. basically the speed of ctrl in water to descend".
+`k_jet_descend_velocity` 2800 -> 5500 (Modern only).
+
+Target: the underwater Ctrl dive (anim 133, state 5) moved y -1438 -> -888 in
+19 frames (~29 units/frame) in the D08O deep-water lab (`/tmp/swimlab/deep4.log`,
+zone 35 teleport). The descent velocity scales linearly.
+
+| Value | Steady Ctrl descent (units/frame) | Landing |
+| --- | --- | --- |
+| 2800 (D08Q) | ~16 (459 / 30 frames) | soft |
+| 5100 | 27.0 | anim 63, health unchanged |
+| **5500** | **29.5** (Ctrl+W 26-33) | anim 63, health 10000 -> 10000 |
+
+Binary `9c01cae0183eb90824cc8fe56308871145010a2a243908e66c24a5801bebaf5f`.
+Regression: Modern hover -32 / 60 frames, W/S/A/D -33/154/-120/61 vs camera
+-30, mouse 3758 -> 66, Space climb; Classic unchanged (no host descent, 0
+lease losses). Native suites PASS. The last samples before touchdown speed up
+(floor approach `8003ef78`), as before.

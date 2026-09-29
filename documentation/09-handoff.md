@@ -1,5 +1,72 @@
 # Next-session handoff
 
+## 2026-09-29 - D11B Done (user accepted); jetpack sprite confirmed
+
+User: "its awesome!!! now it doesnt peek through the doors. amazing work." (the new jetpack sprite "is also available"). Next first-person job: D12 (hands and weapon). Binary
+`84168b78fb49318312a6acf586ab0b8aef98606caf7bbc16598376bd9ace3b73`.
+
+## 2026-09-29 - D11B occluder fade in first person (Needs playtest)
+
+User: conservative default is the best-looking; keep `DNTTK_NEAR_CLIP=0` as
+Vanilla rendering and `full` for research. Invisible subway door = original
+occluder fade (`0x80031fa0` loop, overlap test `0x8002ee50`, fade distance
+camera+0xa0, Duke rect camera+0xa8). New hook `0x8002EE50` hands the test an
+empty rect in the eye view; `DNTTK_FP_OCCLUDER_FADE=1` restores it. Both are
+logged as D19 menu toggles. Private copies of the user's F7 slots in
+`recomp/analysis/d11b-near-clip/subway-cards` (file slot 01 = F7 slot 4,
+02-04 = F7 slots 1-3). Binary
+`84168b78fb49318312a6acf586ab0b8aef98606caf7bbc16598376bd9ace3b73`. No commits.
+
+## 2026-09-29 - D11B third pass: conservative default (Needs playtest)
+
+User saw dotted black lines on floors at 1080p with the subdividing mode. Test
+at 1080p by capturing the window (`g.wshot`, `XRES=1920x1080` in
+`recomp/analysis/d11b-near-clip/probes/launch.sh`, `look.py`); the runtime's
+`screenshot_file` shows the software raster, not the OpenGL window. Default is
+now `conservative` (clip only what the original gets wrong, no subdivision,
+whole-polygon sort); `DNTTK_NEAR_MODE=full` keeps the subdividing mode;
+`DNTTK_NEAR_CLIP=0` is off. Street test state:
+`recomp/analysis/d11b-near-clip/street-cards` slot 1 (fresh game, street
+spawn). Binary
+`2b5670b5bcb0a4942901b16a5b6b04b3f2c653c2124dfce384ba174b3017209d`. No commits.
+
+## 2026-09-29 - D11B second pass (apartment artifacts; Needs playtest)
+
+User reported comb/popping on the apartment wardrobe ("closet"). Fixed by
+average-depth piece sorting, a -4 OT prop bias (actors excluded via
+`first_person_actor_drawing()`), prop takeover to 3072, outward rounding of new
+corners, and a per-frame packet budget (the render arena is a 139,744-byte
+ring; see `documentation/62-d11b-near-clip.md`). Apartment test state:
+`recomp/analysis/d11b-near-clip/apartment-cards` slot 1 (debug savestate on
+private cards); probes in `recomp/analysis/d11b-near-clip/probes/`
+(`closet.py`, `walkseq.py`, `roam.py`, `apt_route.py`). Compare with
+`DNTTK_NEAR_CLIP=0`; `DNTTK_NEAR_TINT=1` colors host pieces by renderer. Binary
+`9029435a8bddb3fcc7ca4e572d13626fc222535f1f7f2c069405196c562b8f5e`. No commits.
+
+## 2026-09-29 - D11B near-wall clipping (Needs playtest)
+
+Code: `recomp/src/ttk/near_clip.cpp` (+ `near_clip.h`), hooks `0x80010000`
+and `0x80011020` added to `game.local.toml` and regenerated with the built
+recompiler (`PSXRECOMP_GAME=build-recompiler/psxrecomp-game ... psxrecomp_cli.py
+generate`), wired through `first_person_view_live()` /
+`first_person_duke_drawing()` in `modern_controls`. New native target
+`ttk-near-test`. `DNTTK_NEAR_CLIP=0` turns it off for A/B.
+
+Findings worth keeping: the level is drawn by two hand-written renderers at the
+start of the executable (world `0x80011020`, object `0x80010000`); the GTE RTP
+ring's `ra` for them is garbage (both use `$ra` as a scratch register - 0x100 is
+H). `0x8002ef90` is a horizontal grid surface, not walls. Near the eye one
+texel spans 15-25 pixels, so any host subdivision must cut on whole-texel lines
+or straight texture lines kink.
+
+Probe helpers: `recomp/analysis/d11b-near-clip/probes/` (`sweep.py TAG X Z YAW`
+places Duke on the private route cards and sweeps; `perf.sh`; private port
+9177, display :77). Wall spots: club side wall (5486, -4096) yaw -61.3; entry
+corridor (5442, -800) yaw -90. D11 binary backup
+`recomp/analysis/d11-first-person/d11-accepted-dd7b85b4.bin`, toml backup
+`game.local.toml.before-d11b`. Binary
+`d294c3d8d228a1ad6a3cdeff7aeac2b9ee2576c4df6a1e3fcc1f34902afc5aaa`. No commits.
+
 ## 2026-09-29 - D11 first-person prototype (Done, user accepted)
 
 Code: `recomp/src/ttk/first_person.inc` (header comment lists every original
@@ -27,8 +94,8 @@ display :77). Fixture copies: `recomp/analysis/d11-first-person/` (profile,
 cards from D10, `route-cards` slot 1 = club main room, first person; the D10
 binary backup `d10-accepted-84669bb6.bin`). Developer override
 `DNTTK_FP_PROJECTION=160..386` for FOV/near tests. User accepted D11 after extended play. Next:
-D11B (near-wall polygons), D11A (wheel into first person) and D12 (hands and
-weapon) follow. Binary
+D11B (near-wall polygons) and D12 (hands and
+weapon) follow; D11A was cancelled (the P toggle suffices). Binary
 `dd7b85b49eda500bf5646830dd7fddf4a061986bd3982dda7ae8533507d271c5`. No commits.
 
 ## 2026-09-29 - D10 Done (user accepted); D08S cancelled

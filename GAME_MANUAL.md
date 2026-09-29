@@ -199,8 +199,26 @@ python3 recomp/tools/local/run.py --view first --show-settings
 python3 recomp/tools/local/run.py --view third --show-settings
 ```
 
-Known prototype limit: pressed against a wall and looking along it at a steep
-angle, part of that wall can turn black or break up. Step back and it returns.
+Walls, floors and props right next to you are now drawn correctly in first
+person (no more black or broken wall pieces when you press against a wall and
+look along it). This is new and still being playtested; if a wall still breaks
+up somewhere, note where you were. To compare with the unclipped view, launch
+once with the clipping off (this does not change your saved settings):
+
+```sh
+DNTTK_NEAR_CLIP=0 python3 recomp/tools/local/run.py
+```
+
+In first person, props you walk right up to (doors, sign poles) now stay
+solid. The original game fades them to see-through so Duke stays visible in
+third person; third person keeps that. To see the original fade in first person
+for one launch:
+
+```sh
+DNTTK_FP_OCCLUDER_FADE=1 python3 recomp/tools/local/run.py
+```
+
+Both switches are planned options for the future settings menu.
 The key is rebindable (`camera_view`). Ctrl crouch uses a quicker original transition, not toggle or
 Z fallback. Controls are currently bounded to supported first-map states and
 still need gameplay acceptance. Existing customized bindings are retained; use

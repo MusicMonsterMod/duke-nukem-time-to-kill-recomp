@@ -76,7 +76,10 @@ Final binary `dd7b85b49eda500bf5646830dd7fddf4a061986bd3982dda7ae8533507d271c5`.
   behind the eye (club side wall, about 60 degrees off its normal). The world
   renderer rejects such polygons instead of clipping them; neither a shorter
   projection distance (192-256) nor moving the eye back 64-128 fixed it.
-  Rooms are not missing; stepping back restores the wall. Follow-up: D11B.
+  Rooms are not missing; stepping back restores the wall. Follow-up: D11B
+  ([near clipping](62-d11b-near-clip.md), Needs playtest). The `0x8002f1e0`
+  attribution above was wrong: the walls come from the hand-written world and
+  object renderers `0x80011020` and `0x80010000`.
 - The original obstruction rays did not report the wall Duke was touching, so
   they do not keep the eye off walls.
 - No held weapon or hands are drawn; firing shows the crosshair and impacts.

@@ -1,5 +1,20 @@
 # Current status — 2026-09-29
 
+**D11B first-person near-wall clipping - Done (user: "its awesome!!! now it doesnt peek through the doors. amazing work." (the new jetpack sprite "is also available")).** In the Modernized
+eye view, walls, floors and props beside the eye are clipped and drawn by the
+host instead of tearing or turning black; everything else stays on the
+original renderers (`0x80011020` world, `0x80010000` object). Club side wall
+and entry corridor sweeps render continuous walls where the unclipped build
+shows black gaps; first person 59.96 fps, third person and Vanilla unchanged.
+Third pass: after the user's 1080p report of black floor lines, the default
+is a conservative mode (clip only what the original gets wrong, no
+subdivision). Compare with `DNTTK_NEAR_CLIP=0`; the subdividing mode is
+`DNTTK_NEAR_MODE=full` (research only). User: conservative "looks the very
+best". Props no longer fade see-through in the eye view (original occluder
+fade; `DNTTK_FP_OCCLUDER_FADE=1` restores). Both are future D19 menu toggles.
+Details: documentation/62-d11b-near-clip.md. Binary
+`84168b78fb49318312a6acf586ab0b8aef98606caf7bbc16598376bd9ace3b73`.
+
 **D11 first-person prototype - Done (user: "this is phenomenal, and it's like a dream come true").** Modernized (independent
 camera): **P** toggles an eye-level view with a wider field of view (about 64
 degrees); saved in profile schema 13 (`--view first|third`, default third).

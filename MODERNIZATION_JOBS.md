@@ -66,8 +66,8 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D10 | Third-person camera polish | Done | D08 |
 | D10A | Rapid mouse turning and Shift-running investigation | Done | D06, D07C, D08 |
 | D11 | First-person playable prototype | Done | D08, D10 |
-| D11B | First-person near-wall polygon clipping | Todo | D11 |
-| D11A | Scroll-wheel zoom lock into first-person | Todo | D10, D11 |
+| D11B | First-person near-wall polygon clipping | Done | D11 |
+| D11A | Scroll-wheel zoom lock into first-person | Cancelled (P toggle suffices) | - |
 | D12 | First-person weapons and state polish | Todo | D11 |
 | D13 | Higher internal resolution and display scaling | Todo | D02 |
 | D14 | Widescreen, FOV and visibility | Todo | D03, D13 |
@@ -991,21 +991,24 @@ See [D11 first person](documentation/61-d11-first-person.md).
 
 ### D11B - First-person near-wall polygon clipping
 
-**Todo from D11 (2026-09-29).** Pressed against a wall and looking along it at
+**Done (2026-09-29, user accepted).** Host near clipping for the two level mesh
+renderers (`0x80011020` world, `0x80010000` object) while the eye view is live;
+see [the engineering note](documentation/62-d11b-near-clip.md) and the work log.
+Original report from D11: pressed against a wall and looking along it at
 a steep angle, the first-person view loses or tears the wall polygons that
 reach beside or behind the eye (club side wall, about 60 degrees off its
-normal). The world renderer rejects polygons with vertices nearer than GTE H/2
-(outcode bit `0x10` from `0x8002f1e0`) instead of clipping them. A shorter
-projection distance (192-256) and moving the eye back 64-128 did not fix it.
-Trace the polygon emit path that consumes the outcodes, then add bounded near
-clipping or subdivision for the eye view only, or keep the eye off walls with
-a verified original collision query.
+normal). The D11 attribution to `0x8002f1e0` was wrong; that routine draws a
+horizontal grid surface. A shorter projection distance (192-256) and moving
+the eye back 64-128 did not fix it.
 
 **Acceptance:** the documented D11 wall-contact cases (head-on and 30-90 degree
 oblique in the club and a first-map corridor) render without black or torn
 wall polygons; third person, Vanilla and the frame budget are unchanged.
 
 ### D11A — Scroll-wheel zoom lock into first-person
+
+**Cancelled 2026-09-29 by the user:** the D11 `P` toggle works well enough for
+entering first person, so a scroll-wheel lock is not wanted. Kept for reference.
 
 **Todo from 2026-09-27 playtest.** Player wants Fallout/Skyrim-style entry: scroll
 the existing third-person distance inward until the view locks into first-person,
@@ -1122,7 +1125,13 @@ customizations), with clear per-option descriptions and good defaults.
 Preferred approach: hack the original TTK in-game menu rather than bolt on a
 separate host screen, and give it a responsiveness overhaul (see D19B) as part
 of the same work. Until then, new options ship as persisted profile settings
-with `run.py` CLI switches. **Before any implementation:** design in plan
+with `run.py` CLI switches. **Menu toggles already requested (user
+2026-09-29):** first-person near clipping (D11B: `conservative` default,
+`off` = Vanilla rendering via `DNTTK_NEAR_CLIP=0`; the subdividing `full`
+mode stays a developer/research option, not a player choice) and the
+first-person occluder fade (D11B: off by default in the eye view;
+`DNTTK_FP_OCCLUDER_FADE=1` restores the original see-through props).
+**Before any implementation:** design in plan
 mode and publish a design artifact (menu structure, option list, visual
 style, navigation and how it hooks the original menu) for user review. There
 is a lot to consider; this is a dedicated future session, not a side task.
@@ -2888,3 +2897,195 @@ User after playing binary
 automated route and test evidence above. The recorded limits stand: steep-angle
 wall contact (D11B), no hands or held weapon (D12), fixed field of view (D14),
 first-map coverage only. D11A and D12 are now ready.
+
+## 2026-09-29 - D11A cancelled
+
+User: "we can disregard D11A, the "p" button works so well for going to first
+person mode." D11A moves to Cancelled. No code changed. D11B and D12 remain the
+first-person follow-ups.
+
+## 2026-09-29 - D11B / In progress (investigation only, no code changed)
+
+The D11 note's cause was wrong: `0x8002ef90` (outcode bit `0x10` at
+`0x8002f1e0`) is a horizontal grid surface renderer, not the walls. The GTE RTP
+ring on the isolated club slot shows room geometry going through two
+hand-written renderers:
+- `0x80011020` world mesh renderer (vertices on a 1024 grid, types 0x60 GT3 and
+  0x61 GT4, fog by DPCS, texture animation, light table). It drops a polygon if
+  any vertex has SZ 0 (at or behind the eye). Vertices nearer than H/2
+  saturate the GTE divide, so polygons get wrong screen coordinates (tears).
+  If every vertex is under 0x2000 the polygon goes to a screen-space subdivision
+  path (`0x80012960`), which does not fix the projection.
+- `0x80010000` object mesh renderer (props); it flags vertices with SZ < H.
+Callers `0x8003733c`, `0x80037c4c`, `0x80062db0` pass the render context
+`0x800d67a8`, ordering table `0x800d27a0` (2048 buckets) and bitmap
+`0x800d26a0`.
+
+Planned fix (eye view only): hook `0x80011020`; for a mesh with unsafe
+vertices, render only those polygons on the host with 3D frustum clipping and
+subdivision (same colors, UVs, tpage/clut, OT rule `min(minSZ>>5,0x7ff)` and
+packet allocation), and pass the original a copy of the mesh without them, so
+all other polygons use the original code unchanged. Third person and Vanilla
+stay on the original renderer.
+
+## 2026-09-29 - D11B / Needs playtest
+
+Implementation (`recomp/src/ttk/near_clip.cpp`, new hooks `0x80010000` and
+`0x80011020` in `game.local.toml`, regenerated: one generated line each;
+`first_person_view_live()` and `first_person_duke_drawing()` added to
+`modern_controls`; debug JSON `fp.near`; developer switch `DNTTK_NEAR_CLIP=0`).
+While the eye view is live, each world or object mesh with a polygon that has an
+unsafe corner (GTE divide saturated, IR clamped, projected beyond +-1000) or a
+corner nearer than 1536 units has those polygons drawn by the host. They are
+clipped in view space (near 16, guard band +-480 x +-240), cut along
+whole-texel lines until small, and emitted as GT3/G3 packets. Colors, fog, light
+table, texture animation, command bits, packet arena and OT slot follow each
+renderer. The original routine then draws a copy of the mesh without those
+polygons, so everything else stays on the original path. Object polygons with
+every corner nearer than H stay dropped as in the original; Duke's own model is
+left alone (D12). Guards: SHA-256 over both routines.
+
+Evidence on binary
+`d294c3d8d228a1ad6a3cdeff7aeac2b9ee2576c4df6a1e3fcc1f34902afc5aaa` (isolated
+Xvfb, private route cards slot 1, Duke placed with debug position writes on
+those cards only; captures in `recomp/analysis/d11b-near-clip/`):
+- Club red-panel side wall: -90..+90 sweep. With clipping off, looking along the
+  wall (+15..+45) the near wall is black and head-on the frame bends. With
+  clipping on the wall is continuous with straight, perspective-correct texture
+  lines.
+- Club entry corridor side wall: off shows black gaps at -30..-15 and
+  +15..+30; on is continuous.
+- Stage block at spawn: floor near the eye now draws (off: missing).
+- 0 refusals, 0 copy overflows. Frame budget in the club: first person 59.96
+  fps on, 60.04 off; third person 60.03; 0 underruns.
+- Third person (P toggle, live): 0 near-clip calls, projection 386 and minimum
+  distance 768 intact. Vanilla route `d11b-vanilla` exit 0, captures normal.
+- `ttk-near-test` (new), `ttk-controls-test` (D07 LEVEL00 fixture; the D08P
+  fixtures fail an overlay-code assertion at `0x800cc57c` unrelated to this
+  change), `ttk-input-test`, `ttk-aim-test` PASS; Python 74 OK (2 skipped);
+  movie shard current.
+
+Limits: club interior only (side wall, stage, entry corridor), not the rest of
+the first level or the campaign; affine mapping remains inside each small
+piece; object polygons entirely within H stay dropped; Duke's body is not
+clipped (D12); host pieces ignore the runtime's widescreen X squash (the
+project is 4:3; D14). Needs the user's own play near walls. No commits.
+
+## 2026-09-29 - D11B / Needs playtest (second pass: apartment artifacts)
+
+User after playing the first pass: "it looks very good, but i think there is a
+kind of popping or artifacting ... inside the hooker's apartment ... the closet
+... the back wall of the closet, which pops through the wall somehow" (the
+closet door itself was fixed), and asked for a switch to compare. The switch
+already existed: `DNTTK_NEAR_CLIP=0` on the launch command (run.py passes the
+environment through).
+
+Reproduced on fresh private cards (route street -> alley ladder -> apartment
+window; debug state in `recomp/analysis/d11b-near-clip/apartment-cards`). The
+wardrobe is a prop (object renderer) flush against a world wall; the first
+pass sorted each host piece by its nearest corner, so wall and wardrobe pieces
+interleaved (sawtooth). Changes: pieces sort by average depth; host prop pieces
+4 OT slots nearer (actors excluded, tracked from `0x800348d8` to
+`0x8001ca4c`); props taken over to 3072 units so original prop polygons do not
+lose to host wall pieces; new corners round outward to close T-junction
+hairlines; tighter depth split (1.25 / 16 px). A per-frame packet budget was
+added after heavier splitting overran the 139,744-byte render ring (screen
+garbage in an experiment): 64 KB host packets per frame and never past 60% of
+the ring; otherwise pieces stop splitting or the mesh stays original.
+Developer switches documented in `documentation/62-d11b-near-clip.md`
+(`DNTTK_NEAR_CLIP=0|world|object`, `DNTTK_NEAR_TINT=1`, bias, sort).
+
+Evidence on binary
+`9029435a8bddb3fcc7ca4e572d13626fc222535f1f7f2c069405196c562b8f5e`: apartment
+closet sweep, 24-frame walk to the wardrobe and five-spot room captures clean
+(unclipped: torn/see-through wardrobe, black ceiling wedges); club side wall and
+corridor unchanged; host packets peak 42-46 KB/frame, 0 skipped, 0 fallbacks;
+59.92 fps clipped / 59.94 unclipped / 59.94 third person, 0 underruns; Vanilla
+route `d11b-vanilla-2` exit 0; native tests and Python 74 OK; movie shard
+current. Remaining: painter's sorting (a prop up to 128 units behind a nearby
+wall piece could draw over it; actors excluded); tested in the club and the
+apartment only. Needs the user's replay of the apartment. No commits.
+
+## 2026-09-29 - D11B / Needs playtest (third pass: conservative default)
+
+User at 1080p: black grid lines on floors outdoors and in the subway, faint
+lines on objects, diagonal artifacts on the wardrobe, floor texture popping,
+none in third person; asked whether the earlier state was better and what the
+options are. Reproduced by capturing the presented window at 1920x1080
+(`screenshot_file` reads the software raster and missed it): dotted dark lines
+along host piece edges. The outward corner rounding caused most of them; the
+subdivision seams and the -4 prop bias caused the rest. The default is now a
+conservative mode: take over only polygons the original gets wrong (unsafe
+corners, beyond the GPU's 1023x511 primitive limit, or props entirely within
+H, which made the wardrobe see-through up close), clip them, emit without
+subdivision, sort each as one polygon like the original, floor rounding. The
+subdividing mode stays available as `DNTTK_NEAR_MODE=full`; `DNTTK_NEAR_CLIP=0`
+is off.
+
+Evidence on binary
+`2b5670b5bcb0a4942901b16a5b6b04b3f2c653c2124dfce384ba174b3017209d`: 1080p
+street without dark lines; apartment views, roam and the walk into the
+wardrobe clean and solid where the unclipped build is torn or see-through;
+club side wall and corridor gaps filled; 60.01 / 59.97 / 59.71 fps (on / off /
+third person), 0 underruns, host packets at most about 1.2 KB per frame;
+Vanilla `d11b-vanilla-3` exit 0; native tests, Python 74 OK; movie shard
+current. Subway not tested here (no isolated subway state). Trade-off: close
+surfaces keep the PS1 affine texture bend and whole-polygon sorting, as in
+the original. No commits.
+
+## 2026-09-29 - D11B / Needs playtest (user review; occluder fade in first person)
+
+User after playing the conservative default: "the rendering that you've set for
+default runs the very best it looks the very best"; peripheral glitching of the
+Vanilla renderer in first person is gone; clip off (`DNTTK_NEAR_CLIP=0`) stays
+as Vanilla rendering; full mode "is just no good" (black floor lines) - keep
+for research only. Remaining: "occasionally the very smallest slight bit of
+black line artefacting on the ground ... negligible", and the subway
+card-reader door turns invisible when Duke walks up to it in first person.
+The user's DuckStation screenshot (`research/vanilla.png`) shows the same door
+translucent in the original game in third person.
+
+Cause: the original occluder fade. The prop loop (`0x80031fa0..0x80032078`)
+makes a prop semi-transparent and dims it by distance when it is nearer than
+the fade distance (camera+0xa0, about 291) and its screen rectangle overlaps
+Duke's (camera+0xa8), via `0x8002ee50` (rectangle overlap, single caller). In
+the eye view Duke's rectangle covers the whole screen (-218,-16 466x579), so
+any prop walked up to fades. Fix: new hook `0x8002EE50` (regenerated, one
+generated line); in the eye view only, the call from `0x80032008` gets an empty
+off-screen rectangle as a0, so the prop draws solid. Third person and Vanilla
+keep the original fade. `DNTTK_FP_OCCLUDER_FADE=1` restores it; logged as a
+D19 menu toggle at the user's request, together with the near-clip mode.
+
+Evidence on binary
+`84168b78fb49318312a6acf586ab0b8aef98606caf7bbc16598376bd9ace3b73` (private copy
+of the user's F7 slot 4 savestate in
+`recomp/analysis/d11b-near-clip/subway-cards`, player files untouched):
+walking into the street sign pole, original fade shows it ghostly translucent,
+the new default draws it solid (41 tests intercepted, 0 in third person);
+`recomp/analysis/d11b-near-clip/third-pass/pole.png`. 59.87 fps first person,
+59.78 third, 0 underruns; Vanilla `d11b-vanilla-4` exit 0; native and Python
+tests pass; movie shard current. The subway door itself was not reached in the
+isolated run (it is past the station guards); needs the user's replay there.
+The faint ground-line residue in conservative mode was not reproduced at 1080p
+street captures. No commits.
+
+## 2026-09-29 - Ad hoc: Jetpack inventory icon replaced
+
+At the user's request the Modernized inventory strip's Jetpack icon (item 1,
+was Duke3D tile 2467) is now the user's own `research/inv/jetpack-icon.png`
+(16x12). `recomp/assets/ttk-inv-icons.pack` rebuilt with only that entry
+changed (backup `recomp/analysis/d11b-near-clip/ttk-inv-icons.pack.before-jetpack`),
+provenance JSON updated, redeployed beside the executable (no rebuild of code
+needed). Verified in the inventory strip (`]`) on an isolated run. No commits.
+
+## 2026-09-29 - D11B accepted (Done)
+
+User after playing binary
+`84168b78fb49318312a6acf586ab0b8aef98606caf7bbc16598376bd9ace3b73`: "its awesome!!! now it doesnt peek through the doors. amazing work." (the new jetpack sprite "is also available").
+D11B moves to Done: conservative near clipping is the default, props no longer
+fade see-through in the eye view, `DNTTK_NEAR_CLIP=0` remains Vanilla-style
+rendering, `DNTTK_NEAR_MODE=full` is kept for research only. Both switches are
+logged as D19 menu toggles. Remaining notes: occasional faint ground-line
+residue the user called negligible; first-map areas only, not the campaign.
+The jetpack inventory sprite change is confirmed in game. D12 (hands and
+weapon) is the next first-person job.

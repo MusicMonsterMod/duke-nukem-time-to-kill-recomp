@@ -1,5 +1,28 @@
 # Next-session handoff
 
+## 2026-09-29 - D10 Done (user accepted); D08S cancelled
+
+User: "it's done, fully accepted" after about five minutes of play. D11 (first-person
+prototype) is now ready. No commits.
+
+### D10 recenter / shoulder / saved distance implementation notes
+
+D08S cancelled at the user's request (keep the scope text; may revisit). D10
+options pass: actions `camera_recenter` (V) and `camera_shoulder` (H) sit
+before `weapon_previous` in `input_bindings.def`, so they are edges, not guest
+commands. Wire payloads now have 38 entries; the native test fixtures were
+updated. The camera side is in `orbit_begin`/`orbit_constraint`
+(`modern_controls.cpp`, debug JSON `shoulder_offset`, `recentering`,
+`recenters`, `rest_pitch`). Persistence: runtime side file
+`<settings>.camera-state`, merged by `run.py` after exit and at launch; profile
+schema 12. The probe is in the session scratchpad (`d10_probe.py`; phases
+main/relaunch/nudge/strafe; `SLOT=1|2`, `EXTRA` launcher flags). The fixture
+copy is `recomp/analysis/d10-camera`. The debug `quit` returns "emu busy or
+frozen"; SIGTERM the game child to exit cleanly. Duke's heading equals the view
+on foot, so any recenter yaw work must target states where facing diverges.
+Binary `84669bb67650eb117aa042b3b12344192403a813618bb5adfe69e8b2c61c7c91`. No
+commits.
+
 ## 2026-09-29 - D08R Done; D08Q1 faster Modern Ctrl descent (Done)
 
 D08R accepted ("it's absolutely rock solid"). D08Q1: `k_jet_descend_velocity`

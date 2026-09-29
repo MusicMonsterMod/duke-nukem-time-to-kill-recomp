@@ -165,8 +165,24 @@ Armed quick kick is unavailable; Q never selects another weapon or presses fire.
 
 **Alt + wheel up** brings the camera closer; **Alt + wheel down** moves it farther.
 Distance is clamped and smoothed, retains wall collision, and remembers your
-preference during the session despite wall compression. It does not change FOV
-or switch weapons. Ctrl crouch uses a quicker original transition, not toggle or
+preference despite wall compression. It is now **saved in the Modernized profile**
+and restored on the next launch. It does not change FOV or switch weapons.
+
+**V** recenters the camera: it swings smoothly back to the original follow angle
+behind Duke. Moving the mouse cancels the swing. On foot Duke already turns with
+the view, so V mostly levels the camera's up/down angle.
+**H** cycles the camera shoulder: centered, right shoulder, left shoulder. Shots
+still go to the crosshair; walls still pull the camera in. The side you choose
+is saved too. Both keys are rebindable (`camera_recenter`, `camera_shoulder`).
+Save a distance or side without launching:
+
+```sh
+python3 recomp/tools/local/run.py --camera-distance original --shoulder center --show-settings
+python3 recomp/tools/local/run.py --camera-distance 3000 --shoulder right --show-settings
+```
+
+`--camera-distance` takes `original` or 768-6144 game units; `--shoulder` takes
+`center`, `right` or `left`. Both update your saved Modernized preferences. Ctrl crouch uses a quicker original transition, not toggle or
 Z fallback. Controls are currently bounded to supported first-map states and
 still need gameplay acceptance. Existing customized bindings are retained; use
 `--show-bindings` to see migrated keys. These actions assume the game's default

@@ -61,9 +61,9 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08Q | Modern jetpack flight controls | Done | D08 |
 | D08R | Selectable jetpack scheme: Modern / Classic (WASD), CLI quick ship | Done | D08Q |
 | D08Q1 | Faster Modern jetpack Ctrl descent (underwater dive speed) | Done | D08Q |
-| D08S | Duke3D-style jetpack scheme (instant J on/off, midair) | Todo | D08R |
+| D08S | Duke3D-style jetpack scheme (instant J on/off, midair) | Cancelled (may revisit) | D08R |
 | D09 | Modern controller support | Todo | D05, D06, D07 |
-| D10 | Third-person camera polish | In progress | D08 |
+| D10 | Third-person camera polish | Done | D08 |
 | D10A | Rapid mouse turning and Shift-running investigation | Done | D06, D07C, D08 |
 | D11 | First-person playable prototype | Todo | D08, D10 |
 | D11A | Scroll-wheel zoom lock into first-person | Todo | D10, D11 |
@@ -879,7 +879,11 @@ and the other Modern inputs unchanged; user confirms the feel.
 
 ### D08S - Duke3D-style jetpack scheme (instant J on/off, midair)
 
-**Todo (later).** User (2026-09-29): a third jetpack scheme that replicates
+**Cancelled 2026-09-29 (may revisit).** User: happy with the current Modern and
+Classic jetpack schemes (D08Q, D08Q1, D08R); no Duke3D scheme for now. Nothing was
+implemented. The scope below is kept in case it is reopened.
+
+**Original scope (2026-09-29).** User (2026-09-29): a third jetpack scheme that replicates
 Duke Nukem 3D. **J** starts flying immediately and pressing **J** again stops
 flying immediately - no graceful lift-off, landing or cut-out animation.
 It must also work **in midair** (while jumping or falling), which TTK does
@@ -934,8 +938,12 @@ Provide left-stick movement, right-stick look, configurable sensitivity/inversio
 
 ### D10 — Third-person camera polish
 
-**Distance portion accepted 2026-09-28.** The broader job remains In progress.
+**Done - user accepted 2026-09-29** ("it's done, fully accepted"). Distance
+portion accepted 2026-09-28.
 See [bounded implementation and evidence](documentation/33-controls-shortcuts.md).
+**2026-09-29 options pass (accepted):** V recenter, H shoulder cycle
+(off by default), Alt+wheel distance and shoulder side saved in the profile.
+See [D10 camera polish](documentation/60-d10-camera-polish.md).
 
 Tune follow distance, shoulder offset, recenter behavior and camera collision for Time to Kill's rooms and corridors. Offer practical options without changing the core game rules.
 
@@ -2745,3 +2753,51 @@ headings, mouse and Space re-probed unchanged; Classic re-probed unchanged
 
 User playtest: "verified working!!!" D08Q1 moves to Done. Binary
 `9c01cae0183eb90824cc8fe56308871145010a2a243908e66c24a5801bebaf5f`.
+
+## 2026-09-29 - D08S cancelled; D10 selected
+
+User: scratch D08S ("i am so happy with our current jetpack controls now"),
+may revisit. Nothing was implemented; the original scope is kept in the job text.
+User selected D10. With no specific camera complaint, the user chose these
+options: an optional shoulder offset (off by default), a recenter key (not
+automatic), and a saved Alt+wheel distance.
+
+## 2026-09-29 - D10 recenter, shoulder offset, saved distance (Needs playtest)
+
+New rebindable actions `camera_recenter` (V) and `camera_shoulder` (H), handled
+on press in `pc_input.cpp` and never queued as guest commands. `orbit_begin`
+eases the orbit to Duke's heading and the rest pitch (the first seeded original
+follow pitch). Any mouse motion cancels the swing. `orbit_constraint` moves the
+requested eye along the view's right row by 0.22 x boom (192-640 units),
+eased, before the original constraint solve. The look target, matrix and
+collision are unchanged; view aim traces from the solved eye. Profile schema 12
+adds controls `camera_distance`/`shoulder` and the two actions; migration never
+takes a bound input. The runtime writes `<settings>.camera-state` 30 frames
+after a change, and `run.py` merges it after exit and at the next launch. Flags:
+`--camera-distance original|768..6144`, `--shoulder center|right|left`.
+
+Evidence on binary
+`84669bb67650eb117aa042b3b12344192403a813618bb5adfe69e8b2c61c7c91`: 71 Python
+tests; `ttk-input-test`, `ttk-controls-test` (new D10 case) and `ttk-aim-test`
+PASS. Isolated Xvfb probes on the turret-room and ledge savestates: pitch
+recenter to rest within about 40 frames, mouse cancel, right-shoulder lateral
+637.5/640 (turret room), left pulled in to 544 by the original solve, and
+screenshots with no geometry clipping. A right-shoulder shot fired with 0
+rejections. Alt+wheel +576 saved; clean exit printed `Saved camera distance
+3627, shoulder left.`; the relaunch restored radius 3627. The Vanilla
+regression route exited 0. Finding: on the ground Duke's body already follows
+the view (D07A/D07C), including while strafing and with original weapon aim.
+V therefore mostly levels pitch; its yaw swing matters only where facing
+differs. Needs playtest for feel (offset size, swing speed). The broader D10
+doors/corners/tight rooms/vertical traversal acceptance remains open. No
+commits.
+
+## 2026-09-29 - D10 accepted (Done)
+
+User after about five minutes of play on binary
+`84669bb67650eb117aa042b3b12344192403a813618bb5adfe69e8b2c61c7c91`: "it's done,
+fully accepted. this is amazing work." D10 moves to Done on explicit user
+acceptance. The evidence is that play session plus the automated and
+isolated-probe results above (two level-1 rooms). No per-location campaign
+playtest of doors, corners, tight rooms or vertical traversal was recorded.
+D11 is now ready (D08, D10 Done). No commits.

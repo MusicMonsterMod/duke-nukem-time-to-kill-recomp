@@ -1,5 +1,14 @@
 # Current status — 2026-09-29
 
+**D10 Done (user: "it's done, fully accepted"); D08S cancelled (may revisit).** Modernized
+camera: **V** recenters (smooth swing to the original follow angle; the mouse
+cancels it), **H** cycles centered / right / left shoulder (off by default),
+and Alt+wheel distance plus shoulder side are now saved in the profile (schema
+12; `--camera-distance`, `--shoulder`). Shots still meet the crosshair and walls
+still constrain the camera. On foot Duke already faces the view, so V mostly
+levels pitch. Details: documentation/60-d10-camera-polish.md. Binary
+`84669bb67650eb117aa042b3b12344192403a813618bb5adfe69e8b2c61c7c91`.
+
 **D08R Done (user-accepted: "it's absolutely rock solid").** **D08Q1 Done
 (user: "verified working!!!"):** Modern jetpack Ctrl descent 2800 -> 5500, steady 29.5
 units/frame to match the underwater Ctrl dive; soft landings, no damage.

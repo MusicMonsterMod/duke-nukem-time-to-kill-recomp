@@ -1,5 +1,73 @@
 # Next-session handoff
 
+## 2026-09-29 - D23B intro FMV stranded movie shard (Done)
+
+Intro-only stutter after D23A. Cause: `psxrecomp-game --overlay-config-hash`
+covers the `game.local.toml` hook list, so each new host hook moves the
+movie shard's cache folder (`cache/SLUS-00583/gcc/linux-x64/cg10_..._gc<hash>_f0`)
+and the loader silently interprets MOVIE.OVR. Now: `ttk-movie-shard` target in
+the `local-dev` build preset, `run.py` `ensure_movie_shard()`, and
+`fmv_poll.c` logs `ttk-fmv: native movie decoder active (19 functions)` or a
+WARNING carrying `overlay_loader_last_msg()`. After adding a hook, just build
+or launch normally. If the intro stutters: check the `ttk-fmv:` line in the
+session log first. Launch tests in `tests/local/test_player_profiles.py`
+must pass `--no-session-log` and stub `run.ensure_movie_shard`, or they
+start the real game on the player's cards. Binary
+`3d370c02d4706e710eb3b1ef4f9e55930c49129fa8afc86e054c3157c39d0161`. No commits until asked.
+
+## 2026-09-29 — D23A Modernized frame budget: identity guard cost (Needs playtest)
+
+User: "that stuttering audio/slowness issue" before the D08Q playtest.
+Measured with the runtime's telemetry in an isolated Xvfb instance
+(`/tmp` harness; `audio_stats`, `phase_profile`, `phase_hot`, `frame`,
+`ttk_input`): Modernized 47.5–49.3 fps + continuous underruns, Vanilla
+60.0 clean, Sep‑27 binary 57.5. Cause: `identity()` walked all 20,305
+guarded words via `psx_mod_read_word` on every call, 46 calls/frame ×
+108 µs = 5 ms/frame (24 % wall). Fix: `code_identity.h` memcmp fast path
+on `g_psx_ram` (exact per-word fallback keeps the apartment substitute),
+`IdentityMemo` per `input_host_frame()` × `g_dirty_ram_code_gen` in
+`modern_controls.cpp` and `weapon_aim.cpp`. Now 1 check/frame, 28 µs,
+59.94 fps, 0 underruns, fill 267 ms. Debug JSON `identity_calls`,
+`identity_checks`, `identity_us`. Tests: mocks define `g_psx_ram` /
+`g_dirty_ram_code_gen`, `poke()`/`pokeb()` bump the generation; new memo
+case. All three native suites PASS. If stutter returns: check
+`identity_checks` ≈ 1/frame and `audio_stats.out.fill_ms` vs target first;
+`perf` is unavailable (paranoid=4). Do not add per-call guard walks again;
+new guards are now nearly free. Binary
+`81a4a9090fc25cb67a9d7be5c832ce36ebbab67d9c6070d6faa90f8981024d72`. No
+commits until asked.
+
+## 2026-09-29 — D08Q modern jetpack flight controls (Done, user-accepted)
+
+Accepted: "Jetpack works great! J to equip it, space to ascend, ctrl to descend, this is beautiful."
+
+
+User: jetpack uncontrollable except Space; WASD "blocked"; modern controls
+fail. Isolated baseline on `79a3fd5b…` (turret-room / ledge states copied to
+`recomp/analysis/d08q-jetpack/`, `dninventory` cheat, J, Space): original
+mode 10 (anims 163–170) matched no lease → no mouse; WASD via tank fallback
+relative to an unturnable body; idle gravity landed Duke in 1–2 s. New
+`recomp/src/ttk/jetpack.inc` from the existing `8005a210` hook, camera-only
+lease clause `jet` in `state()`, `jetpack_input_ready()` for `input_pad()`
+(W/S → Up/Down, A/D → layout strafe pads) and `select_weapon` (J only in
+flight), `locomotion_input_ready`/`airborne_input_ready` false in flight and
+the 108 fall grace. Host writes: hover lock `+0x224 |= 0x08000000` + base
+`+0x860 = Y` when idle; Ctrl → lock off, `+0x1f8 = 2800`, `+0x1e8 = 0`; WASD
+→ lock off, `+0x1f8 = 0`, `+0x1e8 = 18` trim; `face_view()`. Do **not**
+drive `+0x860` for descent or hover during WASD (57-jetpack-controls.md,
+"Rejected on evidence"). Guards `8004aaf8`/272, `8004ac08`/472,
+`8004ade0`/1972. Live probes: headings within 4° of the camera, level ±25,
+25–29 units/frame, Ctrl 489/30 frames → 105, J off → 108 with live mouse →
+ground run. ttk-input-test, ttk-aim-test, ttk-controls-test PASS (controls
+test: use `analysis/pc-input/d08-camera-final/level00-guard-fixture.bin`;
+the `d08p-turret` fixture is Modernized-patched and fails the Vanilla
+assertion). Binary
+`81a4a9090fc25cb67a9d7be5c832ce36ebbab67d9c6070d6faa90f8981024d72`. Playtest:
+J, Space, mouse, WASD, release → hover, Ctrl → land, J in the air. If the
+feel is off, the tunables are `k_jet_descend_velocity` (2800) and
+`k_jet_level_trim` (18) in jetpack.inc; `DNTTK_JET_TRACE=1` logs each
+update. No commits until asked.
+
 ## 2026-09-29 — D08P overlay scratch identity + mid-depth wade handler (Done)
 
 User: the whole ledge area (F7 UI slot 3) kills run, mouse and jump for good;

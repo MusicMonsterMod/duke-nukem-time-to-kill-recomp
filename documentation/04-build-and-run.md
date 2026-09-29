@@ -104,9 +104,13 @@ python3 tools/local/build_movie_overlay.py
 ```
 
 Keep `build-local/cache/` alongside the executable. Deleting it falls back to
-interpretation and can reintroduce slow movies/audio starvation. Regenerate
-the shard after runtime/configuration changes. `build.py --skip-movie-overlay`
-is available for diagnostics. See [movie measurements](13-fmv-fidelity-pass.md).
+interpretation and can reintroduce slow movies/audio starvation. The shard's
+cache folder is keyed by `game.local.toml` (including its hook list), so the
+`local-dev` preset (`ttk-movie-shard` target) and `run.py` both re-check it
+with `--if-ready --quiet` on every build and launch; the session log reports
+`ttk-fmv: native movie decoder active` or a WARNING
+([59-fmv-shard-namespace.md](59-fmv-shard-namespace.md)).
+`build.py --skip-movie-overlay` is available for diagnostics. See [movie measurements](13-fmv-fidelity-pass.md).
 
 ## OpenBIOS backend
 

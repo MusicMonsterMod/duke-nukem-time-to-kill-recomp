@@ -58,6 +58,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08O | Deep free-swim polish (strafe, Ctrl dive, mantle-only exit) | Done | D08M |
 | D08N | Duke3D-style scuba gear item | Cancelled (out of scope) | — |
 | D08P | Crystal-2 turret / scripted-camera control recovery | Done | D08 |
+| D08Q | Modern jetpack flight controls | Done | D08 |
 | D09 | Modern controller support | Todo | D05, D06, D07 |
 | D10 | Third-person camera polish | In progress | D08 |
 | D10A | Rapid mouse turning and Shift-running investigation | Done | D06, D07C, D08 |
@@ -80,6 +81,8 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D21 | Accessibility and sound controls | Todo | D04, D19 |
 | D22 | Campaign fidelity and overlay coverage | Todo | D01 |
 | D23 | Performance budgets and long-session stability | Todo | D01 |
+| D23A | Modernized frame-budget regression (guard identity cost) | Needs playtest | D08 |
+| D23B | Intro FMV stutter: stranded native movie shard | Done | D23 |
 | D24 | Linux / Windows player build and disc import | Todo | D19, D22, D23 |
 | D25 | Modernized edition release acceptance | Todo | D08, D08A, D08B, D09, D10, D14, D17, D18, D20, D21, D24 |
 | D26 | Backtick debug console (fps and helpers) | Done | D04 |
@@ -746,6 +749,63 @@ Shift was held through the load/pause; the pause menu is not captured;
 Escape / F7 recapture still work; true deep swim and Vanilla unchanged. If
 it still degrades, report the on-screen reason and the session log.
 
+### D08Q — Modern jetpack flight controls
+
+**Done - 2026-09-29 (user-accepted):** "Jetpack works great! J to equip it, space to ascend, ctrl to descend, this is beautiful."
+
+User report: "when using the jetpack i
+cannot control it at all aside from spacebar to ascend. wasd are blocked,
+modern controls fail here completely." Confirmed on `79a3fd5b…` in an
+isolated probe: original mode 10 (anims 163–170) was outside every lease,
+so the mouse was dead, WASD only reached the original through the tank
+fallback (Up/Down/L2/R2 relative to a body heading the player could not
+turn) and the original's idle gravity sank Duke to a landing within a
+second or two. Ctrl meant nothing.
+
+Implemented as a host layer over the unchanged original handler
+(`recomp/src/ttk/jetpack.inc`, camera-only lease in `state()`, pad bridge in
+`input_pad()`, J gate in `select_weapon`): mouse orbit with the body facing
+the view (`face_view`), so the original's body-relative thrust is
+camera-relative — W/S → original Up/Down, A/D → the layout's strafe pads
+(L2/R2); Space stays the original Square climb; **idle hovers** (host sets
+the original hover lock `+0x224 & 0x08000000` at the current height; the
+original drains fuel while hovering too); **Ctrl descends** at a steady
+~48 units/update (hover lock released, ballistic `+0x1f8 = 2800`); WASD
+flight releases the lock (under it the original only moves Duke by the raw
+thrust vector, ~10 units/update) and pre-loads `+0x1e8 = 18` against the
+handler's directional lift so flight stays level; J in flight is the
+original inventory toggle → 108 fall, and the mouse camera survives that
+fall until the landing. Three new code guards (`8004aaf8`, `8004ac08`,
+`8004ade0`). No new generated hook. Vanilla untouched (all writes gated on
+Modernized + capture + lease + identity).
+
+Isolated Xvfb probe (level 1 turret room and ledge states, `dninventory`):
+mouse turns body and camera together (`looks` 0→1); W/S/A/D headings
+−33/154/−120/61° against camera −30° (expected −30/150/−120/60); level
+flight ±25 units over 55 frames; W after a 100° mouse turn follows the new
+view; speeds 25/29/24/14 units per frame (R2 strafe is the slower original
+side); hover drift ≤ 32 over 60 frames; Ctrl 489 units in 30 frames, then
+landing anim 105; Space climb 540–850 in 30 frames; J off → 108 fall with
+working mouse → 105 → ground run at 45.7 with the land lease.
+ttk-input-test (new jetpack pad case), ttk-aim-test, ttk-controls-test
+PASS. Binary `481dd2ec…`; current player build (with the D23A frame-budget
+fix) `81a4a9090fc25cb67a9d7be5c832ce36ebbab67d9c6070d6faa90f8981024d72`.
+
+Known/unverified: releasing WASD stops almost at once (hover engages) —
+may feel abrupt; after Ctrl release Duke settles another ~130–300 units
+before holding (the original's floor-approach in `8004ac08` pulls toward
+~0x200 above a nearby floor); strafe is the original's half gain; fuel
+drains while hovering (original rule); no probe of low ceilings, water
+below, damage or death in flight. See
+[57-jetpack-controls.md](documentation/57-jetpack-controls.md).
+
+**Acceptance:** with the jetpack on (J), Space lifts off; in the air the
+mouse turns the camera and Duke, WASD flies relative to the camera at a
+useful speed and level height, releasing everything hovers, Ctrl descends
+until a soft landing, Space climbs, J switches off in the air with a
+controlled fall and the mouse still live, and the ground controls resume on
+landing; fuel-out behaves the same as J; Vanilla flight unchanged.
+
 ### D08K — True crouch walking and animation feasibility
 
 **Blocked after original-asset/collision audit:** no validated low-walk gait/override
@@ -993,6 +1053,50 @@ Maintain a level-by-level matrix for loading, progression items, enemies, weapon
 Define representative hardware and scenes, then measure frame pacing, audio underruns, memory growth, loading and shutdown. Exercise repeated level transitions and a sustained session in each available mode.
 
 **Acceptance:** documented measurements satisfy the chosen budgets or identify explicit supported-setting limits; no unresolved leak, hang or audio regression in the tested route. Use profiling evidence before optimizing.
+
+### D23A — Modernized frame-budget regression (guard identity cost)
+
+**Needs playtest — 2026-09-29.** User: "that stuttering audio/slowness
+issue" before the D08Q playtest. Reproduced in isolation on this machine:
+Modernized **47.5–49.3 fps** with continuous audio underruns (output fill
+17–34 ms vs 180 ms target) while Vanilla ran 60.0 fps clean; the Sep-27
+build sat at 57.5. Root cause measured: `ttk::identity()` compared all
+106 guards (81 KB, 20,305 words) word-by-word through the guest bus on
+**every** call — 46 calls per frame × 108 µs = **5 ms/frame, 24 % of wall
+time**; the aim guards added a second copy. Fix: `memcmp` against the
+runtime RAM image with the exact per-word path as fallback (~28 µs), and a
+per-frame verdict memo keyed on the host frame and `g_dirty_ram_code_gen`
+(overlay loads/restores still invalidate at once). Result: **59.94 fps, 0
+underruns, fill 267 ms**, 1 check/frame, 0.17 % wall; jetpack flight 60.1.
+Debug JSON: `identity_calls/checks/us`. ttk-input/aim/controls tests PASS
+(new memo case). Likely the mechanism behind D18A's historical club
+starvation, not re-measured there. See
+[58-modernized-frame-budget.md](documentation/58-modernized-frame-budget.md).
+
+**Acceptance:** the user's session no longer stutters or slows in
+Modernized play (turret room, ledge, jetpack); `audio_stats.out.fill_ms`
+stays near/above target with flat underruns; Vanilla unchanged.
+
+### D23B - Intro FMV stutter: stranded native movie shard
+
+**Done - 2026-09-29.** User: "im still getting the stuttering, but only on
+the fmv at the beginning?" after D23A, then "make the playback more robust".
+Cause measured: the native MOVIE.OVR shard's cache folder is keyed by the
+`game.local.toml` overlay config hash, which includes the host hook list.
+The 28 Sep hook additions moved it from `gc01bd77ae` (last shard, 27 Sep) to
+`gc15256f69` (empty), so the intro's VLC decoder ran interpreted: ~52 fps,
+continuous underruns, 30 % interpreter share. The loader reported this only
+over the debug port. Shard rebuilt: 59.92 fps, 0 underruns, fill 267 ms,
+4 % interpreter; the user confirmed smooth playback. Hardening: always-run
+`ttk-movie-shard` CMake target in the `local-dev` preset, `run.py` pre-launch
+check (`build_movie_overlay.py --if-ready --quiet`, ~0.2 s when current),
+and a `ttk-fmv:` session-log line from `fmv_poll.c` that reports the native
+decoder or a WARNING with the loader's mismatch message. See
+[59-fmv-shard-namespace.md](documentation/59-fmv-shard-namespace.md).
+
+**Acceptance:** the intro FMV plays at full speed without audio underruns
+after hook changes to `game.local.toml`, and a missing shard is repaired on
+build/launch or reported in the session log.
 
 ### D24 — Linux / Windows player build and disc import
 
@@ -2347,3 +2451,86 @@ after resume). ttk-input-test, ttk-aim-test, ttk-controls-test PASS. Needs
 playtest. Binary
 `f8122f58e828a35b39fd11708195ccb5901b24e7e5207e593446b70b658564fb`. No
 commits.
+
+## 2026-09-29 — D08Q modern jetpack flight controls (Needs playtest)
+
+User: in the jetpack "i cannot control it at all aside from spacebar to
+ascend. wasd are blocked, modern controls fail here completely". New job
+D08Q. Baseline probe on `79a3fd5b…` confirmed: original mode 10 (anims
+163–170) had no lease, so no mouse; WASD only via tank fallback relative to
+an unturnable body heading; idle gravity landed Duke in ~1–2 s; Ctrl inert.
+Research (read-only): entry `8004aaf8` (Square + `358&3==3` + fuel), handler
+`8004ade0` (body-space thrust, Square lift, Up/Down/L2/R2 thrust, hover
+lock `0x08000000` with base `+0x860`, bit 31 = no gravity while any input,
+`8003ea58` integration, `8004ac08` root apply with the floor probe), cut-out
+→ anim 108 + `8003ff6c`. New `recomp/src/ttk/jetpack.inc` (host layer from
+the `8005a210` hook): camera-only lease for mode 10 and the 108 fall after
+cut-out, `face_view`, idle → hover lock at current height, Ctrl → lock off +
+`+0x1f8 = 2800` (~48 units/update, lands via the original probe), WASD →
+lock off + `+0x1e8 = 18` trim (level flight), `input_pad()` W/S → Up/Down,
+A/D → layout strafe pads, `select_weapon` lets J toggle in flight. Tried and
+rejected: driving the hover base `+0x860` (the pin only holds small offsets;
+near a floor `8004ac08` pulls toward ~0x200 above it) and trim 29 (sank).
+Guards for `8004aaf8`/`8004ac08`/`8004ade0`. Live Xvfb probes (isolated
+cards, level 1 turret room + ledge): headings −33/154/−120/61° vs camera
+−30°, level within ±25, speeds 25/29/24/14 units/frame, mouse `looks` 0→1,
+Ctrl 489/30 frames → anim 105, J off → 108 fall with live mouse → ground
+run at 45.7. ttk-input-test (new jetpack case), ttk-aim-test,
+ttk-controls-test PASS (controls test needs an original overlay fixture,
+e.g. `analysis/pc-input/d08-camera-final/`; the d08p-turret one is
+Modernized-patched). Binary
+`481dd2ec1c8c33cda1a77542c2a6f06bad845778ee62b1ff7d87e1d4a7a15692`. Docs
+57/00/09 and GAME_MANUAL updated. No commits.
+
+## 2026-09-29 — D23A Modernized frame budget: identity guard cost (Needs playtest)
+
+User hit "that stuttering audio/slowness issue" before testing D08Q.
+Isolated Xvfb probe with the runtime's own telemetry (`audio_stats`,
+`phase_profile`, `phase_hot`, `frame`): Modernized 47.5–49.3 fps, 600–780
+underruns per 20–30 s, output fill 17–34 ms (target 180); Vanilla 60.0 fps,
+0 underruns, fill 264; Sep‑27 baseline binary 57.5 fps. Counters added to
+`identity()`: 46 calls/frame × 108 µs = 5.0 ms/frame = 24 % of wall time —
+every call re-read all 20,305 guarded words through `psx_mod_read_word`.
+Fix in `code_identity.h` (memcmp on `g_psx_ram` + exact fallback),
+`modern_controls.cpp` / `weapon_aim.cpp` (`IdentityMemo` per host frame ×
+`g_dirty_ram_code_gen`), `pc_input` (`input_host_frame()`). After: 59.94
+fps, 0 underruns, fill 267 ms, 1.00 check/frame at 28 µs (0.17 %); jetpack
+flight 60.1 fps; jetpack behaviour probe unchanged. Tests model stores and
+code pokes as generation bumps; new memo case. ttk-input-test,
+ttk-aim-test, ttk-controls-test PASS. New job D23A (Needs playtest). Note
+58. Binary
+`81a4a9090fc25cb67a9d7be5c832ce36ebbab67d9c6070d6faa90f8981024d72`.
+No commits.
+
+## 2026-09-29 - D23B intro FMV stranded movie shard (Done)
+
+User: stutter "only on the fmv at the beginning" after D23A; "make the
+playback more robust ... if we can do it better, we should". Isolated probe
+(started in the Cursor session, finished here): intro at ~52 fps with
+continuous underruns; `overlay_loader_status` showed `OVERLAY CACHE HASH
+MISMATCH` - the runtime read `gc15256f69` but the only shards were older
+namespaces. The config hash includes `mod_function_entry` hooks, so the 28 Sep
+hook additions stranded the 27 Sep shard. Rebuilt shard: 59.92 fps, 0
+underruns, fill 267 ms, interpreter share 30 % -> 4 %; user confirmed smooth.
+Hardening: `build_movie_overlay.py --if-ready --quiet` (skip when not
+prepared, one-line result, rewrite capture.json only on change);
+`ttk-movie-shard` ALL target after `psx-runtime`, added to the `local-dev`
+build preset; `run.py` `ensure_movie_shard()` before launch (warns, still
+launches); `fmv_poll.c` `note_movie_shard()` logs the decoder state on
+change with `overlay_loader_last_msg()`. Verified headless with scratch cards:
+current -> "active (19 functions)"; shard moved aside + direct launch ->
+WARNING with the mismatch text; `run.py` -> "rebuilt for the current config"
+-> active. Found and fixed: four `test_player_profiles.py` launch tests
+patched `subprocess.call` while `run.py` now launches via `Popen`, so the
+suite started the real game on `saves/local-play/` (cards had 0 occupied
+blocks; no savestate touched). They now pass `--no-session-log` and stub
+the shard check. 64 local Python tests OK. Binary
+`3d370c02d4706e710eb3b1ef4f9e55930c49129fa8afc86e054c3157c39d0161`. No commits.
+
+## 2026-09-29 - D08Q accepted (Done)
+
+User playtest: "Jetpack works great! J to equip it, space to ascend, ctrl to descend, this is beautiful." D08Q moves to Done. Remaining notes in
+57-jetpack-controls.md (abrupt stop on release, settle after Ctrl near a
+floor, fuel drain while hovering, unprobed ceilings/water/damage) stay as
+possible polish, not open acceptance items. D23A stays Needs playtest until
+the user comments on in-game stutter.

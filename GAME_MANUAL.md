@@ -157,8 +157,8 @@ weapon switch completes. A usable pipe-bomb remote remains accessible without sp
 **M** uses an owned portable medkit, **J** toggles the jetpack, **N** night vision,
 and **B** the Bio Mask through original use rules (TTK’s own gas mask — not scuba
 or boots). Wait for gadget equip/remove and
-weapon redraw to finish before another shortcut. Airborne jetpack toggling is
-outside the supported shortcut states. Underwater air still equips automatically.
+weapon redraw to finish before another shortcut. **J** also switches the jetpack
+off in mid-flight (a controlled fall follows). Underwater air still equips automatically.
 **[ / ]** cycle eligible gadgets; **U** uses the selected gadget. **R has no stored-dose action:** TTK activates
 steroids on pickup. **Q kicks only while standing still with Mighty Boot already selected on 1.**
 Armed quick kick is unavailable; Q never selects another weapon or presses fire.
@@ -217,6 +217,16 @@ Duke surfaces automatically when he reaches the top. Leave the water with
 the original game.
 Details: [documentation/55-swim-controls-research.md](documentation/55-swim-controls-research.md).
 Underwater air remains automatic; there is no scuba item and none will be added.
+
+**Modernized jetpack**: switch it on with **J**, then
+**Space** lifts off and climbs. In the air the **mouse** turns Duke and the
+camera together, **W/A/S/D** fly relative to the camera at level height
+(strafe is a little slower, as in the original), releasing every key
+**hovers** in place, **Ctrl** descends steadily until a soft landing, and
+**J** switches the pack off for a controlled fall with the camera still live.
+Fuel drains while flying and while hovering (the original rule); when it runs
+out Duke falls the same way. The ground controls return the moment he lands.
+Details: [documentation/57-jetpack-controls.md](documentation/57-jetpack-controls.md).
 Standing-jump input ordering and feel are accepted;
 broader terrain and campaign coverage remain separate work.
 For a fully original camera in Modernized, select **7 Camera** in settings and
@@ -349,7 +359,7 @@ The normal launcher stores memory-card data under `recomp/saves/local-play/`. Ke
 
 ## Playback and troubleshooting
 
-Earlier FMV checks reached normal intro speed without audio underruns. Voice/music/gunfire crackle remains under [investigation](documentation/46-turning-audio-inventory-progress.md). Keep `recomp/build-local/cache/` with the executable: it contains the compiled movie code. If it is missing, rebuild it with `python3 recomp/tools/local/build_movie_overlay.py`. Close other game instances before testing. Press Enter to skip the intro if needed. Full-campaign accuracy is still being verified.
+Earlier FMV checks reached normal intro speed without audio underruns. **Stuttering audio with slowed play in Modernized mode** (Vanilla unaffected) had a measured cause — the control layer's original-code check was re-reading 81 KB of guest memory about 46 times every frame, costing 5 ms of each 16.7 ms frame and starving the audio output — and is fixed in the current build (needs your confirmation; see [58-modernized-frame-budget.md](documentation/58-modernized-frame-budget.md)). If it returns, note the scene and send the session log from `recomp/build-local/logs/`. **Intro-movie stutter** had a separate cause: the compiled movie code was left behind when the control hooks changed. The build and the launcher now refresh it automatically (about a fifth of a second), and the session log says `ttk-fmv: native movie decoder active` or prints a warning with the fix ([59-fmv-shard-namespace.md](documentation/59-fmv-shard-namespace.md)). Earlier crackle notes: [46](documentation/46-turning-audio-inventory-progress.md). Keep `recomp/build-local/cache/` with the executable: it contains the compiled movie code. If it is missing, rebuild it with `python3 recomp/tools/local/build_movie_overlay.py`. Close other game instances before testing. Press Enter to skip the intro if needed. Full-campaign accuracy is still being verified.
 
 To try the software renderer:
 

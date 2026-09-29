@@ -81,7 +81,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D21 | Accessibility and sound controls | Todo | D04, D19 |
 | D22 | Campaign fidelity and overlay coverage | Todo | D01 |
 | D23 | Performance budgets and long-session stability | Todo | D01 |
-| D23A | Modernized frame-budget regression (guard identity cost) | Needs playtest | D08 |
+| D23A | Modernized frame-budget regression (guard identity cost) | Done | D08 |
 | D23B | Intro FMV stutter: stranded native movie shard | Done | D23 |
 | D24 | Linux / Windows player build and disc import | Todo | D19, D22, D23 |
 | D25 | Modernized edition release acceptance | Todo | D08, D08A, D08B, D09, D10, D14, D17, D18, D20, D21, D24 |
@@ -1056,7 +1056,9 @@ Define representative hardware and scenes, then measure frame pacing, audio unde
 
 ### D23A — Modernized frame-budget regression (guard identity cost)
 
-**Needs playtest — 2026-09-29.** User: "that stuttering audio/slowness
+**Done - 2026-09-29 (user-accepted):** "the in game stutter fix works fine".
+
+User: "that stuttering audio/slowness
 issue" before the D08Q playtest. Reproduced in isolation on this machine:
 Modernized **47.5–49.3 fps** with continuous audio underruns (output fill
 17–34 ms vs 180 ms target) while Vanilla ran 60.0 fps clean; the Sep-27
@@ -2534,3 +2536,9 @@ User playtest: "Jetpack works great! J to equip it, space to ascend, ctrl to des
 floor, fuel drain while hovering, unprobed ceilings/water/damage) stay as
 possible polish, not open acceptance items. D23A stays Needs playtest until
 the user comments on in-game stutter.
+
+## 2026-09-29 - D23A accepted (Done)
+
+User playtest: "the in game stutter fix works fine". D23A moves to Done. D18A's historical club starvation
+was not re-measured; if it recurs, check `identity_checks` and
+`audio_stats.out.fill_ms` first (58-modernized-frame-budget.md).

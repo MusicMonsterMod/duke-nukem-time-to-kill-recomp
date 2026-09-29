@@ -15,7 +15,7 @@ must pass `--no-session-log` and stub `run.ensure_movie_shard`, or they
 start the real game on the player's cards. Binary
 `3d370c02d4706e710eb3b1ef4f9e55930c49129fa8afc86e054c3157c39d0161`. No commits until asked.
 
-## 2026-09-29 — D23A Modernized frame budget: identity guard cost (Needs playtest)
+## 2026-09-29 — D23A Modernized frame budget: identity guard cost (Done, user-accepted)
 
 User: "that stuttering audio/slowness issue" before the D08Q playtest.
 Measured with the runtime's telemetry in an isolated Xvfb instance

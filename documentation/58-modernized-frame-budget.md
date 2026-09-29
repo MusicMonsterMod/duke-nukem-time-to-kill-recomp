@@ -1,5 +1,7 @@
 # D23A — Modernized frame budget: the code-identity guard cost
 
+**Done - 2026-09-29 (user-accepted):** "the in game stutter fix works fine".
+
 ## Report
 
 "I'm getting that stuttering audio / slowness issue" (2026-09-29, before

@@ -9,7 +9,7 @@ build/launch (~0.2 s), and the session log says `ttk-fmv: native movie
 decoder active` or warns. Details: documentation/59-fmv-shard-namespace.md.
 Binary `3d370c02d4706e710eb3b1ef4f9e55930c49129fa8afc86e054c3157c39d0161`.
 
-**D23A Needs playtest — the Modernized stutter/slowness had a measured
+**D23A Done (user-accepted) - the Modernized stutter/slowness had a measured
 cause and is fixed in the current build.** Isolated probe: Modernized ran
 at 47.5–49.3 fps with continuous audio underruns (output fill 17–34 ms
 against a 180 ms target) while Vanilla ran 60 fps clean. `ttk::identity()`

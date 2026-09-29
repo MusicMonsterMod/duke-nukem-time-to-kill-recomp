@@ -1,5 +1,125 @@
 # Next-session handoff
 
+## 2026-09-29 — D08P overlay scratch identity + mid-depth wade handler (Done)
+
+User: the whole ledge area (F7 UI slot 3) kills run, mouse and jump for good;
+depth is not the cause. Their `session-20260929-005059.log` showed
+`[TTK lease] inactive (identity)` from the ledge onward. Live guard diff on the
+isolated slot 3 copy: only `0x800ccf1c/20/24` changed — the LEVEL00 overlay's
+trailing scratch vector, written by the zone script's `0x8007177c` hit test
+from overlay code `0x800cb1a4`. The overlay guard now covers 9652 bytes
+(code/tables), digest `274d71dd…`; `ttk_state_probe.py` matches; the controls
+test proves the vector write keeps the lease and the last table word is still
+guarded. Then the same water (depth 512, original mode 1 / clips 80/81,
+Vanilla 8–14 units/frame) got its handler `0x800539f8` hooked — added to
+`game.local.toml` `mod_function_entry_funcs`, regenerated (one generated line;
+`build.py` itself stops at the pre-existing runtime patch-stack drift, so
+generation was run directly with the built recompiler) — retargeting the
+world root to camera-relative WASD in the land run band (gain 4, 80..120 per
+tick). Guards added for `0x800486b0`/260, `0x800539f8`/452, `0x800788e0`/200.
+Live: 45–58 units/frame, mouse steering, strafe, wade jump 98, 0 refusals,
+turn/run/jump after the zone; slot 2 regression clean. Wading into a wall
+idles (original handler); turning resumes. ttk-input-test, ttk-aim-test,
+ttk-controls-test PASS. Binary
+`79a3fd5b4cd7eb535d472089e680982516100fc65b1a00c3a5dd546b85ea527a`.
+Isolated cards: `recomp/analysis/d08p-slot2/cards/openbios/` now holds copies
+of state slots 01 and 02. User playtest: "it really works. perfectly" →
+D08P **Done**; docs committed and pushed. Next session: pick the next job from
+the board (no job auto-started).
+
+## 2026-09-29 — D08P held keys across recapture, fresh capture offers (Needs playtest)
+
+User: iteration 4 changed nothing for them (session log shows a fresh launch
+and F7 slot 2 load 30 s before the report). Live Xvfb + xdotool probes
+(`/tmp/d08p_live_probe*.py`, isolated `recomp/analysis/d08p-slot2/`, software
+and OpenGL, debug load and the real `F7 → 2 → l` menu, the user's own profile)
+all show the wade at 48–54 units/frame with mouse look; slow headings are the
+original wall slide beside the spawn. Reproduced instead: a Shift/W held
+through any recapture was wiped by `clear()` → walk gait + Walk pad until
+re-pressed. Fixes: capture resyncs bound keys/mouse buttons from SDL device
+state; capture offers expire after 8 frames so the original pause menu is not
+captured; sustained tank fallback announces `ORIGINAL MOVEMENT (reason)`;
+`run.py` mirrors stderr to `recomp/build-local/logs/session-*.log`. ttk-input-test,
+ttk-aim-test, ttk-controls-test PASS. Binary
+`f8122f58e828a35b39fd11708195ccb5901b24e7e5207e593446b70b658564fb`.
+If the playtest still degrades, read the session log's `[TTK lease]` /
+`[TTK input]` lines first. Turret itself not reached in probes (S doorway →
+bridge → deep water; N platform → W walkway dead end). No commits until asked.
+
+## 2026-09-28 — D08P waist-deep land locomotion (Needs playtest)
+
+User: after speed recovered, the turret wade still crawled, mouse look was
+dead in the water, and after leaving they only walked with no Shift. Isolated
+slot 2 already uses land run anim 78 on D-pad forward; Modernized dropped
+the lease on tank turns 70/71 and injected Walk. Waist-deep / mid water
+now keeps the land camera lease, faces the view, converts 70/71 to run,
+and does not inject Walk. ttk-input-test, ttk-aim-test, ttk-controls-test
+PASS. Binary
+`b642ab9fbfdac845a0e3c23157b3e2550f1fde520d4351b2b2585b4764414ecd`.
+Playtest F7 slot 2: run + mouse in the wade and after stepping out. No
+commits until asked.
+
+## 2026-09-28 — D08P identity reader stall (Needs playtest)
+
+User: after the slot-2 recapture binary, everything ran slow including
+audio. The apartment pair check ran on every word of every identity
+guard, many times per frame. It now only inspects the two LEVEL00
+apartment words. F7 recapture behavior is unchanged.
+ttk-input-test, ttk-aim-test, ttk-controls-test PASS. Binary
+`44abdda343cc0014f3bfd6602cb42211d8807e00f2f5d57d30a62eac672b5d4c`.
+Restart the player build; the running session will not pick this up.
+No commits until asked.
+
+## 2026-09-28 — D08P F7 slot 2 recapture (Needs playtest, iteration 3)
+
+User: iteration 2 did not restore the turret room; F7 UI slot 2 (file
+`state_800AB6FC_slot01.pst`, turret around the corner) lost Modernized
+entirely. Isolated dump matches the flooded wade (depth `0x100`, anim 63,
+normal camera, apartment words already patched). F10 left
+`initial_capture` false; F7 released the mouse and did not request
+recapture; the F7 menu could eat `capture_offer`. F7 now sets
+`initial_capture` even if the cursor is already free; offers stay until
+`allow_capture`; identity remaps the complete patched LEVEL00 pair.
+ttk-input-test, ttk-aim-test, ttk-controls-test PASS (including F7
+recapture and slot-2 patched overlay). Binary
+`48e5c25f282d65741a94fd69eb58fc5409f7ac1fcf3282cbdf9bab9604e87336`.
+Playtest: F7 load slot 2, mouse/WASD/strafe/crosshair without a manual
+F10. No commits until asked.
+
+## 2026-09-28 — D08P turret wade (Needs playtest, iteration 2)
+
+The placed checkpoint is host F7 savestate slot 1, not a memory card. Isolated
+dump: flooded turret room, depth `0x100`, anim 63, normal camera, no
+`0x20000000`. First tank fallback made A/D turn (D-pad L/R → anims 71/70) and
+classified 70 as free swim, which hid the crosshair and blocked Escape
+recapture. Fixes: free swim only at original `≥0x281` or states 4/5; A/D
+fallback L2/R2 strafe; recapture from `0x8005a210`; reticle on camera-only
+locomotion. ttk-input-test, ttk-aim-test, ttk-controls-test PASS. Binary
+`5cf66b4e2469b0045265e47135a1bdc305d2ae842edc3603caf283e8d78fed56`.
+Playtest from that savestate: mouse, A/D strafe, crosshair, Escape resume.
+No commits until asked.
+
+## 2026-09-28 — D08P turret WASD freeze (Needs playtest)
+
+Crystal-2 ceiling turret (after first crystal, broken-bridge water corridor)
+dropped the modern camera lease. Captured WASD was inert because move actions
+use pad 0 and Forward inject requires the lease. F10 could not restore WASD.
+First fix: captured play without a lease feeds original D-pad tank bits
+(iteration 2 replaced A/D turn with strafe). stderr
+`[TTK input] WASD tank fallback` and `[TTK lease] inactive (...)`. Playtest
+that room; if the window ignores keys entirely, that is a guest halt, not this
+path. D07A/B, D08A, D08H and D10 distance closed on user play acceptance.
+Binary `fd9e4c4d015673ec6fa1dcdedb3bcd60d9b74ddb4377786afb5a241d0f4e4c28`.
+No commits until asked.
+
+## 2026-09-28 — D08N cancelled (scuba item out of scope)
+
+User: do not add a scuba device to this game. D08N is **Cancelled**. TTK
+underwater air stays original and automatic; Bio Mask stays gas-only. No scuba
+prototype, inventory slot, HRP scuba art, or toast. Historical notes that once
+listed D08N as a swim follow-on are superseded. Next job: pick from the Todo
+list (D08L, D09, and other open rows; not D08N). No code change. No commits.
+
 ## 2026-09-28 - game/ drop folder (tested)
 
 First run of `run.py` / `build.py` creates `game/` with a README. Importer accepts
@@ -15,8 +135,8 @@ everything: A/D strafe, Ctrl dive, underwater W/A/S/D/Space/Ctrl, mantle-only
 exit, the round-3 shallow → platform ledge jump, and the `biomask-small.png`
 item-switcher icon. D08O is **Done**; the entries below are history. Do not
 reopen the swim/ledge code without a reported regression (55 §6 rules 7–9).
-Next job: pick from the Todo list in `MODERNIZATION_JOBS.md` (D08N scuba item
-is the natural swim follow-on; D08L, D09 are also open). No commits.
+Next job: pick from the Todo list in `MODERNIZATION_JOBS.md` (D08L, D09 are
+open; D08N scuba is cancelled). No commits.
 
 ## 2026-09-28 — D08O.4 ledge jump: plain 98 arc, taller (Needs playtest)
 

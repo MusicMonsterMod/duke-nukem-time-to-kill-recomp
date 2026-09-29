@@ -35,11 +35,11 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D05 | Camera-relative WASD movement | Done | D03, D04 |
 | D06 | Independent third-person mouse camera | Done | D03, D04 |
 | D07 | Modern weapon aiming and crosshair | Done | D05, D06 |
-| D07A | View-aligned Duke facing and weapon presentation | Needs playtest | D07 |
-| D07B | Optional assisted view aiming and display controls | Needs playtest | D07 |
+| D07A | View-aligned Duke facing and weapon presentation | Done | D07 |
+| D07B | Optional assisted view aiming and display controls | Done | D07 |
 | D07C | Unified Duke3D-style aiming, facing and projectile coverage | Done | D07, D04 |
 | D08 | Modern traversal controls — accepted iteration | Done | D05, D06, D07 |
-| D08A | EDuke32-style weapon and item shortcuts | Needs playtest | D04, D08 |
+| D08A | EDuke32-style weapon and item shortcuts | Done | D04, D08 |
 | D08A1 | Visible EDuke32-style inventory cycling | Done | D04, D19A |
 | D08A2 | EDuke32 bottom-left inventory icon and green % | Done (revised: strip + green %) | D08A1, D19A |
 | D08B | Broader traversal and scripted-camera coverage | In progress | D08 |
@@ -49,14 +49,15 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08G | Typed Duke-style debugging cheats — user accepted | Done | D04 |
 | D08G1 | Original Duke3D cheat confirmation wording | Done | D08G |
 | D08G2 | Silent cheat entry and centered confirmations | Done | D08G1, D19A |
-| D08H | Apartment furniture, hidden pickup and switch targeting | Needs playtest | D08 |
+| D08H | Apartment furniture, hidden pickup and switch targeting | Done | D08 |
 | D08I | Responsive run-start and edge jumps | Done | D08 |
 | D08J | Armed airborne ladder grabs and automatic weapon transitions | Done | D08, D08E |
 | D08K | True crouch walking and animation feasibility | Blocked | D08 |
 | D08L | Inertial platform edge run-off | Todo | D08 |
 | D08M | Modern underwater swimming controls (foundation) | Done | D08 |
 | D08O | Deep free-swim polish (strafe, Ctrl dive, mantle-only exit) | Done | D08M |
-| D08N | Duke3D-style scuba gear item (auto-equip, longer breath) | Todo | D08M, D08A, D16A |
+| D08N | Duke3D-style scuba gear item | Cancelled (out of scope) | — |
+| D08P | Crystal-2 turret / scripted-camera control recovery | Done | D08 |
 | D09 | Modern controller support | Todo | D05, D06, D07 |
 | D10 | Third-person camera polish | In progress | D08 |
 | D10A | Rapid mouse turning and Shift-running investigation | Done | D06, D07C, D08 |
@@ -133,7 +134,11 @@ Connect view direction to actual shots and projectiles. Account for muzzle offse
 
 ### D07A — View-aligned Duke facing and weapon presentation
 
-**Implemented; Needs playtest. Updated 2026-09-27.** In supported Modernized
+**Done — user accepted remaining playtest, 2026-09-28.** Ongoing campaign play
+covers the previously open pose/interior checks. Keep documented weapon-family
+and cover limits; do not reopen without a new report.
+
+**Implemented 2026-09-27.** In supported Modernized
 view-aim states, Duke follows camera yaw while camera-relative WASD remains
 independent. Supported armed poses also receive view-aligned upper-body aiming;
 original recoil, draw/holster and unsupported poses retain their original paths.
@@ -143,10 +148,9 @@ The entrance wall-facing movement lock and wall-bump orbit were corrected.
 Evidence: [facing and presentation contracts](documentation/22-view-facing.md)
 and [follow-up checks](documentation/24-d07-controls-and-aim-options.md).
 Native guard/fallback checks and bounded gameplay routes support implementation;
-the user's improved-aiming and later controls feedback supports feel, but does
-not certify every armed pose, weapon family or interior/corner. Those remaining
-presentation and cover checks keep this job **Needs playtest**. D08/D08C acceptance
-remains valid independently.
+the user's improved-aiming and later controls feedback supports feel. Remaining
+pose/interior coverage was accepted in ongoing play 2026-09-28. D08/D08C
+acceptance remains valid independently.
 
 **Acceptance:** standing, moving and firing respond coherently to mouse yaw;
 Duke/body/gun presentation agrees with supported aiming within documented animation
@@ -164,7 +168,11 @@ original input paths. Clearly distinguish original autoaim from the view reticle
 
 ### D07B — Optional assisted view aiming and display controls
 
-**Implemented; Needs playtest. Updated 2026-09-27.** Saved launcher preferences
+**Done — user accepted remaining playtest, 2026-09-28.** Assistance and display
+choices were accepted in ongoing play. Half-size EDuke crosshair and **I**
+toggle were already accepted 2026-09-28. D19 still owns in-game menu exposure.
+
+**Implemented 2026-09-27.** Saved launcher preferences
 independently control aim assistance (`off` or experimental `original-lock`), the
 modern crosshair and the original red autoaim dot. Marker visibility does not
 change assistance. D19 still owns in-game menu exposure.
@@ -184,9 +192,9 @@ implementation evidence, not all-weapon or campaign acceptance.
 **Remaining acceptance:** human assessment of assistance and independent display
 choices, moving targets, near cover and supported weapon families. Record tested
 option combinations and unsupported paths explicitly. Preserve free view aiming,
-original options and per-profile preferences. **Needs playtest** remains current
-for assistance/assist display; the half-size EDuke crosshair and **I** toggle were
-explicitly accepted 2026-09-28 (presentation polish, not full D07B closure).
+original options and per-profile preferences. Remaining assistance/display
+playtest was accepted 2026-09-28; the half-size EDuke crosshair and **I** toggle
+were already accepted that morning.
 
 ### D07C — Unified Duke3D-style aiming, facing and projectile coverage
 
@@ -246,7 +254,11 @@ full airborne steering or broader D08B terrain/campaign coverage.
 
 ### D08A — EDuke32-style weapon and item shortcuts
 
-**Implemented; Needs playtest. Updated 2026-09-27.** The delivered mapping uses
+**Done — user accepted remaining playtest, 2026-09-28.** Wheel switching was
+already accepted; remaining pickup/era/medkit/detonator checks were accepted
+in ongoing campaign play. Keep documented TTK-only substitutions.
+
+**Implemented 2026-09-27.** The delivered mapping uses
 verified TTK executable identities and original use paths, with EDuke32 semantic
 groups and the authorized substitutions on 7–9. Explicit user
 requirements: **M uses the portable medkit; 6 selects pipe bombs**. Number keys
@@ -281,9 +293,8 @@ not evidence of natural item acquisition across eras.
 
 **Remaining playtest:** real pickups/era variants, medkit use including a stable
 full-health case, depletion and live detonator access, repeated/rapid commands,
-interrupted actions, custom bindings and menu/focus transitions. Record specific
-human results as they arrive; keep the job **Needs playtest** until its remaining
-acceptance is met.
+interrupted actions, custom bindings and menu/focus transitions. Record specific human results as they arrive. Remaining playtest was accepted
+2026-09-28.
 
 Preserve the accepted movement and aiming, **E interaction-only (never fire)**,
 **C holster**, Escape/Enter Start, and F10 capture semantics. This is a weapon/item
@@ -498,8 +509,11 @@ renderers and Vanilla. Do not move unrelated OSD panels or slow normal controls.
 
 ### D08H — Apartment furniture, hidden pickup and switch targeting
 
-**Implemented; movement portion explicitly accepted (2026-09-27); Needs playtest
-for the remaining interaction/pickup portion.** User reports perfect close-contact
+**Done — user accepted remaining playtest, 2026-09-28.** Movement was already
+accepted 2026-09-27; remaining pickup/switch checks were accepted in ongoing
+play. Broader campaign furniture stays under D08B.
+
+**Implemented; movement portion explicitly accepted (2026-09-27).** User reports perfect close-contact
 bed entry, smooth walk/run departures without the pause, and easier couch entry.
 They did not explicitly retest concealed/exposed pipe bombs or switch/NPC order
 in this report; do not invent those results. New run-start/edge jump misses and
@@ -696,14 +710,41 @@ unchanged. **All accepted 2026-09-28.**
 
 ### D08N — Duke3D-style scuba gear item
 
-**Todo — research / new item.** TTK has automatic underwater air and no scuba
-gadget. User wants an optional Duke3D-like scuba that extends breath time, auto-
-equips on submersion when owned, with UI/status (not the Bio Mask). Investigate
-inventory/item table slots, breath timer hooks, and DN3D HRP scuba art reuse
-under D16A. Do not ship a fake “SCUBA GEAR ON” quote without the item.
+**Cancelled — out of scope, 2026-09-28.** The user directed that a scuba device
+must not be added to this game. Do not reopen, prototype, or treat this as a
+follow-on to swimming. TTK has automatic underwater air and no scuba gadget;
+that remains the product. Bio Mask stays TTK's gas mask. No auto-equip scuba,
+breath extension, `SCUBA GEAR ON` toast, inventory slot, or HRP scuba art.
 
-**Acceptance:** design note + bounded Modernized prototype or concrete blockers;
-Vanilla unchanged; Bio Mask remains separate.
+**Acceptance:** this ID stays cancelled. Underwater air is original and
+automatic in both modes. Do not add a scuba item.
+
+### D08P — Crystal-2 turret / scripted-camera control recovery
+
+**Done — 2026-09-29 (iteration 6, user playtest: "it really works. perfectly").** The user showed it is the
+whole flooded-corridor ledge area (**F7 UI slot 3**), not depth: run, mouse
+and jump die and never return. Their session log had `ident=0` from the
+ledge onward; a live per-guard diff found the cause — the LEVEL00 zone
+script writes a hit position into the overlay's trailing 16-byte scratch
+vector (`0x800ccf1c`), which the 9668-byte overlay identity guard covered.
+The guard is now the 9652-byte code/table body. In the same water (depth
+512) the original swaps all gaits for wade clips 80/81 at 8–14 units/frame,
+forward only; their handler `0x800539f8` is now hooked (new generated
+entry, three new guards) and its root retargeted to camera-relative WASD in
+the land run band: 45–58 units/frame, mouse steering, strafe, Space jump,
+0 identity refusals across and past the ledge; slot 2 regression clean.
+Wading straight into a wall idles as in the original (turn to resume).
+Iterations 4–5 (waist-deep land lease, held keys across recapture, fresh
+capture offers) stand.
+See [56-scripted-camera-controls.md](documentation/56-scripted-camera-controls.md).
+
+**Acceptance:** F7 slot 3 ledge: run forward along and past it with run,
+mouse and jump intact, mid-depth water at run pace with mouse steering;
+F7 slot 2 wade uses dry-ground mouse look, camera-relative
+WASD and run speed; leaving the water keeps mouse and Shift-run even when
+Shift was held through the load/pause; the pause menu is not captured;
+Escape / F7 recapture still work; true deep swim and Vanilla unchanged. If
+it still degrades, report the on-screen reason and the session log.
 
 ### D08K — True crouch walking and animation feasibility
 
@@ -735,7 +776,7 @@ Provide left-stick movement, right-stick look, configurable sensitivity/inversio
 
 ### D10 — Third-person camera polish
 
-**Distance portion implemented; Needs playtest.** The broader job remains In progress.
+**Distance portion accepted 2026-09-28.** The broader job remains In progress.
 See [bounded implementation and evidence](documentation/33-controls-shortcuts.md).
 
 Tune follow distance, shoulder offset, recenter behavior and camera collision for Time to Kill's rooms and corridors. Offer practical options without changing the core game rules.
@@ -828,7 +869,8 @@ applicable art terms before proposing redistribution or adaptation.
 **Acceptance:** a sourced compatibility/rights matrix and a bounded prototype
 proposal distinguish reusable assets, visual references and new work. Record
 unresolved permission and technical questions; no assumption that an EDuke32 pack
-loads directly into this recomp. Implementation requires a later selected job.
+loads directly into this recomp. Do not import or adapt HRP scuba gear as a TTK
+item (D08N cancelled). Implementation requires a later selected job.
 Keep additional user-supplied research topics as separate scoped backlog entries.
 See [external research register](documentation/23-external-research.md).
 
@@ -2188,3 +2230,120 @@ offline strip render shows the mask in the Bio Mask cell. No binary change
 Update (same day): slot 2 now carries the user's revised art
 `research/inv/biomask-small.png` (16×13, tile id 0); provenance JSON updated;
 ttk-inventory-test PASS; no binary change. Accepted by the user the same day. No commits.
+
+## 2026-09-28 — D08N cancelled (scuba item out of scope)
+
+User directed that a scuba device must not be added. D08N moved from Todo to
+**Cancelled**. No code or asset change: there was no scuba prototype. TTK
+underwater air stays original and automatic; Bio Mask stays the gas mask.
+Player manual, status/handoff, swim note 55, and the D16A HRP note now say
+scuba is not a future item. Historical work-log line that added D08N remains
+as history. Binary unchanged
+`78b68e42ab05ad831a6668c8b4a084413f014a449b08bd74bb09e776059e75bb`. No commits.
+
+## 2026-09-28 — Playtest jobs accepted; D08P turret control recovery
+
+User accepted all remaining Needs-playtest jobs from ongoing play: D07A, D07B,
+D08A, D08H, and D10 distance. D08B/D10 broader work stays In progress. D08N
+scuba stays cancelled.
+
+## 2026-09-28 — D08P turret wade: depth gate, strafe fallback, Escape recapture
+
+Playtest of the first tank-WASD fallback: mouse dead, A/D turned, Escape
+dropped Modernized, crosshair gone, water felt “too deep”. Isolated load of
+host savestate slot 1 (player cards not written): depth `0x100`, anim 63,
+normal camera, `+0x224` without `0x20000000`. Host free-swim used `0x200` and
+treated anim 70 (D-pad turn) as underwater. Free swim now matches original
+`≥0x281` / states 4–5; A/D fallback is L2/R2 strafe; Escape recapture from
+`0x8005a210`; reticle follows camera-only locomotion. ttk-input-test,
+ttk-aim-test, ttk-controls-test PASS. Needs playtest. Binary
+`5cf66b4e2469b0045265e47135a1bdc305d2ae842edc3603caf283e8d78fed56`. Note:
+documentation/56-scripted-camera-controls.md. No commits.
+
+## 2026-09-28 — D08P F7 slot 2: recapture after savestate load
+
+Playtest of iteration 2 from F7 UI slot 2 (turret around the corner): modern
+controls gone entirely. Isolated dump of `state_800AB6FC_slot01.pst`: same
+wade as before, apartment words already patched. F10 had cleared
+`initial_capture`; F7 released capture and did not set it again; the F7 menu
+could consume `capture_offer` while `allow_capture` was false. F7 now
+requests recapture like Escape even if the mouse is already free; offers
+are kept until capture is allowed; identity remaps the complete patched
+LEVEL00 pair. ttk-input-test, ttk-aim-test, ttk-controls-test PASS. Needs
+playtest. Binary
+`48e5c25f282d65741a94fd69eb58fc5409f7ac1fcf3282cbdf9bab9604e87336`. Note:
+documentation/56-scripted-camera-controls.md. No commits.
+
+## 2026-09-28 — D08P identity reader stall
+
+Playtest of the slot-2 recapture binary: gameplay and audio ran slow.
+Apartment pair classification ran on every guarded identity word, many
+times per frame. The check is now only on `0x800cc57c` / `0x800cc580`.
+F7 recapture and slot-2 overlay identity are unchanged. ttk-input-test,
+ttk-aim-test, ttk-controls-test PASS. Needs playtest. Binary
+`44abdda343cc0014f3bfd6602cb42211d8807e00f2f5d57d30a62eac672b5d4c`. No
+commits.
+
+## 2026-09-28 — D08P waist-deep water as land locomotion
+
+Playtest after the identity-stall fix: speed was normal, but the turret
+wade crawled, mouse look died in the water, and after leaving only walk
+worked (no Shift). Isolated slot 2 already uses land run anim 78 on
+forward; Modernized failed `state()` on tank turns 70/71 and injected
+Walk. Waist-deep / mid water now keeps the land camera lease, faces the
+view, converts 70/71 to the run gait, and does not inject Walk. True deep
+swim unchanged. ttk-input-test, ttk-aim-test, ttk-controls-test PASS.
+Needs playtest. Binary
+`b642ab9fbfdac845a0e3c23157b3e2550f1fde520d4351b2b2585b4764414ecd`. No
+commits.
+
+## 2026-09-29 — D08P accepted
+
+User playtested F7 slot 3 (ledge) with binary `79a3fd5b…`: "it really
+works. perfectly." D08P → **Done**. Documentation committed and pushed.
+
+## 2026-09-29 — D08P overlay scratch identity; mid-depth wade handler owned
+
+User: the whole ledge area (F7 UI slot 3) loses run, mouse and jump for
+good; depth is irrelevant. Their session log: `[TTK lease] inactive
+(identity)` from the ledge on. Live per-guard diff on the isolated slot 3
+copy: only `0x800ccf1c/20/24` changed — the LEVEL00 overlay's trailing
+scratch vector, the output of the zone script's `0x8007177c` hit test
+(overlay `0x800cb1a4`). Overlay guard trimmed to the 9652-byte code/table
+body (`ttk_state_probe.py` too); controls test proves the vector write keeps
+the lease and the last table word is still guarded. Same water is depth 512:
+the resident dispatcher swaps every gait for clips 80/81 (Vanilla measured
+8–14 units/frame), handler `0x800539f8`; the track advance writes the root
+after the player-update hook, so the handler entry is hooked (added to
+`mod_function_entry_funcs`, regenerated: one generated line; `build.py`
+stops at the pre-existing runtime patch-stack drift, so generation ran
+directly with the built recompiler). Root retargeted to camera-relative WASD
+at the land run band; guards `0x800486b0`/260, `0x800539f8`/452,
+`0x800788e0`/200; 80/81 join the wade-jump set. Live: 45–58 units/frame,
+steering, strafe, jump 98, 0 refusals, turn/run/jump after the zone; slot 2
+clean; wall stop while wading is the original handler (turn resumes).
+ttk-input-test, ttk-aim-test, ttk-controls-test PASS. Needs playtest. Binary
+`79a3fd5b4cd7eb535d472089e680982516100fc65b1a00c3a5dd546b85ea527a`. No
+commits.
+
+## 2026-09-29 — D08P held keys across recapture; fresh capture offers
+
+User: "still exactly the same issues" on iteration 4. Live Xvfb + xdotool
+reproduction (isolated slot 2 copy; software and OpenGL; debug load and the
+real F7 menu; the user's profile) shows the wade at dry-ground run speed
+with mouse look, so the wade path is sound; slow headings beside the spawn
+are the original wall slide. Reproduced: a Shift/W physically held through
+F7 load, Escape/resume or F10 was wiped by `clear()` at capture → walk gait
+with Walk pad (10.7 units/frame) until Shift was re-pressed. Also found:
+Escape's release offered recapture in the same update, so the original
+pause menu was captured (Enter/X swallowed). Capture resyncs bound
+keys/mouse buttons from SDL device state; offers expire after 8 frames;
+sustained tank fallback shows `ORIGINAL MOVEMENT (reason)` /
+`MODERN MOVEMENT RESUMED`; `run.py` mirrors stderr into
+`recomp/build-local/logs/session-*.log` (`--no-session-log` opts out).
+Verified live after the change (Shift through F10: 76 at 50.6; Shift+W
+through Escape/resume: paused uncaptured, 78 at 53.9 on resume; mouse
+after resume). ttk-input-test, ttk-aim-test, ttk-controls-test PASS. Needs
+playtest. Binary
+`f8122f58e828a35b39fd11708195ccb5901b24e7e5207e593446b70b658564fb`. No
+commits.

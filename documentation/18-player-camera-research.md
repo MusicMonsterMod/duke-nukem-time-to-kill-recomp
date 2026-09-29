@@ -18,9 +18,11 @@ route. It refuses an active game. `ttk_state_probe.py` checks the exact supporte
 SLUS-00583 boot executable SHA-256:
 `b5c3ba610074bff184f089a49e51a22a35455cfef08757bd673a54f4057d5a7a`.
 It compares twelve live code ranges against that executable, requires reciprocal
-player/camera pointers, and requires **all 9668 bytes** of LEVEL00.OVR at
-`0x800CA968` to hash to
-`f38747adab56fa69347a1b8488a1a25e093a1f428232250d299fd50266568508`.
+player/camera pointers, and requires the **9652-byte code/table body** of
+LEVEL00.OVR at `0x800CA968` to hash to
+`274d71ddd8aeb6e1ca12c0229eea5087c7750a39f442785b94f0efeec81a25b3` (the
+file's final 16 bytes are a scratch hit-position vector the zone script
+writes during play — D08P, documentation/56).
 A mismatch raises an error; the runner cleans up its owned process. Identity
 is checked before arming diagnostics and after the checkpoint in the final
 acceptance route. The code ranges in the tool are byte guards, not declarations

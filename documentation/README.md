@@ -62,3 +62,5 @@ Update `00-status.md` after meaningful tests. Keep raw evidence and exact comman
 - [D08G1/D07C/D08H/D19A feedback implementation and verification](40-feedback-implementation.md)
 
 - [Latest playtest acceptance and next-job plan](41-playtest-follow-up-plan.md): silent/centered cheat results, run/edge jumps, armed ladders, crouch walking, inventory feedback and deferred menu responsiveness.
+
+- [D08P crystal-2 turret / scripted-camera WASD recovery](56-scripted-camera-controls.md)

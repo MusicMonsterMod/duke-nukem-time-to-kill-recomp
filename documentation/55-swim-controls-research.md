@@ -42,7 +42,7 @@ accepted everything (§9.5). **D08O is Done.**
 | Look + W (deep) | Optional vertical steer while submerged | Keep if already soft |
 | **Exit water** | **Mantle / E only** — strip free-swim Space exit hops | Space-at-ledge still exits; **simplify to mantle-required** |
 
-Vanilla water unchanged. D08N (scuba item) stays out of scope.
+Vanilla water unchanged. Scuba as a new item is cancelled (D08N out of scope).
 
 ### 1.3 Exit policy (locked for D08O)
 
@@ -103,7 +103,8 @@ Sources: `recomp/analysis/modern-controls-pass/8005201c.txt`,
 
 | Anim | Role |
 | --- | --- |
-| 70 | Water idle |
+| 70 | Water idle **in deep swim**; on land/shallow also D-pad **right turn** |
+| 71 | D-pad **left turn** (not free swim) |
 | 80 / 81 | Forward / swim move |
 | 175 / 177 | Water variants |
 | **176** | Square thrust / dip (also crouch-enter on land) |
@@ -135,6 +136,12 @@ Sources: `recomp/analysis/modern-controls-pass/8005201c.txt`,
 | 8 | W weak; Space no ascend; Ctrl digs to floor | Square≠ascend; only Ctrl host-Y; D-pad/stick incomplete |
 | 9 ship | Root-bridge: Square suppress + soft Y + D-pad/stick/root | See §7 |
 | **9 playtest** | A/D still dead; Ctrl still no descend; Space up / W/S / E mantle / ledge OK | Strafe bridge incomplete; Ctrl soft-Y ineffective at surface/margin; exit still Space-hop capable |
+| **D08P turret** | Wade felt deep; A/D turned; mouse/crosshair/Escape dead | Host `k_wade_deep=0x200` + anim 70 as free swim; tank A/D was D-pad turn; recapture required walk `state()` |
+| **D08P slot 2** | F7 load of turret-corner save: total modern-control loss | F10 left `initial_capture` false; F7 did not request recapture; F7 menu ate `capture_offer` |
+| **D08P wade feel** | Crawl, no mouse, no Shift after exit | Land lease died on anims 70/71; default Walk pad; not a swim |
+| **D08P held Shift** | Still "only walking, Shift dead" after F7 / Escape | `clear()` at recapture forgot physically held keys; capture now resyncs from SDL device state. Live wade itself measured 48–54 units/frame with mouse |
+| **D08P ledge area** | Whole flooded-corridor ledge area loses run, mouse and jump permanently | The LEVEL00 zone script writes a hit position into the overlay's trailing scratch words `0x800ccf1c..0x800ccf2b`; the 9668-byte overlay identity guard covered them → `ident=0` forever. Guard is now the 9652-byte code/table body |
+| **D08P mid-depth wade** | Depth `0x200..0x281` still crawls (Vanilla 8–14 units/frame, forward only) | The resident dispatcher swaps every gait for clips 80/81 (state 1), handler `0x800539f8`; the track advance writes the root after the player-update hook, so only a hook at that handler can retarget it. Now owned there: camera-relative WASD at the land run band |
 
 **Accepted freeze (D08M):** shallow jump height; shallow Space-facing ledge hop (complete — revisit only if needed).
 
@@ -240,7 +247,7 @@ right**), `800d1b88`→15 (Square), `800d1b50`→14 (Cross), `800d1b58`→12 (L1
 ### 8.3 Out of scope
 
 - Re-tuning shallow ledge hop (Done)
-- D08N scuba
+- Scuba item (D08N cancelled; TTK automatic air only)
 - Vanilla water
 - World-XYZ / invented `+0x20c` / entry `+0x1f8` clear (banned)
 

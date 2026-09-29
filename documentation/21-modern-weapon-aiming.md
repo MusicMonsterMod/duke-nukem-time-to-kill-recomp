@@ -42,8 +42,8 @@ Unknown states/maps and special weapons retain original behavior.
 
 Owned executable identity remains SLUS-00583 SHA-256
 `b5c3ba610074bff184f089a49e51a22a35455cfef08757bd673a54f4057d5a7a`.
-The existing movement/camera lease rechecks code and the exact 9668-byte LEVEL00
-payload at each shot. Additional weapon/query and table byte guards are in
+The existing movement/camera lease rechecks code and the 9652-byte LEVEL00
+code/table body at each shot (the file's last 16 bytes are level scratch, D08P). Additional weapon/query and table byte guards are in
 `src/ttk/aim_guards.inc`; no generated C is hand-edited.
 
 The starting pistol's live ammo 200→198 chain is:

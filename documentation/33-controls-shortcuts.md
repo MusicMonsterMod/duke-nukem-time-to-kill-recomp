@@ -77,7 +77,8 @@ Steroids are a concrete exception to the manual-based proposal: `800827e8` sets
 item 4 active and its timer immediately on pickup. `80087da8` supplies the empty
 inventory label, and `800414a0` drains the active timer. R does not invent a dose
 or disable/restart this effect. Regular health/armor/ammo pickups retain their rules.
-Keys/cards/crystals remain contextual E actions. No scuba/HoloDuke equivalents.
+Keys/cards/crystals remain contextual E actions. No scuba or HoloDuke
+equivalents; adding a scuba gadget is out of scope (D08N cancelled).
 Gadget shortcuts currently share the supported ground/crouch state lease; airborne
 jetpack toggling, swimming, attached traversal and other map overlays are not
 authorized by it. Original jump-held jetpack thrust is retained. Goggles/Bio Mask

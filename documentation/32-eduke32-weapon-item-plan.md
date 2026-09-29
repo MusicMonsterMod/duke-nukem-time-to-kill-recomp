@@ -94,7 +94,7 @@ item. These are proposed native shortcuts; TTK's own use rules remain authoritat
 | Jetpack | J | Jet Pack: J for its verified equip/use path; retain TTK's jump-held thrust behavior |
 | Night vision | N | Goggles: N toggles original use |
 | HoloDuke | H | No listed TTK equivalent; leave H unassigned unless customized |
-| Scuba gear | Automatic underwater use | No listed matching TTK scuba gadget; Bio Mask protects against gas, not established underwater breathing |
+| Scuba gear | Automatic underwater use | No TTK scuba gadget and none will be added (D08N cancelled). Bio Mask protects against gas, not underwater breathing |
 | Protective boots | Automatic hazard protection | No listed matching TTK gadget; do not confuse these with the Mighty Boot weapon |
 | Inventory previous/next | [ / ] | Cycle eligible TTK inventory items without using them |
 | Use selected inventory | Enter / keypad Enter | Propose U; Enter already belongs to Start/pause. I continues opening original inventory |

@@ -23,7 +23,7 @@ Assets beside the executable: `ttk-inv-icons.pack`, `ttk-inv-digits.pack`,
 - **Enter** (and **U**) uses the currently selected gadget while captured —
   never opens pause. **Escape** alone pauses.
 - **M** still quotes centered `MEDKIT N%` when owned; silent if missing.
-- Scuba/air stays automatic in-world (no dedicated scuba key required).
+- Underwater air stays automatic in-world (no scuba item or key; D08N cancelled).
 - Icons from `research/inv` (medkit/jetpack/goggles/steroids tiles). Selection
   uses EDuke **ARROW** `tile0020.png` stretched over a fixed cell.
 - Charge digits/% from **`research/inv/font/03. Green (Palette 22)`**

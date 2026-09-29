@@ -31,9 +31,9 @@ No commits this session. Profile settings migrate to **version 9**.
 ### D28 — Done
 - User confirmed Scroll Lock holster quotes.
 
-### Inventory / scuba (D08A follow-up)
+### Inventory / Bio Mask (D08A follow-up)
 - Default **B** = Bio Mask with centered `BIO MASK ON/OFF` (TTK’s own gadget).
-- Underwater air still works automatically (no scuba toast; real scuba is backlog D08N).
+- Underwater air still works automatically (no scuba toast; scuba item cancelled).
 - Also: `JETPACK ON/OFF`, `NIGHT VISION ON/OFF`. Profile settings **v10**.
 
 ### D08M — underwater interim

@@ -38,7 +38,28 @@ restore the selected profile's defaults. Save and return, then launch normally.
 Each profile remembers its own renderer. Modernized also remembers its PC action bindings, camera selection, mouse sensitivity and inversion. Changes take effect on the next launch.
 **Modernized movement and camera have passed user playtesting in the first-level preview.
 Supported first-map climbing uses the original traversal routines with Modernized
-input. Other levels and unverified scripted states retain original controls.**
+input. In the crystal-2 flooded turret corridor, waist-deep water uses the same
+camera-relative run, mouse look and Shift as dry ground — it is not a swim.
+The deeper wade along the right-hand ledge (where the original slows Duke to a
+forward-only wade) also moves at run pace toward where you look, strafes, and
+jumps on Space. Wading straight into a wall stops Duke, as in the original:
+turn the view and he moves again. Reaching that ledge no longer switches the
+whole area to original controls (a level-script write used to fail the code
+identity check).
+Escape then resume recaptures, and keys you keep holding across that pause
+(Shift, W, Ctrl…) stay held — releasing and re-pressing Shift is not needed.
+F7 load of the turret-corner savestates (UI slots 2 and 3) also recaptures automatically,
+again keeping held keys. Capture is not taken inside the original pause menu.
+If a scripted camera still drops the modern lease, W/S walk and A/D strafe
+(original L2/R2) until the normal camera returns — A/D must not tank-turn.
+When that fallback lasts more than about a second the screen shows
+`ORIGINAL MOVEMENT (reason)` and `MODERN MOVEMENT RESUMED` when the lease
+returns; the reason (`state`, `identity`, `context`, `released`) is the one
+to report. `run.py` mirrors these `[TTK …]` lines into
+`recomp/build-local/logs/session-*.log` (last five launches;
+`--no-session-log` disables).
+F10 toggles mouse capture only; press it again if the
+cursor is free. A frozen window that ignores F10 is a separate halt.**
 
 You can also select and launch directly with `--mode vanilla` or
 `--mode modernized`. Use `--show-settings` to inspect preferences without
@@ -58,12 +79,13 @@ The user has confirmed the natural switch-first approach works.
 ## Modernized movement and camera preview
 
 Modernized gameplay captures the mouse and enables PC actions automatically.
-Pause, inventory, focus loss and host menus release it; verified gameplay can
+Pause, inventory, focus loss and host menus (including **F7** savestates) release it; verified gameplay can
 capture again after returning. **Escape** pauses/resumes. **Enter** uses the
 currently selected inventory gadget (EDuke-style); it never opens the pause menu.
 **F10** explicitly toggles capture; use it to opt out
 of automatic capture until you capture again. Pausing while captured restores
-automatic capture on return. In supported first-level standing/walking states,
+automatic capture on return. Loading an F7 savestate also restores automatic
+capture once gameplay is live again. In supported first-level standing/walking states,
 mouse movement orbits the third-person camera. With view weapon aiming enabled,
 Duke turns to face the view horizontally when holstered or using a supported weapon.
 
@@ -155,7 +177,9 @@ Walk is the default on each launch. Hold Left Shift to run; **Caps Lock** toggle
 autorun (centered `RUN MODE ON` / `RUN MODE OFF`), and Shift then temporarily walks.
 Autorun survives capture/focus/pause
 changes within that session, but resets off on relaunch; it does not follow the
-keyboard Caps Lock light. Your existing speed-modifier binding is preserved
+keyboard Caps Lock light. A Shift (or any bound gameplay key) that is already
+held when the mouse is recaptured — after Escape/resume, F7 load, inventory or
+F10 — is read from the keyboard state, so running continues without re-pressing. Your existing speed-modifier binding is preserved
 (the binding editor calls it `walk` for compatibility). These speed controls apply
 to supported Modernized locomotion; original fallback controls remain available. Diagonals are
 normalized. Walk/run changes restart the corresponding gait promptly (soft-keeping walk
@@ -192,7 +216,7 @@ Duke surfaces automatically when he reaches the top. Leave the water with
 **E** / mantle — Space never hops you out at a ledge. Water/oxygen stay with
 the original game.
 Details: [documentation/55-swim-controls-research.md](documentation/55-swim-controls-research.md).
-Underwater air remains automatic; there is no scuba item yet (see backlog D08N).
+Underwater air remains automatic; there is no scuba item and none will be added.
 Standing-jump input ordering and feel are accepted;
 broader terrain and campaign coverage remain separate work.
 For a fully original camera in Modernized, select **7 Camera** in settings and
@@ -397,7 +421,7 @@ Holding Enter activates at most once. Empty inventory stays silent. Direct keys
 opening the switcher (**M** shows centered `MEDKIT N%` when owned; **J** / **B** / **N**
 show `JETPACK ON/OFF`, `BIO MASK ON/OFF`, `NIGHT VISION ON/OFF`). Bio Mask is TTK’s
 own gadget — not scuba or boots. Underwater air still works automatically (no
-`SCUBA GEAR ON` toast; a real scuba item is backlog D08N). Gold corner marks an active toggle.
+`SCUBA GEAR ON` toast and no scuba item). Gold corner marks an active toggle.
 Depletion falls back to the first usable gadget. Menus and released capture hide
 the strip. Selector frame is locked at 50×60 with a −6px frame-only vertical
 nudge. Existing custom bindings still apply. The Modernized view crosshair is

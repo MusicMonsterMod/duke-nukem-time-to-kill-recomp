@@ -1,5 +1,15 @@
 # Current status — 2026-09-29
 
+**D12 first-person weapons - Done (user: "finally, we can mark this as accepted!!").** Next: D12A (kick stays in first person). In the Modernized eye view
+Duke's own right hand and the original weapon mesh are drawn in front of the
+eye (no new assets), held in each weapon's firing pose, always on top of
+walls, with the original muzzle flash and a short kick. All 13 weapons on the
+first map checked; pitch-stable; 59.95 fps; third person and Vanilla
+unchanged. The twin cannons (key 5) are framed like Duke 3D's Devastator;
+the HUD stays on top. Limits: instant holster/draw, no left hand, no reload
+motion. Details: documentation/63-d12-first-person-weapons.md. Binary
+`65226a9d8b4335f67b955b35af1172fb6a42357adcbd0027c97ebd5744612798` (after framing pass 6).
+
 **D11B first-person near-wall clipping - Done (user: "its awesome!!! now it doesnt peek through the doors. amazing work." (the new jetpack sprite "is also available")).** In the Modernized
 eye view, walls, floors and props beside the eye are clipped and drawn by the
 host instead of tearing or turning black; everything else stays on the
@@ -24,7 +34,7 @@ crouch and jumps all work in it. Swimming and jetpack flight return to third
 person. An isolated first-level route (street, club door fight, doorway,
 entry hall, main room) passed all 14 checks at 59.9 fps with 0 underruns;
 Vanilla route exit 0. Known limit: steep-angle wall contact can drop wall
-polygons (new job D11B). No hands/weapon drawn yet (D12). Details:
+polygons (new job D11B). Hands and weapon: D12. Details:
 documentation/61-d11-first-person.md. Binary
 `dd7b85b49eda500bf5646830dd7fddf4a061986bd3982dda7ae8533507d271c5`.
 

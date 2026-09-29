@@ -82,8 +82,8 @@ Final binary `dd7b85b49eda500bf5646830dd7fddf4a061986bd3982dda7ae8533507d271c5`.
   object renderers `0x80011020` and `0x80010000`.
 - The original obstruction rays did not report the wall Duke was touching, so
   they do not keep the eye off walls.
-- No held weapon or hands are drawn; firing shows the crosshair and impacts.
-  Body and weapon presentation are D12.
+- No held weapon or hands were drawn; D12 adds them
+  ([first-person weapons](63-d12-first-person-weapons.md)).
 - Switching to an unleased state is a cut to the original third-person camera.
 - The field of view is fixed at about 64 degrees; FOV options belong to D14.
 - Tested on the first map's street, club entrance, entry hall and main room,

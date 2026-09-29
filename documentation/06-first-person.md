@@ -80,3 +80,8 @@ there: head visibility (joint skip bit during Duke's draw), body visibility
 (original joint near cull), room culling (camera room follows the eye; no
 missing rooms on the first-map route) and near-plane clipping (partly solved;
 steep wall contact remains, job D11B).
+
+## 2026-09-29 D12 weapons
+
+Held-weapon presentation uses the original hand and weapon meshes as a
+viewmodel; see [D12 first-person weapons](63-d12-first-person-weapons.md).

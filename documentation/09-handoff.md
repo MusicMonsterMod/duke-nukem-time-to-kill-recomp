@@ -1,5 +1,45 @@
 # Next-session handoff
 
+## 2026-09-30 - D12 Done (user accepted); next D12A
+
+User: "finally, we can mark this as accepted!!" First-person weapons are Done
+on binary `65226a9d8b4335f67b955b35af1172fb6a42357adcbd0027c97ebd5744612798`. Next job chosen by the user: D12A, keep the kick (Q) in first
+person. Per-weapon framing lives in the offset/tilt/scale tables in
+`recomp/src/ttk/first_person.inc`; `DNTTK_FP_WEAPON_SLOT<n>`, `..._TILT<n>` and
+`..._SCALE<n>` override them for one launch.
+
+## 2026-09-29 - D12 framing tweaks; next job D12A
+
+User accepted most weapons as they look; shotgun, gatling and throwing blades
+retuned (per-slot tilt/offset tables in `first_person.inc`). Next job chosen
+by the user: D12A, keep the kick (Q) in first person.
+
+## 2026-09-29 - D12 twin cannons (Needs playtest)
+
+Slot 8 (key 5) framed after the Devastator references; HUD now over the
+weapon (viewmodel in OT slot 1). Tune per weapon without rebuilding:
+`DNTTK_FP_WEAPON_SLOT8=x,y,z`, `DNTTK_FP_WEAPON_TILT8=p,y,r`,
+`DNTTK_FP_WEAPON_SCALE8=f`. Club test state: private copy of the D11 route
+cards in `recomp/analysis/d12-first-person-weapons/club-cards` (slot 1, main
+room facing the mirror after a 180-degree turn). Binary
+`b756d71f9558ce7a3ce5c68e12d3283eeff3e702ef11d0e6ca6df433da93a81e`.
+
+## 2026-09-29 - D12 first-person weapons (Needs playtest)
+
+Real hand + weapon meshes drawn as a viewmodel in first person; see
+`documentation/63-d12-first-person-weapons.md`. Test state: private copy of
+the street savestate in `recomp/analysis/d12-first-person-weapons/cards`
+(slot 1; `PSX_LOAD_SLOT=1`), sources backed up in `.../before/`. `build.py`
+still stops at the runtime patch drift: after changing hooks run
+`psxrecomp_cli.py generate` with `PSXRECOMP_GAME`/`PSXRECOMP_BIOS` set to
+`build-recompiler/`, then `cmake --build --preset local-dev` and
+`build_movie_overlay.py`. Before launching an isolated instance, stop any
+earlier one on port 9177 (a stale instance answered one survey). Re-survey
+seeds with `DNTTK_FP_WEAPON_TRACE=1` (fire each weapon standing, level view)
+if placement math changes. Next: user playtest of placement/size/feel; then
+holster/draw animation, left hand, projectile origin. Binary
+`1f232bc162e6354f8e3aa2d87994401e11410cf38bd653236f0ac2167a125ccc`. No commits.
+
 ## 2026-09-29 - D11B Done (user accepted); jetpack sprite confirmed
 
 User: "its awesome!!! now it doesnt peek through the doors. amazing work." (the new jetpack sprite "is also available"). Next first-person job: D12 (hands and weapon). Binary

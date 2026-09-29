@@ -68,7 +68,8 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D11 | First-person playable prototype | Done | D08, D10 |
 | D11B | First-person near-wall polygon clipping | Done | D11 |
 | D11A | Scroll-wheel zoom lock into first-person | Cancelled (P toggle suffices) | - |
-| D12 | First-person weapons and state polish | Todo | D11 |
+| D12 | First-person weapons and state polish | Done | D11 |
+| D12A | First-person kick without leaving the eye view (next) | Todo | D12 |
 | D13 | Higher internal resolution and display scaling | Todo | D02 |
 | D14 | Widescreen, FOV and visibility | Todo | D03, D13 |
 | D15 | Optional geometry and texture precision | Todo | D13 |
@@ -1021,9 +1022,34 @@ unsupported states fall back cleanly; aiming/movement remain coherent.
 
 ### D12 — First-person weapons and state polish
 
+**Done - user accepted 2026-09-30:** "finally, we can mark this as accepted!!"
+after six framing passes. Duke's own right hand and the
+original weapon meshes are drawn in front of the eye in first person, held in
+each weapon's own firing pose, drawn over walls, with the original muzzle flash
+and a short kick, each weapon framed per the user's playtests (Devastator-style
+twin cannons, HUD on top). No new assets. See
+[D12 first-person weapons](documentation/63-d12-first-person-weapons.md) and
+the work log. Known limits: instant holster/draw, no left hand, reload motions
+not shown, projectile origin still at the real hand. The kick leaving first
+person is D12A (next).
+
 Resolve held-weapon presentation, body visibility, eye height, recoil, traversal, death and scripted sequences. Decide whether existing geometry is sufficient before proposing new assets.
 
 **Acceptance:** tested weapon/state combinations are usable without clipping or misleading muzzle placement; camera transitions remain coherent; third-person and Vanilla still pass their routes. Document any optional new assets and their provenance.
+
+### D12A - First-person kick without leaving the eye view
+
+**Todo, queued next by the user (2026-09-29).** In first person, kicking (Q,
+the original Boot melee) drops out of the eye view to the original
+third-person camera and returns afterwards. The user wants the kick to stay in
+first person. Investigate which kick animations/states lose the D06/D11 orbit
+lease, extend the eye view through them the way D11 keeps a camera-only lease
+through plain jumps, and decide what (if anything) of the kicking leg or
+weapon is shown.
+
+**Acceptance:** a standing and a moving kick, holstered and armed, stay in
+first person with the eye following Duke and the view aim intact; the kick
+still hits and pushes as in Vanilla; third person and Vanilla unchanged.
 
 ## Graphics and playback
 
@@ -3089,3 +3115,133 @@ logged as D19 menu toggles. Remaining notes: occasional faint ground-line
 residue the user called negligible; first-map areas only, not the campaign.
 The jetpack inventory sprite change is confirmed in game. D12 (hands and
 weapon) is the next first-person job.
+
+## 2026-09-29 - D12 first-person weapons (Needs playtest)
+
+User asked to continue at the recommended point (D12) and, mid-session: "if we
+can ACTUALLY use the real hands and weapons from this game, that will be the
+most perfect way to go for it". Delivered with the game's own assets only.
+
+Research: the actor draw `0x800348d8` draws the weapon (`0x80033e40`), muzzle
+flash (`0x800341e4`) and held item (`0x80033f5c`) from the hand joint (model
+byte `+0x33`, joint 7) after `0x800292a0`; the hand's near cull (depth < H)
+skipped all of it in the eye view. Joint matrices are stored world-to-joint
+(transposed by `0x80010d60` before camera `+0x20` times it). `duke_drawing`
+turned out to be cleared by the draw's own callees before the joint loop, so
+D12 bounds Duke's draw separately.
+
+Implementation (`recomp/src/ttk/first_person.inc`, `near_clip.cpp`,
+`modern_controls.cpp`; hooks `0x800292A0`, `0x80033E40`, `0x800341E4`,
+`0x80033F5C` added to `game.local.toml` and regenerated with the recompiler
+directly): the hand transform and its attached draws get a guest-allocated
+matrix (Duke's joints never written); placement anchored in view space; a
+ready pose from each weapon's firing pose (torso-relative, seeds for slots
+4-11 surveyed in this build); flash kick; viewmodel packets appended to
+ordering-table slot 0 when Duke's draw ends so walls and Duke's chest cannot
+cover them; arm joints 2-6 culled at the eye; close-camera fade neutralized for
+the viewmodel only; SHA-256 guards for `0x800348d8` and `0x800341e4`;
+`ttk_input` JSON buffer 2048 -> 8192.
+
+Evidence on binary
+`1f232bc162e6354f8e3aa2d87994401e11410cf38bd653236f0ac2167a125ccc`: 13
+weapons (slots 1, 2, 4-14) captured at rest and firing, all drawn; pitch
+sweep 0/+-35/+-60 stable for pistol and shotgun with the flash on the muzzle;
+walk, run, crouch, jump, fast turns and wall contact keep the weapon in view
+and on top; third person unchanged; 59.95 fps first person / 59.96 third,
+0 underruns; Vanilla route `d12-vanilla` exit 0; native tests
+(`ttk-controls-test` with a new D12 case, aim, near, scene, input) PASS;
+Python 74 OK. Limits: instant holster/draw, right hand only, ready pose
+replaces reload/pump motion, projectiles leave from the real hand, slot 8/9
+large, first-map street only. Needs the user's playtest for placement, size
+and feel. No commits.
+
+## 2026-09-29 - D12 twin cannons framed like the Devastator (Needs playtest)
+
+User: "This is an amazing start". Asked for weapon key 5 (slot 8, the twin
+cannon launcher) to show "the two Canons visible at the bottom" like Duke 3D's
+Devastator (reference images in `research/`), using the strip-club mirror to
+see how Duke holds it. Delivered: slot 8 offset (-20, 240, -100), 42 degrees
+muzzle-up, scale 1.2 via the original weapon draw's scale argument; the
+cannons rise from the bottom corners and the joining block stays a strip at
+the bottom edge (the model's middle shares the cannons' top plane, so it
+cannot be framed out entirely). The viewmodel moved from ordering-table slot
+0 to slot 1 so the HUD draws over it (the right cannon had covered the ammo
+box). New developer overrides per slot for offset, tilt and scale. Club
+mirror checked: the reflection keeps Duke's head, arms and real weapon pose.
+Binary `b756d71f9558ce7a3ce5c68e12d3283eeff3e702ef11d0e6ca6df433da93a81e`;
+native tests and Python 74 OK. No commits.
+
+## 2026-09-29 - D12 weapon framing tweaks (Needs playtest); D12A queued
+
+User: "it's amazing!!" Pistol, Devastator (slot 8), flamethrower (slot 10),
+special shotgun (slot 6), crossbow, rocket launcher, Python, dynamite and Holy
+Hand Grenade accepted as they look. Requested tweaks delivered as per-weapon
+display tilt/offset defaults (no pose or asset changes): shotgun (slot 5,
+key 3) offset (40, 0, 0), tilt -10 pitch / -30 yaw, so the barrel and pump
+show; gatling (slot 7, key 4) offset (30, -10, 330), tilt -10 / -25 / roll 10,
+right of centre and pointing in toward the crosshair; throwing blades slot 1
+tilt -30 / -20 / roll 40 and slot 2 tilt -40 so they read as blades instead of
+a vertical line. Captured at rest and firing (flash on the gatling muzzle).
+New backlog job D12A (kick stays in first person), queued next by the user.
+
+## 2026-09-29 - D12 framing pass 2 (Needs playtest)
+
+User accepted knife, axe, pistol, Devastator, pipe bomb/dynamite/Holy Hand
+Grenade, flamethrower (slot 9, key 8), double barrel (slot 6, key 9) and
+crossbow as they look; "this is all polish, everything is working". Retuned:
+shotgun (slot 5, key 3) less sideways, offset (30, -15, 0), tilt 3 / -15;
+gatling (slot 7, key 4) at the bottom edge pointing up toward the crosshair,
+offset (30, 55, 290), tilt 8 / -22 / roll 10; energy weapon (slot 10, key 7)
+and freezer (slot 11, key 0) scaled 1.4, raised 20, tilted -12 (freezer yaw
+-10) so more barrel and tip show. Bringing them closer made them vanish (the
+hand joint fell inside the near cull), so scale is used instead. Captured at
+rest and firing (freezer effect at its tip). Binary
+`29a31eb40642108e1c8b9b1f319e17e81fcb6b2139ed45a9d8ef2a728429146e`. Next job remains D12A.
+
+## 2026-09-29 - D12 framing pass 3 (Needs playtest)
+
+User: shotgun (key 3) and number 4 should have the grip lower and the muzzle
+raised so they point at the crosshair; number 9 a slight version of the same;
+5, 6, 7 and 8 fine. Pitch tilts: slot 5 -12 (yaw -15), slot 7 -8 (yaw -22,
+roll 10), slot 6 -6. Negative pitch raises the muzzle (the code comment had
+the sign backwards; corrected). Captured at rest and firing (flash at the
+barrel tips). Binary
+`f56bc9a570014a30a386efcc31e9f955872508f5c58e26d512b5325d1f8f7b3d`. Next job remains D12A.
+
+## 2026-09-30 - D12 framing pass 4: hide the floating hand (Needs playtest)
+
+User: pass 3 "absolutely phenomenal"; asked whether positioning alone can
+hide the gap where Duke's arm is missing (a floating hand), for example by
+lowering the pistol toward the bottom of the screen as the gatling already
+is. All weapons reviewed: the pistol (slot 4) and knife (slot 1) showed a cut
+wrist; the others already run off the bottom edge. Pistol offset (-10, 65, 0),
+tilt -10 (muzzle raised so it still points at the crosshair); knife offset
+(-60, 60, 0). The glove now enters from the bottom edge; pistol flash stays
+on the muzzle, stable looking down. Binary
+`08af082dc6d5bb750120a7927ede9757d6233c5c1c4cbcb4544fade3c6bf5741`. Next job remains D12A.
+
+## 2026-09-30 - D12 framing pass 5 (Needs playtest)
+
+User: numbers 3 and 4 a bit lower, tilted very slightly to the right, and
+re-aimed at the crosshair. Shotgun (slot 5) offset (30, 10, 0), tilt -16 /
+-15 / roll 6; gatling (slot 7) offset (30, 80, 290), tilt -12 / -22 / roll 16.
+A yaw-only alternative (muzzle turned 4 degrees right instead of a lean) was
+captured and left as an override. Captured at rest and firing. Binary
+`cc33b1e015057ae21b84052d9e9bb3fa0c90935f4fabcb4e1f6a2c5fdb28f7c6`. Next job remains D12A.
+
+## 2026-09-30 - D12 framing pass 6 (Needs playtest)
+
+User accepted the shotgun (number 3). Number 4 (gatling, slot 7) moved about
+"two inches to the right" at 1080p (view x 30 -> 110) and re-aimed at the
+crosshair (yaw -22 -> -26); a -31 yaw variant turned too far across.
+Captured at rest and firing. Binary
+`65226a9d8b4335f67b955b35af1172fb6a42357adcbd0027c97ebd5744612798`. Next job remains D12A.
+
+## 2026-09-30 - D12 accepted (Done)
+
+User: "finally, we can mark this as accepted!!" D12 moves to Done on explicit
+user acceptance after six framing passes, with the automated evidence in the
+earlier entries. Recorded limits stand: instant holster/draw, right hand only,
+reload/pump motion replaced by the flash kick, projectiles leave from Duke's
+real hand, first-map street and club coverage only. Binary
+`65226a9d8b4335f67b955b35af1172fb6a42357adcbd0027c97ebd5744612798`. Next: D12A (kick stays in first person).

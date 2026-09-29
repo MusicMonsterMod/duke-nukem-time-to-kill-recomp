@@ -187,8 +187,11 @@ python3 recomp/tools/local/run.py --camera-distance 3000 --shoulder right --show
 **P** toggles **first person** (prototype, Modernized with the independent
 camera). The view moves to Duke's eyes with a wider field of view; the mouse
 looks, WASD moves relative to the view, and shots go to the crosshair. Crouch
-lowers the view, and jumps keep it. Duke's head and body are hidden, and no
-held weapon is drawn yet. Swimming and jetpack flight switch back to third
+lowers the view, and jumps keep it. Duke's head and body are hidden. With a weapon
+drawn you see Duke's own gloved hand holding it at the lower right, always in
+front of walls, with the original muzzle flash and a small kick when firing.
+Each weapon is framed to point at the crosshair; the HUD stays on top. Holstering or drawing makes it disappear or
+appear at once. Swimming and jetpack flight switch back to third
 person on their own and return when you land; ladders, ledges, scripted and
 turret cameras, death and menus use the original camera as before. Pressing P
 again returns to third person. The choice is saved; to set it without

@@ -38,7 +38,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D07A | View-aligned Duke facing and weapon presentation | Done | D07 |
 | D07B | Optional assisted view aiming and display controls | Done | D07 |
 | D07C | Unified Duke3D-style aiming, facing and projectile coverage | Done | D07, D04 |
-| D07D | Hide the original red autoaim dot by default in Modernized (crosshair only) | Todo | D07B, D07C |
+| D07D | Red autoaim dot off by default in Modernized (crosshair only) | Todo | D07B, D07C |
 | D08 | Modern traversal controls — accepted iteration | Done | D05, D06, D07 |
 | D08A | EDuke32-style weapon and item shortcuts | Done | D04, D08 |
 | D08A1 | Visible EDuke32-style inventory cycling | Done | D04, D19A |
@@ -264,16 +264,18 @@ shows it by default. Suppression lives in `marker_hook` in
 `g_precise_mode`, `g_ls_mode` or `g_psx_call_bail` is set, so the dot can
 still appear during right-mouse precision aim and in some other states.
 
-**Acceptance:** in Modernized with `view` weapon aiming, the red dot is hidden
-by default and only the modern crosshair shows, in third and first person,
-for every supported weapon and during held aim, jetpack flight, swimming and
-scripted cameras. A profile migration turns it off for existing Modernized
-profiles that still hold the old default. Record how an explicit user choice
-is told apart from that default. The setting stays available for anyone who
-wants the dot back. With `original` weapon aiming or original camera, where
-the modern crosshair is hidden, the dot stays as the original marker. Hiding
-the dot must not change aim assistance, autoaim target acquisition or damage.
-Vanilla is unchanged. Update the manual examples that pass `--red-dot off`.
+**Acceptance (user, 2026-09-30: "in modernized, it should be off by
+default"):** the red dot is off by default in Modernized, regardless of the
+weapon aiming or camera option, and only the modern crosshair shows, in third
+and first person, for every supported weapon and during held aim, jetpack
+flight, swimming and scripted cameras. A profile migration turns it off for
+existing Modernized profiles that still hold the old default. Record how an
+explicit user choice is told apart from that default. The setting stays
+available for anyone who wants the dot back (note in the manual that
+`original` weapon aiming hides the modern crosshair, so turning the dot back
+on is the way to get a marker there). Hiding the dot must not change aim
+assistance, autoaim target acquisition or damage. Vanilla is unchanged and
+keeps the dot. Update the manual examples that pass `--red-dot off`.
 
 ### D08 — Modern traversal controls — accepted iteration
 

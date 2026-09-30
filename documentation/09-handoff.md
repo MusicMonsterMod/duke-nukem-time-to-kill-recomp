@@ -3,9 +3,9 @@
 ## 2026-09-30 - D07D added (no red autoaim dot in Modernized)
 
 New Todo D07D: the user finds the original red autoaim dot next to the modern
-crosshair confusing. Default `red_dot` off in Modernized view aiming (with
-profile migration), cover every state where `marker_hook` currently steps
-aside, and keep the dot for `original` aiming and Vanilla. Next job: the user
+crosshair confusing. `red_dot` is off by default in every Modernized profile
+(with profile migration), covering every state where `marker_hook` currently
+steps aside; the option stays, and Vanilla keeps the dot. Next job: the user
 chooses from the board.
 
 ## 2026-09-30 - D08T1 added (E always mantles, hold RMB to grab)

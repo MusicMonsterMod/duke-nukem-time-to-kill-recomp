@@ -14,7 +14,10 @@ and independent pitch. TTK's red marker is original autoaim, not a laser sight.
 A later assisted-view-aim setting needs weapon-specific research; the existing
 Original weapon aiming option remains available. EDuke32 source was read as a reference; no EDuke32 code was incorporated into the player build.
 
-## HRP (D16A, later)
+## HRP (D16A, cancelled)
+
+D16A was cancelled on 2026-09-30: original TTK assets are the chosen direction.
+Original inventory icons for the switcher are tracked as D08A3.
 
 [HRP](https://hrp.duke4.net/) is built for Duke Nukem 3D/EDuke32. Its site describes
 replacement models and high-resolution textures. The 5.5 release notes list

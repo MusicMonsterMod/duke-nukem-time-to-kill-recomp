@@ -1,5 +1,19 @@
 # Next-session handoff
 
+## 2026-09-30 - D17 expanded to high refresh rate rendering
+
+User brief for Match Display / 30-240 / Unlimited rendering without changing
+gameplay timing was folded into D17 (still Todo, depends on D01, D13). Brief:
+`documentation/68-d17-high-refresh-brief.md`. Audit and plan first. Next job: the
+user chooses from the board.
+
+## 2026-09-30 - D16A cancelled; D08A3 added
+
+D16A (HRP research) is Cancelled by the user; original TTK assets are the
+direction. New Todo D08A3: extract original TTK medkit/biomask/jetpack/steroids
+(and goggles) icons to PNG and rebuild `ttk-inv-icons.pack` so the switcher no
+longer uses Duke3D tiles. Next job: the user chooses from the board.
+
 ## 2026-09-30 - D13 Done (user accepted)
 
 User: "correct correct correct, D13 is good. I'd say let's approve it." Final

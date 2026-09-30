@@ -42,6 +42,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08A | EDuke32-style weapon and item shortcuts | Done | D04, D08 |
 | D08A1 | Visible EDuke32-style inventory cycling | Done | D04, D19A |
 | D08A2 | EDuke32 bottom-left inventory icon and green % | Done (revised: strip + green %) | D08A1, D19A |
+| D08A3 | Original TTK inventory icons for the switcher (replace Duke3D art) | Todo | D08A2 |
 | D08B | Broader traversal and scripted-camera coverage | Done | D08 |
 | D08C | Directional jumps from standstill — accepted both input orders | Done | D08 |
 | D08D | Apartment light-switch secret convenience | Done | D08 |
@@ -80,8 +81,8 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D14 | Widescreen, FOV and visibility | Todo | D03, D13 |
 | D15 | Optional geometry and texture precision | Todo | D13 |
 | D16 | Texture filtering and game-specific HD assets | Todo | D13 |
-| D16A | HRP assets and first-person weapon research (later) | Todo | D11, D13, D16 |
-| D17 | Presentation smoothness without faster simulation | Todo | D01, D13 |
+| D16A | HRP assets and first-person weapon research (later) | Cancelled (original assets preferred) | - |
+| D17 | High refresh rate rendering without faster simulation (Match Display, 30-240, Unlimited) | Todo | D01, D13 |
 | D18 | FMV and audio presentation safeguards | Todo | D01, D02 |
 | D18A | Voice/music/gunfire crackle investigation | Done | D01, D02 |
 | D18B | Concurrent voice with music (no music mute) | Todo | D18, D21 |
@@ -365,6 +366,30 @@ EDuke CROSSHAIR `tile2523` also landed (aim display). Evidence:
 **Acceptance (revised):** brackets show the picker; Enter/U use always while
 captured; M is message-only; no persistent bottom-left host gadget; Vanilla
 preserved.
+
+### D08A3 - Original TTK inventory icons for the switcher
+
+The D08A2 switcher draws its gadget icons from Duke3D/EDuke32 tiles
+(`research/inv`, packed into `recomp/assets/ttk-inv-icons.pack`, format
+`TTKICO2`, loaded by `recomp/src/ttk/inventory_hud.cpp`). Replace them with
+Time to Kill's own item art: extract the original TTK medkit, biomask, jetpack
+and steroids images (and night-vision goggles, which the switcher also shows)
+from the player's disc data, render them to PNG for review, then rebuild the
+icon pack from those PNGs.
+
+Locate the art from the original HUD/menu inventory display or the pickup
+sprites/models, whichever is the game's own 2D icon; record source file, offset,
+CLUT/palette and any transparency handling. Steroids activate on pickup and are
+not a switcher entry today; extract their icon anyway and use it only where a
+steroids icon is actually displayed, without adding a new switcher item. Keep
+the extracted PNGs local only (retail-derived, like `research/`); the extractor
+script and provenance notes may be documented.
+
+**Acceptance:** PNGs for each item match the in-game original art (checked
+against the vanilla inventory display or pickups); the switcher shows TTK icons
+at readable size in the locked 50x60 cell with the green % and ARROW frame
+unchanged; the pack builder is reproducible from the disc; a missing pack still
+falls back cleanly; Vanilla unchanged. User confirms the look in play.
 
 ### D08B — Broader traversal and scripted-camera coverage
 
@@ -1258,6 +1283,12 @@ Offer tested nearest/filtered presentation and investigate a narrowly scoped rep
 
 ### D16A — HRP assets and first-person weapon research (later)
 
+**Cancelled (2026-09-30, user decision).** The first-person weapons and other
+presentation work built from the original TTK meshes and assets is the chosen
+direction; HRP import or adaptation is unnecessary. The only follow-up kept is
+replacing the Duke3D-sourced switcher icons with original TTK art, tracked as
+**D08A3**. The text below is kept for history.
+
 Investigate the [Duke Nukem 3D High Resolution Pack](https://hrp.duke4.net/)
 as a future source/reference for weapons, interface, HUD/overlays and optional
 3D model replacement. Prioritize first-person weapon presentation for D12.
@@ -1277,6 +1308,33 @@ Keep additional user-supplied research topics as separate scoped backlog entries
 See [external research register](documentation/23-external-research.md).
 
 ### D17 — Presentation smoothness without faster simulation
+
+**Scope expanded 2026-09-30 (user brief):** arbitrary / high refresh rate
+rendering. Full brief: [D17 high refresh brief](documentation/68-d17-high-refresh-brief.md).
+Render frequency must be separated from gameplay timing: rendering at 180 FPS
+must not run game logic 3x faster, and 30 FPS must not slow it down. Frame-rate
+option: **Match Display** (preferred default; the refresh rate of the display
+actually presenting the window, handling moves between monitors, never a
+hardcoded 180 Hz), **30 / 60 / 120 / 144 / 165 / 180 / 240 FPS**, and
+**Unlimited**. Use interpolation (player/camera, actors, projectiles, moving
+sectors) where the data permits and it cannot change gameplay; mouse look must
+not feel quantized to a lower rate; frame delivery must be evenly paced, not just
+a good average. Audit every system listed in the brief rather than assuming
+frame independence. Current 60 FPS is the known-good baseline and must not be
+destabilized; 30 FPS stays as a compatibility and regression mode.
+
+**First step when selected:** audit and a short technical plan (what sets
+simulation frequency, render frequency, remaining frame-dependent systems,
+current display refresh detection, where interpolation or delta-time
+conversion is needed, and a safe staged path) before any timing-model change.
+Until D19 menus exist, the option follows the D13 pattern (profile setting,
+launcher/runtime flag). Vanilla keeps its original timing.
+
+**Acceptance (expanded):** a repeatable numeric comparison at 30 / 60 / 120 /
+180 / 240 FPS (known-distance walk/run, jump, fall, jetpack, camera rotation,
+auto and semi-auto fire, projectile travel, enemy movement, doors/lifts, animations,
+timers/scripts) shows equivalent gameplay; measured frame times match the target
+cadence; 60 FPS behaviour is unchanged; plus the original criteria below.
 
 Measure unique rendered frames, guest timing, host presentation and input latency independently. Investigate interpolation only where the game's data permits it; reset interpolation across teleports, room loads and camera cuts.
 
@@ -3653,3 +3711,20 @@ The user reported that in the first subway area's shallow water, A/D (with
 Shift) plus Space always jumps forward, so sideways jumps are impossible.
 Added D08W (depends on D08, D08C) to fix later. No code changed.
 
+## 2026-09-30 - D16A cancelled; D08A3 backlogged (Todo)
+
+User: the work done with the original assets "is the way to go"; HRP is
+"probably unnecessary, considering how far we've taken it". D16A is Cancelled.
+As its only replacement, D08A3 (depends on D08A2) will extract the original TTK
+medkit, biomask, jetpack, steroids (and goggles) art to PNG and swap it into the
+inventory switcher in place of the Duke3D tiles. No code changed.
+
+## 2026-09-30 - D17 scope expanded: high refresh rate rendering (Todo)
+
+The user supplied a backlog brief for arbitrary / high refresh rate support.
+It overlaps D17 (presentation smoothness without faster simulation), so D17 was
+expanded rather than duplicated: Match Display / 30-240 / Unlimited frame-rate
+option, render timing decoupled from gameplay, interpolation, mouse-look
+responsiveness, pacing, and a numeric 30/60/120/180/240 comparison. The full
+brief is [documentation/68-d17-high-refresh-brief.md](documentation/68-d17-high-refresh-brief.md).
+Audit and plan come first when selected. No code changed.

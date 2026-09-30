@@ -68,3 +68,4 @@ Update `00-status.md` after meaningful tests. Keep raw evidence and exact comman
 - [D08T pushable objects: modern grab, push/pull and climb](64-d08t-pushable-objects.md)
 - [D12A first-person quick kick](65-d12a-first-person-kick.md)
 - [D08L inertial platform edge run-off](66-d08l-edge-run-off.md)
+- [D17 high refresh rate brief](68-d17-high-refresh-brief.md)

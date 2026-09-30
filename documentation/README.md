@@ -69,3 +69,4 @@ Update `00-status.md` after meaningful tests. Keep raw evidence and exact comman
 - [D12A first-person quick kick](65-d12a-first-person-kick.md)
 - [D08L inertial platform edge run-off](66-d08l-edge-run-off.md)
 - [D17 high refresh rate brief](68-d17-high-refresh-brief.md)
+- [D08T1 grab / manipulate brief](69-d08t1-grab-manipulate-brief.md)

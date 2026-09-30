@@ -64,6 +64,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08Q1 | Faster Modern jetpack Ctrl descent (underwater dive speed) | Done | D08Q |
 | D08S | Duke3D-style jetpack scheme (instant J on/off, midair) | Cancelled (may revisit) | D08R |
 | D08T | Pushable objects: modern grab/push/pull and climb (alley dumpster) | Done | D08 |
+| D08T1 | Separate push/pull from mantling: E always mantles, hold RMB to grab | Todo | D08T, D04 |
 | D08U | Top-of-ladder mount: grab a ladder from a platform and climb down | Todo | D08, D08J |
 | D08V | Sewer mantle/hang modern-control coverage (slot 12 area) | Todo | D08, D08B |
 | D08W | Subway shallow-water sideways jumps (A/D + Space jumps forward) | Todo | D08, D08C |
@@ -1008,6 +1009,39 @@ climbable pushable object climbs instead of jumping. Details:
 Binary `941593c077bae11e441ce8a89832f2292f97934681648eba08df4b7c36b1e0ac`.
 
 **2026-09-30 - Done (user-accepted).** User playtest: "it works so much better than the original now. this is it rock solid. confidence level is very high." Remaining limits above stay recorded (only the dumpster checked).
+
+### D08T1 - Separate push/pull manipulation from mantling
+
+**User brief (2026-09-30), backlog only:** the accepted D08T controls make an
+invisible object property change the traversal controls. On a pushable object
+**E** grabs and **Space** climbs, while everywhere else **E** mantles. The
+user wants pushability to add a verb, not remap one: **E** always mantles (a
+pushable object mantles exactly like an equivalent non-pushable one), and a
+new rebindable **Grab / Manipulate** action, **held**, grabs the object:
+**W/S** push/pull while held, and releasing it lets go. There is no toggle and
+no E LET GO. The default is **right mouse** in Modernized. The user decided
+Modernized does not need right-mouse precision aim, since view aiming already
+covers it. Vanilla keeps precision aim. Proposed: Alt is a second Grab
+binding everywhere in Modernized, and the only one when legacy `original`
+weapon aiming keeps RMB as precision aim (confirm at job start). Full
+brief, including the other-input and interruption cases, the HUD text
+(`W/S PUSH/PULL - RELEASE RMB TO LET GO`, using the live binding label if
+possible) and the test list:
+[documentation/69-d08t1-grab-manipulate-brief.md](documentation/69-d08t1-grab-manipulate-brief.md).
+
+**Before implementing:** document how the current E/Space exception is built
+(`recomp/src/ttk/push.inc`, `pc_input.cpp`, hook `0x80051cf0`). Audit every
+Mouse2 / `original_aim` path in Modernized, including the D08Q aim-held
+flight lease. Mantleable and manipulable stay independent capabilities, with
+no dumpster-specific special case. Also check whether E while grabbing can
+release and mantle cleanly. Release RMB then E must mantle at minimum.
+
+**Acceptance:** normal and pushable objects both mantle with E; hold RMB
+grabs, W/S push/pull with the existing D08T mechanics, and release disengages;
+grab -> push -> release -> mantle and mantle -> leave -> grab -> pull ->
+release repeat without stale state; RMB against ordinary geometry does
+nothing odd; obstruction, damage, falling/separation, object loss and pause
+end the grab cleanly. Third and first person. Vanilla unchanged.
 
 ### D08U - Top-of-ladder mount: grab a ladder from a platform and climb down
 

@@ -1,5 +1,16 @@
 # Next-session handoff
 
+## 2026-09-30 - D08T1 added (E always mantles, hold RMB to grab)
+
+New Todo D08T1 from a user brief: pushable objects must not change traversal
+controls. E always mantles; a new rebindable held Grab / Manipulate action
+(default right mouse in Modernized, where precision aim is not needed; Vanilla
+keeps it; Alt is the proposed second binding and the legacy-aim grab)
+grabs, W/S push/pull, release lets go. Audit the Mouse2 /
+`original_aim` paths first. Brief:
+`documentation/69-d08t1-grab-manipulate-brief.md`. Next job: the user chooses
+from the board.
+
 ## 2026-09-30 - D08X added (hold-E ledge grab)
 
 New Todo D08X: in Modernized, holding E while jumping toward a ledge at

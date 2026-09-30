@@ -1,5 +1,24 @@
 # Next-session handoff
 
+## 2026-09-30 - D08L Done (user accepted)
+
+User: "im happy with that!" Final binary `a16c13ca3bd9cba5e864213fdc6ba57526a976cbe2be8df7301f85b0bd697eb8`. Next job: the user chooses
+from the board (remaining Todo includes D09, D13, D19B, D20).
+
+## 2026-09-30 - D08L inertial edge run-off (accepted)
+
+Running falls over 768 that directly follow a ground stride now get the D08F
+short-fall lease (`recomp/src/ttk/terrain.inc`, previous-animation gate 72..79,
+`large_fall`, counter `run_offs`); all departures capped 10000 running / 2048
+walking in the `0x8003ebf4` ballistic hook (`modern_controls.cpp`). Note: the
+adapter never sees mode 9/0 on the first fall update (already 9/9), so do not
+gate on it. Test state: `recomp/analysis/d08l-edge/apt-cards` slot 1
+(apartment), 2 (on the bed), 3 (fire-escape platform, run west off the end);
+probes port 9191, display :91 (`probes/start.sh`, `stop.sh`, `tr.py`).
+Previous binary `before.bin` (`1452391c...`). Open follow-ups: other
+exterior ledges, very high falls. Binary
+`a16c13ca3bd9cba5e864213fdc6ba57526a976cbe2be8df7301f85b0bd697eb8`.
+
 ## 2026-09-30 - D12A Done (user accepted)
 
 User: "its done! accepted. ... this has been yet another amazing feat of engineering." Final binary `1452391c97b4eb59df0e7482a939d48673e1270cacae2b52a51d9a54e115e956`. Next job: the user

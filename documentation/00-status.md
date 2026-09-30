@@ -1,5 +1,18 @@
 # Current status - 2026-09-30
 
+**D08L inertial edge run-off - Done (user: "im happy with that!").** Running off a large ledge in
+Modernized no longer brakes: on the fire-escape platform outside the apartment
+window the original fall cut Duke from ~47 to 16.5 units per frame (velocity
+3058) and froze the mouse camera; he now keeps his running speed (9172) and
+the camera through the fall and lands into his run. Walking still stops at
+large edges (original), the running jump is unchanged and the late-jump grace
+still applies to small drops only. Every edge departure is capped below the
+running jump (a run-start stride spike could launch the bed run-off at 14000).
+Vanilla route exit 0; native suites and Python PASS. Limit: only this
+platform and the bed were measured. Details:
+documentation/66-d08l-edge-run-off.md. Binary
+`a16c13ca3bd9cba5e864213fdc6ba57526a976cbe2be8df7301f85b0bd697eb8`.
+
 **D12A first-person quick kick - Done (user: "its done! accepted. ... this has been yet another amazing feat of engineering.").** In the Modernized eye
 view, **Q** is now a short Duke 3D style kick: Duke's own right leg (original
 meshes, posed from the original straight front kick) snaps out in front of the

@@ -53,7 +53,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08I | Responsive run-start and edge jumps | Done | D08 |
 | D08J | Armed airborne ladder grabs and automatic weapon transitions | Done | D08, D08E |
 | D08K | True crouch walking and animation feasibility | Blocked | D08 |
-| D08L | Inertial platform edge run-off | Todo | D08 |
+| D08L | Inertial platform edge run-off | Done | D08 |
 | D08M | Modern underwater swimming controls (foundation) | Done | D08 |
 | D08O | Deep free-swim polish (strafe, Ctrl dive, mantle-only exit) | Done | D08M |
 | D08N | Duke3D-style scuba gear item | Cancelled (out of scope) | — |
@@ -615,7 +615,13 @@ by materially different stow tracks rather than assumed from the pistol.
 
 ### D08L — Inertial platform edge run-off
 
-**Todo from 2026-09-27 playtest.** Running off platform edges still feels like it
+**Done - user accepted (2026-09-30): "im happy with that!"** Measured brake removed on large ledges: the
+fire-escape platform run-off dropped from ~47 to 16.5 units per frame (original
+fall velocity 3058) and lost mouse look; it now keeps stride speed (9172) and
+the camera through the fall. Stride spikes (14000) on small drops are capped
+below the running jump. See [D08L note](documentation/66-d08l-edge-run-off.md).
+
+**Original report, 2026-09-27 playtest.** Running off platform edges still feels like it
 brakes versus Duke3D’s continuous inertial departure. Investigate original gait /
 support / edge handlers versus Modernized stride bridging; deliver a bounded
 Modernized change only after a failing comparison is recorded. Preserve collision,
@@ -3381,3 +3387,33 @@ entries. Recorded limits stand and were accepted: no knockback, lower damage
 per kick than a point-blank original kick, right leg only, first street and
 alley coverage only (the subway pallet was not located). Binary
 `1452391c97b4eb59df0e7482a939d48673e1270cacae2b52a51d9a54e115e956`.
+
+## 2026-09-30 - D08L inertial edge run-off (Needs playtest)
+
+Failing comparison first (isolated instance, private apartment-state copies,
+real keys): the apartment bed run-off and walk-off were already continuous
+(~47.5 and ~9.5 per frame), but running off the fire-escape platform outside
+the apartment window (drop >= 2048) fell at 3058 (16.5 per frame, a third of
+run speed) with the mouse camera frozen, because the D08F short-fall lease
+only covered 256-768 drops. Also found: the stride estimate can spike to its
+14000 clamp at a run start, so 1 of 8 bed run-offs left faster than a running
+jump (same on the pre-change binary). Change, Modernized only: the lease now
+also covers a running fall over 768 that directly follows a ground stride;
+every departure is capped at 10000 running (running jump 10085) or 2048
+walking; edge-jump grace stays 768-only. After: platform run-off 9172 through
+the fall, 2700 units of air travel, running landing; mouse look live in third
+and first person; running jump unchanged; Space mid-fall gives no jump; walking
+still stops at the edge; bed spike capped at 10000, other samples unchanged.
+Native suites (new run-off cases), Python (74, 2 skipped) and Vanilla route
+`d08l-vanilla-1` exit 0. Limits: feel unconfirmed; only this platform and the
+bed measured; very high falls and wall-adjacent ledges not swept. Details:
+[D08L note](documentation/66-d08l-edge-run-off.md). Binary
+`a16c13ca3bd9cba5e864213fdc6ba57526a976cbe2be8df7301f85b0bd697eb8`.
+
+## 2026-09-30 - D08L accepted (Done)
+
+User: "im happy with that!" D08L moves to Done on explicit user acceptance of
+the inertial run-off, with the automated before/after evidence in the previous
+entry. Recorded limits stand: only the fire-escape platform and the apartment
+bed were measured; very high falls and wall-adjacent ledges were not swept.
+Binary `a16c13ca3bd9cba5e864213fdc6ba57526a976cbe2be8df7301f85b0bd697eb8`.

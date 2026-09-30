@@ -460,8 +460,10 @@ Original action descriptions were checked against the [USA instruction manual](h
 ### Furniture movement
 
 Contact furniture jumps wait for the original foot position to clear the obstacle
-before adding forward travel. Small furniture drops retain approach speed; large
-falls keep their original behavior. The apartment's concealed pipe bombs wait for
+before adding forward travel. Running off any ledge keeps Duke's running speed
+into the fall, like Duke 3D, and the mouse camera stays live until he lands
+(never faster than a running jump). Walking off small furniture drops keeps
+walking speed; walking still stops at large ledges. The apartment's concealed pipe bombs wait for
 the bed secret to open. Nearby switch targeting is more forgiving; the original
 interaction and lights-before-dialogue secret remain. Vanilla retains its original
 rules. Bed/couch contact, walk/run departures and release checks passed privately;

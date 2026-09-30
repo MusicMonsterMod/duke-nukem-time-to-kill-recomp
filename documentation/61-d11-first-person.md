@@ -18,7 +18,7 @@ original obstruction rays, room update and height queries all still run.
 | Anchor | `0x80039c7c` puts the camera at anchor - forward x `camera[+0x42]`/2. | The anchor is requested half a projection distance (193) ahead of the eye. |
 | Minimum distance | `0x8003aa48` pushes the camera back out to the word at `0x800c3c48` (768). Only this routine reads it. | Written to 768 x (1 - blend) at that call. Restored to the executable's constant at the update's next hooks (`0x8002a038`, `0x8002a7fc`) and on the next camera entry. A relaxed value that was captured (save state, debug read) is repaired, never adopted. |
 | Follow lag | The update eases per view axis with `0x8002a038(delta, rate)` = delta/rate, rates from the state table `0x800c0d4c` (2/5/4 on the ground). Unchanged, the eye trailed the neck by 250-550 units while running. | Rates scaled toward 1 at the three calls from that update (return `0x8003af40/60/80`, same frame). |
-| Head | `0x800348d8` draws an actor joint by joint and skips a joint whose record flag byte has bit 0. | Bit 0 set on Duke's joint 9 record only from Duke's draw entry (`ra 0x8003769c`) to the next object-list step (`0x8001ca4c`, `ra 0x800376b4`). |
+| Head | `0x800348d8` draws an actor joint by joint and skips a joint whose record flag byte has bit 0. | Bit 0 set on Duke's joint 9 record only from Duke's draw entry (`ra 0x8003769c`) to the next object-list step (`0x8001ca4c`, `ra 0x800376b4`). D11C: an unowned bit found at Duke's draw entry (a save state captured inside that window) is cleared in either view; the original never sets bit 0 on a joint record. |
 | Body | The same draw loop skips joints nearer than GTE H (`0x800b4d2c` reads control register 26). | None. The body is culled when looking down (joints are within H). The weapon is not visible either; that is D12. |
 | Projection | Camera `+0x40` holds the view angle (512 = 45 degrees). `0x800286b0` derives `+0x42` = 160/tan(22.5) = 386. The render loads GTE H from `+0x42` every frame via `0x800b4d9c` (from `0x8002e4c8`). The world renderer flags vertices nearer than H/2 (`0x8002f1e0`). | The eye view passes 256 there (about 64 degrees wide; near 128 instead of 193). `camera[+0x42]` is never written. Developer override `DNTTK_FP_PROJECTION=160..386` (not a saved preference). |
 | Plain jumps | A Space-only standing jump has no D08C flight lease, so the orbit dropped to the original camera. | While the eye view is live, a jump keeps a camera-only lease through animations 96-98, 103-105 and 109. No velocity redirect, no `flight_valid`. Third person is unchanged. |
@@ -32,7 +32,7 @@ menus) switch to the original camera at once, as before.
 New `game.local.toml` hooks: `0x800348D8`, `0x8002A038`, `0x800B4D9C`
 (`0x8001CA4C` was already hooked). Debug JSON `ttk_input` -> `controls` -> `fp`:
 `requested`, `supported`, `blend`, `reason` (off/active/unsupported/lease/orbit),
-`updates`, `fallbacks`, `follows`, `head_hides`, `head_flag`, `min_boom`,
+`updates`, `fallbacks`, `follows`, `head_hides`, `head_reclaims` (D11C), `head_flag`, `min_boom`,
 `projection`, `projections`.
 
 ## Evidence

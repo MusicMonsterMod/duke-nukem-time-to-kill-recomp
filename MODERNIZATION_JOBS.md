@@ -76,7 +76,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D11A | Scroll-wheel zoom lock into first-person | Cancelled (P toggle suffices) | - |
 | D12 | First-person weapons and state polish | Done | D11 |
 | D12A | First-person quick kick without leaving the eye view | Done | D12 |
-| D11C | Savestates can keep Duke's first-person head hidden (slot 12) | Todo | D11 |
+| D11C | Savestates can keep Duke's first-person head hidden (slot 12) | Done | D11 |
 | D13 | Higher internal resolution and display scaling | Done | D02 |
 | D14 | Widescreen, FOV and visibility | Todo | D03, D13 |
 | D15 | Optional geometry and texture precision | Todo | D13 |
@@ -1189,6 +1189,11 @@ without FOV hacks alone; unlock returns to the preferred third-person distance;
 unsupported states fall back cleanly; aiming/movement remain coherent.
 
 ### D11C - Savestates can keep Duke's first-person head hidden (slot 12)
+
+**Done - user accepted 2026-09-30:** "duke's head is back, mark as complete! well done". A stale head-hide bit is reclaimed at Duke's
+next draw in either view, so loading slot 12 (or any save taken in first
+person) shows the head again. Verified that the original never sets bit 0 on
+a joint record. The save file itself is not rewritten. See the work log.
 
 **Found 2026-09-30 (user noticed it was specific to slot 12):** in the eye
 view, `first_person_draw` (`recomp/src/ttk/first_person.inc`) sets bit 0 of the
@@ -3728,3 +3733,51 @@ option, render timing decoupled from gameplay, interpolation, mouse-look
 responsiveness, pacing, and a numeric 30/60/120/180/240 comparison. The full
 brief is [documentation/68-d17-high-refresh-brief.md](documentation/68-d17-high-refresh-brief.md).
 Audit and plan come first when selected. No code changed.
+
+## 2026-09-30 - D11C stale head-hide reclaim (Needs playtest)
+
+Chose the load-side option: it also repairs saves that already carry the bit
+(slot 12) and rewind snapshots, needs no runtime patch and no save-time write.
+`first_person_draw` (`recomp/src/ttk/first_person.inc`) now takes Duke's draw
+(`duke`, identity checked) separately from the eye view (`eye`). At Duke's
+draw entry, after releasing our own hide, a bit 0 still set on Duke's joint 9
+record is unowned and is cleared, keeping the record's other flag bits; in
+first person the normal hide then takes ownership as before. New debug counter
+`fp.head_reclaims`. Vanilla is unchanged (the hook returns before any
+Modernized work).
+
+Original-game check (static, owned disc): in `SLUS_005.83` the only joint
+record flag writes are `ori 4` at `0x8009d974` and `0x800a33c8` (bit 4). None
+of the 30 unique `.OVR` payloads stores a byte at `+0x44` or sets bit 0 on a
+joint record; the executable's five byte `|1` read-modify-writes are other
+structures (GPU primitive code byte `+7`, `+3`, `+0x27e`). The head joint is
+never hidden by the game itself, so clearing an unowned bit cannot undo a real
+hide. Dynamic tracing of every level was not done.
+
+Evidence:
+- `ttk-controls-test` PASS with new cases: in third person a record of `0x11`
+  becomes `0x10` at Duke's draw (other actors and the other draw loop leave it
+  alone; counter +1); in first person a stale bit is adopted for that draw and
+  released at the list step. `ttk-input-test`, `ttk-aim-test` PASS; Python 82
+  OK (2 skipped).
+- Private copy of slot 12 (`recomp/analysis/d13-resolution/cards`, identical
+  to the player's file, which was not touched), run `d11c-fixed`, Xvfb :93,
+  Modernized third person: after load Duke's joint flags are all `00`,
+  `head_reclaims` 1, and the head is drawn
+  (`runs/d11c-fixed-third.png`). P into first person: head hidden, 29 hides,
+  no further reclaims, bit clear between frames; back to third person, head
+  shown. Six saves taken in first person on private slots 4-9 all load with
+  the bit clear (none happened to land inside the draw window).
+- Player binary `d14b04f062dc88271fa9072288f0b37a170637563309920f2c92e139eb908f58`.
+
+Remaining: the user's own confirmation that slot 12 shows Duke's head. A save
+still stores the bit if taken inside the window; it is harmless only with this
+build, and loading such a save in Vanilla (no hooks) would still show a
+headless Duke. The slot-12 file is not rewritten.
+
+## 2026-09-30 - D11C accepted (Done)
+
+User, after loading slot 12: "duke's head is back, mark as complete! well
+done". D11C is Done. Remaining, recorded: a save taken inside the draw window
+still stores the bit (cleared on load in Modernized; Vanilla would still show
+it headless), and the slot-12 file is not rewritten. Binary `d14b04f062dc88271fa9072288f0b37a170637563309920f2c92e139eb908f58`.

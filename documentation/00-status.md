@@ -20,6 +20,13 @@ D11C (the slot-12 headless Duke: a first-person head-hide flag saved inside
 the savestate). Details: documentation/67-d13-resolution-display.md. Binary
 `79e8cc5c579e7afa50f13b312e253d5104da5cdf82a51535245b171a20f1086b`.
 
+**D11C slot-12 headless Duke - Done (user: "duke's head is back").** A first-person head-hide
+bit captured in a savestate is now reclaimed at Duke's next draw (Modernized,
+either view). The original never sets that bit (static check of the executable
+and all overlays). Headless check on a private slot-12 copy: head shown in
+third person, still hidden in first person. Binary
+`d14b04f062dc88271fa9072288f0b37a170637563309920f2c92e139eb908f58`.
+
 **D08L inertial edge run-off - Done (user: "im happy with that!").** Running off a large ledge in
 Modernized no longer brakes: on the fire-escape platform outside the apartment
 window the original fall cut Duke from ~47 to 16.5 units per frame (velocity

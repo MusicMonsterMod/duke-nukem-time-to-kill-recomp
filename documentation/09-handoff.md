@@ -1,5 +1,19 @@
 # Next-session handoff
 
+## 2026-09-30 - D11C Done (user accepted)
+
+User: "duke's head is back, mark as complete! well done". Binary `d14b04f062dc88271fa9072288f0b37a170637563309920f2c92e139eb908f58`. Next
+job: the user chooses from the board.
+
+## 2026-09-30 - D11C stale head-hide reclaim (Needs playtest)
+
+`first_person_draw(duke,eye)` clears an unowned bit 0 on Duke's joint 9
+record at Duke's draw entry (debug `fp.head_reclaims`), then hides it again
+only in first person. The original never sets that bit (static scan of the exe
+and the 30 unique overlays). A private slot-12 copy loads with the head drawn in
+third person; first person still hides it. Awaiting the user's slot-12 check;
+then D11C can be Done. Binary `d14b04f062dc88271fa9072288f0b37a170637563309920f2c92e139eb908f58`.
+
 ## 2026-09-30 - D17 expanded to high refresh rate rendering
 
 User brief for Match Display / 30-240 / Unlimited rendering without changing

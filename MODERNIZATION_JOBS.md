@@ -62,6 +62,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08R | Selectable jetpack scheme: Modern / Classic (WASD), CLI quick ship | Done | D08Q |
 | D08Q1 | Faster Modern jetpack Ctrl descent (underwater dive speed) | Done | D08Q |
 | D08S | Duke3D-style jetpack scheme (instant J on/off, midair) | Cancelled (may revisit) | D08R |
+| D08T | Pushable objects: modern grab/push/pull and climb (alley dumpster) | Done | D08 |
 | D09 | Modern controller support | Todo | D05, D06, D07 |
 | D10 | Third-person camera polish | Done | D08 |
 | D10A | Rapid mouse turning and Shift-running investigation | Done | D06, D07C, D08 |
@@ -931,6 +932,45 @@ retain original roll in Vanilla and document any separate Modernized roll bindin
 without replacing custom bindings. Test low ceilings, edges/stairs, release,
 weapon/traversal interruption and camera. Do not promise a new skeletal animation
 before verifying the asset pipeline; record concrete blockers if no safe prototype.
+
+### D08T - Pushable objects: modern grab, push/pull and climb
+
+**Opened 2026-09-30 from a user bug report.** In the first map's alley the
+green dumpster is meant to be pushable, but in Modernized (third or first
+person) Duke never grabs it: wedging into it and holding **E** does nothing
+or climbs on top. On DuckStation the user could almost start the push
+animation, then Duke climbed instead. The user wants both actions - push
+and mount - with a modern, easy control that works for every pushable
+object, not only the dumpster. Evidence: a private copy of the user's
+slot-5 savestate (UI slot 5, in front of the dumpster).
+
+**Acceptance:** in Modernized, Duke can grab any original pushable object
+(object type flag `0x08000000`), push and pull it with camera-relative
+movement and let go, without accidentally climbing; he can still climb
+onto a climbable pushable object with a separate, obvious input; mouse
+look stays live while grabbing; Vanilla keeps the original Action rules.
+
+**2026-09-30 - Needs playtest.** Original rules traced and replayed from a
+private copy of the slot-5 state: holstered, still, a fresh Action against an
+object flagged `0x08000000` grabs it (anim 121); Action held + Up pushes (120),
++ Down pulls (119); any direction held with Action climbs a climbable one
+(`0x80051cf0`, 139/140). The dumpster is both. Modernized failed because E's
+Action dropped as soon as the grab began (no lease for 119..121) and W + E
+took the climb branch. Implemented (`recomp/src/ttk/push.inc`, `pc_input.cpp`,
+new generated hook `0x80051cf0`, three new SHA guards): **E** grabs any
+pushable object even with W held; the grab latches; **W/S** push/pull relative
+to the camera; **E** lets go; **Space** climbs a climbable one; mouse look
+stays live; first person blends to the orbit while grabbing. Real-key Xvfb
+checks in third and first person: grab without climbing, push 2582 -> 3713,
+pull 2582 -> 1668, camera-facing W pulls, Space climbs to the top with
+automatic holster and redraw, 59.5 fps. Vanilla push unchanged; Vanilla route
+exit 0 with reviewed captures; native suites PASS. Limits: only the dumpster
+checked; original line-up angle and push speed unchanged; Space next to a
+climbable pushable object climbs instead of jumping. Details:
+[documentation/64-d08t-pushable-objects.md](documentation/64-d08t-pushable-objects.md).
+Binary `941593c077bae11e441ce8a89832f2292f97934681648eba08df4b7c36b1e0ac`.
+
+**2026-09-30 - Done (user-accepted).** User playtest: "it works so much better than the original now. this is it rock solid. confidence level is very high." Remaining limits above stay recorded (only the dumpster checked).
 
 ### D09 — Modern controller support
 

@@ -453,6 +453,26 @@ interaction and lights-before-dialogue secret remain. Vanilla retains its origin
 rules. Bed/couch contact, walk/run departures and release checks passed privately;
 your movement feel and broader terrain still need playtesting.
 
+### Pushing and climbing objects (Modernized)
+
+Some objects can be pushed, such as the green dumpster in the first map's alley.
+
+| Input | Result |
+| --- | --- |
+| **E** while touching the object | Grab it (your weapon is stowed first if needed). Holding W into it is fine |
+| **W / S** while holding it | Push / pull. Relative to the camera: W pushes when you look at the object |
+| **E** again | Let go. Your weapon comes back |
+| **Space** while touching or holding it | Climb on top, if it can be climbed |
+
+Mouse look keeps working while you hold an object. In first person the view
+steps out behind Duke while he holds it and returns afterwards. Face the object
+roughly square, as in the original. Objects stop moving when something blocks
+them; Duke then lets go by himself. Accepted in playtest on 2026-09-30.
+
+In **Vanilla** the original rules apply: stand still facing the object with no
+weapon drawn, hold **X**, then press **Up** to push or **Down** to pull. Holding a
+direction together with X climbs instead.
+
 ### Typed debugging cheats (Modernized)
 
 Stand on solid ground with mouse capture active and type a code directly—no console

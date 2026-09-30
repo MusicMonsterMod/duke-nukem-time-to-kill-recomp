@@ -1,4 +1,16 @@
-# Current status — 2026-09-29
+# Current status - 2026-09-30
+
+**D08T pushable objects - Done (user: "it works so much better than the original now. this is it rock solid. confidence level is very high.").** User report: the alley dumpster
+could not be grabbed in Modernized; E climbed it or did nothing. In
+Modernized, **E** now grabs any original pushable object (even with W held
+into it), **W/S** push/pull relative to the camera, **E** lets go, and
+**Space** climbs a climbable one. Mouse look stays live while grabbing, and
+first person blends to the orbit during the grab. The original grab, push/pull
+and climb animations run unchanged; Vanilla keeps the original Action rules.
+Checked with real keys from a private copy of the user's slot-5 state (third
+and first person); Vanilla route exit 0; native suites PASS. Only the dumpster
+was checked. Details: documentation/64-d08t-pushable-objects.md. Binary
+`941593c077bae11e441ce8a89832f2292f97934681648eba08df4b7c36b1e0ac`.
 
 **D12 first-person weapons - Done (user: "finally, we can mark this as accepted!!").** Next: D12A (kick stays in first person). In the Modernized eye view
 Duke's own right hand and the original weapon mesh are drawn in front of the

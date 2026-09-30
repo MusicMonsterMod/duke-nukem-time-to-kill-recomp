@@ -1,5 +1,19 @@
 # Next-session handoff
 
+## 2026-09-30 - D08T pushable objects (Done, user-accepted)
+
+E grabs / W,S push-pull / E lets go / Space climbs, for objects flagged
+`0x08000000`; see `documentation/64-d08t-pushable-objects.md`. Test state:
+private copy of the user's slot-5 alley savestate in
+`recomp/analysis/d08t-push/cards` (slot index 4), sources before the change in
+`.../before-src/`, previous binary `before.bin` (`65226a9d...`). New generated
+hook `0x80051CF0` (regenerated with `psxrecomp_cli.py generate` as in the D12
+note, then `cmake --build --preset local-dev` and `build_movie_overlay.py`).
+Probes use port 9171 (`PORT` env). User playtest: "it works so much better than the original now. this is it rock solid. confidence level is very high." Possible
+follow-up: other pushable objects/maps; host pre-alignment if the line-up angle
+ever feels strict. Binary
+`941593c077bae11e441ce8a89832f2292f97934681648eba08df4b7c36b1e0ac`.
+
 ## 2026-09-30 - D12 Done (user accepted); next D12A
 
 User: "finally, we can mark this as accepted!!" First-person weapons are Done

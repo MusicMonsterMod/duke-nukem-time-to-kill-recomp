@@ -35,6 +35,7 @@ swimming and scripted cameras remain required work.
 | Inventory / pause / focus / capture | Automatic verified gameplay capture; Escape/Enter Start, F7 savestate recapture and explicit F10 opt-out; menu release | Automatic entry and pause resume replay; native F7 recapture and uneaten offer; existing manual focus suite | Longer menu/overlay routes and traversal transitions |
 | Script / cutscene / interaction camera | Original camera; captured WASD falls back to tank W/S + L2/R2 strafe (D08P) | Guarded supported normal-camera callers; tank fallback when lease inactive; F7 slot-2 recapture | Confirm return lease and mouse look after crystal-2 turret |
 | Death / respawn / level change | Original death/restart; independent requested boom retained; dead ownership rejected | Two enemy death/restart replays recover camera distance without F10; private health fixture | Other respawn locations, map load and saved-game recovery |
+| Pushable grab / push / pull 121/120/119, state 0/0 | Modernized: E grab, host-held Cross, camera-relative W/S -> Up/Down, camera-only lease; original line-up, motion and release | [D08T](64-d08t-pushable-objects.md): alley dumpster push/pull/let-go, Space climb, first person | Other pushable objects and maps |
 | Security card / next area | Original interaction | User's prior successful progression retest | Repeat isolated route with new controls; earlier freeze cause remains unproven |
 
 Tests must use private memory cards/profiles and refuse an existing player game.

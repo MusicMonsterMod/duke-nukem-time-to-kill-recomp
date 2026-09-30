@@ -64,3 +64,5 @@ Update `00-status.md` after meaningful tests. Keep raw evidence and exact comman
 - [Latest playtest acceptance and next-job plan](41-playtest-follow-up-plan.md): silent/centered cheat results, run/edge jumps, armed ladders, crouch walking, inventory feedback and deferred menu responsiveness.
 
 - [D08P crystal-2 turret / scripted-camera WASD recovery](56-scripted-camera-controls.md)
+
+- [D08T pushable objects: modern grab, push/pull and climb](64-d08t-pushable-objects.md)

@@ -106,7 +106,8 @@ The user has confirmed the natural switch-first approach works.
 
 Modernized gameplay captures the mouse and enables PC actions automatically.
 Pause, inventory, focus loss and host menus (including **F7** savestates) release it; verified gameplay can
-capture again after returning. **Escape** pauses/resumes. **Enter** uses the
+capture again after returning. **Escape** pauses/resumes; the pause menu always frees the mouse cursor and
+resuming captures it again. **Enter** uses the
 currently selected inventory gadget (EDuke-style); it never opens the pause menu.
 **F10** explicitly toggles capture; use it to opt out
 of automatic capture until you capture again. Pausing while captured restores

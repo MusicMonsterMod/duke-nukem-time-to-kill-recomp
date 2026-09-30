@@ -32,6 +32,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D02 | Persistent Vanilla / Modernized profiles | Done | D01 |
 | D03 | Player, camera and aiming state research | Done | D01 |
 | D04 | PC action input, rebinding and mouse capture | Done | D02 |
+| D04A | Escape reliably frees the mouse for the pause menu | Done | D04 |
 | D05 | Camera-relative WASD movement | Done | D03, D04 |
 | D06 | Independent third-person mouse camera | Done | D03, D04 |
 | D07 | Modern weapon aiming and crosshair | Done | D05, D06 |
@@ -131,6 +132,18 @@ Trace this game's player transform, facing, movement inputs, camera matrices, co
 Add an action layer that supports independent movement and look, keyboard/mouse bindings, input devices and context-specific actions. Preserve the original controller translation in Vanilla. Handle focus loss, mouse capture/release and menu navigation; resolve binding conflicts visibly.
 
 **Acceptance:** bindings persist; held inputs release on focus loss; mouse capture never traps the player; menus remain operable. Modern movement actions exist independently of the original turn-left/turn-right buttons. Update the manual with implemented controls only.
+
+### D04A - Escape reliably frees the mouse for the pause menu
+
+User report (2026-09-30): pressing Escape to open the pause menu should release the mouse so the cursor is visible, especially in windowed mode; it was hit and miss, sometimes the mouse stayed captured.
+
+**Acceptance:** in Modernized, every Escape press during gameplay leaves the mouse free with a visible cursor while the pause menu is open; resuming recaptures automatically; F10, F7 and focus-loss behavior unchanged; Vanilla unaffected.
+
+**Work log (2026-09-30, Needs playtest):** cause from code: Escape released capture and set the auto-recapture request, but recapture only waited 12 host frames for a fresh gameplay offer. Escape's Start reached the game only while the key was physically held, so a quick tap could miss the original pad poll; gameplay kept running, offers kept arriving and the mouse was grabbed again about 12 frames later. Change (local `recomp/src/ttk/pc_input.cpp`): Escape holds Start for a six-frame pulse so a tap reaches the pad poll, and a new Escape hold blocks automatic recapture until gameplay offers have stopped for the freshness window (the pause took hold), counted from the Escape press; host overlays clear it. If the pause somehow still does not open, the mouse stays free (F10 or Escape again). Escape releases are now logged as `Mouse released (Escape)`. Evidence: build OK, binary `10d36eb83fbca9892dd954359c14bfcf25ddcfb1b06a0287cecbec59f2f60168`; `ttk-input-test` PASS with the old Escape pad expectation updated to the pulse and a new case (Escape while offers continue stays released; offers stop, then resume recaptures). Not verified: live gameplay pause timing and cursor visibility in windowed mode (no game launched).
+
+**Work log (2026-09-30, playtest fix, Needs playtest):** user: "when hitting esc again, it seems to leave modern controls and my mouse is not recaptured". Session log confirmed `Mouse released (Escape)` with no automatic recapture afterwards (F10 used). Cause: the resume Escape in the pause menu also set the hold, counted from that press; the game resumed within the freshness window, offers never gapped and the hold never cleared. Fix: only an Escape from running gameplay (captured, or offers still fresh) sets the hold; Escape in the pause menu only pulses Start. `ttk-input-test` PASS with a new pause-menu resume case. Game rebuilt after the session closed: binary `198673f5f5643aed5f25c543b79ec69ed0216d69e2f211a075394f3b86ded68e`.
+
+**Work log (2026-09-30, Done):** user playtest on binary `198673f5...ded68e`: "perfect, accept". Escape opens the pause menu with the cursor free and Escape again resumes with the mouse recaptured.
 
 ### D05 — Camera-relative WASD movement
 

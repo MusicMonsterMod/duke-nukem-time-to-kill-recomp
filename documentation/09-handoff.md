@@ -1,5 +1,20 @@
 # Next-session handoff
 
+## 2026-09-30 - D04A accepted (Done)
+
+User: "perfect, accept" on binary `198673f5...ded68e`. Escape pauses with a
+free cursor and resumes with automatic recapture. Next job: the user chooses.
+
+## 2026-09-30 - D04A Escape mouse release (Needs playtest)
+
+Ad hoc user job: Escape sometimes left the mouse captured. Recapture raced a
+missed Start tap; now Escape pulses Start and holds auto-recapture until the
+pause stops gameplay offers. Only `recomp/src/ttk/pc_input.cpp` and
+`recomp/tests/local/pc_input_native.cpp` changed. Needs the user's windowed
+playtest; look for `Mouse released (Escape)` in the session log.
+Playtest fix: the resume Escape no longer holds recapture (it had left the
+mouse free after resuming). Rebuilt: binary `198673f5...ded68e`.
+
 ## 2026-09-30 - D07D, D08T1, D08V accepted (Done)
 
 User: "awesome. accept". All three Done on binary `123c7910...693e`. D08X

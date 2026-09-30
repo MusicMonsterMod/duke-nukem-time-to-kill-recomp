@@ -1,5 +1,11 @@
 # Current status - 2026-09-30
 
+**D04A Escape frees the mouse - Done (user-accepted).** Escape now pulses Start so a
+quick tap reaches the original pause poll, and automatic recapture waits until
+gameplay has actually stopped (pause open) instead of 12 frames. Native input
+test PASS; resume Escape no longer blocks recapture; binary
+`198673f5f5643aed5f25c543b79ec69ed0216d69e2f211a075394f3b86ded68e`. User: "perfect, accept".
+
 **D08V sewer mantle lease - Done (user-accepted).** Mantles, hangs and pull-ups,
 the frames right after them and falls no jump owns now keep the mouse camera
 and modern buttons (no `ORIGINAL MOVEMENT` flicker); the original traversal

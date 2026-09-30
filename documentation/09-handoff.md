@@ -1,5 +1,42 @@
 # Next-session handoff
 
+## 2026-09-30 - D12A Done (user accepted)
+
+User: "its done! accepted. ... this has been yet another amazing feat of engineering." Final binary `1452391c97b4eb59df0e7482a939d48673e1270cacae2b52a51d9a54e115e956`. Next job: the user
+chooses from the board (D12A is closed; remaining Todo includes D08L, D09, D13).
+
+## 2026-09-30 - D12A thigh 0.13, E never kicks, Q chains (accepted)
+
+Thigh drop default 0.13 (user's choice). `kick_convert` kicks only with the
+attack held (E suppressed); Q queues during a kick, held Q repeats. Awaiting
+the user's test. Binary `1452391c97b4eb59df0e7482a939d48673e1270cacae2b52a51d9a54e115e956`.
+
+## 2026-09-30 - D12A follow-up (Needs playtest)
+
+After the user's first playtest: sphere at the crosshair trace hit
+(`view_segment_query` in weapon_aim.cpp, within 480 horizontal) else 340;
+held attack with Boot kicks in first person while moving; thigh drawn end
+for end from the knee (`DNTTK_FP_KICK_THIGH=0` off). Garbage bags: alley
+state in `recomp/analysis/d12a-kick/alley-cards` (slot index 4), bags
+`0x801dcf44`/`0x801dcd64`. Private copies of the user's slots 0-4 in
+`recomp/analysis/d12a-kick/user-cards` (index 3 = street near the subway
+stairs; the pallet was not identified). Open: thigh framing options, the
+pallet. Binary `e48dc442889800d962ace3274f2c4b2f019f50928cddb06a9aff5e20e05e37c3`.
+
+## 2026-09-30 - D12A first-person quick kick (Needs playtest)
+
+Q in the eye view = host quick kick (`recomp/src/ttk/kick.inc`); Boot-selected
+original requests (112..115) are converted at `0x800493a4`. Hit = original
+sphere `0x800a979c` along the view on each update of frames 8..20; leg =
+joints 14..17 from 115 poses via the D12 private-matrix path. Framing knobs
+`DNTTK_FP_KICK`, `DNTTK_FP_KICK_TILT`, `DNTTK_FP_KICK_REACH`,
+`DNTTK_FP_KICK_FREEZE`. Test state: `recomp/analysis/d12a-kick/fresh-cards`
+savestate slot 3 (first street, god mode, pig cop ahead); probes use port 9181
+and display :81 (`probes/start.sh`, `stop.sh`). Previous binary `before.bin`
+(`941593c0...`), sources in `before-src/`/`after-src/`. Open: user playtest of
+feel/framing/damage; knockback (enemy reaction 84) not reproduced. Binary
+`93b08bf7f89d1183dae2afb1fa8118a27774a2fd77a59776fe715d194e6cfb27`.
+
 ## 2026-09-30 - D08T pushable objects (Done, user-accepted)
 
 E grabs / W,S push-pull / E lets go / Space climbs, for objects flagged

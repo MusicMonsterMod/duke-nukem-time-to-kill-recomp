@@ -71,7 +71,7 @@ menu does. Immutable guards cover code; live item-type fields are checked separa
 | [ / ] | 5, 1, 2, 3 | Cycle owned eligible gadgets without activation |
 | U | selected | Use selected eligible gadget; initial selection is medkit |
 | R | 4 | No stored-dose shortcut: original steroids activate on pickup |
-| Q | 0 | Original boot kick only when already selected, standing still; inactive while armed |
+| Q | 0 | Original boot kick only when already selected, standing still; inactive while armed. In the first-person eye view: D12A quick kick with any weapon ([note](65-d12a-first-person-kick.md)) |
 
 Steroids are a concrete exception to the manual-based proposal: `800827e8` sets
 item 4 active and its timer immediately on pickup. `80087da8` supplies the empty

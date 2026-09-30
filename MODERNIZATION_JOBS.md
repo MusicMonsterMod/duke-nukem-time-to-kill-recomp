@@ -70,7 +70,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D11B | First-person near-wall polygon clipping | Done | D11 |
 | D11A | Scroll-wheel zoom lock into first-person | Cancelled (P toggle suffices) | - |
 | D12 | First-person weapons and state polish | Done | D11 |
-| D12A | First-person kick without leaving the eye view (next) | Todo | D12 |
+| D12A | First-person quick kick without leaving the eye view | Done | D12 |
 | D13 | Higher internal resolution and display scaling | Todo | D02 |
 | D14 | Widescreen, FOV and visibility | Todo | D03, D13 |
 | D15 | Optional geometry and texture precision | Todo | D13 |
@@ -1071,7 +1071,7 @@ twin cannons, HUD on top). No new assets. See
 [D12 first-person weapons](documentation/63-d12-first-person-weapons.md) and
 the work log. Known limits: instant holster/draw, no left hand, reload motions
 not shown, projectile origin still at the real hand. The kick leaving first
-person is D12A (next).
+person is D12A (quick kick, Done).
 
 Resolve held-weapon presentation, body visibility, eye height, recoil, traversal, death and scripted sequences. Decide whether existing geometry is sufficient before proposing new assets.
 
@@ -1079,17 +1079,25 @@ Resolve held-weapon presentation, body visibility, eye height, recoil, traversal
 
 ### D12A - First-person kick without leaving the eye view
 
-**Todo, queued next by the user (2026-09-29).** In first person, kicking (Q,
-the original Boot melee) drops out of the eye view to the original
-third-person camera and returns afterwards. The user wants the kick to stay in
-first person. Investigate which kick animations/states lose the D06/D11 orbit
-lease, extend the eye view through them the way D11 keeps a camera-only lease
-through plain jumps, and decide what (if anything) of the kicking leg or
-weapon is shown.
+**Done - user accepted 2026-09-30:** "its done! accepted. ... this has been yet another amazing feat of engineering." Queued by the user on 2026-09-29: in first
+person, kicking (Q, the original Boot melee) dropped out of the eye view to
+the original third-person camera. On 2026-09-30 the user asked for no "duke-fu
+spin around" in first person, but a Duke Nukem 3D style kick with Duke's leg,
+"more accurate to aim". Delivered: in the eye view Q is a short quick kick with
+any weapon, moving or standing, drawn with Duke's own right-leg meshes posed
+from the original front kick (animation 115), hitting along the crosshair with
+the original kick's damage sphere, radius and damage formula. Boot-selected
+original kick requests (Q, E, held attack) are converted to it. See
+[D12A first-person kick](documentation/65-d12a-first-person-kick.md).
 
-**Acceptance:** a standing and a moving kick, holstered and armed, stay in
-first person with the eye following Duke and the view aim intact; the kick
-still hits and pushes as in Vanilla; third person and Vanilla unchanged.
+**Acceptance (revised with the user's direction):** in first person a
+standing and a moving kick, holstered and armed, stay in first person with the
+view aim intact and no full-body spin; the leg reads as a kick; the kick hits
+what the crosshair is on through the original damage path; third person and
+Vanilla keep the original kick. The user accepted no knockback and the lower
+damage per kick after the first playtest; the kick must hit low props under
+the crosshair without crouching, kick on a held left-click with the Boot while
+moving, and show a tuned thigh (second pass, Needs playtest).
 
 ## Graphics and playback
 
@@ -3285,3 +3293,91 @@ earlier entries. Recorded limits stand: instant holster/draw, right hand only,
 reload/pump motion replaced by the flash kick, projectiles leave from Duke's
 real hand, first-map street and club coverage only. Binary
 `65226a9d8b4335f67b955b35af1172fb6a42357adcbd0027c97ebd5744612798`. Next: D12A (kick stays in first person).
+
+## 2026-09-30 - D12A first-person quick kick (Needs playtest)
+
+User: in first person the kick's "duke-fu spin around and crazy moves" are
+unnecessary; wants a Duke Nukem 3D style kick using his leg, "more accurate to
+aim". Implemented (`recomp/src/ttk/kick.inc`, no new hook addresses, no
+generated-C change):
+
+- In the Modernized eye view, **Q** is a 0.45 s quick kick with any weapon,
+  holstered, walking, running, crouched or jumping. Weapon stays drawn.
+- The original boot attack (`0x800517a4`, random animation 112..115) is still
+  reachable with Boot selected (Q, E at idle, held attack); in the eye view its
+  request is converted at the lower-body initializer `0x800493a4` into the
+  quick kick, and the eye view keeps its lease for that one update.
+- The hit is the original sphere `0x800a979c` (radius 96, type 10, damage
+  `[0x800d21fc] * 20`, x4 with steroids, attacker Duke) placed 340 along the
+  view, on each player update of the extension (about 4), as the original does
+  for the foot on every update of 112..115. The original kick sound
+  (`0x8006b270` id `0x1000`) plays as the leg snaps out.
+- Duke's own right-leg joints 14..17 are drawn in front of the eye from three
+  poses recorded from the original straight front kick 115 (rest, chamber,
+  extension), on top of walls, rising from the lower left with the boot just
+  under the crosshair.
+
+Evidence (isolated private instance, fresh private cards, god mode, pig cop
+on the first street): pistol Q 3750 -> 2250 per kick, three kicks kill;
+Boot + E and Boot + held attack convert (animation stays 63) and hit; running
+and jumping kicks keep first person (0 fallbacks); third person unchanged
+(armed Q inert, Boot + Q plays original 114/115); 59.89 / 59.93 fps without /
+with repeated kicks, 0 underruns; Vanilla route `d12a-vanilla` exit 0;
+native suites PASS with a new D12A case; Python tests OK. Limits: no
+knockback (the original's reaction 84 did not occur with the quick kick's
+hits at any tested height or reach), 1500 per quick kick versus up to a kill
+for a point-blank original kick that lasts 2.5 times longer, right leg only,
+first street and pig cops only. Needs the user's playtest for feel, framing
+and balance. Binary
+`93b08bf7f89d1183dae2afb1fa8118a27774a2fd77a59776fe715d194e6cfb27`.
+
+## 2026-09-30 - D12A follow-up: crosshair hits, Boot left-click while moving, thigh (Needs playtest)
+
+User after the first playtest: "The kick looks amazing"; no knockback and the
+lower damage per kick are fine; garbage bags (hit only when crouching) and the
+pallet by the subway entrance should be kicked where the crosshair is;
+left-click with key 1 should kick while moving; the missing thigh needs tuning
+and options. Changes: the kick sphere goes to where the original query-only
+crosshair trace (`0x8006d980`) meets a surface or actor within the foot's
+reach (480 horizontally), else 340 along the view; a held attack with the Boot
+selected starts the quick kick in first person while moving; the thigh is
+drawn end for end from the knee (its hip origin is inside the loop's near
+cull), `DNTTK_FP_KICK_THIGH=0` for the old look. Evidence: alley garbage bag
+struck from about 520 with the crosshair on it (private copy of the user's
+slot-5 state); running Boot left-click kicks twice and keeps running; pig cop
+1500 per kick; 59.95 fps; Vanilla route `d12a-vanilla-2` exit 0; native and
+Python tests PASS. Not located: the subway pallet. Thigh framing is still open
+for the user. Binary
+`e48dc442889800d962ace3274f2c4b2f019f50928cddb06a9aff5e20e05e37c3`.
+
+## 2026-09-30 - D12A thigh nudge (Needs playtest)
+
+User: "incredibly fun"; nudge only the thigh down by 10% and test. The thigh
+matrix alone moves down the screen by 10% of the screen height at its
+knee-end depth (`DNTTK_FP_KICK_THIGH_DROP`, default 0.10); calf and boot
+unchanged. Captured at frames 7 and 13 before/after
+(`recomp/analysis/d12a-kick/runs/thigh-drop-sheet.png`); `ttk-controls-test`
+PASS (thigh offset is along the view's down axis only). Binary
+`1a915e56d629844357cb36cc2d19ababa363134b1aea7b8e5c52a3db2a3bc358`.
+
+## 2026-09-30 - D12A: thigh 0.13, E never kicks, Q chains (Needs playtest)
+
+User: thigh drop 0.13 is the sweet spot; E into a wall could kick (only Q
+should); Q should chain freely with any weapon while running, like the Boot's
+held left-click. Changes: thigh default 0.13; in the eye view an original
+Boot kick request converts to the quick kick only when the attack is held
+(E's Action request restarts idle with no kick); a Q during a kick queues the
+next, and a held Q repeats. Evidence: Boot + E no kick (3 suppressed); pistol
+into a wall + E no kick; running pistol Q mash chains, held Q 7 kicks in 3 s;
+native suites, Python and Vanilla route `d12a-vanilla-3` PASS. Binary
+`1452391c97b4eb59df0e7482a939d48673e1270cacae2b52a51d9a54e115e956`.
+
+## 2026-09-30 - D12A accepted (Done)
+
+User: "its done! accepted. ... this has been yet another amazing feat of engineering." D12A moves to Done on explicit user acceptance after three playtest
+passes (crosshair hits, Boot left-click while moving, thigh drawn and tuned to
+0.13, E never kicks, Q chains), with the automated evidence in the earlier
+entries. Recorded limits stand and were accepted: no knockback, lower damage
+per kick than a point-blank original kick, right leg only, first street and
+alley coverage only (the subway pallet was not located). Binary
+`1452391c97b4eb59df0e7482a939d48673e1270cacae2b52a51d9a54e115e956`.

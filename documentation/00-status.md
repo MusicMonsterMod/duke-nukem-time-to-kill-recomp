@@ -1,5 +1,23 @@
 # Current status - 2026-09-30
 
+**D12A first-person quick kick - Done (user: "its done! accepted. ... this has been yet another amazing feat of engineering.").** In the Modernized eye
+view, **Q** is now a short Duke 3D style kick: Duke's own right leg (original
+meshes, posed from the original straight front kick) snaps out in front of the
+eye with any weapon still drawn, standing, moving or in a jump, and the view
+never leaves first person. The hit uses the original kick's damage sphere,
+radius and damage where the crosshair ray meets something within reach
+(about 4 contacts, 1500 to a pig cop; three kicks kill; low props like the
+alley garbage bags are hit without crouching). With the Boot selected a held
+left-click kicks while moving; the thigh is now drawn. With the Boot selected, the original spinning kicks (Q, E,
+held attack) become the quick kick in first person. Third person and Vanilla
+keep the original kick. Checked in an isolated instance against pig cops on
+the first street; 59.9 fps; Vanilla route exit 0; native suites PASS. Limit:
+no knockback and lower damage per kick (both accepted by the user); thigh
+13% lower on screen (user's choice). Only Q or the attack kicks (never E);
+Q chains while running with any weapon. Details:
+documentation/65-d12a-first-person-kick.md. Binary
+`1452391c97b4eb59df0e7482a939d48673e1270cacae2b52a51d9a54e115e956`.
+
 **D08T pushable objects - Done (user: "it works so much better than the original now. this is it rock solid. confidence level is very high.").** User report: the alley dumpster
 could not be grabbed in Modernized; E climbed it or did nothing. In
 Modernized, **E** now grabs any original pushable object (even with W held

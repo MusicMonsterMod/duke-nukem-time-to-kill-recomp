@@ -160,8 +160,9 @@ or boots). Wait for gadget equip/remove and
 weapon redraw to finish before another shortcut. **J** also switches the jetpack
 off in mid-flight (a controlled fall follows). Underwater air still equips automatically.
 **[ / ]** cycle eligible gadgets; **U** uses the selected gadget. **R has no stored-dose action:** TTK activates
-steroids on pickup. **Q kicks only while standing still with Mighty Boot already selected on 1.**
-Armed quick kick is unavailable; Q never selects another weapon or presses fire.
+steroids on pickup. In third person, **Q kicks only while standing still with Mighty Boot already selected on 1**
+(the original kick). Q never selects another weapon or presses fire. In first
+person Q is a quick kick with any weapon (see below).
 
 **Alt + wheel up** brings the camera closer; **Alt + wheel down** moves it farther.
 Distance is clamped and smoothed, retains wall collision, and remembers your
@@ -191,7 +192,20 @@ lowers the view, and jumps keep it. Duke's head and body are hidden. With a weap
 drawn you see Duke's own gloved hand holding it at the lower right, always in
 front of walls, with the original muzzle flash and a small kick when firing.
 Each weapon is framed to point at the crosshair; the HUD stays on top. Holstering or drawing makes it disappear or
-appear at once. Swimming and jetpack flight switch back to third
+appear at once. **Q** in first person is a quick kick, like Duke Nukem 3D's:
+Duke's leg snaps out from the lower left and kicks whatever the crosshair is
+on within leg reach (look down at a low prop such as a garbage bag to kick
+it), with any weapon still in hand, while standing, moving or jumping. With
+the Mighty Boot selected (key 1), holding the left mouse button kicks too,
+also while running. E never kicks in first person. Tap Q repeatedly or hold
+it to chain kicks while running with any weapon. Kicks do not knock enemies
+back the way the original full kick sometimes does. To compare the leg without its thigh for one launch:
+
+```sh
+DNTTK_FP_KICK_THIGH=0 python3 recomp/tools/local/run.py
+```
+
+Swimming and jetpack flight switch back to third
 person on their own and return when you land; ladders, ledges, scripted and
 turret cameras, death and menus use the original camera as before. Pressing P
 again returns to third person. The choice is saved; to set it without

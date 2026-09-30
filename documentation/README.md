@@ -66,3 +66,4 @@ Update `00-status.md` after meaningful tests. Keep raw evidence and exact comman
 - [D08P crystal-2 turret / scripted-camera WASD recovery](56-scripted-camera-controls.md)
 
 - [D08T pushable objects: modern grab, push/pull and climb](64-d08t-pushable-objects.md)
+- [D12A first-person quick kick](65-d12a-first-person-kick.md)

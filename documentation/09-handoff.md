@@ -1,5 +1,13 @@
 # Next-session handoff
 
+## 2026-09-30 - D07D added (no red autoaim dot in Modernized)
+
+New Todo D07D: the user finds the original red autoaim dot next to the modern
+crosshair confusing. Default `red_dot` off in Modernized view aiming (with
+profile migration), cover every state where `marker_hook` currently steps
+aside, and keep the dot for `original` aiming and Vanilla. Next job: the user
+chooses from the board.
+
 ## 2026-09-30 - D08T1 added (E always mantles, hold RMB to grab)
 
 New Todo D08T1 from a user brief: pushable objects must not change traversal

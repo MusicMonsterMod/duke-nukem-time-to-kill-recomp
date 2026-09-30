@@ -1,5 +1,25 @@
 # Current status - 2026-09-30
 
+**D13 higher internal resolution and display scaling - Done (user: "correct correct correct, D13 is good. I'd say let's approve it.").** Each
+profile now saves an internal 3D resolution (1x original to 4x with OpenGL),
+display mode (windowed, borderless or exclusive fullscreen), window width and
+output filter (linear or nearest): `run.py --settings` choice R, or
+`--internal-scale`, `--display`, `--window-width`, `--output-filter`.
+Vanilla stays 1x; Modernized defaults to 4x (512x240 gameplay drawn at
+2048x960; user: "holding 60 FPS the whole time it just looks amazing"). The software renderer always runs at 1x (29 fps at 2x). In an
+isolated CPU-OpenGL instance 1x-3x held ~60 fps and 4x 50 fps; FMV framing,
+HUD and pause menu are unchanged; settings survive a relaunch. Playtest
+follow-up: **F11** is now the fullscreen key (replacing Alt+Enter/Ctrl+F,
+which never worked because of a runtime modifier-matching bug, now fixed), and exclusive is now a real exclusive mode under SDL3.
+The game now opens windowed by default and remembers
+how it was left (windowed or fullscreen, exclusive or borderless, window
+width). All accepted by the user. Separate backlog from the playtest:
+D08U (top-of-ladder mount), D08V (sewer mantle flicker), D08W (subway
+shallow-water sideways jumps), D10B (close-camera transparency, doors) and
+D11C (the slot-12 headless Duke: a first-person head-hide flag saved inside
+the savestate). Details: documentation/67-d13-resolution-display.md. Binary
+`79e8cc5c579e7afa50f13b312e253d5104da5cdf82a51535245b171a20f1086b`.
+
 **D08L inertial edge run-off - Done (user: "im happy with that!").** Running off a large ledge in
 Modernized no longer brakes: on the fire-escape platform outside the apartment
 window the original fall cut Duke from ~47 to 16.5 units per frame (velocity

@@ -201,3 +201,26 @@ host font remains available. Vanilla and original TTK text are unchanged.
 `--show-settings` to save without launching. Modern is the default D08Q
 flight; Classic keeps the modern controls with the original burst physics. Vanilla ignores it. See
 [57-jetpack-controls.md](57-jetpack-controls.md).
+
+## Resolution and display (D13)
+
+Profile schema 14 saves presentation per profile. `--internal-scale 1..4`
+renders the 3D scene at that multiple of the PSX resolution (OpenGL; the
+software renderer always runs at 1x). `--display windowed|borderless|exclusive`,
+`--window-width 0|640..7680` (0 fits the display) and `--output-filter
+linear|nearest` only change how the finished image is shown. `--settings`
+choice R edits all four. Append `--show-settings` to save without launching:
+
+```sh
+python3 recomp/tools/local/run.py --mode modernized --internal-scale 3 --display borderless --show-settings
+```
+
+The launcher passes these as runtime CLI flags from the reviewed patch
+`time-to-kill-zzzzzzzz-presentation-cli.patch`; they override
+`build-local/settings.toml`. The same patch makes **F11** the only default
+fullscreen key (Alt+Enter and Ctrl+F are no longer bound), fixes modifier
+matching for rebound hotkeys and makes `exclusive` a real exclusive mode under SDL3. Modernized
+defaults to 4x, Vanilla to 1x. Both open windowed by default. At exit the
+runtime reports the window state (windowed or fullscreen, borderless or
+exclusive, width) and `run.py` saves it to the played profile (schema 15). See [67-d13-resolution-display.md](67-d13-resolution-display.md).
+

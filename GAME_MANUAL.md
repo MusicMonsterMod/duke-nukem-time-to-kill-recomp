@@ -35,7 +35,7 @@ python3 recomp/tools/local/run.py --settings
 
 Choose Vanilla or Modernized preview, change OpenGL/software rendering, or
 restore the selected profile's defaults. Save and return, then launch normally.
-Each profile remembers its own renderer. Modernized also remembers its PC action bindings, camera selection, mouse sensitivity and inversion. Changes take effect on the next launch.
+Each profile remembers its own renderer and resolution/display settings. Modernized also remembers its PC action bindings, camera selection, mouse sensitivity and inversion. Changes take effect on the next launch.
 **Modernized movement and camera have passed user playtesting in the first-level preview.
 Supported first-map climbing uses the original traversal routines with Modernized
 input. In the crystal-2 flooded turret corridor, waist-deep water uses the same
@@ -60,6 +60,32 @@ to report. `run.py` mirrors these `[TTK …]` lines into
 `--no-session-log` disables).
 F10 toggles mouse capture only; press it again if the
 cursor is free. A frozen window that ignores F10 is a separate halt.**
+
+### Resolution and display
+
+Each profile remembers its own picture settings. In `--settings`, choose **R**
+and enter four values, for example `2 windowed 0 linear`:
+
+- **Internal resolution** `1`-`4`: draws the 3D world at that many times the
+  original resolution, so models and edges get sharper (textures keep their
+  original look). `1` is the original. Vanilla starts at 1, Modernized at 4.
+  Higher values need the OpenGL renderer; with the software renderer the game
+  always uses 1 and keeps your choice for later.
+- **Display**: `windowed` (the default), `borderless` (fullscreen at your
+  desktop resolution) or `exclusive` (true exclusive fullscreen). **F11**
+  switches between a window and fullscreen in game, using the last
+  fullscreen kind you chose. The game remembers how you left it: if you
+  quit in a window (including one you resized), or in fullscreen, it opens
+  the same way next time.
+- **Window width**: `0` fits the window to your screen; otherwise 640-7680
+  pixels. The height follows the 4:3 picture.
+- **Output filter**: `linear` smooths the picture when it is enlarged to the
+  window; `nearest` keeps hard pixels.
+
+The same settings are available as launcher flags, for example
+`python3 recomp/tools/local/run.py --internal-scale 3 --display borderless`.
+Changes take effect on the next launch. If the game slows down, lower the
+internal resolution.
 
 You can also select and launch directly with `--mode vanilla` or
 `--mode modernized`. Use `--show-settings` to inspect preferences without

@@ -63,15 +63,20 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08Q1 | Faster Modern jetpack Ctrl descent (underwater dive speed) | Done | D08Q |
 | D08S | Duke3D-style jetpack scheme (instant J on/off, midair) | Cancelled (may revisit) | D08R |
 | D08T | Pushable objects: modern grab/push/pull and climb (alley dumpster) | Done | D08 |
+| D08U | Top-of-ladder mount: grab a ladder from a platform and climb down | Todo | D08, D08J |
+| D08V | Sewer mantle/hang modern-control coverage (slot 12 area) | Todo | D08, D08B |
+| D08W | Subway shallow-water sideways jumps (A/D + Space jumps forward) | Todo | D08, D08C |
 | D09 | Modern controller support | Todo | D05, D06, D07 |
 | D10 | Third-person camera polish | Done | D08 |
 | D10A | Rapid mouse turning and Shift-running investigation | Done | D06, D07C, D08 |
+| D10B | Tight-space third-person camera: translucent Duke and see-through doors | Todo | D10, D11B |
 | D11 | First-person playable prototype | Done | D08, D10 |
 | D11B | First-person near-wall polygon clipping | Done | D11 |
 | D11A | Scroll-wheel zoom lock into first-person | Cancelled (P toggle suffices) | - |
 | D12 | First-person weapons and state polish | Done | D11 |
 | D12A | First-person quick kick without leaving the eye view | Done | D12 |
-| D13 | Higher internal resolution and display scaling | Todo | D02 |
+| D11C | Savestates can keep Duke's first-person head hidden (slot 12) | Todo | D11 |
+| D13 | Higher internal resolution and display scaling | Done | D02 |
 | D14 | Widescreen, FOV and visibility | Todo | D03, D13 |
 | D15 | Optional geometry and texture precision | Todo | D13 |
 | D16 | Texture filtering and game-specific HD assets | Todo | D13 |
@@ -978,6 +983,75 @@ Binary `941593c077bae11e441ce8a89832f2292f97934681648eba08df4b7c36b1e0ac`.
 
 **2026-09-30 - Done (user-accepted).** User playtest: "it works so much better than the original now. this is it rock solid. confidence level is very high." Remaining limits above stay recorded (only the dumpster checked).
 
+### D08U - Top-of-ladder mount: grab a ladder from a platform and climb down
+
+**User report (2026-09-30, during the D13 playtest):** standing on a platform
+beside the top of a ladder that must be descended, there is no control or
+mechanism that makes Duke latch onto the ladder and climb down. Reproduction:
+the user's savestate **slot 12**, saved right next to that ladder. Test only on
+a private copy of that state; never load or write the player's own cards or
+slots in place.
+
+The user wants it to feel "very fluid, natural, modern", to the standard of the
+accepted traversal work (D08, D08B, D08J, D08T). Investigate first: whether the
+original game has a top-of-ladder mount (a routine, animation or trigger volume)
+that Modernized input fails to reach, or whether one has to be built from the
+original climb state and animations. Record the ladder's location and level
+from slot 12.
+
+**Acceptance:** from the slot-12 platform, walking or backing toward the ladder
+top with a simple, discoverable input (for example move toward the edge at
+the ladder and/or the interact key) turns Duke to face the ladder and puts him
+on it smoothly: no pop, fall, damage or camera snap. He then climbs down with
+the existing ladder controls and dismounts at the bottom, redrawing a weapon as
+D08J does. The input must not grab accidentally when walking past, and it must
+not interfere with ordinary edge run-off (D08L) or jumps. Cover third and
+first person. Vanilla keeps its original behavior. Check the other ladders
+already known from D08B/D08J to see whether the same mechanism applies there,
+and record any ladder that it does not cover.
+
+### D08V - Sewer mantle/hang modern-control coverage (slot 12 area)
+
+**User report (2026-09-30, D13 playtest, 4x exclusive):** mantling around the
+sewers near the slot-12 save is glitchy: controls keep switching in and out of
+modern mode, and the user wants them to stay modern. Mantling also felt
+slightly harder, but the user was unsure. Session log
+`recomp/build-local/logs/session-20260930-112050.log` has 54 "WASD tank
+fallback / Modern movement lease resumed" pairs. The lease was dropped for
+`state` in anim 139/140/142 (mode 8/8, 8/0, 8/6), 107/108 (mode 9), and
+63/76/78 (0/8, 0/9). Resolution cannot cause this: the lease and the
+simulation do not depend on internal scale, and the user measured a steady
+60 fps.
+
+**Acceptance:** identify these states on a private copy of slot 12 (never the
+player's own slot). Extend the guarded lease so that modern movement, camera
+and Shift stay in control through the sewer mantles, hangs and pull-ups
+without flicker, while the original traversal routines stay intact. No
+`ORIGINAL MOVEMENT` banner during ordinary sewer traversal. Compare mantle
+success before and after. Vanilla is unchanged.
+
+### D08W - Subway shallow-water sideways jumps (A/D + Space jumps forward)
+
+**User report (2026-09-30):** in the shallow water of the first subway area,
+running forward and then strafing (A or D, with Shift to run) and pressing
+Space always makes Duke jump **forward**. A sideways jump is not possible
+there at all. The user noted this to fix later.
+
+Context to check first: D08C made directional jumps work from standstill and
+while moving on dry ground. The crystal-2 flooded turret corridor wade (see the
+Modernized movement notes in the manual) uses its own wade handling. The
+subway's shallow water probably takes another wade/shallow-water path whose
+jump uses Duke's facing instead of the held move direction, or where the
+strafe input is not carried into the jump. Reproduce on a private savestate at
+the start of the subway water. Never use the player's own slots.
+
+**Acceptance:** in the subway's shallow water, W/A/S/D (with and without
+Shift) plus Space jumps in the held camera-relative direction, with the same
+feel as a dry-ground directional jump (D08C, D08I), including a pure
+sideways jump while running forward and then strafing. Forward jumps and
+original water behavior (slowdown, splashes, sounds) stay intact. Check the
+crystal-2 wade for regressions. Vanilla is unchanged.
+
 ### D09 — Modern controller support
 
 Provide left-stick movement, right-stick look, configurable sensitivity/inversion, dead zones and sensible action bindings using the modern action layer. Support switching input devices and disconnect/reconnect.
@@ -1018,6 +1092,29 @@ camera ownership/collision and timing before claiming a cause. Preserve accepted
 aiming and Vanilla. **Acceptance:** documented failure/comparison and a bounded
 verified repair where supported, with responsive turning and original camera
 constraints intact. Full matrix: [current brief](documentation/45-playtest-turning-audio-follow-up.md).
+
+### D10B - Tight-space third-person camera: translucent Duke and see-through doors
+
+**Correction (2026-09-30):** the missing head is not a camera effect. It was a
+first-person hide flag stuck in the slot-12 savestate; see D11C. This job
+keeps the close-camera transparency and see-through doors.
+
+**User report (2026-09-30, D13 playtest):** in the narrow sewer at the slot-12
+save, Duke is drawn semi-transparent with no head. Separately, the camera can
+see through doors that vanish up close, like the apartment closet door did in
+first person (D11B). Checked on a private copy of slot 12: identical at 1x and
+4x, and also with the original camera, so it is the game's own close-camera
+behavior. The camera is pinned right behind Duke, his head falls inside the
+near cutoff, and the original close-camera transparency applies. Polygon
+culling happens on original coordinates before the renderer scales, so
+internal resolution cannot change which door polygons are drawn.
+
+**Acceptance:** in tight spaces the Modernized third-person camera keeps
+Duke's head and body visible (for example a raised or shoulder-offset
+framing, or a smooth approach to first-person framing) with no pops. Doors
+and walls near the camera stay solid or fade deliberately, never drop out.
+Captures of the slot-12 sewer and a door approach, before and after.
+Vanilla is unchanged.
 
 ### D11 — First-person playable prototype
 
@@ -1066,6 +1163,26 @@ do not break Alt-wheel distance, weapon wheel, or Vanilla.
 without FOV hacks alone; unlock returns to the preferred third-person distance;
 unsupported states fall back cleanly; aiming/movement remain coherent.
 
+### D11C - Savestates can keep Duke's first-person head hidden (slot 12)
+
+**Found 2026-09-30 (user noticed it was specific to slot 12):** in the eye
+view, `first_person_draw` (`recomp/src/ttk/first_person.inc`) sets bit 0 of the
+flag byte on Duke's head-joint record (joint 9, `[player+0x40]+0x44+0x28*9`)
+from Duke's draw entry to the next object-list step, and `head_restore`
+clears it. The user's slot-12 savestate was captured inside that window: on a
+private copy, the head record flag reads `01` right after loading (all other
+joints `00`; slot 1 reads `00`). After a load the host `head_flag` is 0 and
+`first_person_draw` deliberately refuses to take ownership of an already-set
+bit, so nothing ever clears it and Duke is headless in every view.
+
+**Acceptance:** a save taken in first person can never carry the hidden head.
+Two options: clear the bit before a savestate is written, or safely reclaim a
+stale bit after a load. First verify whether the original game ever sets bit 0
+on Duke's joint 9 itself, so a real hide is never undone. Loading the existing
+slot-12 copy shows Duke's head in third person, while first person still hides
+it. Add a native test case. Vanilla is unchanged; slot 12 itself is repaired
+only if the user asks.
+
 ### D12 — First-person weapons and state polish
 
 **Done - user accepted 2026-09-30:** "finally, we can mark this as accepted!!"
@@ -1112,6 +1229,14 @@ moving, and show a tuned thigh (second pass, Needs playtest).
 Explicit user priority: selectable high-resolution settings. Inspect and reuse applicable renderer capabilities, then expose tested internal-resolution choices, fullscreen/window modes and output scaling. Distinguish rendering more scene detail from enlarging a low-resolution image. Preserve original-resolution presentation.
 
 **Acceptance:** comparison captures demonstrate the effect, settings survive restart, UI/FMV sizing remains correct and tested performance is recorded. Verify the active build actually supports each offered option.
+
+**Done (2026-09-30, user-accepted):** "correct correct correct, D13 is good.
+I'd say let's approve it." Per-profile internal scale 1-4x (OpenGL; the
+software renderer stays 1x), windowed/borderless/exclusive display, window
+width and linear/nearest output filter, via `run.py --settings` choice R or
+flags. Vanilla defaults to 1x, Modernized to 4x (user choice). Alt+Enter and
+exclusive fullscreen were fixed after the first playtest. Evidence and limits:
+[D13 note](documentation/67-d13-resolution-display.md).
 
 ### D14 — Widescreen, FOV and visibility
 
@@ -3417,3 +3542,114 @@ the inertial run-off, with the automated before/after evidence in the previous
 entry. Recorded limits stand: only the fire-escape platform and the apartment
 bed were measured; very high falls and wall-adjacent ledges were not swept.
 Binary `a16c13ca3bd9cba5e864213fdc6ba57526a976cbe2be8df7301f85b0bd697eb8`.
+
+## 2026-09-30 - D13 higher internal resolution and display scaling (Needs playtest)
+
+Scope and decisions: exposed the runtime's existing supersampling (1-4x),
+fullscreen tri-state, window width and present filter as per-profile launcher
+preferences instead of adding a renderer feature. A reviewed runtime patch
+(`time-to-kill-zzzzzzzz-presentation-cli.patch`) adds `--internal-scale`,
+`--display`, `--window-width` and `--output-filter` CLI overrides; profile
+schema 14 stores them (schema 13 migrates with a backup). Vanilla keeps 1x
+(original presentation); Modernized defaults to 2x. The software renderer
+always runs at 1x because its supersampling halves the frame rate (29 fps at
+2x); the saved scale applies again with OpenGL.
+Files or build identity: `recomp/tools/local/player_profiles.py`, `run.py`,
+tests; binary `14fde30b76f3907effa6680603a367d28458dda0ed5aea69cb65c79711bee71d`.
+Verification and evidence: isolated Xvfb instance (Mesa CPU OpenGL, worst
+case): OpenGL 1x/2x/3x/4x 59.9/59.9/59.5/50.3 fps in the apartment; software
+1x 60.4, 2x 29.1. 1x vs 4x window captures show sharper geometry and model
+edges, same texels, identical HUD. Intro FMV framing identical at 1x and 4x;
+pause menu correct at 4x/nearest; saved 4x/borderless/1280/nearest survived a
+relaunch with no flags; borderless/exclusive went fullscreen under metacity
+with a centered 4:3 image. Vanilla route `d13-vanilla-1` exit 0 at 1x; Python
+79 OK (2 skipped); native `ttk-input-test` PASS.
+Remaining limitations / next action: user playtest on the real desktop and
+GPU (fps at 2x-4x, exclusive fullscreen mode change, visual preference).
+4:3 only (widescreen is D14). Pre-existing unrelated issue recorded: the
+runtime patch stack check fails on `host_osd.c` drift from the
+inventory-strip patch. Details:
+[D13 note](documentation/67-d13-resolution-display.md).
+
+## 2026-09-30 - D08U backlogged (Todo)
+
+The user reported the problem during the D13 playtest: there is no way to latch
+onto a ladder from the platform at its top and climb down. Reproduction: the
+user's savestate slot 12. Added D08U (depends on D08, D08J) with investigation
+and acceptance criteria. No code changed; D13 remains Needs playtest.
+
+## 2026-09-30 - D13 playtest follow-up (Needs playtest)
+
+User: "I have just been playing at 4x and it's holding 60 FPS the whole time it
+just looks amazing." They asked for 4x as the Modernized default, which it now
+is. Alt+Enter did not leave fullscreen. Cause: the runtime keymap compared
+modifiers exactly, so a real left-Alt event (0x0100) never matched the stored
+KMOD_ALT (0x0300). Ctrl+F had the same problem. Fixed by comparing Ctrl/Alt/
+Shift groups (`host_keymap.c`, with new unit cases). A related finding: in
+this SDL3 build "exclusive" was identical to borderless. Exclusive now sets
+the desktop display mode explicitly (`psx_apply_fullscreen_display_mode`).
+Both fixes are in the D13 runtime patch. Verified under metacity on Xvfb:
+Alt+Enter and Ctrl+F toggle windowed/fullscreen in both modes, plain Enter
+does not. Vanilla route `d13-vanilla-2` exit 0, Python 79 OK, host keymap and
+native input tests PASS. Binary
+`ecc9328065b8a6c3311423e1640936b1835e1517d35b923605609595e2f3a95d`.
+The user's other reports are not caused by D13 and were backlogged: D10B
+(headless Duke and see-through doors, same at 1x and with the original camera)
+and D08V (sewer mantle lease flicker). Next: the user confirms Alt+Enter and
+exclusive on their desktop.
+
+## 2026-09-30 - D13 windowed default and remembered display (Needs playtest)
+
+User: "make windowed the default rather than fullscreen ... it should also save
+the last known config". Windowed was already the built-in default. The
+user's profile opened fullscreen because it had saved `exclusive`, so it is
+now set to windowed (the v14 file was backed up). New: the runtime writes the
+window state at exit (`--presentation-state` file: windowed or fullscreen
+after any Alt+Enter, borderless or exclusive, last windowed width, 0 when
+maximised). The launcher folds it into the profile that was played. Profile
+schema 15 separates `display` (how the game opens) from `fullscreen_mode`
+(what Alt+Enter enters, passed as `--fullscreen-mode`); v14 files migrate with
+a backup. Verified under metacity: exclusive -> Alt+Enter -> resize to 1280
+-> close saved `windowed / exclusive / 1280`; the relaunch opened windowed at
+1280x960 and Alt+Enter entered exclusive; quitting fullscreen saved
+`exclusive`. Python 82 OK (3 new), Vanilla route `d13-vanilla-3` exit 0,
+`ttk-input-test` PASS, patch checked forward and reverse. Binary
+`7bd2a001a295330397d45c73ca9bc2ca0bc575c0d889bab3259d06778b3a3d1c`.
+
+## 2026-09-30 - D13 F11 fullscreen key (Needs playtest)
+
+User: "make f11 the key to go fullscreen instead of this alt enter thing".
+F11 is now the only default fullscreen key (runtime `host_keymap.c` default,
+in the D13 patch); Alt+Enter and Ctrl+F are unbound. The modifier-matching
+fix stays for rebound hotkeys, with keymap tests moved to a config rebind.
+Launcher text, the manual and the docs now say F11. Verified under metacity:
+F11 toggles window <-> exclusive, Alt+Enter does nothing. Keymap test PASS,
+Python 82 OK, `ttk-input-test` PASS, Vanilla route `d13-vanilla-4` exit 0.
+Binary `79e8cc5c579e7afa50f13b312e253d5104da5cdf82a51535245b171a20f1086b`.
+
+## 2026-09-30 - D11C backlogged; D10B corrected
+
+The user noticed that the headless Duke happens only in slot 12. Confirmed on
+a private copy: the head-joint hide bit that first person sets while drawing
+was saved inside the savestate (flag `01`; slot 1 `00`). Nothing clears it
+after a load, because `first_person_draw` never takes ownership of a bit that
+is already set. Added D11C (depends on D11). D10B no longer claims the headless
+head; it keeps the close-camera transparency and the doors. No code changed.
+
+## 2026-09-30 - D13 accepted (Done)
+
+User: "correct correct correct, D13 is good. I'd say let's approve it." D13 is
+Done: per-profile internal resolution (Modernized 4x at 60 fps on the user's
+GTX 1080 Ti, Vanilla 1x), windowed by default with the last display state
+remembered, F11 fullscreen with a real exclusive mode, and linear/nearest
+output. Evidence is in the preceding D13 entries and
+[the D13 note](documentation/67-d13-resolution-display.md). Remaining,
+recorded: 4:3 only (widescreen is D14); the runtime patch stack check still
+fails on the pre-existing `host_osd.c` drift. Binary `79e8cc5c579e7afa50f13b312e253d5104da5cdf82a51535245b171a20f1086b`.
+
+## 2026-09-30 - D08W backlogged (Todo)
+
+The user reported that in the first subway area's shallow water, A/D (with
+Shift) plus Space always jumps forward, so sideways jumps are impossible.
+Added D08W (depends on D08, D08C) to fix later. No code changed.
+

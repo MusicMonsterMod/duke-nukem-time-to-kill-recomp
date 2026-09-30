@@ -1,5 +1,57 @@
 # Next-session handoff
 
+## 2026-09-30 - D13 Done (user accepted)
+
+User: "correct correct correct, D13 is good. I'd say let's approve it." Final
+binary `79e8cc5c579e7afa50f13b312e253d5104da5cdf82a51535245b171a20f1086b`. New backlog from the D13 playtest: D08U (top-of-ladder mount),
+D08V (sewer mantle lease), D08W (subway shallow-water sideways jumps), D10B
+(tight-space camera transparency/doors), D11C (savestate stuck head-hide
+flag, slot 12). Next job: the user chooses from the board.
+
+## 2026-09-30 - D13 F11 fullscreen key (Needs playtest)
+
+F11 is the only default fullscreen key (`host_keymap.c`); Alt+Enter and Ctrl+F
+are unbound. The D13 patch was regenerated and checked forward/reverse. Launcher
+text says "F11:". Awaiting the user's confirmation of windowed start, F11 and
+the remembered state; then D13 can be Done. Binary `79e8cc5c579e7afa50f13b312e253d5104da5cdf82a51535245b171a20f1086b`.
+
+## 2026-09-30 - D13 windowed default + remembered display (Needs playtest)
+
+Schema 15 (`fullscreen_mode`), runtime `--fullscreen-mode` and
+`--presentation-state` (written in `shutdown_runtime`), and
+`absorb_presentation_state` / `save_presentation_state` in the launcher. The
+user's profile is set to windowed at 4x (backup
+`recomp/config/player-profiles.json.recovered-2a7d56cb...`). Awaiting the user's
+confirmation of windowed start, Alt+Enter and the remembered state; then D13
+Done. Binary `7bd2a001a295330397d45c73ca9bc2ca0bc575c0d889bab3259d06778b3a3d1c`.
+
+## 2026-09-30 - D13 playtest follow-up (Needs playtest)
+
+User confirmed 4x at 60 fps; Modernized default now 4x. Fixed Alt+Enter
+(`host_keymap.c` exact modifier compare, now `mod_groups`) and SDL3 exclusive
+(`psx_apply_fullscreen_display_mode` in main.cpp); both in the D13 runtime
+patch, which was regenerated and checked forward/reverse. Awaiting the user's
+confirmation, then D13 can be Done. New backlog from the same playtest: D08U
+(top-of-ladder mount), D08V (sewer mantle lease), D10B (tight-space camera).
+Slot 12 is `saves/local-play/openbios/state_800AB6FC_slot11.pst`; a private
+copy is in `recomp/analysis/d13-resolution/cards/openbios/`
+(`probes/start.sh RUN 11 ...`). `ptrace` attach is blocked on this machine, so
+use temporary log lines instead of gdb attach. Binary `ecc9328065b8a6c3311423e1640936b1835e1517d35b923605609595e2f3a95d`.
+
+## 2026-09-30 - D13 resolution and display (Needs playtest)
+
+Runtime patch `recomp/patches/time-to-kill-zzzzzzzz-presentation-cli.patch`
+adds `--internal-scale/--display/--window-width/--output-filter`; profile
+schema 14 (`player_profiles.py`) saves them per profile and `run.py` passes
+them (`presentation_args`; software forces 1x via `effective_scale`). Test
+harness: `recomp/analysis/d13-resolution/` (`probes/start.sh RUN SLOT
+[run.py args]`, `stop.sh`, `measure.py RUN`; port 9193, display :93, `WM=1`
+starts metacity for fullscreen checks). `screenshot_hires` does not see the
+OpenGL hr FBO; use window captures. Awaiting the user's desktop test (fps at
+2x-4x on the GTX 1080 Ti, exclusive fullscreen). Pre-existing: patch-stack
+check fails on `host_osd.c` drift vs the inventory-strip patch (see the D13
+note). Binary `14fde30b76f3907effa6680603a367d28458dda0ed5aea69cb65c79711bee71d`.
+
 ## 2026-09-30 - D08L Done (user accepted)
 
 User: "im happy with that!" Final binary `a16c13ca3bd9cba5e864213fdc6ba57526a976cbe2be8df7301f85b0bd697eb8`. Next job: the user chooses

@@ -67,6 +67,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08U | Top-of-ladder mount: grab a ladder from a platform and climb down | Todo | D08, D08J |
 | D08V | Sewer mantle/hang modern-control coverage (slot 12 area) | Todo | D08, D08B |
 | D08W | Subway shallow-water sideways jumps (A/D + Space jumps forward) | Todo | D08, D08C |
+| D08X | Hold-E airborne ledge grab and mantle (ladder-grab feel for ledges) | Todo | D08, D08J, D08V |
 | D09 | Modern controller support | Todo | D05, D06, D07 |
 | D10 | Third-person camera polish | Done | D08 |
 | D10A | Rapid mouse turning and Shift-running investigation | Done | D06, D07C, D08 |
@@ -1076,6 +1077,39 @@ feel as a dry-ground directional jump (D08C, D08I), including a pure
 sideways jump while running forward and then strafing. Forward jumps and
 original water behavior (slowdown, splashes, sounds) stay intact. Check the
 crystal-2 wade for regressions. Vanilla is unchanged.
+
+### D08X - Hold-E airborne ledge grab and mantle
+
+**User request (2026-09-30):** in Modernized, holding **E** while jumping
+toward a mantle-able ledge at grabbing height should make Duke catch the
+ledge and pull himself up, the same way run-jump + E already catches a ladder
+(D08J). The user wants it to feel fluid and modern, and to work with a high
+degree of confidence: if the ledge is in reach and E is held, Duke grabs it.
+
+Context to check first: the original game already has ledge hang and mantle
+animations (134-142) and the 6/7 hanging dispatches, guarded separately from
+camera-relative movement (see `documentation/26-d08-movement-followup.md`).
+D08O reached a mantle from deep water with E, and D08V covers the sewer
+mantle lease flicker. Trace the original ledge eligibility first: which
+heights, distances, facing and velocity windows the original grab accepts,
+whether it is automatic or button-driven, and why a Modernized jump misses
+it (camera-relative facing, held move direction, speed, or the grab window
+timing). Prove the failing path before choosing a fix; use the original
+hang/mantle routines and animations rather than inventing a new climb.
+
+**Acceptance:** in Modernized, a standing, walking or running jump toward a
+ledge at grabbing height with E held (pressed before or during the jump)
+reliably catches the ledge and mantles up with no pop, clip, damage or camera
+snap, in third and first person. Grabbing works while armed, with the
+automatic stow/redraw of D08J. E held into a ledge that is out of reach, or
+into a wall with no ledge, does nothing odd; jumping without E keeps the
+current behavior. It must not grab through walls or from remote distances,
+and it must not break ladder grabs (D08J, D08U), pushable-object grabs
+(D08T), ordinary E targets, edge run-off (D08L) or jumps (D08C, D08I).
+Record grab success over repeated attempts on several representative ledges
+(apartment exterior, sewer slot-12 area, crystal-2) and list any ledge type
+that is not covered. Test only on private savestate copies. Vanilla is
+unchanged.
 
 ### D09 — Modern controller support
 

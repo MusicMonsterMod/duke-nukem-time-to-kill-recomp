@@ -1,5 +1,13 @@
 # Next-session handoff
 
+## 2026-09-30 - D08X added (hold-E ledge grab)
+
+New Todo D08X: in Modernized, holding E while jumping toward a ledge at
+grabbing height should reliably catch it and mantle up, like run-jump + E on
+ladders (D08J). Trace the original ledge eligibility (anims 134-142, 6/7
+hanging dispatches) before choosing a fix. Next job: the user chooses from
+the board.
+
 ## 2026-09-30 - D11C Done (user accepted)
 
 User: "duke's head is back, mark as complete! well done". Binary `d14b04f062dc88271fa9072288f0b37a170637563309920f2c92e139eb908f58`. Next

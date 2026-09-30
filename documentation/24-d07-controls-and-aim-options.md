@@ -76,9 +76,14 @@ The crosshair shows view center; assistance can correct a shot within its stated
 cone. The original red marker remains the game's indication, not a laser or a
 claim that assistance was accepted. Hiding either marker leaves aiming unchanged.
 
-For the red marker, guarded `0x80033AF8`, RA `0x8003543C`, establishes player/stack
-ownership. At its specific OT enqueue `0x8002BC18`, RA `0x80033DB0`, hiding collapses
-only the verified textured quad to zero area. No target field, texture, saved game
+For the red marker (D07D revision), ownership is proven at its specific OT
+enqueue `0x8002BC18`, RA `0x80033DB0`, alone: S4 is the player (the marker routine
+never saves or writes S4; its sole caller `0x80035434` passes the actor there), the
+marker frame's saved RA at `sp+0x40` is `0x8003543C`, and the aim code identity
+matches. There is no entry lease or gameplay/camera/map gate, so the dot hides
+wherever it is drawn in Modernized. Hiding collapses
+only the verified textured quad to zero area. Red dot is off by default in
+Modernized from profile schema 16. No target field, texture, saved game
 option or global rendering behavior is changed. Unknown code/overlays fail closed.
 Original aiming remains available independently of both Modernized marker choices.
 

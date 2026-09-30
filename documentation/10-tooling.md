@@ -199,6 +199,11 @@ natural pistol aim scan and traces original actor contacts. It explicitly grants
 one private inventory fixture to verify numbered requests through original
 selection/draw logic, never overwrites equipped slot/model, and never saves.
 Use `--crosshair off` separately to test independent marker visibility.
+
+`--automatic-entry --controls red-dot --red-dot off|on` (D07D, `red_dot_probe.py`)
+runs natural pistol scans in third person, held Mouse2 and first person, with no
+guest writes and no state sampler, and asserts the marker hook's hidden count per
+segment against the setting. Captures are kept but are not visual proof.
 The trace's actor +0x204 word is raw research data, not a verified health offset.
 See [D07 follow-up contracts](24-d07-controls-and-aim-options.md).
 

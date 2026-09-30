@@ -1,5 +1,37 @@
 # Next-session handoff
 
+## 2026-09-30 - D07D, D08T1, D08V accepted (Done)
+
+User: "awesome. accept". All three Done on binary `123c7910...693e`. D08X
+(hold-E ledge grab) is now unblocked. Next job: the user chooses from the board.
+
+## 2026-09-30 - D08V implemented (Needs playtest); D07D, D08T1, D08V await playtest
+
+Camera-only lease through mantle/hang/pull-up, post-mantle 0/8 and 0/9 gait
+and unowned 107/108 falls; `traversal_camera_ready()` replaces the tank
+fallback there. Repro and sweep scripts in `recomp/analysis/d08v-sewer`.
+Binary `123c7910...693e`. D08X (depends on D08V) stays blocked on the D08V
+playtest. Next job: the user chooses from the board.
+
+## 2026-09-30 - D08T1 implemented (Needs playtest)
+
+Hold Grab (RMB/Alt) grabs pushables; E mantles them like any climbable.
+New generated entry hook `0x80051890` (E's Cross masked at the idle grab);
+`0x80051CF0` mask only while Grab owns Cross. Schema 17 (`grab`, `grab_alt`;
+`original_aim` Unbound). `build.py` stops in the stale runtime patch-stack
+check; regenerate with `psxrecomp_cli.py generate` directly (see
+documentation/70). Binary `66097cf8...3015`.
+
+## 2026-09-30 - D07D implemented (Needs playtest)
+
+Red dot off by default in Modernized (schema 16, one-time migration with a
+backup). `marker_hook` owns the dot at enqueue `0x8002BC18`/RA `0x80033DB0`
+using S4 == Duke and the frame RA `0x8003543C`; no entry lease or LEVEL00
+gate. Tests: `ttk-aim-test`, Python 85 OK, `pc_input_probe --controls red-dot`
+on/off runs. Playtest: look for the dot with targets in third/first person,
+held aim, jetpack, swimming, scripted cameras. The legacy `aim-options` route
+fails in stale sampler/D04 checks (not changed). Binary `db5bf964...ec67b`.
+
 ## 2026-09-30 - D07D added (no red autoaim dot in Modernized)
 
 New Todo D07D: the user finds the original red autoaim dot next to the modern

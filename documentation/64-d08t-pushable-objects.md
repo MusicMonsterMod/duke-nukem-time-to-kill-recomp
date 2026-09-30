@@ -1,5 +1,11 @@
 # D08T - Pushable objects: modern grab, push/pull and climb
 
+> **Superseded controls (D08T1, 2026-09-30):** E no longer grabs and Space no
+> longer climbs pushable objects. E mantles them like any climbable object and
+> holding Grab (right mouse or Alt) grabs; see
+> [70-d08t1-grab-manipulate.md](70-d08t1-grab-manipulate.md). The original rules
+> and evidence below remain valid.
+
 Status: **Done** (2026-09-30, user: "it works so much better than the original now. this is it rock solid. confidence level is very high."). Modernized only; Vanilla keeps the
 original Action rules. Opened from the user's report about the green dumpster in
 the first map's alley, with a savestate in UI slot 5 in front of it.

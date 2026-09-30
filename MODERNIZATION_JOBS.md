@@ -38,7 +38,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D07A | View-aligned Duke facing and weapon presentation | Done | D07 |
 | D07B | Optional assisted view aiming and display controls | Done | D07 |
 | D07C | Unified Duke3D-style aiming, facing and projectile coverage | Done | D07, D04 |
-| D07D | Red autoaim dot off by default in Modernized (crosshair only) | Todo | D07B, D07C |
+| D07D | Red autoaim dot off by default in Modernized (crosshair only) | Done | D07B, D07C |
 | D08 | Modern traversal controls — accepted iteration | Done | D05, D06, D07 |
 | D08A | EDuke32-style weapon and item shortcuts | Done | D04, D08 |
 | D08A1 | Visible EDuke32-style inventory cycling | Done | D04, D19A |
@@ -65,9 +65,9 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08Q1 | Faster Modern jetpack Ctrl descent (underwater dive speed) | Done | D08Q |
 | D08S | Duke3D-style jetpack scheme (instant J on/off, midair) | Cancelled (may revisit) | D08R |
 | D08T | Pushable objects: modern grab/push/pull and climb (alley dumpster) | Done | D08 |
-| D08T1 | Separate push/pull from mantling: E always mantles, hold RMB to grab | Todo | D08T, D04 |
+| D08T1 | Separate push/pull from mantling: E always mantles, hold RMB to grab | Done | D08T, D04 |
 | D08U | Top-of-ladder mount: grab a ladder from a platform and climb down | Todo | D08, D08J |
-| D08V | Sewer mantle/hang modern-control coverage (slot 12 area) | Todo | D08, D08B |
+| D08V | Sewer mantle/hang modern-control coverage (slot 12 area) | Done | D08, D08B |
 | D08W | Subway shallow-water sideways jumps (A/D + Space jumps forward) | Todo | D08, D08C |
 | D08X | Hold-E airborne ledge grab and mantle (ladder-grab feel for ledges) | Todo | D08, D08J, D08V |
 | D09 | Modern controller support | Todo | D05, D06, D07 |
@@ -251,6 +251,11 @@ D07A/D07B evidence without erasing their earlier bounded acceptance. See
 [next-session brief](documentation/39-next-iteration-brief.md).
 
 ### D07D - Hide the original red autoaim dot by default in Modernized
+
+**Done (user-accepted, 2026-09-30).** Previously Needs playtest: profile schema 16 defaults `red_dot` off and
+migrates older Modernized profiles off once; the marker hook now owns the dot
+at its enqueue alone, so it hides on every map and state that draws it. See
+the 2026-09-30 D07D work log.
 
 **User request (2026-09-30):** with modern controls the original red autoaim
 dot is not needed; the player relies on the modern crosshair. Showing both is
@@ -1040,6 +1045,12 @@ Binary `941593c077bae11e441ce8a89832f2292f97934681648eba08df4b7c36b1e0ac`.
 
 ### D08T1 - Separate push/pull manipulation from mantling
 
+**Done (user-accepted, 2026-09-30).** E mantles pushable objects like any other;
+holding Grab (RMB, or Alt; Alt only with legacy aiming, where RMB stays
+precision aim) grabs, W/S push/pull, release lets go. Schema 17. Details and
+evidence: [documentation/70-d08t1-grab-manipulate.md](documentation/70-d08t1-grab-manipulate.md)
+and the 2026-09-30 D08T1 work log.
+
 **User brief (2026-09-30), backlog only:** the accepted D08T controls make an
 invisible object property change the traversal controls. On a pushable object
 **E** grabs and **Space** climbs, while everywhere else **E** mantles. The
@@ -1099,6 +1110,11 @@ already known from D08B/D08J to see whether the same mechanism applies there,
 and record any ladder that it does not cover.
 
 ### D08V - Sewer mantle/hang modern-control coverage (slot 12 area)
+
+**Done (user-accepted, 2026-09-30).** Mantles, hangs, pull-ups, the frames after
+them and unowned falls keep the mouse camera and modern buttons; the original
+routines are unchanged. Reproduced sweep: tank fallbacks 12 -> 0, mantles
+identical. Details: [documentation/71-d08v-sewer-mantle-lease.md](documentation/71-d08v-sewer-mantle-lease.md).
 
 **User report (2026-09-30, D13 playtest, 4x exclusive):** mantling around the
 sewers near the slot-12 save is glitchy: controls keep switching in and out of
@@ -3877,3 +3893,134 @@ User, after loading slot 12: "duke's head is back, mark as complete! well
 done". D11C is Done. Remaining, recorded: a save taken inside the draw window
 still stores the bit (cleared on load in Modernized; Vanilla would still show
 it headless), and the slot-12 file is not rewritten. Binary `d14b04f062dc88271fa9072288f0b37a170637563309920f2c92e139eb908f58`.
+
+## 2026-09-30 - D07D red dot off by default in Modernized (Needs playtest)
+
+Profile: schema 16 (`player_profiles.py`). `DEFAULT_CONTROLS['red_dot']` is
+now `False`. A file older than v16 whose Modernized profile still says
+`red_dot: true` is switched off once, with the usual recovery backup and a
+notice ("run.py --red-dot on restores it"). How an explicit choice is told
+apart from the old default: it cannot be for pre-v16 files (the old default and
+a deliberate "on" were stored identically), so every pre-v16 "on" is treated as
+the old default, per the user's request. From v16 on, the stored value is the
+player's own choice and later loads keep it. Vanilla still launches with
+`DNTTK_RED_DOT=1` whatever is stored.
+
+Hook (`weapon_aim.cpp` `marker_hook`): the old code needed an entry lease at
+`0x80033AF8` plus `player_identity_ready()` (gameplay context, camera<->player
+back-links and the full LEVEL00 control identity), and stepped aside in the
+runtime's precise-interpreter slices. Any of those could let the dot through:
+scripted/detached cameras, other maps, or a frame whose entry hook was skipped.
+(The "precision aim" in the brief was `g_precise_mode`, the runtime's
+interpreter slice, not right-mouse aim; held Mouse2 was already covered.) Now
+ownership is proven at the single enqueue `0x8002BC18` with RA `0x80033DB0`:
+S4 is Duke (`0x800D7198`; the routine never saves or writes S4, and its
+only caller `0x80035434` passes the actor there), the marker frame's saved RA
+at `sp+0x40` is `0x8003543C`, the primitive is the same textured quad, and the
+weapon/marker code identity (`aim_guards`, all main executable) matches.
+Static check on the owned disc: `jal 0x80033AF8` occurs once in the
+executable and in none of the 30 unique overlays. Lockstep verification, call
+bail and Vanilla still step aside. The quad is collapsed exactly as before; no
+aim, target, option or damage state is touched.
+
+Evidence:
+- `ttk-aim-test` PASS with new cases: hides without an entry lease or player
+  readiness and during `g_precise_mode`; no write for another actor, a foreign
+  frame RA, lockstep, Vanilla, or changed marker code; red dot on leaves the
+  quad. Earlier assist/aim-vector assertions unchanged.
+- Python 85 OK (2 skipped), including new schema-16 migration/launch tests.
+- New route `pc_input_probe.py --controls red-dot` (`red_dot_probe.py`):
+  natural pistol scans, OpenGL, Xvfb. `d07d-off-gl`: hidden markers third 51,
+  held Mouse2 59, first person 65. `d07d-on-gl`: 0 in every segment; targets
+  acquired in both runs. The captures do not show the dot clearly either way
+  (muzzle flash, red lighting), so they are not visual proof.
+- The old `--controls aim-options` route now fails in its state sampler
+  (LEVEL00 full-hash check does not accept the D08D apartment patch) and the
+  menu D04 diagonal check; both predate this job and were not changed.
+- Player binary `db5bf9640893ae582acefa27fca8f98f27017bd6f1aa4c956d203cf31e6ec67b`.
+
+Remaining: the user's own look at play with and without targets in third and
+first person, held aim, jetpack, swimming and a scripted camera; the first
+launch migrates the saved profile (backup kept).
+
+## 2026-09-30 - D08T1 hold to grab, E always mantles (Needs playtest)
+
+Binding model taken from the brief's proposal (the user asked for autonomous
+work): `grab` Mouse2 and `grab_alt` Alt (either key), both rebindable;
+`original_aim` Unbound in Modernized; with `original` weapon aiming or original
+camera the `grab` input is precision aim (R1) and only Alt grabs. Profile schema
+17 moves Mouse2 from `original_aim` to `grab` (custom precision-aim inputs kept).
+
+Before the change (documented in `documentation/70-d08t1-grab-manipulate.md`):
+the `0x80051CF0` mask stopped E's Cross from ever climbing a pushable object,
+E started the grab and let go, and Space ran a host climb. Now: the
+`0x80051CF0` mask applies only while Grab owns Cross, so W + E climbs the
+dumpster like any climbable object; a new generated entry hook on the original
+idle Action `0x80051890` (callers `0x800467F4`/`0x80052C14`) masks E's fresh
+Cross at a pushable-only object, so E never grabs. Grab is held: request with
+automatic holster, latch while held, W/S camera-relative push/pull (original
+motion), release/E/blocked/hit/pause/focus end it, a fresh press is needed to
+grab again, Space/fire/Circle/R1 wait. Directions stay neutral until the
+original leaves 119..121 after letting go (a live run showed a held W feeding
+the running push cycle through the tank fallback). Space climb code removed.
+Prompts: `HOLD RMB TO GRAB` (first two touches) and `W/S PUSH/PULL - RELEASE
+RMB TO LET GO` (first three grabs), with the live binding name.
+
+Mouse2 audit: Modernized with `view` aiming loses R1 where view aim was not
+ready (airborne, unsupported weapons), the held-RMB original jump arc and
+held-RMB jetpack facing hold; all remain reachable by binding `original_aim`.
+
+Evidence (binary `66097cf8409830cba5ffdd54a830299b9fe13e480d371874d04b4b355bad3015`):
+- Live, private copy of the D08T slot-5 alley state
+  (`recomp/analysis/d08t1-grab/grab.py`), Xvfb real keys/mouse, third + view,
+  first + view, third + original (Alt): W + E climbs to the top and never
+  grabs; E alone does nothing (16-24 idle masks); hold Grab grabs, pushes
+  2582 -> 3539 (shove runs on to 3795, original lets go, no regrab while held),
+  fresh grab + S pulls 2582 -> 1639 with mouse look live; release then W + E
+  climbs; Grab while walking in grabs, never climbs; W + E while grabbing lets
+  go then climbs; pause ends the grab; Grab against other things does nothing
+  and sends no R1; with `original` aiming RMB is R1 and does not grab. First
+  person blends to the orbit while grabbing.
+- Vanilla original pad, gapless route (`vanilla.py`): grab 121, push +1185,
+  pull -923, no climb (D08T measured +1202 / -928).
+- `ttk-input-test`, `ttk-controls-test`, `ttk-aim-test` PASS; Python 87 OK
+  (2 skipped). D07D red-dot route rerun on this binary: hidden 53/58/63.
+- `build.py` stops in its runtime patch-stack check (reviewed patches no longer
+  apply cleanly over live runtime edits; not changed); generation was run
+  directly with the same `psxrecomp_cli.py generate` command.
+
+Remaining: user playtest of the feel (hold vs. release timing, Alt in their
+desktop environment, prompts), other pushable objects, and a pushable object
+that is also a switch (keeps original precedence; none known).
+
+## 2026-09-30 - D08V sewer mantle lease (Needs playtest)
+
+Reproduced on a private copy of slot 12 (`recomp/analysis/d08v-sewer`; the
+player's file untouched): 180 degrees from the save, W + E mantles a ledge
+(139/140, mode 8). Refusals matched the report: mantle 8/0 and 8/8 (camera
+lease never covered attached traversal; pad lease needed mode == previous),
+gait 0/8 and 0/9 just after, falls 107/108 9/9. Change: camera-only lease for
+mantle/hang/pull-up (mode 8 134..142, mode 6 147..153, mode 7 149..153, entry
+frames included), unowned 107/108 falls (not the owned short fall) and gait
+while previous is 8/9; locomotion excludes the mantle/fall states (no facing or
+gait writes); traversal pad lease accepts mantle/hang entry frames; new
+`traversal_camera_ready()` counts as a modern lease (fall keeps Up/Down and
+strafe pads); first person blends to the orbit there.
+
+Evidence (binary `123c7910b9ae049d0818de9cb85ea896a5242d6902ead311cf1f7f811d29693e`):
+mantle timeline identical before/after with the orbit camera live throughout;
+16-case sweep tank fallbacks 12 -> 0, no mantle lost; mid-mantle captures third
+and first person; native and Python suites PASS; D08T1 route unchanged.
+Remaining: user playtest in the sewers (other hangs were not reached), the
+unconfirmed "mantling felt harder" (not reproduced; original routine unchanged).
+
+## 2026-09-30 - D07D, D08T1, D08V accepted (Done)
+
+User, after the three-job session: "awesome. accept". D07D, D08T1 and D08V are
+Done on binary `123c7910b9ae049d0818de9cb85ea896a5242d6902ead311cf1f7f811d29693e`.
+Recorded limits stay: D07D captures were not visual proof; D08T1 verified on
+the alley dumpster only (a started shove finishes; switch-flagged pushables
+keep original precedence); D08V exercised one sewer ledge (other hangs follow
+the same rule). `build.py` still stops in its stale runtime patch-stack check.
+D08X is now unblocked by D08V.
+

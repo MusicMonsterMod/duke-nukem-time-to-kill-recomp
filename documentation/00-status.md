@@ -1,5 +1,30 @@
 # Current status - 2026-09-30
 
+**D08V sewer mantle lease - Done (user-accepted).** Mantles, hangs and pull-ups,
+the frames right after them and falls no jump owns now keep the mouse camera
+and modern buttons (no `ORIGINAL MOVEMENT` flicker); the original traversal
+routines are unchanged. Private slot-12 sweep: tank fallbacks 12 -> 0, mantles
+identical. Current binary `123c7910b9ae049d0818de9cb85ea896a5242d6902ead311cf1f7f811d29693e`
+(includes D07D and D08T1). Details: documentation/71-d08v-sewer-mantle-lease.md.
+
+**D08T1 hold to grab, E always mantles - Done (user-accepted).** In Modernized, E
+climbs a pushable object (the alley dumpster) exactly like any climbable
+object; holding right mouse (or Alt) grabs it, W/S push/pull, releasing lets
+go. With `original` weapon aiming right mouse stays precision aim and Alt
+grabs. Profile schema 17. Live private-state checks in third and first person
+and with legacy aiming pass; Vanilla push/pull unchanged. Binary
+`66097cf8409830cba5ffdd54a830299b9fe13e480d371874d04b4b355bad3015`
+(includes D07D). Details: documentation/70-d08t1-grab-manipulate.md.
+
+**D07D red dot off by default in Modernized - Done (user-accepted).** Profile schema
+16 turns the original red autoaim dot off in Modernized (older profiles are
+migrated off once, with a backup; later choices are kept; `--red-dot on`
+restores it). The hide hook now proves ownership at the marker's own enqueue,
+so it no longer depends on the first-map camera/identity lease. Isolated
+OpenGL route: hidden markers in third person (51), held aim (59) and first
+person (65); none with the dot on. Vanilla unchanged. Binary
+`db5bf9640893ae582acefa27fca8f98f27017bd6f1aa4c956d203cf31e6ec67b`.
+
 **D13 higher internal resolution and display scaling - Done (user: "correct correct correct, D13 is good. I'd say let's approve it.").** Each
 profile now saves an internal 3D resolution (1x original to 4x with OpenGL),
 display mode (windowed, borderless or exclusive fullscreen), window width and

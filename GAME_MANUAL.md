@@ -117,7 +117,7 @@ Duke turns to face the view horizontally when holstered or using a supported wea
 
 While captured, use **left mouse** to fire/action, **Space** to jump, **Scroll Lock** (tap) to
 draw/holster, **hold Left Ctrl** to crouch and release to stand (when overhead clearance permits), **Left Shift** as the speed modifier,
-**right mouse** to hold aim (the same view aim for supported Modernized weapons), **comma/period** for original sidesteps,
+**hold right mouse** (or **Alt**) to grab a pushable object, **comma/period** for original sidesteps,
 and **I** for inventory. **E is interaction-only and never fires.** If necessary,
 a tap automatically requests holstering and then interacts once that animation
 finishes. Keep E held for continuous action while climbing. Your weapon is
@@ -367,9 +367,11 @@ when needed to avoid aiming backwards from an overlapping muzzle; original cover
 and damage rules still apply. `original` restores the original
 weapon path, including the in-game auto-aim setting, and hides the modern
 crosshair. Selecting original camera also retains original body/gun presentation.
-Holding right mouse keeps the same view target, body facing and weapon pitch in
-supported Modernized states. Select `original` weapon aiming or original camera
-for the original right-mouse precision behavior. Vanilla retains it as well.
+With `view` aiming, right mouse is **Grab** (see pushing objects below), not
+aim: view aiming already aims where you look. Select `original` weapon aiming or
+original camera to get the original right-mouse precision aim back; then **Alt**
+grabs. The precision-aim action (`original_aim`) is unbound by default and can be
+bound to another input. Vanilla retains right-mouse precision aim.
 **9 Aiming display / assistance** configures three independent settings:
 `off` or experimental `original-lock` assistance, crosshair on/off, and red dot
 on/off. Assistance uses an existing game target within six degrees of view center,
@@ -377,17 +379,33 @@ with separate camera and muzzle visibility checks. Enable original autoaim in th
 game for its target acquisition. Unsupported weapons retain original aiming.
 The crosshair marks view center; assistance can correct within that cone. The
 red dot remains the original game's marker. Hiding either marker does not change
-assistance. These new options and natural weapon use still need playtesting.
+assistance, autoaim target acquisition or damage.
+
+**Red dot off by default in Modernized (D07D):** Modernized shows only the
+modern crosshair; the original red autoaim dot is hidden in third and first
+person, while holding precision aim, and on every map and state where the game
+draws it. Profiles saved before this change are switched to red dot off once
+(with a backup and a notice); after that, your own choice is kept. Turn the dot
+back on with `--red-dot on` or settings item 9. `original` weapon aiming hides
+the modern crosshair, so with `original` aiming turn the red dot on if you want
+a marker. Vanilla always shows the original red dot.
+
 Vanilla always retains original aiming. Save without launching with:
 
 ```sh
 python3 recomp/tools/local/run.py --weapon-aim original --show-settings
 ```
 
-For assisted view aiming with a crosshair and no original red dot:
+For assisted view aiming with the crosshair (the red dot is already off by default):
 
 ```sh
-python3 recomp/tools/local/run.py --mode modernized --weapon-aim view --aim-assist original-lock --crosshair on --red-dot off --show-settings
+python3 recomp/tools/local/run.py --mode modernized --weapon-aim view --aim-assist original-lock --crosshair on --show-settings
+```
+
+For original weapon aiming with the original red dot as the marker:
+
+```sh
+python3 recomp/tools/local/run.py --mode modernized --weapon-aim original --red-dot on --show-settings
 ```
 
 These commands save preferences without launching. Old profiles are backed up
@@ -495,21 +513,39 @@ interaction and lights-before-dialogue secret remain. Vanilla retains its origin
 rules. Bed/couch contact, walk/run departures and release checks passed privately;
 your movement feel and broader terrain still need playtesting.
 
+**Mantles and ledge hangs (Modernized, D08V):** climbing onto ledges, hanging
+and pulling up, and falls that did not start as your own jump keep the mouse
+camera and modern controls instead of switching to the original camera for a
+moment. Duke's climb itself is the original animation. In first person the view
+steps out behind Duke during the climb and returns afterwards. Ladders keep
+the original camera.
+
 ### Pushing and climbing objects (Modernized)
 
 Some objects can be pushed, such as the green dumpster in the first map's alley.
+Being pushable never changes how you climb: **E** works on it exactly as on any
+other object you can climb.
 
 | Input | Result |
 | --- | --- |
-| **E** while touching the object | Grab it (your weapon is stowed first if needed). Holding W into it is fine |
-| **W / S** while holding it | Push / pull. Relative to the camera: W pushes when you look at the object |
-| **E** again | Let go. Your weapon comes back |
-| **Space** while touching or holding it | Climb on top, if it can be climbed |
+| **E** (with **W** into it) | Climb it, like any climbable object. E alone while standing does nothing |
+| **Hold right mouse** (or **Alt**) while touching it | Grab it (your weapon is stowed first if needed). Holding W into it is fine |
+| **W / S** while holding the button | Push / pull. Relative to the camera: W pushes when you look at the object |
+| **Release** the button | Let go. Your weapon comes back |
+| **E** while holding it | Let go, then E works as usual (W + E climbs) |
+
+Grab is a held action: Duke holds the object only while you hold the button.
+After Duke lets go by himself (the object is blocked, he is hit, or you pause),
+release and press again to grab once more. Space, fire and weapon changes wait
+until you let go. A push or pull that has already started finishes its original
+shove before Duke lets go. The first touches of a session show which button
+grabs. With `original` weapon aiming or camera, only **Alt** grabs (right mouse
+is precision aim there); both are rebindable (`grab`, `grab_alt`).
 
 Mouse look keeps working while you hold an object. In first person the view
 steps out behind Duke while he holds it and returns afterwards. Face the object
 roughly square, as in the original. Objects stop moving when something blocks
-them; Duke then lets go by himself. Accepted in playtest on 2026-09-30.
+them; Duke then lets go by himself.
 
 In **Vanilla** the original rules apply: stand still facing the object with no
 weapon drawn, hold **X**, then press **Up** to push or **Down** to pull. Holding a

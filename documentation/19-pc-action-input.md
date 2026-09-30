@@ -41,6 +41,11 @@ Captured action defaults:
 | Inventory | I | Select, then releases capture; Right Shift closes inventory |
 | Look delta | Relative mouse motion | Frame data only; no camera or aim changes yet |
 
+Historical D04 table. Since D08T1 (schema 17) Mouse2 is **Grab / Manipulate**
+(`grab`, plus `grab_alt` on Alt) and `original_aim` is Unbound in Modernized;
+with legacy aiming the `grab` input serves precision aim. See
+[70-d08t1-grab-manipulate.md](70-d08t1-grab-manipulate.md).
+
 Original physical controllers remain on their existing runtime path in either
 profile. Keyboard/mouse activity is identified in the action snapshot. Modern
 controller axes/dead zones/hot-plug action semantics remain D09; no tested hardware

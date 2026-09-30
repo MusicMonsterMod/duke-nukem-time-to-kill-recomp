@@ -12,6 +12,16 @@ interaction, aiming and renderer migrations remain in place. See
 [current controls and migration details](33-controls-shortcuts.md) and the
 [manual](../GAME_MANUAL.md). Earlier schema milestones below are historical.
 
+**Schema 17 (D08T1, 2026-09-30)** is the current launcher format: it adds the
+`grab` (Mouse2) and `grab_alt` (Alt) actions and moves Mouse2 off
+`original_aim` (now Unbound by default); a customized precision-aim input is kept.
+
+**Schema 16 (D07D, 2026-09-30)**: Modernized
+`red_dot` defaults to off. A pre-16 file whose Modernized profile holds
+`red_dot: true` is switched off once (backup plus notice), because older files
+cannot tell a chosen "on" from the old default; from 16 on the stored value is
+the player's choice. Vanilla always launches with the original dot.
+
 ## Player entry points
 
 ```sh

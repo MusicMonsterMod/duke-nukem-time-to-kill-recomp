@@ -1,5 +1,22 @@
 # Next-session handoff
 
+## 2026-10-01 - D08J1 accepted (Done)
+
+User playtest: "genuinely working solidly." Committed. Next job: user's choice.
+
+## 2026-10-01 - D08J1 overhead ladder grab (Needs playtest)
+
+Playtest at save slot 6: hold E and run (or walk) at the ladder; Duke should
+leap and grab it with no Space, then W climbs. Also: stop under it and tap E;
+start a little to one side; try with a weapon drawn (E stows first; pressed
+late while running, Duke stops at the wall and then leaps straight up).
+Without E he should stop at the wall as before. Tuning:
+`ladder_leap_distance()` windows (750/800/450), `leap_side` (180),
+`leap_step` (70), rise limits 300..1400 in `recomp/src/ttk/ladder_top.inc`;
+`DNTTK_TRAVERSAL_TRACE=1` logs `ttk-ladder-leap`. Scripts:
+`recomp/analysis/d08j1-ladder-run` (`sweep.py`, `leap2.py`, `regress.sh`).
+Binary `108d3a97a40b129d4f922d4aada3d9bdf20e7dd573293d52a55544f61b084607`. Nothing committed.
+
 ## 2026-10-01 - D08Z accepted (Done)
 
 User: "i love it. lock it in." Player profile stays on `jump: manual`

@@ -1,5 +1,17 @@
 # Current status - 2026-10-01
 
+**D08J1 overhead ladder grab - Done (user-accepted).** New job from the user's
+slot-6 report. That ladder's bottom rung is about 1040 above the floor, so
+the original ground mount never sees it and walking into it stops at the
+wall; jumps from the wrong distance bounce (107). Modernized now jumps for
+Duke once per E hold when he heads at such a ladder inside the catching
+window (run 750, walk 800, standing 450 from the panel), keeps the reach held
+through the leap (an E tap at the wall works) and eases him along the panel
+in the air; the original catch and climb do the rest. Private slot-6 copy:
+all E approaches caught (first/third person, manual/assisted jump, armed or
+holstered), none without E; D08U/D08X/D08Y/D08W regressions unchanged.
+Binary `108d3a97a40b129d4f922d4aada3d9bdf20e7dd573293d52a55544f61b084607`. Details: documentation/79-d08j1-ladder-leap.md.
+
 **D08Z manual jump style - Done (user-accepted).** Optional Modernized
 `--jump manual` (assisted stays the default): jump on the press near gaps,
 ~0.15 s grace after running off an edge, WASD air steering up to the takeoff

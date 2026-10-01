@@ -271,7 +271,20 @@ climb down: Duke climbs all the way to the bottom and steps off onto the floor
 S now includes). His weapon comes back out once he is standing again, as with
 other E climbs. Walking or running off the edge without E still drops or jumps
 as before, and E away from a ladder top does its normal job. Vanilla has no top
-mount, so there the only way down is to jump. Number keys now select familiar weapon groups when owned and usable:
+mount, so there the only way down is to jump.
+
+**Grabbing a ladder that hangs high on a wall (Modernized, D08J1).**
+Some ladders start well above the floor, out of reach from the ground (about
+Duke's height up).
+Hold **E** and run or walk at the ladder: when Duke is close enough he jumps
+up by himself and grabs it, then the normal ladder climbing takes over (W
+climbs). Standing under it, a press of **E** does the same. You do not need
+Space, and Duke stows his weapon first if he is holding one. He lines himself
+up with the ladder in the air if you were a little to one side. Without E
+nothing changes: Duke stops at the wall as before. Vanilla is unchanged; there
+you jump with E held.
+
+Number keys now select familiar weapon groups when owned and usable:
 
 | Key | Weapon group (press again to cycle alternatives) |
 | --- | --- |

@@ -73,6 +73,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08X | Hold-E airborne ledge grab and mantle (ladder-grab feel for ledges) | Done | D08, D08J, D08V |
 | D08Y | Gap jump dead band: jump-mantle level-geometry ledges (slot 5 gap) | Done | D08X |
 | D08Z | Optional manual modern jump (player-timed takeoff, air control) | Done | D08Y |
+| D08J1 | Hold-E run-up grab for overhead ladders (slot-6 ladder) | Done | D08J, D08X, D08U |
 | D09 | Modern controller support | Todo | D05, D06, D07 |
 | D10 | Third-person camera polish | Done | D08 |
 | D10A | Rapid mouse turning and Shift-running investigation | Done | D06, D07C, D08 |
@@ -1305,6 +1306,36 @@ the default unless the user decides otherwise). In the manual style the jump
 leaves on the press, has bounded air control, and the slot-5 gap and other
 measured gaps remain clearable with reasonable timing. No double jumps,
 no wall clipping. Vanilla is unchanged.
+
+### D08J1 - Hold-E run-up grab for overhead ladders (slot 6)
+
+**Done (2026-10-01, user-accepted: "genuinely working solidly").** User: the ladder at save slot 6 is awkward to
+get to; "I want to just be able to run up to it while holding E and i grab it,
+but duke seems to bounce off of it."
+
+Finding: that ladder's bottom rung hangs about 1040 units (about Duke's own height)
+above the floor, so the original ground mount
+(`0x80051cf0`, Up + Cross, 185) never sees it: walking or running into it with
+E stops at the wall (94), and only an E jump catches it in the air. Jumps with
+E caught it from good distances but met the wall low and bounced (107) from
+others (walking at 400 and 1300 units). See
+[measurements, change and evidence](documentation/79-d08j1-ladder-leap.md).
+
+Change (Modernized only): with E held on the ground, holstered (E stows
+first) and heading at a plain ladder whose bottom is 300..1400 above the
+floor, the host presses the original jump once per E hold when Duke is inside
+the catching window for his gait (running 750, walking 800, standing 450
+units from the panel). The reach stays held through the leap (an E tap at the
+wall works too), and in the air Duke eases along the panel into its width
+when he started up to 180 units beside it. The original reach makes the
+catch and climbs. Vanilla, jumps without E and ladders mountable from the
+floor are unchanged.
+
+**Acceptance:** at the slot-6 ladder, running or walking at it with E held,
+or standing below it and pressing E, grabs it without Space, armed or
+holstered, first and third person, both jump styles; no new grabs without E;
+D08J/D08U/D08X ladder and ledge routes unchanged; user playtest confirms the
+feel.
 
 ### D09 — Modern controller support
 

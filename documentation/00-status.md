@@ -1,5 +1,14 @@
 # Current status - 2026-10-01
 
+**D14 widescreen - Done (user-accepted).** Modernized opens in native 16:9 (also
+16:10, 21:9, auto; `--widescreen off` for 4:3): wider view with the original
+projection, no stretching, no holes at the widened edges (TTK portal root
+rectangle widened; near clip in third person), HUD in the corners, movies and
+2D menus 4:3. Vanilla unchanged. Binary
+`3f726b9173ef236ca7c5f38b5c12b6713a877f85b6bbd5c0b2a8aca5e392af2c`. Unlike
+DuckStation's widescreen hack, text, HUD and movies keep their original
+proportions. Details: documentation/76-d14-widescreen-first-pass.md.
+
 **D08U, D08W, D08A3, D08X - Done (user-accepted).** Ladder-top mount and full
 descent; shallow-water jumps in the held direction; original TTK HUD icons in
 the switcher; hold-E jump grabs and mantles (ledges and climbable objects at an

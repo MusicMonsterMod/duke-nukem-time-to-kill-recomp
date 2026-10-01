@@ -1,5 +1,26 @@
 # Next-session handoff
 
+## 2026-10-01 - D14 widescreen accepted (Done)
+
+User: "im very happy with it! i accept!" Committed with the case study
+(DuckStation stretches 2D by 4/3; native-wide does not). Next job: user's choice.
+
+## 2026-10-01 - D14 widescreen (Needs playtest)
+
+Modernized defaults to native 16:9 (profile schema 18, `run.py --widescreen
+off|16:9|16:10|21:9|auto`). Fixes: dropped `nw_hud_corners` (it shifted world
+polygons: the off-centre, torn preview), widened TTK's portal root rectangle
+`0x800d2210` at the render's projection load, D11B near clip in third person,
+HUD layout `0x800dd778` moved out while the status bar draws (new hooks
+`0x8008BA30`/`0x8001FC44`, regenerated). Binary `3f726b91...af2c`. Next: user
+playtest across levels at 16:9 (and 21:9/auto if wanted); real-GPU fps.
+`build.py` stops at the runtime-patch check (`time-to-kill-stopped-window.patch`);
+the generate/build steps were run directly (04-build-and-run.md).
+DuckStation testing: the flatpak ignores an `XDG_CONFIG_HOME` override and uses
+the player's config (resume-on-exit on); use the portable copy in
+`recomp/analysis/d14-widescreen/r2/ds/app/bin` (`portable.txt`).
+Nothing is committed yet.
+
 ## 2026-10-01 - Session locked in; next: D14
 
 All session work accepted (D08U, D08W, D08A3, D08X Done). D14 16:9 preview is

@@ -224,3 +224,22 @@ defaults to 4x, Vanilla to 1x. Both open windowed by default. At exit the
 runtime reports the window state (windowed or fullscreen, borderless or
 exclusive, width) and `run.py` saves it to the played profile (schema 15). See [67-d13-resolution-display.md](67-d13-resolution-display.md).
 
+## Widescreen (D14)
+
+Profile schema 18 adds the Modernized `widescreen` choice: `off`, `16:9`
+(default), `16:10`, `21:9` or `auto` (follows the window from 4:3 to 21:9).
+`run.py --widescreen VALUE` saves it (`--settings` choice W); the launcher
+passes `DNTTK_WIDESCREEN` (always `off` for Vanilla) and the preloaded
+`dnttk.presentation.widescreen` plugin selects the aspect. `game.local.toml`
+`[widescreen] gte_game_mode = true` is inert at 4:3. Regenerated hooks
+`0x8008BA30` and `0x8001FC44` anchor the HUD. See
+[76-d14-widescreen-first-pass.md](76-d14-widescreen-first-pass.md).
+
+Note (2026-10-01): `build.py` currently stops in `apply_runtime_patches.py` on
+`time-to-kill-stopped-window.patch`. To regenerate after a hook-list change,
+run the remaining steps from `recomp/` with `PSXRECOMP_GAME` and
+`PSXRECOMP_BIOS` pointing at `build-recompiler/`: `psxrecomp/psxrecomp_cli.py
+generate --config game.local.toml --project-root . --disc disc/time-to-kill.cue`,
+then `cmake --preset local-dev`, `cmake --build --preset local-dev` and
+`tools/local/build_movie_overlay.py`.
+

@@ -82,7 +82,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D12A | First-person quick kick without leaving the eye view | Done | D12 |
 | D11C | Savestates can keep Duke's first-person head hidden (slot 12) | Done | D11 |
 | D13 | Higher internal resolution and display scaling | Done | D02 |
-| D14 | Widescreen, FOV and visibility | In progress | D03, D13 |
+| D14 | Widescreen, FOV and visibility | Done | D03, D13 |
 | D15 | Optional geometry and texture precision | Todo | D13 |
 | D16 | Texture filtering and game-specific HD assets | Todo | D13 |
 | D16A | HRP assets and first-person weapon research (later) | Cancelled (original assets preferred) | - |
@@ -1413,16 +1413,15 @@ exclusive fullscreen were fixed after the first playtest. Evidence and limits:
 
 ### D14 — Widescreen, FOV and visibility
 
-**Backlog note (2026-10-01): user preview is "tremendously broken"** (off
-centre, tearing/holes). Triage and the ordered next steps (A/B squash vs
-native-wide, then TTK projection offset / draw area / cull sites) are in
-[the D14 notes](documentation/76-d14-widescreen-first-pass.md). Start here
-in a fresh session.
-
-**In progress (2026-09-30), first pass.** An inert Modernized-only 16:9
-activation plugin and package exist; a private experiment renders 16:9 but TTK's
-own 4:3 culling leaves black gaps at the widened edge and the right HUD is not
-anchored. No player option yet. See [findings and next steps](documentation/76-d14-widescreen-first-pass.md).
+**Done (user-accepted 2026-10-01):** "im very happy with it! i accept!" Modernized opens in true widescreen (default
+16:9; `run.py --widescreen off|16:9|16:10|21:9|auto`), rendered natively wide
+with the original projection, so nothing is stretched. TTK's portal root
+rectangle is widened so the revealed columns are drawn, the D11B near clip runs
+in third person for near walls, and the status bar sits in the wide corners
+(restored after it draws, so saves and 4:3 never see it). Movies and 2D menus
+stay 4:3. The broken preview came from `nw_hud_corners`, which shifted world
+polygons. Vanilla and `off` are unchanged. See
+[the D14 notes](documentation/76-d14-widescreen-first-pass.md).
 
 Explicit user priority: widescreen support. Render a wider view without stretching actors. Correct aspect, FOV, HUD anchoring, menus and room/portal visibility; define how original movies and fixed compositions are framed.
 
@@ -4257,3 +4256,36 @@ and i accept"). D14 16:9 preview reported off centre with large geometry
 holes; 2-minute triage points at TTK's 4:3 projection centre, draw area and
 culling under the native-wide path. Backlogged with ordered next steps; D14
 stays In progress for a fresh session.
+
+## 2026-10-01 - D14 widescreen (Needs playtest)
+
+User asked for widescreen at least as good as DuckStation fullscreen. Causes of
+the broken preview: `nw_hud_corners` shifts every untagged polygon for a title
+without a sprite anchor (off centre, torn), and TTK culls against its 4:3 portal
+root rectangle `0x800d2210` (holes). Native-wide (original projection, wide
+surface, 1:1 present) kept over the squash path after an A/B.
+- `widescreen_view_rect()` widens `0x800d2210` by the margin at the render's
+  projection load (`0x800b4d9c`, ra `0x8002e4d0`) before the portal walk.
+- D11B conservative near clip also runs in third person while widescreen is live.
+- HUD: new hooks `0x8008BA30` (status bar: layout `0x800dd778` x moved out by the
+  margin) and `0x8001FC44` (restore); regenerated.
+- Plugin accepts 16:9/16:10/21:9 and `auto` (adaptive to 21:9); profile schema 18
+  `controls.widescreen` (default 16:9), `run.py --widescreen`, settings choice W;
+  `game.local.toml [widescreen] gte_game_mode = true`.
+Evidence (binary `3f726b91...af2c`): margin black 0.39 -> 0.11 at fixed headings,
+near-wall margins 0.945 -> 0.000; HUD corners at 16:9/21:9; pause/Select/night
+vision/first person/inventory strip; FMV/title/menus pillarboxed; `auto` resize
+16:9 -> 21:9 -> 4:3; run.py path; DuckStation (portable, private config) shows
+the same view stretched by 4/3. ttk-controls-test, ttk-near-test, ttk-input-test,
+Python 92 OK; Vanilla route `d14-vanilla-1` exit 0. Software-GL fps at 4x drops
+about 20-30% (fill rate); real-GPU fps not measured. Needs a playtest across
+levels.
+
+## 2026-10-01 - D14 widescreen accepted (Done)
+
+User: "im very happy with it! i accept!" (binary `3f726b91...af2c`). Case study
+recorded in the D14 notes: DuckStation's widescreen hack gives the same wider
+view but stretches every 2D element (text, HUD, menus) and Duke by 4/3, while
+the recomp renders the extra columns natively and keeps text, HUD and movies
+at their original proportions.
+

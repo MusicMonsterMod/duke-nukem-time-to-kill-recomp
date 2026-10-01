@@ -78,7 +78,8 @@ and enter four values, for example `2 windowed 0 linear`:
   quit in a window (including one you resized), or in fullscreen, it opens
   the same way next time.
 - **Window width**: `0` fits the window to your screen; otherwise 640-7680
-  pixels. The height follows the 4:3 picture.
+  pixels. The height follows the picture shape (4:3, or the widescreen
+  shape below).
 - **Output filter**: `linear` smooths the picture when it is enlarged to the
   window; `nearest` keeps hard pixels.
 
@@ -86,6 +87,27 @@ The same settings are available as launcher flags, for example
 `python3 recomp/tools/local/run.py --internal-scale 3 --display borderless`.
 Changes take effect on the next launch. If the game slows down, lower the
 internal resolution.
+
+### Widescreen (Modernized)
+
+Modernized opens in **16:9 widescreen** by default. You see more of the world
+at the left and right; nothing is stretched, and the middle of the picture is
+exactly what the original showed. The health and ammo boxes move to the screen
+corners. Movies, the title screen and the main menus stay 4:3 with black bars
+at the sides. Aiming and the crosshair are unchanged. Unlike an emulator's
+widescreen hack, text, the HUD and menus keep their original shape instead of
+being stretched sideways.
+
+Choose the shape with `--widescreen`, or with **W** in `--settings`:
+
+- `16:9` (default), `16:10` or `21:9`: a fixed widescreen shape.
+- `auto`: follows the window, from 4:3 up to 21:9. In borderless fullscreen it
+  matches your monitor.
+- `off`: the original 4:3 picture.
+
+For example `python3 recomp/tools/local/run.py --widescreen 21:9 --display borderless`.
+This updates your saved Modernized preferences. Vanilla always uses the
+original 4:3 picture.
 
 You can also select and launch directly with `--mode vanilla` or
 `--mode modernized`. Use `--show-settings` to inspect preferences without

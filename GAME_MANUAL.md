@@ -209,6 +209,31 @@ a second. With E held, Duke catches a ledge even when he is not square to it (up
 50 degrees more than before) and also reaches about an arm's length
 higher than the original jump allows, easing up into the hang.
 
+**Smoother busy scenes (Modernized, D08Y, awaiting playtest).** The Modernized
+camera and widescreen show more of each level than the original camera, which
+could make the emulated PlayStation run out of processing time and drop to 20
+fps for a moment (felt as a freeze). Modernized now emulates a faster CPU (150%)
+so those views stay at 30 fps; game speed, sound and movies are unchanged. It is
+only used while you play in a level (loading, menus and movies run at the
+original speed) and pauses itself if your PC cannot keep up.
+`run.py --cpu-overclock 100` restores the original speed (125, 175 and 200 are
+also available); Vanilla always uses the original speed.
+
+**Running jumps at gaps (Modernized, D08Y, awaiting playtest).** As in the
+original game, a running jump pressed in the last few steps before a gap or pit
+waits for the edge and leaps from the lip, so you no longer have to time Space
+to the last moment. A quick tap is enough. Near furniture and small steps the
+jump still fires immediately.
+
+**Jumping a gap that is slightly too long (Modernized, D08Y, awaiting playtest).**
+When a running or directional jump reaches the far edge with Duke's feet just
+below its top, he no longer bounces off and falls. If the lip is low (up to
+about a foot and a half), he scrambles up onto it with a small mantle, with or without
+**E** and even with a weapon out. With **E** held, he also climbs up from
+lower, as long as the edge is within climbing reach (up to about hip height
+above his feet), where the original game had only the bounce; a higher edge is caught
+and hung from as before. Taller walls still bounce. Vanilla is unchanged.
+
 **Climbing down a ladder from the top (Modernized, D08U).**
 Stand on the platform at the top of a ladder, near the edge where it hangs, and
 press **E**. The first two times in a session the screen shows `E TO CLIMB DOWN`

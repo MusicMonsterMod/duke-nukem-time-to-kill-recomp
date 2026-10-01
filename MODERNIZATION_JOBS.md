@@ -71,6 +71,8 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08V | Sewer mantle/hang modern-control coverage (slot 12 area) | Done | D08, D08B |
 | D08W | Subway shallow-water sideways jumps (A/D + Space jumps forward) | Done | D08, D08C |
 | D08X | Hold-E airborne ledge grab and mantle (ladder-grab feel for ledges) | Done | D08, D08J, D08V |
+| D08Y | Gap jump dead band: jump-mantle level-geometry ledges (slot 5 gap) | Done | D08X |
+| D08Z | Optional manual modern jump (player-timed takeoff, air control) | Todo | D08Y |
 | D09 | Modern controller support | Todo | D05, D06, D07 |
 | D10 | Third-person camera polish | Done | D08 |
 | D10A | Rapid mouse turning and Shift-running investigation | Done | D06, D07C, D08 |
@@ -1219,6 +1221,77 @@ Record grab success over repeated attempts on several representative ledges
 (apartment exterior, sewer slot-12 area, crystal-2) and list any ledge type
 that is not covered. Test only on private savestate copies. Vanilla is
 unchanged.
+
+### D08Y - Gap jump dead band: jump-mantle level-geometry ledges (slot 5 gap)
+
+**Done (2026-10-01, user-accepted):** the slot-5 jump is made consistently, and
+"the stuttering and audio issues, and freezeframes are now fixed" (round 5
+build). Round 4: The remaining random freezes
+(also without jumping) were the emulated PlayStation CPU running out of budget in
+views the Modernized camera and widescreen reveal; Modernized now runs the
+emulated CPU at 150% (setting, Vanilla stock): 144/59 slow frames to 0 on the
+player's GPU. Round 3: Freeze frames during E
+reaches (every reach frame ~50 ms) fixed with a per-update retry budget and
+cheaper isolated calls (now 33 ms like any frame); the jump-mantle pop (a
+~400-unit snap) is now a short glide. Round 2: root cause found: Modernized (D08I)
+had switched off the original's run-jump postponement, which launches a jump
+pressed near a gap from the lip; the levels are built around it. Before a large
+drop (over 768) the original now decides again, and a tapped Space is held for
+the queued jump; furniture and steps keep the immediate jump. Slot 5 without E
+8/10 clean landings (was 0/10), E 14/14 across. Playtest 1 hitch (up to 27 ms
+per reach update) fixed by cheaper isolated calls and fewer D08Y retries (~6.5
+ms). D08Y jump mantles stay as the safety net. See
+[research, change and evidence](documentation/77-d08y-gap-jump-research.md).
+
+**User report (2026-10-01):** in UI save slot 5 Duke faces a gap to a second
+platform at the same height. A running jump from the end of the walkway
+rarely makes it: Duke "comically hits his head on the other platform and just
+falls down". Starting the jump 3-4 feet earlier with E held catches the edge
+and mantles. The user sees this as a level-design oversight and wants high
+confidence on this jump.
+
+Research (private copy of slot 5, real keys): without E the jump never crosses
+(0/10; from the edge his feet are only 34..57 below the far top when he hits
+its face, and the original bounces). With E, takeoff 0..200 units before the
+edge lands across and 700..900 catches the ledge, but 300..600 is a dead band:
+feet 270..540 below the top, too low to land and too high for the hang
+acquisition, so he bounces whatever he holds. D08X's mid-air height mantle
+covers only climbable objects (crates), not level-geometry ledges like this
+one.
+
+Planned approach: extend the D08X jump mantle to geometry ledges (the original
+ground mantle heights 134..137/139, after the original line-up), and consider a
+Modernized low-lip step-up landing (top at most about 0x100 above the feet) so
+the from-the-edge jump without E also lands. Lowered hang retries are the
+fallback.
+
+**Acceptance:** on a private copy of slot 5, running jumps with E held from
+any takeoff point 0..900 units before the edge end on the far platform (land,
+mantle, or catch and pull-up), holstered and armed. Without E, at least the
+from-the-edge jump no longer bounces off a lip of under about 0x100 if the
+step-up is adopted. No false mantles onto tall walls. Slot-12 wall grab,
+crate mantles, ladder transfers, ladder-top mount and D08L edge run-off are
+unchanged. Vanilla is unchanged. Generic rule, no slot-5-specific data.
+
+### D08Z - Optional manual modern jump (player-timed takeoff, air control)
+
+**Todo (backlogged 2026-10-01).** User: the D08Y jump makes the slot-5 gap
+reliably, but it feels "on the rails", which is how the original intended it.
+The user wants, later, a more manual, modern jump as an option.
+
+Context: the original postpones a run jump pressed near a gap and launches it
+from the lip (`0x80078c0c` look-ahead, `+0x228` bit 4; restored for large drops
+in D08Y), its flight follows a fixed ballistic arc, and D08X/D08Y add mid-air
+ledge help. A manual jump would take off on the press everywhere, and probably
+allow some air steering, while the levels' gaps are tuned for the lip launch,
+so a player-timed takeoff must still be able to clear them (for example a short
+coyote window at the lip, or a slightly longer arc only in this mode).
+
+**Acceptance:** a selectable jump style in Modernized (the D08Y lip launch stays
+the default unless the user decides otherwise). In the manual style the jump
+leaves on the press, has bounded air control, and the slot-5 gap and other
+measured gaps remain clearable with reasonable timing. No double jumps,
+no wall clipping. Vanilla is unchanged.
 
 ### D09 — Modern controller support
 
@@ -4288,4 +4361,91 @@ recorded in the D14 notes: DuckStation's widescreen hack gives the same wider
 view but stretches every 2D element (text, HUD, menus) and Duke by 4/3, while
 the recomp renders the extra columns natively and keeps text, HUD and movies
 at their original proportions.
+
+## 2026-10-01 - D08Y backlogged with research
+
+User report: slot 5 gap jump bounces off the far platform unless started 3-4
+feet early with E. Private-copy sweep (takeoff 0..900 back, E and no E,
+current binary): no E 0/10 cross; E lands 0..200, catches 700..900 (all via the
+D08X turned retry), bounces in a 300..600 dead band. Cause: the D08X jump
+mantle accepts only climbable objects; this edge is level geometry. Job D08Y
+added as Todo with options and acceptance;
+[research notes](documentation/77-d08y-gap-jump-research.md). No code changed.
+
+## 2026-10-01 - D08Y implemented (Needs playtest)
+
+`ledge_reach.inc`: `ledge_reach_drop()` retries the original acquisition
+`0x80055208` lowered 120..480 during an E reach; a ledge catch 0x60..0x4c0 above
+the feet becomes the original height mantle at the real height (misses and
+ladder/object catches restore the whole player record). `ledge_step_up()` turns
+the first updates of a bounce after a 98/103/104 jump into mantle 134 when a
+ledge's top is at most 0x100 above the feet, presenting the acquisition's
+held-Cross bit for the isolated call only. Slot 5 (private copy, binary
+`dce01716db09cbd3b72038d99e3051ef0fbe61fd91a16ac1802d2e994cad209c`): E 0..900
+back 10/10 armed + 4/4 holstered across (900 back: catch, then pull-up 140,
+2/2); no E 0..300 back across 4/4, 400..900 bounce as before. Regressions vs a
+D08Y-disabled baseline: slot-12 wall grab/pull-up, crate mantles, crate-to-crate
+8/8, ladder-top regress and the alley ladderjump fixture (no attach on either
+build) unchanged; angle +15 now mantles onto the ledge instead of catch and
+pull-up (same end). Vanilla: D08Y counters 0. Native controls (new D08Y
+fixture), input, aim and Python 92 OK. Finding: a Vanilla running jump from the
+edge crosses this gap; Modernized's flies ~3% slower horizontally (53.1 vs 54.9
+units/frame) and falls short. Not changed here.
+
+## 2026-10-01 - D08Y round 2: lip launch restored, reach hitch fixed (Needs playtest)
+
+User playtest 1: the jump works (cleared or a quick mantle), but a brief hard
+pause follows it; changing the jump is acceptable if the levels need it.
+Hitch: per-update timing showed the D08X + D08Y isolated acquisitions at up to
+27 ms per reach update. `original_call()` copies by words, D08Y snapshots by
+words, the lowered retry runs only descending and unturned: ~6.5 ms average.
+Jump: identical flight physics; Vanilla holds a jump pressed near a gap until
+the lip (`0x80078c0c` look-ahead queues `+0x228` bit 4), which the Modernized
+`0x800780b4` hook had overridden. It now leaves the look-ahead alone before a
+drop over 768 and `pc_input` holds Square for a queued edge jump (40 updates
+after a press). Slot 5: no E 8/10 land (misses pressed >1024 out), E 14/14.
+Bed jumps still immediate; fire-escape presses launch from the lip. Regression
+routes, Vanilla and suites as in documentation/77. Binary `fdbaee0d01f0e8a24b128a8518ba6305a13bb0df924c3b79a3360ec3998e6379`.
+
+## 2026-10-01 - D08Y round 3: freeze frames and pop smoothed (Needs playtest)
+
+User: the jump is made now; an odd freeze frame / pop remains. Rail-like jump
+kept; a manual modern jump is backlogged as D08Z. `DNTTK_FRAME_TRACE=1`
+showed every E-reach frame late (~50 ms, 5.7 ms of hooks). One budgeted
+scheduler (`ledge_reach_retry()`, 4 core + 1 extra isolated acquisitions per
+update), two step-up tries per bounce update, and changed-words-only restores:
+reach frames 33.3 ms median, none over 40 ms. The E jump mantle no longer snaps
+Duke ~400 units to the catch point; it glides there over its first updates.
+Slot 5 and all regression routes as in documentation/77. Binary `b7f038c03a042cfea9580270e639e1d8cc5e1ace3e79ca6a5d282ee14d61f9f9`.
+
+## 2026-10-01 - D08Y round 4: freezes were emulated-CPU overruns (Needs playtest)
+
+User session log (`DNTTK_FRAME_TRACE`): 386 of 4,203 frames at 20 fps in
+clusters while running; Modernized hooks ~0.03 ms in them. Reproduced on the
+player's GPU offscreen with a new diagnostics-only driver (`DNTTK_TEST_DRIVE`):
+144 (third person) / 59 (first person) slow frames per ~869. Cause: TTK's own
+code exceeds the PlayStation CPU budget per frame in views the Modernized
+camera and widescreen reveal. Fix: runtime CPU overclock (new reviewed patch;
+device timing, game speed, save states unchanged; skips exempt; movie poll
+adjusted) and profile schema 19 `cpu_overclock` (Modernized default 150,
+`run.py --cpu-overclock`). Result 0 / 0 slow frames; intro movie real time;
+jumps unchanged; suites pass. Xvfb timing proved misleading (documented).
+Binary `f4d22e958ce333f575aa977b094e2bbb43c1d36235497ae5bb59d6bd124cea4a`.
+
+## 2026-10-01 - D08Y round 5: overclock only in gameplay (Needs playtest)
+
+User: audio slowdowns with the round-4 build. Reproduced: boot/loading at
+150% fell behind real time (14,000 underruns). The overclock is now leased
+from the Modernized player update (lapses 3 fields after gameplay stops) and
+pauses for 5 s if emulation falls behind real time. Real GPU and audio: boot
+0 underruns, gameplay 59.95 fields/s, 0-1 slow frames. Binary `0bdb53c328b12252c02edda0635950f9c1dbe11b6c93d380d887ed21d43508f2`.
+
+## 2026-10-01 - D08Y accepted (Done)
+
+User: "the stuttering and audio issues, and freezeframes are now fixed.
+confirmed", after earlier confirming the slot-5 gap is made consistently.
+Read-only system check on request: no Timeshift snapshot, scheduled job or
+disk stall during the play sessions; Cinnamon idles at ~36% CPU and the
+storage drive (sdb) reports 113 C (noted to the user, unrelated to the game).
+Next job: user's choice (D08Z manual modern jump is backlogged).
 

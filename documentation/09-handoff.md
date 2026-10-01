@@ -1,5 +1,53 @@
 # Next-session handoff
 
+## 2026-10-01 - D08Y accepted (Done)
+
+User confirmed the slot-5 jump and that stutter, audio slowdowns and freeze
+frames are fixed (round 5: leased 150% CPU overclock, lip-launch jumps, jump
+mantles, budgeted reach retries). Nothing committed yet. Next job: user's
+choice; D08Z (optional manual modern jump) is in the backlog. User found
+`--cpu-overclock 100` and `150` equally playable; 150 stays the default.
+
+## 2026-10-01 - D08Y round 5: overclock leased to gameplay (Needs playtest)
+
+Boot/loading audio slowdowns at 150% fixed: the overclock is renewed from the
+player update and lapses outside gameplay; a safety net pauses it for 5 s if
+emulation falls behind (`[TTK cpu]` log line). Binary `0bdb53c328b12252c02edda0635950f9c1dbe11b6c93d380d887ed21d43508f2`. If the user still
+hears slowdowns, check the session log for `[TTK cpu]` lines first.
+
+## 2026-10-01 - D08Y round 4: emulated CPU overclock (Needs playtest)
+
+Playtest: play normally (first person, 16:9) for a few minutes, slot 5 and
+elsewhere; freezes while running should be gone. The profile migrates to
+schema 19 on launch (backup kept) with `cpu_overclock` 150. If a scene still
+drops, try `run.py --cpu-overclock 175` and report it; `--cpu-overclock 100`
+restores the original speed. Measure performance on the real GPU, not Xvfb:
+SDL offscreen + `DNTTK_TEST_DRIVE`, see documentation/10-tooling.md and
+`recomp/analysis/d08y-gap-jump/gpuperf.py`. Runtime change:
+`recomp/patches/time-to-kill-zzzzzzzzz-cpu-overclock.patch`. Binary `f4d22e958ce333f575aa977b094e2bbb43c1d36235497ae5bb59d6bd124cea4a`.
+No commits until asked.
+
+## 2026-10-01 - D08Y round 3: smoothing (Needs playtest)
+
+Freeze frames during E reaches and the jump-mantle pop fixed; binary `b7f038c03a042cfea9580270e639e1d8cc5e1ace3e79ca6a5d282ee14d61f9f9`.
+Check: E jumps at slot 5 and other ledges feel smooth, no hitch, no snap into
+the mantle. Tuning: `reach_core_budget`/`reach_extra_budget` and the try lists
+in `ledge_reach_retry()`, glide in `mantle_glide()` (`ledge_reach.inc`).
+Diagnose with `DNTTK_FRAME_TRACE=1` (frames over 25 ms or 3 ms of hooks).
+D08Z (manual modern jump) is backlogged. No commits until asked.
+
+## 2026-10-01 - D08Y round 2 (Needs playtest)
+
+Playtest: slot 5, run at the gap and tap Space anywhere in the last few steps:
+Duke should leap from the very lip and land (no E needed). Check the hitch
+after E jumps is gone, and that bed/couch jumps in the apartment still fire
+instantly. Also any other gap or pit: jumps pressed near it now leave from the
+lip like the original. Code: `0x800780b4` hook (`modern_controls.cpp`, 768
+threshold), `edge_jump_queued()` + `pc_input.cpp` hold (40 updates),
+`ledge_reach.inc` (D08Y mantles), `shortcuts.inc` word copies. Private scripts:
+`recomp/analysis/d08y-gap-jump` (`sweep.py`, `mjump.py`, `furniture.py`,
+`latency.py`, `regress2/`). Binary `fdbaee0d01f0e8a24b128a8518ba6305a13bb0df924c3b79a3360ec3998e6379`. No commits until asked.
+
 ## 2026-10-01 - D14 widescreen accepted (Done)
 
 User: "im very happy with it! i accept!" Committed with the case study

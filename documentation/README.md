@@ -70,3 +70,4 @@ Update `00-status.md` after meaningful tests. Keep raw evidence and exact comman
 - [D08L inertial platform edge run-off](66-d08l-edge-run-off.md)
 - [D17 high refresh rate brief](68-d17-high-refresh-brief.md)
 - [D08T1 grab / manipulate brief](69-d08t1-grab-manipulate-brief.md)
+- [D08Y gap jump dead band research](77-d08y-gap-jump-research.md)

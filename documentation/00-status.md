@@ -1,5 +1,19 @@
 # Current status - 2026-10-01
 
+**D08Y gap jump - Done (user-accepted).** Jump, freezes and audio confirmed fixed. The overclock now applies only in
+gameplay and backs off if emulation falls behind (fixed boot/loading audio
+slowdowns; binary `0bdb53c328b12252c02edda0635950f9c1dbe11b6c93d380d887ed21d43508f2`). Round 4: Random 20 fps freezes were
+the emulated CPU overrunning in views the Modernized camera/widescreen reveal;
+Modernized now emulates the CPU at 150% (`--cpu-overclock`, Vanilla stock): 0
+slow frames on the player's GPU (was 144/59). Binary `f4d22e958ce333f575aa977b094e2bbb43c1d36235497ae5bb59d6bd124cea4a`. Earlier: Reach freeze frames
+and the jump-mantle pop fixed (binary `b7f038c03a042cfea9580270e639e1d8cc5e1ace3e79ca6a5d282ee14d61f9f9`). The gap was not a level-design
+slip: the original launches a run jump pressed near a gap from the lip, and
+Modernized had switched that off. Restored for real gaps (furniture keeps the
+instant jump); a tapped Space works like the original's held button. Slot 5:
+without E 8/10 clean landings (was 0/10), with E 14/14. The hitch after E jumps
+(up to 27 ms per update) is down to ~6.5 ms. Mid-air mantles remain the safety
+net. Binary `fdbaee0d01f0e8a24b128a8518ba6305a13bb0df924c3b79a3360ec3998e6379`. Details: documentation/77-d08y-gap-jump-research.md.
+
 **D14 widescreen - Done (user-accepted).** Modernized opens in native 16:9 (also
 16:10, 21:9, auto; `--widescreen off` for 4:3): wider view with the original
 projection, no stretching, no holes at the widened edges (TTK portal root

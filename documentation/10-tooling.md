@@ -306,3 +306,19 @@ The implementation/reproduction record is [44](44-traversal-inventory-implementa
 the resumable active-state record is [42](42-traversal-feedback-progress.md).
 All live helpers in analysis/iteration42 operate on private Xvfb processes/cards
 and non-player debug ports. Do not overlap helper inputs into the same session.
+
+## Performance measurement (D08Y, 2026-10-01)
+
+Do not judge frame pacing under Xvfb: software OpenGL (llvmpipe) and the
+software renderer make the host the bottleneck, especially in widescreen.
+Measure on the real GPU without a window: run the player with
+`SDL_VIDEODRIVER=offscreen` (NVIDIA EGL; the log shows
+`OpenGL context created (... NVIDIA ...)`), a private profile and cards, and
+drive it with `DNTTK_TEST_DRIVE=<mouse counts per frame>` (diagnostics only:
+the input layer acts captured and holds Shift + W with a constant turn).
+`DNTTK_FRAME_TRACE=1` logs logic frames over 25 ms (`DNTTK_FRAME_TRACE_MS=0`
+logs all) with the Modernized hook time and the costliest hooks; a logic
+frame is normally two video fields (33.4 ms). Runtime telemetry:
+`phase_profile`, `phase_hot` (diff two snapshots), `frame_perf`. Reference
+script: `recomp/analysis/d08y-gap-jump/gpuperf.py` (local only).
+

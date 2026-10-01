@@ -22,7 +22,7 @@ The nested `recomp/` checkout, player dumps under `game/`, `research/`, and `.ve
 - `$continue-duke-recomp` (Codex) or `/continue-duke-recomp` (Claude Code) lists jobs and waits for a choice. Listing does not start a job.
 - Do not mark a job In progress, edit gameplay code, build, or launch the game just to show the list.
 - Never hand-edit generated recompilation C, overwrite original media, or use the player's memory cards.
-- Do not interfere with an active game session.
+- If the player's game is open when work needs to build, test or launch, close it (debug `quit` on port 9123, or end the process) and continue. The user gave standing permission on 2026-10-01. Never touch their saves or memory cards.
 - After a selected job, give a launch command such as `python3 recomp/tools/local/run.py` from this workspace. Do not launch the game unless asked.
 
 ## Writing

@@ -1,4 +1,20 @@
-# Current status - 2026-09-30
+# Current status - 2026-10-01
+
+**D08U, D08W, D08A3, D08X - Done (user-accepted).** Ladder-top mount and full
+descent; shallow-water jumps in the held direction; original TTK HUD icons in
+the switcher; hold-E jump grabs and mantles (ledges and climbable objects at an
+angle, extra reach, flush hang, stacked-crate release, identity-guard fix).
+D14 widescreen: first pass only (inert 16:9 plugin; culling gaps open). Binary
+`60161f81ab42a013ebfa326d6b80b97772b29b9d8fb051b598ddba45cbde369c`.
+
+**Autonomous chain (user away): D08U, D08X, D08W, D08A3 Needs playtest; D14
+In progress.** E at a ladder top climbs down onto it and S descends and steps
+off (D08U); E held through a jump catches close ledges (D08X); shallow-water
+jumps follow the held direction (D08W); the switcher uses TTK's own HUD item
+icons rebuilt from /DATA/FONTS.RAW (D08A3); widescreen first pass found the
+activation path and TTK's culling blocker, no player option yet (D14). Binary
+`db5288c2a3431eb5d84f96ffc9cfcc00193442cd950a9ad1f420bbcb39323689`. Native
+and Python suites pass. Details: documentation/72 to 76 and 09-handoff.md.
 
 **D04A Escape frees the mouse - Done (user-accepted).** Escape now pulses Start so a
 quick tap reaches the original pause poll, and automatic recapture waits until

@@ -1,5 +1,101 @@
 # Next-session handoff
 
+## 2026-10-01 - Session locked in; next: D14
+
+All session work accepted (D08U, D08W, D08A3, D08X Done). D14 16:9 preview is
+off centre with geometry holes; start the next session from the ordered steps
+in documentation/76-d14-widescreen-first-pass.md (A/B `native_wide = false`
+first). Standing permission: close the player's open game and continue.
+
+## 2026-10-01 - D08X accepted (Done)
+
+User: "thats it, fully accepted this!!!". Binary `60161f81...369c`. Nothing committed yet.
+
+## 2026-10-01 - D08X flush hang (Needs playtest)
+
+E-jump ledge catches settle to the shimmy-aligned hang height (ledge top +
+456). Binary `60161f81...369c`.
+
+## 2026-10-01 - D08X crate-to-crate mantles (Needs playtest)
+
+Jump mantles onto any climbable object are proximity-based with the original
+line-up; crate-to-crate 18/18 at any angle to 45 degrees. Binary `ccb4eb2a...0107`.
+
+## 2026-10-01 - D08X angle forgiveness (Needs playtest)
+
+E reach retries the original acquisition with the heading turned +-25/+-51
+degrees as well as lifted. Binary `8bb01385...1701`. Playtest: slot 11 crate
+top to the ledge in front at an angle.
+
+## 2026-10-01 - D08X higher grab confidence (Needs playtest)
+
+E reach retries the original acquisition up to 480 higher, easing Duke into
+the hang. Binary `43eda09c...0f61`. Playtest the drained-water ledges.
+
+## 2026-10-01 - D08X first-tier crate hang (Needs playtest)
+
+A jump catching a stacked crate into the original pole-style hang (mode 7,
+A/D circled Duke round it) now lets go at once. Binary `c1c49119...6fe7`.
+
+## 2026-10-01 - D08X crate hang fix (Needs playtest)
+
+Fixed: object hang toggling flag-table bits broke the identity guard (all
+Modernized controls lost); stuck crate hang now lets go (S, or W without a
+climb). Binary `bf368b68...bd45`. New log line `[TTK identity] guard N` names
+any future guard failure.
+
+## 2026-10-01 - D08X crate mantle (Needs playtest)
+
+Boxes room (private copy of user UI slot 11): an E running jump into a crate now
+starts the original mantle mid-jump instead of bouncing. Binary `9bade2a5...ba9c`.
+Playtest: Shift + W + Space with E held into the crates from a few steps back.
+Standing permission (2026-10-01): close the player's open game and continue.
+
+## 2026-10-01 - Playtest: D08U, D08W, D08A3 Done; D08X boxes follow-up
+
+User accepted D08U, D08W and D08A3. D08X ledge grabs accepted; next work is the
+boxes room (private copy of user UI slot 11 in recomp/analysis/d08x-boxes):
+Shift + W + Space with E held should mount a crate mid-jump instead of bouncing.
+16:9 preview: `DNTTK_WIDESCREEN=16:9 DNTTK_GAME_CONFIG=recomp/analysis/d14-widescreen/game-16x9-preview.toml run.py` (Modernized profile).
+
+## 2026-09-30 - Autonomous chain: D08U (Needs playtest), then D08X, D08W, D08A3, D14 start
+
+User authorized an unattended chain: D08U, D08X, D08W, D08A3, then start D14;
+no commits; a combined playtest later. D08U: E at a ladder top lowers Duke onto
+it (host blend over the original 156 transfer); S climbs down and steps off.
+Binary `6129f2ab...5683`. Details: documentation/72-d08u-ladder-top.md.
+D08X (Needs playtest): E held through a jump arms the original reach at
+takeoff, so close ledges are caught. Binary `bd153dd5...65b3`. Details:
+documentation/73-d08x-ledge-grab.md.
+D08W (Needs playtest): shallow-water jumps follow the held direction.
+Binary `7ca63455...3328`. Details: documentation/74-d08w-wade-jump-direction.md.
+D08A3 (Needs playtest): switcher icons are now TTK's own HUD art from
+/DATA/FONTS.RAW (pack rebuilt by build_ttk_inv_icons.py). Details:
+documentation/75-d08a3-ttk-inventory-icons.md.
+D14 (In progress, first pass): inert 16:9 activation plugin and package;
+experiment shows TTK's 4:3 culling gaps at the widened edge; no player option
+yet. Details: documentation/76-d14-widescreen-first-pass.md.
+Final binary for the playtest: `db5288c2a3431eb5d84f96ffc9cfcc00193442cd950a9ad1f420bbcb39323689`.
+
+### Playtest checklist for this chain
+
+1. D08U: walk to the edge of the sewer walkway next to the ladder (slot 12),
+   press E. Duke should stow, turn and lower onto the ladder smoothly. Hold S:
+   he climbs all the way down and steps off, pistol back out. Also try the top
+   of the first alley ladder. Walking or running off the edge without E must
+   still drop as before.
+2. D08X: hold E and jump (W + Space) at a ledge within reach, for example the
+   wall at the side of the slot-12 walkway. Duke should grab and pull up.
+   Without E it bounces as before. Try running jumps and ledges elsewhere
+   (apartment exterior, crystal-2); armed, hold E a moment before jumping.
+3. D08W: in the subway shallow water (slot 1), A/D/S + Space should jump in
+   that direction, including after running forward. Also the crystal-2 wade.
+4. D08A3: press [ or ] to show the switcher; the icons should be TTK's own HUD
+   art (health cross for medkit, jetpack, Bio Mask skull, goggles), green %
+   and frame unchanged.
+5. General: ladders, mantles, run-jump ladder transfers and Vanilla feel
+   unchanged.
+
 ## 2026-09-30 - D04A accepted (Done)
 
 User: "perfect, accept" on binary `198673f5...ded68e`. Escape pauses with a

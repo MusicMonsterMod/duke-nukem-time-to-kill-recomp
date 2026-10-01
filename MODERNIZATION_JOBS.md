@@ -44,7 +44,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08A | EDuke32-style weapon and item shortcuts | Done | D04, D08 |
 | D08A1 | Visible EDuke32-style inventory cycling | Done | D04, D19A |
 | D08A2 | EDuke32 bottom-left inventory icon and green % | Done (revised: strip + green %) | D08A1, D19A |
-| D08A3 | Original TTK inventory icons for the switcher (replace Duke3D art) | Todo | D08A2 |
+| D08A3 | Original TTK inventory icons for the switcher (replace Duke3D art) | Done | D08A2 |
 | D08B | Broader traversal and scripted-camera coverage | Done | D08 |
 | D08C | Directional jumps from standstill — accepted both input orders | Done | D08 |
 | D08D | Apartment light-switch secret convenience | Done | D08 |
@@ -67,10 +67,10 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08S | Duke3D-style jetpack scheme (instant J on/off, midair) | Cancelled (may revisit) | D08R |
 | D08T | Pushable objects: modern grab/push/pull and climb (alley dumpster) | Done | D08 |
 | D08T1 | Separate push/pull from mantling: E always mantles, hold RMB to grab | Done | D08T, D04 |
-| D08U | Top-of-ladder mount: grab a ladder from a platform and climb down | Todo | D08, D08J |
+| D08U | Top-of-ladder mount: grab a ladder from a platform and climb down | Done | D08, D08J |
 | D08V | Sewer mantle/hang modern-control coverage (slot 12 area) | Done | D08, D08B |
-| D08W | Subway shallow-water sideways jumps (A/D + Space jumps forward) | Todo | D08, D08C |
-| D08X | Hold-E airborne ledge grab and mantle (ladder-grab feel for ledges) | Todo | D08, D08J, D08V |
+| D08W | Subway shallow-water sideways jumps (A/D + Space jumps forward) | Done | D08, D08C |
+| D08X | Hold-E airborne ledge grab and mantle (ladder-grab feel for ledges) | Done | D08, D08J, D08V |
 | D09 | Modern controller support | Todo | D05, D06, D07 |
 | D10 | Third-person camera polish | Done | D08 |
 | D10A | Rapid mouse turning and Shift-running investigation | Done | D06, D07C, D08 |
@@ -82,7 +82,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D12A | First-person quick kick without leaving the eye view | Done | D12 |
 | D11C | Savestates can keep Duke's first-person head hidden (slot 12) | Done | D11 |
 | D13 | Higher internal resolution and display scaling | Done | D02 |
-| D14 | Widescreen, FOV and visibility | Todo | D03, D13 |
+| D14 | Widescreen, FOV and visibility | In progress | D03, D13 |
 | D15 | Optional geometry and texture precision | Todo | D13 |
 | D16 | Texture filtering and game-specific HD assets | Todo | D13 |
 | D16A | HRP assets and first-person weapon research (later) | Cancelled (original assets preferred) | - |
@@ -416,6 +416,10 @@ captured; M is message-only; no persistent bottom-left host gadget; Vanilla
 preserved.
 
 ### D08A3 - Original TTK inventory icons for the switcher
+
+**Done (2026-10-01, user-accepted).** The switcher now uses the game's own HUD item
+icons from `/DATA/FONTS.RAW`, rebuilt by `build_ttk_inv_icons.py`. See
+[source, builder and evidence](documentation/75-d08a3-ttk-inventory-icons.md).
 
 The D08A2 switcher draws its gadget icons from Duke3D/EDuke32 tiles
 (`research/inv`, packed into `recomp/assets/ttk-inv-icons.pack`, format
@@ -1097,6 +1101,11 @@ end the grab cleanly. Third and first person. Vanilla unchanged.
 
 ### D08U - Top-of-ladder mount: grab a ladder from a platform and climb down
 
+**Done (2026-10-01, user-accepted).** E at a ladder top lowers Duke onto it through
+the original hang-to-ladder transfer; S climbs all the way down and steps off.
+The original has no top mount for plain ladders. See
+[research, change and evidence](documentation/72-d08u-ladder-top.md).
+
 **User report (2026-09-30, during the D13 playtest):** standing on a platform
 beside the top of a ladder that must be descended, there is no control or
 mechanism that makes Duke latch onto the ladder and climb down. Reproduction:
@@ -1149,6 +1158,10 @@ success before and after. Vanilla is unchanged.
 
 ### D08W - Subway shallow-water sideways jumps (A/D + Space jumps forward)
 
+**Done (2026-10-01, user-accepted).** Wade jumps now go in the held
+camera-relative direction; the old boost kept the original launch's facing.
+See [cause and evidence](documentation/74-d08w-wade-jump-direction.md).
+
 **User report (2026-09-30):** in the shallow water of the first subway area,
 running forward and then strafing (A or D, with Shift to run) and pressing
 Space always makes Duke jump **forward**. A sideways jump is not possible
@@ -1170,6 +1183,11 @@ original water behavior (slowdown, splashes, sounds) stay intact. Check the
 crystal-2 wade for regressions. Vanilla is unchanged.
 
 ### D08X - Hold-E airborne ledge grab and mantle
+
+**Done (2026-10-01, user-accepted).** Crate mantle mid-jump added for the boxes room. Ledge grabs accepted by the user ("the confidence level ... is 100%" from below a ledge). Follow-up requested: a Shift-run jump with E held into a box in the boxes room (user UI slot 11) bounces off instead of mantling onto it mid-jump. Original note: E held through a jump opens the original
+reach at takeoff instead of at its late animation event, so a close ledge in
+reach is caught instead of bounced off. See
+[rules, change and evidence](documentation/73-d08x-ledge-grab.md).
 
 **User request (2026-09-30):** in Modernized, holding **E** while jumping
 toward a mantle-able ledge at grabbing height should make Duke catch the
@@ -1394,6 +1412,17 @@ exclusive fullscreen were fixed after the first playtest. Evidence and limits:
 [D13 note](documentation/67-d13-resolution-display.md).
 
 ### D14 — Widescreen, FOV and visibility
+
+**Backlog note (2026-10-01): user preview is "tremendously broken"** (off
+centre, tearing/holes). Triage and the ordered next steps (A/B squash vs
+native-wide, then TTK projection offset / draw area / cull sites) are in
+[the D14 notes](documentation/76-d14-widescreen-first-pass.md). Start here
+in a fresh session.
+
+**In progress (2026-09-30), first pass.** An inert Modernized-only 16:9
+activation plugin and package exist; a private experiment renders 16:9 but TTK's
+own 4:3 culling leaves black gaps at the widened edge and the right HUD is not
+anchored. No player option yet. See [findings and next steps](documentation/76-d14-widescreen-first-pass.md).
 
 Explicit user priority: widescreen support. Render a wider view without stretching actors. Correct aspect, FOV, HUD anchoring, menus and room/portal visibility; define how original movies and fixed compositions are framed.
 
@@ -4037,3 +4066,194 @@ keep original precedence); D08V exercised one sewer ledge (other hangs follow
 the same rule). `build.py` still stops in its stale runtime patch-stack check.
 D08X is now unblocked by D08V.
 
+## 2026-09-30 - D08U top-of-ladder mount (Needs playtest)
+
+Research on private copies of slot 12 (sewer) and the alley state: the slot-12
+ladder is a plain ladder (type 308, flag 0x200), a flat panel whose top is 507
+below the walkway, bottom at a floor near Y 510. The original has no top mount
+for plain ladders (only 185 from below and the airborne catch -> 156 -> 186);
+Vanilla edge inputs, backing off the edge and a forced airborne reach all end
+in the water. A holstered fixture writing the catch's fields at the top gave a
+complete original climb, bottom and top exit. Change (Modernized only): E at a
+ladder top (panel top 300..800 below Duke, within 420 of the panel and its
+width + 120, settled ground; E stows first) writes the catch's attachment
+(+0x17c, +0x180, +0x1c4, mode 3, anim 156) and blends Duke over the 12 updates
+of 156 to the far-face climbing line, facing the ladder; S on a plain ladder
+adds Cross so Duke climbs down and steps off; the original 190 top exit and
+185 bottom step-off join the D08V camera-only lease with neutral directions
+(no tank fallback or `ORIGINAL MOVEMENT`, no backstep 82 on landing);
+`E TO CLIMB DOWN` hint twice a session; guards for 156's end, its table entry
+and `0x80073ae8`.
+
+Evidence (binary `6129f2ab76e533ec9670bf17eb1a9c4f08471fa2d0fa7d883fd82a11da945683`):
+slot-12 mount and full descent in third and first person with pistol stow and
+redraw; alley ladder climb up (exit leased), E mount at its top, descent and
+redraw; walk/run-off, strafe past and E away never mount; Vanilla edge routes
+identical to baseline; native controls (new D08U fixture), input and aim
+tests PASS; Python 87 OK. Player's slot file untouched.
+Remaining: user playtest of the feel of the mount blend (a host blend over the
+original transfer, since the game has no top-mount animation), the second
+alley ladder and other ladders not exercised.
+
+## 2026-09-30 - D08X hold-E airborne ledge grab (Needs playtest)
+
+Traced the original reach: `0x800557f8` enters 109 only after an animation
+event arms it (`+0x224 |= 0x800000`), then `0x80055208` acquisition runs before
+the flight collision. A standing jump at a close wall with a ledge in reach
+(slot-12 walkway wall, 1024 high) hits it first (107) and bounces, in Vanilla
+as well as Modernized. Change: while E asks for a reach during an original
+jump (98/103/104, mode 9), the owned ballistic hook sets the arming bit at
+once (not over blocking bits 0x241, never with precision aim or in Vanilla);
+the original then enters 109 on the held Cross and decides the catch.
+
+Evidence (binary `bd153dd540359b1fa5eafc84a9ea04492099abd20e7e8479d511b33d36b065b3`):
+W + E + Space at the slot-12 wall now grabs (148, mode 6) and pulls up (140)
+3/3 armed and 2/2 holstered with late E, first person 2/2; without E still
+bounces 3/3; pit, walkway-end and tall-wall jumps unchanged; alley running jump
+reaches at takeoff but the original does not catch that low object (same end
+as before); D08 alley ladder transfer attaches 2/2; Vanilla bounce identical;
+native controls (new D08X fixture) and input tests PASS.
+Remaining: user playtest; apartment exterior and crystal-2 ledges not reached
+(no private state); armed late-E in a short jump still loses to the stow.
+
+## 2026-09-30 - D08W shallow-water jump direction (Needs playtest)
+
+Reproduced on a private copy of UI slot 1 (subway tunnel, ankle-deep water):
+A, D, W, S and run-then-strafe jumps all went forward (about 1600 forward,
+10 sideways). Cause: `swim_boost_horizontal` rescaled the original launch
+velocity (aimed along Duke's facing) instead of aiming it along the held
+direction; the D08O ledge/climb assists also caught strafes. Fix (`swim.inc`):
+aim along the held direction at max(original speed, wade minimum); assists
+only for Space alone or W. Evidence (binary `7ca63455...3328`): subway A
+(10, -1612), run-then-A (10, -1612), S (-1650, 17), run-then-D (-12, 1238);
+crystal-2 wade (UI slots 2 and 3) follows the held direction too; suites PASS.
+Remaining: user playtest; the platform ledge assist was not triggered here.
+
+## 2026-09-30 - D08A3 TTK inventory icons (Needs playtest)
+
+The original inventory screen has no icons; the game's own item art is the HUD
+indicator set (jetpack, Bio Mask, goggles, steroids, health cross) in
+`/DATA/FONTS.RAW` (raw VRAM image at (960, 0), 4bpp cells with their CLUTs),
+indexed by the HUD sprite table at `0x800c44b4..0x800c4504`. New
+`recomp/tools/local/build_ttk_inv_icons.py` rebuilds the pack from the disc
+(pinned hash), keys out the cell background, keeps the selection frame, and
+writes provenance and review PNGs (local only). Medkit uses the health cross
+(no medkit icon exists); steroids extracted only. Live capture shows the new
+icons with green % and frame unchanged; missing-pack fallback and a new
+reproducibility test pass. Remaining: user confirms the look in play.
+
+## 2026-09-30 - D14 widescreen first pass (In progress)
+
+The framework clamps PSX widescreen to 4:3 unless a trusted activation plugin
+requests an aspect. Added plugin `ttk.widescreen` (acts only for Modernized
+with `DNTTK_WIDESCREEN=16:9`), a default-enabled plugin-only preloaded package,
+and CMake staging for `recomp/mods/preloaded/packages`. run.py sets nothing,
+so the player build stays 4:3; a default launch is pixel-identical to the
+baseline. Private 16:9 experiment: the wider view renders, but TTK's 4:3
+screen-space culling leaves black gaps on the widened right side, and the
+ammo box is not anchored. Next: TTK cull sites in `[widescreen.cull]` plus
+regeneration, right-HUD anchoring, then a `--widescreen` profile option.
+Native D14 activation test PASS.
+
+## 2026-10-01 - Playtest: D08U, D08W, D08A3 Done; D08X follow-up
+
+User playtest of the autonomous chain (binary `db5288c2...3689`):
+- D08U: "I completely accept that": E at the slot-12 ladder top grabs on,
+  third-person descent flawless; running off the edge still drops.
+- D08W: sideways and forward water jumps "all good ... completely accepted".
+- D08A3: original HUD icons for health/medkit, jetpack, Bio Mask and night
+  vision: "phenomenal ... I love that they are the authentic icons".
+- D08X: ledges in the drained-water area catch reliably when standing below
+  and jumping with E ("100%"); the ones that failed were too high. Follow-up:
+  in the boxes room (wooden crates; user saved UI slot 11) Shift + W + Space
+  with E held bounces off a box instead of mounting it mid-jump. D08X back to
+  In progress for that case.
+- D14: user asked for a 16:9 preview launch; run.py now honours a dev-only
+  `DNTTK_GAME_CONFIG` override for the private 16:9 config copy.
+
+## 2026-10-01 - D08X boxes-room crate mantle (Needs playtest)
+
+Reproduced on a private copy of the user's UI slot 11: Shift + W + Space with E
+into a crate bounced (107) 4/4. The crate (type 20, climbable 0x80/0x40) only
+becomes the contact after the reach's acquisition, so it never caught. New
+`ledge_reach_mantle()`: at the start of an E bounce off a climbable object whose
+top is 0x100..0x3ff above Duke's feet (contact or cell-list fallback, in front),
+start the original height-matched mantle 134..138 from mid-air. Evidence
+(binary `9bade2a5...ba9c`): straight crate 3/4 on top (miss = jump from contact),
+diagonal crate on top when reached, no-E bounces unchanged 8/8, wall ledge grab
+and alley ladder transfer unchanged, native fixture and suites PASS. Also: the
+user's standing permission to close an open game is now in AGENTS.md and the skill.
+
+## 2026-10-01 - D08X crate hang and identity loss fixed (Needs playtest)
+
+User: an E jump into crates under the opening hung Duke on a crate and modern
+controls were lost. Cause 1 (pre-existing): the original object hang toggles
+bit 0x40 of flag-table entries 149/152/153, which the controls identity guard
+treated as code; guard split around them, plus a failing-guard log line.
+Cause 2: that hang (mode 7) cannot climb when the space above is blocked; in
+Modernized S lets go, and W with no climb for 40 updates lets go on its own.
+Binary `bf368b68...bd45`; stack 3/3 release with modern controls kept;
+regressions unchanged; suites PASS.
+
+## 2026-10-01 - D08X first-tier crate hang (Needs playtest)
+
+User: grabbing the first tier of a stacked crate glitched and A/D spun Duke
+round. Cause: the reach catches the upper crate at the first tier's top into
+the original pole-style object hang (mode 7), where A/D circle the object. In
+Modernized a mode-7 catch on a crate-type object (0xc0) now lets go at once
+(2..3 frames, then the normal fall/bounce). Binary `c1c49119...6fe7`;
+crate mantle and offset-stack climb unchanged; suites PASS.
+
+## 2026-10-01 - D08X higher grab confidence (Needs playtest)
+
+User asked for higher confidence when jump-grabbing ledges. The original reach
+probes 425 above Duke's root, so ledges just above the apex were missed. New
+`ledge_reach_lift()` retries the original acquisition during an E reach with
+Duke raised 160/320/480; the original decides the catch; Duke is then eased up
+from his real height (no pop). Binary `43eda09c...0f61`: 2048 wall still
+refused at 480 (caught at an experimental 960, smooth rise); 1024 wall, crates,
+stack release, ladder transfer and ladder-top mount unchanged; native retry
+test; suites PASS. Playtest: the drained-water ledges.
+
+## 2026-10-01 - D08X angle forgiveness (Needs playtest)
+
+User: crate-top jump to the ledge needs Duke perfectly square. The original
+facing test allows 45 degrees of the body heading, which follows the camera in
+flight. The reach retry now also tries the heading turned +-25 and +-51
+degrees; the original catch squares Duke. Binary `8bb01385...1701`: mid-jump
+camera turns -35/-50 now catch, approach sweep -15..+15 all catch; regressions
+unchanged; suites PASS.
+
+## 2026-10-01 - D08X crate-to-crate mantles (Needs playtest)
+
+User: crate-to-crate mantles low confidence at an angle; keep it game-wide. The
+jump mantle now works by proximity to any climbable object's own rotated box
+through the whole E jump, uses the original ground line-up (0x8007ec4c) before
+every mantle, takes the full climb 139 for steps just above the mantle range,
+and skips objects with something stacked on them. Binary `ccb4eb2a...0107`:
+crate-to-crate 18/18 from -45..45 degrees; no-E unchanged; floor crate, stack
+drop, alley object, wall grab, ladder transfer unchanged; suites PASS.
+
+## 2026-10-01 - D08X flush hang (Needs playtest)
+
+User: hands sometimes grab the air above the ledge until a shimmy. The catch
+kept the probe height; the shimmy settles the root 454..463 below the ledge
+top. E-jump catches now ease to ledge top + 456 (old rise-by-lift easing
+removed). Binary `60161f81...369c`; hang matches the shimmy within ~5 on
+two ledges; regressions unchanged; suites PASS.
+
+## 2026-10-01 - D08X accepted (Done)
+
+User: "thats it, fully accepted this!!!" after the flush-hang build
+(`60161f81...369c`). D08X covers: early E reach, crate and object mantles from
+any angle (original line-up, full climb, stacked-object skip), reach retries
+(lift up to 480, heading +-51 degrees), flush hang settle, object-hang release
+and the identity-guard fix for the original flag-table toggles.
+
+## 2026-10-01 - D14 preview triage; session accepted
+
+User accepted everything else from the session ("everything else wins for me
+and i accept"). D14 16:9 preview reported off centre with large geometry
+holes; 2-minute triage points at TTK's 4:3 projection centre, draw area and
+culling under the native-wide path. Backlogged with ordered next steps; D14
+stays In progress for a fresh session.

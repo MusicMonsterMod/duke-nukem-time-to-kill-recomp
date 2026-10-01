@@ -162,7 +162,42 @@ click released during drawing leaves it drawn without firing a delayed shot.
 Boot retains its unarmed attack. Ordinary ground draw/holster animations run at
 1.5x; E-owned airborne stow and its final blend use a bounded 4x animation budget; original firing speed is unchanged. On supported ladders and ledges, **W/S** feed
 the original up/down controls, **A/D** feed left/right, and **E** keeps the action
-held. The game controls the attached climbing motion and camera. Number keys now select familiar weapon groups when owned and usable:
+held. The game controls the attached climbing motion and camera.
+
+**Jumping in shallow water (Modernized, D08W).** In ankle- or
+waist-deep water (the subway tunnels, the crystal-2 corridor) W/A/S/D plus Space
+now jump in the held camera-relative direction, as on dry ground, including a
+sideways jump after running forward. Space alone and W + Space toward a platform
+keep the D08O ledge help.
+
+**Grabbing a ledge in the air (Modernized, D08X, awaiting playtest).** Hold **E**
+as you jump at a ledge within reach and Duke reaches for it from takeoff, catches
+it and, with **W** (or E) still held, pulls himself up. Without E the jump
+behaves as before, and in the original game a jump that close hits the wall and
+bounces off. If a weapon is out, hold E a moment before jumping so the automatic
+stow can finish; the game's own rules still decide whether a ledge can be
+caught (height, facing and headroom). A jump with **E** held into a wooden
+crate or similar climbable object climbs onto it mid-jump, also at an angle and
+from one crate to a higher one beside it, as long as its top is within climbing
+reach and nothing is stacked on it.
+If a jump catches a crate in a stack where there is no room to climb, Duke lets
+go straight away and drops back. Should he hang from some other object he cannot
+climb, press **S** or **Space** to let go; holding W lets go by itself after about
+a second. With E held, Duke catches a ledge even when he is not square to it (up to about
+50 degrees more than before) and also reaches about an arm's length
+higher than the original jump allows, easing up into the hang.
+
+**Climbing down a ladder from the top (Modernized, D08U).**
+Stand on the platform at the top of a ladder, near the edge where it hangs, and
+press **E**. The first two times in a session the screen shows `E TO CLIMB DOWN`
+there. Duke stows his weapon if needed, turns to face the ladder and lowers
+himself onto it, then the game's own ladder climbing takes over. Hold **S** to
+climb down: Duke climbs all the way to the bottom and steps off onto the floor
+(the original game needs Down plus the action button for that last step, which
+S now includes). His weapon comes back out once he is standing again, as with
+other E climbs. Walking or running off the edge without E still drops or jumps
+as before, and E away from a ladder top does its normal job. Vanilla has no top
+mount, so there the only way down is to jump. Number keys now select familiar weapon groups when owned and usable:
 
 | Key | Weapon group (press again to cycle alternatives) |
 | --- | --- |
@@ -595,7 +630,8 @@ and [session wrap](documentation/52-session-late-polish.md).
 ### Inventory feedback and crouch scope (2026-09-28)
 
 In Modernized gameplay, **[ / ]** open the temporary gadget **switcher** (centered
-strip with Duke inventory icons and green THREEBYFIVE charge); **Enter** or **U**
+strip with Time to Kill's own HUD item icons (D08A3: jetpack,
+Bio Mask, goggles, and the game's health cross for the medkit) and green THREEBYFIVE charge); **Enter** or **U**
 activates the currently selected gadget (whether or not the strip is showing).
 Holding Enter activates at most once. Empty inventory stays silent. Direct keys
 **M / J / B / N** select and use medkit / jetpack / Bio Mask / night vision **without**

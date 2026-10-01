@@ -322,3 +322,15 @@ frame is normally two video fields (33.4 ms). Runtime telemetry:
 `phase_profile`, `phase_hot` (diff two snapshots), `frame_perf`. Reference
 script: `recomp/analysis/d08y-gap-jump/gpuperf.py` (local only).
 
+
+## Jump feel measurements (D08Z)
+
+`recomp/analysis/d08z-manual-jump` (local only): `measure.py` traces press to
+airborne, flight and velocity per field for running, standing, walking and
+steered jumps on a private copy of UI slot 5 (`JUMP=assisted|manual`);
+`gap.py` presses Space at a given Z or N fields after a run-off and reports
+whether Duke ends across the gap; `regress.sh STYLE` reruns the D08X/D08Y/D08U/
+D08W routes with that jump style (it rewrites those folders' private test
+profiles and analysis files; back them up first). `ttk_controls` reports
+`jump_style`, `air_steers`, `coyote_jumps`, `quick_takeoffs` and `air_cap`.
+`DNTTK_AIR_CONTROL=0..3` scales the manual air steering rate for tuning.

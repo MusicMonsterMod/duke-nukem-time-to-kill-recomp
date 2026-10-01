@@ -225,6 +225,33 @@ waits for the edge and leaps from the lip, so you no longer have to time Space
 to the last moment. A quick tap is enough. Near furniture and small steps the
 jump still fires immediately.
 
+**Manual jump style (optional, Modernized, D08Z, accepted 2026-10-01).** The jump
+above is the default (`assisted`): near a gap the game picks the takeoff point,
+and once Duke is in the air the arc is fixed. The `manual` style hands the
+jump to you:
+
+- Duke leaves the ground the moment you press **Space**, also near gaps, so
+  you time the takeoff yourself.
+- Pressed a fraction of a second too late, just after running off an edge, the
+  jump still happens (about 0.15 s of grace).
+- In the air, **W/A/S/D** steer relative to the camera: turn the jump with the
+  mouse and W, brake or back out with S. Steering never makes Duke faster than
+  he took off; with no key held he keeps his momentum. This also works while
+  reaching for a ledge with **E**.
+- Standing and walking jumps leave the ground about three times sooner (a short
+  crouch instead of a quarter-second wind-up).
+
+The gap help described below (low-lip scramble, E climb) still applies. Gravity,
+jump height and running speed are the original ones. Select it once; it is
+remembered:
+
+```
+python3 recomp/tools/local/run.py --jump manual --show-settings
+python3 recomp/tools/local/run.py --jump assisted --show-settings
+```
+
+(`--settings`, choice J, does the same.) Vanilla always uses the original jump.
+
 **Jumping a gap that is slightly too long (Modernized, D08Y, awaiting playtest).**
 When a running or directional jump reaches the far edge with Duke's feet just
 below its top, he no longer bounces off and falls. If the lip is low (up to

@@ -72,7 +72,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08W | Subway shallow-water sideways jumps (A/D + Space jumps forward) | Done | D08, D08C |
 | D08X | Hold-E airborne ledge grab and mantle (ladder-grab feel for ledges) | Done | D08, D08J, D08V |
 | D08Y | Gap jump dead band: jump-mantle level-geometry ledges (slot 5 gap) | Done | D08X |
-| D08Z | Optional manual modern jump (player-timed takeoff, air control) | Todo | D08Y |
+| D08Z | Optional manual modern jump (player-timed takeoff, air control) | Done | D08Y |
 | D09 | Modern controller support | Todo | D05, D06, D07 |
 | D10 | Third-person camera polish | Done | D08 |
 | D10A | Rapid mouse turning and Shift-running investigation | Done | D06, D07C, D08 |
@@ -1275,7 +1275,20 @@ unchanged. Vanilla is unchanged. Generic rule, no slot-5-specific data.
 
 ### D08Z - Optional manual modern jump (player-timed takeoff, air control)
 
-**Todo (backlogged 2026-10-01).** User: the D08Y jump makes the slot-5 gap
+**Done (2026-10-01, user-accepted: "i love it. lock it in").** `run.py --jump manual` (Modernized; assisted
+stays the default): Duke leaves on the press everywhere, a jump pressed up to
+~0.15 s after running off an edge still launches, WASD steer in the air
+(camera-relative, never above the takeoff speed, also during the E reach), and
+standing/walking jumps leave the ground ~3x sooner (5..8 fields instead of
+14..18). Slot-5 gap without E: lands across when pressed in the last ~200
+units or up to 10 fields after the edge, low-lip scramble when 200..600 early;
+with E a mantle from 1000 back. Regression routes match assisted. See
+[measurements, change and evidence](documentation/78-d08z-manual-jump.md).
+
+User (2026-10-01, at selection): the long jump feels "on the rails", "not me",
+"off in the hand"; wants to explore options for a much more modern feel.
+
+**Original backlog note.** User: the D08Y jump makes the slot-5 gap
 reliably, but it feels "on the rails", which is how the original intended it.
 The user wants, later, a more manual, modern jump as an option.
 
@@ -4449,3 +4462,26 @@ disk stall during the play sessions; Cinnamon idles at ~36% CPU and the
 storage drive (sdb) reports 113 C (noted to the user, unrelated to the game).
 Next job: user's choice (D08Z manual modern jump is backlogged).
 
+## 2026-10-01 - D08Z manual jump style implemented (Needs playtest)
+
+Measured what makes the jump feel on rails (slot 5, first person): the lip
+launch near gaps, a fixed ~1 s arc with no air control, and a 14..18 field
+crouch before standing/walking jumps. New Modernized option `jump`
+(profile schema 20, `run.py --jump assisted|manual`, `--settings` choice J,
+`DNTTK_JUMP`; Vanilla always assisted). Manual (`recomp/src/ttk/manual_jump.inc`):
+jump on the press before gaps too, edge grace for every run-off (14 input
+frames), bounded air steering from the owned ballistic update (98/103/104,
+owned short falls, E reach 109; wade jumps excluded), preparation 96 x3.
+Variable jump height and extra air speed considered and not taken. Evidence:
+slot-5 timing table and same-binary regression comparison in
+documentation/78-d08z-manual-jump.md; native controls/input/aim pass, Python
+95 OK. Binary `4f11af3a04d6987c99b0fea1ea7279c13c1c9e05144a0d61553f242f92d17a3a`. Playtest: feel of steering rate and grace
+(`DNTTK_AIR_CONTROL` scales the rate without a rebuild).
+
+## 2026-10-01 - D08Z accepted (Done)
+
+User played the manual style: "i love it. lock it in." The player's profile
+keeps `jump: manual`; `assisted` remains the default for new profiles and
+Vanilla is unchanged. Tuning values stay as shipped (steering 0.14 of the
+takeoff speed per update, 14-frame edge grace, preparation x3). Binary
+`4f11af3a04d6987c99b0fea1ea7279c13c1c9e05144a0d61553f242f92d17a3a`.

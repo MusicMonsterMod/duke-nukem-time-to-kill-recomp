@@ -1,5 +1,13 @@
 # Current status - 2026-10-01
 
+**D08Z manual jump style - Done (user-accepted).** Optional Modernized
+`--jump manual` (assisted stays the default): jump on the press near gaps,
+~0.15 s grace after running off an edge, WASD air steering up to the takeoff
+speed (also during the E reach), standing/walking takeoff ~3x quicker. Slot-5
+gap clearable by timing alone (last ~200 units or just after the edge; earlier
+presses scramble up the low lip; E mantles from 1000 back). Assisted unchanged.
+Binary `4f11af3a04d6987c99b0fea1ea7279c13c1c9e05144a0d61553f242f92d17a3a`. Details: documentation/78-d08z-manual-jump.md.
+
 **D08Y gap jump - Done (user-accepted).** Jump, freezes and audio confirmed fixed. The overclock now applies only in
 gameplay and backs off if emulation falls behind (fixed boot/loading audio
 slowdowns; binary `0bdb53c328b12252c02edda0635950f9c1dbe11b6c93d380d887ed21d43508f2`). Round 4: Random 20 fps freezes were

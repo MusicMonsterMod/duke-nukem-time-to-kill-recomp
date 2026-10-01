@@ -243,3 +243,10 @@ generate --config game.local.toml --project-root . --disc disc/time-to-kill.cue`
 then `cmake --preset local-dev`, `cmake --build --preset local-dev` and
 `tools/local/build_movie_overlay.py`.
 
+## Jump style (D08Z)
+
+Profile schema 20 adds the Modernized `jump` choice: `assisted` (default, the
+original lip launch and fixed arc) or `manual` (jump on the press, edge grace,
+air steering, quicker standing takeoff). `run.py --jump VALUE` saves it
+(`--settings` choice J); the launcher passes `DNTTK_JUMP` (always `assisted`
+for Vanilla). See [78-d08z-manual-jump.md](78-d08z-manual-jump.md).

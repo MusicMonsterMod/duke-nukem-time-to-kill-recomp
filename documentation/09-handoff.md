@@ -1,5 +1,22 @@
 # Next-session handoff
 
+## 2026-10-01 - D08Z accepted (Done)
+
+User: "i love it. lock it in." Player profile stays on `jump: manual`
+(assisted remains the default for new profiles). Next job: user's choice.
+
+## 2026-10-01 - D08Z manual jump style (Needs playtest)
+
+Playtest with `run.py --jump manual` (saved; `--jump assisted` returns to the
+default). Check: running jumps leave on the press, the slot-5 gap by timing,
+late presses just after an edge, steering with the mouse + W and braking with S
+mid-air, quicker standing jumps, E grabs/mantles still work. Tuning knobs:
+`air_accel_fraction` (0.14), `manual_edge_grace` (14), `quick_takeoff_scale`
+(3) in `recomp/src/ttk/manual_jump.inc`; `DNTTK_AIR_CONTROL=0..3` scales the
+steering without a rebuild. Analysis scripts: `recomp/analysis/d08z-manual-jump`
+(`measure.py`, `gap.py`, `pit.py`, `regress.sh`). Binary `4f11af3a04d6987c99b0fea1ea7279c13c1c9e05144a0d61553f242f92d17a3a`.
+Nothing committed.
+
 ## 2026-10-01 - D08Y accepted (Done)
 
 User confirmed the slot-5 jump and that stutter, audio slowdowns and freeze

@@ -1,5 +1,71 @@
 # Next-session handoff
 
+## 2026-10-02 - D17 accepted; D17A/B/C added; D17C experiment (Needs playtest)
+
+**Next session starts with D17C** (user's choice): get the user's playtest
+verdict on `DNTTK_VIEW_BOB=off`, then keep it off, make it an option, or
+redesign it. After that D17A or D17B.
+
+D17 is Done (user-accepted). Next jobs on the board: D17A (instability and
+black areas at the places the user listed), D17B (mouse-to-present latency
+measurement, then a late camera update if the 30 Hz camera is the cause), D17C
+(view bob). D17C test: `DNTTK_VIEW_BOB=off python3 recomp/tools/local/run.py`
+(first person; environment only, not saved). Measure with
+`recomp/analysis/d17-high-refresh/bobframes.py KEYS SECS` (per-field root and
+eye height; STEER=1). Nothing committed.
+
+## 2026-10-02 - D17 second playtest fixes (Needs playtest)
+
+Recheck at Match Display (180 Hz): the street, the apartment (sink, wardrobe,
+light switch), the subway past the EXIT sign and the power button should now be
+smooth and stable; backtick console `fps` should show about 180 FPS, a Unique
+count near it and Game 30. Developer switches added: `DNTTK_TEST_INPUT=FILE`
+(scripted input), `PSX_REPLAY_COW=0` / `PSX_REPLAY_COW_CHECK=1`. Harness:
+`steer.py`, `monitor.py`, `popsweep.py`, `seqcheck.sh`, `shift2.py`,
+`CARDS=cards-apartment|cards-subway` (private copies of the D11B states).
+Offscreen runs keep the GPU at its P5 clocks (no display), so they are a worst
+case. Open: inherent snapping and original-mesh cracks; `ttk-input-test` needs
+a live desktop session. Nothing committed.
+
+## 2026-10-02 - D17 playtest review fixes (Needs playtest)
+
+Recheck the first playtest's problems at the saved rate (`run.py`; the profile
+has 120): the strip-club street and other heavy outdoor areas should now be as
+smooth as the sewer with no audio artifacts; walking through doors should not
+show other rooms; the intro and level movies should look like 60 Hz (no
+flicker, normal brightness); after a first-person quick kick (Q) the leg should
+be gone. Player sessions now run with `PSX_FORENSICS=0` (launcher; use
+`--diagnostics` or `PSX_FORENSICS=1` for the forensic rings). New developer
+switches: `PSX_GL_STATE_CACHE=0`, `PSX_PROF=FILE` with `PSX_PROF_CALLERS=1` or
+`PSX_PROF_REPLAY=1` (profiler, `symprof.py`), `DNTTK_ROOM_WALK=always|off|probe`,
+`DNTTK_TEST_KICK=<frames>` (with `DNTTK_TEST_DRIVE`). Harness additions in
+`recomp/analysis/d17-high-refresh`: `slotscan.sh` (per-slot coverage and load),
+`mipsdis.py` (static code from the generated C), `genpatch.py` (regenerates the
+runtime patch). Open: vertex snapping and affine warp with small camera steps
+(geometry correction off), third-person camera lerp around wall corners, fewer
+in-betweens than asked above 120 Hz in the heaviest scenes. Nothing committed.
+
+## 2026-10-02 - D17 high refresh rate (Needs playtest)
+
+Playtest on the 180 Hz monitor: `run.py --frame-rate display` (saved;
+`--frame-rate 60` returns to the original). Check: camera turns, running and
+enemies look smoother than at 60 with no change in game speed; no tearing in
+windowed and fullscreen (if exclusive fullscreen tears, try
+`PSX_REPLAY_VSYNC=1`); `--frame-rate 30` and `120/144/240` also behave;
+first person, widescreen, menus, movies and level loads; any flicker between
+real and in-between frames (a mismatch) or stutter in busy scenes. Developer
+switches: `DNTTK_FRAME_INTERP=off` (pacing only), `DNTTK_INTERP_STEPS`,
+`DNTTK_REPLAY_BUDGET_MS`, `DNTTK_REPLAY_SLACK_MS`, `DNTTK_REPLAY_WORKERS`,
+`DNTTK_REPLAY_TEST=alpha0|alpha1` (fidelity), `PSX_FP_RAM_HASH=1`
+(equivalence). Harness: `recomp/analysis/d17-high-refresh` (`d17.py`,
+`trip.sh`, `equiv.py`, `cadence.sh`). Runtime patch
+`time-to-kill-zzzzzzzzzz-render-replay.patch` (new files render_replay.c/h,
+render_worker.c). Regenerated hooks: `0x80026164`, `0x800632B0`,
+`0x80031D10`, `0x80032E78`, `0x80031C14`, `0x8001FBA0`. Open: driven-input
+equivalence at 180/unlimited (one pad sample), vsync on the real display,
+moving room geometry. Pre-existing: `ttk-near-test` link error
+(`frame_trace_*`). Nothing committed.
+
 ## 2026-10-01 - D08J1 accepted (Done)
 
 User playtest: "genuinely working solidly." Committed. Next job: user's choice.

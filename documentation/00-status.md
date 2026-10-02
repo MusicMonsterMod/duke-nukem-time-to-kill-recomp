@@ -1,4 +1,20 @@
-# Current status - 2026-10-01
+# Current status - 2026-10-02
+
+**D17C view bob experiment - Needs playtest.** In first person the eye rode
+on Duke's root, which the walk and run cycles lift by about 55 units a step.
+`DNTTK_VIEW_BOB=off` holds the eye at the bottom of that cycle (eye height
+range walking 55 to 10 units, running 59 to 21); jumps, steps and drops still
+move it. Default unchanged.
+
+**D17 high refresh rate - Done (user-accepted 2026-10-02).** Modernized
+`--frame-rate display|30|60|120|144|165|180|240|unlimited` (default 60;
+Vanilla always 60): the runtime presents at the display's rate and TTK's own
+renderer draws interpolated in-between images in worker processes; game logic,
+physics, animation timing and audio unchanged. The user saw about 180 FPS at
+Match Display with very good stability, correct FMVs and an accurate fps
+readout. Follow-ups: D17A (texture/geometry instability, black areas), D17B
+(mouse responsiveness and input latency). Details:
+documentation/80-d17-high-refresh-audit.md.
 
 **D08J1 overhead ladder grab - Done (user-accepted).** New job from the user's
 slot-6 report. That ladder's bottom rung is about 1040 above the floor, so

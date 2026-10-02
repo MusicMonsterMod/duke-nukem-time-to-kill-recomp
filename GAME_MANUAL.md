@@ -109,6 +109,35 @@ For example `python3 recomp/tools/local/run.py --widescreen 21:9 --display borde
 This updates your saved Modernized preferences. Vanilla always uses the
 original 4:3 picture.
 
+### Frame rate (Modernized)
+
+The game itself runs at 30 frames per second, as on the PlayStation, and that
+never changes: Duke, enemies, weapons, physics and timers keep their original
+speed at every setting. The frame rate only changes how often the picture is
+shown.
+
+Choose it with `--frame-rate`, or with **F** in `--settings`:
+
+- `60` (default): the original presentation.
+- `display`: your monitor's refresh rate (for example 180 on a 180 Hz screen).
+  It follows the window if you move it to another monitor.
+- `30`: each new game image is shown exactly once.
+- `120`, `144`, `165`, `180`, `240` or `unlimited`: a fixed rate.
+
+Above 60, the extra pictures in between are drawn by the game's own renderer
+with the camera, Duke and moving objects placed part-way between two game
+frames, so turning and movement look smoother. Each refresh of your display
+gets its own picture where the PC keeps up (at 120 Hz, three in-between
+pictures per game frame). This uses spare CPU cores (Linux); at very high rates
+the busiest scenes get fewer in-between pictures and repeat one now and then.
+Particles, flashes and the HUD still update 30 times a second. The developer
+console's `fps` command (backtick) shows what reaches the screen above 60: FPS
+(pictures shown per second), Unique (how many of them were different) and Game
+(new game frames, normally 30).
+
+For example `python3 recomp/tools/local/run.py --frame-rate display`. This
+updates your saved Modernized preferences. Vanilla always uses 60.
+
 You can also select and launch directly with `--mode vanilla` or
 `--mode modernized`. Use `--show-settings` to inspect preferences without
 launching, and `--reset-profile vanilla` (or `modernized`) to restore only that

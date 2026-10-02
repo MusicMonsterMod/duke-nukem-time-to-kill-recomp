@@ -243,6 +243,24 @@ generate --config game.local.toml --project-root . --disc disc/time-to-kill.cue`
 then `cmake --preset local-dev`, `cmake --build --preset local-dev` and
 `tools/local/build_movie_overlay.py`.
 
+## Frame rate (D17)
+
+Profile schema 21 adds the Modernized `frame_rate` choice: `display`, `30`,
+`60` (default, the original presentation), `120`, `144`, `165`, `180`, `240`
+or `unlimited`. `run.py --frame-rate VALUE` saves it (`--settings` choice F);
+the launcher passes `DNTTK_FRAME_RATE` (always `60` for Vanilla) and the
+preloaded `dnttk.presentation.frame_rate` plugin selects replay presentation.
+Above 60, in-between images are redrawn by forked worker processes (Linux);
+the runtime patch is `time-to-kill-zzzzzzzzzz-render-replay.patch`. Six hooks
+were added to `game.local.toml` and regenerated (see the D14 note above for
+the regeneration commands). Debug commands: `render_replay` (cadence, workers,
+plugin counters) and `replay_dump path=BASE`. Player launches also set
+`PSX_FORENSICS=0` (the runtime's always-on forensic rings and per-frame VRAM
+readback off); `--diagnostics` or an explicit `PSX_FORENSICS=1` keeps them.
+The runtime patch is regenerated from its baseline copies by
+`recomp/analysis/d17-high-refresh/genpatch.py`. See
+[80-d17-high-refresh-audit.md](80-d17-high-refresh-audit.md).
+
 ## Jump style (D08Z)
 
 Profile schema 20 adds the Modernized `jump` choice: `assisted` (default, the

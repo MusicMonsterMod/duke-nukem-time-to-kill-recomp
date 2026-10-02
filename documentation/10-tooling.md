@@ -334,3 +334,43 @@ D08W routes with that jump style (it rewrites those folders' private test
 profiles and analysis files; back them up first). `ttk_controls` reports
 `jump_style`, `air_steers`, `coyote_jumps`, `quick_takeoffs` and `air_cap`.
 `DNTTK_AIR_CONTROL=0..3` scales the manual air steering rate for tuning.
+
+## D17 frame-rate harness
+
+`recomp/analysis/d17-high-refresh/` (ignored) runs the game on the real GPU
+offscreen with private profile, cards and savestate copies (port 9317).
+`d17.py up TAG RATE` / `stats` / `dump NAME` / `down`; `trip.sh TAG` dumps
+triples (real image k, the redraw shown for it, real image k+1) and prints
+their mean pixel distances (`DNTTK_REPLAY_TEST=alpha0|alpha1` makes a redraw
+equal image k or k+1); `equiv.py run TAG RATE` saves the per-frame guest
+fingerprints (`PSX_FP_RAM_HASH=1` adds RAM contents) and `equiv.py compare A
+B` aligns two runs by cycle count (use `OC=100`: the overclock lease is
+wall-clock based); `cadence.sh RATES...` prints present intervals, image
+shares, guest rate and underruns; `slotscan.sh SLOTS...` (with `R=RATE`)
+prints redraw coverage, cadence, guest work and pacer slack per savestate slot.
+`mipsdis.py LO HI` disassembles static game code from the generated C (venv
+Python with capstone); `genpatch.py` regenerates the D17 runtime patch from the
+baseline copies. Debug commands `render_replay` and `replay_dump` (a path
+ending in `-seq` dumps the next 24 presents); see
+documentation/80-d17-high-refresh-audit.md.
+
+Scripted offscreen play (D17 third pass): `STEER=1` makes `d17.py up` pass
+`DNTTK_TEST_INPUT=steer.input`; `steer.py` writes held keys and mouse counts to
+it (`face(yaw)`, `inp('w shift dx=2')`). `monitor.py SECONDS [keys]` prints
+per-second guest fields, game images, presents, distinct images, redraw
+sessions and GPU load; `popsweep.py TAG [yaws]` walks into walls and
+strafe-turns while dumping present sequences and listing one-present pops;
+`seqcheck.sh TAG` (alpha 0) checks every redraw against its real image;
+`shift2.py TAG...` prints the image shift between consecutive presents.
+`CARDS=cards-apartment` or `cards-subway` selects private copies of the D11B
+states. `PSX_REPLAY_COW_CHECK=1` verifies every redraw restores all surfaces
+exactly; the plugin status has a per-present trace.
+
+Emulation-thread profiler (developer): `PSX_PROF=FILE` samples the main thread
+every millisecond of its CPU time and writes the counts at exit;
+`PSX_PROF_CALLERS=1` also attributes time spent in the GL driver, libc and the
+vDSO to the calling runtime function; `PSX_PROF_REPLAY=1` samples only inside
+D17 redraw feeds (every 0.2 ms). `symprof.py FILE [N]` symbolizes it. Player
+sessions run with `PSX_FORENSICS=0` (the runtime's always-on forensic rings
+quiet, no per-frame VRAM readback); set `PSX_FORENSICS=1` or launch with
+`--diagnostics` to keep them.

@@ -89,7 +89,10 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D15 | Optional geometry and texture precision | Todo | D13 |
 | D16 | Texture filtering and game-specific HD assets | Todo | D13 |
 | D16A | HRP assets and first-person weapon research (later) | Cancelled (original assets preferred) | - |
-| D17 | High refresh rate rendering without faster simulation (Match Display, 30-240, Unlimited) | Todo | D01, D13 |
+| D17 | High refresh rate rendering without faster simulation (Match Display, 30-240, Unlimited) | Done (user-accepted) | D01, D13 |
+| D17A | High-refresh texture/geometry instability: popping, flicker, black areas | Todo | D17, D11B, D14 |
+| D17B | Mouse responsiveness and input latency at high refresh rates | Todo | D17, D08 |
+| D17C | View bob: disable experiment, then a stable modern camera | Needs playtest | D11 |
 | D18 | FMV and audio presentation safeguards | Todo | D01, D02 |
 | D18A | Voice/music/gunfire crackle investigation | Done | D01, D02 |
 | D18B | Concurrent voice with music (no music mute) | Todo | D18, D21 |
@@ -1584,6 +1587,24 @@ See [external research register](documentation/23-external-research.md).
 
 ### D17 — Presentation smoothness without faster simulation
 
+**Done (user-accepted 2026-10-02):** on the 180 Hz monitor at Match Display
+the user saw about 180 FPS with very good stability, correct FMVs and an
+accurate fps readout, and accepted the job. Remaining refinements are separate
+jobs: geometry/texture instability (D17A) and mouse responsiveness and input
+latency (D17B; the acceptance's input-latency measurement moves there).
+
+**Needs playtest (2026-10-02, second pass):** frame-rate option with Match
+Display, even display-rate presents and in-between frames redrawn by TTK's own
+renderer in worker processes (camera, Duke and object-loop transforms
+interpolated; guest timing untouched). After the first playtest: emulation-thread
+costs cut (forensic rings off in player sessions, GL binding cache, cheaper
+presentation tick and SPU query), one in-between per display refresh (120 Hz: 3
+per game frame) reaching nearly every present in all ten test slots, doorway
+rooms from the game's own portal walk, FMV and quick-kick fixes. Design,
+evidence and limits: [D17 notes](documentation/80-d17-high-refresh-audit.md)
+(section 13 for the second pass, section 14 for the third: no repeated images,
+copy-on-write redraw saves, exact rotation blends, near-clip seams, fps readout).
+
 **Scope expanded 2026-09-30 (user brief):** arbitrary / high refresh rate
 rendering. Full brief: [D17 high refresh brief](documentation/68-d17-high-refresh-brief.md).
 Render frequency must be separated from gameplay timing: rendering at 180 FPS
@@ -1614,6 +1635,83 @@ cadence; 60 FPS behaviour is unchanged; plus the original criteria below.
 Measure unique rendered frames, guest timing, host presentation and input latency independently. Investigate interpolation only where the game's data permits it; reset interpolation across teleports, room loads and camera cuts.
 
 **Acceptance:** measured pacing improves without speeding up movement, scripts, audio or cutscenes; discontinuities do not smear or blend incorrectly. Report achieved unique-frame cadence honestly: a 60 Hz guest clock is not proof of 60 unique game images per second.
+
+### D17A - High-refresh texture/geometry instability: popping, flicker, black areas
+
+User report (2026-10-02, third playthrough at 180 Hz, after D17 was accepted):
+parts of the scene vanish for a moment and show black underneath. Places:
+the apartment right after using the light switch (looking right and walking
+toward where the bed moves from, black patches on the wall to the left); the
+wardrobe ("closet") still flickers; on the highest alley platform looking
+toward the burnt-out car, strong flicker of the brick wall and the platform for
+a couple of seconds before it settles; occasional popping on the street
+pavement; the subway, where vanished parts show as black areas or squares near
+the edges of the image; the strip club stairs to the balcony, and bar stools
+that disappear and return. Also a slight overall texture "vibration" or
+shimmer. The user notes it often appears around polygon edges and vertices
+(descriptive, not a diagnosis).
+
+Known from D17 (documentation/80 sections 13-14), to verify rather than assume:
+- Redraws match the real image exactly at alpha 0, and the D17 tools
+  (`popsweep.py`, `seqcheck.sh`, `shift2.py`, scripted input) find mostly
+  hairline seams and texel sparkle, not whole surfaces vanishing. The reported
+  black areas have not been reproduced yet: reproduce first, at the reported
+  places, at 60 Hz as well as above (is it high-refresh specific?).
+- Native-pixel vertex snapping and affine textures are more visible with six
+  distinct images per game frame; geometry/texture correction (D15) cannot
+  resolve TTK's CPU-built packets as implemented.
+- Near clip (D11B) takes over polygons beside the eye; its pieces meet the
+  original polygons at seams, and its packet budget can refuse polygons.
+- Black areas near the image edges may be widescreen margins (D14) where the
+  game culls to its 4:3 view, or the in-between camera seeing past the real
+  camera's cull; the strong flicker that settles after a couple of seconds may
+  be a streaming or culling transition.
+
+**Acceptance:** each reported place reproduced (or shown not to reproduce) with
+a recorded test; causes identified and fixed or explained with evidence;
+no surfaces vanish to black at 60 Hz or above in those places; any remaining
+PS1-inherent artifact is documented, with an option (D15) where one is
+feasible. Vanilla unchanged.
+
+### D17B - Mouse responsiveness and input latency at high refresh rates
+
+User report (2026-10-02): frame rate is very stable, but turning with the mouse
+(entering the strip club and turning to shoot, and later just walking and
+turning) feels slightly delayed or floaty. Mouse input must feel immediate:
+no perceptible latency or smoothing between the mouse and the camera.
+
+To measure, not assume: mouse event to camera change to photons, at 60 Hz
+(D17 off) and at 120/180 Hz, in first and third person. Candidates:
+- The camera turns once per game update (30 per second); in-between images
+  interpolate between two game frames, so the newest mouse motion reaches the
+  screen only with the next game frame and arrives smoothed.
+- Replay presentation draws in-betweens ahead into a cache; a prepared image
+  can be up to one present old when shown.
+- Swap interval, driver frame queueing and exclusive fullscreen behaviour.
+- Input sampling once per field and any smoothing in the modern controls.
+The runtime has a latency ring (`latency_ring_mark`) and the plugin a present
+trace; extend them to a mouse-to-present measurement. A likely direction, if
+the camera update is the cause: apply the newest mouse yaw and pitch to every
+presented image (late camera update at present time) while gameplay keeps its
+original 30 Hz aim.
+
+**Acceptance:** measured mouse-to-present latency at high refresh is no worse
+than at 60 Hz and as low as the pipeline allows; the user confirms aiming feels
+immediate in first and third person; gameplay timing unchanged.
+
+### D17C - View bob: disable experiment, then a stable modern camera
+
+User request (2026-10-02): TTK's walking view bob looks wrong in the recomp,
+especially at high refresh: rather than Duke's head moving, the floor and walls
+seem to breathe, swell and melt (with the PS1 geometry wobble). First step: a
+clean test with no view bob at all, to judge whether the world feels more
+stable, whether the breathing goes away, whether it interacts with the D17A
+instability, and whether any rendering work is tied to the bob. Longer term the
+recomp should present a stable modern 3D view where appropriate.
+
+**Acceptance (experiment):** a switch that removes the first-person view bob
+entirely, verified by measurement; the user playtests it and decides the next
+step (keep off, make it an option, or redesign).
 
 ### D18 — FMV and audio presentation safeguards
 
@@ -4516,3 +4614,142 @@ keeps `jump: manual`; `assisted` remains the default for new profiles and
 Vanilla is unchanged. Tuning values stay as shipped (steering 0.14 of the
 takeoff speed per update, 14-frame edge grace, preparation x3). Binary
 `4f11af3a04d6987c99b0fea1ea7279c13c1c9e05144a0d61553f242f92d17a3a`.
+
+## 2026-10-02 - D17 high refresh rate with redrawn in-between frames (Needs playtest)
+
+Audit and plan first (documentation/80, sections 1-8). TTK simulates at 30 fps
+with a variable delta (5 per field, flip `0x8001fcbc`); presenting faster never
+touches that. Measurements showed TTK's own renderer costs about 11 ms per extra
+image on this CPU while the game uses about 25 of every 33 ms, so the user chose
+the **parallel redraw**:
+- New Modernized option `frame_rate` (schema 21, `run.py --frame-rate
+  display|30|60|120|144|165|180|240|unlimited`, settings choice F; default 60,
+  Vanilla always 60). `display` follows the window's monitor and re-reads it on
+  display/mode changes.
+- Runtime patch `time-to-kill-zzzzzzzzzz-render-replay.patch`: display
+  deadlines served from device-service edges and the pacer (even presents
+  whatever the guest does), frozen-machine replay sessions with full VRAM/GPU
+  save and restore, forked worker processes that redraw published frames in
+  record mode, image cache, cadence ring and `render_replay` / `replay_dump`
+  debug commands; opt-in idle-skip extensions.
+- Plugin `frame_replay.cpp`: publishes each frame at `0x80026164`, queues the
+  previous frame at composition end (`0x8001fba0`), interpolates camera
+  (`0x800d6eb0` rotation, view, eye, anchor, distance, room), Duke's joint
+  matrices and every object-loop transform through `0x800292a0` (recorded live,
+  substituted in the worker), ships first-person draw state, and draws redraws
+  ahead of their present within 1.6 ms per field. Hooks `0x80026164`,
+  `0x800632b0`, `0x80031d10`, `0x80032e78`, `0x80031c14`, `0x8001fba0`
+  (regenerated).
+Evidence (documentation/80 section 11): redraws equal the real image at alpha 0
+and the next one at alpha 1 (street third/first person, animated objects);
+per-frame RAM+MMIO fingerprints identical to 60 over 630 frames at 30, 120, 144,
+165, 240 with driven input and at 180/unlimited without input; driven input at
+180/unlimited sometimes differs from one pad sample (open). Cadence p50 equals
+the target at every rate (180: 5.56 ms, p99 7.39), guest at real time, no
+underruns; 62-72% of game frames get a redraw (about 50 distinct images/s).
+Python 97 OK, native input/controls/aim pass, Vanilla route `d17-vanilla-1`
+exit 0. Binary `67127d8073983fc6c4a1cc9bee2d520d7aae40e0e3ebcd2e568d4742c098849e`. Needs the real 180 Hz monitor: smoothness, tearing
+(swap interval 0) and `display`. Linux only for redraws; elsewhere pacing only.
+
+## 2026-10-02 - D17 playtest review: heavy scenes, doorways, FMV, kick (Needs playtest)
+
+The first playtest: the strip-club street dropped frames with occasional audio
+artifacts while the sewer was smooth; outdoor textures less stable while moving
+and easier views through doors; FMVs flickering and dim; the quick-kick leg
+left visible after the kick. Profiled rather than lowering the target
+(documentation/80 section 13; new dev profiler `PSX_PROF`, `PSX_PROF_CALLERS`,
+`PSX_PROF_REPLAY`):
+- The emulation thread was saturated in heavy scenes (guest work 900-970 ms/s),
+  so the governor refused most redraws. Largest costs: a forensic display ring
+  reading the whole VRAM back from the GPU every frame (9.2%), always-on
+  per-store/per-block forensic observers (about 8%), GL driver revalidation from
+  binding and unbinding the FBO, program and VAO around every batch, a host
+  clock read at every device event, and a full SPU state copy per sample query.
+- Fixes: `PSX_FORENSICS=0` for player sessions (launcher, not with
+  `--diagnostics`); a GL binding cache (batch CPU time halved, images and window
+  pixel-identical with it on and off); the presentation tick every 4096 guest
+  cycles; `spu_ctrl_reg()`. Guest work in heavy slots fell to 530-680 ms/s.
+- In-betweens now follow the rate (round(rate/30) - 1: 3 at 120 Hz, 5 at 180)
+  with a budget that grows with them, and no preparation starts too close to a
+  present. At the player's settings (120 Hz, 100% CPU, first person) all ten
+  test slots, street and ladder room included, show a distinct image on 69-81%
+  of presents (ceiling 75%, 83% at 20 fps), no underruns.
+- Doorways: in-betweens took the camera room from the nearer frame; when the
+  rooms differ the worker now runs the game's portal walk `0x80039dd0` (stored
+  by the camera update at `0x8003b0f8`) for the interpolated eye. Verified
+  pixel-neutral when the room is unchanged and effective by a probe.
+- FMV: CPU-path and blank presents invalidate the replay presenter (no redraws
+  during the intro; luma 42.2 against 41.5 at 60 Hz). Kick: kick state ships
+  with each job; kick scratch is allocated before the first kick (it reforked
+  the workers). Dumps show no leg after a kick.
+Evidence: equivalence to 60 Hz holds (630 frames; first person slot 3 at 144 has
+identical RAM and scratchpad every frame, only a load-time burst in the
+cumulative MMIO hash); Python 97 OK; Vanilla unchanged; runtime patch
+regenerated (17 files, reverse-check OK). Binary
+`5ffcbd643ae8e37f924d794ac76ca68938c4cb64f39de997115197ae7f0dc1e3`. Remaining:
+PS1 vertex snapping and affine warp are more visible with small camera steps
+(geometry correction is off for this game); a third-person camera lerp can pass
+a wall corner; above 120 Hz the heaviest scenes get fewer in-betweens than the
+rate asks for. Needs the real monitor: smoothness on the street, doorways, FMVs,
+kicks, tearing and `display`.
+
+## 2026-10-02 - D17 second playtest: choppiness, popping near the eye, fps readout (Needs playtest)
+
+User report at Match Display (180 Hz), fresh game: FMVs now right; slight
+choppiness outside the strip club, in the apartment and the subway control
+room; textures and geometry popping near the eye (sink, wardrobe sides, light
+switch, subway walls, power button); console `fps` stuck at 60. The session log
+showed the guest falling behind real time. Findings and fixes
+(documentation/80 section 14):
+- Offscreen scripted input (`DNTTK_TEST_INPUT`, developer) and new harness tools
+  (`steer.py`, `monitor.py`, `popsweep.py`, `seqcheck.sh`, `shift2.py`) with the
+  D11B apartment and subway states reproduced the reports.
+- Repeated images: the six-entry image cache thrashed (in-betweens evicted
+  before being shown, then redrawn); the picture moved on two or three presents
+  of a game frame and held for four. Cache 16 entries, evicting past frames
+  first.
+- Game slowdown: whole-surface save/restore around every redraw (about 300 MB)
+  saturated the GPU memory bus and stalled the emulation (apartment turn: 7
+  guest fields per second). Copy-on-write saves of what each redraw writes (two
+  rectangles), verified exact by a surface-hash self-check.
+- In-betweens follow the measured game frame interval (eight at 20 fps).
+- Popping: out-of-order images (above); rotation blends now exact at both ends
+  (endpoint residuals; alpha-0 redraws pixel-exact); the view matrix slerped
+  with its row scales instead of lerped (weapon drift); near-clip edge cuts
+  computed in canonical order (seam cracks).
+- `fps` overlay and title show presents, distinct images and game images per
+  second above 60.
+Evidence at the offscreen GPU's lowest clocks (worst case), 180 Hz, first
+person: apartment, street and subway hold 60-62 guest fields per second with
+about 180 distinct images per second (every present advances). Gameplay
+equivalence holds (630 frames). Python 97 OK; Vanilla unchanged; patch
+regenerated. Binary
+`71a1d0a20ab7d0a09d0dd03d7ce0f483f4d63f305866ab94544fda0fef6441fd`.
+Remaining: native-pixel snapping and the original meshes' T-junction cracks
+(inherent; geometry correction cannot resolve TTK's CPU-built packets);
+`ttk-input-test` needs a live desktop. Needs playtest on the 180 Hz monitor.
+
+## 2026-10-02 - D17 accepted; D17A, D17B, D17C added; D17C experiment (Needs playtest)
+
+**D17 Done (user-accepted).** Third playthrough at Match Display (180 Hz):
+about 180 FPS with very good stability, FMVs correct, fps readout correct. The
+user proposed accepting D17 and moving the remaining issues to separate jobs;
+agreed: the job's goal (rendering at the display's rate with unchanged game
+timing) is met, and the remaining issues are specific refinements.
+
+**New jobs.** D17A (texture/geometry instability: popping, flicker, black
+areas; places and hypotheses recorded), D17B (mouse responsiveness and input
+latency at high refresh; measurement plan recorded), D17C (view bob).
+
+**D17C experiment.** Measured first: in first person the eye follows Duke's
+root position (`player+8`), and the walk and run cycles lift that root above
+its standing height and back by about 55 units a step on a flat floor (the
+apartment); the camera rotation and projection do not oscillate. With
+`DNTTK_VIEW_BOB=off` (environment, Modernized first person) the eye follows the
+bottom of that cycle: any descent at once, a rise within 80 units only very
+slowly, a larger rise (jump, step up, climb) at the usual rate. Eye height range
+over 1.5 s on the flat floor: walking 55 to 10 units, running 59 to 21 (slow
+drift of a few units, no per-step swing). The bob is only a camera position, so
+removing it saves no rendering work. Default behaviour (bob on) and third
+person are unchanged. Launch:
+`DNTTK_VIEW_BOB=off python3 recomp/tools/local/run.py`.

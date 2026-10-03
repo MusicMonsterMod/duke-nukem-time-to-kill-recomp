@@ -1,0 +1,82 @@
+--- a/runtime/include/host_osd.h
++++ b/runtime/include/host_osd.h
+@@ -20,6 +20,7 @@
+ void host_osd_push(const char *msg, int duration_ms);
+ void host_osd_push_centered(const char *msg, int duration_ms);
+ int host_osd_text_centered(void);
++int host_osd_inventory_image(const uint32_t **pixels, int *w, int *h, int available_width);
+ /* Available text width in the same logical pixel space as host_osd_image. */
+ void host_osd_set_text_width(int width);
+ int host_osd_text_has_alpha(const uint32_t *pixels);
+--- a/runtime/src/host_osd.c
++++ b/runtime/src/host_osd.c
+@@ -151,7 +151,23 @@
+ static int      s_text_width = 624;
+ static int      s_font_image;
+ 
+-int host_osd_text_has_alpha(const uint32_t *pixels) {return s_font_image && pixels == s_img;}
++#if defined(TTK_CHEAT_OSD)
++extern int ttk_inventory_image(const uint32_t**,int*,int*,int);
++extern int ttk_inventory_pixels(const uint32_t*);
++#endif
++int host_osd_inventory_image(const uint32_t** pixels,int* w,int* h,int available_width) {
++#if defined(TTK_CHEAT_OSD)
++    return ttk_inventory_image(pixels,w,h,available_width);
++#else
++    return 0;
++#endif
++}
++int host_osd_text_has_alpha(const uint32_t *pixels) {
++#if defined(TTK_CHEAT_OSD)
++    if(ttk_inventory_pixels(pixels))return 1;
++#endif
++    return s_font_image && pixels == s_img;
++}
+ 
+ void host_osd_set_text_width(int width) {
+     if (width < 64) width = 64;
+@@ -563,6 +579,33 @@
+             sdl_blit_argb(renderer, &s_sdl_tex, &s_sdl_tw, &s_sdl_th, px, w, h,
+                           host_osd_text_centered() ? (lw-w*ui)/2 : margin, margin, w * ui, h * ui);
+         }
++        /* Inventory is a separate temporary surface; never replaces quotes.
++         * Keep above the original health/ammo HUD, using output-pixel Duke art. */
++#if defined(PSX_SDL3)
++        {
++            int old_w=0,old_h=0,ow=0,oh=0;
++            SDL_RendererLogicalPresentation old_mode=SDL_LOGICAL_PRESENTATION_DISABLED;
++            SDL_Rect view,clip;float sx=1,sy=1;
++            bool clipped=SDL_RenderClipEnabled(renderer);
++            SDL_GetRenderLogicalPresentation(renderer,&old_w,&old_h,&old_mode);
++            SDL_GetRenderViewport(renderer,&view);SDL_GetRenderClipRect(renderer,&clip);
++            SDL_GetRenderScale(renderer,&sx,&sy);SDL_GetRenderOutputSize(renderer,&ow,&oh);
++            int scale=oh/480;if(scale<1)scale=1;if(scale>8)scale=8;
++            if(host_osd_inventory_image(&px,&w,&h,(ow-16*scale)/scale) && px) {
++                SDL_SetRenderLogicalPresentation(renderer,0,0,SDL_LOGICAL_PRESENTATION_DISABLED);
++                SDL_SetRenderViewport(renderer,NULL);SDL_SetRenderClipRect(renderer,NULL);SDL_SetRenderScale(renderer,1,1);
++                sdl_blit_argb(renderer,&s_sdl_tex,&s_sdl_tw,&s_sdl_th,px,w,h,
++                    (ow-w*scale)/2,oh-oh/6-h*scale,w*scale,h*scale);
++                SDL_SetRenderLogicalPresentation(renderer,old_w,old_h,old_mode);
++                SDL_SetRenderScale(renderer,sx,sy);SDL_SetRenderViewport(renderer,&view);
++                SDL_SetRenderClipRect(renderer,clipped?&clip:NULL);
++            }
++        }
++#else
++        if(host_osd_inventory_image(&px,&w,&h,(lw-2*margin)/ui) && px)
++            sdl_blit_argb(renderer,&s_sdl_tex,&s_sdl_tw,&s_sdl_th,px,w,h,
++                (lw-w*ui)/2,lh-lh/6-h*ui,w*ui,h*ui);
++#endif
+         if (host_osd_volume_image(&px, &w, &h) && px) {
+             const int dw = w * ui, dh = h * ui;
+             int x = (lw > dw + margin) ? (lw - dw - margin) : margin;
+--- a/runtime/src/gpu_gl_renderer.c
++++ b/runtime/src/gpu_gl_renderer.c
+@@ -4008,6 +4008,8 @@
+             if (host_osd_image(&px, &ow, &oh) && px)
+                 gl_draw_osd_image(px, ow, oh, ow * ui, oh * ui,
+                                   host_osd_text_centered() ? (ww-ow*ui)/2 : margin, margin, ww, wh);
++            if (host_osd_inventory_image(&px, &ow, &oh, (ww-2*margin)/ui) && px)
++                gl_draw_osd_image(px,ow,oh,ow*ui,oh*ui,(ww-ow*ui)/2,wh-wh/6-oh*ui,ww,wh);
+             if (host_osd_volume_image(&px, &ow, &oh) && px) {
+                 const int dw = ow * ui, dh = oh * ui;
+                 int vx = (ww > dw + margin) ? (ww - dw - margin) : margin;

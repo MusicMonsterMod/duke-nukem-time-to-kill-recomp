@@ -1,0 +1,18 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": {"major": 3, "minor": 20, "patch": 0},
+  "configurePresets": [{
+    "name": "local-dev",
+    "displayName": "Linux / Windows native bring-up",
+    "generator": "Ninja",
+    "binaryDir": "${sourceDir}/build-local",
+    "cacheVariables": {
+      "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+      "PSX_DEBUG_TOOLS": "ON",
+      "PSX_RECOMP_UI": "OFF",
+      "PSX_ENABLE_VULKAN": "OFF",
+      "PSX_NETPLAY": "OFF"
+    }
+  }],
+  "buildPresets": [{"name": "local-dev", "configurePreset": "local-dev", "targets": ["psx-runtime", "ttk-movie-shard", "ttk-math-shard"]}]
+}

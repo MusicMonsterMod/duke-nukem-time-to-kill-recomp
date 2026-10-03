@@ -111,10 +111,10 @@ original 4:3 picture.
 
 ### Frame rate (Modernized)
 
-The game itself runs at 30 frames per second, as on the PlayStation, and that
-never changes: Duke, enemies, weapons, physics and timers keep their original
-speed at every setting. The frame rate only changes how often the picture is
-shown.
+The game keeps its original simulation speed at every setting: Duke, enemies,
+weapons, physics and timers do not run faster when you raise the display rate.
+Native scene updates normally run at 30 frames per second and can fall lower
+in busy areas. High refresh draws additional pictures between those updates.
 
 Choose it with `--frame-rate`, or with **F** in `--settings`:
 
@@ -122,7 +122,9 @@ Choose it with `--frame-rate`, or with **F** in `--settings`:
 - `display`: your monitor's refresh rate (for example 180 on a 180 Hz screen).
   It follows the window if you move it to another monitor.
 - `30`: each new game image is shown exactly once.
-- `120`, `144`, `165`, `180`, `240` or `unlimited`: a fixed rate.
+- `120`, `144`, `165`, `180`, `240`: a fixed target rate.
+- `unlimited`: the fastest paced redraw rate the scene can sustain; useful
+  for stress testing, with no promise of one new image per monitor refresh.
 
 Above 60, the extra pictures in between are drawn by the game's own renderer
 with the camera, Duke and moving objects placed part-way between two game
@@ -130,7 +132,51 @@ frames, so turning and movement look smoother. Each refresh of your display
 gets its own picture where the PC keeps up (at 120 Hz, three in-between
 pictures per game frame). This uses spare CPU cores (Linux); at very high rates
 the busiest scenes get fewer in-between pictures and repeat one now and then.
-Particles, flashes and the HUD still update 30 times a second. The developer
+Particles, flashes and the HUD still update 30 times a second.
+
+Above 60, each redraw uses recent mouse movement for the view direction
+(the eye position, Duke and other objects stay in step with the game).
+Sampling is scheduled ahead of presentation to allow the worker to finish;
+that lead adapts to recent slow redraws. This adds latency, especially in busy
+scenes. Shots and aiming still follow the game's own camera updates.
+Fixed-rate and Match Display modes retain the requested cadence. A missed
+deadline can still repeat an image. **D17A and D17B are player-accepted.**
+120 FPS is the primary quality/regression target; 180 FPS+ remains excellent
+high-refresh support, 240 FPS+ robustness/compatibility, and Unlimited a
+stress/debug mode. This does not cap rendering at 120 or change saved settings.
+
+The original-style 60 setting normally presents roughly 30 new game images
+per second with repeated views. 120 is not secretly 60: it can render about
+120 distinct intermediate views/s while gameplay keeps its original update
+rate. Under load, some views can repeat. The overlay separates FPS (presents),
+Unique (distinct submitted images including redraws), Game (compositions),
+Guest (fields) and RT (realtime speed). See the
+[accepted baseline and focused follow-ups](documentation/86-d17-acceptance-and-regression-baseline.md).
+The FPS readout counts presentations, including any repeated images.
+
+Holding fire with the weapon holstered draws it with a single tap of the
+original holster button, so Duke never drops into the hold-to-select item
+mode by accident. Holding your own holster key still opens it, as in the
+original.
+
+Modernized improves perspective and clipping for nearby walls, floors, tables
+and props. Some geometry popping remains under investigation, including the
+club furniture and closets. The original PS1 character during movement is
+preserved; Vanilla keeps the original presentation.
+
+### View bob (Modernized, first person)
+
+Standing still, the first-person view now stays completely steady (the floor
+and walls no longer seem to breathe with Duke's idle animation). While you
+walk or run, the PlayStation's slight geometry wobble is kept, and a gentle
+view bob moves the eye with your steps. Choose its strength with
+`--view-bob off|subtle|on|strong` (default `on`) or **B** in `--settings`.
+Crouching, jumping, stairs and drops move the eye as before at every setting.
+
+If the busiest areas (for example the strip club with the dancers in view)
+still feel heavy, the emulated CPU option (`--cpu-overclock 150`, or the
+settings menu) keeps the game at 30 frames per second there; it does not change
+game speed. The developer
 console's `fps` command (backtick) shows what reaches the screen above 60: FPS
 (pictures shown per second), Unique (how many of them were different) and Game
 (new game frames, normally 30).

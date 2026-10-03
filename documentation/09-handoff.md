@@ -1,5 +1,202 @@
 # Next-session handoff
 
+## 2026-10-03 - D17A/B accepted and implementation published
+
+Read [86](86-d17-acceptance-and-regression-baseline.md) first. D17A and D17B
+are **Accepted**, explicitly closed after natural play at 120/180 FPS. Do not
+reopen the broad parents for residual defects. The board has D17D-J and D18C
+with current/historical private save identities. No next job was started.
+120 is the primary quality baseline, 180+ supported high refresh, 240+
+robustness, Unlimited stress/debug. Do not impose a 120 ceiling or destabilize
+accepted mouse response, opening/club/apartment, idle eye, PS1 character or FMVs.
+
+Important repository correction: `recomp/` source/tools/tests/configuration are
+now tracked at the root. Never restore its blanket exclusion. Framework/UI are
+pinned root submodules; build applies the complete tracked
+`recomp/patches/time-to-kill-accepted-source.patch`. Old incremental patches
+are historical only. Export future framework edits with
+`python3 recomp/tools/local/export_runtime_patch.py`; unchanged gitlinks do not
+save local modifications. Media, generated C, builds, saves, analysis, research
+and extracted retail assets stay ignored. Original disc dump is now under game/.
+
+Accepted executable and local snapshot hashes are in note 86. The local binary
+is not replaced by the separate clean-source verification build. Do not infer
+new 120 numeric benchmarks from the earlier 180 synthetic tests; user acceptance
+is a natural-play result. A field clock near 60 is not the Unique image rate:
+120 can show 120 freshly rendered views without 120 simulation updates.
+
+
+## 2026-10-03 - accepted baseline and bounded movement polish
+
+Read [85-movement-polish-and-isolated-artifacts.md](85-movement-polish-and-isolated-artifacts.md)
+first. User accepts the previous build as the first polished/enjoyable baseline.
+Preserved executable/source: local `polish-baseline`; new private states:
+`cards-user8` (UI 12 club Shift+W/S; UI 10 now train-platform ledge; UI 9 furniture).
+Never reuse old slot descriptions without checking the current manifest.
+
+Retained change: `run.py` defaults PSX_GL_PERF off except when
+PSX_REPLAY_PROFILE=1; explicit overrides survive. Only native addition is
+DNTTK_POSE_TRACE=1 capture/completion timestamps. Accepted renderer algorithms,
+90 ms world delay, mouse sampling and audio remain unchanged. Faster phase
+correction and 130 ms buffering were tested and removed/rejected.
+
+Slot 12 remains open: roughly 67 ms capture intervals plus about 38 ms
+composition time and advance scheduling exhaust the coherent snapshot pair.
+Regular present intervals and fresh late mouse rotation do not imply smooth
+world translation. Next work should address snapshot availability without
+blindly adding movement latency or speculative geometry. Slot 10 can drain
+audio under movement stress; do not declare crackle solved from slot 1's
+zero-underrun result. Full train sequence and actual audio-device listening
+remain unverified. D17D Todo tracks isolated furniture/closet/subway artifacts;
+slot 9's board defect appears at 60 Hz too. No visual workaround shipped.
+
+100 Python tests pass; real movement/jump/fire and opening/dancer mouse routes
+recorded. Opening/dancer camera steps stay under one degree, approximately
+179-180 images/s and zero underruns. Original 12 states match hashes/mtimes.
+Build `1c03b6a2c2c8fa6363376135d0ffa066dcdc0eb50e3f792efe198af1b9779287`,
+codegen `8bab543c`. Game closed; no commits or player-setting changes.
+
+
+## 2026-10-03 - save-driven camera stability candidate (D17A/B Needs playtest)
+
+Read [84-warmup-and-camera-stability.md](84-warmup-and-camera-stability.md)
+first. New private states are `cards-user7`, UI N = file N-1: 1/2 slow,
+3 subway peripheral culling, 4 improved opening, 5 early club, 8 minor slowdown,
+10 later club. Old reports' slot meanings are obsolete. Never test against the
+player's originals. Original hashes are in `warmup-baseline/save-manifest.json`.
+
+Preserve these fixes: camera ownership no longer expires after four fields;
+late redraws get two presents' grace and unfinished expirations inform the
+readiness estimator; mixed opaque/dual-source batches retain original order;
+GPU profiling avoids blocking query readback; pinned fetched SDL3 X11 events
+map milliseconds into SDL nanoseconds; known render/kick/aim scratch is reserved
+before workers fork. SDL repair is idempotent and fails closed on source drift.
+
+Fixed 180 Hz is substantially improved in measured real 500 Hz mouse sweeps.
+Unlimited remains a failing adaptive-scheduler stress case (114 ms stale camera
+sample); do not report that mode as solved. Subway culling was not reproduced
+in the bounded full-width capture route, so no claimed fix. Further campaign
+visibility, actual audio listening and subjective mouse acceptance need the
+user's test. Codegen remains `8bab543c`. Final executable SHA-256:
+`28554051d10f40fcf67c4f242998f02bc5ff960e570098dd9ae2a2fab3dbe264`.
+Final checks: 100 Python tests and four native suites pass; 2,848 GP0 and
+3,056 RGBA comparisons are exact. Third-person club, kick/shot, pause/resume,
+repeated loads and the Vanilla route pass their bounded checks. Original save
+hashes/mtimes match. No commits or player-setting changes. Game left closed.
+
+
+## 2026-10-03 - latest opening/club candidate (D17B Needs playtest)
+
+Read [83-opening-responsiveness.md](83-opening-responsiveness.md) first; it
+supersedes the older performance conclusions below. The player's saved first
+person / Match Display / CPU 100% settings are unchanged. The final cold route
+has zero audio underruns or failed workers, camera p99 6.0 ms and max 8.3 ms
+from the first valid redraw. Final Match Display club turning delivers 179.5
+distinct images/s, p99 6.18 ms and realtime emulation. Unlimited is adaptive,
+not guaranteed to outperform a fixed target. Minor UI 8/9/11 geometry pops
+remain open; UI 10 is the good comparison. Full campaign and audio listening
+still need the user's playtest. Do not mark D17B Done without that acceptance.
+
+Important fixes to preserve: per-image code-guard invalidation and reconstruction
+after restore; exact initialized math shard; deferred-cycle-aware pipeline
+deadlines; timestamped interpolation; ordered translucent batching; worker
+refresh on new DLLs rather than invalidated movie functions; atomic worker
+start timestamps and guarded timeout subtraction. The old restore bitmap clear
+was unsafe and must not be restored as a performance shortcut. The math shard
+uses normal byte validation. CPU 150% is a different stress workload and did
+not establish the stock-CPU result.
+
+Codegen `8bab543c`; known old player and intermediate saves explicitly
+compatible, wrong hash/ABI rejected. Final binary SHA-256
+`ae4333a81c35dbeae2ccc5c5eb2b3ac2f3c99a71d84c36af35b8f950fce2da22`.
+Runtime and generator patch reverse checks pass. The 98-test Python suite,
+new compiled guard/deadline tests, GP0/RGBA comparisons and Vanilla route pass;
+see note 83 for the old structural-test limitation and RAM/MMIO interpretation.
+Nothing committed. Tests use private cards/profiles under local analysis.
+The player build is left closed; launch with `python3 recomp/tools/local/run.py`.
+
+## 2026-10-03 - renderer quality pass (D17A/B Needs playtest)
+
+Read [82-renderer-quality-pass.md](82-renderer-quality-pass.md) first. The new
+candidate fixes verified replay writes outside the saved live framebuffer
+band and related depth restoration defects. Camera/visibility provenance and
+Unlimited scheduling also received systemic fixes. D17C idle behavior remains
+unchanged. No claim of stable 180 distinct images/s in the club: the worker
+CPU tail remains the main measured limit (p95 about 21 ms). Final real-display
+180 target gives about 85 distinct images/s in the turning sample; Unlimited
+about 100. Treat the earlier "refresh or two" response claims as superseded.
+
+Surface checks: 227 copy-on-write + 232 fallback, zero mismatches. Normal
+visual route: 24 sequences without detected backsteps. Endpoint route: 409/412
+pixel-exact; three street images differ during turning and lack generation
+labels to classify. Do not call this a clean endpoint pass. Use private card
+copies and the quality scripts; no player saves were used. Next performance
+work should measure worker dispatch/cycle/cache costs and actual display/input
+latency, not optimize average FPS. Campaign playtest is still required.
+No-input RAM/MMIO equivalence is 630/630; driven 60/180 has two transient
+RAM mismatches (629/631), with MMIO exact and repeated 60/60 exact. Keep that
+open; earlier synthetic-driver sensitivity is a clue, not a diagnosis.
+Vanilla fresh-card capture route passes. The final real-mouse sweep still
+has long low-motion/repeat runs; the retained baseline does too, with nearly
+identical p99 presentation intervals. The yaw-threshold heuristic cannot
+prove image freezes or input latency. See the A/B details in note 82.
+Nothing committed. The player build
+is left closed; launch with run.py.
+
+## 2026-10-03 - fifth pass: loss of control, late camera rebuilt (Needs playtest)
+
+Ask the user for a fresh-game playtest: turning smoothness (start area and
+club), loads of several saves in a row, holstered weapon + fire. Not
+reproduced: UI 1 table artifact, UI 6 closet popping; ask for a screenshot or
+a description. Measure turning with `realsweep.sh` + `holds.py` (STEP_S=0.001
+PX=1) on the real display only. New switches: `DNTTK_LATE_SAMPLE`,
+`DNTTK_LATE_LOG`; removed: `DNTTK_LATE_OVERRUN`, `DNTTK_LATE_JIT`. Nothing
+committed.
+
+## 2026-10-03 - D17A see-through fixed, D17B dancer jerk (Needs playtest)
+
+Ask the user to replay UI 1-4 (`cards-user4` copies): doorway, statue,
+apartment (no see-through), and sweeping across the dancers. Idle stability is
+accepted: do not change the D17C eye. If turning still hitches, measure with
+`realsweep.sh` + `staleclass.py` (real window and mouse); the remaining limit
+is worker latency at 4x, and the next step would be reprojection with the
+world and the HUD/weapon captured separately. New switches:
+`DNTTK_LATE_OVERRUN`, `DNTTK_LATE_DUE_FREE`; lead default 16 ms. Nothing
+committed.
+
+## 2026-10-02 - D17A/B/C third pass (Needs playtest)
+
+Ask the user to replay UI 1-5 (`cards-user3` copies) at Match Display: club
+turning with the dancers (late camera, paced), idle stability and view bob
+settings, closet, collar, apartment wall. If turning still feels heavy at
+every 2nd/3rd refresh, next is present-time reprojection on the GPU. Developer
+switches added: `DNTTK_LATE_PACING`, `DNTTK_VIEW_BOB` (numeric scale),
+`PSX_HOST_DEPTH`, `PSX_HOST_UV`. Open: Duke stuck after the earlier UI 3 load.
+Nothing committed.
+
+## 2026-10-02 - D17A precise near geometry, D17B late camera (Needs playtest)
+
+Ask the user to replay the strip club (dancers in view, turning) and the UI 4-9
+states at Match Display. If it feels heavy, compare `DNTTK_LATE_CAMERA=0` and
+the 150% CPU option. Developer switches: `DNTTK_LATE_CAMERA`,
+`DNTTK_LATE_LEAD_MS`, `DNTTK_LATE_PEEK`, `DNTTK_LATE_JIT`, `DNTTK_LATE_TEST_YAW`,
+`DNTTK_NEAR_MODE=conservative|full`, `DNTTK_NEAR_PRECISE`,
+`DNTTK_NEAR_SPLIT_PX`, `DNTTK_NEAR_SPLIT_RATIO`, `DNTTK_REPLAY_NEAR_STATE`,
+`DNTTK_REPLAY_LOG`. Open: Duke stuck after loading UI 3 not reproduced; cost on
+the real display unmeasured (offscreen 93-180 distinct/s). Nothing committed.
+
+## 2026-10-02 - D17C parked; D17A in progress
+
+D17C parked (user saw no difference with the bob off). D17A: in-between
+fidelity proven (alpha 0/1), near-wall flicker reproduced in the club at
+16:9 first person and localized to the conservative world near clip's piece
+ordering (documentation/81-d17a-instability.md). Next: insert the taken
+polygon's pieces at its own position in the mesh order; test with
+`recomp/analysis/d17-high-refresh/cwtest.py TAG` (STEER=1, CARDS=cards-club,
+SLOT=1, OC=100, SCALE=2; target 0 back-and-forth) and `deferab.py` stills
+(apartment/street, no vanished walls). Ask the user for F7 savestates at the
+other reported places. Nothing committed.
+
 ## 2026-10-02 - D17 accepted; D17A/B/C added; D17C experiment (Needs playtest)
 
 **Next session starts with D17C** (user's choice): get the user's playtest

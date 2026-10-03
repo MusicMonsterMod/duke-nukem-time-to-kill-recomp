@@ -1,0 +1,164 @@
+--- a/runtime/src/main.cpp
++++ b/runtime/src/main.cpp
+@@ -107,6 +107,7 @@
+ extern "C" void psx_game_codegen_forward_if_built(int argc, char** argv);
+ #endif
+ #include "psx_sdl.h"
++#include "pc_input.h"
+ #if defined(PSX_SDL3)
+ /*
+  * SDL_main.h is a single-header implementation in SDL3. Keep it in the one
+@@ -3085,6 +3086,7 @@
+     if (g_headless) return;
+     SDL_Event event;
+     while (SDL_PollEvent(&event)) {
++        ttk::input_event(event);
+         if (event.type == SDL_QUIT) {
+             psx_crash_trace_set_exit_origin("sdl_close_after_fatal");
+             shutdown_runtime();
+@@ -4497,6 +4499,8 @@
+  * (arrows=d-pad, X/S/Z/A=Cross/Circle/Square/Triangle, Q/W/E/R=L1/R1/L2/R2,
+  * Return=Start, RShift=Select) plus T/Y=L3/R3 stick clicks. */
+ static uint16_t pad_from_keyboard(int player) {
++    if (!host_hotkey_input_focused()) return 0xffff;
++    if (player == 1 && ttk::input_modernized()) return ttk::input_pad();
+     const Uint8* keys = SDL_GetKeyboardState(NULL);
+     return psx_keybinds_pad_word(keys, player);
+ }
+@@ -4594,6 +4598,7 @@
+ static void pad_sticks_for(const PlayerInput& p, int player, uint8_t out[4]) {
+     out[0] = out[1] = out[2] = out[3] = 0x80;
+     if (p.kind == 1) {
++        if (player == 1 && ttk::input_modernized()) return;
+         /* Keyboard analog: the configurable left/right stick-direction binds
+          * (default = arrow keys on the LEFT stick; RIGHT stick unbound), so the
+          * old keyboard analog behaviour is preserved unless the user rebinds. */
+@@ -5119,7 +5124,7 @@
+      * inside pad_sticks_for; psx_keybinds_sticks only widens a deflection, so
+      * applying it twice is idempotent. */
+     if (eff_analog) {
+-        if (src.keybinds) {
++        if (src.keybinds && !(player == 1 && ttk::input_modernized())) {
+             const Uint8* keys = SDL_GetKeyboardState(NULL);
+             psx_keybinds_sticks(keys, player, st);
+         }
+@@ -5128,6 +5133,11 @@
+     }
+     controller_pad_compose_physical(effective_mode, st, st); /* centred unless ANALOG; never D-pad-derived */
+ 
++    if (!host_hotkey_input_focused()) {
++        btn = 0xffff;
++        st[0] = st[1] = st[2] = st[3] = 0x80;
++    }
++    if (player == 1) ttk::input_pad_context(btn);
+     out->buttons = btn;
+     out->lx = st[0]; out->ly = st[1]; out->rx = st[2]; out->ry = st[3];
+     out->analog = eff_analog ? 1u : 0u;
+@@ -5172,6 +5182,11 @@
+ 
+     controller_pad_compose_physical(effective_mode, st, st); /* centred unless ANALOG; never D-pad-derived */
+ 
++    if (!host_hotkey_input_focused()) {
++        btn = 0xffff;
++        st[0] = st[1] = st[2] = st[3] = 0x80;
++    }
++    if (player == 1) ttk::input_pad_context(btn);
+     out->buttons = btn;
+     out->lx = st[0]; out->ly = st[1]; out->rx = st[2]; out->ry = st[3];
+     out->analog = eff_analog ? 1u : 0u;
+@@ -5569,6 +5584,7 @@
+         if (!g_headless) {
+             SDL_Event ev;
+             while (SDL_PollEvent(&ev)) {
++            ttk::input_event(ev);
+                 if (ev.type == SDL_QUIT) {
+                     netplay_soft_exit("sdl_window_close");
+                     if (psx_return_to_lobby_requested()) return;
+@@ -6721,9 +6737,11 @@
+ 
+ /* Freeze guest in vblank present while the rewind filmstrip is open. */
+ static void rewind_host_pause_loop(void) {
++    ttk::input_allow_capture(false);
+     while (psx_rewind_is_open()) {
+         SDL_Event ev;
+         while (SDL_PollEvent(&ev)) {
++            ttk::input_event(ev);
+             if (ev.type == SDL_QUIT) {
+                 psx_crash_trace_set_exit_origin("sdl_window_close");
+                 shutdown_runtime();
+@@ -6763,9 +6781,11 @@
+ 
+ /* Freeze guest in vblank present while the save-state slot menu is open. */
+ static void savestate_menu_host_pause_loop(void) {
++    ttk::input_allow_capture(false);
+     while (savestate_menu_open) {
+         SDL_Event ev;
+         while (SDL_PollEvent(&ev)) {
++            ttk::input_event(ev);
+             if (ev.type == SDL_QUIT) {
+                 psx_crash_trace_set_exit_origin("sdl_window_close");
+                 shutdown_runtime();
+@@ -6811,9 +6831,11 @@
+  * Applying the routing permutation here means no guest instruction or SIO byte
+  * transfer runs concurrently with the change. */
+ static void runtime_settings_menu_host_pause_loop(void) {
++    ttk::input_allow_capture(false);
+     while (runtime_settings_menu_open) {
+         SDL_Event ev;
+         while (SDL_PollEvent(&ev)) {
++            ttk::input_event(ev);
+             if (ev.type == SDL_QUIT) {
+                 psx_crash_trace_set_exit_origin("sdl_window_close");
+                 shutdown_runtime();
+@@ -7038,9 +7060,11 @@
+     }
+ 
+     if (!g_headless) {
++        ttk::input_allow_capture(!savestate_menu_open && !runtime_settings_menu_open && !psx_rewind_is_open());
+         /* Pump SDL events to prevent window freeze. */
+         SDL_Event ev;
+         while (SDL_PollEvent(&ev)) {
++            ttk::input_event(ev);
+             if (ev.type == SDL_QUIT) {
+                 if (psx_netplay_active()) {
+                     netplay_soft_exit("sdl_window_close");
+@@ -7152,6 +7176,7 @@
+                 }
+             }
+         }
++        ttk::input_frame();
+         savestate_menu_poll_toggle_buttons();
+         rewind_poll_toggle_buttons();
+         psx_rewind_note_frame();
+@@ -14124,6 +14149,7 @@
+         std::fprintf(stderr, "SDL_CreateWindow failed: %s\n", SDL_GetError());
+         return 1;
+     }
++    ttk::input_init(sdl_window);
+     psx_apply_window_icon(sdl_window, argv[0]);
+ 
+     /* Maximise instead of computing the frame size ourselves.
+--- a/runtime/src/debug_server.c
++++ b/runtime/src/debug_server.c
+@@ -4975,6 +4975,13 @@
+              s_unknown_unique_count);
+ }
+ 
++extern const char* ttk_input_debug_json(void);
++static void handle_ttk_input(int id, const char *json)
++{
++    (void)json;
++    send_fmt("{\"id\":%d,\"ok\":true,\"input\":%s}", id, ttk_input_debug_json());
++}
++
+ static void handle_frame(int id, const char *json)
+ {
+     (void)json;
+@@ -13667,6 +13674,7 @@
+     { "xprobe_arm",        handle_xprobe_arm },
+     { "xprobe_watch",      handle_xprobe_watch },
+     { "ce_profile",        handle_ce_profile },
++    { "ttk_input",         handle_ttk_input },
+     { "frame",             handle_frame },
+     { "frame_fingerprint", handle_frame_fingerprint },
+     { "record_frame",      handle_record_frame },

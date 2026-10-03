@@ -1,0 +1,261 @@
+// D08U top-of-ladder mount (Modernized). Original rules, verified on the
+// slot-12 sewer ladder and the first alley ladder
+// (documentation/72-d08u-ladder-top.md):
+//  * A plain ladder is an object whose type flags have 0x200 (0x100 and 0x400
+//    are other climb families). Its collision box (0x80073ae8, index 0) is a
+//    flat panel: x is the width, y the height, z (thickness) is zero; object
+//    +0x1c is its yaw. Both faces are climbable.
+//  * The original only mounts a plain ladder from below (0x80051cf0 -> 185)
+//    or by catching it in the air (0x80047480..: +0x17c = ladder, +0x180 = box,
+//    mode 3, hang-to-ladder transfer 156 -> climb 186). There is no top mount:
+//    from the platform above, the only original way down is a jump.
+//  * Once attached, the original ladder handler owns everything: 186/188/189
+//    climb 200 units off the panel, 190 exits at the top onto the platform and,
+//    with Down + Cross held, 185 steps off onto the floor at the bottom.
+// Modernized contract: E at the top of a plain ladder (on the platform, within
+// reach of the panel, its top 300..800 units below Duke's feet) starts the
+// original transfer 156 with the ladder attached exactly as the airborne catch
+// does. Over the 12 player updates of 156 the host blends Duke from where he
+// stands to the climbing line on the far side of the panel, turning him to
+// face it; then the original 186 takes over. S on a plain ladder also holds
+// Cross, so Duke climbs all the way down and steps off instead of stopping at
+// the lowest rung. E-owned stow and redraw follow the D08J rules.
+static constexpr uint32_t object_ladder=0x200u;
+static constexpr unsigned ladder_mount_updates=12;
+struct LadderTop { uint32_t object; double x,y,z; int yaw; };
+static struct {
+    bool active;
+    uint32_t object;
+    double sx,sy,sz,ax,ay,az;
+    int syaw,ayaw;
+    unsigned ticks;
+} mount;
+static uint64_t ladder_request_frame;
+static unsigned ladder_mounts, ladder_mount_starts, ladder_mount_aborts;
+static bool plain_ladder(uint32_t flags) {return (flags&object_ladder) && !(flags&0x500u);}
+// 0x80073ae8 for box index 0: the object's box list (+0x44) or its model's
+// single box (+0x40, +4). Eight halfwords: x, y, z, pad minimum and maximum.
+static bool ladder_box(uint32_t object,int16_t* box) {
+    uint32_t base;
+    const uint32_t list=psx_mod_read_word(object+0x44);
+    if(list) {
+        if(list<0x80010000u || list>=0x80200000u || (list&3))return false;
+        base=psx_mod_read_word(list+8);
+    } else {
+        if(object_type_flags(object)&0x2000u)return false;
+        base=psx_mod_read_word(object+0x40);
+        if(base)base+=4;
+    }
+    if(base<0x80010000u || base>=0x80200000u || (base&1))return false;
+    for(int i=0;i<8;++i)box[i]=(int16_t)psx_mod_read_half(base+2*i);
+    return true;
+}
+// A plain ladder in Duke's cell list (the list 0x80077f28 walks) whose top is
+// just below the floor he stands on, within reach of its panel.
+static bool ladder_top_find(LadderTop& out) {
+    const double px=(int32_t)psx_mod_read_word(player+4),py=(int32_t)psx_mod_read_word(player+8),
+        pz=(int32_t)psx_mod_read_word(player+12);
+    uint32_t node=psx_mod_read_word(player+0x220);
+    for(int guard=0;node && guard<64;++guard) {
+        if(node<0x80010000u || node>=0x80200000u || (node&3))return false;
+        const uint32_t object=psx_mod_read_word(node+8);
+        node=psx_mod_read_word(node+4);
+        if(!plain_ladder(object_type_flags(object)))continue;
+        int16_t b[8];
+        if(!ladder_box(object,b))continue;
+        const double half=(b[4]-b[0])/2.0;
+        if(half<64 || half>1024 || std::abs(b[6]-b[2])>64)continue;
+        const double a=(psx_mod_read_half(object+0x1c)&4095)*tau/4096;
+        // RotMatrixY: local z is the panel normal, local x its width.
+        const double nx=std::sin(a),nz=std::cos(a),tx=std::cos(a),tz=-std::sin(a);
+        const double lx=(b[0]+b[4])/2.0,lz=(b[2]+b[6])/2.0;
+        const double cx=(int32_t)psx_mod_read_word(object+4)+lx*tx+lz*nx;
+        const double cz=(int32_t)psx_mod_read_word(object+12)+lx*tz+lz*nz;
+        const double top=(int32_t)psx_mod_read_word(object+8)+std::min(b[1],b[5]);
+        const double rx=px-cx,rz=pz-cz;
+        const double normal=rx*nx+rz*nz,lateral=rx*tx+rz*tz,above=top-py;
+        if(above<300 || above>800 || std::abs(lateral)>half+120 ||
+           std::abs(normal)<40 || std::abs(normal)>420)continue;
+        // Climb on the far face, facing the panel (toward the platform).
+        const double side=normal>0?-1:1;
+        out.object=object;
+        out.x=cx+side*200*nx;out.z=cz+side*200*nz;out.y=top+320;
+        out.yaw=int(std::lround(std::atan2(-side*nx,-side*nz)*4096/tau))&4095;
+        return true;
+    }
+    return false;
+}
+// Settled normal ground under a live modern lease: never airborne, in water,
+// on the jetpack, grabbing, in a mantle or already attached.
+static bool ladder_top_ground_ready() {
+    if(!(movement_ready() || locomotion_input_ready()))return false;
+    const unsigned animation=psx_mod_read_half(player+0x60);
+    return psx_mod_read_byte(player+0x22c)==0 && psx_mod_read_byte(player+0x22d)==0 &&
+        land_gait_anim(animation) && !in_water_early() && !jetpack_flying_early() &&
+        !(psx_mod_read_word(player+0x224)&0x202002c1u) && !(psx_mod_read_word(player)&0x20002);
+}
+bool ladder_top_available() {
+    LadderTop target;
+    return ladder_top_ground_ready() && ladder_top_find(target);
+}
+void ladder_top_request() {ladder_request_frame=input_host_frame();}
+// Camera-only lease widening while the host blends the mount.
+static bool ladder_mount_early() {
+    return mount.active && psx_mod_read_half(player+0x60)==156 && psx_mod_read_byte(player+0x22c)==3 &&
+        psx_mod_read_word(player+0x17c)==mount.object;
+}
+// Duke is on a plain ladder (mount transfer, climb, exit or bottom step-off).
+bool ladder_descent_ready() {
+    const unsigned animation=psx_mod_read_half(player+0x60);
+    return traversal_input_ready() && psx_mod_read_byte(player+0x22c)==3 &&
+        (animation==156 || (animation>=185 && animation<=190)) &&
+        plain_ladder(object_type_flags(psx_mod_read_word(player+0x17c)));
+}
+// The original ladder exits (190 at the top, 185 stepping off at the bottom)
+// play out by themselves; a held S must not reach them as Down, which would
+// start an original backstep (82) the moment Duke lands.
+bool ladder_exit_ready() {
+    const unsigned animation=psx_mod_read_half(player+0x60),previous=psx_mod_read_byte(player+0x22d);
+    return traversal_input_ready() && psx_mod_read_byte(player+0x22c)==8 &&
+        (animation==185 || animation==190) && (previous==3 || previous==8);
+}
+static void ladder_mount_write(double e) {
+    psx_mod_write_word(player+4,(int32_t)std::lround(mount.sx+(mount.ax-mount.sx)*e));
+    psx_mod_write_word(player+8,(int32_t)std::lround(mount.sy+(mount.ay-mount.sy)*e));
+    psx_mod_write_word(player+12,(int32_t)std::lround(mount.sz+(mount.az-mount.sz)*e));
+    const int turn=((mount.ayaw-mount.syaw+2048)&4095)-2048;
+    const int heading=int(std::lround(mount.syaw+turn*e))&4095;
+    psx_mod_write_half(player+0x1c,heading);psx_mod_write_half(player+0x24,heading);
+    for(uint32_t v:{0x1f4u,0x1f8u,0x1fcu})psx_mod_write_word(player+v,0);
+}
+// Player update (0x8005a210 from 0x80041b34), before the original handler
+// advances 156 and applies its own small root motion.
+static void ladder_top_update() {
+    if(mount.active) {
+        if(!ladder_mount_early() || (psx_mod_read_word(player)&0x20002) || !gameplay_context() || !identity()) {
+            // The original moved on: 186 means Duke is on the ladder.
+            const unsigned animation=psx_mod_read_half(player+0x60);
+            mount.active=false;
+            if(psx_mod_read_byte(player+0x22c)==3 && animation>=186 && animation<=189)++ladder_mounts;
+            else ++ladder_mount_aborts;
+            return;
+        }
+        ++mount.ticks;
+        const double u=std::min(1.0,double(mount.ticks)/ladder_mount_updates);
+        ladder_mount_write(u*u*(3-2*u));
+        return;
+    }
+    if(!ladder_request_frame || input_host_frame()-ladder_request_frame>20)return;
+    ladder_request_frame=0;
+    LadderTop target;
+    if(!ladder_top_ground_ready() || psx_mod_read_byte(player+0x3b8)!=0 || !ladder_top_find(target))return;
+    mount.active=true;mount.object=target.object;mount.ticks=0;
+    mount.sx=(int32_t)psx_mod_read_word(player+4);mount.sy=(int32_t)psx_mod_read_word(player+8);
+    mount.sz=(int32_t)psx_mod_read_word(player+12);mount.syaw=psx_mod_read_half(player+0x1c)&4095;
+    mount.ax=target.x;mount.ay=target.y;mount.az=target.z;mount.ayaw=target.yaw;
+    // Exactly the airborne catch's attachment (0x800475c0..0x8004765c).
+    psx_mod_write_word(player+0x17c,target.object);psx_mod_write_half(player+0x180,0);
+    psx_mod_write_word(player+0x1c4,0);
+    psx_mod_write_byte(player+0x22c,3);psx_mod_write_byte(player+0x22d,3);
+    psx_mod_write_half(player+0x60,156);psx_mod_write_half(player+0x68,0);psx_mod_write_half(player+0x6a,0);
+    ladder_mount_write(0);
+    ++ladder_mount_starts;
+    if(std::getenv("DNTTK_TRAVERSAL_TRACE"))
+        std::fprintf(stderr,"ttk-ladder-top object=%08x from=%.0f,%.0f,%.0f yaw=%d to=%.0f,%.0f,%.0f yaw=%d\n",
+            target.object,mount.sx,mount.sy,mount.sz,mount.syaw,target.x,target.y,target.z,target.yaw);
+}
+// D08J1 overhead ladder leap (Modernized). A plain ladder whose bottom rung
+// hangs high on a wall cannot be mounted from the floor (0x80051cf0 only
+// starts 185 at the feet); walking or running into it stops at the wall (94).
+// The original catches it in the air: with E held the reach (armed at
+// takeoff since D08X) attaches it from a running, walking or standing jump
+// (147/148 -> 210 -> climb). Measured on the user's UI slot-6 ladder (bottom
+// about 1040 above the floor, documentation/79-d08j1-ladder-leap.md): running
+// jumps caught from 500..2000 units out, walking jumps from 600..1000 (400
+// and 1300 met the wall low and bounced, 107), a standing jump at the wall
+// caught. Contract: with E held, on settled ground, holstered and heading at
+// such a ladder, the host presses the original jump once when Duke is inside
+// the catching window for his gait. The original decides the catch.
+static constexpr double leap_rise_min=300,leap_rise_max=1400;
+// Off-centre approaches: a leap starts up to leap_side beyond the panel's
+// half width; in flight Duke eases sideways (leap_step per update, along the
+// panel only) until he is leap_inset inside it, where the original catches.
+static constexpr double leap_side=180,leap_inset=60,leap_step=70;
+static constexpr unsigned leap_updates=45;
+static unsigned ladder_leaps,ladder_leap_nudges;
+static struct { double cx,cz,tx,tz,half; } leap_found;
+static struct { bool active; double cx,cz,tx,tz,half; unsigned ticks; bool airborne; } leap;
+// Panel distance at which the jump is pressed: running, walking, standing.
+static double ladder_leap_distance(unsigned animation) {
+    if(animation>=76 && animation<=79)return 750;
+    if(animation>=72 && animation<=75)return 800;
+    if(animation==63)return 450;
+    return 0;
+}
+bool ladder_leap_ready() {
+    if(!ladder_top_ground_ready() || psx_mod_read_byte(player+0x3b8)!=0)return false;
+    const double reach=ladder_leap_distance(psx_mod_read_half(player+0x60));
+    if(reach<=0)return false;
+    const double px=(int32_t)psx_mod_read_word(player+4),pz=(int32_t)psx_mod_read_word(player+12);
+    const double feet=(int32_t)psx_mod_read_word(player+0x1c8);
+    const double heading=(psx_mod_read_half(player+0x1c)&4095)*tau/4096;
+    const double fx=std::sin(heading),fz=std::cos(heading);
+    uint32_t node=psx_mod_read_word(player+0x220);
+    for(int guard=0;node && guard<64;++guard) {
+        if(node<0x80010000u || node>=0x80200000u || (node&3))return false;
+        const uint32_t object=psx_mod_read_word(node+8);
+        node=psx_mod_read_word(node+4);
+        if(!plain_ladder(object_type_flags(object)))continue;
+        int16_t b[8];
+        if(!ladder_box(object,b))continue;
+        const double half=(b[4]-b[0])/2.0;
+        if(half<64 || half>1024 || std::abs(b[6]-b[2])>64)continue;
+        const double a=(psx_mod_read_half(object+0x1c)&4095)*tau/4096;
+        const double nx=std::sin(a),nz=std::cos(a),tx=std::cos(a),tz=-std::sin(a);
+        const double lx=(b[0]+b[4])/2.0,lz=(b[2]+b[6])/2.0;
+        const double cx=(int32_t)psx_mod_read_word(object+4)+lx*tx+lz*nx;
+        const double cz=(int32_t)psx_mod_read_word(object+12)+lx*tz+lz*nz;
+        const double bottom=(int32_t)psx_mod_read_word(object+8)+std::max(b[1],b[5]);
+        const double rx=px-cx,rz=pz-cz;
+        const double normal=rx*nx+rz*nz,lateral=rx*tx+rz*tz,rise=feet-bottom;
+        if(rise<leap_rise_min || rise>leap_rise_max || std::abs(lateral)>half+leap_side ||
+           std::abs(normal)>reach)continue;
+        // Heading at the panel within about 50 degrees.
+        const double side=normal>0?-1:1;
+        if(fx*side*nx+fz*side*nz<0.64)continue;
+        leap_found={cx,cz,tx,tz,half};
+        return true;
+    }
+    return false;
+}
+void ladder_leap_note() {
+    ++ladder_leaps;
+    leap={true,leap_found.cx,leap_found.cz,leap_found.tx,leap_found.tz,leap_found.half,0,false};
+    if(std::getenv("DNTTK_TRAVERSAL_TRACE"))
+        std::fprintf(stderr,"ttk-ladder-leap anim=%u xyz=%d,%d,%d\n",psx_mod_read_half(player+0x60),
+            (int32_t)psx_mod_read_word(player+4),(int32_t)psx_mod_read_word(player+8),(int32_t)psx_mod_read_word(player+12));
+}
+// The host's leap is under way (takeoff or flight): E's reach stays held, so a
+// tap of E catches like a held E.
+bool ladder_leap_active() {return leap.active;}
+// Player update: while the host's leap is in the air, ease Duke along the
+// panel into its width. Ends on the catch (mode 3), landing, Vanilla, state or
+// identity loss, or after leap_updates.
+static void ladder_leap_update() {
+    if(!leap.active)return;
+    const unsigned mode=psx_mod_read_byte(player+0x22c);
+    if(++leap.ticks>leap_updates || mode==3 || (mode!=0 && mode!=9) || (mode==0 && leap.airborne) ||
+       (psx_mod_read_word(player)&0x20002) || !gameplay_context() || !identity() || !input_modernized()) {
+        leap.active=false;return;
+    }
+    if(mode!=9)return;
+    leap.airborne=true;
+    const double px=(int32_t)psx_mod_read_word(player+4),pz=(int32_t)psx_mod_read_word(player+12);
+    const double lateral=(px-leap.cx)*leap.tx+(pz-leap.cz)*leap.tz;
+    const double excess=std::abs(lateral)-(leap.half-leap_inset);
+    if(excess<=0)return;
+    const double move=std::min(leap_step,excess)*(lateral>0?-1:1);
+    psx_mod_write_word(player+4,(int32_t)std::lround(px+move*leap.tx));
+    psx_mod_write_word(player+12,(int32_t)std::lround(pz+move*leap.tz));
+    ++ladder_leap_nudges;
+}

@@ -1,0 +1,44 @@
+diff --git a/runtime/src/host_keymap.c b/runtime/src/host_keymap.c
+index 5f66e0a9..f15d5038 100644
+--- a/runtime/src/host_keymap.c
++++ b/runtime/src/host_keymap.c
+@@ -89,8 +89,9 @@ static void apply_defaults(void) {
+         add_bind(HOST_KEYMAP_VOLUME_UP, (int)SDLK_KP_PLUS, (int)SDL_SCANCODE_KP_PLUS, 0);
+     if (s_actions[HOST_KEYMAP_VOLUME_DOWN].count == 0)
+         add_bind(HOST_KEYMAP_VOLUME_DOWN, (int)SDLK_KP_MINUS, (int)SDL_SCANCODE_KP_MINUS, 0);
+-    if (s_actions[HOST_KEYMAP_DISPLAY_PERF].count == 0)
+-        add_bind(HOST_KEYMAP_DISPLAY_PERF, (int)SDLK_f, (int)SDL_SCANCODE_F, 0);
++    /* DisplayPerf stays unbound by default so F remains available for gameplay
++     * (e.g. flashlight). Enable via config.ini [KeyMap] DisplayPerf, the
++     * PSX_FPS_TELEMETRY env, or the planned backtick debug console. */
+ #if defined(PSX_HAS_RBENGINE_SNAP)
+     if (s_actions[HOST_KEYMAP_REWIND].count == 0)
+         add_bind(HOST_KEYMAP_REWIND, (int)SDLK_F8, (int)SDL_SCANCODE_F8, 0);
+diff --git a/runtime/tests/test_host_keymap.c b/runtime/tests/test_host_keymap.c
+index 55370e98..73d9e87d 100644
+--- a/runtime/tests/test_host_keymap.c
++++ b/runtime/tests/test_host_keymap.c
+@@ -37,17 +37,17 @@ int main(int argc, char **argv) {
+           "default volume up is keypad plus");
+     check(host_keymap_match(HOST_KEYMAP_VOLUME_DOWN, (int)SDLK_KP_MINUS, 0),
+           "default volume down is keypad minus");
+-    check(host_keymap_match(HOST_KEYMAP_DISPLAY_PERF, (int)SDLK_f, 0),
+-          "default display perf is F");
++    check(!host_keymap_match(HOST_KEYMAP_DISPLAY_PERF, (int)SDLK_f, 0),
++          "default display perf is unbound (F reserved for gameplay)");
++    check(!host_keymap_match_event(HOST_KEYMAP_DISPLAY_PERF,
++                                   (int)SDLK_UNKNOWN,
++                                   (int)SDL_SCANCODE_F, 0),
++          "default display perf has no F scancode fallback");
+     check(host_keymap_match(HOST_KEYMAP_RUNTIME_MENU, (int)SDLK_F1, 0),
+           "default runtime menu is F1");
+     check(host_keymap_match(HOST_KEYMAP_SWAP_CONTROLLER_PORTS,
+                             (int)SDLK_F6, 0),
+           "default controller port swap is F6");
+-    check(host_keymap_match_event(HOST_KEYMAP_DISPLAY_PERF,
+-                                  (int)SDLK_UNKNOWN,
+-                                  (int)SDL_SCANCODE_F, 0),
+-          "default display perf accepts its physical scancode");
+ 
+     f = fopen(cfg, "wb");
+     check(f != NULL, "create temporary config.ini");

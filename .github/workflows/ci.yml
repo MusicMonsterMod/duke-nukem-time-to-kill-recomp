@@ -19,3 +19,28 @@ jobs:
 
       - name: Forbid retail media and validate JSON
         run: python3 scripts/ci/check_repo.py
+
+  source-tests:
+    name: Authored source and clean framework patch
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Apply the complete patch to pinned upstream source
+        run: |
+          python3 recomp/tools/local/apply_runtime_patches.py
+          python3 recomp/tools/local/apply_runtime_patches.py
+      - name: Build media validator (no game inputs)
+        run: |
+          cmake -S recomp/tools/local -B /tmp/ttk-tools -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake --build /tmp/ttk-tools
+      - name: Run local tools and compiled regression tests
+        run: |
+          python3 -m unittest discover -s recomp/tests/local -v
+          python3 recomp/psxrecomp/runtime/tests/test_dirty_text_restore.py
+          python3 recomp/psxrecomp/runtime/tests/test_pipeline_batch_deadlines.py
+          python3 recomp/psxrecomp/runtime/tests/test_render_worker_deadline.py

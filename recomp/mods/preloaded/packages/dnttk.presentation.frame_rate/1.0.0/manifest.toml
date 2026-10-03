@@ -1,0 +1,22 @@
+format_version = 5
+id = "dnttk.presentation.frame_rate"
+version = "1.0.0"
+name = "Time to Kill frame rate (Modernized)"
+author = "MusicMonsterMod"
+description = "Lets the Modernized profile present above 60 FPS (run.py --frame-rate display|30|60|120|144|165|180|240|unlimited) by redrawing the game's own frames between updates. Game logic keeps its original timing. The plugin does nothing in Vanilla or at 60."
+resolver = "declarative"
+save_compatibility = "shared"
+
+[[target]]
+game_id = "SLUS-00583"
+
+[[feature]]
+id = "frame_rate"
+name = "Modernized frame rate hook"
+description = "Activation hook for the Modernized frame-rate option; inert unless that option selects a rate other than 60."
+group = "Visual"
+default_enabled = true
+
+[[plugin]]
+feature = "frame_rate"
+id = "ttk.frame_rate"

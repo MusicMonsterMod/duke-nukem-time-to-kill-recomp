@@ -90,12 +90,20 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D16 | Texture filtering and game-specific HD assets | Todo | D13 |
 | D16A | HRP assets and first-person weapon research (later) | Cancelled (original assets preferred) | - |
 | D17 | High refresh rate rendering without faster simulation (Match Display, 30-240, Unlimited) | Done (user-accepted) | D01, D13 |
-| D17A | High-refresh texture/geometry instability: popping, flicker, black areas | Todo | D17, D11B, D14 |
-| D17B | Mouse responsiveness and input latency at high refresh rates | Todo | D17, D08 |
+| D17A | High-refresh texture/geometry instability: popping, flicker, black areas | Accepted | D17, D11B, D14 |
+| D17B | Mouse responsiveness and input latency at high refresh rates | Accepted | D17, D08 |
+| D17D | Club-exit furniture: lower wooden board popping | Todo | D17A |
+| D17E | Subway peripheral wall visibility near the camera | Todo | D17A |
+| D17F | Apartment/club closet edge and lower-geometry artifacts | Todo | D17A |
+| D17G | Strip-club translation jerk during Shift+W / Shift+S | Todo | D17B |
+| D17H | Train-control and platform/ledge movement stutters | Todo | D17B |
+| D17I | Unlimited stale-camera scheduling episodes | Todo | D17B |
+| D17J | Verify older isolated visual reports against accepted baseline | Todo | D17A |
 | D17C | View bob: disable experiment, then a stable modern camera | Needs playtest | D11 |
 | D18 | FMV and audio presentation safeguards | Todo | D01, D02 |
 | D18A | Voice/music/gunfire crackle investigation | Done | D01, D02 |
 | D18B | Concurrent voice with music (no music mute) | Todo | D18, D21 |
+| D18C | Load-sensitive crackle at construction signs and train ledge | Todo | D17B, D18A |
 | D19 | Modern in-game menus, settings and input prompts (Sonic 3 A.I.R.-style customization; plan mode + artifact first) | Todo | D02, D04, D13 |
 | D19A | Duke font assets for host messages and modern UI | Done | D04 |
 | D19B | Responsive modern menu navigation and transitions | Todo | D02, D04 |
@@ -1638,6 +1646,11 @@ Measure unique rendered frames, guest timing, host presentation and input latenc
 
 ### D17A - High-refresh texture/geometry instability: popping, flicker, black areas
 
+**Accepted by the user, 2026-10-03**, after natural first-level play at 120 and
+180 FPS. Broad systemic work is closed. Remaining focused issues are tracked
+in D17D-J and D18C; they do not reopen this parent. The following original
+brief and criteria are historical. See [acceptance and baseline](documentation/86-d17-acceptance-and-regression-baseline.md).
+
 User report (2026-10-02, third playthrough at 180 Hz, after D17 was accepted):
 parts of the scene vanish for a moment and show black underneath. Places:
 the apartment right after using the light switch (looking right and walking
@@ -1674,6 +1687,11 @@ PS1-inherent artifact is documented, with an option (D15) where one is
 feasible. Vanilla unchanged.
 
 ### D17B - Mouse responsiveness and input latency at high refresh rates
+
+**Accepted by the user, 2026-10-03**, after natural first-level play at 120 and
+180 FPS. Broad systemic work is closed. Remaining focused issues are tracked
+in D17D-J and D18C; they do not reopen this parent. The following original
+brief and criteria are historical. See [acceptance and baseline](documentation/86-d17-acceptance-and-regression-baseline.md).
 
 User report (2026-10-02): frame rate is very stable, but turning with the mouse
 (entering the strip club and turning to shoot, and later just walking and
@@ -1713,6 +1731,139 @@ recomp should present a stable modern 3D view where appropriate.
 entirely, verified by measurement; the user playtests it and decides the next
 step (keep off, make it an option, or redesign).
 
+### Focused D17 follow-ups: shared constraints
+
+All jobs below are **Todo**, recorded during closeout, not started. Primary
+quality/regression target is **120 FPS**; also compare 180 FPS. 240 FPS+ is
+robustness/compatibility, Unlimited stress/debug. No 120 FPS technical ceiling.
+Preserve accepted mouse feel, FMVs/audio, idle stability, gameplay speed, FPS
+reporting, culling improvements, PS1 character and optional Vanilla. Profile
+before changing architecture. Do not trade away 120 FPS quality to perfect an
+extreme rate. Fix a demonstrated systemic defect at its appropriate level.
+
+Current reproduction copies: local `cards-user8`, UI slot N = file N-1.
+Never write to original player saves/cards. Save numbers are not permanent
+identifiers: preserve the dated snapshot/manifest and location in each report.
+Older generations are explicitly named below. Evidence and baseline identity:
+[86](documentation/86-d17-acceptance-and-regression-baseline.md).
+
+### D17D - Club-exit furniture: lower wooden board popping
+
+**Todo.** Current UI 9 (`cards-user8`, file 08); inspect the lower wooden
+board of furniture near the strip-club exit, stationary and during slow turns.
+Also reported in `cards-user6` UI 9 and `cards-user5` UI 1. Triangular fragments
+occur in both original and intermediate captures, and at 60 Hz. No clipping
+budget, packet or copy exhaustion in the inspected sample. Suspect local
+surface intersection/order/depth/clipping, not established texture streaming.
+
+**Acceptance:** identify the offending primitives and cause, fix this object
+without coordinate hacks or blanket culling changes; capture before/after at
+60/120/180, then preserve the opening/club regression baseline. No speculative
+mesh change or general renderer rewrite. User confirms the lower board stable.
+
+### D17E - Subway peripheral wall visibility near the camera
+
+**Todo.** Current UI 3 (`cards-user8`, file 02; earlier `cards-user7` UI 3).
+Walk along the corridor close to either wall, turn near view edges, and walk
+up/down stairs. Original report: blank/missing peripheral wall sections,
+not conventional tearing. User now reports substantial improvement; bounded
+60/180 full-width routes did not reproduce the missing section.
+
+**Acceptance:** reproduce on the accepted build at 120 first, or document
+repeatable non-reproduction and seek closure; distinguish widescreen margin,
+near clipping and visibility state using full-width compositor captures.
+Verify 60/120/180 and wall approach/retreat without regressing fixed walls.
+No claimed fix solely from a canonical 512-pixel image that omits the margins.
+
+### D17F - Apartment/club closet edge and lower-geometry artifacts
+
+**Todo.** Current UI 6 and 11 (`cards-user8`, files 05/10): apartment closet,
+lower geometry/textures and intersections. Current apartment/secret reveal
+is user-reported dramatically improved, stable and pleasant. Preserve it.
+Older `cards-user6` UI 8: club closet disappearing walls; UI 11: apartment
+lower closet popping; UI 10: good apartment comparison. `cards-user5` UI 6
+is an earlier closet reproduction. These old snapshots are not current slot 8.
+
+**Acceptance:** separate currently reproducible minor edge/polygon defects
+from fixed see-through doors/walls; classify clipping/order/depth versus actual
+texture changes; bounded fix with closet and secret-reveal regression at 120
+and 180. Do not smooth away normal moving-camera PS1 character.
+
+### D17G - Strip-club translation jerk during Shift+W / Shift+S
+
+**Todo. Primary remaining movement polish.** Current UI 12 (`cards-user8`,
+file 11): repeatedly Shift+W, Shift+S. User describes a minor polish issue;
+club mouse rotation and general playability are accepted. Compare current
+UI 4 opening, UI 5 dancers, UI 8 street, apartment/alley and a fresh entry.
+
+Trace evidence at 180: regular presents can coincide with exhausted world
+interpolation history. Roughly 67 ms pose intervals and 38 ms composition
+completion delay consume the 90 ms history plus advance-preparation margin.
+Alpha 1 alone is not proof of a hitch. Higher world delay (130 ms) and stronger
+clock correction were tested and rejected; neither is shipped. No worker
+replacement/camera-cut diagnosis was established for this case.
+
+**Acceptance:** reproduce and measure at 120 before assuming the 180 stress
+result applies; correlate translation holds, input timestamps, complete pose
+availability, CPU/worker/GPU timing and audio. Improve the bounded route without
+adding unreviewed movement latency or speculative incoherent geometry. Preserve
+late mouse response, original gameplay timing, 180 support and PS1 identity.
+
+### D17H - Train-control and platform/ledge movement stutters
+
+**Todo.** Current UI 2 (`cards-user8`, file 01): activate train switch, leave
+the door while the train moves, approach the pig cops at the far end. Current
+UI 10 (file 09): turn around, walk forward, jump onto the ledge and move there.
+UI 10 now means the train-platform area, not the previous late club state.
+User reports subtle stutters, not an unplayable scene. The full moving-train
+sequence has not been established by the short scripted interaction sample.
+
+Slot 10's scripted jump/fire stress can reduce source throughput and starve
+output audio despite high presentation FPS. Coordinate with D18C for audio;
+keep this job focused on frame times and movement. Preserve original slowdown
+UI 1/2 from `cards-user7` as historical stress comparisons, not proof of a
+current severe regression.
+
+**Acceptance:** perform the actual switch/door/train/pig-cop and ledge routes
+at 120; capture spikes and source workload, then verify any local fix at 120
+and 180 with unchanged train/AI/gameplay timing and opening/club baseline.
+
+### D17I - Unlimited stale-camera scheduling episodes
+
+**Todo. Lower priority stress/debug.** Use `cards-user7` UI 5 early dancers,
+UI 10 later club, and current `cards-user8` UI 12. Earlier Unlimited capture:
+about 161 distinct images/s, 114 ms stale camera sample and catch-up turns,
+while emulation/audio could remain realtime. This is not a requirement to
+produce unlimited perfect images, nor evidence that 120 is unacceptable.
+
+**Acceptance:** investigate adaptive cadence/deadline pressure and bounded
+queues with frame-age traces, improve correctness/recovery under overload,
+retain frame-rate independence at 240+, and prove no 120/180 regression.
+Do not impose a 120 ceiling or retune normal play solely for this stress mode.
+
+### D17J - Verify older isolated visual reports against accepted baseline
+
+**Todo. Bounded reproduction triage only.** Preserve reports without reliable
+current slot identity: apartment after light switch/bed-secret reveal (black
+wall patches); highest alley platform toward burnt-out car (brick/platform
+flicker); street pavement/edge/intersection sparkle; club stairs to balcony
+and bar stools disappearing. Historical source: note 81 / original D17A brief.
+The apartment secret reveal is now user-reported stable: do not reopen it as
+a confirmed current failure without reproduction.
+
+Retain older `cards-user7` UI 8 initially slow area and UI 5 early/UI 10 late
+club comparisons for first-visit versus revisit observations. No minute-long
+shader-cache explanation was established. First-use scratch reforks and the
+five-field camera reset were fixed, so do not treat those causes as still open.
+Three earlier unmatched moving endpoint captures in note 82 lack generation
+labels and are unclassified, not proof of a current visible defect.
+
+**Acceptance:** bounded 120-first capture routes classify each as reproduced,
+not reproduced, fixed/user-confirmed, or characteristic PS1 motion. Record
+current state identity and primitive provenance for any reproduced defect,
+then create a single scoped fix job or assign D17D-F; no broad implementation
+under this triage job. Preserve historical evidence rather than guessing slots.
+
 ### D18 — FMV and audio presentation safeguards
 
 Expand coverage beyond the opening movie: playback, skipping, transitions and return to gameplay. Preserve native movie cadence and audio synchronization through display/profile changes. Optional scaling must not invent a higher source frame rate or regress the fixed streaming path.
@@ -1750,6 +1901,26 @@ no new underruns/clipping on the tested scenes; Vanilla/default behavior policy
 recorded; volume-channel hooks prepared for D21 without requiring the full menu.
 
 ## Player features and release work
+
+### D18C - Load-sensitive crackle at construction signs and train ledge
+
+**Todo.** Current UI 1 (`cards-user8`, file 00): turn around, approach the
+construction signs, move/fire, then jump onto the ledge; user hears brief,
+self-resolving crackle. Current UI 10 (file 09): turn/move/jump around train
+platform ledge. Include UI 12 club movement as an audio stress comparison.
+D18A's older acceptance remains historical; this is a new, bounded follow-up.
+
+Slot 1's tested route had zero output underruns, which does not establish
+absence of an audible source/mixer/device defect. Slot 10 and some slot 12
+stress runs show production starvation. Missing-sample counters are not a
+count of audible crackles. Dummy-sink runs are diagnostics, not listening tests.
+
+**Acceptance:** reproduce/capture on the actual audio device at 120, correlate
+source/host PCM, producer/callback timing, queue fill, missing/dropped samples,
+loads and firing/jumps. Distinguish starvation from clipping/streaming/device
+issues. Verify any fix without increased audio latency, lost voice/music,
+FMV desynchronization or gameplay/frame-pacing regressions. Check 180 too;
+coordinate D17G/H without duplicating those movement fixes.
 
 ### D19 — Modern in-game menus, settings and input prompts
 
@@ -4753,3 +4924,332 @@ drift of a few units, no per-step swing). The bob is only a camera position, so
 removing it saves no rendering work. Default behaviour (bob on) and third
 person are unchanged. Launch:
 `DNTTK_VIEW_BOB=off python3 recomp/tools/local/run.py`.
+
+## 2026-10-02 - D17C parked; D17A first investigation (In progress)
+
+**D17C parked.** User verdict on `DNTTK_VIEW_BOB=off`: no noticeable
+difference; the wobble they see is the PS1 geometry wobble on floors and walls
+everywhere, which belongs to D17A. The bob looks innocent. Parked, to revisit
+after D17A in the user's comprehensive test. The experiment switch stays
+(environment only, default unchanged).
+
+**D17A.** Details: [D17A notes](documentation/81-d17a-instability.md).
+Ruled out with measurements: in-betweens drawing different game state (alpha 1
+equals the next real image in 12 savestate slots, subway, apartment and club,
+at 150% and 100% CPU, apart from known 30 fps content), unfaithful redraws
+(alpha 0 exact, about 1800 redraws), texture uploads between frames (none
+during play), out-of-order presents (trace monotonic), wrong-buffer capture
+(new runtime counter: 0).
+
+Reproduced: near-wall flicker in first person at 16:9. In the strip club,
+against the orange-framed wall panels, consecutive presents go back and forth
+(a near wall feature moves or disappears and returns). Measured: 8-22
+back-and-forth presents per 18 sequences by default; 0 with
+`DNTTK_NEAR_MODE=full`, 0 at 4:3, 0 with the world near clip off, 0 with alpha
+1. Cause localized to the D11B conservative world near clip: its pieces of a
+very wide near wall polygon draw last within their ordering-table slot, and a
+neighbouring original polygon whose key sits on a slot boundary changes slot
+with a one-unit rounding wobble, so it is covered in one image and visible in
+the next. Real frames do the same at 30 per second; at 180 Hz it shows up to
+five times per game frame. Two fixes tried and removed (slot bias: no change;
+linking pieces at the chain close: near walls vanished in the apartment and
+street). Not reproduced yet: apartment with the lights off, alley platform,
+club stairs and stools, street pavement (savestates from the user at those
+places would make them testable).
+
+Kept: the near clip's frame accounting now ships with each redraw job
+(`DNTTK_REPLAY_NEAR_STATE=0` restores the old behaviour), diagnostics
+(`DNTTK_REPLAY_LOG=1`, runtime `multi_area`), harness tools. Alpha 0 rechecked
+after the change (apartment, street, club: exact). Runtime patch regenerated.
+Binary `04ec89349eb4064cd0623755f18d551ebb0229dc494d3cf2f0f35b0fb9f9cf97`.
+No player-visible change yet; the flicker remains. Next: sort the conservative
+world pieces stably against same-slot original polygons (insert at the taken
+polygon's own position in the mesh order), then rerun the club test (target 0)
+and the apartment/street still A/B.
+
+## 2026-10-02 - D17A precise near geometry, D17B late camera (Needs playtest)
+
+From the user's strip-club test and savestates (UI 4-9; F7 UI slot N = file
+N-1). Details and tables: [D17A notes](documentation/81-d17a-instability.md),
+second pass.
+
+**D17B.** Mouse slowdown with the dancers: the game drops to 20 fps there at
+CPU 100% (emulation stays at 60 fields/s, turn rate unchanged); in-betweens
+blended two game cameras, so a mouse step took about 66 ms (30 fps) or 95 ms
+(20 fps) to show. New late camera: every present is a redraw with the newest
+mouse look (input pumped plus SDL motion peeked), submitted just in time, alpha
+0 redraw instead of the real image, nth present shows in-between n. Step
+response about 17-19 ms at 20 and 30 game fps; presented yaw monotonic.
+`DNTTK_LATE_CAMERA=0` restores the old blend.
+
+**D17A.** Runtime host precise vertex channel (exact positions, depth and
+texture coordinates for a plugin's own packets, through live frames and redraw
+streams). The near clip's full mode now uses it and is the default: tables and
+walls beside the eye have correct perspective, no seams or slivers, the club
+wall flicker is gone (3 back-and-forth presents in 27 sequences, normal turning),
+the chair no longer pokes through the table. `DNTTK_NEAR_MODE=conservative` for
+comparison.
+
+Checks: alpha 0 exact in four places; club driven gameplay equivalence 60 vs
+180 identical 631/631 (three runs); Python 97 OK; ttk-near-test (link stubs
+fixed), ttk-controls-test, ttk-aim-test PASS; Vanilla route d17a-vanilla-1
+normal. Offscreen cost: guest 60 fields/s everywhere, 93-180 distinct images/s
+(GPU at idle clocks). Not reproduced: Duke stuck after loading UI 3. Runtime
+patch regenerated (17 files). Binary
+`85cf07ac50012aa597f0f980d7ae85f527d22ba747078e745eddbd0f3d08565d`.
+
+## 2026-10-02 - D17B late camera off by default after playtest (In progress)
+
+User: new game at Match Display extremely jerky. Reproduced from boot: at CPU
+100% the opening street leaves too little emulation-thread time for a redraw
+per present, and the late camera repeats images (judder). Late camera now off
+by default (`DNTTK_LATE_CAMERA=1` developer); D17A precise near geometry stays
+on. Next: present-time reprojection for mouse turning. See
+documentation/81-d17a-instability.md.
+
+## 2026-10-02 - D17A/B/C third playtest: closet, neck, idle eye, view bob, late camera with pacing (Needs playtest)
+
+User savestates UI 1-5 (private copies `cards-user3`). Details:
+[D17A notes](documentation/81-d17a-instability.md), third pass.
+
+**D17A.** Closet triangles over the medkit (UI 3): host triangles now write and
+test a depth buffer among themselves (`PSX_HOST_DEPTH=0` off); the weapon's
+pieces skip it. Collar noise on the woman (UI 4): GL sampling limits come from
+the exact UVs (`PSX_HOST_UV=0` off). Missing apartment wall (UI 5): present and
+stable with the current build.
+
+**D17C.** Idle breathing (UI 1) measured: the idle animation lifts Duke's root
+about 18 units and the eye followed it. The eye now takes its height from the
+camera pivot and x/z through a dead band: idle eye position exactly constant;
+crouch, jump, steps and drops still move it; PS1 wobble while moving kept.
+Deliberate view bob from distance walked, Modernized option `view_bob`
+off/subtle/on/strong (default on; `--view-bob`, settings `B`; profile schema
+22; `DNTTK_VIEW_BOB` also takes a numeric scale).
+
+**D17B.** Club mouse (UI 2): TTK at 15-20 game fps with the dancers; the mouse
+is direct angles (no analogue emulation, sensitivity unchanged). Late camera
+back on by default with adaptive pacing (new image every 1st, 2nd or 3rd
+refresh from the measured repeat share; `DNTTK_LATE_PACING=0` off,
+`DNTTK_LATE_CAMERA=0` blend). Real display 180 Hz: club settles at every 2nd
+refresh (70-92 distinct/s), opening street every 3rd (60/s, even); step
+response about 17-19 ms (was 66-130 ms).
+
+Checks: alpha 0 exact (club, driven input, 12 sequences); Vanilla route
+`d17a-vanilla-2` normal; Python suite 98 OK; native near/controls/aim PASS.
+Runtime patch regenerated (17 files). Binary
+`b1193a90c1f25d87f79ba8257d7926745127a3a6e7dc02faa56e9472a24f4d68`. Open: Duke
+stuck after the earlier UI 3 load not reproduced; present-time reprojection if
+paced turning still feels heavy.
+
+## 2026-10-03 - D17A see-through regression fixed; D17B dancer jerk; D17C idle stability accepted (Needs playtest)
+
+Fourth playtest: idle stability accepted by the user (D17C idle part); collar
+fixed; club slowdown better. New: see-through outdoors and in the apartment,
+and a jerk sweeping across the dancers. User states UI 1-4, private copies
+`cards-user4`. Details: [D17A notes](documentation/81-d17a-instability.md),
+fourth pass.
+
+**D17A.** The holes came from the third pass's host depth buffer: outdoors TTK
+does not clear its frame, so depth from an earlier frame hid new walls. Depth
+is now cleared per drawing area (GP0 E3/E4) and per redraw session, before the
+first host triangle. UI 1, 2, 4 solid in stills and while moving; closet fix
+kept.
+
+**D17B.** Causes measured at the dancers: in-betweens planned per refresh
+while pacing presented every 2nd/3rd (positions advanced a third of the way,
+then jumped); frames longer than planned (last image repeated with an old
+look); finished images refused by the budget at their own present. Fixed:
+plan per paced present, overrun redraws while the game has not flipped
+(alpha 1, newest look), due images drawn regardless of the budget, lead 16 ms.
+Real display at the dancers: 2.6-5.2% of moving presents repeat (was about 7%
+and more with the jumps). No actor pop at the screen edge (checked).
+
+**D17C.** Idle stability accepted; view bob option unchanged; awaiting the
+user's view on the bob settings.
+
+Checks: alpha 0 exact (late camera off; club, apartment, doorway); Vanilla
+route `d17a-vanilla-3` normal; Python suite 98 OK; native near/controls/aim
+PASS. Runtime patch regenerated (17 files). Binary
+`f9f64faa4e939326b5a10f4eb0b6cbdaa1d31d47af979a25100986f6378865ea`.
+
+## 2026-10-03 - D17B loss of control fixed, late camera rebuilt; D17A/C (Needs playtest)
+
+Fifth playtest: turning jerky from a fresh game; Duke lost all movement after
+loading UI 4 and stayed frozen across loads; tree/statue and apartment
+see-through confirmed fixed (user); a table artifact at the club exit (UI 1)
+and closet popping (UI 6) reported. Details:
+[D17A notes](documentation/81-d17a-instability.md), fifth pass.
+
+**Loss of control.** The game's tap-or-hold use/holster button (Circle): held
+past about 100 ticks of game-frame time it enters the hold-to-select inventory
+mode (`+0x224 0x200`), which stops Duke until the release. Our layer sent
+Circle as a hold while fire drew a holstered weapon and as 4-6 frame pulses
+for E stow/restore; at 15-20 game fps that crossed the threshold. Host Circle
+requests are now single taps (pressed until the game samples it). Also: after
+a savestate load the camera kept the previous yaw and turned Duke; new runtime
+`psx_mod_savestate_loads()` re-seeds the camera and drops pending host
+requests on a load.
+
+**Jerkiness.** Fourth-pass frame-end redraws were made almost every present
+and starved the redraws that mattered. The late camera now makes one redraw
+per present, positioned at that present's time in the game frame, fed only for
+the coming present, with the mouse look sampled at a fixed lead from
+timestamped events, an adaptive lead and pacing with hysteresis. Real display
+at 4x: holds of 2+ presents while turning 0.1/s (street) and 0.6/s (dancers).
+
+**Not reproduced:** UI 1 table, UI 6 closet popping (no back-and-forth
+presents in 54 sequences). D17C idle stability unchanged.
+
+Checks: alpha 0 exact (late camera off, club); loads 3 -> 4, 5, 0, 4 walk;
+Circle tap test; Vanilla `d17a-vanilla-4` normal; Python 98 OK; native
+near/controls/aim PASS. Patch regenerated (18 files). Binary
+`5f7406a6465570624fe129aaadcecee5960d80cca8707bab5fa1adbe642d2b39`.
+
+
+## 2026-10-03 - D17A/B systemic renderer quality pass (Needs playtest)
+
+See [renderer quality evidence](documentation/82-renderer-quality-pass.md).
+Fixed replay writes outside the saved wide framebuffer band, depth scissoring,
+fallback depth backup and post-snapshot pending-clear restoration. Aligned eye
+setup before special room walks; transform substitution survives changed
+traversal order; precise replay vertices require current-session provenance.
+Removed prefetch-only batch flushes, fixed Unlimited planning capacity/double
+rate division, and used worker readiness tails for adaptive sampling lead.
+D17 accepted high refresh and D17C accepted idle behavior remain the baseline.
+
+Profiling: worker p95 21.3 ms, actor p95 8.3 ms. Final real-display club turn:
+180 target about 85 distinct images/s, present p99 13.0 ms; Unlimited about
+100 distinct/s, p99 11.9 ms. Still not stable 180, and no mouse-to-photon claim.
+459 final 2x live-surface isolation checks pass; 24 normal capture sequences
+show no detected backsteps. Endpoint comparisons 409/412 exact, three street
+turning comparisons unclassified. Native near/controls/aim/input pass;
+Python 98 pass. Patch regenerated with 19 runtime files and reverse-check
+passed. Player preferences/cards untouched. Full playtest remains required.
+
+Binary SHA-256:
+`a81d2d2869ee0fcd116b741a34984cf7e6e6b189de6431362966d7100263df41`.
+
+Final safety checks: no-input 60/180 RAM/MMIO 630/630 identical. Driven
+60/180 629/631; two transient RAM mismatches remain unclassified, MMIO exact;
+repeated driven 60/60 631/631. Vanilla fresh-card route exits 0 with normal
+reviewed captures and compiled FMV decoder active. These limits are recorded
+in the quality note, not treated as a clean campaign acceptance.
+
+Real-mouse A/B: candidate and retained baseline both retain long low-motion/
+repeat runs; present p99 about 18.64 ms in both. The yaw-based hold heuristic
+is not an image-freeze or photon-latency measurement. No responsiveness win
+claimed. Candidate restored and test instances closed.
+
+
+## 2026-10-03 - D17B opening/club stabilization candidate (Needs playtest)
+
+The user's fresh-game report became the primary acceptance route, with the
+alley/apartment comparison and private UI slots 8-11. Profiled systemic causes:
+scene/actor CPU cost, native-frame prediction and idle-budget scheduling,
+inconsistent native-code validation after restore, an initialized hot math
+routine falling to the interpreter, excess GL submission, unnecessary worker
+reforks when movie code was invalidated, and a worker timeout publication race.
+
+The candidate uses a timestamped presentation timeline, tail-aware camera lead,
+exact guarded native math code, coherent worker/restore code validation,
+compatible ordered batching, and corrected worker lifecycle/timing. Vanilla
+remains available; the D17C idle eye and PS1 movement character are preserved.
+No individual object coordinates were patched.
+
+Final fresh boot, CPU 100%, first person, 4x, 180 Hz: from the first valid
+redraw, p99 6.0 ms and maximum 8.3 ms, zero audio underruns and failed/killed
+workers. Final Match Display dancers turn: 179.5 distinct images/s, p99 6.18 ms,
+59.97 emulation fields/s and zero audio underruns. Apartment comparison:
+179.8 distinct images/s, p99 5.98 ms. Real mouse injection to traced camera:
+median 17.85 ms club / 12.48 ms apartment, not input-to-photon latency.
+Unlimited remains adaptive; final turning sample 169.2 distinct images/s,
+p99 6.41 ms, realtime emulation and zero audio underruns.
+
+Tests: 98 Python, native controls/aim/input/near clip, compiled code-guard and
+timing/deadline tests; 37,748 native/interpreter math comparisons without a
+divergence; 2,115 worker GP0 comparisons and 4,224 full-image batch comparisons
+without differences; pause/load/header regressions; Vanilla fresh-game route;
+543/543 cycle-aligned full-RAM matches between no-input 60/180 runs. Full
+campaign and audible listening remain user playtest work. D17A closet/furniture
+popping remains open; do not call it eliminated by these performance results.
+
+Build SHA-256 `ae4333a81c35dbeae2ccc5c5eb2b3ac2f3c99a71d84c36af35b8f950fce2da22`,
+codegen `8bab543c`. Known player saves remain compatible. Player settings/cards
+untouched; nothing committed. Details: [documentation/83-opening-responsiveness.md](documentation/83-opening-responsiveness.md).
+
+
+## 2026-10-03 - D17A/B next-save camera stability pass (Needs playtest)
+
+Latest private UI 1/2 slowdown, 3 subway, 4 opening, 5 early club, 8 minor
+slowdown, 10 late club. Details and limitations:
+[84-warmup-and-camera-stability.md](documentation/84-warmup-and-camera-stability.md).
+
+Measured dancer updates legitimately span five guest fields; a four-field
+camera timeout reset accumulated mouse look. Removed that timeout while keeping
+explicit ownership/epoch invalidation. Native tests cover 5/8/12-field gaps.
+Late-job expiry now feeds readiness and permits two presentation intervals of
+grace. Compatible opaque/translucent batching reduces CPU/GL work; first-use
+scratch reservation avoids worker replacements; pinned SDL X11 timestamps now
+use the correct units and preserve event spacing. GPU diagnostics do not wait
+for incomplete queries.
+
+In a matched 65-second 500 Hz real-mouse club comparison, camera turns over
+one degree fell from 54 to zero, maximum 7.66 to 0.79 degrees. Presentation p99
+alone was about 6.1 ms in both: FPS hid the camera defect. Slow slots recover
+realtime emulation with zero audio underruns. Final 180 Hz sweeps retain about
+179-180 distinct images/s. Fresh gameplay p99 6.07 ms, max 7.83 ms.
+
+Unlimited still exposes stale-camera episodes; subway peripheral culling did
+not reproduce on the bounded 60/180 Hz route and is not declared fixed. Earlier
+closet/furniture pops, actual-device audio listening and full campaign remain
+playtest work. Vanilla stays available. Player originals untouched; no generated
+C or media edited. Final SHA-256:
+`28554051d10f40fcf67c4f242998f02bc5ff960e570098dd9ae2a2fab3dbe264`.
+
+Final verification: 100 Python tests; native controls/input/aim/near suites;
+2,848 exact GP0 timing comparisons and 3,056 exact RGBA batch comparisons;
+third-person club, first kick/shot without refork, pause/resume/repeated loads,
+and Vanilla intro-to-gameplay route. All twelve original states match their
+hashes/mtimes. No game left running.
+
+
+## 2026-10-03 - accepted baseline, bounded movement polish and D17D split
+
+User accepts opening/club/apartment playability as a major quality milestone.
+Preserve `28554051...` as the rollback baseline. New private UI 12 Shift+W/S
+shows saturated movement interpolation despite mostly regular presentation;
+complete snapshots often arrive too late for the current preparation window.
+Larger buffering and stronger phase correction did not solve this adequately
+and were rejected. No interpolation/culling/audio behavior changed.
+
+Retained: ordinary launches disable per-batch GL timing diagnostics; explicit
+profiling enables them. Added opt-in pose capture/completion tracing. Final
+opening/dancer mouse tests preserve about 179-180 images/s, zero underruns and
+no camera turns over one degree. Slot 12 translation and slot 10 source/audio
+starvation remain open; slot 1's minor crackle was not reproduced as an underrun.
+100 Python tests pass and original 12 saves remain byte/mtime-identical.
+
+D17D Todo separately records furniture (also visible at 60 Hz), closet and
+peripheral culling imperfections. No geometry workaround shipped. Details,
+rejected experiments and final measurements:
+[85-movement-polish-and-isolated-artifacts.md](documentation/85-movement-polish-and-isolated-artifacts.md).
+Final executable `1c03b6a2c2c8fa6363376135d0ffa066dcdc0eb50e3f792efe198af1b9779287`.
+D17A/B remain Needs playtest with the accepted playability baseline preserved.
+
+
+## 2026-10-03 - D17A and D17B ACCEPTED; 120 FPS quality baseline
+
+User explicitly accepts both jobs after natural play through a significant
+portion of level 1 at 120 and 180 FPS. Parent systemic work is closed, not
+held open by isolated polish issues. 120 is the primary uncompromising quality
+regression target; 180+ remains excellent high-refresh support, 240+ robustness
+and compatibility, Unlimited stress/debug. No technical ceiling or simulation
+speed change. D17D-J and D18C retain the valid residual cases and dated private
+state identities. No follow-up implementation started during closeout.
+
+Accepted implementation/baseline, evidence, limits and frame-rate explanation:
+[86-d17-acceptance-and-regression-baseline.md](documentation/86-d17-acceptance-and-regression-baseline.md).
+Local executable/source snapshot preserved. User explicitly revoked the old
+blanket recomp exclusion during closeout: authored implementation, tools, tests,
+complete framework patch and pinned dependencies are now committed alongside
+documentation. Media/generated output/player data remain excluded.

@@ -5,14 +5,15 @@ GitHub: https://github.com/MusicMonsterMod/duke-nukem-time-to-kill-recomp
 
 ## What this tree is
 
-This GitHub repo holds `GAME_MANUAL.md`, `MODERNIZATION_JOBS.md`, `documentation/`, and agent rules (including the Claude Code skill in `.claude/skills/`).
-The nested `recomp/` checkout, player dumps under `game/`, `research/`, and `.venv/` are local only. `game/README.md` is tracked.
+This GitHub repo holds the implementation under `recomp/`, plus the manual, job board, documentation and agent rules. Title source, patches, tools, tests and build definitions are tracked. `recomp/psxrecomp` and `recomp/recomp-ui` are pinned upstream submodules; our framework changes are tracked in `recomp/patches/time-to-kill-accepted-source.patch`.
+Original media under `game/`, research, generated game code, builds, captures, player saves/cards and extracted retail assets stay local. Only `game/README.md` is tracked under `game/`.
 
 ## Git and GitHub
 
 - Use only the MusicMonsterMod account on this repository.
+- Commit authored implementation changes as well as documentation. Never restore a blanket ignore of `recomp/`. After framework edits, run `python3 recomp/tools/local/export_runtime_patch.py` and verify the patch against the pinned clean dependency.
 - Commit and push as MusicMonsterMod. Do not attribute work to any other GitHub user.
-- Never commit retail media, GRP/ISO/BIN dumps, BIOS, memory cards, `research/`, `recomp/`, or anything under `game/` except `game/README.md`.
+- Never commit retail media, GRP/ISO/BIN dumps, BIOS, memory cards, `research/`, generated game code, build output, extracted retail assets, or anything under `game/` except `game/README.md`.
 
 ## Game work
 

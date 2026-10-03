@@ -1,0 +1,156 @@
+--- a/runtime/src/host_osd.c
++++ b/runtime/src/host_osd.c
+@@ -143,10 +143,22 @@
+ static int      s_needs_clear;
+ 
+ #define OSD_IMG_W  ((OSD_PAD_X * 2 + OSD_MAX_CHARS * OSD_GLYPH_W) * OSD_SCALE)
+-#define OSD_IMG_H  ((OSD_PAD_Y * 2 + OSD_GLYPH_H) * OSD_SCALE)
++#define OSD_IMG_H  256
+ static uint32_t s_img[OSD_IMG_W * OSD_IMG_H];
+ static int      s_img_w;
+ static int      s_img_h;
++static int      s_text_width = 624;
++static int      s_font_image;
++
++int host_osd_text_has_alpha(const uint32_t *pixels) {return s_font_image && pixels == s_img;}
++
++void host_osd_set_text_width(int width) {
++    if (width < 64) width = 64;
++    if (s_text_width != width) {s_text_width = width; s_img_dirty = s_status_dirty = 1;}
++}
++#if defined(TTK_CHEAT_OSD)
++extern int ttk_font_rasterize(const char*, int, uint32_t*, int, int, int, int*, int*);
++#endif
+ 
+ /* Vertical bar: outer 16x120 @ 2x → 32x240. Fill grows from the bottom. */
+ #define VOL_BAR_W   (16 * OSD_SCALE)
+@@ -202,6 +214,12 @@
+ }
+ 
+ static void rasterize_text(const char *msg) {
++#if defined(TTK_CHEAT_OSD)
++    s_font_image = 0;
++    if (ttk_font_rasterize(msg, 0, s_img, OSD_IMG_W, OSD_IMG_H, s_text_width, &s_img_w, &s_img_h)) {
++        s_font_image = 1; s_img_dirty = 0; return;
++    }
++#endif
+     int n = (int)strlen(msg);
+     if (n > OSD_MAX_CHARS) n = OSD_MAX_CHARS;
+     s_img_w = (OSD_PAD_X * 2 + n * OSD_GLYPH_W) * OSD_SCALE;
+@@ -276,7 +294,14 @@
+                                  SDL_TEXTUREACCESS_STREAMING, w, h);
+         *tw = w;
+         *th = h;
+-        if (*tex) SDL_SetTextureBlendMode(*tex, SDL_BLENDMODE_BLEND);
++        if (*tex) {
++            SDL_SetTextureBlendMode(*tex, SDL_BLENDMODE_BLEND);
++#if defined(PSX_SDL3)
++            if (s_font_image && tex == &s_sdl_tex) SDL_SetTextureScaleMode(*tex, SDL_SCALEMODE_NEAREST);
++#else
++            if (s_font_image && tex == &s_sdl_tex) SDL_SetTextureScaleMode(*tex, SDL_ScaleModeNearest);
++#endif
++        }
+     }
+     if (!*tex) return;
+     void *locked = NULL;
+@@ -492,9 +517,45 @@
+         if (ui < 1) ui = 1;
+         if (ui > 8) ui = 8;
+         margin = 8 * ui;
+-        if (host_osd_image(&px, &w, &h) && px)
++#if defined(PSX_SDL3)
++        if (!s_font_image) host_osd_set_text_width((lw - 2 * margin) / ui);
++#else
++        host_osd_set_text_width((lw - 2 * margin) / ui);
++#endif
++        if (host_osd_image(&px, &w, &h) && px) {
++#if defined(PSX_SDL3)
++            if (s_font_image) {
++                /* New Duke sprites are output-pixel UI. Avoid resampling them
++                 * through the guest's logical target; preserve every renderer
++                 * transform for the remaining original overlays and next frame. */
++                int old_w=0, old_h=0, output_w=0, output_h=0;
++                SDL_RendererLogicalPresentation old_mode=SDL_LOGICAL_PRESENTATION_DISABLED;
++                SDL_Rect old_view, old_clip;
++                float old_sx=1, old_sy=1;
++                bool clipped=SDL_RenderClipEnabled(renderer);
++                SDL_GetRenderLogicalPresentation(renderer, &old_w, &old_h, &old_mode);
++                SDL_GetRenderViewport(renderer, &old_view); SDL_GetRenderClipRect(renderer, &old_clip);
++                SDL_GetRenderScale(renderer, &old_sx, &old_sy);
++                SDL_GetRenderOutputSize(renderer, &output_w, &output_h);
++                SDL_SetRenderLogicalPresentation(renderer, 0, 0, SDL_LOGICAL_PRESENTATION_DISABLED);
++                SDL_SetRenderViewport(renderer, NULL); SDL_SetRenderClipRect(renderer, NULL);
++                SDL_SetRenderScale(renderer, 1.f, 1.f);
++                int output_ui=output_h/480;
++                if (output_ui<1) output_ui=1;
++                if (output_ui>8) output_ui=8;
++                int output_margin=8*output_ui;
++                host_osd_set_text_width((output_w-2*output_margin)/output_ui);
++                if (host_osd_image(&px, &w, &h) && px)
++                    sdl_blit_argb(renderer, &s_sdl_tex, &s_sdl_tw, &s_sdl_th, px, w, h,
++                                  output_margin, output_margin, w*output_ui, h*output_ui);
++                SDL_SetRenderLogicalPresentation(renderer, old_w, old_h, old_mode);
++                SDL_SetRenderScale(renderer, old_sx, old_sy);
++                SDL_SetRenderViewport(renderer, &old_view); SDL_SetRenderClipRect(renderer, clipped?&old_clip:NULL);
++            } else
++#endif
+             sdl_blit_argb(renderer, &s_sdl_tex, &s_sdl_tw, &s_sdl_th, px, w, h,
+                           margin, margin, w * ui, h * ui);
++        }
+         if (host_osd_volume_image(&px, &w, &h) && px) {
+             const int dw = w * ui, dh = h * ui;
+             int x = (lw > dw + margin) ? (lw - dw - margin) : margin;
+--- a/runtime/src/gpu_gl_renderer.c
++++ b/runtime/src/gpu_gl_renderer.c
+@@ -3936,9 +3936,17 @@
+     glDisable(GL_SCISSOR_TEST);
+     glDisable(GL_STENCIL_TEST);
+     glDisable(GL_DEPTH_TEST);
+-    /* host_osd bakes opaque panels (A=0xFF). Do not blend — PSX mode-2
+-     * REVERSE_SUBTRACT left armed across FMV present made toasts solid black. */
+-    glDisable(GL_BLEND);
++    /* Opaque legacy panels keep the existing path. Duke glyphs carry alpha;
++     * explicitly reset the equation before blending, since PSX mode-2 can
++     * leave REVERSE_SUBTRACT armed across present. Restore blend factors below. */
++    const int text_alpha = host_osd_text_has_alpha(px);
++    GLint old_src_rgb=GL_ONE, old_dst_rgb=GL_ZERO, old_src_alpha=GL_ONE, old_dst_alpha=GL_ZERO;
++    if (text_alpha) {
++        glGetIntegerv(GL_BLEND_SRC_RGB, &old_src_rgb); glGetIntegerv(GL_BLEND_DST_RGB, &old_dst_rgb);
++        glGetIntegerv(GL_BLEND_SRC_ALPHA, &old_src_alpha); glGetIntegerv(GL_BLEND_DST_ALPHA, &old_dst_alpha);
++        glEnable(GL_BLEND);
++        p_glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
++    } else glDisable(GL_BLEND);
+     if (p_glBlendEquationSeparate)
+         p_glBlendEquationSeparate(PSXGL_FUNC_ADD, PSXGL_FUNC_ADD);
+     /* GL viewport origin is bottom-left. */
+@@ -3956,6 +3964,10 @@
+         p_glBindVertexArray(0);
+     }
+     p_glUseProgram(0);
++    if (text_alpha) {
++        p_glBlendFuncSeparate(old_src_rgb, old_dst_rgb, old_src_alpha, old_dst_alpha);
++        glDisable(GL_BLEND);
++    }
+ }
+ 
+ /* Composite host toast + volume bar into the default framebuffer, then swap. */
+@@ -3992,6 +4004,7 @@
+                 glScissor(old_box[0],old_box[1],old_box[2],old_box[3]);
+                 if(!old_scissor)glDisable(GL_SCISSOR_TEST);
+             }
++            host_osd_set_text_width((ww - 2 * margin) / ui);
+             if (host_osd_image(&px, &ow, &oh) && px)
+                 gl_draw_osd_image(px, ow, oh, ow * ui, oh * ui,
+                                   margin, margin, ww, wh);
+--- a/runtime/include/host_osd.h
++++ b/runtime/include/host_osd.h
+@@ -18,6 +18,9 @@
+ 
+ /* Top-left text toast. duration_ms <= 0 uses 2000. */
+ void host_osd_push(const char *msg, int duration_ms);
++/* Available text width in the same logical pixel space as host_osd_image. */
++void host_osd_set_text_width(int width);
++int host_osd_text_has_alpha(const uint32_t *pixels);
+ 
+ /* Persistent top-left status text. Passing NULL/empty clears it. */
+ void host_osd_set_status(const char *msg);

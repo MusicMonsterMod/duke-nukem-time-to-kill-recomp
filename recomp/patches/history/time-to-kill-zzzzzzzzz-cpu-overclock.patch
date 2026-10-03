@@ -1,0 +1,98 @@
+diff --git a/runtime/src/load_accel.c b/runtime/src/load_accel.c
+index 3a43a141..2d9ed690 100644
+--- a/runtime/src/load_accel.c
++++ b/runtime/src/load_accel.c
+@@ -160,6 +160,7 @@ int psx_vsync_query_hle_enter(CPUState* cpu, uint32_t func,
+             if (cd > 64u && cd != 0xFFFFFFFFu) dist = cd;
+         }
+         if (dist > 64u && dist != 0xFFFFFFFFu && dist <= 1200000u) {
++            { extern uint64_t g_psx_overclock_exempt; g_psx_overclock_exempt += dist; }
+             psx_advance_cycles(dist);
+             if (horizon_kind == 2) {
+                 s_extra_horizon_hits++;
+diff --git a/runtime/src/psx_cycles.c b/runtime/src/psx_cycles.c
+index 1057093f..b00d4d7c 100644
+--- a/runtime/src/psx_cycles.c
++++ b/runtime/src/psx_cycles.c
+@@ -180,8 +180,81 @@ static void psx_devices_recompute_deadline(void) {
+     psx_next_service_cycle = psx_cycle_count + (uint64_t)next;
+ }
+ 
++/* CPU overclock (Time to Kill Modernized: PSX_CPU_OVERCLOCK=<percent>,
++ * 100..400; run.py passes 150 for Modernized and 100 for Vanilla). The
++ * emulated R3000A charges its instruction costs to psx_cycle_count; devices
++ * (VBlank, timers, CD, SPU, DMA) advance on that same clock at each service.
++ * Overclocking scales the CPU-charged part of the not-yet-serviced interval by
++ * 100/percent here, so the CPU completes more work per video field while every
++ * device keeps its real-time rate (game speed, audio and streaming are
++ * unchanged). Idle-loop skips are deliberate jumps to the next event and are
++ * not scaled. Host-side absolute stamps set inside the scaled interval (GTE /
++ * mul-div completion, the idle detector's last cycle) move back with the
++ * clock. Kept out of the inlined charge path so generated code and its
++ * codegen hash (which save states are tied to) are unchanged. 100 = stock. */
++uint32_t g_psx_overclock_q16 = 65536u;          /* scale while leased */
++/* Lease: the game plugin renews the overclock from its gameplay update; it
++ * lapses three video fields after the last renewal. Boot, menus, movies and
++ * loading busy-wait on devices, where a faster CPU only spins more host
++ * iterations per emulated second (that starved audio), so they stay stock. */
++static uint64_t s_oc_lease_until = 0;
++void psx_overclock_renew(void) {
++    s_oc_lease_until = psx_cycle_count + 3ull * 564480ull;
++}
++/* Deliberate clock skips (vsync / poll-loop horizon jumps) add their length
++ * here BEFORE advancing so they are never scaled; g_psx_overclock_rewound is
++ * the total taken off the clock, so psx_cycle_count + it is a monotonic
++ * uncompressed clock for loop-cost measurements. */
++uint64_t g_psx_overclock_exempt = 0;
++uint64_t g_psx_overclock_rewound = 0;
++static uint32_t s_oc_rem = 0;
++static uint64_t s_oc_idle_mark = 0;
++static uint64_t s_oc_exempt_mark = 0;
++static uint64_t s_idle_last_cycle;
++extern uint64_t g_idle_skip_cycles;
++extern CPUState *debug_cpu_ptr;
++__attribute__((constructor)) static void psx_overclock_from_env(void) {
++    const char *e = getenv("PSX_CPU_OVERCLOCK");
++    if (!e || !*e) return;
++    long pct = strtol(e, NULL, 10);
++    if (pct < 100) pct = 100;
++    if (pct > 400) pct = 400;
++    g_psx_overclock_q16 = (uint32_t)((65536ull * 100ull) / (uint64_t)pct);
++}
++static void oc_shift(uint64_t *ts, uint64_t floor, uint64_t rewind) {
++    if (*ts <= floor) return;
++    *ts = (*ts - floor > rewind) ? *ts - rewind : floor;
++}
++static void psx_overclock_compress(void) {
++    const uint64_t idle_now = g_idle_skip_cycles, exempt_now = g_psx_overclock_exempt;
++    uint64_t idle = (idle_now - s_oc_idle_mark) + (exempt_now - s_oc_exempt_mark);
++    s_oc_idle_mark = idle_now;
++    s_oc_exempt_mark = exempt_now;
++    if (g_psx_overclock_q16 == 65536u || g_event_step_conservative) return;
++    if (psx_cycle_count > s_oc_lease_until) return;   /* not in gameplay */
++    { extern int g_ls_replay_active; if (g_ls_replay_active) return; }
++    const uint64_t floor = s_devices_synced_cycle;
++    if (psx_cycle_count <= floor) return;
++    const uint64_t delta = psx_cycle_count - floor;
++    if (idle > delta) idle = delta;
++    const uint64_t cpu = delta - idle;
++    const uint64_t v = cpu * (uint64_t)g_psx_overclock_q16 + s_oc_rem;
++    const uint64_t kept = v >> 16;
++    s_oc_rem = (uint32_t)(v & 0xFFFFu);
++    const uint64_t rewind = cpu - kept;
++    if (!rewind) return;
++    psx_cycle_count -= rewind;
++    g_psx_overclock_rewound += rewind;
++    if (debug_cpu_ptr) {
++        oc_shift(&debug_cpu_ptr->gte_ts_done, floor, rewind);
++        oc_shift(&debug_cpu_ptr->muldiv_ts_done, floor, rewind);
++    }
++    oc_shift(&s_idle_last_cycle, floor, rewind);
++}
++
+ void psx_devices_service_to_now(void) {
+     if (s_in_device_service) return;                 /* device code charged cycles: absorb */
++    psx_overclock_compress();
+     if (g_plp_cycle_diag) g_plp_svc_calls++;
+     g_psx_cycle_fast_limit = 0;
+     s_in_device_service = 1;

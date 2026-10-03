@@ -1,0 +1,334 @@
+--- a/runtime/src/host_keymap.c
++++ b/runtime/src/host_keymap.c
+@@ -80,8 +80,9 @@
+ 
+ static void apply_defaults(void) {
+     if (s_actions[HOST_KEYMAP_FULLSCREEN].count == 0) {
+-        add_bind(HOST_KEYMAP_FULLSCREEN, (int)SDLK_RETURN, (int)SDL_SCANCODE_RETURN, KMOD_ALT);
+-        add_bind(HOST_KEYMAP_FULLSCREEN, (int)SDLK_f, (int)SDL_SCANCODE_F, KMOD_CTRL);
++        /* Time to Kill: F11 only (the player's choice). Alt+Enter and Ctrl+F
++         * stay free; config.ini [KeyMap] Fullscreen can still rebind it. */
++        add_bind(HOST_KEYMAP_FULLSCREEN, (int)SDLK_F11, (int)SDL_SCANCODE_F11, 0);
+     }
+     if (s_actions[HOST_KEYMAP_TURBO].count == 0)
+         add_bind(HOST_KEYMAP_TURBO, (int)SDLK_TAB, (int)SDL_SCANCODE_TAB, 0);
+@@ -214,10 +215,18 @@
+     apply_defaults();
+ }
+ 
++/* A binding's Ctrl/Alt/Shift are side-agnostic groups (KMOD_ALT is both Alt
++ * keys), while a key event reports the one side held (e.g. KMOD_LALT). Compare
++ * groups, not raw bits: an exact compare required both Alt keys for Alt+Enter. */
++static int mod_groups(int mod) {
++    return ((mod & KMOD_CTRL) ? (int)KMOD_CTRL : 0) |
++           ((mod & KMOD_ALT) ? (int)KMOD_ALT : 0) |
++           ((mod & KMOD_SHIFT) ? (int)KMOD_SHIFT : 0);
++}
++
+ int host_keymap_match_event(HostKeymapAction action, int keycode,
+                             int scancode, int mod) {
+     const HostKeyAction *a;
+-    const int relevant = (int)(KMOD_CTRL | KMOD_ALT | KMOD_SHIFT);
+     int i;
+     if (action < 0 || action >= HOST_KEYMAP_ACTION_COUNT) return 0;
+     a = &s_actions[action];
+@@ -225,7 +234,7 @@
+         if (a->binds[i].keycode != keycode &&
+             (scancode <= 0 || a->binds[i].scancode != scancode))
+             continue;
+-        if ((mod & relevant) == a->binds[i].mods) return 1;
++        if (mod_groups(mod) == mod_groups(a->binds[i].mods)) return 1;
+     }
+     return 0;
+ }
+@@ -236,7 +245,6 @@
+ 
+ int host_keymap_down(HostKeymapAction action, const uint8_t *keys, int mod) {
+     const HostKeyAction *a;
+-    const int relevant = (int)(KMOD_CTRL | KMOD_ALT | KMOD_SHIFT);
+     int i;
+     if (!keys || action < 0 || action >= HOST_KEYMAP_ACTION_COUNT) return 0;
+     a = &s_actions[action];
+@@ -244,7 +252,7 @@
+         const int sc = a->binds[i].scancode;
+         if (sc <= 0 || sc >= SDL_NUM_SCANCODES) continue;
+         if (!keys[sc]) continue;
+-        if ((mod & relevant) == a->binds[i].mods) return 1;
++        if (mod_groups(mod) == mod_groups(a->binds[i].mods)) return 1;
+     }
+     return 0;
+ }
+--- a/runtime/src/main.cpp
++++ b/runtime/src/main.cpp
+@@ -1411,6 +1411,74 @@
+     return 0;                                            /* windowed */
+ }
+ 
++/* SDL3 has one fullscreen flag: a window without a fullscreen display mode
++ * is borderless desktop fullscreen, one with a mode is exclusive. Give mode 2
++ * the desktop's own display mode (a real exclusive mode at the current
++ * resolution) and clear it for mode 1, so the two settings differ. Call before
++ * entering fullscreen; SDL applies it immediately to a fullscreen window. */
++static void psx_apply_fullscreen_display_mode(SDL_Window* window, int mode) {
++#if defined(PSX_SDL3)
++    if (!window) return;
++    const SDL_DisplayMode* desktop = nullptr;
++    if (mode == 2) {
++        SDL_DisplayID display = SDL_GetDisplayForWindow(window);
++        if (!display) display = SDL_GetPrimaryDisplay();
++        desktop = SDL_GetDesktopDisplayMode(display);
++    }
++    if (!SDL_SetWindowFullscreenMode(window, desktop))
++        std::fprintf(stderr, "psxrecomp: fullscreen display mode not applied: %s\n",
++                     SDL_GetError());
++    else if (desktop)
++        std::fprintf(stdout, "psxrecomp: exclusive fullscreen mode %dx%d @ %.2f Hz\n",
++                     desktop->w, desktop->h, (double)desktop->refresh_rate);
++#else
++    (void)window;
++    (void)mode;
++#endif
++}
++
++/* Time to Kill D13: the fullscreen kind the fullscreen key (F11) enters from a windowed
++ * launch (1 borderless, 2 exclusive), the last windowed width seen (0 while
++ * maximised = fit the display, -1 = none yet), and the launcher's state file. */
++static int         s_fullscreen_target = 1;
++static int         s_last_windowed_w   = -1;
++static std::string s_presentation_state_path;
++
++static void psx_note_windowed_geometry(SDL_Window* window) {
++    if (!window) return;
++    const auto flags = SDL_GetWindowFlags(window);
++    if (flags & SDL_WINDOW_FULLSCREEN) return;
++    if (flags & SDL_WINDOW_MAXIMIZED) { s_last_windowed_w = 0; return; }
++    int w = 0, h = 0;
++    SDL_GetWindowSize(window, &w, &h);
++    if (w >= 640) s_last_windowed_w = w;
++}
++
++/* Written once at exit so the launcher can restore the window as it was left:
++ * fullscreen or windowed after any F11 toggle, the fullscreen kind, and width. */
++static void psx_write_presentation_state(SDL_Window* window) {
++    if (!window || s_presentation_state_path.empty()) return;
++    psx_note_windowed_geometry(window);
++    const bool fullscreen = (SDL_GetWindowFlags(window) & SDL_WINDOW_FULLSCREEN) != 0;
++    int kind = g_fullscreen ? g_fullscreen : s_fullscreen_target;
++#if defined(PSX_SDL3)
++    if (fullscreen) kind = SDL_GetWindowFullscreenMode(window) ? 2 : 1;
++#endif
++    const char* kind_name = kind == 2 ? "exclusive" : "borderless";
++    const int width = s_last_windowed_w >= 0 ? s_last_windowed_w
++                                             : (g_video_win_w_explicit ? g_video_win_w : 0);
++    const std::string temporary = s_presentation_state_path + ".tmp";
++    FILE* file = std::fopen(temporary.c_str(), "w");
++    if (!file) return;
++    const bool ok = std::fprintf(file,
++        "{\"display\": \"%s\", \"fullscreen_mode\": \"%s\", \"window_width\": %d}\n",
++        fullscreen ? kind_name : "windowed", kind_name, width) > 0;
++    if (std::fclose(file) == 0 && ok)
++        std::rename(temporary.c_str(), s_presentation_state_path.c_str());
++    else
++        std::remove(temporary.c_str());
++}
++
+ /* FMV auto-skip detection hooks (cdrom.c / mdec.c). */
+ extern "C" int      cdrom_xa_stream_active(void);
+ extern "C" uint32_t mdec_get_decode_count(void);
+@@ -3154,6 +3222,7 @@
+ }
+ 
+ static void shutdown_runtime(void) {
++    psx_write_presentation_state(sdl_window);
+     /* Close presentation before potentially slow diagnostic capture I/O. */
+     if (sdl_window) SDL_HideWindow(sdl_window);
+     if (sdl_audio_device) {
+@@ -6223,9 +6292,11 @@
+     if (std::strcmp(item->key, RECOMP_RUNTIME_UI_KEY_FULLSCREEN) == 0) {
+         if (value < 0 || value > 2) return 0;
+         g_fullscreen = value;
+-        if (sdl_window)
++        if (sdl_window) {
++            if (value) psx_apply_fullscreen_display_mode(sdl_window, value);
+             SDL_SetWindowFullscreen(sdl_window,
+                                     psx_fullscreen_flag_for_mode(value));
++        }
+     } else if (std::strcmp(item->key,
+                            RECOMP_RUNTIME_UI_KEY_WINDOW_SCALE) == 0) {
+         if (value < 1 || value > 4) return 0;
+@@ -7169,6 +7240,15 @@
+         while (SDL_PollEvent(&ev)) {
+             if (debug_console_event(ev)) continue;
+             ttk::input_event(ev);
++#if defined(PSX_SDL3)
++            if (ev.type == SDL_EVENT_WINDOW_RESIZED ||
++                ev.type == SDL_EVENT_WINDOW_MAXIMIZED ||
++                ev.type == SDL_EVENT_WINDOW_RESTORED)
++                psx_note_windowed_geometry(sdl_window);
++#else
++            if (ev.type == SDL_WINDOWEVENT)
++                psx_note_windowed_geometry(sdl_window);
++#endif
+             if (ev.type == SDL_QUIT) {
+                 if (psx_netplay_active()) {
+                     netplay_soft_exit("sdl_window_close");
+@@ -7251,7 +7331,8 @@
+                                                     (int)mod)) {
+                     host_volume_adjust(-5);
+                 }
+-                /* Fullscreen toggle: Alt+Enter or Cmd/Ctrl+F. Toggles between
++                /* Fullscreen toggle: F11 in Time to Kill (host_keymap.c
++                 * default; formerly Alt+Enter or Cmd/Ctrl+F). Toggles between
+                  * windowed and the CONFIGURED tri-state mode (g_fullscreen: 1
+                  * borderless desktop fullscreen keeping the desktop resolution
+                  * and letterboxing the image, or 2 exclusive fullscreen — a
+@@ -7274,6 +7355,9 @@
+                          * matching the historical (pre-tri-state) behaviour. */
+                         Uint32 target = psx_fullscreen_flag_for_mode(g_fullscreen);
+                         if (target == 0) target = SDL_WINDOW_FULLSCREEN_DESKTOP;
++                        const int kind = g_fullscreen ? g_fullscreen : s_fullscreen_target;
++                        target = psx_fullscreen_flag_for_mode(kind);
++                        psx_apply_fullscreen_display_mode(sdl_window, kind);
+                         SDL_SetWindowFullscreen(sdl_window, target);
+                         host_osd_push("Fullscreen", 1500);
+                     }
+@@ -11629,6 +11713,12 @@
+     int         cli_renderer   = -1;   /* 0=software 1=opengl 2=vulkan */
+     const char* cli_window_title = nullptr;  /* label windows in a fleet */
+     const char* cli_memcard_dir = nullptr;   /* isolate writable state in a fleet */
++    /* Time to Kill D13: launcher-owned presentation. -1 = not set on the CLI. */
++    int         cli_internal_scale = -1;     /* 1..SW_MAX_INTERNAL_SCALE */
++    int         cli_display_mode   = -1;     /* 0 windowed, 1 borderless, 2 exclusive */
++    int         cli_window_width   = -1;     /* 0 = fit the display (maximise) */
++    int         cli_output_filter  = -1;     /* 0 nearest, 1 linear */
++    int         cli_fullscreen_target = -1;  /* 1 borderless, 2 exclusive (F11 target) */
+     std::vector<std::string> cli_path_arg_storage;
+     cli_path_arg_storage.reserve((size_t)argc);
+     auto is_cli_option = [](const char* arg) {
+@@ -11699,6 +11789,33 @@
+             if      (std::strcmp(r, "software") == 0) cli_renderer = 0;
+             else if (std::strcmp(r, "opengl")   == 0) cli_renderer = 1;
+             else if (std::strcmp(r, "vulkan")   == 0) cli_renderer = 2;
++        } else if (std::strcmp(argv[i], "--internal-scale") == 0 && i + 1 < argc) {
++            const int v = std::atoi(argv[++i]);
++            if (v >= 1 && v <= SW_MAX_INTERNAL_SCALE) cli_internal_scale = v;
++            else std::fprintf(stderr, "psxrecomp: ignoring --internal-scale %s (1..%d)\n",
++                              argv[i], SW_MAX_INTERNAL_SCALE);
++        } else if (std::strcmp(argv[i], "--display") == 0 && i + 1 < argc) {
++            const char* d = argv[++i];
++            if      (std::strcmp(d, "windowed")   == 0) cli_display_mode = 0;
++            else if (std::strcmp(d, "borderless") == 0) cli_display_mode = 1;
++            else if (std::strcmp(d, "exclusive")  == 0) cli_display_mode = 2;
++            else std::fprintf(stderr, "psxrecomp: ignoring --display %s\n", d);
++        } else if (std::strcmp(argv[i], "--window-width") == 0 && i + 1 < argc) {
++            const int v = std::atoi(argv[++i]);
++            if (v == 0 || (v >= 640 && v <= 16384)) cli_window_width = v;
++            else std::fprintf(stderr, "psxrecomp: ignoring --window-width %s\n", argv[i]);
++        } else if (std::strcmp(argv[i], "--output-filter") == 0 && i + 1 < argc) {
++            const char* f = argv[++i];
++            if      (std::strcmp(f, "nearest") == 0) cli_output_filter = 0;
++            else if (std::strcmp(f, "linear")  == 0) cli_output_filter = 1;
++            else std::fprintf(stderr, "psxrecomp: ignoring --output-filter %s\n", f);
++        } else if (std::strcmp(argv[i], "--fullscreen-mode") == 0 && i + 1 < argc) {
++            const char* f = argv[++i];
++            if      (std::strcmp(f, "borderless") == 0) cli_fullscreen_target = 1;
++            else if (std::strcmp(f, "exclusive")  == 0) cli_fullscreen_target = 2;
++            else std::fprintf(stderr, "psxrecomp: ignoring --fullscreen-mode %s\n", f);
++        } else if (std::strcmp(argv[i], "--presentation-state") == 0 && i + 1 < argc) {
++            s_presentation_state_path = argv[++i];
+         } else if (std::strcmp(argv[i], "--window-title") == 0 && i + 1 < argc) {
+             cli_window_title = argv[++i];
+         } else if (std::strcmp(argv[i], "--launcher") == 0) {
+@@ -13716,6 +13833,22 @@
+     if (cli_debug_port >= 0) debug_port      = (uint16_t)cli_debug_port;
+     if (cli_renderer   >= 0) g_video_renderer = cli_renderer;
+     if (cli_window_title)    window_title     = cli_window_title;
++    if (cli_internal_scale >= 1) g_video_scale = cli_internal_scale;
++    if (cli_display_mode   >= 0) g_fullscreen  = cli_display_mode;
++    if (cli_window_width   >= 0) {
++        g_video_win_w = cli_window_width;
++        g_video_win_w_explicit = cli_window_width > 0;
++    }
++    if (cli_output_filter  >= 0) g_video_aa    = cli_output_filter != 0;
++    if (cli_fullscreen_target > 0) s_fullscreen_target = cli_fullscreen_target;
++    if (cli_internal_scale >= 1 || cli_display_mode >= 0 ||
++        cli_window_width >= 0 || cli_output_filter >= 0)
++        std::fprintf(stdout,
++            "psxrecomp: presentation (CLI): internal scale %dx, display %s, "
++            "window width %d, output filter %s\n",
++            g_video_scale,
++            g_fullscreen == 2 ? "exclusive" : g_fullscreen == 1 ? "borderless" : "windowed",
++            g_video_win_w, g_video_aa ? "linear" : "nearest");
+     if (cli_memcard_dir) {
+         memcard_dir = std::filesystem::path(cli_memcard_dir);
+         if (memcard_dir.is_relative())
+@@ -14234,7 +14367,7 @@
+     /* Fullscreen on launch (launcher's tri-state Fullscreen control): 1 =
+      * borderless desktop fullscreen (keeps the desktop resolution, letterboxes
+      * the image), 2 = exclusive fullscreen (real display-mode change), 0 =
+-     * windowed. Matches the in-game Alt+Enter / Cmd+Ctrl+F hotkey behaviour. */
++     * windowed. Matches the in-game fullscreen hotkey (F11). */
+     win_flags |= psx_fullscreen_flag_for_mode(g_fullscreen);
+     /* Open at the user-chosen window size (default 1280 wide) instead of the
+      * old hardcoded 640x480, so the game doesn't boot into a tiny window. The
+@@ -14255,6 +14388,7 @@
+     }
+     ttk::input_init(sdl_window);
+     psx_apply_window_icon(sdl_window, argv[0]);
++    if (g_fullscreen) psx_apply_fullscreen_display_mode(sdl_window, g_fullscreen);
+ 
+     /* Maximise instead of computing the frame size ourselves.
+      *
+--- a/runtime/tests/test_host_keymap.c
++++ b/runtime/tests/test_host_keymap.c
+@@ -25,10 +25,16 @@
+ 
+     memset(keys, 0, sizeof(keys));
+     host_keymap_load(NULL);
+-    check(host_keymap_match(HOST_KEYMAP_FULLSCREEN, (int)SDLK_RETURN, mod_alt()),
+-          "default fullscreen includes Alt+Return");
+-    check(host_keymap_match(HOST_KEYMAP_FULLSCREEN, (int)SDLK_f, mod_ctrl()),
+-          "default fullscreen includes Ctrl+F");
++    check(host_keymap_match_event(HOST_KEYMAP_FULLSCREEN, (int)SDLK_F11,
++                                  (int)SDL_SCANCODE_F11, 0),
++          "default fullscreen is F11");
++    check(host_keymap_match_event(HOST_KEYMAP_FULLSCREEN, (int)SDLK_F11,
++                                  (int)SDL_SCANCODE_F11, (int)KMOD_NUM),
++          "F11 toggles fullscreen with Num Lock on");
++    check(!host_keymap_match(HOST_KEYMAP_FULLSCREEN, (int)SDLK_RETURN, mod_alt()),
++          "Alt+Return is not a default fullscreen key");
++    check(!host_keymap_match(HOST_KEYMAP_FULLSCREEN, (int)SDLK_f, mod_ctrl()),
++          "Ctrl+F is not a default fullscreen key");
+     keys[SDL_SCANCODE_TAB] = 1;
+     check(host_keymap_down(HOST_KEYMAP_TURBO, keys, 0),
+           "default turbo is held by Tab");
+@@ -98,6 +104,29 @@
+                                   (int)SDL_SCANCODE_F10, 0),
+           "display perf rebind accepts the F10 scancode");
+ 
++    /* Modifier bindings match either side: a key event reports the one Alt
++     * or Ctrl held, while a parsed "Alt+" binding stores both sides. */
++    f = fopen(cfg, "wb");
++    check(f != NULL, "recreate temporary config.ini");
++    if (!f) return 1;
++    fputs("[KeyMap]\nFullscreen = Alt+Return\nRuntimeMenu = Ctrl+F2\n", f);
++    fclose(f);
++    host_keymap_load(cfg);
++    check(host_keymap_match_event(HOST_KEYMAP_FULLSCREEN, (int)SDLK_RETURN,
++                                  (int)SDL_SCANCODE_RETURN, (int)KMOD_LALT),
++          "left Alt+Return matches an Alt+Return binding");
++    check(host_keymap_match_event(HOST_KEYMAP_FULLSCREEN, (int)SDLK_RETURN,
++                                  (int)SDL_SCANCODE_RETURN, (int)(KMOD_RALT | KMOD_NUM)),
++          "right Alt+Return with Num Lock matches");
++    check(!host_keymap_match_event(HOST_KEYMAP_FULLSCREEN, (int)SDLK_RETURN,
++                                   (int)SDL_SCANCODE_RETURN, 0),
++          "plain Return does not match an Alt+Return binding");
++    check(!host_keymap_match_event(HOST_KEYMAP_FULLSCREEN, (int)SDLK_RETURN,
++                                   (int)SDL_SCANCODE_RETURN, (int)(KMOD_LALT | KMOD_LSHIFT)),
++          "Alt+Shift+Return does not match an Alt+Return binding");
++    check(host_keymap_match(HOST_KEYMAP_RUNTIME_MENU, (int)SDLK_F2, (int)KMOD_LCTRL),
++          "left Ctrl+F2 matches a Ctrl+F2 binding");
++
+     remove(cfg);
+     if (failures) {
+         fprintf(stderr, "host_keymap_test: %d failure(s)\n", failures);

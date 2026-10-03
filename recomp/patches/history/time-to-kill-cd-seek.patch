@@ -1,0 +1,18 @@
+diff --git a/runtime/src/cdrom.c b/runtime/src/cdrom.c
+index dd5c231d..99d201ea 100644
+--- a/runtime/src/cdrom.c
++++ b/runtime/src/cdrom.c
+@@ -2386,6 +2386,13 @@ static void exec_command(uint8_t cmd) {
+             set_irq(CDIRQ_ERROR);
+             break;
+         }
++        /* An explicit seek replaces the active read. Otherwise completion
++         * clears setloc_pending while reading remains true, and the following
++         * ReadS is mistaken for a continuation of the OLD stream. Time to Kill
++         * then plays adjacent speech clips instead of seeking to the requested
++         * voice/music location. No Pause command is required before SeekL/P. */
++        stop_read_stream();
++        stat_reg &= (uint8_t)~CDSTAT_READ;
+         xa_reset_decode();
+         spu_cd_audio_reset();
+         stop_cdda_playback();

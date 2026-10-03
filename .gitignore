@@ -1,6 +1,5 @@
-# Track only project notes and source-facing files:
-#   README.md, LICENSE, GAME_MANUAL.md, MODERNIZATION_JOBS.md, documentation/
-# Everything below is local, generated, personal, or copyrighted media.
+# Track implementation source, patches, tools and documentation.
+# Original media, generated game code, player data and build output stay local.
 
 # --- Original game / retail media (never commit) ---
 # Player dump drop folder (README is tracked; dumps are not).
@@ -51,10 +50,16 @@ rom.cfg
 *.VMP
 memcard*
 
-# --- Nested checkouts (own git history; also contain dumps) ---
-# recomp/ is the pinned upstream tree plus local patches, generated C,
-# imported disc, player saves, and analysis captures. Do not vendor it here.
-/recomp/
+# --- Recomp source is tracked; local inputs and outputs are not ---
+/recomp/disc/
+/recomp/generated/
+/recomp/analysis/
+/recomp/saves/
+/recomp/config/
+/recomp/build*/
+/recomp/assets/fonts/
+/recomp/assets/*.pack
+/recomp/assets/*.provenance.json
 
 # EDuke32 checkout, GRP, manuals, fonts, inventory tiles, reference configs.
 /research/

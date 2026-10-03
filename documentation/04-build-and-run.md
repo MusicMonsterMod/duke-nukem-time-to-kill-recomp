@@ -1,5 +1,23 @@
 # Build and run
 
+## Source checkout
+
+The implementation is now tracked under `recomp/`. Clone with
+`git clone --recurse-submodules https://github.com/MusicMonsterMod/duke-nukem-time-to-kill-recomp.git`,
+or run `git submodule update --init --recursive` in an existing clone.
+The pinned framework and UI are dependencies, not missing unpublished title code.
+The build automatically applies `recomp/patches/time-to-kill-accepted-source.patch`.
+Historical incremental patches are archived and not applied.
+
+No retail game data, generated game code, binaries, player saves or research are
+in the repository. Put your owned disc under `game/`; all content there except
+README.md is ignored. The launcher needs a successful local build first.
+Optional extracted Duke fonts/inventory packs are not distributed; the existing
+conditional CMake asset steps use them only when supplied locally. They are not
+required inputs to the base native build. Do not infer that a source-only clone
+contains those optional visual assets from the accepted local playtest.
+
+
 ## Prerequisites
 
 Linux: C/C++ compiler (tested GCC 13.3), CMake 3.20+, Python 3.11+, Ninja, pkg-config, and the development libraries required by SDL3/OpenGL on the host. This machine already had the required system libraries; no system packages were changed.

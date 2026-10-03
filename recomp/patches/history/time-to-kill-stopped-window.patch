@@ -1,0 +1,186 @@
+diff --git a/runtime/include/crash_trace.h b/runtime/include/crash_trace.h
+index 2c6b8a87..bf8ef045 100644
+--- a/runtime/include/crash_trace.h
++++ b/runtime/include/crash_trace.h
+@@ -31,6 +31,8 @@ void psx_crash_trace_set_exit_origin(const char *origin);
+  *   - PSX_NO_DEBUG_TOOLS builds: exit(1) as before.
+  * Never returns. */
+ void psx_fatal_halt(const char *reason);
++/* Host-only event pump during fatal halt; must not advance guest state. */
++void psx_crash_trace_set_halt_poll(void (*poll)(void));
+ 
+ /* Set when psx_fatal_halt fires; the freeze heartbeat includes it so an
+  * external reader can tell a fatal halt from a wedge. NULL = healthy. */
+diff --git a/runtime/src/crash_trace.c b/runtime/src/crash_trace.c
+index 0fe0d272..0863cb1c 100644
+--- a/runtime/src/crash_trace.c
++++ b/runtime/src/crash_trace.c
+@@ -812,6 +812,8 @@ void psx_crash_trace_dump(const char *reason, void *seh_info) {
+ /* ── Fatal halt ──────────────────────────────────────────────────────── */
+ 
+ const char *g_psx_fatal_reason = NULL;
++static void (*s_halt_poll)(void);
++void psx_crash_trace_set_halt_poll(void (*poll)(void)) { s_halt_poll = poll; }
+ 
+ /* freeze_heartbeat.c — full ring dump with wedge_kind "fatal". */
+ extern void freeze_heartbeat_fatal_dump(const char *reason);
+@@ -844,6 +846,7 @@ void psx_fatal_halt(const char *reason) {
+               g_psx_fatal_reason, port);
+       fflush(stderr);
+       for (;;) {
++          if (s_halt_poll) s_halt_poll();
+           debug_server_poll();
+ #ifdef _WIN32
+           Sleep(1);
+diff --git a/runtime/src/debug_server.c b/runtime/src/debug_server.c
+index 645f055e..8e02a253 100644
+--- a/runtime/src/debug_server.c
++++ b/runtime/src/debug_server.c
+@@ -14439,14 +14439,23 @@ void debug_server_init(int port)
+ static int recv_line(sock_t c, char *buf, int cap)
+ {
+     int len = 0;
+-    while (len < cap - 1) {
++    while (len < cap - 1 && s_io_running) {
+         int n = recv(c, buf + len, cap - 1 - len, 0);
++        if (n < 0) {
++            int error = sock_error();
++#ifdef _WIN32
++            if (error == WSAETIMEDOUT || error == WSAEWOULDBLOCK) continue;
++#else
++            if (error == EAGAIN || error == EWOULDBLOCK || error == EINTR) continue;
++#endif
++        }
+         if (n <= 0) return -1;
+         len += n;
+         buf[len] = '\0';
+         char *nl = strchr(buf, '\n');
+         if (nl) { *nl = '\0'; return (int)(nl - buf); }
+     }
++    if (!s_io_running) return -1;
+     buf[cap - 1] = '\0';
+     return cap - 1;   /* over-long line: take what we have */
+ }
+@@ -14463,6 +14472,17 @@ static int io_thread_main(void *arg)
+         int clen = sizeof(caddr);
+         sock_t c = accept(s_listen, (struct sockaddr *)&caddr, &clen);
+         if (c == SOCK_INVALID) { if (!s_io_running) break; SDL_Delay(5); continue; }
++        if (!s_io_running) { sock_close(c); break; }
++        /* A client that connects without sending a newline must not prevent
++         * window-close from joining this thread. Retain partial requests and
++         * periodically observe the shutdown flag. Bound blocked sends too. */
++#ifdef _WIN32
++        DWORD io_timeout = 250;
++#else
++        struct timeval io_timeout = {0, 250000};
++#endif
++        setsockopt(c, SOL_SOCKET, SO_RCVTIMEO, (const char *)&io_timeout, sizeof(io_timeout));
++        setsockopt(c, SOL_SOCKET, SO_SNDTIMEO, (const char *)&io_timeout, sizeof(io_timeout));
+ 
+         char req[RECV_BUF_SIZE];
+         int rl = recv_line(c, req, sizeof(req));
+@@ -14665,18 +14685,25 @@ void debug_server_check_watchpoints(void)
+ 
+ void debug_server_shutdown(void)
+ {
+-    /* Stop the I/O thread: clear the flag, close the listen socket to break the
+-     * blocking accept(), then join. */
++    /* shutdown(), unlike close() alone on Linux, wakes another thread's
++     * blocking accept(). Keep descriptor ownership until the worker exits. */
+     s_io_running = 0;
+     if (s_listen != SOCK_INVALID) {
+-        sock_close(s_listen);
+-        s_listen = SOCK_INVALID;
++#ifdef _WIN32
++        shutdown(s_listen, SD_BOTH);
++#else
++        shutdown(s_listen, SHUT_RDWR);
++#endif
+     }
+     if (s_io_thread) {
+         if (s_io_mutex) { SDL_LockMutex(s_io_mutex); SDL_CondSignal(s_io_resp_cv); SDL_UnlockMutex(s_io_mutex); }
+         SDL_WaitThread(s_io_thread, NULL);
+         s_io_thread = NULL;
+     }
++    if (s_listen != SOCK_INVALID) {
++        sock_close(s_listen);
++        s_listen = SOCK_INVALID;
++    }
+     if (s_client != SOCK_INVALID) {
+         sock_close(s_client);
+         s_client = SOCK_INVALID;
+diff --git a/runtime/src/main.cpp b/runtime/src/main.cpp
+index fe317583..e50c8624 100644
+--- a/runtime/src/main.cpp
++++ b/runtime/src/main.cpp
+@@ -3051,6 +3051,13 @@ static void netplay_soft_exit(const char *origin) {
+ }
+ 
+ static void shutdown_runtime(void) {
++    /* Close presentation before potentially slow diagnostic capture I/O. */
++    if (sdl_window) SDL_HideWindow(sdl_window);
++    if (sdl_audio_device) {
++        psx_sdl_audio_clear(sdl_audio_device);
++        psx_sdl_audio_close(sdl_audio_device);
++        sdl_audio_device = 0;
++    }
+     /* (sljit removed 2026-07-15: overlay_compile_worker_stop joined the
+      * off-thread JIT worker here; the worker no longer exists.) */
+     psx_netplay_shutdown();
+@@ -3074,6 +3081,18 @@ static void shutdown_runtime(void) {
+     debug_server_shutdown();
+ }
+ 
++static void runtime_halt_poll(void) {
++    if (g_headless) return;
++    SDL_Event event;
++    while (SDL_PollEvent(&event)) {
++        if (event.type == SDL_QUIT) {
++            psx_crash_trace_set_exit_origin("sdl_close_after_fatal");
++            shutdown_runtime();
++            std::exit(1);
++        }
++    }
++}
++
+ /* Tear down the game window/GL/audio after a lobby soft-return. Leaves SDL
+  * subsystems and the lobby WebSocket intact for the next launcher session. */
+ static void teardown_game_session_keep_lobby(void) {
+@@ -14766,6 +14785,7 @@ session_reboot:
+         }
+     }
+ 
++    psx_crash_trace_set_halt_poll(runtime_halt_poll);
+     psx_scheduler_run(&cpu);
+     if (psx_return_to_lobby_requested() && g_netplay_from_lobby)
+         goto soft_return_lobby;
+@@ -14805,11 +14825,28 @@ session_reboot:
+                 std::fprintf(tf, "    {\"addr\":\"0x%08X\",\"val\":\"0x%08X\"}%s\n",
+                              a, v, (w < 39) ? "," : "");
+             }
+-            std::fprintf(tf, "  ]\n}\n");
++            std::fprintf(tf, "  ],\n  \"gpr\": [");
++            for (int reg = 0; reg < 32; ++reg)
++                std::fprintf(tf, "%s\"0x%08X\"", reg ? "," : "", cpu.gpr[reg]);
++            std::fprintf(tf, "]\n}\n");
+             std::fclose(tf);
+         }
+     }
+ 
++    /* Preserve object/handler-table state for an abnormal dispatch exit. */
++    if (FILE* dump = std::fopen("psx_cps_exit_ram.bin", "wb")) {
++        uint8_t page[4096];
++        for (uint32_t base = 0; base < 0x200000u; base += sizeof(page)) {
++            for (uint32_t offset = 0; offset < sizeof(page); offset += 4) {
++                uint32_t word = cpu.read_word(0x80000000u + base + offset);
++                for (unsigned byte = 0; byte < 4; ++byte)
++                    page[offset + byte] = (uint8_t)(word >> (byte * 8));
++            }
++            if (std::fwrite(page, 1, sizeof(page), dump) != sizeof(page)) break;
++        }
++        std::fclose(dump);
++    }
++
+     /* Diagnostic: the guest published a null PC at the top level (abnormal). With
+      * PSX_EXIT_HALT set, halt-and-serve here instead of shutting down so the
+      * still-loaded overlays + full guest state are live-inspectable over TCP. */

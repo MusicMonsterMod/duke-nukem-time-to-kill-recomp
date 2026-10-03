@@ -374,3 +374,132 @@ D17 redraw feeds (every 0.2 ms). `symprof.py FILE [N]` symbolizes it. Player
 sessions run with `PSX_FORENSICS=0` (the runtime's always-on forensic rings
 quiet, no per-frame VRAM readback); set `PSX_FORENSICS=1` or launch with
 `--diagnostics` to keep them.
+
+D17A (documentation/81-d17a-instability.md): `a1slots.sh TAG SLOTS` (alpha 1
+consistency per slot), `a0check.py`, `a1check.py`, `altcheck.py`
+(back-and-forth presents), `backsteps.py` (present trace order), `cwtest.py`
+(club wall spot, `CARDS=cards-club SLOT=1`), `holes.py`, `goto.py`,
+`sheet.py`/`crops.py` (dumps are bottom-up; sheets flip them), `deferab.py`.
+`DNTTK_REPLAY_LOG=1` logs every redraw job (alpha, camera, near clip counts);
+`render_replay` reports `multi_area`. `d17.py up` raises
+`PSX_STARVATION_TIMEOUT_US` (large dumps stall the emulation thread).
+Second pass: `latency.py TAG HEADINGS N` (mouse step to first moved present),
+`turnrate.py`, `dancers.py` (per heading: guest fields, game frames, distinct
+images, sessions), `yawtrace.py` (presented late yaw order), `still3.sh` (user
+states in several near clip modes, `CFGS`), `wdiff.py` (write-trace diff of
+player/camera/pad), `CARDS=cards-user2` (user states UI 1-9, file N-1).
+`render_replay` reports `host_vertices` [stored, hits, no source, address miss,
+word miss]; the plugin status reports `late_*` counters.
+
+Third pass: `eyetest.py` (first-person eye and rotation while idle, walking,
+running), `nwstart.py` (boot to a new game on private cards), `realdrive.sh` /
+`realseq.sh` (real X11 window, `VIDEO=x11 DISPLAY=:0`, real input via
+`xdotool`), `CARDS=cards-user3` (user states UI 1-5, file N-1). A sequence
+dump needs a name ending in `-seq` (`d17.dump('X-seq')`, then
+`a0check.check('X')`). The plugin status reports `pace_div` and
+`pace_changes` (late camera pacing).
+Fourth pass: `turnseq.sh TAG SLOT` (driven turning and walking, 4 present
+sequences), `realsweep.sh TAG [env]` (real window and xdotool mouse sweeping
+left/right; `TOOL=staleclass.py` classifies repeated images while turning,
+default `smooth.py`), `smooth.py`, `stale.py`, `jerk.py`, `sweep.py`. The
+present trace carries the present time and the planned alpha of the shown
+image; `render_replay.host_depth` = [depth-tested triangles, depth clears];
+plugin status `late_overruns`, `ahead`.
+Fifth pass: `stuck.sh RATE [env]` (start on SLOT, load LOADS, hold W after
+each: distance and animation), `circletest.sh TAG` (real window: holster, fire
+click/hold, E; reports `+0x224 0x200`), `loadstall.sh` (fields/s after loads),
+`holds.py` (held presents while turning; use with `realsweep.sh`, `STEP_S=0.001
+PX=1` for a fine real mouse), `yawsmooth.py`, `rawtrace.py`,
+`staleclass.py` (now prints njobs). `DNTTK_LATE_LOG=1` logs every late redraw
+submission (frame, target present, alpha, flip pending). Status: `lead_ms`,
+`ready_ms`. A private street savestate: `cards-fresh` file 0.
+
+
+2026-10-03 opening responsiveness pass (details in
+[83-opening-responsiveness.md](83-opening-responsiveness.md)):
+
+- `tools/local/build_math_overlay.py` builds the exact initialized 192-byte
+  geometry-math variant from the verified owned EXE, through the overlay
+  compiler. CMake and `run.py` ensure this shard alongside the movie shard.
+  Its generated code is never hand edited; normal runtime byte guards apply.
+- Modernized high-refresh launches enable compatible ordered translucent
+  batching (`PSX_GL_ORDERED_SEMI_BATCH=0` is the comparison). Vanilla does not.
+- `DNTTK_PRESENT_TIMELINE=0` compares the previous scheduling path;
+  `DNTTK_WORLD_DELAY_MS` adjusts the world-history buffer (default 90 ms,
+  clamped 50-130). Camera rotation is sampled much nearer presentation.
+- `PSX_REPLAY_UNTIMED=0` compares timing-faithful workers;
+  `PSX_REPLAY_VALIDATE_TIMING=1` compares both workers' complete GP0 streams.
+  `PSX_REPLAY_VALIDATE_BATCH=1` compares complete RGBA redraws with batching
+  on/off. These expensive diagnostics are not normal performance runs.
+- `PSX_REPLAY_PROFILE=1` records redraw CPU/GPU-query spans and worker refresh
+  causes; `PSX_PROF_FIRST_FRAME` / `PSX_PROF_LAST_FRAME` bound CPU sampling
+  when using `PSX_PROF`. GPU query spans can include command-stream gaps.
+- Local analysis scripts: `response_cold.py` boots private fresh cards through
+  the title/difficulty route, profiles the first gameplay seconds and saves
+  private slots 0/11. `quality.py` compares idle/turning scenes (explicit CPU
+  100% default; `OC=150` is a different workload), `response_mouse.py` measures
+  X11 injection to traced camera presentation, `response_regress.py` checks
+  pause/resume, incompatible headers and private UI slots 8-11.
+  The other `response_*validate.py` scripts run the comparison diagnostics.
+
+Runtime patch additions include restore/native-code guard reconstruction,
+worker-image code-cache invalidation, cycle-deadline accounting, batching and
+worker timing. The separate dispatch-cache patch contains the generator
+lookup change and its compiled oracle test. All these remain local to recomp.
+
+
+2026-10-03 next-save pass ([note 84](84-warmup-and-camera-stability.md)):
+
+- `warmup_probe.py SLOT TAG SECONDS` uses private `cards-user7`, CPU 100%,
+  4x, real X11 and independent 500 Hz one-count mouse events reversing every
+  two seconds. File slots are zero-based. `RATE=unlimited` stresses scheduling;
+  `VIEW=third` checks third person. Never overlap a timed game with builds/tests.
+- `warmup_subway.py TAG RATE` captures the full compositor width along UI 3's
+  left-wall route. Canonical 512-pixel screenshots omit the margins under test.
+- `DNTTK_CAMERA_RESEED_TRACE=1` records camera validity, field gaps and epochs.
+  Present trace yaw has four decimals and timestamps six; compare yaw jumps
+  and camera-sample age alongside presentation intervals and distinct images.
+- `PSX_GL_MIXED_BATCH=0` disables the new mixed opaque/translucent batching
+  while preserving the earlier ordered-translucent path for A/B comparisons.
+- `tools/local/fix_sdl_x11_time.py` applies the exact pinned SDL source repair
+  at configure time. Its compiled clock tests cover wrap and queued reports.
+  It does not edit installed SDL, and rejects unknown source fragments.
+- `warmup_final_timing.py` / `warmup_final_batch.py` compare complete GP0/RGBA
+  streams across the new seven states. Oracle duplication is not a speed test.
+- `warmup-baseline` preserves the pre-pass executable and original save hashes.
+  The player's cards and state files remain outside writable test directories.
+
+
+2026-10-03 bounded movement polish ([note 85](85-movement-polish-and-isolated-artifacts.md)):
+
+- `polish_motion.py SLOT TAG SECONDS` uses new private cards-user8 and real
+  X11 Shift+W/S (slot 12) or turn/move/jump/fire (slots 1/10). Do not enable
+  DNTTK_TEST_INPUT while testing real keyboard events: it clears those keys.
+- `DNTTK_POSE_TRACE=1` logs `[pose]` capture time/field/eye and `[pose-ready]`
+  complete-transform time. Compare arrival time, pair interval and interpolation
+  endpoint saturation as well as presentation cadence. Alpha 1 alone is not
+  proof of a perceptual hitch when the world pose is stationary.
+- `run.py` now defaults PSX_GL_PERF=0 for ordinary launches, or 1 when
+  PSX_REPLAY_PROFILE=1. Explicit overrides survive. `frame_perf` has no samples
+  when GL diagnostics are disabled; consumers must tolerate that.
+- `polish_final.py` runs the bounded current-save routes sequentially. No
+  builds or CPU-heavy tests overlap live measurements. `polish-baseline`
+  preserves accepted executable/source and original state hashes/mtimes.
+
+
+2026-10-03 accepted-source closeout:
+
+- Root Git now owns `recomp/src`, tools/tests/configuration and authored patches.
+  Framework/UI are pinned submodules. Clone recursively; apply the complete
+  `time-to-kill-accepted-source.patch` through the build wrapper. Archived patches
+  under `patches/history` are not applied. The old incremental stack was not
+  sufficient to recreate the working framework from its pin.
+- `tools/local/export_runtime_patch.py` uses a temporary index to export all
+  tracked framework edits and reviewed new runtime/recompiler source, preserving
+  the real index. A pristine pinned checkout plus the exported patch matched all
+  37 accepted modified/new framework files. Repeat this check after changes.
+- CI forbids media/generated output/player data, requires essential title source,
+  and permits only the two declared dependency gitlinks. A blanket recomp ignore
+  is an error. Never replace source with an upstream pointer that omits our edits.
+- Primary regression target is now 120 FPS; 180 support, 240 robustness and
+  Unlimited stress remain distinct obligations. See acceptance note 86.

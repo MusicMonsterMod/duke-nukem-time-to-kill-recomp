@@ -1,10 +1,109 @@
-# Current status - 2026-10-02
+# Current status - 2026-10-03
 
-**D17C view bob experiment - Needs playtest.** In first person the eye rode
-on Duke's root, which the walk and run cycles lift by about 55 units a step.
-`DNTTK_VIEW_BOB=off` holds the eye at the bottom of that cycle (eye height
-range walking 55 to 10 units, running 59 to 21); jumps, steps and drops still
-move it. Default unchanged.
+**D17A ACCEPTED. D17B ACCEPTED (2026-10-03).** The user completed natural
+first-level play at 120 and 180 FPS and explicitly closed the parent jobs.
+120 FPS is the primary quality/regression baseline; 180+ excellent high-refresh
+support, 240+ robustness/compatibility, Unlimited stress/debug. No technical
+ceiling or gameplay-speed change. Residuals are D17D-J and D18C, not reasons
+to keep the accepted parent jobs open. No follow-up implementation started.
+
+Accepted binary: `1c03b6a2c2c8fa6363376135d0ffa066dcdc0eb50e3f792efe198af1b9779287`.
+Preserve mouse response, opening/club playability, apartment/culling fixes,
+FMVs/audio, FPS reporting, idle stability and intentional PS1 motion.
+[Acceptance, source baseline and reproduction ledger](86-d17-acceptance-and-regression-baseline.md).
+
+The repository now tracks the actual `recomp/` implementation and complete
+framework patch with pinned dependencies. The prior documentation-only exclusion
+was explicitly revoked by the user. ROMs/generated game code/builds/saves/research
+remain ignored. Original disc dump moved intact under `game/`; prepared runtime
+copy retained. Older statuses and results below are historical and superseded.
+
+
+**Latest: accepted playability baseline preserved; bounded polish investigation.**
+The user reports the opening, strip club and apartment are now smooth, enjoyable
+and substantially more stable. This acceptance applies to build `28554051...`.
+The follow-up disables unnecessary per-batch GPU timing queries in ordinary
+launches and adds opt-in pose-readiness tracing. No interpolation, culling,
+physics, audio-buffer or mouse-sampling change is shipped.
+
+Slot 12 Shift+W/S still exhausts usable interpolation history while presentation
+intervals remain mostly regular; complete geometry arrives too late for some
+planned movement frames. Larger buffering and stronger phase correction were
+rejected. Slot 10 can starve audio production under the scripted stress route;
+slot 1's crackle did not reproduce as an underrun. These remain open polish
+items. Opening/dancer mouse regressions retain about 179-180 images/s, zero
+underruns and no camera turn over one degree. D17D now holds isolated visual
+artifacts (slot 9 also reproduces at 60 Hz). D17A/B remain Needs playtest.
+See [85-movement-polish-and-isolated-artifacts.md](85-movement-polish-and-isolated-artifacts.md).
+Current executable SHA-256:
+`1c03b6a2c2c8fa6363376135d0ffa066dcdc0eb50e3f792efe198af1b9779287`.
+
+
+**Latest: save-driven camera stability candidate, D17A/B Needs playtest.**
+This supersedes note 83's performance conclusions. Five-field dancer updates
+were incorrectly resetting camera yaw; expired replay jobs also hid their
+cost from scheduling. Those causes are fixed, compatible opaque/translucent
+batches reduce the slow states' main-thread submission cost, and X11 mouse
+timestamps are repaired. Known scratch allocations now precede worker startup.
+Final 180 Hz saved-state sweeps produce about 179-180 distinct images/s with
+zero audio underruns and no adjacent camera turn over one degree. The fresh
+opening has presentation p99 6.07 ms, max 7.83 ms from its first camera redraw.
+
+Unlimited still exposes stale-camera episodes. Subway UI slot 3 did not
+reproduce on the bounded 60/180 Hz capture route and remains open, alongside
+earlier minor geometry pops. Player saves/cards/settings remain untouched.
+Build SHA-256 `28554051d10f40fcf67c4f242998f02bc5ff960e570098dd9ae2a2fab3dbe264`.
+See [84-warmup-and-camera-stability.md](84-warmup-and-camera-stability.md).
+The next step is a player playtest of this bounded candidate, especially UI 5.
+
+
+**Latest: opening/club responsiveness candidate, D17B Needs playtest.** This
+supersedes the older performance results below. Final fresh boot at CPU 100%,
+first person, 4x, 180 Hz: camera presentation p99 6.0 ms, maximum 8.3 ms from
+the first valid redraw, zero audio underruns or failed/killed workers. Final
+Match Display dancers turn: 179.5 distinct images/s, p99 6.18 ms, realtime
+emulation and zero audio underruns; apartment comparison 179.8 images/s,
+p99 5.98 ms. Mouse injection to traced camera presentation: median 17.85 ms
+club / 12.48 ms apartment. These are bounded software measurements.
+
+Systemic fixes cover timestamped scheduling, restored/worker code-state
+coherence, an exactly guarded initialized math routine, GL batching, unnecessary
+worker replacement for invalidated movie code, and a worker timeout race.
+Vanilla and the accepted idle-eye behavior remain available. Minor closet and
+furniture pops remain D17A playtest work. Existing player settings/saves/cards
+are untouched. Build SHA-256
+`ae4333a81c35dbeae2ccc5c5eb2b3ac2f3c99a71d84c36af35b8f950fce2da22`.
+See [83-opening-responsiveness.md](83-opening-responsiveness.md) for evidence,
+limits and reproduction. The next step is the user's fresh-game full playtest.
+
+**2026-10-03 renderer quality pass:** D17A/B have a new stabilization
+candidate, with replay color/depth isolation fixes, coherent eye setup for
+room walks, transform lookup and vertex-provenance safeguards, and tail-aware
+redraw scheduling. Final 2x isolation: 459 checks, zero mismatches. Normal
+visual route: 24 sequences, no detected back-and-forth jumps. Performance is
+still below the target in the club: the final 180-target run produced about
+85 distinct images/s while turning; Unlimited about 100. Do not interpret the
+older response-time/smoothness claims below as acceptance of this workload.
+See [82-renderer-quality-pass.md](82-renderer-quality-pass.md) for profiles,
+remaining endpoint uncertainty, regression evidence and build identity.
+
+**2026-10-03 (later):** loss of control fixed (host Circle requests are taps;
+held Circle entered the game's inventory hold, `+0x224 0x200`); camera
+re-seeded after savestate loads; late camera rebuilt (one redraw per present,
+fixed-lead mouse sampling, adaptive lead, pacing hysteresis).
+
+**2026-10-03:** see-through outdoors and in the apartment fixed (host depth
+cleared per frame); dancer jerk addressed (in-betweens planned per paced
+present, overrun redraws, lead 16 ms); idle stability user-accepted.
+
+**D17A / D17B / D17C - Needs playtest.** Late camera on with adaptive pacing:
+every present uses the newest mouse look (step response about 17-19 ms, was
+66-130 ms), a new image every 1st, 2nd or 3rd refresh as the PC keeps up. Near
+geometry: host precise vertices (exact positions, depth, texture coordinates)
+plus a depth buffer among them; correct perspective beside the eye, closet and
+collar artifacts gone. First person: stable idle eye (no breathing world), PS1
+wobble kept while moving, deliberate view bob option `view_bob`
+off/subtle/on/strong. See documentation/81-d17a-instability.md.
 
 **D17 high refresh rate - Done (user-accepted 2026-10-02).** Modernized
 `--frame-rate display|30|60|120|144|165|180|240|unlimited` (default 60;

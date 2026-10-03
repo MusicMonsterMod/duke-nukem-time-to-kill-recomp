@@ -1,0 +1,64 @@
+--- a/runtime/src/host_osd.c
++++ b/runtime/src/host_osd.c
+@@ -461,10 +461,25 @@
+ #endif
+ }
+ 
++extern int ttk_aim_reticle(void);
+ void host_osd_draw_sdl(struct SDL_Renderer *renderer) {
+ #ifndef PSX_SDL_NO_RENDER
+     if (!renderer) return;
+     s_sdl_ren = renderer;
++    if (ttk_aim_reticle()) {
++        int w=640,h=480; sdl_logical_size(renderer,&w,&h);
++        int scale=h/480; if(scale<1)scale=1;
++        for(int edge=1;edge>=0;--edge) {
++            SDL_SetRenderDrawColor(renderer,edge?0:255,edge?0:255,edge?0:255,255);
++            for(int arm=0;arm<4;++arm) {
++                int x=(arm==0?-10:arm==1?4:-1),y=(arm==2?-10:arm==3?4:-1);
++                int rw=arm<2?6:2,rh=arm<2?2:6;
++                SDL_FRect r={w/2+(x-edge)*scale,h/2+(y-edge)*scale,(rw+2*edge)*scale,(rh+2*edge)*scale};
++                SDL_RenderFillRect(renderer,&r);
++            }
++        }
++        SDL_SetRenderDrawColor(renderer,0,0,0,255);
++    }
+ #if HOST_OSD_VISUAL
+     {
+         const uint32_t *px;
+--- a/runtime/src/gpu_gl_renderer.c
++++ b/runtime/src/gpu_gl_renderer.c
+@@ -3959,6 +3959,7 @@
+ }
+ 
+ /* Composite host toast + volume bar into the default framebuffer, then swap. */
++extern int ttk_aim_reticle(void);
+ static void gl_swap_with_osd(void) {
+     if (s_present_prog && s_ctx) {
+         int ww = 0, wh = 0;
+@@ -3972,6 +3973,25 @@
+             if (ui < 1) ui = 1;
+             if (ui > 8) ui = 8;
+             margin = 8 * ui;
++            if (ttk_aim_reticle()) {
++                GLint old_box[4]; GLfloat old_color[4];
++                GLboolean old_scissor=glIsEnabled(GL_SCISSOR_TEST);
++                glGetIntegerv(GL_SCISSOR_BOX,old_box);glGetFloatv(GL_COLOR_CLEAR_VALUE,old_color);
++                p_glBindFramebuffer(PSXGL_DRAW_FRAMEBUFFER,0);
++                glEnable(GL_SCISSOR_TEST);
++                for(int edge=1;edge>=0;--edge) {
++                    glClearColor(edge?0.f:1.f,edge?0.f:1.f,edge?0.f:1.f,1.f);
++                    for(int arm=0;arm<4;++arm) {
++                        int x=(arm==0?-10:arm==1?4:-1),y=(arm==2?-10:arm==3?4:-1);
++                        int rw=arm<2?6:2,rh=arm<2?2:6;
++                        glScissor(ww/2+(x-edge)*ui,wh/2+(y-edge)*ui,(rw+2*edge)*ui,(rh+2*edge)*ui);
++                        glClear(GL_COLOR_BUFFER_BIT);
++                    }
++                }
++                glClearColor(old_color[0],old_color[1],old_color[2],old_color[3]);
++                glScissor(old_box[0],old_box[1],old_box[2],old_box[3]);
++                if(!old_scissor)glDisable(GL_SCISSOR_TEST);
++            }
+             if (host_osd_image(&px, &ow, &oh) && px)
+                 gl_draw_osd_image(px, ow, oh, ow * ui, oh * ui,
+                                   margin, margin, ww, wh);

@@ -1,0 +1,22 @@
+format_version = 5
+id = "dnttk.presentation.widescreen"
+version = "1.0.0"
+name = "Time to Kill widescreen (Modernized)"
+author = "MusicMonsterMod"
+description = "Lets the Modernized profile request a widescreen picture (run.py --widescreen 16:9|16:10|21:9|auto). The plugin does nothing in Vanilla or with widescreen off, which stay 4:3."
+resolver = "declarative"
+save_compatibility = "shared"
+
+[[target]]
+game_id = "SLUS-00583"
+
+[[feature]]
+id = "widescreen"
+name = "Modernized widescreen hook"
+description = "Activation hook for the Modernized widescreen option; inert unless that option is on."
+group = "Visual"
+default_enabled = true
+
+[[plugin]]
+feature = "widescreen"
+id = "ttk.widescreen"

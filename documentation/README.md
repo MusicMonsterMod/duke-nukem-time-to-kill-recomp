@@ -71,3 +71,8 @@ Update `00-status.md` after meaningful tests. Keep raw evidence and exact comman
 - [D17 high refresh rate brief](68-d17-high-refresh-brief.md)
 - [D08T1 grab / manipulate brief](69-d08t1-grab-manipulate-brief.md)
 - [D08Y gap jump dead band research](77-d08y-gap-jump-research.md)
+
+
+Latest high-refresh closeout: [D17A/B acceptance, source publication and regression baseline](86-d17-acceptance-and-regression-baseline.md).
+D17A/B are Accepted. 120 FPS is the primary quality target; focused residual
+bugs are on the board. The implementation under `recomp/` is now versioned.

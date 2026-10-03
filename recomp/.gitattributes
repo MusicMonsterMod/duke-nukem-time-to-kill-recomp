@@ -1,0 +1,10 @@
+*.sh text eol=lf
+*.py text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+# Preserve the imported scaffold's exact terminal blank lines.
+LICENSE whitespace=-blank-at-eof
+codegen_setup.c whitespace=-blank-at-eof

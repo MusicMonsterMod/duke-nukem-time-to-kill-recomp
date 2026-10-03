@@ -1,0 +1,75 @@
+--- a/runtime/src/host_osd.c
++++ b/runtime/src/host_osd.c
+@@ -128,6 +128,7 @@
+ static char     s_msg[OSD_MAX_CHARS];
+ static Uint32   s_expire_ms;
+ static int      s_active;
++static int      s_centered;
+ static int      s_img_dirty = 1;
+ 
+ static char     s_status_msg[OSD_MAX_CHARS];
+@@ -216,7 +217,7 @@
+ static void rasterize_text(const char *msg) {
+ #if defined(TTK_CHEAT_OSD)
+     s_font_image = 0;
+-    if (ttk_font_rasterize(msg, 0, s_img, OSD_IMG_W, OSD_IMG_H, s_text_width, &s_img_w, &s_img_h)) {
++    if (ttk_font_rasterize(msg, host_osd_text_centered() ? 2 : 0, s_img, OSD_IMG_W, OSD_IMG_H, s_text_width, &s_img_w, &s_img_h)) {
+         s_font_image = 1; s_img_dirty = 0; return;
+     }
+ #endif
+@@ -362,10 +363,16 @@
+     snprintf(s_msg, sizeof(s_msg), "%s", msg);
+     s_expire_ms = SDL_GetTicks() + (Uint32)duration_ms;
+     s_active = 1;
++    s_centered = 0;
+     s_needs_clear = 0;
+     s_img_dirty = 1;
+ #endif
+ }
++
++void host_osd_push_centered(const char *msg, int duration_ms) {
++    host_osd_push(msg, duration_ms); s_centered = 1;
++}
++int host_osd_text_centered(void) {return msg_visible() && s_centered;}
+ 
+ void host_osd_set_status(const char *msg) {
+ #if !HOST_OSD_VISUAL
+@@ -547,14 +554,14 @@
+                 host_osd_set_text_width((output_w-2*output_margin)/output_ui);
+                 if (host_osd_image(&px, &w, &h) && px)
+                     sdl_blit_argb(renderer, &s_sdl_tex, &s_sdl_tw, &s_sdl_th, px, w, h,
+-                                  output_margin, output_margin, w*output_ui, h*output_ui);
++                                  host_osd_text_centered() ? (output_w-w*output_ui)/2 : output_margin, output_margin, w*output_ui, h*output_ui);
+                 SDL_SetRenderLogicalPresentation(renderer, old_w, old_h, old_mode);
+                 SDL_SetRenderScale(renderer, old_sx, old_sy);
+                 SDL_SetRenderViewport(renderer, &old_view); SDL_SetRenderClipRect(renderer, clipped?&old_clip:NULL);
+             } else
+ #endif
+             sdl_blit_argb(renderer, &s_sdl_tex, &s_sdl_tw, &s_sdl_th, px, w, h,
+-                          margin, margin, w * ui, h * ui);
++                          host_osd_text_centered() ? (lw-w*ui)/2 : margin, margin, w * ui, h * ui);
+         }
+         if (host_osd_volume_image(&px, &w, &h) && px) {
+             const int dw = w * ui, dh = h * ui;
+--- a/runtime/include/host_osd.h
++++ b/runtime/include/host_osd.h
+@@ -18,6 +18,8 @@
+ 
+ /* Top-left text toast. duration_ms <= 0 uses 2000. */
+ void host_osd_push(const char *msg, int duration_ms);
++void host_osd_push_centered(const char *msg, int duration_ms);
++int host_osd_text_centered(void);
+ /* Available text width in the same logical pixel space as host_osd_image. */
+ void host_osd_set_text_width(int width);
+ int host_osd_text_has_alpha(const uint32_t *pixels);
+--- a/runtime/src/gpu_gl_renderer.c
++++ b/runtime/src/gpu_gl_renderer.c
+@@ -4007,7 +4007,7 @@
+             host_osd_set_text_width((ww - 2 * margin) / ui);
+             if (host_osd_image(&px, &ow, &oh) && px)
+                 gl_draw_osd_image(px, ow, oh, ow * ui, oh * ui,
+-                                  margin, margin, ww, wh);
++                                  host_osd_text_centered() ? (ww-ow*ui)/2 : margin, margin, ww, wh);
+             if (host_osd_volume_image(&px, &ow, &oh) && px) {
+                 const int dw = ow * ui, dh = oh * ui;
+                 int vx = (ww > dw + margin) ? (ww - dw - margin) : margin;

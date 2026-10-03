@@ -37,6 +37,11 @@ FORBIDDEN_SUFFIXES = {
     ".dll",
     ".so",
     ".dylib",
+    ".pst",
+    ".pack",
+    ".rom",
+    ".o",
+    ".a",
 }
 
 FORBIDDEN_NAMES = {
@@ -48,14 +53,23 @@ FORBIDDEN_NAMES = {
 
 FORBIDDEN_PREFIXES = (
     "research/",
-    "recomp/",
+    "recomp/disc/",
+    "recomp/generated/",
+    "recomp/analysis/",
+    "recomp/saves/",
+    "recomp/config/",
+    "recomp/assets/fonts/",
     "duke nukem",
     "documentation/logs/",
 )
 
 GITIGNORE_NEEDLES = (
     "/research/",
-    "/recomp/",
+    "/recomp/disc/",
+    "/recomp/generated/",
+    "/recomp/analysis/",
+    "/game/*",
+    "!/game/README.md",
     "/Duke Nukem",
 )
 
@@ -77,7 +91,20 @@ def main() -> int:
         if needle not in gitignore:
             errors.append(f".gitignore is missing required pattern: {needle}")
 
+    if "/recomp/" in gitignore.splitlines():
+        errors.append("blanket recomp exclusion would hide the implementation")
     files = tracked_files()
+    required = ("recomp/src/ttk/frame_replay.cpp", "recomp/src/ttk/modern_controls.cpp",
+                "recomp/tools/local/build.py", "recomp/tools/local/run.py",
+                "recomp/patches/time-to-kill-accepted-source.patch", ".gitmodules")
+    for relative in required:
+        if relative not in files:
+            errors.append(f"required implementation missing: {relative}")
+    entries = subprocess.check_output(["git", "ls-files", "--stage"], cwd=ROOT, text=True)
+    allowed_links = {"recomp/psxrecomp", "recomp/recomp-ui"}
+    for entry in entries.splitlines():
+        if entry.startswith("160000 ") and entry.split("\t", 1)[1] not in allowed_links:
+            errors.append(f"unexpected nested-repository pointer: {entry}")
     if not files:
         errors.append("git ls-files returned no tracked files")
 
@@ -86,6 +113,12 @@ def main() -> int:
         path = ROOT / relative
         if any(lowered.startswith(prefix) for prefix in FORBIDDEN_PREFIXES):
             errors.append(f"forbidden path tracked: {relative}")
+            continue
+        if lowered.startswith("game/") and relative != "game/README.md":
+            errors.append(f"player media directory tracked: {relative}")
+            continue
+        if lowered.startswith("recomp/build"):
+            errors.append(f"build output tracked: {relative}")
             continue
         suffix = Path(lowered).suffix
         name = Path(lowered).name

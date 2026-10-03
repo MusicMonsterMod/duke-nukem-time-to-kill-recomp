@@ -32,8 +32,8 @@ When the selection names an ID or an unambiguous task, use it without asking aga
 
 Read the job's acceptance criteria and relevant linked notes, then inspect Git state in both repositories:
 
-- The workspace root is the public notes repo (`MODERNIZATION_JOBS.md`, `documentation/`, `GAME_MANUAL.md`).
-- `recomp/` is a separate, local-only nested checkout with its own history and submodules. Use `git -C recomp status` and inspect affected submodules. Preserve existing local changes in both.
+- The workspace root tracks implementation under `recomp/` as well as documentation.
+- Inspect root Git state and pinned framework/UI submodules. Preserve local changes. Export framework edits into the tracked complete patch; a submodule pointer alone does not preserve local edits.
 
 Mark the selected job In progress and implement a bounded, reviewable result. Use the existing local build/import/patch workflow described in `documentation/04-build-and-run.md` and `documentation/10-tooling.md`. Never hand-edit generated recompilation C, overwrite original media or use the player's memory cards for tests. Check for a running game process before building over or launching anything; if the player's game is open, close it (debug `quit` on port 9123, or end the process) and continue, under the user's standing permission (2026-10-01). Never touch their saves or memory cards.
 
@@ -47,7 +47,7 @@ Write with ASCII hyphen-minus `-` only; never U+2014 or U+2013.
 
 ## Git
 
-Commit or push only when the user asks. When they do, commit the public repo as MusicMonsterMod only. Never commit retail media, dumps, BIOS, memory cards, `research/`, `recomp/`, or anything under `game/` except `game/README.md`. `scripts/ci/check_repo.py` enforces this; run it before committing.
+Commit or push only when the user asks. When they do, commit the public repo as MusicMonsterMod only. Never commit retail media, dumps, BIOS, memory cards, `research/`, generated game code, build output, extracted retail assets, or anything under `game/` except `game/README.md`. `scripts/ci/check_repo.py` enforces this; run it before committing.
 
 ## Finish
 

@@ -1,0 +1,28 @@
+name: Local tooling (no game inputs)
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'tools/local/**'
+      - 'tests/local/**'
+      - '.github/workflows/local-tooling.yml'
+permissions:
+  contents: read
+jobs:
+  tooling:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: ilammy/msvc-dev-cmd@v1
+        if: runner.os == 'Windows'
+      - run: python -m pip install ninja==1.13.2
+      - run: cmake -S tools/local -B build-tools -G Ninja -DCMAKE_BUILD_TYPE=Release
+      - run: cmake --build build-tools
+      - run: python -m unittest discover -s tests/local -v
+      - run: python tests/test_setup_exe_name.py

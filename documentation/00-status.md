@@ -1,5 +1,28 @@
 # Current status - 2026-10-04
 
+## 2026-10-04 - Immediate next investigation: D08Q2 jetpack unavailable
+
+The user will clear context after this checkpoint. **Start next with D08Q2**,
+not another D17 job. Status: Todo - immediate next; investigation has not
+started. User sequence: died -> Continue -> returned to gameplay -> entered
+`dnstuff` -> jetpack cannot be used, and the inventory picker skips it.
+Failing state is **UI save slot 10 (file 09)**.
+
+Private snapshot: `recomp/analysis/d08q2-jetpack-20261004/cards-reported`;
+manifest alongside it. Slot hash:
+`161253aa41f4f2c407f57ef7cff1371ba7889c4bdeba793183f9045b6184e18e`.
+Use private cards/settings. The saved result may not reproduce the preceding
+transition by itself; compare working inventory and the full death/Continue/
+cheat sequence. Trace ownership, fuel, picker eligibility and activation
+alongside Continue/reset and cheat grants. Cause is unknown; picker exclusion
+is evidence to inspect inventory state, not proof of a particular defect.
+See the canonical [D08Q2 job](../MODERNIZATION_JOBS.md#d08q2---jetpack-unavailable-after-death-continue-and-dnstuff).
+
+This checkpoint only records the report and preserves a copy. No gameplay
+code, build, launch or player-file changes. D17L stays open; D17M/N remain
+queued; D17C/D/E/F/K accepted behavior must be preserved.
+
+
 ## 2026-10-04 - D17E/K accepted; D17L open; new D17M/N backlog
 
 The user accepts D17E subway peripheral visibility and D17K stable ground

@@ -4,6 +4,8 @@ This is the canonical job list for our **Duke Nukem: Time to Kill** PC project, 
 
 Invoke **`$continue-duke-recomp`** (Codex) or **`/continue-duke-recomp`** (Claude Code) to see the current jobs and choose one. You can also request a job directly: **`$continue-duke-recomp work on D01`** or **`/continue-duke-recomp work on D01`**. The skill reads this file rather than keeping a second backlog. It must not automatically start the next job.
 
+**Immediate next investigation: D08Q2 - jetpack unavailable after death, Continue and `dnstuff`, UI save slot 10.** Queued by the user before clearing context; do not start another rendering job first.
+
 ## The experience we are building
 
 **Vanilla** preserves the original movement, camera, aiming, game rules and presentation by default. Correctness fixes, reliable audio/video, clean shutdown and necessary PC integration belong in both modes. Optional display enhancements should remain independently selectable.
@@ -64,6 +66,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08Q | Modern jetpack flight controls | Done | D08 |
 | D08R | Selectable jetpack scheme: Modern / Classic (WASD), CLI quick ship | Done | D08Q |
 | D08Q1 | Faster Modern jetpack Ctrl descent (underwater dive speed) | Done | D08Q |
+| D08Q2 | Jetpack unavailable after death, Continue and dnstuff (slot 10) | Todo - immediate next | D08Q, D08A1, D08G |
 | D08S | Duke3D-style jetpack scheme (instant J on/off, midair) | Cancelled (may revisit) | D08R |
 | D08T | Pushable objects: modern grab/push/pull and climb (alley dumpster) | Done | D08 |
 | D08T1 | Separate push/pull from mantling: E always mantles, hold RMB to grab | Done | D08T, D04 |
@@ -923,6 +926,42 @@ useful speed and level height, releasing everything hovers, Ctrl descends
 until a soft landing, Space climbs, J switches off in the air with a
 controlled fall and the mouse still live, and the ground controls resume on
 landing; fuel-out behaves the same as J; Vanilla flight unchanged.
+
+### D08Q2 - Jetpack unavailable after death, Continue and dnstuff
+
+**Todo - immediate next investigation (2026-10-04).** The user died, chose
+Continue, returned to gameplay, entered `dnstuff`, and then could not use the
+jetpack. The inventory picker also skips the jetpack, preventing selection.
+The user saved this failing state in **UI slot 10 (file 09)**. This job takes
+priority over the remaining D17 follow-ups on the next work session; only
+recording and preserving the report is authorized for this checkpoint.
+
+**Cause:** unknown. Picker exclusion suggests inventory availability or
+eligibility must be inspected as well as activation input; it does not prove
+a missing ownership flag, empty fuel, Continue reset, cheat failure or an
+input defect. Do not claim a diagnosis from the symptom alone.
+
+**Reproduction/evidence:** private snapshot
+`recomp/analysis/d08q2-jetpack-20261004/cards-reported`, with a SHA-256/mtime
+manifest alongside it. Slot 10 SHA-256: `161253aa41f4f2c407f57ef7cff1371ba7889c4bdeba793183f9045b6184e18e`.
+The snapshot preserves the resulting state, not necessarily the preceding
+death/Continue transition. Reproduce that sequence separately on private
+cards/settings, comparing a working jetpack state, before/after Continue,
+and before/after `dnstuff`. Never write the player's cards or saved state.
+
+**Investigation:** trace inventory ownership/quantity/fuel, selected item,
+picker eligibility and activation gates; examine Continue/reset and cheat
+grant paths. Check whether the cheat is acknowledged, whether its changes
+persist, and whether direct activation and cycling disagree. Distinguish
+retail restrictions from Modernized bridge state and save/load effects.
+Keep modern/classic flight controls and the accepted renderer unchanged.
+
+**Acceptance:** identify the responsible state/path and make a bounded repair
+if justified. Verify slot 10 plus a fresh death/Continue/`dnstuff` sequence,
+normal acquisition, picker selection, activation/deactivation, fuel handling
+and save/load. Preserve legitimate empty/unavailable-item restrictions and
+Vanilla behavior; confirm working Modern and Classic jetpack controls. User
+confirms restored use. No implementation, build or game launch in this intake.
 
 ### D08R - Selectable jetpack scheme: Modern / Classic (WASD)
 
@@ -5484,3 +5523,11 @@ D17L remains open (Todo); no additional gameplay fix was made or accepted.
 Recorded this checkpoint at the user's request. D17E/K stay Accepted, D17C
 stays Done, and D17M/N remain separate Todo backlog jobs. Documentation only;
 no build, game launch or player-file changes were performed.
+
+## 2026-10-04 - Immediate next: D08Q2 post-Continue jetpack unavailable
+
+Recorded the user's new UI slot 10 state: death, Continue, `dnstuff`, then
+jetpack activation unavailable and the inventory picker skips the item.
+D08Q2 is Todo - immediate next investigation, ahead of D17 follow-ups. Cause
+is unverified. Preserved a private save/card snapshot with hash manifest;
+no gameplay changes, build or launch. D17L remains open; D17E/K stay Accepted.

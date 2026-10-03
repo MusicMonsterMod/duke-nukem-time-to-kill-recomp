@@ -1,6 +1,6 @@
 # Current status - 2026-10-03
 
-## 2026-10-03 - D17D/F accepted; next-round blood and tabletop props
+## 2026-10-03 - D17D/F accepted; next-round visual and portal bugs
 
 The user explicitly accepts the UI 9 prop, UI 11 closet and closet inside
 the strip club as fixed. D17D and the related closet job D17F are Accepted.
@@ -9,13 +9,17 @@ tolerance from `b88d0e5`; do not reopen these jobs for the separate new reports.
 Accepted binary: `7c3b7600e145e4d0f0c7d8899817ecb8afaba6e7eabfd0d4f0eaf52930ff658c`.
 [Cause, implementation, tests and user acceptance](87-d17d-contact-depth.md).
 
-Next-round backlog (both Todo, neither started):
+Next-round backlog (all Todo, none started):
 
 - D17K: UI save slot 12, blood on the ground directly in front of Duke.
   User describes coplanar blood; exact renderer/placement cause unverified.
 - D17L: UI save slot 11, props sitting on the table directly ahead. Walk
   forwards/backwards: props get cut off and reappear as Duke moves closer.
   This is distinct from the accepted closet in that save.
+- D22A: UI save slot 7 -> walk into the portal -> start the next level.
+  Duke loses all Modernized controls and first-person view. Cause unverified;
+  inspect transition/overlay coverage and control/view state without bypassing
+  identity guards. Preserve the selected mode and camera when gameplay resumes.
 
 Read the new board entries for scope and acceptance. Verify current save hashes
 and make dated private copies before testing; slot numbers alone do not prove

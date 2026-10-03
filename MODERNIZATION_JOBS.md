@@ -112,6 +112,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D20 | Save management and optional quick saves | Todo | D01, D02 |
 | D21 | Accessibility and sound controls | Todo | D04, D19 |
 | D22 | Campaign fidelity and overlay coverage | Todo | D01 |
+| D22A | Portal transition loses Modernized controls and first person (slot 7) | Todo | D05, D06, D11 |
 | D23 | Performance budgets and long-session stability | Todo | D01 |
 | D23A | Modernized frame-budget regression (guard identity cost) | Done | D08 |
 | D23B | Intro FMV stutter: stranded native movie shard | Done | D23 |
@@ -2067,6 +2068,37 @@ exists. Coordinate with D19; do not invent a second mixer without measured paths
 Maintain a level-by-level matrix for loading, progression items, enemies, weapons, bosses, saves, movies and end-game flow. Investigate missing native coverage according to observed correctness/performance needs. Treat extra game modes as explicit test scope, not implicitly supported features.
 
 **Acceptance:** the intended single-player campaign has recorded completion evidence and no known progression blocker; failures get reproduction steps and dedicated jobs. Record native/interpreted boundaries honestly. This long-running job must not prevent earlier prototypes.
+
+### D22A - Portal transition loses Modernized controls and first person (slot 7)
+
+**Todo. Bug, next-round backlog; not started.** User report on 2026-10-03:
+load UI save slot 7 (file 06), walk into the portal and start the next level.
+Duke then loses all Modernized controls and first-person view. The user reports
+this as an easy reproduction; no independent reproduction or root-cause claim
+has been made in this documentation-only session.
+
+**Expected:** when playable control resumes in the next level, the selected
+Modernized movement, independent camera/aiming and first-person preference
+remain available. A temporary scripted camera during the transition must not
+permanently disable them or reset the player's saved preferences.
+
+Verify the current save identity and create a dated private copy before testing;
+do not assume an older slot-7 snapshot still represents this portal. Use
+background/offscreen tests with private cards/profiles. Trace the level/overlay
+transition, supported-code identity checks, modern-control lease, input capture
+and first-person activation/state restoration. Determine whether this is missing
+next-level coverage, transition state invalidation, or another cause before
+changing hooks. Do not bypass code/overlay guards to force controls on an
+unverified level. This bounded bug can be investigated without completing the
+whole D22 campaign audit; record any necessary verified coverage explicitly.
+
+**Acceptance:** reproduce the portal route from the private slot-7 copy,
+identify the cause and implement a guarded fix so Modernized controls and the
+selected first-person view work when gameplay resumes. Verify movement, mouse
+look, aiming/fire, capture/pause/resume and first-/third-person selection in the
+new level; repeat the transition and check the accepted first-level baseline.
+Vanilla stays original, preferences and player saves remain intact. User confirms
+control/view continuity. Do not infer full-campaign support from this one route.
 
 ### D23 — Performance budgets and long-session stability
 
@@ -5350,3 +5382,13 @@ forwards/backwards. Both are Todo for the next round, with cause unverified.
 Record current private save identities before reproduction; no new save copy,
 code edit, build or game launch was performed for this documentation closeout.
 The next session waits for the user's job selection after clearing context.
+
+
+## 2026-10-03 - D22A portal transition control/view loss queued
+
+Added the user's new bug: UI slot 7 -> walk into the portal -> start the next
+level -> all Modernized controls and first-person view are lost. D22A is Todo,
+linked to D22 campaign/overlay coverage but scoped as a separate transition bug.
+Cause is unverified; future investigation must retain identity guards and use a
+verified private copy of the current save. No implementation, build or launch
+was performed. D17K/L remain queued and D17D/F remain accepted.

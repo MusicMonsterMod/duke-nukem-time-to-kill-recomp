@@ -4,7 +4,7 @@ This is the canonical job list for our **Duke Nukem: Time to Kill** PC project, 
 
 Invoke **`$continue-duke-recomp`** (Codex) or **`/continue-duke-recomp`** (Claude Code) to see the current jobs and choose one. You can also request a job directly: **`$continue-duke-recomp work on D01`** or **`/continue-duke-recomp work on D01`**. The skill reads this file rather than keeping a second backlog. It must not automatically start the next job.
 
-**D08Q2 needs playtest:** the post-Continue jetpack repair is built and verified on private slot 10 and a controlled death/Continue route. Await user acceptance; no next job selected.
+**Next job: D08Q3 - jetpack weapon aiming and missing crosshair.** Queued by the user after accepting D08Q2. Todo; investigation has not started.
 
 ## The experience we are building
 
@@ -66,7 +66,8 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08Q | Modern jetpack flight controls | Done | D08 |
 | D08R | Selectable jetpack scheme: Modern / Classic (WASD), CLI quick ship | Done | D08Q |
 | D08Q1 | Faster Modern jetpack Ctrl descent (underwater dive speed) | Done | D08Q |
-| D08Q2 | Jetpack unavailable after death, Continue and dnstuff (slot 10) | Needs playtest | D08Q, D08A1, D08G |
+| D08Q2 | Jetpack unavailable after death, Continue and dnstuff (slot 10) | Done | D08Q, D08A1, D08G |
+| D08Q3 | Jetpack weapon aiming and missing crosshair | Todo - next | D07C, D08Q, D08Q2, D08R |
 | D08S | Duke3D-style jetpack scheme (instant J on/off, midair) | Cancelled (may revisit) | D08R |
 | D08T | Pushable objects: modern grab/push/pull and climb (alley dumpster) | Done | D08 |
 | D08T1 | Separate push/pull from mantling: E always mantles, hold RMB to grab | Done | D08T, D04 |
@@ -929,7 +930,9 @@ landing; fuel-out behaves the same as J; Vanilla flight unchanged.
 
 ### D08Q2 - Jetpack unavailable after death, Continue and dnstuff
 
-**Needs playtest (2026-10-04).** The user died, chose
+**Done (2026-10-04, user-accepted):** "confirmed fixed! accepted."
+
+The user died, chose
 Continue, returned to gameplay, entered `dnstuff`, and then could not use the
 jetpack. The inventory picker also skips the jetpack, preventing selection.
 The user saved this failing state in **UI slot 10 (file 09)**. Investigation and
@@ -940,8 +943,9 @@ pending bit across Continue; the original inventory grant preserves it. The
 reported save has full fuel and a closed/off pack with that bit still set.
 The bounded Modernized repair clears only pending at that inactive endpoint.
 Slot 10, a controlled interrupted-deployment/death/Continue route, both flight
-schemes, fuel restrictions and save/load pass. User acceptance and a natural
-map-pickup replay remain outstanding. See [evidence and limits](documentation/90-d08q2-jetpack-continue.md).
+schemes, fuel restrictions and save/load pass. The user confirms the repair
+and accepts this job. A natural map-pickup replay was not performed in the
+automated work; acceptance does not add that evidence. See [evidence and limits](documentation/90-d08q2-jetpack-continue.md).
 
 **Reproduction/evidence:** private snapshot
 `recomp/analysis/d08q2-jetpack-20261004/cards-reported`, with a SHA-256/mtime
@@ -964,6 +968,35 @@ normal acquisition, picker selection, activation/deactivation, fuel handling
 and save/load. Preserve legitimate empty/unavailable-item restrictions and
 Vanilla behavior; confirm working Modern and Classic jetpack controls. User
 confirms restored use.
+
+### D08Q3 - Jetpack weapon aiming and missing crosshair
+
+**Todo - next (2026-10-04).** After accepting D08Q2, the user reports:
+"i cant aim to shoot when using the jetpack / crosshair is also gone."
+Queued for the next work session. This checkpoint documents the job only;
+no investigation, gameplay changes, build or launch is authorized by this intake.
+
+**Scope:** restore usable Modernized weapon aiming during jetpack flight and
+show the enabled crosshair. Inspect flight-state eligibility in the weapon-aim
+and reticle paths, original airborne weapon restrictions, and transitions into
+and out of flight. Diagnose aiming and crosshair visibility separately; do not
+assume that showing a reticle alone restores shots aimed at the view.
+
+**Evidence:** user report only. Cause, affected weapons, flight scheme and
+exact reproduction location are not established. D08Q2's slot-10 snapshot is
+available for private regression testing, not a confirmed D08Q3 reproduction.
+Use private cards/settings; verify active overlays before changing hooks.
+
+**Acceptance:** while using either Modern or Classic jetpack controls, the
+player can aim and fire supported weapons with shots following the established
+Modernized view-aim behavior. The enabled crosshair remains visible and meaningful
+in flight; the disabled setting stays respected. Verify hovering, moving,
+ascending/descending, mouse yaw/pitch, on/off, landing and fuel-out, with
+representative hitscan and projectile weapons. Distinguish intentional original
+weapon restrictions from defects and document any remaining unsupported cases.
+Preserve flight controls, existing first-person/third-person flight transitions,
+ground aiming, D08Q2's accepted recovery and Vanilla behavior. User confirms
+restored aiming and crosshair. Do not reopen D08Q2 for this separate report.
 
 ### D08R - Selectable jetpack scheme: Modern / Classic (WASD)
 
@@ -5546,3 +5579,13 @@ save/load pass; four native suites and the player build pass. All 28 player
 card/state hashes and mtimes match intake. No framework/rendering change.
 Natural map-pickup replay and user acceptance remain. No next job started.
 [Implementation, exact fixture, verification and limitations](documentation/90-d08q2-jetpack-continue.md).
+
+
+## 2026-10-04 - D08Q2 accepted; D08Q3 queued next
+
+User: "confirmed fixed! accepted." D08Q2 is Done on explicit acceptance of
+repair `2f02967`. Prior controlled-test limits remain recorded; no new tests
+are claimed. The separate report that jetpack aiming is unusable and the
+crosshair disappears is D08Q3, Todo - next. This session only updates the
+backlog/status/handoff and commits/pushes documentation. No gameplay edits,
+build or game launch; no other job started.

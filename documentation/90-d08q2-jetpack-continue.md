@@ -1,8 +1,11 @@
 # D08Q2 - jetpack pending flag after Continue
 
-2026-10-04. **Needs playtest.** The reported state and a controlled fresh
-interrupted-deployment/death/Continue sequence are repaired. User acceptance
-and a natural map-pickup replay remain outstanding.
+2026-10-04. **Done, user-accepted:** "confirmed fixed! accepted."
+The reported state and a controlled fresh interrupted-deployment/death/Continue
+sequence are repaired. Acceptance closes D08Q2; a natural map-pickup replay was
+not performed in the automated work. The separate jetpack aiming/missing-crosshair
+report is [D08Q3](../MODERNIZATION_JOBS.md#d08q3---jetpack-weapon-aiming-and-missing-crosshair),
+queued next and not started. Accepted implementation: `2f02967`.
 
 ## Cause and owned-game evidence
 
@@ -84,7 +87,8 @@ concrete original reset path producing it are established.
 Launch the saved profile, load UI slot 10, and test bracket inventory selection,
 J on/off, Space takeoff and the chosen Modern/Classic flight controls. F10 captures
 Modernized controls if needed. No repeat `dnstuff` should be necessary. Include a
-normal jetpack pickup when convenient. Leave D08Q2 Needs playtest until accepted.
+normal jetpack pickup when convenient. The user has now accepted D08Q2; this
+route remains useful for regression checks.
 
 ```sh
 python3 /home/spartacus/CODE/duke-nukem-time-to-kill-recomp/recomp/tools/local/run.py

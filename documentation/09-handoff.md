@@ -1,5 +1,24 @@
 # Next-session handoff
 
+## 2026-10-04 - D08Q2 accepted; next D08Q3 jetpack aiming/crosshair
+
+User confirms D08Q2: "confirmed fixed! accepted." Marked Done; preserve the
+accepted recovery from `2f02967`. Earlier Needs playtest and immediate-next
+D08Q2 entries below are historical. No additional gameplay tests in this closeout;
+the natural map-pickup replay remains outside the recorded automated evidence.
+
+**Next: D08Q3, Todo - next.** User cannot aim to shoot while using the jetpack,
+and the crosshair is missing. Cause, affected weapons/scheme and exact location
+are unverified. Read the [canonical job](../MODERNIZATION_JOBS.md#d08q3---jetpack-weapon-aiming-and-missing-crosshair)
+for scope/acceptance. Investigate view aiming and reticle eligibility separately;
+preserve Modern/Classic flight, ground aiming, existing flight camera transitions,
+Vanilla and the accepted D08Q2 fix. The old slot-10 private snapshot is a regression
+fixture, not yet a confirmed reproduction of this new issue.
+
+Documentation only this session: D08Q3 has not started; no code edits, build or
+launch. Launch when wanted: `python3 recomp/tools/local/run.py`.
+
+
 ## 2026-10-04 - D08Q2 repaired, Needs playtest
 
 The reported UI slot 10 is repaired automatically in captured Modernized ground

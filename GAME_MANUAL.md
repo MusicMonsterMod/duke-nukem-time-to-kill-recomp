@@ -524,6 +524,10 @@ underwater) until a soft landing, and
 Fuel drains while flying and while hovering (the original rule); when it runs
 out Duke falls the same way. The ground controls return the moment he lands.
 Details: [documentation/57-jetpack-controls.md](documentation/57-jetpack-controls.md).
+In Modernized, a jetpack left unavailable by interrupted deployment and Continue
+now recovers when normal captured ground play resumes, including affected saves.
+This restores selection/J without refilling fuel or granting a missing pack.
+
 
 **Classic jetpack (optional, Modernized only)**: modern controls with the
 original burst-style flight. Select it once from the terminal; it is remembered:

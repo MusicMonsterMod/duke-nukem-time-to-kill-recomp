@@ -4,7 +4,7 @@ This is the canonical job list for our **Duke Nukem: Time to Kill** PC project, 
 
 Invoke **`$continue-duke-recomp`** (Codex) or **`/continue-duke-recomp`** (Claude Code) to see the current jobs and choose one. You can also request a job directly: **`$continue-duke-recomp work on D01`** or **`/continue-duke-recomp work on D01`**. The skill reads this file rather than keeping a second backlog. It must not automatically start the next job.
 
-**Immediate next investigation: D08Q2 - jetpack unavailable after death, Continue and `dnstuff`, UI save slot 10.** Queued by the user before clearing context; do not start another rendering job first.
+**D08Q2 needs playtest:** the post-Continue jetpack repair is built and verified on private slot 10 and a controlled death/Continue route. Await user acceptance; no next job selected.
 
 ## The experience we are building
 
@@ -66,7 +66,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08Q | Modern jetpack flight controls | Done | D08 |
 | D08R | Selectable jetpack scheme: Modern / Classic (WASD), CLI quick ship | Done | D08Q |
 | D08Q1 | Faster Modern jetpack Ctrl descent (underwater dive speed) | Done | D08Q |
-| D08Q2 | Jetpack unavailable after death, Continue and dnstuff (slot 10) | Todo - immediate next | D08Q, D08A1, D08G |
+| D08Q2 | Jetpack unavailable after death, Continue and dnstuff (slot 10) | Needs playtest | D08Q, D08A1, D08G |
 | D08S | Duke3D-style jetpack scheme (instant J on/off, midair) | Cancelled (may revisit) | D08R |
 | D08T | Pushable objects: modern grab/push/pull and climb (alley dumpster) | Done | D08 |
 | D08T1 | Separate push/pull from mantling: E always mantles, hold RMB to grab | Done | D08T, D04 |
@@ -929,17 +929,19 @@ landing; fuel-out behaves the same as J; Vanilla flight unchanged.
 
 ### D08Q2 - Jetpack unavailable after death, Continue and dnstuff
 
-**Todo - immediate next investigation (2026-10-04).** The user died, chose
+**Needs playtest (2026-10-04).** The user died, chose
 Continue, returned to gameplay, entered `dnstuff`, and then could not use the
 jetpack. The inventory picker also skips the jetpack, preventing selection.
-The user saved this failing state in **UI slot 10 (file 09)**. This job takes
-priority over the remaining D17 follow-ups on the next work session; only
-recording and preserving the report is authorized for this checkpoint.
+The user saved this failing state in **UI slot 10 (file 09)**. Investigation and
+implementation were subsequently selected and authorized on 2026-10-04.
 
-**Cause:** unknown. Picker exclusion suggests inventory availability or
-eligibility must be inspected as well as activation input; it does not prove
-a missing ownership flag, empty fuel, Continue reset, cheat failure or an
-input defect. Do not claim a diagnosis from the symptom alone.
+**Cause and repair:** death during deployment can strand the original jetpack
+pending bit across Continue; the original inventory grant preserves it. The
+reported save has full fuel and a closed/off pack with that bit still set.
+The bounded Modernized repair clears only pending at that inactive endpoint.
+Slot 10, a controlled interrupted-deployment/death/Continue route, both flight
+schemes, fuel restrictions and save/load pass. User acceptance and a natural
+map-pickup replay remain outstanding. See [evidence and limits](documentation/90-d08q2-jetpack-continue.md).
 
 **Reproduction/evidence:** private snapshot
 `recomp/analysis/d08q2-jetpack-20261004/cards-reported`, with a SHA-256/mtime
@@ -961,7 +963,7 @@ if justified. Verify slot 10 plus a fresh death/Continue/`dnstuff` sequence,
 normal acquisition, picker selection, activation/deactivation, fuel handling
 and save/load. Preserve legitimate empty/unavailable-item restrictions and
 Vanilla behavior; confirm working Modern and Classic jetpack controls. User
-confirms restored use. No implementation, build or game launch in this intake.
+confirms restored use.
 
 ### D08R - Selectable jetpack scheme: Modern / Classic (WASD)
 
@@ -5531,3 +5533,16 @@ jetpack activation unavailable and the inventory picker skips the item.
 D08Q2 is Todo - immediate next investigation, ahead of D17 follow-ups. Cause
 is unverified. Preserved a private save/card snapshot with hash manifest;
 no gameplay changes, build or launch. D17L remains open; D17E/K stay Accepted.
+
+
+## 2026-10-04 - D08Q2 post-Continue jetpack repair (Needs playtest)
+
+Confirmed slot 10 has full fuel but stranded pending `0x8001`. Original reset
+clears the model/active state without clearing pending; `dnstuff` retains it.
+A private delayed-deployment fixture plus real RPG death/Continue reproduces it.
+Recover only the authenticated alive, closed/off/owned jetpack with no active
+transition. Both flight schemes, picker/J, fuel depletion/rejection and private
+save/load pass; four native suites and the player build pass. All 28 player
+card/state hashes and mtimes match intake. No framework/rendering change.
+Natural map-pickup replay and user acceptance remain. No next job started.
+[Implementation, exact fixture, verification and limitations](documentation/90-d08q2-jetpack-continue.md).

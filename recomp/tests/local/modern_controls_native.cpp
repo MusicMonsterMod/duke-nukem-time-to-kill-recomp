@@ -1647,6 +1647,52 @@ int main(int argc,char** argv) {
     auto cheat=[&](ttk::Cheat command){ttk::pending_cheat=command;call(0x8005a210,p,0x800c2754,0x80041b34,0x801fff00);};
     ground();psx_mod_write_half(p+0x60,63);ttk::input.move_x=ttk::input.move_y=0;
     call(0x8003ade4,c,p,0x80025ee8);psx_mod_write_word(0x800c27bc,1);
+    // D08Q2: the reported Continue state strands only jetpack pending at the
+    // closed/off endpoint. Exercise the actual selection hook, including the
+    // negative cases that must keep original item transitions/restrictions.
+    {
+        uint8_t saved_player[0x8a4];std::memcpy(saved_player,ram+(p&0x1fffff),sizeof saved_player);
+        ttk::input.command_count=0;
+        psx_mod_write_byte(p+0x3b8,2);psx_mod_write_half(p+0x74,5);
+        psx_mod_write_word(p+0x834,0x40000000);
+        for(unsigned i=1;i<=5;++i){psx_mod_write_half(p+0x354+4*i,1);psx_mod_write_half(p+0x356+4*i,100);}
+        auto stranded=[&](){
+            ttk::modern=true;ttk::input.active=true;
+            psx_mod_write_word(p,0);psx_mod_write_half(p+0x32,6250);
+            psx_mod_write_word(p+0x224,0);psx_mod_write_half(p+0x358,0x8001);
+            psx_mod_write_half(p+0x35a,9000);psx_mod_write_half(p+0x84c,0);
+            psx_mod_write_word(p+0x884,1);psx_mod_write_byte(p+0x22c,0);psx_mod_write_byte(p+0x22d,0);
+        };
+        auto poll=[&](){call(0x80058120,p,0,0x80041c44);};
+        stranded();poll();assert(psx_mod_read_half(p+0x358)==1 && psx_mod_read_half(p+0x35a)==9000);
+        // Picker and activation use the repaired original record, without a cheat.
+        psx_mod_write_half(0x800c3f94,5);request(ttk::item_next);assert(psx_mod_read_half(0x800c3f94)==1);
+        ttk::input.commands[0]=ttk::jetpack;++ttk::input.command_serial;
+        call(0x80058120,p,0,0x80041c44,0x801fff00);assert(psx_mod_read_half(p+0x358)==0x8003);
+        for(unsigned flag:{0x1000u,0x10000000u,4u,8u}) {
+            stranded();psx_mod_write_word(p+0x224,flag);poll();assert(psx_mod_read_half(p+0x358)==0x8001);
+        }
+        for(unsigned phase:{1u,4u,5u}) {
+            stranded();psx_mod_write_half(p+0x84c,phase);poll();assert(psx_mod_read_half(p+0x358)==0x8001);
+        }
+        for(unsigned flags:{0u,1u,3u,0x8000u,0x8003u}) {
+            stranded();psx_mod_write_half(p+0x358,flags);poll();assert(psx_mod_read_half(p+0x358)==flags);
+        }
+        stranded();psx_mod_write_word(p+0x884,2);poll();assert(psx_mod_read_half(p+0x358)==0x8001);
+        stranded();psx_mod_write_word(p,2);poll();assert(psx_mod_read_half(p+0x358)==0x8001);
+        stranded();psx_mod_write_half(p+0x32,0);poll();assert(psx_mod_read_half(p+0x358)==0x8001);
+        stranded();psx_mod_write_byte(p+0x22c,10);poll();assert(psx_mod_read_half(p+0x358)==0x8001);
+        stranded();ttk::input.active=false;poll();assert(psx_mod_read_half(p+0x358)==0x8001);
+        stranded();ttk::modern=false;poll();assert(psx_mod_read_half(p+0x358)==0x8001);
+        stranded();poke(0x4001c);poll();assert(psx_mod_read_half(p+0x358)==0x8001);poke(0x4001c);
+        // Empty fuel is still unusable after housekeeping; unrelated bits survive.
+        stranded();psx_mod_write_half(p+0x358,0x8041);psx_mod_write_half(p+0x35a,0);poll();
+        assert(psx_mod_read_half(p+0x358)==0x41 && psx_mod_read_half(p+0x35a)==0);
+        request(ttk::jetpack);assert(psx_mod_read_half(p+0x358)==0x41);
+        std::memcpy(ram+(p&0x1fffff),saved_player,sizeof saved_player);++g_dirty_ram_code_gen;
+        ttk::input.command_count=0;
+        std::puts("PASS: D08Q2 stranded jetpack repair, picker/J, empty fuel, transition/death/Vanilla/code guards");
+    }
     cheat_calls.clear();cheat(ttk::Cheat::Stuff);
     assert((cheat_calls==std::vector<uint32_t>{0x8003d7bc,0x8003d738,0x8003d840}));
     psx_mod_write_half(0x800c3cc6,0);cheat(ttk::Cheat::God);assert(psx_mod_read_half(0x800c3cc6)==1);

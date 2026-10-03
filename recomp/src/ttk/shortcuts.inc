@@ -104,6 +104,17 @@ static void select_weapon(CPUState* cpu) {
     if(!f.active || !gameplay_context())return;
     // Only primary single-player ownership; no writes into player two's menu.
     if(psx_mod_read_byte(player+0x233)!=0)return;
+    // D08Q2: Continue can reset the jetpack model/transition while retaining
+    // its pending item bit. The original completion at 8004010c clears that
+    // bit only while the open/close updater runs. Recover its closed, off
+    // endpoint only; never finish an active transition or grant fuel/ownership.
+    const unsigned jet=psx_mod_read_half(player+0x358);
+    if((jet&0x8003)==0x8001 && movement_ready() &&
+       (int16_t)psx_mod_read_half(player+0x32)>0 &&
+       psx_mod_read_byte(player+0x22c)==0 && psx_mod_read_byte(player+0x22d)==0 &&
+       !(psx_mod_read_word(player+0x224)&0x1000100c) &&
+       psx_mod_read_half(player+0x84c)==0 && psx_mod_read_word(player+0x884)==1)
+        psx_mod_write_half(player+0x358,jet&~0x8000u);
     unsigned menu_item=psx_mod_read_half(0x800c3f94);
     bool changed=false;
     if(menu_item!=selected_item && usable_item(menu_item)) {selected_item=menu_item;changed=true;}

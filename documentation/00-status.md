@@ -1,5 +1,26 @@
 # Current status - 2026-10-04
 
+## 2026-10-04 - D08Q2 repaired, Needs playtest
+
+The reported UI slot 10 is repaired automatically in captured Modernized ground
+play: original jetpack pending `0x8001` becomes owned/off `0x1`, with full fuel
+unchanged. Death during deployment can strand pending across Continue; the
+original `dnstuff` grant preserves it. A private extended-deployment timing
+fixture plus real RPG death/Continue reproduced the baseline failure and verifies
+the repair. The user's exact original timing is not established.
+
+Only the inactive closed/off endpoint is repaired. Picker/J, Modern and Classic
+flight, fuel rejection/depletion and private save/load pass. Native controls,
+input, aiming and inventory suites and the player build pass. All 28 player
+card/state hashes/mtimes still match intake. Framework/renderer unchanged.
+Natural map-pickup replay and user acceptance remain; no next job selected.
+See [D08Q2 evidence](90-d08q2-jetpack-continue.md).
+
+Build: `c8f979d50bd502ded05294fde2e55b59c90f132f386d21a89865538ca8836a41`.
+Launch: `python3 recomp/tools/local/run.py`. Load UI slot 10, try brackets,
+J and Space; F10 captures Modernized input if needed. No repeat cheat required.
+
+
 ## 2026-10-04 - Immediate next investigation: D08Q2 jetpack unavailable
 
 The user will clear context after this checkpoint. **Start next with D08Q2**,

@@ -7,6 +7,10 @@ blood. Preserve their current behavior from `72085d7`. D17C remains Done;
 D17D/F remain Accepted. D17L returns to Todo: the isolated cup still flickers,
 while nearby bar cups/bowl remain stable. It does not merely await acceptance.
 
+Subsequent user retest on 2026-10-04 reports no visible change. D17L remains
+open (Todo); no new fix is claimed. This checkpoint documents that retest
+only. Further implementation is deferred.
+
 Offline inspection of current UI 11 confirms polygonal table/cup meshes and
 shared cup/bowl prototypes across table and bar placements. The residual
 instance-level failure is not yet explained; the next L pass must trace the

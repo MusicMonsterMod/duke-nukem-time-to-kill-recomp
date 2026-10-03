@@ -5476,3 +5476,11 @@ unproven. Added separate Todo jobs D17M (UI 9 ladder ammo occlusion) and D17N
 (UI 12 diagonal wall vibration), with new save hashes and no assumed causes.
 No gameplay code, executable, settings or player saves changed; no game launch.
 See [inspection and acceptance record](documentation/89-d17-playtest-followup.md).
+
+## 2026-10-04 - D17L unchanged on subsequent user retest
+
+The user tested again after documentation commit `215ff05` and sees no change.
+D17L remains open (Todo); no additional gameplay fix was made or accepted.
+Recorded this checkpoint at the user's request. D17E/K stay Accepted, D17C
+stays Done, and D17M/N remain separate Todo backlog jobs. Documentation only;
+no build, game launch or player-file changes were performed.

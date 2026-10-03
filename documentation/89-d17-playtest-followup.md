@@ -24,6 +24,15 @@ Accepted E/K behavior is in commit `72085d7`, executable SHA-256
 This follow-up changes documentation only. No renderer code, executable,
 preferences, player saves/cards or original media changed. No game was launched.
 
+## Subsequent user retest - 2026-10-04
+
+After the documentation/inspection commit `215ff05`, the user tested again
+and reported no visible change. D17L remains open (Todo), with no new fix or
+acceptance claimed. That commit changed documentation only, so it did not
+alter the player executable. The user requested documentation, commit and
+push for this checkpoint; further implementation is deferred. D17E/K remain
+Accepted, D17C remains Done, and D17M/N remain separate Todo jobs.
+
 ## Save identities
 
 Read-only inspection verified the current files and copied all player files

@@ -92,7 +92,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D17 | High refresh rate rendering without faster simulation (Match Display, 30-240, Unlimited) | Done (user-accepted) | D01, D13 |
 | D17A | High-refresh texture/geometry instability: popping, flicker, black areas | Accepted | D17, D11B, D14 |
 | D17B | Mouse responsiveness and input latency at high refresh rates | Accepted | D17, D08 |
-| D17D | Club-exit furniture: lower wooden board popping | Todo | D17A |
+| D17D | Club-exit furniture: lower wooden board popping | Needs playtest | D17A |
 | D17E | Subway peripheral wall visibility near the camera | Todo | D17A |
 | D17F | Apartment/club closet edge and lower-geometry artifacts | Todo | D17A |
 | D17G | Strip-club translation jerk during Shift+W / Shift+S | Todo | D17B |
@@ -1749,12 +1749,18 @@ Older generations are explicitly named below. Evidence and baseline identity:
 
 ### D17D - Club-exit furniture: lower wooden board popping
 
-**Todo.** Current UI 9 (`cards-user8`, file 08); inspect the lower wooden
+**Needs playtest (2026-10-03).** Source-plane depth reconstruction plus a bounded
+static-prop contact tolerance stabilizes the lower shelf in offscreen
+60/120/180 FPS captures. User confirmation remains.
+[Cause, implementation and evidence](documentation/87-d17d-contact-depth.md).
+
+Original report: UI 9 (`cards-user8`, file 08); inspect the lower wooden
 board of furniture near the strip-club exit, stationary and during slow turns.
 Also reported in `cards-user6` UI 9 and `cards-user5` UI 1. Triangular fragments
 occur in both original and intermediate captures, and at 60 Hz. No clipping
-budget, packet or copy exhaustion in the inspected sample. Suspect local
-surface intersection/order/depth/clipping, not established texture streaming.
+budget, packet or copy exhaustion in the inspected sample. The investigation
+confirmed near-coplanar placement plus snapped-depth surface intersections;
+see the current evidence above.
 
 **Acceptance:** identify the offending primitives and cause, fix this object
 without coordinate hacks or blanket culling changes; capture before/after at
@@ -5253,3 +5259,30 @@ Local executable/source snapshot preserved. User explicitly revoked the old
 blanket recomp exclusion during closeout: authored implementation, tools, tests,
 complete framework patch and pinned dependencies are now committed alongside
 documentation. Media/generated output/player data remain excluded.
+
+
+## 2026-10-03 - D17D near-coplanar shelf depth (Needs playtest)
+
+User authorized autonomous background testing and a systemic investigation;
+then clarified that genuinely coplanar placement may remain a documented
+limitation. Exact prop FT3s `0x8012983c/0x8012984c` share the floor plane to
+within one unit in the traced quantized transforms. Integer screen snapping
+with unchanged view Z also made independently subdivided depth planes cross.
+
+Near polygons now evaluate depth on the source plane at their snapped raster
+positions, independently of unchanged texture perspective. Static props get a
+two-unit normal depth tolerance for the transform contact ambiguity; actors
+and first-person weapons do not. No per-object coordinate fix or culling
+change. Truly coincident/intersecting surfaces remain intrinsically ambiguous;
+this does not close D17E/F/J or promise all popping fixed.
+
+Offscreen before/after captures at 60/120/180, slow yaw/pitch and high-refresh
+intermediate images show the intact lower shelf. Opening/club/subway/closet
+regressions inspected; 190 surface restore checks have zero mismatches.
+100 Python tests (98 pass, 2 skip), four native suites and runtime codec /
+guard / deadline tests pass. Input capture tests use private Xvfb, since SDL
+offscreen does not support relative mouse capture. Full framework patch
+exported and verified byte-for-byte against a clean pinned dependency.
+All 12 original player savestate hashes and mtimes match. No player settings
+or media changed. Candidate `7c3b7600e145e4d0f0c7d8899817ecb8afaba6e7eabfd0d4f0eaf52930ff658c`.
+Details and measured limits: [87](documentation/87-d17d-contact-depth.md).

@@ -225,6 +225,7 @@ struct Poly {
     bool actor;
     // Conservative mode: one sort depth for the whole clipped polygon.
     double key_z;
+    NearDepthPlane depth_plane;
 };
 struct Frame {
     NearGte g;bool object,viewmodel;uint32_t cursor,start,end,far_limit,zsf3;
@@ -350,7 +351,13 @@ void emit(Frame& f,const Poly& poly,const Vertex* v) {
             }
             // The first-person weapon is drawn last on purpose (D12): exact
             // perspective, but never depth-tested against the room.
-            psx_mod_gpu_host_vertex(addr,word,x16,y16,(float)(f.viewmodel?-v[i].p[2]:v[i].p[2]),poly.textured?(float)std::clamp(v[i].uv[0],0.0,255.0):-1.0f,poly.textured?(float)std::clamp(v[i].uv[1],0.0,255.0):-1.0f);
+            // Screen snapping moves a corner along the source plane, not in Z.
+            // Re-evaluate depth at that raster position so independent floor /
+            // prop subdivisions cannot turn a shared plane into intersecting
+            // triangles. Keep texture perspective and visible PS1 snapping.
+            static const bool depth_fix=env_int("DNTTK_PLANE_DEPTH",1,0,1)!=0;
+            const double depth=depth_fix ? near_raster_depth(poly.depth_plane,f.g,x16/65536.0,y16/65536.0,v[i].p[2]) : v[i].p[2];
+            psx_mod_gpu_host_vertex_depth(addr,word,x16,y16,(float)v[i].p[2],poly.textured?(float)std::clamp(v[i].uv[0],0.0,255.0):-1.0f,poly.textured?(float)std::clamp(v[i].uv[1],0.0,255.0):-1.0f,(float)(f.viewmodel?-v[i].p[2]:depth));
         }
         ++precise_triangles;
     }
@@ -490,6 +497,24 @@ void draw(Frame& f,const Poly& poly) {
         }
         shape.push_back(v);
     }
+    Poly local=poly;
+    local.depth_plane=near_depth_plane(shape[0].p,shape[1].p,shape[2].p);
+    // A non-planar source quad must retain its original depth geometry.
+    for(const auto& v:shape) {
+        const auto& p=local.depth_plane;
+        if(std::abs(p.n[0]*v.p[0]+p.n[1]*v.p[1]+p.n[2]*v.p[2]-p.d)>1e-5) {
+            local.depth_plane={};break;
+        }
+    }
+    // World and object matrices quantize their translations independently.
+    // Resolve the resulting contact uncertainty in favour of static props,
+    // matching their existing foreground OT priority, within two game units
+    // along the surface normal. Never give actors or weapons this tolerance.
+    static const int contact=env_int("DNTTK_PROP_CONTACT",2,0,2);
+    if(f.object && !poly.actor && !f.viewmodel && contact) {
+        auto& p=local.depth_plane;
+        p.d-=std::copysign(std::min((double)contact,std::abs(p.d)*0.5),p.d);
+    }
     for(int k=0;k<5 && shape.size()>=3;++k) {
         std::vector<Vertex> out;
         for(size_t i=0;i<shape.size();++i) {
@@ -503,7 +528,6 @@ void draw(Frame& f,const Poly& poly) {
     if(shape.size()<3) {++f.stats->culled;return;}
     // Every piece sorts by its own average depth (one key for a whole
     // polygon let near wall pieces cover a long wardrobe door).
-    Poly local=poly;
     if(conservative()) {
         double z=0;for(const auto& v:shape) z+=v.p[2];local.key_z=z/shape.size();
         for(size_t i=1;i+1<shape.size();++i) {const Vertex tri[3]={shape[0],shape[i],shape[i+1]};emit(f,local,tri);}
@@ -841,6 +865,25 @@ void near_clip_viewmodel_flush() {
     }
     psx_mod_write_word(slot+4,last.prim);
     viewmodel_packets+=held_packets.size();held_packets.clear();
+}
+NearDepthPlane near_depth_plane(const double a[3],const double b[3],const double c[3]) {
+    NearDepthPlane p{};
+    double u[3],v[3];
+    for(int i=0;i<3;++i) {u[i]=b[i]-a[i];v[i]=c[i]-a[i];}
+    for(int i=0;i<3;++i) p.n[i]=u[(i+1)%3]*v[(i+2)%3]-u[(i+2)%3]*v[(i+1)%3];
+    const double length=std::sqrt(p.n[0]*p.n[0]+p.n[1]*p.n[1]+p.n[2]*p.n[2]);
+    if(length<1e-9) return {};
+    for(int i=0;i<3;++i) {p.n[i]/=length;p.d+=p.n[i]*a[i];}
+    return p;
+}
+double near_raster_depth(const NearDepthPlane& p,const NearGte& g,double x,double y,double fallback) {
+    if(!g.h || std::abs(p.d)<1e-9) return fallback;
+    const double den=p.n[0]*(x-g.ofx/65536.0)/g.h+p.n[1]*(y-g.ofy/65536.0)/g.h+p.n[2];
+    if(std::abs(den)<1e-9) return fallback;
+    const double z=p.d/den;
+    // A snapped edge can cross the horizon of an almost edge-on plane. Do
+    // not turn it into an unbounded occluder or a negative depth.
+    return std::isfinite(z) && z>=near_z && z>=fallback*0.5 && z<=fallback*2 ? z : fallback;
 }
 NearProjected near_project(const NearGte& g,int16_t vx,int16_t vy,int16_t vz) {
     NearProjected out{};

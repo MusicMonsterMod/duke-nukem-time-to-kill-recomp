@@ -185,10 +185,10 @@ index e4e6f307..8b5ab7c6 100644
  /* Right-side vertical volume bar (percent clamped 0..100). */
  void host_osd_show_volume(int percent, int duration_ms);
 diff --git a/runtime/include/mod_plugins.h b/runtime/include/mod_plugins.h
-index a1e4645e..db4e0e28 100644
+index a1e4645e..cec1995d 100644
 --- a/runtime/include/mod_plugins.h
 +++ b/runtime/include/mod_plugins.h
-@@ -153,6 +153,80 @@ enum {
+@@ -153,6 +153,83 @@ enum {
      PSX_MOD_FRAME_INTERPOLATION_MOTION_ADAPTIVE = 1
  };
  int psx_mod_set_frame_interpolation_blend(uint32_t blend_mode);
@@ -266,6 +266,9 @@ index a1e4645e..db4e0e28 100644
 + * replay worker the entry travels with the recorded stream.
 + */
 +int psx_mod_gpu_host_vertex(uint32_t addr, uint32_t word, int32_t x16, int32_t y16, float z, float u, float v);
++/* Independent depth-test coordinate; z still controls texture perspective.
++ * depth_z <= 0 opts out of depth testing (e.g. a first-person weapon). */
++int psx_mod_gpu_host_vertex_depth(uint32_t addr, uint32_t word, int32_t x16, int32_t y16, float z, float u, float v, float depth_z);
  int psx_mod_set_auto_skip_fmv(int enabled);
  /*
   * Draw still artwork behind the game image in OpenGL letterbox/pillarbox
@@ -841,7 +844,7 @@ index be30e5af..f23d273d 100644
          now = SDL_GetPerformanceCounter();     /* ONE read per iteration */
          uint32_t ms = frame_pacing_sleep_ms(now, p->next_deadline, freq, period);
 diff --git a/runtime/src/gpu.c b/runtime/src/gpu.c
-index aaf69df7..a02c75bf 100644
+index aaf69df7..581e2b62 100644
 --- a/runtime/src/gpu.c
 +++ b/runtime/src/gpu.c
 @@ -33,6 +33,7 @@
@@ -852,7 +855,7 @@ index aaf69df7..a02c75bf 100644
  
  extern uint16_t psx_read_half(uint32_t addr);
  extern uint8_t  psx_read_byte(uint32_t addr);
-@@ -3318,6 +3319,121 @@ uint32_t gpu_texture_correction_hits(void) {
+@@ -3318,6 +3319,125 @@ uint32_t gpu_texture_correction_hits(void) {
      return sw_perspective_triangle_count();
  }
  
@@ -863,7 +866,7 @@ index aaf69df7..a02c75bf 100644
 + * off for everything else. Inside a render replay the worker records the
 + * entries into its GP0 stream and the feed installs them here. */
 +#define HOST_PV_CAP 131072u
-+typedef struct { uint32_t addr, word, seq; int32_t x16, y16; float z, u, v; } HostPV;
++typedef struct { uint32_t addr, word, seq; int32_t x16, y16; float z, u, v, depth_z; } HostPV;
 +static uint32_t s_hpv_seq = 0, s_hpv_replay_floor = 0;
 +static uint64_t s_hpv_stale = 0;
 +void gpu_host_replay_begin(void) { s_hpv_replay_floor=s_hpv_seq; }
@@ -881,10 +884,10 @@ index aaf69df7..a02c75bf 100644
 +    return (((addr & 0x1FFFFCu) >> 2) * 2654435761u) >> (32 - 17);
 +}
 +extern int g_render_replay_record;
-+extern void render_replay_record_host_vertex(uint32_t addr, uint32_t word, int32_t x16, int32_t y16, float z, float u, float v);
++extern void render_replay_record_host_vertex(uint32_t addr, uint32_t word, int32_t x16, int32_t y16, float z, float u, float v, float depth_z);
 +extern void gl_set_precise_uv(int enabled, const float *u, const float *v);
 +extern void gl_set_host_depth(int enabled, const float *z);
-+void gpu_host_vertex_store(uint32_t addr, uint32_t word, int32_t x16, int32_t y16, float z, float u, float v) {
++void gpu_host_vertex_store(uint32_t addr, uint32_t word, int32_t x16, int32_t y16, float z, float u, float v, float depth_z) {
 +    /* 8-way probe: reuse this address's entry, else the oldest in the window. */
 +    HostPV *t = hpv_table(), *e = NULL;
 +    const uint32_t a = addr & 0x1FFFFCu, base = hpv_slot(a);
@@ -893,13 +896,17 @@ index aaf69df7..a02c75bf 100644
 +        if (c->addr == a) { e = c; break; }
 +        if (!e || (int32_t)(c->seq - e->seq) < 0) e = c;
 +    }
-+    e->addr = a; e->word = word; e->seq = ++s_hpv_seq; e->x16 = x16; e->y16 = y16; e->z = z; e->u = u; e->v = v;
++    e->addr = a; e->word = word; e->seq = ++s_hpv_seq; e->x16 = x16; e->y16 = y16; e->z = z; e->u = u; e->v = v; e->depth_z = depth_z;
 +    s_hpv_stored++;
 +}
-+int psx_mod_gpu_host_vertex(uint32_t addr, uint32_t word, int32_t x16, int32_t y16, float z, float u, float v) {
-+    if (g_render_replay_record) { render_replay_record_host_vertex(addr, word, x16, y16, z, u, v); return 1; }
-+    gpu_host_vertex_store(addr, word, x16, y16, z, u, v);
++int psx_mod_gpu_host_vertex_depth(uint32_t addr, uint32_t word, int32_t x16, int32_t y16, float z, float u, float v, float depth_z) {
++    if (g_render_replay_record) { render_replay_record_host_vertex(addr, word, x16, y16, z, u, v, depth_z); return 1; }
++    gpu_host_vertex_store(addr, word, x16, y16, z, u, v, depth_z);
 +    return 1;
++}
++/* Existing callers retain their original depth and perspective contract. */
++int psx_mod_gpu_host_vertex(uint32_t addr, uint32_t word, int32_t x16, int32_t y16, float z, float u, float v) {
++    return psx_mod_gpu_host_vertex_depth(addr, word, x16, y16, z, u, v, z);
 +}
 +void gpu_host_vertex_stats(uint64_t *stored, uint64_t *hits) {
 +    if (stored) *stored = s_hpv_stored;
@@ -960,7 +967,7 @@ index aaf69df7..a02c75bf 100644
 +        gl_set_precise_uv(1, u, v);
 +    } else gl_set_precise_uv(0, NULL, NULL);
 +    {
-+        const float z[3] = { e[0]->z, e[1]->z, e[2]->z };
++        const float z[3] = { e[0]->depth_z, e[1]->depth_z, e[2]->depth_z };
 +        gl_set_host_depth(z[0] > 0.0f && z[1] > 0.0f && z[2] > 0.0f && host_depth_enabled(), z);
 +    }
 +    if (qmax > 0.0f) {
@@ -974,7 +981,7 @@ index aaf69df7..a02c75bf 100644
  /* Per-vertex precise positions (PGXP, ENHANCEMENTS.md G1). Each of the three
   * packet words is resolved independently: the address-keyed dataflow shadow
   * first (validated against the actual word — exact provenance, survives
-@@ -3330,6 +3446,15 @@ uint32_t gpu_texture_correction_hits(void) {
+@@ -3330,6 +3450,15 @@ uint32_t gpu_texture_correction_hits(void) {
  static void prepare_precise_triangle(int i0, int i1, int i2,
                                       const int32_t vx[3], const int32_t vy[3]) {
      gr_set_perspective_triangle(0, 0.0f, 0.0f, 0.0f);
@@ -990,7 +997,7 @@ index aaf69df7..a02c75bf 100644
      if (!gte_geometry_correction_enabled()) {
          gr_set_precise_triangle(0, 0,0, 0,0, 0,0);
          return;
-@@ -3390,6 +3515,11 @@ void gpu_texture_correction_stats(uint64_t *attempts, uint64_t *armed,
+@@ -3390,6 +3519,11 @@ void gpu_texture_correction_stats(uint64_t *attempts, uint64_t *armed,
   * SWC2 projection store at that same DMA packet address. This preserves the
   * association through ordering-table reordering and rejects CPU-built UI. */
  static void prepare_texture_triangle(int i0, int i1, int i2) {
@@ -1002,7 +1009,7 @@ index aaf69df7..a02c75bf 100644
      gr_set_perspective_triangle(0, 0.0f, 0.0f, 0.0f);
      s_texcorr.attempts++;
      if (!s_texture_correction_enabled) { s_texcorr.no_correction++; return; }
-@@ -4874,6 +5004,10 @@ static uint64_t gp0_ring_seq    = 0;      /* total commands recorded */
+@@ -4874,6 +5008,10 @@ static uint64_t gp0_ring_seq    = 0;      /* total commands recorded */
  static uint32_t gp0_ring_head   = 0;      /* next write slot */
  
  static void gp0_ring_record(const uint32_t *words, int n) {
@@ -5682,10 +5689,10 @@ index 1057093f..73460cf0 100644
  }
 diff --git a/runtime/src/render_replay.c b/runtime/src/render_replay.c
 new file mode 100644
-index 00000000..e6901eb3
+index 00000000..e684cc1a
 --- /dev/null
 +++ b/runtime/src/render_replay.c
-@@ -0,0 +1,324 @@
+@@ -0,0 +1,325 @@
 +/* render_replay.c - presentation-only guest render replay (Time to Kill D17).
 + * See render_replay.h. The MMIO policy below is the whole device contract of
 + * a replay: GP0 and GPU DMA execute synchronously into the (saved) VRAM, reads
@@ -5714,7 +5721,7 @@ index 00000000..e6901eb3
 +/* Record mode (worker processes): GP0 traffic goes to a buffer instead of the
 + * GPU. Stream items: header (kind << 24 | count) then count words.
 + * kind 0 GP0 words, 1 linked list begin, 2 empty list node, 3 list end,
-+ * 4 host precise vertex (addr, word, x16, y16, z, u, v; floats as bits), 5 source address of
++ * 4 host precise vertex (addr, word, x16, y16, z, u, v, depth_z; floats as bits), 5 source address of
 + * the next run of GP0 words (emitted per list node once a session recorded
 + * host vertices, so the parent can match them to their packets). */
 +int g_render_replay_record = 0;
@@ -5741,10 +5748,10 @@ index 00000000..e6901eb3
 +    for (uint32_t i = 0; i < n; i++) s_rec[s_rec_n++] = payload[i];
 +    s_rec_run = UINT32_MAX;
 +}
-+void render_replay_record_host_vertex(uint32_t addr, uint32_t word, int32_t x16, int32_t y16, float z, float u, float v) {
-+    uint32_t zb, ub, vb; memcpy(&zb, &z, 4); memcpy(&ub, &u, 4); memcpy(&vb, &v, 4);
-+    const uint32_t p[7] = { addr, word, (uint32_t)x16, (uint32_t)y16, zb, ub, vb };
-+    rec_item(4u, p, 7);
++void render_replay_record_host_vertex(uint32_t addr, uint32_t word, int32_t x16, int32_t y16, float z, float u, float v, float depth_z) {
++    uint32_t zb, ub, vb, db; memcpy(&db, &depth_z, 4); memcpy(&zb, &z, 4); memcpy(&ub, &u, 4); memcpy(&vb, &v, 4);
++    const uint32_t p[8] = { addr, word, (uint32_t)x16, (uint32_t)y16, zb, ub, vb, db };
++    rec_item(4u, p, 8);
 +    s_rec_need_src = 1;
 +}
 +static void rec_word(uint32_t word) {
@@ -5766,7 +5773,7 @@ index 00000000..e6901eb3
 +}
 +
 +/* Parent: execute a recorded stream into the GPU (inside a replay session). */
-+extern void gpu_host_vertex_store(uint32_t addr, uint32_t word, int32_t x16, int32_t y16, float z, float u, float v);
++extern void gpu_host_vertex_store(uint32_t addr, uint32_t word, int32_t x16, int32_t y16, float z, float u, float v, float depth_z);
 +int render_replay_feed(const uint32_t *stream, uint32_t n) {
 +    uint32_t i = 0, src = 0xFFFFFFFFu;
 +    while (i < n) {
@@ -5787,9 +5794,10 @@ index 00000000..e6901eb3
 +        case 2: gpu_set_gp0_linked_list_node(0u, 0u); break;
 +        case 3: gpu_ws_end_linked_list(); break;
 +        case 4:
-+            if (count == 7) {
++            if (count == 7 || count == 8) {
 +                float z, u, v; memcpy(&z, &stream[i + 4], 4); memcpy(&u, &stream[i + 5], 4); memcpy(&v, &stream[i + 6], 4);
-+                gpu_host_vertex_store(stream[i], stream[i + 1], (int32_t)stream[i + 2], (int32_t)stream[i + 3], z, u, v);
++                float depth_z = z; if (count == 8) memcpy(&depth_z, &stream[i + 7], 4);
++                gpu_host_vertex_store(stream[i], stream[i + 1], (int32_t)stream[i + 2], (int32_t)stream[i + 3], z, u, v, depth_z);
 +            }
 +            break;
 +        case 5: if (count == 1) src = stream[i]; break;
@@ -6729,6 +6737,73 @@ index 55370e98..a2d81c8f 100644
      remove(cfg);
      if (failures) {
          fprintf(stderr, "host_keymap_test: %d failure(s)\n", failures);
+diff --git a/runtime/tests/test_host_vertex_depth.py b/runtime/tests/test_host_vertex_depth.py
+new file mode 100644
+index 00000000..ffa5b9c6
+--- /dev/null
++++ b/runtime/tests/test_host_vertex_depth.py
+@@ -0,0 +1,61 @@
++#!/usr/bin/env python3
++"""The actual replay codec preserves independent texture and raster depths."""
++from pathlib import Path
++import os
++import subprocess
++import tempfile
++src = (Path(__file__).resolve().parents[1] / 'src/render_replay.c').read_text()
++def function(signature):
++    a = src.index(signature)
++    return src[a:src.index('\n}', a) + 2]
++code = r'''
++#include <stdint.h>
++#include <string.h>
++#include <assert.h>
++static uint32_t *s_rec,s_rec_cap,s_rec_n,s_rec_run;
++static int s_rec_overflow,s_rec_need_src;
++static struct { uint64_t gp0_words; } s_stats;
++static float got_z,got_depth,got_u,got_v;
++static unsigned stores;
++static void gpu_host_vertex_store(uint32_t a,uint32_t w,int32_t x,int32_t y,float z,float u,float v,float d) {
++ assert(a==0x80012340 && w==0xabcd && x==-123 && y==456);
++ got_z=z;got_depth=d;got_u=u;got_v=v;stores++;
++}
++static void gpu_set_gp0_source(uint32_t a) {(void)a;}
++static void gpu_write_gp0(uint32_t w) {(void)w;}
++static void gpu_ws_begin_linked_list(void) {}
++static void gpu_set_gp0_linked_list_node(uint32_t a,uint32_t b) {(void)a;(void)b;}
++static void gpu_ws_end_linked_list(void) {}
++'''
++for sig in ('void render_replay_record_begin(', 'uint32_t render_replay_record_end(', 'static void rec_item(', 'void render_replay_record_host_vertex(', 'int render_replay_feed('):
++    code += function(sig) + '\n'
++code += r'''
++int main(void) {
++ uint32_t buf[16];int overflow;
++ render_replay_record_begin(buf,16);
++ render_replay_record_host_vertex(0x80012340,0xabcd,-123,456,1400.5f,0.25f,255.0f,1399.25f);
++ uint32_t n=render_replay_record_end(&overflow);
++ assert(!overflow && n==9 && render_replay_feed(buf,n));
++ assert(stores==1 && got_z==1400.5f && got_depth==1399.25f && got_u==0.25f && got_v==255.0f);
++ // Older seven-word entries retain their original depth contract.
++ buf[0]=(4u<<24)|7;assert(render_replay_feed(buf,8));
++ assert(stores==2 && got_depth==got_z);
++ // First-person weapons still opt out independently of perspective.
++ render_replay_record_begin(buf,16);
++ render_replay_record_host_vertex(0x80012340,0xabcd,-123,456,600,0,0,-600);
++ n=render_replay_record_end(&overflow);assert(render_replay_feed(buf,n));
++ assert(got_z==600 && got_depth==-600);
++ // A truncated or overflowing stream cannot consume a partial entry.
++ assert(!render_replay_feed(buf,n-1));
++ render_replay_record_begin(buf,8);
++ render_replay_record_host_vertex(0x80012340,0xabcd,-123,456,600,0,0,600);
++ assert(render_replay_record_end(&overflow)==0 && overflow);
++ return 0;
++}
++'''
++with tempfile.TemporaryDirectory() as tmp:
++    p = Path(tmp)
++    (p / 'test.c').write_text(code)
++    subprocess.run([os.environ.get('CC', 'cc'), '-O2', str(p / 'test.c'), '-o', str(p / 'test')], check=True)
++    subprocess.run([str(p / 'test')], check=True)
++print('host vertex independent depth replay: passed')
 diff --git a/runtime/tests/test_pipeline_batch_deadlines.py b/runtime/tests/test_pipeline_batch_deadlines.py
 new file mode 100644
 index 00000000..f51749e3

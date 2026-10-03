@@ -1,5 +1,25 @@
 # Next-session handoff
 
+## 2026-10-03 - D17D shelf stabilization candidate (Needs playtest)
+
+D17D now has a general near-polygon depth correction and a bounded static-prop
+contact tolerance. Background 60/120/180 FPS captures show the club-exit lower
+shelf intact through slow turns. The source has almost-coplanar placement;
+integer screen snapping previously made the depth surfaces intersect as well.
+No object-specific geometry, global culling, input or timing changes.
+
+Read [87](87-d17d-contact-depth.md) for primitive identities, rejected partial
+solutions, regression evidence and limits. True intersecting/coplanar geometry
+is not universally solvable, and D17E/F/J stay separate Todo jobs. D17A/B remain
+accepted. The player should confirm UI 9's lower shelf and ordinary 120/180 FPS
+opening/club/apartment play. No next job started.
+
+Candidate: `7c3b7600e145e4d0f0c7d8899817ecb8afaba6e7eabfd0d4f0eaf52930ff658c`.
+The complete runtime patch is exported and clean-pin verified. Vanilla remains
+available; player saves/settings are unchanged. Tests were offscreen/private
+Xvfb, not on the user's desktop. Launch: `python3 recomp/tools/local/run.py`.
+
+
 ## 2026-10-03 - D17A/B accepted and implementation published
 
 Read [86](86-d17-acceptance-and-regression-baseline.md) first. D17A and D17B

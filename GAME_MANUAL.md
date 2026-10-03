@@ -160,9 +160,11 @@ mode by accident. Holding your own holster key still opens it, as in the
 original.
 
 Modernized improves perspective and clipping for nearby walls, floors, tables
-and props. Some geometry popping remains under investigation, including the
-club furniture and closets. The original PS1 character during movement is
-preserved; Vanilla keeps the original presentation.
+and props. A new depth correction stabilizes close floor/prop contacts such
+as the club furniture's lower shelf; it is awaiting player confirmation.
+Other geometry popping, including closet edges, remains under investigation.
+The original PS1 character during movement is preserved; Vanilla keeps the
+original presentation.
 
 ### View bob (Modernized, first person)
 

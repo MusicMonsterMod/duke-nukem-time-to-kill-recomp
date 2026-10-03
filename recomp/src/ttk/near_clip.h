@@ -9,6 +9,10 @@ struct NearGte {
 // GTE-exact RTPS for one vertex: packed SXY, SZ and the unclamped view position.
 struct NearProjected { uint32_t sxy; uint16_t sz; double view[3]; bool safe; };
 NearProjected near_project(const NearGte& g,int16_t vx,int16_t vy,int16_t vz);
+// View-space plane for depth evaluation at the actual raster position.
+struct NearDepthPlane { double n[3], d; };
+NearDepthPlane near_depth_plane(const double a[3],const double b[3],const double c[3]);
+double near_raster_depth(const NearDepthPlane& plane,const NearGte& g,double x,double y,double fallback);
 // DPCS (sf=1, lm=0) of an RGBC word toward the far color with IR0.
 uint32_t near_dpcs(const NearGte& g,uint32_t rgbc,int16_t ir0);
 const char* near_clip_debug_json();

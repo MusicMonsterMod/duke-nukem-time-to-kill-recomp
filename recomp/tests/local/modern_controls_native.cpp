@@ -35,6 +35,7 @@ extern "C" void psx_mod_write_word(uint32_t a,uint32_t v) {psx_mod_write_half(a,
 extern "C" void psx_mod_write_code_word(uint32_t a,uint32_t v) {++code_writes;psx_mod_write_word(a,v);}
 extern "C" int psx_mod_register_function_entry_plugin(const char*,uint32_t a,PSXModFunctionEntryCallback cb) {hooks()[a]=cb;return 1;}
 extern "C" int psx_mod_gpu_host_vertex(uint32_t,uint32_t,int32_t,int32_t,float,float,float){return 1;}
+extern "C" int psx_mod_gpu_host_vertex_depth(uint32_t,uint32_t,int32_t,int32_t,float,float,float,float){return 1;}
 static PSXModActivationCallback activation;static unsigned aspect_num,aspect_den;
 extern "C" int psx_mod_register_activation_plugin(const char*,PSXModActivationCallback cb) {activation=cb;return 1;}
 extern "C" int psx_mod_set_fixed_display_aspect(uint32_t n,uint32_t d) {aspect_num=n;aspect_den=d;return 1;}

@@ -93,15 +93,15 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D17A | High-refresh texture/geometry instability: popping, flicker, black areas | Accepted | D17, D11B, D14 |
 | D17B | Mouse responsiveness and input latency at high refresh rates | Accepted | D17, D08 |
 | D17D | Club-exit furniture: lower wooden board popping | Accepted | D17A |
-| D17E | Subway peripheral wall visibility near the camera | Todo | D17A |
+| D17E | Subway peripheral wall visibility near the camera | Needs playtest | D17A |
 | D17F | Apartment/club closet edge and lower-geometry artifacts | Accepted | D17A |
 | D17G | Strip-club translation jerk during Shift+W / Shift+S | Todo | D17B |
 | D17H | Train-control and platform/ledge movement stutters | Todo | D17B |
 | D17I | Unlimited stale-camera scheduling episodes | Todo | D17B |
 | D17J | Verify older isolated visual reports against accepted baseline | Todo | D17A |
-| D17K | Coplanar ground blood in save slot 12 | Todo | D17D |
-| D17L | Tabletop props cut off on approach/retreat in save slot 11 | Todo | D17D |
-| D17C | View bob: disable experiment, then a stable modern camera | Needs playtest | D11 |
+| D17K | Coplanar ground blood in save slot 12 | Needs playtest | D17D |
+| D17L | Tabletop props cut off on approach/retreat in save slot 11 | Needs playtest | D17D |
+| D17C | View bob: disable experiment, then a stable modern camera | Done (user-accepted) | D11 |
 | D18 | FMV and audio presentation safeguards | Todo | D01, D02 |
 | D18A | Voice/music/gunfire crackle investigation | Done | D01, D02 |
 | D18B | Concurrent voice with music (no music mute) | Todo | D18, D21 |
@@ -1722,6 +1722,8 @@ immediate in first and third person; gameplay timing unchanged.
 
 ### D17C - View bob: disable experiment, then a stable modern camera
 
+**Done (user-accepted 2026-10-03).** The user confirms the camera is much more stable and is happy with the current look. This closes the remaining camera-look playtest; the implemented camera and bob options are unchanged.
+
 User request (2026-10-02): TTK's walking view bob looks wrong in the recomp,
 especially at high refresh: rather than Duke's head moving, the floor and walls
 seem to breathe, swell and melt (with the PS1 geometry wobble). First step: a
@@ -1775,7 +1777,7 @@ mesh change or general renderer rewrite. User confirms the lower board stable.
 
 ### D17E - Subway peripheral wall visibility near the camera
 
-**Todo.** Current UI 3 (`cards-user8`, file 02; earlier `cards-user7` UI 3).
+**Needs playtest (2026-10-03).** Current UI 3 (`cards-user8`, file 02; earlier `cards-user7` UI 3).
 Walk along the corridor close to either wall, turn near view edges, and walk
 up/down stairs. Original report: blank/missing peripheral wall sections,
 not conventional tearing. User now reports substantial improvement; bounded
@@ -1786,6 +1788,8 @@ repeatable non-reproduction and seek closure; distinguish widescreen margin,
 near clipping and visibility state using full-width compositor captures.
 Verify 60/120/180 and wall approach/retreat without regressing fixed walls.
 No claimed fix solely from a canonical 512-pixel image that omits the margins.
+
+**Candidate/evidence:** Full-width wall approach/retreat, edge turns and stair routes at 60/120/180 did not reproduce the old missing-wall report. Awaiting player closure; no E-specific visibility workaround shipped. See [implementation and verification](documentation/88-d17e-k-l-visuals.md). D17D/F remain accepted.
 
 ### D17F - Apartment/club closet edge and lower-geometry artifacts
 
@@ -1883,10 +1887,11 @@ under this triage job. Preserve historical evidence rather than guessing slots.
 
 ### D17K - Coplanar ground blood in save slot 12
 
-**Todo. Next-round backlog, not started.** User report on 2026-10-03 after
+**Needs playtest (2026-10-03).** User report on 2026-10-03 after
 accepting D17D: load UI save slot 12 (file 11) and look at the blood on the
 ground directly in front of Duke. The user describes it as coplanar blood.
-This is a new user-reported reproduction, not an independently traced cause.
+The initial report did not establish the cause; the candidate addresses a
+traced mixed-path ordering defect.
 
 Before testing, verify the current save identity and make a dated private copy;
 do not assume its bytes still match the earlier `cards-user8` snapshot. Use
@@ -1901,13 +1906,15 @@ limit. Verify 60/120/180, transparent blending and nearby geometry while
 preserving the accepted UI 9 prop, UI 11 closet and strip-club closet. User
 confirms the result. D17D/F remain accepted.
 
+**Candidate/evidence:** The candidate restores the source floor polygon ordering key so enhanced floor pieces do not paint over native blood. Awaiting player confirmation in current UI slot 12. See [implementation and verification](documentation/88-d17e-k-l-visuals.md). D17D/F remain accepted.
+
 ### D17L - Tabletop props cut off on approach/retreat in save slot 11
 
-**Todo. Next-round backlog, not started.** User report on 2026-10-03: load UI
+**Needs playtest (2026-10-03).** User report on 2026-10-03: load UI
 save slot 11 (file 10), look at the props sitting on the table directly ahead,
 and walk forwards and backwards. The props get cut off and reappear as Duke
 moves closer. This concerns the objects on the table, not the now-accepted
-closet in the same save. Exact primitive/culling cause is not yet established.
+closet in the same save. The mixed rendering path is now traced; candidate details follow below.
 
 Verify the current save identity and use a dated private copy in background
 tests. Trace the affected props through approach and retreat, including
@@ -1919,6 +1926,8 @@ fix without coordinate hacks or blanket culling changes, and capture the
 approach/retreat at 60/120/180. Preserve legitimate occlusion, the accepted
 UI 9 prop and both accepted closets, weapons and original PS1 movement
 character. User confirms stable tabletop props. D17D/F remain accepted.
+
+**Candidate/evidence:** The candidate gives compact static props consistent depth beyond the near radius and groups opaque faces to control draw cost. Awaiting player confirmation in current UI slot 11. See [implementation and verification](documentation/88-d17e-k-l-visuals.md). D17D/F remain accepted.
 
 ### D18 — FMV and audio presentation safeguards
 
@@ -5392,3 +5401,28 @@ linked to D22 campaign/overlay coverage but scoped as a separate transition bug.
 Cause is unverified; future investigation must retain identity guards and use a
 verified private copy of the current save. No implementation, build or launch
 was performed. D17K/L remain queued and D17D/F remain accepted.
+
+## 2026-10-03 - D17C accepted; D17E/K/L selected
+
+User confirms the camera is much more stable and is happy with its current look.
+D17C is Done on that player acceptance, including the previously accepted idle
+stability. No camera behavior changed for this closeout. D17E, D17K and D17L
+are selected together for bounded visual investigation; D17D/F remain accepted.
+
+## 2026-10-03 - D17E/K/L visual candidate
+
+D17E is Needs playtest for closure: bounded full-width subway wall/edge/stair
+routes at 60/120/180 did not reproduce the missing-wall report. No culling
+workaround was introduced. D17K and D17L are Needs playtest on a bounded
+candidate: preserve original farthest-source-corner world ordering for native
+blood; keep compact static props in the enhanced depth path across the near
+radius, with opaque faces grouped to avoid excessive draw-state changes.
+
+The existing shelf/closet plane correction and contact tolerance remain intact.
+The compact-prop rule uses authenticated caller code and local mesh extent,
+not mesh IDs, coordinates or save-slot tests. Actors, large distant scenery and Vanilla keep their prior takeover behavior;
+translucent faces retain individual depth sorting. Broad prop takeover
+was rejected on measured rendering/audio cost. See
+[88](documentation/88-d17e-k-l-visuals.md) for current-save identities, test
+results, timing limits and player checks. D17C is separately Done on the user's
+camera-look acceptance; D17D/F remain accepted. No other job started.

@@ -60,6 +60,7 @@ const Guard near_guards[]={
     {0x80011020,0xd4c,"f5a4dfa2c0f306b1c3d3250a160717afec9244d79fd5e321f39e767df1587e75"},
     {0x8002ee50,0x140,"51137c3bebd7496a800d365fab7182a782adf13dd118c13ed37862d88bd4246d"},
     {0x80031fa0,0xe0,"1b0716bbbd34f60bef3a25c3dd0d6c5ffc05b0c5aac3790876d97901e89afb47"},
+    {0x8003226c,0x1c,"1099921f82b3198498a863d215b859610e50600def43159cace74903a7091f47"},
 };
 constexpr uint32_t context=0x800d67a8, ordering=0x800d27a0, bitmap=0x800d26a0;
 constexpr uint32_t color_table=0x800c37e4;
@@ -175,7 +176,7 @@ bool sort_nearest() {
     return value;
 }
 bool identity() {
-    static std::array<std::vector<uint32_t>,4> expected;
+    static std::array<std::vector<uint32_t>,5> expected;
     static IdentityMemo memo;
     const uint64_t frame=input_host_frame();
     if(!memo.valid(frame,g_dirty_ram_code_gen))
@@ -223,7 +224,8 @@ struct Vertex { double p[3],uv[2],rgb[3]; int original; double ex=0,ey=0; };
 struct Poly {
     unsigned count;int idx[4];uint32_t colors[4],uv[4],clut,tpage,command;bool textured;int bias;
     bool actor;
-    // Conservative mode: one sort depth for the whole clipped polygon.
+    // Shared source depth for world polygons and opaque compact props, or
+    // the clipped polygon average in the developer conservative mode.
     double key_z;
     NearDepthPlane depth_plane;
 };
@@ -280,7 +282,7 @@ uint32_t rgb_word(const Vertex& v) {
 uint32_t uv_word(const Vertex& v) {
     return (uint32_t)clamp(std::lround(v.uv[0]),0,255) | (uint32_t)clamp(std::lround(v.uv[1]),0,255)<<8;
 }
-// Ordering-table slot: world 0x800117d0 (nearest SZ >> 5), object 0x800104a8
+// Ordering-table slot: world 0x800117d0 (source maximum SZ >> 5), object 0x800104a8
 // (AVSZ3 >> 3 with the polygon's +-1 bias). -1 when past the depth limit.
 int slot_index(const Frame& f,const Poly& poly,const Vertex* v) {
     uint32_t sz[3];
@@ -482,7 +484,7 @@ void refine(Frame& f,const Poly& poly,const std::vector<Vertex>& shape,unsigned 
 // so the outline is 0 1 3 2.
 void draw(Frame& f,const Poly& poly) {
     ++f.stats->polys;
-    std::vector<Vertex> shape;
+    std::vector<Vertex> shape;shape.reserve(poly.count);
     static const int order3[3]={0,1,2},order4[4]={0,1,3,2};
     const int* order=poly.count==3?order3:order4;
     for(unsigned j=0;j<poly.count;++j) {
@@ -516,6 +518,13 @@ void draw(Frame& f,const Poly& poly) {
         p.d-=std::copysign(std::min((double)contact,std::abs(p.d)*0.5),p.d);
     }
     for(int k=0;k<5 && shape.size()>=3;++k) {
+        // Most compact props are wholly inside the guard band. Preserve their
+        // vertices directly instead of allocating/copying five temporary
+        // polygons per source polygon. Mixed edges use the exact old clipper.
+        bool inside=false,outside=false;
+        for(const auto& v:shape) {if(plane(v,k,f.g.h)>=0) inside=true;else outside=true;}
+        if(!outside) continue;
+        if(!inside) {shape.clear();break;}
         std::vector<Vertex> out;
         for(size_t i=0;i<shape.size();++i) {
             const Vertex& a=shape[i];const Vertex& b=shape[(i+1)%shape.size()];
@@ -526,8 +535,16 @@ void draw(Frame& f,const Poly& poly) {
         shape.swap(out);
     }
     if(shape.size()<3) {++f.stats->culled;return;}
-    // Every piece sorts by its own average depth (one key for a whole
-    // polygon let near wall pieces cover a long wardrobe door).
+    // Keep the original world polygon's farthest-corner ordering key.
+    // 0x80011654/0x80011684/0x800116b4 skip smaller depths, so this is
+    // a maximum, not a minimum. Sorting subdivisions individually lets a
+    // near floor piece overwrite native decals/props that were ordered in
+    // front of the whole floor. Host depth still resolves host-host overlap.
+    static const bool source_order=env_int("DNTTK_SOURCE_ORDER",1,0,1)!=0;
+    if(source_order && precise() && !f.object) {
+        for(unsigned j=0;j<poly.count;++j)
+            local.key_z=std::max(local.key_z,(double)f.verts[poly.idx[j]].sz);
+    }
     if(conservative()) {
         double z=0;for(const auto& v:shape) z+=v.p[2];local.key_z=z/shape.size();
         for(size_t i=1;i+1<shape.size();++i) {const Vertex tri[3]={shape[0],shape[i],shape[i+1]};emit(f,local,tri);}
@@ -696,12 +713,33 @@ void object(CPUState* cpu) {
     f.viewmodel=viewmodel;
     if(viewmodel && held_frame!=frame_first_cursor) {held_packets.clear();held_frame=frame_first_cursor;}
     f.verts.resize(count);
+    // Small static props can intersect a host-rendered table while every corner of
+    // the small prop is beyond the near radius. Keep both in the same depth
+    // domain; otherwise the table can paint over a cup until it crosses 3072.
+    // Actors retain their existing takeover boundary and weapons their layer.
+    static const bool prop_depth=env_int("DNTTK_PROP_DEPTH",1,0,1)!=0;
+    // The verified static-prop loop. Other object-renderer callers include
+    // articulated dancers and actors not covered by actor_drawing.
+    const bool static_candidate=precise() && !conservative() && !actor && !viewmodel &&
+        prop_depth && cpu->gpr[31]==0x80032288;
+    int lo[3]={32767,32767,32767},hi[3]={-32768,-32768,-32768};
     bool any=viewmodel;
     for(unsigned i=0;i<count;++i) {
         const uint32_t xy=psx_mod_read_word(vertices+8*i);
         f.verts[i]=near_project(f.g,(int16_t)xy,(int16_t)(xy>>16),(int16_t)psx_mod_read_half(vertices+8*i+4));
         any|=!f.verts[i].safe || f.verts[i].sz<std::max<uint32_t>(near_depth(object_perspective_z),2048);
+        if(static_candidate) {
+            const int v[3]={(int16_t)xy,(int16_t)(xy>>16),(int16_t)psx_mod_read_half(vertices+8*i+4)};
+            for(int k=0;k<3;++k) {lo[k]=std::min(lo[k],v[k]);hi[k]=std::max(hi[k],v[k]);}
+        }
     }
+    // Extend depth coverage only for compact props (at most 256 local units
+    // per axis), such as cups/bowls. Large distant scenery retains the
+    // original path and its draw budget; no radius or screen-edge culling changes.
+    const bool static_depth=static_candidate && hi[0]-lo[0]<=256 && hi[1]-lo[1]<=256 && hi[2]-lo[2]<=256;
+    any|=static_depth;
+    double compact_key=0;
+    if(static_depth) {for(const auto& v:f.verts) compact_key+=v.sz;compact_key/=count;}
     if(!any) return;
     std::vector<Group> groups;std::vector<std::pair<uint32_t,uint32_t>> taken;
     uint32_t cursor=list;
@@ -724,7 +762,7 @@ void object(CPUState* cpu) {
             // The original drops a polygon whose corners are all nearer than
             // H; in the eye view that made props see-through up close, so such
             // polygons are drawn here too.
-            unsafe|=all_near || oversize(f,idx,corners) || viewmodel;
+            unsafe|=all_near || oversize(f,idx,corners) || viewmodel || static_depth;
             if(unsafe) taken.push_back({cursor,type}); else group.kept.push_back(cursor);
         }
         if(!group.kept.empty()) groups.push_back(std::move(group));
@@ -750,6 +788,10 @@ void object(CPUState* cpu) {
         if(!(bits&1) && !front_facing(f,p,flags,false)) {++object_stats.culled;continue;}
         p.textured=textured;p.bias=((bits&8)?1:0)-((bits&4)?1:0);
         p.command=(textured?0x34000000u:0x30000000u)|((bits&0x10)<<21)|command_bits;
+        // Opaque compact props share a local ordering key; the depth buffer
+        // resolves their faces. Keeping their tiny triangles together avoids
+        // interleaving native/host batches at every face's depth slot.
+        if(static_depth && !(p.command&0x02000000u)) p.key_z=compact_key;
         if(textured) {
             uint32_t t1=psx_mod_read_word(record+4),t2=psx_mod_read_word(record+8),t3=psx_mod_read_word(record+12);
             if((bits&0x20) && !animate(t1,t2,t3,true)) continue;

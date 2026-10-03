@@ -1,5 +1,40 @@
 # Current status - 2026-10-03
 
+## 2026-10-03 - D17C accepted; D17E/K/L visual candidate
+
+D17C is Done on the user's acceptance of the current camera stability and look.
+D17E/K/L were selected together and are now Needs playtest. D17D/F remain
+accepted; no other job started.
+
+- D17E: no missing peripheral subway wall reproduced on full-width wall/edge
+  and stair routes at 60/120/180. Awaiting player closure, not a claimed new
+  visibility fix.
+- D17K: enhanced floor pieces now retain the original source polygon's
+  farthest-corner ordering key, preserving native blood in front of the floor.
+- D17L: compact static props (up to 256 local units per axis, authenticated
+  caller) keep depth across the near radius. Opaque faces share an ordering
+  key to avoid excessive draw-state changes. Actors and larger distant
+  scenery keep the previous takeover boundary; Vanilla remains available.
+
+[Causes, private save identities, implementation and verification](88-d17e-k-l-visuals.md).
+Current UI 11 is the table report, UI 12 the blood report; older closet states
+were checked separately. The accepted shelf/closets and camera are preserved.
+Final 120-target samples have zero audio underruns, worker failures or new
+mesh-budget fallbacks. At 180, final club samples are about 178-179 distinct
+images/s, with a small table-route output underrun still measured; do not claim
+zero-cost 180 FPS or actual-device audio acceptance. User should also listen
+for crackle at their usual refresh setting.
+
+New owned-EXE packet/guard tests and existing near-plane math pass. Python:
+98 passed, two skipped. Original player files/settings were not written.
+Framework patch and generated game code are unchanged.
+Candidate SHA-256: `151ea6aab6957eeb2c3da5cf990700d566a227eb723eb829d13600146c098520`.
+
+Next action is the user's playtest of UI slots 3, 11 and 12, starting at 120
+and then their usual refresh setting. F10 captures Modernized input if needed.
+Launch from the workspace: `python3 recomp/tools/local/run.py`.
+
+
 ## 2026-10-03 - D17D/F accepted; next-round visual and portal bugs
 
 The user explicitly accepts the UI 9 prop, UI 11 closet and closet inside

@@ -503,3 +503,21 @@ lookup change and its compiled oracle test. All these remain local to recomp.
   is an error. Never replace source with an upstream pointer that omits our edits.
 - Primary regression target is now 120 FPS; 180 support, 240 robustness and
   Unlimited stress remain distinct obligations. See acceptance note 86.
+
+
+2026-10-03 D17E/K/L ([note 88](88-d17e-k-l-visuals.md)):
+
+- `recomp/build-local/ttk-near-test recomp/disc/SLUS_005.83` (from workspace
+  root) additionally authenticates the owned executable and
+  exercises actual hook/packet contracts: world source ordering, compact-prop
+  caller and extent gates, opaque grouping, translucent ordering, Vanilla
+  exclusion and altered-code rejection. Without the argument it runs the
+  existing projection and plane math tests only.
+- `DNTTK_SOURCE_ORDER=0` compares piece-average world ordering;
+  `DNTTK_PROP_DEPTH=0` compares the previous compact-prop near-radius behavior.
+  These are developer comparisons, not player settings. Broad all-prop
+  coverage was rejected; the shipped rule is 256 local units per axis.
+- Private evidence is under `analysis/d17-high-refresh/ekl-*`; current copies
+  are `cards-ekl-20261003`, with hashes/mtimes in `ekl-save-manifest.json`.
+  UI 11/12 have changed since `cards-user8`; use the dated identity, not only
+  a slot number. Full-width compositor captures are required for D17E.

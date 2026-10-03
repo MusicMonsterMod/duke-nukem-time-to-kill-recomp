@@ -93,14 +93,16 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D17A | High-refresh texture/geometry instability: popping, flicker, black areas | Accepted | D17, D11B, D14 |
 | D17B | Mouse responsiveness and input latency at high refresh rates | Accepted | D17, D08 |
 | D17D | Club-exit furniture: lower wooden board popping | Accepted | D17A |
-| D17E | Subway peripheral wall visibility near the camera | Needs playtest | D17A |
+| D17E | Subway peripheral wall visibility near the camera | Accepted | D17A |
 | D17F | Apartment/club closet edge and lower-geometry artifacts | Accepted | D17A |
 | D17G | Strip-club translation jerk during Shift+W / Shift+S | Todo | D17B |
 | D17H | Train-control and platform/ledge movement stutters | Todo | D17B |
 | D17I | Unlimited stale-camera scheduling episodes | Todo | D17B |
 | D17J | Verify older isolated visual reports against accepted baseline | Todo | D17A |
-| D17K | Coplanar ground blood in save slot 12 | Needs playtest | D17D |
-| D17L | Tabletop props cut off on approach/retreat in save slot 11 | Needs playtest | D17D |
+| D17K | Coplanar ground blood in save slot 12 | Accepted | D17D |
+| D17L | Tabletop props cut off on approach/retreat in save slot 11 | Todo | D17D |
+| D17M | Shotgun ammo visible through ladder platform in save slot 9 | Todo | D17D |
+| D17N | Diagonal wall artifacts during movement in save slot 12 | Todo | D17A |
 | D17C | View bob: disable experiment, then a stable modern camera | Done (user-accepted) | D11 |
 | D18 | FMV and audio presentation safeguards | Todo | D01, D02 |
 | D18A | Voice/music/gunfire crackle investigation | Done | D01, D02 |
@@ -1777,7 +1779,7 @@ mesh change or general renderer rewrite. User confirms the lower board stable.
 
 ### D17E - Subway peripheral wall visibility near the camera
 
-**Needs playtest (2026-10-03).** Current UI 3 (`cards-user8`, file 02; earlier `cards-user7` UI 3).
+**Accepted (user playtest, recorded 2026-10-04).** Current UI 3 (`cards-user8`, file 02; earlier `cards-user7` UI 3).
 Walk along the corridor close to either wall, turn near view edges, and walk
 up/down stairs. Original report: blank/missing peripheral wall sections,
 not conventional tearing. User now reports substantial improvement; bounded
@@ -1789,7 +1791,7 @@ near clipping and visibility state using full-width compositor captures.
 Verify 60/120/180 and wall approach/retreat without regressing fixed walls.
 No claimed fix solely from a canonical 512-pixel image that omits the margins.
 
-**Candidate/evidence:** Full-width wall approach/retreat, edge turns and stair routes at 60/120/180 did not reproduce the old missing-wall report. Awaiting player closure; no E-specific visibility workaround shipped. See [implementation and verification](documentation/88-d17e-k-l-visuals.md). D17D/F remain accepted.
+**Candidate/evidence:** Full-width wall approach/retreat, edge turns and stair routes at 60/120/180 did not reproduce the old missing-wall report. User repeatedly walked the subway corridor and watched peripheral edges without reproducing the old gaps; the result is accepted. No E-specific visibility workaround shipped. Future similar reports get separate targeted jobs. See [implementation and verification](documentation/88-d17e-k-l-visuals.md). D17D/F remain accepted.
 
 ### D17F - Apartment/club closet edge and lower-geometry artifacts
 
@@ -1887,7 +1889,7 @@ under this triage job. Preserve historical evidence rather than guessing slots.
 
 ### D17K - Coplanar ground blood in save slot 12
 
-**Needs playtest (2026-10-03).** User report on 2026-10-03 after
+**Accepted (user playtest, recorded 2026-10-04).** User report on 2026-10-03 after
 accepting D17D: load UI save slot 12 (file 11) and look at the blood on the
 ground directly in front of Duke. The user describes it as coplanar blood.
 The initial report did not establish the cause; the candidate addresses a
@@ -1906,15 +1908,15 @@ limit. Verify 60/120/180, transparent blending and nearby geometry while
 preserving the accepted UI 9 prop, UI 11 closet and strip-club closet. User
 confirms the result. D17D/F remain accepted.
 
-**Candidate/evidence:** The candidate restores the source floor polygon ordering key so enhanced floor pieces do not paint over native blood. Awaiting player confirmation in current UI slot 12. See [implementation and verification](documentation/88-d17e-k-l-visuals.md). D17D/F remain accepted.
+**Candidate/evidence:** The candidate restores the source floor polygon ordering key so enhanced floor pieces do not paint over native blood. User confirms stable ground splatters, clearly visible varied patterns and excellent appearance. Preserve the current behavior. The original blood state is preserved privately; current UI 12 now holds the separate D17N wall case. See [implementation and verification](documentation/88-d17e-k-l-visuals.md). D17D/F remain accepted.
 
 ### D17L - Tabletop props cut off on approach/retreat in save slot 11
 
-**Needs playtest (2026-10-03).** User report on 2026-10-03: load UI
+**Todo - remains open (user retest, recorded 2026-10-04).** User report on 2026-10-03: load UI
 save slot 11 (file 10), look at the props sitting on the table directly ahead,
 and walk forwards and backwards. The props get cut off and reappear as Duke
 moves closer. This concerns the objects on the table, not the now-accepted
-closet in the same save. The mixed rendering path is now traced; candidate details follow below.
+closet in the same save. The latest retest still shows the isolated cup disappearing/flickering, largely unchanged; other cups and the bowl on the bar are stable.
 
 Verify the current save identity and use a dated private copy in background
 tests. Trace the affected props through approach and retreat, including
@@ -1927,7 +1929,43 @@ approach/retreat at 60/120/180. Preserve legitimate occlusion, the accepted
 UI 9 prop and both accepted closets, weapons and original PS1 movement
 character. User confirms stable tabletop props. D17D/F remain accepted.
 
-**Candidate/evidence:** The candidate gives compact static props consistent depth beyond the near radius and groups opaque faces to control draw cost. Awaiting player confirmation in current UI slot 11. See [implementation and verification](documentation/88-d17e-k-l-visuals.md). D17D/F remain accepted.
+**Candidate/evidence:** The candidate gives compact static props consistent depth beyond the near radius and groups opaque faces to control draw cost. The user does not accept this candidate as resolving the isolated cup. Read-only mesh inspection establishes polygonal table/cup geometry and shared cup meshes across table/bar instances, but does not yet establish the residual flicker cause. Trace the specific failing instance and supporting surface across a bad frame before changing behavior. See [follow-up inspection](documentation/89-d17-playtest-followup.md). See [implementation and verification](documentation/88-d17e-k-l-visuals.md). D17D/F remain accepted.
+
+### D17M - Shotgun ammo visible through ladder platform in save slot 9
+
+**Todo - separate backlog bug (2026-10-04).** Load UI save slot 9 (file 08)
+and begin climbing the ladder. The shotgun shell/ammo pickup is visible
+through the platform it sits on; the platform should occlude it from below.
+This is a new report, not the accepted old UI 9 shelf/prop case.
+
+**Investigation:** verify save identity, use a private copy, and trace pickup
+and platform primitives. Compare culling, depth/occlusion, sprite handling,
+clipping and render order; the symptom does not establish the cause.
+
+**Acceptance:** legitimate platform occlusion throughout ladder ascent and
+descent, with the pickup visible when unobstructed. Check nearby geometry,
+60/120/180 and Vanilla/Modernized; preserve accepted D17C/D/E/F/K behavior.
+No blanket sprite-depth or visibility bypass. User confirms the result.
+See [save identity and regression baseline](documentation/89-d17-playtest-followup.md).
+
+### D17N - Diagonal wall artifacts during movement in save slot 12
+
+**Todo - separate backlog bug (2026-10-04).** Load UI save slot 12 (file 11)
+and repeatedly walk forwards/backwards. Watch the wall directly ahead:
+jagged diagonal lines appear during movement and the surface looks as if it
+vibrates. Other nearby walls show similar behavior. This new state is not
+the accepted D17K blood reproduction.
+
+**Investigation:** trace affected source faces and output primitives on a
+private save copy. Distinguish polygon/triangle boundaries, clipping,
+interpolation, precision, native PS1 geometry behavior and other render-path
+causes. Do not assign a technical cause from the visual description alone.
+
+**Acceptance:** substantially steadier wall surfaces on repeated W/S routes
+at 60/120/180, preserving the deliberately retained PS1 visual character,
+textures, legitimate occlusion and accepted D17C/D/E/F/K behavior. Compare
+Vanilla/Modernized and nearby walls; user confirms the improvement.
+See [save identity and regression baseline](documentation/89-d17-playtest-followup.md).
 
 ### D18 — FMV and audio presentation safeguards
 
@@ -5426,3 +5464,15 @@ was rejected on measured rendering/audio cost. See
 [88](documentation/88-d17e-k-l-visuals.md) for current-save identities, test
 results, timing limits and player checks. D17C is separately Done on the user's
 camera-look acceptance; D17D/F remain accepted. No other job started.
+
+## 2026-10-04 - D17E/K accepted; isolated cup remains open; two new bugs
+
+Recorded explicit user acceptance of D17E subway periphery and D17K ground
+blood. D17C remains Done; preserve accepted D17D/F as well. D17L returns to
+Todo because the specific cup still flickers, despite stable nearby bar props.
+Read-only inspection of the unchanged UI 11 state identifies table/cup meshes
+and shared bar/table prop prototypes; residual instance-level cause remains
+unproven. Added separate Todo jobs D17M (UI 9 ladder ammo occlusion) and D17N
+(UI 12 diagonal wall vibration), with new save hashes and no assumed causes.
+No gameplay code, executable, settings or player saves changed; no game launch.
+See [inspection and acceptance record](documentation/89-d17-playtest-followup.md).

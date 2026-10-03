@@ -1,4 +1,26 @@
-# Current status - 2026-10-03
+# Current status - 2026-10-04
+
+## 2026-10-04 - D17E/K accepted; D17L open; new D17M/N backlog
+
+The user accepts D17E subway peripheral visibility and D17K stable ground
+blood. Preserve their current behavior from `72085d7`. D17C remains Done;
+D17D/F remain Accepted. D17L returns to Todo: the isolated cup still flickers,
+while nearby bar cups/bowl remain stable. It does not merely await acceptance.
+
+Offline inspection of current UI 11 confirms polygonal table/cup meshes and
+shared cup/bowl prototypes across table and bar placements. The residual
+instance-level failure is not yet explained; the next L pass must trace the
+specific cup and occluding surface across good/bad frames. No gameplay changes
+or game launch occurred in this follow-up.
+
+New separate Todo jobs: D17M, UI 9 shotgun ammo visible through its platform
+while climbing the ladder; D17N, UI 12 jagged diagonal/vibrating walls during
+forward/back movement. Causes remain unclassified. Slots 9/12 have changed;
+preserve older private shelf/blood states for accepted regression checks.
+[User results, current save hashes and mesh inspection](89-d17-playtest-followup.md).
+
+Launch from this workspace: `python3 recomp/tools/local/run.py`.
+
 
 ## 2026-10-03 - D17C accepted; D17E/K/L visual candidate
 
@@ -30,7 +52,8 @@ New owned-EXE packet/guard tests and existing near-plane math pass. Python:
 Framework patch and generated game code are unchanged.
 Candidate SHA-256: `151ea6aab6957eeb2c3da5cf990700d566a227eb723eb829d13600146c098520`.
 
-Next action is the user's playtest of UI slots 3, 11 and 12, starting at 120
+Historical candidate next action (superseded by the 2026-10-04 report above):
+user playtest of UI slots 3, 11 and 12, starting at 120
 and then their usual refresh setting. F10 captures Modernized input if needed.
 Launch from the workspace: `python3 recomp/tools/local/run.py`.
 

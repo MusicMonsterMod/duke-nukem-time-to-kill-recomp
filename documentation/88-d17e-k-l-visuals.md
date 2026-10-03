@@ -1,5 +1,12 @@
 # D17E/K/L - Subway visibility, blood and tabletop props
 
+**Follow-up recorded 2026-10-04:** D17E and D17K are now Accepted by the
+user. D17L remains open: the isolated cup still flickers, largely unchanged,
+although bar cups/bowl are stable. The bounded L captures below are historical
+evidence, not proof of resolution. D17C remains Done. Current UI 12 now holds
+a separate wall report, D17N; UI 9 ladder ammo is separate D17M.
+See [latest results and actual mesh inspection](89-d17-playtest-followup.md).
+
 2026-10-03. The user selected D17E, D17K and D17L together and accepted
 D17C's current camera stability and look. D17C is Done; no camera behavior
 was changed for that acceptance. D17D/F remain accepted regression baselines.
@@ -129,8 +136,8 @@ are unchanged. This is title code only; the framework patch is unchanged.
 Final executable SHA-256:
 `151ea6aab6957eeb2c3da5cf990700d566a227eb723eb829d13600146c098520`.
 Codegen remains unchanged. This is bounded first-level evidence, not campaign
-proof or a universal solution for arbitrary overlapping objects. D17E/K/L
-remain **Needs playtest**; D17C is **Done** on the user's earlier acceptance.
+proof or a universal solution for arbitrary overlapping objects. At the candidate handoff, D17E/K/L
+were **Needs playtest** (superseded by the follow-up above); D17C is **Done** on the user's earlier acceptance.
 
 Private evidence uses `ekl-` prefixes under `analysis/d17-high-refresh`.
 Final 256-unit capture runs are `ekl-release-*`; timing is
@@ -139,7 +146,7 @@ executable is preserved in `ekl-baseline-20261003/`. Full-width wall routes
 are in `ekl-subway-*`, including the disabled-correction baseline comparison.
 No captures or original game data are distributed in Git.
 
-Player check: load F7 UI 12 and inspect blood while moving/looking; load UI 11
+Historical candidate player check (save slots have since changed): load F7 UI 12 and inspect blood while moving/looking; load UI 11
 and approach/retreat from the table; load UI 3 and check walls/stairs near both
 view edges. Start at 120 FPS, then try the usual refresh setting, including
 club audio/feel at 180. F10 captures Modernized input if needed. Launch with

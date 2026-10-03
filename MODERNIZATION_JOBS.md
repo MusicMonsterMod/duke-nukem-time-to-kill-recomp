@@ -92,13 +92,15 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D17 | High refresh rate rendering without faster simulation (Match Display, 30-240, Unlimited) | Done (user-accepted) | D01, D13 |
 | D17A | High-refresh texture/geometry instability: popping, flicker, black areas | Accepted | D17, D11B, D14 |
 | D17B | Mouse responsiveness and input latency at high refresh rates | Accepted | D17, D08 |
-| D17D | Club-exit furniture: lower wooden board popping | Needs playtest | D17A |
+| D17D | Club-exit furniture: lower wooden board popping | Accepted | D17A |
 | D17E | Subway peripheral wall visibility near the camera | Todo | D17A |
-| D17F | Apartment/club closet edge and lower-geometry artifacts | Todo | D17A |
+| D17F | Apartment/club closet edge and lower-geometry artifacts | Accepted | D17A |
 | D17G | Strip-club translation jerk during Shift+W / Shift+S | Todo | D17B |
 | D17H | Train-control and platform/ledge movement stutters | Todo | D17B |
 | D17I | Unlimited stale-camera scheduling episodes | Todo | D17B |
 | D17J | Verify older isolated visual reports against accepted baseline | Todo | D17A |
+| D17K | Coplanar ground blood in save slot 12 | Todo | D17D |
+| D17L | Tabletop props cut off on approach/retreat in save slot 11 | Todo | D17D |
 | D17C | View bob: disable experiment, then a stable modern camera | Needs playtest | D11 |
 | D18 | FMV and audio presentation safeguards | Todo | D01, D02 |
 | D18A | Voice/music/gunfire crackle investigation | Done | D01, D02 |
@@ -1733,8 +1735,9 @@ step (keep off, make it an option, or redesign).
 
 ### Focused D17 follow-ups: shared constraints
 
-All jobs below are **Todo**, recorded during closeout, not started. Primary
-quality/regression target is **120 FPS**; also compare 180 FPS. 240 FPS+ is
+Current statuses are in the board above; accepted fixes remain regression
+baselines for unfinished follow-ups. Primary quality/regression target is
+**120 FPS**; also compare 180 FPS. 240 FPS+ is
 robustness/compatibility, Unlimited stress/debug. No 120 FPS technical ceiling.
 Preserve accepted mouse feel, FMVs/audio, idle stability, gameplay speed, FPS
 reporting, culling improvements, PS1 character and optional Vanilla. Profile
@@ -1749,9 +1752,11 @@ Older generations are explicitly named below. Evidence and baseline identity:
 
 ### D17D - Club-exit furniture: lower wooden board popping
 
-**Needs playtest (2026-10-03).** Source-plane depth reconstruction plus a bounded
-static-prop contact tolerance stabilizes the lower shelf in offscreen
-60/120/180 FPS captures. User confirmation remains.
+**Accepted (2026-10-03).** User confirms the UI 9 prop is fixed, along with
+the UI 11 closet and the closet inside the strip club. This accepts the
+source-plane depth correction and bounded static-prop contact tolerance.
+The related closet report D17F is also closed on this explicit playtest.
+New blood/tabletop-prop reports are separate D17K/L follow-ups.
 [Cause, implementation and evidence](documentation/87-d17d-contact-depth.md).
 
 Original report: UI 9 (`cards-user8`, file 08); inspect the lower wooden
@@ -1783,7 +1788,12 @@ No claimed fix solely from a canonical 512-pixel image that omits the margins.
 
 ### D17F - Apartment/club closet edge and lower-geometry artifacts
 
-**Todo.** Current UI 6 and 11 (`cards-user8`, files 05/10): apartment closet,
+**Accepted (2026-10-03, user playtest of the D17D implementation).** The user
+explicitly confirms the UI 11 closet and the closet inside the strip club
+are fixed. Preserve these accepted surfaces. Tabletop props seen from UI 11
+are a distinct new report, D17L; do not reopen the closet job for them.
+
+Historical reproduction: UI 6 and 11 (`cards-user8`, files 05/10): apartment closet,
 lower geometry/textures and intersections. Current apartment/secret reveal
 is user-reported dramatically improved, stable and pleasant. Preserve it.
 Older `cards-user6` UI 8: club closet disappearing walls; UI 11: apartment
@@ -1869,6 +1879,45 @@ not reproduced, fixed/user-confirmed, or characteristic PS1 motion. Record
 current state identity and primitive provenance for any reproduced defect,
 then create a single scoped fix job or assign D17D-F; no broad implementation
 under this triage job. Preserve historical evidence rather than guessing slots.
+
+### D17K - Coplanar ground blood in save slot 12
+
+**Todo. Next-round backlog, not started.** User report on 2026-10-03 after
+accepting D17D: load UI save slot 12 (file 11) and look at the blood on the
+ground directly in front of Duke. The user describes it as coplanar blood.
+This is a new user-reported reproduction, not an independently traced cause.
+
+Before testing, verify the current save identity and make a dated private copy;
+do not assume its bytes still match the earlier `cards-user8` snapshot. Use
+background/offscreen tests and private cards/profiles. Inspect the blood
+primitive/decal path, transparency, depth and ordering relative to the floor.
+Do not extend the static-prop contact bias blindly to blood or all sprites.
+
+**Acceptance:** identify the offending primitives and establish whether this
+is renderer depth/order handling or genuinely ambiguous coplanar placement;
+implement a bounded fix if justified, or document an unavoidable placement
+limit. Verify 60/120/180, transparent blending and nearby geometry while
+preserving the accepted UI 9 prop, UI 11 closet and strip-club closet. User
+confirms the result. D17D/F remain accepted.
+
+### D17L - Tabletop props cut off on approach/retreat in save slot 11
+
+**Todo. Next-round backlog, not started.** User report on 2026-10-03: load UI
+save slot 11 (file 10), look at the props sitting on the table directly ahead,
+and walk forwards and backwards. The props get cut off and reappear as Duke
+moves closer. This concerns the objects on the table, not the now-accepted
+closet in the same save. Exact primitive/culling cause is not yet established.
+
+Verify the current save identity and use a dated private copy in background
+tests. Trace the affected props through approach and retreat, including
+visibility/fade, near clipping, host takeover and depth/order transitions.
+Distinguish an entire object disappearing from individual polygons being cut.
+
+**Acceptance:** reproduce and identify the responsible path, make a bounded
+fix without coordinate hacks or blanket culling changes, and capture the
+approach/retreat at 60/120/180. Preserve legitimate occlusion, the accepted
+UI 9 prop and both accepted closets, weapons and original PS1 movement
+character. User confirms stable tabletop props. D17D/F remain accepted.
 
 ### D18 — FMV and audio presentation safeguards
 
@@ -5286,3 +5335,18 @@ exported and verified byte-for-byte against a clean pinned dependency.
 All 12 original player savestate hashes and mtimes match. No player settings
 or media changed. Candidate `7c3b7600e145e4d0f0c7d8899817ecb8afaba6e7eabfd0d4f0eaf52930ff658c`.
 Details and measured limits: [87](documentation/87-d17d-contact-depth.md).
+
+
+## 2026-10-03 - D17D/F accepted; blood and tabletop props queued
+
+User: "its genuinely fixed"; confirms the prop in UI 9, closet in UI 11,
+and closet inside the strip club. D17D and the related closet job D17F are
+Accepted on this explicit player evidence. Accepted implementation remains
+`b88d0e5`, binary `7c3b7600e145e4d0f0c7d8899817ecb8afaba6e7eabfd0d4f0eaf52930ff658c`.
+
+Added D17K for ground blood immediately ahead in UI 12, and D17L for props
+on the table directly ahead in UI 11 that cut off/reappear when walking
+forwards/backwards. Both are Todo for the next round, with cause unverified.
+Record current private save identities before reproduction; no new save copy,
+code edit, build or game launch was performed for this documentation closeout.
+The next session waits for the user's job selection after clearing context.

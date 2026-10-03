@@ -160,9 +160,9 @@ mode by accident. Holding your own holster key still opens it, as in the
 original.
 
 Modernized improves perspective and clipping for nearby walls, floors, tables
-and props. A new depth correction stabilizes close floor/prop contacts such
-as the club furniture's lower shelf; it is awaiting player confirmation.
-Other geometry popping, including closet edges, remains under investigation.
+and props. The depth correction is player-accepted for the club furniture's
+lower shelf and the apartment/strip-club closets. Ground blood and some
+tabletop props remain separate visual follow-ups.
 The original PS1 character during movement is preserved; Vanilla keeps the
 original presentation.
 

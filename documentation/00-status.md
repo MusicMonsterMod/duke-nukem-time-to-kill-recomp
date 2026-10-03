@@ -1,23 +1,29 @@
 # Current status - 2026-10-03
 
-## 2026-10-03 - D17D shelf stabilization candidate (Needs playtest)
+## 2026-10-03 - D17D/F accepted; next-round blood and tabletop props
 
-D17D now has a general near-polygon depth correction and a bounded static-prop
-contact tolerance. Background 60/120/180 FPS captures show the club-exit lower
-shelf intact through slow turns. The source has almost-coplanar placement;
-integer screen snapping previously made the depth surfaces intersect as well.
-No object-specific geometry, global culling, input or timing changes.
+The user explicitly accepts the UI 9 prop, UI 11 closet and closet inside
+the strip club as fixed. D17D and the related closet job D17F are Accepted.
+Preserve the source-plane depth correction and bounded static-prop contact
+tolerance from `b88d0e5`; do not reopen these jobs for the separate new reports.
+Accepted binary: `7c3b7600e145e4d0f0c7d8899817ecb8afaba6e7eabfd0d4f0eaf52930ff658c`.
+[Cause, implementation, tests and user acceptance](87-d17d-contact-depth.md).
 
-Read [87](87-d17d-contact-depth.md) for primitive identities, rejected partial
-solutions, regression evidence and limits. True intersecting/coplanar geometry
-is not universally solvable, and D17E/F/J stay separate Todo jobs. D17A/B remain
-accepted. The player should confirm UI 9's lower shelf and ordinary 120/180 FPS
-opening/club/apartment play. No next job started.
+Next-round backlog (both Todo, neither started):
 
-Candidate: `7c3b7600e145e4d0f0c7d8899817ecb8afaba6e7eabfd0d4f0eaf52930ff658c`.
-The complete runtime patch is exported and clean-pin verified. Vanilla remains
-available; player saves/settings are unchanged. Tests were offscreen/private
-Xvfb, not on the user's desktop. Launch: `python3 recomp/tools/local/run.py`.
+- D17K: UI save slot 12, blood on the ground directly in front of Duke.
+  User describes coplanar blood; exact renderer/placement cause unverified.
+- D17L: UI save slot 11, props sitting on the table directly ahead. Walk
+  forwards/backwards: props get cut off and reappear as Duke moves closer.
+  This is distinct from the accepted closet in that save.
+
+Read the new board entries for scope and acceptance. Verify current save hashes
+and make dated private copies before testing; slot numbers alone do not prove
+that an older `cards-user8` snapshot is still the current reproduction. Use
+background/offscreen tests and preserve the accepted UI 9/11/club fixes.
+The user will clear context and choose the next job; no implementation starts
+from this handoff alone. This closeout changed documentation only, with no
+build, game launch or player-data changes. Launch: `python3 recomp/tools/local/run.py`.
 
 
 **D17A ACCEPTED. D17B ACCEPTED (2026-10-03).** The user completed natural

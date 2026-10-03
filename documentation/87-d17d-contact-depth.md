@@ -3,7 +3,8 @@
 2026-10-03. Background investigation of the lower wooden shelf near the club
 exit. User authorized offscreen testing and investigation of a general cause;
 they also explicitly accepted that genuinely coplanar level geometry may have
-no unambiguous global fix. D17A/B remain accepted.
+no unambiguous global fix. D17D/F are now Accepted following the user playtest
+recorded below; D17A/B remain accepted.
 
 ## Reproduction and cause
 
@@ -141,6 +142,14 @@ still be ambiguous. The tolerance can choose the prop in a contact band where
 a mathematically exact depth test would choose the wall/floor; it must not be
 expanded into a blanket draw-through policy.
 
-The player should inspect UI 9's lower shelf while still and turning slowly,
-then check ordinary opening/club/apartment play at 120 and 180 FPS. Final D17D
-acceptance requires their confirmation. Other follow-up jobs are not started.
+**Accepted by the user on 2026-10-03:** "its genuinely fixed". They explicitly
+confirm the UI 9 prop, UI 11 closet and closet inside the strip club. D17D
+and the related D17F closet report are closed on this player evidence. This
+adds user acceptance to the bounded automated results above; it does not
+claim a complete campaign or universal coplanar-geometry solution.
+
+Two distinct reports are queued for the next round: D17K, ground blood
+immediately ahead in UI 12; D17L, props on the table directly ahead in UI 11
+that cut off/reappear during forward/backward movement. Causes remain
+unverified. Neither job has started. Preserve the accepted shelf/closets and
+verify dated private save identities before investigating these new reports.

@@ -521,3 +521,16 @@ lookup change and its compiled oracle test. All these remain local to recomp.
   are `cards-ekl-20261003`, with hashes/mtimes in `ekl-save-manifest.json`.
   UI 11/12 have changed since `cards-user8`; use the dated identity, not only
   a slot number. Full-width compositor captures are required for D17E.
+
+
+2026-10-04 D17N ([note 98](98-d17n-world-subdivision.md)):
+
+- `analysis/d17n-20261004/` (ignored): `intake.py` (slot 12 W/S screenshots),
+  `pk.py` (packet dump with `geom_correction` counts), `trace.py` (per-mesh
+  primitive trace plus dumps), `walk.py` (`MODE=keep|whole` 24-present
+  sequences), `sweep.py` (12 slots, old versus candidate: rates, exact-share,
+  ring peak, counters) and `modes.py` (60/180 Hz, Original textures, Vanilla).
+  Private cards are a dated copy of the player's files; port 9241.
+- `DNTTK_WORLD_SUBDIVISION=1` keeps the original world subdivision. The
+  `ttk_input` near report has `whole_polygons` and `subdivided_kept`.
+- `ttk-near-test disc/SLUS_005.83` now also runs whole-polygon contracts.

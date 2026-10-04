@@ -274,6 +274,14 @@ tag (`runtime/codegen_hash_sources.cmake`, including `cpu_state.h`) must not
 change for title features: a new tag rejects every existing savestate. See
 [note 97](97-d17p-distant-bands.md).
 
+## World subdivision (D17N)
+
+With Modernized texture precision `corrected`, world polygons with exact
+projections skip the original screen-space subdivision and are drawn whole.
+Two hooks (`0x800114EC`, `0x8001160C`) were added to `game.local.toml` and
+regenerated (see the D14 note above). `DNTTK_WORLD_SUBDIVISION=1` (developer)
+keeps the original subdivision. See [note 98](98-d17n-world-subdivision.md).
+
 ## Frame rate (D17)
 
 Profile schema 21 adds the Modernized `frame_rate` choice: `display`, `30`,

@@ -1,5 +1,45 @@
 # Current status - 2026-10-04
 
+## 2026-10-04 - D17N accepted; D17Q added
+
+User playtest: "The result is excellent." D17N (world subdivision zigzag; the
+user's message called it D17P) is Accepted. Accepted executable
+`12f42ccf0962c67791e467c208e3409b9dbc5fded9e991da7e7ce86919b1c31f` is the new
+regression baseline. Cause, solution and fallback behaviour: [note 98](98-d17n-world-subdivision.md).
+The candidate entry below is historical. New Todo job D17Q: residual subtle
+wall/surface flicker as independent Corrected-renderer stability polish (see
+the job board; references D17N, D17P, D15 and R01). D18D (music after Continue)
+remains Todo. The user authorized documentation, commit and push. No next job
+selected or started.
+Launch when wanted: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-04 - D17N world subdivision candidate, Needs playtest
+
+The vibrating diagonal lines on walls (UI slot 12, and generally) come from the
+original world renderer: every polygon within `0x2000` units goes through a
+screen-space subdivision (`0x80012960` triangles, `0x8001205c` quads) whose
+midpoints are integer screen averages with rounded UVs and no projection data.
+D15's Corrected textures therefore skipped those pieces and they were drawn
+affine; the bends follow piece diagonals and move with the eye. With Corrected
+texture precision, world polygons whose corners all have exact projections and
+fit the GPU primitive limit are now drawn whole with exact perspective (hooks
+`0x800114EC`/`0x8001160C`; `DNTTK_WORLD_SUBDIVISION=1` compares the old path).
+Original textures, Vanilla and software are unchanged.
+
+Private offscreen evidence: straight panel borders across 120 Hz W/S sequences;
+12-slot sweep, exact-projection share 0.29-0.43 to 0.73-1.00, lower packet use,
+game rate unchanged, zero budget hits or replay misses; 60/180 Hz checked.
+Tests pass; codegen hash unchanged, so savestates load. Candidate executable
+`12f42ccf0962c67791e467c208e3409b9dbc5fded9e991da7e7ce86919b1c31f`.
+**Needs playtest:** walk forwards/backwards in UI 12 and elsewhere with texture
+precision `corrected`; recheck accepted D15/D17 cases. Nothing committed.
+New backlog job D18D (music silent after death and Continue) was added, not
+started. See [note 98](98-d17n-world-subdivision.md).
+
+Launch: `python3 recomp/tools/local/run.py`.
+
+
 ## 2026-10-04 - D17P accepted (Done)
 
 User: "i fully accept this fix." D17P is Done, user-accepted: the Modernized

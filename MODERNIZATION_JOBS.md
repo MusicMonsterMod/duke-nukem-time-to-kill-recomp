@@ -4,7 +4,7 @@ This is the canonical job list for our **Duke Nukem: Time to Kill** PC project, 
 
 Invoke **`$continue-duke-recomp`** (Codex) or **`/continue-duke-recomp`** (Claude Code) to see the current jobs and choose one. You can also request a job directly: **`$continue-duke-recomp work on D01`** or **`/continue-duke-recomp work on D01`**. The skill reads this file rather than keeping a second backlog. It must not automatically start the next job.
 
-**Latest accepted job: D15 - optional geometry and texture precision.** [Acceptance and evidence](documentation/96-d15-accepted-precision.md). **Immediate follow-up: D17P**, the new subway slot 8 distant horizontal bands; separate from the accepted previous slot 8 opacity case.
+**Latest accepted job: D17N - diagonal wall artifacts (world subdivision).** [Cause, solution and evidence](documentation/98-d17n-world-subdivision.md). **Next renderer follow-up: D17Q**, residual wall/surface flicker and Corrected-renderer stability polish, investigated independently.
 
 ## The experience we are building
 
@@ -106,7 +106,8 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D17K | Coplanar ground blood in save slot 12 | Accepted | D17D |
 | D17L | Tabletop props cut off on approach/retreat in save slot 11 | Done | D17D |
 | D17M | Shotgun ammo visible through ladder platform in save slot 9 | Todo | D17D |
-| D17N | Diagonal wall artifacts during movement in save slot 12 | Todo | D17A |
+| D17N | Diagonal wall artifacts during movement (world subdivision) | Accepted | D17A |
+| D17Q | Residual wall/surface flicker: Corrected-renderer stability polish | Todo | D17N |
 | D17O | Unstable sky appearance when looking up (slot 10) | Done (user-accepted) | D17A, D17B |
 | D17P | Distant horizontal black bands in new subway slot 8 | Done (user-accepted) | D15 |
 | D17C | View bob: disable experiment, then a stable modern camera | Done (user-accepted) | D11 |
@@ -114,6 +115,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D18A | Voice/music/gunfire crackle investigation | Done | D01, D02 |
 | D18B | Concurrent voice with music (no music mute) | Todo | D18, D21 |
 | D18C | Load-sensitive crackle at construction signs and train ledge | Todo | D17B, D18A |
+| D18D | Music silent after death and Continue until Duke's next voice line | Todo | D01 |
 | D19 | Modern in-game menus, settings and input prompts (Sonic 3 A.I.R.-style customization; plan mode + artifact first) | Todo | D02, D04, D13 |
 | D19A | Duke font assets for host messages and modern UI | Done | D04 |
 | D19B | Responsive modern menu navigation and transitions | Todo | D02, D04 |
@@ -2055,6 +2057,64 @@ textures, legitimate occlusion and accepted D17C/D/E/F/K behavior. Compare
 Vanilla/Modernized and nearby walls; user confirms the improvement.
 See [save identity and regression baseline](documentation/89-d17-playtest-followup.md).
 
+**Accepted (user playtest, 2026-10-04).** After substantial play the user
+reported a major improvement to the zigzag/vibrating texture effect, most
+obviously in UI slot 12 and across the game: "The result is excellent." (The
+user's message labelled this job D17P; it is D17N. D17P remains the earlier
+accepted draw-distance job.) Accepted executable
+`12f42ccf0962c67791e467c208e3409b9dbc5fded9e991da7e7ce86919b1c31f` is the new
+regression baseline. Do not extend D17N; remaining subtle flicker is D17Q.
+
+Candidate record: Cause: the original world renderer sends
+every polygon within `0x2000` units to a screen-space subdivision
+(`0x80012960`/`0x8001205c`) whose midpoints are integer screen averages with
+rounded UVs and no projection data, so D15's perspective-correct path skipped
+them and each piece was drawn affine; the bends follow piece diagonals and move
+as the eye moves. This is general, not slot 12 specific. With Corrected texture
+precision, polygons whose corners all have exact projections and fit the GPU
+limit are now drawn whole (new hooks `0x800114EC`/`0x8001160C`, guarded by the
+existing renderer digest). Offscreen evidence: straight panel borders across
+120 Hz walking sequences; 12-slot sweep with exact-projection share 0.29-0.43
+rising to 0.73-1.00, lower packet use, unchanged game rate, zero budget hits or
+replay misses; Original textures and Vanilla unchanged. Tests pass. Candidate
+`12f42ccf0962c67791e467c208e3409b9dbc5fded9e991da7e7ce86919b1c31f`. User to
+confirm on W/S routes in UI 12 and elsewhere. See
+[cause, implementation and evidence](documentation/98-d17n-world-subdivision.md).
+
+### D17Q - Residual wall/surface flicker: Corrected-renderer stability polish
+
+**Todo - user request (2026-10-04), after accepting D17N.** With the systemic
+subdivision zigzag gone, some walls and surfaces can still show subtle
+flickering or residual instability during movement. This is final polish, not
+a reopening of D17N.
+
+**Objective:** investigate the remaining wall/surface flicker and determine how
+close Corrected geometry and textures can get to genuinely stable rendering
+during movement, while Original textures, Vanilla and the software renderer
+keep the original PS1 behaviour.
+
+**Investigation:** do not assume D17N's cause. First establish, with matched
+private captures and primitive/packet evidence, what actually moves or changes
+between frames on affected surfaces. Candidate directions only, not diagnoses:
+residual PS1 coordinate quantisation, geometry transformation, clipping and
+near-plane handling, polygons still on the subdivided/fallback path (the D17N
+`subdivided_kept` counter and polygons without exact projections), vertex and
+depth precision, texture coordinates (including integer UVs and texel
+snapping), culling/visibility, high-refresh interpolation and other renderer
+behaviour. Reuse the method and history of
+[D17N](documentation/98-d17n-world-subdivision.md),
+[D17P](documentation/97-d17p-distant-bands.md),
+[D15](documentation/96-d15-accepted-precision.md),
+[R01](documentation/93-disruptor-reference-research.md) and the D17A/D11B
+clipping notes where relevant.
+
+**Acceptance:** identify the remaining sources with evidence; implement bounded
+Corrected-path improvements where justified, or document unavoidable limits.
+Verify 60/120/180 W/S and turning routes across the private slots with no
+game-rate, budget or replay-miss regressions, preserve the accepted
+D15/D17N/D17P and D17C/D/E/F/K/L/O baselines and the Original/Vanilla paths,
+and the user confirms steadier surfaces in play.
+
 ### D17O - Unstable sky appearance when looking up (slot 10)
 
 **Done, user-accepted (2026-10-04).** Autonomous investigation verified that the
@@ -2212,6 +2272,22 @@ loads and firing/jumps. Distinguish starvation from clipping/streaming/device
 issues. Verify any fix without increased audio latency, lost voice/music,
 FMV desynchronization or gameplay/frame-pacing regressions. Check 180 too;
 coordinate D17G/H without duplicating those movement fixes.
+
+### D18D - Music silent after death and Continue until Duke's next voice line
+
+**Todo - user report (2026-10-04).** After Duke is killed and the player
+chooses Continue, level music does not resume. It only starts once Duke says
+a voice line. Check whether Vanilla behaves the same and whether original
+hardware/DuckStation (portable copy only) does too, before assigning cause.
+
+**Investigation:** trace the Continue/respawn path for CD-XA music restart,
+SPU/CD mute or volume state and the voice-line path that apparently restores
+it. Distinguish an original-game behavior from a recomp/host audio defect.
+
+**Acceptance:** after death and Continue, level music resumes promptly in the
+tested levels without waiting for a voice line, if reference behavior shows
+that is correct; no regression to voice playback, FMV audio, D18A/D18C
+crackle routes or pause/menu audio. Use private save/card copies only.
 
 ### D19 — Modern in-game menus, settings and input prompts
 
@@ -5885,4 +5961,31 @@ distance candidate (executable SHA256
 evidence and limits in [note 97](documentation/97-d17p-distant-bands.md). The user
 authorized documentation, commit and push. No next job selected or started.
 Launch when wanted: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-04 - D18D added; D17N world subdivision candidate (Needs playtest)
+
+Added backlog job D18D from the user's report: after death and Continue, level
+music stays silent until Duke's next voice line. Not started.
+
+D17N: the vibrating diagonal wall lines come from the original world
+renderer's screen-space subdivision of every polygon within `0x2000` units.
+Its midpoints carry no projection data, so the pieces were drawn affine even
+with Corrected textures. With Corrected texture precision, qualifying world
+polygons are now drawn whole with exact perspective (new hooks `0x800114EC`
+and `0x8001160C`). Private 120 Hz walking sequences show straight borders; the
+12-slot sweep shows no game-rate, budget or replay-miss regressions and lower
+packet use; Original textures and Vanilla are unchanged. Tests pass; codegen
+hash unchanged. Needs the user's playtest; nothing committed.
+See [note 98](documentation/98-d17n-world-subdivision.md).
+
+## 2026-10-04 - D17N accepted; D17Q added
+
+User playtest: D17N "has achieved its objective" ("The result is excellent.";
+the message called it D17P). D17N is Accepted; executable
+`12f42ccf0962c67791e467c208e3409b9dbc5fded9e991da7e7ce86919b1c31f` is the new
+regression baseline. Cause, solution and fallback behaviour are recorded in
+[note 98](documentation/98-d17n-world-subdivision.md). New Todo job D17Q covers
+the remaining subtle wall/surface flicker as independent Corrected-renderer
+stability polish. The user authorized documentation, commit and push.
 

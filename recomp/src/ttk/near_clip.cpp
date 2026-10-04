@@ -47,6 +47,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <cstdint>
 #include <cstdlib>
 #include <string_view>
 #include <vector>
@@ -1000,7 +1001,63 @@ void occluder_test(CPUState* cpu) {
     }
     cpu->gpr[4]=empty_rect;++fades_skipped;
 }
+// D17N: whole world polygons when textures are perspective-correct.
+// The world renderer projects every vertex into the buffer at ctx+0x10 (8-byte
+// records: SXY, then SZ | flags) before its polygon loop. Bit 21 marks SZ under
+// 0x2000. The per-polygon fetch helpers (0x800114ec triangles, ra 0x80011894;
+// 0x8001160c quads, ra 0x80011ab4) AND the corners' flags; when bit 21 stays
+// set the polygon goes to the screen-space subdivision (0x80012960 triangles,
+// 0x8001205c quads: the whole polygon underneath, then 2x2 or 4x4 pieces).
+// Its midpoints are integer averages of the corners' screen positions, with
+// UVs averaged after dropping their low bits, and carry no projection data, so
+// every piece falls back to affine mapping: border lines bend along the piece
+// diagonals and the integer midpoints jitter as the eye moves. With Corrected
+// textures the GPU already maps the whole polygon with correct perspective, so
+// a polygon whose corners all have exact projections, and which fits the GPU
+// primitive limit, is drawn whole: bit 21 is cleared on one corner for that
+// polygon only and restored before the next one. DNTTK_WORLD_SUBDIVISION=1
+// (developer) keeps the original subdivision for comparisons.
+constexpr uint32_t near_flag=1u<<21;
+uint32_t subdivision_restore_addr,subdivision_restore_value;
+uint64_t subdivision_whole,subdivision_kept;
+bool subdivision_bypass() {
+    static const bool v=env_int("DNTTK_WORLD_SUBDIVISION",0,0,1)==0;
+    return v && pgxp_mesh_textures();
+}
+void subdivision_restore() {
+    if(subdivision_restore_addr) psx_mod_write_word(subdivision_restore_addr,subdivision_restore_value);
+    subdivision_restore_addr=0;
+}
+void world_polygon_fetch(CPUState* cpu,uint32_t address) {
+    subdivision_restore();
+    const bool quad=address==0x8001160c;
+    if(cpu->gpr[31]!=(quad?0x80011ab4u:0x80011894u) || cpu->gpr[6]!=context || !identity()) return;
+    const uint32_t word=psx_mod_read_word(cpu->gpr[16]),base=cpu->gpr[14];
+    const unsigned corners=quad?4:3;
+    uint32_t records[4];int32_t lo_x=INT32_MAX,hi_x=INT32_MIN,lo_y=INT32_MAX,hi_y=INT32_MIN;
+    for(unsigned i=0;i<corners;++i) {
+        records[i]=base+8*((word>>(8*i))&0xff);
+        if(!(psx_mod_read_word(records[i]+4)&near_flag)) return;
+    }
+    for(unsigned i=0;i<corners;++i) {
+        const uint32_t sxy=psx_mod_read_word(records[i]);int32_t x,y;uint16_t z;
+        if(!pgxp_mesh_vertex(records[i],sxy,&x,&y,&z)) {++subdivision_kept;return;}
+        const int32_t sx=(int16_t)sxy,sy=(int16_t)(sxy>>16);
+        lo_x=std::min(lo_x,sx);hi_x=std::max(hi_x,sx);lo_y=std::min(lo_y,sy);hi_y=std::max(hi_y,sy);
+    }
+    if(hi_x-lo_x>1000 || hi_y-lo_y>500) {++subdivision_kept;return;}
+    subdivision_restore_addr=records[0]+4;
+    subdivision_restore_value=psx_mod_read_word(subdivision_restore_addr);
+    psx_mod_write_word(subdivision_restore_addr,subdivision_restore_value&~near_flag);
+    ++subdivision_whole;
+}
 void near_hook_body(CPUState* cpu,uint32_t address) {
+    if(address==0x800114ec || address==0x8001160c) {
+        if(subdivision_bypass()) world_polygon_fetch(cpu,address);
+        return;
+    }
+    // A new mesh rewrites the vertex buffer; a pending restore is stale.
+    if(address==0x80011020) subdivision_restore_addr=0;
     if(g_pgxp_mesh_active && (address==0x80010000 || address==0x80011020)) {
         // Packet buffers may still be queued when the next mesh frame starts.
         // Writes invalidate individual shadows; only state loads/new worker RAM
@@ -1149,19 +1206,19 @@ uint32_t near_dpcs(const NearGte& g,uint32_t rgbc,int16_t ir0) {
     return out;
 }
 const char* near_clip_debug_json() {
-    static char buffer[768];
+    static char buffer[896];
     auto part=[](const Stats& s,char* out,size_t n){
         std::snprintf(out,n,"{\"seen\":%llu,\"taken\":%llu,\"polys\":%llu,\"culled\":%llu,\"triangles\":%llu,\"budget_hits\":%llu}",
             (unsigned long long)s.seen,(unsigned long long)s.taken,(unsigned long long)s.polys,(unsigned long long)s.culled,
             (unsigned long long)s.triangles,(unsigned long long)s.budget_hits);
     };
     char w[192],o[192];part(world_stats,w,sizeof w);part(object_stats,o,sizeof o);
-    std::snprintf(buffer,sizeof buffer,"{\"enabled\":%s,\"world\":%s,\"object\":%s,\"refused\":%llu,\"copy_overflows\":%llu,\"duke_skips\":%llu,\"fades_skipped\":%llu,\"fade_tests\":%llu,\"zsf3\":%d,\"arena_size\":%u,\"frame_used_peak\":%u,\"host_bytes_peak\":%u,\"packet_skips\":%llu,\"mesh_fallbacks\":%llu,\"viewmodel\":{\"meshes\":%llu,\"packets\":%llu,\"discards\":%llu}}",
-        enabled()?"true":"false",w,o,(unsigned long long)refused,(unsigned long long)copy_overflows,(unsigned long long)duke_skips,(unsigned long long)fades_skipped,(unsigned long long)fade_tests,(int)last_zsf3,arena_size,frame_used_peak,host_bytes_peak,(unsigned long long)packet_skips,(unsigned long long)mesh_fallbacks,(unsigned long long)viewmodel_meshes,(unsigned long long)viewmodel_packets,(unsigned long long)viewmodel_discards);
+    std::snprintf(buffer,sizeof buffer,"{\"enabled\":%s,\"world\":%s,\"object\":%s,\"refused\":%llu,\"copy_overflows\":%llu,\"duke_skips\":%llu,\"fades_skipped\":%llu,\"fade_tests\":%llu,\"zsf3\":%d,\"arena_size\":%u,\"frame_used_peak\":%u,\"host_bytes_peak\":%u,\"packet_skips\":%llu,\"mesh_fallbacks\":%llu,\"whole_polygons\":%llu,\"subdivided_kept\":%llu,\"viewmodel\":{\"meshes\":%llu,\"packets\":%llu,\"discards\":%llu}}",
+        enabled()?"true":"false",w,o,(unsigned long long)refused,(unsigned long long)copy_overflows,(unsigned long long)duke_skips,(unsigned long long)fades_skipped,(unsigned long long)fade_tests,(int)last_zsf3,arena_size,frame_used_peak,host_bytes_peak,(unsigned long long)packet_skips,(unsigned long long)mesh_fallbacks,(unsigned long long)subdivision_whole,(unsigned long long)subdivision_kept,(unsigned long long)viewmodel_meshes,(unsigned long long)viewmodel_packets,(unsigned long long)viewmodel_discards);
     return buffer;
 }
 }
 PSX_MOD_CONSTRUCTOR(register_ttk_near_clip) {
-    for(uint32_t address:{0x80010000u,0x80011020u,0x8002ee50u,0x80026164u})
+    for(uint32_t address:{0x80010000u,0x80011020u,0x8002ee50u,0x80026164u,0x800114ecu,0x8001160cu})
         psx_mod_register_function_entry_plugin("ttk.near.clip",address,ttk::hook);
 }

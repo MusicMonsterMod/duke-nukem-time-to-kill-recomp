@@ -78,3 +78,4 @@ D17A/B are Accepted. 120 FPS is the primary quality target; focused residual
 bugs are on the board. The implementation under `recomp/` is now versioned.
 
 Latest accepted renderer work: [D15 precision, floor/idle and close-up clipping](96-d15-accepted-precision.md). D17P is the immediate follow-up for the replacement subway slot 8 distant bands.
+D17P distant bands: [note 97](97-d17p-distant-bands.md) (accepted). D17N world subdivision: [note 98](98-d17n-world-subdivision.md) (accepted; current regression baseline). Next: D17Q residual surface flicker.

@@ -8,6 +8,13 @@ extern "C" {int g_pgxp_mesh_active=0;}
 extern "C" int pgxp_mesh_geometry(void) {const char* s=std::getenv("DNTTK_GEOMETRY_PRECISION");return s && std::string_view(s)=="corrected";}
 extern "C" int pgxp_mesh_textures(void) {const char* s=std::getenv("DNTTK_TEXTURE_PRECISION");return s && std::string_view(s)=="corrected";}
 extern "C" void pgxp_mesh_register_boundary(void) {}
+#include <cstdint>
+#include <set>
+// D17N fixture: addresses whose packet words carry an exact projection.
+static std::set<uint32_t> precise_words;
+extern "C" int pgxp_mesh_vertex(uint32_t addr,uint32_t,int32_t* x,int32_t* y,uint16_t* z) {
+    *x=*y=0;*z=1;return precise_words.count(addr)!=0;
+}
 #include "sky_render.h"
 #include "cpu_state.h"
 #include "mod_plugins.h"
@@ -246,6 +253,61 @@ static void packet_contracts(const char* executable) {
     std::printf("packet_digest=%016llx\n",(unsigned long long)packet_digest);
     std::puts("ttk-near-test owned packet contracts PASS");
 }
+// D17N: with Corrected textures, a world polygon whose corners all have exact
+// projections is drawn whole instead of going to the screen-space subdivision.
+// Bit 21 is cleared on one corner for that polygon only, then restored.
+static void whole_polygon_contracts() {
+    constexpr uint32_t ctx=0x800d67a8,buffer=0x80170000,record=0x80171000;
+    constexpr uint32_t near_bit=1u<<21;
+    const char* keep=std::getenv("DNTTK_WORLD_SUBDIVISION");
+    const bool corrected=pgxp_mesh_textures() && !(keep && std::string_view(keep)=="1");
+    // packet_contracts leaves a caller instruction altered; restore it.
+    psx_mod_write_word(0x80032280,psx_mod_read_word(0x80032280)^1);++g_dirty_ram_code_gen;
+    auto setup=[&](bool quad,int16_t width) {
+        CPUState c{};c.gpr[6]=ctx;c.gpr[14]=buffer;c.gpr[16]=record;
+        c.gpr[31]=quad?0x80011ab4:0x80011894;
+        psx_mod_write_word(record,quad?0x07050301:0x00050301);
+        precise_words.clear();
+        for(uint32_t i:{1u,3u,5u,7u}) {
+            const int16_t x=(i==7?width:int16_t(i*10)),y=int16_t(i*5);
+            psx_mod_write_word(buffer+8*i,uint16_t(x)|uint32_t(uint16_t(y))<<16);
+            psx_mod_write_word(buffer+8*i+4,near_bit|0x1800);
+            precise_words.insert(buffer+8*i);
+        }
+        return c;
+    };
+    auto flags=[&](uint32_t i){return psx_mod_read_word(buffer+8*i+4);};
+    // Quad: cleared on the first corner only while its fetch runs.
+    auto c=setup(true,70);near_hook(&c,0x8001160c);
+    assert(flags(1)==(corrected?0x1800u:(near_bit|0x1800)));
+    for(uint32_t i:{3u,5u,7u}) assert(flags(i)==(near_bit|0x1800));
+    // The next fetch restores it before deciding for its own polygon.
+    c.gpr[31]=0;near_hook(&c,0x8001160c);assert(flags(1)==(near_bit|0x1800));
+    // Triangle with the same rules.
+    c=setup(false,70);near_hook(&c,0x800114ec);
+    assert(flags(1)==(corrected?0x1800u:(near_bit|0x1800)));
+    // A new mesh rewrites the buffer: a pending restore must not land on it.
+    psx_mod_write_word(buffer+12,0x1234);CPUState entry{};near_hook(&entry,0x80011020);
+    near_hook(&c,0x800114ec);assert(flags(1)==0x1234);
+    // Original subdivision is kept when any rule fails.
+    auto kept=[&](bool quad,int16_t width,auto change) {
+        auto k=setup(quad,width);change(k);
+        near_hook(&k,quad?0x8001160c:0x800114ec);
+        assert(flags(1)==(near_bit|0x1800));
+        k.gpr[31]=0;near_hook(&k,0x8001160c);
+    };
+    kept(true,70,[&](CPUState&){psx_mod_write_word(buffer+8*5+4,0x1800);}); // already whole
+    kept(true,70,[&](CPUState&){precise_words.erase(buffer+8*7);}); // no exact projection
+    kept(true,1100,[](CPUState&){}); // beyond the GPU primitive width
+    kept(true,70,[](CPUState& k){k.gpr[31]=0x80011894;}); // wrong caller
+    kept(false,70,[](CPUState& k){k.gpr[6]=0x800d6800;}); // foreign context
+    // Altered renderer code must refuse the bypass.
+    const uint32_t code=psx_mod_read_word(0x80011acc);
+    psx_mod_write_word(0x80011acc,code^1);++g_dirty_ram_code_gen;
+    kept(true,70,[](CPUState&){});
+    psx_mod_write_word(0x80011acc,code);++g_dirty_ram_code_gen;
+    std::puts("ttk-near-test whole-polygon contracts PASS");
+}
 int main(int argc,char** argv) {
     ttk::NearGte g{};
     for(int i=0;i<3;++i) g.r[i][i]=4096;
@@ -296,6 +358,6 @@ int main(int argc,char** argv) {
     // Translation of the projection centre leaves the same physical ray.
     g.ofx=123*65536;g.ofy=42*65536;
     assert(std::abs(ttk::near_raster_depth(floor,g,123,142,1500)-2000.0/(1+100/256.0))<1e-9);
-    if(argc==2)packet_contracts(argv[1]);
+    if(argc==2) {packet_contracts(argv[1]);whole_polygon_contracts();}
     std::puts("ttk-near-test PASS");
 }

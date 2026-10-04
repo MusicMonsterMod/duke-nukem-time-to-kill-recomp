@@ -189,6 +189,11 @@ This updates saved preferences. Correction preserves the game's simulation
 and collision, and some characteristic PS1 movement remains. The accepted
 floor seams, idle settling and close-up opacity fixes remain in place.
 
+With texture precision `corrected`, nearby walls, floors and ceilings are also
+drawn as whole surfaces instead of the original's screen-space pieces, so
+patterns and borders no longer bend along diagonal lines or shimmer while you
+walk. With `original` textures the original pieces remain.
+
 ### Draw distance (Modernized)
 
 The original game stops drawing a few rooms ahead, so long views such as the

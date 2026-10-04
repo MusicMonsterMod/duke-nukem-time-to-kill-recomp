@@ -24,7 +24,8 @@ Original media under `game/`, research, generated game code, builds, captures, p
 - Do not mark a job In progress, edit gameplay code, build, or launch the game just to show the list.
 - Never hand-edit generated recompilation C, overwrite original media, or use the player's memory cards.
 - If the player's game is open when work needs to build, test or launch, close it (debug `quit` on port 9123, or end the process) and continue. The user gave standing permission on 2026-10-01. Never touch their saves or memory cards.
-- After a selected job, give a launch command such as `python3 recomp/tools/local/run.py` from this workspace. Do not launch the game unless asked.
+- During selected coding work, agents may launch the game as needed for testing without asking again. Prefer background/offscreen diagnostic runs with private settings and test save/card copies. Use a foreground window only when visual verification genuinely requires it. The user gave standing permission on 2026-10-04.
+- After a selected job, give a launch command such as `python3 recomp/tools/local/run.py` from this workspace.
 
 ## Writing
 

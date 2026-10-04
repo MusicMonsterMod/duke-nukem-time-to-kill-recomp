@@ -1,5 +1,29 @@
 # Next-session handoff
 
+## 2026-10-04 - D17L tabletop depth fix, Needs playtest
+
+Runtime primitive/provenance capture identifies the remaining cup cut-off:
+its depth-tested triangles were followed by a native tabletop quad that
+painted over them without depth testing. The fix gives eligible opaque upper
+faces of authenticated static eight-corner boxes depth while retaining native
+integer positions, affine textures, quad topology, culling and OT order.
+The broad upper-surface experiment was rejected on measured cost.
+
+Approach/retreat captures at 60/120/180 retain the full cup. Accepted shelf,
+closets, blood and subway routes remain intact; replay restore oracle passes
+312 checks, Vanilla reports no host depth/replay workers, and Python runs 102
+tests: 100 pass, two conditional skips. Primary 120 samples have zero output
+underruns; 180 remains below target in these busy scenes with a small added
+candidate deficit. User visual/audio acceptance is still required.
+
+The user replaced the no-launch restriction: background/offscreen development
+tests are authorized; foreground windows are reserved for necessary visual
+verification. AGENTS.md records this. Player files are unchanged and test
+games are closed. No Disruptor code was copied; no framework/generated code
+changed. See [cause, fix and evidence](95-d17l-tabletop-depth.md).
+Launch: `python3 recomp/tools/local/run.py`; F7 UI 11, F10 if capture is needed.
+
+
 ## 2026-10-04 - D17L selected; offline primitive diagnostics ready
 
 D17L is In progress for the bounded cup diagnosis. Added opt-in title-owned

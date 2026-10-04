@@ -230,6 +230,7 @@ struct Vertex { double p[3],uv[2],rgb[3]; int original; double ex=0,ey=0; };
 // One polygon to draw here: attributes resolved as its renderer would.
 struct Poly {
     uint32_t source=0;
+    bool depth_only=false;int native_slot=-1;
     unsigned count;int idx[4];uint32_t colors[4],uv[4],clut,tpage,command;bool textured;int bias;
     bool actor;
     // Shared source depth for world polygons and opaque compact props, or
@@ -239,7 +240,7 @@ struct Poly {
 };
 struct Frame {
     bool trace=false;uint64_t trace_call=0;uint32_t mesh=0,instance=0,caller=0;
-    NearGte g;bool object,viewmodel;uint32_t cursor,start,end,far_limit,zsf3;
+    NearGte g;bool object,viewmodel;uint32_t cursor,start,end,far_limit,zsf3,zsf4;
     std::vector<NearProjected> verts;unsigned emitted;Stats* stats;
 };
 
@@ -364,6 +365,7 @@ uint32_t uv_word(const Vertex& v) {
 // Ordering-table slot: world 0x800117d0 (source maximum SZ >> 5), object 0x800104a8
 // (AVSZ3 >> 3 with the polygon's +-1 bias). -1 when past the depth limit.
 int slot_index(const Frame& f,const Poly& poly,const Vertex* v) {
+    if(poly.depth_only) return poly.native_slot;
     uint32_t sz[3];
     for(int i=0;i<3;++i) sz[i]=(uint32_t)clamp(std::lround(poly.key_z>0?poly.key_z:v[i].p[2]),1,0xffff);
     if(!f.object) {
@@ -440,13 +442,13 @@ void emit(Frame& f,const Poly& poly,const Vertex* v) {
             static const bool depth_fix=env_int("DNTTK_PLANE_DEPTH",1,0,1)!=0;
             const double depth=depth_fix ? near_raster_depth(poly.depth_plane,f.g,x16/65536.0,y16/65536.0,v[i].p[2]) : v[i].p[2];
             if(f.trace) {trace_raster[i][0]=x16/65536.0;trace_raster[i][1]=y16/65536.0;trace_raster[i][2]=v[i].p[2];trace_raster[i][3]=f.viewmodel?-v[i].p[2]:depth;}
-            psx_mod_gpu_host_vertex_depth(addr,word,x16,y16,(float)v[i].p[2],poly.textured?(float)std::clamp(v[i].uv[0],0.0,255.0):-1.0f,poly.textured?(float)std::clamp(v[i].uv[1],0.0,255.0):-1.0f,(float)(f.viewmodel?-v[i].p[2]:depth));
+            psx_mod_gpu_host_vertex_depth(addr,word,x16,y16,poly.depth_only?1.0f:(float)v[i].p[2],poly.textured?(float)std::clamp(v[i].uv[0],0.0,255.0):-1.0f,poly.textured?(float)std::clamp(v[i].uv[1],0.0,255.0):-1.0f,(float)(f.viewmodel?-v[i].p[2]:depth));
         }
         ++precise_triangles;
     }
     if(f.trace) {
         std::ostringstream x;x<<std::setprecision(12)<<",\"packet\":"<<prim<<",\"slot\":"<<index
-          <<",\"command\":"<<poly.command<<",\"precise\":"<<precise()<<",\"xy_depth\":[";
+          <<",\"command\":"<<poly.command<<",\"depth_only\":"<<poly.depth_only<<",\"precise\":"<<precise()<<",\"xy_depth\":[";
         if(precise()) for(int i=0;i<3;++i) {
             if(i)x<<',';x<<'[';for(int j=0;j<4;++j){if(j)x<<',';x<<trace_raster[i][j];}x<<']';
         }
@@ -597,6 +599,16 @@ void draw(Frame& f,const Poly& poly) {
             local.depth_plane={};break;
         }
     }
+    // D17L: a distant static top can paint over a depth-tested cup. Give
+    // only that opaque planar surface depth, retaining its native AVSZ order,
+    // integer corners, affine UVs and PS1 quad diagonal. No clipping/splitting,
+    // contact offset, all-object takeover or precision setting is involved.
+    if(poly.depth_only) {
+        const Vertex first[3]={shape[0],shape[1],shape[poly.count==4?3:2]};
+        emit(f,local,first);
+        if(poly.count==4) {const Vertex second[3]={shape[3],shape[1],shape[2]};emit(f,local,second);}
+        return;
+    }
     // World and object matrices quantize their translations independently.
     // Resolve the resulting contact uncertainty in favour of static props,
     // matching their existing foreground OT priority, within two game units
@@ -649,6 +661,14 @@ void draw(Frame& f,const Poly& poly) {
 }
 // NCLIP's sign equals the sign of det(v0,v1,v2) in view space.
 bool front_facing(const Frame& f,const Poly& poly,uint32_t flags,bool second_triangle) {
+    if(poly.depth_only) {
+        // Native NCLIP uses the integer screen triangle, including zero-area
+        // rejection. Do not introduce more precise culling for distant tops.
+        int64_t x[3],y[3];
+        for(int i=0;i<3;++i) {const uint32_t xy=f.verts[poly.idx[i]].sxy;x[i]=(int16_t)xy;y[i]=(int16_t)(xy>>16);}
+        const int64_t area=(x[1]-x[0])*(y[2]-y[0])-(y[1]-y[0])*(x[2]-x[0]);
+        return (flags&0x400)?area<0:area>0;
+    }
     const double* v0=f.verts[poly.idx[0]].view;const double* v1=f.verts[poly.idx[1]].view;const double* v2=f.verts[poly.idx[2]].view;
     const double sign=(flags&0x400)?-1:1;
     if(sign*det(v0,v1,v2)>0) return true;
@@ -659,6 +679,7 @@ bool begin(Frame& f,CPUState* cpu,bool object) {
     f.g=read_gte(cpu);f.object=object;f.stats=object?&object_stats:&world_stats;
     f.cursor=psx_mod_read_word(context);f.start=psx_mod_read_word(context+4);f.end=psx_mod_read_word(context+8);
     f.far_limit=psx_mod_read_word(context+0x78);f.zsf3=(uint32_t)(int32_t)(int16_t)cpu->gte_ctrl[29];last_zsf3=(int32_t)f.zsf3;
+    f.zsf4=(uint32_t)(int32_t)(int16_t)cpu->gte_ctrl[30];
     return f.g.h>=64;
 }
 uint32_t guest_copy() {
@@ -832,11 +853,29 @@ void object(CPUState* cpu) {
     // original path and its draw budget; no radius or screen-edge culling changes.
     const bool static_depth=static_candidate && hi[0]-lo[0]<=256 && hi[1]-lo[1]<=256 && hi[2]-lo[2]<=256;
     any|=static_depth;
+    static const bool top_depth=env_int("DNTTK_STATIC_TOP_DEPTH",1,0,1)!=0;
+    // Bound distant coverage to simple boxes. Compound scenery (stage
+    // fittings, furniture assemblies, lamps) adds many unrelated depth runs.
+    // Validate all eight distinct bounding-box corners, not a model/type ID.
+    bool box=static_candidate && count==8;
+    for(int k=0;k<3;++k) box=box && hi[k]>lo[k];
+    unsigned corners=0;
+    for(unsigned i=0;i<count && box;++i) {
+        unsigned corner=0;
+        for(unsigned k=0;k<3;++k) {
+            const int v=(int16_t)psx_mod_read_half(vertices+8*i+2*k);
+            if(v==hi[k]) corner|=1u<<k;
+            else if(v!=lo[k]) box=false;
+        }
+        corners|=1u<<corner;
+    }
+    const bool static_top=box && corners==255 && !static_depth && top_depth;
     double compact_key=0;
     if(static_depth) {for(const auto& v:f.verts) compact_key+=v.sz;compact_key/=count;}
     trace_vertices(f);
-    if(!any) {trace_record(f,"native_mesh",0);if(!f.trace) return;}
-    std::vector<Group> groups;std::vector<std::pair<uint32_t,uint32_t>> taken;
+    if(!any && !static_top) {trace_record(f,"native_mesh",0);if(!f.trace) return;}
+    struct Taken {uint32_t record,type;bool depth_only;};
+    std::vector<Group> groups;std::vector<Taken> taken;
     uint32_t cursor=list;
     for(unsigned guard=0;;++guard) {
         if(guard>256) return;
@@ -858,12 +897,29 @@ void object(CPUState* cpu) {
             // H; in the eye view that made props see-through up close, so such
             // polygons are drawn here too.
             unsafe|=all_near || oversize(f,idx,corners) || viewmodel || static_depth;
-            trace_face(f,cursor,corners,any && unsafe?"host_candidate":"native_kept");
-            if(unsafe) taken.push_back({cursor,type}); else group.kept.push_back(cursor);
+            // Only a mesh's horizontal upper boundary, not its sides or
+            // undersides. Original near/unsafe faces keep the established path.
+            const bool textured=(type&4)!=0;
+            const uint32_t bits=textured?psx_mod_read_word(cursor+8)>>25:0;
+            bool depth_only=static_top && !unsafe && textured && !(bits&0x10) &&
+                !(psx_mod_read_word(context+0x48)&0x02000000u);
+            for(unsigned j=0;j<corners && depth_only;++j)
+                depth_only=(int16_t)psx_mod_read_half(vertices+8*idx[j]+2)==lo[1];
+            if(depth_only) {
+                const int ax=(int16_t)psx_mod_read_half(vertices+8*idx[0]);
+                const int az=(int16_t)psx_mod_read_half(vertices+8*idx[0]+4);
+                const int bx=(int16_t)psx_mod_read_half(vertices+8*idx[1]);
+                const int bz=(int16_t)psx_mod_read_half(vertices+8*idx[1]+4);
+                const int cx=(int16_t)psx_mod_read_half(vertices+8*idx[2]);
+                const int cz=(int16_t)psx_mod_read_half(vertices+8*idx[2]+4);
+                depth_only=(int64_t)(bx-ax)*(cz-az)!=(int64_t)(bz-az)*(cx-ax);
+            }
+            trace_face(f,cursor,corners,depth_only?"native_top_depth":any && unsafe?"host_candidate":"native_kept");
+            if(unsafe || depth_only) taken.push_back({cursor,type,depth_only}); else group.kept.push_back(cursor);
         }
         if(!group.kept.empty()) groups.push_back(std::move(group));
     }
-    if(!any || taken.empty()) return;
+    if((!any && !static_top) || taken.empty()) return;
     if(budget(f)<takeover_reserve+(uint32_t)taken.size()*0x28*3) {++mesh_fallbacks;trace_record(f,"mesh_budget_fallback",0);return;}
     const uint32_t copy=guest_copy();
     if(!copy || 0x20+list_bytes(groups)>copy_size) {++copy_overflows;return;}
@@ -874,8 +930,8 @@ void object(CPUState* cpu) {
     ++object_stats.taken;viewmodel_meshes+=viewmodel;
     const uint32_t flags=psx_mod_read_word(context+0x50),palette=vertices+count*8;
     const uint32_t command_bits=psx_mod_read_word(context+0x48),tpage_bits=psx_mod_read_word(context+0x4c);
-    for(const auto& [record,type]:taken) {
-        Poly p{};p.source=record;p.count=(type&8)?4:3;p.actor=actor;
+    for(const auto& [record,type,depth_only]:taken) {
+        Poly p{};p.source=record;p.count=(type&8)?4:3;p.actor=actor;p.depth_only=depth_only;
         const uint32_t word=psx_mod_read_word(record);
         for(unsigned j=0;j<p.count;++j) p.idx[j]=(word>>(8*j))&0xff;
         const bool textured=type==0x24 || type==0x2c || type==0x34 || type==0x3c;
@@ -884,6 +940,12 @@ void object(CPUState* cpu) {
         if(!(bits&1) && !front_facing(f,p,flags,false)) {++object_stats.culled;trace_record(f,"backface",record);continue;}
         p.textured=textured;p.bias=((bits&8)?1:0)-((bits&4)?1:0);
         p.command=(textured?0x34000000u:0x30000000u)|((bits&0x10)<<21)|command_bits;
+        if(depth_only) {
+            uint32_t sum=0;for(unsigned j=0;j<p.count;++j) sum+=f.verts[p.idx[j]].sz;
+            const int32_t zsf=(int32_t)(p.count==4?f.zsf4:f.zsf3);
+            const int32_t otz=clamp(((int64_t)zsf*sum)>>12,0,0xffff);
+            p.native_slot=otz>=(int32_t)f.far_limit?-1:clamp((otz>>3)+p.bias,0,0x7ff);
+        }
         // Opaque compact props share a local ordering key; the depth buffer
         // resolves their faces. Keeping their tiny triangles together avoids
         // interleaving native/host batches at every face's depth slot.

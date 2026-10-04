@@ -4,6 +4,10 @@
 by R01. This is diagnostic preparation, not a reproduced cause or a cup fix.
 The previous user report in note 89 remains authoritative.
 
+**Continuation:** runtime reproduction identified native tabletop overdraw;
+the bounded fix and final validation are in [note 95](95-d17l-tabletop-depth.md).
+D17L is now Needs playtest; the initial preparation below is historical.
+
 ## Scope and provenance
 
 The prior trace deduplicated by mesh and could not distinguish a disappearing
@@ -72,12 +76,13 @@ source was edited. Existing accepted framework modifications remain intact.
 
 ## Remaining work
 
-The repository says not to launch the game unless asked. Explicit authorization
-for isolated diagnostic launches was requested during this pass and remains
-pending. No game was launched. The missing good/bad-frame correlation prevents
-completion of the selected diagnosis; D17L is neither Done nor Needs playtest.
+At the initial diagnostic checkpoint, explicit launch authorization was pending
+and no game had been launched. The user subsequently authorized development
+launches on 2026-10-04, preferring background/offscreen tests and foreground
+windows only when visual verification requires them. AGENTS.md now records
+that standing permission. The continuation is recorded below.
 
-After launch authorization, use private slot 11 and approach/retreat captures,
+The investigation uses private slot 11 and approach/retreat captures to
 identify the exact cup and supporting/foreground surfaces, and correlate the
 producer records with submitted/drawn/presented primitives. Stable bar props
 are controls. Determine whether the cause is missing submission, clipping,

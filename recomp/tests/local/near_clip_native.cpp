@@ -15,6 +15,8 @@ static uint8_t ram[0x200000];
 static PSXModFunctionEntryCallback near_hook;
 static bool live_eye=false;
 static unsigned host_vertices;
+struct HostCorner {uint32_t word;float z,u,v,depth;};
+static std::vector<HostCorner> host_corners;
 extern "C" {uint8_t* g_psx_ram=ram;uint32_t g_dirty_ram_code_gen=1;}
 extern "C" uint32_t psx_mod_alloc_guest_memory(uint32_t,uint32_t){return 0x801e0000;}
 extern "C" uint8_t psx_mod_read_byte(uint32_t a){return ram[a&0x1fffff];}
@@ -24,7 +26,7 @@ extern "C" void psx_mod_write_byte(uint32_t a,uint8_t v){ram[a&0x1fffff]=v;}
 extern "C" void psx_mod_write_word(uint32_t a,uint32_t v){for(int i=0;i<4;++i)ram[(a+i)&0x1fffff]=v>>(8*i);}
 extern "C" int psx_mod_register_function_entry_plugin(const char*,uint32_t,PSXModFunctionEntryCallback cb){near_hook=cb;return 1;}
 extern "C" int psx_mod_gpu_host_vertex(uint32_t,uint32_t,int32_t,int32_t,float,float,float){return 1;}
-extern "C" int psx_mod_gpu_host_vertex_depth(uint32_t,uint32_t,int32_t,int32_t,float,float,float,float){++host_vertices;return 1;}
+extern "C" int psx_mod_gpu_host_vertex_depth(uint32_t,uint32_t w,int32_t,int32_t,float z,float u,float v,float d){++host_vertices;host_corners.push_back({w,z,u,v,d});return 1;}
 extern "C" int psx_mod_replay_active(void){return 0;}
 extern "C" uint32_t psx_mod_savestate_loads(void){return 0;}
 namespace ttk {bool frame_trace_on(){return false;} void frame_trace_account(uint32_t,long){}}
@@ -82,7 +84,7 @@ static void packet_contracts(const char* executable) {
         word(ctx,0x80160000);word(ctx+4,0x80160000);word(ctx+8,0x80180000);
         word(ctx+0x78,0xffff);word(ctx+0x54,0x808080);word(ctx+0x58,0x80150000);
         word(0x80150000,0);word(0x80150004,0x0010001f);word(0x80150008,0x1f1f1f00);
-        ++g_dirty_ram_code_gen;host_vertices=0;
+        ++g_dirty_ram_code_gen;host_vertices=0;host_corners.clear();
         CPUState cpu{};cpu.gpr[4]=mesh;cpu.gpr[5]=ot;cpu.gpr[6]=ctx;cpu.gpr[7]=bm;
         cpu.gte_ctrl[0]=4096;cpu.gte_ctrl[2]=4096;cpu.gte_ctrl[4]=4096;
         cpu.gte_ctrl[26]=256;cpu.gte_ctrl[29]=341;cpu.gte_ctrl[30]=256;
@@ -140,6 +142,58 @@ static void packet_contracts(const char* executable) {
         unsigned buckets=0;for(unsigned i=0;i<2048;++i)buckets+=psx_mod_read_word(ot+i*8)!=0;
         assert(buckets==(semi?2u:1u));
     }
+    // D17L: distant opaque static top faces retain native integer vertices,
+    // affine UVs, quad topology and AVSZ4 ordering while gaining host depth.
+    // Vertical, sloped, lower, translucent and foreign-caller faces stay native.
+    auto top_case=[&](int kind,uint32_t caller,bool expected,int bias=0) {
+        auto c=reset();c.gpr[31]=caller;c.gpr[18]=0x80190000;
+        psx_mod_write_byte(mesh+6,8);word(mesh+0x10,verts);word(mesh+0x14,list);
+        const int16_t xyz[8][3]={{-400,-100,4600},{400,-100,4600},
+            {-400,-100,5400},{400,-100,5400},{-400,200,4600},
+            {400,200,4600},{-400,200,5400},{400,200,5400}};
+        for(int i=0;i<8;++i) {
+            int y=xyz[i][1];
+            if(kind==1 && i==2) y=0; // sloped/nonplanar
+            if(kind==2 && i==4) y=-200; // surface is not mesh top
+            word(verts+8*i,(uint16_t)xyz[i][0]|uint32_t(uint16_t(y))<<16);
+            word(verts+8*i+4,(uint16_t)xyz[i][2]);
+        }
+        // Double sided, ordinary modulated FT4. A bias in either direction
+        // must remain exactly native, without the enhanced -4 prop bias.
+        const uint32_t bits=(kind>=10?0u:1u)|(kind==3?16u:0u)|(bias>0?8u:bias<0?4u:0u);
+        word(list,0x0001002c);word(list+4,0x03020100);
+        word(list+8,0);word(list+12,(bits<<25)|0x001f);
+        word(list+16,0x1f1f1f00);word(list+20,0xff);
+        if(kind==4) word(ctx+0x48,0x02000000); // context fade/semitransparency
+        if(kind==5) word(ctx+0x78,1); // original far-depth rejection
+        if(kind==6) c.gte_ctrl[30]=128; // use AVSZ4 scale, not an average guess
+        if(kind==10) word(ctx+0x50,0x400); // mirrored native NCLIP
+        if(kind==12) c.gte_ctrl[26]=64; // screen-snapped zero area
+        if(kind==8) word(verts+7*8,psx_mod_read_word(verts+6*8)); // duplicate corner
+        if(kind==9) psx_mod_write_byte(mesh+6,7); // incomplete box
+        if(kind==7) word(ctx+8,0x80161000); // whole-mesh budget fallback
+        observed_hook(&c,0x80010000);
+        assert((host_vertices!=0)==expected);
+        if(expected) {
+            assert(host_vertices==6);
+            const int expected_slot=(kind==6?78:156)+bias;
+            for(int i=0;i<2048;++i) assert((psx_mod_read_word(ot+i*8)!=0)==(i==expected_slot));
+            const int index[6]={0,1,2,2,1,3};
+            ttk::NearGte g{};for(int i=0;i<3;++i)g.r[i][i]=4096;g.h=256;
+            const float uv[4][2]={{0,0},{31,0},{0,31},{31,31}};
+            for(int i=0;i<6;++i) {
+                const auto& v=host_corners[i];const int j=index[i];
+                assert(v.word==ttk::near_project(g,xyz[j][0],xyz[j][1],xyz[j][2]).sxy);
+                assert(v.z==1.0f && v.depth>0); // affine texture, real raster depth
+                assert(v.u==uv[j][0] && v.v==uv[j][1]);
+            }
+        } else if(kind!=5 && kind!=10 && kind!=12) assert(c.gpr[4]==mesh);
+    };
+    for(int bias:{-1,0,1}) top_case(0,0x80032288,true,bias);
+    for(int kind:{1,2,3,4,5,7,8,9,10,12}) top_case(kind,0x80032288,false);
+    top_case(6,0x80032288,true);top_case(11,0x80032288,true);
+    top_case(0,0x80033778,false);top_case(0,0x800351f4,false);
+    live_eye=false;top_case(0,0x80032288,false);live_eye=true;
     live_eye=false;object_case(0x80032288,100,false); // Vanilla/original view
     live_eye=true;
     // Changed caller instruction must invalidate permission, even with the

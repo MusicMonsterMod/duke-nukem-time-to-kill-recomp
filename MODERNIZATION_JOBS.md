@@ -104,7 +104,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D17I | Unlimited stale-camera scheduling episodes | Todo | D17B |
 | D17J | Verify older isolated visual reports against accepted baseline | Todo | D17A |
 | D17K | Coplanar ground blood in save slot 12 | Accepted | D17D |
-| D17L | Tabletop props cut off on approach/retreat in save slot 11 | In progress | D17D |
+| D17L | Tabletop props cut off on approach/retreat in save slot 11 | Needs playtest | D17D |
 | D17M | Shotgun ammo visible through ladder platform in save slot 9 | Todo | D17D |
 | D17N | Diagonal wall artifacts during movement in save slot 12 | Todo | D17A |
 | D17O | Unstable sky appearance when looking up (slot 10) | Done (user-accepted) | D17A, D17B |
@@ -1993,7 +1993,7 @@ confirms the result. D17D/F remain accepted.
 
 ### D17L - Tabletop props cut off on approach/retreat in save slot 11
 
-**In progress - selected 2026-10-04 for bounded primitive/provenance diagnosis.** User report on 2026-10-03: load UI
+**Needs playtest - 2026-10-04 tabletop depth repair.** Runtime capture identifies a later native table-top quad overwriting the depth-tested cup. The new bounded correction and 60/120/180 evidence are in [note 95](documentation/95-d17l-tabletop-depth.md). The earlier unresolved candidate and retest below are historical. User report on 2026-10-03: load UI
 save slot 11 (file 10), look at the props sitting on the table directly ahead,
 and walk forwards and backwards. The props get cut off and reappear as Duke
 moves closer. This concerns the objects on the table, not the now-accepted
@@ -5749,3 +5749,22 @@ build succeeds. UI 11 private-copy identity matches the report. No game launch,
 new failing-frame reproduction or cause/fix claim. Explicit isolated launch
 authorization is pending under AGENTS.md. Full acceptance remains unmet.
 See [diagnostic contract and remaining work](documentation/94-d17l-primitive-diagnostics.md).
+
+## 2026-10-04 - D17L native tabletop overdraw repaired (Needs playtest)
+
+User authorized background coding/test launches and requested replacing the
+old launch restriction; AGENTS.md now records that standing permission.
+Actual title/GP0 provenance identifies cup instance 0x801de8d0 and a later
+native top face on supporting table 0x801de6f0. The table bypassed host depth
+and overwrote the lower cup. No instance/mesh address is a repair condition.
+
+Depth-only upper faces of authenticated opaque static box meshes preserve
+native coordinates, affine UVs, diagonal, NCLIP and AVSZ ordering. A broader
+surface experiment was rejected for cost. Final 60/120/180 approach/retreat,
+accepted visual regression routes, native packet/control tests, 102 Python
+tests (two skips), 312 clean replay restore comparisons and Vanilla exclusion
+pass. 120 timing samples have zero output underruns; 180 remains below target
+in busy scenes, with a small additional candidate deficit. Player visual and
+audio acceptance remains outstanding. No player files, original media,
+generated code or framework changes. Research inspired measurement only;
+all implementation is purpose-built TTK code. See [note 95](documentation/95-d17l-tabletop-depth.md).

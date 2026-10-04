@@ -1,5 +1,6 @@
 // D11B near-clip math: GTE-exact projection, safety classification and DPCS.
 #include "near_clip.h"
+#include "sky_render.h"
 #include "cpu_state.h"
 #include "mod_plugins.h"
 #include <cassert>
@@ -37,6 +38,25 @@ static void packet_contracts(const char* executable) {
     uint32_t base=0;std::memcpy(&base,exe.data()+0x18,4);
     assert((base&0x1fffff)+exe.size()-0x800<=sizeof ram);
     std::memcpy(ram+(base&0x1fffff),exe.data()+0x800,exe.size()-0x800);
+    // D17O: only the three resident sky matrix calls escape world-object
+    // interpolation. Check the real code bytes and invalidation after restore.
+    ttk::SkyRenderIdentity sky;
+    assert(sky.valid(0,g_dirty_ram_code_gen,ram));
+    for(uint32_t ra:{0x80038c68u,0x80038d7cu,0x80038e18u}) {
+        assert(ttk::sky_transform_call(0x800d6eb0u,ra));
+        assert(!ttk::sky_transform_call(0x800d7010u,ra));
+        assert(!ttk::sky_transform_call(0x800d6eb0u,ra+4));
+    }
+    assert(!ttk::sky_transform_call(0x800d6eb0u,0x8003886cu));
+    assert(!ttk::sky_transform_call(0x800d6eb0u,0x80038f5cu));
+    const uint32_t sky_call=psx_mod_read_word(0x80038d74);
+    psx_mod_write_word(0x80038d74,sky_call^1);++g_dirty_ram_code_gen;
+    assert(!sky.valid(0,g_dirty_ram_code_gen,ram));
+    psx_mod_write_word(0x80038d74,sky_call);++g_dirty_ram_code_gen;
+    assert(sky.valid(0,g_dirty_ram_code_gen,ram));
+    psx_mod_write_word(0x80038d74,sky_call^1);
+    assert(!sky.valid(1,g_dirty_ram_code_gen,ram)); // already-dirty code, next frame
+    psx_mod_write_word(0x80038d74,sky_call);++g_dirty_ram_code_gen;
     constexpr uint32_t mesh=0x80140000,verts=mesh+0x80,list=mesh+0x100;
     constexpr uint32_t ctx=0x800d67a8,ot=0x800d27a0,bm=0x800d26a0;
     auto word=[](uint32_t a,uint32_t v){psx_mod_write_word(a,v);};

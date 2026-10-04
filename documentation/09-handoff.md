@@ -1,5 +1,32 @@
 # Next-session handoff
 
+## 2026-10-04 - D17O sky camera-relative replay repair (Needs playtest)
+
+Verified original sky architecture and a high-refresh defect: the three
+camera-relative sky matrices were recorded under the last world object, then
+substituted with older world-space matrices. A narrow, resident-code-authenticated
+exemption retains the original sky transforms, art and timer. In the sampled
+turn sweep, camera-origin displacement fell from up to 1075.397 units to zero.
+No framework, generated C, flight-control, clipping or media changes.
+
+Private captures cover 60/120/180, ground first person, third-person flight,
+multiple headings/pitches and a second street location. Near/input/aim/controls/
+inventory suites and final player/shard checks pass. Modern/Classic pistol fire,
+reticle eligibility, actual pack-off, landing/first-person return and reflight
+pass. 1106 worker surface checks had zero mismatch. All 28 player file hashes
+and mtimes match intake. Existing runtime patch stack verified already applied.
+
+Primary 120 FPS routes were clean. Busy club 180 FPS still repeats frames and
+can underrun audio, reproduced with the previous sky path too; do not claim
+universal 180 FPS stability. Original coarse cloud motion and high-pitch geometry
+limits remain. User sky appearance confirmation is required; no next job started.
+
+[Full architecture, provenance, diagnosis, A/B evidence and limits](92-d17o-sky-intake.md).
+Build SHA-256: `8b7253ce043395795e6c8002d1e0079f549e756b9df34cce77332e2722af588d`.
+Launch: `python3 recomp/tools/local/run.py`. Load UI slot 10 and look/turn/move;
+F10 captures Modernized input if needed. The fix applies to high-refresh redraws.
+
+
 ## 2026-10-04 - D08Q3 accepted; next D17O sky appearance
 
 User accepts D08Q3: "i accept this! great work." Done; preserve `f284dc1`.

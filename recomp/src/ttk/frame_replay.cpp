@@ -26,6 +26,7 @@
 #include "modern_controls.h"
 #include "weapon_aim.h"
 #include "near_clip.h"
+#include "sky_render.h"
 #include "psx_sdl.h"
 #include <algorithm>
 #include <cmath>
@@ -41,6 +42,8 @@ int overlay_loader_prepare_address(uint32_t addr);
 }
 
 extern "C" uint64_t s_frame_count;
+extern "C" uint8_t* g_psx_ram;
+extern "C" uint32_t g_dirty_ram_code_gen;
 namespace ttk {
 const char* frame_replay_debug_json();
 namespace {
@@ -1241,7 +1244,31 @@ void actor_draw(CPUState* cpu,uint32_t address) {
 // 0x800292a0(camera, matrix): one transform load inside an object's draw.
 // Live frames record it; a worker's redraw substitutes the interpolated one.
 void transform_load(CPUState* cpu,uint32_t) {
-    if(!interp_replay || cpu->gpr[4]!=camera_base || !xf_obj) return;
+    if(!interp_replay || cpu->gpr[4]!=camera_base) return;
+    const uint32_t sky_ra=cpu->gpr[31];
+    const bool sky=sky_transform_call(cpu->gpr[4],sky_ra);
+    static SkyRenderIdentity sky_identity;
+    static const bool sky_native=[]{const char* t=std::getenv("DNTTK_SKY_CAMERA");return !(t && !std::strcmp(t,"0"));}();
+    static const bool sky_trace=std::getenv("DNTTK_SKY_TRACE")!=nullptr;
+    if(sky && sky_native && sky_identity.valid(input_host_frame(),g_dirty_ram_code_gen,g_psx_ram)) {
+        // xf_obj still names the last world object after its draw returns.
+        // Recording the sky under that key made workers replace its freshly
+        // calculated eye with an older world-space translation. With late
+        // mouse input that displacement can exceed the cloud band's radius.
+        // Let the original routine construct BOTH rotation and translation
+        // from this worker's camera and original sky timer. Never interpolate
+        // the camera-facing backdrop as an independent world object either.
+        static unsigned logs=0;
+        if(sky_trace && psx_mod_replay_active() && logs++<120) {
+            const Mat m=read_mat(cpu->gpr[5]);
+            std::fprintf(stderr,"[sky-native] ra=%08x offset=%d,%d,%d phase=%u\n",sky_ra,
+                m.t[0]-(int)psx_mod_read_word(camera_base+0x14),
+                m.t[1]-(int)psx_mod_read_word(camera_base+0x18),
+                m.t[2]-(int)psx_mod_read_word(camera_base+0x1c),psx_mod_read_word(0x800c0c64));
+        }
+        return;
+    }
+    if(!xf_obj) return;
     const uint16_t seq=xf_seq++;
     const uint32_t m=cpu->gpr[5];
     if(!psx_mod_replay_active()) {
@@ -1255,6 +1282,14 @@ void transform_load(CPUState* cpu,uint32_t) {
         const uint32_t i=(sub_cursor+k)%sub_n;
         Frame::Xf x; std::memcpy(&x,sub_table+i*sizeof(Frame::Xf),sizeof x);
         if(x.obj!=xf_obj || x.seq!=seq) continue;
+        static unsigned sky_logs=0;
+        if(sky && sky_trace && sky_logs<120) {
+            const Mat now=read_mat(m);
+            if(std::abs(now.t[0]-x.m.t[0])+std::abs(now.t[1]-x.m.t[1])+std::abs(now.t[2]-x.m.t[2])>10) {
+                ++sky_logs;
+                std::fprintf(stderr,"[sky-xf] ra=%08x obj=%08x seq=%u now=%d,%d,%d sub=%d,%d,%d eye=%d,%d,%d\n",sky_ra,xf_obj,seq,now.t[0],now.t[1],now.t[2],x.m.t[0],x.m.t[1],x.m.t[2],(int)psx_mod_read_word(camera_base+0x14),(int)psx_mod_read_word(camera_base+0x18),(int)psx_mod_read_word(camera_base+0x1c));
+            }
+        }
         const uint32_t dst=scratch+0x20u*(i%scratch_n);
         for(int k=0;k<9;++k) psx_mod_write_half(dst+2*k,(uint16_t)x.m.m[k]);
         psx_mod_write_half(dst+18,0);

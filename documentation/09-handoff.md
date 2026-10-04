@@ -1,5 +1,41 @@
 # Next-session handoff
 
+## 2026-10-04 - D17P accepted (Done)
+
+User: "i fully accept this fix." D17P is Done, user-accepted: the Modernized
+Draw distance option (`extended` default) removes the UI slot 8 subway bands.
+Accepted executable `5130824841bfc816e09243d47bb3ecd3635bd2fb3d2519ed06e49b511f75ae50`.
+The user authorized documentation, commit and push. The candidate entry below
+is historical. See [note 97](97-d17p-distant-bands.md) for cause, evidence and
+limits. No next job selected or started.
+Launch when wanted: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-04 - D17P distant bands candidate, Needs playtest
+
+The UI slot 8 subway bands are three original rendering limits, present in
+Vanilla too: the far cut-off (rooms past the render limit are never drawn and
+the fog fade before it spans a pixel or two), integer portal rectangles a pixel
+or two short of distant openings (whole ceiling strips dropped), and integer
+NCLIP on one-pixel distant faces. New Modernized **Draw distance** option,
+`extended` by default (`original` restores the limits; Vanilla always original):
+render-only limits doubled, portal rectangles 2 native pixels wider, exact PGXP
+NCLIP signs when geometry or texture precision is Corrected. Profile schema 24,
+`run.py --draw-distance original|extended`, settings menu **D**.
+
+Private offscreen evidence: matched 4x views show a continuous ceiling and the
+real corridor end; all 12 private slots keep their game rate with ring use at
+most 50% and no budget hits or replay misses; 120 Hz cost unchanged; Vanilla
+untouched; existing savestates still load (codegen hash unchanged). Tests pass.
+Candidate executable `5130824841bfc816e09243d47bb3ecd3635bd2fb3d2519ed06e49b511f75ae50`.
+**Needs playtest:** walk forwards in UI slot 8 and look around; recheck the
+accepted D15 cases. Nothing committed. See
+[note 97](97-d17p-distant-bands.md).
+
+Launch: `python3 recomp/tools/local/run.py` (the first launch migrates saved
+settings to schema 24 with Draw distance `extended` and keeps a recovery copy).
+
+
 ## 2026-10-04 - D15 Accepted; new subway slot 8 is D17P
 
 The user accepts the final playtest: slot 5 left-side black/missing areas no

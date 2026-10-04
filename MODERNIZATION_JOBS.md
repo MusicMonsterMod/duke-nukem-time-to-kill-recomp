@@ -108,7 +108,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D17M | Shotgun ammo visible through ladder platform in save slot 9 | Todo | D17D |
 | D17N | Diagonal wall artifacts during movement in save slot 12 | Todo | D17A |
 | D17O | Unstable sky appearance when looking up (slot 10) | Done (user-accepted) | D17A, D17B |
-| D17P | Distant horizontal black bands in new subway slot 8 | Todo (immediate next) | D15 |
+| D17P | Distant horizontal black bands in new subway slot 8 | Done (user-accepted) | D15 |
 | D17C | View bob: disable experiment, then a stable modern camera | Done (user-accepted) | D11 |
 | D18 | FMV and audio presentation safeguards | Todo | D01, D02 |
 | D18A | Voice/music/gunfire crackle investigation | Done | D01, D02 |
@@ -2096,7 +2096,7 @@ and documentation, excluding all retail assets and local captures/saves.
 
 ### D17P - Distant horizontal black bands in the new subway slot 8
 
-**Todo (immediate next, selected by the user 2026-10-04).** Separate follow-up
+**Done (user-accepted 2026-10-04):** "i fully accept this fix." Implemented after accepted baseline `8cfd16f`. Separate follow-up
 after D15 acceptance and its authorized commit/push. Do not reopen D15 or
 confuse the replacement slot with the accepted old slot 8 door opacity case.
 
@@ -2122,6 +2122,38 @@ New slot SHA256: `7bf643dcfff92379ce5b9f06789eedf0a1c8c9cd4a46c1cfcde8670d9dba57
 UI slot 8 = debug slot 7 / `slot07.pst`. Private intake and player-file manifest
 are local at `recomp/analysis/d17p-subway-bands/`. Retail state stays untracked.
 [Accepted baseline and distinct old/new state identities](documentation/96-d15-accepted-precision.md).
+
+**Initial investigation:** private approach captures compare all four geometry/texture
+precision combinations at 120 Hz and Corrected/Corrected at 60 Hz. A distant
+horizontal ceiling discontinuity is visible with both Original and Corrected;
+this does not yet establish the cause or identify every reported band. Local
+evidence: `recomp/analysis/d17p-subway-bands/intake.json` and `probe.json`.
+No renderer changes; player files unchanged. Next: longer approach and matched
+primitive tracing before choosing a fix.
+
+**Cause and accepted fix:** Vanilla shows the same bands; they are
+three original limits, not a D15 regression. (1) The far limit: rooms past the
+render context's `+0x74` (28072/33280 in the subway) are never drawn, and the
+fog fade before it is squeezed into a pixel or two, so the corridor ends in a
+hard black box. (2) Integer portal rectangles a pixel or two short of distant
+openings drop whole strips of the next section's ceiling (rectangle outcodes in
+`0x8001160c`), leaving full-width black lines. (3) One-pixel-tall distant faces
+whose integer NCLIP is zero or wrong-signed are skipped, leaving jagged partial
+lines. Proven with packet rasters, live limit reads, a far-limit experiment and
+per-mesh face traces with context limits and rectangles.
+
+New Modernized **Draw distance** option (`extended` default, `original`;
+schema 24, `run.py --draw-distance`, settings **D**; Vanilla always original):
+doubles the render-only limits (level globals and gameplay checks untouched),
+widens portal rectangles by 2 native pixels, and enables the runtime's precise
+NCLIP culling (exact PGXP sign, only with Corrected geometry or textures).
+Hooks `0x8006276C`/`0x80062B48`/`0x8002FFEC`, guarded code ranges, framework
+patch exported and verified on the clean pin. Matched 4x views show a continuous
+ceiling and the real corridor end. All 12 private slots: unchanged game rate,
+ring peak at most 50%, no budget hits or replay misses; 120 Hz cost unchanged.
+Python 106 (2 skips) and native controls/near/input/PGXP/GTE tests pass.
+The user's playtest accepted the fix.
+[Cause, implementation, evidence and limits](documentation/97-d17p-distant-bands.md).
 
 ### D18 — FMV and audio presentation safeguards
 
@@ -5829,3 +5861,28 @@ They explicitly authorize documenting, committing and pushing the implementation
 and backlog update. D15 is Accepted; D17P records the replacement subway slot 8
 as a separate immediate follow-up. See [note 96](documentation/96-d15-accepted-precision.md)
 for implementation, user evidence, automated/private verification and limits.
+
+## 2026-10-04 - D17P distant bands candidate (Needs playtest)
+
+Implemented the Modernized Draw distance option for the UI slot 8 subway bands.
+The bands are three original rendering limits (far cut-off with a squeezed fade,
+integer portal rectangles that drop distant ceiling strips, and integer NCLIP on
+one-pixel faces); Vanilla shows them too. `extended` (default in Modernized)
+doubles the render-only limits, widens portal rectangles by 2 native pixels and
+uses exact PGXP signs for NCLIP when precision is Corrected. Profile schema 24,
+`--draw-distance`, settings D. Private measurements: matched views clean, 12-slot
+sweep without game-rate, budget or replay-miss regressions, 120 Hz cost unchanged,
+Vanilla untouched. Tests pass. Codegen hash unchanged, so existing savestates
+load. The framework's unregistered `test_host_vertex_depth.py` was repaired and
+registered. Needs the user's playtest; nothing committed.
+See [note 97](documentation/97-d17p-distant-bands.md).
+
+## 2026-10-04 - D17P accepted (Done)
+
+User: "i fully accept this fix." D17P is Done, user-accepted, with the Draw
+distance candidate (executable SHA256
+`5130824841bfc816e09243d47bb3ecd3635bd2fb3d2519ed06e49b511f75ae50`) and the
+evidence and limits in [note 97](documentation/97-d17p-distant-bands.md). The user
+authorized documentation, commit and push. No next job selected or started.
+Launch when wanted: `python3 recomp/tools/local/run.py`.
+

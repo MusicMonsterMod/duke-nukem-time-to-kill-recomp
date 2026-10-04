@@ -70,10 +70,10 @@ index cb14c4b7..db8c45a5 100644
  
  
 diff --git a/runtime/CMakeLists.txt b/runtime/CMakeLists.txt
-index df6b213d..10fdea2d 100644
+index df6b213d..9865381f 100644
 --- a/runtime/CMakeLists.txt
 +++ b/runtime/CMakeLists.txt
-@@ -511,6 +511,14 @@ if(BUILD_TESTING)
+@@ -511,6 +511,16 @@ if(BUILD_TESTING)
  
      find_package(Python3 COMPONENTS Interpreter)
      if(Python3_Interpreter_FOUND)
@@ -84,6 +84,8 @@ index df6b213d..10fdea2d 100644
 +                     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_pipeline_batch_deadlines.py)
 +            add_test(NAME ttk_render_worker_deadline
 +                     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_render_worker_deadline.py)
++            add_test(NAME ttk_host_vertex_depth
++                     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_host_vertex_depth.py)
 +        endif()
          add_test(NAME setup_package_bios_hint_test
                   COMMAND ${Python3_EXECUTABLE}
@@ -273,10 +275,10 @@ index a1e4645e..cec1995d 100644
  /*
   * Draw still artwork behind the game image in OpenGL letterbox/pillarbox
 diff --git a/runtime/include/pgxp.h b/runtime/include/pgxp.h
-index aa55b3aa..ac55f64f 100644
+index aa55b3aa..5fa89807 100644
 --- a/runtime/include/pgxp.h
 +++ b/runtime/include/pgxp.h
-@@ -48,6 +48,18 @@ void pgxp_invalidate_all(void);
+@@ -48,6 +48,23 @@ void pgxp_invalidate_all(void);
  void pgxp_suppress_begin(void);
  void pgxp_suppress_end(void);
  
@@ -291,6 +293,11 @@ index aa55b3aa..ac55f64f 100644
 +void pgxp_mesh_vertex_stats(uint64_t out[4]);
 +int pgxp_mesh_polygon(uint32_t addr, const uint32_t *words, uint32_t count, int32_t x[4], int32_t y[4], uint16_t z[4]);
 +int pgxp_mesh_vertex(uint32_t addr, uint32_t word, int32_t *x16, int32_t *y16, uint16_t *z);
++/* Precise culling (title opt-in, gte.cpp): when every NCLIP input has a
++ * validated shadow and the exact sign disagrees with the integer determinant,
++ * MAC0 takes the exact sign. checks counts tracked NCLIPs, flips the changes. */
++void gte_nclip_culling_set(int enabled);
++void gte_nclip_culling_stats(uint64_t *checks, uint64_t *flips);
 +
  /* --- GTE producer (gte.cpp) ---------------------------------------------- */
  
@@ -3552,6 +3559,62 @@ index d0ccc3d5..340087c3 100644
      int interp_pair = interp_capture(fbo, 0, disp_y, g_wide_w, disp_h,
                                       linear, 0, GL_PRES_WIDE);
      if (interp_pair) {
+diff --git a/runtime/src/gte.cpp b/runtime/src/gte.cpp
+index d0d9eb72..64615ab1 100644
+--- a/runtime/src/gte.cpp
++++ b/runtime/src/gte.cpp
+@@ -946,6 +946,20 @@ extern "C" void gte_nclip_precise_stats(uint64_t *hits, uint64_t *fallbacks,
+     if (fallbacks) *fallbacks = s_nclip_fallbacks;
+     if (disagreements) *disagreements = s_nclip_disagreements;
+ }
++/* Precise culling (title opt-in). When every SXY input has a validated PGXP
++ * shadow and its exact sign disagrees with the integer determinant, MAC0
++ * takes that sign (+1/-1), so a thin distant polygon whose integer corners
++ * collapse is kept and a polygon facing away precisely is dropped. Agreeing
++ * results, untracked inputs and suppressed (speculative) passes keep the
++ * native value. */
++static int s_nclip_culling = 0;
++static uint64_t s_nclip_culling_checks = 0;
++static uint64_t s_nclip_culling_flips = 0;
++extern "C" void gte_nclip_culling_set(int enabled) { s_nclip_culling = enabled ? 1 : 0; }
++extern "C" void gte_nclip_culling_stats(uint64_t *checks, uint64_t *flips) {
++    if (checks) *checks = s_nclip_culling_checks;
++    if (flips) *flips = s_nclip_culling_flips;
++}
+ extern "C" int gte_nclip_precise_bltz(int32_t native_mac0) {
+     if (!s_nclip_last_precise_valid || native_mac0 != s_nclip_last_native)
+         return native_mac0 < 0;
+@@ -970,12 +984,13 @@ void gte_nclip(GTEState* gte, uint32_t instr) {
+     /* Compute an exact 16.16 determinant for configured branch consumers, but
+      * preserve native guest-visible MAC0 for every architectural reader. */
+     int32_t px0, py0, px1, py1, px2, py2;
+-    if (gpu_ws_precise_nclip_enabled() &&
++    if ((gpu_ws_precise_nclip_enabled() || s_nclip_culling) &&
+         !s_gte_replay_sandbox && s_speculative_depth == 0 &&
+         pgxp_get_gte_sxy_checked(0, gte->SXY[0], 1, &px0, &py0) &&
+         pgxp_get_gte_sxy_checked(1, gte->SXY[1], 1, &px1, &py1) &&
+         pgxp_get_gte_sxy_checked(2, gte->SXY[2], 1, &px2, &py2)) {
+-        s_nclip_precise_hits++;
++        if (s_nclip_culling) s_nclip_culling_checks++;
++        else s_nclip_precise_hits++;
+         const int64_t dx10 = (int64_t)px1 - px0;
+         const int64_t dy10 = (int64_t)py1 - py0;
+         const int64_t dx20 = (int64_t)px2 - px0;
+@@ -983,8 +998,13 @@ void gte_nclip(GTEState* gte, uint32_t instr) {
+         const int64_t cross = dx10 * dy20 - dy10 * dx20;
+         s_nclip_last_precise_sign = cross < 0 ? -1 : (cross > 0 ? 1 : 0);
+         s_nclip_last_precise_valid = true;
+-        if ((cross > 0 && out <= 0) || (cross < 0 && out >= 0))
++        if ((cross > 0 && out <= 0) || (cross < 0 && out >= 0)) {
+             s_nclip_disagreements++;
++            if (s_nclip_culling) {
++                out = cross > 0 ? 1 : -1;
++                s_nclip_culling_flips++;
++            }
++        }
+     } else if (gpu_ws_precise_nclip_enabled() &&
+                !s_gte_replay_sandbox && s_speculative_depth == 0) {
+         s_nclip_fallbacks++;
 diff --git a/runtime/src/host_keymap.c b/runtime/src/host_keymap.c
 index 5f66e0a9..470da031 100644
 --- a/runtime/src/host_keymap.c
@@ -6934,6 +6997,73 @@ index 00000000..11707dc8
 +    subprocess.run([os.environ.get('CC', 'cc'), '-O2', str(path / 'test.c'), '-o', str(path / 'test')], check=True)
 +    subprocess.run([str(path / 'test')], check=True)
 +print('dirty-text restore guards: passed')
+diff --git a/runtime/tests/test_gte_register_access.cpp b/runtime/tests/test_gte_register_access.cpp
+index 8fd223de..369e3128 100644
+--- a/runtime/tests/test_gte_register_access.cpp
++++ b/runtime/tests/test_gte_register_access.cpp
+@@ -1,4 +1,5 @@
+ #include "cpu_state.h"
++#include "pgxp.h"
+ #include "gte.h"
+ 
+ #include <array>
+@@ -626,6 +627,48 @@ int test_precise_nclip_is_title_scoped() {
+     return 0;
+ }
+ 
++/* Title opt-in precise culling: a validated exact sign that disagrees with the
++ * integer determinant becomes MAC0 (+1/-1); untracked inputs and the
++ * disabled default keep the native value. */
++int test_precise_nclip_culling() {
++    CPUState cpu{};
++    gte_precision_tracking_set(1);
++    g_test_precise_nclip_enabled = 0;
++    const uint32_t packed[3] = {0x00000001u, 0xFFFFFFFEu, 0xFFFFFFFFu};
++    const int32_t x16[3] = {101245, -109694, -34340};
++    const int32_t y16[3] = {19509, -59658, -20365};
++    for (uint32_t i = 0; i < 3; ++i) {
++        cpu.gte_data[12 + i] = packed[i];
++        gte_test_seed_precise_projection(i, packed[i], x16[i], y16[i], 100);
++    }
++    gte_execute(&cpu, 0x06u);
++    if (cpu.gte_data[24] != 1u)
++        return fail_value("precise culling is off by default", 0, 0x06u,
++                          0, 1u, cpu.gte_data[24]);
++    gte_nclip_culling_set(1);
++    uint64_t checks0 = 0, flips0 = 0;
++    gte_nclip_culling_stats(&checks0, &flips0);
++    for (uint32_t i = 0; i < 3; ++i)
++        gte_test_seed_precise_projection(i, packed[i], x16[i], y16[i], 100);
++    gte_execute(&cpu, 0x06u);
++    uint64_t checks1 = 0, flips1 = 0;
++    gte_nclip_culling_stats(&checks1, &flips1);
++    if (cpu.gte_data[24] != 0xFFFFFFFFu || checks1 != checks0 + 1u ||
++        flips1 != flips0 + 1u)
++        return fail_value("precise culling takes the exact sign", 0, 0x06u,
++                          0, 0xFFFFFFFFu, cpu.gte_data[24]);
++    /* A stale shadow keeps the native determinant. */
++    gte_test_seed_precise_projection(0, packed[0] ^ 1u, x16[0], y16[0], 100);
++    gte_execute(&cpu, 0x06u);
++    uint64_t checks2 = 0, flips2 = 0;
++    gte_nclip_culling_stats(&checks2, &flips2);
++    gte_nclip_culling_set(0);
++    if (cpu.gte_data[24] != 1u || checks2 != checks1 || flips2 != flips1)
++        return fail_value("stale shadow keeps native NCLIP", 0, 0x06u,
++                          0, 1u, cpu.gte_data[24]);
++    return 0;
++}
++
+ int test_precision_speculative_transaction() {
+     constexpr uint32_t address = 0x00123450u;
+     constexpr uint32_t packed = 0x00420021u;
+@@ -740,6 +783,7 @@ int main() {
+     if (int rc = test_command_timing_hook()) return rc;
+     if (int rc = test_precise_sxy_invalidation()) return rc;
+     if (int rc = test_precise_nclip_is_title_scoped()) return rc;
++    if (int rc = test_precise_nclip_culling()) return rc;
+     if (int rc = test_precision_speculative_transaction()) return rc;
+     std::puts("PASS: canonical GTE register helpers match GTEState transfer oracle");
+     return 0;
 diff --git a/runtime/tests/test_host_keymap.c b/runtime/tests/test_host_keymap.c
 index 55370e98..a2d81c8f 100644
 --- a/runtime/tests/test_host_keymap.c
@@ -7015,10 +7145,10 @@ index 55370e98..a2d81c8f 100644
          fprintf(stderr, "host_keymap_test: %d failure(s)\n", failures);
 diff --git a/runtime/tests/test_host_vertex_depth.py b/runtime/tests/test_host_vertex_depth.py
 new file mode 100644
-index 00000000..ffa5b9c6
+index 00000000..afb99361
 --- /dev/null
 +++ b/runtime/tests/test_host_vertex_depth.py
-@@ -0,0 +1,61 @@
+@@ -0,0 +1,63 @@
 +#!/usr/bin/env python3
 +"""The actual replay codec preserves independent texture and raster depths."""
 +from pathlib import Path
@@ -7047,6 +7177,8 @@ index 00000000..ffa5b9c6
 +static void gpu_ws_begin_linked_list(void) {}
 +static void gpu_set_gp0_linked_list_node(uint32_t a,uint32_t b) {(void)a;(void)b;}
 +static void gpu_ws_end_linked_list(void) {}
++static int g_pgxp_mesh_active;
++static void pgxp_invalidate_all(void) {}
 +'''
 +for sig in ('void render_replay_record_begin(', 'uint32_t render_replay_record_end(', 'static void rec_item(', 'void render_replay_record_host_vertex(', 'int render_replay_feed('):
 +    code += function(sig) + '\n'

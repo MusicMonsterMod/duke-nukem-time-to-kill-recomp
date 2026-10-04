@@ -187,8 +187,19 @@ python3 recomp/tools/local/run.py --mode modernized --renderer opengl --frame-ra
 
 This updates saved preferences. Correction preserves the game's simulation
 and collision, and some characteristic PS1 movement remains. The accepted
-floor seams, idle settling and close-up opacity fixes remain in place. The
-new distant horizontal bands in the subway are tracked separately as D17P.
+floor seams, idle settling and close-up opacity fixes remain in place.
+
+### Draw distance (Modernized)
+
+The original game stops drawing a few rooms ahead, so long views such as the
+subway corridor end in a black box, and thin black lines can cross distant
+ceilings and floors. `extended` (the Modernized default) draws twice as far and
+closes those distant seams; with geometry or texture precision `corrected` it
+also keeps thin distant surfaces. `original` keeps the original limit. Choose
+**D** in `--settings` or `--draw-distance original|extended`; it applies on the
+next launch and saves your preference. Gameplay is unchanged, and Vanilla
+always uses the original limit. A very long view can still end in black beyond
+twice the original distance.
 
 ### View bob (Modernized, first person)
 

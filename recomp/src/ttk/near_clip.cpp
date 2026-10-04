@@ -294,7 +294,11 @@ void trace_begin(Frame& f,const CPUState* cpu) {
     if(filter && filter!=f.mesh) return;
     static uint64_t serial=0;f.trace_call=++serial;f.trace=true;
     std::ostringstream x;x << ",\"context_flags\":" << psx_mod_read_word(context+0x50)
-      << ",\"command_bits\":" << psx_mod_read_word(context+0x48) << ",\"gte\":[";
+      << ",\"command_bits\":" << psx_mod_read_word(context+0x48)
+      << ",\"limits\":[" << psx_mod_read_word(context+0x6c) << ',' << psx_mod_read_word(context+0x70) << ','
+      << psx_mod_read_word(context+0x74) << ',' << psx_mod_read_word(context+0x78) << "],\"rect\":[" << (int16_t)psx_mod_read_half(context+0x18) << ','
+      << (int16_t)psx_mod_read_half(context+0x1a) << ',' << (int16_t)psx_mod_read_half(context+0x1c) << ','
+      << (int16_t)psx_mod_read_half(context+0x1e) << "],\"gte\":[";
     for(int i=0;i<32;++i) {if(i)x<<',';x<<cpu->gte_ctrl[i];}x<<']';
     trace_record(f,"mesh",0,x.str());
 }

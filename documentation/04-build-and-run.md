@@ -261,6 +261,19 @@ generate --config game.local.toml --project-root . --disc disc/time-to-kill.cue`
 then `cmake --preset local-dev`, `cmake --build --preset local-dev` and
 `tools/local/build_movie_overlay.py`.
 
+## Draw distance (D17P)
+
+Profile schema 24 adds the Modernized `draw_distance` choice: `extended`
+(default; render-only far limits doubled, portal rectangles 2 native pixels
+wider, exact PGXP NCLIP signs when precision is Corrected) or `original`.
+`run.py --draw-distance VALUE` saves it (`--settings` choice D); the launcher
+passes `DNTTK_DRAW_DISTANCE` (always `original` for Vanilla). Three hooks
+(`0x8006276C`, `0x80062B48`, `0x8002FFEC`) were added to `game.local.toml` and
+regenerated (see the D14 note above). Framework headers hashed into the codegen
+tag (`runtime/codegen_hash_sources.cmake`, including `cpu_state.h`) must not
+change for title features: a new tag rejects every existing savestate. See
+[note 97](97-d17p-distant-bands.md).
+
 ## Frame rate (D17)
 
 Profile schema 21 adds the Modernized `frame_rate` choice: `display`, `30`,

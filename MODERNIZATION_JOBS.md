@@ -4,7 +4,7 @@ This is the canonical job list for our **Duke Nukem: Time to Kill** PC project, 
 
 Invoke **`$continue-duke-recomp`** (Codex) or **`/continue-duke-recomp`** (Claude Code) to see the current jobs and choose one. You can also request a job directly: **`$continue-duke-recomp work on D01`** or **`/continue-duke-recomp work on D01`**. The skill reads this file rather than keeping a second backlog. It must not automatically start the next job.
 
-**Current job: D17O - unstable sky appearance (slot 10).** Needs playtest; camera-relative sky redraw repair implemented and verified. D08Q3 is Done, user-accepted.
+**Latest completed job: D17O - unstable sky appearance (slot 10).** Done, user-accepted. No next job selected. D08Q3 is Done, user-accepted.
 
 ## The experience we are building
 
@@ -107,7 +107,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D17L | Tabletop props cut off on approach/retreat in save slot 11 | Todo | D17D |
 | D17M | Shotgun ammo visible through ladder platform in save slot 9 | Todo | D17D |
 | D17N | Diagonal wall artifacts during movement in save slot 12 | Todo | D17A |
-| D17O | Unstable sky appearance when looking up (slot 10) | Needs playtest | D17A, D17B |
+| D17O | Unstable sky appearance when looking up (slot 10) | Done (user-accepted) | D17A, D17B |
 | D17C | View bob: disable experiment, then a stable modern camera | Done (user-accepted) | D11 |
 | D18 | FMV and audio presentation safeguards | Todo | D01, D02 |
 | D18A | Voice/music/gunfire crackle investigation | Done | D01, D02 |
@@ -2049,14 +2049,15 @@ See [save identity and regression baseline](documentation/89-d17-playtest-follow
 
 ### D17O - Unstable sky appearance when looking up (slot 10)
 
-**Needs playtest (2026-10-04).** Autonomous investigation verified that the
+**Done, user-accepted (2026-10-04).** Autonomous investigation verified that the
 original sky uses camera-relative meshes. High-refresh object interpolation
 incorrectly recorded their matrices under the last world object, replacing the
 current eye translation with an older one. A guarded exemption for the three
 resident sky calls now retains the original camera-relative draw path and
 animated layers. Sampled displacement fell from up to 1075.397 units to zero.
 Private ground/flight captures cover 60/120/180 and multiple yaw/pitch views;
-user visual confirmation remains. See [architecture, evidence and limits](documentation/92-d17o-sky-intake.md).
+the user explicitly accepted the result: "amazing work!!! accepted. well done."
+Preserve implementation `25734d1` and its recorded coverage limits. See [architecture, evidence and limits](documentation/92-d17o-sky-intake.md).
 The report concerns UI slot 10 (file 09) and is not jetpack-specific.
 
 **Scope:** reproduce the look/feel and establish how TTK draws and animates
@@ -5689,3 +5690,15 @@ also reproduce on the previous path. Original geometry and coarse cloud motion
 remain; full campaign skies and visual acceptance are unverified. D17O stays
 Needs playtest until the user confirms the reported sky appearance. No other
 job started; no framework edits or generated/retail files committed.
+
+
+## 2026-10-04 - D17O accepted (Done)
+
+User: "amazing work!!! accepted. well done. document. commit. push".
+D17O is Done, user-accepted. Preserve the camera-relative sky repair in
+`25734d1` and the evidence in [note 92](documentation/92-d17o-sky-intake.md).
+The preceding Needs playtest entry is historical. Original sky geometry and
+coarse animation limits, busy-club 180 FPS throughput/audio limits, and broader
+campaign coverage remain as documented; acceptance does not close other jobs.
+Documentation-only closeout: no new gameplay test, code change, build or launch.
+No next job selected or started.

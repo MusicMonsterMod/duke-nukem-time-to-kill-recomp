@@ -1,7 +1,10 @@
 # D17O - sky rendering and camera-relative replay repair
 
-2026-10-04. Candidate implemented; visual acceptance pending. The historical
-intake and initial investigation plan follow this report.
+2026-10-04. **Done, user-accepted.** User: "amazing work!!! accepted. well done.
+document. commit. push". Preserve implementation `25734d1`. This acceptance
+closeout adds no new gameplay test, build or launch. The recorded technical
+limits remain; no next job is selected. The historical intake and initial
+investigation plan follow this report.
 
 ## Finding and bounded result
 
@@ -20,7 +23,8 @@ skybox, frozen animation, world-rendering bypass, save edit or jetpack change.
 
 This establishes a concrete redraw defect and removes its measured displacement.
 It does not establish that every part of the user's description was caused by
-this one defect. User inspection of the original reported view is still required.
+this one defect. The user subsequently accepted the reported sky appearance; broader coverage
+limits below remain.
 
 ## Reproduction and identities
 
@@ -298,9 +302,8 @@ Load UI slot 10, look up and slowly turn in both directions, then vary pitch
 and move. Compare grounded and flight views, keeping roof/horizon edges visible.
 F10 captures Modernized input if needed. If the saved rate is 60, a deliberate
 high-refresh comparison can use `--mode modernized --frame-rate 120`; these
-flags update saved preferences. Confirm whether the reported sky wobble is
-resolved and whether remaining original cloud motion is acceptable. Until that
-feedback, D17O is **Needs playtest**, not Done. No next job is started.
+flags update saved preferences. The user has accepted the reported sky appearance, so D17O is **Done**.
+These steps remain the regression route for future changes. No next job is started.
 
 # Historical intake and investigation plan
 

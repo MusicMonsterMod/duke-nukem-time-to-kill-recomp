@@ -1,5 +1,20 @@
 # Next-session handoff
 
+## 2026-10-04 - D17O accepted (Done)
+
+User: "amazing work!!! accepted. well done. document. commit. push".
+D17O is Done, user-accepted. Preserve implementation `25734d1` and player binary
+`8b7253ce043395795e6c8002d1e0079f549e756b9df34cce77332e2722af588d`.
+The preceding implementation's Needs playtest status below is historical.
+
+[Architecture, cause, verification and remaining limits](92-d17o-sky-intake.md).
+Original sky geometry/coarse animation and busy-club 180 FPS limitations remain;
+this acceptance does not establish full campaign coverage or close other jobs.
+Documentation-only acceptance closeout: no new gameplay test, build, launch or
+player-file write. No next job selected or started.
+Launch when wanted: `python3 recomp/tools/local/run.py`.
+
+
 ## 2026-10-04 - D17O sky camera-relative replay repair (Needs playtest)
 
 Verified original sky architecture and a high-refresh defect: the three

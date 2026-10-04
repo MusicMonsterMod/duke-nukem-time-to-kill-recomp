@@ -1,5 +1,31 @@
 # Next-session handoff
 
+## 2026-10-04 - R01 DisruptorRecomp reference research complete
+
+[Comparative review and pinned source index](93-disruptor-reference-research.md).
+R01 is Done as a research-only job. Retain clean, ignored
+`research/DisruptorRecomp` at `408f214d3109dbc6cbdded7edd128cbf8de6466a`,
+framework `193a60b805e1eaa853129d6ccf63022440d4b143`; project patches were read,
+not applied. The review records acquisition, architecture, all requested systems,
+source/functions, applicability, licensing/provenance and ranked experiments.
+
+Recommended next choices: a primitive/provenance census for D17L/M/N, D15's
+optional Original/Corrected geometry with independent texture correction, and
+measured CPU-accounting overhead. No experiment selected or started. Disruptor's
+image crossfade does not replace D17; its gap rims do not establish fixes for
+TTK culling/depth; TTK already has gameplay-scoped CPU overclock. Preserve
+accepted D17/D17B/D17O and the primary 120 FPS baseline.
+
+User confirms research-only reuse: learn techniques and write purpose-built TTK
+code, with no 1:1 copying or mechanical translation.
+
+The included license text differs from standard PolyForm Noncommercial despite
+its label; clarify before future code adaptation. No source imported. Ignore
+and clean-reference checks passed. Static research only: no build, launch,
+gameplay/renderer edit or player-file write; no new gameplay evidence claimed.
+Launch when wanted: `python3 recomp/tools/local/run.py`.
+
+
 ## 2026-10-04 - D17O accepted (Done)
 
 User: "amazing work!!! accepted. well done. document. commit. push".

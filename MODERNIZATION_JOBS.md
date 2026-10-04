@@ -4,7 +4,7 @@ This is the canonical job list for our **Duke Nukem: Time to Kill** PC project, 
 
 Invoke **`$continue-duke-recomp`** (Codex) or **`/continue-duke-recomp`** (Claude Code) to see the current jobs and choose one. You can also request a job directly: **`$continue-duke-recomp work on D01`** or **`/continue-duke-recomp work on D01`**. The skill reads this file rather than keeping a second backlog. It must not automatically start the next job.
 
-**Latest completed job: D17O - unstable sky appearance (slot 10).** Done, user-accepted. No next job selected. D08Q3 is Done, user-accepted.
+**Latest completed job: R01 - DisruptorRecomp reference research.** Research only; [review](documentation/93-disruptor-reference-research.md). No implementation experiment selected. D17O and D08Q3 remain Done, user-accepted.
 
 ## The experience we are building
 
@@ -128,6 +128,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D26 | Backtick debug console (fps and helpers) | Done | D04 |
 | D27 | Caps Lock RUN MODE quotes; Shift-run clunk silence deferred | Done (quotes); clunk deferred low-priority | D04, D19A |
 | D28 | Scroll Lock holster and WEAPON LOWERED/RAISED quotes | Done | D04, D19A |
+| R01 | DisruptorRecomp architecture and modernization reference research | Done | - |
 
 Recommended opening sequence: **D01 → D02 → D03 → D04**, then **D05 / D06 → D07 → D07A → D08**. D13 is an early graphics option after profiles exist. D22 and D23 should accumulate evidence throughout development. First-person, HD asset packs and precision rendering are optional follow-up milestones, not blockers for a good modern third-person release.
 
@@ -5702,3 +5703,38 @@ coarse animation limits, busy-club 180 FPS throughput/audio limits, and broader
 campaign coverage remain as documented; acceptance does not close other jobs.
 Documentation-only closeout: no new gameplay test, code change, build or launch.
 No next job selected or started.
+
+
+### R01 - DisruptorRecomp architecture and modernization reference research
+
+Research-only job selected 2026-10-04. Inspect a pinned, read-only upstream
+checkout under ignored `research/`; compare geometry precision, gap handling,
+perspective textures, sky, interpolation, input latency, CPU scheduling,
+widescreen and supporting systems with current TTK. No source import, gameplay
+edit, build, launch or replacement of accepted D17/D17B/D17O work.
+
+Acceptance: record acquisition/revisions and ignore verification; produce a
+source/function-cited architecture review with applicability classifications,
+backlog mapping, licensing/provenance and ranked bounded experiments; recommend
+whether to retain the checkout and identify the top three experiments.
+
+Work log (2026-10-04, In progress): verified `/research/` ignore rule before
+cloning; existing psxrecomp working-tree modifications are preserved.
+
+Work log (2026-10-04, Done): completed the [source-cited comparative review](documentation/93-disruptor-reference-research.md)
+at Disruptor revision `408f214d3109dbc6cbdded7edd128cbf8de6466a` and framework
+`193a60b805e1eaa853129d6ccf63022440d4b143`. Retained the clean reference under
+ignored `research/DisruptorRecomp`; verified real-file/nested ignore behavior
+and no tracked research files. Findings distinguish image blending from TTK
+worker redraws, gap-covering rims from culling/depth repairs, panorama sky from
+TTK sky meshes, and guest overclock from host execution cost. Top experiments:
+primitive/provenance census, optional D15 geometry/texture precision, then
+bounded timing-overhead attribution. Recorded license text discrepancy before
+any future source adaptation. No code import, build, launch, gameplay/renderer
+change, media/save/card/preferences write or new implementation job. Existing
+framework modifications preserved. Research acceptance met by static review;
+upstream performance claims were not independently benchmarked.
+
+User direction (2026-10-04): retain Disruptor as research only. Learn techniques
+and write purpose-built TTK implementations; no 1:1 copying or mechanical
+translation of third-party source. This direction does not start an experiment.

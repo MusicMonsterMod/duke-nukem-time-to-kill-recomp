@@ -4,7 +4,7 @@ This is the canonical job list for our **Duke Nukem: Time to Kill** PC project, 
 
 Invoke **`$continue-duke-recomp`** (Codex) or **`/continue-duke-recomp`** (Claude Code) to see the current jobs and choose one. You can also request a job directly: **`$continue-duke-recomp work on D01`** or **`/continue-duke-recomp work on D01`**. The skill reads this file rather than keeping a second backlog. It must not automatically start the next job.
 
-**Latest accepted job: D17N - diagonal wall artifacts (world subdivision).** [Cause, solution and evidence](documentation/98-d17n-world-subdivision.md). **Next renderer follow-up: D17Q**, residual wall/surface flicker and Corrected-renderer stability polish, investigated independently.
+**Latest accepted job: D17Q - residual wall flicker (per-triangle UV seams).** [Cause, solution and evidence](documentation/99-d17q-uv-seams.md). Accepted executable `a6f8c8cbaa3329028c5aed15fd26ca6a2dc45975e0482be8c17723d4af7cb960` is the current regression baseline.
 
 ## The experience we are building
 
@@ -107,7 +107,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D17L | Tabletop props cut off on approach/retreat in save slot 11 | Done | D17D |
 | D17M | Shotgun ammo visible through ladder platform in save slot 9 | Todo | D17D |
 | D17N | Diagonal wall artifacts during movement (world subdivision) | Accepted | D17A |
-| D17Q | Residual wall/surface flicker: Corrected-renderer stability polish | Todo | D17N |
+| D17Q | Residual wall/surface flicker: Corrected-renderer stability polish | Done (user-accepted) | D17N |
 | D17O | Unstable sky appearance when looking up (slot 10) | Done (user-accepted) | D17A, D17B |
 | D17P | Distant horizontal black bands in new subway slot 8 | Done (user-accepted) | D15 |
 | D17C | View bob: disable experiment, then a stable modern camera | Done (user-accepted) | D11 |
@@ -2083,7 +2083,23 @@ confirm on W/S routes in UI 12 and elsewhere. See
 
 ### D17Q - Residual wall/surface flicker: Corrected-renderer stability polish
 
-**Todo - user request (2026-10-04), after accepting D17N.** With the systemic
+**Done, user-accepted (2026-10-04).** After extended play the user wrote
+"the whole job is 100% accepted", and praised how cleanly the game now
+plays. Accepted executable
+`a6f8c8cbaa3329028c5aed15fd26ca6a2dc45975e0482be8c17723d4af7cb960` is the new regression baseline. Candidate record follows; see
+[cause, fix and evidence](documentation/99-d17q-uv-seams.md). The remaining diagonal line
+(UI 12 panel at the crosshair on load, flickering on W/S) was a one-texel UV
+seam. The GL/VK backends applied the 2D mirrored-sprite UV bump per triangle,
+and a wall triangle with an exactly vertical integer edge qualified while its
+partner did not, so the two halves of one polygon sampled one texel apart. As
+movement changed the integer corners, the seam toggled. Positions, depths and
+UVs were verified consistent; offline exact rendering is seamless. Fix:
+perspective-corrected 3D triangles use full UV limits and no sprite bump
+(`gpu_uv.h`, GL and VK; `PSX_UV_3D_LEGACY=1` compares). Original textures and
+Vanilla are pixel-identical; 12-slot 120 Hz sweep and 60/180 Hz: zero replay
+misses; tests pass; codegen hash unchanged. **User to confirm** steadier walls
+on W/S routes in UI 12 and elsewhere (confirmed). Originally requested by the
+user after accepting D17N. With the systemic
 subdivision zigzag gone, some walls and surfaces can still show subtle
 flickering or residual instability during movement. This is final polish, not
 a reopening of D17N.

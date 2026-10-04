@@ -534,3 +534,18 @@ lookup change and its compiled oracle test. All these remain local to recomp.
 - `DNTTK_WORLD_SUBDIVISION=1` keeps the original world subdivision. The
   `ttk_input` near report has `whole_polygons` and `subdivided_kept`.
 - `ttk-near-test disc/SLUS_005.83` now also runs whole-polygon contracts.
+
+
+2026-10-04 D17Q ([note 99](99-d17q-uv-seams.md)):
+
+- `analysis/d17q-20261004/` (ignored): `walk.py` (idle plus W/S 24-present
+  sequences), `pk.py` (packet dump), `vram.py` (panel texture/CLUT),
+  `hires.py`, `sweep.py` (`MODE=legacy|fix`, 12 slots), `census.py` (quads
+  whose two halves disagree under the old UV model) and `modes.py` (60/180 Hz,
+  Original textures and Vanilla, legacy versus fix). Private cards are a dated
+  copy of the player's files; port 9242.
+- `PSX_UV_3D_LEGACY=1` restores the per-triangle 2D mirrored-sprite UV model
+  on perspective-corrected 3D triangles (developer comparison only).
+- To identify which panel a screen region is, remember the 16:9 wide surface
+  is offset by 85 native px from canonical VRAM x.
+

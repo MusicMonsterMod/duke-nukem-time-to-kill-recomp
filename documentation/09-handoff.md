@@ -1,5 +1,38 @@
 # Next-session handoff
 
+## 2026-10-04 - D17Q accepted (Done)
+
+User, after extended play: "the whole job is 100% accepted", and
+praised how cleanly the game now plays. D17Q (residual wall
+flicker from per-triangle UV seams) is Done, user-accepted. Accepted
+executable `a6f8c8cbaa3329028c5aed15fd26ca6a2dc45975e0482be8c17723d4af7cb960` is the new regression baseline. The candidate entry below is
+historical. See [note 99](99-d17q-uv-seams.md) for cause, fix and limits. The
+user authorized documentation, commit and push. No next job selected or
+started.
+Launch when wanted: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-04 - D17Q UV seam candidate, Needs playtest
+
+The diagonal line still visible after D17N (UI 12 panel at the crosshair on
+load, flickering on W/S) is a one-texel UV seam, not geometry. The GL/VK
+backends applied the 2D mirrored-sprite UV bump (`gpu_uv.h`) per triangle.
+A world-wall triangle with an exactly vertical integer edge qualified while
+its partner did not, so the two halves of one polygon sampled one texel
+apart, and movement toggled which halves qualified. Traced positions, integer
+SZ and UVs form one consistent perspective map (about 0.03 texel); an offline
+exact render is seamless. Fix: perspective-corrected 3D triangles use full UV
+limits and no sprite bump (`PSX_UV_3D_LEGACY=1` compares). Original textures
+and Vanilla are pixel-identical; UI 12 and the UI 11 stage canopy lose their
+seams. The 12-slot 120 Hz sweep and 60/180 Hz runs had zero replay misses.
+Tests pass and the codegen hash is unchanged, so savestates load. Candidate
+`a6f8c8cbaa3329028c5aed15fd26ca6a2dc45975e0482be8c17723d4af7cb960`.
+**Needs playtest:** walk forwards/backwards in UI 12 and elsewhere with
+texture precision `corrected`. Nothing committed. See
+[note 99](99-d17q-uv-seams.md).
+Launch: `python3 recomp/tools/local/run.py`.
+
+
 ## 2026-10-04 - D17N accepted; D17Q added
 
 User playtest: "The result is excellent." D17N (world subdivision zigzag; the

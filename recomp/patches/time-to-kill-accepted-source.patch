@@ -517,7 +517,7 @@ index 0fe0d272..0863cb1c 100644
  #ifdef _WIN32
            Sleep(1);
 diff --git a/runtime/src/debug_server.c b/runtime/src/debug_server.c
-index 645f055e..8e989d67 100644
+index 645f055e..042d1f85 100644
 --- a/runtime/src/debug_server.c
 +++ b/runtime/src/debug_server.c
 @@ -128,6 +128,18 @@ static int    s_resp_overflow = 0;
@@ -583,10 +583,20 @@ index 645f055e..8e989d67 100644
      s_fp_head  = (s_fp_head + 1) % FP_RING_CAP;
      s_fp_total++;
  }
-@@ -4975,6 +5006,13 @@ static void handle_ping(int id, const char *json)
+@@ -4975,6 +5006,23 @@ static void handle_ping(int id, const char *json)
               s_unknown_unique_count);
  }
  
++extern const char *psx_debug_console_exec(const char *line);
++static void json_escape_string(char *dst, size_t dst_size, const char *src);
++static void handle_console(int id, const char *json)
++{
++    char line[96], reply[2048];
++    if (!json_get_str(json, "line", line, sizeof line)) line[0] = 0;
++    json_escape_string(reply, sizeof reply, psx_debug_console_exec(line));
++    send_fmt("{\"id\":%d,\"ok\":true,\"reply\":\"%s\"}", id, reply);
++}
++
 +extern const char* ttk_input_debug_json(void);
 +static void handle_ttk_input(int id, const char *json)
 +{
@@ -597,7 +607,7 @@ index 645f055e..8e989d67 100644
  static void handle_frame(int id, const char *json)
  {
      (void)json;
-@@ -4999,7 +5037,7 @@ static void handle_frame_fingerprint(int id, const char *json)
+@@ -4999,7 +5047,7 @@ static void handle_frame_fingerprint(int id, const char *json)
      uint32_t avail = (s_fp_total < FP_RING_CAP) ? (uint32_t)s_fp_total : FP_RING_CAP;
      uint32_t start = (s_fp_total < FP_RING_CAP) ? 0 : s_fp_head;
  
@@ -606,7 +616,7 @@ index 645f055e..8e989d67 100644
      char *out = (char *)malloc(BUF);
      if (!out) { send_err(id, "oom"); return; }
      size_t pos = 0;
-@@ -5014,7 +5052,7 @@ static void handle_frame_fingerprint(int id, const char *json)
+@@ -5014,7 +5062,7 @@ static void handle_frame_fingerprint(int id, const char *json)
          pos += snprintf(out + pos, BUF - pos,
                          "%s{\"frame\":%u,\"wr\":\"0x%016llx\",\"pc\":\"0x%016llx\",\"wc\":%llu,"
                          "\"mmio\":\"0x%016llx\",\"mc\":%llu,"
@@ -615,7 +625,7 @@ index 645f055e..8e989d67 100644
                          emitted ? "," : "", e->frame,
                          (unsigned long long)e->wr_hash,
                          (unsigned long long)e->pc_hash,
-@@ -5023,7 +5061,7 @@ static void handle_frame_fingerprint(int id, const char *json)
+@@ -5023,7 +5071,7 @@ static void handle_frame_fingerprint(int id, const char *json)
                          (unsigned long long)e->mmio_count,
                          (unsigned long long)e->sp_hash,
                          (unsigned long long)e->sp_count,
@@ -624,7 +634,7 @@ index 645f055e..8e989d67 100644
          emitted++;
      }
      pos += snprintf(out + pos, BUF - pos, "]}\n");
-@@ -5230,6 +5268,10 @@ static void handle_geom_correction(int id, const char *json)
+@@ -5230,6 +5278,10 @@ static void handle_geom_correction(int id, const char *json)
       * game's vertex path never reaches us in a matchable form, which only
       * full value propagation can fix; a high ambiguous share instead means
       * distinct vertices are landing on the same pixel. */
@@ -635,7 +645,7 @@ index 645f055e..8e989d67 100644
      uint32_t lookups = 0, hits = 0, unrec = 0, ambig = 0;
      gte_geometry_correction_stats(&lookups, &hits, &unrec, &ambig);
      /* PGXP dataflow census (per-vertex): the primary provenance source.
-@@ -5247,6 +5289,7 @@ static void handle_geom_correction(int id, const char *json)
+@@ -5247,6 +5299,7 @@ static void handle_geom_correction(int id, const char *json)
      uint64_t tc_att = 0, tc_arm = 0, tc_off = 0, tc_nosrc = 0, tc_noz = 0;
      gpu_texture_correction_stats(&tc_att, &tc_arm, &tc_off, &tc_nosrc, &tc_noz);
      send_fmt("{\"id\":%d,\"ok\":true,"
@@ -643,7 +653,7 @@ index 645f055e..8e989d67 100644
               "\"geometry_correction\":%d,"
               "\"geometry_vertex_hits\":%u,"
               "\"perspective_triangles\":%u,"
-@@ -5258,7 +5301,10 @@ static void handle_geom_correction(int id, const char *json)
+@@ -5258,7 +5311,10 @@ static void handle_geom_correction(int id, const char *json)
               "\"native\":%llu,\"value_mismatch\":%llu,\"trunc_reject\":%llu,"
               "\"tolerance_reject\":%llu,\"w_valid\":%llu,"
               "\"produced\":%llu,\"swc2_stores\":%llu}}",
@@ -655,7 +665,7 @@ index 645f055e..8e989d67 100644
               gte_geometry_correction_enabled(),
               (unsigned)hits,
               (unsigned)gpu_texture_correction_hits(),
-@@ -7843,6 +7889,78 @@ static void handle_gl_interp(int id, const char *json)
+@@ -7843,6 +7899,78 @@ static void handle_gl_interp(int id, const char *json)
               (unsigned long long)swaps);
  }
  
@@ -734,7 +744,7 @@ index 645f055e..8e989d67 100644
  /* gl_wide_fast on=<0|1>: native-wide centre-blit fast path. 1 (default) = skip
   * the redundant centre mirror and copy the canonical 4:3 frame into the wide
   * surface centre at present (fast). 0 = re-rasterize the whole wide surface
-@@ -8571,7 +8689,7 @@ static void disp_ring_capture(void)
+@@ -8571,7 +8699,7 @@ static void disp_ring_capture(void)
      static int enabled = -1;
      if (enabled < 0) {
          const char *e = getenv("PSX_DISPLAY_RING");
@@ -743,15 +753,16 @@ index 645f055e..8e989d67 100644
      }
      if (!enabled) return;
      if (!s_disp_ring_px) {
-@@ -13667,6 +13785,7 @@ static const CmdEntry s_commands[] = {
+@@ -13667,6 +13795,8 @@ static const CmdEntry s_commands[] = {
      { "xprobe_arm",        handle_xprobe_arm },
      { "xprobe_watch",      handle_xprobe_watch },
      { "ce_profile",        handle_ce_profile },
 +    { "ttk_input",         handle_ttk_input },
++    { "console",           handle_console },
      { "frame",             handle_frame },
      { "frame_fingerprint", handle_frame_fingerprint },
      { "record_frame",      handle_record_frame },
-@@ -13702,6 +13821,8 @@ static const CmdEntry s_commands[] = {
+@@ -13702,6 +13832,8 @@ static const CmdEntry s_commands[] = {
      { "present_ring",      handle_present_ring },
      { "frame_perf",        handle_frame_perf },
      { "gl_ws_ablate",      handle_gl_ws_ablate },
@@ -760,7 +771,7 @@ index 645f055e..8e989d67 100644
      { "gl_interp",         handle_gl_interp },
      { "gl_wide_fast",      handle_gl_wide_fast },
      { "synth_recurse",     handle_synth_recurse },
-@@ -14439,14 +14560,23 @@ void debug_server_init(int port)
+@@ -14439,14 +14571,23 @@ void debug_server_init(int port)
  static int recv_line(sock_t c, char *buf, int cap)
  {
      int len = 0;
@@ -785,7 +796,7 @@ index 645f055e..8e989d67 100644
      buf[cap - 1] = '\0';
      return cap - 1;   /* over-long line: take what we have */
  }
-@@ -14463,6 +14593,17 @@ static int io_thread_main(void *arg)
+@@ -14463,6 +14604,17 @@ static int io_thread_main(void *arg)
          int clen = sizeof(caddr);
          sock_t c = accept(s_listen, (struct sockaddr *)&caddr, &clen);
          if (c == SOCK_INVALID) { if (!s_io_running) break; SDL_Delay(5); continue; }
@@ -803,7 +814,7 @@ index 645f055e..8e989d67 100644
  
          char req[RECV_BUF_SIZE];
          int rl = recv_line(c, req, sizeof(req));
-@@ -14665,18 +14806,25 @@ void debug_server_check_watchpoints(void)
+@@ -14665,18 +14817,25 @@ void debug_server_check_watchpoints(void)
  
  void debug_server_shutdown(void)
  {
@@ -4573,18 +4584,19 @@ index 3a43a141..2d9ed690 100644
              if (horizon_kind == 2) {
                  s_extra_horizon_hits++;
 diff --git a/runtime/src/main.cpp b/runtime/src/main.cpp
-index fe317583..8d711dab 100644
+index fe317583..c1cb3b9e 100644
 --- a/runtime/src/main.cpp
 +++ b/runtime/src/main.cpp
-@@ -107,6 +107,7 @@ extern "C" void psx_game_codegen_relaunch_or_exit(const char* disc_path);
+@@ -107,6 +107,8 @@ extern "C" void psx_game_codegen_relaunch_or_exit(const char* disc_path);
  extern "C" void psx_game_codegen_forward_if_built(int argc, char** argv);
  #endif
  #include "psx_sdl.h"
 +#include "pc_input.h"
++#include "level_select.h"
  #if defined(PSX_SDL3)
  /*
   * SDL_main.h is a single-header implementation in SDL3. Keep it in the one
-@@ -592,9 +593,111 @@ static void fps_telemetry_toggle(void) {
+@@ -592,9 +594,128 @@ static void fps_telemetry_toggle(void) {
      if (!enabled && sdl_window && !s_fps_base_title.empty())
          SDL_SetWindowTitle(sdl_window, s_fps_base_title.c_str());
      if (!enabled)
@@ -4611,9 +4623,11 @@ index fe317583..8d711dab 100644
 +    host_osd_console_open(0);
 +    host_osd_console_set_line("");
 +}
++static std::string *s_console_capture;
 +static void debug_console_say(const char *line) {
 +    if (!line) line = "";
 +    host_osd_console_append(line);
++    if (s_console_capture) { *s_console_capture += line; *s_console_capture += '\n'; }
 +}
 +static void debug_console_run(void) {
 +    s_console_line[s_console_len] = 0;
@@ -4631,6 +4645,8 @@ index fe317583..8d711dab 100644
 +        debug_console_say("  clear       Clear console history");
 +        debug_console_say("  fps         Toggle FPS statistics");
 +        debug_console_say("  help        Show available commands");
++        debug_console_say("  levels      List levels for level select");
++        debug_console_say("  level N     Travel to level N");
 +        debug_console_say("  quit        Exit the game");
 +    } else if (!std::strcmp(s_console_line, "clear")) {
 +        host_osd_console_clear();
@@ -4639,6 +4655,8 @@ index fe317583..8d711dab 100644
 +        SDL_Event quit{};
 +        quit.type = SDL_QUIT;
 +        SDL_PushEvent(&quit);
++    } else if (bool close = false; ttk::level_console_command(s_console_line, debug_console_say, close)) {
++        if (close) debug_console_close();
 +    } else if (s_console_len) {
 +        char err[128];
 +        std::snprintf(err, sizeof err, "Unknown command: %s", s_console_line);
@@ -4647,6 +4665,17 @@ index fe317583..8d711dab 100644
 +    s_console_len = 0;
 +    s_console_line[0] = 0;
 +    if (s_debug_console) debug_console_refresh();
++}
++/* Debug port "console": run one line as if typed, returning its replies. */
++extern "C" const char *psx_debug_console_exec(const char *line) {
++    static std::string replies;
++    replies.clear();
++    std::snprintf(s_console_line, sizeof s_console_line, "%s", line ? line : "");
++    s_console_len = std::strlen(s_console_line);
++    s_console_capture = &replies;
++    debug_console_run();
++    s_console_capture = nullptr;
++    return replies.c_str();
 +}
 +static bool debug_console_event(const SDL_Event& ev) {
 +    if (ev.type != SDL_KEYDOWN) return s_debug_console;
@@ -4698,7 +4727,7 @@ index fe317583..8d711dab 100644
  }
  
  /* Hold-to-act host hotkeys must not fire while the game window does not hold
-@@ -1266,6 +1369,10 @@ static int           g_frame_interpolation_blend =
+@@ -1266,6 +1387,10 @@ static int           g_frame_interpolation_blend =
      PSX_MOD_FRAME_INTERPOLATION_LINEAR;
  static int           g_frame_interpolation_blend_default =
      PSX_MOD_FRAME_INTERPOLATION_LINEAR;
@@ -4709,7 +4738,7 @@ index fe317583..8d711dab 100644
  static std::array<int, PSX_MAX_PLAYERS> g_mod_controller_mode_override =
      [] {
          std::array<int, PSX_MAX_PLAYERS> modes{};
-@@ -1308,6 +1415,74 @@ static Uint32 psx_fullscreen_flag_for_mode(int mode) {
+@@ -1308,6 +1433,74 @@ static Uint32 psx_fullscreen_flag_for_mode(int mode) {
      return 0;                                            /* windowed */
  }
  
@@ -4784,7 +4813,7 @@ index fe317583..8d711dab 100644
  /* FMV auto-skip detection hooks (cdrom.c / mdec.c). */
  extern "C" int      cdrom_xa_stream_active(void);
  extern "C" uint32_t mdec_get_decode_count(void);
-@@ -1455,6 +1630,31 @@ extern "C" int psx_mod_set_frame_interpolation(
+@@ -1455,6 +1648,31 @@ extern "C" int psx_mod_set_frame_interpolation(
      return 1;
  }
  
@@ -4816,7 +4845,7 @@ index fe317583..8d711dab 100644
  extern "C" int psx_mod_set_frame_interpolation_blend(
      uint32_t blend_mode) {
      if (blend_mode != PSX_MOD_FRAME_INTERPOLATION_LINEAR &&
-@@ -1770,6 +1970,21 @@ extern "C" void psx_ws_set_native_wide(int on) {
+@@ -1770,6 +1988,21 @@ extern "C" void psx_ws_set_native_wide(int on) {
  extern "C" int psx_ws_get_native_wide(void) { return g_ws_native_wide; }
  
  static bool          g_gl_active = false;    /* GL context live -> GL present path */
@@ -4838,7 +4867,7 @@ index fe317583..8d711dab 100644
  static bool          g_vk_active = false;    /* Vulkan context live -> VK present path */
  
  /* present_shot — capture the COMPOSED present surface, i.e. the frame after the
-@@ -2900,7 +3115,7 @@ static int present_vsync_owns_cadence(void) {
+@@ -2900,7 +3133,7 @@ static int present_vsync_owns_cadence(void) {
          return 0;
      if (g_frame_period_ms <= 0.0)
          return 0;
@@ -4847,7 +4876,7 @@ index fe317583..8d711dab 100644
          return 0;
      if (g_netplay_vsync_forced_off || psx_netplay_active())
          return 0;
-@@ -2938,6 +3153,8 @@ static void present_track_video_standard(void) {
+@@ -2938,6 +3171,8 @@ static void present_track_video_standard(void) {
  static int present_effective_swap_interval(void) {
      if (g_netplay_vsync_forced_off || psx_netplay_active())
          return 0;
@@ -4856,7 +4885,7 @@ index fe317583..8d711dab 100644
      if (g_frame_interpolation)
          return 0;
      if (g_frame_period_ms <= 0.0)
-@@ -2953,6 +3170,7 @@ static int present_should_wall_pace(void) {
+@@ -2953,6 +3188,7 @@ static int present_should_wall_pace(void) {
      if (g_frame_interpolation && g_gl_active &&
          gl_renderer_interpolation_owns_cadence())
          return 0;
@@ -4864,7 +4893,7 @@ index fe317583..8d711dab 100644
      /* Run the pacer even when driver vsync is SUPPOSED to own the cadence.
       *
       * Skipping it here trusts the swap to block, and a swap that does not
-@@ -2985,6 +3203,31 @@ static void apply_present_cadence(void) {
+@@ -2985,6 +3221,31 @@ static void apply_present_cadence(void) {
  #endif
  }
  
@@ -4896,7 +4925,7 @@ index fe317583..8d711dab 100644
  static void log_present_cadence(void) {
      if (present_vsync_owns_cadence()) {
          /* The pacer still runs underneath as a deadline cap (see
-@@ -3050,7 +3293,20 @@ static void netplay_soft_exit(const char *origin) {
+@@ -3050,7 +3311,20 @@ static void netplay_soft_exit(const char *origin) {
      std::exit(0);
  }
  
@@ -4917,7 +4946,7 @@ index fe317583..8d711dab 100644
      /* (sljit removed 2026-07-15: overlay_compile_worker_stop joined the
       * off-thread JIT worker here; the worker no longer exists.) */
      psx_netplay_shutdown();
-@@ -3074,6 +3330,19 @@ static void shutdown_runtime(void) {
+@@ -3074,6 +3348,19 @@ static void shutdown_runtime(void) {
      debug_server_shutdown();
  }
  
@@ -4937,7 +4966,7 @@ index fe317583..8d711dab 100644
  /* Tear down the game window/GL/audio after a lobby soft-return. Leaves SDL
   * subsystems and the lobby WebSocket intact for the next launcher session. */
  static void teardown_game_session_keep_lobby(void) {
-@@ -4478,6 +4747,8 @@ static bool controller_source_pressed_h(SDL_GameController* h, const ControllerS
+@@ -4478,6 +4765,8 @@ static bool controller_source_pressed_h(SDL_GameController* h, const ControllerS
   * (arrows=d-pad, X/S/Z/A=Cross/Circle/Square/Triangle, Q/W/E/R=L1/R1/L2/R2,
   * Return=Start, RShift=Select) plus T/Y=L3/R3 stick clicks. */
  static uint16_t pad_from_keyboard(int player) {
@@ -4946,7 +4975,7 @@ index fe317583..8d711dab 100644
      const Uint8* keys = SDL_GetKeyboardState(NULL);
      return psx_keybinds_pad_word(keys, player);
  }
-@@ -4575,6 +4846,7 @@ static uint16_t pad_buttons_for(const PlayerInput& p, int player, bool suppress_
+@@ -4575,6 +4864,7 @@ static uint16_t pad_buttons_for(const PlayerInput& p, int player, bool suppress_
  static void pad_sticks_for(const PlayerInput& p, int player, uint8_t out[4]) {
      out[0] = out[1] = out[2] = out[3] = 0x80;
      if (p.kind == 1) {
@@ -4954,7 +4983,7 @@ index fe317583..8d711dab 100644
          /* Keyboard analog: the configurable left/right stick-direction binds
           * (default = arrow keys on the LEFT stick; RIGHT stick unbound), so the
           * old keyboard analog behaviour is preserved unless the user rebinds. */
-@@ -5100,7 +5372,7 @@ static int capture_pad_slot(int s, PsxNetPad* out) {
+@@ -5100,7 +5390,7 @@ static int capture_pad_slot(int s, PsxNetPad* out) {
       * inside pad_sticks_for; psx_keybinds_sticks only widens a deflection, so
       * applying it twice is idempotent. */
      if (eff_analog) {
@@ -4963,7 +4992,7 @@ index fe317583..8d711dab 100644
              const Uint8* keys = SDL_GetKeyboardState(NULL);
              psx_keybinds_sticks(keys, player, st);
          }
-@@ -5109,6 +5381,11 @@ static int capture_pad_slot(int s, PsxNetPad* out) {
+@@ -5109,6 +5399,11 @@ static int capture_pad_slot(int s, PsxNetPad* out) {
      }
      controller_pad_compose_physical(effective_mode, st, st); /* centred unless ANALOG; never D-pad-derived */
  
@@ -4975,7 +5004,7 @@ index fe317583..8d711dab 100644
      out->buttons = btn;
      out->lx = st[0]; out->ly = st[1]; out->rx = st[2]; out->ry = st[3];
      out->analog = eff_analog ? 1u : 0u;
-@@ -5153,6 +5430,11 @@ static int capture_pad_slot_exclusive(int s, PsxNetPad* out, int present_sio_slo
+@@ -5153,6 +5448,11 @@ static int capture_pad_slot_exclusive(int s, PsxNetPad* out, int present_sio_slo
  
      controller_pad_compose_physical(effective_mode, st, st); /* centred unless ANALOG; never D-pad-derived */
  
@@ -4987,7 +5016,7 @@ index fe317583..8d711dab 100644
      out->buttons = btn;
      out->lx = st[0]; out->ly = st[1]; out->rx = st[2]; out->ry = st[3];
      out->analog = eff_analog ? 1u : 0u;
-@@ -5550,6 +5832,7 @@ static void netplay_barrier_admit(int override) {
+@@ -5550,6 +5850,7 @@ static void netplay_barrier_admit(int override) {
          if (!g_headless) {
              SDL_Event ev;
              while (SDL_PollEvent(&ev)) {
@@ -4995,7 +5024,7 @@ index fe317583..8d711dab 100644
                  if (ev.type == SDL_QUIT) {
                      netplay_soft_exit("sdl_window_close");
                      if (psx_return_to_lobby_requested()) return;
-@@ -6086,9 +6369,11 @@ static int runtime_ui_set_value(void*, const RecompRuntimeUiItem *item,
+@@ -6086,9 +6387,11 @@ static int runtime_ui_set_value(void*, const RecompRuntimeUiItem *item,
      if (std::strcmp(item->key, RECOMP_RUNTIME_UI_KEY_FULLSCREEN) == 0) {
          if (value < 0 || value > 2) return 0;
          g_fullscreen = value;
@@ -5008,7 +5037,7 @@ index fe317583..8d711dab 100644
      } else if (std::strcmp(item->key,
                             RECOMP_RUNTIME_UI_KEY_WINDOW_SCALE) == 0) {
          if (value < 1 || value > 4) return 0;
-@@ -6702,9 +6987,11 @@ static void rewind_pause_present(void) {
+@@ -6702,9 +7005,11 @@ static void rewind_pause_present(void) {
  
  /* Freeze guest in vblank present while the rewind filmstrip is open. */
  static void rewind_host_pause_loop(void) {
@@ -5020,7 +5049,7 @@ index fe317583..8d711dab 100644
              if (ev.type == SDL_QUIT) {
                  psx_crash_trace_set_exit_origin("sdl_window_close");
                  shutdown_runtime();
-@@ -6744,9 +7031,11 @@ static void rewind_host_pause_loop(void) {
+@@ -6744,9 +7049,11 @@ static void rewind_host_pause_loop(void) {
  
  /* Freeze guest in vblank present while the save-state slot menu is open. */
  static void savestate_menu_host_pause_loop(void) {
@@ -5032,7 +5061,7 @@ index fe317583..8d711dab 100644
              if (ev.type == SDL_QUIT) {
                  psx_crash_trace_set_exit_origin("sdl_window_close");
                  shutdown_runtime();
-@@ -6792,9 +7081,11 @@ static void savestate_menu_host_pause_loop(void) {
+@@ -6792,9 +7099,11 @@ static void savestate_menu_host_pause_loop(void) {
   * Applying the routing permutation here means no guest instruction or SIO byte
   * transfer runs concurrently with the change. */
  static void runtime_settings_menu_host_pause_loop(void) {
@@ -5044,7 +5073,7 @@ index fe317583..8d711dab 100644
              if (ev.type == SDL_QUIT) {
                  psx_crash_trace_set_exit_origin("sdl_window_close");
                  shutdown_runtime();
-@@ -6915,6 +7206,22 @@ static NetplayVblankEpilogue sdl_vblank_present_body(void) {
+@@ -6915,6 +7224,22 @@ static NetplayVblankEpilogue sdl_vblank_present_body(void) {
              const double host_fps = ro.host_fps; /* host frontend loop rate */
              s_fps_last_vblank = g_vblank_raise_count;
              s_fps_last_cycles = cycles_now;
@@ -5067,7 +5096,7 @@ index fe317583..8d711dab 100644
              double display_fps = 0.0;
              if (g_frame_interpolation && g_gl_active) {
                  display_fps = g_frame_interpolation_fps > 0
-@@ -6923,7 +7230,12 @@ static NetplayVblankEpilogue sdl_vblank_present_body(void) {
+@@ -6923,7 +7248,12 @@ static NetplayVblankEpilogue sdl_vblank_present_body(void) {
              }
              if (!g_headless && sdl_window) {
                  char title[256];
@@ -5081,7 +5110,7 @@ index fe317583..8d711dab 100644
                      snprintf(title, sizeof(title),
                               "%s  [Guest %.1f Hz/%.0f  %.0f%% RT | Host %.0f | Display %.0f fps]",
                               s_fps_base_title.c_str(), fps, ro.nominal_hz,
-@@ -6937,17 +7249,22 @@ static NetplayVblankEpilogue sdl_vblank_present_body(void) {
+@@ -6937,17 +7267,22 @@ static NetplayVblankEpilogue sdl_vblank_present_body(void) {
                  SDL_SetWindowTitle(sdl_window, title);
              }
              if (!g_headless) {
@@ -5111,7 +5140,7 @@ index fe317583..8d711dab 100644
              }
              if (fps_telemetry_log_enabled()) {
                  std::fprintf(stderr,
-@@ -7019,9 +7336,26 @@ static NetplayVblankEpilogue sdl_vblank_present_body(void) {
+@@ -7019,9 +7354,26 @@ static NetplayVblankEpilogue sdl_vblank_present_body(void) {
      }
  
      if (!g_headless) {
@@ -5138,7 +5167,7 @@ index fe317583..8d711dab 100644
              if (ev.type == SDL_QUIT) {
                  if (psx_netplay_active()) {
                      netplay_soft_exit("sdl_window_close");
-@@ -7104,7 +7438,8 @@ static NetplayVblankEpilogue sdl_vblank_present_body(void) {
+@@ -7104,7 +7456,8 @@ static NetplayVblankEpilogue sdl_vblank_present_body(void) {
                                                      (int)mod)) {
                      host_volume_adjust(-5);
                  }
@@ -5148,7 +5177,7 @@ index fe317583..8d711dab 100644
                   * windowed and the CONFIGURED tri-state mode (g_fullscreen: 1
                   * borderless desktop fullscreen keeping the desktop resolution
                   * and letterboxing the image, or 2 exclusive fullscreen — a
-@@ -7127,12 +7462,16 @@ static NetplayVblankEpilogue sdl_vblank_present_body(void) {
+@@ -7127,12 +7480,16 @@ static NetplayVblankEpilogue sdl_vblank_present_body(void) {
                           * matching the historical (pre-tri-state) behaviour. */
                          Uint32 target = psx_fullscreen_flag_for_mode(g_fullscreen);
                          if (target == 0) target = SDL_WINDOW_FULLSCREEN_DESKTOP;
@@ -5165,7 +5194,7 @@ index fe317583..8d711dab 100644
          savestate_menu_poll_toggle_buttons();
          rewind_poll_toggle_buttons();
          psx_rewind_note_frame();
-@@ -11481,6 +11820,12 @@ int main(int argc, char** argv) {
+@@ -11481,6 +11838,12 @@ int main(int argc, char** argv) {
      int         cli_renderer   = -1;   /* 0=software 1=opengl 2=vulkan */
      const char* cli_window_title = nullptr;  /* label windows in a fleet */
      const char* cli_memcard_dir = nullptr;   /* isolate writable state in a fleet */
@@ -5178,7 +5207,7 @@ index fe317583..8d711dab 100644
      std::vector<std::string> cli_path_arg_storage;
      cli_path_arg_storage.reserve((size_t)argc);
      auto is_cli_option = [](const char* arg) {
-@@ -11551,6 +11896,33 @@ int main(int argc, char** argv) {
+@@ -11551,6 +11914,33 @@ int main(int argc, char** argv) {
              if      (std::strcmp(r, "software") == 0) cli_renderer = 0;
              else if (std::strcmp(r, "opengl")   == 0) cli_renderer = 1;
              else if (std::strcmp(r, "vulkan")   == 0) cli_renderer = 2;
@@ -5212,7 +5241,7 @@ index fe317583..8d711dab 100644
          } else if (std::strcmp(argv[i], "--window-title") == 0 && i + 1 < argc) {
              cli_window_title = argv[++i];
          } else if (std::strcmp(argv[i], "--launcher") == 0) {
-@@ -13568,6 +13940,22 @@ int main(int argc, char** argv) {
+@@ -13568,6 +13958,22 @@ int main(int argc, char** argv) {
      if (cli_debug_port >= 0) debug_port      = (uint16_t)cli_debug_port;
      if (cli_renderer   >= 0) g_video_renderer = cli_renderer;
      if (cli_window_title)    window_title     = cli_window_title;
@@ -5235,7 +5264,7 @@ index fe317583..8d711dab 100644
      if (cli_memcard_dir) {
          memcard_dir = std::filesystem::path(cli_memcard_dir);
          if (memcard_dir.is_relative())
-@@ -13764,6 +14152,13 @@ session_reboot:
+@@ -13764,6 +14170,13 @@ session_reboot:
      gpu_texture_correction_set(g_video_perspective_texturing);
      pgxp_set_cpu_mode(g_video_pgxp_cpu_mode);
      pgxp_set_tolerance(g_video_pgxp_tolerance);
@@ -5249,7 +5278,7 @@ index fe317583..8d711dab 100644
      if (g_video_geometry_correction || g_video_perspective_texturing) {
          std::fprintf(stdout,
                       "psxrecomp: geometry correction %s, perspective texturing %s%s\n",
-@@ -14086,7 +14481,7 @@ session_reboot:
+@@ -14086,7 +14499,7 @@ session_reboot:
      /* Fullscreen on launch (launcher's tri-state Fullscreen control): 1 =
       * borderless desktop fullscreen (keeps the desktop resolution, letterboxes
       * the image), 2 = exclusive fullscreen (real display-mode change), 0 =
@@ -5258,7 +5287,7 @@ index fe317583..8d711dab 100644
      win_flags |= psx_fullscreen_flag_for_mode(g_fullscreen);
      /* Open at the user-chosen window size (default 1280 wide) instead of the
       * old hardcoded 640x480, so the game doesn't boot into a tiny window. The
-@@ -14105,7 +14500,9 @@ session_reboot:
+@@ -14105,7 +14518,9 @@ session_reboot:
          std::fprintf(stderr, "SDL_CreateWindow failed: %s\n", SDL_GetError());
          return 1;
      }
@@ -5268,7 +5297,7 @@ index fe317583..8d711dab 100644
  
      /* Maximise instead of computing the frame size ourselves.
       *
-@@ -14210,6 +14607,17 @@ session_reboot:
+@@ -14210,6 +14625,17 @@ session_reboot:
                                            ? 1000.0 / g_frame_period_ms
                                            : 59.94,
                                        g_frame_interpolation_blend);
@@ -5286,7 +5315,7 @@ index fe317583..8d711dab 100644
      }
      /* Vulkan backend: create the instance/device/swapchain on the
       * SDL_WINDOW_VULKAN window. On failure, fall back to software (vkb_init
-@@ -14576,6 +14984,7 @@ session_reboot:
+@@ -14576,6 +15002,7 @@ session_reboot:
      psx_selfcheck_init(&cpu, memory_get_bios_checksum(), game_entry_pc);
  
      /* Execute. */
@@ -5294,7 +5323,7 @@ index fe317583..8d711dab 100644
      std::fprintf(stdout, "psxrecomp runtime: executing from PC=0x%08X\n", cpu.pc);
  
  #if defined(PSX_ORACLE_BUILD)
-@@ -14766,6 +15175,7 @@ session_reboot:
+@@ -14766,6 +15193,7 @@ session_reboot:
          }
      }
  
@@ -5302,7 +5331,7 @@ index fe317583..8d711dab 100644
      psx_scheduler_run(&cpu);
      if (psx_return_to_lobby_requested() && g_netplay_from_lobby)
          goto soft_return_lobby;
-@@ -14805,11 +15215,28 @@ session_reboot:
+@@ -14805,11 +15233,28 @@ session_reboot:
                  std::fprintf(tf, "    {\"addr\":\"0x%08X\",\"val\":\"0x%08X\"}%s\n",
                               a, v, (w < 39) ? "," : "");
              }

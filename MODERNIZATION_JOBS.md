@@ -4,7 +4,7 @@ This is the canonical job list for our **Duke Nukem: Time to Kill** PC project, 
 
 Invoke **`$continue-duke-recomp`** (Codex) or **`/continue-duke-recomp`** (Claude Code) to see the current jobs and choose one. You can also request a job directly: **`$continue-duke-recomp work on D01`** or **`/continue-duke-recomp work on D01`**. The skill reads this file rather than keeping a second backlog. It must not automatically start the next job.
 
-**Latest accepted job: D22A - portal transition keeps Modernized controls (LEVEL01).** [Cause, solution and evidence](documentation/100-d22a-portal-level-identity.md). Accepted executable `9c9e2c3f3b07ddb2ad0dd9fea48b7adcf000037b03f2cd75295dfea7f95b34c0` is the current regression baseline.
+**Latest accepted job: D26A - debug level select (`levels` / `level N` in the backtick console).** [Contract and evidence](documentation/101-d26a-level-select.md). Accepted executable `58f4fb3532f384edb74291b398b992c066364912a40edd07cfe04f3560804851` is the current regression baseline. **Next: D22B**, Modernized controls and first person in every level.
 
 ## The experience we are building
 
@@ -126,14 +126,14 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D21 | Accessibility and sound controls | Todo | D04, D19 |
 | D22 | Campaign fidelity and overlay coverage | Todo | D01 |
 | D22A | Portal transition loses Modernized controls and first person (slot 7) | Accepted | D05, D06, D11 |
-| D22B | Modern controls own every level and transition end to end (no classic fallback) | Todo | D22A, D26A |
+| D22B | Modern controls and first person in every level and transition (no classic fallback) | Todo - next | D22A, D26A |
 | D23 | Performance budgets and long-session stability | Todo | D01 |
 | D23A | Modernized frame-budget regression (guard identity cost) | Done | D08 |
 | D23B | Intro FMV stutter: stranded native movie shard | Done | D23 |
 | D24 | Linux / Windows player build and disc import | Todo | D19, D22, D23 |
 | D25 | Modernized edition release acceptance | Todo | D08, D08A, D08B, D09, D10, D14, D17, D18, D20, D21, D24 |
 | D26 | Backtick debug console (fps and helpers) | Done | D04 |
-| D26A | Debug level-select panel for whole-game testing | Todo | D26, D22A |
+| D26A | Debug level-select panel for whole-game testing | Accepted | D26, D22A |
 | D27 | Caps Lock RUN MODE quotes; Shift-run clunk silence deferred | Done (quotes); clunk deferred low-priority | D04, D19A |
 | D28 | Scroll Lock holster and WEAPON LOWERED/RAISED quotes | Done | D04, D19A |
 | R01 | DisruptorRecomp architecture and modernization reference research | Done | - |
@@ -2515,9 +2515,21 @@ new level; repeat the transition and check the accepted first-level baseline.
 Vanilla stays original, preferences and player saves remain intact. User confirms
 control/view continuity. Do not infer full-campaign support from this one route.
 
-### D22B - Modern controls own every level and transition end to end
+### D22B - Modern controls and first person in every level and transition
 
-**Todo. User direction, 2026-10-04.** "There should basically be no situation
+**Todo - next. Selected as the follow-up to D26A, 2026-10-04.** User, on
+accepting D26A: "the modern controls dont carry over, and first person etc. so
+stand up the next job ... as making all that work." D26A now reaches every
+level: `levels` / `level N` in the backtick console. Offscreen survey
+(documentation/101): Modernized controls and first person are live only in
+LEVEL00 (TIME TO KILL) and LEVEL01 (DUKE HILL). In the other 19 selectable
+levels (2, 3, 5-12, 21-29) the lease refuses (`[TTK identity] level overlay tag
+... is not an authenticated level`, `fp=lease`), so the original pad controls
+and third-person view return. Scope includes the selected first-/third-person
+view, mouse look, view aiming and the Modernized conveniences, not only
+movement.
+
+Earlier direction, 2026-10-04: "There should basically be no situation
 where the classic controls override modern controls ideally. We want full,
 total modernization, and full ownership of the controls system end to end."
 
@@ -2540,9 +2552,10 @@ original pad layout. This job removes that as a normal player experience:
 - Diagnostics: a lease refusal in normal play is a bug to report with its
   reason (`[TTK lease]` / `[TTK identity]`), not a silent fallback.
 
-**Acceptance:** across the levels verified with D26A, Modernized controls and
-the selected view stay in charge from level start to level exit, including
-transitions; any remaining original-control state is listed with its reason
+**Acceptance:** in every level `levels` lists, reached with D26A and through
+the natural transitions, Modernized controls (movement, mouse look, aiming,
+fire, jump/traversal) and the selected first- or third-person view stay in
+charge from level start to level exit, including transitions and savestates; any remaining original-control state is listed with its reason
 and a follow-up job. Vanilla stays original. Fix shared systems, not
 individual levels, wherever the evidence allows.
 
@@ -2621,7 +2634,16 @@ gameplay/capture/menus intact.
 
 ### D26A - Debug level-select panel for whole-game testing
 
-**Todo. User request, 2026-10-04.** Testing infrastructure so the user can
+**Accepted - 2026-10-04.** User: "excellent! mark as accepted." Backtick console `levels` lists the 21 levels
+the original title level-select cheat offers (game names from `0x800c3d2c`);
+`level N` ends the current level with the pause menu's restart code (0xfd) and
+switches the index inside the original mode 1 init, which loads level N.
+Offscreen: all 21 levels load in one session with their own overlay, Old West
+round trips, savestate save/travel/load, Vanilla, pause/title refusals. Candidate
+`58f4fb3532f384edb74291b398b992c066364912a40edd07cfe04f3560804851`. See
+[note 101](documentation/101-d26a-level-select.md).
+
+User request, 2026-10-04: testing infrastructure so the user can
 travel through the whole game, find problems, make savestate reproductions and
 stand up small jobs without replaying normal progression.
 
@@ -6206,3 +6228,31 @@ LEVEL01, hashes in the job entries):
 
 User direction for all of them: fix the shared system, not the level. No next
 job selected or started.
+
+## 2026-10-04 - D26A debug level select, Needs playtest
+
+Implementation: `recomp/src/ttk/level_select.cpp` (console commands, SHA-256
+code identity, deferred index write on the init's `8002b9f4` call) and the
+framework console/debug-port hooks in the exported patch. The game's mode
+machine, level flow and name tables are decoded in
+[note 101](documentation/101-d26a-level-select.md).
+
+A first build wrote the level index with the restart request. Old West pairs
+then crashed: the old level ran one more frame and called the new level's
+per-level player routine inside the old overlay. The index now changes only
+inside the original init, before its loader reads it.
+
+Evidence (offscreen, private card copy): `levels` lists 0-3, 5-12 and 21-29
+with the game's names. `level N` for all 21 levels in one session, each in
+11-13 s, reaching normal play with that level's own LEVELxx.OVR resident (byte
+equal to the disc except the scratch tail). Old West round trip 1-2-3-1-2-1-3.
+Modernized DUKE HILL after travel: lease ready, first person, movement.
+Savestate save in a selected level, travel elsewhere, load: restored. Pause
+menu and pre-game refusals. Vanilla travel. ttk-controls/input/aim/near tests
+pass; codegen and savestates unchanged.
+
+Limits: travel arrivals start with the restart's loadout (health 100). Level
+completion after a selected level was not exercised. Levels other than LEVEL00
+and LEVEL01 still use original controls (D22B). Accepted by the user 2026-10-04 ("excellent! mark as accepted"). D22B (controls
+and first person in every level) is the next job.
+

@@ -1,5 +1,31 @@
 # Current status - 2026-10-04
 
+## 2026-10-04 - D26A accepted; next D22B
+
+User: "excellent! mark as accepted." D26A is Accepted; executable
+`58f4fb3532f384edb74291b398b992c066364912a40edd07cfe04f3560804851` is the new
+regression baseline. The candidate entry below is historical. **Next: D22B,
+Todo - next** (not started): Modernized controls and first person in every
+level. Today only LEVEL00 and LEVEL01 authenticate; the other 19 selectable
+levels fall back to original controls and third person. Use `levels` /
+`level N` to reach them. The user authorized documentation, commit and push.
+
+## 2026-10-04 - D26A debug level select candidate
+
+Backtick console: `levels` lists the 21 levels the original title-screen
+level-select cheat offers, with the game's own names (0 TIME TO KILL, 1-3, 5-12,
+21-26 challenge stages, 27-29 bosses). `level N` ends the current level with the
+pause menu's restart code and loads level N through the original mode 1 init.
+The level index changes only inside that init; changing it earlier crashed Old
+West pairs. Offscreen: all 21 levels load in one session with their own
+overlay; savestates, Vanilla and the pause/title refusals work. Modernized
+controls stay limited to LEVEL00/LEVEL01 (D22B). Candidate
+`58f4fb3532f384edb74291b398b992c066364912a40edd07cfe04f3560804851`; codegen hash
+unchanged. **Needs playtest:** in a game, backtick, `levels`, `level 2`,
+savestate there. Nothing committed. See
+[note 101](101-d26a-level-select.md).
+Launch: `python3 recomp/tools/local/run.py`.
+
 ## 2026-10-04 - D22A accepted; new Level 2 jobs
 
 User playtest: "I can confirm and accept D22A as working." The portal into

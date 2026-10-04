@@ -696,6 +696,21 @@ font). Typed commands and their replies stay in the console scrollback (`help`,
 persistent statistics block in the top-left of the game view after you close the
 console (F remains unbound for gameplay). Escape or backtick closes the console.
 
+**Debug level select (testing).** In a one-player game, open the console and
+type `levels` to list the levels the original level-select cheat offers, with
+the game's own names: 0 TIME TO KILL, 1-3 and 5-12 (the campaign), 21-26 (the
+challenge stages) and 27-29 (the bosses). The current level is marked `*`.
+Type `level N` (for example `level 1` for DUKE HILL). The console closes and the
+game ends the current level the same way as its pause-menu restart, then loads
+level N from its normal start, with no statistics screen. Duke starts with what
+the game's restart gives him (full health); use the debugging cheats (`dnstuff`)
+if a level needs more. Play and savestates then work normally. It works in
+Vanilla and Modernized.
+The level select is refused on the title screen, in the pause menu, while a
+level is already ending and in two-player games. It does not write memory cards
+or saves. Modernized controls currently support only LEVEL00 and DUKE HILL;
+other levels fall back to the original controls until D22B.
+
 **I** toggles the Modernized crosshair on/off (EDuke-style). The original TTK
 weapons/inventory screen stays on **Right Shift** (Select); press it again to close.
 

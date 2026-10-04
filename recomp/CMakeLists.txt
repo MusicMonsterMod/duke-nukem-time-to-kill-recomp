@@ -116,7 +116,7 @@ add_custom_target(ttk-math-shard ALL
 add_dependencies(ttk-math-shard psx-runtime)
 
 # D04 PC action input; framework seams are retained in patches/.
-target_sources(psx-runtime PRIVATE src/ttk/pc_input.cpp src/ttk/modern_controls.cpp src/ttk/weapon_aim.cpp src/ttk/near_clip.cpp src/ttk/frame_replay.cpp)
+target_sources(psx-runtime PRIVATE src/ttk/pc_input.cpp src/ttk/modern_controls.cpp src/ttk/weapon_aim.cpp src/ttk/near_clip.cpp src/ttk/frame_replay.cpp src/ttk/level_select.cpp)
 target_include_directories(psx-runtime PRIVATE src/ttk)
 
 # Explicit opt-in native input checks use the same SDL backend as the player.

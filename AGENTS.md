@@ -11,8 +11,9 @@ Original media under `game/`, research, generated game code, builds, captures, p
 ## Git and GitHub
 
 - Use only the MusicMonsterMod account on this repository.
-- Commit authored implementation changes as well as documentation. Never restore a blanket ignore of `recomp/`. After framework edits, run `python3 recomp/tools/local/export_runtime_patch.py` and verify the patch against the pinned clean dependency.
-- Commit and push as MusicMonsterMod. Do not attribute work to any other GitHub user.
+- Implement and test selected work, then present it for user approval. Acceptance alone does not authorize the documentation/commit/push closeout: wait for the user to explicitly instruct it. Do not automatically commit or push.
+- When authorized, commit authored implementation changes as well as documentation. Never restore a blanket ignore of `recomp/`. After framework edits, run `python3 recomp/tools/local/export_runtime_patch.py` and verify the patch against the pinned clean dependency.
+- When authorized, commit and push as MusicMonsterMod. Do not attribute work to any other GitHub user.
 - Never commit retail media, GRP/ISO/BIN dumps, BIOS, memory cards, `research/`, generated game code, build output, extracted retail assets, or anything under `game/` except `game/README.md`.
 
 ## Game work

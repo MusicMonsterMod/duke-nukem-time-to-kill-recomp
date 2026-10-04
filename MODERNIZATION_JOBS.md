@@ -104,7 +104,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D17I | Unlimited stale-camera scheduling episodes | Todo | D17B |
 | D17J | Verify older isolated visual reports against accepted baseline | Todo | D17A |
 | D17K | Coplanar ground blood in save slot 12 | Accepted | D17D |
-| D17L | Tabletop props cut off on approach/retreat in save slot 11 | Needs playtest | D17D |
+| D17L | Tabletop props cut off on approach/retreat in save slot 11 | Done | D17D |
 | D17M | Shotgun ammo visible through ladder platform in save slot 9 | Todo | D17D |
 | D17N | Diagonal wall artifacts during movement in save slot 12 | Todo | D17A |
 | D17O | Unstable sky appearance when looking up (slot 10) | Done (user-accepted) | D17A, D17B |
@@ -1993,11 +1993,11 @@ confirms the result. D17D/F remain accepted.
 
 ### D17L - Tabletop props cut off on approach/retreat in save slot 11
 
-**Needs playtest - 2026-10-04 tabletop depth repair.** Runtime capture identifies a later native table-top quad overwriting the depth-tested cup. The new bounded correction and 60/120/180 evidence are in [note 95](documentation/95-d17l-tabletop-depth.md). The earlier unresolved candidate and retest below are historical. User report on 2026-10-03: load UI
+**Done - user-accepted 2026-10-04, implementation `1e6fb0a`.** Runtime capture identifies a later native table-top quad overwriting the depth-tested cup. The new bounded correction and 60/120/180 evidence are in [note 95](documentation/95-d17l-tabletop-depth.md). The earlier unresolved candidate and retest below are historical. User report on 2026-10-03: load UI
 save slot 11 (file 10), look at the props sitting on the table directly ahead,
 and walk forwards and backwards. The props get cut off and reappear as Duke
 moves closer. This concerns the objects on the table, not the now-accepted
-closet in the same save. The latest retest still shows the isolated cup disappearing/flickering, largely unchanged; other cups and the bowl on the bar are stable.
+closet in the same save. The earlier pre-repair retest showed the isolated cup disappearing/flickering, largely unchanged; other cups and the bowl on the bar are stable.
 
 Verify the current save identity and use a dated private copy in background
 tests. Trace the affected props through approach and retreat, including
@@ -2010,7 +2010,7 @@ approach/retreat at 60/120/180. Preserve legitimate occlusion, the accepted
 UI 9 prop and both accepted closets, weapons and original PS1 movement
 character. User confirms stable tabletop props. D17D/F remain accepted.
 
-**Candidate/evidence:** The candidate gives compact static props consistent depth beyond the near radius and groups opaque faces to control draw cost. The user does not accept this candidate as resolving the isolated cup. Read-only mesh inspection establishes polygonal table/cup geometry and shared cup meshes across table/bar instances, but does not yet establish the residual flicker cause. Trace the specific failing instance and supporting surface across a bad frame before changing behavior. See [follow-up inspection](documentation/89-d17-playtest-followup.md). See [implementation and verification](documentation/88-d17e-k-l-visuals.md). D17D/F remain accepted.
+**Historical candidate/evidence (superseded by note 95):** The candidate gives compact static props consistent depth beyond the near radius and groups opaque faces to control draw cost. The user does not accept this candidate as resolving the isolated cup. Read-only mesh inspection establishes polygonal table/cup geometry and shared cup meshes across table/bar instances, but does not yet establish the residual flicker cause. Trace the specific failing instance and supporting surface across a bad frame before changing behavior. See [follow-up inspection](documentation/89-d17-playtest-followup.md). See [implementation and verification](documentation/88-d17e-k-l-visuals.md). D17D/F remain accepted.
 
 ### D17M - Shotgun ammo visible through ladder platform in save slot 9
 
@@ -5768,3 +5768,19 @@ in busy scenes, with a small additional candidate deficit. Player visual and
 audio acceptance remains outstanding. No player files, original media,
 generated code or framework changes. Research inspired measurement only;
 all implementation is purpose-built TTK code. See [note 95](documentation/95-d17l-tabletop-depth.md).
+
+## 2026-10-04 - D17L accepted (Done)
+
+User: "first off, i accept this as complete!" D17L is Done, user-accepted.
+Preserve implementation `1e6fb0a` and the evidence in
+[note 95](documentation/95-d17l-tabletop-depth.md). Earlier Needs playtest and unresolved
+candidate entries below are historical. Busy-scene 180 FPS limitations remain;
+this acceptance does not close other jobs or establish full campaign coverage.
+
+The user clarified the workflow: implement and test, obtain acceptance, then
+wait for an explicit instruction to document, commit and push. They authorized
+this closeout in the next message. AGENTS.md records that approval requirement;
+background development testing remains authorized. This closeout changes only
+documentation and instructions, with no new build, launch or gameplay test.
+No next job selected or started.
+Launch when wanted: `python3 recomp/tools/local/run.py`.

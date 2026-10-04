@@ -1,5 +1,22 @@
 # Current status - 2026-10-04
 
+## 2026-10-04 - D17L accepted (Done)
+
+User: "first off, i accept this as complete!" D17L is Done, user-accepted.
+Preserve implementation `1e6fb0a` and the evidence in
+[note 95](95-d17l-tabletop-depth.md). Earlier Needs playtest and unresolved
+candidate entries below are historical. Busy-scene 180 FPS limitations remain;
+this acceptance does not close other jobs or establish full campaign coverage.
+
+The user clarified the workflow: implement and test, obtain acceptance, then
+wait for an explicit instruction to document, commit and push. They authorized
+this closeout in the next message. AGENTS.md records that approval requirement;
+background development testing remains authorized. This closeout changes only
+documentation and instructions, with no new build, launch or gameplay test.
+No next job selected or started.
+Launch when wanted: `python3 recomp/tools/local/run.py`.
+
+
 ## 2026-10-04 - D17L tabletop depth fix, Needs playtest
 
 Runtime primitive/provenance capture identifies the remaining cup cut-off:

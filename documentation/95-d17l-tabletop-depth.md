@@ -1,6 +1,6 @@
 # D17L - Native tabletop overwrote the depth-tested cup
 
-2026-10-04. **Needs playtest.** The user authorized background development launches. All runs in
+2026-10-04. **Done - user-accepted.** The user authorized background development launches. All runs in
 this pass use offscreen rendering, private profiles and dated save/card copies.
 No foreground window was needed. This continues the independently written
 [R01-inspired primitive diagnostics](94-d17l-primitive-diagnostics.md).
@@ -115,14 +115,15 @@ images, not monitor delivery or listening acceptance:
 No worker failures occurred. The 120-target result avoids the rejected broad
 experiment's regression. These samples do not promise a locked 180 FPS or
 zero added cost: both builds underrun at 180 in these runs, with a small
-additional candidate deficit, particularly in the opening scene. User audio
-and feel acceptance remains necessary.
+additional candidate deficit, particularly in the opening scene. The user
+accepted D17L as complete; this does not establish locked 180 FPS performance.
 
 Private evidence lives under `recomp/analysis/d17l-20261004` and existing
 `analysis/d17-high-refresh/shots/d17l-*`. No game assets, states, captures,
 reference source or generated code are distributed. Framework source and its
-accepted patch are unchanged. User confirmation of stable UI 11 props is
-still required before closing D17L.
+accepted patch are unchanged. The user subsequently accepted this repair:
+"first off, i accept this as complete!" D17L is closed as Done, preserving
+implementation `1e6fb0a`. The acceptance closeout adds no new gameplay evidence.
 
 Final player executable SHA-256:
 `98676b43d3e86d96c1787e13284a14aaacb9ff24dbb934b2792b003d6eade950`.

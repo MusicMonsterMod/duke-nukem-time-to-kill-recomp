@@ -49,6 +49,13 @@
 #include <cstdlib>
 #include <string_view>
 #include <vector>
+#include <sstream>
+#include <iomanip>
+#ifdef _WIN32
+#include <process.h>
+#else
+#include <unistd.h>
+#endif
 
 extern "C" uint8_t* g_psx_ram;
 extern "C" uint32_t g_dirty_ram_code_gen;
@@ -222,6 +229,7 @@ NearGte read_gte(const CPUState* cpu) {
 struct Vertex { double p[3],uv[2],rgb[3]; int original; double ex=0,ey=0; };
 // One polygon to draw here: attributes resolved as its renderer would.
 struct Poly {
+    uint32_t source=0;
     unsigned count;int idx[4];uint32_t colors[4],uv[4],clut,tpage,command;bool textured;int bias;
     bool actor;
     // Shared source depth for world polygons and opaque compact props, or
@@ -230,9 +238,80 @@ struct Poly {
     NearDepthPlane depth_plane;
 };
 struct Frame {
+    bool trace=false;uint64_t trace_call=0;uint32_t mesh=0,instance=0,caller=0;
     NearGte g;bool object,viewmodel;uint32_t cursor,start,end,far_limit,zsf3;
     std::vector<NearProjected> verts;unsigned emitted;Stats* stats;
 };
+
+// D17L diagnostic only: opt in with DNTTK_PRIMITIVE_TRACE=/absolute/prefix.
+// Create prefix.enable to record, remove it to stop. Each process has a separate
+// append-only JSONL file, including frozen workers; no inherited buffered writes.
+// Records identify source decisions, not proof of native GPU submission/visibility.
+long trace_pid() {
+#ifdef _WIN32
+    return _getpid();
+#else
+    return getpid();
+#endif
+}
+const char* trace_path() {static const char* p=std::getenv("DNTTK_PRIMITIVE_TRACE");return p;}
+void trace_record(const Frame& f,const char* event,uint32_t face,const std::string& extra={}) {
+    if(!f.trace) return;
+    static long owner=0;static FILE* out=nullptr;static unsigned count=0;
+    const long pid=trace_pid();
+    if(owner!=pid) {
+        if(out) std::fclose(out);
+        owner=pid;count=0;
+        const std::string path=std::string(trace_path())+"."+std::to_string(pid)+".jsonl";
+        out=std::fopen(path.c_str(),"a");
+        if(out) std::setvbuf(out,nullptr,_IONBF,0);
+    }
+    static const unsigned limit=env_int("DNTTK_PRIMITIVE_TRACE_LIMIT",200000,1,2000000);
+    if(!out || count>=limit) return;
+    ++count;
+    std::ostringstream line;
+    line << "{\"event\":\"" << event << "\",\"pid\":" << pid
+         << ",\"call\":" << f.trace_call << ",\"host_frame\":" << input_host_frame()
+         << ",\"load_epoch\":" << psx_mod_savestate_loads()
+         << ",\"replay\":" << psx_mod_replay_active() << ",\"frame_cursor\":" << frame_first_cursor
+         << ",\"mesh\":" << f.mesh << ",\"instance\":" << f.instance
+         << ",\"caller\":" << f.caller << ",\"object\":" << f.object
+         << ",\"face\":" << face << extra << "}\n";
+    const std::string text=line.str();std::fwrite(text.data(),1,text.size(),out);
+    if(count==limit) std::fputs("{\"event\":\"limit\"}\n",out);
+}
+void trace_begin(Frame& f,const CPUState* cpu) {
+    if(!trace_path() || !*trace_path()) return;
+    const std::string enable=std::string(trace_path())+".enable";
+    FILE* gate=std::fopen(enable.c_str(),"r");if(!gate) return;std::fclose(gate);
+    f.mesh=cpu->gpr[4];f.caller=cpu->gpr[31];
+    // s2 identifies the static instance only at this authenticated caller.
+    f.instance=f.object && f.caller==0x80032288 ? cpu->gpr[18] : 0;
+    static const uint32_t filter=[] {const char* p=std::getenv("DNTTK_PRIMITIVE_TRACE_MESH");return p?(uint32_t)std::strtoul(p,nullptr,0):0u;}();
+    if(filter && filter!=f.mesh) return;
+    static uint64_t serial=0;f.trace_call=++serial;f.trace=true;
+    std::ostringstream x;x << ",\"context_flags\":" << psx_mod_read_word(context+0x50)
+      << ",\"command_bits\":" << psx_mod_read_word(context+0x48) << ",\"gte\":[";
+    for(int i=0;i<32;++i) {if(i)x<<',';x<<cpu->gte_ctrl[i];}x<<']';
+    trace_record(f,"mesh",0,x.str());
+}
+void trace_vertices(const Frame& f) {
+    if(!f.trace) return;
+    std::ostringstream x;x << std::setprecision(12) << ",\"vertices\":[";
+    for(size_t i=0;i<f.verts.size();++i) {
+        if(i)x<<',';const auto& v=f.verts[i];
+        x<<'['<<(int16_t)v.sxy<<','<<(int16_t)(v.sxy>>16)<<','<<v.sz<<','<<v.safe;
+        for(double p:v.view)x<<','<<p;x<<']';
+    }
+    x<<']';trace_record(f,"vertices",0,x.str());
+}
+void trace_face(const Frame& f,uint32_t face,unsigned corners,const char* decision) {
+    if(!f.trace) return;
+    std::ostringstream x;x<<",\"decision\":\""<<decision<<"\",\"indices\":[";
+    const uint32_t w=psx_mod_read_word(face);
+    for(unsigned i=0;i<corners;++i){if(i)x<<',';x<<((w>>(8*i))&255);}x<<']';
+    trace_record(f,"face",face,x.str());
+}
 
 // The GPU skips a primitive wider than 1023 or taller than 511 pixels, so a
 // polygon whose corners project safely can still vanish when it fills the
@@ -300,9 +379,9 @@ int slot_index(const Frame& f,const Poly& poly,const Vertex* v) {
 void emit(Frame& f,const Poly& poly,const Vertex* v) {
     tint_object=f.object;
     const int index=f.viewmodel?0:slot_index(f,poly,v);
-    if(index<0) return;
+    if(index<0) {trace_record(f,"far_reject",poly.source);return;}
     const uint32_t size=poly.textured?0x28:0x1c;
-    if(budget(f)<size) {++packet_skips;return;}
+    if(budget(f)<size) {++packet_skips;trace_record(f,"packet_budget",poly.source);return;}
     if(!(f.cursor+size<f.end)) f.cursor=f.start;
     const uint32_t prim=f.cursor;
     double cx=0,cy=0;
@@ -340,6 +419,7 @@ void emit(Frame& f,const Poly& poly,const Vertex* v) {
     // original renderer's neighbouring polygons exactly), every corner with its
     // view depth so the GPU maps the texture with correct perspective instead
     // of the PS1's affine warp across a polygon beside the eye.
+    double trace_raster[3][4];
     if(precise()) {
         for(int i=0;i<3;++i) {
             const uint32_t addr=prim+(poly.textured?8+12*i:8+8*i),word=psx_mod_read_word(addr);
@@ -359,9 +439,18 @@ void emit(Frame& f,const Poly& poly,const Vertex* v) {
             // triangles. Keep texture perspective and visible PS1 snapping.
             static const bool depth_fix=env_int("DNTTK_PLANE_DEPTH",1,0,1)!=0;
             const double depth=depth_fix ? near_raster_depth(poly.depth_plane,f.g,x16/65536.0,y16/65536.0,v[i].p[2]) : v[i].p[2];
+            if(f.trace) {trace_raster[i][0]=x16/65536.0;trace_raster[i][1]=y16/65536.0;trace_raster[i][2]=v[i].p[2];trace_raster[i][3]=f.viewmodel?-v[i].p[2]:depth;}
             psx_mod_gpu_host_vertex_depth(addr,word,x16,y16,(float)v[i].p[2],poly.textured?(float)std::clamp(v[i].uv[0],0.0,255.0):-1.0f,poly.textured?(float)std::clamp(v[i].uv[1],0.0,255.0):-1.0f,(float)(f.viewmodel?-v[i].p[2]:depth));
         }
         ++precise_triangles;
+    }
+    if(f.trace) {
+        std::ostringstream x;x<<std::setprecision(12)<<",\"packet\":"<<prim<<",\"slot\":"<<index
+          <<",\"command\":"<<poly.command<<",\"precise\":"<<precise()<<",\"xy_depth\":[";
+        if(precise()) for(int i=0;i<3;++i) {
+            if(i)x<<',';x<<'[';for(int j=0;j<4;++j){if(j)x<<',';x<<trace_raster[i][j];}x<<']';
+        }
+        x<<']';trace_record(f,"emit",poly.source,x.str());
     }
     f.cursor+=size;frame_host_bytes+=size;host_bytes_peak=std::max(host_bytes_peak,frame_host_bytes);++f.emitted;++f.stats->triangles;
 }
@@ -534,7 +623,8 @@ void draw(Frame& f,const Poly& poly) {
         }
         shape.swap(out);
     }
-    if(shape.size()<3) {++f.stats->culled;return;}
+    if(shape.size()<3) {++f.stats->culled;trace_record(f,"clip_reject",poly.source);return;}
+    if(f.trace) trace_record(f,"clip",poly.source,",\"corners\":"+std::to_string(shape.size()));
     // Keep the original world polygon's farthest-corner ordering key.
     // 0x80011654/0x80011684/0x800116b4 skip smaller depths, so this is
     // a maximum, not a minimum. Sorting subdivisions individually lets a
@@ -607,6 +697,7 @@ void world(CPUState* cpu) {
     const unsigned count=psx_mod_read_half(mesh+0x14);
     if(!count || count>256) return;
     Frame f{};if(!begin(f,cpu,false)) return;
+    trace_begin(f,cpu);
     const uint32_t flags=psx_mod_read_word(context+0x50);
     const int32_t fog=(int32_t)psx_mod_read_word(context+0x6c);
     std::vector<uint32_t> colors(count);
@@ -623,7 +714,8 @@ void world(CPUState* cpu) {
         const int32_t d=(int32_t)f.verts[i].sz-fog;
         colors[i]=d>0?near_dpcs(f.g,c,(int16_t)d):c;
     }
-    if(!any) return;
+    trace_vertices(f);
+    if(!any) {trace_record(f,"native_mesh",0);if(!f.trace) return;}
     const uint32_t list=mesh+psx_mod_read_word(mesh+0x18);
     std::vector<Group> groups;std::vector<uint32_t> taken;
     uint32_t cursor=list;
@@ -644,12 +736,13 @@ void world(CPUState* cpu) {
             }
             unsafe|=oversize(f,idx,corners);
             unsafe|=zmin<near_depth(perspective_z);(void)zmax;
+            trace_face(f,cursor,corners,any && unsafe?"host_candidate":"native_kept");
             if(unsafe) taken.push_back(cursor|(type==0x61)); else group.kept.push_back(cursor);
         }
         if(!group.kept.empty()) groups.push_back(std::move(group));
     }
-    if(taken.empty()) return;
-    if(budget(f)<takeover_reserve+(uint32_t)taken.size()*0x28*3) {++mesh_fallbacks;return;}
+    if(!any || taken.empty()) return;
+    if(budget(f)<takeover_reserve+(uint32_t)taken.size()*0x28*3) {++mesh_fallbacks;trace_record(f,"mesh_budget_fallback",0);return;}
     const uint32_t copy=guest_copy();
     const unsigned read_verts=(count+2)/3*3;
     const uint32_t head_size=0x1c+8*read_verts,list_offset=(head_size+15)&~15u;
@@ -669,10 +762,10 @@ void world(CPUState* cpu) {
     const uint32_t textures=psx_mod_read_word(context+0x58);
     for(uint32_t tagged:taken) {
         const uint32_t record=tagged&~1u;
-        Poly p{};p.count=(tagged&1)?4:3;p.textured=true;p.command=0x34000000u;
+        Poly p{};p.source=record;p.count=(tagged&1)?4:3;p.textured=true;p.command=0x34000000u;
         const uint32_t word=psx_mod_read_word(record);
         for(unsigned j=0;j<p.count;++j) p.idx[j]=(word>>(8*j))&0xff;
-        if(!(psx_mod_read_half(record+6)&0x200) && !front_facing(f,p,flags,true)) {++world_stats.culled;continue;}
+        if(!(psx_mod_read_half(record+6)&0x200) && !front_facing(f,p,flags,true)) {++world_stats.culled;trace_record(f,"backface",record);continue;}
         const int16_t tex=(int16_t)psx_mod_read_half(record+4);
         const uint32_t entry=textures+(uint32_t)(tex*12);
         uint32_t t1=psx_mod_read_word(entry),t2=psx_mod_read_word(entry+4),t3=psx_mod_read_word(entry+8);
@@ -710,6 +803,7 @@ void object(CPUState* cpu) {
     const uint32_t vertices=psx_mod_read_word(mesh+0x10),list=psx_mod_read_word(mesh+0x14);
     if(!count || vertices<0x80010000 || vertices>0x801ffff0 || list<0x80010000 || list>0x801ffff0) return;
     Frame f{};if(!begin(f,cpu,true)) return;
+    trace_begin(f,cpu);
     f.viewmodel=viewmodel;
     if(viewmodel && held_frame!=frame_first_cursor) {held_packets.clear();held_frame=frame_first_cursor;}
     f.verts.resize(count);
@@ -740,7 +834,8 @@ void object(CPUState* cpu) {
     any|=static_depth;
     double compact_key=0;
     if(static_depth) {for(const auto& v:f.verts) compact_key+=v.sz;compact_key/=count;}
-    if(!any) return;
+    trace_vertices(f);
+    if(!any) {trace_record(f,"native_mesh",0);if(!f.trace) return;}
     std::vector<Group> groups;std::vector<std::pair<uint32_t,uint32_t>> taken;
     uint32_t cursor=list;
     for(unsigned guard=0;;++guard) {
@@ -763,12 +858,13 @@ void object(CPUState* cpu) {
             // H; in the eye view that made props see-through up close, so such
             // polygons are drawn here too.
             unsafe|=all_near || oversize(f,idx,corners) || viewmodel || static_depth;
+            trace_face(f,cursor,corners,any && unsafe?"host_candidate":"native_kept");
             if(unsafe) taken.push_back({cursor,type}); else group.kept.push_back(cursor);
         }
         if(!group.kept.empty()) groups.push_back(std::move(group));
     }
-    if(taken.empty()) return;
-    if(budget(f)<takeover_reserve+(uint32_t)taken.size()*0x28*3) {++mesh_fallbacks;return;}
+    if(!any || taken.empty()) return;
+    if(budget(f)<takeover_reserve+(uint32_t)taken.size()*0x28*3) {++mesh_fallbacks;trace_record(f,"mesh_budget_fallback",0);return;}
     const uint32_t copy=guest_copy();
     if(!copy || 0x20+list_bytes(groups)>copy_size) {++copy_overflows;return;}
     for(uint32_t i=0;i<0x18;i+=4) psx_mod_write_word(copy+i,psx_mod_read_word(mesh+i));
@@ -779,13 +875,13 @@ void object(CPUState* cpu) {
     const uint32_t flags=psx_mod_read_word(context+0x50),palette=vertices+count*8;
     const uint32_t command_bits=psx_mod_read_word(context+0x48),tpage_bits=psx_mod_read_word(context+0x4c);
     for(const auto& [record,type]:taken) {
-        Poly p{};p.count=(type&8)?4:3;p.actor=actor;
+        Poly p{};p.source=record;p.count=(type&8)?4:3;p.actor=actor;
         const uint32_t word=psx_mod_read_word(record);
         for(unsigned j=0;j<p.count;++j) p.idx[j]=(word>>(8*j))&0xff;
         const bool textured=type==0x24 || type==0x2c || type==0x34 || type==0x3c;
         const bool gouraud=type==0x30 || type==0x38 || type==0x34 || type==0x3c;
         const uint32_t bits=psx_mod_read_word(record+(type==0x20 || type==0x28 || type==0x30 || type==0x38 ? 4 : 8))>>25;
-        if(!(bits&1) && !front_facing(f,p,flags,false)) {++object_stats.culled;continue;}
+        if(!(bits&1) && !front_facing(f,p,flags,false)) {++object_stats.culled;trace_record(f,"backface",record);continue;}
         p.textured=textured;p.bias=((bits&8)?1:0)-((bits&4)?1:0);
         p.command=(textured?0x34000000u:0x30000000u)|((bits&0x10)<<21)|command_bits;
         // Opaque compact props share a local ordering key; the depth buffer

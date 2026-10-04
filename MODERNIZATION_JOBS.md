@@ -104,7 +104,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D17I | Unlimited stale-camera scheduling episodes | Todo | D17B |
 | D17J | Verify older isolated visual reports against accepted baseline | Todo | D17A |
 | D17K | Coplanar ground blood in save slot 12 | Accepted | D17D |
-| D17L | Tabletop props cut off on approach/retreat in save slot 11 | Todo | D17D |
+| D17L | Tabletop props cut off on approach/retreat in save slot 11 | In progress | D17D |
 | D17M | Shotgun ammo visible through ladder platform in save slot 9 | Todo | D17D |
 | D17N | Diagonal wall artifacts during movement in save slot 12 | Todo | D17A |
 | D17O | Unstable sky appearance when looking up (slot 10) | Done (user-accepted) | D17A, D17B |
@@ -1993,7 +1993,7 @@ confirms the result. D17D/F remain accepted.
 
 ### D17L - Tabletop props cut off on approach/retreat in save slot 11
 
-**Todo - remains open (user retest, recorded 2026-10-04).** User report on 2026-10-03: load UI
+**In progress - selected 2026-10-04 for bounded primitive/provenance diagnosis.** User report on 2026-10-03: load UI
 save slot 11 (file 10), look at the props sitting on the table directly ahead,
 and walk forwards and backwards. The props get cut off and reappear as Duke
 moves closer. This concerns the objects on the table, not the now-accepted
@@ -5738,3 +5738,14 @@ upstream performance claims were not independently benchmarked.
 User direction (2026-10-04): retain Disruptor as research only. Learn techniques
 and write purpose-built TTK implementations; no 1:1 copying or mechanical
 translation of third-party source. This direction does not start an experiment.
+
+## 2026-10-04 - D17L selected; per-instance diagnostic preparation
+
+User selected D17L autonomously. Status is In progress. Added an independently
+written, opt-in title trace identifying static instances, source faces,
+projection/clipping decisions and emitted host packets with ordering/depth.
+Offline packet-equivalence, trace-contract and controls checks pass; player
+build succeeds. UI 11 private-copy identity matches the report. No game launch,
+new failing-frame reproduction or cause/fix claim. Explicit isolated launch
+authorization is pending under AGENTS.md. Full acceptance remains unmet.
+See [diagnostic contract and remaining work](documentation/94-d17l-primitive-diagnostics.md).

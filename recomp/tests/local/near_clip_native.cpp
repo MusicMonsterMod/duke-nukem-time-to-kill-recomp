@@ -26,9 +26,23 @@ extern "C" int psx_mod_register_function_entry_plugin(const char*,uint32_t,PSXMo
 extern "C" int psx_mod_gpu_host_vertex(uint32_t,uint32_t,int32_t,int32_t,float,float,float){return 1;}
 extern "C" int psx_mod_gpu_host_vertex_depth(uint32_t,uint32_t,int32_t,int32_t,float,float,float,float){++host_vertices;return 1;}
 extern "C" int psx_mod_replay_active(void){return 0;}
+extern "C" uint32_t psx_mod_savestate_loads(void){return 0;}
 namespace ttk {bool frame_trace_on(){return false;} void frame_trace_account(uint32_t,long){}}
 namespace ttk {bool first_person_view_live(){return live_eye;} bool widescreen_near_clip_live(){return false;} bool first_person_duke_drawing(){return false;} bool first_person_actor_drawing(){return false;} bool first_person_weapon_drawing(){return false;} uint64_t input_host_frame(){return 0;}}
 static int16_t sx(uint32_t p){return (int16_t)p;} static int16_t sy(uint32_t p){return (int16_t)(p>>16);}
+// A whole-hook observation oracle: compare this digest across separate runs
+// with the diagnostic gate disabled/enabled. Covers all fixture RAM and CPU
+// changes, not just the count or locations of traced triangles.
+static uint64_t packet_digest=14695981039346656037ull;
+static void observed_hook(CPUState* cpu,uint32_t address) {
+    near_hook(cpu,address);
+    auto hash=[](const void* p,size_t n) {
+        const auto* b=static_cast<const uint8_t*>(p);
+        for(size_t i=0;i<n;++i) {packet_digest^=b[i];packet_digest*=1099511628211ull;}
+    };
+    hash(ram,sizeof ram);hash(cpu->gpr,sizeof cpu->gpr);
+    hash(cpu->gte_ctrl,sizeof cpu->gte_ctrl);hash(&host_vertices,sizeof host_vertices);
+}
 // Optional owned-EXE integration: exercise the registered, identity-guarded
 // hook and inspect emitted ordering-table packets, not a duplicate sort helper.
 static void packet_contracts(const char* executable) {
@@ -84,19 +98,19 @@ static void packet_contracts(const char* executable) {
     word(mesh+0x2c,0x00040100);word(mesh+0x30,0x34808080);
     word(mesh+0x40,0x00010060);word(mesh+0x44,0x00020100);
     word(mesh+0x48,0x02000000);word(mesh+0x4c,0xff);
-    near_hook(&cpu,0x80011020);
+    observed_hook(&cpu,0x80011020);
     assert(cpu.gpr[4]!=mesh && host_vertices>3);
     assert(psx_mod_read_word(ot+128*8)!=0);
     for(unsigned i=0;i<2048;++i)if(i!=128)assert(psx_mod_read_word(ot+i*8)==0);
     auto object_case=[&](uint32_t ra,int extent,bool expect_taken) {
-        auto c=reset();c.gpr[31]=ra;
+        auto c=reset();c.gpr[31]=ra;c.gpr[18]=0x80180000+extent*0x60;
         psx_mod_write_byte(mesh+6,3);word(mesh+0x10,verts);word(mesh+0x14,list);
         word(verts,(uint16_t)-extent|uint32_t(uint16_t(-extent))<<16);word(verts+4,5000);
         word(verts+8,extent|uint32_t(uint16_t(-extent))<<16);word(verts+12,5000);
         word(verts+16,uint32_t(extent)<<16);word(verts+20,5000);
         word(list,0x00010024);word(list+4,0x00020100);word(list+8,0);
         word(list+12,0x0200001f);word(list+16,0x1f00);word(list+20,0xff);
-        near_hook(&c,0x80010000);
+        observed_hook(&c,0x80010000);
         assert((c.gpr[4]!=mesh)==expect_taken);
         assert((host_vertices>0)==expect_taken);
     };
@@ -122,7 +136,7 @@ static void packet_contracts(const char* executable) {
             word(record+8,(semi?0x22000000:0x02000000)|0x1f);word(record+12,0x1f00);
         }
         word(list,0x00020024);word(list+36,0xff);
-        near_hook(&c,0x80010000);assert(host_vertices==6);
+        observed_hook(&c,0x80010000);assert(host_vertices==6);
         unsigned buckets=0;for(unsigned i=0;i<2048;++i)buckets+=psx_mod_read_word(ot+i*8)!=0;
         assert(buckets==(semi?2u:1u));
     }
@@ -133,6 +147,7 @@ static void packet_contracts(const char* executable) {
     word(0x80032280,psx_mod_read_word(0x80032280)^1);++g_dirty_ram_code_gen;
     object_case(0x80032288,100,false);
     live_eye=false;
+    std::printf("packet_digest=%016llx\n",(unsigned long long)packet_digest);
     std::puts("ttk-near-test owned packet contracts PASS");
 }
 int main(int argc,char** argv) {

@@ -1,5 +1,16 @@
 # Next-session handoff
 
+## 2026-10-04 - D17L selected; offline primitive diagnostics ready
+
+D17L is In progress for the bounded cup diagnosis. Added opt-in title-owned
+per-instance/per-face tracing and offline observational-equivalence checks.
+No Disruptor code copied. The private UI 11 hash matches note 89. Native packet
+and controls fixtures pass; the player build succeeds. No new game run or
+cause/fix is claimed. Isolated diagnostic launch authorization was requested
+under AGENTS.md and is pending. See [scope, evidence and continuation](94-d17l-primitive-diagnostics.md).
+R01, D08Q3 and D17O remain Done; accepted rendering baselines are unchanged.
+
+
 ## 2026-10-04 - R01 DisruptorRecomp reference research complete
 
 [Comparative review and pinned source index](93-disruptor-reference-research.md).

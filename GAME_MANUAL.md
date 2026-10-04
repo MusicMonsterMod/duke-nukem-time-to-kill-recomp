@@ -243,6 +243,12 @@ The user has confirmed the natural switch-first approach works.
 
 ## Modernized movement and camera preview
 
+**Supported levels:** Modernized controls and first person are verified on the
+first map and continue through its portal into the Old West level (LEVEL01).
+Later levels still fall back to the original controls (arrow keys/pad layout)
+until each is verified (planned for every level); your mode and view preferences are kept and come back
+in any supported level.
+
 Modernized gameplay captures the mouse and enables PC actions automatically.
 Pause, inventory, focus loss and host menus (including **F7** savestates) release it; verified gameplay can
 capture again after returning. **Escape** pauses/resumes; the pause menu always frees the mouse cursor and

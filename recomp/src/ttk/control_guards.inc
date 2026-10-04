@@ -143,9 +143,19 @@ static const Guard guards[] = {
     {0x8004d1fc, 24, "786a06bfa8593e670548d620aa78d1bf4c3101dd08a2c096d9e8d85ee1a1d4d4"},
     {0x800148ec, 4, "9e4eae74f2e079bd1e918bd169f3c34f0c8a02b525743f5da03fcc9cdc99e810"},
     {0x80073ae8, 148, "ba01249a732b841f0fc021bb10978e71ca9096239f9b6f75efec72c4580224bc"},
-    // LEVEL00.OVR code and tables only. The file's final 16 bytes
-    // (0x800ccf1c..0x800ccf2b) are a scratch hit-position vector the overlay
-    // passes to 0x8007177c from 0x800cb1a4; the zone script writes it during
-    // play (flooded corridor / ledge), so it is level state, not code.
-    {0x800ca968, 9652, "274d71ddd8aeb6e1ca12c0229eea5087c7750a39f442785b94f0efeec81a25b3"},
+};
+// Authenticated level overlays (D22A). Every LEVELxx.OVR loads at 0x800ca968
+// and starts with its level tag word; the tag picks the one body that must
+// match. Each body is the file's code and tables only: the final 16 bytes
+// are a scratch hit-position vector the zone script passes to 0x8007177c
+// (LEVEL00 from 0x800cb1a4, LEVEL01 from 0x800cbe48) and fills during play,
+// so it is level state, not code. Add a level only after its overlay
+// layout and modern-control route are verified; unknown levels fail closed.
+struct LevelOverlay { uint32_t tag; Guard body[1]; };
+static const LevelOverlay level_overlays[] = {
+    // LEVEL00.OVR (DB00), 9668 bytes: the first map. D08P found its tail writes.
+    {3, {{0x800ca968, 9652, "274d71ddd8aeb6e1ca12c0229eea5087c7750a39f442785b94f0efeec81a25b3"}}},
+    // LEVEL01.OVR (DB01), 12196 bytes: the Old West map reached through the
+    // first map's portal (UI slot 7).
+    {4, {{0x800ca968, 12180, "b3fa174b2bb6732dbd341725f59a853b8d75a0eee19ed180e2a0b841c1732445"}}},
 };

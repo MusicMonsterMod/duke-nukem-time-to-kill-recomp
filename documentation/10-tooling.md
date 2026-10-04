@@ -549,3 +549,15 @@ lookup change and its compiled oracle test. All these remain local to recomp.
 - To identify which panel a screen region is, remember the 16:9 wide surface
   is offset by 85 native px from canonical VRAM x.
 
+
+
+2026-10-04 D22A ([note 100](100-d22a-portal-level-identity.md)):
+
+- `analysis/d22a-20261004/` (ignored): `route.py` (private slot 06 -> portal
+  -> Cross -> LEVEL01 control checks), `repeat.py` (portal twice plus a long
+  wander), `slots.py` (12-slot lease sweep), `vanilla.py`, `ramdump.py`,
+  `levels.py` (LEVELxx.OVR survey) and `selfwrites.py`. Private cards are a
+  dated copy of the player's files; port 9243. `setup.py` rebinds Fire to Q in
+  the private profile so scripted input can shoot.
+- `ttk-controls-test EXE LEVEL00_FIXTURE [LEVEL01.OVR]`: the optional owned
+  LEVEL01.OVR (extract it locally from the disc) adds the level-identity group.

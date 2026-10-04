@@ -1,4 +1,5 @@
-// Bounded SLUS-00583/LEVEL00 adapter. Original routines retain all integration,
+// Bounded SLUS-00583 adapter for the authenticated level overlays in
+// control_guards.inc (LEVEL00, LEVEL01). Original routines retain all integration,
 // collision responses and camera constraints. No final position writes.
 #include "modern_controls.h"
 #include "weapon_aim.h"
@@ -268,31 +269,63 @@ static void orbit_constraint(uint32_t delta) {
 extern "C" uint8_t* g_psx_ram;
 extern "C" uint32_t g_dirty_ram_code_gen;
 static uint64_t identity_calls, identity_checks, identity_ns;
+static constexpr uint32_t level_base=0x800ca968;
+static constexpr size_t level_count=sizeof level_overlays/sizeof level_overlays[0];
+// D22A: the authenticated level overlay of the last identity verdict (its
+// LEVELxx tag), or 0 when the verdict failed.
+static thread_local uint32_t identity_tag;
+static int level_index(uint32_t tag) {
+    for(size_t i=0;i<level_count;++i)if(level_overlays[i].tag==tag)return int(i);
+    return -1;
+}
+// Only LEVEL00 carries the Modernized apartment pair.
+static uint32_t (*level_reader(uint32_t tag))(uint32_t) {
+    return tag==3?apartment_identity_word:psx_mod_read_word;
+}
 static bool identity() {
     static thread_local std::array<std::vector<uint32_t>,sizeof guards/sizeof guards[0]> expected;
+    static thread_local std::array<std::vector<uint32_t>,1> level_expected[level_count];
     static thread_local IdentityMemo memo;
+    static thread_local uint32_t memo_tag;
     ++identity_calls;
     const uint64_t frame=input_host_frame();
     if(!memo.valid(frame,g_dirty_ram_code_gen)) {
         const auto t0=std::chrono::steady_clock::now();
-        memo.set(frame,g_dirty_ram_code_gen,code_identity(guards,expected,apartment_identity_word,g_psx_ram));
+        const uint32_t tag=psx_mod_read_word(level_base);
+        const int level=level_index(tag);
+        const bool ok=level>=0 && code_identity(guards,expected,psx_mod_read_word,g_psx_ram) &&
+            code_identity(level_overlays[level].body,level_expected[level],level_reader(tag),g_psx_ram);
+        memo.set(frame,g_dirty_ram_code_gen,ok);memo_tag=ok?tag:0;
         identity_ns+=std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now()-t0).count();
         ++identity_checks;
     }
+    identity_tag=memo_tag;
     if(!memo.ok)++refusals;
     // Name the guard that broke, once per transition, so a lost lease in a
     // playtest log says which original code changed.
     static bool reported;
     if(!memo.ok && !reported) {
         uint32_t address=0,live=0,want=0;
-        const int index=code_identity_mismatch(guards,expected,address,live,want,apartment_identity_word);
-        std::fprintf(stderr,"[TTK identity] guard %d (0x%08x, %u bytes) changed at 0x%08x: 0x%08x, expected 0x%08x\n",
-            index,index>=0?guards[index].address:0,index>=0?guards[index].size:0,address,live,want);
+        const uint32_t tag=psx_mod_read_word(level_base);
+        const int level=level_index(tag);
+        const int index=code_identity_mismatch(guards,expected,address,live,want);
+        if(index>=0)
+            std::fprintf(stderr,"[TTK identity] guard %d (0x%08x, %u bytes) changed at 0x%08x: 0x%08x, expected 0x%08x\n",
+                index,guards[index].address,guards[index].size,address,live,want);
+        else if(level<0)
+            std::fprintf(stderr,"[TTK identity] level overlay tag 0x%08x at 0x%08x is not an authenticated level\n",tag,level_base);
+        else {
+            code_identity_mismatch(level_overlays[level].body,level_expected[level],address,live,want,level_reader(tag));
+            std::fprintf(stderr,"[TTK identity] level %u overlay changed at 0x%08x: 0x%08x, expected 0x%08x\n",
+                tag,address,live,want);
+        }
         reported=true;
     }
     if(memo.ok)reported=false;
     return memo.ok;
 }
+// LEVEL00-only conveniences (the apartment) require that exact overlay.
+static bool first_map() { return identity() && identity_tag==3; }
 static bool gameplay_context() {
     // 1bb84 dispatches mode 0 frontend/attract, mode 1 game. 268a0
     // suspends player updates for inventory/pause. A demo player is not input ownership.
@@ -944,7 +977,7 @@ static void hook_body(CPUState* cpu, uint32_t address) {
             first_person_release("lease");return;
         }
         if (flight_epoch!=f.epoch || (psx_mod_read_half(player+0x60)!=98 && psx_mod_read_half(player+0x60)!=103 && psx_mod_read_half(player+0x60)!=104 && psx_mod_read_half(player+0x60)!=105 && psx_mod_read_half(player+0x60)!=109 && !(short_fall && psx_mod_read_half(player+0x60)==108))) flight_valid=false;
-        apartment_patch_install();
+        if(first_map())apartment_patch_install();
         orbit_begin(sp);
         if(!orbit_valid) first_person_release("orbit");
         else {

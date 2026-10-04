@@ -2,7 +2,8 @@
 
 D05 and D06 are Done following successful user playtesting and explicit sign-off.
 The implementation and remaining coverage limits are recorded below. These adapters target the verified SLUS-00583 executable and
-exact LEVEL00 overlay only. Vanilla returns before guest reads or writes in the
+exact LEVEL00 overlay only (D22A, 2026-10-04: the authenticated LEVEL01 body is
+also accepted; see [note 100](100-d22a-portal-level-identity.md)). Vanilla returns before guest reads or writes in the
 control hooks. All original media, generated C and player cards remain untouched.
 Generated source is rebuilt through the normal local build wrapper.
 

@@ -1,5 +1,44 @@
 # Next-session handoff
 
+## 2026-10-04 - D22A accepted; new Level 2 jobs
+
+User playtest: "I can confirm and accept D22A as working." The portal into
+LEVEL01 (the user's Level 2) works and the level is completely playable with
+Modernized controls. D22A is Accepted; executable
+`9c9e2c3f3b07ddb2ad0dd9fea48b7adcf000037b03f2cd75295dfea7f95b34c0` is the new
+regression baseline. The candidate entry below is historical. See
+[note 100](100-d22a-portal-level-identity.md).
+
+New Todo jobs (reproductions: player UI slots 8/9 = files 07/08, LEVEL01;
+hashes in the board entries): D11D first-person eye height (slot 8), D12B
+costume-aware first-person kick (slots 8/9), D17R sky black at the edges when
+looking up (slot 9), D26A debug level-select panel, D22B Modernized controls
+owning every level, state and transition end to end. The user's rule: fix the
+shared system, not the level. The user plans to survey the rest of the game
+with D26A. The user authorized documentation, commit and push. No next job
+selected or started.
+Launch when wanted: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-04 - D22A portal level identity candidate, Needs playtest
+
+Cause: the Modernized lease authenticated only the LEVEL00 overlay body; the
+first map's portal loads LEVEL01.OVR over the same base `0x800ca968`, so the
+lease failed closed and original controls/third person returned. LEVEL01 is
+now an authenticated level overlay (tag-keyed `level_overlays[]` in
+`control_guards.inc`, owned-disc digests, same scratch-tail rule as LEVEL00);
+unknown levels still fail closed and the apartment conveniences require
+LEVEL00. Offscreen: movement, mouse look, jump, fire, pause/resume and first-
+and third-person all work after the portal, repeated in one session, with zero
+identity refusals; the 12 LEVEL00 slots and Vanilla are unchanged. Tests pass;
+codegen hash unchanged. Candidate
+`9c9e2c3f3b07ddb2ad0dd9fea48b7adcf000037b03f2cd75295dfea7f95b34c0`.
+**Needs playtest:** UI slot 7 -> portal -> continue, then play the Old West
+level with Modernized controls in first and third person. Nothing committed.
+See [note 100](100-d22a-portal-level-identity.md).
+Launch: `python3 recomp/tools/local/run.py`.
+
+
 ## 2026-10-04 - D17Q accepted (Done)
 
 User, after extended play: "the whole job is 100% accepted", and

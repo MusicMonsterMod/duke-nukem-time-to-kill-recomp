@@ -1,3 +1,4 @@
+#include <cstdint>
 #include <cstdlib>
 #include <string_view>
 extern "C" int pgxp_mesh_geometry(void) {const char* s=std::getenv("DNTTK_GEOMETRY_PRECISION");return s && std::string_view(s)=="corrected";}
@@ -5,6 +6,9 @@ extern "C" int pgxp_mesh_textures(void) {const char* s=std::getenv("DNTTK_TEXTUR
 extern "C" void pgxp_mesh_register_boundary(void) {}
 extern "C" void pgxp_invalidate_all(void) {}
 extern "C" {int g_pgxp_mesh_active=0;}
+extern "C" int pgxp_mesh_vertex(uint32_t,uint32_t,int32_t*,int32_t*,uint16_t*) {return 0;}
+extern "C" void gte_nclip_culling_set(int) {}
+extern "C" void gte_nclip_culling_stats(uint64_t* checks,uint64_t* flips) {*checks=*flips=0;}
 // Owned-data integration harness. Models call contracts, not terrain/animation.
 #include "modern_controls.h"
 #include "control_math.h"
@@ -145,7 +149,7 @@ static void call(uint32_t address,uint32_t a0,uint32_t a1,uint32_t ra,uint32_t s
     hooks().at(address)(&cpu,address);
 }
 int main(int argc,char** argv) {
-    assert(argc==3);
+    assert(argc==3 || argc==4);
     std::ifstream exe(argv[1],std::ios::binary);exe.seekg(2048);exe.read((char*)ram+0x10000,0xbb000);assert(exe.gcount()==0xbb000);
     std::ifstream overlay(argv[2],std::ios::binary);overlay.read((char*)ram+0xca968,9668);assert(overlay.gcount()==9668);
     constexpr uint32_t p=0x800d7198,c=0x800d6eb0;
@@ -612,6 +616,30 @@ int main(int argc,char** argv) {
     psx_mod_write_word(0x800ccf18,last_table_word^1);assert(!ttk::movement_ready());
     psx_mod_write_word(0x800ccf18,last_table_word);
     call(0x8003ade4,c,p,0x80025ee8);assert(ttk::movement_ready());
+    // D22A: the first map's portal loads LEVEL01.OVR over the same base. An
+    // authenticated LEVEL01 keeps the leases; its own scratch tail is level
+    // state; an unknown tag or changed body fails closed; the LEVEL00 apartment
+    // patch never touches it. Optional fourth argument: the owned LEVEL01.OVR.
+    if(argc==4) {
+        std::vector<uint8_t> first(ram+0xca968,ram+0xca968+12196);
+        std::ifstream level01(argv[3],std::ios::binary);
+        level01.read((char*)ram+0xca968,12196);assert(level01.gcount()==12196);++g_dirty_ram_code_gen;
+        assert(psx_mod_read_word(0x800ca968)==4);
+        const unsigned patches=code_writes;
+        call(0x8003ade4,c,p,0x80025ee8);assert(ttk::movement_ready() && code_writes==patches);
+        psx_mod_write_word(0x800cd8fc,0x000075a3);psx_mod_write_word(0x800cd908,0x12345678);
+        assert(ttk::movement_ready());
+        const auto level01_last=psx_mod_read_word(0x800cd8f8);
+        psx_mod_write_word(0x800cd8f8,level01_last^1);assert(!ttk::movement_ready());
+        psx_mod_write_word(0x800cd8f8,level01_last);assert(ttk::movement_ready());
+        psx_mod_write_word(0x800ca968,5);assert(!ttk::movement_ready()); // LEVEL02 tag: not authenticated
+        psx_mod_write_word(0x800ca968,3);assert(!ttk::movement_ready()); // LEVEL00 tag, LEVEL01 body
+        psx_mod_write_word(0x800ca968,4);assert(ttk::movement_ready());
+        call(0x8003ade4,c,p,0x80025ee8);assert(code_writes==patches);
+        std::copy(first.begin(),first.end(),ram+0xca968);++g_dirty_ram_code_gen;
+        call(0x8003ade4,c,p,0x80025ee8);assert(ttk::movement_ready());
+        std::puts("PASS: D22A LEVEL01 overlay identity, scratch tail, unknown/mismatched tags, no apartment patch, LEVEL00 restore");
+    }
     for(unsigned flags : {0u,8u,0x400u,0x408u,0x10008u,0x10400u}) {
         const bool original=(flags&0x408)==8;
         const bool modernized=(flags&(psx_mod_read_word(0x800cc580)&65535))==

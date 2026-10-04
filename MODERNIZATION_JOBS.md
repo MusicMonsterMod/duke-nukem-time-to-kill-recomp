@@ -4,7 +4,7 @@ This is the canonical job list for our **Duke Nukem: Time to Kill** PC project, 
 
 Invoke **`$continue-duke-recomp`** (Codex) or **`/continue-duke-recomp`** (Claude Code) to see the current jobs and choose one. You can also request a job directly: **`$continue-duke-recomp work on D01`** or **`/continue-duke-recomp work on D01`**. The skill reads this file rather than keeping a second backlog. It must not automatically start the next job.
 
-**Latest accepted job: D17Q - residual wall flicker (per-triangle UV seams).** [Cause, solution and evidence](documentation/99-d17q-uv-seams.md). Accepted executable `a6f8c8cbaa3329028c5aed15fd26ca6a2dc45975e0482be8c17723d4af7cb960` is the current regression baseline.
+**Latest accepted job: D22A - portal transition keeps Modernized controls (LEVEL01).** [Cause, solution and evidence](documentation/100-d22a-portal-level-identity.md). Accepted executable `9c9e2c3f3b07ddb2ad0dd9fea48b7adcf000037b03f2cd75295dfea7f95b34c0` is the current regression baseline.
 
 ## The experience we are building
 
@@ -87,7 +87,9 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D11A | Scroll-wheel zoom lock into first-person | Cancelled (P toggle suffices) | - |
 | D12 | First-person weapons and state polish | Done | D11 |
 | D12A | First-person quick kick without leaving the eye view | Done | D12 |
+| D12B | Costume-aware first-person kick leg, game-wide (LEVEL01 slots 8/9) | Todo | D12A, D22A |
 | D11C | Savestates can keep Duke's first-person head hidden (slot 12) | Done | D11 |
+| D11D | First-person eye height from Duke's real proportions, game-wide (LEVEL01 slot 8) | Todo | D11, D22A |
 | D13 | Higher internal resolution and display scaling | Done | D02 |
 | D14 | Widescreen, FOV and visibility | Done | D03, D13 |
 | D15 | Optional geometry and texture precision | Accepted | D13 |
@@ -110,6 +112,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D17Q | Residual wall/surface flicker: Corrected-renderer stability polish | Done (user-accepted) | D17N |
 | D17O | Unstable sky appearance when looking up (slot 10) | Done (user-accepted) | D17A, D17B |
 | D17P | Distant horizontal black bands in new subway slot 8 | Done (user-accepted) | D15 |
+| D17R | Sky turns black toward the left/right edges when looking up, game-wide (LEVEL01 slot 9) | Todo | D14, D17O, D22A |
 | D17C | View bob: disable experiment, then a stable modern camera | Done (user-accepted) | D11 |
 | D18 | FMV and audio presentation safeguards | Todo | D01, D02 |
 | D18A | Voice/music/gunfire crackle investigation | Done | D01, D02 |
@@ -122,13 +125,15 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D20 | Save management and optional quick saves | Todo | D01, D02 |
 | D21 | Accessibility and sound controls | Todo | D04, D19 |
 | D22 | Campaign fidelity and overlay coverage | Todo | D01 |
-| D22A | Portal transition loses Modernized controls and first person (slot 7) | Todo | D05, D06, D11 |
+| D22A | Portal transition loses Modernized controls and first person (slot 7) | Accepted | D05, D06, D11 |
+| D22B | Modern controls own every level and transition end to end (no classic fallback) | Todo | D22A, D26A |
 | D23 | Performance budgets and long-session stability | Todo | D01 |
 | D23A | Modernized frame-budget regression (guard identity cost) | Done | D08 |
 | D23B | Intro FMV stutter: stranded native movie shard | Done | D23 |
 | D24 | Linux / Windows player build and disc import | Todo | D19, D22, D23 |
 | D25 | Modernized edition release acceptance | Todo | D08, D08A, D08B, D09, D10, D14, D17, D18, D20, D21, D24 |
 | D26 | Backtick debug console (fps and helpers) | Done | D04 |
+| D26A | Debug level-select panel for whole-game testing | Todo | D26, D22A |
 | D27 | Caps Lock RUN MODE quotes; Shift-run clunk silence deferred | Done (quotes); clunk deferred low-priority | D04, D19A |
 | D28 | Scroll Lock holster and WEAPON LOWERED/RAISED quotes | Done | D04, D19A |
 | R01 | DisruptorRecomp architecture and modernization reference research | Done | - |
@@ -1573,6 +1578,33 @@ slot-12 copy shows Duke's head in third person, while first person still hides
 it. Add a native test case. Vanilla is unchanged; slot 12 itself is repaired
 only if the user asks.
 
+### D11D - First-person eye height from Duke's real proportions (game-wide)
+
+**Todo. User report, 2026-10-04 (D22A playtest).** UI slot 8: stand next to
+the dancer in first person and Duke appears to be at about her waist height.
+Press **P**: in third person Duke is about her height or slightly taller. The
+first-person eye/camera height does not match Duke's actual size.
+
+Reproduction saves are the player's own UI slots (savestate files 07/08 in
+`recomp/saves/local-play/openbios`, written 2026-10-04 18:01/18:04): UI slot 8
+= file 07 SHA-256 `7699132e7e6df9ac13e8925fe5240656a2002ac2c90aeece7b0c174b054dc119`,
+UI slot 9 = file 08 SHA-256 `f88cd1a65e67ed0cd59f3c811fb54e52222db6e8dfd210dd30a80929340e5bb6`,
+both in LEVEL01 (the Old West map the user calls Level 2). Test only on dated
+private copies; verify these hashes first, since slot numbers get reused.
+
+Investigate Duke's actual actor/model height, the first-person camera origin
+and eye anchor (`first_person_anchor`, D11/D11C), our view offsets and
+projection, stance/crouch state, and whether the result varies between levels,
+costumes or player states. Derive a believable eye height from Duke's real
+proportions.
+
+**Game-wide:** fix the shared first-person system. Do not add a LEVEL01 or
+per-level camera offset.
+
+**Acceptance:** in slot 8 the dancer and Duke read as similar heights in both
+views; the first map's accepted first-person routes (apartment, club, subway,
+crouch, ladders, swim) still look right; the user confirms.
+
 ### D12 — First-person weapons and state polish
 
 **Done - user accepted 2026-09-30:** "finally, we can mark this as accepted!!"
@@ -1613,6 +1645,29 @@ the crosshair without crouching, kick on a held left-click with the Boot while
 moving, and show a tuned thigh (second pass, Needs playtest).
 
 ## Graphics and playback
+
+### D12B - Costume-aware first-person kick leg (game-wide)
+
+**Todo. User report, 2026-10-04 (D22A playtest).** UI slot 8 or 9: Duke wears
+a different costume in LEVEL01, but the first-person quick kick (D12A) still
+shows the first map's leg appearance.
+
+Reproduction saves are the player's own UI slots (savestate files 07/08 in
+`recomp/saves/local-play/openbios`, written 2026-10-04 18:01/18:04): UI slot 8
+= file 07 SHA-256 `7699132e7e6df9ac13e8925fe5240656a2002ac2c90aeece7b0c174b054dc119`,
+UI slot 9 = file 08 SHA-256 `f88cd1a65e67ed0cd59f3c811fb54e52222db6e8dfd210dd30a80929340e5bb6`,
+both in LEVEL01 (the Old West map the user calls Level 2). Test only on dated
+private copies; verify these hashes first, since slot numbers get reused.
+
+Find how the original game represents Duke's per-level costume/appearance
+(model, texture page/CLUT, part tables) and make the first-person kick leg
+follow Duke's current visual state rather than a fixed leg. Do not hard-code
+"level 2 uses leg B" if the game has a meaningful current-costume concept to
+derive from.
+
+**Acceptance:** the kick leg matches Duke's third-person costume in the first
+map and in LEVEL01, by the same rule; the user confirms. Record the rule so
+later levels inherit it.
 
 ### D13 — Higher internal resolution and display scaling
 
@@ -2231,6 +2286,31 @@ Python 106 (2 skips) and native controls/near/input/PGXP/GTE tests pass.
 The user's playtest accepted the fix.
 [Cause, implementation, evidence and limits](documentation/97-d17p-distant-bands.md).
 
+### D17R - Sky turns black toward the edges when looking up (game-wide)
+
+**Todo. User report, 2026-10-04 (D22A playtest).** UI slot 9: look up. The
+central sky renders correctly, but toward the left and right edges of the view
+it turns black/dark, as if the edges had become night.
+
+Reproduction saves are the player's own UI slots (savestate files 07/08 in
+`recomp/saves/local-play/openbios`, written 2026-10-04 18:01/18:04): UI slot 8
+= file 07 SHA-256 `7699132e7e6df9ac13e8925fe5240656a2002ac2c90aeece7b0c174b054dc119`,
+UI slot 9 = file 08 SHA-256 `f88cd1a65e67ed0cd59f3c811fb54e52222db6e8dfd210dd30a80929340e5bb6`,
+both in LEVEL01 (the Old West map the user calls Level 2). Test only on dated
+private copies; verify these hashes first, since slot numbers get reused.
+
+Investigate the underlying sky rendering, not a level patch. Directions, not
+assumed causes: the original sky/background geometry and coverage, widescreen
+and FOV expansion (D14), clipping, projection, culling, geometry limits and the
+original renderer's assumptions about the visible horizontal field, including
+our first-person presentation. Reuse D17O ([note 92](documentation/92-d17o-sky-intake.md)),
+R01 and the renderer notes.
+
+**Acceptance:** slot 9 shows a continuous sky to both edges in 16:9 and the
+original aspect, first and third person; the first map's accepted sky (D17O
+slot 10) is unchanged; the solution is shared sky rendering that holds across
+levels; the user confirms.
+
 ### D18 — FMV and audio presentation safeguards
 
 Expand coverage beyond the opening movie: playback, skipping, transitions and return to gameplay. Preserve native movie cadence and audio synchronization through display/profile changes. Optional scaling must not invent a higher source frame rate or regress the fixed streaming path.
@@ -2398,7 +2478,15 @@ Maintain a level-by-level matrix for loading, progression items, enemies, weapon
 
 ### D22A - Portal transition loses Modernized controls and first person (slot 7)
 
-**Todo. Bug, next-round backlog; not started.** User report on 2026-10-03:
+**Accepted (2026-10-04, user playtest).** "Level 2 is working and is completely
+playable. The teleport/level transition is functioning correctly." Cause found
+and fixed: the control lease
+authenticated only the LEVEL00 overlay body; the portal loads LEVEL01.OVR over
+the same base, so it failed closed. LEVEL01 is now an authenticated level
+overlay alongside LEVEL00. See the work log and
+[note 100](documentation/100-d22a-portal-level-identity.md).
+
+User report on 2026-10-03:
 load UI save slot 7 (file 06), walk into the portal and start the next level.
 Duke then loses all Modernized controls and first-person view. The user reports
 this as an easy reproduction; no independent reproduction or root-cause claim
@@ -2426,6 +2514,37 @@ look, aiming/fire, capture/pause/resume and first-/third-person selection in the
 new level; repeat the transition and check the accepted first-level baseline.
 Vanilla stays original, preferences and player saves remain intact. User confirms
 control/view continuity. Do not infer full-campaign support from this one route.
+
+### D22B - Modern controls own every level and transition end to end
+
+**Todo. User direction, 2026-10-04.** "There should basically be no situation
+where the classic controls override modern controls ideally. We want full,
+total modernization, and full ownership of the controls system end to end."
+
+D22A made the lease accept one more authenticated level (LEVEL01). Every other
+level, and every state the lease does not yet cover, still drops back to the
+original pad layout. This job removes that as a normal player experience:
+
+- Level coverage: verify each LEVELxx.OVR (load base, tag word, run-time data
+  such as the LEVEL00/LEVEL01 scratch tail) and authenticate it in
+  `level_overlays[]`, or replace the per-level allowlist with an equally strict
+  but general rule derived from the owned disc. Use D26A to reach each level.
+  Keep the fail-closed principle for genuinely unknown code; the goal is to
+  verify it, not to bypass it.
+- State coverage: inventory every gameplay state where the lease refuses
+  today (for example ladders, scripted cameras, vehicles/turrets, cutscene
+  hand-offs, death/Continue, level start/end) and give each a modern
+  equivalent or a documented reason it must stay original.
+- Transitions: level loads, portals, Continue, savestate loads and menus
+  return to the same Modernized controls and view without player action.
+- Diagnostics: a lease refusal in normal play is a bug to report with its
+  reason (`[TTK lease]` / `[TTK identity]`), not a silent fallback.
+
+**Acceptance:** across the levels verified with D26A, Modernized controls and
+the selected view stay in charge from level start to level exit, including
+transitions; any remaining original-control state is listed with its reason
+and a follow-up job. Vanilla stays original. Fix shared systems, not
+individual levels, wherever the evidence allows.
 
 ### D23 — Performance budgets and long-session stability
 
@@ -2499,6 +2618,30 @@ persistent top-left debug block, `clear` / `quit`. F unbound; Scroll Lock is hol
 
 **Acceptance met:** backtick open/close; scrollback; persistent fps overlay;
 gameplay/capture/menus intact.
+
+### D26A - Debug level-select panel for whole-game testing
+
+**Todo. User request, 2026-10-04.** Testing infrastructure so the user can
+travel through the whole game, find problems, make savestate reproductions and
+stand up small jobs without replaying normal progression.
+
+Required: open a debug level selector, see the available levels, select one,
+enter it quickly, then play normally and use savestates.
+
+- Keep the UI simple: the cheapest reliable debug list (D26 console, a host
+  overlay or an existing PSXRecomp/runtime debug menu primitive). Proper menu
+  style is D19, much later.
+- Use the game's own level identifiers/data and its own level-start path where
+  possible (LEVELxx/DBxx tables, the level index at `0x800be570`); avoid
+  duplicated hard-coded lists.
+- Development-only shortcut: it must not change normal progression, saves or
+  memory cards, and is opened by an explicit debug hotkey or console command.
+  Document how to open it in the manual.
+
+**Acceptance:** every selectable level loads into normal play from the panel,
+savestates work there, normal progression and saves are untouched, and the
+user can use it to survey the game (enabling D22B, D11D, D12B and D17R
+verification).
 
 ### D27 — Caps Lock RUN MODE quotes and Shift-run clunk silence
 
@@ -6005,3 +6148,61 @@ regression baseline. Cause, solution and fallback behaviour are recorded in
 the remaining subtle wall/surface flicker as independent Corrected-renderer
 stability polish. The user authorized documentation, commit and push.
 
+
+## 2026-10-04 - D22A portal level identity candidate (Needs playtest)
+
+Reproduced from a dated private copy of UI slot 7 (file 06, SHA-256
+`b05b9437...`) offscreen. After the portal and statistics screen, Duke stood
+in the Old West street with original controls; the log named the cause:
+guard 119, the LEVEL00.OVR body at `0x800ca968`, now held tag 4. RAM/disc
+correlation shows LEVEL01.OVR resident at the same base, differing only in
+its final 16 bytes, a hit-position scratch vector the overlay passes to
+`0x8007177c`, the same layout as LEVEL00's D08P tail.
+
+Fix (`control_guards.inc`, `modern_controls.cpp`, `apartment_interaction.inc`):
+the level body moved out of the resident guards into an authenticated
+`level_overlays[]` table keyed by the overlay's tag word (LEVEL00 tag 3,
+LEVEL01 tag 4, code/table bodies hashed from the owned disc). Identity requires
+the resident guards plus the matching level body; unknown levels still fail
+closed. The apartment secret patch, light-switch targeting and concealed
+pickup now require LEVEL00 explicitly. No hooks or guest behavior changed.
+
+Evidence: `ttk-controls-test` gains a LEVEL01 group (optional owned
+LEVEL01.OVR argument) and links again (renderer stubs); 32 groups pass.
+Input/aim/near tests pass. Offscreen in LEVEL01, first person: movement,
+mouse look, jump, view-aimed fire (27 shots, through a private Q binding),
+Start pause/resume. Third person: portal twice in one session (savestate back
+to LEVEL00 between), then a 90-second wander with zero identity refusals; the
+overlay still differs only in its tail. All 12 LEVEL00 slots keep the lease;
+Vanilla shows no Modernized activity. Candidate
+`9c9e2c3f3b07ddb2ad0dd9fea48b7adcf000037b03f2cd75295dfea7f95b34c0`; framework
+patch and codegen hash unchanged.
+
+Limits: only LEVEL00/LEVEL01 are authenticated; later levels keep original
+controls until each is verified. Escape capture release and Mouse1 were not
+driven offscreen. **Needs playtest:** UI slot 7 -> portal -> continue, then
+check movement, mouse look, fire, Escape pause/resume and P view toggle in
+the Old West level. Nothing committed.
+See [note 100](documentation/100-d22a-portal-level-identity.md).
+
+## 2026-10-04 - D22A accepted; D11D, D12B, D17R, D22B and D26A added
+
+User playtest: "I can confirm and accept D22A as working." "Level 2 is working
+and is completely playable. The teleport/level transition is functioning
+correctly and I can proceed into the level and play normally." D22A is
+Accepted; executable
+`9c9e2c3f3b07ddb2ad0dd9fea48b7adcf000037b03f2cd75295dfea7f95b34c0` is the new
+regression baseline. The user authorized documentation, commit and push.
+
+New Todo jobs from that playtest (player saves UI 8/9 = files 07/08 in
+LEVEL01, hashes in the job entries):
+
+- D11D: first-person eye height too low (slot 8, next to the dancer).
+- D12B: first-person kick leg ignores Duke's LEVEL01 costume (slots 8/9).
+- D17R: sky black toward the left/right edges when looking up (slot 9).
+- D26A: debug level-select panel for surveying the whole game.
+- D22B: Modernized controls own every level, state and transition end to
+  end; the classic controls should not take over during normal play.
+
+User direction for all of them: fix the shared system, not the level. No next
+job selected or started.

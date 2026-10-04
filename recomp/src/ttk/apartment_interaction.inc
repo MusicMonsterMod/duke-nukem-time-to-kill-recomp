@@ -12,7 +12,7 @@ static void apartment_pickup(CPUState* cpu) {
     const auto& f=input_snapshot(Context::Gameplay);
     const uint32_t object=cpu->gpr[5],bed=psx_mod_read_word(0x800d257c);
     if(cpu->gpr[4]!=player || cpu->gpr[31]!=0x8007fe6c || !f.active ||
-       !player_identity_ready() || !identity() || psx_mod_read_word(0x800be570)!=0 ||
+       !player_identity_ready() || !first_map() || psx_mod_read_word(0x800be570)!=0 ||
        psx_mod_read_word(0x800c27bc)!=1 || (psx_mod_read_word(0x800dd878)&0x400) ||
        !apartment_object(bed,5,11) || !apartment_object(object,58,0) ||
        psx_mod_read_byte(object+0x15)!=1 ||
@@ -37,7 +37,7 @@ static void apartment_switch_query(CPUState* cpu) {
        psx_mod_read_word(sp+0x84)!=0x80077fa4 ||
        psx_mod_read_word(sp+0xb0)!=0x800518c0 ||
        object!=psx_mod_read_word(0x800d25b0) || !apartment_object(object,595,24) ||
-       !input_snapshot(Context::Gameplay).active || !player_identity_ready() || !identity() ||
+       !input_snapshot(Context::Gameplay).active || !player_identity_ready() || !first_map() ||
        psx_mod_read_word(0x800be570)!=0 || psx_mod_read_word(0x800c27bc)!=1 ||
        psx_mod_read_byte(object+0x2e)!=psx_mod_read_byte(player+0x2e))return;
     const double dx=(int32_t)psx_mod_read_word(sp+0x58)-(int32_t)psx_mod_read_word(player+4);

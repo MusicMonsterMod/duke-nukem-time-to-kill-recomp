@@ -4,7 +4,7 @@ This is the canonical job list for our **Duke Nukem: Time to Kill** PC project, 
 
 Invoke **`$continue-duke-recomp`** (Codex) or **`/continue-duke-recomp`** (Claude Code) to see the current jobs and choose one. You can also request a job directly: **`$continue-duke-recomp work on D01`** or **`/continue-duke-recomp work on D01`**. The skill reads this file rather than keeping a second backlog. It must not automatically start the next job.
 
-**Current job: D08Q3 - jetpack weapon aiming and missing crosshair.** Implemented; Needs playtest.
+**Next job: D17O - unstable sky appearance (slot 10).** Todo - next; investigate the original sky rendering and stabilize its look. D08Q3 is Done, user-accepted.
 
 ## The experience we are building
 
@@ -67,7 +67,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08R | Selectable jetpack scheme: Modern / Classic (WASD), CLI quick ship | Done | D08Q |
 | D08Q1 | Faster Modern jetpack Ctrl descent (underwater dive speed) | Done | D08Q |
 | D08Q2 | Jetpack unavailable after death, Continue and dnstuff (slot 10) | Done | D08Q, D08A1, D08G |
-| D08Q3 | Jetpack weapon aiming and missing crosshair | Needs playtest | D07C, D08Q, D08Q2, D08R |
+| D08Q3 | Jetpack weapon aiming and missing crosshair | Done | D07C, D08Q, D08Q2, D08R |
 | D08S | Duke3D-style jetpack scheme (instant J on/off, midair) | Cancelled (may revisit) | D08R |
 | D08T | Pushable objects: modern grab/push/pull and climb (alley dumpster) | Done | D08 |
 | D08T1 | Separate push/pull from mantling: E always mantles, hold RMB to grab | Done | D08T, D04 |
@@ -107,6 +107,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D17L | Tabletop props cut off on approach/retreat in save slot 11 | Todo | D17D |
 | D17M | Shotgun ammo visible through ladder platform in save slot 9 | Todo | D17D |
 | D17N | Diagonal wall artifacts during movement in save slot 12 | Todo | D17A |
+| D17O | Unstable sky appearance when looking up (slot 10) | Todo - next | D17A, D17B |
 | D17C | View bob: disable experiment, then a stable modern camera | Done (user-accepted) | D11 |
 | D18 | FMV and audio presentation safeguards | Todo | D01, D02 |
 | D18A | Voice/music/gunfire crackle investigation | Done | D01, D02 |
@@ -971,10 +972,11 @@ confirms restored use.
 
 ### D08Q3 - Jetpack weapon aiming and missing crosshair
 
-**Needs playtest (2026-10-04).** Guarded flight now admits view aiming, weapon
-presentation, beam completion and the enabled crosshair. Both flight schemes
-pass private six-weapon firing and transition checks; native suites and build
-pass. User confirmation remains. [Implementation and evidence](documentation/91-d08q3-jetpack-aim.md).
+**Done (user-accepted 2026-10-04):** "i accept this! great work."
+Guarded flight now admits view aiming, weapon presentation, beam completion
+and the enabled crosshair. Both flight schemes pass private six-weapon firing
+and transition checks; native suites and build pass. Accepted implementation:
+`f284dc1`. Recorded live coverage limits remain documented. [Implementation and evidence](documentation/91-d08q3-jetpack-aim.md).
 
 Original report after accepting D08Q2:
 "i cant aim to shoot when using the jetpack / crosshair is also gone."
@@ -2044,6 +2046,41 @@ at 60/120/180, preserving the deliberately retained PS1 visual character,
 textures, legitimate occlusion and accepted D17C/D/E/F/K behavior. Compare
 Vanilla/Modernized and nearby walls; user confirms the improvement.
 See [save identity and regression baseline](documentation/89-d17-playtest-followup.md).
+
+### D17O - Unstable sky appearance when looking up (slot 10)
+
+**Todo - next (2026-10-04).** User's next selected investigation after D08Q3
+acceptance, recorded for the context-clear handoff. Load **UI slot 10 (file 09)**
+and look up: the sky moves strangely/glitchily rather than with neat parallax.
+This is **not jetpack-specific**; the location makes it easy to reproduce.
+Cause and actual sky rendering technique are unknown. Investigation has not
+started; this checkpoint only records the job and preserves a private intake.
+
+**Scope:** reproduce the look/feel and establish how TTK draws and animates
+its sky from owned game code/assets and authenticated active overlays. Trace
+camera-relative/world coordinates, primitives, UV/texture motion, clipping,
+ordering and update cadence. Compare original guest frames and presented
+high-refresh frames before attributing the effect to a skybox, interpolation,
+precision or camera motion. Implement a bounded stabilization if evidence
+supports it, retaining intended art/parallax/animation and Vanilla behavior.
+
+**Reproduction:** preserve the current UI 10 identity, then use writable private
+cards/profiles for stationary look-up, slow yaw/pitch, walking and ground/flight
+comparisons. Start at 60/120, then 180; inspect the full presented sky/horizon,
+first/third person and another sky view if available. Never use the player's
+cards for tests or infer identity from an older slot-10 fixture.
+
+**Acceptance:** documented original sky architecture and verified cause;
+before/after evidence of steadier sky motion without broken horizon seams,
+world occlusion or lost intended animation; bounded tests/regressions covering
+accepted D17C/D/E/F/K and D08Q2/Q3 behavior. Record timing cost and remaining
+coverage limits. User confirms the appearance; otherwise Needs playtest.
+Heavily document source/asset findings, verified addresses, reproduction data,
+rejected hypotheses, implementation rationale and measured versus observed
+results. Update status/handoff/manual as appropriate; commit and push source
+and documentation, excluding all retail assets and local captures/saves.
+
+[Detailed intake, private save identity and investigation plan](documentation/92-d17o-sky-intake.md).
 
 ### D18 — FMV and audio presentation safeguards
 
@@ -5613,3 +5650,17 @@ unchanged. No framework, generated C or renderer change.
 User confirmation and broader thrown/upgraded weapon live coverage remain;
 weapon switching still waits for the ground. See [note 91](documentation/91-d08q3-jetpack-aim.md)
 for exact evidence and limitations. No other job started.
+
+
+## 2026-10-04 - D08Q3 accepted; D17O sky investigation queued next
+
+User accepts D08Q3: "i accept this! great work." Marked Done, preserving
+`f284dc1` and its recorded verification limits. Next: D17O, Todo - next.
+User reports glitchy sky movement when looking up from UI slot 10, explicitly
+not limited to jetpack use. Determine how the game renders its sky before
+choosing a stabilization; substantial engineering documentation is required.
+
+Preserved current player data as a private immutable intake (28 files), with
+hashes/mtimes; slot 10 has changed since the earlier jetpack fixture. See
+[note 92](documentation/92-d17o-sky-intake.md) for the exact identity and work plan.
+Documentation/intake only: no sky investigation, gameplay edits, build or launch.

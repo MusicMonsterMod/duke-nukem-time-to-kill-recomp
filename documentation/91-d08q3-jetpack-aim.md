@@ -1,6 +1,8 @@
 # D08Q3 - jetpack view aiming and crosshair
 
-2026-10-04. Needs playtest. User confirmation remains required.
+2026-10-04. **Done, user-accepted:** "i accept this! great work."
+Accepted implementation: `f284dc1`. Recorded test coverage limits remain;
+no additional gameplay test was performed during acceptance closeout.
 
 ## Cause and change
 

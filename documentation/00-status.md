@@ -1,5 +1,31 @@
 # Current status - 2026-10-04
 
+## 2026-10-04 - D08Q3 accepted; next D17O sky appearance
+
+User accepts D08Q3: "i accept this! great work." Done; preserve `f284dc1`.
+The older Needs playtest entry below is historical. No new gameplay test was
+performed for this acceptance closeout.
+
+**Next: D17O, Todo - next.** Load UI slot 10 (file 09), look up at the sky and
+investigate its strange/glitchy movement. This is not jetpack-specific. First
+establish how the original game renders/animates sky, then diagnose and test a
+bounded stabilization. The user explicitly requires substantial documentation
+of architecture, cause, evidence, implementation and remaining limitations.
+[Canonical job](../MODERNIZATION_JOBS.md#d17o---unstable-sky-appearance-when-looking-up-slot-10).
+
+[Detailed intake/plan and exact save identity](92-d17o-sky-intake.md).
+Immutable private snapshot: `recomp/analysis/d17o-sky-intake-20261004/cards-intake`;
+28 files with adjacent hash/mtime manifest. Current slot 10 differs from the
+older jetpack fixture. Use a separate writable copy and private preferences.
+Do not assume a skybox, parallax defect or high-refresh cause from the report.
+Preserve Vanilla, accepted visual work and D08Q2/Q3.
+
+This checkpoint only records acceptance/backlog and copies intake data. Sky
+investigation has not started; no code edit, build, game launch or player-file
+write. Commit/push this handoff before the user clears context.
+Launch when wanted: `python3 recomp/tools/local/run.py`.
+
+
 ## 2026-10-04 - D08Q3 implemented, Needs playtest
 
 Flight now admits Modernized view aiming, weapon presentation, energy-beam

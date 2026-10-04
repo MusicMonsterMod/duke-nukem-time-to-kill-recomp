@@ -4,7 +4,7 @@ This is the canonical job list for our **Duke Nukem: Time to Kill** PC project, 
 
 Invoke **`$continue-duke-recomp`** (Codex) or **`/continue-duke-recomp`** (Claude Code) to see the current jobs and choose one. You can also request a job directly: **`$continue-duke-recomp work on D01`** or **`/continue-duke-recomp work on D01`**. The skill reads this file rather than keeping a second backlog. It must not automatically start the next job.
 
-**Next job: D08Q3 - jetpack weapon aiming and missing crosshair.** Queued by the user after accepting D08Q2. Todo; investigation has not started.
+**Current job: D08Q3 - jetpack weapon aiming and missing crosshair.** Implemented; Needs playtest.
 
 ## The experience we are building
 
@@ -67,7 +67,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08R | Selectable jetpack scheme: Modern / Classic (WASD), CLI quick ship | Done | D08Q |
 | D08Q1 | Faster Modern jetpack Ctrl descent (underwater dive speed) | Done | D08Q |
 | D08Q2 | Jetpack unavailable after death, Continue and dnstuff (slot 10) | Done | D08Q, D08A1, D08G |
-| D08Q3 | Jetpack weapon aiming and missing crosshair | Todo - next | D07C, D08Q, D08Q2, D08R |
+| D08Q3 | Jetpack weapon aiming and missing crosshair | Needs playtest | D07C, D08Q, D08Q2, D08R |
 | D08S | Duke3D-style jetpack scheme (instant J on/off, midair) | Cancelled (may revisit) | D08R |
 | D08T | Pushable objects: modern grab/push/pull and climb (alley dumpster) | Done | D08 |
 | D08T1 | Separate push/pull from mantling: E always mantles, hold RMB to grab | Done | D08T, D04 |
@@ -971,10 +971,14 @@ confirms restored use.
 
 ### D08Q3 - Jetpack weapon aiming and missing crosshair
 
-**Todo - next (2026-10-04).** After accepting D08Q2, the user reports:
+**Needs playtest (2026-10-04).** Guarded flight now admits view aiming, weapon
+presentation, beam completion and the enabled crosshair. Both flight schemes
+pass private six-weapon firing and transition checks; native suites and build
+pass. User confirmation remains. [Implementation and evidence](documentation/91-d08q3-jetpack-aim.md).
+
+Original report after accepting D08Q2:
 "i cant aim to shoot when using the jetpack / crosshair is also gone."
-Queued for the next work session. This checkpoint documents the job only;
-no investigation, gameplay changes, build or launch is authorized by this intake.
+The private slot-10 intake now reproduces the baseline failure and verifies the candidate.
 
 **Scope:** restore usable Modernized weapon aiming during jetpack flight and
 show the enabled crosshair. Inspect flight-state eligibility in the weapon-aim
@@ -982,9 +986,9 @@ and reticle paths, original airborne weapon restrictions, and transitions into
 and out of flight. Diagnose aiming and crosshair visibility separately; do not
 assume that showing a reticle alone restores shots aimed at the view.
 
-**Evidence:** user report only. Cause, affected weapons, flight scheme and
-exact reproduction location are not established. D08Q2's slot-10 snapshot is
-available for private regression testing, not a confirmed D08Q3 reproduction.
+**Intake evidence (superseded by the verification above):** user report only;
+cause and exact reproduction were initially unknown. D08Q2's slot-10 snapshot
+was initially available for regression testing only.
 Use private cards/settings; verify active overlays before changing hooks.
 
 **Acceptance:** while using either Modern or Classic jetpack controls, the
@@ -5589,3 +5593,23 @@ are claimed. The separate report that jetpack aiming is unusable and the
 crosshair disappears is D08Q3, Todo - next. This session only updates the
 backlog/status/handoff and commits/pushes documentation. No gameplay edits,
 build or game launch; no other job started.
+
+
+## 2026-10-04 - D08Q3 flight aiming and crosshair (Needs playtest)
+
+Selected by the user for autonomous implementation. Reproduced armed jetpack
+flight firing the original pistol while view-adapted shots stayed at zero and
+the reticle was hidden. Shot/beam, reticle and presentation gates required
+movement eligibility that intentionally excludes flight. Reused the existing
+authenticated jetpack lease without enabling ground locomotion writes.
+
+Both schemes pass private pistol, shotgun, RPG, energy, flame and freezer firing,
+mouse yaw/pitch, movement/ascent/descent input, reticle toggle, J-off, fuel-out,
+landing and first-person fallback/return checks. Native aiming, controls, input
+and inventory HUD pass; local-dev build and movie/math shard checks pass.
+D08Q2 native regression remains passing. Player data: 28 file hashes/mtimes
+unchanged. No framework, generated C or renderer change.
+
+User confirmation and broader thrown/upgraded weapon live coverage remain;
+weapon switching still waits for the ground. See [note 91](documentation/91-d08q3-jetpack-aim.md)
+for exact evidence and limitations. No other job started.

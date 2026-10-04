@@ -13,7 +13,7 @@
 extern "C" {int g_precise_mode=0,g_ls_mode=0,g_psx_call_bail=0;}
 static unsigned char ram[0x200000],scratch[1024];
 static PSXModFunctionEntryCallback callback;
-static bool ready=true,modern=true,cover=false;
+static bool ready=true,modern=true,cover=false,jet_ready=false;
 static unsigned writes;
 static bool actor_visible, block_actor, block_muzzle, close_actor, behind_cover;
 static unsigned char& byte(uint32_t a) {return (a&0x1ffffc00)==0x1f800000?scratch[a&1023]:ram[a&0x1fffff];}
@@ -27,7 +27,7 @@ extern "C" void psx_mod_write_half(uint32_t a,uint16_t v){psx_mod_write_byte(a,v
 extern "C" void psx_mod_write_word(uint32_t a,uint32_t v){psx_mod_write_half(a,v);psx_mod_write_half(a+2,v>>16);}
 extern "C" uint32_t psx_mod_alloc_guest_memory(uint32_t n,uint32_t){static uint32_t next=0x801e0000;auto a=next;next+=(n+15)&~15;return a;}
 extern "C" int psx_mod_register_function_entry_plugin(const char*,uint32_t a,PSXModFunctionEntryCallback cb){if(a==0x8003c500)callback=cb;return 1;}
-namespace ttk {static InputFrame f;const InputFrame& input_snapshot(Context){return f;}uint64_t input_host_frame(){return f.sequence;}bool input_modernized(){return modern;}bool movement_ready(){return ready;}bool locomotion_input_ready(){return false;}bool player_identity_ready(){return ready;}bool frame_trace_on(){return false;}void frame_trace_account(uint32_t,long){}}
+namespace ttk {static InputFrame f;const InputFrame& input_snapshot(Context){return f;}uint64_t input_host_frame(){return f.sequence;}bool input_modernized(){return modern;}bool movement_ready(){return ready;}bool locomotion_input_ready(){return false;}bool jetpack_input_ready(){return modern && jet_ready;}bool player_identity_ready(){return ready;}bool frame_trace_on(){return false;}void frame_trace_account(uint32_t,long){}}
 extern "C" void psx_dispatch_call(CPUState* c,uint32_t address,uint32_t ret) {
     assert(address==0x8006d980 && ret==0x800000fc && c->gpr[4]==0x800d7198);
     uint32_t a=c->gpr[5],sp=c->gpr[29];
@@ -82,6 +82,33 @@ int main(int argc,char**argv) {
     ttk::f.held[ttk::original_aim]=true;assert(!ttk_aim_reticle());ttk::f.held[ttk::original_aim]=false;
     psx_mod_write_byte(p+0x3b8,0);assert(!ttk_aim_reticle());
     psx_mod_write_byte(p+0x3b8,1);assert(!ttk_aim_reticle()); // held inventory object
+    // D08Q3: flight has no ground lease. Both gun callers still converge
+    // on the camera ray, including vertical aim, with independent reticle
+    // preference and unchanged guard/original-aim rejection.
+    ready=false;jet_ready=true;cover=false;
+    psx_mod_write_byte(p+0x3b8,2);
+    for(unsigned weapon:{4u,5u,8u,11u,28u,29u}) {
+        c.gpr[7]=weapon;c.gpr[31]=weapon==4?0x8004f7b4:0x8004fa88;
+        psx_mod_write_byte(p+0x3b9,weapon);
+        for(int pitch:{-2048,0,2048}) {
+            psx_mod_write_half(cam+14,pitch);seed();callback(&c,0x8003c500);
+            assert(c.gpr[6]==0x801e0000 && ttk_aim_reticle());
+            const int vy=(int32_t)psx_mod_read_word(c.gpr[6]+4);
+            assert(pitch==0?vy==0:vy*pitch>0);
+        }
+    }
+    psx_mod_write_half(cam+14,0);c.gpr[7]=4;c.gpr[31]=0x8004f7b4;
+    setenv("DNTTK_CROSSHAIR","0",1);assert(!ttk_aim_reticle());
+    seed();callback(&c,0x8003c500);assert(c.gpr[6]==0x801e0000);
+    setenv("DNTTK_CROSSHAIR","1",1);
+    ttk::f.held[ttk::original_aim]=true;seed();writes=0;callback(&c,0x8003c500);
+    assert(writes==0 && !ttk_aim_reticle());ttk::f.held[ttk::original_aim]=false;
+    pokeb(0x8003c500);seed();writes=0;callback(&c,0x8003c500);
+    assert(writes==0 && !ttk_aim_reticle());pokeb(0x8003c500);
+    modern=false;seed();writes=0;callback(&c,0x8003c500);assert(writes==0 && !ttk_aim_reticle());modern=true;
+    jet_ready=false;seed();writes=0;callback(&c,0x8003c500);assert(writes==0 && !ttk_aim_reticle());
+    ready=true;psx_mod_write_byte(p+0x3b9,4);
+    std::puts("PASS: D08Q3 flight shots, vertical aim, crosshair preference and guarded fallback");
     // The ordinary shotgun/rifle/Gatling/RPG handler has a distinct call site.
     for(unsigned weapon:{5u,6u,7u,8u,11u}) {
         c.gpr[31]=0x8004fa88;c.gpr[7]=weapon;seed();callback(&c,0x8003c500);
@@ -149,6 +176,7 @@ int main(int argc,char**argv) {
     pokeb(0x80033b00);callback(&marker,0x8002bc18);assert(hidden());
     // Authenticated energy constructor completion: preserve physical origin,
     // eliminate implicit retargeting and keep only the free-view single beam.
+    ready=false;jet_ready=true; // beam completion must also accept flight
     c.gpr[31]=0x80058b80;c.gpr[7]=10;c.gpr[5]=p+0x80c;c.gpr[6]=p+0x144;
     psx_mod_write_word(p+0x80c,100);psx_mod_write_word(p+0x810,0);psx_mod_write_word(p+0x814,0);
     ttk::f.active=true;callback(&c,0x8003c500);

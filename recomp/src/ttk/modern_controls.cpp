@@ -557,7 +557,7 @@ bool view_aim_input_ready() {
     unsigned equipment=psx_mod_read_byte(player+0x3b8);
     return independent_camera() && mode && !std::strcmp(mode,"view") &&
         (equipment==0 || (equipment==2 && view_weapon_supported(weapon))) &&
-        (movement_ready() || locomotion_input_ready());
+        (movement_ready() || locomotion_input_ready() || jetpack_input_ready());
 }
 static bool presentation_ready() {
     return view_aim_input_ready() && !input_snapshot(Context::Gameplay).held[original_aim] &&

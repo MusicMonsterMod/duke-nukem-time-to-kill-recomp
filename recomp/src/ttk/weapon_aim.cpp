@@ -42,6 +42,10 @@ static bool view_mode() {
     return mode && !std::strcmp(mode,"view");
 }
 static bool supported(unsigned weapon) {return view_weapon_supported(weapon);}
+// Flight owns a camera/input lease, never the ground movement lease. Reuse
+// its authenticated state for shots and beam completion without widening any
+// locomotion writes or admitting unrelated camera-only traversal states.
+static bool shot_ready() {return movement_ready() || jetpack_input_ready();}
 extern "C" uint8_t* g_psx_ram;
 extern "C" uint32_t g_dirty_ram_code_gen;
 static uint64_t aim_identity_calls, aim_identity_checks;
@@ -173,7 +177,7 @@ static void beam_finish(CPUState* cpu) {
        !input_modernized() || !view_mode() || busy || g_precise_mode || g_ls_mode || g_psx_call_bail ||
        object<0x800da978 || object>=0x800dcd78 || (object-0x800da978)%0x60 ||
        psx_mod_read_word(object+0x10)!=player || psx_mod_read_byte(object+0x30)!=15 ||
-       psx_mod_read_word(object+0x18)!=player+0x80c || !movement_ready() || !identity())return;
+       psx_mod_read_word(object+0x18)!=player+0x80c || !shot_ready() || !identity())return;
     beam_pending=false;
     if(!beam_origins)beam_origins=psx_mod_alloc_guest_memory(96*16,16);
     if(!beam_origins)return;
@@ -191,7 +195,7 @@ static void aim_hook_body(CPUState* cpu,uint32_t address) {
     if(input_modernized())observe(cpu,address);
     if(g_precise_mode || g_ls_mode || g_psx_call_bail || busy || !input_modernized() || !view_mode() || input_snapshot(Context::Gameplay).held[original_aim])return;
     if(address!=0x8003c500 || cpu->gpr[4]!=player ||
-       !supported(cpu->gpr[7]) || !movement_ready() || !identity())return;
+       !supported(cpu->gpr[7]) || !shot_ready() || !identity())return;
     uint32_t sp=cpu->gpr[29],origin=cpu->gpr[5],ra=cpu->gpr[31];
     if(sp<0x801f4000 || sp>0x801fff00)return;
     const bool gun=(ra==0x8004f7b4 || ra==0x8004fa88) && !thrown_weapon(cpu->gpr[7]) && cpu->gpr[7]!=9 && cpu->gpr[7]!=10 && cpu->gpr[7]!=27 &&
@@ -285,7 +289,7 @@ extern "C" void ttk_aim_toggle_crosshair(void) {
 extern "C" int ttk_aim_reticle() {
     return ttk_aim_crosshair_enabled() && !g_precise_mode && !g_ls_mode && !g_psx_call_bail &&
         ttk::view_mode() && !ttk::input_snapshot(ttk::Context::Gameplay).held[ttk::original_aim] &&
-        (ttk::movement_ready() || ttk::locomotion_input_ready()) && (psx_mod_read_byte(ttk::player+0x3b8)==2) &&
+        (ttk::shot_ready() || ttk::locomotion_input_ready()) && (psx_mod_read_byte(ttk::player+0x3b8)==2) &&
         ttk::supported(psx_mod_read_byte(ttk::player+0x3b9)) && ttk::identity();
 }
 // Exact EDuke32 CROSSHAIR tile (research/inv/tile2523.png) — yellow 9×9 with open center.

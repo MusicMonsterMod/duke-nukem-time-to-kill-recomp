@@ -523,6 +523,11 @@ underwater) until a soft landing, and
 **J** switches the pack off for a controlled fall with the camera still live.
 Fuel drains while flying and while hovering (the original rule); when it runs
 out Duke falls the same way. The ground controls return the moment he lands.
+With view aiming enabled, aim with the mouse and fire the equipped weapon with
+**LMB** during flight in either scheme. The enabled crosshair stays visible;
+**I** still toggles it. Select your weapon before takeoff: weapon switching in
+flight remains unavailable. The existing third-person flight view and return to
+your selected view on landing are unchanged.
 Details: [documentation/57-jetpack-controls.md](documentation/57-jetpack-controls.md).
 In Modernized, a jetpack left unavailable by interrupted deployment and Continue
 now recovers when normal captured ground play resumes, including affected saves.

@@ -161,6 +161,29 @@ int main(int argc,char** argv) {
            psx_mod_read_word(0x800cc580)==0x30a30400);
     assert(psx_mod_read_word(0x800dd878)==secret_flags); // no invented conversation
     call(0x8003ade4,c,p,0x80025ee8);assert(code_writes==2); // idempotent
+    // D08Q3: actual flight eligibility retains overlay, camera, capture and
+    // alive checks, and never enables ground movement/air-steering writes.
+    {
+        setenv("DNTTK_WEAPON_AIM","view",1);
+        psx_mod_write_half(p+0x358,3);psx_mod_write_byte(p+0x22c,10);
+        psx_mod_write_byte(p+0x3b8,2);psx_mod_write_byte(p+0x3b9,4);
+        for(unsigned anim=163;anim<=170;++anim) {
+            psx_mod_write_half(p+0x60,anim);++ttk::input.sequence;call(0x8003ade4,c,p,0x80025ee8);
+            assert(ttk::jetpack_input_ready() && ttk::view_aim_input_ready());
+            assert(!ttk::movement_ready() && !ttk::locomotion_input_ready() && !ttk::airborne_input_ready());
+        }
+        ttk::input.active=false;assert(!ttk::jetpack_input_ready());ttk::input.active=true;
+        ttk::modern=false;assert(!ttk::jetpack_input_ready());ttk::modern=true;
+        psx_mod_write_word(p,2);assert(!ttk::jetpack_input_ready());psx_mod_write_word(p,0);
+        psx_mod_write_word(c+0xa4,0);assert(!ttk::jetpack_input_ready());psx_mod_write_word(c+0xa4,p);
+        poke(0x4ade0);assert(!ttk::jetpack_input_ready());poke(0x4ade0);
+        psx_mod_write_half(p+0x358,1);assert(!ttk::jetpack_input_ready());
+        psx_mod_write_half(p+0x358,0);psx_mod_write_byte(p+0x22c,0);psx_mod_write_half(p+0x60,63);
+        psx_mod_write_byte(p+0x3b8,0);psx_mod_write_byte(p+0x3b9,0);
+        ttk::input.sequence=1;call(0x8003ade4,c,p,0x80025ee8);assert(ttk::movement_ready());
+        unsetenv("DNTTK_WEAPON_AIM");
+        std::puts("PASS: D08Q3 flight lease, all flight animations, guards and ground handoff");
+    }
     // D08T1 0x80051cf0: only Grab's own Cross is kept from climbing a pushable
     // object; E's Cross climbs it like any climbable. 0x80051890: E's Cross never
     // reaches the original idle grab of a pushable-only object; Grab's does.

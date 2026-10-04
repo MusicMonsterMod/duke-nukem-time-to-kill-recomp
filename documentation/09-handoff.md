@@ -1,5 +1,26 @@
 # Next-session handoff
 
+## 2026-10-04 - D08Q3 implemented, Needs playtest
+
+Flight now admits Modernized view aiming, weapon presentation, energy-beam
+completion and the enabled crosshair through the existing guarded jetpack lease.
+Ground movement eligibility, flight physics, Vanilla and D08Q2 are preserved.
+
+Private Modern/Classic routes verify six weapon types, mouse yaw/pitch, firing
+while moving/climbing/descending, I toggle, J-off, fuel exhaustion, landing and
+first-person fallback/return. Native aiming/controls/input/inventory suites and
+the player build pass. All 28 player file hashes/mtimes match intake.
+[Cause, verification and coverage limits](91-d08q3-jetpack-aim.md).
+
+User confirmation remains. Select weapons before takeoff; flight switching is
+unchanged. Thrown/upgraded variants are not all separately live-validated.
+No next job started. Build SHA-256:
+`5b4add2a896a3ab5ae16e5e02fb8163d551ef3b4a9eaad954ebd6c3837500327`.
+
+Launch: `python3 recomp/tools/local/run.py`. F10 captures Modernized input if
+needed. Check the reported jetpack aiming/crosshair in both flight schemes.
+
+
 ## 2026-10-04 - D08Q2 accepted; next D08Q3 jetpack aiming/crosshair
 
 User confirms D08Q2: "confirmed fixed! accepted." Marked Done; preserve the

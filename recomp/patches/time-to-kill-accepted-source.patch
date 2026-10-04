@@ -272,6 +272,29 @@ index a1e4645e..cec1995d 100644
  int psx_mod_set_auto_skip_fmv(int enabled);
  /*
   * Draw still artwork behind the game image in OpenGL letterbox/pillarbox
+diff --git a/runtime/include/pgxp.h b/runtime/include/pgxp.h
+index aa55b3aa..ac55f64f 100644
+--- a/runtime/include/pgxp.h
++++ b/runtime/include/pgxp.h
+@@ -48,6 +48,18 @@ void pgxp_invalidate_all(void);
+ void pgxp_suppress_begin(void);
+ void pgxp_suppress_end(void);
+ 
++/* Exact native mesh correction, independent of legacy screen-position lookup.
++ * Presentation metadata only. Used by the title's resident renderer build. */
++extern int g_pgxp_mesh_active;
++void pgxp_mesh_configure(int geometry, int textures);
++int pgxp_mesh_geometry(void);
++int pgxp_mesh_textures(void);
++void pgxp_mesh_register_boundary(void);
++void pgxp_mesh_invalidate_store(uint32_t addr);
++void pgxp_mesh_vertex_stats(uint64_t out[4]);
++int pgxp_mesh_polygon(uint32_t addr, const uint32_t *words, uint32_t count, int32_t x[4], int32_t y[4], uint16_t z[4]);
++int pgxp_mesh_vertex(uint32_t addr, uint32_t word, int32_t *x16, int32_t *y16, uint16_t *z);
++
+ /* --- GTE producer (gte.cpp) ---------------------------------------------- */
+ 
+ /* Called at the RTPS/RTPT projection with the pre-truncation 16.16 screen
 diff --git a/runtime/include/psx_cyc.h b/runtime/include/psx_cyc.h
 index 4239c123..826dc63a 100644
 --- a/runtime/include/psx_cyc.h
@@ -487,7 +510,7 @@ index 0fe0d272..0863cb1c 100644
  #ifdef _WIN32
            Sleep(1);
 diff --git a/runtime/src/debug_server.c b/runtime/src/debug_server.c
-index 645f055e..d0b2ce96 100644
+index 645f055e..8e989d67 100644
 --- a/runtime/src/debug_server.c
 +++ b/runtime/src/debug_server.c
 @@ -128,6 +128,18 @@ static int    s_resp_overflow = 0;
@@ -594,7 +617,38 @@ index 645f055e..d0b2ce96 100644
          emitted++;
      }
      pos += snprintf(out + pos, BUF - pos, "]}\n");
-@@ -7843,6 +7881,78 @@ static void handle_gl_interp(int id, const char *json)
+@@ -5230,6 +5268,10 @@ static void handle_geom_correction(int id, const char *json)
+      * game's vertex path never reaches us in a matchable form, which only
+      * full value propagation can fix; a high ambiguous share instead means
+      * distinct vertices are landing on the same pixel. */
++    extern void gpu_mesh_correction_stats(uint64_t *,uint64_t *);
++    uint64_t mesh_attempts=0,mesh_armed=0,mesh_vertex[4];
++    pgxp_mesh_vertex_stats(mesh_vertex);
++    gpu_mesh_correction_stats(&mesh_attempts,&mesh_armed);
+     uint32_t lookups = 0, hits = 0, unrec = 0, ambig = 0;
+     gte_geometry_correction_stats(&lookups, &hits, &unrec, &ambig);
+     /* PGXP dataflow census (per-vertex): the primary provenance source.
+@@ -5247,6 +5289,7 @@ static void handle_geom_correction(int id, const char *json)
+     uint64_t tc_att = 0, tc_arm = 0, tc_off = 0, tc_nosrc = 0, tc_noz = 0;
+     gpu_texture_correction_stats(&tc_att, &tc_arm, &tc_off, &tc_nosrc, &tc_noz);
+     send_fmt("{\"id\":%d,\"ok\":true,"
++             "\"mesh\":{\"geometry\":%d,\"textures\":%d,\"attempts\":%llu,\"armed\":%llu,\"vertices\":[%llu,%llu,%llu,%llu]},"
+              "\"geometry_correction\":%d,"
+              "\"geometry_vertex_hits\":%u,"
+              "\"perspective_triangles\":%u,"
+@@ -5258,7 +5301,10 @@ static void handle_geom_correction(int id, const char *json)
+              "\"native\":%llu,\"value_mismatch\":%llu,\"trunc_reject\":%llu,"
+              "\"tolerance_reject\":%llu,\"w_valid\":%llu,"
+              "\"produced\":%llu,\"swc2_stores\":%llu}}",
+-             id,
++             id, pgxp_mesh_geometry(),pgxp_mesh_textures(),
++             (unsigned long long)mesh_attempts,(unsigned long long)mesh_armed,
++             (unsigned long long)mesh_vertex[0],(unsigned long long)mesh_vertex[1],
++             (unsigned long long)mesh_vertex[2],(unsigned long long)mesh_vertex[3],
+              gte_geometry_correction_enabled(),
+              (unsigned)hits,
+              (unsigned)gpu_texture_correction_hits(),
+@@ -7843,6 +7889,78 @@ static void handle_gl_interp(int id, const char *json)
               (unsigned long long)swaps);
  }
  
@@ -673,7 +727,7 @@ index 645f055e..d0b2ce96 100644
  /* gl_wide_fast on=<0|1>: native-wide centre-blit fast path. 1 (default) = skip
   * the redundant centre mirror and copy the canonical 4:3 frame into the wide
   * surface centre at present (fast). 0 = re-rasterize the whole wide surface
-@@ -8571,7 +8681,7 @@ static void disp_ring_capture(void)
+@@ -8571,7 +8689,7 @@ static void disp_ring_capture(void)
      static int enabled = -1;
      if (enabled < 0) {
          const char *e = getenv("PSX_DISPLAY_RING");
@@ -682,7 +736,7 @@ index 645f055e..d0b2ce96 100644
      }
      if (!enabled) return;
      if (!s_disp_ring_px) {
-@@ -13667,6 +13777,7 @@ static const CmdEntry s_commands[] = {
+@@ -13667,6 +13785,7 @@ static const CmdEntry s_commands[] = {
      { "xprobe_arm",        handle_xprobe_arm },
      { "xprobe_watch",      handle_xprobe_watch },
      { "ce_profile",        handle_ce_profile },
@@ -690,7 +744,7 @@ index 645f055e..d0b2ce96 100644
      { "frame",             handle_frame },
      { "frame_fingerprint", handle_frame_fingerprint },
      { "record_frame",      handle_record_frame },
-@@ -13702,6 +13813,8 @@ static const CmdEntry s_commands[] = {
+@@ -13702,6 +13821,8 @@ static const CmdEntry s_commands[] = {
      { "present_ring",      handle_present_ring },
      { "frame_perf",        handle_frame_perf },
      { "gl_ws_ablate",      handle_gl_ws_ablate },
@@ -699,7 +753,7 @@ index 645f055e..d0b2ce96 100644
      { "gl_interp",         handle_gl_interp },
      { "gl_wide_fast",      handle_gl_wide_fast },
      { "synth_recurse",     handle_synth_recurse },
-@@ -14439,14 +14552,23 @@ void debug_server_init(int port)
+@@ -14439,14 +14560,23 @@ void debug_server_init(int port)
  static int recv_line(sock_t c, char *buf, int cap)
  {
      int len = 0;
@@ -724,7 +778,7 @@ index 645f055e..d0b2ce96 100644
      buf[cap - 1] = '\0';
      return cap - 1;   /* over-long line: take what we have */
  }
-@@ -14463,6 +14585,17 @@ static int io_thread_main(void *arg)
+@@ -14463,6 +14593,17 @@ static int io_thread_main(void *arg)
          int clen = sizeof(caddr);
          sock_t c = accept(s_listen, (struct sockaddr *)&caddr, &clen);
          if (c == SOCK_INVALID) { if (!s_io_running) break; SDL_Delay(5); continue; }
@@ -742,7 +796,7 @@ index 645f055e..d0b2ce96 100644
  
          char req[RECV_BUF_SIZE];
          int rl = recv_line(c, req, sizeof(req));
-@@ -14665,18 +14798,25 @@ void debug_server_check_watchpoints(void)
+@@ -14665,18 +14806,25 @@ void debug_server_check_watchpoints(void)
  
  void debug_server_shutdown(void)
  {
@@ -844,7 +898,7 @@ index be30e5af..f23d273d 100644
          now = SDL_GetPerformanceCounter();     /* ONE read per iteration */
          uint32_t ms = frame_pacing_sleep_ms(now, p->next_deadline, freq, period);
 diff --git a/runtime/src/gpu.c b/runtime/src/gpu.c
-index aaf69df7..581e2b62 100644
+index aaf69df7..85c3d886 100644
 --- a/runtime/src/gpu.c
 +++ b/runtime/src/gpu.c
 @@ -33,6 +33,7 @@
@@ -981,7 +1035,14 @@ index aaf69df7..581e2b62 100644
  /* Per-vertex precise positions (PGXP, ENHANCEMENTS.md G1). Each of the three
   * packet words is resolved independently: the address-keyed dataflow shadow
   * first (validated against the actual word — exact provenance, survives
-@@ -3330,6 +3450,15 @@ uint32_t gpu_texture_correction_hits(void) {
+@@ -3327,9 +3447,45 @@ uint32_t gpu_texture_correction_hits(void) {
+  * it, so shared edges between neighbouring triangles cannot disagree by more
+  * than the sub-pixel fraction. The integer delta folds in draw offsets and
+  * any widescreen adjustment already applied by the caller. */
++static uint64_t s_mesh_attempts, s_mesh_armed;
++void gpu_mesh_correction_stats(uint64_t *attempts, uint64_t *armed) {
++    *attempts=s_mesh_attempts; *armed=s_mesh_armed;
++}
  static void prepare_precise_triangle(int i0, int i1, int i2,
                                       const int32_t vx[3], const int32_t vy[3]) {
      gr_set_perspective_triangle(0, 0.0f, 0.0f, 0.0f);
@@ -994,10 +1055,63 @@ index aaf69df7..581e2b62 100644
 +            return;
 +        }
 +    }
++    if (g_pgxp_mesh_active) {
++        if(!g_render_replay_active) s_mesh_attempts++;
++        const int idx[3]={i0,i1,i2}; int32_t x[3],y[3],px[4],py[4]; uint16_t pz[4];
++        const int valid=pgxp_mesh_polygon(gp0_cmd_source_addr,gp0_cmd_buf,gp0_words_needed,px,py,pz);
++        const unsigned op=gp0_cmd_buf[0]>>24, step=1+((op&4)!=0)+((op&16)!=0);
++        if (valid) {
++            if(!g_render_replay_active) s_mesh_armed++;
++            const int texture=pgxp_mesh_textures();
++            for (int i=0;i<3;++i) {
++                int32_t rx,ry; parse_vertex(gp0_cmd_buf[idx[i]],&rx,&ry);
++                const unsigned k=(idx[i]-1)/step;
++                x[i]=pgxp_mesh_geometry()?px[k]+(vx[i]-rx)*65536:vx[i]*65536;
++                y[i]=pgxp_mesh_geometry()?py[k]+(vy[i]-ry)*65536:vy[i]*65536;
++                s_hpv_q[i]=texture?1.0f/pz[k]:1.0f;
++            }
++            float maxq=fmaxf(s_hpv_q[0],fmaxf(s_hpv_q[1],s_hpv_q[2]));
++            for(int i=0;i<3;++i) s_hpv_q[i]/=maxq;
++            s_hpv_armed=1;
++            gr_set_precise_triangle(1,x[0],y[0],x[1],y[1],x[2],y[2]);
++            gr_set_perspective_triangle(1,s_hpv_q[0],s_hpv_q[1],s_hpv_q[2]);
++        } else gr_set_precise_triangle(0,0,0,0,0,0,0);
++        return;
++    }
      if (!gte_geometry_correction_enabled()) {
          gr_set_precise_triangle(0, 0,0, 0,0, 0,0);
          return;
-@@ -3390,6 +3519,11 @@ void gpu_texture_correction_stats(uint64_t *attempts, uint64_t *armed,
+@@ -3359,6 +3515,29 @@ static void prepare_precise_triangle(int i0, int i1, int i2,
+     gr_set_precise_triangle(1, fx[0],fy[0], fx[1],fy[1], fx[2],fy[2]);
+ }
+ 
++/* Preserve fractional positions on a polygon that happens to round into a
++ * rectangle. Actual 2D UI has no mesh provenance and keeps its fast path. */
++static int mesh_polygon_has_precision(void) {
++    if (!g_pgxp_mesh_active || gp0_cmd_source_addr==0xFFFFFFFFu) return 0;
++    int32_t x[4],y[4];uint16_t z[4];
++    if (!g_render_replay_active)
++        return pgxp_mesh_polygon(gp0_cmd_source_addr,gp0_cmd_buf,gp0_words_needed,x,y,z)!=0;
++    const unsigned op=gp0_cmd_buf[0]>>24;
++    const unsigned count=(op&8)?4:3,step=1+((op&4)!=0)+((op&16)!=0);
++    for(unsigned i=0;i<count;++i) {
++        const unsigned index=1+i*step;
++        const uint32_t addr=(gp0_cmd_source_addr+4*index)&0x1ffffcu,base=hpv_slot(addr);
++        int found=0;
++        for(unsigned k=0;k<HOST_PV_PROBE;++k) {
++            const HostPV *p=&s_hpv_replay[(base+k)&(HOST_PV_CAP-1u)];
++            if(p->addr==addr && p->word==gp0_cmd_buf[index] &&
++               (int32_t)(p->seq-s_hpv_replay_floor)>0) {found=1;break;}
++        }
++        if(!found) return 0;
++    }
++    return 1;
++}
++
+ /* Arming rate for perspective-correct UVs, per condition.
+  *
+  * perspective_triangles alone cannot answer "how much texture warp is left",
+@@ -3390,6 +3569,11 @@ void gpu_texture_correction_stats(uint64_t *attempts, uint64_t *armed,
   * SWC2 projection store at that same DMA packet address. This preserves the
   * association through ordering-table reordering and rejects CPU-built UI. */
  static void prepare_texture_triangle(int i0, int i1, int i2) {
@@ -1009,7 +1123,34 @@ index aaf69df7..581e2b62 100644
      gr_set_perspective_triangle(0, 0.0f, 0.0f, 0.0f);
      s_texcorr.attempts++;
      if (!s_texture_correction_enabled) { s_texcorr.no_correction++; return; }
-@@ -4874,6 +5008,10 @@ static uint64_t gp0_ring_seq    = 0;      /* total commands recorded */
+@@ -3649,7 +3833,7 @@ static void gp0_exec_mono_quad(void) {
+     /* Semi axis-aligned mono quads (UI boxes/borders): one rect, not two tris.
+      * Thin semi borders (e.g. CTR name-entry OT-1144 teal 3×H) otherwise double-
+      * blend their shared diagonal — nearly the whole strip — and overpaint 3D. */
+-    if (semi_trans && ws_axis_aligned_quad(vx, vy)) {
++    if (semi_trans && ws_axis_aligned_quad(vx, vy) && !mesh_polygon_has_precision()) {
+         int32_t min_x = vx[0], max_x = vx[0], min_y = vy[0], max_y = vy[0];
+         for (int i = 1; i < 4; i++) {
+             if (vx[i] < min_x) min_x = vx[i];
+@@ -3875,7 +4059,7 @@ static void gp0_exec_textured_quad(void) {
+ 
+     setup_textured_draw(color24, semi_trans, raw_texture);
+ 
+-    if (vy[0] == vy[1] && vy[2] == vy[3] &&
++    if (!mesh_polygon_has_precision() && vy[0] == vy[1] && vy[2] == vy[3] &&
+         vx[0] == vx[2] && vx[1] == vx[3] &&
+         u[0] == u[2] && u[1] == u[3] &&
+         v[0] == v[1] && v[2] == v[3]) {
+@@ -4526,7 +4710,7 @@ static void gp0_exec_vram_to_cpu(void) {
+ /* Determine how many words a GP0 command requires (header only, not counting
+  * variable-length data for 0xA0). Returns -1 for polylines (terminated by
+  * sentinel). Returns 0 for unknown commands (will be fatal). */
+-static int gp0_command_word_count(uint8_t opcode) {
++int gp0_command_word_count(uint8_t opcode) {
+     switch (opcode) {
+         /* NOP / control */
+         case 0x00: return 1;
+@@ -4874,6 +5058,10 @@ static uint64_t gp0_ring_seq    = 0;      /* total commands recorded */
  static uint32_t gp0_ring_head   = 0;      /* next write slot */
  
  static void gp0_ring_record(const uint32_t *words, int n) {
@@ -4299,7 +4440,7 @@ index 3a43a141..2d9ed690 100644
              if (horizon_kind == 2) {
                  s_extra_horizon_hits++;
 diff --git a/runtime/src/main.cpp b/runtime/src/main.cpp
-index fe317583..c612836f 100644
+index fe317583..8d711dab 100644
 --- a/runtime/src/main.cpp
 +++ b/runtime/src/main.cpp
 @@ -107,6 +107,7 @@ extern "C" void psx_game_codegen_relaunch_or_exit(const char* disc_path);
@@ -4961,7 +5102,21 @@ index fe317583..c612836f 100644
      if (cli_memcard_dir) {
          memcard_dir = std::filesystem::path(cli_memcard_dir);
          if (memcard_dir.is_relative())
-@@ -14086,7 +14474,7 @@ session_reboot:
+@@ -13764,6 +14152,13 @@ session_reboot:
+     gpu_texture_correction_set(g_video_perspective_texturing);
+     pgxp_set_cpu_mode(g_video_pgxp_cpu_mode);
+     pgxp_set_tolerance(g_video_pgxp_tolerance);
++    // D15 uses exact mesh provenance, without the legacy coordinate cache.
++    const char *mesh_mode = std::getenv("DNTTK_INPUT_MODE");
++    const bool mesh_modern = gr_backend() == GR_BACKEND_OPENGL && mesh_mode && std::strcmp(mesh_mode, "modernized") == 0;
++    const char *mesh_geom = std::getenv("DNTTK_GEOMETRY_PRECISION");
++    const char *mesh_tex = std::getenv("DNTTK_TEXTURE_PRECISION");
++    pgxp_mesh_configure(mesh_modern && mesh_geom && std::strcmp(mesh_geom,"corrected")==0,
++                        mesh_modern && mesh_tex && std::strcmp(mesh_tex,"corrected")==0);
+     if (g_video_geometry_correction || g_video_perspective_texturing) {
+         std::fprintf(stdout,
+                      "psxrecomp: geometry correction %s, perspective texturing %s%s\n",
+@@ -14086,7 +14481,7 @@ session_reboot:
      /* Fullscreen on launch (launcher's tri-state Fullscreen control): 1 =
       * borderless desktop fullscreen (keeps the desktop resolution, letterboxes
       * the image), 2 = exclusive fullscreen (real display-mode change), 0 =
@@ -4970,7 +5125,7 @@ index fe317583..c612836f 100644
      win_flags |= psx_fullscreen_flag_for_mode(g_fullscreen);
      /* Open at the user-chosen window size (default 1280 wide) instead of the
       * old hardcoded 640x480, so the game doesn't boot into a tiny window. The
-@@ -14105,7 +14493,9 @@ session_reboot:
+@@ -14105,7 +14500,9 @@ session_reboot:
          std::fprintf(stderr, "SDL_CreateWindow failed: %s\n", SDL_GetError());
          return 1;
      }
@@ -4980,7 +5135,7 @@ index fe317583..c612836f 100644
  
      /* Maximise instead of computing the frame size ourselves.
       *
-@@ -14210,6 +14600,17 @@ session_reboot:
+@@ -14210,6 +14607,17 @@ session_reboot:
                                            ? 1000.0 / g_frame_period_ms
                                            : 59.94,
                                        g_frame_interpolation_blend);
@@ -4998,7 +5153,7 @@ index fe317583..c612836f 100644
      }
      /* Vulkan backend: create the instance/device/swapchain on the
       * SDL_WINDOW_VULKAN window. On failure, fall back to software (vkb_init
-@@ -14576,6 +14977,7 @@ session_reboot:
+@@ -14576,6 +14984,7 @@ session_reboot:
      psx_selfcheck_init(&cpu, memory_get_bios_checksum(), game_entry_pc);
  
      /* Execute. */
@@ -5006,7 +5161,7 @@ index fe317583..c612836f 100644
      std::fprintf(stdout, "psxrecomp runtime: executing from PC=0x%08X\n", cpu.pc);
  
  #if defined(PSX_ORACLE_BUILD)
-@@ -14766,6 +15168,7 @@ session_reboot:
+@@ -14766,6 +15175,7 @@ session_reboot:
          }
      }
  
@@ -5014,7 +5169,7 @@ index fe317583..c612836f 100644
      psx_scheduler_run(&cpu);
      if (psx_return_to_lobby_requested() && g_netplay_from_lobby)
          goto soft_return_lobby;
-@@ -14805,11 +15208,28 @@ session_reboot:
+@@ -14805,11 +15215,28 @@ session_reboot:
                  std::fprintf(tf, "    {\"addr\":\"0x%08X\",\"val\":\"0x%08X\"}%s\n",
                               a, v, (w < 39) ? "," : "");
              }
@@ -5045,10 +5200,17 @@ index fe317583..c612836f 100644
       * PSX_EXIT_HALT set, halt-and-serve here instead of shutting down so the
       * still-loaded overlays + full guest state are live-inspectable over TCP. */
 diff --git a/runtime/src/memory.c b/runtime/src/memory.c
-index 9d55ad16..42f1f526 100644
+index 9d55ad16..36243514 100644
 --- a/runtime/src/memory.c
 +++ b/runtime/src/memory.c
-@@ -14,6 +14,7 @@
+@@ -8,12 +8,14 @@
+  *   Everything else         — fatal abort (unmapped)
+  */
+ 
++#include "pgxp.h"
+ #include "cpu_state.h"
+ #include "cdrom.h"
+ #include "crash_trace.h"
  #include "dma.h"
  #include "fntrace.h"
  #include "gpu.h"
@@ -5056,7 +5218,7 @@ index 9d55ad16..42f1f526 100644
  #include "mdec.h"
  #include "mod_memory.h"
  #include "sio.h"
-@@ -60,6 +61,42 @@ uint32_t psx_mod_memory_alloc(uint32_t size, uint32_t alignment) {
+@@ -60,6 +62,42 @@ uint32_t psx_mod_memory_alloc(uint32_t size, uint32_t alignment) {
      return 0x9F000000u + start;
  }
  
@@ -5099,7 +5261,7 @@ index 9d55ad16..42f1f526 100644
  static int mod_memory_offset(uint32_t phys, uint32_t width, uint32_t *offset) {
      uint32_t off;
      if (phys < MOD_MEMORY_BASE) return 0;
-@@ -809,18 +846,22 @@ uint32_t overlay_watch_pagegen_sum(uint32_t phys, uint32_t len) {
+@@ -809,18 +847,22 @@ uint32_t overlay_watch_pagegen_sum(uint32_t phys, uint32_t len) {
   * fast path and run native code against restored bytes they were not validated
   * for — hang / freeze after the restored frame presents. */
  void dirty_ram_text_guard_resync_after_restore(void) {
@@ -5131,7 +5293,7 @@ index 9d55ad16..42f1f526 100644
  }
  
  void overlay_watch_invalidate_after_ram_restore(void) {
-@@ -912,6 +953,9 @@ uint64_t g_mmio_access_count = 0;
+@@ -912,6 +954,9 @@ uint64_t g_mmio_access_count = 0;
   * ANY store is not a pure poll loop. CPU stores and in-flight DMA writes
   * both funnel through the psx_write_*_raw chokepoints. */
  uint64_t g_guest_store_count = 0;
@@ -5141,7 +5303,7 @@ index 9d55ad16..42f1f526 100644
  
  /* ---- Card protocol trace: tracks I_MASK bit 7 transitions ---- */
  #define IMASK_TRACE_CAP 4096
-@@ -1175,6 +1219,7 @@ static uint32_t mmio_read32_impl(uint32_t addr) {
+@@ -1175,6 +1220,7 @@ static uint32_t mmio_read32_impl(uint32_t addr) {
   * single (side-effecting) read. Callers use mmio_read32; the body is _impl, so
   * the device read executes exactly once. */
  static uint32_t mmio_read32(uint32_t addr) {
@@ -5149,7 +5311,7 @@ index 9d55ad16..42f1f526 100644
      psx_devices_mmio_sync();
      uint32_t v = mmio_read32_impl(addr);
      debug_server_trace_mmio_read(addr, v, 4);
-@@ -1182,6 +1227,7 @@ static uint32_t mmio_read32(uint32_t addr) {
+@@ -1182,6 +1228,7 @@ static uint32_t mmio_read32(uint32_t addr) {
  }
  
  static void mmio_write32(uint32_t addr, uint32_t val) {
@@ -5157,7 +5319,7 @@ index 9d55ad16..42f1f526 100644
      psx_devices_mmio_sync();
      SHADOW_NOTE_MMIO();
      debug_server_trace_mmio_write(addr, val, 4);
-@@ -1292,6 +1338,7 @@ static uint16_t mmio_read16_impl(uint32_t addr) {
+@@ -1292,6 +1339,7 @@ static uint16_t mmio_read16_impl(uint32_t addr) {
  }
  
  static uint16_t mmio_read16(uint32_t addr) {
@@ -5165,7 +5327,7 @@ index 9d55ad16..42f1f526 100644
      psx_devices_mmio_sync();
      uint16_t v = mmio_read16_impl(addr);
      debug_server_trace_mmio_read(addr, (uint32_t)v, 2);
-@@ -1299,6 +1346,7 @@ static uint16_t mmio_read16(uint32_t addr) {
+@@ -1299,6 +1347,7 @@ static uint16_t mmio_read16(uint32_t addr) {
  }
  
  static void mmio_write16(uint32_t addr, uint16_t val) {
@@ -5173,7 +5335,7 @@ index 9d55ad16..42f1f526 100644
      psx_devices_mmio_sync();
      SHADOW_NOTE_MMIO();
      debug_server_trace_mmio_write(addr, (uint32_t)val, 2);
-@@ -1411,6 +1459,7 @@ static uint8_t mmio_read8_impl(uint32_t addr) {
+@@ -1411,6 +1460,7 @@ static uint8_t mmio_read8_impl(uint32_t addr) {
  }
  
  static uint8_t mmio_read8(uint32_t addr) {
@@ -5181,7 +5343,7 @@ index 9d55ad16..42f1f526 100644
      psx_devices_mmio_sync();
      uint8_t v = mmio_read8_impl(addr);
      debug_server_trace_mmio_read(addr, (uint32_t)v, 1);
-@@ -1418,6 +1467,7 @@ static uint8_t mmio_read8(uint32_t addr) {
+@@ -1418,6 +1468,7 @@ static uint8_t mmio_read8(uint32_t addr) {
  }
  
  static void mmio_write8(uint32_t addr, uint8_t val) {
@@ -5189,25 +5351,31 @@ index 9d55ad16..42f1f526 100644
      psx_devices_mmio_sync();
      SHADOW_NOTE_MMIO();
      debug_server_trace_mmio_write(addr, (uint32_t)val, 1);
-@@ -1650,6 +1700,7 @@ void psx_write_word(uint32_t addr, uint32_t val) {
+@@ -1649,7 +1700,9 @@ void psx_write_word(uint32_t addr, uint32_t val) {
+     s_ls_op_active = 0;
  }
  static void psx_write_word_raw(uint32_t addr, uint32_t val) {
++    if (g_pgxp_mesh_active) pgxp_mesh_invalidate_store(addr);
      g_guest_store_count++;
 +    g_guest_last_store_addr = addr; g_guest_last_store_val = val; g_guest_last_store_size = 4u;
      /* (pgxp) plain-store shadow invalidation retired: the PGXP engine
       * validates tracked words against the actual packet word on read, so an
       * overwritten word can never be believed (ENHANCEMENTS.md G1). */
-@@ -1852,6 +1903,7 @@ void psx_write_half(uint32_t addr, uint16_t val) {
+@@ -1851,7 +1904,9 @@ void psx_write_half(uint32_t addr, uint16_t val) {
+     s_ls_op_active = 0;
  }
  static void psx_write_half_raw(uint32_t addr, uint16_t val) {
++    if (g_pgxp_mesh_active) pgxp_mesh_invalidate_store(addr);
      g_guest_store_count++;
 +    g_guest_last_store_size = 2u;
      if (sr_ptr && (*sr_ptr & 0x10000u)) return;
  
          /* KSEG2 guard — see psx_read_word_raw. */
-@@ -2187,6 +2239,7 @@ void psx_write_byte(uint32_t addr, uint8_t val) {
+@@ -2186,7 +2241,9 @@ void psx_write_byte(uint32_t addr, uint8_t val) {
+     s_ls_op_active = 0;
  }
  static void psx_write_byte_raw(uint32_t addr, uint8_t val) {
++    if (g_pgxp_mesh_active) pgxp_mesh_invalidate_store(addr);
      g_guest_store_count++;
 +    g_guest_last_store_size = 1u;
      if (sr_ptr && (*sr_ptr & 0x10000u)) return;
@@ -5296,6 +5464,82 @@ index e606b43f..ff875cf7 100644
          record_ok = ls_shadow_record_end(&record_ops, &saw_exception);
          record_owned = 0;
      } else {
+diff --git a/runtime/src/pgxp.cpp b/runtime/src/pgxp.cpp
+index 654f4ca4..b78f41fd 100644
+--- a/runtime/src/pgxp.cpp
++++ b/runtime/src/pgxp.cpp
+@@ -22,9 +22,9 @@
+  * that writes guest state without a hook (DMA, memcpy loaders, un-hooked
+  * instructions) simply leaves a stale shadow behind, and the next validation
+  * drops it. We never model side effects — overwrite and validate only. The
+- * one accepted hole (shared with the reference implementations): an untracked
+- * writer storing the byte-identical word keeps the shadow alive, which is
+- * harmless because the position it describes is still that word.
++ * legacy lookup permits an untracked byte-identical write to retain a shadow.
++ * The optional exact mesh path instead invalidates on every memory store,
++ * clears caller register shadows at renderer boundaries and resets each job.
+  *
+  * Everything here is host-only and visual-only: guest-visible state is never
+  * read back from shadows, shadows are dropped on savestate/rewind, and the
+@@ -815,3 +815,58 @@ extern "C" int pgxp_load_precise_word(uint32_t addr, uint32_t packed,
+     if (z) *z = (pv->flags & PGXP_F_VZ) ? pv->z : 0;
+     return (pv->flags & PGXP_F_VZ) && pv->z != 0;
+ }
++
++// D15: exact, address-keyed rendering data. Never consult the position cache.
++int g_pgxp_mesh_active = 0;
++static int s_mesh_geometry = 0, s_mesh_textures = 0;
++extern "C" void pgxp_mesh_configure(int geometry, int textures) {
++    s_mesh_geometry = geometry != 0; s_mesh_textures = textures != 0;
++    g_pgxp_mesh_active = s_mesh_geometry || s_mesh_textures;
++    if (g_pgxp_mesh_active) pgxp_set_enabled(1);
++    if (!pgxp_enabled()) s_mesh_geometry=s_mesh_textures=g_pgxp_mesh_active=0;
++    pgxp_invalidate_all();
++}
++extern "C" int pgxp_mesh_geometry(void) { return s_mesh_geometry; }
++extern "C" int pgxp_mesh_textures(void) { return s_mesh_textures; }
++extern "C" void pgxp_mesh_register_boundary(void) {
++    if (!g_pgxp_mesh_active || !g_pgxp_active) return;
++    // Uninstrumented callers cannot donate same-value stale register shadows.
++    std::memset(s_gpr, 0, sizeof(s_gpr));
++    std::memset(s_gte, 0, sizeof(s_gte));
++}
++extern "C" void pgxp_mesh_invalidate_store(uint32_t addr) {
++    if (!g_pgxp_active) return;
++    if (PGXPValue *p = pgxp_ptr(addr)) p->gen = 0;
++}
++static uint64_t s_mesh_vertex_stats[4]; // lookup, missing XY, missing Z, projection disagreement
++extern "C" void pgxp_mesh_vertex_stats(uint64_t out[4]) {std::memcpy(out,s_mesh_vertex_stats,sizeof(s_mesh_vertex_stats));}
++extern "C" int pgxp_mesh_vertex(uint32_t addr, uint32_t word, int32_t *x, int32_t *y, uint16_t *z) {
++    if (!g_pgxp_mesh_active || !g_pgxp_active) return 0;
++    ++s_mesh_vertex_stats[0];
++    const PGXPValue *p=pgxp_ptr(addr);
++    if (!p || p->gen!=s_gen || p->value!=word || (p->flags&PGXP_F_VXY)!=PGXP_F_VXY) {++s_mesh_vertex_stats[1];return 0;}
++    *x=p->x16; *y=p->y16; *z=(p->flags&PGXP_F_VZ)?p->z:0;
++    if (!*z) { ++s_mesh_vertex_stats[2]; return 0; }
++    // Accept only the fractional part of the original safe screen projection.
++    // Reject saturation/wrap; retain native visibility and NCLIP decisions.
++    const int32_t ix = (int16_t)word, iy = (int16_t)(word >> 16);
++    const bool agrees=ix > -1024 && ix < 1023 && iy > -1024 && iy < 1023 &&
++           (*x >> 16) == ix && (*y >> 16) == iy;
++    if(!agrees) ++s_mesh_vertex_stats[3];
++    return agrees;
++}
++
++extern "C" int pgxp_mesh_polygon(uint32_t addr, const uint32_t *words, uint32_t count,
++                                   int32_t x[4], int32_t y[4], uint16_t z[4]) {
++    if (!count || addr == 0xFFFFFFFFu) return 0;
++    const unsigned op=words[0]>>24;
++    if (op<0x20 || op>0x3f) return 0;
++    const unsigned corners=(op&8)?4:3;
++    const unsigned step=1+((op&4)!=0)+((op&16)!=0);
++    if (count<1+corners*step-((op&16)!=0)) return 0;
++    for (unsigned i=0;i<corners;++i) {
++        const unsigned k=1+i*step;
++        if (!pgxp_mesh_vertex(addr+4*k,words[k],&x[i],&y[i],&z[i])) return 0;
++    }
++    return corners;
++}
 diff --git a/runtime/src/psx_cycles.c b/runtime/src/psx_cycles.c
 index 1057093f..73460cf0 100644
 --- a/runtime/src/psx_cycles.c
@@ -5689,15 +5933,16 @@ index 1057093f..73460cf0 100644
  }
 diff --git a/runtime/src/render_replay.c b/runtime/src/render_replay.c
 new file mode 100644
-index 00000000..e684cc1a
+index 00000000..f99ab1c9
 --- /dev/null
 +++ b/runtime/src/render_replay.c
-@@ -0,0 +1,325 @@
+@@ -0,0 +1,357 @@
 +/* render_replay.c - presentation-only guest render replay (Time to Kill D17).
 + * See render_replay.h. The MMIO policy below is the whole device contract of
 + * a replay: GP0 and GPU DMA execute synchronously into the (saved) VRAM, reads
 + * report an idle GPU and DMA, and every other device access is a no-op. */
 +#include "render_replay.h"
++#include "pgxp.h"
 +#include "gpu.h"
 +#include "dma.h"
 +#include "mod_memory.h"
@@ -5732,6 +5977,8 @@ index 00000000..e684cc1a
 +void render_replay_record_begin(uint32_t *buf, uint32_t cap) {
 +    s_rec = buf; s_rec_cap = cap; s_rec_n = 0; s_rec_run = UINT32_MAX; s_rec_overflow = 0;
 +    s_rec_need_src = 0;
++    // Each frozen job starts with a new RAM image, never inherited precision.
++    if (g_pgxp_mesh_active) pgxp_invalidate_all();
 +}
 +uint32_t render_replay_record_end(int *overflow) {
 +    if (overflow) *overflow = s_rec_overflow;
@@ -5841,6 +6088,35 @@ index 00000000..e684cc1a
 +            if (count) {
 +                if (!g_render_replay_record) gpu_set_gp0_linked_list_node(addr, count);
 +                uint32_t w = psx_mod_gpu_dma_resolve_address(addr + 4u);
++                if (g_render_replay_record && g_pgxp_mesh_active) {
++                    // Resolve exact native positions in the worker that produced
++                    // them. Parent replay remains suppressed and receives only
++                    // this job's immutable metadata, before its GP0 packet.
++                    extern int gp0_command_word_count(uint8_t opcode);
++                    for (uint32_t offset=0; offset<count;) {
++                        const uint32_t a=psx_mod_gpu_dma_resolve_address(w+4*offset);
++                        const uint32_t first=psx_read_word(a),op=first>>24;
++                        const int length=gp0_command_word_count((uint8_t)op);
++                        // Variable transfers/polylines cannot be guessed from
++                        // packet contents. No metadata for partial commands.
++                        if(length<=0 || offset+(uint32_t)length>count || (op>=0x80 && op<0xe0)) break;
++                        if(op>=0x20 && op<=0x3f) {
++                            uint32_t words[12];int32_t x[4],y[4];uint16_t z[4];
++                            for(int k=0;k<length;++k) words[k]=psx_read_word(a+4*k);
++                            const int corners=pgxp_mesh_polygon(a,words,length,x,y,z);
++                            const unsigned step=1+((op&4)!=0)+((op&16)!=0);
++                            const int texture=pgxp_mesh_textures();
++                            for(int k=0;k<corners;++k) {
++                                const unsigned index=1+k*step;const uint32_t value=words[index];
++                                render_replay_record_host_vertex(a+4*index,value,
++                                    pgxp_mesh_geometry()?x[k]:(int32_t)(int16_t)value*65536,
++                                    pgxp_mesh_geometry()?y[k]:(int32_t)(int16_t)(value>>16)*65536,
++                                    texture?(float)z[k]:1.0f,-1.0f,-1.0f,-1.0f);
++                            }
++                        }
++                        offset+=(uint32_t)length;
++                    }
++                }
 +                if (g_render_replay_record && s_rec_need_src) rec_item(5u, &w, 1);
 +                for (uint32_t i = 0; i < count; i++) {
 +                    gp0(w, psx_read_word(w));
@@ -6804,6 +7080,60 @@ index 00000000..ffa5b9c6
 +    subprocess.run([os.environ.get('CC', 'cc'), '-O2', str(p / 'test.c'), '-o', str(p / 'test')], check=True)
 +    subprocess.run([str(p / 'test')], check=True)
 +print('host vertex independent depth replay: passed')
+diff --git a/runtime/tests/test_pgxp.cpp b/runtime/tests/test_pgxp.cpp
+index 59df32f3..2031baa8 100644
+--- a/runtime/tests/test_pgxp.cpp
++++ b/runtime/tests/test_pgxp.cpp
+@@ -285,6 +285,49 @@ int main(void) {
+         CHECK(st.value_mismatch > 0);
+     }
+ 
++    /* D15: identical packet words cannot inherit obsolete depth; renderer
++     * boundaries invalidate registers but preserve earlier packet metadata. */
++    {
++        int32_t x,y; uint16_t z;
++        pgxp_mesh_configure(1,1);
++        pgxp_test_seed_gte_sxy(2,PACKED,X16,Y16,SZ3,1);
++        pgxp_store_gte_reg(0x80018000,14);
++        CHECK(pgxp_mesh_vertex(0x80018000,PACKED,&x,&y,&z));
++        CHECK(x==X16 && y==Y16 && z==SZ3);
++        pgxp_mesh_register_boundary();
++        CHECK(pgxp_mesh_vertex(0x80018000,PACKED,&x,&y,&z));
++        pgxp_store_gte_reg(0x80018004,14);
++        CHECK(!pgxp_mesh_vertex(0x80018004,PACKED,&x,&y,&z));
++        pgxp_mesh_invalidate_store(0x80018000);
++        CHECK(!pgxp_mesh_vertex(0x80018000,PACKED,&x,&y,&z));
++        pgxp_test_seed_gte_sxy(2,PACKED,X16,Y16,SZ3,1);
++        pgxp_store_gte_reg(0x80018000,14);
++        pgxp_suppress_begin();
++        CHECK(!pgxp_mesh_vertex(0x80018000,PACKED,&x,&y,&z));
++        pgxp_suppress_end();
++        CHECK(pgxp_mesh_vertex(0x80018000,PACKED,&x,&y,&z));
++        pgxp_invalidate_all();
++        CHECK(!pgxp_mesh_vertex(0x80018000,PACKED,&x,&y,&z));
++        pgxp_test_seed_gte_sxy(2,PACKED,X16+65536,Y16,SZ3,1);
++        pgxp_store_gte_reg(0x80018000,14);
++        CHECK(!pgxp_mesh_vertex(0x80018000,PACKED,&x,&y,&z));
++        // A fourth untracked corner rejects the whole quad, not just its
++        // second triangle. Commands, UV words and partial packets are excluded.
++        const uint32_t quad[9]={0x2c000000,PACKED,0,PACKED,0,PACKED,0,PACKED,0};
++        int32_t qx[4],qy[4];uint16_t qz[4];
++        pgxp_invalidate_all();
++        pgxp_test_seed_gte_sxy(2,PACKED,X16,Y16,SZ3,1);
++        for(int k=0;k<3;++k) pgxp_store_gte_reg(0x80019004+8*k,14);
++        CHECK(!pgxp_mesh_polygon(0x80019000,quad,9,qx,qy,qz));
++        pgxp_store_gte_reg(0x8001901c,14);
++        CHECK(pgxp_mesh_polygon(0x80019000,quad,9,qx,qy,qz)==4);
++        CHECK(!pgxp_mesh_polygon(0x80019000,quad,8,qx,qy,qz));
++        pgxp_mesh_invalidate_store(0x8001900c);
++        CHECK(!pgxp_mesh_polygon(0x80019000,quad,9,qx,qy,qz));
++        pgxp_mesh_configure(0,0);
++        CHECK(!g_pgxp_mesh_active);
++    }
++
+     if (g_failures) {
+         std::fprintf(stderr, "test_pgxp: %d FAILURES\n", g_failures);
+         return 1;
 diff --git a/runtime/tests/test_pipeline_batch_deadlines.py b/runtime/tests/test_pipeline_batch_deadlines.py
 new file mode 100644
 index 00000000..f51749e3

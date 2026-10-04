@@ -1,5 +1,13 @@
+#include <cstdlib>
+#include <string_view>
+static unsigned precision_timeline_invalidations;
+extern "C" void pgxp_invalidate_all(void) {++precision_timeline_invalidations;}
+extern "C" {int g_pgxp_mesh_active=0;}
 // D11B near-clip math: GTE-exact projection, safety classification and DPCS.
 #include "near_clip.h"
+extern "C" int pgxp_mesh_geometry(void) {const char* s=std::getenv("DNTTK_GEOMETRY_PRECISION");return s && std::string_view(s)=="corrected";}
+extern "C" int pgxp_mesh_textures(void) {const char* s=std::getenv("DNTTK_TEXTURE_PRECISION");return s && std::string_view(s)=="corrected";}
+extern "C" void pgxp_mesh_register_boundary(void) {}
 #include "sky_render.h"
 #include "cpu_state.h"
 #include "mod_plugins.h"
@@ -15,7 +23,7 @@ static uint8_t ram[0x200000];
 static PSXModFunctionEntryCallback near_hook;
 static bool live_eye=false;
 static unsigned host_vertices;
-struct HostCorner {uint32_t word;float z,u,v,depth;};
+struct HostCorner {uint32_t word;int32_t x,y;float z,u,v,depth;};
 static std::vector<HostCorner> host_corners;
 extern "C" {uint8_t* g_psx_ram=ram;uint32_t g_dirty_ram_code_gen=1;}
 extern "C" uint32_t psx_mod_alloc_guest_memory(uint32_t,uint32_t){return 0x801e0000;}
@@ -26,7 +34,7 @@ extern "C" void psx_mod_write_byte(uint32_t a,uint8_t v){ram[a&0x1fffff]=v;}
 extern "C" void psx_mod_write_word(uint32_t a,uint32_t v){for(int i=0;i<4;++i)ram[(a+i)&0x1fffff]=v>>(8*i);}
 extern "C" int psx_mod_register_function_entry_plugin(const char*,uint32_t,PSXModFunctionEntryCallback cb){near_hook=cb;return 1;}
 extern "C" int psx_mod_gpu_host_vertex(uint32_t,uint32_t,int32_t,int32_t,float,float,float){return 1;}
-extern "C" int psx_mod_gpu_host_vertex_depth(uint32_t,uint32_t w,int32_t,int32_t,float z,float u,float v,float d){++host_vertices;host_corners.push_back({w,z,u,v,d});return 1;}
+extern "C" int psx_mod_gpu_host_vertex_depth(uint32_t,uint32_t w,int32_t x,int32_t y,float z,float u,float v,float d){++host_vertices;host_corners.push_back({w,x,y,z,u,v,d});return 1;}
 extern "C" int psx_mod_replay_active(void){return 0;}
 extern "C" uint32_t psx_mod_savestate_loads(void){return 0;}
 namespace ttk {bool frame_trace_on(){return false;} void frame_trace_account(uint32_t,long){}}
@@ -37,7 +45,11 @@ static int16_t sx(uint32_t p){return (int16_t)p;} static int16_t sy(uint32_t p){
 // changes, not just the count or locations of traced triangles.
 static uint64_t packet_digest=14695981039346656037ull;
 static void observed_hook(CPUState* cpu,uint32_t address) {
+    // A new/empty OT must not discard metadata for a queued packet buffer.
+    // Individual writes and actual state restores own precision invalidation.
+    const unsigned invalidations=precision_timeline_invalidations;
     near_hook(cpu,address);
+    assert(precision_timeline_invalidations==invalidations);
     auto hash=[](const void* p,size_t n) {
         const auto* b=static_cast<const uint8_t*>(p);
         for(size_t i=0;i<n;++i) {packet_digest^=b[i];packet_digest*=1099511628211ull;}
@@ -48,6 +60,7 @@ static void observed_hook(CPUState* cpu,uint32_t address) {
 // Optional owned-EXE integration: exercise the registered, identity-guarded
 // hook and inspect emitted ordering-table packets, not a duplicate sort helper.
 static void packet_contracts(const char* executable) {
+    g_pgxp_mesh_active=1;
     std::ifstream file(executable,std::ios::binary);
     const std::vector<unsigned char> exe((std::istreambuf_iterator<char>(file)),{});
     assert(exe.size()>0x800 && std::memcmp(exe.data(),"PS-X EXE",8)==0);
@@ -104,7 +117,7 @@ static void packet_contracts(const char* executable) {
     assert(cpu.gpr[4]!=mesh && host_vertices>3);
     assert(psx_mod_read_word(ot+128*8)!=0);
     for(unsigned i=0;i<2048;++i)if(i!=128)assert(psx_mod_read_word(ot+i*8)==0);
-    auto object_case=[&](uint32_t ra,int extent,bool expect_taken) {
+    auto object_case=[&](uint32_t ra,int extent,bool expect_taken,bool occupied_ot=false) {
         auto c=reset();c.gpr[31]=ra;c.gpr[18]=0x80180000+extent*0x60;
         psx_mod_write_byte(mesh+6,3);word(mesh+0x10,verts);word(mesh+0x14,list);
         word(verts,(uint16_t)-extent|uint32_t(uint16_t(-extent))<<16);word(verts+4,5000);
@@ -112,11 +125,37 @@ static void packet_contracts(const char* executable) {
         word(verts+16,uint32_t(extent)<<16);word(verts+20,5000);
         word(list,0x00010024);word(list+4,0x00020100);word(list+8,0);
         word(list+12,0x0200001f);word(list+16,0x1f00);word(list+20,0xff);
+        if(occupied_ot) {
+            // A sprite before the first mesh leaves the OT nonempty. Starting
+            // from a loaded scene must still get a fresh, bounded clip budget.
+            word(bm,1);
+            ttk::near_clip_load_frame_state({0,0xffffffffu,0});
+            CPUState boundary{};
+            observed_hook(&boundary,0x80026164);
+            assert(ttk::near_clip_frame_state().host_bytes==0xffffffffu); // wrong caller
+            boundary.gpr[31]=0x800268f4;
+            observed_hook(&boundary,0x80026164);
+            const auto fresh=ttk::near_clip_frame_state();
+            assert(fresh.first_cursor==psx_mod_read_word(ctx) && fresh.host_bytes==0);
+        }
         observed_hook(&c,0x80010000);
         assert((c.gpr[4]!=mesh)==expect_taken);
         assert((host_vertices>0)==expect_taken);
+        if(occupied_ot) {
+            const auto frame=ttk::near_clip_frame_state();
+            assert(frame.host_bytes>0);
+            // Worker state restoration must retain usage; another mesh in
+            // the same populated OT must not refresh an exhausted budget.
+            ttk::near_clip_load_frame_state({frame.first_cursor,0xffffffffu,frame.held_frame});
+            const auto count=host_vertices;c.gpr[4]=mesh;
+            observed_hook(&c,0x80010000);
+            assert(c.gpr[4]==mesh && host_vertices==count);
+            ttk::near_clip_load_frame_state(frame);
+            assert(ttk::near_clip_frame_state().host_bytes==frame.host_bytes);
+        }
     };
     object_case(0x80032288,100,true); // compact static prop beyond near radius
+    object_case(0x80032288,100,true,true); // first mesh need not see an empty OT
     object_case(0x80032288,128,true); // inclusive 256-unit extent
     object_case(0x80032288,129,false); // larger scenery stays original
     object_case(0x80033778,100,false); // dancer's articulated mesh
@@ -184,7 +223,10 @@ static void packet_contracts(const char* executable) {
             for(int i=0;i<6;++i) {
                 const auto& v=host_corners[i];const int j=index[i];
                 assert(v.word==ttk::near_project(g,xyz[j][0],xyz[j][1],xyz[j][2]).sxy);
-                assert(v.z==1.0f && v.depth>0); // affine texture, real raster depth
+                const auto projected=ttk::near_project(g,xyz[j][0],xyz[j][1],xyz[j][2]);
+                assert(v.z==(pgxp_mesh_textures()?float(xyz[j][2]):1.0f) && v.depth>0);
+                assert(v.x==(pgxp_mesh_geometry()?projected.x16:(int32_t)(int16_t)v.word*65536));
+                assert(v.y==(pgxp_mesh_geometry()?projected.y16:(int32_t)(int16_t)(v.word>>16)*65536));
                 assert(v.u==uv[j][0] && v.v==uv[j][1]);
             }
         } else if(kind!=5 && kind!=10 && kind!=12) assert(c.gpr[4]==mesh);

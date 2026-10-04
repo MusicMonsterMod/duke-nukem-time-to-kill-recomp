@@ -38,6 +38,7 @@
 // start, +0x78 OT depth limit. Ordering table 0x800d27a0 (2048 head/tail
 // pairs) and its bitmap 0x800d26a0.
 #include "near_clip.h"
+#include "pgxp.h"
 #include "modern_controls.h"
 #include "pc_input.h"
 #include "cpu_state.h"
@@ -63,6 +64,7 @@ namespace ttk {
 namespace {
 struct Guard { uint32_t address, size; const char* digest; };
 const Guard near_guards[]={
+    {0x80026164,0x16c,"2f7723597bd0c04e95aaf4be6eacfa8504cdd5b05632a7aa2edad1af86a17f38"},
     {0x80010000,0xd18,"cf197784e09dc094b6c5552df68f71230c5b90ac416612abf3788a811e038acd"},
     {0x80011020,0xd4c,"f5a4dfa2c0f306b1c3d3250a160717afec9244d79fd5e321f39e767df1587e75"},
     {0x8002ee50,0x140,"51137c3bebd7496a800d365fab7182a782adf13dd118c13ed37862d88bd4246d"},
@@ -183,7 +185,7 @@ bool sort_nearest() {
     return value;
 }
 bool identity() {
-    static std::array<std::vector<uint32_t>,5> expected;
+    static std::array<std::vector<uint32_t>,std::size(near_guards)> expected;
     static IdentityMemo memo;
     const uint64_t frame=input_host_frame();
     if(!memo.valid(frame,g_dirty_ram_code_gen))
@@ -332,6 +334,7 @@ uint32_t ring_distance(const Frame& f,uint32_t from,uint32_t to) {
 // Bytes still available to host packets this frame.
 uint32_t budget(const Frame& f) {
     if(f.end<=f.start || f.cursor<f.start || f.cursor>=f.end) return 0;
+    if(frame_first_cursor<f.start || frame_first_cursor>=f.end) return 0;
     const uint32_t used=ring_distance(f,frame_first_cursor,f.cursor);
     const uint32_t ring=(uint32_t)((f.end-f.start)*ring_share);
     const uint32_t by_ring=used<ring?ring-used:0;
@@ -426,7 +429,9 @@ void emit(Frame& f,const Poly& poly,const Vertex* v) {
         for(int i=0;i<3;++i) {
             const uint32_t addr=prim+(poly.textured?8+12*i:8+8*i),word=psx_mod_read_word(addr);
             int32_t x16=(int32_t)(int16_t)word*65536,y16=(int32_t)(int16_t)(word>>16)*65536;
-            if(v[i].original<0) {
+            if(pgxp_mesh_geometry() && v[i].original>=0) {
+                x16=f.verts[v[i].original].x16;y16=f.verts[v[i].original].y16;
+            } else if(v[i].original<0) {
                 double x,y;screen(f,v[i],x,y);x+=v[i].ex;y+=v[i].ey;
                 const double fx=std::floor(x),fy=std::floor(y);
                 if(fx==(double)(int16_t)word && fy==(double)(int16_t)(word>>16)) {
@@ -442,7 +447,7 @@ void emit(Frame& f,const Poly& poly,const Vertex* v) {
             static const bool depth_fix=env_int("DNTTK_PLANE_DEPTH",1,0,1)!=0;
             const double depth=depth_fix ? near_raster_depth(poly.depth_plane,f.g,x16/65536.0,y16/65536.0,v[i].p[2]) : v[i].p[2];
             if(f.trace) {trace_raster[i][0]=x16/65536.0;trace_raster[i][1]=y16/65536.0;trace_raster[i][2]=v[i].p[2];trace_raster[i][3]=f.viewmodel?-v[i].p[2]:depth;}
-            psx_mod_gpu_host_vertex_depth(addr,word,x16,y16,poly.depth_only?1.0f:(float)v[i].p[2],poly.textured?(float)std::clamp(v[i].uv[0],0.0,255.0):-1.0f,poly.textured?(float)std::clamp(v[i].uv[1],0.0,255.0):-1.0f,(float)(f.viewmodel?-v[i].p[2]:depth));
+            psx_mod_gpu_host_vertex_depth(addr,word,x16,y16,poly.depth_only && !pgxp_mesh_textures()?1.0f:(float)v[i].p[2],poly.textured?(float)std::clamp(v[i].uv[0],0.0,255.0):-1.0f,poly.textured?(float)std::clamp(v[i].uv[1],0.0,255.0):-1.0f,(float)(f.viewmodel?-v[i].p[2]:depth));
         }
         ++precise_triangles;
     }
@@ -586,7 +591,8 @@ void draw(Frame& f,const Poly& poly) {
         v.original=f.verts[i].safe?i:-1;
         if(v.original>=0 && v.p[2]>0) {
             double x,y;screen(f,v,x,y);
-            v.ex=(int16_t)f.verts[i].sxy-x;v.ey=(int16_t)(f.verts[i].sxy>>16)-y;
+            v.ex=(pgxp_mesh_geometry()?f.verts[i].x16/65536.0:(int16_t)f.verts[i].sxy)-x;
+            v.ey=(pgxp_mesh_geometry()?f.verts[i].y16/65536.0:(int16_t)(f.verts[i].sxy>>16))-y;
         }
         shape.push_back(v);
     }
@@ -991,15 +997,34 @@ void occluder_test(CPUState* cpu) {
     cpu->gpr[4]=empty_rect;++fades_skipped;
 }
 void near_hook_body(CPUState* cpu,uint32_t address) {
+    if(g_pgxp_mesh_active && (address==0x80010000 || address==0x80011020)) {
+        // Packet buffers may still be queued when the next mesh frame starts.
+        // Writes invalidate individual shadows; only state loads/new worker RAM
+        // images invalidate the whole timeline.
+        pgxp_mesh_register_boundary();
+    }
     const bool eye=first_person_view_live();
     if(!eye && !widescreen_near_clip_live()) return;
+    if(address==0x80026164) {
+        // Start accounting at scene composition, before any world/prop draw.
+        // An empty OT at the first mesh is not a frame boundary: earlier
+        // non-mesh primitives can already have populated it, indefinitely
+        // retaining a stale (or initially zero) budget cursor in some views.
+        // Redraw workers enter this same boundary with their restored RAM.
+        if(cpu->gpr[31]==0x800268f4 && identity()) {
+            frame_first_cursor=psx_mod_read_word(context);
+            frame_host_bytes=0;
+            held_packets.clear();
+        }
+        return;
+    }
     if(address==0x8002ee50) {if(eye && identity()) occluder_test(cpu); return;}
     {
         const uint32_t cursor=psx_mod_read_word(context),start=psx_mod_read_word(context+4),end=psx_mod_read_word(context+8);
         bool empty=true;
         for(uint32_t i=0;i<0x100 && empty;i+=4) empty=!psx_mod_read_word(bitmap+i);
         if(empty) {frame_first_cursor=cursor;frame_host_bytes=0;}
-        if(end>start && cursor>=start && cursor<end) {
+        if(end>start && cursor>=start && cursor<end && frame_first_cursor>=start && frame_first_cursor<end) {
             arena_size=end-start;
             const uint32_t used=cursor>=frame_first_cursor?cursor-frame_first_cursor:arena_size-(frame_first_cursor-cursor);
             frame_used_peak=std::max(frame_used_peak,used);
@@ -1098,6 +1123,7 @@ NearProjected near_project(const NearGte& g,int16_t vx,int16_t vy,int16_t vz) {
     const int32_t q=gte_divide(g.h,out.sz);
     const int64_t x16=(int64_t)g.ofx+(int64_t)ir1*q,y16=(int64_t)g.ofy+(int64_t)ir2*q;
     const int32_t sx=clamp(x16>>16,-0x400,0x3ff),sy=clamp(y16>>16,-0x400,0x3ff);
+    out.x16=(int32_t)x16;out.y16=(int32_t)y16;
     out.sxy=(uint32_t)(uint16_t)sx | (uint32_t)(uint16_t)sy<<16;
     bool safe=(uint32_t)out.sz*2>g.h && ir1==m1 && ir2==m2;
     if(safe) {
@@ -1132,6 +1158,6 @@ const char* near_clip_debug_json() {
 }
 }
 PSX_MOD_CONSTRUCTOR(register_ttk_near_clip) {
-    for(uint32_t address:{0x80010000u,0x80011020u,0x8002ee50u})
+    for(uint32_t address:{0x80010000u,0x80011020u,0x8002ee50u,0x80026164u})
         psx_mod_register_function_entry_plugin("ttk.near.clip",address,ttk::hook);
 }

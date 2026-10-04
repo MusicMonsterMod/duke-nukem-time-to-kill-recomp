@@ -42,6 +42,16 @@ psxrecomp_add_game_runtime(psx-runtime
     CODEGEN_SETUP_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/codegen_setup.c"
 )
 
+# D15: retain projection provenance through resident mesh drawing/subdivision.
+# Compile authored build definitions, never edit generated C or change save ABI.
+file(GLOB _ttk_generated_mesh "${CMAKE_CURRENT_SOURCE_DIR}/generated/SLUS_005.83_full_*.c")
+foreach(_ttk_source IN LISTS _ttk_generated_mesh)
+    file(STRINGS "${_ttk_source}" _ttk_mesh_entry REGEX "^void func_800(10000|11020|1205C|12960)")
+    if(_ttk_mesh_entry)
+        set_property(SOURCE "${_ttk_source}" APPEND PROPERTY COMPILE_DEFINITIONS PSX_PGXP=1)
+    endif()
+endforeach()
+
 # Repair the pinned fetched SDL3 X11 raw-event millisecond/nanosecond mismatch.
 # Never modify an installed/system SDL library.
 if(PSX_SDL3 AND SDL3_SOURCE_DIR AND EXISTS "${SDL3_SOURCE_DIR}/src/video/x11/SDL_x11events.c")

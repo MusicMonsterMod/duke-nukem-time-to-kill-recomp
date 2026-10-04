@@ -45,6 +45,8 @@ def main(argv=None):
     p.add_argument('--cpu-overclock', type=int, choices=profiles.CPU_OVERCLOCKS, help='save Modernized emulated CPU speed in percent (default 150 keeps busy views at 30 fps; 100 = original; Vanilla always uses 100)')
     p.add_argument('--jump', choices=profiles.JUMP_STYLES, help='save Modernized jump style: assisted (original lip launch, fixed arc) or manual (leaves on the press, edge grace, air steering)')
     p.add_argument('--view-bob', choices=profiles.VIEW_BOBS, help='save Modernized first-person view bob while walking: off, subtle, on (default) or strong; standing still is steady at every setting')
+    p.add_argument('--geometry-precision', choices=profiles.PRECISION_MODES, help='save Modernized mesh geometry: original (default) or corrected subpixel positions; OpenGL, next launch')
+    p.add_argument('--texture-precision', choices=profiles.PRECISION_MODES, help='save Modernized mesh textures: original (default) or corrected perspective; OpenGL, next launch')
     p.add_argument('--frame-rate', choices=profiles.FRAME_RATES, help="save Modernized frame rate: display (the monitor's refresh), 30, 60 (original), 120, 144, 165, 180, 240 or unlimited; game speed is unchanged, Vanilla always uses 60")
     p.add_argument('--no-session-log', action='store_true', help='do not mirror runtime stderr into build-local/logs/session-*.log')
     a = p.parse_args(argv)
@@ -83,7 +85,7 @@ def main(argv=None):
             profile = settings['profiles']['modernized']
             profile['bindings'] = pc_input.rebind(profile['bindings'], a.bind)
             changed = True
-        if a.view_bob is not None or a.frame_rate is not None or a.jump is not None or a.cpu_overclock is not None or a.widescreen is not None or a.camera_distance is not None or a.shoulder is not None or a.view is not None or a.jetpack is not None or a.aim_assist is not None or a.red_dot is not None or a.crosshair is not None or a.weapon_aim is not None or a.camera is not None or a.mouse_sensitivity is not None or a.invert_y is not None:
+        if a.geometry_precision is not None or a.texture_precision is not None or a.view_bob is not None or a.frame_rate is not None or a.jump is not None or a.cpu_overclock is not None or a.widescreen is not None or a.camera_distance is not None or a.shoulder is not None or a.view is not None or a.jetpack is not None or a.aim_assist is not None or a.red_dot is not None or a.crosshair is not None or a.weapon_aim is not None or a.camera is not None or a.mouse_sensitivity is not None or a.invert_y is not None:
             controls = dict(settings['profiles']['modernized']['controls'])
             if a.aim_assist is not None: controls['aim_assist'] = a.aim_assist
             if a.jetpack is not None: controls['jetpack'] = a.jetpack
@@ -91,6 +93,8 @@ def main(argv=None):
             if a.cpu_overclock is not None: controls['cpu_overclock'] = a.cpu_overclock
             if a.jump is not None: controls['jump'] = a.jump
             if a.frame_rate is not None: controls['frame_rate'] = a.frame_rate
+            if a.geometry_precision is not None: controls['geometry_precision'] = a.geometry_precision
+            if a.texture_precision is not None: controls['texture_precision'] = a.texture_precision
             if a.view_bob is not None: controls['view_bob'] = a.view_bob
             if a.shoulder is not None: controls['shoulder'] = a.shoulder
             if a.view is not None: controls['view'] = a.view
@@ -171,6 +175,15 @@ def main(argv=None):
     env['DNTTK_MOUSE_INVERT_Y'] = '1' if controls['invert_y'] else '0'
     env['DNTTK_JETPACK'] = controls['jetpack'] if settings['active'] == 'modernized' else 'modern'
     modernized = settings['active'] == 'modernized'
+    # D15 owns the player options; legacy screen-position lookup stays off.
+    env['PSX_GEOMETRY_CORRECTION'] = '0'
+    env['PSX_PERSPECTIVE_TEXTURING'] = '0'
+    env['PSX_PGXP_CPU_MODE'] = '0'
+    precision_supported = modernized and settings['profiles'][settings['active']]['presentation']['renderer'] == 'opengl'
+    env['DNTTK_GEOMETRY_PRECISION'] = controls['geometry_precision'] if precision_supported else 'original'
+    env['DNTTK_TEXTURE_PRECISION'] = controls['texture_precision'] if precision_supported else 'original'
+    if modernized and not precision_supported and any(controls[k] == 'corrected' for k in ('geometry_precision','texture_precision')):
+        print('Mesh precision requires OpenGL; this software-renderer session uses Original.', file=sys.stderr)
     env['DNTTK_CAMERA_DISTANCE'] = str(controls['camera_distance'] if modernized else 0)
     env['DNTTK_CAMERA_SHOULDER'] = controls['shoulder'] if modernized else 'center'
     env['DNTTK_CAMERA_VIEW'] = controls['view'] if modernized else 'third'

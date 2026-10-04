@@ -4,7 +4,7 @@ This is the canonical job list for our **Duke Nukem: Time to Kill** PC project, 
 
 Invoke **`$continue-duke-recomp`** (Codex) or **`/continue-duke-recomp`** (Claude Code) to see the current jobs and choose one. You can also request a job directly: **`$continue-duke-recomp work on D01`** or **`/continue-duke-recomp work on D01`**. The skill reads this file rather than keeping a second backlog. It must not automatically start the next job.
 
-**Latest completed job: R01 - DisruptorRecomp reference research.** Research only; [review](documentation/93-disruptor-reference-research.md). No implementation experiment selected. D17O and D08Q3 remain Done, user-accepted.
+**Latest accepted job: D15 - optional geometry and texture precision.** [Acceptance and evidence](documentation/96-d15-accepted-precision.md). **Immediate follow-up: D17P**, the new subway slot 8 distant horizontal bands; separate from the accepted previous slot 8 opacity case.
 
 ## The experience we are building
 
@@ -90,7 +90,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D11C | Savestates can keep Duke's first-person head hidden (slot 12) | Done | D11 |
 | D13 | Higher internal resolution and display scaling | Done | D02 |
 | D14 | Widescreen, FOV and visibility | Done | D03, D13 |
-| D15 | Optional geometry and texture precision | Todo | D13 |
+| D15 | Optional geometry and texture precision | Accepted | D13 |
 | D16 | Texture filtering and game-specific HD assets | Todo | D13 |
 | D16A | HRP assets and first-person weapon research (later) | Cancelled (original assets preferred) | - |
 | D17 | High refresh rate rendering without faster simulation (Match Display, 30-240, Unlimited) | Done (user-accepted) | D01, D13 |
@@ -108,6 +108,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D17M | Shotgun ammo visible through ladder platform in save slot 9 | Todo | D17D |
 | D17N | Diagonal wall artifacts during movement in save slot 12 | Todo | D17A |
 | D17O | Unstable sky appearance when looking up (slot 10) | Done (user-accepted) | D17A, D17B |
+| D17P | Distant horizontal black bands in new subway slot 8 | Todo (immediate next) | D15 |
 | D17C | View bob: disable experiment, then a stable modern camera | Done (user-accepted) | D11 |
 | D18 | FMV and audio presentation safeguards | Todo | D01, D02 |
 | D18A | Voice/music/gunfire crackle investigation | Done | D01, D02 |
@@ -1643,6 +1644,12 @@ Explicit user priority: widescreen support. Render a wider view without stretchi
 
 ### D15 — Optional geometry and texture precision
 
+**Accepted (user playtest, 2026-10-04).** Geometry stability, slot 4 floor seams,
+slot 1 idle polish, slot 5 black/missing left surfaces, slot 6 closet/furniture
+and the previous slot 8 opacity case are accepted. [Implementation, regression
+causes, tests and limits](documentation/96-d15-accepted-precision.md). The newly
+replaced slot 8 subway bands are D17P and do not block D15.
+
 Investigate renderer support for reducing vertex jitter and perspective distortion, preserving authentic behavior as an option. Compare effects on animated geometry, effects and seams before enabling enhancements by default.
 
 **Acceptance:** captures show actual improvements and any remaining artifacts; toggles restore original presentation; collision, visibility and game timing remain unaffected. Unsupported renderer features are documented rather than simulated by ineffective settings.
@@ -2086,6 +2093,35 @@ results. Update status/handoff/manual as appropriate; commit and push source
 and documentation, excluding all retail assets and local captures/saves.
 
 [Detailed intake, private save identity and investigation plan](documentation/92-d17o-sky-intake.md).
+
+### D17P - Distant horizontal black bands in the new subway slot 8
+
+**Todo (immediate next, selected by the user 2026-10-04).** Separate follow-up
+after D15 acceptance and its authorized commit/push. Do not reopen D15 or
+confuse the replacement slot with the accepted old slot 8 door opacity case.
+
+**Primary reproduction:** load the new UI save slot 8 in the subway corridor.
+Walk forwards while watching distant geometry/textures. Multiple horizontal
+black lines/bands appear farther down the corridor and seem to follow the
+distant scene, as if sections disappear along horizontal boundaries.
+
+**Investigation:** "possible culling" is a visual report, not an established
+cause. Compare visibility/culling, clipping, polygon gaps, depth behavior,
+geometry correction, texture rendering, precision and other rendering paths.
+Use Original/Corrected geometry and textures independently, primary 120 Hz,
+and lower-rate comparisons where useful. Trace the implicated primitives;
+review prior fixes and R01 concepts without transplanting unrelated code.
+
+**Acceptance:** eliminate the distant bands during approach and nearby view
+changes, explain the responsible rendering path with evidence, and preserve
+accepted D15 stability, floor seams, idle behavior, closet/furniture opacity,
+Vanilla and optional Modernized modes. Recheck replay consistency and 120 Hz
+cost; obtain a focused user playtest before acceptance.
+
+New slot SHA256: `7bf643dcfff92379ce5b9f06789eedf0a1c8c9cd4a46c1cfcde8670d9dba5743`.
+UI slot 8 = debug slot 7 / `slot07.pst`. Private intake and player-file manifest
+are local at `recomp/analysis/d17p-subway-bands/`. Retail state stays untracked.
+[Accepted baseline and distinct old/new state identities](documentation/96-d15-accepted-precision.md).
 
 ### D18 — FMV and audio presentation safeguards
 
@@ -5784,3 +5820,12 @@ background development testing remains authorized. This closeout changes only
 documentation and instructions, with no new build, launch or gameplay test.
 No next job selected or started.
 Launch when wanted: `python3 recomp/tools/local/run.py`.
+
+## 2026-10-04 - D15 accepted; D17P immediate follow-up
+
+The user accepts the final slot 5 black-area, slot 6 closet and previous slot 8
+opacity fixes, plus previously accepted stability, floor and idle improvements.
+They explicitly authorize documenting, committing and pushing the implementation
+and backlog update. D15 is Accepted; D17P records the replacement subway slot 8
+as a separate immediate follow-up. See [note 96](documentation/96-d15-accepted-precision.md)
+for implementation, user evidence, automated/private verification and limits.

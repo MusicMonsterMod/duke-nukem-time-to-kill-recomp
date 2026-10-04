@@ -165,15 +165,35 @@ original.
 
 Modernized improves perspective and clipping for nearby walls, floors, tables
 and props. The depth correction is player-accepted for the club furniture's
-lower shelf and the apartment/strip-club closets. Ground blood and some
-tabletop props remain separate visual follow-ups.
+lower shelf and the apartment/strip-club closets. Ground blood and the tested tabletop props are also player-accepted.
+Other isolated visual reports remain separate follow-ups.
 The original PS1 character during movement is preserved; Vanilla keeps the
 original presentation.
 
+### Geometry and texture precision (Modernized, OpenGL)
+
+D15's player-accepted options independently reduce geometry jitter and texture
+perspective distortion. Choose **G** in `--settings`, or use
+`--geometry-precision original|corrected` and
+`--texture-precision original|corrected`. They apply on the next launch and
+save your preferences. Both default to `original`; choose `corrected` for the
+stabilized presentation. Vanilla and the software renderer use Original.
+
+For the accepted 120 Hz presentation:
+
+```sh
+python3 recomp/tools/local/run.py --mode modernized --renderer opengl --frame-rate 120 --geometry-precision corrected --texture-precision corrected
+```
+
+This updates saved preferences. Correction preserves the game's simulation
+and collision, and some characteristic PS1 movement remains. The accepted
+floor seams, idle settling and close-up opacity fixes remain in place. The
+new distant horizontal bands in the subway are tracked separately as D17P.
+
 ### View bob (Modernized, first person)
 
-Standing still, the first-person view now stays completely steady (the floor
-and walls no longer seem to breathe with Duke's idle animation). While you
+Standing still, the first-person view settles into a substantially stable
+image (the floor and walls no longer visibly breathe with Duke's idle animation). While you
 walk or run, the PlayStation's slight geometry wobble is kept, and a gentle
 view bob moves the eye with your steps. Choose its strength with
 `--view-bob off|subtle|on|strong` (default `on`) or **B** in `--settings`.

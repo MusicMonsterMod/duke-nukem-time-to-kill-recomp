@@ -1,3 +1,10 @@
+#include <cstdlib>
+#include <string_view>
+extern "C" int pgxp_mesh_geometry(void) {const char* s=std::getenv("DNTTK_GEOMETRY_PRECISION");return s && std::string_view(s)=="corrected";}
+extern "C" int pgxp_mesh_textures(void) {const char* s=std::getenv("DNTTK_TEXTURE_PRECISION");return s && std::string_view(s)=="corrected";}
+extern "C" void pgxp_mesh_register_boundary(void) {}
+extern "C" void pgxp_invalidate_all(void) {}
+extern "C" {int g_pgxp_mesh_active=0;}
 // Owned-data integration harness. Models call contracts, not terrain/animation.
 #include "modern_controls.h"
 #include "control_math.h"

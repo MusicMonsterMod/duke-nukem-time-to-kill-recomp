@@ -76,3 +76,5 @@ Update `00-status.md` after meaningful tests. Keep raw evidence and exact comman
 Latest high-refresh closeout: [D17A/B acceptance, source publication and regression baseline](86-d17-acceptance-and-regression-baseline.md).
 D17A/B are Accepted. 120 FPS is the primary quality target; focused residual
 bugs are on the board. The implementation under `recomp/` is now versioned.
+
+Latest accepted renderer work: [D15 precision, floor/idle and close-up clipping](96-d15-accepted-precision.md). D17P is the immediate follow-up for the replacement subway slot 8 distant bands.

@@ -10,6 +10,7 @@
 #include "mod_plugins.h"
 #include "code_identity.h"
 #include "near_clip.h"
+#include "pgxp.h"
 #include <algorithm>
 #include <cmath>
 #include <cstdio>

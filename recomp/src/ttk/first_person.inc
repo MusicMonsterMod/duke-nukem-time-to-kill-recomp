@@ -148,12 +148,18 @@ static bool first_person_anchor(const double* forward,double* anchor) {
     // Eye relative to its references: x/z to the root, y to the pivot.
     // Game Y grows downward.
     const double target[3]={neck[0]-root[0],neck[1]-eye_height-pivot_y,neck[2]-root[2]};
+    // D15: the slow centring drift was still feeding idle neck animation into
+    // the camera after locomotion stopped. Hold within the existing dead band
+    // while stationary; actual travel, posture changes beyond the band and
+    // pivot height changes keep their existing response. No extra camera state.
+    const bool hold_centre=pgxp_mesh_geometry() && bob_last_valid &&
+        root[0]==bob_last[0] && root[2]==bob_last[2];
     for(int i=0;i<3;++i) {
         // Dead band: idle breathing and gait stay inside it and are held
-        // (a very slow drift keeps the eye centred); beyond it the eye follows
+        // (a very slow drift keeps the moving eye centred); beyond it the eye follows
         // the excess promptly.
         const double d=target[i]-eye_rel[i],band=i==1?64.0:24.0;
-        const double step=std::abs(d)>band ? (d-std::copysign(band,d))*0.5 : d*0.004;
+        const double step=std::abs(d)>band ? (d-std::copysign(band,d))*0.5 : (hold_centre?0.0:d*0.004);
         eye_rel[i]=eye_rel_valid && eye_offset_valid ? eye_rel[i]+step : target[i];
         eye_offset[i]=eye_rel[i];
     }

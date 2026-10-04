@@ -7,7 +7,7 @@ struct NearGte {
     int16_t r[3][3];int32_t tr[3],fc[3],ofx,ofy;uint16_t h;
 };
 // GTE-exact RTPS for one vertex: packed SXY, SZ and the unclamped view position.
-struct NearProjected { uint32_t sxy; uint16_t sz; double view[3]; bool safe; };
+struct NearProjected { uint32_t sxy; int32_t x16,y16; uint16_t sz; double view[3]; bool safe; };
 NearProjected near_project(const NearGte& g,int16_t vx,int16_t vy,int16_t vz);
 // View-space plane for depth evaluation at the actual raster position.
 struct NearDepthPlane { double n[3], d; };

@@ -1,5 +1,30 @@
 # Next-session handoff
 
+## 2026-10-04 - D15 Accepted; new subway slot 8 is D17P
+
+The user accepts the final playtest: slot 5 left-side black/missing areas no
+longer reproduce, slot 6 closet and surrounding furniture are stable, and the
+previous slot 8 door remains opaque. Geometry stability, floor seams and idle
+polish were already accepted. D15 is **Accepted** at the primary 120 Hz target.
+See [implementation, tests, user evidence and limits](96-d15-accepted-precision.md).
+
+The user explicitly authorized documentation, implementation commit and push
+on the current branch. Preserve the title changes and exported framework patch;
+Vanilla remains available and precision is optional in Modernized/OpenGL.
+Accepted executable: `35756df57b9a6ddd31ee0dabdffb51876faf7a3b0c05effb78be285dfd9dc9a7`.
+
+**Immediate next job: D17P**, selected by the user. They replaced UI slot 8
+with a subway corridor state: walk forwards and watch multiple horizontal
+black bands in distant geometry/textures. Treat "possible culling" as a
+hypothesis, compare rendering paths, and preserve the accepted D15 baseline.
+This is separate from the accepted previous slot 8 opacity case. The new
+state identity, private-copy intake and acceptance criteria are on the
+[canonical board](../MODERNIZATION_JOBS.md#d17p---distant-horizontal-black-bands-in-the-new-subway-slot-8).
+No technical cause is established by intake alone.
+
+Launch: `python3 recomp/tools/local/run.py`.
+
+
 ## 2026-10-04 - D17L accepted (Done)
 
 User: "first off, i accept this as complete!" D17L is Done, user-accepted.

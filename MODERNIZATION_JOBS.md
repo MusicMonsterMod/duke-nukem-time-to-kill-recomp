@@ -3013,6 +3013,11 @@ Work, in order:
 3. **Cheaper in-between pictures** (optional): fewer GL state changes per
    redraw feed, or drawing redraws off the emulation thread.
 
+User direction (2026-10-05): "im completely happy to build anything new rather
+than patch over old crap". Prefer a clean, purpose-built timing system over
+layering more patches onto the existing cycle model, even when that is larger;
+keep the framework patch export workflow and savestate compatibility in view.
+
 Vanilla keeps the accurate model unless the user decides otherwise; the fast
 model is a Modernized option until proven.
 

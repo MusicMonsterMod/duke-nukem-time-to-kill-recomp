@@ -4,7 +4,7 @@ This is the canonical job list for our **Duke Nukem: Time to Kill** PC project, 
 
 Invoke **`$continue-duke-recomp`** (Codex) or **`/continue-duke-recomp`** (Claude Code) to see the current jobs and choose one. You can also request a job directly: **`$continue-duke-recomp work on D01`** or **`/continue-duke-recomp work on D01`**. The skill reads this file rather than keeping a second backlog. It must not automatically start the next job.
 
-**Latest accepted jobs: D08T2 (pushable object type range, hints) and D08U1 (slot-12 ladder descent), 2026-10-05.** Accepted executable `4f76da406a12958fe50e4751c7a99832b90a9f562710326060e2d1a66a732c83` is the current regression baseline. [Note 103](documentation/103-d08t2-object-type-range.md). Next suggested: D08T3 (free manual push/pull); D08O1 (fire while swimming) is new. No next job selected.
+**Latest accepted jobs: D11D and D12B (first-person joints by model part), 2026-10-05.** Accepted executable `0694b59dde72db57a536cdc3df4a20eff0866fdd0ca30dcad1da7d0f9ccfca4b` is the current regression baseline. **D23E (western-town stutter) Needs playtest** (at 100%); **D23F (faster timing model, big) Todo**; candidate `18fc1c6e63f182217c9b2c6b6aaf8d21fa224394d46fdbcd906afad5bf8fd19e`, [note 104](documentation/104-d23e-busy-scene-stutter.md). Next suggested: D08T3 (free manual push/pull); D08O1 (fire while swimming).
 
 ## The experience we are building
 
@@ -138,6 +138,8 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D23B | Intro FMV stutter: stranded native movie shard | Done | D23 |
 | D23C | Medieval castle moat slowdown with Necros active (profile, do not optimise blind) | Todo | D23, D22B |
 | D23D | Minor slowdown around the strip-club-type area of Level 9 (low priority) | Todo | D23, D22B |
+| D23E | Stutter with enemies on screen while walking (UI slots 9 and 10) | Needs playtest | D23, D22B |
+| D23F | Faster timing model: emulation-thread budget for 150% CPU at high refresh (big) | Todo | D23E, D17 |
 | D24 | Linux / Windows player build and disc import | Todo | D19, D22, D23 |
 | D25 | Modernized edition release acceptance | Todo | D08, D08A, D08B, D09, D10, D14, D17, D18, D20, D21, D24 |
 | D26 | Backtick debug console (fps and helpers) | Done | D04 |
@@ -2905,6 +2907,121 @@ overall; looking closely, there is a small slowdown around the strip-club-type
 area. Extremely minor and not blocking. Level numbers in this report follow the D26A console (`level N`); D26D will
 confirm how they map to the game's own campaign numbering. Profile with the D23C
 method when performance polish is scheduled.
+
+### D23E - Stutter with enemies on screen while walking (UI slots 9 and 10)
+
+**Needs playtest (2026-10-05). User report, 2026-10-05.** Load UI save slot 9 (file 08), look down
+toward the enemies on the ground, then walk left and right: the game stutters
+in this area. The user suspects the characters on screen cause it. UI slot 10
+(file 09) may show the same effect: turn on `dnkroz` first because enemies
+attack immediately, then walk up and down the strip. Reported savestates
+(`recomp/saves/local-play/openbios`, 2026-10-05; copy them for tests, never
+write to the originals):
+
+- UI 9, `state_800AB6FC_slot08.pst`, SHA-256
+  `3fe93bb39eb114f5c22d349ed030a68a14b14b1cfac86b336b762cd507525c8f`
+- UI 10, `state_800AB6FC_slot09.pst`, SHA-256
+  `c1dc55452203ab3864da17a440278bded255608679698604d92aa5959d09ceaf`
+
+Record which level each slot is in. Possibly related to D23C (moat Necros),
+D23D (Level 9 strip-club area) and D17H (platform movement stutter): check
+whether this is the same cause before fixing anything separately, and merge
+or cross-reference the jobs if it is.
+
+Do not optimise blind. Profile with the D23C method (`phase_profile`,
+`phase_hot`, fps stats) and determine whether the stutter follows the number
+or type of visible characters (skinning, animation, AI), render workload,
+original simulation time, or high-refresh interpolation/presentation. Compare
+the same route with the enemies looked away from, with `dnmonsters` off, in
+Vanilla and Modernized, and at 60 and 120 Hz.
+
+**Acceptance:** a measured profile names the dominant cost on both routes; any
+fix is game-wide (not per level), keeps original gameplay timing and passes the
+accepted regression baselines; the user confirms the stutter is gone or
+acceptably reduced.
+
+**Work log 2026-10-05 - Needs playtest.** Both slots are in the western town.
+Measured offscreen on the real GPU with the player's settings and private
+copies ([note 104](documentation/104-d23e-busy-scene-stutter.md)). Two causes:
+(1) at the player's `cpu_overclock 100` the 16:9 view gives the emulated CPU
+more than a 3-field frame's work, so game frames land on 4 fields (15 fps)
+with 5-6 field steps (Vanilla 4:3: steady 3 in slot 9; slot 10 is 4-5 in
+Vanilla too); draw distance has no effect. (2) At 120 Hz the default 150%
+could not hold: late-camera redraws (120/s, about 1.4 ms each, 19% of the
+emulation thread) pushed emulation behind real time, and the D08Y safety net
+paused the overclock for 5 s at a time (20 <-> 15 fps swings). At 150% and
+60 Hz both slots hold a steady 3. Fix (game code only): the redraws shed load
+first (`replay_shed_load`: presents every 2nd/3rd refresh, existing step-up
+rule), and the overclock pauses only when nothing is left to shed. 150%,
+120 Hz: slot 9 from about 30% to 93% of frames at 2-3 fields, slot 10 98% at
+3 over 90 s; light slots unchanged. Native tests pass. Candidate
+`18fc1c6e63f182217c9b2c6b6aaf8d21fa224394d46fdbcd906afad5bf8fd19e`.
+Remaining: the user plays slots 9 and 10 at 150% (and judges the lower present
+rate there) and real audio; at 100% the stutter is the emulated CPU itself.
+Not shown to be the same cause as D23C/D23D/D17H; measure those the same way.
+
+**Follow-up 2026-10-05.** The user confirmed 150% relieves the stutter but
+prefers 100% for now: 150% felt different, with more visible seams and a
+slight audio degradation at the start. Measured: identical still images and
+wall subdivision at both speeds; at 150% and 120 Hz the picture rate drops in
+light scenes too (slot 1 75/s, slot 9 54/s against 120 at 100%), because one
+emulation thread cannot do both. That work moved to D23F. D23E stays Needs
+playtest at 100% (its shedding applies whenever emulation falls behind).
+
+### D23F - Faster timing model: emulation-thread budget for 150% at high refresh
+
+**Todo, big. Opened 2026-10-05 from D23E.** The user wants the best gameplay
+as the default and likes the faster timing model concept from the Disruptor
+reference ([note 93](documentation/93-disruptor-reference-research.md),
+section 9). They play at 100% CPU for now: at 150% the game felt "different,
+not smoother" and seams looked more visible.
+
+D23E evidence ([note 104](documentation/104-d23e-busy-scene-stutter.md)):
+150% draws pixel-identical still images and the same whole/subdivided wall
+counts as 100%. What changes is the picture rate: on the player's PC
+(i7-5960X, GTX 1080 Ti) one emulation thread cannot run the faster game
+(more game frames per second) and 120 in-between pictures at once, even
+walking in a light scene (slot 1: 120 presents/s at 100%, 75 at 150%; slot 9:
+120 against 54). Either presents drop (D23E shedding) or, before D23E, the
+overclock paused 5 s at a time.
+
+Emulation thread at 150%, moving in slot 1 (`PSX_PROF`): cycle-timing model
+about 34% (`psx_cyc_base`, `psx_cyc_lds`, `psx_cyc_charge`, `psx_cyc_step`,
+instruction-cache simulation, dependency tracking), interrupt checks about 4%,
+the recompiled game code 4%, GL driver and redraw/batch paths about 12%,
+always-on observers (call/trace logging, `debug_server_cyc_observe`,
+`fntrace_record`, `xprobe_event`, parity/overlay watches) about 4-5%.
+
+Work, in order:
+
+1. **Observers off in player sessions** (small, low risk): find which
+   per-store/per-call observers still run with `PSX_FORENSICS=0` and gate them;
+   helps 100% too.
+2. **Faster timing model** (the core): a design study before code. Disruptor's
+   `disruptor_fast_timing.h` levels: no per-block diagnostics, no game
+   instruction-cache simulation, static per-basic-block cycle charges, flat
+   charges for eligible RAM loads, an inlined branch-edge check that services
+   interrupts and accumulated charges at a threshold, explicit fallbacks
+   (device/MMIO/BIOS, polling edges, save/debug maintenance). Decide what is
+   computed at recompile time versus runtime, how it coexists with the TTK
+   overclock lease (`psx_overclock_compress`), render workers
+   (`g_psx_render_untimed`) and idle skipping, and whether it changes hashed
+   framework headers or generated code identity (savestate compatibility: see
+   the codegen-hash rule; avoid rejecting all existing savestates, or plan a
+   documented migration). Framework edits go through
+   `export_runtime_patch.py`.
+3. **Cheaper in-between pictures** (optional): fewer GL state changes per
+   redraw feed, or drawing redraws off the emulation thread.
+
+Vanilla keeps the accurate model unless the user decides otherwise; the fast
+model is a Modernized option until proven.
+
+**Acceptance:** at 150% and 120 Hz the player's PC keeps 120 presents per
+second in light scenes and the western town (slots 1, 9, 10) without shedding
+or overclock pauses; game frames at least as steady as D23E's 60 Hz result
+(slot 9 steady 3 fields); audio, FMV, loading, CD streaming, savestates and
+the accepted regression baselines unchanged; Vanilla untouched; the user
+judges the feel at 150% and decides whether it becomes the default.
 
 ### D24 — Linux / Windows player build and disc import
 

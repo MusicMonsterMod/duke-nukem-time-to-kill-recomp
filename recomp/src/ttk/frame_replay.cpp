@@ -500,7 +500,7 @@ uint64_t late_applied=0, late_skipped=0, late_jit=0;
 // rate fails again within 3 windows (at most 32), so a scene settles on one
 // steady rate instead of switching back and forth, which itself read as
 // jerky (2026-10-03).
-int pace_div=1, pace_clean=0, pace_backoff=1; uint64_t pace_presents=0, pace_bad=0, pace_changes=0, pace_windows=0, pace_down_window=0;
+int pace_div=1, pace_clean=0, pace_backoff=1; uint64_t pace_presents=0, pace_bad=0, pace_changes=0, pace_windows=0, pace_down_window=0; uint64_t emu_sheds=0;
 void late_pace(bool bad) {
     static const bool on=[]{const char* t=std::getenv("DNTTK_LATE_PACING");return !(t && t[0]=='0' && !t[1]);}();
     if(!on) return;
@@ -1316,17 +1316,34 @@ void composition_end(CPUState* cpu,uint32_t) {
 }
 } // namespace
 
+// D23E: late-camera redraws run on the emulation thread at every present
+// (about 1.4 ms each: 19% of the thread at 120 Hz in the busy western town).
+// With the game at 150% CPU there that pushed emulation behind real time, and
+// the overclock safety net then dropped the game to 100% CPU for 5 s at a
+// time: 15 <-> 20 fps swings. Shed presents first (every 2nd, then 3rd
+// refresh, evenly, as for judder) and step back up the same way: 4 clean
+// windows, doubled whenever the faster rate falls behind again within 3, so a
+// busy scene settles on one rate and a one-off hitch (render workers starting
+// after a load) costs a few seconds.
+bool replay_shed_load() {
+    if(!replay_on || !interp_replay || !late_camera()) return false;
+    if(pace_div>=(target_hz<0 ? 16 : 3)) return false;
+    if(pace_down_window && pace_windows-pace_down_window<=3) pace_backoff=std::min(pace_backoff*2,32);
+    ++pace_div;pace_clean=0;pace_presents=pace_bad=0;psx_mod_set_present_divisor(pace_div);++pace_changes;++emu_sheds;
+    return true;
+}
+
 const char* frame_replay_debug_json() {
     static char buffer[16384];
     int n=std::snprintf(buffer,sizeof buffer,"{\"on\":%s,\"interp\":%s,\"target_hz\":%d,\"steps\":%d,\"captures\":%llu,\"publishes\":%llu,"
-        "\"submits\":%llu,\"rendered\":%llu,\"shown\":%llu,\"no_job\":%llu,\"failures\":%llu,\"serial\":%llu,\"prefetched\":%llu,\"governed\":%llu,\"deferred\":%llu,\"feed_ms\":%.2f,\"budget_ms\":%.2f,\"blended_mats\":%llu,\"skipped_actors\":%llu,\"camera_cuts\":%llu,\"drawn\":%d,\"pending_flips\":%llu,\"blended_xf\":%llu,\"skipped_objects\":%llu,\"substituted\":%llu,\"sub_misses\":%llu,\"late\":%s,\"late_applied\":%llu,\"late_skipped\":%llu,\"late_jit\":%llu,\"late_repeats\":%llu,\"lead_ms\":%.1f,\"ready_ms\":%.1f,\"pace_div\":%d,\"pace_changes\":%llu,\"ahead\":[%llu,%llu,%llu,%llu,%llu,%llu,%llu,%llu]}",
+        "\"submits\":%llu,\"rendered\":%llu,\"shown\":%llu,\"no_job\":%llu,\"failures\":%llu,\"serial\":%llu,\"prefetched\":%llu,\"governed\":%llu,\"deferred\":%llu,\"feed_ms\":%.2f,\"budget_ms\":%.2f,\"blended_mats\":%llu,\"skipped_actors\":%llu,\"camera_cuts\":%llu,\"drawn\":%d,\"pending_flips\":%llu,\"blended_xf\":%llu,\"skipped_objects\":%llu,\"substituted\":%llu,\"sub_misses\":%llu,\"late\":%s,\"late_applied\":%llu,\"late_skipped\":%llu,\"late_jit\":%llu,\"late_repeats\":%llu,\"lead_ms\":%.1f,\"ready_ms\":%.1f,\"pace_div\":%d,\"pace_changes\":%llu,\"emu_sheds\":%llu,\"ahead\":[%llu,%llu,%llu,%llu,%llu,%llu,%llu,%llu]}",
         replay_on?"true":"false",interp_replay?"true":"false",(int)target_hz,steps,(unsigned long long)captures,
         (unsigned long long)publishes,(unsigned long long)submits,(unsigned long long)presented,(unsigned long long)reused,
         (unsigned long long)no_job,(unsigned long long)failures,(unsigned long long)serial,
         (unsigned long long)prefetched,(unsigned long long)governed,(unsigned long long)deferred,feed_ms,budget_ms,(unsigned long long)blended_mats,
         (unsigned long long)skipped_actors,(unsigned long long)camera_cuts,ndrawn,(unsigned long long)pending_flips,(unsigned long long)blended_xf,(unsigned long long)skipped_objects,
         (unsigned long long)substituted,(unsigned long long)sub_misses,late_camera()?"true":"false",
-        (unsigned long long)late_applied,(unsigned long long)late_skipped,(unsigned long long)late_jit,(unsigned long long)late_repeats,late_lead_ms,late_ready_ms,pace_div,(unsigned long long)pace_changes,
+        (unsigned long long)late_applied,(unsigned long long)late_skipped,(unsigned long long)late_jit,(unsigned long long)late_repeats,late_lead_ms,late_ready_ms,pace_div,(unsigned long long)pace_changes,(unsigned long long)emu_sheds,
         (unsigned long long)ahead_hist[0],(unsigned long long)ahead_hist[1],(unsigned long long)ahead_hist[2],(unsigned long long)ahead_hist[3],
         (unsigned long long)ahead_hist[4],(unsigned long long)ahead_hist[5],(unsigned long long)ahead_hist[6],(unsigned long long)ahead_hist[7]);
     // Append the present trace: "ms/alpha/shown/ready/cached/njobs[d]/serial/yaw/t/planned alpha".

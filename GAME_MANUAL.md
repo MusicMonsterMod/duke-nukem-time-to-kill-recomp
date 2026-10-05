@@ -218,7 +218,14 @@ Crouching, jumping, stairs and drops move the eye as before at every setting.
 If the busiest areas (for example the strip club with the dancers in view)
 still feel heavy, the emulated CPU option (`--cpu-overclock 150`, or the
 settings menu) keeps the game at 30 frames per second there; it does not change
-game speed. The developer
+game speed. The western town (for example walking the main street or
+looking at the chickens and riders) is one of the busiest places: at the
+original CPU speed (`--cpu-overclock 100`) and 16:9 it runs at about 15 frames
+per second with uneven steps, while 150% keeps it at a steady 20 (the original
+4:3 game runs it at 12-20). If your PC cannot draw every in-between picture
+there and still emulate the faster CPU, the game now shows a picture on every
+2nd or 3rd display refresh (evenly) instead of giving up the faster CPU, and
+returns to every refresh a few seconds after the scene gets lighter. The developer
 console's `fps` command (backtick) shows what reaches the screen above 60: FPS
 (pictures shown per second), Unique (how many of them were different) and Game
 (new game frames, normally 30).

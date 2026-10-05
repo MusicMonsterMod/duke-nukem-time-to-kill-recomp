@@ -116,6 +116,8 @@ extern "C" void psx_dispatch_call(CPUState* cpu,uint32_t address,uint32_t) {
     cpu->pc=0;
 }
 namespace ttk {bool input_live_look(uint64_t&,double&,double&,double){return false;} void input_state_loaded(){}}
+// D23E: no high-refresh redraws in the harness; the overclock lease pauses.
+namespace ttk {bool replay_shed_load(){return false;}}
 extern "C" uint32_t psx_mod_savestate_loads(void){return 0;}
 extern "C" int psx_mod_replay_active(void){return 0;}
 namespace ttk {

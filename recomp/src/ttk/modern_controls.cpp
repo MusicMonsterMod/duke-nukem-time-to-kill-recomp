@@ -679,6 +679,8 @@ extern "C" void psx_overclock_renew(void);
 // Safety net: if emulation falls behind real time while overclocked (under 57
 // host frames per second over a second), pause the lease for five seconds so
 // the overclock can never be what starves audio. Logged once per pause.
+// D23E: high-refresh redraws give way first (replay_shed_load: present on
+// every 2nd/3rd refresh); the lease pauses only when they cannot shed more.
 static void overclock_lease() {
     using clk=std::chrono::steady_clock;
     static clk::time_point window_start,paused_until;static uint64_t window_frame;static unsigned pauses;
@@ -688,8 +690,12 @@ static void overclock_lease() {
     if(dt>=1.0) {
         const double rate=(frame-window_frame)/dt;
         if(rate<57.0 && dt<3.0 && now>=paused_until) {
-            paused_until=now+std::chrono::seconds(5);
-            if(++pauses<=20)std::fprintf(stderr,"[TTK cpu] emulation behind real time (%.1f frames/s): CPU overclock paused 5 s\n",rate);
+            if(replay_shed_load()) {
+                if(++pauses<=20)std::fprintf(stderr,"[TTK cpu] emulation behind real time (%.1f frames/s): high-refresh presents reduced\n",rate);
+            } else {
+                paused_until=now+std::chrono::seconds(5);
+                if(++pauses<=20)std::fprintf(stderr,"[TTK cpu] emulation behind real time (%.1f frames/s): CPU overclock paused 5 s\n",rate);
+            }
         }
         window_start=now;window_frame=frame;
     }

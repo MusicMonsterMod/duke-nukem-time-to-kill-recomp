@@ -6,6 +6,28 @@
 
 
 
+## 2026-10-05 - D23F added: faster timing model (big Todo)
+
+The user prefers 100% CPU for now. At 150% and 120 Hz one emulation thread
+cannot run the faster game and 120 redraws per second, so presents drop even
+in light scenes (slot 1 75/s, slot 9 54/s); still images are identical. New
+big Todo D23F: observers off in player sessions, then a design study of a
+Disruptor-style fast timing model (cycle model is about 34% of the thread).
+D23E stays Needs playtest at 100%. User authorized commit and push.
+
+## 2026-10-05 - D23E western-town stutter: Needs playtest
+
+Slots 9 and 10 are in the western town. At the player's `cpu_overclock 100`
+the 16:9 view overloads the emulated CPU (game frames 4 fields with 5-6 steps;
+Vanilla 4:3 slot 9 is a steady 3). At 120 Hz the default 150% could not hold:
+redraws took 19% of the emulation thread, emulation fell behind and the
+safety net paused the overclock 5 s at a time. Now the redraws shed load
+first (presents every 2nd/3rd refresh) and the overclock stays. 150%/120 Hz:
+slot 9 about 93% of frames at 2-3 fields (was about 30%), slot 10 98% at 3.
+Candidate `18fc1c6e63f182217c9b2c6b6aaf8d21fa224394d46fdbcd906afad5bf8fd19e`,
+[note 104](104-d23e-busy-scene-stutter.md). Nothing committed. Next: the user
+plays slots 9/10 at `--cpu-overclock 150` and judges turning and audio.
+
 ## 2026-10-05 - D11D and D12B accepted; closeout
 
 User: "i can confirm that i accept both jobs as complete! document commit

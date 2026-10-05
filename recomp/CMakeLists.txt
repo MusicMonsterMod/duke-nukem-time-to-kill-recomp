@@ -44,13 +44,30 @@ psxrecomp_add_game_runtime(psx-runtime
 
 # D15: retain projection provenance through resident mesh drawing/subdivision.
 # Compile authored build definitions, never edit generated C or change save ABI.
+# D23F developer calibration build: measure the accurate model instead.
+option(TTK_FT_CALIBRATE "D23F: build the accurate-model timing calibration (developer only)" OFF)
+if(TTK_FT_CALIBRATE)
+    set(_ttk_timing_header fast_timing_calibrate.h)
+else()
+    set(_ttk_timing_header fast_timing.h)
+endif()
 file(GLOB _ttk_generated_mesh "${CMAKE_CURRENT_SOURCE_DIR}/generated/SLUS_005.83_full_*.c")
 foreach(_ttk_source IN LISTS _ttk_generated_mesh)
     file(STRINGS "${_ttk_source}" _ttk_mesh_entry REGEX "^void func_800(10000|11020|1205C|12960)")
     if(_ttk_mesh_entry)
         set_property(SOURCE "${_ttk_source}" APPEND PROPERTY COMPILE_DEFINITIONS PSX_PGXP=1)
     endif()
+    # D23F: optional fast CPU timing for the game code (runtime-selected,
+    # Modernized gameplay only). The generated C itself is unchanged.
+    set_property(SOURCE "${_ttk_source}" APPEND PROPERTY COMPILE_OPTIONS
+        -include "${CMAKE_CURRENT_SOURCE_DIR}/src/ttk/${_ttk_timing_header}")
+    set_property(SOURCE "${_ttk_source}" APPEND PROPERTY OBJECT_DEPENDS
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/ttk/${_ttk_timing_header}")
 endforeach()
+target_sources(psx-runtime PRIVATE src/ttk/fast_timing.c)
+if(TTK_FT_CALIBRATE)
+    set_property(SOURCE src/ttk/fast_timing.c APPEND PROPERTY COMPILE_DEFINITIONS TTK_FT_CALIBRATE=1)
+endif()
 
 # Repair the pinned fetched SDL3 X11 raw-event millisecond/nanosecond mismatch.
 # Never modify an installed/system SDL library.

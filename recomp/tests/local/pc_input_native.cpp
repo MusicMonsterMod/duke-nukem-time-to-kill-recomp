@@ -14,6 +14,7 @@ extern "C" int ttk_aim_crosshair_enabled(void) {
     if(crosshair_forced>=0)return crosshair_forced;
     return 1;
 }
+extern "C" const char* ttk_fast_timing_json(void) { return "{}"; }
 extern "C" void ttk_aim_toggle_crosshair(void) {
     crosshair_forced=ttk_aim_crosshair_enabled()?0:1;
 }

@@ -945,13 +945,14 @@ uint16_t input_pad() {
 }
 uint16_t input_last_pad() {return last_pad;}
 }
+extern "C" const char* ttk_fast_timing_json(void);
 extern "C" const char* ttk_input_debug_json() {
     static char buffer[10240];
     const auto& f = ttk::input_snapshot(ttk::Context::Gameplay);
     std::snprintf(buffer, sizeof buffer,
-        "{\"sequence\":%llu,\"jump_remaining\":%llu,\"modernized\":%s,\"focused\":%s,\"captured\":%s,\"pad\":%u,\"move_x\":%.5f,\"move_y\":%.5f,\"look_x\":%.1f,\"look_y\":%.1f,\"device\":%d,\"controls\":%s}",
+        "{\"sequence\":%llu,\"jump_remaining\":%llu,\"modernized\":%s,\"focused\":%s,\"captured\":%s,\"pad\":%u,\"move_x\":%.5f,\"move_y\":%.5f,\"look_x\":%.1f,\"look_y\":%.1f,\"device\":%d,\"controls\":%s,\"cpu_timing\":%s}",
         (unsigned long long)ttk::sequence, (unsigned long long)(ttk::input_jump_pending()?ttk::jump_deadline-ttk::sequence+1:0),
         ttk::modern ? "true" : "false", ttk::focused ? "true" : "false", ttk::captured ? "true" : "false",
-        ttk::input_pad(), f.move_x, f.move_y, f.look_x, f.look_y, (int)f.device, ttk::controls_debug_json());
+        ttk::input_pad(), f.move_x, f.move_y, f.look_x, f.look_y, (int)f.device, ttk::controls_debug_json(), ttk_fast_timing_json());
     return buffer;
 }

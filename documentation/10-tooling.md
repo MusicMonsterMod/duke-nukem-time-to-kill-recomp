@@ -601,3 +601,17 @@ a real keyboard. `DNTTK_LADDER_MOUNT_UPDATES=N` (diagnostics only) lengthens
 the ladder-top mount blend to mimic dropped frames. Session logs carry one
 `[TTK ladder]` line per ladder pose change (height, keys held, original
 buttons sent) and `[TTK input] Hint: ...` lines.
+
+## D23F fast CPU timing (2026-10-05)
+
+`recomp/analysis/d23f-20261005/` (ignored): `h.py`/`motion.py` (D23E harness
+plus per-thread CPU, game frames/s and the `cpu_timing` debug JSON; `TIMING=
+accurate|fast` sets the private profile), `tune.py` (game frame rate at 100%
+for several per-instruction charges), `calfit.py` (least-squares fit from a
+calibration build), `ss.py` (savestate save/load while fast). Developer
+overrides read by `fast_timing.c`: `DNTTK_FT_INSTR_Q8` (cycles per instruction
+in 1/256, default 400), `DNTTK_FT_LOAD_CYCLES` (default 6),
+`DNTTK_FT_EDGE_PERIOD` (default 64). `cmake -DTTK_FT_CALIBRATE=ON` builds the
+accurate-model calibration variant instead (all generated shards rebuild;
+switch back with `-DTTK_FT_CALIBRATE=OFF`). See
+[note 105](105-d23f-fast-timing.md).

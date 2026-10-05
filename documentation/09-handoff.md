@@ -6,6 +6,29 @@
 
 
 
+## 2026-10-05 - D23F accepted; fast timing is the Modernized default
+
+User accepted D23F ("absolutely beautiful ... responsiveness is literally
+like PC accurate now") and made it the default: profile schema 26,
+`cpu_timing` fast by default (older saved accurate switches once). New Todo
+jobs D23G (finish the fast path: dispatch, overlays, interpreter, observers,
+redraws) and D17S (auto frame-rate default capped at 120). Documentation,
+commit and push not yet authorized. No next job selected.
+
+## 2026-10-05 - D23F fast CPU timing: Needs playtest
+
+New Modernized setting `--cpu-timing fast` (default accurate; Vanilla always
+accurate): a purpose-built timing model for the recompiled game code,
+force-included into the generated shards, leased from gameplay. Generated C
+and hashed headers untouched (savestates still load). At 150%/120 Hz slots
+1, 9, 10 keep 120 presents/s (accurate: about 40) with no shedding or pauses;
+the emulation thread drops by about 40% at 100%. Candidate
+`e0737a9f712aa5622d1b057ee5071e12c33cc9a18de8e6d40ee8eee31083f966`,
+[note 105](105-d23f-fast-timing.md). The Vanilla route diverges from its old
+captures with or without D23F (cause not established). Nothing committed.
+Next: the user plays with `--cpu-timing fast --cpu-overclock 150` at 120 Hz
+and decides whether fast becomes the default.
+
 ## 2026-10-05 - D23F added: faster timing model (big Todo)
 
 The user prefers 100% CPU for now. At 150% and 120 Hz one emulation thread

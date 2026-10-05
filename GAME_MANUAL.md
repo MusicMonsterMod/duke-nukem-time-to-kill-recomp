@@ -225,7 +225,14 @@ per second with uneven steps, while 150% keeps it at a steady 20 (the original
 4:3 game runs it at 12-20). If your PC cannot draw every in-between picture
 there and still emulate the faster CPU, the game now shows a picture on every
 2nd or 3rd display refresh (evenly) instead of giving up the faster CPU, and
-returns to every refresh a few seconds after the scene gets lighter. The developer
+returns to every refresh a few seconds after the scene gets lighter.
+
+**Fast CPU timing (Modernized default, D23F).**
+Gameplay uses a lighter timing model for the emulated PlayStation CPU. It runs the game at the same emulated speed but uses
+far less of your PC's processor, so at 150% and 120 Hz even the western town
+keeps a picture on every display refresh. Menus, movies and loading always use
+the accurate model. `--cpu-timing accurate` restores the original
+model (`--cpu-timing fast` returns to the default); Vanilla always uses it. Savestates work with either setting. The developer
 console's `fps` command (backtick) shows what reaches the screen above 60: FPS
 (pictures shown per second), Unique (how many of them were different) and Game
 (new game frames, normally 30).

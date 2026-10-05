@@ -6,6 +6,21 @@
 
 
 
+## 2026-10-05 - D23F accepted: fast CPU timing is the Modernized default
+
+The user accepted D23F; Modernized now uses fast CPU timing unless
+`--cpu-timing accurate` is chosen. Next candidates: D23G (finish the fast
+path) and D17S (auto frame-rate default).
+
+## 2026-10-05 - D23F fast CPU timing: Needs playtest
+
+`run.py --cpu-timing fast` (Modernized option, default accurate) runs the
+recompiled game code on a lighter, calibrated timing model during gameplay.
+At 150% and 120 Hz the western town (slots 9, 10) and slot 1 present every
+refresh (120/s, was about 40) without overclock pauses; game speed and the
+emulated CPU speed are unchanged. Not yet playtested. See
+[note 105](105-d23f-fast-timing.md).
+
 ## 2026-10-05 - D23F added: faster timing model (big Todo)
 
 The user prefers 100% CPU for now. At 150% and 120 Hz one emulation thread

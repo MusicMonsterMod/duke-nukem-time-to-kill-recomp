@@ -676,6 +676,8 @@ static void hook_body(CPUState* cpu, uint32_t address);
 // player update (gameplay in a level, Modernized); it lapses on its own a few
 // fields after the updates stop (boot, menus, movies, loading).
 extern "C" void psx_overclock_renew(void);
+// D23F: the optional fast CPU timing (fast_timing.c) is leased the same way.
+extern "C" void ttk_fast_timing_renew(void);
 // Safety net: if emulation falls behind real time while overclocked (under 57
 // host frames per second over a second), pause the lease for five seconds so
 // the overclock can never be what starves audio. Logged once per pause.
@@ -706,7 +708,7 @@ bool frame_trace_on() {static const bool on=std::getenv("DNTTK_FRAME_TRACE")!=nu
 void frame_trace_account(uint32_t address,long us) {frame_us+=us;frame_per[address]+=us;}
 static void hook(CPUState* cpu, uint32_t address) {
     const bool update=address==0x8005a210 && cpu->gpr[4]==player;
-    if(update && input_modernized())overclock_lease();
+    if(update && input_modernized()) {overclock_lease();ttk_fast_timing_renew();}
     const bool trace=frame_trace_on();
     if(!trace) {hook_body(cpu,address);return;}
     using clk=std::chrono::steady_clock;

@@ -4,7 +4,7 @@ This is the canonical job list for our **Duke Nukem: Time to Kill** PC project, 
 
 Invoke **`$continue-duke-recomp`** (Codex) or **`/continue-duke-recomp`** (Claude Code) to see the current jobs and choose one. You can also request a job directly: **`$continue-duke-recomp work on D01`** or **`/continue-duke-recomp work on D01`**. The skill reads this file rather than keeping a second backlog. It must not automatically start the next job.
 
-**Latest accepted jobs: D11D and D12B (first-person joints by model part), 2026-10-05.** Accepted executable `0694b59dde72db57a536cdc3df4a20eff0866fdd0ca30dcad1da7d0f9ccfca4b` is the current regression baseline. **D23E (western-town stutter) Needs playtest** (at 100%); **D23F (faster timing model, big) Todo**; candidate `18fc1c6e63f182217c9b2c6b6aaf8d21fa224394d46fdbcd906afad5bf8fd19e`, [note 104](documentation/104-d23e-busy-scene-stutter.md). Next suggested: D08T3 (free manual push/pull); D08O1 (fire while swimming).
+**Latest accepted jobs: D11D and D12B (first-person joints by model part), 2026-10-05.** Accepted executable `0694b59dde72db57a536cdc3df4a20eff0866fdd0ca30dcad1da7d0f9ccfca4b` is the current regression baseline. **D23E (western-town stutter) Needs playtest** (at 100%); **D23F (fast CPU timing) Accepted 2026-10-05 and now the Modernized default**; executable `e0737a9f712aa5622d1b057ee5071e12c33cc9a18de8e6d40ee8eee31083f966` (includes D23E), [note 104](documentation/104-d23e-busy-scene-stutter.md), [note 105](documentation/105-d23f-fast-timing.md). Next suggested: D23G (finish the fast path) and D17S (auto frame-rate default).
 
 ## The experience we are building
 
@@ -118,6 +118,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D17O | Unstable sky appearance when looking up (slot 10) | Done (user-accepted) | D17A, D17B |
 | D17P | Distant horizontal black bands in new subway slot 8 | Done (user-accepted) | D15 |
 | D17R | Sky turns black toward the left/right edges when looking up, game-wide (LEVEL01 slot 9, medieval UI slot 2) | Todo | D14, D17O, D22A |
+| D17S | Auto frame-rate default: follow the display up to a cap, step down on faster monitors | Todo | D17, D23F |
 | D17C | View bob: disable experiment, then a stable modern camera | Done (user-accepted) | D11 |
 | D18 | FMV and audio presentation safeguards | Todo | D01, D02 |
 | D18A | Voice/music/gunfire crackle investigation | Done | D01, D02 |
@@ -139,7 +140,8 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D23C | Medieval castle moat slowdown with Necros active (profile, do not optimise blind) | Todo | D23, D22B |
 | D23D | Minor slowdown around the strip-club-type area of Level 9 (low priority) | Todo | D23, D22B |
 | D23E | Stutter with enemies on screen while walking (UI slots 9 and 10) | Needs playtest | D23, D22B |
-| D23F | Faster timing model: emulation-thread budget for 150% CPU at high refresh (big) | Todo | D23E, D17 |
+| D23F | Faster timing model: emulation-thread budget for 150% CPU at high refresh (big) | Accepted | D23E, D17 |
+| D23G | Finish the fast path: dispatch, overlays, interpreter, observers and redraw cost (all-in-one) | Todo | D23F |
 | D24 | Linux / Windows player build and disc import | Todo | D19, D22, D23 |
 | D25 | Modernized edition release acceptance | Todo | D08, D08A, D08B, D09, D10, D14, D17, D18, D20, D21, D24 |
 | D26 | Backtick debug console (fps and helpers) | Done | D04 |
@@ -2086,6 +2088,22 @@ original 30 Hz aim.
 than at 60 Hz and as low as the pipeline allows; the user confirms aiming feels
 immediate in first and third person; gameplay timing unchanged.
 
+### D17S - Auto frame-rate default: follow the display up to a cap
+
+**Todo. Opened 2026-10-05.** The user worries about 120 Hz as the default and
+asked for an automatic default: 120 when the display supports it, or the next
+step down; players can choose higher. The existing `display` value follows the
+monitor's refresh without a cap. Proposed `auto` (new Modernized default):
+the display's refresh rate when it is 120 Hz or less; on faster monitors the
+largest rate at or below the cap that divides the refresh evenly, so every
+picture still lands on a refresh (240 -> 120, 144 -> 72 or 144 (to be
+measured and decided), 165 -> 82.5 or 165). Explicit values stay available.
+Re-evaluate when the display changes (window moved, fullscreen).
+
+**Acceptance:** `auto` picks the documented rate on 60, 120, 144 and 240 Hz
+modes (measured, plus unit tests of the rule); existing explicit choices are
+kept; the user judges the default on their display.
+
 ### D17C - View bob: disable experiment, then a stable modern camera
 
 **Done (user-accepted 2026-10-03).** The user confirms the camera is much more stable and is happy with the current look. This closes the remaining camera-look playtest; the implemented camera and bob options are unchanged.
@@ -2970,7 +2988,25 @@ playtest at 100% (its shedding applies whenever emulation falls behind).
 
 ### D23F - Faster timing model: emulation-thread budget for 150% at high refresh
 
-**Todo, big. Opened 2026-10-05 from D23E.** The user wants the best gameplay
+**Accepted (2026-10-05).** User: "the behaviour is amazing. the behaviour is
+absolutely beautiful, and a real pleasure to play ... the responsiveness is
+literally like PC accurate now", and asked to make it "the entire new default
+method of launch". `cpu_timing` defaults to fast from profile schema 26 (older
+saved `accurate` switches once; Vanilla stays accurate). Follow-up work is
+D23G.
+
+Implemented as a Modernized profile setting `cpu_timing` (`run.py --cpu-timing
+fast|accurate`):
+a purpose-built timing model for the recompiled game code, force-included
+into the generated shards (generated C and hashed headers untouched, so
+savestates still load), leased from gameplay like the overclock. At 150% and
+120 Hz slots 1, 9 and 10 keep 120 presents per second with no shedding or
+overclock pauses; slot 9/10 60 s routes steady 3 fields. See
+[note 105](documentation/105-d23f-fast-timing.md) and the work log. Remaining
+for acceptance: the user's playtest of feel and audio, and the decision on
+the default.
+
+**Opened 2026-10-05 from D23E.** The user wants the best gameplay
 as the default and likes the faster timing model concept from the Disruptor
 reference ([note 93](documentation/93-disruptor-reference-research.md),
 section 9). They play at 100% CPU for now: at 150% the game felt "different,
@@ -3029,6 +3065,43 @@ or overclock pauses; game frames at least as steady as D23E's 60 Hz result
 (slot 9 steady 3 fields); audio, FMV, loading, CD streaming, savestates and
 the accepted regression baselines unchanged; Vanilla untouched; the user
 judges the feel at 150% and decides whether it becomes the default.
+
+### D23G - Finish the fast path: dispatch, overlays, interpreter, observers and redraw cost
+
+**Todo, all-in-one. Opened 2026-10-05 from D23F's limits** ([note 105](documentation/105-d23f-fast-timing.md)).
+D23F moved the statically recompiled game code to the fast model. What is
+left on the emulation thread (fast, slot 9, 150%): the call/return dispatch
+path about 13% (`psx_dispatch_impl` -> BIOS table miss -> `dirty_ram_dispatch`
+-> `psx_game_find_entry`, `dirty_ram_text_native_ok_ranges_from`,
+`dirty_ram_is_dirty`, plus `fntrace_record`, `xprobe_event`,
+`text_xlate_on_dispatch` on every hop), GL driver and redraw feed about 5-12%,
+level overlay libraries about 2%, the interpreter about 5%.
+
+Work, measured one by one with the D23F harness:
+
+1. **Dispatch fast path**: a purpose-built lookup for clean game text
+   (direct table or cache keyed by address, invalidated by the existing
+   dirty-RAM/overlay generation) so a call or return does not walk the BIOS
+   table and the dirty-RAM checks. Framework change through
+   `export_runtime_patch.py`; keep identical targets (counter checks).
+2. **Dispatch-path observers off in player sessions** (`fntrace_record`
+   rings, `xprobe_event`, parity/overlay watches that are diagnostics),
+   still available with `PSX_FORENSICS` and armed traces.
+3. **Fast timing for level overlay code** (compiled overlay libraries) and,
+   if measurable, the dirty-RAM interpreter, with the same lease and the same
+   calibration.
+4. **Cheaper in-between pictures**: fewer GL state changes per redraw feed or
+   feeding redraws off the emulation thread.
+5. **Vanilla host cost**: the D23F flag tests cost Vanilla about 3 points of
+   host CPU (guest behavior identical); remove if a clean design allows.
+
+Also investigate why the Vanilla regression route now diverges from its
+long-standing captures with or without D23F (last matching run before D23E).
+
+**Acceptance:** each step shows a measured emulation-thread saving with game
+frame rate, savestates, audio, FMV and loading unchanged; Vanilla guest
+behavior unchanged; the user's playtest finds no regression and the same
+feel.
 
 ### D24 — Linux / Windows player build and disc import
 
@@ -7042,4 +7115,65 @@ push". D11D and D12B Accepted. Executable
 `0694b59dde72db57a536cdc3df4a20eff0866fdd0ca30dcad1da7d0f9ccfca4b` is the
 regression baseline. Documentation, commit and push authorized. No next job
 selected.
+
+## 2026-10-05 - D23F fast CPU timing, Needs playtest
+
+**Implementation.** New Modernized setting `cpu_timing` (profile schema 25,
+`run.py --cpu-timing accurate|fast`, default accurate; Vanilla always
+accurate; `DNTTK_CPU_TIMING`). `recomp/src/ttk/fast_timing.h` is
+force-included by `recomp/CMakeLists.txt` in front of every
+`generated/SLUS_005.83_full_*.c` and redirects the emitter's timing hooks to
+inline functions that test one flag. With it set: one charge per block from
+its instruction count (1.5625 cycles each), main-RAM loads read directly with
+6 extra cycles, no instruction-cache or pipeline simulation, and the branch
+edge runs the full interrupt check only at a device deadline, a pending
+interrupt, a COP0 software interrupt or every 64th edge (savestates, debug,
+lease). Stalls, GTE, MMIO and stores are unchanged. `fast_timing.c` leases
+the model from the Modernized player update (12 fields, so menus, movies and
+loading are accurate) and reports `ttk_input.input.cpu_timing`. No framework
+source changed; codegen hash still `0x8bab543c`. Calibration build
+(`-DTTK_FT_CALIBRATE=ON`, `fast_timing_calibrate.h`) fitted the accurate model
+at 0.92 per instruction + 5.7 per RAM load + 6.9 per cache miss (r2 0.996);
+the constants were then matched on game frame rate at 100% (slots 1/9/10:
+24.9/20.2/15.1 fast against 25.0/19.2/15.2 accurate).
+
+**Evidence.** Candidate
+`e0737a9f712aa5622d1b057ee5071e12c33cc9a18de8e6d40ee8eee31083f966`
+(includes D23E). Harness `recomp/analysis/d23f-20261005/` (offscreen real GPU,
+player profile copy, private savestate copies and port, silent audio).
+- 150%, 120 Hz, walk and turn 30 s: presents per second slot 1 42.7 -> 120.1,
+  slot 9 40.1 -> 120.1, slot 10 40.0 -> 120.2, every refresh, no `[TTK cpu]`
+  events (accurate had 3-5); game frames per second 28.1 -> 29.8, 20.6 ->
+  26.2, 17.5 -> 21.6; emulation thread 0.92 -> 0.73, 0.91 -> 0.73, 0.93 ->
+  0.82 of a core.
+- 60 s D23E routes at 150%/120 Hz, fast: slot 9 strafe 3 fields 1194 of 1204
+  frames, slot 10 walk 1193 of 1204, 120 presents/s, no underruns, no pauses.
+- 100%, 60 Hz: emulation thread about 0.75 -> 0.40 in slots 1, 5, 9, 10.
+- Savestate saved while fast (private slot 7, 90 ms) and reloaded correctly.
+- Native `ttk-input-test`, `ttk-aim-test`, `ttk-near-test`,
+  `ttk-controls-test` PASS; profile/launcher unit tests (64) PASS with a new
+  schema 25 test.
+- Vanilla keeps the accurate model with the same game frame rate; host cost
+  of the flag tests about 3 points (0.72 against 0.69 without the include).
+  The Vanilla route completed (exit 0) but diverged from its long-standing
+  captures 3 of 3; a build without the D23F include diverged the same way 3 of
+  3, so D23F is not the cause. The cause is not established (last matching
+  run d11d-d12b-vanilla, before D23E).
+
+**Limits.** Not played by the user; audio only on the dummy device. Level
+overlay libraries, the interpreter and the BIOS keep the accurate model.
+Dispatch-path observers still run (about 2%); the next large host cost is the
+call/return dispatch path (about 13%). Step 3 (cheaper redraws) not done.
+
+## 2026-10-05 - D23F accepted; fast timing is the Modernized default
+
+User: "the behaviour is amazing. the behaviour is absolutely beautiful, and a
+real pleasure to play. Everything looks stunning and the responsiveness is
+literally like PC accurate now", and asked to accept it as the new default.
+D23F Accepted. Profile schema 26: `cpu_timing` defaults to `fast`; a saved
+`accurate` from schema 25 (the default for a day) switches once with a notice,
+later choices are kept; Vanilla always accurate. Profile/launcher tests: 65
+PASS. No executable change. New jobs: D23G (finish the fast path, all-in-one)
+and D17S (auto frame-rate default with a cap). Documentation, commit and push
+not yet authorized.
 

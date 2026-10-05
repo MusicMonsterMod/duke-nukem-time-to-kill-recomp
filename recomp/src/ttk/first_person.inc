@@ -28,7 +28,31 @@
 // Unsupported states (swimming, jetpack flight, grabbing a pushable object,
 // anything without the orbit lease) blend back to the third-person orbit.
 static constexpr uint32_t min_boom_word=0x800c3c48, min_boom_original=768;
-static constexpr unsigned head_joint=9, duke_joints=19;
+static constexpr unsigned duke_joints=19;
+// D11D/D12B: Duke's model record (player+0x40) has byte 0 = joint count, a
+// part -> joint table at +0x24 (the game reads the right hand from it, +0x33 =
+// part 0xf), and 0x28-byte joint records from +0x44 (byte 1 the part, byte 2
+// the hierarchy level). Costumes order their joints differently: the first
+// map, medieval and Roman models put the neck at joint 9, the cowboy model
+// (LEVEL01 and the other Old West levels) at joint 15, with a hip-height part
+// at joint 9. Joints are therefore always found by part, never by index.
+static constexpr unsigned part_right_hip=0x05, part_spine=0x09, part_arm_first=0x0a,
+    part_arm_last=0x0e, part_neck=0x10;
+static uint32_t duke_model() {
+    const uint32_t desc=psx_mod_read_word(player+0x40);
+    return desc>=0x80010000 && desc<=0x801fff00 && psx_mod_read_byte(desc)==duke_joints ? desc : 0;
+}
+// Joint index of a part, or -1 when the table and the joint's record disagree.
+static int duke_part_joint(uint32_t desc,unsigned part) {
+    const unsigned joint=psx_mod_read_byte(desc+0x24+part);
+    return joint<duke_joints && psx_mod_read_byte(desc+0x44+0x28*joint+1)==part ? (int)joint : -1;
+}
+// Part of a joint (record byte 1), checked against the table.
+static int duke_joint_part(uint32_t desc,unsigned joint) {
+    if(joint>=duke_joints) return -1;
+    const unsigned part=psx_mod_read_byte(desc+0x44+0x28*joint+1);
+    return part<0x20 && psx_mod_read_byte(desc+0x24+part)==joint ? (int)part : -1;
+}
 // Eye above the neck pivot, in game units. It stays over the neck (not ahead
 // of it) to keep the most room between the eye and a wall Duke touches.
 static constexpr double eye_height=96;
@@ -50,17 +74,21 @@ static uint64_t fp_updates, fp_fallbacks, head_hides, projections;
 static int last_projection;
 static const char* fp_reason="off";
 
-static uint32_t head_record() {
-    const uint32_t desc=psx_mod_read_word(player+0x40);
-    if(desc<0x80010000 || desc>0x801fff00 || psx_mod_read_byte(desc)!=duke_joints) return 0;
-    const uint32_t record=desc+0x44+0x28*head_joint;
+static int head_joint() {
+    const uint32_t desc=duke_model();
+    const int joint=desc ? duke_part_joint(desc,part_neck) : -1;
     // Record byte 2 is the hierarchy level; the neck is a level-3 child of the spine.
-    return psx_mod_read_byte(record+2)==3 ? record : 0;
+    return joint>=0 && psx_mod_read_byte(desc+0x44+0x28*joint+2)==3 ? joint : -1;
+}
+static uint32_t head_record() {
+    const int joint=head_joint();
+    return joint>=0 ? psx_mod_read_word(player+0x40)+0x44+0x28*joint : 0;
 }
 static bool neck_origin(double* xyz) {
     const uint32_t mats=psx_mod_read_word(player+0x3c);
-    if(!head_record() || mats<0x80010000 || mats>0x801fff00) return false;
-    for(int i=0;i<3;++i) xyz[i]=(int32_t)psx_mod_read_word(mats+0x20*head_joint+0x14+4*i);
+    const int joint=head_joint();
+    if(joint<0 || mats<0x80010000 || mats>0x801fff00) return false;
+    for(int i=0;i<3;++i) xyz[i]=(int32_t)psx_mod_read_word(mats+0x20*joint+0x14+4*i);
     return true;
 }
 // Restores the executable's constant, so a value that was ever captured
@@ -223,12 +251,15 @@ static uint64_t head_reclaims;
 static void first_person_draw(bool duke,bool eye) {
     head_restore();
     if(!duke) return;
+    // Any joint: builds before D11D hid joint 9, which in the cowboy model is
+    // not the head, so a save state from them can carry a stale bit there.
+    if(const uint32_t desc=duke_model())
+        for(unsigned j=0;j<duke_joints;++j) {
+            const uint32_t r=desc+0x44+0x28*j;
+            if(psx_mod_read_byte(r)&1) {psx_mod_write_byte(r,psx_mod_read_byte(r)&~1u);++head_reclaims;}
+        }
     const uint32_t record=head_record();
     if(!record) return;
-    if(psx_mod_read_byte(record)&1) {
-        psx_mod_write_byte(record,psx_mod_read_byte(record)&~1u);
-        ++head_reclaims;
-    }
     if(!eye || fp_blend<0.5 || !orbit_valid) return;
     psx_mod_write_byte(record,psx_mod_read_byte(record)|1);
     head_flag=record;++head_hides;
@@ -385,7 +416,7 @@ static void weapon_draw_bounds(bool duke_entry,bool list_step_after_duke) {
 // or across his body (shotgun), which from the eye shows the weapon's side or
 // points it off screen. Each weapon's firing pose (the first frame that draws
 // its muzzle flash, 0x800341e4) is recorded per slot: the hand relative to
-// Duke's torso (joint 1, the arms' parent) and the torso's pose relative to a
+// Duke's torso (the spine part, the arms' parent) and the torso's pose relative to a
 // level eye. The weapon is held in that pose in front of the eye, with a
 // short kick on each flash frame; the original flash stays attached to it.
 // Seeds: firing poses measured in this build (d12 weapon survey, standing,
@@ -393,7 +424,6 @@ static void weapon_draw_bounds(bool duke_entry,bool list_step_after_duke) {
 // first person and uses the pistol's torso pose until then.
 // DNTTK_FP_WEAPON_POSE=animated shows the live pose throughout.
 struct FirePose { bool known; double q[4]; double rel[3]; double torso_q[4]; double torso[3]; bool seeded; };
-static constexpr unsigned torso_joint=1;
 // Survey 2026-09-29 (street, standing, level view): first muzzle-flash frame.
 // Slots 9 and 10 fire from the carry pose, so the ready pose changes nothing.
 // Survey 2026-09-29 (street, standing, level view): first muzzle-flash frame.
@@ -471,12 +501,11 @@ static bool display_pose(Mat3 lh,double* rel,bool& ready) {
     ready=w>0;
     return true;
 }
-// Arm joints (upper arms, forearms, left hand: records at hierarchy levels 3
-// to 5 under the spine, joints 2-6 of Duke's 19) are hidden while the weapon
+// Arm joints (upper arms, forearms, left hand: parts 0x0a-0x0e at hierarchy
+// levels 3 to 5 under the spine) are hidden while the weapon
 // is drawn in front of the eye: the right hand has moved away from them, and
 // two-handed carries hold them across the view. Their transform call gets a
 // matrix at the eye, so the loop's own near cull (depth < H) skips the joint.
-static constexpr unsigned arm_first=2, arm_last=6;
 static uint32_t hidden_matrix;
 static uint64_t arm_hides;
 static bool weapon_held() {const unsigned s=psx_mod_read_byte(player+0x3b8);return s==1 || s==2;}
@@ -520,7 +549,8 @@ static void first_person_weapon_joint(CPUState* cpu,uint32_t ra) {
     const uint32_t real=hand_matrix(),desc=psx_mod_read_word(player+0x40);
     if(!real || cpu->gpr[4]!=camera || cpu->gpr[20]!=player) return;
     const unsigned joint=cpu->gpr[23];
-    if(joint>=arm_first && joint<=arm_last && cpu->gpr[5]==psx_mod_read_word(player+0x3c)+0x20*joint) {
+    const int part=duke_joint_part(desc,joint);
+    if(part>=(int)part_arm_first && part<=(int)part_arm_last && cpu->gpr[5]==psx_mod_read_word(player+0x3c)+0x20*joint) {
         if(!hidden_matrix) hidden_matrix=psx_mod_alloc_guest_memory(0x20,16);
         if(!hidden_matrix) return;
         for(int i=0;i<9;++i) psx_mod_write_half(hidden_matrix+2*i,i%4==0?4096:0);
@@ -546,6 +576,8 @@ static void first_person_weapon_joint(CPUState* cpu,uint32_t ra) {
     // is transpose(hand) times the muzzle vector. So a joint's world rotation
     // is the transpose of its matrix (W = H^T below).
     // Torso joint and the hand relative to it: Jw^T W = Jr H^T, Jw^T (t - Jt) = Jr (t - Jt).
+    const int torso_joint=duke_part_joint(desc,part_spine);
+    if(torso_joint<0) return;
     const uint32_t mats=psx_mod_read_word(player+0x3c),torso_m=mats+0x20*torso_joint;
     double jr[3][3],jt[3],t[3],hw[3][3],jw[3][3];
     for(int r=0;r<3;++r) for(int k2=0;k2<3;++k2) jr[r][k2]=(int16_t)psx_mod_read_half(torso_m+2*(3*r+k2))/4096.0;

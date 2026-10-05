@@ -1335,7 +1335,19 @@ int main(int argc,char** argv) {
         {
             const uint32_t desc=0x801d5820,mats=0x801d6000,record=desc+0x44+0x28*9;
             psx_mod_write_word(p+0x40,desc);psx_mod_write_word(p+0x3c,mats);
-            psx_mod_write_byte(desc,19);psx_mod_write_byte(record+2,3);psx_mod_write_byte(record,0);
+            // D11D/D12B: joint -> part per costume (records byte 1; the part ->
+            // joint table at +0x24), as dumped from the first map and LEVEL01.
+            static constexpr uint8_t first_map[19]={0x00,0x09,0x0a,0x0b,0x0c,0x0d,0x0e,0x0f,0x14,0x10,0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,0x15};
+            static constexpr uint8_t cowboy[19]={0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,0x15,0x09,0x0d,0x0e,0x0f,0x14,0x10,0x0a,0x0b,0x0c};
+            auto layout=[&](const uint8_t* parts){
+                for(unsigned i=0;i<0x20;++i) psx_mod_write_byte(desc+0x24+i,0xff);
+                for(unsigned j=0;j<19;++j) {
+                    psx_mod_write_byte(desc+0x24+parts[j],j);psx_mod_write_byte(desc+0x44+0x28*j+1,parts[j]);
+                    psx_mod_write_byte(desc+0x44+0x28*j+2,parts[j]==0x10 || parts[j]==0x15 ? 3 : 2);
+                    psx_mod_write_byte(desc+0x44+0x28*j,0);
+                }
+            };
+            psx_mod_write_byte(desc,19);layout(first_map);
             const int32_t root[3]={1000,-500,2000},neck[3]={1010,-690,2005};
             int32_t saved_root[3];
             for(int i=0;i<3;++i) {
@@ -1379,6 +1391,33 @@ int main(int argc,char** argv) {
             call(0x8001ca4c,0x800d0000,0,0x800376b4);assert(!(psx_mod_read_byte(record)&1));
             call(0x800348d8,c,0x800d8000,0x8003769c);assert(!(psx_mod_read_byte(record)&1)); // other actors
             call(0x800348d8,c,p,0x80037718);assert(!(psx_mod_read_byte(record)&1));          // other draw loop
+            // D11D: the cowboy costume's neck is joint 15 (joint 9 sits at the
+            // hip). The eye follows joint 15 and joint 15 is hidden; a stale bit
+            // on joint 9 from an older build is reclaimed.
+            {
+                layout(cowboy);
+                const uint32_t record15=desc+0x44+0x28*15;
+                int32_t saved9[3];
+                for(int i=0;i<3;++i) {
+                    saved9[i]=psx_mod_read_word(mats+0x20*9+0x14+4*i);
+                    psx_mod_write_word(mats+0x20*9+0x14+4*i,root[i]+(i==1?89:0));
+                    psx_mod_write_word(mats+0x20*15+0x14+4*i,neck[i]);
+                }
+                psx_mod_write_byte(record,1);
+                for(unsigned i=0;i<40;++i)frame();
+                call(0x8003aa48,c,sp+0x18,0x8003aeb0,sp);
+                for(int i=0;i<3;++i) {
+                    const double a=(int32_t)psx_mod_read_word(sp+0x18+4*i)+(int32_t)psx_mod_read_word(c+0x64+4*i);
+                    assert(std::abs(a-(eye[i]+forward[i]*193))<3);
+                }
+                call(0x8002a038,0,1,0x8003af40,sp);
+                call(0x800348d8,c,p,0x8003769c);
+                assert(!(psx_mod_read_byte(record)&1) && (psx_mod_read_byte(record15)&1));
+                call(0x8001ca4c,0x800d0000,0,0x800376b4);assert(!(psx_mod_read_byte(record15)&1));
+                for(int i=0;i<3;++i) psx_mod_write_word(mats+0x20*9+0x14+4*i,saved9[i]);
+                layout(first_map);
+                for(unsigned i=0;i<40;++i)frame();
+            }
             // D12 first-person weapon: only the draw loop's hand transform and its
             // attached draws get the private matrix; arm joints get one at the eye;
             // Duke's joint matrices are never written.
@@ -1516,6 +1555,12 @@ int main(int argc,char** argv) {
                     assert(std::abs(along[0])<=2 && along[1]>10 && std::abs(along[2])<=2);
                 }
                 assert(hook(0x800292a0,c,mats+0x20*12,0x80034c6c,12).gpr[5]==mats+0x20*12); // left leg
+                // D12B: the cowboy costume's right leg is joints 5..8; its joints
+                // 14 and 15 (part 0x14, the neck) are left alone.
+                layout(cowboy);
+                for(unsigned j=5;j<=8;++j) assert(hook(0x800292a0,c,mats+0x20*j,0x80034c6c,j).gpr[5]!=mats+0x20*j);
+                for(unsigned j=14;j<=15;++j) assert(hook(0x800292a0,c,mats+0x20*j,0x80034c6c,j).gpr[5]==mats+0x20*j);
+                layout(first_map);
                 assert(!ttk::first_person_weapon_drawing());
                 assert(hook(0x800292a0,c,mats+0x20*9,0x80034c6c,9).gpr[5]==mats+0x20*9);
                 call(0x8001ca4c,0x800d0000,0,0x800376b4);

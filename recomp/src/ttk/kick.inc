@@ -15,7 +15,9 @@
 //   weapon stays drawn. An original request (Boot selected) is turned into it
 //   at the lower-body initializer 0x800493a4, before 112..115 is set up, by
 //   restarting idle 63 exactly as the original transition does.
-// - Duke's own right leg meshes (joints 14..17) are drawn in front of the eye,
+// - Duke's own right leg meshes (parts 5..8: hip, knee, ankle, toe; joints
+//   14..17 on the first map, 5..8 in the cowboy costume, D12B) are drawn in
+//   front of the eye with the current costume's meshes,
 //   posed from the straight front kick 115 (chamber and extension, recorded in
 //   this build), and drawn on top like the D12 weapon.
 // - The same original sphere, with the same radius and damage, is placed along
@@ -25,7 +27,12 @@
 // - The original kick sound (0x8006b270 id 0x1000, from the 0x800 event of
 //   112..115) plays as the leg snaps out.
 // Third person and Vanilla keep the original kick.
-static constexpr unsigned leg_first=14, leg_last=17, leg_joints=leg_last-leg_first+1;
+static constexpr unsigned leg_joints=4;
+// Leg index (0 hip .. 3 toe) of one of Duke's joints, or -1.
+static int kick_leg_index(uint32_t desc,unsigned joint) {
+    const int part=duke_joint_part(desc,joint);
+    return part>=(int)part_right_hip && part<(int)(part_right_hip+leg_joints) ? part-(int)part_right_hip : -1;
+}
 struct LegKey { double q[4]; double p[3]; };
 // Right leg world rotation (quaternion w,x,y,z) and position from the root, in
 // Duke's level frame (x right, y down, z ahead), from 115 on the first street.
@@ -230,10 +237,10 @@ static double kick_thigh_drop() {
     return value;
 }
 // A leg joint's level-frame rotation and root-relative position at a kick frame.
-static void leg_pose(unsigned joint,unsigned frame,double (&lh)[3][3],double* p) {
+static void leg_pose(unsigned leg,unsigned frame,double (&lh)[3][3],double* p) {
     unsigned from,to;double t;
     kick_pose(frame,from,to,t);
-    const LegKey& a=leg_keys[from][joint-leg_first];const LegKey& b=leg_keys[to][joint-leg_first];
+    const LegKey& a=leg_keys[from][leg];const LegKey& b=leg_keys[to][leg];
     double q[4];
     slerp(a.q,b.q,t,q);quat_mat(q,lh);
     for(int i=0;i<3;++i) p[i]=a.p[i]+(b.p[i]-a.p[i])*t;
@@ -254,23 +261,24 @@ static bool kick_leg_joint(CPUState* cpu) {
     if(!kick_active || cpu->gpr[4]!=camera || cpu->gpr[20]!=player) return false;
     const unsigned joint=cpu->gpr[23];
     const uint32_t mats=psx_mod_read_word(player+0x3c),desc=psx_mod_read_word(player+0x40);
-    if(joint<leg_first || joint>leg_last || mats<0x80010000 || mats>0x801fff00 ||
-       desc<0x80010000 || desc>0x801fff00 || psx_mod_read_byte(desc)!=duke_joints ||
+    if(mats<0x80010000 || mats>0x801fff00 || desc!=duke_model() || !desc ||
        cpu->gpr[5]!=mats+0x20*joint) return false;
+    const int leg=kick_leg_index(desc,joint);
+    if(leg<0) return false;
     if(!leg_matrices) leg_matrices=psx_mod_alloc_guest_memory(0x20*leg_joints,16);
     if(!leg_matrices) return false;
-    const uint32_t out_m=leg_matrices+0x20*(joint-leg_first);
+    const uint32_t out_m=leg_matrices+0x20*leg;
     const unsigned frame=kick_frame();
     double p[3],lh[3][3];
-    leg_pose(joint,frame,lh,p);
-    if(joint==leg_first && kick_thigh_enabled()) {
+    leg_pose(leg,frame,lh,p);
+    if(leg==0 && kick_thigh_enabled()) {
         // The thigh's origin (the hip) is nearer than the loop's near cull
         // (GTE H) from the eye, so the loop would skip the whole thigh. Draw
         // it end for end instead: origin at the knee (which passes the cull),
         // turned 180 degrees about an axis across the thigh, so the same mesh
         // runs from the knee back toward the hip and off the bottom edge.
         double knee[3],kl[3][3];
-        leg_pose(joint+1,frame,kl,knee);
+        leg_pose(1,frame,kl,knee);
         double d[3],u[3],n=0;
         for(int i=0;i<3;++i) d[i]=knee[i]-p[i];
         for(int i=0;i<3;++i) {u[i]=lh[0][i]*d[0]+lh[1][i]*d[1]+lh[2][i]*d[2];n+=u[i]*u[i];} // thigh axis, local

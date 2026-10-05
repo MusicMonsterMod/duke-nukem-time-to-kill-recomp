@@ -6,6 +6,27 @@
 
 
 
+## 2026-10-05 - D11D and D12B accepted; closeout
+
+User: "i can confirm that i accept both jobs as complete! document commit
+push". First-person joints are found by part through the model's table, so
+the cowboy levels (1, 2, 3, 27) get the right eye height, head hide and kick
+leg. Regression baseline
+`0694b59dde72db57a536cdc3df4a20eff0866fdd0ca30dcad1da7d0f9ccfca4b`.
+No next job selected.
+
+## 2026-10-05 - D11D and D12B: first-person joints found by part, Needs playtest
+
+The cowboy costume (levels 1, 2, 3, 27) orders Duke's joints differently: the
+neck is joint 15 there, not 9, and the right leg is joints 5-8, not 14-17. The
+eye, head hide, weapon torso, arm hiding and kick leg now find joints through
+the model's own part table (`desc+0x24`). The neck sits 691-705 above the toes
+in all 21 levels, and the cowboy kick shows the jeans and brown boot.
+Medieval, Roman and the first map are unchanged. Candidate
+`0694b59dde72db57a536cdc3df4a20eff0866fdd0ca30dcad1da7d0f9ccfca4b`.
+Nothing committed. Next: the user checks slot 8 (dancer height) and the kick
+in a cowboy level. Launch: `python3 recomp/tools/local/run.py`.
+
 ## 2026-10-05 - D08U1 accepted; D08T2/D22C accepted; closeout
 
 User: "accepted!! done, commit. great work". Accepted today: D22C (F10

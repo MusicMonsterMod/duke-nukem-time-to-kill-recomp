@@ -91,9 +91,9 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D11A | Scroll-wheel zoom lock into first-person | Cancelled (P toggle suffices) | - |
 | D12 | First-person weapons and state polish | Done | D11 |
 | D12A | First-person quick kick without leaving the eye view | Done | D12 |
-| D12B | Costume-aware first-person kick leg, game-wide (LEVEL01 slots 8/9) | Todo | D12A, D22A |
+| D12B | Costume-aware first-person kick leg, game-wide (LEVEL01 slots 8/9) | Accepted | D12A, D22A |
 | D11C | Savestates can keep Duke's first-person head hidden (slot 12) | Done | D11 |
-| D11D | First-person eye height from Duke's real proportions, game-wide (LEVEL01 slot 8) | Todo | D11, D22A |
+| D11D | First-person eye height from Duke's real proportions, game-wide (LEVEL01 slot 8) | Accepted | D11, D22A |
 | D11E | First person while swimming (underwater eye view, game-wide) | Todo | D08O, D11, D22B |
 | D13 | Higher internal resolution and display scaling | Done | D02 |
 | D14 | Widescreen, FOV and visibility | Done | D03, D13 |
@@ -1753,7 +1753,16 @@ only if the user asks.
 
 ### D11D - First-person eye height from Duke's real proportions (game-wide)
 
-**Todo. User report, 2026-10-04 (D22A playtest).** UI slot 8: stand next to
+**Accepted - user confirmed 2026-10-05:** "i can confirm that i accept both jobs as complete!" Cause: the cowboy costume (levels 1, 2, 3
+and 27, the Old West levels) orders Duke's 19 joints differently. The eye
+followed joint 9, which is the neck in every other costume but a hip-height
+part in the cowboy model, so the eye sat about 300 units low (waist height).
+The eye, head hide, weapon torso reference and arm hiding now find their
+joints through the model's own part table (`desc+0x24`, the same table the
+game reads the right hand from). The neck is now 691-705 above the toes in
+all 21 selectable levels. Shared with D12B; see the work log.
+
+**User report, 2026-10-04 (D22A playtest).** UI slot 8: stand next to
 the dancer in first person and Duke appears to be at about her waist height.
 Press **P**: in third person Duke is about her height or slightly taller. The
 first-person eye/camera height does not match Duke's actual size.
@@ -1844,7 +1853,14 @@ moving, and show a tuned thigh (second pass, Needs playtest).
 
 ### D12B - Costume-aware first-person kick leg (game-wide)
 
-**Todo. User report, 2026-10-04 (D22A playtest).** UI slot 8 or 9: Duke wears
+**Accepted - user confirmed 2026-10-05** (with D11D). Rule: the kick draws Duke's right-leg
+*parts* 5-8 (hip, knee, ankle, toe) from whichever model he currently wears,
+found through the model's part table. Medieval and Roman were right because
+their models share the first map's joint order (leg joints 14-17); the
+cowboy model has the leg at joints 5-8, where joints 14-17 hold other parts.
+Later levels inherit the rule. Shared cause with D11D; see the work log.
+
+**User report, 2026-10-04 (D22A playtest).** UI slot 8 or 9: Duke wears
 a different costume in LEVEL01, but the first-person quick kick (D12A) still
 shows the first map's leg appearance.
 
@@ -6828,3 +6844,78 @@ Candidate `4f76da406a12958fe50e4751c7a99832b90a9f562710326060e2d1a66a732c83`. Us
 User: "accepted!! done, commit. great work". D08U1 Accepted; D08T2 and D22C
 were accepted earlier today. Executable `4f76da406a12958fe50e4751c7a99832b90a9f562710326060e2d1a66a732c83` is the regression
 baseline. Documentation, commit authorized. No next job selected.
+
+## 2026-10-05 - D11D and D12B: first-person joints found by part (cowboy costume)
+
+User selected D11D and D12B together and added: "it's all the cowboy levels
+actually". Both now Needs playtest. Nothing committed.
+
+**Cause.** Duke's model record (`player+0x40`) has a part -> joint table at
+`+0x24` (the game already reads the right hand from `+0x33` = part 0xf), and
+each 0x28-byte joint record at `+0x44` carries its part id in byte 1. Dumped
+from private copies of the user's UI slots 8/9 (files 07/08, hashes verified)
+and the first street:
+
+| Part | First map, medieval, Roman, all others | Cowboy (levels 1, 2, 3, 27) |
+| --- | --- | --- |
+| Neck 0x10 | joint 9 | joint 15 |
+| Spine 0x09 | joint 1 | joint 10 |
+| Right leg 0x05-0x08 | joints 14-17 | joints 5-8 |
+| Arms 0x0a-0x0e | joints 2-6 | joints 16, 17, 18, 11, 12 |
+| Right hand 0x0f | joint 7 | joint 13 |
+
+The host hard-coded joint 9 (eye, head hide), 1 (weapon torso reference),
+2-6 (arm hiding) and 14-17 (kick leg). In the cowboy model joint 9 is part
+0x15 at hip height, so the eye sat at Duke's waist and his real head was never
+hidden. Joints 14-17 hold part 0x14, the neck and two arm parts, so the kick
+posed the wrong meshes. The hand already used the table, which is why the
+weapon still appeared.
+
+**Change** (`recomp/src/ttk/first_person.inc`, `kick.inc`). `duke_part_joint`
+/ `duke_joint_part` resolve joints through the table and check each joint's
+record byte 1 matches. The eye and head hide use part 0x10, the torso
+reference part 0x09, arm hiding parts 0x0a-0x0e, and the kick leg parts
+0x05-0x08 (key index = part - 5). At Duke's draw entry a stale hide bit is
+reclaimed on any joint record, not only the neck, because older builds set it
+on cowboy joint 9. The original never sets bit 0 on a joint record (D11C).
+There are no per-level offsets or new hooks.
+
+**Evidence.** Binary
+`0694b59dde72db57a536cdc3df4a20eff0866fdd0ca30dcad1da7d0f9ccfca4b`. Scripts
+and captures: `recomp/analysis/d11d-d12b-20261005/` (private cards, offscreen,
+ports 9261/9262).
+- Survey of all 21 selectable levels (`models.py`, `models.json`): the table
+  is consistent with every joint record in every model. Levels 1, 2, 3 and 27
+  use the cowboy order; all others use the first-map order. The neck is 691-705
+  above the right toe everywhere, first person is `active` in every level, and
+  the head hide runs.
+- Slots 8/9 (`verify.py`): the eye follows joint 15, 701/708 above the toe,
+  versus 701 on the first street. Before the fix, joint 9 sat 89 below the
+  root, so the old eye was about 300 lower. Captures: the near dancer's head is
+  about at eye level, and in third person Duke stands about her height
+  (`shots/after-slot7-*.png`). A quick kick held at frame 13
+  (`DNTTK_FP_KICK_FREEZE=13`) shows the cowboy jeans and the brown cowboy boot;
+  the first street shows the original leg.
+- Native: `ttk-controls-test` with a first-map table, plus a new cowboy case:
+  the eye anchor follows joint 15 and not the hip-height joint 9, joint 15 is
+  hidden, a stale bit on joint 9 is reclaimed, the kick takes joints 5-8 and
+  leaves 14/15 alone. `ttk-aim-test`, `ttk-near-test` and `ttk-input-test`
+  PASS. `ttk-scene-test` was not run because it needs an owned RAM fixture
+  and is unaffected.
+- Vanilla route `analysis/vanilla-regression/d11d-d12b-vanilla` exit 0;
+  captures show the original camera.
+
+**Limits.** The kick poses are still the first-map 115 keys. In the cowboy
+model the leg's rest positions are within a few units of the first map's, but
+the framing was judged only from captures. Cowboy-level weapon framing also
+changes, because the torso reference was a hip part before. Not playtested
+by the user.
+
+## 2026-10-05 - D11D and D12B accepted; closeout
+
+User: "i can confirm that i accept both jobs as complete! document commit
+push". D11D and D12B Accepted. Executable
+`0694b59dde72db57a536cdc3df4a20eff0866fdd0ca30dcad1da7d0f9ccfca4b` is the
+regression baseline. Documentation, commit and push authorized. No next job
+selected.
+

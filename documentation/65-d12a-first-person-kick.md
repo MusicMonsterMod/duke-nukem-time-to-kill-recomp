@@ -82,7 +82,9 @@ supported state, code identity).
   runs its hit reaction.
 - **Sound.** The original kick sound is called once as the leg starts its
   snap (frame 7).
-- **Leg.** During Duke's draw, joints 14..17 (right hip, knee, ankle, toe)
+- **Leg.** During Duke's draw, joints 14..17 (right hip, knee, ankle, toe;
+  D12B: found as parts 5..8 through the model's table at `+0x24`, joints 5..8
+  in the cowboy costume)
   get private matrices (the same mechanism as the D12 hand), so the loop draws
   Duke's own leg meshes in front of the eye; the near-clip viewmodel path
   draws them on top of walls. Poses are three keys recorded from 115 in this

@@ -144,18 +144,57 @@ static const Guard guards[] = {
     {0x800148ec, 4, "9e4eae74f2e079bd1e918bd169f3c34f0c8a02b525743f5da03fcc9cdc99e810"},
     {0x80073ae8, 148, "ba01249a732b841f0fc021bb10978e71ca9096239f9b6f75efec72c4580224bc"},
 };
-// Authenticated level overlays (D22A). Every LEVELxx.OVR loads at 0x800ca968
-// and starts with its level tag word; the tag picks the one body that must
-// match. Each body is the file's code and tables only: the final 16 bytes
-// are a scratch hit-position vector the zone script passes to 0x8007177c
-// (LEVEL00 from 0x800cb1a4, LEVEL01 from 0x800cbe48) and fills during play,
-// so it is level state, not code. Add a level only after its overlay
-// layout and modern-control route are verified; unknown levels fail closed.
+// Authenticated level overlays (D22A, D22B). Every LEVELxx.OVR loads at
+// 0x800ca968 and starts with its level tag word; the tag picks the one body
+// that must match. Each overlay is its tag, strings, jump tables and code, then
+// one data block. A body covers all of it except the trailing bytes the level
+// itself writes during play: variables it stores and the hit-position vectors
+// it passes to 0x8007177c (LEVEL00 from 0x800cb1a4, LEVEL01 from 0x800cbe48).
+// Generated and checked from the owned disc by
+// tools/local/level_overlay_guards.py for the 21 levels the original
+// level-select cheat offers; any other tag fails closed.
 struct LevelOverlay { uint32_t tag; Guard body[1]; };
 static const LevelOverlay level_overlays[] = {
-    // LEVEL00.OVR (DB00), 9668 bytes: the first map. D08P found its tail writes.
-    {3, {{0x800ca968, 9652, "274d71ddd8aeb6e1ca12c0229eea5087c7750a39f442785b94f0efeec81a25b3"}}},
-    // LEVEL01.OVR (DB01), 12196 bytes: the Old West map reached through the
-    // first map's portal (UI slot 7).
-    {4, {{0x800ca968, 12180, "b3fa174b2bb6732dbd341725f59a853b8d75a0eee19ed180e2a0b841c1732445"}}},
+    // LEVEL00.OVR, 9668 bytes, code to 0x800ccd28; 16-byte scratch tail.
+    {0x3, {{0x800ca968, 9652, "274d71ddd8aeb6e1ca12c0229eea5087c7750a39f442785b94f0efeec81a25b3"}}},
+    // LEVEL01.OVR, 12196 bytes, code to 0x800cd68c; 16-byte scratch tail.
+    {0x4, {{0x800ca968, 12180, "b3fa174b2bb6732dbd341725f59a853b8d75a0eee19ed180e2a0b841c1732445"}}},
+    // LEVEL02.OVR, 10780 bytes, code to 0x800cd188; no scratch tail.
+    {0x5, {{0x800ca968, 10780, "af33ba1a7bcf98dea8a923c19742eca432c57c8c50955501ccecb72e04fe3af9"}}},
+    // LEVEL03.OVR, 8808 bytes, code to 0x800cc9cc; 16-byte scratch tail.
+    {0x6, {{0x800ca968, 8792, "5c14c693289be6c47fe546b32132d12da45bddd0eb766691ea909a5986f6ad2a"}}},
+    // LEVEL05.OVR, 14148 bytes, code to 0x800cde9c; 4-byte scratch tail.
+    {0x8, {{0x800ca968, 14144, "8f32c3d4e7ce7efc0d8a9d7074c0cfd769852bef5d0cc9c376845bc216ac1b99"}}},
+    // LEVEL06.OVR, 8504 bytes, code to 0x800cc89c; no scratch tail.
+    {0x9, {{0x800ca968, 8504, "1359bd0bc3a01a8476e19f57884ca8552e5ab6254a517b25f6acd4480ace3a86"}}},
+    // LEVEL07.OVR, 8660 bytes, code to 0x800cc944; no scratch tail.
+    {0xa, {{0x800ca968, 8660, "c23b7dadce0ee274e2bf9a0e16d340c37cbed707d7e4fe0daaa69077e39a7c30"}}},
+    // LEVEL08.OVR, 3700 bytes, code to 0x800cb5e8; no scratch tail.
+    {0xb, {{0x800ca968, 3700, "936610feed89836640ba4b3f63894175b1a9e48c825c40d7af2155579112390e"}}},
+    // LEVEL09.OVR, 12832 bytes, code to 0x800cd90c; 20-byte scratch tail.
+    {0xc, {{0x800ca968, 12812, "dd3103cd988f192f102f77b5202f99bb87ac26e74981e57e2a7ea0cc3b7ea699"}}},
+    // LEVEL10.OVR, 8266 bytes, code to 0x800cc7c0; 2-byte scratch tail.
+    {0xd, {{0x800ca968, 8264, "bed0d49718ea8cc3f1f2fd14418e8dbfb71d311b1efb625ab98c02f7e068faa0"}}},
+    // LEVEL11.OVR, 7704 bytes, code to 0x800cc590; no scratch tail.
+    {0xe, {{0x800ca968, 7704, "1fe8365cdb6113b0686c47e6191fed345eb0b1ac538e0e7e92a4835c230161ab"}}},
+    // LEVEL12.OVR, 13496 bytes, code to 0x800cdc10; no scratch tail.
+    {0xf, {{0x800ca968, 13496, "ade37e2ff55ede44db0efcf272fa9d3ffb8778aad78ed60ba8e8d61900b2d083"}}},
+    // LEVEL21.OVR, 720 bytes, code to 0x800caa80; no scratch tail.
+    {0x13, {{0x800ca968, 720, "cec21c550c21d07f04b15e55f75614ea8bfc46a3a8eaa8a1e3fb92001e879967"}}},
+    // LEVEL22.OVR, 720 bytes, code to 0x800caa80; no scratch tail.
+    {0x14, {{0x800ca968, 720, "38945110df06c5123a2a9cf8b16b23ee5097ef0f1a095f3c0c29e1311d129cc9"}}},
+    // LEVEL23.OVR, 4012 bytes, code to 0x800cb740; no scratch tail.
+    {0x15, {{0x800ca968, 4012, "5fe4d319a0605d56391ed0940ccdd73a8f3651882271f0d751875b19a0ccb08a"}}},
+    // LEVEL24.OVR, 724 bytes, code to 0x800caa84; no scratch tail.
+    {0x16, {{0x800ca968, 724, "bd3fea2e0719368977dff64e0670e14f63bc2883fe41cba3dab6513f2696f0f6"}}},
+    // LEVEL25.OVR, 2336 bytes, code to 0x800cb0d0; no scratch tail.
+    {0x17, {{0x800ca968, 2336, "ed454f198bd30fd1dbff52acc6160e313b4762a39bc273c73d1226800e2215a2"}}},
+    // LEVEL26.OVR, 4784 bytes, code to 0x800cba44; no scratch tail.
+    {0x18, {{0x800ca968, 4784, "1a4a1715d1fc6b72399aacf52e0bc65083fc02e3f106bc8068b192b4358371ac"}}},
+    // LEVEL27.OVR, 5712 bytes, code to 0x800cbdd0; 4-byte scratch tail.
+    {0x19, {{0x800ca968, 5708, "10cad7388bb9732c9770b186a0765de399282b5037dcad9545381abfd68b6f38"}}},
+    // LEVEL28.OVR, 4416 bytes, code to 0x800cb8d4; no scratch tail.
+    {0x1a, {{0x800ca968, 4416, "ccd47ab1b24b9f310ad28bd259e9f35a0d6c7132bb359a96e95acfcfcad5d739"}}},
+    // LEVEL29.OVR, 6356 bytes, code to 0x800cc058; no scratch tail.
+    {0x1b, {{0x800ca968, 6356, "a0b806bb11ca11a4d35cbf74b85e812aa2e7d5335913386cc2e48e893bc7c08e"}}},
 };

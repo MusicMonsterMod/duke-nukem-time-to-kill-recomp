@@ -42,6 +42,9 @@ The exact overlay match is independently reproduced by
 shared chunks fail whole-file equality. MOVIE and LEVEL00 reuse the load base
 at different times. Other maps must fail closed until their identities and
 ownership are verified. Existing loader-cache metadata alone is insufficient.
+(D22A/D22B: the 21 selectable LEVELxx overlays are now verified and
+authenticated by tag and body; any other overlay still fails closed. See
+[note 102](102-d22b-every-level.md).)
 
 ## Verified state and units
 

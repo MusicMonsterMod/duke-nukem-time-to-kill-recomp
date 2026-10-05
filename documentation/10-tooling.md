@@ -559,5 +559,31 @@ lookup change and its compiled oracle test. All these remain local to recomp.
   `levels.py` (LEVELxx.OVR survey) and `selfwrites.py`. Private cards are a
   dated copy of the player's files; port 9243. `setup.py` rebinds Fire to Q in
   the private profile so scripted input can shoot.
-- `ttk-controls-test EXE LEVEL00_FIXTURE [LEVEL01.OVR]`: the optional owned
-  LEVEL01.OVR (extract it locally from the disc) adds the level-identity group.
+- `ttk-controls-test EXE LEVEL00_FIXTURE [LEVEL01.OVR [LEVELS_DIR]]`: the
+  optional owned LEVEL01.OVR (extract it locally from the disc) adds the D22A
+  level-identity group; LEVELS_DIR, a directory of every owned LEVELxx.OVR,
+  adds the D22B group over all 21 selectable levels.
+
+## Level overlay guards (D22B)
+
+`tools/local/level_overlay_guards.py [--disc BIN] [--check]` reads the owned
+disc (read-only) and derives the Modernized lease's per-level body guard for
+the 21 levels the original level select offers. It verifies the common
+layout (tag, strings, jump tables, code ending at the last `jr $ra`, then one
+data block whose first reference is the code end), finds the trailing bytes
+each level writes (its own `sb`/`sh`/`sw` and the hit vectors it passes to
+`0x8007177c`), and fails on a write inside code, data referenced inside code,
+or unwritten bytes inside the written tail. Without `--check` it prints the
+`level_overlays[]` table for `src/ttk/control_guards.inc`; with `--check` it
+compares that file and exits 1 on any difference. Pure standard library;
+`tests/local/test_level_overlay_guards.py` covers synthetic overlays and, when
+the disc is imported, the owned-disc check. See
+[note 102](102-d22b-every-level.md).
+
+- `analysis/d22b-20261004/` (ignored): `survey.py` (`level N` for every level,
+  scripted Modernized play, lease/view sampling, overlay RAM diffs, screenshots
+  of unfamiliar lease drops), `state_probe.py` (animation/mode timeline in one
+  level), `trans.py` (statistics screen, savestate, pause), `slots.py`,
+  `vanilla.py`, `steps.py` (Vanilla pad gait probe), `death.py` /
+  `death_x.py` (death attempts; Xvfb display 95 for real keys) and `final.sh`.
+  Port 9247, private card copy, Fire on Q in the private profile.

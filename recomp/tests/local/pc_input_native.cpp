@@ -25,7 +25,7 @@ bool inventory_visible(){return ::inventory_visible;}}
 static bool ready, holstered, flight, traversal, preparing, shortfall, switching, jet, edge_queued;
 static bool alive=true,view_aim;
 static bool push_grab,push_contact,push_idle;
-static bool trav_camera;
+static bool trav_camera, roll_camera;
 static bool ladder_top,ladder_on,ladder_exit;
 static unsigned ladder_requests;
 static bool ladder_leap,leap_on;static unsigned ladder_leaps;
@@ -563,6 +563,12 @@ int main() {
     key(SDL_SCANCODE_W,true);key(SDL_SCANCODE_A,true);
     for(int i=0;i<60;++i){tick();CHECK((ttk::input_pad()&(16|0x100))==0 && (ttk::input_pad()&(128|64))==(128|64));}
     CHECK(notices==0);
+    // D22B: a dodge roll keeps the camera but gets no directions (a held A/D
+    // would start the original strafe when it ends).
+    roll_camera=true;
+    for(int i=0;i<30;++i){tick();CHECK((ttk::input_pad()&(16|64|128|32|0x100|0x200))==(16|64|128|32|0x100|0x200));}
+    CHECK(notices==0);
+    roll_camera=false;
     trav_camera=false;
     key(SDL_SCANCODE_W,false);key(SDL_SCANCODE_A,false);tick();
     // D08U: E at a ladder top asks for the mount (after the E stow) instead of
@@ -615,6 +621,6 @@ int main() {
 namespace ttk { bool directional_takeoff_ready(){return preparing;} bool edge_jump_queued(){return edge_queued;}
 bool short_fall_input_ready() { return shortfall && flight; } bool fire_draw_ready() { return ready && holstered; } bool airborne_input_ready() { return flight; } bool interaction_alive() { return alive; } bool interaction_restore_ready() { return ready && holstered; } bool view_aim_input_ready(){return view_aim;}
 bool weapon_drawn() { return !holstered; } bool weapon_holstered() { return holstered; } bool player_identity_ready() { return true; }
-bool movement_ready() { return ready; } bool locomotion_input_ready() { return flight; } bool traversal_input_ready() { return traversal; } bool traversal_camera_ready() { return trav_camera; } bool swim_input_ready() { return false; } bool wade_full_speed_ready() { return false; } bool swim_host_owns_jump() { return false; } void swim_strafe_pads(uint16_t& left,uint16_t& right) { left=0x100; right=0x200; } bool swim_thrust_input_ready() { return false; } bool jetpack_input_ready() { return jet; } bool interaction_holster_ready() { return (ready || flight) && !holstered && !switching; } bool interaction_ready() { return (ready || flight || traversal) && holstered && !switching; } bool push_grab_ready() { return push_grab; } bool push_contact_ready() { return push_contact; } bool push_idle_ready() { return push_idle; } uint16_t push_pad(float,float y) { return !push_grab?0:y>0?16:y<0?64:0; } const char* controls_debug_json() { return "{}"; } const char* lease_refusal_reason() { return "state"; }
+bool movement_ready() { return ready; } bool locomotion_input_ready() { return flight; } bool traversal_input_ready() { return traversal; } bool traversal_camera_ready() { return trav_camera; } bool committed_camera_ready() { return roll_camera; } bool swim_input_ready() { return false; } bool wade_full_speed_ready() { return false; } bool swim_host_owns_jump() { return false; } void swim_strafe_pads(uint16_t& left,uint16_t& right) { left=0x100; right=0x200; } bool swim_thrust_input_ready() { return false; } bool jetpack_input_ready() { return jet; } bool interaction_holster_ready() { return (ready || flight) && !holstered && !switching; } bool interaction_ready() { return (ready || flight || traversal) && holstered && !switching; } bool push_grab_ready() { return push_grab; } bool push_contact_ready() { return push_contact; } bool push_idle_ready() { return push_idle; } uint16_t push_pad(float,float y) { return !push_grab?0:y>0?16:y<0?64:0; } const char* controls_debug_json() { return "{}"; } const char* lease_refusal_reason() { return "state"; }
 bool ladder_top_available() { return ladder_top; } void ladder_top_request() { ++ladder_requests; } bool ladder_descent_ready() { return ladder_on && traversal; } bool ladder_exit_ready() { return ladder_exit && traversal; } bool object_hang_release_ready() { return false; }
 bool ladder_leap_ready() { return ladder_leap; } bool ladder_leap_active() { return leap_on; } void ladder_leap_note() { ++ladder_leaps; } }

@@ -23,6 +23,7 @@ bool weapon_holstered();
 bool traversal_input_ready();
 /* D08V: camera-only lease through an original mantle/hang/pull-up or unowned fall. */
 bool traversal_camera_ready();
+bool committed_camera_ready();
 /* Modern free-swim: WASD bridges to D-pad; vertical is host-owned. */
 bool swim_input_ready();
 /* Waist-deep / mid water: land run, mouse look and Shift, not the swim path. */

@@ -769,7 +769,9 @@ uint16_t input_pad() {
     }
     // D08V: an unowned fall keeps the original fall buttons the tank fallback
     // used to give (Up/Down and the strafe pads, never D-pad turns).
-    if(traversal_camera && !traversal_input_ready()) {
+    // D22B: a dodge roll or slope slide gets none; it ends in idle and the
+    // lease resumes.
+    if(traversal_camera && !traversal_input_ready() && !committed_camera_ready()) {
         uint16_t strafe_left=0,strafe_right=0;
         swim_strafe_pads(strafe_left,strafe_right);
         if(down(binds[move_forward]) && !down(binds[move_back])) value &= ~16;

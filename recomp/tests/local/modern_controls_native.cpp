@@ -149,7 +149,7 @@ static void call(uint32_t address,uint32_t a0,uint32_t a1,uint32_t ra,uint32_t s
     hooks().at(address)(&cpu,address);
 }
 int main(int argc,char** argv) {
-    assert(argc==3 || argc==4);
+    assert(argc>=3 && argc<=5);
     std::ifstream exe(argv[1],std::ios::binary);exe.seekg(2048);exe.read((char*)ram+0x10000,0xbb000);assert(exe.gcount()==0xbb000);
     std::ifstream overlay(argv[2],std::ios::binary);overlay.read((char*)ram+0xca968,9668);assert(overlay.gcount()==9668);
     constexpr uint32_t p=0x800d7198,c=0x800d6eb0;
@@ -620,7 +620,7 @@ int main(int argc,char** argv) {
     // authenticated LEVEL01 keeps the leases; its own scratch tail is level
     // state; an unknown tag or changed body fails closed; the LEVEL00 apartment
     // patch never touches it. Optional fourth argument: the owned LEVEL01.OVR.
-    if(argc==4) {
+    if(argc>=4) {
         std::vector<uint8_t> first(ram+0xca968,ram+0xca968+12196);
         std::ifstream level01(argv[3],std::ios::binary);
         level01.read((char*)ram+0xca968,12196);assert(level01.gcount()==12196);++g_dirty_ram_code_gen;
@@ -632,13 +632,136 @@ int main(int argc,char** argv) {
         const auto level01_last=psx_mod_read_word(0x800cd8f8);
         psx_mod_write_word(0x800cd8f8,level01_last^1);assert(!ttk::movement_ready());
         psx_mod_write_word(0x800cd8f8,level01_last);assert(ttk::movement_ready());
-        psx_mod_write_word(0x800ca968,5);assert(!ttk::movement_ready()); // LEVEL02 tag: not authenticated
+        psx_mod_write_word(0x800ca968,5);assert(!ttk::movement_ready()); // LEVEL02 tag, LEVEL01 body
         psx_mod_write_word(0x800ca968,3);assert(!ttk::movement_ready()); // LEVEL00 tag, LEVEL01 body
+        psx_mod_write_word(0x800ca968,0x12);assert(!ttk::movement_ready()); // no such level
         psx_mod_write_word(0x800ca968,4);assert(ttk::movement_ready());
         call(0x8003ade4,c,p,0x80025ee8);assert(code_writes==patches);
         std::copy(first.begin(),first.end(),ram+0xca968);++g_dirty_ram_code_gen;
         call(0x8003ade4,c,p,0x80025ee8);assert(ttk::movement_ready());
         std::puts("PASS: D22A LEVEL01 overlay identity, scratch tail, unknown/mismatched tags, no apartment patch, LEVEL00 restore");
+    }
+    // D22B: every level the original level select offers. Optional fifth
+    // argument: a directory of the owned LEVELxx.OVR files. Each authenticates
+    // by its own tag, tolerates writes to its scratch tail (the bytes after
+    // `body`), refuses a change to its last authenticated word and never gets
+    // the LEVEL00 apartment patch. Unlisted overlays (LEVEL04/13/14/30) and a
+    // level's tag over another level's body fail closed.
+    if(argc==5) {
+        struct Level {unsigned number;uint32_t size,body;};
+        static const Level levels[]={{0,9668,9652},{1,12196,12180},{2,10780,10780},{3,8808,8792},{5,14148,14144},
+            {6,8504,8504},{7,8660,8660},{8,3700,3700},{9,12832,12812},{10,8266,8264},{11,7704,7704},{12,13496,13496},
+            {21,720,720},{22,720,720},{23,4012,4012},{24,724,724},{25,2336,2336},{26,4784,4784},{27,5712,5708},
+            {28,4416,4416},{29,6356,6356}};
+        constexpr uint32_t span=14148; // LEVEL05, the largest
+        std::vector<uint8_t> first(ram+0xca968,ram+0xca968+span);
+        auto load=[&](unsigned number,uint32_t size) {
+            char path[512];std::snprintf(path,sizeof path,"%s/LEVEL%02u.OVR",argv[4],number);
+            std::ifstream file(path,std::ios::binary);
+            std::fill(ram+0xca968,ram+0xca968+span,0);
+            file.read((char*)ram+0xca968,size);assert(uint32_t(file.gcount())==size);++g_dirty_ram_code_gen;
+        };
+        // The lease needs a camera update within four host frames.
+        auto tick=[&]{++ttk::input.sequence;call(0x8003ade4,c,p,0x80025ee8);};
+        uint32_t previous_tag=0;
+        for(const auto& level:levels) {
+            load(level.number,level.size);
+            const uint32_t tag=psx_mod_read_word(0x800ca968);
+            const unsigned patches=code_writes;
+            tick();
+            assert(ttk::movement_ready() && ttk::locomotion_input_ready());
+            if(level.number==0)assert(code_writes==patches+2); // LEVEL00 alone: apartment pair
+            else assert(code_writes==patches);
+            for(uint32_t a=level.body;a<level.size;++a)ram[0xca968+a]^=0x5a;
+            tick();assert(ttk::movement_ready());
+            const uint32_t last=0x800ca968+level.body-4;
+            if(level.number!=0) { // LEVEL00's last body word follows its own test above
+                psx_mod_write_word(last,psx_mod_read_word(last)^1);tick();assert(!ttk::movement_ready());
+                psx_mod_write_word(last,psx_mod_read_word(last)^1);tick();assert(ttk::movement_ready());
+            }
+            if(previous_tag) {
+                psx_mod_write_word(0x800ca968,previous_tag);tick();assert(!ttk::movement_ready());
+                psx_mod_write_word(0x800ca968,tag);tick();assert(ttk::movement_ready());
+            }
+            previous_tag=tag;
+            if(level.number==0) { // restore the original pair for the next level
+                psx_mod_write_word(0x800cc57c,0x24020008);psx_mod_write_word(0x800cc580,0x30a30408);
+            }
+        }
+        for(unsigned number:{4u,13u,14u,30u}) {
+            char path[512];std::snprintf(path,sizeof path,"%s/LEVEL%02u.OVR",argv[4],number);
+            std::ifstream sized(path,std::ios::binary|std::ios::ate);const auto size=uint32_t(sized.tellg());
+            load(number,size);tick();assert(!ttk::movement_ready());
+        }
+        std::copy(first.begin(),first.end(),ram+0xca968);++g_dirty_ram_code_gen;
+        tick();assert(ttk::movement_ready());
+        std::puts("PASS: D22B all 21 selectable level overlays: own tag and body, scratch tails, last body word, cross-level tags, unlisted levels refused, apartment patch LEVEL00 only");
+    }
+    // D22B dodge rolls (PIG FACTORY trace): each observed animation/mode pair
+    // keeps the camera-only lease; the original owns the motion (no locomotion
+    // lease); other modes and Vanilla stay out. (The live route checks that
+    // first person stays active.)
+    {
+        auto camera=[&]{++ttk::input.sequence;call(0x8003ade4,c,p,0x80025ee8);};
+        camera();assert(ttk::movement_ready());
+        static const unsigned rolls[][3]={{157,9,9},{157,0,0},{158,0,9},{158,0,0},{159,0,0},{160,9,0},{161,0,0},{161,0,9},{162,0,0}};
+        for(const auto& r:rolls) {
+            psx_mod_write_half(p+0x60,r[0]);psx_mod_write_byte(p+0x22c,r[1]);psx_mod_write_byte(p+0x22d,r[2]);
+            camera();
+            assert(ttk::traversal_camera_ready() && !ttk::locomotion_input_ready() && !ttk::movement_ready());
+        }
+        psx_mod_write_byte(p+0x22c,4);psx_mod_write_byte(p+0x22d,4);camera();assert(!ttk::traversal_camera_ready());
+        psx_mod_write_half(p+0x60,163);psx_mod_write_byte(p+0x22c,0);psx_mod_write_byte(p+0x22d,0);camera();
+        assert(!ttk::traversal_camera_ready());
+        psx_mod_write_half(p+0x60,158);ttk::modern=false;camera();assert(!ttk::traversal_camera_ready());ttk::modern=true;
+        psx_mod_write_half(p+0x60,63);camera();assert(ttk::movement_ready());
+        // Steep-slope slide (FAMILY JEWELS trace): 145 (2/9), 99 (9/9), the
+        // 105 landing it leads to, then idle; a plain 105 without a slide is not.
+        static const unsigned slide[][3]={{145,2,9},{143,2,2},{99,9,2},{99,9,9},{105,0,9},{105,0,0}};
+        for(const auto& r:slide) {
+            psx_mod_write_half(p+0x60,r[0]);psx_mod_write_byte(p+0x22c,r[1]);psx_mod_write_byte(p+0x22d,r[2]);
+            camera();assert(ttk::traversal_camera_ready() && !ttk::locomotion_input_ready() && !ttk::movement_ready());
+        }
+        psx_mod_write_half(p+0x60,63);psx_mod_write_byte(p+0x22c,0);psx_mod_write_byte(p+0x22d,0);camera();
+        assert(ttk::movement_ready() && !ttk::traversal_camera_ready());
+        psx_mod_write_half(p+0x60,105);camera();assert(!ttk::traversal_camera_ready()); // latch cleared
+        psx_mod_write_half(p+0x60,108);psx_mod_write_byte(p+0x22c,9);psx_mod_write_byte(p+0x22d,2);camera();
+        assert(ttk::traversal_camera_ready()); // leaving the slope as 108
+        // The original's own back-steps and strafes are taken over by the full
+        // lease; their landing frames keep the camera; mid-water forms only in water.
+        for(unsigned a:{82u,83u,84u,85u,88u,89u,90u,91u}) {
+            psx_mod_write_half(p+0x60,a);psx_mod_write_byte(p+0x22c,0);psx_mod_write_byte(p+0x22d,0);camera();
+            assert(ttk::movement_ready());
+            psx_mod_write_byte(p+0x22d,9);camera();assert(!ttk::movement_ready() && ttk::locomotion_input_ready());
+        }
+        for(unsigned a:{94u,95u,106u}) { // landing poses straight after a fall keep the camera
+            psx_mod_write_half(p+0x60,a);psx_mod_write_byte(p+0x22c,0);psx_mod_write_byte(p+0x22d,9);camera();
+            assert(ttk::locomotion_input_ready() && !ttk::movement_ready());
+            psx_mod_write_byte(p+0x22d,0);camera();assert(ttk::locomotion_input_ready() && !ttk::movement_ready());
+        }
+        for(unsigned a:{86u,87u,92u,93u}) {
+            psx_mod_write_half(p+0x60,a);psx_mod_write_byte(p+0x22d,0);camera();assert(!ttk::movement_ready());
+        }
+        psx_mod_write_half(p+0x60,63);psx_mod_write_byte(p+0x22c,0);psx_mod_write_byte(p+0x22d,0);camera();assert(ttk::movement_ready());
+        // Third person: a Space-only (unowned) jump keeps the camera-only lease
+        // from a live lease through takeoff, flight and landing, never after a gap.
+        assert(!ttk::input.first_person);
+        uint32_t saved_cam[5];
+        for(int i=0;i<5;++i)saved_cam[i]=psx_mod_read_word(c+(i<2?0x4c+4*i:0x64+4*(i-2)));
+        psx_mod_write_word(c+0x50,p+0x7bc);psx_mod_write_word(c+0x4c,p+0x7bc); // a valid orbit
+        psx_mod_write_word(c+0x64,0);psx_mod_write_word(c+0x68,0);psx_mod_write_word(c+0x6c,-3000);
+        camera();assert(ttk::movement_ready());
+        static const unsigned jump[][3]={{96,0,0},{97,9,0},{97,9,9},{105,0,9},{105,0,0}};
+        for(const auto& r:jump) {
+            psx_mod_write_half(p+0x60,r[0]);psx_mod_write_byte(p+0x22c,r[1]);psx_mod_write_byte(p+0x22d,r[2]);
+            camera();assert(ttk::locomotion_input_ready() && !ttk::movement_ready());
+        }
+        psx_mod_write_half(p+0x60,63);psx_mod_write_byte(p+0x22c,0);psx_mod_write_byte(p+0x22d,0);camera();assert(ttk::movement_ready());
+        ttk::input.sequence+=8;psx_mod_write_half(p+0x60,97);psx_mod_write_byte(p+0x22c,9);psx_mod_write_byte(p+0x22d,9);
+        call(0x8003ade4,c,p,0x80025ee8);assert(!ttk::locomotion_input_ready());
+        for(int i=0;i<5;++i)psx_mod_write_word(c+(i<2?0x4c+4*i:0x64+4*(i-2)),saved_cam[i]);
+        psx_mod_write_half(p+0x60,63);psx_mod_write_byte(p+0x22c,0);psx_mod_write_byte(p+0x22d,0);camera();camera();assert(ttk::movement_ready());
+        std::puts("PASS: D22B third-person unowned jump camera; dodge rolls 157..162 and slope slides (mode 2, 99/108, landing) keep the camera lease; original back-steps/strafes taken over; swim/other/Vanilla excluded");
     }
     for(unsigned flags : {0u,8u,0x400u,0x408u,0x10008u,0x10400u}) {
         const bool original=(flags&0x408)==8;
@@ -1488,7 +1611,8 @@ int main(int argc,char** argv) {
     for(auto direction:std::vector<std::pair<float,float>>{{0,1},{0,-1},{1,0},{-1,0},{.707107f,.707107f},{-.707107f,-.707107f}}) {
         ground();ttk::input.move_x=direction.first;ttk::input.move_y=direction.second;
         // Camera observes new 96 before its initializer, clearing normal lease.
-        call(0x8003ade4,c,p,0x80025ee8);assert(!ttk::locomotion_input_ready());
+        // D22B: the camera-only jump lease continues it in third person too.
+        call(0x8003ade4,c,p,0x80025ee8);assert(!ttk::movement_ready() && !ttk::directional_takeoff_ready());
         writes=0;call(0x800493a4,p,0,0x8005a3a0);assert(writes==0);
         call(0x8003ade4,c,p,0x80025ee8);
         assert(ttk::directional_takeoff_ready() && ttk::locomotion_input_ready() && !ttk::movement_ready());

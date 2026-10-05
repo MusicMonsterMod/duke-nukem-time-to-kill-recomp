@@ -98,7 +98,9 @@ static void first_person_update(const InputFrame& f,unsigned ticks) {
     // D08T: grabbing/pushing a large object puts the eye inside it; show the
     // push from the orbit and return to the eye after letting go.
     // D08V: mantles, hangs and unowned falls also show from the orbit.
-    const bool supported=!swimming && !jetpack_camera_only() && !push_state_early() && !traversal_camera_early();
+    // D22B: dodge rolls and slope slides stay in the eye view.
+    const bool supported=!swimming && !jetpack_camera_only() && !push_state_early() &&
+        (!traversal_camera_early() || committed_move_early());
     fp_supported=supported;
     const bool wanted=f.first_person && supported;
     fp_reason=!f.first_person?"off":!supported?"unsupported":"active";

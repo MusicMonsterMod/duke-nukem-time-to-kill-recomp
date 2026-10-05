@@ -4,7 +4,7 @@ This is the canonical job list for our **Duke Nukem: Time to Kill** PC project, 
 
 Invoke **`$continue-duke-recomp`** (Codex) or **`/continue-duke-recomp`** (Claude Code) to see the current jobs and choose one. You can also request a job directly: **`$continue-duke-recomp work on D01`** or **`/continue-duke-recomp work on D01`**. The skill reads this file rather than keeping a second backlog. It must not automatically start the next job.
 
-**Latest accepted job: D26A - debug level select (`levels` / `level N` in the backtick console).** [Contract and evidence](documentation/101-d26a-level-select.md). Accepted executable `58f4fb3532f384edb74291b398b992c066364912a40edd07cfe04f3560804851` is the current regression baseline. **Next: D22B**, Modernized controls and first person in every level.
+**Latest accepted job: D26A - debug level select (`levels` / `level N` in the backtick console).** [Contract and evidence](documentation/101-d26a-level-select.md). Accepted executable `58f4fb3532f384edb74291b398b992c066364912a40edd07cfe04f3560804851` is the current regression baseline. **D22B (Modernized controls and first person in every level) is Accepted** (2026-10-05): [note 102](documentation/102-d22b-every-level.md). The game-wide playtest that followed added D08T2, D08U1, D22C, D23C, D23D, D26B, D26C and D26D; no next job selected.
 
 ## The experience we are building
 
@@ -71,7 +71,9 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08S | Duke3D-style jetpack scheme (instant J on/off, midair) | Cancelled (may revisit) | D08R |
 | D08T | Pushable objects: modern grab/push/pull and climb (alley dumpster) | Done | D08 |
 | D08T1 | Separate push/pull from mantling: E always mantles, hold RMB to grab | Done | D08T, D04 |
+| D08T2 | Duke-symbol pushable blocks cannot be pushed with Modern controls (RMB grab, game-wide) | Todo | D08T1, D22B |
 | D08U | Top-of-ladder mount: grab a ladder from a platform and climb down | Done | D08, D08J |
+| D08U1 | Ladder that cannot be descended with E (player slot 12), systemic ladder-top coverage | Todo | D08U, D22B |
 | D08V | Sewer mantle/hang modern-control coverage (slot 12 area) | Done | D08, D08B |
 | D08W | Subway shallow-water sideways jumps (A/D + Space jumps forward) | Done | D08, D08C |
 | D08X | Hold-E airborne ledge grab and mantle (ladder-grab feel for ledges) | Done | D08, D08J, D08V |
@@ -90,6 +92,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D12B | Costume-aware first-person kick leg, game-wide (LEVEL01 slots 8/9) | Todo | D12A, D22A |
 | D11C | Savestates can keep Duke's first-person head hidden (slot 12) | Done | D11 |
 | D11D | First-person eye height from Duke's real proportions, game-wide (LEVEL01 slot 8) | Todo | D11, D22A |
+| D11E | First person while swimming (underwater eye view, game-wide) | Todo | D08O, D11, D22B |
 | D13 | Higher internal resolution and display scaling | Done | D02 |
 | D14 | Widescreen, FOV and visibility | Done | D03, D13 |
 | D15 | Optional geometry and texture precision | Accepted | D13 |
@@ -126,14 +129,20 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D21 | Accessibility and sound controls | Todo | D04, D19 |
 | D22 | Campaign fidelity and overlay coverage | Todo | D01 |
 | D22A | Portal transition loses Modernized controls and first person (slot 7) | Accepted | D05, D06, D11 |
-| D22B | Modern controls and first person in every level and transition (no classic fallback) | Todo - next | D22A, D26A |
+| D22B | Modern controls and first person in every level and transition (no classic fallback) | Accepted | D22A, D26A |
+| D22C | Level 11 starts with Legacy controls until F10 (control mode must persist) | Todo | D22B |
 | D23 | Performance budgets and long-session stability | Todo | D01 |
 | D23A | Modernized frame-budget regression (guard identity cost) | Done | D08 |
 | D23B | Intro FMV stutter: stranded native movie shard | Done | D23 |
+| D23C | Medieval castle moat slowdown with Necros active (profile, do not optimise blind) | Todo | D23, D22B |
+| D23D | Minor slowdown around the strip-club-type area of Level 9 (low priority) | Todo | D23, D22B |
 | D24 | Linux / Windows player build and disc import | Todo | D19, D22, D23 |
 | D25 | Modernized edition release acceptance | Todo | D08, D08A, D08B, D09, D10, D14, D17, D18, D20, D21, D24 |
 | D26 | Backtick debug console (fps and helpers) | Done | D04 |
 | D26A | Debug level-select panel for whole-game testing | Accepted | D26, D22A |
+| D26B | Opening the console leaves first person | Todo | D26, D11 |
+| D26C | Console command history (Up/Down) | Todo | D26 |
+| D26D | Level select: authoritative order, numbering, names and categories | Todo | D26A |
 | D27 | Caps Lock RUN MODE quotes; Shift-run clunk silence deferred | Done (quotes); clunk deferred low-priority | D04, D19A |
 | D28 | Scroll Lock holster and WEAPON LOWERED/RAISED quotes | Done | D04, D19A |
 | R01 | DisruptorRecomp architecture and modernization reference research | Done | - |
@@ -1207,6 +1216,30 @@ release repeat without stale state; RMB against ordinary geometry does
 nothing odd; obstruction, damage, falling/separation, object loss and pause
 end the grab cleanly. Third and first person. Vanilla unchanged.
 
+### D08T2 - Duke-symbol pushable blocks with Modern controls (game-wide)
+
+**Todo. User report, 2026-10-05 (D22B game-wide playtest).** Blocks marked
+with the Duke Nukem symbol are meant to be pushed. With Modern controls they
+cannot be pushed; after switching to Legacy controls the same block pushes
+correctly, so the original interaction works and our modern mapping does not
+reach it. Seen in the Roman area (one), the medieval area (one) and two near
+the start of the medieval area. Level numbers in this report follow the D26A console (`level N`); D26D will
+confirm how they map to the game's own campaign numbering.
+
+Direction from the user: E = interact, RMB = grab/hold/push. For these
+objects investigate RMB as the modern interaction: approach, hold RMB to
+engage, move to push/manipulate, release RMB to let go. First inspect how the
+original interaction actually works for these blocks (object type/flags,
+which original button and state it uses, how it differs from the D08T alley
+dumpster that RMB already handles), then fit it into the D08T/D08T1 grab
+design rather than mapping another Legacy button.
+
+**Game-wide:** every pushable object, not one block.
+
+**Acceptance:** the reported blocks in at least two eras push with RMB in first
+and third person; the alley dumpster still works; release and focus loss let
+go; Vanilla/Legacy unchanged; the user confirms.
+
 ### D08U - Top-of-ladder mount: grab a ladder from a platform and climb down
 
 **Done (2026-10-01, user-accepted).** E at a ladder top lowers Duke onto it through
@@ -1238,6 +1271,25 @@ not interfere with ordinary edge run-off (D08L) or jumps. Cover third and
 first person. Vanilla keeps its original behavior. Check the other ladders
 already known from D08B/D08J to see whether the same mechanism applies there,
 and record any ladder that it does not cover.
+
+### D08U1 - Ladder that cannot be descended with E (player slot 12)
+
+**Todo. User report, 2026-10-05 (D22B game-wide playtest).** Player UI slot 12
+(savestate file 11 in `recomp/saves/local-play/openbios`, written 2026-10-05
+00:37, SHA-256
+`1608ee9c890ebb30b0311f055e6f13d21a18e61697a61557e384e82b48a59afd`): a ladder
+just around the other side of the wall should be climbable downward. With
+Modern controls, E does not start the descent. It is the first ladder found
+where the modern controls fail. Test only on a dated private copy; verify the
+hash first.
+
+Determine why this ladder differs from those that work (D08U top-of-ladder
+mount: object type/flags, collision box, reach/side/top gates, approach
+direction, level overlay, original attach path) and fix the shared rule, not
+this ladder.
+
+**Acceptance:** the slot-12 ladder descends with E; the D08U/D08J1 ladders and
+LEVEL00 slots 8 still work; Vanilla unchanged; the user confirms.
 
 ### D08V - Sewer mantle/hang modern-control coverage (slot 12 area)
 
@@ -1601,9 +1653,32 @@ proportions.
 **Game-wide:** fix the shared first-person system. Do not add a LEVEL01 or
 per-level camera offset.
 
+**Regression evidence, 2026-10-05 (user, D22B game-wide playtest):** Duke's
+first-person height looks correct in the medieval levels and in the Roman /
+HOG HEAVEN area, believable against the surrounding characters. The LEVEL01
+report above is still open; any fix must keep those levels looking right.
+
 **Acceptance:** in slot 8 the dancer and Duke read as similar heights in both
 views; the first map's accepted first-person routes (apartment, club, subway,
 crouch, ladders, swim) still look right; the user confirms.
+
+### D11E - First person while swimming (game-wide)
+
+**Todo. Found by the D22B survey, 2026-10-04.** In BLOOD BATHS (and any deep
+water) Duke swims in modes 4/5 (anims 122-128). The Modernized swim controls
+and mouse camera own it (D08M/D08O), but `first_person.inc` deliberately treats
+swim modes as unsupported, so a first-person player is shown the orbit view
+until Duke leaves the water. Reach it with `level 12` and walk into the pool.
+
+Give swimming a first-person eye view (head/eye anchor while the body pitches,
+near-surface and waterline behavior, weapon/hands presentation, the D08O
+mantle-only exit), or document why a state must stay in the orbit.
+
+**Game-wide:** the shared swim/first-person system, not one level's pool.
+
+**Acceptance:** first person stays active through entering, swimming, diving,
+surfacing and leaving the water in at least two different levels; third person
+and Vanilla unchanged; user confirms it reads well.
 
 ### D12 — First-person weapons and state polish
 
@@ -1668,6 +1743,11 @@ derive from.
 **Acceptance:** the kick leg matches Duke's third-person costume in the first
 map and in LEVEL01, by the same rule; the user confirms. Record the rule so
 later levels inherit it.
+
+**Regression evidence, 2026-10-05 (user, D22B game-wide playtest):** the
+first-person kick already shows Duke's medieval costume ("working beautifully")
+and his Roman / HOG HEAVEN costume ("looks fantastic"). Find out why those eras
+are right and LEVEL01 is not before changing anything, and keep them right.
 
 ### D13 — Higher internal resolution and display scaling
 
@@ -2306,7 +2386,12 @@ original renderer's assumptions about the visible horizontal field, including
 our first-person presentation. Reuse D17O ([note 92](documentation/92-d17o-sky-intake.md)),
 R01 and the renderer notes.
 
-**Acceptance:** slot 9 shows a continuous sky to both edges in 16:9 and the
+**Also reproduced, 2026-10-05 (user, D22B game-wide playtest):** the Roman /
+HOG HEAVEN environment (`level 10`) shows the same black sky toward the
+peripheral edges of the view. The problem is game-wide, not specific to
+LEVEL01's sky.
+
+**Acceptance:** slot 9 and HOG HEAVEN show a continuous sky to both edges in 16:9 and the
 original aspect, first and third person; the first map's accepted sky (D17O
 slot 10) is unchanged; the solution is shared sky rendering that holds across
 levels; the user confirms.
@@ -2517,7 +2602,19 @@ control/view continuity. Do not infer full-campaign support from this one route.
 
 ### D22B - Modern controls and first person in every level and transition
 
-**Todo - next. Selected as the follow-up to D26A, 2026-10-04.** User, on
+**Accepted (2026-10-05, user: "Accepted.").** The user then played large parts
+of the game through `level N`: armed rolls (Ctrl) in Level 9 work, and general
+game-wide playability is "very encouraging". Executable
+`5b486ce0ba6ad569d03f0246a8a82edc81631c0c350a50f5eb3153e42c394017` is the
+regression baseline. Candidate summary: all 21 selectable levels now authenticate
+(one rule derived from the owned disc by `tools/local/level_overlay_guards.py`);
+dodge rolls and steep-slope slides keep the mouse camera and view; the
+original's own back-steps/strafes are taken over by the lease; unowned jumps
+keep the camera in third person too. Transitions (statistics screen, savestate,
+pause, level select) return by themselves. Swimming first person is D11E.
+See the work log and [note 102](documentation/102-d22b-every-level.md).
+
+Selected as the follow-up to D26A, 2026-10-04. User, on
 accepting D26A: "the modern controls dont carry over, and first person etc. so
 stand up the next job ... as making all that work." D26A now reaches every
 level: `levels` / `level N` in the backtick console. Offscreen survey
@@ -2558,6 +2655,25 @@ fire, jump/traversal) and the selected first- or third-person view stay in
 charge from level start to level exit, including transitions and savestates; any remaining original-control state is listed with its reason
 and a follow-up job. Vanilla stays original. Fix shared systems, not
 individual levels, wherever the evidence allows.
+
+### D22C - Level 11 starts with Legacy controls (control mode must persist)
+
+**Todo. User report, 2026-10-05 (D22B game-wide playtest).** Loading Level 11
+(LET THE GAMES BEGIN with `level 11`) unexpectedly started in Legacy controls;
+F10 restored Modern controls. Level transitions and the debug level select must
+not change the player's selected control scheme. Level numbers in this report follow the D26A console (`level N`); D26D will
+confirm how they map to the game's own campaign numbering.
+
+Investigate the reset path: level or player-state initialization, mouse
+capture (F10 is the capture toggle, so check whether capture was released
+rather than the mode changed), savestate/level-select behaviour, configuration
+reload, or a lease refusal specific to that level. The D22B offscreen survey
+reached Level 11 with the lease live, so reproduce with the user's real
+window/focus path too.
+
+**Acceptance:** Level 11, reached by `level 11` and by natural progression,
+starts in the selected control mode with capture as before; other levels
+unchanged; the user confirms.
 
 ### D23 — Performance budgets and long-session stability
 
@@ -2610,6 +2726,32 @@ decoder or a WARNING with the loader's mismatch message. See
 **Acceptance:** the intro FMV plays at full speed without audio underruns
 after hook changes to `game.local.toml`, and a missing shard is repaired on
 build/launch or reported in the session log.
+
+### D23C - Medieval castle moat slowdown with Necros (performance polish)
+
+**Todo, later. User report, 2026-10-05 (D22B game-wide playtest).** In the
+medieval castle/moat level (reported as Level 6), the initial section slows
+down, particularly while the Necros around the moat are active. Gameplay is
+not broken and stays completely playable, but the quality drop is perceptible
+compared with better-performing areas. Level numbers in this report follow the D26A console (`level N`); D26D will
+confirm how they map to the game's own campaign numbering.
+
+Do not optimise blind. Profile first and determine whether the slowdown
+correlates mainly with the number/type of active enemies, Necro AI or
+animation, visibility/render workload, original simulation workload,
+effects/projectiles, high-refresh interpolation, or another system. Reuse
+the D23A/D17 frame-budget tooling (`phase_profile`, `phase_hot`, fps stats).
+
+**Acceptance:** a measured profile names the dominant cost; a fix, if any, is
+shared and verified against the accepted baselines; the user confirms.
+
+### D23D - Minor slowdown in Level 9's strip-club-type area (low priority)
+
+**Todo, low priority. User report, 2026-10-05.** Level 9 plays very well
+overall; looking closely, there is a small slowdown around the strip-club-type
+area. Extremely minor and not blocking. Level numbers in this report follow the D26A console (`level N`); D26D will
+confirm how they map to the game's own campaign numbering. Profile with the D23C
+method when performance polish is scheduled.
 
 ### D24 — Linux / Windows player build and disc import
 
@@ -2664,6 +2806,58 @@ enter it quickly, then play normally and use savestates.
 savestates work there, normal progression and saves are untouched, and the
 user can use it to survey the game (enabling D22B, D11D, D12B and D17R
 verification).
+
+### D26B - Opening the console leaves first person
+
+**Todo, small. User report, 2026-10-05.** Opening the backtick console switches
+the game out of first person. The console is an overlay: opening and closing it
+must return the player to exactly the perspective and state they had. Check
+whether the console's input context or paused frames release the camera lease
+(`first_person_release`) and how the view comes back.
+
+**Acceptance:** open/close the console in first and third person; the view and
+capture are unchanged afterwards; the user confirms.
+
+### D26C - Console command history
+
+**Todo, small developer QoL. User request, 2026-10-05.** Up Arrow recalls the
+previous command, Down Arrow the next, like a standard shell. Do not
+over-design it.
+
+**Acceptance:** Up/Down walk the session's entered commands; editing and Enter
+behave as before.
+
+### D26D - Level select: authoritative order, numbering, names and categories
+
+**Todo. User request, 2026-10-05 (most important tooling issue from the
+game-wide playtest).** The D26A list follows the title cheat's level indices
+(0-3, 5-12, 21-29), which do not match the game's campaign numbering: there are
+gaps (no 4) and odd numbering later on, so "Level 12 has this bug" is
+ambiguous. Do not fill gaps by guessing.
+
+Use the game's own data as the authority: level index and overlay tables
+(`0x800be570`, file id `0x1ad + index`), the name table (`0x800c3d2c`), the
+next-level function `80027fc0` (campaign order, challenge-stage and boss
+branches), the title cheat cycle `80022d48` and any other level-select or
+indexing structures the original has; reuse them rather than an invented
+numbering. Cross-check the campaign progression with the complete guide
+<https://gamefaqs.gamespot.com/ps/197177-duke-nukem-time-to-kill/faqs/3834>,
+which also documents the original's cheat level select (regular levels,
+bosses, challenge stages).
+
+The console should distinguish campaign levels (gameplay order, campaign
+number and name), boss levels (chronological position or clearly marked),
+challenge stages (separate or clearly labelled), and other valid maps
+(multiplayer, test, unused, special) that load safely, listed separately.
+For each entry record the display/campaign number, name, internal level/map
+ID, category and chronological order. Keep the UI simple; correctness and
+reproducibility matter, not styling. Keep a way to address the internal
+index so existing notes stay usable.
+
+**Acceptance:** the list matches the game's own progression data and the
+guide, every entry loads as before, earlier reports that used console indices
+(D22C, D23C, D23D, D08T2) are re-mapped to the new numbering; the user
+confirms.
 
 ### D27 — Caps Lock RUN MODE quotes and Shift-run clunk silence
 
@@ -6256,3 +6450,71 @@ completion after a selected level was not exercised. Levels other than LEVEL00
 and LEVEL01 still use original controls (D22B). Accepted by the user 2026-10-04 ("excellent! mark as accepted"). D22B (controls
 and first person in every level) is the next job.
 
+
+## 2026-10-04 - D22B every level and transition, Needs playtest
+
+User: "let's work on D22B. proceed autonomously!"
+
+Level coverage: every LEVELxx.OVR has one layout (tag, strings, jump tables,
+code, then one data block whose first reference is the code end; the level
+writes only trailing bytes: hit vectors passed to `0x8007177c`, its own
+`sb`/`sh`/`sw`). New `recomp/tools/local/level_overlay_guards.py` derives each
+body from the owned disc, rejects any level that breaks that layout, reproduces
+the accepted LEVEL00/LEVEL01 digests exactly, and `--check`s
+`control_guards.inc`, which now authenticates all 21 selectable levels.
+Unknown tags (LEVEL04/13/14/30, arenas) and cross-level tags fail closed.
+
+State coverage (60 s scripted play in every level, first and third person):
+dodge rolls 157-162 and the steep-slope slide (mode 2, set only at
+`0x80055fb4`; 99/108 off the slope) keep the camera-only lease and the
+selected view, with no directional pads (`committed_camera_ready`). The
+original's own back-steps 82-85 and strafes 88-93, started when a pad was held
+as an original move ended, are now taken over by the lease
+(`original_step_anim`, separate from `land_gait_anim`). Unowned jumps keep the
+camera-only lease in third person as in first person (`jump_camera`, was
+`eye_jump`), and the landing poses 94/95/106 keep it from their first frame.
+
+Files: `recomp/src/ttk/control_guards.inc`, `modern_controls.cpp/.h`,
+`first_person.inc`, `pc_input.cpp`, `recomp/tools/local/level_overlay_guards.py`,
+`recomp/tests/local/modern_controls_native.cpp`, `pc_input_native.cpp`,
+`test_level_overlay_guards.py`; `GAME_MANUAL.md`; note 102. No hook, generated
+C, framework or hashed header change; patch and codegen hash unchanged.
+Candidate `5b486ce0ba6ad569d03f0246a8a82edc81631c0c350a50f5eb3153e42c394017`.
+
+Evidence: `ttk-controls-test` 34 groups (new D22B all-level identity and
+roll/slide/step/landing/third-person jump groups), `ttk-input-test`,
+`ttk-aim-test`, `ttk-near-test`, Python suite 110 tests. Offscreen
+(`recomp/analysis/d22b-20261004`, private cards, port 9247): baseline lease
+refused in 19 levels; candidate zero identity refusals across all 21 levels;
+first person active on 4,751 of 4,800 samples (46 swim/D08V orbit by design,
+3 one jump); a third-person rerun kept the camera lease on every sample (an
+earlier run showed intermittent jump camera gaps in two levels, cause not
+established); statistics screen into the
+next level (6 pairs), savestate across levels, pause, LEVEL00 slots 0-11 and
+Vanilla unchanged. See [note 102](documentation/102-d22b-every-level.md).
+
+Remaining: swimming first person (new D11E); D08V mantles/hangs/unowned falls
+keep their orbit view; real death/Continue and natural level exits outside
+LEVEL00 not exercised offscreen; occasional jump camera gaps (one first-person
+jump in CHALLENGE STAGE 2, one third-person run in two levels) are not
+explained. User playtest required.
+
+## 2026-10-05 - D22B accepted; game-wide playtest backlog
+
+User: "Accepted." D22B is Accepted; executable
+`5b486ce0ba6ad569d03f0246a8a82edc81631c0c350a50f5eb3153e42c394017` is the
+regression baseline. The user then used `level N` for a broad playtest.
+
+Passed (regression evidence): medieval Duke first-person height good;
+medieval costume-aware kick good; Roman / HOG HEAVEN height good and kick
+good; Level 9 armed rolls (Ctrl) good; frame rate generally good; game-wide
+playability very encouraging. Recorded on D11D and D12B.
+
+New Todo jobs (none started): D23C medieval moat/Necro slowdown (profile
+later), D23D Level 9 strip-club-area slowdown (low priority), D08U1 player
+slot 12 ladder cannot be descended with E, D08T2 Duke-symbol pushable blocks
+need a modern RMB grab (game-wide), D22C Level 11 started in Legacy controls,
+D26B opening the console leaves first person, D26C console Up/Down history,
+D26D authoritative level-select order/numbering/names/categories. D17R
+updated with the HOG HEAVEN sky reproduction (no duplicate job).
+Documentation only; no code, build or launch. No next job selected.

@@ -1,5 +1,40 @@
 # Next-session handoff
 
+## 2026-10-05 - D22B accepted; game-wide playtest backlog
+
+User: "Accepted." D22B is Accepted; executable
+`5b486ce0ba6ad569d03f0246a8a82edc81631c0c350a50f5eb3153e42c394017` is the new
+regression baseline (the candidate entry below is historical). The user's
+`level N` playtest passed: first-person height and costume-aware kick in the
+medieval and Roman/HOG HEAVEN eras, Level 9 armed rolls, general playability.
+New Todo jobs, none started: D23C (medieval moat/Necro slowdown, profile
+later), D23D (Level 9 strip-club-area slowdown, low priority), D08U1 (player
+slot 12 ladder, E cannot descend; file 11 SHA-256 `1608ee9c...`), D08T2
+(Duke-symbol pushable blocks, modern RMB grab game-wide), D22C (Level 11
+started in Legacy controls), D26B (console leaves first person), D26C (console
+history), D26D (authoritative level-select numbering; level numbers in these
+reports are console indices until D26D). D17R now also reproduces in HOG
+HEAVEN. Documentation only. No next job selected.
+
+## 2026-10-04 - D22B every level candidate, Needs playtest
+
+Modernized controls and the selected first- or third-person view now work in
+all 21 levels `levels` lists. The lease authenticates each level by a body
+derived from the owned disc (`recomp/tools/local/level_overlay_guards.py`,
+`--check` keeps `control_guards.inc` honest). Dodge rolls and steep-slope
+slides keep the mouse camera and view; the original's own back-steps and
+strafes are taken over by the lease; unowned jumps keep the camera in third
+person too; landing poses 94/95/106 keep it. Statistics screen, savestates,
+pause and level select return Modernized control by themselves. Offscreen:
+zero identity refusals in every level; LEVEL00 slots and Vanilla unchanged.
+Not covered: first person while swimming (new D11E), real death/Continue and
+natural level exits outside LEVEL00; occasional jump camera gaps seen in two
+runs are unexplained. Candidate
+`5b486ce0ba6ad569d03f0246a8a82edc81631c0c350a50f5eb3153e42c394017`; codegen
+hash unchanged, savestates load. Nothing committed. See
+[note 102](102-d22b-every-level.md).
+Launch: `python3 recomp/tools/local/run.py`.
+
 ## 2026-10-04 - D26A accepted; next D22B
 
 User: "excellent! mark as accepted." D26A is Accepted; executable

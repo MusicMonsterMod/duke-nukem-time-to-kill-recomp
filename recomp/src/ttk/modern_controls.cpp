@@ -84,7 +84,8 @@ static double fp_blend;
 static uint64_t fp_frame;
 // D11: a jump that starts while the eye view is live keeps the camera-only
 // lease through its original animations (Space-only jumps have no flight lease).
-static bool eye_jump;
+// D22B: in third person too; the orbit used to drop to the original camera.
+static bool jump_camera;
 // D17: set in a render replay worker, which has no live lease of its own.
 static bool render_override=false, override_lease_cam=false, last_lease_cam=false;
 static unsigned override_kick_frame=0;
@@ -374,6 +375,17 @@ static bool land_gait_anim(unsigned animation) {
     return animation==63 || (animation>=72 && animation<=79) ||
         (animation>=178 && animation<=184);
 }
+// D22B: the original's own directional gait, selected by its idle dispatcher
+// (0x8004c1dc..0x8004c2d4) and strafe pads: 82/83 walk and 84/85 run
+// backward, 88-91 strafe (86/87 and 92/93 in mid water). Modernized never
+// asks for them, but a pad held as an original move ends (a fall, roll or
+// slide bridge) starts them; the lease then takes over at once instead of
+// leaving the original controls in charge.
+static bool original_step_anim(unsigned animation) {
+    return (animation>=82 && animation<=85) || (animation>=88 && animation<=91);
+}
+// Landing poses: 94/95 and the heavier 106 (BLOOD BATHS, after a fall).
+static bool landing_pose_anim(unsigned animation) { return animation==94 || animation==95 || animation==106; }
 static bool wade_land_anim(unsigned animation) {
     return land_gait_anim(animation) || animation==70 || animation==71 ||
         animation==94 || animation==95;
@@ -425,7 +437,35 @@ static bool unowned_fall_early() {
 }
 // D08U: the host-blended top-of-ladder mount (ladder_top.inc).
 static bool ladder_mount_early();
-static bool traversal_camera_early() { return mantle_state_early() || unowned_fall_early() || ladder_mount_early(); }
+// D22B: the original dodge rolls, seen armed in PIG FACTORY and THE REAPER:
+// 157 and 160 launch in the air (mode 9), 158/159 and 161/162 tumble and
+// recover on the ground. They were missing from the lease, so each roll
+// dropped the mouse camera and first person for about a second. The original
+// owns the roll's motion; the host keeps the mouse camera and the selected
+// view and sends no directions (committed_camera_ready).
+static bool roll_state_early() {
+    const unsigned animation=psx_mod_read_half(player+0x60);
+    const unsigned mode=psx_mod_read_byte(player+0x22c), previous=psx_mod_read_byte(player+0x22d);
+    return animation>=157 && animation<=162 && (mode==0 || mode==9) && (previous==0 || previous==9);
+}
+// D22B: the original steep-slope slide. The airborne/directional handler
+// 0x80055904 enters mode 2 (anim 143 or 145) when 0x800544e8 finds a slope too
+// steep to stand on; Duke then leaves the slope (99 or 108, mode 9) and lands
+// as 105. FAMILY JEWELS trace: jump 96, 145 (2/9), 99 (9/9), 105 (0/0), idle.
+// The latch carries the camera through that landing only.
+static bool slide_landing;
+static bool slide_state_early() {
+    const unsigned animation=psx_mod_read_half(player+0x60);
+    const unsigned mode=psx_mod_read_byte(player+0x22c), previous=psx_mod_read_byte(player+0x22d);
+    const bool sliding=mode==2 || (mode==9 && previous==2) || (animation==99 && mode==9 && previous==9);
+    if(sliding) slide_landing=true;
+    else if(!(animation==105 && mode==0 && (previous==0 || previous==9))) slide_landing=false;
+    return sliding || slide_landing;
+}
+// Original moves that run to their end on their own: the host keeps the mouse
+// camera and the selected view but sends no directions.
+static bool committed_move_early() { return roll_state_early() || slide_state_early(); }
+static bool traversal_camera_early() { return mantle_state_early() || unowned_fall_early() || ladder_mount_early() || committed_move_early(); }
 static bool state(bool camera_only=false) {
     if(!gameplay_context())return false;
     unsigned animation=psx_mod_read_half(player+0x60);
@@ -439,14 +479,15 @@ static bool state(bool camera_only=false) {
     const bool swimming=camera_only && in_water_early();
     // Crystal-2 wade: original plays tank turns 70/71 in this water. Those used
     // to fail state() and kill mouse/Shift. Waist-deep water keeps the land lease.
-    const bool wade_land=!camera_only && shallow_land_water_early() && wade_land_anim(animation);
+    const bool wade_land=!camera_only && shallow_land_water_early() && (wade_land_anim(animation) ||
+        original_step_anim(animation) || animation==86 || animation==87 || animation==92 || animation==93);
     // D08Q: jetpack flight (mode 10) and the fall after it cuts out keep the
     // camera-only lease, like swimming; the original handler owns the motion.
     const bool jet=camera_only && (jetpack_flying_early() ||
         (jet_fall_grace && animation==108 && (psx_mod_read_byte(player+0x22c)==9 || psx_mod_read_byte(player+0x22c)==10)));
-    // D11 eye-view jump: camera only; original takeoff, flight and landing.
+    // D11/D22B unowned jump: camera only; original takeoff, flight and landing.
     const unsigned mode=psx_mod_read_byte(player+0x22c), previous=psx_mod_read_byte(player+0x22d);
-    const bool eye_air=camera_only && eye_jump && jump_animation(animation) &&
+    const bool eye_air=camera_only && jump_camera && jump_animation(animation) &&
         (mode==0 || mode==9) && (previous==0 || previous==9);
     // D08T grab/push/pull 119..121: mouse look only; the original owns motion.
     const bool pushing=camera_only && push_state_early();
@@ -458,9 +499,12 @@ static bool state(bool camera_only=false) {
     // so does ordinary gait while the previous-mode byte still says mantle/fall
     // (the first frames after a pull-up or landing).
     const bool mantle=camera_only && traversal_camera_early();
-    const bool settle=camera_only && land_gait_anim(animation) && mode==0 && (previous==8 || previous==9);
-    if ((psx_mod_read_word(player)&0x20002) || !(land_gait_anim(animation) || wade_land ||
-        (camera_only && (animation==70 || animation==71 || animation==80 || animation==81 || animation==94 || animation==95 ||
+    // D22B: also the landing poses themselves (an unleased landing frame left a
+    // jump taken from it without camera continuity) and after a slide.
+    const bool settle=camera_only && (land_gait_anim(animation) || original_step_anim(animation) ||
+        landing_pose_anim(animation)) && mode==0 && (previous==8 || previous==9 || previous==2);
+    if ((psx_mod_read_word(player)&0x20002) || !(land_gait_anim(animation) || original_step_anim(animation) || wade_land ||
+        (camera_only && (animation==70 || animation==71 || animation==80 || animation==81 || landing_pose_anim(animation) ||
                          animation==175 || animation==176 || animation==177 || animation==181 ||
                          (animation>=178 && animation<=184))) || preparing || flight || swimming || jet || eye_air || pushing || eye_kick || mantle || settle)) return false;
     const uint32_t inhibit=shallow_land_water_early()?0x20000000u:0x20000200u;
@@ -500,6 +544,10 @@ bool locomotion_input_ready() { return lease_ready(true) && identity() && !jetpa
 // D08V: the camera-only lease is live through a mantle/hang/pull-up or an
 // unowned fall. Input keeps the original directional buttons there.
 bool traversal_camera_ready() { return lease_ready(true) && identity() && traversal_camera_early(); }
+// D22B: rolls and slides are committed; feeding A/D (S) as the original strafe
+// (Down) pads at a roll's end started the original strafe 90/91 (back-step 84)
+// outside the lease.
+bool committed_camera_ready() { return traversal_camera_ready() && committed_move_early(); }
 bool directional_takeoff_ready() {
     return takeoff_owned() && takeoff_direction && psx_mod_read_half(player+0x60)==96 && lease_ready(true) && identity();
 }
@@ -967,10 +1015,10 @@ static void hook_body(CPUState* cpu, uint32_t address) {
            (state() || state(true) || swim_lease_ready())) input_offer_gameplay_capture();
         unsigned animation=psx_mod_read_half(player+0x60);
         if(!takeoff_owned() || (animation!=96 && animation!=97 && animation!=98)) {takeoff_valid=false;takeoff_direction=false;}
-        // Continue the eye view only from a live lease on the previous camera update.
-        if(!jump_animation(animation)) eye_jump=false;
-        else if(!eye_jump && fp_blend>0 && orbit_valid && camera_frame && camera_epoch==f.epoch &&
-                f.sequence>=camera_frame && f.sequence-camera_frame<=4) eye_jump=true;
+        // Continue the camera only from a live lease on the previous camera update.
+        if(!jump_animation(animation)) jump_camera=false;
+        else if(!jump_camera && orbit_valid && camera_frame && camera_epoch==f.epoch &&
+                f.sequence>=camera_frame && f.sequence-camera_frame<=4) jump_camera=true;
         if (!eligible(true) || !ident) {
             lease_refuse_trace(!gameplay_context()?"context":!ident?"identity":!f.active?"released":"state",ident);
             distance_seen=f.distance_total;distance_epoch=f.epoch;camera_frame=0;walking=false;orbit_valid=false;look.reset();

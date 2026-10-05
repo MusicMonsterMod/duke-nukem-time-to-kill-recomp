@@ -243,11 +243,17 @@ The user has confirmed the natural switch-first approach works.
 
 ## Modernized movement and camera preview
 
-**Supported levels:** Modernized controls and first person are verified on the
-first map and continue through its portal into the Old West level (LEVEL01).
-Later levels still fall back to the original controls (arrow keys/pad layout)
-until each is verified (planned for every level); your mode and view preferences are kept and come back
-in any supported level.
+**Supported levels:** Modernized controls and the selected first- or
+third-person view work in every level the original level select offers: the
+campaign (TIME TO KILL, DUKE HILL through BLOOD BATHS), the six challenge
+stages and the three bosses. They carry over by themselves through portals,
+the statistics screen into the next level, the pause menu, savestate loads and
+the debug level select. The apartment conveniences (light switch, bed pickup)
+belong to the first map only. Duke's original dodge rolls keep the mouse
+camera and your view; the roll itself plays out as in the original, and WASD
+takes over again as soon as Duke is back on his feet. Sliding down a slope too
+steep to stand on works the same way. In third person, jumps (including a
+Space-only standing jump) keeps the mouse camera.
 
 Modernized gameplay captures the mouse and enables PC actions automatically.
 Pause, inventory, focus loss and host menus (including **F7** savestates) release it; verified gameplay can
@@ -479,7 +485,8 @@ DNTTK_FP_KICK_THIGH=0 python3 recomp/tools/local/run.py
 
 Swimming and jetpack flight switch back to third
 person on their own and return when you land; ladders, ledges, scripted and
-turret cameras, death and menus use the original camera as before. Pressing P
+turret cameras, death and menus use the original camera as before. Dodge rolls
+and slides down steep slopes stay in first person. Pressing P
 again returns to third person. The choice is saved; to set it without
 launching:
 
@@ -708,8 +715,8 @@ if a level needs more. Play and savestates then work normally. It works in
 Vanilla and Modernized.
 The level select is refused on the title screen, in the pause menu, while a
 level is already ending and in two-player games. It does not write memory cards
-or saves. Modernized controls currently support only LEVEL00 and DUKE HILL;
-other levels fall back to the original controls until D22B.
+or saves. Modernized controls and the selected view work in every listed
+level.
 
 **I** toggles the Modernized crosshair on/off (EDuke-style). The original TTK
 weapons/inventory screen stays on **Right Shift** (Select); press it again to close.

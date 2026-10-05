@@ -64,6 +64,8 @@ bool input_airborne_reach_held();
 // captured Cross is the grab's own, never E's interaction/mantle.
 bool input_push_grab_owns_cross();
 uint16_t input_pad();
+// Diagnostics: the last value input_pad() returned (no side effects).
+uint16_t input_last_pad();
 void input_release();
 void input_state_loaded();
 void input_allow_capture(bool allow);

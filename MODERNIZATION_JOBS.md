@@ -4,7 +4,7 @@ This is the canonical job list for our **Duke Nukem: Time to Kill** PC project, 
 
 Invoke **`$continue-duke-recomp`** (Codex) or **`/continue-duke-recomp`** (Claude Code) to see the current jobs and choose one. You can also request a job directly: **`$continue-duke-recomp work on D01`** or **`/continue-duke-recomp work on D01`**. The skill reads this file rather than keeping a second backlog. It must not automatically start the next job.
 
-**Latest accepted job: D26A - debug level select (`levels` / `level N` in the backtick console).** [Contract and evidence](documentation/101-d26a-level-select.md). Accepted executable `58f4fb3532f384edb74291b398b992c066364912a40edd07cfe04f3560804851` is the current regression baseline. **D22B (Modernized controls and first person in every level) is Accepted** (2026-10-05): [note 102](documentation/102-d22b-every-level.md). The game-wide playtest that followed added D08T2, D08U1, D22C, D23C, D23D, D26B, D26C and D26D; no next job selected.
+**Latest accepted jobs: D08T2 (pushable object type range, hints) and D08U1 (slot-12 ladder descent), 2026-10-05.** Accepted executable `4f76da406a12958fe50e4751c7a99832b90a9f562710326060e2d1a66a732c83` is the current regression baseline. [Note 103](documentation/103-d08t2-object-type-range.md). Next suggested: D08T3 (free manual push/pull); D08O1 (fire while swimming) is new. No next job selected.
 
 ## The experience we are building
 
@@ -61,6 +61,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08L | Inertial platform edge run-off | Done | D08 |
 | D08M | Modern underwater swimming controls (foundation) | Done | D08 |
 | D08O | Deep free-swim polish (strafe, Ctrl dive, mantle-only exit) | Done | D08M |
+| D08O1 | Fire weapons while swimming (Modernized, game-wide; medieval UI slot 2) | Todo | D07C, D08O, D22B |
 | D08N | Duke3D-style scuba gear item | Cancelled (out of scope) | — |
 | D08P | Crystal-2 turret / scripted-camera control recovery | Done | D08 |
 | D08Q | Modern jetpack flight controls | Done | D08 |
@@ -71,9 +72,10 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08S | Duke3D-style jetpack scheme (instant J on/off, midair) | Cancelled (may revisit) | D08R |
 | D08T | Pushable objects: modern grab/push/pull and climb (alley dumpster) | Done | D08 |
 | D08T1 | Separate push/pull from mantling: E always mantles, hold RMB to grab | Done | D08T, D04 |
-| D08T2 | Duke-symbol pushable blocks cannot be pushed with Modern controls (RMB grab, game-wide) | Todo | D08T1, D22B |
+| D08T2 | Duke-symbol pushable blocks cannot be pushed with Modern controls (RMB grab, game-wide) | Accepted | D08T1, D22B |
 | D08U | Top-of-ladder mount: grab a ladder from a platform and climb down | Done | D08, D08J |
-| D08U1 | Ladder that cannot be descended with E (player slot 12), systemic ladder-top coverage | Todo | D08U, D22B |
+| D08U1 | Ladder that cannot be descended with E (player slot 12), systemic ladder-top coverage | Accepted | D08U, D22B |
+| D08T3 | Free manual push and pull while holding Grab (no fixed-size shoves) | Todo | D08T2 |
 | D08V | Sewer mantle/hang modern-control coverage (slot 12 area) | Done | D08, D08B |
 | D08W | Subway shallow-water sideways jumps (A/D + Space jumps forward) | Done | D08, D08C |
 | D08X | Hold-E airborne ledge grab and mantle (ladder-grab feel for ledges) | Done | D08, D08J, D08V |
@@ -115,7 +117,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D17Q | Residual wall/surface flicker: Corrected-renderer stability polish | Done (user-accepted) | D17N |
 | D17O | Unstable sky appearance when looking up (slot 10) | Done (user-accepted) | D17A, D17B |
 | D17P | Distant horizontal black bands in new subway slot 8 | Done (user-accepted) | D15 |
-| D17R | Sky turns black toward the left/right edges when looking up, game-wide (LEVEL01 slot 9) | Todo | D14, D17O, D22A |
+| D17R | Sky turns black toward the left/right edges when looking up, game-wide (LEVEL01 slot 9, medieval UI slot 2) | Todo | D14, D17O, D22A |
 | D17C | View bob: disable experiment, then a stable modern camera | Done (user-accepted) | D11 |
 | D18 | FMV and audio presentation safeguards | Todo | D01, D02 |
 | D18A | Voice/music/gunfire crackle investigation | Done | D01, D02 |
@@ -130,7 +132,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D22 | Campaign fidelity and overlay coverage | Todo | D01 |
 | D22A | Portal transition loses Modernized controls and first person (slot 7) | Accepted | D05, D06, D11 |
 | D22B | Modern controls and first person in every level and transition (no classic fallback) | Accepted | D22A, D26A |
-| D22C | Level 11 starts with Legacy controls until F10 (control mode must persist) | Todo | D22B |
+| D22C | Level 11 starts with Legacy controls until F10 (control mode must persist) | Accepted | D22B |
 | D23 | Performance budgets and long-session stability | Todo | D01 |
 | D23A | Modernized frame-budget regression (guard identity cost) | Done | D08 |
 | D23B | Intro FMV stutter: stranded native movie shard | Done | D23 |
@@ -852,6 +854,33 @@ mantle/E; shallow → subway platform jump lands reliably from the wall or a
 run-up without a distance puzzle; no regression on D08M shallow/oxygen; Vanilla
 unchanged. **All accepted 2026-09-28.**
 
+### D08O1 - Fire weapons while swimming (Modernized, game-wide)
+
+**Todo. User request, 2026-10-05.** "Duke cannot shoot and swim at the same
+time so that needs to be addressed just like we did with the jet pack work."
+Reproduction: UI slot 2 (savestate file 01, SHA-256
+`756b0e158f744157fb4a4a3a4c9eca9aa357a905166a112c7a420ba4af7cfe59`), first
+medieval level. Test only on dated private copies; verify the hash first.
+
+**Scope:** in Modernized, Duke can fire his weapon while swimming (surface and
+deep free-swim, D08M/D08O), aimed at the view with the enabled crosshair, the
+way D08Q3 made jetpack flight a shooting state. First establish what the
+original allows in each water state (surface, shallow, deep), which weapons it
+permits underwater, and how the weapon is stowed/drawn on entering and leaving
+water; separate missing Modernized eligibility (aim/reticle/lease guards that
+exclude swim modes 4/5) from an original restriction. Where the original
+forbids firing, propose the modern behaviour (and any weapons that should stay
+unusable) to the user before changing rules. Reuse the D08Q3 approach: swim
+eligibility in the weapon-aim and reticle paths, weapon presentation, beam and
+projectile completion, transitions into and out of water. Work with D11E
+(first person while swimming).
+
+**Acceptance:** in Modernized, Duke fires the agreed weapons while swimming in
+at least two levels, aimed at the view with the crosshair, in third person (and
+first person once D11E exists); entering/leaving water, holster and weapon
+switching stay clean; the jetpack and ground aiming are unchanged; Vanilla
+unchanged; the user confirms.
+
 ### D08N — Duke3D-style scuba gear item
 
 **Cancelled — out of scope, 2026-09-28.** The user directed that a scuba device
@@ -1218,7 +1247,28 @@ end the grab cleanly. Third and first person. Vanilla unchanged.
 
 ### D08T2 - Duke-symbol pushable blocks with Modern controls (game-wide)
 
-**Todo. User report, 2026-10-05 (D22B game-wide playtest).** Blocks marked
+**Accepted (2026-10-05, user: "i accept everything aside from the ladder
+glitch").** The hint changes are accepted too; the slot-12 ladder continues
+under D08U1. Earlier: Needs playtest. Cause: the block is an ordinary original
+pushable object (type 924, flags `0x081890e2`), but `object_type_flags()` in
+`push.inc` refused types `>= 512`; the original type table holds 1062 types
+(`0x7428` bytes allocated at `0x8001b634`). Fixed in the shared lookup, so
+grab/push, the ladder-top mount and the ledge/crate mantle now see every type
+(4 more pushable, 6 more ladder, 114 more climbable types). RMB pushes the
+slot-1 block in third and first person; dumpster and Vanilla unchanged.
+Candidate `06c1f8b10fde4f6249f1e692d39de6b6abb83a2086c19cc0a9cfab5e391b8b55`.
+[Note 103](documentation/103-d08t2-object-type-range.md).
+
+Selected 2026-10-05. Reproduction: UI slot 1 (savestate file
+00, SHA-256 `ab8d2e156b6bdaf802f7a454449a07eaa8a47f530f99108a96fb0b8abefcbc72`,
+written 2026-10-05 01:15), first medieval level: the block directly ahead
+should push. Guide: on the right side of the castle, before the moat enters
+under the wall, a ledge runs along the castle wall (jetpack onto it); the wall
+with the atomic symbol pushes to open a secret (power-ups and ammo). Fix the
+system for every pushable object, not this block. Private copies:
+`recomp/analysis/d08t2-20261005/states/`.
+
+User report, 2026-10-05 (D22B game-wide playtest).** Blocks marked
 with the Duke Nukem symbol are meant to be pushed. With Modern controls they
 cannot be pushed; after switching to Legacy controls the same block pushes
 correctly, so the original interaction works and our modern mapping does not
@@ -1239,6 +1289,34 @@ design rather than mapping another Legacy button.
 **Acceptance:** the reported blocks in at least two eras push with RMB in first
 and third person; the alley dumpster still works; release and focus loss let
 go; Vanilla/Legacy unchanged; the user confirms.
+
+### D08T3 - Free manual push and pull while holding Grab
+
+**Todo. User request, 2026-10-05 (D08T2 playtest).** "The rmb pull and push
+mechanic seems to work in set amounts at a time ... hold rmb and press W and
+duke will push the stone a set amount (im guessing 1130 units) and then stop
+and release. I would love to give the user the actual freedom to properly move
+the block manually by holding rmb, properly grabbing, and pushing and pulling
+the stone block that way." Suggested as the next job.
+
+Today the original push 120 / pull 119 (`0x80048e84`, object motion
+`0x800910a0`) is one fixed shove of about 1130-1200 units along one world
+axis chosen from Duke's heading; D08T1 lets it run to its end, and Duke then
+lets go. Investigate how the original moves the object per update (step size,
+axis, collision and blocking checks, the end-of-shove release, sound), whether
+a shove can be continued, stopped early or chained while Grab and W/S stay
+held, and what drives the push sound and animation loop. Then design modern
+manipulation: while Grab is held, W/S move the object continuously (and stop
+when released), Duke stays attached until Grab is released, and blocked
+objects stop cleanly. Keep the original collision and puzzle rules (no pushing
+through walls, keep axis-aligned puzzle positions such as the Duke-symbol
+secret walls) unless the user agrees otherwise. Game-wide: every pushable type.
+
+**Acceptance:** with Grab held, W/S push and pull a pushable object by any
+amount the player chooses, stop when W/S is released, keep holding until Grab
+is released, and stop at obstructions; the dumpster and the Duke-symbol
+blocks work in third and first person; puzzles that need a pushed block still
+complete; Vanilla unchanged; the user confirms.
 
 ### D08U - Top-of-ladder mount: grab a ladder from a platform and climb down
 
@@ -1273,6 +1351,49 @@ already known from D08B/D08J to see whether the same mechanism applies there,
 and record any ladder that it does not cover.
 
 ### D08U1 - Ladder that cannot be descended with E (player slot 12)
+
+**Accepted (2026-10-05, user: "accepted!! done, commit. great work").**
+Executable `4f76da406a12958fe50e4751c7a99832b90a9f562710326060e2d1a66a732c83` is the regression baseline. Causes, in order found:
+object type 639 refused by the old 512 type bound (D08T2); the ladder ends
+above its floor, so the original swung Duke into a bottom-rung hang (now
+stopped on the last rung via the original probe `0x8007ded0` and let go with
+Square); and, the user's actual failure, the mount blend cut short when the
+game drops frames, leaving Duke above the climbing line (now finished while he
+rests). See the work log and [note 103](documentation/103-d08t2-object-type-range.md).
+
+**Needs playtest (2026-10-05, second fix).** User, after the first fix: "Duke
+cannot climb down the ladder ... when you start pressing S, he just glitches
+out. we need to truly fix that." The first fix only let Duke drop out of the
+original bottom-rung hang, so the sideways 156 -> 211 swing still played.
+Second fix: the bottom is now decided before the swing. At each player update
+on a plain ladder (186..189) the host asks the original's own probe
+`0x8007ded0` (no ladder and no floor 500 below Duke). The 188/189 case at
+`0x80044128` decides from the descent flag `+0x6a`, not from Down, and in the
+same update; so when the probe is true during a step down, the flag is
+cleared and the original takes its own stop-at-this-rung branch. On that
+last rung S sends the original Square let-go from the climbing pose (fall 108,
+landing 105), never the hang. Real keys on the slot-12 copy: holding S (third
+and first person) climbs down and drops straight to the floor from the last
+rung; tapping S stops on the last rung and the next tap drops; W from the
+last rung climbs back up and exits at the top (190). Ladders that reach their
+floor never trip the probe: the D08U sewer ladder keeps the 185 step-off and
+the alley ladder climb is unchanged. Candidate `cf90d94246907355d3b81c8d2734715069e48edb23df8f8009ce895d029461da`.
+
+First fix (superseded). Two causes. (1) The slot-12 ladder is object
+type 639; the shared type lookup refused types `>= 512` (fixed by D08T2): E
+now mounts it. (2) User retest: "when you press S to go down, duke starts
+glitching". This ladder ends about 1000 units above the floor. At its lowest
+rung the original (`0x8007ded0` finds no ladder 500 below) goes 156 -> 211 ->
+207, a hang from the bottom rung; there original Square lets go and Up climbs
+back, but Down (S) only flips 211/207 with Duke's body in the floor. The
+original pad alone does the same, so it is an original state our top mount
+now reaches. Fix (game-wide, `ladder_top.inc` `ladder_bottom_hang()`,
+`pc_input.cpp`): S in that hang sends the original Square (let go) instead of
+Down; on the way in (211) neither. Real keys, both views: S held from the top
+reaches the floor (108 fall, landing, Modernized control, weapon redrawn).
+The D08U sewer ladder still steps off with 185. Candidate
+`fa28448d26694572d1c58d4ab2498c8da8329261200e3fc19c24f186418d774e`.
+[Note 103](documentation/103-d08t2-object-type-range.md).
 
 **Todo. User report, 2026-10-05 (D22B game-wide playtest).** Player UI slot 12
 (savestate file 11 in `recomp/saves/local-play/openbios`, written 2026-10-05
@@ -2386,6 +2507,14 @@ original renderer's assumptions about the visible horizontal field, including
 our first-person presentation. Reuse D17O ([note 92](documentation/92-d17o-sky-intake.md)),
 R01 and the renderer notes.
 
+**Also seen, 2026-10-05 (user, after D22C):** UI slot 2 (savestate file 01,
+SHA-256 `756b0e158f744157fb4a4a3a4c9eca9aa357a905166a112c7a420ba4af7cfe59`,
+written 2026-10-05 09:10), first medieval level: "strange behaviour with the
+sky that's directly ahead of you". The user suspects the same cause as the
+black peripheral sky and asked to record it here rather than as a new job.
+Confirm whether it is the same symptom (edges going black) or a different
+sky artifact before assuming one cause; split it out if it is not.
+
 **Also reproduced, 2026-10-05 (user, D22B game-wide playtest):** the Roman /
 HOG HEAVEN environment (`level 10`) shows the same black sky toward the
 peripheral edges of the view. The problem is game-wide, not specific to
@@ -2658,7 +2787,15 @@ individual levels, wherever the evidence allows.
 
 ### D22C - Level 11 starts with Legacy controls (control mode must persist)
 
-**Todo. User report, 2026-10-05 (D22B game-wide playtest).** Loading Level 11
+**Accepted (2026-10-05, user: "I accept this work").** Earlier: Needs playtest. Reproduced and fixed; not specific to Level
+11. An F10 release followed by an F10 recapture left automatic capture opted
+out, so the next host release (opening the backtick console for `level N`,
+menus) arrived in the new level with the mouse free and the original
+controls until F10. F10 that captures now opts back in. Candidate
+`f9d4a09a8a6c946f5717d4ca6eb20164f99bf7757bd88504e672ca60fd646c8b`. See the
+work log.
+
+User report, 2026-10-05 (D22B game-wide playtest): loading Level 11
 (LET THE GAMES BEGIN with `level 11`) unexpectedly started in Legacy controls;
 F10 restored Modern controls. Level transitions and the debug level select must
 not change the player's selected control scheme. Level numbers in this report follow the D26A console (`level N`); D26D will
@@ -6518,3 +6655,176 @@ D26B opening the console leaves first person, D26C console Up/Down history,
 D26D authoritative level-select order/numbering/names/categories. D17R
 updated with the HOG HEAVEN sky reproduction (no duplicate job).
 Documentation only; no code, build or launch. No next job selected.
+
+## 2026-10-05 - D22C control mode persists through level select, Needs playtest
+
+Selected by the user ("you might not even be able to replicate it").
+Reproduced on the accepted D22B build with real SDL keys (xdotool, private
+Xvfb :95, private card copy, port 9247;
+`recomp/analysis/d22c-20261005/repro.py`):
+
+| Case | Before | After |
+| --- | --- | --- |
+| A: no F10 in the session, `level 11` then `level 12` | captured, lease ready, first person | same |
+| B: F10 (release), F10 (capture), then `level 11` and `level 12` | not captured, `ready` false, first person `lease` | captured, lease ready, first person |
+
+Cause: `pc_input.cpp` cleared `initial_capture` (automatic gameplay capture)
+on every F10, including the F10 that recaptures. Only Escape or another F key
+set it again. Opening the console releases the mouse, so after any earlier
+F10 pair the next `level N` (or other host release) left Duke uncaptured,
+which looks like Legacy controls until F10. Nothing about Level 11 itself.
+
+Fix (`recomp/src/ttk/pc_input.cpp`, game code, not framework): an F10 that
+releases still opts out of automatic capture; an F10 that captures opts back
+in. Escape/F7/focus behaviour is unchanged. `ttk-input-test` gained a D22C
+group (F10 pair, console-style release, offers recapture; an F10 release
+still stays free through offers). ttk-input-test, ttk-controls-test (owned
+LEVEL00/LEVEL01/levels dir), ttk-aim-test and ttk-near-test pass. Vanilla
+ignores F10 (input module returns before key handling), unchanged. Codegen
+hash unchanged. Candidate
+`f9d4a09a8a6c946f5717d4ca6eb20164f99bf7757bd88504e672ca60fd646c8b`.
+Manual updated (F10 capture opts back in).
+
+Not exercised: natural progression into Level 11 (the user's report was
+`level 11`); the reported session's exact key history is unknown, so this is
+the reproduced mechanism, not proof it was the user's only path. User
+confirmation required.
+
+## 2026-10-05 - D08T2 object type range (pushables, ladders, mantles), Needs playtest
+
+D22C accepted by the user ("I accept this work"); D08T2 selected; D08O1
+(fire while swimming) added and D17R updated with the UI slot 2 medieval sky
+report.
+
+D08T2 cause: the UI slot 1 medieval Duke-symbol block is object type 924
+(flags `0x081890e2`, pushable and climbable). `push.inc`
+`object_type_flags()` refused types `>= 512`; the original allocates 1062
+types (`0x7428` bytes at `0x8001b634`). Bound now `0x7428 / 28`. The same
+lookup serves D08U ladder tops and D08X mantles, so 4 pushable, 6 ladder and
+114 climbable types (of a single global table) were invisible to Modernized.
+
+Evidence (real keys, private copies, A/B with the old bound): RMB grabs and
+pushes the slot-1 block 1129 (third) / 1126 (first person), old bound moves it
+0; E alone still never grabs; the D08U1 slot-12 ladder (type 639) now mounts
+with E and S descends to the bottom (old bound: nothing); D08T1 dumpster suite
+unchanged; Vanilla dumpster push +1185 / pull -936. Native controls (new type
+range cases), input and aim tests pass. Candidate
+`06c1f8b10fde4f6249f1e692d39de6b6abb83a2086c19cc0a9cfab5e391b8b55`.
+[Note 103](documentation/103-d08t2-object-type-range.md).
+
+Not exercised: the Roman-area block and the two early medieval blocks; other
+newly visible ladders and mantles. User playtest required for D08T2 and
+D08U1.
+
+## 2026-10-05 - D08T2 retest: hints, slot-12 ladder bottom; D08T3 added
+
+User retest of the D08T2 candidate. (1) "the dialogue at the top does not
+appear ... after interacting with a pushable block once, the dialogue at the
+top doesnt appear ever again": not a D08T2 regression; D08T1 showed
+`HOLD RMB TO GRAB` only on the first 2 touches and the push/pull line only on
+the first 3 grabs of a session, and the newly pushable medieval blocks now
+use them up. Hints now show on every fresh touch and every grab (and the D08U
+ladder-top `E TO CLIMB DOWN` on every fresh ladder top), at most once per 300
+input frames (about 5 s), and log `[TTK input] Hint: ...`. Live: three touches
+and two grabs each logged their hint (the debug screenshot does not include
+host overlays). (2) Slot-12 ladder S descent glitch: original bottom-rung
+hang 207 (ladder ends above the floor); S now lets go with the original
+Square. See D08U1. (3) New Todo D08T3: free manual push/pull.
+
+Native input (new bottom-hang and hint-cooldown cases), controls and aim tests
+pass. Candidate
+`fa28448d26694572d1c58d4ab2498c8da8329261200e3fc19c24f186418d774e`.
+
+## 2026-10-05 - D08T2 accepted; D08U1 ladder bottom fixed properly
+
+User: "i accept everything aside from the ladder glitch as demonstrated in
+slot 12 ... continue working on it and make that ladder descendable." D08T2
+(type range, hints) Accepted.
+
+D08U1 diagnosis on the private slot-12 copy, frame by frame: the ladder's
+lowest rung is about 990 above its floor (the sewer ladder's is about 420).
+At the bottom of a step down the original 188/189 case (`0x80044128`) calls
+`0x8007ded0`; it is true (nothing 500 below), so the original plays 156 ->
+211 (Duke swings sideways off the ladder, legs flailing) -> 207 (hanging from
+the bottom rung). The original pad alone does the same; Square lets go from
+any climbing pose (fall 108, landing), Up climbs back. The earlier fix only
+made S drop out of 207, so the swing remained.
+
+Fix (`ladder_top.inc` `ladder_end_update()`, run from the player update, and
+`pc_input.cpp`): on a plain ladder (186..189), ask `0x8007ded0` through the
+isolated original call (touch fields +0x174/+0x178 restored). True during a
+step down (188/189 with `+0x6a`): clear `+0x6a`, so the original stops at
+this rung. On that rung S sends Square instead of Down/Cross. A first attempt
+with a 300-unit lookahead broke the sewer ladder (its probe point fell below
+the floor), so the rule uses the original's own probe at Duke's position only.
+The 207 fallback stays. Debug: `ladder_top.end_probes/end_hits/end_stops`.
+
+Evidence (real keys, private copies): slot 12 hold S, third and first person:
+188/189 -> 108 -> landing on the floor, no 156/211/207, weapon redrawn; tap
+S: steps down, stops on the last rung (end_stops 1-2), next tap drops; W from
+the last rung climbs to the top exit 190. Sewer ladder (D08U state): 188 ->
+185 step-off -> floor, unchanged. Alley ladder D08U run: same states and end
+position as accepted, end_hits 0. Native: controls (new D08U1 group: stop on
+open bottom, touch fields kept, resting poses untouched, Vanilla never
+probes), input (last-rung Square without Down/Cross), aim pass. Candidate
+`cf90d94246907355d3b81c8d2734715069e48edb23df8f8009ce895d029461da`. User playtest required.
+
+## 2026-10-05 - D08U1 still failing for the user; robustness fixes and ladder diagnostics
+
+User: "the issue still exists. i cannot climb down it at all. duke mounts the
+ladder from the top, and then glitches out when you try to press S."
+
+The user's session log (12:17, candidate `cf90d942...`) shows repeated
+186 -> 189 -> 187 -> 188 lease lines and three `E TO CLIMB DOWN` hints, and
+never 156/211/207 or a drop (108): Duke never reached the ladder bottom, and
+was back on the platform between attempts. Not reproduced offscreen with a
+private copy of the user's own profile (first person, 120 fps, manual jump,
+view bob, scale 4) on the real GPU: held S, tapped S, E held with S, E taps
+alternating with S taps, E alone, and mouse look (yaw, pitch, both) during S
+all descend; frames show the normal orbit view on the ladder.
+
+Found and fixed on the way: (1) with E held, the end probe missed by a few
+units (the original moves Duke 20-40 units in the update before its own
+probe), so the swing still happened: the probe now looks 96 units lower (300
+was too far for the sewer ladder). (2) After the stop Duke rests a little
+higher where the probe reads closed: the last rung is latched until he climbs
+150 up or leaves the ladder. (3) A held E kept Cross pressed, and the original
+ignores the let-go while Cross is held: Cross is released while letting go.
+All variants now reach the floor; the sewer ladder keeps 185.
+`DNTTK_TEST_INPUT` (diagnostics only) now turns key changes into key events,
+so scripted runs exercise press-driven actions such as E.
+
+New session-log line on every ladder pose change:
+`[TTK ladder] anim=... mode=... y=... obj=... keys=WSE pad=UDXQ end=...` (keys
+held; original Up/Down/Cross/Square sent; last-rung latch). Native tests pass.
+Candidate `071487b1f35bcbfd9bf4734c69fd06926fb1b1c11283c2c29dce80156428784a`. Waiting for the user's description and a session
+log of the failure.
+
+## 2026-10-05 - D08U1 root cause found in the user's log: mount blend cut short
+
+User: "it produced the same effect. yes i hold down S." The new
+`[TTK ladder]` lines (session 12:36) show the mount ending at y -9114 and
+every later pose (186/189/187/188 with S, pad Down+Cross) staying at -9114.
+Every offscreen run ends the mount at -8901, on the climbing line. The host
+blends Duke from the platform to the line over 12 player updates of the
+original 156; when the game drops frames (the user's scale-4 rendering) the
+original 156 advances several frames per update and ends after about 8, the
+blend stopped at about two thirds, and Duke was left 213 units above the
+climbing line, where the original plays the step poses without moving him.
+
+Reproduced with a diagnostic blend length (`DNTTK_LADDER_MOUNT_UPDATES=18`,
+diagnostics only): the mount ends at -9115 and, with the previous code, S
+loops the poses frozen there, the user's exact report. Fix
+(`ladder_top.inc`): if the original leaves 156 for the resting poses 186/187
+before the blend is done, the host finishes the blend there, and Up/Down are
+not sent meanwhile (`ladder_mount_finishing()`); a step already started gets
+the remainder at once. Debug `ladder_top.mount_finishes`. With the fix, the
+same 18- and 30-update cases reach -8901 and S descends to the floor; the
+normal case, the sewer ladder (185 step-off) and native tests are unchanged.
+Candidate `4f76da406a12958fe50e4751c7a99832b90a9f562710326060e2d1a66a732c83`. User playtest required.
+
+## 2026-10-05 - D08U1 accepted; closeout
+
+User: "accepted!! done, commit. great work". D08U1 Accepted; D08T2 and D22C
+were accepted earlier today. Executable `4f76da406a12958fe50e4751c7a99832b90a9f562710326060e2d1a66a732c83` is the regression
+baseline. Documentation, commit authorized. No next job selected.

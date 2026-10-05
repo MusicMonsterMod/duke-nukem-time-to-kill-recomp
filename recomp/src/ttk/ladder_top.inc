@@ -21,7 +21,15 @@
 // Cross, so Duke climbs all the way down and steps off instead of stopping at
 // the lowest rung. E-owned stow and redraw follow the D08J rules.
 static constexpr uint32_t object_ladder=0x200u;
-static constexpr unsigned ladder_mount_updates=12;
+static constexpr unsigned ladder_mount_default_updates=12;
+// Diagnostics only: DNTTK_LADDER_MOUNT_UPDATES lengthens the blend so that
+// the original 156 ends first, as it does when the game drops frames.
+static unsigned ladder_mount_updates() {
+    static const unsigned n=[]{const char* v=std::getenv("DNTTK_LADDER_MOUNT_UPDATES");
+        const long x=v?std::atol(v):0;return x>=4 && x<=60?unsigned(x):ladder_mount_default_updates;}();
+    return n;
+}
+static unsigned ladder_mount_finishes;
 struct LadderTop { uint32_t object; double x,y,z; int yaw; };
 static struct {
     bool active;
@@ -111,6 +119,93 @@ bool ladder_descent_ready() {
         (animation==156 || (animation>=185 && animation<=190)) &&
         plain_ladder(object_type_flags(psx_mod_read_word(player+0x17c)));
 }
+// D08U1: where a plain ladder ends above the floor (0x8007ded0 finds no ladder
+// 500 below Duke), the original leaves the lowest rung through 156 and 211
+// into a hang from the bottom rung (207). There Square lets go and Duke drops
+// to the floor, Up climbs back; Down only flips 211/207 with Duke's body in the
+// floor. 1 = on the way into the hang, 2 = hanging (207).
+int ladder_bottom_hang() {
+    const unsigned animation=psx_mod_read_half(player+0x60);
+    if((animation!=207 && animation!=211) || !traversal_input_ready() ||
+       psx_mod_read_byte(player+0x22c)!=3 || psx_mod_read_byte(player+0x22d)!=3 ||
+       !plain_ladder(object_type_flags(psx_mod_read_word(player+0x17c))))return 0;
+    return animation==207?2:1;
+}
+// D08U1: the same decision, taken cleanly. While Duke is on a plain ladder
+// (186..189), the player update asks the original's own probe 0x8007ded0 (no
+// ladder and no floor 500 below Duke) before the ladder case runs.
+//  * Stepping down (188/189 with the descent flag +0x6a): when the probe is
+//    true, the case at 0x80044128 would start 156 -> 211 -> 207 in this very
+//    update (it reads +0x6a, not Down, so a tapped S that is already released
+//    gets there too). The flag is cleared, so the original takes its own
+//    stop-at-this-rung branch instead.
+//  * On that last rung, S sends Square, the original let-go from the climbing
+//    pose (fall 108, landing), instead of Down.
+// A ladder that reaches its floor never trips the probe and keeps the
+// original 185 step-off.
+static bool ladder_end_open;
+static constexpr uint32_t ladder_end_margin=96;
+// The rung where Duke was stopped: he settles a little higher (rest 186/187),
+// where the probe no longer sees the end, so it stays the last rung until he
+// climbs up from it or leaves the ladder.
+static struct {bool on; uint32_t object; int32_t y;} ladder_last_rung;
+static unsigned ladder_end_probes, ladder_end_hits, ladder_end_stops;
+static bool ladder_climb_early() {
+    const unsigned animation=psx_mod_read_half(player+0x60);
+    return animation>=186 && animation<=189 && psx_mod_read_byte(player+0x22c)==3 &&
+        psx_mod_read_byte(player+0x22d)==3 &&
+        plain_ladder(object_type_flags(psx_mod_read_word(player+0x17c)));
+}
+static void ladder_end_update(CPUState* cpu) {
+    ladder_end_open=false;
+    if(ladder_last_rung.on && (!ladder_climb_early() || psx_mod_read_word(player+0x17c)!=ladder_last_rung.object ||
+       (int32_t)psx_mod_read_word(player+8)<ladder_last_rung.y-150))ladder_last_rung.on=false;
+    // Session-log diagnostics: one line per ladder pose change (mode 3/8),
+    // with the keys held and the original buttons sent (Up/Down/Cross/Square).
+    {
+        static unsigned last_animation;
+        const unsigned animation=psx_mod_read_half(player+0x60),mode=psx_mod_read_byte(player+0x22c);
+        if(input_modernized() && (mode==3 || mode==8 || last_animation) && animation!=last_animation) {
+            const auto& g=input_snapshot(Context::Gameplay);const uint16_t pad=~input_last_pad();
+            std::fprintf(stderr,"[TTK ladder] anim=%u mode=%u/%u y=%d obj=%08x keys=%s%s%s pad=%s%s%s%s end=%d\n",animation,mode,
+                psx_mod_read_byte(player+0x22d),(int32_t)psx_mod_read_word(player+8),psx_mod_read_word(player+0x17c),
+                g.held[move_forward]?"W":"",g.held[move_back]?"S":"",g.held[interact]?"E":"",
+                (pad&16)?"U":"",(pad&64)?"D":"",(pad&16384)?"X":"",(pad&32768)?"Q":"",ladder_last_rung.on);
+            last_animation=(mode==3 || mode==8)?animation:0;
+        }
+    }
+    if(!input_modernized() || !input_snapshot(Context::Gameplay).active || !ladder_climb_early() ||
+       !traversal_input_ready() || !gameplay_context() || !identity())return;
+    // 0x8007dd50 rewrites the touch fields; the original recomputes them at
+    // its own call, so the probe leaves them as they were.
+    const uint32_t touch=psx_mod_read_word(player+0x174);
+    const uint16_t touch_part=psx_mod_read_half(player+0x178);
+    // The handler moves Duke (20-40 units per update) before its own probe,
+    // so ask a little lower than he stands now. A whole step (300) is too far:
+    // on a ladder that reaches its floor the point falls below the floor.
+    const uint32_t y=psx_mod_read_word(player+8);
+    psx_mod_write_word(player+8,y+ladder_end_margin);
+    int32_t open=0;
+    const bool called=original_call(cpu,0x8007ded0,0,&open);
+    psx_mod_write_word(player+8,y);
+    psx_mod_write_word(player+0x174,touch);psx_mod_write_half(player+0x178,touch_part);
+    if(!called)return;
+    ++ladder_end_probes;
+    if(!open) {ladder_end_open=ladder_last_rung.on;return;}
+    ladder_end_open=true;++ladder_end_hits;
+    const unsigned animation=psx_mod_read_half(player+0x60);
+    if((animation==188 || animation==189) && psx_mod_read_half(player+0x6a)) {
+        psx_mod_write_half(player+0x6a,0);++ladder_end_stops;
+        ladder_last_rung={true,psx_mod_read_word(player+0x17c),(int32_t)y};
+    }
+}
+// Duke rests on the ladder while the host finishes the mount blend: no Up or
+// Down may start a step from the wrong height.
+bool ladder_mount_finishing() {
+    const unsigned animation=psx_mod_read_half(player+0x60);
+    return mount.active && (animation==186 || animation==187);
+}
+bool ladder_end_below() {return ladder_end_open && ladder_climb_early() && traversal_input_ready();}
 // The original ladder exits (190 at the top, 185 stepping off at the bottom)
 // play out by themselves; a held S must not reach them as Down, which would
 // start an original backstep (82) the moment Duke lands.
@@ -130,19 +225,33 @@ static void ladder_mount_write(double e) {
 }
 // Player update (0x8005a210 from 0x80041b34), before the original handler
 // advances 156 and applies its own small root motion.
-static void ladder_top_update() {
+static void ladder_top_update(CPUState* cpu) {
+    ladder_end_update(cpu);
     if(mount.active) {
-        if(!ladder_mount_early() || (psx_mod_read_word(player)&0x20002) || !gameplay_context() || !identity()) {
+        const unsigned animation=psx_mod_read_half(player+0x60);
+        const bool attached=psx_mod_read_byte(player+0x22c)==3 && psx_mod_read_word(player+0x17c)==mount.object &&
+            animation>=186 && animation<=189;
+        const bool unfinished=mount.ticks<ladder_mount_updates();
+        if((psx_mod_read_word(player)&0x20002) || !gameplay_context() || !identity() ||
+           (!ladder_mount_early() && !(attached && unfinished))) {
             // The original moved on: 186 means Duke is on the ladder.
-            const unsigned animation=psx_mod_read_half(player+0x60);
             mount.active=false;
-            if(psx_mod_read_byte(player+0x22c)==3 && animation>=186 && animation<=189)++ladder_mounts;
+            if(attached)++ladder_mounts;
             else ++ladder_mount_aborts;
             return;
         }
+        // D08U1: when the game drops frames the original 156 advances several
+        // frames per player update and ends before the blend does; Duke was
+        // then left above the climbing line, where S plays the step poses in
+        // place. Finish the blend while he rests (186/187); a step that has
+        // already started (188/189) gets the rest at once.
+        if(animation==188 || animation==189) {
+            ladder_mount_write(1);mount.active=false;++ladder_mounts;++ladder_mount_finishes;return;
+        }
         ++mount.ticks;
-        const double u=std::min(1.0,double(mount.ticks)/ladder_mount_updates);
+        const double u=std::min(1.0,double(mount.ticks)/ladder_mount_updates());
         ladder_mount_write(u*u*(3-2*u));
+        if(attached && mount.ticks>=ladder_mount_updates()) {mount.active=false;++ladder_mounts;++ladder_mount_finishes;}
         return;
     }
     if(!ladder_request_frame || input_host_frame()-ladder_request_frame>20)return;

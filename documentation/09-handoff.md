@@ -1,5 +1,102 @@
 # Next-session handoff
 
+
+
+
+
+
+
+## 2026-10-05 - D08U1 accepted; D08T2/D22C accepted; closeout
+
+User: "accepted!! done, commit. great work". Accepted today: D22C (F10
+recapture opts back in to automatic capture), D08T2 (object type range 1062:
+Duke-symbol blocks push with RMB; hints on every contact) and D08U1 (slot-12
+ladder: last-rung stop and let-go, mount blend finished after dropped frames).
+Regression baseline
+`4f76da406a12958fe50e4751c7a99832b90a9f562710326060e2d1a66a732c83`.
+New Todo: D08T3 (free manual push/pull, suggested next), D08O1 (fire while
+swimming); D17R gained the UI slot 2 medieval sky report. No next job
+selected.
+
+## 2026-10-05 - D08U1 cause found: mount blend cut short by dropped frames
+
+The user's `[TTK ladder]` log showed the mount ending at y -9114 (offscreen
+always -8901), and Duke frozen there while S looped the step poses. With
+dropped frames the original 156 transfer ends before the host's 12-update
+blend, leaving Duke above the climbing line. Reproduced with a longer
+diagnostic blend (stuck at -9115 with the old code); the host now finishes
+the blend while Duke rests on the ladder. Candidate
+`4f76da406a12958fe50e4751c7a99832b90a9f562710326060e2d1a66a732c83`.
+Nothing committed. Launch: `python3 recomp/tools/local/run.py`.
+
+## 2026-10-05 - D08U1 not reproduced; robustness fixes and ladder log line
+
+User: slot-12 ladder still glitches on S. Their log shows Duke never reached
+the bottom (only 186-189 near the top, three retries). Not reproduced with a
+private copy of their profile (first person, 120 fps) for held/tapped S, E
+held, E taps or mouse look. Fixed: E-held swing at the bottom, rest-pose
+latch, E's Cross blocking the let-go. New `[TTK ladder]` session-log line per
+ladder pose change. Candidate
+`071487b1f35bcbfd9bf4734c69fd06926fb1b1c11283c2c29dce80156428784a`.
+Next: the user retries and describes the glitch; read their newest
+`recomp/build-local/logs/session-*.log`.
+
+## 2026-10-05 - D08T2 accepted; D08U1 slot-12 ladder bottom fixed, Needs playtest
+
+User accepted D08T2 (type range, hints) except the slot-12 ladder ("he just
+glitches out"). Cause: the ladder's last rung is ~990 above the floor, so the
+original swings off sideways (156 -> 211) into a bottom-rung hang (207). Now
+the player update asks the original's own probe `0x8007ded0`; at an open
+bottom the descent flag is cleared so the original stops on the last rung,
+and S lets go with the original Square (clean fall and landing). Hold or tap
+S both work in third and first person; W climbs back; the sewer ladder keeps
+its 185 step-off. Candidate
+`cf90d94246907355d3b81c8d2734715069e48edb23df8f8009ce895d029461da`.
+Nothing committed. Next suggested: D08T3 (free push/pull).
+Launch: `python3 recomp/tools/local/run.py`.
+
+## 2026-10-05 - D08T2 retest fixes; D08T3 added
+
+User retest: hints never reappeared (D08T1 capped them per session; now every
+fresh touch/grab/ladder top, at most every ~5 s); slot-12 ladder S glitch
+(the ladder ends above the floor and the original hangs from its bottom rung;
+S now lets go with the original Square and Duke drops to the floor). New Todo
+D08T3: free manual push/pull while holding Grab, suggested as the next job.
+D08T2 and D08U1 Needs playtest. Candidate
+`fa28448d26694572d1c58d4ab2498c8da8329261200e3fc19c24f186418d774e`.
+Nothing committed. Launch: `python3 recomp/tools/local/run.py`.
+
+## 2026-10-05 - D08T2 Needs playtest (also fixes D08U1)
+
+The medieval Duke-symbol block (UI slot 1) is object type 924; the shared
+object type lookup in `push.inc` refused types `>= 512`, but the original has
+1062. Fixed from the original allocation (`0x7428 / 28`). RMB now grabs and
+pushes it in third and first person; the D08U1 slot-12 ladder (type 639) now
+mounts with E and descends; dumpster and Vanilla unchanged; native tests pass.
+114 more climbable types now reach the D08X mantle too. Candidate
+`06c1f8b10fde4f6249f1e692d39de6b6abb83a2086c19cc0a9cfab5e391b8b55`.
+Nothing committed. [Note 103](103-d08t2-object-type-range.md).
+Launch: `python3 recomp/tools/local/run.py`.
+
+## 2026-10-05 - D22C accepted; D08T2 in progress; D08O1 added
+
+User: "I accept this work." D22C is Accepted; candidate
+`f9d4a09a8a6c946f5717d4ca6eb20164f99bf7757bd88504e672ca60fd646c8b` is the new
+regression baseline. D08T2 selected (UI slot 1, file 00, medieval
+Duke-symbol block). New Todo D08O1: fire weapons while swimming (UI slot 2,
+file 01), modelled on the D08Q3 jetpack work. D17R gained the UI slot 2
+medieval sky report ("strange behaviour with the sky directly ahead").
+
+## 2026-10-05 - D22C control mode persists through level select, Needs playtest
+
+Reproduced with real keys: after an F10 release and F10 recapture, every
+later `level N` (11 and 12 tested) arrived with the mouse free, which looks
+like Legacy controls until F10. F10 that captures now opts back in to
+automatic capture (`recomp/src/ttk/pc_input.cpp`); an F10 release still opts
+out. Not specific to Level 11. Native input/controls/aim/near tests pass.
+Candidate `f9d4a09a8a6c946f5717d4ca6eb20164f99bf7757bd88504e672ca60fd646c8b`.
+Nothing committed. Launch: `python3 recomp/tools/local/run.py`.
+
 ## 2026-10-05 - D22B accepted; game-wide playtest backlog
 
 User: "Accepted." D22B is Accepted; executable

@@ -26,7 +26,7 @@ static bool ready, holstered, flight, traversal, preparing, shortfall, switching
 static bool alive=true,view_aim;
 static bool push_grab,push_contact,push_idle;
 static bool trav_camera, roll_camera;
-static bool ladder_top,ladder_on,ladder_exit;
+static bool ladder_top,ladder_on,ladder_exit,ladder_end;static int ladder_hang;
 static unsigned ladder_requests;
 static bool ladder_leap,leap_on;static unsigned ladder_leaps;
 static void key(SDL_Scancode code, bool down, bool repeat = false) {
@@ -456,6 +456,17 @@ int main() {
     key(SDL_SCANCODE_ESCAPE,true);key(SDL_SCANCODE_ESCAPE,false);
     for(int i=0;i<14;++i){ttk::input_offer_gameplay_capture();tick();}
     CHECK(SDL_GetWindowRelativeMouseMode(win) && tick().active);
+    // D22C: F10 release then F10 recapture opts back in. The console (a host
+    // release, as for `level N`) is then followed by automatic recapture.
+    key(SDL_SCANCODE_F10,true);CHECK(!SDL_GetWindowRelativeMouseMode(win) && !ttk::input_wants_initial_capture());
+    key(SDL_SCANCODE_F10,true);CHECK(SDL_GetWindowRelativeMouseMode(win));
+    ttk::input_release();CHECK(ttk::input_wants_initial_capture());
+    for(int i=0;i<20;++i){ttk::input_offer_gameplay_capture();tick();}
+    CHECK(SDL_GetWindowRelativeMouseMode(win) && tick().active);
+    // An F10 release still keeps the mouse free through later offers.
+    key(SDL_SCANCODE_F10,true);ttk::input_release();
+    for(int i=0;i<20;++i){ttk::input_offer_gameplay_capture();CHECK(!tick().active);}
+    key(SDL_SCANCODE_F10,true);CHECK(tick().active);
     // D10 camera keys: V counts recenter presses per epoch, H cycles the shoulder
     // center -> right -> left -> center from the profile's starting side. Neither
     // becomes a guest command; the original camera option ignores both.
@@ -576,13 +587,23 @@ int main() {
     ttk::input_release();ttk::input_init(win);focus(true);key(SDL_SCANCODE_F10,true);
     ready=true;flight=false;traversal=false;trav_camera=false;holstered=false;notices=0;ladder_requests=0;
     ladder_top=true;tick();CHECK(notices==1);tick();CHECK(notices==1);
-    ladder_top=false;tick();ladder_top=true;tick();CHECK(notices==2);ladder_top=false;tick();ladder_top=true;tick();CHECK(notices==2);
+    // D08T2: a fresh ladder top names E again once the cooldown has passed.
+    ladder_top=false;tick();ladder_top=true;tick();CHECK(notices==1);
+    ladder_top=false;for(int i=0;i<300;++i)tick();ladder_top=true;tick();CHECK(notices==2);
+    ladder_top=false;tick();ladder_top=true;tick();CHECK(notices==2);
     key(SDL_SCANCODE_E,true);tick();CHECK(ladder_requests==0 && (ttk::input_pad()&8192)==0); // armed: holster first
     key(SDL_SCANCODE_E,false);for(int i=0;i<4;++i)tick();holstered=true;tick();
     CHECK(ladder_requests==1);for(int i=0;i<10;++i){tick();CHECK((ttk::input_pad()&16384)!=0);}
     ladder_top=false;ready=false;traversal=true;ladder_on=true;
     key(SDL_SCANCODE_S,true);tick();CHECK((ttk::input_pad()&(64|16384))==0);
     ladder_on=false;tick();CHECK((ttk::input_pad()&64)==0 && (ttk::input_pad()&16384)!=0);
+    // D08U1: S in the bottom-rung hang lets go (Square) instead of Down; on the way in, neither.
+    ladder_hang=1;tick();CHECK((ttk::input_pad()&64)!=0 && (ttk::input_pad()&32768)!=0);
+    ladder_hang=2;tick();CHECK((ttk::input_pad()&64)!=0 && (ttk::input_pad()&32768)==0);
+    ladder_hang=0;tick();CHECK((ttk::input_pad()&64)==0 && (ttk::input_pad()&32768)!=0);
+    // D08U1: the last rung of a ladder that ends above the floor: S lets go (Square), no Down or Cross.
+    ladder_on=true;ladder_end=true;tick();CHECK((ttk::input_pad()&(64|16384|32768))==(64|16384));
+    ladder_end=false;ladder_on=false;tick();
     ladder_on=true;key(SDL_SCANCODE_W,true);tick();CHECK((ttk::input_pad()&16384)!=0);
     ladder_exit=true;tick();CHECK((ttk::input_pad()&(16|64))==(16|64)); // exits play out with neutral directions
     ladder_exit=false;key(SDL_SCANCODE_W,false);key(SDL_SCANCODE_S,false);ladder_on=false;traversal=false;tick();
@@ -622,5 +643,5 @@ namespace ttk { bool directional_takeoff_ready(){return preparing;} bool edge_ju
 bool short_fall_input_ready() { return shortfall && flight; } bool fire_draw_ready() { return ready && holstered; } bool airborne_input_ready() { return flight; } bool interaction_alive() { return alive; } bool interaction_restore_ready() { return ready && holstered; } bool view_aim_input_ready(){return view_aim;}
 bool weapon_drawn() { return !holstered; } bool weapon_holstered() { return holstered; } bool player_identity_ready() { return true; }
 bool movement_ready() { return ready; } bool locomotion_input_ready() { return flight; } bool traversal_input_ready() { return traversal; } bool traversal_camera_ready() { return trav_camera; } bool committed_camera_ready() { return roll_camera; } bool swim_input_ready() { return false; } bool wade_full_speed_ready() { return false; } bool swim_host_owns_jump() { return false; } void swim_strafe_pads(uint16_t& left,uint16_t& right) { left=0x100; right=0x200; } bool swim_thrust_input_ready() { return false; } bool jetpack_input_ready() { return jet; } bool interaction_holster_ready() { return (ready || flight) && !holstered && !switching; } bool interaction_ready() { return (ready || flight || traversal) && holstered && !switching; } bool push_grab_ready() { return push_grab; } bool push_contact_ready() { return push_contact; } bool push_idle_ready() { return push_idle; } uint16_t push_pad(float,float y) { return !push_grab?0:y>0?16:y<0?64:0; } const char* controls_debug_json() { return "{}"; } const char* lease_refusal_reason() { return "state"; }
-bool ladder_top_available() { return ladder_top; } void ladder_top_request() { ++ladder_requests; } bool ladder_descent_ready() { return ladder_on && traversal; } bool ladder_exit_ready() { return ladder_exit && traversal; } bool object_hang_release_ready() { return false; }
+bool ladder_top_available() { return ladder_top; } void ladder_top_request() { ++ladder_requests; } bool ladder_descent_ready() { return ladder_on && traversal; } int ladder_bottom_hang() { return traversal ? ladder_hang : 0; } bool ladder_end_below() { return traversal && ladder_end; } bool ladder_mount_finishing() { return false; } bool ladder_exit_ready() { return ladder_exit && traversal; } bool object_hang_release_ready() { return false; }
 bool ladder_leap_ready() { return ladder_leap; } bool ladder_leap_active() { return leap_on; } void ladder_leap_note() { ++ladder_leaps; } }

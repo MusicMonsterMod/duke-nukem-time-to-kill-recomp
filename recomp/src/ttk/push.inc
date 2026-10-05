@@ -19,12 +19,15 @@
 // go. The original grab, alignment, push/pull motion and climb animations stay
 // authoritative; the host only chooses which original button reaches them.
 static constexpr uint32_t object_pushable=0x08000000u, object_climbable=0xc0u;
+// 0x8001b634 allocates the type table as 0x7428 bytes: 1062 types of 28 bytes.
+// D08T2: later eras use types above 512 (medieval Duke-symbol block: 924).
+static constexpr unsigned object_type_count=0x7428u/28u;
 static unsigned push_masks, push_idle_masks;
 static uint32_t object_type_flags(uint32_t object) {
     if(object<0x80010000u || object>=0x80200000u || (object&3))return 0;
     const uint32_t table=psx_mod_read_word(0x800d2660);
     const unsigned type=psx_mod_read_half(object+0x2c);
-    if(table<0x80010000u || table>=0x80200000u || (table&3) || type>=512)return 0;
+    if(table<0x80010000u || table>=0x80200000u || (table&3) || type>=object_type_count)return 0;
     return psx_mod_read_word(table+28*type);
 }
 static bool push_animation(unsigned animation) {return animation>=119 && animation<=121;}

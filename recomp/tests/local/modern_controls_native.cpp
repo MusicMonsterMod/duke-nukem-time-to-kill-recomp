@@ -55,6 +55,7 @@ extern "C" int psx_mod_set_adaptive_display_aspect(uint32_t n,uint32_t d) {adapt
 extern "C" int32_t psx_mod_widescreen_x_margin(void) {return ws_margin;}
 extern "C" {int g_precise_mode=0,g_ls_mode=0,g_psx_call_bail=0;}
 static int clearance_result=2048;
+static int ladder_end_result=0;static unsigned ladder_end_calls;
 static unsigned kicks, edge_launches;
 static int terrain_result=3,terrain_floor=-1000;
 static uint32_t terrain_reference;
@@ -99,6 +100,10 @@ extern "C" void psx_dispatch_call(CPUState* cpu,uint32_t address,uint32_t) {
         if(address==0x800a979c) for(int i=0;i<3;++i) k.point[i]=(int32_t)psx_mod_read_word(cpu->gpr[4]+4*i);
         kick_calls.push_back(k);cpu->pc=0;return;
     }
+    if(address==0x8007ded0) { // D08U1 ladder-end probe; it clobbers the touch fields like 0x8007dd50
+        ++ladder_end_calls;psx_mod_write_word(0x800d7198+0x174,0);psx_mod_write_half(0x800d7198+0x178,0xffff);
+        cpu->gpr[2]=ladder_end_result;cpu->pc=0;return;
+    }
     assert(address==0x8007926c || address==0x800797f4 || address==0x800402d0 || address==0x8007765c || address==0x800517a4);
     if(address==0x800517a4)++kicks;
     if(address==0x8007926c || address==0x800797f4) {
@@ -142,6 +147,7 @@ static bool reach_held;
 bool input_airborne_reach_held(){return reach_held;}
 bool input_modernized(){return modern;}
 const InputFrame& input_snapshot(Context){return input;}
+uint16_t input_last_pad(){return 0xffff;}
 uint64_t input_host_frame(){return input.sequence;}
 }
 static void call(uint32_t address,uint32_t a0,uint32_t a1,uint32_t ra,uint32_t sp=0x801f0000,uint32_t a2=0) {
@@ -228,6 +234,14 @@ int main(int argc,char** argv) {
         psx_mod_write_word(table+28*165,0x081090e2);
         ttk::input.active=false;assert(idle(0x80052c1c,p)==1);ttk::input.active=true;
         ttk::modern=false;assert(idle(0x80052c1c,p)==1);ttk::modern=true;
+        // D08T2: the table holds 1062 types (0x7428 bytes); the medieval
+        // Duke-symbol block is type 924. 1061 is the last valid type.
+        psx_mod_write_half(object+0x2c,924);psx_mod_write_word(table+28*924,0x081890e2);
+        assert(idle(0x80052c1c,p)==0);ttk::grab_owns=true;assert(idle(0x80052c1c,p)==1);ttk::grab_owns=false;
+        psx_mod_write_half(object+0x2c,1061);psx_mod_write_word(table+28*1061,0x081890e2);
+        assert(idle(0x80052c1c,p)==0);
+        psx_mod_write_half(object+0x2c,1062);assert(idle(0x80052c1c,p)==1); // outside the table
+        psx_mod_write_half(object+0x2c,165);
         // Grab 121 remembering the object: camera-only lease, never locomotion.
         psx_mod_write_word(p+0x290,object);psx_mod_write_half(p+0x60,121);
         assert(ttk::push_grab_ready() && !ttk::locomotion_input_ready() && !ttk::movement_ready());
@@ -278,6 +292,20 @@ int main(int argc,char** argv) {
         psx_mod_write_half(p+0x60,186);update(); // the original transfer ended: attached
         assert(psx_mod_read_half(p+0x60)==186 && std::strstr(ttk::controls_debug_json(),"\"mounts\":1"));
         camera();assert(!ttk::traversal_camera_ready());
+        // D08U1: the original's ladder-end probe while stepping down. Open below
+        // (ladder ends above the floor): the descent flag is cleared so the
+        // original stops at this rung; touch fields survive the probe.
+        psx_mod_write_word(p+0x174,0x801e1234);psx_mod_write_half(p+0x178,7);
+        psx_mod_write_half(p+0x60,188);psx_mod_write_half(p+0x6a,1);ladder_end_result=0;update();
+        assert(ladder_end_calls>0 && psx_mod_read_half(p+0x6a)==1 && !ttk::ladder_end_below());
+        ladder_end_result=1;update();
+        assert(psx_mod_read_half(p+0x6a)==0 && std::strstr(ttk::controls_debug_json(),"\"end_stops\":1"));
+        assert(psx_mod_read_word(p+0x174)==0x801e1234 && psx_mod_read_half(p+0x178)==7);
+        psx_mod_write_half(p+0x60,186);psx_mod_write_half(p+0x6a,1);update(); // resting: no flag write
+        assert(psx_mod_read_half(p+0x6a)==1);
+        const unsigned calls=ladder_end_calls;ttk::modern=false;psx_mod_write_half(p+0x60,188);update();
+        assert(ladder_end_calls==calls && psx_mod_read_half(p+0x6a)==1);ttk::modern=true; // Vanilla untouched
+        ladder_end_result=0;psx_mod_write_half(p+0x60,186);psx_mod_write_half(p+0x6a,0);psx_mod_write_word(p+0x174,0);
         // Vanilla never mounts.
         psx_mod_write_half(p+0x60,63);psx_mod_write_byte(p+0x22c,0);psx_mod_write_byte(p+0x22d,0);place(-3798,-5625,76329);
         ttk::modern=false;ttk::ladder_top_request();update();assert(psx_mod_read_half(p+0x60)==63);ttk::modern=true;
@@ -285,7 +313,7 @@ int main(int argc,char** argv) {
         psx_mod_write_word(p+0x220,0);psx_mod_write_word(p+0x17c,0);psx_mod_write_word(0x800d2660,saved_table);
         place(0,0,0);psx_mod_write_half(p+0x1c,0);psx_mod_write_half(p+0x24,0);
         ttk::input.sequence=saved_sequence;call(0x8003ade4,c,p,0x80025ee8);assert(ttk::movement_ready());
-        std::puts("PASS: D08U top-of-ladder mount (reach/side/top/family/state gates, armed and Vanilla refusal, catch-equivalent attach, 12-update blend onto the climbing line, camera-only lease, 186 handoff, request expiry)");
+        std::puts("PASS: D08U top-of-ladder mount (reach/side/top/family/state gates, armed and Vanilla refusal, catch-equivalent attach, 12-update blend onto the climbing line, camera-only lease, 186 handoff, request expiry, D08U1 ladder-end stop)");
     }
     // D08J1 overhead ladder leap: the user's slot-6 ladder (type 46, a 378 x
     // 2046 panel at z 80918, yaw 0, bottom about 1040 above the floor).
@@ -2057,6 +2085,6 @@ int main(int argc,char** argv) {
     std::puts("PASS: respawn boom, landing seam and pre-collision stride smoothing");
     std::puts("PASS: camera constraints, duplicate look, capture and original-camera gates");
     std::puts("PASS: Vanilla, actor/caller/overlay/code/state guards; movement/probe alignment; independent facing");
-    std::puts("PASS: D08T1 pushable masks (grab-only climb mask, E-only idle grab mask; caller/actor/flags/Vanilla/capture) and camera-only grab lease");
+    std::puts("PASS: D08T1 pushable masks (D08T2 types up to 1061, grab-only climb mask, E-only idle grab mask; caller/actor/flags/Vanilla/capture) and camera-only grab lease");
     std::puts("PASS: D12A first-person quick kick (boot request conversion from the attack only (E suppressed) and its guards, lease, sound, view-aimed hit sphere at the crosshair surface within reach, held attack with Boot, right-leg viewmodel with reversed thigh, third person untouched)");
 }

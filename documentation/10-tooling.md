@@ -587,3 +587,17 @@ the disc is imported, the owned-disc check. See
   `vanilla.py`, `steps.py` (Vanilla pad gait probe), `death.py` /
   `death_x.py` (death attempts; Xvfb display 95 for real keys) and `final.sh`.
   Port 9247, private card copy, Fire on Q in the private profile.
+
+## D08T2 / D08U1 helpers (2026-10-05)
+
+`recomp/analysis/d08t2-20261005/` (ignored): `uoff.py` runs a private copy of
+the player's own profile (`userprof.py`) offscreen on the real GPU with
+scripted keys (`MODE=hold|tap|ehold|eonly|mouse|shots`); `lad3.py`/`lad6.py`
+(Xvfb real keys, traces and frames), `sewer.py` (D08U sewer ladder
+regression), `m1.py` (RMB push), `typescan.py` (type-table survey), `exedis.py`
+(disassembly straight from the owned executable). `DNTTK_TEST_INPUT` now turns
+key changes into SDL key events, so press-driven actions such as E run as for
+a real keyboard. `DNTTK_LADDER_MOUNT_UPDATES=N` (diagnostics only) lengthens
+the ladder-top mount blend to mimic dropped frames. Session logs carry one
+`[TTK ladder]` line per ladder pose change (height, keys held, original
+buttons sent) and `[TTK input] Hint: ...` lines.

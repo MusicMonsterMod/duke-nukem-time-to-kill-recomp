@@ -261,7 +261,8 @@ capture again after returning. **Escape** pauses/resumes; the pause menu always 
 resuming captures it again. **Enter** uses the
 currently selected inventory gadget (EDuke-style); it never opens the pause menu.
 **F10** explicitly toggles capture; use it to opt out
-of automatic capture until you capture again. Pausing while captured restores
+of automatic capture until you capture again. Capturing with F10 opts back in, so
+later releases (console, `level N`, menus) recapture automatically as usual. Pausing while captured restores
 automatic capture on return. Loading an F7 savestate also restores automatic
 capture once gameplay is live again. In supported first-level standing/walking states,
 mouse movement orbits the third-person camera. With view weapon aiming enabled,
@@ -392,12 +393,14 @@ and hung from as before. Taller walls still bounce. Vanilla is unchanged.
 
 **Climbing down a ladder from the top (Modernized, D08U).**
 Stand on the platform at the top of a ladder, near the edge where it hangs, and
-press **E**. The first two times in a session the screen shows `E TO CLIMB DOWN`
-there. Duke stows his weapon if needed, turns to face the ladder and lowers
+press **E**. The screen shows `E TO CLIMB DOWN` when you reach one (at most
+once every few seconds). Duke stows his weapon if needed, turns to face the ladder and lowers
 himself onto it, then the game's own ladder climbing takes over. Hold **S** to
 climb down: Duke climbs all the way to the bottom and steps off onto the floor
 (the original game needs Down plus the action button for that last step, which
-S now includes). His weapon comes back out once he is standing again, as with
+S now includes). Some ladders end above the floor; on those Duke stops on the last rung and
+S lets go, so he drops cleanly to the floor (hold S to go straight down, or
+tap S again on the last rung). **W** from the last rung climbs back up. His weapon comes back out once he is standing again, as with
 other E climbs. Walking or running off the edge without E still drops or jumps
 as before, and E away from a ladder top does its normal job. Vanilla has no top
 mount, so there the only way down is to jump.
@@ -799,7 +802,8 @@ the original camera.
 
 ### Pushing and climbing objects (Modernized)
 
-Some objects can be pushed, such as the green dumpster in the first map's alley.
+Some objects can be pushed, such as the green dumpster in the first map's alley
+and the blocks and walls marked with the Duke symbol in later eras.
 Being pushable never changes how you climb: **E** works on it exactly as on any
 other object you can climb.
 
@@ -815,8 +819,8 @@ Grab is a held action: Duke holds the object only while you hold the button.
 After Duke lets go by himself (the object is blocked, he is hit, or you pause),
 release and press again to grab once more. Space, fire and weapon changes wait
 until you let go. A push or pull that has already started finishes its original
-shove before Duke lets go. The first touches of a session show which button
-grabs. With `original` weapon aiming or camera, only **Alt** grabs (right mouse
+shove before Duke lets go. Touching a pushable object shows which button
+grabs, and each grab shows the push/pull keys (at most once every few seconds). With `original` weapon aiming or camera, only **Alt** grabs (right mouse
 is precision aim there); both are rebindable (`grab`, `grab_alt`).
 
 Mouse look keeps working while you hold an object. In first person the view

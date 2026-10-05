@@ -52,11 +52,10 @@ static void cancel_restore() { restore_owned=false;restore_pulse=restore_settle=
 // original idle grab, so E mantles a pushable object like any other.
 static bool push_request, push_latched, push_released, push_letting_go;
 static uint64_t push_request_at, push_deadline, push_holster_pulse;
-static unsigned push_lost, push_notices, push_hints;
+static unsigned push_lost;
 static bool push_touching;
 // D08U: ladder-top hint once per arrival, twice per session.
 static bool ladder_top_seen;
-static unsigned ladder_hints;
 // D08J1: one host jump per E hold at an overhead ladder.
 static bool ladder_leap_used;
 static void push_reset() {push_request=push_latched=false;push_holster_pulse=0;push_lost=0;}
@@ -94,6 +93,14 @@ static int commands[32];
 static unsigned command_count;
 static uint64_t command_serial,command_deadline;
 static uint64_t sequence, epoch;
+// D08T2: hints follow every fresh contact or grab, at most once per cooldown
+// (about five seconds), instead of only the first few of a session.
+static constexpr uint64_t hint_cooldown=300;
+static uint64_t push_notice_at, push_hint_at, ladder_hint_at;
+static bool hint_due(uint64_t& at) {
+    if(at && sequence-at<hint_cooldown)return false;
+    at=sequence;return true;
+}
 static void command(int action) {
     if(command_count<32) {
         if(!command_count)command_deadline=sequence+8;
@@ -361,8 +368,11 @@ void input_event(const SDL_Event& e) {
                 inventory_enter_down=true;command(item_use);return;
             }
         }
+        // F10 that frees the mouse opts out of automatic capture; F10 that
+        // captures opts back in, so console travel and later releases recapture
+        // as before (D22C: a stale opt-out left every next level uncaptured).
         if (pressed && code == SDL_SCANCODE_F10) {
-            initial_capture=false;
+            initial_capture=!captured;
             if (captured) input_release();
             else if (allow_capture) capture_now();
             std::fprintf(stderr, "[TTK input] Mouse %s%s\n", captured ? "captured" : "released",
@@ -527,11 +537,11 @@ void input_frame() {
         if(push_request && !want)push_let_go();
         if(push_request && grabbed) {
             push_latched=true;push_request=false;push_lost=0;
-            if(push_notices<3) {
-                ++push_notices;
+            if(hint_due(push_notice_at)) {
                 char text[64];
                 std::snprintf(text,sizeof text,"W/S PUSH/PULL - RELEASE %s TO LET GO",grab_label());
                 host_osd_push_centered(text,2500);
+                std::fprintf(stderr,"[TTK input] Hint: %s\n",text);
             }
             std::fprintf(stderr,"[TTK input] Pushable object grabbed\n");
         }
@@ -544,23 +554,23 @@ void input_frame() {
                 push_holster_pulse=sequence+4;restore_owned=true;restore_pulse=restore_settle=0;
             }
         }
-        // Discoverability: the first two touches of a session name the grab input.
-        if(touching && !push_touching && !want && !push_latched && push_hints<2) {
-            ++push_hints;
+        // Discoverability: a fresh touch names the grab input.
+        if(touching && !push_touching && !want && !push_latched && hint_due(push_hint_at)) {
             char text[48];
             std::snprintf(text,sizeof text,"HOLD %s TO GRAB",grab_label());
             host_osd_push_centered(text,2000);
+            std::fprintf(stderr,"[TTK input] Hint: %s\n",text);
         }
         push_touching=touching;
         if(!want)push_released=false;
         if(!grabbed)push_letting_go=false;
-        // D08U discoverability: the first two ladder tops of a session name E.
+        // D08U discoverability: a ladder top names E (D08T2 cooldown).
         const bool ladder_top=ladder_top_available();
-        if(ladder_top && !ladder_top_seen && ladder_hints<2) {
-            ++ladder_hints;
+        if(ladder_top && !ladder_top_seen && hint_due(ladder_hint_at)) {
             char text[48];
             std::snprintf(text,sizeof text,"%s TO CLIMB DOWN",input_binding_name(interact));
             host_osd_push_centered(text,2000);
+            std::fprintf(stderr,"[TTK input] Hint: %s\n",text);
         }
         ladder_top_seen=ladder_top;
     }
@@ -627,7 +637,8 @@ void input_frame() {
         static const struct {const char* name;SDL_Scancode code;} named[]={{"w",SDL_SCANCODE_W},{"a",SDL_SCANCODE_A},
             {"s",SDL_SCANCODE_S},{"d",SDL_SCANCODE_D},{"shift",SDL_SCANCODE_LSHIFT},{"ctrl",SDL_SCANCODE_LCTRL},
             {"space",SDL_SCANCODE_SPACE},{"e",SDL_SCANCODE_E},{"q",SDL_SCANCODE_Q}};
-        for(const auto& n:named) keys[n.code]=false;
+        bool was[sizeof named/sizeof named[0]];
+        for(size_t i=0;i<sizeof named/sizeof named[0];++i){was[i]=keys[named[i].code];keys[named[i].code]=false;}
         if(FILE* f=std::fopen(test_input,"r")) {
             char word[64];
             while(std::fscanf(f,"%63s",word)==1) {
@@ -636,6 +647,18 @@ void input_frame() {
                 else for(const auto& n:named) if(!std::strcmp(word,n.name)) keys[n.code]=true;
             }
             std::fclose(f);
+        }
+        // Edges become key events, so press-driven actions (E) run as for a
+        // real keyboard (queued; handled by the next event pump).
+        for(size_t i=0;i<sizeof named/sizeof named[0];++i) if(was[i]!=keys[named[i].code] && window) {
+            SDL_Event e{};e.type=keys[named[i].code]?SDL_KEYDOWN:SDL_KEYUP;
+            e.key.windowID=SDL_GetWindowID(window);
+#if defined(PSX_SDL3)
+            e.key.scancode=named[i].code;
+#else
+            e.key.keysym.scancode=named[i].code;
+#endif
+            SDL_PushEvent(&e);
         }
     }
     frame = {};
@@ -715,6 +738,7 @@ void input_ack_commands(uint64_t serial) {
 const InputFrame& input_snapshot(Context context) {
     return context == Context::Gameplay ? frame : empty;
 }
+static uint16_t last_pad=0xffff;
 uint16_t input_pad() {
     if(cheat_typing.active())return 65535;
     uint16_t value = 0xffff;
@@ -756,12 +780,26 @@ uint16_t input_pad() {
             !(i==jump && (swim_host_owns_jump() || push_owned)) && down(binds[i])) value &= ~pads[i];
     // Legacy aiming: the primary Grab input is original precision aim (R1).
     if (captured && aim_down() && !view_aim_input_ready()) value &= ~pads[original_aim];
+    // The original ignores the ladder let-go while Cross is held, so a held E
+    // (interact = Cross) must not keep Duke on the last rung.
+    bool ladder_let_go=false;
     if(captured && traversal_input_ready() && !ladder_exit_ready()) {
-        if(down(binds[move_forward]) && !down(binds[move_back])) value &= ~16;
-        if(down(binds[move_back]) && !down(binds[move_forward])) value &= ~64;
+        const bool mount_finishing=ladder_mount_finishing();
+        if(down(binds[move_forward]) && !down(binds[move_back]) && !mount_finishing) value &= ~16;
+        // D08U1: S at a ladder that ends above the floor lets go from the
+        // bottom-rung hang (original Square) instead of Down, which only
+        // flips the hang poses; W still climbs back up.
+        // At the last rung of such a ladder, S lets go from the climbing pose
+        // (the original's own probe decides), so Duke never swings into it.
+        const bool descending=down(binds[move_back]) && !down(binds[move_forward]) && !mount_finishing;
+        const bool end_drop=descending && ladder_end_below();
+        const int bottom_hang=descending && !end_drop ? ladder_bottom_hang() : 0;
+        if(descending && !bottom_hang && !end_drop) value &= ~64;
+        if(bottom_hang==2 || end_drop) value &= ~pads[jump];
+        ladder_let_go=bottom_hang==2 || end_drop;
         // D08U: original Down alone stops at the lowest rung; Down + Cross
         // climbs on down and steps off onto the floor (185 reversed).
-        if(down(binds[move_back]) && !down(binds[move_forward]) && ladder_descent_ready()) value &= ~16384;
+        if(descending && !end_drop && ladder_descent_ready()) value &= ~16384;
         // D08X: a stalled object hang lets go through the original Square.
         if(object_hang_release_ready()) value &= ~pads[jump];
         if(down(binds[move_left]) && !down(binds[move_right])) value &= ~128;
@@ -814,7 +852,7 @@ uint16_t input_pad() {
     // taps: see circle_tap below.
     bool circle_request=captured && interaction_pending && holster_pulse && sequence<=holster_pulse && interaction_holster_ready();
     // After a grab ends, E's Cross waits until the original has let go.
-    if(captured && !push_owned && !(push_letting_go && push_grab_ready()) && (down(binds[interact]) || airborne_interact || ladder_leap_active() || (interaction_pulse && sequence<=interaction_pulse)) && interaction_ready()) value &= ~16384;
+    if(captured && !push_owned && !(push_letting_go && push_grab_ready()) && (down(binds[interact]) || airborne_interact || ladder_leap_active() || (interaction_pulse && sequence<=interaction_pulse)) && interaction_ready() && !ladder_let_go) value &= ~16384;
     if(captured && restore_owned && restore_pulse && sequence<=restore_pulse &&
        !down(binds[interact]) && interaction_restore_ready())circle_request=true;
     // Bound fire draws a settled holstered weapon through original Circle.
@@ -902,8 +940,10 @@ uint16_t input_pad() {
         if (tank_notified) host_osd_push_centered("MODERN MOVEMENT RESUMED",1500);
         tank_notified=false;
     }
+    last_pad=value;
     return value;
 }
+uint16_t input_last_pad() {return last_pad;}
 }
 extern "C" const char* ttk_input_debug_json() {
     static char buffer[10240];

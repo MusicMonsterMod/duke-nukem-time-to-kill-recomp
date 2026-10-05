@@ -67,6 +67,9 @@ void ladder_leap_note();
 bool ladder_leap_active();
 /* Duke is on a plain ladder: S also holds Cross so he climbs down and steps off. */
 bool ladder_descent_ready();
+int ladder_bottom_hang();
+bool ladder_end_below();
+bool ladder_mount_finishing();
 /* Original ladder exit (190 top, 185 bottom step-off): directions stay neutral. */
 bool ladder_exit_ready();
 const char* controls_debug_json();

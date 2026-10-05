@@ -3007,8 +3007,7 @@ Work, in order:
    overclock lease (`psx_overclock_compress`), render workers
    (`g_psx_render_untimed`) and idle skipping, and whether it changes hashed
    framework headers or generated code identity (savestate compatibility: see
-   the codegen-hash rule; avoid rejecting all existing savestates, or plan a
-   documented migration). Framework edits go through
+   the codegen-hash rule; the user accepts losing savestates for this job). Framework edits go through
    `export_runtime_patch.py`.
 3. **Cheaper in-between pictures** (optional): fewer GL state changes per
    redraw feed, or drawing redraws off the emulation thread.
@@ -3016,7 +3015,10 @@ Work, in order:
 User direction (2026-10-05): "im completely happy to build anything new rather
 than patch over old crap". Prefer a clean, purpose-built timing system over
 layering more patches onto the existing cycle model, even when that is larger;
-keep the framework patch export workflow and savestate compatibility in view.
+keep the framework patch export workflow. Savestates: "i genuinely dont mind
+if we lose save states" (2026-10-05), so D23F may change hashed framework
+headers or generated code identity; say so when it happens, and tests still
+use private copies (never the player's files).
 
 Vanilla keeps the accurate model unless the user decides otherwise; the fast
 model is a Modernized option until proven.

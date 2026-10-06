@@ -1257,6 +1257,34 @@ int main(int argc,char** argv) {
     psx_mod_write_byte(p+0x3ba,4);++ttk::input.command_serial;
     call(0x80058120,p,0,0x80041c44,0x801ff000);assert(kicks==1);
     psx_mod_write_byte(p+0x3b8,2);psx_mod_write_half(p+0x74,5);
+    {
+        // D08Q5: in flight (mode 10) weapon groups, the wheel and X reach the
+        // original request; items other than the pack, the kick, fire held,
+        // draws and Vanilla stay refused.
+        psx_mod_write_half(p+0x358,3);psx_mod_write_half(p+0x35a,9000);
+        psx_mod_write_byte(p+0x22c,10);psx_mod_write_byte(p+0x22d,10);psx_mod_write_half(p+0x60,164);
+        psx_mod_write_byte(p+0x3b9,4);psx_mod_write_byte(p+0x3ba,4);
+        ++ttk::input.sequence;call(0x8003ade4,c,p,0x80025ee8);
+        assert(ttk::jetpack_input_ready() && !ttk::movement_ready());
+        request(ttk::weapon_group_3);assert(psx_mod_read_byte(p+0x3ba)==5 && (psx_mod_read_word(p+0x224)&4));
+        psx_mod_write_byte(p+0x3ba,4);request(ttk::weapon_next);assert(psx_mod_read_byte(p+0x3ba)==5);
+        psx_mod_write_byte(p+0x3b9,5);psx_mod_write_byte(p+0x3ba,5);request(ttk::weapon_previous);
+        assert(psx_mod_read_byte(p+0x3ba)==4);
+        psx_mod_write_byte(p+0x3ba,5);psx_mod_write_half(p+0x368,1);psx_mod_write_half(p+0x36a,100);
+        request(ttk::medkit);assert(!(psx_mod_read_word(p+0x224)&12) && psx_mod_read_byte(p+0x3ba)==5);
+        request(ttk::quick_kick);assert(kicks==1 && !(psx_mod_read_word(p+0x224)&12));
+        ttk::input.held[ttk::fire]=true;request(ttk::weapon_group_5);assert(psx_mod_read_byte(p+0x3ba)==5);
+        ttk::input.held[ttk::fire]=false;
+        psx_mod_write_half(p+0x74,22);request(ttk::weapon_group_5);assert(psx_mod_read_byte(p+0x3ba)==5);
+        psx_mod_write_half(p+0x74,5);
+        ttk::modern=false;request(ttk::weapon_group_5);assert(psx_mod_read_byte(p+0x3ba)==5);ttk::modern=true;
+        request(ttk::weapon_group_5);assert(psx_mod_read_byte(p+0x3ba)==8);
+        psx_mod_write_half(p+0x358,0);psx_mod_write_byte(p+0x22c,0);psx_mod_write_byte(p+0x22d,0);
+        psx_mod_write_half(p+0x60,63);psx_mod_write_byte(p+0x3b9,4);psx_mod_write_byte(p+0x3ba,4);
+        psx_mod_write_word(p+0x224,0);++ttk::input.sequence;call(0x8003ade4,c,p,0x80025ee8);
+        assert(ttk::movement_ready());
+        std::puts("PASS: D08Q5 flight weapon groups, wheel and refusals (items, kick, fire, draw, Vanilla)");
+    }
 
     // Stance request has no Triangle/turn write; original animation delta is accelerated once.
     ttk::input.held[ttk::crouch]=true;ttk::input.command_count=0;

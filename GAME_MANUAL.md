@@ -606,8 +606,12 @@ Fuel drains while flying and while hovering (the original rule); when it runs
 out Duke falls the same way. The ground controls return the moment he lands.
 With view aiming enabled, aim with the mouse and fire the equipped weapon with
 **LMB** during flight in either scheme. The enabled crosshair stays visible;
-**I** still toggles it. Select your weapon before takeoff: weapon switching in
-flight remains unavailable. The existing third-person flight view and return to
+**I** still toggles it. Switch weapons in flight as on the ground: **1-0**,
+the **wheel**, **semicolon/apostrophe** and **X** (D08Q5), with the normal
+draw while Duke keeps flying; wait for an attack or draw to finish before the
+next switch. Gadget keys other than **J** and the quick kick still wait for
+the ground. Dynamite thrown close below Duke knocks him out of flight with its
+blast (the original reaction). The existing third-person flight view and return to
 your selected view on landing are unchanged.
 Details: [documentation/57-jetpack-controls.md](documentation/57-jetpack-controls.md).
 In Modernized, a jetpack left unavailable by interrupted deployment and Continue

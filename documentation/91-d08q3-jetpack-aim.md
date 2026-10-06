@@ -75,7 +75,8 @@ Build SHA-256:
 ## Scope and player check
 
 Original weapon selection restrictions remain: select a weapon on the ground;
-the flight shortcut path still permits J/item-use for the pack only. Holstered
+the flight shortcut path still permits J/item-use for the pack only. (Superseded
+by D08Q5: weapon shortcuts now work in flight, [note 108](108-d08q5-jetpack-weapon-switch.md).) Holstered
 or unsupported equipment does not acquire a reticle. This change adapts shots
 that reach the authenticated original weapon dispatch; it does not manufacture
 shots or enable attacks the original animation/state machine rejects. Thrown

@@ -6,6 +6,23 @@
 
 
 
+## 2026-10-06 - D08Q5 accepted; D08Q6 queued
+
+User accepted weapon switching in jetpack flight ("excellent!! i accept.").
+New Todo D08Q6: in Modern flight Duke's altitude creeps upward over long
+circuits (LEVEL01 apartment/alley, `dnkroz`, much looking up); height should
+stay fixed unless Space or Ctrl is used. Not committed.
+
+## 2026-10-06 - D08Q5 weapon switching in jetpack flight (Needs playtest)
+
+Number keys, the wheel, semicolon/apostrophe and X now switch weapons while
+flying (Modern and Classic). The original mode-10 state already completes the
+ground weapon request with the normal holster/draw; our shortcut layer had
+stopped at the J check. Verified live with every weapon, firing after each
+switch; swim rules, ground and Vanilla unchanged; suites pass. Dynamite's own
+blast still knocks Duke out of flight (original). Next: the user's playtest.
+Not committed. See [note 108](108-d08q5-jetpack-weapon-switch.md).
+
 ## 2026-10-06 - D08G3 and D08Q4 accepted; D08Q5 queued
 
 User accepted `dnupgrade` and the Duke3D-style `dnkroz`. New Todo D08Q5:

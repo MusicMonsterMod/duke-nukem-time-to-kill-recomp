@@ -50,7 +50,8 @@ is behind Modernized + capture + lease + identity).
 | Nothing | `+0x224 |= 0x08000000`, `+0x860 = Y`, `+0x864 = 0` once | hover pin; fuel still drains (`s2 = 1`) |
 | Space | passes as Square | lift, clears the hover lock |
 | Ctrl | hover lock released; `+0x1f8 = 2800`, `+0x1e8 = 0` every update | ~48 units/update down; floor probe result 3 lands (anim 105) |
-| J | `select_weapon` allows only the jetpack action while `jetpack_input_ready()` → `use_item(1)` | bit 1 cleared → handler cuts out → anim 108 fall |
+| J | `select_weapon` takes the jetpack action first while `jetpack_input_ready()` → `use_item(1)` | bit 1 cleared → handler cuts out → anim 108 fall |
+| 1-0, wheel, ; / ', X | D08Q5: weapon choices only, through the ground request (`+0x3ba`, flag 4) | original upper-body holster/draw in mode 10; flight continues ([note 108](108-d08q5-jetpack-weapon-switch.md)) |
 | 108 fall | `jet_fall_grace` keeps the camera-only lease while anim 108 in mode 9/10 (set on the cut-out update, cleared on landing / other state / new capture epoch) | mode 9 fall, then 105 landing, then the land lease |
 
 `locomotion_input_ready()` and `airborne_input_ready()` are false during

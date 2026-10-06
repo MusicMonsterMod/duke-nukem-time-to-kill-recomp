@@ -74,7 +74,8 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08Q3 | Jetpack weapon aiming and missing crosshair | Done | D07C, D08Q, D08Q2, D08R |
 | D08S | EDuke32-style jetpack scheme (instant J on/off, midair, 61 s fuel) | Todo (reopened 2026-10-06) | D08R, D08Q3 |
 | D08Q4 | Duke3D-style `dnkroz`: health to 100 and unlimited jetpack fuel | Accepted | D08G, D08Q |
-| D08Q5 | Weapon switching while flying the jetpack (number keys and wheel) | Todo | D08A, D08Q3 |
+| D08Q5 | Weapon switching while flying the jetpack (number keys and wheel) | Done (user-accepted) | D08A, D08Q3 |
+| D08Q6 | Modern jetpack altitude creeps upward in level flight (hold height unless Space/Ctrl) | Todo | D08Q, D08Q1 |
 | D08T | Pushable objects: modern grab/push/pull and climb (alley dumpster) | Done | D08 |
 | D08T1 | Separate push/pull from mantling: E always mantles, hold RMB to grab | Done | D08T, D04 |
 | D08T2 | Duke-symbol pushable blocks cannot be pushed with Modern controls (RMB grab, game-wide) | Accepted | D08T1, D22B |
@@ -1292,7 +1293,16 @@ the cheat; Vanilla unchanged unless the cheats already apply there.
 
 ### D08Q5 - Weapon switching while flying the jetpack
 
-**Todo. User request, 2026-10-06.** "allow for weapon switching while using
+**Done (user-accepted 2026-10-06):** "excellent!! i accept."
+In Modernized flight the weapon shortcuts
+(1-0, wheel, semicolon/apostrophe, X) now reach the original weapon request;
+the original mode-10 state completes it with the normal upper-body
+holster/draw while flight continues. Verified live in Modern and Classic
+flight with every weapon, firing after each switch; ground, swim and Vanilla
+unchanged; suites pass.
+[Implementation and evidence](documentation/108-d08q5-jetpack-weapon-switch.md).
+
+**User request, 2026-10-06.** "allow for weapon switching while using
 jetpack, both wheel and numbers." In Modernized flight (mode 10, every
 jetpack scheme: Modern, Classic and the future EDuke32 scheme D08S), the
 number keys 1-0 and the mouse wheel (plus semicolon/apostrophe and X, the
@@ -1312,6 +1322,40 @@ through owned weapons with the normal draw, and the new weapon fires with
 flight aiming and the crosshair; flight, fuel and landing are unaffected;
 ground and swimming switching unchanged; Vanilla unchanged; the user
 confirms.
+
+### D08Q6 - Modern jetpack altitude creeps upward in level flight
+
+**Todo. User report, 2026-10-06.** "duke keeps gaining height when using the
+jetpack in modern mode. how i tested this was using dnkroz, and elevating to
+a particular height, and in the first level i just kept circling round the
+apartment building and through the alleyway and noticed duke was getting
+higher and higher. i was also trying to look up quite a lot and i think that
+had something to do with it. anyway, duke's elevation should just be fixed
+when jetpacking unless the player uses ctrl or space"
+
+**Scope:** in the Modern jetpack scheme (D08Q), Duke's altitude must stay
+fixed during level flight and hover; only Space (climb) and Ctrl (descend)
+change it. Classic (D08R) keeps its original burst/gravity physics and is out
+of scope; the future D08S scheme should share whatever fix is made for Modern.
+
+Research first: reproduce the climb on a private LEVEL01 copy with `dnkroz`
+(long circuits around the apartment building and alley, with and without
+pitching the view up, mouse turning, W/A/S/D combinations and diagonal
+input). Measure Y per update against view pitch, yaw rate and held
+directions. Candidates to test, not conclusions: the fixed
+`k_jet_level_trim` (+0x1e8 = 18) only cancels the measured single-direction
+lift, so diagonal input, view pitch or the D08Q3 view-aim presentation (body
+lean +0x87c..+0x880 or pitch reaching the mode-10 thrust rotation) may leave
+a residual climb; a release/re-engage of the hover pin at a drifted height
+would also ratchet upward. Prefer holding the altitude captured when vertical
+input ends over tuning a constant.
+
+**Acceptance:** in Modern flight Duke's height stays fixed while hovering,
+moving in any direction, turning and looking up or down for long circuits
+(including the user's LEVEL01 apartment/alley route); Space climbs and Ctrl
+descends as before, and releasing them holds the new height; landing,
+fuel, J off, firing and D08Q5 weapon switching unchanged; Classic and Vanilla
+unchanged; the user confirms.
 
 ### D08K — True crouch walking and animation feasibility
 

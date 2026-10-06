@@ -159,18 +159,22 @@ static void select_weapon(CPUState* cpu) {
     for(unsigned n=0;n<f.command_count && n<32;++n) if(f.commands[n]==quick_kick && kick_request(true)) eye_kick=true;
     // D08Q: J in flight is the original inventory toggle (358 bit1 → 800402d0
     // → 8003ff6c closing), which the mode-10 handler turns into the 108 fall.
-    // Only the jetpack action: weapon changes still wait for the ground.
     // D08R: jetpack_input_ready() covers both schemes.
-    if(jetpack_input_ready()) {
+    // D08Q5: mode 10 completes the same weapon request (+0x3ba, flag 4) with
+    // the normal upper-body holster/draw while the flight pose and handler
+    // continue, so weapon choices are taken in flight too; other items and the
+    // quick kick keep their ground lease.
+    const bool jet_select=jetpack_input_ready();
+    if(jet_select) {
         for(unsigned n=0;n<f.command_count && n<32;++n)
-            if(f.commands[n]==jetpack || (f.commands[n]==item_use && selected_item==1)) {use_item(cpu,1);break;}
-        return;
+            if(f.commands[n]==jetpack || (f.commands[n]==item_use && selected_item==1)) {use_item(cpu,1);return;}
     }
     // D08O1: the original swim states switch weapons through the same request
     // (+0x3ba, flag 4) as the ground; there only weapon choices are taken,
     // items and the quick kick keep their ground lease.
-    const bool swim_select=!movement_ready() && swim_weapon_ready();
-    if(!(movement_ready() || swim_select) || (equipment!=0 && equipment!=2 && !remote) || f.held[original_aim] ||
+    const bool swim_select=!jet_select && !movement_ready() && swim_weapon_ready();
+    const bool weapons_only=swim_select || jet_select;
+    if(!(movement_ready() || weapons_only) || (equipment!=0 && equipment!=2 && !remote) || f.held[original_aim] ||
        f.held[fire] || f.held[interact] || (flags&0x2c5))return;
     // Stable original upper-body idle loops. Draw, attack and charged-throw
     // animations retain ownership (4e840 dispatch / 50344 completion tables).
@@ -178,7 +182,7 @@ static void select_weapon(CPUState* cpu) {
     unsigned cursor=equipped,requested=255;
     for(unsigned n=0;n<f.command_count && n<32;++n) {
         int action=f.commands[n];
-        if(swim_select && !(action>=weapon_group_1 && action<=weapon_group_0) &&
+        if(weapons_only && !(action>=weapon_group_1 && action<=weapon_group_0) &&
            action!=weapon_previous && action!=weapon_next && action!=weapon_last) continue;
         if(action>=weapon_group_1 && action<=weapon_group_0) {
             unsigned group=action-weapon_group_1,begin=group_start[group],end=group_start[group+1];

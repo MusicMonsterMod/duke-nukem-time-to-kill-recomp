@@ -201,3 +201,11 @@ Regression: Modern hover -32 / 60 frames, W/S/A/D -33/154/-120/61 vs camera
 -30, mouse 3758 -> 66, Space climb; Classic unchanged (no host descent, 0
 lease losses). Native suites PASS. The last samples before touchdown speed up
 (floor approach `8003ef78`), as before.
+
+## D08Q6 (2026-10-06): Modern flight model replaced
+
+The Modern host layer above (hover lock on release, trim, Ctrl via `+0x1f8`,
+original thrust from WASD) is superseded. Modern now owns the flight
+velocity directly, feeds the original no flight pads, and works around
+`8004ac08` dropping horizontal motion when the vertical root is 0. Classic is
+unchanged. See [note 109](109-d08q6-jetpack-altitude-hold.md).

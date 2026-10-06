@@ -75,7 +75,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08S | EDuke32-style jetpack scheme (instant J on/off, midair, 61 s fuel) | Todo (reopened 2026-10-06) | D08R, D08Q3 |
 | D08Q4 | Duke3D-style `dnkroz`: health to 100 and unlimited jetpack fuel | Accepted | D08G, D08Q |
 | D08Q5 | Weapon switching while flying the jetpack (number keys and wheel) | Done (user-accepted) | D08A, D08Q3 |
-| D08Q6 | Modern jetpack altitude creeps upward in level flight (hold height unless Space/Ctrl) | Todo | D08Q, D08Q1 |
+| D08Q6 | Modern jetpack altitude creeps upward in level flight (hold height unless Space/Ctrl) | Accepted | D08Q, D08Q1 |
 | D08T | Pushable objects: modern grab/push/pull and climb (alley dumpster) | Done | D08 |
 | D08T1 | Separate push/pull from mantling: E always mantles, hold RMB to grab | Done | D08T, D04 |
 | D08T2 | Duke-symbol pushable blocks cannot be pushed with Modern controls (RMB grab, game-wide) | Accepted | D08T1, D22B |
@@ -1260,6 +1260,10 @@ confirms.
 
 ### D08Q4 - Duke3D-style `dnkroz`: health to 100 and unlimited jetpack fuel
 
+**Follow-up 2026-10-06 (needs playtest):** user: "it should also give the
+jetpack too". While god mode is on, Duke has the jetpack at full fuel
+([note 38](documentation/38-debug-cheats.md)).
+
 **Accepted by the user, 2026-10-06** ("accepted!!"). Implemented; verified live in Modern and
 Classic flight on private copies; see the work log and
 [note 38](documentation/38-debug-cheats.md). Atomic Health above 100 is the
@@ -1325,7 +1329,29 @@ confirms.
 
 ### D08Q6 - Modern jetpack altitude creeps upward in level flight
 
-**Todo. User report, 2026-10-06.** "duke keeps gaining height when using the
+**Accepted by the user, 2026-10-06** ("i accept this as fixed! the test passes
+and this feels great"), on revision 5b (binary `2a49b29acbd0de49...`).
+Revision 5: Modern flight model rewritten.
+The real cause of "cannot move with WASD unless ascending or descending" was
+the original `8004ac08`, which drops horizontal motion whenever the
+vertical root is 0. A precisely held height made that common. Modern now owns
+the flight velocity at the original's speeds (16000 horizontal, -11800
+climb). The original still gets its flight pads (flame, lean poses, fuel), and
+their thrust is cancelled from the post-handler reading. Height is held with
+the floor cap, and a corrected +-2 vertical step keeps horizontal moves
+applied. History follows.
+
+Revision 1: Modern flight keeps one held altitude,
+captured when Space or Ctrl ends. Level flight steers back to it, hover pins to
+it without the original bob, and it is capped at the original floor approach
+height over higher ground. A lab circuit of about 2400 updates ends within
+9 units of the start, compared with about 460 units of climb in six legs
+before. Revision 2 (after the user found it jerky) parks the bob at its flat
+sine peak instead of phase 0 and slews the base gently, so hover is flat and
+stops settle over 3 updates. See
+[note 109](documentation/109-d08q6-jetpack-altitude-hold.md).
+
+**User report, 2026-10-06.** "duke keeps gaining height when using the
 jetpack in modern mode. how i tested this was using dnkroz, and elevating to
 a particular height, and in the first level i just kept circling round the
 apartment building and through the alleyway and noticed duke was getting
@@ -7775,3 +7801,116 @@ User: "accepted!!" for `dnupgrade` and the Duke3D-style `dnkroz`. New Todo
 D08Q5: weapon switching (number keys and wheel) while flying the jetpack.
 Committed and pushed at the user's request.
 
+## 2026-10-06 - D08Q6 Modern jetpack altitude hold (Needs playtest)
+
+Reproduced in LEVEL00: about 30-140 units of climb per 120-frame WASD leg.
+There were two host-layer causes. The fixed level trim left about 2 units per
+update of lift, and every release re-anchored the hover at the current height
+(plus up to 128 units of the original bob). View pitch does not move Duke;
+hovering alone bobbed +/-128. The fix holds the altitude captured when Space
+or Ctrl ends. Level flight gets a proportional `+0x1f8` steer, hover gets a
+slewed base with the bob phase held at 0, and the target is capped at the
+original 0x200 floor approach height. Verified in the lab:
+
+- A random turning/pitching circuit ends within 9 units.
+- Low flight holds within 15 units with no landing.
+- Ctrl landing, J fall, firing and D08Q5 switching are unchanged.
+- Classic and Vanilla are unchanged.
+- The native suites (new D08Q6 group) and the Python tests pass.
+
+Next: the user's playtest on the LEVEL01 apartment/alley route. The Modern
+hover bob is removed; ask if they want it back as a visual effect.
+[Note 109](documentation/109-d08q6-jetpack-altitude-hold.md). Not committed.
+
+## 2026-10-06 - D08Q6 revision 2: smooth hover (Needs playtest)
+
+User: "the jetpack does not control smoothly now, it's very jerky". Per-update
+traces showed revision 1 twitching +17/-25 about every 6 updates in hover, with
+a +21 step on each stop. Holding the bob phase at 0 left one timestep of the
+steep part of the sine (`8004b474`: bob = 128 sin(6 (phase + dt))), and the
+error-driven slew echoed it. Revision 2 parks the phase at the flat peak
+(`171 - dt`), keeps the base 128 below the target and slews it at most 3 per
+update. Hover is now 0 per update, stops settle +3/+3/+2, and flight matches
+the old build's smoothness. The altitude hold is unchanged: the circuit ends at
+0, low flight holds, and Ctrl landing, J fall, firing and switching work.
+Suites pass. Not committed.
+
+## 2026-10-06 - D08Q4 follow-up: `dnkroz` gives the jetpack (needs playtest)
+
+The user's D08Q6 retest showed that `dnkroz` did not give a jetpack. Confirmed
+live: from a clean start god mode turned on but the pack stayed unowned.
+Unlimited fuel for an owned pack already worked. The user asked for it to also
+give the jetpack. Turning god mode on now sets the owned bit as the original
+inventory cheat `8003d738` does, and `god_mode_update` fills it. Verified
+live: `dnkroz`, then J, then flight at full fuel, and off keeps the pack. The
+native D08Q4 group and the suites pass. Not committed.
+
+## 2026-10-06 - D08Q6 revision 3: Shift and arrow keys in flight (Needs playtest)
+
+User: "something is causing the shift key to change height, and i cant use the
+arrow keys to move around". Shift (walk = L1) reached the original hover
+toggle, which re-anchored the hover 128 units off the parked-peak base. It is
+now withheld in Modern flight (Classic keeps it), and hover re-seats if
+anything else moves the base. The arrow keys sent the raw D-pad: thrust the
+host held in the hover pin, and turns that `face_view` overrode. In flight they
+now fly exactly like WASD. `dnkroz` now keeps the jetpack while god mode is
+on, because god mode can survive travel and savestates that drop the pack.
+Live: arrows fly, Shift changes nothing, 1297 mixed updates give a largest
+step of 7 and a net of 0. Suites pass. Not committed.
+[Note 109](documentation/109-d08q6-jetpack-altitude-hold.md).
+
+## 2026-10-06 - D08Q6 revision 4: Right Shift dropped capture; idle creep (Needs playtest)
+
+The user reported "duke cannot seem to move ... with wasd keys, unless you are
+ascending or descending" and slow idle creep to the right. The user's session
+log showed capture repeatedly released in flight. Right Shift (the fixed
+escape hatch's Select, not excluded while captured) reached
+`input_pad_context()`, which silently released capture. The host stopped with
+the original hover lock on, WASD crawled, and Space cleared the lock.
+Game-wide fix: captured, Right Shift is Shift and never Select. The idle creep
+was a stalled horizontal coast (bv 203/-21), now zeroed below 256 while
+hovering. Both were reproduced and fixed live on a copy of the user's
+profile. Suites pass. Not committed.
+[Note 109](documentation/109-d08q6-jetpack-altitude-hold.md).
+
+## 2026-10-06 - D08Q6 revision 5: Modern flight model rewritten (Needs playtest)
+
+The user's 16:54 session ran the revision 4 build with no capture loss, yet
+flight still felt "really broken". From-scratch re-evaluation:
+
+- Calibrated the handler: bv * dt / 1024 per update.
+- Found that `8004ac08` drops horizontal motion whenever the vertical root
+  is 0 (8004ac28 beq to 8004ad1c). This was the real "cannot move unless
+  ascending/descending" cause, made common by the D08Q6 precise hold.
+- Replaced the layered Modern design (original momentum + hover lock + host
+  patches) with a host-owned flight velocity: eased camera-relative
+  WASD/arrows at 1600, Space -1500, Ctrl +1640, a held height with the floor
+  cap, a +-1 vertical step while moving, and dt fuel drain. The original gets
+  no flight pads.
+
+Live on a copy of the user's profile: moves at every height, steady 15 units
+per update with about 0.15 s ramps, height within +-5 on the circuit. Landing,
+J fall, firing, switching, Classic and Vanilla are unchanged. All suites pass.
+Duke keeps the hover pose while moving. Not committed.
+[Note 109](documentation/109-d08q6-jetpack-altitude-hold.md).
+
+## 2026-10-06 - D08Q6 revision 5b: original speed, flame and poses (Needs playtest)
+
+User: "now the jetpack has no fire etc, and moves very slowly". The 5a speeds
+came from a stale units-per-frame note and were about 10x too slow. A
+post-handler trace of the original gave a horizontal top of about 16000 and a
+climb of -11832, now the Modern targets. With no pads fed, the original drew
+no flame and no lean poses. The pads are fed again and their thrust is
+cancelled using the handler's thrust read right after it (`0x80058120`), and
+the flame flag is set while hovering. The +-2 vertical step now corrects for
+the applied-root offset learned after the handler (a new `8004ac08` hook
+would need regenerated code). Screenshots match the original; height holds;
+landing, J, fire, switching, fuel, Classic and Vanilla are unchanged; all
+suites pass. Not committed.
+[Note 109](documentation/109-d08q6-jetpack-altitude-hold.md).
+
+## 2026-10-06 - D08Q6 accepted
+
+User: "i accept this as fixed! the test passes and this feels great" (revision
+5b). The `dnkroz` jetpack grant (D08Q4 follow-up) was part of the same test
+flow. Not committed.

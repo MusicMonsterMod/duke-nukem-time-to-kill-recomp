@@ -6,6 +6,81 @@
 
 
 
+## 2026-10-06 - D08Q6 accepted
+
+User accepted the Modern jetpack fix ("i accept this as fixed! the test passes
+and this feels great"): revision 5b, with height held, the original's speed,
+flame and poses. Not committed.
+
+## 2026-10-06 - D08Q6 revision 5b: original speed, flame and poses (Needs playtest)
+
+Modern flight now moves at the original jetpack's top speed (about 10x the
+5a cut) and shows the original flame (moving, climbing and hovering) and lean
+poses. The original's flight inputs are fed again and their thrust is
+cancelled so the host still owns the velocity. Height hold, landing, J, fire,
+switching and fuel are verified live; Classic and Vanilla are unchanged; all
+suites pass. Next: the user's playtest. See
+[note 109](109-d08q6-jetpack-altitude-hold.md).
+
+## 2026-10-06 - D08Q6 revision 5: Modern flight model rewritten (Needs playtest)
+
+Root cause found: the original root apply `8004ac08` throws away horizontal
+motion whenever the vertical root is 0, so a precisely held height left WASD
+dead unless Space or Ctrl was held. Modern flight was rebuilt from scratch.
+The host owns the flight velocity: eased camera-relative WASD/arrows,
+Space/Ctrl, height hold with the floor cap, and a +-1 vertical step while
+moving. The original keeps collision, landing, cut-outs, firing and fuel
+(drained at the original rate). Verified live with a copy of the user's
+profile; all suites pass. Duke keeps the hover pose while moving. Next: the
+user's playtest. See [note 109](109-d08q6-jetpack-altitude-hold.md).
+
+## 2026-10-06 - D08Q6 revision 4: Right Shift dropped capture; idle creep (Needs playtest)
+
+From the user's session log: pressing Right Shift sent the original Select,
+which silently released Modernized capture mid-flight. The host stopped with
+the hover lock on, so WASD barely moved until Space. Right Shift now counts as
+Shift and never sends Select while captured (game-wide; on foot it runs like
+Left Shift). The idle creep was a stalled horizontal coast, now stopped while
+hovering. Both were reproduced and fixed live. Suites pass. See
+[note 109](109-d08q6-jetpack-altitude-hold.md).
+
+## 2026-10-06 - D08Q6 revision 3: Shift and arrow keys in flight (Needs playtest)
+
+Shift no longer reaches the original hover toggle in Modern flight; that
+toggle was dropping Duke 128 units against the new hover. The arrow keys now
+fly like WASD; before, they sent raw D-pad input that the hover pin throttled.
+`dnkroz` keeps the jetpack the whole time god mode is on. Live: arrows fly,
+Shift has no effect on height, and the largest step is 7 units. Suites pass.
+Next: the user's retest. See [note 109](109-d08q6-jetpack-altitude-hold.md).
+
+## 2026-10-06 - `dnkroz` now gives the jetpack (D08Q4 follow-up)
+
+`dnkroz` turning god mode on now also grants the jetpack (full fuel) when Duke
+lacks one, at the user's request during the D08Q6 retest. Unlimited fuel for
+an owned pack already worked. Cheats are still refused in mid-air. Verified
+live and in the native suite. Not committed. See
+[note 38](38-debug-cheats.md).
+
+## 2026-10-06 - D08Q6 revision 2: smooth hover (Needs playtest)
+
+The user found revision 1 jerky. Its hover twitched +17/-25 about every 6
+updates, because phase 0 left one timestep of the steep part of the bob sine and
+the error-driven slew echoed it. Revision 2 parks the bob at its flat peak and
+slews the base gently. Hover is flat and stops settle over 3 updates, while the
+altitude still holds. Suites pass. Next: the user's retest. See
+[note 109](109-d08q6-jetpack-altitude-hold.md).
+
+## 2026-10-06 - D08Q6 Modern jetpack altitude hold (Needs playtest)
+
+Modern flight no longer creeps upward. The altitude captured when Space or
+Ctrl ends is held through flight, turning, looking up/down and hovering.
+Level flight steers back to it, hover pins to it with the original bob off, and
+it is capped at the original floor approach height over higher ground. The lab
+circuit ends within 9 units (before: about 460 units of climb in six legs).
+Ctrl landing, J fall, firing, weapon switching, Classic and Vanilla are
+unchanged. Suites pass. Next: the user's LEVEL01 playtest. Not committed. See
+[note 109](109-d08q6-jetpack-altitude-hold.md).
+
 ## 2026-10-06 - D08Q5 accepted; D08Q6 queued
 
 User accepted weapon switching in jetpack flight ("excellent!! i accept.").

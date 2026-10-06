@@ -193,6 +193,67 @@ int main(int argc,char** argv) {
             assert(ttk::jetpack_input_ready() && ttk::view_aim_input_ready());
             assert(!ttk::movement_ready() && !ttk::locomotion_input_ready() && !ttk::airborne_input_ready());
         }
+        // D08Q6 Modern flight model: the host writes the flight velocity
+        // (+0x1f4..+0x1fc) before every update with the hover lock off;
+        // WASD eases to a camera-relative speed; while moving, a vertical
+        // step under 2 units alternates +-2 (8004ac08 drops horizontal motion
+        // on a 0 vertical root); the height is captured and held (floor cap);
+        // Space/Ctrl climb/descend; fed pads' thrust (read after the handler)
+        // is cancelled next update; the flame flag is set after the handler;
+        // fuel drains on the host only when no pads are fed.
+        {
+            auto update=[&]{++ttk::input.sequence;call(0x8003ade4,c,p,0x80025ee8);call(0x8005a210,p,0x800c2754,0x80041b34,0x801fff00);};
+            auto post=[&]{call(0x80058120,p,0,0x80041c44,0x801fff00);};
+            auto bv=[&](int axis){return (int32_t)psx_mod_read_word(p+0x1f4+4*axis);};
+            auto y=[&](int32_t v,int32_t clearance){psx_mod_write_word(p+8,(uint32_t)v);psx_mod_write_word(p+0x10,(uint32_t)(v+600));psx_mod_write_word(p+0x1c8,(uint32_t)(v+600+clearance));};
+            const uint32_t saved_flags=psx_mod_read_word(p+0x224);const uint16_t saved_fuel=psx_mod_read_half(p+0x35a);
+            psx_mod_write_half(p+0x60,164);psx_mod_write_word(p+0x224,0x08000000u);
+            const uint16_t saved_selected=psx_mod_read_half(0x800c3f94);
+            for(int axis=0;axis<3;++axis){psx_mod_write_word(p+0x1f4+4*axis,0);psx_mod_write_word(p+0x1e4+4*axis,77);}
+            psx_mod_write_half(0x800c3cc4,0);psx_mod_write_half(p+0x35a,5000);psx_mod_write_half(p+0xfe,0);
+            ttk::input.move_x=0;ttk::input.move_y=0;ttk::input.arrow_x=0;ttk::input.arrow_y=0;
+            psx_mod_write_word(0x800d21fc,10); // dt
+            y(-10700,900);update();
+            assert(!(psx_mod_read_word(p+0x224)&0x08000000u)); // hover lock off
+            for(int axis=0;axis<3;++axis)assert(psx_mod_read_word(p+0x1e4+4*axis)==0);
+            assert(bv(0)==0 && bv(1)==0 && bv(2)==0 && psx_mod_read_half(p+0x35a)==4990); // held; idle fuel -dt
+            post();assert(psx_mod_read_word(p+0x224)&0x02000000u); // flame while hovering
+            // W: camera-relative (heading = view), eases in; +-2 vertical steps.
+            ttk::input.move_y=1;update();
+            const double yaw=psx_mod_read_half(p+0x1c)*6.283185307179586/4096;
+            assert(std::abs(bv(0))+std::abs(bv(2))>1000);
+            assert(bv(1)==205 || bv(1)==-205);
+            const int32_t first_vertical=bv(1);update();assert(bv(1)==-first_vertical);
+            assert(psx_mod_read_half(p+0x35a)==4990); // fed pads: the original drains
+            for(int i=0;i<60;++i)update();
+            assert(std::abs(bv(0)-std::lround(16000*std::sin(yaw)))<=2 && std::abs(bv(2)-std::lround(16000*std::cos(yaw)))<=2);
+            // The handler's thrust (read after it) is cancelled next update.
+            psx_mod_write_word(p+0x1e4,20);psx_mod_write_word(p+0x1e8,(uint32_t)-30);psx_mod_write_word(p+0x1ec,40);post();
+            const int32_t x_before=bv(0);update();
+            assert(std::abs(bv(0)-(x_before-(20*10+10)))<=2);
+            // Model the handler's applied vertical root as the plan (no thrust).
+            auto applied=[&]{psx_mod_write_half(p+0xfe,(uint16_t)(int16_t)((bv(1)*10)>>10));};
+            ttk::input.move_y=0;for(int i=0;i<60;++i){update();applied();post();}
+            assert(bv(0)==0 && bv(2)==0); // eased to a stop, no creep
+            // Held height: 20 units above it steers down; floor cap rides higher ground.
+            psx_mod_write_half(p+0xfe,0);
+            y(-10720,920);update();assert(bv(1)>60 && bv(1)<400); // steer down (plus any learned offset)
+            y(-10600,800);update();assert(bv(1)<-400);
+            y(-10700,300);update();assert(bv(1)<-400); // 212 below the approach height
+            // Space climbs (eases), release re-captures once settled; Ctrl descends.
+            y(-10700,900);ttk::input.held[ttk::jump]=true;update();assert(bv(1)<0);
+            for(int i=0;i<30;++i)update();assert(std::abs(bv(1)+11800)<=300);
+            ttk::input.held[ttk::jump]=false;y(-11000,1200);for(int i=0;i<40;++i)update();
+            assert(std::abs(bv(1))<=120); // captured at -11000 (plus any learned offset)
+            ttk::input.held[ttk::crouch]=true;for(int i=0;i<30;++i)update();assert(std::abs(bv(1)-6000)<=300);
+            ttk::input.held[ttk::crouch]=false;
+            psx_mod_write_half(0x800c3cc4,1);const uint16_t f0=psx_mod_read_half(p+0x35a);update();assert(psx_mod_read_half(p+0x35a)==f0); // original skip
+            psx_mod_write_half(0x800c3cc4,0);
+            for(int axis=0;axis<3;++axis){psx_mod_write_word(p+0x1f4+4*axis,0);psx_mod_write_word(p+0x1e4+4*axis,0);}
+            psx_mod_write_word(p+0x224,saved_flags);psx_mod_write_half(p+0x35a,saved_fuel);
+            psx_mod_write_half(0x800c3f94,saved_selected); // post() ran the flight shortcuts
+            std::puts("PASS: D08Q6 flight model: lock off, eased camera-relative speed, +-2 vertical step, thrust cancel, flame, stop without creep, hold/floor cap, Space/Ctrl, fuel");
+        }
         ttk::input.active=false;assert(!ttk::jetpack_input_ready());ttk::input.active=true;
         ttk::modern=false;assert(!ttk::jetpack_input_ready());ttk::modern=true;
         psx_mod_write_word(p,2);assert(!ttk::jetpack_input_ready());psx_mod_write_word(p,0);
@@ -1996,10 +2057,16 @@ int main(int argc,char** argv) {
         cheat(ttk::Cheat::God);assert(psx_mod_read_half(p+0x32)==10000 && psx_mod_read_half(p+0x35a)==9000);
         psx_mod_write_half(p+0x32,15000);psx_mod_write_half(p+0x35a,8983);cheat(ttk::Cheat::None);
         assert(psx_mod_read_half(p+0x32)==15000 && psx_mod_read_half(p+0x35a)==9000);
-        psx_mod_write_half(p+0x358,0);psx_mod_write_half(p+0x35a,0);cheat(ttk::Cheat::None);assert(psx_mod_read_half(p+0x35a)==0);
+        psx_mod_write_half(p+0x358,0);psx_mod_write_half(p+0x35a,0);cheat(ttk::Cheat::None); // pack lost while on: given back
+        assert(psx_mod_read_half(p+0x358)==1 && psx_mod_read_half(p+0x35a)==9000);
         psx_mod_write_half(p+0x358,1);cheat(ttk::Cheat::God);assert(psx_mod_read_half(0x800c3cc6)==0);
         psx_mod_write_half(p+0x32,3000);psx_mod_write_half(p+0x35a,100);cheat(ttk::Cheat::None);
         assert(psx_mod_read_half(p+0x32)==3000 && psx_mod_read_half(p+0x35a)==100);
+        // Turning god mode on gives a missing jetpack (owned bit, full fuel);
+        // the jetpack's on bit is untouched and turning it off keeps the pack.
+        psx_mod_write_half(p+0x358,0);psx_mod_write_half(p+0x35a,0);
+        cheat(ttk::Cheat::God);assert(psx_mod_read_half(0x800c3cc6)==1 && psx_mod_read_half(p+0x358)==1 && psx_mod_read_half(p+0x35a)==9000);
+        cheat(ttk::Cheat::God);assert(psx_mod_read_half(0x800c3cc6)==0 && psx_mod_read_half(p+0x358)==1);
         // D08G3: upgrade bit on weapons 4,5,7,8,9,10 and the persistent mask only.
         uint16_t saved_weapons[36];for(unsigned i=0;i<36;++i)saved_weapons[i]=psx_mod_read_half(p+0x2c4+4*i);
         const uint8_t saved_mask=psx_mod_read_byte(p+0x85f);
@@ -2021,7 +2088,7 @@ int main(int argc,char** argv) {
         for(unsigned i=0;i<36;++i)psx_mod_write_half(p+0x2c4+4*i,saved_weapons[i]);psx_mod_write_byte(p+0x85f,saved_mask);
         psx_mod_write_half(most,saved_most);psx_mod_write_word(0x800d2660,saved_types);psx_mod_write_half(p+0x32,saved_health);
         psx_mod_write_half(p+0x358,saved_jet);psx_mod_write_half(p+0x35a,saved_fuel);
-        std::puts("PASS: D08Q4 god mode health/jetpack pin, Atomic surplus kept, off resumes; D08G3 upgrade bits and mask");
+        std::puts("PASS: D08Q4 god mode health/jetpack pin and jetpack grant, Atomic surplus kept, off resumes; D08G3 upgrade bits and mask");
     }
     psx_mod_write_word(0x800c27bc,2);cheat_calls.clear();cheat(ttk::Cheat::Stuff);assert(cheat_calls.empty());
     psx_mod_write_word(0x800c27bc,1);ttk::input.active=false;cheat(ttk::Cheat::God);assert(psx_mod_read_half(0x800c3cc6)==0);ttk::input.active=true;

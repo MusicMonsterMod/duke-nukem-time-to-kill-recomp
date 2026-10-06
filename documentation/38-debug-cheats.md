@@ -21,7 +21,7 @@ until the player later lands or enters gameplay.
 | Code | Time to Kill effect |
 | --- | --- |
 | `dnmonsters` | Hide/show hostile AI; NPCs, pickups, switches and other entities stay present |
-| `dnkroz`, `dncornholio` | Toggle original invulnerability; while on, health is at least 100 and an owned jetpack stays full (D08Q4) |
+| `dnkroz`, `dncornholio` | Toggle original invulnerability; while on, health is at least 100 and an owned jetpack stays full (D08Q4). Turning it on gives the jetpack if missing (2026-10-06 follow-up) |
 | `dnstuff` | Original all-weapons/ammo, inventory and keys grants |
 | `dnweapons` | Original all-weapons/ammo grant |
 | `dninventory` | Original inventory grant and charges |
@@ -156,4 +156,23 @@ See [next-session brief](39-next-iteration-brief.md).
   the user's description instead.
 - Guards added: `8003df40` (112 bytes), `80096cac` (152 bytes). Evidence and
   limits are in the 2026-10-06 work-log entry in `MODERNIZATION_JOBS.md`.
+
+## `dnkroz` gives the jetpack (2026-10-06 follow-up, needs playtest)
+
+User, during the D08Q6 retest: "i think dnkroz isnt applying the jetpack ...
+it should also give the jetpack too". A live check from a clean LEVEL00 start
+(god off, no jetpack) confirmed it. `dnkroz` turned god mode on, but the pack
+stayed unowned (`+0x358` 0, fuel 0), so J did nothing. Unlimited fuel already
+worked for an owned pack: 600 frames of flight stayed at 9000 in either cheat
+order. Typed cheats are still refused in mid-air, as before.
+
+While god mode is on, `god_mode_update` now sets the jetpack's owned bit
+(`+0x358 |= 1`), the way the original inventory cheat `8003d738` grants item 1,
+and fills it to the live capacity `800c2716`. The on bit is not touched, and
+turning god mode off keeps the pack. This is continuous, not only at toggle-on:
+god mode survives level travel and savestates that lose the pack, and a
+one-shot grant left Duke without one with god already on, where typing
+`dnkroz` would only turn god mode off. Live: `dnkroz` gives
+`jet 0x1` with fuel 9000, J switches it on, flight keeps 9000, and off keeps
+`0x3`. `ttk-controls-test` D08Q4 group covers the grant.
 

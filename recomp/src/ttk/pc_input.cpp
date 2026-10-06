@@ -274,7 +274,9 @@ const char* input_binding_name(Action action) {
     return code<0?mouse_names[-code]:SDL_GetScancodeName(SDL_Scancode(code));
 }
 // An Alt binding means either Alt key.
-static bool down(int code) { return code < 0 ? mouse[-code] : code==SDL_SCANCODE_LALT ? keys[code] || keys[SDL_SCANCODE_RALT] : keys[code]; }
+// Either Alt / either Shift satisfies a left-modifier binding.
+static bool down(int code) { return code < 0 ? mouse[-code] : code==SDL_SCANCODE_LALT ? keys[code] || keys[SDL_SCANCODE_RALT] :
+    code==SDL_SCANCODE_LSHIFT ? keys[code] || keys[SDL_SCANCODE_RSHIFT] : keys[code]; }
 // D08T1: with legacy (original) weapon aiming or the original camera the
 // primary Grab input keeps its old precision-aim role; Grab (second) grabs.
 static bool legacy_aim() {
@@ -676,6 +678,8 @@ void input_frame() {
         frame.move_y = float(frame.held[move_forward]) - float(frame.held[move_back]);
         float magnitude = std::hypot(frame.move_x, frame.move_y);
         if (magnitude > 1) { frame.move_x /= magnitude; frame.move_y /= magnitude; }
+        frame.arrow_x = float(keys[SDL_SCANCODE_RIGHT]) - float(keys[SDL_SCANCODE_LEFT]);
+        frame.arrow_y = float(keys[SDL_SCANCODE_UP]) - float(keys[SDL_SCANCODE_DOWN]);
         frame.look_x = dx; frame.look_y = dy;
         frame.device = device;
         // In guarded view-aim locomotion Mouse2 keeps the same view policy.
@@ -749,7 +753,10 @@ uint16_t input_pad() {
     const int fixed[] = {SDL_SCANCODE_UP, SDL_SCANCODE_RIGHT, SDL_SCANCODE_DOWN,
         SDL_SCANCODE_LEFT, SDL_SCANCODE_X, SDL_SCANCODE_C, SDL_SCANCODE_RETURN, SDL_SCANCODE_RSHIFT, SDL_SCANCODE_Z, SDL_SCANCODE_ESCAPE};
     const uint16_t bits[] = {16, 32, 64, 128, 16384, 8192, 8, 1, 4096, 8};
-    for (int i = 0; i < 10; ++i) if (!(captured && (fixed[i]==SDL_SCANCODE_X || fixed[i]==SDL_SCANCODE_Z || fixed[i]==SDL_SCANCODE_C)) && keys[fixed[i]]) value &= ~bits[i];
+    // D08Q6: captured, Right Shift is Shift (above), never the escape hatch's
+    // Select: Select reaching input_pad_context() silently dropped capture, so
+    // the host layer stopped mid-flight (hover lock left on, WASD dead).
+    for (int i = 0; i < 10; ++i) if (!(captured && (fixed[i]==SDL_SCANCODE_X || fixed[i]==SDL_SCANCODE_Z || fixed[i]==SDL_SCANCODE_C || fixed[i]==SDL_SCANCODE_RSHIFT)) && keys[fixed[i]]) value &= ~bits[i];
     // Retain a brief tap across host polling and a short original transition.
     // Grounded locomotion, and host-owned shallow-water jumps.
     if(captured && jump_deadline && sequence<=jump_deadline &&
@@ -776,7 +783,8 @@ uint16_t input_pad() {
     const bool modern_lease = locomotion || jet || push_owned || push_releasing || traversal_camera || (captured && (traversal_input_ready() ||
         swim_input_ready() || swim_thrust_input_ready()));
     if (captured) for (int i = 0; i < action_count; ++i)
-        if (!(locomotion && i == walk) && !(i==original_aim && view_aim_input_ready()) &&
+        if (!(locomotion && i == walk) && !(jet && i == walk && !jetpack_classic_input_ready()) &&
+            !(i==original_aim && view_aim_input_ready()) &&
             !(i==jump && (swim_host_owns_jump() || push_owned)) && down(binds[i])) value &= ~pads[i];
     // Legacy aiming: the primary Grab input is original precision aim (R1).
     if (captured && aim_down() && !view_aim_input_ready()) value &= ~pads[original_aim];
@@ -829,17 +837,31 @@ uint16_t input_pad() {
         if(down(binds[move_left]) && !down(binds[move_right])) value &= ~strafe_left;
         if(down(binds[move_right]) && !down(binds[move_left])) value &= ~strafe_right;
     }
-    // D08Q jetpack flight (original mode 10): the body faces the camera from
-    // jetpack.inc, so original Up/Down thrust and the layout's strafe pads are
-    // camera-relative. Space stays Square (original lift); Ctrl descent and
-    // hovering are host-owned in jetpack.inc. D-pad Left/Right are unused.
+    // D08Q jetpack flight (original mode 10): the body faces the camera, so
+    // original Up/Down thrust and the layout's strafe pads are camera-relative;
+    // WASD and the arrow keys both drive them (D-pad Left/Right turns would be
+    // overridden by face_view), Space is Square. Classic (D08R) flies on
+    // them. Modern (D08Q6) feeds them for the original's flame, lean poses,
+    // thrust state and fuel while the host owns the velocity (jetpack.inc
+    // cancels their thrust); Shift (L1, the original hover toggle) is withheld
+    // there because hovering is host-owned.
     if(jet) {
         uint16_t strafe_left=0,strafe_right=0;
         swim_strafe_pads(strafe_left,strafe_right);
-        if(down(binds[move_forward]) && !down(binds[move_back])) value &= ~16;
-        if(down(binds[move_back]) && !down(binds[move_forward])) value &= ~64;
-        if(down(binds[move_left]) && !down(binds[move_right])) value &= ~strafe_left;
-        if(down(binds[move_right]) && !down(binds[move_left])) value &= ~strafe_right;
+        value |= 16|32|64|128;
+        const bool forward=down(binds[move_forward]) || keys[SDL_SCANCODE_UP];
+        const bool back=down(binds[move_back]) || keys[SDL_SCANCODE_DOWN];
+        const bool left=down(binds[move_left]) || keys[SDL_SCANCODE_LEFT];
+        const bool right=down(binds[move_right]) || keys[SDL_SCANCODE_RIGHT];
+        if(forward && !back) value &= ~16;
+        if(back && !forward) value &= ~64;
+        if(left && !right) value &= ~strafe_left;
+        if(right && !left) value &= ~strafe_right;
+        if(!jetpack_classic_input_ready()) {
+            value |= pads[walk];
+            // Space and Ctrl together hold height on the host: no lift.
+            if(down(binds[crouch])) value |= pads[jump];
+        }
     }
     // Underwater (original state 5): Square is thrust along body yaw/pitch,
     // which swim.inc steers from WASD / Space / Ctrl. D-pad would pitch.

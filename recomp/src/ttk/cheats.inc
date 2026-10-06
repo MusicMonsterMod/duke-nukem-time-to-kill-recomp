@@ -70,7 +70,10 @@ static bool toggle_monsters(CPUState* cpu) {
 // D08Q4: Duke3D god mode also keeps health and the jetpack full. Health rises
 // to the player's own maximum (object type +0xc, the cap 80040498/80096cac
 // use) but is never lowered, so Atomic Health keeps its original 2x ceiling.
-// Only an owned pack is topped up, to the live item capacity at 800c2716.
+// User request (2026-10-06): god mode also gives the jetpack, the way the
+// original inventory cheat 8003d738 grants item 1 (owned bit only), and keeps
+// it while on (god mode survives level travel and savestates that lose the
+// pack); it is topped up to the live item capacity at 800c2716.
 // Runs at the 8005a210 step-table entry and again from the 80058120 poll,
 // after the mode-10 handler's drain, so the HUD never shows 99%.
 static void god_mode_update() {
@@ -80,6 +83,7 @@ static void god_mode_update() {
     const int16_t most=(int16_t)psx_mod_read_half(types+28*type+0xc),health=(int16_t)psx_mod_read_half(player+0x32);
     if(health>0 && most>0 && health<most)psx_mod_write_half(player+0x32,(uint16_t)most);
     const int16_t fuel=(int16_t)psx_mod_read_half(0x800c2716);
+    if(fuel>0 && !(psx_mod_read_half(player+0x358)&1))psx_mod_write_half(player+0x358,psx_mod_read_half(player+0x358)|1);
     if((psx_mod_read_half(player+0x358)&1) && fuel>0 && (int16_t)psx_mod_read_half(player+0x35a)<fuel)
         psx_mod_write_half(player+0x35a,(uint16_t)fuel);
 }
@@ -117,7 +121,8 @@ static void cheats_update(CPUState* cpu) {
     switch(command) {
     case Cheat::Monsters: if(!toggle_monsters(cpu))input_notice("Enemy toggle unavailable");return;
     case Cheat::God:
-        psx_mod_write_half(0x800c3cc6,!psx_mod_read_half(0x800c3cc6));god_mode_update();
+        psx_mod_write_half(0x800c3cc6,!psx_mod_read_half(0x800c3cc6));
+        god_mode_update();
         input_notice(psx_mod_read_half(0x800c3cc6)?"God Mode: On":"God Mode: Off");return;
     case Cheat::Upgrade: upgrade_weapons();input_notice("Weapons Upgraded");return;
     case Cheat::Unlimited:

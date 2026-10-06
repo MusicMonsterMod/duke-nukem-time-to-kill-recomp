@@ -597,11 +597,15 @@ the water (D11E).
 
 **Modernized jetpack**: switch it on with **J**, then
 **Space** lifts off and climbs. In the air the **mouse** turns Duke and the
-camera together, **W/A/S/D** fly relative to the camera at level height
-(strafe is a little slower, as in the original), releasing every key
-**hovers** in place, **Ctrl** descends quickly (the same speed as diving
+camera together, **W/A/S/D** (or the **arrow keys**) fly relative to the camera at the
+original top speed with a short start and stop,
+releasing every key **hovers** perfectly still, **Ctrl** descends quickly (the same speed as diving
 underwater) until a soft landing, and
 **J** switches the pack off for a controlled fall with the camera still live.
+Duke's height stays where **Space** or **Ctrl** left it: flying, turning,
+looking up or down and hovering do not change it (D08Q6; there is no hover
+bob in Modern, and **Shift** does nothing in flight). Over higher ground such as a rooftop he rises to clear
+it, then returns to that height.
 Fuel drains while flying and while hovering (the original rule); when it runs
 out Duke falls the same way. The ground controls return the moment he lands.
 With view aiming enabled, aim with the mouse and fire the equipped weapon with
@@ -870,7 +874,7 @@ start away from ledges. F10 toggles capture; Escape or focus loss cancels typing
 | Code | Effect |
 | --- | --- |
 | `dnmonsters` | Toggle enemies hidden/shown; NPCs, pickups and switches remain |
-| `dnkroz` / `dncornholio` | Toggle god mode: health to at least 100 and an owned jetpack never runs out (Atomic Health can still take Duke to 200) |
+| `dnkroz` / `dncornholio` | Toggle god mode: health to at least 100, and Duke has the jetpack at full fuel the whole time it is on (Atomic Health can still take Duke to 200). It is a toggle: if god mode is already on, typing it turns it off |
 | `dnstuff` | Grant all weapons/ammo, inventory and keys |
 | `dnkeys` | Grant keys |
 | `dnweapons` | Grant weapons and ammo |

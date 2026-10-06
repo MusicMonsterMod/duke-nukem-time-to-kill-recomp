@@ -12,8 +12,9 @@ From the user's Level 2 playthrough: the bank-vault papers can be collected
 without noticing, cannot be inspected later, and nothing connects them to the
 vault (the user needed a walkthrough). New Todo D29, research and design
 first: how the papers, the code data and the vault check work internally,
-what the game tracks and shows, whether the original inventory and Objectives
-text can be exposed or updated, a game-wide audit of similar opaque
+what the game tracks and shows, whether original item data and Objectives
+text can be read or updated (not by extending the inventory switcher; the
+user will bring presentation options), a game-wide audit of similar opaque
 progression, a lightweight information model, presentation options, objective
 guidance without spoilers, and a smallest first build. Principle: remove
 unnecessary obscurity without removing discovery. Not started.

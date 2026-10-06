@@ -3360,9 +3360,10 @@ Document, in a new engineering note:
    item names or descriptions that are never shown.
 3. **What feedback the original game gives** on pickup (message, sound, HUD
    change) for progression items versus ammo and health.
-4. **Whether an existing inventory structure can be exposed** (the D08A1-A3
-   switcher reads the original inventory) rather than inventing a parallel
-   system.
+4. **Whether the game's own item/progression data can be the source** of
+   the information (read original state rather than inventing a parallel
+   record). This is about data only: the D08A1-A3 inventory switcher is
+   **not** to be extended for progression items (user, 2026-10-06).
 5. **Objectives**: how the original Objectives screen stores and selects its
    text; whether text can safely be changed, extended or updated as the
    player discovers things (and the save compatibility of doing so).
@@ -3380,6 +3381,8 @@ Document, in a new engineering note:
    persistent inspectable entries (HUD panel, pause-menu inventory or
    objectives screen section), or a combination. Must not be intrusive. Uses
    the Duke font assets (D19A); later visual language belongs with D19.
+   The user is considering presentation options and will bring them to
+   this job (2026-10-06); fold those in before proposing a design.
 9. **Objective guidance recommendation**: how much extra guidance to add
    without spoiling puzzles. Favour goals ("Find a way into the bank vault.")
    over solutions ("Collect all three notes ... enter 1234."). Objectives may

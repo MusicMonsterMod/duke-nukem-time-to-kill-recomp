@@ -866,7 +866,7 @@ start away from ledges. F10 toggles capture; Escape or focus loss cancels typing
 | Code | Effect |
 | --- | --- |
 | `dnmonsters` | Toggle enemies hidden/shown; NPCs, pickups and switches remain |
-| `dnkroz` / `dncornholio` | Toggle god mode (does not restore health) |
+| `dnkroz` / `dncornholio` | Toggle god mode: health to at least 100 and an owned jetpack never runs out (Atomic Health can still take Duke to 200) |
 | `dnstuff` | Grant all weapons/ammo, inventory and keys |
 | `dnkeys` | Grant keys |
 | `dnweapons` | Grant weapons and ammo |
@@ -876,6 +876,7 @@ start away from ledges. F10 toggles capture; Escape or focus loss cancels typing
 | `dnammo` | Refill ammo for owned weapons |
 | `dnhealth` | Restore 100 health |
 | `dnunlimited` | Toggle unlimited ammo/charges |
+| `dnupgrade` | Upgrade every weapon (Laser Gatling, Incendiary RPG, HiTemp Flamethrower, plus Desert Eagle, Shotgun and Energy Weapon); weapons picked up later arrive upgraded, and the upgrade stays through saves |
 
 These use Time to Kill's inventory equivalents. Use a test save and show enemies
 again before saving or loading: hidden-enemy state is session/scene-local, and its

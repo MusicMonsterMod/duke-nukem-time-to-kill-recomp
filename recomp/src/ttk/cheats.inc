@@ -67,7 +67,45 @@ static bool toggle_monsters(CPUState* cpu) {
     }
     return true;
 }
+// D08Q4: Duke3D god mode also keeps health and the jetpack full. Health rises
+// to the player's own maximum (object type +0xc, the cap 80040498/80096cac
+// use) but is never lowered, so Atomic Health keeps its original 2x ceiling.
+// Only an owned pack is topped up, to the live item capacity at 800c2716.
+// Runs at the 8005a210 step-table entry and again from the 80058120 poll,
+// after the mode-10 handler's drain, so the HUD never shows 99%.
+static void god_mode_update() {
+    if(!psx_mod_read_half(0x800c3cc6) || !player_identity_ready() || psx_mod_read_word(0x800c27bc)!=1)return;
+    const uint32_t types=psx_mod_read_word(0x800d2660),type=psx_mod_read_half(player+0x2c);
+    if(type>=1024 || !cheat_ram(types,28*1024))return;
+    const int16_t most=(int16_t)psx_mod_read_half(types+28*type+0xc),health=(int16_t)psx_mod_read_half(player+0x32);
+    if(health>0 && most>0 && health<most)psx_mod_write_half(player+0x32,(uint16_t)most);
+    const int16_t fuel=(int16_t)psx_mod_read_half(0x800c2716);
+    if((psx_mod_read_half(player+0x358)&1) && fuel>0 && (int16_t)psx_mod_read_half(player+0x35a)<fuel)
+        psx_mod_write_half(player+0x35a,(uint16_t)fuel);
+}
+// D08G3: the original upgrade bit (8003df40 resolves 7/8/9 to 28/29/27) on the
+// six weapons the original upgrade mask +0x85f covers, bit i -> weapon
+// 4,5,7,8,9,10 (8003f4d8, 8008328c). The mask is what bonus-level awards set
+// and what saves, pickups and the restart loadout reapply, so upgrades persist
+// and weapons not yet owned arrive upgraded. Nothing new is granted, but an
+// owned 7/8/9 reads ammo from its resolved record, which is unowned and empty
+// without dnstuff (the weapon then counts as empty and is skipped). Carry the
+// base ammo over, capped at the resolved record's capacity (800c4594).
+static void upgrade_weapons() {
+    static constexpr unsigned upgradable[]={4,5,7,8,9,10};
+    static constexpr unsigned resolved[][2]={{7,28},{8,29},{9,27}};
+    for(unsigned id:upgradable)psx_mod_write_half(player+0x2c4+4*id,psx_mod_read_half(player+0x2c4+4*id)|8);
+    for(auto [base,up]:resolved) {
+        if(!(psx_mod_read_half(player+0x2c4+4*base)&1))continue;
+        const int16_t most=(int16_t)psx_mod_read_half(0x800c4594+44*up),ammo=(int16_t)psx_mod_read_half(player+0x2c6+4*base);
+        const int16_t carried=std::min(ammo,most);
+        psx_mod_write_half(player+0x2c4+4*up,psx_mod_read_half(player+0x2c4+4*up)|1);
+        if((int16_t)psx_mod_read_half(player+0x2c6+4*up)<carried)psx_mod_write_half(player+0x2c6+4*up,(uint16_t)carried);
+    }
+    psx_mod_write_byte(player+0x85f,psx_mod_read_byte(player+0x85f)|0x3f);
+}
 static void cheats_update(CPUState* cpu) {
+    god_mode_update();
     auto command=input_take_cheat();
     if(command==Cheat::None)return;
     if(!input_snapshot(Context::Gameplay).active || !player_identity_ready() ||
@@ -79,8 +117,9 @@ static void cheats_update(CPUState* cpu) {
     switch(command) {
     case Cheat::Monsters: if(!toggle_monsters(cpu))input_notice("Enemy toggle unavailable");return;
     case Cheat::God:
-        psx_mod_write_half(0x800c3cc6,!psx_mod_read_half(0x800c3cc6));
+        psx_mod_write_half(0x800c3cc6,!psx_mod_read_half(0x800c3cc6));god_mode_update();
         input_notice(psx_mod_read_half(0x800c3cc6)?"God Mode: On":"God Mode: Off");return;
+    case Cheat::Upgrade: upgrade_weapons();input_notice("Weapons Upgraded");return;
     case Cheat::Unlimited:
         psx_mod_write_half(0x800c3cc4,!psx_mod_read_half(0x800c3cc4));
         input_notice(psx_mod_read_half(0x800c3cc4)?"Unlimited ammo ON":"Unlimited ammo OFF");return;

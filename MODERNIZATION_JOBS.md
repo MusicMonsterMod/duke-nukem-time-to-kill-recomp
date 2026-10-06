@@ -55,7 +55,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08G | Typed Duke-style debugging cheats — user accepted | Done | D04 |
 | D08G1 | Original Duke3D cheat confirmation wording | Done | D08G |
 | D08G2 | Silent cheat entry and centered confirmations | Done | D08G1, D19A |
-| D08G3 | `dnupgrade` cheat: upgrade all weapons (Laser Gatling etc.) | Todo | D08G2 |
+| D08G3 | `dnupgrade` cheat: upgrade all weapons (Laser Gatling etc.) | Accepted | D08G2 |
 | D08H | Apartment furniture, hidden pickup and switch targeting | Done | D08 |
 | D08I | Responsive run-start and edge jumps | Done | D08 |
 | D08J | Armed airborne ladder grabs and automatic weapon transitions | Done | D08, D08E |
@@ -73,7 +73,8 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08Q2 | Jetpack unavailable after death, Continue and dnstuff (slot 10) | Done | D08Q, D08A1, D08G |
 | D08Q3 | Jetpack weapon aiming and missing crosshair | Done | D07C, D08Q, D08Q2, D08R |
 | D08S | EDuke32-style jetpack scheme (instant J on/off, midair, 61 s fuel) | Todo (reopened 2026-10-06) | D08R, D08Q3 |
-| D08Q4 | Duke3D-style `dnkroz`: health to 100 and unlimited jetpack fuel | Todo | D08G, D08Q |
+| D08Q4 | Duke3D-style `dnkroz`: health to 100 and unlimited jetpack fuel | Accepted | D08G, D08Q |
+| D08Q5 | Weapon switching while flying the jetpack (number keys and wheel) | Todo | D08A, D08Q3 |
 | D08T | Pushable objects: modern grab/push/pull and climb (alley dumpster) | Done | D08 |
 | D08T1 | Separate push/pull from mantling: E always mantles, hold RMB to grab | Done | D08T, D04 |
 | D08T2 | Duke-symbol pushable blocks cannot be pushed with Modern controls (RMB grab, game-wide) | Accepted | D08T1, D22B |
@@ -686,7 +687,13 @@ renderers and Vanilla. Do not move unrelated OSD panels or slow normal controls.
 
 ### D08G3 - `dnupgrade` cheat: upgrade every weapon
 
-**Todo. User request, 2026-10-06.** "another cheat - dnupgrade, which
+**Accepted by the user, 2026-10-06** ("accepted!!"). Implemented and verified live in levels 6 and
+12 (medieval and Rome) on private copies; see the work log and
+[note 38](documentation/38-debug-cheats.md). Upgrades owned weapons (ammo
+carried to the upgraded form) and makes the rest arrive upgraded. Grants no
+weapons.
+
+**User request, 2026-10-06.** "another cheat - dnupgrade, which
 upgrades all weapons to their upgraded form. laser gatling gun etc."
 
 **Scope:** a new typed cheat in the D08G family (silent entry, centered Duke
@@ -1252,7 +1259,12 @@ confirms.
 
 ### D08Q4 - Duke3D-style `dnkroz`: health to 100 and unlimited jetpack fuel
 
-**Todo. User request, 2026-10-06.** "dnkroz should also allow for unlimited
+**Accepted by the user, 2026-10-06** ("accepted!!"). Implemented; verified live in Modern and
+Classic flight on private copies; see the work log and
+[note 38](documentation/38-debug-cheats.md). Atomic Health above 100 is the
+original pickup and was not driven live.
+
+**User request, 2026-10-06.** "dnkroz should also allow for unlimited
 jetpack, that's just the behavior in eduke also." While `dnkroz` /
 `dncornholio` god mode is on (D08G), jetpack fuel does not drain in every
 jetpack scheme; switching god mode off resumes normal drain from the current
@@ -1277,6 +1289,29 @@ with god mode on, flight in each scheme lasts indefinitely and the HUD % does
 not fall; health goes above 100 only through the Atomic Health equivalent,
 up to 200; with it off, fuel drains as before; no change without
 the cheat; Vanilla unchanged unless the cheats already apply there.
+
+### D08Q5 - Weapon switching while flying the jetpack
+
+**Todo. User request, 2026-10-06.** "allow for weapon switching while using
+jetpack, both wheel and numbers." In Modernized flight (mode 10, every
+jetpack scheme: Modern, Classic and the future EDuke32 scheme D08S), the
+number keys 1-0 and the mouse wheel (plus semicolon/apostrophe and X, the
+D08A shortcuts) change weapons as they do on the ground. Today D08A
+selectors reject requests during flight.
+
+Research first: whether the original allows weapon changes in mode 10 at all
+(draw/holster animations on the upper body during anim 163/165 and the
+lift-off/landing 106/108), which weapons the original permits while flying,
+how the D08Q3 flight aim and crosshair follow a newly drawn weapon, and
+whether a holstered or empty pack state matters. Use the original
+equipment/draw path; do not swap models directly. Keep D08A groups, burst
+resolution and the underwater rules (D08O1) unchanged.
+
+**Acceptance:** while flying in each scheme, number keys and the wheel cycle
+through owned weapons with the normal draw, and the new weapon fires with
+flight aiming and the crosshair; flight, fuel and landing are unaffected;
+ground and swimming switching unchanged; Vanilla unchanged; the user
+confirms.
 
 ### D08K — True crouch walking and animation feasibility
 
@@ -7609,3 +7644,90 @@ D08O2: the weapon points downwards while swimming and firing in motion; make
 it point forward. D08Q4 now records Duke3D's `dnkroz`: god mode, health to
 100, unlimited jetpack fuel, and only Atomic Health raising health to the real
 maximum of 200. Committed and pushed at the user's request.
+
+## 2026-10-06 - D08G3 `dnupgrade` and D08Q4 `dnkroz` (Needs playtest)
+
+User selected both. Research (read-only SLUS-00583):
+
+- Upgrades are bit `0x8` on a weapon record (`player+0x2c4+4*id`).
+  `8003df40` resolves Gatling 7 -> 28 (Laser Gatling), RPG 8 -> 29
+  (Incendiary) and Flamethrower 9 -> 27 (HiTemp), with ammo from the
+  resolved record. Desert Eagle 4, Shotgun 5 and Energy Weapon 10 upgrade in
+  place.
+- The persistent upgrade mask is `player+0x85f`, bit i -> weapon
+  4/5/7/8/9/10. Challenge stages 21-26 set bit (level - 21) (`800950cc`).
+  Saves store the mask (`800833ec`). Load (`8008328c`), the restart loadout
+  (`8003f4d8`) and weapon pickups (`80081e3c`...) reapply it.
+- The original cheat dispatcher has an unused upgrade-all entry (`80083a38`
+  -> `8003f5cc`). It sets the bits on both player records but not the mask,
+  so its upgrades would not survive a save.
+- Health pickups call `80096cac(player, percent, over)`. Normal health is 10%
+  up to the type maximum (`types[+0x2c]+0xc`, 10000 = HUD 100). ATOMIC HEALTH
+  (string 0xad) is 50% with `over` = 1, capped at twice the maximum (200).
+  TTK already has the Atomic Health ceiling; nothing was added.
+- God mode `800c3cc6` is written only by the cheat dispatcher, so it survives
+  death, Continue and level changes. `800c3cc4` (which skips the mode-10
+  drain) is unlimited ammo and was left alone. Jetpack capacity is the live
+  item table `800c2716` (9000).
+- EDuke32 (`actors.cpp`) pins health to max and jetpack to 1599 every tick in
+  god mode, which would also cut an Atomic surplus. Per the user's
+  description, the surplus up to 200 is kept.
+
+Implementation (`src/ttk/cheats.inc`, `cheat_codes.h`, `modern_controls.cpp`):
+
+- `dnupgrade` sets bit 8 on weapons 4/5/7/8/9/10 and ORs `0x3f` into the
+  mask. For an owned Gatling, RPG or Flamethrower it also marks the upgraded
+  record owned and gives it at least the base ammo, capped at the upgraded
+  capacity (`800c4594+44*id`: 250, 8, 200). Without this the upgraded weapon
+  counts as empty in normal play: verified live, firing switched to the rifle
+  and 4 skipped the Gatling. It grants no unowned weapon (use `dnweapons`). Confirmation: "Weapons
+  Upgraded". It has the same solid-ground and Modernized gate as the other
+  cheats.
+- `god_mode_update()` runs while god mode is on: health is raised to the
+  type maximum, never lowered, and an owned jetpack is held at the item cap.
+  It runs at the `8005a210` step-table entry and again from the `80058120`
+  poll, which follows this update's mode-10 drain. Without the second call
+  the HUD floored 8985/9000 to 99%. Toggling god mode on applies it at once.
+  Off resumes normal drain from the current amount.
+- New SHA guards: `8003df40` (112 bytes), `80096cac` (152 bytes). No hook
+  list, generated code or hashed header changed. Existing savestates still
+  load.
+
+Evidence (private cards/profile, port 9361, Xvfb; lab
+`recomp/analysis/d08g3-q4-20261006/`):
+
+- Level 6 (FAMILY JEWELS) and level 12 (BLOOD BATHS, after `dnstuff`):
+  `dnupgrade` set flags `0x1 -> 0x9` on all six and mask `0x3f`. The Gatling
+  already in hand fired from record 28 straight away (250 -> 240, record 7
+  unchanged). Flamethrower fired from 27 (200 -> 196) and RPG from 29
+  (8 -> 6).
+- With record 28 emptied, as in normal play: before the carry-over, the upgraded
+  Gatling was skipped. After it, 28 got 250 from the 400 base rounds, fired
+  (250 -> 241) and 4 reselected it.
+- A savestate save/load kept the mask and flags; another state showed mask 0.
+- Underwater, the cheat is refused with "stand on solid ground".
+- `dnkroz` on from 30 health and 4000 fuel gave 100 and 9000. A poked 150
+  surplus was kept, and 30 health was raised back to 100. 240 frames of
+  flight in Modern and in Classic read fuel 9000 on every sample. With god
+  mode off, flight drained normally (8525 -> 7405).
+- Vanilla: god flag poked on, health and fuel unchanged, typed `dnupgrade`
+  ignored.
+- Suites: ttk-controls-test (new D08Q4/D08G3 case, all-levels fixtures),
+  ttk-input-test (parses every code, including `dnupgrade`), ttk-aim-test,
+  ttk-near-test, ttk-font-test, ttk-inventory-test, Python 112 OK
+  (2 skipped). ttk-scene-test was not run (needs a captured exit RAM).
+- Build SHA-256: `5f9b65c99b25d62794e942f2a9d1b1e239fb53a401816e7cc5fbf316c30f5bb8`.
+
+Limits: an Atomic Health pickup was not driven live (the surplus was poked).
+Death/Continue and memory-card save/load of the mask are established by code
+reading, not driven. The ammo carry-over is a cheat convenience: the base
+record keeps its own ammo, which is unused while upgraded. Whether to grant
+unowned weapons too is the user's call; currently they arrive upgraded when
+picked up. Needs the user's playtest.
+
+## 2026-10-06 - D08G3 and D08Q4 accepted; D08Q5 queued
+
+User: "accepted!!" for `dnupgrade` and the Duke3D-style `dnkroz`. New Todo
+D08Q5: weapon switching (number keys and wheel) while flying the jetpack.
+Committed and pushed at the user's request.
+

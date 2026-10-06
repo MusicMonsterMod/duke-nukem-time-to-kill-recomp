@@ -21,7 +21,7 @@ until the player later lands or enters gameplay.
 | Code | Time to Kill effect |
 | --- | --- |
 | `dnmonsters` | Hide/show hostile AI; NPCs, pickups, switches and other entities stay present |
-| `dnkroz`, `dncornholio` | Toggle original invulnerability; does not heal or resurrect |
+| `dnkroz`, `dncornholio` | Toggle original invulnerability; while on, health is at least 100 and an owned jetpack stays full (D08Q4) |
 | `dnstuff` | Original all-weapons/ammo, inventory and keys grants |
 | `dnweapons` | Original all-weapons/ammo grant |
 | `dninventory` | Original inventory grant and charges |
@@ -31,9 +31,10 @@ until the player later lands or enters gameplay.
 | `dnammo` | Refill ammunition for already-owned weapons |
 | `dnhealth` | Restore living Duke to 100 health |
 | `dnunlimited` | Toggle original unlimited ammo/charge mode |
+| `dnupgrade` | Original weapon upgrades for weapons 4/5/7/8/9/10 and the persistent mask (D08G3) |
 
 These are TTK equivalents: `dnstuff` does not promise Duke 3D items such as HoloDuke,
-god mode does not add Duke 3D's infinite jetpack side effect, and `dnitems`
+and `dnitems`
 does not add a separate armor grant. The last three
 spellings are explicit debugging additions, not claims of original Duke 3D codes.
 `dngod` (World Tour alias), `dnclip`, `dnscotty#**`, `dnunlock`, `dnskill#`,
@@ -132,3 +133,27 @@ functionality; previously documented save/load and campaign limits still apply.
 D08G1 requests exact Duke3D confirmation strings; D19A requests the supplied Duke
 fonts. Neither presentation change has been implemented at this planning checkpoint.
 See [next-session brief](39-next-iteration-brief.md).
+
+## D08G3 `dnupgrade` and D08Q4 `dnkroz` additions (2026-10-06, accepted)
+
+- `dnupgrade` ("Weapons Upgraded") sets the original upgrade bit `0x8` on
+  weapons 4, 5, 7, 8, 9 and 10. It also ORs `0x3f` into the persistent mask
+  `player+0x85f`, which challenge stages 21-26 set, saves store, and load,
+  restart and pickups reapply. `8003df40` resolves 7/8/9 to 28/29/27, which
+  read their own ammo. For owned 7/8/9 the upgraded record is marked owned
+  and given at least the base ammo, capped at its capacity; otherwise the
+  weapon counts as empty. Unowned weapons are not granted; they arrive
+  upgraded. The original's unused dispatcher entry `8003f5cc` sets the bits
+  without the mask, so it is not called.
+- God mode: `god_mode_update()` raises health to the type maximum
+  (`types[+0x2c]+0xc`) and never lowers it. Atomic Health (`80096cac` with
+  `over` = 1) keeps its original ceiling of twice the maximum. It also holds
+  an owned jetpack at the item capacity `800c2716`. It runs at the
+  `8005a210` entry and after the mode-10 drain, from the `80058120` poll, so
+  the HUD stays at 100%. The flag persists through death, Continue and level
+  changes. Unlimited ammo `800c3cc4` is not used. EDuke32 pins health at
+  exactly the maximum, which would discard an Atomic surplus; this follows
+  the user's description instead.
+- Guards added: `8003df40` (112 bytes), `80096cac` (152 bytes). Evidence and
+  limits are in the 2026-10-06 work-log entry in `MODERNIZATION_JOBS.md`.
+

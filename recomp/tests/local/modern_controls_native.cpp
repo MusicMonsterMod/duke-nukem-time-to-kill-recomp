@@ -1956,6 +1956,45 @@ int main(int argc,char** argv) {
     assert((cheat_calls==std::vector<uint32_t>{0x8003d7bc,0x8003d738,0x8003d840}));
     psx_mod_write_half(0x800c3cc6,0);cheat(ttk::Cheat::God);assert(psx_mod_read_half(0x800c3cc6)==1);
     cheat(ttk::Cheat::God);assert(psx_mod_read_half(0x800c3cc6)==0);
+    {
+        // D08Q4: god mode raises health to the type maximum (never lowers an
+        // Atomic Health surplus) and keeps an owned jetpack at the item cap.
+        const uint32_t saved_types=psx_mod_read_word(0x800d2660),most=0x801e8000+28*psx_mod_read_half(p+0x2c)+0xc;
+        const uint16_t saved_most=psx_mod_read_half(most),saved_health=psx_mod_read_half(p+0x32);
+        const uint16_t saved_jet=psx_mod_read_half(p+0x358),saved_fuel=psx_mod_read_half(p+0x35a);
+        psx_mod_write_word(0x800d2660,0x801e8000);psx_mod_write_half(most,10000);
+        assert(psx_mod_read_half(0x800c2716)==9000);
+        psx_mod_write_half(p+0x32,3000);psx_mod_write_half(p+0x358,1);psx_mod_write_half(p+0x35a,100);
+        cheat(ttk::Cheat::God);assert(psx_mod_read_half(p+0x32)==10000 && psx_mod_read_half(p+0x35a)==9000);
+        psx_mod_write_half(p+0x32,15000);psx_mod_write_half(p+0x35a,8983);cheat(ttk::Cheat::None);
+        assert(psx_mod_read_half(p+0x32)==15000 && psx_mod_read_half(p+0x35a)==9000);
+        psx_mod_write_half(p+0x358,0);psx_mod_write_half(p+0x35a,0);cheat(ttk::Cheat::None);assert(psx_mod_read_half(p+0x35a)==0);
+        psx_mod_write_half(p+0x358,1);cheat(ttk::Cheat::God);assert(psx_mod_read_half(0x800c3cc6)==0);
+        psx_mod_write_half(p+0x32,3000);psx_mod_write_half(p+0x35a,100);cheat(ttk::Cheat::None);
+        assert(psx_mod_read_half(p+0x32)==3000 && psx_mod_read_half(p+0x35a)==100);
+        // D08G3: upgrade bit on weapons 4,5,7,8,9,10 and the persistent mask only.
+        uint16_t saved_weapons[36];for(unsigned i=0;i<36;++i)saved_weapons[i]=psx_mod_read_half(p+0x2c4+4*i);
+        const uint8_t saved_mask=psx_mod_read_byte(p+0x85f);
+        uint16_t saved_ammo[36];for(unsigned i=0;i<36;++i)saved_ammo[i]=psx_mod_read_half(p+0x2c6+4*i);
+        for(unsigned i=0;i<36;++i){psx_mod_write_half(p+0x2c4+4*i,i==7||i==9?1:0);psx_mod_write_half(p+0x2c6+4*i,0);}
+        psx_mod_write_half(p+0x2c6+4*7,30000);psx_mod_write_half(p+0x2c6+4*9,5);psx_mod_write_half(p+0x2c6+4*27,7);
+        psx_mod_write_byte(p+0x85f,0x40);
+        cheat(ttk::Cheat::Upgrade);
+        for(unsigned i=0;i<36;++i) {
+            const bool up=i==4||i==5||i==7||i==8||i==9||i==10,owned=i==7||i==9||i==28||i==27;
+            assert(psx_mod_read_half(p+0x2c4+4*i)==((owned?1:0)|(up?8:0)));
+        }
+        // Owned Gatling carries ammo to 28 up to its capacity; a larger
+        // upgraded stock (27) is kept; the unowned RPG gives 29 nothing.
+        assert(psx_mod_read_half(p+0x2c6+4*28)==psx_mod_read_half(0x800c4594+44*28));
+        assert(psx_mod_read_half(p+0x2c6+4*27)==7 && psx_mod_read_half(p+0x2c6+4*29)==0);
+        assert(psx_mod_read_half(p+0x2c6+4*7)==30000 && psx_mod_read_byte(p+0x85f)==0x7f);
+        for(unsigned i=0;i<36;++i)psx_mod_write_half(p+0x2c6+4*i,saved_ammo[i]);
+        for(unsigned i=0;i<36;++i)psx_mod_write_half(p+0x2c4+4*i,saved_weapons[i]);psx_mod_write_byte(p+0x85f,saved_mask);
+        psx_mod_write_half(most,saved_most);psx_mod_write_word(0x800d2660,saved_types);psx_mod_write_half(p+0x32,saved_health);
+        psx_mod_write_half(p+0x358,saved_jet);psx_mod_write_half(p+0x35a,saved_fuel);
+        std::puts("PASS: D08Q4 god mode health/jetpack pin, Atomic surplus kept, off resumes; D08G3 upgrade bits and mask");
+    }
     psx_mod_write_word(0x800c27bc,2);cheat_calls.clear();cheat(ttk::Cheat::Stuff);assert(cheat_calls.empty());
     psx_mod_write_word(0x800c27bc,1);ttk::input.active=false;cheat(ttk::Cheat::God);assert(psx_mod_read_half(0x800c3cc6)==0);ttk::input.active=true;
     constexpr uint32_t table=0x801e1000,types=0x801e8000,enemy=0x801c0000,npc=0x801c0400;

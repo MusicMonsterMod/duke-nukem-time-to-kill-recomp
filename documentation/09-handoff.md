@@ -6,6 +6,24 @@
 
 
 
+## 2026-10-06 - D08G3 and D08Q4 accepted; D08Q5 queued
+
+User accepted `dnupgrade` and the Duke3D-style `dnkroz`. New Todo D08Q5:
+weapon switching with number keys and the wheel while flying the jetpack.
+Committed and pushed.
+
+## 2026-10-06 - D08G3 `dnupgrade` and D08Q4 `dnkroz` (Needs playtest)
+
+`dnupgrade` upgrades weapons 4/5/7/8/9/10 through the original upgrade bit and
+the persistent mask `+0x85f` (which saves and pickups reapply), carrying ammo
+to the Laser Gatling, Incendiary RPG and HiTemp Flamethrower records.
+`dnkroz` now raises health to 100 (never lowering an Atomic Health surplus;
+the original pickup already caps at 200) and keeps an owned jetpack full in
+every scheme. Verified live in levels 6 and 12, Modern and Classic flight, a
+savestate round trip and Vanilla, on private copies; suites pass. Next: the
+user's playtest. Not committed. See
+[note 38](38-debug-cheats.md).
+
 ## 2026-10-06 - D08O1 accepted; D08O2 queued
 
 User accepted fire while swimming ("mechanically, it does exactly what it's

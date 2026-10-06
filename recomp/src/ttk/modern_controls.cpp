@@ -971,6 +971,7 @@ static void hook_body(CPUState* cpu, uint32_t address) {
     } else if (address==0x80058120) {
         // Immediately after original heading update; before original aim/model work.
         if (cpu->gpr[4]==player && ra==0x80041c44) {
+            god_mode_update(); // after this update's mode-10 fuel drain, before the HUD
             select_weapon(cpu);
             kick_update(cpu);
             if(presentation_ready())face_view();

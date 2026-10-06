@@ -6,6 +6,29 @@
 
 
 
+## 2026-10-06 - D29 added (progression items and objectives legibility)
+
+From the user's Level 2 playthrough: the bank-vault papers can be collected
+without noticing, cannot be inspected later, and nothing connects them to the
+vault (the user needed a walkthrough). New Todo D29, research and design
+first: how the papers, the code data and the vault check work internally,
+what the game tracks and shows, whether the original inventory and Objectives
+text can be exposed or updated, a game-wide audit of similar opaque
+progression, a lightweight information model, presentation options, objective
+guidance without spoilers, and a smallest first build. Principle: remove
+unnecessary obscurity without removing discovery. Not started.
+
+## 2026-10-06 - D23H added (presents fall to about 60 over long play)
+
+The user reports that after about 10 minutes of play on the D23F default, presents
+fall from 120 to what looks like 60 and stay there. The session logs tie all 13
+slowdown events to savestate saves and loads (about a second's stall). Likely
+mechanism: D23E sheds presents to every 2nd refresh, and the step-up backoff
+(`pace_backoff`) doubles and never decays, so after a few saves 120 needs minutes of
+perfectly clean play to come back. Not reproduced or measured yet: presents/s
+are not logged. Job written up with the evidence and a measure-first plan; to
+continue next session. Nothing built or committed.
+
 ## 2026-10-05 - D23F accepted; fast timing is the Modernized default
 
 User accepted D23F ("absolutely beautiful ... responsiveness is literally

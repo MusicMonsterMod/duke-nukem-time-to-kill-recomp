@@ -142,6 +142,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D23E | Stutter with enemies on screen while walking (UI slots 9 and 10) | Needs playtest | D23, D22B |
 | D23F | Faster timing model: emulation-thread budget for 150% CPU at high refresh (big) | Accepted | D23E, D17 |
 | D23G | Finish the fast path: dispatch, overlays, interpreter, observers and redraw cost (all-in-one) | Todo | D23F |
+| D23H | Presents fall from 120 to about 60 over extended play (savestate hitches, sticky shedding) | Todo | D23E, D23F |
 | D24 | Linux / Windows player build and disc import | Todo | D19, D22, D23 |
 | D25 | Modernized edition release acceptance | Todo | D08, D08A, D08B, D09, D10, D14, D17, D18, D20, D21, D24 |
 | D26 | Backtick debug console (fps and helpers) | Done | D04 |
@@ -151,6 +152,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D26D | Level select: authoritative order, numbering, names and categories | Todo | D26A |
 | D27 | Caps Lock RUN MODE quotes; Shift-run clunk silence deferred | Done (quotes); clunk deferred low-priority | D04, D19A |
 | D28 | Scroll Lock holster and WEAPON LOWERED/RAISED quotes | Done | D04, D19A |
+| D29 | Progression items and objectives legibility: research and design first (Level 2 bank-vault notes) | Todo | D19A, D22B, D26A |
 | R01 | DisruptorRecomp architecture and modernization reference research | Done | - |
 
 Recommended opening sequence: **D01 → D02 → D03 → D04**, then **D05 / D06 → D07 → D07A → D08**. D13 is an early graphics option after profiles exist. D22 and D23 should accumulate evidence throughout development. First-person, HD asset packs and precision rendering are optional follow-up milestones, not blockers for a good modern third-person release.
@@ -3103,6 +3105,90 @@ frame rate, savestates, audio, FMV and loading unchanged; Vanilla guest
 behavior unchanged; the user's playtest finds no regression and the same
 feel.
 
+### D23H - Presents fall from 120 to about 60 over extended play
+
+**Todo. Opened 2026-10-06 from the user's evening play on the D23F default
+build** (fast timing, 150%, 120 Hz, executable `e0737a9f...`). User report:
+"after like 10 mins of gameplay, the frame rate goes from the buttery smooth
+120 to what feels/looks like a lower one, like 60 or something." It does not
+come back by itself during play.
+After reviewing the log evidence, the user agrees the drop follows savestate
+use (2026-10-06).
+
+**Log evidence** (`recomp/build-local/logs/`, local only; the launcher keeps
+the last five sessions):
+
+| Session | Length | Saves | Loads | Presents reduced | Overclock paused 5 s |
+| --- | --- | --- | --- | --- | --- |
+| `session-20261005-233139` | about 26 min | 4 | 0 | 2 | 2 |
+| `session-20261005-235829` | about 25 min | 6 | 2 | 2 | 5 |
+| `session-20261006-002316` | about 2 min | 1 | 1 | 1 | 0 |
+| `session-20261005-212814` | about 11 min | 0 | 3 | 1 | 0 |
+
+- All 13 slowdown events in these sessions come right after a savestate save
+  or load. There is no other `emulation behind real time` line. The measured
+  host rate in that second is 6.6-32.3 frames/s, so a save stalls the
+  emulation thread for a large part of a second. Loads report about 17 ms of
+  work, so the save side (compression or file write on the emulation
+  thread?) is the suspect. Not measured yet.
+- The game logic rate itself holds: the `[FPS]` lines in `233139` show a
+  steady 59.9 game fps (1.00x) between events. The drop the user sees is in
+  presents (in-between pictures), not in game speed.
+- Presents per second are not in the session log, so the "about 60" has not
+  been measured directly. It is consistent with a present divisor of 2.
+
+**Likely mechanism (from code reading; not yet reproduced):**
+
+1. `overclock_lease()` (`src/ttk/modern_controls.cpp`) sees the save hitch as
+   "emulation behind real time" and calls `replay_shed_load()` (D23E), which
+   raises the present divisor from 1 to 2 (120 to 60 presents/s at 120 Hz).
+   If it is already at its limit, it pauses the overclock for 5 s instead.
+2. Stepping back up (`late_pace()`, `src/ttk/frame_replay.cpp`) needs
+   `4 * pace_backoff` consecutive clean windows of 90 presents (under 2%
+   repeats). Any window between 2% and 10% resets the count.
+3. `pace_backoff` doubles (up to 32) whenever a slowdown follows within 3
+   windows of a step-up, and **it never decays**. One-off hitches are
+   treated the same as a busy scene. After a few saves in a session,
+   recovery needs up to 128 clean windows: at 60 presents/s that is over
+   3 minutes of perfectly clean play, and busy scenes rarely manage that.
+   So the game appears to stay at 60.
+
+The D23E comment says "a one-off hitch ... costs a few seconds", which holds
+only for the first hitch of a session.
+
+**Other causes to rule out** before settling on the above: a slow time-based
+growth (memory, GL objects, worker processes, the trace or frame rings,
+savestate buffers), thermal or GPU clock drops, and the separate
+`late_pace()` step-down when repeats exceed 10% (not logged at all).
+
+**Work:**
+
+1. **Measure first.** Log present-rate changes (`pace_div` up or down with
+   the reason: emulation shed, repeats, recovery) and a one-line summary
+   every minute or so (presents/s, game fps, `pace_div`, `pace_backoff`, RSS)
+   in the player session log, cheaply. Reproduce with a private profile copy
+   and test card/state copies: play 15-20 minutes offscreen with periodic
+   saves, and a control run with no saves. Confirm whether presents stay
+   at 60 and whether the decline occurs without saves.
+2. **Savestate saves must not stall gameplay**: take the snapshot on the
+   emulation thread (the copy only) and compress and write it on another
+   thread, or otherwise show where the time goes. Saves, loads and their
+   rejection rules must not change (hashed headers untouched).
+3. **Shedding must recover from one-off hitches**: ignore or discount the
+   seconds around a known hitch (save, load, level load, worker start), and
+   let `pace_backoff` decay with clean time so the session's history does
+   not keep 60 forever. A genuinely busy scene must still settle on one
+   steady rate (the D23E aim).
+4. If step 1 shows a slow time-based decline as well, find it and fix it in
+   the same job.
+
+**Acceptance:** in a 20+ minute Modernized session at 150%/120 Hz with
+several saves and loads, presents return to the display rate within a few
+seconds of each save or load and stay there in scenes that held 120 at the
+start. The busy western town (UI slots 9/10) still settles calmly as in
+D23E. Savestates stay compatible, there is no audio regression, Vanilla is
+unchanged, and the user's long play session confirms it.
+
 ### D24 — Linux / Windows player build and disc import
 
 Create reproducible player builds with a simple launch flow, settings/save locations and clear owned-disc import errors. Verify Windows independently rather than extrapolating from Linux. Package permitted runtime components; keep original disc assets and personal saves out of redistributable artifacts.
@@ -3227,6 +3313,93 @@ centered quotes confirmed in playtest.
 
 **Acceptance:** default binding + quotes; custom rebinds; E auto-stow/ladders;
 manual/game manual updated.
+
+### D29 - Progression items and objectives legibility (research and design first)
+
+**Todo. Opened 2026-10-06 from the user's Level 2 playthrough.** A gameplay
+modernization and player-legibility job, not a conventional bug. Modernized
+profile only; Vanilla keeps the original presentation.
+
+**Use case (Level 2, bank vault).** Duke collects pieces of paper whose
+contents are needed later to open the bank vault. The original game tracks
+this well enough for the level to work, but in the user's playthrough:
+
+- it was not clear that an important piece of paper had been collected;
+- there was no lasting way to inspect what had been collected;
+- nothing said the papers held information relevant to the vault;
+- at the vault, little connected the earlier pickups to what the game
+  expected.
+
+The user needed an external walkthrough. The recomp should not require one
+just because progression information is effectively invisible.
+
+**Design principle: remove unnecessary obscurity without removing
+discovery.** No quest markers, no automatic puzzle solutions, no reduction
+of the game to following instructions. The player should have access to
+information Duke has already acquired: if Duke picked up and read a note,
+the player can inspect what was on it and make the connection themselves.
+For example, "Picked up: Torn Note" (or whatever matches the real item),
+then later inspect it and see its numbers. Do not say "this is part of the
+vault combination" unless the original context or a carefully improved
+objective genuinely warrants it.
+
+**Phase 1 (this job): investigation and design. Do not build the full system.**
+Design game-wide; Level 2 is the reproduction case, not a hard-coded target.
+Verify addresses and the active overlay (LEVEL02.OVR) before any hook, and use
+private profile and save/card copies with the level-select panel (D26A).
+
+Document, in a new engineering note:
+
+1. **How the Level 2 paper/code/vault progression works internally**: what
+   happens when each paper is collected; whether the papers are inventory
+   items, flags, pickups, level-state variables or scripted events; whether
+   the code or numbers exist as data (and whether they vary per game); how
+   the vault checks progression.
+2. **What items and information the game currently tracks** (inventory
+   slots, key items, per-level flags), and whether the game already holds
+   item names or descriptions that are never shown.
+3. **What feedback the original game gives** on pickup (message, sound, HUD
+   change) for progression items versus ammo and health.
+4. **Whether an existing inventory structure can be exposed** (the D08A1-A3
+   switcher reads the original inventory) rather than inventing a parallel
+   system.
+5. **Objectives**: how the original Objectives screen stores and selects its
+   text; whether text can safely be changed, extended or updated as the
+   player discovers things (and the save compatibility of doing so).
+6. **Game-wide audit** of similar opaque progression: documents, codes, keys
+   or unusual objects, switch sequences, discovered information, invisible
+   progression state, things Duke has seen or read, pickups whose purpose is
+   not communicated. List them with level and type; do not redesign them in
+   this job.
+7. **A proposed lightweight game-wide inventory/information model**: which
+   items qualify as "progression/information" items, what the player can
+   inspect (name, what it contained), persistence across saves, loads and
+   level transitions, and how it is derived from original game state.
+8. **Presentation options** (no final visual design yet): a brief pickup
+   notification distinct from ammo and health (text, sound or HUD cue),
+   persistent inspectable entries (HUD panel, pause-menu inventory or
+   objectives screen section), or a combination. Must not be intrusive. Uses
+   the Duke font assets (D19A); later visual language belongs with D19.
+9. **Objective guidance recommendation**: how much extra guidance to add
+   without spoiling puzzles. Favour goals ("Find a way into the bank vault.")
+   over solutions ("Collect all three notes ... enter 1234."). Objectives may
+   become slightly more specific after relevant discoveries, never revealing
+   the full answer.
+10. **The smallest sensible first implementation to build and playtest**,
+    likely the pickup notification plus inspectable entries for the Level 2
+    notes through a game-wide mechanism, scoped as a follow-up job.
+
+At minimum the eventual system must let the player answer **"What important
+things have I collected?"** and **"What information did those things
+contain?"**
+
+**Acceptance (phase 1):** the engineering note answers items 1-10 with
+evidence (addresses, overlay, data, observed behavior in a test run), the
+audit list covers the full campaign as far as the level select can reach,
+and the user reviews and approves the proposed model, presentation options,
+objective guidance level and first implementation scope. Implementation
+jobs are added to the board from that approval; nothing player-facing ships
+in this phase.
 
 ## Working rules and evidence
 

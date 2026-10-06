@@ -6,6 +6,21 @@
 
 
 
+## 2026-10-06 - D23H accepted
+
+The user played with several saves and accepted D23H: presents recover after
+saves and hitches. Documentation, commit and push not yet authorized.
+
+## 2026-10-06 - D23H: presents recover after saves and hitches (Needs playtest)
+
+At 120 Hz and Match Display a D23E shed could never be undone, and any single
+slow second (a savestate save is about 90 ms, an F7 menu visit more) shed. So
+presents fell to 60 and then 40 for the rest of the session. Load shedding now
+needs two behind seconds in a row and steps back up by itself in every
+frame-rate mode. Offscreen: 120 presents/s through a 21-minute session with
+20 saves, 8 loads and 13 simulated hitches. Awaiting the user's long play
+session. See [note 106](106-d23h-present-rate-recovery.md).
+
 ## 2026-10-05 - D23F accepted: fast CPU timing is the Modernized default
 
 The user accepted D23F; Modernized now uses fast CPU timing unless

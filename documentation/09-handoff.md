@@ -6,6 +6,22 @@
 
 
 
+## 2026-10-06 - D23H accepted
+
+User accepted after a play session with several saves. Not committed; no next
+job selected.
+
+## 2026-10-06 - D23H implemented (Needs playtest)
+
+Cause measured: a shed was permanent at fixed/display rates (`late_pace` runs
+only at Unlimited on the present timeline), and one-off hitches (saves 83-98 ms,
+F7 menu) shed. New `replay_load_window()` (`src/ttk/frame_replay.cpp`), driven
+by `overclock_lease()`: shed on two behind seconds in a row, step up after clean
+seconds with decaying backoff. `[TTK pace]` log lines show every change and a
+per-minute summary. Offscreen A/B and a 21-minute run hold 120. Next: the user
+plays a long session with saves (the default settings) and checks the session
+log's `[TTK pace]` lines. Not committed.
+
 ## 2026-10-06 - D29 added (progression items and objectives legibility)
 
 From the user's Level 2 playthrough: the bank-vault papers can be collected

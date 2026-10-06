@@ -80,10 +80,12 @@ const char* controls_debug_json();
 // modern camera does not own the view.
 // at_ms >= 0: the mouse look as it was at that time (performance clock, ms).
 bool replay_gameplay_context();
-// D23E: the emulation thread is behind real time. Present on fewer refreshes
-// (frame_replay.cpp) instead of giving up the CPU overclock; false when the
-// redraws cannot shed any more work.
-bool replay_shed_load();
+// D23E/D23H: one second of gameplay judged by overclock_lease: 0 kept up,
+// 1 behind real time, 2 not a gameplay second (menus, loads). Sheds presents
+// on a sustained deficit and steps back up when emulation keeps up again.
+// Returns 1 after a shed, -1 when behind and nothing is left to shed (pause
+// the overclock), else 0.
+int replay_load_window(int window);
 void render_state_prepare();
 bool late_view(double& yaw, double& pitch, double at_ms=-1);
 bool late_pivot(double* xyz);

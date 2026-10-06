@@ -681,8 +681,11 @@ extern "C" void ttk_fast_timing_renew(void);
 // Safety net: if emulation falls behind real time while overclocked (under 57
 // host frames per second over a second), pause the lease for five seconds so
 // the overclock can never be what starves audio. Logged once per pause.
-// D23E: high-refresh redraws give way first (replay_shed_load: present on
-// every 2nd/3rd refresh); the lease pauses only when they cannot shed more.
+// D23E/D23H: each second goes to replay_load_window (frame_replay.cpp), which
+// sheds high-refresh presents on a sustained deficit and steps back up when
+// emulation keeps up; the lease pauses only when nothing is left to shed.
+// Seconds that span a gap (menus, loads: 3 s or more between player updates)
+// and seconds while the overclock is paused are not judged.
 static void overclock_lease() {
     using clk=std::chrono::steady_clock;
     static clk::time_point window_start,paused_until;static uint64_t window_frame;static unsigned pauses;
@@ -691,13 +694,12 @@ static void overclock_lease() {
     const double dt=std::chrono::duration<double>(now-window_start).count();
     if(dt>=1.0) {
         const double rate=(frame-window_frame)/dt;
-        if(rate<57.0 && dt<3.0 && now>=paused_until) {
-            if(replay_shed_load()) {
-                if(++pauses<=20)std::fprintf(stderr,"[TTK cpu] emulation behind real time (%.1f frames/s): high-refresh presents reduced\n",rate);
-            } else {
-                paused_until=now+std::chrono::seconds(5);
-                if(++pauses<=20)std::fprintf(stderr,"[TTK cpu] emulation behind real time (%.1f frames/s): CPU overclock paused 5 s\n",rate);
-            }
+        const int verdict=replay_load_window(dt>=3.0 || now<paused_until ? 2 : rate<57.0 ? 1 : 0);
+        if(verdict>0) {
+            if(++pauses<=20)std::fprintf(stderr,"[TTK cpu] emulation behind real time (%.1f frames/s): high-refresh presents reduced\n",rate);
+        } else if(verdict<0) {
+            paused_until=now+std::chrono::seconds(5);
+            if(++pauses<=20)std::fprintf(stderr,"[TTK cpu] emulation behind real time (%.1f frames/s): CPU overclock paused 5 s\n",rate);
         }
         window_start=now;window_frame=frame;
     }

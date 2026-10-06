@@ -29,6 +29,7 @@
 #include "sky_render.h"
 #include "psx_sdl.h"
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
@@ -501,19 +502,41 @@ uint64_t late_applied=0, late_skipped=0, late_jit=0;
 // steady rate instead of switching back and forth, which itself read as
 // jerky (2026-10-03).
 int pace_div=1, pace_clean=0, pace_backoff=1; uint64_t pace_presents=0, pace_bad=0, pace_changes=0, pace_windows=0, pace_down_window=0; uint64_t emu_sheds=0;
+double pace_last_ratio=0; uint64_t pace_mid=0;
+// D23H load shedding (replay_load_window): divisor steps it owns, its backoff.
+int shed_steps=0, shed_backoff=1, shed_bad=0, shed_clean=0, shed_since_probe=1000, shed_full_clean=0;
+uint64_t shed_probes=0, shed_failed_probes=0;  // D23H: windows between 2% and 10%
+// D23H: every present-rate change goes to the session log with its reason,
+// and late_pace prints a summary each minute (presents/s, rate, backoff).
+void pace_log(const char* why,double ratio,int backoff) {
+    static unsigned n=0; if(++n>200) return;
+    std::fprintf(stderr,"[TTK pace] presents every %d refresh%s (%s, repeats %.1f%%, backoff %d)\n",pace_div,pace_div>1?"es":"",why,ratio*100.0,backoff);
+}
+void pace_minute() {
+    using clk=std::chrono::steady_clock;
+    static clk::time_point t0; static uint64_t n0=0, w0=0, m0=0, c0=0; static uint64_t presents=0;
+    ++presents; const auto now=clk::now();
+    if(!t0.time_since_epoch().count()) {t0=now;n0=presents;w0=pace_windows;m0=pace_mid;c0=pace_changes;return;}
+    const double dt=std::chrono::duration<double>(now-t0).count();
+    if(dt<60.0) return;
+    long rss_kb=0; if(FILE* f=std::fopen("/proc/self/statm","r")) {long a=0,b=0; if(std::fscanf(f,"%ld %ld",&a,&b)==2) rss_kb=b*4; std::fclose(f);}
+    std::fprintf(stderr,"[TTK pace] minute: %.1f presents/s, every %d, backoff %d/%d, %llu windows (%llu mixed), %llu changes, rss %ld MB\n",
+        (presents-n0)/dt,pace_div,pace_backoff,shed_backoff,(unsigned long long)(pace_windows-w0),(unsigned long long)(pace_mid-m0),(unsigned long long)(pace_changes-c0),rss_kb/1024);
+    t0=now;n0=presents;w0=pace_windows;m0=pace_mid;c0=pace_changes;
+}
 void late_pace(bool bad) {
     static const bool on=[]{const char* t=std::getenv("DNTTK_LATE_PACING");return !(t && t[0]=='0' && !t[1]);}();
     if(!on) return;
     ++pace_presents; if(bad) ++pace_bad;
     if(pace_presents<90) return;
     const double ratio=(double)pace_bad/(double)pace_presents;
-    pace_presents=pace_bad=0; ++pace_windows;
+    pace_presents=pace_bad=0; ++pace_windows; pace_last_ratio=ratio;
     if(ratio>0.10 && pace_div<(target_hz<0 ? 16 : 3)) {
         if(pace_down_window && pace_windows-pace_down_window<=3) pace_backoff=std::min(pace_backoff*2,32);
-        ++pace_div;pace_clean=0;psx_mod_set_present_divisor(pace_div);++pace_changes;
+        ++pace_div;pace_clean=0;psx_mod_set_present_divisor(pace_div);++pace_changes;pace_log("repeats",ratio,pace_backoff);
     } else if(ratio<0.02 && pace_div>1) {
-        if(++pace_clean>=4*pace_backoff) {--pace_div;pace_clean=0;pace_down_window=pace_windows;psx_mod_set_present_divisor(pace_div);++pace_changes;}
-    } else pace_clean=0;
+        if(++pace_clean>=4*pace_backoff) {--pace_div;pace_clean=0;pace_down_window=pace_windows;psx_mod_set_present_divisor(pace_div);++pace_changes;pace_log("recovered",ratio,pace_backoff);}
+    } else {if(ratio>=0.02) ++pace_mid; pace_clean=0;}
 }
 float last_late_yaw=999.0f;
 // Rotate the interpolated camera to the late view about the eye (first person)
@@ -1125,6 +1148,7 @@ int timeline_provider(const PSXModPresentInfo* info) {
 }
 int provider(const PSXModPresentInfo* info,void*) {
     if(!interp_replay || !input_modernized() || !info) return 0;
+    if(info->due) pace_minute();
     if(info->present_hz>0.0) seen_hz=info->present_hz;
     seen_last_flip=info->last_flip; seen_frequency=info->frequency;
     if(info->flip_interval>0.02 && info->flip_interval<0.15) seen_interval+=(info->flip_interval-seen_interval)*0.05;
@@ -1316,34 +1340,63 @@ void composition_end(CPUState* cpu,uint32_t) {
 }
 } // namespace
 
-// D23E: late-camera redraws run on the emulation thread at every present
-// (about 1.4 ms each: 19% of the thread at 120 Hz in the busy western town).
-// With the game at 150% CPU there that pushed emulation behind real time, and
-// the overclock safety net then dropped the game to 100% CPU for 5 s at a
-// time: 15 <-> 20 fps swings. Shed presents first (every 2nd, then 3rd
-// refresh, evenly, as for judder) and step back up the same way: 4 clean
-// windows, doubled whenever the faster rate falls behind again within 3, so a
-// busy scene settles on one rate and a one-off hitch (render workers starting
-// after a load) costs a few seconds.
-bool replay_shed_load() {
-    if(!replay_on || !interp_replay || !late_camera()) return false;
-    if(pace_div>=(target_hz<0 ? 16 : 3)) return false;
-    if(pace_down_window && pace_windows-pace_down_window<=3) pace_backoff=std::min(pace_backoff*2,32);
-    ++pace_div;pace_clean=0;pace_presents=pace_bad=0;psx_mod_set_present_divisor(pace_div);++pace_changes;++emu_sheds;
-    return true;
+// D23E/D23H: emulation load shedding. Late-camera redraws run on the
+// emulation thread at every present (D23E: about 1.4 ms each, 19% of the
+// thread at 120 Hz in the busy western town), so when the game falls behind
+// real time presents go to every 2nd, then 3rd refresh, evenly, before the
+// overclock safety net gives up the CPU speed.
+//
+// D23H: one controller owns both directions, judged once per second of
+// gameplay by overclock_lease (modern_controls.cpp), in every frame-rate mode.
+// Before, a shed could only be undone by late_pace, which the default present
+// timeline runs at Unlimited only, so at 120 Hz or Match Display one savestate
+// save (about 90 ms) or F7 menu visit kept 60 or 40 presents until restart.
+// - Shed only when two seconds in a row fall behind: a one-off hitch (save,
+//   load, menu, worker start) is a single bad second and sheds nothing.
+// - After 5 s x backoff clean seconds, try the next faster rate. If it falls
+//   behind again within 10 s the probe failed: back down, backoff doubles (at
+//   most 16: one probe every 80 s in a scene that cannot hold it).
+// - Backoff halves after each clean minute at the full rate, so a session's
+//   history does not keep the game slower than the scene needs.
+int replay_load_window(int window) {
+    if(!replay_on || !interp_replay || !late_camera()) {shed_bad=shed_clean=0;return window==1 ? -1 : 0;}
+    shed_steps=std::min(shed_steps,pace_div-1);  // Unlimited's late_pace shares the divisor
+    ++shed_since_probe;
+    if(window==2) {shed_bad=0;shed_clean=0;return 0;}  // not a gameplay second (menu, load)
+    if(window==1) {
+        shed_clean=0;shed_full_clean=0;
+        if(++shed_bad<2) return 0;
+        shed_bad=0;
+        if(pace_div>=(target_hz<0 ? 16 : 3)) return -1;
+        const bool failed_probe=shed_since_probe<=10;
+        if(failed_probe) {shed_backoff=std::min(shed_backoff*2,16);++shed_failed_probes;}
+        ++pace_div;++shed_steps;pace_clean=0;pace_presents=pace_bad=0;psx_mod_set_present_divisor(pace_div);++pace_changes;++emu_sheds;
+        shed_since_probe=1000;
+        pace_log(failed_probe?"emulation behind, faster rate failed":"emulation behind",0,shed_backoff);
+        return 1;
+    }
+    shed_bad=0;
+    if(shed_steps>0) {
+        if(++shed_clean>=5*shed_backoff) {
+            --pace_div;--shed_steps;shed_clean=0;shed_since_probe=0;++shed_probes;
+            pace_clean=0;pace_presents=pace_bad=0;psx_mod_set_present_divisor(pace_div);++pace_changes;
+            pace_log("emulation keeping up, trying faster",0,shed_backoff);
+        }
+    } else if(pace_div==1 && shed_backoff>1 && ++shed_full_clean>=60) {shed_backoff/=2;shed_full_clean=0;}
+    return 0;
 }
 
 const char* frame_replay_debug_json() {
     static char buffer[16384];
     int n=std::snprintf(buffer,sizeof buffer,"{\"on\":%s,\"interp\":%s,\"target_hz\":%d,\"steps\":%d,\"captures\":%llu,\"publishes\":%llu,"
-        "\"submits\":%llu,\"rendered\":%llu,\"shown\":%llu,\"no_job\":%llu,\"failures\":%llu,\"serial\":%llu,\"prefetched\":%llu,\"governed\":%llu,\"deferred\":%llu,\"feed_ms\":%.2f,\"budget_ms\":%.2f,\"blended_mats\":%llu,\"skipped_actors\":%llu,\"camera_cuts\":%llu,\"drawn\":%d,\"pending_flips\":%llu,\"blended_xf\":%llu,\"skipped_objects\":%llu,\"substituted\":%llu,\"sub_misses\":%llu,\"late\":%s,\"late_applied\":%llu,\"late_skipped\":%llu,\"late_jit\":%llu,\"late_repeats\":%llu,\"lead_ms\":%.1f,\"ready_ms\":%.1f,\"pace_div\":%d,\"pace_changes\":%llu,\"emu_sheds\":%llu,\"ahead\":[%llu,%llu,%llu,%llu,%llu,%llu,%llu,%llu]}",
+        "\"submits\":%llu,\"rendered\":%llu,\"shown\":%llu,\"no_job\":%llu,\"failures\":%llu,\"serial\":%llu,\"prefetched\":%llu,\"governed\":%llu,\"deferred\":%llu,\"feed_ms\":%.2f,\"budget_ms\":%.2f,\"blended_mats\":%llu,\"skipped_actors\":%llu,\"camera_cuts\":%llu,\"drawn\":%d,\"pending_flips\":%llu,\"blended_xf\":%llu,\"skipped_objects\":%llu,\"substituted\":%llu,\"sub_misses\":%llu,\"late\":%s,\"late_applied\":%llu,\"late_skipped\":%llu,\"late_jit\":%llu,\"late_repeats\":%llu,\"lead_ms\":%.1f,\"ready_ms\":%.1f,\"pace_div\":%d,\"pace_backoff\":%d,\"pace_clean\":%d,\"pace_ratio\":%.3f,\"pace_mid\":%llu,\"shed_steps\":%d,\"shed_backoff\":%d,\"shed_probes\":%llu,\"shed_failed_probes\":%llu,\"pace_changes\":%llu,\"emu_sheds\":%llu,\"ahead\":[%llu,%llu,%llu,%llu,%llu,%llu,%llu,%llu]}",
         replay_on?"true":"false",interp_replay?"true":"false",(int)target_hz,steps,(unsigned long long)captures,
         (unsigned long long)publishes,(unsigned long long)submits,(unsigned long long)presented,(unsigned long long)reused,
         (unsigned long long)no_job,(unsigned long long)failures,(unsigned long long)serial,
         (unsigned long long)prefetched,(unsigned long long)governed,(unsigned long long)deferred,feed_ms,budget_ms,(unsigned long long)blended_mats,
         (unsigned long long)skipped_actors,(unsigned long long)camera_cuts,ndrawn,(unsigned long long)pending_flips,(unsigned long long)blended_xf,(unsigned long long)skipped_objects,
         (unsigned long long)substituted,(unsigned long long)sub_misses,late_camera()?"true":"false",
-        (unsigned long long)late_applied,(unsigned long long)late_skipped,(unsigned long long)late_jit,(unsigned long long)late_repeats,late_lead_ms,late_ready_ms,pace_div,(unsigned long long)pace_changes,(unsigned long long)emu_sheds,
+        (unsigned long long)late_applied,(unsigned long long)late_skipped,(unsigned long long)late_jit,(unsigned long long)late_repeats,late_lead_ms,late_ready_ms,pace_div,pace_backoff,pace_clean,pace_last_ratio,(unsigned long long)pace_mid,shed_steps,shed_backoff,(unsigned long long)shed_probes,(unsigned long long)shed_failed_probes,(unsigned long long)pace_changes,(unsigned long long)emu_sheds,
         (unsigned long long)ahead_hist[0],(unsigned long long)ahead_hist[1],(unsigned long long)ahead_hist[2],(unsigned long long)ahead_hist[3],
         (unsigned long long)ahead_hist[4],(unsigned long long)ahead_hist[5],(unsigned long long)ahead_hist[6],(unsigned long long)ahead_hist[7]);
     // Append the present trace: "ms/alpha/shown/ready/cached/njobs[d]/serial/yaw/t/planned alpha".

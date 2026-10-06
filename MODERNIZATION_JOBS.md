@@ -142,7 +142,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D23E | Stutter with enemies on screen while walking (UI slots 9 and 10) | Needs playtest | D23, D22B |
 | D23F | Faster timing model: emulation-thread budget for 150% CPU at high refresh (big) | Accepted | D23E, D17 |
 | D23G | Finish the fast path: dispatch, overlays, interpreter, observers and redraw cost (all-in-one) | Todo | D23F |
-| D23H | Presents fall from 120 to about 60 over extended play (savestate hitches, sticky shedding) | Todo | D23E, D23F |
+| D23H | Presents fall from 120 to about 60 over extended play (savestate hitches, sticky shedding) | Accepted | D23E, D23F |
 | D24 | Linux / Windows player build and disc import | Todo | D19, D22, D23 |
 | D25 | Modernized edition release acceptance | Todo | D08, D08A, D08B, D09, D10, D14, D17, D18, D20, D21, D24 |
 | D26 | Backtick debug console (fps and helpers) | Done | D04 |
@@ -3107,7 +3107,11 @@ feel.
 
 ### D23H - Presents fall from 120 to about 60 over extended play
 
-**Todo. Opened 2026-10-06 from the user's evening play on the D23F default
+**Accepted (2026-10-06).** User, after playing with several saves: "i fully
+accept ... this is absolutely wonderful work." See the work log below and
+[note 106](documentation/106-d23h-present-rate-recovery.md).
+
+**Opened 2026-10-06 from the user's evening play on the D23F default
 build** (fast timing, 150%, 120 Hz, executable `e0737a9f...`). User report:
 "after like 10 mins of gameplay, the frame rate goes from the buttery smooth
 120 to what feels/looks like a lower one, like 60 or something." It does not
@@ -3188,6 +3192,34 @@ seconds of each save or load and stay there in scenes that held 120 at the
 start. The busy western town (UI slots 9/10) still settles calmly as in
 D23E. Savestates stay compatible, there is no audio regression, Vanilla is
 unchanged, and the user's long play session confirms it.
+
+**Work log 2026-10-06 - Needs playtest.** Measured offscreen (private profile
+copy at the player's settings, private states, port 9273; harness
+`recomp/analysis/d23h-20261006/`). The suspected `pace_backoff` was not the
+cause. **A shed was permanent:** at 120 Hz and Match Display the default
+present timeline never calls `late_pace()` (only at Unlimited), so nothing ever
+undid a D23E shed. One hitch gave 60 presents/s and two gave 40 until restart.
+**One-off hitches shed:** a save stalls emulation 83-98 ms (loads 36-57 ms), and a
+second containing an F7 menu visit is far lower, so any single bad second shed.
+Fix (game code only, `src/ttk`): `replay_load_window()` owns shedding in both
+directions, judged once per gameplay second by `overclock_lease()` in every
+frame-rate mode. It sheds only after two behind seconds in a row, does not judge
+gaps (menus, loads) or seconds while the overclock is paused, steps up after
+5 s x backoff clean seconds, doubles backoff on a failed try (max 16), and halves
+it per clean minute at full rate. Added `[TTK pace]` session-log lines (each
+change with its reason; a per-minute summary with presents/s and RSS) and
+`render_replay` fields. Evidence: A/B with a 0.8 s stop every 20 s and a save
+every 30 s: before 120 -> 60 -> 40 for good, with 5 overclock pauses; after
+120 throughout. 21-minute run with 20 saves, 8 loads and 13 stops: 120 in 124
+of 125 ten-second blocks; the one shed (a stop and a save in the same second)
+recovered in 5 s. A 15 s sustained load returns 40 -> 60 -> 120 about 15 s after
+it ends. Western town UI slots 9 and 10 with hitches: 119-120, no change.
+Unlimited unchanged (repeat pacing only). Native and unit tests pass. No framework or
+hashed header change (savestates compatible); Vanilla does not reach this code.
+Executable `c6c221d1...`. Remaining: the user's long play session; Unlimited's
+own repeat backoff still does not decay; saves still cost about 90 ms on the
+emulation thread (no longer affects the rate); RSS rose 400 -> 466 MB over 21
+min (rate unaffected, not investigated).
 
 ### D24 — Linux / Windows player build and disc import
 

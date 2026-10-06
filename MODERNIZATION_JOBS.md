@@ -55,6 +55,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08G | Typed Duke-style debugging cheats — user accepted | Done | D04 |
 | D08G1 | Original Duke3D cheat confirmation wording | Done | D08G |
 | D08G2 | Silent cheat entry and centered confirmations | Done | D08G1, D19A |
+| D08G3 | `dnupgrade` cheat: upgrade all weapons (Laser Gatling etc.) | Todo | D08G2 |
 | D08H | Apartment furniture, hidden pickup and switch targeting | Done | D08 |
 | D08I | Responsive run-start and edge jumps | Done | D08 |
 | D08J | Armed airborne ladder grabs and automatic weapon transitions | Done | D08, D08E |
@@ -682,6 +683,31 @@ retain a concise truthful refusal (never a false success); no unsolicited typing
 status. Preserve input isolation/reset and added debug-code result labels. Verify
 both toggles/aliases, resize/wrapping/transparency/expiry, repeated messages, both
 renderers and Vanilla. Do not move unrelated OSD panels or slow normal controls.
+
+### D08G3 - `dnupgrade` cheat: upgrade every weapon
+
+**Todo. User request, 2026-10-06.** "another cheat - dnupgrade, which
+upgrades all weapons to their upgraded form. laser gatling gun etc."
+
+**Scope:** a new typed cheat in the D08G family (silent entry, centered Duke
+font confirmation as in D08G1/D08G2, same solid-ground rule as the other
+cheats unless research shows it is safe elsewhere). It gives each weapon the
+original upgrade the game itself grants through its upgrade pickups: known
+pairs from note 33 are inventory flag 8 resolving Gatling 7 -> 28 Laser
+Gatling, RPG 8 -> 29 Incendiary RPG and Flamethrower 9 -> 27 HiTemp
+Flamethrower (`8003df40` resolves upgrades). Research first: the complete
+list of upgradable weapons per era, how an original upgrade pickup sets the
+flag and ammo (the upgraded form reads ammo from its resolved record), what
+happens to a weapon Duke does not own yet (decide with the user: upgrade only
+owned weapons, or grant and upgrade like `dnstuff`), whether the currently
+drawn weapon switches to its upgraded model immediately, and save/load,
+level change and death/Continue persistence. Use original data paths only.
+
+**Acceptance:** typing `dnupgrade` shows its confirmation and every eligible
+weapon becomes its upgraded form (Laser Gatling, Incendiary RPG, HiTemp
+Flamethrower and any others found), firing and switching normally, in at
+least two eras; the upgrades persist through a save/load; other cheats and
+Vanilla unchanged; the user confirms.
 
 ### D08H — Apartment furniture, hidden pickup and switch targeting
 

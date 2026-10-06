@@ -6,6 +6,15 @@
 
 
 
+## 2026-10-06 - D24A queued (public clone completeness)
+
+A fresh-clone test of `main` built and played the same as the working copy,
+but lacked the TTK inventory icons (disc-derived, not built by `build.py`),
+the Duke message font and the green digits (Duke 3D art in `research/`). New
+Todo D24A covers moving them into a proper build route. It notes that Duke 3D
+art cannot be committed without a licence, and lists the options (derive from
+the TTK disc, an original font, or user-supplied files).
+
 ## 2026-10-06 - D08Q6 accepted
 
 User accepted the Modern jetpack fix ("i accept this as fixed! the test passes

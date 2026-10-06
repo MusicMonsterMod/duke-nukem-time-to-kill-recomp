@@ -152,6 +152,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D23G | Finish the fast path: dispatch, overlays, interpreter, observers and redraw cost (all-in-one) | Todo | D23F |
 | D23H | Presents fall from 120 to about 60 over extended play (savestate hitches, sticky shedding) | Accepted | D23E, D23F |
 | D24 | Linux / Windows player build and disc import | Todo | D19, D22, D23 |
+| D24A | Public clone gives the full experience: fonts, inventory icons/digits from a proper tracked or disc-derived source (no research/ dependency) | Todo | D19A, D08A3 |
 | D25 | Modernized edition release acceptance | Todo | D08, D08A, D08B, D09, D10, D14, D17, D18, D20, D21, D24 |
 | D26 | Backtick debug console (fps and helpers) | Done | D04 |
 | D26A | Debug level-select panel for whole-game testing | Accepted | D26, D22A |
@@ -3505,6 +3506,56 @@ min (rate unaffected, not investigated).
 Create reproducible player builds with a simple launch flow, settings/save locations and clear owned-disc import errors. Verify Windows independently rather than extrapolating from Linux. Package permitted runtime components; keep original disc assets and personal saves out of redistributable artifacts.
 
 **Acceptance:** a clean installation on each claimed platform imports the supported disc, launches, saves/loads and closes successfully. Document dependencies, licenses, build identity and known limitations in the player instructions.
+
+### D24A - Public clone gives the full experience (assets out of research/)
+
+**Todo. User request, 2026-10-06.** "the font assets etc need to be moved into
+a proper director, not in the research. i need to make this whole project
+available online for anyone to download and play!"
+
+**Evidence (2026-10-06 fresh-clone test).** A clean `git clone
+--recurse-submodules` of `main` (5f9e705), plus an owned USA disc in `game/`,
+built with `build.py` (exit 0). All 69 generated files were byte-identical to
+the working copy, as were `recomp/src` and the patched framework. Jetpack,
+fire, landing, fuel and Vanilla checks gave the same results as the working
+build. Missing from the fresh build (present only in the ignored
+`recomp/assets/` of the working copy, built from local `research/`):
+- `ttk-inv-icons.pack` (+ provenance): D08A3 inventory icons, extracted from
+  the TTK disc's `/DATA/FONTS.RAW` by `build_ttk_inv_icons.py`.
+  `build.py` never runs that step.
+- `ttk-inv-digits.pack` (+ provenance): the D08A2 green inventory digits and
+  %, from Duke Nukem 3D art tiles under `research/inv/font/`.
+- `fonts/Messages` (+ provenance): the D19A Duke message font, from Duke Nukem
+  3D / Atomic Edition tiles under `research/`. Without it the generic host
+  font is used.
+
+**Scope.**
+1. Disc-derived assets: `build.py` extracts `ttk-inv-icons` from the user's
+   own disc (`/DATA/FONTS.RAW`) automatically and deterministically. The output
+   is ignored build/asset output, never committed, and gets a clear error if
+   the disc lacks it.
+2. Fonts and digits: move every build input out of `research/` into a proper,
+   documented project location that the build consumes. **Licensing
+   constraint:** the current glyphs and digits are Duke Nukem 3D art, and
+   AGENTS.md forbids committing extracted retail assets. Decide (with the
+   user) before committing any of them:
+   - (a) derive equivalents from the TTK disc at build time (TTK's own fonts
+     in `FONTS.RAW`), so every owner gets them;
+   - (b) an original, freely licensed font/digit set made for this project and
+     tracked in the repo;
+   - (c) an optional "supply your own Duke Nukem 3D files" import with a
+     documented path, falling back to (a) or (b).
+   Do not publish Duke 3D-derived art without a licence that permits it.
+3. `check_repo.py` and the docs updated so the build never reads `research/`,
+   and the README states exactly what a clone plus a disc gives.
+4. Re-run the fresh-clone test (empty folder, README steps only, owned disc)
+   and confirm that fonts, icons and digits are present and match the
+   accepted look.
+
+**Acceptance:** a fresh clone, plus the README steps and an owned USA disc,
+produces a build with the message font, inventory icons and digits (by the
+chosen route) and no dependency on `research/`. No retail or third-party art
+is committed without a permitting licence. The user confirms the look.
 
 ### D25 — Modernized edition release acceptance
 
@@ -7914,3 +7965,12 @@ suites pass. Not committed.
 User: "i accept this as fixed! the test passes and this feels great" (revision
 5b). The `dnkroz` jetpack grant (D08Q4 follow-up) was part of the same test
 flow. Not committed.
+
+## 2026-10-06 - Backlog: D24A public clone gives the full experience
+
+A fresh clone of 5f9e705 built and played identically, except for the
+locally built visual assets: the TTK inventory icons (disc-derived, not run by
+`build.py`), and the Duke message font and green digits (Duke Nukem 3D art
+from `research/`). New Todo D24A moves these out of `research/` into a proper
+build route, subject to the licensing decision recorded in the job.
+

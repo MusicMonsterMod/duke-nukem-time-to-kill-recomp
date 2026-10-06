@@ -42,14 +42,36 @@ To select the accepted Modernized quality target, use
 
 For an existing clone, run `git submodule update --init --recursive` first.
 Builds generate the game code locally from your disc. Research, generated code,
-build outputs, personal settings, captures and saves remain ignored. Optional
-locally extracted fonts/inventory art are not distributed; see the build notes.
+build outputs, personal settings, captures and saves remain ignored. Fonts and
+HUD icons are extracted from your disc during the build; no Duke Nukem 3D art is
+used (see the build notes).
 Linux is the validated platform; Windows execution remains unverified.
 
 **D17A and D17B are accepted.** 120 FPS is the primary quality/regression target;
 180 FPS+ remains excellent high-refresh support, 240 FPS+ robustness/compatibility,
 and Unlimited stress/debug. There is no 120 FPS ceiling. See the
 [accepted baseline and remaining focused bugs](documentation/86-d17-acceptance-and-regression-baseline.md).
+
+## Credits
+
+- **[PSXRecomp](https://github.com/RetroPortingToolKit/psxrecomp)**, the
+  PlayStation static recompiler this port is built on, by Matthew Stanley (mstan)
+  and the RetroPortingToolkit team (PolyForm Noncommercial 1.0.0). Our framework
+  changes are in `recomp/patches/time-to-kill-accepted-source.patch`. The components it
+  credits, including PCSX-Redux's OpenBIOS (MIT) and libchdr (BSD-3-Clause), are
+  listed in its
+  [THIRD_PARTY_ATTRIBUTION.md](https://github.com/RetroPortingToolKit/psxrecomp/blob/main/THIRD_PARTY_ATTRIBUTION.md).
+- **[Alexbeav's PS1 Recomps](https://github.com/alexbeavs-ps1-ports/psxrecomp-ports)**
+  by Alexbeav (Alexandros Mandravillis): the PS1 recompilation ports and build kits
+  this project follows. Our `recomp/psxrecomp` submodule is pinned from Alexbeav's
+  PSXRecomp fork ([Alexbeav/psxrecomp](https://github.com/Alexbeav/psxrecomp)).
+- **[recomp-ui](https://github.com/RetroPortingToolKit/recomp-ui)**, the shared
+  launcher and in-game UI, by RetroPortingToolkit (MIT), pinned as `recomp/recomp-ui`.
+- **[3x5 Microfont](https://github.com/nimaid/microfont)** by nimaid (CC0 1.0):
+  the Modernized inventory switcher digits. It is kept with its licence in
+  `recomp/assets/ui/fonts/microfont/`.
+- **Original UI art** (the inventory selection frame and the crosshair) by
+  MusicMonsterMod, in `recomp/assets/ui/`.
 
 Third-party licenses remain applicable: the title scaffold has its license in
 `recomp/LICENSE`; framework/UI dependencies retain their own licenses. The

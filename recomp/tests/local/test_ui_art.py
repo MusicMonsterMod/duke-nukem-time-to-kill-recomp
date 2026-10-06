@@ -1,0 +1,56 @@
+import re, struct, subprocess, sys, tempfile, unittest
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+UI = ROOT / 'assets/ui'
+try:
+    from PIL import Image
+except ImportError:  # pragma: no cover
+    Image = None
+
+
+@unittest.skipUnless(Image, 'Pillow required')
+class ProjectUiArt(unittest.TestCase):
+    """The original UI art in assets/ui is what the game uses (D24A)."""
+
+    def test_crosshair_source_matches_png(self):
+        source = (ROOT / 'src/ttk/weapon_aim.cpp').read_text()
+        table = re.search(r'k_crosshair\[81\]=\{(.*?)\};', source, re.S).group(1)
+        compiled = [int(v, 16) for v in re.findall(r'0x([0-9a-fA-F]{8})u', table)]
+        im = Image.open(UI / 'crosshair.png').convert('RGBA')
+        self.assertEqual(im.size, (9, 9))
+        expected = [((a << 24) | (r << 16) | (g << 8) | b) if a else 0 for r, g, b, a in im.getdata()]
+        self.assertEqual(compiled, expected)
+
+    def test_switcher_digits_come_from_microfont(self):
+        sheet = Image.open(UI / 'fonts/microfont/3x5-Microfont_1D.png').convert('RGBA')
+        self.assertTrue((UI / 'fonts/microfont/LICENSE').read_text().count('CC0 1.0 Universal'))
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / 'digits.pack'
+            for _ in range(2):
+                subprocess.run([sys.executable, str(ROOT / 'tools/local/build_ttk_inv_digits.py'), '--output', str(out)],
+                               check=True, capture_output=True)
+                first = out.read_bytes() if _ == 0 else first
+            data = out.read_bytes()
+        self.assertEqual(data, first)
+        self.assertEqual(data[:8], b'TTKDIG3\0')
+        self.assertEqual(struct.unpack_from('<I', data, 8)[0], 11)
+        offset = 12
+        for tile, ch in [(3010 + d, str(d)) for d in range(10)] + [(3076, '%')]:
+            t, w, h = struct.unpack_from('<HHH', data, offset)
+            self.assertEqual((t, w, h), (tile, 3, 5))
+            pixels = data[offset + 6:offset + 6 + 60]
+            for y in range(5):
+                for x in range(3):
+                    lit = sheet.getpixel((3 * ord(ch) + x, y))[3] >= 128
+                    self.assertEqual(pixels[(y * 3 + x) * 4 + 3] == 255, lit, (ch, x, y))
+            offset += 66
+        self.assertEqual(offset, len(data))
+
+    def test_item_frame_is_rgba_25x23(self):
+        im = Image.open(UI / 'item-frame.png')
+        self.assertEqual((im.mode, im.size), ('RGBA', (25, 23)))
+
+
+if __name__ == '__main__':
+    unittest.main()

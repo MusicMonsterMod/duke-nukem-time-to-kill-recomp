@@ -24,14 +24,16 @@ the original inventory screen are unchanged.
 | Jetpack | `0x800c44b4` | (1008, 137) 16x16 | (1008, 229) | `player+0x358` jetpack |
 | Bio Mask | `0x800c44c4` | (1020, 173) 16x16 | (1008, 235) | `+0x360` branch (confirmed on screen) |
 | Goggles | `0x800c4504` | (1008, 121) 16x16 | (1008, 228) | `+0x360` branch (confirmed on screen) |
-| Steroids | `0x800c44f4` | (1016, 173) 16x16 | (1008, 236) | `+0x364` bit 2 (the steroid flag) |
+| Armor | `0x800c44f4` | (1016, 173) 16x16 | (1008, 236) | armor value `+0x234` (code `0x8008be00` draws `+0x234 / 100`) |
 | Health cross | `0x800c44e4` | (1020, 189) 16x16 | (1008, 231) | health `+0x32` |
 
   The game has **no separate medkit icon**; the health cross is its own art for
-  health and is used for the medkit. The steroid icon was identified from its
-  draw routine; with `dnhyper` active no HUD icon appeared in a capture, so it
-  has not been seen on screen. It is extracted, not added to the switcher
-  (steroids still activate on pickup and have no switcher entry).
+  health and is used for the medkit. **Correction (D24A, 2026-10-06):** the icon
+  first listed here as steroids is the armor icon (the user identified it, and its
+  routine at `0x8008be00` draws the armor value `+0x234 / 100`). The steroid
+  pickup (`0x800827e8`) sets `+0x364` value 2, and the HUD has no icon for it,
+  which is why `dnhyper` showed none. The armor icon is extracted but not
+  added to the switcher.
 
 ## Builder
 
@@ -63,5 +65,7 @@ retail-derived and local only. The previous pack is kept at
 - Icons are 13..16 px originals drawn at 2x in the 36 px icon box, like the
   art they replace; the user confirms the look.
 - Medkit uses the health cross (no original medkit icon exists).
-- The selection frame (ARROW frame, from `research/inv/tile0020.png`) is still
-  the earlier art, as the job requires.
+- The selection frame was the Duke Nukem 3D tile 20 frame (`research/inv/tile0020.png`).
+  **D24A (2026-10-06):** it is now the project's own `recomp/assets/ui/item-frame.png`
+  (tracked, 25x23 RGBA, same size), read by the builder (`--frame`) instead of copying
+  the old pack's frame.

@@ -9,9 +9,10 @@ Source (owned USA SLUS-00583 disc, read only):
   width, height, VRAM x, VRAM y) says which cell and palette each HUD indicator
   draws. The records used here are read and checked from SLUS_005.83.
 
-Output: a TTKICO2 pack (item icons, kind 0) keeping the existing selection frame
-(kind 1) unchanged, plus review PNGs in a local-only directory. The PNGs and the
-pack are retail-derived and must stay out of the public repository.
+Output: a TTKICO2 pack (item icons, kind 0) plus the selection frame (kind 1)
+from the project's own art, assets/ui/item-frame.png (D24A: it replaced the Duke
+Nukem 3D tile 20 frame), and review PNGs in a local-only directory. The PNGs and
+the pack are retail-derived and must stay out of the public repository.
 """
 import argparse, hashlib, json, struct, sys, zlib
 from pathlib import Path
@@ -25,12 +26,12 @@ FONTS_PATH = '/DATA/FONTS.RAW;1'
 FONTS_SHA256 = '54e16c1af6b63edcc5a7d92eefe45220b9921ebd0a41fa8047c92ebb5f18e1be'
 FONTS_ORIGIN = (960, 0)
 EXE_LOAD = 0x80010000
-# item id (switcher) -> HUD record address; steroids (4) is extracted only.
+# item id (switcher) -> HUD record address; armor (4) is extracted only.
 RECORDS = {
     1: ('jetpack', 0x800c44b4),   # drawn while player+0x358 (jetpack) is on
     2: ('biomask', 0x800c44c4),   # player+0x360 branch, biomask
     3: ('goggles', 0x800c4504),   # player+0x360 branch, night-vision goggles
-    4: ('steroids', 0x800c44f4),  # drawn while player+0x364 bit 2 (steroids) is set
+    4: ('armor', 0x800c44f4),     # 0x8008be00 draws player+0x234 / 100 (armor) beside it
     5: ('medkit', 0x800c44e4),    # the HUD health cross (player+0x32); no separate medkit icon
 }
 SWITCHER_ITEMS = (1, 2, 3, 5)
@@ -105,26 +106,58 @@ def png(path, pixels):
                      chunk(b'IDAT', zlib.compress(data, 9)) + chunk(b'IEND', b''))
 
 
-def old_cursor(pack_path):
-    data = Path(pack_path).read_bytes()
-    if data[:8] != b'TTKICO2\0':
-        raise SystemExit(f'{pack_path}: not a TTKICO2 pack (need its selection frame)')
-    count, offset = struct.unpack_from('<I', data, 8)[0], 12
-    for _ in range(count):
-        kind, item, tile, w, h = struct.unpack_from('<HHHHH', data, offset)
-        size = 10 + w * h * 4
-        if kind == 1:
-            return data[offset:offset + size]
-        offset += size
-    raise SystemExit(f'{pack_path}: no selection frame entry')
+def read_rgba_png(path):
+    """8-bit RGBA, non-interlaced PNG (the project's own UI art), standard library only."""
+    data = Path(path).read_bytes()
+    if data[:8] != b'\x89PNG\r\n\x1a\n':
+        raise SystemExit(f'{path}: not a PNG')
+    offset, idat, header = 8, b'', None
+    while offset < len(data):
+        length, tag = struct.unpack_from('>I4s', data, offset)
+        body = data[offset + 8:offset + 8 + length]
+        if tag == b'IHDR':
+            header = struct.unpack('>IIBBBBB', body)
+        elif tag == b'IDAT':
+            idat += body
+        offset += 12 + length
+        if tag == b'IEND':
+            break
+    if not header or header[2:] != (8, 6, 0, 0, 0):
+        raise SystemExit(f'{path}: need an 8-bit RGBA, non-interlaced PNG')
+    w, h = header[:2]
+    raw, stride, rows, prev = zlib.decompress(idat), w * 4, [], bytes(w * 4)
+    for y in range(h):
+        kind, line = raw[y * (stride + 1)], bytearray(raw[y * (stride + 1) + 1:(y + 1) * (stride + 1)])
+        for x in range(stride):
+            a = line[x - 4] if x >= 4 else 0
+            b = prev[x]
+            c = prev[x - 4] if x >= 4 else 0
+            if kind == 1: line[x] = (line[x] + a) & 255
+            elif kind == 2: line[x] = (line[x] + b) & 255
+            elif kind == 3: line[x] = (line[x] + (a + b) // 2) & 255
+            elif kind == 4:
+                p = a + b - c
+                pa, pb, pc = abs(p - a), abs(p - b), abs(p - c)
+                line[x] = (line[x] + (a if pa <= pb and pa <= pc else b if pb <= pc else c)) & 255
+            elif kind != 0:
+                raise SystemExit(f'{path}: bad PNG filter')
+        rows.append(bytes(line)); prev = line
+    return w, h, b''.join(rows)
+
+
+def frame_entry(path):
+    w, h, rgba = read_rgba_png(path)
+    if not (8 <= w <= 64 and 8 <= h <= 64):
+        raise SystemExit(f'{path}: frame size {w}x{h} out of range')
+    return struct.pack('<HHHHH', 1, 0, 0, w, h) + rgba
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('--image', default=str(ROOT / 'disc/time-to-kill.bin'), help='prepared MODE2/2352 image')
     ap.add_argument('--exe', default=str(ROOT / 'disc/SLUS_005.83'))
-    ap.add_argument('--frame-from', default=str(ROOT / 'assets/ttk-inv-icons.pack'),
-                    help='existing pack whose selection frame is kept')
+    ap.add_argument('--frame', default=str(ROOT / 'assets/ui/item-frame.png'),
+                    help='selection frame PNG (the project\'s own art)')
     ap.add_argument('--output', default=str(ROOT / 'assets/ttk-inv-icons.pack'))
     ap.add_argument('--png-dir', default=str(ROOT / 'analysis/d08a3-ttk-icons/png'))
     args = ap.parse_args()
@@ -141,7 +174,7 @@ def main():
     if digest != FONTS_SHA256:
         raise SystemExit(f'{FONTS_PATH} sha256 {digest} does not match the owned USA disc')
     exe = Path(args.exe).read_bytes()
-    frame = old_cursor(args.frame_from)
+    frame = frame_entry(args.frame)
 
     png_dir = Path(args.png_dir); png_dir.mkdir(parents=True, exist_ok=True)
     entries, provenance = [], {}
@@ -164,7 +197,7 @@ def main():
     meta = {'source': f'{FONTS_PATH} (lba {entry["lba"]}, {entry["size"]} bytes, sha256 {digest}); VRAM origin (960, 0)',
             'format': '4bpp cells, 16-colour CLUTs in the same file; HUD sprite records from SLUS_005.83',
             'transparency': 'PSX colour 0x0000 transparent; the cell background colour connected to the cell border cleared, then trimmed',
-            'frame': 'selection frame (kind 1) copied unchanged from the previous pack',
+            'frame': f'selection frame (kind 1) from {Path(args.frame).name}, original project art (sha256 {hashlib.sha256(Path(args.frame).read_bytes()).hexdigest()})',
             'map': provenance,
             'note': 'Retail-derived local asset built by recomp/tools/local/build_ttk_inv_icons.py. Original disc untouched.'}
     Path(args.output).with_suffix('.provenance.json').write_text(json.dumps(meta, indent=2) + '\n')

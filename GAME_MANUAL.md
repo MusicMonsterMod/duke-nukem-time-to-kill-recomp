@@ -733,11 +733,16 @@ In Modernized, **arrows**, **X** (confirm/fire), **Z** (menu back/quick-turn),
 remain available. Menu Circle still accepts **C** when uncaptured. Use Right Shift to close inventory. These fixed keys keep menus
 operable after rebinding. Vanilla keeps the different original keys below. Escape pauses.
 
-**Backtick (`)** opens a Quake-style drop-down developer console (smaller Duke
-font). Typed commands and their replies stay in the console scrollback (`help`,
+**Backtick (`)** opens a Quake-style drop-down developer console (TTK Medium
+Italic font). Typed commands and their replies stay in the console scrollback (`help`,
 `fps`, `clear`, `quit`, unknown-command errors). `fps` also toggles a compact
 persistent statistics block in the top-left of the game view after you close the
 console (F remains unbound for gameplay). Escape or backtick closes the console.
+The console keeps 512 lines: **PgUp / PgDn** or the **mouse wheel** scroll back
+through them, **Ctrl+Home** jumps to the oldest and **End** to the newest. New
+output scrolls back to the bottom. **Up / Down** recall the commands you typed
+(newest first; Down past the newest clears the line), and `history` lists them. While scrolled up, `-- MORE BELOW: PGDN / END --`
+shows above the prompt.
 
 **Debug level select (testing).** In a one-player game, open the console and
 type `levels` to list the levels the original level-select cheat offers, with
@@ -753,6 +758,18 @@ The level select is refused on the title screen, in the pause menu, while a
 level is already ending and in two-player games. It does not write memory cards
 or saves. Modernized controls and the selected view work in every listed
 level.
+
+**Debug spawn (testing, Modernized).** Like EDuke32's `spawn`: in captured
+Modernized gameplay, open the console and type `spawn <item>` (for example
+`spawn steroids`, `spawn skeleton key`, `spawn torn paper`) or `spawn <number>`.
+The console closes and the item drops a few steps ahead, in the direction the
+camera looks, using the game's own item-drop code, so walking over it picks it up
+normally. It bounces and settles exactly as an enemy's dropped item does, so it can
+look partly sunk into the ground, as the game's own drops do. `items` lists what this level can spawn: names first, then every
+other pickup by number. Each level loads only its own item models, so an item
+from another level (crystals in Duke Hill, for example) is refused rather than
+spawned invisible. Mission keys take this level's name (`key 1` is the Subway
+Security Key in level 0 and the Warehouse Key in level 5). Vanilla refuses it.
 
 **I** toggles the Modernized crosshair on/off (EDuke-style). The original TTK
 weapons/inventory screen stays on **Right Shift** (Select); press it again to close.
@@ -892,25 +909,40 @@ save/load round trip is not supported. Codes are unavailable in Vanilla, menus,
 multiplayer, while dead, or during attached traversal. No clipping or level-warp
 cheat is included. See [implementation and testing notes](documentation/38-debug-cheats.md).
 
-### Duke message fonts
+### Savestate menu (F7)
 
-Modernized host messages and the developer console use the owned Duke Messages
-sprites under `recomp/assets/fonts/Messages` (built into `ttk-fonts.pack`). Their
-letter art has uppercase shapes; the underlying confirmation wording remains
-unchanged. The original game text and Vanilla presentation remain original. Keep
-`ttk-fonts.pack` and its provenance JSON beside the executable when copying a
-local build. If the pack is absent or invalid, messages use the generic host font.
-The Atomic style is available to shared heading rendering; current messages and
-console text use the small Messages style. Research extracts are reference only —
-copy into `recomp/assets` before shipping. See
-[implementation and verification](documentation/40-feedback-implementation.md)
-and [session wrap](documentation/52-session-late-polish.md).
+**F7** opens the savestate slot browser (12 slots). In Modernized it uses Time to
+Kill's own look:
+- "SAVE STATES" in TTK Big Italic gold;
+- one card per slot with its thumbnail, the slot number and the level name
+  (the selected slot in blue), the save time, and the level and its era;
+- the PlayStation button prompts from the disc.
+
+The keys are unchanged: arrows pick a slot, **Enter** or **L** loads,
+**Shift+Enter** or **S** saves, **Escape** goes back. The level is recorded when
+you save, so slots saved before this version show only their number and time
+until saved again. Vanilla, or a build without the disc-derived packs, shows the
+plain framework menu.
+
+### Message and console fonts
+
+Modernized messages and the developer console use Time to Kill's own fonts,
+taken from your disc when the game is built (no Duke Nukem 3D art):
+
+- **Messages** (cheats, notices, `MEDKIT 75%` and similar): TTK Big Italic in
+  the blue-silver "Console steel" colours with a dark navy shadow.
+- **Console** (backtick): TTK Medium Italic, Console steel, with the same shadow.
+
+All text is shown in capitals, as in the original game. Both are drawn at half the overlay scale (1x at 1080p; the console canvas is 1280 wide), so they stay compact on large screens. A few symbols the TTK
+fonts lack (`! % ( ) & + "` and similar) use the game's own small 8x8 font. The
+original game text and Vanilla are unchanged. If the font pack is missing (no
+prepared disc), messages use the generic host font.
 
 ### Inventory feedback and crouch scope (2026-09-28)
 
 In Modernized gameplay, **[ / ]** open the temporary gadget **switcher** (centered
 strip with Time to Kill's own HUD item icons (D08A3: jetpack,
-Bio Mask, goggles, and the game's health cross for the medkit) and green THREEBYFIVE charge); **Enter** or **U**
+Bio Mask, goggles, and the game's health cross for the medkit) and green 3x5 Microfont charge); **Enter** or **U**
 activates the currently selected gadget (whether or not the strip is showing).
 Holding Enter activates at most once. Empty inventory stays silent. Direct keys
 **M / J / B / N** select and use medkit / jetpack / Bio Mask / night vision **without**
@@ -921,7 +953,8 @@ own gadget — not scuba or boots. Underwater air still works automatically (no
 Depletion falls back to the first usable gadget. Menus and released capture hide
 the strip. Selector frame is locked at 50×60 with a −6px frame-only vertical
 nudge. Existing custom bindings still apply. The Modernized view crosshair is
-EDuke’s CROSSHAIR tile (2523). See
+the project's own lime-green 9x9 crosshair (it replaced EDuke's CROSSHAIR tile
+2523), and the selector frame is the project's own metal frame. See
 [session findings](documentation/51-session-inventory-crosshair.md).
 
 Typed cheats stay silent until a completed result appears, horizontally centered

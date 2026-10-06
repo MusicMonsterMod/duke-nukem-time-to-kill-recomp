@@ -11,6 +11,6 @@ bool view_segment_query(CPUState* cpu,const double* from,const double* to,double
 extern "C" int ttk_aim_reticle();
 extern "C" int ttk_aim_crosshair_enabled(void);
 extern "C" void ttk_aim_toggle_crosshair(void);
-// EDuke CROSSHAIR (tile 2523) ARGB bitmap when the modern reticle is visible.
+// The project crosshair (recomp/assets/ui/crosshair.png) ARGB bitmap when the modern reticle is visible.
 extern "C" int ttk_aim_crosshair_image(const uint32_t** pixels,int* width,int* height);
 extern "C" int ttk_aim_crosshair_pixels(const uint32_t* pixels);

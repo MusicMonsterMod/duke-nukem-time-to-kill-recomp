@@ -184,60 +184,46 @@ target_compile_features(ttk-scene-test PRIVATE cxx_std_17)
 # Title-specific cheat feedback uses the existing host OSD without launcher UI.
 set_source_files_properties("${PSXRECOMP_ROOT}/runtime/src/host_osd.c" PROPERTIES COMPILE_DEFINITIONS TTK_CHEAT_OSD=1)
 
-# Owned local Duke sprites. Keep generated art/provenance beside the executable;
-# a checkout without supplied art retains the original host-font fallback.
-target_sources(psx-runtime PRIVATE src/ttk/duke_font.cpp src/ttk/inventory_hud.cpp)
-# Font ZIP/PK3 still live under research/fonts for the Atomic menu set; message
-# glyphs are owned copies under assets/fonts/Messages (never link research/inv).
-set(TTK_FONT_ARCHIVE "${CMAKE_CURRENT_SOURCE_DIR}/../research/fonts/MS-DOS - Duke Nukem 3D - Miscellaneous - Fonts.zip")
-set(TTK_FONT_MESSAGES "${CMAKE_CURRENT_SOURCE_DIR}/assets/fonts/Messages")
-if(EXISTS "${TTK_FONT_ARCHIVE}")
-    find_package(Python3 REQUIRED COMPONENTS Interpreter)
-    set(TTK_FONT_BUILD_ARGS
-        "${TTK_FONT_ARCHIVE}" "${CMAKE_CURRENT_BINARY_DIR}/ttk-fonts.pack")
-    set(TTK_FONT_EXTRA_DEPS
-        "${CMAKE_CURRENT_SOURCE_DIR}/../research/fonts/DukeNukemSmallFont.pk3"
-        "${CMAKE_CURRENT_SOURCE_DIR}/../research/fonts/DukeNukemAtomicFont.pk3")
-    if(EXISTS "${TTK_FONT_MESSAGES}")
-        list(APPEND TTK_FONT_BUILD_ARGS --messages "${TTK_FONT_MESSAGES}")
-        file(GLOB TTK_FONT_MESSAGE_PNGS CONFIGURE_DEPENDS
-            "${TTK_FONT_MESSAGES}/TILES011_*.png"
-            "${TTK_FONT_MESSAGES}/Atomic Edition/TILES011_*.png")
-        list(APPEND TTK_FONT_EXTRA_DEPS ${TTK_FONT_MESSAGE_PNGS}
-            "${CMAKE_CURRENT_SOURCE_DIR}/assets/fonts/Messages.provenance.json")
-    endif()
-    add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/ttk-fonts.pack" "${CMAKE_CURRENT_BINARY_DIR}/ttk-fonts.json"
-        COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/local/build_duke_fonts.py"
-            ${TTK_FONT_BUILD_ARGS}
-        DEPENDS "${TTK_FONT_ARCHIVE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/local/build_duke_fonts.py"
-            ${TTK_FONT_EXTRA_DEPS}
+# Modernized text and inventory art. D24A: no Duke Nukem 3D art and no research/
+# input. Fonts and HUD icons are extracted from the player's own prepared disc
+# (disc/, made by build.py) at build time; never committed. Without a prepared
+# disc the runtime keeps its generic host font and the switcher shows no icons.
+target_sources(psx-runtime PRIVATE src/ttk/ttk_font.cpp src/ttk/inventory_hud.cpp src/ttk/savestate_panel.cpp)
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
+set(TTK_DISC_IMAGE "${CMAKE_CURRENT_SOURCE_DIR}/disc/time-to-kill.bin")
+set(TTK_DISC_EXE "${CMAKE_CURRENT_SOURCE_DIR}/disc/SLUS_005.83")
+if(EXISTS "${TTK_DISC_IMAGE}" AND EXISTS "${TTK_DISC_EXE}")
+    add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/ttk-fonts.pack" "${CMAKE_CURRENT_BINARY_DIR}/ttk-fonts.json" "${CMAKE_CURRENT_BINARY_DIR}/ttk-ui.pack"
+        COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/local/build_ttk_fonts.py"
+            --image "${TTK_DISC_IMAGE}" --exe "${TTK_DISC_EXE}" --output "${CMAKE_CURRENT_BINARY_DIR}/ttk-fonts.pack"
+        DEPENDS "${TTK_DISC_IMAGE}" "${TTK_DISC_EXE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/local/build_ttk_fonts.py"
         VERBATIM)
-    add_custom_target(ttk-font-assets DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/ttk-fonts.pack" "${CMAKE_CURRENT_BINARY_DIR}/ttk-fonts.json")
+    add_custom_target(ttk-font-assets DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/ttk-fonts.pack" "${CMAKE_CURRENT_BINARY_DIR}/ttk-fonts.json" "${CMAKE_CURRENT_BINARY_DIR}/ttk-ui.pack")
     add_dependencies(psx-runtime ttk-font-assets)
-endif()
-# Owned Duke3D THREEBYFIVE extract (tiles 3010–3021) for EDuke32-style inventory %.
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/assets/ttk-inv-digits.pack")
-    add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/ttk-inv-digits.pack"
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "${CMAKE_CURRENT_SOURCE_DIR}/assets/ttk-inv-digits.pack"
-            "${CMAKE_CURRENT_BINARY_DIR}/ttk-inv-digits.pack"
-        DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/assets/ttk-inv-digits.pack"
-        VERBATIM)
-    add_custom_target(ttk-inv-digit-assets DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/ttk-inv-digits.pack")
-    add_dependencies(psx-runtime ttk-inv-digit-assets)
-endif()
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/assets/ttk-inv-icons.pack")
     add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/ttk-inv-icons.pack"
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "${CMAKE_CURRENT_SOURCE_DIR}/assets/ttk-inv-icons.pack"
-            "${CMAKE_CURRENT_BINARY_DIR}/ttk-inv-icons.pack"
-        DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/assets/ttk-inv-icons.pack"
+        COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/local/build_ttk_inv_icons.py"
+            --image "${TTK_DISC_IMAGE}" --exe "${TTK_DISC_EXE}" --output "${CMAKE_CURRENT_BINARY_DIR}/ttk-inv-icons.pack"
+            --png-dir "${CMAKE_CURRENT_BINARY_DIR}/ttk-inv-icons-review"
+        DEPENDS "${TTK_DISC_IMAGE}" "${TTK_DISC_EXE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/local/build_ttk_inv_icons.py"
+            "${CMAKE_CURRENT_SOURCE_DIR}/assets/ui/item-frame.png"
         VERBATIM)
     add_custom_target(ttk-inv-icon-assets DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/ttk-inv-icons.pack")
     add_dependencies(psx-runtime ttk-inv-icon-assets)
 endif()
+# D24A: inventory switcher digits and % from the open 3x5 Microfont (CC0, tracked in
+# assets/ui/fonts/microfont), generated in every build: no local or research input.
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
+add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/ttk-inv-digits.pack"
+    COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/local/build_ttk_inv_digits.py"
+        --output "${CMAKE_CURRENT_BINARY_DIR}/ttk-inv-digits.pack"
+    DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/assets/ui/fonts/microfont/3x5-Microfont_1D.png"
+        "${CMAKE_CURRENT_SOURCE_DIR}/tools/local/build_ttk_inv_digits.py"
+        "${CMAKE_CURRENT_SOURCE_DIR}/tools/local/build_ttk_inv_icons.py"
+    VERBATIM)
+add_custom_target(ttk-inv-digit-assets DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/ttk-inv-digits.pack")
+add_dependencies(psx-runtime ttk-inv-digit-assets)
 if(TARGET SDL3::SDL3)
-    add_executable(ttk-font-test EXCLUDE_FROM_ALL tests/local/duke_font_native.cpp src/ttk/duke_font.cpp)
+    add_executable(ttk-font-test EXCLUDE_FROM_ALL tests/local/ttk_font_native.cpp src/ttk/ttk_font.cpp)
     target_include_directories(ttk-font-test PRIVATE src/ttk ${PSXRECOMP_ROOT}/runtime/include)
     target_compile_definitions(ttk-font-test PRIVATE PSX_SDL3=1)
     target_compile_options(ttk-font-test PRIVATE -UNDEBUG)
@@ -247,7 +233,7 @@ endif()
 
 if(TARGET SDL3::SDL3)
     add_executable(ttk-inventory-test EXCLUDE_FROM_ALL tests/local/inventory_hud_native.cpp
-        src/ttk/inventory_hud.cpp src/ttk/duke_font.cpp)
+        src/ttk/inventory_hud.cpp src/ttk/ttk_font.cpp)
     target_include_directories(ttk-inventory-test PRIVATE src/ttk ${PSXRECOMP_ROOT}/runtime/include)
     target_compile_definitions(ttk-inventory-test PRIVATE PSX_SDL3=1)
     target_compile_options(ttk-inventory-test PRIVATE -UNDEBUG)

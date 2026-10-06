@@ -5,7 +5,11 @@ static std::vector<HiddenEnemy> hidden_enemies;
 static uint32_t hidden_table,hidden_count;
 static bool monsters_hidden;
 static bool cheat_ram(uint32_t a,unsigned n){return !(a&3) && a>=0x80010000 && a<=0x80200000-n;}
-static bool cheat_call(CPUState* cpu,uint32_t address,uint32_t actor) {
+// Calls an original function on a copy of the CPU with a private stack and
+// scratchpad. D26E: optional a1, a buffer copied into the saved stack area and
+// passed as a2, and the v0 result.
+static bool cheat_call(CPUState* cpu,uint32_t address,uint32_t actor,uint32_t a1=0,
+                       const uint32_t* buffer=nullptr,unsigned words=0,uint32_t* result=nullptr) {
     CPUState copy=*cpu; // original_call normally supplies the player as a0.
     const uint32_t top=copy.gpr[29];
     if(guest_busy || top<0x801f4000 || top>0x801ffff0 || g_precise_mode || g_ls_mode || g_psx_call_bail)return false;
@@ -13,7 +17,14 @@ static bool cheat_call(CPUState* cpu,uint32_t address,uint32_t actor) {
     for(unsigned i=0;i<sizeof stack;++i)stack[i]=psx_mod_read_byte(top-4096+i);
     for(unsigned i=0;i<sizeof scratch;++i)scratch[i]=psx_mod_read_byte(0x1f800000+i);
     copy.pc=0;copy.gpr[29]=top-256;copy.gpr[31]=0x800000fc;copy.gpr[4]=actor;
+    if(buffer && words && words<=32) {
+        copy.gpr[5]=a1;
+        const uint32_t at=top-192;
+        for(unsigned i=0;i<words;++i)psx_mod_write_word(at+4*i,buffer[i]);
+        copy.gpr[6]=at;copy.gpr[7]=0;
+    }
     guest_busy=true;psx_dispatch_call(&copy,address,0x800000fc);guest_busy=false;
+    if(result)*result=copy.gpr[2];
     for(unsigned i=0;i<sizeof stack;++i)psx_mod_write_byte(top-4096+i,stack[i]);
     for(unsigned i=0;i<sizeof scratch;++i)psx_mod_write_byte(0x1f800000+i,scratch[i]);
     return copy.pc==0 && !g_psx_call_bail;

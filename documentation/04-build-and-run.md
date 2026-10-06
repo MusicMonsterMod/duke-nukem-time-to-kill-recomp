@@ -202,15 +202,26 @@ limited to the supported weapon paths; Vanilla remains original. See the current
 which supersede the older preview descriptions above.
 
 
-## Local Duke font assets
+## Fonts, icons and UI art (D24A)
 
-When the supplied font ZIP and both PK3 metadata archives are present under
-`research/fonts/`, the normal CMake build generates `ttk-fonts.pack` and
-`ttk-fonts.json` beside the executable. Conversion is deterministic and uses only
-Python's standard library. These are local derived art/provenance, kept in the
-ignored build tree. Keep both with a copied local build. Originals are read only;
-no substitute font is downloaded. Without a valid pack, the existing generic
-host font remains available. Vanilla and original TTK text are unchanged.
+No Duke Nukem 3D art and nothing under `research/` is used. The normal CMake
+build makes, beside the executable:
+
+- `ttk-fonts.pack` / `ttk-fonts.json`: Time to Kill's own fonts (TTK Big and
+  Medium Italic from `/DATA/FONTS.RAW`, the system 8x8 font from `SLUS_005.83`),
+  extracted from the prepared disc (`recomp/disc/`) by
+  `tools/local/build_ttk_fonts.py`.
+- `ttk-inv-icons.pack`: the HUD item icons from the same disc file, plus the
+  project's own selection frame (`recomp/assets/ui/item-frame.png`), by
+  `tools/local/build_ttk_inv_icons.py`.
+- `ttk-inv-digits.pack`: the switcher digits from the tracked CC0 3x5 Microfont
+  (`recomp/assets/ui/fonts/microfont/`), by `tools/local/build_ttk_inv_digits.py`.
+
+All are deterministic, use only Python's standard library, and are rebuilt when
+their inputs change. The disc-derived packs are retail-derived build output:
+never commit or distribute them. Without a prepared disc, the runtime uses its
+generic host font and the switcher shows no icons. Keep the packs beside the
+executable when copying a local build.
 
 ## Jetpack scheme (D08R)
 

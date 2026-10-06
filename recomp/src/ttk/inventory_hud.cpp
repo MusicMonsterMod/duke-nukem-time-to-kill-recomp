@@ -1,5 +1,5 @@
 #include "inventory_hud.h"
-#include "duke_font.h"
+#include "ttk_font.h"
 #include "pc_input.h"
 #include "mod_plugins.h"
 #include <algorithm>

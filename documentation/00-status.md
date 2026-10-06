@@ -6,6 +6,37 @@
 
 
 
+## 2026-10-06 - D24A, D24B, D26E: open assets, TTK fonts, savestate menu, debug spawn
+
+User, end of session: "im happy with all progress tonight. the document is
+superb and an amazing piece of research."
+
+- **D24A (Needs playtest: fresh-clone test).** No Duke Nukem 3D art or
+  `research/` input remains:
+  - TTK disc fonts (Big and Medium Italic, system 8x8) are built from the
+    player's disc;
+  - switcher digits are the CC0 3x5 Microfont;
+  - the selection frame and crosshair are the user's original art;
+  - HUD icons are built from the disc in every build;
+  - messages and the console draw at half scale, in the "Console steel"
+    palette with a navy shadow.
+  The README credits PSXRecomp, Alexbeav's PS1 Recomps, recomp-ui and
+  Microfont. Remaining: the fresh-clone test against the pushed commit.
+  [Note 112](112-d24a-open-assets.md).
+- **D24B (Accepted).** The F7 savestate menu uses the TTK fonts and disc art,
+  with level names recorded per slot. [Note 113](113-d24b-savestate-menu.md).
+- **D26E (Accepted).** The console has `spawn <item>` and `items`, now working
+  from the real console and along the camera view; the half-sunk landing is
+  the game's own drop. It also gained scrollback (512 lines, PgUp/PgDn/wheel),
+  Up/Down command recall and `history` (D26C, accepted).
+  [Note 111](111-d26e-debug-spawn.md).
+- **Research page:** the local UI and font research page (fonts, palettes, UI
+  sprites, BS stills, per-level mission items, design slots, savestate mockup)
+  is `recomp/analysis/d24a-fonts/ttk-font-picker.html`. It is retail-derived
+  and local only; `research/TTK-UI-and-Font-Research.html` links to it.
+- **Next:** the user designs the open icons (15 mission items and keys, plus
+  steroids) for the placeholders on that page.
+
 ## 2026-10-06 - D24A queued (public clone completeness)
 
 A fresh-clone test of `main` built and played the same as the working copy,

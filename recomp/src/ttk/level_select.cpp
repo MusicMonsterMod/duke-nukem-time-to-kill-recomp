@@ -121,8 +121,19 @@ void list(void (*say)(const char*)) {
 }
 }
 
+bool level_title(unsigned n, char* out, unsigned cap) {
+    if(!out || !cap)return false;
+    out[0]=0;
+    if(n>=32 || !authentic())return false;
+    const std::string title=name(n);
+    if(title.empty())return false;
+    std::snprintf(out,cap,"%s",title.c_str());
+    return true;
+}
+
 bool level_console_command(const char* line, void (*say)(const char*), bool& close) {
     close=false;
+    if(spawn_console_command(line,say,close))return true;
     const bool all=!std::strcmp(line,"levels") || !std::strcmp(line,"level");
     if(!all && std::strncmp(line,"level ",6))return false;
     if(!authentic()) {say("Level select unavailable: unrecognised game code");return true;}

@@ -152,12 +152,14 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D23G | Finish the fast path: dispatch, overlays, interpreter, observers and redraw cost (all-in-one) | Todo | D23F |
 | D23H | Presents fall from 120 to about 60 over extended play (savestate hitches, sticky shedding) | Accepted | D23E, D23F |
 | D24 | Linux / Windows player build and disc import | Todo | D19, D22, D23 |
-| D24A | Public clone gives the full experience: fonts, inventory icons/digits from a proper tracked or disc-derived source (no research/ dependency) | Todo | D19A, D08A3 |
+| D24A | Public clone gives the full experience: fonts, inventory icons/digits from a proper tracked or disc-derived source (no research/ dependency) | Needs playtest | D19A, D08A3 |
+| D24B | Savestate menu (F7) dressed in the TTK fonts and disc art | Accepted | D24A |
 | D25 | Modernized edition release acceptance | Todo | D08, D08A, D08B, D09, D10, D14, D17, D18, D20, D21, D24 |
 | D26 | Backtick debug console (fps and helpers) | Done | D04 |
 | D26A | Debug level-select panel for whole-game testing | Accepted | D26, D22A |
+| D26E | Debug `spawn <item>` console command (EDuke32-style) | Accepted | D26A |
 | D26B | Opening the console leaves first person | Todo | D26, D11 |
-| D26C | Console command history (Up/Down) | Todo | D26 |
+| D26C | Console command history (Up/Down) | Accepted | D26 |
 | D26D | Level select: authoritative order, numbering, names and categories | Todo | D26A |
 | D27 | Caps Lock RUN MODE quotes; Shift-run clunk silence deferred | Done (quotes); clunk deferred low-priority | D04, D19A |
 | D28 | Scroll Lock holster and WEAPON LOWERED/RAISED quotes | Done | D04, D19A |
@@ -3509,7 +3511,15 @@ Create reproducible player builds with a simple launch flow, settings/save locat
 
 ### D24A - Public clone gives the full experience (assets out of research/)
 
-**Todo. User request, 2026-10-06.** "the font assets etc need to be moved into
+**Needs playtest (2026-10-06): no Duke Nukem 3D art remains** ([note 112](documentation/112-d24a-open-assets.md)). The user confirms the look; the fresh-clone test is re-run after commit. Route (a) chosen, all Duke 3D art removed.
+Art direction (2026-10-06): the user will hand-make original, openly licensed
+icons in the TTK style for mission items, keys/key cards and steroids. The disc
+has no 2D art for those. Fonts, digits, buttons and HUD sprites remain disc-derived.
+User: "We are going fully open, so the duke fonts must be removed. we need to
+replace them with 1:1 analogues." Font picker built; waiting for the user's
+font/palette choices per use (see work log).
+
+**User request, 2026-10-06.** "the font assets etc need to be moved into
 a proper director, not in the research. i need to make this whole project
 available online for anyone to download and play!"
 
@@ -3557,6 +3567,27 @@ produces a build with the message font, inventory icons and digits (by the
 chosen route) and no dependency on `research/`. No retail or third-party art
 is committed without a permitting licence. The user confirms the look.
 
+### D24B - Savestate menu (F7) dressed in the TTK fonts and disc art
+
+**Accepted (2026-10-06): "im happy with all progress tonight"; built to the approved mockup** ([note 113](documentation/113-d24b-savestate-menu.md)). User: "i was also wondering if we
+could dress up our save screen while we have the fonts open too". Asked which
+screen; the user chose the recomp savestate slots (F7).
+
+Proposal: the font picker's "Savestate menu (F7) redesign - mockup".
+- Header: "SAVE STATES" in TTK Big Italic gold.
+- Slot cards: thumbnail; slot title and level name in TTK Medium Italic gold
+  (blue when selected); date and level line in System 8x8.
+- Prompts: the disc's button sprites with Medium Italic labels.
+- Backdrop: dark steel with the disc's radiation emblem.
+- Text drawn at 1x with the navy shadow.
+The panel is the framework's `psx_savestate_menu.c` (640x480). The plan is a
+game-specific render hook (the framework panel stays the fallback, and Vanilla
+gets the same look or keeps the original, to be decided), plus reading the level
+index from each savestate for its name.
+
+**Acceptance:** F7 shows the approved design with correct slot data, load/save
+and navigation unchanged; the fallback works without the font pack.
+
 ### D25 — Modernized edition release acceptance
 
 Run the documented campaign and regression checks against both presets in a frozen candidate build. Reconcile manual, settings, supported platforms and feature claims. Choose release scope explicitly; optional first-person or HD packs need their own completed acceptance work to be advertised.
@@ -3571,6 +3602,24 @@ persistent top-left debug block, `clear` / `quit`. F unbound; Scroll Lock is hol
 
 **Acceptance met:** backtick open/close; scrollback; persistent fps overlay;
 gameplay/capture/menus intact.
+
+### D26E - Debug spawn console command
+
+**Accepted (2026-10-06): "im happy with all progress tonight".** User: "is there a command we can use that can
+summon one of these items in front of duke? for debugging purposes", then "yes
+spawn indeed", pointing at EDuke32's `spawn`
+(https://wiki.eduke32.com/wiki/Spawn). For the D24A icon work.
+
+`spawn <item|type>` and `items` in the backtick console (Modernized only).
+The item is created about 600 units in front of Duke by the original
+`CreateObject` (`0x80095a74`), the routine a destroyed container or enemy uses
+to drop its item. Types whose model the current level has not loaded are
+refused. Details: [note 111](documentation/111-d26e-debug-spawn.md).
+
+**Acceptance:** in Modernized gameplay, `spawn` puts a named or numbered item in
+front of Duke, it is picked up normally, and refusals are clear (unknown item,
+not in this level, Vanilla, not in gameplay). Vanilla and the level select are
+unchanged. The user confirms it is useful for the icon work.
 
 ### D26A - Debug level-select panel for whole-game testing
 
@@ -3618,7 +3667,16 @@ capture are unchanged afterwards; the user confirms.
 
 ### D26C - Console command history
 
-**Todo, small developer QoL. User request, 2026-10-05.** Up Arrow recalls the
+**Accepted (2026-10-06): "im happy with all progress tonight".** Built the same
+evening the user asked again ("please allow me to press up in the console to get
+the last command typed. also a history command would be pretty neat too"):
+Up/Down recall (newest first; Down past the newest clears the line) and a
+`history` command (64 kept, consecutive duplicates once), in the framework
+`main.cpp` console. Checked through the real console: Up recalled
+`spawn steroids` and Enter ran it; `history` listed both commands. See
+[note 111](documentation/111-d26e-debug-spawn.md).
+
+**User request, 2026-10-05.** Up Arrow recalls the
 previous command, Down Arrow the next, like a standard shell. Do not
 over-design it.
 
@@ -7973,4 +8031,303 @@ locally built visual assets: the TTK inventory icons (disc-derived, not run by
 `build.py`), and the Duke message font and green digits (Duke Nukem 3D art
 from `research/`). New Todo D24A moves these out of `research/` into a proper
 build route, subject to the licensing decision recorded in the job.
+
+## 2026-10-06 - D24A: Time to Kill disc font survey and picker
+
+The user chose route (a) and asked for every Duke Nukem 3D font and digit to be
+replaced by Time to Kill's own. A survey of the owned disc found four fonts:
+- **TTK Big Italic** (`/DATA/FONTS.RAW`, VRAM y 0..70): 17 px, 48 glyphs,
+  shaded ramp. `, - . / 0-9 A-Z : ; < > = ? @ '`.
+- **TTK Medium Italic** (y 72..106): 11 px, 50 glyphs, the same set plus (c)
+  and TM. The original pause menu and briefing font.
+- **TTK HUD Digits** (x 992..1018, y 109..119): `% - : 0-9`.
+- **TTK System 8x8** (`SLUS_005.83` at `0x800c7d70`, PSY-Q `FntPrint` font,
+  128x32 1-bit, ASCII 0x20..0x5F): the original Select inventory list font.
+None has lower case. The italic fonts lack `! % ( ) & + "`. The CLUTs are
+in `FONTS.RAW` column x=1008. CLUT 225 (gold) matches the pause menu text in a
+live capture (`analysis/d26a-20261004/shots/paused.png`) colour for colour. The
+same file holds the button sprites (records `0x800c43b4..0x800c4474`: cross,
+circle, square, triangle, L1/L2/R1/R2, Start, Select, D-pad) next to the HUD
+item icons.
+
+A local picker (`recomp/analysis/d24a-fonts/ttk-font-picker.html`, retail-
+derived, ignored, generated by `make_picker.py` in the same folder) renders
+every font and palette from the disc. It lets the user choose a font,
+palette/colour, scale and spacing for each use (menus, inventory, mission
+items, saves, messages, numbers, console), then copy the choices. No build or
+runtime change has been made yet. Next: once the user chooses, add a build-time
+extractor for the chosen fonts and digits. Then remove the Duke 3D font, digit
+and frame inputs and the `research/` dependency, and re-run the fresh-clone
+test.
+
+## 2026-10-06 - D24A: UI element survey, armor correction, steroids
+
+On the user's review, the icon D08A3 recorded as steroids (`0x800c44f4`) is the
+armor icon (its routine `0x8008be00` draws `player+0x234 / 100`). The icon at
+`0x800c44d4` is oxygen (`0x8008c560`, the air timer, shown underwater). The
+skull at `0x800c4554` is drawn by `0x8008c6a8` with a count: `player+0x3ae`
+in the two-player arenas and `0x800d253c` in Challenge Stages 1-6 (probably
+kills). Corrected doc 75, the icon builder label and its test (Python test OK).
+
+The picker gained a "UI elements on the disc" section:
+- the full button set;
+- the HUD icons with what draws them;
+- the health (36x16, `0x800beb08`) and item/ammo (46x16, `0x800c44a4`)
+  number frames;
+- the 4-frame scrolling ammo icon (`0x800c4514..44`);
+- the 96x96 radiation disc (`0x800c4454`, use not traced);
+- an approximate HUD mock-up;
+- art no record references (a 64x64 hatch plate and an 18x66 rim, palette
+  guessed);
+- the nine full-screen MDEC stills, decoded at 512x240 by wrapping each BS
+  frame in synthetic STR sectors for ffmpeg: COPY and WARNING (boot notices)
+  and FAIL00..06 (game-over pictures).
+Font records at `0x800c4484..0x800c449c` give the default CLUTs: 225 (gold) for
+the italic fonts, 227 (red) for the HUD digits, and 242/243/244 (one colour each:
+#dedede, #00bdef, #848484) for the system font. The picker now defaults to them.
+
+Steroids: no 2D steroid art exists on the disc. The pickup (`0x800827e8`, object
+type 638 at object+44) sets `player+0x364` value 2, and the HUD has no branch
+for it. Options recorded for the user: an in-game capture of the 3D pickup
+(needs a known location), then locate its texture in the level VRAM pages
+(disc-derived, can be built), or render the live model (format undecoded).
+
+## 2026-10-06 - D24A: per-level mission items and keys
+
+The user will draw original open icons for the mission items, keys and key
+cards, and asked for a per-level placeholder list. Survey
+(`recomp/analysis/d24a-fonts/items/survey.py`): private Xvfb Modernized run,
+private card copy. Each level loads with the console `level N`, `dnitems` is
+typed (it calls the original level-aware key/item grant), and the original
+Select inventory is captured. Results, as the game names them:
+- 0 TIME TO KILL: Subway Security Key, Transport Room ID, Red/Blue/Green Energy Crystal.
+- 1 DUKE HILL: Skeleton Key, Scrap of Paper, Old Note, Torn Paper (the combo pieces).
+- 2 MINER 69ER: Skeleton Key x2.
+- 3 GOLD AND GUNS: Skeleton Key.
+- 5 OBEY OR DIE: Warehouse Key, Red/Blue/Green Energy Crystal.
+- 6 FAMILY JEWELS: Skeleton Key x2, Family Jewel x3.
+- 7 RESISTANCE IS FEUDAL: Gantry Key, Valve Key.
+- 8 HOLY TERROR: none.
+- 9 PIG FACTORY: Lab Key, Valve Room Key, Red/Blue/Green Energy Crystal.
+- 10 HOG HEAVEN: Skeleton Key x2.
+- 11 LET THE GAMES BEGIN: Skeleton Key.
+- 12 BLOOD BATHS: none.
+- 21-26 (Challenge Stages): the Select inventory does not open.
+- 27-29 (bosses): no mission items.
+That makes 15 distinct designs. The picker page has a "Mission items and keys"
+section: a design checklist (16x16 suggested, file name per design), each level's
+objectives (strings 325..410), item slots and the reference capture. A PNG
+dropped on a design previews it everywhere (stored in browser storage only).
+The survey shows what the original grant gives. It has not been cross-checked
+by playing each level for the physical pickups.
+
+## 2026-10-06 - D26E: debug spawn console command (Needs playtest)
+
+New job at the user's request (EDuke32 `spawn`). The backtick console gains
+`items` and `spawn <name|type>`. They queue the type, and the Modernized update
+(after the cheats, `0x8005a210`) calls the original `CreateObject` (`0x80095a74`)
+on a copied CPU, with a position 600 units ahead of Duke and his cell as the
+hint. The new object gets `+0x35 = 1`, as the drop routine `0x80096b98` sets.
+A new code guard covers `0x80095a74`. `cheat_call` gained optional a1, a
+stack buffer for a2 and the v0 result; the existing monster-toggle calls are
+unchanged. Framework: two `help` lines in `main.cpp`, exported to the patch.
+Evidence (private Xvfb Modernized runs, private card copy):
+- Level 6: `spawn steroids` spawned type 638. Walking into it showed the
+  original STEROIDS message and set `+0x364` to 2.
+- Level 0: `spawn key 1` / `key 2` spawned 153/154. Picking them up showed
+  SUBWAY SECURITY KEY / TRANSPORT ROOM ID, and both appeared in the Select
+  inventory.
+- Level 1: `spawn scrap of paper` and `spawn torn paper` were both picked up
+  and appeared in the inventory.
+- Refusals: unknown name or number; `spawn 547`/`854` in level 0 ("not loaded
+  in this level"); Vanilla ("Modernized profile only"); a list at `items`.
+- `ttk-controls-test` passes; `level_overlay_guards.py --check` matches; the
+  framework patch is exported.
+Limits: the level 0 green crystal (761) spawns and is visible, but it was not
+seen in the inventory after walking over it, so its pickup is unconfirmed. Level
+0's red and blue crystals were not found as types at level start (their models
+are not loaded then), so they have no names yet. Types 155-157 share the key
+model and set flags that level 0's inventory does not name. Non-pickup types
+(for example scenery 858) can be spawned by number and can block Duke.
+
+## 2026-10-06 - D24A: first original UI art (selection frame)
+
+The user made the first original asset, `item-frame.png` (25x23 RGBA, same size
+as the Duke Nukem 3D tile 20 frame). It is imported into the project at
+`recomp/assets/ui/item-frame.png` (tracked; byte-identical to the research copy;
+`assets/ui/README.md` records it as original project art under the repository
+licence). `build_ttk_inv_icons.py` now writes the pack's selection frame (kind 1)
+from that PNG (`--frame`, stdlib RGBA reader) instead of copying the old pack's
+Duke 3D frame. The runtime format is unchanged (tile field 0, ignored by the loader).
+Evidence: the rebuilt pack's frame equals the PNG pixel for pixel. The builder test
+(updated: the frame must equal the project PNG) passes. A private Xvfb Modernized
+run in level 0 (`dnitems`, `]` three times) shows the grey frame moving across
+Bio Mask, goggles and medkit. The previous pack is kept locally as
+`recomp/analysis/d08a3-ttk-icons/ttk-inv-icons.before-d24a-frame.pack`. The
+picker page gained an "Original project art" section. The digits, fonts and
+the font/icon build steps are still the remaining D24A work.
+
+## 2026-10-06 - D24A: original crosshair
+
+The user hand-drew `crosshair.png` (9x9, original lime `#80ff00`, same shape as
+the EDuke32 CROSSHAIR tile 2523 it replaces). It is imported at
+`recomp/assets/ui/crosshair.png` (tracked). The compiled `k_crosshair` table in
+`weapon_aim.cpp` now holds its pixels, and the new `tests/local/test_ui_art.py`
+fails if the table and the PNG differ (it also checks the item frame).
+Evidence: the UI art and icon builder tests pass; `ttk-aim-test` and
+`ttk-controls-test` pass. A private Xvfb Modernized run in level 0 (weapon drawn,
+view aim) shows 12 pixels of exactly `#80ff00` at the screen centre in the
+crosshair shape. The manual is updated; the picker's "Original project art"
+section now shows both assets.
+
+## 2026-10-06 - D24A: open switcher digits (3x5 Microfont); credits
+
+The user first proposed Mythic Pixels (CagyTrain, FontStruct). Its FontStruct
+Non-Commercial EULA forbids distribution (2.3), modification (2.4) and
+commercial use (2.2), so it was not used. Nothing from it was added to the
+project. The user then chose the 3x5 Microfont by nimaid (CC0 1.0,
+https://github.com/nimaid/microfont, commit 8c57fbb). Its 3x5 digits and `%`
+replace the Duke Nukem 3D THREEBYFIVE digits glyph for glyph.
+- The upstream `3x5-Microfont_1D.png` and its `LICENSE` are tracked, unchanged,
+  in `recomp/assets/ui/fonts/microfont/` (with `SOURCE.md`).
+- New `tools/local/build_ttk_inv_digits.py` builds the TTKDIG3 pack (tiles
+  3010-3019 and 3076, unchanged format), in the old switcher green `#989c58`.
+- CMake now generates `ttk-inv-digits.pack` in every build from the tracked
+  sheet. It no longer copies a local Duke 3D pack, so a fresh clone gets the
+  digits with no `research/` input. The old pack is kept locally under
+  `recomp/analysis/d08a3-ttk-icons/`.
+- Evidence: `test_ui_art.py` (builder reproducible, every glyph equal to the
+  sheet, CC0 licence present), the icon builder test and `ttk-inventory-test`
+  pass. The repo check passes. A private Xvfb Modernized run (level 0,
+  `dnitems`, `]`) shows "100%" under each switcher icon in Microfont,
+  `#989c58`, with the new frame.
+- README gained a Credits section: PSXRecomp (RetroPortingToolKit; Matthew
+  Stanley and team; PolyForm Noncommercial 1.0.0, with its third-party
+  attributions), Alexbeav's PS1 Recomps (psxrecomp-ports; our submodule is
+  pinned from Alexbeav/psxrecomp), recomp-ui (MIT), 3x5 Microfont (CC0) and
+  the original UI art.
+- Still open in D24A: the message/menu fonts (Duke 3D message font and Atomic
+  headings) and the disc-derived icon extraction in the normal build.
+
+## 2026-10-06 - D24A: TTK disc fonts replace the Duke 3D fonts (Needs playtest)
+
+The user chose fonts per use in the picker. What exists today:
+- messages: TTK Big Italic, Console steel, 1x, shadow;
+- console: TTK Medium Italic, Console steel, 1x, shadow;
+- headings: Big Italic, gold, 2x;
+- missing glyphs: the system 8x8.
+New `build_ttk_fonts.py` builds `ttk-fonts.pack` (TTKFONT2) from the prepared
+disc at build time. New `ttk_font.cpp` renders it with the same API, so the
+framework is unchanged. CMake also builds the HUD icon pack from the disc (it
+is byte-identical to the accepted pack). The Duke 3D font builder, its tests and
+`duke_font.cpp` are removed. With the earlier Microfont digits, frame and
+crosshair, no Duke Nukem 3D art or `research/` input remains. Evidence:
+- the native font test and all 114 Python tests pass, as do the inventory and
+  controls tests;
+- a private run shows the console and a cheat message in the new fonts.
+Remaining: the user's look confirmation and the post-commit fresh-clone test.
+See [note 112](documentation/112-d24a-open-assets.md).
+
+## 2026-10-06 - D24A follow-up: in-game font sizes, scrollable console
+
+The user found the chosen fonts much bigger in the game than in the picker. The
+picker drew one font pixel per screen pixel. The game stretches the console to
+the window width (/640) and scales messages and overlays by height/480 (rounded
+down). The picker now has a **Preview size** selector:
+- the user's 1461-wide window, at 16:9 and 4:3;
+- 1080p, 1440p and 4K;
+- a custom size;
+- the old 1:1 view.
+It applies those rules, corrected for display DPI, and the per-use defaults
+are now the user's current choices, so the sizes can be re-picked. No font
+change in the game yet; waiting for the new picks.
+
+The console is now scrollable (framework `host_osd.c`/`main.cpp`, exported to
+the patch; no header change):
+- 512-line history (was 24);
+- PgUp/PgDn 8 lines, mouse wheel 3, Ctrl+Home to the oldest, End to the newest;
+- new output returns to the bottom;
+- a `-- MORE BELOW --` marker shows while scrolled up.
+Evidence: build OK. A private Xvfb run (four commands, then PgUp twice, wheel
+down, End) shows the view moving back, forward and returning to the newest
+lines.
+
+## 2026-10-06 - D24B: savestate menu in TTK fonts and disc art (Needs playtest)
+
+User: "build it out!" after the mockup. New `src/ttk/savestate_panel.cpp` draws
+the F7 panel (640x480) to the approved design, in Modernized:
+- steel gradient backdrop with the disc's radiation emblem watermark;
+- header "SAVE STATES" (Big Italic gold) with the F7 label and slot range;
+- three slot cards: 104x78 thumbnail, "SLOT NN - <level name>" (Medium Italic
+  gold, blue when selected), save time and "LEVEL N <era>" in System 8x8;
+- a prompt bar with the disc's button sprites.
+The font pack gained five panel sets (8 in all), and the builder now also
+writes `ttk-ui.pack` (TTKUI1: Up/Down, Cross, Square, Circle, Triangle and the
+radiation emblem from the HUD sprite table). The level comes from a `.ttk`
+sidecar written beside the slot (`level N`) when a save succeeds, while guest
+RAM still holds the saved state; older slots show the number and time only.
+Framework: `psx_savestate_menu_set_panel_renderer()` (the generic panel stays
+the fallback) and a `ttk_savestate_saved()` call in the save notice; no header
+change; the patch is exported.
+Evidence (private Xvfb runs, private card copy):
+- Level 6: F7, Down, Shift+Enter saved slot 2 and wrote `level 6`; the panel
+  showed "SLOT 02 - FAMILY JEWELS", "LEVEL 6 MEDIEVAL", the new thumbnail and
+  the other slots unchanged.
+- From level 1, loading slot 2 through the panel reached level 6, in
+  Modernized and in Vanilla.
+- Vanilla shows the framework panel.
+- 115 Python tests OK (new UI sprite-pack test, 8-set font pack).
+- `ttk-font-test`, `ttk-inventory-test` and `ttk-controls-test` pass; the repo
+  check passes.
+
+## 2026-10-06 - D24A follow-up: half-scale text (user, 1080p)
+
+The user still found the console and cheat messages much bigger in the game
+than in the previews, and asked for half scale. They play at 1080p, where the
+overlay scale (drawable height / 480) is 2 and the 640-wide console stretched
+3x.
+- Messages and the fps/debug text now draw at half the overlay scale (whole
+  pixels, at least 1x), in both the OpenGL compositor (`gpu_gl_renderer.c`)
+  and the SDL path (`host_osd.c`).
+- The console canvas is now 1280x440 (was 640x220), so each font pixel takes
+  half the screen space and the console still covers the same top third.
+- The inventory switcher, crosshair, volume bar and the F7 panel are unchanged.
+Evidence: a private Xvfb run in a real 1920x1080 window shows the console lines
+at half their old height, with more history visible, and "GOD MODE: OFF" at
+1x (about 17 px). The picker's Preview size uses the new rules and defaults to
+1920x1080. The framework patch is exported.
+
+## 2026-10-06 - D26E fix: spawn from the real console
+
+The user always got "Spawn unavailable here". Typing in the console released the
+capture, and the spawn update required captured input on the next frame (the
+earlier tests used the debug-port console, which does not release it). The spawn
+now needs only a verified Modernized gameplay player and waits up to ~5 s. A
+private copy of the user's UI slot 4 spawned steroids through the real console.
+See [note 111](documentation/111-d26e-debug-spawn.md).
+
+## 2026-10-06 - D26E: landing height is the game's; camera-direction spawn; console history
+
+User: spawned items wedge half into the ground; also asked for Up to recall the
+last command and a `history` command.
+- The landing height is the game's own. Our spawn uses the original drop
+  (`+0x35 = 1`). On the user's slot 4 street, a spawned item and a pig cop's
+  natural ammo drop both rest at y -9276. The original fall overrides any start
+  height.
+- Spawns now go along the camera view instead of Duke's body facing.
+- Console: Up/Down recall typed commands and `history` lists them (64 kept).
+Evidence: private runs on a copy of the user's UI slot 4. Spawn through the
+real console, the kill-and-drop comparison, the W walk toward the item, and the
+Up recall and `history` output. See
+[note 111](documentation/111-d26e-debug-spawn.md).
+
+
+
+## 2026-10-06 - Session close: D24B and D26E accepted
+
+User: "im happy with all progress tonight. the document is superb and an amazing
+piece of research." D24B and D26E accepted. D24A keeps Needs playtest only for
+the fresh-clone test against the pushed commit. The research page is linked from
+`research/TTK-UI-and-Font-Research.html` (local). Next: the user designs the
+open mission-item, key and steroids icons.
 

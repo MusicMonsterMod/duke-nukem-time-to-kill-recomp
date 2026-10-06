@@ -13,6 +13,8 @@
 #include "near_clip.h"
 #include "pgxp.h"
 #include <algorithm>
+#include <atomic>
+#include <cctype>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
@@ -656,6 +658,7 @@ static bool presentation_ready() {
 #include "ledge_reach.inc"
 #include "widescreen.inc"
 #include "draw_distance.inc"
+#include "spawn.inc"
 static void face_view() {
     // Game yaw: +Z=0, +X=1024. Do not copy view pitch into the body's Euler angles.
     int heading=static_cast<int>(std::lround(view_yaw()*4096/tau)) & 4095;
@@ -797,6 +800,7 @@ static void hook_body(CPUState* cpu, uint32_t address) {
                 face_view();
             weapon_update_sp=sp;weapon_transition_boost=false;quick_takeoff_boost=false;
             cheats_update(cpu);
+            spawn_update(cpu);
             terrain_update(cpu);
             stance_request(cpu);
             swim_update(cpu,false);

@@ -42,10 +42,11 @@ static bool view_mode() {
     return mode && !std::strcmp(mode,"view");
 }
 static bool supported(unsigned weapon) {return view_weapon_supported(weapon);}
-// Flight owns a camera/input lease, never the ground movement lease. Reuse
-// its authenticated state for shots and beam completion without widening any
-// locomotion writes or admitting unrelated camera-only traversal states.
-static bool shot_ready() {return movement_ready() || jetpack_input_ready();}
+// Flight and the original swim states own a camera/input lease, never the
+// ground movement lease. Reuse their authenticated state for shots and beam
+// completion without widening any locomotion writes or admitting unrelated
+// camera-only traversal states.
+static bool shot_ready() {return movement_ready() || jetpack_input_ready() || swim_weapon_ready();}
 extern "C" uint8_t* g_psx_ram;
 extern "C" uint32_t g_dirty_ram_code_gen;
 static uint64_t aim_identity_calls, aim_identity_checks;

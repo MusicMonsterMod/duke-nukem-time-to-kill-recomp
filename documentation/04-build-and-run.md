@@ -282,6 +282,15 @@ Two hooks (`0x800114EC`, `0x8001160C`) were added to `game.local.toml` and
 regenerated (see the D14 note above). `DNTTK_WORLD_SUBDIVISION=1` (developer)
 keeps the original subdivision. See [note 98](98-d17n-world-subdivision.md).
 
+## Fire while swimming (D08O1)
+
+Two hooks (`0x800455BC`, the swim state handler, and `0x80055E80`, the next
+player-update step) were added to `game.local.toml` and regenerated (see the
+D14 note above). `build.py` currently stops on a stale `build-tools` CMake
+cache from the old workspace path; regenerate with `psxrecomp_cli.py
+generate` and build with `cmake --build --preset local-dev`. See
+[note 107](107-d08o1-swim-fire.md).
+
 ## Frame rate (D17)
 
 Profile schema 21 adds the Modernized `frame_rate` choice: `display`, `30`,

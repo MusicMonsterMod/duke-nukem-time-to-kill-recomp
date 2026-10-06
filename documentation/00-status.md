@@ -6,6 +6,35 @@
 
 
 
+## 2026-10-06 - D08O1 accepted; D08O2 queued
+
+User accepted fire while swimming ("mechanically, it does exactly what it's
+meant to"). Remaining issue, now Todo D08O2: the weapon points downwards while
+Duke swims and fires; make it point forward. D08Q4 scope extended to Duke3D's
+`dnkroz` (health to 100, unlimited jetpack, Atomic Health to 200). Committed
+and pushed.
+
+## 2026-10-06 - D08O1 fire while swimming (Needs playtest)
+
+Underwater the original tests fire before the swim thrust, so holding fire
+stopped Duke. Modernized now keeps him swimming while he fires (fire hidden
+from the swim handler only, restored right after; new hooks `0x800455bc`,
+`0x80055e80`, codegen hash unchanged). Swim shots use view aiming and the
+crosshair; weapon keys work in water, limited to the weapons the original
+allows there. Verified live in level 6 on private copies; Vanilla, ground and
+jetpack firing unchanged; suites pass. Next: the user's playtest at their
+location and a second level. Not committed. See
+[note 107](107-d08o1-swim-fire.md).
+
+## 2026-10-06 - Backlog: D08A4, D08S reopened, D08Q4, D08Z1, D11F; D08O1 started
+
+User requests: D08A4 EDuke32-style portable steroids (stored item, R to use);
+D08S reopened as the EDuke32 jetpack scheme (instant J on/off, midair, 61 s
+of fuel); D08Q4 `dnkroz` gives unlimited jetpack fuel; D11F first person while
+flying the jetpack; D08Z1 keep jump momentum when bumping a wall (Modernized
+option for the future menu). All Todo. D08O1 (fire while swimming) selected
+and In progress.
+
 ## 2026-10-06 - D23H accepted
 
 The user played with several saves and accepted D23H: presents recover after

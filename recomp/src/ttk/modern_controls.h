@@ -39,6 +39,9 @@ void swim_strafe_pads(uint16_t& left,uint16_t& right);
 /* Original underwater state (player+0x22c == 5): WASD / Space / Ctrl inject
    Square thrust along the host-steered body yaw/pitch; no D-pad (that is pitch). */
 bool swim_thrust_input_ready();
+/* D08O1: the original swim states (surface 4, underwater 5) under the swim
+   lease; weapon view aiming, shots and the crosshair apply there. */
+bool swim_weapon_ready();
 /* D08Q jetpack flight (original mode 10, anims 163-170): camera lease live,
    body faces the view, WASD -> original Up/Down + layout strafe pads. */
 bool jetpack_input_ready();

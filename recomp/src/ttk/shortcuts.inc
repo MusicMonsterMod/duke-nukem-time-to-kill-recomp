@@ -15,6 +15,16 @@ static bool usable_weapon(unsigned slot) {
     return (int16_t)psx_mod_read_half(player+0x2c6+4*actual)>0 ||
         (slot==12 && (int32_t)psx_mod_read_word(player+0x254)>0);
 }
+// D08O1: in the swim states the original only completes a switch to weapons
+// whose table flags carry 0x04 (3/4/5/6/7/12 and the 28 variant); it remaps
+// others (1/2 -> 3, 8-11 -> 7, 13 -> 12) or leaves 14 pending, so underwater
+// choices skip them.
+static bool underwater_weapon(unsigned slot) {
+    if(slot>14)return false;
+    unsigned actual=slot;
+    if(psx_mod_read_half(player+0x2c4+4*slot)&8)actual=slot==7?28:slot==8?29:slot==9?27:slot;
+    return psx_mod_read_byte(0x800c4590+44*actual)&4;
+}
 // Original callable item path, on an isolated CPU/stack, never an input/fire macro.
 static bool original_call(CPUState* source,uint32_t address,uint32_t a1,int32_t* result=nullptr) {
     uint32_t top=source->gpr[29];
@@ -156,7 +166,11 @@ static void select_weapon(CPUState* cpu) {
             if(f.commands[n]==jetpack || (f.commands[n]==item_use && selected_item==1)) {use_item(cpu,1);break;}
         return;
     }
-    if(!movement_ready() || (equipment!=0 && equipment!=2 && !remote) || f.held[original_aim] ||
+    // D08O1: the original swim states switch weapons through the same request
+    // (+0x3ba, flag 4) as the ground; there only weapon choices are taken,
+    // items and the quick kick keep their ground lease.
+    const bool swim_select=!movement_ready() && swim_weapon_ready();
+    if(!(movement_ready() || swim_select) || (equipment!=0 && equipment!=2 && !remote) || f.held[original_aim] ||
        f.held[fire] || f.held[interact] || (flags&0x2c5))return;
     // Stable original upper-body idle loops. Draw, attack and charged-throw
     // animations retain ownership (4e840 dispatch / 50344 completion tables).
@@ -164,22 +178,24 @@ static void select_weapon(CPUState* cpu) {
     unsigned cursor=equipped,requested=255;
     for(unsigned n=0;n<f.command_count && n<32;++n) {
         int action=f.commands[n];
+        if(swim_select && !(action>=weapon_group_1 && action<=weapon_group_0) &&
+           action!=weapon_previous && action!=weapon_next && action!=weapon_last) continue;
         if(action>=weapon_group_1 && action<=weapon_group_0) {
             unsigned group=action-weapon_group_1,begin=group_start[group],end=group_start[group+1];
             unsigned start=begin;
             for(unsigned i=begin;i<end;++i)if(weapon_order[i]==cursor)start=i+1==end?begin:i+1;
             for(unsigned j=0;j<end-begin;++j) {
                 unsigned candidate=weapon_order[begin+(start-begin+j)%(end-begin)];
-                if(usable_weapon(candidate)){requested=cursor=candidate;break;}
+                if(usable_weapon(candidate) && (!swim_select || underwater_weapon(candidate))){requested=cursor=candidate;break;}
             }
         } else if(action==weapon_previous || action==weapon_next) {
             unsigned start=0;for(unsigned i=0;i<15;++i)if(weapon_order[i]==cursor)start=i;
             for(unsigned j=1;j<=15;++j) {
                 unsigned candidate=weapon_order[(start+(action==weapon_next?j:15-j))%15];
-                if(usable_weapon(candidate)){requested=cursor=candidate;break;}
+                if(usable_weapon(candidate) && (!swim_select || underwater_weapon(candidate))){requested=cursor=candidate;break;}
             }
         } else if(action==weapon_last) {
-            if(usable_weapon(last_equipped))requested=cursor=last_equipped;
+            if(usable_weapon(last_equipped) && (!swim_select || underwater_weapon(last_equipped)))requested=cursor=last_equipped;
         } else if(action==item_previous || action==item_next) {
             constexpr unsigned items[]={5,1,2,3};unsigned start=0;
             for(unsigned i=0;i<4;++i)if(items[i]==selected_item)start=i;

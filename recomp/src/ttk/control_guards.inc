@@ -143,6 +143,13 @@ static const Guard guards[] = {
     {0x8004d1fc, 24, "786a06bfa8593e670548d620aa78d1bf4c3101dd08a2c096d9e8d85ee1a1d4d4"},
     {0x800148ec, 4, "9e4eae74f2e079bd1e918bd169f3c34f0c8a02b525743f5da03fcc9cdc99e810"},
     {0x80073ae8, 148, "ba01249a732b841f0fc021bb10978e71ca9096239f9b6f75efec72c4580224bc"},
+    // D08O1 fire while swimming: the swim state handler and its anim table
+    // (Cross tested before Square in idle 127 / thrust 128-130), the player
+    // update callbacks and the next step (80055e80) that restores the word.
+    {0x800455bc, 7216, "f6ace376b2a30e36ac2fe2ea8423c756707637e5c576b1f79d487e1ca1d448dd"},
+    {0x80013ed8, 48, "7784739458d476aae570170c14eed8ea8334de985f111947c34f2e53a5fbbeb4"},
+    {0x800c2754, 16, "d6789d8973ece682e4712a86c894b3a4acc1acdb3c73fa2a95a92e8e3096e70e"},
+    {0x80055e80, 1364, "994868d98769dc710f6c742ec402bb372502dbcfb887c055ee30336f80f48bf6"},
 };
 // Authenticated level overlays (D22A, D22B). Every LEVELxx.OVR loads at
 // 0x800ca968 and starts with its level tag word; the tag picks the one body

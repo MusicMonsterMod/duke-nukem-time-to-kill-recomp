@@ -47,6 +47,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08A1 | Visible EDuke32-style inventory cycling | Done | D04, D19A |
 | D08A2 | EDuke32 bottom-left inventory icon and green % | Done (revised: strip + green %) | D08A1, D19A |
 | D08A3 | Original TTK inventory icons for the switcher (replace Duke3D art) | Done | D08A2 |
+| D08A4 | EDuke32-style portable steroids: pick up, store in items, use with R | Todo | D08A1, D08A3, D22B |
 | D08B | Broader traversal and scripted-camera coverage | Done | D08 |
 | D08C | Directional jumps from standstill — accepted both input orders | Done | D08 |
 | D08D | Apartment light-switch secret convenience | Done | D08 |
@@ -61,7 +62,8 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08L | Inertial platform edge run-off | Done | D08 |
 | D08M | Modern underwater swimming controls (foundation) | Done | D08 |
 | D08O | Deep free-swim polish (strafe, Ctrl dive, mantle-only exit) | Done | D08M |
-| D08O1 | Fire weapons while swimming (Modernized, game-wide; medieval UI slot 2) | Todo | D07C, D08O, D22B |
+| D08O1 | Fire weapons while swimming (Modernized, game-wide; medieval UI slot 2) | Accepted | D07C, D08O, D22B |
+| D08O2 | Weapon points forward while swimming and firing in motion (animation) | Todo | D08O1 |
 | D08N | Duke3D-style scuba gear item | Cancelled (out of scope) | — |
 | D08P | Crystal-2 turret / scripted-camera control recovery | Done | D08 |
 | D08Q | Modern jetpack flight controls | Done | D08 |
@@ -69,7 +71,8 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08Q1 | Faster Modern jetpack Ctrl descent (underwater dive speed) | Done | D08Q |
 | D08Q2 | Jetpack unavailable after death, Continue and dnstuff (slot 10) | Done | D08Q, D08A1, D08G |
 | D08Q3 | Jetpack weapon aiming and missing crosshair | Done | D07C, D08Q, D08Q2, D08R |
-| D08S | Duke3D-style jetpack scheme (instant J on/off, midair) | Cancelled (may revisit) | D08R |
+| D08S | EDuke32-style jetpack scheme (instant J on/off, midair, 61 s fuel) | Todo (reopened 2026-10-06) | D08R, D08Q3 |
+| D08Q4 | Duke3D-style `dnkroz`: health to 100 and unlimited jetpack fuel | Todo | D08G, D08Q |
 | D08T | Pushable objects: modern grab/push/pull and climb (alley dumpster) | Done | D08 |
 | D08T1 | Separate push/pull from mantling: E always mantles, hold RMB to grab | Done | D08T, D04 |
 | D08T2 | Duke-symbol pushable blocks cannot be pushed with Modern controls (RMB grab, game-wide) | Accepted | D08T1, D22B |
@@ -81,6 +84,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08X | Hold-E airborne ledge grab and mantle (ladder-grab feel for ledges) | Done | D08, D08J, D08V |
 | D08Y | Gap jump dead band: jump-mantle level-geometry ledges (slot 5 gap) | Done | D08X |
 | D08Z | Optional manual modern jump (player-timed takeoff, air control) | Done | D08Y |
+| D08Z1 | Keep jump momentum when bumping a wall (EDuke32-style, menu-toggleable) | Todo | D08Z, D22B |
 | D08J1 | Hold-E run-up grab for overhead ladders (slot-6 ladder) | Done | D08J, D08X, D08U |
 | D09 | Modern controller support | Todo | D05, D06, D07 |
 | D10 | Third-person camera polish | Done | D08 |
@@ -95,6 +99,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D11C | Savestates can keep Duke's first-person head hidden (slot 12) | Done | D11 |
 | D11D | First-person eye height from Duke's real proportions, game-wide (LEVEL01 slot 8) | Accepted | D11, D22A |
 | D11E | First person while swimming (underwater eye view, game-wide) | Todo | D08O, D11, D22B |
+| D11F | First person while flying the jetpack (game-wide, all schemes) | Todo | D11, D08Q3, D22B |
 | D13 | Higher internal resolution and display scaling | Done | D02 |
 | D14 | Widescreen, FOV and visibility | Done | D03, D13 |
 | D15 | Optional geometry and texture precision | Accepted | D13 |
@@ -493,6 +498,31 @@ at readable size in the locked 50x60 cell with the green % and ARROW frame
 unchanged; the pack builder is reproducible from the disc; a missing pack still
 falls back cleanly; Vanilla unchanged. User confirms the look in play.
 
+### D08A4 - EDuke32-style portable steroids (pick up, store, use with R)
+
+**Todo. User request, 2026-10-06.** "Eduke style steroids, where you actually
+pick up the roids as an item, and it appears in our items list. it is invoked
+with the R key." In TTK steroids activate on pickup and there is no stored
+dose (D08A recorded that R had nothing to use; D08A3 extracted the steroids
+icon but kept it out of the switcher).
+
+**Scope (Modernized, optional rule change):** a steroids pickup is stored as an
+inventory item instead of activating; it appears in the D08A1 switcher with
+the original TTK steroids icon (D08A3) and its count; **R** (and selecting it
+in the switcher and using it) starts the original steroids effect and uses
+one dose. Research first: the original pickup handler and the steroids
+effect/timer, whether TTK keeps any spare inventory field a dose count can
+live in or the host must hold it (and how that survives savestates, memory
+card saves, death and Continue, and level changes), what happens on pickup
+while already full, and whether `dnhyper` should give a stored dose or
+activate. Because this changes an original rule, make it a Modernized setting
+for the future menu (D19); Vanilla keeps activate-on-pickup.
+
+**Acceptance:** in Modernized, picking up steroids in at least two levels
+stores a dose shown in the switcher; R activates the original effect and
+consumes it; R with none does nothing harmful; the dose persists through a
+save/load and a level change; Vanilla unchanged; the user confirms.
+
 ### D08B — Broader traversal and scripted-camera coverage
 
 **Done on user acceptance (2026-09-29).** User: "d08b can be marked as
@@ -862,7 +892,18 @@ unchanged. **All accepted 2026-09-28.**
 
 ### D08O1 - Fire weapons while swimming (Modernized, game-wide)
 
-**Todo. User request, 2026-10-05.** "Duke cannot shoot and swim at the same
+**Accepted (2026-10-06).** User: "i completely accept that this works!
+mechanically, it does exactly what it's meant to, but the only issue is the
+animation" - the weapon points downwards while Duke swims and fires; that is
+D08O2. Underwater the original tests fire before
+the swim thrust, so held fire stopped Duke (idle 127); Modernized now hides
+fire from the swim handler only while a swim direction is held, so he keeps
+swimming and the weapon keeps firing. Swim shots use view aiming and the
+crosshair; weapon keys work in water, limited to the weapons the original
+allows there. Vanilla unchanged. Level 6 verified live; the user's location
+and a second level remain. [Implementation and evidence](documentation/107-d08o1-swim-fire.md).
+
+User request, 2026-10-05: "Duke cannot shoot and swim at the same
 time so that needs to be addressed just like we did with the jet pack work."
 Reproduction: UI slot 2 (savestate file 01, SHA-256
 `756b0e158f744157fb4a4a3a4c9eca9aa357a905166a112c7a420ba4af7cfe59`), first
@@ -886,6 +927,31 @@ at least two levels, aimed at the view with the crosshair, in third person (and
 first person once D11E exists); entering/leaving water, holster and weapon
 switching stay clean; the jetpack and ground aiming are unchanged; Vanilla
 unchanged; the user confirms.
+
+### D08O2 - Weapon points forward while swimming and firing in motion
+
+**Todo. User request, 2026-10-06.** After accepting D08O1: "make the weapon
+point forward when in use when swimming and in motion, as it currently points
+downwards." While Duke swims (underwater thrust 128-130, and check the surface
+strokes 123-126) and fires, the firing upper-body animation plays over the
+stroke and the weapon points down; shots already go to the crosshair.
+
+**Scope (Modernized):** the weapon and arms point forward along the view (the
+crosshair) while swimming and firing in motion. Research first: how the swim
+stroke and the upper-body weapon track combine (upper anims 9/10 pistol,
+24-28 shotgun/rifle/crossbow, 29/33/34 Gatling, 39/41 pipe bomb), whether the
+D07/D08Q3 presentation hook (`0x80097a44`, upper-body aim direction) runs in
+the swim states and why it does not lift the arms there, the muzzle position
+measured in D08O1 (about 420 units lower during the stroke), and the body
+facing (the original thrust moves along body yaw/pitch, so Duke faces the
+swim direction, not the view). Prefer original animation data and the
+existing aim path over new art. Note 107 has the D08O1 evidence and lab.
+
+**Acceptance:** in Modernized, while swimming in each direction and firing
+each underwater weapon, the weapon visibly points toward the crosshair in
+third person; idle underwater firing, surface swimming, ground, jetpack and
+Vanilla unchanged; swim-and-fire mechanics from D08O1 unchanged; the user
+confirms.
 
 ### D08N — Duke3D-style scuba gear item
 
@@ -1120,36 +1186,71 @@ hover, WASD flight and Space unchanged.
 landing still ends in the original soft landing without extra damage; Classic
 and the other Modern inputs unchanged; user confirms the feel.
 
-### D08S - Duke3D-style jetpack scheme (instant J on/off, midair)
+### D08S - EDuke32-style jetpack (instant J on/off, 61-second fuel)
 
-**Cancelled 2026-09-29 (may revisit).** User: happy with the current Modern and
-Classic jetpack schemes (D08Q, D08Q1, D08R); no Duke3D scheme for now. Nothing was
-implemented. The scope below is kept in case it is reopened.
+**Todo. Reopened 2026-10-06 by user request** (cancelled 2026-09-29, may
+revisit). User: "eduke style jetpack, where you press J and immediately begin
+flying, and the jetpack fuel lasts for 61 seconds, matching that of eduke,
+pressing j again stops flying." Nothing implemented yet.
 
-**Original scope (2026-09-29).** User (2026-09-29): a third jetpack scheme that replicates
-Duke Nukem 3D. **J** starts flying immediately and pressing **J** again stops
-flying immediately - no graceful lift-off, landing or cut-out animation.
-It must also work **in midair** (while jumping or falling), which TTK does
-not allow: the original entry `8004aaf8` requires Square on the ground and
-rejects the airborne/landing states (anim 105/106 and the `+0x224 & 0x241`
-flags). Controls while flying: **Space** ascends, **Ctrl** descends,
-**WASD** moves relative to the view, mouse turns camera and Duke together.
-No input holds position (Duke3D hover).
+**Scope.** A third Modernized jetpack scheme, alongside Modern and Classic
+(D08Q, D08R), selectable by `--jetpack` and later the menu (D19). **J** starts
+flying immediately and pressing **J** again stops flying immediately, with no
+graceful lift-off, landing or cut-out animation. It must also work **in
+midair** (while jumping or falling), which TTK does not allow: the original
+entry `8004aaf8` requires Square on the ground and rejects the airborne and
+landing states (anim 105/106 and the `+0x224 & 0x241` flags). Controls while
+flying: **Space** ascends, **Ctrl** descends, **WASD** moves relative to the
+view, mouse turns camera and Duke together. No input holds position (Duke3D
+hover). D08Q3 view aiming and crosshair stay available.
 
-Research first: whether mode 10 can be entered directly from airborne
-modes with the original handler kept intact, or whether this scheme needs a
-host flight model that drives the root position and state flags itself;
-what the instant J-off should do (Duke3D drops straight into a fall);
-fuel drain rules (Duke3D drains while the pack is on); animation choice
-for instant take-off; collision with ceilings and water. Keep all writes
-gated on Modernized + the selected scheme; Vanilla and the other two
-schemes unchanged.
+**Fuel:** a full jetpack lasts **61 seconds** of flight, matching EDuke32,
+draining only while the pack is on (hovering included). Research how TTK's
+fuel `+0x35a` and drain `-= dt` (`8004ade0`) map to seconds, what a pickup
+grants, and how the HUD green % should read so 100% means 61 s in this scheme.
 
-**Acceptance:** with the Duke3D scheme selected, J toggles flight instantly
+Research first: whether mode 10 can be entered directly from airborne modes
+with the original handler kept intact, or whether this scheme needs a host
+flight model that drives the root position and state flags itself; what the
+instant J-off should do (Duke3D drops straight into a fall); animation choice
+for instant take-off; collision with ceilings and water. Keep all writes gated
+on Modernized + the selected scheme; Vanilla and the other two schemes
+unchanged. Related: D08Q4 (`dnkroz` unlimited fuel), D11F (first person).
+
+**Acceptance:** with the EDuke32 scheme selected, J toggles flight instantly
 on the ground and in midair; Space/Ctrl climb and descend at steady rates;
-WASD flies relative to the view; releasing input holds position; J off drops
-Duke into a normal fall with controls live; fuel-out behaves like J off;
-Modern, Classic and Vanilla unchanged.
+WASD flies relative to the view; releasing input holds position; a full pack
+gives 61 s of flight; J off drops Duke into a normal fall with controls live;
+fuel-out behaves like J off; Modern, Classic and Vanilla unchanged; the user
+confirms.
+
+### D08Q4 - Duke3D-style `dnkroz`: health to 100 and unlimited jetpack fuel
+
+**Todo. User request, 2026-10-06.** "dnkroz should also allow for unlimited
+jetpack, that's just the behavior in eduke also." While `dnkroz` /
+`dncornholio` god mode is on (D08G), jetpack fuel does not drain in every
+jetpack scheme; switching god mode off resumes normal drain from the current
+amount. `dnkroz` stays god mode; unlimited jetpack is an addition, not a
+replacement (user, 2026-10-06: "dnkroz is still god mode, but in duke3d it
+also gave unlimited jetpack"). User, 2026-10-06, on Duke3D's `dnkroz`:
+"health just goes to 100 and jetpack fuel stays on full too. duke can
+actually receive more health but only by taking an atomic health." So turning
+god mode on sets health to 100 (today's `dnkroz` does not restore health,
+GAME_MANUAL) and keeps jetpack fuel full; health above 100 comes only from
+TTK's equivalent of the Atomic Health pickup, up to the real maximum of 200
+(user, 2026-10-06: "in which case it reaches the real health max of 200");
+identify which original item plays that role and how TTK stores the cap. Check the Duke3D/EDuke32 source to confirm
+these details and match them. Lead: the original mode-10 drain is
+skipped when `800c3cc4` is set (note 57). The D08Q3 lab
+(`analysis/d08q3-jetpack-aim/transitions.py`) cleared `800c3cc4` to "pause the
+fuel cheat", so it is probably the original's own unlimited-fuel flag:
+confirm what sets it before adding a host override. Also cover the D08Q2 dnstuff/Continue paths.
+
+**Acceptance:** turning god mode on sets health to 100 and fills the jetpack;
+with god mode on, flight in each scheme lasts indefinitely and the HUD % does
+not fall; health goes above 100 only through the Atomic Health equivalent,
+up to 200; with it off, fuel drains as before; no change without
+the cheat; Vanilla unchanged unless the cheats already apply there.
 
 ### D08K — True crouch walking and animation feasibility
 
@@ -1591,6 +1692,32 @@ leaves on the press, has bounded air control, and the slot-5 gap and other
 measured gaps remain clearable with reasonable timing. No double jumps,
 no wall clipping. Vanilla is unchanged.
 
+### D08Z1 - Keep jump momentum when bumping a wall (EDuke32-style air control)
+
+**Todo. User request, 2026-10-06.** "i dont want duke to lose his motion when
+you bump into a wall when jumping, i want that behavior to be more like eduke
+also, duke should be able to jump into a wall without consequence." Today a
+jump that touches a wall cancels Duke's travel (wall-touch cancel and the 107
+bump seen during D08Y/D08Z), so he drops and loses the jump.
+
+**Scope (Modernized, optional):** in the air, wall contact only removes the
+velocity component into the wall; Duke slides along it and keeps his height,
+arc and the remaining horizontal motion, with no bump/stagger animation and no
+lost control, as in EDuke32. Research first: where the original airborne
+handlers detect wall contact and zero or reverse velocity, which animations it
+triggers (107 and others), how this interacts with the D08X/D08Y ledge grab
+and jump-mantle (a wall with a reachable ledge must still be grabbable), with
+D08Z manual jump air control, and with ceilings and steep slopes. Make it a
+Modernized setting, on by default unless the user decides otherwise, so it can
+be exposed in the future menu (D19); off restores current behavior.
+
+**Game-wide:** the shared airborne collision path, every level.
+
+**Acceptance:** with the option on, standing and running jumps into straight
+and angled walls keep their arc and slide along the wall in at least two
+levels; ledge grabs and jump-mantles still work; ground wall bumps, swimming,
+jetpack and Vanilla unchanged; option off matches today; the user confirms.
+
 ### D08J1 - Hold-E run-up grab for overhead ladders (slot 6)
 
 **Done (2026-10-01, user-accepted: "genuinely working solidly").** User: the ladder at save slot 6 is awkward to
@@ -1815,6 +1942,27 @@ mantle-only exit), or document why a state must stay in the orbit.
 **Acceptance:** first person stays active through entering, swimming, diving,
 surfacing and leaving the water in at least two different levels; third person
 and Vanilla unchanged; user confirms it reads well.
+
+### D11F - First person while flying the jetpack (game-wide)
+
+**Todo. User request, 2026-10-06.** "add another job in for first person
+jetpack." Today jetpack flight (mode 10) is unsupported by `first_person.inc`,
+so a first-person player is switched back to the third-person orbit while
+flying (GAME_MANUAL: "Swimming and jetpack flight switch back to third").
+
+Give jetpack flight a first-person eye view for every jetpack scheme (Modern,
+Classic, and the EDuke32 scheme from D08S once it exists): eye anchor through
+take-off, hover bob, flight lean and landing; weapon/hands presentation and
+the D08Q3 view aiming and crosshair in first person; ceilings and near-wall
+clipping (D11B); clean hand-off at J on/off, fuel-out and death. Document any
+state that must stay in the orbit.
+
+**Game-wide:** the shared jetpack/first-person system, not one level.
+
+**Acceptance:** first person stays active through take-off, flight, hover,
+firing and landing in at least two levels with each jetpack scheme; third
+person, ground first person and Vanilla unchanged; the user confirms it reads
+well.
 
 ### D12 — First-person weapons and state polish
 
@@ -7385,3 +7533,53 @@ PASS. No executable change. New jobs: D23G (finish the fast path, all-in-one)
 and D17S (auto frame-rate default with a cap). Documentation, commit and push
 not yet authorized.
 
+## 2026-10-06 - D08O1 fire while swimming, Needs playtest
+
+User clarification: "its when swimming underwater", "you cannot be in motion
+while swimming and shooting", "you can shoot while still in water".
+Reproduced in level 6 FAMILY JEWELS (the UI slot 2 moat in OBEY OR DIE is not
+swimmable water): W 2892 units in 90 frames, any swim direction with fire
+held 0 units, anim 127. Cause: the original underwater handlers (`800455bc`,
+idle 127 / thrust 128-130) test fire before the Square thrust.
+
+Implementation (Modernized only): entry hooks `0x800455bc` and `0x80055e80`
+(regenerated); the Cross word's bit 0 is hidden from the swim handler while
+fire, a weapon and a swim direction are held, and restored at the next
+player-update step, animation start or camera update. `swim_weapon_ready()`
+joins weapon view aiming, shots, beam completion and the reticle. Weapon
+selection runs from the swim handler and, in water, offers only the weapons
+whose original record has flag `0x04` (Crossbow, Desert Eagle, Combat
+Shotgun, Buffalo Rifle, Gatling/Laser Gatling, Pipe Bomb); the original
+remaps or stalls the others. Guards added for the handler, its table, the
+callback table and `80055e80`. Codegen hash unchanged; savestates load.
+
+Evidence (private lab, Xvfb, private copies; player files unchanged):
+underwater W/A/Ctrl/Space + fire swim 1135-2826 units with 9-10 adapted
+shots; six allowed weapons swim and fire; underwater weapon keys/wheel select
+only allowed weapons; Ctrl + fire dives, Space + fire surfaces; ground and
+jetpack firing unchanged; Vanilla still stops to shoot. Native aim (new swim
+case), controls, input, near, inventory and font suites and 112 Python tests
+pass. Build `711a313d983f78b1929431f68a0443fcf0f5a70fb3e2a424444d9d5515e12eb7`.
+[Note 107](documentation/107-d08o1-swim-fire.md).
+
+**Limits.** One level driven live (level 12 not reached by script); Duke's
+body faces the swim direction while firing (shots follow the view); first
+person in water is D11E; holstered fire does not draw in water (original).
+Needs the user's playtest at their location and a second level. Not committed.
+
+## 2026-10-06 - Backlog: D08A4, D08S reopened, D08Q4, D08Z1, D11F
+
+User requests recorded as Todo: D08A4 EDuke32-style portable steroids (stored
+item, R), D08S reopened as the EDuke32 jetpack (instant J on/off, midair, 61 s
+of fuel), D08Q4 `dnkroz` unlimited jetpack fuel, D11F first person while
+flying the jetpack, D08Z1 keep jump momentum when bumping a wall (Modernized
+option for the future menu).
+
+## 2026-10-06 - D08O1 accepted; D08O2 queued
+
+User: "i completely accept that this works! mechanically, it does exactly what
+it's meant to, but the only issue is the animation". D08O1 Accepted. New Todo
+D08O2: the weapon points downwards while swimming and firing in motion; make
+it point forward. D08Q4 now records Duke3D's `dnkroz`: god mode, health to
+100, unlimited jetpack fuel, and only Atomic Health raising health to the real
+maximum of 200. Committed and pushed at the user's request.

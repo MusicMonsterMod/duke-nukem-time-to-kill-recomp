@@ -517,6 +517,48 @@ static void swim_steer_underwater(const InputFrame& f) {
     psx_mod_write_half(player+0x26,(int16_t)body_pitch);
 }
 
+// D08O1 - fire while swimming underwater. The original state-5 handlers
+// (800455bc via table 80013ed8: idle 127 at 8004653c, thrust 128-130 at
+// 80046994) test the Cross action word before Square: with a weapon out, held
+// fire keeps Duke in, or returns him to, idle 127, so he stops to shoot. While
+// the player fires and holds a swim direction, bit 0 of that word (this tick)
+// is hidden from the swim handler only - its entry, called from 8004b594 - and
+// put back at the next player-update step, 80055e80 (callback table 800c2754
+// [3]), which 8005a210 always calls straight after; 800493a4 and the camera
+// update also restore it if that step does not run (other hooks do not: the
+// handler calls 0x80076330 before its fire test). The weapon still sees
+// fire; the original thrust then carries Duke where swim.inc points him.
+static unsigned swim_fire_masks, swim_fire_restores;
+static uint32_t swim_fire_word;
+static uint32_t swim_fire_value;
+static bool swim_fire_hidden;
+bool swim_weapon_ready() {
+    return swim_lease_ready() && (swim_native_underwater() || swim_native_surface());
+}
+static void swim_fire_restore(uint32_t address=0) {
+    if(!swim_fire_hidden)return;
+    swim_fire_hidden=false;
+    if(swim_trace())std::fprintf(stderr,"ttk-swim-fire restore at %08x word=%08x anim=%u\n",address,psx_mod_read_word(swim_fire_word),psx_mod_read_half(player+0x60));
+    // Only undo our own write; a newer pad sample stays as the original made it.
+    if(psx_mod_read_word(swim_fire_word)==(swim_fire_value&~1u))psx_mod_write_word(swim_fire_word,swim_fire_value);
+    ++swim_fire_restores;
+}
+static void swim_fire_hide(CPUState* cpu,uint32_t ra) {
+    swim_fire_restore(0x800455bc);
+    const auto& f=input_snapshot(Context::Gameplay);
+    if(cpu->gpr[4]!=player || ra!=0x8004b5bc || !f.held[fire] || f.held[holster])return;
+    if(!(f.move_x || f.move_y || f.held[jump] || f.held[crouch]))return;
+    if(psx_mod_read_byte(player+0x3b8)!=2 || !swim_thrust_input_ready())return;
+    const uint32_t word=psx_mod_read_word(0x800d1b50+4*(psx_mod_read_byte(player+0x233)&3u));
+    if(word<k_pad_words || word>=k_pad_words+4*k_pad_word_stride*4 || (word&3))return;
+    const uint32_t value=psx_mod_read_word(word);
+    if(!(value&1u))return;
+    psx_mod_write_word(word,value&~1u);
+    if(swim_trace())std::fprintf(stderr,"ttk-swim-fire hide %08x=%08x anim=%u square=%08x\n",word,value,psx_mod_read_half(player+0x60),psx_mod_read_word(psx_mod_read_word(0x800d1b88+4*(psx_mod_read_byte(player+0x233)&3u))));
+    swim_fire_word=word;swim_fire_value=value;swim_fire_hidden=true;
+    ++swim_fire_masks;
+}
+
 static void swim_update(CPUState* cpu,bool late) {
     const auto& f=input_snapshot(Context::Gameplay);
     // The assist runs at the ballistic hook (no swim lease in flight); drop it

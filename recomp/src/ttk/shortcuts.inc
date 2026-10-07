@@ -132,6 +132,13 @@ static void select_weapon(CPUState* cpu) {
     unsigned menu_item=psx_mod_read_half(0x800c3f94);
     bool changed=false;
     if(menu_item!=selected_item && usable_item(menu_item)) {selected_item=menu_item;changed=true;}
+    // D08A6: the HUD box reads this guest ID (high-refresh redraws run on a
+    // copy of guest memory, never host state), so keep it on the selection
+    // when the original menu left it on something else (a key, an unowned
+    // item), unless that item is mid-activation.
+    else if(menu_item!=selected_item && usable_item(selected_item) &&
+            !(menu_item>=1 && menu_item<=5 && (psx_mod_read_half(player+0x354+4*menu_item)&0x8000)))
+        remember_item(selected_item);
     // Pending original activation is still visible; depletion chooses the next
     // eligible gadget and leaves U harmless when the inventory is empty.
     unsigned selected_flags=selected_item<=5?psx_mod_read_half(player+0x354+4*selected_item):0;
@@ -173,6 +180,18 @@ static void select_weapon(CPUState* cpu) {
     // the normal upper-body holster/draw while the flight pose and handler
     // continue, so weapon choices are taken in flight too; other items and the
     // quick kick keep their ground lease.
+    // D08A6: [ / ] only move the selection ("hover"); Enter / U use it. Take
+    // them in every live gameplay state (flight, swimming, firing, weapon
+    // animations), so the strip and HUD box always follow the keys.
+    for(unsigned n=0;n<f.command_count && n<32;++n) {
+        const int action=f.commands[n];
+        if(action!=item_previous && action!=item_next) continue;
+        constexpr unsigned items[]={5,1,2,3};unsigned start=0;
+        for(unsigned i=0;i<4;++i)if(items[i]==selected_item)start=i;
+        for(unsigned j=1;j<=4;++j){unsigned next=items[(start+(action==item_next?j:4-j))%4];
+            if(usable_item(next)){remember_item(next);break;}}
+        inventory_feedback(true);
+    }
     const bool jet_select=jetpack_input_ready();
     if(jet_select) {
         for(unsigned n=0;n<f.command_count && n<32;++n)
@@ -210,11 +229,7 @@ static void select_weapon(CPUState* cpu) {
         } else if(action==weapon_last) {
             if(usable_weapon(last_equipped) && (!swim_select || underwater_weapon(last_equipped)))requested=cursor=last_equipped;
         } else if(action==item_previous || action==item_next) {
-            constexpr unsigned items[]={5,1,2,3};unsigned start=0;
-            for(unsigned i=0;i<4;++i)if(items[i]==selected_item)start=i;
-            for(unsigned j=1;j<=4;++j){unsigned next=items[(start+(action==item_next?j:4-j))%4];
-                if(usable_item(next)){remember_item(next);break;}}
-            inventory_feedback(true);
+            continue;  // taken above in every state
         } else if(action==quick_kick) {
             if(eye_kick)break;
             // 517a4 checks equipment/selected bytes with mask 00ff00ff; the

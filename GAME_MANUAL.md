@@ -973,6 +973,16 @@ Levels without mission items ignore **, / .**. Keyboard only for now. Vanilla is
 unchanged; the original L1/R1 sidesteps that comma/period used to send are
 unbound in Modernized (A/D strafe everywhere) and can be rebound.
 
+**Selected gadget on the HUD (D08A6).** In Modernized the gadget that **Enter**
+/ **U** will use always has its own box in the bottom right corner, just above
+the ammo box, in the status bar's own style: the gadget's icon (the health
+cross for the medkit) and its charge in the red HUD digits. Bright digits mean
+the gadget is on; dim digits mean it is selected but off. The medkit is always
+bright. The box changes as soon as you move to another gadget with **[ / ]**, even in flight or while firing; only **Enter** / **U** use it. If the jetpack is
+on while another gadget is selected, its box moves one row higher; the Bio Mask
+and goggles boxes show in their usual place left of the ammo box. With no
+gadget, there is no box. Vanilla is unchanged.
+
 Typed cheats stay silent until a completed result appears, horizontally centered
 at the top of the screen. Partial, invalid and cancelled entries display nothing.
 

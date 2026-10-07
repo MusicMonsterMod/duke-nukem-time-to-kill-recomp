@@ -49,7 +49,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08A3 | Original TTK inventory icons for the switcher (replace Duke3D art) | Done | D08A2 |
 | D08A4 | EDuke32-style portable steroids: pick up, store in items, use with R | Todo | D08A1, D08A3, D22B |
 | D08A5 | Mission item tracking: mission inventory on , / . (design E, revised) | Done | D08A1, D08A3, D24A |
-| D08A6 | Selected gadget shown on the HUD: original item slot (design A) | Todo | D08A1, D08A3 |
+| D08A6 | Selected gadget shown on the HUD: original item slot (design A) | Done | D08A1, D08A3 |
 | D08B | Broader traversal and scripted-camera coverage | Done | D08 |
 | D08C | Directional jumps from standstill — accepted both input orders | Done | D08 |
 | D08D | Apartment light-switch secret convenience | Done | D08 |
@@ -619,7 +619,14 @@ the 640x480 overlay space and scale like the switcher.
 - The user confirms the look in play.
 ### D08A6 - Selected gadget shown on the HUD (approved design A)
 
-**Todo. User request and pick, 2026-10-07.** "Enter has the capability of
+**Done on user acceptance (2026-10-07): "i fully accept!"** The selected gadget's box is at the
+original item slot over ammo, drawn by the status bar's own calls (lit when on,
+dim digits at colour 0x31 when off, medkit always lit); an unselected jetpack
+that is on moves one row up (20 rows, the original's step); Bio Mask / goggles
+keep their original place left of ammo (82,89) when not selected. See
+[note 115](documentation/115-d08a6-selected-gadget-hud.md).
+
+**User request and pick, 2026-10-07.** "Enter has the capability of
 using the currently selected inventory item, however the HUD does not show the
 user what the currently selected inventory item actually is ... say the user
 just presses enter without looking, its pot luck." The look must "truly belong
@@ -8623,3 +8630,71 @@ of \ and #".
 User, after playtesting the separate mission inventory: "i fully accept!".
 D08A5 is Done. Open for later: controller input for the gadget switcher and
 the mission inventory.
+
+## 2026-10-07 - D08A6 built: selected gadget on the HUD (Needs playtest)
+
+Design A is in the game (Modernized only). Details in
+[note 115](documentation/115-d08a6-selected-gadget-hud.md).
+
+- **Research:** status bar `0x8008ba30` draws each element from the layout
+  `0x800dd778` and state `0x800dd7b8`. The jetpack box is element 4 at
+  (169,69), 20 rows over ammo (box 16 + 4); Bio Mask / goggles are element 5 at
+  (82,89), left of ammo, sliding out of it. They are never on together (the
+  original switches the other off), so the original shows at most two gadget
+  boxes. The medkit has no HUD element. A box is `0x8008b98c` (number),
+  `0x8008b454` (red digits, flags 0x310, POLY_FT4 glyphs at colour 0x80) and
+  `0x8008b678` twice (icon, then box `0x800c44a4`).
+- **Build:** new `src/ttk/gadget_hud.inc`, called at the status bar entry after
+  the D14 shift. A selected gadget that is on is the original box (element 5
+  moved into the slot for Bio Mask / goggles); otherwise the box is drawn with
+  the original's own calls, and off gadgets get their glyph packets at colour
+  0x31 (38%). An unselected jetpack that is on moves one row up.
+  `widescreen.inc` now saves and restores the whole layout (x and y) for every
+  single-player status bar draw. No framework, codegen or profile change.
+- **Evidence:** private Xvfb runs (`recomp/analysis/d08a6-hud/`, local): all four
+  selections with dim / lit digits, cycling both ways, N / J / Enter on and
+  off, jetpack bumped up while medkit or Bio Mask is selected, savestate load,
+  level change, GL 4:3 and 16:9, Software 4:3, Vanilla with gadgets given (no
+  box). `ttk-inventory-test`, `ttk-input-test`, Python 120 OK.
+- **Limits:** death / Continue, in-play depletion and resize not run. Software at
+  16:9 cuts off the whole right HUD with or without this change (existing
+  D14 / Software issue). Medkit reads "100" with a health cross. No flash on
+  change. Unselected Bio Mask / goggles stay at their original place instead
+  of stacking. The user confirms the look in play.
+
+## 2026-10-07 - D08A6 playtest fix: box followed a stale selection at 120 fps
+
+User: "medkit was selected in the new box, but i selected jetpack from the
+inventory picker, and now both medkit and jetpack appear in the bottom right";
+"just by hovering over the item, you should be making it hot. enter is what
+actually uses it."
+
+- **Cause (reproduced):** with the user's profile (first person, 120 fps) the
+  in-between images are redrawn by D17 worker processes that replay the frame
+  on a copy of guest memory, status bar included. The box read the host
+  selection, which is stale in a worker (the medkit), so replayed images
+  showed the old selection while live images showed the new one. 60 fps has no
+  replays, which is why the first tests passed. Intermittent: two of four runs.
+- **Fix:** the box reads the selection from guest memory, the original menu's
+  remembered ID `0x800c3f94` (already written by `[` / `]`); `select_weapon`
+  now also puts that ID back on the selection when the original menu left it
+  on a key or an unowned item (unless that item is mid-activation).
+- **Hover everywhere:** `[` / `]` now move the selection in every live
+  gameplay state (jetpack flight, swimming, firing, weapon animations);
+  before, they were ignored there. Only Enter / U keep the use restrictions.
+- **In place:** when the selected jetpack switches on, its original slide up
+  out of the ammo box is skipped (slide offset set to its resting 0), so the
+  lit box replaces the dim one.
+- **Evidence:** private Xvfb runs from a copy of the user's savestate slot 3
+  with the user's settings (first person, 120 fps, 150% CPU, 16:9): `dnstuff`,
+  M, `]`, Enter, three runs, four captures per step: the box is the medkit,
+  then the dim jetpack, then the lit jetpack in every capture; in flight `[`
+  moves to the medkit (jetpack box one row up, fuel counting down). 60 fps
+  third person the same. Native tests and Python 120 OK.
+
+## 2026-10-07 - D08A6 accepted
+
+User, after playtesting the fix: "that's absolutely superb. great and amazing
+quality work! i fully accept." D08A6 is Done. Open for later: the medkit's
+number and a flash on change (left open in the spec), Software 16:9 right HUD
+cut (existing D14 issue).

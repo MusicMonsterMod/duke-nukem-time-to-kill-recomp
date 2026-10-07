@@ -55,33 +55,34 @@ bool widescreen_near_clip_live() {
 // D14 HUD anchoring. The status bar layout 0x800dd778 holds (x,y) pairs
 // relative to the screen centre (two per element, one per player slot), built
 // once at level start by 0x8008c7b0 from the 512x240 view rectangle: health
-// (-246,89), armour (-165,89), ammo (169,89), item (169,69) and so on. While the
-// status bar 0x8008ba30 draws, left elements move left and right elements
-// right by the widescreen margin so they sit in the wide corners; the
-// screen-mode call 0x8001fc44 that follows it restores the game's values, so
-// saves, menus and 4:3 never see the shift. One player only (split screen
-// keeps its own layout).
+// (-246,89), armour (-165,89), ammo (169,89), jetpack (169,69), Bio Mask /
+// goggles (82,89) and so on. While the status bar 0x8008ba30 draws, left
+// elements move left and right elements right by the widescreen margin so they
+// sit in the wide corners; the screen-mode call 0x8001fc44 that follows it
+// restores the game's values, so saves, menus and 4:3 never see the shift. One
+// player only (split screen keeps its own layout). D08A6 moves gadget boxes in
+// the same saved window (gadget_hud.inc), so the whole layout is saved.
 static constexpr uint32_t hud_layout=0x800dd778;
 static constexpr unsigned hud_pairs=16;
-static int16_t hud_saved[hud_pairs];
+static uint32_t hud_saved[hud_pairs];
 static bool hud_applied=false;
 static void widescreen_hud_restore() {
     if(!hud_applied) return;
-    for(unsigned i=0;i<hud_pairs;++i) psx_mod_write_half(hud_layout+4*i,(uint16_t)hud_saved[i]);
+    for(unsigned i=0;i<hud_pairs;++i) psx_mod_write_word(hud_layout+4*i,hud_saved[i]);
     hud_applied=false;
 }
 static void widescreen_hud_begin(uint32_t ra) {
     widescreen_hud_restore();
     if(ra!=0x80026590 || psx_mod_read_word(0x800c27bc)>=2) return;
+    for(unsigned i=0;i<hud_pairs;++i) hud_saved[i]=psx_mod_read_word(hud_layout+4*i);
+    hud_applied=true;
     const int32_t m=psx_mod_widescreen_x_margin();
     if(m<=0 || m>512) return;
     for(unsigned i=0;i<hud_pairs;++i) {
         const int16_t x=(int16_t)psx_mod_read_half(hud_layout+4*i);
-        hud_saved[i]=x;
         const int16_t y=(int16_t)psx_mod_read_half(hud_layout+4*i+2);
         if(!x && !y) continue;  // unused slot
         if(x<-32) psx_mod_write_half(hud_layout+4*i,(uint16_t)(int16_t)(x-m));
         else if(x>32) psx_mod_write_half(hud_layout+4*i,(uint16_t)(int16_t)(x+m));
     }
-    hud_applied=true;
 }

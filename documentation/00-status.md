@@ -1,5 +1,39 @@
 # Current status - 2026-10-04
 
+## 2026-10-07 - D08A6 accepted: selected gadget on the HUD
+
+- User: "i fully accept!" (Done). The gadget picked with `[` / `]` always has
+  its original-style box over ammo, lit when on, dim when off; it follows the
+  selection at every frame rate. [Note 115](115-d08a6-selected-gadget-hud.md).
+
+## 2026-10-07 - D08A6 playtest fix (Needs playtest)
+
+- User saw the medkit box stay after hovering the jetpack, with both shown.
+  Cause: at 120 fps the D17 worker redraws replay the status bar on a copy of
+  guest memory, where the host selection was stale. The box now reads the
+  original menu ID `0x800c3f94`, kept equal to the selection.
+- `[` / `]` now hover in every gameplay state (flight, swimming, firing); the
+  selected jetpack lights in place without sliding out of the ammo box.
+- Verified from a copy of the user's savestate with the user's settings,
+  three runs. [Note 115](115-d08a6-selected-gadget-hud.md).
+
+## 2026-10-07 - D08A6 built: selected gadget on the HUD (Needs playtest)
+
+- **What:** in Modernized the gadget chosen with `[` / `]` (the one Enter / U
+  uses) always has a box at the original item slot over ammo: the HUD's own
+  box, icon and red digits with its charge. Lit when on, dim digits when off,
+  medkit (health cross) always lit. An unselected jetpack that is on moves
+  one row up; Bio Mask / goggles keep their original place left of ammo.
+- **How:** the status bar's own calls, from its entry hook after the D14 shift
+  (`src/ttk/gadget_hud.inc`); dim digits are the original glyph packets at
+  colour 0x31. The whole HUD layout is now saved and restored each draw.
+- **Evidence:** private Xvfb runs: every selection, cycling, N / J / Enter,
+  stacking, savestate load, level change, GL 4:3 / 16:9, Software 4:3, Vanilla
+  unchanged; native tests and Python 120 OK.
+- **Open:** user look confirmation; death / Continue and resize not run;
+  Software 16:9 cuts the right HUD with or without this job (existing).
+  [Note 115](115-d08a6-selected-gadget-hud.md).
+
 
 
 

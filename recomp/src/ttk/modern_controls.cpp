@@ -657,6 +657,7 @@ static bool presentation_ready() {
 #include "ladder_top.inc"
 #include "ledge_reach.inc"
 #include "widescreen.inc"
+#include "gadget_hud.inc"
 #include "draw_distance.inc"
 #include "spawn.inc"
 static void face_view() {
@@ -998,6 +999,7 @@ static void hook_body(CPUState* cpu, uint32_t address) {
         first_person_follow(cpu,ra,sp);
     } else if (address==0x8008ba30) {
         widescreen_hud_begin(ra);
+        gadget_hud(cpu);
     } else if (address==0x8001fc44) {
         widescreen_hud_restore();
     } else if (address==0x800b4d9c) {

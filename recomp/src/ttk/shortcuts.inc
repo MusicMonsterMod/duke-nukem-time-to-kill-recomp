@@ -26,7 +26,7 @@ static bool underwater_weapon(unsigned slot) {
     return psx_mod_read_byte(0x800c4590+44*actual)&4;
 }
 // Original callable item path, on an isolated CPU/stack, never an input/fire macro.
-static bool original_call(CPUState* source,uint32_t address,uint32_t a1,int32_t* result=nullptr) {
+static bool original_call(CPUState* source,uint32_t address,uint32_t a1,int32_t* result=nullptr,int64_t a2=-1) {
     uint32_t top=source->gpr[29];
     if(guest_busy || top<0x801f4000 || top>0x801ffff0 || g_precise_mode || g_ls_mode || g_psx_call_bail)return false;
     uint32_t saved[1024],scratch[256];
@@ -37,6 +37,7 @@ static bool original_call(CPUState* source,uint32_t address,uint32_t a1,int32_t*
     for(unsigned i=0;i<256;++i)scratch[i]=psx_mod_read_word(0x1f800000+4*i);
     CPUState cpu=*source;cpu.pc=0;cpu.gpr[29]=top-0x100;cpu.gpr[31]=0x800000fc;
     cpu.gpr[4]=player;cpu.gpr[5]=a1;
+    if(a2>=0)cpu.gpr[6]=(uint32_t)a2;
     guest_busy=true;psx_dispatch_call(&cpu,address,0x800000fc);guest_busy=false;
     // Restore only what the call changed: guest writes are the costly part
     // (the runtime traces every store), and most of the 5 KiB is untouched.

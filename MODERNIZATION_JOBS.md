@@ -4,7 +4,7 @@ This is the canonical job list for our **Duke Nukem: Time to Kill** PC project, 
 
 Invoke **`$continue-duke-recomp`** (Codex) or **`/continue-duke-recomp`** (Claude Code) to see the current jobs and choose one. You can also request a job directly: **`$continue-duke-recomp work on D01`** or **`/continue-duke-recomp work on D01`**. The skill reads this file rather than keeping a second backlog. It must not automatically start the next job.
 
-**Latest accepted jobs: D08O3 (E in water keeps the weapon) and D08O2A (natural swim-fire pose v2), 2026-10-07.** New Todo: D08J2 (pole/chain A/D turn direction), D08J3 (free camera while climbing) and D08U2 (enemy at a ladder top blocks the climb-off). Accepted executable `e75b50f156137fa2377e4643407b2efbd16f2e976fa4d697afcbceb228e2e554` (D08O3) is the current regression baseline. **D23E (western-town stutter) Accepted 2026-10-07**; **D08O2A Accepted** ([note 119](documentation/119-d08o2a-natural-swim-fire-pose.md)), **D08O3 Accepted** ([note 120](documentation/120-d08o3-e-in-water.md)); **D23F (fast CPU timing) Accepted 2026-10-05 and now the Modernized default**; executable `e0737a9f712aa5622d1b057ee5071e12c33cc9a18de8e6d40ee8eee31083f966` (includes D23E), [note 104](documentation/104-d23e-busy-scene-stutter.md), [note 105](documentation/105-d23f-fast-timing.md). Next suggested: D23G (finish the fast path) and D17S (auto frame-rate default).
+**Latest accepted jobs: D08U2 (climb off a ladder past an enemy), D08O3 (E in water keeps the weapon) and D08O2A (natural swim-fire pose v2), 2026-10-07.** Accepted executable `e8eebb809c3d5a4b29779f11f0c9db55efcd846dc5c71b39d5a59d43158eb08e` (D08U2) is the current regression baseline. Todo: D08J2 (pole/chain A/D turn direction) and D08J3 (free camera while climbing). Previous baseline `e75b50f156137fa2377e4643407b2efbd16f2e976fa4d697afcbceb228e2e554` (D08O3). **D23E (western-town stutter) Accepted 2026-10-07**; **D08O2A Accepted** ([note 119](documentation/119-d08o2a-natural-swim-fire-pose.md)), **D08O3 Accepted** ([note 120](documentation/120-d08o3-e-in-water.md)); **D23F (fast CPU timing) Accepted 2026-10-05 and now the Modernized default**; executable `e0737a9f712aa5622d1b057ee5071e12c33cc9a18de8e6d40ee8eee31083f966` (includes D23E), [note 104](documentation/104-d23e-busy-scene-stutter.md), [note 105](documentation/105-d23f-fast-timing.md). Next suggested: D23G (finish the fast path) and D17S (auto frame-rate default).
 
 ## The experience we are building
 
@@ -86,7 +86,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08T2 | Duke-symbol pushable blocks cannot be pushed with Modern controls (RMB grab, game-wide) | Accepted | D08T1, D22B |
 | D08U | Top-of-ladder mount: grab a ladder from a platform and climb down | Done | D08, D08J |
 | D08U1 | Ladder that cannot be descended with E (player slot 12), systemic ladder-top coverage | Accepted | D08U, D22B |
-| D08U2 | Enemy standing at a ladder top blocks the climb-off: Duke should push it back (player slot 5) | Todo | D08U, D08J |
+| D08U2 | Enemy standing at a ladder top blocks the climb-off: Duke should push it back (player slot 5) | Accepted | D08U, D08J |
 | D08T3 | Free manual push and pull while holding Grab (no fixed-size shoves) | Todo | D08T2 |
 | D08V | Sewer mantle/hang modern-control coverage (slot 12 area) | Done | D08, D08B |
 | D08W | Subway shallow-water sideways jumps (A/D + Space jumps forward) | Done | D08, D08C |
@@ -1914,7 +1914,29 @@ and record any ladder that it does not cover.
 
 ### D08U2 - Enemy at a ladder top blocks the climb-off
 
-**Todo. User request, 2026-10-07:** "when an enemy is stood at the top of a
+**Accepted (2026-10-07, user: "fully accepted. this is exactly what i wanted. well done!").**
+Executable
+`e8eebb809c3d5a4b29779f11f0c9db55efcd846dc5c71b39d5a59d43158eb08e`. Cause:
+original. Resting on the top rung with Up, the handler's exit test
+`0x8007d240` first casts a short segment forward (`0x8007cde8`) against
+Duke's cell objects; the slot-5 LARD (type 57), about 530 units past the
+ladder, is hit, so the exit 190 is refused for as long as it stands there.
+Fix (Modernized, game-wide, `ladder_top.inc` `ladder_actor_exit`): when only
+living characters (class 6 or 8) block that segment, the host runs the
+original exit test with them out of the way for the length of the call and,
+if it passes, starts the original exit exactly as the handler would. Walls
+and other objects still refuse; the enemy is not moved (pushing was marked
+optional by the user). Private runs: slot 5 in third and first person climbs
+off (190 -> standing, pistol redrawn); second alley ladder with an enemy
+respawned on its landing climbs off and lands 300 units short of it; D08U
+top mount and S descent, D08U1 slot-12 ladder unchanged; suites pass.
+[Note 121](documentation/121-d08u2-ladder-top-enemy.md).
+
+User clarification: "whether duke actually pushes
+the enemy back or not is not a hard factor in this job, but Duke should
+certainly be able to make the climb".
+
+**User request, 2026-10-07:** "when an enemy is stood at the top of a
 ladder, duke cannot climb onto the surface. Duke should push into the enemy
 forcing it back." In Modernized, climbing off the top of a ladder must not
 be blocked by an enemy standing on the landing: Duke pushes the enemy back

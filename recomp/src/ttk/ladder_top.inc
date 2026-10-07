@@ -199,6 +199,80 @@ static void ladder_end_update(CPUState* cpu) {
         ladder_last_rung={true,psx_mod_read_word(player+0x17c),(int32_t)y};
     }
 }
+// D08U2: an enemy standing at the top of a ladder. Resting on the top rung
+// (186/187) with Up, the original ladder handler (0x80043fd0..) asks
+// 0x8007d65c(player, 0, 1) whether the ladder ends here (1), then the exit
+// test 0x8007d240, and starts the top exit 190 only when it passes. The exit
+// test first casts a short segment forward from Duke at the ladder top
+// (0x8007cde8): any object in his cell list without type flag 8 that it meets
+// refuses the exit. A living character there (hostile AI class 6 or NPC class
+// 8, object +0x15) therefore leaves Duke on the top rung for as long as it
+// stands there. Modernized: when such characters are the only thing the
+// segment meets, the host runs the original exit test with them moved out of
+// the way for the length of the call and, if it passes, starts the original
+// exit 190 exactly as the handler does (+0x60 = 190, +0x68 = +0x6a = 0). Walls,
+// crates and other objects still refuse the exit; Vanilla is unchanged.
+static unsigned ladder_actor_exits,ladder_actor_checks;
+static bool ladder_actor(uint32_t object) {
+    if(object<0x80010000u || object>=0x801ffd00u || (object&3))return false;
+    const unsigned kind=psx_mod_read_byte(object+0x15);
+    if(kind!=6 && kind!=8)return false;
+    const uint32_t types=psx_mod_read_word(0x800d2660);
+    const unsigned type=psx_mod_read_half(object+0x2c);
+    if(type>=1024 || psx_mod_read_byte(types+28*type+6)!=kind)return false;
+    return !(psx_mod_read_word(object)&2) && (int16_t)psx_mod_read_half(object+0x32)>0;
+}
+static void ladder_actor_exit(CPUState* cpu) {
+    const unsigned animation=psx_mod_read_half(player+0x60);
+    if(mount.active || (animation!=186 && animation!=187) || !ladder_climb_early() ||
+       !input_modernized() || !input_snapshot(Context::Gameplay).active || !traversal_input_ready() ||
+       !gameplay_context() || !identity() || (psx_mod_read_word(player)&0x20002) ||
+       (psx_mod_read_word(player+0x224)&0x200241u) || !((~input_last_pad())&16) ||
+       psx_mod_read_half(player+0x180)!=0)return;
+    const uint32_t ladder=psx_mod_read_word(player+0x17c);
+    int16_t box[8];
+    if(!ladder_box(ladder,box))return;
+    // The characters in Duke's cell list, before anything is called.
+    uint32_t actors[16];unsigned count=0;
+    uint32_t node=psx_mod_read_word(player+0x220);
+    for(int guard=0;node && guard<64;++guard) {
+        if(node<0x80010000u || node>=0x80200000u || (node&3))return;
+        const uint32_t object=psx_mod_read_word(node+8);
+        node=psx_mod_read_word(node+4);
+        if(ladder_actor(object) && count<16)actors[count++]=object;
+    }
+    if(!count)return;
+    // 0x8007d65c and 0x8007d240 rewrite the touch fields; the handler calls
+    // them again in this update, so a refused attempt leaves them as they were.
+    const uint32_t touch=psx_mod_read_word(player+0x174);
+    const uint16_t touch_part=psx_mod_read_half(player+0x178);
+    auto restore_touch=[&]{psx_mod_write_word(player+0x174,touch);psx_mod_write_half(player+0x178,touch_part);};
+    int32_t top_reached=0;
+    if(!original_call(cpu,0x8007d65c,0,&top_reached,1) || top_reached!=1) {restore_touch();return;}
+    const uint32_t top=(uint32_t)((int32_t)psx_mod_read_word(ladder+8)+box[1]);
+    int32_t blocked=0;
+    if(!original_call(cpu,0x8007cde8,top,&blocked) || !blocked) {restore_touch();return;}
+    ++ladder_actor_checks;
+    // Far above the level for the length of the calls only.
+    int32_t heights[16];
+    for(unsigned i=0;i<count;++i) {
+        heights[i]=(int32_t)psx_mod_read_word(actors[i]+8);
+        psx_mod_write_word(actors[i]+8,(uint32_t)(heights[i]-0x40000));
+    }
+    int32_t still=1,exit=0;
+    const bool clear=original_call(cpu,0x8007cde8,top,&still) && !still;
+    const bool passed=clear && original_call(cpu,0x8007d240,0,&exit) && exit;
+    for(unsigned i=0;i<count;++i)psx_mod_write_word(actors[i]+8,(uint32_t)heights[i]);
+    if(!passed) {
+        // 0x8007d240 attaches the landing only when it passes.
+        if(!clear || psx_mod_read_word(player+0x17c)==ladder)restore_touch();
+        return;
+    }
+    psx_mod_write_half(player+0x60,190);psx_mod_write_half(player+0x68,0);psx_mod_write_half(player+0x6a,0);
+    ++ladder_actor_exits;
+    std::fprintf(stderr,"[TTK ladder] top exit past %u character(s) at the ladder top (first %08x type %u)\n",
+        count,actors[0],psx_mod_read_half(actors[0]+0x2c));
+}
 // Duke rests on the ladder while the host finishes the mount blend: no Up or
 // Down may start a step from the wrong height.
 bool ladder_mount_finishing() {
@@ -227,6 +301,7 @@ static void ladder_mount_write(double e) {
 // advances 156 and applies its own small root motion.
 static void ladder_top_update(CPUState* cpu) {
     ladder_end_update(cpu);
+    ladder_actor_exit(cpu);
     if(mount.active) {
         const unsigned animation=psx_mod_read_half(player+0x60);
         const bool attached=psx_mod_read_byte(player+0x22c)==3 && psx_mod_read_word(player+0x17c)==mount.object &&

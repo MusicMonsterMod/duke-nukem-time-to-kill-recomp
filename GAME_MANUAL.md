@@ -430,6 +430,14 @@ up with the ladder in the air if you were a little to one side. Without E
 nothing changes: Duke stops at the wall as before. Vanilla is unchanged; there
 you jump with E held.
 
+**Climbing off a ladder with an enemy at the top (Modernized, D08U2).**
+In the original game an enemy (or other character) standing near the top of a
+ladder keeps Duke on the top rung for as long as it stays there. In
+Modernized, keep holding **W** at the top and Duke climbs off onto the platform
+as usual. He stops short of the enemy rather than shoving it aside. Walls,
+crates and other solid objects at the top still stop him. Vanilla keeps the
+original behavior.
+
 Number keys now select familiar weapon groups when owned and usable:
 
 | Key | Weapon group (press again to cycle alternatives) |

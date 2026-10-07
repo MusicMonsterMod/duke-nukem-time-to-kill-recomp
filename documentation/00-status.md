@@ -1,5 +1,26 @@
 # Current status - 2026-10-04
 
+## 2026-10-07 - D08U2 accepted
+
+- User: "fully accepted. this is exactly what i wanted. well done!" Executable
+  `e8eebb809c3d5a4b29779f11f0c9db55efcd846dc5c71b39d5a59d43158eb08e` is the
+  regression baseline. [Note 121](121-d08u2-ladder-top-enemy.md).
+
+## 2026-10-07 - D08U2 built: climb off a ladder past an enemy (Needs playtest)
+
+- **What:** in Modernized, an enemy (or other character) standing near a
+  ladder top no longer keeps Duke on the top rung: holding W, he climbs off
+  with the original exit and stops short of the enemy. Walls and other
+  objects still block; the enemy is not pushed (user: optional). Vanilla
+  unchanged.
+- **Cause:** original. The exit test `0x8007d240` refuses when its forward
+  probe `0x8007cde8` meets any cell object, characters included.
+- **Evidence:** private copies of UI slots 5 and 12: slot 5 in both views,
+  the second alley ladder with an enemy respawned on its landing, D08U/D08U1
+  mounts and descents unchanged; suites pass. Executable
+  `e8eebb809c3d5a4b29779f11f0c9db55efcd846dc5c71b39d5a59d43158eb08e`.
+  [Note 121](121-d08u2-ladder-top-enemy.md).
+
 ## 2026-10-07 - D08U2 queued
 
 - Backlog: D08U2, an enemy standing at a ladder top stops Duke climbing off;

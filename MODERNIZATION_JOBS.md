@@ -49,7 +49,8 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08A3 | Original TTK inventory icons for the switcher (replace Duke3D art) | Done | D08A2 |
 | D08A4 | EDuke32-style portable steroids: pick up, store in items, use with R | Done (user-accepted) | D08A1, D08A3, D22B |
 | D08A8 | Steroids countdown in the steroids HUD box (pill icon), not the armor element | Done (user-accepted) | D08A4, D08A6 |
-| D08A9 | Picked-up inventory item becomes the switcher selection (Duke 3D feel) | Todo | D08A1, D08A4, D08A6 |
+| D08A9 | Picked-up inventory item becomes the switcher selection (Duke 3D feel) | Done (user-accepted) | D08A1, D08A4, D08A6 |
+| D08A10 | Experimental: steroids heartbeat sound loop while they run (226 bpm, Duke 3D feel; may be reverted) | Todo | D08A4, D08A8 |
 | D08A5 | Mission item tracking: mission inventory on , / . (design E, revised) | Done | D08A1, D08A3, D24A |
 | D08A6 | Selected gadget shown on the HUD: original item slot (design A) | Done | D08A1, D08A3 |
 | D08A7 | Custom medkit gadget icon (switcher strip and HUD box) | Done | D08A6 |
@@ -643,7 +644,11 @@ natural (non-spawned) pickup while running were not exercised; with
 
 ### D08A9 - Picked-up inventory item becomes the switcher selection
 
-**Todo. User request, 2026-10-07** (on accepting D08A8): "when an inventory
+**Done (user-accepted 2026-10-08: "fully accepted, working beautifully").**
+Executable `c4feb970850e28eeaeaecad473926da3056f94057e80de881511230b738a46f6`
+is the regression baseline.
+
+**User request, 2026-10-07** (on accepting D08A8): "when an inventory
 item is picked up, that item should be the one selected in the switcher. i.e.
 you pick up biomask, then that should be the selected item. you pick up
 jetpack, that should be the selected item etc. that's how it worked in duke3d
@@ -670,6 +675,85 @@ switcher and the HUD box immediately, in at least two levels; a held steroids
 pickup selects steroids; mission items and keys leave the selection alone;
 Enter / U then uses the picked-up item; savestate, level change and Continue
 keep the selection consistent; Vanilla unchanged; the user confirms the feel.
+
+**Work log 2026-10-07 - built (Needs playtest).** Executable
+`c4feb970850e28eeaeaecad473926da3056f94057e80de881511230b738a46f6`.
+[Note 128](documentation/128-d08a9-pickup-selection.md).
+
+- Research: every gadget pickup goes through the dispatcher `0x80081a48`; the
+  jetpack, Bio Mask, goggles and medkit cases take the pickup only while the
+  amount is below capacity, then set bit 0 and the full amount (refills
+  included, as EDuke32's `P_AddInventory` sets `inven_icon` on refills). Only
+  multiplayer starts an activation there. Keys and mission items never touch
+  items 1-5; the `dninventory` grant `0x8003d738` bypasses the dispatcher.
+- Implementation: `recomp/src/ttk/pickup_select.inc`. Items 1-5 are compared
+  around the dispatcher call (entry, and its caller's next call `0x8001ca4c`
+  with ra `0x8007fe78`, both existing hooks); a gadget that became owned or
+  gained amount becomes the selection through `remember_item` (guest menu ID
+  `0x800c3f94`, so the D08A6 box and D17 replay workers follow). While any
+  gadget is mid-activation (`+0x8000`) it waits for the next item poll.
+  Savestate loads in between cancel it. No strip pop-up, no new hooks, no
+  codegen change.
+- Evidence: private Xvfb runs (`recomp/analysis/d08a9-pickup-select/`):
+  level 0 (60 fps) and level 6 (120 fps) - new jetpack/Bio Mask/goggles/medkit/
+  steroids each selected with their HUD box; refills of Bio Mask, medkit,
+  goggles and jetpack selected; full goggles/medkit stay on the ground with
+  the selection unchanged; keys leave it; `dninventory` leaves it; Enter after
+  a goggles / jetpack pickup switches it on; steroids picked up while running
+  refresh and select; a pickup during a (test-forced) activation waited and
+  applied when it cleared; savestate reload keeps the selection. Native
+  `ttk-controls-test` (new D08A9 group), `ttk-input-test`,
+  `ttk-inventory-test`, Python 131 OK, `level_overlay_guards.py --check`,
+  `check_repo.py`.
+- Limits: pickups were spawned (`spawn`, same types and original code), not
+  natural placements; death/Continue was not reached in the scripted runs
+  (writing health 0 did not kill Duke); Vanilla gating verified by code path
+  and counters only (`spawn` is Modernized-only); a real jetpack-transition
+  pickup was simulated with the pending bit.
+
+### D08A10 - Experimental: steroids heartbeat sound loop
+
+**Todo. Experimental; user request, 2026-10-08.** The user expects it to be
+simple but may not like the result, so it may be reverted: keep it small,
+isolated and easy to remove (or behind a profile option), and get the user's
+verdict before building on it.
+
+"In duke3d, when taking the steroids, a sound plays of duke swallowing the
+pills over and over for the duration of the steroid use. the rhythm is
+226bpm. ... we could use the sound that duke makes in ttk when you hit shift
+... it sounds good enough like a heartbeat. unless of course there is an
+actual heartbeat sound available like this."
+
+**Reference:** `research/screencaps/Video_2026-10-07_23-59-03.mp4` (local,
+Duke 3D, the latest video when the job was opened): listen for the repeating
+steroids sound and confirm the rhythm (user: 226 bpm, about 265 ms per beat).
+
+**Scope (Modernized, portable steroids only; Vanilla unchanged):**
+
+- While steroids run (`+0x364` bit 1, D08A4/D08A8), play a short sound at
+  Duke on a steady 226 bpm rhythm; stop at once when the effect ends
+  (timer out, damage cut `0x800a4154`, death, level change, Continue,
+  savestate load).
+- Sound source, in order of preference: a real heartbeat-like sound already in
+  the game's own sound banks, if one exists; otherwise the sound Duke makes
+  when Shift is pressed to run (the walk/run gait plant sound noted under
+  D27). Use the original's own sound call (`0x8006b73c`, as the D08A4 use
+  sound does) so no external audio is added. Identify the exact sound ID.
+- Time the beats on the game clock, not the host frame rate, so 60/120 fps and
+  the D17 replay workers do not change the rhythm or double the sound.
+- Easy to revert: one `.inc` and its hook-ups, optionally a `steroids_sound`
+  profile choice (on/off).
+
+**Research first:** list candidate sounds (sound bank IDs played by the Shift
+gait restart, heartbeat or pulse sounds in any level bank) and how the sound
+call picks a bank per level; whether a looping voice would starve Duke's
+voice lines or the music (D18B, D18C); the Duke 3D timing from the video.
+
+**Acceptance:** in Modernized, R starts the beat at about 226 bpm for the full
+steroids duration in at least two levels, at 60 and 120 fps; it stops when
+the effect ends or is cut, and on death, savestate load and level change;
+other sounds and voices are not cut off; Vanilla and `steroids` `original`
+unchanged; the user decides to keep, change or revert it.
 
 ### D08A5 - Mission item tracking in the item switcher (approved design E)
 

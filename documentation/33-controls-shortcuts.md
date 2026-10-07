@@ -78,6 +78,7 @@ item 4 active and its timer immediately on pickup. `80087da8` supplies the empty
 inventory label, and `800414a0` drains the active timer. (Superseded by D08A4,
 2026-10-07: the original's own held item, bit 0 with an amount, is what a portable
 pickup becomes, and R sets its running bit. See [note 127](127-d08a4-portable-steroids.md).) Regular health/armor/ammo pickups retain their rules.
+In Modernized a picked-up or topped-up gadget becomes the `[ / ]` selection (D08A9, [note 128](128-d08a9-pickup-selection.md)).
 Keys/cards/crystals remain contextual E actions. No scuba or HoloDuke
 equivalents; adding a scuba gadget is out of scope (D08N cancelled).
 Gadget shortcuts currently share the supported ground/crouch state lease; airborne

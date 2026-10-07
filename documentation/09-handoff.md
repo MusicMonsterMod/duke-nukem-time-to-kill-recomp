@@ -1,5 +1,32 @@
 # Next-session handoff
 
+## 2026-10-08 - D08A9 accepted; D08A10 queued (experimental)
+
+- User: "fully accepted, working beautifully." Executable
+  `c4feb970850e28eeaeaecad473926da3056f94057e80de881511230b738a46f6` is the
+  regression baseline. [Note 128](128-d08a9-pickup-selection.md).
+- New Todo D08A10 (experimental, may be reverted): while steroids run, a
+  heartbeat-like sound at 226 bpm as in Duke 3D, using a game sound (an
+  existing heartbeat if any, else Duke's Shift-run sound). Reference video
+  `research/screencaps/Video_2026-10-07_23-59-03.mp4`.
+
+## 2026-10-07 - D08A9 picked-up gadget becomes the selection (Needs playtest)
+
+- **What:** in Modernized, picking up a jetpack, Bio Mask, goggles, medkit or
+  steroids (or topping one up) makes it the `[ / ]` selection and the HUD box
+  at once, as in Duke 3D; Enter / U then use it. Keys, mission items, full
+  gadgets left on the ground and `dninventory` leave the selection alone.
+- **How:** `pickup_select.inc` compares items 1-5 around the original pickup
+  dispatcher (`0x80081a48` entry, `0x8001ca4c` ra `0x8007fe78`; existing
+  hooks) and selects through the guest menu ID `0x800c3f94`. Waits while a
+  gadget is mid-activation. No new hooks or codegen change.
+- **Evidence:** private Xvfb runs in levels 0 (60 fps) and 6 (120 fps), new
+  native D08A9 group, suites and Python 131 pass. Executable
+  `c4feb970850e28eeaeaecad473926da3056f94057e80de881511230b738a46f6`.
+  [Note 128](128-d08a9-pickup-selection.md).
+- **Not yet verified:** natural (non-spawned) pickups, death/Continue, the
+  user's feel.
+
 ## 2026-10-07 - D08A8 accepted; D08A9 queued
 
 - User: "you're better at this than i am, because the consideration to move it up a row when switching, and on steroids, was chef's kiss level excellence. this is phenomenally good ... i accept this as complete." Executable

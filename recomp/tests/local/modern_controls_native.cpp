@@ -2305,6 +2305,40 @@ int main(int argc,char** argv) {
         psx_mod_write_half(p+0x364,0);psx_mod_write_half(p+0x366,0);
         std::puts("PASS: D08A4 steroids pickup held at the original sound call; held leaves it, running refreshes; caller/sound/type/Vanilla fallbacks");
     }
+    {
+        // D08A9: a gadget the dispatcher grants (bit 0, full amount) or
+        // refills becomes the selection when its caller resumes (0x8001ca4c,
+        // ra 0x8007fe78); keys, full items and other callers leave it, and a
+        // gadget mid-activation makes it wait for the next item poll.
+        constexpr uint32_t box=0x801dae00;psx_mod_write_half(box+0x2c,560);
+        for(unsigned i=1;i<=5;++i){psx_mod_write_half(p+0x354+4*i,0);psx_mod_write_half(p+0x356+4*i,0);}
+        psx_mod_write_half(p+0x368,1);psx_mod_write_half(p+0x36a,100);psx_mod_write_half(0x800c3f94,5);
+        const uint16_t health=psx_mod_read_half(p+0x32);psx_mod_write_half(p+0x32,10000);
+        auto poll=[&]{psx_mod_write_word(p+0x224,0);call(0x80058120,p,0,0x80041c44,0x801ff000);};
+        poll();assert(psx_mod_read_half(0x800c3f94)==5);
+        auto pickup=[&](unsigned item,uint16_t amount,uint32_t ra=0x8007fe78,uint32_t caller=0x8007fe6c){
+            CPUState cpu{};cpu.gpr[4]=p;cpu.gpr[5]=box;cpu.gpr[29]=0x801fff00;cpu.gpr[31]=caller;
+            hooks().at(0x80081a48)(&cpu,0x80081a48);
+            if(item){psx_mod_write_half(p+0x354+4*item,psx_mod_read_half(p+0x354+4*item)|1);psx_mod_write_half(p+0x356+4*item,amount);}
+            CPUState after{};after.gpr[29]=0x801fff00;after.gpr[31]=ra;hooks().at(0x8001ca4c)(&after,0x8001ca4c);
+            return psx_mod_read_half(0x800c3f94);
+        };
+        assert(pickup(2,13500)==2);                       // new Bio Mask
+        assert(pickup(0,0)==2);                           // a key: nothing granted
+        assert(pickup(5,10000)==5);                       // medkit refill (100 -> full)
+        assert(pickup(2,13500)==5);                       // full Bio Mask: the original refuses it
+        assert(pickup(1,9000,0x800376b4)==5);             // other return: not a pickup
+        psx_mod_write_half(p+0x358,0);
+        assert(pickup(1,9000,0x8007fe78,0x8007fe68)==5);  // other caller
+        psx_mod_write_half(p+0x358,0);
+        psx_mod_write_half(p+0x35c,0x8001);               // Bio Mask mid-activation
+        assert(pickup(3,18000)==5);poll();assert(psx_mod_read_half(0x800c3f94)==5);
+        psx_mod_write_half(p+0x35c,1);poll();assert(psx_mod_read_half(0x800c3f94)==3);
+        ttk::modern=false;assert(pickup(1,9000)==3);ttk::modern=true;
+        for(unsigned i=1;i<=5;++i){psx_mod_write_half(p+0x354+4*i,0);psx_mod_write_half(p+0x356+4*i,0);}
+        psx_mod_write_half(p+0x32,health);
+        std::puts("PASS: D08A9 picked-up gadget selected (grant, refill), keys/full/other return/other caller/Vanilla keep it, waits for an activation");
+    }
     std::puts("PASS: bounded switch query, model-centre ray, reach/cone/parent/Vanilla fallbacks");
     std::puts("PASS: concealed pickup, exposed/other-room/Vanilla/actor/caller/code fallbacks; inventory preserved");
     std::puts("PASS: typed cheat grants/toggles, context guards, hostile/NPC separation, health restoration and scene ownership reset");

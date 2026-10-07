@@ -529,7 +529,7 @@ and **B** the Bio Mask through original use rules (TTK’s own gas mask — not 
 or boots). Wait for gadget equip/remove and
 weapon redraw to finish before another shortcut. **J** also switches the jetpack
 off in mid-flight (a controlled fall follows). Underwater air still equips automatically.
-**[ / ]** cycle eligible gadgets; **U** uses the selected gadget; **, / .** browse the level's mission items (see Mission items below). **R takes steroids** (see Portable steroids below). In third person, **Q kicks only while standing still with Mighty Boot already selected on 1**
+**[ / ]** cycle eligible gadgets; **U** uses the selected gadget. In Modernized, a gadget you pick up (jetpack, Bio Mask, goggles, medkit, steroids), or top up when it was not full, becomes the selected one at once, as in Duke 3D, so its HUD box shows and **Enter** / **U** use it; keys and mission items leave the selection alone. **, / .** browse the level's mission items (see Mission items below). **R takes steroids** (see Portable steroids below). In third person, **Q kicks only while standing still with Mighty Boot already selected on 1**
 (the original kick). Q never selects another weapon or presses fire. In first
 person Q is a quick kick with any weapon (see below).
 

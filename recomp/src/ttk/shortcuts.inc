@@ -10,6 +10,7 @@ static unsigned steroid_doses();
 static bool steroids_owned();
 static bool steroids_use(CPUState* cpu);
 static void steroids_poll();
+static void pickup_select_apply();
 static unsigned base_weapon(unsigned slot) {return slot==27?9:slot==28?7:slot==29?8:slot;}
 static bool usable_weapon(unsigned slot) {
     if(slot>14)return false;
@@ -147,6 +148,7 @@ static void select_weapon(CPUState* cpu) {
        !(psx_mod_read_word(player+0x224)&0x1000100c) &&
        psx_mod_read_half(player+0x84c)==0 && psx_mod_read_word(player+0x884)==1)
         psx_mod_write_half(player+0x358,jet&~0x8000u);
+    pickup_select_apply(); // D08A9: a pickup that waited for an activation
     unsigned menu_item=psx_mod_read_half(0x800c3f94);
     bool changed=false;
     steroids_poll();

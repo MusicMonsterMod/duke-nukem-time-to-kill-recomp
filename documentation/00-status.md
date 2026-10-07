@@ -1,5 +1,24 @@
 # Current status - 2026-10-04
 
+## 2026-10-07 - D08O2A accepted
+
+- User: "this is actually rock solid ... I'm happy with it and its 100%
+  playable." Known minor issue: one final shot at the end of a burst can
+  fire with the weapon pointing down (seen in the user's capture).
+
+## 2026-10-07 - D08O2A built: natural swim-fire pose v2 (Needs playtest)
+
+- **What:** in Modernized, swimming underwater while firing now raises only
+  Duke's arms and weapon toward the crosshair; the chest, head and legs keep
+  the swim stroke (v1 stood the whole upper body up). Vanilla unchanged.
+- **How:** new hook on the matrix composition `0x800b42ec` re-orients the
+  two shoulders to their floating-fire pose relative to the view, at either
+  model build; no aim bit or other game memory is written.
+- **Evidence:** private level 6 lab, six weapons x four directions, 120 fps:
+  gun hand near the floating-fire value, chest unchanged from plain
+  swimming; floating, surface, ground and Vanilla unchanged; suites pass.
+  [Note 119](119-d08o2a-natural-swim-fire-pose.md).
+
 ## 2026-10-07 - D08O2 accepted (v1); D08O2A queued
 
 - User: "it works and i accept this as a v1". The more natural pose (torso

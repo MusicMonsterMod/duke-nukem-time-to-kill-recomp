@@ -559,57 +559,93 @@ static void swim_fire_hide(CPUState* cpu,uint32_t ra) {
     ++swim_fire_masks;
 }
 
-// D08O2 - weapon points forward while swimming and firing. The player update
-// builds Duke's model with 0x80097c04 (call 0x80042748) only when +0x224 has
-// 0x100 or 0x200000 (test at 0x800426f4; otherwise 0x800987cc, which never
-// aims). That build aims joints through 0x80097a44: with 0x100 joint
-// [model+0x2d] (joint 1, which carries the arms) and then [model+0x34]
-// (joint 9, neck and head); with 0x200000 only the neck, which leaves the arms
-// on the stroke. Firing while floating (idle 127) sets 0x100; the thrust
-// handlers that D08O1 lets fire never do, so the arms follow the swim stroke
-// and point down. While underwater, firing (or finishing the shot's upper
-// animation) and neither bit is set, 0x100 is set at the entry of 0x800411b8,
-// the last call before that test (ra 0x80042634), and cleared at the neck's
-// aim call, the build's last; the existing presentation hook supplies the
-// view direction to both, as it does for firing while floating. 0x800411b8 only
-// notifies the objects Duke touches (+0x174 / +0x17c) and is skipped while
-// such a callback would run. Fallback clears: the swim handler, the next
-// update step, an animation start, the camera update and the next entry.
-static constexpr uint32_t k_swim_aim_bit=0x100;
-static unsigned swim_aims, swim_aim_restores, swim_aim_contacts;
+// D08O2 / D08O2A - weapon points toward the crosshair while swimming and
+// firing. Firing while floating (idle 127) sets +0x224 0x100, so the player
+// update builds Duke with 0x80097c04, which gives record 1 (the chest, parent
+// of both arms and the head) a world matrix facing the view through
+// 0x80097a44. The thrust handlers that D08O1 lets fire set no aim bit, so the
+// update uses the plain build 0x800987cc and the arms point down with the
+// stroke. v1 set 0x100 there, which stood the whole chest up to the view.
+// v2 leaves the build, the chest, the head and the legs on the original
+// stroke and changes only the shoulders (records 2 and 5). Duke is built by
+// 0x800987cc, or by 0x80097c04 without joint aims when only the +0x2b4 /
+// +0x2b8 / +0x358 bits pick it. At the shoulders' composition (0x800b42ec,
+// ra 0x8009899c with the record in s0, or ra 0x800980d0 with it in s1; a0 the
+// chest's world matrix P, a1 the shoulder's local L) L becomes P^T*A*L, where
+// A is the matrix 0x80097a44 builds from the view direction. The shoulder's
+// orientation is then A*L, the pose the arms take under the floating-fire
+// aim, while its position stays on the stroking chest; forearms and hands
+// follow through the original chain. Armed at the entry of 0x800411b8, the
+// last call before the build choice (ra 0x80042634), while Duke is
+// underwater, firing (or finishing the shot's upper animations) with a weapon
+// out and no original aim bit; no game memory is written for that. Disarmed
+// after the second shoulder or at the swim handler, the next update step, an
+// animation start, the camera update or the next entry.
+static unsigned swim_aims, swim_aim_restores, swim_arm_aims;
 static bool swim_aim_set;
+// Upper animation before the press; updates since release (-1: not aiming).
 static unsigned swim_aim_upper=0xffff;
+static int swim_aim_tail=-1;
+static constexpr int k_swim_aim_tail=90;
 static void swim_aim_restore() {
     if(!swim_aim_set)return;
     swim_aim_set=false;
-    psx_mod_write_word(player+0x224,psx_mod_read_word(player+0x224)&~k_swim_aim_bit);
     ++swim_aim_restores;
 }
-// 0x80097a44 entry: a0 is the scratchpad matrix of the joint being aimed.
-static void swim_aim_joint(CPUState* cpu) {
-    if(!swim_aim_set)return;
-    const uint32_t model=psx_mod_read_word(player+0x40);
-    if(model<0x80000000u || model>=0x80200000u ||
-       ((cpu->gpr[4]>>5)&31)==psx_mod_read_byte(model+0x34)) swim_aim_restore();
-}
-static bool swim_aim_contact(uint32_t object) {
-    return object>=0x80000000u && object<0x80200000u && (psx_mod_read_word(object)&0x20000);
+// 0x800b42ec entry; a shared matrix routine, so the first test must be cheap.
+static void swim_aim_arm(CPUState* cpu) {
+    if(!swim_aim_set || (cpu->gpr[31]!=0x8009899cu && cpu->gpr[31]!=0x800980d0u) || cpu->gpr[21]!=player)return;
+    const uint32_t model=psx_mod_read_word(player+0x40),record=cpu->gpr[cpu->gpr[31]==0x8009899cu?16:17];
+    const uint32_t parent=cpu->gpr[4],local=cpu->gpr[5];
+    if(model<0x80000000u || model>=0x80200000u || psx_mod_read_byte(model)!=19)return;
+    const uint32_t index=(record-(model+0x44))/0x28;
+    if(record<model+0x44 || (record-(model+0x44))%0x28 || (index!=2 && index!=5))return;
+    if(index==5)swim_aim_restore();
+    // Both shoulders hang from the chest: record 1 at depth 2, themselves at 3.
+    if(psx_mod_read_byte(model+0x44+0x28+2)!=2 || psx_mod_read_byte(record+2)!=3 ||
+       parent!=0x1f800040u || cpu->gpr[6]!=0x1f800060u || local<0x1f800000u || local>0x1f8003e0u)return;
+    double d[3],n=0;
+    for(int i=0;i<3;++i){d[i]=(int16_t)psx_mod_read_half(camera+12+2*i);n+=d[i]*d[i];}
+    double r[3]={d[2],0,-d[0]};
+    const double rn=std::sqrt(r[0]*r[0]+r[2]*r[2]);
+    if(n<1 || rn<1)return;
+    n=std::sqrt(n);
+    for(double& v:d)v/=n;
+    for(double& v:r)v/=rn;
+    const double u[3]={d[1]*r[2]-d[2]*r[1],d[2]*r[0]-d[0]*r[2],d[0]*r[1]-d[1]*r[0]};
+    // A's columns are r, u, d as 0x80097a44 builds them; P and L are row-major Q12.
+    double A[3][3],P[3][3],L[3][3],PA[3][3];
+    for(int i=0;i<3;++i) {
+        A[i][0]=r[i];A[i][1]=u[i];A[i][2]=d[i];
+        for(int j=0;j<3;++j) {
+            P[i][j]=(int16_t)psx_mod_read_half(parent+2*(3*i+j))/4096.0;
+            L[i][j]=(int16_t)psx_mod_read_half(local+2*(3*i+j))/4096.0;
+        }
+    }
+    for(int i=0;i<3;++i)for(int j=0;j<3;++j){PA[i][j]=0;for(int k=0;k<3;++k)PA[i][j]+=P[k][i]*A[k][j];}
+    for(int i=0;i<3;++i)for(int j=0;j<3;++j) {
+        double v=0;for(int k=0;k<3;++k)v+=PA[i][k]*L[k][j];
+        psx_mod_write_half(local+2*(3*i+j),(uint16_t)(int16_t)std::lround(std::clamp(v,-1.0,1.0)*4096));
+    }
+    ++swim_arm_aims;
 }
 static void swim_aim_begin(CPUState* cpu,uint32_t ra) {
     swim_aim_restore();
     if(cpu->gpr[4]!=player || ra!=0x80042634)return;
+    const unsigned upper=psx_mod_read_half(player+0x74);
     if(!swim_native_underwater() || !swim_weapon_ready() || psx_mod_read_byte(player+0x3b8)!=2 ||
-       !presentation_ready() || (psx_mod_read_word(player+0x224)&(0x200000|k_swim_aim_bit))) {
-        swim_aim_upper=0xffff;return;
+       !presentation_ready() || (psx_mod_read_word(player+0x224)&0x200100)) {
+        swim_aim_tail=-1;swim_aim_upper=upper;return;
     }
     const auto& f=input_snapshot(Context::Gameplay);
-    const unsigned upper=psx_mod_read_half(player+0x74);
-    // After release, keep aiming until the shot's upper animation changes.
-    if(f.held[fire] && !f.held[holster]) swim_aim_upper=upper;
-    else if(upper!=swim_aim_upper) {swim_aim_upper=0xffff;return;}
-    const uint32_t touch=psx_mod_read_word(player+0x174),stand=psx_mod_read_word(player+0x17c);
-    if(swim_aim_contact(touch) || (stand!=touch && swim_aim_contact(stand))) {++swim_aim_contacts;return;}
-    psx_mod_write_word(player+0x224,psx_mod_read_word(player+0x224)|k_swim_aim_bit);
+    // A shot plays raise, fire and lower upper animations (Desert Eagle 9, 10,
+    // 9) before the stroke's own (5) returns. After release, keep aiming until
+    // the upper animation is back to the one from before the press, so a
+    // single tap does not drop the arms during the lowering (2026-10-07).
+    if(f.held[fire] && !f.held[holster]) swim_aim_tail=0;
+    else if(swim_aim_tail<0 || upper==swim_aim_upper || ++swim_aim_tail>k_swim_aim_tail) {
+        swim_aim_tail=-1;swim_aim_upper=upper;return;
+    }
     swim_aim_set=true;
     ++swim_aims;
 }

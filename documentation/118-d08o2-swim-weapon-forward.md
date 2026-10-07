@@ -1,6 +1,6 @@
 # D08O2 - weapon points forward while swimming and firing
 
-2026-10-07. **Accepted as v1** (user: "it works and i accept this as a v1"); the more natural pose is D08O2A. User request (2026-10-06, after accepting
+2026-10-07. **Accepted as v1** (user: "it works and i accept this as a v1"); the more natural pose is D08O2A, which replaced this mechanism ([note 119](119-d08o2a-natural-swim-fire-pose.md)). User request (2026-10-06, after accepting
 D08O1): "make the weapon point forward when in use when swimming and in
 motion, as it currently points downwards."
 

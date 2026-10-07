@@ -4,7 +4,7 @@ This is the canonical job list for our **Duke Nukem: Time to Kill** PC project, 
 
 Invoke **`$continue-duke-recomp`** (Codex) or **`/continue-duke-recomp`** (Claude Code) to see the current jobs and choose one. You can also request a job directly: **`$continue-duke-recomp work on D01`** or **`/continue-duke-recomp work on D01`**. The skill reads this file rather than keeping a second backlog. It must not automatically start the next job.
 
-**Latest accepted jobs: D08O2 v1 (weapon forward while swimming and firing), D23E and D24A, 2026-10-07.** Accepted executable `0694b59dde72db57a536cdc3df4a20eff0866fdd0ca30dcad1da7d0f9ccfca4b` is the current regression baseline. **D23E (western-town stutter) Accepted 2026-10-07**; **D08O2A (natural swim-fire pose v2) queued**; **D23F (fast CPU timing) Accepted 2026-10-05 and now the Modernized default**; executable `e0737a9f712aa5622d1b057ee5071e12c33cc9a18de8e6d40ee8eee31083f966` (includes D23E), [note 104](documentation/104-d23e-busy-scene-stutter.md), [note 105](documentation/105-d23f-fast-timing.md). Next suggested: D23G (finish the fast path) and D17S (auto frame-rate default).
+**Latest accepted jobs: D08O2 v1 (weapon forward while swimming and firing), D23E and D24A, 2026-10-07.** Accepted executable `0694b59dde72db57a536cdc3df4a20eff0866fdd0ca30dcad1da7d0f9ccfca4b` is the current regression baseline. **D23E (western-town stutter) Accepted 2026-10-07**; **D08O2A (natural swim-fire pose v2) Accepted 2026-10-07** ([note 119](documentation/119-d08o2a-natural-swim-fire-pose.md)); **D23F (fast CPU timing) Accepted 2026-10-05 and now the Modernized default**; executable `e0737a9f712aa5622d1b057ee5071e12c33cc9a18de8e6d40ee8eee31083f966` (includes D23E), [note 104](documentation/104-d23e-busy-scene-stutter.md), [note 105](documentation/105-d23f-fast-timing.md). Next suggested: D23G (finish the fast path) and D17S (auto frame-rate default).
 
 ## The experience we are building
 
@@ -68,7 +68,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08O | Deep free-swim polish (strafe, Ctrl dive, mantle-only exit) | Done | D08M |
 | D08O1 | Fire weapons while swimming (Modernized, game-wide; medieval UI slot 2) | Accepted | D07C, D08O, D22B |
 | D08O2 | Weapon points forward while swimming and firing in motion (v1: upper body to the view) | Accepted | D08O1 |
-| D08O2A | Natural swim-fire pose v2: torso stays in the stroke, arms raised to fire and head looking up | Todo | D08O2 |
+| D08O2A | Natural swim-fire pose v2: torso stays in the stroke, arms raised to fire and head looking up | Accepted | D08O2 |
 | D08N | Duke3D-style scuba gear item | Cancelled (out of scope) | — |
 | D08P | Crystal-2 turret / scripted-camera control recovery | Done | D08 |
 | D08Q | Modern jetpack flight controls | Done | D08 |
@@ -1210,7 +1210,11 @@ confirms.
 
 ### D08O2A - Natural swim-fire pose v2 (arms raised, head up, torso in the stroke)
 
-**Todo. User request, 2026-10-07**, on accepting D08O2 v1: "i want v2 in the
+**Accepted (2026-10-07)** (user: "this is actually rock solid ... I'm happy with it and its 100% playable"; known minor issue: the last shot of a burst can still fire with the weapon pointing down) ([note 119](documentation/119-d08o2a-natural-swim-fire-pose.md)).
+Only the shoulders now take the floating-fire arm pose (aimed at the
+crosshair) while the chest, head and legs keep the original stroke; v1's
+chest turn is gone. The head stays original per the user ("his head is always
+facing in the right direction anyway"). **User request, 2026-10-07**, on accepting D08O2 v1: "i want v2 in the
 backlog though, which will be a more natural pose rather than his entire
 torso standing up, so it will involve moving the arms in the position as if
 firing up and his head looking up."
@@ -9028,3 +9032,46 @@ in note 117 is the reference for future custom pickups.
   standing up, so it will involve moving the arms in the position as if
   firing up and his head looking up." D08O2 Accepted; new Todo D08O2A.
 
+## 2026-10-07 - D08O2A natural swim-fire pose v2 (Needs playtest)
+
+- **Change (Modernized):** v1's chest aim (`+0x224 |= 0x100`) is replaced.
+  `0x800411b8` now only arms a host flag (no game memory written). A new
+  entry hook on the matrix composition `0x800b42ec`, at the plain build
+  `0x800987cc` (ra `0x8009899c`) or the aim build `0x80097c04` (ra
+  `0x800980d0`), rewrites the two shoulders' local rotation `L` to
+  `P^T*A*L` (`P` the stroking chest, `A` the `0x80097a44` look-at of the
+  view): the arms take exactly the floating-fire pose toward the crosshair
+  while staying attached to the chest. Chest, head and legs keep the stroke.
+  The head is left original after the user said it already looks ahead.
+  Guards for `0x800987cc` and `0x800b42ec`; codegen hash unchanged.
+- **Evidence:** private level 6 lab at 120 fps, six underwater weapons x
+  W/A/D/Ctrl: gun hand along the view near each weapon's floating-fire value
+  (Desert Eagle 228-254 vs 245; no fire 92), chest axis unchanged from
+  swimming without firing, two shoulders per build, swimming and adapted
+  shots continue. Floating, surface, ground fire and Vanilla unchanged.
+  Controls, aim, input, near and Python suites pass.
+- **Limits:** the chase camera cannot judge the pose from the side; possible
+  arm/head clipping at steep aim unverified; jetpack and holster not driven
+  under Xvfb (no path by construction); only level 6. Next: the user's
+  playtest. [Note 119](documentation/119-d08o2a-natural-swim-fire-pose.md).
+
+## 2026-10-07 - D08O2A single-shot fix (Needs playtest)
+
+- User: "ok this is excellent, but doing one single shot while swimming
+  forward will result in duke shooting downards. holding shoot then shows
+  him shooting forwards as expected" (testing from UI slot 2).
+- Cause: after release the arms stayed aimed only while the upper animation
+  seen at the press played; a tap moves on to the shot's lowering animation
+  (Desert Eagle 10 -> 9), which dropped the arms. Now they stay aimed until
+  the upper animation returns to the one from before the press (cap 90
+  updates). Lab tap traces for four weapons keep the hand forward through
+  the whole shot; held fire, Vanilla and suites unchanged.
+  [Note 119](documentation/119-d08o2a-natural-swim-fire-pose.md).
+
+## 2026-10-07 - D08O2A accepted
+
+- User, after watching their playtest capture: "this isnt a showstopper,
+  this is actually rock solid ... I'm happy with it and its 100% playable."
+  Known minor issue from the capture (about 0:16-0:17): when a burst ends,
+  one final shot can fire with the weapon pointing downwards. Not yet
+  investigated; the user asked for a commit first as a rollback point.

@@ -156,6 +156,9 @@ static const Guard guards[] = {
     // D08O2: the last call before the player update picks Duke's model build
     // (0x800411b8, contact notify) and that choice up to the build call.
     {0x800411b8, 236, "ecdb24257bebeddf082df00b952cab648dee2e09cadfddde8f8a8a00929fa4d5"},
+    // D08O2A: the plain build and the matrix composition it uses for the shoulders.
+    {0x800987cc, 672, "13e4e3dcca6b6f011db95d4825e6f968375a4b2341ea18fdd86a8cc676dbede5"},
+    {0x800b42ec, 352, "484fff1d2984fac9730786048ad50065c006672118c2d6b4698dfb787d7b155c"},
     {0x80042634, 308, "49f96d37c9a2d3b97d8ac57a6f3cd2e68fb38107f0996ee7c4bdd80f9bf93d70"},
 };
 // Authenticated level overlays (D22A, D22B). Every LEVELxx.OVR loads at

@@ -308,6 +308,13 @@ One hook (`0x800411B8`, the last call before the player update picks Duke's
 model build) was added to `game.local.toml` and regenerated the same way. See
 [note 118](118-d08o2-swim-weapon-forward.md).
 
+## Natural swim-fire pose (D08O2A)
+
+One hook (`0x800B42EC`, the matrix composition Duke's model builds use for
+each joint) was added to `game.local.toml` and regenerated the same way. It
+has its own lightweight callback because the routine is shared by every
+model. See [note 119](119-d08o2a-natural-swim-fire-pose.md).
+
 ## Frame rate (D17)
 
 Profile schema 21 adds the Modernized `frame_rate` choice: `display`, `30`,

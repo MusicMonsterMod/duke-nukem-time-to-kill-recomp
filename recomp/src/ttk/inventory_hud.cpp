@@ -14,7 +14,7 @@ constexpr int capacity=1024, max_height=160;
 uint32_t pixels[capacity*max_height];
 uint16_t flags[6],charge_capacity[6];int16_t amount[6];unsigned selected;
 uint64_t epoch,sequence,expires;
-constexpr unsigned order[]={5,1,2,3};
+constexpr unsigned order[]={5,4,1,2,3}; // D08A4: steroids after the medkit, as in EDuke32
 struct Sprite {int w,h;std::vector<uint32_t> rgba;};
 Sprite icons[6], cursor, digits[10], percent_glyph;
 bool icons_loaded, digits_loaded;

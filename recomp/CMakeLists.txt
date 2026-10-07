@@ -207,6 +207,7 @@ if(EXISTS "${TTK_DISC_IMAGE}" AND EXISTS "${TTK_DISC_EXE}")
             --png-dir "${CMAKE_CURRENT_BINARY_DIR}/ttk-inv-icons-review"
         DEPENDS "${TTK_DISC_IMAGE}" "${TTK_DISC_EXE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/local/build_ttk_inv_icons.py"
             "${CMAKE_CURRENT_SOURCE_DIR}/assets/ui/item-frame.png" "${CMAKE_CURRENT_SOURCE_DIR}/assets/ui/items/gadget-medkit.png"
+            "${CMAKE_CURRENT_SOURCE_DIR}/assets/ui/items/hud-steroids.png"
         VERBATIM)
     add_custom_target(ttk-inv-icon-assets DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/ttk-inv-icons.pack")
     add_dependencies(psx-runtime ttk-inv-icon-assets)

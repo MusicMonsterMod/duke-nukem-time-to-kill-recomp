@@ -45,6 +45,7 @@ def main(argv=None):
     p.add_argument('--cpu-timing', choices=profiles.CPU_TIMINGS, help='save Modernized CPU timing model: fast (default; gameplay uses far less host CPU at the same emulated speed) or accurate (full cycle model); Vanilla always uses accurate')
     p.add_argument('--cpu-overclock', type=int, choices=profiles.CPU_OVERCLOCKS, help='save Modernized emulated CPU speed in percent (default 150 keeps busy views at 30 fps; 100 = original; Vanilla always uses 100)')
     p.add_argument('--jump', choices=profiles.JUMP_STYLES, help='save Modernized jump style: assisted (original lip launch, fixed arc) or manual (leaves on the press, edge grace, air steering)')
+    p.add_argument('--steroids', choices=profiles.STEROIDS_MODES, help='save Modernized steroids: portable (default; a pickup is stored as one dose that R takes, EDuke32 style) or original (the effect starts on pickup); Vanilla always uses original')
     p.add_argument('--view-bob', choices=profiles.VIEW_BOBS, help='save Modernized first-person view bob while walking: off, subtle, on (default) or strong; standing still is steady at every setting')
     p.add_argument('--geometry-precision', choices=profiles.PRECISION_MODES, help='save Modernized mesh geometry: original (default) or corrected subpixel positions; OpenGL, next launch')
     p.add_argument('--texture-precision', choices=profiles.PRECISION_MODES, help='save Modernized mesh textures: original (default) or corrected perspective; OpenGL, next launch')
@@ -87,7 +88,7 @@ def main(argv=None):
             profile = settings['profiles']['modernized']
             profile['bindings'] = pc_input.rebind(profile['bindings'], a.bind)
             changed = True
-        if a.draw_distance is not None or a.geometry_precision is not None or a.texture_precision is not None or a.view_bob is not None or a.frame_rate is not None or a.jump is not None or a.cpu_overclock is not None or a.cpu_timing is not None or a.widescreen is not None or a.camera_distance is not None or a.shoulder is not None or a.view is not None or a.jetpack is not None or a.aim_assist is not None or a.red_dot is not None or a.crosshair is not None or a.weapon_aim is not None or a.camera is not None or a.mouse_sensitivity is not None or a.invert_y is not None:
+        if a.steroids is not None or a.draw_distance is not None or a.geometry_precision is not None or a.texture_precision is not None or a.view_bob is not None or a.frame_rate is not None or a.jump is not None or a.cpu_overclock is not None or a.cpu_timing is not None or a.widescreen is not None or a.camera_distance is not None or a.shoulder is not None or a.view is not None or a.jetpack is not None or a.aim_assist is not None or a.red_dot is not None or a.crosshair is not None or a.weapon_aim is not None or a.camera is not None or a.mouse_sensitivity is not None or a.invert_y is not None:
             controls = dict(settings['profiles']['modernized']['controls'])
             if a.aim_assist is not None: controls['aim_assist'] = a.aim_assist
             if a.jetpack is not None: controls['jetpack'] = a.jetpack
@@ -95,6 +96,7 @@ def main(argv=None):
             if a.cpu_overclock is not None: controls['cpu_overclock'] = a.cpu_overclock
             if a.cpu_timing is not None: controls['cpu_timing'] = a.cpu_timing
             if a.jump is not None: controls['jump'] = a.jump
+            if a.steroids is not None: controls['steroids'] = a.steroids
             if a.frame_rate is not None: controls['frame_rate'] = a.frame_rate
             if a.geometry_precision is not None: controls['geometry_precision'] = a.geometry_precision
             if a.draw_distance is not None: controls['draw_distance'] = a.draw_distance
@@ -197,6 +199,7 @@ def main(argv=None):
     env['PSX_CPU_OVERCLOCK'] = str(controls['cpu_overclock'] if modernized else 100)
     env['DNTTK_CPU_TIMING'] = controls['cpu_timing'] if modernized else 'accurate'
     env['DNTTK_JUMP'] = controls['jump'] if modernized else 'assisted'
+    env['DNTTK_STEROIDS'] = controls['steroids'] if modernized else 'original'
     # D17: presentation rate. Above/below 60 the runtime presents on its own
     # display deadlines; the guest keeps its original VBlank timing.
     env['DNTTK_FRAME_RATE'] = controls['frame_rate'] if modernized else '60'

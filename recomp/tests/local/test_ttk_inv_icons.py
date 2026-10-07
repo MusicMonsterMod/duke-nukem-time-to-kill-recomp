@@ -28,15 +28,19 @@ class InventoryIconBuilder(unittest.TestCase):
                 first = out.read_bytes() if _ == 0 else first
             self.assertEqual(out.read_bytes(), first)
             built = entries(first)
-            self.assertEqual([(k, i) for k, i, *_ in built], [(0, 1), (0, 2), (0, 3), (0, 5), (1, 0)])
-            for kind, item, w, h, _ in built[:4]:
+            self.assertEqual([(k, i) for k, i, *_ in built], [(0, 1), (0, 2), (0, 3), (0, 4), (0, 5), (1, 0)])
+            for kind, item, w, h, _ in built[:5]:
                 self.assertTrue(8 <= w <= 16 and 8 <= h <= 16, (item, w, h))
             # The frame is the project's own item-frame.png, pixel for pixel.
             sys.path.insert(0, str(ROOT / 'tools/local'))
             import build_ttk_inv_icons as builder
             w, h, rgba = builder.read_rgba_png(FRAME)
-            self.assertEqual((built[4][2], built[4][3]), (w, h))
-            self.assertEqual(built[4][4][10:], rgba)
+            self.assertEqual((built[5][2], built[5][3]), (w, h))
+            self.assertEqual(built[5][4][10:], rgba)
+            # D08A4: steroids (item 4) are the project's own hud-steroids.png, trimmed.
+            w, h, rgba = builder.read_rgba_png(ROOT / 'assets/ui/items/hud-steroids.png')
+            icon = builder.trim([[tuple(rgba[(y * w + x) * 4:(y * w + x) * 4 + 4]) for x in range(w)] for y in range(h)])
+            self.assertEqual(built[3][4][10:], b''.join(bytes(p) for r in icon for p in r))
             for name in ('jetpack', 'biomask', 'goggles', 'medkit', 'armor'):
                 self.assertTrue((Path(tmp) / f'{name}.png').exists())
 

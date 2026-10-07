@@ -13,7 +13,9 @@ Output: a TTKICO2 pack (item icons, kind 0) plus the selection frame (kind 1)
 from the project's own art, assets/ui/item-frame.png (D24A: it replaced the Duke
 Nukem 3D tile 20 frame), and review PNGs in a local-only directory. The medkit
 (item 5) is the project's own assets/ui/items/gadget-medkit.png (D08A7); the HUD
-health cross it used to borrow stays the health icon. The PNGs and the pack are
+health cross it used to borrow stays the health icon. Steroids (item 4, D08A4)
+are the project's own assets/ui/items/hud-steroids.png; the game has no steroids
+icon, and the armor cell first taken for one is extracted for review only. The PNGs and the pack are
 retail-derived and must stay out of the public repository.
 """
 import argparse, hashlib, json, struct, sys, zlib
@@ -33,10 +35,11 @@ RECORDS = {
     1: ('jetpack', 0x800c44b4),   # drawn while player+0x358 (jetpack) is on
     2: ('biomask', 0x800c44c4),   # player+0x360 branch, biomask
     3: ('goggles', 0x800c4504),   # player+0x360 branch, night-vision goggles
-    4: ('armor', 0x800c44f4),     # 0x8008be00 draws player+0x234 / 100 (armor) beside it
+    4: ('armor', 0x800c44f4),     # 0x8008be00 draws player+0x234 / 100 (armor) beside it; the pack uses --steroids
     5: ('medkit', 0x800c44e4),    # the HUD health cross (player+0x32), extracted for review; the pack uses --medkit
 }
-SWITCHER_ITEMS = (1, 2, 3, 5)
+SWITCHER_ITEMS = (1, 2, 3, 4, 5)
+OWN_ART = {4: ('steroids', 'steroids'), 5: ('medkit', 'medkit')}  # item -> (argument, name)
 
 
 def record(exe, address):
@@ -162,6 +165,8 @@ def main():
                     help='selection frame PNG (the project\'s own art)')
     ap.add_argument('--medkit', default=str(ROOT / 'assets/ui/items/gadget-medkit.png'),
                     help='medkit switcher icon (the project\'s own art, D08A7)')
+    ap.add_argument('--steroids', default=str(ROOT / 'assets/ui/items/hud-steroids.png'),
+                    help='steroids switcher icon (the project\'s own art, D08A4)')
     ap.add_argument('--output', default=str(ROOT / 'assets/ttk-inv-icons.pack'))
     ap.add_argument('--png-dir', default=str(ROOT / 'analysis/d08a3-ttk-icons/png'))
     args = ap.parse_args()
@@ -192,10 +197,12 @@ def main():
                                  'size': [rec['w'], rec['h']], 'clut_vram': [rec['clut_x'], rec['clut_y']],
                                  'fonts_raw_offset': ((rec['y'] - FONTS_ORIGIN[1]) * 64 + rec['x'] - FONTS_ORIGIN[0]) * 2,
                                  'icon_size': [len(icon[0]), len(icon)], 'in_pack': item in SWITCHER_ITEMS}
-        if item == 5:
-            w, h, art = read_rgba_png(args.medkit)
+        if item in OWN_ART:
+            option, own_name = OWN_ART[item]
+            path = Path(getattr(args, option))
+            w, h, art = read_rgba_png(path)
             icon = trim([[tuple(art[(y * w + x) * 4:(y * w + x) * 4 + 4]) for x in range(w)] for y in range(h)])
-            provenance[str(item)]['own_art'] = f'{Path(args.medkit).name} (sha256 {hashlib.sha256(Path(args.medkit).read_bytes()).hexdigest()})'
+            provenance[str(item)]['own_art'] = f'{own_name}: {path.name} (sha256 {hashlib.sha256(path.read_bytes()).hexdigest()})'
             provenance[str(item)]['icon_size'] = [len(icon[0]), len(icon)]
         if item in SWITCHER_ITEMS:
             body = struct.pack('<HHHHH', 0, item, 0, len(icon[0]), len(icon))

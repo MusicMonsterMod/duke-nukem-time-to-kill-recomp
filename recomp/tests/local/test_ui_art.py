@@ -25,10 +25,23 @@ class ProjectUiArt(unittest.TestCase):
     def test_medkit_hud_cell_matches_png(self):
         # D08A7: k_medkit_cell / k_medkit_clut are gadget-medkit-15col.png as a 4bpp
         # cell: index 0 transparent, then colours (PSX 15-bit) in raster order.
+        self.check_hud_cell('medkit', 'gadget-medkit-15col.png')
+
+    def test_steroids_hud_cell_matches_png(self):
+        # D08A4: the steroids box icon, reduced by tools/local/reduce_icon_15col.py.
+        self.check_hud_cell('steroids', 'hud-steroids-15col.png')
+
+    def test_steroids_reduction_is_reproducible(self):
+        sys.path.insert(0, str(ROOT / 'tools/local'))
+        from reduce_icon_15col import reduce
+        made = reduce(Image.open(UI / 'items/hud-steroids.png'))
+        self.assertEqual(list(made.getdata()), list(Image.open(UI / 'items/hud-steroids-15col.png').convert('RGBA').getdata()))
+
+    def check_hud_cell(self, name, png):
         source = (ROOT / 'src/ttk/gadget_hud.inc').read_text()
         def table(name):
             return [int(v, 16) for v in re.findall(r'0x([0-9a-fA-F]+)u', re.search(name + r'\[\d+\]=\{(.*?)\};', source, re.S).group(1))]
-        im = Image.open(UI / 'items/gadget-medkit-15col.png')
+        im = Image.open(UI / 'items' / png)
         self.assertEqual((im.mode, im.size), ('RGBA', (16, 16)))
         palette, texels = [0], []
         for r, g, b, a in im.getdata():
@@ -42,9 +55,9 @@ class ProjectUiArt(unittest.TestCase):
                 palette.append(colour)
             texels.append(palette.index(colour))
         self.assertLessEqual(len(palette), 16)
-        self.assertEqual(table('k_medkit_clut'), palette + [0] * (16 - len(palette)))
+        self.assertEqual(table(f'k_{name}_clut'), palette + [0] * (16 - len(palette)))
         cell = [sum(texels[y * 16 + half * 8 + i] << 4 * i for i in range(8)) for y in range(16) for half in range(2)]
-        self.assertEqual(table('k_medkit_cell'), cell)
+        self.assertEqual(table(f'k_{name}_cell'), cell)
 
     def test_switcher_digits_come_from_microfont(self):
         sheet = Image.open(UI / 'fonts/microfont/3x5-Microfont_1D.png').convert('RGBA')

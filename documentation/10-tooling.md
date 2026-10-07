@@ -348,6 +348,10 @@ B` aligns two runs by cycle count (use `OC=100`: the overclock lease is
 wall-clock based); `cadence.sh RATES...` prints present intervals, image
 shares, guest rate and underruns; `slotscan.sh SLOTS...` (with `R=RATE`)
 prints redraw coverage, cadence, guest work and pacer slack per savestate slot.
+`tools/local/reduce_icon_15col.py SOURCE OUTPUT` (D08A4) reduces a 16x16 icon to
+15 colours plus transparent for a 4bpp HUD cell (k-means in PSX 15-bit colour,
+no dither, deterministic; needs Pillow). It made `hud-steroids-15col.png`.
+
 `mipsdis.py LO HI` disassembles static game code from the generated C (venv
 Python with capstone); `genpatch.py` regenerates the D17 runtime patch from the
 baseline copies. Debug commands `render_replay` and `replay_dump` (a path

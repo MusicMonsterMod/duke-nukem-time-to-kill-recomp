@@ -58,9 +58,13 @@ VIEW_BOBS = ('off', 'subtle', 'on', 'strong')
 # leaves between distant sections and keeps thin distant surfaces with exact
 # culling when geometry or texture precision is Corrected.
 DRAW_DISTANCES = ('original', 'extended')
+# D08A4 steroids (Modernized only; Vanilla keeps the original). portable stores
+# a steroids pickup as one dose (EDuke32 style) that R takes; original starts
+# the effect on pickup.
+STEROIDS_MODES = ('portable', 'original')
 # Alt-wheel boom range in game units; 0 keeps the original follow distance.
 CAMERA_DISTANCE_RANGE = (768, 6144)
-DEFAULT_CONTROLS = {'camera': 'independent', 'mouse_sensitivity': 0.12, 'invert_y': False, 'weapon_aim': 'view', 'crosshair': True, 'red_dot': False, 'aim_assist': 'off', 'jetpack': 'modern', 'camera_distance': 0, 'shoulder': 'center', 'view': 'third', 'widescreen': '16:9', 'cpu_overclock': 150, 'cpu_timing': 'fast', 'jump': 'assisted', 'frame_rate': '60', 'view_bob': 'on', 'geometry_precision': 'original', 'texture_precision': 'original', 'draw_distance': 'extended'}
+DEFAULT_CONTROLS = {'camera': 'independent', 'mouse_sensitivity': 0.12, 'invert_y': False, 'weapon_aim': 'view', 'crosshair': True, 'red_dot': False, 'aim_assist': 'off', 'jetpack': 'modern', 'camera_distance': 0, 'shoulder': 'center', 'view': 'third', 'widescreen': '16:9', 'cpu_overclock': 150, 'cpu_timing': 'fast', 'jump': 'assisted', 'frame_rate': '60', 'view_bob': 'on', 'geometry_precision': 'original', 'texture_precision': 'original', 'draw_distance': 'extended', 'steroids': 'portable'}
 # display is how the game opens (the runtime reports the last state at exit);
 # fullscreen_mode is what F11 enters from a window.
 DEFAULT_PRESENTATION = {'renderer': 'opengl', 'internal_scale': 1, 'display': 'windowed', 'fullscreen_mode': 'borderless', 'window_width': 0, 'output_filter': 'linear'}
@@ -84,11 +88,11 @@ def validate_controls(value):
         value['cpu_overclock'] not in CPU_OVERCLOCKS or value['cpu_timing'] not in CPU_TIMINGS or value['jump'] not in JUMP_STYLES or
         value['geometry_precision'] not in PRECISION_MODES or value['texture_precision'] not in PRECISION_MODES or
         value['frame_rate'] not in FRAME_RATES or value['view_bob'] not in VIEW_BOBS or
-        value['draw_distance'] not in DRAW_DISTANCES):
+        value['draw_distance'] not in DRAW_DISTANCES or value['steroids'] not in STEROIDS_MODES):
         raise ValueError('Camera must be independent/original; sensitivity 0.01..2 degrees/count; invert_y boolean; jetpack modern/classic; '
                          'camera_distance 0 (original) or 768..6144; shoulder center/right/left; view third/first; '
                          'widescreen off/16:9/16:10/21:9/auto; cpu_overclock 100/125/150/175/200; cpu_timing accurate/fast; jump assisted/manual; '
-                         'frame_rate ' + '/'.join(FRAME_RATES) + '; view_bob ' + '/'.join(VIEW_BOBS) + '; geometry_precision and texture_precision original/corrected; draw_distance original/extended.')
+                         'frame_rate ' + '/'.join(FRAME_RATES) + '; view_bob ' + '/'.join(VIEW_BOBS) + '; geometry_precision and texture_precision original/corrected; draw_distance original/extended; steroids portable/original.')
     return dict(value)
 
 
@@ -213,7 +217,7 @@ def absorb_camera_state(settings_path, settings):
 
 
 def defaults():
-    return {'version': 28, 'active': 'modernized',
+    return {'version': 29, 'active': 'modernized',
             'profiles': {mode: default_profile(mode) for mode in MODES}}
 
 
@@ -257,7 +261,7 @@ def load(path):
         notices.append('Unreadable profile settings; restored Modernized defaults.')
     else:
         version = data.get('version')
-        if type(version) is int and version > 28:
+        if type(version) is int and version > 29:
             raise ValueError(f'Profile settings version {version} is newer than this launcher; file left unchanged.')
         if type(version) is int and version == 0:
             mode = data.get('mode', 'vanilla')
@@ -267,8 +271,8 @@ def load(path):
                 if renderer in RENDERERS:
                     result['profiles'][mode]['presentation']['renderer'] = renderer
             changed = True
-            notices.append('Migrated version 0 profile settings to version 28.')
-        elif type(version) is int and version in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28):
+            notices.append('Migrated version 0 profile settings to version 29.')
+        elif type(version) is int and version in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29):
             active = data.get('active')
             if active in MODES:
                 result['active'] = active
@@ -291,7 +295,7 @@ def load(path):
                         notices.append(f'{mode}: {exc} Restored presentation defaults.')
                 if isinstance(profile, dict) and isinstance(profile.get('controls'), dict):
                     try:
-                        result['profiles'][mode]['controls'] = validate_controls({**({k:v for k,v in DEFAULT_CONTROLS.items() if k in ('crosshair','red_dot','aim_assist')} if version < 5 else {}), **({'weapon_aim':'view'} if version < 4 else {}), **({'jetpack':'modern'} if version < 11 else {}), **({'camera_distance':0,'shoulder':'center'} if version < 12 else {}), **({'view':'third'} if version < 13 else {}), **({'widescreen':'16:9'} if version < 18 else {}), **({'cpu_overclock':150} if version < 19 else {}), **({'jump':'assisted'} if version < 20 else {}), **({'frame_rate':'60'} if version < 21 else {}), **({'view_bob':'on'} if version < 22 else {}), **({'geometry_precision':'original','texture_precision':'original'} if version < 23 else {}), **({'draw_distance':'extended'} if version < 24 else {}), **({'cpu_timing':'fast'} if version < 25 else {}), **profile['controls']})
+                        result['profiles'][mode]['controls'] = validate_controls({**({k:v for k,v in DEFAULT_CONTROLS.items() if k in ('crosshair','red_dot','aim_assist')} if version < 5 else {}), **({'weapon_aim':'view'} if version < 4 else {}), **({'jetpack':'modern'} if version < 11 else {}), **({'camera_distance':0,'shoulder':'center'} if version < 12 else {}), **({'view':'third'} if version < 13 else {}), **({'widescreen':'16:9'} if version < 18 else {}), **({'cpu_overclock':150} if version < 19 else {}), **({'jump':'assisted'} if version < 20 else {}), **({'frame_rate':'60'} if version < 21 else {}), **({'view_bob':'on'} if version < 22 else {}), **({'geometry_precision':'original','texture_precision':'original'} if version < 23 else {}), **({'draw_distance':'extended'} if version < 24 else {}), **({'cpu_timing':'fast'} if version < 25 else {}), **({'steroids':'portable'} if version < 29 else {}), **profile['controls']})
                     except ValueError as exc:
                         notices.append(f'{mode}: {exc} Restored camera defaults.')
                 # Schema 28 (D08A5): Comma/Period move from original strafe to the mission
@@ -332,8 +336,8 @@ def load(path):
                                'run.py --cpu-timing accurate restores the full cycle model.')
             changed = result != data
             if changed:
-                notices.append(f'Migrated version {version} profile settings to version 28; retained preferences and added control and presentation defaults.'
-                               if version < 28 else
+                notices.append(f'Migrated version {version} profile settings to version 29; retained preferences and added control and presentation defaults.'
+                               if version < 29 else
                                'Invalid or unsupported profile fields were reset; valid preferences were retained.')
         else:
             changed = True
@@ -376,11 +380,18 @@ def describe(settings):
         lines.append(f"Mesh geometry: {controls['geometry_precision']}; textures: {controls['texture_precision']} (OpenGL; next launch)")
         lines.append(f"Frame rate: {describe_frame_rate(controls['frame_rate'])}")
         lines.append(f"Draw distance: {describe_draw_distance(controls['draw_distance'])}")
+        lines.append(f"Steroids: {describe_steroids(controls['steroids'], pc_input_key(settings, 'steroids'))}")
         lines.append(f"View bob (first person): {controls['view_bob']} (the eye stays still while idle; off/subtle/on/strong while walking)")
         lines.append(f"Emulated CPU: {controls['cpu_overclock']}%" + (' (original speed)' if controls['cpu_overclock'] == 100 else ' (keeps busy views at 30 fps; game speed unchanged)'))
         lines.append(f"CPU timing: {describe_cpu_timing(controls['cpu_timing'])}")
         lines.append(PREVIEW)
     return '\n'.join(lines)
+
+
+def describe_steroids(value, key='R'):
+    if value == 'portable':
+        return f'portable (a pickup is stored as one dose; {key} takes it)'
+    return 'original (the effect starts on pickup)'
 
 
 def describe_frame_rate(value):
@@ -431,7 +442,7 @@ def menu(settings, read=input, write=print):
     while True:
         write('\n' + describe(edited))
         write('1 Vanilla  |  2 Modernized preview  |  3 Renderer  |  4 Restore this profile  |  R Resolution and display\n'
-              'G Geometry and texture precision (Modernized)  |  D Draw distance (Modernized)  |  W Widescreen (Modernized)  |  J Jump style (Modernized)  |  F Frame rate (Modernized)  |  B View bob (Modernized)  |  5 Save and return  |  6 PC bindings (Modernized)  |  7 Camera (Modernized)  |  8 Weapon aiming (Modernized)  |  9 Aiming display / assistance (Modernized)  |  0 Cancel')
+              'G Geometry and texture precision (Modernized)  |  D Draw distance (Modernized)  |  W Widescreen (Modernized)  |  J Jump style (Modernized)  |  F Frame rate (Modernized)  |  B View bob (Modernized)  |  S Steroids (Modernized)  |  5 Save and return  |  6 PC bindings (Modernized)  |  7 Camera (Modernized)  |  8 Weapon aiming (Modernized)  |  9 Aiming display / assistance (Modernized)  |  0 Cancel')
         choice = read('Choice: ').strip()
         if choice in ('1', '2'):
             edited['active'] = MODES[int(choice) - 1]
@@ -483,6 +494,17 @@ def menu(settings, read=input, write=print):
                 edited['profiles']['modernized']['controls']['jump'] = value
             elif value:
                 write('Choose one of the listed values; jump style unchanged.')
+        elif choice.lower() == 's':
+            if edited['active'] != 'modernized':
+                write('Vanilla always starts steroids on pickup; select Modernized for portable steroids.')
+                continue
+            write('portable: a steroids pickup is stored as one dose (EDuke32 style) and the steroids key takes it; '
+                  'with a dose held, more steroids stay where they are. original: the effect starts on pickup.')
+            value = read('Steroids (' + '/'.join(STEROIDS_MODES) + '; blank cancels): ').strip()
+            if value in STEROIDS_MODES:
+                edited['profiles']['modernized']['controls']['steroids'] = value
+            elif value:
+                write('Choose one of the listed values; steroids unchanged.')
         elif choice.lower() == 'g':
             if edited['active'] != 'modernized':
                 write('Select Modernized to change mesh precision. Vanilla keeps Original.')

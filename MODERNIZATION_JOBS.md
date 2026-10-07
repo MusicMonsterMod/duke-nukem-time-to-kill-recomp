@@ -47,7 +47,8 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08A1 | Visible EDuke32-style inventory cycling | Done | D04, D19A |
 | D08A2 | EDuke32 bottom-left inventory icon and green % | Done (revised: strip + green %) | D08A1, D19A |
 | D08A3 | Original TTK inventory icons for the switcher (replace Duke3D art) | Done | D08A2 |
-| D08A4 | EDuke32-style portable steroids: pick up, store in items, use with R | Todo | D08A1, D08A3, D22B |
+| D08A4 | EDuke32-style portable steroids: pick up, store in items, use with R | Done (user-accepted) | D08A1, D08A3, D22B |
+| D08A8 | Steroids countdown in the steroids HUD box (pill icon), not the armor element | Todo | D08A4, D08A6 |
 | D08A5 | Mission item tracking: mission inventory on , / . (design E, revised) | Done | D08A1, D08A3, D24A |
 | D08A6 | Selected gadget shown on the HUD: original item slot (design A) | Done | D08A1, D08A3 |
 | D08A7 | Custom medkit gadget icon (switcher strip and HUD box) | Done | D08A6 |
@@ -518,7 +519,12 @@ falls back cleanly; Vanilla unchanged. User confirms the look in play.
 
 ### D08A4 - EDuke32-style portable steroids (pick up, store, use with R)
 
-**Todo. User request, 2026-10-06.** "Eduke style steroids, where you actually
+**Done (user-accepted, 2026-10-07):** "mechanically, the steroids work
+perfectly. you pick them up, you can press r to run, and thats it ... i accept
+this job as complete now as it's functional". The countdown display is
+follow-up D08A8. See [note 127](documentation/127-d08a4-portable-steroids.md).
+
+User request, 2026-10-06. "Eduke style steroids, where you actually
 pick up the roids as an item, and it appears in our items list. it is invoked
 with the R key." In TTK steroids activate on pickup and there is no stored
 dose (D08A recorded that R had nothing to use; D08A3 extracted the steroids
@@ -541,6 +547,60 @@ stores a dose shown in the switcher; R activates the original effect and
 consumes it; R with none does nothing harmful; the dose persists through a
 save/load and a level change; Vanilla unchanged; the user confirms.
 
+**Work log (2026-10-07, Needs playtest).** Research: the original still has a
+held steroids item (item 4, `+0x364` bit 0 with the amount `+0x366`; the
+inventory grant `0x8003d738` gives it, the Select menu's toggle `0x80089494`
+would run it, the level-end snapshot `0x80083348` and the card save keep it).
+Only the pickup case `0x800827e8` skips it by setting bit 1 (running). EDuke32
+source and Duke 3D `GAME.CON`/`USER.CON` checked: one held at a time, R only
+when held, quote 12 `USED STEROIDS`, `dnhyper` starts them.
+Implementation (`recomp/src/ttk/steroids.inc`): in Modernized with `steroids`
+`portable` (default), a pickup is held instead of run, settled at the pickup
+tail's own sound call (new entry hook `0x8006B73C`, one regenerated line,
+savestates still load); held: more steroids stay on the ground; running: the
+original refresh. R (and Enter/U on steroids) set bit 1 and play the pickup
+sound. Switcher order medkit, steroids, jetpack, Bio Mask, goggles; HUD box with
+the user's `hud-steroids.png` (15-colour cell from the new
+`reduce_icon_15col.py`). Profile schema 29 (`--steroids portable|original`,
+`--settings` S). A first design kept a dose count in flag bits 8-11 and was
+replaced when a write trace showed the level-end snapshot (and so the card
+save) keeps only bit 0.
+Evidence (private copies of the user's cards and savestates, level 0 and level
+6): pickup held (flags 1, 9000) with the original message; second pickup left;
+R runs the effect, `USED STEROIDS`, switcher drains with the active mark;
+R running/none refused; refresh while running; savestate reload, level
+completion with the stats-screen save, card load (pause, Load) after using it,
+and death with Continue all keep it; `original` and Vanilla keep the original
+rule. Native and Python suites pass (two new D08A4 native groups).
+Limits: needs the user's playtest; spawned pickups (`spawn steroids`, the real
+type 638 and pickup code) rather than natural placements; `level N` travel
+clears every gadget (original Restart reset); the original Select inventory
+does not list held steroids.
+
+
+### D08A8 - Steroids countdown in the steroids HUD box
+
+**Todo. User request, 2026-10-07** (after accepting D08A4; video
+`research/screencaps/Video_2026-10-07_22-03-53.mp4`, reference
+`research/screencaps/ttk-roids.png`): "what genuinely doesnt make sense to me is
+why the armor icon is used when the coundtown for the steroids is displayed.
+I'd really love if that entire countdown could be delegated to the steroids
+thing you see there in the screenshot."
+
+While steroids run, the original status bar (`0x8008bd94`) shows their
+remaining percent in the armor element with the armor icon. In Modernized,
+show the whole countdown in the D08A6 gadget box with the pill-bottle icon
+(the box in `ttk-roids.png`, top right) and leave the armor element to armor.
+Research first: how `0x8008bcf4..0x8008be00` chooses between armor and
+steroids for that element, and what the box should show when steroids run
+while another gadget is selected (stack it like the running jetpack, or switch
+the box to steroids).
+
+**Acceptance:** in Modernized, running steroids count down in the steroids box
+with the pill icon; the armor element shows only armor (or stays hidden as the
+original does without armor); held, running and refreshed steroids, a selected
+other gadget, savestates and both renderers checked; Vanilla unchanged; the
+user confirms.
 
 ### D08A5 - Mission item tracking in the item switcher (approved design E)
 
@@ -9462,3 +9522,25 @@ in note 117 is the reference for future custom pickups.
 - New Todo D08J4: the ceiling monkey-bar climb in UI slot 3 drops Duke at
   the wrong points ("he just randomly falls"; still playable). The user
   re-saved slot 3 at the top of the chain.
+
+## 2026-10-07 - D08A4 portable steroids (Needs playtest)
+
+- Modernized (`steroids` `portable`, default): a steroids pickup is held, shown
+  in the `[ / ]` switcher after the medkit and in the HUD item box with the
+  user's pill-bottle icon; R (or Enter/U on it) takes it with `USED STEROIDS`.
+  One at a time; a pickup while they run refreshes them (original).
+- Built on the original's own held steroids item (item 4 bit 0 with its
+  amount), so savestates, level completion, the card save and load, and
+  Continue keep it like the jetpack. New hook `0x8006B73C`; profile schema 29.
+- Private runs on copies of the user's cards and savestates (levels 0 and 6);
+  suites pass. [Note 127](documentation/127-d08a4-portable-steroids.md).
+
+## 2026-10-07 - D08A4 accepted; D08A8 queued
+
+- User: "mechanically, the steroids work perfectly ... i accept this job as
+  complete now as it's functional". D08A4 Done; executable
+  `f91c4ec92e7494dd8854b98b0e2332fc17f9c1f8280e7b85798e1b4c9ea10bd5` is the
+  regression baseline.
+- New Todo D08A8: show the running steroids countdown in the steroids HUD box
+  (pill icon, `research/screencaps/ttk-roids.png`) instead of the original
+  armor element and icon.

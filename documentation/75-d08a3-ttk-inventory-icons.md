@@ -33,7 +33,10 @@ the original inventory screen are unchanged.
   routine at `0x8008be00` draws the armor value `+0x234 / 100`). The steroid
   pickup (`0x800827e8`) sets `+0x364` value 2, and the HUD has no icon for it,
   which is why `dnhyper` showed none. The armor icon is extracted but not
-  added to the switcher.
+  added to the switcher. **D08A4 (2026-10-07):** while steroids run, the
+  original status bar (`0x8008bd94`) shows their remaining percent in the
+  armor element, with the armor icon. The portable steroids switcher and HUD
+  box use the project's own `hud-steroids.png` ([note 127](127-d08a4-portable-steroids.md)).
 
 ## Builder
 

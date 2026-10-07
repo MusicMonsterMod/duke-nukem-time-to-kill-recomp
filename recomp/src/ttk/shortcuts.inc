@@ -4,6 +4,11 @@ static constexpr unsigned group_start[]={0,3,4,5,6,7,10,11,12,14,15};
 static unsigned equipped=255,last_equipped=255,selected_item=5;
 static uint64_t command_seen;
 static bool guest_busy;
+// D08A4 portable steroids (steroids.inc, included after this file).
+static bool portable_steroids();
+static unsigned steroid_doses();
+static bool steroids_use(CPUState* cpu);
+static void steroids_poll();
 static unsigned base_weapon(unsigned slot) {return slot==27?9:slot==28?7:slot==29?8:slot;}
 static bool usable_weapon(unsigned slot) {
     if(slot>14)return false;
@@ -47,7 +52,8 @@ static bool original_call(CPUState* source,uint32_t address,uint32_t a1,int32_t*
     return cpu.pc==0 && !g_psx_call_bail;
 }
 static bool usable_item(unsigned item) {
-    if(item<1 || item>5 || item==4)return false; // steroids activate on pickup
+    if(item==4)return steroid_doses()>0; // D08A4: held, not running (original: pickup-activated)
+    if(item<1 || item>5)return false;
     if(psx_mod_read_half(0x800c2710+4*item)!=(item==1?1:item==5?2:3))return false;
     unsigned v=psx_mod_read_half(player+0x354+item*4);
     return (v&1) && !(v&0x8000) && ((v&2) || (int16_t)psx_mod_read_half(player+0x356+item*4)>0);
@@ -60,6 +66,13 @@ static void inventory_feedback(bool announce) {
         capacities[i]=psx_mod_read_half(0x800c2712+4*i);
         flags[i]=psx_mod_read_half(player+0x354+4*i);
         amounts[i]=(int16_t)psx_mod_read_half(player+0x356+4*i);
+    }
+    // D08A4: held steroids (bit 0), shown with the active mark and the
+    // draining amount while they run, as EDuke32 shows them.
+    if(portable_steroids()) {
+        capacities[4]=psx_mod_read_half(0x800c2722);
+        flags[4]=psx_mod_read_half(player+0x364);
+        amounts[4]=(int16_t)psx_mod_read_half(player+0x366);
     }
     inventory_update(selected_item,flags,amounts,capacities,announce);
     // D08A5: mission items are inventory items 6..16 (the Select list's flags).
@@ -133,6 +146,7 @@ static void select_weapon(CPUState* cpu) {
         psx_mod_write_half(player+0x358,jet&~0x8000u);
     unsigned menu_item=psx_mod_read_half(0x800c3f94);
     bool changed=false;
+    steroids_poll();
     if(menu_item!=selected_item && usable_item(menu_item)) {selected_item=menu_item;changed=true;}
     // D08A6: the HUD box reads this guest ID (high-refresh redraws run on a
     // copy of guest memory, never host state), so keep it on the selection
@@ -143,10 +157,10 @@ static void select_weapon(CPUState* cpu) {
         remember_item(selected_item);
     // Pending original activation is still visible; depletion chooses the next
     // eligible gadget and leaves U harmless when the inventory is empty.
-    unsigned selected_flags=selected_item<=5?psx_mod_read_half(player+0x354+4*selected_item):0;
+    unsigned selected_flags=selected_item<=5 && selected_item!=4?psx_mod_read_half(player+0x354+4*selected_item):0;
     if(!usable_item(selected_item) && !(selected_flags&0x8000)) {
         unsigned replacement=0;
-        for(unsigned i:{5u,1u,2u,3u})if(usable_item(i)){replacement=i;break;}
+        for(unsigned i:{5u,4u,1u,2u,3u})if(usable_item(i)){replacement=i;break;}
         if(selected_item!=replacement){remember_item(replacement);changed=true;}
     }
     inventory_feedback(changed);
@@ -196,12 +210,20 @@ static void select_weapon(CPUState* cpu) {
     for(unsigned n=0;n<f.command_count && n<32;++n) {
         const int action=f.commands[n];
         if(action!=item_previous && action!=item_next) continue;
-        constexpr unsigned items[]={5,1,2,3};unsigned start=0;
-        for(unsigned i=0;i<4;++i)if(items[i]==selected_item)start=i;
-        for(unsigned j=1;j<=4;++j){unsigned next=items[(start+(action==item_next?j:4-j))%4];
+        constexpr unsigned items[]={5,4,1,2,3},count=5;unsigned start=0;
+        for(unsigned i=0;i<count;++i)if(items[i]==selected_item)start=i;
+        for(unsigned j=1;j<=count;++j){unsigned next=items[(start+(action==item_next?j:count-j))%count];
             if(usable_item(next)){remember_item(next);break;}}
         inventory_feedback(true);
     }
+    // D08A4: R, or Enter / U on steroids, takes a stored dose in every live
+    // gameplay state (it only sets the original effect bit and timer), the
+    // way the bracket keys are taken.
+    for(unsigned n=0;n<f.command_count && n<32;++n)
+        if(f.commands[n]==steroids || (f.commands[n]==item_use && selected_item==4 && !mission_enter)) {
+            if(steroid_doses()) {remember_item(4);steroids_use(cpu);inventory_feedback(false);}
+            break;
+        }
     const bool jet_select=jetpack_input_ready();
     if(jet_select) {
         for(unsigned n=0;n<f.command_count && n<32;++n)
@@ -249,9 +271,10 @@ static void select_weapon(CPUState* cpu) {
                 original_call(cpu,0x800517a4,0);
             break;
         } else {
-            unsigned item=action==medkit?5:action==jetpack?1:action==biomask?2:action==goggles?3:action==item_use?(mission_enter?0:selected_item):0;
+            unsigned item=action==medkit?5:action==jetpack?1:action==biomask?2:action==goggles?3:
+                action==item_use?(mission_enter || selected_item==4?0:selected_item):0;
             if(item) {use_item(cpu,item);break;} // one item activation per guest update
-            // R: original steroids are pickup-activated.
+            // R (and Enter / U on steroids) were taken above, in every state.
         }
     }
     if(requested<=14 && !(psx_mod_read_word(player+0x224)&0xc) &&

@@ -323,6 +323,16 @@ codegen hash unchanged). Like D08O2A it has its own lightweight callback: only
 the probe's call (return address `0x8007d7fc`) goes further. See
 [note 125](125-d08j5-chain-descent.md).
 
+## Portable steroids (D08A4)
+
+One hook (`0x8006B73C`, the sound routine) was added to `game.local.toml` and
+regenerated the same way (one generated line; codegen hash unchanged). Its own
+callback goes further only for the pickup tail's call (return address
+`0x800828d8`). Profile schema 29 adds the Modernized `steroids` choice:
+`portable` (default) or `original`; `run.py --steroids VALUE` saves it
+(`--settings` choice S) and the launcher passes `DNTTK_STEROIDS` (always
+`original` for Vanilla). See [note 127](127-d08a4-portable-steroids.md).
+
 ## Frame rate (D17)
 
 Profile schema 21 adds the Modernized `frame_rate` choice: `display`, `30`,

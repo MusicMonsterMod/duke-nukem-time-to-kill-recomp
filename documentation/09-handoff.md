@@ -1,5 +1,41 @@
 # Next-session handoff
 
+## 2026-10-07 - D08A4 accepted; D08A8 queued
+
+- User: "mechanically, the steroids work perfectly. you pick them up, you can
+  press r to run, and thats it ... i accept this job as complete now as it's
+  functional". Executable
+  `f91c4ec92e7494dd8854b98b0e2332fc17f9c1f8280e7b85798e1b4c9ea10bd5` is the
+  regression baseline. [Note 127](127-d08a4-portable-steroids.md).
+- New Todo D08A8: the running countdown uses the original armor element and
+  icon; show it in the steroids box with the pill icon instead (reference
+  `research/screencaps/ttk-roids.png`).
+
+## 2026-10-07 - D08A4 built: portable steroids, EDuke32 style (Needs playtest)
+
+- **What:** in Modernized (`steroids` `portable`, the default), picking up
+  steroids keeps them: STEROIDS shows as before, and they appear in the `[ / ]`
+  switcher after the medkit and in the HUD item box with the user's own
+  pill-bottle icon. **R**, or Enter/U with steroids selected, takes them
+  (`USED STEROIDS`, the pickup sound, the original effect). One at a time: more
+  steroids stay on the ground while one is held; a pickup while they run
+  refreshes them, as in the original. `original` and Vanilla keep the original
+  rule. `run.py --steroids portable|original`, `--settings` S (profile schema 29).
+- **How:** the original still has a held steroids item (item 4, `+0x364` bit 0
+  with its amount `+0x366`); only its pickup case `0x800827e8` runs it at once.
+  The pickup is turned into a held item at the pickup tail's own sound call (new
+  entry hook `0x8006B73C`, one regenerated line; savestates still load). A first
+  design with a count in spare flag bits was replaced after a write trace showed
+  the level-end snapshot `0x80083348`, which the card save writes, keeps only
+  bit 0.
+- **Evidence:** private copies of the user's cards and savestates, levels 0 and
+  6: pickup held, second pickup left, R runs it, refresh while running;
+  savestate reload, level completion with the stats-screen card save, loading
+  that save, and death with Continue keep it; `original` and Vanilla unchanged;
+  suites pass. Executable
+  `f91c4ec92e7494dd8854b98b0e2332fc17f9c1f8280e7b85798e1b4c9ea10bd5`.
+  [Note 127](127-d08a4-portable-steroids.md). Next: the user's playtest.
+
 ## 2026-10-07 - D08V1 accepted
 
 - User: "you can probably see my playtest log, i'm very happy with how it played, everything felt comfortable replaying that area". Their playtest log `session-20261007-202257.log` shows

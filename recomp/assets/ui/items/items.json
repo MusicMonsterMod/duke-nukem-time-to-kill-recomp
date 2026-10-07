@@ -16,7 +16,7 @@
     {"name": "OLD NOTE", "file": "item-old-note.png", "types": [548], "levels": [1]},
     {"name": "TORN PAPER", "file": "item-scrap-of-paper.png", "types": [549], "levels": [1]},
     {"name": "FAMILY JEWEL", "file": "item-family-jewel.png", "types": [854, 855, 856], "levels": [6]},
-    {"name": "STEROIDS", "file": "hud-steroids.png", "types": [638], "levels": [], "hud": true},
+    {"name": "STEROIDS", "file": "hud-steroids.png", "hud_file": "hud-steroids-15col.png", "types": [638], "levels": [], "hud": true, "gadget": 4},
     {"name": "MEDKIT", "file": "gadget-medkit.png", "hud_file": "gadget-medkit-15col.png", "types": [], "levels": [], "gadget": 5}
   ]
 }

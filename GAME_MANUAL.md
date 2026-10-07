@@ -210,6 +210,28 @@ next launch and saves your preference. Gameplay is unchanged, and Vanilla
 always uses the original limit. A very long view can still end in black beyond
 twice the original distance.
 
+### Portable steroids (Modernized)
+
+With `portable` (the Modernized default), steroids work as in EDuke32: picking
+them up shows STEROIDS as before but keeps them, and they appear in the **[ / ]**
+switcher (right after the medkit) and the HUD item box with their own pill-bottle
+icon at 100%. **R**, or **Enter** / **U** with steroids selected, takes them:
+`USED STEROIDS` shows, the pickup sound plays and the original steroids effect
+runs for its usual time (the switcher shows it draining with the active mark).
+Duke carries one at a time: while you hold one, more steroids stay where they
+are until you have used it. Picking steroids up while they are already running
+refreshes them, as in the original. R with none held, while they run, or while
+Duke is dead does nothing.
+
+Held steroids are kept like the jetpack: through savestates, level completion,
+the save offered after a level (and loading it), and death with Continue. The
+level-select travel (`level N`) restarts like the original Restart, which
+clears every gadget, steroids included. The original Select inventory does not
+list them. `original` keeps the original rule (steroids start on pickup and R
+does nothing). Choose **S** in `--settings` or `--steroids portable|original`; it
+applies on the next launch and saves your preference. Vanilla always uses the
+original rule. See [notes](documentation/127-d08a4-portable-steroids.md).
+
 ### View bob (Modernized, first person)
 
 Standing still, the first-person view settles into a substantially stable
@@ -503,8 +525,7 @@ and **B** the Bio Mask through original use rules (TTK’s own gas mask — not 
 or boots). Wait for gadget equip/remove and
 weapon redraw to finish before another shortcut. **J** also switches the jetpack
 off in mid-flight (a controlled fall follows). Underwater air still equips automatically.
-**[ / ]** cycle eligible gadgets; **U** uses the selected gadget; **, / .** browse the level's mission items (see Mission items below). **R has no stored-dose action:** TTK activates
-steroids on pickup. In third person, **Q kicks only while standing still with Mighty Boot already selected on 1**
+**[ / ]** cycle eligible gadgets; **U** uses the selected gadget; **, / .** browse the level's mission items (see Mission items below). **R takes steroids** (see Portable steroids below). In third person, **Q kicks only while standing still with Mighty Boot already selected on 1**
 (the original kick). Q never selects another weapon or presses fire. In first
 person Q is a quick kick with any weapon (see below).
 
@@ -960,9 +981,9 @@ start away from ledges. F10 toggles capture; Escape or focus loss cancels typing
 | `dnstuff` | Grant all weapons/ammo, inventory and keys |
 | `dnkeys` | Grant keys |
 | `dnweapons` | Grant weapons and ammo |
-| `dninventory` | Grant inventory |
+| `dninventory` | Grant inventory (with portable steroids, this includes one held steroids) |
 | `dnitems` | Grant inventory and keys |
-| `dnhyper` | Activate/refill steroids |
+| `dnhyper` | Activate/refill steroids (starts the effect directly, as in EDuke32) |
 | `dnammo` | Refill ammo for owned weapons |
 | `dnhealth` | Restore 100 health |
 | `dnunlimited` | Toggle unlimited ammo/charges |
@@ -1007,7 +1028,7 @@ prepared disc), messages use the generic host font.
 
 In Modernized gameplay, **[ / ]** open the temporary gadget **switcher** (centered
 strip with Time to Kill's own HUD item icons (D08A3: jetpack,
-Bio Mask and goggles; the medkit is the project's own medkit sprite) and green 3x5 Microfont charge); **Enter** or **U**
+Bio Mask and goggles; the medkit and held steroids are the project's own sprites) and green 3x5 Microfont charge); **Enter** or **U**
 activates the currently selected gadget (whether or not the strip is showing).
 Holding Enter activates at most once. Empty inventory stays silent. Direct keys
 **M / J / B / N** select and use medkit / jetpack / Bio Mask / night vision **without**

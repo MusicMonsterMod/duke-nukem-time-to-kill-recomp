@@ -22,6 +22,7 @@ extern "C" void gte_nclip_culling_stats(uint64_t* checks,uint64_t* flips) {*chec
 #include <cstdlib>
 #include <fstream>
 #include <map>
+#include <array>
 #include <vector>
 #include <unistd.h>
 #include <string>
@@ -69,6 +70,7 @@ static int32_t drop_catch_y=100000,drop_top=0,lookahead_drop=-100000;static unsi
 // D12A quick kick: damage sphere and sound calls (address, a0..a3, two stack words, point).
 struct KickCall {uint32_t address,a[4],stack[2];int32_t point[3];};
 static std::vector<KickCall> kick_calls;
+static std::vector<std::array<uint32_t,4>> steroid_sounds;
 
 // D08Y: the runtime CPU overclock lease (renewed from the player update).
 static unsigned overclock_renewals;extern "C" void psx_overclock_renew(void){++overclock_renewals;}
@@ -83,6 +85,9 @@ extern "C" void psx_dispatch_call(CPUState* cpu,uint32_t address,uint32_t) {
         cpu->pc=0;return;
     }
     if(address==0x8003e2d0) {++edge_launches;cpu->pc=0;return;}
+    if(address==0x8006b73c) { // D08A4: the pickup sound R plays at Duke
+        steroid_sounds.push_back({cpu->gpr[4],cpu->gpr[5],cpu->gpr[6],cpu->gpr[7]});cpu->pc=0;return;
+    }
     if(address==0x8007ec4c) {++lineups;cpu->gpr[2]=lineup_ok;cpu->pc=0;return;}   // D08X mantle line-up
     if(address==0x80055208) {
         const uint32_t p=0x800d7198;const int32_t y=int32_t(psx_mod_read_word(p+8));lift_calls.push_back(y);
@@ -1390,6 +1395,36 @@ int main(int argc,char** argv) {
     psx_mod_write_half(p+0x358,3);psx_mod_write_half(p+0x35a,0);
     request(ttk::item_next);assert(psx_mod_read_half(0x800c3f94)==1); // active can be switched off
     psx_mod_write_half(p+0x358,0);
+    {
+        // D08A4: held steroids (bit 0 with an amount, the original's own owned
+        // item) join the cycle after the medkit; R, and U on them, set the
+        // running bit (the original menu's toggle) and play the pickup sound,
+        // with no equipment request. Running or none held: R does nothing.
+        psx_mod_write_half(p+0x368,1);psx_mod_write_half(p+0x36a,100);psx_mod_write_half(0x800c3f94,5);
+        psx_mod_write_half(p+0x364,1);psx_mod_write_half(p+0x366,9000);
+        const uint16_t health=psx_mod_read_half(p+0x32);psx_mod_write_half(p+0x32,10000);
+        // A stack in range for the original sound call.
+        auto press=[&](int action){psx_mod_write_word(p+0x224,0);ttk::input.commands[0]=action;
+            ttk::input.command_count=1;++ttk::input.command_serial;call(0x80058120,p,0,0x80041c44,0x801ff000);};
+        request(ttk::item_next);assert(psx_mod_read_half(0x800c3f94)==4 && psx_mod_read_half(p+0x364)==1);
+        request(ttk::item_previous);assert(psx_mod_read_half(0x800c3f94)==5);
+        steroid_sounds.clear();
+        press(ttk::steroids);assert(psx_mod_read_half(p+0x364)==3 && psx_mod_read_half(p+0x366)==9000);
+        assert(!(psx_mod_read_word(p+0x224)&12) && steroid_sounds.size()==1 && steroid_sounds[0][0]==0x100f &&
+               steroid_sounds[0][1]==p+4 && steroid_sounds[0][2]==0x800 && steroid_sounds[0][3]==uint32_t(-10));
+        press(ttk::steroids);assert(psx_mod_read_half(p+0x364)==3 && steroid_sounds.size()==1); // running
+        psx_mod_write_half(p+0x364,1);psx_mod_write_half(0x800c3f94,4);
+        press(ttk::item_use);assert(psx_mod_read_half(p+0x364)==3 && !(psx_mod_read_word(p+0x224)&12));
+        psx_mod_write_half(p+0x364,0);psx_mod_write_half(p+0x366,0);
+        press(ttk::steroids);assert(psx_mod_read_half(p+0x364)==0 && steroid_sounds.size()==2);
+        psx_mod_write_half(p+0x364,1);psx_mod_write_half(p+0x366,0);  // owned but empty
+        press(ttk::steroids);assert(psx_mod_read_half(p+0x364)==1);
+        psx_mod_write_half(p+0x366,9000);psx_mod_write_half(p+0x32,0);  // dead
+        press(ttk::steroids);assert(psx_mod_read_half(p+0x364)==1);psx_mod_write_half(p+0x32,10000);
+        ttk::modern=false;press(ttk::steroids);assert(psx_mod_read_half(p+0x364)==1);ttk::modern=true;
+        psx_mod_write_half(p+0x364,0);psx_mod_write_half(p+0x366,0);psx_mod_write_half(p+0x368,0);psx_mod_write_half(p+0x32,health);
+        std::puts("PASS: D08A4 held steroids: cycle, R and U use (running bit, sound, no request), running/none/empty/dead/Vanilla refused");
+    }
     request(ttk::quick_kick);assert(!(psx_mod_read_word(p+0x224)&12));
     assert(kicks==0);psx_mod_write_half(p+0x74,63);psx_mod_write_byte(p+0x3b8,0);psx_mod_write_byte(p+0x3ba,0);
     ttk::input.commands[0]=ttk::quick_kick;++ttk::input.command_serial;
@@ -2085,7 +2120,8 @@ int main(int argc,char** argv) {
         ttk::input.command_count=0;
         psx_mod_write_byte(p+0x3b8,2);psx_mod_write_half(p+0x74,5);
         psx_mod_write_word(p+0x834,0x40000000);
-        for(unsigned i=1;i<=5;++i){psx_mod_write_half(p+0x354+4*i,1);psx_mod_write_half(p+0x356+4*i,100);}
+        // (Steroids, item 4, are not held here: held ones would follow the medkit, D08A4.)
+        for(unsigned i:{1u,2u,3u,5u}){psx_mod_write_half(p+0x354+4*i,1);psx_mod_write_half(p+0x356+4*i,100);}
         auto stranded=[&](){
             ttk::modern=true;ttk::input.active=true;
             psx_mod_write_word(p,0);psx_mod_write_half(p+0x32,6250);
@@ -2236,6 +2272,39 @@ int main(int argc,char** argv) {
     psx_mod_write_word(query_sp+0x60,psx_mod_read_word(p+12)+400);
     ttk::modern=false;assert(!switch_query());ttk::modern=true;
     psx_mod_write_word(query_sp+0xb0,0x800518bc);assert(!switch_query());
+    {
+        // D08A4: a steroids pickup (type 638) is held instead of run. The
+        // original case writes the full amount and bit 1; at its sound call
+        // (ra 0x800828d8) bit 1 goes back off and bit 0 on. Held: the next
+        // pickup is left on the ground. Running: the original refresh.
+        constexpr uint32_t pills=0x801dae00;psx_mod_write_half(pills+0x2c,638);
+        psx_mod_write_half(p+0x364,0);psx_mod_write_half(p+0x366,0);
+        auto touch=[&](uint32_t caller=0x8007fe6c){
+            CPUState cpu{};cpu.gpr[4]=p;cpu.gpr[5]=pills;cpu.gpr[29]=0x801fff00;cpu.gpr[31]=caller;
+            hooks().at(0x80081a48)(&cpu,0x80081a48);return cpu.gpr[5];
+        };
+        auto original_case=[&](uint32_t sound_ra=0x800828d8){
+            psx_mod_write_half(p+0x366,psx_mod_read_half(0x800c2722));psx_mod_write_half(p+0x364,psx_mod_read_half(p+0x364)|2);
+            CPUState cpu{};cpu.gpr[17]=p;cpu.gpr[29]=0x801fff00;cpu.gpr[31]=sound_ra;
+            hooks().at(0x8006b73c)(&cpu,0x8006b73c);
+        };
+        assert(psx_mod_read_half(0x800c2722)==9000);
+        assert(touch()==pills);original_case();
+        assert(psx_mod_read_half(p+0x364)==1 && psx_mod_read_half(p+0x366)==9000);
+        auto left=touch();assert(left!=pills && psx_mod_read_half(left+0x2c)==0xffff && psx_mod_read_half(p+0x364)==1);
+        psx_mod_write_half(p+0x364,3);psx_mod_write_half(p+0x366,100);
+        assert(touch()==pills);original_case();assert(psx_mod_read_half(p+0x364)==3 && psx_mod_read_half(p+0x366)==9000);
+        psx_mod_write_half(p+0x364,0);
+        assert(touch(0x8007fe68)==pills);original_case();assert(psx_mod_read_half(p+0x364)==2); // other caller
+        psx_mod_write_half(p+0x364,0);
+        assert(touch()==pills);original_case(0x800936e8);assert(psx_mod_read_half(p+0x364)==2); // other sound call
+        psx_mod_write_half(p+0x364,0);psx_mod_write_half(pills+0x2c,580);
+        assert(touch()==pills);original_case();assert(psx_mod_read_half(p+0x364)==2); // not steroids
+        psx_mod_write_half(p+0x364,0);psx_mod_write_half(pills+0x2c,638);
+        ttk::modern=false;assert(touch()==pills);original_case();assert(psx_mod_read_half(p+0x364)==2);ttk::modern=true;
+        psx_mod_write_half(p+0x364,0);psx_mod_write_half(p+0x366,0);
+        std::puts("PASS: D08A4 steroids pickup held at the original sound call; held leaves it, running refreshes; caller/sound/type/Vanilla fallbacks");
+    }
     std::puts("PASS: bounded switch query, model-centre ray, reach/cone/parent/Vanilla fallbacks");
     std::puts("PASS: concealed pickup, exposed/other-room/Vanilla/actor/caller/code fallbacks; inventory preserved");
     std::puts("PASS: typed cheat grants/toggles, context guards, hostile/NPC separation, health restoration and scene ownership reset");

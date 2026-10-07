@@ -4,7 +4,7 @@ This is the canonical job list for our **Duke Nukem: Time to Kill** PC project, 
 
 Invoke **`$continue-duke-recomp`** (Codex) or **`/continue-duke-recomp`** (Claude Code) to see the current jobs and choose one. You can also request a job directly: **`$continue-duke-recomp work on D01`** or **`/continue-duke-recomp work on D01`**. The skill reads this file rather than keeping a second backlog. It must not automatically start the next job.
 
-**Latest accepted jobs: D11D and D12B (first-person joints by model part), 2026-10-05.** Accepted executable `0694b59dde72db57a536cdc3df4a20eff0866fdd0ca30dcad1da7d0f9ccfca4b` is the current regression baseline. **D23E (western-town stutter) Needs playtest** (at 100%); **D23F (fast CPU timing) Accepted 2026-10-05 and now the Modernized default**; executable `e0737a9f712aa5622d1b057ee5071e12c33cc9a18de8e6d40ee8eee31083f966` (includes D23E), [note 104](documentation/104-d23e-busy-scene-stutter.md), [note 105](documentation/105-d23f-fast-timing.md). Next suggested: D23G (finish the fast path) and D17S (auto frame-rate default).
+**Latest accepted jobs: D08O2 v1 (weapon forward while swimming and firing), D23E and D24A, 2026-10-07.** Accepted executable `0694b59dde72db57a536cdc3df4a20eff0866fdd0ca30dcad1da7d0f9ccfca4b` is the current regression baseline. **D23E (western-town stutter) Accepted 2026-10-07**; **D08O2A (natural swim-fire pose v2) queued**; **D23F (fast CPU timing) Accepted 2026-10-05 and now the Modernized default**; executable `e0737a9f712aa5622d1b057ee5071e12c33cc9a18de8e6d40ee8eee31083f966` (includes D23E), [note 104](documentation/104-d23e-busy-scene-stutter.md), [note 105](documentation/105-d23f-fast-timing.md). Next suggested: D23G (finish the fast path) and D17S (auto frame-rate default).
 
 ## The experience we are building
 
@@ -67,7 +67,8 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08M | Modern underwater swimming controls (foundation) | Done | D08 |
 | D08O | Deep free-swim polish (strafe, Ctrl dive, mantle-only exit) | Done | D08M |
 | D08O1 | Fire weapons while swimming (Modernized, game-wide; medieval UI slot 2) | Accepted | D07C, D08O, D22B |
-| D08O2 | Weapon points forward while swimming and firing in motion (animation) | Todo | D08O1 |
+| D08O2 | Weapon points forward while swimming and firing in motion (v1: upper body to the view) | Accepted | D08O1 |
+| D08O2A | Natural swim-fire pose v2: torso stays in the stroke, arms raised to fire and head looking up | Todo | D08O2 |
 | D08N | Duke3D-style scuba gear item | Cancelled (out of scope) | — |
 | D08P | Crystal-2 turret / scripted-camera control recovery | Done | D08 |
 | D08Q | Modern jetpack flight controls | Done | D08 |
@@ -150,12 +151,12 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D23B | Intro FMV stutter: stranded native movie shard | Done | D23 |
 | D23C | Medieval castle moat slowdown with Necros active (profile, do not optimise blind) | Todo | D23, D22B |
 | D23D | Minor slowdown around the strip-club-type area of Level 9 (low priority) | Todo | D23, D22B |
-| D23E | Stutter with enemies on screen while walking (UI slots 9 and 10) | Needs playtest | D23, D22B |
+| D23E | Stutter with enemies on screen while walking (UI slots 9 and 10) | Accepted | D23, D22B |
 | D23F | Faster timing model: emulation-thread budget for 150% CPU at high refresh (big) | Accepted | D23E, D17 |
 | D23G | Finish the fast path: dispatch, overlays, interpreter, observers and redraw cost (all-in-one) | Todo | D23F |
 | D23H | Presents fall from 120 to about 60 over extended play (savestate hitches, sticky shedding) | Accepted | D23E, D23F |
 | D24 | Linux / Windows player build and disc import | Todo | D19, D22, D23 |
-| D24A | Public clone gives the full experience: fonts, inventory icons/digits from a proper tracked or disc-derived source (no research/ dependency) | Needs playtest | D19A, D08A3 |
+| D24A | Public clone gives the full experience: fonts, inventory icons/digits from a proper tracked or disc-derived source (no research/ dependency) | Accepted | D19A, D08A3 |
 | D24B | Savestate menu (F7) dressed in the TTK fonts and disc art | Accepted | D24A |
 | D25 | Modernized edition release acceptance | Todo | D08, D08A, D08B, D09, D10, D14, D17, D18, D20, D21, D24 |
 | D26 | Backtick debug console (fps and helpers) | Done | D04 |
@@ -1184,7 +1185,7 @@ unchanged; the user confirms.
 
 ### D08O2 - Weapon points forward while swimming and firing in motion
 
-**Todo. User request, 2026-10-06.** After accepting D08O1: "make the weapon
+**Accepted as v1 (2026-10-07)** (user: "it works and i accept this as a v1"; the more natural pose is D08O2A) ([note 118](documentation/118-d08o2-swim-weapon-forward.md)). **User request, 2026-10-06.** After accepting D08O1: "make the weapon
 point forward when in use when swimming and in motion, as it currently points
 downwards." While Duke swims (underwater thrust 128-130, and check the surface
 strokes 123-126) and fires, the firing upper-body animation plays over the
@@ -1206,6 +1207,39 @@ each underwater weapon, the weapon visibly points toward the crosshair in
 third person; idle underwater firing, surface swimming, ground, jetpack and
 Vanilla unchanged; swim-and-fire mechanics from D08O1 unchanged; the user
 confirms.
+
+### D08O2A - Natural swim-fire pose v2 (arms raised, head up, torso in the stroke)
+
+**Todo. User request, 2026-10-07**, on accepting D08O2 v1: "i want v2 in the
+backlog though, which will be a more natural pose rather than his entire
+torso standing up, so it will involve moving the arms in the position as if
+firing up and his head looking up."
+
+**Scope (Modernized):** while Duke swims underwater and fires, his torso and
+legs keep the swim stroke (body pitched along the swim direction); only the
+arms come up into a firing position toward the crosshair and the head turns
+to look along the view. Replaces the v1 whole-upper-body turn.
+
+**Research start (from D08O2, [note 118](documentation/118-d08o2-swim-weapon-forward.md)):**
+v1 sets `+0x224 |= 0x100` so the original builder `0x80097c04` aims joint
+`[model+0x2d]` (joint 1, which carries both arms, the head and the torso)
+and `[model+0x34]` (joint 9, neck/head) through `0x80097a44`. `0x200000`
+aims joint 9 only and leaves the arms in the stroke. Arm joints are 3-8
+(joint 7 is the gun hand, 4 the other hand; 5/8 measured near the
+shoulders). The builder also has a mode 3/6/7 path that aims
+`[model+0x31]` with `0x800978f8` for upper anims 8/11. Candidates: aim the
+shoulder/upper-arm joints (and joint 9 for the head) instead of joint 1,
+for example by calling the aim helper for those joints from a hook on
+`0x80097b90` (child composition) or by a dedicated joint-matrix pass after
+the build, keeping the original firing upper animation. Prefer original
+animation data and the existing aim path; check the first-person weapon
+joints (D12) and the replayed frames at high refresh.
+
+**Acceptance:** in Modernized, while swimming in each direction and firing
+each underwater weapon, the torso and legs stay in the stroke, the arms and
+weapon point toward the crosshair and the head looks along the view, in
+third person; floating fire, surface swimming, ground, jetpack and Vanilla
+unchanged; D08O1 mechanics unchanged; the user confirms.
 
 ### D08N — Duke3D-style scuba gear item
 
@@ -3429,7 +3463,7 @@ method when performance polish is scheduled.
 
 ### D23E - Stutter with enemies on screen while walking (UI slots 9 and 10)
 
-**Needs playtest (2026-10-05). User report, 2026-10-05.** Load UI save slot 9 (file 08), look down
+**Accepted 2026-10-07** (user: these are "now working significantly better"). **User report, 2026-10-05.** Load UI save slot 9 (file 08), look down
 toward the enemies on the ground, then walk left and right: the game stutters
 in this area. The user suspects the characters on screen cause it. UI slot 10
 (file 09) may show the same effect: turn on `dnkroz` first because enemies
@@ -3728,7 +3762,7 @@ Create reproducible player builds with a simple launch flow, settings/save locat
 
 ### D24A - Public clone gives the full experience (assets out of research/)
 
-**Needs playtest (2026-10-06): no Duke Nukem 3D art remains** ([note 112](documentation/112-d24a-open-assets.md)). The user confirms the look; the fresh-clone test is re-run after commit. Route (a) chosen, all Duke 3D art removed.
+**Accepted 2026-10-07** (user: "now working significantly better"). **No Duke Nukem 3D art remains** ([note 112](documentation/112-d24a-open-assets.md)). The user confirms the look; the fresh-clone test is re-run after commit. Route (a) chosen, all Duke 3D art removed.
 Art direction (2026-10-06): the user will hand-make original, openly licensed
 icons in the TTK style for mission items, keys/key cards and steroids. The disc
 has no 2D art for those. Fonts, digits, buttons and HUD sprites remain disc-derived.
@@ -8954,4 +8988,43 @@ work. lock it all in, document, commit, push". D26F is Done. The untested
 cases (a savestate load or level change with a spawned crystal in the world,
 the Vanilla rerun) stay as notes, not open blockers. The custom pickup recipe
 in note 117 is the reference for future custom pickups.
+
+## 2026-10-07 - D23E and D24A accepted
+
+- User: "we can mark D23E and D24A both as accepted. we've proven these are now
+  working significantly better". D23E (busy-scene stutter, [note 104](documentation/104-d23e-busy-scene-stutter.md))
+  and D24A (open assets, [note 112](documentation/112-d24a-open-assets.md)) are
+  Accepted. No code changed for this closeout.
+
+## 2026-10-07 - D08O2 weapon forward while swimming and firing (Needs playtest)
+
+- **Cause:** the player update builds Duke's model with the arm-aiming
+  builder `0x80097c04` only when `+0x224` has `0x100` or `0x200000` (test at
+  `0x800426f4`). Firing while floating sets `0x100`; the thrust strokes that
+  D08O1 lets fire never do, so the plain builder `0x800987cc` ran and the arms
+  played the stroke (gun hand about 0 units along the view, 243 when floating).
+- **Change (Modernized):** new entry hook `0x800411b8` (the last call before
+  that test) sets `0x100` while Duke is underwater, firing (or finishing the
+  shot) with a weapon out and view aim active; it is cleared at the neck's aim
+  call, the build's last, with fallbacks. Joint 1 (arms) and joint 9 (head)
+  then take the view direction through the existing D07A hook, as when firing
+  while floating. Skipped for an update if Duke touches an object whose
+  callback `0x800411b8` would run. Guards added; codegen hash unchanged.
+- **Evidence:** private level 6 lab, six underwater weapons x W/A/D/Ctrl: gun
+  hand along the view matches each weapon's floating-fire pose (Desert Eagle
+  243, shotgun about 205, Gatling about 115, pipe bomb about 150, Buffalo about 180,
+  crossbow about 160); swimming, shots and sets/clears balanced; same at 120 fps.
+  Floating fire, surface fire, ground fire and Vanilla unchanged. Controls,
+  aim, input, near and Python suites pass.
+- **Limits:** the legs keep the stroke, so strafing or backing twists at the
+  waist; flight and holster not re-driven live (no path by construction);
+  only level 6. Next: the user's playtest.
+  [Note 118](documentation/118-d08o2-swim-weapon-forward.md).
+
+## 2026-10-07 - D08O2 accepted as v1; D08O2A queued
+
+- User: "it works and i accept this as a v1. i want v2 in the backlog
+  though, which will be a more natural pose rather than his entire torso
+  standing up, so it will involve moving the arms in the position as if
+  firing up and his head looking up." D08O2 Accepted; new Todo D08O2A.
 

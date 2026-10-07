@@ -153,6 +153,10 @@ static const Guard guards[] = {
     {0x80013ed8, 48, "7784739458d476aae570170c14eed8ea8334de985f111947c34f2e53a5fbbeb4"},
     {0x800c2754, 16, "d6789d8973ece682e4712a86c894b3a4acc1acdb3c73fa2a95a92e8e3096e70e"},
     {0x80055e80, 1364, "994868d98769dc710f6c742ec402bb372502dbcfb887c055ee30336f80f48bf6"},
+    // D08O2: the last call before the player update picks Duke's model build
+    // (0x800411b8, contact notify) and that choice up to the build call.
+    {0x800411b8, 236, "ecdb24257bebeddf082df00b952cab648dee2e09cadfddde8f8a8a00929fa4d5"},
+    {0x80042634, 308, "49f96d37c9a2d3b97d8ac57a6f3cd2e68fb38107f0996ee7c4bdd80f9bf93d70"},
 };
 // Authenticated level overlays (D22A, D22B). Every LEVELxx.OVR loads at
 // 0x800ca968 and starts with its level tag word; the tag picks the one body

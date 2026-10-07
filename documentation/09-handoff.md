@@ -1,5 +1,31 @@
 # Next-session handoff
 
+## 2026-10-07 - D08O2 accepted (v1); D08O2A queued
+
+- User: "it works and i accept this as a v1". The more natural pose (torso
+  stays in the stroke, arms raised to fire, head looking up) is Todo D08O2A.
+  [Note 118](118-d08o2-swim-weapon-forward.md).
+
+## 2026-10-07 - D08O2 built: weapon forward while swimming and firing (Needs playtest)
+
+- **What:** in Modernized, swimming underwater while firing turns Duke's
+  upper body and weapon toward the crosshair, as when he fires floating still;
+  the legs keep the stroke. Vanilla unchanged.
+- **How:** new hook `0x800411b8` sets the original aim bit `0x100` for Duke's
+  model build only (cleared at the neck's aim call), so the original arm-aim
+  builder runs during the stroke and the D07A hook gives it the view.
+- **Evidence:** private level 6 lab, six weapons x four directions, gun hand
+  along the view equals the floating-fire pose; 60 and 120 fps; Vanilla,
+  ground and surface unchanged; suites pass.
+  [Note 118](118-d08o2-swim-weapon-forward.md).
+
+## 2026-10-07 - D23E and D24A accepted
+
+- User: "we can mark D23E and D24A both as accepted. we've proven these are
+  now working significantly better". D23E (busy-scene stutter,
+  [note 104](104-d23e-busy-scene-stutter.md)) and D24A (open assets,
+  [note 112](112-d24a-open-assets.md)) are Accepted. No code changed.
+
 ## 2026-10-07 - D08A7 accepted: custom medkit gadget icon
 
 - User: "amaazing work. i accept" (Done). The medkit shows the user's sprite

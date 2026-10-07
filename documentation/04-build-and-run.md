@@ -302,6 +302,12 @@ cache from the old workspace path; regenerate with `psxrecomp_cli.py
 generate` and build with `cmake --build --preset local-dev`. See
 [note 107](107-d08o1-swim-fire.md).
 
+## Weapon forward while swimming (D08O2)
+
+One hook (`0x800411B8`, the last call before the player update picks Duke's
+model build) was added to `game.local.toml` and regenerated the same way. See
+[note 118](118-d08o2-swim-weapon-forward.md).
+
 ## Frame rate (D17)
 
 Profile schema 21 adds the Modernized `frame_rate` choice: `display`, `30`,

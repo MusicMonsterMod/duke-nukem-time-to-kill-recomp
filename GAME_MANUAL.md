@@ -587,6 +587,10 @@ Underwater air remains automatic; there is no scuba item and none will be added.
 you swim. On the surface and underwater Duke keeps swimming (W/A/S/D, Space,
 Ctrl) while he fires, and shots go to the crosshair like on land. The original
 game stopped Duke underwater whenever fire was held; Vanilla still does.
+While he swims and fires underwater, Duke's upper body and weapon turn toward
+the crosshair (D08O2), as when he fires floating still; his legs keep the swim
+stroke, so strafing or backing looks twisted at the waist. A more natural pose
+(arms raised, head up, torso staying in the stroke) is planned (D08O2A).
 Number keys, **'** / **;** and the mouse wheel switch weapons in the water too,
 but only between the weapons the original allows there (Desert Eagle,
 Combat Shotgun, Gatling Gun / Laser Gatling, Buffalo Rifle, Crossbow and Pipe

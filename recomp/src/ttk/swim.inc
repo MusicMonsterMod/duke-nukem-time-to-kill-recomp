@@ -559,6 +559,61 @@ static void swim_fire_hide(CPUState* cpu,uint32_t ra) {
     ++swim_fire_masks;
 }
 
+// D08O2 - weapon points forward while swimming and firing. The player update
+// builds Duke's model with 0x80097c04 (call 0x80042748) only when +0x224 has
+// 0x100 or 0x200000 (test at 0x800426f4; otherwise 0x800987cc, which never
+// aims). That build aims joints through 0x80097a44: with 0x100 joint
+// [model+0x2d] (joint 1, which carries the arms) and then [model+0x34]
+// (joint 9, neck and head); with 0x200000 only the neck, which leaves the arms
+// on the stroke. Firing while floating (idle 127) sets 0x100; the thrust
+// handlers that D08O1 lets fire never do, so the arms follow the swim stroke
+// and point down. While underwater, firing (or finishing the shot's upper
+// animation) and neither bit is set, 0x100 is set at the entry of 0x800411b8,
+// the last call before that test (ra 0x80042634), and cleared at the neck's
+// aim call, the build's last; the existing presentation hook supplies the
+// view direction to both, as it does for firing while floating. 0x800411b8 only
+// notifies the objects Duke touches (+0x174 / +0x17c) and is skipped while
+// such a callback would run. Fallback clears: the swim handler, the next
+// update step, an animation start, the camera update and the next entry.
+static constexpr uint32_t k_swim_aim_bit=0x100;
+static unsigned swim_aims, swim_aim_restores, swim_aim_contacts;
+static bool swim_aim_set;
+static unsigned swim_aim_upper=0xffff;
+static void swim_aim_restore() {
+    if(!swim_aim_set)return;
+    swim_aim_set=false;
+    psx_mod_write_word(player+0x224,psx_mod_read_word(player+0x224)&~k_swim_aim_bit);
+    ++swim_aim_restores;
+}
+// 0x80097a44 entry: a0 is the scratchpad matrix of the joint being aimed.
+static void swim_aim_joint(CPUState* cpu) {
+    if(!swim_aim_set)return;
+    const uint32_t model=psx_mod_read_word(player+0x40);
+    if(model<0x80000000u || model>=0x80200000u ||
+       ((cpu->gpr[4]>>5)&31)==psx_mod_read_byte(model+0x34)) swim_aim_restore();
+}
+static bool swim_aim_contact(uint32_t object) {
+    return object>=0x80000000u && object<0x80200000u && (psx_mod_read_word(object)&0x20000);
+}
+static void swim_aim_begin(CPUState* cpu,uint32_t ra) {
+    swim_aim_restore();
+    if(cpu->gpr[4]!=player || ra!=0x80042634)return;
+    if(!swim_native_underwater() || !swim_weapon_ready() || psx_mod_read_byte(player+0x3b8)!=2 ||
+       !presentation_ready() || (psx_mod_read_word(player+0x224)&(0x200000|k_swim_aim_bit))) {
+        swim_aim_upper=0xffff;return;
+    }
+    const auto& f=input_snapshot(Context::Gameplay);
+    const unsigned upper=psx_mod_read_half(player+0x74);
+    // After release, keep aiming until the shot's upper animation changes.
+    if(f.held[fire] && !f.held[holster]) swim_aim_upper=upper;
+    else if(upper!=swim_aim_upper) {swim_aim_upper=0xffff;return;}
+    const uint32_t touch=psx_mod_read_word(player+0x174),stand=psx_mod_read_word(player+0x17c);
+    if(swim_aim_contact(touch) || (stand!=touch && swim_aim_contact(stand))) {++swim_aim_contacts;return;}
+    psx_mod_write_word(player+0x224,psx_mod_read_word(player+0x224)|k_swim_aim_bit);
+    swim_aim_set=true;
+    ++swim_aims;
+}
+
 static void swim_update(CPUState* cpu,bool late) {
     const auto& f=input_snapshot(Context::Gameplay);
     // The assist runs at the ballistic hook (no swim lease in flight); drop it

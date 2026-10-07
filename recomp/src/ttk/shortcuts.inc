@@ -111,6 +111,7 @@ static void use_item(CPUState* cpu,unsigned item) {
         else input_notice(on?"NIGHT VISION ON":"NIGHT VISION OFF");
     }
 }
+static unsigned swim_redraws; // D08O3
 static void select_weapon(CPUState* cpu) {
     const auto& f=input_snapshot(Context::Gameplay);
     input_ack_commands(f.command_serial);
@@ -161,6 +162,14 @@ static void select_weapon(CPUState* cpu) {
     if(!(flags&4) && (((equipment==2 || remote) && current<=14 && weapon_idle) ||
         (equipment==0 && psx_mod_read_byte(player+0x3ba)==0))) {
         if(equipped!=current) {last_equipped=equipped;equipped=current;}
+    }
+    // D08O3: E's redraw in water draws the weapon it stowed through the same
+    // original request as the number keys (see interaction_swim_restore_ready).
+    if(swim_weapon_ready() && !movement_ready() && equipment==0 && !(flags&0x2cd) &&
+       !f.held[fire] && !f.held[original_aim] && input_take_swim_redraw() &&
+       equipped>0 && equipped<=14 && usable_weapon(equipped) && underwater_weapon(equipped)) {
+        psx_mod_write_byte(player+0x3ba,equipped);
+        psx_mod_write_word(player+0x224,flags|4);++selections;++swim_redraws;
     }
     if(!f.command_serial || command_seen==f.command_serial)return;
     command_seen=f.command_serial;

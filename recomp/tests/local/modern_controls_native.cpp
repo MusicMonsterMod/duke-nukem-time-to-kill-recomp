@@ -140,6 +140,7 @@ static bool running, jump_pending, auto_stow;
 bool input_auto_stow_pending(){return auto_stow;}
 bool input_jump_pending(){return jump_pending;}
 bool input_take_jump(){bool result=jump_pending;jump_pending=false;return result;}
+bool input_take_swim_redraw(){return false;}
 static bool want_capture;
 static unsigned capture_offers;
 void input_offer_gameplay_capture() {++capture_offers;}

@@ -58,6 +58,8 @@ const char* input_binding_name(Action action);
 bool input_running();
 // Consume one bounded jump press after the controls hook verifies grounded ownership.
 bool input_take_jump();
+/* D08O3: one pending E redraw in water, taken by the weapon request path. */
+bool input_take_swim_redraw();
 bool input_jump_pending();
 // Bounded E-owned stow, including its post-holster airborne blend.
 bool input_auto_stow_pending();

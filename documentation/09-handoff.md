@@ -1,5 +1,21 @@
 # Next-session handoff
 
+## 2026-10-07 - D08O3 accepted; D08J2 and D08J3 queued
+
+- User: "fully passed my playtest. feels great to play. i accept this job
+  now as complete!!" [Note 120](120-d08o3-e-in-water.md).
+- Backlog: D08J2 (poles and chains: A turns right, D turns left; make A
+  left and D right; chain test location: the user's UI slot 3) and D08J3 (free camera while climbing ladders, poles
+  and chains; needs investigation and usability testing).
+
+## 2026-10-07 - D08O3 built: E in water keeps the weapon (Needs playtest)
+
+- **What:** E while swimming still stows the weapon (needed to climb out at
+  a ledge), but without a climb-out Duke draws it again automatically,
+  without stopping his swimming. Land E and Vanilla unchanged.
+- **Evidence:** private level 6 lab: walls, ledge, underwater, 11 swimming
+  runs; regressions and suites pass. [Note 120](120-d08o3-e-in-water.md).
+
 ## 2026-10-07 - D08O2A accepted
 
 - User: "this is actually rock solid ... I'm happy with it and its 100%

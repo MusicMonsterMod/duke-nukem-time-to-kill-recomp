@@ -579,8 +579,9 @@ On the surface of deep water, face the camera: **W/S** swim forward/back,
 **A/D** strafe (camera-relative), **Ctrl** dives. Underwater, **W/A/S/D**
 swim where the camera looks, **Space** swims up, **Ctrl** swims down, and
 Duke surfaces automatically when he reaches the top. Leave the water with
-**E** / mantle — Space never hops you out at a ledge. Water/oxygen stay with
-the original game.
+**E** / mantle — Space never hops you out at a ledge. E puts the weapon away
+to climb; if there is no ledge to climb, Duke draws it again by himself
+(D08O3). Water/oxygen stay with the original game.
 Details: [documentation/55-swim-controls-research.md](documentation/55-swim-controls-research.md).
 Underwater air remains automatic; there is no scuba item and none will be added.
 **Shooting while swimming (D08O1, Modernized):** hold **left mouse** while

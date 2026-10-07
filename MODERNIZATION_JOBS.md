@@ -4,7 +4,7 @@ This is the canonical job list for our **Duke Nukem: Time to Kill** PC project, 
 
 Invoke **`$continue-duke-recomp`** (Codex) or **`/continue-duke-recomp`** (Claude Code) to see the current jobs and choose one. You can also request a job directly: **`$continue-duke-recomp work on D01`** or **`/continue-duke-recomp work on D01`**. The skill reads this file rather than keeping a second backlog. It must not automatically start the next job.
 
-**Latest accepted jobs: D08O2 v1 (weapon forward while swimming and firing), D23E and D24A, 2026-10-07.** Accepted executable `0694b59dde72db57a536cdc3df4a20eff0866fdd0ca30dcad1da7d0f9ccfca4b` is the current regression baseline. **D23E (western-town stutter) Accepted 2026-10-07**; **D08O2A (natural swim-fire pose v2) Accepted 2026-10-07** ([note 119](documentation/119-d08o2a-natural-swim-fire-pose.md)); **D23F (fast CPU timing) Accepted 2026-10-05 and now the Modernized default**; executable `e0737a9f712aa5622d1b057ee5071e12c33cc9a18de8e6d40ee8eee31083f966` (includes D23E), [note 104](documentation/104-d23e-busy-scene-stutter.md), [note 105](documentation/105-d23f-fast-timing.md). Next suggested: D23G (finish the fast path) and D17S (auto frame-rate default).
+**Latest accepted jobs: D08O3 (E in water keeps the weapon) and D08O2A (natural swim-fire pose v2), 2026-10-07.** New Todo: D08J2 (pole/chain A/D turn direction) and D08J3 (free camera while climbing). Accepted executable `e75b50f156137fa2377e4643407b2efbd16f2e976fa4d697afcbceb228e2e554` (D08O3) is the current regression baseline. **D23E (western-town stutter) Accepted 2026-10-07**; **D08O2A Accepted** ([note 119](documentation/119-d08o2a-natural-swim-fire-pose.md)), **D08O3 Accepted** ([note 120](documentation/120-d08o3-e-in-water.md)); **D23F (fast CPU timing) Accepted 2026-10-05 and now the Modernized default**; executable `e0737a9f712aa5622d1b057ee5071e12c33cc9a18de8e6d40ee8eee31083f966` (includes D23E), [note 104](documentation/104-d23e-busy-scene-stutter.md), [note 105](documentation/105-d23f-fast-timing.md). Next suggested: D23G (finish the fast path) and D17S (auto frame-rate default).
 
 ## The experience we are building
 
@@ -69,6 +69,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08O1 | Fire weapons while swimming (Modernized, game-wide; medieval UI slot 2) | Accepted | D07C, D08O, D22B |
 | D08O2 | Weapon points forward while swimming and firing in motion (v1: upper body to the view) | Accepted | D08O1 |
 | D08O2A | Natural swim-fire pose v2: torso stays in the stroke, arms raised to fire and head looking up | Accepted | D08O2 |
+| D08O3 | E in water keeps the weapon: redraw when no climb-out follows the stow | Accepted | D08O1 |
 | D08N | Duke3D-style scuba gear item | Cancelled (out of scope) | — |
 | D08P | Crystal-2 turret / scripted-camera control recovery | Done | D08 |
 | D08Q | Modern jetpack flight controls | Done | D08 |
@@ -93,6 +94,8 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08Z | Optional manual modern jump (player-timed takeoff, air control) | Done | D08Y |
 | D08Z1 | Keep jump momentum when bumping a wall (EDuke32-style, menu-toggleable) | Todo | D08Z, D22B |
 | D08J1 | Hold-E run-up grab for overhead ladders (slot-6 ladder) | Done | D08J, D08X, D08U |
+| D08J2 | Poles and chains: A/D turn the wrong way (A turns right, D left) | Todo | D08J |
+| D08J3 | Free camera while on ladders, poles and chains (investigation + usability testing) | Todo | D06, D08J |
 | D09 | Modern controller support | Todo | D05, D06, D07 |
 | D10 | Third-person camera polish | Done | D08 |
 | D10A | Rapid mouse turning and Shift-running investigation | Done | D06, D07C, D08 |
@@ -1244,6 +1247,68 @@ each underwater weapon, the torso and legs stay in the stroke, the arms and
 weapon point toward the crosshair and the head looks along the view, in
 third person; floating fire, surface swimming, ground, jetpack and Vanilla
 unchanged; D08O1 mechanics unchanged; the user confirms.
+
+### D08O3 - E in water keeps the weapon
+
+**Accepted (2026-10-07)** (user: "fully passed my playtest. feels great to play. i accept this job now as complete!!") ([note 120](documentation/120-d08o3-e-in-water.md)).
+**User request, 2026-10-07:** "pressing E while swimming holstered my weapon
+and i had to press one of the numbers to draw it. I dont want that to happen."
+The original climbs out of water only with the weapon stowed, so E keeps
+stowing first; the user chose "redraw if no climb" over never stowing (needs
+the side-effecting ledge probe) or ignoring E in water.
+
+**Acceptance:** in Modernized, E while swimming or floating with a weapon out
+and no ledge to climb leaves Duke armed again within about half a second,
+without stopping his swimming; E at a ledge still climbs out and draws on
+land; E on land and Vanilla unchanged; the user confirms.
+
+### D08J2 - Poles and chains: A/D turn the wrong way
+
+**Todo. User request, 2026-10-07:** "when climbing poles or chains, left and
+right are inverted, A turns right, and D turns left! i would like the
+opposite to happen." In Modernized, while Duke is on a pole or chain, A
+should turn (or circle) him left and D right, matching the screen.
+
+**Research start:** find the pole/chain climb states (attached traversal,
+compare the ladder anims 147-156 / 185-211 in `traversal_state_ready()`) and
+how A/D reach the original there (D-pad Left/Right turn buttons, L2/R2
+words, or the traversal camera-only lease that keeps the original
+directional buttons, D08V). Establish whether the original itself turns this
+way relative to the camera (third-person view from behind or in front of the
+pole) or whether our mapping flips it; fix it game-wide for every pole and
+chain, not one level. Check ladders are unaffected.
+
+**Test location:** the user's UI slot 3 is a good place to playtest chain
+climbing (user, 2026-10-07). Test only on dated private copies of that
+savestate; verify its hash first and never use the player's cards.
+
+**Acceptance:** in Modernized, on every pole and chain tried, A turns Duke
+left and D right as seen on screen, in third person (and first person where
+supported); ladders, ground movement and Vanilla unchanged; the user
+confirms.
+
+### D08J3 - Free camera while on ladders, poles and chains
+
+**Todo. User request, 2026-10-07:** "free camera while on ladders/climbing,
+and of course this will require deep investigation and user friendliness
+testing." In Modernized, the mouse camera should stay free (orbit and look)
+while Duke climbs, instead of the original climb camera.
+
+**Research start:** what owns the camera on ladders, poles and chains today
+(the D08V camera-only traversal lease, attached states, original scripted
+climb cameras), how climbing input is resolved relative to the camera (up /
+down / sideways, mount and dismount, the D08U ladder-top mount and D08J
+grabs), and what breaks if the view is free (direction of climb input when
+looking away, collision with the wall the ladder is on, first-person).
+Prototype behind the Modernized profile and test usability with the user
+before settling defaults (for example free orbit with automatic recentre,
+or a limited look range). Chain climbing: the user's UI slot 3 (see D08J2).
+
+**Acceptance:** in Modernized, the camera can be moved freely while
+climbing ladders, poles and chains; climbing controls stay predictable from
+any view; mounting, dismounting and ladder-top/airborne grabs still work;
+no camera clipping regressions; Vanilla unchanged; the user confirms after
+usability testing.
 
 ### D08N — Duke3D-style scuba gear item
 
@@ -9087,3 +9152,26 @@ in note 117 is the reference for future custom pickups.
   Lab: taps, surfacing, held fire, surface, ground and Vanilla checked;
   suites pass. User: "commit it at this point!! again another rock solid
   milestone." Known minor issue resolved. [Note 119](documentation/119-d08o2a-natural-swim-fire-pose.md).
+
+## 2026-10-07 - D08O3 E in water keeps the weapon (Needs playtest)
+
+- User: "pressing E while swimming holstered my weapon and i had to press
+  one of the numbers to draw it." The E redraw needed the ground lease.
+  Armed Cross at a water ledge fires instead of climbing, so E keeps
+  stowing; user chose automatic redraw when no climb-out follows.
+- A Circle redraw could end a stroke and leave Duke idle near geometry
+  (original thrust-start clearance check `0x8007c788`), so the water redraw
+  uses the original weapon request (as the number keys) instead.
+- Lab: surface walls, ledge climb-out, underwater idle and 11 swimming runs
+  behave; land E, Vanilla and swim-fire unchanged; suites pass.
+  [Note 120](documentation/120-d08o3-e-in-water.md).
+
+## 2026-10-07 - D08O3 accepted; D08J2 and D08J3 queued
+
+- User: "fully passed my playtest. feels great to play. i accept this job
+  now as complete!!" D08O3 Accepted.
+- New Todo D08J2: on poles and chains A turns right and D turns left; the
+  user wants the opposite. User: "slot 3 is great to playtest the chain
+  climbing" (UI slot 3).
+- New Todo D08J3: free camera while on ladders and climbing, with deep
+  investigation and usability testing.

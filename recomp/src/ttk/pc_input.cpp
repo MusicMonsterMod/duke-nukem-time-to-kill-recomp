@@ -37,6 +37,7 @@ static bool escape_hold;
 static uint64_t escape_start_deadline,escape_at;
 static bool airborne_interact;
 static uint64_t interaction_deadline, interaction_pulse, capture_after, holster_pulse;
+static uint64_t swim_redraw; // D08O3: E redraw in water pending until this frame
 // Ownership belongs only to an E-triggered holster. Focus/pause clear held
 // buttons but retain this intent; manual holster/selection and death cancel it.
 static bool restore_owned;
@@ -147,7 +148,7 @@ static void clear() {
     std::memset(mouse, 0, sizeof mouse);
     dx = dy = 0;wheel_fraction=distance_total=0;recenter_total=0;command_count=0;
     frame = {};jump_deadline=jump_pressed_at=0;airborne_interact=false;
-    interaction_pending=false;interaction_pulse=0;interaction_started=false;holster_pulse=0;
+    interaction_pending=false;interaction_pulse=0;interaction_started=false;holster_pulse=0;swim_redraw=0;
     push_reset();
     ++epoch; total_x = total_y = 0; look_n=0; look_cx=look_cy=0;
     device = Device::None;
@@ -197,7 +198,7 @@ static bool capture_now() {
 // A savestate load replaced the guest state: host requests that described
 // the old state (stow, weapon restore, push, queued jumps) must not act on it.
 void input_state_loaded() {
-    interaction_pending=false;interaction_pulse=0;interaction_started=false;holster_pulse=0;
+    interaction_pending=false;interaction_pulse=0;interaction_started=false;holster_pulse=0;swim_redraw=0;
     airborne_interact=false;cancel_restore();push_reset();jump_deadline=0;jump_pressed_at=0;
 }
 void input_release() {
@@ -320,6 +321,10 @@ bool input_jump_pending() {
 }
 bool input_push_grab_owns_cross() {
     return modern && focused && captured && (push_request || push_latched);
+}
+bool input_take_swim_redraw() {
+    if(!modern || !focused || !captured || !swim_redraw || sequence>swim_redraw) {swim_redraw=0;return false;}
+    swim_redraw=0;return true;
 }
 bool input_take_jump() {
     if(!input_jump_pending())return false;
@@ -452,7 +457,7 @@ void input_event(const SDL_Event& e) {
             interaction_pending=true;interaction_deadline=sequence+120;interaction_pulse=0;interaction_started=false;holster_pulse=0;
         }
         if(pressed && captured && code==binds[holster]) {
-            cancel_restore();airborne_interact=false;interaction_pending=false;interaction_pulse=0;interaction_started=false;holster_pulse=0;
+            cancel_restore();airborne_interact=false;interaction_pending=false;interaction_pulse=0;interaction_started=false;holster_pulse=0;swim_redraw=0;
             // Deliberate holster key only — E auto-stow never publishes these quotes.
             if(weapon_drawn())input_notice("WEAPON LOWERED");
             else if(weapon_holstered() || fire_draw_ready())input_notice("WEAPON RAISED");
@@ -484,7 +489,7 @@ void input_event(const SDL_Event& e) {
             }
             if(e.type==SDL_MOUSEBUTTONDOWN && binds[holster]==-int(e.button.button)) {
                 cancel_restore();airborne_interact=false;
-                interaction_pending=false;interaction_pulse=0;interaction_started=false;holster_pulse=0;
+                interaction_pending=false;interaction_pulse=0;interaction_started=false;holster_pulse=0;swim_redraw=0;
                 if(weapon_drawn())input_notice("WEAPON LOWERED");
                 else if(weapon_holstered() || fire_draw_ready())input_notice("WEAPON RAISED");
             }
@@ -611,9 +616,11 @@ void input_frame() {
             // One short original draw request, never a held/repeated toggle.
             if(sequence>restore_pulse)cancel_restore();
         } else if(!interaction_pending && !push_request && !push_latched && sequence>interaction_pulse &&
-                  !down(binds[interact]) && interaction_restore_ready()) {
+                  !down(binds[interact]) && (interaction_restore_ready() || interaction_swim_restore_ready())) {
             if(!restore_settle)restore_settle=sequence;
-            if(sequence-restore_settle>=6)restore_pulse=sequence+6;
+            // D08O3: in water the draw is the original weapon request instead.
+            if(sequence-restore_settle>=6 && interaction_swim_restore_ready()) {swim_redraw=sequence+30;cancel_restore();}
+            else if(sequence-restore_settle>=6)restore_pulse=sequence+6;
         } else restore_settle=0;
     }
     if(command_count && sequence>command_deadline)command_count=0;

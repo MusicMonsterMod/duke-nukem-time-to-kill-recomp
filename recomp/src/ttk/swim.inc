@@ -535,6 +535,19 @@ static bool swim_fire_hidden;
 bool swim_weapon_ready() {
     return swim_lease_ready() && (swim_native_underwater() || swim_native_surface());
 }
+// D08O3: E in water stows the weapon first, because the original climbs out
+// of water (surface, anims 134-142) only for an unarmed Cross; armed Cross
+// fires. The E redraw waited for ground movement, so without a ledge the
+// weapon stayed stowed. In the swim states it now redraws there too, under the
+// same settled conditions as on land; a climb-out leaves the swim states at
+// once and keeps the land redraw. The draw itself is the original weapon
+// request (select_weapon), as for the number keys: Circle there could end a
+// thrust stroke, and the original only restarts thrust from idle when ~425
+// units ahead are clear (0x8007c788), so Duke could stop near geometry.
+bool interaction_swim_restore_ready() {
+    return swim_weapon_ready() && psx_mod_read_byte(player+0x3b8)==0 &&
+        !(psx_mod_read_word(player+0x224)&4) && psx_mod_read_half(player+0x74)==psx_mod_read_half(player+0x60);
+}
 static void swim_fire_restore(uint32_t address=0) {
     if(!swim_fire_hidden)return;
     swim_fire_hidden=false;

@@ -942,7 +942,7 @@ prepared disc), messages use the generic host font.
 
 In Modernized gameplay, **[ / ]** open the temporary gadget **switcher** (centered
 strip with Time to Kill's own HUD item icons (D08A3: jetpack,
-Bio Mask, goggles, and the game's health cross for the medkit) and green 3x5 Microfont charge); **Enter** or **U**
+Bio Mask and goggles; the medkit is the project's own medkit sprite) and green 3x5 Microfont charge); **Enter** or **U**
 activates the currently selected gadget (whether or not the strip is showing).
 Holding Enter activates at most once. Empty inventory stays silent. Direct keys
 **M / J / B / N** select and use medkit / jetpack / Bio Mask / night vision **without**
@@ -975,8 +975,8 @@ unbound in Modernized (A/D strafe everywhere) and can be rebound.
 
 **Selected gadget on the HUD (D08A6).** In Modernized the gadget that **Enter**
 / **U** will use always has its own box in the bottom right corner, just above
-the ammo box, in the status bar's own style: the gadget's icon (the health
-cross for the medkit) and its charge in the red HUD digits. Bright digits mean
+the ammo box, in the status bar's own style: the gadget's icon (a medkit case
+for the medkit; the health box keeps its red cross) and its charge in the red HUD digits. Bright digits mean
 the gadget is on; dim digits mean it is selected but off. The medkit is always
 bright. The box changes as soon as you move to another gadget with **[ / ]**, even in flight or while firing; only **Enter** / **U** use it. If the jetpack is
 on while another gadget is selected, its box moves one row higher; the Bio Mask

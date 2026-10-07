@@ -81,7 +81,7 @@ class MissionItems(unittest.TestCase):
         self.assertEqual(data, first)
         found = entries(data)
         manifest = json.loads((ROOT / 'assets/ui/items/items.json').read_text())
-        names = {i['name'] for i in manifest['items'] if not i.get('hud')}
+        names = {i['name'] for i in manifest['items'] if not i.get('hud') and not i.get('gadget')}
         self.assertEqual({n for k, n, *_ in found if k == 0}, names)
         self.assertEqual({n for k, n, *_ in found if k == 1}, names)
         frames = {k: px for k, n, w, h, px in found if k >= 2}

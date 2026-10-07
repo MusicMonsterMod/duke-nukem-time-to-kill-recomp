@@ -1,5 +1,25 @@
 # Current status - 2026-10-04
 
+## 2026-10-07 - D08A7 accepted: custom medkit gadget icon
+
+- User: "amaazing work. i accept" (Done). The medkit shows the user's sprite
+  in the switcher and the HUD box; health keeps the cross.
+  [Note 116](116-d08a7-medkit-icon.md).
+
+## 2026-10-07 - D08A7 built: custom medkit gadget icon (Needs playtest)
+
+- **What:** in Modernized the medkit's inventory picture is the user's own
+  sprite, full colour in the `[` / `]` strip and 15 colours in the D08A6 HUD
+  box. The health box keeps the cross. Vanilla unchanged.
+- **How:** the strip pack takes item 5 from `assets/ui/items/gadget-medkit.png`;
+  the HUD box draws a medkit record whose 4bpp cell and palette sit in rows the
+  disc's HUD sheet leaves empty (cell 960,205, palette 1008,206), loaded by a
+  GP0 `A0` packet in the HUD ordering table each frame the box is drawn.
+- **Evidence:** live VRAM survey (band empty in intro, title, pause, Select,
+  six levels; the game fills x 960-991 from row 223 at run time), GL 4:3 /
+  16:9, Software 4:3, 120 fps with savestate reload, Vanilla no upload.
+  [Note 116](116-d08a7-medkit-icon.md).
+
 ## 2026-10-07 - D08A6 accepted: selected gadget on the HUD
 
 - User: "i fully accept!" (Done). The gadget picked with `[` / `]` always has

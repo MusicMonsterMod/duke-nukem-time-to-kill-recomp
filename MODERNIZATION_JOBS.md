@@ -50,6 +50,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08A4 | EDuke32-style portable steroids: pick up, store in items, use with R | Todo | D08A1, D08A3, D22B |
 | D08A5 | Mission item tracking: mission inventory on , / . (design E, revised) | Done | D08A1, D08A3, D24A |
 | D08A6 | Selected gadget shown on the HUD: original item slot (design A) | Done | D08A1, D08A3 |
+| D08A7 | Custom medkit gadget icon (switcher strip and HUD box) | Done | D08A6 |
 | D08B | Broader traversal and scripted-camera coverage | Done | D08 |
 | D08C | Directional jumps from standstill — accepted both input orders | Done | D08 |
 | D08D | Apartment light-switch secret convenience | Done | D08 |
@@ -683,6 +684,64 @@ changes or Enter uses it; the medkit's number if charge proves misleading.
   savestate load, death / Continue and level change.
 - Dim / lit state follows the real on flag.
 - Default GL and Software renderers; 4:3 and widescreen corners; resize.
+- Vanilla HUD unchanged.
+- The user confirms the look in play.
+
+### D08A7 - Custom medkit gadget icon (switcher strip and HUD box)
+
+**Status: Done (user-accepted 2026-10-07).** Built as planned, with one change
+from the plan: the live survey found the game fills VRAM x 960-991 from row
+223 down at run time, so the cell is at (960,205), not row 208. Details:
+[note 116](documentation/116-d08a7-medkit-icon.md).
+
+**User request, 2026-10-07.** "Instead of the red cross for the medkit's
+inventory representation, we can go for this sprite that i have made ... The
+health icon red cross remains the same." Art: `research/inv/medkit.png`
+(16x16 RGBA, 176 colours, by MusicMonsterMod). A 15-colour reduction for
+the HUD box, made at the user's request: `research/inv/medkit-15col.png`
+(k-means in PSX 15-bit colour, no dithering, about half the error of a
+median-cut reduction). Both are previewed in section 9 of the local D24A page
+(`recomp/analysis/d24a-fonts/ttk-font-picker.html`): the D08A7 card and
+mockup A, which now opens on the medkit.
+
+**Why it is separate from health.** The medkit box and the health box both
+pass sprite record `0x800c44e4` (the HUD health cross) to `0x8008b678`
+(`gadget_icon()` in `recomp/src/ttk/gadget_hud.inc`). Changing that cell
+would change health too, so the medkit needs its own cell, palette and record.
+
+**Plan.** Modernized only; Vanilla unchanged.
+
+1. *Art in the repository:* copy the user's original and 15-colour PNGs into
+   `recomp/assets/ui/items/` (own art, like the D24A mission icons) and list
+   them in `items.json` / the assets README.
+2. *Switcher strip (`[` / `]`):* `build_ttk_inv_icons.py` uses the full-colour
+   art for item 5 instead of the health cross (host pack, no colour limit).
+   The pack's provenance notes the change.
+3. *HUD box:* write the 15-colour art as a 4bpp cell plus a 16-entry CLUT
+   (index 0 transparent) into unused space in the HUD sheet (`FONTS.RAW` at
+   VRAM 960,0). Read of the disc file found empty 16x16 cells (for example
+   rows 208-255, VRAM x 960..) and 60 unused CLUT rows in column x 1008
+   (for example y 53-71, 95-108). Put a 16-byte HUD record (CLUT id, 16x16,
+   VRAM x/y) in guest memory or a host-owned slot the call can read, and
+   return it from `gadget_icon()` for the medkit only.
+4. *Keep it there:* find what reloads or overwrites VRAM (level load, FMV,
+   savestate load, menus, D17 worker replay) and re-upload after each, or
+   prove the area is never touched. Savestates must not need to carry it
+   (do not edit hashed framework headers; see codegen-hash note).
+
+**Research first.** Confirm in a live VRAM dump, in several levels and
+after FMV / savestate load, that the chosen cell and CLUT row stay empty.
+Check whether the HUD sheet is uploaded once or per level.
+
+**Acceptance.**
+- In Modernized, the medkit's selected-gadget box shows the user's medkit
+  icon at the same place, scale and pixel grid as the other gadget icons;
+  the health box keeps the cross.
+- The `[` / `]` switcher strip shows the full-colour medkit.
+- Correct after level change, savestate load, death / Continue, FMV,
+  pause / Select menu, 60 and 120 fps (D17 workers), GL and Software,
+  4:3 and widescreen.
+- No other HUD sprite, font or texture is disturbed in any visited level.
 - Vanilla HUD unchanged.
 - The user confirms the look in play.
 
@@ -8698,3 +8757,58 @@ User, after playtesting the fix: "that's absolutely superb. great and amazing
 quality work! i fully accept." D08A6 is Done. Open for later: the medkit's
 number and a flash on change (left open in the spec), Software 16:9 right HUD
 cut (existing D14 issue).
+
+## 2026-10-07 - D08A7 queued: custom medkit gadget icon
+
+User supplied `research/inv/medkit.png` and asked for it to replace the
+health cross as the medkit's inventory picture (strip and HUD box), with
+health unchanged. Findings: the box draws the medkit with the health record
+`0x800c44e4`, so a new 4bpp cell, CLUT and record are needed; the HUD sheet
+has unused cells and CLUT rows; the HUD box limit is 15 colours plus
+transparent. Made `research/inv/medkit-15col.png` (k-means, PSX 15-bit, no
+dither) at the user's request. D24A page: `make_picker.py` reads both PNGs
+(the 15-colour one for the HUD box mockups, the original for the strip),
+section 9 has a D08A7 card and mockup A opens on the medkit; checked in
+headless Chrome. New Todo D08A7. No game code changed.
+
+## 2026-10-07 - D08A7 built: custom medkit gadget icon (Needs playtest)
+
+- **Art:** the user's `research/inv/medkit.png` and its 15-colour reduction are
+  tracked as `recomp/assets/ui/items/gadget-medkit.png` and
+  `gadget-medkit-15col.png` (own art), listed in `items.json` (`"gadget": 5`;
+  the mission item builder skips gadget entries).
+- **Strip:** `build_ttk_inv_icons.py` takes item 5 from `--medkit`
+  (default the full-colour PNG), trimmed; provenance records it; CMake
+  depends on the PNG.
+- **HUD box:** `src/ttk/gadget_hud.inc` draws the medkit with its own record
+  (the cross record `0x800c44e4` with a new CLUT id and cell, on the saved
+  stack). The 4bpp cell (960,205) and palette row (1008,206) sit in rows the
+  disc's HUD sheet leaves empty. Each frame the medkit box is drawn, a 47-word
+  packet (GP0 `A0` cell, `A0` palette, `01` cache clear) from the HUD packet
+  ring goes into ordering-table slot 0 through the original add `0x8002bc18`,
+  ahead of the icon. The game's own DMA carries it, so no GP0 write races a
+  transfer, and level loads, savestates and D17 workers need nothing extra.
+  The health box keeps the cross. No framework, codegen or profile change.
+- **Research:** record format and UV / tpage derivation from `0x8008b678`;
+  OT add semantics from `0x8002bc18` (head insert); linked-list DMA is
+  asynchronous (`dma.c`), which ruled out direct GP0 writes. Live VRAM
+  survey against `/DATA/FONTS.RAW`: rows 205-222 stay empty (intro movie,
+  title, savestate load, pause, Select screen, levels 1, 2, 3, 5, 7, 9); the
+  game fills x 960-991 from row 223 down at run time (610 texels), which the
+  first planned cell (rows 208-223) would have touched.
+- **Evidence:** private Xvfb runs (`recomp/analysis/d08a7-medkit/`, local):
+  cell and palette in VRAM equal the tables once the box draws; GL 16:9 and
+  4:3, Software 4:3 captures show the medkit in the box, the cross in the
+  health box and the full-colour medkit in the strip; 120 fps first person
+  16:9: four consecutive captures, savestate saved with the medkit selected,
+  level change and reload, M use; Vanilla with all inventory: no box and no
+  upload. `test_ui_art.py` re-derives the tables from the PNG;
+  `ttk-inventory-test`, Python 121 OK (2 skipped), `check_repo.py` OK.
+- **Limits:** death / Continue, an in-play FMV, resize, a statistics-screen
+  transition and the bonus / challenge / boss levels not run. Software 16:9
+  right HUD cut is the existing D14 issue. The user confirms the look in play.
+
+## 2026-10-07 - D08A7 accepted
+
+User, after playtesting: "amaazing work. i accept". D08A7 is Done. The
+untested states listed above stay as notes, not open blockers.

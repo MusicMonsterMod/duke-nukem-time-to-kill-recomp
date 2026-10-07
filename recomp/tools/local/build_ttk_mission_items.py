@@ -72,8 +72,8 @@ def build(ui=UI):
     manifest = json.loads((ui / 'items/items.json').read_text())
     entries, provenance = [], {}
     for item in manifest['items']:
-        if item.get('hud'):
-            continue  # steroids: a HUD icon, not a mission item
+        if item.get('hud') or item.get('gadget'):
+            continue  # steroids and the medkit gadget: not mission items
         w, h, rgba = read_rgba_png(ui / 'items' / item['file'])
         if (w, h) != (16, 16):
             raise SystemExit(f"{item['file']}: expected 16x16, got {w}x{h}")

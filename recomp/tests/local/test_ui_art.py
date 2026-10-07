@@ -22,6 +22,30 @@ class ProjectUiArt(unittest.TestCase):
         expected = [((a << 24) | (r << 16) | (g << 8) | b) if a else 0 for r, g, b, a in im.getdata()]
         self.assertEqual(compiled, expected)
 
+    def test_medkit_hud_cell_matches_png(self):
+        # D08A7: k_medkit_cell / k_medkit_clut are gadget-medkit-15col.png as a 4bpp
+        # cell: index 0 transparent, then colours (PSX 15-bit) in raster order.
+        source = (ROOT / 'src/ttk/gadget_hud.inc').read_text()
+        def table(name):
+            return [int(v, 16) for v in re.findall(r'0x([0-9a-fA-F]+)u', re.search(name + r'\[\d+\]=\{(.*?)\};', source, re.S).group(1))]
+        im = Image.open(UI / 'items/gadget-medkit-15col.png')
+        self.assertEqual((im.mode, im.size), ('RGBA', (16, 16)))
+        palette, texels = [0], []
+        for r, g, b, a in im.getdata():
+            if not a:
+                texels.append(0)
+                continue
+            self.assertEqual(a, 255)
+            colour = (r >> 3) | (g >> 3) << 5 | (b >> 3) << 10 or 0x8000
+            self.assertEqual(((r >> 3) << 3 | r >> 5, (g >> 3) << 3 | g >> 5, (b >> 3) << 3 | b >> 5), (r, g, b))
+            if colour not in palette:
+                palette.append(colour)
+            texels.append(palette.index(colour))
+        self.assertLessEqual(len(palette), 16)
+        self.assertEqual(table('k_medkit_clut'), palette + [0] * (16 - len(palette)))
+        cell = [sum(texels[y * 16 + half * 8 + i] << 4 * i for i in range(8)) for y in range(16) for half in range(2)]
+        self.assertEqual(table('k_medkit_cell'), cell)
+
     def test_switcher_digits_come_from_microfont(self):
         sheet = Image.open(UI / 'fonts/microfont/3x5-Microfont_1D.png').convert('RGBA')
         self.assertTrue((UI / 'fonts/microfont/LICENSE').read_text().count('CC0 1.0 Universal'))
@@ -53,12 +77,14 @@ class ProjectUiArt(unittest.TestCase):
         names = {item['name'] for item in manifest['items']}
         expected = {'SUBWAY SECURITY KEY', 'TRANSPORT ROOM ID', 'WAREHOUSE KEY', 'GANTRY KEY', 'VALVE KEY', 'LAB KEY',
                     'VALVE ROOM KEY', 'RED ENERGY CRYSTAL', 'BLUE ENERGY CRYSTAL', 'GREEN ENERGY CRYSTAL', 'SKELETON KEY',
-                    'SCRAP OF PAPER', 'OLD NOTE', 'TORN PAPER', 'FAMILY JEWEL', 'STEROIDS'}
+                    'SCRAP OF PAPER', 'OLD NOTE', 'TORN PAPER', 'FAMILY JEWEL', 'STEROIDS', 'MEDKIT'}
         self.assertEqual(names, expected)
         for item in manifest['items']:
-            im = Image.open(UI / 'items' / item['file'])
-            self.assertEqual((im.mode, im.size), ('RGBA', (16, 16)), item['file'])
-        used = {item['file'] for item in manifest['items']}
+            for key in ('file', 'hud_file'):
+                if key in item:
+                    im = Image.open(UI / 'items' / item[key])
+                    self.assertEqual((im.mode, im.size), ('RGBA', (16, 16)), item[key])
+        used = {item[key] for item in manifest['items'] for key in ('file', 'hud_file') if key in item}
         on_disk = {p.name for p in (UI / 'items').glob('*.png')}
         self.assertEqual(used, on_disk)
 

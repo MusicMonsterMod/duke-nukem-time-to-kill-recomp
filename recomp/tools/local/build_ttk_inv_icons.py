@@ -11,8 +11,10 @@ Source (owned USA SLUS-00583 disc, read only):
 
 Output: a TTKICO2 pack (item icons, kind 0) plus the selection frame (kind 1)
 from the project's own art, assets/ui/item-frame.png (D24A: it replaced the Duke
-Nukem 3D tile 20 frame), and review PNGs in a local-only directory. The PNGs and
-the pack are retail-derived and must stay out of the public repository.
+Nukem 3D tile 20 frame), and review PNGs in a local-only directory. The medkit
+(item 5) is the project's own assets/ui/items/gadget-medkit.png (D08A7); the HUD
+health cross it used to borrow stays the health icon. The PNGs and the pack are
+retail-derived and must stay out of the public repository.
 """
 import argparse, hashlib, json, struct, sys, zlib
 from pathlib import Path
@@ -32,7 +34,7 @@ RECORDS = {
     2: ('biomask', 0x800c44c4),   # player+0x360 branch, biomask
     3: ('goggles', 0x800c4504),   # player+0x360 branch, night-vision goggles
     4: ('armor', 0x800c44f4),     # 0x8008be00 draws player+0x234 / 100 (armor) beside it
-    5: ('medkit', 0x800c44e4),    # the HUD health cross (player+0x32); no separate medkit icon
+    5: ('medkit', 0x800c44e4),    # the HUD health cross (player+0x32), extracted for review; the pack uses --medkit
 }
 SWITCHER_ITEMS = (1, 2, 3, 5)
 
@@ -158,6 +160,8 @@ def main():
     ap.add_argument('--exe', default=str(ROOT / 'disc/SLUS_005.83'))
     ap.add_argument('--frame', default=str(ROOT / 'assets/ui/item-frame.png'),
                     help='selection frame PNG (the project\'s own art)')
+    ap.add_argument('--medkit', default=str(ROOT / 'assets/ui/items/gadget-medkit.png'),
+                    help='medkit switcher icon (the project\'s own art, D08A7)')
     ap.add_argument('--output', default=str(ROOT / 'assets/ttk-inv-icons.pack'))
     ap.add_argument('--png-dir', default=str(ROOT / 'analysis/d08a3-ttk-icons/png'))
     args = ap.parse_args()
@@ -188,6 +192,11 @@ def main():
                                  'size': [rec['w'], rec['h']], 'clut_vram': [rec['clut_x'], rec['clut_y']],
                                  'fonts_raw_offset': ((rec['y'] - FONTS_ORIGIN[1]) * 64 + rec['x'] - FONTS_ORIGIN[0]) * 2,
                                  'icon_size': [len(icon[0]), len(icon)], 'in_pack': item in SWITCHER_ITEMS}
+        if item == 5:
+            w, h, art = read_rgba_png(args.medkit)
+            icon = trim([[tuple(art[(y * w + x) * 4:(y * w + x) * 4 + 4]) for x in range(w)] for y in range(h)])
+            provenance[str(item)]['own_art'] = f'{Path(args.medkit).name} (sha256 {hashlib.sha256(Path(args.medkit).read_bytes()).hexdigest()})'
+            provenance[str(item)]['icon_size'] = [len(icon[0]), len(icon)]
         if item in SWITCHER_ITEMS:
             body = struct.pack('<HHHHH', 0, item, 0, len(icon[0]), len(icon))
             body += b''.join(bytes(p) for r in icon for p in r)

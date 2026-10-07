@@ -14,15 +14,64 @@
 //   off). Their slide-in offsets are set from the layout when they appear.
 // So: a selected gadget that is on is the original box, with element 5 moved to
 // the slot when it is the Bio Mask or goggles; an off gadget, or the medkit
-// (the original has no medkit box), is drawn here with the health cross for the
-// medkit. An off gadget's digits are the same glyph packets at colour 0x31
+// (the original has no medkit box), is drawn here, the medkit with its own icon
+// (D08A7, below). An off gadget's digits are the same glyph packets at colour 0x31
 // instead of 0x80 (38%: PSX texture modulation). A jetpack that is on but not
 // selected moves one box row up (box height + 4, the original's own step);
 // Bio Mask / goggles keep their own place left of ammo. Layout changes live in
 // the widescreen_hud_begin/restore window, so saves never see them.
 static constexpr uint32_t gadget_box=0x800c44a4,glyph_cursor=0x800d67a8;
-static uint32_t gadget_icon(unsigned item) {
-    return item==1?0x800c44b4:item==2?0x800c44c4:item==3?0x800c4504:0x800c44e4;
+// D08A7 medkit icon: the user's own art, assets/ui/items/gadget-medkit-15col.png
+// (tests/local/test_ui_art.py keeps these tables equal to it), as a 4bpp cell and
+// palette in space the disc's HUD sheet (/DATA/FONTS.RAW at VRAM 960,0) leaves
+// empty: the cell at (960,205), 4 VRAM words x 16 rows, and the palette row at
+// (1008,206). Rows 205-222 stay empty in play; the game fills x 960-991 from
+// row 223 down at run time (live VRAM survey, D08A7). The health box keeps the cross (record 0x800c44e4). The medkit
+// record is the cross record with this cell and palette, on the saved stack.
+// Each time the medkit box is drawn, the HUD ordering-table slot also gets a
+// CPU-to-VRAM load of the cell and palette (GP0 A0, then a texture-cache clear),
+// put in front of the icon. It goes through the game's own linked-list DMA, so
+// it never interleaves with a transfer, and nothing has to survive a level load,
+// a savestate (old or new) or a D17 replay worker: every drawn frame loads it.
+static constexpr uint16_t medkit_cell_x=960,medkit_cell_y=205,medkit_clut_x=1008,medkit_clut_y=206;
+static const uint16_t k_medkit_clut[16]={
+    0x0000u,0x35cfu,0x4653u,0x14bau,0x001au,0x254bu,0x084fu,0x675bu,
+    0x5af8u,0x6b7du,0x73beu,0x7bffu,0x56deu,0x463eu,0x2d9cu,0x52b6u};
+static const uint32_t k_medkit_cell[32]={  // 16 rows, 2 words a row, texel 0 lowest
+    0x00000000u,0x00000000u,0x43210000u,0x00001234u,0x66250000u,0x00005266u,0x00870000u,0x00008800u,
+    0xed3cba97u,0x77abceecu,0xedcc7f89u,0x7827ccdcu,0xeabbf1f9u,0x721fbb9eu,0x4abbf2f8u,0x8f2fba94u,
+    0x43eaf227u,0x722fbe34u,0x443af227u,0x722fb344u,0x49aaf227u,0x722faa94u,0xeaba8227u,0x722fab9eu,
+    0xde9a88f8u,0xff889cedu,0xe3c91512u,0x21519ceeu,0x00000000u,0x00000000u,0x00000000u,0x00000000u};
+static uint32_t gadget_icon(unsigned item,uint32_t medkit_record) {
+    return item==1?0x800c44b4:item==2?0x800c44c4:item==3?0x800c4504:medkit_record;
+}
+// Medkit record: the cross record 0x800c44e4 (CLUT id, w, h, x, y, flags) with the
+// medkit cell and palette.
+static void medkit_record_write(uint32_t record) {
+    for(unsigned i=0;i<16;i+=4) psx_mod_write_word(record+i,psx_mod_read_word(0x800c44e4+i));
+    psx_mod_write_half(record,(uint16_t)((medkit_clut_y<<6)|(medkit_clut_x>>4)));
+    psx_mod_write_word(record+4,medkit_cell_x);
+    psx_mod_write_word(record+8,medkit_cell_y);
+}
+// The load packet: tag, A0 cell (3 + 32 words), A0 palette (3 + 8), cache clear.
+static constexpr unsigned medkit_load_words=1+35+11+1;
+static uint32_t medkit_load_packet() {
+    // Same ring as the HUD sprite packets 0x8008b678 takes: cursor, start, end;
+    // back to the start when the packet would pass the end.
+    uint32_t packet=psx_mod_read_word(glyph_cursor);
+    const uint32_t start=psx_mod_read_word(glyph_cursor+4),end=psx_mod_read_word(glyph_cursor+8);
+    if(end<packet+4*medkit_load_words) packet=start;
+    if(packet<0x80010000 || packet+4*medkit_load_words>0x80200000 || end<start+4*medkit_load_words) return 0;
+    psx_mod_write_word(glyph_cursor,packet+4*medkit_load_words);
+    uint32_t a=packet;
+    auto put=[&](uint32_t v) { psx_mod_write_word(a,v);a+=4; };
+    put((medkit_load_words-1)<<24|0xffffffu);
+    put(0xa0000000u);put((uint32_t)medkit_cell_y<<16|medkit_cell_x);put(16u<<16|4u);
+    for(uint32_t v:k_medkit_cell) put(v);
+    put(0xa0000000u);put((uint32_t)medkit_clut_y<<16|medkit_clut_x);put(1u<<16|16u);
+    for(unsigned i=0;i<16;i+=2) put((uint32_t)k_medkit_clut[i+1]<<16|k_medkit_clut[i]);
+    put(0x01000000u);
+    return packet;
 }
 static bool gadget_owned(unsigned item) {
     if(item!=1 && item!=2 && item!=3 && item!=5) return false;
@@ -66,8 +115,14 @@ static bool gadget_box_draw(CPUState* source,unsigned item,int x,int y,bool lit)
             packet+=0x28;
         }
     }
-    call(0x8008b678,gadget_icon(item),(uint32_t)(x+1),(uint32_t)y,0);
+    const uint32_t medkit_record=top-0x40;
+    if(item==5) medkit_record_write(medkit_record);
+    call(0x8008b678,gadget_icon(item,medkit_record),(uint32_t)(x+1),(uint32_t)y,0);
     call(0x8008b678,gadget_box,(uint32_t)x,(uint32_t)y,0);
+    // The original's ordering-table add 0x8002bc18 (slot 0, the status bar's)
+    // puts a packet at the head of its slot, so the load added last runs first.
+    if(ok && item==5)
+        if(const uint32_t load=medkit_load_packet()) call(0x8002bc18,0,load,0,0);
     for(unsigned i=0;i<1024;++i) if(psx_mod_read_word(base+4*i)!=saved[i]) psx_mod_write_word(base+4*i,saved[i]);
     for(unsigned i=0;i<256;++i) if(psx_mod_read_word(0x1f800000+4*i)!=scratch[i]) psx_mod_write_word(0x1f800000+4*i,scratch[i]);
     return ok;

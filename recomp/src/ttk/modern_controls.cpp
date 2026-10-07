@@ -156,6 +156,7 @@ static void camera_persist(uint64_t sequence,int shoulder,int view) {
     written_distance=distance;written_shoulder=shoulder;written_view=view;
     std::fprintf(stderr,"[TTK camera] could not save camera preferences to %s\n",path);
 }
+static bool climb_state_early();
 static void orbit_begin(uint32_t sp) {
     const auto& f=input_snapshot(Context::Gameplay);
     double target[3];
@@ -214,7 +215,10 @@ static void orbit_begin(uint32_t sp) {
         // Host vblank sequence, once per update; no collision feedback into preference.
         radius+=(preferred_radius-radius)*blend;distance_frame=f.sequence;
         // Shoulder side eases across; 0.22 of the boom, bounded for close/far.
-        const double side=f.shoulder*std::clamp(0.22*radius,192.0,640.0);
+        // D08J3: climbs centre the view whatever the shoulder setting; the
+        // preference itself is untouched and returns when the climb ends.
+        const int shoulder=climb_state_early()?0:f.shoulder;
+        const double side=shoulder*std::clamp(0.22*radius,192.0,640.0);
         shoulder_offset+=(side-shoulder_offset)*blend;
     }
     auto delta=look.consume(f.epoch,f.total_x,f.total_y);
@@ -467,7 +471,18 @@ static bool slide_state_early() {
 // Original moves that run to their end on their own: the host keeps the mouse
 // camera and the selected view but sends no directions.
 static bool committed_move_early() { return roll_state_early() || slide_state_early(); }
-static bool traversal_camera_early() { return mantle_state_early() || unowned_fall_early() || ladder_mount_early() || committed_move_early(); }
+// D08J3: ladders, poles, chains and climbing walls (mode 3, the attached set
+// traversal_state_ready accepts), including their entry frames from a mount,
+// grab or hang. The original keeps the normal camera and Duke's pivot there and
+// only swaps in a high look-down boom; the mouse orbit replaces that boom. The
+// original climb handlers still own motion and facing.
+static bool climb_state_early() {
+    const unsigned animation=psx_mod_read_half(player+0x60);
+    const unsigned mode=psx_mod_read_byte(player+0x22c), previous=psx_mod_read_byte(player+0x22d);
+    return mode==3 && ((animation>=147 && animation<=156) || (animation>=185 && animation<=211)) &&
+        (previous==0 || previous==3 || previous==6 || previous==7 || previous==8 || previous==9);
+}
+static bool traversal_camera_early() { return mantle_state_early() || unowned_fall_early() || ladder_mount_early() || committed_move_early() || climb_state_early(); }
 static bool state(bool camera_only=false) {
     if(!gameplay_context())return false;
     unsigned animation=psx_mod_read_half(player+0x60);

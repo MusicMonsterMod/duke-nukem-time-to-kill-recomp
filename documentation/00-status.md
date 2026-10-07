@@ -1,5 +1,36 @@
 # Current status - 2026-10-04
 
+## 2026-10-07 - D08J3 accepted; D08J5 queued
+
+- User: "we have an absolute winner once again!! it's working well, very fun,
+  looks great." Executable
+  `5a405e4fdb659cffaf8beb8ff9241a23c7157cf888b18ec57b9b1eb130c7b520` is the regression baseline.
+  [Note 124](124-d08j3-climb-camera.md).
+- Backlog: D08J5, climbing down chains (UI slot 3, re-saved with a chain in
+  front of Duke).
+
+## 2026-10-07 - D08J3 follow-up: climbs centre the view (Needs playtest)
+
+- User: "it works perfectly!" and asked that climbs centre the view whatever
+  the over-the-shoulder setting. Built: the shoulder offset eases to centre
+  during ladder/pole/chain climbs and back afterwards; the saved preference is
+  unchanged. Chain run and suites pass. Executable
+  `5a405e4fdb659cffaf8beb8ff9241a23c7157cf888b18ec57b9b1eb130c7b520`. [Note 124](124-d08j3-climb-camera.md).
+
+## 2026-10-07 - D08J3 built: free camera on ladders, poles and chains (Needs playtest)
+
+- **What:** in Modernized, the mouse camera stays free while Duke climbs
+  ladders, poles, chains and climbing walls (orbit, look up/down, Alt+wheel,
+  V recentre). On poles and chains A/D go left/right on screen from any
+  camera side. Vanilla unchanged.
+- **Finding:** the climb keeps the normal camera; in mode 3 the original only
+  swaps in a high look-down boom, and the host orbit lease stopped there.
+- **Evidence:** private copies of UI slots 5 (ladder) and 3 (chain): full
+  orbit while climbing, climbing unchanged, A/D screen-relative behind, front
+  and side; ladder top/enemy/descent regression and Vanilla unchanged; suites
+  pass. Executable `2c94f72ffcb081320298ae37b3dd5bf66dee5f1f7dd654ee705d493a6cd6e593`.
+  [Note 124](124-d08j3-climb-camera.md). Next: the user's usability playtest.
+
 ## 2026-10-07 - D08J4 accepted
 
 - User: "it's a complete winner for me. I totally accept." Executable

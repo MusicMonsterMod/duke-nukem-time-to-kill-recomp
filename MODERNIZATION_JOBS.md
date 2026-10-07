@@ -97,7 +97,8 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08J1 | Hold-E run-up grab for overhead ladders (slot-6 ladder) | Done | D08J, D08X, D08U |
 | D08J2 | Poles and chains: A/D turn the wrong way (A turns right, D left) | Accepted | D08J |
 | D08J4 | Ceiling monkey-bar climbing: camera-relative travel, no mid-span drops (player UI slot 3) | Accepted | D08J, D22B |
-| D08J3 | Free camera while on ladders, poles and chains (investigation + usability testing) | Todo | D06, D08J |
+| D08J3 | Free camera while on ladders, poles and chains (investigation + usability testing) | Accepted | D06, D08J |
+| D08J5 | Climb down chains (and poles): reach the bottom and let go or step off (player UI slot 3) | Todo | D08J2, D08J3 |
 | D09 | Modern controller support | Todo | D05, D06, D07 |
 | D10 | Third-person camera polish | Done | D08 |
 | D10A | Rapid mouse turning and Shift-running investigation | Done | D06, D07C, D08 |
@@ -1304,6 +1305,28 @@ confirms.
 
 ### D08J3 - Free camera while on ladders, poles and chains
 
+**Accepted (2026-10-07, user: "we have an absolute winner once again!! it's
+working well, very fun, looks great").** Executable
+`5a405e4fdb659cffaf8beb8ff9241a23c7157cf888b18ec57b9b1eb130c7b520` (with climbs centring the view) is the
+new regression baseline.
+**Built 2026-10-07 (Needs playtest).** Executable
+`2c94f72ffcb081320298ae37b3dd5bf66dee5f1f7dd654ee705d493a6cd6e593`. Finding: the climb keeps the
+normal camera and Duke's pivot; in mode 3 the original only swaps in a high
+look-down boom (0, 2000, -2000), and the host orbit lease stopped there (it
+already covered mounts, the top exit, mantles, hangs and ceilings). Change
+(Modernized): mode-3 climbs (147..156, 185..211, with entry frames) join the
+camera-only traversal lease, so the mouse orbit, zoom, shoulder and V recentre
+work while climbing; the original still moves Duke. First-person profile shows
+the orbit during climbs (the D08V hang rule). Poles/chains: A/D follow the
+screen from any side (D08J2 swap undone when the camera looks at Duke's
+front, latched while a key is held). Private runs: ladder slot 5 full orbit
+and climb, chain slot 3 A screen-left / D screen-right from behind, front and
+side, ladder top mount / enemy exit / descent regression unchanged, Vanilla
+original boom; suites pass. User playtest: "it works perfectly!"; follow-up built: climbs centre the
+view whatever the H shoulder setting (eases back after), executable
+`5a405e4fdb659cffaf8beb8ff9241a23c7157cf888b18ec57b9b1eb130c7b520`.
+[Note 124](documentation/124-d08j3-climb-camera.md).
+
 **Todo. User request, 2026-10-07:** "free camera while on ladders/climbing,
 and of course this will require deep investigation and user friendliness
 testing." In Modernized, the mouse camera should stay free (orbit and look)
@@ -1324,6 +1347,36 @@ climbing ladders, poles and chains; climbing controls stay predictable from
 any view; mounting, dismounting and ladder-top/airborne grabs still work;
 no camera clipping regressions; Vanilla unchanged; the user confirms after
 usability testing.
+
+### D08J5 - Climb down chains
+
+**Todo. User request, 2026-10-07:** "Next up, we have to stand up a backlog job
+which is the ability to climb down chains. Slot 3 is a great one for testing
+this with as theres a chain right in front of us ready to attempt climbind
+down."
+
+**Test location:** the user's UI slot 3 (savestate file 02), re-saved again
+2026-10-07 18:56 with a chain right in front of Duke (SHA-256
+`b4a5d740570335bca3ee41951d3462b53d684e3fc028a0a1c7fcffc8e551acf8`; earlier copies `a519f8bc...`
+(D08J4, top of the chain) and `d85450de...` (D08J2, under it) are other
+saves). Test only on dated private copies; verify the hash first and never use
+the player's cards.
+
+**Research start:** how Duke gets onto this chain from where he stands (E
+grab, a jump to it, or a top-of-chain mount like D08U's ladder-top mount),
+what S does on the hang-climb (192..195, mode 3; D08J2 saw S descend a short
+way at slot 3's lower chain) and where the original stops him: the chain's
+lower end, a bottom hang, an automatic drop, or no descent at all. Compare
+Vanilla (D-pad Down, Square) with Modernized (S, Ctrl, Space) to establish
+whether the limit is original or ours (the D08U1 ladder S/let-go rules and
+the D08X hang release are known Modernized interventions on similar states).
+Cover poles with the same state where they share it. Fix by state, game-wide,
+not this chain alone.
+
+**Acceptance:** in Modernized, Duke can climb down the slot-3 chain from the
+top to its lower end with S, and at the bottom steps off or lets go
+predictably (and can let go anywhere with Ctrl or Space); W still climbs, A/D
+and the D08J3 free camera unchanged; Vanilla unchanged; the user confirms.
 
 ### D08J4 - Ceiling monkey-bar climbing drops Duke at the wrong points
 

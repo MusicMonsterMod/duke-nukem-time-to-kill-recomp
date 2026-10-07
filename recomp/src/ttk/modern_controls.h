@@ -84,6 +84,7 @@ bool ladder_mount_finishing();
 bool ladder_exit_ready();
 /* D08J2: Duke hangs on a pole or chain (192..195): A/D reach the original swapped. */
 bool pole_sidestep_ready();
+bool pole_view_from_front(bool sidestep_held);
 const char* controls_debug_json();
 // D17: draw-time host state for render replay workers (frame_replay.cpp).
 // D17B late camera (live process only): the view the next game update would

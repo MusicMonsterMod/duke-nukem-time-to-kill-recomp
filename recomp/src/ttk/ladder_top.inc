@@ -299,6 +299,23 @@ bool pole_sidestep_ready() {
     const unsigned animation=psx_mod_read_half(player+0x60);
     return traversal_input_ready() && psx_mod_read_byte(player+0x22c)==3 && animation>=192 && animation<=195;
 }
+// D08J3: with the free mouse camera Duke can be seen from his front, where the
+// D08J2 swap reads backwards: screen left is his right. The side is judged
+// from the view against his facing (he faces the pole) and is only re-read
+// while A/D are up (or on the first frame on a pole), so a sidestep never
+// reverses as the camera swings past his side.
+bool pole_view_from_front(bool sidestep_held) {
+    static bool front;
+    static uint64_t seen;
+    const uint64_t frame=input_host_frame();
+    const bool fresh=frame>seen+1;
+    seen=frame;
+    if(!sidestep_held || fresh) {
+        const double heading=(psx_mod_read_half(player+0x1c)&4095)*tau/4096;
+        front=std::abs(wrap_yaw(view_yaw()-heading))>tau/4;
+    }
+    return front;
+}
 static void ladder_mount_write(double e) {
     psx_mod_write_word(player+4,(int32_t)std::lround(mount.sx+(mount.ax-mount.sx)*e));
     psx_mod_write_word(player+8,(int32_t)std::lround(mount.sy+(mount.ay-mount.sy)*e));

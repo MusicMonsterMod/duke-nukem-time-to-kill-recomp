@@ -819,7 +819,9 @@ uint16_t input_pad() {
         if(descending && !end_drop && ladder_descent_ready()) value &= ~16384;
         // D08X: a stalled object hang lets go through the original Square.
         if(object_hang_release_ready()) value &= ~pads[jump];
-        const bool pole=pole_sidestep_ready();
+        // D08J3: unswapped again when the camera looks at Duke's front.
+        const bool pole=pole_sidestep_ready() &&
+            !pole_view_from_front(down(binds[move_left]) || down(binds[move_right]));
         if(down(binds[move_left]) && !down(binds[move_right])) value &= pole?~32:~128;
         if(down(binds[move_right]) && !down(binds[move_left])) value &= pole?~128:~32;
     }

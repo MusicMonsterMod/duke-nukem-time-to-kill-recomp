@@ -443,6 +443,17 @@ While Duke hangs on a pole or chain, **A** takes him round it to the left and
 original game's left/right buttons work the other way round, and Vanilla keeps
 that.
 
+**Free camera while climbing (Modernized, D08J3).**
+On ladders, poles, chains and climbing walls the mouse camera stays yours: turn
+it all the way round Duke, look up the ladder or down to the floor, zoom with
+Alt+wheel, and press **V** to swing it back behind him. Climbing works as before
+(W/S up and down). On poles and chains **A** and **D** always take Duke left and
+right as seen on screen, whichever side you view him from. While he climbs the
+view is centred behind him even if you play over the shoulder (H); your
+shoulder side comes back when he gets off. In first person the
+view steps out behind Duke while he climbs and returns afterwards. Vanilla keeps
+the original climbing camera.
+
 **Climbable ceilings / monkey bars (Modernized, D08J4).**
 A jump with **E** held under a climbable ceiling (a grate or bars) makes Duke
 grab it and hang by his hands. Then **WASD** move him relative to the camera,
@@ -524,7 +535,8 @@ DNTTK_FP_KICK_THIGH=0 python3 recomp/tools/local/run.py
 ```
 
 Swimming and jetpack flight switch back to third
-person on their own and return when you land; ladders, ledges, scripted and
+person on their own and return when you land; ladders, poles, chains and
+ledges show the free third-person camera while Duke climbs; scripted and
 turret cameras, death and menus use the original camera as before. Dodge rolls
 and slides down steep slopes stay in first person. Pressing P
 again returns to third person. The choice is saved; to set it without
@@ -885,8 +897,8 @@ your movement feel and broader terrain still need playtesting.
 and pulling up, and falls that did not start as your own jump keep the mouse
 camera and modern controls instead of switching to the original camera for a
 moment. Duke's climb itself is the original animation. In first person the view
-steps out behind Duke during the climb and returns afterwards. Ladders keep
-the original camera.
+steps out behind Duke during the climb and returns afterwards. Ladders, poles
+and chains keep the mouse camera too (D08J3).
 
 ### Pushing and climbing objects (Modernized)
 

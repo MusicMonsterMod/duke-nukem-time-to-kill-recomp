@@ -358,7 +358,8 @@ int main(int argc,char** argv) {
         assert(s32(p+4)==-4336 && s32(p+8)==-5118+320 && s32(p+12)==76328 && psx_mod_read_half(p+0x1c)==1024);
         psx_mod_write_half(p+0x60,186);update(); // the original transfer ended: attached
         assert(psx_mod_read_half(p+0x60)==186 && std::strstr(ttk::controls_debug_json(),"\"mounts\":1"));
-        camera();assert(!ttk::traversal_camera_ready());
+        // D08J3: the mouse camera stays on through the attached climb (mode 3).
+        camera();assert(ttk::traversal_camera_ready() && !ttk::locomotion_input_ready());
         // D08U1: the original's ladder-end probe while stepping down. Open below
         // (ladder ends above the floor): the descent flag is cleared so the
         // original stops at this rung; touch fields survive the probe.

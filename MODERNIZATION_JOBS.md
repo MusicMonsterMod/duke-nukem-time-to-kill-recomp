@@ -49,6 +49,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08A3 | Original TTK inventory icons for the switcher (replace Duke3D art) | Done | D08A2 |
 | D08A4 | EDuke32-style portable steroids: pick up, store in items, use with R | Todo | D08A1, D08A3, D22B |
 | D08A5 | Mission item tracking: mission inventory on , / . (design E, revised) | Done | D08A1, D08A3, D24A |
+| D08A6 | Selected gadget shown on the HUD: original item slot (design A) | Todo | D08A1, D08A3 |
 | D08B | Broader traversal and scripted-camera coverage | Done | D08 |
 | D08C | Directional jumps from standstill — accepted both input orders | Done | D08 |
 | D08D | Apartment light-switch secret convenience | Done | D08 |
@@ -616,6 +617,68 @@ the 640x480 overlay space and scale like the switcher.
 - Gadget cycling and Enter are unchanged.
 - Vanilla is unchanged.
 - The user confirms the look in play.
+### D08A6 - Selected gadget shown on the HUD (approved design A)
+
+**Todo. User request and pick, 2026-10-07.** "Enter has the capability of
+using the currently selected inventory item, however the HUD does not show the
+user what the currently selected inventory item actually is ... say the user
+just presses enter without looking, its pot luck." The look must "truly belong
+in this HUD", with the same borders and style as the rest of it. A full HUD
+redesign is a separate, later matter. Three mockups were drawn in section 9 of
+the local D24A page (`recomp/analysis/d24a-fonts/ttk-font-picker.html`, built
+by `make_picker.py` from `picker.template.html`; retail-derived, local only).
+The user picked **A**: "i think we just go with A. that's my pick." B (left
+stack) and C (Duke 3D centre box) stay on the page for reference.
+
+**Design A (build this).** Modernized only; Vanilla unchanged.
+
+1. *Where:* the original item slot. While a gadget is on, the original status
+   bar stacks that gadget's box over the ammo box at the bottom right (Vanilla
+   capture `analysis/d08a3-ttk-icons/item-jetpack-toggled.png`). In
+   Modernized that box is always shown for the gadget selected with `[` / `]`
+   (the one Enter / U uses).
+2. *Parts, only the HUD's own:* the disc's 46x16 icon/number box (sprite
+   record `0x800c44a4`; icon cell x 2..17, divider at x 18, number cell
+   x 19..44), the gadget's HUD icon (D08A3 records: health cross for the
+   medkit `0x800c44e4`, jetpack `0x800c44b4`, Bio Mask `0x800c44c4`, goggles
+   `0x800c4504`) and the red HUD digits (CLUT 227), at the same scale and
+   pixel grid as the health and ammo boxes. No new art, no `%`.
+3. *Number:* the selected gadget's charge, as the Select screen lists it.
+4. *On / off:* lit digits (CLUT 227, as the original) when the gadget is on;
+   dim digits when it is selected but off (mockup: CLUT 227 colours at 38%
+   brightness). The medkit has no on state and always reads lit.
+5. *Another gadget on:* if a gadget other than the selected one is on, its own
+   original box (lit) stacks one row higher, so nothing the original shows is
+   lost. Mockup stacking step: 14 rows at 1x (28 px in the 640x480 overlay),
+   with the lower box drawn over the upper one, as the original draws ammo
+   over the item box. Check the real step against the original status bar.
+6. *Nothing owned:* no box (and the original behaviour when nothing is on).
+7. *Switcher:* `[` / `]` and the existing strip are unchanged; the box follows
+   the selection immediately. Mission inventory (`,` / `.`) does not touch it.
+
+**Research first.** Find how the status bar (`0x8008BA30`) decides and draws
+the active item box and its stacking offset; decide whether to drive the
+original draw (preferred: its own sprites, palette, layout and widescreen
+anchoring from D14) or draw a host copy that matches it pixel for pixel. The
+host selection lives with the D08A1 switcher (`recomp/src/ttk/inventory_hud.cpp`).
+Confirm where each gadget's charge and on flags live (`player+0x358` jetpack,
+`+0x360` Bio Mask / goggles branch) and whether the original can show two
+active boxes at once.
+
+**Open (decide while building, or ask):** a short flash when the selection
+changes or Enter uses it; the medkit's number if charge proves misleading.
+
+**Acceptance.**
+- In Modernized the selected gadget's box is always visible at the original
+  item slot, and matches the box the original draws (borders, icon, digits).
+- It is right after cycling both ways, Enter / U use, direct shortcuts (M, 6,
+  etc.), depletion to zero, toggling on/off, another gadget being on,
+  savestate load, death / Continue and level change.
+- Dim / lit state follows the real on flag.
+- Default GL and Software renderers; 4:3 and widescreen corners; resize.
+- Vanilla HUD unchanged.
+- The user confirms the look in play.
+
 ### D08B — Broader traversal and scripted-camera coverage
 
 **Done on user acceptance (2026-09-29).** User: "d08b can be marked as

@@ -161,6 +161,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D26 | Backtick debug console (fps and helpers) | Done | D04 |
 | D26A | Debug level-select panel for whole-game testing | Accepted | D26, D22A |
 | D26E | Debug `spawn <item>` console command (EDuke32-style) | Accepted | D26A |
+| D26F | Spawning in-game items, continued: level crystals as custom pickups (`spawn 1761/2761/3761`) | Done | D26E, D08A5 |
 | D26B | Opening the console leaves first person | Todo | D26, D11 |
 | D26C | Console command history (Up/Down) | Accepted | D26 |
 | D26D | Level select: authoritative order, numbering, names and categories | Todo | D26A |
@@ -3836,6 +3837,73 @@ refused. Details: [note 111](documentation/111-d26e-debug-spawn.md).
 front of Duke, it is picked up normally, and refusals are clear (unknown item,
 not in this level, Vanilla, not in gameplay). Vanilla and the level select are
 unchanged. The user confirms it is useful for the icon work.
+
+### D26F - Spawning in-game items, continued (mission items)
+
+**Done on user acceptance (2026-10-07): "this is awesome. it works! the
+crystals really do work."** Built as approved: `spawn 1761` / `2761` /
+`3761` drop the real red / blue / green crystal, collected by walking over it.
+Also the project's first custom-pickup contract (user: "the wider effect here
+is we're now about to learn how to make custom pickups. so document this
+heavily"): [note 117](documentation/117-d26f-crystals.md), "Custom pickups".
+Research, as first logged: User: "in the first level (which you can easily reach by going to slot
+4), can you check why spawning the green crystal doesnt show it in the
+inventory? spawning the subway key on the other hand does show it in the
+inventory. My guess was that the crystals are all palette swapped versions of
+the green crystal and the in game items have special properties", then "we can
+stand this up as a logged research job too. 'ability to spawn in game items
+continued' or something".
+
+**Findings (verified).** See [note 117](documentation/117-d26f-crystals.md).
+- `spawn green energy crystal` makes type 761, a walk-over pickup whose original
+  dispatcher case sets inventory item 14 (`+0x38c`) and shows message 115
+  "GREEN ENERGY CRYSTAL". The level's crystals are items 11-13, so nothing named
+  appears. In level 1 item 14 is the Scrap of Paper and in level 6 the first
+  Family Jewel. Where a level loads 761's model, the same spawn would mark
+  those as found (not tested).
+- The real crystals are different objects: types 176 (red), 177 (blue) and 178
+  (green). They are not walk-over pickups. Each sits in a holder (types
+  180/181), and Duke takes it with the action button. The original routine
+  `0x80091cec` puts it in his hand and then sets item 11, 12 or 13.
+- Palette swap: correct. The three crystal models are the same mesh and texture
+  page. Only each face's CLUT differs. Type 761 uses the green crystal's model.
+- The subway key (153) works because its dispatcher case sets item 6, which
+  level 0 names.
+
+**Approved design (2026-10-07, user: "that's how it should work, i love it!").**
+Spawnable mission crystals. It combines what the cheats show (a crystal counts
+once its flag is set) with `spawn` (the real crystal object in front of Duke).
+1. `spawn 1761` / `2761` / `3761` (or `spawn red/blue/green energy crystal`)
+   creates the game's own crystal object, type 176 / 177 / 178, in front of
+   Duke with the original `CreateObject`.
+2. These types have no walk-over pickup, so our code supplies one:
+   - touch: Duke within the original pickup range of a crystal we spawned;
+   - collect: set item 11 / 12 / 13 (one item, as the cheat does);
+   - feedback: the original message (113 / 114 / 115) and pickup sound
+     (`0x7005`), written the way the original pickup does;
+   - remove: the object leaves the world through the game's own routines.
+3. The Select inventory, the D08A5 mission inventory and the receptacles read
+   the flag, so they follow with no extra code.
+
+Rules:
+- `spawn 761` stays the original generic crystal (item 14). In crystal levels
+  the console notes which item it really sets.
+- 1761-3761 work only in levels 0, 5 and 9. Elsewhere they are refused clearly.
+- If the crystal is already found, the spawn still works and says so.
+- Console only (Modernized). Vanilla is unchanged.
+
+Open points for the build: pickup range and the original sound, message and
+removal routines; crystal models in levels 5 and 9; receptacle acceptance in
+play; a spawned crystal across savestate load or level change (forgotten).
+
+**Acceptance.**
+- In levels 0, 5 and 9, each of 1761 / 2761 / 3761 appears as the right colour
+  and is collected by walking over it, with the original message and sound.
+- The crystal then shows in the Select inventory and the mission inventory, and
+  the level's receptacle accepts it.
+- Refusals and notes are clear (other levels, 761, already found).
+- Other spawns, Vanilla and the level crystals' own take are unchanged.
+- The user confirms in play.
 
 ### D26A - Debug level-select panel for whole-game testing
 
@@ -8812,3 +8880,78 @@ headless Chrome. New Todo D08A7. No game code changed.
 
 User, after playtesting: "amaazing work. i accept". D08A7 is Done. The
 untested states listed above stay as notes, not open blockers.
+
+## 2026-10-07 - D26F research: why the spawned green crystal is not in the inventory
+
+User report from level 0 (UI slot 4): `spawn subway security key` shows in the
+inventory but `spawn green energy crystal` does not. Research only; no game
+code changed.
+
+Evidence:
+- Private Xvfb runs on a copy of the user's cards, slot 4, level 0. Walking
+  over a spawned 761 changed only item 14 (0 -> 1); items 11-13 stayed 0.
+- The pickup dispatcher `0x80081a48` has no case that writes `+0x380/384/388`.
+  761 is the only case with the crystal message.
+- `0x80091cec` (player animations 0x83/0x10c) takes the crystal from the holder
+  at `player+0x290`. Holder state 1/2/3 picks the level object slot
+  (`0x80092d78`: level 0 -> 6/10/19, level 5 -> 2/3/4, level 9 -> 19/20/21).
+  Crystal type 176/177/178 picks item 11/12/13.
+- In UI slot 3 (level 0), those slots hold 176, 178 and 177 inside holders 180,
+  180 and 181.
+- Model data: identical vertices. Face CLUT red `0x0bb9`, green `0x1538`.
+
+Correction: D26E's limit "red and blue crystals are not loaded" was wrong.
+Their models are loaded. They are just not walk-over pickup types.
+
+Remaining: the user chooses a fix (A or B). A real crystal take from its holder
+was not played; the path is from code reading plus the live object table.
+
+## 2026-10-07 - D26F built: spawnable crystals as custom pickups (Needs playtest)
+
+Design approved by the user ("that's how it should work, i love it!"). The user
+also asked for heavy documentation, since this is how custom pickups will be
+made: [note 117](documentation/117-d26f-crystals.md) has the full recipe.
+
+- **Player-facing:** in levels 0, 5 and 9, `spawn 1761` / `2761` / `3761` (or
+  `spawn red / blue / green energy crystal`) drop the level's real crystal,
+  types 176 / 177 / 178. Walking over it collects it with the original message
+  (113-115) and pickup sound. It sets item 11 / 12 / 13, so the Select
+  inventory, the mission inventory and the receptacles follow.
+  - "(already found)" when the crystal is already found;
+  - other levels refuse;
+  - `spawn 761` stays the generic crystal (item 14) and the console says so;
+  - `items` lists the crystal numbers.
+- **How:** `recomp/src/ttk/spawn.inc`.
+  - Create with `0x80095a74`, mark `+0x35 = 1`, run the pickup update
+    `0x800814d4` once to start the original fall/bounce. Clear the engine's
+    landing value `0xff` to 0, as a pickup's own update does.
+  - Collect on the pickup loop's touch test, in the dispatcher tail's order:
+    unlink from cell, flag, message, sound, bounce handle, active list, free
+    list.
+  - The tracked list is forgotten on savestate load, level change, a type
+    change or a level-owned object.
+- **Evidence:** private Xvfb runs from UI slot 4 (copy).
+  - Level 0: all three visible, resting at the item rest height, collected
+    (flags 11-13 only, messages 113-115, objects freed); one collected
+    mid-bounce.
+  - The mission inventory showed 3/5 with the crystals; "already found" and
+    the 761 note shown.
+  - Levels 5 and 9: all three collected (level 9 green on a second run; the
+    first scripted walk did not reach it). Level 1 refused.
+  - `ttk-controls-test`, `ttk-input-test`, Python 121 OK (2 skipped),
+    `level_overlay_guards.py --check` match. GAME_MANUAL updated.
+- **Remaining:**
+  - user playtest;
+  - receptacle acceptance in play (the flag is what it reads; not driven);
+  - a savestate load or level change with a crystal lying in the world (not
+    run);
+  - Vanilla refusal is the unchanged D26E path, not rerun.
+
+## 2026-10-07 - D26F accepted
+
+User, after playtesting: "this is awesome. it works! the crystals really do
+work. lock it all in, document, commit, push". D26F is Done. The untested
+cases (a savestate load or level change with a spawned crystal in the world,
+the Vanilla rerun) stay as notes, not open blockers. The custom pickup recipe
+in note 117 is the reference for future custom pickups.
+

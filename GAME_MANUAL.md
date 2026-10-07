@@ -771,6 +771,18 @@ from another level (crystals in Duke Hill, for example) is refused rather than
 spawned invisible. Mission keys take this level's name (`key 1` is the Subway
 Security Key in level 0 and the Warehouse Key in level 5). Vanilla refuses it.
 
+*Energy crystals.* In the levels with crystals (0 Time to Kill, 5 Obey or Die,
+9 Pig Factory), `spawn 1761`, `spawn 2761` and `spawn 3761` (or
+`spawn red energy crystal`, `blue energy crystal`, `green energy crystal`) drop
+the level's own red, blue or green crystal. Walk over it to collect it: the
+original pickup message and sound play, and it counts as found everywhere (the
+Select inventory, the `,` / `.` mission inventory and the crystal receptacles).
+In the normal game you take crystals from their holders with the action button;
+these numbers exist only in the console. If you already have that crystal, the
+console says "(already found)". Other levels refuse them. `spawn 761` is a
+different, generic crystal from the game data: it sets a hidden inventory slot,
+not the level's crystals, and the console says so.
+
 **I** toggles the Modernized crosshair on/off (EDuke-style). The original TTK
 weapons/inventory screen stays on **Right Shift** (Select); press it again to close.
 

@@ -68,9 +68,12 @@ Private Xvfb Modernized runs on a private card copy
 ## Limits
 
 - Level 0's green energy crystal (761) spawns and is visible, but after walking
-  over it, it did not appear in the inventory. Its pickup is unconfirmed.
-- Level 0's red and blue crystals are not loaded as pickup types at level start,
-  so they cannot be spawned there yet and have no names.
+  over it, it did not appear in the inventory. Explained by D26F
+  ([note 117](117-d26f-crystals.md)): 761 sets item 14, while the level's
+  crystals are items 11-13 and come from separate objects (176-178).
+- (Corrected by D26F.) The red and blue crystal models are loaded in level 0.
+  The level crystals are not walk-over pickup types, so `items` does not list
+  them.
 - Types 155-157 share the key model and set flags (`+884/888/892`) that level
   0's inventory does not name. They are spawnable by number only.
 - Any type with a loaded model can be spawned by number, including scenery that

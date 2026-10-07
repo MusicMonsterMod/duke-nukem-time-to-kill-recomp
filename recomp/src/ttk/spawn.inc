@@ -20,7 +20,7 @@ static constexpr SpawnItem spawn_items[]={
     {"warehouse key",153,5},{"gantry key",153,7},{"valve key",154,7},
     {"lab key",153,9},{"valve room key",154,9},
     {"key 1",153,-1},{"key 2",154,-1},
-    {"green energy crystal",761,-1},
+    {"generic crystal",761,-1},
     {"skeleton key",542,-1},{"scrap of paper",547,-1},{"old note",548,-1},{"torn paper",549,-1},
     {"family jewel",854,-1},{"family jewel 2",855,-1},{"family jewel 3",856,-1},
     {"steroids",638,-1},{"armor",320,-1},{"health",473,-1},{"atomic health",581,-1},
@@ -46,12 +46,108 @@ static const char* spawn_name(unsigned type,unsigned level) {
     for(auto& item:spawn_items)if(item.type==type && (item.level<0 || unsigned(item.level)==level))return item.name;
     return nullptr;
 }
+// D26F custom pickups: the level crystals as walk-over items. Contract:
+// documentation/117-d26f-crystals.md ("Custom pickups").
+//
+// The game's crystals (types 176/177/178) sit in holders and are taken with
+// the action button by 80091CEC, which sets inventory item 11/12/13. Their type
+// flags lack the walk-over pickup bit 0x20000000, so the pickup loop (8007FD04)
+// never touches them and the dispatcher 80081A48 has no case for them. Type 761
+// is a different, generic walk-over crystal that sets item 14.
+// Console-only numbers (above the 1062 real types) create the real crystal
+// object; spawn_crystal_update then performs the pickup the way the
+// dispatcher's common tail does for a touched item.
+struct SpawnCrystal {const char* name;uint16_t number,type,item,message;};
+static constexpr SpawnCrystal spawn_crystals[]={
+    {"red energy crystal",1761,176,11,113},
+    {"blue energy crystal",2761,177,12,114},
+    {"green energy crystal",3761,178,13,115},
+};
+// Only levels whose inventory names items 11-13 (0x80087D4C): 0, 5, 9.
+static bool spawn_crystal_level(unsigned level){return level==0 || level==5 || level==9;}
+static const SpawnCrystal* spawn_crystal(int number) {
+    for(auto& c:spawn_crystals)if(c.number==number)return &c;
+    return nullptr;
+}
+struct SpawnedCrystal {uint32_t object;const SpawnCrystal* crystal;};
+static std::vector<SpawnedCrystal> spawned_crystals;
+static uint32_t spawned_level,spawned_loads;
+static bool spawn_item_found(unsigned item){return psx_mod_read_half(player+0x354+4*item)&1;}
+// The level's own objects (table 800D2550, 64 pointers) include its real
+// crystals. A tracked address that shows up there is never ours.
+static bool spawn_level_object(uint32_t object) {
+    for(unsigned i=0;i<64;++i)if(psx_mod_read_word(0x800d2550+4*i)==object)return true;
+    return false;
+}
+// Touch range of the original pickup loop (8007FD04): |dx| and |dz| below the
+// object's radius +0x5a when it exceeds 0x100, else below 0x100. Its object
+// query box is 0x258 tall; |dy| is held to that.
+static bool spawn_crystal_touched(uint32_t object) {
+    const int32_t dx=(int32_t)psx_mod_read_word(object+4)-(int32_t)psx_mod_read_word(player+4);
+    const int32_t dy=(int32_t)psx_mod_read_word(object+8)-(int32_t)psx_mod_read_word(player+8);
+    const int32_t dz=(int32_t)psx_mod_read_word(object+12)-(int32_t)psx_mod_read_word(player+12);
+    const int32_t radius=std::max<int32_t>(0x100,(int16_t)psx_mod_read_half(object+0x5a));
+    return std::abs(dx)<radius && std::abs(dz)<radius && std::abs(dy)<0x258;
+}
+// The dispatcher's common tail (80082D04..80082E4C) for a touched item, minus
+// the multiplayer respawn: message, sound, out of its cell, out of the active
+// list, back to the free list.
+static bool spawn_crystal_collect(CPUState* cpu,uint32_t object,const SpawnCrystal& c) {
+    const unsigned index=psx_mod_read_byte(player+0x233);
+    const uint32_t players=std::max<uint32_t>(1,psx_mod_read_word(0x800c27bc));
+    const uint32_t cells=psx_mod_read_word(0x800da454);
+    const int cell=int8_t(psx_mod_read_byte(object+0x2e));
+    if(!cheat_ram(cells,4) || cell<0)return false;
+    const uint32_t list[1]={object};
+    uint32_t removed=0;
+    if(!cheat_call(cpu,0x8001c9ac,cells+88*cell+0x48,object,list,1,&removed) || !removed)return false; // out of the cell
+    const uint32_t flag=player+0x354+4*c.item;
+    psx_mod_write_half(flag,psx_mod_read_half(flag)|1);           // as 80091FC4 stores a taken crystal
+    psx_mod_write_half(0x800dcd90+2*index,c.message);             // pickup message id (80082D20)
+    psx_mod_write_word(0x800dcd98+4*index,0x4b0/players);         // its display time (80082DD4)
+    cheat_call(cpu,0x8006bbd8,0x7005);                            // 761's pickup sound
+    if(psx_mod_read_byte(object+0x35)==2)                          // still bouncing: as 80082D4C
+        cheat_call(cpu,0x8008f104,psx_mod_read_word(object+0x10));
+    cheat_call(cpu,0x8001c9ac,0x800c5694,object,list,1);           // out of the active list (search: safe when absent)
+    if((int16_t)psx_mod_read_half(object+0x30)==-1)cheat_call(cpu,0x80095c7c,object); // back to the free list
+    else psx_mod_write_byte(object+0x35,0x63);
+    return true;
+}
+static void spawn_crystal_update(CPUState* cpu) {
+    if(spawned_crystals.empty())return;
+    // Forget everything across a savestate load or level change: the pool is
+    // rebuilt and an address may then hold an unrelated object.
+    if(psx_mod_savestate_loads()!=spawned_loads || psx_mod_read_word(0x800be570)!=spawned_level) {
+        spawned_crystals.clear();return;
+    }
+    // Collect only where cheat_call can run (same gate as the spawn itself), so
+    // the flag is never set without the object leaving the world.
+    if(!player_identity_ready() || psx_mod_read_word(0x800c27bc)!=1 || guest_busy ||
+       cpu->gpr[29]<0x801f4000 || g_precise_mode || g_ls_mode || g_psx_call_bail)return;
+    for(size_t i=0;i<spawned_crystals.size();) {
+        const SpawnedCrystal s=spawned_crystals[i];
+        if(!cheat_ram(s.object,96) || psx_mod_read_half(s.object+0x2c)!=s.crystal->type || spawn_level_object(s.object)) {
+            spawned_crystals.erase(spawned_crystals.begin()+i);continue;
+        }
+        // The bounce engine ends with +0x35 = 0xff; a pickup's own update turns
+        // that into 0 (800816BC). A crystal has no such update, so do it here.
+        if(psx_mod_read_byte(s.object+0x35)==0xff)psx_mod_write_byte(s.object+0x35,0);
+        if(spawn_crystal_touched(s.object)) {
+            const bool ok=spawn_crystal_collect(cpu,s.object,*s.crystal);
+            std::fprintf(stderr,"[TTK spawn] crystal %u object %08x collected item %u %s\n",
+                         s.crystal->number,s.object,s.crystal->item,ok?"ok":"FAILED");
+            spawned_crystals.erase(spawned_crystals.begin()+i);continue;
+        }
+        ++i;
+    }
+}
 static int spawn_pending=-1;
 static uint64_t spawn_deadline;
 static void spawn_update(CPUState* cpu) {
     // A typed request arrives while the console has just released the mouse,
     // so it does not need captured input, only a verified Modernized gameplay
     // player. Wait up to ~5 s (300 host frames) for one, then give up.
+    spawn_crystal_update(cpu);
     const int fresh=spawn_request.exchange(-1);
     if(fresh>=0){spawn_pending=fresh;spawn_deadline=input_host_frame()+300;}
     if(spawn_pending<0)return;
@@ -60,7 +156,10 @@ static void spawn_update(CPUState* cpu) {
         if(input_host_frame()>spawn_deadline){spawn_pending=-1;input_notice("Spawn unavailable here");}
         return;
     }
-    const int type=spawn_pending;spawn_pending=-1;
+    const SpawnCrystal* crystal=spawn_crystal(spawn_pending);
+    const int type=crystal?crystal->type:spawn_pending;spawn_pending=-1;
+    const unsigned level=psx_mod_read_word(0x800be570);
+    if(crystal && !spawn_crystal_level(level)) {input_notice("Spawn: no energy crystals in this level");return;}
     if(!spawn_model_ready(unsigned(type))) {input_notice("Spawn: not available in this level");return;}
     if(!psx_mod_read_word(spawn_free)) {input_notice("Spawn: no free object");return;}
     // In front of the camera (the modern view yaw, 0 = +Z, 1024 = +X), so the
@@ -81,9 +180,23 @@ static void spawn_update(CPUState* cpu) {
     // rest (checked: a pig cop's ammo drop and a spawned item settle at the same
     // height on the level 0 street). Any "half in the ground" look is the game's.
     psx_mod_write_byte(object+0x35,1); // as 80096B98 marks a dropped item: the original fall and bounce
+    // A pickup type's own update (800814D4) starts that fall. A crystal type is
+    // static scenery and never runs it, so run it once: with +0x35 == 1 it
+    // registers the object with the bounce engine (8008F150, handle in +0x10,
+    // the engine clears +0x35 on landing) or, failing that, rests it at the
+    // floor (8005D358) - 50. Its type-specific spin skips 176-178.
+    if(crystal)cheat_call(cpu,0x800814d4,object);
     char text[64];
-    const char* name=spawn_name(unsigned(type),psx_mod_read_word(0x800be570));
-    if(name)std::snprintf(text,sizeof text,"Spawned %s",name);
+    const char* name=spawn_name(unsigned(type),level);
+    if(crystal) {
+        if(spawned_crystals.empty() || spawned_loads!=psx_mod_savestate_loads() || spawned_level!=level) {
+            spawned_crystals.clear();spawned_loads=psx_mod_savestate_loads();spawned_level=level;
+        }
+        spawned_crystals.push_back({object,crystal});
+        std::snprintf(text,sizeof text,"Spawned %s%s",crystal->name,spawn_item_found(crystal->item)?" (already found)":"");
+    } else if(type==761 && spawn_crystal_level(level))
+        std::snprintf(text,sizeof text,"Spawned generic crystal (item 14)");
+    else if(name)std::snprintf(text,sizeof text,"Spawned %s",name);
     else std::snprintf(text,sizeof text,"Spawned type %d",type);
     for(char* c=text;*c;++c)*c=char(std::toupper((unsigned char)*c));
     input_notice(text);
@@ -114,6 +227,8 @@ bool spawn_console_command(const char* line,void (*say)(const char*),bool& close
             used+=std::snprintf(row+used,sizeof row-used,"%s%s",used?", ":"  ",entry);
         }
         if(used)say(row);
+        if(spawn_crystal_level(level))
+            say("  Crystals: red energy crystal (1761), blue (2761), green (3761)");
         // Every other pickup-class type (type byte 6 == 1) whose model this
         // level has loaded, by number: weapons, ammo and unnamed slots.
         const uint32_t types=psx_mod_read_word(spawn_types);
@@ -138,11 +253,25 @@ bool spawn_console_command(const char* line,void (*say)(const char*),bool& close
     const long number=std::strtol(what,&end,10);
     if(end!=what && !*end) type=int(number);
     else {
+        for(auto& c:spawn_crystals)if(spawn_same(what,c.name)){type=c.number;break;}
+    }
+    if(const SpawnCrystal* c=spawn_crystal(type)) {
+        if(!spawn_crystal_level(level)) {say("Spawn: no energy crystals in this level (levels 0, 5 and 9)");return true;}
+        if(!spawn_model_ready(c->type)) {say("Spawn: that crystal is not loaded in this level");return true;}
+        spawn_request.store(type);++spawn_requests;
+        char reply[80];std::snprintf(reply,sizeof reply,"Spawning %s...",c->name);
+        say(reply);
+        close=true;
+        return true;
+    }
+    if(type<0) {
         for(auto& item:spawn_items)
             if(spawn_same(what,item.name) && (item.level<0 || unsigned(item.level)==level)){type=item.type;break;}
     }
     if(type<=0 || unsigned(type)>=spawn_type_count) {say("Spawn: unknown item - type items for the list");return true;}
     if(!spawn_model_ready(unsigned(type))) {say("Spawn: that item is not loaded in this level");return true;}
+    if(type==761 && spawn_crystal_level(level))
+        say("Note: 761 is the generic crystal (item 14); this level's crystals are 1761-3761");
     spawn_request.store(type);++spawn_requests;
     char reply[80];std::snprintf(reply,sizeof reply,"Spawning %s...",what);
     say(reply);

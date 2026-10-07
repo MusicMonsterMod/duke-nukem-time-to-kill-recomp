@@ -118,7 +118,11 @@
   - Switcher code: `src/ttk/inventory_hud.cpp`; packs via
     `tools/local/build_ttk_inv_icons.py`.
   - Item names and found state: the player's mission flags (`+876`..`+916`,
-    see the job); confirm level 0's crystal flags first.
+    see the job). Level crystals (items 11-13) are confirmed by D26F
+    ([note 117](117-d26f-crystals.md)): taken from holders, not walk-over
+    pickups; `spawn 761` (generic crystal) sets item 14 instead. D26F (accepted)
+    adds `spawn 1761/2761/3761`: the real crystals as custom
+    walk-over pickups (recipe in note 117).
 
 ## 2026-10-06 - D24A, D24B, D26E: open assets, TTK fonts, savestate menu, debug spawn
 

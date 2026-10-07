@@ -80,5 +80,5 @@ bugs are on the board. The implementation under `recomp/` is now versioned.
 Latest accepted renderer work: [D15 precision, floor/idle and close-up clipping](96-d15-accepted-precision.md). D17P is the immediate follow-up for the replacement subway slot 8 distant bands.
 D17P distant bands: [note 97](97-d17p-distant-bands.md) (accepted). D17N world subdivision: [note 98](98-d17n-world-subdivision.md) (accepted). D17Q residual surface flicker (UV seams): [note 99](99-d17q-uv-seams.md) (accepted; current regression baseline).
 
-D24A open assets (TTK disc fonts, Microfont digits, original frame and crosshair; no Duke Nukem 3D art): [note 112](112-d24a-open-assets.md) (Needs playtest). D26E debug spawn console command: [note 111](111-d26e-debug-spawn.md) (accepted).
+D24A open assets (TTK disc fonts, Microfont digits, original frame and crosshair; no Duke Nukem 3D art): [note 112](112-d24a-open-assets.md) (Needs playtest). D26E debug spawn console command: [note 111](111-d26e-debug-spawn.md) (accepted). D26F spawnable crystals and the custom pickup recipe: [note 117](117-d26f-crystals.md) (accepted).
  D24B savestate menu: [note 113](113-d24b-savestate-menu.md) (accepted).

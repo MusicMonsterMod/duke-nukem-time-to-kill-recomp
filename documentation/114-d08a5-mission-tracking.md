@@ -58,7 +58,8 @@ item 8, 157 item 10; skeleton keys 542/744/862 item 6, 745/863 item 7, 746
 item 8; papers 547/548/549 items 14/15/16; jewels 854/856 items 14/16; 761 sets
 item 14 with message 115. So the debug `spawn green energy crystal` (761) does
 not set the crystal slot 13, which is why D26E saw it missing from the Select
-inventory; real crystal pickups were not traced.
+inventory. Real crystals (types 176-178) are taken from holders by `0x80091cec`,
+which sets items 11-13; see [note 117](117-d26f-crystals.md).
 
 ## Implementation
 

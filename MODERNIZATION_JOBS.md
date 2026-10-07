@@ -50,7 +50,8 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08A4 | EDuke32-style portable steroids: pick up, store in items, use with R | Done (user-accepted) | D08A1, D08A3, D22B |
 | D08A8 | Steroids countdown in the steroids HUD box (pill icon), not the armor element | Done (user-accepted) | D08A4, D08A6 |
 | D08A9 | Picked-up inventory item becomes the switcher selection (Duke 3D feel) | Done (user-accepted) | D08A1, D08A4, D08A6 |
-| D08A10 | Experimental: steroids heartbeat sound loop while they run (226 bpm, Duke 3D feel; may be reverted) | Todo | D08A4, D08A8 |
+| D08A10 | Experimental: steroids heartbeat sound loop while they run (226 bpm, Duke 3D feel; may be reverted) | Done (user-accepted) | D08A4, D08A8 |
+| D08A11 | `dnhyper` countdown in the steroids HUD box (D08A8), not the old armor element | Todo | D08A8, D08G |
 | D08A5 | Mission item tracking: mission inventory on , / . (design E, revised) | Done | D08A1, D08A3, D24A |
 | D08A6 | Selected gadget shown on the HUD: original item slot (design A) | Done | D08A1, D08A3 |
 | D08A7 | Custom medkit gadget icon (switcher strip and HUD box) | Done | D08A6 |
@@ -713,7 +714,16 @@ keep the selection consistent; Vanilla unchanged; the user confirms the feel.
 
 ### D08A10 - Experimental: steroids heartbeat sound loop
 
-**Todo. Experimental; user request, 2026-10-08.** The user expects it to be
+**Done on user acceptance (2026-10-08): "I love it, that sounds pretty much the same as the one in duke3d now. I accept this job as done!!"** Executable
+`146e7ce5a9e5a762d64f3ccd9a878285ea05952d1b8065a0a28e3bc690ecdcca` is the regression baseline.
+
+225 bpm on the steroids timer, with the exact
+sound Shift makes in Modernized (the walk/run toggle click `0x0001` through
+`0x8006bbd8`). User on the first build: "the beat is right but the sound is
+wrong" (it used `0x1012`; the footstep was the wrong guess for the Shift sound).
+See the work log below and [note 129](documentation/129-d08a10-steroids-heartbeat.md).
+
+**Experimental; user request, 2026-10-08.** The user expects it to be
 simple but may not like the result, so it may be reverted: keep it small,
 isolated and easy to remove (or behind a profile option), and get the user's
 verdict before building on it.
@@ -754,6 +764,82 @@ steroids duration in at least two levels, at 60 and 120 fps; it stops when
 the effect ends or is cut, and on death, savestate load and level change;
 other sounds and voices are not cut off; Vanilla and `steroids` `original`
 unchanged; the user decides to keep, change or revert it.
+
+**Work log (2026-10-08, Needs playtest).**
+
+- Reference: the video's steroids sound runs 13.5 s, median 268 ms between
+  beats (224 bpm): Duke 3D's `DUKE_HARTBEAT` every 8 tics at 30 Hz, 225 bpm.
+- Sounds: walking and Shift play only the footstep `0x2000`/`0x2001`
+  (`0x80048378`). No named heartbeat exists; a debug `sfx <id>` survey decoded
+  each sound's sample from SPU RAM. Bank 1 (`0x1000`-`0x101d`, Duke's own, in
+  every level tried) has `0x1012`, a 313 ms low double thump (95% of its energy
+  under 250 Hz), chosen as the default. 225 bpm previews of it, the footstep,
+  `0x1000` and `0x101c`, plus the Duke 3D reference, are in
+  `recomp/analysis/d08a10-beat/preview/` (local).
+- Implementation: `recomp/src/ttk/steroids_beat.inc`, checked from the
+  authenticated player update (existing hook `0x8005a210`/`0x80041b34`): one
+  beat each 80 timer units from the dose start (300 units/s, 266.7 ms), first
+  beat at once, through the original sound call `0x8006b73c` on a private
+  stack. Portable steroids only, Duke alive; savestate loads resync. No new
+  hooks or codegen change. `DNTTK_STEROID_BEAT=off|<id>`; debug
+  `controls.steroid_beat` with a 32-entry sound-call log; console `sfx <id>`.
+- Evidence (executable
+  `d0d1f09355d69f4ea3ff1a1a6ea7737bf261f512d83443b3d0f3edf20c861acf`, private
+  Xvfb runs): identical beat intervals at 60 and 120 fps (15, 15, 18 fields =
+  250, 250, 300 ms, mean 225 bpm); pickup + R beats; savestate load without a
+  burst; damage cuts continue the beat; `level 6` travel stops it; level 6
+  beats from the same sample; `original` and `off` silent. Suites:
+  `ttk-controls-test`, `ttk-input-test`, `ttk-inventory-test`, Python 131 OK,
+  `level_overlay_guards.py --check`, `check_repo.py`.
+- Limits: in 20 Hz scenes beats land on 50 ms steps (slightly uneven
+  250/250/300 ms; exact 266.7 ms at 30 Hz); death during steroids and Vanilla
+  verified by code path only; no profile option (environment variable only)
+  until the user decides to keep it.
+
+**Work log (2026-10-08, sound fix, Needs playtest).** User: "the beat is right
+but the sound is wrong. i want the sound specifically when you press shift on
+the keyboard on modern controls. you used the footstep sound." SPU KEYONs
+around Shift presses (standing and walking) show sample `0x012F0` at pitch
+`0x228`-`0x22F` on press and release: sound `0x0001`, the walk/run toggle
+click, played by the player update through the non-positional call
+`0x8006bbd8(1)`, not the `0x8006b73c` call the first survey logged. The beat
+now makes that exact call. Same sample and pitch spread as a real Shift press
+in levels 0 and 6; rhythm unchanged (15, 15, 18 fields). Suites pass.
+Executable `146e7ce5a9e5a762d64f3ccd9a878285ea05952d1b8065a0a28e3bc690ecdcca`.
+Preview `recomp/analysis/d08a10-beat/preview/beat-shift.wav` (local).
+
+### D08A11 - `dnhyper` countdown in the steroids HUD box
+
+**Todo. User request, 2026-10-08:** "dnhyper uses the old ui element with the
+armor rather than our new ui element with the steroids to display the
+countdown, we need to make dnhyper use the new dedicated countdown on the
+right hand side."
+
+With portable steroids (Modernized), a dose taken with R counts down in the
+steroids HUD box on the right (D08A8), and the original armor element shows
+only armor. After `dnhyper`, the countdown still shows in the original armor
+element with the armor icon.
+
+**Likely cause (to verify first):** `dnhyper` sets `player+0x364` bit 1
+(running) without bit 0 (owned). D08A8's status-bar hide and the HUD box use
+`steroids_running()` / `steroids_owned()` (`steroids.inc`), which require
+bit 0, so the original status bar still sees bit 1 and draws element 2 with
+the armor icon, and the steroids box does not show. A natural pickup while
+steroids run and other paths that set bit 1 alone may behave the same.
+
+**Scope:** Modernized with `steroids` = `portable`. Any running steroids,
+including `dnhyper`, count down in the steroids box (and keep the switcher's
+active mark and the D08A10 heartbeat) while the armor element shows only
+armor; when the effect ends, nothing is left held that was not held before
+(a `dnhyper` dose must not become a stored item). Decide whether to give
+`dnhyper` the owned bit while it runs (as a used dose has) or widen the HUD
+predicates; keep `original` and Vanilla unchanged.
+
+**Acceptance:** after `dnhyper` the countdown shows only in the steroids box,
+draining and lit, with the armor element showing armor (or hidden with no
+armor); it ends cleanly with no held steroids left behind; R-used doses,
+pickups, savestates and the heartbeat behave as before; at 60 and 120 fps;
+`original` and Vanilla unchanged.
 
 ### D08A5 - Mission item tracking in the item switcher (approved design E)
 

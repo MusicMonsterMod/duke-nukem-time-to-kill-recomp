@@ -1,5 +1,45 @@
 # Next-session handoff
 
+## 2026-10-08 - D08A10 accepted; D08A11 queued
+
+- User: "I love it, that sounds pretty much the same as the one in duke3d now. I accept this job as done!!" Executable
+  `146e7ce5a9e5a762d64f3ccd9a878285ea05952d1b8065a0a28e3bc690ecdcca` is the regression baseline.
+  [Note 129](129-d08a10-steroids-heartbeat.md).
+- New Todo D08A11: `dnhyper` shows its countdown in the original armor
+  element instead of the D08A8 steroids box. Likely cause: `dnhyper` sets the
+  running bit without the owned bit that the HUD predicates require.
+
+## 2026-10-08 - D08A10 sound fix: the Shift click (Needs playtest)
+
+- User on the first build: "the beat is right but the sound is wrong. i want
+  the sound specifically when you press shift". Found it: sound `0x0001`, the
+  walk/run toggle click, played through the non-positional call
+  `0x8006bbd8(1)` (SPU sample `0x012F0`, pitch `0x228`-`0x22F`). The beat now
+  makes that exact call; same sample and pitch as a real Shift press in levels
+  0 and 6, rhythm unchanged. Suites pass. Executable
+  `146e7ce5a9e5a762d64f3ccd9a878285ea05952d1b8065a0a28e3bc690ecdcca`.
+  [Note 129](129-d08a10-steroids-heartbeat.md).
+
+## 2026-10-08 - D08A10 steroids heartbeat (experimental, Needs playtest)
+
+- **What:** in Modernized with portable steroids, a low heartbeat thump (the
+  game's own sound `0x1012`, Duke's bank 1) plays at Duke while steroids run,
+  225 bpm as Duke 3D's `DUKE_HARTBEAT` (reference video: 268 ms between beats).
+  Stops with the effect, a damage cut skips ahead, death and level change end
+  it. `DNTTK_STEROID_BEAT=off` silences it, `=<id>` tries another sound (the
+  Shift-run footstep is `0x2000`). Console `sfx <id>` auditions any sound.
+- **How:** `steroids_beat.inc`, one beat per 80 units of the steroids timer
+  (300 units/s) from the existing authenticated player-update hook; the
+  original sound call on a private stack. No new hooks or codegen change.
+- **Evidence:** identical rhythm at 60 and 120 fps; pickup + R, savestate load,
+  damage cuts, `level 6`, level 6 play, `original`/`off`; suites and Python 131
+  pass. Executable
+  `d0d1f09355d69f4ea3ff1a1a6ea7737bf261f512d83443b3d0f3edf20c861acf`.
+  [Note 129](129-d08a10-steroids-heartbeat.md). Previews:
+  `recomp/analysis/d08a10-beat/preview/` (local).
+- **Not yet verified:** the user's ear (keep, change sound, or revert); the
+  rhythm steps 250/250/300 ms in 20 Hz scenes; death while running.
+
 ## 2026-10-08 - D08A9 accepted; D08A10 queued (experimental)
 
 - User: "fully accepted, working beautifully." Executable

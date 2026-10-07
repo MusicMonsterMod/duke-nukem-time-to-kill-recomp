@@ -236,6 +236,14 @@ does nothing). Choose **S** in `--settings` or `--steroids portable|original`; i
 applies on the next launch and saves your preference. Vanilla always uses the
 original rule. See [notes](documentation/127-d08a4-portable-steroids.md).
 
+**Heartbeat (experimental, D08A10).** With `portable`, the click Duke's walk/run
+toggle makes (the sound you hear pressing Shift) repeats while steroids run,
+about 225 beats a minute, like Duke 3D's steroids heartbeat. It follows game time, not the frame rate, and
+stops when the effect ends, is cut by damage, or Duke dies. To silence it,
+start the game with the environment variable `DNTTK_STEROID_BEAT=off`; to try
+another game sound, `DNTTK_STEROID_BEAT=<id>` (for example `0x1012`, a low
+thump). `original` and Vanilla have no heartbeat.
+
 ### View bob (Modernized, first person)
 
 Standing still, the first-person view settles into a substantially stable
@@ -860,6 +868,11 @@ these numbers exist only in the console. If you already have that crystal, the
 console says "(already found)". Other levels refuse them. `spawn 761` is a
 different, generic crystal from the game data: it sets a hidden inventory slot,
 not the level's crystals, and the console says so.
+
+**Debug sound audition (Modernized).** `sfx <id>` in the console plays a game
+sound at Duke, `id` = bank * 0x1000 + index (for example `sfx 0x1012`, a low
+thump; `sfx 0x100f`, the pickup sound). Bank 1 (`0x1000` to
+`0x101d`) is Duke's own and is loaded in every level tried.
 
 **I** toggles the Modernized crosshair on/off (EDuke-style). The original TTK
 weapons/inventory screen stays on **Right Shift** (Select); press it again to close.

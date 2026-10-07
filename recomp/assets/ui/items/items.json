@@ -1,0 +1,21 @@
+{
+  "note": "Original 16x16 RGBA icons by MusicMonsterMod (D24A). One drawing can serve several items: every key-slot item is the same keycard object in the game (types 153/154, named per level).",
+  "items": [
+    {"name": "SUBWAY SECURITY KEY", "file": "item-subway-security-key.png", "types": [153], "levels": [0]},
+    {"name": "TRANSPORT ROOM ID", "file": "item-subway-security-key.png", "types": [154], "levels": [0]},
+    {"name": "WAREHOUSE KEY", "file": "item-subway-security-key.png", "types": [153], "levels": [5]},
+    {"name": "GANTRY KEY", "file": "item-subway-security-key.png", "types": [153], "levels": [7]},
+    {"name": "VALVE KEY", "file": "item-subway-security-key.png", "types": [154], "levels": [7]},
+    {"name": "LAB KEY", "file": "item-subway-security-key.png", "types": [153], "levels": [9]},
+    {"name": "VALVE ROOM KEY", "file": "item-subway-security-key.png", "types": [154], "levels": [9]},
+    {"name": "RED ENERGY CRYSTAL", "file": "item-red-energy-crystal.png", "types": [], "levels": [0, 5, 9]},
+    {"name": "BLUE ENERGY CRYSTAL", "file": "item-blue-energy-crystal.png", "types": [], "levels": [0, 5, 9]},
+    {"name": "GREEN ENERGY CRYSTAL", "file": "item-green-energy-crystal.png", "types": [761], "levels": [0, 5, 9]},
+    {"name": "SKELETON KEY", "file": "item-skeleton-key.png", "types": [542, 561, 744, 745, 746, 862, 863], "levels": [1, 2, 3, 6, 10, 11]},
+    {"name": "SCRAP OF PAPER", "file": "item-scrap-of-paper.png", "types": [547], "levels": [1]},
+    {"name": "OLD NOTE", "file": "item-old-note.png", "types": [548], "levels": [1]},
+    {"name": "TORN PAPER", "file": "item-scrap-of-paper.png", "types": [549], "levels": [1]},
+    {"name": "FAMILY JEWEL", "file": "item-family-jewel.png", "types": [854, 855, 856], "levels": [6]},
+    {"name": "STEROIDS", "file": "hud-steroids.png", "types": [638], "levels": [], "hud": true}
+  ]
+}

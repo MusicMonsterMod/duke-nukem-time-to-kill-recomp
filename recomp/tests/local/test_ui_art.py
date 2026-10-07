@@ -47,6 +47,21 @@ class ProjectUiArt(unittest.TestCase):
             offset += 66
         self.assertEqual(offset, len(data))
 
+    def test_item_icons_cover_every_design(self):
+        import json
+        manifest = json.loads((UI / 'items/items.json').read_text())
+        names = {item['name'] for item in manifest['items']}
+        expected = {'SUBWAY SECURITY KEY', 'TRANSPORT ROOM ID', 'WAREHOUSE KEY', 'GANTRY KEY', 'VALVE KEY', 'LAB KEY',
+                    'VALVE ROOM KEY', 'RED ENERGY CRYSTAL', 'BLUE ENERGY CRYSTAL', 'GREEN ENERGY CRYSTAL', 'SKELETON KEY',
+                    'SCRAP OF PAPER', 'OLD NOTE', 'TORN PAPER', 'FAMILY JEWEL', 'STEROIDS'}
+        self.assertEqual(names, expected)
+        for item in manifest['items']:
+            im = Image.open(UI / 'items' / item['file'])
+            self.assertEqual((im.mode, im.size), ('RGBA', (16, 16)), item['file'])
+        used = {item['file'] for item in manifest['items']}
+        on_disk = {p.name for p in (UI / 'items').glob('*.png')}
+        self.assertEqual(used, on_disk)
+
     def test_item_frame_is_rgba_25x23(self):
         im = Image.open(UI / 'item-frame.png')
         self.assertEqual((im.mode, im.size), ('RGBA', (25, 23)))

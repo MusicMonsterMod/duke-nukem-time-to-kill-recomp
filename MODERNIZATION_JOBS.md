@@ -48,6 +48,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08A2 | EDuke32 bottom-left inventory icon and green % | Done (revised: strip + green %) | D08A1, D19A |
 | D08A3 | Original TTK inventory icons for the switcher (replace Duke3D art) | Done | D08A2 |
 | D08A4 | EDuke32-style portable steroids: pick up, store in items, use with R | Todo | D08A1, D08A3, D22B |
+| D08A5 | Mission item tracking in the item switcher (approved design E) | Todo | D08A1, D08A3, D24A |
 | D08B | Broader traversal and scripted-camera coverage | Done | D08 |
 | D08C | Directional jumps from standstill — accepted both input orders | Done | D08 |
 | D08D | Apartment light-switch secret convenience | Done | D08 |
@@ -529,6 +530,81 @@ stores a dose shown in the switcher; R activates the original effect and
 consumes it; R with none does nothing harmful; the dose persists through a
 save/load and a level change; Vanilla unchanged; the user confirms.
 
+
+### D08A5 - Mission item tracking in the item switcher (approved design E)
+
+**Todo. User request and approved design, 2026-10-07.** "lock it in and stand
+up a ticket to get that built in the game". For the first time, the game shows
+which mission items a level asks for and which are found. The design was
+iterated with the user as mockup E in the D24A research page (section 8,
+`research/TTK-UI-and-Font-Research.html`, local). Modernized only; Vanilla and
+the original Select inventory are unchanged.
+
+**Approved design (build exactly this).** The panel coordinates below are in
+the 640x480 overlay space and scale like the switcher.
+
+1. *Gadget row (existing `[` / `]` switcher):* unchanged behaviour and layout,
+   with one change. The selection frame is the project frame
+   (`assets/ui/item-frame.png`) palette-swapped to the old Duke 3D `tile0020`
+   orange ramp:
+   `#341c00 #442800 #583000 #6c3800 #804000 #904800 #a45000 #b45404 #cc6818
+   #d47430 #d88444`.
+   Each frame pixel's brightness, normalised over the frame, picks a step, so
+   the bevel and shading carry over. Only colour values are reused, no Duke 3D
+   pixels.
+2. *Mission row:* a second, read-only row under the gadgets whenever the
+   switcher is open. It sits on a panel of translucent grey
+   `rgba(12,14,20,0.62)` with a 1 px `#3a4150` outline:
+   - one slot per mission item of the current level (counts expanded: Family
+     Jewel x3, Skeleton Key x2);
+   - the user's 16x16 icon at 2x (`assets/ui/items/`, via `items.json`) in a
+     grey project frame;
+   - missing items drawn as a dim grey silhouette (greyscale, about 45%
+     brightness);
+   - "MISSION" bottom left (Microfont, `#848484`) and "found/total" bottom right
+     (Microfont, `#989c58`, green `#5fd35f` when all are found).
+3. *Browsing:* while the switcher is open, `\` steps through the mission row
+   (wrapping). The browsed slot's own frame is palette-swapped to the Console
+   steel ramp
+   (`#0c0c18 #14182c #202840 #405080 #5c70a0 #7088b4 #84a4cc #94b0d8 #a4c4e4
+   #b4d4f4 #bcdcfc`), with no extra outline. The bottom line stays
+   "MISSION" and the count. `[` / `]` and Enter never act on mission items.
+4. *Item card while browsing:* a fixed 592x52 card at the top of the screen
+   (x 24, y 14), in the same translucent grey and outline as the mission panel,
+   the same for found and missing:
+   - the browsed item's icon at 2x in the steel frame;
+   - its name in TTK Medium Italic with the navy shadow (gold CLUT 225 when
+     found, blue CLUT 226 when missing);
+   - its type below in System 8x8 `#848484` ("KEY CARD", "CRYSTAL", "COMBO
+     PIECE", "JEWEL", "KEY");
+   - "FOUND" (`#5fd35f`) or "NOT FOUND YET" (`#848484`) right-aligned.
+   It clears about 2.5 s after the last `\` press, or when the switcher
+   closes.
+5. *Controller:* D-pad up/down moves focus between the gadget row and the
+   mission row while the switcher is open.
+
+**Data.**
+- Each level's set and names come from the D24A survey (the original Select
+  inventory names) and `assets/ui/items/items.json`.
+- Found state is read live from the player's mission flags: key slots
+  `+876`/`+880`; item slots `+884`..`+892` and `+908`..`+916`, as the pickup
+  dispatcher `0x80081a48` sets them.
+- Verify per level which flag each item uses before relying on it. Seen so far:
+  - level 1 papers: `+908/912/916`;
+  - level 6 jewels: `+908/912/916`;
+  - skeleton keys: `+876/880/884`;
+  - level 0 crystals: not yet confirmed.
+- Levels without mission items (8, 12, Challenge Stages, bosses) show no
+  mission row.
+
+**Acceptance.**
+- The row, card, frames and colours match the approved mockup in every level
+  with mission items.
+- Found and missing follow real pickups, savestate loads and level travel.
+- `\` browsing and the card timeout work.
+- Gadget cycling and Enter are unchanged.
+- Vanilla is unchanged.
+- The user confirms the look in play.
 ### D08B — Broader traversal and scripted-camera coverage
 
 **Done on user acceptance (2026-09-29).** User: "d08b can be marked as
@@ -8330,4 +8406,62 @@ piece of research." D24B and D26E accepted. D24A keeps Needs playtest only for
 the fresh-clone test against the pushed commit. The research page is linked from
 `research/TTK-UI-and-Font-Research.html` (local). Next: the user designs the
 open mission-item, key and steroids icons.
+
+## 2026-10-07 - D24A/D26E check: level 7 keys are keycards in the original
+
+The user asked whether `gantry key` (type 153) in medieval level 7 is right,
+since it spawned as a blue keycard. It is the game's own object. Level 7's
+actor 4 (type 57) carries type 153 and actor 5 carries type 154, and the pickup
+names them GANTRY KEY and VALVE KEY there. Model 420 is the same flat card
+(box -37..37 x -64..64, zero thickness) in levels 0, 5, 7 and 9. Levels 5 and
+9 place their 153/154 keys directly. So all seven key-slot items share the
+keycard model; only Skeleton Keys differ. The research page now labels them as
+keycards.
+
+## 2026-10-07 - D24A: the user's mission item, keycard and steroids icons
+
+User: "all the icon images have now been created". Nine original 16x16 RGBA
+icons by MusicMonsterMod are imported (unchanged) into
+`recomp/assets/ui/items/`:
+- keycard: all seven key-slot items share it, as the game uses one keycard
+  object;
+- skeleton key;
+- red, blue and green energy crystals;
+- scrap of paper: also Torn Paper (user-confirmed: "scrap of paper can be used
+  for both scrap of paper and torn paper. old note is unique");
+- old note;
+- family jewel;
+- steroids (HUD).
+`items.json` maps each of the 15 mission items and steroids to its file, the
+game's object types and levels. `test_ui_art.py` checks that every design is
+covered, every file is 16x16 RGBA, and no file is unused (test OK; repo check
+OK). The research page loads them into its design slots and lists them under
+"Original project art". Nothing in the game draws them yet: they await the
+expanded mission item inventory and D08A4 (portable steroids).
+
+## 2026-10-07 - Mission item tracking: mockups for the user's choice
+
+The user asked for mockups of ways to track mission items in the game ("a bit
+like how you did save states"). The research page (section 8) shows four
+options, with the user's icons, the chosen TTK fonts, disc HUD and button art,
+each level's real items and objectives, and a per-level gameplay frame:
+- A: a mission panel on a key, pausing like F7;
+- B: an always-on HUD tracker, top right;
+- C: a pickup card with progress;
+- D: a mission row in the `]` switcher.
+Found / missing states can be toggled. The game already keeps each mission item
+as a player flag (`+876`/`+880` key slots, `+884..+892`, `+908..+916`), so any
+option can read live state. No job is scheduled until the user picks.
+
+## 2026-10-07 - D08A5 queued: mission item tracking (design E locked)
+
+The user approved mockup E ("lock it in and stand up a ticket to get that built
+in the game"). E is the mission row under the `]` switcher:
+- an orange tile0020-palette selection frame on the gadgets;
+- grey framed mission slots with silhouettes for missing items;
+- "MISSION" and the count at the bottom;
+- `\` browsing that turns the browsed frame steel blue;
+- a fixed 592-wide card at the top with the name, type and
+  FOUND / NOT FOUND YET.
+New Todo D08A5 records the exact spec. The research page marks E as chosen.
 

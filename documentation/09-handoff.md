@@ -6,6 +6,30 @@
 
 
 
+## 2026-10-07 - Mission item icons in; tracking design E locked; D08A5 queued
+
+- **Icons:** the user's original 16x16 icons are tracked in
+  `recomp/assets/ui/items/`, with `items.json` mapping all 15 mission items
+  and steroids to a file, the game's object types and levels:
+  - one keycard drawing serves all seven key-slot items;
+  - Scrap of Paper also serves Torn Paper (user-confirmed);
+  - every other item has its own drawing.
+  `test_ui_art.py` checks coverage and format.
+- **Keycards:** every key-slot key (types 153/154, named per level) is the same
+  flat keycard object in the game, including medieval level 7. A pig carries
+  and drops it there. Checked in RAM.
+- **Tracking design:** the user compared four mockups (A panel, B HUD tracker,
+  C pickup card, D switcher row) in the research page and iterated a fifth,
+  **E**, which is locked: the mission row under the `]` switcher, `\`
+  browsing, and a card at the top. Exact spec in **D08A5** on the board.
+- **Next session: build D08A5.** Start from the board entry. The working
+  mockup code (layout, palette swaps, card) is `drawE()` and `swapped()` in
+  `recomp/analysis/d24a-fonts/picker.template.html` (local).
+  - Switcher code: `src/ttk/inventory_hud.cpp`; packs via
+    `tools/local/build_ttk_inv_icons.py`.
+  - Item names and found state: the player's mission flags (`+876`..`+916`,
+    see the job); confirm level 0's crystal flags first.
+
 ## 2026-10-06 - D24A, D24B, D26E: open assets, TTK fonts, savestate menu, debug spawn
 
 User, end of session: "im happy with all progress tonight. the document is

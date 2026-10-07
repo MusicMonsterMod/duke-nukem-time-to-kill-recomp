@@ -1,6 +1,6 @@
 # D08O2A - natural swim-fire pose (v2)
 
-2026-10-07. **Accepted** (user: "this is actually rock solid ... I'm happy with it and its 100% playable"). Known minor issue: in the user's capture one final shot at the end of a burst fired with the weapon pointing down. User request (on accepting D08O2 v1): "a more
+2026-10-07. **Accepted** (user: "this is actually rock solid ... I'm happy with it and its 100% playable"). The final-shot-down issue from the user's capture is fixed (see below). User request (on accepting D08O2 v1): "a more
 natural pose rather than his entire torso standing up, so it will involve
 moving the arms in the position as if firing up and his head looking up."
 During the work the user added: "while duke is swimming, his head is always
@@ -79,6 +79,25 @@ parent at `depth*0x20 - 0x20`). Measured in the private lab:
   at 90 updates. Lab tap trace (fire held 3 or 6 frames, swimming W): the
   hand stays forward from the press until the stroke animation returns for
   all four weapons (Desert Eagle 198-237 through the lowering).
+- **Last shot pointing down when surfacing (follow-up after acceptance,
+  2026-10-07, accepted: "another rock solid milestone").** User capture (0:16-0:17): as a burst ended,
+  one final shot fired with the gun pointing down. Duke reached the surface
+  (mode 4, anim 125) while the shot's upper animations were still playing;
+  the arm aim only ran underwater, and the original aims at the surface
+  only while fire is held, so for those frames the arms dropped (hand -19 in
+  the lab). The release tail now continues into the surface states. Shot
+  adaptation was never involved: every lab shot was adapted (`rejected` 0).
+- **Release tail rule (same follow-up).** Remembering the pre-press upper
+  animation failed when fire was pressed while floating (ready pose 8) and
+  the stroke then rested on 5: the arms stayed aimed until the 90-update cap
+  (seen intermittently in the lab). The tail now uses the original's upper
+  animation flags (`0x800c2824`, already guarded): it continues while
+  `flags & 0x804 == 0x800` (raise / fire / lower / reload, all `0x809`) and
+  ends at a rest pose (`0x200c`: 5, 20, 29) or a ready pose (`0x80c`: 8, 14,
+  23, 32). Lab: taps keep the arms up through the lowering for four
+  weapons; surfacing with the lowering keeps them up until the stroke; no
+  stuck tail in repeated runs. Build
+  `61334eeba81e450a95aee49c13c686dbcd91f05b1f909b5f8f0ba1283d074271`.
 - Debug counters (`ttk_input` controls): `swim_aims` (builds armed),
   `swim_aim_restores`, `swim_arm_aims` (shoulders changed; two per build).
   `swim_aim_contacts` was removed with the v1 contact skip.

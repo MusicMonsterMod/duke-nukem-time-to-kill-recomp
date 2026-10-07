@@ -1210,7 +1210,7 @@ confirms.
 
 ### D08O2A - Natural swim-fire pose v2 (arms raised, head up, torso in the stroke)
 
-**Accepted (2026-10-07)** (user: "this is actually rock solid ... I'm happy with it and its 100% playable"; known minor issue: the last shot of a burst can still fire with the weapon pointing down) ([note 119](documentation/119-d08o2a-natural-swim-fire-pose.md)).
+**Accepted (2026-10-07)** (user: "this is actually rock solid ... I'm happy with it and its 100% playable"; the last-shot-down issue from the capture was fixed in a follow-up the same day) ([note 119](documentation/119-d08o2a-natural-swim-fire-pose.md)).
 Only the shoulders now take the floating-fire arm pose (aimed at the
 crosshair) while the chest, head and legs keep the original stroke; v1's
 chest turn is gone. The head stays original per the user ("his head is always
@@ -9075,3 +9075,15 @@ in note 117 is the reference for future custom pickups.
   Known minor issue from the capture (about 0:16-0:17): when a burst ends,
   one final shot can fire with the weapon pointing downwards. Not yet
   investigated; the user asked for a commit first as a rollback point.
+
+## 2026-10-07 - D08O2A follow-up: last shot pointing down when surfacing (accepted)
+
+- From the user's capture: a final shot fired pointing down as Duke reached
+  the surface while the shot's lowering played. The arm aim's release tail
+  now continues into the surface states, and it follows the original's
+  upper animation flags (`0x800c2824`: shot animations `0x809` continue,
+  rest/ready poses end it) instead of the pre-press animation, which also
+  fixes an intermittent stuck aim (up to 3 s) after firing from a float.
+  Lab: taps, surfacing, held fire, surface, ground and Vanilla checked;
+  suites pass. User: "commit it at this point!! again another rock solid
+  milestone." Known minor issue resolved. [Note 119](documentation/119-d08o2a-natural-swim-fire-pose.md).

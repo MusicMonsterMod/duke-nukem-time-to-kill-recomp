@@ -577,14 +577,14 @@ static void swim_fire_hide(CPUState* cpu,uint32_t ra) {
 // aim, while its position stays on the stroking chest; forearms and hands
 // follow through the original chain. Armed at the entry of 0x800411b8, the
 // last call before the build choice (ra 0x80042634), while Duke is
-// underwater, firing (or finishing the shot's upper animations) with a weapon
+// underwater, firing (or finishing the shot's upper animations, also after
+// reaching the surface) with a weapon
 // out and no original aim bit; no game memory is written for that. Disarmed
 // after the second shoulder or at the swim handler, the next update step, an
 // animation start, the camera update or the next entry.
 static unsigned swim_aims, swim_aim_restores, swim_arm_aims;
 static bool swim_aim_set;
-// Upper animation before the press; updates since release (-1: not aiming).
-static unsigned swim_aim_upper=0xffff;
+// Updates since fire was released (-1: no shot in progress).
 static int swim_aim_tail=-1;
 static constexpr int k_swim_aim_tail=90;
 static void swim_aim_restore() {
@@ -633,18 +633,30 @@ static void swim_aim_begin(CPUState* cpu,uint32_t ra) {
     swim_aim_restore();
     if(cpu->gpr[4]!=player || ra!=0x80042634)return;
     const unsigned upper=psx_mod_read_half(player+0x74);
-    if(!swim_native_underwater() || !swim_weapon_ready() || psx_mod_read_byte(player+0x3b8)!=2 ||
-       !presentation_ready() || (psx_mod_read_word(player+0x224)&0x200100)) {
-        swim_aim_tail=-1;swim_aim_upper=upper;return;
-    }
     const auto& f=input_snapshot(Context::Gameplay);
-    // A shot plays raise, fire and lower upper animations (Desert Eagle 9, 10,
-    // 9) before the stroke's own (5) returns. After release, keep aiming until
-    // the upper animation is back to the one from before the press, so a
-    // single tap does not drop the arms during the lowering (2026-10-07).
-    if(f.held[fire] && !f.held[holster]) swim_aim_tail=0;
-    else if(swim_aim_tail<0 || upper==swim_aim_upper || ++swim_aim_tail>k_swim_aim_tail) {
-        swim_aim_tail=-1;swim_aim_upper=upper;return;
+    const bool fire_held=f.held[fire] && !f.held[holster];
+    if(fire_held) swim_aim_tail=0;
+    // The tail also runs into the surface states: surfacing during the
+    // lowering left the gun pointing down for the frame a last shot can land
+    // on (user capture, 2026-10-07). Held fire at the surface keeps the
+    // original's own aim (0x100), which refuses below.
+    const bool water=swim_native_underwater() || (swim_aim_tail>=0 && swim_native_surface());
+    if(!water || !swim_weapon_ready() || psx_mod_read_byte(player+0x3b8)!=2 ||
+       !presentation_ready() || (psx_mod_read_word(player+0x224)&0x200100)) {
+        // Held fire can pass through original-aimed frames (floating, 0x100).
+        if(!fire_held)swim_aim_tail=-1;
+        return;
+    }
+    // After release, keep aiming while the original's upper animation table
+    // (0x800c2824, 149 guarded entries) marks the upper animation as part of
+    // a shot: raise, fire,
+    // lower and reload are 0x809 (Desert Eagle 9, 10, 12; shotgun 24-26;
+    // Gatling 33/34), while rest and ready poses carry 0x4 (stroke 5 / 20 /
+    // 29 0x200c, floating 8 0x80c). A single tap then keeps the arms up
+    // through its lowering, which plays after release.
+    if(!fire_held) {
+        const uint32_t flags=upper<149 ? psx_mod_read_word(0x800c2824+4*upper) : 0;
+        if(swim_aim_tail<0 || (flags&0x804)!=0x800 || ++swim_aim_tail>k_swim_aim_tail) {swim_aim_tail=-1;return;}
     }
     swim_aim_set=true;
     ++swim_aims;

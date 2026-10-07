@@ -1,5 +1,35 @@
 # Next-session handoff
 
+## 2026-10-07 - D08J5 accepted; D08V1 queued
+
+- User: "that definitely works, and i accept it ... it works perfectly."
+  Executable `3c0ca76e96fd7577a3875b8e7dce1d0c31fbeb0af27ff9591eddde7abd11d6be`
+  is the regression baseline. [Note 125](125-d08j5-chain-descent.md).
+- New job D08V1: after a missed jump that caught the chain in the air, the
+  code guard on the upper-body animation flag table (`0x800c2a8c`) tripped on
+  entry 196 (the original cleared bit 0x40 at run time) and Modernized
+  controls stayed off for the rest of the session. Log copied to
+  `recomp/analysis/control-loss-20261007/`. Modern controls must never be lost
+  this way.
+
+## 2026-10-07 - D08J5 built: climb down chains and poles (Needs playtest)
+
+- **What:** in Modernized, at the top of a chain or pole press **E**
+  (`E TO CLIMB DOWN` shows): Duke grabs it, swings round to the far side and
+  hangs facing the platform. **S** climbs all the way down and steps off at the
+  bottom; **W** climbs back up; **Ctrl** or **Space** lets go anywhere; S at an
+  end with nothing below lets go. Vanilla unchanged.
+- **Cause:** the original has no top mount for poles/chains and the jump from
+  the slot-3 platform overshoots. Its down probe also accepts a floor above
+  Duke, so on the platform side near the top Down climbed him back out
+  (original, Vanilla too); a new codegen hook `0x8003964C` stops that in
+  Modernized (regenerated one line; savestates still load).
+- **Evidence:** private copy of UI slot 3: mount, full descent and step-off in
+  third and first person, W exit, Ctrl/Space, A/D, platform-side descent;
+  Vanilla and the slot-5 ladder regression unchanged; suites pass. Executable
+  `3c0ca76e96fd7577a3875b8e7dce1d0c31fbeb0af27ff9591eddde7abd11d6be`.
+  [Note 125](125-d08j5-chain-descent.md). Next: the user's playtest.
+
 ## 2026-10-07 - D08J3 accepted; D08J5 queued
 
 - User: "we have an absolute winner once again!! it's working well, very fun,

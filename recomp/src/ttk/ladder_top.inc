@@ -41,6 +41,11 @@ static struct {
 static uint64_t ladder_request_frame;
 static unsigned ladder_mounts, ladder_mount_starts, ladder_mount_aborts;
 static bool plain_ladder(uint32_t flags) {return (flags&object_ladder) && !(flags&0x500u);}
+// D08J5 poles and chains (pole_climb.inc) share the E request and its hint.
+struct PoleTop;
+static bool pole_top_find(PoleTop& out);
+static bool pole_mount_start();
+bool pole_mount_finishing();
 // 0x80073ae8 for box index 0: the object's box list (+0x44) or its model's
 // single box (+0x40, +4). Eight halfwords: x, y, z, pad minimum and maximum.
 static bool ladder_box(uint32_t object,int16_t* box) {
@@ -101,10 +106,6 @@ static bool ladder_top_ground_ready() {
     return psx_mod_read_byte(player+0x22c)==0 && psx_mod_read_byte(player+0x22d)==0 &&
         land_gait_anim(animation) && !in_water_early() && !jetpack_flying_early() &&
         !(psx_mod_read_word(player+0x224)&0x202002c1u) && !(psx_mod_read_word(player)&0x20002);
-}
-bool ladder_top_available() {
-    LadderTop target;
-    return ladder_top_ground_ready() && ladder_top_find(target);
 }
 void ladder_top_request() {ladder_request_frame=input_host_frame();}
 // Camera-only lease widening while the host blends the mount.
@@ -277,16 +278,17 @@ static void ladder_actor_exit(CPUState* cpu) {
 // Down may start a step from the wrong height.
 bool ladder_mount_finishing() {
     const unsigned animation=psx_mod_read_half(player+0x60);
-    return mount.active && (animation==186 || animation==187);
+    return (mount.active && (animation==186 || animation==187)) || pole_mount_finishing();
 }
 bool ladder_end_below() {return ladder_end_open && ladder_climb_early() && traversal_input_ready();}
 // The original ladder exits (190 at the top, 185 stepping off at the bottom)
 // play out by themselves; a held S must not reach them as Down, which would
-// start an original backstep (82) the moment Duke lands.
+// start an original backstep (82) the moment Duke lands. D08J5: the pole and
+// chain exits (196 at the top, 191 stepping off) likewise.
 bool ladder_exit_ready() {
     const unsigned animation=psx_mod_read_half(player+0x60),previous=psx_mod_read_byte(player+0x22d);
     return traversal_input_ready() && psx_mod_read_byte(player+0x22c)==8 &&
-        (animation==185 || animation==190) && (previous==3 || previous==8);
+        (animation==185 || animation==190 || animation==191 || animation==196) && (previous==3 || previous==8);
 }
 // D08J2: on a pole or chain (anims 192..195, any climb object the handler
 // 0x80043f88.. keeps in this hang-climb) Left/Right reach 0x800439e4, which
@@ -360,7 +362,8 @@ static void ladder_top_update(CPUState* cpu) {
     if(!ladder_request_frame || input_host_frame()-ladder_request_frame>20)return;
     ladder_request_frame=0;
     LadderTop target;
-    if(!ladder_top_ground_ready() || psx_mod_read_byte(player+0x3b8)!=0 || !ladder_top_find(target))return;
+    if(!ladder_top_ground_ready() || psx_mod_read_byte(player+0x3b8)!=0)return;
+    if(!ladder_top_find(target)) {pole_mount_start();return;}
     mount.active=true;mount.object=target.object;mount.ticks=0;
     mount.sx=(int32_t)psx_mod_read_word(player+4);mount.sy=(int32_t)psx_mod_read_word(player+8);
     mount.sz=(int32_t)psx_mod_read_word(player+12);mount.syaw=psx_mod_read_half(player+0x1c)&4095;

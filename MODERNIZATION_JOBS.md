@@ -98,7 +98,8 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08J2 | Poles and chains: A/D turn the wrong way (A turns right, D left) | Accepted | D08J |
 | D08J4 | Ceiling monkey-bar climbing: camera-relative travel, no mid-span drops (player UI slot 3) | Accepted | D08J, D22B |
 | D08J3 | Free camera while on ladders, poles and chains (investigation + usability testing) | Accepted | D06, D08J |
-| D08J5 | Climb down chains (and poles): reach the bottom and let go or step off (player UI slot 3) | Todo | D08J2, D08J3 |
+| D08J5 | Climb down chains (and poles): reach the bottom and let go or step off (player UI slot 3) | Done | D08J2, D08J3 |
+| D08V1 | Modernized controls lost for the rest of the session after a missed chain jump; modern controls must never be lost | Todo | D08V, D08J5 |
 | D09 | Modern controller support | Todo | D05, D06, D07 |
 | D10 | Third-person camera polish | Done | D08 |
 | D10A | Rapid mouse turning and Shift-running investigation | Done | D06, D07C, D08 |
@@ -1350,6 +1351,29 @@ usability testing.
 
 ### D08J5 - Climb down chains
 
+**Accepted (2026-10-07, user: "that definitely works, and i accept it ... it
+works perfectly").** Executable
+`3c0ca76e96fd7577a3875b8e7dce1d0c31fbeb0af27ff9591eddde7abd11d6be` is the new
+regression baseline.
+**Built 2026-10-07 (was Needs playtest).** Executable
+`3c0ca76e96fd7577a3875b8e7dce1d0c31fbeb0af27ff9591eddde7abd11d6be`. Finding: from
+the slot-3 platform no original move reaches the chain (type 842, flags
+`0x400`, top 509 below the floor, about 350 past where walking stops): the
+jump overshoots into the pit and there is no top mount. Once attached, the
+original descends with Down and steps off onto the walkway (191), but its
+down probe (`0x8007d65c`) accepts a floor above Duke's feet, so on the
+platform side near the top Down lifted him back onto the platform (Vanilla
+too). Change (Modernized, `pole_climb.inc`, by flags and state): E at the top
+of a pole or chain (the D08U request and hint) attaches it as the airborne
+catch does (154) and swings Duke half a turn round it to the far side while
+lowering him; a new codegen hook `0x8003964C` makes the down probe ignore
+floors above Duke; Ctrl lets go anywhere, S at an end with nothing below lets
+go; the 196/191 exits keep neutral directions. Private slot-3 runs: E mount,
+S to the walkway and step-off (third and first person), W back out at the
+top, Ctrl/Space let go, A/D screen-relative, platform-side S descends; Vanilla
+unchanged; slot-5 ladder regression matches; suites pass.
+[Note 125](documentation/125-d08j5-chain-descent.md).
+
 **Todo. User request, 2026-10-07:** "Next up, we have to stand up a backlog job
 which is the ability to climb down chains. Slot 3 is a great one for testing
 this with as theres a chain right in front of us ready to attempt climbind
@@ -1377,6 +1401,55 @@ not this chain alone.
 top to its lower end with S, and at the bottom steps off or lets go
 predictably (and can let go anywhere with Ctrl or Space); W still climbs, A/D
 and the D08J3 free camera unchanged; Vanilla unchanged; the user confirms.
+
+### D08V1 - Modernized controls lost after a missed chain jump
+
+**Todo. User report, 2026-10-07:** "where i missed a jump, and somehow duke
+never went back into modern controls mode, and ive lost the ability to control
+him. this used to happen in some of the earlier builds, but we must basically
+make sure that modern controls take precidence over everything, aggressively
+hooking so this doesnt happen, because theres essentially no way back other
+than to quit the game and reopen it i believe."
+
+**Testbed:** the user's session log, copied before rotation to
+`recomp/analysis/control-loss-20261007/session-20261007-195012.log` (binary
+`3c0ca76e...`, the D08J5 baseline). Use dated private copies of the player's
+saves only; the user's slot 3 (chain) is the nearest savestate.
+
+**First evidence (read-only look at the log and the live game, 2026-10-07):**
+- After several D08J5 chain mounts and climbs, a W + E jump caught the chain in
+  the air (148 -> 154). At that moment the log shows `[TTK identity] guard 52
+  (0x800c2a8c, 504 bytes) changed at 0x800c2b34: 0x00000021, expected
+  0x00000061`, then `WASD tank fallback (... state)`, Duke climbed out with the
+  top exit 196, and from then on every line is `[TTK lease] inactive
+  (identity)` / `ORIGINAL MOVEMENT (identity)` until the user gave up.
+- Live RAM (game still running, read through the debug port): the only
+  difference from the executable in that guard is that byte. `0x800c2b34` is
+  entry 196 of the original upper-body animation flag table (`0x800c2824 + 4 *
+  anim`); 196 is the pole/chain top exit. The original toggles bit 0x40 of these
+  entries at run time (already known for 149/152/153, excluded from the guards
+  for that reason). So a game-state write was treated as tampered code, and
+  `identity()` turned the whole Modernized lease off for the session with no
+  recovery path.
+
+**Scope:**
+- Find every original writer of that table (`0x80055438` object-hang clear,
+  `0x8004c8b8` ledge-hang set, and whatever touched 196 in a chain catch), and
+  exclude runtime-written entries from the code guards (or guard the table
+  with the toggled bit masked), game-wide.
+- Make modern controls robust: a data-table or other non-code mismatch must
+  never permanently drop the lease; identity loss should be re-checked and
+  recover when the bytes return or prove to be state; distinguish real code
+  tampering (fail closed) from known game-state tables; never leave the player
+  with neither modern nor usable original controls; show what happened.
+- Verify in a reproduction of the missed chain jump (slot 3) and audit the
+  remaining guards for other runtime-written data.
+
+**Acceptance:** the slot-3 missed jump / chain catch / top exit sequence keeps
+Modernized controls; no guard trips on game state across the tested climbs,
+hangs and exits; a forced identity loss recovers or degrades to working
+controls rather than locking the player out; Vanilla unchanged; the user
+confirms.
 
 ### D08J4 - Ceiling monkey-bar climbing drops Duke at the wrong points
 

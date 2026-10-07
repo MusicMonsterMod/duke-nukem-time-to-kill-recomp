@@ -443,6 +443,17 @@ While Duke hangs on a pole or chain, **A** takes him round it to the left and
 original game's left/right buttons work the other way round, and Vanilla keeps
 that.
 
+**Climbing down chains and poles (Modernized, D08J5).**
+Stand at the edge of a platform where a chain or pole hangs just below and
+press **E** (the screen shows `E TO CLIMB DOWN`, as for ladders). Duke stows
+his weapon if needed, grabs it, swings round to its far side and hangs there
+facing the platform. Hold **S** to climb all the way down: where there is a
+floor he steps off onto it; at an end with nothing below, S lets go and he
+drops. **W** climbs back up (at the top he climbs off onto the platform).
+**Ctrl** or **Space** lets go at any height. Near the top, S no longer pulls
+Duke back up onto the platform beside the chain, as the original game does.
+Vanilla is unchanged (no top grab; the only way on is a jump).
+
 **Free camera while climbing (Modernized, D08J3).**
 On ladders, poles, chains and climbing walls the mouse camera stays yours: turn
 it all the way round Duke, look up the ladder or down to the floor, zoom with

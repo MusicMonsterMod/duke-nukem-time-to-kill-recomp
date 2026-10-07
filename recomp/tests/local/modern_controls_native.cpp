@@ -383,6 +383,71 @@ int main(int argc,char** argv) {
         ttk::input.sequence=saved_sequence;call(0x8003ade4,c,p,0x80025ee8);assert(ttk::movement_ready());
         std::puts("PASS: D08U top-of-ladder mount (reach/side/top/family/state gates, armed and Vanilla refusal, catch-equivalent attach, 12-update blend onto the climbing line, camera-only lease, 186 handoff, request expiry, D08U1 ladder-end stop)");
     }
+    // D08J5 pole/chain top mount: the user's slot-3 chain (type 842, flags
+    // 0x100412, a 138-wide column from Y -3072 to 1024 at (-4049, 31248)),
+    // its top 509 below the platform. E at the edge attaches it as the airborne
+    // catch does (154) and swings Duke half a turn round it while lowering him.
+    {
+        const uint32_t table=0x801e8000,object=0x801e9100,list=0x801e9200,box=0x801e9300,node=0x801e9400;
+        const uint32_t saved_table=psx_mod_read_word(0x800d2660);
+        const auto saved_sequence=ttk::input.sequence;
+        psx_mod_write_word(0x800d2660,table);psx_mod_write_word(table+28*842,0x100412);
+        psx_mod_write_half(object+0x2c,842);psx_mod_write_half(object+0x1c,0);
+        psx_mod_write_word(object+4,uint32_t(-4049));psx_mod_write_word(object+8,uint32_t(-1024));psx_mod_write_word(object+12,31248);
+        psx_mod_write_word(object+0x44,list);psx_mod_write_word(list+8,box);
+        const int16_t column[]={-69,-2048,-69,97,69,2048,69,2050};
+        for(int i=0;i<8;++i)psx_mod_write_half(box+2*i,uint16_t(column[i]));
+        psx_mod_write_word(node+8,object);psx_mod_write_word(node+4,0);psx_mod_write_word(p+0x220,node);
+        auto place=[&](int x,int y,int z){psx_mod_write_word(p+4,uint32_t(x));psx_mod_write_word(p+8,uint32_t(y));psx_mod_write_word(p+12,uint32_t(z));};
+        auto camera=[&]{++ttk::input.sequence;call(0x8003ade4,c,p,0x80025ee8);};
+        auto update=[&]{call(0x8005a210,p,0x800c2754,0x80041b34,0x801fff00);};
+        auto s32=[](uint32_t a){return int32_t(psx_mod_read_word(a));};
+        place(-4386,-3581,31122);psx_mod_write_half(p+0x1c,797);psx_mod_write_byte(p+0x3b8,0);
+        camera();assert(ttk::movement_ready() && ttk::ladder_top_available());
+        place(-4386-400,-3581,31122);assert(!ttk::ladder_top_available()); // out of reach
+        place(-4386,-3200,31122);assert(!ttk::ladder_top_available()); // not at its top
+        place(-4386,-3581,31122);
+        psx_mod_write_word(table+28*842,0x100512);assert(!ttk::ladder_top_available()); // 0x100 family
+        psx_mod_write_word(table+28*842,0x100412);
+        ttk::modern=false;ttk::ladder_top_request();update();assert(psx_mod_read_half(p+0x60)==63);ttk::modern=true; // Vanilla
+        ttk::ladder_top_request();update();
+        assert(psx_mod_read_half(p+0x60)==154 && psx_mod_read_byte(p+0x22c)==3 && psx_mod_read_byte(p+0x22d)==3);
+        assert(psx_mod_read_word(p+0x17c)==object && psx_mod_read_half(p+0x180)==0 && s32(p+0x1c4)==0);
+        const int start=psx_mod_read_half(p+0x1c);
+        assert(std::abs(std::hypot(s32(p+4)+4049.0,s32(p+12)-31248.0)-225)<2); // the original's hang radius
+        for(int i=0;i<12;++i) {
+            camera();assert(ttk::traversal_camera_ready() && !ttk::locomotion_input_ready());update();
+        }
+        // Facing the chain from the edge, then half a turn.
+        const int facing=int(std::lround(std::atan2(-4049+4386.0,31248-31122.0)*4096/(2*M_PI)))&4095;
+        assert(std::abs(start-facing)<64 && psx_mod_read_half(p+0x1c)==((facing+2048)&4095) && s32(p+8)==-3072+400);
+        assert(s32(p+4)>-4049); // the far side, facing the platform
+        psx_mod_write_half(p+0x60,192);update();
+        assert(std::strstr(ttk::controls_debug_json(),"\"pole\":{\"mount_starts\":1,\"mounts\":1"));
+        // Down probe (0x8007d65c from the hang-climb, s3 = 1): a floor above
+        // Duke's feet is replaced by one far below; a floor below is kept.
+        auto probe=[&](uint32_t caller,unsigned dir,int32_t floor){
+            const uint32_t sp=0x801f0000;psx_mod_write_word(sp+0x64,caller);psx_mod_write_word(sp+0x4c,uint32_t(floor));
+            CPUState cpu{};cpu.gpr[4]=p;cpu.gpr[19]=dir;cpu.gpr[29]=sp;cpu.gpr[31]=0x8007d7fc;
+            hooks().at(0x8003964c)(&cpu,0x8003964c);return s32(sp+0x4c);};
+        assert(probe(0x80044340,1,-3072)==-2672+0x8000 && probe(0x80044434,1,-3072)==-2672+0x8000);
+        assert(probe(0x80044434,1,510)==510 && probe(0x80044434,0,-3072)==-3072 && probe(0x80044999,1,-3072)==-3072);
+        ttk::modern=false;assert(probe(0x80044434,1,-3072)==-3072);ttk::modern=true;
+        // S resting at the end (the original does not leave 192): after 8 updates, let go.
+        ttk::input.held[ttk::move_back]=true;
+        for(int i=0;i<7;++i){update();assert(!ttk::pole_let_go_ready());}
+        update();assert(ttk::pole_let_go_ready());
+        psx_mod_write_half(p+0x60,195);update();assert(!ttk::pole_let_go_ready()); // stepping down again
+        ttk::input.held[ttk::move_back]=false;
+        // The original top exit and step-off keep the camera-only lease.
+        psx_mod_write_byte(p+0x22c,8);psx_mod_write_half(p+0x60,191);camera();assert(ttk::traversal_camera_ready() && ttk::ladder_exit_ready());
+        psx_mod_write_half(p+0x60,196);camera();assert(ttk::ladder_exit_ready());
+        psx_mod_write_half(p+0x60,63);psx_mod_write_byte(p+0x22c,0);psx_mod_write_byte(p+0x22d,0);
+        psx_mod_write_word(p+0x220,0);psx_mod_write_word(p+0x17c,0);psx_mod_write_word(0x800d2660,saved_table);
+        place(0,0,0);psx_mod_write_half(p+0x1c,0);psx_mod_write_half(p+0x24,0);
+        ttk::input.sequence=saved_sequence;call(0x8003ade4,c,p,0x80025ee8);assert(ttk::movement_ready());
+        std::puts("PASS: D08J5 pole/chain top mount (reach/top/family gates, Vanilla refusal, catch-equivalent 154 attach, half-turn swing to the far side, down probe ignores floors above, S at the end lets go, exits keep the lease)");
+    }
     // D08J1 overhead ladder leap: the user's slot-6 ladder (type 46, a 378 x
     // 2046 panel at z 80918, yaw 0, bottom about 1040 above the floor).
     {

@@ -146,6 +146,12 @@ static const Guard guards[] = {
     {0x8004d1fc, 24, "786a06bfa8593e670548d620aa78d1bf4c3101dd08a2c096d9e8d85ee1a1d4d4"},
     {0x800148ec, 4, "9e4eae74f2e079bd1e918bd169f3c34f0c8a02b525743f5da03fcc9cdc99e810"},
     {0x80073ae8, 148, "ba01249a732b841f0fc021bb10978e71ca9096239f9b6f75efec72c4580224bc"},
+    // D08J5 poles and chains: the hang-climb rest/step cases (0x8004421c..,
+    // their 0x8007d65c down calls returning to 0x80044340 / 0x80044434) and the
+    // probe itself (floor at sp+0x4c, read at 0x8007d8d4 after the bone call
+    // returning to 0x8007d7fc).
+    {0x8004421c, 748, "8e5705009b24e4958092a918db7c4a3f696b3391236a1d36ba8c65f9acd5916e"},
+    {0x8007d65c, 1784, "e6ac983c8c12c0397a55f13aa808acadf9e105da765894ef8c5874fa14b9e9bb"},
     // D08O1 fire while swimming: the swim state handler and its anim table
     // (Cross tested before Square in idle 127 / thrust 128-130), the player
     // update callbacks and the next step (80055e80) that restores the word.

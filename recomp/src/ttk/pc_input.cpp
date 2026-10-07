@@ -824,6 +824,11 @@ uint16_t input_pad() {
             !pole_view_from_front(down(binds[move_left]) || down(binds[move_right]));
         if(down(binds[move_left]) && !down(binds[move_right])) value &= pole?~32:~128;
         if(down(binds[move_right]) && !down(binds[move_left])) value &= pole?~128:~32;
+        // D08J5: Ctrl lets go of a pole or chain, as under a ceiling; so does S
+        // resting at its end with nothing to step onto (original Square).
+        if(pole_sidestep_ready() && (down(binds[crouch]) || (descending && pole_let_go_ready()))) {
+            value &= ~pads[jump];value |= 64;ladder_let_go=true;
+        }
     }
     // D08J4: under a climbable ceiling the host steers Duke's yaw from WASD and
     // the camera; the original only gets Up to carry him, or Square for Ctrl.

@@ -315,6 +315,14 @@ each joint) was added to `game.local.toml` and regenerated the same way. It
 has its own lightweight callback because the routine is shared by every
 model. See [note 119](119-d08o2a-natural-swim-fire-pose.md).
 
+## Climbing down chains and poles (D08J5)
+
+One hook (`0x8003964C`, the bone lookup the pole/chain down probe calls) was
+added to `game.local.toml` and regenerated the same way (one generated line;
+codegen hash unchanged). Like D08O2A it has its own lightweight callback: only
+the probe's call (return address `0x8007d7fc`) goes further. See
+[note 125](125-d08j5-chain-descent.md).
+
 ## Frame rate (D17)
 
 Profile schema 21 adds the Modernized `frame_rate` choice: `display`, `30`,

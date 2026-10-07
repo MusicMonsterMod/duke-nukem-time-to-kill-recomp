@@ -39,6 +39,38 @@ static unsigned steroid_doses() {
     if(!portable_steroids()) return 0;
     return (psx_mod_read_half(player+0x364)&3)==1 && (int16_t)psx_mod_read_half(player+0x366)>0;
 }
+// Held or running: steroids stay in the switcher and the HUD box (D08A8), like
+// a jetpack that is on.
+static bool steroids_owned() {
+    if(!portable_steroids()) return false;
+    return (psx_mod_read_half(player+0x364)&1) && (int16_t)psx_mod_read_half(player+0x366)>0;
+}
+static bool steroids_running() {
+    return steroids_owned() && (psx_mod_read_half(player+0x364)&2);
+}
+// D08A8: running steroids count down in their own HUD box (gadget_hud.inc).
+// The status bar's element 2 (0x8008bcf4..0x8008be00) shows the steroids'
+// percent with the armour icon while +0x364 bit 1 is on (and so shows even
+// with no armour); it reads that bit only there. So for the status bar draw,
+// and only for it, bit 1 is off: element 2 is the original armour element.
+// It goes back on at the first hook after the status bar returns
+// (0x80026590): 0x8001fc44 or 0x8002e850, which every path of the view
+// composition 0x80026164 reaches before anything else runs (and at the next
+// status bar entry and 0x800b4d9c, in case). Replay workers replay the whole
+// composition, so they restore it the same way.
+static bool steroid_hud_hidden;
+static unsigned steroid_hud_hides;
+static void steroids_hud_restore() {
+    if(!steroid_hud_hidden) return;
+    steroid_hud_hidden=false;
+    const unsigned flags=psx_mod_read_half(player+0x364);
+    if(flags&1) psx_mod_write_half(player+0x364,(uint16_t)(flags|2));
+}
+static void steroids_hud_hide() {
+    if(steroid_hud_hidden || !steroids_running()) return;
+    psx_mod_write_half(player+0x364,(uint16_t)(psx_mod_read_half(player+0x364)&~2u));
+    steroid_hud_hidden=true;++steroid_hud_hides;
+}
 struct SteroidPickup {bool pending;uint16_t flags;};
 static SteroidPickup steroid_pickup;
 static uint32_t steroid_left_object;
@@ -102,9 +134,10 @@ static bool steroids_use(CPUState* cpu) {
     return true;
 }
 static const char* steroids_debug_json() {
-    static char buffer[256];
-    std::snprintf(buffer,sizeof buffer,"{\"portable\":%s,\"doses\":%u,\"flags\":%u,\"timer\":%d,\"stores\":%u,\"full_leaves\":%u,\"refreshes\":%u,\"uses\":%u,\"refusals\":%u,\"late_settles\":%u}",
+    static char buffer[320];
+    std::snprintf(buffer,sizeof buffer,"{\"portable\":%s,\"doses\":%u,\"flags\":%u,\"timer\":%d,\"stores\":%u,\"full_leaves\":%u,\"refreshes\":%u,\"uses\":%u,\"refusals\":%u,\"late_settles\":%u,\"hud_hides\":%u,\"hud_hidden\":%s}",
         portable_steroids()?"true":"false",steroid_doses(),psx_mod_read_half(player+0x364),(int16_t)psx_mod_read_half(player+0x366),
-        steroid_stores,steroid_full_leaves,steroid_refreshes,steroid_uses,steroid_refusals,steroid_late_settles);
+        steroid_stores,steroid_full_leaves,steroid_refreshes,steroid_uses,steroid_refusals,steroid_late_settles,
+        steroid_hud_hides,steroid_hud_hidden?"true":"false");
     return buffer;
 }

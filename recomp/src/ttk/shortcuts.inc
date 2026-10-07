@@ -7,6 +7,7 @@ static bool guest_busy;
 // D08A4 portable steroids (steroids.inc, included after this file).
 static bool portable_steroids();
 static unsigned steroid_doses();
+static bool steroids_owned();
 static bool steroids_use(CPUState* cpu);
 static void steroids_poll();
 static unsigned base_weapon(unsigned slot) {return slot==27?9:slot==28?7:slot==29?8:slot;}
@@ -52,7 +53,9 @@ static bool original_call(CPUState* source,uint32_t address,uint32_t a1,int32_t*
     return cpu.pc==0 && !g_psx_call_bail;
 }
 static bool usable_item(unsigned item) {
-    if(item==4)return steroid_doses()>0; // D08A4: held, not running (original: pickup-activated)
+    // D08A4/D08A8: held, or running (selected like a jetpack that is on, so the
+    // HUD box counts them down in place); R / Enter use only a held one.
+    if(item==4)return steroids_owned();
     if(item<1 || item>5)return false;
     if(psx_mod_read_half(0x800c2710+4*item)!=(item==1?1:item==5?2:3))return false;
     unsigned v=psx_mod_read_half(player+0x354+item*4);

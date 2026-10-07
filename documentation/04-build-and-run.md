@@ -358,3 +358,11 @@ original lip launch and fixed arc) or `manual` (jump on the press, edge grace,
 air steering, quicker standing takeoff). `run.py --jump VALUE` saves it
 (`--settings` choice J); the launcher passes `DNTTK_JUMP` (always `assisted`
 for Vanilla). See [78-d08z-manual-jump.md](78-d08z-manual-jump.md).
+
+## Steroids countdown box (D08A8)
+
+One hook (`0x8002E850`, the view composition's call after the status bar) was
+added to `game.local.toml` and regenerated the same way (one generated line;
+codegen hash unchanged). Its own callback only restores the steroids running
+bit for its composition call (return address `0x800265d4`). See
+[note 127](127-d08a4-portable-steroids.md).

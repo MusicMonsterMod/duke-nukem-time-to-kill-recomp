@@ -15,7 +15,9 @@
 // So: a selected gadget that is on is the original box, with element 5 moved to
 // the slot when it is the Bio Mask or goggles; an off gadget, the medkit or
 // held steroids (the original has no box for either) is drawn here, the medkit
-// and steroids with their own icons (D08A7, D08A4, below). An off gadget's digits are the same glyph packets at colour 0x31
+// and steroids with their own icons (D08A7, D08A4, below). Running steroids
+// (D08A8) are drawn here too, lit, in the slot when selected, else stacked above
+// the slot after an unselected jetpack; element 2 then shows only armour. An off gadget's digits are the same glyph packets at colour 0x31
 // instead of 0x80 (38%: PSX texture modulation). A jetpack that is on but not
 // selected moves one box row up (box height + 4, the original's own step);
 // Bio Mask / goggles keep their own place left of ammo. Layout changes live in
@@ -96,7 +98,7 @@ static uint32_t art_load_packet(const GadgetArt& art) {
     return packet;
 }
 static bool gadget_owned(unsigned item) {
-    if(item==4) return steroid_doses()>0;  // D08A4: held, not running
+    if(item==4) return steroids_owned();  // D08A4 held, D08A8 running
     if(item!=1 && item!=2 && item!=3 && item!=5) return false;
     const unsigned v=psx_mod_read_half(player+0x354+4*item);
     return (v&1) && ((v&2) || (int16_t)psx_mod_read_half(player+0x356+4*item)>0);
@@ -152,19 +154,32 @@ static bool gadget_box_draw(CPUState* source,unsigned item,int x,int y,bool lit)
     return ok;
 }
 static void gadget_hud(CPUState* cpu) {
+    steroids_hud_restore();
     if(!hud_applied || psx_mod_read_byte(player+0x233)!=0) return;
     // The selection as the original menu's remembered ID (shortcuts.inc keeps
     // it equal to selected_item): high-refresh redraws replay this function in
     // worker processes on a copy of guest memory, where host state is stale.
     const unsigned item=psx_mod_read_half(0x800c3f94);
-    if(!gadget_owned(item)) return;
+    const bool selected=gadget_owned(item);
+    // D08A8: running steroids are drawn here (lit, the pill icon, the same
+    // percent the original showed in the armour element), never by element 2.
+    const bool steroids=steroids_running();
+    if(steroids) steroids_hud_hide();
     const uint32_t jet=hud_layout+32,vision=hud_layout+40;
     const int16_t x=(int16_t)psx_mod_read_half(jet),y=(int16_t)psx_mod_read_half(jet+2);
-    const bool on=item!=5 && (psx_mod_read_half(player+0x354+4*item)&2);
-    if(item!=1 && (psx_mod_read_half(player+0x358)&2)) {
-        const int row=psx_mod_read_byte(gadget_box+3)+4;
+    const int row=psx_mod_read_byte(gadget_box+3)+4;
+    // Boxes for gadgets that are on but not selected stack upwards from the
+    // slot, a box row each: the jetpack first (the original's own element),
+    // then running steroids.
+    const bool jet_on=psx_mod_read_half(player+0x358)&2;
+    int rows=selected?1:0;  // the selected box takes the slot
+    if(selected && item!=1 && jet_on) {
         psx_mod_write_half(jet+2,(uint16_t)(int16_t)(y-row));
-    }
+        ++rows;
+    } else if(!selected && jet_on) rows=1;  // the original jetpack box in the slot
+    if(steroids && (!selected || item!=4)) gadget_box_draw(cpu,4,x,y-row*rows,true);
+    if(!selected) return;
+    const bool on=item!=5 && (psx_mod_read_half(player+0x354+4*item)&2);
     if(item==1 && on) {
         // The original jetpack box is in the slot. Skip its rise out of the
         // ammo box (state +34, the slide offset; 0 is its resting value): the
@@ -179,6 +194,6 @@ static void gadget_hud(CPUState* cpu) {
         psx_mod_write_half(vision+2,(uint16_t)y);
         return;
     }
-    // The medkit and held steroids are always ready to use: lit.
+    // The medkit and steroids (held or running) are always lit.
     gadget_box_draw(cpu,item,x,y,item==5 || item==4 || on);
 }

@@ -1,8 +1,8 @@
 # D08A4 - Portable steroids (EDuke32 style)
 
 Status: **Done** (user-accepted 2026-10-07: "mechanically, the steroids work
-perfectly"). Follow-up D08A8: show the running countdown in the steroids box
-instead of the original armor element. Modernized
+perfectly"). Follow-up D08A8 (Done, below): the running countdown is
+in the steroids box instead of the original armor element. Modernized
 only, optional (`steroids` = `portable`, the default, or `original`); Vanilla
 unchanged.
 
@@ -19,8 +19,8 @@ roids as an item, and it appears in our items list. it is invoked with the R key
 - **R**, or **Enter / U** with steroids selected, takes them: the original
   effect starts (full time), the pickup sound plays and `USED STEROIDS` shows
   (Duke 3D quote 12). While they run, the switcher shows them draining with the
-  active mark; the original status bar shows the remaining percent in its armor
-  element (with the armor icon), as it always has for running steroids.
+  active mark and their HUD box counts down (D08A8, below); the armor element
+  shows only armor.
 - One at a time, as in Duke 3D (`GAME.CON`: `ifpinventory GET_STEROIDS`): while
   one is held, more steroids stay on the ground. A pickup while steroids run is
   left to the original, which refreshes them.
@@ -125,3 +125,74 @@ written). UI slot 4 (level 0) unless noted; pickups are spawned type 638
   for them).
 - Switching a profile to `original` with steroids held leaves them held; they can
   be used from Modernized later, and Vanilla ignores them.
+
+## D08A8 - Countdown in the steroids box
+
+Status: **Done** (user-accepted 2026-10-07: "this is phenomenally good ... i
+accept this as complete"). User request: "why the armor icon is used when
+the coundtown for the steroids is displayed. I'd really love if that entire
+countdown could be delegated to the steroids thing".
+
+### How the original chooses
+
+Status bar element 2 (layout `0x800dd778 + 16`, state `0x800dd7b8 + 16`), code
+`0x8008bccc..0x8008befc`:
+
+- becomes visible when `+0x364` bit 1 is on or armour `+0x234` > 0 (and starts
+  its slide), and hides when both are off;
+- its number is `+0x366 * 100 / [0x800c2722]` while bit 1 is on, else
+  `armour / 100` (at least 1);
+- its icon is always the armour record `0x800c44f4`, box `0x800c44a4`.
+
+Bit 1 of `+0x364` is read nowhere else in the status bar. The status bar is
+called from the view composition at `0x80026588`; the next hooked call is
+`0x8001fc44` (`0x800265a4` or `0x800265bc`) or, on the path that skips both,
+`0x8002e850` (`0x800265cc`, ra `0x800265d4`). Nothing runs between the return
+and those calls except a load and a branch.
+
+### Implementation
+
+- `steroids.inc`: `steroids_owned()` (held or running), `steroids_running()`,
+  `steroids_hud_hide()` / `steroids_hud_restore()`.
+- `gadget_hud.inc` (status bar entry, Modernized single player): restore first;
+  if steroids run, turn bit 1 off for this draw (element 2 = armour only) and
+  draw the steroids box with the original's own calls (pill icon, lit,
+  `amount * 100 / 9000`, the original's number). Selected: in the slot.
+  Otherwise stacked a box row above the slot, above an unselected jetpack that
+  is on (that jetpack is row 1, steroids row 2).
+- Restore at `0x8001fc44` and `0x800b4d9c` (before the mode check in
+  `hook_body`), the next status bar entry, and new lightweight entry hook
+  `0x8002E850` (only ra `0x800265d4`). It sets bit 1 back only while bit 0 is
+  still on. Replay workers replay the whole composition, so they restore too.
+- `shortcuts.inc`: `usable_item(4)` is `steroids_owned()`, so running steroids
+  stay selected after R (like a jetpack that is on) and `[ / ]` can select them;
+  R and Enter/U still use only a held dose.
+- Debug: `controls.steroids.hud_hides`, `hud_hidden`.
+- `game.local.toml`: hook `0x8002E850` (regenerated: one line in
+  `SLUS_005.83_full_09.c`; codegen hash unchanged).
+
+### Evidence (executable `e9e0cfa7aeec88ace33f794b4a831ebc0b536b09bd4dce54df6e52e85865ffc8`)
+
+Private Xvfb runs, fresh copy of the player's cards and savestates
+(`recomp/analysis/d08a8-steroids-hud/`, local: `t1.py` to `t3.py`, screenshots).
+
+| Check | Result |
+| --- | --- |
+| Held, selected | pill box, lit 100 (D08A4) |
+| R | selection stays on steroids; the box counts down in place (80, 63 ...); no armour element with armour 0 (element 2 state 0) |
+| Effect | drain unchanged (timer falls at the normal rate, ends at 0, flags 0); the box goes |
+| `]` to jetpack (off) / jetpack on and selected | steroids box one row up |
+| Bio Mask selected, jetpack on | jetpack row 1, steroids row 2 |
+| Armour 50 while running | armour element shows 50 with the armour icon; steroids in their box |
+| Savestate save, reload while running | same boxes; bit 1 on in RAM between frames (`hud_hidden` false) |
+| R while running | nothing |
+| GL 16:9 at 120 fps (replay workers), Software 4:3 and 16:9 | same layout |
+| Vanilla, steroids forced on | original armour element with the steroids percent |
+| Suites | `ttk-controls-test` (40 groups), `ttk-input-test`, `ttk-inventory-test`, Python 131 OK (2 skipped), `level_overlay_guards.py --check` |
+
+### Limits
+
+- Death while steroids run, natural (non-spawned) pickups while running and
+  window resize were not exercised.
+- With `steroids` `original` in Modernized there is no steroids box, so the
+  original armour-element countdown stays.

@@ -217,7 +217,11 @@ them up shows STEROIDS as before but keeps them, and they appear in the **[ / ]*
 switcher (right after the medkit) and the HUD item box with their own pill-bottle
 icon at 100%. **R**, or **Enter** / **U** with steroids selected, takes them:
 `USED STEROIDS` shows, the pickup sound plays and the original steroids effect
-runs for its usual time (the switcher shows it draining with the active mark).
+runs for its usual time. While it runs, the steroids box counts down (lit, with
+the pill icon) and steroids stay selected, so the box you were looking at counts
+down in place; if you select another gadget, the steroids box moves one row up
+(above a jetpack that is on). The armor box on the left shows only armor. The
+switcher shows them draining with the active mark.
 Duke carries one at a time: while you hold one, more steroids stay where they
 are until you have used it. Picking steroids up while they are already running
 refreshes them, as in the original. R with none held, while they run, or while

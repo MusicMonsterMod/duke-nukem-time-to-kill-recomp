@@ -772,6 +772,9 @@ static void hook_body(CPUState* cpu, uint32_t address) {
     // D08O2A: the swim arm aim lives only inside Duke's model build.
     if(address==0x80055e80 || address==0x800493a4 || address==0x8003ade4 ||
        address==0x800455bc || address==0x800411b8) swim_aim_restore();
+    // D08A8: steroids hidden from the status bar's armour element come back
+    // after it, whatever the mode is by then.
+    if(address==0x8001fc44 || address==0x800b4d9c) steroids_hud_restore();
     if (!input_modernized()) return;
     const auto& f=input_snapshot(Context::Gameplay);
     uint32_t ra=cpu->gpr[31], sp=cpu->gpr[29];
@@ -1352,4 +1355,6 @@ PSX_MOD_CONSTRUCTOR(register_ttk_controls) {
     psx_mod_register_function_entry_plugin("ttk.modern.controls",0x8003964c,[](CPUState* cpu,uint32_t){if(cpu->gpr[31]==0x8007d7fcu)ttk::pole_probe_floor(cpu);});
     // D08A4: the sound routine; only the pickup tail's call (ra 0x800828d8) goes further.
     psx_mod_register_function_entry_plugin("ttk.modern.controls",0x8006b73c,[](CPUState* cpu,uint32_t){if(cpu->gpr[31]==0x800828d8u)ttk::steroids_pickup_sound(cpu);});
+    // D08A8: the composition's call after the status bar when 0x8001fc44 is skipped.
+    psx_mod_register_function_entry_plugin("ttk.modern.controls",0x8002e850,[](CPUState* cpu,uint32_t){if(cpu->gpr[31]==0x800265d4u)ttk::steroids_hud_restore();});
 }

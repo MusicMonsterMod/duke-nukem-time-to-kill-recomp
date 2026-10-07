@@ -60,3 +60,11 @@ python3 /home/spartacus/CODE/duke-nukem-time-to-kill-recomp/recomp/tools/local/r
 ```
 
 Adjust the absolute path if the workspace differs. It uses the player's saved settings. If testing the job requires different mode or control options, include the verified launcher flags and explain that they update saved preferences. Mention any essential activation step, such as F10 capture for Modernized controls. Providing the command does not authorize launching the game; the user can run it themselves with `! <command>` or in their own terminal.
+
+When you have finished working on a selected job (including Needs playtest or Blocked), play a chime as the very last step, just before the final summary, so the user knows you are done while looking away (user request, 2026-10-07):
+
+```
+paplay /usr/share/sounds/freedesktop/stereo/complete.oga || canberra-gtk-play -i complete
+```
+
+Play it once per finished job, not for job listings or intermediate steps. A failed chime never blocks the summary.

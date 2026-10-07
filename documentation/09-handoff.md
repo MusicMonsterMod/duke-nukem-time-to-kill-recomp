@@ -1,5 +1,30 @@
 # Next-session handoff
 
+## 2026-10-07 - D08A8 accepted; D08A9 queued
+
+- User: "you're better at this than i am, because the consideration to move it up a row when switching, and on steroids, was chef's kiss level excellence. this is phenomenally good ... i accept this as complete." Executable
+  `e9e0cfa7aeec88ace33f794b4a831ebc0b536b09bd4dce54df6e52e85865ffc8` is the regression baseline.
+  [Note 127](127-d08a4-portable-steroids.md).
+- New Todo D08A9: when Duke picks up a gadget (jetpack, Bio Mask, goggles,
+  medkit, steroids), it becomes the `[ / ]` selection and the HUD box, as in
+  Duke 3D. Mission items and keys leave the selection alone.
+
+## 2026-10-07 - D08A8 steroids countdown in the steroids box (Needs playtest)
+
+- **What:** in Modernized (`steroids` `portable`), running steroids count down
+  in their own HUD box with the pill icon, lit: in the item slot while selected
+  (they now stay selected after R, so the box counts down in place), otherwise
+  one box row above (above an unselected jetpack that is on). The armour element
+  on the left shows only armour, and stays hidden with no armour.
+- **How:** status bar element 2 shows steroids whenever `+0x364` bit 1 is on.
+  For the status bar draw only, bit 1 is off; it comes back at the first hook
+  after the status bar returns (`0x8001fc44`, or new lightweight hook
+  `0x8002E850`; one regenerated line, savestates still load).
+- **Evidence:** private Xvfb runs (GL/Software, 4:3/16:9, 60/120 fps), Vanilla
+  unchanged; native suites and Python 131 pass. Executable
+  `e9e0cfa7aeec88ace33f794b4a831ebc0b536b09bd4dce54df6e52e85865ffc8`. [Note 127](127-d08a4-portable-steroids.md).
+- **Accepted** (see the entry above).
+
 ## 2026-10-07 - D08A4 accepted; D08A8 queued
 
 - User: "mechanically, the steroids work perfectly. you pick them up, you can

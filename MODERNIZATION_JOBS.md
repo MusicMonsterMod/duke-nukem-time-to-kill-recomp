@@ -48,7 +48,8 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08A2 | EDuke32 bottom-left inventory icon and green % | Done (revised: strip + green %) | D08A1, D19A |
 | D08A3 | Original TTK inventory icons for the switcher (replace Duke3D art) | Done | D08A2 |
 | D08A4 | EDuke32-style portable steroids: pick up, store in items, use with R | Done (user-accepted) | D08A1, D08A3, D22B |
-| D08A8 | Steroids countdown in the steroids HUD box (pill icon), not the armor element | Todo | D08A4, D08A6 |
+| D08A8 | Steroids countdown in the steroids HUD box (pill icon), not the armor element | Done (user-accepted) | D08A4, D08A6 |
+| D08A9 | Picked-up inventory item becomes the switcher selection (Duke 3D feel) | Todo | D08A1, D08A4, D08A6 |
 | D08A5 | Mission item tracking: mission inventory on , / . (design E, revised) | Done | D08A1, D08A3, D24A |
 | D08A6 | Selected gadget shown on the HUD: original item slot (design A) | Done | D08A1, D08A3 |
 | D08A7 | Custom medkit gadget icon (switcher strip and HUD box) | Done | D08A6 |
@@ -580,7 +581,10 @@ does not list held steroids.
 
 ### D08A8 - Steroids countdown in the steroids HUD box
 
-**Todo. User request, 2026-10-07** (after accepting D08A4; video
+**Done (user-accepted, 2026-10-07):** "you're better at this than i am, because the consideration to move it up a row when switching, and on steroids, was chef's kiss level excellence. this is phenomenally good ... i accept this as complete." See the work log below and
+[note 127](documentation/127-d08a4-portable-steroids.md) (D08A8 section).
+
+User request, 2026-10-07 (after accepting D08A4; video
 `research/screencaps/Video_2026-10-07_22-03-53.mp4`, reference
 `research/screencaps/ttk-roids.png`): "what genuinely doesnt make sense to me is
 why the armor icon is used when the coundtown for the steroids is displayed.
@@ -601,6 +605,71 @@ with the pill icon; the armor element shows only armor (or stays hidden as the
 original does without armor); held, running and refreshed steroids, a selected
 other gadget, savestates and both renderers checked; Vanilla unchanged; the
 user confirms.
+
+**Work log (2026-10-07, Needs playtest).** Research: element 2 of the status
+bar (`0x8008bcf4..0x8008bf00`) is shown while `+0x364` bit 1 (steroids running)
+is on or armour `+0x234` > 0, and draws steroids' percent (`amount * 100 /
+9000`) instead of armour (`armour / 100`, at least 1) whenever bit 1 is on, always
+with the armour icon `0x800c44f4`. Nothing else in the status bar reads bit 1.
+Decision on the open question: running steroids stack like a jetpack that is on.
+Implementation: running steroids stay selected (`usable_item(4)` is now held
+or running, so after R the box you were looking at counts down in place; R /
+Enter still only take a held one). `gadget_hud.inc` draws them lit with the pill
+icon in the slot when selected, else stacked above it (after an unselected
+jetpack that is on). For the status bar draw only, bit 1 is turned off so
+element 2 is the plain armour element; it is turned back on at the first hook
+after the status bar returns (`0x8001fc44`, or new lightweight entry hook
+`0x8002E850` on the composition path that skips it; also at the next status bar
+entry and `0x800b4d9c`). One regenerated line; codegen hash unchanged. Only with
+`steroids` `portable`; `original` and Vanilla unchanged.
+Evidence (executable `e9e0cfa7aeec88ace33f794b4a831ebc0b536b09bd4dce54df6e52e85865ffc8`; private Xvfb runs on a fresh copy of the
+player's cards and savestates, `recomp/analysis/d08a8-steroids-hud/`, local):
+held 100 then R: lit pill box counting down in place, no armour element with
+armour 0, drain and effect unaffected (timer falls normally, ends at 0 and the
+box goes); `]` to the jetpack (off): steroids one row up; jetpack on and
+selected: same; Bio Mask selected with jetpack on: jetpack row 1, steroids row 2;
+armour 50 while running: the armour element shows 50 with the armour icon,
+steroids stay in their box; savestate save/reload while running; R while running
+does nothing; after the effect the armour element works as before. GL 4:3, GL
+16:9 at 120 fps (replay workers), Software 4:3 and 16:9 look the same. Vanilla
+with steroids forced on still shows them in the armour element. Suites:
+`ttk-controls-test` (LEVEL00 fixture `d08-camera-final`, LEVEL01, all levels;
+40 groups), `ttk-input-test`, `ttk-inventory-test`, Python 131 OK (2 skipped),
+`level_overlay_guards.py --check`.
+Limits: needs the user's look in play; death while steroids run and a
+natural (non-spawned) pickup while running were not exercised; with
+`steroids` `original` in Modernized the original armour-element countdown stays
+(there is no steroids box there).
+
+### D08A9 - Picked-up inventory item becomes the switcher selection
+
+**Todo. User request, 2026-10-07** (on accepting D08A8): "when an inventory
+item is picked up, that item should be the one selected in the switcher. i.e.
+you pick up biomask, then that should be the selected item. you pick up
+jetpack, that should be the selected item etc. that's how it worked in duke3d
+and i want that feel to exist here."
+
+**Scope (Modernized only; Vanilla unchanged):** when Duke picks up a gadget
+(jetpack, Bio Mask, goggles, medkit, portable steroids), the `[ / ]` selection
+(`selected_item` and the original menu ID `0x800c3f94`, which the D08A6 HUD box
+reads) moves to it at once, so the HUD box and the next Enter / U use it.
+Mission items and keys never change the gadget selection (D08A5 owns them).
+
+**Research first:** the pickup dispatcher `0x80081a48` cases that grant each
+gadget (D08A4 found steroids at `0x800827e8`) and whether a refill of an
+owned gadget, a full one left on the ground and cheat/inventory grants
+(`0x8003d738`) should count; how EDuke32 does it (`P_AddInventory` / the
+`addinventory` CON command set `inven_icon` on every inventory pickup) and
+whether a refill there also selects; whether a pickup during a gadget's
+activation (`+0x8000` pending), in flight, or while the switcher strip is open
+should wait or apply; that the D17 replay workers see it (guest ID, not host
+state).
+
+**Acceptance:** in Modernized, picking up each gadget type selects it in the
+switcher and the HUD box immediately, in at least two levels; a held steroids
+pickup selects steroids; mission items and keys leave the selection alone;
+Enter / U then uses the picked-up item; savestate, level change and Continue
+keep the selection consistent; Vanilla unchanged; the user confirms the feel.
 
 ### D08A5 - Mission item tracking in the item switcher (approved design E)
 
@@ -9544,3 +9613,22 @@ in note 117 is the reference for future custom pickups.
 - New Todo D08A8: show the running steroids countdown in the steroids HUD box
   (pill icon, `research/screencaps/ttk-roids.png`) instead of the original
   armor element and icon.
+
+## 2026-10-07 - D08A8 steroids countdown in the steroids box (Needs playtest)
+
+- Modernized (`steroids` `portable`): running steroids count down in their own
+  HUD box with the pill icon (lit), in the item slot when selected, else stacked
+  above it like a jetpack that is on; the armour element shows only armour.
+  Running steroids stay selected after R so the box counts down in place.
+- Status bar element 2 sees steroids as not running only during its draw (bit
+  1 off, back on at the first hook after the status bar; new lightweight hook
+  `0x8002E850`, one regenerated line, savestates still load).
+- Private runs (GL/Software, 4:3/16:9, 60/120 fps), Vanilla unchanged; suites
+  pass. Executable `e9e0cfa7aeec88ace33f794b4a831ebc0b536b09bd4dce54df6e52e85865ffc8`.
+
+## 2026-10-07 - D08A8 accepted; D08A9 queued
+
+- User: "you're better at this than i am, because the consideration to move it up a row when switching, and on steroids, was chef's kiss level excellence. this is phenomenally good ... i accept this as complete." D08A8 Done; executable
+  `e9e0cfa7aeec88ace33f794b4a831ebc0b536b09bd4dce54df6e52e85865ffc8` is the regression baseline.
+- New Todo D08A9: a picked-up gadget becomes the `[ / ]` selection (and the HUD
+  box), as in Duke 3D.

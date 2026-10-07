@@ -25,6 +25,7 @@ bool hold_button_sampled(){return false;}
 bool inventory_visible(){return ::inventory_visible;}
 unsigned mission_presses;int mission_steps;void mission_browse_press(int d){++mission_presses;mission_steps+=d;}}
 static bool ready, holstered, flight, traversal, preparing, shortfall, switching, jet, jet_classic, edge_queued;
+static const char* refusal="state";
 static bool alive=true,view_aim;
 static bool push_grab,push_contact,push_idle;
 static bool trav_camera, roll_camera;
@@ -86,6 +87,18 @@ int main() {
     CHECK((ttk::input_pad() & (16|0x100))==0); // W forward + A L2 strafe, never D-pad turn
     CHECK((ttk::input_pad() & 128)==128);
     key(SDL_SCANCODE_A, false);
+    // D08V1: other refusals never turn with the mouse; an identity refusal pays
+    // banked horizontal mouse counts out as the original D-pad turn.
+    motion(40,0);tick();CHECK((ttk::input_pad() & (32|128))==(32|128));
+    refusal="identity";
+    motion(33,0);tick();CHECK((ttk::input_pad() & 32)==0 && (ttk::input_pad() & 128)==128);
+    tick();CHECK((ttk::input_pad() & 32)==0);
+    tick();CHECK((ttk::input_pad() & 32)==0);
+    tick();CHECK((ttk::input_pad() & (32|128))==(32|128));
+    motion(-17,0);tick();CHECK((ttk::input_pad() & 128)==0 && (ttk::input_pad() & 32)==32);
+    tick();CHECK((ttk::input_pad() & 128)==0);
+    tick();CHECK((ttk::input_pad() & (32|128))==(32|128));
+    refusal="state";
     key(SDL_SCANCODE_E,true);CHECK((ttk::input_pad() & 16384)!=0);
     holstered=true;ready=true;CHECK((ttk::input_pad() & 16384)==0);
     key(SDL_SCANCODE_E,false);holstered=false;
@@ -691,12 +704,12 @@ int main() {
     CHECK(!tick().active && ttk::input_pad()==0xffff);
     SDL_DestroyWindow(win);
     SDL_Quit();
-    std::puts("PASS: independent movement, normalized diagonals, context isolation, mouse deltas, focus loss, repeat suppression, Escape/pause/inventory release, menu fallback, overlay capture guard, captured tank WASD strafe fallback, F7 savestate recapture and fresh-offer capture, D08T1 hold-to-grab (E mantles, RMB/Alt grab latch, push-pull, release, fresh press, holster, legacy precision aim), D08U ladder-top E request, hint and S descent Cross, D08J1 one ladder leap jump per E hold, reach held through the leap, D08J5 Ctrl and S-at-the-end let go of a pole or chain");
+    std::puts("PASS: independent movement, normalized diagonals, context isolation, mouse deltas, focus loss, repeat suppression, Escape/pause/inventory release, menu fallback, overlay capture guard, captured tank WASD strafe fallback, D08V1 identity fallback mouse turn, F7 savestate recapture and fresh-offer capture, D08T1 hold-to-grab (E mantles, RMB/Alt grab latch, push-pull, release, fresh press, holster, legacy precision aim), D08U ladder-top E request, hint and S descent Cross, D08J1 one ladder leap jump per E hold, reach held through the leap, D08J5 Ctrl and S-at-the-end let go of a pole or chain");
 }
 
 namespace ttk { bool directional_takeoff_ready(){return preparing;} bool edge_jump_queued(){return edge_queued;}
 bool short_fall_input_ready() { return shortfall && flight; } bool fire_draw_ready() { return ready && holstered; } bool airborne_input_ready() { return flight; } bool interaction_alive() { return alive; } bool interaction_restore_ready() { return ready && holstered; } bool interaction_swim_restore_ready() { return false; } bool view_aim_input_ready(){return view_aim;}
 bool weapon_drawn() { return !holstered; } bool weapon_holstered() { return holstered; } bool player_identity_ready() { return true; }
-bool movement_ready() { return ready; } bool locomotion_input_ready() { return flight; } bool traversal_input_ready() { return traversal; } bool traversal_camera_ready() { return trav_camera; } bool committed_camera_ready() { return roll_camera; } bool swim_input_ready() { return false; } bool wade_full_speed_ready() { return false; } bool swim_host_owns_jump() { return false; } void swim_strafe_pads(uint16_t& left,uint16_t& right) { left=0x100; right=0x200; } bool swim_thrust_input_ready() { return false; } bool jetpack_input_ready() { return jet; } bool jetpack_classic_input_ready() { return jet && jet_classic; } bool interaction_holster_ready() { return (ready || flight) && !holstered && !switching; } bool interaction_ready() { return (ready || flight || traversal) && holstered && !switching; } bool push_grab_ready() { return push_grab; } bool push_contact_ready() { return push_contact; } bool push_idle_ready() { return push_idle; } uint16_t push_pad(float,float y) { return !push_grab?0:y>0?16:y<0?64:0; } const char* controls_debug_json() { return "{}"; } const char* lease_refusal_reason() { return "state"; }
+bool movement_ready() { return ready; } bool locomotion_input_ready() { return flight; } bool traversal_input_ready() { return traversal; } bool traversal_camera_ready() { return trav_camera; } bool committed_camera_ready() { return roll_camera; } bool swim_input_ready() { return false; } bool wade_full_speed_ready() { return false; } bool swim_host_owns_jump() { return false; } void swim_strafe_pads(uint16_t& left,uint16_t& right) { left=0x100; right=0x200; } bool swim_thrust_input_ready() { return false; } bool jetpack_input_ready() { return jet; } bool jetpack_classic_input_ready() { return jet && jet_classic; } bool interaction_holster_ready() { return (ready || flight) && !holstered && !switching; } bool interaction_ready() { return (ready || flight || traversal) && holstered && !switching; } bool push_grab_ready() { return push_grab; } bool push_contact_ready() { return push_contact; } bool push_idle_ready() { return push_idle; } uint16_t push_pad(float,float y) { return !push_grab?0:y>0?16:y<0?64:0; } const char* controls_debug_json() { return "{}"; } const char* lease_refusal_reason() { return refusal; }
 bool ladder_top_available() { return ladder_top; } void ladder_top_request() { ++ladder_requests; } bool ladder_descent_ready() { return ladder_on && traversal; } int ladder_bottom_hang() { return traversal ? ladder_hang : 0; } bool ladder_end_below() { return traversal && ladder_end; } bool ladder_mount_finishing() { return false; } bool ladder_exit_ready() { return ladder_exit && traversal; } bool object_hang_release_ready() { return false; } bool pole_sidestep_ready() { return pole && traversal; } bool pole_view_from_front(bool held) { static bool front; if(!held) front=pole_front; return front; } bool pole_let_go_ready() { return pole_end && pole && traversal; } bool ceiling_hang_ready() { return ceiling && traversal; } bool ceiling_hang_advance() { return ceiling_adv && ceiling && traversal; } bool ceiling_hang_drop() { return ceiling_let_go && ceiling && traversal; }
 bool ladder_leap_ready() { return ladder_leap; } bool ladder_leap_active() { return leap_on; } void ladder_leap_note() { ++ladder_leaps; } }

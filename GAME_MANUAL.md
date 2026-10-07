@@ -55,7 +55,11 @@ If a scripted camera still drops the modern lease, W/S walk and A/D strafe
 When that fallback lasts more than about a second the screen shows
 `ORIGINAL MOVEMENT (reason)` and `MODERN MOVEMENT RESUMED` when the lease
 returns; the reason (`state`, `identity`, `context`, `released`) is the one
-to report. `run.py` mirrors these `[TTK …]` lines into
+to report. If the game's code check itself fails (`identity`), the screen says
+`MODERN CONTROLS PAUSED - MOUSE TURNS, WASD MOVES`: the mouse turns Duke and
+W/S/A/D move him with the original controls, and Modernized returns as soon as
+the check passes again. Climbing, hanging and pole or chain moves no longer
+trigger it. `run.py` mirrors these `[TTK …]` lines into
 `recomp/build-local/logs/session-*.log` (last five launches;
 `--no-session-log` disables).
 F10 toggles mouse capture only; press it again if the

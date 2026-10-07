@@ -55,12 +55,8 @@ static const Guard guards[] = {
     {0x8003ff6c, 176, "504d9dfc3af34467c5e485072cbd01ee500aaa6aea070666da40b80635e63fd0"},
     {0x80088134, 264, "b5f58266df17263c220add0d06eb0fc64fd04ce58dec15388cba92de6e36b02e"},
     {0x80088074, 192, "415122ff9b46fe23396bb1d0647b0f040e2177f8af31261f6ea7af0d3aadddc2"},
-    // Upper-body animation flag table, minus entries 149..153 (0x800c2a78..
-    // 0x800c2a8b): the original toggles bit 0x40 of 149/152/153 at run time
-    // (cleared by the object hang at 0x80055438, set by the ledge hang at
-    // 0x8004c8b8), so they are game state, not code.
-    {0x800c2824, 596, "5fce8c832dfaf90789c7bbc70809cc64d91dd5c1fb81467d1673c4fd55003805"},
-    {0x800c2a8c, 504, "fc594f9280b5f7e59a48c610c60977fcd4dc236cb28162a439a50636c3a36dd7"},
+    // (The upper-body animation flag table 0x800c2824 is game state in part:
+    // see state_guards below.)
     {0x80089428, 176, "df4f7bdfaa1927f6e0e96d3f39cc5f633b87bab3545ff3152fca534a958f4262"},
 
     {0x80078c0c, 292, "40254053d0240a93ae11d9fb7ca3d709199752b1267c539f2ba9a61388f688d6"},
@@ -166,6 +162,21 @@ static const Guard guards[] = {
     {0x800987cc, 672, "13e4e3dcca6b6f011db95d4825e6f968375a4b2341ea18fdd86a8cc676dbede5"},
     {0x800b42ec, 352, "484fff1d2984fac9730786048ad50065c006672118c2d6b4698dfb787d7b155c"},
     {0x80042634, 308, "49f96d37c9a2d3b97d8ac57a6f3cd2e68fb38107f0996ee7c4bdd80f9bf93d70"},
+};
+// D08V1: original data the game rewrites in place, compared with those bits
+// masked off (code_identity.h masked_identity). The upper-body animation flag
+// table (280 entries, 0x800c2824 + 4 * anim): bit 0x40 of any entry is game
+// state. The pole/hang side probe 0x800439e4 sets or clears it on the entry of
+// Duke's current animation (196 on a chain top exit, 2026-10-07 lockout), the
+// object hang 0x80055438 clears and the ledge hang 0x8004c768/7f0/8b0 set it
+// on 149/152/153. The bonus levels' BONUS.OVR (DB21..DB26) stores the low
+// halfword of entry 265 (0x800c2c48). Every other bit stays authenticated.
+// Audited from the owned disc by tools/local/guard_writer_audit.py.
+struct MaskedGuard { uint32_t address, size, mask; const char* digest; };
+static const MaskedGuard state_guards[] = {
+    {0x800c2824, 1060, 0xffffffbf, "46fc004364fecba392de4586e0f42115383ef4587b79768e6b39b7e383b8d737"},
+    {0x800c2c48, 4, 0xffff0000, "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119"},
+    {0x800c2c4c, 56, 0xffffffbf, "c2c056fe219456a149c9145199b715844a62c1b2a701bbe6d2942075e4c13b89"},
 };
 // Authenticated level overlays (D22A, D22B). Every LEVELxx.OVR loads at
 // 0x800ca968 and starts with its level tag word; the tag picks the one body

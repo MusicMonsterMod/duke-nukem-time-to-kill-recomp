@@ -291,6 +291,7 @@ static uint32_t (*level_reader(uint32_t tag))(uint32_t) {
 }
 static bool identity() {
     static thread_local std::array<std::vector<uint32_t>,sizeof guards/sizeof guards[0]> expected;
+    static thread_local std::array<std::vector<uint32_t>,sizeof state_guards/sizeof state_guards[0]> state_expected;
     static thread_local std::array<std::vector<uint32_t>,1> level_expected[level_count];
     static thread_local IdentityMemo memo;
     static thread_local uint32_t memo_tag;
@@ -301,6 +302,7 @@ static bool identity() {
         const uint32_t tag=psx_mod_read_word(level_base);
         const int level=level_index(tag);
         const bool ok=level>=0 && code_identity(guards,expected,psx_mod_read_word,g_psx_ram) &&
+            masked_identity(state_guards,state_expected) &&
             code_identity(level_overlays[level].body,level_expected[level],level_reader(tag),g_psx_ram);
         memo.set(frame,g_dirty_ram_code_gen,ok);memo_tag=ok?tag:0;
         identity_ns+=std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now()-t0).count();
@@ -316,9 +318,13 @@ static bool identity() {
         const uint32_t tag=psx_mod_read_word(level_base);
         const int level=level_index(tag);
         const int index=code_identity_mismatch(guards,expected,address,live,want);
+        const int state=index<0?masked_identity_mismatch(state_guards,state_expected,address,live,want):-1;
         if(index>=0)
             std::fprintf(stderr,"[TTK identity] guard %d (0x%08x, %u bytes) changed at 0x%08x: 0x%08x, expected 0x%08x\n",
                 index,guards[index].address,guards[index].size,address,live,want);
+        else if(state>=0)
+            std::fprintf(stderr,"[TTK identity] state table 0x%08x (%u bytes, mask 0x%08x) changed at 0x%08x: 0x%08x, expected 0x%08x\n",
+                state_guards[state].address,state_guards[state].size,state_guards[state].mask,address,live,want);
         else if(level<0)
             std::fprintf(stderr,"[TTK identity] level overlay tag 0x%08x at 0x%08x is not an authenticated level\n",tag,level_base);
         else {

@@ -1,5 +1,35 @@
 # Current status - 2026-10-04
 
+## 2026-10-07 - D08V1 accepted
+
+- User: "you can probably see my playtest log, i'm very happy with how it played, everything felt comfortable replaying that area". Their playtest log `session-20261007-202257.log` shows
+  two chain top exits (196) with no identity failure.
+  Executable `cf00c0826e85cea9d555ebca0bec650d17837ffd9e7b5dad3cdf1522068a4e43`
+  is the regression baseline. [Note 126](126-d08v1-control-loss.md).
+
+## 2026-10-07 - D08V1 built: Modernized controls never lost to a chain exit (Needs playtest)
+
+- **What:** climbing a chain or pole out at the top (the original exit 196,
+  which the user reached after a mid-air catch) no longer switches Modernized
+  controls off for the rest of the session. If the game's code check ever fails
+  for real, the screen says `MODERN CONTROLS PAUSED - MOUSE TURNS, WASD MOVES`,
+  the mouse turns Duke and WASD move him, and Modernized returns when the check
+  passes. Vanilla unchanged.
+- **Cause:** the original pole/hang side probe `0x800439e4` toggles bit 0x40 of
+  the flag-table entry of Duke's current animation. A code guard covered that
+  table, so the game's own write (`0x61 -> 0x21` on entry 196) read as tampered
+  code. The fallback had no way to turn.
+- **Fix:** the table is now a masked state guard (bit 0x40 on all 280 entries,
+  and entry 265's low half for `BONUS.OVR`), with every other bit still
+  authenticated. New `guard_writer_audit.py` (static, delay-slot aware, and live
+  via `--port`) found no other reachable writer into any guard set.
+- **Evidence:** private copy of UI slot 3. The baseline reproduced the lockout
+  on the first top exit. Fixed: top exit, catch jumps, a missed jump and fall
+  keep the lease; the live audit is clean; a forced loss turns with the mouse,
+  moves and recovers; Vanilla host idle; suites pass. Executable
+  `cf00c0826e85cea9d555ebca0bec650d17837ffd9e7b5dad3cdf1522068a4e43`.
+  [Note 126](126-d08v1-control-loss.md). Next: the user's playtest.
+
 ## 2026-10-07 - D08J5 accepted; D08V1 queued
 
 - User: "that definitely works, and i accept it ... it works perfectly."

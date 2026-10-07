@@ -564,17 +564,30 @@ int main(int argc,char** argv) {
         psx_mod_write_word(p+0x1c8,0);psx_mod_write_word(p+0x1c4,0);psx_mod_write_word(0x800d2660,saved_table);
         psx_mod_write_word(p+4,0);psx_mod_write_word(p+8,0);psx_mod_write_word(p+12,0);psx_mod_write_half(p+0x1c,0);psx_mod_write_half(p+0x24,0);
         call(0x8003ade4,c,p,0x80025ee8);assert(ttk::movement_ready());
-        // The original object hang clears bit 0x40 of the 149/152/153 flag
-        // entries; that is game state and must not drop the identity guard.
+        // The original rewrites bit 0x40 of the upper-body flag entries at run
+        // time (object/ledge hang on 149/152/153, the pole side probe
+        // 0x800439e4 on the current animation: 196 at a chain top exit, D08V1)
+        // and BONUS.OVR the low half of 265: game state, never an identity
+        // loss. Any other bit of the table is still authenticated.
         const auto seq_before=ttk::input.sequence;
-        for(uint32_t a:{0x800c2a78u,0x800c2a84u,0x800c2a88u}) {
+        for(uint32_t a:{0x800c2a78u,0x800c2a84u,0x800c2a88u,0x800c2b34u,0x800c2a74u,0x800c2824u,0x800c2c80u}) {
             const uint32_t v=psx_mod_read_word(a);psx_mod_write_word(a,v^0x40);
             ++ttk::input.sequence;call(0x8003ade4,c,p,0x80025ee8);assert(ttk::movement_ready());
             psx_mod_write_word(a,v);
         }
-        const uint32_t kept=psx_mod_read_word(0x800c2a74);psx_mod_write_word(0x800c2a74,kept^0x40);
-        ++ttk::input.sequence;call(0x8003ade4,c,p,0x80025ee8);assert(!ttk::movement_ready());
-        psx_mod_write_word(0x800c2a74,kept);++ttk::input.sequence;call(0x8003ade4,c,p,0x80025ee8);assert(ttk::movement_ready());
+        {
+            const uint32_t v=psx_mod_read_word(0x800c2c48);psx_mod_write_half(0x800c2c48,1);
+            ++ttk::input.sequence;call(0x8003ade4,c,p,0x80025ee8);assert(ttk::movement_ready());
+            psx_mod_write_half(0x800c2c4a,1);
+            ++ttk::input.sequence;call(0x8003ade4,c,p,0x80025ee8);assert(!ttk::movement_ready());
+            psx_mod_write_word(0x800c2c48,v);
+        }
+        for(uint32_t a:{0x800c2a74u,0x800c2b34u}) for(uint32_t bit:{0x1u,0x20u,0x80u,0x10000u}) {
+            const uint32_t kept=psx_mod_read_word(a);psx_mod_write_word(a,kept^bit);
+            ++ttk::input.sequence;call(0x8003ade4,c,p,0x80025ee8);assert(!ttk::movement_ready());
+            // The verdict is rechecked every frame: restored bytes recover.
+            psx_mod_write_word(a,kept);++ttk::input.sequence;call(0x8003ade4,c,p,0x80025ee8);assert(ttk::movement_ready());
+        }
         ttk::input.sequence=seq_before;call(0x8003ade4,c,p,0x80025ee8);
         // Lifted reach retry: misses restore height and probe fields; a catch at
         // +320 keeps the original hang, starts at the real height and eases up.

@@ -752,6 +752,24 @@ const InputFrame& input_snapshot(Context context) {
     return context == Context::Gameplay ? frame : empty;
 }
 static uint16_t last_pad=0xffff;
+// D08V1: the identity fallback's mouse turn. Horizontal mouse counts bank up
+// and are paid out as the original tank turn (D-pad Right 32 / Left 128), one
+// input frame of turn per fallback_turn_counts counts, so a flick turns about
+// as far as it would turn the modern camera at the default sensitivity.
+static constexpr double fallback_turn_counts=11, fallback_turn_cap=fallback_turn_counts*30;
+static uint16_t fallback_turn_pad() {
+    static double pending;static uint64_t seen;static uint16_t pad;
+    if(frame.sequence==seen)return pad;
+    if(seen+1!=frame.sequence)pending=0;
+    seen=frame.sequence;
+    pending=std::clamp(pending+frame.look_x,-fallback_turn_cap,fallback_turn_cap);
+    pad=0;
+    if(std::abs(pending)>=fallback_turn_counts*0.5) {
+        pad=pending>0?32:128;
+        pending-=std::copysign(std::min(std::abs(pending),fallback_turn_counts),pending);
+    }
+    return pad;
+}
 uint16_t input_pad() {
     if(cheat_typing.active())return 65535;
     uint16_t value = 0xffff;
@@ -967,12 +985,17 @@ uint16_t input_pad() {
         }
         // Hit reactions and wall bumps pass in a moment; only a sustained loss
         // is announced, with the lease's own reason, so a playtest can name it.
+        // D08V1: an identity refusal (the guarded original code no longer
+        // matches) has no camera to steer by, so it says so and the mouse turns
+        // Duke through the original D-pad turn (arrow keys still work too).
+        const bool identity_lost=!std::strcmp(lease_refusal_reason(),"identity");
         if (tank_fallback && !tank_notified && sequence-tank_since>=45) {
             tank_notified=true;
             char text[96];
-            std::snprintf(text,sizeof text,"ORIGINAL MOVEMENT (%s)",lease_refusal_reason());
-            host_osd_push_centered(text,2500);
-            std::fprintf(stderr, "[TTK input] %s\n", text);
+            if(identity_lost)std::snprintf(text,sizeof text,"MODERN CONTROLS PAUSED - MOUSE TURNS, WASD MOVES");
+            else std::snprintf(text,sizeof text,"ORIGINAL MOVEMENT (%s)",lease_refusal_reason());
+            host_osd_push_centered(text,identity_lost?4000:2500);
+            std::fprintf(stderr, "[TTK input] %s (%s)\n", text, lease_refusal_reason());
         }
         uint16_t strafe_left=0,strafe_right=0;
         swim_strafe_pads(strafe_left,strafe_right);
@@ -980,6 +1003,7 @@ uint16_t input_pad() {
         if(down(binds[move_back]) && !down(binds[move_forward])) value &= ~64;
         if(down(binds[move_left]) && !down(binds[move_right])) value &= ~strafe_left;
         if(down(binds[move_right]) && !down(binds[move_left])) value &= ~strafe_right;
+        if(identity_lost)value &= ~fallback_turn_pad();
     } else if (captured && tank_fallback) {
         tank_fallback = false;
         std::fprintf(stderr, "[TTK input] Modern movement lease resumed\n");

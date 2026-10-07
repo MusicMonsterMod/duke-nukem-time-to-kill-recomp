@@ -99,7 +99,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08J4 | Ceiling monkey-bar climbing: camera-relative travel, no mid-span drops (player UI slot 3) | Accepted | D08J, D22B |
 | D08J3 | Free camera while on ladders, poles and chains (investigation + usability testing) | Accepted | D06, D08J |
 | D08J5 | Climb down chains (and poles): reach the bottom and let go or step off (player UI slot 3) | Done | D08J2, D08J3 |
-| D08V1 | Modernized controls lost for the rest of the session after a missed chain jump; modern controls must never be lost | Todo | D08V, D08J5 |
+| D08V1 | Modernized controls lost for the rest of the session after a missed chain jump; modern controls must never be lost | Done | D08V, D08J5 |
 | D09 | Modern controller support | Todo | D05, D06, D07 |
 | D10 | Third-person camera polish | Done | D08 |
 | D10A | Rapid mouse turning and Shift-running investigation | Done | D06, D07C, D08 |
@@ -1403,6 +1403,32 @@ predictably (and can let go anywhere with Ctrl or Space); W still climbs, A/D
 and the D08J3 free camera unchanged; Vanilla unchanged; the user confirms.
 
 ### D08V1 - Modernized controls lost after a missed chain jump
+
+**Accepted (2026-10-07, user: "you can probably see my playtest log, i'm very happy with how it played, everything felt comfortable replaying that area").** Executable
+`cf00c0826e85cea9d555ebca0bec650d17837ffd9e7b5dad3cdf1522068a4e43` is the new regression baseline. Playtest log
+`session-20261007-202257.log`: two chain top exits (196), no identity failure.
+**Built 2026-10-07 (was Needs playtest).** Executable
+`cf00c0826e85cea9d555ebca0bec650d17837ffd9e7b5dad3cdf1522068a4e43`. Cause: the
+original pole/hang side probe `0x800439e4` sets or clears bit 0x40 of the
+upper-body flag entry of Duke's current animation (store `0x80043bec`, indexed;
+its `lui` sits in a branch delay slot, so the earlier review missed it). On
+every chain top exit that is 196. The code guard read it as changed code and the
+lease stayed off for the session. It reproduced on the first private run (E
+mount, W, top exit). The tank fallback then had no turn. Change: the flag table
+moved to masked `state_guards` (`code_identity.h` `masked_identity`): bit 0x40
+of all 280 entries, and the low half of entry 265 that the bonus levels'
+`BONUS.OVR` writes, are state, and every other bit stays authenticated. An
+identity refusal now turns Duke with the mouse through the original D-pad turn
+and shows `MODERN CONTROLS PAUSED - MOUSE TURNS, WASD MOVES`. It still recovers
+when the bytes return. New `tools/local/guard_writer_audit.py` scans the disc
+for stores into guarded ranges (delay-slot aware) and diffs a live game. The
+only other hit, `0x8001bd14`, is unreachable, and the other guard sets are
+clean. Private slot-3 runs: top exit, two catch jumps, a missed jump and fall
+keep the lease; a live audit shows 0 guarded words differ; a forced loss turns
+with the mouse (+400 counts gives +491), moves, and recovers on restore; Vanilla
+host idle. Suites pass; Python 126 OK. Bonus levels were not played.
+[Note 126](documentation/126-d08v1-control-loss.md).
+
 
 **Todo. User report, 2026-10-07:** "where i missed a jump, and somehow duke
 never went back into modern controls mode, and ive lost the ability to control

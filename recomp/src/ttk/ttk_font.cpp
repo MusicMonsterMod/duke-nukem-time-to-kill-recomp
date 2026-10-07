@@ -11,7 +11,7 @@
 #include <string>
 #include <vector>
 namespace {
-constexpr unsigned max_sets=8,glyph_count=95,set_bytes=8+glyph_count*8;
+constexpr unsigned max_sets=12,glyph_count=95,set_bytes=8+glyph_count*8;
 struct Glyph {unsigned w,h,advance,y,offset;};
 struct Set {unsigned line_height,scale;bool shadow;uint32_t shadow_colour;Glyph glyphs[glyph_count];};
 std::vector<unsigned char> pack;
@@ -153,6 +153,12 @@ extern "C" int ttk_font_draw(int set,const char* text,uint32_t* dst,int dst_w,in
         }
     }
     return width*scale;
+}
+extern "C" int ttk_font_text_width(int set,const char* text) {
+    if(!text || !load() || set<0 || unsigned(set)>=set_count)return -1;
+    int width=0;
+    for(char c:ascii(text)){if(c=='\n')break;width+=int(sets[set].glyphs[(unsigned char)c-32].advance);}
+    return width*int(sets[set].scale);
 }
 extern "C" int ttk_font_line_height(int set) {
     if(!load() || set<0 || unsigned(set)>=set_count)return 0;

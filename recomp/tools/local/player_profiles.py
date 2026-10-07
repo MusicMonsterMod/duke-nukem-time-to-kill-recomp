@@ -213,7 +213,7 @@ def absorb_camera_state(settings_path, settings):
 
 
 def defaults():
-    return {'version': 26, 'active': 'modernized',
+    return {'version': 28, 'active': 'modernized',
             'profiles': {mode: default_profile(mode) for mode in MODES}}
 
 
@@ -257,7 +257,7 @@ def load(path):
         notices.append('Unreadable profile settings; restored Modernized defaults.')
     else:
         version = data.get('version')
-        if type(version) is int and version > 26:
+        if type(version) is int and version > 28:
             raise ValueError(f'Profile settings version {version} is newer than this launcher; file left unchanged.')
         if type(version) is int and version == 0:
             mode = data.get('mode', 'vanilla')
@@ -267,8 +267,8 @@ def load(path):
                 if renderer in RENDERERS:
                     result['profiles'][mode]['presentation']['renderer'] = renderer
             changed = True
-            notices.append('Migrated version 0 profile settings to version 26.')
-        elif type(version) is int and version in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26):
+            notices.append('Migrated version 0 profile settings to version 28.')
+        elif type(version) is int and version in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28):
             active = data.get('active')
             if active in MODES:
                 result['active'] = active
@@ -294,9 +294,11 @@ def load(path):
                         result['profiles'][mode]['controls'] = validate_controls({**({k:v for k,v in DEFAULT_CONTROLS.items() if k in ('crosshair','red_dot','aim_assist')} if version < 5 else {}), **({'weapon_aim':'view'} if version < 4 else {}), **({'jetpack':'modern'} if version < 11 else {}), **({'camera_distance':0,'shoulder':'center'} if version < 12 else {}), **({'view':'third'} if version < 13 else {}), **({'widescreen':'16:9'} if version < 18 else {}), **({'cpu_overclock':150} if version < 19 else {}), **({'jump':'assisted'} if version < 20 else {}), **({'frame_rate':'60'} if version < 21 else {}), **({'view_bob':'on'} if version < 22 else {}), **({'geometry_precision':'original','texture_precision':'original'} if version < 23 else {}), **({'draw_distance':'extended'} if version < 24 else {}), **({'cpu_timing':'fast'} if version < 25 else {}), **profile['controls']})
                     except ValueError as exc:
                         notices.append(f'{mode}: {exc} Restored camera defaults.')
+                # Schema 28 (D08A5): Comma/Period move from original strafe to the mission
+                # inventory (add_missing_actions); schema 27's Backslash action is dropped.
                 if isinstance(profile, dict) and 'bindings' in profile:
                     try:
-                        result['profiles'][mode]['bindings'] = dict(pc_input.migrate_bindings(profile['bindings']) if version < 8 else pc_input.migrate_grab(profile['bindings']) if version < 17 else pc_input.validate(profile['bindings']))
+                        result['profiles'][mode]['bindings'] = dict(pc_input.migrate_bindings(profile['bindings']) if version < 8 else pc_input.migrate_grab(profile['bindings']) if version < 28 else pc_input.validate(profile['bindings']))
                     except ValueError as exc:
                         notices.append(f'{mode}: {exc} Restored action defaults.')
             if version < 6:
@@ -330,8 +332,8 @@ def load(path):
                                'run.py --cpu-timing accurate restores the full cycle model.')
             changed = result != data
             if changed:
-                notices.append(f'Migrated version {version} profile settings to version 26; retained preferences and added control and presentation defaults.'
-                               if version < 26 else
+                notices.append(f'Migrated version {version} profile settings to version 28; retained preferences and added control and presentation defaults.'
+                               if version < 28 else
                                'Invalid or unsupported profile fields were reset; valid preferences were retained.')
         else:
             changed = True

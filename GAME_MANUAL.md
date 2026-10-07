@@ -284,7 +284,7 @@ Duke turns to face the view horizontally when holstered or using a supported wea
 
 While captured, use **left mouse** to fire/action, **Space** to jump, **Scroll Lock** (tap) to
 draw/holster, **hold Left Ctrl** to crouch and release to stand (when overhead clearance permits), **Left Shift** as the speed modifier,
-**hold right mouse** (or **Alt**) to grab a pushable object, **comma/period** for original sidesteps,
+**hold right mouse** (or **Alt**) to grab a pushable object, **comma/period** to browse the mission items (see Mission items below; the original sidesteps are unbound, A/D strafe),
 and **I** for inventory. **E is interaction-only and never fires.** If necessary,
 a tap automatically requests holstering and then interacts once that animation
 finishes. Keep E held for continuous action while climbing. Your weapon is
@@ -454,7 +454,7 @@ and **B** the Bio Mask through original use rules (TTK’s own gas mask — not 
 or boots). Wait for gadget equip/remove and
 weapon redraw to finish before another shortcut. **J** also switches the jetpack
 off in mid-flight (a controlled fall follows). Underwater air still equips automatically.
-**[ / ]** cycle eligible gadgets; **U** uses the selected gadget. **R has no stored-dose action:** TTK activates
+**[ / ]** cycle eligible gadgets; **U** uses the selected gadget; **, / .** browse the level's mission items (see Mission items below). **R has no stored-dose action:** TTK activates
 steroids on pickup. In third person, **Q kicks only while standing still with Mighty Boot already selected on 1**
 (the original kick). Q never selects another weapon or presses fire. In first
 person Q is a quick kick with any weapon (see below).
@@ -956,6 +956,22 @@ nudge. Existing custom bindings still apply. The Modernized view crosshair is
 the project's own lime-green 9x9 crosshair (it replaced EDuke's CROSSHAIR tile
 2523), and the selector frame is the project's own metal frame. See
 [session findings](documentation/51-session-inventory-crosshair.md).
+
+**Mission items (D08A5).** **, / .** (comma and period, the < and > keys) open
+the mission inventory in levels with mission items. It shows in place of the
+gadget switcher: one framed slot per key, crystal, paper or jewel the level asks
+for (the same list as the original Select inventory), with items you have not
+found yet as dim grey silhouettes, and "MISSION" and found/total at the bottom
+(green when everything is found). The selected slot's frame is blue, and a card
+at the top of the screen shows its name, type and FOUND or NOT FOUND YET. The
+first press opens on the item you last looked at; then **.** moves to the next
+item and **,** to the previous one (wrapping). It closes about 2.5 seconds after
+your last press. Mission items cannot be used: **Enter** or **U** while it is open
+just closes it (no gadget is toggled), and **[ / ]** switch to the gadgets. The
+gadget switcher itself shows gadgets only; its selected frame is now orange.
+Levels without mission items ignore **, / .**. Keyboard only for now. Vanilla is
+unchanged; the original L1/R1 sidesteps that comma/period used to send are
+unbound in Modernized (A/D strafe everywhere) and can be rebound.
 
 Typed cheats stay silent until a completed result appears, horizontally centered
 at the top of the screen. Partial, invalid and cancelled entries display nothing.

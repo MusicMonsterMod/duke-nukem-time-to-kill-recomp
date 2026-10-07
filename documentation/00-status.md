@@ -6,6 +6,42 @@
 
 
 
+## 2026-10-07 - D08A5 accepted: mission inventory on , / .
+
+- User revision after the first try: mission items are their own **mission
+  inventory** on `,` / `.` (previous / next, the < > keys), in the switcher's
+  place with the item card at the top. `[` / `]` show gadgets only. Enter / U
+  while it is open just close it, so an instinctive Enter no longer toggles
+  the jetpack. The `\` binding is gone.
+- Original strafe (Comma/Period, PS L1/R1) is unbound by default; profile
+  schema 28 moves the keys and drops schema 27's `\` action.
+- Verified in native tests, Python 120 OK and a private Xvfb run (browse,
+  wrap, Enter swallow, `[` back to gadgets). User: "i fully accept!" (Done).
+  Open for later: controller input for both inventories.
+  [Note 114](114-d08a5-mission-tracking.md).
+
+## 2026-10-07 - D08A5 built: mission item tracking (Needs playtest)
+
+- **What:** design E is in the game (Modernized only). `[` / `]` show a mission
+  row under the gadgets in every level with mission items; `\` browses it and
+  shows the item card at the top (FOUND / NOT FOUND YET), clearing 2.5 s after
+  the last press. The gadget frame is the tile0020 orange swap.
+- **Playtest fixes:** `\` now works on UK keyboards (the key left of Z, SDL
+  `NONUSBACKSLASH`); mission and gadget frame borders are even (pixel-centre
+  stretch) and the panel outline has margin below it.
+- **Profiles:** schema 27 adds the `\` binding to saved profiles (custom
+  bindings kept); older launchers refuse the migrated file.
+- **Data:** the original Select inventory's own list (name function
+  `0x80087d4c`, flag `player+0x354+4*i` bit 0). Crystals are items 11-13 and
+  level 6's skeleton keys items 7-8, not the ticket's guesses.
+- **Evidence:** native and Python suites pass; private Xvfb runs show the row,
+  card, timeout, a live jewel pickup (1/5), level travel and no row in level 8;
+  Vanilla unchanged. `ttk-controls-test` fails on stale fixtures with or
+  without the change.
+- **Open:** user look confirmation in play; controller D-pad focus is not
+  implemented (no controller path opens the switcher); the block sits about
+  26 px higher than the mockup. [Note 114](114-d08a5-mission-tracking.md).
+
 ## 2026-10-07 - Mission item icons in; tracking design E locked; D08A5 queued
 
 - **Icons:** the user's original 16x16 icons are tracked in

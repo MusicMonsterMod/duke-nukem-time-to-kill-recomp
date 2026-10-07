@@ -197,6 +197,7 @@ if(EXISTS "${TTK_DISC_IMAGE}" AND EXISTS "${TTK_DISC_EXE}")
         COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/local/build_ttk_fonts.py"
             --image "${TTK_DISC_IMAGE}" --exe "${TTK_DISC_EXE}" --output "${CMAKE_CURRENT_BINARY_DIR}/ttk-fonts.pack"
         DEPENDS "${TTK_DISC_IMAGE}" "${TTK_DISC_EXE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/local/build_ttk_fonts.py"
+            "${CMAKE_CURRENT_SOURCE_DIR}/assets/ui/fonts/microfont/3x5-Microfont_1D.png"
         VERBATIM)
     add_custom_target(ttk-font-assets DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/ttk-fonts.pack" "${CMAKE_CURRENT_BINARY_DIR}/ttk-fonts.json" "${CMAKE_CURRENT_BINARY_DIR}/ttk-ui.pack")
     add_dependencies(psx-runtime ttk-font-assets)
@@ -222,6 +223,18 @@ add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/ttk-inv-digits.pack"
     VERBATIM)
 add_custom_target(ttk-inv-digit-assets DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/ttk-inv-digits.pack")
 add_dependencies(psx-runtime ttk-inv-digit-assets)
+# D08A5: mission item icons and the frame colours from the project's own art
+# (assets/ui/items, item-frame.png), generated in every build.
+file(GLOB TTK_MISSION_ICONS CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/assets/ui/items/*")
+add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/ttk-mission-items.pack"
+    COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/local/build_ttk_mission_items.py"
+        --output "${CMAKE_CURRENT_BINARY_DIR}/ttk-mission-items.pack"
+    DEPENDS ${TTK_MISSION_ICONS} "${CMAKE_CURRENT_SOURCE_DIR}/assets/ui/item-frame.png"
+        "${CMAKE_CURRENT_SOURCE_DIR}/tools/local/build_ttk_mission_items.py"
+        "${CMAKE_CURRENT_SOURCE_DIR}/tools/local/build_ttk_inv_icons.py"
+    VERBATIM)
+add_custom_target(ttk-mission-item-assets DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/ttk-mission-items.pack")
+add_dependencies(psx-runtime ttk-mission-item-assets)
 if(TARGET SDL3::SDL3)
     add_executable(ttk-font-test EXCLUDE_FROM_ALL tests/local/ttk_font_native.cpp src/ttk/ttk_font.cpp)
     target_include_directories(ttk-font-test PRIVATE src/ttk ${PSXRECOMP_ROOT}/runtime/include)

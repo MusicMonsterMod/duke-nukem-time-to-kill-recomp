@@ -11,8 +11,10 @@ TTK_ACTION(walk, LShift, 225, 1024)
 // D08T1: original precision aim is unbound in Modernized; with legacy
 // (original) weapon aiming or camera the primary Grab input serves it instead.
 TTK_ACTION(original_aim, Unbound, 0, 2048)
-TTK_ACTION(original_strafe_left, Comma, 54, 256)
-TTK_ACTION(original_strafe_right, Period, 55, 512)
+// D08A5: unbound by default; Comma/Period browse the mission inventory instead
+// (A/D strafe in every Modernized state, including the original-control fallback).
+TTK_ACTION(original_strafe_left, Unbound, 0, 256)
+TTK_ACTION(original_strafe_right, Unbound, 0, 512)
 TTK_ACTION(inventory, I, 12, 0)
 // Interaction-only: queue original holster first when needed; never armed Cross.
 TTK_ACTION(interact, E, 8, 0)
@@ -46,3 +48,6 @@ TTK_ACTION(weapon_group_7, 7, 36, 0)
 TTK_ACTION(weapon_group_8, 8, 37, 0)
 TTK_ACTION(weapon_group_9, 9, 38, 0)
 TTK_ACTION(weapon_group_0, 0, 39, 0)
+// D08A5: mission inventory, previous / next item (host only, never queued).
+TTK_ACTION(mission_previous, Comma, 54, 0)
+TTK_ACTION(mission_next, Period, 55, 0)

@@ -58,8 +58,15 @@ SETS = [  # name, font, palette or '#rrggbb' tint (system font), scale, spacing,
     ('panel_slot_selected', 'medium', 226, 1, 1, True),
     ('panel_text', 'system', '#dedede', 1, 0, False),
     ('panel_dim', 'system', '#848484', 1, 0, False),
+    # D08A5 mission row and item card (approved design E): FOUND, then the 2x
+    # Microfont "MISSION" label and found/total count (all found: green).
+    ('mission_found', 'system', '#5fd35f', 1, 0, False),
+    ('mission_label', 'micro', '#848484', 2, 1, False),
+    ('mission_count', 'micro', '#989c58', 2, 1, False),
+    ('mission_complete', 'micro', '#5fd35f', 2, 1, False),
 ]
-FONT_INFO = {'big': (BIG_ROWS, 17, 8), 'medium': (MEDIUM_ROWS, 11, 5), 'system': (None, 8, 8)}  # rows, height, space
+FONT_INFO = {'big': (BIG_ROWS, 17, 8), 'medium': (MEDIUM_ROWS, 11, 5), 'system': (None, 8, 8), 'micro': (None, 5, 4)}  # rows, height, space
+MICROFONT = ROOT / 'assets/ui/fonts/microfont/3x5-Microfont_1D.png'  # CC0, tracked
 
 
 class Sheet:
@@ -99,6 +106,16 @@ class Sheet:
             r, g, b = v & 31, (v >> 5) & 31, (v >> 10) & 31
             out.append((r * 255 // 31, g * 255 // 31, b * 255 // 31))
         return out
+
+
+def micro_font(path=MICROFONT):
+    """The open 3x5 Microfont (1D sheet, 3 px per ASCII code), 1-bit glyphs."""
+    from build_ttk_inv_icons import read_rgba_png
+    w, h, rgba = read_rgba_png(path)
+    if (w, h) != (384, 5):
+        raise SystemExit(f'{path}: expected the 384x5 Microfont 1D sheet, got {w}x{h}')
+    return {chr(code): (3, 5, [int(rgba[(y * w + 3 * code + x) * 4 + 3] >= 128) for y in range(5) for x in range(3)])
+            for code in range(0x21, 0x60)}
 
 
 def system_font(exe):
@@ -149,6 +166,7 @@ def build(raw, exe):
     fonts = {name: sheet.font(rows, height) for name, (rows, height, _) in FONT_INFO.items() if rows}
     system = system_font(exe)
     fonts['system'] = system
+    fonts['micro'] = micro_font()
     palettes = {225: sheet.palette(225), 226: sheet.palette(226),
                 'steel': [tuple(int(h[i:i + 2], 16) for i in (0, 2, 4)) for h in STEEL]}
     headers, pixels, records, fallbacks = b'', b'', [], {}

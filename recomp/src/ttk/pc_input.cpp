@@ -102,11 +102,13 @@ static bool hint_due(uint64_t& at) {
     at=sequence;return true;
 }
 static void command(int action) {
+    // D08A5: the mission inventory is host-side, never a guest command.
+    if(action==mission_previous || action==mission_next) {mission_browse_press(action==mission_next?1:-1);return;}
     if(command_count<32) {
         if(!command_count)command_deadline=sequence+8;
         commands[command_count++]=action;++command_serial;
     }
-    if(action>=weapon_previous && action<=weapon_last || action>=weapon_group_1)cancel_restore();
+    if(action>=weapon_previous && action<=weapon_last || action>=weapon_group_1 && action<=weapon_group_0)cancel_restore();
 }
 static InputFrame frame, empty;
 static double total_x, total_y;

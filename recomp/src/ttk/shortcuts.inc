@@ -61,6 +61,10 @@ static void inventory_feedback(bool announce) {
         amounts[i]=(int16_t)psx_mod_read_half(player+0x356+4*i);
     }
     inventory_update(selected_item,flags,amounts,capacities,announce);
+    // D08A5: mission items are inventory items 6..16 (the Select list's flags).
+    uint16_t mission[17]{};
+    for(unsigned i=6;i<17;++i)mission[i]=psx_mod_read_half(player+0x354+4*i);
+    mission_update(psx_mod_read_word(0x800be570),mission);
 }
 static void remember_item(unsigned item) {
     selected_item=item;
@@ -153,6 +157,11 @@ static void select_weapon(CPUState* cpu) {
     }
     if(!f.command_serial || command_seen==f.command_serial)return;
     command_seen=f.command_serial;
+    // D08A5: Enter / U while the mission inventory shows only close it, so an
+    // instinctive Enter never toggles a gadget; mission items are never used.
+    bool mission_enter=false;
+    if(mission_visible())for(unsigned n=0;n<f.command_count && n<32;++n)if(f.commands[n]==item_use)mission_enter=true;
+    if(mission_enter)mission_close();
     // D12A: in the eye view Q is the quick kick (kick.inc), with any weapon,
     // moving or in the air; it never touches the original equipment or animation.
     bool eye_kick=false;
@@ -167,7 +176,7 @@ static void select_weapon(CPUState* cpu) {
     const bool jet_select=jetpack_input_ready();
     if(jet_select) {
         for(unsigned n=0;n<f.command_count && n<32;++n)
-            if(f.commands[n]==jetpack || (f.commands[n]==item_use && selected_item==1)) {use_item(cpu,1);return;}
+            if(f.commands[n]==jetpack || (f.commands[n]==item_use && selected_item==1 && !mission_enter)) {use_item(cpu,1);return;}
     }
     // D08O1: the original swim states switch weapons through the same request
     // (+0x3ba, flag 4) as the ground; there only weapon choices are taken,
@@ -215,7 +224,7 @@ static void select_weapon(CPUState* cpu) {
                 original_call(cpu,0x800517a4,0);
             break;
         } else {
-            unsigned item=action==medkit?5:action==jetpack?1:action==biomask?2:action==goggles?3:action==item_use?selected_item:0;
+            unsigned item=action==medkit?5:action==jetpack?1:action==biomask?2:action==goggles?3:action==item_use?(mission_enter?0:selected_item):0;
             if(item) {use_item(cpu,item);break;} // one item activation per guest update
             // R: original steroids are pickup-activated.
         }

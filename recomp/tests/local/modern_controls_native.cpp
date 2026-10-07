@@ -133,6 +133,8 @@ static Cheat pending_cheat=Cheat::None;
 Cheat input_take_cheat(){auto c=pending_cheat;pending_cheat=Cheat::None;return c;}
 void input_notice(const char*){}
 void inventory_update(unsigned,const uint16_t*,const int16_t*,const uint16_t*,bool){}
+void mission_update(unsigned,const uint16_t*){}
+bool mission_open;bool mission_visible(){return mission_open;}void mission_close(){mission_open=false;}
 static bool modern;
 static bool running, jump_pending, auto_stow;
 bool input_auto_stow_pending(){return auto_stow;}

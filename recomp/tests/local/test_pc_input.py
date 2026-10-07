@@ -14,8 +14,22 @@ import player_profiles as profiles
 
 class InputBindingsTest(unittest.TestCase):
     def test_defaults_wire_and_separate_movement(self):
-        self.assertEqual(len(pc_input.validate(pc_input.DEFAULTS)), 41)
+        self.assertEqual(len(pc_input.validate(pc_input.DEFAULTS)), 43)
         self.assertTrue(pc_input.wire(pc_input.DEFAULTS).startswith('1:26,22,4,7,'))
+        # D08A5: Comma/Period browse the mission inventory; original strafe is unbound.
+        self.assertTrue(pc_input.wire(pc_input.DEFAULTS).endswith(',54,55'))
+        self.assertEqual((pc_input.DEFAULTS['original_strafe_left'], pc_input.DEFAULTS['original_strafe_right']),
+                         ('Unbound', 'Unbound'))
+        old = {k: v for k, v in pc_input.DEFAULTS.items() if not k.startswith('mission_')}
+        old.update(original_strafe_left='Comma', original_strafe_right='Period', mission_browse='Backslash')
+        new = pc_input.add_missing_actions(old)
+        self.assertEqual((new['mission_previous'], new['mission_next'], new['original_strafe_left'],
+                          new['original_strafe_right']), ('Comma', 'Period', 'Unbound', 'Unbound'))
+        self.assertNotIn('mission_browse', new)
+        old.update(original_strafe_left='Q', original_strafe_right='Period', quick_kick='Comma')
+        new = pc_input.add_missing_actions(old)  # customized keys stay; the new action is unbound
+        self.assertEqual((new['quick_kick'], new['original_strafe_left'], new['mission_previous'], new['mission_next']),
+                         ('Comma', 'Q', 'Unbound', 'Period'))
         self.assertTrue(all(int(pad) == 0 for name, _, _, pad in pc_input.ROWS if name.startswith('move_')))
 
     def test_grab_defaults_and_migration(self):
@@ -63,7 +77,7 @@ class InputBindingsTest(unittest.TestCase):
             raw = json.dumps(data)
             path.write_text(raw)
             loaded, notices = profiles.load(path)
-            self.assertEqual(loaded['version'], 26)
+            self.assertEqual(loaded['version'], 28)
             self.assertEqual(loaded['active'], 'modernized')
             self.assertEqual(loaded['profiles']['modernized']['presentation']['renderer'], 'software')
             self.assertEqual(loaded['profiles']['modernized']['bindings'], pc_input.DEFAULTS)
@@ -113,8 +127,10 @@ class FeedbackMigrationTest(unittest.TestCase):
         new=pc_input.migrate_bindings(old)
         self.assertEqual(new['interact'],'E')
         self.assertEqual(new['walk'],'R')
-        self.assertEqual(new['original_strafe_left'],'Comma')
-        self.assertEqual(new['original_strafe_right'],'Period')
+        # D08A5: the Q/E -> Comma/Period strafe migration now hands those keys
+        # on to the mission inventory.
+        self.assertEqual((new['original_strafe_left'],new['mission_previous']),('Unbound','Comma'))
+        self.assertEqual((new['original_strafe_right'],new['mission_next']),('Unbound','Period'))
         old.update(fire='E',original_strafe_right='Mouse1')
         new=pc_input.migrate_bindings(old)
         self.assertEqual(new['fire'],'E')

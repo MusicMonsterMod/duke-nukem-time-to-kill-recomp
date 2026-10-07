@@ -84,14 +84,26 @@ def migrate_grab(bindings):
     return add_missing_actions(result)
 
 
+RETIRED = {'mission_browse'}  # D08A5's first Backslash binding, replaced by Comma/Period
+
+
 def add_missing_actions(bindings):
     """Add newly defined actions. Existing custom bindings win; a new action takes
     its default input when free, otherwise an unused valid input."""
     if not isinstance(bindings, dict):
         raise ValueError('Invalid action bindings.')
+    bindings = {action: token for action, token in bindings.items() if action not in RETIRED}
     result = {action: token for action, token in bindings.items() if action in DEFAULTS}
     if len(result) != len(bindings):
         raise ValueError('Unknown action in bindings.')
+    # D08A5: the mission inventory takes Comma/Period from original strafe when
+    # those still hold them; a customized key stays and the new action is unbound.
+    for strafe, browse, key in [('original_strafe_left', 'mission_previous', 'Comma'),
+                                ('original_strafe_right', 'mission_next', 'Period')]:
+        if browse not in result:
+            if result.get(strafe) == key:
+                result[strafe] = 'Unbound'
+            result[browse] = key if key not in result.values() else 'Unbound'
     for action, token in DEFAULTS.items():
         if action not in result:
             free = next((key for key in [token, *(k for k in TOKENS if k not in DEFAULTS.values()), *TOKENS] if key not in result.values() and key != 'C'), None)

@@ -48,7 +48,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08A2 | EDuke32 bottom-left inventory icon and green % | Done (revised: strip + green %) | D08A1, D19A |
 | D08A3 | Original TTK inventory icons for the switcher (replace Duke3D art) | Done | D08A2 |
 | D08A4 | EDuke32-style portable steroids: pick up, store in items, use with R | Todo | D08A1, D08A3, D22B |
-| D08A5 | Mission item tracking in the item switcher (approved design E) | Todo | D08A1, D08A3, D24A |
+| D08A5 | Mission item tracking: mission inventory on , / . (design E, revised) | Done | D08A1, D08A3, D24A |
 | D08B | Broader traversal and scripted-camera coverage | Done | D08 |
 | D08C | Directional jumps from standstill — accepted both input orders | Done | D08 |
 | D08D | Apartment light-switch secret convenience | Done | D08 |
@@ -533,7 +533,18 @@ save/load and a level change; Vanilla unchanged; the user confirms.
 
 ### D08A5 - Mission item tracking in the item switcher (approved design E)
 
-**Todo. User request and approved design, 2026-10-07.** "lock it in and stand
+**Done on user acceptance (2026-10-07): "i fully accept!"** Redesigned by the
+user after the first try.
+Mission items are now their own **mission inventory** on `,` / `.` (previous /
+next), shown in the switcher's place with the item card at the top; `[` / `]`
+show gadgets only; Enter / U while it is open just close it. Original strafe
+(Comma/Period) is unbound by default; profile schema 28. The `\` binding and
+the original spec's items 2-3 (row under the gadgets, `\` browsing) are
+superseded. Data is the original Select inventory's own per-level list (name
+function `0x80087d4c`). Not done: controller input. See
+[note 114](documentation/114-d08a5-mission-tracking.md).
+
+**User request and approved design, 2026-10-07.** "lock it in and stand
 up a ticket to get that built in the game". For the first time, the game shows
 which mission items a level asks for and which are found. The design was
 iterated with the user as mockup E in the D24A research page (section 8,
@@ -8465,3 +8476,87 @@ in the game"). E is the mission row under the `]` switcher:
   FOUND / NOT FOUND YET.
 New Todo D08A5 records the exact spec. The research page marks E as chosen.
 
+## 2026-10-07 - D08A5 built: mission item tracking (Needs playtest)
+
+Implementation of the locked design E. Details and evidence in
+[note 114](documentation/114-d08a5-mission-tracking.md).
+
+- **Data:** the original Select inventory lists item i when its name function
+  `0x80087d4c` names it for the level and `player+0x354+4*i` bit 0 is set.
+  Running that function for levels 0-31 gives the mission table now compiled
+  into `inventory_hud.cpp`. Corrections to the ticket: crystals are items
+  11-13 (`+896/900/904`); level 6's skeleton keys are items 7-8 (`+880/884`).
+  `test_mission_items.py` re-derives the table from the prepared executable.
+- **Look:** mission row under the gadgets (translucent grey panel, grey framed
+  slots, silhouettes, 2x Microfont "MISSION" and count, green when complete);
+  gadget selection frame in the tile0020 orange; `\` browsing turns the slot
+  frame steel and shows the 592x52 card at the top (name gold/blue, type,
+  FOUND / NOT FOUND YET), clearing 2.5 s after the last press.
+- **Behaviour additions to note:** `\` opens the switcher on the first slot when
+  it is closed; the switcher opens for the mission row alone when Duke carries
+  no gadget.
+- **Code:** `inventory_hud.cpp/.h`, `shortcuts.inc` (level and flags each
+  update), new action `mission_browse` (Backslash) in `input_bindings.def`,
+  `pc_input.cpp` / `pc_input.py`, profile schema 27 adds it to saved
+  bindings; new `build_ttk_mission_items.py`
+  (`ttk-mission-items.pack`, every build, no disc); font sets 8-11 in
+  `build_ttk_fonts.py`; framework `host_osd_card_image` (GL and SDL
+  presenters) exported to the accepted patch. Codegen hash unchanged.
+- **Evidence:** `ttk-inventory-test`, `ttk-input-test`, `ttk-font-test`, Python
+  120 OK (6 skipped). Private Xvfb Modernized run: level 6 row 0/5, card and
+  steel frame follow `\`, timeout closes both, a real jewel pickup shows 1/5;
+  level 0 shows 0/5; level 8 has no row or card. Vanilla shows nothing.
+  `ttk-controls-test` fails at its first assertion with the available
+  fixtures with or without this job (stale fixture).
+- **Limits:** no controller D-pad focus (spec item 5); the block sits about
+  26 px higher than the mockup because the switcher keeps its anchor; only one
+  live pickup type was walked; the user's look confirmation is pending.
+
+## 2026-10-07 - D08A5 playtest fixes: UK backslash key, even frame borders
+
+User report: "\\ did not seem to allow me to
+  cycle": the user's keyboard is UK (`gb`, pc105). There the key that types `\`
+  is left of Z (SDL `NONUSBACKSLASH`, 100); scancode 49 types `#`. The default
+  binding now also answers that key and any key whose layout keycode is `\`.
+  Verified on a private Xvfb run with the `gb` layout set before launch,
+  sending the raw key (keycode 94): `]` opened the row and `\` stepped the steel
+  frame 1 -> 2 -> 3. "Bottom border ... looks thinner than the top": the 25x23
+  frame was stretched to 42x39 by plain nearest-neighbour, giving the mission
+  slot frames a 2 px top and 1 px bottom (right side thinner too), and the
+  orange gadget frame 3 px / 2 px. Both stretchers now sample pixel centres
+  (2/2 and 3/3). The mission panel's outline was also the surface's last line;
+  the surface now has 2 transparent lines under it (132 lines).
+
+Still Needs playtest: the user confirms the look and browsing in play.
+
+## 2026-10-07 - D08A5 redesign: separate mission inventory on , / .
+
+User, after trying the combined switcher: "separated out the inventory with the
+mission items ... revert the inventory back to [/] and thats it, just
+inventory. then the mission inventory replaces whatever ,/. are bound to
+(visually looks like </> so thats cool)". Reason: an instinctive Enter while
+browsing mission items switched the jetpack on. "then you can remove the usage
+of \ and #".
+
+- `[` / `]`: gadgets only (orange selection frame kept).
+- `,` / `.`: mission inventory (panel in the switcher's place, steel-framed
+  selected slot, item card at the top). First press opens on the item last
+  shown, then previous / next with wrap; closes 2.5 s after the last press.
+  `[` / `]` and `,` / `.` close each other's view.
+- Enter / U while the mission inventory is open close it and are not used
+  (also in jetpack flight).
+- Bindings: `original_strafe_left/right` default Unbound; new
+  `mission_previous` (Comma) / `mission_next` (Period); the `\` action and its
+  UK alias removed. Profile schema 28 migrates Comma/Period from strafe when
+  strafe still holds them, and drops schema 27's `mission_browse`.
+- Evidence: `ttk-inventory-test`, `ttk-input-test`, Python 120 OK, scratch copy
+  of the player's profile migrated 27 -> 28 correctly. Private Xvfb level 6:
+  gadgets only on `]`; `.` / `,` browse with wrap; Enter closed it with the
+  jetpack unchanged and the next Enter switched it on; `[` returns to gadgets.
+- Still Needs playtest: the user confirms it in play.
+
+## 2026-10-07 - D08A5 accepted
+
+User, after playtesting the separate mission inventory: "i fully accept!".
+D08A5 is Done. Open for later: controller input for the gadget switcher and
+the mission inventory.

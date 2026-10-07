@@ -4,7 +4,7 @@ This is the canonical job list for our **Duke Nukem: Time to Kill** PC project, 
 
 Invoke **`$continue-duke-recomp`** (Codex) or **`/continue-duke-recomp`** (Claude Code) to see the current jobs and choose one. You can also request a job directly: **`$continue-duke-recomp work on D01`** or **`/continue-duke-recomp work on D01`**. The skill reads this file rather than keeping a second backlog. It must not automatically start the next job.
 
-**Latest accepted jobs: D08U2 (climb off a ladder past an enemy), D08O3 (E in water keeps the weapon) and D08O2A (natural swim-fire pose v2), 2026-10-07.** Accepted executable `e8eebb809c3d5a4b29779f11f0c9db55efcd846dc5c71b39d5a59d43158eb08e` (D08U2) is the current regression baseline. Todo: D08J2 (pole/chain A/D turn direction) and D08J3 (free camera while climbing). Previous baseline `e75b50f156137fa2377e4643407b2efbd16f2e976fa4d697afcbceb228e2e554` (D08O3). **D23E (western-town stutter) Accepted 2026-10-07**; **D08O2A Accepted** ([note 119](documentation/119-d08o2a-natural-swim-fire-pose.md)), **D08O3 Accepted** ([note 120](documentation/120-d08o3-e-in-water.md)); **D23F (fast CPU timing) Accepted 2026-10-05 and now the Modernized default**; executable `e0737a9f712aa5622d1b057ee5071e12c33cc9a18de8e6d40ee8eee31083f966` (includes D23E), [note 104](documentation/104-d23e-busy-scene-stutter.md), [note 105](documentation/105-d23f-fast-timing.md). Next suggested: D23G (finish the fast path) and D17S (auto frame-rate default).
+**Latest accepted jobs: D08J2 (pole/chain A/D direction), D08U2 (climb off a ladder past an enemy), D08O3 (E in water keeps the weapon) and D08O2A (natural swim-fire pose v2), 2026-10-07.** Previous baseline `e8eebb809c3d5a4b29779f11f0c9db55efcd846dc5c71b39d5a59d43158eb08e` (D08U2). **D08J2 (pole/chain A/D direction) Accepted 2026-10-07**: executable `129a64f2df3f5395f2d3485a310a03d74c85f9b1086c7dab37fee59277c7968b` is the current regression baseline ([note 122](documentation/122-d08j2-pole-chain-sidestep.md)). Todo: D08J4 (ceiling monkey-bar drops, UI slot 3), D08J3 (free camera while climbing). Previous baseline `e75b50f156137fa2377e4643407b2efbd16f2e976fa4d697afcbceb228e2e554` (D08O3). **D23E (western-town stutter) Accepted 2026-10-07**; **D08O2A Accepted** ([note 119](documentation/119-d08o2a-natural-swim-fire-pose.md)), **D08O3 Accepted** ([note 120](documentation/120-d08o3-e-in-water.md)); **D23F (fast CPU timing) Accepted 2026-10-05 and now the Modernized default**; executable `e0737a9f712aa5622d1b057ee5071e12c33cc9a18de8e6d40ee8eee31083f966` (includes D23E), [note 104](documentation/104-d23e-busy-scene-stutter.md), [note 105](documentation/105-d23f-fast-timing.md). Next suggested: D23G (finish the fast path) and D17S (auto frame-rate default).
 
 ## The experience we are building
 
@@ -95,7 +95,8 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08Z | Optional manual modern jump (player-timed takeoff, air control) | Done | D08Y |
 | D08Z1 | Keep jump momentum when bumping a wall (EDuke32-style, menu-toggleable) | Todo | D08Z, D22B |
 | D08J1 | Hold-E run-up grab for overhead ladders (slot-6 ladder) | Done | D08J, D08X, D08U |
-| D08J2 | Poles and chains: A/D turn the wrong way (A turns right, D left) | Todo | D08J |
+| D08J2 | Poles and chains: A/D turn the wrong way (A turns right, D left) | Accepted | D08J |
+| D08J4 | Ceiling monkey-bar climbing drops Duke at the wrong points (player UI slot 3) | Todo | D08J, D22B |
 | D08J3 | Free camera while on ladders, poles and chains (investigation + usability testing) | Todo | D06, D08J |
 | D09 | Modern controller support | Todo | D05, D06, D07 |
 | D10 | Third-person camera polish | Done | D08 |
@@ -1265,6 +1266,19 @@ land; E on land and Vanilla unchanged; the user confirms.
 
 ### D08J2 - Poles and chains: A/D turn the wrong way
 
+**Accepted (2026-10-07, user: "fully and completely accept it all").**
+Executable `129a64f2df3f5395f2d3485a310a03d74c85f9b1086c7dab37fee59277c7968b` is the new regression baseline.
+**Built 2026-10-07 (was Needs playtest).** Executable
+`129a64f2df3f5395f2d3485a310a03d74c85f9b1086c7dab37fee59277c7968b`. Cause: original. On a pole or
+chain (hang-climb 192..195) Left/Right reach the sidestep `0x800439e4`,
+where D-pad Left carries Duke round the object to his own right (Vanilla
+private run confirms it); our A was D-pad Left. Fix (Modernized, by state, so
+every pole and chain): A sends D-pad Right and D sends Left there
+(`pole_sidestep_ready()`, `pc_input.cpp`). Ladders (186..189), climbing
+walls and Vanilla unchanged. Private slot-3 runs: A goes left, D right, in
+the third-person and first-person profiles; W/S climb; suites pass.
+[Note 122](documentation/122-d08j2-pole-chain-sidestep.md).
+
 **Todo. User request, 2026-10-07:** "when climbing poles or chains, left and
 right are inverted, A turns right, and D turns left! i would like the
 opposite to happen." In Modernized, while Duke is on a pole or chain, A
@@ -1310,6 +1324,33 @@ climbing ladders, poles and chains; climbing controls stay predictable from
 any view; mounting, dismounting and ladder-top/airborne grabs still work;
 no camera clipping regressions; Vanilla unchanged; the user confirms after
 usability testing.
+
+### D08J4 - Ceiling monkey-bar climbing drops Duke at the wrong points
+
+**Todo. User request, 2026-10-07:** "the ceiling climbing seems to drop off at
+the wrong points in that same save slot (i just climbed the chain and re-saved
+at that point). duke is supposed to be able to jump and climb across this
+ceiling like monkey bars but he just randomly falls. Duke can actually make
+all the jumps now with modern controls too. I wanna look into some kind of fix
+for this area. it's not broken, it's still playable, fortunately."
+
+**Test location:** the user's UI slot 3 (savestate file 02), re-saved
+2026-10-07 at the top of the medieval chain (SHA-256
+`a519f8bc0c2f8f23c2c61283793a548f8d2ede687cdd810e0c98f512eff262a6`; the
+D08J2 copy `d85450de...` is the earlier save under the chain). Test only on
+dated private copies; verify the hash first and never use the player's cards.
+
+**Research start:** identify the ceiling-hang state (mode, animations, the
+attached object or ceiling geometry in `+0x17c`/`+0x180`) and the original
+test that lets go. Establish whether the drops are original (Vanilla, D-pad
+only) or come from Modernized input (WASD fed as original buttons in the
+attached-traversal block, camera-relative direction, held E or jump), and
+whether they fall at gaps between the hang surfaces or in mid-span. Fix it
+game-wide by state, not this room alone.
+
+**Acceptance:** in Modernized, Duke can traverse the slot-3 ceiling end to end
+without falling except where the player lets go or the ceiling really ends;
+jumps between sections still work; Vanilla unchanged; the user confirms.
 
 ### D08N — Duke3D-style scuba gear item
 
@@ -9231,3 +9272,20 @@ in note 117 is the reference for future custom pickups.
 - User: "when an enemy is stood at the top of a ladder, duke cannot climb
   onto the surface. Duke should push into the enemy forcing it back. slot 5
   is a great playtest for this one." New Todo D08U2.
+
+## 2026-10-07 - D08J2 pole and chain A/D direction (Needs playtest)
+
+- Cause: the original sidestep on poles and chains (`0x800439e4`, anims
+  192..195) carries Duke to his right for D-pad Left; Vanilla does the same.
+- Modernized now sends A as Right and D as Left in that state only. Private
+  UI slot-3 runs (third and first-person profiles) go left with A and right
+  with D; ladders and Vanilla unchanged; suites pass.
+  [Note 122](documentation/122-d08j2-pole-chain-sidestep.md).
+
+## 2026-10-07 - D08J2 accepted; D08J4 queued
+
+- User: "fully and completely accept it all." D08J2 Accepted; executable
+  `129a64f2df3f5395f2d3485a310a03d74c85f9b1086c7dab37fee59277c7968b` is the regression baseline.
+- New Todo D08J4: the ceiling monkey-bar climb in UI slot 3 drops Duke at
+  the wrong points ("he just randomly falls"; still playable). The user
+  re-saved slot 3 at the top of the chain.

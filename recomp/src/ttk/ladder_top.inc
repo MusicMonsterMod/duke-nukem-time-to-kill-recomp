@@ -288,6 +288,17 @@ bool ladder_exit_ready() {
     return traversal_input_ready() && psx_mod_read_byte(player+0x22c)==8 &&
         (animation==185 || animation==190) && (previous==3 || previous==8);
 }
+// D08J2: on a pole or chain (anims 192..195, any climb object the handler
+// 0x80043f88.. keeps in this hang-climb) Left/Right reach 0x800439e4, which
+// sidesteps Duke along his own right for D-pad Left (left for Right); for an
+// object without type flag 0x100, 0x80043c08 then turns him back to face it,
+// so he circles it. Seen from behind, the original D-pad Left therefore moves
+// him right on screen, so A/D are sent swapped. Ladders (186..189) and
+// climbing walls (198..205) are unchanged.
+bool pole_sidestep_ready() {
+    const unsigned animation=psx_mod_read_half(player+0x60);
+    return traversal_input_ready() && psx_mod_read_byte(player+0x22c)==3 && animation>=192 && animation<=195;
+}
 static void ladder_mount_write(double e) {
     psx_mod_write_word(player+4,(int32_t)std::lround(mount.sx+(mount.ax-mount.sx)*e));
     psx_mod_write_word(player+8,(int32_t)std::lround(mount.sy+(mount.ay-mount.sy)*e));

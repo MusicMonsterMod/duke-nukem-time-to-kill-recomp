@@ -1,5 +1,25 @@
 # Current status - 2026-10-04
 
+## 2026-10-07 - D08J2 accepted; D08J4 queued
+
+- User: "fully and completely accept it all." Executable
+  `129a64f2df3f5395f2d3485a310a03d74c85f9b1086c7dab37fee59277c7968b` is the regression
+  baseline. [Note 122](122-d08j2-pole-chain-sidestep.md).
+- Backlog: D08J4, ceiling monkey-bar climbing drops Duke at the wrong points
+  (UI slot 3, re-saved at the top of the chain).
+
+## 2026-10-07 - D08J2 built: pole and chain A/D direction (Needs playtest)
+
+- **What:** in Modernized, while Duke hangs on a pole or chain, A takes him
+  round it to the left and D to the right on screen. Vanilla unchanged.
+- **Cause:** original. Left/Right on the hang-climb (192..195) reach the
+  sidestep `0x800439e4`; D-pad Left carries Duke to his own right, then
+  `0x80043c08` turns him to face the object. A was D-pad Left.
+- **Evidence:** private copy of UI slot 3 (the chain): A/D in third person and
+  the first-person profile, W/S climbing; Vanilla D-pad unchanged; suites pass.
+  Executable `129a64f2df3f5395f2d3485a310a03d74c85f9b1086c7dab37fee59277c7968b`.
+  [Note 122](122-d08j2-pole-chain-sidestep.md).
+
 ## 2026-10-07 - D08U2 accepted
 
 - User: "fully accepted. this is exactly what i wanted. well done!" Executable

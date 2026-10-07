@@ -438,6 +438,12 @@ as usual. He stops short of the enemy rather than shoving it aside. Walls,
 crates and other solid objects at the top still stop him. Vanilla keeps the
 original behavior.
 
+**Poles and chains (Modernized, D08J2).**
+While Duke hangs on a pole or chain, **A** takes him round it to the left and
+**D** to the right, as seen on screen. **W/S** climb up and down as before. The
+original game's left/right buttons work the other way round, and Vanilla keeps
+that.
+
 Number keys now select familiar weapon groups when owned and usable:
 
 | Key | Weapon group (press again to cycle alternatives) |

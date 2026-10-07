@@ -77,6 +77,8 @@ bool ladder_end_below();
 bool ladder_mount_finishing();
 /* Original ladder exit (190 top, 185 bottom step-off): directions stay neutral. */
 bool ladder_exit_ready();
+/* D08J2: Duke hangs on a pole or chain (192..195): A/D reach the original swapped. */
+bool pole_sidestep_ready();
 const char* controls_debug_json();
 // D17: draw-time host state for render replay workers (frame_replay.cpp).
 // D17B late camera (live process only): the view the next game update would

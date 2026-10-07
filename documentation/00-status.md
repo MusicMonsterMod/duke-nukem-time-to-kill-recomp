@@ -1,5 +1,25 @@
 # Current status - 2026-10-04
 
+## 2026-10-07 - D08J4 accepted
+
+- User: "it's a complete winner for me. I totally accept." Executable
+  `0385fbf271054ac23474f18b719ecfefee113db2042ed15a32d476a914fd01fa` is the regression baseline. [Note 123](123-d08j4-ceiling-hang.md).
+
+## 2026-10-07 - D08J4 built: climbable ceilings (Needs playtest)
+
+- **What:** in Modernized, hanging from a climbable ceiling (monkey bars),
+  WASD move Duke relative to the camera like walking and he no longer lets go
+  in mid-travel; at an end he keeps hanging. Ctrl or Space lets go. Vanilla
+  unchanged.
+- **Cause:** the falls were ours: the D08X object-hang release let go after W
+  had been held about 40 updates (and on S). The tank steering is original
+  (mode 7: Up/Down along the facing, Left/Right turn).
+- **Evidence:** private copy of UI slot 3: camera-relative travel in all
+  directions, no drops, ends hold, Ctrl/Space let go; suites pass. Executable
+  `0385fbf271054ac23474f18b719ecfefee113db2042ed15a32d476a914fd01fa`.
+  [Note 123](123-d08j4-ceiling-hang.md). Next: the user's playtest, including
+  whether the red-carpet ledge can be reached.
+
 ## 2026-10-07 - D08J2 accepted; D08J4 queued
 
 - User: "fully and completely accept it all." Executable

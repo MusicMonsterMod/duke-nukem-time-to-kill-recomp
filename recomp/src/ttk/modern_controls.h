@@ -54,8 +54,13 @@ bool player_identity_ready();
 /* D08T/D08T1 pushable objects (push.inc). Grab 119..121 on an object flagged
    0x08000000 is live; Duke touches one on normal ground; settled holstered idle 63. */
 bool push_grab_ready();
-/* D08X: let go of a stalled original object hang (mode 7): S, or W with no climb. */
+/* D08X: let go of an original object hang (mode 7) on a crate at once. */
 bool object_hang_release_ready();
+/* D08J4: hanging under a climbable ceiling (mode 7, not a crate). The pad
+   carries only the host's Up (advance) or Square (Ctrl lets go). */
+bool ceiling_hang_ready();
+bool ceiling_hang_advance();
+bool ceiling_hang_drop();
 bool push_contact_ready();
 bool push_idle_ready();
 /* Original Up (16) / Down (64) for camera-relative movement along Duke's facing. */

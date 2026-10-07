@@ -96,7 +96,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08Z1 | Keep jump momentum when bumping a wall (EDuke32-style, menu-toggleable) | Todo | D08Z, D22B |
 | D08J1 | Hold-E run-up grab for overhead ladders (slot-6 ladder) | Done | D08J, D08X, D08U |
 | D08J2 | Poles and chains: A/D turn the wrong way (A turns right, D left) | Accepted | D08J |
-| D08J4 | Ceiling monkey-bar climbing drops Duke at the wrong points (player UI slot 3) | Todo | D08J, D22B |
+| D08J4 | Ceiling monkey-bar climbing: camera-relative travel, no mid-span drops (player UI slot 3) | Accepted | D08J, D22B |
 | D08J3 | Free camera while on ladders, poles and chains (investigation + usability testing) | Todo | D06, D08J |
 | D09 | Modern controller support | Todo | D05, D06, D07 |
 | D10 | Third-person camera polish | Done | D08 |
@@ -1326,6 +1326,27 @@ no camera clipping regressions; Vanilla unchanged; the user confirms after
 usability testing.
 
 ### D08J4 - Ceiling monkey-bar climbing drops Duke at the wrong points
+
+**Accepted (2026-10-07, user: "it's a complete winner for me. I totally accept").**
+Executable `0385fbf271054ac23474f18b719ecfefee113db2042ed15a32d476a914fd01fa` is the new regression baseline.
+**Built 2026-10-07 (was Needs playtest).** Executable
+`0385fbf271054ac23474f18b719ecfefee113db2042ed15a32d476a914fd01fa`. User video
+`research/screencaps/Video_2026-10-07_17-49-43.mp4`: jumping for a ledge Duke
+grabs the ceiling, "all tank controls! ... you move the way duke is facing",
+and he falls off. The ceiling hang is original mode 7 (149..151) under a
+climbable object (flags `0x80`, here grate type 759). Falls: ours. D08X's
+object-hang release let go when S was held, or after W had been held 40 updates
+without a climb, so travel with W dropped Duke after about two seconds; raw
+original Up never let go and stops at the ends. Tank feel: original (Up/Down
+along the facing, Left/Right turn on the spot). Fix (Modernized, by state and
+flags, every climbable ceiling; `ceiling_hang.inc`): WASD steer Duke
+camera-relatively (host turns his yaw, the original Up carries him), Ctrl or
+Space lets go; D08X now releases only crates (`0xc0`). Private slot-3 runs:
+W/A/D/S/diagonals/mouse-turned W travel within 10 degrees of the camera
+direction (A -98 and D +84 include the hand-swing wobble), no drops in 120-240
+frames, ends hold, Ctrl/Space let go; Vanilla untouched (0 host updates);
+suites pass. The user's red-carpet ledge was not located offscreen.
+[Note 123](documentation/123-d08j4-ceiling-hang.md).
 
 **Todo. User request, 2026-10-07:** "the ceiling climbing seems to drop off at
 the wrong points in that same save slot (i just climbed the chain and re-saved

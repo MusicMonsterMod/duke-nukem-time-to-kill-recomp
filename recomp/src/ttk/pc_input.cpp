@@ -823,6 +823,13 @@ uint16_t input_pad() {
         if(down(binds[move_left]) && !down(binds[move_right])) value &= pole?~32:~128;
         if(down(binds[move_right]) && !down(binds[move_left])) value &= pole?~128:~32;
     }
+    // D08J4: under a climbable ceiling the host steers Duke's yaw from WASD and
+    // the camera; the original only gets Up to carry him, or Square for Ctrl.
+    if(captured && ceiling_hang_ready()) {
+        value |= 16|32|64|128;
+        if(ceiling_hang_drop()) value &= ~pads[jump];
+        else if(ceiling_hang_advance()) value &= ~16;
+    }
     // D08V: an unowned fall keeps the original fall buttons the tank fallback
     // used to give (Up/Down and the strafe pads, never D-pad turns).
     // D22B: a dodge roll or slope slide gets none; it ends in idle and the

@@ -201,26 +201,20 @@ static void ledge_reach_mantle(CPUState* cpu) {
 }
 
 // D08X: the original object hang (mode 7, 149..151 after the reach catches a
-// climbable object) offers no pull-up when the space above is blocked (a crate
-// under another crate or a ceiling); only Square lets go. In Modernized, S lets
-// go too, and holding W that has not started a climb within ~40 updates lets go
-// on its own, so Duke never stays stuck there.
-static unsigned hang_stall, hang_releases;
+// climbable object). On a crate-type climbable (0xc0: a crate, the dumpster)
+// it is a dead end: hung from the side of a crate stack, Up finds no pull-up
+// and Left/Right only turn him in circles, so in Modernized he lets go at once
+// (original Square); the bounce and fall play as without the reach.
+// D08J4: every other mode-7 hang is a climbable ceiling with its own controls
+// (ceiling_hang.inc); the earlier stall and S releases dropped Duke there in
+// mid-travel, so they are gone.
+static unsigned hang_releases;
 static bool hang_release;
 static void object_hang_update() {
     const unsigned animation=psx_mod_read_half(player+0x60);
     const bool was=hang_release;
-    hang_release=false;
-    if(psx_mod_read_byte(player+0x22c)!=7 || animation<149 || animation>151 || !traversal_input_ready()) {hang_stall=0;return;}
-    const auto& f=input_snapshot(Context::Gameplay);
-    if(f.move_y>0.5f) {if(hang_stall<1000)++hang_stall;}
-    else hang_stall=0;
-    // The object hang is the original pole-style hang: A/D walk Duke round the
-    // object. Caught on a crate-type climbable (0xc0: a crate, the dumpster) by
-    // a jump, it hangs him from the side of a crate stack and turns him in
-    // circles, so let go at once; the bounce and fall play as without the reach.
-    const bool crate=(object_type_flags(psx_mod_read_word(player+0x17c))&object_mantle)==object_mantle;
-    hang_release=crate || f.move_y<-0.5f || hang_stall>40;
+    hang_release=psx_mod_read_byte(player+0x22c)==7 && animation>=149 && animation<=151 && traversal_input_ready() &&
+        (object_type_flags(psx_mod_read_word(player+0x17c))&object_mantle)==object_mantle;
     if(hang_release && !was)++hang_releases;
 }
 bool object_hang_release_ready() {return hang_release;}

@@ -347,9 +347,8 @@ crate or similar climbable object climbs onto it mid-jump, also at an angle and
 from one crate to a higher one beside it, as long as its top is within climbing
 reach and nothing is stacked on it.
 If a jump catches a crate in a stack where there is no room to climb, Duke lets
-go straight away and drops back. Should he hang from some other object he cannot
-climb, press **S** or **Space** to let go; holding W lets go by itself after about
-a second. With E held, Duke catches a ledge even when he is not square to it (up to about
+go straight away and drops back. Any other object he hangs from is a climbable
+ceiling (see below). With E held, Duke catches a ledge even when he is not square to it (up to about
 50 degrees more than before) and also reaches about an arm's length
 higher than the original jump allows, easing up into the hang.
 
@@ -443,6 +442,16 @@ While Duke hangs on a pole or chain, **A** takes him round it to the left and
 **D** to the right, as seen on screen. **W/S** climb up and down as before. The
 original game's left/right buttons work the other way round, and Vanilla keeps
 that.
+
+**Climbable ceilings / monkey bars (Modernized, D08J4).**
+A jump with **E** held under a climbable ceiling (a grate or bars) makes Duke
+grab it and hang by his hands. Then **WASD** move him relative to the camera,
+like walking: W goes where the camera looks, A and D go left and right on
+screen, S comes back toward the camera, and the mouse camera stays free. Duke
+turns to face the way you steer and goes hand over hand. At the end of the
+ceiling he stops and keeps hanging. Press **Ctrl** or **Space** to let go.
+The original game steers like a tank here (Up/Down along Duke's facing,
+Left/Right only turn him), and Vanilla keeps that.
 
 Number keys now select familiar weapon groups when owned and usable:
 

@@ -1,5 +1,10 @@
 # Current status - 2026-10-04
 
+## 2026-10-07 - D08U2 queued
+
+- Backlog: D08U2, an enemy standing at a ladder top stops Duke climbing off;
+  Duke should push it back. Test location: the user's UI slot 5.
+
 ## 2026-10-07 - D08O3 accepted; D08J2 and D08J3 queued
 
 - User: "fully passed my playtest. feels great to play. i accept this job

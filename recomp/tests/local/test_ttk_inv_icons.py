@@ -30,7 +30,8 @@ class InventoryIconBuilder(unittest.TestCase):
             built = entries(first)
             self.assertEqual([(k, i) for k, i, *_ in built], [(0, 1), (0, 2), (0, 3), (0, 4), (0, 5), (1, 0)])
             for kind, item, w, h, _ in built[:5]:
-                self.assertTrue(8 <= w <= 16 and 8 <= h <= 16, (item, w, h))
+                # D08A21: the 14x14 steroids pill trims to 6x14.
+                self.assertTrue(6 <= w <= 16 and 6 <= h <= 16, (item, w, h))
             # The frame is the project's own item-frame.png, pixel for pixel.
             sys.path.insert(0, str(ROOT / 'tools/local'))
             import build_ttk_inv_icons as builder

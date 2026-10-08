@@ -41,11 +41,21 @@ class ProjectUiArt(unittest.TestCase):
     def test_hud_reductions_are_reproducible(self):
         sys.path.insert(0, str(ROOT / 'tools/local'))
         from reduce_icon_15col import reduce
-        for name in ('steroids', 'invincibility', 'invisibility', 'double-duke'):
+        # D08A21: the medkit (and the D08A20 challenge icon) are made by the same tool.
+        for name in ('hud-steroids', 'hud-invincibility', 'hud-invisibility', 'hud-double-duke', 'gadget-medkit', 'hud-challenge'):
             with self.subTest(name=name):
-                made = reduce(Image.open(UI / f'items/hud-{name}.png'))
+                made = reduce(Image.open(UI / f'items/{name}.png'))
                 self.assertEqual(list(made.getdata()),
-                                 list(Image.open(UI / f'items/hud-{name}-15col.png').convert('RGBA').getdata()))
+                                 list(Image.open(UI / f'items/{name}-15col.png').convert('RGBA').getdata()))
+
+    def test_hud_icons_leave_a_border(self):
+        # D08A21: the active HUD icons keep their art inside the inner 14x14.
+        for name in ('hud-steroids', 'hud-invincibility', 'hud-invisibility', 'hud-double-duke', 'gadget-medkit', 'hud-challenge'):
+            with self.subTest(name=name):
+                for png in (f'{name}.png', f'{name}-15col.png'):
+                    left, top, right, bottom = Image.open(UI / 'items' / png).convert('RGBA').getbbox()
+                    self.assertTrue(left >= 1 and top >= 1 and right <= 15 and bottom <= 15, png)
+                self.assertTrue((UI / 'items/16px' / f'{name}.png').exists())
 
     def check_hud_cell(self, name, png):
         source = (ROOT / 'src/ttk/gadget_hud.inc').read_text()
@@ -101,7 +111,7 @@ class ProjectUiArt(unittest.TestCase):
         expected = {'SUBWAY SECURITY KEY', 'TRANSPORT ROOM ID', 'WAREHOUSE KEY', 'GANTRY KEY', 'VALVE KEY', 'LAB KEY',
                     'VALVE ROOM KEY', 'RED ENERGY CRYSTAL', 'BLUE ENERGY CRYSTAL', 'GREEN ENERGY CRYSTAL', 'SKELETON KEY',
                     'SCRAP OF PAPER', 'OLD NOTE', 'TORN PAPER', 'FAMILY JEWEL', 'STEROIDS', 'MEDKIT',
-                    'INVINCIBILITY', 'INVISIBILITY', 'DOUBLE DUKE'}
+                    'INVINCIBILITY', 'INVISIBILITY', 'DOUBLE DUKE', 'CHALLENGE ITEM'}  # D08A20 art, not drawn yet
         self.assertEqual(names, expected)
         for item in manifest['items']:
             for key in ('file', 'hud_file'):

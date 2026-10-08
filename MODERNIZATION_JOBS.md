@@ -4,7 +4,7 @@ This is the canonical job list for our **Duke Nukem: Time to Kill** PC project, 
 
 Invoke **`$continue-duke-recomp`** (Codex) or **`/continue-duke-recomp`** (Claude Code) to see the current jobs and choose one. You can also request a job directly: **`$continue-duke-recomp work on D01`** or **`/continue-duke-recomp work on D01`**. The skill reads this file rather than keeping a second backlog. It must not automatically start the next job.
 
-**Latest accepted job (2026-10-08): D08A12 (modern dynamite: unlit until fire, switch away freely, next stick drawn after a throw); executable `2d54e00b64bcf38917e41db47805338f75977b0b63a0868cb962242ffaaadb9d` is the regression baseline. Queued: D24D, D26G.** Earlier (2026-10-08): D08A19 (used mission items: USED and the green tick); executable `d67705eba48232029a90647cc781f3201d0aae29799678466b2b5b9337b5dbe8`. Earlier (2026-10-08): D08Z2 (mantle pose; frozen legs after a corner bump); executable `bfd41760f9c66f2f03cf859f820f7b7d27cd8991e8ce1f304f5456ea29bf8986` is the regression baseline. D08Z3 (modern landing) accepted 2026-10-08; executable `11187493c04ae830482c47c93b97ac332fbfce1de95f8eedaa2f8637d7fe164e` is the new regression baseline. Queued: D24D, D26G, D08A19.** Earlier (2026-10-08): D08Z1 (jump wall slide); executable `3f909c9f2cc4e5b09ba6faab5129ec9ae0ff938c4735e264ac67a66405c1ed34`. Earlier (2026-10-08): D08A17 (power-up countdowns); executable `8f338cde1c2dc4cf73da747621cffafe2478512f6419078a41d11b0d3b9268a9`. Earlier accepted jobs (2026-10-08): D08A14 (death ends steroids), D08A15 (heartbeat restart; a pickup mid-run stops steroids) and D08G4 (inventory cheats give full armor); executable `87fe38d4f0ea8560312f53171345c207f332e26b6f4d2ed7220e1afae66ba472` is the regression baseline.** Earlier: D08J2 (pole/chain A/D direction), D08U2 (climb off a ladder past an enemy), D08O3 (E in water keeps the weapon) and D08O2A (natural swim-fire pose v2), 2026-10-07.** Previous baseline `e8eebb809c3d5a4b29779f11f0c9db55efcd846dc5c71b39d5a59d43158eb08e` (D08U2). **D08J2 (pole/chain A/D direction) Accepted 2026-10-07**: executable `129a64f2df3f5395f2d3485a310a03d74c85f9b1086c7dab37fee59277c7968b` is the current regression baseline ([note 122](documentation/122-d08j2-pole-chain-sidestep.md)). Todo: D08J4 (ceiling monkey-bar drops, UI slot 3), D08J3 (free camera while climbing). Previous baseline `e75b50f156137fa2377e4643407b2efbd16f2e976fa4d697afcbceb228e2e554` (D08O3). **D23E (western-town stutter) Accepted 2026-10-07**; **D08O2A Accepted** ([note 119](documentation/119-d08o2a-natural-swim-fire-pose.md)), **D08O3 Accepted** ([note 120](documentation/120-d08o3-e-in-water.md)); **D23F (fast CPU timing) Accepted 2026-10-05 and now the Modernized default**; executable `e0737a9f712aa5622d1b057ee5071e12c33cc9a18de8e6d40ee8eee31083f966` (includes D23E), [note 104](documentation/104-d23e-busy-scene-stutter.md), [note 105](documentation/105-d23f-fast-timing.md). Next suggested: D23G (finish the fast path) and D17S (auto frame-rate default).
+**Latest accepted job (2026-10-09): D08A21 (14x14 HUD item icons; the 16x16 versions kept in `recomp/assets/ui/items/16px/`); executable `72429e350806e0639f36e50cff0cb969f18df1662a2336794e17bd2263614c21` is the regression baseline. New: D08A22 (switcher scale in small windows).** Earlier (2026-10-08): D08A12 (modern dynamite: unlit until fire, switch away freely, next stick drawn after a throw); executable `2d54e00b64bcf38917e41db47805338f75977b0b63a0868cb962242ffaaadb9d` is the regression baseline. Queued: D24D, D26G.** Earlier (2026-10-08): D08A19 (used mission items: USED and the green tick); executable `d67705eba48232029a90647cc781f3201d0aae29799678466b2b5b9337b5dbe8`. Earlier (2026-10-08): D08Z2 (mantle pose; frozen legs after a corner bump); executable `bfd41760f9c66f2f03cf859f820f7b7d27cd8991e8ce1f304f5456ea29bf8986` is the regression baseline. D08Z3 (modern landing) accepted 2026-10-08; executable `11187493c04ae830482c47c93b97ac332fbfce1de95f8eedaa2f8637d7fe164e` is the new regression baseline. Queued: D24D, D26G, D08A19.** Earlier (2026-10-08): D08Z1 (jump wall slide); executable `3f909c9f2cc4e5b09ba6faab5129ec9ae0ff938c4735e264ac67a66405c1ed34`. Earlier (2026-10-08): D08A17 (power-up countdowns); executable `8f338cde1c2dc4cf73da747621cffafe2478512f6419078a41d11b0d3b9268a9`. Earlier accepted jobs (2026-10-08): D08A14 (death ends steroids), D08A15 (heartbeat restart; a pickup mid-run stops steroids) and D08G4 (inventory cheats give full armor); executable `87fe38d4f0ea8560312f53171345c207f332e26b6f4d2ed7220e1afae66ba472` is the regression baseline.** Earlier: D08J2 (pole/chain A/D direction), D08U2 (climb off a ladder past an enemy), D08O3 (E in water keeps the weapon) and D08O2A (natural swim-fire pose v2), 2026-10-07.** Previous baseline `e8eebb809c3d5a4b29779f11f0c9db55efcd846dc5c71b39d5a59d43158eb08e` (D08U2). **D08J2 (pole/chain A/D direction) Accepted 2026-10-07**: executable `129a64f2df3f5395f2d3485a310a03d74c85f9b1086c7dab37fee59277c7968b` is the current regression baseline ([note 122](documentation/122-d08j2-pole-chain-sidestep.md)). Todo: D08J4 (ceiling monkey-bar drops, UI slot 3), D08J3 (free camera while climbing). Previous baseline `e75b50f156137fa2377e4643407b2efbd16f2e976fa4d697afcbceb228e2e554` (D08O3). **D23E (western-town stutter) Accepted 2026-10-07**; **D08O2A Accepted** ([note 119](documentation/119-d08o2a-natural-swim-fire-pose.md)), **D08O3 Accepted** ([note 120](documentation/120-d08o3-e-in-water.md)); **D23F (fast CPU timing) Accepted 2026-10-05 and now the Modernized default**; executable `e0737a9f712aa5622d1b057ee5071e12c33cc9a18de8e6d40ee8eee31083f966` (includes D23E), [note 104](documentation/104-d23e-busy-scene-stutter.md), [note 105](documentation/105-d23f-fast-timing.md). Next suggested: D23G (finish the fast path) and D17S (auto frame-rate default).
 
 ## The experience we are building
 
@@ -70,6 +70,9 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08A17 | Power-up countdowns: invincibility, invisibility and Double Duke get HUD boxes counting down, like steroids (Quake-style) | Done (user-accepted) | D08A16, D08A8 |
 | D08A18 | Mission inventory: Enter tries to use the browsed item; elsewhere "can't use this here" (cheat-message style) | Done (user-accepted) | D08A5, D24A |
 | D08A19 | Used mission items: switcher status USED and a green tick on the icon (user art delivered) | Done (user-accepted) | D08A18, D08A5 |
+| D08A20 | Challenge item (type 633, "SURPRISE") shown in the top right of the HUD once found (user art delivered) | Todo | D08A16, D24A |
+| D08A21 | Re-export HUD item icons with 14x14 art inside the 16x16 canvas (medkit, steroids, power-up coins) | Done (user-accepted) | D08A4, D08A7, D08A16 |
+| D08A22 | Switcher strips and mission card scale with the window like the native HUD (icons too small in small windows) | Todo | D08A1, D08A5, D24A |
 | D08G3 | `dnupgrade` cheat: upgrade all weapons (Laser Gatling etc.) | Accepted | D08G2 |
 | D08G4 | `dnstuff`, `dnitems`, `dninventory` also give 100% armor; running steroids stop and a full dose is held | Done (user-accepted) | D08G |
 | D08H | Apartment furniture, hidden pickup and switch targeting | Done | D08 |
@@ -109,6 +112,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08Z1 | Keep jump momentum when bumping a wall (EDuke32-style, menu-toggleable) | Done (user-accepted) | D08Z, D22B |
 | D08Z2 | Mantle regression since D08Z1: the mantle plays as a static leg pose | Done (user-accepted) | D08Z1 |
 | D08Z3 | Modern landing: no stand-still after a jump (recovery 105 ends on input; landing hop) | Done (user-accepted) | D08Z1 |
+| D08Z4 | First person briefly cuts to third person when jumping into the cop car (UI slot 6) | Todo | D08Z1, D08V, D11 |
 | D08J1 | Hold-E run-up grab for overhead ladders (slot-6 ladder) | Done | D08J, D08X, D08U |
 | D08J2 | Poles and chains: A/D turn the wrong way (A turns right, D left) | Accepted | D08J |
 | D08J4 | Ceiling monkey-bar climbing: camera-relative travel, no mid-span drops (player UI slot 3) | Accepted | D08J, D22B |
@@ -126,6 +130,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D12A | First-person quick kick without leaving the eye view | Done | D12 |
 | D12B | Costume-aware first-person kick leg, game-wide (LEVEL01 slots 8/9) | Accepted | D12A, D22A |
 | D12C | Kick impact sound on a real hit only (wall, crate, actor); empty-air and out-of-range kicks stay silent | Done (user-accepted) | D12A |
+| D12D | First-person rocket launcher blocks the view in Challenge Stage 4 (level 24; probably the upgraded Incendiary RPG) | Todo | D12, D22B |
 | D11C | Savestates can keep Duke's first-person head hidden (slot 12) | Done | D11 |
 | D11D | First-person eye height from Duke's real proportions, game-wide (LEVEL01 slot 8) | Accepted | D11, D22A |
 | D11E | First person while swimming (underwater eye view, game-wide) | Todo | D08O, D11, D22B |
@@ -160,6 +165,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D18B | Concurrent voice with music (no music mute) | Todo | D18, D21 |
 | D18C | Load-sensitive crackle at construction signs and train ledge | Todo | D17B, D18A |
 | D18D | Music silent after death and Continue until Duke's next voice line | Todo | D01 |
+| D18E | Challenge stages 21-26 have no music: reuse fitting in-game tracks (user mapping) | Todo | D22B, D26A |
 | D19 | Modern in-game menus, settings and input prompts (Sonic 3 A.I.R.-style customization; plan mode + artifact first) | Todo | D02, D04, D13 |
 | D19A | Duke font assets for host messages and modern UI | Done | D04 |
 | D19B | Responsive modern menu navigation and transitions | Todo | D02, D04 |
@@ -169,6 +175,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D22A | Portal transition loses Modernized controls and first person (slot 7) | Accepted | D05, D06, D11 |
 | D22B | Modern controls and first person in every level and transition (no classic fallback) | Accepted | D22A, D26A |
 | D22C | Level 11 starts with Legacy controls until F10 (control mode must persist) | Accepted | D22B |
+| D22D | Energy weapon (key 7) fires but has no effect on enemies | Todo | D07C |
 | D23 | Performance budgets and long-session stability | Todo | D01 |
 | D23A | Modernized frame-budget regression (guard identity cost) | Done | D08 |
 | D23B | Intro FMV stutter: stranded native movie shard | Done | D23 |
@@ -183,6 +190,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D24B | Savestate menu (F7) dressed in the TTK fonts and disc art | Accepted | D24A |
 | D24C | TTK-font `!` drawn from I and period; console prompt `>` instead of `]` | Done (user-accepted) | D24A |
 | D24D | `<` and `>` in messages fall back to the system font (e.g. ORIGINAL MOVEMENT <state>) | Todo | D24C |
+| D24E | TTK-font `%` drawn from period and slash (`./.`), as `!` was (e.g. MEDKIT 39%) | Todo | D24C |
 | D25 | Modernized edition release acceptance | Todo | D08, D08A, D08B, D09, D10, D14, D17, D18, D20, D21, D24 |
 | D26 | Backtick debug console (fps and helpers) | Done | D04 |
 | D26A | Debug level-select panel for whole-game testing | Accepted | D26, D22A |
@@ -1663,6 +1671,165 @@ used items in full colour with the green tick. Details in
   was used live); a memory-card save and reload after a use; the item name
   stays orange as for FOUND (the mockup's blue name came from a not-found
   screenshot).
+
+### D08A20 - Challenge item shown on the HUD once found (user art)
+
+**Todo. User request, 2026-10-08:** "Challenge item - it says surprise on the
+screen. Should show on screen that we got the timer device thing, as an item on
+our hud. Add the placeholder for me to make an item on the ttk font picker
+document and i will make an original asset based off the in game item."
+
+Found (read-only SLUS-00583): the challenge item is object type 633. The pickup
+dispatcher `0x80081a48` sends it (`0x80081d04`) to `0x80082cfc`, which sets
+`player+0x85e` = 1 and queues pickup message 204, "SURPRISE" (the strings also
+hold 250 "CHALLENGE FOUND:"). Nothing on the HUD shows it afterwards. In game
+it is a round black device with two red tips joined by a silver bar.
+
+**Placeholder done (2026-10-08):** the local font picker
+(`recomp/analysis/d24a-fonts/ttk-font-picker.html`, built by `make_picker.py`)
+has section 15, "Challenge item - placeholder for your art": a 16x16 HUD-box
+slot (`recomp/assets/ui/items/hud-challenge.png`, reduced to 15 colours with
+`tools/local/reduce_icon_15col.py`), 8x/2x/1x and 15-colour previews, three
+in-game reference frames (`spawn 633` in level 0, private offscreen run,
+`recomp/analysis/challenge-item/`) and a HUD mockup.
+
+**Adopted (2026-10-09, D08A21 closeout):** now tracked as
+`recomp/assets/ui/items/hud-challenge.png` and `hud-challenge-15col.png`
+(items.json CHALLENGE ITEM, type 633, `"hud": true`); the full 16x16 version
+is `recomp/assets/ui/items/16px/hud-challenge.png`. Not drawn yet.
+
+**Icon delivered (2026-10-08):** `research/inv/hud-challenge.png` (16x16, art
+14x14 inside a 1-pixel transparent border, 152 colours), with its 15-colour
+reduction `research/inv/hud-challenge-15col.png` made by the project tool. Both
+are shown in the picker (read from `research/inv` until the job copies them to
+`recomp/assets/ui/items/`). User: it "will actually sit in the top right". The
+picker's mockup now shows the top-right corner, with the ammo box's margin, in
+four variants: A icon cell only (the box's left cell, its divider as the
+edge), B the full 46x16 box with an empty number field, C the full box with
+the D08A19 green tick in the number field, D the icon alone. The campaign HUD
+leaves that corner empty; the challenge stages use it for their kill counter
+but have no challenge item.
+
+To decide when the job starts: which top-right variant (A-D), how long it
+stays (rest of the level is assumed), whether the box
+shows a tick or nothing in the number field, whether the SURPRISE message
+changes (for example CHALLENGE FOUND), whether it appears in the [ / ]
+switcher, and what loading a save or restarting the level does (`+0x85e` is
+saved and restored by the original; verify). Modernized only.
+
+**Acceptance:** the user's icon is delivered and accepted in the picker; in
+Modernized, picking up the challenge item shows it on the HUD as decided, in
+at least two levels, and it survives save/load as the original flag does;
+Vanilla unchanged; the user confirms.
+
+### D08A21 - Re-export HUD item icons with 14x14 art inside the 16x16 canvas
+
+**Done (2026-10-09, user-accepted: "completely approve this change so the small
+swapout job can be closed off and accepted").** The user's 14x14 icons are the
+active art; the full 16x16 versions are kept in `recomp/assets/ui/items/16px/`.
+At acceptance the user added `research/inv/challenge-16.gif`, the full 16x16
+challenge icon: converted losslessly (single frame, transparency kept) to
+`16px/hud-challenge.png` with its 15-colour copy; the 14x14 challenge icon was
+adopted as `assets/ui/items/hud-challenge.png` (+ `-15col`), listed in
+`items.json` as CHALLENGE ITEM (`"hud": true`, so the mission pack skips it;
+the pack stays byte-identical). Nothing draws it until D08A20.
+
+Was Todo, waiting for the user's art. User request, 2026-10-08: "re-export the
+medkit, steroids, and invincibility etc coins as those icons all touch the
+border so im still making them 16x16 but the actual image is 14x14 within. so
+we will swap them out. i am working on the images now and will let you know
+when to update the document."
+
+Current art touching the 16x16 edge (opaque bounding boxes): medkit
+`gadget-medkit.png` (0,1)-(16,14), full width; steroids `hud-steroids.png`
+(4,0)-(12,16), full height; `hud-invincibility.png`, `hud-invisibility.png`,
+`hud-double-duke.png` all (0,0)-(16,16). The new versions keep the 16x16
+canvas with the art in the inner 14x14 (a 1-pixel transparent border), like
+the challenge icon (D08A20, `research/inv/hud-challenge.png`).
+
+When the user delivers:
+
+1. Update the local font picker first (`recomp/analysis/d24a-fonts/`, sections
+   9-11 and the medkit card) so the new icons can be compared with the old ones;
+   the user accepts them there.
+2. Copy the sources into `recomp/assets/ui/items/` under the same names and make
+   each `-15col.png` with `recomp/tools/local/reduce_icon_15col.py`.
+3. Regenerate the 4bpp cell and CLUT tables in `recomp/src/ttk/gadget_hud.inc`
+   (`k_medkit_cell`, `k_steroids_cell`, `k_invincibility_cell`,
+   `k_invisibility_cell`, `k_double_duke_cell` and their CLUTs) and the
+   inventory-icon builds that read them (`tools/local/build_ttk_inv_icons.py`:
+   medkit item 5, steroids item 4, and the switcher strip's full-colour
+   copies); `tests/local/test_ui_art.py` and `test_ttk_inv_icons.py` must pass.
+4. Check in game (Modernized): the switcher strip, the selected-gadget box, the
+   steroids and power-up countdown boxes; the icons sit inside their boxes
+   without touching the frame.
+
+No gameplay change. Vanilla unchanged.
+
+**Acceptance:** all five icons replaced from the user's 14x14-in-16x16 art,
+accepted in the picker, tables and tests regenerated, shown correctly in every
+HUD place they appear; the user confirms.
+
+**Work log, 2026-10-08 (Needs playtest).** User: "you will find these new
+icons designed at 14px, which we should use now, but i dont want you to
+totally get rid of the 16px icons ... for now, can you swap those icons in."
+
+- Delivered in `research/inv/items-14/` (16x16 canvases; art in (1,1)-(15,15),
+  medkit (1,2)-(15,13), steroids (5,1)-(11,15)). `hud-invincibility-14.png.png`
+  had a doubled extension; copied under the right name.
+- The old full-16 art and its 15-colour copies moved (git mv) to
+  `recomp/assets/ui/items/16px/` with a README; nothing in the build reads
+  them. The new art took the active names, so `items.json`, CMake, the
+  inventory pack builder and the tests keep their paths.
+- 15-colour copies for all five made with `reduce_icon_15col.py` (the medkit's
+  was a hand-picked reduction before; now the tool's, and the reproducibility
+  test covers it). The five `k_*_cell` / `k_*_clut` tables in
+  `recomp/src/ttk/gadget_hud.inc` regenerated from them.
+- Tests: `test_ui_art.py` (new `test_hud_icons_leave_a_border`: active art
+  and 15-colour copies stay inside the inner 14x14, the 16px originals exist)
+  and `test_ttk_inv_icons.py` OK. The switcher-strip size bound was relaxed
+  from 8 to 6 px, since the trimmed steroids pill is now 6x14.
+- Build: executable `72429e350806e0639f36e50cff0cb969f18df1662a2336794e17bd2263614c21`;
+  `ttk-inv-icons.pack` rebuilt.
+- Offscreen check (private card copy, `recomp/analysis/d08a21-icons/`): the
+  three coin boxes, steroids box and medkit gadget box all show the icon with
+  a dark gap inside the frame (before: touching it); the switcher strip shows
+  the new medkit and steroids (slightly smaller than before).
+- Font picker rebuilt: the power-up, steroids and medkit cards read the new
+  active art.
+
+Not verified: the user's look in play at their resolution and renderer.
+
+### D08A22 - Switcher strips and mission card scale with the window like the native HUD
+
+**Todo. User request, 2026-10-09:** "the scale of our new UI elements matches
+the scale of the native ui elements, specifically where the icons are used,
+specifically our inventory and mission item switchers. because those icons
+appear smaller than the ones inside the native ui only when the window is
+small. so usually in fullscreen etc this problem doesnt exist."
+
+Lead (read, not yet measured): the strips and the mission info card are
+host-drawn images (`ttk_inventory_image` / `ttk_mission_card_image`,
+`recomp/src/ttk/inventory_hud.cpp`, icons at 2x in a ~480-tall logical space)
+presented by `host_osd.c` (pinned framework, about line 913) with
+`scale = output_height / 480`, an integer floor, at least 1. The game's own
+HUD scales continuously with the window. So below 960 output pixels the
+strip is drawn at 1x while the native HUD is at up to 2x (for example a
+900-tall window: strip 1.0 vs native about 1.9); at 1080 it is 2 vs 2.25, close
+enough that fullscreen looks right. The non-GL path (`#else`, `ui`) needs the
+same check.
+
+Direction: give the host strips the native HUD's scale (the same factor the
+game's 2D HUD gets from the window and the 4:3 / widescreen layout), either
+fractional with nearest sampling or integer rounding chosen per size, keeping
+icons, frames, the microfont digits and `%` sharp; check the font-drawn card
+text. Framework change: export it with `export_runtime_patch.py`.
+
+**Acceptance:** at several window sizes (for example 640x480, 960x720,
+1280x720, 1600x900 and fullscreen), OpenGL and Software, 4:3 and widescreen,
+the inventory and mission switcher icons are the same size as the native HUD
+icons (steroids/medkit boxes) and stay crisp; layout does not overflow at small
+sizes; Vanilla unchanged; the user confirms.
 
 ### D08B — Broader traversal and scripted-camera coverage
 
@@ -3479,6 +3646,37 @@ directional, running and released jumps); landings feel natural; option off
 and Vanilla keep the original; reproduction route documented; the user
 confirms.
 
+### D08Z4 - First person briefly cuts to third person when jumping into the cop car (UI slot 6)
+
+**Todo. User report, 2026-10-08:** "slot 6. where im standing right in front
+of the cop car, and by jumping into it, it briefly forces duke to go into third
+person mode when im playing in first person mode. ... this bug is by no means
+game breaking, but it would be nice to investigate it and see if we can make it
+more robust so this doesnt happen."
+
+Leads (not yet investigated): `first_person_update()` in
+`recomp/src/ttk/first_person.inc` blends to the orbit whenever
+`traversal_camera_early()` is set without a committed move (D08V: mantles,
+hangs and unowned falls 107/108 show from the orbit). A jump into the car's
+side may start one of those for a few frames: the D08Y low-lip step-up or
+D08X jump mantle onto the car body, a D08Z1 safety-net catch whose 107 is
+undone after the camera already saw it, or a short unowned fall off the car's
+edge. Reproduce on a private copy of UI slot 6 with the user's settings (first
+person, manual jump, `jump_walls slide`), log `fp_reason` and the animation
+per frame, and compare `jump_walls original`.
+
+Fix the system, not the car: first person should only leave the eye when the
+eye would really be inside geometry (a full mantle or hang), and brief or
+cancelled traversal states (a bump, an undone 107, a few-frame fall, a
+step-up onto a low object) should keep the eye or hold off before blending.
+
+**Acceptance:** in Modernized first person, jumping into the slot-6 cop car
+from several headings and gaits (standing, walking, running; manual and
+assisted jump) never flashes the third-person orbit; real mantles and hangs
+still read correctly (keep the eye if it stays clear, otherwise the existing
+orbit); D08V sewer mantle, D08X/D08Y/D08Z1 routes and third person unchanged;
+Vanilla unchanged; the user confirms.
+
 ### D08J1 - Hold-E run-up grab for overhead ladders (slot 6)
 
 **Done (2026-10-01, user-accepted: "genuinely working solidly").** User: the ladder at save slot 6 is awkward to
@@ -3880,6 +4078,32 @@ otherwise when selecting it.
 
 Goal: "If Duke's boot actually hits something, I should hear the impact. If his
 boot hits nothing, I should hear nothing."
+
+### D12D - First-person rocket launcher blocks the view in Challenge Stage 4
+
+**Todo. User report, 2026-10-08:** "In challenges, level 24, you spawn in with
+the rocket launcher, however in first person mode, it's view is obscuring your
+vision. We came into a similar bug like this early on when we created first
+person mode for the first time." Evidence: `research/rocket-launcher-challenge.png`
+(the launcher fills the middle of the screen in first person).
+
+Lead (not yet verified): challenge stages 21-26 set upgrade bit (level - 21)
+in `player+0x85f` (`0x800950cc`), so stage 4 (level 24) upgrades weapon 8,
+the RPG, which `0x8003df40` resolves to record 29 (Incendiary RPG). The D12
+first-person tables in `recomp/src/ttk/first_person.inc` (`weapon_slot_offset`,
+`weapon_slot_tilt`, `fire_poses`) only cover slots 0-11, so 27 (HiTemp), 28
+(Laser Gatling) and 29 (Incendiary RPG) may get no framing at all. If so, the
+same view would appear after `dnupgrade` in any level. Check every upgraded
+form, not just the RPG.
+
+**Game-wide:** upgraded weapons in first person anywhere (challenge stages,
+`dnupgrade`), not only level 24.
+
+**Acceptance:** in first person the upgraded weapons (27, 28, 29 and the
+in-place upgrades 4, 5, 10) are framed like their base weapons and never block
+the view, at rest and firing, in Challenge Stage 4 and after `dnupgrade` in a
+campaign level; base weapons, third person and Vanilla unchanged; the user
+confirms.
 
 ### D13 — Higher internal resolution and display scaling
 
@@ -4626,6 +4850,37 @@ tested levels without waiting for a voice line, if reference behavior shows
 that is correct; no regression to voice playback, FMV audio, D18A/D18C
 crackle routes or pause/menu audio. Use private save/card copies only.
 
+### D18E - Challenge stages have no music
+
+**Todo. User request, 2026-10-08:** "challenge level has no music. What are our
+options here? Would be ideal to reuse appropriate music from the game on these
+levels." User's suggested mapping:
+
+| Level | Stage | Setting | Music |
+| --- | --- | --- | --- |
+| 21 | Challenge Stage 1 | warehouse | Time to Kill music |
+| 22 | Challenge Stage 2 | industrial | Time to Kill music |
+| 23 | Challenge Stage 3 | castle | medieval music |
+| 24 | Challenge Stage 4 | castle 2 | medieval music |
+| 25 | Challenge Stage 5 | chicken warehouse | already has Time to Kill music |
+| 26 | Challenge Stage 6 | colosseum | Roman music |
+
+First: confirm against the original (DuckStation portable copy, not the
+flatpak) whether 21-24 and 26 are silent on real hardware too, or whether the
+recomp loses their music (compare D18D, music silent after Continue). Then
+find how a level selects its music (XA streams in `/SOUND/MUSIC*.IDF`, see
+[note 14](documentation/14-gameplay-voice-seek.md); the per-level table or
+call) and which track each era uses. Options to present before building: point
+the silent stages at existing tracks through the original music call
+(Modernized option, default on, Vanilla untouched), or leave the original
+silence. No new audio, no replaced disc files.
+
+**Acceptance:** findings documented (original silence or recomp loss; how
+levels pick music); with the chosen option each challenge stage plays the
+mapped track from level start, through death/Continue and restart, without
+breaking voice lines or the stage timer; stage 5 keeps its own music; Vanilla
+keeps the original; the user confirms.
+
 ### D19 — Modern in-game menus, settings and input prompts
 
 **Direction set by the user 2026-09-29 (backlog; not started).** The target
@@ -4838,6 +5093,23 @@ window/focus path too.
 **Acceptance:** Level 11, reached by `level 11` and by natural progression,
 starts in the selected control mode with capture as before; other levels
 unchanged; the user confirms.
+
+### D22D - Energy weapon fires but has no effect on enemies
+
+**Todo. User report, 2026-10-08:** "The energy weapon in slot 7 does not work.
+It fires but it has no effect on enemies." (Key 7, weapon slot 10; its upgraded
+form, SUPER ZAPPER, upgrades in place.)
+
+First establish whether this is the original's behaviour or a recomp/
+modernization regression: compare Vanilla in the recomp and the original in
+the DuckStation portable copy on the same enemy, base and upgraded. Then
+check the modern aiming path (D07C projectile coverage, D08Q3 view aiming),
+whether the shot's hit test or damage call runs, ammo use, and whether some
+enemy types are immune by design. Fix the system, not one enemy.
+
+**Acceptance:** cause documented with evidence; the energy weapon damages
+enemies as in the original, base and upgraded, in first and third person, in
+at least two levels; other weapons and Vanilla unchanged; the user confirms.
 
 ### D23 — Performance budgets and long-session stability
 
@@ -5330,6 +5602,26 @@ still falls back.
 **Acceptance:** the reported message shows `<` and `>` in the TTK font; no
 other message-font fallback for characters the disc fonts have; the user
 confirms.
+
+### D24E - TTK-font percent sign from period and slash
+
+**Todo. User request, 2026-10-08:** "We need to fake the percent symbol for our
+fonts in exactly the same way we constructed the exclamation mark. i think
+period, and forward slash might work like ./. with the first one being
+positioned at the top. This is especially necessary in "medkit 39%" or
+something at the top when using it."
+
+The TTK Big and Medium Italic fonts have `.` and `/` but no `%`, so `%` falls
+back to the system font (`MEDKIT %u%%`, `recomp/src/ttk/shortcuts.inc`). Build
+it in `recomp/tools/local/build_ttk_fonts.py` next to D24C's `exclamation()`:
+the font's own `/`, a period near the top-left on the slant and one on the
+baseline at the right, sized for each font. Preview it in the local font picker
+first. Every set built from these fonts (messages, headings, console, savestate
+panel) gets it.
+
+**Acceptance:** MEDKIT 39% (and any other `%` message) shows the built `%` in
+the message font; Big and Medium both have it; it reads as a percent sign at
+1x and 2x; font tests pass; the user confirms.
 
 ### D25 — Modernized edition release acceptance
 

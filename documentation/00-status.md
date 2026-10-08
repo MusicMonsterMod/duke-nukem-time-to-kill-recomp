@@ -1,5 +1,31 @@
 # Current status - 2026-10-04
 
+## 2026-10-09 - D08A21 accepted; challenge icons tracked; D08A22 queued
+
+- User: "completely approve this change." D08A21 Done; executable
+  `72429e350806e0639f36e50cff0cb969f18df1662a2336794e17bd2263614c21` is the regression baseline.
+- Challenge item icons tracked: `assets/ui/items/hud-challenge.png` (14x14 art)
+  and `16px/hud-challenge.png` (from the user's `challenge-16.gif`), both with
+  15-colour copies; items.json lists CHALLENGE ITEM (not drawn until D08A20).
+- New: D08A22, host switcher strips scale with an integer floor of
+  output height / 480, so they read small in small windows.
+
+## 2026-10-08 - D08A21 14x14 HUD icons swapped in (Needs playtest)
+
+- The user's 14x14-in-16x16 medkit, steroids, invincibility, invisibility and
+  Double Duke icons (`research/inv/items-14/`) are now the active art in
+  `recomp/assets/ui/items/` under the same names; 15-colour copies remade with
+  `reduce_icon_15col.py`; the five cell/CLUT tables in
+  `recomp/src/ttk/gadget_hud.inc` regenerated.
+- The full 16x16 versions are kept, unused by the build, in
+  `recomp/assets/ui/items/16px/` (user: for a future interface).
+- Verified offscreen (private card copy): power-up, steroids and medkit boxes
+  now leave a gap inside the frame; the switcher strip shows the new medkit and
+  steroids. `test_ui_art` / `test_ttk_inv_icons` OK (new border test).
+- Executable `72429e350806e0639f36e50cff0cb969f18df1662a2336794e17bd2263614c21`.
+- Also 2026-10-08: backlog D08Z4, D08A20 (challenge icon delivered, top-right
+  mockups in the font picker), D12D, D18E, D22D, D24E.
+
 ## 2026-10-08 - D08A12 accepted
 
 - User: "perfectly done." D08A12 Done; executable

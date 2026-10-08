@@ -20,6 +20,7 @@
     {"name": "MEDKIT", "file": "gadget-medkit.png", "hud_file": "gadget-medkit-15col.png", "types": [], "levels": [], "gadget": 5},
     {"name": "INVINCIBILITY", "file": "hud-invincibility.png", "hud_file": "hud-invincibility-15col.png", "types": [1047], "levels": [], "hud": true},
     {"name": "INVISIBILITY", "file": "hud-invisibility.png", "hud_file": "hud-invisibility-15col.png", "types": [1045], "levels": [], "hud": true},
-    {"name": "DOUBLE DUKE", "file": "hud-double-duke.png", "hud_file": "hud-double-duke-15col.png", "types": [1046], "levels": [], "hud": true}
+    {"name": "DOUBLE DUKE", "file": "hud-double-duke.png", "hud_file": "hud-double-duke-15col.png", "types": [1046], "levels": [], "hud": true},
+    {"name": "CHALLENGE ITEM", "file": "hud-challenge.png", "hud_file": "hud-challenge-15col.png", "types": [633], "levels": [], "hud": true}
   ]
 }

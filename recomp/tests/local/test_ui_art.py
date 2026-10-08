@@ -27,6 +27,10 @@ class ProjectUiArt(unittest.TestCase):
         # cell: index 0 transparent, then colours (PSX 15-bit) in raster order.
         self.check_hud_cell('medkit', 'gadget-medkit-15col.png')
 
+    def test_challenge_hud_cell_matches_png(self):
+        # D08A20 option A: active 14x14 art (full 16x16 stays under 16px/).
+        self.check_hud_cell('challenge', 'hud-challenge-15col.png')
+
     def test_steroids_hud_cell_matches_png(self):
         # D08A4: the steroids box icon, reduced by tools/local/reduce_icon_15col.py.
         self.check_hud_cell('steroids', 'hud-steroids-15col.png')
@@ -111,7 +115,7 @@ class ProjectUiArt(unittest.TestCase):
         expected = {'SUBWAY SECURITY KEY', 'TRANSPORT ROOM ID', 'WAREHOUSE KEY', 'GANTRY KEY', 'VALVE KEY', 'LAB KEY',
                     'VALVE ROOM KEY', 'RED ENERGY CRYSTAL', 'BLUE ENERGY CRYSTAL', 'GREEN ENERGY CRYSTAL', 'SKELETON KEY',
                     'SCRAP OF PAPER', 'OLD NOTE', 'TORN PAPER', 'FAMILY JEWEL', 'STEROIDS', 'MEDKIT',
-                    'INVINCIBILITY', 'INVISIBILITY', 'DOUBLE DUKE', 'CHALLENGE ITEM'}  # D08A20 art, not drawn yet
+                    'INVINCIBILITY', 'INVISIBILITY', 'DOUBLE DUKE', 'CHALLENGE ITEM'}  # D08A20 option A
         self.assertEqual(names, expected)
         for item in manifest['items']:
             for key in ('file', 'hud_file'):

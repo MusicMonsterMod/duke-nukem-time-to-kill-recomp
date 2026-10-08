@@ -4,7 +4,7 @@ This is the canonical job list for our **Duke Nukem: Time to Kill** PC project, 
 
 Invoke **`$continue-duke-recomp`** (Codex) or **`/continue-duke-recomp`** (Claude Code) to see the current jobs and choose one. You can also request a job directly: **`$continue-duke-recomp work on D01`** or **`/continue-duke-recomp work on D01`**. The skill reads this file rather than keeping a second backlog. It must not automatically start the next job.
 
-**Latest accepted job (2026-10-09): D08A21 (14x14 HUD item icons; the 16x16 versions kept in `recomp/assets/ui/items/16px/`); executable `72429e350806e0639f36e50cff0cb969f18df1662a2336794e17bd2263614c21` is the regression baseline. New: D08A22 (switcher scale in small windows).** Earlier (2026-10-08): D08A12 (modern dynamite: unlit until fire, switch away freely, next stick drawn after a throw); executable `2d54e00b64bcf38917e41db47805338f75977b0b63a0868cb962242ffaaadb9d` is the regression baseline. Queued: D24D, D26G.** Earlier (2026-10-08): D08A19 (used mission items: USED and the green tick); executable `d67705eba48232029a90647cc781f3201d0aae29799678466b2b5b9337b5dbe8`. Earlier (2026-10-08): D08Z2 (mantle pose; frozen legs after a corner bump); executable `bfd41760f9c66f2f03cf859f820f7b7d27cd8991e8ce1f304f5456ea29bf8986` is the regression baseline. D08Z3 (modern landing) accepted 2026-10-08; executable `11187493c04ae830482c47c93b97ac332fbfce1de95f8eedaa2f8637d7fe164e` is the new regression baseline. Queued: D24D, D26G, D08A19.** Earlier (2026-10-08): D08Z1 (jump wall slide); executable `3f909c9f2cc4e5b09ba6faab5129ec9ae0ff938c4735e264ac67a66405c1ed34`. Earlier (2026-10-08): D08A17 (power-up countdowns); executable `8f338cde1c2dc4cf73da747621cffafe2478512f6419078a41d11b0d3b9268a9`. Earlier accepted jobs (2026-10-08): D08A14 (death ends steroids), D08A15 (heartbeat restart; a pickup mid-run stops steroids) and D08G4 (inventory cheats give full armor); executable `87fe38d4f0ea8560312f53171345c207f332e26b6f4d2ed7220e1afae66ba472` is the regression baseline.** Earlier: D08J2 (pole/chain A/D direction), D08U2 (climb off a ladder past an enemy), D08O3 (E in water keeps the weapon) and D08O2A (natural swim-fire pose v2), 2026-10-07.** Previous baseline `e8eebb809c3d5a4b29779f11f0c9db55efcd846dc5c71b39d5a59d43158eb08e` (D08U2). **D08J2 (pole/chain A/D direction) Accepted 2026-10-07**: executable `129a64f2df3f5395f2d3485a310a03d74c85f9b1086c7dab37fee59277c7968b` is the current regression baseline ([note 122](documentation/122-d08j2-pole-chain-sidestep.md)). Todo: D08J4 (ceiling monkey-bar drops, UI slot 3), D08J3 (free camera while climbing). Previous baseline `e75b50f156137fa2377e4643407b2efbd16f2e976fa4d697afcbceb228e2e554` (D08O3). **D23E (western-town stutter) Accepted 2026-10-07**; **D08O2A Accepted** ([note 119](documentation/119-d08o2a-natural-swim-fire-pose.md)), **D08O3 Accepted** ([note 120](documentation/120-d08o3-e-in-water.md)); **D23F (fast CPU timing) Accepted 2026-10-05 and now the Modernized default**; executable `e0737a9f712aa5622d1b057ee5071e12c33cc9a18de8e6d40ee8eee31083f966` (includes D23E), [note 104](documentation/104-d23e-busy-scene-stutter.md), [note 105](documentation/105-d23f-fast-timing.md). Next suggested: D23G (finish the fast path) and D17S (auto frame-rate default).
+**Latest accepted job (2026-10-09): D08A20 (challenge item HUD, option A - 14x14 icon in a square); executable `a047b37bbb833b84902a3ad344fff2e16c22ae3dc0093ad441d80c3eb9235a95` is the regression baseline. Queued: D08A22, D24D, D26G.** Earlier (2026-10-09): D08A21 (14x14 HUD item icons; the 16x16 versions kept in `recomp/assets/ui/items/16px/`); executable `72429e350806e0639f36e50cff0cb969f18df1662a2336794e17bd2263614c21`.** Earlier (2026-10-08): D08A12 (modern dynamite: unlit until fire, switch away freely, next stick drawn after a throw); executable `2d54e00b64bcf38917e41db47805338f75977b0b63a0868cb962242ffaaadb9d` is the regression baseline. Queued: D24D, D26G.** Earlier (2026-10-08): D08A19 (used mission items: USED and the green tick); executable `d67705eba48232029a90647cc781f3201d0aae29799678466b2b5b9337b5dbe8`. Earlier (2026-10-08): D08Z2 (mantle pose; frozen legs after a corner bump); executable `bfd41760f9c66f2f03cf859f820f7b7d27cd8991e8ce1f304f5456ea29bf8986` is the regression baseline. D08Z3 (modern landing) accepted 2026-10-08; executable `11187493c04ae830482c47c93b97ac332fbfce1de95f8eedaa2f8637d7fe164e` is the new regression baseline. Queued: D24D, D26G, D08A19.** Earlier (2026-10-08): D08Z1 (jump wall slide); executable `3f909c9f2cc4e5b09ba6faab5129ec9ae0ff938c4735e264ac67a66405c1ed34`. Earlier (2026-10-08): D08A17 (power-up countdowns); executable `8f338cde1c2dc4cf73da747621cffafe2478512f6419078a41d11b0d3b9268a9`. Earlier accepted jobs (2026-10-08): D08A14 (death ends steroids), D08A15 (heartbeat restart; a pickup mid-run stops steroids) and D08G4 (inventory cheats give full armor); executable `87fe38d4f0ea8560312f53171345c207f332e26b6f4d2ed7220e1afae66ba472` is the regression baseline.** Earlier: D08J2 (pole/chain A/D direction), D08U2 (climb off a ladder past an enemy), D08O3 (E in water keeps the weapon) and D08O2A (natural swim-fire pose v2), 2026-10-07.** Previous baseline `e8eebb809c3d5a4b29779f11f0c9db55efcd846dc5c71b39d5a59d43158eb08e` (D08U2). **D08J2 (pole/chain A/D direction) Accepted 2026-10-07**: executable `129a64f2df3f5395f2d3485a310a03d74c85f9b1086c7dab37fee59277c7968b` is the current regression baseline ([note 122](documentation/122-d08j2-pole-chain-sidestep.md)). Todo: D08J4 (ceiling monkey-bar drops, UI slot 3), D08J3 (free camera while climbing). Previous baseline `e75b50f156137fa2377e4643407b2efbd16f2e976fa4d697afcbceb228e2e554` (D08O3). **D23E (western-town stutter) Accepted 2026-10-07**; **D08O2A Accepted** ([note 119](documentation/119-d08o2a-natural-swim-fire-pose.md)), **D08O3 Accepted** ([note 120](documentation/120-d08o3-e-in-water.md)); **D23F (fast CPU timing) Accepted 2026-10-05 and now the Modernized default**; executable `e0737a9f712aa5622d1b057ee5071e12c33cc9a18de8e6d40ee8eee31083f966` (includes D23E), [note 104](documentation/104-d23e-busy-scene-stutter.md), [note 105](documentation/105-d23f-fast-timing.md). Next suggested: D23G (finish the fast path) and D17S (auto frame-rate default).
 
 ## The experience we are building
 
@@ -70,11 +70,12 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08A17 | Power-up countdowns: invincibility, invisibility and Double Duke get HUD boxes counting down, like steroids (Quake-style) | Done (user-accepted) | D08A16, D08A8 |
 | D08A18 | Mission inventory: Enter tries to use the browsed item; elsewhere "can't use this here" (cheat-message style) | Done (user-accepted) | D08A5, D24A |
 | D08A19 | Used mission items: switcher status USED and a green tick on the icon (user art delivered) | Done (user-accepted) | D08A18, D08A5 |
-| D08A20 | Challenge item (type 633, "SURPRISE") shown in the top right of the HUD once found (user art delivered) | Todo | D08A16, D24A |
+| D08A20 | Challenge item (type 633, "SURPRISE") shown in the top right of the HUD once found (user art delivered) | Done (user-accepted) | D08A16, D24A |
 | D08A21 | Re-export HUD item icons with 14x14 art inside the 16x16 canvas (medkit, steroids, power-up coins) | Done (user-accepted) | D08A4, D08A7, D08A16 |
 | D08A22 | Switcher strips and mission card scale with the window like the native HUD (icons too small in small windows) | Todo | D08A1, D08A5, D24A |
 | D08G3 | `dnupgrade` cheat: upgrade all weapons (Laser Gatling etc.) | Accepted | D08G2 |
 | D08G4 | `dnstuff`, `dnitems`, `dninventory` also give 100% armor; running steroids stop and a full dose is held | Done (user-accepted) | D08G |
+| D08G5 | Partial cheat entry causes mouse-look stutter until another key breaks the sequence | Todo | D08G2 |
 | D08H | Apartment furniture, hidden pickup and switch targeting | Done | D08 |
 | D08I | Responsive run-start and edge jumps | Done | D08 |
 | D08J | Armed airborne ladder grabs and automatic weapon transitions | Done | D08, D08E |
@@ -1674,7 +1675,13 @@ used items in full colour with the green tick. Details in
 
 ### D08A20 - Challenge item shown on the HUD once found (user art)
 
-**Todo. User request, 2026-10-08:** "Challenge item - it says surprise on the
+**Done (user-accepted, 2026-10-09: "fully accepted. ... this is it, excellent!!!").**
+Shipped layout is **option A**: 14x14 icon in the native box's left cell (divider
+as the right edge), top-right. Executable
+`a047b37bbb833b84902a3ad344fff2e16c22ae3dc0093ad441d80c3eb9235a95`. Note
+[139](documentation/139-d08a20-challenge-hud.md).
+
+**Was Needs playtest. User request, 2026-10-08:** "Challenge item - it says surprise on the
 screen. Should show on screen that we got the timer device thing, as an item on
 our hud. Add the placeholder for me to make an item on the ttk font picker
 document and i will make an original asset based off the in game item."
@@ -1721,6 +1728,18 @@ saved and restored by the original; verify). Modernized only.
 Modernized, picking up the challenge item shows it on the HUD as decided, in
 at least two levels, and it survives save/load as the original flag does;
 Vanilla unchanged; the user confirms.
+
+**Work log (2026-10-09, Done - option A accepted):** user: "fully accepted."
+During playtest they switched from D to A: 14x14 icon in the box's left cell.
+`gadget_hud.inc` draws `hud-challenge-15col.png` with `cell_only` (box width
+19); right edge matches the ammo box. Font picker section 15 marks A accepted;
+section 8 reworked (E shipped first, A-D historical). `test_ui_art.py` OK.
+Executable `a047b37bbb833b84902a3ad344fff2e16c22ae3dc0093ad441d80c3eb9235a95`.
+
+**Earlier work log (2026-10-09, option D):** user selected D, icon alone, and
+the larger art under `recomp/assets/ui/items/16px/`. Verified offscreen with
+spawned type 633 in levels 0 and 5, savestate round trips, Vanilla clear.
+Executable then: `ec8633b095aa70d3a2393613b216a75d47e80322fcb29b4b5a3f26210962bc1c`.
 
 ### D08A21 - Re-export HUD item icons with 14x14 art inside the 16x16 canvas
 
@@ -2065,6 +2084,24 @@ directly needs anything else the pickup does (HUD refresh, a flag).
    becomes 100% and the steroid timer and flags are unchanged (compare
    `+0x366` against the drain alone).
 5. Armor shows in the status bar armor element; other cheats unchanged.
+
+### D08G5 - Partial cheat entry must not cause mouse-look stutter
+
+**Todo. User report, 2026-10-09:** type part of a cheat, for example `dnstu`,
+then move the mouse. Duke stutters until a key such as W breaks the pending
+sequence. Prevent the incomplete cheat sequence from disrupting normal play.
+Reported during the D08A20 playtest; no cause established or implementation
+started for this ticket.
+
+**Acceptance:**
+1. In Modernized, enter `dnstu`, stop typing and move the mouse: camera and
+   Duke remain smooth without needing a keyboard press to recover. Check
+   first- and third-person views, plus other valid partial cheat prefixes.
+2. Movement can interrupt a partial sequence immediately and normally;
+   completing a valid cheat still triggers it once, with the existing silent
+   entry and confirmation behavior preserved.
+3. Invalid/cancelled sequences leave no lingering input suppression or camera
+   disturbance; Vanilla behavior remains unchanged.
 
 ### D08H — Apartment furniture, hidden pickup and switch targeting
 
@@ -11508,3 +11545,13 @@ in note 117 is the reference for future custom pickups.
   D08A19 tick placeholder: spec (8x8 recommended), drop slot, FOUND/USED
   previews on all eight mission item designs at 8x/2x/1x, and crops of the
   user's mockup. Renders in headless Chrome with no script errors.
+
+## 2026-10-09 - D08A20 accepted (option A)
+
+- User: "fully accepted. ... this is it, excellent!!!" D08A20 Done; executable
+  `a047b37bbb833b84902a3ad344fff2e16c22ae3dc0093ad441d80c3eb9235a95` is the
+  regression baseline. [Note 139](documentation/139-d08a20-challenge-hud.md).
+- Shipped: 14x14 challenge icon in the native box's left cell (option A). Playtest
+  first used D (borderless 16x16); A won. Local font picker section 15 marks A
+  accepted; section 8 shows E as shipped with A-D under historical details.
+- Queued remains: D08A22, D24D, D26G.

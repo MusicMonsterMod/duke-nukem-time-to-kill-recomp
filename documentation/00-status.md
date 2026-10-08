@@ -1,5 +1,14 @@
 # Current status - 2026-10-04
 
+## 2026-10-09 - D08A20 accepted (option A square)
+
+- User: "fully accepted. ... this is it, excellent!!!" D08A20 Done; executable
+  `a047b37bbb833b84902a3ad344fff2e16c22ae3dc0093ad441d80c3eb9235a95` is the
+  regression baseline. [Note 139](139-d08a20-challenge-hud.md).
+- Layout: 14x14 challenge icon in the native box's left cell (option A). Font
+  picker section 15 marks A accepted; section 8 shows E as shipped.
+- Still queued: D08A22, D24D, D26G.
+
 ## 2026-10-09 - D08A21 accepted; challenge icons tracked; D08A22 queued
 
 - User: "completely approve this change." D08A21 Done; executable

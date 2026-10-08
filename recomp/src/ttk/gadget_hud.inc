@@ -91,6 +91,19 @@ static const uint32_t k_double_duke_cell[32]={  // 16 rows, 2 words a row, texel
     0x494a4280u,0x07978838u,0xf5bab780u,0x047ffd4fu,0xeafff780u,0x087dedbeu,0xdfbebbc0u,0x0cbfebeeu,
     0xfa637800u,0x008a86bfu,0x1c349000u,0x000648c1u,0xba4c0000u,0x0000c4abu,0x00000000u,0x00000000u};
 
+// D08A20 option A: 14x14 challenge art in the box's left cell (divider as the
+// right edge). Source: assets/ui/items/hud-challenge-15col.png. Next free
+// cell/palette in the same HUD-sheet band: (980,205), (1008,211). The full
+// 16x16 art stays under assets/ui/items/16px/ for comparison.
+static const uint16_t k_challenge_clut[16]={
+    0x0000u,0x0410u,0x109bu,0x316cu,0x18c8u,0x2528u,0x18c6u,0x1084u,
+    0x0427u,0x14a5u,0x0c63u,0x8000u,0x0842u,0x0422u,0x0421u,0x18c5u};
+static const uint32_t k_challenge_cell[32]={  // 16 rows, 2 words a row, texel 0 lowest
+    0x00000000u,0x00000000u,0x00121000u,0x00012200u,0x33112200u,0x00221143u,0x53341220u,0x02218676u,
+    0x96433180u,0x081457aau,0x655535b0u,0x0b969999u,0xddc745a0u,0x0c97adedu,0x181d9560u,0x0a7a8111u,
+    0x111879a0u,0x0caa8111u,0x888a7ae0u,0x0bcc7188u,0xf656aab0u,0x0bee96ffu,0xeea7ce00u,0x00beacdcu,
+    0xeedce000u,0x000eeeeeu,0xccce0000u,0x0000eeeeu,0xcaae0000u,0x0000ecccu,0x00000000u,0x00000000u};
+
 // Gadgets whose box icon is the project's own art rather than a disc record.
 struct GadgetArt {unsigned item;uint16_t cell_x,cell_y,clut_x,clut_y;const uint32_t* cell;const uint16_t* clut;};
 static constexpr GadgetArt gadget_art[]={
@@ -114,6 +127,7 @@ static constexpr PowerUp powerups[]={
     {0x89c,{1045,972,205,1008,209,k_invisibility_cell,k_invisibility_clut}},
     {0x89e,{1046,976,205,1008,210,k_double_duke_cell,k_double_duke_clut}},
 };
+static constexpr GadgetArt challenge_art={633,980,205,1008,211,k_challenge_cell,k_challenge_clut};
 static const GadgetArt* own_art(unsigned item) {
     for(const auto& art:gadget_art) if(art.item==item) return &art;
     return nullptr;
@@ -157,7 +171,9 @@ static bool gadget_owned(unsigned item) {
 }
 // Original HUD calls on one saved stack and scratchpad (see original_call).
 // The icon is a disc record, or the project's art when art is given.
-static bool hud_box_draw(CPUState* source,uint32_t icon,const GadgetArt* art,int32_t value,int x,int y,bool lit) {
+// bare: icon alone. cell_only (D08A20 option A): icon plus the box's left
+// cell only (width 19 = columns 0..18, the divider as the right edge); no digits.
+static bool hud_box_draw(CPUState* source,uint32_t icon,const GadgetArt* art,int32_t value,int x,int y,bool lit,bool bare=false,bool cell_only=false) {
     const uint32_t top=source->gpr[29];
     if(guest_busy || top<0x801f4000 || top>0x801ffff0 || g_precise_mode || g_ls_mode || g_psx_call_bail) return false;
     uint32_t saved[1024],scratch[256];
@@ -173,27 +189,37 @@ static bool hud_box_draw(CPUState* source,uint32_t icon,const GadgetArt* art,int
         guest_busy=true;psx_dispatch_call(&cpu,address,0x800000fc);guest_busy=false;
         ok=cpu.pc==0 && !g_psx_call_bail;
     };
-    call(0x8008b98c,text,(uint32_t)value,0,0);
-    unsigned glyphs=0;
-    for(unsigned i=0;i<12 && psx_mod_read_byte(text+i);++i) ++glyphs;
-    uint32_t packet=psx_mod_read_word(glyph_cursor);
-    const int16_t step=(int16_t)psx_mod_read_half(0x800d22a4);
-    call(0x8008b454,text,(uint32_t)(x+step/16),(uint32_t)(y+2),0x310);
-    if(ok && !lit) {
-        // Same walk as the glyph writer 0x8008b210: 0x28-byte packets, wrapping
-        // to the buffer start when the next one would pass its end.
-        const uint32_t start=psx_mod_read_word(glyph_cursor+4),end=psx_mod_read_word(glyph_cursor+8);
-        for(unsigned n=0;n<glyphs;++n) {
-            if(end<packet+0x28) packet=start;
-            if(packet<0x80010000 || packet>0x801fffd8 || psx_mod_read_byte(packet+7)!=0x2c) break;
-            for(unsigned c=4;c<7;++c) psx_mod_write_byte(packet+c,0x31);
-            packet+=0x28;
+    if(!bare && !cell_only) {
+        call(0x8008b98c,text,(uint32_t)value,0,0);
+        unsigned glyphs=0;
+        for(unsigned i=0;i<12 && psx_mod_read_byte(text+i);++i) ++glyphs;
+        uint32_t packet=psx_mod_read_word(glyph_cursor);
+        const int16_t step=(int16_t)psx_mod_read_half(0x800d22a4);
+        call(0x8008b454,text,(uint32_t)(x+step/16),(uint32_t)(y+2),0x310);
+        if(ok && !lit) {
+            // Same walk as the glyph writer 0x8008b210: 0x28-byte packets, wrapping
+            // to the buffer start when the next one would pass its end.
+            const uint32_t start=psx_mod_read_word(glyph_cursor+4),end=psx_mod_read_word(glyph_cursor+8);
+            for(unsigned n=0;n<glyphs;++n) {
+                if(end<packet+0x28) packet=start;
+                if(packet<0x80010000 || packet>0x801fffd8 || psx_mod_read_byte(packet+7)!=0x2c) break;
+                for(unsigned c=4;c<7;++c) psx_mod_write_byte(packet+c,0x31);
+                packet+=0x28;
+            }
         }
     }
     const uint32_t own_record=top-0x40;
     if(art) art_record_write(own_record,*art);
-    call(0x8008b678,art?own_record:icon,(uint32_t)(x+1),(uint32_t)y,0);
-    call(0x8008b678,gadget_box,(uint32_t)x,(uint32_t)y,0);
+    call(0x8008b678,art?own_record:icon,(uint32_t)(x+(bare?0:1)),(uint32_t)y,0);
+    if(!bare) {
+        if(cell_only) {
+            // Disc box 0x800c44a4 is 46 wide; crop to the icon cell (DIV 18 + 1).
+            const uint32_t box_record=top-0x50;
+            for(unsigned i=0;i<16;i+=4) psx_mod_write_word(box_record+i,psx_mod_read_word(gadget_box+i));
+            psx_mod_write_byte(box_record+2,19);
+            call(0x8008b678,box_record,(uint32_t)x,(uint32_t)y,0);
+        } else call(0x8008b678,gadget_box,(uint32_t)x,(uint32_t)y,0);
+    }
     // The original's ordering-table add 0x8002bc18 (slot 0, the status bar's)
     // puts a packet at the head of its slot, so the load added last runs first.
     if(ok && art)
@@ -208,10 +234,29 @@ static bool gadget_box_draw(CPUState* source,unsigned item,int x,int y,bool lit)
     const int32_t value=capacity?charge*100/(int32_t)capacity:charge;
     return hud_box_draw(source,gadget_icon(item),own_art(item),value,x,y,lit);
 }
-static unsigned powerup_draws;
+static unsigned powerup_draws,challenge_draws;
+static void challenge_hud(CPUState* cpu) {
+    // Pickup type 633 sets this byte at 0x80082d08; original reset 0x8003ff34
+    // clears it. Read guest state each draw, including savestate/replay copies.
+    // No host latch and no change to the pickup message or inventory selection.
+    // Option A: 14x14 icon in the box's left cell (19 wide; divider as the edge).
+    if(!psx_mod_read_byte(player+0x85e) || !identity()) return;
+    const int x=(int16_t)psx_mod_read_half(hud_layout+8);
+    const int y=(int16_t)psx_mod_read_half(hud_layout+10);
+    const int width=psx_mod_read_byte(gadget_box+2),height=psx_mod_read_byte(gadget_box+3);
+    // 0x8008b7ec..0x8008b828 scales sprite widths by screen width / 320;
+    // positions are already in screen units (512 in the player build).
+    const int screen_width=(int16_t)psx_mod_read_half(0x800d22a4);
+    constexpr int cell_w=19;
+    const int right_offset=width*screen_width/320-cell_w*screen_width/320;
+    // Match the ammo box's right edge, mirror its bottom inset at the top.
+    // The layout is already shifted for the selected widescreen aspect.
+    if(hud_box_draw(cpu,0,&challenge_art,0,x+right_offset,-y-height,true,false,true)) ++challenge_draws;
+}
 static void gadget_hud(CPUState* cpu) {
     steroids_hud_restore();
     if(!hud_applied || psx_mod_read_byte(player+0x233)!=0) return;
+    challenge_hud(cpu);
     // The selection as the original menu's remembered ID (shortcuts.inc keeps
     // it equal to selected_item): high-refresh redraws replay this function in
     // worker processes on a copy of guest memory, where host state is stale.
@@ -260,8 +305,9 @@ static void gadget_hud(CPUState* cpu) {
     gadget_box_draw(cpu,item,x,y,item==5 || item==4 || on);
 }
 static const char* powerups_debug_json() {
-    static char buffer[160];
-    std::snprintf(buffer,sizeof buffer,"{\"draws\":%u,\"invincibility\":%d,\"invisibility\":%d,\"double_duke\":%d}",powerup_draws,
-        (int16_t)psx_mod_read_half(player+0x8a0),(int16_t)psx_mod_read_half(player+0x89c),(int16_t)psx_mod_read_half(player+0x89e));
+    static char buffer[224];
+    std::snprintf(buffer,sizeof buffer,"{\"draws\":%u,\"invincibility\":%d,\"invisibility\":%d,\"double_duke\":%d,\"challenge_found\":%u,\"challenge_draws\":%u}",powerup_draws,
+        (int16_t)psx_mod_read_half(player+0x8a0),(int16_t)psx_mod_read_half(player+0x89c),(int16_t)psx_mod_read_half(player+0x89e),
+        psx_mod_read_byte(player+0x85e),challenge_draws);
     return buffer;
 }

@@ -10,7 +10,9 @@ Pack TTKMIS1: 'TTKMIS1\\0', u32 count, then per entry u16 kind, u16 name length,
 the ASCII name, u16 w, u16 h and RGBA bytes. Kinds:
   0 icon (name = item name), 1 missing-item silhouette (name = item name),
   2 frame grey (the project frame as drawn), 3 frame orange (gadget selection),
-  4 frame steel (browsed mission slot / item card).
+  4 frame steel (browsed mission slot / item card),
+  5 used tick (D08A19: items/mark-used.png, the user's green tick, at most 16x16,
+    drawn over the icon's bottom-right corner once the item is used).
 The orange and steel frames are palette swaps (approved design E): each frame
 pixel's brightness, normalised over the frame, picks a step of the ramp, so the
 bevel and shading carry over. Only colour values are reused (the orange ramp is
@@ -82,6 +84,11 @@ def build(ui=UI):
     w, h, frame = read_rgba_png(ui / 'item-frame.png')
     entries += [entry(2, 'frame', w, h, frame), entry(3, 'frame', w, h, swap(frame, RAMP_ORANGE)),
                 entry(4, 'frame', w, h, swap(frame, RAMP_STEEL))]
+    w, h, tick = read_rgba_png(ui / 'items/mark-used.png')
+    if w > 16 or h > 16:
+        raise SystemExit(f'mark-used.png: at most 16x16, got {w}x{h}')
+    entries.append(entry(5, 'used', w, h, tick))
+    provenance['used tick'] = 'mark-used.png'
     return b'TTKMIS1\0' + struct.pack('<I', len(entries)) + b''.join(entries), provenance
 
 

@@ -50,9 +50,12 @@ uint64_t mission_expires;
 uint32_t card_pixels[592*52];
 struct MissionArt {std::string name;Sprite icon,missing;};
 std::vector<MissionArt> mission_art;
-Sprite frame_grey,frame_orange,frame_steel;
+Sprite frame_grey,frame_orange,frame_steel,used_tick;
 bool mission_loaded;
 bool found(const MissionDef& d){return mission_flags[d.item]&1;}
+// D08A19: used up at its lock (see ttk::mission_used_bit); it stays collected.
+bool used(const MissionDef& d){return (mission_flags[d.item]&(ttk::mission_used_bit|1))==ttk::mission_used_bit;}
+bool collected(const MissionDef& d){return found(d) || used(d);}
 const char* mission_kind(const char* name){
     if(std::strstr(name,"CRYSTAL"))return "CRYSTAL";
     if(std::strstr(name,"JEWEL"))return "JEWEL";
@@ -198,6 +201,7 @@ bool load_mission(){
         } else if(kind==2)frame_grey=std::move(sprite);
         else if(kind==3)frame_orange=std::move(sprite);
         else if(kind==4)frame_steel=std::move(sprite);
+        else if(kind==5 && sprite.w<=16 && sprite.h<=16)used_tick=std::move(sprite);
         else return false;
     }
     if(!frame_grey.w || !frame_orange.w || !frame_steel.w)return false;
@@ -236,12 +240,14 @@ struct Canvas {
     }
 };
 // One framed mission slot: the 25x23 project frame at 42x39, the 16x16 icon at
-// 2x inside it, a dim silhouette while the item is missing.
+// 2x inside it, a dim silhouette while the item is missing. D08A19: a used
+// item keeps its icon with the user's tick on the icon's bottom-right corner.
 void framed_icon(Canvas& c,const Sprite& frame,const MissionDef& d,int x,int y){
     c.stretch(frame,x,y,42,39);
-    if(const MissionArt* a=art_for(d.name))c.sprite(found(d)?a->icon:a->missing,x+5,y+3,2);
+    if(const MissionArt* a=art_for(d.name))c.sprite(collected(d)?a->icon:a->missing,x+5,y+3,2);
+    if(used(d) && used_tick.w)c.sprite(used_tick,x+5+(16-used_tick.w)*2,y+3+(16-used_tick.h)*2,2);
 }
-unsigned found_count(){unsigned n=0;for(int i=0;i<slot_count;++i)n+=found(*slots[i]);return n;}
+unsigned found_count(){unsigned n=0;for(int i=0;i<slot_count;++i)n+=collected(*slots[i]);return n;}
 void draw_mission_row(uint32_t* px,int w,int h,int y0){
     Canvas c{px,w,h};
     const int pw=slot_count*46+12,ph=70,x0=(w-pw)/2;
@@ -321,15 +327,15 @@ extern "C" int ttk_mission_card_image(const uint32_t** out,int* width,int* heigh
     constexpr int w=592,h=52;
     if(!ttk::mission_visible() || browse>=slot_count || available_width<w || !load_mission())return 0;
     const MissionDef& d=*slots[browse];
-    const bool got=found(d);
+    const bool got=collected(d);
     Canvas c{card_pixels,w,h};
     std::fill(card_pixels,card_pixels+w*h,0u);
     c.panel(0,0,w,h);
     framed_icon(c,frame_steel,d,10,6);
     ttk_font_draw(got?TTK_FONT_PANEL_SLOT:TTK_FONT_PANEL_SLOT_SELECTED,d.name,card_pixels,w,h,64,12);
     ttk_font_draw(TTK_FONT_PANEL_DIM,mission_kind(d.name),card_pixels,w,h,66,30);
-    const char* status=got?"FOUND":"NOT FOUND YET";
-    const int set=got?TTK_FONT_MISSION_FOUND:TTK_FONT_PANEL_DIM;
+    const char* status=used(d)?"USED":got?"FOUND":"NOT FOUND YET";
+    const int set=used(d)?int(TTK_FONT_MISSION_USED):got?int(TTK_FONT_MISSION_FOUND):int(TTK_FONT_PANEL_DIM);
     const int sw=ttk_font_text_width(set,status);
     if(sw>0)ttk_font_draw(set,status,card_pixels,w,h,w-sw-14,22);
     *out=card_pixels;*width=w;*height=h;return 1;

@@ -1149,7 +1149,11 @@ takes it (a card reader, a key door, a crystal holder or receptacle), it does
 exactly what **E** there does: Duke puts his weapon away, takes the item out and
 uses it, and the original uses it up. Anywhere else, "CAN'T USE THIS HERE"
 appears (in the cheat-message style) and nothing changes; an item you have not
-found yet says "NOT FOUND YET". **[ / ]** switch to the gadgets. The
+found yet says "NOT FOUND YET". Once an item has been used at its lock
+(D08A19), it keeps its full-colour icon with a green tick in the strip and on
+the card, the card says USED (in gold), it still counts toward found/total, and
+Enter on it says "ALREADY USED". Saves and savestates keep this; a new level
+starts clean. **[ / ]** switch to the gadgets. The
 gadget switcher itself shows gadgets only; its selected frame is now orange.
 Levels without mission items ignore **, / .**. Keyboard only for now. Vanilla is
 unchanged; the original L1/R1 sidesteps that comma/period used to send are

@@ -92,6 +92,23 @@ int main(int argc,char**argv) {
     ttk::inventory_update(5,none,amount,capacities,false);ttk::mission_update(0,all);
     ttk::mission_browse_press(1);ttk::mission_update(0,all);
     assert(visible() && h==72);save("mission-level0-complete",pixels,w,h);
+    // D08A19: the subway key used (marker, bit 0 clear), the Transport Room ID
+    // found. The used key keeps its icon with the tick and counts as collected.
+    auto ticked=[&](const uint32_t* px,int stride){ // tick area: icon pixels 8..15 at 2x
+        int green=0;for(int y=25;y<41;++y)for(int x=31;x<47;++x){const uint32_t c=px[y*stride+x];
+            const int r=(c>>16)&255,g=(c>>8)&255,b=c&255;green+=(c>>24)>128 && g>r+30 && g>b+30;}
+        return green;};
+    uint16_t used[17]{};used[6]=ttk::mission_used_bit;used[7]=1;
+    ttk::mission_update(0,used); // still open on the first slot
+    assert(ttk::mission_browsed_item()==6 && visible() && h==72);save("mission-level0-used",pixels,w,h);
+    assert(ttk_mission_card_image(&card,&cw,&ch,624));save("card-key-used",card,cw,ch);
+    assert(ticked(card,cw)>8);
+    // Found again (a use given back): bit 0 wins, FOUND without a tick.
+    used[6]=ttk::mission_used_bit|1;ttk::mission_update(0,used);
+    assert(ttk_mission_card_image(&card,&cw,&ch,624) && ticked(card,cw)==0);save("card-key-found",card,cw,ch);
+    // Never found: no tick either.
+    used[6]=0;ttk::mission_update(0,used);
+    assert(ttk_mission_card_image(&card,&cw,&ch,624) && ticked(card,cw)==0);
     SDL_Delay(2510);ttk::mission_update(0,all);assert(!visible() && !ttk_mission_card_image(&card,&cw,&ch,624));
-    std::puts("PASS: inventory strip, D08A5 mission inventory, browsing, card, timeout");
+    std::puts("PASS: inventory strip, D08A5 mission inventory, browsing, card, D08A19 used, timeout");
 }

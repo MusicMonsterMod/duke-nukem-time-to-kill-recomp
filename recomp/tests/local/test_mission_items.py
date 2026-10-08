@@ -84,8 +84,12 @@ class MissionItems(unittest.TestCase):
         names = {i['name'] for i in manifest['items'] if not i.get('hud') and not i.get('gadget')}
         self.assertEqual({n for k, n, *_ in found if k == 0}, names)
         self.assertEqual({n for k, n, *_ in found if k == 1}, names)
-        frames = {k: px for k, n, w, h, px in found if k >= 2}
+        frames = {k: px for k, n, w, h, px in found if 2 <= k <= 4}
         self.assertEqual(sorted(frames), [2, 3, 4])
+        # D08A19: the user's used tick, as delivered (at most 16x16).
+        ticks = [(w, h, px) for k, n, w, h, px in found if k == 5]
+        self.assertEqual(len(ticks), 1)
+        self.assertEqual(ticks[0], mission.read_rgba_png(ROOT / 'assets/ui/items/mark-used.png'))
         for kind, ramp in [(3, mission.RAMP_ORANGE), (4, mission.RAMP_STEEL)]:
             colours = {frames[kind][i:i + 3].hex() for i in range(0, len(frames[kind]), 4) if frames[kind][i + 3]}
             self.assertTrue(colours <= set(ramp), kind)

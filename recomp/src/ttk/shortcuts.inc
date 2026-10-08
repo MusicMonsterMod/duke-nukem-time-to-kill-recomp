@@ -84,6 +84,21 @@ static void inventory_feedback(bool announce) {
     for(unsigned i=6;i<17;++i)mission[i]=psx_mod_read_half(player+0x354+4*i);
     mission_update(psx_mod_read_word(0x800be570),mission);
 }
+// D08A19: mark a mission item used. The original uses it up at animation 47
+// (8004e494): bit 0 of its flag is cleared as Duke takes it in hand
+// (+0x3b8 = 1, +0x3b9 = item) and is never set again; the lock's mode 3 then
+// empties the hand. A use given back (91fc4) or a new pickup sets bit 0 again
+// and drops the marker, so only a held, cleared item counts as used.
+static void mission_used_track() {
+    const bool holding=psx_mod_read_byte(player+0x3b8)==1;
+    const unsigned held=psx_mod_read_byte(player+0x3b9);
+    for(unsigned i=6;i<17;++i) {
+        const uint32_t address=player+0x354+4*i;
+        const unsigned v=psx_mod_read_half(address);
+        if((v&1) && (v&mission_used_bit))psx_mod_write_half(address,v&~mission_used_bit);
+        else if(!(v&(1|mission_used_bit)) && holding && held==i)psx_mod_write_half(address,v|mission_used_bit);
+    }
+}
 static void remember_item(unsigned item) {
     selected_item=item;
     if(psx_mod_read_half(0x800c3f94)!=item)psx_mod_write_half(0x800c3f94,item);
@@ -99,7 +114,8 @@ static void remember_item(unsigned item) {
 // notice; nothing in the level changes.
 static void mission_use(CPUState* cpu,int item) {
     if(item<6 || item>16)return;
-    if(!(psx_mod_read_half(player+0x354+4*item)&1)) {input_notice("NOT FOUND YET");return;}
+    const unsigned owned=psx_mod_read_half(player+0x354+4*item);
+    if(!(owned&1)) {input_notice(owned&mission_used_bit?"ALREADY USED":"NOT FOUND YET");return;}
     if(!original_call(cpu,0x80077f28,0)) {
         std::fprintf(stderr,"[TTK mission] use of item %d skipped: no nested call here\n",item);return;
     }
@@ -165,9 +181,10 @@ static void select_weapon(CPUState* cpu) {
     const auto& f=input_snapshot(Context::Gameplay);
     input_ack_commands(f.command_serial);
     if(!interaction_alive()) {equipped=last_equipped=255;command_seen=f.command_serial;return;}
-    if(!f.active || !gameplay_context())return;
     // Only primary single-player ownership; no writes into player two's menu.
     if(psx_mod_read_byte(player+0x233)!=0)return;
+    mission_used_track(); // D08A19: also while input is released (no capture)
+    if(!f.active || !gameplay_context())return;
     // D08Q2: Continue can reset the jetpack model/transition while retaining
     // its pending item bit. The original completion at 8004010c clears that
     // bit only while the open/close updater runs. Recover its closed, off

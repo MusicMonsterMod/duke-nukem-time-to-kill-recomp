@@ -109,7 +109,7 @@ class ProjectUiArt(unittest.TestCase):
                     im = Image.open(UI / 'items' / item[key])
                     self.assertEqual((im.mode, im.size), ('RGBA', (16, 16)), item[key])
         used = {item[key] for item in manifest['items'] for key in ('file', 'hud_file') if key in item}
-        on_disk = {p.name for p in (UI / 'items').glob('*.png')}
+        on_disk = {p.name for p in (UI / 'items').glob('*.png')} - {'mark-used.png'}  # D08A19 tick: read by the mission pack builder
         self.assertEqual(used, on_disk)
 
     def test_item_frame_is_rgba_25x23(self):

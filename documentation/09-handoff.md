@@ -1,5 +1,23 @@
 # Next-session handoff
 
+## 2026-10-08 - D08A19 accepted
+
+- User: "well thats absolutely superb. I fully accept, this is the sort of design extension i wanted, introducing something the original game never had, and it looks completely at home. I'd call this feature finished." D08A19 Done; executable `d67705eba48232029a90647cc781f3201d0aae29799678466b2b5b9337b5dbe8` is the regression baseline.
+  Still queued: D24D, D26G.
+
+## 2026-10-08 - D08A19 used mission items (Needs playtest)
+
+- User art delivered (`mark-used.png`, 8x8 green tick); font picker section 14
+  shows it. Used mission items keep their full-colour icon with the tick in the
+  strip and on the card, status USED (gold), counted as collected; Enter on one
+  says ALREADY USED.
+- "Used" = bit 0 cleared while Duke holds that item (animation 47); marker
+  `0x4000` in the item's own flag, so saves keep it and a level reset clears it.
+- Verified live in level 0 (red crystal at its holder) and by staged writes in
+  level 6; savestate round trip; Vanilla never marked. Executable
+  `d67705eba48232029a90647cc781f3201d0aae29799678466b2b5b9337b5dbe8`.
+  [Note 137](137-d08a19-used-mission-items.md). Nothing committed.
+
 ## 2026-10-08 - D08Z3 accepted; D24D, D26G, D08A19 queued
 
 - User: "Completely accept this work as complete, working, and done." D08Z3

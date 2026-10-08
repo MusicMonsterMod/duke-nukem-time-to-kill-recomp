@@ -67,6 +67,8 @@ SETS = [  # name, font, palette or '#rrggbb' tint (system font), scale, spacing,
     ('mission_label', 'micro', '#848484', 2, 1, False),
     ('mission_count', 'micro', '#989c58', 2, 1, False),
     ('mission_complete', 'micro', '#5fd35f', 2, 1, False),
+    # D08A19: USED on the item card, in the gold of the user's mockup.
+    ('mission_used', 'system', '#ffdc30', 1, 0, False),
 ]
 FONT_INFO = {'big': (BIG_ROWS, 17, 8), 'medium': (MEDIUM_ROWS, 11, 5), 'system': (None, 8, 8), 'micro': (None, 5, 4)}  # rows, height, space
 EXCLAMATION = {'big': (2, 3), 'medium': (1, 2)}  # D24C: period rows trimmed, stem taper (px)

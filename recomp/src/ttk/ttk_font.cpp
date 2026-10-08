@@ -11,7 +11,7 @@
 #include <string>
 #include <vector>
 namespace {
-constexpr unsigned max_sets=12,glyph_count=95,set_bytes=8+glyph_count*8;
+constexpr unsigned max_sets=16,glyph_count=95,set_bytes=8+glyph_count*8;
 struct Glyph {unsigned w,h,advance,y,offset;};
 struct Set {unsigned line_height,scale;bool shadow;uint32_t shadow_colour;Glyph glyphs[glyph_count];};
 std::vector<unsigned char> pack;

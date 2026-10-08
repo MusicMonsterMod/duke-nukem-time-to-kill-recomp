@@ -15,6 +15,12 @@ void mission_close();
 // D08A18: inventory item (6..16) of the browsed slot while the mission
 // inventory shows, else -1.
 int mission_browsed_item();
+// D08A19: host marker in a mission item's flag halfword for "used". The
+// original only ever tests, sets and clears bit 0 of items 6..16 (pickup |= 1,
+// use at animation 47 &= ~1, level reset = 0), so the marker rides along in
+// savestates and card saves and a level reset clears it. Used = marker set
+// and bit 0 clear.
+constexpr uint16_t mission_used_bit=0x4000;
 }
 extern "C" {
 #endif

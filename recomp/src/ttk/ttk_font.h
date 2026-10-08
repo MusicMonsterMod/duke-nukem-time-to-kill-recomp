@@ -19,7 +19,9 @@ enum {TTK_FONT_PANEL_TITLE=3,TTK_FONT_PANEL_SLOT=4,TTK_FONT_PANEL_SLOT_SELECTED=
       TTK_FONT_PANEL_TEXT=6,TTK_FONT_PANEL_DIM=7};
 // D08A5 mission row and item card: 8 FOUND (system, green), 9 "MISSION" label,
 // 10 found/total count and 11 the count when all are found (2x Microfont).
-enum {TTK_FONT_MISSION_FOUND=8,TTK_FONT_MISSION_LABEL=9,TTK_FONT_MISSION_COUNT=10,TTK_FONT_MISSION_COMPLETE=11};
+// D08A19: 12 USED (system, the mockup's gold).
+enum {TTK_FONT_MISSION_FOUND=8,TTK_FONT_MISSION_LABEL=9,TTK_FONT_MISSION_COUNT=10,TTK_FONT_MISSION_COMPLETE=11,
+      TTK_FONT_MISSION_USED=12};
 int ttk_font_draw(int set,const char* text,uint32_t* dst,int dst_w,int dst_h,int x,int y);
 // Width in pixels ttk_font_draw would draw, or -1 without a valid pack/set.
 int ttk_font_text_width(int set,const char* text);

@@ -4,7 +4,7 @@ This is the canonical job list for our **Duke Nukem: Time to Kill** PC project, 
 
 Invoke **`$continue-duke-recomp`** (Codex) or **`/continue-duke-recomp`** (Claude Code) to see the current jobs and choose one. You can also request a job directly: **`$continue-duke-recomp work on D01`** or **`/continue-duke-recomp work on D01`**. The skill reads this file rather than keeping a second backlog. It must not automatically start the next job.
 
-**Latest accepted job (2026-10-08): D08Z2 (mantle pose; frozen legs after a corner bump); executable `bfd41760f9c66f2f03cf859f820f7b7d27cd8991e8ce1f304f5456ea29bf8986` is the regression baseline. D08Z3 (modern landing) accepted 2026-10-08; executable `11187493c04ae830482c47c93b97ac332fbfce1de95f8eedaa2f8637d7fe164e` is the new regression baseline. Queued: D24D, D26G, D08A19.** Earlier (2026-10-08): D08Z1 (jump wall slide); executable `3f909c9f2cc4e5b09ba6faab5129ec9ae0ff938c4735e264ac67a66405c1ed34`. Earlier (2026-10-08): D08A17 (power-up countdowns); executable `8f338cde1c2dc4cf73da747621cffafe2478512f6419078a41d11b0d3b9268a9`. Earlier accepted jobs (2026-10-08): D08A14 (death ends steroids), D08A15 (heartbeat restart; a pickup mid-run stops steroids) and D08G4 (inventory cheats give full armor); executable `87fe38d4f0ea8560312f53171345c207f332e26b6f4d2ed7220e1afae66ba472` is the regression baseline.** Earlier: D08J2 (pole/chain A/D direction), D08U2 (climb off a ladder past an enemy), D08O3 (E in water keeps the weapon) and D08O2A (natural swim-fire pose v2), 2026-10-07.** Previous baseline `e8eebb809c3d5a4b29779f11f0c9db55efcd846dc5c71b39d5a59d43158eb08e` (D08U2). **D08J2 (pole/chain A/D direction) Accepted 2026-10-07**: executable `129a64f2df3f5395f2d3485a310a03d74c85f9b1086c7dab37fee59277c7968b` is the current regression baseline ([note 122](documentation/122-d08j2-pole-chain-sidestep.md)). Todo: D08J4 (ceiling monkey-bar drops, UI slot 3), D08J3 (free camera while climbing). Previous baseline `e75b50f156137fa2377e4643407b2efbd16f2e976fa4d697afcbceb228e2e554` (D08O3). **D23E (western-town stutter) Accepted 2026-10-07**; **D08O2A Accepted** ([note 119](documentation/119-d08o2a-natural-swim-fire-pose.md)), **D08O3 Accepted** ([note 120](documentation/120-d08o3-e-in-water.md)); **D23F (fast CPU timing) Accepted 2026-10-05 and now the Modernized default**; executable `e0737a9f712aa5622d1b057ee5071e12c33cc9a18de8e6d40ee8eee31083f966` (includes D23E), [note 104](documentation/104-d23e-busy-scene-stutter.md), [note 105](documentation/105-d23f-fast-timing.md). Next suggested: D23G (finish the fast path) and D17S (auto frame-rate default).
+**Latest accepted job (2026-10-08): D08A19 (used mission items: USED and the green tick); executable `d67705eba48232029a90647cc781f3201d0aae29799678466b2b5b9337b5dbe8` is the regression baseline. Queued: D24D, D26G.** Earlier (2026-10-08): D08Z2 (mantle pose; frozen legs after a corner bump); executable `bfd41760f9c66f2f03cf859f820f7b7d27cd8991e8ce1f304f5456ea29bf8986` is the regression baseline. D08Z3 (modern landing) accepted 2026-10-08; executable `11187493c04ae830482c47c93b97ac332fbfce1de95f8eedaa2f8637d7fe164e` is the new regression baseline. Queued: D24D, D26G, D08A19.** Earlier (2026-10-08): D08Z1 (jump wall slide); executable `3f909c9f2cc4e5b09ba6faab5129ec9ae0ff938c4735e264ac67a66405c1ed34`. Earlier (2026-10-08): D08A17 (power-up countdowns); executable `8f338cde1c2dc4cf73da747621cffafe2478512f6419078a41d11b0d3b9268a9`. Earlier accepted jobs (2026-10-08): D08A14 (death ends steroids), D08A15 (heartbeat restart; a pickup mid-run stops steroids) and D08G4 (inventory cheats give full armor); executable `87fe38d4f0ea8560312f53171345c207f332e26b6f4d2ed7220e1afae66ba472` is the regression baseline.** Earlier: D08J2 (pole/chain A/D direction), D08U2 (climb off a ladder past an enemy), D08O3 (E in water keeps the weapon) and D08O2A (natural swim-fire pose v2), 2026-10-07.** Previous baseline `e8eebb809c3d5a4b29779f11f0c9db55efcd846dc5c71b39d5a59d43158eb08e` (D08U2). **D08J2 (pole/chain A/D direction) Accepted 2026-10-07**: executable `129a64f2df3f5395f2d3485a310a03d74c85f9b1086c7dab37fee59277c7968b` is the current regression baseline ([note 122](documentation/122-d08j2-pole-chain-sidestep.md)). Todo: D08J4 (ceiling monkey-bar drops, UI slot 3), D08J3 (free camera while climbing). Previous baseline `e75b50f156137fa2377e4643407b2efbd16f2e976fa4d697afcbceb228e2e554` (D08O3). **D23E (western-town stutter) Accepted 2026-10-07**; **D08O2A Accepted** ([note 119](documentation/119-d08o2a-natural-swim-fire-pose.md)), **D08O3 Accepted** ([note 120](documentation/120-d08o3-e-in-water.md)); **D23F (fast CPU timing) Accepted 2026-10-05 and now the Modernized default**; executable `e0737a9f712aa5622d1b057ee5071e12c33cc9a18de8e6d40ee8eee31083f966` (includes D23E), [note 104](documentation/104-d23e-busy-scene-stutter.md), [note 105](documentation/105-d23f-fast-timing.md). Next suggested: D23G (finish the fast path) and D17S (auto frame-rate default).
 
 ## The experience we are building
 
@@ -69,7 +69,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08A16 | Power-up coin icons: invincibility, invisibility, Double Duke (human design; placeholder section in the font picker) | Done (user-accepted) | D08A8, D24A |
 | D08A17 | Power-up countdowns: invincibility, invisibility and Double Duke get HUD boxes counting down, like steroids (Quake-style) | Done (user-accepted) | D08A16, D08A8 |
 | D08A18 | Mission inventory: Enter tries to use the browsed item; elsewhere "can't use this here" (cheat-message style) | Done (user-accepted) | D08A5, D24A |
-| D08A19 | Used mission items: switcher status USED and a green tick on the icon (user art; placeholder in the font picker) | Todo | D08A18, D08A5 |
+| D08A19 | Used mission items: switcher status USED and a green tick on the icon (user art delivered) | Done (user-accepted) | D08A18, D08A5 |
 | D08G3 | `dnupgrade` cheat: upgrade all weapons (Laser Gatling etc.) | Accepted | D08G2 |
 | D08G4 | `dnstuff`, `dnitems`, `dninventory` also give 100% armor; running steroids stop and a full dose is held | Done (user-accepted) | D08G |
 | D08H | Apartment furniture, hidden pickup and switch targeting | Done | D08 |
@@ -1546,7 +1546,7 @@ Check whether the HUD sheet is uploaded once or per level.
 
 ### D08A19 - Used mission items: USED status and a green tick (user art)
 
-**Todo. User request, 2026-10-08:** "When we find a mission item, in the
+**Done (user-accepted 2026-10-08). User request, 2026-10-08:** "When we find a mission item, in the
 switcher it changes to FOUND. When a mission item has been used, change to USED
 and we should indicate that on it's icon in the switcher too. For this, refer
 to the file "Subway Security Key Used.png" inside the research/inv directory. I
@@ -1570,6 +1570,44 @@ want a placeholder for a GREEN tick i will make".
 icon in the switcher and the info panel, in at least two levels; found but
 unused items still read FOUND; saves keep the state; Vanilla and the original
 Select inventory unchanged; the user confirms.
+
+**Accepted 2026-10-08.** User: "well thats absolutely superb. I fully accept, this is the sort of design extension i wanted, introducing something the original game never had, and it looks completely at home. I'd call this feature finished." Executable `d67705eba48232029a90647cc781f3201d0aae29799678466b2b5b9337b5dbe8` is the regression baseline.
+
+**Work log 2026-10-08 (Needs playtest).** The user delivered the tick
+(`research/inv/mark-used.png`, 8x8 green with a dark outline) and asked for
+used items in full colour with the green tick. Details in
+[note 137](documentation/137-d08a19-used-mission-items.md).
+- Font picker first: section 14 now shows the delivered tick on every mission
+  design (`recomp/analysis/d24a-fonts/`, local); the art is copied to the
+  tracked `recomp/assets/ui/items/mark-used.png`.
+- Research: for items 6..16 the original only tests, sets and clears bit 0 of
+  `player+0x354+4*i` (pickups `|= 1`, use at animation 47 `8004e4b8` `&= ~1`
+  with `+0x3b8 = 1`, `+0x3b9 = item`; level reset zeroes it; `91fc4` gives a
+  held item back with `|= 1`). Nothing else marks "used".
+- Built: `mission_used_track()` (shortcuts.inc, Modernized only, every update,
+  captured or not) sets marker `0x4000` in the item's own flag when bit 0 is
+  clear while Duke holds that item, and drops it when bit 0 comes back. It
+  lives in guest RAM, so savestates and card saves keep it and a level reset
+  clears it. The HUD reads used = marker set and bit 0 clear: full-colour icon
+  plus the tick at the icon's bottom-right (2x) in the strip and on the card,
+  status USED in the mockup's gold (new font set 12 `#ffdc30`), counted as
+  collected. D08A18 Enter on a used item: "ALREADY USED".
+- Pack: `ttk-mission-items.pack` kind 5 = the tick.
+- Verified (build, private Xvfb Modernized on card copies,
+  `recomp/analysis/d08a19-used/`, local): level 0 live use of the red crystal
+  at its holder with Enter (holder opened, flag `0x0001 -> 0x4000`), strip and
+  card show the tick and USED, count 2/5, Enter says ALREADY USED; savestate
+  saved, the older slot loaded (`0x1`), the saved one back (`0x4000`). Level 6
+  (UI slot 2 copy): the original's use writes staged on a skeleton key mark it
+  (`0x4000`), strip and card show it, given back drops it (`0x1`). Vanilla, same
+  staging: never marked. Suites: `ttk-inventory-test` (new used/found-again/
+  never-found cases), `ttk-controls-test`, `ttk-input-test`, `ttk-font-test`,
+  Python 139 OK (2 skipped), `level_overlay_guards.py --check`,
+  `check_repo.py`. Executable `d67705eba48232029a90647cc781f3201d0aae29799678466b2b5b9337b5dbe8`.
+- Not verified: a real key door or card reader use (only the crystal holder
+  was used live); a memory-card save and reload after a use; the item name
+  stays orange as for FOUND (the mockup's blue name came from a not-found
+  screenshot).
 
 ### D08B — Broader traversal and scripted-camera coverage
 

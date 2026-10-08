@@ -257,6 +257,24 @@ start the game with the environment variable `DNTTK_STEROID_BEAT=off`; to try
 another game sound, `DNTTK_STEROID_BEAT=<id>` (for example `0x1012`, a low
 thump). `original` and Vanilla have no heartbeat.
 
+### Power-up countdowns (Modernized, D08A17)
+
+The three coin power-ups, **invincibility**, **invisibility** and **Double
+Duke**, start the moment you pick them up and last 20 seconds, as in the
+original. In Modernized each running one also gets its own lit box in the
+right-hand HUD column, with its own coin icon, counting down in percent like
+the steroids box: 100 at pickup, then down to 0, when the box goes with the
+effect. Picking up the same coin again sets it back to 100. Running boxes stack
+upwards above the selected gadget, a jetpack that is on and running steroids:
+invincibility first, then invisibility, then Double Duke. There is no expiry
+sound or blink.
+
+Death ends all three (the original already does). After Continue the original
+gives Duke about 5 seconds of invincibility while he gets back up; its box shows
+that too, starting at 25. Savestates keep them; a level change ends them.
+`dnkroz` is a separate god mode and shows no box. Vanilla has no boxes. See
+[notes](documentation/132-d08a17-powerup-countdowns.md).
+
 ### View bob (Modernized, first person)
 
 Standing still, the first-person view settles into a substantially stable

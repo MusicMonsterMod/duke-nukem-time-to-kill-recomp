@@ -4,7 +4,7 @@ This is the canonical job list for our **Duke Nukem: Time to Kill** PC project, 
 
 Invoke **`$continue-duke-recomp`** (Codex) or **`/continue-duke-recomp`** (Claude Code) to see the current jobs and choose one. You can also request a job directly: **`$continue-duke-recomp work on D01`** or **`/continue-duke-recomp work on D01`**. The skill reads this file rather than keeping a second backlog. It must not automatically start the next job.
 
-**Latest accepted jobs (2026-10-08): D08A14 (death ends steroids), D08A15 (heartbeat restart; a pickup mid-run stops steroids) and D08G4 (inventory cheats give full armor); executable `87fe38d4f0ea8560312f53171345c207f332e26b6f4d2ed7220e1afae66ba472` is the regression baseline.** Earlier: D08J2 (pole/chain A/D direction), D08U2 (climb off a ladder past an enemy), D08O3 (E in water keeps the weapon) and D08O2A (natural swim-fire pose v2), 2026-10-07.** Previous baseline `e8eebb809c3d5a4b29779f11f0c9db55efcd846dc5c71b39d5a59d43158eb08e` (D08U2). **D08J2 (pole/chain A/D direction) Accepted 2026-10-07**: executable `129a64f2df3f5395f2d3485a310a03d74c85f9b1086c7dab37fee59277c7968b` is the current regression baseline ([note 122](documentation/122-d08j2-pole-chain-sidestep.md)). Todo: D08J4 (ceiling monkey-bar drops, UI slot 3), D08J3 (free camera while climbing). Previous baseline `e75b50f156137fa2377e4643407b2efbd16f2e976fa4d697afcbceb228e2e554` (D08O3). **D23E (western-town stutter) Accepted 2026-10-07**; **D08O2A Accepted** ([note 119](documentation/119-d08o2a-natural-swim-fire-pose.md)), **D08O3 Accepted** ([note 120](documentation/120-d08o3-e-in-water.md)); **D23F (fast CPU timing) Accepted 2026-10-05 and now the Modernized default**; executable `e0737a9f712aa5622d1b057ee5071e12c33cc9a18de8e6d40ee8eee31083f966` (includes D23E), [note 104](documentation/104-d23e-busy-scene-stutter.md), [note 105](documentation/105-d23f-fast-timing.md). Next suggested: D23G (finish the fast path) and D17S (auto frame-rate default).
+**Latest accepted job (2026-10-08): D08A17 (power-up countdowns); executable `8f338cde1c2dc4cf73da747621cffafe2478512f6419078a41d11b0d3b9268a9` is the regression baseline.** Earlier accepted jobs (2026-10-08): D08A14 (death ends steroids), D08A15 (heartbeat restart; a pickup mid-run stops steroids) and D08G4 (inventory cheats give full armor); executable `87fe38d4f0ea8560312f53171345c207f332e26b6f4d2ed7220e1afae66ba472` is the regression baseline.** Earlier: D08J2 (pole/chain A/D direction), D08U2 (climb off a ladder past an enemy), D08O3 (E in water keeps the weapon) and D08O2A (natural swim-fire pose v2), 2026-10-07.** Previous baseline `e8eebb809c3d5a4b29779f11f0c9db55efcd846dc5c71b39d5a59d43158eb08e` (D08U2). **D08J2 (pole/chain A/D direction) Accepted 2026-10-07**: executable `129a64f2df3f5395f2d3485a310a03d74c85f9b1086c7dab37fee59277c7968b` is the current regression baseline ([note 122](documentation/122-d08j2-pole-chain-sidestep.md)). Todo: D08J4 (ceiling monkey-bar drops, UI slot 3), D08J3 (free camera while climbing). Previous baseline `e75b50f156137fa2377e4643407b2efbd16f2e976fa4d697afcbceb228e2e554` (D08O3). **D23E (western-town stutter) Accepted 2026-10-07**; **D08O2A Accepted** ([note 119](documentation/119-d08o2a-natural-swim-fire-pose.md)), **D08O3 Accepted** ([note 120](documentation/120-d08o3-e-in-water.md)); **D23F (fast CPU timing) Accepted 2026-10-05 and now the Modernized default**; executable `e0737a9f712aa5622d1b057ee5071e12c33cc9a18de8e6d40ee8eee31083f966` (includes D23E), [note 104](documentation/104-d23e-busy-scene-stutter.md), [note 105](documentation/105-d23f-fast-timing.md). Next suggested: D23G (finish the fast path) and D17S (auto frame-rate default).
 
 ## The experience we are building
 
@@ -67,7 +67,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08G1 | Original Duke3D cheat confirmation wording | Done | D08G |
 | D08G2 | Silent cheat entry and centered confirmations | Done | D08G1, D19A |
 | D08A16 | Power-up coin icons: invincibility, invisibility, Double Duke (human design; placeholder section in the font picker) | Done (user-accepted) | D08A8, D24A |
-| D08A17 | Power-up countdowns: invincibility, invisibility and Double Duke get HUD boxes counting down, like steroids (Quake-style) | Todo | D08A16, D08A8 |
+| D08A17 | Power-up countdowns: invincibility, invisibility and Double Duke get HUD boxes counting down, like steroids (Quake-style) | Done (user-accepted) | D08A16, D08A8 |
 | D08G3 | `dnupgrade` cheat: upgrade all weapons (Laser Gatling etc.) | Accepted | D08G2 |
 | D08G4 | `dnstuff`, `dnitems`, `dninventory` also give 100% armor; running steroids stop and a full dose is held | Done (user-accepted) | D08G |
 | D08H | Apartment furniture, hidden pickup and switch targeting | Done | D08 |
@@ -1143,7 +1143,9 @@ the picker. No gameplay change in this ticket.
 
 ### D08A17 - Power-up countdowns (invincibility, invisibility, Double Duke)
 
-**Todo. User request, 2026-10-08.** Backlog only; waits for the D08A16 icons.
+**Done (user-accepted 2026-10-08: "confirmed it's all working as intended").**
+Executable `8f338cde1c2dc4cf73da747621cffafe2478512f6419078a41d11b0d3b9268a9` is the regression baseline. User request,
+2026-10-08. See the work log below and [note 132](documentation/132-d08a17-powerup-countdowns.md).
 
 **Goal:** a real, visible countdown for each running power-up, like the
 steroids box (D08A8, D08A11): when a coin is picked up its effect starts at
@@ -1174,6 +1176,43 @@ counts down at the drain rate to zero, then the box goes with the effect; two
 or three at once stack cleanly with steroids and the selected gadget;
 savestate, level change and death behave as agreed; 60 and 120 fps; GL and
 Software renderers; Vanilla unchanged.
+
+**Decisions (user, 2026-10-08, when selected):** percent like steroids; the
+original's 5 s invincibility after Continue shows a box; no expiry warning.
+
+**Work log (2026-10-08, Needs playtest).**
+
+- Research: each coin pickup case of `0x80081a48` writes 6000 (20 s) to its
+  own player halfword: invincibility (1047) `+0x8a0`, invisibility (1045)
+  `+0x89c`, Double Duke (1046) `+0x89e`; a second coin sets it back to 6000.
+  Duke's update drains them by the frame step (`0x80042208..0x80042294`); the
+  reset `0x8003f948` zeroes all three at death and level start, and Continue
+  then sets `+0x8a0` = 1500 (`0x80042f58`). `dnkroz` is the separate
+  `0x800c3cc6`. So death already ends them in the original (as D08A14 wants);
+  savestates keep them; a level change ends them.
+- Implementation (`gadget_hud.inc`, the existing status bar hook): every
+  running timer draws a lit box with its D08A16 icon and `timer * 100 / 6000`,
+  stacked a row each above the selected gadget, an unselected jetpack that is
+  on and running steroids (order invincibility, invisibility, Double Duke).
+  Icons as 4bpp cells at VRAM (968/972/976,205), palettes (1008,208-210),
+  uploaded with each box like the medkit and steroids. `items.json` lists them
+  as HUD-only art; `test_ui_art.py` checks the cell tables and reductions.
+  Debug `controls.powerups`. Timers are only read; no hook, guard or
+  generated-code change.
+- Evidence (executable
+  `8f338cde1c2dc4cf73da747621cffafe2478512f6419078a41d11b0d3b9268a9`, private
+  Xvfb, `recomp/analysis/d08a17-powerups/`, local): one coin, three coins,
+  the full seven-box stack (Bio Mask selected, jetpack on, steroids, three
+  coins) fits the right column; a box goes when its timer ends; savestate
+  reload; death clears all; Continue shows invincibility at 19 then it goes;
+  60 and 120 fps; GL 4:3 / 16:9 and Software 4:3 (Software 16:9 cuts the right
+  column, existing since D08A6); Vanilla with timers written draws nothing.
+  Suites: `ttk-controls-test` (fixture, LEVEL01, all levels), `ttk-input-test`,
+  `ttk-inventory-test`, Python 132 OK (2 skipped), `level_overlay_guards.py
+  --check`, `check_repo.py`.
+- Limits: natural (non-spawned) coins, two-player and boss levels not
+  exercised; no profile option (part of Modernized); the number floors like
+  steroids, so the last ~0.2 s reads 0.
 
 ### D08A5 - Mission item tracking in the item switcher (approved design E)
 
@@ -10651,3 +10690,19 @@ in note 117 is the reference for future custom pickups.
   `recomp/assets/ui/items/hud-invincibility.png`, `hud-invisibility.png`,
   `hud-double-duke.png` and their `-15col` reductions. No gameplay change.
   D08A17 (the countdown boxes) is ready to start and uses them.
+
+## 2026-10-08 - D08A17 power-up countdowns (Needs playtest)
+
+- Invincibility, invisibility and Double Duke each show a lit box with the
+  user's D08A16 coin icon and a percent countdown while they run, stacked
+  above the selected gadget, an active jetpack and running steroids
+  (Modernized). The Continue protection shows as invincibility from 25.
+  No expiry warning (user). Executable
+  `8f338cde1c2dc4cf73da747621cffafe2478512f6419078a41d11b0d3b9268a9`;
+  [note 132](documentation/132-d08a17-powerup-countdowns.md).
+- Not verified: the user's playtest; natural (non-spawned) coins.
+
+## 2026-10-08 - D08A17 accepted
+
+- User: "confirmed it's all working as intended!" D08A17 Done. Executable
+  `8f338cde1c2dc4cf73da747621cffafe2478512f6419078a41d11b0d3b9268a9` is the regression baseline.

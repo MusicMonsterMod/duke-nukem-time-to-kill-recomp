@@ -17,6 +17,9 @@
     {"name": "TORN PAPER", "file": "item-scrap-of-paper.png", "types": [549], "levels": [1]},
     {"name": "FAMILY JEWEL", "file": "item-family-jewel.png", "types": [854, 855, 856], "levels": [6]},
     {"name": "STEROIDS", "file": "hud-steroids.png", "hud_file": "hud-steroids-15col.png", "types": [638], "levels": [], "hud": true, "gadget": 4},
-    {"name": "MEDKIT", "file": "gadget-medkit.png", "hud_file": "gadget-medkit-15col.png", "types": [], "levels": [], "gadget": 5}
+    {"name": "MEDKIT", "file": "gadget-medkit.png", "hud_file": "gadget-medkit-15col.png", "types": [], "levels": [], "gadget": 5},
+    {"name": "INVINCIBILITY", "file": "hud-invincibility.png", "hud_file": "hud-invincibility-15col.png", "types": [1047], "levels": [], "hud": true},
+    {"name": "INVISIBILITY", "file": "hud-invisibility.png", "hud_file": "hud-invisibility-15col.png", "types": [1045], "levels": [], "hud": true},
+    {"name": "DOUBLE DUKE", "file": "hud-double-duke.png", "hud_file": "hud-double-duke-15col.png", "types": [1046], "levels": [], "hud": true}
   ]
 }

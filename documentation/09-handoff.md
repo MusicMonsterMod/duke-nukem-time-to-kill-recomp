@@ -1,5 +1,24 @@
 # Next-session handoff
 
+## 2026-10-08 - D08A17 accepted
+
+- User: "confirmed it's all working as intended!" D08A17 Done; executable
+  `8f338cde1c2dc4cf73da747621cffafe2478512f6419078a41d11b0d3b9268a9` is the regression baseline.
+
+## 2026-10-08 - D08A17 power-up countdowns (Needs playtest)
+
+- Invincibility (`+0x8a0`), invisibility (`+0x89c`) and Double Duke (`+0x89e`)
+  are 6000-unit timers (20 s) set by their pickups and drained by Duke's
+  update; death zeroes them and Continue gives 1500 invincibility (original).
+  In Modernized each running one now has a lit box with the user's D08A16
+  icon counting down in percent, stacked above the selected gadget, an
+  active jetpack and running steroids (`gadget_hud.inc`). User choices:
+  percent, the Continue protection shows, no expiry warning.
+- Executable `8f338cde1c2dc4cf73da747621cffafe2478512f6419078a41d11b0d3b9268a9`;
+  private Xvfb evidence and suites pass;
+  [note 132](132-d08a17-powerup-countdowns.md). Waiting for the user's
+  playtest. Not committed.
+
 ## 2026-10-08 - D08A16 accepted
 
 - User: "fully accepted." D08A16 Done: the user's power-up icons are in

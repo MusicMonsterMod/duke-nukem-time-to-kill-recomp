@@ -31,11 +31,21 @@ class ProjectUiArt(unittest.TestCase):
         # D08A4: the steroids box icon, reduced by tools/local/reduce_icon_15col.py.
         self.check_hud_cell('steroids', 'hud-steroids-15col.png')
 
-    def test_steroids_reduction_is_reproducible(self):
+    def test_powerup_hud_cells_match_png(self):
+        # D08A17: the power-up coin boxes, the user's D08A16 art.
+        for name, png in [('invincibility', 'hud-invincibility-15col.png'), ('invisibility', 'hud-invisibility-15col.png'),
+                          ('double_duke', 'hud-double-duke-15col.png')]:
+            with self.subTest(name=name):
+                self.check_hud_cell(name, png)
+
+    def test_hud_reductions_are_reproducible(self):
         sys.path.insert(0, str(ROOT / 'tools/local'))
         from reduce_icon_15col import reduce
-        made = reduce(Image.open(UI / 'items/hud-steroids.png'))
-        self.assertEqual(list(made.getdata()), list(Image.open(UI / 'items/hud-steroids-15col.png').convert('RGBA').getdata()))
+        for name in ('steroids', 'invincibility', 'invisibility', 'double-duke'):
+            with self.subTest(name=name):
+                made = reduce(Image.open(UI / f'items/hud-{name}.png'))
+                self.assertEqual(list(made.getdata()),
+                                 list(Image.open(UI / f'items/hud-{name}-15col.png').convert('RGBA').getdata()))
 
     def check_hud_cell(self, name, png):
         source = (ROOT / 'src/ttk/gadget_hud.inc').read_text()
@@ -90,7 +100,8 @@ class ProjectUiArt(unittest.TestCase):
         names = {item['name'] for item in manifest['items']}
         expected = {'SUBWAY SECURITY KEY', 'TRANSPORT ROOM ID', 'WAREHOUSE KEY', 'GANTRY KEY', 'VALVE KEY', 'LAB KEY',
                     'VALVE ROOM KEY', 'RED ENERGY CRYSTAL', 'BLUE ENERGY CRYSTAL', 'GREEN ENERGY CRYSTAL', 'SKELETON KEY',
-                    'SCRAP OF PAPER', 'OLD NOTE', 'TORN PAPER', 'FAMILY JEWEL', 'STEROIDS', 'MEDKIT'}
+                    'SCRAP OF PAPER', 'OLD NOTE', 'TORN PAPER', 'FAMILY JEWEL', 'STEROIDS', 'MEDKIT',
+                    'INVINCIBILITY', 'INVISIBILITY', 'DOUBLE DUKE'}
         self.assertEqual(names, expected)
         for item in manifest['items']:
             for key in ('file', 'hud_file'):

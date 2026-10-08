@@ -275,6 +275,30 @@ that too, starting at 25. Savestates keep them; a level change ends them.
 `dnkroz` is a separate god mode and shows no box. Vanilla has no boxes. See
 [notes](documentation/132-d08a17-powerup-countdowns.md).
 
+### Dynamite (Modernized, D08A12, accepted 2026-10-08)
+
+In the original game drawing the dynamite lights its fuse at once: it has to be
+thrown within about 4 seconds or it explodes in Duke's hand, and a weapon
+switch waits for it. With `modern` (the Modernized default) selecting dynamite
+only draws it: the stick stays unlit (no sparks, no fizz) for as long as you
+hold it, and **6**, the other number keys, the mouse wheel, **X** or **E** put it
+away again. Scrolling past it with the wheel is always safe. Fire lights it: the
+sparks and fizz start, and releasing fire throws it as before (hold for a longer
+throw). From that press the fuse is the original full fuse, so a thrown stick
+explodes as in the original; damage, blast and ammo are unchanged. As in Duke 3D,
+the next stick is drawn (unlit) as soon as the throw ends; with none left the
+game picks another weapon as usual. Holding fire keeps throwing.
+
+`original` keeps the original rule. Vanilla always uses it. Choose **T** in
+`--settings`, or:
+
+```
+python3 recomp/tools/local/run.py --dynamite original --show-settings
+python3 recomp/tools/local/run.py --dynamite modern --show-settings
+```
+
+See [notes](documentation/138-d08a12-modern-dynamite.md).
+
 ### View bob (Modernized, first person)
 
 Standing still, the first-person view settles into a substantially stable
@@ -599,8 +623,9 @@ Number keys now select familiar weapon groups when owned and usable:
 
 Upgrades stay on the base weapon's key. **Wheel up/down** (or **semicolon/apostrophe**)
 selects previous/next usable weapon; **X** restores the last successfully equipped
-weapon. Lit dynamite must finish its original throw/fuse before a requested
-weapon switch completes. A usable pipe-bomb remote remains accessible without spare ammo.
+weapon. In Modernized a drawn dynamite stays unlit until you fire, so you can
+switch away from it (see Dynamite below); once lit, or with `--dynamite original`,
+it must finish its original throw/fuse before a requested weapon switch completes. A usable pipe-bomb remote remains accessible without spare ammo.
 **M** uses an owned portable medkit, **J** toggles the jetpack, **N** night vision,
 and **B** the Bio Mask through original use rules (TTK’s own gas mask — not scuba
 or boots). Wait for gadget equip/remove and

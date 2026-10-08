@@ -11,6 +11,10 @@ static bool steroids_owned();
 static bool steroids_use(CPUState* cpu);
 static void steroids_poll();
 static void pickup_select_apply();
+// D08A12 next stick after a throw (dynamite.inc, included later).
+static bool dynamite_redraw_due(unsigned equipment,uint32_t flags);
+static bool dynamite_redraw;
+static unsigned dynamite_redraws;
 static unsigned base_weapon(unsigned slot) {return slot==27?9:slot==28?7:slot==29?8:slot;}
 static bool usable_weapon(unsigned slot) {
     if(slot>14)return false;
@@ -238,6 +242,13 @@ static void select_weapon(CPUState* cpu) {
        equipped>0 && equipped<=14 && usable_weapon(equipped) && underwater_weapon(equipped)) {
         psx_mod_write_byte(player+0x3ba,equipped);
         psx_mod_write_word(player+0x224,flags|4);++selections;++swim_redraws;
+    }
+    // D08A12: the next stick after a throw, once fire is let go and Duke can
+    // take a weapon request (ground or jetpack flight).
+    if(dynamite_redraw_due(equipment,flags) && !f.held[fire] && !f.held[original_aim] && !(flags&0x2c5) &&
+       (movement_ready() || jetpack_input_ready()) && usable_weapon(14)) {
+        psx_mod_write_byte(player+0x3ba,14);
+        psx_mod_write_word(player+0x224,flags|4);++selections;++dynamite_redraws;dynamite_redraw=false;
     }
     if(!f.command_serial || command_seen==f.command_serial)return;
     command_seen=f.command_serial;

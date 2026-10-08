@@ -1,5 +1,35 @@
 # Current status - 2026-10-04
 
+## 2026-10-08 - D08A12 accepted
+
+- User: "perfectly done." D08A12 Done; executable
+  `2d54e00b64bcf38917e41db47805338f75977b0b63a0868cb962242ffaaadb9d` is the regression baseline.
+- Still queued: D24D, D26G.
+
+## 2026-10-08 - D08A12 modern dynamite (implemented)
+
+- **Original:** drawing dynamite lights it (fuse 4000 at the draw completion
+  `0x8004e5ac`, burned by `0x8004dea4` case `0x8004e018`, about 3.7 s). The
+  case ignores weapon requests and the holster button, so a switch waits for
+  the throw or the blast.
+- **Modern (`dynamite` = `modern`, default):**
+  - A drawn stick stays unlit: fuse held full, sparks dark, sizzle refused.
+  - 3, other weapon keys, the wheel, X or E's holster stow it, as for the Holy
+    Hand Grenade.
+  - Fire (Cross) lights it with a full fuse, and the original runs from then
+    on.
+- **Option:** profile schema 32, `run.py --dynamite original` (menu T).
+  Vanilla stays original.
+- **Hooks:** three new entry hooks, regenerated; codegen hash unchanged
+  (savestates load).
+- **Verified live (private copies):** held 6 s unlit, stow, wheel
+  pass-through, a savestate round trip, then a lit throw and its explosion.
+  Original: the stick exploded in hand and the switch waited.
+- **Follow-up:** after a throw the next stick is drawn (unlit) once fire is
+  let go; none when no sticks are left. Live: four throws in a row redrew.
+- **Executable:** `2d54e00b64bcf38917e41db47805338f75977b0b63a0868cb962242ffaaadb9d`.
+  [Note 138](138-d08a12-modern-dynamite.md). Nothing committed.
+
 ## 2026-10-08 - D08A19 accepted
 
 - User: "well thats absolutely superb. I fully accept, this is the sort of design extension i wanted, introducing something the original game never had, and it looks completely at home. I'd call this feature finished." D08A19 Done; executable `d67705eba48232029a90647cc781f3201d0aae29799678466b2b5b9337b5dbe8` is the regression baseline.

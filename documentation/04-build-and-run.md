@@ -318,6 +318,15 @@ contact sound, ra `0x80055a10`, is used) was added to `game.local.toml` and
 regenerated with `psxrecomp_cli.py generate`; one generated line, codegen hash
 unchanged. See [note 135](135-d08z2-mantle-upper-body.md).
 
+## Modern dynamite (D08A12)
+
+Three hooks (`0x8004DEA4`, the held-throwable handler; `0x8006D594`, the
+sparks; `0x8006B270`, the positional sound start; only the dynamite case's
+calls are used) were added to `game.local.toml` and regenerated with
+`psxrecomp_cli.py generate`; one generated line each, codegen hash unchanged.
+`run.py --dynamite modern|original` (schema 32). See
+[note 138](138-d08a12-modern-dynamite.md).
+
 ## Steroids independent of damage (D08A13)
 
 One hook (`0x800A40A8`, Duke's damage handler) was added to

@@ -54,6 +54,10 @@ JUMP_WALLS = ('slide', 'original')
 # held direction or a jump press end the recovery pose 105 at once; original
 # holds Duke still for about 0.6 s after a straight-up or released landing.
 LANDINGS = ('modern', 'original')
+# D08A12 dynamite (Modernized only; Vanilla keeps the original). modern: a
+# drawn stick is unlit until fire is pressed, so it can be put away again;
+# original: drawing it lights the fuse and it must be thrown or explode.
+DYNAMITE_MODES = ('modern', 'original')
 # D17 presentation rate (Modernized only; Vanilla presents at 60 as always).
 # Game logic keeps its original timing at every value: display follows the
 # monitor's refresh rate, 30 shows each new game image once, 60 is the
@@ -72,7 +76,7 @@ DRAW_DISTANCES = ('original', 'extended')
 STEROIDS_MODES = ('portable', 'original')
 # Alt-wheel boom range in game units; 0 keeps the original follow distance.
 CAMERA_DISTANCE_RANGE = (768, 6144)
-DEFAULT_CONTROLS = {'camera': 'independent', 'mouse_sensitivity': 0.12, 'invert_y': False, 'weapon_aim': 'view', 'crosshair': True, 'red_dot': False, 'aim_assist': 'off', 'jetpack': 'modern', 'camera_distance': 0, 'shoulder': 'center', 'view': 'third', 'widescreen': '16:9', 'cpu_overclock': 150, 'cpu_timing': 'fast', 'jump': 'assisted', 'frame_rate': '60', 'view_bob': 'on', 'geometry_precision': 'original', 'texture_precision': 'original', 'draw_distance': 'extended', 'steroids': 'portable', 'jump_walls': 'slide', 'landing': 'modern'}
+DEFAULT_CONTROLS = {'camera': 'independent', 'mouse_sensitivity': 0.12, 'invert_y': False, 'weapon_aim': 'view', 'crosshair': True, 'red_dot': False, 'aim_assist': 'off', 'jetpack': 'modern', 'camera_distance': 0, 'shoulder': 'center', 'view': 'third', 'widescreen': '16:9', 'cpu_overclock': 150, 'cpu_timing': 'fast', 'jump': 'assisted', 'frame_rate': '60', 'view_bob': 'on', 'geometry_precision': 'original', 'texture_precision': 'original', 'draw_distance': 'extended', 'steroids': 'portable', 'jump_walls': 'slide', 'landing': 'modern', 'dynamite': 'modern'}
 # display is how the game opens (the runtime reports the last state at exit);
 # fullscreen_mode is what F11 enters from a window.
 DEFAULT_PRESENTATION = {'renderer': 'opengl', 'internal_scale': 1, 'display': 'windowed', 'fullscreen_mode': 'borderless', 'window_width': 0, 'output_filter': 'linear'}
@@ -96,11 +100,11 @@ def validate_controls(value):
         value['cpu_overclock'] not in CPU_OVERCLOCKS or value['cpu_timing'] not in CPU_TIMINGS or value['jump'] not in JUMP_STYLES or
         value['geometry_precision'] not in PRECISION_MODES or value['texture_precision'] not in PRECISION_MODES or
         value['frame_rate'] not in FRAME_RATES or value['view_bob'] not in VIEW_BOBS or
-        value['draw_distance'] not in DRAW_DISTANCES or value['steroids'] not in STEROIDS_MODES or value['jump_walls'] not in JUMP_WALLS or value['landing'] not in LANDINGS):
+        value['draw_distance'] not in DRAW_DISTANCES or value['steroids'] not in STEROIDS_MODES or value['jump_walls'] not in JUMP_WALLS or value['landing'] not in LANDINGS or value['dynamite'] not in DYNAMITE_MODES):
         raise ValueError('Camera must be independent/original; sensitivity 0.01..2 degrees/count; invert_y boolean; jetpack modern/classic; '
                          'camera_distance 0 (original) or 768..6144; shoulder center/right/left; view third/first; '
                          'widescreen off/16:9/16:10/21:9/auto; cpu_overclock 100/125/150/175/200; cpu_timing accurate/fast; jump assisted/manual; '
-                         'frame_rate ' + '/'.join(FRAME_RATES) + '; view_bob ' + '/'.join(VIEW_BOBS) + '; geometry_precision and texture_precision original/corrected; draw_distance original/extended; steroids portable/original; jump_walls slide/original; landing modern/original.')
+                         'frame_rate ' + '/'.join(FRAME_RATES) + '; view_bob ' + '/'.join(VIEW_BOBS) + '; geometry_precision and texture_precision original/corrected; draw_distance original/extended; steroids portable/original; jump_walls slide/original; landing modern/original; dynamite modern/original.')
     return dict(value)
 
 
@@ -225,7 +229,7 @@ def absorb_camera_state(settings_path, settings):
 
 
 def defaults():
-    return {'version': 31, 'active': 'modernized',
+    return {'version': 32, 'active': 'modernized',
             'profiles': {mode: default_profile(mode) for mode in MODES}}
 
 
@@ -269,7 +273,7 @@ def load(path):
         notices.append('Unreadable profile settings; restored Modernized defaults.')
     else:
         version = data.get('version')
-        if type(version) is int and version > 31:
+        if type(version) is int and version > 32:
             raise ValueError(f'Profile settings version {version} is newer than this launcher; file left unchanged.')
         if type(version) is int and version == 0:
             mode = data.get('mode', 'vanilla')
@@ -279,8 +283,8 @@ def load(path):
                 if renderer in RENDERERS:
                     result['profiles'][mode]['presentation']['renderer'] = renderer
             changed = True
-            notices.append('Migrated version 0 profile settings to version 31.')
-        elif type(version) is int and version in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31):
+            notices.append('Migrated version 0 profile settings to version 32.')
+        elif type(version) is int and version in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32):
             active = data.get('active')
             if active in MODES:
                 result['active'] = active
@@ -303,7 +307,7 @@ def load(path):
                         notices.append(f'{mode}: {exc} Restored presentation defaults.')
                 if isinstance(profile, dict) and isinstance(profile.get('controls'), dict):
                     try:
-                        result['profiles'][mode]['controls'] = validate_controls({**({k:v for k,v in DEFAULT_CONTROLS.items() if k in ('crosshair','red_dot','aim_assist')} if version < 5 else {}), **({'weapon_aim':'view'} if version < 4 else {}), **({'jetpack':'modern'} if version < 11 else {}), **({'camera_distance':0,'shoulder':'center'} if version < 12 else {}), **({'view':'third'} if version < 13 else {}), **({'widescreen':'16:9'} if version < 18 else {}), **({'cpu_overclock':150} if version < 19 else {}), **({'jump':'assisted'} if version < 20 else {}), **({'frame_rate':'60'} if version < 21 else {}), **({'view_bob':'on'} if version < 22 else {}), **({'geometry_precision':'original','texture_precision':'original'} if version < 23 else {}), **({'draw_distance':'extended'} if version < 24 else {}), **({'cpu_timing':'fast'} if version < 25 else {}), **({'steroids':'portable'} if version < 29 else {}), **({'jump_walls':'slide'} if version < 30 else {}), **({'landing':'modern'} if version < 31 else {}), **profile['controls']})
+                        result['profiles'][mode]['controls'] = validate_controls({**({k:v for k,v in DEFAULT_CONTROLS.items() if k in ('crosshair','red_dot','aim_assist')} if version < 5 else {}), **({'weapon_aim':'view'} if version < 4 else {}), **({'jetpack':'modern'} if version < 11 else {}), **({'camera_distance':0,'shoulder':'center'} if version < 12 else {}), **({'view':'third'} if version < 13 else {}), **({'widescreen':'16:9'} if version < 18 else {}), **({'cpu_overclock':150} if version < 19 else {}), **({'jump':'assisted'} if version < 20 else {}), **({'frame_rate':'60'} if version < 21 else {}), **({'view_bob':'on'} if version < 22 else {}), **({'geometry_precision':'original','texture_precision':'original'} if version < 23 else {}), **({'draw_distance':'extended'} if version < 24 else {}), **({'cpu_timing':'fast'} if version < 25 else {}), **({'steroids':'portable'} if version < 29 else {}), **({'jump_walls':'slide'} if version < 30 else {}), **({'landing':'modern'} if version < 31 else {}), **({'dynamite':'modern'} if version < 32 else {}), **profile['controls']})
                     except ValueError as exc:
                         notices.append(f'{mode}: {exc} Restored camera defaults.')
                 # Schema 28 (D08A5): Comma/Period move from original strafe to the mission
@@ -344,8 +348,8 @@ def load(path):
                                'run.py --cpu-timing accurate restores the full cycle model.')
             changed = result != data
             if changed:
-                notices.append(f'Migrated version {version} profile settings to version 31; retained preferences and added control and presentation defaults.'
-                               if version < 31 else
+                notices.append(f'Migrated version {version} profile settings to version 32; retained preferences and added control and presentation defaults.'
+                               if version < 32 else
                                'Invalid or unsupported profile fields were reset; valid preferences were retained.')
         else:
             changed = True
@@ -387,6 +391,7 @@ def describe(settings):
         lines.append(f"Jump: {describe_jump(controls['jump'])}")
         lines.append(f"Jump wall contact: {describe_jump_walls(controls['jump_walls'])}")
         lines.append(f"Landing: {describe_landing(controls['landing'])}")
+        lines.append(f"Dynamite: {describe_dynamite(controls['dynamite'])}")
         lines.append(f"Mesh geometry: {controls['geometry_precision']}; textures: {controls['texture_precision']} (OpenGL; next launch)")
         lines.append(f"Frame rate: {describe_frame_rate(controls['frame_rate'])}")
         lines.append(f"Draw distance: {describe_draw_distance(controls['draw_distance'])}")
@@ -446,6 +451,12 @@ def describe_landing(value):
     return 'original (after some landings Duke stands still for about 0.6 s)'
 
 
+def describe_dynamite(value):
+    if value == 'modern':
+        return 'modern (a drawn stick is unlit until you fire; switch away freely)'
+    return 'original (drawing it lights the fuse; throw it or it explodes in hand)'
+
+
 def describe_widescreen(value):
     if value == 'off':
         return 'off (original 4:3 picture)'
@@ -464,7 +475,7 @@ def menu(settings, read=input, write=print):
     while True:
         write('\n' + describe(edited))
         write('1 Vanilla  |  2 Modernized preview  |  3 Renderer  |  4 Restore this profile  |  R Resolution and display\n'
-              'G Geometry and texture precision (Modernized)  |  D Draw distance (Modernized)  |  W Widescreen (Modernized)  |  J Jump style (Modernized)  |  K Jump wall contact (Modernized)  |  L Landing (Modernized)  |  F Frame rate (Modernized)  |  B View bob (Modernized)  |  S Steroids (Modernized)  |  5 Save and return  |  6 PC bindings (Modernized)  |  7 Camera (Modernized)  |  8 Weapon aiming (Modernized)  |  9 Aiming display / assistance (Modernized)  |  0 Cancel')
+              'G Geometry and texture precision (Modernized)  |  D Draw distance (Modernized)  |  W Widescreen (Modernized)  |  J Jump style (Modernized)  |  K Jump wall contact (Modernized)  |  L Landing (Modernized)  |  T Dynamite (Modernized)  |  F Frame rate (Modernized)  |  B View bob (Modernized)  |  S Steroids (Modernized)  |  5 Save and return  |  6 PC bindings (Modernized)  |  7 Camera (Modernized)  |  8 Weapon aiming (Modernized)  |  9 Aiming display / assistance (Modernized)  |  0 Cancel')
         choice = read('Choice: ').strip()
         if choice in ('1', '2'):
             edited['active'] = MODES[int(choice) - 1]
@@ -538,6 +549,17 @@ def menu(settings, read=input, write=print):
                 edited['profiles']['modernized']['controls']['landing'] = value
             elif value:
                 write('Choose one of the listed values; landing unchanged.')
+        elif choice.lower() == 't':
+            if edited['active'] != 'modernized':
+                write('Vanilla always lights dynamite on drawing it; select Modernized for the dynamite behaviour.')
+                continue
+            write('modern: selecting dynamite only draws it, unlit; fire lights and throws it, and you can switch away first. '
+                  'original: drawing it lights the fuse, so it must be thrown or it explodes in Duke\'s hand.')
+            value = read('Dynamite (' + '/'.join(DYNAMITE_MODES) + '; blank cancels): ').strip()
+            if value in DYNAMITE_MODES:
+                edited['profiles']['modernized']['controls']['dynamite'] = value
+            elif value:
+                write('Choose one of the listed values; dynamite unchanged.')
         elif choice.lower() == 's':
             if edited['active'] != 'modernized':
                 write('Vanilla always starts steroids on pickup; select Modernized for portable steroids.')

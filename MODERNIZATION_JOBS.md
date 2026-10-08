@@ -4,7 +4,7 @@ This is the canonical job list for our **Duke Nukem: Time to Kill** PC project, 
 
 Invoke **`$continue-duke-recomp`** (Codex) or **`/continue-duke-recomp`** (Claude Code) to see the current jobs and choose one. You can also request a job directly: **`$continue-duke-recomp work on D01`** or **`/continue-duke-recomp work on D01`**. The skill reads this file rather than keeping a second backlog. It must not automatically start the next job.
 
-**Latest accepted job (2026-10-08): D08A19 (used mission items: USED and the green tick); executable `d67705eba48232029a90647cc781f3201d0aae29799678466b2b5b9337b5dbe8` is the regression baseline. Queued: D24D, D26G.** Earlier (2026-10-08): D08Z2 (mantle pose; frozen legs after a corner bump); executable `bfd41760f9c66f2f03cf859f820f7b7d27cd8991e8ce1f304f5456ea29bf8986` is the regression baseline. D08Z3 (modern landing) accepted 2026-10-08; executable `11187493c04ae830482c47c93b97ac332fbfce1de95f8eedaa2f8637d7fe164e` is the new regression baseline. Queued: D24D, D26G, D08A19.** Earlier (2026-10-08): D08Z1 (jump wall slide); executable `3f909c9f2cc4e5b09ba6faab5129ec9ae0ff938c4735e264ac67a66405c1ed34`. Earlier (2026-10-08): D08A17 (power-up countdowns); executable `8f338cde1c2dc4cf73da747621cffafe2478512f6419078a41d11b0d3b9268a9`. Earlier accepted jobs (2026-10-08): D08A14 (death ends steroids), D08A15 (heartbeat restart; a pickup mid-run stops steroids) and D08G4 (inventory cheats give full armor); executable `87fe38d4f0ea8560312f53171345c207f332e26b6f4d2ed7220e1afae66ba472` is the regression baseline.** Earlier: D08J2 (pole/chain A/D direction), D08U2 (climb off a ladder past an enemy), D08O3 (E in water keeps the weapon) and D08O2A (natural swim-fire pose v2), 2026-10-07.** Previous baseline `e8eebb809c3d5a4b29779f11f0c9db55efcd846dc5c71b39d5a59d43158eb08e` (D08U2). **D08J2 (pole/chain A/D direction) Accepted 2026-10-07**: executable `129a64f2df3f5395f2d3485a310a03d74c85f9b1086c7dab37fee59277c7968b` is the current regression baseline ([note 122](documentation/122-d08j2-pole-chain-sidestep.md)). Todo: D08J4 (ceiling monkey-bar drops, UI slot 3), D08J3 (free camera while climbing). Previous baseline `e75b50f156137fa2377e4643407b2efbd16f2e976fa4d697afcbceb228e2e554` (D08O3). **D23E (western-town stutter) Accepted 2026-10-07**; **D08O2A Accepted** ([note 119](documentation/119-d08o2a-natural-swim-fire-pose.md)), **D08O3 Accepted** ([note 120](documentation/120-d08o3-e-in-water.md)); **D23F (fast CPU timing) Accepted 2026-10-05 and now the Modernized default**; executable `e0737a9f712aa5622d1b057ee5071e12c33cc9a18de8e6d40ee8eee31083f966` (includes D23E), [note 104](documentation/104-d23e-busy-scene-stutter.md), [note 105](documentation/105-d23f-fast-timing.md). Next suggested: D23G (finish the fast path) and D17S (auto frame-rate default).
+**Latest accepted job (2026-10-08): D08A12 (modern dynamite: unlit until fire, switch away freely, next stick drawn after a throw); executable `2d54e00b64bcf38917e41db47805338f75977b0b63a0868cb962242ffaaadb9d` is the regression baseline. Queued: D24D, D26G.** Earlier (2026-10-08): D08A19 (used mission items: USED and the green tick); executable `d67705eba48232029a90647cc781f3201d0aae29799678466b2b5b9337b5dbe8`. Earlier (2026-10-08): D08Z2 (mantle pose; frozen legs after a corner bump); executable `bfd41760f9c66f2f03cf859f820f7b7d27cd8991e8ce1f304f5456ea29bf8986` is the regression baseline. D08Z3 (modern landing) accepted 2026-10-08; executable `11187493c04ae830482c47c93b97ac332fbfce1de95f8eedaa2f8637d7fe164e` is the new regression baseline. Queued: D24D, D26G, D08A19.** Earlier (2026-10-08): D08Z1 (jump wall slide); executable `3f909c9f2cc4e5b09ba6faab5129ec9ae0ff938c4735e264ac67a66405c1ed34`. Earlier (2026-10-08): D08A17 (power-up countdowns); executable `8f338cde1c2dc4cf73da747621cffafe2478512f6419078a41d11b0d3b9268a9`. Earlier accepted jobs (2026-10-08): D08A14 (death ends steroids), D08A15 (heartbeat restart; a pickup mid-run stops steroids) and D08G4 (inventory cheats give full armor); executable `87fe38d4f0ea8560312f53171345c207f332e26b6f4d2ed7220e1afae66ba472` is the regression baseline.** Earlier: D08J2 (pole/chain A/D direction), D08U2 (climb off a ladder past an enemy), D08O3 (E in water keeps the weapon) and D08O2A (natural swim-fire pose v2), 2026-10-07.** Previous baseline `e8eebb809c3d5a4b29779f11f0c9db55efcd846dc5c71b39d5a59d43158eb08e` (D08U2). **D08J2 (pole/chain A/D direction) Accepted 2026-10-07**: executable `129a64f2df3f5395f2d3485a310a03d74c85f9b1086c7dab37fee59277c7968b` is the current regression baseline ([note 122](documentation/122-d08j2-pole-chain-sidestep.md)). Todo: D08J4 (ceiling monkey-bar drops, UI slot 3), D08J3 (free camera while climbing). Previous baseline `e75b50f156137fa2377e4643407b2efbd16f2e976fa4d697afcbceb228e2e554` (D08O3). **D23E (western-town stutter) Accepted 2026-10-07**; **D08O2A Accepted** ([note 119](documentation/119-d08o2a-natural-swim-fire-pose.md)), **D08O3 Accepted** ([note 120](documentation/120-d08o3-e-in-water.md)); **D23F (fast CPU timing) Accepted 2026-10-05 and now the Modernized default**; executable `e0737a9f712aa5622d1b057ee5071e12c33cc9a18de8e6d40ee8eee31083f966` (includes D23E), [note 104](documentation/104-d23e-busy-scene-stutter.md), [note 105](documentation/105-d23f-fast-timing.md). Next suggested: D23G (finish the fast path) and D17S (auto frame-rate default).
 
 ## The experience we are building
 
@@ -52,7 +52,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08A9 | Picked-up inventory item becomes the switcher selection (Duke 3D feel) | Done (user-accepted) | D08A1, D08A4, D08A6 |
 | D08A10 | Experimental: steroids heartbeat sound loop while they run (226 bpm, Duke 3D feel; may be reverted) | Done (user-accepted) | D08A4, D08A8 |
 | D08A11 | `dnhyper` countdown in the steroids HUD box (D08A8), not the old armor element | Done (user-accepted) | D08A8, D08G |
-| D08A12 | Modern dynamite: selecting it is safe (no forced fuse); Dynamite Behaviour Modern / Original | Todo | D08A, D08Q5 |
+| D08A12 | Modern dynamite: selecting it is safe (no forced fuse); Dynamite Behaviour Modern / Original; next stick drawn after a throw | Done (user-accepted) | D08A, D08Q5 |
 | D08A13 | Steroids independent of damage and armor: being hit never shortens the steroid countdown (Modern) | Done (user-accepted) | D08A4, D08A8, D08A11 |
 | D08A14 | Death and Continue end steroids: no running effect after Continue, steroids gone from the inventory (Modern) | Done (user-accepted) | D08A4, D08A13 |
 | D08A15 | Steroids heartbeat silent for a few seconds when steroids restart before the previous run ends; a pickup mid-run stops them, full dose held | Done (user-accepted) | D08A10, D08A13 |
@@ -895,8 +895,10 @@ renderer not re-shot (the draw path is D08A8's, unchanged).
 
 ### D08A12 - Modern dynamite handling / safe weapon selection
 
-**Todo. User request, 2026-10-08.** Investigate first; do not implement until
-selected.
+**Done (user-accepted, 2026-10-08).** User: "perfectly done." Executable
+`2d54e00b64bcf38917e41db47805338f75977b0b63a0868cb962242ffaaadb9d` is the regression baseline. User request, 2026-10-08; selected and
+implemented 2026-10-08. See the work log below and
+[note 138](documentation/138-d08a12-modern-dynamite.md).
 
 **Problem.** Dynamite (slot 6: Pipe Bomb, Dynamite, Holy Hand Grenade) is
 reached by pressing 6 twice or with the mouse wheel. Once Duke holds it the
@@ -958,6 +960,59 @@ genuinely requires it.
 8. Throwing still behaves normally once the player chooses to use it.
 9. Savestates and weapon state stay sane with dynamite equipped or armed.
 10. The setting integrates cleanly with the existing modernization options.
+
+**Work log (2026-10-08, Needs playtest).** Answers to the research questions
+([note 138](documentation/138-d08a12-modern-dynamite.md)):
+1. **Equip is ignition in the original.** The draw completion `0x8004e5ac` sets
+   the fuse `+0x250` = 4000 (`0x800c4ed8`). The held-throwable handler
+   `0x8004dea4` (case `0x8004e018`) burns it (about 3.7 s at 60 Hz). At 0 it
+   explodes in hand. Otherwise it plays sparks and the sizzle loop and runs
+   the Cross throw check `0x8004dc74`. The throw passes the remaining fuse to
+   the stick.
+2. **They separate cleanly.** All the burning happens inside that one handler
+   call.
+3. **Switching away.** The dynamite case ignores weapon requests and the
+   holster button, which the other throwables honour, so a switch waits until
+   the throw or the blast.
+4. **Implementation.** Three opt-in entry hooks (`0x8004dea4`, sparks
+   `0x8006d594`, sound `0x8006b270`; regenerated, codegen hash unchanged):
+   - Until Cross is pressed where the original would charge, a drawn stick is
+     unlit: fuse held full, sparks dark, sizzle refused.
+   - A request or the holster button stows it exactly as the Holy Hand
+     Grenade's case does.
+   - Cross lights it with a full fuse, and the original runs untouched from
+     then on.
+
+   Profile schema 32 `dynamite` `modern|original` (`--dynamite`, menu T);
+   Vanilla always original. Six new guards.
+
+Evidence (executable `c5b97f7956d80fa8bd3a3b6010e6466c5143f91682ce2c122b89840e523c7e59`;
+private Xvfb, card copies):
+- **Modern:** held 6 s unlit (fuse 3951 steady, no spark, no sizzle). 3 stows
+  it, and rapid and slow wheel pass through it with no ammo or health change.
+  A savestate round trip keeps it unlit and switchable. LMB lights it (spark
+  and sizzle) and throws it: one stick spent, explosion, empty hand.
+- **Original:** the fuse runs from the draw and 3 only queues. It exploded in
+  hand 226 fields after the draw, then the shotgun was drawn.
+- **Suites:** `ttk-controls-test` 47 groups (new D08A12 group),
+  `ttk-input-test`, Python 142 OK (10 skipped), `level_overlay_guards.py --check`.
+
+Follow-up (2026-10-08, user: "the only thing i want is for the next stick of
+dynamite to be drawn after throwing the first one"):
+- **Redraw:** after a throw Modern draws the next stick (unlit) through the 6
+  key's request once fire is let go.
+- **When it drops:** another weapon or request, no sticks left, a savestate
+  load, or `original`.
+- **Charge bit:** charge bit 8 now also counts as lit.
+- **Live:** four throws in a row redrew. With the last stick there was no
+  redraw and the original picked the grenade. Holding fire keeps throwing.
+- **Executable:** `2d54e00b64bcf38917e41db47805338f75977b0b63a0868cb962242ffaaadb9d`.
+
+Limits:
+- **Not run live:** E's stow and jetpack flight.
+- **Thrown fuse:** a thrown stick's fuse now counts from the fire press (nearly
+  full), not from the draw.
+- **After lighting:** a lit stick still follows the original rules.
 
 ### D08A13 - Steroid duration independent of damage and armor
 

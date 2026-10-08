@@ -2579,6 +2579,75 @@ int main(int argc,char** argv) {
         std::puts("PASS: D08A14 death clears steroids (dose, dnhyper, held); alive and Vanilla keep them");
     }
     {
+        // D08A12: a drawn dynamite (+0x3b8 = 0x0e02) stays unlit at the
+        // held-throwable handler 0x8004dea4: fuse held full (0x800c4ed8),
+        // this call's sparks (ra 0x8004e138) dark and sizzle (ra 0x8004e154)
+        // refused; a request or the released holster button stows it like
+        // the Holy Hand Grenade. Cross down lights it, and the original runs
+        // from then on until the stick leaves the hand.
+        const uint32_t cross_slot=psx_mod_read_word(0x800d1b50),holster_slot=psx_mod_read_word(0x800d1a90);
+        const uint32_t cross=0x801e2000,holster=0x801e2010;
+        psx_mod_write_word(0x800d1b50,cross);psx_mod_write_word(0x800d1a90,holster);
+        const uint8_t index=psx_mod_read_byte(p+0x233);psx_mod_write_byte(p+0x233,0);
+        const uint16_t lower=psx_mod_read_half(p+0x60);psx_mod_write_half(p+0x60,63);
+        const uint32_t flags0=psx_mod_read_word(p+0x224);
+        const uint16_t full=psx_mod_read_half(0x800c4ed8);assert(full==4000);
+        auto handler=[&](uint32_t who){CPUState cpu{};cpu.gpr[4]=who;cpu.gpr[29]=0x801fff00;cpu.gpr[31]=0x8004f608;hooks().at(0x8004dea4)(&cpu,0x8004dea4);};
+        auto sparks=[&](uint32_t ra){CPUState cpu{};cpu.gpr[4]=6;cpu.gpr[6]=0xff;cpu.gpr[29]=0x801fff00;cpu.gpr[31]=ra;hooks().at(0x8006d594)(&cpu,0x8006d594);return cpu.gpr[6];};
+        auto sizzle=[&](uint32_t ra){CPUState cpu{};cpu.gpr[4]=0x101d;cpu.gpr[29]=0x801fff00;cpu.gpr[31]=ra;hooks().at(0x8006b270)(&cpu,0x8006b270);return cpu.gpr[4];};
+        auto other_hook=[&]{CPUState cpu{};cpu.gpr[29]=0x801fff00;cpu.gpr[31]=0x800265a4;hooks().at(0x8001fc44)(&cpu,0x8001fc44);};
+        auto stick=[&](uint32_t flags,uint32_t cross_word,uint32_t holster_word){
+            psx_mod_write_half(p+0x3b8,0x0e02);psx_mod_write_word(p+0x224,flags);psx_mod_write_word(p+0x250,1234);
+            psx_mod_write_word(cross,cross_word);psx_mod_write_word(holster,holster_word);
+            psx_mod_write_half(p+0x74,39);psx_mod_write_half(p+0x7c,5);psx_mod_write_half(p+0x7e,0);writes=0;
+        };
+        auto stowed=[&]{return psx_mod_read_half(p+0x74)==0x28 && psx_mod_read_half(p+0x7c)==0 && psx_mod_read_half(p+0x7e)==1;};
+        // Unlit and idle: fuse full, quiet, no stow; only the handler's own calls are quieted.
+        stick(0,0,0);handler(p);
+        assert(psx_mod_read_word(p+0x250)==full && psx_mod_read_half(p+0x74)==39);
+        assert(sparks(0x8004e138)==0 && sizzle(0x8004e154)==0xffffffffu);
+        assert(sparks(0x8004e6d0)==0xff && sizzle(0x8004e0d8)==0x101d);
+        // A weapon request or a released holster button stows it (anim 40 backwards).
+        stick(4,0,0);handler(p);assert(stowed() && psx_mod_read_word(p+0x250)==full);
+        stick(0,0,2);handler(p);assert(stowed());
+        stick(0x200,0,2);handler(p);assert(psx_mod_read_half(p+0x74)==39);  // 0x4241 blocks the button, as at 0x8004e1c0
+        stick(0,0,3);handler(p);assert(psx_mod_read_half(p+0x74)==39);      // still held: not yet
+        // Cross down where 0x8004dc74 would charge lights it: full fuse from the press, original from then on.
+        stick(4,1,0);handler(p);
+        assert(psx_mod_read_word(p+0x250)==full && psx_mod_read_half(p+0x74)==39);
+        assert(sparks(0x8004e138)==0xff && sizzle(0x8004e154)==0x101d);
+        assert(std::strstr(ttk::controls_debug_json(),"\"lit\":true"));
+        psx_mod_write_word(p+0x250,1234);psx_mod_write_word(cross,0);handler(p);
+        assert(psx_mod_read_word(p+0x250)==1234 && psx_mod_read_half(p+0x74)==39);  // burning, no stow
+        other_hook();handler(p);assert(psx_mod_read_word(p+0x250)==1234);         // still in hand: still lit
+        // Stowed or exploded (the hand empties outside a throw): the next stick
+        // starts unlit and none is queued.
+        psx_mod_write_half(p+0x3b8,0);other_hook();
+        assert(std::strstr(ttk::controls_debug_json(),"\"lit\":false,\"redraw\":false"));
+        // Thrown (the hand empties during throw animations 41-46): the next stick is queued.
+        stick(0,0,0);other_hook();psx_mod_write_half(p+0x74,41);psx_mod_write_half(p+0x3b8,0);other_hook();
+        assert(std::strstr(ttk::controls_debug_json(),"\"redraw\":true"));
+        setenv("DNTTK_DYNAMITE","original",1);stick(0,0,0);other_hook();psx_mod_write_half(p+0x74,42);psx_mod_write_half(p+0x3b8,0);other_hook();
+        assert(std::strstr(ttk::controls_debug_json(),"\"redraw\":false"));unsetenv("DNTTK_DYNAMITE");
+        // A charge already running (+0x224 bit 8) lights it even with Cross up.
+        stick(0x100,0,0);handler(p);assert(sparks(0x8004e138)==0xff);psx_mod_write_half(p+0x3b8,0);other_hook();
+        stick(0,0,0);handler(p);assert(psx_mod_read_word(p+0x250)==full);
+        // Cross in the charge's reset state (+0x224 bit 5) or with 0x241 set does not light it.
+        stick(0x20,1,0);handler(p);assert(sparks(0x8004e138)==0);
+        stick(0x40,1,0);handler(p);assert(sparks(0x8004e138)==0);
+        // Other actors, other weapons, Original and Vanilla: untouched.
+        stick(4,0,0);handler(0x801d0000);assert(writes==0);
+        stick(4,0,0);psx_mod_write_half(p+0x3b8,0x0d02);writes=0;handler(p);assert(writes==0);
+        setenv("DNTTK_DYNAMITE","original",1);stick(4,0,0);handler(p);assert(writes==0 && sparks(0x8004e138)==0xff);unsetenv("DNTTK_DYNAMITE");
+        ttk::modern=false;stick(4,0,0);handler(p);assert(writes==0 && sizzle(0x8004e154)==0x101d);ttk::modern=true;
+        psx_mod_write_half(p+0x3b8,0);psx_mod_write_word(p+0x224,flags0);psx_mod_write_word(p+0x250,0);
+        psx_mod_write_half(p+0x74,0);psx_mod_write_half(p+0x7c,0);psx_mod_write_half(p+0x7e,0);
+        psx_mod_write_half(p+0x60,lower);psx_mod_write_byte(p+0x233,index);
+        psx_mod_write_word(0x800d1b50,cross_slot);psx_mod_write_word(0x800d1a90,holster_slot);
+        other_hook();
+        std::puts("PASS: D08A12 dynamite unlit until Cross (fuse full, sparks dark, sizzle refused), request/holster stow, lit runs original until it leaves the hand; reset/0x241, other actor/weapon, Original and Vanilla untouched");
+    }
+    {
         // D08A9: a gadget the dispatcher grants (bit 0, full amount) or
         // refills becomes the selection when its caller resumes (0x8001ca4c,
         // ra 0x8007fe78); keys, full items and other callers leave it, and a

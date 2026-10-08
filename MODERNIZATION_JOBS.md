@@ -4,7 +4,7 @@ This is the canonical job list for our **Duke Nukem: Time to Kill** PC project, 
 
 Invoke **`$continue-duke-recomp`** (Codex) or **`/continue-duke-recomp`** (Claude Code) to see the current jobs and choose one. You can also request a job directly: **`$continue-duke-recomp work on D01`** or **`/continue-duke-recomp work on D01`**. The skill reads this file rather than keeping a second backlog. It must not automatically start the next job.
 
-**Latest accepted job (2026-10-08): D08A17 (power-up countdowns); executable `8f338cde1c2dc4cf73da747621cffafe2478512f6419078a41d11b0d3b9268a9` is the regression baseline.** Earlier accepted jobs (2026-10-08): D08A14 (death ends steroids), D08A15 (heartbeat restart; a pickup mid-run stops steroids) and D08G4 (inventory cheats give full armor); executable `87fe38d4f0ea8560312f53171345c207f332e26b6f4d2ed7220e1afae66ba472` is the regression baseline.** Earlier: D08J2 (pole/chain A/D direction), D08U2 (climb off a ladder past an enemy), D08O3 (E in water keeps the weapon) and D08O2A (natural swim-fire pose v2), 2026-10-07.** Previous baseline `e8eebb809c3d5a4b29779f11f0c9db55efcd846dc5c71b39d5a59d43158eb08e` (D08U2). **D08J2 (pole/chain A/D direction) Accepted 2026-10-07**: executable `129a64f2df3f5395f2d3485a310a03d74c85f9b1086c7dab37fee59277c7968b` is the current regression baseline ([note 122](documentation/122-d08j2-pole-chain-sidestep.md)). Todo: D08J4 (ceiling monkey-bar drops, UI slot 3), D08J3 (free camera while climbing). Previous baseline `e75b50f156137fa2377e4643407b2efbd16f2e976fa4d697afcbceb228e2e554` (D08O3). **D23E (western-town stutter) Accepted 2026-10-07**; **D08O2A Accepted** ([note 119](documentation/119-d08o2a-natural-swim-fire-pose.md)), **D08O3 Accepted** ([note 120](documentation/120-d08o3-e-in-water.md)); **D23F (fast CPU timing) Accepted 2026-10-05 and now the Modernized default**; executable `e0737a9f712aa5622d1b057ee5071e12c33cc9a18de8e6d40ee8eee31083f966` (includes D23E), [note 104](documentation/104-d23e-busy-scene-stutter.md), [note 105](documentation/105-d23f-fast-timing.md). Next suggested: D23G (finish the fast path) and D17S (auto frame-rate default).
+**Latest accepted job (2026-10-08): D08Z1 (jump wall slide); executable `3f909c9f2cc4e5b09ba6faab5129ec9ae0ff938c4735e264ac67a66405c1ed34` is the regression baseline. Next: D08Z2 (mantle pose regression), then D08Z3.** Earlier (2026-10-08): D08A17 (power-up countdowns); executable `8f338cde1c2dc4cf73da747621cffafe2478512f6419078a41d11b0d3b9268a9`. Earlier accepted jobs (2026-10-08): D08A14 (death ends steroids), D08A15 (heartbeat restart; a pickup mid-run stops steroids) and D08G4 (inventory cheats give full armor); executable `87fe38d4f0ea8560312f53171345c207f332e26b6f4d2ed7220e1afae66ba472` is the regression baseline.** Earlier: D08J2 (pole/chain A/D direction), D08U2 (climb off a ladder past an enemy), D08O3 (E in water keeps the weapon) and D08O2A (natural swim-fire pose v2), 2026-10-07.** Previous baseline `e8eebb809c3d5a4b29779f11f0c9db55efcd846dc5c71b39d5a59d43158eb08e` (D08U2). **D08J2 (pole/chain A/D direction) Accepted 2026-10-07**: executable `129a64f2df3f5395f2d3485a310a03d74c85f9b1086c7dab37fee59277c7968b` is the current regression baseline ([note 122](documentation/122-d08j2-pole-chain-sidestep.md)). Todo: D08J4 (ceiling monkey-bar drops, UI slot 3), D08J3 (free camera while climbing). Previous baseline `e75b50f156137fa2377e4643407b2efbd16f2e976fa4d697afcbceb228e2e554` (D08O3). **D23E (western-town stutter) Accepted 2026-10-07**; **D08O2A Accepted** ([note 119](documentation/119-d08o2a-natural-swim-fire-pose.md)), **D08O3 Accepted** ([note 120](documentation/120-d08o3-e-in-water.md)); **D23F (fast CPU timing) Accepted 2026-10-05 and now the Modernized default**; executable `e0737a9f712aa5622d1b057ee5071e12c33cc9a18de8e6d40ee8eee31083f966` (includes D23E), [note 104](documentation/104-d23e-busy-scene-stutter.md), [note 105](documentation/105-d23f-fast-timing.md). Next suggested: D23G (finish the fast path) and D17S (auto frame-rate default).
 
 ## The experience we are building
 
@@ -105,7 +105,9 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08X | Hold-E airborne ledge grab and mantle (ladder-grab feel for ledges) | Done | D08, D08J, D08V |
 | D08Y | Gap jump dead band: jump-mantle level-geometry ledges (slot 5 gap) | Done | D08X |
 | D08Z | Optional manual modern jump (player-timed takeoff, air control) | Done | D08Y |
-| D08Z1 | Keep jump momentum when bumping a wall (EDuke32-style, menu-toggleable) | Todo | D08Z, D22B |
+| D08Z1 | Keep jump momentum when bumping a wall (EDuke32-style, menu-toggleable) | Done (user-accepted) | D08Z, D22B |
+| D08Z2 | Mantle regression since D08Z1: the mantle plays as a static leg pose (next job) | Todo | D08Z1 |
+| D08Z3 | Occasional landing after a jump where Duke is stuck for about a second before he can move | Todo | D08Z1 |
 | D08J1 | Hold-E run-up grab for overhead ladders (slot-6 ladder) | Done | D08J, D08X, D08U |
 | D08J2 | Poles and chains: A/D turn the wrong way (A turns right, D left) | Accepted | D08J |
 | D08J4 | Ceiling monkey-bar climbing: camera-relative travel, no mid-span drops (player UI slot 3) | Accepted | D08J, D22B |
@@ -3241,7 +3243,21 @@ no wall clipping. Vanilla is unchanged.
 
 ### D08Z1 - Keep jump momentum when bumping a wall (EDuke32-style air control)
 
-**Todo. User request, 2026-10-06.** "i dont want duke to lose his motion when
+**Done (2026-10-08, user-accepted: "mechanically this feels significantly better, where we can call the actual job as accepted.").** Follow-ups split out as D08Z2
+(mantle pose regression) and D08Z3 (stuck after some landings).
+
+Was Needs playtest (2026-10-08). Modernized `jump_walls` = `slide` (default;
+`run.py --jump-walls original` restores the bounce; Vanilla unchanged). Before
+each airborne update the host runs the original integration and sweep in
+isolation; a wall only loses the velocity into it, a ceiling stops the rise,
+so Duke keeps his arc and slides along with no 107, rumble or sound. Ledge
+grabs, jump mantles and the low-lip scramble start from the contact instead of
+the bounce. Evidence: no 107 in 48 wall jumps over three levels (8 of 16 bounced with
+`original` where compared), D08X/D08Y/D08U/D08W/D08Z routes unchanged. Revision 1
+(slot-6 monument corner still bounced): corner turn search and an original
+bounce safety net. Executable `3f909c9f2cc4e5b09ba6faab5129ec9ae0ff938c4735e264ac67a66405c1ed34`. [Note 134](documentation/134-d08z1-jump-wall-slide.md).
+
+**User request, 2026-10-06.** "i dont want duke to lose his motion when
 you bump into a wall when jumping, i want that behavior to be more like eduke
 also, duke should be able to jump into a wall without consequence." Today a
 jump that touches a wall cancels Duke's travel (wall-touch cancel and the 107
@@ -3264,6 +3280,42 @@ be exposed in the future menu (D19); off restores current behavior.
 and angled walls keep their arc and slide along the wall in at least two
 levels; ledge grabs and jump-mantles still work; ground wall bumps, swimming,
 jetpack and Vanilla unchanged; option off matches today; the user confirms.
+
+### D08Z2 - Mantle pose regression since D08Z1
+
+**Todo. User report, 2026-10-08, at D08Z1 acceptance:** "this has also
+introduced a regression where his mantling animation is now some static pose
+with his legs and looks weird." Next job by the user's choice.
+
+Leads (not yet investigated): D08Z1 starts the D08X jump mantle, D08X/D08Y
+lowered retries and the D08Y low-lip step-up from a recent wall slide
+(`jump_wall_recent()`) as well as from the first updates of a bounce 107. In
+those cases Duke enters the mantle (134..140) from a flight animation
+(98/103/104/109) instead of 107; the mantle starts with `+0x68/+0x6a` reset,
+but the upper body or the D08Z1 safety net's 107 undo (which restores
+`+0x60/+0x68/+0x6a` at the next runner call) could leave a stale pose. Also
+check whether walk-in (ground) mantles are affected, and `jump_walls original`.
+
+**Acceptance:** every mantle (ground walk-in, jump mantle onto crates and
+ledges, low-lip scramble) plays its full original animation in Modernized with
+`jump_walls slide`; Vanilla and `original` unchanged; the D08Z1 slide and
+corner behavior stay as accepted; the user confirms.
+
+### D08Z3 - Stuck for a moment after some landings
+
+**Todo. User report, 2026-10-08, at D08Z1 acceptance:** "there is the
+occasional jump where duke lands and he's stuck for a second before being able
+to move again."
+
+Leads (not yet investigated): a landing that follows wall slides or a corner
+turn; the safety net's restored flight animation meeting the landing; the
+landing animation the original picks (`0x80054c04`) after a slide (a hard
+landing such as 127/128 holds input for a while). Reproduce first (which
+level, jump style, wall or none), compare `jump_walls original`.
+
+**Acceptance:** no landing after an ordinary jump locks movement in
+Modernized beyond the original's own landings; reproduction route documented;
+the user confirms.
 
 ### D08J1 - Hold-E run-up grab for overhead ladders (slot 6)
 
@@ -10867,3 +10919,41 @@ in note 117 is the reference for future custom pickups.
 
 - User: "all accepted". D24C Done (the `!` glyph, the `>` prompt and the
   font picker section).
+
+## 2026-10-08 - D08Z1 jump wall slide (Needs playtest)
+
+- Research: the airborne handler `0x80055904` bounces Duke off any wall within
+  45 degrees of head-on (`0x8003ef08`: half-speed reflection, rise zeroed, 107,
+  rumble, sound `0x2008`) and deflects him away at 0.25..0.75 speed otherwise
+  (`0x8003ef78`); a steep ceiling bounces too.
+- Change: `jump_walls.inc`, a second plugin at the existing `0x8003EBF4` entry.
+  The isolated original integration and sweep `0x8007a98c`; wall -> remove the
+  into-wall velocity (+128 outward drift, harder push-off on a re-touch);
+  rising into a ceiling -> stop the rise; corner -> up to three passes, then
+  stop horizontal. The ledge helpers accept a recent slide in place of the
+  bounce's first updates. Profile schema 30 `jump_walls` slide/original,
+  `--jump-walls`, menu K, `DNTTK_JUMP_WALLS`. Guards for `0x8007a98c` and
+  `0x80079f4c`. No generated code change; savestates load.
+- Evidence: see note 134 (three levels, both jump styles, all regression
+  routes, native 45 groups, Python 136 OK). Executable `c91a3ef128d9f98d923efe858fef75f432b8d729b2ffe5f16654f0034a56b627`.
+- Open: the user's playtest (feel, any wall that still bounces, whether a
+  head-on thud is wanted). Nothing committed.
+
+## 2026-10-08 - D08Z1 revision 1: monument corner (Needs playtest)
+
+- User: the slot-6 monument corner still bounced; otherwise the mechanic
+  "feels much more modern and great". Reproduced (manual, first person): 2/8
+  corner jumps played 107, the rest stopped dead.
+- Change: corner turn search (15-degree steps toward the slide, first heading
+  the original sweep clears), push-off fallback, and a safety net that turns a
+  remaining original bounce/deflection into a slide and undoes its 107 in the
+  same update. Guard `0x8003ef08`.
+- Evidence: slot 6 corner 0/21 bounces across styles; slots 5 and 12 no 107;
+  routes unchanged; native 45 groups, Python 136 OK. Executable `3f909c9f2cc4e5b09ba6faab5129ec9ae0ff938c4735e264ac67a66405c1ed34`. Note 134.
+
+## 2026-10-08 - D08Z1 accepted; D08Z2, D08Z3 queued
+
+- User: "mechanically this feels significantly better, where we can call the actual job as accepted." D08Z1 Done; executable `3f909c9f2cc4e5b09ba6faab5129ec9ae0ff938c4735e264ac67a66405c1ed34` is the regression baseline.
+- New jobs from the same playtest: D08Z2 mantle animation now a static leg
+  pose (regression, next job), D08Z3 occasional landing where Duke is stuck for
+  about a second.

@@ -77,7 +77,7 @@ class InputBindingsTest(unittest.TestCase):
             raw = json.dumps(data)
             path.write_text(raw)
             loaded, notices = profiles.load(path)
-            self.assertEqual(loaded['version'], 29)
+            self.assertEqual(loaded['version'], 30)
             self.assertEqual(loaded['active'], 'modernized')
             self.assertEqual(loaded['profiles']['modernized']['presentation']['renderer'], 'software')
             self.assertEqual(loaded['profiles']['modernized']['bindings'], pc_input.DEFAULTS)

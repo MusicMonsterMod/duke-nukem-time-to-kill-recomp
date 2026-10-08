@@ -1,5 +1,33 @@
 # Current status - 2026-10-04
 
+## 2026-10-08 - D08Z1 accepted; D08Z2, D08Z3 queued
+
+- User: "mechanically this feels significantly better, where we can call the actual job as accepted." D08Z1 Done; executable `3f909c9f2cc4e5b09ba6faab5129ec9ae0ff938c4735e264ac67a66405c1ed34` is the regression baseline.
+- D08Z2 (next): the mantle now plays as a static leg pose, a regression from
+  D08Z1. D08Z3: occasionally Duke is stuck for about a second after landing.
+  Leads in the job board.
+
+## 2026-10-08 - D08Z1 revision 1: monument corner (Needs playtest)
+
+- The slot-6 monument corner bounced (convex corners defeated the wall clip).
+  Jumps now turn around a corner in 15-degree steps, and any original bounce
+  that still happens is turned into a slide, with its 107 undone in the same
+  update. Slot 6 corner: no 107 in 21 jumps; earlier routes unchanged.
+  Executable `3f909c9f2cc4e5b09ba6faab5129ec9ae0ff938c4735e264ac67a66405c1ed34`. [Note 134](134-d08z1-jump-wall-slide.md).
+
+## 2026-10-08 - D08Z1 jump wall slide (Needs playtest)
+
+- Modernized jumps no longer bounce off walls: a wall only stops the motion
+  into it, so Duke keeps his arc and slides along it (EDuke32 style); rising
+  into a ceiling stops the rise and keeps the forward speed. No 107 stagger,
+  rumble or contact sound. `run.py --jump-walls original` (menu K) restores
+  the bounce; Vanilla unchanged. Profile schema 30.
+- Verified offscreen: no 107 in 48 wall jumps over three levels, both jump
+  styles; D08X/D08Y/D08U/D08W/D08Z routes keep their grabs, mantles and
+  scrambles; native 45 groups, Python 136 OK, `check_repo.py`. Executable
+  `c91a3ef128d9f98d923efe858fef75f432b8d729b2ffe5f16654f0034a56b627`. [Note 134](134-d08z1-jump-wall-slide.md).
+- Needs the user's playtest. Nothing committed.
+
 ## 2026-10-08 - D24C accepted
 
 - User: "all accepted". D24C Done: TTK-font `!` and `>` console prompt.

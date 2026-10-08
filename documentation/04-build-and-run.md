@@ -376,6 +376,15 @@ air steering, quicker standing takeoff). `run.py --jump VALUE` saves it
 (`--settings` choice J); the launcher passes `DNTTK_JUMP` (always `assisted`
 for Vanilla). See [78-d08z-manual-jump.md](78-d08z-manual-jump.md).
 
+## Jump wall contact (D08Z1)
+
+Profile schema 30 adds the Modernized `jump_walls` choice: `slide` (default,
+EDuke32 style: a wall or ceiling only removes the motion into it) or `original`
+(the original bounce 107). `run.py --jump-walls VALUE` saves it (`--settings`
+choice K); the launcher passes `DNTTK_JUMP_WALLS` (always `original` for
+Vanilla). No new hook or generated code: a second plugin at the existing
+`0x8003EBF4` entry. See [134-d08z1-jump-wall-slide.md](134-d08z1-jump-wall-slide.md).
+
 ## Steroids countdown box (D08A8)
 
 One hook (`0x8002E850`, the view composition's call after the status bar) was

@@ -110,7 +110,9 @@ static void ledge_reach_mantle(CPUState* cpu) {
         if(offset>=400 && offset<=640)stand_offset=offset;
     }
     if(animation==107 && mode==9) ++bounce_updates; else bounce_updates=0;
-    // Any original jump or fall in flight, the reach, or the start of a bounce.
+    // Any original jump or fall in flight, the reach, or the start of a bounce
+    // (D08Z1: or of a wall slide, which replaces the bounce).
+    const bool slid=jump_wall_recent(1,4);
     const bool airborne=mode==9 && (animation==97 || animation==98 || animation==103 || animation==104 ||
         animation==108 || animation==109 || (animation==107 && bounce_updates<=4));
     if(!airborne)return;
@@ -122,6 +124,8 @@ static void ledge_reach_mantle(CPUState* cpu) {
     // Direction of travel (the flight velocity), else the body heading.
     double mx=(int32_t)psx_mod_read_word(player+0x1f4),mz=(int32_t)psx_mod_read_word(player+0x1fc);
     // A bounce (107) has already reversed the velocity: use the heading there.
+    // A wall slide (D08Z1) has turned it along the wall: use the way he was going.
+    if(slid && animation!=107) {mx=jump_wall_vx;mz=jump_wall_vz;}
     if(animation==107 || std::hypot(mx,mz)<200) {
         const double heading=(psx_mod_read_half(player+0x1c)&4095)*tau/4096;
         mx=std::sin(heading);mz=std::cos(heading);
@@ -279,7 +283,8 @@ static void ledge_reach_retry(CPUState* cpu) {
     const auto& f=input_snapshot(Context::Gameplay);
     const unsigned upper=psx_mod_read_half(player+0x74);
     const bool eligible=psx_mod_read_byte(player+0x22c)==9 &&
-        (animation==109 || (animation==107 && bounce_updates>=1 && bounce_updates<=4)) &&
+        (animation==109 || (animation==107 && bounce_updates>=1 && bounce_updates<=4) ||
+         ((animation==98 || animation==103 || animation==104 || animation==108) && jump_wall_recent(1,4))) &&
         f.active && !f.held[original_aim] && input_airborne_reach_held() && player_identity_ready() &&
         psx_mod_read_byte(player+0x3b8)==0 && !(psx_mod_read_word(player)&0x20002) &&
         !(psx_mod_read_word(player+0x224)&0x241u) && upper<280 && !(psx_mod_read_word(0x800c2824+4*upper)&8);
@@ -368,9 +373,16 @@ static unsigned last_flight_anim;
 static void ledge_step_up(CPUState* cpu) {
     const unsigned animation=psx_mod_read_half(player+0x60);
     const unsigned mode=psx_mod_read_byte(player+0x22c);
-    if(mode==9 && (animation==98 || animation==103 || animation==104 || animation==109)) {last_flight_anim=animation;flight_updates=0;return;}
-    if(mode!=9 || animation!=107 || !last_flight_anim) {last_flight_anim=0;return;}
-    if(++flight_updates>3) {last_flight_anim=0;return;}
+    const bool flight=mode==9 && (animation==98 || animation==103 || animation==104 || animation==109);
+    // D08Z1: a wall slide keeps the flight animation; its first updates stand
+    // in for the bounce's.
+    const bool slid=flight && jump_wall_recent(1,3);
+    if(flight && !slid) {last_flight_anim=animation;flight_updates=0;return;}
+    if(!slid) {
+        if(mode!=9 || animation!=107 || !last_flight_anim) {last_flight_anim=0;return;}
+        if(++flight_updates>3) {last_flight_anim=0;return;}
+    }
+    const unsigned contact_update=slid?jump_wall_age:flight_updates;
     const auto& f=input_snapshot(Context::Gameplay);
     if(!f.active || f.held[original_aim] || !player_identity_ready() || (psx_mod_read_word(player)&0x20002) ||
        (psx_mod_read_word(player+0x224)&0x241u))return;
@@ -386,7 +398,7 @@ static void ledge_step_up(CPUState* cpu) {
     // heights come round over the three bounce updates checked.
     static constexpr int32_t step_drops[]={400,560,720,480,640,400};
     for(unsigned k=0;k<2;++k) {
-        const int32_t drop=step_drops[(2*(flight_updates-1)+k)%std::size(step_drops)];
+        const int32_t drop=step_drops[(2*(contact_update-1)+k)%std::size(step_drops)];
         psx_mod_write_word(player+8,uint32_t(y+drop));
         // During the bounce +0x1c may already be turned; probe along the body.
         psx_mod_write_half(player+0x1c,psx_mod_read_half(player+0x24));

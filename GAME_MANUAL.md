@@ -464,6 +464,25 @@ python3 recomp/tools/local/run.py --jump assisted --show-settings
 
 (`--settings`, choice J, does the same.) Vanilla always uses the original jump.
 
+**Jumping into walls (Modernized, D08Z1, accepted 2026-10-08).** In the original
+game a jump that touches a wall bounces Duke back with a stagger and the jump is
+lost. In Modernized (`slide`, the default) a wall only stops the part of his
+motion that goes into it, as in EDuke32: jump straight at a wall and he stops
+against it and drops down its face; jump at it at an angle and he slides along
+it, keeping his height, arc and the rest of his speed. Bumping your head on a
+ceiling stops the rise but keeps your forward speed. There is no stagger,
+rumble or impact sound. Ledge grabs with **E** and the low-lip scramble still
+catch a wall with a ledge in reach. Both jump styles use it. To get the
+original bounce back:
+
+```
+python3 recomp/tools/local/run.py --jump-walls original --show-settings
+python3 recomp/tools/local/run.py --jump-walls slide --show-settings
+```
+
+(`--settings`, choice K, does the same.) Vanilla always keeps the original
+bounce.
+
 **Jumping a gap that is slightly too long (Modernized, D08Y, awaiting playtest).**
 When a running or directional jump reaches the far edge with Duke's feet just
 below its top, he no longer bounces off and falls. If the lip is low (up to

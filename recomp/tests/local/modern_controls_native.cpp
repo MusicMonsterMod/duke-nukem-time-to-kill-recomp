@@ -29,7 +29,12 @@ extern "C" void gte_nclip_culling_stats(uint64_t* checks,uint64_t* flips) {*chec
 #include <iterator>
 #include <algorithm>
 static uint8_t ram[0x200000];
-static auto& hooks() {static std::map<uint32_t,PSXModFunctionEntryCallback> value;return value;}
+// The runtime runs every plugin registered at an address, in registration order.
+struct HookChain {
+    std::vector<PSXModFunctionEntryCallback> list;
+    void operator()(CPUState* cpu,uint32_t address) const {for(auto hook:list)hook(cpu,address);}
+};
+static auto& hooks() {static std::map<uint32_t,HookChain> value;return value;}
 static unsigned writes, code_writes;
 extern "C" uint32_t psx_mod_alloc_guest_memory(uint32_t,uint32_t){return 0x801e0000;}
 extern "C" uint8_t psx_mod_read_byte(uint32_t a) {return ram[a&0x1fffff];}
@@ -45,7 +50,7 @@ extern "C" void psx_mod_write_byte(uint32_t a,uint8_t v) {ram[a&0x1fffff]=v;++wr
 extern "C" void psx_mod_write_half(uint32_t a,uint16_t v) {ram[a&0x1fffff]=v;ram[(a+1)&0x1fffff]=v>>8;++writes;++g_dirty_ram_code_gen;}
 extern "C" void psx_mod_write_word(uint32_t a,uint32_t v) {psx_mod_write_half(a,v);psx_mod_write_half(a+2,v>>16);}
 extern "C" void psx_mod_write_code_word(uint32_t a,uint32_t v) {++code_writes;psx_mod_write_word(a,v);}
-extern "C" int psx_mod_register_function_entry_plugin(const char*,uint32_t a,PSXModFunctionEntryCallback cb) {hooks()[a]=cb;return 1;}
+extern "C" int psx_mod_register_function_entry_plugin(const char*,uint32_t a,PSXModFunctionEntryCallback cb) {hooks()[a].list.push_back(cb);return 1;}
 extern "C" int psx_mod_gpu_host_vertex(uint32_t,uint32_t,int32_t,int32_t,float,float,float){return 1;}
 extern "C" int psx_mod_gpu_host_vertex_depth(uint32_t,uint32_t,int32_t,int32_t,float,float,float,float){return 1;}
 static PSXModActivationCallback activation;static unsigned aspect_num,aspect_den;
@@ -77,7 +82,17 @@ static std::vector<std::array<uint32_t,4>> steroid_sounds;
 
 // D08Y: the runtime CPU overclock lease (renewed from the player update).
 static unsigned overclock_renewals;extern "C" void psx_overclock_renew(void){++overclock_renewals;}
+// D08Z1: the isolated flight sweep 0x8007a98c reports `jw_result` with the
+// normal (jw_nx, 0, jw_nz) for its first `jw_hits` calls, then a clear path.
+static int jw_result,jw_hits,jw_sweeps;static int32_t jw_nx,jw_nz;
 extern "C" void psx_dispatch_call(CPUState* cpu,uint32_t address,uint32_t) {
+    if(address==0x8007a98c) {
+        const bool hit=++jw_sweeps<=jw_hits;
+        psx_mod_write_word(0x800d7198+0x194,uint32_t(jw_nx));psx_mod_write_word(0x800d7198+0x198,0);
+        psx_mod_write_word(0x800d7198+0x19c,uint32_t(jw_nz));
+        cpu->gpr[2]=hit?uint32_t(jw_result):0;cpu->pc=0;return;
+    }
+    if(address==0x8003ebf4) {cpu->pc=0;return;}   // D08Z1: its isolated integration
     if(address==0x8003d738 || address==0x8003d7bc || address==0x8003d840) {
         cheat_calls.push_back(address);cpu->pc=0;return;
     }
@@ -546,6 +561,78 @@ int main(int argc,char** argv) {
         psx_mod_write_byte(p+0x22c,0);psx_mod_write_byte(p+0x22d,0);psx_mod_write_half(p+0x60,saved_anim);
         psx_mod_write_word(p+0x224,saved_flags);
         std::puts("PASS: D08X hold-E reach arm (98/103/104 only, E required, precision aim/blocking bits/caller/capture/Vanilla refusals)");
+    }
+    // D08Z1: before Duke's own ballistic update the host sweeps the flight in
+    // isolation; a wall (result 1) leaves the motion along it plus a small
+    // outward drift, a ceiling while rising (result 3) stops the rise, a corner
+    // still in the way after three passes stops the horizontal travel. Clear
+    // paths, falls into a ceiling, other callers, a short guest stack and
+    // Vanilla are untouched.
+    {
+        const auto saved_anim=psx_mod_read_half(p+0x60);
+        psx_mod_write_byte(p+0x22c,9);psx_mod_write_byte(p+0x22d,9);psx_mod_write_half(p+0x60,107);
+        auto v=[&](unsigned o){return int32_t(psx_mod_read_word(p+o));};
+        auto fly=[&](int32_t vx,int32_t vy,int32_t vz,int result,int hits,int32_t nx,int32_t nz,uint32_t ra=0x80055934,uint32_t sp=0x801fff00){
+            psx_mod_write_word(p+0x1f4,uint32_t(vx));psx_mod_write_word(p+0x1f8,uint32_t(vy));psx_mod_write_word(p+0x1fc,uint32_t(vz));
+            jw_result=result;jw_hits=hits;jw_nx=nx;jw_nz=nz;jw_sweeps=0;
+            call(0x8003ebf4,p,0,ra,sp);};
+        fly(0,-3000,10000,1,1,0,-4096);   // head-on: stops at the wall, keeps the arc
+        assert(v(0x1f4)==0 && v(0x1f8)==-3000 && v(0x1fc)==-128 && jw_sweeps==2);
+        assert(std::strstr(ttk::controls_debug_json(),"\"jump_walls\":{\"slide\":true,\"slides\":1,") &&
+               std::strstr(ttk::controls_debug_json(),"\"age\":0}"));
+        fly(10000,500,10000,1,1,0,-4096);  // 45 degrees: keeps the motion along it
+        assert(v(0x1f4)==10000 && v(0x1f8)==500 && v(0x1fc)==-128);
+        fly(-7000,0,7000,1,1,2896,-2896);  // a diagonal wall
+        assert(std::abs(v(0x1f4)-91)<=2 && std::abs(v(0x1fc)+91)<=2);
+        fly(10000,0,0,1,1,0,-4096);       // along it and still touching: pushed off
+        assert(v(0x1f4)==10000 && v(0x1fc)==-256 && std::strstr(ttk::controls_debug_json(),"\"nudges\":1,"));
+        fly(0,0,10000,1,3,0,-4096);       // a convex corner: turned 15 degrees toward the slide clears it
+        assert(jw_sweeps==4 && std::abs(v(0x1f4)+2500)<=3 && std::abs(v(0x1fc)-9330)<=3 &&
+               std::strstr(ttk::controls_debug_json(),"\"turns\":1,"));
+        fly(0,-500,10000,1,99,0,-4096);   // nothing clears: pushed straight off it, never into it
+        assert(jw_sweeps==17 && v(0x1f4)==0 && v(0x1fc)==-1200 && v(0x1f8)==-500 && std::strstr(ttk::controls_debug_json(),"\"stops\":1,"));
+        // Safety net: the original bounce's rerun of the integration (ra
+        // 0x8003ef68, its caller the wall case 0x800559f8 at sp+0x24) gets the
+        // pre-pass velocity minus the part into the wall, a push off it, the
+        // update's own vertical speed and timer; the 107 it writes is undone
+        // at the next animation runner call.
+        {
+            psx_mod_write_half(p+0x60,103);psx_mod_write_half(p+0x68,7);psx_mod_write_half(p+0x6a,9);
+            psx_mod_write_word(p+0x200,1234);
+            fly(3000,-2000,8000,0,0,0,0);   // clear pre-pass: remembered as this update's velocity
+            psx_mod_write_word(p+0x194,0);psx_mod_write_word(p+0x19c,uint32_t(-4096));
+            psx_mod_write_word(p+0x1f4,uint32_t(-1500));psx_mod_write_word(p+0x1f8,0);psx_mod_write_word(p+0x1fc,uint32_t(-4000));
+            psx_mod_write_word(p+0x200,1300);
+            psx_mod_write_word(0x801ffe00+0x24,0x800559f8);
+            call(0x8003ebf4,p,0,0x8003ef68,0x801ffe00);
+            assert(v(0x1f4)==3000 && v(0x1fc)==-300 && v(0x1f8)==-2000 && v(0x200)==1234);
+            psx_mod_write_half(p+0x60,107);psx_mod_write_half(p+0x68,0);psx_mod_write_half(p+0x6a,0);
+            call(0x80059db0,p+0x74,p,0x8005a5a8,0x801fff00);
+            assert(psx_mod_read_half(p+0x60)==103 && psx_mod_read_half(p+0x68)==7 && psx_mod_read_half(p+0x6a)==9);
+            psx_mod_write_half(p+0x60,107);call(0x80059db0,p+0x74,p,0x8005a5a8,0x801fff00);
+            assert(psx_mod_read_half(p+0x60)==107);   // once only
+            // Only once per pre-pass, only from the wall case.
+            psx_mod_write_word(p+0x1f4,uint32_t(-1500));call(0x8003ebf4,p,0,0x8003ef68,0x801ffe00);assert(v(0x1f4)==-1500);
+            fly(3000,-2000,8000,0,0,0,0);
+            psx_mod_write_word(p+0x1f4,uint32_t(-1500));psx_mod_write_word(0x801ffe00+0x24,0x80055ae4);   // the steep-ceiling bounce
+            call(0x8003ebf4,p,0,0x8003ef68,0x801ffe00);assert(v(0x1f4)==-1500);
+            assert(std::strstr(ttk::controls_debug_json(),"\"catches\":1,"));
+            psx_mod_write_half(p+0x60,107);
+        }
+        fly(5000,-6000,0,3,1,0,0);         // ceiling while rising
+        assert(v(0x1f4)==5000 && v(0x1f8)==0 && v(0x1fc)==0 && std::strstr(ttk::controls_debug_json(),"\"ceilings\":1,"));
+        fly(5000,6000,0,3,1,0,0);          // falling: the original's own landing/ceiling rules
+        assert(v(0x1f4)==5000 && v(0x1f8)==6000 && jw_sweeps==1);
+        fly(4000,100,4000,0,0,0,0);        // clear
+        assert(v(0x1f4)==4000 && v(0x1fc)==4000 && jw_sweeps==1);
+        fly(0,0,10000,1,1,0,-4096,0x80055930);assert(v(0x1fc)==10000 && jw_sweeps==0);              // other caller
+        fly(0,0,10000,1,1,0,-4096,0x80055934,0x801f0000);assert(v(0x1fc)==10000 && jw_sweeps==0);  // no guest stack
+        psx_mod_write_byte(p+0x22c,0);fly(0,0,10000,1,1,0,-4096);assert(v(0x1fc)==10000 && jw_sweeps==0);
+        psx_mod_write_byte(p+0x22c,9);
+        ttk::modern=false;fly(0,0,10000,1,1,0,-4096);assert(v(0x1fc)==10000 && jw_sweeps==0);ttk::modern=true;
+        for(unsigned o:{0x1f4u,0x1f8u,0x1fcu})psx_mod_write_word(p+o,0);
+        psx_mod_write_byte(p+0x22c,0);psx_mod_write_byte(p+0x22d,0);psx_mod_write_half(p+0x60,saved_anim);
+        std::puts("PASS: D08Z1 jump wall slide (head-on, angled, diagonal, touching push-off, convex corner turn, push-off when nothing clears, bounce safety net and 107 undo, rising ceiling; falls, clear paths, caller, stack, mode and Vanilla untouched)");
     }
     // D08X boxes room: an E bounce (107) off a climbable crate whose top is in
     // mantle range above Duke's feet becomes the matching original mantle.

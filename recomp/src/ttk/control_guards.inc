@@ -83,6 +83,13 @@ static const Guard guards[] = {
     {0x8001414c, 8, "dfc8ce8176e239747860f79dc901550d9525deab302f9c5c8079e30a4556bec0"},
     {0x800557f8, 880, "62ced50fcdb59f2a6a9ed22808cfb695caf79eb60d8d95c6ca02f3503264209e"},
     {0x8003ebf4, 332, "0a0b8b7f95633200f3150baac485db4716e776bf752140993730da438087f203"},
+    // D08Z1: the flight sweep and its result finalizer (wall normal +0x194,
+    // result 1 wall / 2 floor / 3 ceiling), run in isolation by jump_walls.inc.
+    {0x8007a98c, 884, "0bd360aeaecc69300dea8353746542fdee9043e555f1d5664b61e7f210289d45"},
+    {0x80079f4c, 248, "85f09992847a3ea087b091d7057e35feb09bacd5c3401b1ddd771815cc097e8b"},
+    // D08Z1 safety net: the bounce 0x8003ef08 and deflection 0x8003ef78 (their
+    // return address at sp+0x24 when they rerun the integration).
+    {0x8003ef08, 200, "8d26016f889b53acbc9d6b82a4dc171fb287551b47fcce712a6ea7d6af7cc4a7"},
     {0x80028f2c, 884, "35c2c146e55820c71db887223353624a1e667698ecf422b988801ec3600efe79"},
     {0x8002a7fc, 32, "ebbdf98ec0abdf3efd50810400db3afa4a8bc47b80058549dcf0b5da19c49b9d"},
     {0x8005201c, 3108, "ad97e2be5256897d26af51f5c09ffc0662a91cff7c6ffd3c04daf7ec3d5e37ee"},

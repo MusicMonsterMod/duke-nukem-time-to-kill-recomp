@@ -335,6 +335,20 @@ profiles and analysis files; back them up first). `ttk_controls` reports
 `jump_style`, `air_steers`, `coyote_jumps`, `quick_takeoffs` and `air_cap`.
 `DNTTK_AIR_CONTROL=0..3` scales the manual air steering rate for tuning.
 
+## Jump wall contact routes (D08Z1)
+
+`recomp/analysis/d08z1-wall-momentum` (local only, private copies of the
+player's savestates, blank private cards): `walls.py SLOT run|stand
+[slide|original] [assisted|manual] [HEADINGS]` faces each heading (default
+eight, 45 degrees apart) from the slot and jumps, reporting animations, 107
+bounces, slides, airborne samples and horizontal travel (`summ.py` condenses
+the output). `regress.sh slide|original` reruns the D08X/D08Y/D08U/D08W routes
+and the D08Z slot-5 gap with that wall contact (it rewrites those folders'
+private profiles and logs; `pre-regress-backup*.tgz` holds the earlier ones).
+`ttk_controls.jump_walls` reports `slide`, `slides`, `corners`, `stops`,
+`ceilings`, `unsolved`, `nudges`, `passes` and `age`; `DNTTK_TRAVERSAL_TRACE`
+prints each slide and every touch.
+
 ## D17 frame-rate harness
 
 `recomp/analysis/d17-high-refresh/` (ignored) runs the game on the real GPU

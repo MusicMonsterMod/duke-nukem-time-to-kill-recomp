@@ -53,6 +53,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08A10 | Experimental: steroids heartbeat sound loop while they run (226 bpm, Duke 3D feel; may be reverted) | Done (user-accepted) | D08A4, D08A8 |
 | D08A11 | `dnhyper` countdown in the steroids HUD box (D08A8), not the old armor element | Done (user-accepted) | D08A8, D08G |
 | D08A12 | Modern dynamite: selecting it is safe (no forced fuse); Dynamite Behaviour Modern / Original | Todo | D08A, D08Q5 |
+| D08A13 | Steroids independent of damage and armor: being hit never shortens the steroid countdown (Modern) | Todo | D08A4, D08A8, D08A11 |
 | D08A5 | Mission item tracking: mission inventory on , / . (design E, revised) | Done | D08A1, D08A3, D24A |
 | D08A6 | Selected gadget shown on the HUD: original item slot (design A) | Done | D08A1, D08A3 |
 | D08A7 | Custom medkit gadget icon (switcher strip and HUD box) | Done | D08A6 |
@@ -64,6 +65,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08G1 | Original Duke3D cheat confirmation wording | Done | D08G |
 | D08G2 | Silent cheat entry and centered confirmations | Done | D08G1, D19A |
 | D08G3 | `dnupgrade` cheat: upgrade all weapons (Laser Gatling etc.) | Accepted | D08G2 |
+| D08G4 | `dnstuff`, `dnitems`, `dninventory` also give 100% armor; nothing else changes, steroids untouched | Todo | D08G |
 | D08H | Apartment furniture, hidden pickup and switch targeting | Done | D08 |
 | D08I | Responsive run-start and edge jumps | Done | D08 |
 | D08J | Armed airborne ladder grabs and automatic weapon transitions | Done | D08, D08E |
@@ -946,6 +948,81 @@ genuinely requires it.
 9. Savestates and weapon state stay sane with dynamite equipped or armed.
 10. The setting integrates cleanly with the existing modernization options.
 
+### D08A13 - Steroid duration independent of damage and armor
+
+**Todo. User request, 2026-10-08.** Backlog only; do not implement until
+selected.
+
+**Problem.** With steroids running, taking damage shortens the remaining
+steroid duration: activate steroids, watch the countdown in the steroids HUD
+box (D08A8), let an enemy shoot Duke, and the countdown drops with each hit.
+The user wants none of this. Design rule (user): **steroids and armor are
+completely independent systems.** Steroids are a temporary performance
+enhancement with their own timer; armor is protection from incoming damage.
+Damage must never consume steroid duration, and steroids must never change
+armor. The steroids box (D08A8, D08A11) is now the authoritative player-facing
+countdown, so steroids no longer need the armor element for a number.
+
+**What we already know (verify, do not assume):**
+[note 127](documentation/127-d08a4-portable-steroids.md) records, from the
+original code, item 4 (steroids) as player `+0x364` flags (bit 0 held, bit 1
+running) with its own amount/timer at `+0x366` (full 9000, `0x800c2722`);
+armor is a separate field `+0x234`. The drain `0x800414a0` lowers `+0x366` by
+the frame step while bit 1 is on and clears bits 0-1 at 0. A **damage cut
+`0x800a4154` takes 1500 from a running amount and can end the effect**. So
+the steroid duration is probably not stored in armor at all: the original
+game itself charges steroid time for each hit, and the old status bar showed
+that countdown in the armor element with the armor icon, which made the two
+look like one resource. This is a lead to confirm, not a finding.
+
+**Investigate first and document** (in note 127 or a new note):
+1. The original pickup/activation path, the drain, and exactly what
+   `0x800a4154` does: which damage routine(s) call it, for which damage types
+   (bullets, explosions, falls, melee, drowning), whether it runs before or
+   after armor absorbs damage, whether it depends on armor at all, and
+   whether 1500 is a constant or scaled by damage.
+2. Whether any other path ties `+0x366` / bit 1 to armor `+0x234` (armor
+   pickups, the status bar, the level-end snapshot `0x80083348`, card save and
+   load, savestates).
+3. Whether the coupling is original (Vanilla does it) or something our
+   modernization added or exposed (D08A4 portable doses, D08A8 HUD hide,
+   D08A11 `dnhyper` predicates, D08A10 heartbeat). Confirm in Vanilla /
+   `steroids` `original` as well as Modernized `portable`.
+4. Whether the effect ends early on a hit today and what clears with it
+   (bits 0-1, the HUD box, the heartbeat).
+
+**Scope.** Modernized with `steroids` `portable`: the steroid timer is only
+lowered by its own drain; incoming damage never touches `+0x366` or the
+running bit; armor and health take damage by the existing rules. Prefer the
+smallest clean change (e.g. skipping the damage cut for steroids in
+Modernized) over new duplicate state, since the steroid timer already exists
+on its own. Vanilla and `steroids` `original` keep the original rule; if the
+research shows a strict original mode needs the coupling, record that before
+changing anything global. Whether this is its own setting or part of
+`portable` is a decision to report, not to invent silently.
+
+**Preserve:** portable doses and R (D08A4), the steroids box countdown and
+row stacking (D08A8), `dnhyper` in the box (D08A11), the heartbeat and its
+start/stop (D08A10, D27A), the steroid kick and other effects, activation and
+expiry, pickup selection (D08A9).
+
+**Acceptance.**
+1. The coupling is traced and documented (original or ours, and why).
+2. Steroids + incoming damage: activate, note the remaining amount, get shot
+   repeatedly; armor and health behave normally and the steroid amount is
+   exactly what it would have been unhurt (compare against the drain rate,
+   frame-step aware, at 60 and 120 fps).
+3. Steroids with armor: the two values change independently.
+4. Steroids with zero armor: steroids work normally.
+5. Armor without steroids: unchanged.
+6. Natural expiry: the box reaches zero, the effect and heartbeat end.
+7. Save/load and savestate while steroids run: the steroid state is correct
+   and not reconstructed from armor.
+8. `dnhyper` and an R dose both behave as above.
+9. Vanilla and `steroids` `original` unchanged.
+10. User check: "activate steroids, stand in front of an enemy and get shot;
+    the steroid countdown does not react."
+
 ### D08A5 - Mission item tracking in the item switcher (approved design E)
 
 **Done on user acceptance (2026-10-07): "i fully accept!"** Redesigned by the
@@ -1348,6 +1425,43 @@ weapon becomes its upgraded form (Laser Gatling, Incendiary RPG, HiTemp
 Flamethrower and any others found), firing and switching normally, in at
 least two eras; the upgrades persist through a save/load; other cheats and
 Vanilla unchanged; the user confirms.
+
+### D08G4 - `dnstuff`, `dnitems` and `dninventory` also give 100% armor
+
+**Todo. User request, 2026-10-08.** Backlog only; do not implement until
+selected. An extremely small job.
+
+**Change.** Each of `dnstuff`, `dnitems` and `dninventory` additionally sets
+Duke's armor to 100%. That is the whole gameplay change. Today none of them
+gives armor ([note 38](documentation/38-debug-cheats.md) says `dnitems` "does
+not add a separate armor grant"; update that note).
+
+**Do not change** anything else they do: weapons, ammo, inventory and
+charges, keys, the D08A9 rule that the inventory grant leaves the gadget
+selection alone, confirmations, the solid-ground rule. Do not make the three
+equivalent or merge their implementations beyond what they already share
+(`cheat_codes.h`, `cheats.inc`); other cheats (`dnweapons`, `dnkeys`,
+`dnhyper`, ...) are out of scope.
+
+**Steroid independence (see D08A13).** The armor grant must not touch steroid
+state: player `+0x364` item-4 flags and the `+0x366` timer stay exactly as
+they were. Example: armor 25% and steroids at 40 s before the cheat; armor
+100% and steroids still at 40 s after.
+
+**Check first:** the armor field (`+0x234`, which the status bar shows as
+`armour / 100`, note 127) and the value an original full armor pickup sets,
+so "100%" is the game's own full armor, not a guess; whether setting it
+directly needs anything else the pickup does (HUD refresh, a flag).
+
+**Acceptance.**
+1. `dnstuff` with less than full armor: armor becomes 100%; everything else
+   as before.
+2. `dnitems`: same.
+3. `dninventory`: same.
+4. Each of the three while steroids run (an R dose and `dnhyper`): armor
+   becomes 100% and the steroid timer and flags are unchanged (compare
+   `+0x366` against the drain alone).
+5. Armor shows in the status bar armor element; other cheats unchanged.
 
 ### D08H — Apartment furniture, hidden pickup and switch targeting
 
@@ -10138,3 +10252,17 @@ in note 117 is the reference for future custom pickups.
 
 - User: "perfect!! fully accepted." D12C Done. Executable
   `7508b61525de474d12482cf32bbb524b5b48a6101fa5a903887a8f79edf55b7f` is the regression baseline.
+
+## 2026-10-08 - D08A13 queued
+
+- New Todo D08A13 (user request): steroid duration independent of damage and
+  armor in Modernized. Not started. Lead from note 127: the original damage
+  cut `0x800a4154` takes 1500 from the running steroid amount `+0x366`; armor
+  `+0x234` is a separate field, so the coupling looks original rather than
+  stored in armor. To be confirmed when the job is selected.
+
+## 2026-10-08 - D08G4 queued
+
+- New Todo D08G4 (user request): `dnstuff`, `dnitems` and `dninventory` each
+  also set armor to 100%, with no other change and no effect on steroid state
+  (pairs with D08A13). Not started.

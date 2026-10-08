@@ -40,10 +40,12 @@ static unsigned steroid_doses() {
     return (psx_mod_read_half(player+0x364)&3)==1 && (int16_t)psx_mod_read_half(player+0x366)>0;
 }
 // Held or running: steroids stay in the switcher and the HUD box (D08A8), like
-// a jetpack that is on.
+// a jetpack that is on. Running is bit 1 alone (D08A11): dnhyper and the
+// original's own activations set it without the owned bit, and the drain
+// 0x800414a0 clears bits 0-1 when it ends, so nothing is left held.
 static bool steroids_owned() {
     if(!portable_steroids()) return false;
-    return (psx_mod_read_half(player+0x364)&1) && (int16_t)psx_mod_read_half(player+0x366)>0;
+    return (psx_mod_read_half(player+0x364)&3) && (int16_t)psx_mod_read_half(player+0x366)>0;
 }
 static bool steroids_running() {
     return steroids_owned() && (psx_mod_read_half(player+0x364)&2);
@@ -58,18 +60,21 @@ static bool steroids_running() {
 // composition 0x80026164 reaches before anything else runs (and at the next
 // status bar entry and 0x800b4d9c, in case). Replay workers replay the whole
 // composition, so they restore it the same way.
+// Bit 1 is the only mark of running steroids (bit 0 may be off), so the hide
+// remembers it; a savestate loaded in between keeps the loaded flags.
 static bool steroid_hud_hidden;
+static uint64_t steroid_hud_loads;
 static unsigned steroid_hud_hides;
 static void steroids_hud_restore() {
     if(!steroid_hud_hidden) return;
     steroid_hud_hidden=false;
-    const unsigned flags=psx_mod_read_half(player+0x364);
-    if(flags&1) psx_mod_write_half(player+0x364,(uint16_t)(flags|2));
+    if(steroid_hud_loads!=psx_mod_savestate_loads() || (int16_t)psx_mod_read_half(player+0x366)<=0) return;
+    psx_mod_write_half(player+0x364,(uint16_t)(psx_mod_read_half(player+0x364)|2));
 }
 static void steroids_hud_hide() {
     if(steroid_hud_hidden || !steroids_running()) return;
     psx_mod_write_half(player+0x364,(uint16_t)(psx_mod_read_half(player+0x364)&~2u));
-    steroid_hud_hidden=true;++steroid_hud_hides;
+    steroid_hud_hidden=true;steroid_hud_loads=psx_mod_savestate_loads();++steroid_hud_hides;
 }
 struct SteroidPickup {bool pending;uint16_t flags;};
 static SteroidPickup steroid_pickup;

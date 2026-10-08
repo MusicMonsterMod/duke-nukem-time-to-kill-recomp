@@ -1,5 +1,34 @@
 # Next-session handoff
 
+## 2026-10-08 - D08A11 accepted; D27A and D08A12 queued
+
+- User: "this job is fully accepted." Executable
+  `2ebef6a88598649b2fade42d6306a253d1b7228df7cc57763e5f041791fde892` is the
+  regression baseline.
+- New Todo D27A: Modern Shift/run silent. The sound is the known walk/run
+  toggle click `0x0001` via `0x8006bbd8(1)` (note 129); remove it from the
+  Modern Shift path only and keep the D08A10 heartbeat, which uses it.
+- New Todo D08A12: Modern dynamite - selecting it (6 twice, mouse wheel) must
+  not commit Duke to a fuse; research the original equip/arm/fuse state
+  machine first; Dynamite Behaviour Modern (Modernized default) / Original.
+
+## 2026-10-08 - D08A11 `dnhyper` in the steroids box (Needs playtest)
+
+- **What:** with portable steroids, `dnhyper` now counts down in the D08A8
+  steroids box (lit pill icon, stacked or selected like a used dose) and the
+  armour element shows only armour. It ends with nothing held.
+- **Cause and fix:** `dnhyper` sets the running bit without the owned bit;
+  the HUD predicates in `steroids.inc` now treat the running bit alone as
+  running steroids, and the status-bar hide/restore no longer depends on the
+  owned bit (savestate-safe). A pickup during a `dnhyper` run selects steroids
+  (`pickup_select.inc`). R still takes only a held dose.
+- **Evidence:** 60 and 120 fps private runs (no armour, armour 50, savestate
+  reload, end, pickup refresh, R dose regression, `original` profile); suites
+  and Python 131 pass. Executable
+  `2ebef6a88598649b2fade42d6306a253d1b7228df7cc57763e5f041791fde892`.
+  [Note 127](127-d08a4-portable-steroids.md) (D08A11 section).
+- **Not yet verified:** the user's look in play.
+
 ## 2026-10-08 - D08A10 accepted; D08A11 queued
 
 - User: "I love it, that sounds pretty much the same as the one in duke3d now. I accept this job as done!!" Executable

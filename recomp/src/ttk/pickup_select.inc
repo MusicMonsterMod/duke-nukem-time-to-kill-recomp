@@ -54,8 +54,10 @@ static void pickup_select_end() {
     for(unsigned i:{1u,2u,3u,4u,5u}) {
         const unsigned flags=psx_mod_read_half(player+0x354+4*i);
         const int16_t amount=(int16_t)psx_mod_read_half(player+0x356+4*i);
-        const bool gained=(flags&1) && !(pickup_before.flags[i]&1);
-        if(!gained && !((flags&1) && amount>pickup_before.amounts[i])) continue;
+        // Steroids that run without the owned bit (dnhyper) count as owned.
+        const unsigned owned=i==4?3u:1u;
+        const bool gained=(flags&owned) && !(pickup_before.flags[i]&owned);
+        if(!gained && !((flags&owned) && amount>pickup_before.amounts[i])) continue;
         if(!gained) ++pickup_refills;
         pickup_selection=i;
         if(!pickup_activation_pending()) pickup_select_apply(); else ++pickup_deferred;

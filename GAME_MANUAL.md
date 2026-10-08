@@ -1000,7 +1000,7 @@ start away from ledges. F10 toggles capture; Escape or focus loss cancels typing
 | `dnweapons` | Grant weapons and ammo |
 | `dninventory` | Grant inventory (with portable steroids, this includes one held steroids) |
 | `dnitems` | Grant inventory and keys |
-| `dnhyper` | Activate/refill steroids (starts the effect directly, as in EDuke32) |
+| `dnhyper` | Activate/refill steroids (starts the effect directly, as in EDuke32; with portable steroids it counts down in the steroids box and is never kept as a held dose) |
 | `dnammo` | Refill ammo for owned weapons |
 | `dnhealth` | Restore 100 health |
 | `dnunlimited` | Toggle unlimited ammo/charges |

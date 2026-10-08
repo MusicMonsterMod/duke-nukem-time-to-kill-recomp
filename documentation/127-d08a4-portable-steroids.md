@@ -196,3 +196,29 @@ Private Xvfb runs, fresh copy of the player's cards and savestates
   window resize were not exercised.
 - With `steroids` `original` in Modernized there is no steroids box, so the
   original armour-element countdown stays.
+
+## D08A11 - `dnhyper` in the steroids box
+
+Done (user-accepted 2026-10-08).
+
+`dnhyper` (`cheats.inc`) sets `+0x364` bit 1 and the full amount but not
+bit 0. The D08A8 predicates required bit 0, so the status bar still drew the
+countdown in element 2 with the armour icon and the box did not show.
+
+Running steroids are now bit 1 with an amount, whatever bit 0 is:
+`steroids_owned()` accepts either bit (so `usable_item(4)` and the box keep a
+`dnhyper` run selected and drawn), and `steroids_running()` follows. The hide
+records the savestate load count; the restore puts bit 1 back unless a
+savestate loaded in between or the amount reached 0 (before, it required
+bit 0, which also guarded loads only by accident). `steroid_doses()` still
+requires exactly bit 0, so R / Enter never take a running effect. The original
+drain clears bits 0-1 at 0, so a `dnhyper` run never becomes a held dose. For
+D08A9, a steroids refill compares bits 0-1, so a pickup that refreshes a
+`dnhyper` run selects steroids.
+
+Evidence (executable `2ebef6a88598649b2fade42d6306a253d1b7228df7cc57763e5f041791fde892`): `recomp/analysis/d08a11-dnhyper/` `t1.py` at
+60 and 120 fps, `t2.py` with `DNTTK_STEROIDS=original`; see the D08A11 work
+log in `MODERNIZATION_JOBS.md`.
+
+Limits: `dnhyper` while a dose is held runs that dose (one amount per item);
+Vanilla by code path only.

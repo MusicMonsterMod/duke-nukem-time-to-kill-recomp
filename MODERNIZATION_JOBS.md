@@ -51,7 +51,8 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08A8 | Steroids countdown in the steroids HUD box (pill icon), not the armor element | Done (user-accepted) | D08A4, D08A6 |
 | D08A9 | Picked-up inventory item becomes the switcher selection (Duke 3D feel) | Done (user-accepted) | D08A1, D08A4, D08A6 |
 | D08A10 | Experimental: steroids heartbeat sound loop while they run (226 bpm, Duke 3D feel; may be reverted) | Done (user-accepted) | D08A4, D08A8 |
-| D08A11 | `dnhyper` countdown in the steroids HUD box (D08A8), not the old armor element | Todo | D08A8, D08G |
+| D08A11 | `dnhyper` countdown in the steroids HUD box (D08A8), not the old armor element | Done (user-accepted) | D08A8, D08G |
+| D08A12 | Modern dynamite: selecting it is safe (no forced fuse); Dynamite Behaviour Modern / Original | Todo | D08A, D08Q5 |
 | D08A5 | Mission item tracking: mission inventory on , / . (design E, revised) | Done | D08A1, D08A3, D24A |
 | D08A6 | Selected gadget shown on the HUD: original item slot (design A) | Done | D08A1, D08A3 |
 | D08A7 | Custom medkit gadget icon (switcher strip and HUD box) | Done | D08A6 |
@@ -178,6 +179,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D26C | Console command history (Up/Down) | Accepted | D26 |
 | D26D | Level select: authoritative order, numbering, names and categories | Todo | D26A |
 | D27 | Caps Lock RUN MODE quotes; Shift-run clunk silence deferred | Done (quotes); clunk deferred low-priority | D04, D19A |
+| D27A | Modern Shift/run is silent: remove the walk/run toggle click `0x0001` from the Shift path, keep the D08A10 heartbeat | Todo | D27, D08A10 |
 | D28 | Scroll Lock holster and WEAPON LOWERED/RAISED quotes | Done | D04, D19A |
 | D29 | Progression items and objectives legibility: research and design first (Level 2 bank-vault notes) | Todo | D19A, D22B, D26A |
 | R01 | DisruptorRecomp architecture and modernization reference research | Done | - |
@@ -810,7 +812,11 @@ Preview `recomp/analysis/d08a10-beat/preview/beat-shift.wav` (local).
 
 ### D08A11 - `dnhyper` countdown in the steroids HUD box
 
-**Todo. User request, 2026-10-08:** "dnhyper uses the old ui element with the
+**Done (user-accepted 2026-10-08: "this job is fully accepted").** Executable
+`2ebef6a88598649b2fade42d6306a253d1b7228df7cc57763e5f041791fde892` is the
+regression baseline. Work log below.
+
+**User request, 2026-10-08:** "dnhyper uses the old ui element with the
 armor rather than our new ui element with the steroids to display the
 countdown, we need to make dnhyper use the new dedicated countdown on the
 right hand side."
@@ -840,6 +846,104 @@ draining and lit, with the armor element showing armor (or hidden with no
 armor); it ends cleanly with no held steroids left behind; R-used doses,
 pickups, savestates and the heartbeat behave as before; at 60 and 120 fps;
 `original` and Vanilla unchanged.
+
+**Work log (2026-10-08, Needs playtest).** Cause confirmed: `dnhyper`
+(`cheats.inc`) sets `+0x364` bit 1 only, and `steroids_owned()` /
+`steroids_running()` required bit 0, so the D08A8 status-bar hide never ran and
+the box never drew. Decision: widen the predicates rather than give `dnhyper`
+an owned bit. Running is now bit 1 with an amount, with or without bit 0, so
+any path that runs steroids without the owned bit is covered; the drain
+`0x800414a0` clears bits 0-1 at 0, so nothing is left held. Changes
+(`steroids.inc`): `steroids_owned()` accepts bit 0 or bit 1; the HUD restore no
+longer needs bit 0 to put bit 1 back, and skips the restore if a savestate
+loaded between hide and restore (it keeps the loaded flags) or the amount is 0.
+`pickup_select.inc`: for steroids a pickup that refreshes a `dnhyper` run counts
+as a refill (selects steroids), as for a used dose. `steroid_doses()` is
+unchanged, so R / Enter still take only a held dose. No new hooks, no codegen
+change. Evidence (executable `2ebef6a88598649b2fade42d6306a253d1b7228df7cc57763e5f041791fde892`; private Xvfb runs on a copy of the
+D08A8 cards, `recomp/analysis/d08a11-dnhyper/`, local), at 60 and 120 fps:
+`dnhyper` with armour 0 - flags `0x2`, the lit pill box counts down stacked
+above the selected jetpack box, no armour element; steroids selected - counts
+down in place; R while it runs does nothing; armour 50 - the armour element
+shows 50 with the armour icon, steroids stay in the box; savestate save and
+reload while running; the effect ends with flags 0, no held dose, the box
+gone; a steroids pickup while `dnhyper` runs refreshes, selects steroids and
+ends with nothing held; a held pickup then R still counts down in the box.
+`DNTTK_STEROIDS=original`: `dnhyper` keeps the original armour-element
+countdown (no hides). Suites: `ttk-controls-test` (`d08-camera-final` fixture,
+LEVEL01, all levels), `ttk-input-test`, `ttk-inventory-test`, Python 131 OK
+(2 skipped), `level_overlay_guards.py --check`, `check_repo.py`.
+Limits: the heartbeat already treated bit 1 alone as running (unchanged, not
+re-listened); `dnhyper` while a dose is held runs that dose and it is used up
+when the effect ends (the original keeps one amount per item); Vanilla verified
+by code path only (all changes are behind `portable_steroids()`); software
+renderer not re-shot (the draw path is D08A8's, unchanged).
+
+### D08A12 - Modern dynamite handling / safe weapon selection
+
+**Todo. User request, 2026-10-08.** Investigate first; do not implement until
+selected.
+
+**Problem.** Dynamite (slot 6: Pipe Bomb, Dynamite, Holy Hand Grenade) is
+reached by pressing 6 twice or with the mouse wheel. Once Duke holds it the
+fuse is effectively committed: if it is not thrown it explodes in his hand. So
+selecting the weapon commits the player to using it; they cannot scroll to it,
+look, change their mind and switch back. The original pad had no rapid weapon
+scrolling, so the original rule is far more intrusive under our wheel and
+number-key selection. Design principle (user): **selecting a weapon is not the
+same thing as firing a weapon.**
+
+**What we already know (do not rediscover):**
+- D08A ([note 33](documentation/33-controls-shortcuts.md)): lit dynamite is an
+  original exception: `0x8004dea4` / `0x8004e018` run its fuse until thrown or
+  detonated, and a requested next weapon waits for that original completion.
+  Shortcuts neither stow it artificially nor throw it automatically.
+- D08Q5 ([note 108](documentation/108-d08q5-jetpack-weapon-switch.md)): drawn
+  dynamite runs its original fuse; a switch away waits for it, also in jetpack
+  flight. Grenade and dynamite share the original throw handler with their own
+  gravity and fuse ([note 40](documentation/40-feedback-implementation.md)).
+- Weapon groups and wheel order: [note 32](documentation/32-eduke32-weapon-item-plan.md),
+  [note 33](documentation/33-controls-shortcuts.md).
+
+**Research first.**
+1. The original state machine: is there a distinction such as equipped/unlit
+   -> fuse lit -> throw -> explosion, or does the draw itself start the timer?
+   Where the fuse value lives, what starts and advances it, and what the
+   in-hand detonation path is.
+2. Whether equip and ignition can be separated cleanly. Ideal (if not
+   invasive): select = equip safely; primary fire = light/arm; release or a
+   second action = throw; once armed, normal fuse rules apply. Do not add
+   complexity purely for realism.
+3. What switching away from an equipped or armed dynamite does to weapon state
+   today (the pending switch, ammo, animation, the D08A history).
+4. The smallest robust Modern implementation. Acceptable fallback (user):
+   while held, the fuse never runs out (the fuse animation/sound may keep
+   sizzling indefinitely), and switching away is allowed without using a
+   stick.
+
+**Option.** Dynamite Behaviour: **Modern** (default in the Modernized
+profile) / **Original** (exact PlayStation behaviour, fuse can explode in
+Duke's hand). Integrate with the existing profile/settings architecture (as
+`steroids` `portable` / `original` does in the Modernized controls profile),
+not a one-off config. Vanilla stays original.
+
+**Do not change** explosion damage, blast radius, ammo capacity, throw
+physics, enemy damage or environmental interactions unless the arming state
+genuinely requires it.
+
+**Acceptance.**
+1. The original equip/arm/fuse/throw state machine is documented.
+2. Whether equip and ignition separate cleanly is answered.
+3. Consequences of switching away from equipped or armed dynamite are known.
+4. Modern behaviour is the smallest robust change.
+5. Original behaviour stays available and unchanged (and Vanilla).
+6. Mouse-wheel selection passes through dynamite without consuming it or
+   hurting Duke: e.g. shotgun -> wheel -> dynamite -> wheel -> another weapon,
+   rapidly.
+7. Selecting dynamite and then changing your mind is safe in Modern.
+8. Throwing still behaves normally once the player chooses to use it.
+9. Savestates and weapon state stay sane with dynamite equipped or armed.
+10. The setting integrates cleanly with the existing modernization options.
 
 ### D08A5 - Mission item tracking in the item switcher (approved design E)
 
@@ -4675,6 +4779,54 @@ gait with known plant SFX clunk). Soft mid-stride phase reuse remains forbidden
 gait restart without delaying the switch — not blocking.
 
 **Acceptance (quotes):** met. **Acceptance (silent Shift-run):** deferred.
+
+### D27A - Modern Shift/run is silent
+
+**Todo. User request, 2026-10-08.** Small, focused audio/control cleanup. Do
+not implement until selected. Follow-up to D27's deferred "silent Shift-run".
+
+**Problem.** In Modern controls, pressing (and releasing) Shift to run plays a
+sound. The user wants Shift silent: hold Shift -> run, release -> stop, with
+no click, pulse, activation, looping or replacement sound caused by either
+action.
+
+**The sound is already identified (D08A10, do not rediscover):** see
+[note 129](documentation/129-d08a10-steroids-heartbeat.md), "TTK sounds".
+- Sound ID `0x0001` (bank 0; `id = bank << 12 | index`). SPU sample address
+  `0x012F0`, pitch `0x228`-`0x22F`.
+- What the game itself uses it for is not established; the D08A10 survey
+  only showed that the player update plays it when `player+0x224` bit 1 (the
+  walk/run state) flips. Do not assume any original link between this sound,
+  steroids and running.
+- Call path: the non-positional sound call `0x8006bbd8(1)` (not the
+  positional `0x8006b73c`, so a log of that call alone misses it), from the
+  player update at `0x800418cc`, `0x80041934`, `0x80041994` and `0x800419c8`.
+  Find which of these the Modern Shift path reaches (by return address).
+- Our own reuse: the D08A10 steroids heartbeat (`recomp/src/ttk/steroids_beat.inc`,
+  `duke_sound(cpu, beat_sound(), false)`) calls `0x8006bbd8(0x0001)` itself on
+  a private stack with return address `0x800000fc`, so it can be told apart
+  from the player-update calls.
+- Separate from the gait plant footsteps `0x2000` / `0x2001` (`0x80048378`,
+  ra `0x80048380`), which are D27's old "clunk" topic and stay as they are.
+
+**Scope.** Modernized only. Suppress `0x0001` only where the Modern Shift
+walk/run toggle causes it; do not remove the sound resource or touch the
+heartbeat. Find out whether Vanilla / original controls play the same click
+on their own run toggle, and keep them unchanged.
+
+**Acceptance.**
+1. Shift in Modern makes Duke run normally.
+2. Pressing Shift makes no sound.
+3. Holding Shift makes no sound.
+4. Releasing Shift makes no sound.
+5. Repeated presses never trigger it.
+6. Running behaviour and speed unchanged.
+7. The D08A10 heartbeat still plays `0x0001` correctly (same sample, pitch).
+8. The heartbeat still plays for the whole steroids cycle.
+9. Running while steroids are active does not disturb the heartbeat.
+10. Original / Vanilla controls unchanged.
+Evidence: SPU KEYON capture (sample `0x012F0`) around Shift press, hold and
+release with and without steroids, as in D08A10.
 
 ### D28 — Scroll Lock holster and WEAPON LOWERED/RAISED quotes
 

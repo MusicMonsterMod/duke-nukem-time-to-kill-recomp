@@ -1,6 +1,6 @@
 # D08Z1 - Keep jump momentum when bumping a wall
 
-Status: **Done** (2026-10-08, user-accepted: "mechanically this feels significantly better, where we can call the actual job as accepted."). Known follow-ups: D08Z2 (mantle pose regression), D08Z3 (stuck after some landings). Modernized option `jump_walls`,
+Status: **Done** (2026-10-08, user-accepted: "mechanically this feels significantly better, where we can call the actual job as accepted."). Known follow-ups: D08Z2 (mantle pose regression; Done, [note 135](135-d08z2-mantle-upper-body.md)), D08Z3 (stuck after some landings). Modernized option `jump_walls`,
 `slide` by default; `original` and Vanilla keep the original bounce.
 
 ## User request (2026-10-06)
@@ -155,6 +155,10 @@ Change:
   undone at the next animation runner call (`0x80059db0`, the upper body's
   in the same update; the airborne handler runs after the lower body's).
   That update's original rumble and contact sound have already played.
+- **D08Z2 correction:** the 107 undo now happens at the entry of the contact
+  sound `0x8006bbd8` right after the write (new hook); the runner-call undo
+  left 107's leg joints in track 3's mask and froze the legs. See
+  [note 135](135-d08z2-mantle-upper-body.md#revision-1-legs-frozen-after-a-corner-bump).
 - **Guards:** `0x8003ef08` (200 bytes) added.
 
 Evidence (executable `3f909c9f2cc4e5b09ba6faab5129ec9ae0ff938c4735e264ac67a66405c1ed34`):

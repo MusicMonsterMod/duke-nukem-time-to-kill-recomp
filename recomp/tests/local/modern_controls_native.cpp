@@ -595,7 +595,7 @@ int main(int argc,char** argv) {
         // 0x8003ef68, its caller the wall case 0x800559f8 at sp+0x24) gets the
         // pre-pass velocity minus the part into the wall, a push off it, the
         // update's own vertical speed and timer; the 107 it writes is undone
-        // at the next animation runner call.
+        // at the contact sound call that follows it.
         {
             psx_mod_write_half(p+0x60,103);psx_mod_write_half(p+0x68,7);psx_mod_write_half(p+0x6a,9);
             psx_mod_write_word(p+0x200,1234);
@@ -607,9 +607,13 @@ int main(int argc,char** argv) {
             call(0x8003ebf4,p,0,0x8003ef68,0x801ffe00);
             assert(v(0x1f4)==3000 && v(0x1fc)==-300 && v(0x1f8)==-2000 && v(0x200)==1234);
             psx_mod_write_half(p+0x60,107);psx_mod_write_half(p+0x68,0);psx_mod_write_half(p+0x6a,0);
-            call(0x80059db0,p+0x74,p,0x8005a5a8,0x801fff00);
+            // D08Z2: not at an animation runner (the update has started 107 on
+            // its tracks by then), only at the contact sound right after the write.
+            call(0x80059db0,p+0x74,p,0x8005a5a8,0x801fff00);assert(psx_mod_read_half(p+0x60)==107);
+            call(0x8006bbd8,0x2008,0,0x80055a2c,0x801fff00);assert(psx_mod_read_half(p+0x60)==107);
+            call(0x8006bbd8,0x2008,0,0x80055a10,0x801fff00);
             assert(psx_mod_read_half(p+0x60)==103 && psx_mod_read_half(p+0x68)==7 && psx_mod_read_half(p+0x6a)==9);
-            psx_mod_write_half(p+0x60,107);call(0x80059db0,p+0x74,p,0x8005a5a8,0x801fff00);
+            psx_mod_write_half(p+0x60,107);call(0x8006bbd8,0x2008,0,0x80055a10,0x801fff00);
             assert(psx_mod_read_half(p+0x60)==107);   // once only
             // Only once per pre-pass, only from the wall case.
             psx_mod_write_word(p+0x1f4,uint32_t(-1500));call(0x8003ebf4,p,0,0x8003ef68,0x801ffe00);assert(v(0x1f4)==-1500);
@@ -797,6 +801,21 @@ int main(int argc,char** argv) {
             assert(psx_mod_read_half(p+0x60)==134 && psx_mod_read_byte(p+0x22c)==0 && int32_t(psx_mod_read_word(p+0x1c4))==-0x80);
             assert(psx_mod_read_word(held)==0 && !held_seen.empty() && held_seen.back()==1);
             assert(psx_mod_read_byte(p+0x3b8)==2 && int32_t(psx_mod_read_word(p+8))==-7000);
+            // D08Z2: a weapon-owned upper pose (20, table bit 8) is handed to
+            // the mantle (upper = 134, restarted) and its whole block put back
+            // once the mantle ends; a full-body upper (109 above) is not touched.
+            assert(psx_mod_read_half(p+0x74)==109);
+            assert(psx_mod_read_word(0x800c2824+4*20)&8);
+            reach();psx_mod_write_byte(p+0x3b8,2);psx_mod_write_half(p+0x60,104);update();
+            const uint16_t upper_block[10]={20,7,3,4,1,0,511,32,238,0};
+            for(int i=0;i<10;++i)psx_mod_write_half(p+0x74+2*i,upper_block[i]);
+            drop_top=feet-0x80;drop_catch_y=-6600;psx_mod_write_half(p+0x60,107);update();
+            assert(psx_mod_read_half(p+0x60)==134 && psx_mod_read_half(p+0x74)==134 && psx_mod_read_half(p+0x7c)==0 && psx_mod_read_half(p+0x7e)==0);
+            update();assert(psx_mod_read_half(p+0x74)==134);   // still mantling
+            psx_mod_write_half(p+0x60,63);psx_mod_write_half(p+0x74,63);update();
+            for(int i=0;i<10;++i)assert(psx_mod_read_half(p+0x74+2*i)==upper_block[i]);
+            // Restored once only.
+            psx_mod_write_half(p+0x74,63);update();assert(psx_mod_read_half(p+0x74)==63);
             // Taller than 0x100: the original bounce stays.
             bounce_at(0x180);assert(psx_mod_read_half(p+0x60)==107 && psx_mod_read_byte(p+0x22c)==9 && psx_mod_read_word(held)==0);
             // Only right after a jump: a bounce without a preceding 98/103/104 is left alone.
@@ -808,7 +827,7 @@ int main(int argc,char** argv) {
             psx_mod_write_word(p+8,0);psx_mod_write_word(p+4,0);psx_mod_write_word(p+12,0);psx_mod_write_word(p+0x1c8,0);psx_mod_write_word(p+0x1c4,0);
             psx_mod_write_word(p+0x1f8,0);psx_mod_write_half(p+0x1c,0);psx_mod_write_half(p+0x24,0);psx_mod_write_byte(p+0x3b8,0);
             call(0x8003ade4,c,p,0x80025ee8);
-            std::puts("PASS: D08Y gap jumps (lowered E catch -> height mantle, lip/mode/armed/Vanilla refusals; no-E bounce off a low lip -> 134, held bit restored)");
+            std::puts("PASS: D08Y gap jumps (lowered E catch -> height mantle, lip/mode/armed/Vanilla refusals; no-E bounce off a low lip -> 134, held bit restored; D08Z2 armed upper pose handed to the mantle and restored)");
         }
         std::puts("PASS: D08X crate mantle (E bounce off a climbable object in mantle range -> original 134..138; height, facing, E, flags and Vanilla refusals)");
     }

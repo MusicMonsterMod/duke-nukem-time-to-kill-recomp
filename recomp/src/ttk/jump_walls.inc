@@ -179,10 +179,16 @@ static void jump_walls_presolve(CPUState* cpu) {
 // caller's return address at sp+0x24) put back the pre-pass velocity minus
 // the part into the wall the sweep reported, plus a push off it, with the
 // vertical speed and flight timer this update started with (no second
-// gravity tick, no lost rise). The handler then writes the bounce 107; the
-// next animation runner call (0x80059db0, the upper body's in the same player
-// update) puts the flight animation back before any update evaluates it. The original's
-// rumble and contact sound have already played for this one update.
+// gravity tick, no lost rise). The handler then writes the bounce 107 to the
+// lower animation (+0x60 = 107, +0x68/+0x6a = 0, 0x800559f8..0x80055a04) and
+// calls the contact sound 0x8006bbd8(0x2008) (ra 0x80055a10); at that call's
+// entry the flight animation is put back, before anything starts 107.
+// D08Z2: the first build undid it at the next animation runner call, but the
+// player update had already started 107 on its tracks in between (lower state
+// 0 -> 0x800593b4). The track-3 joint mask (+0x94, only ever OR-ed by
+// 0x80058c70) then kept 107's leg joints (0x1c00 -> 0x1cef), and the legs
+// stayed frozen in one pose for the rest of the session and in savestates.
+// The original's rumble and contact sound still play for this one update.
 static void jump_walls_bounce_rerun(CPUState* cpu) {
     const uint32_t ra=cpu->gpr[31];
     if(cpu->gpr[4]!=player || (ra!=0x8003ef68 && ra!=0x8003efc0) || !jump_wall_last_valid || !jump_walls_slide())return;
@@ -211,22 +217,20 @@ static void jump_walls_bounce_rerun(CPUState* cpu) {
     if(std::getenv("DNTTK_TRAVERSAL_TRACE"))
         std::fprintf(stderr,"ttk-jump-wall catch %s anim=%u v=%.0f,%d,%.0f\n",ra==0x8003ef68?"bounce":"deflect",psx_mod_read_half(player+0x60),vx,jump_wall_last_vy,vz);
 }
-static void jump_walls_runner(CPUState* cpu) {
-    // The first animation runner call after the catch (the upper body's,
-    // 0x8005a5a8, in the same player update: the airborne handler runs after
-    // the lower body's), before any update evaluates 107.
-    if(!jump_wall_anim_pending)return;
-    const uint32_t a0=cpu->gpr[4];
-    if(a0<player+0x60 || a0>player+0x100)return;
+static unsigned jump_wall_anim_undos;
+static void jump_walls_bounce_sound(CPUState* cpu) {
+    // The contact sound right after the bounce's 107 write (0x80055a08).
+    if(!jump_wall_anim_pending || cpu->gpr[31]!=0x80055a10)return;
     jump_wall_anim_pending=false;
     if(psx_mod_read_half(player+0x60)!=107 || psx_mod_read_byte(player+0x22c)!=9)return;
+    ++jump_wall_anim_undos;
     psx_mod_write_half(player+0x60,jump_wall_anim);
     psx_mod_write_half(player+0x68,jump_wall_track);psx_mod_write_half(player+0x6a,jump_wall_track2);
 }
 static const char* jump_walls_debug_json() {
     static char buffer[256];
-    std::snprintf(buffer,sizeof buffer,"{\"slide\":%s,\"slides\":%u,\"corners\":%u,\"turns\":%u,\"catches\":%u,\"stops\":%u,\"ceilings\":%u,\"unsolved\":%u,\"nudges\":%u,\"passes\":%u,\"age\":%u}",
-        jump_walls_slide()?"true":"false",jump_wall_slides,jump_wall_corners,jump_wall_corner_turns,jump_wall_catches,jump_wall_stops,jump_ceiling_stops,jump_wall_unsolved,jump_wall_nudges,
+    std::snprintf(buffer,sizeof buffer,"{\"slide\":%s,\"slides\":%u,\"corners\":%u,\"turns\":%u,\"catches\":%u,\"undos\":%u,\"stops\":%u,\"ceilings\":%u,\"unsolved\":%u,\"nudges\":%u,\"passes\":%u,\"age\":%u}",
+        jump_walls_slide()?"true":"false",jump_wall_slides,jump_wall_corners,jump_wall_corner_turns,jump_wall_catches,jump_wall_anim_undos,jump_wall_stops,jump_ceiling_stops,jump_wall_unsolved,jump_wall_nudges,
         jump_wall_passes,jump_wall_age);
     return buffer;
 }

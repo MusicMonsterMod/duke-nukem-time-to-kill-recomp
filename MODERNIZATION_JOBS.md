@@ -4,7 +4,7 @@ This is the canonical job list for our **Duke Nukem: Time to Kill** PC project, 
 
 Invoke **`$continue-duke-recomp`** (Codex) or **`/continue-duke-recomp`** (Claude Code) to see the current jobs and choose one. You can also request a job directly: **`$continue-duke-recomp work on D01`** or **`/continue-duke-recomp work on D01`**. The skill reads this file rather than keeping a second backlog. It must not automatically start the next job.
 
-**Latest accepted job (2026-10-08): D08Z1 (jump wall slide); executable `3f909c9f2cc4e5b09ba6faab5129ec9ae0ff938c4735e264ac67a66405c1ed34` is the regression baseline. Next: D08Z2 (mantle pose regression), then D08Z3.** Earlier (2026-10-08): D08A17 (power-up countdowns); executable `8f338cde1c2dc4cf73da747621cffafe2478512f6419078a41d11b0d3b9268a9`. Earlier accepted jobs (2026-10-08): D08A14 (death ends steroids), D08A15 (heartbeat restart; a pickup mid-run stops steroids) and D08G4 (inventory cheats give full armor); executable `87fe38d4f0ea8560312f53171345c207f332e26b6f4d2ed7220e1afae66ba472` is the regression baseline.** Earlier: D08J2 (pole/chain A/D direction), D08U2 (climb off a ladder past an enemy), D08O3 (E in water keeps the weapon) and D08O2A (natural swim-fire pose v2), 2026-10-07.** Previous baseline `e8eebb809c3d5a4b29779f11f0c9db55efcd846dc5c71b39d5a59d43158eb08e` (D08U2). **D08J2 (pole/chain A/D direction) Accepted 2026-10-07**: executable `129a64f2df3f5395f2d3485a310a03d74c85f9b1086c7dab37fee59277c7968b` is the current regression baseline ([note 122](documentation/122-d08j2-pole-chain-sidestep.md)). Todo: D08J4 (ceiling monkey-bar drops, UI slot 3), D08J3 (free camera while climbing). Previous baseline `e75b50f156137fa2377e4643407b2efbd16f2e976fa4d697afcbceb228e2e554` (D08O3). **D23E (western-town stutter) Accepted 2026-10-07**; **D08O2A Accepted** ([note 119](documentation/119-d08o2a-natural-swim-fire-pose.md)), **D08O3 Accepted** ([note 120](documentation/120-d08o3-e-in-water.md)); **D23F (fast CPU timing) Accepted 2026-10-05 and now the Modernized default**; executable `e0737a9f712aa5622d1b057ee5071e12c33cc9a18de8e6d40ee8eee31083f966` (includes D23E), [note 104](documentation/104-d23e-busy-scene-stutter.md), [note 105](documentation/105-d23f-fast-timing.md). Next suggested: D23G (finish the fast path) and D17S (auto frame-rate default).
+**Latest accepted job (2026-10-08): D08Z2 (mantle pose; frozen legs after a corner bump); executable `bfd41760f9c66f2f03cf859f820f7b7d27cd8991e8ce1f304f5456ea29bf8986` is the regression baseline. Next: D08Z3.** Earlier (2026-10-08): D08Z1 (jump wall slide); executable `3f909c9f2cc4e5b09ba6faab5129ec9ae0ff938c4735e264ac67a66405c1ed34`. Earlier (2026-10-08): D08A17 (power-up countdowns); executable `8f338cde1c2dc4cf73da747621cffafe2478512f6419078a41d11b0d3b9268a9`. Earlier accepted jobs (2026-10-08): D08A14 (death ends steroids), D08A15 (heartbeat restart; a pickup mid-run stops steroids) and D08G4 (inventory cheats give full armor); executable `87fe38d4f0ea8560312f53171345c207f332e26b6f4d2ed7220e1afae66ba472` is the regression baseline.** Earlier: D08J2 (pole/chain A/D direction), D08U2 (climb off a ladder past an enemy), D08O3 (E in water keeps the weapon) and D08O2A (natural swim-fire pose v2), 2026-10-07.** Previous baseline `e8eebb809c3d5a4b29779f11f0c9db55efcd846dc5c71b39d5a59d43158eb08e` (D08U2). **D08J2 (pole/chain A/D direction) Accepted 2026-10-07**: executable `129a64f2df3f5395f2d3485a310a03d74c85f9b1086c7dab37fee59277c7968b` is the current regression baseline ([note 122](documentation/122-d08j2-pole-chain-sidestep.md)). Todo: D08J4 (ceiling monkey-bar drops, UI slot 3), D08J3 (free camera while climbing). Previous baseline `e75b50f156137fa2377e4643407b2efbd16f2e976fa4d697afcbceb228e2e554` (D08O3). **D23E (western-town stutter) Accepted 2026-10-07**; **D08O2A Accepted** ([note 119](documentation/119-d08o2a-natural-swim-fire-pose.md)), **D08O3 Accepted** ([note 120](documentation/120-d08o3-e-in-water.md)); **D23F (fast CPU timing) Accepted 2026-10-05 and now the Modernized default**; executable `e0737a9f712aa5622d1b057ee5071e12c33cc9a18de8e6d40ee8eee31083f966` (includes D23E), [note 104](documentation/104-d23e-busy-scene-stutter.md), [note 105](documentation/105-d23f-fast-timing.md). Next suggested: D23G (finish the fast path) and D17S (auto frame-rate default).
 
 ## The experience we are building
 
@@ -106,7 +106,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08Y | Gap jump dead band: jump-mantle level-geometry ledges (slot 5 gap) | Done | D08X |
 | D08Z | Optional manual modern jump (player-timed takeoff, air control) | Done | D08Y |
 | D08Z1 | Keep jump momentum when bumping a wall (EDuke32-style, menu-toggleable) | Done (user-accepted) | D08Z, D22B |
-| D08Z2 | Mantle regression since D08Z1: the mantle plays as a static leg pose (next job) | Todo | D08Z1 |
+| D08Z2 | Mantle regression since D08Z1: the mantle plays as a static leg pose | Done (user-accepted) | D08Z1 |
 | D08Z3 | Occasional landing after a jump where Duke is stuck for about a second before he can move | Todo | D08Z1 |
 | D08J1 | Hold-E run-up grab for overhead ladders (slot-6 ladder) | Done | D08J, D08X, D08U |
 | D08J2 | Poles and chains: A/D turn the wrong way (A turns right, D left) | Accepted | D08J |
@@ -3283,7 +3283,21 @@ jetpack and Vanilla unchanged; option off matches today; the user confirms.
 
 ### D08Z2 - Mantle pose regression since D08Z1
 
-**Todo. User report, 2026-10-08, at D08Z1 acceptance:** "this has also
+**Done (2026-10-08, user-accepted: "accepted!!").** Cause: the D08Y low-lip step-up (no E) could
+start armed, and since D08Z1 it starts from every wall slide. The original
+mantles only with a free upper body (`0x80051cf0` refuses on upper-table bit
+8) and sets only the lower animation. So the legs played 134 while the upper
+track held the static weapon-ready pose 20. Every jump mantle now starts in one
+place (`jump_mantle_start`). A weapon pose on the upper track is handed to the
+mantle and its block put back when the mantle ends, so the weapon fires again.
+Holstered E mantles, the slot-12 grab and pull-up, and the crate mantles were
+already full body and match `original` frame for frame.
+Revision 1: the D08Z1 safety net's late 107 undo left 107's leg joints in
+track 3's joint mask, freezing the legs (also in savestates); the undo now
+happens at the bounce's contact sound (new hook `0x8006BBD8`).
+[Note 135](documentation/135-d08z2-mantle-upper-body.md).
+
+Was Todo. User report, 2026-10-08, at D08Z1 acceptance:** "this has also
 introduced a regression where his mantling animation is now some static pose
 with his legs and looks weird." Next job by the user's choice.
 
@@ -10957,3 +10971,45 @@ in note 117 is the reference for future custom pickups.
 - New jobs from the same playtest: D08Z2 mantle animation now a static leg
   pose (regression, next job), D08Z3 occasional landing where Duke is stuck for
   about a second.
+
+## 2026-10-08 - D08Z2 mantle upper body (Needs playtest)
+
+- Cause: the D08Y low-lip step-up (no E) could start with a weapon drawn, and
+  since D08Z1 it starts from every wall slide. The original mantles only with
+  a free upper body (`0x80051cf0` refuses on upper-table bit 8) and sets only
+  the lower animation, so the legs played 134 while the upper track held the
+  static weapon-ready pose 20. Holstered E mantles, crate mantles and the
+  slot-12 grab and pull-up were full body and matched `original` frame for frame.
+- Change: `jump_mantle_start` (one start for the crate, lowered-catch and
+  step-up mantles) hands a weapon pose on the upper track to the mantle;
+  `mantle_upper_restore` puts the kept upper block back when the mantle ends
+  (without it the weapon stayed lowered and would not fire).
+- Evidence: armed slot-5 step-ups play full body, weapon pose back one update
+  after, Mouse1 fires; D08Z1 regression routes same outcomes; native 45
+  groups (D08Y group extended), Python 136 OK. Executable `9de8da617862f53e545ac3c8be0f23623979fea2265944e2f3cdfaa3ec3f96b0`.
+  [Note 135](documentation/135-d08z2-mantle-upper-body.md).
+- Open: the user's playtest. Nothing committed.
+
+## 2026-10-08 - D08Z2 revision 1: legs frozen after a corner bump (Needs playtest)
+
+- User: after a bump at the statue (UI slot 8) Duke's lower half stays locked
+  in one pose whatever he does (UI slot 6).
+- Cause (D08Z1 safety net): its 107 undo ran at the next animation runner
+  call, after the update had started 107 on the tracks; track 3's OR-only
+  joint mask kept 107's leg joints (`0x1c00` -> `0x1cef`), freezing the legs,
+  also in savestates. Reproduced at the monument corner; the original bounce
+  never does it.
+- Change: undo at the bounce's contact sound `0x8006bbd8` (ra `0x80055a10`),
+  right after the 107 write; new opt-in hook, regenerated, codegen hash
+  unchanged, savestates load.
+- Evidence: three corner catches, mask stays `0x1c00`, legs stride after;
+  native 45 groups, Python 136 OK. Executable `bfd41760f9c66f2f03cf859f820f7b7d27cd8991e8ce1f304f5456ea29bf8986`.
+  [Note 135](documentation/135-d08z2-mantle-upper-body.md#revision-1-legs-frozen-after-a-corner-bump).
+- The player's new UI slot 6 keeps the frozen legs (saved polluted state).
+  Nothing committed.
+
+## 2026-10-08 - D08Z2 accepted
+
+- User: "accepted!!". D08Z2 Done (armed scramble plays full body; the D08Z1
+  safety net no longer freezes the legs). Executable `bfd41760f9c66f2f03cf859f820f7b7d27cd8991e8ce1f304f5456ea29bf8986` is the regression
+  baseline. Next: D08Z3.

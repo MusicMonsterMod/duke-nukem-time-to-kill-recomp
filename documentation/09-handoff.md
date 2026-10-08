@@ -1,5 +1,47 @@
 # Next-session handoff
 
+## 2026-10-08 - D08Z2 accepted
+
+- User: "accepted!!". D08Z2 Done (armed scramble plays full body; the D08Z1
+  safety net no longer freezes the legs). Executable `bfd41760f9c66f2f03cf859f820f7b7d27cd8991e8ce1f304f5456ea29bf8986` is the regression
+  baseline. Next: D08Z3.
+
+## 2026-10-08 - D08Z2 revision 1: legs frozen after a corner bump (Needs playtest)
+
+- User: after a bump at the statue (UI slot 8) Duke's lower half stays locked
+  in one pose whatever he does (UI slot 6).
+- Cause (D08Z1 safety net): its 107 undo ran at the next animation runner
+  call, after the update had started 107 on the tracks; track 3's OR-only
+  joint mask kept 107's leg joints (`0x1c00` -> `0x1cef`), freezing the legs,
+  also in savestates. Reproduced at the monument corner; the original bounce
+  never does it.
+- Change: undo at the bounce's contact sound `0x8006bbd8` (ra `0x80055a10`),
+  right after the 107 write; new opt-in hook, regenerated, codegen hash
+  unchanged, savestates load.
+- Evidence: three corner catches, mask stays `0x1c00`, legs stride after;
+  native 45 groups, Python 136 OK. Executable `bfd41760f9c66f2f03cf859f820f7b7d27cd8991e8ce1f304f5456ea29bf8986`.
+  [Note 135](135-d08z2-mantle-upper-body.md#revision-1-legs-frozen-after-a-corner-bump).
+- The player's new UI slot 6 keeps the frozen legs (saved polluted state).
+  Nothing committed.
+
+## 2026-10-08 - D08Z2 mantle upper body (Needs playtest)
+
+- Cause: the D08Y low-lip step-up (no E) could start with a weapon drawn, and
+  since D08Z1 it starts from every wall slide. The original mantles only with
+  a free upper body (`0x80051cf0` refuses on upper-table bit 8) and sets only
+  the lower animation, so the legs played 134 while the upper track held the
+  static weapon-ready pose 20. Holstered E mantles, crate mantles and the
+  slot-12 grab and pull-up were full body and matched `original` frame for frame.
+- Change: `jump_mantle_start` (one start for the crate, lowered-catch and
+  step-up mantles) hands a weapon pose on the upper track to the mantle;
+  `mantle_upper_restore` puts the kept upper block back when the mantle ends
+  (without it the weapon stayed lowered and would not fire).
+- Evidence: armed slot-5 step-ups play full body, weapon pose back one update
+  after, Mouse1 fires; D08Z1 regression routes same outcomes; native 45
+  groups (D08Y group extended), Python 136 OK. Executable `9de8da617862f53e545ac3c8be0f23623979fea2265944e2f3cdfaa3ec3f96b0`.
+  [Note 135](135-d08z2-mantle-upper-body.md).
+- Open: the user's playtest. Nothing committed.
+
 ## 2026-10-08 - D08Z1 accepted; D08Z2, D08Z3 queued
 
 - User: "mechanically this feels significantly better, where we can call the actual job as accepted." D08Z1 Done; executable `3f909c9f2cc4e5b09ba6faab5129ec9ae0ff938c4735e264ac67a66405c1ed34` is the regression baseline.

@@ -100,6 +100,54 @@ static unsigned mantle_animation(int32_t rel) {
     if(rel>=-0x33f)return 137;
     return 138;
 }
+// Start an original height mantle (134..139) from flight as the ground
+// obstacle action (0x80051cf0) does: floor +0x1c8 at the feet, ledge height
+// +0x1c4, motion stopped, ground mode, the lower animation restarted.
+// D08Z2: that action refuses while the upper body plays a weapon-owned pose
+// (upper table 0x800c2824 bit 8, e.g. 20 = weapon ready), so the original
+// never mantles armed and only ever sets the lower animation. The D08Y low-lip
+// step-up can start armed (and since D08Z1 from every wall slide): the upper
+// track kept the static weapon pose while only the legs climbed. The upper
+// track is restarted on the same mantle, as a holstered mantle plays it. The
+// weapon pose is the upper animation itself (after a plain mantle the upper
+// would follow the legs with the weapon lowered and unable to fire), so the
+// upper block (+0x74, 0x14 bytes) is kept and put back when the mantle ends.
+static unsigned mantle_upper_handoffs,mantle_upper_restores;
+static uint32_t mantle_upper_block[0x14/4];
+static bool mantle_upper_pending;
+static uint8_t mantle_upper_equip;
+static uint64_t mantle_upper_loads;
+static void jump_mantle_start(unsigned climb,int32_t feet,int32_t rel) {
+    psx_mod_write_word(player+0x1c8,feet);psx_mod_write_word(player+0x1c4,rel);
+    for(uint32_t v:{0x1f4u,0x1f8u,0x1fcu})psx_mod_write_word(player+v,0);
+    psx_mod_write_byte(player+0x22c,0);psx_mod_write_byte(player+0x22d,0);
+    psx_mod_write_half(player+0x60,climb);
+    psx_mod_write_half(player+0x68,0);psx_mod_write_half(player+0x6a,0);
+    const unsigned upper=psx_mod_read_half(player+0x74);
+    if(upper!=climb && (upper>=280 || (psx_mod_read_word(0x800c2824+4*upper)&8))) {
+        for(unsigned i=0;i<std::size(mantle_upper_block);++i)mantle_upper_block[i]=psx_mod_read_word(player+0x74+4*i);
+        mantle_upper_pending=upper<280;mantle_upper_equip=psx_mod_read_byte(player+0x3b8);
+        mantle_upper_loads=psx_mod_savestate_loads();
+        psx_mod_write_half(player+0x74,climb);
+        psx_mod_write_half(player+0x7c,0);psx_mod_write_half(player+0x7e,0);
+        ++mantle_upper_handoffs;
+    }
+}
+// Once per player update: the mantle (134..140, 139 chains into 140) is over.
+// Back to the kept weapon pose, unless the weapon changed or a pose of its own
+// already took the upper track.
+static void mantle_upper_restore() {
+    if(!mantle_upper_pending)return;
+    const unsigned animation=psx_mod_read_half(player+0x60);
+    if(animation>=134 && animation<=140)return;
+    mantle_upper_pending=false;
+    if(psx_mod_savestate_loads()!=mantle_upper_loads || !player_identity_ready() ||
+       psx_mod_read_byte(player+0x3b8)!=mantle_upper_equip)return;
+    const unsigned upper=psx_mod_read_half(player+0x74);
+    if(upper>=280 || (psx_mod_read_word(0x800c2824+4*upper)&8))return;
+    for(unsigned i=0;i<std::size(mantle_upper_block);++i)psx_mod_write_word(player+0x74+4*i,mantle_upper_block[i]);
+    ++mantle_upper_restores;
+}
 static void ledge_reach_mantle(CPUState* cpu) {
     const unsigned animation=psx_mod_read_half(player+0x60);
     const unsigned mode=psx_mod_read_byte(player+0x22c);
@@ -196,11 +244,7 @@ static void ledge_reach_mantle(CPUState* cpu) {
         return;
     }
     psx_mod_write_half(player+0x1c,psx_mod_read_half(player+0x24));
-    psx_mod_write_word(player+0x1c8,feet);psx_mod_write_word(player+0x1c4,rel);
-    for(uint32_t v:{0x1f4u,0x1f8u,0x1fcu})psx_mod_write_word(player+v,0);
-    psx_mod_write_byte(player+0x22c,0);psx_mod_write_byte(player+0x22d,0);
-    psx_mod_write_half(player+0x60,climb);
-    psx_mod_write_half(player+0x68,0);psx_mod_write_half(player+0x6a,0);
+    jump_mantle_start(climb,feet,rel);
     bounce_updates=5;++air_mantles;
 }
 
@@ -346,11 +390,7 @@ static void ledge_reach_retry(CPUState* cpu) {
         restore();
         mantle_glide_start(x,z);
         psx_mod_write_half(player+0x1c,heading);psx_mod_write_half(player+0x24,heading);
-        psx_mod_write_word(player+0x1c8,feet);psx_mod_write_word(player+0x1c4,rel);
-        for(uint32_t v:{0x1f4u,0x1f8u,0x1fcu})psx_mod_write_word(player+v,0);
-        psx_mod_write_byte(player+0x22c,0);psx_mod_write_byte(player+0x22d,0);
-        psx_mod_write_half(player+0x60,mantle_animation(rel));
-        psx_mod_write_half(player+0x68,0);psx_mod_write_half(player+0x6a,0);
+        jump_mantle_start(mantle_animation(rel),feet,rel);
         bounce_updates=5;++drop_mantles;last_drop_rel=rel;
         return;
     }
@@ -417,11 +457,7 @@ static void ledge_step_up(CPUState* cpu) {
         if(!ledge || rel>0x40 || rel<-0x100)continue;
         mantle_glide_start(x,z);
         psx_mod_write_half(player+0x1c,heading);psx_mod_write_half(player+0x24,heading);
-        psx_mod_write_word(player+0x1c8,feet);psx_mod_write_word(player+0x1c4,std::min(rel,-1));
-        for(uint32_t v:{0x1f4u,0x1f8u,0x1fcu})psx_mod_write_word(player+v,0);
-        psx_mod_write_byte(player+0x22c,0);psx_mod_write_byte(player+0x22d,0);
-        psx_mod_write_half(player+0x60,134);
-        psx_mod_write_half(player+0x68,0);psx_mod_write_half(player+0x6a,0);
+        jump_mantle_start(134,feet,std::min(rel,-1));
         ++step_ups;last_step_rel=rel;last_flight_anim=0;
         if(std::getenv("DNTTK_TRAVERSAL_TRACE"))
             std::fprintf(stderr,"ttk-step-up drop=%d rel=%d equip=%u\n",drop,rel,psx_mod_read_byte(player+0x3b8));

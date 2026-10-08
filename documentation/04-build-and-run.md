@@ -311,6 +311,13 @@ The native test binaries are `EXCLUDE_FROM_ALL`: build them by target
 (`cmake --build --preset local-dev --target ttk-controls-test ...`) before
 running them. See [note 131](131-d12c-kick-impact.md).
 
+## Jump bounce undo (D08Z2)
+
+One hook (`0x8006BBD8`, the non-positional sound call; only the bounce's
+contact sound, ra `0x80055a10`, is used) was added to `game.local.toml` and
+regenerated with `psxrecomp_cli.py generate`; one generated line, codegen hash
+unchanged. See [note 135](135-d08z2-mantle-upper-body.md).
+
 ## Steroids independent of damage (D08A13)
 
 One hook (`0x800A40A8`, Duke's damage handler) was added to

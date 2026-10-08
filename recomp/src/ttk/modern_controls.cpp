@@ -768,6 +768,9 @@ static void hook(CPUState* cpu, uint32_t address) {
 }
 
 static void hook_body(CPUState* cpu, uint32_t address) {
+    // D08A13: running steroids hidden from Duke's damage handler come back at
+    // the first hook after it.
+    steroids_damage_restore();
     // D08O1: hidden fire comes back at the next player-update step, an
     // animation start or the camera update, whichever runs first. Routines
     // the swim handler calls before its fire test (0x80076330) must not.
@@ -1359,11 +1362,13 @@ PSX_MOD_CONSTRUCTOR(register_ttk_controls) {
     // D08J5: a shared bone lookup; only the pole/chain down probe's call (ra 0x8007d7fc) goes further.
     psx_mod_register_function_entry_plugin("ttk.modern.controls",0x8003964c,[](CPUState* cpu,uint32_t){if(cpu->gpr[31]==0x8007d7fcu)ttk::pole_probe_floor(cpu);});
     // D08A4: the sound routine; only the pickup tail's call (ra 0x800828d8) goes further.
-    psx_mod_register_function_entry_plugin("ttk.modern.controls",0x8006b73c,[](CPUState* cpu,uint32_t){ttk::sound_logged(cpu);if(cpu->gpr[31]==0x800828d8u)ttk::steroids_pickup_sound(cpu);});
+    psx_mod_register_function_entry_plugin("ttk.modern.controls",0x8006b73c,[](CPUState* cpu,uint32_t){ttk::steroids_damage_restore();ttk::sound_logged(cpu);if(cpu->gpr[31]==0x800828d8u)ttk::steroids_pickup_sound(cpu);});
     // D27A: the player update; only Duke's call goes further.
-    psx_mod_register_function_entry_plugin("ttk.modern.controls",0x800412a4,[](CPUState* cpu,uint32_t){if(cpu->gpr[4]==ttk::player)ttk::run_click_presync();});
+    psx_mod_register_function_entry_plugin("ttk.modern.controls",0x800412a4,[](CPUState* cpu,uint32_t){ttk::steroids_damage_restore();if(cpu->gpr[4]==ttk::player)ttk::run_click_presync();});
     // D12C: the damage sphere; only the original kick's call (ra 0x80049098) goes further.
-    psx_mod_register_function_entry_plugin("ttk.modern.controls",0x800a979c,[](CPUState* cpu,uint32_t){if(cpu->gpr[31]==0x80049098u)ttk::kick_sphere_entry(cpu);});
+    psx_mod_register_function_entry_plugin("ttk.modern.controls",0x800a979c,[](CPUState* cpu,uint32_t){ttk::steroids_damage_restore();if(cpu->gpr[31]==0x80049098u)ttk::kick_sphere_entry(cpu);});
     // D08A8: the composition's call after the status bar when 0x8001fc44 is skipped.
-    psx_mod_register_function_entry_plugin("ttk.modern.controls",0x8002e850,[](CPUState* cpu,uint32_t){if(cpu->gpr[31]==0x800265d4u)ttk::steroids_hud_restore();});
+    psx_mod_register_function_entry_plugin("ttk.modern.controls",0x8002e850,[](CPUState* cpu,uint32_t){ttk::steroids_damage_restore();if(cpu->gpr[31]==0x800265d4u)ttk::steroids_hud_restore();});
+    // D08A13: Duke's damage handler; running steroids no longer shield the hit.
+    psx_mod_register_function_entry_plugin("ttk.modern.controls",0x800a40a8,[](CPUState* cpu,uint32_t){ttk::steroids_damage_entry(cpu);});
 }

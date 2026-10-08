@@ -311,6 +311,14 @@ The native test binaries are `EXCLUDE_FROM_ALL`: build them by target
 (`cmake --build --preset local-dev --target ttk-controls-test ...`) before
 running them. See [note 131](131-d12c-kick-impact.md).
 
+## Steroids independent of damage (D08A13)
+
+One hook (`0x800A40A8`, Duke's damage handler) was added to
+`game.local.toml` and regenerated with `psxrecomp_cli.py generate` (see the
+D14 note above); one generated line, codegen hash unchanged.
+`DNTTK_STEROID_SHIELD=original` keeps the original steroid shield
+(diagnostics). See [note 127](127-d08a4-portable-steroids.md#d08a13---steroids-independent-of-damage).
+
 ## Weapon forward while swimming (D08O2)
 
 One hook (`0x800411B8`, the last call before the player update picks Duke's

@@ -11,6 +11,7 @@ static const Guard guards[] = {
     {0x800827e8, 68, "fcc46db5526f5afc319f8d6c8583493c1f9a2e5df5451fa8a7f21d5dd8b109f8"},
     {0x800414a0, 96, "c6ab88d7ab0e00dffea1b764fc6bc5cb35b94ccf0a2f3fd3af5ee34c313e4add"}, // D08A4 steroid timer drain
     {0x800a4154, 68, "ef2b64393d2664bf0b274068e30b2878b33d116519561afabbd478941d3859ce"}, // D08A4 steroid damage cut
+    {0x800a40a8, 1812, "ddf5d91011d7c097e4b4a10119ba4c851deb74a8994b6e0c8857f9fb92d37906"}, // D08A13 Duke's damage handler (steroid shield read only at 0x800a4154)
     {0x8003df40, 112, "4ea6073ef1fb33df7c1a8758c56c47534428bbc4b1aa4b01666c38c6a90a6c94"},
     {0x80096cac, 152, "dea5cbd67e2dd8a547e816893fda17b29c333182c1e10e8308fb6c4deb5df7b5"},
     {0x800952ec, 1088, "9ac990d76da3988f8690941a26f670dd70b2fe6af813840feb7e0bd3c20df0ea"},

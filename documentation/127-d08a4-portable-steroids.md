@@ -222,3 +222,73 @@ log in `MODERNIZATION_JOBS.md`.
 
 Limits: `dnhyper` while a dose is held runs that dose (one amount per item);
 Vanilla by code path only.
+
+## D08A13 - Steroids independent of damage
+
+Done (user-accepted 2026-10-08). User rule: steroids and armour are independent
+systems; damage never consumes steroid time.
+
+### The original shield
+
+Duke's damage handler is `0x800a40a8` (the player entry of the class table
+`0x800c5ecc`, at `0x800c5ed4`; a0 victim player, a1 attacker, a2 damage, a3
+type, stack args source object and a sixth passed to the death call):
+
+| Step | Address | What |
+| --- | --- | --- |
+| Immune | `0x800a40e0` | victim word 0 bit `0x20000000`: return 0 |
+| Self damage | `0x800a40f4` | source = victim: types 5, 15 and 10 return 0 |
+| Attacker | `0x800a4114` | source type 32: its counter `+0x3b4` += 1, damage doubled when its `+0x89e` is set; else `[victim+0x40]+2` = 255 |
+| **Shield** | `0x800a4154` | `+0x364` bit 1: amount <= 1500 -> amount 0, bits 0-1 cleared; else amount -= 1500. Then **return 0: no damage** |
+| Damage | `0x800a41a0` on | difficulty scaling (`0x800c3d7c`), the type jump table, armour (`+0x234`, 75% absorbed), health `+0x32`, pain sounds, death (`0x800a373c`, the death call, return 1) |
+
+So the original's running steroids cancel every hit routed here, at 1500
+units each (5 seconds of the 300-a-second drain), whatever the damage or
+armour. Bit 1 is read nowhere else in the handler. The coupling is original
+(Vanilla shows it), not something D08A4/A8/A10/A11 added; the armour element
+merely displayed the steroid countdown (D08A8). Nothing else writes `+0x364`
+or `+0x366` by offset except the pickup (`0x8008280c`), the drain
+(`0x800414d8..0x800414f4`) and the use routine (`0x80040570`).
+
+### Implementation
+
+`steroids.inc`: new entry hook `0x800A40A8` (`game.local.toml`, regenerated:
+one generated line in `SLUS_005.83_full_55.c`; codegen hash unchanged).
+With portable steroids running and Duke as the victim, `steroids_damage_entry`
+turns bit 1 off for that call only; the handler then takes its normal path,
+including its own return value (1 on death, which callers read). The timer is
+not touched. `steroids_damage_restore` puts bit 1 back at the first TTK hook
+afterwards: the top of `hook_body` (all shared hooks) and the dedicated
+`0x800412a4` (Duke's update, which holds the drain), `0x8006b73c`,
+`0x800a979c` and `0x8002e850` entries, and the next damage entry. Not after a
+savestate load or once the amount reached 0. Every in-game reader of bit 1
+runs from a hooked function (drain, kick `0x80048410`, status bar
+`0x8008ba30`, heartbeat); the original Select menu `0x80088134` runs only in
+the pause menu. `steroid_flags()` (the flags with the hidden bit on) feeds
+`steroids_owned`, `steroids_running` and `steroid_doses`. The D08A8 status-bar
+hide is separate: it must survive the status bar's own hooked calls.
+
+- Guard: the whole handler, `0x800a40a8`, 1812 bytes.
+- `DNTTK_STEROID_SHIELD=original` keeps the original shield (diagnostics).
+- Debug: `controls.steroids.shield` (`independent` / `original`),
+  `damage_passes`, `damage_hidden`.
+- Native test: `ttk-controls-test` D08A13 group.
+
+### Evidence (executable `5f7052656083349168451c0e217fb24fcd9b0a3372d188a38d0319b459c01f05`)
+
+`recomp/analysis/d08a13-steroid-damage/` (local): `t0.py` (savestate survey),
+`t1.py` (CASE hyper / armour / dose; RATE, STEROIDS, TTK_MODE,
+DNTTK_STEROID_SHIELD), `t2.py` (death and Continue). See the D08A13 work log
+in `MODERNIZATION_JOBS.md` for the table. In short: hits damage health (and
+armour 75/25 with armour) and the timer falls by the drain alone (5 per
+frame, worst per-frame drop 9 against 1500 jumps in the original); Vanilla,
+`original` and the shield switch keep the original absorption.
+
+### Limits
+
+- Steroids no longer protect Duke in Modernized portable. Duke can die while
+  they run; the timer pauses while he is dead and TTK's Continue keeps them
+  running with the time left.
+- Explosions, falls and drowning were not isolated; only damage routed through
+  `0x800a40a8` was ever shielded.
+- Player one only.

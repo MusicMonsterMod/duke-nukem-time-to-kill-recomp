@@ -1,5 +1,37 @@
 # Current status - 2026-10-04
 
+## 2026-10-08 - D08A13 accepted; D08A14, D08A15 queued
+
+- User: "i accept that this works." D08A13 Done; executable
+  `5f7052656083349168451c0e217fb24fcd9b0a3372d188a38d0319b459c01f05` is the
+  regression baseline.
+- Queued: D08A14 (death and Continue end steroids and remove them from the
+  inventory) and D08A15 (heartbeat silent for a few seconds when steroids
+  restart mid-run). Not started.
+
+## 2026-10-08 - D08A13 steroids independent of damage (Needs playtest)
+
+- **Found:** the coupling is original. Duke's damage handler `0x800a40a8`
+  checks running steroids first (`0x800a4154`): the hit is cancelled entirely
+  (no armor or health loss) and costs the steroids 1500 of 9000. The armor
+  element only displayed the countdown.
+- **Changed (Modernized, `steroids` `portable`):** new entry hook
+  `0x800A40A8` (one regenerated line, codegen hash unchanged, savestates
+  load) turns the running bit off for Duke's damage call only. The hit takes
+  the normal path (armor 75%, health, death and its return value), and the
+  timer is untouched. The bit returns at the next TTK hook, before the drain,
+  kick, status bar or heartbeat read it. Vanilla, `original` and
+  `DNTTK_STEROID_SHIELD=original` keep the shield.
+- **Evidence:** pig cop on savestate slot 3: 5-10 hits per run, timer drains
+  5 per frame regardless (60 and 120 fps, armor, `dnhyper`, R dose,
+  savestate); Vanilla 4 absorbed hits of 1500. Death and Continue resume the
+  remaining time. Suites, Python 131, overlay guards, Vanilla route. Executable
+  `5f7052656083349168451c0e217fb24fcd9b0a3372d188a38d0319b459c01f05`.
+  [Note 127](127-d08a4-portable-steroids.md#d08a13---steroids-independent-of-damage).
+- **Note for the user:** steroids no longer protect Duke in Modernized.
+- **Not yet verified:** the user's playtest; explosions, falls and drowning
+  in isolation; natural pickups.
+
 ## 2026-10-08 - D12C accepted
 
 - User: "perfect!! fully accepted." Executable

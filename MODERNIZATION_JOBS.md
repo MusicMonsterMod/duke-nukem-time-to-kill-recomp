@@ -53,7 +53,9 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08A10 | Experimental: steroids heartbeat sound loop while they run (226 bpm, Duke 3D feel; may be reverted) | Done (user-accepted) | D08A4, D08A8 |
 | D08A11 | `dnhyper` countdown in the steroids HUD box (D08A8), not the old armor element | Done (user-accepted) | D08A8, D08G |
 | D08A12 | Modern dynamite: selecting it is safe (no forced fuse); Dynamite Behaviour Modern / Original | Todo | D08A, D08Q5 |
-| D08A13 | Steroids independent of damage and armor: being hit never shortens the steroid countdown (Modern) | Todo | D08A4, D08A8, D08A11 |
+| D08A13 | Steroids independent of damage and armor: being hit never shortens the steroid countdown (Modern) | Done (user-accepted) | D08A4, D08A8, D08A11 |
+| D08A14 | Death and Continue end steroids: no running effect after Continue, steroids gone from the inventory (Modern) | Todo | D08A4, D08A13 |
+| D08A15 | Steroids heartbeat silent for a few seconds when steroids restart before the previous run ends | Todo | D08A10, D08A13 |
 | D08A5 | Mission item tracking: mission inventory on , / . (design E, revised) | Done | D08A1, D08A3, D24A |
 | D08A6 | Selected gadget shown on the HUD: original item slot (design A) | Done | D08A1, D08A3 |
 | D08A7 | Custom medkit gadget icon (switcher strip and HUD box) | Done | D08A6 |
@@ -950,8 +952,10 @@ genuinely requires it.
 
 ### D08A13 - Steroid duration independent of damage and armor
 
-**Todo. User request, 2026-10-08.** Backlog only; do not implement until
-selected.
+**Done (user-accepted 2026-10-08: "i accept that this works").** See the
+work log entries of the same date and
+[note 127](documentation/127-d08a4-portable-steroids.md#d08a13---steroids-independent-of-damage).
+User request, 2026-10-08.
 
 **Problem.** With steroids running, taking damage shortens the remaining
 steroid duration: activate steroids, watch the countdown in the steroids HUD
@@ -1022,6 +1026,65 @@ expiry, pickup selection (D08A9).
 9. Vanilla and `steroids` `original` unchanged.
 10. User check: "activate steroids, stand in front of an enemy and get shot;
     the steroid countdown does not react."
+
+### D08A14 - Death and Continue end steroids
+
+**Todo. User request, 2026-10-08.** Backlog only; do not implement until
+selected.
+
+**Problem (user):** "if you are using steroids and you die, and use a
+continue, you should not still be using steroids and it should be gone from
+the inventory." Since D08A13, Duke can die while steroids run (the original
+shield made that nearly impossible). Observed in the D08A13 runs: the timer
+pauses while Duke is dead (flags kept, `dnhyper` 0x2 and an R dose 0x3), and
+after Continue (Cross) the effect resumes with the time left and drains.
+
+**Lead (verify):** TTK's Continue keeps items (D08A4: a held dose survives
+death and Continue; D08Q2 handles the jetpack after death and Continue). The
+running effect is `+0x364` bit 1 with the amount `+0x366`; the held item is
+bit 0. The level-start reset `0x8003fd98` / `0x8003fe10` zeroes items only in
+some cases. Find the death/Continue path (D08Q2's notes and `deathroute.py`)
+and clear item 4 there in Modernized `portable`.
+
+**Scope and decision to confirm when selected:** steroids running at death
+end and are removed (bits 0-1 and the amount cleared): no countdown, no HUD
+box, no heartbeat after Continue, nothing in the switcher. Whether a held,
+unused dose is also lost at death (Duke 3D loses inventory on death) is a
+question for the user, not to be decided silently. Vanilla and `steroids`
+`original` unchanged.
+
+**Acceptance.**
+1. `dnhyper`, die, Continue: no steroids running, no box, no heartbeat,
+   nothing in `[ / ]`.
+2. R dose, die, Continue: the same; the dose is gone.
+3. Held dose decision as agreed with the user.
+4. Savestate taken while dead and reloaded, then Continue: the same.
+5. Card save/load and level completion with steroids unchanged (D08A4).
+6. Vanilla and `original` unchanged.
+
+### D08A15 - Heartbeat silent when steroids restart mid-run
+
+**Todo. User request, 2026-10-08.** Backlog only; do not implement until
+selected.
+
+**Problem (user):** "if starting steroids before a previous cycle of
+steroids is over, the sound doesnt play for a few seconds at the beginning."
+
+**Lead (verify):** R refuses while steroids run, so a restart mid-run is a
+pickup that refreshes them (the original refresh, D08A4), `dnhyper` again, or
+using a new dose just as the old one ends. `steroids_beat` (D08A10,
+`steroids_beat.inc`) restarts the rhythm when the amount rises above the
+starting amount and plays the first beat at once; check whether that beat is
+refused (the sound routine refuses an id already playing, `0x8006b7b0`, as
+found in D12C), whether `beat_start`/`beat_bucket` miss a refresh (a refresh
+to 9000 from a high amount, or a refresh in the same update as the drain),
+and whether the D08A13 damage hide or the D08A8 HUD hide hides bit 1 at the
+beat check. Reproduce first and record which case it is.
+
+**Acceptance.** A restart mid-run (pickup refresh, `dnhyper`, a dose taken
+right at the end) beats at once and keeps the normal rhythm from the new
+start; a fresh start, natural expiry and the D27A silent Shift are unchanged;
+60 and 120 fps.
 
 ### D08A5 - Mission item tracking in the item switcher (approved design E)
 
@@ -10266,3 +10329,69 @@ in note 117 is the reference for future custom pickups.
 - New Todo D08G4 (user request): `dnstuff`, `dnitems` and `dninventory` each
   also set armor to 100%, with no other change and no effect on steroid state
   (pairs with D08A13). Not started.
+
+## 2026-10-08 - D08A13 steroids independent of damage (Needs playtest)
+
+- **Traced (acceptance 1): the coupling is original.** Duke's damage handler
+  is `0x800a40a8` (class table `0x800c5ed4`; a0 victim player, a1 attacker,
+  a2 damage, a3 type, stack args source and 6th). Right after the self-damage
+  and attacker checks, before difficulty scaling, armor or health, it tests
+  `+0x364` bit 1 at `0x800a4154`: running steroids lose 1500 from `+0x366`
+  (or end, bits 0-1 cleared, at 1500 or less) and the handler **returns 0
+  with no damage at all**. So the original steroids are a shield that every
+  hit spends (6 hits end a full 9000). It does not depend on armor or on the
+  damage amount, and nothing ties `+0x366` to armor `+0x234`: the only
+  writers of `+0x364`/`+0x366` are the pickup, the drain, the use routine and
+  this cut (plus the item-indexed grant, snapshot, restore and level reset).
+  It is not ours: Vanilla shows it (below). The handler returns 1 only on
+  death (after its death call), which callers read (e.g. `0x80054dc0`).
+- **Implementation (Modernized, `steroids` `portable`):** new entry hook
+  `0x800A40A8` (`game.local.toml`; one regenerated line, codegen hash
+  unchanged, savestates load). For Duke as victim with steroids running, bit 1
+  is off for that call only, so the original applies the hit by its normal
+  path (armor absorbs 75% as usual, health, pain, death and its own return
+  value) and the timer is untouched. Bit 1 comes back at the first TTK hook
+  after the call (top of `hook_body`, and the Duke update `0x800412a4`, sound,
+  damage-sphere and `0x8002e850` entries). Every in-game reader of bit 1 runs
+  from a hooked function: the drain (inside Duke's update), the kick
+  (`0x80048410`), the status bar (`0x8008ba30`), the heartbeat; the original
+  Select menu (`0x80088134`) only in the pause menu. Host predicates
+  (`steroids_running`, `steroids_owned`, doses) count the hidden bit as on.
+  Not restored after a savestate load or once the timer reached 0. A new
+  code guard covers the whole handler (`0x800a40a8`, 1812 bytes).
+  `DNTTK_STEROID_SHIELD=original` keeps the original shield (diagnostics).
+  Decision to report: part of `portable`, not a new setting.
+- **Evidence** (private Xvfb runs, copy of the cards and savestates in
+  `recomp/analysis/d08a13-steroid-damage/`, local; UI savestate slot 3, level
+  0, a pig cop shooting Duke; `t1.py`, `t2.py`):
+
+  | Check | Result |
+  | --- | --- |
+  | `dnhyper`, no armor, 60 fps | 5 hits, health -750 each, timer drops 3525 over 705 frames (5 per frame = the drain); worst per-frame drop 9; no 1500 jumps |
+  | Same, 120 fps | 8 hits, 3525 over 704 frames, worst 7.5; HUD: steroids box counting, no armor element |
+  | Armor 50 + `dnhyper` | 5 hits: armor -562, health -187 each (the original split); timer 3495 over 700 frames |
+  | R dose (spawned pickup) | flags 3; 10 hits, timer 3510 over 700 frames; savestate save and reload: flags 3, timer continues |
+  | Unhurt comparison (slot 4) | 8805 -> 5355 over the same 600 frames as 8805 -> 5400 with 7 hits (slot 3) |
+  | `DNTTK_STEROID_SHIELD=original` / `steroids` `original` / Vanilla | original shield: hits absorbed (Vanilla: 4 timer jumps of 1515, health unchanged), effect over within 700 frames, then a hit takes 750 |
+  | Death while running (`dnhyper`, R dose) | dies; timer frozen while dead (flags kept); Continue (Cross): health 10000, steroids resume with the remaining time and drain |
+  | Suites | `ttk-controls-test` 42 groups incl. new D08A13 group (LEVEL01, all levels), `ttk-input-test`, `ttk-inventory-test`, `ttk-aim-test`, `ttk-near-test`, `ttk-font-test`; Python 131 OK (2 skipped); overlay guards; Vanilla route `d08a13-vanilla` exit 0 |
+
+  Executable `5f7052656083349168451c0e217fb24fcd9b0a3372d188a38d0319b459c01f05`.
+- **Gameplay change to note:** in Modernized steroids no longer protect Duke
+  at all (in the original they cancelled hits). Duke can now die while they
+  run; TTK's Continue keeps them running with the time left, as it keeps
+  every item.
+- **Not yet verified:** the user's playtest; natural (non-spawned) pickups;
+  other damage sources (explosions, falls, drowning) were not isolated; any
+  that goes through this handler takes the same path, one that does not was
+  never shielded; two-player games (player one only).
+
+## 2026-10-08 - D08A13 accepted; D08A14, D08A15 queued
+
+- User: "i accept that this works. mark as done." D08A13 Done. Executable
+  `5f7052656083349168451c0e217fb24fcd9b0a3372d188a38d0319b459c01f05` is the
+  regression baseline.
+- New Todo D08A14 (user request): death and Continue end running steroids and
+  remove them from the inventory. Not started.
+- New Todo D08A15 (user request): the heartbeat is silent for a few seconds
+  when steroids restart before the previous run ends. Not started.

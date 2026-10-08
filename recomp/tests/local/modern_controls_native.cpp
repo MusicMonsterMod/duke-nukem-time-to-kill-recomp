@@ -2379,6 +2379,29 @@ int main(int argc,char** argv) {
         std::puts("PASS: D08A4 steroids pickup held at the original sound call; held leaves it, running refreshes; caller/sound/type/Vanilla fallbacks");
     }
     {
+        // D08A13: at Duke's damage handler (0x800a40a8) running steroids lose
+        // bit 1 for that call only, so the original's shield (0x800a4154: take
+        // 1500, no damage) is skipped and the timer is left alone; the next
+        // hook (Duke's update 0x800412a4 here) puts the bit back.
+        auto damage=[&](uint32_t victim){CPUState cpu{};cpu.gpr[4]=victim;cpu.gpr[29]=0x801fff00;hooks().at(0x800a40a8)(&cpu,0x800a40a8);};
+        auto update=[&]{CPUState cpu{};cpu.gpr[4]=p;cpu.gpr[29]=0x801fff00;hooks().at(0x800412a4)(&cpu,0x800412a4);};
+        auto flags=[&]{return psx_mod_read_half(p+0x364);};
+        psx_mod_write_half(p+0x364,3);psx_mod_write_half(p+0x366,4000);
+        damage(p);assert(flags()==1 && psx_mod_read_half(p+0x366)==4000);
+        assert(std::strstr(ttk::controls_debug_json(),"\"damage_hidden\":true"));
+        damage(p);assert(flags()==1);  // a second hit: off again for its own call
+        update();assert(flags()==3 && psx_mod_read_half(p+0x366)==4000);
+        assert(std::strstr(ttk::controls_debug_json(),"\"damage_hidden\":false"));
+        psx_mod_write_half(p+0x364,2);damage(p);assert(flags()==0);update();assert(flags()==2);  // dnhyper
+        damage(p);psx_mod_write_half(p+0x366,0);update();assert(flags()==0);  // ended meanwhile: stays off
+        psx_mod_write_half(p+0x366,4000);psx_mod_write_half(p+0x364,3);
+        damage(0x801d0000);assert(flags()==3);  // another victim
+        psx_mod_write_half(p+0x364,1);damage(p);assert(flags()==1);update();assert(flags()==1);  // held, not running
+        psx_mod_write_half(p+0x364,3);ttk::modern=false;damage(p);assert(flags()==3);ttk::modern=true;  // Vanilla
+        psx_mod_write_half(p+0x364,0);psx_mod_write_half(p+0x366,0);
+        std::puts("PASS: D08A13 damage handler skips the steroid shield (timer untouched, bit 1 back at the next hook); dnhyper, expiry, other victim, held, Vanilla");
+    }
+    {
         // D08A9: a gadget the dispatcher grants (bit 0, full amount) or
         // refills becomes the selection when its caller resumes (0x8001ca4c,
         // ra 0x8007fe78); keys, full items and other callers leave it, and a

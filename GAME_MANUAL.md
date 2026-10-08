@@ -227,6 +227,15 @@ are until you have used it. Picking steroids up while they are already running
 refreshes them, as in the original. R with none held, while they run, or while
 Duke is dead does nothing.
 
+Steroids and armor are separate (D08A13). In the original, running steroids
+were also a shield: every hit Duke took was cancelled and cost the steroids
+1500 of their 9000 units (about 5 seconds each), so a few shots ended them
+early. With `portable`, steroids are only the timed effect: hits damage armor
+and health as they would without steroids, and the countdown keeps its own
+pace however often Duke is hit. Duke can now die while steroids run; after
+Continue the remaining time carries on, like every other item. `original` and
+Vanilla keep the original shield.
+
 Held steroids are kept like the jetpack: through savestates, level completion,
 the save offered after a level (and loading it), and death with Continue. The
 level-select travel (`level N`) restarts like the original Restart, which

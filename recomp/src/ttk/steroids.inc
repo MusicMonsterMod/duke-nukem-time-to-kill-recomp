@@ -34,10 +34,41 @@ static bool portable_steroids() {
     static const bool original=[]{const char* v=std::getenv("DNTTK_STEROIDS");return v && !std::strcmp(v,"original");}();
     return input_modernized() && !original;
 }
+// D08A13: Duke's damage handler 0x800a40a8 (class table 0x800c5ed4; a0 the
+// victim player, a1 attacker, a2 damage, a3 type) checks +0x364 bit 1 at
+// 0x800a4154, before difficulty scaling, armour or health: running steroids
+// take 1500 from +0x366 (or end, bits 0-1 cleared, at 1500 or less) and the
+// handler returns 0 with no damage at all. The original steroids are a shield
+// that each hit spends. In Modernized portable steroids are their own timed
+// effect (user rule: steroids and armour are independent), so for Duke's
+// damage call, and only for it, bit 1 is off: the hit takes the original's
+// normal path (armour, health, pain, death and its return value) and the
+// timer is untouched. Nothing else in the handler reads +0x364, and every
+// other reader (the drain inside Duke's update 0x800412a4, the kick in
+// 0x80048410, the status bar 0x8008ba30, the heartbeat) runs from a hooked
+// function, whose entry puts bit 1 back first.
+// DNTTK_STEROID_SHIELD=original keeps the original shield (diagnostics).
+static bool steroid_damage_hidden;
+static uint64_t steroid_damage_loads;
+static unsigned steroid_damage_passes;
+static bool steroid_shield_original() {
+    static const bool keep=[]{const char* v=std::getenv("DNTTK_STEROID_SHIELD");return v && !std::strcmp(v,"original");}();
+    return keep;
+}
+// The flags as the effect stands, with bit 1 while a damage call has it off.
+static unsigned steroid_flags() {
+    return psx_mod_read_half(player+0x364)|(steroid_damage_hidden?2u:0u);
+}
+static void steroids_damage_restore() {
+    if(!steroid_damage_hidden) return;
+    steroid_damage_hidden=false;
+    if(steroid_damage_loads!=psx_mod_savestate_loads() || (int16_t)psx_mod_read_half(player+0x366)<=0) return;
+    psx_mod_write_half(player+0x364,(uint16_t)(psx_mod_read_half(player+0x364)|2));
+}
 // Held and not running: the one dose R can take.
 static unsigned steroid_doses() {
     if(!portable_steroids()) return 0;
-    return (psx_mod_read_half(player+0x364)&3)==1 && (int16_t)psx_mod_read_half(player+0x366)>0;
+    return (steroid_flags()&3)==1 && (int16_t)psx_mod_read_half(player+0x366)>0;
 }
 // Held or running: steroids stay in the switcher and the HUD box (D08A8), like
 // a jetpack that is on. Running is bit 1 alone (D08A11): dnhyper and the
@@ -45,10 +76,17 @@ static unsigned steroid_doses() {
 // 0x800414a0 clears bits 0-1 when it ends, so nothing is left held.
 static bool steroids_owned() {
     if(!portable_steroids()) return false;
-    return (psx_mod_read_half(player+0x364)&3) && (int16_t)psx_mod_read_half(player+0x366)>0;
+    return (steroid_flags()&3) && (int16_t)psx_mod_read_half(player+0x366)>0;
 }
 static bool steroids_running() {
-    return steroids_owned() && (psx_mod_read_half(player+0x364)&2);
+    return steroids_owned() && (steroid_flags()&2);
+}
+// Entry of Duke's damage handler 0x800a40a8 (see steroid_flags above).
+static void steroids_damage_entry(CPUState* cpu) {
+    steroids_damage_restore();  // a second hit: the previous call has returned
+    if(cpu->gpr[4]!=player || steroid_shield_original() || !steroids_running()) return;
+    psx_mod_write_half(player+0x364,(uint16_t)(psx_mod_read_half(player+0x364)&~2u));
+    steroid_damage_hidden=true;steroid_damage_loads=psx_mod_savestate_loads();++steroid_damage_passes;
 }
 // D08A8: running steroids count down in their own HUD box (gadget_hud.inc).
 // The status bar's element 2 (0x8008bcf4..0x8008be00) shows the steroids'
@@ -139,10 +177,11 @@ static bool steroids_use(CPUState* cpu) {
     return true;
 }
 static const char* steroids_debug_json() {
-    static char buffer[320];
-    std::snprintf(buffer,sizeof buffer,"{\"portable\":%s,\"doses\":%u,\"flags\":%u,\"timer\":%d,\"stores\":%u,\"full_leaves\":%u,\"refreshes\":%u,\"uses\":%u,\"refusals\":%u,\"late_settles\":%u,\"hud_hides\":%u,\"hud_hidden\":%s}",
+    static char buffer[400];
+    std::snprintf(buffer,sizeof buffer,"{\"portable\":%s,\"doses\":%u,\"flags\":%u,\"timer\":%d,\"stores\":%u,\"full_leaves\":%u,\"refreshes\":%u,\"uses\":%u,\"refusals\":%u,\"late_settles\":%u,\"hud_hides\":%u,\"hud_hidden\":%s,\"shield\":\"%s\",\"damage_passes\":%u,\"damage_hidden\":%s}",
         portable_steroids()?"true":"false",steroid_doses(),psx_mod_read_half(player+0x364),(int16_t)psx_mod_read_half(player+0x366),
         steroid_stores,steroid_full_leaves,steroid_refreshes,steroid_uses,steroid_refusals,steroid_late_settles,
-        steroid_hud_hides,steroid_hud_hidden?"true":"false");
+        steroid_hud_hides,steroid_hud_hidden?"true":"false",steroid_shield_original()?"original":"independent",
+        steroid_damage_passes,steroid_damage_hidden?"true":"false");
     return buffer;
 }

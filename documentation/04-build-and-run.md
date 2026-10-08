@@ -366,3 +366,11 @@ added to `game.local.toml` and regenerated the same way (one generated line;
 codegen hash unchanged). Its own callback only restores the steroids running
 bit for its composition call (return address `0x800265d4`). See
 [note 127](127-d08a4-portable-steroids.md).
+
+## Silent Modern Shift (D27A)
+
+One hook (`0x800412A4`, the player update) was added to `game.local.toml` and
+regenerated the same way (one generated line; codegen hash `0x8bab543c`
+unchanged). Its own callback acts only for Duke. `DNTTK_RUN_CLICK=original`
+keeps the original walk/run click in Modernized (diagnostics). See
+[note 130](130-d27a-silent-shift.md).

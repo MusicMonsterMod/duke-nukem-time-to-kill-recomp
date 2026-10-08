@@ -164,6 +164,9 @@ static const Guard guards[] = {
     {0x800987cc, 672, "13e4e3dcca6b6f011db95d4825e6f968375a4b2341ea18fdd86a8cc676dbede5"},
     {0x800b42ec, 352, "484fff1d2984fac9730786048ad50065c006672118c2d6b4698dfb787d7b155c"},
     {0x80042634, 308, "49f96d37c9a2d3b97d8ac57a6f3cd2e68fb38107f0996ee7c4bdd80f9bf93d70"},
+    // D27A: the player update's walk/run toggle (0x8004178c..0x800419f0), whose
+    // click 0x8006bbd8(1) run_click.inc keeps silent in Modernized.
+    {0x8004178c, 612, "146c93993f541dfe24ed30aac3cb7c5f96ba29fd2994303605c81060643e1ec8"},
 };
 // D08V1: original data the game rewrites in place, compared with those bits
 // masked off (code_identity.h masked_identity). The upper-body animation flag

@@ -115,6 +115,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D12 | First-person weapons and state polish | Done | D11 |
 | D12A | First-person quick kick without leaving the eye view | Done | D12 |
 | D12B | Costume-aware first-person kick leg, game-wide (LEVEL01 slots 8/9) | Accepted | D12A, D22A |
+| D12C | Kick impact sound on a real hit only (wall, crate, actor); empty-air and out-of-range kicks stay silent | Todo | D12A |
 | D11C | Savestates can keep Duke's first-person head hidden (slot 12) | Done | D11 |
 | D11D | First-person eye height from Duke's real proportions, game-wide (LEVEL01 slot 8) | Accepted | D11, D22A |
 | D11E | First person while swimming (underwater eye view, game-wide) | Todo | D08O, D11, D22B |
@@ -179,7 +180,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D26C | Console command history (Up/Down) | Accepted | D26 |
 | D26D | Level select: authoritative order, numbering, names and categories | Todo | D26A |
 | D27 | Caps Lock RUN MODE quotes; Shift-run clunk silence deferred | Done (quotes); clunk deferred low-priority | D04, D19A |
-| D27A | Modern Shift/run is silent: remove the walk/run toggle click `0x0001` from the Shift path, keep the D08A10 heartbeat | Todo | D27, D08A10 |
+| D27A | Modern Shift/run is silent: remove the walk/run toggle click `0x0001` from the Shift path, keep the D08A10 heartbeat | Done (user-accepted) | D27, D08A10 |
 | D28 | Scroll Lock holster and WEAPON LOWERED/RAISED quotes | Done | D04, D19A |
 | D29 | Progression items and objectives legibility: research and design first (Level 2 bank-vault notes) | Todo | D19A, D22B, D26A |
 | R01 | DisruptorRecomp architecture and modernization reference research | Done | - |
@@ -3161,6 +3162,74 @@ first-person kick already shows Duke's medieval costume ("working beautifully")
 and his Roman / HOG HEAVEN costume ("looks fantastic"). Find out why those eras
 are right and LEVEL01 is not before changing anything, and keep them right.
 
+
+### D12C - Kick impact sound on a real hit only
+
+**Todo. User request, 2026-10-08.** Small audio/game-feel job. Do not
+implement until selected.
+
+**Problem.** When Duke's kick connects (a wall, a breakable crate, an enemy or
+another object that takes melee damage) there is little or no physical impact
+sound, so the hit feels weightless. It is most noticeable with crates that need
+several kicks: the individual kicks are nearly silent.
+
+**Rule.** The sound comes from the authoritative kick hit result, never from the
+button press or an animation frame:
+
+- kick -> no collision -> silent;
+- kick -> wall -> impact sound;
+- kick -> crate/object -> impact sound;
+- kick -> actor/enemy -> impact sound.
+
+Do not build a second, audio-only approximation of the kick collision if the
+existing melee/kick logic already says whether the attack connected.
+
+**Candidate sound (research clue, verify).** When Duke runs or jumps into a
+wall, two sounds can play: Duke's grunt/vocal, and a generic physical
+impact/thud under it. The user wants that **non-vocal thud**, never the grunt.
+It may be a Duke 3D-inherited sound; treat that only as a clue. It already
+exists in TTK's resources (the game plays it on wall collision): find the sound
+the game is already playing; do not add a new Duke 3D asset. Useful tools from
+D08A10/D27A: the `0x8006b73c` entry log (`controls.steroid_beat.log`), SPU
+KEYON capture (`spu_events`) to tell which sample is which, the debug
+`sfx <id>` console command, and the note that non-positional sounds use
+`0x8006bbd8` instead ([note 129](documentation/129-d08a10-steroids-heartbeat.md),
+[note 130](documentation/130-d27a-silent-shift.md)). D12A has the first-person
+quick kick's hit sphere and sound notes.
+
+**Avoid duplicates.** Some targets may already play their own impact/damage
+sound. Trace the kick/damage/collision paths and place the sound at the most
+appropriate common point, so one kick never plays the same sample two or three
+times through different paths. Where a target already gives fitting impact
+feedback, keep it rather than layering an identical sound on top. Enemy pain
+sounds, vocals and damage sounds stay as they are; the new impact complements
+them.
+
+**Scope.** Audio only. Do not change kick damage, range, timing, animation,
+quick-kick controls, object health, enemy damage reactions or collision
+geometry. Vanilla stays original; Modernized-only unless the user decides
+otherwise when selecting it.
+
+**Acceptance.**
+1. The existing wall-collision impact sound is located.
+2. It is separated from Duke's accompanying grunt/vocal.
+3. Its sound resource/ID (bank, index, SPU sample) is recorded.
+4. The authoritative successful-hit point in the kick logic is identified.
+5. The cleanest trigger point is chosen and documented.
+6. Empty-air kicks stay silent.
+7. A wall kick plays the sound once, at contact.
+8. Each successful kick on a breakable object (e.g. a multi-kick crate) plays
+   the sound; damage and destruction unchanged.
+9. A successful kick on an enemy/actor gives fitting impact feedback.
+10. Failed/out-of-range kicks stay silent (seeing a target in front of Duke is
+    not enough; the boot must connect).
+11. No duplicate playback where the target already has related impact/damage
+    audio.
+12. All existing kick damage and gameplay behaviour is preserved.
+
+Goal: "If Duke's boot actually hits something, I should hear the impact. If his
+boot hits nothing, I should hear nothing."
+
 ### D13 — Higher internal resolution and display scaling
 
 Explicit user priority: selectable high-resolution settings. Inspect and reuse applicable renderer capabilities, then expose tested internal-resolution choices, fullscreen/window modes and output scaling. Distinguish rendering more scene detail from enlarging a low-resolution image. Preserve original-resolution presentation.
@@ -4782,8 +4851,11 @@ gait restart without delaying the switch — not blocking.
 
 ### D27A - Modern Shift/run is silent
 
-**Todo. User request, 2026-10-08.** Small, focused audio/control cleanup. Do
-not implement until selected. Follow-up to D27's deferred "silent Shift-run".
+**Done - user-accepted (2026-10-08):** "i fully accept this. great work. i
+have wanted this one for a long time so this minor change has a huge impact on
+me as a player." Modern Shift no longer clicks; the heartbeat is unchanged. See
+[note 130](documentation/130-d27a-silent-shift.md). User request, 2026-10-08.
+Follow-up to D27's deferred "silent Shift-run".
 
 **Problem.** In Modern controls, pressing (and releasing) Shift to run plays a
 sound. The user wants Shift silent: hold Shift -> run, release -> stop, with
@@ -9954,3 +10026,35 @@ in note 117 is the reference for future custom pickups.
   `e9e0cfa7aeec88ace33f794b4a831ebc0b536b09bd4dce54df6e52e85865ffc8` is the regression baseline.
 - New Todo D08A9: a picked-up gadget becomes the `[ / ]` selection (and the HUD
   box), as in Duke 3D.
+
+## 2026-10-08 - D27A Modern Shift/run is silent (Needs playtest)
+
+- **Cause:** Modern Shift holds the original run button (L1). The player
+  update `0x800412A4` toggle (`0x8004178c`..`0x800419f0`) calls
+  `0x8006bbd8(1)` whenever the run state differs from the one it stored at
+  `player+0x27b`, so every press and release clicked.
+- **Fix:** `recomp/src/ttk/run_click.inc` and a new entry hook on `0x800412A4`
+  (one regenerated line; codegen hash `0x8bab543c` unchanged, savestates
+  load). In Modernized it stores the state the toggle is about to set at
+  `+0x27b` first, computed exactly as the original does, so the original sees
+  no change and stays silent while still setting `+0x224` bit 1 itself. New
+  guard over the toggle region. `DNTTK_RUN_CLICK=original` keeps the click.
+- **Evidence:** SPU KEYONs of sample `0x012F0`, per leg from a fresh load:
+  Shift taps 10 -> 0, hold/release 2 -> 0, walking taps 8 -> 0; run 4093 vs walk
+  667 units in 1.2 s; `dnhyper` beat 19 beats at 15/15/18 fields with or
+  without Shift taps (the `original` control gives 29: 10 clicks added).
+  Vanilla Q (L1) still clicks as before. Suites and Python 131 pass. Executable
+  `71e6c7ae711ec30aaf596470b4a2d8f28ec7d22c84520cfb8e8e214b20370829`.
+  [Note 130](documentation/130-d27a-silent-shift.md).
+- **Not yet verified:** the user's ear in play; Caps Lock autorun not measured
+  separately.
+
+## 2026-10-08 - D27A accepted; D12C queued
+
+- User: "i fully accept this. great work. i have wanted this one for a long
+  time so this minor change has a huge impact on me as a player." D27A Done;
+  executable `71e6c7ae711ec30aaf596470b4a2d8f28ec7d22c84520cfb8e8e214b20370829`
+  is the regression baseline.
+- New Todo D12C: a kick impact sound only when the boot really connects (wall,
+  crate, actor), using the wall-collision thud the game already has (not
+  Duke's grunt); empty-air and out-of-range kicks stay silent.

@@ -1,5 +1,33 @@
 # Current status - 2026-10-04
 
+## 2026-10-08 - D27A accepted; D12C queued
+
+- User: "i fully accept this. great work. i have wanted this one for a long
+  time so this minor change has a huge impact on me as a player." Executable
+  `71e6c7ae711ec30aaf596470b4a2d8f28ec7d22c84520cfb8e8e214b20370829` is the
+  regression baseline.
+- New Todo D12C: kick impact sound driven by the real kick hit result (wall,
+  crate, actor), using the existing wall-collision thud (not Duke's grunt);
+  empty-air and out-of-range kicks stay silent; no duplicates over targets'
+  own damage sounds; kick gameplay unchanged.
+
+## 2026-10-08 - D27A Modern Shift/run is silent (Needs playtest)
+
+- **What:** in Modernized, pressing, holding and releasing Shift no longer
+  plays the walk/run click (`0x0001`); running is unchanged and the D08A10
+  steroids heartbeat still plays the same click on its beat.
+- **How:** a new entry hook on the player update `0x800412A4` stores the run
+  state the original toggle is about to set at `player+0x27b` first, so the
+  original sees no change and never clicks (`run_click.inc`; one regenerated
+  line, codegen hash unchanged, savestates load). Vanilla's L1 toggle still
+  clicks. `DNTTK_RUN_CLICK=original` keeps the click.
+- **Evidence:** SPU KEYON counts of the click sample per leg: Shift taps 10 -> 0,
+  hold/release 2 -> 0, walking taps 8 -> 0; beat identical with or without
+  Shift (19 beats, 15/15/18 fields). Suites and Python 131 pass. Executable
+  `71e6c7ae711ec30aaf596470b4a2d8f28ec7d22c84520cfb8e8e214b20370829`.
+  [Note 130](130-d27a-silent-shift.md).
+- **Not yet verified:** the user's ear in play.
+
 ## 2026-10-08 - D08A11 accepted; D27A and D08A12 queued
 
 - User: "this job is fully accepted." Executable

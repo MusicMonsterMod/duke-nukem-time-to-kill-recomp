@@ -237,7 +237,8 @@ applies on the next launch and saves your preference. Vanilla always uses the
 original rule. See [notes](documentation/127-d08a4-portable-steroids.md).
 
 **Heartbeat (experimental, D08A10).** With `portable`, the click Duke's walk/run
-toggle makes (the sound you hear pressing Shift) repeats while steroids run,
+toggle makes (the click Shift used to make before D27A silenced it; Vanilla's
+run button still makes it) repeats while steroids run,
 about 225 beats a minute, like Duke 3D's steroids heartbeat. It follows game time, not the frame rate, and
 stops when the effect ends, is cut by damage, or Duke dies. To silence it,
 start the game with the environment variable `DNTTK_STEROID_BEAT=off`; to try
@@ -622,7 +623,7 @@ still need gameplay acceptance. Existing customized bindings are retained; use
 Controller layout.
 
 **W/S move forward/back relative to the camera; A/D strafe relative to it.**
-Walk is the default on each launch. Hold Left Shift to run; **Caps Lock** toggles
+Walk is the default on each launch. Hold Left Shift to run (silently: no click on press or release); **Caps Lock** toggles
 autorun (centered `RUN MODE ON` / `RUN MODE OFF`), and Shift then temporarily walks.
 Autorun survives capture/focus/pause
 changes within that session, but resets off on relaunch; it does not follow the

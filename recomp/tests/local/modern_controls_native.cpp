@@ -1212,6 +1212,39 @@ int main(int argc,char** argv) {
     ttk::running=false;call(0x80048410,p,0,0x8004b634);assert(psx_mod_read_half(p+0x60)==72);
     psx_mod_write_half(p+0x60,73);ttk::running=true;writes=0;
     call(0x80048410,p,0,0x8004b634);assert(writes==0);ttk::running=false;
+    // D08Z3: a held direction ends the landing recovery 105 into walk/run
+    // (frame 0) at the ground dispatcher; a jump press with no direction
+    // ends it into the stance 63. Nothing pressed, the first landing update
+    // (previous mode 9), the hard landing 106, another caller, crouch,
+    // precision aim, landing=original and Vanilla leave it alone.
+    {
+        auto landing=[&](unsigned anim,unsigned previous){
+            psx_mod_write_half(p+0x60,anim);psx_mod_write_half(p+0x68,3);psx_mod_write_half(p+0x6a,40);
+            psx_mod_write_byte(p+0x22c,0);psx_mod_write_byte(p+0x22d,previous);writes=0;
+        };
+        const float mx=ttk::input.move_x,my=ttk::input.move_y;
+        ttk::input.move_x=0;ttk::input.move_y=1;
+        landing(105,0);call(0x80048410,p,0,0x8004b634);
+        assert(psx_mod_read_half(p+0x60)==72 && psx_mod_read_half(p+0x68)==0 && psx_mod_read_half(p+0x6a)==0);
+        ttk::running=true;landing(105,0);call(0x80048410,p,0,0x8004b634);assert(psx_mod_read_half(p+0x60)==76);ttk::running=false;
+        ttk::input.move_x=-1;ttk::input.move_y=0;landing(105,0);call(0x80048410,p,0,0x8004b634);assert(psx_mod_read_half(p+0x60)==72);
+        ttk::input.move_x=0;ttk::input.move_y=0;
+        landing(105,0);call(0x80048410,p,0,0x8004b634);assert(writes==0 && psx_mod_read_half(p+0x60)==105);
+        ttk::jump_pending=true;landing(105,0);call(0x80048410,p,0,0x8004b634);
+        assert(psx_mod_read_half(p+0x60)==63 && psx_mod_read_half(p+0x6a)==0 && ttk::jump_pending);ttk::jump_pending=false;
+        ttk::input.move_y=1;
+        landing(105,9);call(0x80048410,p,0,0x8004b634);assert(writes==0);
+        landing(106,0);call(0x80048410,p,0,0x8004b634);assert(writes==0);
+        landing(105,0);call(0x80048410,p,0,0x8004b630);assert(writes==0);
+        ttk::input.held[ttk::crouch]=true;landing(105,0);call(0x80048410,p,0,0x8004b634);assert(writes==0);ttk::input.held[ttk::crouch]=false;
+        ttk::input.held[ttk::original_aim]=true;landing(105,0);call(0x80048410,p,0,0x8004b634);assert(writes==0);ttk::input.held[ttk::original_aim]=false;
+        setenv("DNTTK_LANDING","original",1);landing(105,0);call(0x80048410,p,0,0x8004b634);assert(writes==0);unsetenv("DNTTK_LANDING");
+        ttk::modern=false;landing(105,0);call(0x80048410,p,0,0x8004b634);assert(writes==0);ttk::modern=true;
+        landing(105,0);call(0x80048410,p,0,0x8004b634);assert(psx_mod_read_half(p+0x60)==72);
+        ttk::input.move_x=mx;ttk::input.move_y=my;
+        psx_mod_write_half(p+0x68,0);psx_mod_write_half(p+0x6a,0);psx_mod_write_byte(p+0x22d,0);
+        std::puts("PASS: D08Z3 landing recovery (direction to walk/run, jump to stance; idle, first update, 106, caller, crouch, aim, original and Vanilla untouched)");
+    }
     psx_mod_write_half(p+0x60,63);
     uint32_t sp=0x801f0000-0x30-0x58;
     psx_mod_write_word(sp+0x54,0x80053548);psx_mod_write_word(sp+0x10,0);psx_mod_write_word(sp+0x18,275);

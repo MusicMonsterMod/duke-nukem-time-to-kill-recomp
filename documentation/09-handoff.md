@@ -1,5 +1,25 @@
 # Next-session handoff
 
+## 2026-10-08 - D08Z3 accepted; D24D, D26G, D08A19 queued
+
+- User: "Completely accept this work as complete, working, and done." D08Z3
+  Done; executable `11187493c04ae830482c47c93b97ac332fbfce1de95f8eedaa2f8637d7fe164e` is the regression baseline.
+- Queued: D24D (`<`/`>` message fallback), D26G (console key repeat),
+  D08A19 (USED status and green tick; placeholder in font picker section 14,
+  8x8 `recomp/assets/ui/items/mark-used.png`).
+
+## 2026-10-08 - D08Z3 modern landing (Needs playtest)
+
+- Stand-still after landing = the original recovery 105 (straight-up jump,
+  direction released before touch-down, bounce), about 0.6 s with no input,
+  in Vanilla too. Modernized `landing` = `modern` (default): a held direction
+  walks/runs off the update after the touch-down, a jump press hops again;
+  `run.py --landing original` restores it. Schema 31 (the player's profile
+  migrates on next launch).
+- Measured: `original` 36..44 fields to move, `modern` 3..8; routes
+  unchanged. Executable `11187493c04ae830482c47c93b97ac332fbfce1de95f8eedaa2f8637d7fe164e`.
+  [Note 136](136-d08z3-modern-landing.md). Nothing committed.
+
 ## 2026-10-08 - D08Z2 accepted
 
 - User: "accepted!!". D08Z2 Done (armed scramble plays full body; the D08Z1

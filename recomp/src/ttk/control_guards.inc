@@ -90,6 +90,9 @@ static const Guard guards[] = {
     // D08Z1 safety net: the bounce 0x8003ef08 and deflection 0x8003ef78 (their
     // return address at sp+0x24 when they rerun the integration).
     {0x8003ef08, 200, "8d26016f889b53acbc9d6b82a4dc171fb287551b47fcce712a6ea7d6af7cc4a7"},
+    // D08Z3: the landing-pose handler for 105/106 (collision and root step, no
+    // input), which landing.inc leaves at the ground dispatcher 0x80048410.
+    {0x80052fb8, 128, "3ab421327a51edaeafbfc92a176241564a63e332c859d64ff4658f93ab3811d3"},
     {0x80028f2c, 884, "35c2c146e55820c71db887223353624a1e667698ecf422b988801ec3600efe79"},
     {0x8002a7fc, 32, "ebbdf98ec0abdf3efd50810400db3afa4a8bc47b80058549dcf0b5da19c49b9d"},
     {0x8005201c, 3108, "ad97e2be5256897d26af51f5c09ffc0662a91cff7c6ffd3c04daf7ec3d5e37ee"},

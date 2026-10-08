@@ -4,7 +4,7 @@ This is the canonical job list for our **Duke Nukem: Time to Kill** PC project, 
 
 Invoke **`$continue-duke-recomp`** (Codex) or **`/continue-duke-recomp`** (Claude Code) to see the current jobs and choose one. You can also request a job directly: **`$continue-duke-recomp work on D01`** or **`/continue-duke-recomp work on D01`**. The skill reads this file rather than keeping a second backlog. It must not automatically start the next job.
 
-**Latest accepted job (2026-10-08): D08Z2 (mantle pose; frozen legs after a corner bump); executable `bfd41760f9c66f2f03cf859f820f7b7d27cd8991e8ce1f304f5456ea29bf8986` is the regression baseline. Next: D08Z3.** Earlier (2026-10-08): D08Z1 (jump wall slide); executable `3f909c9f2cc4e5b09ba6faab5129ec9ae0ff938c4735e264ac67a66405c1ed34`. Earlier (2026-10-08): D08A17 (power-up countdowns); executable `8f338cde1c2dc4cf73da747621cffafe2478512f6419078a41d11b0d3b9268a9`. Earlier accepted jobs (2026-10-08): D08A14 (death ends steroids), D08A15 (heartbeat restart; a pickup mid-run stops steroids) and D08G4 (inventory cheats give full armor); executable `87fe38d4f0ea8560312f53171345c207f332e26b6f4d2ed7220e1afae66ba472` is the regression baseline.** Earlier: D08J2 (pole/chain A/D direction), D08U2 (climb off a ladder past an enemy), D08O3 (E in water keeps the weapon) and D08O2A (natural swim-fire pose v2), 2026-10-07.** Previous baseline `e8eebb809c3d5a4b29779f11f0c9db55efcd846dc5c71b39d5a59d43158eb08e` (D08U2). **D08J2 (pole/chain A/D direction) Accepted 2026-10-07**: executable `129a64f2df3f5395f2d3485a310a03d74c85f9b1086c7dab37fee59277c7968b` is the current regression baseline ([note 122](documentation/122-d08j2-pole-chain-sidestep.md)). Todo: D08J4 (ceiling monkey-bar drops, UI slot 3), D08J3 (free camera while climbing). Previous baseline `e75b50f156137fa2377e4643407b2efbd16f2e976fa4d697afcbceb228e2e554` (D08O3). **D23E (western-town stutter) Accepted 2026-10-07**; **D08O2A Accepted** ([note 119](documentation/119-d08o2a-natural-swim-fire-pose.md)), **D08O3 Accepted** ([note 120](documentation/120-d08o3-e-in-water.md)); **D23F (fast CPU timing) Accepted 2026-10-05 and now the Modernized default**; executable `e0737a9f712aa5622d1b057ee5071e12c33cc9a18de8e6d40ee8eee31083f966` (includes D23E), [note 104](documentation/104-d23e-busy-scene-stutter.md), [note 105](documentation/105-d23f-fast-timing.md). Next suggested: D23G (finish the fast path) and D17S (auto frame-rate default).
+**Latest accepted job (2026-10-08): D08Z2 (mantle pose; frozen legs after a corner bump); executable `bfd41760f9c66f2f03cf859f820f7b7d27cd8991e8ce1f304f5456ea29bf8986` is the regression baseline. D08Z3 (modern landing) accepted 2026-10-08; executable `11187493c04ae830482c47c93b97ac332fbfce1de95f8eedaa2f8637d7fe164e` is the new regression baseline. Queued: D24D, D26G, D08A19.** Earlier (2026-10-08): D08Z1 (jump wall slide); executable `3f909c9f2cc4e5b09ba6faab5129ec9ae0ff938c4735e264ac67a66405c1ed34`. Earlier (2026-10-08): D08A17 (power-up countdowns); executable `8f338cde1c2dc4cf73da747621cffafe2478512f6419078a41d11b0d3b9268a9`. Earlier accepted jobs (2026-10-08): D08A14 (death ends steroids), D08A15 (heartbeat restart; a pickup mid-run stops steroids) and D08G4 (inventory cheats give full armor); executable `87fe38d4f0ea8560312f53171345c207f332e26b6f4d2ed7220e1afae66ba472` is the regression baseline.** Earlier: D08J2 (pole/chain A/D direction), D08U2 (climb off a ladder past an enemy), D08O3 (E in water keeps the weapon) and D08O2A (natural swim-fire pose v2), 2026-10-07.** Previous baseline `e8eebb809c3d5a4b29779f11f0c9db55efcd846dc5c71b39d5a59d43158eb08e` (D08U2). **D08J2 (pole/chain A/D direction) Accepted 2026-10-07**: executable `129a64f2df3f5395f2d3485a310a03d74c85f9b1086c7dab37fee59277c7968b` is the current regression baseline ([note 122](documentation/122-d08j2-pole-chain-sidestep.md)). Todo: D08J4 (ceiling monkey-bar drops, UI slot 3), D08J3 (free camera while climbing). Previous baseline `e75b50f156137fa2377e4643407b2efbd16f2e976fa4d697afcbceb228e2e554` (D08O3). **D23E (western-town stutter) Accepted 2026-10-07**; **D08O2A Accepted** ([note 119](documentation/119-d08o2a-natural-swim-fire-pose.md)), **D08O3 Accepted** ([note 120](documentation/120-d08o3-e-in-water.md)); **D23F (fast CPU timing) Accepted 2026-10-05 and now the Modernized default**; executable `e0737a9f712aa5622d1b057ee5071e12c33cc9a18de8e6d40ee8eee31083f966` (includes D23E), [note 104](documentation/104-d23e-busy-scene-stutter.md), [note 105](documentation/105-d23f-fast-timing.md). Next suggested: D23G (finish the fast path) and D17S (auto frame-rate default).
 
 ## The experience we are building
 
@@ -69,6 +69,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08A16 | Power-up coin icons: invincibility, invisibility, Double Duke (human design; placeholder section in the font picker) | Done (user-accepted) | D08A8, D24A |
 | D08A17 | Power-up countdowns: invincibility, invisibility and Double Duke get HUD boxes counting down, like steroids (Quake-style) | Done (user-accepted) | D08A16, D08A8 |
 | D08A18 | Mission inventory: Enter tries to use the browsed item; elsewhere "can't use this here" (cheat-message style) | Done (user-accepted) | D08A5, D24A |
+| D08A19 | Used mission items: switcher status USED and a green tick on the icon (user art; placeholder in the font picker) | Todo | D08A18, D08A5 |
 | D08G3 | `dnupgrade` cheat: upgrade all weapons (Laser Gatling etc.) | Accepted | D08G2 |
 | D08G4 | `dnstuff`, `dnitems`, `dninventory` also give 100% armor; running steroids stop and a full dose is held | Done (user-accepted) | D08G |
 | D08H | Apartment furniture, hidden pickup and switch targeting | Done | D08 |
@@ -107,7 +108,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08Z | Optional manual modern jump (player-timed takeoff, air control) | Done | D08Y |
 | D08Z1 | Keep jump momentum when bumping a wall (EDuke32-style, menu-toggleable) | Done (user-accepted) | D08Z, D22B |
 | D08Z2 | Mantle regression since D08Z1: the mantle plays as a static leg pose | Done (user-accepted) | D08Z1 |
-| D08Z3 | Occasional landing after a jump where Duke is stuck for about a second before he can move | Todo | D08Z1 |
+| D08Z3 | Modern landing: no stand-still after a jump (recovery 105 ends on input; landing hop) | Done (user-accepted) | D08Z1 |
 | D08J1 | Hold-E run-up grab for overhead ladders (slot-6 ladder) | Done | D08J, D08X, D08U |
 | D08J2 | Poles and chains: A/D turn the wrong way (A turns right, D left) | Accepted | D08J |
 | D08J4 | Ceiling monkey-bar climbing: camera-relative travel, no mid-span drops (player UI slot 3) | Accepted | D08J, D22B |
@@ -181,6 +182,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D24A | Public clone gives the full experience: fonts, inventory icons/digits from a proper tracked or disc-derived source (no research/ dependency) | Accepted | D19A, D08A3 |
 | D24B | Savestate menu (F7) dressed in the TTK fonts and disc art | Accepted | D24A |
 | D24C | TTK-font `!` drawn from I and period; console prompt `>` instead of `]` | Done (user-accepted) | D24A |
+| D24D | `<` and `>` in messages fall back to the system font (e.g. ORIGINAL MOVEMENT <state>) | Todo | D24C |
 | D25 | Modernized edition release acceptance | Todo | D08, D08A, D08B, D09, D10, D14, D17, D18, D20, D21, D24 |
 | D26 | Backtick debug console (fps and helpers) | Done | D04 |
 | D26A | Debug level-select panel for whole-game testing | Accepted | D26, D22A |
@@ -189,6 +191,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D26B | Opening the console leaves first person | Todo | D26, D11 |
 | D26C | Console command history (Up/Down) | Accepted | D26 |
 | D26D | Level select: authoritative order, numbering, names and categories | Todo | D26A |
+| D26G | Console: holding Backspace or a character key repeats it | Todo | D26 |
 | D27 | Caps Lock RUN MODE quotes; Shift-run clunk silence deferred | Done (quotes); clunk deferred low-priority | D04, D19A |
 | D27A | Modern Shift/run is silent: remove the walk/run toggle click `0x0001` from the Shift path, keep the D08A10 heartbeat | Done (user-accepted) | D27, D08A10 |
 | D28 | Scroll Lock holster and WEAPON LOWERED/RAISED quotes | Done | D04, D19A |
@@ -1540,6 +1543,33 @@ Check whether the HUD sheet is uploaded once or per level.
 - No other HUD sprite, font or texture is disturbed in any visited level.
 - Vanilla HUD unchanged.
 - The user confirms the look in play.
+
+### D08A19 - Used mission items: USED status and a green tick (user art)
+
+**Todo. User request, 2026-10-08:** "When we find a mission item, in the
+switcher it changes to FOUND. When a mission item has been used, change to USED
+and we should indicate that on it's icon in the switcher too. For this, refer
+to the file "Subway Security Key Used.png" inside the research/inv directory. I
+want a placeholder for a GREEN tick i will make".
+
+- Today (D08A5) the info panel says FOUND or NOT FOUND YET. Once the item has
+  been used (consumed by its door, switch or socket, including through the
+  D08A18 Enter use), say USED and draw the tick over the icon's bottom-right
+  corner in the switcher strip and the info panel, as in the mockup
+  (`research/inv/Subway Security Key Used.png`, where a gold check stands in
+  for the green tick).
+- Art (the user's): `recomp/assets/ui/items/mark-used.png`, recommended
+  **8x8 px**, transparent, 1-px dark outline, drawn on the 16x16 icon's grid
+  over pixels x 8..15, y 8..15 (10x10 also fits). Placeholder and previews:
+  font picker section 14 (local `recomp/analysis/d24a-fonts/`).
+- Research first: how "used" is known per item (the original removes or
+  flags the inventory entry when a key is consumed; persistence across saves
+  and level changes, as D08A5 tracks FOUND), and which status colour USED takes.
+
+**Acceptance:** a used mission item reads USED with the user's tick on its
+icon in the switcher and the info panel, in at least two levels; found but
+unused items still read FOUND; saves keep the state; Vanilla and the original
+Select inventory unchanged; the user confirms.
 
 ### D08B — Broader traversal and scripted-camera coverage
 
@@ -3315,9 +3345,32 @@ ledges, low-lip scramble) plays its full original animation in Modernized with
 `jump_walls slide`; Vanilla and `original` unchanged; the D08Z1 slide and
 corner behavior stay as accepted; the user confirms.
 
-### D08Z3 - Stuck for a moment after some landings
+### D08Z3 - Stuck for a moment after some landings (modern landing)
 
-**Todo. User report, 2026-10-08, at D08Z1 acceptance:** "there is the
+**Done (2026-10-08, user-accepted: "Completely accept this work as complete, working, and done.").** Modernized `landing` = `modern` (default;
+`run.py --landing original` restores it; Vanilla unchanged). Cause: the
+original's own recovery 105, not D08Z1. The landing selector `0x80054c04`
+continues the gait only after a directional/running flight with a direction
+held at the touch-down; a straight-up jump, a released direction or a bounce
+lands in 105, which takes no input for about 37 fields (0.6 s), also in
+Vanilla; a jump press in it is lost. Now, at the ground dispatcher
+`0x80048410`, a held direction starts walk 72 / run 76 from 105 in the update
+after the touch-down, and a jump press with no direction hands 105 to the
+stance 63 so the buffered jump fires. Idle landings keep 105; 106 (damaging
+fall), water entries and the continuation landings are unchanged. Evidence:
+UI slots 7 and 10, `original` 36..44 fields before moving, `modern` 3..8;
+landing hop airborne 12 fields after the touch-down (4/4); W-held, strafe and
+running jumps identical; D08X/D08Y/D08U/D08W/D08Z routes same outcomes.
+Profile schema 31. Executable `11187493c04ae830482c47c93b97ac332fbfce1de95f8eedaa2f8637d7fe164e`.
+[Note 136](documentation/136-d08z3-modern-landing.md).
+
+User, at selection (2026-10-08): "it may not actually be the bump causing it
+because it happens also when you jump without run on for example. if you jump
+forward, when you land, there's that horrible pause when you land before duke
+starts moving. it's all clunk. I actually want that entire mechanic to be
+totally smoothed out and modernized so that the flow feels much more natural".
+
+Was Todo. User report, 2026-10-08, at D08Z1 acceptance:** "there is the
 occasional jump where duke lands and he's stuck for a second before being able
 to move again."
 
@@ -3327,9 +3380,11 @@ landing animation the original picks (`0x80054c04`) after a slide (a hard
 landing such as 127/128 holds input for a while). Reproduce first (which
 level, jump style, wall or none), compare `jump_walls original`.
 
-**Acceptance:** no landing after an ordinary jump locks movement in
-Modernized beyond the original's own landings; reproduction route documented;
-the user confirms.
+**Acceptance (widened at selection):** in Modernized no ordinary landing
+holds Duke still when a direction or jump is pressed (straight-up,
+directional, running and released jumps); landings feel natural; option off
+and Vanilla keep the original; reproduction route documented; the user
+confirms.
 
 ### D08J1 - Hold-E run-up grab for overhead ladders (slot 6)
 
@@ -5169,6 +5224,20 @@ also." Two small, related font jobs done together at the user's request.
 **Acceptance:** `dnstuff` shows GIVING EVERYTHING! with an exclamation mark in the
 message font; the console prompt and command echoes start with `>`.
 
+### D24D - `<` and `>` in messages use the system-font fallback
+
+**Todo. User report, 2026-10-08:** "Message: original movement <state> but the
+< and > are in fallback font despite that we have those characters
+available." The message font set (built by `build_ttk_fonts.py`) appears to
+lack `<`/`>` even though the TTK fonts include them (the console already uses
+the native Medium Italic `>`, D24C). Find which set and style the message uses,
+map both glyphs from the disc fonts, and check every other character that
+still falls back.
+
+**Acceptance:** the reported message shows `<` and `>` in the TTK font; no
+other message-font fallback for characters the disc fonts have; the user
+confirms.
+
 ### D25 — Modernized edition release acceptance
 
 Run the documented campaign and regression checks against both presets in a frozen candidate build. Reconcile manual, settings, supported platforms and feature claims. Choose release scope explicitly; optional first-person or HD packs need their own completed acceptance work to be advertised.
@@ -5301,6 +5370,17 @@ enter it quickly, then play normally and use savestates.
 savestates work there, normal progression and saves are untouched, and the
 user can use it to survey the game (enabling D22B, D11D, D12B and D17R
 verification).
+
+### D26G - Console key repeat
+
+**Todo. User request, 2026-10-08:** "Hold down backspace or other characters
+within the console to repeat". Holding Backspace or a character key in the
+backtick console should repeat it after the usual delay, like a desktop text
+field (SDL key repeat or a host timer), without affecting gameplay input.
+
+**Acceptance:** held Backspace deletes repeatedly and held characters repeat
+in the console; gameplay keys and command history (D26C) unchanged; the user
+confirms.
 
 ### D26B - Opening the console leaves first person
 
@@ -11013,3 +11093,33 @@ in note 117 is the reference for future custom pickups.
 - User: "accepted!!". D08Z2 Done (armed scramble plays full body; the D08Z1
   safety net no longer freezes the legs). Executable `bfd41760f9c66f2f03cf859f820f7b7d27cd8991e8ce1f304f5456ea29bf8986` is the regression
   baseline. Next: D08Z3.
+
+## 2026-10-08 - D08Z3 modern landing (Needs playtest)
+
+- Research: the stand-still is the original recovery 105 (selector
+  `0x80054c04`, handler `0x80052fb8`), chosen after a straight-up jump, a
+  released direction or a bounce; it takes no input for about 37 fields and
+  swallows a jump press. Reproduced in Vanilla; not a D08Z1 regression.
+- Change: `landing.inc` at the ground dispatcher hook `0x80048410`: direction
+  held -> walk 72 / run 76 (frame 0) the update after the touch-down; jump
+  pending, no direction -> stance 63 (landing hop). Profile schema 31
+  `landing` modern/original, `--landing`, menu L, `DNTTK_LANDING`. Guard for
+  `0x80052fb8`. No new hook, no generated code change; savestates load.
+  A runner fast-forward prototype was dropped (it compressed 105's root
+  step into a one-frame lurch).
+- Evidence: note 136 (two levels, eight jump styles, both modes; regression
+  routes; native 46 groups; Python 139 OK). Executable `11187493c04ae830482c47c93b97ac332fbfce1de95f8eedaa2f8637d7fe164e`.
+- Open: the user's playtest. 106 after a damaging fall left original (not
+  reproduced in play). Nothing committed.
+
+## 2026-10-08 - D08Z3 accepted; D24D, D26G, D08A19 queued
+
+- User: "Completely accept this work as complete, working, and done." D08Z3
+  Done; executable `11187493c04ae830482c47c93b97ac332fbfce1de95f8eedaa2f8637d7fe164e` is the regression baseline.
+- New jobs from the same message: D24D (`<`/`>` in messages fall back to the
+  system font), D26G (console key repeat), D08A19 (used mission items: USED
+  status and a green tick; the user's art).
+- Font picker (local, `recomp/analysis/d24a-fonts/`): new section 14, the
+  D08A19 tick placeholder: spec (8x8 recommended), drop slot, FOUND/USED
+  previews on all eight mission item designs at 8x/2x/1x, and crops of the
+  user's mockup. Renders in headless Chrome with no script errors.

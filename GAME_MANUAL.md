@@ -483,6 +483,25 @@ python3 recomp/tools/local/run.py --jump-walls slide --show-settings
 (`--settings`, choice K, does the same.) Vanilla always keeps the original
 bounce.
 
+**Landing (Modernized, D08Z3, accepted 2026-10-08).** In the original game some
+landings stand Duke still for about 0.6 s whatever you press: a jump straight
+up (Space alone, even if you steer it in the air) and a jump whose direction
+key you let go before touching down. In
+Modernized (`modern`, the default) Duke still settles into his landing pose
+when you press nothing, but hold a direction as he lands (or press one while
+he settles) and he walks or runs off at once; press Space as he lands and he
+jumps again. Jumps that already landed straight into a run (a direction held
+through a directional or running jump) are unchanged, and so are fall damage
+and landings in water. To get the original landing back:
+
+```
+python3 recomp/tools/local/run.py --landing original --show-settings
+python3 recomp/tools/local/run.py --landing modern --show-settings
+```
+
+(`--settings`, choice L, does the same.) Vanilla always keeps the original
+landing.
+
 **Jumping a gap that is slightly too long (Modernized, D08Y, awaiting playtest).**
 When a running or directional jump reaches the far edge with Duke's feet just
 below its top, he no longer bounces off and falls. If the lip is low (up to

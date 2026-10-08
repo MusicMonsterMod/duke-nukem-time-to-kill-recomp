@@ -29,9 +29,9 @@ static int beat_sound() {  // -1: off
     }();
     return id;
 }
-static int beat_bucket=-1,beat_start;
+static int beat_bucket=-1,beat_start,beat_last;
 static uint64_t beat_loads;
-static unsigned beats,beat_skips,beat_resyncs;
+static unsigned beats,beat_skips,beat_resyncs,beat_restarts;
 // An original sound call on a private stack: positional at Duke (0x8006b73c,
 // the pickup tail's args) or the plain call 0x8006bbd8(id).
 static bool duke_sound(CPUState* cpu,unsigned id,bool at_duke=true) {
@@ -69,8 +69,17 @@ static void steroids_beat(CPUState* cpu) {
     // Beats count from the amount the dose started at, so the second beat
     // also falls a full 80 units after the first.
     const int amount=(int16_t)psx_mod_read_half(player+0x366);
-    // Taken (or refreshed by a pickup): the first beat at once, as Duke 3D.
-    if(beat_bucket<0 || amount>beat_start) {
+    // Taken (or refreshed by a pickup, or dnhyper again): the first beat at
+    // once, as Duke 3D. Only the drain lowers the amount between checks, so
+    // any rise is a restart (D08A15). Comparing with the start instead missed
+    // a refresh to the full amount: the drain runs before this check, so a
+    // full start and a full refresh both read 9000 - step, never above it,
+    // and the old count held the next beat back for as long as the old run
+    // had lasted.
+    const bool restarted=beat_bucket>=0 && amount>beat_last;
+    beat_last=amount;
+    if(beat_bucket<0 || restarted) {
+        if(restarted) ++beat_restarts;
         beat_start=amount;beat_bucket=0;
         if(duke_sound(cpu,(unsigned)beat_sound(),false)) ++beats;
         return;
@@ -84,8 +93,8 @@ static void steroids_beat(CPUState* cpu) {
 }
 static const char* steroids_beat_debug_json() {
     static char buffer[1400];
-    int used=std::snprintf(buffer,sizeof buffer,"{\"sound\":%d,\"beats\":%u,\"skips\":%u,\"refused\":%u,\"bucket\":%d,\"log\":[",
-        beat_sound(),beats,beat_skips,beat_resyncs,beat_bucket);
+    int used=std::snprintf(buffer,sizeof buffer,"{\"sound\":%d,\"beats\":%u,\"skips\":%u,\"refused\":%u,\"restarts\":%u,\"bucket\":%d,\"log\":[",
+        beat_sound(),beats,beat_skips,beat_resyncs,beat_restarts,beat_bucket);
     const unsigned next=sound_log_next.load();
     for(unsigned k=0;k<32 && k<next && used<(int)sizeof buffer-40;++k) {
         const SoundCall& c=sound_log[(next-1-k)%32];

@@ -115,3 +115,47 @@ Private Xvfb runs, private profile and a copy of the test cards
 - The `sfx` survey of banks 2-6 stopped at index 23; level-specific banks were
   not mapped by level.
 - Whether the Shift click works as a heartbeat is the user's call.
+
+## D08A15 - Restart mid-run beats at once
+
+Done (user-accepted 2026-10-08). User report: "if starting steroids before a
+previous cycle of steroids is over, the sound doesnt play for a few seconds at
+the beginning."
+
+**Cause (reproduced).** The beat restarted only when the amount rose above
+`beat_start`, the amount at the first check of a run. Duke's update drains
+before the beat check, so a full start is first seen at 9000 minus one step
+(8995 at 60 fps). A pickup refresh (the original writes 9000) or a second
+`dnhyper` is drained to the same value before the next check, so it is never
+above `beat_start`. No restart: the old bucket count stayed, and the next beat
+waited until the amount fell past it again, as long as the old run had
+lasted. Repro (slot 4 `dnhyper` twice; slot 3 a spawned pickup while running):
+**0 beats in the 300 frames after the restart**. Not the sound routine's
+refusal, not the D08A8/D08A13 hides.
+
+**Fix** (`steroids_beat.inc`): the previous amount is kept (`beat_last`); only
+the drain lowers the amount between checks, so any rise restarts the rhythm
+with a beat at once. Debug: `controls.steroid_beat.restarts`.
+
+**Evidence** (executable
+`3454c39cd58eda3ad6e9b805e82603e68e64df18d1a281a0e79ec6a41c0290e4`;
+`recomp/analysis/d08a15-beat-restart/`, local: `t1.py` CASE hyper / pickup,
+`t3.py` dose after expiry):
+
+| Check | Result |
+| --- | --- |
+| `dnhyper` again mid-run, 60 / 120 fps | 23 / 23-25 beats in the 300 frames after it, first at once, then every 15-18 frames |
+| Pickup refresh mid-run (slot 3), 60 / 120 fps | 23 beats in 300 frames, rhythm from the refresh |
+| R dose expires naturally | beats stop, flags 0 |
+| New dose taken right after (fresh start) | first beat at frame 0, normal rhythm |
+| Suites | `ttk-controls-test` 43 groups, `ttk-input-test` |
+
+**Corrected by the user (2026-10-08):** a pickup mid-run no longer refreshes a
+running effect; it stops it and leaves a full held dose (`steroids.inc`, see
+[note 127](127-d08a4-portable-steroids.md)), so no beat follows it. `dnhyper`
+mid-run still refills and keeps running, and that restart beats at once. The
+pickup rows above record the first pass.
+
+The D27A silent Shift (`run_click.inc`) is not touched. One early 120 fps
+`dnhyper` run ended with the effect off for an unexplained reason; 7 reruns
+of the same case did not repeat it (Duke alive, no D08A14 clear).

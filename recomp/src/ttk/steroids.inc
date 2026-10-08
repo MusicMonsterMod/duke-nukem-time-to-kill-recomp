@@ -25,8 +25,9 @@
 // Pickup: at dispatcher entry a steroids touch is noted. At the tail's sound
 // call, still inside the same pickup, bit 1 goes back off and bit 0 on: the
 // pickup is held at the full amount the original wrote. Message, sound and
-// removal stay the original's. While steroids already run, the pickup is left
-// to the original, which refreshes them; while one is held, it stays where it
+// removal stay the original's. While steroids already run, the pickup stops
+// them and is held full the same way (D08A15, the user's Duke 3D check: a
+// pickup mid-run ends the run and leaves a full item); while one is held, it stays where it
 // is, as in Duke 3D (GAME.CON: ifpinventory GET_STEROIDS).
 // Use: the original menu's toggle (bit 1 on, the held amount drains), the
 // pickup sound and the Duke 3D quote 12 wording "USED STEROIDS".
@@ -109,6 +110,16 @@ static void steroids_hud_restore() {
     if(steroid_hud_loads!=psx_mod_savestate_loads() || (int16_t)psx_mod_read_half(player+0x366)<=0) return;
     psx_mod_write_half(player+0x364,(uint16_t)(psx_mod_read_half(player+0x364)|2));
 }
+// D08G4: the inventory cheats (dnstuff, dnitems, dninventory) grant every
+// gadget through the original grant 0x8003d738 (bit 0, full amount). Running
+// steroids would come out refilled and still running. User rule (2026-10-08):
+// they stop and a full dose is held, ready for R; armour is separate.
+static void steroids_cheat_grant() {
+    if(!portable_steroids()) return;
+    steroid_hud_hidden=steroid_damage_hidden=false;
+    const unsigned flags=psx_mod_read_half(player+0x364);
+    if((flags&3)==3) psx_mod_write_half(player+0x364,(uint16_t)(flags&~2u));
+}
 static void steroids_hud_hide() {
     if(steroid_hud_hidden || !steroids_running()) return;
     psx_mod_write_half(player+0x364,(uint16_t)(psx_mod_read_half(player+0x364)&~2u));
@@ -116,6 +127,27 @@ static void steroids_hud_hide() {
 }
 struct SteroidPickup {bool pending;uint16_t flags;};
 static SteroidPickup steroid_pickup;
+// D08A14: death ends steroids, as in Duke 3D. The original keeps every item
+// through death: while Duke is dead (player word 0 bit 1, health 0, gameplay
+// state 0x800bcbb0 still 1) his update no longer drains +0x366, and Continue
+// (health 10000, bit 1 cleared) resumes a running effect with the time left
+// and leaves a held dose held. In Modernized portable, both go at death
+// (user choice, 2026-10-08: a held dose is lost too): bits 0-1 and the amount
+// cleared, as the drain leaves them at 0. So no box, heartbeat or switcher
+// entry while dead or after Continue. Checked at every hook while dead, so a
+// savestate taken while dead (before this change) clears on load too.
+static unsigned steroid_death_clears;
+static void steroids_death_clear() {
+    if(!portable_steroids() || !(psx_mod_read_word(player)&2) || (int16_t)psx_mod_read_half(player+0x32)>0) return;
+    const unsigned flags=psx_mod_read_half(player+0x364);
+    if(!(flags&3) && !psx_mod_read_half(player+0x366)) return;
+    if(psx_mod_read_half(0x800bcbb0)!=1 || psx_mod_read_byte(player+0x233)!=0 ||
+       psx_mod_read_word(camera+0xa4)!=player || psx_mod_read_word(player+0x7d4)!=camera || !identity()) return;
+    psx_mod_write_half(player+0x364,(uint16_t)(flags&~3u));
+    psx_mod_write_half(player+0x366,0);
+    steroid_hud_hidden=steroid_damage_hidden=steroid_pickup.pending=false;
+    ++steroid_death_clears;
+}
 static uint32_t steroid_left_object;
 static unsigned steroid_stores,steroid_full_leaves,steroid_refreshes,steroid_uses,steroid_refusals,steroid_late_settles;
 static bool steroid_object(uint32_t object) {
@@ -127,7 +159,9 @@ static void steroids_pickup(CPUState* cpu) {
     if(cpu->gpr[4]!=player || cpu->gpr[31]!=0x8007fe6c || !portable_steroids() || !player_identity_ready() ||
        psx_mod_read_byte(player+0x233)!=0 || !steroid_object(cpu->gpr[5])) return;
     const unsigned flags=psx_mod_read_half(player+0x364);
-    if(flags&2) {++steroid_refreshes;return;}  // running: the original refresh
+    // Running (an R dose, dnhyper): taken and held like a fresh pickup, so the
+    // run stops (D08A15). steroid_doses() is false while running.
+    if(flags&2) ++steroid_refreshes;
     if(steroid_doses()) {
         // A blank object the dispatcher has no case for: nothing is picked up.
         if(!steroid_left_object) steroid_left_object=psx_mod_alloc_guest_memory(0x60,16);
@@ -145,6 +179,7 @@ static void steroids_settle() {
     const unsigned flags=psx_mod_read_half(player+0x364);
     psx_mod_write_half(player+0x364,(uint16_t)((flags&~2u)|1u));
     psx_mod_write_half(player+0x366,psx_mod_read_half(0x800c2722));
+    steroid_hud_hidden=steroid_damage_hidden=false;  // a stopped run stays stopped
     ++steroid_stores;
 }
 // Entry of 0x8006b73c from the pickup tail (ra 0x800828d8; s1 is Duke).
@@ -177,11 +212,11 @@ static bool steroids_use(CPUState* cpu) {
     return true;
 }
 static const char* steroids_debug_json() {
-    static char buffer[400];
-    std::snprintf(buffer,sizeof buffer,"{\"portable\":%s,\"doses\":%u,\"flags\":%u,\"timer\":%d,\"stores\":%u,\"full_leaves\":%u,\"refreshes\":%u,\"uses\":%u,\"refusals\":%u,\"late_settles\":%u,\"hud_hides\":%u,\"hud_hidden\":%s,\"shield\":\"%s\",\"damage_passes\":%u,\"damage_hidden\":%s}",
+    static char buffer[512];
+    std::snprintf(buffer,sizeof buffer,"{\"portable\":%s,\"doses\":%u,\"flags\":%u,\"timer\":%d,\"stores\":%u,\"full_leaves\":%u,\"refreshes\":%u,\"uses\":%u,\"refusals\":%u,\"late_settles\":%u,\"hud_hides\":%u,\"hud_hidden\":%s,\"shield\":\"%s\",\"damage_passes\":%u,\"damage_hidden\":%s,\"death_clears\":%u}",
         portable_steroids()?"true":"false",steroid_doses(),psx_mod_read_half(player+0x364),(int16_t)psx_mod_read_half(player+0x366),
         steroid_stores,steroid_full_leaves,steroid_refreshes,steroid_uses,steroid_refusals,steroid_late_settles,
         steroid_hud_hides,steroid_hud_hidden?"true":"false",steroid_shield_original()?"original":"independent",
-        steroid_damage_passes,steroid_damage_hidden?"true":"false");
+        steroid_damage_passes,steroid_damage_hidden?"true":"false",steroid_death_clears);
     return buffer;
 }

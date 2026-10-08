@@ -782,6 +782,7 @@ static void hook_body(CPUState* cpu, uint32_t address) {
     // after it, whatever the mode is by then.
     if(address==0x8001fc44 || address==0x800b4d9c) steroids_hud_restore();
     if (!input_modernized()) return;
+    steroids_death_clear(); // D08A14
     const auto& f=input_snapshot(Context::Gameplay);
     uint32_t ra=cpu->gpr[31], sp=cpu->gpr[29];
     if (sp<0x80010100 || sp>0x801ffff0 || (sp&3)) {head_restore();return;}

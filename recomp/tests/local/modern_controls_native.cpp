@@ -2234,6 +2234,22 @@ int main(int argc,char** argv) {
     }
     cheat_calls.clear();cheat(ttk::Cheat::Stuff);
     assert((cheat_calls==std::vector<uint32_t>{0x8003d7bc,0x8003d738,0x8003d840}));
+    {
+        // D08G4: the inventory cheats set full armour (10000, never lower) and
+        // stop running steroids, leaving the dose held; the grant is stubbed, so
+        // the flags stand in for what it leaves (bit 0, full amount).
+        const uint16_t armour=psx_mod_read_half(p+0x234);
+        for(auto c:{ttk::Cheat::Stuff,ttk::Cheat::Items,ttk::Cheat::Inventory}) {
+            psx_mod_write_half(p+0x234,2500);psx_mod_write_half(p+0x364,3);psx_mod_write_half(p+0x366,9000);
+            cheat(c);assert(psx_mod_read_half(p+0x234)==10000 && psx_mod_read_half(p+0x364)==1 && psx_mod_read_half(p+0x366)==9000);
+        }
+        psx_mod_write_half(p+0x364,1);cheat(ttk::Cheat::Inventory);assert(psx_mod_read_half(p+0x364)==1);  // held stays held
+        psx_mod_write_half(p+0x234,2500);psx_mod_write_half(p+0x364,3);
+        cheat(ttk::Cheat::Keys);assert(psx_mod_read_half(p+0x234)==2500 && psx_mod_read_half(p+0x364)==3);
+        cheat(ttk::Cheat::Weapons);assert(psx_mod_read_half(p+0x234)==2500);
+        psx_mod_write_half(p+0x234,armour);psx_mod_write_half(p+0x364,0);psx_mod_write_half(p+0x366,0);
+        std::puts("PASS: D08G4 dnstuff/dnitems/dninventory give full armour and stop running steroids (dose held); dnkeys/dnweapons unchanged");
+    }
     psx_mod_write_half(0x800c3cc6,0);cheat(ttk::Cheat::God);assert(psx_mod_read_half(0x800c3cc6)==1);
     cheat(ttk::Cheat::God);assert(psx_mod_read_half(0x800c3cc6)==0);
     {
@@ -2366,7 +2382,9 @@ int main(int argc,char** argv) {
         assert(psx_mod_read_half(p+0x364)==1 && psx_mod_read_half(p+0x366)==9000);
         auto left=touch();assert(left!=pills && psx_mod_read_half(left+0x2c)==0xffff && psx_mod_read_half(p+0x364)==1);
         psx_mod_write_half(p+0x364,3);psx_mod_write_half(p+0x366,100);
-        assert(touch()==pills);original_case();assert(psx_mod_read_half(p+0x364)==3 && psx_mod_read_half(p+0x366)==9000);
+        assert(touch()==pills);original_case();assert(psx_mod_read_half(p+0x364)==1 && psx_mod_read_half(p+0x366)==9000);  // D08A15: run stops, held
+        psx_mod_write_half(p+0x364,2);psx_mod_write_half(p+0x366,100);  // dnhyper run
+        assert(touch()==pills);original_case();assert(psx_mod_read_half(p+0x364)==1 && psx_mod_read_half(p+0x366)==9000);
         psx_mod_write_half(p+0x364,0);
         assert(touch(0x8007fe68)==pills);original_case();assert(psx_mod_read_half(p+0x364)==2); // other caller
         psx_mod_write_half(p+0x364,0);
@@ -2376,7 +2394,7 @@ int main(int argc,char** argv) {
         psx_mod_write_half(p+0x364,0);psx_mod_write_half(pills+0x2c,638);
         ttk::modern=false;assert(touch()==pills);original_case();assert(psx_mod_read_half(p+0x364)==2);ttk::modern=true;
         psx_mod_write_half(p+0x364,0);psx_mod_write_half(p+0x366,0);
-        std::puts("PASS: D08A4 steroids pickup held at the original sound call; held leaves it, running refreshes; caller/sound/type/Vanilla fallbacks");
+        std::puts("PASS: D08A4 steroids pickup held at the original sound call; held leaves it, running stops and is held full (D08A15); caller/sound/type/Vanilla fallbacks");
     }
     {
         // D08A13: at Duke's damage handler (0x800a40a8) running steroids lose
@@ -2400,6 +2418,25 @@ int main(int argc,char** argv) {
         psx_mod_write_half(p+0x364,3);ttk::modern=false;damage(p);assert(flags()==3);ttk::modern=true;  // Vanilla
         psx_mod_write_half(p+0x364,0);psx_mod_write_half(p+0x366,0);
         std::puts("PASS: D08A13 damage handler skips the steroid shield (timer untouched, bit 1 back at the next hook); dnhyper, expiry, other victim, held, Vanilla");
+    }
+    {
+        // D08A14: while Duke is dead (word 0 bit 1, health 0) the next hook
+        // clears steroids, running or held; alive, Vanilla and other bits stay.
+        // Any shared hook will do (hook_body); 0x8001fc44 is the view composition's.
+        auto update=[&]{CPUState cpu{};cpu.gpr[29]=0x801fff00;cpu.gpr[31]=0x800265a4;hooks().at(0x8001fc44)(&cpu,0x8001fc44);};
+        auto flags=[&]{return psx_mod_read_half(p+0x364);};
+        const uint32_t word0=psx_mod_read_word(p);const uint16_t health=psx_mod_read_half(p+0x32);
+        psx_mod_write_half(p+0x32,700);psx_mod_write_half(p+0x364,3);psx_mod_write_half(p+0x366,4000);
+        update();assert(flags()==3 && psx_mod_read_half(p+0x366)==4000);  // alive
+        psx_mod_write_word(p,word0|2);psx_mod_write_half(p+0x32,0);
+        ttk::modern=false;update();assert(flags()==3);ttk::modern=true;  // Vanilla keeps them
+        update();assert(flags()==0 && psx_mod_read_half(p+0x366)==0);  // running dose
+        psx_mod_write_half(p+0x364,2);psx_mod_write_half(p+0x366,4000);update();assert(flags()==0);  // dnhyper
+        psx_mod_write_half(p+0x364,0x8001);psx_mod_write_half(p+0x366,9000);update();  // held: lost, other bits kept
+        assert(flags()==0x8000 && psx_mod_read_half(p+0x366)==0);
+        assert(std::strstr(ttk::controls_debug_json(),"\"death_clears\":3"));
+        psx_mod_write_word(p,word0);psx_mod_write_half(p+0x32,health);psx_mod_write_half(p+0x364,0);
+        std::puts("PASS: D08A14 death clears steroids (dose, dnhyper, held); alive and Vanilla keep them");
     }
     {
         // D08A9: a gadget the dispatcher grants (bit 0, full amount) or

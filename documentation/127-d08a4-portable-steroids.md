@@ -22,8 +22,10 @@ roids as an item, and it appears in our items list. it is invoked with the R key
   active mark and their HUD box counts down (D08A8, below); the armor element
   shows only armor.
 - One at a time, as in Duke 3D (`GAME.CON`: `ifpinventory GET_STEROIDS`): while
-  one is held, more steroids stay on the ground. A pickup while steroids run is
-  left to the original, which refreshes them.
+  one is held, more steroids stay on the ground. ~~A pickup while steroids run is
+  left to the original, which refreshes them.~~ D08A15 correction (user,
+  2026-10-08): a pickup while steroids run stops them and is held at full,
+  ready for R; `dnhyper` mid-run refills and keeps running.
 - R with none held, while they run, or while Duke is dead does nothing.
 - `dnhyper` still starts the effect directly (EDuke32's `dnhyper` sets 399, an
   active dose); the original inventory grant (`dnstuff`, `dninventory`,
@@ -292,3 +294,66 @@ frame, worst per-frame drop 9 against 1500 jumps in the original); Vanilla,
 - Explosions, falls and drowning were not isolated; only damage routed through
   `0x800a40a8` was ever shielded.
 - Player one only.
+
+## D08A14 - Death ends steroids
+
+Done (user-accepted 2026-10-08). User request: "if you are using steroids and you
+die, and use a continue, you should not still be using steroids and it should
+be gone from the inventory." User decision when selected: a held, unused dose
+is lost at death too (Duke 3D).
+
+### The original
+
+TTK keeps every item through death. While Duke is dead, player word 0 bit 1
+(`0x2`) is set, health `+0x32` is 0 and the gameplay state `0x800bcbb0` stays
+1; his update no longer drains `+0x366`, so the timer stands still. Continue
+(Cross) clears bit 1 and sets health 10000; a running effect then resumes
+with the time left and a held dose stays held.
+
+### Implementation
+
+`steroids.inc` `steroids_death_clear()`, called from `hook_body` right after
+the D08A13 restore, in Modernized `portable` only: while Duke is dead (word 0
+bit 1, health <= 0, state 1, player one, camera links and code identity) and
+item 4 has bit 0 or 1 or an amount, it clears bits 0-1 and the amount (as the
+drain leaves them at expiry) and drops the D08A8/D08A13 hide marks and a
+pending pickup. Other flag bits are kept. Checked at every hook while dead,
+so a dead state that still has steroids (for example a savestate made before
+this change) clears as soon as it loads. Debug: `controls.steroids.death_clears`.
+No new hook, guard or generated code.
+
+### Evidence (executable `da4a09b04ca07466d001839c0b812d071b94fa79e4829979eeb734e1c27fc687`)
+
+`recomp/analysis/d08a14-steroid-death/` (local): `t0.py` (survey), `t1.py`
+(CASE hyper / dose / held; STATE=1 for the savestate), `t2.py` (steroids
+written while dead). UI savestate slot 3, a pig cop shooting Duke.
+
+| Check | Result |
+| --- | --- |
+| `dnhyper`, die, Continue | at death flags 0, timer 0; after Continue health 10000, no box, no new beats, selection off steroids (0), R and `]` do nothing |
+| R dose, die, Continue | the same |
+| Held dose, die, Continue | the dose is gone (flags 0, doses 0) |
+| Steroids written into RAM while dead, savestate save and reload while dead, Continue | cleared at the next hook; reload and Continue: nothing |
+| `steroids` `original` / Vanilla, held dose written while dead | kept through death and Continue (flags 1, 9000), no clears |
+| Native | `ttk-controls-test` new D08A14 group (dose, `dnhyper`, held lost, other bits kept, alive and Vanilla untouched); 43 groups |
+| Suites | `ttk-input-test`, `ttk-inventory-test`, Python 131 OK (2 skipped), `level_overlay_guards.py --check` |
+
+### Limits
+
+- Death by falls, drowning and explosions was not exercised; the clear keys
+  on the dead state, not on the damage routine, so any death that sets it is
+  covered.
+- Card save/load and level completion paths were not changed and not re-run.
+- Player one only.
+
+## D08G4 - Inventory cheats and running steroids
+
+Done (user-accepted 2026-10-08). `dnstuff`, `dnitems` and `dninventory` also give
+full armor (see [note 38](38-debug-cheats.md)). The original inventory grant
+`0x8003d738` sets item 4 bit 0 and the full amount, so running steroids came
+out refilled and still running (flags 3). User rule when selected: "steroid
+usage stops, full steroids are in inventory". `steroids_cheat_grant()` clears
+bit 1 after the grant (portable only): flags 1, amount 9000, no box countdown,
+no heartbeat; R starts a fresh dose. Without running steroids the grant is
+unchanged (a held dose). Evidence: `recomp/analysis/d08g4-cheat-armor/`
+(local), see the D08G4 work log.

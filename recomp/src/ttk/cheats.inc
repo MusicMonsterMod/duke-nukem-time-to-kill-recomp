@@ -142,7 +142,16 @@ static void cheats_update(CPUState* cpu) {
     case Cheat::Stuff: case Cheat::Weapons: ok=original_call(cpu,0x8003d7bc,0);break;
     default:break;
     }
-    if(ok && (command==Cheat::Stuff || command==Cheat::Inventory || command==Cheat::Items))ok=original_call(cpu,0x8003d738,0);
+    if(ok && (command==Cheat::Stuff || command==Cheat::Inventory || command==Cheat::Items)) {
+        ok=original_call(cpu,0x8003d738,0);
+        // D08G4: running steroids stop and a full dose is held; full armour,
+        // as the original full armour pickup sets it (0x80082470: below 10000,
+        // +0x234 = 10000; the status bar shows /100).
+        if(ok) {
+            steroids_cheat_grant();
+            if((int16_t)psx_mod_read_half(player+0x234)<10000) psx_mod_write_half(player+0x234,10000);
+        }
+    }
     if(ok && (command==Cheat::Stuff || command==Cheat::Keys || command==Cheat::Items))ok=original_call(cpu,0x8003d840,0);
     if(command==Cheat::Ammo)for(unsigned i=0;i<36;++i)
         if(psx_mod_read_half(player+0x2c4+4*i)&1)psx_mod_write_half(player+0x2c6+4*i,psx_mod_read_half(0x800c4594+44*i));

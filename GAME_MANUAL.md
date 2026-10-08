@@ -224,7 +224,8 @@ down in place; if you select another gadget, the steroids box moves one row up
 switcher shows them draining with the active mark.
 Duke carries one at a time: while you hold one, more steroids stay where they
 are until you have used it. Picking steroids up while they are already running
-refreshes them, as in the original. R with none held, while they run, or while
+stops them and keeps the new ones at full, ready for R (as in Duke 3D); typing
+`dnhyper` while they run refills them and they keep running. R with none held, while they run, or while
 Duke is dead does nothing.
 
 Steroids and armor are separate (D08A13). In the original, running steroids
@@ -232,12 +233,14 @@ were also a shield: every hit Duke took was cancelled and cost the steroids
 1500 of their 9000 units (about 5 seconds each), so a few shots ended them
 early. With `portable`, steroids are only the timed effect: hits damage armor
 and health as they would without steroids, and the countdown keeps its own
-pace however often Duke is hit. Duke can now die while steroids run; after
-Continue the remaining time carries on, like every other item. `original` and
-Vanilla keep the original shield.
+pace however often Duke is hit. Duke can now die while steroids run. Death
+ends them, as in Duke 3D (D08A14): running steroids stop and any steroids you
+were carrying are lost, so after Continue there is no countdown, no heartbeat
+and nothing in **[ / ]**. `original` and Vanilla keep the original shield and
+keep steroids through death and Continue.
 
-Held steroids are kept like the jetpack: through savestates, level completion,
-the save offered after a level (and loading it), and death with Continue. The
+Held steroids are kept like the jetpack: through savestates, level completion
+and the save offered after a level (and loading it), but not through death. The
 level-select travel (`level N`) restarts like the original Restart, which
 clears every gadget, steroids included. The original Select inventory does not
 list them. `original` keeps the original rule (steroids start on pickup and R
@@ -1008,16 +1011,18 @@ start away from ledges. F10 toggles capture; Escape or focus loss cancels typing
 | --- | --- |
 | `dnmonsters` | Toggle enemies hidden/shown; NPCs, pickups and switches remain |
 | `dnkroz` / `dncornholio` | Toggle god mode: health to at least 100, and Duke has the jetpack at full fuel the whole time it is on (Atomic Health can still take Duke to 200). It is a toggle: if god mode is already on, typing it turns it off |
-| `dnstuff` | Grant all weapons/ammo, inventory and keys |
+| `dnstuff` | Grant all weapons/ammo, inventory and keys, and full (100) armor |
 | `dnkeys` | Grant keys |
 | `dnweapons` | Grant weapons and ammo |
-| `dninventory` | Grant inventory (with portable steroids, this includes one held steroids) |
-| `dnitems` | Grant inventory and keys |
+| `dninventory` | Grant inventory and full (100) armor. With portable steroids this includes one held steroids; if steroids are running they stop and a full dose is held instead, ready for R |
+| `dnitems` | Grant inventory and keys, and full (100) armor |
 | `dnhyper` | Activate/refill steroids (starts the effect directly, as in EDuke32; with portable steroids it counts down in the steroids box and is never kept as a held dose) |
 | `dnammo` | Refill ammo for owned weapons |
 | `dnhealth` | Restore 100 health |
 | `dnunlimited` | Toggle unlimited ammo/charges |
 | `dnupgrade` | Upgrade every weapon (Laser Gatling, Incendiary RPG, HiTemp Flamethrower, plus Desert Eagle, Shotgun and Energy Weapon); weapons picked up later arrive upgraded, and the upgrade stays through saves |
+
+The three inventory cheats (`dnstuff`, `dninventory`, `dnitems`) treat steroids the same way: a running dose stops and comes back as a full held dose (Modernized portable steroids). Armor and steroids are separate, so the armor grant never changes the steroids.
 
 These use Time to Kill's inventory equivalents. Use a test save and show enemies
 again before saving or loading: hidden-enemy state is session/scene-local, and its

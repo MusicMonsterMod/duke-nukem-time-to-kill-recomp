@@ -4,7 +4,7 @@ This is the canonical job list for our **Duke Nukem: Time to Kill** PC project, 
 
 Invoke **`$continue-duke-recomp`** (Codex) or **`/continue-duke-recomp`** (Claude Code) to see the current jobs and choose one. You can also request a job directly: **`$continue-duke-recomp work on D01`** or **`/continue-duke-recomp work on D01`**. The skill reads this file rather than keeping a second backlog. It must not automatically start the next job.
 
-**Latest accepted jobs: D08J2 (pole/chain A/D direction), D08U2 (climb off a ladder past an enemy), D08O3 (E in water keeps the weapon) and D08O2A (natural swim-fire pose v2), 2026-10-07.** Previous baseline `e8eebb809c3d5a4b29779f11f0c9db55efcd846dc5c71b39d5a59d43158eb08e` (D08U2). **D08J2 (pole/chain A/D direction) Accepted 2026-10-07**: executable `129a64f2df3f5395f2d3485a310a03d74c85f9b1086c7dab37fee59277c7968b` is the current regression baseline ([note 122](documentation/122-d08j2-pole-chain-sidestep.md)). Todo: D08J4 (ceiling monkey-bar drops, UI slot 3), D08J3 (free camera while climbing). Previous baseline `e75b50f156137fa2377e4643407b2efbd16f2e976fa4d697afcbceb228e2e554` (D08O3). **D23E (western-town stutter) Accepted 2026-10-07**; **D08O2A Accepted** ([note 119](documentation/119-d08o2a-natural-swim-fire-pose.md)), **D08O3 Accepted** ([note 120](documentation/120-d08o3-e-in-water.md)); **D23F (fast CPU timing) Accepted 2026-10-05 and now the Modernized default**; executable `e0737a9f712aa5622d1b057ee5071e12c33cc9a18de8e6d40ee8eee31083f966` (includes D23E), [note 104](documentation/104-d23e-busy-scene-stutter.md), [note 105](documentation/105-d23f-fast-timing.md). Next suggested: D23G (finish the fast path) and D17S (auto frame-rate default).
+**Latest accepted jobs (2026-10-08): D08A14 (death ends steroids), D08A15 (heartbeat restart; a pickup mid-run stops steroids) and D08G4 (inventory cheats give full armor); executable `87fe38d4f0ea8560312f53171345c207f332e26b6f4d2ed7220e1afae66ba472` is the regression baseline.** Earlier: D08J2 (pole/chain A/D direction), D08U2 (climb off a ladder past an enemy), D08O3 (E in water keeps the weapon) and D08O2A (natural swim-fire pose v2), 2026-10-07.** Previous baseline `e8eebb809c3d5a4b29779f11f0c9db55efcd846dc5c71b39d5a59d43158eb08e` (D08U2). **D08J2 (pole/chain A/D direction) Accepted 2026-10-07**: executable `129a64f2df3f5395f2d3485a310a03d74c85f9b1086c7dab37fee59277c7968b` is the current regression baseline ([note 122](documentation/122-d08j2-pole-chain-sidestep.md)). Todo: D08J4 (ceiling monkey-bar drops, UI slot 3), D08J3 (free camera while climbing). Previous baseline `e75b50f156137fa2377e4643407b2efbd16f2e976fa4d697afcbceb228e2e554` (D08O3). **D23E (western-town stutter) Accepted 2026-10-07**; **D08O2A Accepted** ([note 119](documentation/119-d08o2a-natural-swim-fire-pose.md)), **D08O3 Accepted** ([note 120](documentation/120-d08o3-e-in-water.md)); **D23F (fast CPU timing) Accepted 2026-10-05 and now the Modernized default**; executable `e0737a9f712aa5622d1b057ee5071e12c33cc9a18de8e6d40ee8eee31083f966` (includes D23E), [note 104](documentation/104-d23e-busy-scene-stutter.md), [note 105](documentation/105-d23f-fast-timing.md). Next suggested: D23G (finish the fast path) and D17S (auto frame-rate default).
 
 ## The experience we are building
 
@@ -54,8 +54,8 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08A11 | `dnhyper` countdown in the steroids HUD box (D08A8), not the old armor element | Done (user-accepted) | D08A8, D08G |
 | D08A12 | Modern dynamite: selecting it is safe (no forced fuse); Dynamite Behaviour Modern / Original | Todo | D08A, D08Q5 |
 | D08A13 | Steroids independent of damage and armor: being hit never shortens the steroid countdown (Modern) | Done (user-accepted) | D08A4, D08A8, D08A11 |
-| D08A14 | Death and Continue end steroids: no running effect after Continue, steroids gone from the inventory (Modern) | Todo | D08A4, D08A13 |
-| D08A15 | Steroids heartbeat silent for a few seconds when steroids restart before the previous run ends | Todo | D08A10, D08A13 |
+| D08A14 | Death and Continue end steroids: no running effect after Continue, steroids gone from the inventory (Modern) | Done (user-accepted) | D08A4, D08A13 |
+| D08A15 | Steroids heartbeat silent for a few seconds when steroids restart before the previous run ends; a pickup mid-run stops them, full dose held | Done (user-accepted) | D08A10, D08A13 |
 | D08A5 | Mission item tracking: mission inventory on , / . (design E, revised) | Done | D08A1, D08A3, D24A |
 | D08A6 | Selected gadget shown on the HUD: original item slot (design A) | Done | D08A1, D08A3 |
 | D08A7 | Custom medkit gadget icon (switcher strip and HUD box) | Done | D08A6 |
@@ -66,8 +66,10 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08G | Typed Duke-style debugging cheats — user accepted | Done | D04 |
 | D08G1 | Original Duke3D cheat confirmation wording | Done | D08G |
 | D08G2 | Silent cheat entry and centered confirmations | Done | D08G1, D19A |
+| D08A16 | Power-up coin icons: invincibility, invisibility, Double Duke (human design; placeholder section in the font picker) | Todo | D08A8, D24A |
+| D08A17 | Power-up countdowns: invincibility, invisibility and Double Duke get HUD boxes counting down, like steroids (Quake-style) | Todo | D08A16, D08A8 |
 | D08G3 | `dnupgrade` cheat: upgrade all weapons (Laser Gatling etc.) | Accepted | D08G2 |
-| D08G4 | `dnstuff`, `dnitems`, `dninventory` also give 100% armor; nothing else changes, steroids untouched | Todo | D08G |
+| D08G4 | `dnstuff`, `dnitems`, `dninventory` also give 100% armor; running steroids stop and a full dose is held | Done (user-accepted) | D08G |
 | D08H | Apartment furniture, hidden pickup and switch targeting | Done | D08 |
 | D08I | Responsive run-start and edge jumps | Done | D08 |
 | D08J | Armed airborne ladder grabs and automatic weapon transitions | Done | D08, D08E |
@@ -1029,8 +1031,11 @@ expiry, pickup selection (D08A9).
 
 ### D08A14 - Death and Continue end steroids
 
-**Todo. User request, 2026-10-08.** Backlog only; do not implement until
-selected.
+**Done (user-accepted 2026-10-08: "fully accepted").** Death clears running and held steroids in
+Modernized `portable`; the user chose that a held dose is lost too. See the
+work log entry of the same date and
+[note 127](documentation/127-d08a4-portable-steroids.md#d08a14---death-ends-steroids).
+User request, 2026-10-08.
 
 **Problem (user):** "if you are using steroids and you die, and use a
 continue, you should not still be using steroids and it should be gone from
@@ -1064,15 +1069,32 @@ question for the user, not to be decided silently. Vanilla and `steroids`
 
 ### D08A15 - Heartbeat silent when steroids restart mid-run
 
-**Todo. User request, 2026-10-08.** Backlog only; do not implement until
-selected.
+**Done (user-accepted 2026-10-08: "fully accepted").** Cause found and fixed: a refresh to the full
+amount never read above the run's first reading, so the rhythm did not
+restart. **Corrected by the user (2026-10-08) and folded in:** a pickup
+mid-run now stops the run and leaves a full held dose. See the work log
+entries of the same date and
+[note 129](documentation/129-d08a10-steroids-heartbeat.md#d08a15---restart-mid-run-beats-at-once).
+User request, 2026-10-08.
+
+**Correction (user, 2026-10-08, from a Duke 3D playthrough, "that familiar
+feel"):** while steroids run,
+
+| Action | Result |
+| --- | --- |
+| `dnhyper` | refills to full **and keeps running** (heartbeat restarts at once) |
+| `dnstuff`, `dnitems`, `dninventory` | stop the run; a full dose is held (D08G4) |
+| Picking up steroids | stops the run; a full dose is held |
+
+The struck-through parts below assumed the original refresh (a pickup
+mid-run refills and keeps running); that is no longer the design.
 
 **Problem (user):** "if starting steroids before a previous cycle of
 steroids is over, the sound doesnt play for a few seconds at the beginning."
 
-**Lead (verify):** R refuses while steroids run, so a restart mid-run is a
-pickup that refreshes them (the original refresh, D08A4), `dnhyper` again, or
-using a new dose just as the old one ends. `steroids_beat` (D08A10,
+**Lead (verify):** R refuses while steroids run, so a restart mid-run is
+~~a pickup that refreshes them (the original refresh, D08A4),~~ `dnhyper`
+again, or using a new dose just as the old one ends. `steroids_beat` (D08A10,
 `steroids_beat.inc`) restarts the rhythm when the amount rises above the
 starting amount and plays the first beat at once; check whether that beat is
 refused (the sound routine refuses an id already playing, `0x8006b7b0`, as
@@ -1081,10 +1103,73 @@ to 9000 from a high amount, or a refresh in the same update as the drain),
 and whether the D08A13 damage hide or the D08A8 HUD hide hides bit 1 at the
 beat check. Reproduce first and record which case it is.
 
-**Acceptance.** A restart mid-run (pickup refresh, `dnhyper`, a dose taken
-right at the end) beats at once and keeps the normal rhythm from the new
+**Acceptance.** A pickup mid-run stops the run and leaves a full held dose
+(no countdown, no heartbeat; R starts it fresh). A restart mid-run
+(~~pickup refresh,~~ `dnhyper`, a dose taken right at the end) beats at once and keeps the normal rhythm from the new
 start; a fresh start, natural expiry and the D27A silent Shift are unchanged;
 60 and 120 fps.
+
+### D08A16 - Power-up coin icons (human design ticket)
+
+**Todo. User request, 2026-10-08.** Backlog only; do not start until
+selected. The **user designs the art**; the agent's part is the placeholders
+and the plumbing to drop the finished icons in.
+
+**Background (user):** TTK has three special items, all Duke nuke-symbol
+coins that start on pickup and run an invisible timed effect: **invincibility**
+(spawn name `invulnerability`, type 1047), **invisibility** (1045) and
+**Double Duke** (1046) (type numbers from the D26E spawn table,
+[note 111](documentation/111-d26e-debug-spawn.md)). They are TTK's analogs of
+Quake's Pentagram of Protection, Ring of Shadows and Quad Damage. D08A17 gives
+them real countdowns; first they need icons in the same style as the
+inventory icons (D24A, the user's steroids pill icon, D08A4/D08A7).
+
+**When the ticket begins:** add a **placeholder section** for the three icons
+to the local font/UI picker page `recomp/analysis/d24a-fonts/ttk-font-picker.html`
+(local, not tracked), styled like its existing item-icon sections: one
+placeholder per item, labelled with its name, the Quake analog and the type
+number, at the HUD box size (16x16 in a 4bpp cell, as the steroids box) with a
+larger preview, and room for the switcher-strip variant if the user wants one.
+Then the user draws the icons.
+
+**Done when:** the user has delivered the three icons (PNG sources in
+`recomp/assets/ui/items/`, as `hud-steroids.png`), each reduced to 15 colours
+plus transparent with `tools/local/reduce_icon_15col.py`, and accepted them in
+the picker. No gameplay change in this ticket.
+
+### D08A17 - Power-up countdowns (invincibility, invisibility, Double Duke)
+
+**Todo. User request, 2026-10-08.** Backlog only; waits for the D08A16 icons.
+
+**Goal:** a real, visible countdown for each running power-up, like the
+steroids box (D08A8, D08A11): when a coin is picked up its effect starts at
+once (as now, original behavior), and a HUD box with the item's icon (D08A16)
+counts down to zero, the way Quake shows a running power-up. Modernized only;
+Vanilla unchanged.
+
+**Investigate first (verify, do not assume):**
+1. Where each effect keeps its timer and flags: player fields or globals, the
+   full duration, the drain (per frame step, like the steroids drain
+   `0x800414a0`?), what ends it and what it clears; the pickup cases for 1045,
+   1046 and 1047 in the dispatcher `0x80081a48`.
+2. Whether a second coin refreshes, stacks or is refused; what death,
+   Continue, level completion, card save/load and savestates do to a running
+   effect; what `dnkroz` god mode shares with invincibility.
+3. Any original on-screen sign of the effects (tint, sound, status bar) to
+   keep.
+
+**Scope (to confirm with the user when selected):** one box per running
+power-up, stacked with the steroids box and the selected-gadget box (D08A8
+row rules), showing a percent or seconds as the user prefers; consistent
+with D08A14 (whether death ends them) and the D08A13 independence rule
+(power-ups do not touch armor or steroids). Whether they also get a sound
+cue (like the D08A10 heartbeat) or an expiry warning is the user's call.
+
+**Acceptance (draft).** Each coin: pickup starts the effect and its box
+counts down at the drain rate to zero, then the box goes with the effect; two
+or three at once stack cleanly with steroids and the selected gadget;
+savestate, level change and death behave as agreed; 60 and 120 fps; GL and
+Software renderers; Vanilla unchanged.
 
 ### D08A5 - Mission item tracking in the item switcher (approved design E)
 
@@ -1491,8 +1576,15 @@ Vanilla unchanged; the user confirms.
 
 ### D08G4 - `dnstuff`, `dnitems` and `dninventory` also give 100% armor
 
-**Todo. User request, 2026-10-08.** Backlog only; do not implement until
-selected. An extremely small job.
+**Done (user-accepted 2026-10-08: "fully accepted").** Full armor from all three. **Scope changed by
+the user when selected** (acceptance 4 below is superseded): "if steroids are
+already running, and the user types one of these cheat codes, steroids should
+be filled back up, and the usage is also stopped ... user types dnstuff,
+steroid usage stopps, full steroids are in inventory. the idea is that armor
+has nothing to do with steroids in the new world. typing in any of these
+codes would replenish armor to 100 either way". See the work log entry of the
+same date and [note 38](documentation/38-debug-cheats.md).
+User request, 2026-10-08.
 
 **Change.** Each of `dnstuff`, `dnitems` and `dninventory` additionally sets
 Duke's armor to 100%. That is the whole gameplay change. Today none of them
@@ -10395,3 +10487,113 @@ in note 117 is the reference for future custom pickups.
   remove them from the inventory. Not started.
 - New Todo D08A15 (user request): the heartbeat is silent for a few seconds
   when steroids restart before the previous run ends. Not started.
+
+## 2026-10-08 - D08A14 death ends steroids (Needs playtest)
+
+- **User decision when selected:** a held, unused dose is lost at death too
+  (Duke 3D), not only running steroids.
+- **Original behavior (traced live):** dead = player word 0 bit 1, health 0,
+  gameplay state `0x800bcbb0` still 1; Duke's update stops draining `+0x366`,
+  so the timer stands still; Continue clears bit 1, sets health 10000 and the
+  effect resumes. Nothing in the original clears item 4 there.
+- **Implementation:** `steroids_death_clear()` (`steroids.inc`) from
+  `hook_body`, Modernized `portable` only: while Duke is dead it clears item 4
+  bits 0-1 and the amount (the drain's own end state) and the D08A8/D08A13
+  hide marks; other bits kept. No new hook or generated code. Debug
+  `controls.steroids.death_clears`.
+- **Evidence** (`recomp/analysis/d08a14-steroid-death/`, local; slot 3):
+  `dnhyper`, an R dose and a held dose each cleared at death; after Continue
+  no box, no new heartbeat beats, selection off steroids, R and `]` do
+  nothing. Steroids written while dead, savestate saved and reloaded while
+  dead: cleared. `original` and Vanilla keep a dose through death and
+  Continue. `ttk-controls-test` new D08A14 group (43 groups), input,
+  inventory, Python 131 OK (2 skipped), overlay guards. Executable
+  `da4a09b04ca07466d001839c0b812d071b94fa79e4829979eeb734e1c27fc687`.
+- **Not verified:** the user's playtest; falls, drowning and explosion deaths
+  (covered by the dead state, not exercised); card save/load and level
+  completion were not re-run (unchanged paths).
+
+## 2026-10-08 - D08A15 heartbeat restart (Needs playtest)
+
+- **Reproduced:** `dnhyper` again mid-run (slot 4) and a pickup refresh mid-run
+  (slot 3) each gave 0 beats in the next 300 frames. **Cause:** the beat
+  restarted only when the amount rose above the run's first reading, which is
+  already 9000 minus one drain step; a refresh to 9000 is drained to that same
+  value before the check, so the old beat count held the next beat back for
+  as long as the old run had lasted. Not the sound routine's refusal and not
+  the D08A8/D08A13 hides.
+- **Fix:** `steroids_beat.inc` keeps the previous amount; any rise (only the
+  drain lowers it) restarts the rhythm with a beat at once. Debug
+  `controls.steroid_beat.restarts`.
+- **Evidence** (`recomp/analysis/d08a15-beat-restart/`, local): both restarts
+  at 60 and 120 fps beat at once and keep the rhythm (23-25 beats in 300
+  frames); natural expiry stops the beat; a new dose right after expiry beats
+  at frame 0. `ttk-controls-test` 43 groups, `ttk-input-test`. Executable
+  `3454c39cd58eda3ad6e9b805e82603e68e64df18d1a281a0e79ec6a41c0290e4`.
+- **Not verified:** the user's listen; D27A silent Shift not re-run (its code
+  is untouched). One early 120 fps run ended with steroids off for an
+  unexplained reason; 7 reruns did not repeat it.
+
+## 2026-10-08 - D08G4 inventory cheats give full armor (Needs playtest)
+
+- **Checked first:** the original full armor pickup (`0x80082470..0x8008248c`)
+  stores 10000 in `+0x234` when it is lower (the smaller armor adds and caps at
+  10000); no flag or HUD call, the status bar reads the field (shows 100).
+  Live: a spawned armor pickup took 0 and 2500 to 10000.
+- **Found:** the existing inventory grant (`0x8003d738`) refills running
+  steroids and leaves them running (`dnhyper` at 3835 -> flags 3, 9000), which
+  conflicted with acceptance 4. Asked the user, who chose: running steroids
+  stop and a full dose is held; armor is set either way.
+- **Implementation** (`cheats.inc`, `steroids.inc`): after the grant
+  succeeds for `dnstuff`, `dnitems` or `dninventory`, `steroids_cheat_grant()`
+  clears bit 1 of running portable steroids (flags 1, full amount) and armor
+  below 10000 becomes 10000. Nothing else changes: `dnkeys`, `dnweapons` and
+  the other codes, weapons, keys, the D08A9 selection rule.
+- **Evidence** (`recomp/analysis/d08g4-cheat-armor/`, local): each of the
+  three with armor 2500: armor 10000; with `dnhyper` running (slot 4) and an
+  R dose running (slot 3): flags 1, 9000 after, no countdown, no further beats;
+  with no steroids: a held dose as before. The user's flow (`dnstuff`, R,
+  `dnstuff`, R): held -> running with beats -> held, 9000, beats stop ->
+  running again. HUD: armor element 100 with the armor icon, steroids box 100.
+  `ttk-controls-test` new D08G4 group (44 groups), input, inventory, Python
+  131 OK (2 skipped), overlay guards, `check_repo.py`. Final executable (all
+  three jobs) `a4cd7a4f8efcfc44ef86e816adc3b245fcde9a733acd1e9f503fdf51e0235ef0`;
+  D08A14 (dose, death, Continue) and D08A15 (`dnhyper` restart) re-run on it.
+- **Not verified:** the user's playtest; `steroids` `original` with the
+  cheats (the stop is portable only; armor applies in every Modernized profile).
+
+## 2026-10-08 - D08A15 corrected: a pickup mid-run stops steroids (Needs playtest)
+
+- **User correction** (from a Duke 3D playthrough): `dnhyper` mid-run refills
+  and keeps running; the inventory cheats (D08G4) and a steroids pickup stop
+  the run and leave a full held dose. The first D08A15 pass left pickups to
+  the original refresh (refill and keep running, D08A4); the job entry now
+  shows that part struck through.
+- **Implementation:** `steroids_pickup` (`steroids.inc`) no longer leaves a
+  pickup during a run to the original; it takes it like a pickup with nothing
+  held: original message, sound and removal, then at the tail's sound call
+  bit 1 off, bit 0 on, full amount (and the D08A8/D08A13 hide marks dropped so
+  the run stays stopped). `original` and Vanilla keep the original refresh.
+  The D08A15 heartbeat fix still covers `dnhyper` mid-run.
+- **Evidence** (`recomp/analysis/d08a15-beat-restart/t4.py`, slot 3): pickup
+  during a `dnhyper` run (3835) and during an R dose (3850): flags 1, 9000,
+  held dose 1, beats stop, STEROIDS message, box at a held 100; R then runs
+  it; `dnhyper` mid-run refills and keeps running with beats. Native D08A4
+  pickup group updated (running dose and `dnhyper` run both stop and are
+  held); `ttk-controls-test` 44 groups, input, inventory, Python 131 OK (2
+  skipped), overlay guards. Executable
+  `87fe38d4f0ea8560312f53171345c207f332e26b6f4d2ed7220e1afae66ba472`.
+- **Not verified:** the user's playtest; natural (non-spawned) pickups.
+
+## 2026-10-08 - D08A14, D08A15, D08G4 accepted; D08A16, D08A17 queued
+
+- User: "fully accepted and ready to close it out." D08A14 (death ends
+  steroids), D08A15 (heartbeat restart; corrected: a pickup mid-run stops the
+  run and leaves a full held dose) and D08G4 (inventory cheats give full
+  armor; running steroids stop, full dose held) are Done. Executable
+  `87fe38d4f0ea8560312f53171345c207f332e26b6f4d2ed7220e1afae66ba472` is the regression baseline.
+- New Todo D08A16 (user request): power-up coin icons for invincibility,
+  invisibility and Double Duke, a human design ticket; when it begins, a
+  placeholder section goes into the local `ttk-font-picker.html`.
+- New Todo D08A17 (user request): real HUD countdowns for the three power-ups
+  like the steroids box, after the D08A16 icons. Not started.

@@ -1,5 +1,35 @@
 # Next-session handoff
 
+## 2026-10-08 - D08A14, D08A15, D08G4 accepted; D08A16, D08A17 queued
+
+- User: "fully accepted and ready to close it out." D08A14, D08A15 (with the
+  pickup correction) and D08G4 Done. Executable
+  `87fe38d4f0ea8560312f53171345c207f332e26b6f4d2ed7220e1afae66ba472` is the regression baseline.
+- Queued: D08A16 (power-up coin icons for invincibility, invisibility and
+  Double Duke; human design ticket, placeholders in the local font picker
+  when it begins) and D08A17 (HUD countdowns for the three power-ups, after
+  the icons). Not started.
+
+## 2026-10-08 - D08A14, D08A15, D08G4 (Needs playtest)
+
+- **D08A14:** death ends steroids in Modernized `portable`: running and held
+  doses are cleared while Duke is dead (user chose that a held dose is lost
+  too), so after Continue there is no box, heartbeat or switcher entry.
+  `original` and Vanilla keep them. [Note 127](127-d08a4-portable-steroids.md#d08a14---death-ends-steroids).
+- **D08A15:** the heartbeat restarts with a beat at once when `dnhyper`
+  refreshes steroids mid-run. Corrected by the user: a steroids pickup mid-run
+  now stops the run and leaves a full held dose (Duke 3D feel), like the
+  inventory cheats; executable `87fe38d4f0ea8560312f53171345c207f332e26b6f4d2ed7220e1afae66ba472`. Cause: a refresh to 9000 never read
+  above the run's first reading (9000 minus one drain step), so the old beat
+  count held the next beat back. [Note 129](129-d08a10-steroids-heartbeat.md#d08a15---restart-mid-run-beats-at-once).
+- **D08G4:** `dnstuff`, `dnitems`, `dninventory` set armor to 100 (10000, the
+  original full armor value); running steroids stop and a full dose is held
+  (user rule when selected). [Note 38](38-debug-cheats.md).
+- Final executable `a4cd7a4f8efcfc44ef86e816adc3b245fcde9a733acd1e9f503fdf51e0235ef0`.
+  Suites: `ttk-controls-test` 44 groups (new D08A14, D08G4), input,
+  inventory, Python 131 OK (2 skipped), overlay guards, `check_repo.py`.
+- **Not yet verified:** the user's playtests. Nothing committed.
+
 ## 2026-10-08 - D08A13 accepted; D08A14, D08A15 queued
 
 - User: "i accept that this works." D08A13 Done; executable

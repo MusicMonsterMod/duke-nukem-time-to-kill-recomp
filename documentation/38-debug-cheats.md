@@ -22,10 +22,10 @@ until the player later lands or enters gameplay.
 | --- | --- |
 | `dnmonsters` | Hide/show hostile AI; NPCs, pickups, switches and other entities stay present |
 | `dnkroz`, `dncornholio` | Toggle original invulnerability; while on, health is at least 100 and an owned jetpack stays full (D08Q4). Turning it on gives the jetpack if missing (2026-10-06 follow-up) |
-| `dnstuff` | Original all-weapons/ammo, inventory and keys grants |
+| `dnstuff` | Original all-weapons/ammo, inventory and keys grants; full armor (D08G4) |
 | `dnweapons` | Original all-weapons/ammo grant |
-| `dninventory` | Original inventory grant and charges |
-| `dnitems` | Original inventory plus keys |
+| `dninventory` | Original inventory grant and charges; full armor (D08G4) |
+| `dnitems` | Original inventory plus keys; full armor (D08G4) |
 | `dnkeys` | Original key inventory grant |
 | `dnhyper` | Activate/refill the original steroid timer |
 | `dnammo` | Refill ammunition for already-owned weapons |
@@ -34,8 +34,15 @@ until the player later lands or enters gameplay.
 | `dnupgrade` | Original weapon upgrades for weapons 4/5/7/8/9/10 and the persistent mask (D08G3) |
 
 These are TTK equivalents: `dnstuff` does not promise Duke 3D items such as HoloDuke,
-and `dnitems`
-does not add a separate armor grant. The last three
+D08G4 (2026-10-08): `dnstuff`, `dninventory` and `dnitems` also set armor
+`+0x234` to 10000 (shown as 100) when it is lower, the value the original full
+armor pickup writes (`0x80082470`: below 10000, store 10000; the status bar
+reads the field directly, so nothing else is needed). With Modernized portable
+steroids running, the original inventory grant `0x8003d738` would leave them
+refilled and still running; user rule: they stop and a full dose is held
+(`steroids_cheat_grant`, bit 1 cleared after the grant). The armor write never
+touches the steroid flags or timer. `dnkeys`, `dnweapons` and the other codes
+are unchanged. The last three
 spellings are explicit debugging additions, not claims of original Duke 3D codes.
 `dngod` (World Tour alias), `dnclip`, `dnscotty#**`, `dnunlock`, `dnskill#`,
 `dnshowmap`, `dnview`, `dnrate`, `dndebug`, `dncoords`, `dncashman`, `dnbeta`,

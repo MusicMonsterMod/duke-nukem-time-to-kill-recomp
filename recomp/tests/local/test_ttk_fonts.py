@@ -45,6 +45,23 @@ class DiscFontPack(unittest.TestCase):
             self.assertEqual(rec('a')[:4], rec('A')[:4])
             self.assertEqual(pix(rec('a')), pix(rec('A')))
 
+    def test_exclamation_from_own_font(self):
+        """D24C: '!' in the italic sets is drawn from the font's own I and period,
+        not the 8x8 system font; the console prompt '>' is a native glyph too."""
+        with tempfile.TemporaryDirectory() as tmp:
+            payload = self.build(tmp)[16:]
+        for s, height in ((0, 17), (1, 17), (2, 11), (3, 17), (4, 11), (5, 11)):
+            rec = lambda c: struct.unpack_from('<BBBBI', payload, 4 + s * 768 + 8 + 8 * (ord(c) - 32))
+            bang, i_rec = rec('!'), rec('I')
+            self.assertEqual(bang[1], height)
+            self.assertEqual(bang[0], i_rec[0])
+            self.assertEqual(rec('>')[1], height)
+            pixels = struct.unpack_from(f'<{bang[0] * bang[1]}I', payload, bang[4])
+            rows = [any(pixels[y * bang[0]:(y + 1) * bang[0]]) for y in range(height)]
+            # stem, a clear gap, then the dot
+            self.assertTrue(rows[0])
+            self.assertIn(False, rows[:max(y for y in range(height) if rows[y])])
+
     def test_ui_sprite_pack(self):
         with tempfile.TemporaryDirectory() as tmp:
             self.build(tmp)

@@ -854,7 +854,7 @@ remain available. Menu Circle still accepts **C** when uncaptured. Use Right Shi
 operable after rebinding. Vanilla keeps the different original keys below. Escape pauses.
 
 **Backtick (`)** opens a Quake-style drop-down developer console (TTK Medium
-Italic font). Typed commands and their replies stay in the console scrollback (`help`,
+Italic font, `>` prompt). Typed commands and their replies stay in the console scrollback (`help`,
 `fps`, `clear`, `quit`, unknown-command errors). `fps` also toggles a compact
 persistent statistics block in the top-left of the game view after you close the
 console (F remains unbound for gameplay). Escape or backtick closes the console.

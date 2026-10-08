@@ -3782,7 +3782,7 @@ index 5f66e0a9..470da031 100644
      return 0;
  }
 diff --git a/runtime/src/host_osd.c b/runtime/src/host_osd.c
-index 62c387d0..3384bfc3 100644
+index 62c387d0..e77bc5ad 100644
 --- a/runtime/src/host_osd.c
 +++ b/runtime/src/host_osd.c
 @@ -11,19 +11,20 @@
@@ -4056,7 +4056,7 @@ index 62c387d0..3384bfc3 100644
 +        char prompt[CONSOLE_LINE + 4];
 +        static uint32_t text_buf[CONSOLE_W * 64];
 +        int tw = 0, th = 0;
-+        snprintf(prompt, sizeof prompt, "] %s", s_console_line);
++        snprintf(prompt, sizeof prompt, "> %s", s_console_line);
 +        int y = CONSOLE_H - 12;
 +        if (ttk_font_rasterize(prompt, 3, text_buf, CONSOLE_W, 64, CONSOLE_W - 16, &tw, &th) && tw > 0 && th > 0) {
 +            y = CONSOLE_H - th - 10;
@@ -4105,7 +4105,7 @@ index 62c387d0..3384bfc3 100644
 +    }
 +#endif
 +    if (!drew) {
-+        const char *msg = s_console_line[0] ? s_console_line : "]";
++        const char *msg = s_console_line[0] ? s_console_line : ">";
 +        int n = (int)strlen(msg);
 +        if (n > 60) n = 60;
 +        for (int ci = 0; ci < n; ++ci) {
@@ -4647,7 +4647,7 @@ index 3a43a141..2d9ed690 100644
              if (horizon_kind == 2) {
                  s_extra_horizon_hits++;
 diff --git a/runtime/src/main.cpp b/runtime/src/main.cpp
-index fe317583..1bb7cb0e 100644
+index fe317583..5bef7249 100644
 --- a/runtime/src/main.cpp
 +++ b/runtime/src/main.cpp
 @@ -107,6 +107,8 @@ extern "C" void psx_game_codegen_relaunch_or_exit(const char* disc_path);
@@ -4699,7 +4699,7 @@ index fe317583..1bb7cb0e 100644
 +    s_console_line[s_console_len] = 0;
 +    char echoed[128];
 +    if (s_console_len) {
-+        std::snprintf(echoed, sizeof echoed, "] %s", s_console_line);
++        std::snprintf(echoed, sizeof echoed, "> %s", s_console_line);
 +        debug_console_say(echoed);
 +    }
 +    if (s_console_len && std::strcmp(s_console_line, "history") &&

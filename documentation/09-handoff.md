@@ -1,5 +1,13 @@
 # Next-session handoff
 
+## 2026-10-08 - D24C TTK-font `!` and `>` console prompt (Needs playtest)
+
+- Messages, headings and the console now draw `!` from the TTK font's own I
+  and period (build-time, `build_ttk_fonts.py`) instead of the 8x8 system font.
+- The console prompt and echoed commands start with `>` instead of `]`.
+- Verified in a private offscreen run (`dnstuff`, console); suites pass. Needs
+  the user's look in their own window.
+
 ## 2026-10-08 - D08A18 accepted
 
 - User: "accepted and confirmed working!!!" D08A18 Done.

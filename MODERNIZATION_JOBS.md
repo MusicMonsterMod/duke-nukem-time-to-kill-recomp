@@ -178,6 +178,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D24 | Linux / Windows player build and disc import | Todo | D19, D22, D23 |
 | D24A | Public clone gives the full experience: fonts, inventory icons/digits from a proper tracked or disc-derived source (no research/ dependency) | Accepted | D19A, D08A3 |
 | D24B | Savestate menu (F7) dressed in the TTK fonts and disc art | Accepted | D24A |
+| D24C | TTK-font `!` drawn from I and period; console prompt `>` instead of `]` | Needs playtest | D24A |
 | D25 | Modernized edition release acceptance | Todo | D08, D08A, D08B, D09, D10, D14, D17, D18, D20, D21, D24 |
 | D26 | Backtick debug console (fps and helpers) | Done | D04 |
 | D26A | Debug level-select panel for whole-game testing | Accepted | D26, D22A |
@@ -5079,6 +5080,28 @@ index from each savestate for its name.
 
 **Acceptance:** F7 shows the approved design with correct slot data, load/save
 and navigation unchanged; the fallback works without the font pack.
+
+### D24C - TTK-font exclamation mark and `>` console prompt
+
+**Needs playtest (2026-10-08).** User: "in the case of cheats like dnstuff which
+gives the message "giving everything!" we dont have an exclaimation mark in this
+font ... I'm thinking we could fake an exclaimation mark with the I character and
+the period. I want the console prompt character itself to be a > rather than a |
+also." Two small, related font jobs done together at the user's request.
+
+- The TTK Big and Medium Italic fonts have no `!`, so it fell back to the 8x8
+  system font. `build_ttk_fonts.py` now draws one from each font's own `I` and
+  `.`: the I's top as the stem, tapered towards the bottom (Big 3 px, Medium
+  2 px) and closed with the I's own bottom edge moved up the slant; a clear row;
+  then the period minus its top rows (Big 2, Medium 1) on the baseline. Every
+  set built from those fonts (messages, headings, console, savestate panel
+  titles and slots) gets it.
+- The console prompt and the echoed command lines use `>` (a native Medium
+  Italic glyph) instead of `]`, which the font lacked and fell back to a
+  thin system-font glyph that read as `|`.
+
+**Acceptance:** `dnstuff` shows GIVING EVERYTHING! with an exclamation mark in the
+message font; the console prompt and command echoes start with `>`.
 
 ### D25 — Modernized edition release acceptance
 
@@ -10818,3 +10841,24 @@ in note 117 is the reference for future custom pickups.
 
 - User: "confirmed it's all working as intended!" D08A17 Done. Executable
   `8f338cde1c2dc4cf73da747621cffafe2478512f6419078a41d11b0d3b9268a9` is the regression baseline.
+
+## 2026-10-08 - D24C TTK-font `!` and `>` console prompt (Needs playtest)
+
+- `build_ttk_fonts.py`: `exclamation()` builds `!` for the Big and Medium
+  Italic fonts from their own `I` and `.` (design picked from rendered
+  variants; the full-height period read as `:`, so the dot is trimmed and the
+  stem tapered). `!` left the system-font fallback list of sets 0-5.
+- Framework `host_osd.c` (prompt, empty-line fallback) and `main.cpp`
+  (echoed commands): `] ` became `> `. Exported to the patch, which applies to
+  the pinned clean framework; no header change.
+- Evidence: new `test_exclamation_from_own_font`; `ttk-font-test` passes
+  ("Giving Everything!" in all styles); 133 local Python tests OK (2 skipped);
+  repo check OK. A private Xvfb run (`analysis/d24c-glyphs/t1.py`, private
+  card copy) shows GIVING EVERYTHING! with the new `!` and the console with
+  `> FPS` and `> DNST`. Executable
+  `b38f4da0153962f93cc7ca01ecf2636c29c876569511fc6b1b019b06b5138b12`.
+- Font picker (local, `recomp/analysis/d24a-fonts/`): `make_picker.py` adds
+  the same `!` through `exclamation()`, so the glyph sheets match the game. New
+  section 13 shows before/after for the message and console fonts and both
+  prompts. It renders in headless Chrome with no script errors.
+- Not verified: the user's look at their own window size.

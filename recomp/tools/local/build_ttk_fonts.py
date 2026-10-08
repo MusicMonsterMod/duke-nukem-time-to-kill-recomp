@@ -10,7 +10,7 @@ Sources (owned USA SLUS-00583, read only, hashes pinned):
                    16-colour CLUTs in column x = 1008.
   SLUS_005.83      the PSY-Q system font (FntPrint) at 0x800c7d70, 128x32,
                    ASCII 0x20..0x5f; the fallback for characters the italic
-                   fonts lack (! % ( ) & + " and others).
+                   fonts lack (% ( ) & + " and others; D24C draws its own !).
 Palettes: disc CLUT 225 (gold, the pause-menu text) and "Console steel", the
 project's own palette matching the old console font.
 
@@ -19,7 +19,10 @@ savestate panel mockup):
   set 0 messages  (styles 0 and 2): TTK Big Italic, Console steel, 1x, spacing 1, drop shadow, all caps
   set 1 headings  (style 1):        TTK Big Italic, Gold (CLUT 225), 2x, spacing 1, all caps
   set 2 console   (style 3):        TTK Medium Italic, Console steel, 1x, spacing 0, drop shadow, all caps
-Missing glyphs fall back to the system 8x8 font in the set's palette.
+Missing glyphs fall back to the system 8x8 font in the set's palette, except
+'!' (D24C): the italic fonts have none, so one is drawn from their own 'I' (a
+stem cut short and tapered, closed with the I's bottom edge) and '.' (top rows
+trimmed so the stem stays the taller part).
 
 It also writes ttk-ui.pack (TTKUI1): the disc's button sprites and radiation
 emblem for the D24B savestate panel.
@@ -66,6 +69,7 @@ SETS = [  # name, font, palette or '#rrggbb' tint (system font), scale, spacing,
     ('mission_complete', 'micro', '#5fd35f', 2, 1, False),
 ]
 FONT_INFO = {'big': (BIG_ROWS, 17, 8), 'medium': (MEDIUM_ROWS, 11, 5), 'system': (None, 8, 8), 'micro': (None, 5, 4)}  # rows, height, space
+EXCLAMATION = {'big': (2, 3), 'medium': (1, 2)}  # D24C: period rows trimmed, stem taper (px)
 MICROFONT = ROOT / 'assets/ui/fonts/microfont/3x5-Microfont_1D.png'  # CC0, tracked
 
 
@@ -106,6 +110,45 @@ class Sheet:
             r, g, b = v & 31, (v >> 5) & 31, (v >> 10) & 31
             out.append((r * 255 // 31, g * 255 // 31, b * 255 // 31))
         return out
+
+
+def exclamation(glyphs, trim, taper):
+    """D24C: '!' from the font's own 'I' and '.', both on the italic slant.
+
+    The stem is the I's top, narrowing by `taper` px from the right towards the
+    bottom, closed by the I's own bottom edge rows moved up along the slant. The
+    dot is the period minus its top `trim` rows, kept on the baseline, with one
+    clear row above it."""
+    w, h, stem = glyphs['I']
+    pw, _, dot = glyphs['.']
+    rows = [list(stem[y * w:(y + 1) * w]) for y in range(h)]
+    period = [dot[y * pw:(y + 1) * pw] for y in range(h)]
+    lit = [y for y in range(h) if any(period[y])]
+    dot_rows = period[lit[0] + trim:lit[-1] + 1]
+    top = lit[-1] + 1 - len(dot_rows)
+    edge = 2 if h >= 17 else 1  # the I's dark bottom edge
+    last = max(y for y in range(h) if any(rows[y]))
+    cut = top - 1 - edge
+    left = lambda r: next(x for x, v in enumerate(r) if v)
+    right = lambda r: max(x for x, v in enumerate(r) if v)
+    out = [[0] * w for _ in range(h)]
+    for y in range(cut):
+        r, n = rows[y], round(taper * y / (cut - 1))
+        if n:
+            end = right(r); r[end - n] = r[end]
+            for x in range(end - n + 1, end + 1):
+                r[x] = 0
+        out[y] = r
+    shift, limit = left(out[cut - 1]) - left(rows[last - edge + 1]), right(out[cut - 1])
+    for k in range(edge):
+        for x, v in enumerate(rows[last - edge + 1 + k]):
+            if v and 0 <= x + shift <= min(w - 1, limit + k):
+                out[cut + k][x + shift] = v
+    for i, r in enumerate(dot_rows):
+        for x, v in enumerate(r):
+            if v:
+                out[top + i][x] = v
+    return w, h, [v for r in out for v in r]
 
 
 def micro_font(path=MICROFONT):
@@ -164,6 +207,8 @@ def argb(rgb):
 def build(raw, exe):
     sheet = Sheet(raw)
     fonts = {name: sheet.font(rows, height) for name, (rows, height, _) in FONT_INFO.items() if rows}
+    for name, (trim, taper) in EXCLAMATION.items():
+        fonts[name]['!'] = exclamation(fonts[name], trim, taper)
     system = system_font(exe)
     fonts['system'] = system
     fonts['micro'] = micro_font()

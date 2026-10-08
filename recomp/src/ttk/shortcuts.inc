@@ -88,6 +88,37 @@ static void remember_item(unsigned item) {
     selected_item=item;
     if(psx_mod_read_half(0x800c3f94)!=item)psx_mod_write_half(0x800c3f94,item);
 }
+// D08A18: Enter / U on the browsed mission item. The original has no inventory
+// use for mission items (its Select list's check 88134 rejects items >= 6):
+// Duke uses one by action at its lock, which names the item it wants. Ask the
+// lock in front of Duke, as the action press does (51890: finder 77f28 ->
+// +0x174; item-lock types carry type flag 0x01000000 without 0x08000000,
+// 0x00400000 or 0x00800000), its handler's mode 2 (wanted item) and mode 0
+// (0 = usable now). Right item: the normal E interaction, so the original
+// pulls it out (animation 47), opens the lock and uses it up. Otherwise only a
+// notice; nothing in the level changes.
+static void mission_use(CPUState* cpu,int item) {
+    if(item<6 || item>16)return;
+    if(!(psx_mod_read_half(player+0x354+4*item)&1)) {input_notice("NOT FOUND YET");return;}
+    if(!original_call(cpu,0x80077f28,0)) {
+        std::fprintf(stderr,"[TTK mission] use of item %d skipped: no nested call here\n",item);return;
+    }
+    const uint32_t object=psx_mod_read_word(player+0x174);
+    bool usable=false;
+    if(object>=0x80010000 && object<0x80200000) {
+        const unsigned type=psx_mod_read_half(object+0x2c);
+        const uint32_t type_flags=psx_mod_read_word(psx_mod_read_word(0x800d2660)+28*type);
+        const uint32_t handler=psx_mod_read_word(psx_mod_read_word(0x800dd84c)+4*psx_mod_read_byte(object+0x19));
+        int32_t wanted=-1,blocked=1;
+        if((type_flags&0x01000000) && !(type_flags&0x08c00000) && handler>=0x80010000 && handler<0x80200000 &&
+           original_call(cpu,handler,object,&wanted,2) && wanted==item &&
+           original_call(cpu,handler,object,&blocked,0) && blocked==0)usable=true;
+        std::fprintf(stderr,"[TTK mission] item %d at object %08x type %u wants %d blocked %d -> %s\n",
+                     item,object,type,wanted,blocked,usable?"use":"refuse");
+    }
+    if(usable)input_request_interaction();
+    else input_notice("CAN'T USE THIS HERE");
+}
 static void use_item(CPUState* cpu,unsigned item) {
     if(item==5) {
         // M: report charge only — never open the bracket switcher (EDuke32-style).
@@ -193,11 +224,11 @@ static void select_weapon(CPUState* cpu) {
     }
     if(!f.command_serial || command_seen==f.command_serial)return;
     command_seen=f.command_serial;
-    // D08A5: Enter / U while the mission inventory shows only close it, so an
-    // instinctive Enter never toggles a gadget; mission items are never used.
+    // D08A5: Enter / U while the mission inventory shows never toggle a gadget.
+    // D08A18: they close it and try the browsed mission item (mission_use).
     bool mission_enter=false;
     if(mission_visible())for(unsigned n=0;n<f.command_count && n<32;++n)if(f.commands[n]==item_use)mission_enter=true;
-    if(mission_enter)mission_close();
+    if(mission_enter) {const int item=mission_browsed_item();mission_close();mission_use(cpu,item);}
     // D12A: in the eye view Q is the quick kick (kick.inc), with any weapon,
     // moving or in the air; it never touches the original equipment or animation.
     bool eye_kick=false;

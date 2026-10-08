@@ -1105,8 +1105,13 @@ found yet as dim grey silhouettes, and "MISSION" and found/total at the bottom
 at the top of the screen shows its name, type and FOUND or NOT FOUND YET. The
 first press opens on the item you last looked at; then **.** moves to the next
 item and **,** to the previous one (wrapping). It closes about 2.5 seconds after
-your last press. Mission items cannot be used: **Enter** or **U** while it is open
-just closes it (no gadget is toggled), and **[ / ]** switch to the gadgets. The
+your last press. **Enter** or **U** while it is open closes it and makes Duke try
+to use the item shown (D08A18); no gadget is toggled. Standing at the lock that
+takes it (a card reader, a key door, a crystal holder or receptacle), it does
+exactly what **E** there does: Duke puts his weapon away, takes the item out and
+uses it, and the original uses it up. Anywhere else, "CAN'T USE THIS HERE"
+appears (in the cheat-message style) and nothing changes; an item you have not
+found yet says "NOT FOUND YET". **[ / ]** switch to the gadgets. The
 gadget switcher itself shows gadgets only; its selected frame is now orange.
 Levels without mission items ignore **, / .**. Keyboard only for now. Vanilla is
 unchanged; the original L1/R1 sidesteps that comma/period used to send are

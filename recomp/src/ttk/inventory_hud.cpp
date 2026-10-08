@@ -287,6 +287,7 @@ bool inventory_visible() {return overlay_ready() && SDL_GetTicks()<expires;}
 // D08A5 mission inventory: its own view on Comma/Period, never with the gadgets.
 bool mission_visible() {return overlay_ready() && slot_count && SDL_GetTicks()<mission_expires;}
 void mission_close() {mission_expires=0;}
+int mission_browsed_item() {return mission_visible() && browse<slot_count?int(slots[browse]->item):-1;}
 void inventory_update(unsigned item,const uint16_t* f,const int16_t* a,const uint16_t* capacity_values,bool announce) {
     const auto& input=input_snapshot(Context::Gameplay);
     if(epoch!=input.epoch)expires=mission_expires=0;

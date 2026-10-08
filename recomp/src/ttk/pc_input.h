@@ -41,6 +41,9 @@ void input_frame();
 uint64_t input_host_frame();
 Cheat input_take_cheat();
 void input_notice(const char* message);
+// D08A18: start the normal E interaction (stow, then the original action), as
+// if E were pressed; from the emulation thread.
+void input_request_interaction();
 // A guest update acknowledges accepted or rejected commands; bounded host expiry.
 void input_ack_commands(uint64_t serial);
 // A verified original normal-gameplay camera callback offers initial capture.

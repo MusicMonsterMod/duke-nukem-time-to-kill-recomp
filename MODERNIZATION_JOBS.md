@@ -68,6 +68,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08G2 | Silent cheat entry and centered confirmations | Done | D08G1, D19A |
 | D08A16 | Power-up coin icons: invincibility, invisibility, Double Duke (human design; placeholder section in the font picker) | Done (user-accepted) | D08A8, D24A |
 | D08A17 | Power-up countdowns: invincibility, invisibility and Double Duke get HUD boxes counting down, like steroids (Quake-style) | Done (user-accepted) | D08A16, D08A8 |
+| D08A18 | Mission inventory: Enter tries to use the browsed item; elsewhere "can't use this here" (cheat-message style) | Done (user-accepted) | D08A5, D24A |
 | D08G3 | `dnupgrade` cheat: upgrade all weapons (Laser Gatling etc.) | Accepted | D08G2 |
 | D08G4 | `dnstuff`, `dnitems`, `dninventory` also give 100% armor; running steroids stop and a full dose is held | Done (user-accepted) | D08G |
 | D08H | Apartment furniture, hidden pickup and switch targeting | Done | D08 |
@@ -1213,6 +1214,117 @@ original's 5 s invincibility after Continue shows a box; no expiry warning.
 - Limits: natural (non-spawned) coins, two-player and boss levels not
   exercised; no profile option (part of Modernized); the number floors like
   steroids, so the last ~0.2 s reads 0.
+
+### D08A18 - Mission inventory: Enter uses the browsed item ("can't use this here")
+
+**Done (user-accepted 2026-10-08: "accepted and confirmed working!!!").**
+The user picked mockup B in the cheat-message
+style ("option B, but in the console steel palette, just like our cheat
+messages ... the font should be exactly the same"). It is built and verified
+offscreen. See [note 133](documentation/133-d08a18-mission-item-use.md)
+and the work log below. Modernized only; Vanilla and the original Select
+inventory are unchanged.
+
+**Background (user):** "if you hover over an item and press enter, currently it
+just immediately closes". Today (D08A5, [note
+114](documentation/114-d08a5-mission-tracking.md)) Enter or U while the mission
+inventory (`,` / `.`) is open just closes it, and it otherwise closes 2.5 s
+after the last press. Enter was moved off the gadgets there because the user
+instinctively presses it while browsing mission items.
+
+**Picked direction (user, 2026-10-08): option C, use it.** "i actually think
+option C is the only one i really like." No info panel and no hold: Enter makes
+Duke try to use the browsed item. Where it applies, it does what using it the
+original way does; anywhere else a short centred message appears, such as
+"CAN'T USE THIS HERE". Options A (hold), B (info panel), D (pin then use), E
+(missing-item hint), F (mission sheet) and G (examine) were offered and not
+taken.
+
+**Research first.**
+- How TTK uses each kind of mission item (key cards, skeleton keys, crystals,
+  combo pieces, jewels, papers): automatically on touching the door / socket,
+  on the action button at it, or from the original Select inventory. Find the
+  check (which flag, which door / socket actor, which range) and whether there
+  is a use path that can be driven from the inventory without skipping the
+  door's own scripts, sounds, messages or flag changes.
+- Whether the disc has an original refusal string or sound (none found in the
+  D24A string survey yet; check pickup / door messages and the "need a key"
+  style messages). Prefer an original string and sound if one exists.
+- If an item can only ever be used by touch, decide with the user what Enter
+  does near its door (trigger the same use) and away from it (message only).
+
+**Mockup.** Before game code, show the refusal message (and the success case,
+if it differs from the original's) in a new section of the local font/UI picker
+page `recomp/analysis/d24a-fonts/ttk-font-picker.html` (built by
+`make_picker.py` from `picker.template.html`; local, not tracked): wording,
+font, colour and placement against the mission inventory and card from
+section 8. The user approves the wording and look.
+
+**Open (decide with the user):** whether the mission inventory closes after a
+use or a refusal; whether a refusal plays a sound; whether found but already
+used items (if the game tracks that) say something different; what Enter does
+on a missing (not found yet) item.
+
+**Acceptance.**
+- In Modernized, Enter (and U) on a browsed, found mission item at the place it
+  belongs has the same effect as the original way of using it (same scripts,
+  flags, sounds and messages), and never uses a gadget.
+- Anywhere else it shows only the approved message; nothing in the level
+  changes.
+- `,` / `.`, `[` / `]`, the 2.5 s timeout when Enter is not pressed, level
+  travel, savestate load and death behave as in D08A5.
+- Checked with at least one item of each kind that a level uses.
+- Levels without mission items are unchanged; Vanilla is unchanged.
+- The user confirms it in play.
+
+**Work log 2026-10-08 (research and mockups).**
+- The original never uses mission items from an inventory: the Select
+  screen's selectable check rejects items >= 6. Seen in Vanilla too: the cursor
+  never reaches the mission rows.
+- Duke uses an item by pressing action at a lock. The lock's class handler
+  says which item it wants (mode 2). Duke pulls the item out (animation 47),
+  which clears the item's flag, and the lock opens.
+- Shared lock helper: `0x80092a84`. Crystal receptacles: types 180-182 want
+  items 11-13. Level 0's card readers (type 478) call the helper with items
+  6 and 7.
+- Build plan: Enter asks the object in front of Duke (`0x80077f28`, as the
+  action press does) for its item. If it is the browsed, found item, Enter
+  starts the normal E interaction and the original does the rest. Otherwise a
+  message only.
+- The disc has no refusal string; the message is new host text.
+- Found on the way: a used item's flag is cleared, so the D08A5 mission
+  inventory shows a used key as "NOT FOUND YET". This is offered to the user
+  as an open question.
+- Mockups in section 12 of the local picker (A card status, B centred quote,
+  C both, plus the success case), rendered headless with no script errors.
+- Not done: a live use at a lock (placing Duke by memory writes put him on the
+  wrong floor); overlay handlers of levels other than 0.
+
+**Work log 2026-10-08 (built, Needs playtest).**
+- User pick: B, exactly the cheat-message style (`input_notice`: TTK Big
+  Italic, Console steel).
+- `shortcuts.inc` `mission_use`: Enter / U while the mission inventory is open
+  closes it and tries the browsed item.
+  - Not found: NOT FOUND YET.
+  - Otherwise it asks the object in front of Duke (`0x80077f28` -> `+0x174`;
+    item-lock type flags) for its wanted item (handler mode 2) and whether it
+    can be used now (mode 0).
+  - Right item: the normal E interaction (`input_request_interaction`). Else
+    CAN'T USE THIS HERE, and nothing changes.
+- New `mission_browsed_item()` in `inventory_hud.cpp`; test stubs added to
+  `modern_controls_native.cpp`. Framework untouched.
+- Verified offscreen on copies of the user's cards:
+  - level 0: both messages away from locks, gadgets untouched;
+  - at the empty red-crystal holder, the red crystal was used through the
+    original path (animations 47 and 267, holder filled, flag used up, weapon
+    redrawn);
+  - another item there was refused with nothing changed.
+- Suites: inventory, input, controls (44), Python 132 OK, overlay guards,
+  `check_repo`.
+- Defaults (not asked): one message for every refusal, no sound, used items
+  not tracked (they show as missing).
+- Not done: a card reader or key door live; levels other than 0; a real
+  playtest.
 
 ### D08A5 - Mission item tracking in the item switcher (approved design E)
 

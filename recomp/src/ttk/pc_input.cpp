@@ -515,7 +515,13 @@ void input_event(const SDL_Event& e) {
     }
 }
 uint64_t input_host_frame() { return sequence; }
+static std::atomic<bool> interaction_request{false};
+void input_request_interaction() {interaction_request.store(true);}
 void input_frame() {
+    // D08A18: Enter on a mission item at its lock: the same pending interaction an E press starts.
+    if(interaction_request.exchange(false) && modern && focused && captured && !push_latched && !push_request) {
+        interaction_pending=true;interaction_deadline=sequence+120;interaction_pulse=0;interaction_started=false;holster_pulse=0;
+    }
     if(sequence>cheat_typing.deadline)cheat_typing.reset();
     if(sequence>cheat_deadline)cheat_pending=Cheat::None;
     // Offers repeat every player update while gameplay runs; one that stopped

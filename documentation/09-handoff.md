@@ -1,5 +1,17 @@
 # Next-session handoff
 
+## 2026-10-08 - D08A18 accepted
+
+- User: "accepted and confirmed working!!!" D08A18 Done.
+
+## 2026-10-08 - D08A18 built (Needs playtest)
+
+- Enter / U on the browsed mission item: at the lock that takes it, the normal E
+  interaction (the original uses it up); elsewhere CAN'T USE THIS HERE, or NOT
+  FOUND YET, as cheat-style notices. Note 133.
+- Verified offscreen in level 0 (crystal holder use, both refusals); suites
+  pass. Card readers / key doors and other levels need the user's playtest.
+
 ## 2026-10-08 - D08A17 accepted
 
 - User: "confirmed it's all working as intended!" D08A17 Done; executable

@@ -12,6 +12,9 @@ void mission_update(unsigned level,const uint16_t* flags);
 void mission_browse_press(int direction);
 bool mission_visible();
 void mission_close();
+// D08A18: inventory item (6..16) of the browsed slot while the mission
+// inventory shows, else -1.
+int mission_browsed_item();
 }
 extern "C" {
 #endif

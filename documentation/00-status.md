@@ -1,5 +1,17 @@
 # Current status - 2026-10-04
 
+## 2026-10-08 - D08A18 mission item use with Enter (Done, user-accepted)
+
+- In Modernized, Enter / U on the browsed mission item tries to use it.
+  - At the lock that takes it, the normal E interaction runs, so the original
+    pulls the item out, opens the lock and uses it up.
+  - Anywhere else a cheat-style notice appears, CAN'T USE THIS HERE (or NOT
+    FOUND YET), and nothing changes.
+- The original has no inventory use for mission items. See note 133 for the
+  lock contract.
+- Offscreen evidence: level 0 crystal holder use, both refusals. Suites pass.
+  Vanilla unchanged.
+
 ## 2026-10-08 - D08A17 accepted
 
 - User: "confirmed it's all working as intended!" D08A17 Done; executable

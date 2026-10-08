@@ -178,7 +178,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D24 | Linux / Windows player build and disc import | Todo | D19, D22, D23 |
 | D24A | Public clone gives the full experience: fonts, inventory icons/digits from a proper tracked or disc-derived source (no research/ dependency) | Accepted | D19A, D08A3 |
 | D24B | Savestate menu (F7) dressed in the TTK fonts and disc art | Accepted | D24A |
-| D24C | TTK-font `!` drawn from I and period; console prompt `>` instead of `]` | Needs playtest | D24A |
+| D24C | TTK-font `!` drawn from I and period; console prompt `>` instead of `]` | Done (user-accepted) | D24A |
 | D25 | Modernized edition release acceptance | Todo | D08, D08A, D08B, D09, D10, D14, D17, D18, D20, D21, D24 |
 | D26 | Backtick debug console (fps and helpers) | Done | D04 |
 | D26A | Debug level-select panel for whole-game testing | Accepted | D26, D22A |
@@ -5083,7 +5083,7 @@ and navigation unchanged; the fallback works without the font pack.
 
 ### D24C - TTK-font exclamation mark and `>` console prompt
 
-**Needs playtest (2026-10-08).** User: "in the case of cheats like dnstuff which
+**Done (user-accepted, 2026-10-08): "all accepted".** User: "in the case of cheats like dnstuff which
 gives the message "giving everything!" we dont have an exclaimation mark in this
 font ... I'm thinking we could fake an exclaimation mark with the I character and
 the period. I want the console prompt character itself to be a > rather than a |
@@ -10862,3 +10862,8 @@ in note 117 is the reference for future custom pickups.
   section 13 shows before/after for the message and console fonts and both
   prompts. It renders in headless Chrome with no script errors.
 - Not verified: the user's look at their own window size.
+
+## 2026-10-08 - D24C accepted
+
+- User: "all accepted". D24C Done (the `!` glyph, the `>` prompt and the
+  font picker section).

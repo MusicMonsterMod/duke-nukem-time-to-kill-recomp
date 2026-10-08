@@ -1,5 +1,9 @@
 # Current status - 2026-10-04
 
+## 2026-10-08 - D24C accepted
+
+- User: "all accepted". D24C Done: TTK-font `!` and `>` console prompt.
+
 ## 2026-10-08 - D24C TTK-font `!` and `>` console prompt (Needs playtest)
 
 - Messages, headings and the console now draw `!` from the TTK font's own I

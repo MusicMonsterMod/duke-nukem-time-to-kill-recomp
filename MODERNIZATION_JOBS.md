@@ -66,7 +66,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08G | Typed Duke-style debugging cheats — user accepted | Done | D04 |
 | D08G1 | Original Duke3D cheat confirmation wording | Done | D08G |
 | D08G2 | Silent cheat entry and centered confirmations | Done | D08G1, D19A |
-| D08A16 | Power-up coin icons: invincibility, invisibility, Double Duke (human design; placeholder section in the font picker) | Todo | D08A8, D24A |
+| D08A16 | Power-up coin icons: invincibility, invisibility, Double Duke (human design; placeholder section in the font picker) | Done (user-accepted) | D08A8, D24A |
 | D08A17 | Power-up countdowns: invincibility, invisibility and Double Duke get HUD boxes counting down, like steroids (Quake-style) | Todo | D08A16, D08A8 |
 | D08G3 | `dnupgrade` cheat: upgrade all weapons (Laser Gatling etc.) | Accepted | D08G2 |
 | D08G4 | `dnstuff`, `dnitems`, `dninventory` also give 100% armor; running steroids stop and a full dose is held | Done (user-accepted) | D08G |
@@ -1129,8 +1129,12 @@ to the local font/UI picker page `recomp/analysis/d24a-fonts/ttk-font-picker.htm
 (local, not tracked), styled like its existing item-icon sections: one
 placeholder per item, labelled with its name, the Quake analog and the type
 number, at the HUD box size (16x16 in a 4bpp cell, as the steroids box) with a
-larger preview, and room for the switcher-strip variant if the user wants one.
+larger preview. No switcher-strip variant: power-ups are never held, and if
+they ever were, the switcher would use the same icon (user, 2026-10-08).
 Then the user draws the icons.
+
+**Done (user-accepted, 2026-10-08).** The user's three icons are in
+`recomp/assets/ui/items/` with their 15-colour copies; see the work log.
 
 **Done when:** the user has delivered the three icons (PNG sources in
 `recomp/assets/ui/items/`, as `hud-steroids.png`), each reduced to 15 colours
@@ -10597,3 +10601,53 @@ in note 117 is the reference for future custom pickups.
   placeholder section goes into the local `ttk-font-picker.html`.
 - New Todo D08A17 (user request): real HUD countdowns for the three power-ups
   like the steroids box, after the D08A16 icons. Not started.
+
+## 2026-10-08 - D08A16 picker section for the power-up icons (waiting for art)
+
+- **Picker:** `recomp/analysis/d24a-fonts/ttk-font-picker.html` (local) has
+  a new section 11, "Power-up coins". It has one card per coin with its name,
+  type, Quake analog, in-game look and file names (`hud-invincibility.png`,
+  `hud-invisibility.png`, `hud-double-duke.png`, optional `gadget-<slug>.png`
+  strip variants). Each card has drop/click slots and previews: as drawn at
+  8x, a 15-colour preview (a JavaScript port of `reduce_icon_15col.py`; the
+  tool stays authoritative), 2x HUD size and 1x. Dropped art is stored in
+  browser localStorage only. A "Running together" mockup stacks steroids
+  plus the three power-up boxes over the ammo box with the disc's 46x16 box
+  and the red HUD digits, with a toggle per box; the numbers are made up.
+  `make_picker.py` reads delivered art from `recomp/assets/ui/items/`
+  automatically.
+- **References:** each coin was spawned (D26E `spawn`) in level 0 in a
+  private offscreen first-person run and burst-captured;
+  `analysis/d08a16-coins/pick_refs.py` keeps the three most face-on frames
+  per coin.
+- **Found:** all three are the same octagonal-rimmed radiation-trefoil coin;
+  only the coin colour and glow differ. Invincibility (1047) is gold with an
+  orange glow, invisibility (1045) silver-violet with a blue glow and Double
+  Duke (1046) silver with a pink-red glow. A spawned coin spins while it
+  falls, then lies flat.
+- **Checked:** headless Chrome render of the section, empty and with a
+  stand-in icon (the steroids pill), plus the mockup.
+- **Remaining:** the user draws the three icons. Then reduce them to 15
+  colours with the tool, the user accepts them in the picker, and the job is
+  Done. No gameplay change.
+
+## 2026-10-08 - D08A16 icons delivered (awaiting acceptance)
+
+- The user drew `hud-invincibility.png`, `hud-invisibility.png` and
+  `hud-double-duke.png` (16x16; delivered in
+  `research/inv/inventory-items-custom-musicmonster/`). They are copied to
+  `recomp/assets/ui/items/`, with `-15col` copies made by
+  `reduce_icon_15col.py`. The picker now shows the as-drawn art next to the
+  tool's reduction, and they are in the stacked HUD mockup. Not yet in
+  `items.json` or the build; that is D08A17. Waiting for the user's
+  acceptance in the picker.
+- User, 2026-10-08: no switcher-strip variant and no portable power-ups. If
+  power-ups were ever held, the strip would use these same icons. The strip
+  slot is removed from the picker.
+
+## 2026-10-08 - D08A16 accepted
+
+- User: "fully accepted." D08A16 Done. Icons:
+  `recomp/assets/ui/items/hud-invincibility.png`, `hud-invisibility.png`,
+  `hud-double-duke.png` and their `-15col` reductions. No gameplay change.
+  D08A17 (the countdown boxes) is ready to start and uses them.

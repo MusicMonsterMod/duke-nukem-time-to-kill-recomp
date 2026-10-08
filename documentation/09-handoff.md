@@ -1,5 +1,24 @@
 # Next-session handoff
 
+## 2026-10-08 - D08A16 accepted
+
+- User: "fully accepted." D08A16 Done: the user's power-up icons are in
+  `recomp/assets/ui/items/` (`hud-invincibility`, `hud-invisibility`,
+  `hud-double-duke`, each with a `-15col` copy). There is no switcher-strip
+  variant (power-ups are never held). D08A17 (countdown boxes) is now ready.
+  Not committed.
+
+## 2026-10-08 - D08A16 picker section ready (waiting for the user's art)
+
+- D08A16 In progress: local picker `recomp/analysis/d24a-fonts/ttk-font-picker.html`
+  section 11 has placeholders, in-game coin references (all one radiation
+  coin; gold/orange invincibility, silver-violet/blue invisibility,
+  silver/pink-red Double Duke), 15-colour previews and a stacked HUD mockup.
+  Next: the user delivers `hud-invincibility.png`, `hud-invisibility.png`,
+  `hud-double-duke.png` to `recomp/assets/ui/items/`; reduce them with
+  `reduce_icon_15col.py`, rerun `make_picker.py`, user accepts. No gameplay
+  change; nothing committed.
+
 ## 2026-10-08 - D08A14, D08A15, D08G4 accepted; D08A16, D08A17 queued
 
 - User: "fully accepted and ready to close it out." D08A14, D08A15 (with the

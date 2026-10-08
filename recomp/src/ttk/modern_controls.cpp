@@ -1362,6 +1362,8 @@ PSX_MOD_CONSTRUCTOR(register_ttk_controls) {
     psx_mod_register_function_entry_plugin("ttk.modern.controls",0x8006b73c,[](CPUState* cpu,uint32_t){ttk::sound_logged(cpu);if(cpu->gpr[31]==0x800828d8u)ttk::steroids_pickup_sound(cpu);});
     // D27A: the player update; only Duke's call goes further.
     psx_mod_register_function_entry_plugin("ttk.modern.controls",0x800412a4,[](CPUState* cpu,uint32_t){if(cpu->gpr[4]==ttk::player)ttk::run_click_presync();});
+    // D12C: the damage sphere; only the original kick's call (ra 0x80049098) goes further.
+    psx_mod_register_function_entry_plugin("ttk.modern.controls",0x800a979c,[](CPUState* cpu,uint32_t){if(cpu->gpr[31]==0x80049098u)ttk::kick_sphere_entry(cpu);});
     // D08A8: the composition's call after the status bar when 0x8001fc44 is skipped.
     psx_mod_register_function_entry_plugin("ttk.modern.controls",0x8002e850,[](CPUState* cpu,uint32_t){if(cpu->gpr[31]==0x800265d4u)ttk::steroids_hud_restore();});
 }

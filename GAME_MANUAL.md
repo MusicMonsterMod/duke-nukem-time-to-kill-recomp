@@ -577,7 +577,10 @@ it), with any weapon still in hand, while standing, moving or jumping. With
 the Mighty Boot selected (key 1), holding the left mouse button kicks too,
 also while running. E never kicks in first person. Tap Q repeatedly or hold
 it to chain kicks while running with any weapon. Kicks do not knock enemies
-back the way the original full kick sometimes does. To compare the leg without its thigh for one launch:
+back the way the original full kick sometimes does. In Modernized, a kick that
+connects (first or third person) lands with a solid thud (Duke's wall-bump
+thud, pitched up so it carries): once per kick, on an enemy, a breakable object or
+a wall. A kick that hits nothing stays silent. To compare the leg without its thigh for one launch:
 
 ```sh
 DNTTK_FP_KICK_THIGH=0 python3 recomp/tools/local/run.py

@@ -138,6 +138,18 @@ static const Guard guards[] = {
     {0x8001416c, 16, "ceb680feaf12de713fac4a70946fa5bb5373f9498071fd3834f766ff219de404"},
     {0x800a979c, 1116, "3b254c1879cddf5743391954cee028efc4b61b54f1ecd4c575fa78dcf2976916"},
     {0x8006b270, 448, "988893d01896252cfdcb52649de75cb0352295d4bd3a7ee384cc77a9438f9a6c"},
+    // D12C kick impact: the wall bump (animation 94/95, rumble, 0x8006b270(0x2007,
+    // Duke+4, 0x800)) whose thud the kick plays.
+    {0x800537f4, 0xd0, "ae0f59b77b2bfdc657eece42b780595375afdea75d2432b6152dd32d58a03c25"},
+    // D12C: the sound call with a pitch argument the impact uses, and the
+    // voice setup's pitch read (0x40 = random spread, else table + value).
+    {0x8006b73c, 452, "65d6d0593ac28eb9f691b8201552a52062f9733782cdce4c889fdb11d41c4cd4"},
+    {0x80068738, 104, "54f1d3ee93201d0049fbf50cfbe5a25578a279c45529ecab74e85595bd88178a"},
+    // D12C: the stop the impact uses for an already-playing 0x2007.
+    {0x80068900, 52, "9f8a5470fa4a0cf1673484e6f97ae4f41d885cc49d741630c9b7884cb4d3941f"},
+    // D12C: the voice update's reads of the sound's volume +0x6a (ramp, set).
+    {0x80068ddc, 180, "6e06c75ee40b7aaf578b62f58441fdfd9c285e3d84eb1fedce02cca9c278ebc5"},
+    {0x80069004, 16, "ef5d2a90fe57552346f7988f32d4f5571d463df1eeae71315ebca85dc167009e"},
     // D08U top-of-ladder mount: the hang-to-ladder transfer 156's end (-> 186)
     // and its dispatcher table entry, and the collision-box lookup whose
     // index-0 layout ladder_top.inc reads.

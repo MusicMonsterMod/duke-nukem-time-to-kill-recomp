@@ -70,6 +70,9 @@ static int32_t drop_catch_y=100000,drop_top=0,lookahead_drop=-100000;static unsi
 // D12A quick kick: damage sphere and sound calls (address, a0..a3, two stack words, point).
 struct KickCall {uint32_t address,a[4],stack[2];int32_t point[3];};
 static std::vector<KickCall> kick_calls;
+// D12C: the stubbed sphere strikes something (it stores its attacker argument
+// at sp+0x10 of its own 0x80-byte frame, as 0x800a979c does on a hit).
+static bool sphere_strike;
 static std::vector<std::array<uint32_t,4>> steroid_sounds;
 
 // D08Y: the runtime CPU overclock lease (renewed from the player update).
@@ -86,7 +89,13 @@ extern "C" void psx_dispatch_call(CPUState* cpu,uint32_t address,uint32_t) {
     }
     if(address==0x8003e2d0) {++edge_launches;cpu->pc=0;return;}
     if(address==0x8006b73c) { // D08A4: the pickup sound R plays at Duke
-        steroid_sounds.push_back({cpu->gpr[4],cpu->gpr[5],cpu->gpr[6],cpu->gpr[7]});cpu->pc=0;return;
+        steroid_sounds.push_back({cpu->gpr[4],cpu->gpr[5],cpu->gpr[6],cpu->gpr[7]});
+        if(cpu->gpr[4]==0x2007) { // D12C impact: a sound object (id +0x5c, table volume +0x6a) and its handle
+            kick_calls.push_back({0x8006b73c,{cpu->gpr[4],cpu->gpr[5],cpu->gpr[6],cpu->gpr[7]},{},{}});
+            psx_mod_write_word(0x801e1000+0x5c,0x2007);psx_mod_write_half(0x801e1000+0x6a,5192);
+            cpu->gpr[2]=0x05000000u|(0x801e1000u&0xffffffu);
+        }
+        cpu->pc=0;return;
     }
     if(address==0x8007ec4c) {++lineups;cpu->gpr[2]=lineup_ok;cpu->pc=0;return;}   // D08X mantle line-up
     if(address==0x80055208) {
@@ -103,6 +112,7 @@ extern "C" void psx_dispatch_call(CPUState* cpu,uint32_t address,uint32_t) {
         KickCall k{address,{cpu->gpr[4],cpu->gpr[5],cpu->gpr[6],cpu->gpr[7]},
                    {psx_mod_read_word(cpu->gpr[29]+0x10),psx_mod_read_word(cpu->gpr[29]+0x14)},{}};
         if(address==0x800a979c) for(int i=0;i<3;++i) k.point[i]=(int32_t)psx_mod_read_word(cpu->gpr[4]+4*i);
+        if(address==0x800a979c && sphere_strike) psx_mod_write_word(cpu->gpr[29]-0x80+0x10,k.stack[0]);
         kick_calls.push_back(k);cpu->pc=0;return;
     }
     if(address==0x8007ded0) { // D08U1 ladder-end probe; it clobbers the touch fields like 0x8007dd50
@@ -129,9 +139,9 @@ extern "C" int psx_mod_replay_active(void){return 0;}
 namespace ttk {
 const char* aim_debug_json(){return "{}";}
 // D12A: the crosshair segment query (weapon_aim.cpp in the player build).
-static bool segment_hit;static double segment_point[3];
+static bool segment_hit;static double segment_point[3];static int segment_kind=2;
 bool view_segment_query(CPUState*,const double*,const double* to,double* hit,int& kind) {
-    kind=segment_hit?2:0;for(int i=0;i<3;++i)hit[i]=segment_hit?segment_point[i]:to[i];return true;
+    kind=segment_hit?segment_kind:0;for(int i=0;i<3;++i)hit[i]=segment_hit?segment_point[i]:to[i];return true;
 }
 static InputFrame input;
 static Cheat pending_cheat=Cheat::None;
@@ -1798,10 +1808,73 @@ int main(int argc,char** argv) {
                     ttk::input.held[ttk::fire]=true;frame();update();assert(metric("\"fire_starts\":")==starts+2);
                     ttk::input.held[ttk::fire]=false;psx_mod_write_word(p+0x3b8,eq);kick_calls.clear();
                 }
+                // D12C: a quick kick plays the wall-bump thud 0x2007 once, at the
+                // first contact the sphere reports or a wall (world) where the
+                // boot reaches; nothing for empty air or an actor the ray sees
+                // but the sphere does not touch.
+                auto thuds=[&](){return std::count_if(kick_calls.begin(),kick_calls.end(),[&](const KickCall& x){
+                    return x.address==0x8006b73c && x.a[0]==0x2007 && x.a[1]==p+4 && x.a[2]==0x800 && x.a[3]==48;});};
+                auto spheres=[&](){return std::count_if(kick_calls.begin(),kick_calls.end(),[](const KickCall& x){return x.address==0x800a979c;});};
+                auto quick=[&](unsigned frames){
+                    psx_mod_write_half(p+0x60,113);psx_mod_write_half(p+0x68,0);ttk::input.held[ttk::fire]=true;
+                    call(0x800493a4,p,0,0x8005a490,0x801fff00);ttk::input.held[ttk::fire]=false;kick_calls.clear();
+                    for(unsigned i=0;i<frames;++i){frame();update();}
+                };
+                {
+                    const double played=metric("\"played\":");
+                    quick(30);assert(spheres()>=4 && thuds()==0);                  // empty air
+                    ttk::segment_hit=true;ttk::segment_kind=2;
+                    for(int i=0;i<3;++i)ttk::segment_point[i]=(int32_t)psx_mod_read_word(c+0x14+4*i)+(int16_t)psx_mod_read_half(c+12+2*i)/4096.0*200;
+                    quick(30);assert(thuds()==0);                                  // an actor in view, not struck
+                    ttk::segment_hit=false;sphere_strike=true;quick(30);sphere_strike=false;
+                    assert(thuds()==1 && spheres()>=4);                           // struck: once, at the first contact
+                    assert(psx_mod_read_half(0x801e1000+0x6a)==3*5192);            // that sound at three times its table volume
+                    {
+                        size_t first_sphere=kick_calls.size(),thud=kick_calls.size();
+                        for(size_t i=0;i<kick_calls.size();++i){
+                            if(kick_calls[i].address==0x800a979c && first_sphere==kick_calls.size())first_sphere=i;
+                            if(kick_calls[i].address==0x8006b73c && kick_calls[i].a[0]==0x2007)thud=i;
+                        }
+                        assert(thud==first_sphere+1);
+                    }
+                    ttk::segment_hit=true;ttk::segment_kind=1;quick(30);assert(thuds()==1);   // a wall in reach
+                    ttk::segment_hit=false;ttk::segment_kind=2;
+                    assert(metric("\"played\":")==played+2);
+                    setenv("DNTTK_KICK_IMPACT","off",1);                          // read once: still on
+                    sphere_strike=true;quick(30);sphere_strike=false;assert(thuds()==1);unsetenv("DNTTK_KICK_IMPACT");
+                }
                 // Third person: the original request plays as before.
                 ttk::input.first_person=false;for(unsigned i=0;i<40;++i)frame();
                 psx_mod_write_half(p+0x60,112);psx_mod_write_half(p+0x68,0);
                 call(0x800493a4,p,0,0x8005a490,0x801fff00);assert(psx_mod_read_half(p+0x60)==112);
+                // D12C: the original kick's sphere call (ra 0x80049098) is made by
+                // the host with the same arguments; the original call is left a
+                // radius that touches nothing. One thud per kick animation.
+                {
+                    constexpr uint32_t foot=0x801e0000,ssp=0x801fe000;
+                    psx_mod_write_word(foot,100);psx_mod_write_word(foot+4,-200);psx_mod_write_word(foot+8,300);
+                    auto sphere=[&](uint32_t ra){
+                        CPUState cpu{};cpu.gpr[4]=foot;cpu.gpr[5]=96;cpu.gpr[6]=10;cpu.gpr[7]=200;cpu.gpr[29]=ssp;cpu.gpr[31]=ra;
+                        psx_mod_write_word(ssp+0x10,p);psx_mod_write_word(ssp+0x14,0);
+                        hooks().at(0x800a979c)(&cpu,0x800a979c);return cpu;
+                    };
+                    kick_calls.clear();
+                    auto miss=sphere(0x80049098);
+                    assert(miss.gpr[5]==0xf0000000u && spheres()==1 && thuds()==0);
+                    const KickCall& k=kick_calls[0];
+                    assert(k.a[0]==foot && k.a[1]==96 && k.a[2]==10 && k.a[3]==200 && k.stack[0]==p && k.stack[1]==0);
+                    sphere_strike=true;
+                    sphere(0x80049098);sphere(0x80049098);assert(spheres()==3 && thuds()==1);
+                    update();psx_mod_write_half(p+0x60,115);sphere(0x80049098);assert(thuds()==2); // next kick
+                    psx_mod_write_half(p+0x60,63);update();psx_mod_write_half(p+0x60,115);
+                    sphere(0x80049098);assert(thuds()==3);
+                    kick_calls.clear();
+                    assert(sphere(0x800a0000).gpr[5]==96 && kick_calls.empty());   // another caller
+                    ttk::modern=false;
+                    assert(sphere(0x80049098).gpr[5]==96 && kick_calls.empty());   // Vanilla
+                    ttk::modern=true;sphere_strike=false;
+                    psx_mod_write_half(p+0x60,112);
+                }
                 psx_mod_write_half(p+0x60,63);
                 psx_mod_write_word(0x800d21fc,saved_delta);psx_mod_write_half(p+0x364,saved_power);
                 ttk::input.first_person=true;for(unsigned i=0;i<40;++i)frame();
@@ -2453,5 +2526,5 @@ int main(int argc,char** argv) {
     std::puts("PASS: camera constraints, duplicate look, capture and original-camera gates");
     std::puts("PASS: Vanilla, actor/caller/overlay/code/state guards; movement/probe alignment; independent facing");
     std::puts("PASS: D08T1 pushable masks (D08T2 types up to 1061, grab-only climb mask, E-only idle grab mask; caller/actor/flags/Vanilla/capture) and camera-only grab lease");
-    std::puts("PASS: D12A first-person quick kick (boot request conversion from the attack only (E suppressed) and its guards, lease, sound, view-aimed hit sphere at the crosshair surface within reach, held attack with Boot, right-leg viewmodel with reversed thigh, third person untouched)");
+    std::puts("PASS: D12A first-person quick kick (boot request conversion from the attack only (E suppressed) and its guards, lease, sound, view-aimed hit sphere at the crosshair surface within reach, held attack with Boot, right-leg viewmodel with reversed thigh, third person untouched); D12C kick impact (thud (one octave up, three times its volume) once at the first sphere contact or a reachable wall, silent otherwise; third-person sphere made by the host, original neutralized, once per kick; Vanilla and other callers untouched)");
 }

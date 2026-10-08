@@ -115,7 +115,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D12 | First-person weapons and state polish | Done | D11 |
 | D12A | First-person quick kick without leaving the eye view | Done | D12 |
 | D12B | Costume-aware first-person kick leg, game-wide (LEVEL01 slots 8/9) | Accepted | D12A, D22A |
-| D12C | Kick impact sound on a real hit only (wall, crate, actor); empty-air and out-of-range kicks stay silent | Todo | D12A |
+| D12C | Kick impact sound on a real hit only (wall, crate, actor); empty-air and out-of-range kicks stay silent | Done (user-accepted) | D12A |
 | D11C | Savestates can keep Duke's first-person head hidden (slot 12) | Done | D11 |
 | D11D | First-person eye height from Duke's real proportions, game-wide (LEVEL01 slot 8) | Accepted | D11, D22A |
 | D11E | First person while swimming (underwater eye view, game-wide) | Todo | D08O, D11, D22B |
@@ -3165,8 +3165,20 @@ are right and LEVEL01 is not before changing anything, and keep them right.
 
 ### D12C - Kick impact sound on a real hit only
 
-**Todo. User request, 2026-10-08.** Small audio/game-feel job. Do not
-implement until selected.
+**Done - user accepted 2026-10-08:** "perfect!! fully accepted." Implemented 2026-10-08. A kick that connects plays the
+game's own wall-bump thud `0x2007` (bank 2 entry 7, SPU sample `0x1BAA0`, the
+bump call `0x8006b270(0x2007, Duke+4, 0x800)` at `0x800538bc`, no vocal in
+it), played one octave up at three times its table volume (user tuning), once,
+at the first contact (a still-playing `0x2007` from the wall bump is stopped
+first); empty air, missed and out-of-range kicks stay
+silent. Contact is the damage sphere's own hit result (it stores the attacker
+in its frame only on a hit); walls are the original segment query's world hit
+where the boot reaches. First-person quick kick and the third-person original
+kick (new entry hook `0x800A979C`, ra `0x80049098` only; the host makes the
+same sphere call and the original call is left touching nothing), Modernized
+only. See [note 131](documentation/131-d12c-kick-impact.md).
+
+User request, 2026-10-08. Small audio/game-feel job.
 
 **Problem.** When Duke's kick connects (a wall, a breakable crate, an enemy or
 another object that takes melee damage) there is little or no physical impact
@@ -10058,3 +10070,71 @@ in note 117 is the reference for future custom pickups.
 - New Todo D12C: a kick impact sound only when the boot really connects (wall,
   crate, actor), using the wall-collision thud the game already has (not
   Duke's grunt); empty-air and out-of-range kicks stay silent.
+
+## 2026-10-08 - D12C kick impact sound (Needs playtest)
+
+- **Sound:** the wall bump (`0x800537f4`..`0x800538bc`: animation 94/95, pad
+  rumble, `0x8006b270(0x2007, Duke+4, 0x800)`) plays `0x2007`, SPU sample
+  `0x1BAA0`; measured as the only new KEYON in the bump frame. No vocal in
+  that call. Guarded (208 bytes).
+- **Hit:** `0x800a979c` returns nothing; on a hit it stores the attacker at
+  `sp+0x10` of its frame and calls the struck object's handler. Host calls
+  clear and read that slot (`kick_call(..., &struck)`). Walls: original
+  segment query `0x8006d980`, kind 1, from Duke's body along the view's
+  heading at boot height (eye view) or from his root to the foot (third
+  person). One thud per kick, at the first contact.
+- **Third person:** new entry hook `0x800A979C` (one regenerated line; codegen
+  hash `8bab543c` unchanged, savestates load). For the kick case's call only
+  (ra `0x80049098`, Duke, 96, 10), Modernized with identity: the host makes
+  the same call, then gives the original radius `0xf0000000` (touches
+  nothing), so damage is applied once by the original routine.
+- **Evidence:** eye view: empty air, open ground looking down, missed and 800
+  away silent; pig cop 1 thud with the kick sound, damage as before; head-on
+  wall (bump 94 seen first) 1 thud per kick; garbage bag 1 thud and breaks as
+  before, silent after. Third person: club door 1 thud; pig cop 3 kicks, each
+  kill, 1 thud at first contact; with `DNTTK_KICK_IMPACT=off` (original call)
+  114 and 115 kill and 113 missed: the original's own spread of outcomes.
+  Vanilla route `d12c-vanilla` exit 0. `ttk-controls-test` (new D12C case,
+  LEVEL01, all levels), input, inventory, aim, near, font suites; Python 131
+  OK; overlay guards; `check_repo.py`. Executable
+  `3873288acd438d2e367ca2c0fffa20f0953134de61af7715522fec0ffcc87c98`.
+  [Note 131](documentation/131-d12c-kick-impact.md).
+- **Not yet verified:** the user's ear in play; a multi-kick crate (none in
+  the private saves); other levels.
+
+## 2026-10-08 - D12C revision: the thud one octave up (Needs playtest)
+
+- User: "i think i hear something but i cant tell if it's the right noise ...
+  it seems very quiet." Measured: 92% of `0x2007`'s energy is below 150 Hz;
+  street ambience masks it. User chose preview 2 (the same thud an octave up).
+- The impact uses `0x8006b73c(0x2007, Duke+4, 0x800, 48)`: the same call as
+  `0x8006b270` with the voice pitch byte as an argument (`0x40` = original);
+  measured SPU pitch `0x398` + 23 per step, 48 -> `0x7E8` (was `0x3F6`).
+  `DNTTK_KICK_IMPACT_PITCH` overrides it. Guards for `0x8006b73c` and the
+  pitch read `0x80068738`. Executable `b62af2b911cfdcc7c300ac025f00f1218b6f8c7439bbd8eda460ce9243283e3d`.
+  [Note 131](documentation/131-d12c-kick-impact.md).
+
+## 2026-10-08 - D12C revision: the thud at twice its volume (Needs playtest)
+
+- User: "double it's volume". Layering a second call does not work (the
+  routine refuses a second instance). The host doubles the impact sound's own
+  table volume `+0x6a` (5192 -> 10384, cap `0x3fff`) through the handle the
+  call returns; live voice volume measured `0xC2A` -> `0x1855` (right).
+  `DNTTK_KICK_IMPACT_GAIN=1..4` overrides. Guards for the volume reads.
+  Controls suite passes. Executable `de112f13e75afef2e31543f48f09ec58c49ba4f6ada9a93b914d2e66cf0d9dbd`.
+
+## 2026-10-08 - D12C revision: x3 volume; first kick at a wall no longer silent (Needs playtest)
+
+- User: multiplier 3; "sometimes ... the first kick doesnt make a noise ...
+  when holding kick down the first one is sometimes silent".
+- Default gain 3 (live `0xC2A` -> `0x2480`).
+- Cause: the sound routine refuses an id already playing (`0x8006b7b0`), and
+  walking into a wall plays the same `0x2007` quietly. Reproduced with
+  `sfx 0x2007` then a kick: no kick thud. Fix: stop a playing `0x2007` with
+  the game's stop `0x80068900` first; reproduction then plays the kick thud
+  (`replaced` 1). Guard added. Executable `7508b61525de474d12482cf32bbb524b5b48a6101fa5a903887a8f79edf55b7f`.
+
+## 2026-10-08 - D12C accepted
+
+- User: "perfect!! fully accepted." D12C Done. Executable
+  `7508b61525de474d12482cf32bbb524b5b48a6101fa5a903887a8f79edf55b7f` is the regression baseline.

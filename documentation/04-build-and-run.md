@@ -302,6 +302,15 @@ cache from the old workspace path; regenerate with `psxrecomp_cli.py
 generate` and build with `cmake --build --preset local-dev`. See
 [note 107](107-d08o1-swim-fire.md).
 
+## Kick impact (D12C)
+
+One hook (`0x800A979C`, the damage sphere; only the original kick's call is
+used) was added to `game.local.toml` and regenerated with
+`psxrecomp_cli.py generate` (see the D14 note above); codegen hash unchanged.
+The native test binaries are `EXCLUDE_FROM_ALL`: build them by target
+(`cmake --build --preset local-dev --target ttk-controls-test ...`) before
+running them. See [note 131](131-d12c-kick-impact.md).
+
 ## Weapon forward while swimming (D08O2)
 
 One hook (`0x800411B8`, the last call before the player update picks Duke's

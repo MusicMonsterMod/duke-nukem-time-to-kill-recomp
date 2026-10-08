@@ -1,5 +1,43 @@
 # Current status - 2026-10-04
 
+## 2026-10-08 - D12C accepted
+
+- User: "perfect!! fully accepted." Executable
+  `7508b61525de474d12482cf32bbb524b5b48a6101fa5a903887a8f79edf55b7f` is the regression baseline.
+- D12C: a connecting kick (first or third person, Modernized) plays the wall
+  bump thud `0x2007` one octave up at three times its volume, once at the
+  first contact; misses stay silent. [Note 131](131-d12c-kick-impact.md).
+
+## 2026-10-08 - D12C kick impact sound (Needs playtest)
+
+- **What:** in Modernized, a kick that connects (an enemy, a breakable or
+  other object, a wall) plays the game's own wall-bump thud `0x2007` once, at
+  the first contact; empty-air, missed and out-of-range kicks stay silent.
+  First-person quick kick and the third-person original kick.
+- **How:** the damage sphere `0x800a979c` stores the attacker in its own
+  frame only when it strikes something; host calls read that slot. Walls use
+  the original segment query where the boot reaches. Third person: new entry
+  hook `0x800A979C` (one regenerated line, codegen hash unchanged, savestates
+  load) makes the kick's sphere call on the host and leaves the original call
+  touching nothing, so damage is applied once. `DNTTK_KICK_IMPACT=off` turns it off.
+- **Evidence:** private runs on the first street and the alley (pig cop, club
+  door, garbage bag, head-on wall, empty air, floor, out of range); suites,
+  Python 131, Vanilla route. Executable
+  `3873288acd438d2e367ca2c0fffa20f0953134de61af7715522fec0ffcc87c98`.
+  [Note 131](131-d12c-kick-impact.md).
+- **Not yet verified:** the user's ear in play; a multi-kick crate; other levels.
+- **Revision (same day):** the user found it very quiet; 92% of the thud's
+  energy is below 150 Hz. It now plays one octave up (user's pick):
+  `0x8006b73c` with pitch byte 48, SPU pitch `0x7E8`. Executable
+  `b62af2b911cfdcc7c300ac025f00f1218b6f8c7439bbd8eda460ce9243283e3d`.
+- **Revision 2:** user asked to double its volume: the impact's own sound
+  object volume `+0x6a` is doubled (5192 -> 10384); live voice `0xC2A` ->
+  `0x1855`. Executable `de112f13e75afef2e31543f48f09ec58c49ba4f6ada9a93b914d2e66cf0d9dbd`.
+- **Revision 3:** multiplier 3 by default; the silent first kick at a wall
+  was the routine refusing a `0x2007` already playing (Duke's quiet wall
+  bump). A playing `0x2007` is now stopped first (`0x80068900`). Executable
+  `7508b61525de474d12482cf32bbb524b5b48a6101fa5a903887a8f79edf55b7f`.
+
 ## 2026-10-08 - D27A accepted; D12C queued
 
 - User: "i fully accept this. great work. i have wanted this one for a long

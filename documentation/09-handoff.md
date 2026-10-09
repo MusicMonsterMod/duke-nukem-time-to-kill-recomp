@@ -1,5 +1,11 @@
 # Next-session handoff
 
+## 2026-10-09 - D08O2B queued (swim-fire aims down again)
+
+- User: UI slot 3, swimming and firing points the weapon down again; slot 2
+  still aims forward. New Todo D08O2B (depends D08O2A; note 119). Still
+  queued: D08A22, D24D, D26G.
+
 ## 2026-10-09 - D08A20 accepted (option A square)
 
 - User: "fully accepted. ... this is it, excellent!!!" D08A20 Done; executable

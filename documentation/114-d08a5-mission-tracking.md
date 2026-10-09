@@ -1,13 +1,14 @@
 # D08A5 - Mission item tracking (mission inventory)
 
 Status: **Accepted** (2026-10-07, "i fully accept!"). Modernized only; Vanilla and the
-original Select inventory are unchanged. Built to the approved design E (board
-entry D08A5; mockup `drawE()` in `recomp/analysis/d24a-fonts/picker.template.html`,
-local).
+original Select inventory are unchanged. Shipped look is **design F** (board
+entry D08A5; mockup `drawF()` in `recomp/analysis/d24a-fonts/picker.template.html`,
+local). Design E was the first playtest (row under gadgets, `\` browsing) and is
+kept only as history in the picker.
 
 ## Player use
 
-Current design (user revision after the first playtest, 2026-10-07; see
+Current design **F** (user revision after the first playtest, 2026-10-07; see
 "Redesign" below):
 
 - `,` / `.` (Comma / Period) open the **mission inventory** in a level with

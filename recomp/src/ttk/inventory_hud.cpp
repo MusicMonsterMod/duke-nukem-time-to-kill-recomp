@@ -18,7 +18,7 @@ constexpr unsigned order[]={5,4,1,2,3}; // D08A4: steroids after the medkit, as 
 struct Sprite {int w,h;std::vector<uint32_t> rgba;};
 Sprite icons[6], cursor, digits[10], percent_glyph;
 bool icons_loaded, digits_loaded;
-// D08A5 mission row (approved design E). The level's mission items are the
+// D08A5 mission row (shipped design F). The level's mission items are the
 // original Select inventory's own list: its name function 0x80087d4c returns a
 // name for inventory item i (flag halfword player+0x354+4*i, bit 0 = held) per
 // level, or its "none" string. Decoded for levels 0-31; only these have any.

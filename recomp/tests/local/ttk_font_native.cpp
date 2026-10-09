@@ -14,7 +14,7 @@ int main(int argc,char**argv) {
     if(argc>2 && std::string(argv[2])=="invalid") {
         assert(!ttk_font_rasterize("God Mode: On",0,image.data(),1024,512,624,&w,&h));return 0;
     }
-    const char* texts[]={"God Mode: On","God Mode: Off","Giving Everything!","Got All Inventory","Got All Weapons/Ammo","Got All Keys","Steroids","Monsters: Off","Monsters: On","Ammo: 0123456789 !?.,:;+-/()[]", "Missing: \xc3\xa9 \xe2\x98\x83", "Long message with words that must wrap safely within a small window.","> spawn skeleton key"};
+    const char* texts[]={"God Mode: On","God Mode: Off","Giving Everything!","Got All Inventory","Got All Weapons/Ammo","Got All Keys","Steroids","Monsters: Off","Monsters: On","Play Zaxtor's Oblivion!","Ammo: 0123456789 !?.,:;+-/()[]", "Missing: \xc3\xa9 \xe2\x98\x83", "Long message with words that must wrap safely within a small window.","> spawn skeleton key"};
     for(int width:{304,624,1008})for(int style:{0,1,2,3})for(const char* text:texts) {
         if(!ttk_font_rasterize(text,style,image.data(),1024,512,width,&w,&h)){std::fprintf(stderr,"font failed style=%d width=%d text=%s\n",style,width,text);return 1;}
         assert(w<=width && h<=512);

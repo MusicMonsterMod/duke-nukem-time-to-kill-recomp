@@ -32,6 +32,7 @@ until the player later lands or enters gameplay.
 | `dnhealth` | Restore living Duke to 100 health |
 | `dnunlimited` | Toggle original unlimited ammo/charge mode |
 | `dnupgrade` | Original weapon upgrades for weapons 4/5/7/8/9/10 and the persistent mask (D08G3) |
+| `dntlod` | Fun notice only: "Play Zaxtor's Oblivion!" (D08G6); no state change |
 
 These are TTK equivalents: `dnstuff` does not promise Duke 3D items such as HoloDuke,
 D08G4 (2026-10-08): `dnstuff`, `dninventory` and `dnitems` also set armor

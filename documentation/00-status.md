@@ -1,5 +1,22 @@
 # Current status - 2026-10-04
 
+## 2026-10-09 - D08G6 accepted (`dntlod`)
+
+- User: "accepted!" D08G6 Done. Fun typed cheat shows "Play Zaxtor's
+  Oblivion!" only. Executable
+  `74cec66e398217530d0b8abc3fa0ccfe06308f6b73a17e5aafa628b3f0f2a540` is the
+  regression baseline. Queued: D08O2B, D08AA, D08A22, D24D, D26G.
+
+## 2026-10-09 - D08AA queued (unify walk/run speeds)
+
+- User: surface swim too slow; underwater and shallow/ankle-deep water force
+  run without Shift. New Todo D08AA - unify walking/running horizontal speeds
+  across land, shallow water, surface and underwater to the current land
+  baselines (Shift walk/run); shared path preferred; do not retune the
+  baselines here; keep swim physics, vertical move, transitions and swim-fire.
+  Test: UI slots 2-3 (swim), slot 8 (subway ankle-deep). Still queued:
+  D08O2B, D08A22, D24D, D26G.
+
 ## 2026-10-09 - D08O2B queued (swim-fire aims down again)
 
 - User: on the level in UI slot 3, swimming and firing points the weapon down

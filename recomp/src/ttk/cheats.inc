@@ -136,6 +136,7 @@ static void cheats_update(CPUState* cpu) {
         god_mode_update();
         input_notice(psx_mod_read_half(0x800c3cc6)?"God Mode: On":"God Mode: Off");return;
     case Cheat::Upgrade: upgrade_weapons();input_notice("Weapons Upgraded");return;
+    case Cheat::Tlod: input_notice("Play Zaxtor's Oblivion!");return;
     case Cheat::Unlimited:
         psx_mod_write_half(0x800c3cc4,!psx_mod_read_half(0x800c3cc4));
         input_notice(psx_mod_read_half(0x800c3cc4)?"Unlimited ammo ON":"Unlimited ammo OFF");return;

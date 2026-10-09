@@ -2,14 +2,15 @@
 #include <cstdint>
 #include <cstring>
 namespace ttk {
-enum class Cheat { None, Monsters, God, Stuff, Keys, Weapons, Inventory, Items, Ammo, Health, Unlimited, Hyper, Upgrade };
+enum class Cheat { None, Monsters, God, Stuff, Keys, Weapons, Inventory, Items, Ammo, Health, Unlimited, Hyper, Upgrade, Tlod };
 struct CheatCode {const char* text;Cheat action;};
 inline constexpr CheatCode cheat_codes[]={
     {"dnmonsters",Cheat::Monsters},{"dnkroz",Cheat::God},{"dncornholio",Cheat::God},
     {"dnstuff",Cheat::Stuff},{"dnkeys",Cheat::Keys},{"dnweapons",Cheat::Weapons},
     {"dninventory",Cheat::Inventory},{"dnitems",Cheat::Items},
     {"dnammo",Cheat::Ammo},{"dnhealth",Cheat::Health},{"dnunlimited",Cheat::Unlimited},
-    {"dnhyper",Cheat::Hyper},{"dnupgrade",Cheat::Upgrade}};
+    {"dnhyper",Cheat::Hyper},{"dnupgrade",Cheat::Upgrade},
+    {"dntlod",Cheat::Tlod}};
 // Physical letters match the existing PC action layer. D alone remains normal
 // strafing; DN enters cheat typing and consumes the remaining gameplay keys.
 struct CheatTyping {

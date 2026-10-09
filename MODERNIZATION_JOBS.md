@@ -4,7 +4,7 @@ This is the canonical job list for our **Duke Nukem: Time to Kill** PC project, 
 
 Invoke **`$continue-duke-recomp`** (Codex) or **`/continue-duke-recomp`** (Claude Code) to see the current jobs and choose one. You can also request a job directly: **`$continue-duke-recomp work on D01`** or **`/continue-duke-recomp work on D01`**. The skill reads this file rather than keeping a second backlog. It must not automatically start the next job.
 
-**Latest accepted job (2026-10-09): D08A20 (challenge item HUD, option A - 14x14 icon in a square); executable `a047b37bbb833b84902a3ad344fff2e16c22ae3dc0093ad441d80c3eb9235a95` is the regression baseline. Queued: D08O2B, D08A22, D24D, D26G.** Earlier (2026-10-09): D08A21 (14x14 HUD item icons; the 16x16 versions kept in `recomp/assets/ui/items/16px/`); executable `72429e350806e0639f36e50cff0cb969f18df1662a2336794e17bd2263614c21`.** Earlier (2026-10-08): D08A12 (modern dynamite: unlit until fire, switch away freely, next stick drawn after a throw); executable `2d54e00b64bcf38917e41db47805338f75977b0b63a0868cb962242ffaaadb9d` is the regression baseline. Queued: D24D, D26G.** Earlier (2026-10-08): D08A19 (used mission items: USED and the green tick); executable `d67705eba48232029a90647cc781f3201d0aae29799678466b2b5b9337b5dbe8`. Earlier (2026-10-08): D08Z2 (mantle pose; frozen legs after a corner bump); executable `bfd41760f9c66f2f03cf859f820f7b7d27cd8991e8ce1f304f5456ea29bf8986` is the regression baseline. D08Z3 (modern landing) accepted 2026-10-08; executable `11187493c04ae830482c47c93b97ac332fbfce1de95f8eedaa2f8637d7fe164e` is the new regression baseline. Queued: D24D, D26G, D08A19.** Earlier (2026-10-08): D08Z1 (jump wall slide); executable `3f909c9f2cc4e5b09ba6faab5129ec9ae0ff938c4735e264ac67a66405c1ed34`. Earlier (2026-10-08): D08A17 (power-up countdowns); executable `8f338cde1c2dc4cf73da747621cffafe2478512f6419078a41d11b0d3b9268a9`. Earlier accepted jobs (2026-10-08): D08A14 (death ends steroids), D08A15 (heartbeat restart; a pickup mid-run stops steroids) and D08G4 (inventory cheats give full armor); executable `87fe38d4f0ea8560312f53171345c207f332e26b6f4d2ed7220e1afae66ba472` is the regression baseline.** Earlier: D08J2 (pole/chain A/D direction), D08U2 (climb off a ladder past an enemy), D08O3 (E in water keeps the weapon) and D08O2A (natural swim-fire pose v2), 2026-10-07.** Previous baseline `e8eebb809c3d5a4b29779f11f0c9db55efcd846dc5c71b39d5a59d43158eb08e` (D08U2). **D08J2 (pole/chain A/D direction) Accepted 2026-10-07**: executable `129a64f2df3f5395f2d3485a310a03d74c85f9b1086c7dab37fee59277c7968b` is the current regression baseline ([note 122](documentation/122-d08j2-pole-chain-sidestep.md)). Todo: D08J4 (ceiling monkey-bar drops, UI slot 3), D08J3 (free camera while climbing). Previous baseline `e75b50f156137fa2377e4643407b2efbd16f2e976fa4d697afcbceb228e2e554` (D08O3). **D23E (western-town stutter) Accepted 2026-10-07**; **D08O2A Accepted** ([note 119](documentation/119-d08o2a-natural-swim-fire-pose.md)), **D08O3 Accepted** ([note 120](documentation/120-d08o3-e-in-water.md)); **D23F (fast CPU timing) Accepted 2026-10-05 and now the Modernized default**; executable `e0737a9f712aa5622d1b057ee5071e12c33cc9a18de8e6d40ee8eee31083f966` (includes D23E), [note 104](documentation/104-d23e-busy-scene-stutter.md), [note 105](documentation/105-d23f-fast-timing.md). Next suggested: D23G (finish the fast path) and D17S (auto frame-rate default).
+**Latest accepted job (2026-10-09): D08G6 (`dntlod` fun cheat); executable `74cec66e398217530d0b8abc3fa0ccfe06308f6b73a17e5aafa628b3f0f2a540` is the regression baseline. Queued: D08O2B, D08AA, D08A22, D24D, D26G.** Earlier (2026-10-09): D08A20 (challenge item HUD, option A - 14x14 icon in a square); executable `a047b37bbb833b84902a3ad344fff2e16c22ae3dc0093ad441d80c3eb9235a95`.** Earlier (2026-10-09): D08A21 (14x14 HUD item icons; the 16x16 versions kept in `recomp/assets/ui/items/16px/`); executable `72429e350806e0639f36e50cff0cb969f18df1662a2336794e17bd2263614c21`.** Earlier (2026-10-08): D08A12 (modern dynamite: unlit until fire, switch away freely, next stick drawn after a throw); executable `2d54e00b64bcf38917e41db47805338f75977b0b63a0868cb962242ffaaadb9d` is the regression baseline. Queued: D24D, D26G.** Earlier (2026-10-08): D08A19 (used mission items: USED and the green tick); executable `d67705eba48232029a90647cc781f3201d0aae29799678466b2b5b9337b5dbe8`. Earlier (2026-10-08): D08Z2 (mantle pose; frozen legs after a corner bump); executable `bfd41760f9c66f2f03cf859f820f7b7d27cd8991e8ce1f304f5456ea29bf8986` is the regression baseline. D08Z3 (modern landing) accepted 2026-10-08; executable `11187493c04ae830482c47c93b97ac332fbfce1de95f8eedaa2f8637d7fe164e` is the new regression baseline. Queued: D24D, D26G, D08A19.** Earlier (2026-10-08): D08Z1 (jump wall slide); executable `3f909c9f2cc4e5b09ba6faab5129ec9ae0ff938c4735e264ac67a66405c1ed34`. Earlier (2026-10-08): D08A17 (power-up countdowns); executable `8f338cde1c2dc4cf73da747621cffafe2478512f6419078a41d11b0d3b9268a9`. Earlier accepted jobs (2026-10-08): D08A14 (death ends steroids), D08A15 (heartbeat restart; a pickup mid-run stops steroids) and D08G4 (inventory cheats give full armor); executable `87fe38d4f0ea8560312f53171345c207f332e26b6f4d2ed7220e1afae66ba472` is the regression baseline.** Earlier: D08J2 (pole/chain A/D direction), D08U2 (climb off a ladder past an enemy), D08O3 (E in water keeps the weapon) and D08O2A (natural swim-fire pose v2), 2026-10-07.** Previous baseline `e8eebb809c3d5a4b29779f11f0c9db55efcd846dc5c71b39d5a59d43158eb08e` (D08U2). **D08J2 (pole/chain A/D direction) Accepted 2026-10-07**: executable `129a64f2df3f5395f2d3485a310a03d74c85f9b1086c7dab37fee59277c7968b` is the current regression baseline ([note 122](documentation/122-d08j2-pole-chain-sidestep.md)). Todo: D08J4 (ceiling monkey-bar drops, UI slot 3), D08J3 (free camera while climbing). Previous baseline `e75b50f156137fa2377e4643407b2efbd16f2e976fa4d697afcbceb228e2e554` (D08O3). **D23E (western-town stutter) Accepted 2026-10-07**; **D08O2A Accepted** ([note 119](documentation/119-d08o2a-natural-swim-fire-pose.md)), **D08O3 Accepted** ([note 120](documentation/120-d08o3-e-in-water.md)); **D23F (fast CPU timing) Accepted 2026-10-05 and now the Modernized default**; executable `e0737a9f712aa5622d1b057ee5071e12c33cc9a18de8e6d40ee8eee31083f966` (includes D23E), [note 104](documentation/104-d23e-busy-scene-stutter.md), [note 105](documentation/105-d23f-fast-timing.md). Next suggested: D23G (finish the fast path) and D17S (auto frame-rate default).
 
 ## The experience we are building
 
@@ -56,7 +56,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08A13 | Steroids independent of damage and armor: being hit never shortens the steroid countdown (Modern) | Done (user-accepted) | D08A4, D08A8, D08A11 |
 | D08A14 | Death and Continue end steroids: no running effect after Continue, steroids gone from the inventory (Modern) | Done (user-accepted) | D08A4, D08A13 |
 | D08A15 | Steroids heartbeat silent for a few seconds when steroids restart before the previous run ends; a pickup mid-run stops them, full dose held | Done (user-accepted) | D08A10, D08A13 |
-| D08A5 | Mission item tracking: mission inventory on , / . (design E, revised) | Done | D08A1, D08A3, D24A |
+| D08A5 | Mission item tracking: mission inventory on , / . (design F; E superseded) | Done | D08A1, D08A3, D24A |
 | D08A6 | Selected gadget shown on the HUD: original item slot (design A) | Done | D08A1, D08A3 |
 | D08A7 | Custom medkit gadget icon (switcher strip and HUD box) | Done | D08A6 |
 | D08B | Broader traversal and scripted-camera coverage | Done | D08 |
@@ -76,6 +76,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08G3 | `dnupgrade` cheat: upgrade all weapons (Laser Gatling etc.) | Accepted | D08G2 |
 | D08G4 | `dnstuff`, `dnitems`, `dninventory` also give 100% armor; running steroids stop and a full dose is held | Done (user-accepted) | D08G |
 | D08G5 | Partial cheat entry causes mouse-look stutter until another key breaks the sequence | Todo | D08G2 |
+| D08G6 | Fun cheat `dntlod`: show "Play Zaxtor's Oblivion!" | Done (user-accepted) | D08G2 |
 | D08H | Apartment furniture, hidden pickup and switch targeting | Done | D08 |
 | D08I | Responsive run-start and edge jumps | Done | D08 |
 | D08J | Armed airborne ladder grabs and automatic weapon transitions | Done | D08, D08E |
@@ -87,6 +88,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08O2 | Weapon points forward while swimming and firing in motion (v1: upper body to the view) | Accepted | D08O1 |
 | D08O2A | Natural swim-fire pose v2: torso stays in the stroke, arms raised to fire and head looking up | Accepted | D08O2 |
 | D08O2B | Swim-fire aims down again (regression): weapon points down while swimming and firing (player UI slot 3; slot 2 still correct) | Todo | D08O2A |
+| D08AA | Unify walking/running speeds across land, shallow water, surface swim and underwater | Todo | D08, D08M, D08O |
 | D08O3 | E in water keeps the weapon: redraw when no climb-out follows the stow | Accepted | D08O1 |
 | D08N | Duke3D-style scuba gear item | Cancelled (out of scope) | — |
 | D08P | Crystal-2 turret / scripted-camera control recovery | Done | D08 |
@@ -1397,18 +1399,18 @@ on a missing (not found yet) item.
 - Not done: a card reader or key door live; levels other than 0; a real
   playtest.
 
-### D08A5 - Mission item tracking in the item switcher (approved design E)
+### D08A5 - Mission item tracking (shipped design F)
 
 **Done on user acceptance (2026-10-07): "i fully accept!"** Redesigned by the
-user after the first try.
-Mission items are now their own **mission inventory** on `,` / `.` (previous /
-next), shown in the switcher's place with the item card at the top; `[` / `]`
-show gadgets only; Enter / U while it is open just close it. Original strafe
-(Comma/Period) is unbound by default; profile schema 28. The `\` binding and
-the original spec's items 2-3 (row under the gadgets, `\` browsing) are
-superseded. Data is the original Select inventory's own per-level list (name
-function `0x80087d4c`). Not done: controller input. See
-[note 114](documentation/114-d08a5-mission-tracking.md).
+user after the first try. The shipped look is **design F**: the mission row on
+its own with `,` / `.` (previous / next) and the info card at the top. Design E
+(row under the gadgets, `\` browsing) was the first playtest and is superseded.
+`[` / `]` show gadgets only; Enter / U while the mission inventory is open try
+the browsed item (D08A18). Original strafe (Comma/Period) is unbound by
+default; profile schema 28. Data is the original Select inventory's own
+per-level list (name function `0x80087d4c`). Not done: controller input. See
+[note 114](documentation/114-d08a5-mission-tracking.md). Font-picker section 8
+labels F as shipped and keeps A-E as history.
 
 **User request and approved design, 2026-10-07.** "lock it in and stand
 up a ticket to get that built in the game". For the first time, the game shows
@@ -1982,6 +1984,7 @@ Change supported-code success messages, preserving capitalization and punctuatio
 | `dnweapons` | `Got All Weapons/Ammo` |
 | `dnkeys` | `Got All Keys` |
 | `dnhyper` | `Steroids` |
+| `dntlod` | `Play Zaxtor's Oblivion!` (D08G6; fun notice only) |
 | `dnmonsters` | `Monsters: Off` when hidden / `Monsters: On` when shown |
 
 **Acceptance:** verify each supported result and both toggle directions on screen;
@@ -2103,6 +2106,23 @@ started for this ticket.
    entry and confirmation behavior preserved.
 3. Invalid/cancelled sequences leave no lingering input suppression or camera
    disturbance; Vanilla behavior remains unchanged.
+
+### D08G6 - Fun cheat `dntlod`: "Play Zaxtor's Oblivion!"
+
+**Done (user-accepted, 2026-10-09).** Typed cheat `dntlod` shows the centered
+confirmation `Play Zaxtor's Oblivion!` only (same silent entry and solid-ground
+notice path as the other D08G cheats). No game-state change. Executable
+`74cec66e398217530d0b8abc3fa0ccfe06308f6b73a17e5aafa628b3f0f2a540` is the
+regression baseline.
+
+**Work log:** `Cheat::Tlod` / `dntlod` in `cheat_codes.h`; `cheats.inc` calls
+`input_notice("Play Zaxtor's Oblivion!")` and returns. Manual, note 38 and the
+D08G1 wording table updated. `ttk-input-test` PASS (types every code including
+`dntlod`); `ttk-font-test` PASS with the new string. User: "accepted!"
+
+**Acceptance:** in Modernized, on solid ground with capture, typing `dntlod`
+shows that message once and does nothing else; other cheats and Vanilla
+unchanged; the user confirms.
 
 ### D08H — Apartment furniture, hidden pickup and switch targeting
 
@@ -2432,6 +2452,42 @@ Vanilla unchanged.
 **Acceptance:** in Modernized, swimming and firing in the slot 3 repro aims
 at the crosshair as in slot 2; single shots and held fire stay forward through
 raise / fire / lower; slot 2 and other accepted swim-fire cases unchanged;
+Vanilla unchanged; the user confirms.
+
+### D08AA - Unify walking/running speeds across movement states
+
+**Todo (queued 2026-10-09).** User request: fix and unify Duke's horizontal
+walking and running speeds across all movement environments - land, shallow
+water, surface swimming and underwater swimming - rather than per-state
+workarounds.
+
+**Current issues (Modernized):**
+- Surface swimming is unusually slow.
+- Underwater swimming always moves at running speed.
+- Shallow water (including ankle-deep) forces running speed even without Shift.
+
+**Expected behaviour (Modernized):**
+- Shift released = normal walking speed; Shift held = normal running speed.
+- Both speeds match the existing land walking and running baselines in every
+  movement state, regardless of water depth.
+- Prefer one shared speed path so a later global walk/run retune applies
+  everywhere. Do not change those land baselines in this job; a separate job
+  will adjust them.
+
+**Scope:** investigate the underlying horizontal movement calculations and
+implement a consistent Modernized solution. Preserve swimming physics,
+vertical movement, water transitions, and the accepted swim-and-fire work
+(D08O1 / D08O2 / D08O2A). Vanilla unchanged.
+
+**Test saves (dated private copies only; never the live player card):**
+- UI slots 2-3: surface and underwater swimming.
+- UI slot 8: ankle-deep water in the subway.
+
+**Acceptance:** in Modernized, walk and run horizontal speeds on land, in
+shallow water, on the surface and underwater match the current land walk/run
+baselines under the same Shift state; surface swim is no longer unusually
+slow; underwater and shallow water no longer force run without Shift; swim
+physics, vertical move, water transitions and swim-fire stay as accepted;
 Vanilla unchanged; the user confirms.
 
 ### D08O3 - E in water keeps the weapon

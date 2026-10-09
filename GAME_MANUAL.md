@@ -1102,6 +1102,7 @@ start away from ledges. F10 toggles capture; Escape or focus loss cancels typing
 | `dnhealth` | Restore 100 health |
 | `dnunlimited` | Toggle unlimited ammo/charges |
 | `dnupgrade` | Upgrade every weapon (Laser Gatling, Incendiary RPG, HiTemp Flamethrower, plus Desert Eagle, Shotgun and Energy Weapon); weapons picked up later arrive upgraded, and the upgrade stays through saves |
+| `dntlod` | Just for fun: shows "Play Zaxtor's Oblivion!" |
 
 The three inventory cheats (`dnstuff`, `dninventory`, `dnitems`) treat steroids the same way: a running dose stops and comes back as a full held dose (Modernized portable steroids). Armor and steroids are separate, so the armor grant never changes the steroids.
 

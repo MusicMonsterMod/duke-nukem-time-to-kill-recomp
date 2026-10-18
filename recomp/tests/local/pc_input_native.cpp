@@ -426,6 +426,29 @@ int main() {
     for(char c:std::string("stuff")){key(SDL_Scancode(SDL_SCANCODE_A+c-'a'),true);key(SDL_Scancode(SDL_SCANCODE_A+c-'a'),false);tick();}
     CHECK(ttk::input_take_cheat()==ttk::Cheat::Stuff && ttk::input_take_cheat()==ttk::Cheat::None);
     CHECK(tick().command_count==0 && tick().move_x==0);
+    // D08G5: a pending prefix keeps mouse look live in the same epoch, and the
+    // key that breaks it acts at once (no second press needed).
+    for(const char* prefix:{"dnstu","dnk","dnmon","dnwea","dnu"}) {
+        for(const char* c=prefix;*c;++c){key(SDL_Scancode(SDL_SCANCODE_A+*c-'a'),true);key(SDL_Scancode(SDL_SCANCODE_A+*c-'a'),false);tick();}
+        CHECK(ttk::input_pad()==65535);
+        const auto before=tick();
+        for(int n=0;n<20;++n){motion(15,-4);const auto& f=tick();CHECK(f.epoch==before.epoch);}
+        const auto after=tick();
+        CHECK(after.total_x-before.total_x==300 && after.total_y-before.total_y==-80);
+        key(SDL_SCANCODE_W,true);CHECK(tick().move_y==1);key(SDL_SCANCODE_W,false);CHECK(tick().move_y==0);
+        CHECK(ttk::input_take_cheat()==ttk::Cheat::None);
+    }
+    // Space and a mouse click also break a prefix and keep their normal action.
+    for(char c:std::string("dnst")){key(SDL_Scancode(SDL_SCANCODE_A+c-'a'),true);key(SDL_Scancode(SDL_SCANCODE_A+c-'a'),false);tick();}
+    key(SDL_SCANCODE_SPACE,true);key(SDL_SCANCODE_SPACE,false);
+    for(char c:std::string("uff")){key(SDL_Scancode(SDL_SCANCODE_A+c-'a'),true);key(SDL_Scancode(SDL_SCANCODE_A+c-'a'),false);tick();}
+    CHECK(ttk::input_take_cheat()==ttk::Cheat::None);
+    for(char c:std::string("dnst")){key(SDL_Scancode(SDL_SCANCODE_A+c-'a'),true);key(SDL_Scancode(SDL_SCANCODE_A+c-'a'),false);tick();}
+    {SDL_Event e{};e.type=SDL_MOUSEBUTTONDOWN;e.button.windowID=SDL_GetWindowID(win);e.button.button=SDL_BUTTON_LEFT;ttk::input_event(e);
+     e.type=SDL_MOUSEBUTTONUP;ttk::input_event(e);}
+    for(char c:std::string("uff")){key(SDL_Scancode(SDL_SCANCODE_A+c-'a'),true);key(SDL_Scancode(SDL_SCANCODE_A+c-'a'),false);tick();}
+    CHECK(ttk::input_take_cheat()==ttk::Cheat::None);
+    for(int n=0;n<250;++n)tick();
     for(auto code:ttk::cheat_codes) {
         for(const char* c=code.text;*c;++c){key(SDL_Scancode(SDL_SCANCODE_A+*c-'a'),true);key(SDL_Scancode(SDL_SCANCODE_A+*c-'a'),false);tick();}
         CHECK(ttk::input_take_cheat()==code.action && ttk::input_take_cheat()==ttk::Cheat::None);

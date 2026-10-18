@@ -1,5 +1,21 @@
 # Current status - 2026-10-04
 
+## 2026-10-18 - D08G5 accepted
+
+- User: "perfect!!". D08G5 Done; executable
+  `18597e61f8fe332da32aff5154465d533dd852e6baefde24017766b109f23b79` is the regression baseline.
+  Still queued: D19G, D19F, D08O2B, D08AA, D24D, D26G.
+
+## 2026-10-18 - D08G5 partial cheat entry keeps mouse look (Needs playtest)
+
+- While `dn...` was pending, the input layer dropped all mouse events (so the
+  camera stalled) and the key that broke the sequence was eaten. Now typing
+  owns the keyboard only: mouse look and wheel stay live, a click cancels the
+  prefix and acts, and a breaking key (W, Space, ...) acts at once.
+  `ttk-input-test` PASS (new check fails on the old source). Executable
+  `18597e61f8fe332da32aff5154465d533dd852e6baefde24017766b109f23b79`.
+  Still queued: D19G, D19F, D08O2B, D08AA, D24D, D26G.
+
 ## 2026-10-18 - D08A22 accepted
 
 - User: "fully accepted!!". D08A22 Done; executable

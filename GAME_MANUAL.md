@@ -1164,6 +1164,9 @@ direction together with X climbs instead.
 Stand on solid ground with mouse capture active and type a code directly—no console
 or Enter. A message confirms the result. The first D can move Duke slightly, so
 start away from ledges. F10 toggles capture; Escape or focus loss cancels typing.
+The mouse keeps turning the camera while you type. Any key that is not the next
+letter of a code (W, Space and so on) or a mouse click cancels the code and does
+its normal job straight away.
 
 | Code | Effect |
 | --- | --- |

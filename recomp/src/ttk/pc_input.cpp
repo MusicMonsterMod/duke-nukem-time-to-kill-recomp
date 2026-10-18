@@ -159,6 +159,11 @@ static void clear() {
     ++epoch; total_x = total_y = 0; look_n=0; look_cx=look_cy=0;
     device = Device::None;
 }
+// Cheat typing stops held movement keys without touching mouse look (D08G5).
+static void release_keys() {
+    std::memset(keys, 0, sizeof keys);
+    jump_deadline=jump_pressed_at=0;
+}
 static bool relative(bool enabled) {
 #if defined(PSX_SDL3)
     return SDL_SetWindowRelativeMouseMode(window, enabled);
@@ -394,17 +399,20 @@ void input_event(const SDL_Event& e) {
                          captured ? " (F10 releases)" : "");
             return;
         }
+        // D08G5: typing only owns the keyboard. Mouse look stays live, and a key
+        // that breaks the sequence acts at once as its normal gameplay key.
         if(captured && !(mods&(KMOD_CTRL|KMOD_ALT|KMOD_GUI))) {
             const bool typing=cheat_typing.active();
             if(pressed && code>=SDL_SCANCODE_A && code<=SDL_SCANCODE_Z) {
                 auto result=cheat_typing.feed(char('a'+code-SDL_SCANCODE_A),sequence);
-                if(typing || cheat_typing.active() || result!=Cheat::None) {
-                    if(!typing) {auto parser=cheat_typing;clear();cheat_typing=parser;}
+                if(cheat_typing.active() || result!=Cheat::None) {
+                    if(!typing)release_keys();
                     if(result!=Cheat::None) {cheat_pending=result;cheat_deadline=sequence+120;}
                     return;
                 }
-            } else if(typing && code!=SDL_SCANCODE_ESCAPE && code!=SDL_SCANCODE_F10) {
-                if(pressed) clear();
+            } else if(typing && pressed) {
+                cheat_typing.reset();
+            } else if(typing) {
                 return;
             }
         }
@@ -468,10 +476,9 @@ void input_event(const SDL_Event& e) {
             if(weapon_drawn())input_notice("WEAPON LOWERED");
             else if(weapon_holstered() || fire_draw_ready())input_notice("WEAPON RAISED");
         }
-    } else if (cheat_typing.active()) {
-        return;
     } else if (e.type == SDL_MOUSEBUTTONDOWN || e.type == SDL_MOUSEBUTTONUP) {
         if (e.button.windowID != SDL_GetWindowID(window)) return;
+        if(e.type==SDL_MOUSEBUTTONDOWN)cheat_typing.reset();
         if (captured && e.button.button < 6) {
             mouse[e.button.button] = e.type == SDL_MOUSEBUTTONDOWN;
             if(e.type==SDL_MOUSEBUTTONDOWN && binds[inventory]==-int(e.button.button)) {

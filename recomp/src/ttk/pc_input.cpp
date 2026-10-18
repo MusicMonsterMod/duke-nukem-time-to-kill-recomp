@@ -646,16 +646,21 @@ void input_frame() {
     }
     // Diagnostics only (DNTTK_TEST_INPUT=<file>): a script steers the
     // offscreen game. The file is re-read every input frame: held key names
-    // (w a s d shift ctrl space e q up down enter) and dx=<counts> dy=<counts>
+    // (w a s d shift ctrl space e q up down enter left right x z c esc) and
+    // dx=<counts> dy=<counts>
     // per frame.
     // Never set by run.py.
     static const char* test_input=std::getenv("DNTTK_TEST_INPUT");
     if(test_input && modern) {
-        focused=captured=true;
+        // DNTTK_TEST_UNCAPTURED: menus as a player sees them (X/Z/C are pad buttons).
+        static const bool uncaptured=std::getenv("DNTTK_TEST_UNCAPTURED")!=nullptr;
+        focused=true; captured=!uncaptured;
         static const struct {const char* name;SDL_Scancode code;} named[]={{"w",SDL_SCANCODE_W},{"a",SDL_SCANCODE_A},
             {"s",SDL_SCANCODE_S},{"d",SDL_SCANCODE_D},{"shift",SDL_SCANCODE_LSHIFT},{"ctrl",SDL_SCANCODE_LCTRL},
             {"space",SDL_SCANCODE_SPACE},{"e",SDL_SCANCODE_E},{"q",SDL_SCANCODE_Q},
-            {"up",SDL_SCANCODE_UP},{"down",SDL_SCANCODE_DOWN},{"enter",SDL_SCANCODE_RETURN}};
+            {"up",SDL_SCANCODE_UP},{"down",SDL_SCANCODE_DOWN},{"enter",SDL_SCANCODE_RETURN},
+            {"left",SDL_SCANCODE_LEFT},{"right",SDL_SCANCODE_RIGHT},{"x",SDL_SCANCODE_X},{"z",SDL_SCANCODE_Z},
+            {"c",SDL_SCANCODE_C},{"esc",SDL_SCANCODE_ESCAPE}};
         bool was[sizeof named/sizeof named[0]];
         for(size_t i=0;i<sizeof named/sizeof named[0];++i){was[i]=keys[named[i].code];keys[named[i].code]=false;}
         if(FILE* f=std::fopen(test_input,"r")) {

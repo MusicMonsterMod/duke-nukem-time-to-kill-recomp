@@ -144,8 +144,14 @@ in-between pictures like gameplay, and the demo still plays exactly as
 recorded. Menu text and the highlighted entry still change at the original
 rate, but in Modernized above 60 the new highlight or screen appears about a
 tenth of a second sooner than before. In Modernized, a quick tap on a menu key is held until the menu has
-read it, so short presses are no longer lost; holding a key repeats as
-before. The intro movie and Vanilla are unchanged.
+read it, so short presses are no longer lost, even while a loading screen
+plays behind the menu or on LOAD GAME (where the memory card slows the
+game's reading of the controller). Quick taps made while one is still
+waiting are kept and carried out in order. While the next demo scene starts
+loading, the original hides the menu for about two seconds; keys pressed then
+take effect when it comes back. Over the spinning logo the menu responds as
+quickly as over the demo. Holding a key repeats as before. The intro movie
+and Vanilla are unchanged.
 
 Loading screens (the spinning radiation logo) are smooth as well: above 60 the
 logo turns evenly at your frame rate instead of stepping 10 times a second

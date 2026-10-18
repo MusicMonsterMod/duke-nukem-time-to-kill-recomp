@@ -105,21 +105,32 @@ bool replay_context() {return replay_gameplay_context() || frontend_live() || lo
 // screen changes reach the screen one image interval (about 100 ms) sooner,
 // while the world keeps the same interpolated motion.
 // DNTTK_FRONTEND_NEWEST=off (developer) draws from the older image (D17T).
+// D19E: the same for loading images in the frontend (the main menu over the
+// spinning logo while a demo scene loads): drawn from the newer image with
+// the logo angle interpolated, so the menu reaches the screen one image
+// sooner there too. DNTTK_LOADING_NEWEST=off (developer) keeps D17U's base.
 constexpr uint32_t frontend_state=0x800d24e4, menu_cursor=0x800d24e6;
 bool frontend_newest() {static const bool v=[]{const char* t=std::getenv("DNTTK_FRONTEND_NEWEST");return !(t && !std::strcmp(t,"off"));}();return v;}
+bool loading_newest() {static const bool v=[]{const char* t=std::getenv("DNTTK_LOADING_NEWEST");return !(t && !std::strcmp(t,"off"));}();return v;}
 // Diagnostics: the frontend state and cursor an image shows, and per menu
 // change the time from the press to the guest image and to the screen.
-uint32_t menu_signature() {return (uint32_t)psx_mod_read_half(frontend_state)<<16|psx_mod_read_half(menu_cursor);}
-struct MenuLatency {double press_ms=0, guest_ms=-1, screen_ms=-1; uint32_t from=0, to=0, fields=0;};
-MenuLatency menu_latency[16]; unsigned menu_latency_n=0;
+// D19E: also the options sub-screen 0x800d24d2 and, for sub-menus with their
+// own cursor, a halfword named by DNTTK_MENU_WATCH (developer, hex address).
+uint32_t menu_signature() {
+    static const uint32_t watch=[]{const char* e=std::getenv("DNTTK_MENU_WATCH");return e?(uint32_t)std::strtoul(e,nullptr,16):0u;}();
+    const uint32_t extra=(uint32_t)psx_mod_read_half(0x800d24d2)<<8 ^ (watch ? (uint32_t)psx_mod_read_half(watch)<<10 : 0u);
+    return ((uint32_t)psx_mod_read_half(frontend_state)<<16|psx_mod_read_half(menu_cursor))^extra;
+}
+struct MenuLatency {double press_ms=0, guest_ms=-1, screen_ms=-1; uint32_t from=0, to=0, fields=0; bool loading=false;};
+MenuLatency menu_latency[32]; unsigned menu_latency_n=0;
 uint32_t captured_menu=0, shown_menu=0;
 const char* menu_latency_json() {
-    static char buf[1400];
+    static char buf[3600];
     int n=std::snprintf(buf,sizeof buf,"[");
-    const unsigned first=menu_latency_n>16?menu_latency_n-16:0;
+    const unsigned first=menu_latency_n>32?menu_latency_n-32:0;
     for(unsigned i=first;i<menu_latency_n && n<(int)sizeof buf-100;++i) {
-        const MenuLatency& l=menu_latency[i%16];
-        n+=std::snprintf(buf+n,sizeof buf-n,"%s{\"from\":\"%x\",\"to\":\"%x\",\"fields\":%u,\"guest_ms\":%.1f,\"screen_ms\":%.1f}",i>first?",":"",l.from,l.to,l.fields,l.guest_ms,l.screen_ms);
+        const MenuLatency& l=menu_latency[i%32];
+        n+=std::snprintf(buf+n,sizeof buf-n,"%s{\"from\":\"%x\",\"to\":\"%x\",\"fields\":%u,\"guest_ms\":%.1f,\"screen_ms\":%.1f,\"loading\":%d}",i>first?",":"",l.from,l.to,l.fields,l.guest_ms,l.screen_ms,(int)l.loading);
     }
     std::snprintf(buf+n,sizeof buf-n,"]");
     return buf;
@@ -335,6 +346,7 @@ struct Frame {
     bool loading=false;    // D17U: a loading screen image (also frontend: game-owned view)
     uint16_t logo=0;       // D17U: logo angle this image shows
     uint32_t menu=0;       // D19C: frontend state and cursor (diagnostic)
+    bool menu_mode=false;  // D19E: captured in game mode 0 (frontend menus can be drawn)
     uint32_t shows[max_jobs]; // D19C: menu signature of the image each redraw is drawn from
 };
 Frame frames[slots];
@@ -684,13 +696,18 @@ int submit_job(Frame& base,const Frame& next,double alpha,bool late,double look_
         // D17U: the shortest way round between the two images' angles.
         const double a=interp_off ? 0.0 : interp_full ? 1.0 : alpha;
         const int turn=(((int)next.logo-(int)base.logo+2048)%4096+4096)%4096-2048;
+        // D19E: in the frontend, draw from the newer image (menu text and
+        // highlight one image sooner); the angle is the same interpolation.
+        const Frame& drawn=next.loading && base.menu_mode && next.menu_mode && loading_newest() ? next : base;
         Params p{};
-        p.magic=0x54544b32u; p.alpha=(float)a; p.flags=4; p.near=base.near;
+        p.magic=0x54544b32u; p.alpha=(float)a; p.flags=4; p.near=drawn.near;
         p.logo=((int)base.logo+(int)std::lround(turn*a))&0xfff;
         std::memcpy(param_buffer,&p,sizeof p);
-        const uint32_t len=append_render(base,param_buffer,sizeof p);
-        const int job=psx_mod_replay_submit(base.slot,param_buffer,len,base.serial);
+        const uint32_t len=append_render(drawn,param_buffer,sizeof p);
+        // Tagged with the base serial (released with the base frame).
+        const int job=psx_mod_replay_submit(drawn.slot,param_buffer,len,base.serial);
         if(job>=0) ++submits;
+        submitted_menu=drawn.menu;
         return job;
     }
     if(base.frontend && next.frontend && !next.loading && frontend_newest()) {
@@ -908,15 +925,16 @@ void capture(CPUState* cpu,int kind) {
     f->frontend=kind!=gameplay_image;
     f->loading=kind==loading_image_kind;
     f->logo=f->loading ? drawn_logo_angle() : 0;
-    f->menu=kind==frontend_image ? menu_signature() : 0;
-    if(kind==frontend_image && f->menu!=captured_menu) {
+    f->menu_mode=psx_mod_read_half(game_mode)==0;
+    f->menu=kind==frontend_image || (f->loading && f->menu_mode) ? menu_signature() : 0;
+    if(f->menu && f->menu!=captured_menu) {
         // D19C diagnostics: a new menu image. Pair it with a press made since
         // the previous change (within 1 s).
         const double press=ttk_frontend_press_ms();
-        MenuLatency& last=menu_latency[(menu_latency_n+15)%16];
-        if(captured_menu && press>0 && host_now-press<1000.0 && (!menu_latency_n || press>last.press_ms)) {
-            MenuLatency& e=menu_latency[menu_latency_n++%16];
-            e=MenuLatency{}; e.press_ms=press; e.guest_ms=host_now-press; e.from=captured_menu; e.to=f->menu; e.fields=(uint32_t)(field-ttk_frontend_press_field());
+        MenuLatency& last=menu_latency[(menu_latency_n+31)%32];
+        if(captured_menu && press>0 && host_now-press<3000.0 && (!menu_latency_n || press>last.press_ms)) {
+            MenuLatency& e=menu_latency[menu_latency_n++%32];
+            e=MenuLatency{}; e.press_ms=press; e.guest_ms=host_now-press; e.from=captured_menu; e.to=f->menu; e.fields=(uint32_t)(field-ttk_frontend_press_field()); e.loading=f->loading;
         }
         captured_menu=f->menu;
     }
@@ -1209,10 +1227,10 @@ void trace(const PSXModPresentInfo* info,double alpha,const Frame* f,int shown,b
     e.age=last_look>0 ? (float)(e.t*1000-last_look) : -1.0f;
     e.njobs=f?(int8_t)f->njobs:0; e.ready=0; e.cached=0;
     // D19C diagnostics: the first present showing a new menu image.
-    if(f && shown>=0 && f->frontend && !f->loading) {
+    if(f && shown>=0 && f->frontend && f->menu_mode) {
         const uint32_t m=f->shows[shown];
         if(m!=shown_menu && menu_latency_n) {
-            MenuLatency& l=menu_latency[(menu_latency_n-1)%16];
+            MenuLatency& l=menu_latency[(menu_latency_n-1)%32];
             if(l.screen_ms<0 && l.to==m) l.screen_ms=e.t*1000.0-l.press_ms;
         }
         shown_menu=m;

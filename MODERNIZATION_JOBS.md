@@ -4,7 +4,7 @@ This is the canonical job list for our **Duke Nukem: Time to Kill** PC project, 
 
 Invoke **`$continue-duke-recomp`** (Codex) or **`/continue-duke-recomp`** (Claude Code) to see the current jobs and choose one. You can also request a job directly: **`$continue-duke-recomp work on D01`** or **`/continue-duke-recomp work on D01`**. The skill reads this file rather than keeping a second backlog. It must not automatically start the next job.
 
-**Latest accepted job (2026-10-18): D19C (more responsive original menus over the demo); executable `1e1a4795ab8af038f9c95b50d2159cab10bfb1f4a363d84b1ac741025e3d6828` is the regression baseline. Queued: D19E (loading-spinner menus and full menu sweep), D08O2B, D08AA, D08A22, D24D, D26G, D19D.** Earlier (2026-10-18): D17U (smooth loading screens); executable `e1d32dc00d9b2e870f5c1aab4b3e4a21bb74b242c20c7483d4f6eeed7011f9fc`. Earlier (2026-10-18): D17T (smooth title menu and attract demo); executable `7ab8877528b05a46a1e793556660ab6cf09c538d93c7b2f1e6cb5bb744ce9829`. Earlier (2026-10-09): D08G6 (`dntlod` fun cheat); executable `74cec66e398217530d0b8abc3fa0ccfe06308f6b73a17e5aafa628b3f0f2a540`. Earlier (2026-10-09): D08A20 (challenge item HUD, option A - 14x14 icon in a square); executable `a047b37bbb833b84902a3ad344fff2e16c22ae3dc0093ad441d80c3eb9235a95`.** Earlier (2026-10-09): D08A21 (14x14 HUD item icons; the 16x16 versions kept in `recomp/assets/ui/items/16px/`); executable `72429e350806e0639f36e50cff0cb969f18df1662a2336794e17bd2263614c21`.** Earlier (2026-10-08): D08A12 (modern dynamite: unlit until fire, switch away freely, next stick drawn after a throw); executable `2d54e00b64bcf38917e41db47805338f75977b0b63a0868cb962242ffaaadb9d` is the regression baseline. Queued: D24D, D26G.** Earlier (2026-10-08): D08A19 (used mission items: USED and the green tick); executable `d67705eba48232029a90647cc781f3201d0aae29799678466b2b5b9337b5dbe8`. Earlier (2026-10-08): D08Z2 (mantle pose; frozen legs after a corner bump); executable `bfd41760f9c66f2f03cf859f820f7b7d27cd8991e8ce1f304f5456ea29bf8986` is the regression baseline. D08Z3 (modern landing) accepted 2026-10-08; executable `11187493c04ae830482c47c93b97ac332fbfce1de95f8eedaa2f8637d7fe164e` is the new regression baseline. Queued: D24D, D26G, D08A19.** Earlier (2026-10-08): D08Z1 (jump wall slide); executable `3f909c9f2cc4e5b09ba6faab5129ec9ae0ff938c4735e264ac67a66405c1ed34`. Earlier (2026-10-08): D08A17 (power-up countdowns); executable `8f338cde1c2dc4cf73da747621cffafe2478512f6419078a41d11b0d3b9268a9`. Earlier accepted jobs (2026-10-08): D08A14 (death ends steroids), D08A15 (heartbeat restart; a pickup mid-run stops steroids) and D08G4 (inventory cheats give full armor); executable `87fe38d4f0ea8560312f53171345c207f332e26b6f4d2ed7220e1afae66ba472` is the regression baseline.** Earlier: D08J2 (pole/chain A/D direction), D08U2 (climb off a ladder past an enemy), D08O3 (E in water keeps the weapon) and D08O2A (natural swim-fire pose v2), 2026-10-07.** Previous baseline `e8eebb809c3d5a4b29779f11f0c9db55efcd846dc5c71b39d5a59d43158eb08e` (D08U2). **D08J2 (pole/chain A/D direction) Accepted 2026-10-07**: executable `129a64f2df3f5395f2d3485a310a03d74c85f9b1086c7dab37fee59277c7968b` is the current regression baseline ([note 122](documentation/122-d08j2-pole-chain-sidestep.md)). Todo: D08J4 (ceiling monkey-bar drops, UI slot 3), D08J3 (free camera while climbing). Previous baseline `e75b50f156137fa2377e4643407b2efbd16f2e976fa4d697afcbceb228e2e554` (D08O3). **D23E (western-town stutter) Accepted 2026-10-07**; **D08O2A Accepted** ([note 119](documentation/119-d08o2a-natural-swim-fire-pose.md)), **D08O3 Accepted** ([note 120](documentation/120-d08o3-e-in-water.md)); **D23F (fast CPU timing) Accepted 2026-10-05 and now the Modernized default**; executable `e0737a9f712aa5622d1b057ee5071e12c33cc9a18de8e6d40ee8eee31083f966` (includes D23E), [note 104](documentation/104-d23e-busy-scene-stutter.md), [note 105](documentation/105-d23f-fast-timing.md). Next suggested: D23G (finish the fast path) and D17S (auto frame-rate default).
+**Latest accepted job (2026-10-18): D19E (menu close-out: taps never lost during loads or on LOAD GAME, menu over the spinner one image sooner); executable `0092e2b261b333e0f1848e77b6a6a824079efbaba886e2fb158b3b9023e51aaf` is the regression baseline. Queued: D08O2B, D08AA, D08A22, D24D, D26G, D19D.** Earlier (2026-10-18): D19C (more responsive original menus over the demo); executable `1e1a4795ab8af038f9c95b50d2159cab10bfb1f4a363d84b1ac741025e3d6828` is the regression baseline. Queued: D19E (loading-spinner menus and full menu sweep), D08O2B, D08AA, D08A22, D24D, D26G, D19D.** Earlier (2026-10-18): D17U (smooth loading screens); executable `e1d32dc00d9b2e870f5c1aab4b3e4a21bb74b242c20c7483d4f6eeed7011f9fc`. Earlier (2026-10-18): D17T (smooth title menu and attract demo); executable `7ab8877528b05a46a1e793556660ab6cf09c538d93c7b2f1e6cb5bb744ce9829`. Earlier (2026-10-09): D08G6 (`dntlod` fun cheat); executable `74cec66e398217530d0b8abc3fa0ccfe06308f6b73a17e5aafa628b3f0f2a540`. Earlier (2026-10-09): D08A20 (challenge item HUD, option A - 14x14 icon in a square); executable `a047b37bbb833b84902a3ad344fff2e16c22ae3dc0093ad441d80c3eb9235a95`.** Earlier (2026-10-09): D08A21 (14x14 HUD item icons; the 16x16 versions kept in `recomp/assets/ui/items/16px/`); executable `72429e350806e0639f36e50cff0cb969f18df1662a2336794e17bd2263614c21`.** Earlier (2026-10-08): D08A12 (modern dynamite: unlit until fire, switch away freely, next stick drawn after a throw); executable `2d54e00b64bcf38917e41db47805338f75977b0b63a0868cb962242ffaaadb9d` is the regression baseline. Queued: D24D, D26G.** Earlier (2026-10-08): D08A19 (used mission items: USED and the green tick); executable `d67705eba48232029a90647cc781f3201d0aae29799678466b2b5b9337b5dbe8`. Earlier (2026-10-08): D08Z2 (mantle pose; frozen legs after a corner bump); executable `bfd41760f9c66f2f03cf859f820f7b7d27cd8991e8ce1f304f5456ea29bf8986` is the regression baseline. D08Z3 (modern landing) accepted 2026-10-08; executable `11187493c04ae830482c47c93b97ac332fbfce1de95f8eedaa2f8637d7fe164e` is the new regression baseline. Queued: D24D, D26G, D08A19.** Earlier (2026-10-08): D08Z1 (jump wall slide); executable `3f909c9f2cc4e5b09ba6faab5129ec9ae0ff938c4735e264ac67a66405c1ed34`. Earlier (2026-10-08): D08A17 (power-up countdowns); executable `8f338cde1c2dc4cf73da747621cffafe2478512f6419078a41d11b0d3b9268a9`. Earlier accepted jobs (2026-10-08): D08A14 (death ends steroids), D08A15 (heartbeat restart; a pickup mid-run stops steroids) and D08G4 (inventory cheats give full armor); executable `87fe38d4f0ea8560312f53171345c207f332e26b6f4d2ed7220e1afae66ba472` is the regression baseline.** Earlier: D08J2 (pole/chain A/D direction), D08U2 (climb off a ladder past an enemy), D08O3 (E in water keeps the weapon) and D08O2A (natural swim-fire pose v2), 2026-10-07.** Previous baseline `e8eebb809c3d5a4b29779f11f0c9db55efcd846dc5c71b39d5a59d43158eb08e` (D08U2). **D08J2 (pole/chain A/D direction) Accepted 2026-10-07**: executable `129a64f2df3f5395f2d3485a310a03d74c85f9b1086c7dab37fee59277c7968b` is the current regression baseline ([note 122](documentation/122-d08j2-pole-chain-sidestep.md)). Todo: D08J4 (ceiling monkey-bar drops, UI slot 3), D08J3 (free camera while climbing). Previous baseline `e75b50f156137fa2377e4643407b2efbd16f2e976fa4d697afcbceb228e2e554` (D08O3). **D23E (western-town stutter) Accepted 2026-10-07**; **D08O2A Accepted** ([note 119](documentation/119-d08o2a-natural-swim-fire-pose.md)), **D08O3 Accepted** ([note 120](documentation/120-d08o3-e-in-water.md)); **D23F (fast CPU timing) Accepted 2026-10-05 and now the Modernized default**; executable `e0737a9f712aa5622d1b057ee5071e12c33cc9a18de8e6d40ee8eee31083f966` (includes D23E), [note 104](documentation/104-d23e-busy-scene-stutter.md), [note 105](documentation/105-d23f-fast-timing.md). Next suggested: D23G (finish the fast path) and D17S (auto frame-rate default).
 
 ## The experience we are building
 
@@ -177,7 +177,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D19B | Responsive modern menu navigation and transitions | Todo | D02, D04 |
 | D19C | Interim: more responsive original menus (faster cursor and screen response, no 10 Hz feel) | Accepted (demo-backed menus; loading spinner and full sweep in D19E) | D17T |
 | D19D | Interim: Esc backs out of sub-menus; PC-friendly navigation where the mapped PS1 buttons fall short | Todo | D04, D17T |
-| D19E | Menu responsiveness close-out: menus over the loading spinner are less responsive; sweep every frontend menu and screen for best response | Todo | D19C, D17U |
+| D19E | Menu responsiveness close-out: menus over the loading spinner are less responsive; sweep every frontend menu and screen for best response | Done (accepted 2026-10-18) | D19C, D17U |
 | D20 | Save management and optional quick saves | Todo | D01, D02 |
 | D21 | Accessibility and sound controls | Todo | D04, D19 |
 | D22 | Campaign fidelity and overlay coverage | Todo | D01 |
@@ -5227,7 +5227,7 @@ menu keys.
 
 ### D19E - Menu responsiveness close-out: loading spinner and a full menu sweep
 
-**Todo. Opened 2026-10-18.** User report after D19C: menus are more
+**Done (accepted 2026-10-18).** User: "excellent work". Note [143](documentation/143-d19e-menu-closeout.md). **Opened 2026-10-18.** User report after D19C: menus are more
 responsive while the attract demo plays behind them, but **less responsive
 while the loading spinner plays** (the D17U spinning-logo screen between demo
 scenes, which the frontend draws while a menu can be open). Fix that case,
@@ -5262,6 +5262,24 @@ before D17U/D19C (measured) and ideally as responsive as over the demo; a
 per-screen latency table for the whole menu system with no missed or
 doubled inputs; smoothness, the attract demo, loading time, gameplay, 60 and
 Vanilla unchanged; the user judges the feel and closes out the menu work.
+
+**Result (2026-10-18, implemented):** while a demo scene loads behind a menu
+the tick first blocks in the CD load for about 1.8 s (the original hides the
+menu), then runs with gaps of up to 45 fields under the spinning logo. The
+D17T 6-field tap hold lost taps there (24 of 30 landed), and it lost 11 of 11
+Cancel taps on LOAD GAME with a saved game (card polling starves pad reads).
+Loading images were also redrawn from the older image (191-220 ms press to
+screen). Now a Modernized frontend press is held until the guest's pad
+history `0x800d1aa4` shows the tick read it. Taps made meanwhile are queued
+(up to 6) and delivered with a read release between them, and contact bounce
+is ignored. Menu loading images are drawn from the newer image. Result: 90
+of 90 taps over the spinner at 120 (and 30/30 at 180 and 60), 100-113 ms
+press to screen over the spinner. Every screen in the sweep (main, difficulty,
+two player, options, sound, controller, game settings, LOAD GAME with a save,
+PRESS START, pause, statistics, SAVE GAME) took every tap, one step each.
+Demo-backed menus, smoothness, load timing, gameplay entry and Vanilla are
+unchanged. Executable
+`0092e2b261b333e0f1848e77b6a6a824079efbaba886e2fb158b3b9023e51aaf`. Per-screen table in note 143.
 
 ### D20 — Save management and optional quick saves
 
@@ -11935,3 +11953,38 @@ in note 117 is the reference for future custom pickups.
   New Todo: D19E (loading-spinner menu responsiveness and a sweep of every
   menu screen to close out the interim menu work). Still queued: D08O2B,
   D08AA, D08A22, D24D, D26G, D19D.
+
+## 2026-10-18 - D19E menu responsiveness close-out (Needs playtest)
+
+- Investigation: a demo scene load behind a menu blocks the tick for about
+  110 fields (sub-state 0, menu hidden), then ticks with gaps up to 45 fields
+  under the spinner (sub-state 1). The D17T 6-field hold lost taps there
+  (24 of 30 in a mixed run, every tap in sub-state 0). On LOAD GAME with a
+  save, it lost 11 of 11 Cancel taps (card polling, about 17 fields per pad
+  read). Menu loading images used D17U's older image: 191-220 ms to screen.
+- Implementation: `frontend_input.cpp` holds a Modernized mode-0 press until
+  the pad history `0x800d1aa4 + 4 * bit` shows the tick read it (6 fields to
+  3 s). It queues taps made meanwhile (up to 6) with a read release between
+  them, and ignores releases shorter than 2 fields. `frame_replay.cpp` draws
+  mode-0 loading images from the newer image. Test-only keys/uncaptured mode
+  in `pc_input.cpp`. Developer switches `DNTTK_FRONTEND_SEEN`,
+  `DNTTK_LOADING_NEWEST`, `DNTTK_FRONTEND_TRACE`, `DNTTK_MENU_WATCH`.
+- Evidence: 90 of 90 taps over the spinner (final build, 3 seeds), 100-113 ms
+  to screen; 30/30 at 180 and 60. Per-screen sweep at 120/180/60: every tap
+  landed exactly once (main, difficulty, two player, options, sound,
+  controller, game settings, main <-> options / LOAD GAME, PRESS START, pause,
+  statistics, SAVE GAME). Demo menus, smoothness (119 distinct/s), load
+  timing, gameplay entry and Vanilla unchanged. `ttk-input-test`, unit tests
+  and `check_repo.py` pass. Executable
+  `0092e2b261b333e0f1848e77b6a6a824079efbaba886e2fb158b3b9023e51aaf`. Note [143](documentation/143-d19e-menu-closeout.md).
+- Remaining: the original hides the menu during the first 1.8 s of a demo
+  scene load (presses land when it returns); menu text at 10 Hz; no Square
+  key while uncaptured (D19D); the user judges the feel and closes out the
+  menu work.
+
+## 2026-10-18 - D19E accepted
+
+- User: "excellent work". D19E Done; executable
+  `0092e2b261b333e0f1848e77b6a6a824079efbaba886e2fb158b3b9023e51aaf` is the regression baseline.
+  The interim original-menu work (D17T, D19C, D19E) is closed out. Still
+  queued: D08O2B, D08AA, D08A22, D24D, D26G, D19D.

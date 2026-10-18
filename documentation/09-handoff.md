@@ -1,5 +1,25 @@
 # Next-session handoff
 
+## 2026-10-18 - D19E accepted
+
+- User: "excellent work". D19E Done; executable
+  `0092e2b261b333e0f1848e77b6a6a824079efbaba886e2fb158b3b9023e51aaf` is the regression baseline.
+  The interim original-menu work is closed out. Still queued: D08O2B, D08AA,
+  D08A22, D24D, D26G, D19D.
+
+## 2026-10-18 - D19E menu responsiveness close-out (Needs playtest)
+
+- Menu taps are no longer lost while the loading spinner plays or on LOAD
+  GAME with a saved game. A Modernized menu press is held until the game has
+  read it (its own pad history), and taps made meanwhile are queued. Menus
+  over the spinner are drawn from the newer image, so press to screen there
+  is 100-113 ms mean (was 191-220). 90 of 90 taps over the spinner (was 24 of
+  30); every screen in the sweep took every tap exactly once at 120, 180 and
+  60. Demo menus, smoothness, load timing, gameplay and Vanilla unchanged.
+  Executable `0092e2b261b333e0f1848e77b6a6a824079efbaba886e2fb158b3b9023e51aaf`. [Note 143](143-d19e-menu-closeout.md).
+  Limits: the original hides the menu for the first 1.8 s of a demo scene
+  load (presses land when it returns); menu text still at 10 Hz. Accepted 2026-10-18. Still queued: D08O2B, D08AA, D08A22, D24D, D26G, D19D.
+
 ## 2026-10-18 - D19C accepted; D19E queued
 
 - User: "its more responsive when the demo is playing, but when the loading

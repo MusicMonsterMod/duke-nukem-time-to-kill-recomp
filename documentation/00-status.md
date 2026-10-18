@@ -1,5 +1,17 @@
 # Current status - 2026-10-04
 
+## 2026-10-18 - D30 recomp.board listing (Done)
+
+- The project's row on [recomp.board](https://recomp.fyi/game/duke-nukem-time-to-kill-ps1)
+  was written by the board's scan and unclaimed, with an empty toolchain,
+  status and targets and a wrong Europe SLES-01515 "works from" entry.
+  `.recomp.json` at the repository root now claims and writes it: USA
+  SLUS-00583 only, Psxrecomp, in-progress, Linux, maintainer, links, help and
+  notes. Validated against `https://recomp.fyi/schema/v1.json`. README has a
+  recomp.board badge and link. The row shows claimed after the board's next
+  daily read. Update the file when status or targets change (D22, D24, D25).
+  No game code changed; nothing built or launched.
+
 ## 2026-10-18 - D19E accepted
 
 - User: "excellent work". D19E Done; executable

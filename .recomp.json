@@ -1,0 +1,22 @@
+{
+  "$schema": "https://recomp.fyi/schema/v1.json",
+  "game": "Duke Nukem: Time to Kill",
+  "wikidata": "Q2666099",
+  "system": "PS1",
+  "type": "recomp",
+  "original": { "region": "USA", "serial": "SLUS-00583" },
+  "project": "Duke Nukem: Time to Kill Recompiled",
+  "status": "in-progress",
+  "targets": ["Linux"],
+  "toolchain": "Psxrecomp",
+  "approach": "Static recompilation of the PS1 executable and overlays; faithful Vanilla mode plus an optional Modernized profile",
+  "maintainers": [{ "name": "MusicMonsterMod", "link": "https://github.com/MusicMonsterMod" }],
+  "links": [
+    { "label": "Game manual", "url": "https://github.com/MusicMonsterMod/duke-nukem-time-to-kill-recomp/blob/main/GAME_MANUAL.md" },
+    { "label": "Job board", "url": "https://github.com/MusicMonsterMod/duke-nukem-time-to-kill-recomp/blob/main/MODERNIZATION_JOBS.md" },
+    { "label": "Current status", "url": "https://github.com/MusicMonsterMod/duke-nukem-time-to-kill-recomp/blob/main/documentation/00-status.md" }
+  ],
+  "help": ["Controller support", "Windows build", "Full-campaign playtesting"],
+  "tags": ["modernized", "mouse-aim", "first-person", "high-refresh", "widescreen"],
+  "notes": "Native Linux build of the USA disc (bring your own; PAL SLES-01515 does not work). Vanilla keeps the original play. Modernized adds camera-relative WASD, independent mouse aim, an optional first-person view, high refresh rates without faster simulation, widescreen and higher resolution, and EDuke32-style inventory and cheats. Controller support and a Windows build are next."
+}

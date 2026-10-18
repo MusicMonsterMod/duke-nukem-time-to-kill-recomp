@@ -4,7 +4,7 @@ This is the canonical job list for our **Duke Nukem: Time to Kill** PC project, 
 
 Invoke **`$continue-duke-recomp`** (Codex) or **`/continue-duke-recomp`** (Claude Code) to see the current jobs and choose one. You can also request a job directly: **`$continue-duke-recomp work on D01`** or **`/continue-duke-recomp work on D01`**. The skill reads this file rather than keeping a second backlog. It must not automatically start the next job.
 
-**Latest accepted job (2026-10-18): D19E (menu close-out: taps never lost during loads or on LOAD GAME, menu over the spinner one image sooner); executable `0092e2b261b333e0f1848e77b6a6a824079efbaba886e2fb158b3b9023e51aaf` is the regression baseline. Queued: D08O2B, D08AA, D08A22, D24D, D26G, D19D.** Earlier (2026-10-18): D19C (more responsive original menus over the demo); executable `1e1a4795ab8af038f9c95b50d2159cab10bfb1f4a363d84b1ac741025e3d6828` is the regression baseline. Queued: D19E (loading-spinner menus and full menu sweep), D08O2B, D08AA, D08A22, D24D, D26G, D19D.** Earlier (2026-10-18): D17U (smooth loading screens); executable `e1d32dc00d9b2e870f5c1aab4b3e4a21bb74b242c20c7483d4f6eeed7011f9fc`. Earlier (2026-10-18): D17T (smooth title menu and attract demo); executable `7ab8877528b05a46a1e793556660ab6cf09c538d93c7b2f1e6cb5bb744ce9829`. Earlier (2026-10-09): D08G6 (`dntlod` fun cheat); executable `74cec66e398217530d0b8abc3fa0ccfe06308f6b73a17e5aafa628b3f0f2a540`. Earlier (2026-10-09): D08A20 (challenge item HUD, option A - 14x14 icon in a square); executable `a047b37bbb833b84902a3ad344fff2e16c22ae3dc0093ad441d80c3eb9235a95`.** Earlier (2026-10-09): D08A21 (14x14 HUD item icons; the 16x16 versions kept in `recomp/assets/ui/items/16px/`); executable `72429e350806e0639f36e50cff0cb969f18df1662a2336794e17bd2263614c21`.** Earlier (2026-10-08): D08A12 (modern dynamite: unlit until fire, switch away freely, next stick drawn after a throw); executable `2d54e00b64bcf38917e41db47805338f75977b0b63a0868cb962242ffaaadb9d` is the regression baseline. Queued: D24D, D26G.** Earlier (2026-10-08): D08A19 (used mission items: USED and the green tick); executable `d67705eba48232029a90647cc781f3201d0aae29799678466b2b5b9337b5dbe8`. Earlier (2026-10-08): D08Z2 (mantle pose; frozen legs after a corner bump); executable `bfd41760f9c66f2f03cf859f820f7b7d27cd8991e8ce1f304f5456ea29bf8986` is the regression baseline. D08Z3 (modern landing) accepted 2026-10-08; executable `11187493c04ae830482c47c93b97ac332fbfce1de95f8eedaa2f8637d7fe164e` is the new regression baseline. Queued: D24D, D26G, D08A19.** Earlier (2026-10-08): D08Z1 (jump wall slide); executable `3f909c9f2cc4e5b09ba6faab5129ec9ae0ff938c4735e264ac67a66405c1ed34`. Earlier (2026-10-08): D08A17 (power-up countdowns); executable `8f338cde1c2dc4cf73da747621cffafe2478512f6419078a41d11b0d3b9268a9`. Earlier accepted jobs (2026-10-08): D08A14 (death ends steroids), D08A15 (heartbeat restart; a pickup mid-run stops steroids) and D08G4 (inventory cheats give full armor); executable `87fe38d4f0ea8560312f53171345c207f332e26b6f4d2ed7220e1afae66ba472` is the regression baseline.** Earlier: D08J2 (pole/chain A/D direction), D08U2 (climb off a ladder past an enemy), D08O3 (E in water keeps the weapon) and D08O2A (natural swim-fire pose v2), 2026-10-07.** Previous baseline `e8eebb809c3d5a4b29779f11f0c9db55efcd846dc5c71b39d5a59d43158eb08e` (D08U2). **D08J2 (pole/chain A/D direction) Accepted 2026-10-07**: executable `129a64f2df3f5395f2d3485a310a03d74c85f9b1086c7dab37fee59277c7968b` is the current regression baseline ([note 122](documentation/122-d08j2-pole-chain-sidestep.md)). Todo: D08J4 (ceiling monkey-bar drops, UI slot 3), D08J3 (free camera while climbing). Previous baseline `e75b50f156137fa2377e4643407b2efbd16f2e976fa4d697afcbceb228e2e554` (D08O3). **D23E (western-town stutter) Accepted 2026-10-07**; **D08O2A Accepted** ([note 119](documentation/119-d08o2a-natural-swim-fire-pose.md)), **D08O3 Accepted** ([note 120](documentation/120-d08o3-e-in-water.md)); **D23F (fast CPU timing) Accepted 2026-10-05 and now the Modernized default**; executable `e0737a9f712aa5622d1b057ee5071e12c33cc9a18de8e6d40ee8eee31083f966` (includes D23E), [note 104](documentation/104-d23e-busy-scene-stutter.md), [note 105](documentation/105-d23f-fast-timing.md). Next suggested: D23G (finish the fast path) and D17S (auto frame-rate default).
+**Latest finished job (2026-10-18): D30 (recomp.board listing: `.recomp.json` claims our row; README badge).** Earlier: **Latest accepted job (2026-10-18): D19E (menu close-out: taps never lost during loads or on LOAD GAME, menu over the spinner one image sooner); executable `0092e2b261b333e0f1848e77b6a6a824079efbaba886e2fb158b3b9023e51aaf` is the regression baseline. Queued: D08O2B, D08AA, D08A22, D24D, D26G, D19D.** Earlier (2026-10-18): D19C (more responsive original menus over the demo); executable `1e1a4795ab8af038f9c95b50d2159cab10bfb1f4a363d84b1ac741025e3d6828` is the regression baseline. Queued: D19E (loading-spinner menus and full menu sweep), D08O2B, D08AA, D08A22, D24D, D26G, D19D.** Earlier (2026-10-18): D17U (smooth loading screens); executable `e1d32dc00d9b2e870f5c1aab4b3e4a21bb74b242c20c7483d4f6eeed7011f9fc`. Earlier (2026-10-18): D17T (smooth title menu and attract demo); executable `7ab8877528b05a46a1e793556660ab6cf09c538d93c7b2f1e6cb5bb744ce9829`. Earlier (2026-10-09): D08G6 (`dntlod` fun cheat); executable `74cec66e398217530d0b8abc3fa0ccfe06308f6b73a17e5aafa628b3f0f2a540`. Earlier (2026-10-09): D08A20 (challenge item HUD, option A - 14x14 icon in a square); executable `a047b37bbb833b84902a3ad344fff2e16c22ae3dc0093ad441d80c3eb9235a95`.** Earlier (2026-10-09): D08A21 (14x14 HUD item icons; the 16x16 versions kept in `recomp/assets/ui/items/16px/`); executable `72429e350806e0639f36e50cff0cb969f18df1662a2336794e17bd2263614c21`.** Earlier (2026-10-08): D08A12 (modern dynamite: unlit until fire, switch away freely, next stick drawn after a throw); executable `2d54e00b64bcf38917e41db47805338f75977b0b63a0868cb962242ffaaadb9d` is the regression baseline. Queued: D24D, D26G.** Earlier (2026-10-08): D08A19 (used mission items: USED and the green tick); executable `d67705eba48232029a90647cc781f3201d0aae29799678466b2b5b9337b5dbe8`. Earlier (2026-10-08): D08Z2 (mantle pose; frozen legs after a corner bump); executable `bfd41760f9c66f2f03cf859f820f7b7d27cd8991e8ce1f304f5456ea29bf8986` is the regression baseline. D08Z3 (modern landing) accepted 2026-10-08; executable `11187493c04ae830482c47c93b97ac332fbfce1de95f8eedaa2f8637d7fe164e` is the new regression baseline. Queued: D24D, D26G, D08A19.** Earlier (2026-10-08): D08Z1 (jump wall slide); executable `3f909c9f2cc4e5b09ba6faab5129ec9ae0ff938c4735e264ac67a66405c1ed34`. Earlier (2026-10-08): D08A17 (power-up countdowns); executable `8f338cde1c2dc4cf73da747621cffafe2478512f6419078a41d11b0d3b9268a9`. Earlier accepted jobs (2026-10-08): D08A14 (death ends steroids), D08A15 (heartbeat restart; a pickup mid-run stops steroids) and D08G4 (inventory cheats give full armor); executable `87fe38d4f0ea8560312f53171345c207f332e26b6f4d2ed7220e1afae66ba472` is the regression baseline.** Earlier: D08J2 (pole/chain A/D direction), D08U2 (climb off a ladder past an enemy), D08O3 (E in water keeps the weapon) and D08O2A (natural swim-fire pose v2), 2026-10-07.** Previous baseline `e8eebb809c3d5a4b29779f11f0c9db55efcd846dc5c71b39d5a59d43158eb08e` (D08U2). **D08J2 (pole/chain A/D direction) Accepted 2026-10-07**: executable `129a64f2df3f5395f2d3485a310a03d74c85f9b1086c7dab37fee59277c7968b` is the current regression baseline ([note 122](documentation/122-d08j2-pole-chain-sidestep.md)). Todo: D08J4 (ceiling monkey-bar drops, UI slot 3), D08J3 (free camera while climbing). Previous baseline `e75b50f156137fa2377e4643407b2efbd16f2e976fa4d697afcbceb228e2e554` (D08O3). **D23E (western-town stutter) Accepted 2026-10-07**; **D08O2A Accepted** ([note 119](documentation/119-d08o2a-natural-swim-fire-pose.md)), **D08O3 Accepted** ([note 120](documentation/120-d08o3-e-in-water.md)); **D23F (fast CPU timing) Accepted 2026-10-05 and now the Modernized default**; executable `e0737a9f712aa5622d1b057ee5071e12c33cc9a18de8e6d40ee8eee31083f966` (includes D23E), [note 104](documentation/104-d23e-busy-scene-stutter.md), [note 105](documentation/105-d23f-fast-timing.md). Next suggested: D23G (finish the fast path) and D17S (auto frame-rate default).
 
 ## The experience we are building
 
@@ -213,6 +213,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D27A | Modern Shift/run is silent: remove the walk/run toggle click `0x0001` from the Shift path, keep the D08A10 heartbeat | Done (user-accepted) | D27, D08A10 |
 | D28 | Scroll Lock holster and WEAPON LOWERED/RAISED quotes | Done | D04, D19A |
 | D29 | Progression items and objectives legibility: research and design first (Level 2 bank-vault notes) | Todo | D19A, D22B, D26A |
+| D30 | List the project on recomp.board (recomp.fyi): commit `.recomp.json` to claim our row | Done | - |
 | R01 | DisruptorRecomp architecture and modernization reference research | Done | - |
 
 Recommended opening sequence: **D01 → D02 → D03 → D04**, then **D05 / D06 → D07 → D07A → D08**. D13 is an early graphics option after profiles exist. D22 and D23 should accumulate evidence throughout development. First-person, HD asset packs and precision rendering are optional follow-up milestones, not blockers for a good modern third-person release.
@@ -6319,6 +6320,94 @@ objective guidance level and first implementation scope. Implementation
 jobs are added to the board from that approval; nothing player-facing ships
 in this phase.
 
+### D30 - List the project on recomp.board (`.recomp.json`)
+
+**Done 2026-10-18. Opened the same day at the user's request.** Project visibility, not
+gameplay. No game code, build or launch is involved.
+
+[recomp.board](https://recomp.fyi/) ("who's recompiling what") lists game
+recompilation, decomp and source-port projects. Route A: a `.recomp.json`
+at the repository root owns the project's row; the board reads it daily
+(the file, never anything else, and never writes to the repo), and whoever
+can commit there is the proof of ownership. Format and field list:
+[recomp.fyi/add.html](https://recomp.fyi/add.html), schema
+`https://recomp.fyi/schema/v1.json`.
+
+**Current state (checked 2026-10-18).** The board's daily scan already
+found this repository and lists it, **unclaimed** ("Claimed: no"):
+
+- Table row `duke-nukem-time-to-kill-musicmonstermod`: PS1, recomp; Runs on,
+  Toolchain, Status and Version empty; last commit 2026-10-09 (stale).
+- Game page [recomp.fyi/game/duke-nukem-time-to-kill-ps1](https://recomp.fyi/game/duke-nukem-time-to-kill-ps1):
+  Maintainer empty; Description taken from the GitHub repository
+  description; **Works from: "SLUS-00583 (USA), SLES-01515 (Europe)" - wrong**,
+  the scan misread the README's warning that PAL SLES-01515 does *not* work;
+  Started 2026-09-27; MIT; C++.
+- A second, unrelated row on the same page: `alexbeavs-ps1-ports/duke-nukem-time-to-kill-recomp`
+  (Psxrecomp, Windows/Linux/macOS, v0.3.6, GPL-3.0, also unclaimed). Not
+  ours; leave it alone.
+
+**How claiming works.** A committed `.recomp.json` on the default branch
+claims the row: it loses the unclaimed mark, only the file (or a form from
+the owning GitHub account) can edit it, and the periodic scan stops touching
+it. The file is re-read daily, so editing it keeps the row current. Deleting
+it releases the claim (the row keeps status, targets, method and toolchain;
+the rest is cleared). The alternative, Route B, is a GitHub issue form on
+[neurocontrarian/recomp-board](https://github.com/neurocontrarian/recomp-board)
+sent from the MusicMonsterMod account, but it snapshots status and notes on
+the day it is sent; the file is the better fit for a moving project. The
+game page offers a starter file (choose project and status, Copy the file);
+for our row it is only:
+
+```json
+{
+  "$schema": "https://recomp.fyi/schema/v1.json",
+  "game": "Duke Nukem: Time to Kill",
+  "wikidata": "Q2666099",
+  "system": "PS1",
+  "type": "recomp"
+}
+```
+
+**Work:**
+
+1. Re-fetch the starter file, the field list and the schema
+   (`https://recomp.fyi/schema/v1.json`, `additionalProperties: false`, so
+   only listed fields and `x-` extensions) before writing; they may change.
+2. Write `.recomp.json` at the repository root from the starter, under
+   8 KB, ASCII hyphen-minus only, and fill what the scan left empty or got
+   wrong. Proposed content, for the user to approve:
+   - keep `game`, `wikidata` "Q2666099", `system` "PS1", `type` "recomp";
+   - `original`: **only** `{ "region": "USA", "serial": "SLUS-00583" }`, to
+     replace the wrong Europe entry; a `sha1` only if the user wants it and
+     it is computed locally from their own dump (never a file, link or
+     mention of an ISO/ROM or where to get one, or the whole file is refused);
+   - `toolchain` "Psxrecomp" (the pinned `recomp/psxrecomp` upstream);
+   - `status` "in-progress" (not "playable" until a full-campaign pass is
+     established, D22);
+   - `targets` ["Linux"]; add "Windows" only once D24 delivers it;
+   - `project` name (for example "Duke Nukem: Time to Kill Recompiled"; user
+     choice), `approach` one line (static recompilation of the PS1
+     executable and overlays; faithful Vanilla plus an optional Modernized
+     profile), `maintainers` MusicMonsterMod with `https://github.com/MusicMonsterMod`;
+   - `links`: game manual and job board in this repo; optional `help`
+     (for example controller support, Windows build) and `notes`
+     (600 characters max).
+3. Validate the file against the schema locally (for example the `jsonschema`
+   package in `.venv`), run `scripts/ci/check_repo.py`, and check
+   `.gitignore` does not exclude it.
+4. With the user's closeout authorization, commit and push as
+   MusicMonsterMod to `main`. Optionally submit the manifest form so the row
+   updates at once instead of at the next daily read.
+5. Optional: mention the listing in `README.md`.
+
+**Acceptance:** the user approves the file content; it is committed and
+pushed as MusicMonsterMod (only when the user authorizes the closeout); the
+board row and game page show **claimed**, the maintainer, our status,
+toolchain and targets, and Works from shows only SLUS-00583 (USA). Keep the
+file current when status or targets change (for example after D22, D24 or
+D25).
+
 ## Working rules and evidence
 
 - Work on the selected job; split unexpectedly large discoveries into linked follow-ups with new stable IDs. Never renumber existing jobs.
@@ -11988,3 +12077,33 @@ in note 117 is the reference for future custom pickups.
   `0092e2b261b333e0f1848e77b6a6a824079efbaba886e2fb158b3b9023e51aaf` is the regression baseline.
   The interim original-menu work (D17T, D19C, D19E) is closed out. Still
   queued: D08O2B, D08AA, D08A22, D24D, D26G, D19D.
+
+## 2026-10-18 - D30 opened
+
+- User asked for a backlog job to list the project on recomp.board
+  (recomp.fyi) via a committed `.recomp.json` (Route A). D30 added as Todo.
+  The board already holds an unclaimed scan-written row for this repository;
+  the job claims and fills it. Nothing built, launched or committed.
+- Same day: claim status checked on the game page (Claimed: no; Works from
+  wrongly includes Europe SLES-01515; toolchain, status and targets empty).
+  D30 now records the claim mechanics, the board's starter file
+  (wikidata Q2666099) and the corrections the file must make.
+
+## 2026-10-18 - D30 Done
+
+- User: "shall we work through this now ... document, commit, and push when
+  complete". Added `.recomp.json` at the repository root (1566 bytes, ASCII):
+  game, wikidata Q2666099, PS1, recomp, original USA SLUS-00583 only (drops
+  the scan's wrong Europe entry), project "Duke Nukem: Time to Kill
+  Recompiled", status in-progress, targets Linux, toolchain Psxrecomp,
+  approach, maintainer MusicMonsterMod, links (manual, job board, status),
+  help, tags and notes. No ROM, ISO or download mention.
+- Evidence: 0 errors against the live `https://recomp.fyi/schema/v1.json`
+  (jsonschema Draft 2020-12, scratch venv); notes 376/600, approach 114/200
+  characters; not gitignored; `scripts/ci/check_repo.py` passes.
+- README: recomp.board badge (shields.io, links to the game page) and a link
+  line in the doc list.
+- Remaining: the board reads the file on its daily job, so "claimed" and the
+  new fields appear after that read (the manifest form would be immediate
+  but needs a GitHub issue on the board's repository; not sent). Keep the
+  file current: Windows in `targets` after D24, status after D22/D25.

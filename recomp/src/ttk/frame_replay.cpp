@@ -44,6 +44,8 @@ int overlay_loader_prepare_address(uint32_t addr);
 
 extern "C" uint64_t s_frame_count;
 extern "C" const char* ttk_frontend_input_json();
+extern "C" double ttk_frontend_press_ms();
+extern "C" uint64_t ttk_frontend_press_field();
 extern "C" uint8_t* g_psx_ram;
 extern "C" uint32_t g_dirty_ram_code_gen;
 namespace ttk {
@@ -95,6 +97,33 @@ uint16_t drawn_logo_angle() {return (uint16_t)((psx_mod_read_half(logo_angle)+ps
 // A loading image within the last 15 fields, in any game mode.
 bool loading_live() {return loading_field && s_frame_count-loading_field<=15;}
 bool replay_context() {return replay_gameplay_context() || frontend_live() || loading_live();}
+// D19C: the frontend tick (one per 6 fields; the attract demo runs behind the
+// title menu, so its pace stays) handles menu input in its state handler
+// (state 0x800d24e4, 7 = main menu; cursor 0x800d24e6) before the composition.
+// Each in-between is therefore drawn from the newest image of its pair, its
+// world blended back toward the older image's poses: menu text, highlight and
+// screen changes reach the screen one image interval (about 100 ms) sooner,
+// while the world keeps the same interpolated motion.
+// DNTTK_FRONTEND_NEWEST=off (developer) draws from the older image (D17T).
+constexpr uint32_t frontend_state=0x800d24e4, menu_cursor=0x800d24e6;
+bool frontend_newest() {static const bool v=[]{const char* t=std::getenv("DNTTK_FRONTEND_NEWEST");return !(t && !std::strcmp(t,"off"));}();return v;}
+// Diagnostics: the frontend state and cursor an image shows, and per menu
+// change the time from the press to the guest image and to the screen.
+uint32_t menu_signature() {return (uint32_t)psx_mod_read_half(frontend_state)<<16|psx_mod_read_half(menu_cursor);}
+struct MenuLatency {double press_ms=0, guest_ms=-1, screen_ms=-1; uint32_t from=0, to=0, fields=0;};
+MenuLatency menu_latency[16]; unsigned menu_latency_n=0;
+uint32_t captured_menu=0, shown_menu=0;
+const char* menu_latency_json() {
+    static char buf[1400];
+    int n=std::snprintf(buf,sizeof buf,"[");
+    const unsigned first=menu_latency_n>16?menu_latency_n-16:0;
+    for(unsigned i=first;i<menu_latency_n && n<(int)sizeof buf-100;++i) {
+        const MenuLatency& l=menu_latency[i%16];
+        n+=std::snprintf(buf+n,sizeof buf-n,"%s{\"from\":\"%x\",\"to\":\"%x\",\"fields\":%u,\"guest_ms\":%.1f,\"screen_ms\":%.1f}",i>first?",":"",l.from,l.to,l.fields,l.guest_ms,l.screen_ms);
+    }
+    std::snprintf(buf+n,sizeof buf-n,"]");
+    return buf;
+}
 constexpr uint32_t room_walk=0x80039dd0;   // eye room: (target pos, eye, target room, previous room)
 uint64_t room_walks=0;                     // worker-side count (diagnostic)
 // Optional worker timing, separate from the emulation-thread sample profile.
@@ -305,6 +334,8 @@ struct Frame {
     bool frontend=false;   // D17T: a frontend image (no mouse look, longer interval)
     bool loading=false;    // D17U: a loading screen image (also frontend: game-owned view)
     uint16_t logo=0;       // D17U: logo angle this image shows
+    uint32_t menu=0;       // D19C: frontend state and cursor (diagnostic)
+    uint32_t shows[max_jobs]; // D19C: menu signature of the image each redraw is drawn from
 };
 Frame frames[slots];
 extern double late_lead_ms;
@@ -646,7 +677,9 @@ bool apply_late(const InterpState& a,const InterpState& b,double alpha,Params& p
     return true;
 }
 // Build and submit one redraw job of base toward next at alpha.
+uint32_t submitted_menu=0;   // D19C: menu signature of the image the last job draws from
 int submit_job(Frame& base,const Frame& next,double alpha,bool late,double look_ms) {
+    submitted_menu=base.menu;
     if(base.loading) {
         // D17U: the shortest way round between the two images' angles.
         const double a=interp_off ? 0.0 : interp_full ? 1.0 : alpha;
@@ -660,6 +693,21 @@ int submit_job(Frame& base,const Frame& next,double alpha,bool late,double look_
         if(job>=0) ++submits;
         return job;
     }
+    if(base.frontend && next.frontend && !next.loading && frontend_newest()) {
+        // D19C: draw from the newer image, blended back toward the older one.
+        const double a=1.0-(interp_off ? 0.0 : interp_full ? 1.0 : alpha);
+        uint32_t len=build_params(next.state,base.state,a,param_buffer);
+        {Params p; std::memcpy(&p,param_buffer,sizeof p); p.near=next.near; std::memcpy(param_buffer,&p,sizeof p);}
+        len=append_render(next,param_buffer,len);
+        len=append_xf(next,base,a,param_buffer,len);
+        // Tagged with the base serial: the job belongs to the base frame's
+        // list (released with it, before the newer frame's slot is reused).
+        const int job=psx_mod_replay_submit(next.slot,param_buffer,len,base.serial);
+        if(job>=0) ++submits;
+        submitted_menu=next.menu;
+        return job;
+    }
+    submitted_menu=base.menu;
     uint32_t len=build_params(base.state,next.state,interp_off ? 0.0 : interp_full ? 1.0 : alpha,param_buffer);
     {
         Params p; std::memcpy(&p,param_buffer,sizeof p);
@@ -779,7 +827,7 @@ void submit_due(const PSXModPresentInfo* info,Frame* shown) {
             const int job=submit_job(*f,*to,alpha,!f->frontend,look_ms);
             if(job<0) return;   // no free worker job: try again at the next tick
             const int n=f->njobs++;
-            f->alpha[n]=(float)alpha; f->failed[n]=false; f->jobs[n]=job; f->submitted[n]=true;
+            f->alpha[n]=(float)alpha; f->failed[n]=false; f->jobs[n]=job; f->submitted[n]=true; f->shows[n]=submitted_menu;
             f->look_time[n]=look_ms; f->late_yaw[n]=last_late_yaw; f->target[n]=t; f->submit_ms[n]=now_ms; ++late_jit;
             static const bool log=std::getenv("DNTTK_LATE_LOG")!=nullptr;
             if(log) std::fprintf(stderr,"[late] serial %llu k %d t %+.1f now %+.1f end %+.1f alpha %.2f pending %d n %d\n",
@@ -860,6 +908,18 @@ void capture(CPUState* cpu,int kind) {
     f->frontend=kind!=gameplay_image;
     f->loading=kind==loading_image_kind;
     f->logo=f->loading ? drawn_logo_angle() : 0;
+    f->menu=kind==frontend_image ? menu_signature() : 0;
+    if(kind==frontend_image && f->menu!=captured_menu) {
+        // D19C diagnostics: a new menu image. Pair it with a press made since
+        // the previous change (within 1 s).
+        const double press=ttk_frontend_press_ms();
+        MenuLatency& last=menu_latency[(menu_latency_n+15)%16];
+        if(captured_menu && press>0 && host_now-press<1000.0 && (!menu_latency_n || press>last.press_ms)) {
+            MenuLatency& e=menu_latency[menu_latency_n++%16];
+            e=MenuLatency{}; e.press_ms=press; e.guest_ms=host_now-press; e.from=captured_menu; e.to=f->menu; e.fields=(uint32_t)(field-ttk_frontend_press_field());
+        }
+        captured_menu=f->menu;
+    }
     if(f->loading) {f->state.nactors=0;f->state.has_pivot=false;read_camera(f->state.camera);}
     else capture_state(f->state);
     static const bool pose_trace=std::getenv("DNTTK_POSE_TRACE")!=nullptr;
@@ -1148,6 +1208,15 @@ void trace(const PSXModPresentInfo* info,double alpha,const Frame* f,int shown,b
     else if(shown==-1) last_look=0;
     e.age=last_look>0 ? (float)(e.t*1000-last_look) : -1.0f;
     e.njobs=f?(int8_t)f->njobs:0; e.ready=0; e.cached=0;
+    // D19C diagnostics: the first present showing a new menu image.
+    if(f && shown>=0 && f->frontend && !f->loading) {
+        const uint32_t m=f->shows[shown];
+        if(m!=shown_menu && menu_latency_n) {
+            MenuLatency& l=menu_latency[(menu_latency_n-1)%16];
+            if(l.screen_ms<0 && l.to==m) l.screen_ms=e.t*1000.0-l.press_ms;
+        }
+        shown_menu=m;
+    }
     if(f) for(int i=0;i<f->njobs;++i) {
         uint64_t tag=0;
         if(f->jobs[i]>=0 && psx_mod_replay_job_state(f->jobs[i],&tag)==3 && tag==f->serial) ++e.ready;
@@ -1198,6 +1267,7 @@ int timeline_provider(const PSXModPresentInfo* info) {
         if(job<0) break;
         const int i=f->njobs++;
         f->alpha[i]=(float)alpha;f->jobs[i]=job;f->failed[i]=false;f->submitted[i]=true;
+        f->shows[i]=submitted_menu;
         f->target[i]=t;f->look_time[i]=look_ms;f->late_yaw[i]=last_late_yaw;f->submit_ms[i]=now_ms;++late_jit;
     }
     if(!info->due) {
@@ -1503,7 +1573,7 @@ int replay_load_window(int window) {
 }
 
 const char* frame_replay_debug_json() {
-    static char buffer[16384];
+    static char buffer[24576];
     int n=std::snprintf(buffer,sizeof buffer,"{\"on\":%s,\"interp\":%s,\"target_hz\":%d,\"steps\":%d,\"captures\":%llu,\"publishes\":%llu,"
         "\"submits\":%llu,\"rendered\":%llu,\"shown\":%llu,\"no_job\":%llu,\"failures\":%llu,\"serial\":%llu,\"prefetched\":%llu,\"governed\":%llu,\"deferred\":%llu,\"feed_ms\":%.2f,\"budget_ms\":%.2f,\"blended_mats\":%llu,\"skipped_actors\":%llu,\"camera_cuts\":%llu,\"drawn\":%d,\"pending_flips\":%llu,\"blended_xf\":%llu,\"skipped_objects\":%llu,\"substituted\":%llu,\"sub_misses\":%llu,\"late\":%s,\"late_applied\":%llu,\"late_skipped\":%llu,\"late_jit\":%llu,\"late_repeats\":%llu,\"lead_ms\":%.1f,\"ready_ms\":%.1f,\"pace_div\":%d,\"pace_backoff\":%d,\"pace_clean\":%d,\"pace_ratio\":%.3f,\"pace_mid\":%llu,\"shed_steps\":%d,\"shed_backoff\":%d,\"shed_probes\":%llu,\"shed_failed_probes\":%llu,\"pace_changes\":%llu,\"emu_sheds\":%llu,\"ahead\":[%llu,%llu,%llu,%llu,%llu,%llu,%llu,%llu]}",
         replay_on?"true":"false",interp_replay?"true":"false",(int)target_hz,steps,(unsigned long long)captures,
@@ -1518,8 +1588,8 @@ const char* frame_replay_debug_json() {
     // Append the present trace: "ms/alpha/shown/ready/cached/njobs[d]/serial/yaw/t/planned alpha".
     if(n>1 && n<(int)sizeof buffer-64) {
         n-=1;
-        n+=std::snprintf(buffer+n,sizeof buffer-n,",\"timeline\":{\"slack_ms\":%.2f,\"pose_lag_ms\":%.2f,\"oldest_age_ms\":%.2f,\"future_evictions\":%llu},\"frontend\":{\"live\":%s,\"captures\":%llu,\"resets\":%llu,\"interval_ms\":%.1f,\"delay_ms\":%.1f,\"input\":%s},\"loading\":{\"live\":%s,\"captures\":%llu,\"resets\":%llu,\"interval_ms\":%.1f},\"trace\":\"",response_slack,response_pose_lag,response_oldest_age,(unsigned long long)response_future_evictions,
-            frontend_live()?"true":"false",(unsigned long long)frontend_captures,(unsigned long long)frontend_resets,frontend_interval_ms,newest_frontend(),ttk_frontend_input_json(),
+        n+=std::snprintf(buffer+n,sizeof buffer-n,",\"timeline\":{\"slack_ms\":%.2f,\"pose_lag_ms\":%.2f,\"oldest_age_ms\":%.2f,\"future_evictions\":%llu},\"frontend\":{\"live\":%s,\"captures\":%llu,\"resets\":%llu,\"interval_ms\":%.1f,\"delay_ms\":%.1f,\"input\":%s,\"newest\":%s,\"menu\":%s},\"loading\":{\"live\":%s,\"captures\":%llu,\"resets\":%llu,\"interval_ms\":%.1f},\"trace\":\"",response_slack,response_pose_lag,response_oldest_age,(unsigned long long)response_future_evictions,
+            frontend_live()?"true":"false",(unsigned long long)frontend_captures,(unsigned long long)frontend_resets,frontend_interval_ms,newest_frontend(),ttk_frontend_input_json(),frontend_newest()?"true":"false",menu_latency_json(),
             loading_live()?"true":"false",(unsigned long long)loading_captures,(unsigned long long)loading_resets,loading_interval_ms);
         const unsigned first=trace_n>128?trace_n-128:0;
         for(unsigned i=first;i<trace_n && n<(int)sizeof buffer-200;++i) {

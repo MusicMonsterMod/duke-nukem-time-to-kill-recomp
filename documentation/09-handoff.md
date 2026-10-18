@@ -1,5 +1,27 @@
 # Next-session handoff
 
+## 2026-10-18 - D19C accepted; D19E queued
+
+- User: "its more responsive when the demo is playing, but when the loading
+  spinner plays it is less responsive. lets commit at this point." D19C
+  Accepted for demo-backed menus; executable
+  `1e1a4795ab8af038f9c95b50d2159cab10bfb1f4a363d84b1ac741025e3d6828` is the regression baseline.
+  New Todo D19E: menus over the loading spinner are less responsive; fix
+  that and sweep every menu screen for best response (close-out). Still
+  queued: D08O2B, D08AA, D08A22, D24D, D26G, D19D.
+
+## 2026-10-18 - D19C more responsive original menus (Needs playtest)
+
+- Menu presses reach the screen about 100 ms sooner at the saved Modernized
+  rate: main menu press-to-screen 220 -> 124 ms mean (24 of 24 taps one step
+  each). Frontend in-betweens are drawn from the newer image of each pair,
+  the world blended back toward the older poses; the guest, its 10 Hz tick
+  and the demo behind the menu are untouched. Smoothness, gameplay start, 60
+  and Vanilla unchanged. Executable
+  `1e1a4795ab8af038f9c95b50d2159cab10bfb1f4a363d84b1ac741025e3d6828`.
+  [Note 142](142-d19c-menu-response.md). Awaiting the user's playtest.
+  Still queued: D08O2B, D08AA, D08A22, D24D, D26G, D19D.
+
 ## 2026-10-18 - D17U accepted
 
 - User: "i accept!! absolutely perfect." D17U Done (smooth spinning-logo

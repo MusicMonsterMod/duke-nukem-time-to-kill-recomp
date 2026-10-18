@@ -142,7 +142,8 @@ The title screen, the demo behind PRESS START and the main menu are smooth
 too. The original game updates them only 10 times a second; above 60 they get
 in-between pictures like gameplay, and the demo still plays exactly as
 recorded. Menu text and the highlighted entry still change at the original
-rate. In Modernized, a quick tap on a menu key is held until the menu has
+rate, but in Modernized above 60 the new highlight or screen appears about a
+tenth of a second sooner than before. In Modernized, a quick tap on a menu key is held until the menu has
 read it, so short presses are no longer lost; holding a key repeats as
 before. The intro movie and Vanilla are unchanged.
 

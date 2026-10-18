@@ -4,7 +4,7 @@ This is the canonical job list for our **Duke Nukem: Time to Kill** PC project, 
 
 Invoke **`$continue-duke-recomp`** (Codex) or **`/continue-duke-recomp`** (Claude Code) to see the current jobs and choose one. You can also request a job directly: **`$continue-duke-recomp work on D01`** or **`/continue-duke-recomp work on D01`**. The skill reads this file rather than keeping a second backlog. It must not automatically start the next job.
 
-**Latest accepted job (2026-10-18): D17T (smooth title menu and attract demo); executable `7ab8877528b05a46a1e793556660ab6cf09c538d93c7b2f1e6cb5bb744ce9829` is the regression baseline. Queued: D08O2B, D08AA, D08A22, D24D, D26G, D17U, D19C, D19D.** Earlier (2026-10-09): D08G6 (`dntlod` fun cheat); executable `74cec66e398217530d0b8abc3fa0ccfe06308f6b73a17e5aafa628b3f0f2a540`. Earlier (2026-10-09): D08A20 (challenge item HUD, option A - 14x14 icon in a square); executable `a047b37bbb833b84902a3ad344fff2e16c22ae3dc0093ad441d80c3eb9235a95`.** Earlier (2026-10-09): D08A21 (14x14 HUD item icons; the 16x16 versions kept in `recomp/assets/ui/items/16px/`); executable `72429e350806e0639f36e50cff0cb969f18df1662a2336794e17bd2263614c21`.** Earlier (2026-10-08): D08A12 (modern dynamite: unlit until fire, switch away freely, next stick drawn after a throw); executable `2d54e00b64bcf38917e41db47805338f75977b0b63a0868cb962242ffaaadb9d` is the regression baseline. Queued: D24D, D26G.** Earlier (2026-10-08): D08A19 (used mission items: USED and the green tick); executable `d67705eba48232029a90647cc781f3201d0aae29799678466b2b5b9337b5dbe8`. Earlier (2026-10-08): D08Z2 (mantle pose; frozen legs after a corner bump); executable `bfd41760f9c66f2f03cf859f820f7b7d27cd8991e8ce1f304f5456ea29bf8986` is the regression baseline. D08Z3 (modern landing) accepted 2026-10-08; executable `11187493c04ae830482c47c93b97ac332fbfce1de95f8eedaa2f8637d7fe164e` is the new regression baseline. Queued: D24D, D26G, D08A19.** Earlier (2026-10-08): D08Z1 (jump wall slide); executable `3f909c9f2cc4e5b09ba6faab5129ec9ae0ff938c4735e264ac67a66405c1ed34`. Earlier (2026-10-08): D08A17 (power-up countdowns); executable `8f338cde1c2dc4cf73da747621cffafe2478512f6419078a41d11b0d3b9268a9`. Earlier accepted jobs (2026-10-08): D08A14 (death ends steroids), D08A15 (heartbeat restart; a pickup mid-run stops steroids) and D08G4 (inventory cheats give full armor); executable `87fe38d4f0ea8560312f53171345c207f332e26b6f4d2ed7220e1afae66ba472` is the regression baseline.** Earlier: D08J2 (pole/chain A/D direction), D08U2 (climb off a ladder past an enemy), D08O3 (E in water keeps the weapon) and D08O2A (natural swim-fire pose v2), 2026-10-07.** Previous baseline `e8eebb809c3d5a4b29779f11f0c9db55efcd846dc5c71b39d5a59d43158eb08e` (D08U2). **D08J2 (pole/chain A/D direction) Accepted 2026-10-07**: executable `129a64f2df3f5395f2d3485a310a03d74c85f9b1086c7dab37fee59277c7968b` is the current regression baseline ([note 122](documentation/122-d08j2-pole-chain-sidestep.md)). Todo: D08J4 (ceiling monkey-bar drops, UI slot 3), D08J3 (free camera while climbing). Previous baseline `e75b50f156137fa2377e4643407b2efbd16f2e976fa4d697afcbceb228e2e554` (D08O3). **D23E (western-town stutter) Accepted 2026-10-07**; **D08O2A Accepted** ([note 119](documentation/119-d08o2a-natural-swim-fire-pose.md)), **D08O3 Accepted** ([note 120](documentation/120-d08o3-e-in-water.md)); **D23F (fast CPU timing) Accepted 2026-10-05 and now the Modernized default**; executable `e0737a9f712aa5622d1b057ee5071e12c33cc9a18de8e6d40ee8eee31083f966` (includes D23E), [note 104](documentation/104-d23e-busy-scene-stutter.md), [note 105](documentation/105-d23f-fast-timing.md). Next suggested: D23G (finish the fast path) and D17S (auto frame-rate default).
+**Latest accepted job (2026-10-18): D17U (smooth loading screens, the spinning logo); executable `e1d32dc00d9b2e870f5c1aab4b3e4a21bb74b242c20c7483d4f6eeed7011f9fc` is the regression baseline. Queued: D08O2B, D08AA, D08A22, D24D, D26G, D19C, D19D.** Earlier (2026-10-18): D17T (smooth title menu and attract demo); executable `7ab8877528b05a46a1e793556660ab6cf09c538d93c7b2f1e6cb5bb744ce9829`. Earlier (2026-10-09): D08G6 (`dntlod` fun cheat); executable `74cec66e398217530d0b8abc3fa0ccfe06308f6b73a17e5aafa628b3f0f2a540`. Earlier (2026-10-09): D08A20 (challenge item HUD, option A - 14x14 icon in a square); executable `a047b37bbb833b84902a3ad344fff2e16c22ae3dc0093ad441d80c3eb9235a95`.** Earlier (2026-10-09): D08A21 (14x14 HUD item icons; the 16x16 versions kept in `recomp/assets/ui/items/16px/`); executable `72429e350806e0639f36e50cff0cb969f18df1662a2336794e17bd2263614c21`.** Earlier (2026-10-08): D08A12 (modern dynamite: unlit until fire, switch away freely, next stick drawn after a throw); executable `2d54e00b64bcf38917e41db47805338f75977b0b63a0868cb962242ffaaadb9d` is the regression baseline. Queued: D24D, D26G.** Earlier (2026-10-08): D08A19 (used mission items: USED and the green tick); executable `d67705eba48232029a90647cc781f3201d0aae29799678466b2b5b9337b5dbe8`. Earlier (2026-10-08): D08Z2 (mantle pose; frozen legs after a corner bump); executable `bfd41760f9c66f2f03cf859f820f7b7d27cd8991e8ce1f304f5456ea29bf8986` is the regression baseline. D08Z3 (modern landing) accepted 2026-10-08; executable `11187493c04ae830482c47c93b97ac332fbfce1de95f8eedaa2f8637d7fe164e` is the new regression baseline. Queued: D24D, D26G, D08A19.** Earlier (2026-10-08): D08Z1 (jump wall slide); executable `3f909c9f2cc4e5b09ba6faab5129ec9ae0ff938c4735e264ac67a66405c1ed34`. Earlier (2026-10-08): D08A17 (power-up countdowns); executable `8f338cde1c2dc4cf73da747621cffafe2478512f6419078a41d11b0d3b9268a9`. Earlier accepted jobs (2026-10-08): D08A14 (death ends steroids), D08A15 (heartbeat restart; a pickup mid-run stops steroids) and D08G4 (inventory cheats give full armor); executable `87fe38d4f0ea8560312f53171345c207f332e26b6f4d2ed7220e1afae66ba472` is the regression baseline.** Earlier: D08J2 (pole/chain A/D direction), D08U2 (climb off a ladder past an enemy), D08O3 (E in water keeps the weapon) and D08O2A (natural swim-fire pose v2), 2026-10-07.** Previous baseline `e8eebb809c3d5a4b29779f11f0c9db55efcd846dc5c71b39d5a59d43158eb08e` (D08U2). **D08J2 (pole/chain A/D direction) Accepted 2026-10-07**: executable `129a64f2df3f5395f2d3485a310a03d74c85f9b1086c7dab37fee59277c7968b` is the current regression baseline ([note 122](documentation/122-d08j2-pole-chain-sidestep.md)). Todo: D08J4 (ceiling monkey-bar drops, UI slot 3), D08J3 (free camera while climbing). Previous baseline `e75b50f156137fa2377e4643407b2efbd16f2e976fa4d697afcbceb228e2e554` (D08O3). **D23E (western-town stutter) Accepted 2026-10-07**; **D08O2A Accepted** ([note 119](documentation/119-d08o2a-natural-swim-fire-pose.md)), **D08O3 Accepted** ([note 120](documentation/120-d08o3-e-in-water.md)); **D23F (fast CPU timing) Accepted 2026-10-05 and now the Modernized default**; executable `e0737a9f712aa5622d1b057ee5071e12c33cc9a18de8e6d40ee8eee31083f966` (includes D23E), [note 104](documentation/104-d23e-busy-scene-stutter.md), [note 105](documentation/105-d23f-fast-timing.md). Next suggested: D23G (finish the fast path) and D17S (auto frame-rate default).
 
 ## The experience we are building
 
@@ -164,7 +164,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D17R | Sky turns black toward the left/right edges when looking up, game-wide (LEVEL01 slot 9, medieval UI slot 2) | Todo | D14, D17O, D22A |
 | D17S | Auto frame-rate default: follow the display up to a cap, step down on faster monitors | Todo | D17, D23F |
 | D17T | Smooth title menu and attract demo at the saved frame rate (first impression; demo measured at 10 images/s) | Done (user-accepted) | D17, D23F |
-| D17U | Smooth loading screens (spinning Duke logo) at the saved frame rate | Todo | D17T |
+| D17U | Smooth loading screens (spinning Duke logo) at the saved frame rate | Done | D17T |
 | D17C | View bob: disable experiment, then a stable modern camera | Done (user-accepted) | D11 |
 | D18 | FMV and audio presentation safeguards | Todo | D01, D02 |
 | D18A | Voice/music/gunfire crackle investigation | Done | D01, D02 |
@@ -4506,7 +4506,7 @@ D17 unchanged; the user judges smoothness on their display.
 
 ### D17U - Smooth loading screens (spinning Duke logo) at the saved frame rate
 
-**Todo. Opened 2026-10-18.** User request after accepting D17T: the loading
+**Done (user-accepted 2026-10-18).** User: "i accept!! absolutely perfect." Note [141](documentation/141-d17u-loading-screens.md). User request after accepting D17T: the loading
 screens (the spinning Duke logo) still look low frame rate. Make them present
 smoothly at the saved Modernized rate, as D17T did for the title, demo and
 menu. Vanilla and loading speed/behaviour stay original.
@@ -4524,6 +4524,17 @@ loads; keep the CD/audio timing intact.
 the saved rate (measured), loading takes no longer than before (measured),
 no visual glitches at the start/end of a load, Vanilla and 60 unchanged; the
 user judges it on their display.
+
+**Result (2026-10-18, implemented):** loading screens are drawn by three
+callers (the blocking load loop `0x8001c440`, the frontend tick's load branch
+and the level start) as a static backdrop plus the logo `0x80025554`, a GTE
+model turned about Y by the angle `0x800beaf8` plus the field delta; 10
+images/s between demo scenes, 30 in level loads. The logo draw is now captured
+as a loading image and redrawn by the D17 workers with an interpolated angle
+(hook `0x80025554`, regenerated, codegen hash unchanged). At 120: DUKE HILL
+load 119 distinct presents/s (5 before), 6.82 s (6.84 before); demo scene
+loads 112; 180 and 240 scale; 60, Vanilla and `DNTTK_LOADING_INTERP=off`
+original. Details in note 141.
 
 ### D17C - View bob: disable experiment, then a stable modern camera
 
@@ -11812,3 +11823,33 @@ in note 117 is the reference for future custom pickups.
 - New Todo jobs from the user: D17U (smooth loading screens, the spinning
   Duke logo), D19C (more responsive original menus), D19D (Esc backs out of
   sub-menus; PC-friendly menu navigation beyond the mapped PS1 buttons).
+
+
+## 2026-10-18 - D17U smooth loading screens (Needs playtest)
+
+- Cause: loading screens (backdrop `0x800220f4` + spinning logo `0x80025554`,
+  then flip) are not view compositions, so D17 never redrew them: 10 images/s
+  between demo scenes, 30 in level loads.
+- `frame_replay.cpp`: logo draws from the load loop (return `0x8001c49c`),
+  the frontend load branch (`0x8002343c`) and the level start (`0x80025818`)
+  are captured as loading images; workers run from the logo to the flip with
+  the angle `0x800beaf8` interpolated (shortest way); timeline resets on
+  gameplay/frontend/loading switches and 15-field gaps.
+  `DNTTK_LOADING_INTERP=off` (developer). Hook `0x80025554` added to
+  `game.local.toml` and regenerated; codegen hash unchanged.
+- Evidence (executable
+  `e1d32dc00d9b2e870f5c1aab4b3e4a21bb74b242c20c7483d4f6eeed7011f9fc`): level
+  load 119 distinct presents/s at 120 (5 before), 180 at 180, 239 at 240;
+  demo scene load 112 at 120; logo time 6.82-6.84 s in every mode (6.84
+  before); present blends even (0.17/0.42/0.67/0.92), 0 backward steps;
+  gameplay and D17T demo unchanged; 60/Vanilla original. Note
+  [141](documentation/141-d17u-loading-screens.md).
+- Remaining: the user judges smoothness on their display; about 50 ms holds
+  after the guest's own drawing gaps in a load; Match Display not measured
+  offscreen.
+
+## 2026-10-18 - D17U accepted
+
+- User: "i accept!! absolutely perfect." D17U Done; executable
+  `e1d32dc00d9b2e870f5c1aab4b3e4a21bb74b242c20c7483d4f6eeed7011f9fc` is the regression baseline. Still queued:
+  D08O2B, D08AA, D08A22, D24D, D26G, D19C, D19D.

@@ -311,6 +311,13 @@ The native test binaries are `EXCLUDE_FROM_ALL`: build them by target
 (`cmake --build --preset local-dev --target ttk-controls-test ...`) before
 running them. See [note 131](131-d12c-kick-impact.md).
 
+## Loading screens (D17U)
+
+One hook (`0x80025554`, the loading-screen logo draw) was added to
+`game.local.toml` and regenerated with `psxrecomp_cli.py generate`; one
+generated line, codegen hash unchanged. See
+[note 141](141-d17u-loading-screens.md).
+
 ## Jump bounce undo (D08Z2)
 
 One hook (`0x8006BBD8`, the non-positional sound call; only the bounce's

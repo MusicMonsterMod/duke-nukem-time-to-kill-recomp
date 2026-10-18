@@ -1,5 +1,23 @@
 # Current status - 2026-10-04
 
+## 2026-10-18 - D17U accepted
+
+- User: "i accept!! absolutely perfect." D17U Done (smooth spinning-logo
+  loading screens at the saved Modernized rate); executable
+  `e1d32dc00d9b2e870f5c1aab4b3e4a21bb74b242c20c7483d4f6eeed7011f9fc` is the regression baseline. Still queued:
+  D08O2B, D08AA, D08A22, D24D, D26G, D19C, D19D.
+
+## 2026-10-18 - D17U smooth loading screens (Needs playtest)
+
+- The spinning-logo loading screens now get D17 in-between images at the
+  saved Modernized rate: level loads 119 distinct presents/s at 120 (30 guest
+  images, 5 counted before), demo scene loads 112 (guest 10); 180 and 240
+  scale. Load time unchanged (6.82-6.84 s); Vanilla and 60 original. Hook
+  `0x80025554` added and regenerated (codegen hash unchanged). Executable
+  `e1d32dc00d9b2e870f5c1aab4b3e4a21bb74b242c20c7483d4f6eeed7011f9fc`.
+  [Note 141](141-d17u-loading-screens.md). Awaiting the user's playtest.
+  Still queued: D08O2B, D08AA, D08A22, D24D, D26G, D19C, D19D.
+
 ## 2026-10-18 - D17T accepted; D17U, D19C, D19D queued
 
 - User: "i can confirm this works ... it's a good first start." D17T Done;

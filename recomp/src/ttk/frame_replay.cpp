@@ -72,7 +72,29 @@ bool frontend_composition(const CPUState* cpu) {
 bool frontend_live() {
     return frontend_field && psx_mod_read_half(game_mode)==0 && s_frame_count-frontend_field<=15;
 }
-bool replay_context() {return replay_gameplay_context() || frontend_live();}
+// D17U: loading screens. While the CD loads, the blocking load loop 0x8001c440
+// (return 0x8001c49c), the frontend tick's load branch (0x8002343c) and the
+// level start 0x800257c8 (0x80025818) draw the backdrop 0x800220f4, then the
+// spinning logo 0x80025554, then flip: 10 images a second in mode 0, 30 in
+// gameplay loads. The logo is a GTE model turned about Y by the angle
+// 0x800beaf8 (12 bits), which the draw advances by the frame's field delta
+// 0x800d21fc (5 per field) before drawing. These images are captured at the
+// logo's entry and redrawn by the workers like frontend images, with the angle
+// interpolated; the guest, its CD reads and its pace are untouched.
+// DNTTK_LOADING_INTERP=off (developer) keeps the original images.
+constexpr uint32_t logo_draw=0x80025554, logo_angle=0x800beaf8, field_delta=0x800d21fc;
+uint64_t loading_field=0, loading_captures=0, loading_resets=0;
+double loading_interval_ms=6000.0/59.94;
+bool loading_enabled() {static const bool v=[]{const char* t=std::getenv("DNTTK_LOADING_INTERP");return !(t && !std::strcmp(t,"off"));}();return v;}
+bool loading_image(const CPUState* cpu) {
+    const uint32_t ra=cpu->gpr[31];
+    return loading_enabled() && (ra==0x8001c49cu || ra==0x8002343cu || ra==0x80025818u);
+}
+// The angle the logo draw will show (it adds the delta first).
+uint16_t drawn_logo_angle() {return (uint16_t)((psx_mod_read_half(logo_angle)+psx_mod_read_half(field_delta))&0xfff);}
+// A loading image within the last 15 fields, in any game mode.
+bool loading_live() {return loading_field && s_frame_count-loading_field<=15;}
+bool replay_context() {return replay_gameplay_context() || frontend_live() || loading_live();}
 constexpr uint32_t room_walk=0x80039dd0;   // eye room: (target pos, eye, target room, previous room)
 uint64_t room_walks=0;                     // worker-side count (diagnostic)
 // Optional worker timing, separate from the emulation-thread sample profile.
@@ -281,6 +303,8 @@ struct Frame {
     int nxf=0;
     bool xf_done=false;
     bool frontend=false;   // D17T: a frontend image (no mouse look, longer interval)
+    bool loading=false;    // D17U: a loading screen image (also frontend: game-owned view)
+    uint16_t logo=0;       // D17U: logo angle this image shows
 };
 Frame frames[slots];
 extern double late_lead_ms;
@@ -290,7 +314,8 @@ double newest_frontend() {
     for(const auto& f:frames) if(f.valid && (!n || f.serial>n->serial)) n=&f;
     if(!n || !n->frontend) return 0.0;
     static const double fixed=[]{const char* e=std::getenv("DNTTK_FRONTEND_DELAY_MS");return e?std::clamp(std::atof(e),60.0,250.0):0.0;}();
-    return fixed>0.0 ? fixed : std::clamp(frontend_interval_ms+late_lead_ms+8.0,90.0,200.0);
+    const double interval=n->loading ? loading_interval_ms : frontend_interval_ms;
+    return fixed>0.0 ? fixed : std::clamp(interval+late_lead_ms+8.0,90.0,200.0);
 }
 double response_slack=0,response_pose_lag=0,response_oldest_age=0;
 uint64_t response_future_evictions=0;
@@ -301,12 +326,13 @@ uint64_t captures=0,publishes=0,submits=0,presented=0,reused=0,no_job=0,failures
 struct Params {
     uint32_t magic;
     float alpha;
-    uint32_t flags;          // 1 = camera fields present
+    uint32_t flags;          // 1 = camera fields present, 4 = loading image (logo angle)
     uint32_t nmats;          // matrix patches following the header
     CameraState camera;
     uint32_t render_len;     // draw-time host state after the patches
     uint32_t nxf;            // transform substitutions after the render state
     NearClipFrameState near; // D17A: the live frame's near clip accounting
+    int32_t logo;            // D17U: logo angle to show (flag 4)
 };
 struct MatPatch {uint32_t addr; Mat mat;};
 constexpr uint32_t params_max=60000;
@@ -621,6 +647,19 @@ bool apply_late(const InterpState& a,const InterpState& b,double alpha,Params& p
 }
 // Build and submit one redraw job of base toward next at alpha.
 int submit_job(Frame& base,const Frame& next,double alpha,bool late,double look_ms) {
+    if(base.loading) {
+        // D17U: the shortest way round between the two images' angles.
+        const double a=interp_off ? 0.0 : interp_full ? 1.0 : alpha;
+        const int turn=(((int)next.logo-(int)base.logo+2048)%4096+4096)%4096-2048;
+        Params p{};
+        p.magic=0x54544b32u; p.alpha=(float)a; p.flags=4; p.near=base.near;
+        p.logo=((int)base.logo+(int)std::lround(turn*a))&0xfff;
+        std::memcpy(param_buffer,&p,sizeof p);
+        const uint32_t len=append_render(base,param_buffer,sizeof p);
+        const int job=psx_mod_replay_submit(base.slot,param_buffer,len,base.serial);
+        if(job>=0) ++submits;
+        return job;
+    }
     uint32_t len=build_params(base.state,next.state,interp_off ? 0.0 : interp_full ? 1.0 : alpha,param_buffer);
     {
         Params p; std::memcpy(&p,param_buffer,sizeof p);
@@ -749,24 +788,35 @@ void submit_due(const PSXModPresentInfo* info,Frame* shown) {
     }
 }
 
+enum Kind {gameplay_image=0, frontend_image=1, loading_image_kind=2};
+void capture(CPUState* cpu,int kind);
 void composition_hook(CPUState* cpu,uint32_t address) {
     if(address!=composition || !replay_on || !interp_replay || psx_mod_replay_active()) return;
     const bool fe=frontend_composition(cpu);
     if(!fe && (cpu->gpr[31]!=composition_ret || psx_mod_read_word(0x800c27bc)!=1)) return;
     if(continuous_timeline() && !fe && !replay_gameplay_context()) return;
+    capture(cpu,fe ? frontend_image : gameplay_image);
+}
+void capture(CPUState* cpu,int kind) {
     ++captures;
     static uint64_t load_epoch=~uint64_t(0),field0=0,last_field=0;
     static double host0=0;
-    static bool last_fe=false;
+    static int last_kind=gameplay_image;
     const uint64_t field=s_frame_count, epoch=psx_mod_savestate_loads();
     const double host_now=1000.0*SDL_GetPerformanceCounter()/SDL_GetPerformanceFrequency();
-    // D17T: never blend across a switch between frontend and gameplay images,
-    // or across a frontend gap (a demo scene loading).
-    const bool switched=fe!=last_fe || (fe && field-last_field>15);
-    if(fe && !switched && field>last_field) frontend_interval_ms+=((double)(field-last_field)*(1000.0/59.94)-frontend_interval_ms)*0.25;
-    if(switched && fe) ++frontend_resets;
-    last_fe=fe; last_field=field;
-    if(fe) ++frontend_captures;
+    // D17T/D17U: never blend across a switch between gameplay, frontend and
+    // loading images, or across a gap in frontend or loading images (a demo
+    // scene loading, a load starting).
+    const bool switched=kind!=last_kind || (kind!=gameplay_image && field-last_field>15);
+    double& interval_ms=kind==loading_image_kind ? loading_interval_ms : frontend_interval_ms;
+    if(kind!=gameplay_image && !switched && field>last_field) interval_ms+=((double)(field-last_field)*(1000.0/59.94)-interval_ms)*0.25;
+    // A load starts at the mode's pace: 6 fields in the frontend, 2 in gameplay.
+    if(switched && kind==loading_image_kind) loading_interval_ms=(psx_mod_read_half(game_mode)==0 ? 6.0 : 2.0)*1000.0/59.94;
+    if(switched && kind==frontend_image) ++frontend_resets;
+    if(switched && kind==loading_image_kind) ++loading_resets;
+    last_kind=kind; last_field=field;
+    if(kind==frontend_image) ++frontend_captures;
+    if(kind==loading_image_kind) ++loading_captures;
     if(epoch!=load_epoch || field<field0 || timeline_clock_reset || switched || std::fabs(host_now-(host0+(double)(field-field0)*(1000.0/59.94)))>100.0) {
         reset_timeline(); load_epoch=epoch; field0=field;
         host0=host_now; timeline_clock_reset=false;
@@ -807,8 +857,11 @@ void composition_hook(CPUState* cpu,uint32_t address) {
     }
     f->slot=slot;
     f->valid=true;
-    f->frontend=fe;
-    capture_state(f->state);
+    f->frontend=kind!=gameplay_image;
+    f->loading=kind==loading_image_kind;
+    f->logo=f->loading ? drawn_logo_angle() : 0;
+    if(f->loading) {f->state.nactors=0;f->state.has_pivot=false;read_camera(f->state.camera);}
+    else capture_state(f->state);
     static const bool pose_trace=std::getenv("DNTTK_POSE_TRACE")!=nullptr;
     if(pose_trace) std::fprintf(stderr,
         "[pose] serial=%llu field=%llu pose_ms=%.3f host_ms=%.3f eye=%d,%d,%d\n",
@@ -906,8 +959,10 @@ int worker_draw(CPUState* source,const void* params,uint32_t len) {
     // The published state is the composition's entry: its return address is
     // the gameplay frame function's (0x800268f4) or the frontend tick's
     // (0x800234d4, D17T). Composition, then that caller's drawing tail, until
-    // it calls the flip.
-    psx_dispatch_call(&cpu,composition,flip);
+    // it calls the flip. D17U: a loading image starts at the logo draw, whose
+    // backdrop is already in the drawing chain; the draw adds the field delta.
+    if(p.flags&4) psx_mod_write_half(logo_angle,(uint16_t)((p.logo-(int)psx_mod_read_half(field_delta))&0xfff));
+    psx_dispatch_call(&cpu,(p.flags&4) ? logo_draw : composition,flip);
     bool ok=cpu.pc==0 && !g_psx_call_bail;
     if(ok) {
         CPUState tail=cpu;
@@ -1301,6 +1356,15 @@ void composition_entry(CPUState* cpu,uint32_t address) {
     }
     composition_hook(cpu,address);
 }
+// D17U: a loading screen's logo draw (live frames only).
+void logo_entry(CPUState* cpu,uint32_t address) {
+    if(address!=logo_draw || psx_mod_replay_active() || !replay_on || !interp_replay || !loading_image(cpu)) return;
+    // Never a second image in a tick that already captured its composition.
+    if(rec_frame && rec_frame->valid && !rec_frame->loading) return;
+    loading_field=s_frame_count;
+    start_workers_once();
+    capture(cpu,loading_image_kind);
+}
 // The object-list loop draws each object through table 0x800c0bf8 by its kind
 // (byte +0x14): 0x800632b0, 0x80031d10, 0x80032e78, 0x800348d8 (Duke and
 // matrix actors), 0x80031c14, all called (camera, object, ...).
@@ -1454,8 +1518,9 @@ const char* frame_replay_debug_json() {
     // Append the present trace: "ms/alpha/shown/ready/cached/njobs[d]/serial/yaw/t/planned alpha".
     if(n>1 && n<(int)sizeof buffer-64) {
         n-=1;
-        n+=std::snprintf(buffer+n,sizeof buffer-n,",\"timeline\":{\"slack_ms\":%.2f,\"pose_lag_ms\":%.2f,\"oldest_age_ms\":%.2f,\"future_evictions\":%llu},\"frontend\":{\"live\":%s,\"captures\":%llu,\"resets\":%llu,\"interval_ms\":%.1f,\"delay_ms\":%.1f,\"input\":%s},\"trace\":\"",response_slack,response_pose_lag,response_oldest_age,(unsigned long long)response_future_evictions,
-            frontend_live()?"true":"false",(unsigned long long)frontend_captures,(unsigned long long)frontend_resets,frontend_interval_ms,newest_frontend(),ttk_frontend_input_json());
+        n+=std::snprintf(buffer+n,sizeof buffer-n,",\"timeline\":{\"slack_ms\":%.2f,\"pose_lag_ms\":%.2f,\"oldest_age_ms\":%.2f,\"future_evictions\":%llu},\"frontend\":{\"live\":%s,\"captures\":%llu,\"resets\":%llu,\"interval_ms\":%.1f,\"delay_ms\":%.1f,\"input\":%s},\"loading\":{\"live\":%s,\"captures\":%llu,\"resets\":%llu,\"interval_ms\":%.1f},\"trace\":\"",response_slack,response_pose_lag,response_oldest_age,(unsigned long long)response_future_evictions,
+            frontend_live()?"true":"false",(unsigned long long)frontend_captures,(unsigned long long)frontend_resets,frontend_interval_ms,newest_frontend(),ttk_frontend_input_json(),
+            loading_live()?"true":"false",(unsigned long long)loading_captures,(unsigned long long)loading_resets,loading_interval_ms);
         const unsigned first=trace_n>128?trace_n-128:0;
         for(unsigned i=first;i<trace_n && n<(int)sizeof buffer-200;++i) {
             const TraceEntry& e=trace_ring[i%128];
@@ -1474,6 +1539,7 @@ const char* frame_replay_debug_json() {
 PSX_MOD_CONSTRUCTOR(register_ttk_frame_replay) {
     psx_mod_register_activation_plugin("ttk.frame_rate",ttk::activate);
     psx_mod_register_function_entry_plugin("ttk.frame.replay",ttk::composition,ttk::composition_entry);
+    psx_mod_register_function_entry_plugin("ttk.frame.replay",ttk::logo_draw,ttk::logo_entry);
     for(uint32_t a:{0x800632b0u,0x80031d10u,0x80032e78u,0x800348d8u,0x80031c14u})
         psx_mod_register_function_entry_plugin("ttk.frame.replay",a,ttk::actor_draw);
     psx_mod_register_function_entry_plugin("ttk.frame.replay.profile",0x8001ca4cu,ttk::quality_actor_end);

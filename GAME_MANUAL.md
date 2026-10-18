@@ -146,6 +146,12 @@ rate. In Modernized, a quick tap on a menu key is held until the menu has
 read it, so short presses are no longer lost; holding a key repeats as
 before. The intro movie and Vanilla are unchanged.
 
+Loading screens (the spinning radiation logo) are smooth as well: above 60 the
+logo turns evenly at your frame rate instead of stepping 10 times a second
+(between demo scenes) or 30 times a second (level loads). Loading takes
+exactly as long as before. When the game pauses its own drawing for a moment
+during a load, the logo pauses too, as in the original.
+
 The sky keeps its original cloud layers and animation. The user-accepted D17O
 fix keeps those layers centered on the current view during high-refresh turning.
 It applies automatically. Original sky geometry and coarse animation steps remain.

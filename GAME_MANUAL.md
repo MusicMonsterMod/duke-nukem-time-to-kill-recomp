@@ -138,6 +138,14 @@ pictures per game frame). This uses spare CPU cores (Linux); at very high rates
 the busiest scenes get fewer in-between pictures and repeat one now and then.
 Particles, flashes and the HUD still update 30 times a second.
 
+The title screen, the demo behind PRESS START and the main menu are smooth
+too. The original game updates them only 10 times a second; above 60 they get
+in-between pictures like gameplay, and the demo still plays exactly as
+recorded. Menu text and the highlighted entry still change at the original
+rate. In Modernized, a quick tap on a menu key is held until the menu has
+read it, so short presses are no longer lost; holding a key repeats as
+before. The intro movie and Vanilla are unchanged.
+
 The sky keeps its original cloud layers and animation. The user-accepted D17O
 fix keeps those layers centered on the current view during high-refresh turning.
 It applies automatically. Original sky geometry and coarse animation steps remain.

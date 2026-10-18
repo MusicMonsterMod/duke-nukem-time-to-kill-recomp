@@ -43,6 +43,7 @@ int overlay_loader_prepare_address(uint32_t addr);
 }
 
 extern "C" uint64_t s_frame_count;
+extern "C" const char* ttk_frontend_input_json();
 extern "C" uint8_t* g_psx_ram;
 extern "C" uint32_t g_dirty_ram_code_gen;
 namespace ttk {
@@ -52,6 +53,26 @@ const char* status_json() {return frame_replay_debug_json();}
 constexpr uint32_t composition=0x80026164, composition_ret=0x800268f4;
 constexpr uint32_t flip=0x8001fcbc, chain_close=0x8001fba0, submit=0x8001fa78;
 constexpr uint32_t sentinel=0x800000fc;
+// D17T: the frontend (game mode 0x800bcbb0 == 0: title, attract demo, main
+// menu) draws the same view composition from its own tick 0x80022324 (return
+// 0x800234d4), and its flip waits at least 6 fields (10 images a second;
+// gameplay waits 2). Its in-betweens come from the same replay. The guest's
+// pace is never changed: the attract demo is recorded per-frame input and
+// desyncs at 30 Hz (Duke stuck on a wall, scene cut early). The frontend's
+// flip closes the drawing chain itself (return 0x8001fce0).
+// DNTTK_FRONTEND_INTERP=off (developer) keeps the original 10 Hz images.
+constexpr uint32_t frontend_ret=0x800234d4, frontend_close_ret=0x8001fce0, game_mode=0x800bcbb0;
+uint64_t frontend_field=0, frontend_captures=0, frontend_resets=0;
+double frontend_interval_ms=6000.0/59.94;
+bool frontend_enabled() {static const bool v=[]{const char* t=std::getenv("DNTTK_FRONTEND_INTERP");return !(t && !std::strcmp(t,"off"));}();return v;}
+bool frontend_composition(const CPUState* cpu) {
+    return frontend_enabled() && cpu->gpr[31]==frontend_ret && psx_mod_read_half(game_mode)==0;
+}
+// A frontend image within the last 15 fields (the flip waits 6).
+bool frontend_live() {
+    return frontend_field && psx_mod_read_half(game_mode)==0 && s_frame_count-frontend_field<=15;
+}
+bool replay_context() {return replay_gameplay_context() || frontend_live();}
 constexpr uint32_t room_walk=0x80039dd0;   // eye room: (target pos, eye, target room, previous room)
 uint64_t room_walks=0;                     // worker-side count (diagnostic)
 // Optional worker timing, separate from the emulation-thread sample profile.
@@ -259,8 +280,18 @@ struct Frame {
     Xf xf[max_xf];
     int nxf=0;
     bool xf_done=false;
+    bool frontend=false;   // D17T: a frontend image (no mouse look, longer interval)
 };
 Frame frames[slots];
+extern double late_lead_ms;
+// D17T: the world delay when the newest image is a frontend one, else 0.
+double newest_frontend() {
+    const Frame* n=nullptr;
+    for(const auto& f:frames) if(f.valid && (!n || f.serial>n->serial)) n=&f;
+    if(!n || !n->frontend) return 0.0;
+    static const double fixed=[]{const char* e=std::getenv("DNTTK_FRONTEND_DELAY_MS");return e?std::clamp(std::atof(e),60.0,250.0):0.0;}();
+    return fixed>0.0 ? fixed : std::clamp(frontend_interval_ms+late_lead_ms+8.0,90.0,200.0);
+}
 double response_slack=0,response_pose_lag=0,response_oldest_age=0;
 uint64_t response_future_evictions=0;
 uint64_t serial=0;
@@ -399,9 +430,15 @@ bool continuous_timeline() {
     static const bool on=[]{const char* e=std::getenv("DNTTK_PRESENT_TIMELINE");return !(e && e[0]=='0');}();
     return on && late_camera();
 }
+double newest_frontend();
 double timeline_delay() {
     static const double ms=[]{const char* e=std::getenv("DNTTK_WORLD_DELAY_MS");return e?std::clamp(std::atof(e),50.0,130.0):90.0;}();
-    return ms;
+    // D17T: frontend images are 6 fields apart. The pair around a present
+    // must be complete (the next image composed and its redraw submitted a
+    // lead before the present), so the delay covers one interval plus the
+    // lead and a margin: about 130 ms instead of 90.
+    const double fe=newest_frontend();
+    return fe>0.0 ? fe : ms;
 }
 Frame* timeline_pair(double present_ms, Frame*& next, double& alpha) {
     const double world_ms=present_ms-timeline_delay();
@@ -700,7 +737,7 @@ void submit_due(const PSXModPresentInfo* info,Frame* shown) {
             // redraw happens to be submitted (DNTTK_LATE_SAMPLE=0: now).
             static const bool sample=[]{const char* e=std::getenv("DNTTK_LATE_SAMPLE");return !(e && e[0]=='0' && !e[1]);}();
             const double look_ms=sample ? std::min(t-late_lead_ms,now_ms) : now_ms;
-            const int job=submit_job(*f,*to,alpha,true,look_ms);
+            const int job=submit_job(*f,*to,alpha,!f->frontend,look_ms);
             if(job<0) return;   // no free worker job: try again at the next tick
             const int n=f->njobs++;
             f->alpha[n]=(float)alpha; f->failed[n]=false; f->jobs[n]=job; f->submitted[n]=true;
@@ -714,14 +751,23 @@ void submit_due(const PSXModPresentInfo* info,Frame* shown) {
 
 void composition_hook(CPUState* cpu,uint32_t address) {
     if(address!=composition || !replay_on || !interp_replay || psx_mod_replay_active()) return;
-    if(cpu->gpr[31]!=composition_ret || psx_mod_read_word(0x800c27bc)!=1) return;
-    if(continuous_timeline() && !replay_gameplay_context()) return;
+    const bool fe=frontend_composition(cpu);
+    if(!fe && (cpu->gpr[31]!=composition_ret || psx_mod_read_word(0x800c27bc)!=1)) return;
+    if(continuous_timeline() && !fe && !replay_gameplay_context()) return;
     ++captures;
-    static uint64_t load_epoch=~uint64_t(0),field0=0;
+    static uint64_t load_epoch=~uint64_t(0),field0=0,last_field=0;
     static double host0=0;
+    static bool last_fe=false;
     const uint64_t field=s_frame_count, epoch=psx_mod_savestate_loads();
     const double host_now=1000.0*SDL_GetPerformanceCounter()/SDL_GetPerformanceFrequency();
-    if(epoch!=load_epoch || field<field0 || timeline_clock_reset || std::fabs(host_now-(host0+(double)(field-field0)*(1000.0/59.94)))>100.0) {
+    // D17T: never blend across a switch between frontend and gameplay images,
+    // or across a frontend gap (a demo scene loading).
+    const bool switched=fe!=last_fe || (fe && field-last_field>15);
+    if(fe && !switched && field>last_field) frontend_interval_ms+=((double)(field-last_field)*(1000.0/59.94)-frontend_interval_ms)*0.25;
+    if(switched && fe) ++frontend_resets;
+    last_fe=fe; last_field=field;
+    if(fe) ++frontend_captures;
+    if(epoch!=load_epoch || field<field0 || timeline_clock_reset || switched || std::fabs(host_now-(host0+(double)(field-field0)*(1000.0/59.94)))>100.0) {
         reset_timeline(); load_epoch=epoch; field0=field;
         host0=host_now; timeline_clock_reset=false;
     }
@@ -761,6 +807,7 @@ void composition_hook(CPUState* cpu,uint32_t address) {
     }
     f->slot=slot;
     f->valid=true;
+    f->frontend=fe;
     capture_state(f->state);
     static const bool pose_trace=std::getenv("DNTTK_POSE_TRACE")!=nullptr;
     if(pose_trace) std::fprintf(stderr,
@@ -856,8 +903,10 @@ int worker_draw(CPUState* source,const void* params,uint32_t len) {
     uint64_t nc0[8]; near_clip_counters(nc0);
     CPUState cpu=*source;
     cpu.pc=0;
-    cpu.gpr[31]=composition_ret;
-    // Composition, then the frame function's drawing tail, until it calls the flip.
+    // The published state is the composition's entry: its return address is
+    // the gameplay frame function's (0x800268f4) or the frontend tick's
+    // (0x800234d4, D17T). Composition, then that caller's drawing tail, until
+    // it calls the flip.
     psx_dispatch_call(&cpu,composition,flip);
     bool ok=cpu.pc==0 && !g_psx_call_bail;
     if(ok) {
@@ -1054,7 +1103,7 @@ void trace(const PSXModPresentInfo* info,double alpha,const Frame* f,int shown,b
 // is drawn after its own flip and displayed at the next one).
 int timeline_provider(const PSXModPresentInfo* info) {
     static bool suspended=false;
-    if(!replay_gameplay_context()) {suspended=true;return 0;}
+    if(!replay_context()) {suspended=true;return 0;}
     if(suspended) {reset_timeline();suspended=false;return 0;}
     if(!info->frequency || info->present_hz<=0) return 0;
     const double now_ms=1000.0*info->now/info->frequency;
@@ -1090,7 +1139,7 @@ int timeline_provider(const PSXModPresentInfo* info) {
         }
         if(have) continue;
         const double look_ms=std::min(t-late_lead_ms,now_ms);
-        const int job=submit_job(*f,*next,alpha,true,look_ms);
+        const int job=submit_job(*f,*next,alpha,!f->frontend,look_ms);
         if(job<0) break;
         const int i=f->njobs++;
         f->alpha[i]=(float)alpha;f->jobs[i]=job;f->failed[i]=false;f->submitted[i]=true;
@@ -1225,7 +1274,7 @@ void activate() {
 // Workers fork from a running game, after the window and renderer exist.
 bool workers_started=false;
 void start_workers_once() {
-    if(workers_started || !replay_on || !interp_replay || !replay_gameplay_context()) return;
+    if(workers_started || !replay_on || !interp_replay || !replay_context()) return;
     // The game initializes this math routine before gameplay, but may not call
     // it until the opening has begun. Load its exact cached variant now so a
     // first use does not force all render workers to refork during camera motion.
@@ -1240,6 +1289,8 @@ void start_workers_once() {
     if(psx_mod_replay_workers_start(workers,worker_draw)<=0) interp_replay=false;
 }
 void composition_entry(CPUState* cpu,uint32_t address) {
+    if(!psx_mod_replay_active() && address==composition && replay_on && interp_replay && frontend_composition(cpu))
+        frontend_field=s_frame_count;
     if(!psx_mod_replay_active()) start_workers_once();
     // The live frame that just ended drew these actors.
     if(!psx_mod_replay_active() && address==composition) {
@@ -1328,7 +1379,8 @@ void transform_load(CPUState* cpu,uint32_t) {
 // 0x8001fba0 called right after the live composition (return 0x80026904):
 // this frame's transforms are complete; redraw the previous frame toward it.
 void composition_end(CPUState* cpu,uint32_t) {
-    if(!interp_replay || psx_mod_replay_active() || cpu->gpr[31]!=0x80026904u || !rec_frame) return;
+    if(!interp_replay || psx_mod_replay_active() || !rec_frame) return;
+    if(cpu->gpr[31]!=(rec_frame->frontend ? frontend_close_ret : 0x80026904u)) return;
     rec_frame->xf_done=true;
     static const bool pose_trace=std::getenv("DNTTK_POSE_TRACE")!=nullptr;
     if(pose_trace) std::fprintf(stderr,"[pose-ready] serial=%llu host_ms=%.3f\n",
@@ -1402,7 +1454,8 @@ const char* frame_replay_debug_json() {
     // Append the present trace: "ms/alpha/shown/ready/cached/njobs[d]/serial/yaw/t/planned alpha".
     if(n>1 && n<(int)sizeof buffer-64) {
         n-=1;
-        n+=std::snprintf(buffer+n,sizeof buffer-n,",\"timeline\":{\"slack_ms\":%.2f,\"pose_lag_ms\":%.2f,\"oldest_age_ms\":%.2f,\"future_evictions\":%llu},\"trace\":\"",response_slack,response_pose_lag,response_oldest_age,(unsigned long long)response_future_evictions);
+        n+=std::snprintf(buffer+n,sizeof buffer-n,",\"timeline\":{\"slack_ms\":%.2f,\"pose_lag_ms\":%.2f,\"oldest_age_ms\":%.2f,\"future_evictions\":%llu},\"frontend\":{\"live\":%s,\"captures\":%llu,\"resets\":%llu,\"interval_ms\":%.1f,\"delay_ms\":%.1f,\"input\":%s},\"trace\":\"",response_slack,response_pose_lag,response_oldest_age,(unsigned long long)response_future_evictions,
+            frontend_live()?"true":"false",(unsigned long long)frontend_captures,(unsigned long long)frontend_resets,frontend_interval_ms,newest_frontend(),ttk_frontend_input_json());
         const unsigned first=trace_n>128?trace_n-128:0;
         for(unsigned i=first;i<trace_n && n<(int)sizeof buffer-200;++i) {
             const TraceEntry& e=trace_ring[i%128];

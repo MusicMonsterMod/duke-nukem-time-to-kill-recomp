@@ -78,5 +78,8 @@ void input_release();
 void input_state_loaded();
 void input_allow_capture(bool allow);
 void input_pad_context(uint16_t pad);
+// D17T (frontend_input.cpp): the player-1 pad word as the frontend should see
+// it; a short Modernized press there is held until the 10 Hz tick can read it.
+uint16_t frontend_pad_hold(uint16_t pad);
 }
 extern "C" const char* ttk_input_debug_json();

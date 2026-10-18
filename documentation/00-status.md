@@ -1,5 +1,25 @@
 # Current status - 2026-10-04
 
+## 2026-10-18 - D17T accepted; D17U, D19C, D19D queued
+
+- User: "i can confirm this works ... it's a good first start." D17T Done;
+  executable `7ab8877528b05a46a1e793556660ab6cf09c538d93c7b2f1e6cb5bb744ce9829`
+  is the regression baseline. New Todo: D17U (smooth loading screens, the
+  spinning Duke logo), D19C (more responsive original menus), D19D (Esc backs
+  out of sub-menus; PC-friendly menu navigation). Still queued: D08O2B,
+  D08AA, D08A22, D24D, D26G.
+
+## 2026-10-18 - D17T smooth title menu and attract demo (Needs playtest)
+
+- Frontend (mode 0) runs 10 images/s by the original's flip (6 fields); a
+  30 Hz experiment desynced the attract demo, so the guest pace stays.
+  Frontend images now get D17 in-betweens at the saved Modernized rate
+  (118-119 distinct/s at 120), and short menu taps are held for 6 fields
+  (45 ms taps 12/12, 7/12 before). Executable
+  `7ab8877528b05a46a1e793556660ab6cf09c538d93c7b2f1e6cb5bb744ce9829`.
+  [Note 140](140-d17t-frontend-smoothness.md). Awaiting the user's playtest
+  on their display. Still queued: D08O2B, D08AA, D08A22, D24D, D26G.
+
 ## 2026-10-09 - D08G6 accepted (`dntlod`)
 
 - User: "accepted!" D08G6 Done. Fun typed cheat shows "Play Zaxtor's

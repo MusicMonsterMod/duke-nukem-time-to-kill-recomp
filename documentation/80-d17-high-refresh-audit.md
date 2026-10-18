@@ -84,7 +84,7 @@ what the player sees and when:
 | Doors, lifts, moving sectors | Step | Interpolated transforms where present in data, otherwise step |
 | Particles, sprites, flashes, HUD | Step | Step (left at the latest state; never extrapolated) |
 | Host overlays (crosshair, Duke font, inventory) | Drawn every present | Unchanged |
-| FMV, menus, loading, 2D screens | Step | Step (interpolation off) |
+| FMV, menus, loading, 2D screens | Step | Step (interpolation off); since D17T the title, attract demo and main menu are interpolated ([140](140-d17t-frontend-smoothness.md)) |
 
 Rule: anything not explicitly interpolated is drawn exactly as the game
 produced it in the latest frame. That is never wrong, only not smoother.

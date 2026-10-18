@@ -4,7 +4,7 @@ This is the canonical job list for our **Duke Nukem: Time to Kill** PC project, 
 
 Invoke **`$continue-duke-recomp`** (Codex) or **`/continue-duke-recomp`** (Claude Code) to see the current jobs and choose one. You can also request a job directly: **`$continue-duke-recomp work on D01`** or **`/continue-duke-recomp work on D01`**. The skill reads this file rather than keeping a second backlog. It must not automatically start the next job.
 
-**Latest accepted job (2026-10-09): D08G6 (`dntlod` fun cheat); executable `74cec66e398217530d0b8abc3fa0ccfe06308f6b73a17e5aafa628b3f0f2a540` is the regression baseline. Queued: D08O2B, D08AA, D08A22, D24D, D26G.** Earlier (2026-10-09): D08A20 (challenge item HUD, option A - 14x14 icon in a square); executable `a047b37bbb833b84902a3ad344fff2e16c22ae3dc0093ad441d80c3eb9235a95`.** Earlier (2026-10-09): D08A21 (14x14 HUD item icons; the 16x16 versions kept in `recomp/assets/ui/items/16px/`); executable `72429e350806e0639f36e50cff0cb969f18df1662a2336794e17bd2263614c21`.** Earlier (2026-10-08): D08A12 (modern dynamite: unlit until fire, switch away freely, next stick drawn after a throw); executable `2d54e00b64bcf38917e41db47805338f75977b0b63a0868cb962242ffaaadb9d` is the regression baseline. Queued: D24D, D26G.** Earlier (2026-10-08): D08A19 (used mission items: USED and the green tick); executable `d67705eba48232029a90647cc781f3201d0aae29799678466b2b5b9337b5dbe8`. Earlier (2026-10-08): D08Z2 (mantle pose; frozen legs after a corner bump); executable `bfd41760f9c66f2f03cf859f820f7b7d27cd8991e8ce1f304f5456ea29bf8986` is the regression baseline. D08Z3 (modern landing) accepted 2026-10-08; executable `11187493c04ae830482c47c93b97ac332fbfce1de95f8eedaa2f8637d7fe164e` is the new regression baseline. Queued: D24D, D26G, D08A19.** Earlier (2026-10-08): D08Z1 (jump wall slide); executable `3f909c9f2cc4e5b09ba6faab5129ec9ae0ff938c4735e264ac67a66405c1ed34`. Earlier (2026-10-08): D08A17 (power-up countdowns); executable `8f338cde1c2dc4cf73da747621cffafe2478512f6419078a41d11b0d3b9268a9`. Earlier accepted jobs (2026-10-08): D08A14 (death ends steroids), D08A15 (heartbeat restart; a pickup mid-run stops steroids) and D08G4 (inventory cheats give full armor); executable `87fe38d4f0ea8560312f53171345c207f332e26b6f4d2ed7220e1afae66ba472` is the regression baseline.** Earlier: D08J2 (pole/chain A/D direction), D08U2 (climb off a ladder past an enemy), D08O3 (E in water keeps the weapon) and D08O2A (natural swim-fire pose v2), 2026-10-07.** Previous baseline `e8eebb809c3d5a4b29779f11f0c9db55efcd846dc5c71b39d5a59d43158eb08e` (D08U2). **D08J2 (pole/chain A/D direction) Accepted 2026-10-07**: executable `129a64f2df3f5395f2d3485a310a03d74c85f9b1086c7dab37fee59277c7968b` is the current regression baseline ([note 122](documentation/122-d08j2-pole-chain-sidestep.md)). Todo: D08J4 (ceiling monkey-bar drops, UI slot 3), D08J3 (free camera while climbing). Previous baseline `e75b50f156137fa2377e4643407b2efbd16f2e976fa4d697afcbceb228e2e554` (D08O3). **D23E (western-town stutter) Accepted 2026-10-07**; **D08O2A Accepted** ([note 119](documentation/119-d08o2a-natural-swim-fire-pose.md)), **D08O3 Accepted** ([note 120](documentation/120-d08o3-e-in-water.md)); **D23F (fast CPU timing) Accepted 2026-10-05 and now the Modernized default**; executable `e0737a9f712aa5622d1b057ee5071e12c33cc9a18de8e6d40ee8eee31083f966` (includes D23E), [note 104](documentation/104-d23e-busy-scene-stutter.md), [note 105](documentation/105-d23f-fast-timing.md). Next suggested: D23G (finish the fast path) and D17S (auto frame-rate default).
+**Latest accepted job (2026-10-18): D17T (smooth title menu and attract demo); executable `7ab8877528b05a46a1e793556660ab6cf09c538d93c7b2f1e6cb5bb744ce9829` is the regression baseline. Queued: D08O2B, D08AA, D08A22, D24D, D26G, D17U, D19C, D19D.** Earlier (2026-10-09): D08G6 (`dntlod` fun cheat); executable `74cec66e398217530d0b8abc3fa0ccfe06308f6b73a17e5aafa628b3f0f2a540`. Earlier (2026-10-09): D08A20 (challenge item HUD, option A - 14x14 icon in a square); executable `a047b37bbb833b84902a3ad344fff2e16c22ae3dc0093ad441d80c3eb9235a95`.** Earlier (2026-10-09): D08A21 (14x14 HUD item icons; the 16x16 versions kept in `recomp/assets/ui/items/16px/`); executable `72429e350806e0639f36e50cff0cb969f18df1662a2336794e17bd2263614c21`.** Earlier (2026-10-08): D08A12 (modern dynamite: unlit until fire, switch away freely, next stick drawn after a throw); executable `2d54e00b64bcf38917e41db47805338f75977b0b63a0868cb962242ffaaadb9d` is the regression baseline. Queued: D24D, D26G.** Earlier (2026-10-08): D08A19 (used mission items: USED and the green tick); executable `d67705eba48232029a90647cc781f3201d0aae29799678466b2b5b9337b5dbe8`. Earlier (2026-10-08): D08Z2 (mantle pose; frozen legs after a corner bump); executable `bfd41760f9c66f2f03cf859f820f7b7d27cd8991e8ce1f304f5456ea29bf8986` is the regression baseline. D08Z3 (modern landing) accepted 2026-10-08; executable `11187493c04ae830482c47c93b97ac332fbfce1de95f8eedaa2f8637d7fe164e` is the new regression baseline. Queued: D24D, D26G, D08A19.** Earlier (2026-10-08): D08Z1 (jump wall slide); executable `3f909c9f2cc4e5b09ba6faab5129ec9ae0ff938c4735e264ac67a66405c1ed34`. Earlier (2026-10-08): D08A17 (power-up countdowns); executable `8f338cde1c2dc4cf73da747621cffafe2478512f6419078a41d11b0d3b9268a9`. Earlier accepted jobs (2026-10-08): D08A14 (death ends steroids), D08A15 (heartbeat restart; a pickup mid-run stops steroids) and D08G4 (inventory cheats give full armor); executable `87fe38d4f0ea8560312f53171345c207f332e26b6f4d2ed7220e1afae66ba472` is the regression baseline.** Earlier: D08J2 (pole/chain A/D direction), D08U2 (climb off a ladder past an enemy), D08O3 (E in water keeps the weapon) and D08O2A (natural swim-fire pose v2), 2026-10-07.** Previous baseline `e8eebb809c3d5a4b29779f11f0c9db55efcd846dc5c71b39d5a59d43158eb08e` (D08U2). **D08J2 (pole/chain A/D direction) Accepted 2026-10-07**: executable `129a64f2df3f5395f2d3485a310a03d74c85f9b1086c7dab37fee59277c7968b` is the current regression baseline ([note 122](documentation/122-d08j2-pole-chain-sidestep.md)). Todo: D08J4 (ceiling monkey-bar drops, UI slot 3), D08J3 (free camera while climbing). Previous baseline `e75b50f156137fa2377e4643407b2efbd16f2e976fa4d697afcbceb228e2e554` (D08O3). **D23E (western-town stutter) Accepted 2026-10-07**; **D08O2A Accepted** ([note 119](documentation/119-d08o2a-natural-swim-fire-pose.md)), **D08O3 Accepted** ([note 120](documentation/120-d08o3-e-in-water.md)); **D23F (fast CPU timing) Accepted 2026-10-05 and now the Modernized default**; executable `e0737a9f712aa5622d1b057ee5071e12c33cc9a18de8e6d40ee8eee31083f966` (includes D23E), [note 104](documentation/104-d23e-busy-scene-stutter.md), [note 105](documentation/105-d23f-fast-timing.md). Next suggested: D23G (finish the fast path) and D17S (auto frame-rate default).
 
 ## The experience we are building
 
@@ -163,6 +163,8 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D17P | Distant horizontal black bands in new subway slot 8 | Done (user-accepted) | D15 |
 | D17R | Sky turns black toward the left/right edges when looking up, game-wide (LEVEL01 slot 9, medieval UI slot 2) | Todo | D14, D17O, D22A |
 | D17S | Auto frame-rate default: follow the display up to a cap, step down on faster monitors | Todo | D17, D23F |
+| D17T | Smooth title menu and attract demo at the saved frame rate (first impression; demo measured at 10 images/s) | Done (user-accepted) | D17, D23F |
+| D17U | Smooth loading screens (spinning Duke logo) at the saved frame rate | Todo | D17T |
 | D17C | View bob: disable experiment, then a stable modern camera | Done (user-accepted) | D11 |
 | D18 | FMV and audio presentation safeguards | Todo | D01, D02 |
 | D18A | Voice/music/gunfire crackle investigation | Done | D01, D02 |
@@ -173,6 +175,8 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D19 | Modern in-game menus, settings and input prompts (Sonic 3 A.I.R.-style customization; plan mode + artifact first) | Todo | D02, D04, D13 |
 | D19A | Duke font assets for host messages and modern UI | Done | D04 |
 | D19B | Responsive modern menu navigation and transitions | Todo | D02, D04 |
+| D19C | Interim: more responsive original menus (faster cursor and screen response, no 10 Hz feel) | Todo | D17T |
+| D19D | Interim: Esc backs out of sub-menus; PC-friendly navigation where the mapped PS1 buttons fall short | Todo | D04, D17T |
 | D20 | Save management and optional quick saves | Todo | D01, D02 |
 | D21 | Accessibility and sound controls | Todo | D04, D19 |
 | D22 | Campaign fidelity and overlay coverage | Todo | D01 |
@@ -4436,6 +4440,91 @@ Re-evaluate when the display changes (window moved, fullscreen).
 modes (measured, plus unit tests of the rule); existing explicit choices are
 kept; the user judges the default on their display.
 
+### D17T - Smooth title menu and attract demo at the saved frame rate
+
+**Done (user-accepted 2026-10-18).** User: "i can confirm this works ... it's a good first start." Note [140](documentation/140-d17t-frontend-smoothness.md). User request: the title menu and the attract
+demo behind PRESS START are the first thing a player sees, and they look like
+they run at about 30 fps. Present them at the player's saved Modernized frame
+rate (`controls.frame_rate`, e.g. 120 or Match Display) so the first
+impression is smooth. Vanilla stays at its original 60 Hz presentation, the
+intro FMV keeps its native rate, and demo/menu logic timing must not change.
+
+**Investigation (2026-10-18, before implementation):**
+
+- Code: D17 render replay is gated to gameplay. `gameplay_context()`
+  (`recomp/src/ttk/modern_controls.cpp:342`) requires game mode
+  `0x800bcbb0 == 1` and no pause (`0x800be568`, `0x800d2540`); mode 0 is the
+  frontend/attract dispatcher (`0x8001bb84`). `composition_hook`,
+  `timeline_provider` and `start_workers_once` in
+  `recomp/src/ttk/frame_replay.cpp` all refuse outside it, so the replay
+  workers are not even started until the first level. Note 80 section 3 lists
+  "FMV, menus, loading, 2D screens: Step (interpolation off)" by design.
+- Measured (offscreen real GPU, D17 harness `SLOT=none`, private profile,
+  Modernized at 180, no input): after about 150 s of intro FMV the game enters
+  mode 0 with full 3D scenes (Duke running, PRESS START and the logo). Polling
+  the display buffer index `0x800bdbd0` gives **9.7-10 guest images per second
+  (one every 6 video fields)**, each repeated about 6 times at 60 Hz. That is
+  slower than gameplay (30, or 20 on overrun), so it reads as worse than 30 fps.
+- Not yet known, and the first step: why the demo is 10 Hz. Either the
+  frontend paces itself (a fixed VSync divisor, as on the original console)
+  or it is CPU-bound because the CPU overclock and D23F fast timing are leased
+  only from the player update during Modernized gameplay
+  (`overclock_lease`, `modern_controls.cpp:724`). Compare against Vanilla and
+  the original; check the frontend's per-frame delta and VSync calls.
+- Risk: the attract demo is probably recorded input playback. Making the
+  guest render more frames (faster CPU) could change its pacing or desync the
+  demo. Interpolated redraws (D17 replay) leave the guest untouched and are
+  the safe route; any change to guest speed needs a demo equivalence check.
+
+**Result (2026-10-18, implemented):** the 10 Hz is the original's own pace:
+the flip `0x8001fcbc` waits at least 6 fields in mode 0 (2 in gameplay). A
+30 Hz frontend experiment desynced the attract demo at once (recorded
+per-frame input), so the guest pace stays and the frontend gets D17
+in-between images instead: 118-119 distinct presents a second at 120 (179 at
+180, 239 at 240) with the guest still at 10. The user linked the menu's
+clunky feel (D19B): the tick reads the pad once per 6 fields, so short taps
+were lost (45 ms keyboard taps: 7 of 12); in Modernized a new frontend press
+is now held for 6 fields (12 of 12, one step each). Interim until our own
+menus (D19). Details in note 140.
+
+**Original plan:** allow render replay in a frontend context
+(mode 0, demo running, no FMV), start the workers there, and interpolate the
+demo camera and actors between guest images with the non-late path (the game
+owns this camera: no mouse look). Check that the attract frames go through the
+same composition `0x80026164` (and the `0x800c27bc == 1` gate) and the demo
+Duke/actor slots; add discontinuity rules for demo camera cuts, demo scene
+changes, loads and the switch into the menu. 2D menu text and logo stay
+crisp at their latest state. A 100 ms image interval means larger blends than
+gameplay; judge quality at 120 and 180.
+
+**Acceptance:** in Modernized with a saved rate above 60, the attract demo and
+the title menu present distinct interpolated images at that rate (measured:
+presents and distinct images per second), with demo logic unchanged (guest
+fingerprints match a 60 Hz run of the same boot) and no pops at cuts or
+ghosting on text; menu input as responsive as now; Vanilla, FMV and gameplay
+D17 unchanged; the user judges smoothness on their display.
+
+### D17U - Smooth loading screens (spinning Duke logo) at the saved frame rate
+
+**Todo. Opened 2026-10-18.** User request after accepting D17T: the loading
+screens (the spinning Duke logo) still look low frame rate. Make them present
+smoothly at the saved Modernized rate, as D17T did for the title, demo and
+menu. Vanilla and loading speed/behaviour stay original.
+
+First steps: identify the loading screen's mode and draw path (D17T saw 2D
+screens between demo scenes at about 10 images/s with no view composition);
+measure its guest image rate; find what the logo's spin is driven by (a
+per-frame angle, a field counter, or CD progress) and whether it is drawn
+through the GTE (3D) or as 2D sprites. Then choose: replay with an
+interpolated spin angle, a host redraw of the same logo at present rate, or
+another method. Never slow loading or change what the guest does while it
+loads; keep the CD/audio timing intact.
+
+**Acceptance:** the spinning logo presents distinct, evenly spaced images at
+the saved rate (measured), loading takes no longer than before (measured),
+no visual glitches at the start/end of a load, Vanilla and 60 unchanged; the
+user judges it on their display.
+
 ### D17C - View bob: disable experiment, then a stable modern camera
 
 **Done (user-accepted 2026-10-03).** The user confirms the camera is much more stable and is happy with the current look. This closes the remaining camera-look playtest; the implemented camera and bob options are unchanged.
@@ -5066,6 +5155,50 @@ predictable, rapid navigation/back works, and modern transitions do not impose
 avoidable dead time. Define budgets from measurements, not an unsupported FPS
 promise. Preserve safe pause/resume, focus handling, settings, audio/FMV and the
 original-menu option. No global simulation-speed change to make menus feel fast.
+
+### D19C - Interim: more responsive original menus
+
+**Todo. Opened 2026-10-18.** User request after D17T: improve responsiveness
+on the original menus themselves, before our own menu system (D19/D19B).
+D17T smoothed motion and held short taps, but the frontend logic still runs
+one tick per 6 fields (the flip `0x8001fcbc`), so the cursor, screen changes
+and confirmations react at 10 Hz and menu text changes only 10 times a second
+(note 140).
+
+The attract demo is recorded input and desyncs if the frontend ticks faster,
+so a faster menu must not change the demo. Investigate options such as: a
+faster tick only while a menu (not the demo) owns input, if the menu code
+and its animations tolerate it (check what is frame-counted, e.g. the
+`0x800bdea0` counter, versus delta-timed); host-side drawing of the menu
+cursor/text at present rate; lower input-to-screen latency (sample input
+nearer the tick, shorter frontend world delay while a menu is open). Measure
+input-to-screen latency before and after.
+
+**Acceptance:** measured lower input-to-screen latency on the title menu and
+its sub-menus with no missed or doubled inputs; the attract demo unchanged;
+menu animations at their original speed; Vanilla unchanged; the user judges
+the feel.
+
+### D19D - Interim: Esc backs out of sub-menus; PC-friendly menu navigation
+
+**Todo. Opened 2026-10-18.** User request: allow Esc to exit sub-menus, and
+improve navigation where the mapped PS1 controls fall short (for example
+having to know which PS1 button means Back or Confirm on the keyboard).
+Interim for the original menus, before D19.
+
+Map out the frontend menus (title, options, load game, difficulty and any
+others, plus the in-game pause menu) and which PS1 button each uses for back
+and confirm. Then give Modernized PC keys consistent meaning: Esc backs out
+of a sub-menu (and does what Back does at the top level, never quitting the
+game by surprise); Enter confirms; arrow keys move; consider Backspace as an
+alias for Back and mouse wheel/click where it is safe. Keep the existing Esc
+behaviour in gameplay (D04A pause/mouse release) and the escape-hatch keys.
+Show the correct key names if prompts are drawn by us.
+
+**Acceptance:** in every frontend menu and sub-menu, Esc goes back one level
+and Enter confirms (tested per screen); no regression of Esc in gameplay,
+pause or the F7 savestate menu; Vanilla unchanged; `GAME_MANUAL.md` lists the
+menu keys.
 
 ### D20 — Save management and optional quick saves
 
@@ -11635,3 +11768,47 @@ in note 117 is the reference for future custom pickups.
   first used D (borderless 16x16); A won. Local font picker section 15 marks A
   accepted; section 8 shows E as shipped with A-D under historical details.
 - Queued remains: D08A22, D24D, D26G.
+
+## 2026-10-18 - D17T queued (smooth title menu and attract demo)
+
+- User: the menu and demo gameplay look like about 30 fps; as the first thing
+  a player sees, they should run smoothly at the last saved frame rate. New
+  Todo D17T (depends D17, D23F).
+- Investigation: D17 replay is gated to gameplay mode (`0x800bcbb0 == 1`), so
+  the frontend never interpolates. Measured offscreen at 180: the attract demo
+  shows about 10 guest images per second (one per 6 fields). Open question for
+  the job: frontend pacing vs CPU-bound (overclock/fast timing leased only in
+  gameplay). Details and acceptance in the D17T section.
+
+## 2026-10-18 - D17T smooth title menu and attract demo (Needs playtest)
+
+- Cause: the frontend (mode 0) flip waits at least 6 fields, so title, demo
+  and menus make 10 images a second by design; D17 replay ran only in
+  gameplay. A developer experiment ran the frontend at 30 Hz and desynced the
+  attract demo (recorded input); removed.
+- `frame_replay.cpp`: frontend compositions (return `0x800234d4`) are
+  captured and interpolated at the saved rate; no late camera; world delay one
+  frontend interval + lead (about 125 ms); timeline resets on
+  frontend/gameplay switches and demo scene gaps. `DNTTK_FRONTEND_INTERP=off`
+  (developer).
+- `frontend_input.cpp` + framework `capture_pad_slot`: in Modernized, a new
+  frontend press is held for 6 fields so the 10 Hz tick reads it once.
+  `DNTTK_FRONTEND_HOLD=off` (developer). Patch exported and verified against
+  the pinned checkout.
+- Evidence (executable
+  `7ab8877528b05a46a1e793556660ab6cf09c538d93c7b2f1e6cb5bb744ce9829`):
+  demo/menu 118-119 distinct presents/s at 120 (179 at 180, 239 at 240), guest
+  10; 90 s demo, 0 failures/repeats; demo path unchanged; ONE PLAYER reaches
+  gameplay replay; rate 60/Vanilla unchanged; 45 ms taps 12/12 (7/12 before).
+  Note [140](documentation/140-d17t-frontend-smoothness.md).
+- Remaining: the user judges smoothness and menu feel on their display; menu
+  text still changes at 10 Hz; Match Display not measured offscreen.
+
+## 2026-10-18 - D17T accepted; D17U, D19C, D19D queued
+
+- User: "i can confirm this works ... it's a good first start." D17T Done;
+  executable `7ab8877528b05a46a1e793556660ab6cf09c538d93c7b2f1e6cb5bb744ce9829`
+  is the regression baseline.
+- New Todo jobs from the user: D17U (smooth loading screens, the spinning
+  Duke logo), D19C (more responsive original menus), D19D (Esc backs out of
+  sub-menus; PC-friendly menu navigation beyond the mapped PS1 buttons).

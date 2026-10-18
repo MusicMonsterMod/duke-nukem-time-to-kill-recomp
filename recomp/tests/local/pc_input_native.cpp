@@ -18,6 +18,11 @@ extern "C" const char* ttk_fast_timing_json(void) { return "{}"; }
 extern "C" void ttk_aim_toggle_crosshair(void) {
     crosshair_forced=ttk_aim_crosshair_enabled()?0:1;
 }
+// D19D: guest halfwords the menu keys read (game mode 0x800bcbb0 = 1, gameplay, by default).
+#include <map>
+static std::map<uint32_t,uint16_t> guest{{0x800bcbb0u,1}};
+extern "C" uint16_t psx_mod_read_half(uint32_t address) {auto it=guest.find(address);return it==guest.end()?0:it->second;}
+extern "C" uint64_t s_frame_count=0;
 static SDL_Window* win;
 static bool inventory_visible;
 namespace ttk {
@@ -698,13 +703,58 @@ int main() {
     mousefire(true);tick();CHECK((ttk::input_pad()&(8192|16384))==(8192|16384));mousefire(false);
     key(SDL_SCANCODE_G,true);tick();CHECK((ttk::input_pad()&8192)==0 && (ttk::input_pad()&16384)!=0);
     key(SDL_SCANCODE_G,false);tick();CHECK((ttk::input_pad()&(8192|16384))==(8192|16384));
+    // D19D: Escape / Backspace back out and Enter confirms in the original
+    // menus (uncaptured); a press keeps its button while the screen changes.
+    ttk::input_release();tick();
+    auto pad_with=[&](SDL_Scancode code)->uint16_t {key(code,true);tick();const uint16_t v=ttk::input_pad();key(code,false);for(int i=0;i<8;++i){tick();ttk::input_pad();}return v;};
+    auto pressed=[](uint16_t v){return (uint16_t)~v;};
+    guest={{0x800bcbb0u,0},{0x800d24e4u,5}};                          // PRESS START
+    CHECK(pressed(pad_with(SDL_SCANCODE_ESCAPE))==0 && pressed(pad_with(SDL_SCANCODE_BACKSPACE))==0);
+    CHECK(pressed(pad_with(SDL_SCANCODE_RETURN))==8);
+    guest[0x800d24e4u]=12;guest[0x800d24d2u]=7;                       // OPTIONS: SOUND
+    CHECK(pressed(pad_with(SDL_SCANCODE_ESCAPE))==4096 && pressed(pad_with(SDL_SCANCODE_BACKSPACE))==4096);
+    CHECK(pressed(pad_with(SDL_SCANCODE_RETURN))==16384);
+    CHECK(pressed(pad_with(SDL_SCANCODE_V))==32768);
+    guest[0x800d24d2u]=4;                                              // CONFIGURE CONTROLLER: Start
+    CHECK(pressed(pad_with(SDL_SCANCODE_ESCAPE))==8 && pressed(pad_with(SDL_SCANCODE_RETURN))==8);
+    guest[0x800dd276u]=1;                                              // its CONFIRM / CANCEL prompt
+    CHECK(pressed(pad_with(SDL_SCANCODE_ESCAPE))==4096 && pressed(pad_with(SDL_SCANCODE_RETURN))==16384);
+    guest={{0x800bcbb0u,1},{0x800be56au,12}};                         // pause menu: Triangle would QUIT
+    CHECK(pressed(pad_with(SDL_SCANCODE_ESCAPE))==8 && pressed(pad_with(SDL_SCANCODE_BACKSPACE))==8);
+    CHECK(pressed(pad_with(SDL_SCANCODE_RETURN))==16384);
+    guest[0x800dd1c6u]=4;                                              // stale death prompt value: ignored here
+    CHECK(pressed(pad_with(SDL_SCANCODE_ESCAPE))==8);
+    guest[0x800dd1c4u]=1;                                              // its QUIT prompt
+    CHECK(pressed(pad_with(SDL_SCANCODE_ESCAPE))==4096);
+    guest={{0x800bcbb0u,1},{0x800be56au,15}};                         // death screen: Triangle QUIT, Start CONTINUE
+    CHECK(pressed(pad_with(SDL_SCANCODE_ESCAPE))==0 && pressed(pad_with(SDL_SCANCODE_RETURN))==16384);
+    guest={{0x800bcbb0u,1},{0x800be56au,15},{0x800dd1c6u,2}};          // death REALLY QUIT?: never Start
+    CHECK(pressed(pad_with(SDL_SCANCODE_ESCAPE))==4096);
+    guest={{0x800bcbb0u,1},{0x800be56au,2}};                          // pause OPTIONS
+    key(SDL_SCANCODE_ESCAPE,true);tick();CHECK(pressed(ttk::input_pad())==4096);
+    guest[0x800be56au]=12;                                             // back at the pause menu, Escape still held
+    for(int i=0;i<10;++i){tick();CHECK(pressed(ttk::input_pad())==4096);}
+    key(SDL_SCANCODE_ESCAPE,false);for(int i=0;i<8;++i)tick();CHECK(ttk::input_pad()==0xffff);
+    guest={{0x800bcbb0u,0xffff}};                                      // intro FMV: Escape/Enter skip (Start)
+    CHECK(pressed(pad_with(SDL_SCANCODE_ESCAPE))==8 && pressed(pad_with(SDL_SCANCODE_RETURN))==8);
+    CHECK(pressed(pad_with(SDL_SCANCODE_BACKSPACE))==0);
+    // Uncaptured wheel: one Down tap per notch on a menu, nothing elsewhere.
+    guest={{0x800bcbb0u,0},{0x800d24e4u,7}};
+    SDL_Event notch{};notch.type=SDL_MOUSEWHEEL;notch.wheel.windowID=SDL_GetWindowID(win);notch.wheel.y=-1;
+    ttk::input_event(notch);ttk::input_event(notch);
+    int downs=0;bool was=false;
+    for(int i=0;i<40;++i){++s_frame_count;const bool d=!(ttk::input_pad()&64);if(d && !was)++downs;was=d;CHECK(!(pressed(ttk::input_pad())&~64));}
+    CHECK(downs==2);
+    guest={{0x800bcbb0u,1}};ttk::input_event(notch);
+    for(int i=0;i<10;++i){++s_frame_count;CHECK(ttk::input_pad()==0xffff);}
+    guest={{0x800bcbb0u,1}};
     ttk::input_release();SDL_setenv_unsafe("DNTTK_INPUT_MODE", "vanilla", 1);
     ttk::input_init(win);focus(true);key(SDL_SCANCODE_F10,true);
     key(SDL_SCANCODE_CAPSLOCK,true);key(SDL_SCANCODE_R,true);
     CHECK(!tick().active && ttk::input_pad()==0xffff);
     SDL_DestroyWindow(win);
     SDL_Quit();
-    std::puts("PASS: independent movement, normalized diagonals, context isolation, mouse deltas, focus loss, repeat suppression, Escape/pause/inventory release, menu fallback, overlay capture guard, captured tank WASD strafe fallback, D08V1 identity fallback mouse turn, F7 savestate recapture and fresh-offer capture, D08T1 hold-to-grab (E mantles, RMB/Alt grab latch, push-pull, release, fresh press, holster, legacy precision aim), D08U ladder-top E request, hint and S descent Cross, D08J1 one ladder leap jump per E hold, reach held through the leap, D08J5 Ctrl and S-at-the-end let go of a pole or chain");
+    std::puts("PASS: independent movement, normalized diagonals, context isolation, mouse deltas, focus loss, repeat suppression, Escape/pause/inventory release, menu fallback, overlay capture guard, captured tank WASD strafe fallback, D08V1 identity fallback mouse turn, F7 savestate recapture and fresh-offer capture, D08T1 hold-to-grab (E mantles, RMB/Alt grab latch, push-pull, release, fresh press, holster, legacy precision aim), D08U ladder-top E request, hint and S descent Cross, D08J1 one ladder leap jump per E hold, reach held through the leap, D08J5 Ctrl and S-at-the-end let go of a pole or chain, D19D menu Escape/Backspace/Enter/V/wheel per screen with latched buttons");
 }
 
 namespace ttk { bool directional_takeoff_ready(){return preparing;} bool edge_jump_queued(){return edge_queued;}

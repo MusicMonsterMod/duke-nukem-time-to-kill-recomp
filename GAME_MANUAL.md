@@ -18,7 +18,7 @@ Then open a terminal in this folder and run:
 python3 recomp/tools/local/run.py
 ```
 
-Click the game window to give it keyboard focus. Press **Enter** to skip the intro or pause. Use the arrow keys in menus and **X** to confirm. Choose a new game to start Duke's campaign.
+Click the game window to give it keyboard focus. Press **Enter** to skip the intro. Use the arrow keys in menus, **Enter** (or **X**) to confirm and **Escape** to go back (Modernized; see [menu keys](#menu-keys-modernized)). Choose a new game to start Duke's campaign.
 
 If the executable is missing, follow [build and run](documentation/04-build-and-run.md). If the prepared disc is missing, the launcher searches `game/` for a known USA dump and copies it into ignored `recomp/disc/`. Original files are never overwritten.
 
@@ -936,6 +936,37 @@ In Modernized, **arrows**, **X** (confirm/fire), **Z** (menu back/quick-turn),
 **Enter** (use selected inventory gadget) and **Right Shift** (inventory) always
 remain available. Menu Circle still accepts **C** when uncaptured. Use Right Shift to close inventory. These fixed keys keep menus
 operable after rebinding. Vanilla keeps the different original keys below. Escape pauses.
+
+#### Menu keys (Modernized)
+
+The original menus show PlayStation buttons. In Modernized the keyboard works
+the same way on every menu screen:
+
+| Key | In the menus |
+| --- | --- |
+| **Arrow keys** or **mouse wheel** | Move the highlight (the wheel works on screens with a list) |
+| **Enter** | Confirm (Cross). On PRESS START it opens the menu |
+| **Escape** or **Backspace** | Back one level / cancel (Triangle) |
+| **X** / **C** / **Z** / **V** | Cross / Circle / Triangle / Square, for the buttons the screen shows |
+
+- **Escape never quits.** In the pause menu (RESUME / LOAD / OPTIONS / QUIT)
+  and on the death screen (CONTINUE / LOAD / RESTART / QUIT), Triangle means
+  QUIT, so Escape resumes the game there (pause) or does nothing (death
+  screen). Inside their sub-screens and prompts (OPTIONS, LOAD, REALLY QUIT?,
+  CONFIRM CONTINUE) Escape cancels. Escape on the main menu and PRESS START
+  does nothing.
+- **Enter** in the pause menu resumes (RESUME); on the death screen it
+  continues (CONTINUE, then confirm with Enter again).
+- **CONFIGURE CONTROLLER** assigns whichever pad button you press to the
+  highlighted action. There, Escape and Enter both mean Start ("PRESS START TO
+  CONTINUE"), which opens its CONFIRM / CANCEL prompt; then Enter confirms and
+  Escape cancels. Z, X, C and V still assign Triangle, Cross, Circle and Square.
+- **V** is Square: pause OPTIONS, SAVE on the statistics screen, RESTART on the
+  death screen.
+- During gameplay Escape still pauses, Enter still uses the selected gadget
+  and Backspace does nothing. Escape and Enter still skip the intro movies.
+  The F7 savestate menu and the console keep their own keys.
+- Vanilla keeps the original keyboard layout.
 
 **Backtick (`)** opens a Quake-style drop-down developer console (TTK Medium
 Italic font, `>` prompt). Typed commands and their replies stay in the console scrollback (`help`,

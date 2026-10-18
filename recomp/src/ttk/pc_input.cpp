@@ -3,6 +3,7 @@
 #include "host_osd.h"
 #include "inventory_hud.h"
 #include "weapon_aim.h"
+#include "mod_plugins.h"
 #include <algorithm>
 #include <cctype>
 #include <cmath>
@@ -10,6 +11,8 @@
 #include <cstdlib>
 #include <cstring>
 #include <atomic>
+
+extern "C" uint64_t s_frame_count;
 
 namespace ttk {
 static SDL_Window* window;
@@ -34,6 +37,8 @@ static uint64_t jump_deadline,menu_select_deadline,jump_pressed_at;
 // gameplay offers: a quick tap that raced the pad poll used to recapture while
 // the game kept running. The Start pulse makes a tap reach the pad poll.
 static bool escape_hold;
+// D19D: uncaptured mouse-wheel notches waiting to move a menu cursor.
+static std::atomic<int> menu_wheel{0};
 static uint64_t escape_start_deadline,escape_at;
 static bool airborne_interact;
 static uint64_t interaction_deadline, interaction_pulse, capture_after, holster_pulse;
@@ -494,6 +499,14 @@ void input_event(const SDL_Event& e) {
                 else if(weapon_holstered() || fire_draw_ready())input_notice("WEAPON RAISED");
             }
         }
+    } else if (e.type == SDL_MOUSEWHEEL && !captured && e.wheel.windowID == SDL_GetWindowID(window)) {
+        // D19D: uncaptured, the wheel moves a menu cursor (input_pad()).
+        double amount=e.wheel.y;
+        if(e.wheel.direction==SDL_MOUSEWHEEL_FLIPPED)amount=-amount;
+        if(!std::isfinite(amount) || !amount)return;
+        const int step=amount>0?1:-1, pending=menu_wheel.load();
+        if(pending*step<0)menu_wheel.store(step);
+        else if(std::abs(pending)<6)menu_wheel.store(pending+step);
     } else if (e.type == SDL_MOUSEWHEEL && captured && e.wheel.windowID == SDL_GetWindowID(window)) {
         double amount=e.wheel.y;
         if(e.wheel.direction==SDL_MOUSEWHEEL_FLIPPED)amount=-amount;
@@ -646,7 +659,7 @@ void input_frame() {
     }
     // Diagnostics only (DNTTK_TEST_INPUT=<file>): a script steers the
     // offscreen game. The file is re-read every input frame: held key names
-    // (w a s d shift ctrl space e q up down enter left right x z c esc) and
+    // (w a s d shift ctrl space e q up down enter left right x z c esc v backspace) and
     // dx=<counts> dy=<counts>
     // per frame.
     // Never set by run.py.
@@ -660,7 +673,7 @@ void input_frame() {
             {"space",SDL_SCANCODE_SPACE},{"e",SDL_SCANCODE_E},{"q",SDL_SCANCODE_Q},
             {"up",SDL_SCANCODE_UP},{"down",SDL_SCANCODE_DOWN},{"enter",SDL_SCANCODE_RETURN},
             {"left",SDL_SCANCODE_LEFT},{"right",SDL_SCANCODE_RIGHT},{"x",SDL_SCANCODE_X},{"z",SDL_SCANCODE_Z},
-            {"c",SDL_SCANCODE_C},{"esc",SDL_SCANCODE_ESCAPE}};
+            {"c",SDL_SCANCODE_C},{"esc",SDL_SCANCODE_ESCAPE},{"v",SDL_SCANCODE_V},{"backspace",SDL_SCANCODE_BACKSPACE}};
         bool was[sizeof named/sizeof named[0]];
         for(size_t i=0;i<sizeof named/sizeof named[0];++i){was[i]=keys[named[i].code];keys[named[i].code]=false;}
         if(FILE* f=std::fopen(test_input,"r")) {
@@ -671,6 +684,23 @@ void input_frame() {
                 else for(const auto& n:named) if(!std::strcmp(word,n.name)) keys[n.code]=true;
             }
             std::fclose(f);
+        }
+        // D19D: "wheelup" / "wheeldown" scroll one notch when they appear.
+        {
+            static bool wheel_was[2];bool wheel_now[2]{};
+            if(FILE* f=std::fopen(test_input,"r")) {
+                char word[64];
+                while(std::fscanf(f,"%63s",word)==1) {
+                    if(!std::strcmp(word,"wheelup"))wheel_now[0]=true;
+                    if(!std::strcmp(word,"wheeldown"))wheel_now[1]=true;
+                }
+                std::fclose(f);
+            }
+            for(int i=0;i<2;++i) if(wheel_now[i] && !wheel_was[i] && window) {
+                SDL_Event e{};e.type=SDL_MOUSEWHEEL;e.wheel.windowID=SDL_GetWindowID(window);e.wheel.y=i?-1:1;
+                SDL_PushEvent(&e);
+            }
+            wheel_was[0]=wheel_now[0];wheel_was[1]=wheel_now[1];
         }
         // Edges become key events, so press-driven actions (E) run as for a
         // real keyboard (queued; handled by the next event pump).
@@ -783,20 +813,116 @@ static uint16_t fallback_turn_pad() {
     }
     return pad;
 }
+// D19D: the original menus as a PC player expects them (Modernized only).
+// Escape (and Backspace) goes back one level, Enter confirms, the mouse wheel
+// moves the cursor and V reaches Square. The PS1 buttons per screen:
+// - mode 0x800bcbb0 0, frontend state 0x800d24e4 5 = PRESS START: only Start
+//   opens the menu; Enter is Start, Escape nothing (it used to open the menu).
+// - mode 0, states 7-10/12 (main menu, difficulty, two player, LOAD GAME,
+//   OPTIONS and its screens 0x800d24d2): Cross/Start confirm, Triangle
+//   cancels (does nothing on the main menu). Escape is Triangle, Enter Cross.
+// - mode 1, pause 0x800be56a 12 (RESUME / LOAD / OPTIONS / QUIT): Triangle is
+//   QUIT, so Escape stays Start (resume, D04A) and Enter is Cross (RESUME).
+//   OPTIONS (2), SOUND (7), GAME SETTINGS (11), LOAD (5) and the QUIT prompt
+//   (12 with 0x800dd1c4 set) cancel with Triangle: Escape is Triangle there.
+// - mode 1, death screen (pause 15: CONTINUE / LOAD / RESTART / QUIT): Triangle
+//   is QUIT and Start CONTINUE, so Escape does nothing; Enter is Cross. Its
+//   confirmations (0x800dd1c6: 1 CONTINUE, 2 QUIT, 3 LOAD, 4 RESTART; 0 on
+//   the choice, reset when the screen opens; a stale 4 is left outside it)
+//   accept Start as well as Cross, so Escape on REALLY QUIT? used to quit to
+//   the game over screen; it is Triangle (CANCEL) now.
+// - mode 3, game over (CONTINUE): Enter Cross, Escape Triangle (nothing).
+// - CONFIGURE CONTROLLER (options screen 4, in the frontend and the pause
+//   menu) assigns whatever button is pressed to the highlighted action until
+//   Start ("PRESS START TO CONTINUE") opens its CONFIRM / CANCEL prompt
+//   (0x800dd276 set). Escape and Enter are Start there, then Triangle
+//   (cancel) and Cross (confirm) in the prompt.
+// - mode 2, statistics and SAVE GAME (0x800d2672): Cross confirms, Triangle
+//   cancels the save (nothing on the statistics page).
+// - anything else (intro FMV mode 0xffff, gameplay): Escape and Enter
+//   stay Start as before (skip the intro, pause), Backspace does nothing.
+// Each key keeps the button it was pressed as until it is released, so a
+// screen that changes under the press (Triangle back to the pause menu) never
+// turns it into another button (Start would resume).
+enum class MenuScreen {None, PressStart, Menu, PauseTop, DeathTop, ControllerAssign};
+static MenuScreen options_screen(uint16_t screen) {
+    if(screen==4)return psx_mod_read_half(0x800dd276) ? MenuScreen::Menu : MenuScreen::ControllerAssign;
+    return MenuScreen::Menu;
+}
+static MenuScreen menu_screen() {
+    const uint16_t mode=psx_mod_read_half(0x800bcbb0);
+    if(mode==0) {
+        const uint16_t state=psx_mod_read_half(0x800d24e4);
+        if(state==5)return MenuScreen::PressStart;
+        if(state==12)return options_screen(psx_mod_read_half(0x800d24d2));
+        return state>=7 && state<=10 ? MenuScreen::Menu : MenuScreen::None;
+    }
+    if(mode==1) {
+        const uint16_t pause=psx_mod_read_half(0x800be56a);
+        if(pause==12)return psx_mod_read_half(0x800dd1c4) ? MenuScreen::Menu : MenuScreen::PauseTop;
+        if(pause==15)return psx_mod_read_half(0x800dd1c6) ? MenuScreen::Menu : MenuScreen::DeathTop;
+        if(pause==4)return options_screen(pause);
+        return pause==2 || pause==5 || pause==7 || pause==11 ? MenuScreen::Menu : MenuScreen::None;
+    }
+    return mode==2 || mode==3 ? MenuScreen::Menu : MenuScreen::None;
+}
+enum class MenuKey {Back, Backspace, Confirm};
+static uint16_t menu_key_button(MenuKey key) {
+    constexpr uint16_t start=8, triangle=4096, cross=16384;
+    switch(menu_screen()) {
+    case MenuScreen::PressStart: return key==MenuKey::Confirm ? start : 0;
+    case MenuScreen::DeathTop: return key==MenuKey::Confirm ? cross : 0;
+    case MenuScreen::Menu: return key==MenuKey::Confirm ? cross : triangle;
+    case MenuScreen::PauseTop: return key==MenuKey::Confirm ? cross : start;
+    case MenuScreen::ControllerAssign: return start;
+    default: return key==MenuKey::Backspace ? 0 : start;
+    }
+}
+struct MenuLatch {bool held=false;uint16_t button=0;};
+static MenuLatch latch_escape, latch_backspace, latch_enter;
+static uint16_t latched(MenuLatch& latch, bool held, MenuKey key) {
+    if(!held) {latch.held=false;return 0;}
+    if(!latch.held) {latch.held=true;latch.button=menu_key_button(key);}
+    return latch.button;
+}
+// Wheel notches (menu_wheel, from input_event()) become Up (+) / Down (-)
+// taps of menu_tap_fields pressed and released each (video fields; the pause
+// and statistics screens read the pad every 2 fields, the frontend hold
+// covers its 6).
+static constexpr uint64_t menu_tap_fields=4;
+static uint16_t menu_wheel_pad() {
+    static int dir;static uint64_t until;
+    const uint64_t field=s_frame_count;
+    if(dir && field<until)return dir>0?16:64;
+    if(dir) {dir=0;until=field+menu_tap_fields;}
+    if(field<until)return 0;
+    const int pending=menu_wheel.load();
+    if(!pending)return 0;
+    // Plain menu screens only (not PRESS START, the pause menu or the
+    // controller assignment view).
+    if(menu_screen()!=MenuScreen::Menu) {menu_wheel.store(0);return 0;}
+    dir=pending>0?1:-1;menu_wheel.fetch_sub(dir);until=field+menu_tap_fields;
+    return dir>0?16:64;
+}
 uint16_t input_pad() {
     if(cheat_typing.active())return 65535;
     uint16_t value = 0xffff;
     if (!modern || !focused) return value;
     if(modern && focused && menu_select_deadline && sequence<=menu_select_deadline)value &= ~1u;
-    if(escape_start_deadline && sequence<=escape_start_deadline)value &= ~8u;
+    // D19D: Escape (its Start pulse included), Backspace and Enter as menu keys.
+    value &= ~latched(latch_escape,keys[SDL_SCANCODE_ESCAPE] || (escape_start_deadline && sequence<=escape_start_deadline),MenuKey::Back);
+    value &= ~latched(latch_backspace,!captured && keys[SDL_SCANCODE_BACKSPACE],MenuKey::Backspace);
+    value &= ~latched(latch_enter,keys[SDL_SCANCODE_RETURN],MenuKey::Confirm);
+    if(!captured)value &= ~menu_wheel_pad();
     // Unrebindable escape hatch for menus and the original tank movement preview.
     const int fixed[] = {SDL_SCANCODE_UP, SDL_SCANCODE_RIGHT, SDL_SCANCODE_DOWN,
-        SDL_SCANCODE_LEFT, SDL_SCANCODE_X, SDL_SCANCODE_C, SDL_SCANCODE_RETURN, SDL_SCANCODE_RSHIFT, SDL_SCANCODE_Z, SDL_SCANCODE_ESCAPE};
-    const uint16_t bits[] = {16, 32, 64, 128, 16384, 8192, 8, 1, 4096, 8};
+        SDL_SCANCODE_LEFT, SDL_SCANCODE_X, SDL_SCANCODE_C, SDL_SCANCODE_RSHIFT, SDL_SCANCODE_Z, SDL_SCANCODE_V};
+    const uint16_t bits[] = {16, 32, 64, 128, 16384, 8192, 1, 4096, 32768};
     // D08Q6: captured, Right Shift is Shift (above), never the escape hatch's
     // Select: Select reaching input_pad_context() silently dropped capture, so
     // the host layer stopped mid-flight (hover lock left on, WASD dead).
-    for (int i = 0; i < 10; ++i) if (!(captured && (fixed[i]==SDL_SCANCODE_X || fixed[i]==SDL_SCANCODE_Z || fixed[i]==SDL_SCANCODE_C || fixed[i]==SDL_SCANCODE_RSHIFT)) && keys[fixed[i]]) value &= ~bits[i];
+    // D19D: V (Square: pause OPTIONS, statistics SAVE) is a menu key only.
+    for (int i = 0; i < 9; ++i) if (!(captured && (fixed[i]==SDL_SCANCODE_X || fixed[i]==SDL_SCANCODE_Z || fixed[i]==SDL_SCANCODE_C || fixed[i]==SDL_SCANCODE_RSHIFT || fixed[i]==SDL_SCANCODE_V)) && keys[fixed[i]]) value &= ~bits[i];
     // Retain a brief tap across host polling and a short original transition.
     // Grounded locomotion, and host-owned shallow-water jumps.
     if(captured && jump_deadline && sequence<=jump_deadline &&

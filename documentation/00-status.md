@@ -1,5 +1,23 @@
 # Current status - 2026-10-04
 
+## 2026-10-18 - D19D accepted
+
+- User: "amazing work". D19D Done; executable
+  `08bba860a9171fe2d147e211e569a8de90e434d262600749c476f4caf6b7e9fe` is the regression baseline.
+  Still queued: D08O2B, D08AA, D08A22, D24D, D26G.
+
+## 2026-10-18 - D19D PC menu keys (Needs playtest)
+
+- Modernized menus: **Escape/Backspace** back out one level (Triangle),
+  **Enter** confirms (Cross; Start on PRESS START), **V** is Square, the
+  **mouse wheel** moves menu cursors. Escape never quits: it resumes in the
+  pause menu (Triangle there is QUIT) and does nothing on PRESS START and the
+  death screen. CONFIGURE CONTROLLER (assigns any pressed button) takes Start
+  for both keys until its prompt. Fixes Escape confirming the death screen's
+  REALLY QUIT?. Gameplay Escape/Enter, movies, F7 and Vanilla unchanged.
+  Executable `08bba860a9171fe2d147e211e569a8de90e434d262600749c476f4caf6b7e9fe`. [Note 144](144-d19d-menu-keys.md).
+  Accepted 2026-10-18.
+
 ## 2026-10-18 - D30 recomp.board listing (Done)
 
 - The project's row on [recomp.board](https://recomp.fyi/game/duke-nukem-time-to-kill-ps1)

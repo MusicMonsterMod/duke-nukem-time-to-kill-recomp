@@ -1,5 +1,21 @@
 # Current status - 2026-10-04
 
+## 2026-10-18 - D08A22 accepted
+
+- User: "fully accepted!!". D08A22 Done; executable
+  `67eb7bc2d189b38624879a25f9b8c76c5567aa40a61e357a5e07352f394d4546` is the regression baseline.
+  Still queued: D19G, D19F, D08O2B, D08AA, D24D, D26G.
+
+## 2026-10-18 - D08A22 strips scale with the picture (Needs playtest)
+
+- The inventory/mission switcher strips and the mission card take their scale
+  from the fitted game picture (picture height / 480, fractional, at least 1x)
+  instead of an integer floor of the window height, and sit inside the
+  pillarbox/letterbox. Strip icons now match the native HUD icons at every
+  window size (offscreen: 18 vs 18 px at 1440x1080, 10 vs 10 at 800x600;
+  OpenGL 4:3 and 16:9, Software). Framework patch re-exported and verified.
+  Executable `67eb7bc2d189b38624879a25f9b8c76c5567aa40a61e357a5e07352f394d4546`.
+
 ## 2026-10-18 - D19 accepted: in-game OPTIONS extended
 
 - Modernized OPTIONS (title and pause) adds PC CONTROLS, DISPLAY and

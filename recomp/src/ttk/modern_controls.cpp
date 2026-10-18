@@ -699,6 +699,7 @@ static void face_view() {
     psx_mod_write_half(player+0x24,heading);
     ++facings;
 }
+#include "duke_model.inc"
 #include "swim.inc"
 #include "jetpack.inc"
 #include "first_person.inc"

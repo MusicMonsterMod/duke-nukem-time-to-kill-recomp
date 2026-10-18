@@ -574,13 +574,13 @@ static void swim_fire_hide(CPUState* cpu,uint32_t ra) {
 
 // D08O2 / D08O2A - weapon points toward the crosshair while swimming and
 // firing. Firing while floating (idle 127) sets +0x224 0x100, so the player
-// update builds Duke with 0x80097c04, which gives record 1 (the chest, parent
+// update builds Duke with 0x80097c04, which gives the chest ([model+0x2d], parent
 // of both arms and the head) a world matrix facing the view through
 // 0x80097a44. The thrust handlers that D08O1 lets fire set no aim bit, so the
 // update uses the plain build 0x800987cc and the arms point down with the
 // stroke. v1 set 0x100 there, which stood the whole chest up to the view.
 // v2 leaves the build, the chest, the head and the legs on the original
-// stroke and changes only the shoulders (records 2 and 5). Duke is built by
+// stroke and changes only the shoulders (parts 0x0a and 0x0d). Duke is built by
 // 0x800987cc, or by 0x80097c04 without joint aims when only the +0x2b4 /
 // +0x2b8 / +0x358 bits pick it. At the shoulders' composition (0x800b42ec,
 // ra 0x8009899c with the record in s0, or ra 0x800980d0 with it in s1; a0 the
@@ -608,14 +608,19 @@ static void swim_aim_restore() {
 // 0x800b42ec entry; a shared matrix routine, so the first test must be cheap.
 static void swim_aim_arm(CPUState* cpu) {
     if(!swim_aim_set || (cpu->gpr[31]!=0x8009899cu && cpu->gpr[31]!=0x800980d0u) || cpu->gpr[21]!=player)return;
-    const uint32_t model=psx_mod_read_word(player+0x40),record=cpu->gpr[cpu->gpr[31]==0x8009899cu?16:17];
+    const uint32_t model=duke_model(),record=cpu->gpr[cpu->gpr[31]==0x8009899cu?16:17];
     const uint32_t parent=cpu->gpr[4],local=cpu->gpr[5];
-    if(model<0x80000000u || model>=0x80200000u || psx_mod_read_byte(model)!=19)return;
-    const uint32_t index=(record-(model+0x44))/0x28;
-    if(record<model+0x44 || (record-(model+0x44))%0x28 || (index!=2 && index!=5))return;
-    if(index==5)swim_aim_restore();
-    // Both shoulders hang from the chest: record 1 at depth 2, themselves at 3.
-    if(psx_mod_read_byte(model+0x44+0x28+2)!=2 || psx_mod_read_byte(record+2)!=3 ||
+    if(!model || record<model+0x44 || (record-(model+0x44))%0x28)return;
+    // D08O2B: costumes order their joints differently (the level 6 model has
+    // the chest at record 1 and the shoulders at 2 and 5, the level 2 sewer
+    // model at 10, 16 and 11), so the shoulders are found by part.
+    const int index=(int)((record-(model+0x44))/0x28);
+    const int left=duke_part_joint(model,part_left_shoulder),right=duke_part_joint(model,part_right_shoulder);
+    if(index!=left && index!=right)return;
+    if(index==std::max(left,right))swim_aim_restore();
+    // Both shoulders hang from the chest: the chest at depth 2, themselves at 3.
+    const int chest=duke_part_joint(model,part_spine);
+    if(chest<0 || chest>index || psx_mod_read_byte(model+0x44+0x28*chest+2)!=2 || psx_mod_read_byte(record+2)!=3 ||
        parent!=0x1f800040u || cpu->gpr[6]!=0x1f800060u || local<0x1f800000u || local>0x1f8003e0u)return;
     double d[3],n=0;
     for(int i=0;i<3;++i){d[i]=(int16_t)psx_mod_read_half(camera+12+2*i);n+=d[i]*d[i];}

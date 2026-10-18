@@ -1,5 +1,26 @@
 # Next-session handoff
 
+## 2026-10-18 - D08O2B accepted; D08O4 added
+
+- User: "it certainly is working, duke shoots in the right direction". D08O2B
+  Done; executable
+  `93093366872c16d100b05746cfc7d6c7745b0560eadecad459b474d2971bae25` is the
+  regression baseline. New Todo D08O4: in slot 3 a brief Ctrl dive keeps
+  carrying Duke forward with the dive/forward stroke after release (lab: about
+  850 units of horizontal drift after a 15-frame tap). Queued: D08O4, D19G,
+  D19F, D08AA, D24D, D26G.
+
+## 2026-10-18 - D08O2B swim-fire on every Duke model (Needs playtest)
+
+- Slot 3 (level 2 sewer, file 02) uses a Duke model whose joints are ordered
+  differently from level 6, where D08O2A was tuned by record number; the hook
+  turned a leg instead of the shoulders. Shoulders/chest are now found by part
+  (`duke_model.inc`, shared with first person). Slot 3 copy dive + W + fire:
+  gun hand 85 -> 221; level 6 regression matches; Vanilla no arming; suites
+  pass. Executable `93093366872c16d100b05746cfc7d6c7745b0560eadecad459b474d2971bae25`,
+  [note 146](146-d08o2b-swim-fire-costumes.md). Still queued: D19G, D19F,
+  D08AA, D24D, D26G.
+
 ## 2026-10-18 - D08G5 accepted
 
 - User: "perfect!!". D08G5 Done; executable

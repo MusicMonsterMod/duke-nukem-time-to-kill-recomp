@@ -133,7 +133,7 @@ add_custom_target(ttk-math-shard ALL
 add_dependencies(ttk-math-shard psx-runtime)
 
 # D04 PC action input; framework seams are retained in patches/.
-target_sources(psx-runtime PRIVATE src/ttk/pc_input.cpp src/ttk/modern_controls.cpp src/ttk/weapon_aim.cpp src/ttk/near_clip.cpp src/ttk/frame_replay.cpp src/ttk/frontend_input.cpp src/ttk/level_select.cpp)
+target_sources(psx-runtime PRIVATE src/ttk/pc_input.cpp src/ttk/modern_controls.cpp src/ttk/weapon_aim.cpp src/ttk/near_clip.cpp src/ttk/frame_replay.cpp src/ttk/frontend_input.cpp src/ttk/level_select.cpp src/ttk/game_menu.cpp src/ttk/live_env.cpp)
 target_include_directories(psx-runtime PRIVATE src/ttk)
 
 # Explicit opt-in native input checks use the same SDL backend as the player.
@@ -147,7 +147,7 @@ endif()
 
 if(TARGET SDL3::SDL3)
     add_executable(ttk-controls-test EXCLUDE_FROM_ALL tests/local/modern_controls_native.cpp
-        src/ttk/modern_controls.cpp src/ttk/near_clip.cpp ${PSXRECOMP_ROOT}/runtime/src/psx_sha256.c)
+        src/ttk/modern_controls.cpp src/ttk/near_clip.cpp src/ttk/live_env.cpp ${PSXRECOMP_ROOT}/runtime/src/psx_sha256.c)
     target_include_directories(ttk-controls-test PRIVATE src/ttk ${PSXRECOMP_ROOT}/runtime/include)
     target_compile_definitions(ttk-controls-test PRIVATE PSX_SDL3=1)
     target_compile_options(ttk-controls-test PRIVATE -UNDEBUG)
@@ -167,7 +167,7 @@ endif()
 
 if(TARGET SDL3::SDL3)
     add_executable(ttk-aim-test EXCLUDE_FROM_ALL tests/local/weapon_aim_native.cpp
-        src/ttk/weapon_aim.cpp ${PSXRECOMP_ROOT}/runtime/src/psx_sha256.c)
+        src/ttk/weapon_aim.cpp src/ttk/live_env.cpp ${PSXRECOMP_ROOT}/runtime/src/psx_sha256.c)
     target_include_directories(ttk-aim-test PRIVATE src/ttk ${PSXRECOMP_ROOT}/runtime/include)
     target_compile_definitions(ttk-aim-test PRIVATE PSX_SDL3=1)
     target_compile_options(ttk-aim-test PRIVATE -UNDEBUG)
@@ -244,6 +244,11 @@ if(TARGET SDL3::SDL3)
     target_compile_features(ttk-font-test PRIVATE cxx_std_17)
     target_link_libraries(ttk-font-test PRIVATE SDL3::SDL3)
 endif()
+
+add_executable(ttk-live-env-test EXCLUDE_FROM_ALL tests/local/live_env_native.cpp src/ttk/live_env.cpp)
+target_include_directories(ttk-live-env-test PRIVATE src/ttk)
+target_compile_options(ttk-live-env-test PRIVATE -UNDEBUG)
+target_compile_features(ttk-live-env-test PRIVATE cxx_std_17)
 
 if(TARGET SDL3::SDL3)
     add_executable(ttk-inventory-test EXCLUDE_FROM_ALL tests/local/inventory_hud_native.cpp

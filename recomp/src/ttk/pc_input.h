@@ -72,6 +72,9 @@ bool input_airborne_reach_held();
 // captured Cross is the grab's own, never E's interaction/mantle.
 bool input_push_grab_owns_cross();
 uint16_t input_pad();
+// D19: the menu screens (game_menu.cpp) register their key handler here.
+struct MenuKeys;
+void input_set_menu_handler(bool (*handler)(const MenuKeys&));
 // Diagnostics: the last value input_pad() returned (no side effects).
 uint16_t input_last_pad();
 void input_release();

@@ -24,9 +24,10 @@
 // pre-pass cannot resolve (moving away from the wall, an unknown result) is
 // left to the original. Ledge grabs and mantles that started on the first
 // updates of a bounce use the recent contact instead (jump_wall_recent()).
+// D19: read each time, so the OPTIONS screens can change it live.
 static bool jump_walls_slide() {
-    static const bool original=[]{const char* v=std::getenv("DNTTK_JUMP_WALLS");return v && !std::strcmp(v,"original");}();
-    return !original;
+    const char* v=ttk_live_env("DNTTK_JUMP_WALLS");
+    return !(v && !std::strcmp(v,"original"));
 }
 static unsigned jump_wall_slides,jump_wall_corners,jump_wall_corner_turns,jump_wall_catches,jump_wall_stops,jump_ceiling_stops,jump_wall_unsolved,jump_wall_passes,jump_wall_nudges;
 // Outward drift left after a slide (velocity units: about 1.4 world units per

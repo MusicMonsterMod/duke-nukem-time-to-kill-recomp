@@ -66,7 +66,8 @@ def main(argv=None):
         settings, notices = profiles.load(a.settings_file)
         for notice in notices:
             print(notice, file=sys.stderr)
-        changed = profiles.absorb_camera_state(a.settings_file, settings)
+        changed = profiles.absorb_menu_settings(a.settings_file, settings)
+        changed = profiles.absorb_camera_state(a.settings_file, settings) or changed
         changed = profiles.absorb_presentation_state(a.settings_file, settings, settings['active']) or changed
         if a.mode:
             settings['active'] = a.mode
@@ -217,6 +218,9 @@ def main(argv=None):
     env.setdefault('PSX_GL_ORDERED_SEMI_BATCH', '1' if modernized and controls['frame_rate'] not in ('30', '60') else '0')
     env.setdefault('DNTTK_VIEW_BOB', controls['view_bob'] if modernized else 'off')
     env['DNTTK_CAMERA_STATE_FILE'] = str(profiles.camera_state_path(a.settings_file.resolve())) if modernized else ''
+    # D19: the in-game OPTIONS screens (Modernized) save confirmed settings here.
+    env['DNTTK_MENU_SETTINGS_FILE'] = str(profiles.menu_settings_path(a.settings_file.resolve())) if modernized else ''
+    env['DNTTK_MENU_PRESENTATION'] = profiles.menu_presentation(settings['profiles']['modernized']['presentation'])
     if a.diagnostics:
         env['PSX_FNTRACE_ALL'] = '1'
         env['PSX_EXIT_HALT'] = '1'
@@ -228,6 +232,7 @@ def main(argv=None):
         status = subprocess.call(command, cwd=ROOT, env=env)
     else:
         status = run_with_session_log(command, env)
+    save_menu_settings(a.settings_file)
     save_camera_state(a.settings_file)
     save_presentation_state(a.settings_file, settings['active'])
     return status
@@ -244,6 +249,17 @@ def save_presentation_state(settings_file, mode):
                   f"window width {presentation['window_width'] or 'fit the display'}.", flush=True)
     except (OSError, ValueError) as exc:
         print(f'Display preferences not saved: {exc}', file=sys.stderr, flush=True)
+
+
+def save_menu_settings(settings_file):
+    """Fold the settings confirmed in the in-game OPTIONS screens into the profile (D19)."""
+    try:
+        settings, _ = profiles.load(settings_file)
+        if profiles.absorb_menu_settings(settings_file, settings):
+            profiles.save(settings_file, settings)
+            print(f"Saved the in-game OPTIONS settings; next launch: {settings['active']}.", flush=True)
+    except (OSError, ValueError) as exc:
+        print(f'In-game OPTIONS settings not saved: {exc}', file=sys.stderr, flush=True)
 
 
 def save_camera_state(settings_file):

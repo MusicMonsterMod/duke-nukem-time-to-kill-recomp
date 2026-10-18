@@ -228,6 +228,49 @@ def absorb_camera_state(settings_path, settings):
     return True
 
 
+def menu_settings_path(settings_path):
+    """Side file the runtime writes when a setting is confirmed in the OPTIONS screens (D19)."""
+    settings_path = Path(settings_path)
+    return settings_path.with_name(settings_path.name + '.menu-settings')
+
+
+def menu_presentation(presentation):
+    """The Modernized display values the OPTIONS screens start from (DNTTK_MENU_PRESENTATION)."""
+    return ','.join(f'{key}={presentation[key]}' for key in ('renderer', 'internal_scale', 'display', 'output_filter'))
+
+
+def absorb_menu_settings(settings_path, settings):
+    """Merge the settings last confirmed in the in-game OPTIONS screens (D19).
+
+    The side file holds the menu's whole state: the active profile, Modernized
+    controls and the display values it offers. Returns True when the settings
+    changed. The side file is consumed; an invalid one is discarded with the
+    profile left unchanged."""
+    state = menu_settings_path(settings_path)
+    try:
+        raw = state.read_bytes()
+    except FileNotFoundError:
+        return False
+    try:
+        data = json.loads(raw)
+        if data.get('version') != 1 or data['active'] not in MODES:
+            raise ValueError('menu settings version or profile')
+        profile = settings['profiles']['modernized']
+        controls = validate_controls({**profile['controls'], **data['controls']})
+        presentation = validate_presentation({**profile['presentation'], **data['presentation']})
+        active = data['active']
+    except (ValueError, TypeError, KeyError, AttributeError, UnicodeError):
+        controls = None
+    state.unlink(missing_ok=True)
+    if controls is None:
+        return False
+    profile = settings['profiles']['modernized']
+    if controls == profile['controls'] and presentation == profile['presentation'] and active == settings['active']:
+        return False
+    profile['controls'], profile['presentation'], settings['active'] = controls, presentation, active
+    return True
+
+
 def defaults():
     return {'version': 32, 'active': 'modernized',
             'profiles': {mode: default_profile(mode) for mode in MODES}}

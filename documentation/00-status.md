@@ -1,5 +1,13 @@
 # Current status - 2026-10-04
 
+## 2026-10-18 - D19 accepted: in-game OPTIONS extended
+
+- Modernized OPTIONS (title and pause) adds PC CONTROLS, DISPLAY and
+  MODERNIZED, drawn by the game's own menu code; settings save to the
+  profile, eight gameplay options apply at once. User: "fully accept!!".
+  Executable `fb169a561aa15a979b4b10b4903dbd5758b17708ebe24b669f58966faf16760b`. [Note 145](145-d19-game-menu.md).
+  Follow-ups: D19G, D19F, D19F1.
+
 ## 2026-10-18 - D19D accepted
 
 - User: "amazing work". D19D Done; executable

@@ -4,6 +4,7 @@
 #include "inventory_hud.h"
 #include "weapon_aim.h"
 #include "mod_plugins.h"
+#include "game_menu.h"
 #include <algorithm>
 #include <cctype>
 #include <cmath>
@@ -904,10 +905,38 @@ static uint16_t menu_wheel_pad() {
     dir=pending>0?1:-1;menu_wheel.fetch_sub(dir);until=field+menu_tap_fields;
     return dir>0?16:64;
 }
+// D19: our OPTIONS screens (game_menu.cpp) take the menu keys while they are
+// up; the pad then reads as nothing pressed. Keys still held when they hand
+// back to an original screen stay released until pressed again, so the press
+// that opened SOUND is never SOUND's own Cross.
+static bool (*menu_handler)(const MenuKeys&);
+static bool menu_had_keys;
+void input_set_menu_handler(bool (*handler)(const MenuKeys&)) {menu_handler=handler;}
+static bool menu_owns_keys() {
+    if(!menu_handler)return false;
+    MenuKeys k;
+    k.up=keys[SDL_SCANCODE_UP];k.down=keys[SDL_SCANCODE_DOWN];
+    k.left=keys[SDL_SCANCODE_LEFT];k.right=keys[SDL_SCANCODE_RIGHT];
+    k.confirm=keys[SDL_SCANCODE_RETURN] || keys[SDL_SCANCODE_X];
+    k.back=keys[SDL_SCANCODE_ESCAPE] || keys[SDL_SCANCODE_BACKSPACE] || keys[SDL_SCANCODE_Z];
+    k.square=keys[SDL_SCANCODE_V];
+    k.wheel=captured?0:menu_wheel.load();
+    const bool owns=!captured && menu_handler(k);
+    if(owns) {
+        if(k.wheel)menu_wheel.fetch_sub(k.wheel);
+    } else if(menu_had_keys) {
+        for(int code:{SDL_SCANCODE_UP,SDL_SCANCODE_DOWN,SDL_SCANCODE_LEFT,SDL_SCANCODE_RIGHT,SDL_SCANCODE_RETURN,
+                      SDL_SCANCODE_X,SDL_SCANCODE_ESCAPE,SDL_SCANCODE_BACKSPACE,SDL_SCANCODE_Z,SDL_SCANCODE_V})keys[code]=false;
+        escape_start_deadline=0;
+    }
+    menu_had_keys=owns;
+    return owns;
+}
 uint16_t input_pad() {
     if(cheat_typing.active())return 65535;
     uint16_t value = 0xffff;
     if (!modern || !focused) return value;
+    if(menu_owns_keys())return value;
     if(modern && focused && menu_select_deadline && sequence<=menu_select_deadline)value &= ~1u;
     // D19D: Escape (its Start pulse included), Backspace and Enter as menu keys.
     value &= ~latched(latch_escape,keys[SDL_SCANCODE_ESCAPE] || (escape_start_deadline && sequence<=escape_start_deadline),MenuKey::Back);

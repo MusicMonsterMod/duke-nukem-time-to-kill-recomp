@@ -9,6 +9,7 @@
 #include "control_math.h"
 #include "cpu_state.h"
 #include "mod_plugins.h"
+#include "live_env.h"
 #include "code_identity.h"
 #include "near_clip.h"
 #include "pgxp.h"

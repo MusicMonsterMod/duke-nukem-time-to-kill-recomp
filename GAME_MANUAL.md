@@ -35,7 +35,7 @@ python3 recomp/tools/local/run.py --settings
 
 Choose Vanilla or Modernized preview, change OpenGL/software rendering, or
 restore the selected profile's defaults. Save and return, then launch normally.
-Each profile remembers its own renderer and resolution/display settings. Modernized also remembers its PC action bindings, camera selection, mouse sensitivity and inversion. Changes take effect on the next launch.
+Each profile remembers its own renderer and resolution/display settings. Modernized also remembers its PC action bindings, camera selection, mouse sensitivity and inversion. Changes take effect on the next launch. In Modernized most of these can also be changed in the game, from OPTIONS ([in-game OPTIONS](#in-game-options-modernized)).
 **Modernized movement and camera have passed user playtesting in the first-level preview.
 Supported first-map climbing uses the original traversal routines with Modernized
 input. In the crystal-2 flooded turret corridor, waist-deep water uses the same
@@ -967,6 +967,31 @@ the same way on every menu screen:
   and Backspace does nothing. Escape and Enter still skip the intro movies.
   The F7 savestate menu and the console keep their own keys.
 - Vanilla keeps the original keyboard layout.
+
+#### In-game OPTIONS (Modernized)
+
+OPTIONS, on the title menu and in the pause menu, lists the original SOUND,
+CONTROLLER and GAME SETTINGS, plus three screens in the same style:
+
+- **PC CONTROLS**: mouse sensitivity (slider) and invert mouse.
+- **DISPLAY**: renderer, resolution, display (windowed / borderless /
+  exclusive), filter, widescreen, frame rate, draw distance, geometry,
+  textures, CPU speed and CPU timing.
+- **MODERNIZED**: profile (Modernized / Vanilla), camera, view, shoulder,
+  camera distance, weapon aim, crosshair, aim assist, red dot, jump, jump
+  walls, landing, jetpack, dynamite, steroids and view bob.
+
+Up/Down choose (hold to repeat; the list scrolls), Left/Right change the value
+(hold a slider to speed up), **Enter** confirms and keeps the changes,
+**Escape** cancels them, **V** (Square, DEFAULT) restores the screen's
+defaults. The line above the buttons describes the highlighted option.
+Crosshair, aim assist, red dot, jump, jump walls, landing, dynamite and view
+bob change at once; the others say **NEXT LAUNCH** and apply the next time you
+start the game. Confirmed settings are saved to your profile when the game
+closes, the same settings `run.py` and `--settings` change. Choosing PROFILE
+VANILLA starts the next launch in Vanilla, which has the original menus; use
+`run.py --mode modernized` to come back. Key bindings are still set with
+`run.py --bind`.
 
 **Backtick (`)** opens a Quake-style drop-down developer console (TTK Medium
 Italic font, `>` prompt). Typed commands and their replies stay in the console scrollback (`help`,

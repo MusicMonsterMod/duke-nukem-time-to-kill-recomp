@@ -4,7 +4,7 @@ This is the canonical job list for our **Duke Nukem: Time to Kill** PC project, 
 
 Invoke **`$continue-duke-recomp`** (Codex) or **`/continue-duke-recomp`** (Claude Code) to see the current jobs and choose one. You can also request a job directly: **`$continue-duke-recomp work on D01`** or **`/continue-duke-recomp work on D01`**. The skill reads this file rather than keeping a second backlog. It must not automatically start the next job.
 
-**Latest accepted job (2026-10-18): D19D (menu keys: Escape/Backspace back, Enter confirms, V Square, wheel moves; Escape never quits); executable `08bba860a9171fe2d147e211e569a8de90e434d262600749c476f4caf6b7e9fe` is the regression baseline, [note 144](documentation/144-d19d-menu-keys.md). Queued: D08O2B, D08AA, D08A22, D24D, D26G.** Earlier (2026-10-18): D30 (recomp.board listing: `.recomp.json` claims our row; README badge). Earlier: **Latest accepted job (2026-10-18): D19E (menu close-out: taps never lost during loads or on LOAD GAME, menu over the spinner one image sooner); executable `0092e2b261b333e0f1848e77b6a6a824079efbaba886e2fb158b3b9023e51aaf` is the regression baseline. Queued: D08O2B, D08AA, D08A22, D24D, D26G, D19D.** Earlier (2026-10-18): D19C (more responsive original menus over the demo); executable `1e1a4795ab8af038f9c95b50d2159cab10bfb1f4a363d84b1ac741025e3d6828` is the regression baseline. Queued: D19E (loading-spinner menus and full menu sweep), D08O2B, D08AA, D08A22, D24D, D26G, D19D.** Earlier (2026-10-18): D17U (smooth loading screens); executable `e1d32dc00d9b2e870f5c1aab4b3e4a21bb74b242c20c7483d4f6eeed7011f9fc`. Earlier (2026-10-18): D17T (smooth title menu and attract demo); executable `7ab8877528b05a46a1e793556660ab6cf09c538d93c7b2f1e6cb5bb744ce9829`. Earlier (2026-10-09): D08G6 (`dntlod` fun cheat); executable `74cec66e398217530d0b8abc3fa0ccfe06308f6b73a17e5aafa628b3f0f2a540`. Earlier (2026-10-09): D08A20 (challenge item HUD, option A - 14x14 icon in a square); executable `a047b37bbb833b84902a3ad344fff2e16c22ae3dc0093ad441d80c3eb9235a95`.** Earlier (2026-10-09): D08A21 (14x14 HUD item icons; the 16x16 versions kept in `recomp/assets/ui/items/16px/`); executable `72429e350806e0639f36e50cff0cb969f18df1662a2336794e17bd2263614c21`.** Earlier (2026-10-08): D08A12 (modern dynamite: unlit until fire, switch away freely, next stick drawn after a throw); executable `2d54e00b64bcf38917e41db47805338f75977b0b63a0868cb962242ffaaadb9d` is the regression baseline. Queued: D24D, D26G.** Earlier (2026-10-08): D08A19 (used mission items: USED and the green tick); executable `d67705eba48232029a90647cc781f3201d0aae29799678466b2b5b9337b5dbe8`. Earlier (2026-10-08): D08Z2 (mantle pose; frozen legs after a corner bump); executable `bfd41760f9c66f2f03cf859f820f7b7d27cd8991e8ce1f304f5456ea29bf8986` is the regression baseline. D08Z3 (modern landing) accepted 2026-10-08; executable `11187493c04ae830482c47c93b97ac332fbfce1de95f8eedaa2f8637d7fe164e` is the new regression baseline. Queued: D24D, D26G, D08A19.** Earlier (2026-10-08): D08Z1 (jump wall slide); executable `3f909c9f2cc4e5b09ba6faab5129ec9ae0ff938c4735e264ac67a66405c1ed34`. Earlier (2026-10-08): D08A17 (power-up countdowns); executable `8f338cde1c2dc4cf73da747621cffafe2478512f6419078a41d11b0d3b9268a9`. Earlier accepted jobs (2026-10-08): D08A14 (death ends steroids), D08A15 (heartbeat restart; a pickup mid-run stops steroids) and D08G4 (inventory cheats give full armor); executable `87fe38d4f0ea8560312f53171345c207f332e26b6f4d2ed7220e1afae66ba472` is the regression baseline.** Earlier: D08J2 (pole/chain A/D direction), D08U2 (climb off a ladder past an enemy), D08O3 (E in water keeps the weapon) and D08O2A (natural swim-fire pose v2), 2026-10-07.** Previous baseline `e8eebb809c3d5a4b29779f11f0c9db55efcd846dc5c71b39d5a59d43158eb08e` (D08U2). **D08J2 (pole/chain A/D direction) Accepted 2026-10-07**: executable `129a64f2df3f5395f2d3485a310a03d74c85f9b1086c7dab37fee59277c7968b` is the current regression baseline ([note 122](documentation/122-d08j2-pole-chain-sidestep.md)). Todo: D08J4 (ceiling monkey-bar drops, UI slot 3), D08J3 (free camera while climbing). Previous baseline `e75b50f156137fa2377e4643407b2efbd16f2e976fa4d697afcbceb228e2e554` (D08O3). **D23E (western-town stutter) Accepted 2026-10-07**; **D08O2A Accepted** ([note 119](documentation/119-d08o2a-natural-swim-fire-pose.md)), **D08O3 Accepted** ([note 120](documentation/120-d08o3-e-in-water.md)); **D23F (fast CPU timing) Accepted 2026-10-05 and now the Modernized default**; executable `e0737a9f712aa5622d1b057ee5071e12c33cc9a18de8e6d40ee8eee31083f966` (includes D23E), [note 104](documentation/104-d23e-busy-scene-stutter.md), [note 105](documentation/105-d23f-fast-timing.md). Next suggested: D23G (finish the fast path) and D17S (auto frame-rate default).
+**Latest accepted job (2026-10-18): D19 (in-game OPTIONS: PC CONTROLS, DISPLAY, MODERNIZED in the original menu style, title and pause); executable `fb169a561aa15a979b4b10b4903dbd5758b17708ebe24b669f58966faf16760b` is the regression baseline, [note 145](documentation/145-d19-game-menu.md). Queued: D19G, D19F, D08O2B, D08AA, D08A22, D24D, D26G.** Earlier (2026-10-18): **D19D (menu keys: Escape/Backspace back, Enter confirms, V Square, wheel moves; Escape never quits); executable `08bba860a9171fe2d147e211e569a8de90e434d262600749c476f4caf6b7e9fe` is the regression baseline, [note 144](documentation/144-d19d-menu-keys.md). Queued: D08O2B, D08AA, D08A22, D24D, D26G.** Earlier (2026-10-18): D30 (recomp.board listing: `.recomp.json` claims our row; README badge). Earlier: **Latest accepted job (2026-10-18): D19E (menu close-out: taps never lost during loads or on LOAD GAME, menu over the spinner one image sooner); executable `0092e2b261b333e0f1848e77b6a6a824079efbaba886e2fb158b3b9023e51aaf` is the regression baseline. Queued: D08O2B, D08AA, D08A22, D24D, D26G, D19D.** Earlier (2026-10-18): D19C (more responsive original menus over the demo); executable `1e1a4795ab8af038f9c95b50d2159cab10bfb1f4a363d84b1ac741025e3d6828` is the regression baseline. Queued: D19E (loading-spinner menus and full menu sweep), D08O2B, D08AA, D08A22, D24D, D26G, D19D.** Earlier (2026-10-18): D17U (smooth loading screens); executable `e1d32dc00d9b2e870f5c1aab4b3e4a21bb74b242c20c7483d4f6eeed7011f9fc`. Earlier (2026-10-18): D17T (smooth title menu and attract demo); executable `7ab8877528b05a46a1e793556660ab6cf09c538d93c7b2f1e6cb5bb744ce9829`. Earlier (2026-10-09): D08G6 (`dntlod` fun cheat); executable `74cec66e398217530d0b8abc3fa0ccfe06308f6b73a17e5aafa628b3f0f2a540`. Earlier (2026-10-09): D08A20 (challenge item HUD, option A - 14x14 icon in a square); executable `a047b37bbb833b84902a3ad344fff2e16c22ae3dc0093ad441d80c3eb9235a95`.** Earlier (2026-10-09): D08A21 (14x14 HUD item icons; the 16x16 versions kept in `recomp/assets/ui/items/16px/`); executable `72429e350806e0639f36e50cff0cb969f18df1662a2336794e17bd2263614c21`.** Earlier (2026-10-08): D08A12 (modern dynamite: unlit until fire, switch away freely, next stick drawn after a throw); executable `2d54e00b64bcf38917e41db47805338f75977b0b63a0868cb962242ffaaadb9d` is the regression baseline. Queued: D24D, D26G.** Earlier (2026-10-08): D08A19 (used mission items: USED and the green tick); executable `d67705eba48232029a90647cc781f3201d0aae29799678466b2b5b9337b5dbe8`. Earlier (2026-10-08): D08Z2 (mantle pose; frozen legs after a corner bump); executable `bfd41760f9c66f2f03cf859f820f7b7d27cd8991e8ce1f304f5456ea29bf8986` is the regression baseline. D08Z3 (modern landing) accepted 2026-10-08; executable `11187493c04ae830482c47c93b97ac332fbfce1de95f8eedaa2f8637d7fe164e` is the new regression baseline. Queued: D24D, D26G, D08A19.** Earlier (2026-10-08): D08Z1 (jump wall slide); executable `3f909c9f2cc4e5b09ba6faab5129ec9ae0ff938c4735e264ac67a66405c1ed34`. Earlier (2026-10-08): D08A17 (power-up countdowns); executable `8f338cde1c2dc4cf73da747621cffafe2478512f6419078a41d11b0d3b9268a9`. Earlier accepted jobs (2026-10-08): D08A14 (death ends steroids), D08A15 (heartbeat restart; a pickup mid-run stops steroids) and D08G4 (inventory cheats give full armor); executable `87fe38d4f0ea8560312f53171345c207f332e26b6f4d2ed7220e1afae66ba472` is the regression baseline.** Earlier: D08J2 (pole/chain A/D direction), D08U2 (climb off a ladder past an enemy), D08O3 (E in water keeps the weapon) and D08O2A (natural swim-fire pose v2), 2026-10-07.** Previous baseline `e8eebb809c3d5a4b29779f11f0c9db55efcd846dc5c71b39d5a59d43158eb08e` (D08U2). **D08J2 (pole/chain A/D direction) Accepted 2026-10-07**: executable `129a64f2df3f5395f2d3485a310a03d74c85f9b1086c7dab37fee59277c7968b` is the current regression baseline ([note 122](documentation/122-d08j2-pole-chain-sidestep.md)). Todo: D08J4 (ceiling monkey-bar drops, UI slot 3), D08J3 (free camera while climbing). Previous baseline `e75b50f156137fa2377e4643407b2efbd16f2e976fa4d697afcbceb228e2e554` (D08O3). **D23E (western-town stutter) Accepted 2026-10-07**; **D08O2A Accepted** ([note 119](documentation/119-d08o2a-natural-swim-fire-pose.md)), **D08O3 Accepted** ([note 120](documentation/120-d08o3-e-in-water.md)); **D23F (fast CPU timing) Accepted 2026-10-05 and now the Modernized default**; executable `e0737a9f712aa5622d1b057ee5071e12c33cc9a18de8e6d40ee8eee31083f966` (includes D23E), [note 104](documentation/104-d23e-busy-scene-stutter.md), [note 105](documentation/105-d23f-fast-timing.md). Next suggested: D23G (finish the fast path) and D17S (auto frame-rate default).
 
 ## The experience we are building
 
@@ -172,12 +172,15 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D18C | Load-sensitive crackle at construction signs and train ledge | Todo | D17B, D18A |
 | D18D | Music silent after death and Continue until Duke's next voice line | Todo | D01 |
 | D18E | Challenge stages 21-26 have no music: reuse fitting in-game tracks (user mapping) | Todo | D22B, D26A |
-| D19 | Modern in-game menus, settings and input prompts (Sonic 3 A.I.R.-style customization; plan mode + artifact first) | Todo | D02, D04, D13 |
+| D19 | Modern in-game menus, settings and input prompts (replicates the original TTK menu; mockup approved 2026-10-18) | Done (user-accepted 2026-10-18; follow-ups D19G, D19F, D19F1) | D02, D04, D13 |
+| D19G | In-game OPTIONS stage 2: key bindings in PC CONTROLS; display and camera options applied live | Todo | D19 |
 | D19A | Duke font assets for host messages and modern UI | Done | D04 |
 | D19B | Responsive modern menu navigation and transitions | Todo | D02, D04 |
 | D19C | Interim: more responsive original menus (faster cursor and screen response, no 10 Hz feel) | Accepted (demo-backed menus; loading spinner and full sweep in D19E) | D17T |
 | D19D | Interim: Esc backs out of sub-menus; PC-friendly navigation where the mapped PS1 buttons fall short | Done (user-accepted) | D04, D17T |
 | D19E | Menu responsiveness close-out: menus over the loading spinner are less responsive; sweep every frontend menu and screen for best response | Done (accepted 2026-10-18) | D19C, D17U |
+| D19F | PC button icons: keyboard and mouse prompt sprites drawn in the exact style of the disc's PS1 button sprites | Todo | D19D, D24A |
+| D19F1 | Prompt icons follow the input device in use (keyboard/mouse or controller), switching live like a modern game | Todo | D19F, D09 |
 | D20 | Save management and optional quick saves | Todo | D01, D02 |
 | D21 | Accessibility and sound controls | Todo | D04, D19 |
 | D22 | Campaign fidelity and overlay coverage | Todo | D01 |
@@ -5102,6 +5105,32 @@ keeps the original; the user confirms.
 
 ### D19 — Modern in-game menus, settings and input prompts
 
+**Done (user-accepted 2026-10-18: "fully accept!!").** Remaining items continue in D19G (key bindings, live display/camera changes), D19F/D19F1 (PC prompt icons) and D09 (controller navigation). **Stage 1 implemented 2026-10-18.** OPTIONS on the title
+menu and in the pause menu lists SOUND, CONTROLLER, GAME SETTINGS, PC
+CONTROLS, DISPLAY and MODERNIZED. The three new screens are drawn entirely by
+the game's own text, sprite, slider and sound code (no host drawing), on an
+unused screen slot with no handler, so they match the originals and the D17
+interpolation redraws them. Confirmed settings are saved to the profile
+(`<profile>.menu-settings`, folded in by run.py); crosshair, aim assist, red
+dot, jump, jump walls, landing, dynamite and view bob apply at once, the rest
+say NEXT LAUNCH. Not yet: key bindings in PC CONTROLS, live display/camera
+changes, PC prompt icons (D19F). Executable
+`fb169a561aa15a979b4b10b4903dbd5758b17708ebe24b669f58966faf16760b`. Note [145](documentation/145-d19-game-menu.md).
+
+**Direction revised by the user 2026-10-18:** Sonic 3 A.I.R. is no longer the
+template. The modern menu replicates the existing TTK menu: the same font,
+colours, layout, sliders and button prompts, with the PC/Modernized options as
+extra screens in that style. An interactive HTML mockup (private artifact
+https://claude.ai/artifact/6FxFwzfzdCp2doDjSesfHA, not tracked: it uses
+disc-derived glyphs) was well received ("i love it!!!"). It shows the original screens plus
+proposed PC CONTROLS, DISPLAY and MODERNIZED screens under OPTIONS. Measured
+from the captures: the menus draw the big italic font (`/DATA/FONTS.RAW`, CLUT
+225 gold, 226 blue highlight, 224 grey) squeezed horizontally to 0.725 of its
+height scale, each glyph overlapping the previous one by about 3 px (the
+captures fit 5 px; 3 px reads better, user 2026-10-18). EDuke32
+(`research/eduke32-menu.odt`) remains an optional reference only. The
+PC prompt icons are D19F.
+
 **Direction set by the user 2026-09-29 (backlog; not started).** The target
 is a customization menu in the spirit of Sonic 3 A.I.R.: one aesthetically
 pleasing place to pick Modernized options (control schemes such as the D08R
@@ -5124,6 +5153,19 @@ is a lot to consider; this is a dedicated future session, not a side task.
 Build a modern in-game menu system, using EDuke32 as a design reference for navigation, option organization and customization. Investigate reuse of suitable open-source menu code, recording its exact revision/license and compatibility with this runtime before adopting it; source availability alone does not establish integration suitability. Preserve the original menus as an option and support safe pause/resume, keyboard/mouse and controller navigation. Build an accessible Time to Kill settings surface for mode, implemented controls, display and audio options. Show actual bindings in help and prompts; provide reset and safe handling of display changes. Avoid exposing developer terminology in normal player flows.
 
 **Acceptance:** a player can select a mode, change bindings/display settings and recover defaults without editing files. Keyboard/controller navigation works. The root [game manual](GAME_MANUAL.md) matches the shipped build and labels planned features separately.
+
+### D19G - In-game OPTIONS stage 2: key bindings and live display/camera
+
+**Todo (opened 2026-10-18).** Follow-up to D19 stage 1 (note 145). Add a KEY
+BINDINGS screen under PC CONTROLS in the same style (pick an action, press a
+key or mouse button, swap on conflict, DEFAULT restores; bindings saved like
+`run.py --bind`), and apply the NEXT LAUNCH options live where safe (camera,
+view, shoulder, distance, weapon aim, mouse, widescreen, frame rate, display
+mode).
+
+**Acceptance:** bindings changed and restored in game take effect at once and
+persist; each newly live option changes without a restart; Vanilla
+unchanged; the user judges the feel.
 
 ### D19A — Duke font assets for host messages and modern UI
 
@@ -5281,6 +5323,62 @@ PRESS START, pause, statistics, SAVE GAME) took every tap, one step each.
 Demo-backed menus, smoothness, load timing, gameplay entry and Vanilla are
 unchanged. Executable
 `0092e2b261b333e0f1848e77b6a6a824079efbaba886e2fb158b3b9023e51aaf`. Per-screen table in note 143.
+
+### D19F - PC button icons in the exact style of the original prompts
+
+**Todo (opened 2026-10-18).** User request after the D19 menu mockup. The
+original prompts (SELECT, CONFIRM, CANCEL, CHANGE, DEFAULT...) show PS1 button
+sprites: 16x16, 16-colour, from the HUD sprite table in `SLUS_005.83`
+(Up/Down `0x800c4474`, Cross `0x800c4414`, Square `0x800c4424`, Circle
+`0x800c4404`, Triangle `0x800c43f4`; cells and CLUTs in `/DATA/FONTS.RAW`,
+extracted by `tools/local/build_ttk_fonts.py` `ui_pack()`). CHANGE is the
+Up/Down sprite turned sideways; the L1/R1/L2/R2 bars on CONFIGURE CONTROLLER
+are not yet identified. Since D19D a Modernized player presses Enter, Escape,
+Backspace, V, C, the arrows and the wheel, but the prompts still show PS1
+buttons.
+
+Make a PC set replicated in the absolutely exact style of the originals:
+same 16x16 cell and baseline, the same light direction, bevel, outline,
+metal finish and colour count, readable at the game's prompt scale. At
+least: Enter, Escape, Backspace, Space, the arrow keys (up/down pair and
+left/right pair, matching SELECT and CHANGE), V, C, left/right mouse
+button and the wheel, plus a generic keycap that can carry a key name for
+bindable actions. Draw them with the Photon Studio plugin (photon
+vector/edit skills) and export indexed PNGs; the user may draw some
+themselves.
+
+Provenance decides where they live: art drawn fresh by the project can be
+tracked in `recomp/assets/ui/` (like `item-frame.png`, with a README row);
+anything built from disc pixels (for example the original round button
+base) must instead be composed at build time from the player's disc, like
+D24A. Decide this before drawing.
+
+Then use them: Modernized menu prompts show the PC icons for the keys D19D
+maps (a setting can keep the PS1 icons, and D09 controllers keep them),
+and the D19 menus use the same set. Vanilla keeps the original prompts.
+
+**Acceptance:** the user approves the set side by side with the original
+sprites at 1x and at in-game scale; every Modernized menu prompt shows the
+key that actually does that action; Vanilla and the controller prompts
+unchanged; provenance and licence recorded.
+
+### D19F1 - Prompt icons follow the input device in use
+
+**Todo (opened 2026-10-18).** User request: once controller support (D09)
+can tell keyboard/mouse input from controller input, the menu and in-game
+prompts switch icons automatically, like any modern game: the D19F PC
+icons after a key, click or mouse move, the PS1 button sprites (or the
+connected pad's own layout, if D09 adds one) after a controller press or
+stick move. Switch on the last device actually used, with a small dead
+zone so a resting stick or a stray mouse twitch does not flicker the
+prompts; change between images, never mid-draw. A fixed choice
+(automatic / keyboard / controller) stays available as a setting.
+Vanilla keeps the original PS1 prompts.
+
+**Acceptance:** with a keyboard and a controller both connected, every
+Modernized prompt shows the device last used and changes within one image
+of switching; no flicker from idle devices; the fixed settings hold;
+Vanilla unchanged.
 
 ### D20 — Save management and optional quick saves
 
@@ -12139,3 +12237,59 @@ in note 117 is the reference for future custom pickups.
 - User: "amazing work". D19D Done; executable
   `08bba860a9171fe2d147e211e569a8de90e434d262600749c476f4caf6b7e9fe` is the regression baseline.
   Still queued: D08O2B, D08AA, D08A22, D24D, D26G.
+
+## 2026-10-18 - D19 menu mockup; D19F queued
+
+- Design only, no code, build or launch. An interactive HTML mockup of the
+  original TTK menus in the disc's own font and button sprites, plus proposed
+  PC CONTROLS, DISPLAY and MODERNIZED screens (private artifact
+  https://claude.ai/artifact/6FxFwzfzdCp2doDjSesfHA). User: "i love it!!!!!!!!!!!
+  amazing work!!!". D19 direction now: replicate the existing menu, not
+  Sonic 3 A.I.R. Slider rows fixed after the user flagged them (long labels
+  overlapped the bar, the knob overlapped rows in long lists), and the text
+  now uses the menus' measured squeeze (0.725 wide), with a 3 px glyph
+  overlap after the user found 5 px too tight.
+- New Todo D19F: PC button icons in the exact style of the PS1 prompt
+  sprites (Photon Studio). D19B stays Todo.
+- New Todo D19F1: prompt icons switch automatically with the input device
+  in use, after D19F and D09 controller support.
+
+## 2026-10-18 - D19 stage 1: in-game OPTIONS extended (Needs playtest)
+
+- User: "absolutely rock solid. i'm happy with you to continue" (mockup) and
+  "lets get straight to work on the menu system, its entirely over to you".
+  New Todo D19F1: prompt icons follow the input device in use (after D19F
+  and D09).
+- Implementation (Modernized only): `recomp/src/ttk/game_menu.cpp`,
+  `live_env.cpp`; entry hooks `0x800220F4` (frontend tick) and `0x80025FB0`
+  (pause dispatch) added to `game.local.toml`; menu draws from frame_replay's
+  composition and loading-logo hooks; keys through `input_pad()`; run.py and
+  `player_profiles.absorb_menu_settings()` save confirmed settings. OPTIONS
+  (title and pause) gains PC CONTROLS, DISPLAY and MODERNIZED, drawn by the
+  game's own text 0x8008b454, sprites 0x8008b678, sliders 0x80083c40/0x80083edc
+  and sounds 0x8006bbd8 on screen slot 8 (no handler in either table), the
+  original OPTIONS taken over before its handler draws. SOUND, CONTROLLER and
+  GAME SETTINGS run the original handlers.
+- Evidence (offscreen, private profile/cards/savestates, `recomp/analysis/d19-menu`):
+  title OPTIONS shows six items in the original font and colours; each new
+  screen, a change confirmed (side file written with the right values), SOUND
+  and back (OPTIONS with SOUND highlighted), back to the main menu; pause
+  OPTIONS (RETURN prompt), MODERNIZED, confirm, back to the pause menu,
+  resume; held Down 1 s moves 10 rows and scrolls; wheel moves; 90 s idle on
+  our screen stays put; 4:3 at 120 keeps 118-119 distinct presents a second
+  (guest 9.9 images); Vanilla shows the original three-item OPTIONS. Python
+  tests 146 OK (12 skipped; new side-file tests), `ttk-input-test`,
+  new `ttk-live-env-test`, `check_repo.py` OK. Savestates still load. Executable
+  `fb169a561aa15a979b4b10b4903dbd5758b17708ebe24b669f58966faf16760b`.
+- Not verified: the live effect of each option in gameplay (the crosshair
+  test drew no weapon offscreen), feel on the real display, every original
+  sub-screen from the pause menu.
+- Remaining for D19: key bindings in PC CONTROLS, live display and camera
+  changes, PC prompt icons (D19F, D19F1), controller navigation (D09).
+
+## 2026-10-18 - D19 accepted
+
+- User: "fully accept!!". D19 Done; executable
+  `fb169a561aa15a979b4b10b4903dbd5758b17708ebe24b669f58966faf16760b` is the regression baseline.
+  New Todo D19G (key bindings, live display/camera). Queued: D19G, D19F,
+  D08O2B, D08AA, D08A22, D24D, D26G.

@@ -14,7 +14,7 @@
 //    swept collision, impacts and landings stay original.
 //  * Quicker standing takeoff: the original preparation 96 plays faster.
 static bool manual_jump() {
-    const char* value=std::getenv("DNTTK_JUMP");
+    const char* value=ttk_live_env("DNTTK_JUMP");
     return value && !std::strcmp(value,"manual");
 }
 // Grace after the last grounded camera update, in input sequences (60 per

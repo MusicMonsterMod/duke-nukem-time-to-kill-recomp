@@ -22,6 +22,7 @@
 // DNTTK_FRAME_INTERP=off disables the redraws (developer, documentation/80).
 #include "cpu_state.h"
 #include "mod_plugins.h"
+#include "game_menu.h"
 #include "pc_input.h"
 #include "modern_controls.h"
 #include "weapon_aim.h"
@@ -1432,6 +1433,8 @@ void start_workers_once() {
     if(psx_mod_replay_workers_start(workers,worker_draw)<=0) interp_replay=false;
 }
 void composition_entry(CPUState* cpu,uint32_t address) {
+    // D19: our OPTIONS screens are drawn first, so this image's capture has them.
+    if(!psx_mod_replay_active() && address==composition) game_menu_frame(cpu);
     if(!psx_mod_replay_active() && address==composition && replay_on && interp_replay && frontend_composition(cpu))
         frontend_field=s_frame_count;
     if(!psx_mod_replay_active()) start_workers_once();
@@ -1446,6 +1449,8 @@ void composition_entry(CPUState* cpu,uint32_t address) {
 }
 // D17U: a loading screen's logo draw (live frames only).
 void logo_entry(CPUState* cpu,uint32_t address) {
+    // D19: the menu over the loading logo (once per image; see game_menu.cpp).
+    if(!psx_mod_replay_active() && address==logo_draw) game_menu_frame(cpu);
     if(address!=logo_draw || psx_mod_replay_active() || !replay_on || !interp_replay || !loading_image(cpu)) return;
     // Never a second image in a tick that already captured its composition.
     if(rec_frame && rec_frame->valid && !rec_frame->loading) return;

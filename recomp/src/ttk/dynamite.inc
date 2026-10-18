@@ -25,7 +25,7 @@
 // before). Damage, radius, ammo and the throw are the original's.
 static bool dynamite_modern() {
     if(!input_modernized()) return false;
-    const char* v=std::getenv("DNTTK_DYNAMITE");
+    const char* v=ttk_live_env("DNTTK_DYNAMITE");
     return !v || std::strcmp(v,"original");
 }
 static bool dynamite_lit,dynamite_quiet,dynamite_seen; // dynamite_redraw(s): shortcuts.inc

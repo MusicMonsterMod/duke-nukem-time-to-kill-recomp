@@ -152,15 +152,17 @@ static void first_person_update(const InputFrame& f,unsigned ticks) {
 // moving the head, follow quickly). View bob is then added on purpose: a dip
 // and a slight sway driven by the distance Duke walks, scaled by speed.
 // DNTTK_VIEW_BOB: off, subtle, on (default), strong, or a scale (0..3).
+// D19: parsed again when the OPTIONS screens change it.
 static double view_bob_scale() {
-    static const double v=[]{
-        const char* t=std::getenv("DNTTK_VIEW_BOB");
-        if(!t || !*t || !std::strcmp(t,"on")) return 1.0;
-        if(!std::strcmp(t,"off") || !std::strcmp(t,"0")) return 0.0;
-        if(!std::strcmp(t,"subtle")) return 0.5;
-        if(!std::strcmp(t,"strong")) return 2.0;
-        char* end=nullptr; const double d=std::strtod(t,&end);
-        return end && !*end && d>=0 && d<=3 ? d : 1.0;}();
+    static const char* parsed=nullptr; static double v=1.0; static bool have=false;
+    const char* t=ttk_live_env("DNTTK_VIEW_BOB");
+    if(have && t==parsed) return v;
+    have=true; parsed=t;
+    if(!t || !*t || !std::strcmp(t,"on")) v=1.0;
+    else if(!std::strcmp(t,"off") || !std::strcmp(t,"0")) v=0.0;
+    else if(!std::strcmp(t,"subtle")) v=0.5;
+    else if(!std::strcmp(t,"strong")) v=2.0;
+    else {char* end=nullptr; const double d=std::strtod(t,&end); v=end && !*end && d>=0 && d<=3 ? d : 1.0;}
     return v;
 }
 static constexpr double bob_height=8, bob_sway=3, bob_cycle=640, bob_walk_speed=24;

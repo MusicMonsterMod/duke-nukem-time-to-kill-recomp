@@ -1,5 +1,34 @@
 # Next-session handoff
 
+## 2026-10-18 - D19 accepted
+
+- User: "fully accept!!". D19 Done; executable
+  `fb169a561aa15a979b4b10b4903dbd5758b17708ebe24b669f58966faf16760b` is the regression baseline.
+  New Todo D19G (key bindings screen, live display/camera options). Queued:
+  D19G, D19F, D08O2B, D08AA, D08A22, D24D, D26G.
+
+## 2026-10-18 - D19 stage 1: in-game OPTIONS extended (Needs playtest)
+
+- Modernized OPTIONS (title and pause) adds PC CONTROLS, DISPLAY and
+  MODERNIZED, drawn by the game's own menu code so they look like GAME
+  SETTINGS. Settings save to the profile; eight gameplay options apply at
+  once, the rest at the next launch. New hooks 0x800220F4 and 0x80025FB0
+  (regenerated; savestates still load). Executable
+  `fb169a561aa15a979b4b10b4903dbd5758b17708ebe24b669f58966faf16760b`. [Note 145](145-d19-game-menu.md).
+  New Todo D19F1 (prompt icons follow the input device). Next for D19: key
+  bindings screen, live display/camera changes, D19F icons.
+
+## 2026-10-18 - D19 menu mockup; D19F queued
+
+- Design only (no code, build or launch). Interactive HTML mockup of the
+  original menus in the disc's own font and button sprites, with proposed PC
+  CONTROLS, DISPLAY and MODERNIZED screens: private artifact
+  https://claude.ai/artifact/6FxFwzfzdCp2doDjSesfHA. User loved it. D19 now
+  replicates the existing menu (Sonic 3 A.I.R. dropped). Menu text is the big
+  italic font squeezed to 0.725 with a 3 px glyph overlap. Queued D19F: PC
+  button icons in the exact PS1 prompt style (Photon Studio). D19B stays
+  Todo. Still queued: D08O2B, D08AA, D08A22, D24D, D26G.
+
 ## 2026-10-18 - D19D accepted
 
 - User: "amazing work". D19D Done; executable

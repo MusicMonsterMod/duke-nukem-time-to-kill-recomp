@@ -554,6 +554,51 @@ class FirstPersonViewTest(unittest.TestCase):
             self.assertFalse(state.exists())
             self.assertEqual(settings['profiles']['modernized']['controls']['view'],'first')
 
+    def test_menu_settings_side_file(self):
+        # D19: the in-game OPTIONS screens leave their confirmed settings beside the profile.
+        with tempfile.TemporaryDirectory() as d:
+            path=Path(d)/'profiles.json';state=profiles.menu_settings_path(path)
+            settings=profiles.defaults()
+            self.assertFalse(profiles.absorb_menu_settings(path,settings))
+            state.write_text(json.dumps({'version':1,'active':'modernized',
+                'controls':{'crosshair':False,'landing':'original','mouse_sensitivity':0.25,'cpu_overclock':175,'camera_distance':2048},
+                'presentation':{'renderer':'software','internal_scale':2,'display':'borderless','output_filter':'nearest'}}))
+            self.assertTrue(profiles.absorb_menu_settings(path,settings))
+            self.assertFalse(state.exists())
+            controls=settings['profiles']['modernized']['controls'];presentation=settings['profiles']['modernized']['presentation']
+            self.assertEqual((controls['crosshair'],controls['landing'],controls['mouse_sensitivity'],controls['cpu_overclock'],controls['camera_distance']),(False,'original',0.25,175,2048))
+            self.assertEqual((presentation['renderer'],presentation['internal_scale'],presentation['display'],presentation['output_filter']),('software',2,'borderless','nearest'))
+            self.assertEqual(settings['profiles']['vanilla'],profiles.defaults()['profiles']['vanilla'])
+            before=copy.deepcopy(settings)
+            for bad in ['not json','{"version":2,"active":"modernized","controls":{},"presentation":{}}',
+                        '{"version":1,"active":"classic","controls":{},"presentation":{}}',
+                        '{"version":1,"active":"modernized","controls":{"landing":"floaty"},"presentation":{}}',
+                        '{"version":1,"active":"modernized","controls":{"warp":1},"presentation":{}}',
+                        '{"version":1,"active":"modernized","controls":{},"presentation":{"internal_scale":9}}']:
+                state.write_text(bad)
+                self.assertFalse(profiles.absorb_menu_settings(path,settings))
+                self.assertFalse(state.exists())
+            self.assertEqual(settings,before)
+            state.write_text('{"version":1,"active":"vanilla","controls":{},"presentation":{}}')
+            self.assertTrue(profiles.absorb_menu_settings(path,settings))
+            self.assertEqual(settings['active'],'vanilla')
+
+    def test_launch_carries_menu_settings(self):
+        with tempfile.TemporaryDirectory() as d:
+            path=Path(d)/'profiles.json';state=profiles.menu_settings_path(path)
+            with patch.object(Path,'is_file',return_value=True),patch.object(run.subprocess,'call',return_value=0) as launch,patch.object(run,'ensure_movie_shard'):
+                run.main(['--settings-file',str(path),'--no-session-log','--mode','modernized'])
+                env=launch.call_args.kwargs['env']
+                self.assertEqual(env['DNTTK_MENU_SETTINGS_FILE'],str(profiles.menu_settings_path(path.resolve())))
+                self.assertEqual(env['DNTTK_MENU_PRESENTATION'],'renderer=opengl,internal_scale=4,display=windowed,output_filter=linear')
+                launch.side_effect=lambda *a,**k: (state.write_text('{"version":1,"active":"modernized","controls":{"jump":"manual"},"presentation":{}}'),0)[1]
+                run.main(['--settings-file',str(path),'--no-session-log'])
+                launch.side_effect=None
+                self.assertEqual(profiles.load(path)[0]['profiles']['modernized']['controls']['jump'],'manual')
+                self.assertFalse(state.exists())
+                run.main(['--settings-file',str(path),'--no-session-log','--mode','vanilla'])
+                self.assertEqual(launch.call_args.kwargs['env']['DNTTK_MENU_SETTINGS_FILE'],'')
+
     def test_cli_launch_and_vanilla_view(self):
         with tempfile.TemporaryDirectory() as d:
             path=Path(d)/'profiles.json'

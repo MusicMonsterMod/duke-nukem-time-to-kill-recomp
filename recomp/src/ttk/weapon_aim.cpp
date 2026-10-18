@@ -7,6 +7,7 @@
 #include "pc_input.h"
 #include "cpu_state.h"
 #include "mod_plugins.h"
+#include "live_env.h"
 #include "code_identity.h"
 #include <cmath>
 #include <cstdio>
@@ -109,7 +110,7 @@ bool view_segment_query(CPUState* cpu,const double* from,const double* to,double
 // actor. Failure leaves the free-view target intact; visibility settings do not
 // participate. Original spread/integration/damage still own the projectile.
 static bool assist(CPUState* cpu,const double* eye,const double* muzzle,const double* forward,double* target) {
-    const char* mode=std::getenv("DNTTK_AIM_ASSIST");
+    const char* mode=ttk_live_env("DNTTK_AIM_ASSIST");
     if(!mode || std::strcmp(mode,"original-lock"))return false;
     uint32_t actor=psx_mod_read_word(player+0x288);
     if(!psx_mod_read_word(player+0x2b0) || actor<0x800d0000 || actor>0x801ff000 ||
@@ -133,7 +134,7 @@ static bool assist(CPUState* cpu,const double* eye,const double* muzzle,const do
 // including interpreted slices where an entry hook may not fire.
 static void marker_hook(CPUState* cpu,uint32_t address) {
     if(address!=0x8002bc18 || cpu->gpr[31]!=0x80033db0 || cpu->gpr[20]!=player)return;
-    const char* visible=std::getenv("DNTTK_RED_DOT");
+    const char* visible=ttk_live_env("DNTTK_RED_DOT");
     if(!visible || std::strcmp(visible,"0") || !input_modernized() || g_ls_mode || g_psx_call_bail || busy)return;
     const uint32_t sp=cpu->gpr[29],primitive=cpu->gpr[5];
     if(sp<0x801f4000 || sp>0x801fffb0 || (sp&3) ||
@@ -281,7 +282,7 @@ const char* aim_debug_json() {
 static int crosshair_forced=-1; // -1 follow env; 0/1 override (I key, EDuke-style)
 extern "C" int ttk_aim_crosshair_enabled(void) {
     if(crosshair_forced>=0)return crosshair_forced;
-    const char* visible=std::getenv("DNTTK_CROSSHAIR");
+    const char* visible=ttk_live_env("DNTTK_CROSSHAIR");
     return !visible || std::strcmp(visible,"0");
 }
 extern "C" void ttk_aim_toggle_crosshair(void) {

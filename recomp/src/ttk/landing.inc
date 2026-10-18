@@ -18,7 +18,7 @@
 // Takeoffs, flights, the landing choice and sound, fall damage, the hard
 // landing 106 and water entries stay original.
 static bool landing_modern() {
-    const char* v=std::getenv("DNTTK_LANDING");
+    const char* v=ttk_live_env("DNTTK_LANDING");
     return !v || std::strcmp(v,"original");
 }
 static unsigned landing_recoveries;

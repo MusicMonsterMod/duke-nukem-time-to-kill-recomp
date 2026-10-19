@@ -29,7 +29,7 @@ extern "C" uint32_t psx_mod_alloc_guest_memory(uint32_t n,uint32_t){static uint3
 extern "C" void psx_mod_host_call_begin(void){}
 extern "C" void psx_mod_host_call_end(void){}
 extern "C" int psx_mod_register_function_entry_plugin(const char*,uint32_t a,PSXModFunctionEntryCallback cb){if(a==0x8003c500)callback=cb;return 1;}
-namespace ttk {static InputFrame f;const InputFrame& input_snapshot(Context){return f;}uint64_t input_host_frame(){return f.sequence;}bool input_modernized(){return modern;}bool movement_ready(){return ready;}bool locomotion_input_ready(){return false;}bool jetpack_input_ready(){return modern && jet_ready;}bool swim_weapon_ready(){return modern && swim_ready;}bool player_identity_ready(){return ready;}bool frame_trace_on(){return false;}void frame_trace_account(uint32_t,long){}}
+namespace ttk {static InputFrame f;const InputFrame& input_snapshot(Context){return f;}uint64_t input_host_frame(){return f.sequence;}bool input_modernized(){return modern;}bool movement_ready(){return ready;}const char* movement_lease_miss(){return "test";}bool locomotion_input_ready(){return false;}bool jetpack_input_ready(){return modern && jet_ready;}bool swim_weapon_ready(){return modern && swim_ready;}bool player_identity_ready(){return ready;}bool frame_trace_on(){return false;}void frame_trace_account(uint32_t,long){}}
 extern "C" void psx_dispatch_call(CPUState* c,uint32_t address,uint32_t ret) {
     assert(address==0x8006d980 && ret==0x800000fc && c->gpr[4]==0x800d7198);
     uint32_t a=c->gpr[5],sp=c->gpr[29];

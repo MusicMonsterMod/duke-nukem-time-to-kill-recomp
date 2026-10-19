@@ -685,7 +685,8 @@ void input_frame() {
     }
     // Diagnostics only (DNTTK_TEST_INPUT=<file>): a script steers the
     // offscreen game. The file is re-read every input frame: held key names
-    // (w a s d shift ctrl space e q up down enter left right x z c esc v backspace) and
+    // (w a s d shift ctrl space e q up down enter left right x z c esc v backspace),
+    // cheat=<word> and act=<action> (D07E: once per change of word) and
     // dx=<counts> dy=<counts>
     // per frame.
     // Never set by run.py.
@@ -705,7 +706,26 @@ void input_frame() {
         if(FILE* f=std::fopen(test_input,"r")) {
             char word[64];
             while(std::fscanf(f,"%63s",word)==1) {
-                if(!std::strncmp(word,"dx=",3)) dx+=std::atof(word+3);
+                if(!std::strncmp(word,"cheat=",6)) {
+                    static char last[24];
+                    if(std::strcmp(last,word+6)) {
+                        std::snprintf(last,sizeof last,"%s",word+6);
+                        for(auto code:cheat_codes) if(!std::strcmp(last,code.text)) {cheat_pending=code.action;cheat_deadline=sequence+120;}
+                    }
+                }
+                else if(!std::strncmp(word,"act=",4)) {
+                    static const char* const names[action_count]={
+#define TTK_ACTION(name, token, code, pad) #name,
+#include "input_bindings.def"
+#undef TTK_ACTION
+                    };
+                    static char last[32];
+                    if(std::strcmp(last,word+4)) {
+                        std::snprintf(last,sizeof last,"%s",word+4);
+                        for(int i=0;i<action_count;++i) if(!std::strcmp(last,names[i]))command(i);
+                    }
+                }
+                else if(!std::strncmp(word,"dx=",3)) dx+=std::atof(word+3);
                 else if(!std::strncmp(word,"dy=",3)) dy+=std::atof(word+3);
                 else for(const auto& n:named) if(!std::strcmp(word,n.name)) keys[n.code]=true;
             }

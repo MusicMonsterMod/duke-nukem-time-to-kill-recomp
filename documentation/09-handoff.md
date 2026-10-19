@@ -1,5 +1,23 @@
 # Next-session handoff
 
+## 2026-10-19 - D07E accepted
+
+- User tested Modernized `view` and `original` weapon aiming: "it plays
+  solidly ... both work as intended beautifully". D07E Done; executable
+  `1b3f3283586656df529f440547327307144d17523fe12382bcd3d8b40f2502f5` is the regression baseline.
+  Queued: D19O, D19K, D19L, D19G, D19F, D19N, D08AA, D24D, D26G.
+
+## 2026-10-19 - D07E stale lease and original-aim facing (Needs playtest)
+
+- Modern shots and movement lost their lease when the game ran below 15 fps
+  (upgraded energy stream: 34 of 107 shots used the original auto-aim). The
+  lease window is now one game frame, 4..10 vblanks (4 at the normal 20 fps).
+- `original` weapon aiming: Duke now faces the camera (user choice), so the
+  original shot, auto-aim and energy lock follow where he looks instead of the
+  save's heading. Executable
+  `1b3f3283586656df529f440547327307144d17523fe12382bcd3d8b40f2502f5`,
+  [note 154](154-d07e-frame-lease.md). Not verified: the user's playtest.
+
 ## 2026-10-19 - D19P accepted
 
 - User: "lock it in. close it out! it's great" D19P Done; executable

@@ -3,6 +3,7 @@
 #include <cstdint>
 namespace ttk {
 bool movement_ready();
+const char* movement_lease_miss();
 bool edge_jump_queued();
 // DNTTK_FRAME_TRACE: other plugins add their hook time to the frame trace.
 bool frame_trace_on();

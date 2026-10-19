@@ -216,6 +216,21 @@ int main(int argc,char** argv) {
            psx_mod_read_word(0x800cc580)==0x30a30400);
     assert(psx_mod_read_word(0x800dd878)==secret_flags); // no invented conversation
     call(0x8003ade4,c,p,0x80025ee8);assert(code_writes==2); // idempotent
+    // D07E: the lease lasts one game frame. Slow updates (5 fields, an upgraded
+    // energy stream) widen it to 6; a pause longer than the cap resets it to 4.
+    {
+        auto camera=[&](unsigned fields){ttk::input.sequence+=fields;call(0x8003ade4,c,p,0x80025ee8);};
+        for(int i=0;i<4;++i)camera(5);
+        ttk::input.sequence+=5;assert(ttk::movement_ready());
+        ttk::input.sequence+=1;assert(ttk::movement_ready());
+        ttk::input.sequence+=1;assert(!ttk::movement_ready());
+        camera(30);ttk::input.sequence+=5;assert(!ttk::movement_ready());
+        camera(30);for(int i=0;i<4;++i)camera(3); // a stall interval is not remembered
+        ttk::input.sequence+=4;assert(ttk::movement_ready());
+        ttk::input.sequence+=1;assert(!ttk::movement_ready());
+        camera(1);assert(ttk::movement_ready());
+        std::puts("PASS: D07E lease lasts one game frame, also in slow scenes");
+    }
     // D08Q3: actual flight eligibility retains overlay, camera, capture and
     // alive checks, and never enables ground movement/air-steering writes.
     {
@@ -1361,7 +1376,18 @@ int main(int argc,char** argv) {
     ttk::modern=false;refuse();ttk::modern=true;
     ttk::input.active=false;refuse();ttk::input.active=true;
     ttk::input.held[ttk::original_aim]=true;refuse();ttk::input.held[ttk::original_aim]=false;
-    setenv("DNTTK_WEAPON_AIM","original",1);refuse();setenv("DNTTK_WEAPON_AIM","view",1);
+    // D07E: original weapon aiming faces the view too; the arm stays original.
+    setenv("DNTTK_WEAPON_AIM","original",1);psx_mod_write_half(c+12,4096);
+    call(0x80058120,p,0,0x80041c44);assert(psx_mod_read_half(p+0x1c)==1024 && psx_mod_read_half(p+0x24)==1024);
+    {
+        CPUState arm{};arm.gpr[29]=0x801f0000;arm.gpr[31]=0x80097f28;
+        arm.gpr[4]=0x1f800060;arm.gpr[5]=p+0x124;arm.gpr[18]=p;writes=0;
+        hooks().at(0x80097a44)(&arm,0x80097a44);assert(writes==0 && arm.gpr[5]==p+0x124);
+    }
+    ttk::input.held[ttk::original_aim]=true;refuse();ttk::input.held[ttk::original_aim]=false;
+    setenv("DNTTK_WEAPON_AIM","off",1);refuse();
+    setenv("DNTTK_WEAPON_AIM","view",1);psx_mod_write_half(c+12,-4096);
+    call(0x80058120,p,0,0x80041c44);assert(psx_mod_read_half(p+0x1c)==3072);
     setenv("DNTTK_CAMERA_MODE","original",1);refuse();setenv("DNTTK_CAMERA_MODE","independent",1);
     ram[(p+0x3b9)&0x1fffff]=30;refuse();ram[(p+0x3b9)&0x1fffff]=4;
     poke(0xca968);refuse();poke(0xca968);

@@ -33,7 +33,8 @@ D07's shot still converges from the offset muzzle to the resolved view target.
 Close-range parallax, spread, gravity and recoil can therefore visibly differ.
 
 Original camera or original weapon-aim selection disables the new presentation
-adapter. Mouse2 original precision aim suspends view-facing, arm retargeting,
+adapter. (D07E: original weapon aiming keeps view-facing of the body heading only,
+so its original shot follows the camera; see note 154.) Mouse2 original precision aim suspends view-facing, arm retargeting,
 view-shot replacement and the modern reticle while held. Release returns control
 only when the normal guarded state is available. Vanilla, unsupported drawn
 weapons, unsupported states/maps, capture loss, and stale camera leases receive

@@ -14,7 +14,8 @@ Generated source is rebuilt through the normal local build wrapper.
 
 Captured PC movement requests the original forward locomotion action only while
 a recently invoked, identity-checked normal camera owns a standing/walking player.
-The camera lease expires after four input frames and is tied to capture epoch.
+The camera lease expires after one game frame and is tied to capture epoch
+(D07E: four input frames at 20 fps, up to ten in slow scenes; see note 154).
 Neither keyboard axes nor the adapter emit original left/right tank-turn bits.
 Original animation supplies horizontal speed, including the slower L1/Shift
 walk. There is no host-time multiplier and no extra simulation iteration.

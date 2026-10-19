@@ -872,7 +872,8 @@ it defaults to unassisted aiming. At close contact the shot origin retracts
 when needed to avoid aiming backwards from an overlapping muzzle; original cover
 and damage rules still apply. `original` restores the original
 weapon path, including the in-game auto-aim setting, and hides the modern
-crosshair. Selecting original camera also retains original body/gun presentation.
+crosshair; Duke still turns to face where the camera looks, so the original
+shot and auto-aim go that way. Selecting original camera also retains original body/gun presentation.
 With `view` aiming, right mouse is **Grab** (see pushing objects below), not
 aim: view aiming already aims where you look. Select `original` weapon aiming or
 original camera to get the original right-mouse precision aim back; then **Alt**

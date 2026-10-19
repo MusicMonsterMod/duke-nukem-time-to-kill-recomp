@@ -19,7 +19,8 @@ namespace ttk {
 constexpr uint32_t player=0x800d7198, camera=0x800d6eb0;
 struct Guard {uint32_t address,size;const char* digest;};
 #include "aim_guards.inc"
-static unsigned shots, rejected, queries;
+static unsigned shots, rejected, queries, lease_misses;
+static char last_lease_miss[96]="none";
 static int last_kind, last_weapon;
 static double last_origin[3],last_target[3],last_direction[3];
 static bool busy;
@@ -254,8 +255,14 @@ static void aim_hook_body(CPUState* cpu,uint32_t address) {
     marker_hook(cpu,address);
     if(input_modernized())observe(cpu,address);
     if(g_precise_mode || g_ls_mode || g_psx_call_bail || busy || !input_modernized() || !view_mode() || input_snapshot(Context::Gameplay).held[original_aim])return;
-    if(address!=0x8003c500 || cpu->gpr[4]!=player ||
-       !supported(cpu->gpr[7]) || !shot_ready() || !identity())return;
+    if(address!=0x8003c500 || cpu->gpr[4]!=player || !supported(cpu->gpr[7]))return;
+    if(!shot_ready()) {
+        // D07E: a supported player shot left to the original aim.
+        ++lease_misses;std::snprintf(last_lease_miss,sizeof last_lease_miss,"%s",movement_lease_miss());
+        if(diagnostics())std::fprintf(stderr,"ttk-aim-lease-miss weapon=%u ra=%08x why=%s\n",cpu->gpr[7],cpu->gpr[31],last_lease_miss);
+        return;
+    }
+    if(!identity())return;
     uint32_t sp=cpu->gpr[29],origin=cpu->gpr[5],ra=cpu->gpr[31];
     if(sp<0x801f4000 || sp>0x801fff00)return;
     const bool gun=(ra==0x8004f7b4 || ra==0x8004fa88) && !thrown_weapon(cpu->gpr[7]) && cpu->gpr[7]!=9 && cpu->gpr[7]!=10 && cpu->gpr[7]!=27 &&
@@ -338,8 +345,8 @@ static void hook(CPUState* cpu,uint32_t address) {
     frame_trace_account(address|0x1u,(long)std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now()-t0).count());
 }
 const char* aim_debug_json() {
-    static char out[1024];
-    std::snprintf(out,sizeof out,"{\"beam_locks\":%u,\"beam_extra_locks\":%u,\"close_retractions\":%u,\"assisted_shots\":%u,\"hidden_markers\":%u,\"last_assisted\":%s,\"reticle\":%s,\"shots\":%u,\"rejected\":%u,\"queries\":%u,\"identity_calls\":%llu,\"identity_checks\":%llu,\"weapon\":%d,\"hit_kind\":%d,\"origin\":[%.0f,%.0f,%.0f],\"target\":[%.0f,%.0f,%.0f],\"direction\":[%.0f,%.0f,%.0f]}",beam_locks,beam_extra_locks,close_retractions,assisted_shots,hidden_markers,last_assisted?"true":"false",ttk_aim_reticle()?"true":"false",shots,rejected,queries,(unsigned long long)aim_identity_calls,(unsigned long long)aim_identity_checks,last_weapon,last_kind,last_origin[0],last_origin[1],last_origin[2],last_target[0],last_target[1],last_target[2],last_direction[0],last_direction[1],last_direction[2]);return out;
+    static char out[1280];
+    std::snprintf(out,sizeof out,"{\"beam_locks\":%u,\"beam_extra_locks\":%u,\"close_retractions\":%u,\"assisted_shots\":%u,\"hidden_markers\":%u,\"last_assisted\":%s,\"reticle\":%s,\"shots\":%u,\"rejected\":%u,\"queries\":%u,\"lease_misses\":%u,\"last_lease_miss\":\"%s\",\"identity_calls\":%llu,\"identity_checks\":%llu,\"weapon\":%d,\"hit_kind\":%d,\"origin\":[%.0f,%.0f,%.0f],\"target\":[%.0f,%.0f,%.0f],\"direction\":[%.0f,%.0f,%.0f]}",beam_locks,beam_extra_locks,close_retractions,assisted_shots,hidden_markers,last_assisted?"true":"false",ttk_aim_reticle()?"true":"false",shots,rejected,queries,lease_misses,last_lease_miss,(unsigned long long)aim_identity_calls,(unsigned long long)aim_identity_checks,last_weapon,last_kind,last_origin[0],last_origin[1],last_origin[2],last_target[0],last_target[1],last_target[2],last_direction[0],last_direction[1],last_direction[2]);return out;
 }
 }
 static int crosshair_forced=-1; // -1 follow env; 0/1 override (I key, EDuke-style)

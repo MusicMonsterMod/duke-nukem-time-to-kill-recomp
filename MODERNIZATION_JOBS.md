@@ -230,6 +230,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D28 | Scroll Lock holster and WEAPON LOWERED/RAISED quotes | Done | D04, D19A |
 | D29 | Progression items and objectives legibility: research and design first (Level 2 bank-vault notes) | Todo | D19A, D22B, D26A |
 | D30 | List the project on recomp.board (recomp.fyi): commit `.recomp.json` to claim our row | Done | - |
+| D31 | Eye-catching README: poster hero banner, logo, text-free icon, social preview and art credits | Todo | - |
 | R01 | DisruptorRecomp architecture and modernization reference research | Done | - |
 
 Recommended opening sequence: **D01 → D02 → D03 → D04**, then **D05 / D06 → D07 → D07A → D08**. D13 is an early graphics option after profiles exist. D22 and D23 should accumulate evidence throughout development. First-person, HD asset packs and precision rendering are optional follow-up milestones, not blockers for a good modern third-person release.
@@ -7219,6 +7220,95 @@ toolchain and targets, and Works from shows only SLUS-00583 (USA). Keep the
 file current when status or targets change (for example after D22, D24 or
 D25).
 
+### D31 - Eye-catching README (hero banner, icon, social preview, art credits)
+
+**Todo. Opened 2026-10-20 at the user's request; left in the backlog.**
+Project presentation, not gameplay. No game code, build or launch is involved.
+
+**Goal.** Make the GitHub front page as striking as the box art: one strong
+hero image, the original logo, a one-line pitch, a short nav row, a clear
+Vanilla / Modernized comparison, and complete art credits. Keep the
+engineering detail in the existing docs; the README links to it.
+
+**Source art (local only, `research/artwork/`, never committed as is):**
+
+- `duke-ttk-recomp-poster-new.png` (1531x1027) - **the source for this job.**
+  MusicMonsterMod's colour edit (ChatGPT and PhotoCraft) of coranflakes'
+  clean poster.
+- `duke_time_to_kill_poster_2560px.jpg` - "Commercial Poster Clean" by
+  DeviantArt user coranflakes
+  (https://www.deviantart.com/coranflakes/art/Duke-Nukem-Time-To-Kill-Commercial-Poster-Clean-978112433).
+- `og-art.png` - high-resolution cover/poster art posted by Dr_Proton on the
+  Duke4.net forums, 11 December 2017
+  (https://forums.duke4.net/topic/9736-time-to-kill-cover-art-and-poster/).
+- `Duke_Nukem_Time_to_Kill_Logo.png` (2371x820, transparent) - from the
+  French Wikipedia article (https://fr.wikipedia.org/wiki/Duke_Nukem:_Time_to_Kill).
+- `duke-ttk-icon-new.png` - **dropped** (user decision); the new icon is cut
+  from the recomp poster instead.
+- Next Generation magazine advert ("Let them eat lead!", "Make 'em
+  History!") - tone and slogan reference only, not for reuse.
+- `credits.txt` - the user's provenance notes above.
+
+**Concept (2026-10-20).** Private artifact
+https://claude.ai/artifact/GodtFaGHo1o8mztw3hhs1a shows a GitHub-dark mock
+of the proposed README, the asset kit and the open questions. First-pass
+PIL crops are kept locally in `research/artwork/readme-drafts/` (hero 2.4:1
+with the logo on a darkened bottom-left corner, 512 icon, 1280x640 social
+preview, resized logo); they are placeholders for the Photon pass.
+
+**Research notes.**
+
+- Peer READMEs: Zelda64Recomp has no hero image (download link, no-assets
+  note, contents, features, FAQ, credits). Alexbeav's PS1 ports open with
+  one centred banner and a scope line, no badges. Leading with key art at
+  this quality is our differentiator.
+- GitHub rendering: no CSS or scripts; use `<p align="center">`,
+  `<img width>`, tables, `<details>`, and `<picture>` with
+  `prefers-color-scheme` sources for light/dark variants. Images are
+  committed and linked relatively, so keep the total near 1.5 MB.
+- The social preview (1280x640, under 1 MB) is uploaded by the user in
+  GitHub Settings, General, Social preview; it is not a repo file.
+
+**Work:**
+
+1. Resolve the open questions below with the user.
+2. In Photon (Photon Studio AI integration), from `duke-ttk-recomp-poster-new.png`:
+   hero banner (2560 master, about 1600 wide committed, JPEG/WebP under
+   400 KB) with the logo legible at phone width; a square icon cropped like
+   the old `duke-ttk-icon-new.png` but **with no text** (no logo, no
+   "Girls Girls Girls" billboard), master 1024, exports 512/256/64; a
+   1280x640 social preview. Keep Photon projects under `research/`.
+3. Commit only the final exports (proposed `.github/readme/`), add an
+   explicit allowlist for that folder to `scripts/ci/check_repo.py`, and
+   keep sources and drafts under `research/`.
+4. Rewrite the README top: hero, tagline, badges (CI, Linux, SLUS-00583,
+   recomp.board, licence), nav row, no-game-data note, Vanilla / Modernized
+   table, optional screenshots, quick start, then the existing build text
+   and credits.
+5. Add an **Art** credits block (Dr_Proton, coranflakes, the logo source,
+   MusicMonsterMod's edits) and an unofficial fan-project / trademark
+   disclaimer (not affiliated with Gearbox, 3D Realms, n-Space, GT
+   Interactive or Sony).
+6. Check rendering on github.com in light and dark and at phone width;
+   ASCII hyphen-minus only.
+
+**Open questions for the user:**
+
+- Art rights: the poster is the original commercial key art; decide whether
+  the repo carries it with credits and a disclaimer, and whether to ask
+  coranflakes before publishing the derived edit.
+- The logo's Wikipedia file licence needs checking before it is committed.
+- Gameplay screenshots show retail textures: include them, or art only and
+  link to videos?
+- Disc-extracted game fonts baked into banners are retail-derived; needs
+  sign-off, else a free condensed face.
+
+**Acceptance:** the user approves the art and README text; the README
+renders well on GitHub in light and dark and on a phone; every third-party
+image is credited; `scripts/ci/check_repo.py` passes; no retail media,
+research sources or game-derived data beyond what the user approved is
+committed.
+
 ## Working rules and evidence
 
 - Work on the selected job; split unexpectedly large discoveries into linked follow-ups with new stable IDs. Never renumber existing jobs.
@@ -13114,3 +13204,12 @@ in note 117 is the reference for future custom pickups.
   solidly ... both work as intended beautifully". D07E Done; executable
   `1b3f3283586656df529f440547327307144d17523fe12382bcd3d8b40f2502f5` is the regression baseline.
   Queued: D19O, D19K, D19L, D19G, D19F, D19N, D08AA, D24D, D26G.
+
+## 2026-10-20 - D31 opened (Todo)
+
+- Backlogged at the user's request: an eye-catching README from the user's
+  artwork drop in `research/artwork/` (recomp poster, logo, credits.txt).
+  Concept artifact https://claude.ai/artifact/GodtFaGHo1o8mztw3hhs1a with a
+  GitHub-dark mock, first-pass crops (`research/artwork/readme-drafts/`,
+  local only) and research on peer READMEs and GitHub limits. No README,
+  art or code change yet; open questions listed in the D31 entry.

@@ -1,5 +1,36 @@
 # Next-session handoff
 
+## 2026-10-19 - D19O and D19L accepted
+
+- User: "accepted! lets bring this one to a solid close and lock it in". D19O
+  and D19L Done; executable
+  `114a77530e92839c095aeb833078a84823b312417e7256c5c476460c1d7f38b2` is the
+  regression baseline. Queued: D19K, D19G, D19F, D19N, D08AA, D24D, D26G.
+
+## 2026-10-19 - D19O round 2 and D19L: the menu stays up through demo scene loads (Needs playtest)
+
+- User playtest: judder at scene changes and loading screens; held Down
+  stopped when the demo scene changed. Our menu skipped the guest's second
+  pass of an image at two load hand-overs (gone about 100 and 200 ms), the
+  presenter showed the older real image in a long logo pause, and held keys
+  did nothing for the 1.9 s blocking load (then a burst). Now the menu is
+  drawn on every image, moves during the whole load, and the repeat never
+  bursts; load timing unchanged. Covers D19L's acceptance too. Executable
+  `114a77530e92839c095aeb833078a84823b312417e7256c5c476460c1d7f38b2`,
+  [note 155](155-d19o-menu-flashback.md#round-2-the-users-playtest-2026-10-19).
+  Not verified: the user's playtest.
+
+## 2026-10-19 - D19O menu flash after a stall or demo/logo switch (Needs playtest)
+
+- The flash came after a replay timeline reset (a host stall; every demo/logo
+  switch during a demo scene load), not from each menu change: D19J measured
+  it right after its own dump stall. For about 100 ms the real image, one to
+  two images behind the redraws, was shown. The newest menu image is now
+  redrawn on its own until a pair exists, and the last redraw stays through
+  the reset. Executable
+  `226719899432b4b43694269a108943d1823e25fbe87c13089489278d64af5161`,
+  [note 155](155-d19o-menu-flashback.md). Not verified: the user's playtest.
+
 ## 2026-10-19 - D07E accepted
 
 - User tested Modernized `view` and `original` weapon aiming: "it plays

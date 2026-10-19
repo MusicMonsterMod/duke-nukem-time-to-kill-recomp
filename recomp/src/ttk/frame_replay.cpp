@@ -45,6 +45,7 @@ int overlay_loader_prepare_address(uint32_t addr);
 
 extern "C" uint64_t s_frame_count;
 extern "C" const char* ttk_frontend_input_json();
+extern "C" const char* ttk_game_menu_json();
 extern "C" double ttk_frontend_press_ms();
 extern "C" uint64_t ttk_frontend_press_field();
 extern "C" uint8_t* g_psx_ram;
@@ -111,6 +112,10 @@ bool replay_context() {return replay_gameplay_context() || frontend_live() || lo
 // the logo angle interpolated, so the menu reaches the screen one image
 // sooner there too. DNTTK_LOADING_NEWEST=off (developer) keeps D17U's base.
 constexpr uint32_t frontend_state=0x800d24e4, menu_cursor=0x800d24e6;
+// D19O: the frontend's demo sub-state (2 = the demo scene runs, 0/1 = it
+// loads) and the field of the last menu image captured.
+constexpr uint32_t demo_load=0x800d24e2;
+uint64_t menu_field=0;
 bool frontend_newest() {static const bool v=[]{const char* t=std::getenv("DNTTK_FRONTEND_NEWEST");return !(t && !std::strcmp(t,"off"));}();return v;}
 bool loading_newest() {static const bool v=[]{const char* t=std::getenv("DNTTK_LOADING_NEWEST");return !(t && !std::strcmp(t,"off"));}();return v;}
 // Diagnostics: the frontend state and cursor an image shows, and per menu
@@ -527,7 +532,7 @@ Frame* timeline_pair(double present_ms, Frame*& next, double& alpha) {
     return best;
 }
 bool timeline_clock_reset=true;
-void reset_timeline();
+void reset_timeline(bool keep_shown=false);
 void release_jobs(Frame& f) {
     for(int i=0;i<f.njobs;++i) if(f.jobs[i]>=0) psx_mod_replay_release(f.jobs[i]);
     f.njobs=0;
@@ -868,6 +873,7 @@ void capture(CPUState* cpu,int kind) {
     static uint64_t load_epoch=~uint64_t(0),field0=0,last_field=0;
     static double host0=0;
     static int last_kind=gameplay_image;
+    static bool last_menu=false;
     const uint64_t field=s_frame_count, epoch=psx_mod_savestate_loads();
     const double host_now=1000.0*SDL_GetPerformanceCounter()/SDL_GetPerformanceFrequency();
     // D17T/D17U: never blend across a switch between gameplay, frontend and
@@ -883,10 +889,15 @@ void capture(CPUState* cpu,int kind) {
     last_kind=kind; last_field=field;
     if(kind==frontend_image) ++frontend_captures;
     if(kind==loading_image_kind) ++loading_captures;
+    // D19O: menu images (game mode 0) keep the last redraw on screen through
+    // a reset; see menu_alone.
+    const bool menu=kind!=gameplay_image && psx_mod_read_half(game_mode)==0;
     if(epoch!=load_epoch || field<field0 || timeline_clock_reset || switched || std::fabs(host_now-(host0+(double)(field-field0)*(1000.0/59.94)))>100.0) {
-        reset_timeline(); load_epoch=epoch; field0=field;
+        reset_timeline(menu && last_menu && epoch==load_epoch); load_epoch=epoch; field0=field;
         host0=host_now; timeline_clock_reset=false;
     }
+    last_menu=menu;
+    if(menu) menu_field=field;
     // Follow sustained host/guest clock phase error gradually. Keep pose
     // intervals monotonic and avoid turning a startup stall into a permanent
     // extra delay larger than the retained snapshot history.
@@ -1093,12 +1104,44 @@ uint64_t cache_clock=0, prefetched=0, governed=0, deferred=0, late_repeats=0;
 int last_shown_cache=-1;   // cache entry of the last present (late camera keeps it)
 double slack_floor_ms=0.5;
 
-void reset_timeline() {
+uint64_t menu_kept=0, menu_alone_jobs=0, menu_held=0;   // D19O diagnostics
+// D19O (menu_alone below). DNTTK_MENU_ALONE=off (developer) restores the
+// real-image fallback after a reset.
+bool menu_alone_on() {static const bool v=[]{const char* t=std::getenv("DNTTK_MENU_ALONE");return !(t && !std::strcmp(t,"off"));}();return v;}
+void reset_timeline(bool keep_shown) {
     if(!continuous_timeline()) return;
     timeline_clock_reset=true;
     for(auto& f:frames) {release_jobs(f);f.valid=false;}
     for(auto& c:cache) c=Cached{};
-    rec_frame=nullptr;last_shown_cache=-1;
+    rec_frame=nullptr;
+    // The cache entry's image stays valid (cache_victim never reuses it).
+    if(keep_shown && last_shown_cache>=0 && menu_alone_on()) ++menu_kept;
+    else last_shown_cache=-1;
+}
+// D19O: D19C/D19E redraws are drawn from the newest captured image; the real
+// image shows the same menu change one to two guest images later (measured:
+// a cursor move 22 presents later at 120). After a reset (a host stall, a
+// switch between the demo and the loading logo) no pair exists until the
+// next image, about 100 ms, and falling back to the real image stepped the
+// screen back (13 presents of PRESS START after the main menu had appeared).
+// Until then the newest menu image is redrawn on its own; before its first
+// redraw is ready the last redraw stays (reset_timeline keep_shown).
+// D19O: while a demo scene loads behind the title menu, the logo images can
+// stop for more than 15 fields (the blocking load handing back to the menu,
+// long load ticks). The presenter then left the replay and showed the real
+// image for about 15 presents: the logo stepped back and the menu came late.
+// Within such a gap (up to 5 s, game mode 0, scene still loading) the last
+// redraw is held instead; a movie, a game start or the demo running again
+// ends it.
+bool menu_hold() {
+    return menu_alone_on() && last_shown_cache>=0 && psx_mod_replay_cache_valid(last_shown_cache) &&
+        psx_mod_read_half(game_mode)==0 && psx_mod_read_half(demo_load)!=2 && menu_field && s_frame_count-menu_field<=300;
+}
+Frame* menu_alone() {
+    if(!menu_alone_on()) return nullptr;
+    Frame* n=nullptr;
+    for(auto& f:frames) if(f.valid && f.xf_done && (!n || f.serial>n->serial)) n=&f;
+    return n && n->frontend && n->menu_mode && (n->loading ? loading_newest() : frontend_newest()) ? n : nullptr;
 }
 int cache_find(uint64_t frame,int index) {
     for(int c=0;c<cache_entries;++c)
@@ -1246,7 +1289,11 @@ void trace(const PSXModPresentInfo* info,double alpha,const Frame* f,int shown,b
 // is drawn after its own flip and displayed at the next one).
 int timeline_provider(const PSXModPresentInfo* info) {
     static bool suspended=false;
-    if(!replay_context()) {suspended=true;return 0;}
+    if(!replay_context()) {
+        if(info->due && menu_hold()) {++menu_held;trace(info,0,nullptr,-2,false);return last_shown_cache+1;}
+        if(!info->due && menu_hold()) return 0;
+        suspended=true;return 0;
+    }
     if(suspended) {reset_timeline();suspended=false;return 0;}
     if(!info->frequency || info->present_hz<=0) return 0;
     const double now_ms=1000.0*info->now/info->frequency;
@@ -1270,6 +1317,7 @@ int timeline_provider(const PSXModPresentInfo* info) {
     adjust_ms=now_ms;
     for(double t=1000.0*info->next_deadline/info->frequency;t-now_ms<=late_lead_ms;t+=period) {
         Frame* next=nullptr;double alpha=0;Frame* f=timeline_pair(t,next,alpha);
+        if(!f && (f=menu_alone())) {next=f;alpha=0;}
         if(!f || f->njobs>=max_jobs) continue;
         // A new capture can move this deadline into the next snapshot pair.
         // Its already-submitted job still owns the deadline: do not submit and
@@ -1284,6 +1332,7 @@ int timeline_provider(const PSXModPresentInfo* info) {
         const double look_ms=std::min(t-late_lead_ms,now_ms);
         const int job=submit_job(*f,*next,alpha,!f->frontend,look_ms);
         if(job<0) break;
+        if(next==f) ++menu_alone_jobs;
         const int i=f->njobs++;
         f->alpha[i]=(float)alpha;f->jobs[i]=job;f->failed[i]=false;f->submitted[i]=true;
         f->shows[i]=submitted_menu;
@@ -1611,8 +1660,8 @@ const char* frame_replay_debug_json() {
     // Append the present trace: "ms/alpha/shown/ready/cached/njobs[d]/serial/yaw/t/planned alpha".
     if(n>1 && n<(int)sizeof buffer-64) {
         n-=1;
-        n+=std::snprintf(buffer+n,sizeof buffer-n,",\"timeline\":{\"slack_ms\":%.2f,\"pose_lag_ms\":%.2f,\"oldest_age_ms\":%.2f,\"future_evictions\":%llu},\"frontend\":{\"live\":%s,\"captures\":%llu,\"resets\":%llu,\"interval_ms\":%.1f,\"delay_ms\":%.1f,\"input\":%s,\"newest\":%s,\"menu\":%s},\"loading\":{\"live\":%s,\"captures\":%llu,\"resets\":%llu,\"interval_ms\":%.1f},\"trace\":\"",response_slack,response_pose_lag,response_oldest_age,(unsigned long long)response_future_evictions,
-            frontend_live()?"true":"false",(unsigned long long)frontend_captures,(unsigned long long)frontend_resets,frontend_interval_ms,newest_frontend(),ttk_frontend_input_json(),frontend_newest()?"true":"false",menu_latency_json(),
+        n+=std::snprintf(buffer+n,sizeof buffer-n,",\"timeline\":{\"slack_ms\":%.2f,\"pose_lag_ms\":%.2f,\"oldest_age_ms\":%.2f,\"future_evictions\":%llu},\"frontend\":{\"live\":%s,\"captures\":%llu,\"resets\":%llu,\"interval_ms\":%.1f,\"delay_ms\":%.1f,\"input\":%s,\"newest\":%s,\"kept\":%llu,\"alone\":%llu,\"held\":%llu,\"game_menu\":%s,\"menu\":%s},\"loading\":{\"live\":%s,\"captures\":%llu,\"resets\":%llu,\"interval_ms\":%.1f},\"trace\":\"",response_slack,response_pose_lag,response_oldest_age,(unsigned long long)response_future_evictions,
+            frontend_live()?"true":"false",(unsigned long long)frontend_captures,(unsigned long long)frontend_resets,frontend_interval_ms,newest_frontend(),ttk_frontend_input_json(),frontend_newest()?"true":"false",(unsigned long long)menu_kept,(unsigned long long)menu_alone_jobs,(unsigned long long)menu_held,ttk_game_menu_json(),menu_latency_json(),
             loading_live()?"true":"false",(unsigned long long)loading_captures,(unsigned long long)loading_resets,loading_interval_ms);
         const unsigned first=trace_n>128?trace_n-128:0;
         for(unsigned i=first;i<trace_n && n<(int)sizeof buffer-200;++i) {

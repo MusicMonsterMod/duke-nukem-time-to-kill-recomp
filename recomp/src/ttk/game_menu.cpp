@@ -149,6 +149,7 @@ constexpr uint16_t idle_fields=0x4650; // state 6: the main menu's idle time bef
 // Where the frontend calls 0x800220f4: state 12 before its sub-screen
 // dispatch, states 8 and 9 before their handlers.
 constexpr uint32_t from_options=0x80023248, from_difficulty=0x80023130, from_character=0x800231b4;
+constexpr uint32_t demo_load=0x800d24e2; // D19O: 0 = a demo scene's blocking load (no pad read)
 // Text ids of the title pages (the originals pass the same).
 constexpr int text_title1=1, text_title2=2, text_one=0x57, text_two=0x58, text_load=0x31, text_options=0x59;
 constexpr int text_select=0x11, text_confirm=0x12, text_return=0x13, text_change=0x14, text_cancel=0x15, text_start=0x8a;
@@ -329,6 +330,12 @@ bool quitting=false;          // D19M: the close event is sent; keys are ignored
 const char* back_label="CANCEL";
 bool identity_ok=false, identity_checked=false;
 uint32_t last_image=~0u;
+// D19O: the call site of the last draw. Where a demo scene's load hands over
+// (the blocking load to the tick's logo, the logo to the demo), the guest
+// builds the same image twice and shows the second pass, which covered the
+// menu drawn in the first: about 100 ms without the menu each time. A new
+// call site in the same image draws again.
+uint32_t last_draw_ra=0;
 uint64_t draws=0, entries=0, writes=0, finals=0;
 uint32_t sliders=0; // GPU-addressable slider objects
 constexpr int slider_slots=12, slider_size=0x40;
@@ -431,7 +438,9 @@ int repeat(Repeat& r,bool held,int taps,uint64_t now) {
     if(taps>0) {r.held=held;r.since=now;r.next=now+350;return taps;}
     if(!held || !r.held) {r.held=false;return 0;}
     if(now<r.next) return 0;
-    r.next+=80;
+    // D19O: after a gap with no read the steps go on from now; replaying the
+    // missed ones ran the cursor through the list in a burst.
+    r.next=now>r.next+80 ? now+80 : r.next+80;
     return 1;
 }
 // More than five rows: the compact layout (14 apart), nine at a time.
@@ -615,6 +624,7 @@ void back(uint16_t mode) {
 }
 } // namespace
 
+uint64_t drops=0; int drop_why=0; uint16_t drop_state=0, drop_sub=0;   // diagnostic
 bool game_menu_input(const MenuKeys& keys) {
     if(!enabled()) return false;
     std::lock_guard<std::recursive_mutex> lock(mutex);
@@ -638,6 +648,9 @@ bool game_menu_input(const MenuKeys& keys) {
     }
     const MenuContext* c=current_context();
     if(!owned || !c || !our_screen(c,psx_mod_read_half(c->sub))) {
+        if(rep_up.held || rep_down.held || rep_left.held || rep_right.held || k.up || k.down) {
+            ++drops; drop_why=!owned?1:!c?2:3; drop_state=psx_mod_read_half(fe_state); drop_sub=c?psx_mod_read_half(c->sub):0xffff;
+        }
         rep_up=rep_down=rep_left=rep_right=Repeat{};
         return false;
     }
@@ -1113,6 +1126,8 @@ void game_menu_tick(CPUState* cpu) {
     // D19I: in gameplay our pages are drawn here, after the actions, like the
     // original's pause text (see draw_page).
     struct DrawAfter {CPUState* cpu;const MenuContext* c;~DrawAfter() {if(c->mode==1) draw_page(cpu,c);}} draw_after{cpu,c};
+    // D19O: the blocking load of a demo scene reads no pad; our menu still does.
+    if(c->mode==0 && owned && cpu->gpr[31]!=from_options && psx_mod_read_half(demo_load)==0) input_menu_poll();
     if(pending_sound>=0) {
         busy=true;
         {Guest g(cpu);g.call(fn_sound,(uint32_t)pending_sound,0,0,0);}
@@ -1250,7 +1265,23 @@ bool gameplay_tick(CPUState* cpu) {
 // D19J: the title pages, at state 12's call before its sub-screen dispatch
 // (the pad was read just before). True when the tick is done.
 bool title_tick(CPUState* cpu,const MenuContext* c) {
-    if(cpu->gpr[31]!=from_options) return true; // a load loop's backdrop: nothing to act on
+    if(cpu->gpr[31]!=from_options) {
+        // A load loop's backdrop (D19O): the menu is drawn over the loading
+        // logo, so it moves there too. Confirm and Back wait for a normal tick.
+        if(!owned || !title_page(page)) return true;
+        size_t i=0;
+        busy=true;
+        {
+            Guest g(cpu);
+            for(;i<title_cmds.size() && title_cmds[i]!=Cmd::Confirm && title_cmds[i]!=Cmd::Back && title_page(page);++i) {
+                const int s=title_command(title_cmds[i]);
+                if(s>=0) g.call(fn_sound,(uint32_t)s,0,0,0);
+            }
+        }
+        busy=false;
+        title_cmds.erase(title_cmds.begin(),title_cmds.begin()+(std::ptrdiff_t)i);
+        return true;
+    }
     if(!owned) {
         // A savestate saved on one of our pages: the main menu again.
         enter_main();owned=true;back_label=c->back_label;title_cmds.clear();
@@ -1324,12 +1355,15 @@ void title_entry(CPUState* cpu) {
 // drawing chain that follows the composition: the original pause text is drawn
 // there too. Drawn at the composition, our text went into the world's chain,
 // under that quad and behind Duke, at about half brightness.
+uint64_t skip_owned=0,skip_screen=0,skip_image=0,drawn_calls=0;uint32_t skip_ra=0;   // diagnostic
 void draw_page(CPUState* cpu,const MenuContext* c) {
-    if(!owned || !our_screen(c,psx_mod_read_half(c->sub))) return;
+    if(!owned) {++skip_owned;skip_ra=cpu->gpr[31];return;}
+    if(!our_screen(c,psx_mod_read_half(c->sub))) {++skip_screen;skip_ra=cpu->gpr[31];return;}
     if(c->mode==1 && !psx_mod_read_half(paused)) return; // only over the paused world
     const uint32_t image=psx_mod_read_word(image_counter);
-    if(image==last_image) return;
-    last_image=image;
+    if(image==last_image && cpu->gpr[31]==last_draw_ra) {++skip_image;skip_ra=cpu->gpr[31];return;}
+    ++drawn_calls;
+    last_image=image;last_draw_ra=cpu->gpr[31];
     if(!sliders) sliders=psx_mod_alloc_gpu_dma_memory(slider_size*slider_slots,16);
     busy=true;
     {
@@ -1378,10 +1412,10 @@ void game_menu_frame(CPUState* cpu) {
 
 extern "C" const char* ttk_game_menu_json() {
     using namespace ttk;
-    static char buffer[448];
-    std::snprintf(buffer,sizeof buffer,"{\"owned\":%s,\"page\":%d,\"screen\":%d,\"cursor\":%d,\"top\":%d,\"items\":%d,\"entries\":%llu,\"draws\":%llu,\"writes\":%llu,\"finals\":%llu,\"handoff\":%d,\"pending_state\":%d,\"identity\":%s}",
+    static char buffer[640];
+    std::snprintf(buffer,sizeof buffer,"{\"owned\":%s,\"page\":%d,\"screen\":%d,\"cursor\":%d,\"top\":%d,\"items\":%d,\"entries\":%llu,\"draws\":%llu,\"writes\":%llu,\"finals\":%llu,\"handoff\":%d,\"pending_state\":%d,\"identity\":%s,\"drops\":%llu,\"drop\":[%d,%u,%u],\"skips\":[%llu,%llu,%llu,%llu],\"skip_ra\":\"%x\"}",
         owned?"true":"false",(int)page,screen,cursor,top,(int)list.size(),(unsigned long long)entries,(unsigned long long)draws,(unsigned long long)writes,
-        (unsigned long long)finals,(int)handoff,pending_state,identity_checked?(identity_ok?"true":"false"):"null");
+        (unsigned long long)finals,(int)handoff,pending_state,identity_checked?(identity_ok?"true":"false"):"null",(unsigned long long)drops,drop_why,drop_state,drop_sub,(unsigned long long)skip_owned,(unsigned long long)skip_screen,(unsigned long long)skip_image,(unsigned long long)drawn_calls,skip_ra);
     return buffer;
 }
 

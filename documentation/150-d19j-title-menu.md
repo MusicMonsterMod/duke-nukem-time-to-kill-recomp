@@ -175,7 +175,9 @@ executable `a0246cadbcdb5ee4719dc6e5b08bfa8a0945cf696e47dd22e4a1af27e6873a3d`.
   frontend redraw shows the newer image, then the older real image). The
   original menus show the same: 13 presents of PRESS START after the menu
   first appears, in both builds. It is one present on cursor moves in ours.
-  Follow-up D19O.
+  Follow-up D19O: these sequences were taken right after the dump's own
+  stall; the flash follows a replay reset, not each change
+  ([note 155](155-d19o-menu-flashback.md)).
 - A savestate taken on a title page loads to the main menu.
 - The original pad's other buttons on these pages (Square, Circle) did
   nothing there and do nothing here.

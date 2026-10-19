@@ -731,6 +731,15 @@ void input_frame() {
             }
             std::fclose(f);
         }
+        // DNTTK_TEST_EDGES: keys change only when the file does, as a real
+        // keyboard's do (a held key that the input layer clears stays clear).
+        {
+            static const bool edges=std::getenv("DNTTK_TEST_EDGES")!=nullptr;
+            static bool wanted[sizeof named/sizeof named[0]];
+            bool changed=false;
+            for(size_t i=0;i<sizeof named/sizeof named[0];++i) if(wanted[i]!=keys[named[i].code]) {changed=true;wanted[i]=keys[named[i].code];}
+            if(edges && !changed) for(size_t i=0;i<sizeof named/sizeof named[0];++i) keys[named[i].code]=was[i];
+        }
         // D19D: "wheelup" / "wheeldown" scroll one notch when they appear.
         {
             static bool wheel_was[2];bool wheel_now[2]{};
@@ -979,6 +988,10 @@ static bool menu_owns_keys() {
     }
     menu_had_keys=owns;
     return owns;
+}
+void input_menu_poll() {
+    if(cheat_typing.active() || !modern || !focused) return;
+    (void)menu_owns_keys();
 }
 uint16_t input_pad() {
     if(cheat_typing.active())return 65535;

@@ -181,9 +181,9 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D19I | In-game menu text drawn dimmed (pause list, death list, pause OPTIONS): match the original's full brightness | Done (user-accepted 2026-10-19) | D19H |
 | D19J | Replace the title main menu (and its sub-screens) with a re-implementation in the original style, as OPTIONS and the pause menu were | Done (user-accepted 2026-10-19) | D19H |
 | D19K | LOAD GAME from our savestate menu, integrated into the reimplemented menus; replaces the memory-card LOAD GAME | Todo | D19J, D24B |
-| D19L | Menus stay up and responsive while demo scenes load behind the title menu (no blank spinner gap) | Todo | D19J, D19E |
+| D19L | Menus stay up and responsive while demo scenes load behind the title menu (no blank spinner gap) | Done (user-accepted 2026-10-19 with D19O) | D19J, D19E |
 | D19M | QUIT GAME menu item that closes the whole program (pause list, death list, title main menu), with a YES / NO prompt | Done (user-accepted 2026-10-19; title item in D19J, accepted) | D19H |
-| D19O | Frontend redraws flash back to the previous menu image after a change (PRESS START -> main menu: 13 presents of PRESS START; also in the original menus) | Todo | D19C, D19J |
+| D19O | Frontend redraws flash back to the previous menu image after a change (PRESS START -> main menu: 13 presents of PRESS START; also in the original menus) | Done (user-accepted 2026-10-19) | D19C, D19J |
 | D19P | Death screen: QUIT becomes QUIT TO MENU, beside QUIT GAME (two quits read as the same thing) | Done (user-accepted 2026-10-19) | D19H, D19M |
 | D19N | Consolidate the original OPTIONS screens with ours: one plain OPTIONS screen for the everyday settings, the rest under ADVANCED; remove duplicated or conflicting settings | Todo | D19, D19G |
 | D19A | Duke font assets for host messages and modern UI | Done | D04 |
@@ -5576,7 +5576,7 @@ works in Vanilla; the user judges it.
 
 ### D19L - Menus stay up while demo scenes load
 
-**Todo (opened 2026-10-19).** User: "menus work seamlessly during load
+**Done (user-accepted 2026-10-19 with D19O; implemented with D19O round 2, [note 155](documentation/155-d19o-menu-flashback.md#round-2-the-users-playtest-2026-10-19)).** User: "menus work seamlessly during load
 screens between demos, just like our modernized menu"; expected to follow
 partly from D19J.
 
@@ -5676,7 +5676,7 @@ program; Vanilla keeps the original death screen; the user confirms.
 
 ### D19O - Frontend redraws flash back to the previous menu image
 
-**Todo (opened 2026-10-19, found in D19J).** On the title, after a menu
+**Done (user-accepted 2026-10-19: "accepted! lets bring this one to a solid close"; opened 2026-10-19, found in D19J).** On the title, after a menu
 change the screen shows the new image, then the previous real image again
 for up to one guest image, then the new one. Measured at 120 Hz offscreen
 (`recomp/analysis/d19j-title`, note 150): PRESS START -> main menu shows the
@@ -5691,6 +5691,41 @@ before the older image's real present.
 (present sequences at 60/120/180 over the demo and the loading spinner);
 menu latency no worse than D19E; the attract demo's motion unchanged;
 Vanilla unchanged.
+
+**Implemented 2026-10-19 ([note 155](documentation/155-d19o-menu-flashback.md)).**
+Cause: the flash follows a replay timeline reset, not every menu change. D19J
+measured it straight after the 0.8 s stall its own back-to-back dumps cause;
+steady play is clean. A reset happens after a host stall and at every switch
+between demo and loading-logo images. It dropped every image, so for about
+100 ms the presenter showed the real image, which shows a menu change one to
+two guest images after the D19C/D19E redraws (a cursor move 22 presents
+later). `frame_replay.cpp` now redraws the newest menu image on its own until
+a pair exists and keeps the last redraw across such a reset (mode 0 only;
+`DNTTK_MENU_ALONE=off` restores the old fallback; `plugin.frontend.kept` /
+`.alone`). Framework diagnostic: `replay_dump <base>-seq96` (96 presents, one
+sequence, no stall inside it). Evidence (executable `22671989...5161`): SIGSTOP
+stalls at the menu change, 8 runs at 120/180 on both menus, no flash and no real
+image (off: 6 of 6 flash); dump-stall method 0 vs 13 presents; demo scene load
+switches 0-3 real presents outside the hidden-menu load (off: 9-34); steady
+PRESS START and cursor moves clean at 120/180 (60 has no redraws); latency
+106 ms mean press to screen (off 112, D19E 110); 118-120 / 178-179 distinct
+presents a second; gameplay and Vanilla unchanged; tests pass. Not verified:
+the user's display.
+
+**Round 2 2026-10-19 (user playtest: judder at scene changes and loading
+screens; held Down stops when the demo scene changes).** Measured on D19J's
+menu: at the blocking load -> logo and logo -> demo hand-overs the guest
+builds an image twice and our menu drew only the first pass (menu gone 12-13
+and 24 presents); the logo paused more than 15 fields there and the real
+image came back; held keys did nothing for the 1.9 s blocking load (no pad
+read) and then ran several items at once. Fixed in `game_menu.cpp` (draw per
+call site; keys read and title moves run at the load loop; repeat goes on
+from now), `pc_input.cpp` (`input_menu_poll`) and `frame_replay.cpp`
+(`menu_hold`). This is also D19L's acceptance (menu never disappears, cursor
+moves during the load, choices act at the next tick, load timing unchanged);
+recorded there. Executable `114a7753...38b2`; a permanent held-key stop did
+not reproduce (X11 auto-repeat on Xvfb, 5 minutes from a cold boot). Not
+verified: the user's display.
 
 ### D19N - One OPTIONS screen; the rest under ADVANCED
 

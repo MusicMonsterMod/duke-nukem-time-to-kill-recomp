@@ -77,6 +77,9 @@ struct MenuKeys;
 void input_set_menu_handler(bool (*handler)(const MenuKeys&));
 // Diagnostics: the last value input_pad() returned (no side effects).
 uint16_t input_last_pad();
+// D19O: our menu's keys while the game reads no pad (a demo scene's blocking
+// load behind the title menu).
+void input_menu_poll();
 void input_release();
 // D19H: our pause and death lists free the mouse (only if it is captured:
 // the death screen opens from captured play).

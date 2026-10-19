@@ -324,10 +324,13 @@ See [notes](documentation/138-d08a12-modern-dynamite.md).
 
 Standing still, the first-person view settles into a substantially stable
 image (the floor and walls no longer visibly breathe with Duke's idle animation). While you
-walk or run, the PlayStation's slight geometry wobble is kept, and a gentle
-view bob moves the eye with your steps. Choose its strength with
+walk or run, the PlayStation's slight geometry wobble is kept, and a view bob
+in the style of Duke Nukem 3D gently dips the eye at one steady pace: running
+dips deeper, not faster, and the view moves forward evenly rather than with
+each stride. Choose its strength with
 `--view-bob off|subtle|on|strong` (default `on`) or **B** in `--settings`.
-Crouching, jumping, stairs and drops move the eye as before at every setting.
+Crouching, jumping, stairs and drops move the eye as before at every setting;
+**off** keeps the eye fixed to Duke with no bob.
 
 If the busiest areas (for example the strip club with the dancers in view)
 still feel heavy, the emulated CPU option (`--cpu-overclock 150`, or the

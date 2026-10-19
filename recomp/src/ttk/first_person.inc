@@ -124,8 +124,7 @@ static void first_person_update(const InputFrame& f,unsigned ticks) {
 // x/z equal the root, y stays level through idle and gait and follows real
 // height changes (steps, crouching, jumping, falling) at once. The head offset
 // on top is smoothed over about half a second (large changes, such as a crouch
-// moving the head, follow quickly). View bob is then added on purpose: a dip
-// and a slight sway driven by the distance Duke walks, scaled by speed.
+// moving the head, follow quickly). View bob is then added on purpose (D17V).
 // DNTTK_VIEW_BOB: off, subtle, on (default), strong, or a scale (0..3).
 // D19: parsed again when the OPTIONS screens change it.
 static double view_bob_scale() {
@@ -140,8 +139,28 @@ static double view_bob_scale() {
     else {char* end=nullptr; const double d=std::strtod(t,&end); v=end && !*end && d>=0 && d<=3 ? d : 1.0;}
     return v;
 }
-static constexpr double bob_height=8, bob_sway=3, bob_cycle=640, bob_walk_speed=24;
-static double eye_rel[3], bob_phase, bob_amount, bob_last[3];
+// D17V: Duke 3D's view bob (EDuke32 P_ProcessInput): while Duke moves on the
+// ground its phase advances a fixed 52/2048 of a turn per 30 Hz tic, and the
+// eye sinks by |sin(phase)| times a depth proportional to speed, so walking
+// and running share one tempo (about 1.5 dips a second) and running only
+// dips deeper; no sideways sway. The D17C bob advanced its phase by distance,
+// so running (5 times walking speed) dipped about 9 times a second, close to
+// TTK's 30 Hz game frames, and per-frame root steps made it jitter.
+// Time here is the host vblank sequence. Speed is the velocity of a glide
+// that follows Duke's root: the root surges with the stride (running 57..155
+// units per game frame, about 10 Hz), while Duke 3D's camera moves at an even
+// speed. The glide carries a low-passed velocity, is pulled back toward the
+// root, and is bounded to bob_lead ahead of it along the motion (so the eye
+// never pushes far toward a wall Duke runs at) and bob_lag behind or beside
+// it; when Duke stops it zeroes its velocity and settles back onto the root.
+// Depth: bob_depth at walking speed (bob_walk_speed per vblank), growing as
+// speed^0.43 to twice that at running speed (about 50), easing out in the air.
+// View bob off keeps the plain D17C eye (no glide, no bob).
+static constexpr double bob_depth=16, bob_walk_speed=10, bob_rate=26.0/2048*2*3.14159265358979;
+static constexpr double bob_lead=16, bob_lag=64;
+static double eye_rel[3], bob_phase, bob_amount, bob_last[3], bob_dip, bob_glide[2], bob_velocity[2];
+static uint64_t bob_frame;
+static unsigned bob_still;
 static bool eye_rel_valid, bob_last_valid;
 uint64_t bob_updates;
 // Requested anchor for the eye view; false when the neck joint is unavailable.
@@ -172,28 +191,60 @@ static bool first_person_anchor(const double* forward,double* anchor) {
     }
     const bool was_valid=eye_offset_valid;
     eye_rel_valid=eye_offset_valid=true;
-    // Deliberate view bob from horizontal travel.
-    double bob_y=0,bob_x=0,bob_z=0;
+    // Deliberate view bob and glide (D17V).
     const double scale=view_bob_scale();
-    if(bob_last_valid && was_valid) {
-        const double dist=std::hypot(root[0]-bob_last[0],root[2]-bob_last[2]);
-        const double speed=dist<400 ? dist : 0;   // a teleport is not a step
-        bob_amount+=(std::min(speed/bob_walk_speed,1.6)-bob_amount)*0.25;
-        bob_phase=std::fmod(bob_phase+speed*2*3.14159265358979/bob_cycle,2*3.14159265358979);
-        if(bob_amount<0.02) bob_phase*=0.8;   // settle at rest
+    const uint64_t frame=input_host_frame();
+    const bool advanced=frame>bob_frame;
+    if(scale>0 && bob_last_valid && was_valid && advanced) {
+        const double frames=(double)std::min<uint64_t>(frame-bob_frame,8);
+        const double d[2]={root[0]-bob_last[0],root[2]-bob_last[2]};
+        const double dist=std::hypot(d[0],d[1]);
+        if(dist>=400) {bob_glide[0]=bob_glide[1]=bob_velocity[0]=bob_velocity[1]=0;}   // a teleport is not a step
+        else {
+            // One still update can be a stride's pause; two are a stop.
+            bob_still=dist==0 ? bob_still+1 : 0;
+            if(bob_still>=2) bob_velocity[0]=bob_velocity[1]=0;
+            else if(dist>0)
+                for(int i=0;i<2;++i) bob_velocity[i]+=(d[i]/frames-bob_velocity[i])*(1-std::pow(0.9,frames));
+            // Glide offset from the root: advance by the velocity, less the
+            // root's own step, then pull back toward the root.
+            const double pull=std::pow(0.85,frames);
+            for(int i=0;i<2;++i) bob_glide[i]=(bob_glide[i]+bob_velocity[i]*frames-d[i])*pull;
+            const double v=std::hypot(bob_velocity[0],bob_velocity[1]);
+            if(v>1e-6) {
+                const double u[2]={bob_velocity[0]/v,bob_velocity[1]/v};
+                const double along=std::clamp(bob_glide[0]*u[0]+bob_glide[1]*u[1],-bob_lag,bob_lead);
+                const double side=std::clamp(-bob_glide[0]*u[1]+bob_glide[1]*u[0],-bob_lag,bob_lag);
+                bob_glide[0]=along*u[0]-side*u[1];bob_glide[1]=along*u[1]+side*u[0];
+            } else if(const double m=std::hypot(bob_glide[0],bob_glide[1]); m>bob_lag)
+                for(double& g:bob_glide) g*=bob_lag/m;
+        }
+        // Ground locomotion only (mode 0); jumps and falls ease the dip out.
+        const double v=std::hypot(bob_velocity[0],bob_velocity[1]);
+        const bool ground=psx_mod_read_byte(player+0x22c)==0;
+        const double target=ground && v>0.5 ?
+            std::min(2.0,std::pow(v/bob_walk_speed,0.43))*std::min(1.0,v/3) : 0;
+        bob_amount+=(target-bob_amount)*(1-std::pow(0.87,frames));
+        if(bob_amount<0.005 && target==0) bob_amount=0;
+        // Like Duke 3D, the phase holds while standing, so the next walk
+        // starts from the same point at zero depth.
+        if(target>0 || bob_amount>0)
+            bob_phase=std::fmod(bob_phase+bob_rate*frames,3.14159265358979);
+    } else if(scale<=0 || !bob_last_valid || !was_valid) {
+        bob_amount=bob_glide[0]=bob_glide[1]=bob_velocity[0]=bob_velocity[1]=0;bob_still=0;
     }
-    for(int i=0;i<3;++i) bob_last[i]=root[i];
+    if(advanced || !bob_last_valid) {
+        for(int i=0;i<3;++i) bob_last[i]=root[i];
+        bob_frame=frame;
+    }
     bob_last_valid=true;
-    if(scale>0) {
-        const double a=bob_amount*scale;
-        bob_y=-bob_height*a*(1-std::cos(2*bob_phase))/2;   // up at mid-step
-        const double sway=bob_sway*a*std::sin(bob_phase);
-        const double rx=forward[2],rz=-forward[0],rn=std::hypot(rx,rz);
-        if(rn>1e-6) {bob_x=sway*rx/rn;bob_z=sway*rz/rn;}
-    }
+    bob_dip=scale>0 ? bob_depth*bob_amount*scale*std::sin(bob_phase) : 0;   // game Y grows downward
+    if(std::getenv("DNTTK_BOB_LOG"))
+        std::fprintf(stderr,"[TTK bob] frame %llu root %.0f %.0f %.0f speed %.2f amount %.3f phase %.3f dip %.2f glide %.1f %.1f\n",
+            (unsigned long long)frame,root[0],root[1],root[2],std::hypot(bob_velocity[0],bob_velocity[1]),bob_amount,bob_phase,bob_dip,bob_glide[0],bob_glide[1]);
     ++bob_updates;
     const double half=std::max(0,(int)(int16_t)psx_mod_read_half(camera+0x42))/2.0;
-    const double eye[3]={root[0]+eye_rel[0]+bob_x,pivot_y+eye_rel[1]+bob_y,root[2]+eye_rel[2]+bob_z};
+    const double eye[3]={root[0]+eye_rel[0]+bob_glide[0],pivot_y+eye_rel[1]+bob_dip,root[2]+eye_rel[2]+bob_glide[1]};
     for(int i=0;i<3;++i) anchor[i]=eye[i]+forward[i]*half;
     ++fp_updates;
     return true;

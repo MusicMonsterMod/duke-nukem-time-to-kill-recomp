@@ -1,5 +1,22 @@
 # Next-session handoff
 
+## 2026-10-19 - D17V accepted
+
+- User: "total victory. i even played it on strong and i love it." D17V Done;
+  executable `a1fea19a0a437d9637211d993747a55a8767f8238d1d7773e1ceed6fe9a06193`
+  is the regression baseline. Queued: D19O, D19K, D19L, D19G, D19F, D19N,
+  D08AA, D24D, D26G.
+
+## 2026-10-19 - D17V modern view bob (Needs playtest)
+
+- Modernized first person: the bob now keeps Duke 3D's steady tempo (about
+  1.5 dips a second) walking and running, dipping deeper rather than faster
+  when running, with no sway; the eye glides evenly instead of riding Duke's
+  stride surge. Off restores the plain D17C eye. Executable
+  `a1fea19a0a437d9637211d993747a55a8767f8238d1d7773e1ceed6fe9a06193`,
+  [note 151](151-d17v-view-bob.md). Pre-existing: `ttk-aim-test` lacks the
+  D19J `psx_mod_host_call_*` stubs and does not link.
+
 ## 2026-10-19 - D19J accepted
 
 - User: "fully accept". D19J Done; executable

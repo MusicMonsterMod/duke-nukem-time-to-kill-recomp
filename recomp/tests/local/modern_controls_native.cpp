@@ -2741,7 +2741,6 @@ int main(int argc,char** argv) {
     psx_mod_write_word(p+0x834,(uint32_t)-6144);psx_mod_write_word(p+0x1c8,(uint32_t)-5888);
     ttk::input.active=true;++ttk::input.sequence;
     call(0x8003ade4,c,p,0x80025ee8);assert(ttk::movement_ready() && !ttk::swim_input_ready());
-    assert(ttk::wade_full_speed_ready());
     psx_mod_write_half(p+0x60,70);++ttk::input.sequence;
     call(0x8003ade4,c,p,0x80025ee8);
     assert(ttk::movement_ready() && ttk::locomotion_input_ready() && !ttk::swim_input_ready());
@@ -2761,7 +2760,7 @@ int main(int argc,char** argv) {
     ttk::running=false;ttk::input.move_x=0;
     psx_mod_write_word(p+0x834,0x40000000);psx_mod_write_word(p+0x20c,0);
     psx_mod_write_half(p+0x60,63);++ttk::input.sequence;
-    call(0x8003ade4,c,p,0x80025ee8);assert(ttk::movement_ready() && !ttk::wade_full_speed_ready());
+    call(0x8003ade4,c,p,0x80025ee8);assert(ttk::movement_ready());
     std::puts("PASS: turret-wade land lease, anim-70/71 run, Escape recapture");
     // Mid-depth wade (flooded corridor ledge): depth 0x200, mode 1, clip 81.
     // The wade handler's root is retargeted to camera-relative WASD at land
@@ -2772,35 +2771,71 @@ int main(int argc,char** argv) {
     ttk::input.active=true;ttk::input.move_x=0;ttk::input.move_y=0;++ttk::input.sequence;
     call(0x8003ade4,c,p,0x80025ee8);
     assert(!ttk::movement_ready() && ttk::locomotion_input_ready() && !ttk::swim_input_ready());
-    assert(ttk::wade_full_speed_ready() && ttk::mid_wade_input_ready());
+    assert(ttk::mid_wade_input_ready());
     psx_mod_write_half(c+12,0);psx_mod_write_half(c+16,4096); // view +Z
     psx_mod_write_half(p+0xfc,(uint16_t)(int16_t)-22);psx_mod_write_half(p+0x100,0); // clip root, body-relative world
     call(0x800539f8,p,4,0x8004870c,0x801fff00);
     assert((int16_t)psx_mod_read_half(p+0xfc)==-22 && (int16_t)psx_mod_read_half(p+0x100)==0); // idle: untouched
     ttk::input.move_x=0;ttk::input.move_y=1;ttk::running=true;
     call(0x800539f8,p,4,0x8004870c,0x801fff00);
-    assert((int16_t)psx_mod_read_half(p+0x100)==88 && (int16_t)psx_mod_read_half(p+0xfc)==0); // W: view forward, 22*4 in the 80..120 band
+    assert((int16_t)psx_mod_read_half(p+0x100)==78 && (int16_t)psx_mod_read_half(p+0xfc)==0); // W: view forward, 22 * run step/28 lifted to the 78..117 band
     ttk::input.move_x=1;ttk::input.move_y=0;
     psx_mod_write_half(p+0xfc,0);psx_mod_write_half(p+0x100,22);
     call(0x800539f8,p,4,0x8004870c,0x801fff00);
-    assert((int16_t)psx_mod_read_half(p+0xfc)==88 && (int16_t)psx_mod_read_half(p+0x100)==0); // D: strafe right (+X)
-    psx_mod_write_half(p+0xfc,0);psx_mod_write_half(p+0x100,6); // short clip tick: floor 80
-    call(0x800539f8,p,4,0x8004870c,0x801fff00);assert((int16_t)psx_mod_read_half(p+0xfc)==80);
-    psx_mod_write_half(p+0xfc,0);psx_mod_write_half(p+0x100,44); // long clip tick: ceiling 120
-    call(0x800539f8,p,4,0x8004870c,0x801fff00);assert((int16_t)psx_mod_read_half(p+0xfc)==120);
-    ttk::running=false;psx_mod_write_half(p+0xfc,0);psx_mod_write_half(p+0x100,22); // walk band 40..60
-    call(0x800539f8,p,4,0x8004870c,0x801fff00);assert((int16_t)psx_mod_read_half(p+0xfc)==44);ttk::running=true;
+    assert((int16_t)psx_mod_read_half(p+0xfc)==78 && (int16_t)psx_mod_read_half(p+0x100)==0); // D: strafe right (+X)
+    psx_mod_write_half(p+0xfc,0);psx_mod_write_half(p+0x100,30); // mid clip tick: 30 * run step/28
+    call(0x800539f8,p,4,0x8004870c,0x801fff00);assert((int16_t)psx_mod_read_half(p+0xfc)==105);
+    psx_mod_write_half(p+0xfc,0);psx_mod_write_half(p+0x100,6); // short clip tick: floor 0.8 * run step
+    call(0x800539f8,p,4,0x8004870c,0x801fff00);assert((int16_t)psx_mod_read_half(p+0xfc)==78);
+    psx_mod_write_half(p+0xfc,0);psx_mod_write_half(p+0x100,44); // long clip tick: ceiling 1.2 * run step
+    call(0x800539f8,p,4,0x8004870c,0x801fff00);assert((int16_t)psx_mod_read_half(p+0xfc)==117);
+    ttk::running=false;psx_mod_write_half(p+0xfc,0);psx_mod_write_half(p+0x100,22); // D08AA: land walk pace, band 17..25
+    call(0x800539f8,p,4,0x8004870c,0x801fff00);assert((int16_t)psx_mod_read_half(p+0xfc)==17);ttk::running=true;
     psx_mod_write_half(p+0xfc,0);psx_mod_write_half(p+0x100,22);
     call(0x800539f8,p,4,0x80048664,0x801fff00); // foreign caller: untouched
     assert((int16_t)psx_mod_read_half(p+0xfc)==0 && (int16_t)psx_mod_read_half(p+0x100)==22);
     psx_mod_write_byte(p+0x22c,0);psx_mod_write_half(p+0x60,76); // land run in the same water: not the wade handler
     call(0x800539f8,p,4,0x8004870c,0x801fff00);
     assert((int16_t)psx_mod_read_half(p+0xfc)==0 && (int16_t)psx_mod_read_half(p+0x100)==22);
+    {
+        // D08AA: surface strokes and underwater thrust at the shared walk/run
+        // pace, from the swim tail's rotation call (0x80066e34, ra 0x80046ec8).
+        const uint32_t angles=0x801fff30,v=p+0x1f4;
+        auto stroke=[&](unsigned mode,unsigned anim,int32_t x,int32_t z,int16_t pitch=0,uint32_t ra=0x80046ec8) {
+            psx_mod_write_byte(p+0x22c,mode);psx_mod_write_byte(p+0x22d,mode);psx_mod_write_half(p+0x60,anim);
+            psx_mod_write_word(v,x);psx_mod_write_word(v+4,0);psx_mod_write_word(v+8,z);psx_mod_write_half(angles+2,pitch);
+            CPUState cpu{};cpu.gpr[4]=angles;cpu.gpr[5]=v;cpu.gpr[31]=ra;
+            for(auto& cb:hooks().at(0x80066e34).list)cb(&cpu,0x80066e34);
+        };
+        auto vx=[&]{return (int32_t)psx_mod_read_word(v);};
+        auto vz=[&]{return (int32_t)psx_mod_read_word(v+8);};
+        ttk::input.move_x=0;ttk::input.move_y=1;ttk::running=false;
+        stroke(4,125,0,0x1333);assert(vz()==2030);          // surface forward: walk
+        ttk::running=true;stroke(4,125,0,0x1333);assert(vz()==9520); // Shift: run
+        stroke(4,125,0,0x1333/2);assert(std::abs(vz()-4760)<=1); // pad pressure share kept
+        ttk::input.move_y=-1;stroke(4,126,0,-0xaaa);assert(vz()==-9520); // back
+        ttk::input.move_x=-1;ttk::input.move_y=0;stroke(4,123,-0x444,0);assert(vx()==-9520 && vz()==0); // strafe
+        ttk::input.move_x=0;ttk::input.move_y=1;
+        stroke(5,128,0,0x149f,-300);assert(vz()==9520 && (int16_t)psx_mod_read_half(angles+2)==-300); // view-pitched thrust
+        ttk::running=false;stroke(5,129,0,0x149f);assert(vz()==2030);
+        ttk::running=true;ttk::input.held[ttk::jump]=true;
+        stroke(5,128,0,0x149f,640); // Space: vertical kept, horizontal = pace
+        {
+            const double was=0x149f*std::sin(640*ttk::tau/4096),pitch=(int16_t)psx_mod_read_half(angles+2)*ttk::tau/4096;
+            assert(std::abs(vz()*std::sin(pitch)-was)<30 && std::abs(vz()*std::cos(pitch)-9520)<30);
+        }
+        ttk::input.held[ttk::jump]=false;
+        stroke(5,133,0,0x149f);assert(vz()==0x149f);        // dive 133: original
+        stroke(4,125,0,0x1333,0,0x80046000);assert(vz()==0x1333); // foreign caller
+        ttk::input.move_y=0;stroke(4,125,0,0x1333);assert(vz()==0x1333); // no direction
+        ttk::input.move_y=1;ttk::modern=false;stroke(4,125,0,0x1333);assert(vz()==0x1333);ttk::modern=true; // Vanilla
+        psx_mod_write_word(v,0);psx_mod_write_word(v+8,0);
+    }
     ttk::running=false;ttk::input.move_x=0;ttk::input.move_y=0;
-    psx_mod_write_half(p+0x60,63);psx_mod_write_byte(p+0x22d,0);
+    psx_mod_write_half(p+0x60,63);psx_mod_write_byte(p+0x22c,0);psx_mod_write_byte(p+0x22d,0);
     psx_mod_write_word(p+0x834,0x40000000);psx_mod_write_word(p+0x20c,0);
     ++ttk::input.sequence;call(0x8003ade4,c,p,0x80025ee8);assert(ttk::movement_ready());
-    std::puts("PASS: mid-depth wade handler root retarget, idle/foreign/land exclusions");
+    std::puts("PASS: mid-depth wade handler root retarget, idle/foreign/land exclusions; D08AA surface/underwater pace");
     // Isolated F7 UI slot 2: overlay already patched, waist-deep, anim 63.
     psx_mod_write_word(0x800cc57c,0x24020000);
     psx_mod_write_word(0x800cc580,0x30a30400);

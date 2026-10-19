@@ -51,7 +51,6 @@ static constexpr int32_t k_water_none = 0x40000000;
 // turns, not 3D swim — the crystal-2 turret corridor is depth 0x100.
 static constexpr int32_t k_free_swim_depth = 0x281;
 static constexpr int32_t k_swim_y_step = 96;
-static constexpr int32_t k_swim_root_step = 48;
 static constexpr int32_t k_swim_floor_margin = 0x1e0; // standing body≈+0x1f4 above feet
 static constexpr int32_t k_stick_deflect = 0x60; // ≥ run threshold path (0x51)
 static constexpr double k_wade_hz_walk = 3600.0;
@@ -140,9 +139,6 @@ static bool shallow_land_water() {
     const unsigned mode=psx_mod_read_byte(player+0x22c);
     if(mode==4 || mode==5)return false;
     return water_depth_units()<k_free_swim_depth;
-}
-bool wade_full_speed_ready() {
-    return input_modernized() && gameplay_context() && shallow_land_water();
 }
 // Native swim state machine (800455bc) — player+0x22c 4 = surface, 5 = under.
 static constexpr int32_t k_swim_pitch_max = 900;      // original ±clamp
@@ -234,9 +230,11 @@ static void swim_rewrite_root(const InputFrame& f) {
         psx_mod_write_half(player+0x100,0);
         return;
     }
-    psx_mod_write_half(player+0xfc,(int16_t)std::lround(f.move_x*k_swim_root_step));
+    // D08AA: the shared walk/run pace step, not a fixed 48 per update.
+    const double step=modern_pace_step(input_running());
+    psx_mod_write_half(player+0xfc,(int16_t)std::lround(f.move_x*step));
     psx_mod_write_half(player+0xfe,0);
-    psx_mod_write_half(player+0x100,(int16_t)std::lround(f.move_y*k_swim_root_step));
+    psx_mod_write_half(player+0x100,(int16_t)std::lround(f.move_y*step));
 }
 
 // Mid-depth wade (depth 0x200..0x281, crystal-2 flooded corridor / ledge):
@@ -531,6 +529,59 @@ static void swim_steer_underwater(const InputFrame& f) {
     else body_pitch=(int32_t)std::lround(look_up);
     psx_mod_write_half(player+0x1e,(int16_t)body_pitch);
     psx_mod_write_half(player+0x26,(int16_t)body_pitch);
+}
+
+// D08AA - surface and underwater strokes at the shared walk/run pace. The
+// swim tail (0x800455bc, from 0x80046e90) has 800451a0 write a body-local
+// velocity to player+0x1f4 from fixed speeds: surface forward 125 0x1333,
+// back 126 0xaaa, strafe 123/124 0x444 (local X), underwater thrust 128-130
+// 0x149f, each scaled down by the pad's pressure. 0x80066e34 (ra 0x80046ec8,
+// a0 = the stack copy of yaw / pitch / roll, a1 = player+0x1f4) then turns it
+// into world space, and the tail moves Duke by v*dt/1024 with the original
+// collision. Shift never reached it: the surface was ~26 units per vblank
+// forward and ~6 sideways, underwater ~28, whatever Shift said. With a WASD
+// direction held, the stroke's horizontal speed becomes modern_pace() (land
+// walk or run) in every direction, keeping the pressure share. Underwater the
+// view-pitched thrust keeps its slope; with Space or Ctrl (explicit vertical)
+// the original vertical speed stays and only the horizontal part changes,
+// through the pitch of the stack copy (the body pitch is not touched). No
+// direction (idle, Space / Ctrl alone), the dive 133 and Vanilla: original.
+static constexpr double k_swim_surface_forward=0x1333, k_swim_surface_back=0xaaa, k_swim_surface_strafe=0x444;
+static constexpr double k_swim_thrust=0x149f;
+static unsigned swim_paces;
+static void swim_pace(CPUState* cpu) {
+    if(cpu->gpr[5]!=player+0x1f4 || !swim_lease_ready())return;
+    const auto& f=input_snapshot(Context::Gameplay);
+    if(!f.move_x && !f.move_y)return;
+    const uint32_t velocity=player+0x1f4,angles=cpu->gpr[4];
+    if(angles<0x80000000u || angles>0x801ffff8u || (angles&1))return;
+    const unsigned animation=psx_mod_read_half(player+0x60);
+    const double pace=modern_pace(input_running());
+    if(swim_native_surface()) {
+        // One local axis carries the stroke: Z forward / back, X sideways.
+        const bool sideways=animation==123 || animation==124;
+        const double base=sideways?k_swim_surface_strafe:animation==125?k_swim_surface_forward:animation==126?k_swim_surface_back:0;
+        const uint32_t axis=velocity+(sideways?0:8);
+        const double v=(int32_t)psx_mod_read_word(axis);
+        if(base<=0 || !v || std::fabs(v)>base)return;
+        psx_mod_write_word(axis,(int32_t)std::lround(v/base*pace));
+        ++swim_paces;
+        return;
+    }
+    if(!swim_native_underwater() || animation<128 || animation>130)return;
+    const double v=(int32_t)psx_mod_read_word(velocity+8);
+    if(v<=0 || v>k_swim_thrust || psx_mod_read_word(velocity) || psx_mod_read_word(velocity+4))return;
+    const double share=v/k_swim_thrust;
+    const bool vertical=f.held[jump]!=f.held[crouch];
+    if(!vertical) {
+        psx_mod_write_word(velocity+8,(int32_t)std::lround(share*pace));
+    } else {
+        const double p=(int16_t)psx_mod_read_half(angles+2)*tau/4096;
+        const double rise=v*std::sin(p),across=share*pace;
+        psx_mod_write_half(angles+2,(uint16_t)(int16_t)std::lround(std::atan2(rise,across)*4096/tau));
+        psx_mod_write_word(velocity+8,(int32_t)std::lround(std::hypot(rise,across)));
+    }
+    ++swim_paces;
 }
 
 // D08O1 - fire while swimming underwater. The original state-5 handlers

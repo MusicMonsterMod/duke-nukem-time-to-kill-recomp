@@ -423,3 +423,10 @@ regenerated the same way (one generated line; codegen hash `0x8bab543c`
 unchanged). Its own callback acts only for Duke. `DNTTK_RUN_CLICK=original`
 keeps the original walk/run click in Modernized (diagnostics). See
 [note 130](130-d27a-silent-shift.md).
+
+## One walk/run pace in water (D08AA)
+
+One hook (`0x80066E34`, a shared rotation; only the swim tail's call, ra
+`0x80046ec8`, is used) was added to `game.local.toml` and regenerated with
+`psxrecomp_cli.py generate`; one generated line, codegen hash unchanged
+(savestates load). See [note 156](156-d08aa-unified-pace.md).

@@ -39,9 +39,9 @@ Each profile remembers its own renderer and resolution/display settings. Moderni
 **Modernized movement and camera have passed user playtesting in the first-level preview.
 Supported first-map climbing uses the original traversal routines with Modernized
 input. In the crystal-2 flooded turret corridor, waist-deep water uses the same
-camera-relative run, mouse look and Shift as dry ground — it is not a swim.
+camera-relative movement, mouse look and Shift walk/run as dry ground - it is not a swim.
 The deeper wade along the right-hand ledge (where the original slows Duke to a
-forward-only wade) also moves at run pace toward where you look, strafes, and
+forward-only wade) also moves at the land walk or run pace toward where you look, strafes, and
 jumps on Space. Wading straight into a wall stops Duke, as in the original:
 turn the view and he moves again. Reaching that ledge no longer switches the
 whole area to original controls (a level-script write used to fail the code
@@ -751,7 +751,8 @@ keyboard Caps Lock light. A Shift (or any bound gameplay key) that is already
 held when the mouse is recaptured — after Escape/resume, F7 load, inventory or
 F10 — is read from the keyboard state, so running continues without re-pressing. Your existing speed-modifier binding is preserved
 (the binding editor calls it `walk` for compatibility). These speed controls apply
-to supported Modernized locomotion; original fallback controls remain available. Diagonals are
+to supported Modernized locomotion, including wading and swimming (D08AA: the same walk and
+run speeds as on land); original fallback controls remain available. Diagonals are
 normalized. Walk/run changes restart the corresponding gait promptly (soft-keeping walk
 phase inside a run anim caused a stiff frozen pose and was reverted); speed and deceleration come from its original animation, and the
 original collision routines remain active. Normal stride speed pulses are smoothed
@@ -783,7 +784,13 @@ On the surface of deep water, face the camera: **W/S** swim forward/back,
 **A/D** strafe (camera-relative), **Ctrl** dives for as long as you hold it
 (let go and Duke stops, unless W/A/S/D is held - D08O4). Underwater, **W/A/S/D**
 swim where the camera looks, **Space** swims up, **Ctrl** swims down, and
-Duke surfaces automatically when he reaches the top. Leave the water with
+Duke surfaces automatically when he reaches the top.
+**Walk and run in water (D08AA):** Duke walks by default and runs with
+**Shift** (or Caps Lock autorun) everywhere: in shallow and waist-deep water,
+on the surface and underwater, at the same two speeds as on dry ground and in
+every direction (sideways and backward strokes included). Underwater, Space
+and Ctrl keep their own up/down speed. Like on land, walking stops at the edge
+of a drop such as a pool rim; run or jump to go over it. Leave the water with
 **E** / mantle — Space never hops you out at a ledge. E puts the weapon away
 to climb; if there is no ledge to climb, Duke draws it again by himself
 (D08O3). Water/oxygen stay with the original game.

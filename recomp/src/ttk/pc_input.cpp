@@ -331,8 +331,9 @@ static const char* grab_label() {
     for(char* c=text;*c;++c)*c=char(std::toupper((unsigned char)*c));
     return text;
 }
+// D08AA: Shift (or Caps Lock) decides walk/run in water as on land; shallow
+// water no longer forces the run.
 bool input_running() {
-    if(wade_full_speed_ready())return true;
     return autorun != down(binds[walk]);
 }
 bool input_auto_stow_pending() {
@@ -1159,7 +1160,7 @@ uint16_t input_pad() {
     }
     // Keep the persisted action ID/binding. In supported Modernized locomotion
     // it is the speed modifier: default walk, Shift run, Caps Lock reverses it.
-    if (locomotion && !short_fall_input_ready() && !wade_full_speed_ready() &&
+    if (locomotion && !short_fall_input_ready() &&
         !(autorun != down(binds[walk]))) value &= ~pads[walk];
     // Camera-relative ground locomotion injects Forward for any WASD so the
     // original gait runs; free swim must keep distinct D-pad bits (A/D/S).

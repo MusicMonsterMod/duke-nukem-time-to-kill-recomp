@@ -30,7 +30,6 @@ bool committed_camera_ready();
 /* Modern free-swim: WASD bridges to D-pad; vertical is host-owned. */
 bool swim_input_ready();
 /* Waist-deep / mid water: land run, mouse look and Shift, not the swim path. */
-bool wade_full_speed_ready();
 /* Mid-depth wade (0x200..0x281, original mode 1 / anims 80/81): the host
    rewrites the wade handler's root toward camera-relative WASD at land pace. */
 bool mid_wade_input_ready();

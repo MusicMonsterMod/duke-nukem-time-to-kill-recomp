@@ -1,5 +1,27 @@
 # Next-session handoff
 
+## 2026-10-19 - D08AA accepted; D08AB queued
+
+- User: "this is perfect. swimming now feels great! it's responsive, and the gameplay allows the player to dodge enemy fire and not face these jarring speed changes when swimming." D08AA Done; executable
+  `5e48b2c7cd4d44c92e59f2c7c7d78cd219c0d2f64af53b97570276cc99ed6366` is the
+  regression baseline. New Todo D08AB: a SWIMMING MODERN / ORIGINAL row in
+  PC CONTROLS (user request). Queued: D08AB, D19K, D19G, D19F, D19N, D24D, D26G.
+
+## 2026-10-19 - D08AA one walk/run pace on land and in water (Needs playtest)
+
+- Shallow water forced the run; the mid-depth wade walked at twice the land
+  walk; surface strokes (~26 forward, ~6 sideways) and underwater thrust
+  (~28) ignored Shift. One shared pace (the land baselines, walk ~10.5 and
+  run ~50 units per vblank) now drives all of them: shallow uses the land
+  gait with Shift, the mid-depth root follows the pace step, and a new hook
+  at the swim tail's rotation (`0x80066e34`, ra `0x80046ec8`) rescales the
+  original stroke velocity; Space / Ctrl keep their vertical speed. Measured
+  walk 9.9-11.1 and run 49-51 in every state; swim regressions and Vanilla
+  unchanged; suites pass. Executable
+  `5e48b2c7cd4d44c92e59f2c7c7d78cd219c0d2f64af53b97570276cc99ed6366`,
+  [note 156](156-d08aa-unified-pace.md). Not verified: the user's playtest.
+  Queued: D19K, D19G, D19F, D19N, D24D, D26G.
+
 ## 2026-10-19 - D19O and D19L accepted
 
 - User: "accepted! lets bring this one to a solid close and lock it in". D19O

@@ -256,6 +256,8 @@ std::vector<Screen> make_screens() {
          {{"SLIDE","slide","\"slide\""},{"ORIGINAL","original","\"original\""}},0},
         {"LANDING",Section::Controls,"landing","DNTTK_LANDING",true,"MODERN: MOVE AT ONCE ON LANDING",
          {{"MODERN","modern","\"modern\""},{"ORIGINAL","original","\"original\""}},0},
+        {"SWIMMING",Section::Controls,"swimming","DNTTK_SWIMMING",true,"MODERN: SHIFT WALKS OR RUNS IN WATER AS ON LAND",
+         {{"MODERN","modern","\"modern\""},{"ORIGINAL","original","\"original\""}},0},
         {"JETPACK",Section::Controls,"jetpack","DNTTK_JETPACK",false,"MODERN: CAMERA RELATIVE FLIGHT AND HOVER",
          {{"MODERN","modern","\"modern\""},{"CLASSIC","classic","\"classic\""}},0},
         {"DYNAMITE",Section::Controls,"dynamite","DNTTK_DYNAMITE",true,"MODERN: A DRAWN STICK STAYS UNLIT UNTIL YOU FIRE",

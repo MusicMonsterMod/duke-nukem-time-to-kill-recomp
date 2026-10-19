@@ -1,5 +1,24 @@
 # Next-session handoff
 
+## 2026-10-20 - D08AB accepted
+
+- User: "solid lock it in and close it out". D08AB Done; executable
+  `c7557a215c099cfb6ae10484af3555b869a1c7acb627bd0ab72506d246922508` is the
+  regression baseline. Queued: D19K, D19G, D19F, D19N, D24D, D26G.
+
+## 2026-10-19 - D08AB SWIMMING MODERN / ORIGINAL option (Needs playtest)
+
+- New SWIMMING row in OPTIONS > MODERNIZED (after LANDING): MODERN (D08AA
+  pace, default) / ORIGINAL (pre-D08AA water speeds with modern controls,
+  including the forced run in shallow water - user choice). Live, saved
+  (schema 33), `run.py --swimming modern|original`; Vanilla always original.
+  Lab: ORIGINAL reproduces the D08AA "before" table (surface 26 / 6 / 15,
+  underwater 27.6, subway forced run), MODERN unchanged, a mid-swim menu
+  change applies at once both ways; regressions and suites pass. Executable
+  `c7557a215c099cfb6ae10484af3555b869a1c7acb627bd0ab72506d246922508`,
+  [note 157](157-d08ab-swimming-option.md). Not verified: the user's
+  playtest. Queued: D19K, D19G, D19F, D19N, D24D, D26G.
+
 ## 2026-10-19 - D08AA accepted; D08AB queued
 
 - User: "this is perfect. swimming now feels great! it's responsive, and the gameplay allows the player to dodge enemy fire and not face these jarring speed changes when swimming." D08AA Done; executable

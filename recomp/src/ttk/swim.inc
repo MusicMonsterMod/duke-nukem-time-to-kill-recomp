@@ -51,6 +51,7 @@ static constexpr int32_t k_water_none = 0x40000000;
 // turns, not 3D swim — the crystal-2 turret corridor is depth 0x100.
 static constexpr int32_t k_free_swim_depth = 0x281;
 static constexpr int32_t k_swim_y_step = 96;
+static constexpr int32_t k_swim_root_step = 48; // D08AB original: fixed free-swim root
 static constexpr int32_t k_swim_floor_margin = 0x1e0; // standing body≈+0x1f4 above feet
 static constexpr int32_t k_stick_deflect = 0x60; // ≥ run threshold path (0x51)
 static constexpr double k_wade_hz_walk = 3600.0;
@@ -139,6 +140,18 @@ static bool shallow_land_water() {
     const unsigned mode=psx_mod_read_byte(player+0x22c);
     if(mode==4 || mode==5)return false;
     return water_depth_units()<k_free_swim_depth;
+}
+// D08AB - SWIMMING modern (DNTTK_SWIMMING=modern, the Modernized default; the
+// launcher passes original for Vanilla) is D08AA's one walk/run pace in
+// every water state. original restores the pre-D08AA water speeds with modern
+// controls: the forced run in shallow and mid-depth water, the 2x wade band,
+// the fixed free-swim root and the fixed surface / underwater strokes.
+static bool swimming_modern() {
+    const char* v=ttk_live_env("DNTTK_SWIMMING");
+    return !v || std::strcmp(v,"original");
+}
+bool wade_full_speed_ready() {
+    return !swimming_modern() && input_modernized() && gameplay_context() && shallow_land_water();
 }
 // Native swim state machine (800455bc) — player+0x22c 4 = surface, 5 = under.
 static constexpr int32_t k_swim_pitch_max = 900;      // original ±clamp
@@ -231,7 +244,7 @@ static void swim_rewrite_root(const InputFrame& f) {
         return;
     }
     // D08AA: the shared walk/run pace step, not a fixed 48 per update.
-    const double step=modern_pace_step(input_running());
+    const double step=swimming_modern()?modern_pace_step(input_running()):k_swim_root_step;
     psx_mod_write_half(player+0xfc,(int16_t)std::lround(f.move_x*step));
     psx_mod_write_half(player+0xfe,0);
     psx_mod_write_half(player+0x100,(int16_t)std::lround(f.move_y*step));
@@ -550,7 +563,7 @@ static constexpr double k_swim_surface_forward=0x1333, k_swim_surface_back=0xaaa
 static constexpr double k_swim_thrust=0x149f;
 static unsigned swim_paces;
 static void swim_pace(CPUState* cpu) {
-    if(cpu->gpr[5]!=player+0x1f4 || !swim_lease_ready())return;
+    if(cpu->gpr[5]!=player+0x1f4 || !swim_lease_ready() || !swimming_modern())return;
     const auto& f=input_snapshot(Context::Gameplay);
     if(!f.move_x && !f.move_y)return;
     const uint32_t velocity=player+0x1f4,angles=cpu->gpr[4];

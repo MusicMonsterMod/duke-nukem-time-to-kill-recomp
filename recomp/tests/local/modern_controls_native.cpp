@@ -2791,6 +2791,17 @@ int main(int argc,char** argv) {
     call(0x800539f8,p,4,0x8004870c,0x801fff00);assert((int16_t)psx_mod_read_half(p+0xfc)==117);
     ttk::running=false;psx_mod_write_half(p+0xfc,0);psx_mod_write_half(p+0x100,22); // D08AA: land walk pace, band 17..25
     call(0x800539f8,p,4,0x8004870c,0x801fff00);assert((int16_t)psx_mod_read_half(p+0xfc)==17);ttk::running=true;
+    // D08AB SWIMMING original: the pre-D08AA band (walk 2x22 in 40..60, run 4x22
+    // in 80..120) and the forced run in shallow / mid-depth water.
+    assert(!ttk::wade_full_speed_ready());
+    setenv("DNTTK_SWIMMING","original",1);assert(ttk::wade_full_speed_ready());
+    ttk::running=false;psx_mod_write_half(p+0xfc,0);psx_mod_write_half(p+0x100,22);
+    call(0x800539f8,p,4,0x8004870c,0x801fff00);assert((int16_t)psx_mod_read_half(p+0xfc)==44);
+    ttk::running=true;psx_mod_write_half(p+0xfc,0);psx_mod_write_half(p+0x100,22);
+    call(0x800539f8,p,4,0x8004870c,0x801fff00);assert((int16_t)psx_mod_read_half(p+0xfc)==88);
+    assert(std::strstr(ttk::controls_debug_json(),"\"swimming\":\"original\""));
+    ttk::modern=false;assert(!ttk::wade_full_speed_ready());ttk::modern=true;
+    unsetenv("DNTTK_SWIMMING");assert(std::strstr(ttk::controls_debug_json(),"\"swimming\":\"modern\""));
     psx_mod_write_half(p+0xfc,0);psx_mod_write_half(p+0x100,22);
     call(0x800539f8,p,4,0x80048664,0x801fff00); // foreign caller: untouched
     assert((int16_t)psx_mod_read_half(p+0xfc)==0 && (int16_t)psx_mod_read_half(p+0x100)==22);
@@ -2829,13 +2840,19 @@ int main(int argc,char** argv) {
         stroke(4,125,0,0x1333,0,0x80046000);assert(vz()==0x1333); // foreign caller
         ttk::input.move_y=0;stroke(4,125,0,0x1333);assert(vz()==0x1333); // no direction
         ttk::input.move_y=1;ttk::modern=false;stroke(4,125,0,0x1333);assert(vz()==0x1333);ttk::modern=true; // Vanilla
+        // D08AB SWIMMING original: strokes and thrust keep their fixed speeds; live.
+        setenv("DNTTK_SWIMMING","original",1);
+        stroke(4,125,0,0x1333);assert(vz()==0x1333);
+        ttk::input.move_x=-1;ttk::input.move_y=0;stroke(4,123,-0x444,0);assert(vx()==-0x444);
+        ttk::input.move_x=0;ttk::input.move_y=1;stroke(5,128,0,0x149f,-300);assert(vz()==0x149f && (int16_t)psx_mod_read_half(angles+2)==-300);
+        unsetenv("DNTTK_SWIMMING");stroke(4,125,0,0x1333);assert(vz()==9520);
         psx_mod_write_word(v,0);psx_mod_write_word(v+8,0);
     }
     ttk::running=false;ttk::input.move_x=0;ttk::input.move_y=0;
     psx_mod_write_half(p+0x60,63);psx_mod_write_byte(p+0x22c,0);psx_mod_write_byte(p+0x22d,0);
     psx_mod_write_word(p+0x834,0x40000000);psx_mod_write_word(p+0x20c,0);
     ++ttk::input.sequence;call(0x8003ade4,c,p,0x80025ee8);assert(ttk::movement_ready());
-    std::puts("PASS: mid-depth wade handler root retarget, idle/foreign/land exclusions; D08AA surface/underwater pace");
+    std::puts("PASS: mid-depth wade handler root retarget, idle/foreign/land exclusions; D08AA surface/underwater pace; D08AB original swimming");
     // Isolated F7 UI slot 2: overlay already patched, waist-deep, anim 63.
     psx_mod_write_word(0x800cc57c,0x24020000);
     psx_mod_write_word(0x800cc580,0x30a30400);

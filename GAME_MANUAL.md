@@ -320,6 +320,26 @@ python3 recomp/tools/local/run.py --dynamite modern --show-settings
 
 See [notes](documentation/138-d08a12-modern-dynamite.md).
 
+### Swimming (Modernized, D08AB)
+
+**SWIMMING** in OPTIONS > MODERNIZED picks how fast Duke moves in water.
+`MODERN` (the Modernized default) is the D08AA pace: walk, or run with **Shift**,
+at the land speeds in shallow water, wading, on the surface and underwater.
+`ORIGINAL` keeps the modern controls but restores the original water speeds:
+shallow and waist-deep water always run, the surface strokes are the original
+fixed speeds (fast forward, slower back, a slow sideways stroke) and
+underwater thrust is the original fixed speed, whatever Shift says. Steering,
+diving, Space / Ctrl, swim-fire and leaving the water are the same in both.
+A change applies at once, even mid-swim, and is saved. Vanilla always uses the
+original speeds. Choose **U** in `--settings`, or:
+
+```
+python3 recomp/tools/local/run.py --swimming original --show-settings
+python3 recomp/tools/local/run.py --swimming modern --show-settings
+```
+
+See [notes](documentation/157-d08ab-swimming-option.md).
+
 ### View bob (Modernized, first person)
 
 Standing still, the first-person view settles into a substantially stable
@@ -790,7 +810,8 @@ Duke surfaces automatically when he reaches the top.
 on the surface and underwater, at the same two speeds as on dry ground and in
 every direction (sideways and backward strokes included). Underwater, Space
 and Ctrl keep their own up/down speed. Like on land, walking stops at the edge
-of a drop such as a pool rim; run or jump to go over it. Leave the water with
+of a drop such as a pool rim; run or jump to go over it. **SWIMMING ORIGINAL**
+(D08AB, below) brings back the original water speeds instead. Leave the water with
 **E** / mantle — Space never hops you out at a ledge. E puts the weapon away
 to climb; if there is no ledge to climb, Duke draws it again by himself
 (D08O3). Water/oxygen stay with the original game.

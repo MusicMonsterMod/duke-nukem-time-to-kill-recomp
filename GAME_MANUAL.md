@@ -952,14 +952,17 @@ the same way on every menu screen:
 
 - **Pause menu (Escape in game):** a list under the level name: RESUME,
   MISSION BRIEFING (the original story and goals), OPTIONS, LOAD GAME,
-  RESTART LEVEL and MAIN MENU. Arrows or the wheel choose, Enter confirms,
-  Escape resumes. RESTART LEVEL and MAIN MENU ask YES / NO first (NO is
-  highlighted). Challenge stages have no RESTART LEVEL; LOAD GAME is there in
-  one-player games, as in the original.
-- **Death screen:** CONTINUE, LOAD GAME, RESTART LEVEL and QUIT under the
-  continues left (challenge stages: REPLAY LEVEL and GIVE UP). CONTINUE asks
-  CONFIRM CONTINUE (YES highlighted), the others ask YES / NO with NO
-  highlighted. Escape does nothing on the list and cancels a prompt.
+  RESTART LEVEL, MAIN MENU and QUIT GAME. Arrows or the wheel choose, Enter
+  confirms, Escape resumes. RESTART LEVEL, MAIN MENU and QUIT GAME ask
+  YES / NO first (NO is highlighted). QUIT GAME closes the program, keeping
+  your confirmed settings, the same as closing the window. Challenge stages
+  have no RESTART LEVEL; LOAD GAME is there in one-player games, as in the
+  original.
+- **Death screen:** CONTINUE, LOAD GAME, RESTART LEVEL, QUIT and QUIT GAME
+  under the continues left (challenge stages: REPLAY LEVEL, GIVE UP and QUIT
+  GAME). QUIT gives up to the game over screen; QUIT GAME closes the
+  program. CONTINUE asks CONFIRM CONTINUE (YES highlighted), the others ask
+  YES / NO with NO highlighted. Escape does nothing on the list and cancels a prompt.
 - **Escape never quits.** Inside sub-screens and prompts Escape goes back one
   level. Escape on the main menu and PRESS START does nothing.
 - These lists free the mouse and work the same with modern controls captured,

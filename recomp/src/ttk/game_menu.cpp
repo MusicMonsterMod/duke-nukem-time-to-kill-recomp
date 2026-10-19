@@ -31,6 +31,10 @@
 // D19I: in gameplay our pages are drawn at the pause dispatch, where the
 // original draws its pause text, so they are as bright as the original's
 // (documentation/148-d19i-menu-brightness.md).
+//
+// D19M: QUIT GAME at the end of both lists asks QUIT GAME? (NO first); YES
+// sends the window's own close event, so the program shuts down exactly as
+// when the window is closed (documentation/149-d19m-quit-game.md).
 #include "game_menu.h"
 #include "live_env.h"
 #include "cpu_state.h"
@@ -237,7 +241,7 @@ int pending_sub=-1, pending_cursor=-1, pending_sound=-1;
 // D19H: the pause menu and death screen as lists. Page::Options is D19's
 // OPTIONS (screen -1) and settings screens; the rest are gameplay pages.
 enum class Page {Options, Pause, Death, Brief, Ask};
-enum class Act {Resume, Brief, Options, Load, Restart, MainMenu, Continue, Quit};
+enum class Act {Resume, Brief, Options, Load, Restart, MainMenu, Continue, Quit, QuitGame};
 struct ListItem {const char* label;Act act;};
 Page page=Page::Options;
 std::vector<ListItem> list;   // the pause or death list on screen
@@ -255,6 +259,7 @@ bool death_load=false;        // the death screen's LOAD is the original's now
 // After a resume the screen value stays ours through that dispatch and reads 0
 // again at the next composition.
 bool resumed=false;
+bool quitting=false;          // D19M: the close event is sent; keys are ignored until the exit
 const char* back_label="CANCEL";
 bool identity_ok=false, identity_checked=false;
 uint32_t last_image=~0u;
@@ -385,6 +390,7 @@ void build_list(Page p) {
         list.push_back({"RESTART LEVEL",Act::Restart});
         list.push_back({"QUIT",Act::Quit});
     }
+    list.push_back({"QUIT GAME",Act::QuitGame}); // D19M: closes the program
 }
 int item_of(Act a) {
     for(size_t i=0;i<list.size();++i) if(list[i].act==a) return (int)i;
@@ -401,15 +407,25 @@ void act_now(Act a) {
     case Act::MainMenu: pending_final=Final::PauseMainMenu;break;
     case Act::Continue: pending_final=Final::DeathContinue;break;
     case Act::Quit: pending_final=Final::DeathQuit;break;
+    case Act::QuitGame: {
+        // The window's close event: the main loop's own shutdown (settings
+        // were written on CONFIRM; run.py folds them in when the game exits).
+        quitting=true;sound(0);
+        SDL_Event quit{};quit.type=SDL_QUIT;
+        SDL_PushEvent(&quit);
+        break;
+    }
     default: break;
     }
 }
 // The original's prompt for each choice: CONTINUE (REPLAY) is confirmed as
-// the original asks (YES first); RESTART, MAIN MENU and QUIT start on NO.
+// the original asks (YES first); RESTART, MAIN MENU, QUIT and QUIT GAME
+// start on NO. QUIT GAME? has no text id: -1.
 int ask_heading() {
     switch(ask_act) {
     case Act::Continue: return challenge() ? text_replay : text_continue;
     case Act::Restart: return text_restart;
+    case Act::QuitGame: return -1;
     default: return text_quit;
     }
 }
@@ -514,6 +530,7 @@ bool game_menu_input(const MenuKeys& keys) {
     k.confirm_taps+=carry.confirm_taps;k.back_taps+=carry.back_taps;k.square_taps+=carry.square_taps;
     carry=MenuKeys{};
     // Busy drawing, or a screen change waits for the next tick: keys wait too.
+    if(quitting) return owned;
     if(busy || (owned && (pending_sub>=0 || pending_final!=Final::None || pending_load))) {
         if(owned) carry=k;
         return owned;
@@ -714,7 +731,9 @@ void draw_brief(Guest& g,const Geometry& geo) {
     g.prompt(icon_triangle,"RETURN",0,prompt_y(geo));
 }
 void draw_ask(Guest& g,const Geometry& geo) {
-    g.say_id(ask_heading(),0,-40,font_menu|centre);
+    const int heading=ask_heading();
+    if(heading<0) g.say("QUIT GAME?",0,-40,font_menu|centre);
+    else g.say_id(heading,0,-40,font_menu|centre);
     g.say_id(text_yes,0,-6,font_menu|centre|(cursor==0?blue:0));
     g.say_id(text_no,0,13,font_menu|centre|(cursor==1?blue:0));
     const int y=prompt_y(geo);

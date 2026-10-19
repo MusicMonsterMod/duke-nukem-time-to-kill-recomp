@@ -1,5 +1,22 @@
 # Current status - 2026-10-04
 
+## 2026-10-19 - D19M accepted
+
+- User: "perfect!! thats working". D19M Done; executable
+  `de5a152192ba04979e408a436c5f5541f72c6c36aade7e96d4091c86a7937d43` is the regression baseline.
+  Title main menu QUIT GAME comes with D19J. Queued: D19J, D19G, D19F, D19N,
+  D08AA, D24D, D26G.
+
+## 2026-10-19 - D19M QUIT GAME (Needs playtest)
+
+- QUIT GAME is the last item of the pause list and the death list (the death
+  list's QUIT still means game over); QUIT GAME? YES / NO, NO highlighted;
+  YES sends the window close event, exit code 0, settings kept. Title main
+  menu gets it in D19J (user choice). Executable
+  `de5a152192ba04979e408a436c5f5541f72c6c36aade7e96d4091c86a7937d43`,
+  [note 149](149-d19m-quit-game.md). Still queued: D19J, D19G, D19F, D08AA,
+  D24D, D26G.
+
 ## 2026-10-19 - D19I accepted; D19M and D19N added
 
 - User: "it's working as intended". D19I Done; executable

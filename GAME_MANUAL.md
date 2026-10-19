@@ -950,6 +950,17 @@ the same way on every menu screen:
 | **Escape** or **Backspace** | Back one level / cancel (Triangle) |
 | **X** / **C** / **Z** / **V** | Cross / Circle / Triangle / Square, for the buttons the screen shows |
 
+- **Title main menu:** ONE PLAYER, TWO PLAYER, LOAD GAME, OPTIONS and QUIT
+  GAME, in the original's look over the attract demo. Arrows or the wheel
+  choose (hold to repeat), Enter confirms. ONE PLAYER opens CHOOSE DIFFICULTY
+  LEVEL (Enter starts the game, Escape returns). TWO PLAYER opens TWO PLAYER
+  OPTIONS (Left/Right change level, time, kills and split), then CHOOSE
+  CHARACTER: one keyboard chooses for both players, player 1 first
+  (Left/Right, Enter), then player 2, then Enter on START. Escape takes back
+  the last confirmed character, or goes back a page. LOAD GAME is the
+  original memory card screen. QUIT GAME asks QUIT GAME? (NO highlighted) and
+  closes the program. Left alone on the main menu, the game goes back to
+  PRESS START after about five minutes, as the original does.
 - **Pause menu (Escape in game):** a list under the level name: RESUME,
   MISSION BRIEFING (the original story and goals), OPTIONS, LOAD GAME,
   RESTART LEVEL, MAIN MENU and QUIT GAME. Arrows or the wheel choose, Enter
@@ -964,7 +975,8 @@ the same way on every menu screen:
   program. CONTINUE asks CONFIRM CONTINUE (YES highlighted), the others ask
   YES / NO with NO highlighted. Escape does nothing on the list and cancels a prompt.
 - **Escape never quits.** Inside sub-screens and prompts Escape goes back one
-  level. Escape on the main menu and PRESS START does nothing.
+  level. Escape on the main menu and PRESS START does nothing (QUIT GAME is
+  on the main menu list).
 - These lists free the mouse and work the same with modern controls captured,
   released with F10 or set to the original camera. Gameplay recaptures the
   mouse after RESUME or CONTINUE.

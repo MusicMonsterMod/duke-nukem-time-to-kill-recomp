@@ -1,5 +1,28 @@
 # Current status - 2026-10-04
 
+## 2026-10-19 - D19J accepted
+
+- User: "fully accept". D19J Done; executable
+  `a0246cadbcdb5ee4719dc6e5b08bfa8a0945cf696e47dd22e4a1af27e6873a3d` is the regression baseline.
+  Now unblocked: D19K (needs D24B, accepted) and D19L. Queued: D19O, D19K,
+  D19L, D19G, D19F, D19N, D08AA, D24D, D26G.
+
+## 2026-10-19 - D19J title main menu re-implemented (Needs playtest)
+
+- Modernized: after PRESS START our main menu in the original's look (ONE
+  PLAYER, TWO PLAYER, LOAD GAME, OPTIONS, QUIT GAME), plus CHOOSE DIFFICULTY
+  LEVEL, TWO PLAYER OPTIONS and CHOOSE CHARACTER, drawn with the originals'
+  calls on state 12 / sub-screen 12 (new entry hook `0x80022324`). Starting a
+  game hands the page to the original handler with one Cross press. One
+  keyboard picks both two-player characters. LOAD GAME stays original
+  (D19K). Framework: saves and loads wait for plugin guest calls
+  (`psx_mod_host_call_begin/end`); a save inside a menu call had crashed the
+  run. Executable
+  `a0246cadbcdb5ee4719dc6e5b08bfa8a0945cf696e47dd22e4a1af27e6873a3d`,
+  [note 150](150-d19j-title-menu.md). New Todo D19O (frontend redraw
+  flash-back, also in the original menus). Still queued: D19G, D19F, D19N,
+  D08AA, D24D, D26G.
+
 ## 2026-10-19 - D19M accepted
 
 - User: "perfect!! thats working". D19M Done; executable

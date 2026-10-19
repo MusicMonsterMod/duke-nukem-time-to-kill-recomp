@@ -87,7 +87,9 @@ static bool trace(CPUState* source,const double* from,const double* to,double* h
     write_vector(sp+0x30,from);write_vector(sp+0x40,to);
     psx_mod_write_word(sp+0x10,sp+0x60);psx_mod_write_word(sp+0x14,sp+0x70);
     psx_mod_write_word(sp+0x50,0xffffffff);
+    psx_mod_host_call_begin(); // no savestate inside this call
     psx_dispatch_call(&cpu,0x8006d980,0x800000fc);
+    psx_mod_host_call_end();
     kind=cpu.gpr[2];int room=(int32_t)psx_mod_read_word(sp+0x50);
     if(std::getenv("DNTTK_AIM_TRACE"))std::fprintf(stderr,"ttk-aim-query kind=%d room=%d pc=%08x from=%.0f,%.0f,%.0f to=%.0f,%.0f,%.0f\n",kind,room,cpu.pc,from[0],from[1],from[2],to[0],to[1],to[2]);
     uint32_t raw=(uint32_t)kind;

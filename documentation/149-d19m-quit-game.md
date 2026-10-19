@@ -1,6 +1,6 @@
 # D19M - QUIT GAME closes the program
 
-Job: [D19M](../MODERNIZATION_JOBS.md). Status: Done (user-accepted 2026-10-19: "perfect!! thats working"); title main menu item in D19J.
+Job: [D19M](../MODERNIZATION_JOBS.md). Status: Done (user-accepted 2026-10-19: "perfect!! thats working"); title main menu item in D19J (accepted 2026-10-19).
 Builds on [D19H](147-d19h-pause-menu.md) (the pause and death lists) and
 [D19I](148-d19i-menu-brightness.md).
 

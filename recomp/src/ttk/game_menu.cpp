@@ -35,6 +35,15 @@
 // D19M: QUIT GAME at the end of both lists asks QUIT GAME? (NO first); YES
 // sends the window's own close event, so the program shuts down exactly as
 // when the window is closed (documentation/149-d19m-quit-game.md).
+//
+// D19J: the title main menu (frontend state 7), CHOOSE DIFFICULTY LEVEL (8),
+// TWO PLAYER OPTIONS (8) and CHOOSE CHARACTER (9) are ours too, plus QUIT GAME.
+// They run on state 12 with the free sub-screen 12 (no handler: the attract
+// demo and its loads go on), drawn with the originals' own calls and
+// positions, and keep their state in the originals' variables. Starting a
+// game hands the last page to the original handler with one Cross press: it
+// draws the same image and exits the frontend itself
+// (documentation/150-d19j-title-menu.md).
 #include "game_menu.h"
 #include "live_env.h"
 #include "cpu_state.h"
@@ -83,6 +92,15 @@ const Guard guards[]={
     {0x8006ac24u,0x30u,"d45ab3dd28ba07a76ba1e90b5f64cc4ab0f3342cd41c224cbe0b5e022b8265d9"},   // resume: sound
     {0x8003c3dcu,0x40u,"b02ecd72ad0fe5b8072a35109c6e6c88ae7cd108fbfe80c604ab8a3999633b64"},   // resume: music
     {0x800c64f4u,0x26cu,"3716c4900759d23bbd1d3f71ca5024a5aef410814ab33aca47a435d1d6fd5945"},  // text table 0x100-0x19a (briefings)
+    // D19J: the title pages we stand in for and the tables they read.
+    {0x80022324u,0xfd8u,"cbcdd79ea3bfa28c53362e64f06b2bf3cb192bec173cdd906f1aa349e801b908"},  // frontend tick and states 0-12
+    {0x800131b0u,0x34u,"14222073a6cd63ed99f8768a6ac93f00160a251c4ead8600cc096210b79636b8"},   // frontend state table
+    {0x800131e8u,0x14u,"fe4a165c813fddb5da320da4e98bd354f3c4d3beee23f4728837ced6d7abb939"},   // main menu choice table
+    {0x80084534u,0x318u,"f117c07c8be0dad501401838d2bc854c3b1a999a08808baa0187e89eb573a14d"},  // CHOOSE DIFFICULTY LEVEL
+    {0x8008484cu,0x814u,"18b50b14cc0a6cdf340c521f56855fef0a0839921c294dab61750ec4d393d810"},  // TWO PLAYER OPTIONS
+    {0x80085060u,0x6b0u,"5bbfb37b63bccf7306ddd0d46e2c9b7e163509795ece67dd50fddf601bd36ec5"},  // CHOOSE CHARACTER
+    {0x800c3de4u,0x10u,"5cd023106a3b69feb9e1a71b77471c35d4a43b210a1751a4a3aab314a1dfc30f"},   // difficulty string ids
+    {0x80016e8cu,0x30u,"9d528df15f856133001784171950a0e3c1a7c9d05b1ae7ecb1393b71a5f0b164"},   // two player levels, formats, characters
 };
 std::array<std::vector<uint32_t>,sizeof guards/sizeof guards[0]> expected;
 
@@ -90,7 +108,7 @@ constexpr uint32_t game_mode=0x800bcbb0, controller_pad=0x800be56c, geometry=0x8
 constexpr uint32_t image_counter=0x800bdbd0;
 constexpr uint32_t fn_text=0x8008b454, fn_width=0x8008b3c8, fn_sprite=0x8008b678;
 constexpr uint32_t fn_slider_init=0x80083c40, fn_slider_draw=0x80083edc, fn_sound=0x8006bbd8;
-constexpr uint32_t sprites=0x800c43b4, sentinel=0x800000fc;
+constexpr uint32_t fn_prompt=0x8008411c, sprites=0x800c43b4, sentinel=0x800000fc;
 constexpr uint16_t ours_sub=8, death_sub=9;
 // D19H: the pause menu (0x800be56a = 12, its prompt 0x800dd1c4, reset flag
 // 0x800c3f28) and the death screen (15, prompt 0x800dd1c6, reset 0x800c3f34).
@@ -109,6 +127,29 @@ constexpr uint32_t event_replay=0xfd, event_restart=0xfe, event_quit=0xff;
 constexpr int text_yes=0xfb, text_no=0xfc, text_quit=0x102, text_restart=0x103;
 constexpr int text_continue=0x104, text_replay=0x113, text_remaining=0xf7, text_remaining_many=0xf8;
 constexpr int text_last=0x19a; // the highest id a level name or briefing uses (guarded)
+// D19J: the frontend (state 0x800d24e4 and its handlers' variables).
+constexpr uint32_t fe_state=0x800d24e4, fe_cursor=0x800d24e6, fe_items=0x800d2528, fe_timer=0x800d24d0, fe_fields=0x800d21fc;
+constexpr uint32_t players_choice=0x800bdea4, level_choice=0x800bdeaa;
+constexpr uint32_t diff_cursor=0x800c3d7c, diff_saved=0x800c3df6, diff_fresh=0x800c3df8, diff_ids=0x800c3de4;
+constexpr uint32_t two_cursor=0x800dd1b0, two_split=0x800dd1b2, two_level=0x800c3dfc, two_time=0x800c3dfe, two_kills=0x800c3e00;
+constexpr uint32_t two_fresh=0x800c3e04, split_mode=0x800be564, two_levels=0x80016e8c, two_format=0x80016e98;
+constexpr uint32_t char_choice=0x800dd1b8, char_locks=0x800dd1c0, char_saved=0x800c3e08, char_fresh=0x800c3e0c, char_ids=0x80016ea4;
+// Pad history words (0x8001d5ac): pad 1 from +0x10 (Start), pad 2 0x54 on;
+// bit 0 = pressed at this tick, bit 1 = at the tick before.
+constexpr uint32_t pad_history=0x800d1aa0, history_cross=0x3c;
+constexpr uint32_t history_checked[]={0x10,0x14,0x18,0x1c,0x20,0x34,0x3c};
+constexpr uint16_t title_sub=12, state_start=4, state_load=10, state_difficulty=8, state_character=9;
+constexpr uint16_t idle_fields=0x4650; // state 6: the main menu's idle time before PRESS START
+// Where the frontend calls 0x800220f4: state 12 before its sub-screen
+// dispatch, states 8 and 9 before their handlers.
+constexpr uint32_t from_options=0x80023248, from_difficulty=0x80023130, from_character=0x800231b4;
+// Text ids of the title pages (the originals pass the same).
+constexpr int text_title1=1, text_title2=2, text_one=0x57, text_two=0x58, text_load=0x31, text_options=0x59;
+constexpr int text_select=0x11, text_confirm=0x12, text_return=0x13, text_change=0x14, text_cancel=0x15, text_start=0x8a;
+constexpr int text_difficulty=0x21, text_two_heading=0x2c, text_level=0x25, text_time=0x2d, text_kills=0x2e, text_split=0x24;
+constexpr int text_horizontal=0x22, text_vertical=0x23, text_unlimited=0x2f, text_minutes=0x30;
+constexpr int text_character=0xc9, text_player1=0xca, text_player2=0xcb;
+constexpr uint16_t screen_no_titles=14; // 0x800be56a: the title pages leave their headings out
 // Where OPTIONS lives: the title frontend (state 0x800d24e4 = 12, sub-screen
 // 0x800d24d2, handler 0x800841c4) and the pause menu (mode 1, 0x800be56a,
 // handler 0x80086174). Both use 8 as an unused screen with no handler.
@@ -128,8 +169,11 @@ const MenuContext* current_context() {
     return nullptr;
 }
 // Screen values with no handler that our screens use: 8 (OPTIONS, settings,
-// the pause list and its pages), 9 in gameplay (the death list).
-bool our_screen(const MenuContext* c,uint16_t sub) {return sub==ours_sub || (c->mode==1 && sub==death_sub);}
+// the pause list and its pages), 9 in gameplay (the death list), 12 on the
+// title (D19J: the main menu and its pages).
+bool our_screen(const MenuContext* c,uint16_t sub) {
+    return sub==ours_sub || (c->mode==1 && sub==death_sub) || (c->mode==0 && sub==title_sub);
+}
 // Text flags: font << 8, 4 centred, 8 right-aligned, 1 highlighted (blue CLUT).
 constexpr uint32_t font_small=0, font_menu=0x100, centre=4, right=8, blue=1;
 enum Icon {icon_triangle=4, icon_cross=6, icon_square=7, icon_change=11, icon_select=12};
@@ -240,9 +284,25 @@ int pending_sub=-1, pending_cursor=-1, pending_sound=-1;
 
 // D19H: the pause menu and death screen as lists. Page::Options is D19's
 // OPTIONS (screen -1) and settings screens; the rest are gameplay pages.
-enum class Page {Options, Pause, Death, Brief, Ask};
-enum class Act {Resume, Brief, Options, Load, Restart, MainMenu, Continue, Quit, QuitGame};
+// D19J: Main, Difficulty, TwoPlayer and Character are the title pages.
+enum class Page {Options, Pause, Death, Brief, Ask, Main, Difficulty, TwoPlayer, Character};
+enum class Act {Resume, Brief, Options, Load, Restart, MainMenu, Continue, Quit, QuitGame, OnePlayer, TwoPlayer, Level};
 struct ListItem {const char* label;Act act;};
+bool title_page(Page p) {return p==Page::Main || p==Page::Difficulty || p==Page::TwoPlayer || p==Page::Character;}
+// D19J: the title pages act in the frontend tick, on the originals' variables,
+// in the order the keys came (a page change and the next key in one tick).
+enum class Cmd {Up, Down, Left, Right, Confirm, Back};
+std::vector<Cmd> title_cmds;
+bool title_activity=false;    // a key this tick: the main menu's idle time starts again
+bool title_enter=false;       // the main menu opens: state 6's idle time and level reset
+// A frontend state for the next tick's entry (LOAD 10, PRESS START 4, or a
+// handoff): the image of this tick still shows our page, as the original
+// handler draws its screen in the tick that chooses.
+int pending_state=-1;
+// Starting a game: the original handler (difficulty 8, character 9) runs
+// with one Cross press and exits the frontend itself; it draws the same image.
+enum class Handoff {None, Pending, Armed};
+Handoff handoff=Handoff::None;
 Page page=Page::Options;
 std::vector<ListItem> list;   // the pause or death list on screen
 Page ask_from=Page::Pause;    // a YES / NO prompt: the list it came from,
@@ -266,6 +326,19 @@ uint32_t last_image=~0u;
 uint64_t draws=0, entries=0, writes=0, finals=0;
 uint32_t sliders=0; // GPU-addressable slider objects
 constexpr int slider_slots=12, slider_size=0x40;
+
+// D19J: a savestate load drops what the menu knew of the guest before it; the
+// screens reopen from the loaded state (our screens: OPTIONS, the lists, the
+// title main menu).
+uint32_t seen_loads=0;
+void savestate_check() {
+    const uint32_t n=psx_mod_savestate_loads();
+    if(n==seen_loads) return;
+    seen_loads=n;
+    owned=false;page=Page::Options;screen=-1;pending_sub=pending_cursor=-1;
+    pending_final=Final::None;pending_load=false;death_load=false;resumed=false;
+    pending_state=-1;handoff=Handoff::None;title_cmds.clear();title_enter=false;
+}
 
 const char* intern(const char* text) {owned_strings.emplace_back(text);return owned_strings.back().c_str();}
 
@@ -374,7 +447,15 @@ bool has_briefing() {
 // and QUIT, or REPLAY LEVEL and GIVE UP in the challenge stages.
 void build_list(Page p) {
     list.clear();
-    if(p==Page::Pause) {
+    if(p==Page::Main) {
+        // D19J: the original main menu's items (its fifth, the level, only
+        // while the original's debug level choice is on: 0x800d2528 = 5).
+        list.push_back({"ONE PLAYER",Act::OnePlayer});
+        list.push_back({"TWO PLAYER",Act::TwoPlayer});
+        list.push_back({"LOAD GAME",Act::Load});
+        list.push_back({"OPTIONS",Act::Options});
+        if((int16_t)psx_mod_read_half(fe_items)>4) list.push_back({"LEVEL",Act::Level});
+    } else if(p==Page::Pause) {
         list.push_back({"RESUME",Act::Resume});
         if(has_briefing()) list.push_back({"MISSION BRIEFING",Act::Brief});
         list.push_back({"OPTIONS",Act::Options});
@@ -442,6 +523,7 @@ void list_confirm() {
 }
 
 void move(int dir) {
+    if(title_page(page)) {title_cmds.push_back(dir<0 ? Cmd::Up : Cmd::Down);return;}
     if(page==Page::Brief) return;
     if(page!=Page::Options) {
         const int n=page==Page::Ask ? 2 : (int)list.size();
@@ -459,6 +541,7 @@ void move(int dir) {
     sound(1);
 }
 void change(int dir,uint64_t held_ms) {
+    if(title_page(page)) {title_cmds.push_back(dir<0 ? Cmd::Left : Cmd::Right);return;}
     if(page!=Page::Options || screen<0) return;
     Row& r=screens[screen].rows[cursor];
     int& v=draft[screen][cursor];
@@ -498,6 +581,7 @@ void confirm() {
         else {open_list(ask_from,ask_act);sound(1);}
         return;
     case Page::Options: break;
+    default: title_cmds.push_back(Cmd::Confirm);return; // D19J: the title pages
     }
     if(screen>=0) {leave_screen(true);return;}
     const Item& it=options_items[cursor];
@@ -511,18 +595,23 @@ void back(uint16_t mode) {
     case Page::Brief: open_list(Page::Pause,Act::Brief);sound(0);return;
     case Page::Ask: open_list(ask_from,ask_act);sound(1);return;
     case Page::Options: break;
+    default: title_cmds.push_back(Cmd::Back);return; // D19J: the title pages
     }
     if(screen>=0) {leave_screen(false);return;}
     // In gameplay OPTIONS goes back to our pause list (the original's 12 would
     // draw its own pause menu for a frame first).
     if(mode==1) {open_list(Page::Pause,Act::Options);sound(0);return;}
-    pending_cursor=0;pending_sub=-2;sound(0); // -2: the context's back
+    // D19J: on the title to our main menu, OPTIONS highlighted (the original's
+    // 10 is a tick with no menu, then state 6). The OPTIONS cursor resets.
+    open_list(Page::Main,Act::Options);title_enter=true;
+    pending_cursor=0;pending_sub=title_sub;sound(0);
 }
 } // namespace
 
 bool game_menu_input(const MenuKeys& keys) {
     if(!enabled()) return false;
     std::lock_guard<std::recursive_mutex> lock(mutex);
+    savestate_check();
     // Taps that arrive while the menu cannot act yet wait for the next read.
     static MenuKeys carry;
     MenuKeys k=keys;
@@ -531,7 +620,12 @@ bool game_menu_input(const MenuKeys& keys) {
     carry=MenuKeys{};
     // Busy drawing, or a screen change waits for the next tick: keys wait too.
     if(quitting) return owned;
-    if(busy || (owned && (pending_sub>=0 || pending_final!=Final::None || pending_load))) {
+    // D19J: starting a game; no key reaches the original handler meanwhile.
+    if(handoff!=Handoff::None) {
+        if(psx_mod_read_half(game_mode)==0) return true;
+        handoff=Handoff::None;
+    }
+    if(busy || (owned && (pending_sub>=0 || pending_final!=Final::None || pending_load || pending_state>=0))) {
         if(owned) carry=k;
         return owned;
     }
@@ -550,6 +644,9 @@ bool game_menu_input(const MenuKeys& keys) {
     if(k.confirm_taps) confirm();
     else if(k.back_taps) back(c->mode);
     else if(k.square_taps) defaults();
+    // D19J: any key keeps the main menu from going back to PRESS START.
+    if(k.up || k.down || k.left || k.right || k.confirm || k.back || k.square || k.wheel || k.up_taps || k.down_taps
+       || k.left_taps || k.right_taps || k.confirm_taps || k.back_taps || k.square_taps) title_activity=true;
     return true;
 }
 
@@ -571,7 +668,9 @@ struct Guest {
         CPUState cpu=*source;cpu.pc=0;cpu.gpr[29]=top-0x100;cpu.gpr[31]=sentinel;
         cpu.gpr[4]=a0;cpu.gpr[5]=a1;cpu.gpr[6]=a2;cpu.gpr[7]=a3;
         psx_mod_write_word(top-0x100+16,s16);psx_mod_write_word(top-0x100+20,s20);psx_mod_write_word(top-0x100+24,s24);
+        psx_mod_host_call_begin(); // D19J: no savestate inside our call
         psx_dispatch_call(&cpu,address,sentinel);
+        psx_mod_host_call_end();
         ok=cpu.pc==0 && !g_psx_call_bail;
         return cpu.gpr[2];
     }
@@ -587,6 +686,8 @@ struct Guest {
         if(s>=0x80010000u && s<0x80200000u) call(fn_text,s,(uint32_t)x,(uint32_t)y,flags);
     }
     int width(const char* s,uint32_t font) {put(s);return (int)call(fn_width,text,font>>8,0,0);}
+    // D19J: the prompt helper itself, with a text id, as the title pages call it.
+    void prompt_id(Icon icon,int x,int y,int id) {call(fn_prompt,(uint32_t)icon,(uint32_t)x,(uint32_t)y,(uint32_t)id);}
     // The prompt helper 0x8008411c with our own label: button left of the
     // centred small-font label.
     void prompt(Icon icon,const char* label,int x,int y) {
@@ -741,9 +842,232 @@ void draw_ask(Guest& g,const Geometry& geo) {
     g.prompt(icon_cross,"CONFIRM",0,y);
     g.prompt(icon_triangle,"CANCEL",geo.w/4,y);
 }
+
+// ---- D19J title pages: the originals' calls, arguments and order ----
+bool show_headings() {return psx_mod_read_half(pause_screen)!=screen_no_titles;}
+int16_t half(uint32_t a) {return (int16_t)psx_mod_read_half(a);}
+// State 7 (0x80022b64): the title in two lines, the items from y -30, 15
+// apart, in font 0 (blue highlighted), then SELECT and CONFIRM.
+void draw_main(Guest& g,const Geometry& geo) {
+    const int hy=heading_y(geo);
+    if(show_headings()) {g.say_id(text_title1,0,hy,font_menu|centre);g.say_id(text_title2,0,hy+19,font_menu|centre);}
+    for(int i=0;i<(int)list.size();++i) {
+        const int y=-30+15*i;
+        const uint32_t f=font_small|centre|(i==cursor?blue:0);
+        switch(list[i].act) {
+        case Act::OnePlayer: g.say_id(text_one,0,y,f);break;
+        case Act::TwoPlayer: g.say_id(text_two,0,y,f);break;
+        case Act::Load: g.say_id(text_load,0,y,f);break;
+        case Act::Options: g.say_id(text_options,0,y,f);break;
+        case Act::Level: {
+            const int id=half(level_names+2*(psx_mod_read_half(level_choice)&31));
+            if(id>0 && id<=text_last) g.say_id(id,0,y,f);
+            break;
+        }
+        default: g.say(list[i].label,0,y,f);break; // QUIT GAME
+        }
+    }
+    const int y=prompt_y(geo);
+    g.prompt_id(icon_select,-(geo.w/4),y,text_select);
+    g.prompt_id(icon_cross,geo.w/4,y,text_confirm);
+}
+// 0x80084534: SELECT, CONFIRM and RETURN, the heading at y -76, then the
+// four difficulties from y -47, 19 apart.
+void draw_difficulty(Guest& g,const Geometry& geo) {
+    const int y=prompt_y(geo);
+    g.prompt_id(icon_select,-(geo.w/4),y,text_select);
+    g.prompt_id(icon_cross,0,y,text_confirm);
+    g.prompt_id(icon_triangle,geo.w/4,y,text_return);
+    if(show_headings()) g.say_id(text_difficulty,0,-76,font_menu|centre);
+    const int cur=half(diff_cursor);
+    for(int i=0;i<4;++i) g.say_id((int)psx_mod_read_word(diff_ids+4*i),0,19*i-47,font_menu|centre|(i==cur?blue:0));
+}
+// 0x8008484c: four prompts w/8 apart, the heading, then LEVEL (menu font) and
+// TIME, KILLS and SPLIT (font 0), labels right-aligned at 0, values from 0.
+void draw_two(Guest& g,const Geometry& geo) {
+    const int y=prompt_y(geo), e=geo.w/8;
+    g.prompt_id(icon_select,15-3*e,y,text_select);
+    g.prompt_id(icon_change,5-e,y,text_change);
+    g.prompt_id(icon_cross,e-5,y,text_confirm);
+    g.prompt_id(icon_triangle,3*e,y,text_cancel);
+    if(show_headings()) g.say_id(text_two_heading,0,heading_y(geo),font_menu|centre);
+    const int cur=half(two_cursor);
+    int row=geo.y0+(geo.h-76)/2;
+    g.say_id(text_level,0,row,font_menu|right|(cur==0?blue:0));
+    g.say_id(half(two_levels+2*std::clamp<int>(half(two_level),0,5)),0,row,font_menu);
+    row+=38;
+    // The original's formats (0x80016e98, guarded): "%d %s" with MINUTES, "%d".
+    char value[48];
+    g.say_id(text_time,0,row,font_small|right|(cur==1?blue:0));
+    if(const int t=half(two_time)) {
+        const uint32_t s=psx_mod_read_word(strings+4u*text_minutes);
+        std::string minutes;
+        for(uint32_t a=s;s>=0x80010000u && s<0x80200000u && minutes.size()<20;++a) {const char ch=(char)psx_mod_read_byte(a);if(!ch) break;minutes+=ch;}
+        std::snprintf(value,sizeof value,"%d %s",t,minutes.c_str());
+        g.say(value,0,row,font_small);
+    } else g.say_id(text_unlimited,0,row,font_small);
+    row+=15;
+    g.say_id(text_kills,0,row,font_small|right|(cur==2?blue:0));
+    if(const int k=half(two_kills)) {std::snprintf(value,sizeof value,"%d",k);g.say(value,0,row,font_small);}
+    else g.say_id(text_unlimited,0,row,font_small);
+    row+=15;
+    g.say_id(text_split,0,row,font_small|right|(cur==3?blue:0));
+    g.say_id(half(two_split) ? text_vertical : text_horizontal,0,row,font_small);
+}
+// 0x80085060: the heading, PLAYER 1 and PLAYER 2 (a name blue until that
+// player confirms), then CHANGE and CONFIRM, or START once both have; CANCEL.
+void draw_character(Guest& g,const Geometry& geo) {
+    if(show_headings()) g.say_id(text_character,0,heading_y(geo),font_menu|centre);
+    const uint32_t locks=psx_mod_read_word(char_locks);
+    int row=geo.y0+(geo.h-76)/2;
+    for(uint32_t p=0;p<2;++p,row+=38) {
+        g.say_id(p ? text_player2 : text_player1,0,row,font_menu|right);
+        const uint32_t sel=psx_mod_read_word(char_choice+4*p);
+        g.say_id((int)psx_mod_read_word(char_ids+4*(sel<6 ? sel : 0)),0,row,font_menu|(locks&(1u<<p) ? 0 : blue));
+    }
+    const int y=prompt_y(geo);
+    if(locks!=3) {g.prompt_id(icon_change,-(geo.w/4),y,text_change);g.prompt_id(icon_cross,0,y,text_confirm);}
+    else g.prompt_id(icon_cross,geo.x0+geo.w/3,y,text_start);
+    g.prompt_id(icon_triangle,geo.w/4,y,text_cancel);
+}
+
+// ---- D19J: the title pages' actions, in the frontend tick ----
+// Each page's entry is what its handler does while its fresh flag is set.
+// The main menu on the original's cursor (the item a page was entered from).
+void enter_main() {
+    open_list(Page::Main,Act::OnePlayer);
+    cursor=std::clamp<int>(half(fe_cursor),0,(int)list.size()-2);
+    title_enter=true;
+}
+void enter_difficulty() {
+    page=Page::Difficulty;
+    if(psx_mod_read_word(diff_fresh)) {psx_mod_write_word(diff_fresh,0);psx_mod_write_half(diff_saved,psx_mod_read_half(diff_cursor));}
+}
+void enter_two() {
+    page=Page::TwoPlayer;
+    if(psx_mod_read_word(two_fresh)) {
+        psx_mod_write_half(two_cursor,0);
+        const uint32_t m=psx_mod_read_word(split_mode);
+        if(m==1) psx_mod_write_half(two_split,1);
+        else if(m==2) psx_mod_write_half(two_split,0);
+        psx_mod_write_word(two_fresh,0);
+    }
+}
+void enter_character() {
+    page=Page::Character;
+    if(psx_mod_read_word(char_fresh)) {
+        for(uint32_t p=0;p<2;++p) psx_mod_write_word(char_choice+4*p,(uint32_t)(int32_t)half(char_saved+2*p));
+        psx_mod_write_word(char_locks,0);psx_mod_write_word(char_fresh,0);
+    }
+}
+// Wrap v + step into [0, n), as the handlers do for their values.
+int16_t wrap_add(int16_t v,int step,int n) {const int r=v+step;return (int16_t)(r>=n ? 0 : r<0 ? n-1 : r);}
+// The original main menu's level choice (its fifth item): 0-3, 5-12, 21-29.
+void step_level(int dir) {
+    int v=half(level_choice)+dir;
+    if(dir>0) {if(v>=32) v=0;if(v==13) v=21;else if(v==4) v=5;else if(v==30) v=0;}
+    else {if(v<0) v=31;if(v==20) v=12;else if(v==4) v=3;else if(v==31) v=29;}
+    psx_mod_write_half(level_choice,(uint16_t)v);
+}
+// One key on a title page: the original handler's response. Returns the sound.
+int title_command(Cmd cmd) {
+    switch(page) {
+    case Page::Main: {
+        const int n=(int)list.size();
+        const Act a=list[cursor].act;
+        int s=-1;
+        switch(cmd) {
+        case Cmd::Up: cursor=(cursor+n-1)%n;s=1;break;
+        case Cmd::Down: cursor=(cursor+1)%n;s=1;break;
+        case Cmd::Left: case Cmd::Right: if(a==Act::Level) {step_level(cmd==Cmd::Right ? 1 : -1);s=1;} break;
+        case Cmd::Back: break; // nothing, as the original
+        case Cmd::Confirm:
+            s=1;
+            switch(a) {
+            case Act::OnePlayer: case Act::Level: psx_mod_write_half(players_choice,1);enter_difficulty();break;
+            case Act::TwoPlayer: psx_mod_write_half(players_choice,2);enter_two();break;
+            case Act::Load: psx_mod_write_half(players_choice,1);pending_state=state_load;break;
+            case Act::Options:
+                // State 11: sub-screen 9, which D19 makes ours in this very tick.
+                page=Page::Options;screen=-1;cursor=0;top=0;back_label=contexts[0].back_label;
+                psx_mod_write_half(contexts[0].sub,contexts[0].options);
+                break;
+            default: ask_from=Page::Main;ask_act=Act::QuitGame;page=Page::Ask;cursor=1;break; // QUIT GAME?
+            }
+            break;
+        }
+        if(page==Page::Main && list[cursor].act!=Act::QuitGame) psx_mod_write_half(fe_cursor,(uint16_t)cursor);
+        return s;
+    }
+    case Page::Difficulty: {
+        const int16_t c=half(diff_cursor);
+        switch(cmd) {
+        case Cmd::Up: psx_mod_write_half(diff_cursor,(uint16_t)wrap_add(c,-1,4));return 1;
+        case Cmd::Down: psx_mod_write_half(diff_cursor,(uint16_t)wrap_add(c,1,4));return 1;
+        case Cmd::Back:
+            psx_mod_write_half(diff_cursor,psx_mod_read_half(diff_saved));psx_mod_write_word(diff_fresh,1);
+            enter_main();return 0;
+        case Cmd::Confirm: pending_state=state_difficulty;handoff=Handoff::Pending;return -1; // its handler sounds
+        default: return -1;
+        }
+    }
+    case Page::TwoPlayer: {
+        const int16_t c=half(two_cursor);
+        switch(cmd) {
+        case Cmd::Up: psx_mod_write_half(two_cursor,(uint16_t)wrap_add(c,-1,4));return 1;
+        case Cmd::Down: psx_mod_write_half(two_cursor,(uint16_t)wrap_add(c,1,4));return 1;
+        case Cmd::Left: case Cmd::Right: {
+            const int d=cmd==Cmd::Right ? 1 : -1;
+            switch(c) {
+            case 0: psx_mod_write_half(two_level,(uint16_t)wrap_add(half(two_level),d,6));break;
+            case 1: psx_mod_write_half(two_time,(uint16_t)(d>0 ? (half(two_time)+5>=16 ? 0 : half(two_time)+5) : (half(two_time)-5<0 ? 15 : half(two_time)-5)));break;
+            case 2: psx_mod_write_half(two_kills,(uint16_t)(d>0 ? (half(two_kills)+5>=16 ? 0 : half(two_kills)+5) : (half(two_kills)-5<0 ? 15 : half(two_kills)-5)));break;
+            case 3: psx_mod_write_half(two_split,(uint16_t)wrap_add(half(two_split),1,2));break; // both keys toggle
+            }
+            return 1;
+        }
+        case Cmd::Back: psx_mod_write_word(two_fresh,1);enter_main();return 0;
+        case Cmd::Confirm: {
+            const int16_t split=half(two_split);
+            if(split==0) psx_mod_write_word(split_mode,2);
+            else if(split==1) psx_mod_write_word(split_mode,1);
+            psx_mod_write_word(two_fresh,1);
+            psx_mod_write_half(level_choice,(uint16_t)(half(two_level)+15));
+            enter_character();
+            return 1;
+        }
+        }
+        return -1;
+    }
+    case Page::Character: {
+        // One keyboard for both players: player 1 chooses and confirms, then
+        // player 2 (the original reads each player's own pad).
+        const uint32_t locks=psx_mod_read_word(char_locks);
+        const int row=!(locks&1) ? 0 : !(locks&2) ? 1 : -1;
+        switch(cmd) {
+        case Cmd::Left: case Cmd::Right: {
+            if(row<0) return -1;
+            const uint32_t a=char_choice+4*row, v=psx_mod_read_word(a);
+            psx_mod_write_word(a,cmd==Cmd::Right ? (v+1>=6 ? 0 : v+1) : (v==0 || v>=6 ? 5 : v-1));
+            return 1;
+        }
+        case Cmd::Confirm:
+            if(row>=0) {psx_mod_write_word(char_locks,locks|(1u<<row));return 1;}
+            pending_state=state_character;handoff=Handoff::Pending;return -1; // its handler sounds
+        case Cmd::Back:
+            if(locks&2) {psx_mod_write_word(char_locks,locks&~2u);return 4;}
+            if(locks&1) {psx_mod_write_word(char_locks,locks&~1u);return 4;}
+            psx_mod_write_word(char_fresh,1);enter_two();return 0;
+        default: return -1;
+        }
+    }
+    default: return -1;
+    }
+}
 } // namespace
 
 bool gameplay_tick(CPUState* cpu);
+bool title_tick(CPUState* cpu,const MenuContext* c);
 void draw_page(CPUState* cpu,const MenuContext* c);
 
 // Frontend state 12 calls 0x800220f4 each tick just before the sub-screen
@@ -755,11 +1079,30 @@ void game_menu_tick(CPUState* cpu) {
     if(trace()) {static uint32_t n;if(n++<40) std::fprintf(stderr,"[TTK menu] tick pc=%08x mode %u enabled %d replay %d precise %d ls %d bail %d\n",
         cpu->pc,psx_mod_read_half(game_mode),enabled(),psx_mod_replay_active(),g_precise_mode,g_ls_mode,g_psx_call_bail);}
     if(!enabled() || psx_mod_replay_active() || g_precise_mode || g_ls_mode || g_psx_call_bail) return;
+    if(handoff==Handoff::Armed) {
+        // D19J: the original difficulty (8) or character (9) handler is about to
+        // run: one Cross press on pad 1, nothing else new. It draws the page we
+        // showed and starts the game, as on the original's own Cross.
+        const uint32_t ra=cpu->gpr[31];
+        const uint16_t state=psx_mod_read_half(fe_state);
+        if(psx_mod_read_half(game_mode)==0 && ((ra==from_difficulty && state==state_difficulty) || (ra==from_character && state==state_character))) {
+            std::lock_guard<std::recursive_mutex> lock(mutex);
+            for(uint32_t pad:{0u,0x54u}) for(uint32_t at:history_checked) {
+                const uint32_t a=pad_history+pad+at, w=psx_mod_read_word(a);
+                if(w&3u) psx_mod_write_word(a,w&~3u);
+            }
+            psx_mod_write_word(pad_history+history_cross,(psx_mod_read_word(pad_history+history_cross)&~3u)|1u);
+            handoff=Handoff::None;++finals;
+            if(trace()) std::fprintf(stderr,"[TTK menu] title handoff %u\n",state);
+        }
+        return;
+    }
     const MenuContext* c=current_context();
     if(!c) return;
     ensure_init();
     if(!authentic()) return;
     std::lock_guard<std::recursive_mutex> lock(mutex);
+    savestate_check();
     // D19I: in gameplay our pages are drawn here, after the actions, like the
     // original's pause text (see draw_page).
     struct DrawAfter {CPUState* cpu;const MenuContext* c;~DrawAfter() {if(c->mode==1) draw_page(cpu,c);}} draw_after{cpu,c};
@@ -771,16 +1114,25 @@ void game_menu_tick(CPUState* cpu) {
     }
     if(c->mode==1) {
         if(gameplay_tick(cpu)) return;
-    } else page=Page::Options;
-    const uint16_t sub=psx_mod_read_half(c->sub);
+    }
+    uint16_t sub=psx_mod_read_half(c->sub);
     if(pending_sub!=-1) {
+        // D19J: back from OPTIONS to our main menu keeps the keys.
+        const bool title=pending_sub==title_sub && sub==ours_sub;
         if(sub==ours_sub) {
             if(pending_cursor>=0) psx_mod_write_half(c->cursor,(uint16_t)pending_cursor);
             if(c->mode==0) psx_mod_write_half(controller_pad,0);
             psx_mod_write_half(c->sub,(uint16_t)(pending_sub==-2 ? c->back : pending_sub));
         }
-        pending_sub=pending_cursor=-1;owned=false;screen=-1;
+        pending_sub=pending_cursor=-1;owned=title;screen=-1;
+        if(!title && title_page(page)) page=Page::Options;
         return;
+    }
+    if(c->mode==0) {
+        if(sub==title_sub) {
+            if(title_tick(cpu,c)) return;
+            sub=psx_mod_read_half(c->sub); // OPTIONS chosen: sub-screen 9, below
+        } else page=Page::Options;
     }
     if(sub==c->options) {
         // The original OPTIONS (entered, or back from SOUND, CONTROLLER or GAME
@@ -888,6 +1240,77 @@ bool gameplay_tick(CPUState* cpu) {
     return false; // OPTIONS and its screens: D19's own handling
 }
 
+// D19J: the title pages, at state 12's call before its sub-screen dispatch
+// (the pad was read just before). True when the tick is done.
+bool title_tick(CPUState* cpu,const MenuContext* c) {
+    if(cpu->gpr[31]!=from_options) return true; // a load loop's backdrop: nothing to act on
+    if(!owned) {
+        // A savestate saved on one of our pages: the main menu again.
+        enter_main();owned=true;back_label=c->back_label;title_cmds.clear();
+    }
+    if(!title_page(page) && page!=Page::Ask) return false;
+    busy=true;
+    {
+        Guest g(cpu);
+        for(size_t i=0;i<title_cmds.size() && pending_state<0 && title_page(page);++i) {
+            const int s=title_command(title_cmds[i]);
+            if(s>=0) g.call(fn_sound,(uint32_t)s,0,0,0);
+        }
+        title_cmds.clear();
+        if(title_enter) {
+            // State 6: the idle time starts again and the level choice resets.
+            psx_mod_write_half(fe_timer,idle_fields);psx_mod_write_half(level_choice,0);
+            title_enter=false;
+        }
+        if(page==Page::Main && pending_state<0) {
+            // State 7: back to PRESS START (state 4) after the idle time.
+            if(title_activity) psx_mod_write_half(fe_timer,idle_fields);
+            const uint16_t t=(uint16_t)(psx_mod_read_half(fe_timer)-psx_mod_read_half(fe_fields));
+            psx_mod_write_half(fe_timer,t);
+            if((int16_t)t<=0) pending_state=state_start;
+        }
+        title_activity=false;
+    }
+    busy=false;
+    return psx_mod_read_half(c->sub)==title_sub;
+}
+
+// D19J: the frontend tick's entry (0x80022324), before the pad read and the
+// state dispatch: the original main menu (state 6 or 7) and its pages (8, 9)
+// become ours before their handlers draw anything, and a state chosen on our
+// pages in the last tick is set.
+void title_entry(CPUState* cpu) {
+    (void)cpu;
+    if(!enabled() || psx_mod_replay_active() || g_precise_mode || g_ls_mode || g_psx_call_bail) return;
+    if(psx_mod_read_half(game_mode)!=0) return;
+    ensure_init();
+    if(!authentic()) return;
+    std::lock_guard<std::recursive_mutex> lock(mutex);
+    savestate_check();
+    if(handoff==Handoff::Armed) handoff=Handoff::None; // the handler never ran
+    const uint16_t state=psx_mod_read_half(fe_state);
+    if(pending_state>=0) {
+        if(state==contexts[0].state_value && psx_mod_read_half(contexts[0].sub)==title_sub) {
+            psx_mod_write_half(fe_state,(uint16_t)pending_state);
+            if(handoff==Handoff::Pending) handoff=Handoff::Armed;
+        } else handoff=Handoff::None;
+        pending_state=-1;owned=false;page=Page::Options;screen=-1;title_cmds.clear();
+        return;
+    }
+    if(handoff!=Handoff::None) return;
+    if(state==6 || state==7) {
+        enter_main();
+    } else if(state==state_difficulty || state==state_character) {
+        // A savestate saved on the original's pages: ours.
+        if(state==state_character) enter_character();
+        else if(half(players_choice)==2) enter_two();
+        else enter_difficulty();
+    } else return;
+    owned=true;screen=-1;top=0;back_label=contexts[0].back_label;title_cmds.clear();title_activity=false;++entries;
+    psx_mod_write_half(fe_state,contexts[0].state_value);
+    psx_mod_write_half(contexts[0].sub,title_sub);
+}
+
 // Our page for this image, once per image. The title draws it at the view
 // composition (game_menu_frame). D19I: gameplay draws it at the pause
 // dispatch, after 0x80025f28 has put the paused world's darkening quad into the
@@ -911,6 +1334,10 @@ void draw_page(CPUState* cpu,const MenuContext* c) {
         case Page::Brief: draw_brief(g,geo);break;
         case Page::Ask: draw_ask(g,geo);break;
         case Page::Options: if(screen<0) draw_options(g,geo); else draw_settings(g,geo);break;
+        case Page::Main: draw_main(g,geo);break;
+        case Page::Difficulty: draw_difficulty(g,geo);break;
+        case Page::TwoPlayer: draw_two(g,geo);break;
+        case Page::Character: draw_character(g,geo);break;
         }
     }
     busy=false;
@@ -919,6 +1346,7 @@ void draw_page(CPUState* cpu,const MenuContext* c) {
 
 void game_menu_frame(CPUState* cpu) {
     if(!enabled() || psx_mod_replay_active() || g_precise_mode || g_ls_mode || g_psx_call_bail) return;
+    {std::lock_guard<std::recursive_mutex> lock(mutex);savestate_check();}
     if(resumed) {
         // After our resume (or continue, restart, quit) the screen value goes
         // back to the original's 0, in whatever mode the game is in now.
@@ -943,10 +1371,10 @@ void game_menu_frame(CPUState* cpu) {
 
 extern "C" const char* ttk_game_menu_json() {
     using namespace ttk;
-    static char buffer[384];
-    std::snprintf(buffer,sizeof buffer,"{\"owned\":%s,\"page\":%d,\"screen\":%d,\"cursor\":%d,\"top\":%d,\"items\":%d,\"entries\":%llu,\"draws\":%llu,\"writes\":%llu,\"finals\":%llu,\"identity\":%s}",
+    static char buffer[448];
+    std::snprintf(buffer,sizeof buffer,"{\"owned\":%s,\"page\":%d,\"screen\":%d,\"cursor\":%d,\"top\":%d,\"items\":%d,\"entries\":%llu,\"draws\":%llu,\"writes\":%llu,\"finals\":%llu,\"handoff\":%d,\"pending_state\":%d,\"identity\":%s}",
         owned?"true":"false",(int)page,screen,cursor,top,(int)list.size(),(unsigned long long)entries,(unsigned long long)draws,(unsigned long long)writes,
-        (unsigned long long)finals,identity_checked?(identity_ok?"true":"false"):"null");
+        (unsigned long long)finals,(int)handoff,pending_state,identity_checked?(identity_ok?"true":"false"):"null");
     return buffer;
 }
 
@@ -956,4 +1384,6 @@ PSX_MOD_CONSTRUCTOR(register_ttk_game_menu) {
     // background 0x800220f4 and the pause menu dispatch 0x80025fb0.
     for(uint32_t a:{0x800220f4u,0x80025fb0u})
         psx_mod_register_function_entry_plugin("ttk.game.menu",a,[](CPUState* cpu,uint32_t){ttk::game_menu_tick(cpu);});
+    // D19J: the frontend tick itself, before its pad read and state dispatch.
+    psx_mod_register_function_entry_plugin("ttk.game.menu",0x80022324u,[](CPUState* cpu,uint32_t){ttk::title_entry(cpu);});
 }

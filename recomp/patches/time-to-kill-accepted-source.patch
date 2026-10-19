@@ -189,10 +189,10 @@ index e4e6f307..e44860cf 100644
  /* Right-side vertical volume bar (percent clamped 0..100). */
  void host_osd_show_volume(int percent, int duration_ms);
 diff --git a/runtime/include/mod_plugins.h b/runtime/include/mod_plugins.h
-index a1e4645e..cec1995d 100644
+index a1e4645e..5e812d9c 100644
 --- a/runtime/include/mod_plugins.h
 +++ b/runtime/include/mod_plugins.h
-@@ -153,6 +153,83 @@ enum {
+@@ -153,6 +153,89 @@ enum {
      PSX_MOD_FRAME_INTERPOLATION_MOTION_ADAPTIVE = 1
  };
  int psx_mod_set_frame_interpolation_blend(uint32_t blend_mode);
@@ -226,6 +226,12 @@ index a1e4645e..cec1995d 100644
 + * value it last saw to drop host state (camera, pending input) that described
 + * the guest state before the load. */
 +uint32_t psx_mod_savestate_loads(void);
++/* A plugin's own guest call (psx_dispatch_call on its saved stack, returning
++ * to a sentinel) is running: no state is saved or loaded until it returns,
++ * since the save/load longjmp would abandon the plugin's host frames and
++ * leave the guest inside the call. Begin/end nest; emulation thread only. */
++void psx_mod_host_call_begin(void);
++void psx_mod_host_call_end(void);
 +int psx_mod_replay_begin(void);
 +int psx_mod_replay_end(int capture);
 +int psx_mod_replay_active(void);
@@ -7153,10 +7159,10 @@ index 00000000..da318805
 +
 +#endif
 diff --git a/runtime/src/savestate.c b/runtime/src/savestate.c
-index 7f191c99..2746ea0b 100644
+index 7f191c99..102f6fba 100644
 --- a/runtime/src/savestate.c
 +++ b/runtime/src/savestate.c
-@@ -62,6 +62,10 @@ static int      s_load_pending = -1;
+@@ -62,6 +62,15 @@ static int      s_load_pending = -1;
  static int      s_load_completed = 0;
  static int      s_load_failed = 0;
  static uint32_t s_status_generation = 0;
@@ -7164,10 +7170,32 @@ index 7f191c99..2746ea0b 100644
 + * guest state it describes (psx_mod_savestate_loads). */
 +static uint32_t s_loads_applied = 0;
 +uint32_t psx_mod_savestate_loads(void) { return s_loads_applied; }
++/* Plugin guest calls in progress (psx_mod_host_call_begin/end): save and load
++ * wait for them, as their host frames cannot be unwound by the longjmp. */
++static int s_host_calls = 0;
++void psx_mod_host_call_begin(void) { ++s_host_calls; }
++void psx_mod_host_call_end(void) { if (s_host_calls > 0) --s_host_calls; }
  static int      s_status_pending = 0;
  static int      s_status_last_ok = 0;
  static int      s_status_last_load = 0;
-@@ -1178,6 +1182,7 @@ void savestate_poll(CPUState* cpu, uint32_t resume_pc) {
+@@ -199,7 +208,7 @@ static int savestate_active_capture_boundary_ok(const CPUState* cpu,
+ void savestate_poll_irq_return(CPUState* cpu, uint32_t resume_pc)
+ {
+     int slot;
+-    if (s_save_pending < 0 || !cpu ||
++    if (s_save_pending < 0 || !cpu || s_host_calls > 0 ||
+         !savestate_flat_context_ok(resume_pc, cpu->gpr[29]) ||
+         !psx_scheduler_disk_snapshot_ready())
+         return;
+@@ -902,6 +911,7 @@ uint32_t savestate_last_save_pc(void) {
+ 
+ void savestate_poll(CPUState* cpu, uint32_t resume_pc) {
+     if (s_save_pending < 0 && s_load_pending < 0) return;   /* hot path: nothing staged */
++    if (s_host_calls > 0) return;   /* inside a plugin's guest call: wait */
+ 
+     if (s_save_pending >= 0) {
+         int slot = s_save_pending;
+@@ -1178,6 +1188,7 @@ void savestate_poll(CPUState* cpu, uint32_t resume_pc) {
              s_status_pending = 0;
              s_status_last_ok = 1;
              s_status_generation++;

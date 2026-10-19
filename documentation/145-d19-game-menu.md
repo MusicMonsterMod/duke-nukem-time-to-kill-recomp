@@ -81,7 +81,9 @@ On slot 8 the game draws no menu and reads no menu input; the attract demo
   cursor and its own return value (7, 4, 11; title also clears the
   controller index `0x800be56c`). They return OPTIONS (9 / 2), which becomes
   ours again with that item highlighted.
-- Back: the original's return (10 / 12) with the cursor reset.
+- Back: the original's return (10 / 12) with the cursor reset. Since D19J
+  the title goes back to our main menu (sub-screen 12, [note 150](150-d19j-title-menu.md)) and
+  gameplay to the D19H pause list.
 - Draw: from frame_replay's composition (`0x80026164`) and loading-logo
   (`0x80025554`) entry hooks on live frames, before the D17 capture, at most
   once per image (`0x800bdbd0`). Replays redraw the captured packets.

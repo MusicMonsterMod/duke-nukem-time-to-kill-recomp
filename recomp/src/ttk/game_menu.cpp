@@ -35,6 +35,8 @@
 // D19M: QUIT GAME at the end of both lists asks QUIT GAME? (NO first); YES
 // sends the window's own close event, so the program shuts down exactly as
 // when the window is closed (documentation/149-d19m-quit-game.md).
+// D19P: the death list's QUIT reads QUIT TO MENU (asking QUIT TO MENU?);
+// it still gives up through the game over screen to the title.
 //
 // D19J: the title main menu (frontend state 7), CHOOSE DIFFICULTY LEVEL (8),
 // TWO PLAYER OPTIONS (8) and CHOOSE CHARACTER (9) are ours too, plus QUIT GAME.
@@ -79,7 +81,11 @@ const Guard guards[]={
     {0x80086174u,0x308u,"a51470c88430cd8b1d31be722968c6f26c74b2b8876ccf75f4a970218049f41a"},  // pause OPTIONS handler
     {0x8008b210u,0x3e8u,"4a2ed47060bc5ca37cc486f180c0a3f949b941d9ad1e0979a6ab7f480ed45cc9"},     // glyph, width and text
     {0x8008b678u,0x40u,"226e8fcb4f143545c487c091f96ca9a853daa3a332e5ab5ad9e66cd4038c188a"},    // sprite draw entry
-    {0x800c3f38u,0x3f8u,"ff6caefc38543ee771b477ac72c9c5a6ad95214c47a0a8ea6846489ed58f2a37"},   // font glyph tables (from 0x800c3f38: 0x800c3f32 and 0x800c3f34 are menu variables)
+    // Font glyph tables from 0x800c3f38 (0x800c3f32 and 0x800c3f34 are menu
+    // variables). D19P: 0x800c3f94 is the selected item (D08A6), not guarded:
+    // a state with an item selected failed the check and kept the original menus.
+    {0x800c3f38u,0x5cu,"a73396cc61ae5213b2ebcbc29e8300c06854a58ada6ef55179341636c2f926ee"},
+    {0x800c3f98u,0x398u,"413e536637b8c40390858d4a009541249191487547b241c66544625277c9fafd"},
     {0x800c43b4u,0xf0u,"9ea07ba25cff15a7da9de43768b28d70b836cf13269c705e70e6730b55395b3b"},   // sprite records and font info
     {0x800c60f4u,0x400u,"1298dbf2ac90b8efff35a60c7ec93bc3dd6897d1434ec84ba5b1871093b09a7a"},  // text table
     // D19H: the pause and death screens our lists stand in for.
@@ -469,7 +475,7 @@ void build_list(Page p) {
         list.push_back({"CONTINUE",Act::Continue});
         list.push_back({"LOAD GAME",Act::Load});
         list.push_back({"RESTART LEVEL",Act::Restart});
-        list.push_back({"QUIT",Act::Quit});
+        list.push_back({"QUIT TO MENU",Act::Quit}); // D19P: QUIT, beside QUIT GAME
     }
     list.push_back({"QUIT GAME",Act::QuitGame}); // D19M: closes the program
 }
@@ -501,12 +507,13 @@ void act_now(Act a) {
 }
 // The original's prompt for each choice: CONTINUE (REPLAY) is confirmed as
 // the original asks (YES first); RESTART, MAIN MENU, QUIT and QUIT GAME
-// start on NO. QUIT GAME? has no text id: -1.
+// start on NO. QUIT GAME? and QUIT TO MENU? have no text id: -1 and -2.
 int ask_heading() {
     switch(ask_act) {
     case Act::Continue: return challenge() ? text_replay : text_continue;
     case Act::Restart: return text_restart;
     case Act::QuitGame: return -1;
+    case Act::Quit: return challenge() ? text_quit : -2; // D19P: GIVE UP keeps REALLY QUIT?
     default: return text_quit;
     }
 }
@@ -833,7 +840,7 @@ void draw_brief(Guest& g,const Geometry& geo) {
 }
 void draw_ask(Guest& g,const Geometry& geo) {
     const int heading=ask_heading();
-    if(heading<0) g.say("QUIT GAME?",0,-40,font_menu|centre);
+    if(heading<0) g.say(heading==-1 ? "QUIT GAME?" : "QUIT TO MENU?",0,-40,font_menu|centre);
     else g.say_id(heading,0,-40,font_menu|centre);
     g.say_id(text_yes,0,-6,font_menu|centre|(cursor==0?blue:0));
     g.say_id(text_no,0,13,font_menu|centre|(cursor==1?blue:0));

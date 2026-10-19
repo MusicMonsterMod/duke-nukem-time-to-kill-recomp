@@ -1,5 +1,22 @@
 # Next-session handoff
 
+## 2026-10-19 - D19P accepted
+
+- User: "lock it in. close it out! it's great" D19P Done; executable
+  `959bc0d76db2f1af64b666e84a9a57046394cea10ac36305877f3bfc9594fa63` is the
+  regression baseline. Queued: D07E, D19O, D19K, D19L, D19G, D19F, D19N,
+  D08AA, D24D, D26G.
+
+## 2026-10-19 - D19P death screen QUIT TO MENU (Needs playtest)
+
+- Death list QUIT is now QUIT TO MENU, asking QUIT TO MENU?; YES still goes
+  through the game over screen to the title. Fixed on the way: the D19
+  identity guard covered the selected item `0x800c3f94`, so Modernized menus
+  could stay original for a session. Executable
+  `959bc0d76db2f1af64b666e84a9a57046394cea10ac36305877f3bfc9594fa63`,
+  [note 153](153-d19p-quit-to-menu.md). Not yet verified: YES in level 1 and
+  first person, the user's playtest.
+
 ## 2026-10-19 - D22D accepted
 
 - User: "it's perfect!!" D22D Done; executable

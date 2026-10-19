@@ -976,10 +976,10 @@ the same way on every menu screen:
   your confirmed settings, the same as closing the window. Challenge stages
   have no RESTART LEVEL; LOAD GAME is there in one-player games, as in the
   original.
-- **Death screen:** CONTINUE, LOAD GAME, RESTART LEVEL, QUIT and QUIT GAME
-  under the continues left (challenge stages: REPLAY LEVEL, GIVE UP and QUIT
-  GAME). QUIT gives up to the game over screen; QUIT GAME closes the
-  program. CONTINUE asks CONFIRM CONTINUE (YES highlighted), the others ask
+- **Death screen:** CONTINUE, LOAD GAME, RESTART LEVEL, QUIT TO MENU and
+  QUIT GAME under the continues left (challenge stages: REPLAY LEVEL, GIVE UP
+  and QUIT GAME). QUIT TO MENU asks QUIT TO MENU? and gives up through the
+  game over screen to the title menu; QUIT GAME closes the program. CONTINUE asks CONFIRM CONTINUE (YES highlighted), the others ask
   YES / NO with NO highlighted. Escape does nothing on the list and cancels a prompt.
 - **Escape never quits.** Inside sub-screens and prompts Escape goes back one
   level. Escape on the main menu and PRESS START does nothing (QUIT GAME is

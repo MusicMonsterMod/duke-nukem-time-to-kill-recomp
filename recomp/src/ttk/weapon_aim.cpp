@@ -35,7 +35,7 @@ void aim_render_prepare() {
     if(!beam_origins) beam_origins=psx_mod_alloc_guest_memory(96*16,16);
 }
 static uint32_t beam_shot_sp;
-static uint64_t beam_sequence, beam_epoch;
+static uint64_t beam_epoch;
 static bool beam_pending;
 static unsigned view_beams;
 static bool view_mode() {
@@ -169,29 +169,85 @@ static void observe(CPUState* cpu,uint32_t address) {
         std::fprintf(stderr,"ttk-flight projectile=%08x type=%u ra=%08x from=%.0f,%.0f,%.0f to=%.0f,%.0f,%.0f direction=%.0f,%.0f,%.0f\n",a,psx_mod_read_byte(a+0x30),cpu->gpr[31],p[0],p[1],p[2],q[0],q[1],q[2],d[0],d[1],d[2]);
     }
 }
+// D22D: the beam updater 0x800733C8 damages only the actor in projectile +0x14,
+// through the type's handler table 0x800C5ECC, and only while no wall or other
+// actor stands in between; a beam without one never damages. The constructor
+// 0x80073220 fills +0x14 from the original acquisition 0x800587C8: actors in
+// a room's targetable list (room table *0x800DA454, 0x58 bytes, count
+// *0x800DA47C, list head +0x4C, node +4 next / +8 actor), closer than the
+// range at 0x800C3B58 (squared) and in a cone round Duke's aim (0x80 base,
+// 0x200 with the upgrade's bit 8 = several beams).
+static bool targetable(uint32_t actor) {
+    if(actor<0x80010000u || actor>0x801ffc00u || (actor&3) || actor==player || (psx_mod_read_word(actor)&2))return false;
+    const uint32_t rooms=psx_mod_read_word(0x800da454),count=psx_mod_read_word(0x800da47c);
+    const int room=(int8_t)psx_mod_read_byte(actor+0x2e);
+    if(rooms<0x80010000u || rooms>0x801f0000u || count>256 || room<0 || unsigned(room)>=count)return false;
+    uint32_t node=psx_mod_read_word(rooms+0x58*room+0x4c);
+    for(unsigned i=0;node && i<64;++i) {
+        if(node<0x80010000u || node>0x801ffff0u || (node&3))return false;
+        if(psx_mod_read_word(node+8)==actor)return true;
+        node=psx_mod_read_word(node+4);
+    }
+    return false;
+}
+static bool beam_reach(uint32_t actor) {
+    double a[3],b[3],d=0;read_vector(player+4,a);read_vector(actor+4,b);
+    for(int i=0;i<3;++i)d+=(a[i]-b[i])*(a[i]-b[i]);
+    return d<(double)(int32_t)psx_mod_read_word(0x800c3b58);
+}
+static uint32_t beam_target, beam_displaced;
+static double beam_eye[3], beam_forward[3];
+static unsigned beam_locks, beam_extra_locks;
+// The upgrade's extra beams keep the original's other locks within its own
+// 45-degree cone, measured round the view instead of Duke's aim vector.
+static bool beam_extra_ok(uint32_t actor) {
+    if(!targetable(actor) || !beam_reach(actor))return false;
+    double d[3];read_vector(actor+0xec,d);
+    for(int i=0;i<3;++i)d[i]-=beam_eye[i];
+    if(!normal(d))return false;
+    double dot=0;for(int i=0;i<3;++i)dot+=d[i]*beam_forward[i];
+    return dot>=std::cos(45.0*3.141592653589793/180.0);
+}
 // At the beam constructor's verified post-allocation list-advance call, keep
-// the original damage/line collision updater but detach its implicit actor lock.
-// Each projectile owns a safe physical origin for its short visual lifetime.
+// the original damage/line collision updater. The first beam locks onto the
+// targetable actor under the crosshair (D22D) instead of the original
+// acquisition, or none (a miss). Each projectile owns a safe physical origin
+// for its short visual lifetime.
+static bool beam_extra_pending;
 static void beam_finish(CPUState* cpu) {
     const auto& f=input_snapshot(Context::Gameplay);
-    const uint32_t object=cpu->gpr[16];
-    if(!beam_pending || cpu->gpr[31]!=0x80073380 || cpu->gpr[29]!=beam_shot_sp-0x110 ||
-       cpu->gpr[5]!=cpu->gpr[29]+0x10 || cpu->gpr[23]!=player || cpu->gpr[17]!=0 ||
-       !f.active || f.sequence!=beam_sequence || f.epoch!=beam_epoch ||
+    const uint32_t object=cpu->gpr[16],index=cpu->gpr[17];
+    const bool first=beam_pending && index==0, extra=beam_extra_pending && index>0 && index<3;
+    if((!first && !extra) || cpu->gpr[31]!=0x80073380 || cpu->gpr[29]!=beam_shot_sp-0x110 ||
+       cpu->gpr[5]!=cpu->gpr[29]+0x10 || cpu->gpr[23]!=player ||
+       !f.active || f.epoch!=beam_epoch ||
        !input_modernized() || !view_mode() || busy || g_precise_mode || g_ls_mode || g_psx_call_bail ||
        object<0x800da978 || object>=0x800dcd78 || (object-0x800da978)%0x60 ||
        psx_mod_read_word(object+0x10)!=player || psx_mod_read_byte(object+0x30)!=15 ||
        psx_mod_read_word(object+0x18)!=player+0x80c || !shot_ready() || !identity())return;
     beam_pending=false;
     if(!beam_origins)beam_origins=psx_mod_alloc_guest_memory(96*16,16);
-    if(!beam_origins)return;
+    if(!beam_origins) {beam_extra_pending=false;return;}
     const auto origin=beam_origins+16*((object-0x800da978)/0x60);
     write_vector(origin,last_origin);
-    psx_mod_write_word(object+0x14,0);psx_mod_write_word(object+0x18,origin);
-    // Free view emits the original no-acquisition single beam. Assistance has
-    // already passed both cover checks and adjusted the direction if requested.
-    cpu->gpr[20]=1;++view_beams;
-    if(diagnostics())std::fprintf(stderr,"ttk-view-beam projectile=%08x origin=%.0f,%.0f,%.0f\n",object,last_origin[0],last_origin[1],last_origin[2]);
+    const uint32_t original=psx_mod_read_word(object+0x14),count=cpu->gpr[20];
+    uint32_t lock=0;
+    if(first) {
+        lock=targetable(beam_target) && beam_reach(beam_target)?beam_target:0;
+        beam_displaced=original;beam_target=lock;
+        // Only the upgrade (several acquired targets) keeps its extra beams.
+        beam_extra_pending=count>1;
+        if(!beam_extra_pending)cpu->gpr[20]=1;
+        ++view_beams;if(lock)++beam_locks;
+    } else {
+        // An extra lock on the crosshair actor takes the original first lock
+        // instead, so no actor is hit twice by one shot.
+        lock=original==beam_target?beam_displaced:original;
+        if(lock==beam_target || !beam_extra_ok(lock))lock=0;
+        if(lock)++beam_extra_locks;
+    }
+    psx_mod_write_word(object+0x14,lock);psx_mod_write_word(object+0x18,origin);
+    if(diagnostics())std::fprintf(stderr,"ttk-view-beam projectile=%08x index=%u count=%u lock=%08x original=%08x origin=%.0f,%.0f,%.0f\n",object,index,count,lock,original,last_origin[0],last_origin[1],last_origin[2]);
 }
 static void aim_hook_body(CPUState* cpu,uint32_t address) {
     if(address==0x8001ca4c) {beam_finish(cpu);return;}
@@ -211,7 +267,7 @@ static void aim_hook_body(CPUState* cpu,uint32_t address) {
     const bool continuous=(ra==0x8003cac8 || ra==0x80058b80) &&
         (cpu->gpr[7]==9 || cpu->gpr[7]==10 || cpu->gpr[7]==27) && origin==player+0x80c && cpu->gpr[6]==player+0x144;
     if(!gun && !thrown && !continuous)return;
-    beam_pending=false;
+    beam_pending=beam_extra_pending=false;
     busy=true;
     double eye[3],forward[3],target[3],muzzle[3],body[3],safe[3],ray_start[3];
     read_vector(camera+0x14,eye);read_vector(continuous?player+0x80c:player+0xbc,muzzle);
@@ -224,7 +280,8 @@ static void aim_hook_body(CPUState* cpu,uint32_t address) {
     // The physical projectile and body-to-muzzle check still enforce all cover.
     double depth=0;for(int i=0;i<3;++i)depth+=(body[i]-eye[i])*forward[i];
     for(int i=0;i<3;++i)ray_start[i]=eye[i]+forward[i]*std::clamp(depth,0.0,16000.0);
-    ok=ok && trace(cpu,ray_start,target,target,kind);
+    uint32_t view_actor=0;
+    ok=ok && trace(cpu,ray_start,target,target,kind,&view_actor);
     // Keep the physical origin. Guard a muzzle protruding through thin cover
     // with a body-to-muzzle segment before committing a new direction.
     int cover=0;
@@ -264,7 +321,11 @@ static void aim_hook_body(CPUState* cpu,uint32_t address) {
         write_vector(origin,muzzle);write_vector(vector,last_direction);cpu->gpr[6]=vector;
         if(continuous && cpu->gpr[7]==10) {
             const auto& f=input_snapshot(Context::Gameplay);
-            beam_shot_sp=sp;beam_sequence=f.sequence;beam_epoch=f.epoch;beam_pending=true;
+            beam_shot_sp=sp;beam_epoch=f.epoch;beam_pending=true;
+            // D22D: the beam's lock is the actor under the crosshair, or the
+            // assisted original lock once both of its cover checks passed.
+            beam_target=last_assisted?psx_mod_read_word(player+0x288):view_actor;
+            std::copy(eye,eye+3,beam_eye);std::copy(forward,forward+3,beam_forward);
         }
         ++shots;if(last_assisted)++assisted_shots;last_kind=cover?4:(last_assisted?2:kind);last_weapon=cpu->gpr[7];
         if(diagnostics())std::fprintf(stderr,"ttk-aim-shot weapon=%d target=%.0f,%.0f,%.0f direction=%.0f,%.0f,%.0f cover=%d\n",last_weapon,target[0],target[1],target[2],last_direction[0],last_direction[1],last_direction[2],cover);
@@ -278,7 +339,7 @@ static void hook(CPUState* cpu,uint32_t address) {
 }
 const char* aim_debug_json() {
     static char out[1024];
-    std::snprintf(out,sizeof out,"{\"close_retractions\":%u,\"assisted_shots\":%u,\"hidden_markers\":%u,\"last_assisted\":%s,\"reticle\":%s,\"shots\":%u,\"rejected\":%u,\"queries\":%u,\"identity_calls\":%llu,\"identity_checks\":%llu,\"weapon\":%d,\"hit_kind\":%d,\"origin\":[%.0f,%.0f,%.0f],\"target\":[%.0f,%.0f,%.0f],\"direction\":[%.0f,%.0f,%.0f]}",close_retractions,assisted_shots,hidden_markers,last_assisted?"true":"false",ttk_aim_reticle()?"true":"false",shots,rejected,queries,(unsigned long long)aim_identity_calls,(unsigned long long)aim_identity_checks,last_weapon,last_kind,last_origin[0],last_origin[1],last_origin[2],last_target[0],last_target[1],last_target[2],last_direction[0],last_direction[1],last_direction[2]);return out;
+    std::snprintf(out,sizeof out,"{\"beam_locks\":%u,\"beam_extra_locks\":%u,\"close_retractions\":%u,\"assisted_shots\":%u,\"hidden_markers\":%u,\"last_assisted\":%s,\"reticle\":%s,\"shots\":%u,\"rejected\":%u,\"queries\":%u,\"identity_calls\":%llu,\"identity_checks\":%llu,\"weapon\":%d,\"hit_kind\":%d,\"origin\":[%.0f,%.0f,%.0f],\"target\":[%.0f,%.0f,%.0f],\"direction\":[%.0f,%.0f,%.0f]}",beam_locks,beam_extra_locks,close_retractions,assisted_shots,hidden_markers,last_assisted?"true":"false",ttk_aim_reticle()?"true":"false",shots,rejected,queries,(unsigned long long)aim_identity_calls,(unsigned long long)aim_identity_checks,last_weapon,last_kind,last_origin[0],last_origin[1],last_origin[2],last_target[0],last_target[1],last_target[2],last_direction[0],last_direction[1],last_direction[2]);return out;
 }
 }
 static int crosshair_forced=-1; // -1 follow env; 0/1 override (I key, EDuke-style)

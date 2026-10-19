@@ -928,8 +928,12 @@ remain. No target leading or gravity compensation is added.
 First-map checks now cover the pistol, shotgun, rifle, Gatling, RPG, freezer,
 crossbow, knife/axe, pipe bomb, grenade, dynamite, flamethrower and energy weapon.
 RPG flight and explosions follow pitched view aim. Throws keep their original
-charge, speed, gravity and fuse. Energy uses the view direction instead of an
-implicit actor lock; optional assistance still requires visibility. Upgraded
+charge, speed, gravity and fuse. The **energy weapon** (key 7) locks onto the
+enemy under the crosshair and damages it, within its original reach (about
+6000 units); a beam that misses does no damage, as in the original without a
+lock. The upgraded Energy Weapon also zaps up to two more enemies within 45
+degrees of your view, as the original upgrade does (D22D). Optional
+assistance still requires visibility. Upgraded
 variants have private dispatch-fixture coverage. Natural campaign acquisition,
 other eras and your aiming feel still need playtesting. The crosshair disappears
 when holstered, released or outside supported states/maps.

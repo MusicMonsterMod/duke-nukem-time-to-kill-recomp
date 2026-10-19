@@ -1,5 +1,31 @@
 # Next-session handoff
 
+## 2026-10-19 - D22D accepted
+
+- User: "it's perfect!!" D22D Done; executable
+  `3442279bb8cdde64dbb8d7239586b7f769d5aa311dfae372d61390d1e374ac98` is the
+  regression baseline. New Todo D19P (death screen: QUIT becomes QUIT TO
+  MENU beside QUIT GAME). Queued: D19P, D07E, D19O, D19K, D19L, D19G, D19F,
+  D19N, D08AA, D24D, D26G.
+
+## 2026-10-19 - D22D energy weapon damages enemies (Needs playtest)
+
+- Cause: a D07C Modernized regression. The beam updater `0x800733C8` damages
+  only the actor in projectile `+0x14`, and D07C cleared it on every
+  view-aimed beam. Vanilla (same save, same enemy) locked and killed it; the
+  Modernized baseline never damaged it.
+- Fix: the first beam locks onto the targetable actor under the crosshair,
+  within the original reach (6000), or none (a miss); the upgrade's extra
+  beams keep the original's other locks inside 45 degrees of the view. The
+  completion no longer races the host input sequence. Executable
+  `3442279bb8cdde64dbb8d7239586b7f769d5aa311dfae372d61390d1e374ac98`,
+  [note 152](152-d22d-energy-beam.md).
+- Lab: levels 1 and 0, two enemy types, first and third person, kills; 8
+  degrees off is a miss; upgraded extra beam; Vanilla unchanged.
+  `ttk-aim-test` links again with a D22D case; controls, input, Python 146
+  OK. New Todo D07E (stale-lease shots use the original auto-aim; `original`
+  weapon aim keeps a stale aim vector). Not yet verified: the user's playtest.
+
 ## 2026-10-19 - D17V accepted
 
 - User: "total victory. i even played it on strong and i love it." D17V Done;

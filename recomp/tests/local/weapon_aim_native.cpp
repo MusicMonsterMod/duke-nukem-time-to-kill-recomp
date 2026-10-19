@@ -15,7 +15,7 @@ static unsigned char ram[0x200000],scratch[1024];
 static PSXModFunctionEntryCallback callback;
 static bool ready=true,modern=true,cover=false,jet_ready=false,swim_ready=false;
 static unsigned writes;
-static bool actor_visible, block_actor, block_muzzle, close_actor, behind_cover;
+static bool actor_visible, block_actor, block_muzzle, close_actor, behind_cover, ray_actor;
 static unsigned char& byte(uint32_t a) {return (a&0x1ffffc00)==0x1f800000?scratch[a&1023]:ram[a&0x1fffff];}
 extern "C" uint8_t psx_mod_read_byte(uint32_t a){return byte(a);}
 extern "C" uint16_t psx_mod_read_half(uint32_t a){return byte(a)|(byte(a+1)<<8);}
@@ -26,6 +26,8 @@ extern "C" void psx_mod_write_byte(uint32_t a,uint8_t v){byte(a)=v;++writes;++g_
 extern "C" void psx_mod_write_half(uint32_t a,uint16_t v){psx_mod_write_byte(a,v);psx_mod_write_byte(a+1,v>>8);}
 extern "C" void psx_mod_write_word(uint32_t a,uint32_t v){psx_mod_write_half(a,v);psx_mod_write_half(a+2,v>>16);}
 extern "C" uint32_t psx_mod_alloc_guest_memory(uint32_t n,uint32_t){static uint32_t next=0x801e0000;auto a=next;next+=(n+15)&~15;return a;}
+extern "C" void psx_mod_host_call_begin(void){}
+extern "C" void psx_mod_host_call_end(void){}
 extern "C" int psx_mod_register_function_entry_plugin(const char*,uint32_t a,PSXModFunctionEntryCallback cb){if(a==0x8003c500)callback=cb;return 1;}
 namespace ttk {static InputFrame f;const InputFrame& input_snapshot(Context){return f;}uint64_t input_host_frame(){return f.sequence;}bool input_modernized(){return modern;}bool movement_ready(){return ready;}bool locomotion_input_ready(){return false;}bool jetpack_input_ready(){return modern && jet_ready;}bool swim_weapon_ready(){return modern && swim_ready;}bool player_identity_ready(){return ready;}bool frame_trace_on(){return false;}void frame_trace_account(uint32_t,long){}}
 extern "C" void psx_dispatch_call(CPUState* c,uint32_t address,uint32_t ret) {
@@ -46,6 +48,7 @@ extern "C" void psx_dispatch_call(CPUState* c,uint32_t address,uint32_t ret) {
         double disc=bb*bb-4*aa*cc;
         if(aa>0 && disc>=0){double near=(-bb-std::sqrt(disc))/(2*aa);if(near>=0 && near<t){t=near;close_hit=0x800e0000;}}
     }
+    if(ray_actor && to[2]==16384){t=500.0/16384;close_hit=0x800e0000;}
     c->gpr[2]=close_hit?close_hit:actor_visible && to[2]==500 ? ((block_actor || (block_muzzle && from[0]==100))?1:0x800e0000) : (t<1?1:0);psx_mod_write_word(c->gpr[7],2);
     for(int i=0;i<3;++i)psx_mod_write_word(psx_mod_read_word(sp+16)+4*i,std::lround(from[i]+t*(to[i]-from[i])));
     c->gte_data[0]=0xdeadbeef; // copying CPU must isolate query temporaries
@@ -188,21 +191,50 @@ int main(int argc,char**argv) {
     g_ls_mode=0;modern=false;callback(&marker,0x8002bc18);assert(writes==0); // Vanilla keeps the dot
     modern=true;pokeb(0x80033b00);writes=0;callback(&marker,0x8002bc18);assert(writes==0); // changed marker code
     pokeb(0x80033b00);callback(&marker,0x8002bc18);assert(hidden());
-    // Authenticated energy constructor completion: preserve physical origin,
-    // eliminate implicit retargeting and keep only the free-view single beam.
+    // Authenticated energy constructor completion: preserve physical origin.
+    // D22D: the first beam locks onto the targetable actor under the crosshair
+    // (the updater damages only +0x14), never the original acquisition.
     ready=false;jet_ready=true; // beam completion must also accept flight
+    psx_mod_write_word(0x800e0000,1);psx_mod_write_byte(0x800e002e,1);
+    psx_mod_write_word(0x800e0004,20);psx_mod_write_word(0x800e0008,0);psx_mod_write_word(0x800e000c,500);
+    psx_mod_write_word(0x800da454,0x801c0000);psx_mod_write_word(0x800da47c,4);
+    psx_mod_write_word(0x801c0058+0x4c,0x801c1000);psx_mod_write_word(0x801c1004,0);psx_mod_write_word(0x801c1008,0x800e0000);
+    psx_mod_write_word(0x800c3b58,36000000);
     c.gpr[31]=0x80058b80;c.gpr[7]=10;c.gpr[5]=p+0x80c;c.gpr[6]=p+0x144;
     psx_mod_write_word(p+0x80c,100);psx_mod_write_word(p+0x810,0);psx_mod_write_word(p+0x814,0);
-    ttk::f.active=true;callback(&c,0x8003c500);
-    assert(c.gpr[5]!=p+0x80c && psx_mod_read_word(p+0x80c)==100);
-    CPUState beam{};beam.gpr[29]=sp-0x110;beam.gpr[5]=beam.gpr[29]+0x10;
-    beam.gpr[16]=0x800da978;beam.gpr[23]=p;beam.gpr[20]=3;
-    psx_mod_write_word(0x800da988,p);psx_mod_write_byte(0x800da9a8,15);
-    psx_mod_write_word(0x800da990,p+0x80c);psx_mod_write_word(0x800da98c,0x800e0000);
-    writes=0;beam.gpr[31]=0x8007337c;callback(&beam,0x8001ca4c);assert(writes==0);
-    beam.gpr[31]=0x80073380;callback(&beam,0x8001ca4c);
-    assert(psx_mod_read_word(0x800da98c)==0 && psx_mod_read_word(0x800da990)!=p+0x80c && beam.gpr[20]==1);
-    writes=0;callback(&beam,0x8001ca4c);assert(writes==0); // consumed lease
+    ttk::f.active=true;
+    CPUState beam{};beam.gpr[29]=sp-0x110;beam.gpr[5]=beam.gpr[29]+0x10;beam.gpr[16]=0x800da978;beam.gpr[23]=p;
+    // shot: fire with the crosshair ray ending on the actor or not; object: the
+    // original constructor's projectile with its own lock and acquisition count.
+    auto shot=[&](bool on_actor){ray_actor=on_actor;c.gpr[5]=p+0x80c;c.gpr[6]=p+0x144;callback(&c,0x8003c500);ray_actor=false;
+        assert(c.gpr[5]!=p+0x80c && psx_mod_read_word(p+0x80c)==100);};
+    auto object=[&](unsigned index,uint32_t lock,unsigned count){beam.gpr[17]=index;beam.gpr[20]=count;
+        psx_mod_write_word(0x800da988,p);psx_mod_write_byte(0x800da9a8,15);
+        psx_mod_write_word(0x800da990,p+0x80c);psx_mod_write_word(0x800da98c,lock);};
+    auto finish=[&](){beam.gpr[31]=0x80073380;callback(&beam,0x8001ca4c);return psx_mod_read_word(0x800da98c);};
+    shot(true);object(0,0x800e1000,1);
+    writes=0;beam.gpr[31]=0x8007337c;callback(&beam,0x8001ca4c);assert(writes==0); // foreign list advance
+    assert(finish()==0x800e0000 && psx_mod_read_word(0x800da990)!=p+0x80c && beam.gpr[20]==1);
+    object(0,0,1);writes=0;callback(&beam,0x8001ca4c);assert(writes==0); // consumed lease
+    shot(false);object(0,0x800e0000,1);assert(finish()==0); // a miss: no auto-lock
+    psx_mod_write_word(0x800e0000,3);shot(true);object(0,0x800e0000,1);assert(finish()==0); // dead
+    psx_mod_write_word(0x800e0000,1);
+    psx_mod_write_word(0x800c3b58,400*400);shot(true);object(0,0x800e0000,1);assert(finish()==0); // out of reach
+    psx_mod_write_word(0x800c3b58,36000000);
+    psx_mod_write_word(0x801c1008,0x800e1000);shot(true);object(0,0x800e0000,1);assert(finish()==0); // not targetable
+    psx_mod_write_word(0x801c1008,0x800e0000);
+    // Upgrade (several acquired targets): the crosshair beam first, then the
+    // original's extra locks inside 45 degrees of the view; the crosshair
+    // actor's extra lock becomes the displaced original first lock.
+    shot(false);object(0,0x800e0000,3);assert(finish()==0 && beam.gpr[20]==3);
+    object(1,0x800e0000,3);assert(finish()==0x800e0000);
+    psx_mod_write_word(0x800e00ec,4000);psx_mod_write_word(0x800e00f4,1000); // 76 degrees off the view
+    object(2,0x800e0000,3);assert(finish()==0);
+    psx_mod_write_word(0x800e00ec,20);psx_mod_write_word(0x800e00f4,500);
+    shot(true);object(0,0x800e1000,2);assert(finish()==0x800e0000 && beam.gpr[20]==2);
+    object(1,0x800e0000,2);assert(finish()==0); // displaced 0x800e1000 is not targetable: no double hit
+    object(3,0x800e0000,3);writes=0;callback(&beam,0x8001ca4c);assert(writes==0); // never a fourth beam
+    std::puts("PASS: D22D energy beam locks the crosshair actor; misses, dead, reach, list and upgrade extras");
     setenv("DNTTK_WEAPON_AIM","original",1);seed();writes=0;callback(&c,0x8003c500);assert(writes==0);
     std::puts("weapon aim guards, parallax, muzzle obstruction and original fallback passed");
 }

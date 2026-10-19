@@ -103,7 +103,7 @@ Do not infer a weapon's identity or acquisition from changing this byte.
 | 8 / 8 | View launch direction; original projectile handling | Synthetic path coverage; trajectory/damage playtest required |
 | 11 / 13 | View launch direction; original projectile handling | Synthetic path coverage; bounce/owner collision behavior not certified |
 | 12 / 4; 13 / 11 | Original, no modern crosshair in the final candidate | Experimental launch-only adaptation withdrawn: flight/impact and special-state chain not verified |
-| 9 / 14; 10 / 15 | Original, no modern crosshair | Separate effect/beam paths; not certified as modern hitscan |
+| 9 / 14; 10 / 15 | Original, no modern crosshair | Separate effect/beam paths; not certified as modern hitscan (D22D: the energy beam now locks the crosshair actor, see below) |
 | 0–3, 14, upgraded/time-era variants, enemies | Original | No modern aiming coverage claim |
 
 The beam branch `0x80073220` invokes target acquisition `0x800587C8` and stores a
@@ -113,6 +113,13 @@ to disable auto-aim. It is therefore explicitly excluded. The type-9 transient
 rays seen in target acquisition are not evidence of a damaging hitscan weapon.
 **No damaging instantaneous hitscan/beam path is accepted as modernized.** This
 is an implementation/coverage gap, not a playtest pass.
+
+**D22D update (2026-10-19).** The D07C completion that cleared `+0x14` left
+every Modernized energy beam unable to damage: the updater calls the damage
+handler only for the actor in `+0x14`. The first beam now locks onto the
+targetable actor under the crosshair (within the original reach), or none;
+the upgrade's extra beams keep the original's other locks inside 45 degrees
+of the view. See [note 152](152-d22d-energy-beam.md).
 
 Inventory fixtures modify only the isolated process's inventory/selection fields,
 log each write, never save, and retain code/overlay guards. Direct selection does

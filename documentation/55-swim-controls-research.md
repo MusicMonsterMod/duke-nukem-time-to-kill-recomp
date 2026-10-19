@@ -280,7 +280,7 @@ from teleporting above the surface.
 | 4 / 125, 126 | surface forward / back | D-pad Up / Down words |
 | 4 / 123, 124 | surface strafe | L2 / R2 words (§8.2) |
 | 4 / 134–142 | climb-out (mantle) | Up + `8007be9c(4)` ledge probe |
-| 5 / 133 | dive | entered by `80045564(player, player+0x60)` (sound 0x3003) |
+| 5 / 133 | dive | entered by `80045564(player, player+0x60)` (sound 0x3003); fixed ~30-update thrust along body pitch, ignores Square; handler `80046814` exits to 127 by writing the anim (D08O4 ends it that way on Ctrl release with no swim input) |
 | 5 / 127 | underwater idle | |
 | 5 / 128–130 | underwater thrust | Square / Cross; vector = body yaw (`+0x1c` + `+0x2b4`) rotated by body pitch `+0x1e/+0x26` (**+900 = up**, −900 = down, original clamp ±900); D-pad Up = pitch down, Down = pitch up |
 | 5 → 4 | automatic | when thrusting up through the surface |

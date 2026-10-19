@@ -90,7 +90,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08O2B | Swim-fire aims down again (regression): weapon points down while swimming and firing (player UI slot 3; slot 2 still correct) | Done (user-accepted) | D08O2A |
 | D08AA | Unify walking/running speeds across land, shallow water, surface swim and underwater | Todo | D08, D08M, D08O |
 | D08O3 | E in water keeps the weapon: redraw when no climb-out follows the stow | Accepted | D08O1 |
-| D08O4 | Brief Ctrl dive keeps swimming forward after release (dive anim plays on; player UI slot 3) | Todo | D08O |
+| D08O4 | Brief Ctrl dive keeps swimming forward after release (dive anim plays on; player UI slot 3) | Done (user-accepted) | D08O |
 | D08N | Duke3D-style scuba gear item | Cancelled (out of scope) | — |
 | D08P | Crystal-2 turret / scripted-camera control recovery | Done | D08 |
 | D08Q | Modern jetpack flight controls | Done | D08 |
@@ -2564,6 +2564,33 @@ underwater dives straight down while held; on release Duke stops (no forward
 drift, no forward stroke) unless W/A/S/D is held; diving with W still goes
 forward; surfacing, mantle-only exit, swim-fire (D08O1/D08O2A/D08O2B) and
 Vanilla unchanged; the user confirms.
+
+**Needs playtest (2026-10-19).** Cause: the surface dive is the original
+anim 133, a fixed thrust of about 30 updates whose root motion follows body
+pitch and, unlike thrust 128, ignores Square. While Ctrl is held the host
+pitches Duke -900 (straight down); on release `swim_steer_underwater` puts
+body pitch back to the view, so the rest of 133 carried Duke along the view
+(the "forward stroke"). Fix (`swim.inc`, `swim_end_dive`): at the early swim
+update, before the original handler, a 133 with no W/A/S/D/Space/Ctrl held
+ends the way its own handler `0x80046814` ends it - anim 127, track 0 (its
+`+0x264` sound is unset during 133, measured). Counter `swim_dive_stops`.
+
+Evidence (slot 3 copy = file 02, private cards, lab
+`recomp/analysis/d08o4-20261019/`): horizontal drift after release, before
+-> after: 3-update tap 1474 -> 9 units, 15-update hold 796 -> 10, 40-update
+hold 55 -> 55 (already thrust 128). A 1-update tap returns to surface idle
+122 through the original. Regression (`reg.py`): underwater Ctrl descends and
+stops (0 drift), W thrust and W + fire swim forward (33 fire masks, 68
+shoulder aims, 5 shots), Space surfaces to 122, Ctrl+W dives forward while
+held; Vanilla Square tap still plays the full original 133 (1301 units, no
+host stop). Suites: ttk-controls-test (LEVEL00 fixture, LEVEL01, all levels),
+ttk-input-test, ttk-aim-test, ttk-near-test, ttk-inventory-test,
+ttk-font-test, Python unittest (146, 2 skipped) pass. Executable
+`3fe77432bdd35d84b0236bbe98dd19ee1d9a31300a1bb0362204cab2f7f4d42d`. Not yet verified: the user's feel in play, mantle exit after a short
+dive (code path untouched).
+
+**Done (user-accepted 2026-10-19).** User: "this is awesome. fully accepted!".
+Executable `3fe77432bdd35d84b0236bbe98dd19ee1d9a31300a1bb0362204cab2f7f4d42d` is the regression baseline.
 
 ### D08AA - Unify walking/running speeds across movement states
 

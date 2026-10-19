@@ -1,5 +1,23 @@
 # Next-session handoff
 
+## 2026-10-19 - D08O4 accepted
+
+- User: "this is awesome. fully accepted!". D08O4 Done; executable
+  `3fe77432bdd35d84b0236bbe98dd19ee1d9a31300a1bb0362204cab2f7f4d42d` is the regression baseline.
+  Still queued: D19G, D19F, D08AA, D24D, D26G.
+
+## 2026-10-19 - D08O4 short Ctrl dive stops on release (Needs playtest)
+
+- The surface dive (original anim 133) is a fixed ~30-update thrust along
+  body pitch that ignores Square; after Ctrl was released the host pitched
+  Duke back to the view, so the dive carried him forward. With no swim input
+  held, the host now ends 133 the way the original handler does (anim 127).
+  Slot 3 copy: drift after release 1474 -> 9 units (3-update tap), 796 -> 10
+  (15-update hold); W, W + fire, Space surfacing, Ctrl+W and Vanilla
+  unchanged; suites pass. Executable
+  `3fe77432bdd35d84b0236bbe98dd19ee1d9a31300a1bb0362204cab2f7f4d42d`.
+  Still queued: D19G, D19F, D08AA, D24D, D26G.
+
 ## 2026-10-18 - D08O2B accepted; D08O4 added
 
 - User: "it certainly is working, duke shoots in the right direction". D08O2B

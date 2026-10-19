@@ -490,6 +490,22 @@ static void swim_try_dive(CPUState* cpu,const InputFrame& f) {
     if(original_call(cpu,0x80045564,player+0x60))++swim_dives;
 }
 
+// D08O4: the dive 133 is a fixed ~30-update thrust whose root motion follows
+// body pitch and ignores Square, so after a short Ctrl it carried Duke along
+// the view (a 3-update tap drifted ~1470 units). Thrust 128 stops when its
+// injected Square goes; with no swim input left the dive now ends the way its
+// own handler (0x80046814) does: anim 127, track 0 (its +0x264 sound is unset
+// during 133). Runs before the original handler in the same update.
+static unsigned swim_dive_stops;
+static void swim_end_dive(const InputFrame& f) {
+    if(psx_mod_read_half(player+0x60)!=133)return;
+    if(f.move_x || f.move_y || f.held[jump] || f.held[crouch])return;
+    psx_mod_write_half(player+0x60,127);
+    psx_mod_write_half(player+0x68,0);
+    psx_mod_write_half(player+0x6a,0);
+    ++swim_dive_stops;
+}
+
 // Underwater (state 5): body yaw = camera-relative move direction (view yaw
 // when idle); body pitch = look pitch along the move axis, or ±vertical for
 // Space / Ctrl. The original thrust (Square, injected by input_pad) follows it.
@@ -723,6 +739,7 @@ static void swim_update(CPUState* cpu,bool late) {
     }
 
     if(swim_native_underwater()) {
+        if(!late)swim_end_dive(f);
         swim_steer_underwater(f);
         return;
     }

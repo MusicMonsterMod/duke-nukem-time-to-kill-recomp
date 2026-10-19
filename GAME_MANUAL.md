@@ -777,7 +777,8 @@ from a run-up — the ordinary jump, a little taller, that waits for the feet to
 clear the lip before moving in; no distance puzzle. Facing a plain wall,
 W+Space is a vertical hop.
 On the surface of deep water, face the camera: **W/S** swim forward/back,
-**A/D** strafe (camera-relative), **Ctrl** dives. Underwater, **W/A/S/D**
+**A/D** strafe (camera-relative), **Ctrl** dives for as long as you hold it
+(let go and Duke stops, unless W/A/S/D is held - D08O4). Underwater, **W/A/S/D**
 swim where the camera looks, **Space** swims up, **Ctrl** swims down, and
 Duke surfaces automatically when he reaches the top. Leave the water with
 **E** / mantle — Space never hops you out at a ledge. E puts the weapon away

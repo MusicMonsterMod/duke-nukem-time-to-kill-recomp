@@ -4,7 +4,7 @@ This is the canonical job list for our **Duke Nukem: Time to Kill** PC project, 
 
 Invoke **`$continue-duke-recomp`** (Codex) or **`/continue-duke-recomp`** (Claude Code) to see the current jobs and choose one. You can also request a job directly: **`$continue-duke-recomp work on D01`** or **`/continue-duke-recomp work on D01`**. The skill reads this file rather than keeping a second backlog. It must not automatically start the next job.
 
-**Latest accepted job (2026-10-18): D08O2B (swim-fire aims at the crosshair on every Duke model; shoulders found by part); executable `93093366872c16d100b05746cfc7d6c7745b0560eadecad459b474d2971bae25` is the regression baseline, [note 146](documentation/146-d08o2b-swim-fire-costumes.md). New Todo D08O4 (brief Ctrl dive drifts forward). Queued: D08O4, D19G, D19F, D08AA, D24D, D26G.** Earlier (2026-10-18): **D08G5 (partial cheat entry keeps mouse look; a breaking key acts at once); executable `18597e61f8fe332da32aff5154465d533dd852e6baefde24017766b109f23b79` is the regression baseline. Queued: D19G, D19F, D08O2B, D08AA, D24D, D26G.** Earlier (2026-10-18): **D08A22 (switcher strips and mission card scale with the game picture like the native HUD); executable `67eb7bc2d189b38624879a25f9b8c76c5567aa40a61e357a5e07352f394d4546` is the regression baseline. Queued: D19G, D19F, D08O2B, D08AA, D24D, D26G.** Earlier (2026-10-18): **D19 (in-game OPTIONS: PC CONTROLS, DISPLAY, MODERNIZED in the original menu style, title and pause); executable `fb169a561aa15a979b4b10b4903dbd5758b17708ebe24b669f58966faf16760b` is the regression baseline, [note 145](documentation/145-d19-game-menu.md). Queued: D19G, D19F, D08O2B, D08AA, D08A22, D24D, D26G.** Earlier (2026-10-18): **D19D (menu keys: Escape/Backspace back, Enter confirms, V Square, wheel moves; Escape never quits); executable `08bba860a9171fe2d147e211e569a8de90e434d262600749c476f4caf6b7e9fe` is the regression baseline, [note 144](documentation/144-d19d-menu-keys.md). Queued: D08O2B, D08AA, D08A22, D24D, D26G.** Earlier (2026-10-18): D30 (recomp.board listing: `.recomp.json` claims our row; README badge). Earlier: **Latest accepted job (2026-10-18): D19E (menu close-out: taps never lost during loads or on LOAD GAME, menu over the spinner one image sooner); executable `0092e2b261b333e0f1848e77b6a6a824079efbaba886e2fb158b3b9023e51aaf` is the regression baseline. Queued: D08O2B, D08AA, D08A22, D24D, D26G, D19D.** Earlier (2026-10-18): D19C (more responsive original menus over the demo); executable `1e1a4795ab8af038f9c95b50d2159cab10bfb1f4a363d84b1ac741025e3d6828` is the regression baseline. Queued: D19E (loading-spinner menus and full menu sweep), D08O2B, D08AA, D08A22, D24D, D26G, D19D.** Earlier (2026-10-18): D17U (smooth loading screens); executable `e1d32dc00d9b2e870f5c1aab4b3e4a21bb74b242c20c7483d4f6eeed7011f9fc`. Earlier (2026-10-18): D17T (smooth title menu and attract demo); executable `7ab8877528b05a46a1e793556660ab6cf09c538d93c7b2f1e6cb5bb744ce9829`. Earlier (2026-10-09): D08G6 (`dntlod` fun cheat); executable `74cec66e398217530d0b8abc3fa0ccfe06308f6b73a17e5aafa628b3f0f2a540`. Earlier (2026-10-09): D08A20 (challenge item HUD, option A - 14x14 icon in a square); executable `a047b37bbb833b84902a3ad344fff2e16c22ae3dc0093ad441d80c3eb9235a95`.** Earlier (2026-10-09): D08A21 (14x14 HUD item icons; the 16x16 versions kept in `recomp/assets/ui/items/16px/`); executable `72429e350806e0639f36e50cff0cb969f18df1662a2336794e17bd2263614c21`.** Earlier (2026-10-08): D08A12 (modern dynamite: unlit until fire, switch away freely, next stick drawn after a throw); executable `2d54e00b64bcf38917e41db47805338f75977b0b63a0868cb962242ffaaadb9d` is the regression baseline. Queued: D24D, D26G.** Earlier (2026-10-08): D08A19 (used mission items: USED and the green tick); executable `d67705eba48232029a90647cc781f3201d0aae29799678466b2b5b9337b5dbe8`. Earlier (2026-10-08): D08Z2 (mantle pose; frozen legs after a corner bump); executable `bfd41760f9c66f2f03cf859f820f7b7d27cd8991e8ce1f304f5456ea29bf8986` is the regression baseline. D08Z3 (modern landing) accepted 2026-10-08; executable `11187493c04ae830482c47c93b97ac332fbfce1de95f8eedaa2f8637d7fe164e` is the new regression baseline. Queued: D24D, D26G, D08A19.** Earlier (2026-10-08): D08Z1 (jump wall slide); executable `3f909c9f2cc4e5b09ba6faab5129ec9ae0ff938c4735e264ac67a66405c1ed34`. Earlier (2026-10-08): D08A17 (power-up countdowns); executable `8f338cde1c2dc4cf73da747621cffafe2478512f6419078a41d11b0d3b9268a9`. Earlier accepted jobs (2026-10-08): D08A14 (death ends steroids), D08A15 (heartbeat restart; a pickup mid-run stops steroids) and D08G4 (inventory cheats give full armor); executable `87fe38d4f0ea8560312f53171345c207f332e26b6f4d2ed7220e1afae66ba472` is the regression baseline.** Earlier: D08J2 (pole/chain A/D direction), D08U2 (climb off a ladder past an enemy), D08O3 (E in water keeps the weapon) and D08O2A (natural swim-fire pose v2), 2026-10-07.** Previous baseline `e8eebb809c3d5a4b29779f11f0c9db55efcd846dc5c71b39d5a59d43158eb08e` (D08U2). **D08J2 (pole/chain A/D direction) Accepted 2026-10-07**: executable `129a64f2df3f5395f2d3485a310a03d74c85f9b1086c7dab37fee59277c7968b` is the current regression baseline ([note 122](documentation/122-d08j2-pole-chain-sidestep.md)). Todo: D08J4 (ceiling monkey-bar drops, UI slot 3), D08J3 (free camera while climbing). Previous baseline `e75b50f156137fa2377e4643407b2efbd16f2e976fa4d697afcbceb228e2e554` (D08O3). **D23E (western-town stutter) Accepted 2026-10-07**; **D08O2A Accepted** ([note 119](documentation/119-d08o2a-natural-swim-fire-pose.md)), **D08O3 Accepted** ([note 120](documentation/120-d08o3-e-in-water.md)); **D23F (fast CPU timing) Accepted 2026-10-05 and now the Modernized default**; executable `e0737a9f712aa5622d1b057ee5071e12c33cc9a18de8e6d40ee8eee31083f966` (includes D23E), [note 104](documentation/104-d23e-busy-scene-stutter.md), [note 105](documentation/105-d23f-fast-timing.md). Next suggested: D23G (finish the fast path) and D17S (auto frame-rate default).
+**Latest accepted job (2026-10-19): D19H (Escape opens a list-style pause menu, death screen too, in the original style); executable `681ae485de9d04bbd91949f4811c7d62c65859d486414a51e94371ef5adc1ca2` is the regression baseline, [note 147](documentation/147-d19h-pause-menu.md). New Todo: D19I (dimmed in-game menu text), D19J (main menu re-implemented), D19K (integrated savestate LOAD GAME), D19L (menus during demo loads).** Earlier (2026-10-18): **D08O2B (swim-fire aims at the crosshair on every Duke model; shoulders found by part); executable `93093366872c16d100b05746cfc7d6c7745b0560eadecad459b474d2971bae25` is the regression baseline, [note 146](documentation/146-d08o2b-swim-fire-costumes.md). New Todo D08O4 (brief Ctrl dive drifts forward). Queued: D08O4, D19G, D19F, D08AA, D24D, D26G.** Earlier (2026-10-18): **D08G5 (partial cheat entry keeps mouse look; a breaking key acts at once); executable `18597e61f8fe332da32aff5154465d533dd852e6baefde24017766b109f23b79` is the regression baseline. Queued: D19G, D19F, D08O2B, D08AA, D24D, D26G.** Earlier (2026-10-18): **D08A22 (switcher strips and mission card scale with the game picture like the native HUD); executable `67eb7bc2d189b38624879a25f9b8c76c5567aa40a61e357a5e07352f394d4546` is the regression baseline. Queued: D19G, D19F, D08O2B, D08AA, D24D, D26G.** Earlier (2026-10-18): **D19 (in-game OPTIONS: PC CONTROLS, DISPLAY, MODERNIZED in the original menu style, title and pause); executable `fb169a561aa15a979b4b10b4903dbd5758b17708ebe24b669f58966faf16760b` is the regression baseline, [note 145](documentation/145-d19-game-menu.md). Queued: D19G, D19F, D08O2B, D08AA, D08A22, D24D, D26G.** Earlier (2026-10-18): **D19D (menu keys: Escape/Backspace back, Enter confirms, V Square, wheel moves; Escape never quits); executable `08bba860a9171fe2d147e211e569a8de90e434d262600749c476f4caf6b7e9fe` is the regression baseline, [note 144](documentation/144-d19d-menu-keys.md). Queued: D08O2B, D08AA, D08A22, D24D, D26G.** Earlier (2026-10-18): D30 (recomp.board listing: `.recomp.json` claims our row; README badge). Earlier: **Latest accepted job (2026-10-18): D19E (menu close-out: taps never lost during loads or on LOAD GAME, menu over the spinner one image sooner); executable `0092e2b261b333e0f1848e77b6a6a824079efbaba886e2fb158b3b9023e51aaf` is the regression baseline. Queued: D08O2B, D08AA, D08A22, D24D, D26G, D19D.** Earlier (2026-10-18): D19C (more responsive original menus over the demo); executable `1e1a4795ab8af038f9c95b50d2159cab10bfb1f4a363d84b1ac741025e3d6828` is the regression baseline. Queued: D19E (loading-spinner menus and full menu sweep), D08O2B, D08AA, D08A22, D24D, D26G, D19D.** Earlier (2026-10-18): D17U (smooth loading screens); executable `e1d32dc00d9b2e870f5c1aab4b3e4a21bb74b242c20c7483d4f6eeed7011f9fc`. Earlier (2026-10-18): D17T (smooth title menu and attract demo); executable `7ab8877528b05a46a1e793556660ab6cf09c538d93c7b2f1e6cb5bb744ce9829`. Earlier (2026-10-09): D08G6 (`dntlod` fun cheat); executable `74cec66e398217530d0b8abc3fa0ccfe06308f6b73a17e5aafa628b3f0f2a540`. Earlier (2026-10-09): D08A20 (challenge item HUD, option A - 14x14 icon in a square); executable `a047b37bbb833b84902a3ad344fff2e16c22ae3dc0093ad441d80c3eb9235a95`.** Earlier (2026-10-09): D08A21 (14x14 HUD item icons; the 16x16 versions kept in `recomp/assets/ui/items/16px/`); executable `72429e350806e0639f36e50cff0cb969f18df1662a2336794e17bd2263614c21`.** Earlier (2026-10-08): D08A12 (modern dynamite: unlit until fire, switch away freely, next stick drawn after a throw); executable `2d54e00b64bcf38917e41db47805338f75977b0b63a0868cb962242ffaaadb9d` is the regression baseline. Queued: D24D, D26G.** Earlier (2026-10-08): D08A19 (used mission items: USED and the green tick); executable `d67705eba48232029a90647cc781f3201d0aae29799678466b2b5b9337b5dbe8`. Earlier (2026-10-08): D08Z2 (mantle pose; frozen legs after a corner bump); executable `bfd41760f9c66f2f03cf859f820f7b7d27cd8991e8ce1f304f5456ea29bf8986` is the regression baseline. D08Z3 (modern landing) accepted 2026-10-08; executable `11187493c04ae830482c47c93b97ac332fbfce1de95f8eedaa2f8637d7fe164e` is the new regression baseline. Queued: D24D, D26G, D08A19.** Earlier (2026-10-08): D08Z1 (jump wall slide); executable `3f909c9f2cc4e5b09ba6faab5129ec9ae0ff938c4735e264ac67a66405c1ed34`. Earlier (2026-10-08): D08A17 (power-up countdowns); executable `8f338cde1c2dc4cf73da747621cffafe2478512f6419078a41d11b0d3b9268a9`. Earlier accepted jobs (2026-10-08): D08A14 (death ends steroids), D08A15 (heartbeat restart; a pickup mid-run stops steroids) and D08G4 (inventory cheats give full armor); executable `87fe38d4f0ea8560312f53171345c207f332e26b6f4d2ed7220e1afae66ba472` is the regression baseline.** Earlier: D08J2 (pole/chain A/D direction), D08U2 (climb off a ladder past an enemy), D08O3 (E in water keeps the weapon) and D08O2A (natural swim-fire pose v2), 2026-10-07.** Previous baseline `e8eebb809c3d5a4b29779f11f0c9db55efcd846dc5c71b39d5a59d43158eb08e` (D08U2). **D08J2 (pole/chain A/D direction) Accepted 2026-10-07**: executable `129a64f2df3f5395f2d3485a310a03d74c85f9b1086c7dab37fee59277c7968b` is the current regression baseline ([note 122](documentation/122-d08j2-pole-chain-sidestep.md)). Todo: D08J4 (ceiling monkey-bar drops, UI slot 3), D08J3 (free camera while climbing). Previous baseline `e75b50f156137fa2377e4643407b2efbd16f2e976fa4d697afcbceb228e2e554` (D08O3). **D23E (western-town stutter) Accepted 2026-10-07**; **D08O2A Accepted** ([note 119](documentation/119-d08o2a-natural-swim-fire-pose.md)), **D08O3 Accepted** ([note 120](documentation/120-d08o3-e-in-water.md)); **D23F (fast CPU timing) Accepted 2026-10-05 and now the Modernized default**; executable `e0737a9f712aa5622d1b057ee5071e12c33cc9a18de8e6d40ee8eee31083f966` (includes D23E), [note 104](documentation/104-d23e-busy-scene-stutter.md), [note 105](documentation/105-d23f-fast-timing.md). Next suggested: D23G (finish the fast path) and D17S (auto frame-rate default).
 
 ## The experience we are building
 
@@ -175,6 +175,11 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D18E | Challenge stages 21-26 have no music: reuse fitting in-game tracks (user mapping) | Todo | D22B, D26A |
 | D19 | Modern in-game menus, settings and input prompts (replicates the original TTK menu; mockup approved 2026-10-18) | Done (user-accepted 2026-10-18; follow-ups D19G, D19F, D19F1) | D02, D04, D13 |
 | D19G | In-game OPTIONS stage 2: key bindings in PC CONTROLS; display and camera options applied live | Todo | D19 |
+| D19H | In-game pause menu (Escape) rebuilt like the title menus: a highlighted list (RESUME, OPTIONS, LOAD, RESTART, MAIN MENU) driven by arrows/Enter/Esc; death screen too | Done (user-accepted 2026-10-19) | D19, D19D, D19E |
+| D19I | In-game menu text drawn dimmed (pause list, death list, pause OPTIONS): match the original's full brightness | Todo | D19H |
+| D19J | Replace the title main menu (and its sub-screens) with a re-implementation in the original style, as OPTIONS and the pause menu were | Todo | D19H |
+| D19K | LOAD GAME from our savestate menu, integrated into the reimplemented menus; replaces the memory-card LOAD GAME | Todo | D19J, D24B |
+| D19L | Menus stay up and responsive while demo scenes load behind the title menu (no blank spinner gap) | Todo | D19J, D19E |
 | D19A | Duke font assets for host messages and modern UI | Done | D04 |
 | D19B | Responsive modern menu navigation and transitions | Todo | D02, D04 |
 | D19C | Interim: more responsive original menus (faster cursor and screen response, no 10 Hz feel) | Accepted (demo-backed menus; loading spinner and full sweep in D19E) | D17T |
@@ -5295,6 +5300,192 @@ mode).
 **Acceptance:** bindings changed and restored in game take effect at once and
 persist; each newly live option changes without a restart; Vanilla
 unchanged; the user judges the feel.
+
+### D19H - In-game pause menu rebuilt like the title menus
+
+**Done (user-accepted 2026-10-19: "accepted!! this works and it's functional").**
+Follow-ups: D19I (dimmed text), D19J (main menu), D19K (integrated LOAD
+GAME), D19L (menus during demo loads). Implemented 2026-10-19. Layout B chosen by the user
+(2026-10-19). In Modernized, Escape opens RESUME / MISSION BRIEFING / OPTIONS
+/ LOAD GAME / RESTART LEVEL / MAIN MENU under the level name; the death screen
+lists CONTINUE / LOAD GAME / RESTART LEVEL / QUIT (challenge stages: REPLAY
+LEVEL / GIVE UP), all drawn by the game's own calls on the free screen values
+8 and 9, with YES / NO prompts. Every choice runs exactly what the original's
+handler and main loop do with it (no one-frame flash of the old screen); the
+original LOAD screens are used as they are. Menu taps are counted from key
+events, so short taps register on the slow death screen. Also fixed: D19's
+glyph-table guard covered two menu variables, so the D19 menus fell back to
+the originals in some states. Offscreen: every choice, the challenge
+variants, Vanilla and the title OPTIONS match the originals. Executable
+`681ae485de9d04bbd91949f4811c7d62c65859d486414a51e94371ef5adc1ca2`. Note
+[147](documentation/147-d19h-pause-menu.md). Not verified: the real display,
+the death list from captured play with a real mouse, LOAD with a save.
+
+**Continues (user 2026-10-19):** CONTINUE keeps the original's confirmation
+(CONFIRM CONTINUE, YES first) for now. The user expects to scrap the
+continues system later; when that happens, update the death list, its
+heading and this job's note.
+
+**Opened 2026-10-19.** User 2026-10-19: the menus
+before gameplay now work well because D19 rebuilt them from the game's own
+calls; the menu Escape opens during gameplay must work the same way and "is
+unusable right now (without modern controls)". Today the pause menu
+(mode 1, screen `0x800be56a` = 12) is the mission briefing with four
+PlayStation prompts and no cursor (Cross RESUME, Circle LOAD, Square OPTIONS,
+Triangle QUIT, then a RESTART / MAIN MENU / CANCEL prompt). A PC player must
+know that C is LOAD and V is OPTIONS (D19D), and Escape means RESUME there
+rather than "back". The death screen (`0x800be56a` = 15: CONTINUE / LOAD /
+RESTART / QUIT with confirmation prompts) has the same problem.
+
+Scope:
+
+- A pause menu drawn like OPTIONS (note 145: the game's own text, sprite and
+  sound calls, on an unused screen slot, no host drawing): a vertical list
+  with the blue highlight, held-key repeat, mouse wheel, SELECT / CONFIRM /
+  RETURN prompts. Items: RESUME, OPTIONS, LOAD GAME, RESTART LEVEL, MAIN MENU.
+  Each item reaches the original's own path (RESUME, `0x800be56a` 2 / 5, the
+  QUIT prompt's restart and main-menu code), so saving, loading and quitting
+  stay the game's.
+- The mission briefing (level name, story text, goals) stays available.
+  Layout chosen from the design artifact.
+- RESTART LEVEL and MAIN MENU ask before acting (NO highlighted). Escape on
+  the pause list resumes, and inside any sub-screen or prompt it goes back
+  one level. Enter confirms. Fixed keys that do not depend on bindings or on
+  modern-control capture (F10 on or off, Legacy controls or Modern controls).
+- The death screen gets the same list: CONTINUE (with the remaining count),
+  LOAD GAME, RESTART LEVEL, MAIN MENU. Escape does nothing at the top level
+  (there is nothing to resume) and cancels in prompts.
+- Vanilla keeps the original pause and death screens. A code-identity check
+  falls back to the originals on a mismatch, as D19 does.
+
+**Before implementation:** an interactive design artifact (layout, items,
+prompts, keys, death screen) for user review.
+Published 2026-10-19 as a second artboard, "D19H in-game pause and death
+menus", on the D19 mockup canvas (private,
+https://claude.ai/artifact/6FxFwzfzdCp2doDjSesfHA, not tracked: disc-derived
+glyphs). Tweaks: layout A (briefing above the list) or B (list first,
+MISSION BRIEFING as an item), death screen, PC-key prompts. The user chose
+layout B and kept CONTINUE's confirmation.
+
+**Acceptance:** from captured play, F10-released play and Legacy controls,
+Escape opens the list with RESUME highlighted; every item works with arrows,
+Enter and Escape only (no PlayStation-button knowledge); OPTIONS and its
+screens, LOAD with a saved game, RESTART and MAIN MENU reach the same
+results as the originals; the death-screen list continues, loads, restarts
+and quits; taps register once at 60/120/180; savestates taken on the new
+screens load safely; Vanilla unchanged; the user judges it on their display.
+
+### D19I - In-game menu text dimmed
+
+**Todo (opened 2026-10-19).** User at D19H acceptance: the text "is dimmed and
+needs a touch of work to make it look right".
+
+Research (2026-10-19, D19H screenshots at 16:9, 4x): the brightest tenth of
+the text pixels averages RGB (133, 101, 58) on our pause list, death list,
+briefing and the D19 pause OPTIONS, against (254, 190, 74) for the
+original's pause text in the same scene and (252, 208, 107) for D19's title
+OPTIONS. So the same text calls give full brightness on the title and half in
+gameplay. Leading cause, to be confirmed: before the pause dispatch the main
+loop calls `0x80025f28`, which sets up a full-screen quad (`0x800be4f8`) and
+inserts it into the ordering table at depth 1 (`0x8002bc18`), the darkening
+over the paused world. The original's pause text is drawn inside the
+dispatch, after that quad. Ours is drawn at the composition hook
+(`0x80026164`) earlier in the tick, so it ends up under the quad.
+Experiments: draw the gameplay pages from the dispatch tick hook (after
+`0x80025f28`, before the D17 capture, once per image), or put our text at the
+original's ordering-table depth. Check the D17 redraws keep the result.
+
+**Acceptance:** text on the pause list, death list, briefing, prompts and
+pause OPTIONS and its settings screens matches the original pause text's
+brightness and colour (measured and judged on the real display); the paused
+world stays darkened; title menus unchanged; Vanilla unchanged.
+
+### D19J - Title main menu re-implemented
+
+**Todo (opened 2026-10-19).** User: "completely replace the main menu with a
+re-implementation of it, just like we did options ... exactly the same stuff,
+likely, as how we just accomplished the in-game menu."
+
+Scope: the frontend's PRESS START / main menu (ONE PLAYER, TWO PLAYER, LOAD
+GAME, OPTIONS), CHOOSE DIFFICULTY LEVEL, the TWO PLAYER OPTIONS and CHOOSE
+CHARACTER screens, drawn with the game's own text, sprite and sound calls
+(notes 145 and 147) over the attract demo. Each choice runs the original
+handler's own result: no handler draw for a frame, nothing host-drawn, and
+the code-identity fallback to the originals.
+
+Research (2026-10-19): the frontend tick `0x80022324` dispatches the state
+`0x800d24e4` through table `0x800131b0` (13 states: 5 PRESS START over the
+demo, 6 opening the menu, 7 main menu with cursor `0x800d24e6`, 8 ONE PLAYER
+/ difficulty (`0x800c3d7c`), 9 CHOOSE CHARACTER (`0x800dd1b0`), 10 LOAD GAME,
+12 OPTIONS with sub-screen `0x800d24d2`; handlers `0x80022394`-`0x80023240`).
+D19 already owns state 12 through the hook at `0x800220f4`. The main menu
+needs a free state or sub-state that the frontend leaves alone, and the
+transitions (6 -> 7, the difficulty start into mode 1, two-player setup)
+reproduced from the handlers, as D19H did for the pause menu. The attract
+demo must keep running behind (D17T, D19C: it desyncs if the frontend ticks
+faster). Escape, Enter and the wheel follow D19D.
+
+**Acceptance:** every title choice works with arrows, Enter, Escape and the
+wheel and reaches the same result as the original (one player at each
+difficulty, two player, LOAD GAME, OPTIONS); taps are never lost (D19E
+numbers or better); no frame of the original screen shows between screens;
+the attract demo is unchanged; Vanilla keeps the original; the user judges it.
+
+### D19K - LOAD GAME from our savestate menu, inside the menus
+
+**Todo (opened 2026-10-19).** User: access to "our load game menu, but more
+integrated into this menu rather than feeling like a totally separate
+screen. This will almost certainly replace the memory card based load game
+entirely", which the user considers safe.
+
+Scope: LOAD GAME on the title menu (D19J), the pause list and the death list
+(D19H) opens a load screen in the same menu style that lists our savestates
+(the D24B F7 slots: thumbnail, slot, level name, time), drawn as part of
+these menus rather than as the separate F7 panel. Choosing a slot loads it
+(the existing savestate path); Escape returns to the list on LOAD GAME.
+In Modernized the memory-card LOAD GAME (`0x80086e8c`, frontend state 10,
+pause screen 5, death prompt 3) is no longer offered.
+
+Research (2026-10-19): all three LOAD GAME entries call the same original
+handler `0x80086e8c` (from `0x80023200`, `0x800260e8` and `0x80086af0`).
+Savestates already restore from any mode (F7, level select). To settle:
+- how saving fits: the statistics screen's SAVE GAME still writes the memory
+  card; whether it should write a savestate slot instead (see D20, save
+  management);
+- how existing memory-card saves stay reachable (keep them in Vanilla only,
+  or an import);
+- drawing the thumbnails inside the guest-drawn menu (host overlay or
+  VRAM upload) without breaking the D17 redraws.
+Never touch the player's own cards or savestates in testing.
+
+**Acceptance:** LOAD GAME on the title, pause and death menus lists the
+savestates in the menu style and loads the chosen one; empty and incompatible
+slots are handled; the memory-card LOAD is gone from Modernized and still
+works in Vanilla; the user judges it.
+
+### D19L - Menus stay up while demo scenes load
+
+**Todo (opened 2026-10-19).** User: "menus work seamlessly during load
+screens between demos, just like our modernized menu"; expected to follow
+partly from D19J.
+
+Research (D19E, note 143): when a demo scene ends behind an open title menu,
+the frontend loads the next scene in sub-state `0x800d24e2`: in sub-state 0
+(about 1.8 s) the load setup `0x8002334c` blocks in the CD load and only the
+loading logo is drawn (no tick, no pad read, **the menu disappears**); in
+sub-state 1 (about 6 s) the menu shows over the spinning logo but some ticks
+are 10-45 fields apart. D19E made presses wait rather than vanish, but the
+menu still vanishes for sub-state 0 and lags over the spinner. With our own
+menus (D19J), the host can keep drawing the current screen from the
+loading-logo hook (`0x80025554`, already used by D19) and handle navigation
+there; only actions that change the guest state wait for the next tick.
+Alternatives to measure: keep the current demo scene looping (or paused)
+while a menu other than PRESS START is open, so no load happens.
+
+**Acceptance:** with the title menu open across demo scene loads, the menu
+never disappears, the cursor moves at the D19E menu rate during the load and
+spinner, and choices made then act as soon as the guest can; the demo and its
+timing are unchanged; Vanilla unchanged.
 
 ### D19A — Duke font assets for host messages and modern UI
 

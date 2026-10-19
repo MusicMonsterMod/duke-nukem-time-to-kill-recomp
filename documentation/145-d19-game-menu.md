@@ -94,6 +94,9 @@ Code identity: the handler tables, both dispatches and handlers, the slider,
 text, prompt and sprite code, font and sprite tables and the text table are
 checked (SHA-256) before the first use; a mismatch keeps the original
 OPTIONS. `DNTTK_GAME_MENU=off` (developer) does the same.
+D19H (note 147) moved the start of the glyph-table guard from `0x800c3f30` to
+`0x800c3f38`: the old range covered the menu variables `0x800c3f32` and
+`0x800c3f34`, so a state where they differed kept the original menus.
 
 ### Settings
 

@@ -1,5 +1,30 @@
 # Current status - 2026-10-04
 
+## 2026-10-19 - D19H accepted; D19I-D19L added
+
+- User: "accepted!! this works and it's functional". D19H Done; executable
+  `681ae485de9d04bbd91949f4811c7d62c65859d486414a51e94371ef5adc1ca2` is the regression baseline.
+  New Todo: D19I (in-game menu text drawn at half brightness, likely under
+  the paused-world quad), D19J (title main menu re-implemented like
+  OPTIONS), D19K (LOAD GAME from our savestates inside the menus, replacing
+  the memory-card LOAD in Modernized), D19L (menus stay up during demo scene
+  loads). Still queued: D19G, D19F, D08AA, D24D, D26G.
+
+## 2026-10-19 - D19H pause menu and death screen as lists (Needs playtest)
+
+- Modernized: Escape opens RESUME / MISSION BRIEFING / OPTIONS / LOAD GAME /
+  RESTART LEVEL / MAIN MENU (layout B); the death screen lists CONTINUE / LOAD
+  GAME / RESTART LEVEL / QUIT (challenge: REPLAY LEVEL / GIVE UP), with YES / NO
+  prompts, in the original menu style (game's own draw calls, screen values 8
+  and 9). Each choice runs the original handler's and main loop's own
+  sequence; LOAD uses the original screens. Menu taps come from key events.
+  D19's glyph guard no longer covers menu variables. Offscreen: every choice,
+  challenge stage 1, Vanilla and title OPTIONS match the originals; suites
+  pass. Executable
+  `681ae485de9d04bbd91949f4811c7d62c65859d486414a51e94371ef5adc1ca2`,
+  [note 147](147-d19h-pause-menu.md). Continues kept as the original's (user
+  expects to scrap them later). Still queued: D19G, D19F, D08AA, D24D, D26G.
+
 ## 2026-10-19 - D08O4 accepted
 
 - User: "this is awesome. fully accepted!". D08O4 Done; executable

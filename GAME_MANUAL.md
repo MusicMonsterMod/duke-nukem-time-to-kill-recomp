@@ -950,20 +950,26 @@ the same way on every menu screen:
 | **Escape** or **Backspace** | Back one level / cancel (Triangle) |
 | **X** / **C** / **Z** / **V** | Cross / Circle / Triangle / Square, for the buttons the screen shows |
 
-- **Escape never quits.** In the pause menu (RESUME / LOAD / OPTIONS / QUIT)
-  and on the death screen (CONTINUE / LOAD / RESTART / QUIT), Triangle means
-  QUIT, so Escape resumes the game there (pause) or does nothing (death
-  screen). Inside their sub-screens and prompts (OPTIONS, LOAD, REALLY QUIT?,
-  CONFIRM CONTINUE) Escape cancels. Escape on the main menu and PRESS START
-  does nothing.
-- **Enter** in the pause menu resumes (RESUME); on the death screen it
-  continues (CONTINUE, then confirm with Enter again).
+- **Pause menu (Escape in game):** a list under the level name: RESUME,
+  MISSION BRIEFING (the original story and goals), OPTIONS, LOAD GAME,
+  RESTART LEVEL and MAIN MENU. Arrows or the wheel choose, Enter confirms,
+  Escape resumes. RESTART LEVEL and MAIN MENU ask YES / NO first (NO is
+  highlighted). Challenge stages have no RESTART LEVEL; LOAD GAME is there in
+  one-player games, as in the original.
+- **Death screen:** CONTINUE, LOAD GAME, RESTART LEVEL and QUIT under the
+  continues left (challenge stages: REPLAY LEVEL and GIVE UP). CONTINUE asks
+  CONFIRM CONTINUE (YES highlighted), the others ask YES / NO with NO
+  highlighted. Escape does nothing on the list and cancels a prompt.
+- **Escape never quits.** Inside sub-screens and prompts Escape goes back one
+  level. Escape on the main menu and PRESS START does nothing.
+- These lists free the mouse and work the same with modern controls captured,
+  released with F10 or set to the original camera. Gameplay recaptures the
+  mouse after RESUME or CONTINUE.
 - **CONFIGURE CONTROLLER** assigns whichever pad button you press to the
   highlighted action. There, Escape and Enter both mean Start ("PRESS START TO
   CONTINUE"), which opens its CONFIRM / CANCEL prompt; then Enter confirms and
   Escape cancels. Z, X, C and V still assign Triangle, Cross, Circle and Square.
-- **V** is Square: pause OPTIONS, SAVE on the statistics screen, RESTART on the
-  death screen.
+- **V** is Square, for example SAVE on the statistics screen.
 - During gameplay Escape still pauses, Enter still uses the selected gadget
   and Backspace does nothing. Escape and Enter still skip the intro movies.
   The F7 savestate menu and the console keep their own keys.

@@ -20,6 +20,13 @@
 // which run.py folds into the Modernized profile when the game closes (and on
 // the next launch). Options marked live also apply at once (ttk_live_env).
 // Contract: documentation/145-d19-game-menu.md.
+//
+// D19H: in gameplay the pause menu (0x800be56a = 12) and the death screen (15)
+// become lists in the same style (RESUME, MISSION BRIEFING, OPTIONS, LOAD
+// GAME, RESTART LEVEL, MAIN MENU; CONTINUE, LOAD GAME, RESTART LEVEL, QUIT)
+// on the free screen values 8 and 9, with YES / NO prompts. Each choice does
+// what the original's handler and main loop do with it; the originals' LOAD
+// screens are used as they are. Contract: documentation/147-d19h-pause-menu.md.
 #include "game_menu.h"
 #include "live_env.h"
 #include "cpu_state.h"
@@ -55,9 +62,19 @@ const Guard guards[]={
     {0x80086174u,0x308u,"a51470c88430cd8b1d31be722968c6f26c74b2b8876ccf75f4a970218049f41a"},  // pause OPTIONS handler
     {0x8008b210u,0x3e8u,"4a2ed47060bc5ca37cc486f180c0a3f949b941d9ad1e0979a6ab7f480ed45cc9"},     // glyph, width and text
     {0x8008b678u,0x40u,"226e8fcb4f143545c487c091f96ca9a853daa3a332e5ab5ad9e66cd4038c188a"},    // sprite draw entry
-    {0x800c3f30u,0x400u,"cccee537b47e6e10ccf58b4efa1998990a13f4d2fb2ee94421bfbbbccb8450fb"},   // font glyph tables
+    {0x800c3f38u,0x3f8u,"ff6caefc38543ee771b477ac72c9c5a6ad95214c47a0a8ea6846489ed58f2a37"},   // font glyph tables (from 0x800c3f38: 0x800c3f32 and 0x800c3f34 are menu variables)
     {0x800c43b4u,0xf0u,"9ea07ba25cff15a7da9de43768b28d70b836cf13269c705e70e6730b55395b3b"},   // sprite records and font info
     {0x800c60f4u,0x400u,"1298dbf2ac90b8efff35a60c7ec93bc3dd6897d1434ec84ba5b1871093b09a7a"},  // text table
+    // D19H: the pause and death screens our lists stand in for.
+    {0x800857e4u,0x990u,"80acc5a03247a7a97930a0d8278cc68839fd0694914e5e1dee3cf04e5d5d4cc8"},  // pause top handler (12)
+    {0x8008647cu,0x7f0u,"af33ec8f74e797df8f960b844588faa1011fdf22e8a6469ca34177a363b1da38"},  // death screen handler (15)
+    {0x8002690cu,0x90u,"03968170f1610cb68b72423a8fb70e3664bd36899f7b5d15b2fdaba62fe67c19"},   // mode 1: dispatch, resume on 0
+    {0x800c3d2cu,0x40u,"c9ef39aacbbd3027c182f6bdb255613e0794c223519cfcda97ce4a45a604c513"},   // level name string ids
+    {0x800c3e10u,0x104u,"76189e6a61e1552476bb95a777ad819198c94812700157401ed2092b1f146fb8"},  // briefing string ids (13 x 10)
+    {0x80094a38u,0x40u,"8e661ce6839ad2f8cefacf50eea5e0a97e9f547f5f060ce100590cc04d12f03b"},   // game event (restart, quit, replay)
+    {0x8006ac24u,0x30u,"d45ab3dd28ba07a76ba1e90b5f64cc4ab0f3342cd41c224cbe0b5e022b8265d9"},   // resume: sound
+    {0x8003c3dcu,0x40u,"b02ecd72ad0fe5b8072a35109c6e6c88ae7cd108fbfe80c604ab8a3999633b64"},   // resume: music
+    {0x800c64f4u,0x26cu,"3716c4900759d23bbd1d3f71ca5024a5aef410814ab33aca47a435d1d6fd5945"},  // text table 0x100-0x19a (briefings)
 };
 std::array<std::vector<uint32_t>,sizeof guards/sizeof guards[0]> expected;
 
@@ -66,7 +83,24 @@ constexpr uint32_t image_counter=0x800bdbd0;
 constexpr uint32_t fn_text=0x8008b454, fn_width=0x8008b3c8, fn_sprite=0x8008b678;
 constexpr uint32_t fn_slider_init=0x80083c40, fn_slider_draw=0x80083edc, fn_sound=0x8006bbd8;
 constexpr uint32_t sprites=0x800c43b4, sentinel=0x800000fc;
-constexpr uint16_t ours_sub=8;
+constexpr uint16_t ours_sub=8, death_sub=9;
+// D19H: the pause menu (0x800be56a = 12, its prompt 0x800dd1c4, reset flag
+// 0x800c3f28) and the death screen (15, prompt 0x800dd1c6, reset 0x800c3f34).
+constexpr uint32_t pause_screen=0x800be56a, death_prompt=0x800dd1c6;
+constexpr uint32_t pause_reset=0x800c3f28, death_reset=0x800c3f34;
+constexpr uint32_t level_index=0x800be570, players=0x800c27bc, continues=0x800d7411;
+constexpr uint32_t level_names=0x800c3d2c, briefings=0x800c3e10, strings=0x800c60f4;
+constexpr uint16_t pause_top=12, death_top=15, pause_load=5;
+constexpr uint32_t paused=0x800be568, player=0x800d7198, player_size=0x8a4, player_flags=0x224;
+constexpr uint32_t fn_resume_sound=0x8006ac24, fn_resume_music=0x8003c3dc, fn_event=0x80094a38;
+constexpr uint32_t continue_request=0x800d71cd; // byte 2: the death screen's CONTINUE (not the challenge stages)
+constexpr uint16_t restart_code=13, main_menu_code=1; // the pause handler's results the main loop acts on
+constexpr uint32_t event_replay=0xfd, event_restart=0xfe, event_quit=0xff;
+// Text ids: YES, NO, REALLY QUIT?, RESTART LEVEL?, CONFIRM CONTINUE, CONFIRM
+// REPLAY, CONTINUE / CONTINUES REMAINING.
+constexpr int text_yes=0xfb, text_no=0xfc, text_quit=0x102, text_restart=0x103;
+constexpr int text_continue=0x104, text_replay=0x113, text_remaining=0xf7, text_remaining_many=0xf8;
+constexpr int text_last=0x19a; // the highest id a level name or briefing uses (guarded)
 // Where OPTIONS lives: the title frontend (state 0x800d24e4 = 12, sub-screen
 // 0x800d24d2, handler 0x800841c4) and the pause menu (mode 1, 0x800be56a,
 // handler 0x80086174). Both use 8 as an unused screen with no handler.
@@ -85,6 +119,9 @@ const MenuContext* current_context() {
         if(c.mode==mode && (!c.state || psx_mod_read_half(c.state)==c.state_value)) return &c;
     return nullptr;
 }
+// Screen values with no handler that our screens use: 8 (OPTIONS, settings,
+// the pause list and its pages), 9 in gameplay (the death list).
+bool our_screen(const MenuContext* c,uint16_t sub) {return sub==ours_sub || (c->mode==1 && sub==death_sub);}
 // Text flags: font << 8, 4 centred, 8 right-aligned, 1 highlighted (blue CLUT).
 constexpr uint32_t font_small=0, font_menu=0x100, centre=4, right=8, blue=1;
 enum Icon {icon_triangle=4, icon_cross=6, icon_square=7, icon_change=11, icon_select=12};
@@ -189,13 +226,35 @@ std::deque<std::string> owned_strings; // env values not among the choices (stab
 
 int screen=-1;            // -1 OPTIONS, else screens[]
 int cursor=0, top=0;      // selection and first visible row
-bool owned=false;         // sub-screen 8 is ours
+bool owned=false;         // sub-screen 8 (or 9) is ours
 // Actions for the next live frame (guest writes and sounds happen there).
 int pending_sub=-1, pending_cursor=-1, pending_sound=-1;
+
+// D19H: the pause menu and death screen as lists. Page::Options is D19's
+// OPTIONS (screen -1) and settings screens; the rest are gameplay pages.
+enum class Page {Options, Pause, Death, Brief, Ask};
+enum class Act {Resume, Brief, Options, Load, Restart, MainMenu, Continue, Quit};
+struct ListItem {const char* label;Act act;};
+Page page=Page::Options;
+std::vector<ListItem> list;   // the pause or death list on screen
+Page ask_from=Page::Pause;    // a YES / NO prompt: the list it came from,
+Act ask_act=Act::Resume;      // what YES does
+Act return_item=Act::Resume;  // the item highlighted when the list comes back
+// Every final action runs, in the tick, exactly what the original's handler
+// does on that confirmation (its sound, flags and calls) and what the main
+// loop then does with its result. The handler itself never runs: it would draw
+// the old screen into the next image, which then shows for one frame.
+enum class Final {None, Resume, PauseRestart, PauseMainMenu, DeathContinue, DeathRestart, DeathQuit};
+Final pending_final=Final::None;
+bool pending_load=false;      // LOAD: the original LOAD screen (pause 5, death prompt 3)
+bool death_load=false;        // the death screen's LOAD is the original's now
+// After a resume the screen value stays ours through that dispatch and reads 0
+// again at the next composition.
+bool resumed=false;
 const char* back_label="CANCEL";
 bool identity_ok=false, identity_checked=false;
 uint32_t last_image=~0u;
-uint64_t draws=0, entries=0, writes=0;
+uint64_t draws=0, entries=0, writes=0, finals=0;
 uint32_t sliders=0; // GPU-addressable slider objects
 constexpr int slider_slots=12, slider_size=0x40;
 
@@ -276,11 +335,13 @@ void write_settings() {
 // ---- input (from input_pad) ----
 struct Repeat {bool held=false;uint64_t next=0,since=0;};
 Repeat rep_up,rep_down,rep_left,rep_right;
-bool prev_confirm=true, prev_back=true, prev_square=true; // held keys at takeover are not presses
 // A press, then 350 ms, then every 80 ms while held (D19B: predictable repeat).
-int repeat(Repeat& r,bool held,uint64_t now) {
-    if(!held) {r.held=false;return 0;}
-    if(!r.held) {r.held=true;r.since=now;r.next=now+350;return 1;}
+// A press (a key-down event since the last read, so a tap shorter than the
+// gap between two reads still counts and a key held when the screen opened
+// does not), then 350 ms, then every 80 ms while held (D19B: predictable repeat).
+int repeat(Repeat& r,bool held,int taps,uint64_t now) {
+    if(taps>0) {r.held=held;r.since=now;r.next=now+350;return taps;}
+    if(!held || !r.held) {r.held=false;return 0;}
     if(now<r.next) return 0;
     r.next+=80;
     return 1;
@@ -289,7 +350,85 @@ int repeat(Repeat& r,bool held,uint64_t now) {
 bool compact(const Screen& s) {return s.rows.size()>5;}
 int rows_visible(const Screen& s) {return compact(s) ? 9 : (int)s.rows.size();}
 void sound(int which) {if(pending_sound<0 || which==0) pending_sound=which;}
+// ---- D19H: the pause and death lists ----
+int level() {return (int)psx_mod_read_word(level_index);}
+bool challenge() {return (unsigned)(level()-21)<6u;} // stages 21-26: no RESTART, REPLAY / GIVE UP
+bool has_briefing() {
+    const int n=level();
+    if(n<0 || n>=13) return false;
+    for(int i=0;i<10;++i) if(psx_mod_read_half(briefings+20*n+2*i)) return true;
+    return false;
+}
+// The original's choices, in the original's terms: the pause menu's RESUME,
+// OPTIONS, LOAD (one player only) and its QUIT prompt's RESTART (not in the
+// challenge stages) and MAIN MENU; the death screen's CONTINUE, LOAD, RESTART
+// and QUIT, or REPLAY LEVEL and GIVE UP in the challenge stages.
+void build_list(Page p) {
+    list.clear();
+    if(p==Page::Pause) {
+        list.push_back({"RESUME",Act::Resume});
+        if(has_briefing()) list.push_back({"MISSION BRIEFING",Act::Brief});
+        list.push_back({"OPTIONS",Act::Options});
+        if(psx_mod_read_word(players)==1) list.push_back({"LOAD GAME",Act::Load});
+        if(!challenge()) list.push_back({"RESTART LEVEL",Act::Restart});
+        list.push_back({"MAIN MENU",Act::MainMenu});
+    } else if(challenge()) {
+        list.push_back({"REPLAY LEVEL",Act::Continue});
+        list.push_back({"GIVE UP",Act::Quit});
+    } else {
+        list.push_back({"CONTINUE",Act::Continue});
+        list.push_back({"LOAD GAME",Act::Load});
+        list.push_back({"RESTART LEVEL",Act::Restart});
+        list.push_back({"QUIT",Act::Quit});
+    }
+}
+int item_of(Act a) {
+    for(size_t i=0;i<list.size();++i) if(list[i].act==a) return (int)i;
+    return 0;
+}
+void open_list(Page p,Act highlight) {
+    page=p;build_list(p);cursor=item_of(highlight);top=0;screen=-1;
+}
+void act_now(Act a) {
+    const bool death=page==Page::Death || (page==Page::Ask && ask_from==Page::Death);
+    switch(a) {
+    case Act::Resume: pending_final=Final::Resume;break;
+    case Act::Restart: pending_final=death ? Final::DeathRestart : Final::PauseRestart;break;
+    case Act::MainMenu: pending_final=Final::PauseMainMenu;break;
+    case Act::Continue: pending_final=Final::DeathContinue;break;
+    case Act::Quit: pending_final=Final::DeathQuit;break;
+    default: break;
+    }
+}
+// The original's prompt for each choice: CONTINUE (REPLAY) is confirmed as
+// the original asks (YES first); RESTART, MAIN MENU and QUIT start on NO.
+int ask_heading() {
+    switch(ask_act) {
+    case Act::Continue: return challenge() ? text_replay : text_continue;
+    case Act::Restart: return text_restart;
+    default: return text_quit;
+    }
+}
+void list_confirm() {
+    const Act a=list[cursor].act;
+    return_item=a;
+    switch(a) {
+    case Act::Brief: page=Page::Brief;sound(0);break;
+    case Act::Options: page=Page::Options;screen=-1;cursor=0;top=0;back_label=contexts[1].back_label;sound(0);break;
+    case Act::Load: pending_load=true;sound(0);break;
+    case Act::Resume: act_now(a);break;
+    default: ask_from=page;ask_act=a;page=Page::Ask;cursor=a==Act::Continue ? 0 : 1;sound(1);break;
+    }
+}
+
 void move(int dir) {
+    if(page==Page::Brief) return;
+    if(page!=Page::Options) {
+        const int n=page==Page::Ask ? 2 : (int)list.size();
+        if(n) cursor=(cursor+dir+n)%n;
+        sound(1);
+        return;
+    }
     const int n=screen<0 ? option_count : (int)screens[screen].rows.size();
     cursor=(cursor+dir+n)%n;
     if(screen>=0) {
@@ -300,7 +439,7 @@ void move(int dir) {
     sound(1);
 }
 void change(int dir,uint64_t held_ms) {
-    if(screen<0) return;
+    if(page!=Page::Options || screen<0) return;
     Row& r=screens[screen].rows[cursor];
     int& v=draft[screen][cursor];
     const int before=v;
@@ -326,44 +465,70 @@ void leave_screen(bool keep) {
     screen=-1;cursor=3+s;top=0;sound(0);
 }
 void defaults() {
-    if(screen<0) return;
+    if(page!=Page::Options || screen<0) return;
     for(size_t i=0;i<screens[screen].rows.size();++i) draft[screen][i]=screens[screen].rows[i].def;
     sound(0);
 }
 void confirm() {
+    switch(page) {
+    case Page::Pause: case Page::Death: list_confirm();return;
+    case Page::Brief: return;
+    case Page::Ask:
+        if(cursor==0) act_now(ask_act);
+        else {open_list(ask_from,ask_act);sound(1);}
+        return;
+    case Page::Options: break;
+    }
     if(screen>=0) {leave_screen(true);return;}
     const Item& it=options_items[cursor];
     if(it.guest_sub>=0) {pending_cursor=cursor;pending_sub=it.guest_sub;sound(0);}
     else open_screen(it.screen);
 }
-void back() {
+void back(uint16_t mode) {
+    switch(page) {
+    case Page::Pause: act_now(Act::Resume);return;  // Escape resumes, as the original's Start
+    case Page::Death: return;                        // nothing to go back to
+    case Page::Brief: open_list(Page::Pause,Act::Brief);sound(0);return;
+    case Page::Ask: open_list(ask_from,ask_act);sound(1);return;
+    case Page::Options: break;
+    }
     if(screen>=0) {leave_screen(false);return;}
+    // In gameplay OPTIONS goes back to our pause list (the original's 12 would
+    // draw its own pause menu for a frame first).
+    if(mode==1) {open_list(Page::Pause,Act::Options);sound(0);return;}
     pending_cursor=0;pending_sub=-2;sound(0); // -2: the context's back
 }
 } // namespace
 
-bool game_menu_input(const MenuKeys& k) {
+bool game_menu_input(const MenuKeys& keys) {
     if(!enabled()) return false;
     std::lock_guard<std::recursive_mutex> lock(mutex);
+    // Taps that arrive while the menu cannot act yet wait for the next read.
+    static MenuKeys carry;
+    MenuKeys k=keys;
+    k.up_taps+=carry.up_taps;k.down_taps+=carry.down_taps;k.left_taps+=carry.left_taps;k.right_taps+=carry.right_taps;
+    k.confirm_taps+=carry.confirm_taps;k.back_taps+=carry.back_taps;k.square_taps+=carry.square_taps;
+    carry=MenuKeys{};
     // Busy drawing, or a screen change waits for the next tick: keys wait too.
-    if(busy || (owned && pending_sub>=0)) return owned;
+    if(busy || (owned && (pending_sub>=0 || pending_final!=Final::None || pending_load))) {
+        if(owned) carry=k;
+        return owned;
+    }
     const MenuContext* c=current_context();
-    if(!owned || !c || psx_mod_read_half(c->sub)!=ours_sub) {
-        prev_confirm=prev_back=prev_square=true; // keys held at takeover are not presses
+    if(!owned || !c || !our_screen(c,psx_mod_read_half(c->sub))) {
         rep_up=rep_down=rep_left=rep_right=Repeat{};
         return false;
     }
     const uint64_t now=SDL_GetTicks();
-    if(repeat(rep_up,k.up,now)) move(-1);
-    if(repeat(rep_down,k.down,now)) move(1);
-    if(repeat(rep_left,k.left,now)) change(-1,now-rep_left.since);
-    if(repeat(rep_right,k.right,now)) change(1,now-rep_right.since);
+    for(int n=repeat(rep_up,k.up,k.up_taps,now);n>0;--n) move(-1);
+    for(int n=repeat(rep_down,k.down,k.down_taps,now);n>0;--n) move(1);
+    for(int n=repeat(rep_left,k.left,k.left_taps,now);n>0;--n) change(-1,now-rep_left.since);
+    for(int n=repeat(rep_right,k.right,k.right_taps,now);n>0;--n) change(1,now-rep_right.since);
     for(int w=k.wheel;w>0;--w) move(-1);
     for(int w=k.wheel;w<0;++w) move(1);
-    if(k.confirm && !prev_confirm) confirm();
-    else if(k.back && !prev_back) back();
-    else if(k.square && !prev_square) defaults();
-    prev_confirm=k.confirm;prev_back=k.back;prev_square=k.square;
+    if(k.confirm_taps) confirm();
+    else if(k.back_taps) back(c->mode);
+    else if(k.square_taps) defaults();
     return true;
 }
 
@@ -395,6 +560,11 @@ struct Guest {
         psx_mod_write_byte(text+i,0);
     }
     void say(const char* s,int x,int y,uint32_t flags) {put(s);call(fn_text,text,(uint32_t)x,(uint32_t)y,flags);}
+    // A string of the game's text table, by id, as the original passes it.
+    void say_id(int id,int x,int y,uint32_t flags) {
+        const uint32_t s=psx_mod_read_word(strings+4u*(uint32_t)id);
+        if(s>=0x80010000u && s<0x80200000u) call(fn_text,s,(uint32_t)x,(uint32_t)y,flags);
+    }
     int width(const char* s,uint32_t font) {put(s);return (int)call(fn_width,text,font>>8,0,0);}
     // The prompt helper 0x8008411c with our own label: button left of the
     // centred small-font label.
@@ -490,7 +660,67 @@ void draw_settings(Guest& g,const Geometry& geo) {
     for(size_t l=0;l<lines.size() && l<2;++l) g.say(lines[l].c_str(),0,ybase+12*(int)l,font_small|centre);
     prompts(g,geo,true);
 }
+
+// ---- D19H pages ----
+// The original's text height: headings at y0 + 171h/2048 in the menu font.
+int heading_y(const Geometry& geo) {return geo.y0+(171*geo.h>>11);}
+// A centred list in the menu font, 19 apart, centred where OPTIONS' three were
+// (the original's own arithmetic), plus a shift.
+void draw_list(Guest& g,const Geometry& geo,int shift) {
+    const int n=(int)list.size(), y=(geo.h-57)/2+geo.y0-19*(n-3)/2+shift;
+    for(int i=0;i<n;++i) g.say(list[i].label,0,y+19*i,font_menu|centre|(i==cursor?blue:0));
+}
+void level_title(Guest& g,const Geometry& geo) {
+    const int n=level();
+    if(n<0 || n>=32) return;
+    const int id=(int16_t)psx_mod_read_half(level_names+2*n);
+    if(id>0 && id<=text_last) g.say_id(id,0,heading_y(geo),font_menu|centre);
+}
+int prompt_y(const Geometry& geo) {return -geo.y0-(geo.h>>4)-19;}
+void draw_pause(Guest& g,const Geometry& geo) {
+    level_title(g,geo);
+    draw_list(g,geo,0);
+    const int y=prompt_y(geo);
+    g.prompt(icon_select,"SELECT",-geo.w/4,y);
+    g.prompt(icon_cross,"CONFIRM",0,y);
+    g.prompt(icon_triangle,"RESUME",geo.w/4,y);
+}
+void draw_death(Guest& g,const Geometry& geo) {
+    // The original's "N CONTINUES REMAINING" (its "%d %s", at y -80).
+    const int n=psx_mod_read_byte(continues);
+    const uint32_t s=psx_mod_read_word(strings+4u*(n==1 ? text_remaining : text_remaining_many));
+    std::string words;
+    for(uint32_t a=s;s>=0x80010000u && s<0x80200000u && words.size()<40;++a) {const char ch=(char)psx_mod_read_byte(a);if(!ch) break;words+=ch;}
+    char line[64];std::snprintf(line,sizeof line,"%d %s",n,words.c_str());
+    g.say(line,0,-80,font_menu|centre);
+    draw_list(g,geo,8);
+    const int y=prompt_y(geo);
+    g.prompt(icon_select,"SELECT",-geo.w/8,y);
+    g.prompt(icon_cross,"CONFIRM",geo.w/8,y);
+}
+void draw_brief(Guest& g,const Geometry& geo) {
+    // The original pause screen's briefing: title, then up to ten lines from
+    // x0 + w/32 + 15, 26 below the title and 15 apart, in the small font.
+    level_title(g,geo);
+    const int n=level(), x=geo.x0+(geo.w>>5)+15, y=heading_y(geo)+26;
+    for(int i=0;i<10;++i) {
+        const int id=(int16_t)psx_mod_read_half(briefings+20*n+2*i);
+        if(id>0 && id<=text_last) g.say_id(id,x,y+15*i,font_small);
+    }
+    g.prompt(icon_triangle,"RETURN",0,prompt_y(geo));
+}
+void draw_ask(Guest& g,const Geometry& geo) {
+    g.say_id(ask_heading(),0,-40,font_menu|centre);
+    g.say_id(text_yes,0,-6,font_menu|centre|(cursor==0?blue:0));
+    g.say_id(text_no,0,13,font_menu|centre|(cursor==1?blue:0));
+    const int y=prompt_y(geo);
+    g.prompt(icon_select,"SELECT",-geo.w/4,y);
+    g.prompt(icon_cross,"CONFIRM",0,y);
+    g.prompt(icon_triangle,"CANCEL",geo.w/4,y);
+}
 } // namespace
+
+bool gameplay_tick(CPUState* cpu);
 
 // Frontend state 12 calls 0x800220f4 each tick just before the sub-screen
 // dispatch: the place to apply the keys' actions (the original screen then
@@ -512,6 +742,9 @@ void game_menu_tick(CPUState* cpu) {
         busy=false;
         pending_sound=-1;
     }
+    if(c->mode==1) {
+        if(gameplay_tick(cpu)) return;
+    } else page=Page::Options;
     const uint16_t sub=psx_mod_read_half(c->sub);
     if(pending_sub!=-1) {
         if(sub==ours_sub) {
@@ -534,8 +767,104 @@ void game_menu_tick(CPUState* cpu) {
     } else if(sub!=ours_sub) owned=false;
 }
 
+// D19H, in gameplay (mode 1) at the pause dispatch, before the screen's
+// handler runs: our actions, and the original pause menu and death screen
+// replaced by our lists before they draw. True when the tick is done.
+bool gameplay_tick(CPUState* cpu) {
+    uint16_t sub=psx_mod_read_half(pause_screen);
+    if(pending_final!=Final::None) {
+        const Final f=pending_final;
+        pending_final=Final::None;
+        const bool pause=f==Final::Resume || f==Final::PauseRestart || f==Final::PauseMainMenu;
+        if(sub==(pause ? ours_sub : death_sub)) {
+            busy=true;
+            {
+                Guest g(cpu);
+                // The handler's part (pause 0x80085c04 / 0x80086130, death
+                // 0x8008692c / 0x80086c04 / 0x80086aa4).
+                g.call(fn_sound,f==Final::Resume ? 0u : 1u,0,0,0);
+                switch(f) {
+                case Final::Resume: psx_mod_write_half(pause_reset,1);break;
+                case Final::PauseRestart: psx_mod_write_half(pause_reset,1);psx_mod_write_half(pause_screen,restart_code);break;
+                case Final::PauseMainMenu: psx_mod_write_half(pause_reset,1);psx_mod_write_half(pause_screen,main_menu_code);break;
+                case Final::DeathContinue:
+                    if(challenge()) {psx_mod_write_byte(continues,(uint8_t)(psx_mod_read_byte(continues)-1));g.call(fn_event,event_replay,0,0,0);}
+                    else psx_mod_write_byte(continue_request,2);
+                    psx_mod_write_half(death_reset,1);break;
+                case Final::DeathRestart: g.call(fn_event,event_restart,0,0,0);psx_mod_write_half(death_reset,1);break;
+                case Final::DeathQuit: psx_mod_write_half(death_reset,1);g.call(fn_event,challenge() ? event_restart : event_quit,0,0,0);break;
+                case Final::None: break;
+                }
+                // The handler returned 0 (resume, continue, restart and quit
+                // from death): the main loop's resume (0x80026950-0x80026994).
+                if(f!=Final::PauseRestart && f!=Final::PauseMainMenu) {
+                    const uint32_t flags=player+player_size*psx_mod_read_half(controller_pad)+player_flags;
+                    psx_mod_write_half(paused,0);
+                    psx_mod_write_word(flags,psx_mod_read_word(flags)|0x4000u);
+                    g.call(fn_resume_sound,0,0,0,0);g.call(fn_resume_music,0,0,0,0);
+                    resumed=true;
+                }
+            }
+            busy=false;
+            ++finals;
+            if(trace()) std::fprintf(stderr,"[TTK menu] final %d\n",(int)f);
+        }
+        owned=false;page=Page::Options;screen=-1;return_item=Act::Resume;
+        return true;
+    }
+    if(pending_load) {
+        pending_load=false;
+        if(sub==death_sub) {
+            psx_mod_write_half(death_reset,0);psx_mod_write_half(death_prompt,3);
+            psx_mod_write_half(pause_screen,death_top);death_load=true;
+        } else if(sub==ours_sub) {
+            psx_mod_write_half(pause_reset,1);psx_mod_write_half(pause_screen,pause_load);
+        }
+        owned=false;page=Page::Options;screen=-1;
+        return true;
+    }
+    if(sub==pause_top) {
+        open_list(Page::Pause,return_item);return_item=Act::Resume;
+        owned=true;back_label="RESUME";++entries;
+        input_release_for_menu();
+        psx_mod_write_half(pause_screen,ours_sub);
+        return true;
+    }
+    if(sub==death_top) {
+        // Not while the original's LOAD runs for the death screen (prompt 3);
+        // its CANCEL clears the prompt and brings the list back.
+        if(death_load && psx_mod_read_half(death_prompt)==3) return true;
+        const Act highlight=death_load ? Act::Load : Act::Continue;
+        death_load=false;
+        open_list(Page::Death,highlight);owned=true;++entries;
+        input_release_for_menu();
+        psx_mod_write_half(pause_screen,death_sub);
+        return true;
+    }
+    death_load=false;
+    if(!sub) return_item=Act::Resume;
+    if(!owned && (sub==ours_sub || sub==death_sub)) {
+        // A savestate saved on one of our screens: the list again.
+        open_list(sub==death_sub ? Page::Death : Page::Pause,Act::Resume);
+        owned=true;back_label="RESUME";
+        return true;
+    }
+    if(sub==death_sub) return true;
+    if(page!=Page::Options && sub==ours_sub) return true;
+    page=Page::Options;
+    return false; // OPTIONS and its screens: D19's own handling
+}
+
 void game_menu_frame(CPUState* cpu) {
     if(!enabled() || psx_mod_replay_active() || g_precise_mode || g_ls_mode || g_psx_call_bail) return;
+    if(resumed) {
+        // After our resume (or continue, restart, quit) the screen value goes
+        // back to the original's 0, in whatever mode the game is in now.
+        std::lock_guard<std::recursive_mutex> lock(mutex);
+        const uint16_t v=psx_mod_read_half(pause_screen);
+        if(!psx_mod_read_half(paused) && (v==ours_sub || v==death_sub)) psx_mod_write_half(pause_screen,0);
+        resumed=false;
+    }
     const MenuContext* c=current_context();
     if(!c) {
         std::lock_guard<std::recursive_mutex> lock(mutex);
@@ -545,7 +874,7 @@ void game_menu_frame(CPUState* cpu) {
     ensure_init();
     if(!authentic()) return;
     std::lock_guard<std::recursive_mutex> lock(mutex);
-    if(!owned || psx_mod_read_half(c->sub)!=ours_sub) return;
+    if(!owned || !our_screen(c,psx_mod_read_half(c->sub))) return;
     const uint32_t image=psx_mod_read_word(image_counter);
     if(image==last_image) return;
     last_image=image;
@@ -554,7 +883,13 @@ void game_menu_frame(CPUState* cpu) {
     {
         Guest g(cpu);
         const Geometry geo=read_geometry();
-        if(screen<0) draw_options(g,geo); else draw_settings(g,geo);
+        switch(page) {
+        case Page::Pause: draw_pause(g,geo);break;
+        case Page::Death: draw_death(g,geo);break;
+        case Page::Brief: draw_brief(g,geo);break;
+        case Page::Ask: draw_ask(g,geo);break;
+        case Page::Options: if(screen<0) draw_options(g,geo); else draw_settings(g,geo);break;
+        }
     }
     busy=false;
     ++draws;
@@ -563,10 +898,10 @@ void game_menu_frame(CPUState* cpu) {
 
 extern "C" const char* ttk_game_menu_json() {
     using namespace ttk;
-    static char buffer[256];
-    std::snprintf(buffer,sizeof buffer,"{\"owned\":%s,\"screen\":%d,\"cursor\":%d,\"top\":%d,\"entries\":%llu,\"draws\":%llu,\"writes\":%llu,\"identity\":%s}",
-        owned?"true":"false",screen,cursor,top,(unsigned long long)entries,(unsigned long long)draws,(unsigned long long)writes,
-        identity_checked?(identity_ok?"true":"false"):"null");
+    static char buffer[384];
+    std::snprintf(buffer,sizeof buffer,"{\"owned\":%s,\"page\":%d,\"screen\":%d,\"cursor\":%d,\"top\":%d,\"items\":%d,\"entries\":%llu,\"draws\":%llu,\"writes\":%llu,\"finals\":%llu,\"identity\":%s}",
+        owned?"true":"false",(int)page,screen,cursor,top,(int)list.size(),(unsigned long long)entries,(unsigned long long)draws,(unsigned long long)writes,
+        (unsigned long long)finals,identity_checked?(identity_ok?"true":"false"):"null");
     return buffer;
 }
 

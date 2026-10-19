@@ -78,6 +78,9 @@ void input_set_menu_handler(bool (*handler)(const MenuKeys&));
 // Diagnostics: the last value input_pad() returned (no side effects).
 uint16_t input_last_pad();
 void input_release();
+// D19H: our pause and death lists free the mouse (only if it is captured:
+// the death screen opens from captured play).
+void input_release_for_menu();
 void input_state_loaded();
 void input_allow_capture(bool allow);
 void input_pad_context(uint16_t pad);

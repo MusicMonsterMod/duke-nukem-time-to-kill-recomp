@@ -40,6 +40,22 @@ static uint64_t jump_deadline,menu_select_deadline,jump_pressed_at;
 static bool escape_hold;
 // D19D: uncaptured mouse-wheel notches waiting to move a menu cursor.
 static std::atomic<int> menu_wheel{0};
+// D19H: menu key-down events (up, down, left, right, confirm, back, square)
+// since the menu last read them; taken (and dropped when no menu screen owns
+// the keys) on every pad read.
+static std::atomic<int> menu_downs[7];
+static void note_menu_down(int code) {
+    int k=-1;
+    switch(code) {
+    case SDL_SCANCODE_UP: k=0;break; case SDL_SCANCODE_DOWN: k=1;break;
+    case SDL_SCANCODE_LEFT: k=2;break; case SDL_SCANCODE_RIGHT: k=3;break;
+    case SDL_SCANCODE_RETURN: case SDL_SCANCODE_X: k=4;break;
+    case SDL_SCANCODE_ESCAPE: case SDL_SCANCODE_BACKSPACE: case SDL_SCANCODE_Z: k=5;break;
+    case SDL_SCANCODE_V: k=6;break;
+    default: return;
+    }
+    if(menu_downs[k].load()<6)++menu_downs[k];
+}
 static uint64_t escape_start_deadline,escape_at;
 static bool airborne_interact;
 static uint64_t interaction_deadline, interaction_pulse, capture_after, holster_pulse;
@@ -218,6 +234,7 @@ void input_release() {
     capture_after=sequence+12;
     clear();
 }
+void input_release_for_menu() {if(captured)input_release();}
 void input_allow_capture(bool allow) {
     allow_capture = allow;
     if (!allow) input_release();
@@ -381,6 +398,7 @@ void input_event(const SDL_Event& e) {
 #endif
         bool pressed = e.type == SDL_KEYDOWN;
         if (pressed && e.key.repeat) return;
+        if(pressed)note_menu_down(code);
         // Enter uses the selected gadget while captured (EDuke Inventory). Escape pauses.
         if(code==SDL_SCANCODE_RETURN && pressed) {
             if(inventory_enter_down)return;
@@ -928,6 +946,9 @@ static bool menu_owns_keys() {
     k.back=keys[SDL_SCANCODE_ESCAPE] || keys[SDL_SCANCODE_BACKSPACE] || keys[SDL_SCANCODE_Z];
     k.square=keys[SDL_SCANCODE_V];
     k.wheel=captured?0:menu_wheel.load();
+    int* const taps[7]={&k.up_taps,&k.down_taps,&k.left_taps,&k.right_taps,&k.confirm_taps,&k.back_taps,&k.square_taps};
+    for(int i=0;i<7;++i)*taps[i]=captured?0:menu_downs[i].exchange(0);
+    if(captured)for(auto& d:menu_downs)d.store(0);
     const bool owns=!captured && menu_handler(k);
     if(owns) {
         if(k.wheel)menu_wheel.fetch_sub(k.wheel);

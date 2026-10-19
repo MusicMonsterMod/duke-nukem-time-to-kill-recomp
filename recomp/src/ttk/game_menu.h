@@ -6,7 +6,10 @@ struct CPUState;
 namespace ttk {
 // D19: Modernized title OPTIONS, extended with PC CONTROLS, DISPLAY and
 // MODERNIZED screens. Contract: documentation/145-d19-game-menu.md.
-struct MenuKeys {bool up=false,down=false,left=false,right=false,confirm=false,back=false,square=false;int wheel=0;};
+struct MenuKeys {bool up=false,down=false,left=false,right=false,confirm=false,back=false,square=false;int wheel=0;
+    // D19H: key-down events since the last read, so a tap shorter than the
+    // gap between two pad reads still counts (the death screen reads seldom).
+    int up_taps=0,down_taps=0,left_taps=0,right_taps=0,confirm_taps=0,back_taps=0,square_taps=0;};
 // From input_pad(): true while one of our screens owns the keys (the pad
 // then reads as nothing pressed). wheel: notches (+ up) taken by the menu.
 bool game_menu_input(const MenuKeys& keys);

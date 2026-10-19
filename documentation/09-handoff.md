@@ -1,5 +1,28 @@
 # Next-session handoff
 
+## 2026-10-19 - D19I accepted; D19M and D19N added
+
+- User: "it's working as intended". D19I Done; executable
+  `f99b46632c62d1ce43a674b3a494c8246dc5513c0c1b2651d3692db12a557f9c` is the regression baseline.
+  New Todo: D19M (QUIT GAME item that closes the program, YES / NO prompt),
+  D19N (merge the original OPTIONS screens with ours: one OPTIONS screen,
+  the rest under ADVANCED; first-pass overlaps: AUTO AIM vs our aim rows,
+  CONFIGURE CONTROLLER vs PC CONTROLS / D19G, GAME SPEED vs CPU SPEED; design
+  artifact first). Still queued: D19J, D19G, D19F, D08AA, D24D, D26G.
+
+## 2026-10-19 - D19I in-game menu text at full brightness (implemented)
+
+- Our pause list, death list, briefing, prompts and pause OPTIONS were drawn
+  at the view composition, into the world's drawing chain, under the paused
+  world's darkening quad (`0x80025f28`) and behind Duke. In gameplay they are
+  now drawn in the pause-dispatch tick, after the quad, where the original
+  draws its pause text; title menus unchanged. Text measures 255 red like the
+  original (briefing exactly the original's 255, 176, 34; was 135, 95, 25).
+  World darkening unchanged; 120 Hz presents never lose the text. Executable
+  `f99b46632c62d1ce43a674b3a494c8246dc5513c0c1b2651d3692db12a557f9c`,
+  [note 148](148-d19i-menu-brightness.md). Still queued: D19J, D19G, D19F,
+  D08AA, D24D, D26G.
+
 ## 2026-10-19 - D19H accepted; D19I-D19L added
 
 - User: "accepted!! this works and it's functional". D19H Done; executable

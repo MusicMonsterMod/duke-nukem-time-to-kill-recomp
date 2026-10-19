@@ -27,6 +27,10 @@
 // on the free screen values 8 and 9, with YES / NO prompts. Each choice does
 // what the original's handler and main loop do with it; the originals' LOAD
 // screens are used as they are. Contract: documentation/147-d19h-pause-menu.md.
+//
+// D19I: in gameplay our pages are drawn at the pause dispatch, where the
+// original draws its pause text, so they are as bright as the original's
+// (documentation/148-d19i-menu-brightness.md).
 #include "game_menu.h"
 #include "live_env.h"
 #include "cpu_state.h"
@@ -721,6 +725,7 @@ void draw_ask(Guest& g,const Geometry& geo) {
 } // namespace
 
 bool gameplay_tick(CPUState* cpu);
+void draw_page(CPUState* cpu,const MenuContext* c);
 
 // Frontend state 12 calls 0x800220f4 each tick just before the sub-screen
 // dispatch: the place to apply the keys' actions (the original screen then
@@ -736,6 +741,9 @@ void game_menu_tick(CPUState* cpu) {
     ensure_init();
     if(!authentic()) return;
     std::lock_guard<std::recursive_mutex> lock(mutex);
+    // D19I: in gameplay our pages are drawn here, after the actions, like the
+    // original's pause text (see draw_page).
+    struct DrawAfter {CPUState* cpu;const MenuContext* c;~DrawAfter() {if(c->mode==1) draw_page(cpu,c);}} draw_after{cpu,c};
     if(pending_sound>=0) {
         busy=true;
         {Guest g(cpu);g.call(fn_sound,(uint32_t)pending_sound,0,0,0);}
@@ -777,6 +785,9 @@ bool gameplay_tick(CPUState* cpu) {
         pending_final=Final::None;
         const bool pause=f==Final::Resume || f==Final::PauseRestart || f==Final::PauseMainMenu;
         if(sub==(pause ? ours_sub : death_sub)) {
+            // D19I: this image still shows the page, as the original's
+            // handler draws its screen in the tick that acts on the press.
+            draw_page(cpu,&contexts[1]);
             busy=true;
             {
                 Guest g(cpu);
@@ -843,8 +854,11 @@ bool gameplay_tick(CPUState* cpu) {
     }
     death_load=false;
     if(!sub) return_item=Act::Resume;
-    if(!owned && (sub==ours_sub || sub==death_sub)) {
-        // A savestate saved on one of our screens: the list again.
+    if(!owned && !resumed && (sub==ours_sub || sub==death_sub)) {
+        // A savestate saved on one of our screens: the list again. (Not after
+        // our own resume: the level start after the death screen's RESTART
+        // LEVEL runs this tick through 0x800220f4 before the composition
+        // clears the value.)
         open_list(sub==death_sub ? Page::Death : Page::Pause,Act::Resume);
         owned=true;back_label="RESUME";
         return true;
@@ -855,26 +869,15 @@ bool gameplay_tick(CPUState* cpu) {
     return false; // OPTIONS and its screens: D19's own handling
 }
 
-void game_menu_frame(CPUState* cpu) {
-    if(!enabled() || psx_mod_replay_active() || g_precise_mode || g_ls_mode || g_psx_call_bail) return;
-    if(resumed) {
-        // After our resume (or continue, restart, quit) the screen value goes
-        // back to the original's 0, in whatever mode the game is in now.
-        std::lock_guard<std::recursive_mutex> lock(mutex);
-        const uint16_t v=psx_mod_read_half(pause_screen);
-        if(!psx_mod_read_half(paused) && (v==ours_sub || v==death_sub)) psx_mod_write_half(pause_screen,0);
-        resumed=false;
-    }
-    const MenuContext* c=current_context();
-    if(!c) {
-        std::lock_guard<std::recursive_mutex> lock(mutex);
-        owned=false;screen=-1;
-        return;
-    }
-    ensure_init();
-    if(!authentic()) return;
-    std::lock_guard<std::recursive_mutex> lock(mutex);
+// Our page for this image, once per image. The title draws it at the view
+// composition (game_menu_frame). D19I: gameplay draws it at the pause
+// dispatch, after 0x80025f28 has put the paused world's darkening quad into the
+// drawing chain that follows the composition: the original pause text is drawn
+// there too. Drawn at the composition, our text went into the world's chain,
+// under that quad and behind Duke, at about half brightness.
+void draw_page(CPUState* cpu,const MenuContext* c) {
     if(!owned || !our_screen(c,psx_mod_read_half(c->sub))) return;
+    if(c->mode==1 && !psx_mod_read_half(paused)) return; // only over the paused world
     const uint32_t image=psx_mod_read_word(image_counter);
     if(image==last_image) return;
     last_image=image;
@@ -893,6 +896,29 @@ void game_menu_frame(CPUState* cpu) {
     }
     busy=false;
     ++draws;
+}
+
+void game_menu_frame(CPUState* cpu) {
+    if(!enabled() || psx_mod_replay_active() || g_precise_mode || g_ls_mode || g_psx_call_bail) return;
+    if(resumed) {
+        // After our resume (or continue, restart, quit) the screen value goes
+        // back to the original's 0, in whatever mode the game is in now.
+        std::lock_guard<std::recursive_mutex> lock(mutex);
+        const uint16_t v=psx_mod_read_half(pause_screen);
+        if(!psx_mod_read_half(paused) && (v==ours_sub || v==death_sub)) psx_mod_write_half(pause_screen,0);
+        resumed=false;
+    }
+    const MenuContext* c=current_context();
+    if(!c) {
+        std::lock_guard<std::recursive_mutex> lock(mutex);
+        owned=false;screen=-1;
+        return;
+    }
+    if(c->mode==1) return; // D19I: drawn at the pause dispatch (game_menu_tick)
+    ensure_init();
+    if(!authentic()) return;
+    std::lock_guard<std::recursive_mutex> lock(mutex);
+    draw_page(cpu,c);
 }
 } // namespace ttk
 

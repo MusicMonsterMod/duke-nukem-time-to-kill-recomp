@@ -66,8 +66,9 @@ dispatch `0x80025fb0` (entry, before the screen's handler runs):
 Slots 8 and 9 have no handler (table `0x80013558`) and nothing reads them,
 unlike 1 and 13, which the main loop takes as main menu and restart. The guest
 draws nothing on them and the paused world stays behind. Our pages are drawn
-from the composition hook like D19's, with the game's text, sprite and sound
-calls. Titles and prompts come from the game's text table: the level name
+from the composition hook like D19's (since D19I: from the pause-dispatch tick,
+after the darkening quad, [note 148](148-d19i-menu-brightness.md)), with the
+game's text, sprite and sound calls. Titles and prompts come from the game's text table: the level name
 (`0x800c3d2c`), the briefing ids (`0x800c3e10`, ten per level 0-12), YES /
 NO, RESTART LEVEL?, REALLY QUIT?, CONFIRM CONTINUE / REPLAY and
 CONTINUE(S) REMAINING.
@@ -165,7 +166,7 @@ card has none); two-player.
 - After QUIT or GIVE UP the screen value reads 9 until the next composition
   (title or next level). Nothing reads it in between.
 - Prompts still show PlayStation buttons (D19F, D19F1).
-- The text is drawn at about half the original's brightness in gameplay
-  (D19I).
+- The text was drawn at about half the original's brightness in gameplay;
+  D19I draws it at the pause dispatch instead ([note 148](148-d19i-menu-brightness.md)).
 - The continues system is kept as the original's for now. The user expects
   to scrap it later; then CONTINUE and the count change here.

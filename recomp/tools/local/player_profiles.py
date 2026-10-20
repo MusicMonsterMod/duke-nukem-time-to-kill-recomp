@@ -283,7 +283,7 @@ VANILLA_NOTICE = ('Modernized is now the default profile; your Vanilla settings 
 
 
 def defaults():
-    return {'version': 34, 'active': 'modernized',
+    return {'version': 35, 'active': 'modernized',
             'profiles': {mode: default_profile(mode) for mode in MODES}}
 
 
@@ -329,7 +329,7 @@ def load(path):
         notices.append('Unreadable profile settings; restored Modernized defaults.')
     else:
         version = data.get('version')
-        if type(version) is int and version > 34:
+        if type(version) is int and version > 35:
             raise ValueError(f'Profile settings version {version} is newer than this launcher; file left unchanged.')
         if type(version) is int and version == 0:
             mode = data.get('mode', 'modernized')
@@ -338,8 +338,8 @@ def load(path):
                 if renderer in RENDERERS:
                     result['profiles'][mode]['presentation']['renderer'] = renderer
             changed = True
-            notices.append('Migrated version 0 profile settings to version 34.')
-        elif type(version) is int and version in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34):
+            notices.append('Migrated version 0 profile settings to version 35.')
+        elif type(version) is int and version in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35):
             if data.get('active') == 'vanilla':
                 notices.append(VANILLA_NOTICE)
             profiles = data.get('profiles', {})
@@ -367,9 +367,10 @@ def load(path):
                 # Schema 28 (D08A5): Comma/Period move from original strafe to the mission
                 # inventory (add_missing_actions); schema 27's Backslash action is dropped.
                 # Schema 34 (D10C): the look keys take PageUp/PageDown/Home/End when free.
+                # Schema 35 (D10D): the turn keys take Left/Right when free.
                 if isinstance(profile, dict) and 'bindings' in profile:
                     try:
-                        result['profiles'][mode]['bindings'] = dict(pc_input.migrate_bindings(profile['bindings']) if version < 8 else pc_input.migrate_grab(profile['bindings']) if version < 34 else pc_input.validate(profile['bindings']))
+                        result['profiles'][mode]['bindings'] = dict(pc_input.migrate_bindings(profile['bindings']) if version < 8 else pc_input.migrate_grab(profile['bindings']) if version < 35 else pc_input.validate(profile['bindings']))
                     except ValueError as exc:
                         notices.append(f'{mode}: {exc} Restored action defaults.')
             if version < 6:
@@ -403,8 +404,8 @@ def load(path):
                                'run.py --cpu-timing accurate restores the full cycle model.')
             changed = result != data
             if changed and result != {**data, 'active': 'modernized'}:
-                notices.append(f'Migrated version {version} profile settings to version 34; retained preferences and added control and presentation defaults.'
-                               if version < 34 else
+                notices.append(f'Migrated version {version} profile settings to version 35; retained preferences and added control and presentation defaults.'
+                               if version < 35 else
                                'Invalid or unsupported profile fields were reset; valid preferences were retained.')
         else:
             changed = True
@@ -442,7 +443,8 @@ def describe(settings):
         lines.append(f"Camera distance: {'original' if not distance else round(distance)} (Alt+wheel in game, saved); shoulder: {controls['shoulder']} "
                      f"({pc_input_key(settings, 'camera_shoulder')} cycles, {pc_input_key(settings, 'camera_recenter')} recenters)")
         lines.append(f"Look keys: {pc_input_key(settings, 'look_up')}/{pc_input_key(settings, 'look_down')} look up/down while held, "
-                     f"{pc_input_key(settings, 'lock_look_up')}/{pc_input_key(settings, 'lock_look_down')} lock the look up/down")
+                     f"{pc_input_key(settings, 'lock_look_up')}/{pc_input_key(settings, 'lock_look_down')} lock the look up/down; "
+                     f"{pc_input_key(settings, 'turn_left')}/{pc_input_key(settings, 'turn_right')} turn left/right")
         lines.append(f"View: {controls['view']} person ({pc_input_key(settings, 'camera_view')} toggles in game, saved; "
                      "first-person is a prototype: swimming and jetpack flight use third person)")
         lines.append(f"Widescreen: {describe_widescreen(controls['widescreen'])}")

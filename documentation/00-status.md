@@ -1,5 +1,23 @@
 # Current status - 2026-10-04
 
+## 2026-10-20 - D10D accepted
+
+- User: "perfect, lock it in, close it out". D10D Done; executable
+  `02150d53b5bdaf636ce7fb5abfe8b311d7cb61f75e75e347bac2a2e511da2892` is the
+  regression baseline. Backlog: D19G1, D19K, D19F, D19N, D24D, D26G.
+
+## 2026-10-20 - D10D keyboard turning (Needs playtest)
+
+- Left / Right arrows turn the view (and Duke) everywhere in Modernized play:
+  on foot, first and third person, swimming, jetpack; Duke 3D rates (slow
+  first 1/8 s, then about 79 degrees/s walking, 158 running), smooth at high
+  refresh. Captured, the arrows no longer reach the original D-pad, so the
+  jetpack stops strafing on them; the tank fallback turns Duke with them.
+  KEY BINDINGS CAMERA rows TURN LEFT / TURN RIGHT, `--bind`; launcher schema
+  35. Lab offscreen (level 1 slot 9) as described. Executable
+  `02150d53b5bdaf636ce7fb5abfe8b311d7cb61f75e75e347bac2a2e511da2892`, [note 162](162-d10d-keyboard-turning.md). Native and Python tests
+  pass. Awaiting the user's playtest.
+
 ## 2026-10-20 - D10C accepted
 
 - User: "awesome!! ... lock this current one in, and close it out". D10C Done;

@@ -92,6 +92,10 @@ int main() {
     CHECK((ttk::input_pad() & (16|0x100))==0); // W forward + A L2 strafe, never D-pad turn
     CHECK((ttk::input_pad() & 128)==128);
     key(SDL_SCANCODE_A, false);
+    // D10D: without the modern camera the turn keys turn Duke (D-pad turn).
+    key(SDL_SCANCODE_LEFT,true);CHECK((ttk::input_pad() & (32|128))==32);
+    key(SDL_SCANCODE_LEFT,false);key(SDL_SCANCODE_RIGHT,true);CHECK((ttk::input_pad() & (32|128))==128);
+    key(SDL_SCANCODE_RIGHT,false);
     // D08V1: other refusals never turn with the mouse; an identity refusal pays
     // banked horizontal mouse counts out as the original D-pad turn.
     motion(40,0);tick();CHECK((ttk::input_pad() & (32|128))==(32|128));
@@ -178,18 +182,25 @@ int main() {
     ready=false;flight=true;
     CHECK((ttk::input_pad() & 16)==0 && (ttk::input_pad() & 1024)!=0);
     flight=false;CHECK((ttk::input_pad() & 16)==0);ready=true;
+    // D10D: on foot the arrows are the turn keys, never the D-pad tank turn.
+    key(SDL_SCANCODE_W,false);key(SDL_SCANCODE_LEFT,true);
+    CHECK((ttk::input_pad() & (32|128))==(32|128) && tick().held[ttk::turn_left] && tick().command_count==0);
+    key(SDL_SCANCODE_LEFT,false);key(SDL_SCANCODE_RIGHT,true);
+    CHECK((ttk::input_pad() & (32|128))==(32|128) && tick().held[ttk::turn_right]);
+    key(SDL_SCANCODE_RIGHT,false);key(SDL_SCANCODE_W,true);
     // D08Q6 Modern flight: the original still gets its flight pads (flame,
     // lean poses, thrust state; jetpack.inc cancels their thrust) but never
     // Shift's hover toggle (L1) or a Square that Ctrl cancels.
     ready=false;jet=true;key(SDL_SCANCODE_LSHIFT,false);
     CHECK((ttk::input_pad() & 16)==0 && (ttk::input_pad() & 0x300)==0x300); // W held
-    key(SDL_SCANCODE_W,false);key(SDL_SCANCODE_LEFT,true);CHECK((ttk::input_pad() & 0x100)==0 && (ttk::input_pad() & 0xa0)==0xa0);
+    // D10D: Left / Right turn the view in flight too, never a strafe pad.
+    key(SDL_SCANCODE_W,false);key(SDL_SCANCODE_LEFT,true);CHECK((ttk::input_pad() & 0x3a0)==0x3a0 && tick().held[ttk::turn_left]);
     key(SDL_SCANCODE_LEFT,false);key(SDL_SCANCODE_SPACE,true);CHECK((ttk::input_pad() & 32768)==0);
     key(SDL_SCANCODE_LCTRL,true);CHECK((ttk::input_pad() & 32768)!=0);key(SDL_SCANCODE_LCTRL,false);key(SDL_SCANCODE_SPACE,false);
     key(SDL_SCANCODE_LSHIFT,true);CHECK(ttk::input_pad()==0xffff);key(SDL_SCANCODE_LSHIFT,false);
     key(SDL_SCANCODE_RSHIFT,true);CHECK(ttk::input_pad()==0xffff);key(SDL_SCANCODE_RSHIFT,false);
     // D08R Classic flight: W/S → original Up/Down, A/D → layout strafe pads,
-    // arrows the same (never D-pad turns), Space passes as Square, Shift (either)
+    // Up / Down the same, Left / Right turn (D10D, never D-pad turns), Space passes as Square, Shift (either)
     // is the original hover toggle, Ctrl injects nothing.
     jet_classic=true;
     key(SDL_SCANCODE_W,true);CHECK((ttk::input_pad() & 16)==0 && (ttk::input_pad() & 0x300)==0x300);
@@ -201,8 +212,8 @@ int main() {
     key(SDL_SCANCODE_LCTRL,false);
     key(SDL_SCANCODE_UP,true);CHECK((ttk::input_pad() & 16)==0 && (ttk::input_pad() & 0xe0)==0xe0);
     key(SDL_SCANCODE_UP,false);key(SDL_SCANCODE_DOWN,true);CHECK((ttk::input_pad() & 64)==0 && (ttk::input_pad() & 0xb0)==0xb0);
-    key(SDL_SCANCODE_DOWN,false);key(SDL_SCANCODE_LEFT,true);CHECK((ttk::input_pad() & 0x100)==0 && (ttk::input_pad() & 0x2f0)==0x2f0);
-    key(SDL_SCANCODE_LEFT,false);key(SDL_SCANCODE_RIGHT,true);CHECK((ttk::input_pad() & 0x200)==0 && (ttk::input_pad() & 0x1f0)==0x1f0);
+    key(SDL_SCANCODE_DOWN,false);key(SDL_SCANCODE_LEFT,true);CHECK((ttk::input_pad() & 0x3f0)==0x3f0);
+    key(SDL_SCANCODE_LEFT,false);key(SDL_SCANCODE_RIGHT,true);CHECK((ttk::input_pad() & 0x3f0)==0x3f0);
     key(SDL_SCANCODE_RIGHT,false);
     // Captured, Right Shift is Shift and never the escape hatch's Select,
     // which would drop capture.
@@ -330,7 +341,7 @@ int main() {
     key(SDL_SCANCODE_RETURN,true);
     CHECK(!tick().active && !(ttk::input_pad()&8));key(SDL_SCANCODE_RETURN,false);
     // A saved custom speed binding keeps working; no action/schema migration.
-    SDL_setenv_unsafe("DNTTK_INPUT_BINDINGS", "1:26,22,4,7,-1,44,11,25,21,0,0,0,12,8,0,0,0,-3,226,51,52,27,16,225,13,17,5,47,48,24,20,30,31,32,33,34,35,36,37,38,39,54,55,75,78,74,77", 1);
+    SDL_setenv_unsafe("DNTTK_INPUT_BINDINGS", "1:26,22,4,7,-1,44,11,25,21,0,0,0,12,8,0,0,0,-3,226,51,52,27,16,225,13,17,5,47,48,24,20,30,31,32,33,34,35,36,37,38,39,54,55,75,78,74,77,80,79", 1);
     ttk::input_init(win);focus(true);key(SDL_SCANCODE_F10,true);ready=true;
     CHECK((ttk::input_pad() & 1024) == 0); // launch resets autorun off
     key(SDL_SCANCODE_R,true);CHECK((ttk::input_pad() & 1024) != 0);
@@ -729,7 +740,7 @@ int main() {
     leap_on=false;tick();CHECK((ttk::input_pad()&16384)!=0);
     holstered=false;
     // Rebinding fire preserves draw behavior; the old mouse binding is inactive.
-    ttk::input_release();SDL_setenv_unsafe("DNTTK_INPUT_BINDINGS", "1:26,22,4,7,10,44,11,25,21,0,0,0,12,8,0,0,0,-3,226,51,52,27,16,225,13,17,5,47,48,24,20,30,31,32,33,34,35,36,37,38,39,54,55,75,78,74,77",1);
+    ttk::input_release();SDL_setenv_unsafe("DNTTK_INPUT_BINDINGS", "1:26,22,4,7,10,44,11,25,21,0,0,0,12,8,0,0,0,-3,226,51,52,27,16,225,13,17,5,47,48,24,20,30,31,32,33,34,35,36,37,38,39,54,55,75,78,74,77,80,79",1);
     ttk::input_init(win);focus(true);key(SDL_SCANCODE_F10,true);ready=true;flight=false;holstered=true;
     mousefire(true);tick();CHECK((ttk::input_pad()&(8192|16384))==(8192|16384));mousefire(false);
     key(SDL_SCANCODE_G,true);tick();CHECK((ttk::input_pad()&8192)==0 && (ttk::input_pad()&16384)!=0);

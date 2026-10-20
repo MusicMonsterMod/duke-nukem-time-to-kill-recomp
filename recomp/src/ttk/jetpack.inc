@@ -31,7 +31,7 @@
 // rewritten before every update. Fed pads add their own thrust (W ~13-19
 // units/update, Space ~13-19 lift), so Modern feeds the original no direction
 // pads, no Square and no L1 in flight (input_pad); Duke keeps the hover pose.
-//   • WASD / arrows: camera-relative target speed, Space climbs, Ctrl descends;
+//   • WASD / Up / Down: camera-relative target speed, Space climbs, Ctrl descends;
 //     each axis eases to its target with a short time constant.
 //   • No vertical input: once the vertical speed has eased out, the height is
 //     captured and held (never below the original floor approach height,
@@ -49,7 +49,7 @@
 //   • The original keeps collision, landing (floor probe result 3 lands a
 //     descent), cut-outs, fuel-out, firing and weapon switching.
 // D08R Classic scheme (DNTTK_JETPACK=classic, Modernized only): the same
-// lease, mouse facing, WASD/arrow bridge to the original pads, J shortcut and
+// lease, mouse facing, WASD / Up / Down bridge to the original pads, J shortcut and
 // cut-out fall grace, with the original flight physics: Space lift, gravity,
 // fuel and the hover toggle (physical L1 = Shift).
 // Never: anim/mode writes or any change in Vanilla. Modern host writes are the
@@ -155,8 +155,8 @@ static void jetpack_update() {
     const float dt=(float)std::clamp<uint32_t>(psx_mod_read_word(0x800d21fc),1u,60u);
     const float ease=1.f-std::exp(-dt/k_jet_ease_ms);
     const float ease_vertical=1.f-std::exp(-dt/k_jet_ease_vertical_ms);
-    // Horizontal: WASD and the arrow keys, camera-relative (heading = view).
-    float forward=std::clamp(f.move_y+f.arrow_y,-1.f,1.f),side=std::clamp(f.move_x+f.arrow_x,-1.f,1.f);
+    // Horizontal: WASD and Up / Down, camera-relative (heading = view).
+    float forward=std::clamp(f.move_y+f.arrow_y,-1.f,1.f),side=std::clamp(f.move_x,-1.f,1.f);
     const float magnitude=std::hypot(forward,side);
     if(magnitude>1.f) {forward/=magnitude;side/=magnitude;}
     const float yaw=(float)psx_mod_read_half(player+0x1c)*tau/4096.f; // +Z = 0, +X = 1024

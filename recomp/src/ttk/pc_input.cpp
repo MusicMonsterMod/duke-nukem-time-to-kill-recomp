@@ -259,7 +259,7 @@ void input_offer_gameplay_capture() { capture_offer_at.store(sequence); capture_
 static bool allowed(int code) {
     return code == 0
         || (code >= 4 && code <= 39 && code != 9)
-        || code == 71 || code == 224 || code == 226 || code == 47 || code == 48 || code == 51 || code == 52 || code == 44 || code == 54 || code == 55 || code == 225 || code == 74 || code == 75 || code == 77 || code == 78 || (code >= -5 && code <= -1);
+        || code == 71 || code == 224 || code == 226 || code == 47 || code == 48 || code == 51 || code == 52 || code == 44 || code == 54 || code == 55 || code == 225 || code == 74 || code == 75 || code == 77 || code == 78 || code == 79 || code == 80 || (code >= -5 && code <= -1);
 }
 void input_init(SDL_Window* w) {
     window = w;inventory_enter_down=false;
@@ -841,7 +841,6 @@ void input_frame() {
         frame.move_y = float(frame.held[move_forward]) - float(frame.held[move_back]);
         float magnitude = std::hypot(frame.move_x, frame.move_y);
         if (magnitude > 1) { frame.move_x /= magnitude; frame.move_y /= magnitude; }
-        frame.arrow_x = float(keys[SDL_SCANCODE_RIGHT]) - float(keys[SDL_SCANCODE_LEFT]);
         frame.arrow_y = float(keys[SDL_SCANCODE_UP]) - float(keys[SDL_SCANCODE_DOWN]);
         frame.look_x = dx; frame.look_y = dy;
         frame.device = device;
@@ -1071,7 +1070,8 @@ uint16_t input_pad() {
     // Select: Select reaching input_pad_context() silently dropped capture, so
     // the host layer stopped mid-flight (hover lock left on, WASD dead).
     // D19D: V (Square: pause OPTIONS, statistics SAVE) is a menu key only.
-    for (int i = 0; i < 9; ++i) if (!(captured && (fixed[i]==SDL_SCANCODE_X || fixed[i]==SDL_SCANCODE_Z || fixed[i]==SDL_SCANCODE_C || fixed[i]==SDL_SCANCODE_RSHIFT || fixed[i]==SDL_SCANCODE_V)) && keys[fixed[i]]) value &= ~bits[i];
+    // D10D: captured, Left / Right are keyboard turning, never the D-pad turn.
+    for (int i = 0; i < 9; ++i) if (!(captured && (fixed[i]==SDL_SCANCODE_LEFT || fixed[i]==SDL_SCANCODE_RIGHT || fixed[i]==SDL_SCANCODE_X || fixed[i]==SDL_SCANCODE_Z || fixed[i]==SDL_SCANCODE_C || fixed[i]==SDL_SCANCODE_RSHIFT || fixed[i]==SDL_SCANCODE_V)) && keys[fixed[i]]) value &= ~bits[i];
     // Retain a brief tap across host polling and a short original transition.
     // Grounded locomotion, and host-owned shallow-water jumps.
     if(captured && jump_deadline && sequence<=jump_deadline &&
@@ -1169,7 +1169,7 @@ uint16_t input_pad() {
     }
     // D08Q jetpack flight (original mode 10): the body faces the camera, so
     // original Up/Down thrust and the layout's strafe pads are camera-relative;
-    // WASD and the arrow keys both drive them (D-pad Left/Right turns would be
+    // WASD and Up / Down drive them (D-pad Left/Right turns would be
     // overridden by face_view), Space is Square. Classic (D08R) flies on
     // them. Modern (D08Q6) feeds them for the original's flame, lean poses,
     // thrust state and fuel while the host owns the velocity (jetpack.inc
@@ -1181,8 +1181,8 @@ uint16_t input_pad() {
         value |= 16|32|64|128;
         const bool forward=down(binds[move_forward]) || keys[SDL_SCANCODE_UP];
         const bool back=down(binds[move_back]) || keys[SDL_SCANCODE_DOWN];
-        const bool left=down(binds[move_left]) || keys[SDL_SCANCODE_LEFT];
-        const bool right=down(binds[move_right]) || keys[SDL_SCANCODE_RIGHT];
+        const bool left=down(binds[move_left]);
+        const bool right=down(binds[move_right]);
         if(forward && !back) value &= ~16;
         if(back && !forward) value &= ~64;
         if(left && !right) value &= ~strafe_left;
@@ -1275,7 +1275,7 @@ uint16_t input_pad() {
         // is announced, with the lease's own reason, so a playtest can name it.
         // D08V1: an identity refusal (the guarded original code no longer
         // matches) has no camera to steer by, so it says so and the mouse turns
-        // Duke through the original D-pad turn (arrow keys still work too).
+        // Duke through the original D-pad turn (the turn keys still work too).
         const bool identity_lost=!std::strcmp(lease_refusal_reason(),"identity");
         if (tank_fallback && !tank_notified && sequence-tank_since>=45) {
             tank_notified=true;
@@ -1292,6 +1292,10 @@ uint16_t input_pad() {
         if(down(binds[move_left]) && !down(binds[move_right])) value &= ~strafe_left;
         if(down(binds[move_right]) && !down(binds[move_left])) value &= ~strafe_right;
         if(identity_lost)value &= ~fallback_turn_pad();
+        // D10D: without the modern camera the turn keys turn Duke through the
+        // original D-pad turn.
+        if(down(binds[turn_left]) && !down(binds[turn_right])) value &= ~128;
+        if(down(binds[turn_right]) && !down(binds[turn_left])) value &= ~32;
     } else if (captured && tank_fallback) {
         tank_fallback = false;
         std::fprintf(stderr, "[TTK input] Modern movement lease resumed\n");

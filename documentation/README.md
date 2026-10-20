@@ -86,3 +86,4 @@ D33 Modernized by default, `--vanilla` for one launch: [note 158](158-d33-defaul
 D19G in-game KEY BINDINGS and live display, camera and mouse settings: [note 159](159-d19g-options-stage-2.md) (accepted).
 D07F airborne shots follow the crosshair: [note 160](160-d07f-airborne-shots.md) (accepted).
 D10C Duke 3D look keys (Page Up / Page Down, Home / End): [note 161](161-d10c-look-keys.md) (accepted).
+D10D keyboard turning (Left / Right arrows): [note 162](162-d10d-keyboard-turning.md) (accepted).

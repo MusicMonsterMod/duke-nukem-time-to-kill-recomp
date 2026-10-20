@@ -108,7 +108,7 @@ class ProfilesTest(unittest.TestCase):
         raw = b'{"version":0,"mode":"modernized","renderer":"software"}'
         self.path.write_bytes(raw)
         loaded, notices = profiles.load(self.path)
-        self.assertEqual(loaded['version'],34)
+        self.assertEqual(loaded['version'],35)
         self.assertEqual(loaded['active'], 'modernized')
         self.assertEqual(loaded['profiles']['modernized']['presentation']['renderer'], 'software')
         self.assertEqual(profiles.load(self.path), (loaded, []))
@@ -142,7 +142,7 @@ class ProfilesTest(unittest.TestCase):
         self.assertEqual(loaded['profiles']['modernized']['presentation']['renderer'], 'software')
 
     def test_future_version_not_overwritten(self):
-        raw = b'{"version":35,"new_settings":[1,2]}'
+        raw = b'{"version":36,"new_settings":[1,2]}'
         self.path.write_bytes(raw)
         with self.assertRaisesRegex(ValueError, 'newer'):
             profiles.load(self.path)
@@ -185,6 +185,31 @@ class ProfilesTest(unittest.TestCase):
         self.assertTrue(launch.call_args.kwargs['env']['DNTTK_INPUT_BINDINGS'].startswith('1:'))
 
 
+class TurnKeysTest(unittest.TestCase):
+    # D10D: schema 35 adds keyboard turning on Left / Right. A schema 34
+    # profile gains the arrows where free; a taken arrow stays the player's.
+    def test_schema_34_gains_turn_keys(self):
+        with tempfile.TemporaryDirectory() as d:
+            path=Path(d)/'profiles.json'
+            old=profiles.defaults();old['version']=34
+            for p in old['profiles'].values():
+                for action in ('turn_left','turn_right'): p['bindings'].pop(action)
+            path.write_text(json.dumps(old))
+            migrated,notes=profiles.load(path)
+            binds=migrated['profiles']['modernized']['bindings']
+            self.assertEqual(migrated['version'],35)
+            self.assertEqual((binds['turn_left'],binds['turn_right']),('Left','Right'))
+            self.assertTrue(any('version 35' in n for n in notes))
+            self.assertIn('Left/Right turn left/right',profiles.describe(migrated))
+            self.assertTrue(pc_input.wire(binds).endswith(',80,79'))
+
+    def test_bind_cli(self):
+        bindings=pc_input.rebind(pc_input.DEFAULTS,['turn_left=Q','quick_kick=Left'])
+        self.assertEqual((bindings['turn_left'],bindings['quick_kick']),('Q','Left'))
+        with self.assertRaises(ValueError):
+            pc_input.rebind(pc_input.DEFAULTS,['turn_left=Right'])
+
+
 if __name__ == '__main__':
     unittest.main()
 
@@ -199,7 +224,7 @@ class CameraPreferencesTest(unittest.TestCase):
             data['profiles']['modernized']['presentation']['renderer']='software'
             raw=json.dumps(data);path.write_text(raw)
             result,notes=profiles.load(path)
-            self.assertEqual(result['version'],34)
+            self.assertEqual(result['version'],35)
             self.assertEqual(result['profiles']['modernized']['bindings']['jump'],'J')
             self.assertEqual(result['profiles']['modernized']['presentation']['renderer'],'software')
             self.assertEqual(next(Path(d).glob('*.recovered-*')).read_text(),raw)
@@ -234,8 +259,8 @@ class CameraPreferencesTest(unittest.TestCase):
             del old['profiles']['modernized']['controls']['view_bob']
             path.write_text(json.dumps(old))
             loaded,notices=profiles.load(path)
-            self.assertEqual(loaded['version'],34)
-            self.assertTrue(any('version 34' in n for n in notices))
+            self.assertEqual(loaded['version'],35)
+            self.assertTrue(any('version 35' in n for n in notices))
             self.assertEqual(loaded['profiles']['modernized']['controls']['view_bob'],'on')
 
 class WeaponPreferencesTest(unittest.TestCase):
@@ -318,7 +343,7 @@ class GrabBindingTest(unittest.TestCase):
             migrated,notes=profiles.load(path)
             b=migrated['profiles']['modernized']['bindings']
             self.assertEqual((b['grab'],b['grab_alt'],b['original_aim'],b['jump'],b['jetpack']),('Mouse2','Alt','Unbound','J','Space'))
-            self.assertEqual(migrated['version'],34)
+            self.assertEqual(migrated['version'],35)
             self.assertEqual(next(Path(d).glob('*.recovered-*')).read_bytes(),raw)
             self.assertEqual(profiles.load(path),(migrated,[]))
 
@@ -334,7 +359,7 @@ class RedDotDefaultTest(unittest.TestCase):
             migrated,notes=profiles.load(path)
             controls=migrated['profiles']['modernized']['controls']
             self.assertEqual((controls['red_dot'],controls['crosshair'],controls['aim_assist']),(False,False,'original-lock'))
-            self.assertEqual(migrated['version'],34)
+            self.assertEqual(migrated['version'],35)
             self.assertTrue(any('red autoaim dot' in n for n in notes))
             self.assertEqual(next(Path(d).glob('*.recovered-*')).read_bytes(),raw)
             # An explicit v16 choice survives later loads.
@@ -373,13 +398,13 @@ class JetpackSchemeTest(unittest.TestCase):
                 p['bindings']['jetpack']='K'
             raw=json.dumps(old).encode();path.write_bytes(raw)
             migrated,notes=profiles.load(path)
-            self.assertEqual(migrated['version'],34)
+            self.assertEqual(migrated['version'],35)
             self.assertEqual(migrated['active'],'modernized')
             for p in migrated['profiles'].values():
                 self.assertEqual(p['controls']['jetpack'],'modern')
                 self.assertEqual((p['controls']['camera'],p['controls']['mouse_sensitivity'],p['controls']['aim_assist']),('original',.4,'original-lock'))
                 self.assertEqual(p['bindings']['jetpack'],'K')
-            self.assertTrue(any('version 34' in n for n in notes))
+            self.assertTrue(any('version 35' in n for n in notes))
             self.assertEqual(next(Path(d).glob('*.recovered-*')).read_bytes(),raw)
             self.assertEqual(profiles.load(path),(migrated,[]))
 
@@ -425,11 +450,11 @@ class WidescreenTest(unittest.TestCase):
                 p['controls'].update(jetpack='classic',view='first')
             raw=json.dumps(old).encode();path.write_bytes(raw)
             migrated,notes=profiles.load(path)
-            self.assertEqual(migrated['version'],34)
+            self.assertEqual(migrated['version'],35)
             for p in migrated['profiles'].values():
                 self.assertEqual(p['controls']['widescreen'],'16:9')
                 self.assertEqual((p['controls']['jetpack'],p['controls']['view']),('classic','first'))
-            self.assertTrue(any('version 34' in n for n in notes))
+            self.assertTrue(any('version 35' in n for n in notes))
             self.assertEqual(next(Path(d).glob('*.recovered-*')).read_bytes(),raw)
             self.assertEqual(profiles.load(path),(migrated,[]))
 
@@ -483,13 +508,13 @@ class CameraPolishTest(unittest.TestCase):
             old['profiles']['modernized']['controls']['jetpack']='classic'
             raw=json.dumps(old).encode();path.write_bytes(raw)
             migrated,notes=profiles.load(path)
-            self.assertEqual(migrated['version'],34)
+            self.assertEqual(migrated['version'],35)
             modern=migrated['profiles']['modernized']
             self.assertEqual((modern['controls']['camera_distance'],modern['controls']['shoulder'],modern['controls']['jetpack']),(0,'center','classic'))
             self.assertEqual((modern['bindings']['holster'],modern['bindings']['camera_recenter']),('H','V'))
             self.assertNotIn(modern['bindings']['camera_shoulder'],('H','C','Unbound'))
             self.assertEqual(migrated['profiles']['vanilla']['bindings']['camera_shoulder'],'H')
-            self.assertTrue(any('version 34' in n for n in notes))
+            self.assertTrue(any('version 35' in n for n in notes))
             self.assertEqual(next(Path(d).glob('*.recovered-*')).read_bytes(),raw)
 
     def test_runtime_side_file_is_absorbed_once_and_validated(self):
@@ -553,13 +578,13 @@ class FirstPersonViewTest(unittest.TestCase):
             path=Path(d)/'profiles.json'
             raw=self.v12(path,{'medkit':'P'})
             migrated,notes=profiles.load(path)
-            self.assertEqual(migrated['version'],34)
+            self.assertEqual(migrated['version'],35)
             modern=migrated['profiles']['modernized']
             self.assertEqual(modern['controls']['view'],'third')
             self.assertEqual(modern['bindings']['medkit'],'P')
             self.assertNotIn(modern['bindings']['camera_view'],('P','C','Unbound'))
             self.assertEqual(migrated['profiles']['vanilla']['bindings']['camera_view'],'P')
-            self.assertTrue(any('version 34' in n for n in notes))
+            self.assertTrue(any('version 35' in n for n in notes))
             self.assertEqual(next(Path(d).glob('*.recovered-*')).read_bytes(),raw)
             pc_input.wire(modern['bindings'])
 
@@ -682,12 +707,12 @@ class PresentationTest(unittest.TestCase):
             old['profiles']['modernized']['controls']['view']='first'
             raw=json.dumps(old).encode();path.write_bytes(raw)
             migrated,notes=profiles.load(path)
-            self.assertEqual(migrated['version'],34)
+            self.assertEqual(migrated['version'],35)
             self.assertEqual(migrated['active'],'modernized')
             self.assertEqual(migrated['profiles']['vanilla']['presentation'],{**profiles.DEFAULT_PRESENTATION,'renderer':'software'})
             self.assertEqual(migrated['profiles']['modernized']['presentation'],{**profiles.DEFAULT_PRESENTATION,'renderer':'software','internal_scale':4})
             self.assertEqual(migrated['profiles']['modernized']['controls']['view'],'first')
-            self.assertTrue(any('version 34' in n for n in notes))
+            self.assertTrue(any('version 35' in n for n in notes))
             self.assertEqual(next(Path(d).glob('*.recovered-*')).read_bytes(),raw)
             self.assertEqual(profiles.load(path),(migrated,[]))
 
@@ -754,7 +779,7 @@ class DisplayStateTest(unittest.TestCase):
             old['profiles']['modernized']['presentation'].update(display='exclusive',internal_scale=4)
             raw=json.dumps(old).encode();path.write_bytes(raw)
             migrated,notes=profiles.load(path)
-            self.assertEqual(migrated['version'],34)
+            self.assertEqual(migrated['version'],35)
             self.assertEqual(migrated['profiles']['modernized']['presentation'],{**profiles.DEFAULT_PRESENTATION,'display':'exclusive','fullscreen_mode':'exclusive','internal_scale':4})
             self.assertEqual(migrated['profiles']['vanilla']['presentation'],profiles.DEFAULT_PRESENTATION)
             self.assertEqual(profiles.DEFAULT_PRESENTATION['display'],'windowed')
@@ -810,10 +835,10 @@ class CpuOverclockTest(unittest.TestCase):
                 p['controls'].pop('cpu_overclock')
             path.write_text(json.dumps(data))
             migrated,notes=profiles.load(path)
-            self.assertEqual(migrated['version'],34)
+            self.assertEqual(migrated['version'],35)
             for p in migrated['profiles'].values():
                 self.assertEqual(p['controls']['cpu_overclock'],150)
-            self.assertTrue(any('version 34' in n for n in notes))
+            self.assertTrue(any('version 35' in n for n in notes))
             with patch.object(Path,'is_file',return_value=True),patch.object(run.subprocess,'call',return_value=0) as launch,patch.object(run,'ensure_movie_shard'):
                 run.main(['--settings-file',str(path),'--no-session-log'])
                 self.assertEqual(launch.call_args.kwargs['env']['PSX_CPU_OVERCLOCK'],'150')
@@ -844,9 +869,9 @@ class CpuTimingTest(unittest.TestCase):
                 p['controls'].pop('cpu_timing')
             path.write_text(json.dumps(data))
             migrated,notes=profiles.load(path)
-            self.assertEqual(migrated['version'],34)
+            self.assertEqual(migrated['version'],35)
             self.assertEqual(migrated['profiles']['modernized']['controls']['cpu_timing'],'fast')
-            self.assertTrue(any('version 34' in n for n in notes))
+            self.assertTrue(any('version 35' in n for n in notes))
             with patch.object(Path,'is_file',return_value=True),patch.object(run.subprocess,'call',return_value=0) as launch,patch.object(run,'ensure_movie_shard'):
                 run.main(['--settings-file',str(path),'--no-session-log'])
                 self.assertEqual(launch.call_args.kwargs['env']['DNTTK_CPU_TIMING'],'fast')
@@ -891,10 +916,10 @@ class JumpStyleTest(unittest.TestCase):
                 p['controls'].pop('jump')
             path.write_text(json.dumps(data))
             migrated,notes=profiles.load(path)
-            self.assertEqual(migrated['version'],34)
+            self.assertEqual(migrated['version'],35)
             for p in migrated['profiles'].values():
                 self.assertEqual(p['controls']['jump'],'assisted')
-            self.assertTrue(any('version 34' in n for n in notes))
+            self.assertTrue(any('version 35' in n for n in notes))
             with patch.object(Path,'is_file',return_value=True),patch.object(run.subprocess,'call',return_value=0) as launch,patch.object(run,'ensure_movie_shard'):
                 run.main(['--settings-file',str(path),'--no-session-log'])
                 self.assertEqual(launch.call_args.kwargs['env']['DNTTK_JUMP'],'assisted')
@@ -930,10 +955,10 @@ class FrameRateTest(unittest.TestCase):
                 p['controls'].pop('frame_rate')
             path.write_text(json.dumps(data))
             migrated,notes=profiles.load(path)
-            self.assertEqual(migrated['version'],34)
+            self.assertEqual(migrated['version'],35)
             for p in migrated['profiles'].values():
                 self.assertEqual(p['controls']['frame_rate'],'60')
-            self.assertTrue(any('version 34' in n for n in notes))
+            self.assertTrue(any('version 35' in n for n in notes))
             with patch.object(Path,'is_file',return_value=True),patch.object(run.subprocess,'call',return_value=0) as launch,patch.object(run,'ensure_movie_shard'):
                 run.main(['--settings-file',str(path),'--no-session-log'])
                 env=launch.call_args.kwargs['env']
@@ -971,10 +996,10 @@ class DrawDistanceTest(unittest.TestCase):
                 p['controls'].pop('draw_distance')
             path.write_text(json.dumps(data))
             migrated,notes=profiles.load(path)
-            self.assertEqual(migrated['version'],34)
+            self.assertEqual(migrated['version'],35)
             for p in migrated['profiles'].values():
                 self.assertEqual(p['controls']['draw_distance'],'extended')
-            self.assertTrue(any('version 34' in n for n in notes))
+            self.assertTrue(any('version 35' in n for n in notes))
             with patch.object(Path,'is_file',return_value=True),patch.object(run.subprocess,'call',return_value=0) as launch,patch.object(run,'ensure_movie_shard'):
                 run.main(['--settings-file',str(path),'--no-session-log'])
                 self.assertEqual(launch.call_args.kwargs['env']['DNTTK_DRAW_DISTANCE'],'extended')
@@ -1013,8 +1038,8 @@ class SteroidsOptionTest(unittest.TestCase):
             path.write_text(json.dumps(old))
             migrated,notes=profiles.load(path)
             controls=migrated['profiles']['modernized']['controls']
-            self.assertEqual((migrated['version'],controls['steroids'],controls['jump']),(34,'portable','manual'))
-            self.assertTrue(any('version 34' in n for n in notes))
+            self.assertEqual((migrated['version'],controls['steroids'],controls['jump']),(35,'portable','manual'))
+            self.assertTrue(any('version 35' in n for n in notes))
 
     def test_invalid_steroids_value_resets_controls(self):
         with tempfile.TemporaryDirectory() as d:
@@ -1047,8 +1072,8 @@ class JumpWallsOptionTest(unittest.TestCase):
             path.write_text(json.dumps(old))
             migrated,notes=profiles.load(path)
             controls=migrated['profiles']['modernized']['controls']
-            self.assertEqual((migrated['version'],controls['jump_walls'],controls['steroids']),(34,'slide','original'))
-            self.assertTrue(any('version 34' in n for n in notes))
+            self.assertEqual((migrated['version'],controls['jump_walls'],controls['steroids']),(35,'slide','original'))
+            self.assertTrue(any('version 35' in n for n in notes))
             with patch.object(Path,'is_file',return_value=True),patch.object(run.subprocess,'call',return_value=0) as launch,patch.object(run,'ensure_movie_shard'):
                 run.main(['--settings-file',str(path),'--no-session-log'])
                 self.assertEqual(launch.call_args.kwargs['env']['DNTTK_JUMP_WALLS'],'slide')
@@ -1093,13 +1118,13 @@ class MissionBrowseBindingTest(unittest.TestCase):
                 p['bindings'].update(mission_browse='Backslash',original_strafe_left='Comma',original_strafe_right='Period',jump='Mouse4')
             path.write_text(json.dumps(data))
             migrated,notes=profiles.load(path)
-            self.assertEqual(migrated['version'],34)
+            self.assertEqual(migrated['version'],35)
             for p in migrated['profiles'].values():
                 b=p['bindings']
                 self.assertEqual((b['mission_previous'],b['mission_next'],b['original_strafe_left'],b['original_strafe_right'],b['jump']),
                                  ('Comma','Period','Unbound','Unbound','Mouse4'))
                 self.assertNotIn('mission_browse',b)
-            self.assertTrue(any('version 34' in n for n in notes))
+            self.assertTrue(any('version 35' in n for n in notes))
 
 
 class LandingOptionTest(unittest.TestCase):
@@ -1114,8 +1139,8 @@ class LandingOptionTest(unittest.TestCase):
             path.write_text(json.dumps(old))
             migrated,notes=profiles.load(path)
             controls=migrated['profiles']['modernized']['controls']
-            self.assertEqual((migrated['version'],controls['landing'],controls['jump_walls']),(34,'modern','original'))
-            self.assertTrue(any('version 34' in n for n in notes))
+            self.assertEqual((migrated['version'],controls['landing'],controls['jump_walls']),(35,'modern','original'))
+            self.assertTrue(any('version 35' in n for n in notes))
             with patch.object(Path,'is_file',return_value=True),patch.object(run.subprocess,'call',return_value=0) as launch,patch.object(run,'ensure_movie_shard'):
                 run.main(['--settings-file',str(path),'--no-session-log'])
                 self.assertEqual(launch.call_args.kwargs['env']['DNTTK_LANDING'],'modern')
@@ -1159,8 +1184,8 @@ class DynamiteOptionTest(unittest.TestCase):
             path.write_text(json.dumps(old))
             migrated,notes=profiles.load(path)
             controls=migrated['profiles']['modernized']['controls']
-            self.assertEqual((migrated['version'],controls['dynamite'],controls['landing']),(34,'modern','original'))
-            self.assertTrue(any('version 34' in n for n in notes))
+            self.assertEqual((migrated['version'],controls['dynamite'],controls['landing']),(35,'modern','original'))
+            self.assertTrue(any('version 35' in n for n in notes))
             with patch.object(Path,'is_file',return_value=True),patch.object(run.subprocess,'call',return_value=0) as launch,patch.object(run,'ensure_movie_shard'):
                 run.main(['--settings-file',str(path),'--no-session-log'])
                 self.assertEqual(launch.call_args.kwargs['env']['DNTTK_DYNAMITE'],'modern')
@@ -1204,8 +1229,8 @@ class SwimmingOptionTest(unittest.TestCase):
             path.write_text(json.dumps(old))
             migrated,notes=profiles.load(path)
             controls=migrated['profiles']['modernized']['controls']
-            self.assertEqual((migrated['version'],controls['swimming'],controls['dynamite']),(34,'modern','original'))
-            self.assertTrue(any('version 34' in n for n in notes))
+            self.assertEqual((migrated['version'],controls['swimming'],controls['dynamite']),(35,'modern','original'))
+            self.assertTrue(any('version 35' in n for n in notes))
             with patch.object(Path,'is_file',return_value=True),patch.object(run.subprocess,'call',return_value=0) as launch,patch.object(run,'ensure_movie_shard'):
                 run.main(['--settings-file',str(path),'--no-session-log'])
                 self.assertEqual(launch.call_args.kwargs['env']['DNTTK_SWIMMING'],'modern')
@@ -1251,12 +1276,12 @@ class LookKeysTest(unittest.TestCase):
             path.write_text(json.dumps(old))
             migrated,notes=profiles.load(path)
             binds=migrated['profiles']['modernized']['bindings']
-            self.assertEqual(migrated['version'],34)
+            self.assertEqual(migrated['version'],35)
             self.assertEqual((binds['look_up'],binds['look_down'],binds['lock_look_down'],binds['medkit']),('PageUp','PageDown','End','Home'))
             self.assertNotIn(binds['lock_look_up'],('Home','Unbound'))
-            self.assertTrue(any('version 34' in n for n in notes))
+            self.assertTrue(any('version 35' in n for n in notes))
             self.assertIn('PageUp/PageDown look up/down while held',profiles.describe(migrated))
-            self.assertTrue(pc_input.wire(binds).endswith(f",75,78,{pc_input.TOKENS[binds['lock_look_up']]},77"))
+            self.assertIn(f",75,78,{pc_input.TOKENS[binds['lock_look_up']]},77,",pc_input.wire(binds))
 
     def test_bind_cli(self):
         bindings=pc_input.rebind(pc_input.DEFAULTS,['lock_look_up=Unbound','look_up=Home'])

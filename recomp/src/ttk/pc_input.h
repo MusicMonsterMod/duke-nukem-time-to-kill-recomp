@@ -29,9 +29,9 @@ struct InputFrame {
     bool first_person = false;
     bool held[action_count]{};
     float move_x = 0, move_y = 0, look_x = 0, look_y = 0;
-    // D08Q6: the fixed arrow keys (right - left, up - down); jetpack flight
-    // treats them as movement like WASD.
-    float arrow_x = 0, arrow_y = 0;
+    // D08Q6: the fixed Up / Down arrows (up - down); jetpack flight treats
+    // them as forward / back like W / S. D10D: Left / Right are turn keys.
+    float arrow_y = 0;
     Device device = Device::None;
 };
 void input_init(SDL_Window* window);

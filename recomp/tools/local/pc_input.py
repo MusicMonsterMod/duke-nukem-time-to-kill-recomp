@@ -13,7 +13,7 @@ TOKENS['C'] = 6  # Only holster may share the fixed original Circle key.
 TOKENS.update({str(i): 29+i for i in range(1, 10)})
 TOKENS.update({'LCtrl':224, 'LBracket':47, 'RBracket':48, 'Semicolon':51, 'Apostrophe':52, 'Comma': 54, 'Period': 55, '0': 39, 'Space': 44, 'LShift': 225, 'ScrollLock': 71, 'Unbound': 0, 'Mouse1': -1,
                'Mouse2': -3, 'Mouse3': -2, 'Mouse4': -4, 'Mouse5': -5, 'Alt': 226,
-               'Home': 74, 'PageUp': 75, 'End': 77, 'PageDown': 78})
+               'Home': 74, 'PageUp': 75, 'End': 77, 'PageDown': 78, 'Right': 79, 'Left': 80})
 
 
 def validate(bindings):

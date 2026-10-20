@@ -262,7 +262,7 @@ int main(int argc,char** argv) {
             const uint16_t saved_selected=psx_mod_read_half(0x800c3f94);
             for(int axis=0;axis<3;++axis){psx_mod_write_word(p+0x1f4+4*axis,0);psx_mod_write_word(p+0x1e4+4*axis,77);}
             psx_mod_write_half(0x800c3cc4,0);psx_mod_write_half(p+0x35a,5000);psx_mod_write_half(p+0xfe,0);
-            ttk::input.move_x=0;ttk::input.move_y=0;ttk::input.arrow_x=0;ttk::input.arrow_y=0;
+            ttk::input.move_x=0;ttk::input.move_y=0;ttk::input.arrow_y=0;
             psx_mod_write_word(0x800d21fc,10); // dt
             y(-10700,900);update();
             assert(!(psx_mod_read_word(p+0x224)&0x08000000u)); // hover lock off
@@ -1715,6 +1715,36 @@ int main(int argc,char** argv) {
             assert(std::strstr(ttk::controls_debug_json(),"\"returning\":false"));
             const double kept=metric("\"pitch\":");timed(10);
             assert(std::abs(metric("\"pitch\":")-kept)<1e-9 && kept>rest+0.05);
+            ttk::input.recenter_total+=1;for(unsigned i=0;i<60;++i)frame();
+        }
+        // D10D keyboard turning: Duke 3D rates, 5 build units per 30 Hz tic for
+        // the first 1/8 s, then 15 (30 running); right turns yaw positive.
+        {
+            const double unit=30*6.2831853071795864769/2048;
+            auto timed=[&](unsigned n){for(unsigned i=0;i<n;++i){ttk::clock_ms+=50;frame();}};
+            auto held_angle=[&](double t,bool run){return t<0.125?5*unit*t:5*unit*0.125+15*unit*(run?2:1)*(t-0.125);};
+            const double yaw0=metric("\"yaw\":");
+            ttk::running=false;ttk::input.held[ttk::turn_right]=true;timed(4); // the first update takes the key
+            assert(std::abs(ttk::wrap_yaw(metric("\"yaw\":")-yaw0-held_angle(0.15,false)))<1e-6);
+            assert(std::strstr(ttk::controls_debug_json(),"\"key_turn\":{\"hold\":1,\"running\":false,\"turns\":1}"));
+            ttk::input.held[ttk::turn_right]=false;timed(1);              // the release update ends the hold
+            const double turned=metric("\"yaw\":");timed(5);
+            assert(std::abs(metric("\"yaw\":")-turned)<1e-9);
+            assert(std::abs(ttk::wrap_yaw(turned-yaw0-held_angle(0.2,false)))<1e-6);
+            // Running doubles the rate after the slow start; left turns back.
+            ttk::running=true;ttk::input.held[ttk::turn_left]=true;timed(7);
+            assert(std::abs(ttk::wrap_yaw(turned-metric("\"yaw\":")-held_angle(0.3,true)))<1e-6);
+            // The mouse adds on top of a held turn key.
+            const double before_mouse=metric("\"yaw\":");
+            ttk::input.total_x+=10;timed(1);
+            assert(std::abs(ttk::wrap_yaw(before_mouse-metric("\"yaw\":")-(held_angle(0.35,true)-held_angle(0.3,true))+10*metric("\"mouse_deg\":")*6.2831853071795864769/360))<1e-4);
+            ttk::input.held[ttk::turn_left]=false;ttk::running=false;timed(1);
+            // A turn key stops a V swing; pitch is untouched by turning.
+            ttk::input.recenter_total+=1;ttk::input.held[ttk::turn_right]=true;timed(1);
+            assert(std::strstr(ttk::controls_debug_json(),"\"recentering\":false"));
+            const double pitch0=metric("\"pitch\":");
+            ttk::input.held[ttk::turn_right]=false;timed(2);
+            assert(std::abs(metric("\"pitch\":")-pitch0)<1e-9);
             ttk::input.recenter_total+=1;for(unsigned i=0;i<60;++i)frame();
         }
         psx_mod_write_half(p+0x1c,0);ttk::input.recenter_total=2;frame();

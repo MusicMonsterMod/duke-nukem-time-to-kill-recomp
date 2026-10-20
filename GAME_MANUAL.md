@@ -708,6 +708,18 @@ and the mouse still adjusts it); tap Page Up or Page Down to bring it back.
 They work in first and third person and are rebindable in KEY BINDINGS
 (CAMERA: LOOK UP, LOOK DOWN, LOCK LOOK UP, LOCK LOOK DOWN) or with `--bind`
 (`look_up`, `look_down`, `lock_look_up`, `lock_look_down`). Vanilla has none of them.
+
+**Keyboard turning (Duke 3D style).** Hold the **Left** / **Right** arrow to
+turn the view left or right, and Duke with it, as the mouse does. The turn
+starts slowly for an eighth of a second, then turns at Duke 3D's speed (about
+80 degrees a second walking, twice that running). W/A/S/D and the mouse work
+as before and add to it. It works everywhere in Modernized play: on foot, in
+first and third person, swimming and flying the jetpack. When the original
+camera takes over (turrets, scripted views) the arrows turn Duke the original
+way. In gameplay the arrows no longer reach the original D-pad, so the jetpack
+no longer strafes on Left / Right (A / D still do); menus use the arrows as
+before. Rebind them in KEY BINDINGS (CAMERA: TURN LEFT, TURN RIGHT) or with
+`--bind` (`turn_left`, `turn_right`). Vanilla is unchanged.
 Save a distance or side without launching:
 
 ```sh
@@ -852,7 +864,7 @@ the water (D11E).
 
 **Modernized jetpack**: switch it on with **J**, then
 **Space** lifts off and climbs. In the air the **mouse** turns Duke and the
-camera together, **W/A/S/D** (or the **arrow keys**) fly relative to the camera at the
+camera together (so do **Left** / **Right**), **W/A/S/D** (or **Up** / **Down**) fly relative to the camera at the
 original top speed with a short start and stop,
 releasing every key **hovers** perfectly still, **Ctrl** descends quickly (the same speed as diving
 underwater) until a soft landing, and
@@ -1085,7 +1097,7 @@ key or mouse button:
 - If another action had that key, the two swap; the line above the buttons
   says which action moved and to what.
 - **Escape** cancels the change; **Backspace** leaves the action with no key.
-- Keys outside the bindable set (Escape, Enter, Tab, the arrows, F, the
+- Keys outside the bindable set (Escape, Enter, Tab, the Up / Down arrows, F, the
   function keys and the other keys `run.py --bind` refuses) are refused;
   C can only be the holster's key.
 - A change works straight away and is saved to your profile.

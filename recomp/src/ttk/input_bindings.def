@@ -57,3 +57,8 @@ TTK_ACTION(look_up, PageUp, 75, 0)
 TTK_ACTION(look_down, PageDown, 78, 0)
 TTK_ACTION(lock_look_up, Home, 74, 0)
 TTK_ACTION(lock_look_down, End, 77, 0)
+// D10D: Duke 3D keyboard turning, held (host only, never queued): the view
+// turns, and Duke with it as with the mouse. Captured, the arrows never
+// reach the original D-pad Left / Right.
+TTK_ACTION(turn_left, Left, 80, 0)
+TTK_ACTION(turn_right, Right, 79, 0)

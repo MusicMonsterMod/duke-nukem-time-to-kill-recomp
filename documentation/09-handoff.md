@@ -1,5 +1,22 @@
 # Next-session handoff
 
+## 2026-10-20 - D34 accepted
+
+- User: "amazing read". D34 research Done; follow-ups D34A-D34G stay
+  proposed in note 167 for another day.
+
+## 2026-10-20 - D34 multiplayer research (Needs review)
+
+- Research only (no code, build or game run). [Note 167](167-d34-multiplayer-research.md):
+  two-player mode is one shared simulation drawing one viewport per game
+  frame; our build has no port-2 pad (`MAX_PLAYERS 1`) and every Modernized
+  system is player-1-only, so two-player play falls back to the original
+  controls and presentation. Recommended route: deterministic input sync of
+  the game's own two-player mode (framework `recomp-net`), own view full
+  screen through D17 replay, self-hostable relay. Proposed follow-ups
+  D34A-D34G await the user's review. Executable unchanged
+  (`6b7f5415dd0f18044358548e80661ca8aa91606a44ea8b1ad4e1417a40cd7a33`).
+
 ## 2026-10-20 - D19N accepted
 
 - User: "lock it in and close it out!!". D19N Done; executable

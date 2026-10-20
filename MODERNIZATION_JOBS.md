@@ -238,6 +238,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D31 | Eye-catching README: own-capture hero banner, in-engine icon, screenshots, social preview and credits (design locked, concept 7) | Todo | - |
 | D32 | Game icon: replace the framework psxrecomp.ico/.png/.svg with the D31 in-engine icon (exe, window, taskbar, launcher) | Todo | D31 design |
 | D33 | Modernized as the default profile, `--vanilla` as the special flag (one launch) | Done (user-accepted 2026-10-20) | - |
+| D34 | Multiplayer investigation: modern split-screen, online play and self-hosting (research only; [note 167](documentation/167-d34-multiplayer-research.md)) | Done (research accepted 2026-10-20; follow-ups D34A-D34G proposed, not opened) | - |
 | R01 | DisruptorRecomp architecture and modernization reference research | Done | - |
 
 Recommended opening sequence: **D01 → D02 → D03 → D04**, then **D05 / D06 → D07 → D07A → D08**. D13 is an early graphics option after profiles exist. D22 and D23 should accumulate evidence throughout development. First-person, HD asset packs and precision rendering are optional follow-up milestones, not blockers for a good modern third-person release.
@@ -7651,6 +7652,76 @@ Vanilla moves to Modernized once with a notice. Implemented and verified, see
 tests and docs agree with it; Vanilla remains reachable and unchanged in
 play; `scripts/ci/check_repo.py` and the launcher tests pass.
 
+### D34 - Multiplayer investigation: modern split-screen, online play and self-hosting
+
+**Done (research accepted 2026-10-20: "amazing read").** Follow-ups D34A-D34G
+stay proposed in note 167 for a later session. Opened 2026-10-20 at the
+user's request. Research and planning only: no gameplay, engine, framework or
+build change. Research note:
+[note 167](documentation/167-d34-multiplayer-research.md). Shareable page:
+[TTK Multiplayer Research (D34)](https://claude.ai/code/artifact/07cd1540-1c0c-43ef-8d1b-d4b5428ba81f).
+
+**Problem (user playtest 2026-10-20, first time in two-player):** TWO
+PLAYER, MESA, Red Duke and Blue Duke, START: the loading spinner stops while
+music plays; Enter opens a pause/options screen; the split screen flickers on
+the left and right; after RESUME the controls are the original legacy scheme
+and the frame rate is about 30-60 instead of 120. Leaving goes through the
+original results screen and back out through the two-player setup pages. The
+whole flow is disconnected from the modern experience.
+
+**Vision:** keep the original local two-player game, modernised (controllers,
+independent movement / camera / aim per player, our renderer, smooth
+pacing), and build towards online play where each player has a full-screen
+view on their own machine, with self-hosted matches (LAN, direct IP, a
+self-hostable server), no central service or accounts. More than two players
+only if the engine allows it.
+
+**Scope:**
+
+1. How the original two-player mode works (simulation, players, input,
+   cameras, viewports, rendering, arenas, characters, rules) and why it
+   bypasses the modern input, rendering and frame rate.
+2. Modern local split-screen options.
+3. Online feasibility: architecture, replication or synchronisation,
+   prediction, latency, combat, match lifecycle, timing changes, player
+   count.
+4. Hosting, connectivity, security and trust model.
+5. Technology comparison (including the framework's own netplay libraries).
+6. A phased roadmap and the smallest proof of concept.
+
+**Deliverables:** this job entry and note 167 (sections 0-12), with
+verified findings, hypotheses and recommendations kept apart and source
+references.
+
+**Key findings (see the note for evidence):**
+
+- One shared simulation with two players (`0x800d7198`, stride `0x8a4`) and
+  two cameras (`0x800d6eb0`, stride `0xb0`). The composition `0x80026164`
+  draws one player's view per game frame and alternates (`0x800d2654`).
+  Verified from the executable.
+- Our build has `MAX_PLAYERS 1` (no pad on port 2). Modern controls are bound
+  to player 1. The arenas (levels 15-20) are outside the control identity
+  guard. D17 replay captures gameplay only for one player
+  (`frame_replay.cpp:867`). Together these explain the legacy controls and
+  the frame rate. The frozen spinner and the flicker are probably the same
+  family (hypotheses to prove in Phase A).
+- psxrecomp already ships MIT-licensed input-sync netplay (`recomp-net`,
+  `retcomm-rbengine`: delay-sync, rollback, LAN, direct IP, ICE, digests). It
+  is disabled in our build and has no encryption.
+- Recommendation: deterministic input-synchronised play of the game's own
+  two-player mode, with per-peer presentation through D17 replay (own view
+  full screen). Modern controls become a synced per-tick intent record. Use a
+  self-hostable input relay and authenticated encryption for internet
+  matches. More than two players is not feasible on this route without major
+  engine work.
+- Proposed follow-ups D34A-D34G (not yet on the board): discovery runs, two
+  input seats, modern split-screen, determinism and LAN prototype, online
+  gameplay, hosting and security, expansion study.
+
+**Acceptance:** the user reviews note 167 and either accepts it or asks for
+changes. Then the user chooses which follow-up jobs to open. No
+implementation starts under D34.
+
 ## Working rules and evidence
 
 - Work on the selected job; split unexpectedly large discoveries into linked follow-ups with new stable IDs. Never renumber existing jobs.
@@ -13732,3 +13803,23 @@ in note 117 is the reference for future custom pickups.
 - User: "it works! i can confirm it works. lock it in close it out". D19G1
   Done; executable `bbfaf117ca261268335c0c19847663a3c02ac7185d24c77fda9ca81f38eecc29` is the regression baseline. Backlog: D19K, D19F,
   D19N, D24D, D26G.
+
+## 2026-10-20 - D34 multiplayer research (Needs review)
+
+- Opened at the user's request. Research only: no gameplay, engine,
+  framework or build change; no game launched. Static analysis of our hooks,
+  the framework and the owned executable (composition `0x80026164`, frame
+  function `0x8002666c`).
+- Delivered [note 167](documentation/167-d34-multiplayer-research.md):
+  current two-player architecture, causes of the reported symptoms (verified
+  vs hypotheses), reusable systems and limits, split-screen options, online
+  feasibility, technology comparison, hosting, security, player count, a
+  roadmap (proposed D34A-D34G) and a proof of concept.
+- Next: the user's review of note 167, then a choice of follow-up jobs.
+
+## 2026-10-20 - D34 accepted (Done)
+
+- User: "amazing read. commit this work and we'll leave this in the backlog
+  for another day". D34 research Done; the shareable page is linked from the
+  job. Follow-ups D34A-D34G stay proposed in note 167 until the user opens
+  them.

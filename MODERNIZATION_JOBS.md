@@ -112,6 +112,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08U1 | Ladder that cannot be descended with E (player slot 12), systemic ladder-top coverage | Accepted | D08U, D22B |
 | D08U2 | Enemy standing at a ladder top blocks the climb-off: Duke should push it back (player slot 5) | Accepted | D08U, D08J |
 | D08T3 | Free manual push and pull while holding Grab (no fixed-size shoves) | Todo | D08T2 |
+| D08T4 | Save slot 10 dumpster: the grab prompt shows but it will not move; find out whether it is meant to be fixed (Vanilla check) | Todo | D08T2 |
 | D08V | Sewer mantle/hang modern-control coverage (slot 12 area) | Done | D08, D08B |
 | D08W | Subway shallow-water sideways jumps (A/D + Space jumps forward) | Done | D08, D08C |
 | D08X | Hold-E airborne ledge grab and mantle (ladder-grab feel for ledges) | Done | D08, D08J, D08V |
@@ -3641,6 +3642,29 @@ design rather than mapping another Legacy button.
 **Acceptance:** the reported blocks in at least two eras push with RMB in first
 and third person; the alley dumpster still works; release and focus loss let
 go; Vanilla/Legacy unchanged; the user confirms.
+
+### D08T4 - Save slot 10 dumpster: grab prompt but no movement
+
+**Todo (opened 2026-10-20, user report; investigation first).** In the
+player's save slot 10, Duke at a dumpster gets the "hold RMB to grab" prompt,
+but holding Grab does not move it. Find out which of these it is:
+
+1. A normally pushable dumpster that the level designers placed as a fixed
+   step to the platform above (not pushable here by design).
+2. Pushable in the original, but its current position (against a wall, an
+   edge or another object) blocks every push and pull direction as intended.
+3. A Modernized regression: it moves in Vanilla (original controls, the same
+   save copy) but not with the RMB grab (D08T1/D08T2).
+
+Method: a private copy of the slot 10 savestate, offscreen. Read the
+object's type and flags, the push/pull checks the original runs on it, and
+whether Vanilla can grab, push or pull it. If it is fixed by design or
+blocked, the grab prompt should not appear (prompt only for an object that can
+actually move); if it is a regression, fix it game-wide, not for this level.
+
+**Acceptance:** the cause is established with evidence (Vanilla comparison);
+either the dumpster moves as in the original, or the prompt no longer offers a
+grab that cannot happen; other pushables unchanged; Vanilla unchanged.
 
 ### D08T3 - Free manual push and pull while holding Grab
 

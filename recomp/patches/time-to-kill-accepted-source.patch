@@ -477,6 +477,22 @@ index 00000000..e34ef18e
 +#endif
 +
 +#endif
+diff --git a/runtime/include/savestate.h b/runtime/include/savestate.h
+index e03a1e4a..fd16f7a6 100644
+--- a/runtime/include/savestate.h
++++ b/runtime/include/savestate.h
+@@ -86,6 +86,11 @@ int savestate_slot_mtime(int slot, int64_t* out_time);
+ 
+ /* Per-slot screenshot thumbnails captured after a successful save. */
+ int savestate_capture_thumb(int slot);
++/* Time to Kill D19Q: the displayed guest image as a thumbnail
++ * (SAVESTATE_THUMB_W x SAVESTATE_THUMB_H ARGB) now, and a thumbnail written
++ * for a slot (a picture taken earlier, e.g. before a pause menu opened). */
++int savestate_grab_thumb(uint32_t* out_argb);
++int savestate_write_thumb(int slot, const uint32_t* argb);
+ int savestate_read_thumb(int slot, uint32_t* out_argb,
+                          int out_w, int out_h);
+ 
 diff --git a/runtime/include/spu.h b/runtime/include/spu.h
 index badec733..ba101aef 100644
 --- a/runtime/include/spu.h
@@ -505,10 +521,41 @@ index 149a3fdc..cb79f6a0 100644
      ${PSXRECOMP_ROOT}/runtime/src/psx_fiber.c
      ${PSXRECOMP_ROOT}/runtime/src/sio.c
 diff --git a/runtime/src/boot_state.c b/runtime/src/boot_state.c
-index f0284eaf..af13321d 100644
+index f0284eaf..9d86009c 100644
 --- a/runtime/src/boot_state.c
 +++ b/runtime/src/boot_state.c
-@@ -740,9 +740,15 @@ int boot_state_check_buffer(const uint8_t* file, size_t file_len,
+@@ -469,16 +469,27 @@ static int boot_state_save_to(BsOut* o, const CPUState* cpu,
+ 
+ int boot_state_save(const CPUState* cpu, uint32_t bios_checksum,
+                     uint32_t entry_pc, const char* path) {
++    /* Written beside the target and renamed over it once complete, so a
++     * failed write (disk full, permissions) leaves an existing state as it
++     * was (Time to Kill D19Q). */
+     BsOut o;
+-    FILE* f = fopen(path, "wb");
++    char tmp[1100];
++    FILE* f;
+     int ok;
++    if (snprintf(tmp, sizeof tmp, "%s.tmp", path) >= (int)sizeof tmp) return 0;
++    f = fopen(tmp, "wb");
+     if (!f) return 0;
+     memset(&o, 0, sizeof o);
+     o.f = f;
+     ok = boot_state_save_to(&o, cpu, bios_checksum, entry_pc);
+-    fclose(f);
++    if (fflush(f) != 0) ok = 0;
++    if (fclose(f) != 0) ok = 0;
++#ifdef _WIN32
++    if (ok) remove(path);
++#endif
++    if (ok && rename(tmp, path) != 0) ok = 0;
+     if (!ok)
+-        remove(path);
++        remove(tmp);
+     return ok;
+ }
+ 
+@@ -740,9 +751,15 @@ int boot_state_check_buffer(const uint8_t* file, size_t file_len,
                              char* reason, size_t reason_cap) {
      BootStateHeader h;
      char part[96];
@@ -526,7 +573,7 @@ index f0284eaf..af13321d 100644
  
      if (!file || file_len < BOOT_STATE_HEADER_WIRE_BYTES) {
          boot_state_append_reason(reason, reason_cap, "missing_or_truncated");
-@@ -779,7 +785,15 @@ int boot_state_check_buffer(const uint8_t* file, size_t file_len,
+@@ -779,7 +796,15 @@ int boot_state_check_buffer(const uint8_t* file, size_t file_len,
                   (unsigned)h.entry_pc, (unsigned)entry_pc);
          boot_state_append_reason(reason, reason_cap, part);
      }
@@ -543,7 +590,7 @@ index f0284eaf..af13321d 100644
          snprintf(part, sizeof(part), "codegen_hash=%08X(want %08X)",
                   (unsigned)h.codegen_hash,
                   (unsigned)PSX_OVERLAY_CODEGEN_HASH);
-@@ -796,7 +810,7 @@ int boot_state_check_buffer(const uint8_t* file, size_t file_len,
+@@ -796,7 +821,7 @@ int boot_state_check_buffer(const uint8_t* file, size_t file_len,
          boot_state_append_reason(reason, reason_cap, part);
      }
  
@@ -7539,7 +7586,7 @@ index 00000000..da318805
 +
 +#endif
 diff --git a/runtime/src/savestate.c b/runtime/src/savestate.c
-index 7f191c99..102f6fba 100644
+index 7f191c99..6d56d195 100644
 --- a/runtime/src/savestate.c
 +++ b/runtime/src/savestate.c
 @@ -62,6 +62,15 @@ static int      s_load_pending = -1;
@@ -7567,7 +7614,44 @@ index 7f191c99..102f6fba 100644
          !savestate_flat_context_ok(resume_pc, cpu->gpr[29]) ||
          !psx_scheduler_disk_snapshot_ready())
          return;
-@@ -902,6 +911,7 @@ uint32_t savestate_last_save_pc(void) {
+@@ -593,14 +602,10 @@ int savestate_slot_mtime(int slot, int64_t* out_time) {
+ #endif
+ }
+ 
+-int savestate_capture_thumb(int slot) {
+-    char path[600];
+-    FILE* f;
+-    SavestateThumbHeader hdr;
+-    uint32_t thumb[SAVESTATE_THUMB_W * SAVESTATE_THUMB_H];
++int savestate_grab_thumb(uint32_t* thumb) {
+     GpuDisplayInfo di;
+     uint32_t dw, dh, x, y;
+-    if (!savestate_thumb_path(slot, path, sizeof(path))) return 0;
++    if (!thumb) return 0;
+     gpu_get_display_info(&di);
+     dw = di.width ? di.width : 320u;
+     dh = di.height ? di.height : 240u;
+@@ -613,6 +618,19 @@ int savestate_capture_thumb(int slot) {
+                 : (gpu_display_pixel_argb(&di, sx, sy) | 0xFF000000u);
+         }
+     }
++    return 1;
++}
++
++int savestate_capture_thumb(int slot) {
++    uint32_t thumb[SAVESTATE_THUMB_W * SAVESTATE_THUMB_H];
++    return savestate_grab_thumb(thumb) && savestate_write_thumb(slot, thumb);
++}
++
++int savestate_write_thumb(int slot, const uint32_t* thumb) {
++    char path[600];
++    FILE* f;
++    SavestateThumbHeader hdr;
++    if (!thumb || !savestate_thumb_path(slot, path, sizeof(path))) return 0;
+     hdr.magic[0] = 'P';
+     hdr.magic[1] = 'S';
+     hdr.magic[2] = 'T';
+@@ -902,6 +920,7 @@ uint32_t savestate_last_save_pc(void) {
  
  void savestate_poll(CPUState* cpu, uint32_t resume_pc) {
      if (s_save_pending < 0 && s_load_pending < 0) return;   /* hot path: nothing staged */
@@ -7575,7 +7659,7 @@ index 7f191c99..102f6fba 100644
  
      if (s_save_pending >= 0) {
          int slot = s_save_pending;
-@@ -1178,6 +1188,7 @@ void savestate_poll(CPUState* cpu, uint32_t resume_pc) {
+@@ -1178,6 +1197,7 @@ void savestate_poll(CPUState* cpu, uint32_t resume_pc) {
              s_status_pending = 0;
              s_status_last_ok = 1;
              s_status_generation++;

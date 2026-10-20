@@ -99,7 +99,12 @@ const Guard guards[]={
     // variables). D19P: 0x800c3f94 is the selected item (D08A6), not guarded:
     // a state with an item selected failed the check and kept the original menus.
     {0x800c3f38u,0x5cu,"a73396cc61ae5213b2ebcbc29e8300c06854a58ada6ef55179341636c2f926ee"},
-    {0x800c3f98u,0x398u,"413e536637b8c40390858d4a009541249191487547b241c66544625277c9fafd"},
+    // D19Q: GAME SETTINGS' word 0x800c3f9c (GORE, STATUS BARS) and GAME SPEED
+    // 0x800c3fa0 are the player's settings (the memory card restores them):
+    // not guarded. A check first made after a card with other settings had
+    // loaded (a savestate restored early) kept the original menus.
+    {0x800c3f98u,0x4u,"df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119"},
+    {0x800c3fa4u,0x38cu,"1833d1cc459e582980e7fed23d3171a68f99677561b9ad13626832bb9413b7ec"},
     {0x800c43b4u,0xf0u,"9ea07ba25cff15a7da9de43768b28d70b836cf13269c705e70e6730b55395b3b"},   // sprite records and font info
     {0x800c60f4u,0x400u,"1298dbf2ac90b8efff35a60c7ec93bc3dd6897d1434ec84ba5b1871093b09a7a"},  // text table
     // D19H: the pause and death screens our lists stand in for.
@@ -377,8 +382,9 @@ int pending_speed=-1;     // D19N: GAME SPEED for 0x80089920 at the next tick
 // D19J: Main, Difficulty, TwoPlayer and Character are the title pages.
 // D19G: Keys is KEY BINDINGS (from PC CONTROLS).
 // D19K: Load is LOAD GAME's slot list, LoadAsk its LOAD THIS GAME?.
-enum class Page {Options, Pause, Death, Brief, Ask, Main, Difficulty, TwoPlayer, Character, Keys, Load, LoadAsk};
-enum class Act {Resume, Brief, Options, Load, Restart, MainMenu, Continue, Quit, QuitGame, OnePlayer, TwoPlayer, Level, RestoreKeys};
+// D19Q: Save is SAVE GAME's slot list, SaveAsk its OVERWRITE THIS SAVE?.
+enum class Page {Options, Pause, Death, Brief, Ask, Main, Difficulty, TwoPlayer, Character, Keys, Load, LoadAsk, Save, SaveAsk};
+enum class Act {Resume, Brief, Options, Save, Load, Restart, MainMenu, Continue, Quit, QuitGame, OnePlayer, TwoPlayer, Level, RestoreKeys};
 struct ListItem {const char* label;Act act;};
 bool title_page(Page p) {return p==Page::Main || p==Page::Difficulty || p==Page::TwoPlayer || p==Page::Character;}
 // D19J: the title pages act in the frontend tick, on the originals' variables,
@@ -435,6 +441,19 @@ constexpr int slider_slots=3, slider_size=0x40;
 bool key_wait=false; // D19G: KEY BINDINGS waits for the new key (input_capture_key)
 uint32_t seen_loads=0;
 bool loading=false;  // D19K: a slot load is requested; keys wait for it
+// D19Q: a SAVE GAME save is requested (keys wait for it); its slot, and
+// whether the framework reported it written (game_menu_saved).
+bool saving=false, save_written=false;
+int save_slot=-1;
+// D19Q: the game as it was when the pause list opened (the displayed image
+// then is the last gameplay image): a save from the pause menu gets it as its
+// thumbnail instead of the menu.
+uint32_t pause_thumb[SAVESTATE_THUMB_W*SAVESTATE_THUMB_H];
+bool pause_thumb_ok=false;
+// D19Q: LOAD GAME chose a save made on SAVE GAME (saved paused): when it is
+// restored, play resumes at once instead of the pause list coming back.
+bool resume_load=false, quiet_resume=false;
+bool thumb_from_load=false; // pause_thumb is the loaded slot's picture
 void thumb_hide();
 void savestate_check() {
     const uint32_t n=psx_mod_savestate_loads();
@@ -444,7 +463,7 @@ void savestate_check() {
     pending_final=Final::None;resumed=false;
     pending_state=-1;handoff=Handoff::None;title_cmds.clear();title_enter=false;
     if(key_wait) {key_wait=false;input_capture_key(false);}
-    loading=false;thumb_hide();
+    loading=false;saving=false;thumb_hide();
 }
 
 const char* intern(const char* text) {owned_strings.emplace_back(text);return owned_strings.back().c_str();}
@@ -622,7 +641,10 @@ void build_list(Page p) {
         list.push_back({"RESUME",Act::Resume});
         if(has_briefing()) list.push_back({"MISSION BRIEFING",Act::Brief});
         list.push_back({"OPTIONS",Act::Options});
-        if(psx_mod_read_word(players)==1) list.push_back({"LOAD GAME",Act::Load});
+        if(psx_mod_read_word(players)==1) {
+            list.push_back({"SAVE GAME",Act::Save}); // D19Q
+            list.push_back({"LOAD GAME",Act::Load});
+        }
         if(!challenge()) list.push_back({"RESTART LEVEL",Act::Restart});
         list.push_back({"MAIN MENU",Act::MainMenu});
     } else if(challenge()) {
@@ -780,8 +802,40 @@ void load_move(int dir) {
 // point (never inside one of our guest calls) and the menu starts again from
 // the loaded state (savestate_check).
 void load_now() {
-    if(savestate_request_load(cursor)) {loading=true;loading_from=psx_mod_savestate_loads();sound(0);return;}
+    if(savestate_request_load(cursor)) {
+        loading=true;loading_from=psx_mod_savestate_loads();sound(0);
+        resume_load=savestate_slot_resumes(cursor);
+        // A paused save that does not resume keeps its own picture for SAVE GAME.
+        pause_thumb_ok=thumb_from_load=savestate_read_thumb(cursor,pause_thumb,SAVESTATE_THUMB_W,SAVESTATE_THUMB_H)!=0;
+        return;
+    }
     page=Page::Load;load_note="THIS SAVE COULD NOT BE LOADED";sound(1);
+}
+
+// ---- D19Q: SAVE GAME to the savestate slots ----
+// The page is LOAD GAME's (its slots, thumbnail and details) with every slot
+// open: an empty one saves at once, a used one asks OVERWRITE THIS SAVE? (NO
+// first, as the other prompts that lose something). The save is F7's: the
+// framework writes the paused game at its next safe point; the page then says
+// SAVED or that it could not.
+int save_choice=1;  // SaveAsk: 0 YES, 1 NO
+void open_save() {
+    read_slots();thumb_hide();
+    page=Page::Save;cursor=0;top=0;load_note.clear();
+}
+void save_now() {
+    page=Page::Save;load_note.clear();
+    if(savestate_request_save(cursor)) {saving=true;save_written=false;save_slot=cursor;sound(0);return;}
+    load_note="THE GAME COULD NOT BE SAVED";sound(1);
+}
+void save_done() {
+    saving=false;read_slots();thumb_hide();page=Page::Save;
+    if(save_written) {char t[32];std::snprintf(t,sizeof t,"SAVED TO SLOT %02d",save_slot+1);load_note=t;sound(0);}
+    else {load_note="THE GAME COULD NOT BE SAVED";sound(1);}
+}
+void save_confirm() {
+    if(!slot_info[cursor].exists) {save_now();return;}
+    page=Page::SaveAsk;save_choice=1;load_note.clear();sound(0);
 }
 
 void ask_cancel() {
@@ -830,6 +884,7 @@ void list_confirm() {
     case Act::Brief: page=Page::Brief;sound(0);break;
     case Act::Options: page=Page::Options;screen=-1;cursor=0;top=0;back_label=contexts[1].back_label;sound(0);break;
     case Act::Load: open_load(page);sound(0);break;
+    case Act::Save: open_save();sound(0);break;
     case Act::Resume: act_now(a);break;
     default: ask_from=page;ask_act=a;page=Page::Ask;cursor=a==Act::Continue ? 0 : 1;sound(1);break;
     }
@@ -839,6 +894,8 @@ void move(int dir) {
     if(title_page(page)) {title_cmds.push_back(dir<0 ? Cmd::Up : Cmd::Down);return;}
     if(page==Page::Load) {load_move(dir);return;}
     if(page==Page::LoadAsk) return;
+    if(page==Page::Save) {load_move(dir);return;}
+    if(page==Page::SaveAsk) {save_choice^=1;sound(1);return;}
     if(page==Page::Keys) {if(!key_wait) keys_move(dir);return;}
     if(page==Page::Brief) return;
     if(page!=Page::Options) {
@@ -968,6 +1025,8 @@ void confirm() {
     case Page::Keys: if(!key_wait) {key_wait=true;key_note.clear();input_capture_key(true);sound(0);} return;
     case Page::Load: if(loadable(cursor)) {page=Page::LoadAsk;load_note.clear();sound(0);} return;
     case Page::LoadAsk: load_now();return;
+    case Page::Save: save_confirm();return;
+    case Page::SaveAsk: if(save_choice==0) save_now(); else {page=Page::Save;sound(1);} return;
     case Page::Options: break;
     default: title_cmds.push_back(Cmd::Confirm);return; // D19J: the title pages
     }
@@ -986,6 +1045,8 @@ void back(uint16_t mode) {
     case Page::Keys: keys_back();return;
     case Page::Load: load_back();return;
     case Page::LoadAsk: page=Page::Load;sound(1);return;
+    case Page::Save: thumb_hide();load_note.clear();open_list(Page::Pause,Act::Save);sound(0);return;
+    case Page::SaveAsk: page=Page::Save;sound(1);return;
     case Page::Options: break;
     default: title_cmds.push_back(Cmd::Back);return; // D19J: the title pages
     }
@@ -1021,8 +1082,13 @@ bool game_menu_input(const MenuKeys& keys) {
     if(loading) {
         // D19K: until the load (savestate_check ends this), or its failure.
         if(!savestate_pending() && psx_mod_savestate_loads()==loading_from) {
-            loading=false;page=Page::Load;load_note="THIS SAVE COULD NOT BE LOADED";sound(1);
+            loading=false;resume_load=false;page=Page::Load;load_note="THIS SAVE COULD NOT BE LOADED";sound(1);
         }
+        return owned;
+    }
+    if(saving) {
+        // D19Q: until the framework has taken the save (or refused it).
+        if(!savestate_pending()) save_done();
         return owned;
     }
     if(busy || (owned && (pending_sub>=0 || pending_final!=Final::None || pending_state>=0))) {
@@ -1569,14 +1635,16 @@ std::string slot_time(int slot) {
 }
 // Layout A (user-approved mockup, 2026-10-20): slots on the left in the main
 // menu's font, the chosen one's thumbnail and details on the right.
-void draw_load(Guest& g,const Geometry& geo) {
-    g.say_id(text_load,0,heading_y(geo),font_menu|centre);
+// D19Q: SAVE GAME is the same page with every slot open.
+void draw_load(Guest& g,const Geometry& geo,bool save=false) {
+    if(save) g.say("SAVE GAME",0,heading_y(geo),font_menu|centre);
+    else g.say_id(text_load,0,heading_y(geo),font_menu|centre);
     const int x=-geo.w/2+36, y0=-66, spacing=14;
     for(int j=0;j<load_rows_visible && top+j<SAVESTATE_SLOTS;++j) {
         const int i=top+j, y=y0+spacing*j;
         char number[16];std::snprintf(number,sizeof number,"%02d",i+1);
         const std::string name=slot_name(i);
-        if(i==cursor || loadable(i)) {
+        if(i==cursor || loadable(i) || save) {
             g.say(number,x,y,font_small|(i==cursor?blue:0));
             g.say(name.c_str(),x+28,y,font_small|(i==cursor?blue:0));
         } else {g.say_dim(number,x,y,font_small);g.say_dim(name.c_str(),x+28,y,font_small);}
@@ -1586,11 +1654,13 @@ void draw_load(Guest& g,const Geometry& geo) {
     // 4:3 on screen: the menu area is 4:3, so w = h * geo.w / geo.h.
     const SlotInfo& s=slot_info[cursor];
     const int cx=geo.w/4+12, th=84, tw=th*geo.w/geo.h, ty=-68;
-    if(!s.exists) g.say_dim("EMPTY",cx,ty+th/2-4,font_small|centre);
-    else {
+    if(!s.exists) {
+        if(save) g.say("NEW SAVE",cx,ty+th/2-4,font_small|centre);
+        else g.say_dim("EMPTY",cx,ty+th/2-4,font_small|centre);
+    } else {
         overlay_thumb(cursor,!s.compatible,geo,cx-tw/2,ty,tw,th);
         if(!s.compatible) {
-            g.say("CANNOT LOAD",cx,ty+th+16,font_small|centre);
+            g.say(save ? "SAVE OVER" : "CANNOT LOAD",cx,ty+th+16,font_small|centre);
             g.say_dim("FROM ANOTHER BUILD",cx,ty+th+30,font_small|centre);
         } else {
             if(s.named && *level_era(s.level)) g.say(level_era(s.level),cx,ty+th+16,font_small|centre);
@@ -1605,6 +1675,24 @@ void draw_load(Guest& g,const Geometry& geo) {
     g.prompt_id(icon_select,-(geo.w/4),py,text_select);
     g.prompt_id(icon_cross,0,py,text_confirm);
     g.prompt_id(icon_triangle,geo.w/4,py,text_return);
+}
+// D19Q: OVERWRITE THIS SAVE?, the slot's picture smaller to leave room for
+// YES and NO (NO first).
+void draw_save_ask(Guest& g,const Geometry& geo) {
+    g.say("SAVE GAME",0,heading_y(geo),font_menu|centre);
+    const int th=62, tw=th*geo.w/geo.h, ty=-76;
+    overlay_thumb(cursor,!slot_info[cursor].compatible,geo,-tw/2,ty,tw,th);
+    overlay_commit();
+    char slot[24];std::snprintf(slot,sizeof slot,"SLOT %02d",cursor+1);
+    const std::string line=slot_info[cursor].named ? std::string(slot)+" - "+slot_name(cursor) : std::string(slot);
+    g.say(line.c_str(),0,ty+th+14,font_small|centre);
+    g.say("OVERWRITE THIS SAVE?",0,ty+th+32,font_menu|centre);
+    g.say_id(text_yes,0,ty+th+54,font_menu|centre|(save_choice==0?blue:0));
+    g.say_id(text_no,0,ty+th+72,font_menu|centre|(save_choice==1?blue:0));
+    const int py=prompt_y(geo);
+    g.prompt(icon_select,"SELECT",-geo.w/4,py);
+    g.prompt(icon_cross,"CONFIRM",0,py);
+    g.prompt(icon_triangle,"CANCEL",geo.w/4,py);
 }
 // LOAD THIS GAME?, as the original LOAD screen asks, with CONFIRM and CANCEL.
 void draw_load_ask(Guest& g,const Geometry& geo) {
@@ -1862,7 +1950,9 @@ bool gameplay_tick(CPUState* cpu) {
         if(sub==(pause ? ours_sub : death_sub)) {
             // D19I: this image still shows the page, as the original's
             // handler draws its screen in the tick that acts on the press.
-            draw_page(cpu,&contexts[1]);
+            // D19Q: not when a loaded SAVE GAME save resumes at once.
+            if(!quiet_resume) draw_page(cpu,&contexts[1]);
+            quiet_resume=false;
             busy=true;
             {
                 Guest g(cpu);
@@ -1899,6 +1989,8 @@ bool gameplay_tick(CPUState* cpu) {
         return true;
     }
     if(sub==pause_top) {
+        // D19Q: the displayed image is still the last of play.
+        pause_thumb_ok=savestate_grab_thumb(pause_thumb)!=0;
         open_list(Page::Pause,return_item);return_item=Act::Resume;
         owned=true;back_label="RESUME";++entries;
         input_release_for_menu();
@@ -1919,6 +2011,14 @@ bool gameplay_tick(CPUState* cpu) {
         // clears the value.)
         open_list(sub==death_sub ? Page::Death : Page::Pause,Act::Resume);
         owned=true;back_label="RESUME";
+        if(!thumb_from_load) pause_thumb_ok=false; // an F7 load: no picture of its play
+        thumb_from_load=false;
+        if(resume_load && sub==ours_sub) {
+            // D19Q: a SAVE GAME save chosen on LOAD GAME: play resumes now.
+            resume_load=false;pending_final=Final::Resume;quiet_resume=true;
+            return gameplay_tick(cpu);
+        }
+        resume_load=false;
         return true;
     }
     if(sub==death_sub) return true;
@@ -2055,7 +2155,7 @@ void draw_page(CPUState* cpu,const MenuContext* c) {
     if(image==last_image && cpu->gpr[31]==last_draw_ra) {++skip_image;skip_ra=cpu->gpr[31];return;}
     ++drawn_calls;
     last_image=image;last_draw_ra=cpu->gpr[31];
-    if(page!=Page::Load && page!=Page::LoadAsk) thumb_hide();
+    if(page!=Page::Load && page!=Page::LoadAsk && page!=Page::Save && page!=Page::SaveAsk) thumb_hide();
     busy=true;
     {
         Guest g(cpu);
@@ -2073,6 +2173,8 @@ void draw_page(CPUState* cpu,const MenuContext* c) {
         case Page::Keys: draw_keys(g,geo);break;
         case Page::Load: draw_load(g,geo);break;
         case Page::LoadAsk: draw_load_ask(g,geo);break;
+        case Page::Save: draw_load(g,geo,true);break;
+        case Page::SaveAsk: draw_save_ask(g,geo);break;
         }
     }
     busy=false;
@@ -2176,6 +2278,22 @@ extern "C" int ttk_menu_thumb_image(const uint32_t** pixels,int* width,int* heig
     rect[0]=float(overlay_x)/canvas_w;rect[1]=float(overlay_y)/canvas_h;
     rect[2]=float(overlay_w)/canvas_w;rect[3]=float(overlay_h)/canvas_h;
     return 1;
+}
+
+// D19Q: the framework wrote a savestate slot (ttk_savestate_saved). A save
+// taken while our pause menu is up gets the picture of play from when the
+// pause opened. True when it is SAVE GAME's own save (it then resumes play
+// when LOAD GAME restores it).
+namespace ttk {
+bool game_menu_saved(int slot) {
+    if(!enabled()) return false;
+    std::lock_guard<std::recursive_mutex> lock(mutex);
+    if(pause_thumb_ok && owned && psx_mod_read_half(game_mode)==1 && psx_mod_read_half(paused) && psx_mod_read_half(pause_screen)==ours_sub)
+        savestate_write_thumb(slot,pause_thumb);
+    const bool ours=saving && slot==save_slot;
+    if(ours) save_written=true;
+    return ours;
+}
 }
 
 // D19K: CHECKING MEMORY CARD and CHECKING SAVE GAME FILE, drawn by states 1

@@ -84,6 +84,12 @@ bool savestate_slot_level(int slot,unsigned& level) {
     if(!(file>>word>>value) || word!="level" || value>=32)return false;
     level=value;return true;
 }
+bool savestate_slot_resumes(int slot) {
+    std::ifstream file(sidecar_path(slot));
+    std::string word;unsigned value=0;
+    while(file>>word>>value) if(word=="resume") return value==1;
+    return false;
+}
 }
 
 namespace {
@@ -191,10 +197,13 @@ extern "C" void ttk_savestate_saved(int slot) {
     const std::string path=ttk::sidecar_path(slot);
     if(path.empty())return;
     std::remove(path.c_str());
+    const bool resume=ttk::game_menu_saved(slot); // D19Q: SAVE GAME's save, its picture
     if(psx_mod_read_half(0x800bcbb0)!=1)return; // not in gameplay: no level to record
     const unsigned level=psx_mod_read_word(0x800be570);
     if(level>=32)return;
-    std::ofstream(path)<<"level "<<level<<"\n";
+    std::ofstream file(path);
+    file<<"level "<<level<<"\n";
+    if(resume) file<<"resume 1\n";
 }
 
 PSX_MOD_CONSTRUCTOR(register_ttk_savestate_panel) {

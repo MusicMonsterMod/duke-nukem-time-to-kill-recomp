@@ -1,5 +1,27 @@
 # Current status - 2026-10-04
 
+## 2026-10-20 - D19Q accepted
+
+- User: "im happy with this". D19Q Done; executable
+  `15e3d7b2c761613f7f3999d107b0ae251fc333ad5322d85bf377f44daffe999b` is the regression baseline.
+
+## 2026-10-20 - D17W opened (minecart white triangles)
+
+- New Todo D17W: player UI slot 10, the overturned minecart shows white
+  untextured triangles in first person only (also with GEOMETRY ORIGINAL;
+  clean in third person). Leads in the job (D11B near clip first).
+
+## 2026-10-20 - D19Q SAVE GAME (Needs playtest)
+
+- Pause list SAVE GAME opens LOAD GAME's page with every slot open; empty
+  saves at once, used asks OVERWRITE THIS SAVE? (NO first); SAVED TO SLOT NN
+  or THE GAME COULD NOT BE SAVED. Thumbnail = play when the pause opened;
+  LOAD GAME on such a save resumes play. Framework: atomic slot writes,
+  thumbnail grab / write. Identity guard no longer covers the card-restored
+  GAME SETTINGS values. Executable
+  `15e3d7b2c761613f7f3999d107b0ae251fc333ad5322d85bf377f44daffe999b`,
+  [note 171](171-d19q-save-game.md).
+
 ## 2026-10-20 - D19R done: startup card wait at host speed
 
 - The user delegated testing and closeout. States 1 and 2 (card probe, file

@@ -1038,13 +1038,20 @@ the same way on every menu screen:
   closes the program. Left alone on the main menu, the game goes back to
   PRESS START after about five minutes, as the original does.
 - **Pause menu (Escape in game):** a list under the level name: RESUME,
-  MISSION BRIEFING (the original story and goals), OPTIONS, LOAD GAME,
-  RESTART LEVEL, MAIN MENU and QUIT GAME. Arrows or the wheel choose, Enter
+  MISSION BRIEFING (the original story and goals), OPTIONS, SAVE GAME,
+  LOAD GAME, RESTART LEVEL, MAIN MENU and QUIT GAME. Arrows or the wheel choose, Enter
   confirms, Escape resumes. RESTART LEVEL, MAIN MENU and QUIT GAME ask
   YES / NO first (NO is highlighted). QUIT GAME closes the program, keeping
   your confirmed settings, the same as closing the window. Challenge stages
-  have no RESTART LEVEL; LOAD GAME is there in one-player games, as in the
-  original.
+  have no RESTART LEVEL; SAVE GAME and LOAD GAME are there in one-player
+  games, as LOAD is in the original.
+- **SAVE GAME** (pause menu) is LOAD GAME's page with every slot open: an
+  empty slot (NEW SAVE beside the list) saves at once; a used one asks
+  OVERWRITE THIS SAVE? with NO highlighted. The page then says SAVED TO SLOT
+  NN, or THE GAME COULD NOT BE SAVED (the slot keeps what it had). The
+  picture is the game as it was when you paused, not the menu. Loading such
+  a save from LOAD GAME puts you straight back into play; F7 loads of it
+  open the pause menu.
 - **Death screen:** CONTINUE, LOAD GAME, RESTART LEVEL, QUIT TO MENU and
   QUIT GAME under the continues left (challenge stages: REPLAY LEVEL, GIVE UP
   and QUIT GAME). QUIT TO MENU asks QUIT TO MENU? and gives up through the
@@ -1059,7 +1066,9 @@ the same way on every menu screen:
   Slots saved before level names were recorded read SAVED GAME. Memory card
   saves are no longer offered here in Modernized; Vanilla
   (`run.py --vanilla`) keeps the original memory card LOAD GAME.
-- **Startup:** Modernized no longer shows the PlayStation memory card checks
+- **Startup:** the memory card check runs at full speed, so the title follows
+  the intro movies after a short black moment.
+  Modernized no longer shows the PlayStation memory card checks
   (CHECKING MEMORY CARD, CHECKING SAVE GAME FILE, or the no card / not
   formatted message). The card is still read in the background, so the game
   settings kept on it (gore, status bars, game speed) still load. Vanilla

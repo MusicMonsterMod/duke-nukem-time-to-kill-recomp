@@ -1,5 +1,15 @@
 # Next-session handoff
 
+## 2026-10-20 - D19R done: startup card wait at host speed
+
+- The user delegated testing and closeout. States 1 and 2 (card probe, file
+  read) run their VBlanks unpaced with the framework idle skip on for that
+  window only (new `psx_mod_request_unpaced`, exported patch; codegen hash
+  unchanged). States 1-2: about 1.9 s to 0.24 s; black after the movies about
+  0.35 s. Settings still load; blank and fresh cards continue; Vanilla
+  unchanged. Executable `2fb1bd3cc0e8ee78fd94c41da6c66c39a5fe7d5ff4eddd813e321bc2f2833408`,
+  [note 170](170-d19r-card-wait.md).
+
 ## 2026-10-20 - D19K accepted; D19R opened
 
 - User: "confirmed now working as intended. lock it in." D19K Done; executable

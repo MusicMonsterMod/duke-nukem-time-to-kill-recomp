@@ -201,6 +201,7 @@ constexpr uint32_t card_status=0x800bdeb0, card_wait=0x800d24d0;
 constexpr uint16_t state_card=1, state_save_file=2, state_card_message=3;
 constexpr int text_checking_card=0x39, text_checking_save=0xf2;
 constexpr uint32_t card_states_begin=0x80022440, card_states_end=0x80022664; // states 1 and 2
+constexpr uint32_t card_unpaced_budget=300; // D19R: fields per tick, well above the probe's 90
 // Text ids of the title pages (the originals pass the same).
 constexpr int text_title1=1, text_title2=2, text_one=0x57, text_two=0x58, text_load=0x31, text_options=0x59;
 constexpr int text_select=0x11, text_confirm=0x12, text_return=0x13, text_change=0x14, text_cancel=0x15, text_start=0x8a;
@@ -418,6 +419,7 @@ uint32_t last_image=~0u;
 // call site in the same image draws again.
 uint32_t last_draw_ra=0;
 uint64_t draws=0, entries=0, writes=0, finals=0, card_skips=0, card_hidden=0;
+bool card_unpaced=false; // D19R: an unpaced window requested
 // D19N: slider objects in guest RAM, the original SOUND screen's three
 // (0x800dd290, +0x40, +0x80; the handler 0x8008aa08 initialises them each time
 // it opens, and it never runs while our screens are up). Objects in the
@@ -2002,6 +2004,13 @@ void title_entry(CPUState* cpu) {
     savestate_check();
     if(handoff==Handoff::Armed) handoff=Handoff::None; // the handler never ran
     const uint16_t state=psx_mod_read_half(fe_state);
+    // D19R: the card probe (state 1) and the file read (state 2) block the
+    // main loop in the BIOS card driver, which advances once per VBlank, for
+    // about 90 fields with nothing new on screen. Those VBlanks run unpaced:
+    // the guest sees the same fields, the player no black pause. The budget
+    // is renewed each tick and bounds a wait that never returns.
+    if(state==state_card || state==state_save_file) {psx_mod_request_unpaced(card_unpaced_budget);card_unpaced=true;}
+    else if(card_unpaced) {psx_mod_request_unpaced(0);card_unpaced=false;}
     if(pending_state>=0) {
         if(state==contexts[0].state_value && psx_mod_read_half(contexts[0].sub)==title_sub) {
             psx_mod_write_half(fe_state,(uint16_t)pending_state);
@@ -2143,10 +2152,10 @@ void game_menu_frame(CPUState* cpu) {
 extern "C" const char* ttk_game_menu_json() {
     using namespace ttk;
     static char buffer[1024];
-    std::snprintf(buffer,sizeof buffer,"{\"settings\":{\"word\":%u,\"game_speed\":%u,\"enforced\":%llu,\"card_packs\":%llu,\"card_loads\":%llu,\"card_auto_aim\":%s},\"owned\":%s,\"page\":%d,\"screen\":%d,\"cursor\":%d,\"top\":%d,\"items\":%d,\"entries\":%llu,\"draws\":%llu,\"writes\":%llu,\"finals\":%llu,\"handoff\":%d,\"pending_state\":%d,\"loading\":%s,\"card\":[%llu,%llu],\"identity\":%s,\"drops\":%llu,\"drop\":[%d,%u,%u],\"skips\":[%llu,%llu,%llu,%llu],\"skip_ra\":\"%x\"}",
+    std::snprintf(buffer,sizeof buffer,"{\"settings\":{\"word\":%u,\"game_speed\":%u,\"enforced\":%llu,\"card_packs\":%llu,\"card_loads\":%llu,\"card_auto_aim\":%s},\"owned\":%s,\"page\":%d,\"screen\":%d,\"cursor\":%d,\"top\":%d,\"items\":%d,\"entries\":%llu,\"draws\":%llu,\"writes\":%llu,\"finals\":%llu,\"handoff\":%d,\"pending_state\":%d,\"loading\":%s,\"card\":[%llu,%llu,%llu],\"identity\":%s,\"drops\":%llu,\"drop\":[%d,%u,%u],\"skips\":[%llu,%llu,%llu,%llu],\"skip_ra\":\"%x\"}",
         psx_mod_read_half(settings_word),psx_mod_read_half(game_speed),(unsigned long long)enforced,(unsigned long long)card_packs,(unsigned long long)card_loads,card.auto_aim?"true":"false",
         owned?"true":"false",(int)page,screen,cursor,top,(int)list.size(),(unsigned long long)entries,(unsigned long long)draws,(unsigned long long)writes,
-        (unsigned long long)finals,(int)handoff,pending_state,loading?"true":"false",(unsigned long long)card_skips,(unsigned long long)card_hidden,identity_checked?(identity_ok?"true":"false"):"null",(unsigned long long)drops,drop_why,drop_state,drop_sub,(unsigned long long)skip_owned,(unsigned long long)skip_screen,(unsigned long long)skip_image,(unsigned long long)drawn_calls,skip_ra);
+        (unsigned long long)finals,(int)handoff,pending_state,loading?"true":"false",(unsigned long long)card_skips,(unsigned long long)card_hidden,(unsigned long long)psx_mod_unpaced_vblanks(),identity_checked?(identity_ok?"true":"false"):"null",(unsigned long long)drops,drop_why,drop_state,drop_sub,(unsigned long long)skip_owned,(unsigned long long)skip_screen,(unsigned long long)skip_image,(unsigned long long)drawn_calls,skip_ra);
     return buffer;
 }
 

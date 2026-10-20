@@ -36,7 +36,8 @@ Lease refusals seen (`[TTK lease] inactive (state)`), matching the report:
   tank fallback, no `ORIGINAL MOVEMENT` banner). During an unowned fall it keeps
   the buttons the fallback used to send (Up/Down and strafe pads, never turns).
 - First person blends to the orbit during mantles, hangs and unowned falls
-  (the eye would be inside the ledge), then returns to the eye.
+  (the eye would be inside the ledge), then returns to the eye. D08Z4 (2026-10-20):
+  unowned falls now keep the eye ([note 168](168-d08z4-falls-keep-eye.md)).
 
 ## Evidence (binary `123c7910b9ae049d0818de9cb85ea896a5242d6902ead311cf1f7f811d29693e`)
 

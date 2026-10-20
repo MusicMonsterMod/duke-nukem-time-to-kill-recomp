@@ -1,5 +1,21 @@
 # Next-session handoff
 
+## 2026-10-20 - D08Z4 accepted
+
+- User: "thats the one! lock it in and close it out!!". D08Z4 Done; executable
+  `117653dd0e38fa1c6cac2efe6e885449990ee1a5ffeaf23523024587a22e3778` is the regression baseline.
+
+## 2026-10-20 - D08Z4 falls keep the eye view (Needs playtest)
+
+- Slot 6 cop car: the original slope slide on the car body alternates 145/108/105,
+  and each 108 counted as an unowned fall, which first person showed from the
+  orbit (the "brief third person"). Unowned falls (107/108) now stay in the
+  eye, game-wide; mantles, hangs and climbs keep the orbit. 40 scripted jumps
+  (gaits, headings, both jump styles, both wall-contact modes) stay in the eye;
+  E-held mantles still use the orbit; third person and Vanilla unchanged;
+  native suites pass. Executable `117653dd0e38fa1c6cac2efe6e885449990ee1a5ffeaf23523024587a22e3778`,
+  [note 168](168-d08z4-falls-keep-eye.md).
+
 ## 2026-10-20 - D34 accepted
 
 - User: "amazing read". D34 research Done; follow-ups D34A-D34G stay

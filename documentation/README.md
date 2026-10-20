@@ -90,3 +90,4 @@ D10D keyboard turning (Left / Right arrows): [note 162](162-d10d-keyboard-turnin
 D08T4 fixed pushable objects (slot 10 dumpster, original floor gate): [note 163](163-d08t4-fixed-pushables.md) (accepted).
 
 Multiplayer research (D34): [split-screen, online play and self-hosting feasibility](167-d34-multiplayer-research.md).
+First-person falls (D08Z4): [falls keep the eye, slot 6 cop car](168-d08z4-falls-keep-eye.md).

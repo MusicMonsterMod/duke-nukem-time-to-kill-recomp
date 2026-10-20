@@ -761,7 +761,8 @@ Swimming and jetpack flight switch back to third
 person on their own and return when you land; ladders, poles, chains and
 ledges show the free third-person camera while Duke climbs; scripted and
 turret cameras, death and menus use the original camera as before. Dodge rolls
-and slides down steep slopes stay in first person. Pressing P
+and slides down steep slopes stay in first person, and so do falls (off an edge, a
+car roof or after bumping a wall); only grabbing a ledge switches. Pressing P
 again returns to third person. The choice is saved; to set it without
 launching:
 

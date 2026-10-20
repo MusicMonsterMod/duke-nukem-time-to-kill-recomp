@@ -100,10 +100,15 @@ static void first_person_update(const InputFrame& f,unsigned ticks) {
     const bool swimming=in_water_early() && !shallow_land_water_early();
     // D08T: grabbing/pushing a large object puts the eye inside it; show the
     // push from the orbit and return to the eye after letting go.
-    // D08V: mantles, hangs and unowned falls also show from the orbit.
+    // D08V: mantles, hangs and climbs also show from the orbit (the eye
+    // would be inside the ledge).
     // D22B: dodge rolls and slope slides stay in the eye view.
+    // D08Z4: so do unowned falls (107/108). They are the owned flight's own
+    // animations and put the eye nowhere new; a slope slide on a car body
+    // alternates 145/108/105, and each 108 the slide latch missed cut to the
+    // orbit, then the drop off the car showed the whole fall from behind.
     const bool supported=!swimming && !jetpack_camera_only() && !push_state_early() &&
-        (!traversal_camera_early() || committed_move_early());
+        (!traversal_camera_early() || committed_move_early() || unowned_fall_early());
     fp_supported=supported;
     const bool wanted=f.first_person && supported;
     fp_reason=!f.first_person?"off":!supported?"unsupported":"active";

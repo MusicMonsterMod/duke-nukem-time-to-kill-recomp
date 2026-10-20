@@ -121,7 +121,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08Z1 | Keep jump momentum when bumping a wall (EDuke32-style, menu-toggleable) | Done (user-accepted) | D08Z, D22B |
 | D08Z2 | Mantle regression since D08Z1: the mantle plays as a static leg pose | Done (user-accepted) | D08Z1 |
 | D08Z3 | Modern landing: no stand-still after a jump (recovery 105 ends on input; landing hop) | Done (user-accepted) | D08Z1 |
-| D08Z4 | First person briefly cuts to third person when jumping into the cop car (UI slot 6) | Todo | D08Z1, D08V, D11 |
+| D08Z4 | First person briefly cuts to third person when jumping into the cop car (UI slot 6) | Done (user-accepted 2026-10-20) | D08Z1, D08V, D11 |
 | D08J1 | Hold-E run-up grab for overhead ladders (slot-6 ladder) | Done | D08J, D08X, D08U |
 | D08J2 | Poles and chains: A/D turn the wrong way (A turns right, D left) | Accepted | D08J |
 | D08J4 | Ceiling monkey-bar climbing: camera-relative travel, no mid-span drops (player UI slot 3) | Accepted | D08J, D22B |
@@ -4170,7 +4170,7 @@ confirms.
 
 ### D08Z4 - First person briefly cuts to third person when jumping into the cop car (UI slot 6)
 
-**Todo. User report, 2026-10-08:** "slot 6. where im standing right in front
+**Done (user-accepted 2026-10-20).** User report, 2026-10-08: "slot 6. where im standing right in front
 of the cop car, and by jumping into it, it briefly forces duke to go into third
 person mode when im playing in first person mode. ... this bug is by no means
 game breaking, but it would be nice to investigate it and see if we can make it
@@ -4198,6 +4198,44 @@ assisted jump) never flashes the third-person orbit; real mantles and hangs
 still read correctly (keep the eye if it stays clear, otherwise the existing
 orbit); D08V sewer mantle, D08X/D08Y/D08Z1 routes and third person unchanged;
 Vanilla unchanged; the user confirms.
+
+**2026-10-20 - Needs playtest.** Reproduced on a private copy of UI slot 6
+(file `slot05`, SHA-256
+`724c3cb83d252f586ed2c9583e5890b7fdf3cbb171a80eea8905da5a138de272`) with the
+player's settings (first person, manual jump, `jump_walls slide`), Xvfb, real
+keys. A short run-up jump lands on the sloped car body, where the original
+steep-slope slide takes over: 145 (mode 2), 108 (9/2), 105 (0/9), then 108
+with mode 9 / previous 0 and 9/9. The D22B slide latch keeps the eye only
+through 145 and the first landing; the later 108 frames counted as D08V
+unowned falls, which first person sent to the orbit, and the drop off the car
+was shown from behind (blend down to 0 for about 0.7 s). Cause: D08V grouped
+falls with mantles and hangs ("the eye would be inside the ledge"), but a fall
+is the owned flight's own 107/108 animation and the eye already stays there for
+owned jumps.
+
+Fix (game-wide, `first_person.inc`): unowned falls (107/108) stay in the eye
+view, like committed moves. Mantles, hangs, ladder mounts and climbs keep the
+orbit; leases, input and third person are unchanged.
+
+Evidence, executable `117653dd0e38fa1c6cac2efe6e885449990ee1a5ffeaf23523024587a22e3778`
+([note 168](documentation/168-d08z4-falls-keep-eye.md)): before the fix the
+run-up jump fell to `unsupported` (blend 0.0); after, 40 jumps (standing,
+walking, running at five run-up lengths; straight on, turned left and right;
+manual and assisted jump; `jump_walls` slide and original) never leave
+`active` or drop below blend 1.0, including slide, fall and 107 bounce
+frames. E-held run-ups still mantle onto the car (137, mode 8) from the orbit.
+Mid-slide and mid-fall captures show a clear eye over the roof. Third person
+never blends in; Vanilla's first-person code stays idle. `ttk-controls-test`
+(with LEVEL01 and all levels), `ttk-aim-test`, `ttk-input-test` PASS.
+
+Limits: tested at the slot-6 car only. Other unowned falls (off edges, failed
+grabs) take the same path but were not driven here. A thin black wedge at the
+top-left edge in some fall frames looks like the D17R sky-edge issue and is not
+part of this change. The user has to confirm the feel.
+
+**2026-10-20 - Done (user-accepted).** User: "thats the one! lock it in and
+close it out!!". Executable
+`117653dd0e38fa1c6cac2efe6e885449990ee1a5ffeaf23523024587a22e3778` is the regression baseline.
 
 ### D08J1 - Hold-E run-up grab for overhead ladders (slot 6)
 

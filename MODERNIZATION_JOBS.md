@@ -230,7 +230,9 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D28 | Scroll Lock holster and WEAPON LOWERED/RAISED quotes | Done | D04, D19A |
 | D29 | Progression items and objectives legibility: research and design first (Level 2 bank-vault notes) | Todo | D19A, D22B, D26A |
 | D30 | List the project on recomp.board (recomp.fyi): commit `.recomp.json` to claim our row | Done | - |
-| D31 | Eye-catching README: poster hero banner, logo, text-free icon, social preview and art credits | Todo | - |
+| D31 | Eye-catching README: own-capture hero banner, in-engine icon, screenshots, social preview and credits (design locked, concept 7) | Todo | - |
+| D32 | Game icon: replace the framework psxrecomp.ico/.png/.svg with the D31 in-engine icon (exe, window, taskbar, launcher) | Todo | D31 design |
+| D33 | Review: Modernized as the default profile, `--vanilla` as the special flag | Todo | - |
 | R01 | DisruptorRecomp architecture and modernization reference research | Done | - |
 
 Recommended opening sequence: **D01 → D02 → D03 → D04**, then **D05 / D06 → D07 → D07A → D08**. D13 is an early graphics option after profiles exist. D22 and D23 should accumulate evidence throughout development. First-person, HD asset packs and precision rendering are optional follow-up milestones, not blockers for a good modern third-person release.
@@ -7222,92 +7224,181 @@ D25).
 
 ### D31 - Eye-catching README (hero banner, icon, social preview, art credits)
 
-**Todo. Opened 2026-10-20 at the user's request; left in the backlog.**
-Project presentation, not gameplay. No game code, build or launch is involved.
+**Todo, design locked (2026-10-20). Opened 2026-10-20 at the user's request;
+reworked the same day to an own-assets approach (user: "i'd rather go legit
+about this").** Project presentation, not gameplay. No game code changes.
 
-**Goal.** Make the GitHub front page as striking as the box art: one strong
-hero image, the original logo, a one-line pitch, a short nav row, a clear
-Vanilla / Modernized comparison, and complete art credits. Keep the
-engineering detail in the existing docs; the README links to it.
+**Locked design (user, 2026-10-20: "this is the design but it's going to
+remain in the backlog").** Concept version 7 of the artifact below is the
+approved README; a saved copy is
+`research/artwork/readme-drafts/readme-concept-7.html`. It fixes:
 
-**Source art (local only, `research/artwork/`, never committed as is):**
+- Hero: our LA capture with Duke facing the camera firing, the "KaBoom"
+  explosion behind him, Anton "DUKE NUKEM: TIME TO KILL" / gold
+  "RECOMPILED" (weathered: hard chisel bevel, flat faces, grungy pitting,
+  dents and rust, concept 9) / tagline;
+  `readme-hero.jpg` cut from `hero16-grit.png` at
+  (0,62)-(1707,773), 1600x666; `social-preview.jpg` 1280x640.
+- Icon: the in-engine Photon portrait (`ttk-recomp-icon.psd`,
+  `icon-ingame-*.png`) for the README; the game executable and window use
+  it through D32.
+- Vanilla vs Modernized comparison and table; screenshots (third person LA,
+  Wild West, first person at the Time-Space Warp, first person Wild West
+  street); the "First person: gadgets and power-ups" set (`shots/fp-*.jpg`:
+  steroids, `[ / ]` switcher, Double Duke, invincibility plus Double Duke,
+  night vision, mission items); the eras strip with Rome and Dark Ages
+  brightened and captioned as such; quick start, credits and disclaimer.
 
-- `duke-ttk-recomp-poster-new.png` (1531x1027) - **the source for this job.**
-  MusicMonsterMod's colour edit (ChatGPT and PhotoCraft) of coranflakes'
-  clean poster.
-- `duke_time_to_kill_poster_2560px.jpg` - "Commercial Poster Clean" by
-  DeviantArt user coranflakes
-  (https://www.deviantart.com/coranflakes/art/Duke-Nukem-Time-To-Kill-Commercial-Poster-Clean-978112433).
-- `og-art.png` - high-resolution cover/poster art posted by Dr_Proton on the
-  Duke4.net forums, 11 December 2017
-  (https://forums.duke4.net/topic/9736-time-to-kill-cover-art-and-poster/).
-- `Duke_Nukem_Time_to_Kill_Logo.png` (2371x820, transparent) - from the
-  French Wikipedia article (https://fr.wikipedia.org/wiki/Duke_Nukem:_Time_to_Kill).
-- `duke-ttk-icon-new.png` - **dropped** (user decision); the new icon is cut
-  from the recomp poster instead.
-- Next Generation magazine advert ("Let them eat lead!", "Make 'em
-  History!") - tone and slogan reference only, not for reuse.
-- `credits.txt` - the user's provenance notes above.
+**Asset rules (user decision 2026-10-20):**
 
-**Concept (2026-10-20).** Private artifact
-https://claude.ai/artifact/GodtFaGHo1o8mztw3hhs1a shows a GitHub-dark mock
-of the proposed README, the asset kit and the open questions. First-pass
-PIL crops are kept locally in `research/artwork/readme-drafts/` (hero 2.4:1
-with the logo on a darkened bottom-left corner, 512 icon, 1280x640 social
-preview, resized logo); they are placeholders for the Photon pass.
+- Commit no commercial key art: no poster, no edits of it, no Wikipedia logo
+  (its page says the trademark exception does not extend to reuse), no
+  advert slogans. They stay in `research/artwork/` for reference only.
+- Name the game in plain text in our own type; never imitate the official logo.
+- Screenshots: a few of our own captures from this build, captioned with the
+  feature they show; no FMV frames, box art or menu art; compressed, modest
+  resolution. Link videos rather than hosting them.
+- Extras only when public domain or open licence (U.S. government photos,
+  SIL OFL fonts), always credited.
+- Disclaimer: unofficial, not affiliated (Gearbox, 3D Realms, n-Space, GT
+  Interactive, Sony); images removed on a rights holder's request.
+- Icon: our own in-engine portrait composited in Photon (user, 2026-10-20:
+  "we can then safely say we own this as an icon"). The poster-cut icon is
+  retired to `research/`. Duke's character and likeness remain the trademark
+  owner's, as in every screenshot; the composite itself is our work.
 
-**Research notes.**
+**Concept 2 (2026-10-20).** Private artifact
+https://claude.ai/artifact/GodtFaGHo1o8mztw3hhs1a (version 2): GitHub-dark
+README mock, the rules, the asset kit and open questions. Local only (all
+under ignored `research/` and `recomp/analysis/`):
 
-- Peer READMEs: Zelda64Recomp has no hero image (download link, no-assets
-  note, contents, features, FAQ, credits). Alexbeav's PS1 ports open with
-  one centred banner and a scope line, no badges. Leading with key art at
-  this quality is our differentiator.
-- GitHub rendering: no CSS or scripts; use `<p align="center">`,
-  `<img width>`, tables, `<details>`, and `<picture>` with
-  `prefers-color-scheme` sources for light/dark variants. Images are
-  committed and linked relatively, so keep the total near 1.5 MB.
-- The social preview (1280x640, under 1 MB) is uploaded by the user in
-  GitHub Settings, General, Social preview; it is not a repo file.
+- `research/artwork/d31-photon/`: `build_hero.py` and `ph.py` (headless
+  Photon build: our capture, HUD removed by content-aware fill, the "KaBoom"
+  explosion masked behind Duke with a linear-dodge glow, shading, live Anton
+  type with gradient/stroke/glow), `ttk-recomp-hero.psd` (layered master),
+  `readme-hero.jpg` (1600x666, 164 KB), `social-preview.jpg` (1280x640),
+  `icon-poster-kept.jpg` (retired), `build_icon.py` and `ttk-recomp-icon.psd`
+  (in-engine icon: low-angle capture cut out with `layer.removeBackground`
+  and `layer.mask.apply`, fire rim light, two "KaBoom" bursts, clouds-filter
+  sky, smoke, vignette), `icon-ingame-1024/512/256/128/64/32.png`, `shots/` (1280x720
+  gameplay set, `vanilla-vs-modernized.jpg`, `eras.jpg` costume strip).
+- `research/artwork/stock/`: public-domain photos with `sources.txt`
+  ("KaBoom" Flickr 8248032542, U.S. Marine Corps; USAF 080620-F-9876D-295,
+  Staff Sgt. Patrick Dixon, unused).
+- `research/artwork/fonts-ofl/`: Anton and Black Ops One with their OFL
+  texts (also copied to `~/.local/share/fonts` so Photon can use them).
+- `recomp/analysis/d31-readme/`: capture lab (`shot.py`, `ctl.py`,
+  `survey.py`, private profile, card and savestate copies, port 9371).
+  Offscreen real GPU, `screenshot` gives the 4x internal render (2728x960,
+  scale to 16:9); `present_shot` is only the 1024x576 window. Facing-camera
+  portraits: `run_shot.py` (private launcher copy) honours
+  `D31_WEAPON_AIM=none` so Modernized stops turning Duke with the camera;
+  `front(off, pitch)` orbits to his front; Fire (bound to Q) shoots toward
+  the lens. Levels via debug `level N`, `cheat=dnkroz` for the shoot.
 
 **Work:**
 
-1. Resolve the open questions below with the user.
-2. In Photon (Photon Studio AI integration), from `duke-ttk-recomp-poster-new.png`:
-   hero banner (2560 master, about 1600 wide committed, JPEG/WebP under
-   400 KB) with the logo legible at phone width; a square icon cropped like
-   the old `duke-ttk-icon-new.png` but **with no text** (no logo, no
-   "Girls Girls Girls" billboard), master 1024, exports 512/256/64; a
-   1280x640 social preview. Keep Photon projects under `research/`.
-3. Commit only the final exports (proposed `.github/readme/`), add an
-   explicit allowlist for that folder to `scripts/ci/check_repo.py`, and
-   keep sources and drafts under `research/`.
-4. Rewrite the README top: hero, tagline, badges (CI, Linux, SLUS-00583,
-   recomp.board, licence), nav row, no-game-data note, Vanilla / Modernized
-   table, optional screenshots, quick start, then the existing build text
-   and credits.
-5. Add an **Art** credits block (Dr_Proton, coranflakes, the logo source,
-   MusicMonsterMod's edits) and an unofficial fan-project / trademark
-   disclaimer (not affiliated with Gearbox, 3D Realms, n-Space, GT
-   Interactive or Sony).
-6. Check rendering on github.com in light and dark and at phone width;
-   ASCII hyphen-minus only.
+1. Design approved (concept 7); no further picks needed.
+2. Export the locked banner, social preview, screenshots and icon sizes
+   (1024 master, 512/256/64) as they stand in concept 7.
+3. Commit only final exports to `.github/readme/` (about 1.3 MB total),
+   with an explicit allowlist for that folder in `scripts/ci/check_repo.py`;
+   masters and sources stay under `research/`.
+4. Rewrite the README top: banner, one-line pitch, badges, nav row,
+   no-game-data note, Vanilla vs Modernized comparison and table, a few
+   captioned screenshots, the eras strip, quick start, credits (images,
+   explosion photo, Anton OFL, icon) and the disclaimer.
+5. The user uploads the social preview in GitHub Settings.
+6. Check rendering on github.com in light and dark and at phone width.
 
-**Open questions for the user:**
+**Open questions:** final asset folder (`.github/readme/` proposed); a short
+Modernized GIF or a link to a user video. Settled: hero frame (the LA shot),
+icon role (README now, executable and window in D32).
 
-- Art rights: the poster is the original commercial key art; decide whether
-  the repo carries it with credits and a disclaimer, and whether to ask
-  coranflakes before publishing the derived edit.
-- The logo's Wikipedia file licence needs checking before it is committed.
-- Gameplay screenshots show retail textures: include them, or art only and
-  link to videos?
-- Disc-extracted game fonts baked into banners are retail-derived; needs
-  sign-off, else a free condensed face.
+**Acceptance:** the user approves the images and README text; it renders
+well on GitHub in light and dark and on a phone; every image is our capture
+or public domain/open licence and credited;
+`scripts/ci/check_repo.py` passes.
 
-**Acceptance:** the user approves the art and README text; the README
-renders well on GitHub in light and dark and on a phone; every third-party
-image is credited; `scripts/ci/check_repo.py` passes; no retail media,
-research sources or game-derived data beyond what the user approved is
-committed.
+### D32 - Game icon from the D31 in-engine portrait
+
+**Todo. Opened 2026-10-20 at the user's request** ("this will use the
+in-engine icon also to replace that psxrecomp.ico etc, and that's going to be
+part of a separate job"). Depends on the locked D31 icon design
+(`research/artwork/d31-photon/ttk-recomp-icon.psd`, `icon-ingame-*.png`).
+
+**Today:** `recomp/assets/psxrecomp.ico` (6 sizes up to 256x256),
+`psxrecomp.png` and `psxrecomp.svg` are the framework's default pad icon.
+`recomp/CMakeLists.txt` passes `APP_ICON .../assets/psxrecomp.ico`;
+`psxrecomp_add_game_runtime` (`recomp/psxrecomp/runtime/runtime.cmake`)
+embeds it on Windows through an `.rc` and stages `psxrecomp.png` beside the
+executable (`assets/psxrecomp.png`), which `psx_window_icon.cpp` loads for
+`SDL_SetWindowIcon` on Linux, Windows and macOS. The recomp-ui launcher
+reads the host's `window_icon_path` (`recomp-ui/src/recomp_launcher.h`).
+
+**Work:**
+
+1. From the 1024 master, export a multi-size `.ico` (16, 24, 32, 48, 64,
+   128, 256; PNG-compressed 256) and a 256 or 512 PNG; consider a tighter
+   head crop for 16-48 px so the face reads, per D31's note.
+2. Replace `recomp/assets/psxrecomp.ico` and `psxrecomp.png` in our tree
+   (keep the file names, or rename and update `APP_ICON`); the framework's
+   own copy in the `recomp/psxrecomp` submodule stays untouched. Decide the
+   `.svg` (drop it or replace it with a PNG-based fallback; a raster
+   portrait has no honest SVG form).
+3. Check Linux desktop integration if any (`.desktop`/AppImage icon) and the
+   recomp-ui launcher window.
+4. Build; confirm the window/taskbar icon on Linux, and the embedded PE icon
+   on a Windows build when one is available.
+5. Credit the icon (our capture and Photon composite, public-domain
+   "KaBoom" photo) where D31 credits it.
+
+**Acceptance:** the game window, taskbar and launcher show the new icon at
+small and large sizes, the Windows executable embeds it, the icon files are
+committed only as our own exports (no poster-derived art), and
+`scripts/ci/check_repo.py` passes.
+
+### D33 - Review: Modernized by default, Vanilla behind a flag
+
+**Todo (review). Opened 2026-10-20 at the user's request** ("modernized btw,
+should be the default profile of the game. --vanilla i think should be the
+special flag ... dont take action now"). Nothing changed yet.
+
+**Found when opening (read only, not yet verified by a run):**
+
+- `recomp/tools/local/player_profiles.py` `defaults()` already sets
+  `active: modernized`, so a new settings file starts Modernized; an
+  unreadable file restores Modernized defaults. The version 0 migration
+  falls back to `vanilla` when the old file has no mode.
+- `run.py --mode vanilla|modernized` selects **and remembers** the profile,
+  so one `--mode vanilla` launch keeps later plain launches in Vanilla. There
+  is no `--vanilla` / `--modernized` flag.
+- Wording still frames Modernized as optional: `AGENTS.md` ("Vanilla stays
+  available. Modernized is an optional profile."), the
+  `continue-duke-recomp` skills (Claude Code and Codex), `GAME_MANUAL.md`
+  (`--mode` examples, line ~380), `README.md` and `documentation/` notes.
+
+**Review questions:**
+
+1. Should a plain launch always mean Modernized, or the remembered profile
+   (today's behaviour)? Should `--vanilla` be one-shot (not saved) or
+   saved like `--mode`?
+2. Keep `--mode` as an alias, deprecate it, or remove it; does a matching
+   `--modernized` exist for symmetry?
+3. The `--settings` menu and the in-game/recomp-ui launcher: which profile
+   they open on and how Vanilla is picked there.
+4. Existing players whose saved `active` is `vanilla`: leave it, or move
+   them to Modernized once with a notice.
+5. Version 0 migration default (`vanilla` today).
+6. Tests and diagnostics that assume `--mode` (`tests/local`, analysis
+   scripts, the debug ports, `DNTTK_*` env passing) and CI.
+7. Docs and rules: AGENTS.md and the skills' "Modernized is optional"
+   wording needs the user's approval to change; Vanilla must still be fully
+   available and untouched in behaviour.
+
+**Acceptance:** the user approves the decided behaviour; launcher, profiles,
+tests and docs agree with it; Vanilla remains reachable and unchanged in
+play; `scripts/ci/check_repo.py` and the launcher tests pass.
 
 ## Working rules and evidence
 
@@ -13213,3 +13304,56 @@ in note 117 is the reference for future custom pickups.
   GitHub-dark mock, first-pass crops (`research/artwork/readme-drafts/`,
   local only) and research on peer READMEs and GitHub limits. No README,
   art or code change yet; open questions listed in the D31 entry.
+
+## 2026-10-20 - D31 reworked to own assets (Todo)
+
+- User chose the legit route: no poster, poster edits or Wikipedia logo in
+  the repo; own captures, public-domain extras and OFL type; the poster-cut
+  icon kept by user decision. Captured offscreen from private copies
+  (third person, first person, Vanilla 4:3, eras, facing-camera portraits),
+  built the banner in Photon, and published concept 2 to the same artifact.
+  No README, game code or build change. Details in the D31 entry.
+- Same day: the in-engine icon replaced the poster-cut icon (Photon
+  composite, concept version 3). Photon's PNG writer produced a corrupt
+  IDAT for the 1024 icon document ("invalid distance too far back"); JPEG
+  export works, so the PNG sizes were written from that with Pillow.
+- Eras strip: Rome (level 11) and Dark Ages (level 7) start rooms are dimly
+  lit in the original (Rome peaks about 70/255, unchanged after waiting out
+  any fade), so `research/artwork/d31-photon/grade_eras.py` applies a levels
+  stretch to those two panels only; the caption says so. Concept version 4.
+- Concept version 5: the first-person caption says Time-Space Warp (the
+  end-of-level portal in level 0), not an invented "alien base".
+- Concept version 6: a "First person: gadgets and power-ups" set of six window
+  captures (1024x576 `present_shot`, since the host switcher and HUD boxes are
+  not in the internal `screenshot`): steroids in use in the Wild West saloon,
+  the `[ / ]` switcher in LA, Double Duke in LA, invincibility plus Double Duke
+  in the Dark Ages, night vision in the sewer and the `, / .` mission card in
+  level 0. Items via `dnstuff`, coins via the console `spawn`; private cards,
+  profile and port 9371 (`recomp/analysis/d31-readme/fpstage.py`). Exports in
+  `research/artwork/d31-photon/shots/fp-*.jpg`.
+- Concept version 7: the README banner crop clipped the top of the
+  "DUKE NUKEM: TIME TO KILL" line; it is now cut from `hero16.png` at
+  (0,62)-(1707,773), giving the title clear headroom (the old crop is kept as
+  `readme-hero-v1-cropped.jpg`). The social preview was already clear.
+- Design locked at concept 7 (user, 2026-10-20); D31 stays Todo in the
+  backlog. The executable/window icon replacement is split out as D32.
+
+## 2026-10-20 - D33 opened (Todo, review only)
+
+- User: Modernized should be the default profile and `--vanilla` the special
+  flag; review only, no action. Opening notes record today's behaviour
+  (`defaults()` already Modernized, `--mode` remembered, no `--vanilla`).
+- Concept version 8 (user asked for "a bit of texture" on RECOMPILED,
+  referencing `research/logo-3d.jpg`): our own weathered-metal finish, not
+  the official logo's texture or italic extrude. `texture_wordmark.py` adds a
+  bevel to the live type in `ttk-recomp-hero-tex.psd` and renders the Photon
+  grit maps (clouds + noise + emboss: `grit-pitted.png`, `grit-dents.png`);
+  layers clipped to the type did not composite over its gradient overlay, so
+  `grit_wordmark.py` presses the maps into the gold fill (mask from the
+  pre-bevel render) at moderate strength, with faint rust in the hollows.
+  Banner and social preview re-exported; plain versions kept as
+  `readme-hero-v2-plain.jpg` and `social-preview-v1-plain.jpg`.
+- Concept version 9 (user: "the bevel edges should be hard and sharp,
+  otherwise solid ... a touch more grungy"): bevel `chiselHard`, size 4,
+  depth 3, soften 0 (flat faces); grit stronger (pitting .44, dents .50,
+  rust .55 in deeper hollows).

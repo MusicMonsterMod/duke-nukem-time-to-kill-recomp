@@ -1,5 +1,27 @@
 # Current status - 2026-10-04
 
+## 2026-10-20 - D19G accepted
+
+- User: "looking good!! lock it in and close this job out". D19G Done;
+  executable `0d42f4523da0c8ec32abd470a6ccc03f1e84ec7dc5bc905265ea33cd3f3b03da` is the
+  regression baseline. New Todo: D07F (airborne shots ignore the crosshair),
+  D10C (Duke 3D look keys), D19G1 (frame rate live after a 60 launch).
+  Queued: D19K, D19F, D19N, D24D, D26G.
+
+## 2026-10-20 - D19G KEY BINDINGS and live settings (Needs playtest)
+
+- PC CONTROLS > KEY BINDINGS: every Modernized action in five groups; Enter,
+  then a key or mouse button binds it at once and saves it (a taken key
+  swaps, Escape cancels, Backspace clears, V asks RESTORE DEFAULT KEYS?).
+  Live on CONFIRM now: mouse sensitivity and invert, display mode,
+  widescreen, camera, view, shoulder, camera distance, weapon aim, and frame
+  rate unless launched at 60. Design approved from a Photon mockup built from
+  the disc's own interface art. Offscreen and Xvfb checks, Python 153 OK,
+  native suites, patch and `check_repo.py` pass. Executable
+  `0d42f4523da0c8ec32abd470a6ccc03f1e84ec7dc5bc905265ea33cd3f3b03da`,
+  [note 159](159-d19g-options-stage-2.md). Not verified: the real display
+  (borderless / exclusive, window reshape) and the user's feel.
+
 ## 2026-10-20 - D33 accepted
 
 - User: "perfect!! lock it in, close it out". D33 Done; executable

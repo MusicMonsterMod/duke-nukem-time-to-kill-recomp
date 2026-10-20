@@ -634,3 +634,13 @@ in 1/256, default 400), `DNTTK_FT_LOAD_CYCLES` (default 6),
 accurate-model calibration variant instead (all generated shards rebuild;
 switch back with `-DTTK_FT_CALIBRATE=OFF`). See
 [note 105](105-d23f-fast-timing.md).
+
+## D19G test hooks
+
+- Steer word `play` (`DNTTK_TEST_INPUT`): that frame is captured gameplay
+  even under `DNTTK_TEST_UNCAPTURED`, so one run can change a menu and then
+  play (`analysis/d19g-bindings/k3.py`: rebind JUMP, resume, press the new
+  key).
+- `ttk_input` reports `binds` (the live binding codes in action order) and
+  `controls.mouse_deg` (camera turn per mouse count, the value the camera
+  uses). See [note 159](159-d19g-options-stage-2.md).

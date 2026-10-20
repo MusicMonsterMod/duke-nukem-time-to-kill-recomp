@@ -139,9 +139,10 @@ in the offscreen test), the feel on the real display.
 
 ## Limits (stage 1)
 
-- Key bindings are not in PC CONTROLS yet (still `run.py --bind`).
-- Display, CPU and camera/aim/jetpack/steroids options apply at the next
-  launch. (PROFILE was removed in D33: Vanilla is `run.py --vanilla`, one
-  launch.)
+- Key bindings and the live display, camera, aim and mouse settings came in
+  stage 2 (D19G, [note 159](159-d19g-options-stage-2.md)). Renderer,
+  resolution, filter, draw distance, precision, CPU, jetpack and steroids
+  still apply at the next launch. (PROFILE was removed in D33: Vanilla is
+  `run.py --vanilla`, one launch.)
 - Mouse clicks are not used (the click that focuses the window would confirm).
 - Prompts show PS1 buttons (PC icons: D19F, D19F1).

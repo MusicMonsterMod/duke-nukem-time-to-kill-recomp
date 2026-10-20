@@ -1041,25 +1041,50 @@ the same way on every menu screen:
 OPTIONS, on the title menu and in the pause menu, lists the original SOUND,
 CONTROLLER and GAME SETTINGS, plus three screens in the same style:
 
-- **PC CONTROLS**: mouse sensitivity (slider) and invert mouse.
+- **PC CONTROLS**: mouse sensitivity (slider), invert mouse and **KEY
+  BINDINGS** (below).
 - **DISPLAY**: renderer, resolution, display (windowed / borderless /
   exclusive), filter, widescreen, frame rate, draw distance, geometry,
   textures, CPU speed and CPU timing.
-- **MODERNIZED**: profile (Modernized / Vanilla), camera, view, shoulder,
-  camera distance, weapon aim, crosshair, aim assist, red dot, jump, jump
-  walls, landing, jetpack, dynamite, steroids and view bob.
+- **MODERNIZED**: camera, view, shoulder, camera distance, weapon aim,
+  crosshair, aim assist, red dot, jump, jump walls, landing, swimming,
+  jetpack, dynamite, steroids and view bob.
 
 Up/Down choose (hold to repeat; the list scrolls), Left/Right change the value
 (hold a slider to speed up), **Enter** confirms and keeps the changes,
 **Escape** cancels them, **V** (Square, DEFAULT) restores the screen's
 defaults. The line above the buttons describes the highlighted option.
-Crosshair, aim assist, red dot, jump, jump walls, landing, dynamite and view
-bob change at once; the others say **NEXT LAUNCH** and apply the next time you
-start the game. Confirmed settings are saved to your profile when the game
-closes, the same settings `run.py` and `--settings` change. There is no
-profile choice here: Vanilla, with the original menus, is `run.py --vanilla`.
-Key bindings are still set with
-`run.py --bind`.
+These apply as soon as you confirm: mouse sensitivity, invert mouse, display,
+widescreen, camera, view, shoulder, camera distance, weapon aim, crosshair,
+aim assist, red dot, jump, jump walls, landing, swimming, dynamite and view
+bob. Frame rate applies at once too, unless the game was started at 60: then
+it says **NEXT LAUNCH**, like renderer, resolution, filter, draw distance,
+geometry, textures, CPU speed, CPU timing, jetpack and steroids, which apply
+the next time you start the game. A new widescreen shape also reshapes a plain
+window (fullscreen and maximised windows show bars instead). Confirmed
+settings are saved to your profile when the game closes, the same settings
+`run.py` and `--settings` change. There is no profile choice here: Vanilla,
+with the original menus, is `run.py --vanilla`.
+
+**KEY BINDINGS** (PC CONTROLS, highlight it and press Enter) lists every
+Modernized action in groups: MOVEMENT, WEAPONS, ITEMS, CAMERA and ORIGINAL
+CONTROLS (the weapon keys are named after the first weapon of their group;
+CROSSHAIR is the I key's action; USE ITEM shows ENTER / U because Enter always
+uses the item too). Highlight an action, press **Enter**, then press the new
+key or mouse button:
+
+- If another action had that key, the two swap; the line above the buttons
+  says which action moved and to what.
+- **Escape** cancels the change; **Backspace** leaves the action with no key.
+- Keys outside the bindable set (Escape, Enter, Tab, the arrows, F, the
+  function keys and the other keys `run.py --bind` refuses) are refused;
+  C can only be the holster's key.
+- A change works straight away and is saved to your profile.
+- **V** (DEFAULT) asks RESTORE DEFAULT KEYS? and puts every key back on YES.
+- **Escape** returns to PC CONTROLS.
+
+`run.py --bind` and `--settings` (6 PC bindings) still set the same bindings
+outside the game.
 
 **Backtick (`)** opens a Quake-style drop-down developer console (TTK Medium
 Italic font, `>` prompt). Typed commands and their replies stay in the console scrollback (`help`,

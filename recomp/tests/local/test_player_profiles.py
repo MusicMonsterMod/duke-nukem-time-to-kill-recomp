@@ -608,6 +608,21 @@ class FirstPersonViewTest(unittest.TestCase):
             state.write_text('{"version":1,"active":"vanilla","controls":{},"presentation":{}}')
             self.assertFalse(profiles.absorb_menu_settings(path,settings))
             self.assertEqual(settings['active'],'modernized')
+            # D19G: KEY BINDINGS writes the whole binding set; a valid one replaces
+            # the Modernized bindings, an invalid one discards the file.
+            bindings=dict(pc_input.DEFAULTS);bindings['jump'],bindings['interact']='E','Space'
+            state.write_text(json.dumps({'version':1,'active':'modernized','controls':{},'presentation':{},'bindings':bindings}))
+            self.assertTrue(profiles.absorb_menu_settings(path,settings))
+            self.assertEqual(settings['profiles']['modernized']['bindings'],bindings)
+            self.assertEqual(settings['profiles']['vanilla']['bindings'],pc_input.DEFAULTS)
+            before=copy.deepcopy(settings)
+            for broken in [{**bindings,'fire':'E'},{**bindings,'jump':'F'},{k:v for k,v in bindings.items() if k!='jump'},{**bindings,'jump':'C'}]:
+                state.write_text(json.dumps({'version':1,'active':'modernized','controls':{'landing':'modern'},'presentation':{},'bindings':broken}))
+                self.assertFalse(profiles.absorb_menu_settings(path,settings))
+                self.assertFalse(state.exists())
+            self.assertEqual(settings,before)
+            state.write_text(json.dumps({'version':1,'active':'modernized','controls':{},'presentation':{},'bindings':bindings}))
+            self.assertFalse(profiles.absorb_menu_settings(path,settings))
 
     def test_launch_carries_menu_settings(self):
         with tempfile.TemporaryDirectory() as d:

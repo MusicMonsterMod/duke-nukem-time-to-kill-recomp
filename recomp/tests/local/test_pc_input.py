@@ -149,3 +149,18 @@ class ControlsMigrationTest(unittest.TestCase):
         self.assertEqual(new['crouch'],'M');self.assertEqual(new['jump'],'J')
         self.assertNotEqual(new['medkit'],'M');self.assertNotEqual(new['jetpack'],'J')
         pc_input.validate(new)
+
+class MenuKeyNamesTest(unittest.TestCase):
+    # D19G: KEY BINDINGS writes the profile's tokens itself (game_menu.cpp).
+    def test_menu_tokens_match_profile_tokens(self):
+        import re
+        source = (TOOLS.parents[1] / 'src/ttk/game_menu.cpp').read_text()
+        named = {int(code): token for code, token in re.findall(r'\{(-?\d+),"(\w+)","[^"]*"\}', source)}
+        menu = dict(named)
+        menu.update({4 + i: chr(65 + i) for i in range(26)})
+        menu.update({29 + i: str(i) for i in range(1, 10)}); menu[39] = '0'
+        bindable = {code: token for token, code in pc_input.TOKENS.items()}
+        for code, token in bindable.items():
+            self.assertEqual(menu.get(code), token, code)
+        for code, token in named.items():
+            self.assertEqual(pc_input.TOKENS.get(token), code, token)

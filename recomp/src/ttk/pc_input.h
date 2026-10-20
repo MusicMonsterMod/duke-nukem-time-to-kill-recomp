@@ -57,6 +57,20 @@ const InputFrame& input_snapshot(Context context);
 // at_ms >= 0: the look as it was at that time (performance clock, ms).
 bool input_live_look(uint64_t& epoch, double& x, double& y, double at_ms=-1);
 bool input_modernized();
+// D19G: the KEY BINDINGS page. Codes are the DNTTK_INPUT_BINDINGS wire codes
+// (SDL scancode, mouse button -n, 0 unbound).
+int input_binding_code(Action action);
+int input_default_code(Action action);
+bool input_code_bindable(int code, Action action);
+void input_set_binding_codes(const int* codes);
+// While on, the next key or mouse button press goes to the menu only.
+void input_capture_key(bool on);
+int input_take_captured_key();   // input_no_key() when none
+int input_no_key();
+bool input_first_person();
+int input_shoulder();
+void input_set_view(bool first);
+void input_set_shoulder(int side);
 const char* input_binding_name(Action action);
 bool input_running();
 // Consume one bounded jump press after the controls hook verifies grounded ownership.

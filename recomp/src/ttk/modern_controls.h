@@ -124,4 +124,7 @@ bool first_person_weapon_drawing();
 bool widescreen_near_clip_live();
 // Last modern camera-lease refusal: "context", "identity", "state" or "" (none yet).
 const char* lease_refusal_reason();
+// D19G: CAMERA DISTANCE from the in-game menu (0 = original boom).
+double camera_distance_setting();
+void camera_set_distance(double distance);
 }

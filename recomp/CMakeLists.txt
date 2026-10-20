@@ -138,7 +138,7 @@ target_include_directories(psx-runtime PRIVATE src/ttk)
 
 # Explicit opt-in native input checks use the same SDL backend as the player.
 if(TARGET SDL3::SDL3)
-    add_executable(ttk-input-test EXCLUDE_FROM_ALL tests/local/pc_input_native.cpp src/ttk/pc_input.cpp)
+    add_executable(ttk-input-test EXCLUDE_FROM_ALL tests/local/pc_input_native.cpp src/ttk/pc_input.cpp src/ttk/live_env.cpp)
     target_include_directories(ttk-input-test PRIVATE src/ttk ${PSXRECOMP_ROOT}/runtime/include)
     target_compile_definitions(ttk-input-test PRIVATE PSX_SDL3=1)
     target_compile_features(ttk-input-test PRIVATE cxx_std_17)

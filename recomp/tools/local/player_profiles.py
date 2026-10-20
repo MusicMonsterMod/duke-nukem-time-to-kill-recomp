@@ -247,8 +247,9 @@ def menu_presentation(presentation):
 def absorb_menu_settings(settings_path, settings):
     """Merge the settings last confirmed in the in-game OPTIONS screens (D19).
 
-    The side file holds the menu's whole state: Modernized controls and the
-    display values it offers (its "active" field is always Modernized, D33). Returns True when the settings
+    The side file holds the menu's whole state: Modernized controls, the
+    display values it offers and (D19G) the PC bindings set in KEY BINDINGS (its
+    "active" field is always Modernized, D33). Returns True when the settings
     changed. The side file is consumed; an invalid one is discarded with the
     profile left unchanged."""
     state = menu_settings_path(settings_path)
@@ -263,15 +264,17 @@ def absorb_menu_settings(settings_path, settings):
         profile = settings['profiles']['modernized']
         controls = validate_controls({**profile['controls'], **data['controls']})
         presentation = validate_presentation({**profile['presentation'], **data['presentation']})
+        # Files from before D19G carry no bindings: the profile's stay.
+        bindings = pc_input.validate(dict(data['bindings'])) if 'bindings' in data else profile['bindings']
     except (ValueError, TypeError, KeyError, AttributeError, UnicodeError):
         controls = None
     state.unlink(missing_ok=True)
     if controls is None:
         return False
     profile = settings['profiles']['modernized']
-    if controls == profile['controls'] and presentation == profile['presentation']:
+    if controls == profile['controls'] and presentation == profile['presentation'] and bindings == profile['bindings']:
         return False
-    profile['controls'], profile['presentation'] = controls, presentation
+    profile['controls'], profile['presentation'], profile['bindings'] = controls, presentation, dict(bindings)
     return True
 
 

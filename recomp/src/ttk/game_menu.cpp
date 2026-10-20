@@ -52,6 +52,7 @@
 #include "mod_plugins.h"
 #include "code_identity.h"
 #include "pc_input.h"
+#include "modern_controls.h"
 #include "psx_sdl.h"
 #include <algorithm>
 #include <array>
@@ -65,6 +66,8 @@
 #include <vector>
 
 extern "C" int g_psx_call_bail, g_precise_mode, g_ls_mode;
+
+namespace ttk {bool frame_rate_live();bool frame_rate_set(const char* value);}
 
 namespace ttk {
 namespace {
@@ -115,6 +118,11 @@ constexpr uint32_t image_counter=0x800bdbd0;
 constexpr uint32_t fn_text=0x8008b454, fn_width=0x8008b3c8, fn_sprite=0x8008b678;
 constexpr uint32_t fn_slider_init=0x80083c40, fn_slider_draw=0x80083edc, fn_sound=0x8006bbd8;
 constexpr uint32_t fn_prompt=0x8008411c, sprites=0x800c43b4, sentinel=0x800000fc;
+// D19G: the glyph call (0x8008b210) adds one 40-byte packet at the pointer
+// 0x800d67a8, its CLUT at +14. Section headings use the font column's amber
+// ramp (row 239, 14 rows below gold 225; entry 0 transparent like gold's).
+constexpr uint32_t glyph_next=0x800d67a8, glyph_size=40;
+constexpr int clut_amber=14*64;
 constexpr uint16_t ours_sub=8, death_sub=9;
 // D19H: the pause menu (0x800be56a = 12, its prompt 0x800dd1c4, reset flag
 // 0x800c3f28) and the death screen (15, prompt 0x800dd1c6, reset 0x800c3f34).
@@ -191,6 +199,7 @@ struct Row {
     const char* label; Section section; const char* key; const char* env; bool live; const char* desc;
     std::vector<Choice> choices; int def; // a pick
     bool slider=false; int lo=0,hi=0,step=1; double scale=1; // value * scale is the setting
+    bool link=false; // D19G: CONFIRM opens a page (KEY BINDINGS), no value of its own
 };
 // One value per row: a choice index, or the slider value.
 using Values=std::vector<int>;
@@ -200,23 +209,25 @@ const Choice on_off[]={{"ON","1","true"},{"OFF","0","false"}};
 std::vector<Screen> make_screens() {
     std::vector<Screen> s(3);
     s[0]={"PC CONTROLS",{
-        {"MOUSE SENSITIVITY",Section::Controls,"mouse_sensitivity","DNTTK_MOUSE_SENSITIVITY",false,
+        {"MOUSE SENSITIVITY",Section::Controls,"mouse_sensitivity","DNTTK_MOUSE_SENSITIVITY",true,
          "HOW FAR THE CAMERA TURNS FOR EACH MOUSE MOVE",{},12,true,1,200,1,0.01},
-        {"INVERT MOUSE",Section::Controls,"invert_y","DNTTK_MOUSE_INVERT_Y",false,
+        {"INVERT MOUSE",Section::Controls,"invert_y","DNTTK_MOUSE_INVERT_Y",true,
          "MOVING THE MOUSE UP LOOKS DOWN",{{"OFF","0","false"},{"ON","1","true"}},0},
+        {"KEY BINDINGS",Section::Controls,nullptr,nullptr,true,"THE KEY OR MOUSE BUTTON FOR EACH ACTION. CONFIRM OPENS THE LIST",
+         {{">",">",">"}},0,false,0,0,1,1,true},
     }};
     s[1]={"DISPLAY",{
         {"RENDERER",Section::Presentation,"renderer",nullptr,false,"SOFTWARE IS THE ORIGINAL LOOK",
          {{"OPENGL","opengl","\"opengl\""},{"SOFTWARE","software","\"software\""}},0},
         {"RESOLUTION",Section::Presentation,"internal_scale",nullptr,false,"INTERNAL 3D RESOLUTION. 1X IS THE ORIGINAL",
          {{"1X","1","1"},{"2X","2","2"},{"3X","3","3"},{"4X","4","4"}},3},
-        {"DISPLAY",Section::Presentation,"display",nullptr,false,"HOW THE GAME OPENS. F11 SWITCHES TO FULLSCREEN",
+        {"DISPLAY",Section::Presentation,"display",nullptr,true,"HOW THE GAME OPENS. F11 SWITCHES TO FULLSCREEN",
          {{"WINDOWED","windowed","\"windowed\""},{"BORDERLESS","borderless","\"borderless\""},{"EXCLUSIVE","exclusive","\"exclusive\""}},0},
         {"FILTER",Section::Presentation,"output_filter",nullptr,false,"HOW THE FINISHED IMAGE IS SCALED TO THE WINDOW",
          {{"LINEAR","linear","\"linear\""},{"NEAREST","nearest","\"nearest\""}},0},
-        {"WIDESCREEN",Section::Controls,"widescreen","DNTTK_WIDESCREEN",false,"A WIDER VIEW, HUD IN THE CORNERS. MOVIES STAY 4:3",
+        {"WIDESCREEN",Section::Controls,"widescreen","DNTTK_WIDESCREEN",true,"A WIDER VIEW, HUD IN THE CORNERS. MOVIES STAY 4:3",
          {{"16:9","16:9","\"16:9\""},{"16:10","16:10","\"16:10\""},{"21:9","21:9","\"21:9\""},{"AUTO","auto","\"auto\""},{"OFF","off","\"off\""}},0},
-        {"FRAME RATE",Section::Controls,"frame_rate","DNTTK_FRAME_RATE",false,"SMOOTHER MOTION. THE GAME SPEED NEVER CHANGES",
+        {"FRAME RATE",Section::Controls,"frame_rate","DNTTK_FRAME_RATE",true,"SMOOTHER MOTION. THE GAME SPEED NEVER CHANGES",
          {{"DISPLAY","display","\"display\""},{"30","30","\"30\""},{"60","60","\"60\""},{"120","120","\"120\""},{"144","144","\"144\""},
           {"165","165","\"165\""},{"180","180","\"180\""},{"240","240","\"240\""},{"UNLIMITED","unlimited","\"unlimited\""}},2},
         {"DRAW DISTANCE",Section::Controls,"draw_distance","DNTTK_DRAW_DISTANCE",false,"EXTENDED: TWICE THE VIEW, NO DISTANT BLACK SEAMS",
@@ -231,16 +242,16 @@ std::vector<Screen> make_screens() {
          {{"FAST","fast","\"fast\""},{"ACCURATE","accurate","\"accurate\""}},0},
     }};
     s[2]={"MODERNIZED",{
-        {"CAMERA",Section::Controls,"camera","DNTTK_CAMERA_MODE",false,"INDEPENDENT: THE MOUSE TURNS THE CAMERA",
+        {"CAMERA",Section::Controls,"camera","DNTTK_CAMERA_MODE",true,"INDEPENDENT: THE MOUSE TURNS THE CAMERA",
          {{"INDEPENDENT","independent","\"independent\""},{"ORIGINAL","original","\"original\""}},0},
-        {"VIEW",Section::Controls,"view","DNTTK_CAMERA_VIEW",false,"P SWITCHES IN GAME",
+        {"VIEW",Section::Controls,"view","DNTTK_CAMERA_VIEW",true,"THE FIRST / THIRD PERSON KEY SWITCHES IN GAME",
          {{"THIRD PERSON","third","\"third\""},{"FIRST PERSON","first","\"first\""}},0},
-        {"SHOULDER",Section::Controls,"shoulder","DNTTK_CAMERA_SHOULDER",false,"H CYCLES IN GAME",
+        {"SHOULDER",Section::Controls,"shoulder","DNTTK_CAMERA_SHOULDER",true,"THE SHOULDER KEY CYCLES IN GAME",
          {{"CENTER","center","\"center\""},{"RIGHT","right","\"right\""},{"LEFT","left","\"left\""}},0},
-        {"CAMERA DISTANCE",Section::Controls,"camera_distance","DNTTK_CAMERA_DISTANCE",false,"ALT AND THE MOUSE WHEEL ALSO SET IT IN GAME",
+        {"CAMERA DISTANCE",Section::Controls,"camera_distance","DNTTK_CAMERA_DISTANCE",true,"ALT AND THE MOUSE WHEEL ALSO SET IT IN GAME",
          {{"ORIGINAL","0","0"},{"1024","1024","1024"},{"1536","1536","1536"},{"2048","2048","2048"},
           {"3072","3072","3072"},{"4096","4096","4096"},{"6144","6144","6144"}},0},
-        {"WEAPON AIM",Section::Controls,"weapon_aim","DNTTK_WEAPON_AIM",false,"VIEW: SHOTS GO WHERE THE CROSSHAIR POINTS",
+        {"WEAPON AIM",Section::Controls,"weapon_aim","DNTTK_WEAPON_AIM",true,"VIEW: SHOTS GO WHERE THE CROSSHAIR POINTS",
          {{"VIEW","view","\"view\""},{"ORIGINAL","original","\"original\""}},0},
         {"CROSSHAIR",Section::Controls,"crosshair","DNTTK_CROSSHAIR",true,"SHOWS OR HIDES THE CROSSHAIR",
          {on_off[0],on_off[1]},0},
@@ -292,8 +303,9 @@ int pending_sub=-1, pending_cursor=-1, pending_sound=-1;
 // D19H: the pause menu and death screen as lists. Page::Options is D19's
 // OPTIONS (screen -1) and settings screens; the rest are gameplay pages.
 // D19J: Main, Difficulty, TwoPlayer and Character are the title pages.
-enum class Page {Options, Pause, Death, Brief, Ask, Main, Difficulty, TwoPlayer, Character};
-enum class Act {Resume, Brief, Options, Load, Restart, MainMenu, Continue, Quit, QuitGame, OnePlayer, TwoPlayer, Level};
+// D19G: Keys is KEY BINDINGS (from PC CONTROLS).
+enum class Page {Options, Pause, Death, Brief, Ask, Main, Difficulty, TwoPlayer, Character, Keys};
+enum class Act {Resume, Brief, Options, Load, Restart, MainMenu, Continue, Quit, QuitGame, OnePlayer, TwoPlayer, Level, RestoreKeys};
 struct ListItem {const char* label;Act act;};
 bool title_page(Page p) {return p==Page::Main || p==Page::Difficulty || p==Page::TwoPlayer || p==Page::Character;}
 // D19J: the title pages act in the frontend tick, on the originals' variables,
@@ -343,6 +355,7 @@ constexpr int slider_slots=12, slider_size=0x40;
 // D19J: a savestate load drops what the menu knew of the guest before it; the
 // screens reopen from the loaded state (our screens: OPTIONS, the lists, the
 // title main menu).
+bool key_wait=false; // D19G: KEY BINDINGS waits for the new key (input_capture_key)
 uint32_t seen_loads=0;
 void savestate_check() {
     const uint32_t n=psx_mod_savestate_loads();
@@ -351,6 +364,7 @@ void savestate_check() {
     owned=false;page=Page::Options;screen=-1;pending_sub=pending_cursor=-1;
     pending_final=Final::None;pending_load=false;death_load=false;resumed=false;
     pending_state=-1;handoff=Handoff::None;title_cmds.clear();title_enter=false;
+    if(key_wait) {key_wait=false;input_capture_key(false);}
 }
 
 const char* intern(const char* text) {owned_strings.emplace_back(text);return owned_strings.back().c_str();}
@@ -380,7 +394,7 @@ void init() {
         Values v;
         for(size_t i=0;i<s.rows.size();++i) {
             Row& r=s.rows[i];
-            const char* env=r.section==Section::Presentation ? presentation_value(r.key) : r.env ? std::getenv(r.env) : nullptr;
+            const char* env=r.link ? nullptr : r.section==Section::Presentation ? presentation_value(r.key) : r.env ? std::getenv(r.env) : nullptr;
             if(r.slider) {
                 int value=r.def;
                 if(env) {const double d=std::strtod(env,nullptr)/r.scale;value=std::clamp((int)(d+0.5),r.lo,r.hi);}
@@ -403,22 +417,60 @@ bool enabled() {
     return v && input_modernized();
 }
 
+// ---- D19G: key names ----
+const char* const action_names[action_count]={
+#define TTK_ACTION(name, token, code, pad) #name,
+#include "input_bindings.def"
+#undef TTK_ACTION
+};
+struct KeyName {int code;const char* token;const char* shown;};
+// The profile's tokens (tools/local/pc_input.py TOKENS) for the codes that are
+// not a plain letter or digit, and how the menu shows them (menu font: capitals,
+// digits and a little punctuation, so no brackets).
+const KeyName key_names[]={
+    {0,"Unbound","NONE"},{44,"Space","SPACE"},{224,"LCtrl","LEFT CTRL"},{225,"LShift","SHIFT"},{226,"Alt","ALT"},
+    {71,"ScrollLock","SCROLL LOCK"},{47,"LBracket","["},{48,"RBracket","]"},
+    {51,"Semicolon","SEMICOLON"},{52,"Apostrophe","APOSTROPHE"},{54,"Comma","COMMA"},{55,"Period","PERIOD"},
+    {-1,"Mouse1","LEFT MOUSE"},{-3,"Mouse2","RIGHT MOUSE"},{-2,"Mouse3","MIDDLE MOUSE"},{-4,"Mouse4","MOUSE 4"},{-5,"Mouse5","MOUSE 5"},
+};
+std::string token_of(int code) {
+    if(code>=SDL_SCANCODE_A && code<=SDL_SCANCODE_Z) return std::string(1,char('A'+code-SDL_SCANCODE_A));
+    if(code>=SDL_SCANCODE_1 && code<=SDL_SCANCODE_9) return std::string(1,char('1'+code-SDL_SCANCODE_1));
+    if(code==SDL_SCANCODE_0) return "0";
+    for(const KeyName& k:key_names) if(k.code==code) return k.token;
+    return "Unbound";
+}
+std::string key_shown(int code) {
+    for(const KeyName& k:key_names) if(k.code==code) return k.shown;
+    return token_of(code);
+}
+// In sentences (the text call has no bracket glyph): the brackets by name.
+std::string key_said(int code) {
+    if(code==47) return "LEFT BRACKET";
+    if(code==48) return "RIGHT BRACKET";
+    return key_shown(code);
+}
+
 // The confirmed settings, for run.py (DNTTK_MENU_SETTINGS_FILE).
 void write_settings() {
     const char* path=std::getenv("DNTTK_MENU_SETTINGS_FILE");
     if(!path || !*path) return;
     // Vanilla is a launch flag (run.py --vanilla, D33); the side file keeps its
     // version 1 "active" field, always Modernized.
-    std::string controls, presentation;
+    std::string controls, presentation, bindings;
     for(size_t s=0;s<screens.size();++s) for(size_t i=0;i<screens[s].rows.size();++i) {
         const Row& r=screens[s].rows[i];const int v=committed[s][i];
+        if(r.link) continue;
         char value[64];
         if(r.slider) std::snprintf(value,sizeof value,"%.2f",v*r.scale);
         else std::snprintf(value,sizeof value,"%s",r.choices[v].json);
         std::string& out=r.section==Section::Controls ? controls : presentation;
         out+=std::string(out.empty()?"":",")+"\""+r.key+"\":"+value;
     }
-    const std::string text="{\"version\":1,\"active\":\"modernized\",\"controls\":{"+controls+"},\"presentation\":{"+presentation+"}}\n";
+    // D19G: the bindings in the profile's terms (run.py validates them).
+    for(int a=0;a<action_count;++a)
+        bindings+=std::string(a?",":"")+"\""+action_names[a]+"\":\""+token_of(input_binding_code(Action(a)))+"\"";
+    const std::string text="{\"version\":1,\"active\":\"modernized\",\"controls\":{"+controls+"},\"presentation\":{"+presentation+"},\"bindings\":{"+bindings+"}}\n";
     const std::string temp=std::string(path)+".tmp";
     if(FILE* f=std::fopen(temp.c_str(),"wb")) {
         const bool ok=std::fwrite(text.data(),1,text.size(),f)==text.size();
@@ -496,6 +548,103 @@ int item_of(Act a) {
 void open_list(Page p,Act highlight) {
     page=p;build_list(p);cursor=item_of(highlight);top=0;screen=-1;
 }
+// ---- D19G: KEY BINDINGS ----
+// Every action, grouped; a row without an action is a section heading (the
+// cursor skips it). Changes apply and are saved at once; DEFAULT asks first.
+// fixed: a key that always does it too (not rebindable), shown first.
+// hint: one line about the action, above the CONFIRM line.
+struct KeyRow {const char* label;int action;const char* fixed=nullptr;const char* hint=nullptr;};
+const KeyRow key_rows[]={
+    {"MOVEMENT",-1},{"MOVE FORWARD",move_forward},{"MOVE BACK",move_back},{"STRAFE LEFT",move_left},{"STRAFE RIGHT",move_right},
+    {"JUMP",jump},{"CROUCH",crouch},{"WALK / RUN",walk},{"USE / MANTLE",interact},
+    {"GRAB",grab,nullptr,"HOLD TO GRAB, PUSH AND PULL"},{"GRAB 2",grab_alt,nullptr,"A SECOND GRAB KEY"},
+    // The weapon keys select a group; each is named after its first weapon.
+    {"WEAPONS",-1},{"FIRE",fire},{"QUICK KICK",quick_kick},{"HOLSTER",holster},{"PREVIOUS WEAPON",weapon_previous},
+    {"NEXT WEAPON",weapon_next},{"LAST WEAPON",weapon_last},
+    {"MIGHTY BOOT",weapon_group_1,nullptr,"ALSO THROWING KNIFE AND AXE"},{"DESERT EAGLE",weapon_group_2},
+    {"COMBAT SHOTGUN",weapon_group_3},{"GATLING GUN",weapon_group_4},{"RPG",weapon_group_5},
+    {"PIPE BOMB",weapon_group_6,nullptr,"ALSO DYNAMITE AND HOLY HAND GRENADE"},{"ENERGY WEAPON",weapon_group_7},
+    {"FLAMETHROWER",weapon_group_8},{"BUFFALO RIFLE",weapon_group_9,nullptr,"ALSO THE CROSSBOW"},{"FREEZER",weapon_group_0},
+    // inventory's key toggles the crosshair (the inventory screen is Right Shift).
+    {"ITEMS",-1},{"CROSSHAIR",inventory,nullptr,"SHOWS OR HIDES THE CROSSHAIR"},{"PREVIOUS ITEM",item_previous},{"NEXT ITEM",item_next},
+    {"USE ITEM",item_use,"ENTER","ENTER ALWAYS USES IT TOO"},
+    {"MEDKIT",medkit},{"STEROIDS",steroids},{"JETPACK",jetpack},{"GOGGLES",goggles},{"BIO MASK",biomask},
+    {"PREVIOUS MISSION ITEM",mission_previous},{"NEXT MISSION ITEM",mission_next},
+    {"CAMERA",-1},{"FIRST / THIRD PERSON",camera_view},{"SHOULDER",camera_shoulder},{"RECENTER CAMERA",camera_recenter},
+    {"ORIGINAL CONTROLS",-1},{"ORIGINAL AIM",original_aim},{"ORIGINAL STRAFE LEFT",original_strafe_left},
+    {"ORIGINAL STRAFE RIGHT",original_strafe_right},
+};
+constexpr int key_row_count=sizeof key_rows/sizeof key_rows[0], key_rows_visible=9;
+static_assert(key_row_count==action_count+5,"every action has one KEY BINDINGS row");
+std::string key_note;         // the description's message after a change
+int keys_cursor=1, keys_top=0; // kept while DEFAULT asks
+const char* action_label(int a) {
+    for(const KeyRow& k:key_rows) if(k.action==a) return k.label;
+    return "";
+}
+void key_wait_end() {if(key_wait) {key_wait=false;input_capture_key(false);}}
+// The cursor's row visible, with its section heading when that is just above.
+void keys_scroll() {
+    if(cursor<top) top=cursor;
+    if(cursor>=top+key_rows_visible) top=cursor-key_rows_visible+1;
+    if(top==cursor && top>0 && key_rows[top-1].action<0) --top;
+}
+void open_keys() {page=Page::Keys;cursor=1;top=0;key_note.clear();key_wait_end();sound(0);}
+void keys_move(int dir) {
+    do cursor=(cursor+dir+key_row_count)%key_row_count; while(key_rows[cursor].action<0);
+    keys_scroll();key_note.clear();sound(1);
+}
+void keys_back() {
+    key_wait_end();key_note.clear();
+    page=Page::Options;screen=0;top=0;cursor=0;
+    for(size_t i=0;i<screens[0].rows.size();++i) if(screens[0].rows[i].link) cursor=(int)i;
+    sound(0);
+}
+void keys_ask_default() {
+    keys_cursor=cursor;keys_top=top;key_note.clear();
+    ask_from=Page::Keys;ask_act=Act::RestoreKeys;page=Page::Ask;cursor=1;sound(1);
+}
+void keys_return() {page=Page::Keys;cursor=keys_cursor;top=keys_top;}
+void restore_keys() {
+    int codes[action_count];
+    for(int a=0;a<action_count;++a) codes[a]=input_default_code(Action(a));
+    input_set_binding_codes(codes);
+    write_settings();
+    keys_return();key_note="DEFAULT KEYS RESTORED";sound(0);
+}
+// The key pressed while waiting: Escape cancels, Backspace clears; a key
+// another action has swaps with it (that action takes this one's old key).
+void key_pressed(int code) {
+    const Action a=Action(key_rows[cursor].action);
+    if(code==SDL_SCANCODE_ESCAPE) {key_wait_end();sound(0);return;}
+    if(code==SDL_SCANCODE_BACKSPACE) code=0;
+    else if(code==SDL_SCANCODE_RSHIFT) code=SDL_SCANCODE_LSHIFT;  // either Shift, as in play
+    else if(code==SDL_SCANCODE_RALT) code=SDL_SCANCODE_LALT;      // either Alt
+    if(code && !input_code_bindable(code,a)) {
+        key_note=code==SDL_SCANCODE_C ? "C IS THE HOLSTER KEY ONLY. PRESS ANOTHER" : "THAT KEY IS RESERVED. PRESS ANOTHER";
+        sound(1);return;
+    }
+    int codes[action_count];
+    for(int i=0;i<action_count;++i) codes[i]=input_binding_code(Action(i));
+    const int old=codes[a];
+    key_note.clear();
+    if(code!=old) {
+        for(int b=0;code && b<action_count;++b) if(b!=a && codes[b]==code) {
+            codes[b]=old==SDL_SCANCODE_C && b!=holster ? 0 : old; // C stays the holster's
+            key_note=key_said(code)+" WAS "+action_label(b)+": "+(codes[b] ? "THAT IS ON "+key_said(codes[b])+" NOW" : "THAT HAS NO KEY NOW");
+        }
+        codes[a]=code;
+        input_set_binding_codes(codes);
+        write_settings();
+    }
+    key_wait_end();sound(0);
+}
+void ask_cancel() {
+    if(ask_from==Page::Keys) keys_return();
+    else open_list(ask_from,ask_act);
+    sound(1);
+}
+
 void act_now(Act a) {
     const bool death=page==Page::Death || (page==Page::Ask && ask_from==Page::Death);
     switch(a) {
@@ -504,6 +653,7 @@ void act_now(Act a) {
     case Act::MainMenu: pending_final=Final::PauseMainMenu;break;
     case Act::Continue: pending_final=Final::DeathContinue;break;
     case Act::Quit: pending_final=Final::DeathQuit;break;
+    case Act::RestoreKeys: restore_keys();break;
     case Act::QuitGame: {
         // The window's close event: the main loop's own shutdown (settings
         // were written on CONFIRM; run.py folds them in when the game exits).
@@ -524,6 +674,7 @@ int ask_heading() {
     case Act::Restart: return text_restart;
     case Act::QuitGame: return -1;
     case Act::Quit: return challenge() ? text_quit : -2; // D19P: GIVE UP keeps REALLY QUIT?
+    case Act::RestoreKeys: return -3;
     default: return text_quit;
     }
 }
@@ -541,6 +692,7 @@ void list_confirm() {
 
 void move(int dir) {
     if(title_page(page)) {title_cmds.push_back(dir<0 ? Cmd::Up : Cmd::Down);return;}
+    if(page==Page::Keys) {if(!key_wait) keys_move(dir);return;}
     if(page==Page::Brief) return;
     if(page!=Page::Options) {
         const int n=page==Page::Ask ? 2 : (int)list.size();
@@ -567,24 +719,74 @@ void change(int dir,uint64_t held_ms) {
     else {const int n=(int)r.choices.size();v=(v+dir+n)%n;}
     if(v!=before) sound(1);
 }
+// D19G: rows that apply when confirmed. FRAME RATE only while replay
+// presentation runs (not after a 60 launch).
+bool row_live(const Row& r) {
+    if(!r.live) return false;
+    if(r.key && !std::strcmp(r.key,"frame_rate")) return frame_rate_live();
+    return true;
+}
+int row_of(int s,const char* key) {
+    for(size_t i=0;i<screens[s].rows.size();++i) if(screens[s].rows[i].key && !std::strcmp(screens[s].rows[i].key,key)) return (int)i;
+    return -1;
+}
+// A confirmed value, now. Settings read through ttk_live_env() take the new
+// value; view, shoulder, distance and the display go to their owners.
+void apply_live(const Row& r,int v) {
+    const char* value;
+    if(r.slider) {char t[32];std::snprintf(t,sizeof t,"%.2f",v*r.scale);value=intern(t);}
+    else value=r.choices[v].env;
+    const std::string key=r.key;
+    if(key=="frame_rate" && !frame_rate_set(value)) return;
+    // Until a change ttk_live_env() is plain getenv (an unset variable stays unset).
+    if(r.env) ttk_live_env_set(r.env,value);
+    if(key=="view") input_set_view(!std::strcmp(value,"first"));
+    else if(key=="shoulder") input_set_shoulder(!std::strcmp(value,"right") ? 1 : !std::strcmp(value,"left") ? -1 : 0);
+    else if(key=="camera_distance") camera_set_distance(std::atof(value));
+    else if(key=="display") psx_mod_request_fullscreen_mode(!std::strcmp(value,"exclusive") ? 2 : !std::strcmp(value,"borderless") ? 1 : 0);
+    else if(key=="widescreen") {
+        unsigned num=4,den=3;
+        if(!std::strcmp(value,"auto")) psx_mod_request_display_aspect(21,9,1);
+        else {if(std::strcmp(value,"off")) std::sscanf(value,"%u:%u",&num,&den);psx_mod_request_display_aspect(num,den,0);}
+    }
+}
+// P, H and Alt + wheel change view, shoulder and distance in game: the
+// MODERNIZED screen opens on what is live now.
+void refresh_from_game(int s) {
+    auto set=[&](const char* key,const char* value) {
+        const int i=row_of(s,key);
+        if(i>=0) committed[s][i]=choice_from_env(screens[s].rows[i],value);
+    };
+    set("view",input_first_person() ? "first" : "third");
+    const int side=input_shoulder();
+    set("shoulder",side>0 ? "right" : side<0 ? "left" : "center");
+    char d[32];std::snprintf(d,sizeof d,"%.0f",camera_distance_setting());
+    if(row_of(s,"camera_distance")>=0) {
+        Row& r=screens[s].rows[row_of(s,"camera_distance")];
+        const char* match=nullptr;
+        for(const Choice& c:r.choices) if(!std::strcmp(c.env,d)) match=c.env;
+        set("camera_distance",match ? match : intern(d));
+    }
+}
 void open_screen(int s) {
+    refresh_from_game(s);
     screen=s;cursor=0;top=0;draft[s]=committed[s];sound(0);
 }
 void leave_screen(bool keep) {
     const int s=screen;
     if(keep && draft[s]!=committed[s]) {
-        committed[s]=draft[s];
         for(size_t i=0;i<screens[s].rows.size();++i) {
             const Row& r=screens[s].rows[i];
-            // Until a change ttk_live_env() is plain getenv (an unset variable stays unset).
-            if(r.live && !r.slider && r.env) ttk_live_env_set(r.env,r.choices[committed[s][i]].env);
+            if(draft[s][i]!=committed[s][i] && !r.link && row_live(r)) apply_live(r,draft[s][i]);
         }
+        committed[s]=draft[s];
         write_settings();
     }
     draft[s]=committed[s];
     screen=-1;cursor=3+s;top=0;sound(0);
 }
 void defaults() {
+    if(page==Page::Keys) {if(!key_wait) keys_ask_default();return;}
     if(page!=Page::Options || screen<0) return;
     for(size_t i=0;i<screens[screen].rows.size();++i) draft[screen][i]=screens[screen].rows[i].def;
     sound(0);
@@ -595,11 +797,13 @@ void confirm() {
     case Page::Brief: return;
     case Page::Ask:
         if(cursor==0) act_now(ask_act);
-        else {open_list(ask_from,ask_act);sound(1);}
+        else ask_cancel();
         return;
+    case Page::Keys: if(!key_wait) {key_wait=true;key_note.clear();input_capture_key(true);sound(0);} return;
     case Page::Options: break;
     default: title_cmds.push_back(Cmd::Confirm);return; // D19J: the title pages
     }
+    if(screen>=0 && screens[screen].rows[cursor].link) {open_keys();return;}
     if(screen>=0) {leave_screen(true);return;}
     const Item& it=options_items[cursor];
     if(it.guest_sub>=0) {pending_cursor=cursor;pending_sub=it.guest_sub;sound(0);}
@@ -610,7 +814,8 @@ void back(uint16_t mode) {
     case Page::Pause: act_now(Act::Resume);return;  // Escape resumes, as the original's Start
     case Page::Death: return;                        // nothing to go back to
     case Page::Brief: open_list(Page::Pause,Act::Brief);sound(0);return;
-    case Page::Ask: open_list(ask_from,ask_act);sound(1);return;
+    case Page::Ask: ask_cancel();return;
+    case Page::Keys: keys_back();return;
     case Page::Options: break;
     default: title_cmds.push_back(Cmd::Back);return; // D19J: the title pages
     }
@@ -653,7 +858,17 @@ bool game_menu_input(const MenuKeys& keys) {
             ++drops; drop_why=!owned?1:!c?2:3; drop_state=psx_mod_read_half(fe_state); drop_sub=c?psx_mod_read_half(c->sub):0xffff;
         }
         rep_up=rep_down=rep_left=rep_right=Repeat{};
+        key_wait_end();
         return false;
+    }
+    // D19G: waiting for a new key, only that key counts.
+    if(key_wait) {
+        if(page!=Page::Keys) key_wait_end();
+        else {
+            const int code=input_take_captured_key();
+            if(code!=input_no_key()) key_pressed(code);
+            return true;
+        }
     }
     const uint64_t now=SDL_GetTicks();
     for(int n=repeat(rep_up,k.up,k.up_taps,now);n>0;--n) move(-1);
@@ -707,6 +922,15 @@ struct Guest {
         if(s>=0x80010000u && s<0x80200000u) call(fn_text,s,(uint32_t)x,(uint32_t)y,flags);
     }
     int width(const char* s,uint32_t font) {put(s);return (int)call(fn_width,text,font>>8,0,0);}
+    // D19G: text in another CLUT row of the font's column (the call offers
+    // gold, blue and red): shift the CLUT of the glyph packets it just added.
+    void say_clut(const char* s,int x,int y,uint32_t flags,int clut_delta) {
+        const uint32_t before=psx_mod_read_word(glyph_next);
+        say(s,x,y,flags);
+        const uint32_t after=psx_mod_read_word(glyph_next);
+        if(after<=before || after-before>glyph_size*128) return; // the buffer wrapped: leave it gold
+        for(uint32_t p=before;p<after;p+=glyph_size) psx_mod_write_half(p+14,(uint16_t)(psx_mod_read_half(p+14)+clut_delta));
+    }
     // D19J: the prompt helper itself, with a text id, as the title pages call it.
     void prompt_id(Icon icon,int x,int y,int id) {call(fn_prompt,(uint32_t)icon,(uint32_t)x,(uint32_t)y,(uint32_t)id);}
     // The prompt helper 0x8008411c with our own label: button left of the
@@ -804,6 +1028,54 @@ void draw_settings(Guest& g,const Geometry& geo) {
     prompts(g,geo,true);
 }
 
+// D19G: a key name; [ and ] (the menu font has no brackets) are built from
+// its own glyphs, as D24C built '!' from I and a period: "[" is L (stem and
+// bottom bar in one glyph, no seam) with a hyphen as its top bar; "]" is I
+// with hyphen bars, the stem queued first so the top bar does not cut it.
+void say_key(Guest& g,const std::string& key,int x,int y,uint32_t flags) {
+    if(key=="[") {g.say("L",x,y,flags);g.say("-",x+3,y-5,flags);return;}
+    if(key=="]") {g.say("I",x+6,y,flags);g.say("-",x+4,y-5,flags);g.say("-",x,y+3,flags);return;}
+    g.say(key.c_str(),x,y,flags);
+}
+// D19G: KEY BINDINGS, laid out as the compact settings screens.
+void draw_keys(Guest& g,const Geometry& geo) {
+    const int hy=geo.y0+(171*geo.h>>11);
+    g.say("KEY BINDINGS",0,hy,font_menu|centre);
+    const int spacing=14, y0=geo.y0/2-14;
+    for(int j=0;j<key_rows_visible && top+j<key_row_count;++j) {
+        const int i=top+j, y=y0+j*spacing;
+        const KeyRow& k=key_rows[i];
+        if(k.action<0) {g.say_clut(k.label,0,y,font_small|centre,clut_amber);continue;}
+        g.say((std::string(k.label)+":").c_str(),-10,y,font_small|right|(i==cursor?blue:0));
+        if(i==cursor && key_wait) g.say("PRESS A KEY",10,y,font_small|blue);
+        else {
+            const int code=input_binding_code(Action(k.action));
+            int x=10;
+            if(k.fixed) {
+                g.say(code ? (std::string(k.fixed)+" /").c_str() : k.fixed,x,y,font_small);
+                x+=g.width((std::string(k.fixed)+" / ").c_str(),font_small);
+            }
+            if(code || !k.fixed) say_key(g,key_shown(code),x,y,font_small);
+        }
+    }
+    if(top>0 || top+key_rows_visible<key_row_count)
+        g.call(fn_sprite,sprites+16*icon_select,(uint32_t)(geo.w/2-geo.w/8),(uint32_t)(y0+spacing*key_rows_visible/2-8),0,100);
+    std::string desc=key_note;
+    std::vector<std::string> lines;
+    if(!desc.empty()) wrap(g,desc.c_str(),geo.w*3/4,lines);
+    else if(key_wait) lines={"PRESS A KEY OR MOUSE BUTTON.","ESCAPE CANCELS, BACKSPACE CLEARS"};
+    else if(key_rows[cursor].hint) lines={key_rows[cursor].hint,"CONFIRM, THEN PRESS THE NEW KEY"};
+    else wrap(g,(std::string(key_rows[cursor].label)+". CONFIRM, THEN PRESS THE NEW KEY").c_str(),geo.w*3/4,lines);
+    const int py=-geo.y0-(geo.h>>4)-19;
+    const int ybase=py-14-12*((int)std::min<size_t>(lines.size(),2)-1);
+    for(size_t l=0;l<lines.size() && l<2;++l) g.say(lines[l].c_str(),0,ybase+12*(int)l,font_small|centre);
+    if(key_wait) {g.prompt(icon_triangle,"CANCEL",0,py);return;}
+    g.prompt(icon_select,"SELECT",-geo.w/4,py);
+    g.prompt(icon_cross,"CHANGE",0,py);
+    g.prompt(icon_triangle,"RETURN",geo.w/4,py);
+    g.prompt(icon_square,"DEFAULT",3*(geo.w/8),hy+3);
+}
+
 // ---- D19H pages ----
 // The original's text height: headings at y0 + 171h/2048 in the menu font.
 int heading_y(const Geometry& geo) {return geo.y0+(171*geo.h>>11);}
@@ -854,7 +1126,7 @@ void draw_brief(Guest& g,const Geometry& geo) {
 }
 void draw_ask(Guest& g,const Geometry& geo) {
     const int heading=ask_heading();
-    if(heading<0) g.say(heading==-1 ? "QUIT GAME?" : "QUIT TO MENU?",0,-40,font_menu|centre);
+    if(heading<0) g.say(heading==-1 ? "QUIT GAME?" : heading==-2 ? "QUIT TO MENU?" : "RESTORE DEFAULT KEYS?",0,-40,font_menu|centre);
     else g.say_id(heading,0,-40,font_menu|centre);
     g.say_id(text_yes,0,-6,font_menu|centre|(cursor==0?blue:0));
     g.say_id(text_no,0,13,font_menu|centre|(cursor==1?blue:0));
@@ -1155,7 +1427,7 @@ void game_menu_tick(CPUState* cpu) {
         if(sub==title_sub) {
             if(title_tick(cpu,c)) return;
             sub=psx_mod_read_half(c->sub); // OPTIONS chosen: sub-screen 9, below
-        } else page=Page::Options;
+        } else if(page!=Page::Keys && !(page==Page::Ask && ask_from==Page::Keys)) page=Page::Options;
     }
     if(sub==c->options) {
         // The original OPTIONS (entered, or back from SOUND, CONTROLLER or GAME
@@ -1380,6 +1652,7 @@ void draw_page(CPUState* cpu,const MenuContext* c) {
         case Page::Difficulty: draw_difficulty(g,geo);break;
         case Page::TwoPlayer: draw_two(g,geo);break;
         case Page::Character: draw_character(g,geo);break;
+        case Page::Keys: draw_keys(g,geo);break;
         }
     }
     busy=false;

@@ -83,3 +83,4 @@ D17P distant bands: [note 97](97-d17p-distant-bands.md) (accepted). D17N world s
 D24A open assets (TTK disc fonts, Microfont digits, original frame and crosshair; no Duke Nukem 3D art): [note 112](112-d24a-open-assets.md) (Needs playtest). D26E debug spawn console command: [note 111](111-d26e-debug-spawn.md) (accepted). D26F spawnable crystals and the custom pickup recipe: [note 117](117-d26f-crystals.md) (accepted).
  D24B savestate menu: [note 113](113-d24b-savestate-menu.md) (accepted).
 D33 Modernized by default, `--vanilla` for one launch: [note 158](158-d33-default-profile.md) (accepted).
+D19G in-game KEY BINDINGS and live display, camera and mouse settings: [note 159](159-d19g-options-stage-2.md) (accepted).

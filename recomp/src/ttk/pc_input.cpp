@@ -5,6 +5,7 @@
 #include "weapon_aim.h"
 #include "mod_plugins.h"
 #include "game_menu.h"
+#include "live_env.h"
 #include <algorithm>
 #include <cctype>
 #include <cmath>
@@ -94,7 +95,7 @@ static uint64_t recenter_total;
 static int shoulder;
 static bool first_person;
 static bool independent_camera() {
-    const char* mode=std::getenv("DNTTK_CAMERA_MODE");
+    const char* mode=ttk_live_env("DNTTK_CAMERA_MODE");
     return !mode || !std::strcmp(mode,"independent");
 }
 static void camera_action(int action) {
@@ -164,6 +165,10 @@ static const uint16_t pads[action_count] = {
 #include "input_bindings.def"
 #undef TTK_ACTION
 };
+// D19G: KEY BINDINGS waits for a key (scancode, mouse button -n).
+static std::atomic<bool> key_capture{false};
+static std::atomic<int> captured_key{0};
+static constexpr int no_key=0x7fffffff;
 static void clear() {
     cheat_typing.reset();cheat_pending=Cheat::None;menu_select_deadline=0;
     std::memset(keys, 0, sizeof keys);
@@ -297,6 +302,32 @@ void input_init(SDL_Window* w) {
     std::fprintf(stderr, "[TTK input] Modernized controls: automatic gameplay capture; F10 toggles; Escape pauses; Enter uses selected inventory. Unsupported states use original controls.\n");
 }
 bool input_modernized() { return modern; }
+// D19G: bindings changed in the KEY BINDINGS page.
+int input_binding_code(Action action) {return action>=0 && action<action_count ? binds[action] : 0;}
+int input_default_code(Action action) {
+    static const int defaults[action_count] = {
+#define TTK_ACTION(name, token, code, pad) code,
+#include "input_bindings.def"
+#undef TTK_ACTION
+    };
+    return action>=0 && action<action_count ? defaults[action] : 0;
+}
+bool input_code_bindable(int code, Action action) {
+    return allowed(code) && (code != SDL_SCANCODE_C || action == holster);
+}
+// Bindings change in the menu, which owns the keys meanwhile; held keys are
+// read through binds[] on the next gameplay frame.
+void input_set_binding_codes(const int* codes) {
+    for (int i = 0; i < action_count; ++i) binds[i] = codes[i];
+}
+void input_capture_key(bool on) {captured_key.store(no_key);key_capture.store(on);}
+int input_take_captured_key() {return captured_key.exchange(no_key);}
+int input_no_key() {return no_key;}
+// D19G: the view and shoulder the menu sets (P and H change them in game).
+bool input_first_person() {return first_person;}
+int input_shoulder() {return shoulder;}
+void input_set_view(bool first) {first_person=first;}
+void input_set_shoulder(int side) {shoulder=side>0?1:side<0?-1:0;}
 const char* input_binding_name(Action action) {
     if(action<0 || action>=action_count)return "";
     const int code=binds[action];
@@ -311,7 +342,7 @@ static bool down(int code) { return code < 0 ? mouse[-code] : code==SDL_SCANCODE
 // D08T1: with legacy (original) weapon aiming or the original camera the
 // primary Grab input keeps its old precision-aim role; Grab (second) grabs.
 static bool legacy_aim() {
-    const char* mode=std::getenv("DNTTK_WEAPON_AIM");
+    const char* mode=ttk_live_env("DNTTK_WEAPON_AIM");
     return !independent_camera() || !mode || std::strcmp(mode,"view");
 }
 static bool grab_down() {
@@ -389,6 +420,23 @@ void input_event(const SDL_Event& e) {
 #endif
     }
     if (!modern || !focused) return;
+    // D19G: the KEY BINDINGS page waits for one key or mouse button; it goes
+    // to the menu alone (no menu taps, cheats, capture or gameplay action).
+    if (key_capture.load()) {
+        if (e.type == SDL_KEYDOWN && e.key.windowID == SDL_GetWindowID(window) && !e.key.repeat) {
+#if defined(PSX_SDL3)
+            captured_key.store((int)e.key.scancode);
+#else
+            captured_key.store((int)e.key.keysym.scancode);
+#endif
+            return;
+        }
+        if (e.type == SDL_MOUSEBUTTONDOWN && e.button.windowID == SDL_GetWindowID(window)) {
+            if (e.button.button >= 1 && e.button.button < 6) captured_key.store(-int(e.button.button));
+            return;
+        }
+        if (e.type == SDL_KEYDOWN || e.type == SDL_MOUSEBUTTONDOWN || e.type == SDL_MOUSEWHEEL) return;
+    }
     if (e.type == SDL_KEYDOWN || e.type == SDL_KEYUP) {
         if (e.key.windowID != SDL_GetWindowID(window)) return;
 #if defined(PSX_SDL3)
@@ -727,6 +775,8 @@ void input_frame() {
                         for(int i=0;i<action_count;++i) if(!std::strcmp(last,names[i]))command(i);
                     }
                 }
+                // D19G: "play" is captured gameplay for this frame (menus run uncaptured).
+                else if(!std::strcmp(word,"play")) captured=true;
                 else if(!std::strncmp(word,"dx=",3)) dx+=std::atof(word+3);
                 else if(!std::strncmp(word,"dy=",3)) dy+=std::atof(word+3);
                 else for(const auto& n:named) if(!std::strcmp(word,n.name)) keys[n.code]=true;
@@ -1250,9 +1300,13 @@ extern "C" const char* ttk_fast_timing_json(void);
 extern "C" const char* ttk_input_debug_json() {
     static char buffer[10240];
     const auto& f = ttk::input_snapshot(ttk::Context::Gameplay);
+    // D19G: the live binding codes, in action order.
+    static char binds_text[512];
+    {size_t n=0;for(int i=0;i<ttk::action_count && n<sizeof binds_text-8;++i)
+        n+=std::snprintf(binds_text+n,sizeof binds_text-n,"%s%d",i?",":"",ttk::binds[i]);}
     std::snprintf(buffer, sizeof buffer,
-        "{\"sequence\":%llu,\"jump_remaining\":%llu,\"modernized\":%s,\"focused\":%s,\"captured\":%s,\"pad\":%u,\"move_x\":%.5f,\"move_y\":%.5f,\"look_x\":%.1f,\"look_y\":%.1f,\"device\":%d,\"controls\":%s,\"cpu_timing\":%s}",
-        (unsigned long long)ttk::sequence, (unsigned long long)(ttk::input_jump_pending()?ttk::jump_deadline-ttk::sequence+1:0),
+        "{\"binds\":[%s],\"sequence\":%llu,\"jump_remaining\":%llu,\"modernized\":%s,\"focused\":%s,\"captured\":%s,\"pad\":%u,\"move_x\":%.5f,\"move_y\":%.5f,\"look_x\":%.1f,\"look_y\":%.1f,\"device\":%d,\"controls\":%s,\"cpu_timing\":%s}",
+        binds_text, (unsigned long long)ttk::sequence, (unsigned long long)(ttk::input_jump_pending()?ttk::jump_deadline-ttk::sequence+1:0),
         ttk::modern ? "true" : "false", ttk::focused ? "true" : "false", ttk::captured ? "true" : "false",
         ttk::input_pad(), f.move_x, f.move_y, f.look_x, f.look_y, (int)f.device, ttk::controls_debug_json(), ttk_fast_timing_json());
     return buffer;

@@ -1598,6 +1598,23 @@ void composition_end(CPUState* cpu,uint32_t) {
 }
 } // namespace
 
+// D19G: FRAME RATE confirmed in the in-game OPTIONS. Live while replay
+// presentation runs (any launch rate but 60); a 60 launch has none, so the
+// change waits for the next launch. False when it cannot apply now.
+bool frame_rate_live() {return replay_on;}
+bool frame_rate_set(const char* value) {
+    if(!replay_on) return false;
+    const int32_t hz=parse_rate(value);
+    if(!psx_mod_request_present_replay_rate(hz)) return false;
+    target_hz=hz;
+    const char* interp=std::getenv("DNTTK_FRAME_INTERP");
+    interp_replay=!(interp && !std::strcmp(interp,"off")) && (hz<0 || hz==0 || hz>60);
+    pace_div=1;pace_clean=0;pace_backoff=1;
+    psx_mod_set_present_divisor(1);
+    std::fprintf(stderr,"[TTK replay] frame rate %s\n",value?value:"60");
+    return true;
+}
+
 // D23E/D23H: emulation load shedding. Late-camera redraws run on the
 // emulation thread at every present (D23E: about 1.4 ms each, 19% of the
 // thread at 120 Hz in the busy western town), so when the game falls behind

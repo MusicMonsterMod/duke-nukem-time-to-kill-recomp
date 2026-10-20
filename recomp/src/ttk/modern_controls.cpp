@@ -646,6 +646,16 @@ bool short_fall_input_ready() { return short_fall && terrain_epoch==input_snapsh
 bool airborne_input_ready() {
     return lease_ready(true) && flight_valid && psx_mod_read_byte(player+0x22c)==9 && identity() && !jetpack_camera_only();
 }
+// D07F: a shot in the air (takeoff, owned or unowned jump and fall, the
+// landing frame) keeps the view aim. Only the camera-only lease is live there;
+// attached traversal, pushes and the jetpack keep their own owners.
+bool airborne_shot_ready() {
+    if(!lease_ready(true) || !identity() || jetpack_camera_only() || push_state_early() ||
+       mantle_state_early() || ladder_mount_early() || climb_state_early())return false;
+    const unsigned animation=psx_mod_read_half(player+0x60);
+    const unsigned mode=psx_mod_read_byte(player+0x22c), previous=psx_mod_read_byte(player+0x22d);
+    return mode==9 || (mode==0 && (previous==9 || animation==96 || animation==97));
+}
 bool player_identity_ready() { return input_modernized() && gameplay_context() && psx_mod_read_word(camera+0xa4)==player && psx_mod_read_word(player+0x7d4)==camera && identity(); }
 // The original attached-traversal dispatchers own motion, facing and camera.
 // Supply directional buttons only; never rotate their animation displacement.

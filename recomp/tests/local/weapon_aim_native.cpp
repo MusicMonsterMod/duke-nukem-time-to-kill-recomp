@@ -13,7 +13,7 @@
 extern "C" {int g_precise_mode=0,g_ls_mode=0,g_psx_call_bail=0;}
 static unsigned char ram[0x200000],scratch[1024];
 static PSXModFunctionEntryCallback callback;
-static bool ready=true,modern=true,cover=false,jet_ready=false,swim_ready=false;
+static bool ready=true,modern=true,cover=false,jet_ready=false,swim_ready=false,air_ready=false;
 static unsigned writes;
 static bool actor_visible, block_actor, block_muzzle, close_actor, behind_cover, ray_actor;
 static unsigned char& byte(uint32_t a) {return (a&0x1ffffc00)==0x1f800000?scratch[a&1023]:ram[a&0x1fffff];}
@@ -29,7 +29,7 @@ extern "C" uint32_t psx_mod_alloc_guest_memory(uint32_t n,uint32_t){static uint3
 extern "C" void psx_mod_host_call_begin(void){}
 extern "C" void psx_mod_host_call_end(void){}
 extern "C" int psx_mod_register_function_entry_plugin(const char*,uint32_t a,PSXModFunctionEntryCallback cb){if(a==0x8003c500)callback=cb;return 1;}
-namespace ttk {static InputFrame f;const InputFrame& input_snapshot(Context){return f;}uint64_t input_host_frame(){return f.sequence;}bool input_modernized(){return modern;}bool movement_ready(){return ready;}const char* movement_lease_miss(){return "test";}bool locomotion_input_ready(){return false;}bool jetpack_input_ready(){return modern && jet_ready;}bool swim_weapon_ready(){return modern && swim_ready;}bool player_identity_ready(){return ready;}bool frame_trace_on(){return false;}void frame_trace_account(uint32_t,long){}}
+namespace ttk {static InputFrame f;const InputFrame& input_snapshot(Context){return f;}uint64_t input_host_frame(){return f.sequence;}bool input_modernized(){return modern;}bool movement_ready(){return ready;}const char* movement_lease_miss(){return "test";}bool locomotion_input_ready(){return false;}bool jetpack_input_ready(){return modern && jet_ready;}bool swim_weapon_ready(){return modern && swim_ready;}bool airborne_shot_ready(){return modern && air_ready;}bool player_identity_ready(){return ready;}bool frame_trace_on(){return false;}void frame_trace_account(uint32_t,long){}}
 extern "C" void psx_dispatch_call(CPUState* c,uint32_t address,uint32_t ret) {
     assert(address==0x8006d980 && ret==0x800000fc && c->gpr[4]==0x800d7198);
     uint32_t a=c->gpr[5],sp=c->gpr[29];
@@ -112,6 +112,22 @@ int main(int argc,char**argv) {
     jet_ready=false;seed();writes=0;callback(&c,0x8003c500);assert(writes==0 && !ttk_aim_reticle());
     ready=true;psx_mod_write_byte(p+0x3b9,4);
     std::puts("PASS: D08Q3 flight shots, vertical aim, crosshair preference and guarded fallback");
+    // D07F: a jump or fall holds only the camera-only lease. Its shots (gun
+    // callers, pitch down and up) still converge on the camera ray.
+    ready=false;air_ready=true;
+    for(unsigned weapon:{4u,5u,8u}) {
+        c.gpr[7]=weapon;c.gpr[31]=weapon==4?0x8004f7b4:0x8004fa88;
+        psx_mod_write_byte(p+0x3b9,weapon);
+        for(int pitch:{-2048,2048}) {
+            psx_mod_write_half(cam+14,pitch);seed();callback(&c,0x8003c500);
+            assert(c.gpr[6]==0x801e0000 && ttk_aim_reticle());
+            assert((int32_t)psx_mod_read_word(c.gpr[6]+4)*pitch>0);
+        }
+    }
+    air_ready=false;psx_mod_write_half(cam+14,0);c.gpr[7]=4;c.gpr[31]=0x8004f7b4;
+    seed();writes=0;callback(&c,0x8003c500);assert(writes==0 && !ttk_aim_reticle());
+    ready=true;psx_mod_write_byte(p+0x3b9,4);
+    std::puts("PASS: D07F airborne shots converge on the view ray");
     // D08O1: the original swim states (surface/underwater) hold their own
     // lease, not the ground one; shots converge on the view the same way.
     ready=false;swim_ready=true;

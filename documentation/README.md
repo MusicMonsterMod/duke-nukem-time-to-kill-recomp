@@ -84,3 +84,4 @@ D24A open assets (TTK disc fonts, Microfont digits, original frame and crosshair
  D24B savestate menu: [note 113](113-d24b-savestate-menu.md) (accepted).
 D33 Modernized by default, `--vanilla` for one launch: [note 158](158-d33-default-profile.md) (accepted).
 D19G in-game KEY BINDINGS and live display, camera and mouse settings: [note 159](159-d19g-options-stage-2.md) (accepted).
+D07F airborne shots follow the crosshair: [note 160](160-d07f-airborne-shots.md) (accepted).

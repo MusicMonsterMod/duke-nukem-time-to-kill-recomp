@@ -405,7 +405,7 @@ int main(int argc,char** argv) {
         psx_mod_write_half(p+0x60,186);update(); // the original transfer ended: attached
         assert(psx_mod_read_half(p+0x60)==186 && std::strstr(ttk::controls_debug_json(),"\"mounts\":1"));
         // D08J3: the mouse camera stays on through the attached climb (mode 3).
-        camera();assert(ttk::traversal_camera_ready() && !ttk::locomotion_input_ready());
+        camera();assert(ttk::traversal_camera_ready() && !ttk::locomotion_input_ready() && !ttk::airborne_shot_ready());
         // D08U1: the original's ladder-end probe while stepping down. Open below
         // (ladder ends above the floor): the descent flag is cleared so the
         // original stops at this rung; touch fields survive the probe.
@@ -1066,13 +1066,15 @@ int main(int argc,char** argv) {
         for(const auto& r:jump) {
             psx_mod_write_half(p+0x60,r[0]);psx_mod_write_byte(p+0x22c,r[1]);psx_mod_write_byte(p+0x22d,r[2]);
             camera();assert(ttk::locomotion_input_ready() && !ttk::movement_ready());
+            assert(ttk::airborne_shot_ready()==(r[1]==9 || r[2]==9 || r[0]==96)); // D07F: view-aimed air shots
         }
-        psx_mod_write_half(p+0x60,63);psx_mod_write_byte(p+0x22c,0);psx_mod_write_byte(p+0x22d,0);camera();assert(ttk::movement_ready());
+        psx_mod_write_half(p+0x60,63);psx_mod_write_byte(p+0x22c,0);psx_mod_write_byte(p+0x22d,0);camera();
+        assert(ttk::movement_ready() && !ttk::airborne_shot_ready());
         ttk::input.sequence+=8;psx_mod_write_half(p+0x60,97);psx_mod_write_byte(p+0x22c,9);psx_mod_write_byte(p+0x22d,9);
-        call(0x8003ade4,c,p,0x80025ee8);assert(!ttk::locomotion_input_ready());
+        call(0x8003ade4,c,p,0x80025ee8);assert(!ttk::locomotion_input_ready() && !ttk::airborne_shot_ready());
         for(int i=0;i<5;++i)psx_mod_write_word(c+(i<2?0x4c+4*i:0x64+4*(i-2)),saved_cam[i]);
         psx_mod_write_half(p+0x60,63);psx_mod_write_byte(p+0x22c,0);psx_mod_write_byte(p+0x22d,0);camera();camera();assert(ttk::movement_ready());
-        std::puts("PASS: D22B third-person unowned jump camera; dodge rolls 157..162 and slope slides (mode 2, 99/108, landing) keep the camera lease; original back-steps/strafes taken over; swim/other/Vanilla excluded");
+        std::puts("PASS: D22B third-person unowned jump camera and D07F air shots; dodge rolls 157..162 and slope slides (mode 2, 99/108, landing) keep the camera lease; original back-steps/strafes taken over; swim/other/Vanilla excluded");
     }
     for(unsigned flags : {0u,8u,0x400u,0x408u,0x10008u,0x10400u}) {
         const bool original=(flags&0x408)==8;

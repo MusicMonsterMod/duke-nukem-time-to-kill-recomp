@@ -712,7 +712,8 @@ python3 recomp/tools/local/run.py --camera-distance 3000 --shoulder right --show
 
 **P** toggles **first person** (prototype, Modernized with the independent
 camera). The view moves to Duke's eyes with a wider field of view; the mouse
-looks, WASD moves relative to the view, and shots go to the crosshair. Crouch
+looks, WASD moves relative to the view, and shots go to the crosshair (in the
+air too, when jumping or falling). Crouch
 lowers the view, and jumps keep it. Duke's head and body are hidden. With a weapon
 drawn you see Duke's own gloved hand holding it at the lower right, always in
 front of walls, with the original muzzle flash and a small kick when firing.

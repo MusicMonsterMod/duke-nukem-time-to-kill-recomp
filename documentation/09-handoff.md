@@ -1,5 +1,21 @@
 # Next-session handoff
 
+## 2026-10-20 - D07F accepted
+
+- User: "confirmed working. lock it in and close it out". D07F Done;
+  executable `38076cd85f3e0b686cd04d25e8ad6db2c6c2d213d695c775e0c57b8ce0e120ef` is the
+  regression baseline. Backlog: D10C, D19G1, D19K, D19F, D19N, D24D, D26G.
+
+## 2026-10-20 - D07F airborne shots follow the crosshair (Needs playtest)
+
+- Jumps and falls hold only the camera-only lease; shots there now use the
+  view aim (`airborne_shot_ready()`). Lab: 24 airborne shots (RPG, shotgun,
+  pistol; manual and assisted; first person; up and down), 0 misses, rockets
+  explode at the crosshair point. Executable
+  `38076cd85f3e0b686cd04d25e8ad6db2c6c2d213d695c775e0c57b8ce0e120ef`,
+  [note 160](160-d07f-airborne-shots.md). Native and Python tests pass.
+  Awaiting the user's playtest.
+
 ## 2026-10-20 - D19G accepted
 
 - User: "looking good!! lock it in and close this job out". D19G Done;

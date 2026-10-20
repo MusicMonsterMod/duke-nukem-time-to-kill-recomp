@@ -1439,29 +1439,40 @@ int provider(const PSXModPresentInfo* info,void*) {
     return 0;
 }
 
-void activate() {
-    const char* mode=std::getenv("DNTTK_INPUT_MODE");
-    if(!mode || std::strcmp(mode,"modernized")) return;
-    target_hz=parse_rate(std::getenv("DNTTK_FRAME_RATE"));
-    if(target_hz==60) return;
+bool modernized_session=false;   // D19G1: FRAME RATE can start replay later
+bool slack_fixed=false;
+// The present rate's own settings, at a launch and on a FRAME RATE change.
+void apply_rate(int32_t hz) {
+    target_hz=hz;
     // In-between images above 60 by default (off: DNTTK_FRAME_INTERP=off);
     // 30 shows each game image once and never redraws.
     const char* interp=std::getenv("DNTTK_FRAME_INTERP");
-    interp_replay=!(interp && !std::strcmp(interp,"off")) && (target_hz<0 || target_hz==0 || target_hz>60);
+    interp_replay=!(interp && !std::strcmp(interp,"off")) && (hz<0 || hz==0 || hz>60);
+    // Past idle time is not a present deadline. With the optimized rendering
+    // path, fixed-rate camera images must not be withheld by that stale EMA.
+    // Unlimited retains the guard so overload feeds its adaptive cadence.
+    if(!slack_fixed) slack_floor_ms=continuous_timeline() && hz>=0 ? 0.0 : 0.5;
+    pace_div=1;pace_clean=0;pace_backoff=1;
+    psx_mod_set_present_divisor(1);
+}
+
+void activate() {
+    const char* mode=std::getenv("DNTTK_INPUT_MODE");
+    if(!mode || std::strcmp(mode,"modernized")) return;
+    modernized_session=true;
     if(const char* t=std::getenv("DNTTK_INTERP_STEPS")) {steps=std::clamp(std::atoi(t),1,max_steps);steps_fixed=true;}
     if(const char* t=std::getenv("DNTTK_REPLAY_TEST")) {
         interp_off=!std::strcmp(t,"alpha0") || !std::strcmp(t,"interp_off");
         interp_full=!std::strcmp(t,"alpha1");
     }
-    // Past idle time is not a present deadline. With the optimized rendering
-    // path, fixed-rate camera images must not be withheld by that stale EMA.
-    // Unlimited retains the guard so overload feeds its adaptive cadence.
-    if(continuous_timeline() && target_hz>=0) slack_floor_ms=0.0;
-    if(const char* t=std::getenv("DNTTK_REPLAY_SLACK_MS")) slack_floor_ms=std::clamp(std::atof(t),0.0,16.0);
+    if(const char* t=std::getenv("DNTTK_REPLAY_SLACK_MS")) {slack_floor_ms=std::clamp(std::atof(t),0.0,16.0);slack_fixed=true;}
     if(const char* t=std::getenv("DNTTK_LATE_LEAD_MS")) {late_lead_ms=std::clamp(std::atof(t),2.0,40.0);late_lead_fixed=true;}
     if(const char* t=std::getenv("DNTTK_REPLAY_BUDGET_MS")) {budget_ms=std::clamp(std::atof(t),0.5,16.0);budget_fixed=true;}
-    replay_on=psx_mod_set_present_replay(provider,nullptr,target_hz)!=0;
     psx_mod_set_replay_status(status_json);
+    const int32_t hz=parse_rate(std::getenv("DNTTK_FRAME_RATE"));
+    if(hz==60) return;
+    apply_rate(hz);
+    replay_on=psx_mod_set_present_replay(provider,nullptr,target_hz)!=0;
 }
 
 // Workers fork from a running game, after the window and renderer exist.
@@ -1598,19 +1609,28 @@ void composition_end(CPUState* cpu,uint32_t) {
 }
 } // namespace
 
-// D19G: FRAME RATE confirmed in the in-game OPTIONS. Live while replay
-// presentation runs (any launch rate but 60); a 60 launch has none, so the
-// change waits for the next launch. False when it cannot apply now.
-bool frame_rate_live() {return replay_on;}
+// D19G: FRAME RATE confirmed in the in-game OPTIONS. D19G1: from any launch
+// rate. 60 stops replay presentation and returns to the original present path
+// (as a 60 launch); another rate starts it, the render workers at the next
+// composition. False when it cannot apply now (software renderer).
+bool frame_rate_live() {return modernized_session && (replay_on || psx_mod_present_replay_available());}
 bool frame_rate_set(const char* value) {
-    if(!replay_on) return false;
+    if(!modernized_session) return false;
     const int32_t hz=parse_rate(value);
-    if(!psx_mod_request_present_replay_rate(hz)) return false;
-    target_hz=hz;
-    const char* interp=std::getenv("DNTTK_FRAME_INTERP");
-    interp_replay=!(interp && !std::strcmp(interp,"off")) && (hz<0 || hz==0 || hz>60);
-    pace_div=1;pace_clean=0;pace_backoff=1;
-    psx_mod_set_present_divisor(1);
+    if(hz==60) {
+        if(replay_on && !psx_mod_request_present_replay(nullptr,nullptr,60)) return false;
+        replay_on=interp_replay=false;
+        target_hz=60;
+        reset_timeline();
+    } else if(!replay_on) {
+        if(!psx_mod_request_present_replay(provider,nullptr,hz)) return false;
+        reset_timeline();
+        apply_rate(hz);
+        replay_on=true;
+    } else {
+        if(!psx_mod_request_present_replay_rate(hz)) return false;
+        apply_rate(hz);
+    }
     std::fprintf(stderr,"[TTK replay] frame rate %s\n",value?value:"60");
     return true;
 }

@@ -1,5 +1,22 @@
 # Current status - 2026-10-04
 
+## 2026-10-20 - D19G1 accepted
+
+- User: "it works! i can confirm it works. lock it in close it out". D19G1
+  Done; executable `bbfaf117ca261268335c0c19847663a3c02ac7185d24c77fda9ca81f38eecc29` is the regression baseline. Backlog: D19K, D19F,
+  D19N, D24D, D26G.
+
+## 2026-10-20 - D19G1 FRAME RATE live after a 60 launch (Needs playtest)
+
+- In-game FRAME RATE now applies on CONFIRM from a 60 launch (replay
+  presentation and its render workers start mid-session) and 60 stops it from
+  any launch, back to the original presentation. Software renderer: NEXT
+  LAUNCH. Framework request `psx_mod_request_present_replay` in the tracked
+  patch. Executable
+  `bbfaf117ca261268335c0c19847663a3c02ac7185d24c77fda9ca81f38eecc29`,
+  [note 164](164-d19g1-live-frame-rate.md). Offscreen as described; tests
+  pass. Awaiting the user's playtest.
+
 ## 2026-10-20 - D08T4 accepted
 
 - User: "lock it in, close it out, another winner". D08T4 Done; executable

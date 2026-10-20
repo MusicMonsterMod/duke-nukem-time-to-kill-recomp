@@ -123,10 +123,10 @@ index 8379e290..672db6e6 100644
   * the guest to its vblank cadence (present_vsync_owns_cadence() in main.cpp).
   * The two are XOR: when this returns 1 the frontend does not call
 diff --git a/runtime/include/gpu_gl_renderer.h b/runtime/include/gpu_gl_renderer.h
-index 9f64b4ab..6cb1d0b7 100644
+index 9f64b4ab..9e14fee6 100644
 --- a/runtime/include/gpu_gl_renderer.h
 +++ b/runtime/include/gpu_gl_renderer.h
-@@ -30,6 +30,28 @@ void gl_renderer_set_interpolation(int enabled, double host_hz, double target_hz
+@@ -30,6 +30,30 @@ void gl_renderer_set_interpolation(int enabled, double host_hz, double target_hz
                                     double source_hz, int blend_mode);
  void gl_renderer_set_interpolation_suspended(int suspended);
  int gl_renderer_interpolation_owns_cadence(void);
@@ -141,6 +141,8 @@ index 9f64b4ab..6cb1d0b7 100644
 +/* Time to Kill D19G: a new replay target (0 host refresh, <0 unlimited). */
 +void gl_renderer_set_replay_target_hz(double target_hz);
 +int  gl_renderer_replay_owns_cadence(void);
++/* D19G1: a replay provider can be set now (context and raster ready). */
++int  gl_renderer_replay_available(void);
 +/* Presents, distinct images and game images so far (console fps readout). */
 +void gl_renderer_replay_rates(uint64_t *presents, uint64_t *distinct, uint64_t *flips);
 +uint64_t gl_renderer_rp_tick(uint64_t now);
@@ -191,10 +193,10 @@ index e4e6f307..e44860cf 100644
  /* Right-side vertical volume bar (percent clamped 0..100). */
  void host_osd_show_volume(int percent, int duration_ms);
 diff --git a/runtime/include/mod_plugins.h b/runtime/include/mod_plugins.h
-index a1e4645e..71172014 100644
+index a1e4645e..e0b5f700 100644
 --- a/runtime/include/mod_plugins.h
 +++ b/runtime/include/mod_plugins.h
-@@ -153,6 +153,98 @@ enum {
+@@ -153,6 +153,104 @@ enum {
      PSX_MOD_FRAME_INTERPOLATION_MOTION_ADAPTIVE = 1
  };
  int psx_mod_set_frame_interpolation_blend(uint32_t blend_mode);
@@ -233,6 +235,12 @@ index a1e4645e..71172014 100644
 +int psx_mod_request_fullscreen_mode(int mode);
 +int psx_mod_request_display_aspect(uint32_t numerator, uint32_t denominator, int adaptive);
 +int psx_mod_request_present_replay_rate(int32_t target_hz);
++/* Time to Kill D19G1: start replay presentation while the game runs (fn as
++ * psx_mod_set_present_replay's), or stop it with fn NULL and return to the
++ * original present path. Applied on the next present; returns 0 when the
++ * OpenGL renderer is not active (software renderer, netplay). */
++int psx_mod_request_present_replay(PSXModPresentReplayFn fn, void *user, int32_t target_hz);
++int psx_mod_present_replay_available(void);
 +/* Number of savestate loads applied so far. A plugin compares it with the
 + * value it last saw to drop host state (camera, pending input) that described
 + * the guest state before the load. */
@@ -1199,7 +1207,7 @@ index aaf69df7..85c3d886 100644
          gp0_ring = (GpuGp0RingEntry *)calloc(GP0_RING_CAP, sizeof(*gp0_ring));
          if (!gp0_ring) return;  /* OOM — capture disabled, no other effect */
 diff --git a/runtime/src/gpu_gl_renderer.c b/runtime/src/gpu_gl_renderer.c
-index d0ccc3d5..f35994f9 100644
+index d0ccc3d5..a4a2a4dd 100644
 --- a/runtime/src/gpu_gl_renderer.c
 +++ b/runtime/src/gpu_gl_renderer.c
 @@ -68,6 +68,7 @@
@@ -2464,7 +2472,7 @@ index d0ccc3d5..f35994f9 100644
      if (lx != 0 || ly != 0 || lw != ww || lh != wh) {
          glClearColor(0.f, 0.f, 0.f, 1.f);
          glClear(GL_COLOR_BUFFER_BIT);
-@@ -3905,6 +4135,856 @@ static void interp_present_source_interval(void) {
+@@ -3905,6 +4135,861 @@ static void interp_present_source_interval(void) {
      }
  }
  
@@ -2988,6 +2996,10 @@ index d0ccc3d5..f35994f9 100644
 +    s_rp_source_hz = source_hz;
 +    s_rp_enabled = fn != NULL && source_hz >= 1.0;
 +    frame_interpolation_schedule_reset(&s_rp_schedule);
++    /* D19G1: also switched while the game runs. No image captured under the
++     * previous setting is presented again. */
++    memset(s_rp_valid, 0, sizeof s_rp_valid);
++    rp_note_foreign_present();
 +    if (s_rp_enabled)
 +        fprintf(stdout, "psxrecomp: replay presentation enabled: target %s%.1f Hz "
 +                "(host %.1f Hz, guest %.3f Hz)\n",
@@ -3002,6 +3014,7 @@ index d0ccc3d5..f35994f9 100644
 +    frame_interpolation_schedule_reset(&s_rp_schedule);
 +}
 +
++int gl_renderer_replay_available(void) { return s_ctx && s_raster_ok; }
 +int gl_renderer_replay_owns_cadence(void) {
 +    return s_ctx && s_raster_ok && s_rp_enabled;
 +}
@@ -3321,7 +3334,7 @@ index d0ccc3d5..f35994f9 100644
  /* Draw one host OSD ARGB image into the default framebuffer at (vx,vy)
   * in top-left window coordinates (y down). Bitmap is ow×oh; viewport is
   * dw×dh (may upscale for HiDPI / large windows). */
-@@ -3932,18 +5012,26 @@ static void gl_draw_osd_image(const uint32_t *px, int ow, int oh,
+@@ -3932,18 +5017,26 @@ static void gl_draw_osd_image(const uint32_t *px, int ow, int oh,
      if (vx + dw > ww) dw = ww - vx;
      if (vy + dh > wh) dh = wh - vy;
      if (dw < 1 || dh < 1) return;
@@ -3356,7 +3369,7 @@ index d0ccc3d5..f35994f9 100644
      p_glUniform1i(s_present_uTex, 0);
      present_set_sharp(0, 0, 0, 0, 0);   /* OSD is authored at output res */
      /* Host OSD bitmaps are top-down (row 0 = top), same as guest CPU
-@@ -3951,19 +5039,25 @@ static void gl_draw_osd_image(const uint32_t *px, int ow, int oh,
+@@ -3951,19 +5044,25 @@ static void gl_draw_osd_image(const uint32_t *px, int ow, int oh,
       * cancel for already-oriented captures and made toasts upside-down. */
      p_glUniform4f(s_present_uUvRect, 0.f, 0.f, 1.f, 1.f);
      {
@@ -3385,7 +3398,7 @@ index d0ccc3d5..f35994f9 100644
              const uint32_t *px = NULL;
              int ow = 0, oh = 0;
              /* OSD authored for ~480-tall present; grow with drawable height. */
-@@ -3972,9 +5066,47 @@ static void gl_swap_with_osd(void) {
+@@ -3972,9 +5071,47 @@ static void gl_swap_with_osd(void) {
              if (ui < 1) ui = 1;
              if (ui > 8) ui = 8;
              margin = 8 * ui;
@@ -3436,7 +3449,7 @@ index d0ccc3d5..f35994f9 100644
              if (host_osd_volume_image(&px, &ow, &oh) && px) {
                  const int dw = ow * ui, dh = oh * ui;
                  int vx = (ww > dw + margin) ? (ww - dw - margin) : margin;
-@@ -4012,6 +5144,7 @@ static void gl_swap_with_osd(void) {
+@@ -4012,6 +5149,7 @@ static void gl_swap_with_osd(void) {
                  uint8_t *rows = (uint8_t *)malloc((size_t)ww * wh * 3);
                  uint8_t *flip = rows ? (uint8_t *)malloc((size_t)ww * wh * 3) : NULL;
                  if (rows && flip) {
@@ -3444,7 +3457,7 @@ index d0ccc3d5..f35994f9 100644
                      glPixelStorei(GL_PACK_ALIGNMENT, 1);
                      glReadPixels(0, 0, ww, wh, GL_RGB, GL_UNSIGNED_BYTE, rows);
                      for (int y = 0; y < wh; y++)
-@@ -4038,13 +5171,13 @@ static void present_target_quad(GLuint tex, int tex_w, int tex_h,
+@@ -4038,13 +5176,13 @@ static void present_target_quad(GLuint tex, int tex_w, int tex_h,
                                  int x, int y, int w, int h, int linear,
                                  int lx, int ly, int lw, int lh, int v_flip) {
      float u0, v0, u1, v1;
@@ -3460,7 +3473,7 @@ index d0ccc3d5..f35994f9 100644
      p_glUniform1i(s_present_uTex, 0);
      /* The rasterized path already renders at the internal scale, so it has no
       * low-res source to reconstruct — keep the plain sample. */
-@@ -4068,10 +5201,10 @@ static void present_target_quad(GLuint tex, int tex_w, int tex_h,
+@@ -4068,10 +5206,10 @@ static void present_target_quad(GLuint tex, int tex_w, int tex_h,
          v1 = t;
      }
      p_glUniform4f(s_present_uUvRect, u0, v0, u1, v1);
@@ -3474,7 +3487,7 @@ index d0ccc3d5..f35994f9 100644
  }
  
  /* Bezel art: a still image behind the frame, filling whatever the letterbox or
-@@ -4104,19 +5237,19 @@ int gl_renderer_has_bezel(void) { return s_bezel_tex != 0; }
+@@ -4104,19 +5242,19 @@ int gl_renderer_has_bezel(void) { return s_bezel_tex != 0; }
  static void present_bezel(int ww, int wh, int lx, int ly, int lw, int lh) {
      if (!s_bezel_tex || ww <= 0 || wh <= 0) return;
      if (lx <= 0 && ly <= 0 && lw >= ww && lh >= wh) return;
@@ -3501,7 +3514,7 @@ index d0ccc3d5..f35994f9 100644
  }
  
  int gl_renderer_present_hold_last(void) {
-@@ -4131,8 +5264,8 @@ int gl_renderer_present_hold_last(void) {
+@@ -4131,8 +5269,8 @@ int gl_renderer_present_hold_last(void) {
       * the hold texture. Still present the host overlays: otherwise save-state
       * rejection/status messages are generated but remain invisible on GL. */
      if (s_hold_kind == HOLD_NONE || !s_hold_tex) {
@@ -3512,7 +3525,7 @@ index d0ccc3d5..f35994f9 100644
          glClearColor(0.f, 0.f, 0.f, 1.f);
          glClear(GL_COLOR_BUFFER_BIT);
          latency_ring_mark(LAT_SWAP_BEGIN);
-@@ -4141,8 +5274,8 @@ int gl_renderer_present_hold_last(void) {
+@@ -4141,8 +5279,8 @@ int gl_renderer_present_hold_last(void) {
          s_probe_swap++;
          return 1;
      }
@@ -3523,7 +3536,7 @@ index d0ccc3d5..f35994f9 100644
      glClearColor(0.f, 0.f, 0.f, 1.f);
      glClear(GL_COLOR_BUFFER_BIT);
      if (s_hold_kind == HOLD_DRAWABLE) {
-@@ -4204,7 +5337,8 @@ void gl_renderer_present_vram(int disp_x, int disp_y, int w, int h, int linear,
+@@ -4204,7 +5342,8 @@ void gl_renderer_present_vram(int disp_x, int disp_y, int w, int h, int linear,
          !present_dirty_test(disp_x, disp_y, disp_x + w - 1, disp_y + h - 1) &&
          !host_osd_needs_present() &&
          !psx_present_vsync_owns_cadence() &&
@@ -3533,7 +3546,7 @@ index d0ccc3d5..f35994f9 100644
          s_probe_skip++;
          gl_perf_present_enter();
          gl_perf_present_exit(0);
-@@ -4221,12 +5355,22 @@ void gl_renderer_present_vram(int disp_x, int disp_y, int w, int h, int linear,
+@@ -4221,12 +5360,22 @@ void gl_renderer_present_vram(int disp_x, int disp_y, int w, int h, int linear,
       * display mode (e.g. 216/224-line menus) must fill the rect as before.
       * The FMV band fix lives in the depth24/CPU present paths only. */
  
@@ -3558,7 +3571,7 @@ index d0ccc3d5..f35994f9 100644
      int interp_pair = interp_capture(s_hr_fbo, disp_x, disp_y, w, h,
                                       linear, force_4_3, GL_PRES_VRAM);
      if (interp_pair) {
-@@ -4270,7 +5414,11 @@ static void wide_blit_center(GLuint wide_fbo, int base_x, int disp_y, int disp_h
+@@ -4270,7 +5419,11 @@ static void wide_blit_center(GLuint wide_fbo, int base_x, int disp_y, int disp_h
      int native_w = g_wide_w - 2 * g_wide_off;
      if (native_w <= 0) return;
      int S = s_scale;
@@ -3571,7 +3584,7 @@ index d0ccc3d5..f35994f9 100644
      /* Copy the canonical framebuffer column into the wide surface CENTRE over the
       * FULL VRAM height, not just the current display band [disp_y, disp_y+disp_h].
       * The wide surface holds BOTH vertical double-buffer bands (Ape flips
-@@ -4279,16 +5427,16 @@ static void wide_blit_center(GLuint wide_fbo, int base_x, int disp_y, int disp_h
+@@ -4279,16 +5432,16 @@ static void wide_blit_center(GLuint wide_fbo, int base_x, int disp_y, int disp_h
       * column makes the wide CENTRE bit-identical to what the full mirror would
       * have drawn there for every band, so nothing the present reads is ever left
       * black. The margins (x outside the centre) are untouched. */
@@ -3597,7 +3610,7 @@ index d0ccc3d5..f35994f9 100644
  }
  
  /* GPU-direct native-wide present: blit the displayed buffer's wide FBO straight
-@@ -4315,7 +5463,8 @@ int gl_renderer_present_wide_fbo(int disp_x, int disp_y, int disp_h, int linear)
+@@ -4315,7 +5468,8 @@ int gl_renderer_present_wide_fbo(int disp_x, int disp_y, int disp_h, int linear)
          !present_dirty_test(0, disp_y, VRAM_W - 1, disp_y + disp_h - 1) &&
          !host_osd_needs_present() &&
          !psx_present_vsync_owns_cadence() &&
@@ -3607,7 +3620,7 @@ index d0ccc3d5..f35994f9 100644
          s_probe_skip++;
          gl_perf_present_enter();
          gl_perf_present_exit(1);
-@@ -4327,12 +5476,23 @@ int gl_renderer_present_wide_fbo(int disp_x, int disp_y, int disp_h, int linear)
+@@ -4327,12 +5481,23 @@ int gl_renderer_present_wide_fbo(int disp_x, int disp_y, int disp_h, int linear)
      letterbox_rect(ww, wh, &lx, &ly, &lw, &lh);
      wide_blit_center(fbo, disp_x, disp_y, disp_h);   /* fast-path: authoritative centre */
  
@@ -4699,7 +4712,7 @@ index 3a43a141..2d9ed690 100644
              if (horizon_kind == 2) {
                  s_extra_horizon_hits++;
 diff --git a/runtime/src/main.cpp b/runtime/src/main.cpp
-index fe317583..3f3ca494 100644
+index fe317583..1ba60421 100644
 --- a/runtime/src/main.cpp
 +++ b/runtime/src/main.cpp
 @@ -107,6 +107,8 @@ extern "C" void psx_game_codegen_relaunch_or_exit(const char* disc_path);
@@ -4906,7 +4919,7 @@ index fe317583..3f3ca494 100644
      if (is_load && ok)
          savestate_input_guard_arm();
      if (is_load) {
-@@ -1266,6 +1438,13 @@ static int           g_frame_interpolation_blend =
+@@ -1266,6 +1438,14 @@ static int           g_frame_interpolation_blend =
      PSX_MOD_FRAME_INTERPOLATION_LINEAR;
  static int           g_frame_interpolation_blend_default =
      PSX_MOD_FRAME_INTERPOLATION_LINEAR;
@@ -4914,13 +4927,14 @@ index fe317583..3f3ca494 100644
 +static PSXModPresentReplayFn g_present_replay_fn = nullptr;
 +static void*         g_present_replay_user = nullptr;
 +static int32_t       g_present_replay_hz = 0;
++static int           s_mod_replay_saved_vsync = -1;  /* D19G1: vsync before replay */
 +/* Time to Kill D19G: a replay rate from the game's OPTIONS, for the present path. */
 +static std::atomic<int>      s_mod_replay_request_set{0};
 +static std::atomic<int32_t>  s_mod_replay_request{0};
  static std::array<int, PSX_MAX_PLAYERS> g_mod_controller_mode_override =
      [] {
          std::array<int, PSX_MAX_PLAYERS> modes{};
-@@ -1308,6 +1487,74 @@ static Uint32 psx_fullscreen_flag_for_mode(int mode) {
+@@ -1308,6 +1488,74 @@ static Uint32 psx_fullscreen_flag_for_mode(int mode) {
      return 0;                                            /* windowed */
  }
  
@@ -4995,7 +5009,7 @@ index fe317583..3f3ca494 100644
  /* FMV auto-skip detection hooks (cdrom.c / mdec.c). */
  extern "C" int      cdrom_xa_stream_active(void);
  extern "C" uint32_t mdec_get_decode_count(void);
-@@ -1455,6 +1702,40 @@ extern "C" int psx_mod_set_frame_interpolation(
+@@ -1455,6 +1703,66 @@ extern "C" int psx_mod_set_frame_interpolation(
      return 1;
  }
  
@@ -5016,11 +5030,37 @@ index fe317583..3f3ca494 100644
 +    g_present_replay_hz = target_hz;
 +    if (fn) {
 +        g_video_renderer = 1;
++        s_mod_replay_saved_vsync = g_video_vsync;
 +        g_video_vsync = 0;
 +        std::fprintf(stdout, "psxrecomp: mod selected replay presentation (%s)\n",
 +                     target_hz == 0 ? "display refresh" :
 +                     target_hz < 0 ? "unlimited" : "fixed rate");
 +    }
++    return 1;
++}
++
++/* Time to Kill D19G1: replay presentation started or stopped while the game
++ * runs (FRAME RATE after a 60 launch, and back to 60). Applied on the present
++ * path as the rate request; see apply_mod_replay_request. */
++static std::atomic<int>      s_mod_replay_switch{0};     /* 1 start, 2 stop */
++static PSXModPresentReplayFn s_mod_replay_switch_fn = nullptr;
++static void*                 s_mod_replay_switch_user = nullptr;
++static int32_t               s_mod_replay_switch_hz = 0;
++static int mod_replay_switch_possible(void);
++
++extern "C" int psx_mod_present_replay_available(void) { return mod_replay_switch_possible(); }
++extern "C" int psx_mod_request_present_replay(PSXModPresentReplayFn fn, void* user,
++                                             int32_t target_hz) {
++    if (!mod_replay_switch_possible()) return 0;
++    if (fn && target_hz != 0 && target_hz != -1 &&
++        (target_hz < 30 || target_hz > 1000)) return 0;
++    if (fn) {
++        s_mod_replay_switch_fn = fn;
++        s_mod_replay_switch_user = user;
++        s_mod_replay_switch_hz = target_hz;
++        s_mod_replay_request_set.store(0);
++    }
++    s_mod_replay_switch.store(fn ? 1 : 2);
 +    return 1;
 +}
 +
@@ -5036,7 +5076,7 @@ index fe317583..3f3ca494 100644
  extern "C" int psx_mod_set_frame_interpolation_blend(
      uint32_t blend_mode) {
      if (blend_mode != PSX_MOD_FRAME_INTERPOLATION_LINEAR &&
-@@ -1749,6 +2030,87 @@ static void update_adaptive_widescreen() {
+@@ -1749,6 +2057,89 @@ static void update_adaptive_widescreen() {
      refresh_widescreen_projection();
  }
  
@@ -5060,6 +5100,7 @@ index fe317583..3f3ca494 100644
 +    return 1;
 +}
 +
++static void apply_mod_replay_request();
 +static void apply_mod_display_requests() {
 +    const int mode = s_mod_fullscreen_request.exchange(-1);
 +    if (mode >= 0 && sdl_window) {
@@ -5117,6 +5158,7 @@ index fe317583..3f3ca494 100644
 +            }
 +        }
 +    }
++    apply_mod_replay_request();
 +    if (s_mod_replay_request_set.exchange(0))
 +        gl_renderer_set_replay_target_hz((double)s_mod_replay_request.load());
 +}
@@ -5124,7 +5166,7 @@ index fe317583..3f3ca494 100644
  /* SDL GL attributes are global inputs to the next context creation.  Set the
   * runtime requirements immediately before every GL window, because launcher
   * teardown resets them and macOS otherwise supplies a legacy 2.1 context. */
-@@ -1770,6 +2132,21 @@ extern "C" void psx_ws_set_native_wide(int on) {
+@@ -1770,6 +2161,21 @@ extern "C" void psx_ws_set_native_wide(int on) {
  extern "C" int psx_ws_get_native_wide(void) { return g_ws_native_wide; }
  
  static bool          g_gl_active = false;    /* GL context live -> GL present path */
@@ -5146,7 +5188,7 @@ index fe317583..3f3ca494 100644
  static bool          g_vk_active = false;    /* Vulkan context live -> VK present path */
  
  /* present_shot — capture the COMPOSED present surface, i.e. the frame after the
-@@ -2900,7 +3277,7 @@ static int present_vsync_owns_cadence(void) {
+@@ -2900,7 +3306,7 @@ static int present_vsync_owns_cadence(void) {
          return 0;
      if (g_frame_period_ms <= 0.0)
          return 0;
@@ -5155,7 +5197,7 @@ index fe317583..3f3ca494 100644
          return 0;
      if (g_netplay_vsync_forced_off || psx_netplay_active())
          return 0;
-@@ -2938,6 +3315,8 @@ static void present_track_video_standard(void) {
+@@ -2938,6 +3344,8 @@ static void present_track_video_standard(void) {
  static int present_effective_swap_interval(void) {
      if (g_netplay_vsync_forced_off || psx_netplay_active())
          return 0;
@@ -5164,7 +5206,7 @@ index fe317583..3f3ca494 100644
      if (g_frame_interpolation)
          return 0;
      if (g_frame_period_ms <= 0.0)
-@@ -2953,6 +3332,7 @@ static int present_should_wall_pace(void) {
+@@ -2953,6 +3361,7 @@ static int present_should_wall_pace(void) {
      if (g_frame_interpolation && g_gl_active &&
          gl_renderer_interpolation_owns_cadence())
          return 0;
@@ -5172,13 +5214,51 @@ index fe317583..3f3ca494 100644
      /* Run the pacer even when driver vsync is SUPPOSED to own the cadence.
       *
       * Skipping it here trusts the swap to block, and a swap that does not
-@@ -2985,6 +3365,31 @@ static void apply_present_cadence(void) {
+@@ -2985,6 +3394,69 @@ static void apply_present_cadence(void) {
  #endif
  }
  
 +extern "C" void psx_set_service_tick(void (*fn)(void));
 +static void present_service_tick(void) {
 +    (void)gl_renderer_rp_tick(SDL_GetPerformanceCounter());
++}
++
++/* D19G1: the same setup the window creation does for a replay selected at
++ * activation, and its reverse. The guest's cadence is untouched either way;
++ * stopping restores the original present path and its vsync choice. */
++static int mod_replay_switch_possible(void) {
++    return g_gl_active && gl_renderer_replay_available() && !psx_netplay_active();
++}
++static void apply_mod_replay_request() {
++    const int request = s_mod_replay_switch.exchange(0);
++    if (!request || !mod_replay_switch_possible()) return;
++    if (request == 1) {
++        if (!g_present_replay_fn) {
++            s_mod_replay_saved_vsync = g_video_vsync;
++            g_video_vsync = 0;
++        }
++        g_present_replay_fn = s_mod_replay_switch_fn;
++        g_present_replay_user = s_mod_replay_switch_user;
++        g_present_replay_hz = s_mod_replay_switch_hz;
++        gl_renderer_set_replay_provider(g_present_replay_fn, g_present_replay_user,
++                                        (double)g_present_replay_hz, g_host_refresh_hz,
++                                        g_frame_period_ms > 0.0
++                                            ? 1000.0 / g_frame_period_ms
++                                            : 59.94);
++        frame_pacer_set_tick(gl_renderer_rp_tick);
++        psx_set_service_tick(present_service_tick);
++    } else {
++        if (!g_present_replay_fn) return;
++        gl_renderer_set_replay_provider(nullptr, nullptr, 0.0, g_host_refresh_hz, 0.0);
++        frame_pacer_set_tick(nullptr);
++        psx_set_service_tick(nullptr);
++        g_present_replay_fn = nullptr;
++        g_present_replay_user = nullptr;
++        g_present_replay_hz = 0;
++        if (s_mod_replay_saved_vsync >= 0) g_video_vsync = s_mod_replay_saved_vsync;
++    }
++    apply_present_cadence();
++    std::printf("psxrecomp: replay presentation %s\n", request == 1 ? "started" : "stopped");
 +}
 +
 +static void present_refresh_host_rate(void) {
@@ -5204,7 +5284,7 @@ index fe317583..3f3ca494 100644
  static void log_present_cadence(void) {
      if (present_vsync_owns_cadence()) {
          /* The pacer still runs underneath as a deadline cap (see
-@@ -3050,7 +3455,20 @@ static void netplay_soft_exit(const char *origin) {
+@@ -3050,7 +3522,20 @@ static void netplay_soft_exit(const char *origin) {
      std::exit(0);
  }
  
@@ -5225,7 +5305,7 @@ index fe317583..3f3ca494 100644
      /* (sljit removed 2026-07-15: overlay_compile_worker_stop joined the
       * off-thread JIT worker here; the worker no longer exists.) */
      psx_netplay_shutdown();
-@@ -3074,6 +3492,19 @@ static void shutdown_runtime(void) {
+@@ -3074,6 +3559,19 @@ static void shutdown_runtime(void) {
      debug_server_shutdown();
  }
  
@@ -5245,7 +5325,7 @@ index fe317583..3f3ca494 100644
  /* Tear down the game window/GL/audio after a lobby soft-return. Leaves SDL
   * subsystems and the lobby WebSocket intact for the next launcher session. */
  static void teardown_game_session_keep_lobby(void) {
-@@ -4478,6 +4909,8 @@ static bool controller_source_pressed_h(SDL_GameController* h, const ControllerS
+@@ -4478,6 +4976,8 @@ static bool controller_source_pressed_h(SDL_GameController* h, const ControllerS
   * (arrows=d-pad, X/S/Z/A=Cross/Circle/Square/Triangle, Q/W/E/R=L1/R1/L2/R2,
   * Return=Start, RShift=Select) plus T/Y=L3/R3 stick clicks. */
  static uint16_t pad_from_keyboard(int player) {
@@ -5254,7 +5334,7 @@ index fe317583..3f3ca494 100644
      const Uint8* keys = SDL_GetKeyboardState(NULL);
      return psx_keybinds_pad_word(keys, player);
  }
-@@ -4575,6 +5008,7 @@ static uint16_t pad_buttons_for(const PlayerInput& p, int player, bool suppress_
+@@ -4575,6 +5075,7 @@ static uint16_t pad_buttons_for(const PlayerInput& p, int player, bool suppress_
  static void pad_sticks_for(const PlayerInput& p, int player, uint8_t out[4]) {
      out[0] = out[1] = out[2] = out[3] = 0x80;
      if (p.kind == 1) {
@@ -5262,7 +5342,7 @@ index fe317583..3f3ca494 100644
          /* Keyboard analog: the configurable left/right stick-direction binds
           * (default = arrow keys on the LEFT stick; RIGHT stick unbound), so the
           * old keyboard analog behaviour is preserved unless the user rebinds. */
-@@ -5100,7 +5534,7 @@ static int capture_pad_slot(int s, PsxNetPad* out) {
+@@ -5100,7 +5601,7 @@ static int capture_pad_slot(int s, PsxNetPad* out) {
       * inside pad_sticks_for; psx_keybinds_sticks only widens a deflection, so
       * applying it twice is idempotent. */
      if (eff_analog) {
@@ -5271,7 +5351,7 @@ index fe317583..3f3ca494 100644
              const Uint8* keys = SDL_GetKeyboardState(NULL);
              psx_keybinds_sticks(keys, player, st);
          }
-@@ -5109,6 +5543,14 @@ static int capture_pad_slot(int s, PsxNetPad* out) {
+@@ -5109,6 +5610,14 @@ static int capture_pad_slot(int s, PsxNetPad* out) {
      }
      controller_pad_compose_physical(effective_mode, st, st); /* centred unless ANALOG; never D-pad-derived */
  
@@ -5286,7 +5366,7 @@ index fe317583..3f3ca494 100644
      out->buttons = btn;
      out->lx = st[0]; out->ly = st[1]; out->rx = st[2]; out->ry = st[3];
      out->analog = eff_analog ? 1u : 0u;
-@@ -5153,6 +5595,11 @@ static int capture_pad_slot_exclusive(int s, PsxNetPad* out, int present_sio_slo
+@@ -5153,6 +5662,11 @@ static int capture_pad_slot_exclusive(int s, PsxNetPad* out, int present_sio_slo
  
      controller_pad_compose_physical(effective_mode, st, st); /* centred unless ANALOG; never D-pad-derived */
  
@@ -5298,7 +5378,7 @@ index fe317583..3f3ca494 100644
      out->buttons = btn;
      out->lx = st[0]; out->ly = st[1]; out->rx = st[2]; out->ry = st[3];
      out->analog = eff_analog ? 1u : 0u;
-@@ -5550,6 +5997,7 @@ static void netplay_barrier_admit(int override) {
+@@ -5550,6 +6064,7 @@ static void netplay_barrier_admit(int override) {
          if (!g_headless) {
              SDL_Event ev;
              while (SDL_PollEvent(&ev)) {
@@ -5306,7 +5386,7 @@ index fe317583..3f3ca494 100644
                  if (ev.type == SDL_QUIT) {
                      netplay_soft_exit("sdl_window_close");
                      if (psx_return_to_lobby_requested()) return;
-@@ -6086,9 +6534,11 @@ static int runtime_ui_set_value(void*, const RecompRuntimeUiItem *item,
+@@ -6086,9 +6601,11 @@ static int runtime_ui_set_value(void*, const RecompRuntimeUiItem *item,
      if (std::strcmp(item->key, RECOMP_RUNTIME_UI_KEY_FULLSCREEN) == 0) {
          if (value < 0 || value > 2) return 0;
          g_fullscreen = value;
@@ -5319,7 +5399,7 @@ index fe317583..3f3ca494 100644
      } else if (std::strcmp(item->key,
                             RECOMP_RUNTIME_UI_KEY_WINDOW_SCALE) == 0) {
          if (value < 1 || value > 4) return 0;
-@@ -6702,9 +7152,11 @@ static void rewind_pause_present(void) {
+@@ -6702,9 +7219,11 @@ static void rewind_pause_present(void) {
  
  /* Freeze guest in vblank present while the rewind filmstrip is open. */
  static void rewind_host_pause_loop(void) {
@@ -5331,7 +5411,7 @@ index fe317583..3f3ca494 100644
              if (ev.type == SDL_QUIT) {
                  psx_crash_trace_set_exit_origin("sdl_window_close");
                  shutdown_runtime();
-@@ -6744,9 +7196,11 @@ static void rewind_host_pause_loop(void) {
+@@ -6744,9 +7263,11 @@ static void rewind_host_pause_loop(void) {
  
  /* Freeze guest in vblank present while the save-state slot menu is open. */
  static void savestate_menu_host_pause_loop(void) {
@@ -5343,7 +5423,7 @@ index fe317583..3f3ca494 100644
              if (ev.type == SDL_QUIT) {
                  psx_crash_trace_set_exit_origin("sdl_window_close");
                  shutdown_runtime();
-@@ -6792,9 +7246,11 @@ static void savestate_menu_host_pause_loop(void) {
+@@ -6792,9 +7313,11 @@ static void savestate_menu_host_pause_loop(void) {
   * Applying the routing permutation here means no guest instruction or SIO byte
   * transfer runs concurrently with the change. */
  static void runtime_settings_menu_host_pause_loop(void) {
@@ -5355,7 +5435,7 @@ index fe317583..3f3ca494 100644
              if (ev.type == SDL_QUIT) {
                  psx_crash_trace_set_exit_origin("sdl_window_close");
                  shutdown_runtime();
-@@ -6915,6 +7371,22 @@ static NetplayVblankEpilogue sdl_vblank_present_body(void) {
+@@ -6915,6 +7438,22 @@ static NetplayVblankEpilogue sdl_vblank_present_body(void) {
              const double host_fps = ro.host_fps; /* host frontend loop rate */
              s_fps_last_vblank = g_vblank_raise_count;
              s_fps_last_cycles = cycles_now;
@@ -5378,7 +5458,7 @@ index fe317583..3f3ca494 100644
              double display_fps = 0.0;
              if (g_frame_interpolation && g_gl_active) {
                  display_fps = g_frame_interpolation_fps > 0
-@@ -6923,7 +7395,12 @@ static NetplayVblankEpilogue sdl_vblank_present_body(void) {
+@@ -6923,7 +7462,12 @@ static NetplayVblankEpilogue sdl_vblank_present_body(void) {
              }
              if (!g_headless && sdl_window) {
                  char title[256];
@@ -5392,7 +5472,7 @@ index fe317583..3f3ca494 100644
                      snprintf(title, sizeof(title),
                               "%s  [Guest %.1f Hz/%.0f  %.0f%% RT | Host %.0f | Display %.0f fps]",
                               s_fps_base_title.c_str(), fps, ro.nominal_hz,
-@@ -6937,17 +7414,22 @@ static NetplayVblankEpilogue sdl_vblank_present_body(void) {
+@@ -6937,17 +7481,22 @@ static NetplayVblankEpilogue sdl_vblank_present_body(void) {
                  SDL_SetWindowTitle(sdl_window, title);
              }
              if (!g_headless) {
@@ -5422,7 +5502,7 @@ index fe317583..3f3ca494 100644
              }
              if (fps_telemetry_log_enabled()) {
                  std::fprintf(stderr,
-@@ -7019,9 +7501,26 @@ static NetplayVblankEpilogue sdl_vblank_present_body(void) {
+@@ -7019,9 +7568,26 @@ static NetplayVblankEpilogue sdl_vblank_present_body(void) {
      }
  
      if (!g_headless) {
@@ -5449,7 +5529,7 @@ index fe317583..3f3ca494 100644
              if (ev.type == SDL_QUIT) {
                  if (psx_netplay_active()) {
                      netplay_soft_exit("sdl_window_close");
-@@ -7104,7 +7603,8 @@ static NetplayVblankEpilogue sdl_vblank_present_body(void) {
+@@ -7104,7 +7670,8 @@ static NetplayVblankEpilogue sdl_vblank_present_body(void) {
                                                      (int)mod)) {
                      host_volume_adjust(-5);
                  }
@@ -5459,7 +5539,7 @@ index fe317583..3f3ca494 100644
                   * windowed and the CONFIGURED tri-state mode (g_fullscreen: 1
                   * borderless desktop fullscreen keeping the desktop resolution
                   * and letterboxing the image, or 2 exclusive fullscreen — a
-@@ -7127,12 +7627,16 @@ static NetplayVblankEpilogue sdl_vblank_present_body(void) {
+@@ -7127,12 +7694,16 @@ static NetplayVblankEpilogue sdl_vblank_present_body(void) {
                           * matching the historical (pre-tri-state) behaviour. */
                          Uint32 target = psx_fullscreen_flag_for_mode(g_fullscreen);
                          if (target == 0) target = SDL_WINDOW_FULLSCREEN_DESKTOP;
@@ -5476,7 +5556,7 @@ index fe317583..3f3ca494 100644
          savestate_menu_poll_toggle_buttons();
          rewind_poll_toggle_buttons();
          psx_rewind_note_frame();
-@@ -7468,6 +7972,7 @@ static NetplayVblankEpilogue sdl_vblank_present_body(void) {
+@@ -7468,6 +8039,7 @@ static NetplayVblankEpilogue sdl_vblank_present_body(void) {
  
      /* Resize-driven mode updates the pending aspect during BIOS boot too, but
       * the actual wide compositor remains disengaged until game entry. */
@@ -5484,7 +5564,7 @@ index fe317583..3f3ca494 100644
      update_adaptive_widescreen();
  
      /* Depth24 GP1(07h) retarget (MotK intro→crawl): keep the prior Swap for a
-@@ -11481,6 +11986,12 @@ int main(int argc, char** argv) {
+@@ -11481,6 +12053,12 @@ int main(int argc, char** argv) {
      int         cli_renderer   = -1;   /* 0=software 1=opengl 2=vulkan */
      const char* cli_window_title = nullptr;  /* label windows in a fleet */
      const char* cli_memcard_dir = nullptr;   /* isolate writable state in a fleet */
@@ -5497,7 +5577,7 @@ index fe317583..3f3ca494 100644
      std::vector<std::string> cli_path_arg_storage;
      cli_path_arg_storage.reserve((size_t)argc);
      auto is_cli_option = [](const char* arg) {
-@@ -11551,6 +12062,33 @@ int main(int argc, char** argv) {
+@@ -11551,6 +12129,33 @@ int main(int argc, char** argv) {
              if      (std::strcmp(r, "software") == 0) cli_renderer = 0;
              else if (std::strcmp(r, "opengl")   == 0) cli_renderer = 1;
              else if (std::strcmp(r, "vulkan")   == 0) cli_renderer = 2;
@@ -5531,7 +5611,7 @@ index fe317583..3f3ca494 100644
          } else if (std::strcmp(argv[i], "--window-title") == 0 && i + 1 < argc) {
              cli_window_title = argv[++i];
          } else if (std::strcmp(argv[i], "--launcher") == 0) {
-@@ -13568,6 +14106,22 @@ int main(int argc, char** argv) {
+@@ -13568,6 +14173,22 @@ int main(int argc, char** argv) {
      if (cli_debug_port >= 0) debug_port      = (uint16_t)cli_debug_port;
      if (cli_renderer   >= 0) g_video_renderer = cli_renderer;
      if (cli_window_title)    window_title     = cli_window_title;
@@ -5554,7 +5634,7 @@ index fe317583..3f3ca494 100644
      if (cli_memcard_dir) {
          memcard_dir = std::filesystem::path(cli_memcard_dir);
          if (memcard_dir.is_relative())
-@@ -13764,6 +14318,13 @@ session_reboot:
+@@ -13764,6 +14385,13 @@ session_reboot:
      gpu_texture_correction_set(g_video_perspective_texturing);
      pgxp_set_cpu_mode(g_video_pgxp_cpu_mode);
      pgxp_set_tolerance(g_video_pgxp_tolerance);
@@ -5568,7 +5648,7 @@ index fe317583..3f3ca494 100644
      if (g_video_geometry_correction || g_video_perspective_texturing) {
          std::fprintf(stdout,
                       "psxrecomp: geometry correction %s, perspective texturing %s%s\n",
-@@ -14086,7 +14647,7 @@ session_reboot:
+@@ -14086,7 +14714,7 @@ session_reboot:
      /* Fullscreen on launch (launcher's tri-state Fullscreen control): 1 =
       * borderless desktop fullscreen (keeps the desktop resolution, letterboxes
       * the image), 2 = exclusive fullscreen (real display-mode change), 0 =
@@ -5577,7 +5657,7 @@ index fe317583..3f3ca494 100644
      win_flags |= psx_fullscreen_flag_for_mode(g_fullscreen);
      /* Open at the user-chosen window size (default 1280 wide) instead of the
       * old hardcoded 640x480, so the game doesn't boot into a tiny window. The
-@@ -14105,7 +14666,9 @@ session_reboot:
+@@ -14105,7 +14733,9 @@ session_reboot:
          std::fprintf(stderr, "SDL_CreateWindow failed: %s\n", SDL_GetError());
          return 1;
      }
@@ -5587,7 +5667,7 @@ index fe317583..3f3ca494 100644
  
      /* Maximise instead of computing the frame size ourselves.
       *
-@@ -14210,6 +14773,17 @@ session_reboot:
+@@ -14210,6 +14840,17 @@ session_reboot:
                                            ? 1000.0 / g_frame_period_ms
                                            : 59.94,
                                        g_frame_interpolation_blend);
@@ -5605,7 +5685,7 @@ index fe317583..3f3ca494 100644
      }
      /* Vulkan backend: create the instance/device/swapchain on the
       * SDL_WINDOW_VULKAN window. On failure, fall back to software (vkb_init
-@@ -14576,6 +15150,7 @@ session_reboot:
+@@ -14576,6 +15217,7 @@ session_reboot:
      psx_selfcheck_init(&cpu, memory_get_bios_checksum(), game_entry_pc);
  
      /* Execute. */
@@ -5613,7 +5693,7 @@ index fe317583..3f3ca494 100644
      std::fprintf(stdout, "psxrecomp runtime: executing from PC=0x%08X\n", cpu.pc);
  
  #if defined(PSX_ORACLE_BUILD)
-@@ -14766,6 +15341,7 @@ session_reboot:
+@@ -14766,6 +15408,7 @@ session_reboot:
          }
      }
  
@@ -5621,7 +5701,7 @@ index fe317583..3f3ca494 100644
      psx_scheduler_run(&cpu);
      if (psx_return_to_lobby_requested() && g_netplay_from_lobby)
          goto soft_return_lobby;
-@@ -14805,11 +15381,28 @@ session_reboot:
+@@ -14805,11 +15448,28 @@ session_reboot:
                  std::fprintf(tf, "    {\"addr\":\"0x%08X\",\"val\":\"0x%08X\"}%s\n",
                               a, v, (w < 39) ? "," : "");
              }

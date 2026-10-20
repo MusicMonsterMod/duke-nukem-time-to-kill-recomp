@@ -131,7 +131,10 @@ weapons, physics and timers do not run faster when you raise the display rate.
 Native scene updates normally run at 30 frames per second and can fall lower
 in busy areas. High refresh draws additional pictures between those updates.
 
-Choose it with `--frame-rate`, or with **F** in `--settings`:
+Choose it with `--frame-rate`, with **F** in `--settings`, or in game under
+OPTIONS > DISPLAY > FRAME RATE, which applies as soon as you confirm, also
+after a launch at 60 (OpenGL renderer; with the software renderer it waits
+for the next launch):
 
 - `60` (default): the original presentation.
 - `display`: your monitor's refresh rate (for example 180 on a 180 Hz screen).
@@ -1078,8 +1081,9 @@ defaults. The line above the buttons describes the highlighted option.
 These apply as soon as you confirm: mouse sensitivity, invert mouse, display,
 widescreen, camera, view, shoulder, camera distance, weapon aim, crosshair,
 aim assist, red dot, jump, jump walls, landing, swimming, dynamite and view
-bob. Frame rate applies at once too, unless the game was started at 60: then
-it says **NEXT LAUNCH**, like renderer, resolution, filter, draw distance,
+bob. Frame rate applies at once too, from any launch rate (choosing 60 returns
+to the original presentation); with the software renderer it says
+**NEXT LAUNCH**, like renderer, resolution, filter, draw distance,
 geometry, textures, CPU speed, CPU timing, jetpack and steroids, which apply
 the next time you start the game. A new widescreen shape also reshapes a plain
 window (fullscreen and maximised windows show bars instead). Confirmed

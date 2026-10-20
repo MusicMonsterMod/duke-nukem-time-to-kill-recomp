@@ -724,8 +724,8 @@ void change(int dir,uint64_t held_ms) {
     else {const int n=(int)r.choices.size();v=(v+dir+n)%n;}
     if(v!=before) sound(1);
 }
-// D19G: rows that apply when confirmed. FRAME RATE only while replay
-// presentation runs (not after a 60 launch).
+// D19G: rows that apply when confirmed. D19G1: FRAME RATE wherever replay
+// presentation can run (OpenGL), from any launch rate.
 bool row_live(const Row& r) {
     if(!r.live) return false;
     if(r.key && !std::strcmp(r.key,"frame_rate")) return frame_rate_live();
@@ -1025,7 +1025,7 @@ void draw_settings(Guest& g,const Geometry& geo) {
     }
     const Row& r=s.rows[cursor];
     std::string desc=r.desc;
-    if(!r.live) desc+=". NEXT LAUNCH";
+    if(!row_live(r)) desc+=". NEXT LAUNCH";
     std::vector<std::string> lines;
     wrap(g,desc.c_str(),geo.w*3/4,lines);
     const int ybase=-geo.y0-(geo.h>>4)-19-14-12*((int)lines.size()-1);

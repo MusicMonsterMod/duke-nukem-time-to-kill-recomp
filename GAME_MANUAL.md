@@ -250,7 +250,7 @@ twice the original distance.
 With `portable` (the Modernized default), steroids work as in EDuke32: picking
 them up shows STEROIDS as before but keeps them, and they appear in the **[ / ]**
 switcher (right after the medkit) and the HUD item box with their own pill-bottle
-icon at 100%. **R**, or **Enter** / **U** with steroids selected, takes them:
+icon at 100%. **R**, or **Enter** with steroids selected, takes them:
 `USED STEROIDS` shows, the pickup sound plays and the original steroids effect
 runs for its usual time. While it runs, the steroids box counts down (lit, with
 the pill icon) and steroids stay selected, so the box you were looking at counts
@@ -336,7 +336,7 @@ See [notes](documentation/138-d08a12-modern-dynamite.md).
 
 ### Swimming (Modernized, D08AB)
 
-**SWIMMING** in OPTIONS > MODERNIZED picks how fast Duke moves in water.
+**SWIMMING** in OPTIONS > ADVANCED picks how fast Duke moves in water.
 `MODERN` (the Modernized default) is the D08AA pace: walk, or run with **Shift**,
 at the land speeds in shallow water, wading, on the surface and underwater.
 `ORIGINAL` keeps the modern controls but restores the original water speeds:
@@ -688,7 +688,7 @@ and **B** the Bio Mask through original use rules (TTK’s own gas mask — not 
 or boots). Wait for gadget equip/remove and
 weapon redraw to finish before another shortcut. **J** also switches the jetpack
 off in mid-flight (a controlled fall follows). Underwater air still equips automatically.
-**[ / ]** cycle eligible gadgets; **U** uses the selected gadget. In Modernized, a gadget you pick up (jetpack, Bio Mask, goggles, medkit, steroids), or top up when it was not full, becomes the selected one at once, as in Duke 3D, so its HUD box shows and **Enter** / **U** use it; keys and mission items leave the selection alone. **, / .** browse the level's mission items (see Mission items below). **R takes steroids** (see Portable steroids below). In third person, **Q kicks only while standing still with Mighty Boot already selected on 1**
+**[ / ]** cycle eligible gadgets; **Enter** uses the selected gadget. In Modernized, a gadget you pick up (jetpack, Bio Mask, goggles, medkit, steroids), or top up when it was not full, becomes the selected one at once, as in Duke 3D, so its HUD box shows and **Enter** use it; keys and mission items leave the selection alone. **, / .** browse the level's mission items (see Mission items below). **R takes steroids** (see Portable steroids below). In third person, **Q kicks only while standing still with Mighty Boot already selected on 1**
 (the original kick). Q never selects another weapon or presses fire. In first
 person Q is a quick kick with any weapon (see below).
 
@@ -977,6 +977,11 @@ For original weapon aiming with the original red dot as the marker:
 python3 recomp/tools/local/run.py --weapon-aim original --red-dot on --show-settings
 ```
 
+`--aim-assist original-lock` is **AUTO AIM ON** in OPTIONS > ADVANCED; it also
+turns the original game's auto aim on, which original weapon aiming and the
+red dot use. Modernized plays with it off by default, so add
+`--aim-assist original-lock` to the last command for the original auto aim.
+
 These commands save preferences without launching. Old profiles are backed up
 and migrated automatically, preserving custom bindings; use `--show-bindings`
 to inspect them. See [the follow-up controls and aiming notes](documentation/24-d07-controls-and-aim-options.md).
@@ -1062,26 +1067,50 @@ the same way on every menu screen:
 
 #### In-game OPTIONS (Modernized)
 
-OPTIONS, on the title menu and in the pause menu, lists the original SOUND,
-CONTROLLER and GAME SETTINGS, plus three screens in the same style:
+OPTIONS, on the title menu and in the pause menu, lists five screens, all in
+the original's style:
 
-- **PC CONTROLS**: mouse sensitivity (slider), invert mouse and **KEY
+- **SOUND**: the original screen (sound effects, music and speech volume,
+  stereo / mono).
+- **CONTROLS**: mouse sensitivity (slider), invert mouse and **KEY
   BINDINGS** (below).
-- **DISPLAY**: renderer, resolution, display (windowed / borderless /
-  exclusive), filter, widescreen, frame rate, draw distance, geometry,
-  textures, CPU speed and CPU timing.
-- **MODERNIZED**: camera, view, shoulder, camera distance, weapon aim,
-  crosshair, aim assist, red dot, jump, jump walls, landing, swimming,
-  jetpack, dynamite, steroids and view bob.
+- **DISPLAY**: window (windowed / borderless / exclusive), resolution,
+  widescreen and frame rate.
+- **GAMEPLAY**: view, shoulder, camera distance, crosshair, gore, status bars
+  and view bob.
+- **ADVANCED**: one list under headings. CAMERA AND AIM: camera, weapon aim.
+  MOVEMENT: jump, jump walls, landing, swimming, jetpack. ITEMS: dynamite,
+  steroids. GRAPHICS: renderer, filter, draw distance, geometry, textures.
+  PERFORMANCE: CPU speed, CPU timing. ORIGINAL GAME: **auto aim**, red dot,
+  game speed.
+
+**Auto aim** (off by default) lets the original game's target lock help your
+aim: with view aiming it nudges a shot onto the enemy the game has locked
+when that enemy is near the crosshair, and with original weapon aiming it is
+the original auto aim. The red dot, just below it, is that lock's marker, so
+it needs auto aim on. **Gore**, **status bars** and **game speed** are the
+original GAME SETTINGS' own options and are kept on the memory card as
+before. Game speed is how fast Duke and the enemies move (50 is the
+original's default); it is not the frame rate. Status bars off hides the
+health and ammo boxes and every item and power-up box with them.
+
+The original CONTROLLER screen (PlayStation button layout) is not offered in
+Modernized, and Modernized always plays on the default layout, because the
+keyboard controls are built on it. A layout or auto aim setting you saved in
+Vanilla stays on the memory card: Modernized saves keep it for Vanilla.
+
+A dimmed row has no effect with the current settings; its description says
+what it needs (for example shoulder and camera distance need camera
+INDEPENDENT, resolution needs the OpenGL renderer).
 
 Up/Down choose (hold to repeat; the list scrolls), Left/Right change the value
 (hold a slider to speed up), **Enter** confirms and keeps the changes,
 **Escape** cancels them, **V** (Square, DEFAULT) restores the screen's
 defaults. The line above the buttons describes the highlighted option.
-These apply as soon as you confirm: mouse sensitivity, invert mouse, display,
+These apply as soon as you confirm: mouse sensitivity, invert mouse, window,
 widescreen, camera, view, shoulder, camera distance, weapon aim, crosshair,
-aim assist, red dot, jump, jump walls, landing, swimming, dynamite and view
-bob. Frame rate applies at once too, from any launch rate (choosing 60 returns
+auto aim, gore, status bars, game speed, red dot, jump, jump walls, landing,
+swimming, dynamite and view bob. Frame rate applies at once too, from any launch rate (choosing 60 returns
 to the original presentation); with the software renderer it says
 **NEXT LAUNCH**, like renderer, resolution, filter, draw distance,
 geometry, textures, CPU speed, CPU timing, jetpack and steroids, which apply
@@ -1091,11 +1120,11 @@ settings are saved to your profile when the game closes, the same settings
 `run.py` and `--settings` change. There is no profile choice here: Vanilla,
 with the original menus, is `run.py --vanilla`.
 
-**KEY BINDINGS** (PC CONTROLS, highlight it and press Enter) lists every
+**KEY BINDINGS** (CONTROLS, highlight it and press Enter) lists every
 Modernized action in groups: MOVEMENT, WEAPONS, ITEMS, CAMERA and ORIGINAL
 CONTROLS (the weapon keys are named after the first weapon of their group;
-CROSSHAIR is the I key's action; USE ITEM shows ENTER / U because Enter always
-uses the item too). Highlight an action, press **Enter**, then press the new
+CROSSHAIR is the I key's action; USE ITEM shows ENTER, which always uses the
+item; you can add a second key there, none by default). Highlight an action, press **Enter**, then press the new
 key or mouse button:
 
 - If another action had that key, the two swap; the line above the buttons
@@ -1106,7 +1135,7 @@ key or mouse button:
   C can only be the holster's key.
 - A change works straight away and is saved to your profile.
 - **V** (DEFAULT) asks RESTORE DEFAULT KEYS? and puts every key back on YES.
-- **Escape** returns to PC CONTROLS.
+- **Escape** returns to CONTROLS.
 
 `run.py --bind` and `--settings` (6 PC bindings) still set the same bindings
 outside the game.
@@ -1348,7 +1377,7 @@ prepared disc), messages use the generic host font.
 
 In Modernized gameplay, **[ / ]** open the temporary gadget **switcher** (centered
 strip with Time to Kill's own HUD item icons (D08A3: jetpack,
-Bio Mask and goggles; the medkit and held steroids are the project's own sprites) and green 3x5 Microfont charge); **Enter** or **U**
+Bio Mask and goggles; the medkit and held steroids are the project's own sprites) and green 3x5 Microfont charge); **Enter**
 activates the currently selected gadget (whether or not the strip is showing).
 Holding Enter activates at most once. Empty inventory stays silent. Direct keys
 **M / J / B / N** select and use medkit / jetpack / Bio Mask / night vision **without**
@@ -1372,7 +1401,7 @@ found yet as dim grey silhouettes, and "MISSION" and found/total at the bottom
 at the top of the screen shows its name, type and FOUND or NOT FOUND YET. The
 first press opens on the item you last looked at; then **.** moves to the next
 item and **,** to the previous one (wrapping). It closes about 2.5 seconds after
-your last press. **Enter** or **U** while it is open closes it and makes Duke try
+your last press. **Enter** while it is open closes it and makes Duke try
 to use the item shown (D08A18); no gadget is toggled. Standing at the lock that
 takes it (a card reader, a key door, a crystal holder or receptacle), it does
 exactly what **E** there does: Duke puts his weapon away, takes the item out and
@@ -1389,11 +1418,11 @@ unchanged; the original L1/R1 sidesteps that comma/period used to send are
 unbound in Modernized (A/D strafe everywhere) and can be rebound.
 
 **Selected gadget on the HUD (D08A6).** In Modernized the gadget that **Enter**
-/ **U** will use always has its own box in the bottom right corner, just above
+will use always has its own box in the bottom right corner, just above
 the ammo box, in the status bar's own style: the gadget's icon (a medkit case
 for the medkit; the health box keeps its red cross) and its charge in the red HUD digits. Bright digits mean
 the gadget is on; dim digits mean it is selected but off. The medkit is always
-bright. The box changes as soon as you move to another gadget with **[ / ]**, even in flight or while firing; only **Enter** / **U** use it. If the jetpack is
+bright. The box changes as soon as you move to another gadget with **[ / ]**, even in flight or while firing; only **Enter** use it. If the jetpack is
 on while another gadget is selected, its box moves one row higher; the Bio Mask
 and goggles boxes show in their usual place left of the ammo box. With no
 gadget, there is no box. Vanilla is unchanged.

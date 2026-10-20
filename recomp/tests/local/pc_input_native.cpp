@@ -71,7 +71,7 @@ int main() {
     CHECK(std::strcmp(ttk::input_binding_name(ttk::original_aim),"Unbound")==0);
     CHECK(std::strcmp(ttk::input_binding_name(ttk::grab),"Mouse2")==0);
     CHECK(std::strcmp(ttk::input_binding_name(ttk::grab_alt),"Left Alt")==0);
-    CHECK(std::strcmp(ttk::input_binding_name(ttk::item_use),"U")==0);
+    CHECK(std::strcmp(ttk::input_binding_name(ttk::item_use),"Unbound")==0);
     focus(true);
     key(SDL_SCANCODE_W, true);
     CHECK(tick().move_y == 0); // menu context never leaks movement

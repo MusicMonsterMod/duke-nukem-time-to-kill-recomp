@@ -110,6 +110,12 @@ const Guard guards[]={
     {0x80085060u,0x6b0u,"5bbfb37b63bccf7306ddd0d46e2c9b7e163509795ece67dd50fddf601bd36ec5"},  // CHOOSE CHARACTER
     {0x800c3de4u,0x10u,"5cd023106a3b69feb9e1a71b77471c35d4a43b210a1751a4a3aab314a1dfc30f"},   // difficulty string ids
     {0x80016e8cu,0x30u,"9d528df15f856133001784171950a0e3c1a7c9d05b1ae7ecb1393b71a5f0b164"},   // two player levels, formats, characters
+    // D19N: GAME SETTINGS' values, the pad layouts and the memory card's settings.
+    {0x80089920u,0xacu,"755b97bdc2a6a2074cdca0f00b7c6c3d645c01f623163a83bfdb30874cb36031"},   // GAME SPEED apply
+    {0x800899ccu,0x8e8u,"31f94a7078b4714634cd78d7a9bd4d56d49f97da7e6d014ffbc26ef908d260b7"},  // GAME SETTINGS handler
+    {0x80082f64u,0x220u,"e860559817616eac4b4d75765356b5ea2ccf6a10b6f9e678d9ebcd9dbf572308"},  // card settings pack and unpack
+    {0x8001e394u,0xb0u,"93339da683cb20d974a0bbdbd408155d2f24ceb84afdef270976b091aea716ce"},   // pad layout copies
+    {0x800bda7cu,0x10u,"fb1a32f64869bc2512840a45c4e2191f18294129c8cfa8bc2f3d6d7b49b08bb3"},   // default pad layout
 };
 std::array<std::vector<uint32_t>,sizeof guards/sizeof guards[0]> expected;
 
@@ -123,7 +129,21 @@ constexpr uint32_t fn_prompt=0x8008411c, sprites=0x800c43b4, sentinel=0x800000fc
 // ramp (row 239, 14 rows below gold 225; entry 0 transparent like gold's).
 constexpr uint32_t glyph_next=0x800d67a8, glyph_size=40;
 constexpr int clut_amber=14*64;
+// D19N: a row with no effect is drawn at this texture modulation (0x80 is
+// full; D08A6 dims an off gadget's digits the same way). The font's grey CLUT
+// row 224 has an opaque entry 0: it drew a box behind each glyph.
+constexpr uint8_t dim_level=0x48;
 constexpr uint16_t ours_sub=8, death_sub=9;
+// D19N: the original GAME SETTINGS' values (0x800899cc): the settings word
+// (bit 0 AUTO AIM, bits 1-2 GORE 0-2, bit 3 STATUS BARS, bit 4 vibration,
+// bit 5 a vibrating pad) and GAME SPEED (0-100), applied by 0x80089920. The pad
+// layouts (16 bytes per pad, default 0x800bda7c) are the original CONTROLLER's.
+// The memory card's settings are packed by 0x80082f64 and unpacked by
+// 0x80083070, which ends with 0x80089920 (return 0x8008315c).
+constexpr uint32_t settings_word=0x800c3f9c, game_speed=0x800c3fa0, fn_game_speed=0x80089920;
+constexpr uint32_t pad_layouts=0x800d1b60, default_layout=0x800bda7c, layout_size=16;
+constexpr uint32_t fn_card_pack=0x80082f64, card_unpacked=0x8008315cu;
+constexpr uint16_t auto_aim_bit=1, gore_bits=6, status_bars_bit=8;
 // D19H: the pause menu (0x800be56a = 12, its prompt 0x800dd1c4, reset flag
 // 0x800c3f28) and the death screen (15, prompt 0x800dd1c6, reset 0x800c3f34).
 constexpr uint32_t pause_screen=0x800be56a, death_prompt=0x800dd1c6;
@@ -194,21 +214,33 @@ constexpr uint32_t font_small=0, font_menu=0x100, centre=4, right=8, blue=1;
 enum Icon {icon_triangle=4, icon_cross=6, icon_square=7, icon_change=11, icon_select=12};
 
 struct Choice {const char* label;const char* env;const char* json;};
-enum class Section {Controls, Presentation};
+// D19N: Game rows are the original GAME SETTINGS' own values in guest memory
+// (saved on the memory card as before), never in the profile.
+enum class Section {Controls, Presentation, Game};
 struct Row {
     const char* label; Section section; const char* key; const char* env; bool live; const char* desc;
     std::vector<Choice> choices; int def; // a pick
     bool slider=false; int lo=0,hi=0,step=1; double scale=1; // value * scale is the setting
     bool link=false; // D19G: CONFIRM opens a page (KEY BINDINGS), no value of its own
+    bool heading=false; // D19N: an amber section heading (ADVANCED), skipped by the cursor
 };
 // One value per row: a choice index, or the slider value.
 using Values=std::vector<int>;
 struct Screen {const char* title; std::vector<Row> rows;};
 
 const Choice on_off[]={{"ON","1","true"},{"OFF","0","false"}};
+Row heading(const char* label) {Row r{label,Section::Controls,nullptr,nullptr,false,"",{},0};r.heading=true;return r;}
+// D19N (user-approved layout A, 2026-10-20): OPTIONS is SOUND (the original
+// screen), CONTROLS, DISPLAY and GAMEPLAY with the everyday rows, and ADVANCED
+// with every original / modern switch under section headings. The original
+// CONTROLLER (pad layout) is not offered: Modernized play needs the default
+// layout (enforce_modern_settings). GAME SETTINGS' rows moved: GORE and STATUS
+// BARS to GAMEPLAY; AUTO AIM (now the profile's aim assist, written into the
+// game) and GAME SPEED to ADVANCED > ORIGINAL GAME, with the RED DOT that
+// AUTO AIM drives (user review, 2026-10-20). Contract: documentation/166-d19n-options-layout.md.
 std::vector<Screen> make_screens() {
-    std::vector<Screen> s(3);
-    s[0]={"PC CONTROLS",{
+    std::vector<Screen> s(4);
+    s[0]={"CONTROLS",{
         {"MOUSE SENSITIVITY",Section::Controls,"mouse_sensitivity","DNTTK_MOUSE_SENSITIVITY",true,
          "HOW FAR THE CAMERA TURNS FOR EACH MOUSE MOVE",{},12,true,1,200,1,0.01},
         {"INVERT MOUSE",Section::Controls,"invert_y","DNTTK_MOUSE_INVERT_Y",true,
@@ -217,33 +249,17 @@ std::vector<Screen> make_screens() {
          {{">",">",">"}},0,false,0,0,1,1,true},
     }};
     s[1]={"DISPLAY",{
-        {"RENDERER",Section::Presentation,"renderer",nullptr,false,"SOFTWARE IS THE ORIGINAL LOOK",
-         {{"OPENGL","opengl","\"opengl\""},{"SOFTWARE","software","\"software\""}},0},
+        {"WINDOW",Section::Presentation,"display",nullptr,true,"HOW THE GAME OPENS. F11 SWITCHES TO FULLSCREEN",
+         {{"WINDOWED","windowed","\"windowed\""},{"BORDERLESS","borderless","\"borderless\""},{"EXCLUSIVE","exclusive","\"exclusive\""}},0},
         {"RESOLUTION",Section::Presentation,"internal_scale",nullptr,false,"INTERNAL 3D RESOLUTION. 1X IS THE ORIGINAL",
          {{"1X","1","1"},{"2X","2","2"},{"3X","3","3"},{"4X","4","4"}},3},
-        {"DISPLAY",Section::Presentation,"display",nullptr,true,"HOW THE GAME OPENS. F11 SWITCHES TO FULLSCREEN",
-         {{"WINDOWED","windowed","\"windowed\""},{"BORDERLESS","borderless","\"borderless\""},{"EXCLUSIVE","exclusive","\"exclusive\""}},0},
-        {"FILTER",Section::Presentation,"output_filter",nullptr,false,"HOW THE FINISHED IMAGE IS SCALED TO THE WINDOW",
-         {{"LINEAR","linear","\"linear\""},{"NEAREST","nearest","\"nearest\""}},0},
         {"WIDESCREEN",Section::Controls,"widescreen","DNTTK_WIDESCREEN",true,"A WIDER VIEW, HUD IN THE CORNERS. MOVIES STAY 4:3",
          {{"16:9","16:9","\"16:9\""},{"16:10","16:10","\"16:10\""},{"21:9","21:9","\"21:9\""},{"AUTO","auto","\"auto\""},{"OFF","off","\"off\""}},0},
         {"FRAME RATE",Section::Controls,"frame_rate","DNTTK_FRAME_RATE",true,"SMOOTHER MOTION. THE GAME SPEED NEVER CHANGES",
          {{"DISPLAY","display","\"display\""},{"30","30","\"30\""},{"60","60","\"60\""},{"120","120","\"120\""},{"144","144","\"144\""},
           {"165","165","\"165\""},{"180","180","\"180\""},{"240","240","\"240\""},{"UNLIMITED","unlimited","\"unlimited\""}},2},
-        {"DRAW DISTANCE",Section::Controls,"draw_distance","DNTTK_DRAW_DISTANCE",false,"EXTENDED: TWICE THE VIEW, NO DISTANT BLACK SEAMS",
-         {{"EXTENDED","extended","\"extended\""},{"ORIGINAL","original","\"original\""}},0},
-        {"GEOMETRY",Section::Controls,"geometry_precision","DNTTK_GEOMETRY_PRECISION",false,"CORRECTED: STEADIER POLYGON EDGES",
-         {{"ORIGINAL","original","\"original\""},{"CORRECTED","corrected","\"corrected\""}},0},
-        {"TEXTURES",Section::Controls,"texture_precision","DNTTK_TEXTURE_PRECISION",false,"CORRECTED: NO TEXTURE WARP",
-         {{"ORIGINAL","original","\"original\""},{"CORRECTED","corrected","\"corrected\""}},0},
-        {"CPU SPEED",Section::Controls,"cpu_overclock","PSX_CPU_OVERCLOCK",false,"150 KEEPS BUSY SCENES SMOOTH. 100 IS THE ORIGINAL",
-         {{"100","100","100"},{"125","125","125"},{"150","150","150"},{"175","175","175"},{"200","200","200"}},2},
-        {"CPU TIMING",Section::Controls,"cpu_timing","DNTTK_CPU_TIMING",false,"FAST USES FAR LESS HOST CPU AT THE SAME GAME SPEED",
-         {{"FAST","fast","\"fast\""},{"ACCURATE","accurate","\"accurate\""}},0},
     }};
-    s[2]={"MODERNIZED",{
-        {"CAMERA",Section::Controls,"camera","DNTTK_CAMERA_MODE",true,"INDEPENDENT: THE MOUSE TURNS THE CAMERA",
-         {{"INDEPENDENT","independent","\"independent\""},{"ORIGINAL","original","\"original\""}},0},
+    s[2]={"GAMEPLAY",{
         {"VIEW",Section::Controls,"view","DNTTK_CAMERA_VIEW",true,"THE FIRST / THIRD PERSON KEY SWITCHES IN GAME",
          {{"THIRD PERSON","third","\"third\""},{"FIRST PERSON","first","\"first\""}},0},
         {"SHOULDER",Section::Controls,"shoulder","DNTTK_CAMERA_SHOULDER",true,"THE SHOULDER KEY CYCLES IN GAME",
@@ -251,14 +267,20 @@ std::vector<Screen> make_screens() {
         {"CAMERA DISTANCE",Section::Controls,"camera_distance","DNTTK_CAMERA_DISTANCE",true,"ALT AND THE MOUSE WHEEL ALSO SET IT IN GAME",
          {{"ORIGINAL","0","0"},{"1024","1024","1024"},{"1536","1536","1536"},{"2048","2048","2048"},
           {"3072","3072","3072"},{"4096","4096","4096"},{"6144","6144","6144"}},0},
-        {"WEAPON AIM",Section::Controls,"weapon_aim","DNTTK_WEAPON_AIM",true,"VIEW: SHOTS GO WHERE THE CROSSHAIR POINTS",
-         {{"VIEW","view","\"view\""},{"ORIGINAL","original","\"original\""}},0},
         {"CROSSHAIR",Section::Controls,"crosshair","DNTTK_CROSSHAIR",true,"SHOWS OR HIDES THE CROSSHAIR",
          {on_off[0],on_off[1]},0},
-        {"AIM ASSIST",Section::Controls,"aim_assist","DNTTK_AIM_ASSIST",true,"THE ORIGINAL TARGET LOCK HELPS THE VIEW AIM",
-         {{"OFF","off","\"off\""},{"ORIGINAL LOCK","original-lock","\"original-lock\""}},0},
-        {"RED DOT",Section::Controls,"red_dot","DNTTK_RED_DOT",true,"THE ORIGINAL TARGET MARKER",
-         {{"OFF","0","false"},{"ON","1","true"}},0},
+        {"GORE",Section::Game,"gore",nullptr,true,"HOW MUCH BLOOD",{{"NONE","0","0"},{"SOME","1","1"},{"LOTS","2","2"}},2},
+        {"STATUS BARS",Section::Game,"status_bars",nullptr,true,"HEALTH, ARMOR, AMMO AND ITEM BOXES",{{"ON","1","1"},{"OFF","0","0"}},0},
+        {"VIEW BOB",Section::Controls,"view_bob","DNTTK_VIEW_BOB",true,"FIRST PERSON HEAD BOB WHILE WALKING",
+         {{"OFF","off","\"off\""},{"SUBTLE","subtle","\"subtle\""},{"ON","on","\"on\""},{"STRONG","strong","\"strong\""}},2},
+    }};
+    s[3]={"ADVANCED",{
+        heading("CAMERA AND AIM"),
+        {"CAMERA",Section::Controls,"camera","DNTTK_CAMERA_MODE",true,"INDEPENDENT: THE MOUSE TURNS THE CAMERA",
+         {{"INDEPENDENT","independent","\"independent\""},{"ORIGINAL","original","\"original\""}},0},
+        {"WEAPON AIM",Section::Controls,"weapon_aim","DNTTK_WEAPON_AIM",true,"VIEW: SHOTS GO WHERE THE CROSSHAIR POINTS",
+         {{"VIEW","view","\"view\""},{"ORIGINAL","original","\"original\""}},0},
+        heading("MOVEMENT"),
         {"JUMP",Section::Controls,"jump","DNTTK_JUMP",true,"MANUAL: LEAVE ON THE PRESS AND STEER IN THE AIR",
          {{"ASSISTED","assisted","\"assisted\""},{"MANUAL","manual","\"manual\""}},0},
         {"JUMP WALLS",Section::Controls,"jump_walls","DNTTK_JUMP_WALLS",true,"SLIDE: A WALL ONLY STOPS THE MOTION INTO IT",
@@ -269,21 +291,46 @@ std::vector<Screen> make_screens() {
          {{"MODERN","modern","\"modern\""},{"ORIGINAL","original","\"original\""}},0},
         {"JETPACK",Section::Controls,"jetpack","DNTTK_JETPACK",false,"MODERN: CAMERA RELATIVE FLIGHT AND HOVER",
          {{"MODERN","modern","\"modern\""},{"CLASSIC","classic","\"classic\""}},0},
+        heading("ITEMS"),
         {"DYNAMITE",Section::Controls,"dynamite","DNTTK_DYNAMITE",true,"MODERN: A DRAWN STICK STAYS UNLIT UNTIL YOU FIRE",
          {{"MODERN","modern","\"modern\""},{"ORIGINAL","original","\"original\""}},0},
         {"STEROIDS",Section::Controls,"steroids","DNTTK_STEROIDS",false,"PORTABLE: A PICKUP IS STORED, R TAKES IT",
          {{"PORTABLE","portable","\"portable\""},{"ORIGINAL","original","\"original\""}},0},
-        {"VIEW BOB",Section::Controls,"view_bob","DNTTK_VIEW_BOB",true,"FIRST PERSON HEAD BOB WHILE WALKING",
-         {{"OFF","off","\"off\""},{"SUBTLE","subtle","\"subtle\""},{"ON","on","\"on\""},{"STRONG","strong","\"strong\""}},2},
+        heading("GRAPHICS"),
+        {"RENDERER",Section::Presentation,"renderer",nullptr,false,"SOFTWARE IS THE ORIGINAL LOOK",
+         {{"OPENGL","opengl","\"opengl\""},{"SOFTWARE","software","\"software\""}},0},
+        {"FILTER",Section::Presentation,"output_filter",nullptr,false,"HOW THE FINISHED IMAGE IS SCALED TO THE WINDOW",
+         {{"LINEAR","linear","\"linear\""},{"NEAREST","nearest","\"nearest\""}},0},
+        {"DRAW DISTANCE",Section::Controls,"draw_distance","DNTTK_DRAW_DISTANCE",false,"EXTENDED: TWICE THE VIEW, NO DISTANT BLACK SEAMS",
+         {{"EXTENDED","extended","\"extended\""},{"ORIGINAL","original","\"original\""}},0},
+        {"GEOMETRY",Section::Controls,"geometry_precision","DNTTK_GEOMETRY_PRECISION",false,"CORRECTED: STEADIER POLYGON EDGES",
+         {{"ORIGINAL","original","\"original\""},{"CORRECTED","corrected","\"corrected\""}},0},
+        {"TEXTURES",Section::Controls,"texture_precision","DNTTK_TEXTURE_PRECISION",false,"CORRECTED: NO TEXTURE WARP",
+         {{"ORIGINAL","original","\"original\""},{"CORRECTED","corrected","\"corrected\""}},0},
+        heading("PERFORMANCE"),
+        {"CPU SPEED",Section::Controls,"cpu_overclock","PSX_CPU_OVERCLOCK",false,"150 KEEPS BUSY SCENES SMOOTH. 100 IS THE ORIGINAL",
+         {{"100","100","100"},{"125","125","125"},{"150","150","150"},{"175","175","175"},{"200","200","200"}},2},
+        {"CPU TIMING",Section::Controls,"cpu_timing","DNTTK_CPU_TIMING",false,"FAST USES FAR LESS HOST CPU AT THE SAME GAME SPEED",
+         {{"FAST","fast","\"fast\""},{"ACCURATE","accurate","\"accurate\""}},0},
+        heading("ORIGINAL GAME"),
+        // AUTO AIM is the profile's aim assist: ON also turns the original's
+        // auto aim on in the game, which the assist and the red dot need.
+        {"AUTO AIM",Section::Controls,"aim_assist","DNTTK_AIM_ASSIST",true,"ON: THE ORIGINAL TARGET LOCK HELPS YOUR AIM",
+         {{"OFF","off","\"off\""},{"ON","original-lock","\"original-lock\""}},0},
+        {"RED DOT",Section::Controls,"red_dot","DNTTK_RED_DOT",true,"THE ORIGINAL TARGET MARKER",
+         {{"OFF","0","false"},{"ON","1","true"}},0},
+        // 0x80089920 sets Duke's (0x800c3c80) and the enemies' (0x800c3d14)
+        // animation rate from it; 50 is the original's default.
+        {"GAME SPEED",Section::Game,"game_speed",nullptr,true,"HOW FAST DUKE AND THE ENEMIES MOVE. NOT THE FRAME RATE",
+         {},50,true,0,100,5,1},
     }};
     return s;
 }
 
 struct Item {const char* label;int guest_sub;int screen;};
-// OPTIONS: the original three (the handler's own return values), then ours.
-const Item options_items[]={{"SOUND",7,-1},{"CONTROLLER",4,-1},{"GAME SETTINGS",11,-1},
-                            {"PC CONTROLS",-1,0},{"DISPLAY",-1,1},{"MODERNIZED",-1,2}};
-constexpr int option_count=6;
+// OPTIONS: the original SOUND (its handler's own return value), then ours.
+const Item options_items[]={{"SOUND",7,-1},{"CONTROLS",-1,0},{"DISPLAY",-1,1},{"GAMEPLAY",-1,2},{"ADVANCED",-1,3}};
+constexpr int option_count=5;
 
 // Recursive: a pad read inside one of our guest calls comes back into
 // game_menu_input on this thread; it then leaves the keys for the next read.
@@ -299,6 +346,7 @@ int cursor=0, top=0;      // selection and first visible row
 bool owned=false;         // sub-screen 8 (or 9) is ours
 // Actions for the next live frame (guest writes and sounds happen there).
 int pending_sub=-1, pending_cursor=-1, pending_sound=-1;
+int pending_speed=-1;     // D19N: GAME SPEED for 0x80089920 at the next tick
 
 // D19H: the pause menu and death screen as lists. Page::Options is D19's
 // OPTIONS (screen -1) and settings screens; the rest are gameplay pages.
@@ -349,8 +397,14 @@ uint32_t last_image=~0u;
 // call site in the same image draws again.
 uint32_t last_draw_ra=0;
 uint64_t draws=0, entries=0, writes=0, finals=0;
-uint32_t sliders=0; // GPU-addressable slider objects
-constexpr int slider_slots=12, slider_size=0x40;
+// D19N: slider objects in guest RAM, the original SOUND screen's three
+// (0x800dd290, +0x40, +0x80; the handler 0x8008aa08 initialises them each time
+// it opens, and it never runs while our screens are up). Objects in the
+// framework's GPU-DMA memory were not in the D17 frontend replay's copy of the
+// machine: at a high frame rate a title screen with a slider in view showed
+// nothing at all.
+constexpr uint32_t sliders=0x800dd290u;
+constexpr int slider_slots=3, slider_size=0x40;
 
 // D19J: a savestate load drops what the menu knew of the guest before it; the
 // screens reopen from the loaded state (our screens: OPTIONS, the lists, the
@@ -462,7 +516,7 @@ void write_settings() {
     std::string controls, presentation, bindings;
     for(size_t s=0;s<screens.size();++s) for(size_t i=0;i<screens[s].rows.size();++i) {
         const Row& r=screens[s].rows[i];const int v=committed[s][i];
-        if(r.link) continue;
+        if(r.link || r.heading || r.section==Section::Game) continue;
         char value[64];
         if(r.slider) std::snprintf(value,sizeof value,"%.2f",v*r.scale);
         else std::snprintf(value,sizeof value,"%s",r.choices[v].json);
@@ -501,6 +555,19 @@ int repeat(Repeat& r,bool held,int taps,uint64_t now) {
 // More than five rows: the compact layout (14 apart), nine at a time.
 bool compact(const Screen& s) {return s.rows.size()>5;}
 int rows_visible(const Screen& s) {return compact(s) ? 9 : (int)s.rows.size();}
+// D19N: the cursor's row visible, with its section heading when that is just
+// above (as KEY BINDINGS scrolls).
+// In the compact layout a slider takes two row places: its disc is taller
+// than the 14 between rows and overlapped the row above.
+int row_units(const Screen& s,int i) {return compact(s) && s.rows[i].slider ? 2 : 1;}
+int units_between(const Screen& s,int from,int to) {int u=0;for(int i=from;i<=to;++i) u+=row_units(s,i);return u;}
+void settings_scroll(const Screen& s) {
+    const int vis=rows_visible(s);
+    if(cursor<top) top=cursor;
+    while(top<cursor && units_between(s,top,cursor)>vis) ++top;
+    if(top==cursor && top>0 && s.rows[top-1].heading) --top;
+}
+int first_row(const Screen& s) {int i=0;while(i<(int)s.rows.size()-1 && s.rows[i].heading) ++i;return i;}
 void sound(int which) {if(pending_sound<0 || which==0) pending_sound=which;}
 // ---- D19H: the pause and death lists ----
 int level() {return (int)psx_mod_read_word(level_index);}
@@ -569,7 +636,7 @@ const KeyRow key_rows[]={
     {"FLAMETHROWER",weapon_group_8},{"BUFFALO RIFLE",weapon_group_9,nullptr,"ALSO THE CROSSBOW"},{"FREEZER",weapon_group_0},
     // inventory's key toggles the crosshair (the inventory screen is Right Shift).
     {"ITEMS",-1},{"CROSSHAIR",inventory,nullptr,"SHOWS OR HIDES THE CROSSHAIR"},{"PREVIOUS ITEM",item_previous},{"NEXT ITEM",item_next},
-    {"USE ITEM",item_use,"ENTER","ENTER ALWAYS USES IT TOO"},
+    {"USE ITEM",item_use,"ENTER","ENTER USES IT. A SECOND KEY IS OPTIONAL"},
     {"MEDKIT",medkit},{"STEROIDS",steroids},{"JETPACK",jetpack},{"GOGGLES",goggles},{"BIO MASK",biomask},
     {"PREVIOUS MISSION ITEM",mission_previous},{"NEXT MISSION ITEM",mission_next},
     {"CAMERA",-1},{"FIRST / THIRD PERSON",camera_view},{"SHOULDER",camera_shoulder},{"RECENTER CAMERA",camera_recenter},
@@ -708,9 +775,8 @@ void move(int dir) {
     const int n=screen<0 ? option_count : (int)screens[screen].rows.size();
     cursor=(cursor+dir+n)%n;
     if(screen>=0) {
-        const int vis=rows_visible(screens[screen]);
-        if(cursor<top) top=cursor;
-        if(cursor>=top+vis) top=cursor-vis+1;
+        while(screens[screen].rows[cursor].heading) cursor=(cursor+dir+n)%n;
+        settings_scroll(screens[screen]);
     }
     sound(1);
 }
@@ -742,6 +808,14 @@ void apply_live(const Row& r,int v) {
     if(r.slider) {char t[32];std::snprintf(t,sizeof t,"%.2f",v*r.scale);value=intern(t);}
     else value=r.choices[v].env;
     const std::string key=r.key;
+    if(r.section==Section::Game) {
+        // D19N: the original's own values, as its GAME SETTINGS CONFIRM leaves them.
+        const uint16_t w=psx_mod_read_half(settings_word);
+        if(key=="gore") psx_mod_write_half(settings_word,(uint16_t)((w&~gore_bits)|((v&3)<<1)));
+        else if(key=="status_bars") psx_mod_write_half(settings_word,(uint16_t)(r.choices[v].env[0]=='1' ? w|status_bars_bit : w&~status_bars_bit));
+        else if(key=="game_speed") {psx_mod_write_half(game_speed,(uint16_t)v);pending_speed=v;}
+        return;
+    }
     if(key=="frame_rate" && !frame_rate_set(value)) return;
     // Until a change ttk_live_env() is plain getenv (an unset variable stays unset).
     if(r.env) ttk_live_env_set(r.env,value);
@@ -762,6 +836,17 @@ void refresh_from_game(int s) {
         const int i=row_of(s,key);
         if(i>=0) committed[s][i]=choice_from_env(screens[s].rows[i],value);
     };
+    // D19N: GORE, STATUS BARS and GAME SPEED as the game has them now (a
+    // memory card may have loaded others).
+    const uint16_t w=psx_mod_read_half(settings_word);
+    for(size_t i=0;i<screens[s].rows.size();++i) {
+        const Row& r=screens[s].rows[i];
+        if(r.section!=Section::Game) continue;
+        const std::string key=r.key;
+        if(key=="gore") committed[s][i]=std::min((w&gore_bits)>>1,2);
+        else if(key=="status_bars") committed[s][i]=(w&status_bars_bit) ? 0 : 1;
+        else if(key=="game_speed") committed[s][i]=std::clamp<int>(psx_mod_read_half(game_speed),r.lo,r.hi);
+    }
     set("view",input_first_person() ? "first" : "third");
     const int side=input_shoulder();
     set("shoulder",side>0 ? "right" : side<0 ? "left" : "center");
@@ -775,20 +860,21 @@ void refresh_from_game(int s) {
 }
 void open_screen(int s) {
     refresh_from_game(s);
-    screen=s;cursor=0;top=0;draft[s]=committed[s];sound(0);
+    screen=s;cursor=first_row(screens[s]);top=0;draft[s]=committed[s];sound(0);
 }
 void leave_screen(bool keep) {
     const int s=screen;
     if(keep && draft[s]!=committed[s]) {
         for(size_t i=0;i<screens[s].rows.size();++i) {
             const Row& r=screens[s].rows[i];
-            if(draft[s][i]!=committed[s][i] && !r.link && row_live(r)) apply_live(r,draft[s][i]);
+            if(draft[s][i]!=committed[s][i] && !r.link && !r.heading && row_live(r)) apply_live(r,draft[s][i]);
         }
         committed[s]=draft[s];
         write_settings();
     }
     draft[s]=committed[s];
-    screen=-1;cursor=3+s;top=0;sound(0);
+    screen=-1;cursor=0;top=0;sound(0);
+    for(int i=0;i<option_count;++i) if(options_items[i].screen==s) cursor=i;
 }
 void defaults() {
     if(page==Page::Keys) {if(!key_wait) keys_ask_default();return;}
@@ -927,6 +1013,15 @@ struct Guest {
         if(s>=0x80010000u && s<0x80200000u) call(fn_text,s,(uint32_t)x,(uint32_t)y,flags);
     }
     int width(const char* s,uint32_t font) {put(s);return (int)call(fn_width,text,font>>8,0,0);}
+    // D19N: text drawn dimmer: the modulation of the glyph packets just added.
+    void say_dim(const char* s,int x,int y,uint32_t flags) {
+        const uint32_t before=psx_mod_read_word(glyph_next);
+        say(s,x,y,flags);
+        const uint32_t after=psx_mod_read_word(glyph_next);
+        if(after<=before || after-before>glyph_size*128) return; // the buffer wrapped: leave it lit
+        for(uint32_t p=before;p<after;p+=glyph_size)
+            if(psx_mod_read_byte(p+7)==0x2c) for(uint32_t c=4;c<7;++c) psx_mod_write_byte(p+c,dim_level);
+    }
     // D19G: text in another CLUT row of the font's column (the call offers
     // gold, blue and red): shift the CLUT of the glyph packets it just added.
     void say_clut(const char* s,int x,int y,uint32_t flags,int clut_delta) {
@@ -990,6 +1085,26 @@ void wrap(Guest& g,const char* text,int max,std::vector<std::string>& lines) {
     }
     if(!line.empty()) lines.push_back(line);
 }
+// D19N: the value a row shows now (the draft on the open screen).
+const char* value_of(const char* key) {
+    for(size_t s=0;s<screens.size();++s) for(size_t i=0;i<screens[s].rows.size();++i) {
+        const Row& r=screens[s].rows[i];
+        if(r.key && !r.slider && !r.link && !std::strcmp(r.key,key)) return r.choices[(int)s==screen ? draft[s][i] : committed[s][i]].env;
+    }
+    return "";
+}
+// D19N: what a row needs to have an effect, or null. Such a row stays
+// changeable; it is drawn grey and its description says what it needs.
+const char* needs(const Row& r) {
+    if(!r.key) return nullptr;
+    const std::string k=r.key;
+    auto is=[](const char* key,const char* v) {return !std::strcmp(value_of(key),v);};
+    if((k=="shoulder" || k=="camera_distance" || k=="weapon_aim") && is("camera","original")) return "NEEDS CAMERA INDEPENDENT, IN ADVANCED";
+    if(k=="crosshair" && is("weapon_aim","original")) return "NEEDS WEAPON AIM VIEW, IN ADVANCED";
+    if(k=="red_dot" && is("aim_assist","off")) return "NEEDS AUTO AIM ON";
+    if((k=="internal_scale" || k=="geometry_precision" || k=="texture_precision") && is("renderer","software")) return "NEEDS RENDERER OPENGL, IN ADVANCED";
+    return nullptr;
+}
 void draw_settings(Guest& g,const Geometry& geo) {
     const Screen& s=screens[screen];
     const Values& v=draft[screen];
@@ -1000,12 +1115,23 @@ void draw_settings(Guest& g,const Geometry& geo) {
     const int n=(int)s.rows.size(), vis=rows_visible(s);
     const bool tight=compact(s);
     const int spacing=tight?14:20, y0=tight?geo.y0/2-14:geo.y0/2+10;
-    int slot=0;
-    for(int j=0;j<vis && top+j<n;++j) {
-        const int i=top+j, y=y0+j*spacing;
+    int slot=0, used=0, last=top-1;
+    for(int i=top;i<n && used+row_units(s,i)<=vis;++i) {
+        // A two-place slider row is drawn halfway down its places.
+        const int y=y0+used*spacing+(row_units(s,i)-1)*spacing/2;
+        used+=row_units(s,i);last=i;
         const Row& r=s.rows[i];
         const uint32_t hi=i==cursor?blue:0;
-        if(r.slider && sliders && slot<slider_slots) {
+        if(r.heading) {g.say_clut(r.label,0,y,font_small|centre,clut_amber);continue;}
+        if(needs(r)) {
+            // D19N: a row with no effect now: dimmed (its label blue under the cursor).
+            const std::string label=std::string(r.label)+":";
+            if(hi) g.say(label.c_str(),-10,y,font_small|right|hi);
+            else g.say_dim(label.c_str(),-10,y,font_small|right);
+            g.say_dim(r.choices[v[i]].label,10,y,font_small);
+            continue;
+        }
+        if(r.slider && slot<slider_slots) {
             const uint32_t obj=sliders+slider_size*slot++;
             g.say(r.label,geo.x0+geo.w/3,y,font_small|right|hi);
             g.call(fn_slider_init,obj,0,(uint32_t)(y+5),(uint32_t)r.lo,(uint32_t)r.hi,(uint32_t)v[i],(uint32_t)r.step);
@@ -1021,14 +1147,15 @@ void draw_settings(Guest& g,const Geometry& geo) {
     }
     if(tight) {
         // Scroll marks: the SELECT button beside the list while rows are hidden.
-        if(top>0 || top+vis<n) g.call(fn_sprite,sprites+16*icon_select,(uint32_t)(geo.w/2-geo.w/8),(uint32_t)(y0+spacing*vis/2-8),0,100);
+        if(top>0 || last<n-1) g.call(fn_sprite,sprites+16*icon_select,(uint32_t)(geo.w/2-geo.w/8),(uint32_t)(y0+spacing*vis/2-8),0,100);
     }
     const Row& r=s.rows[cursor];
     std::string desc=r.desc;
-    if(!row_live(r)) desc+=". NEXT LAUNCH";
+    if(const char* need=needs(r)) desc=need;
+    else if(!row_live(r)) desc+=". NEXT LAUNCH";
     std::vector<std::string> lines;
     wrap(g,desc.c_str(),geo.w*3/4,lines);
-    const int ybase=-geo.y0-(geo.h>>4)-19-14-12*((int)lines.size()-1);
+    const int ybase=-geo.y0-(geo.h>>4)-19-14-12*((int)std::min<size_t>(lines.size(),2)-1);
     for(size_t l=0;l<lines.size() && l<2;++l) g.say(lines[l].c_str(),0,ybase+12*(int)l,font_small|centre);
     prompts(g,geo,true);
 }
@@ -1412,6 +1539,13 @@ void game_menu_tick(CPUState* cpu) {
         busy=false;
         pending_sound=-1;
     }
+    if(pending_speed>=0) {
+        // D19N: GAME SPEED confirmed: the original's CONFIRM call.
+        busy=true;
+        {Guest g(cpu);g.call(fn_game_speed,(uint32_t)pending_speed,0,0,0);}
+        busy=false;
+        pending_speed=-1;
+    }
     if(c->mode==1) {
         if(gameplay_tick(cpu)) return;
     }
@@ -1642,7 +1776,6 @@ void draw_page(CPUState* cpu,const MenuContext* c) {
     if(image==last_image && cpu->gpr[31]==last_draw_ra) {++skip_image;skip_ra=cpu->gpr[31];return;}
     ++drawn_calls;
     last_image=image;last_draw_ra=cpu->gpr[31];
-    if(!sliders) sliders=psx_mod_alloc_gpu_dma_memory(slider_size*slider_slots,16);
     busy=true;
     {
         Guest g(cpu);
@@ -1664,9 +1797,54 @@ void draw_page(CPUState* cpu,const MenuContext* c) {
     ++draws;
 }
 
+// ---- D19N: the original pad layout and the profile's AUTO AIM ----
+// Modernized keys send fixed pad buttons (Space Square, E Cross, ...), so play
+// needs the original CONTROLLER's default layout; AUTO AIM is the profile's
+// aim assist. Both are kept in the game every frame. The memory card keeps
+// what Vanilla (or the card) had: the card's pack gets those values back for
+// the save (the next frame restores ours), and a card load updates them.
+namespace {
+struct CardCopy {bool known=false;uint8_t layouts[2*layout_size];bool auto_aim=true;};
+CardCopy card;
+uint64_t enforced=0, card_packs=0, card_loads=0;
+void card_capture() {
+    for(uint32_t i=0;i<2*layout_size;++i) card.layouts[i]=psx_mod_read_byte(pad_layouts+i);
+    card.auto_aim=psx_mod_read_half(settings_word)&auto_aim_bit;
+    card.known=true;
+}
+bool want_auto_aim() {const char* v=ttk_live_env("DNTTK_AIM_ASSIST");return v && !std::strcmp(v,"original-lock");}
+bool modern_settings_ready() {
+    return enabled() && !psx_mod_replay_active() && !g_precise_mode && !g_ls_mode && !g_psx_call_bail && authentic();
+}
+void enforce_modern_settings() {
+    if(!card.known) card_capture();
+    bool wrote=false;
+    for(uint32_t i=0;i<2*layout_size;++i) {
+        const uint8_t want=psx_mod_read_byte(default_layout+i%layout_size);
+        if(psx_mod_read_byte(pad_layouts+i)!=want) {psx_mod_write_byte(pad_layouts+i,want);wrote=true;}
+    }
+    const uint16_t w=psx_mod_read_half(settings_word);
+    const uint16_t aim=want_auto_aim() ? (uint16_t)(w|auto_aim_bit) : (uint16_t)(w&~auto_aim_bit);
+    if(aim!=w) {psx_mod_write_half(settings_word,aim);wrote=true;}
+    if(wrote) ++enforced;
+}
+} // namespace
+void card_pack_entry() {
+    if(!modern_settings_ready() || !card.known) return;
+    for(uint32_t i=0;i<2*layout_size;++i) psx_mod_write_byte(pad_layouts+i,card.layouts[i]);
+    const uint16_t w=psx_mod_read_half(settings_word);
+    psx_mod_write_half(settings_word,(uint16_t)(card.auto_aim ? w|auto_aim_bit : w&~auto_aim_bit));
+    ++card_packs;
+}
+void card_unpack_done(CPUState* cpu) {
+    if(cpu->gpr[31]!=card_unpacked || !modern_settings_ready()) return;
+    card_capture();enforce_modern_settings();++card_loads;
+}
+
 void game_menu_frame(CPUState* cpu) {
     if(!enabled() || psx_mod_replay_active() || g_precise_mode || g_ls_mode || g_psx_call_bail) return;
     {std::lock_guard<std::recursive_mutex> lock(mutex);savestate_check();}
+    if(authentic()) enforce_modern_settings();
     if(resumed) {
         // After our resume (or continue, restart, quit) the screen value goes
         // back to the original's 0, in whatever mode the game is in now.
@@ -1691,8 +1869,9 @@ void game_menu_frame(CPUState* cpu) {
 
 extern "C" const char* ttk_game_menu_json() {
     using namespace ttk;
-    static char buffer[640];
-    std::snprintf(buffer,sizeof buffer,"{\"owned\":%s,\"page\":%d,\"screen\":%d,\"cursor\":%d,\"top\":%d,\"items\":%d,\"entries\":%llu,\"draws\":%llu,\"writes\":%llu,\"finals\":%llu,\"handoff\":%d,\"pending_state\":%d,\"identity\":%s,\"drops\":%llu,\"drop\":[%d,%u,%u],\"skips\":[%llu,%llu,%llu,%llu],\"skip_ra\":\"%x\"}",
+    static char buffer[768];
+    std::snprintf(buffer,sizeof buffer,"{\"settings\":{\"word\":%u,\"game_speed\":%u,\"enforced\":%llu,\"card_packs\":%llu,\"card_loads\":%llu,\"card_auto_aim\":%s},\"owned\":%s,\"page\":%d,\"screen\":%d,\"cursor\":%d,\"top\":%d,\"items\":%d,\"entries\":%llu,\"draws\":%llu,\"writes\":%llu,\"finals\":%llu,\"handoff\":%d,\"pending_state\":%d,\"identity\":%s,\"drops\":%llu,\"drop\":[%d,%u,%u],\"skips\":[%llu,%llu,%llu,%llu],\"skip_ra\":\"%x\"}",
+        psx_mod_read_half(settings_word),psx_mod_read_half(game_speed),(unsigned long long)enforced,(unsigned long long)card_packs,(unsigned long long)card_loads,card.auto_aim?"true":"false",
         owned?"true":"false",(int)page,screen,cursor,top,(int)list.size(),(unsigned long long)entries,(unsigned long long)draws,(unsigned long long)writes,
         (unsigned long long)finals,(int)handoff,pending_state,identity_checked?(identity_ok?"true":"false"):"null",(unsigned long long)drops,drop_why,drop_state,drop_sub,(unsigned long long)skip_owned,(unsigned long long)skip_screen,(unsigned long long)skip_image,(unsigned long long)drawn_calls,skip_ra);
     return buffer;
@@ -1706,4 +1885,7 @@ PSX_MOD_CONSTRUCTOR(register_ttk_game_menu) {
         psx_mod_register_function_entry_plugin("ttk.game.menu",a,[](CPUState* cpu,uint32_t){ttk::game_menu_tick(cpu);});
     // D19J: the frontend tick itself, before its pad read and state dispatch.
     psx_mod_register_function_entry_plugin("ttk.game.menu",0x80022324u,[](CPUState* cpu,uint32_t){ttk::title_entry(cpu);});
+    // D19N: the memory card's settings pack and the end of its unpack.
+    psx_mod_register_function_entry_plugin("ttk.game.menu",ttk::fn_card_pack,[](CPUState*,uint32_t){ttk::card_pack_entry();});
+    psx_mod_register_function_entry_plugin("ttk.game.menu",ttk::fn_game_speed,[](CPUState* cpu,uint32_t){ttk::card_unpack_done(cpu);});
 }

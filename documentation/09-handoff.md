@@ -1,5 +1,32 @@
 # Next-session handoff
 
+## 2026-10-20 - D19N accepted
+
+- User: "lock it in and close it out!!". D19N Done; executable
+  `6b7f5415dd0f18044358548e80661ca8aa91606a44ea8b1ad4e1417a40cd7a33` is the
+  regression baseline. Backlog: D19K, D19F, D26G.
+
+## 2026-10-20 - D19N review pass (Needs playtest)
+
+- Fixed the title CONTROLS screen and ADVANCED going blank when a slider was in
+  view at a high frame rate (slider objects now in guest RAM, the original
+  SOUND screen's). GAME SPEED's slider has room; AUTO AIM moved to ADVANCED >
+  ORIGINAL GAME beside RED DOT; USE ITEM is Enter only (profile schema 36).
+  Executable `6b7f5415dd0f18044358548e80661ca8aa91606a44ea8b1ad4e1417a40cd7a33`, [note 166](166-d19n-options-layout.md).
+
+## 2026-10-20 - D19N OPTIONS, the rest under ADVANCED (Needs playtest)
+
+- Layout A as approved: OPTIONS is SOUND (original), CONTROLS, DISPLAY,
+  GAMEPLAY and ADVANCED (one list under headings). AUTO AIM (profile, default
+  OFF) replaces AIM ASSIST and sets the game's auto aim; GORE, STATUS BARS and
+  GAME SPEED stay the original's values on the card; CONFIGURE CONTROLLER is
+  gone from Modernized, which forces the default pad layout (a card copy keeps
+  Vanilla's layout and auto aim in saves). Dependent rows are dimmed.
+  Hooks `0x80082F64`, `0x80089920` regenerated (codegen hash unchanged).
+  Executable `ce2b297e1f854aad818b5318b3636183986742973b94c1bed6d35bad2bcff6a9`,
+  [note 166](166-d19n-options-layout.md). Offscreen and tests as described.
+  Awaiting the user's playtest.
+
 ## 2026-10-20 - D24D + D24E accepted
 
 - User: "its perfect! lock it in close it out". D24D and D24E Done; font pack

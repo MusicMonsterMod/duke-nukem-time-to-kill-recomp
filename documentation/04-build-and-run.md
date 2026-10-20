@@ -438,3 +438,10 @@ One hook (`0x80066E34`, a shared rotation; only the swim tail's call, ra
 OPTIONS > MODERNIZED). `original` turns off the D08AA pace paths and restores
 the pre-D08AA water speeds; no new hooks. See
 [note 157](157-d08ab-swimming-option.md).
+
+## Options layout (D19N)
+
+Two hooks (`0x80082F64`, the memory card's settings pack; `0x80089920`, GAME
+SPEED's apply, used at the end of the card's unpack) were added to
+`game.local.toml` and regenerated with `psxrecomp_cli.py generate`; codegen
+hash unchanged. See [note 166](166-d19n-options-layout.md).

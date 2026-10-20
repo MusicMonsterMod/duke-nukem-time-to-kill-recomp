@@ -139,6 +139,9 @@ in the offscreen test), the feel on the real display.
 
 ## Limits (stage 1)
 
+- D19N ([note 166](166-d19n-options-layout.md)) replaced this layout:
+  OPTIONS is now SOUND, CONTROLS, DISPLAY, GAMEPLAY and ADVANCED.
+
 - Key bindings and the live display, camera, aim and mouse settings came in
   stage 2 (D19G, [note 159](159-d19g-options-stage-2.md)). Renderer,
   resolution, filter, draw distance, precision, CPU, jetpack and steroids

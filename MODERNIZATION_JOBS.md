@@ -191,7 +191,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D19M | QUIT GAME menu item that closes the whole program (pause list, death list, title main menu), with a YES / NO prompt | Done (user-accepted 2026-10-19; title item in D19J, accepted) | D19H |
 | D19O | Frontend redraws flash back to the previous menu image after a change (PRESS START -> main menu: 13 presents of PRESS START; also in the original menus) | Done (user-accepted 2026-10-19) | D19C, D19J |
 | D19P | Death screen: QUIT becomes QUIT TO MENU, beside QUIT GAME (two quits read as the same thing) | Done (user-accepted 2026-10-19) | D19H, D19M |
-| D19N | Consolidate the original OPTIONS screens with ours: one plain OPTIONS screen for the everyday settings, the rest under ADVANCED; remove duplicated or conflicting settings | Todo | D19, D19G |
+| D19N | Consolidate the original OPTIONS screens with ours: one plain OPTIONS screen for the everyday settings, the rest under ADVANCED; remove duplicated or conflicting settings | Done (user-accepted 2026-10-20) | D19, D19G |
 | D19A | Duke font assets for host messages and modern UI | Done | D04 |
 | D19B | Responsive modern menu navigation and transitions | Todo | D02, D04 |
 | D19C | Interim: more responsive original menus (faster cursor and screen response, no 10 Hz feel) | Accepted (demo-backed menus; loading spinner and full sweep in D19E) | D17T |
@@ -5983,7 +5983,17 @@ verified: the user's display.
 
 ### D19N - One OPTIONS screen; the rest under ADVANCED
 
-**Todo (opened 2026-10-19).** User: consolidate "some of the existing vanilla
+**Done (user-accepted 2026-10-20: "lock it in and close it out!!").** Layout A built as approved: OPTIONS is
+SOUND (original), CONTROLS, DISPLAY, GAMEPLAY and ADVANCED (one list under
+amber headings). AUTO AIM (profile, default OFF; ADVANCED > ORIGINAL GAME
+beside RED DOT) replaces AIM ASSIST and is written into the game; GORE, STATUS BARS and GAME SPEED are the original's
+values in game memory (card as before); the original CONTROLLER is gone from
+Modernized, which forces the default pad layout; DISPLAY row is WINDOW;
+dependent rows are dimmed with what they need. A card copy keeps Vanilla's
+AUTO AIM and pad layout in saves made in Modernized. Two hooks regenerated
+(`0x80082F64`, `0x80089920`). Executable
+`6b7f5415dd0f18044358548e80661ca8aa91606a44ea8b1ad4e1417a40cd7a33`,
+[note 166](documentation/166-d19n-options-layout.md). Opened 2026-10-19. User: consolidate "some of the existing vanilla
 menus into the modernized menu, as i think there are likely some unnecessary
 or possibly conflicting crossovers, so the result wont be called Modernized
 menu and it will just be like an options screen, and then all the other stuff
@@ -6027,10 +6037,50 @@ Scope:
   description saying why), never two rows silently fighting.
 - Same menu style and keys as D19; title and pause OPTIONS both.
 
+Design for review (2026-10-20): private artifact
+https://claude.ai/artifact/4a4rvMENnieMK9VGNX4Uzr (no retail assets). It lists
+all 39 settings, three layouts (A: SOUND / CONTROLS / DISPLAY / GAMEPLAY /
+ADVANCED list, recommended; B: ADVANCED as four screens; C: minimal
+reshuffle), conflicts C1-C7 and five decisions. New findings: the original
+SOUND is SOUND EFFECTS / MUSIC / SPEECH sliders plus MODE; AIM ASSIST
+ORIGINAL LOCK only works with the original AUTO AIM on (note 24); Modernized
+keyboard play sends fixed PS1 buttons, so a changed CONFIGURE CONTROLLER
+layout probably breaks it (code reading, not tested); STATUS BARS vs our HUD
+boxes and GAME SPEED's exact effect still need checking in game.
+
 **Acceptance:** the user approves the layout; every setting from the old
 screens is reachable or deliberately removed (listed in the note); no two
 rows control the same thing; values persist as before (profile and the
 original's settings); Vanilla keeps the original OPTIONS.
+
+Work log 2026-10-20 (build): user choices from the design page: 1a layout
+A, 2a AUTO AIM in the profile default OFF (card value overridden), 3a
+CONFIGURE CONTROLLER removed and the default layout forced, 4a GAME SPEED in
+ADVANCED > ORIGINAL GAME, 5a WINDOW. Decoded GAME SETTINGS (word `0x800c3f9c`:
+bit 0 AUTO AIM, bits 1-2 GORE, bit 3 STATUS BARS, bit 4 vibration; GAME SPEED
+`0x800c3fa0` applied by `0x80089920` to Duke `0x800c3c80` and enemies
+`0x800c3d14`), the pad layouts (`0x800d1b60`, default `0x800bda7c`) and the
+card pack / unpack (`0x80082f64` / `0x80083070`). STATUS BARS already hides
+our HUD boxes (they hook the status bar call the game skips). The grey CLUT
+row drew boxes, so dimmed rows lower the glyph modulation instead. Offscreen
+(`recomp/analysis/d19n-options`): every screen, SOUND round trip (title and
+pause), ADVANCED scroll and headings, dimmed RED DOT / WEAPON AIM, GAME SPEED
+40 (Duke 4530, enemies 5280), GORE NONE + STATUS BARS OFF + AUTO AIM ON (no
+HUD after resume, profile `original-lock`), statistics SAVE (card gets AUTO
+AIM ON, play restored to OFF), death-screen LOAD of it (card copy ON kept),
+`--vanilla` untouched. Python 158 OK (12 skipped), `ttk-input-test`,
+`ttk-live-env-test`. Not verified: AUTO AIM ON in play, GAME SPEED feel, a
+Vanilla pad layout round trip end to end; the user's look on the real display.
+
+Work log 2026-10-20 (review pass): user found the title CONTROLS screen blank
+and ADVANCED vanishing at GAME SPEED (title only, at 120). Cause: slider
+objects in framework GPU-DMA memory, outside the D17 frontend replay's copy;
+now the original SOUND screen's slider objects in guest RAM. Slider rows take
+two places in long lists (GAME SPEED no longer overlaps ORIGINAL GAME). AUTO
+AIM moved to ADVANCED > ORIGINAL GAME beside RED DOT. USE ITEM is Enter only
+(default Unbound; profile schema 36 clears the old U). User note: Duke 3D's U
+toggles mouse aiming; keep U free until a closer EDuke32-like use is chosen.
+Offscreen at 120 (title and pause) and tests pass; note 166.
 
 ### D19A — Duke font assets for host messages and modern UI
 

@@ -283,7 +283,7 @@ VANILLA_NOTICE = ('Modernized is now the default profile; your Vanilla settings 
 
 
 def defaults():
-    return {'version': 35, 'active': 'modernized',
+    return {'version': 36, 'active': 'modernized',
             'profiles': {mode: default_profile(mode) for mode in MODES}}
 
 
@@ -329,7 +329,7 @@ def load(path):
         notices.append('Unreadable profile settings; restored Modernized defaults.')
     else:
         version = data.get('version')
-        if type(version) is int and version > 35:
+        if type(version) is int and version > 36:
             raise ValueError(f'Profile settings version {version} is newer than this launcher; file left unchanged.')
         if type(version) is int and version == 0:
             mode = data.get('mode', 'modernized')
@@ -338,8 +338,8 @@ def load(path):
                 if renderer in RENDERERS:
                     result['profiles'][mode]['presentation']['renderer'] = renderer
             changed = True
-            notices.append('Migrated version 0 profile settings to version 35.')
-        elif type(version) is int and version in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35):
+            notices.append('Migrated version 0 profile settings to version 36.')
+        elif type(version) is int and version in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36):
             if data.get('active') == 'vanilla':
                 notices.append(VANILLA_NOTICE)
             profiles = data.get('profiles', {})
@@ -368,6 +368,7 @@ def load(path):
                 # inventory (add_missing_actions); schema 27's Backslash action is dropped.
                 # Schema 34 (D10C): the look keys take PageUp/PageDown/Home/End when free.
                 # Schema 35 (D10D): the turn keys take Left/Right when free.
+                # Schema 36 (D19N): USE ITEM is Enter only; the old default U is unbound.
                 if isinstance(profile, dict) and 'bindings' in profile:
                     try:
                         result['profiles'][mode]['bindings'] = dict(pc_input.migrate_bindings(profile['bindings']) if version < 8 else pc_input.migrate_grab(profile['bindings']) if version < 35 else pc_input.validate(profile['bindings']))
@@ -402,10 +403,16 @@ def load(path):
                 result['profiles']['modernized']['controls']['cpu_timing'] = 'fast'
                 notices.append('Modernized now uses fast CPU timing by default; '
                                'run.py --cpu-timing accurate restores the full cycle model.')
+            # D19N (user, 2026-10-20): Enter alone uses the item; U is no longer
+            # its default. Only the old default is cleared, a U bound elsewhere stays.
+            if version < 36:
+                for profile in result['profiles'].values():
+                    if profile['bindings'].get('item_use') == 'U':
+                        profile['bindings']['item_use'] = 'Unbound'
             changed = result != data
             if changed and result != {**data, 'active': 'modernized'}:
-                notices.append(f'Migrated version {version} profile settings to version 35; retained preferences and added control and presentation defaults.'
-                               if version < 35 else
+                notices.append(f'Migrated version {version} profile settings to version 36; retained preferences and added control and presentation defaults.'
+                               if version < 36 else
                                'Invalid or unsupported profile fields were reset; valid preferences were retained.')
         else:
             changed = True

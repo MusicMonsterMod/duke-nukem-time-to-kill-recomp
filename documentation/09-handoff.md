@@ -1,5 +1,20 @@
 # Next-session handoff
 
+## 2026-10-20 - D33 accepted
+
+- User: "perfect!! lock it in, close it out". D33 Done; executable
+  `fa415f5e183167b3b8a64b54959a9d3333f247a823527c7451553e2445d3dff2` is the
+  regression baseline. Queued: D19K, D19G, D19F, D19N, D24D, D26G.
+
+## 2026-10-20 - D33 Modernized by default, `--vanilla` one launch (Needs playtest)
+
+- Plain `run.py` always launches Modernized; `run.py --vanilla` plays Vanilla
+  for that launch only (never saved). `--mode` removed; the in-game PROFILE
+  row removed; a saved Vanilla choice moves to Modernized once with a notice.
+  Offscreen checks, Python 152 OK, native suites and `check_repo.py` pass.
+  Executable `fa415f5e183167b3b8a64b54959a9d3333f247a823527c7451553e2445d3dff2`,
+  [note 158](158-d33-default-profile.md). Not verified: the user's launches.
+
 ## 2026-10-20 - D08AB accepted
 
 - User: "solid lock it in and close it out". D08AB Done; executable

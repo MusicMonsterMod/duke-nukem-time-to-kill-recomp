@@ -3,7 +3,7 @@
 [![CI](https://github.com/MusicMonsterMod/duke-nukem-time-to-kill-recomp/actions/workflows/ci.yml/badge.svg)](https://github.com/MusicMonsterMod/duke-nukem-time-to-kill-recomp/actions/workflows/ci.yml)
 [![Listed on recomp.board](https://img.shields.io/badge/recomp.board-listed-c8102e?labelColor=1a1a1a)](https://recomp.fyi/game/duke-nukem-time-to-kill-ps1)
 
-Faithful Vanilla play plus an opt-in Modernized mode (WASD, mouse aim, and quality-of-life). **No retail game data is included.** You need your own USA SLUS-00583 disc. Europe/PAL (SLES-01515) is a different SKU and will not work.
+Modernized play by default (WASD, mouse aim, and quality-of-life), with the faithful original game one flag away (`--vanilla`). **No retail game data is included.** You need your own USA SLUS-00583 disc. Europe/PAL (SLES-01515) is a different SKU and will not work.
 
 - [Game manual](GAME_MANUAL.md) - controls and player-facing behavior
 - [Documentation index](documentation/README.md) - engineering notes and evidence
@@ -38,9 +38,9 @@ README.md is gitignored.** Then:
 python3 recomp/tools/local/run.py
 ```
 
-To select the accepted Modernized quality target, use
-`python3 recomp/tools/local/run.py --mode modernized --frame-rate 120`
-(these options save your preferences). Vanilla remains available.
+The game starts in Modernized. For the accepted quality target, use
+`python3 recomp/tools/local/run.py --frame-rate 120` (options save your
+preferences). `run.py --vanilla` plays the original game for one launch.
 
 For an existing clone, run `git submodule update --init --recursive` first.
 Builds generate the game code locally from your disc. Research, generated code,

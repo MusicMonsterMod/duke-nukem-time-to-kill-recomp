@@ -18,7 +18,7 @@ Original media under `game/`, research, generated game code, builds, captures, p
 
 ## Game work
 
-- Vanilla stays available. Modernized is an optional profile.
+- Modernized is the default profile. Vanilla stays available, unchanged in play, with `run.py --vanilla` (one launch, not saved).
 - Modern controls mean independent movement, camera, and weapon aiming, not keyboard remapping alone.
 - Job board: `MODERNIZATION_JOBS.md`. Status evidence: `documentation/00-status.md` and `documentation/09-handoff.md`.
 - `$continue-duke-recomp` (Codex) or `/continue-duke-recomp` (Claude Code) lists jobs and waits for a choice. Listing does not start a job.

@@ -72,7 +72,7 @@ def main():
         if args.controls in ('weapons','aim-options'): env['DNTTK_AIM_TRACE']='1'
         profiles = directory / 'profiles.json'
         command = ['python3', str(ROOT / 'tools/local/run.py'), '--settings-file', str(profiles),
-                   '--mode', args.mode, '--memcard-dir', str(directory / 'cards'), '--debug-port', str(args.port),
+                   *(['--vanilla'] if args.mode == 'vanilla' else []), '--memcard-dir', str(directory / 'cards'), '--debug-port', str(args.port),
                    '--renderer', args.renderer, '--weapon-aim', args.weapon_aim, '--aim-assist', args.aim_assist, '--red-dot', args.red_dot, '--crosshair',args.crosshair]
         if args.controls == 'movement':
             command += ['--camera', 'original']

@@ -59,8 +59,8 @@ route remains separate and must not be inferred from the smoke route.
 
 `run.py` creates `game/` on first parse, even for `--settings`. If the prepared
 CUE is missing, it searches `game/` and imports a known USA dump before launch.
-`run.py --settings` provides the launch-time terminal selector. `--mode`,
-`--renderer`, `--reset-profile` and `--show-settings` support scripted use.
+`run.py --settings` provides the launch-time terminal selector. `--vanilla`
+(one launch, not saved; D33), `--renderer`, `--reset-profile` and `--show-settings` support scripted use.
 `--settings-file` isolates test preferences. See [schema/recovery](17-player-profiles.md).
 Renderer choices are persistent; other runtime preferences remain shared.
 
@@ -103,7 +103,8 @@ the walking/collision and camera-constraint contracts.
 `--show-bindings` prints them. `--settings` provides the same editor interactively.
 Profile schema 2 migrates existing selection/renderer preferences with backups.
 
-`pc_input_probe.py --name UNIQUE --mode vanilla|modernized` runs the actual
+`pc_input_probe.py --name UNIQUE --mode vanilla|modernized` (the probe passes
+`--vanilla` to `run.py` for Vanilla) runs the actual
 player on a private Xvfb display using xdotool keyboard/mouse events and a focus
 sink. It refuses an active game, an occupied port or an existing evidence path.
 Cards, profiles, runtime log, screenshots and assertion report are isolated in

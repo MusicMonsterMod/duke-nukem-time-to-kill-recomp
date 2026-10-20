@@ -40,8 +40,7 @@ class ProfilesTest(unittest.TestCase):
         loaded, _ = profiles.load(self.path)
         self.assertEqual(loaded['profiles']['modernized']['controls']['geometry_precision'],'corrected')
         self.assertEqual(loaded['profiles']['modernized']['controls']['texture_precision'],'original')
-        self.cli('--mode','vanilla')
-        self.cli('--mode','modernized')
+        self.cli('--vanilla')
         self.assertIn('Mesh geometry: corrected; textures: original',self.cli())
         self.cli('--reset-profile','modernized')
         self.assertIn('Mesh geometry: original; textures: original',self.cli())
@@ -55,9 +54,9 @@ class ProfilesTest(unittest.TestCase):
             run.main(base+['--renderer','software'])
             self.assertEqual(launch.call_args.kwargs['env']['DNTTK_GEOMETRY_PRECISION'],'original')
             self.assertEqual(launch.call_args.kwargs['env']['DNTTK_TEXTURE_PRECISION'],'original')
-            run.main(base+['--renderer','opengl','--mode','vanilla'])
+            run.main(base+['--renderer','opengl','--vanilla'])
             self.assertEqual(launch.call_args.kwargs['env']['DNTTK_GEOMETRY_PRECISION'],'original')
-            run.main(base+['--mode','modernized','--renderer','opengl'])
+            run.main(base+['--renderer','opengl'])
             self.assertEqual(launch.call_args.kwargs['env']['DNTTK_GEOMETRY_PRECISION'],'corrected')
         answers=iter(['g','corrected','original','5'])
         settings=profiles.menu(profiles.defaults(),read=lambda _:next(answers),write=lambda *_:None)
@@ -73,11 +72,11 @@ class ProfilesTest(unittest.TestCase):
         self.assertEqual(settings['profiles']['vanilla']['presentation']['renderer'], 'opengl')
 
     def test_cli_restart_switch_and_reset(self):
-        self.cli('--mode', 'modernized', '--renderer', 'software')
+        self.cli('--renderer', 'software')
         self.assertIn('Renderer: software', self.cli())
         self.assertIn('View aiming', self.cli())
-        self.assertIn('Renderer: opengl', self.cli('--mode', 'vanilla'))
-        self.assertIn('Renderer: software', self.cli('--mode', 'modernized'))
+        self.assertIn('Renderer: opengl', self.cli('--vanilla'))
+        self.assertIn('Renderer: software', self.cli())
         self.cli('--reset-profile', 'vanilla')
         self.assertIn('Renderer: software', self.cli())
         self.cli('--reset-profile', 'modernized')
@@ -115,6 +114,33 @@ class ProfilesTest(unittest.TestCase):
         self.assertEqual(profiles.load(self.path), (loaded, []))
         self.assertEqual(next(self.path.parent.glob('*.recovered-*')).read_bytes(), raw)
 
+    def test_vanilla_is_one_launch_only(self):
+        # D33: Modernized by default; --vanilla is not remembered.
+        self.assertIn('Profile: Vanilla (this launch only)', self.cli('--vanilla', '--renderer', 'software'))
+        self.assertEqual(json.loads(self.path.read_text())['active'], 'modernized')
+        out = self.cli()
+        self.assertIn('Profile: Modernized', out)
+        self.assertIn('Renderer: opengl', out)
+        self.assertIn('Renderer: software', self.cli('--vanilla'))
+
+    def test_saved_vanilla_moves_to_modernized_once(self):
+        settings = profiles.defaults()
+        settings['active'] = 'vanilla'
+        settings['profiles']['vanilla']['presentation']['renderer'] = 'software'
+        self.path.write_text(json.dumps(settings))
+        loaded, notices = profiles.load(self.path)
+        self.assertEqual(loaded['active'], 'modernized')
+        self.assertEqual(loaded['profiles']['vanilla']['presentation']['renderer'], 'software')
+        self.assertEqual(notices[0], profiles.VANILLA_NOTICE)
+        self.assertNotIn('Invalid', ' '.join(notices))
+        self.assertEqual(profiles.load(self.path), (loaded, []))
+
+    def test_legacy_migration_without_mode_is_modernized(self):
+        self.path.write_bytes(b'{"version":0,"renderer":"software"}')
+        loaded, _ = profiles.load(self.path)
+        self.assertEqual(loaded['active'], 'modernized')
+        self.assertEqual(loaded['profiles']['modernized']['presentation']['renderer'], 'software')
+
     def test_future_version_not_overwritten(self):
         raw = b'{"version":34,"new_settings":[1,2]}'
         self.path.write_bytes(raw)
@@ -134,7 +160,7 @@ class ProfilesTest(unittest.TestCase):
 
     def test_menu_save_reset_and_cancel(self):
         settings = profiles.defaults()
-        answers = iter(['2', '3', '2', '5'])
+        answers = iter(['3', '2', '5'])
         edited = profiles.menu(settings, lambda _: next(answers), lambda _: None)
         self.assertEqual(edited['active'], 'modernized')
         self.assertEqual(edited['profiles']['modernized']['presentation']['renderer'], 'software')
@@ -143,15 +169,14 @@ class ProfilesTest(unittest.TestCase):
         reset = profiles.menu(edited, lambda _: next(answers), lambda _: None)
         self.assertEqual(reset['profiles']['modernized'], profiles.default_profile('modernized'))
         before = copy.deepcopy(edited)
-        answers = iter(['1', '4', '0'])
+        answers = iter(['4', '0'])
         self.assertIsNone(profiles.menu(edited, lambda _: next(answers), lambda _: None))
         self.assertEqual(edited, before)
 
     def test_launch_uses_profile_and_explicit_cards(self):
         cards = self.path.parent / 'test cards'
         with patch.object(Path, 'is_file', return_value=True), patch.object(run.subprocess, 'call', return_value=0) as launch, patch.object(run, 'ensure_movie_shard'):
-            self.assertEqual(run.main(['--settings-file', str(self.path), '--no-session-log', '--mode', 'modernized',
-                                       '--renderer', 'software', '--memcard-dir', str(cards), '--headless']), 0)
+            self.assertEqual(run.main(['--settings-file', str(self.path), '--no-session-log', '--renderer', 'software', '--memcard-dir', str(cards), '--headless']), 0)
         argv = launch.call_args.args[0]
         self.assertEqual(argv[argv.index('--renderer') + 1], 'software')
         self.assertEqual(argv[argv.index('--memcard-dir') + 1], str(cards.resolve()))
@@ -184,23 +209,23 @@ class CameraPreferencesTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             path=Path(d)/'profiles.json'
             cmd=[sys.executable,str(TOOLS/'run.py'),'--settings-file',str(path),'--show-settings']
-            subprocess.run(cmd+['--mode','modernized','--camera','original','--mouse-sensitivity','0.25','--invert-y','on'],check=True,capture_output=True)
+            subprocess.run(cmd+['--camera','original','--mouse-sensitivity','0.25','--invert-y','on'],check=True,capture_output=True)
             raw=path.read_bytes()
             result,_=profiles.load(path)
             self.assertEqual(result['profiles']['modernized']['controls'],{'camera':'original','mouse_sensitivity':0.25,'invert_y':True,'weapon_aim':'view','crosshair':True,'red_dot':False,'aim_assist':'off','jetpack':'modern','camera_distance':0,'shoulder':'center','view':'third','widescreen':'16:9','cpu_overclock':150,'cpu_timing':'fast','jump':'assisted','frame_rate':'60','view_bob':'on','geometry_precision':'original','texture_precision':'original','draw_distance':'extended','steroids':'portable','jump_walls':'slide','landing':'modern','dynamite':'modern','swimming':'modern'})
             invalid=subprocess.run(cmd+['--mouse-sensitivity','nan'],capture_output=True)
             self.assertNotEqual(invalid.returncode,0);self.assertEqual(path.read_bytes(),raw)
-            subprocess.run(cmd+['--mode','vanilla'],check=True,capture_output=True)
+            subprocess.run(cmd+['--vanilla'],check=True,capture_output=True)
             result,_=profiles.load(path)
             self.assertEqual(result['profiles']['modernized']['controls']['camera'],'original')
 
     def test_terminal_camera_edit(self):
-        replies=iter(['2','7','independent 0.2 on','5'])
+        replies=iter(['7','independent 0.2 on','5'])
         edited=profiles.menu(profiles.defaults(),lambda _:next(replies),lambda _:None)
         self.assertEqual(edited['profiles']['modernized']['controls'],{'camera':'independent','mouse_sensitivity':0.2,'invert_y':True,'weapon_aim':'view','crosshair':True,'red_dot':False,'aim_assist':'off','jetpack':'modern','camera_distance':0,'shoulder':'center','view':'third','widescreen':'16:9','cpu_overclock':150,'cpu_timing':'fast','jump':'assisted','frame_rate':'60','view_bob':'on','geometry_precision':'original','texture_precision':'original','draw_distance':'extended','steroids':'portable','jump_walls':'slide','landing':'modern','dynamite':'modern','swimming':'modern'})
 
     def test_view_bob_menu_and_migration(self):
-        replies=iter(['2','b','subtle','b','wobbly','5'])
+        replies=iter(['b','subtle','b','wobbly','5'])
         edited=profiles.menu(profiles.defaults(),lambda _:next(replies),lambda _:None)
         self.assertEqual(edited['profiles']['modernized']['controls']['view_bob'],'subtle')
         with tempfile.TemporaryDirectory() as d:
@@ -234,13 +259,13 @@ class WeaponPreferencesTest(unittest.TestCase):
             self.assertEqual(profiles.load(path),(result,[]))
 
     def test_aim_menu_and_vanilla_launcher_contract(self):
-        replies=iter(['2','8','original','7','independent 0.2 off','5'])
+        replies=iter(['8','original','7','independent 0.2 off','5'])
         edited=profiles.menu(profiles.defaults(),lambda _:next(replies),lambda _:None)
         self.assertEqual(edited['profiles']['modernized']['controls']['weapon_aim'],'original')
         with tempfile.TemporaryDirectory() as d:
             path=Path(d)/'profiles.json';profiles.save(path,edited)
             with patch.object(Path,'is_file',return_value=True),patch.object(run.subprocess,'call',return_value=0) as launch,patch.object(run,'ensure_movie_shard'):
-                run.main(['--settings-file',str(path),'--no-session-log','--mode','vanilla','--weapon-aim','view'])
+                run.main(['--settings-file',str(path),'--no-session-log','--vanilla','--weapon-aim','view'])
                 self.assertEqual(launch.call_args.kwargs['env']['DNTTK_WEAPON_AIM'],'original')
             self.assertEqual(profiles.load(path)[0]['profiles']['modernized']['controls']['weapon_aim'],'view')
 
@@ -269,10 +294,10 @@ class AimingDisplayPreferencesTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             path=Path(d)/'profiles.json'
             with patch.object(Path,'is_file',return_value=True),patch.object(run.subprocess,'call',return_value=0) as launch,patch.object(run,'ensure_movie_shard'):
-                run.main(['--settings-file',str(path),'--no-session-log','--mode','modernized','--aim-assist','original-lock','--crosshair','off','--red-dot','off'])
+                run.main(['--settings-file',str(path),'--no-session-log','--aim-assist','original-lock','--crosshair','off','--red-dot','off'])
                 env=launch.call_args.kwargs['env']
                 self.assertEqual((env['DNTTK_AIM_ASSIST'],env['DNTTK_CROSSHAIR'],env['DNTTK_RED_DOT']),('original-lock','0','0'))
-                run.main(['--settings-file',str(path),'--no-session-log','--mode','vanilla'])
+                run.main(['--settings-file',str(path),'--no-session-log','--vanilla'])
                 env=launch.call_args.kwargs['env']
                 self.assertEqual((env['DNTTK_AIM_ASSIST'],env['DNTTK_RED_DOT']),('off','1'))
                 p=profiles.load(path)[0]['profiles']['modernized']['controls']
@@ -330,11 +355,11 @@ class RedDotDefaultTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             path=Path(d)/'profiles.json'
             with patch.object(Path,'is_file',return_value=True),patch.object(run.subprocess,'call',return_value=0) as launch,patch.object(run,'ensure_movie_shard'):
-                run.main(['--settings-file',str(path),'--no-session-log','--mode','modernized'])
+                run.main(['--settings-file',str(path),'--no-session-log'])
                 self.assertEqual(launch.call_args.kwargs['env']['DNTTK_RED_DOT'],'0')
-                run.main(['--settings-file',str(path),'--no-session-log','--mode','vanilla'])
+                run.main(['--settings-file',str(path),'--no-session-log','--vanilla'])
                 self.assertEqual(launch.call_args.kwargs['env']['DNTTK_RED_DOT'],'1')
-                run.main(['--settings-file',str(path),'--no-session-log','--mode','modernized','--red-dot','on'])
+                run.main(['--settings-file',str(path),'--no-session-log','--red-dot','on'])
                 self.assertEqual(launch.call_args.kwargs['env']['DNTTK_RED_DOT'],'1')
 
 class JetpackSchemeTest(unittest.TestCase):
@@ -349,7 +374,7 @@ class JetpackSchemeTest(unittest.TestCase):
             raw=json.dumps(old).encode();path.write_bytes(raw)
             migrated,notes=profiles.load(path)
             self.assertEqual(migrated['version'],33)
-            self.assertEqual(migrated['active'],'vanilla')
+            self.assertEqual(migrated['active'],'modernized')
             for p in migrated['profiles'].values():
                 self.assertEqual(p['controls']['jetpack'],'modern')
                 self.assertEqual((p['controls']['camera'],p['controls']['mouse_sensitivity'],p['controls']['aim_assist']),('original',.4,'original-lock'))
@@ -371,21 +396,21 @@ class JetpackSchemeTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             path=Path(d)/'profiles.json'
             with patch.object(Path,'is_file',return_value=True),patch.object(run.subprocess,'call',return_value=0) as launch,patch.object(run,'ensure_movie_shard'):
-                run.main(['--settings-file',str(path),'--no-session-log','--mode','modernized','--jetpack','classic'])
+                run.main(['--settings-file',str(path),'--no-session-log','--jetpack','classic'])
                 self.assertEqual(launch.call_args.kwargs['env']['DNTTK_JETPACK'],'classic')
                 self.assertEqual(profiles.load(path)[0]['profiles']['modernized']['controls']['jetpack'],'classic')
                 run.main(['--settings-file',str(path),'--no-session-log'])
                 self.assertEqual(launch.call_args.kwargs['env']['DNTTK_JETPACK'],'classic')
-                run.main(['--settings-file',str(path),'--no-session-log','--mode','vanilla'])
+                run.main(['--settings-file',str(path),'--no-session-log','--vanilla'])
                 self.assertEqual(launch.call_args.kwargs['env']['DNTTK_JETPACK'],'modern')
-                run.main(['--settings-file',str(path),'--no-session-log','--mode','modernized','--jetpack','modern'])
+                run.main(['--settings-file',str(path),'--no-session-log','--jetpack','modern'])
                 self.assertEqual(launch.call_args.kwargs['env']['DNTTK_JETPACK'],'modern')
             self.assertEqual(profiles.load(path)[0]['profiles']['modernized']['controls']['jetpack'],'modern')
 
     def test_show_settings_saves_without_launch(self):
         with tempfile.TemporaryDirectory() as d:
             path=Path(d)/'profiles.json'
-            out=subprocess.run([sys.executable,str(TOOLS/'run.py'),'--settings-file',str(path),'--mode','modernized','--jetpack','classic','--show-settings'],
+            out=subprocess.run([sys.executable,str(TOOLS/'run.py'),'--settings-file',str(path),'--jetpack','classic','--show-settings'],
                                capture_output=True,text=True,check=True).stdout
             self.assertIn('Jetpack: classic',out)
             self.assertEqual(profiles.load(path)[0]['profiles']['modernized']['controls']['jetpack'],'classic')
@@ -421,20 +446,20 @@ class WidescreenTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             path=Path(d)/'profiles.json'
             with patch.object(Path,'is_file',return_value=True),patch.object(run.subprocess,'call',return_value=0) as launch,patch.object(run,'ensure_movie_shard'):
-                run.main(['--settings-file',str(path),'--no-session-log','--mode','modernized'])
+                run.main(['--settings-file',str(path),'--no-session-log'])
                 self.assertEqual(launch.call_args.kwargs['env']['DNTTK_WIDESCREEN'],'16:9')
                 for value in ('21:9','auto','16:10','off'):
                     run.main(['--settings-file',str(path),'--no-session-log','--widescreen',value])
                     self.assertEqual(launch.call_args.kwargs['env']['DNTTK_WIDESCREEN'],value)
                     self.assertEqual(profiles.load(path)[0]['profiles']['modernized']['controls']['widescreen'],value)
-                run.main(['--settings-file',str(path),'--no-session-log','--widescreen','21:9','--mode','vanilla'])
+                run.main(['--settings-file',str(path),'--no-session-log','--widescreen','21:9','--vanilla'])
                 self.assertEqual(launch.call_args.kwargs['env']['DNTTK_WIDESCREEN'],'off')
             self.assertEqual(profiles.load(path)[0]['profiles']['modernized']['controls']['widescreen'],'21:9')
 
     def test_show_settings_and_terminal_menu(self):
         with tempfile.TemporaryDirectory() as d:
             path=Path(d)/'profiles.json'
-            out=subprocess.run([sys.executable,str(TOOLS/'run.py'),'--settings-file',str(path),'--mode','modernized','--widescreen','off','--show-settings'],
+            out=subprocess.run([sys.executable,str(TOOLS/'run.py'),'--settings-file',str(path),'--widescreen','off','--show-settings'],
                                capture_output=True,text=True,check=True).stdout
             self.assertIn('Widescreen: off (original 4:3 picture)',out)
         settings=profiles.defaults()
@@ -489,7 +514,7 @@ class CameraPolishTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             path=Path(d)/'profiles.json';state=profiles.camera_state_path(path)
             with patch.object(Path,'is_file',return_value=True),patch.object(run.subprocess,'call',return_value=0) as launch,patch.object(run,'ensure_movie_shard'):
-                run.main(['--settings-file',str(path),'--no-session-log','--mode','modernized','--camera-distance','3000','--shoulder','right'])
+                run.main(['--settings-file',str(path),'--no-session-log','--camera-distance','3000','--shoulder','right'])
                 env=launch.call_args.kwargs['env']
                 self.assertEqual((env['DNTTK_CAMERA_DISTANCE'],env['DNTTK_CAMERA_SHOULDER']),('3000.0','right'))
                 self.assertEqual(env['DNTTK_CAMERA_STATE_FILE'],str(profiles.camera_state_path(path.resolve())))
@@ -502,10 +527,10 @@ class CameraPolishTest(unittest.TestCase):
                 self.assertFalse(state.exists())
                 run.main(['--settings-file',str(path),'--no-session-log'])
                 self.assertEqual(launch.call_args.kwargs['env']['DNTTK_CAMERA_DISTANCE'],'1536')
-                run.main(['--settings-file',str(path),'--no-session-log','--mode','vanilla'])
+                run.main(['--settings-file',str(path),'--no-session-log','--vanilla'])
                 env=launch.call_args.kwargs['env']
                 self.assertEqual((env['DNTTK_CAMERA_DISTANCE'],env['DNTTK_CAMERA_SHOULDER'],env['DNTTK_CAMERA_STATE_FILE']),('0','center',''))
-                run.main(['--settings-file',str(path),'--no-session-log','--mode','modernized','--camera-distance','original'])
+                run.main(['--settings-file',str(path),'--no-session-log','--camera-distance','original'])
                 self.assertEqual(launch.call_args.kwargs['env']['DNTTK_CAMERA_DISTANCE'],'0')
             for bad in ['100','nan','far']:
                 with self.assertRaises(SystemExit):
@@ -579,15 +604,16 @@ class FirstPersonViewTest(unittest.TestCase):
                 self.assertFalse(profiles.absorb_menu_settings(path,settings))
                 self.assertFalse(state.exists())
             self.assertEqual(settings,before)
+            # D33: an older build's PROFILE VANILLA no longer switches the next launch.
             state.write_text('{"version":1,"active":"vanilla","controls":{},"presentation":{}}')
-            self.assertTrue(profiles.absorb_menu_settings(path,settings))
-            self.assertEqual(settings['active'],'vanilla')
+            self.assertFalse(profiles.absorb_menu_settings(path,settings))
+            self.assertEqual(settings['active'],'modernized')
 
     def test_launch_carries_menu_settings(self):
         with tempfile.TemporaryDirectory() as d:
             path=Path(d)/'profiles.json';state=profiles.menu_settings_path(path)
             with patch.object(Path,'is_file',return_value=True),patch.object(run.subprocess,'call',return_value=0) as launch,patch.object(run,'ensure_movie_shard'):
-                run.main(['--settings-file',str(path),'--no-session-log','--mode','modernized'])
+                run.main(['--settings-file',str(path),'--no-session-log'])
                 env=launch.call_args.kwargs['env']
                 self.assertEqual(env['DNTTK_MENU_SETTINGS_FILE'],str(profiles.menu_settings_path(path.resolve())))
                 self.assertEqual(env['DNTTK_MENU_PRESENTATION'],'renderer=opengl,internal_scale=4,display=windowed,output_filter=linear')
@@ -596,19 +622,19 @@ class FirstPersonViewTest(unittest.TestCase):
                 launch.side_effect=None
                 self.assertEqual(profiles.load(path)[0]['profiles']['modernized']['controls']['jump'],'manual')
                 self.assertFalse(state.exists())
-                run.main(['--settings-file',str(path),'--no-session-log','--mode','vanilla'])
+                run.main(['--settings-file',str(path),'--no-session-log','--vanilla'])
                 self.assertEqual(launch.call_args.kwargs['env']['DNTTK_MENU_SETTINGS_FILE'],'')
 
     def test_cli_launch_and_vanilla_view(self):
         with tempfile.TemporaryDirectory() as d:
             path=Path(d)/'profiles.json'
             with patch.object(Path,'is_file',return_value=True),patch.object(run.subprocess,'call',return_value=0) as launch,patch.object(run,'ensure_movie_shard'):
-                run.main(['--settings-file',str(path),'--no-session-log','--mode','modernized','--view','first'])
+                run.main(['--settings-file',str(path),'--no-session-log','--view','first'])
                 self.assertEqual(launch.call_args.kwargs['env']['DNTTK_CAMERA_VIEW'],'first')
-                run.main(['--settings-file',str(path),'--no-session-log','--mode','vanilla'])
+                run.main(['--settings-file',str(path),'--no-session-log','--vanilla'])
                 self.assertEqual(launch.call_args.kwargs['env']['DNTTK_CAMERA_VIEW'],'third')
             self.assertEqual(profiles.load(path)[0]['profiles']['modernized']['controls']['view'],'first')
-            out=subprocess.run([sys.executable,str(TOOLS/'run.py'),'--settings-file',str(path),'--mode','modernized','--show-settings'],
+            out=subprocess.run([sys.executable,str(TOOLS/'run.py'),'--settings-file',str(path),'--show-settings'],
                                capture_output=True,text=True,check=True).stdout
             self.assertIn('View: first person (P toggles',out)
             with self.assertRaises(SystemExit):
@@ -625,7 +651,7 @@ class PolishMigrationTest(unittest.TestCase):
             for mode in profiles.MODES:
                 for action in ('camera_recenter','camera_shoulder'): old['profiles'][mode]['bindings'].pop(action)  # added in v12
             profiles.save(path,old);raw=path.read_bytes();new,_=profiles.load(path)
-            self.assertEqual(new['active'],'vanilla')
+            self.assertEqual(new['active'],'modernized')
             self.assertEqual(new['profiles']['modernized']['bindings']['holster'],'ScrollLock')
             self.assertEqual(new['profiles']['vanilla']['bindings']['holster'],'G')
             self.assertEqual(new['profiles']['modernized']['bindings']['jump'],'J')
@@ -642,7 +668,7 @@ class PresentationTest(unittest.TestCase):
             raw=json.dumps(old).encode();path.write_bytes(raw)
             migrated,notes=profiles.load(path)
             self.assertEqual(migrated['version'],33)
-            self.assertEqual(migrated['active'],'vanilla')
+            self.assertEqual(migrated['active'],'modernized')
             self.assertEqual(migrated['profiles']['vanilla']['presentation'],{**profiles.DEFAULT_PRESENTATION,'renderer':'software'})
             self.assertEqual(migrated['profiles']['modernized']['presentation'],{**profiles.DEFAULT_PRESENTATION,'renderer':'software','internal_scale':4})
             self.assertEqual(migrated['profiles']['modernized']['controls']['view'],'first')
@@ -668,13 +694,13 @@ class PresentationTest(unittest.TestCase):
             def flags(argv):
                 return {k:argv[argv.index(k)+1] for k in ('--renderer','--internal-scale','--display','--window-width','--output-filter')}
             with patch.object(Path,'is_file',return_value=True),patch.object(run.subprocess,'call',return_value=0) as launch,patch.object(run,'ensure_movie_shard'):
-                run.main(['--settings-file',str(path),'--no-session-log','--mode','modernized'])
+                run.main(['--settings-file',str(path),'--no-session-log'])
                 self.assertEqual(flags(launch.call_args.args[0]),{'--renderer':'opengl','--internal-scale':'4','--display':'windowed','--window-width':'0','--output-filter':'linear'})
                 run.main(['--settings-file',str(path),'--no-session-log','--internal-scale','4','--display','borderless','--window-width','1920','--output-filter','nearest'])
                 self.assertEqual(flags(launch.call_args.args[0]),{'--renderer':'opengl','--internal-scale':'4','--display':'borderless','--window-width':'1920','--output-filter':'nearest'})
-                run.main(['--settings-file',str(path),'--no-session-log','--mode','vanilla'])
+                run.main(['--settings-file',str(path),'--no-session-log','--vanilla'])
                 self.assertEqual(flags(launch.call_args.args[0])['--internal-scale'],'1')
-                run.main(['--settings-file',str(path),'--no-session-log','--mode','modernized'])
+                run.main(['--settings-file',str(path),'--no-session-log'])
                 self.assertEqual(flags(launch.call_args.args[0])['--internal-scale'],'4')
             raw=path.read_bytes()
             for bad in (['--internal-scale','5'],['--window-width','100'],['--display','kiosk']):
@@ -683,8 +709,8 @@ class PresentationTest(unittest.TestCase):
             self.assertEqual(path.read_bytes(),raw)
 
     def test_menu_resolution_edit_and_rejection(self):
-        replies=iter(['1','r','3 exclusive 1600 nearest','5'])
-        edited=profiles.menu(profiles.defaults(),lambda _:next(replies),lambda _:None)
+        replies=iter(['r','3 exclusive 1600 nearest','5'])
+        edited=profiles.menu({**profiles.defaults(),'active':'vanilla'},lambda _:next(replies),lambda _:None)
         self.assertEqual(edited['profiles']['vanilla']['presentation'],{'renderer':'opengl','internal_scale':3,'display':'exclusive','fullscreen_mode':'exclusive','window_width':1600,'output_filter':'nearest'})
         self.assertEqual(edited['profiles']['modernized']['presentation']['internal_scale'],4)
         replies=iter(['R','9 windowed 0 linear','R','two windowed 0 linear','5'])
@@ -695,7 +721,7 @@ class PresentationTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             path=Path(d)/'profiles.json'
             with patch.object(Path,'is_file',return_value=True),patch.object(run.subprocess,'call',return_value=0) as launch,patch.object(run,'ensure_movie_shard'):
-                run.main(['--settings-file',str(path),'--no-session-log','--mode','modernized','--internal-scale','3','--renderer','software'])
+                run.main(['--settings-file',str(path),'--no-session-log','--internal-scale','3','--renderer','software'])
                 argv=launch.call_args.args[0]
                 self.assertEqual(argv[argv.index('--internal-scale')+1],'1')
                 run.main(['--settings-file',str(path),'--no-session-log','--renderer','opengl'])
@@ -741,7 +767,7 @@ class DisplayStateTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             path=Path(d)/'profiles.json';state=profiles.presentation_state_path(path.resolve())
             with patch.object(Path,'is_file',return_value=True),patch.object(run.subprocess,'call',return_value=0) as launch,patch.object(run,'ensure_movie_shard'):
-                run.main(['--settings-file',str(path),'--no-session-log','--mode','modernized','--display','exclusive'])
+                run.main(['--settings-file',str(path),'--no-session-log','--display','exclusive'])
                 argv=launch.call_args.args[0]
                 self.assertEqual(argv[argv.index('--presentation-state')+1],str(state))
                 self.assertEqual((argv[argv.index('--display')+1],argv[argv.index('--fullscreen-mode')+1]),('exclusive','exclusive'))
@@ -774,13 +800,13 @@ class CpuOverclockTest(unittest.TestCase):
                 self.assertEqual(p['controls']['cpu_overclock'],150)
             self.assertTrue(any('version 33' in n for n in notes))
             with patch.object(Path,'is_file',return_value=True),patch.object(run.subprocess,'call',return_value=0) as launch,patch.object(run,'ensure_movie_shard'):
-                run.main(['--settings-file',str(path),'--no-session-log','--mode','modernized'])
+                run.main(['--settings-file',str(path),'--no-session-log'])
                 self.assertEqual(launch.call_args.kwargs['env']['PSX_CPU_OVERCLOCK'],'150')
                 for value in (100,125,175,200):
                     run.main(['--settings-file',str(path),'--no-session-log','--cpu-overclock',str(value)])
                     self.assertEqual(launch.call_args.kwargs['env']['PSX_CPU_OVERCLOCK'],str(value))
                     self.assertEqual(profiles.load(path)[0]['profiles']['modernized']['controls']['cpu_overclock'],value)
-                run.main(['--settings-file',str(path),'--no-session-log','--mode','vanilla'])
+                run.main(['--settings-file',str(path),'--no-session-log','--vanilla'])
                 self.assertEqual(launch.call_args.kwargs['env']['PSX_CPU_OVERCLOCK'],'100')
             with self.assertRaises(SystemExit),patch('sys.stderr'):
                 run.main(['--settings-file',str(path),'--no-session-log','--cpu-overclock','300'])
@@ -807,12 +833,12 @@ class CpuTimingTest(unittest.TestCase):
             self.assertEqual(migrated['profiles']['modernized']['controls']['cpu_timing'],'fast')
             self.assertTrue(any('version 33' in n for n in notes))
             with patch.object(Path,'is_file',return_value=True),patch.object(run.subprocess,'call',return_value=0) as launch,patch.object(run,'ensure_movie_shard'):
-                run.main(['--settings-file',str(path),'--no-session-log','--mode','modernized'])
+                run.main(['--settings-file',str(path),'--no-session-log'])
                 self.assertEqual(launch.call_args.kwargs['env']['DNTTK_CPU_TIMING'],'fast')
                 run.main(['--settings-file',str(path),'--no-session-log','--cpu-timing','accurate'])
                 self.assertEqual(launch.call_args.kwargs['env']['DNTTK_CPU_TIMING'],'accurate')
                 self.assertEqual(profiles.load(path)[0]['profiles']['modernized']['controls']['cpu_timing'],'accurate')
-                run.main(['--settings-file',str(path),'--no-session-log','--cpu-timing','fast','--mode','vanilla'])
+                run.main(['--settings-file',str(path),'--no-session-log','--cpu-timing','fast','--vanilla'])
                 self.assertEqual(launch.call_args.kwargs['env']['DNTTK_CPU_TIMING'],'accurate')
             with self.assertRaises(SystemExit),patch('sys.stderr'):
                 run.main(['--settings-file',str(path),'--no-session-log','--cpu-timing','turbo'])
@@ -855,12 +881,12 @@ class JumpStyleTest(unittest.TestCase):
                 self.assertEqual(p['controls']['jump'],'assisted')
             self.assertTrue(any('version 33' in n for n in notes))
             with patch.object(Path,'is_file',return_value=True),patch.object(run.subprocess,'call',return_value=0) as launch,patch.object(run,'ensure_movie_shard'):
-                run.main(['--settings-file',str(path),'--no-session-log','--mode','modernized'])
+                run.main(['--settings-file',str(path),'--no-session-log'])
                 self.assertEqual(launch.call_args.kwargs['env']['DNTTK_JUMP'],'assisted')
                 run.main(['--settings-file',str(path),'--no-session-log','--jump','manual'])
                 self.assertEqual(launch.call_args.kwargs['env']['DNTTK_JUMP'],'manual')
                 self.assertEqual(profiles.load(path)[0]['profiles']['modernized']['controls']['jump'],'manual')
-                run.main(['--settings-file',str(path),'--no-session-log','--mode','vanilla'])
+                run.main(['--settings-file',str(path),'--no-session-log','--vanilla'])
                 self.assertEqual(launch.call_args.kwargs['env']['DNTTK_JUMP'],'assisted')
             with self.assertRaises(SystemExit),patch('sys.stderr'):
                 run.main(['--settings-file',str(path),'--no-session-log','--jump','floaty'])
@@ -894,14 +920,14 @@ class FrameRateTest(unittest.TestCase):
                 self.assertEqual(p['controls']['frame_rate'],'60')
             self.assertTrue(any('version 33' in n for n in notes))
             with patch.object(Path,'is_file',return_value=True),patch.object(run.subprocess,'call',return_value=0) as launch,patch.object(run,'ensure_movie_shard'):
-                run.main(['--settings-file',str(path),'--no-session-log','--mode','modernized'])
+                run.main(['--settings-file',str(path),'--no-session-log'])
                 env=launch.call_args.kwargs['env']
                 self.assertEqual(env['DNTTK_FRAME_RATE'],'60')
                 run.main(['--settings-file',str(path),'--no-session-log','--frame-rate','display'])
                 env=launch.call_args.kwargs['env']
                 self.assertEqual(env['DNTTK_FRAME_RATE'],'display')
                 self.assertEqual(profiles.load(path)[0]['profiles']['modernized']['controls']['frame_rate'],'display')
-                run.main(['--settings-file',str(path),'--no-session-log','--mode','vanilla'])
+                run.main(['--settings-file',str(path),'--no-session-log','--vanilla'])
                 self.assertEqual(launch.call_args.kwargs['env']['DNTTK_FRAME_RATE'],'60')
             with self.assertRaises(SystemExit),patch('sys.stderr'):
                 run.main(['--settings-file',str(path),'--no-session-log','--frame-rate','75'])
@@ -935,12 +961,12 @@ class DrawDistanceTest(unittest.TestCase):
                 self.assertEqual(p['controls']['draw_distance'],'extended')
             self.assertTrue(any('version 33' in n for n in notes))
             with patch.object(Path,'is_file',return_value=True),patch.object(run.subprocess,'call',return_value=0) as launch,patch.object(run,'ensure_movie_shard'):
-                run.main(['--settings-file',str(path),'--no-session-log','--mode','modernized'])
+                run.main(['--settings-file',str(path),'--no-session-log'])
                 self.assertEqual(launch.call_args.kwargs['env']['DNTTK_DRAW_DISTANCE'],'extended')
                 run.main(['--settings-file',str(path),'--no-session-log','--draw-distance','original'])
                 self.assertEqual(launch.call_args.kwargs['env']['DNTTK_DRAW_DISTANCE'],'original')
                 self.assertEqual(profiles.load(path)[0]['profiles']['modernized']['controls']['draw_distance'],'original')
-                run.main(['--settings-file',str(path),'--no-session-log','--draw-distance','extended','--mode','vanilla'])
+                run.main(['--settings-file',str(path),'--no-session-log','--draw-distance','extended','--vanilla'])
                 self.assertEqual(launch.call_args.kwargs['env']['DNTTK_DRAW_DISTANCE'],'original')
                 self.assertEqual(profiles.load(path)[0]['profiles']['modernized']['controls']['draw_distance'],'extended')
             with self.assertRaises(SystemExit),patch('sys.stderr'):
@@ -956,8 +982,8 @@ class DrawDistanceTest(unittest.TestCase):
         edited=profiles.menu(profiles.defaults(),read=lambda _: next(answers),write=lambda *_: None)
         self.assertEqual(edited['profiles']['modernized']['controls']['draw_distance'],'original')
         self.assertIn('Draw distance: original',profiles.describe(edited))
-        answers=iter(['1','d','original','5'])
-        vanilla=profiles.menu(profiles.defaults(),read=lambda _: next(answers),write=lambda *_: None)
+        answers=iter(['d','original','5'])
+        vanilla=profiles.menu({**profiles.defaults(),'active':'vanilla'},read=lambda _: next(answers),write=lambda *_: None)
         self.assertEqual(vanilla['profiles']['modernized']['controls']['draw_distance'],'extended')
 
 
@@ -989,8 +1015,8 @@ class SteroidsOptionTest(unittest.TestCase):
         self.assertEqual(edited['profiles']['modernized']['controls']['steroids'],'original')
         self.assertIn('Steroids: original',profiles.describe(edited))
         self.assertIn('Steroids: portable',profiles.describe(profiles.defaults()))
-        answers=iter(['1','s','original','5'])
-        vanilla=profiles.menu(profiles.defaults(),read=lambda _: next(answers),write=lambda *_: None)
+        answers=iter(['s','original','5'])
+        vanilla=profiles.menu({**profiles.defaults(),'active':'vanilla'},read=lambda _: next(answers),write=lambda *_: None)
         self.assertEqual(vanilla['profiles']['modernized']['controls']['steroids'],'portable')
 
 
@@ -1009,12 +1035,12 @@ class JumpWallsOptionTest(unittest.TestCase):
             self.assertEqual((migrated['version'],controls['jump_walls'],controls['steroids']),(33,'slide','original'))
             self.assertTrue(any('version 33' in n for n in notes))
             with patch.object(Path,'is_file',return_value=True),patch.object(run.subprocess,'call',return_value=0) as launch,patch.object(run,'ensure_movie_shard'):
-                run.main(['--settings-file',str(path),'--no-session-log','--mode','modernized'])
+                run.main(['--settings-file',str(path),'--no-session-log'])
                 self.assertEqual(launch.call_args.kwargs['env']['DNTTK_JUMP_WALLS'],'slide')
                 run.main(['--settings-file',str(path),'--no-session-log','--jump-walls','original'])
                 self.assertEqual(launch.call_args.kwargs['env']['DNTTK_JUMP_WALLS'],'original')
                 self.assertEqual(profiles.load(path)[0]['profiles']['modernized']['controls']['jump_walls'],'original')
-                run.main(['--settings-file',str(path),'--no-session-log','--jump-walls','slide','--mode','vanilla'])
+                run.main(['--settings-file',str(path),'--no-session-log','--jump-walls','slide','--vanilla'])
                 self.assertEqual(launch.call_args.kwargs['env']['DNTTK_JUMP_WALLS'],'original')
                 self.assertEqual(profiles.load(path)[0]['profiles']['modernized']['controls']['jump_walls'],'slide')
             with self.assertRaises(SystemExit),patch('sys.stderr'):
@@ -1034,8 +1060,8 @@ class JumpWallsOptionTest(unittest.TestCase):
         self.assertEqual(edited['profiles']['modernized']['controls']['jump_walls'],'original')
         self.assertIn('Jump wall contact: original',profiles.describe(edited))
         self.assertIn('Jump wall contact: slide',profiles.describe(profiles.defaults()))
-        answers=iter(['1','k','original','5'])
-        vanilla=profiles.menu(profiles.defaults(),read=lambda _: next(answers),write=lambda *_: None)
+        answers=iter(['k','original','5'])
+        vanilla=profiles.menu({**profiles.defaults(),'active':'vanilla'},read=lambda _: next(answers),write=lambda *_: None)
         self.assertEqual(vanilla['profiles']['modernized']['controls']['jump_walls'],'slide')
 
 
@@ -1076,12 +1102,12 @@ class LandingOptionTest(unittest.TestCase):
             self.assertEqual((migrated['version'],controls['landing'],controls['jump_walls']),(33,'modern','original'))
             self.assertTrue(any('version 33' in n for n in notes))
             with patch.object(Path,'is_file',return_value=True),patch.object(run.subprocess,'call',return_value=0) as launch,patch.object(run,'ensure_movie_shard'):
-                run.main(['--settings-file',str(path),'--no-session-log','--mode','modernized'])
+                run.main(['--settings-file',str(path),'--no-session-log'])
                 self.assertEqual(launch.call_args.kwargs['env']['DNTTK_LANDING'],'modern')
                 run.main(['--settings-file',str(path),'--no-session-log','--landing','original'])
                 self.assertEqual(launch.call_args.kwargs['env']['DNTTK_LANDING'],'original')
                 self.assertEqual(profiles.load(path)[0]['profiles']['modernized']['controls']['landing'],'original')
-                run.main(['--settings-file',str(path),'--no-session-log','--landing','modern','--mode','vanilla'])
+                run.main(['--settings-file',str(path),'--no-session-log','--landing','modern','--vanilla'])
                 self.assertEqual(launch.call_args.kwargs['env']['DNTTK_LANDING'],'original')
                 self.assertEqual(profiles.load(path)[0]['profiles']['modernized']['controls']['landing'],'modern')
             with self.assertRaises(SystemExit),patch('sys.stderr'):
@@ -1101,8 +1127,8 @@ class LandingOptionTest(unittest.TestCase):
         self.assertEqual(edited['profiles']['modernized']['controls']['landing'],'original')
         self.assertIn('Landing: original',profiles.describe(edited))
         self.assertIn('Landing: modern',profiles.describe(profiles.defaults()))
-        answers=iter(['1','l','original','5'])
-        vanilla=profiles.menu(profiles.defaults(),read=lambda _: next(answers),write=lambda *_: None)
+        answers=iter(['l','original','5'])
+        vanilla=profiles.menu({**profiles.defaults(),'active':'vanilla'},read=lambda _: next(answers),write=lambda *_: None)
         self.assertEqual(vanilla['profiles']['modernized']['controls']['landing'],'modern')
 
 
@@ -1121,12 +1147,12 @@ class DynamiteOptionTest(unittest.TestCase):
             self.assertEqual((migrated['version'],controls['dynamite'],controls['landing']),(33,'modern','original'))
             self.assertTrue(any('version 33' in n for n in notes))
             with patch.object(Path,'is_file',return_value=True),patch.object(run.subprocess,'call',return_value=0) as launch,patch.object(run,'ensure_movie_shard'):
-                run.main(['--settings-file',str(path),'--no-session-log','--mode','modernized'])
+                run.main(['--settings-file',str(path),'--no-session-log'])
                 self.assertEqual(launch.call_args.kwargs['env']['DNTTK_DYNAMITE'],'modern')
                 run.main(['--settings-file',str(path),'--no-session-log','--dynamite','original'])
                 self.assertEqual(launch.call_args.kwargs['env']['DNTTK_DYNAMITE'],'original')
                 self.assertEqual(profiles.load(path)[0]['profiles']['modernized']['controls']['dynamite'],'original')
-                run.main(['--settings-file',str(path),'--no-session-log','--dynamite','modern','--mode','vanilla'])
+                run.main(['--settings-file',str(path),'--no-session-log','--dynamite','modern','--vanilla'])
                 self.assertEqual(launch.call_args.kwargs['env']['DNTTK_DYNAMITE'],'original')
                 self.assertEqual(profiles.load(path)[0]['profiles']['modernized']['controls']['dynamite'],'modern')
             with self.assertRaises(SystemExit),patch('sys.stderr'):
@@ -1146,8 +1172,8 @@ class DynamiteOptionTest(unittest.TestCase):
         self.assertEqual(edited['profiles']['modernized']['controls']['dynamite'],'original')
         self.assertIn('Dynamite: original',profiles.describe(edited))
         self.assertIn('Dynamite: modern',profiles.describe(profiles.defaults()))
-        answers=iter(['1','t','original','5'])
-        vanilla=profiles.menu(profiles.defaults(),read=lambda _: next(answers),write=lambda *_: None)
+        answers=iter(['t','original','5'])
+        vanilla=profiles.menu({**profiles.defaults(),'active':'vanilla'},read=lambda _: next(answers),write=lambda *_: None)
         self.assertEqual(vanilla['profiles']['modernized']['controls']['dynamite'],'modern')
 
 
@@ -1166,12 +1192,12 @@ class SwimmingOptionTest(unittest.TestCase):
             self.assertEqual((migrated['version'],controls['swimming'],controls['dynamite']),(33,'modern','original'))
             self.assertTrue(any('version 33' in n for n in notes))
             with patch.object(Path,'is_file',return_value=True),patch.object(run.subprocess,'call',return_value=0) as launch,patch.object(run,'ensure_movie_shard'):
-                run.main(['--settings-file',str(path),'--no-session-log','--mode','modernized'])
+                run.main(['--settings-file',str(path),'--no-session-log'])
                 self.assertEqual(launch.call_args.kwargs['env']['DNTTK_SWIMMING'],'modern')
                 run.main(['--settings-file',str(path),'--no-session-log','--swimming','original'])
                 self.assertEqual(launch.call_args.kwargs['env']['DNTTK_SWIMMING'],'original')
                 self.assertEqual(profiles.load(path)[0]['profiles']['modernized']['controls']['swimming'],'original')
-                run.main(['--settings-file',str(path),'--no-session-log','--swimming','modern','--mode','vanilla'])
+                run.main(['--settings-file',str(path),'--no-session-log','--swimming','modern','--vanilla'])
                 self.assertEqual(launch.call_args.kwargs['env']['DNTTK_SWIMMING'],'original')
                 self.assertEqual(profiles.load(path)[0]['profiles']['modernized']['controls']['swimming'],'modern')
             with self.assertRaises(SystemExit),patch('sys.stderr'):
@@ -1191,6 +1217,6 @@ class SwimmingOptionTest(unittest.TestCase):
         self.assertEqual(edited['profiles']['modernized']['controls']['swimming'],'original')
         self.assertIn('Swimming: original',profiles.describe(edited))
         self.assertIn('Swimming: modern',profiles.describe(profiles.defaults()))
-        answers=iter(['1','u','original','5'])
-        vanilla=profiles.menu(profiles.defaults(),read=lambda _: next(answers),write=lambda *_: None)
+        answers=iter(['u','original','5'])
+        vanilla=profiles.menu({**profiles.defaults(),'active':'vanilla'},read=lambda _: next(answers),write=lambda *_: None)
         self.assertEqual(vanilla['profiles']['modernized']['controls']['swimming'],'modern')

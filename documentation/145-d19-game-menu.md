@@ -24,7 +24,7 @@ screen's defaults in the draft.
 | --- | --- |
 | PC CONTROLS | MOUSE SENSITIVITY (slider, 0.01-2.00 degrees per count), INVERT MOUSE |
 | DISPLAY | RENDERER, RESOLUTION, DISPLAY, FILTER, WIDESCREEN, FRAME RATE, DRAW DISTANCE, GEOMETRY, TEXTURES, CPU SPEED, CPU TIMING |
-| MODERNIZED | PROFILE, CAMERA, VIEW, SHOULDER, CAMERA DISTANCE, WEAPON AIM, CROSSHAIR, AIM ASSIST, RED DOT, JUMP, JUMP WALLS, LANDING, JETPACK, DYNAMITE, STEROIDS, VIEW BOB |
+| MODERNIZED | CAMERA (PROFILE removed in D33), VIEW, SHOULDER, CAMERA DISTANCE, WEAPON AIM, CROSSHAIR, AIM ASSIST, RED DOT, JUMP, JUMP WALLS, LANDING, JETPACK, DYNAMITE, STEROIDS, VIEW BOB |
 
 Applied at once: CROSSHAIR, AIM ASSIST, RED DOT, JUMP, JUMP WALLS, LANDING,
 DYNAMITE, VIEW BOB. Everything else says "NEXT LAUNCH" in its description.
@@ -141,7 +141,7 @@ in the offscreen test), the feel on the real display.
 
 - Key bindings are not in PC CONTROLS yet (still `run.py --bind`).
 - Display, CPU and camera/aim/jetpack/steroids options apply at the next
-  launch; PROFILE VANILLA starts the next launch in Vanilla (its original
-  menus; `run.py --mode modernized` returns).
+  launch. (PROFILE was removed in D33: Vanilla is `run.py --vanilla`, one
+  launch.)
 - Mouse clicks are not used (the click that focuses the window would confirm).
 - Prompts show PS1 buttons (PC icons: D19F, D19F1).

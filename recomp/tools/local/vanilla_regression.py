@@ -68,7 +68,7 @@ def main():
                '--headless', '--renderer', args.renderer]
     if args.mode:
         command = [sys.executable, str(ROOT / 'tools/local/run.py'),
-                   '--mode', args.mode, '--renderer', args.renderer,
+                   *(['--vanilla'] if args.mode == 'vanilla' else []), '--renderer', args.renderer,
                    '--settings-file', str(directory / 'profiles.json'),
                    '--memcard-dir', str(cards), '--debug-port', str(args.port), '--headless']
     identity_files = [EXE, Path(__file__), ROOT / 'tools/local/run.py', ROOT / 'tools/local/player_profiles.py', ROOT / 'tools/local/ttk_state_probe.py', ROOT / 'game.local.toml', ROOT / 'disc/import-receipt.json']

@@ -1,6 +1,6 @@
 ---
 name: continue-duke-recomp
-description: Resume the Duke Nukem Time to Kill PC recomp project by listing its modernization jobs for selection or implementing a specifically selected job, preserving Vanilla and optional Modernized modes. Use when the user asks to continue the Duke recomp, see the job board, or work on a job ID such as D08L.
+description: Resume the Duke Nukem Time to Kill PC recomp project by listing its modernization jobs for selection or implementing a specifically selected job, with Modernized as the default profile and Vanilla preserved. Use when the user asks to continue the Duke recomp, see the job board, or work on a job ID such as D08L.
 argument-hint: "[job ID or task, e.g. \"work on D08L\"]"
 ---
 
@@ -37,7 +37,7 @@ Read the job's acceptance criteria and relevant linked notes, then inspect Git s
 
 Mark the selected job In progress and implement a bounded, reviewable result. Use the existing local build/import/patch workflow described in `documentation/04-build-and-run.md` and `documentation/10-tooling.md`. Never hand-edit generated recompilation C, overwrite original media or use the player's memory cards for tests. Check for a running game process before building over or launching anything; if the player's game is open, close it (debug `quit` on port 9123, or end the process) and continue, under the user's standing permission (2026-10-01). Never touch their saves or memory cards.
 
-Keep this game-specific. Vanilla must remain available; Modernized is an optional profile. Modern controls mean independent movement, camera and weapon aiming, not merely keyboard remapping. Third-person comes before the first-person foundation is considered complete. Verify addresses and active overlays before applying game hooks. Existing renderer/framework capabilities are not proof that an option works in the player build.
+Keep this game-specific. Modernized is the default profile; Vanilla must remain available (`run.py --vanilla`) and unchanged in play. Modern controls mean independent movement, camera and weapon aiming, not merely keyboard remapping. Third-person comes before the first-person foundation is considered complete. Verify addresses and active overlays before applying game hooks. Existing renderer/framework capabilities are not proof that an option works in the player build.
 
 Test according to the selected acceptance criteria and regression risk. Distinguish build/test results, observed gameplay and user reports. The earlier security-card freeze did not reproduce on the user's successful retest; do not claim its exact cause was established. A linked executable or first-level pass does not establish full campaign fidelity.
 

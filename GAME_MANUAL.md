@@ -26,15 +26,26 @@ The tools accept a dump whose image SHA-256 matches a known USA copy (CloneCD or
 
 ## Profiles and settings
 
-Modernized is the default for new settings. Existing saved mode choices are retained.
-Vanilla remains available in the terminal settings menu:
+Every launch starts in **Modernized**. To play the original game (Vanilla:
+original controls, camera, menus and presentation), add `--vanilla`:
+
+```sh
+python3 recomp/tools/local/run.py --vanilla
+```
+
+`--vanilla` applies to that launch only; the next plain launch is Modernized
+again. (Earlier builds remembered Vanilla; a saved Vanilla choice moves to
+Modernized once, with a notice, and keeps your Vanilla settings.)
+
+The terminal settings menu changes the profile you launch:
 
 ```sh
 python3 recomp/tools/local/run.py --settings
+python3 recomp/tools/local/run.py --vanilla --settings
 ```
 
-Choose Vanilla or Modernized preview, change OpenGL/software rendering, or
-restore the selected profile's defaults. Save and return, then launch normally.
+Change OpenGL/software rendering, the display options, or restore that
+profile's defaults. Save and return, then launch normally.
 Each profile remembers its own renderer and resolution/display settings. Modernized also remembers its PC action bindings, camera selection, mouse sensitivity and inversion. Changes take effect on the next launch. In Modernized most of these can also be changed in the game, from OPTIONS ([in-game OPTIONS](#in-game-options-modernized)).
 **Modernized movement and camera have passed user playtesting in the first-level preview.
 Supported first-map climbing uses the original traversal routines with Modernized
@@ -207,7 +218,7 @@ stabilized presentation. Vanilla and the software renderer use Original.
 For the accepted 120 Hz presentation:
 
 ```sh
-python3 recomp/tools/local/run.py --mode modernized --renderer opengl --frame-rate 120 --geometry-precision corrected --texture-precision corrected
+python3 recomp/tools/local/run.py --renderer opengl --frame-rate 120 --geometry-precision corrected --texture-precision corrected
 ```
 
 This updates saved preferences. Correction preserves the game's simulation
@@ -377,11 +388,10 @@ console's `fps` command (backtick) shows what reaches the screen above 60: FPS
 For example `python3 recomp/tools/local/run.py --frame-rate display`. This
 updates your saved Modernized preferences. Vanilla always uses 60.
 
-You can also select and launch directly with `--mode vanilla` or
-`--mode modernized`. Use `--show-settings` to inspect preferences without
-launching, and `--reset-profile vanilla` (or `modernized`) to restore only that
-profile's defaults. `--renderer software` now remembers the choice for the
-selected profile. Profile preferences live in `recomp/config/player-profiles.json`;
+Use `--show-settings` to inspect preferences without launching (add
+`--vanilla` for Vanilla's), and `--reset-profile vanilla` (or `modernized`) to
+restore only that profile's defaults. `--renderer software` remembers the
+choice for the profile you launch (`--vanilla --renderer software` for Vanilla). Profile preferences live in `recomp/config/player-profiles.json`;
 switching profiles keeps your existing memory-card location. Vanilla keyboard
 and physical-controller bindings retain the runtime configuration.
 
@@ -882,7 +892,7 @@ choose `original`. That menu also edits sensitivity (degrees per mouse count,
 For example, save preferences without launching:
 
 ```sh
-python3 recomp/tools/local/run.py --mode modernized --camera independent --mouse-sensitivity 0.12 --invert-y off --show-settings
+python3 recomp/tools/local/run.py --camera independent --mouse-sensitivity 0.12 --invert-y off --show-settings
 ```
 
 The wall-facing clearance check now follows your requested WASD direction, and
@@ -934,13 +944,13 @@ python3 recomp/tools/local/run.py --weapon-aim original --show-settings
 For assisted view aiming with the crosshair (the red dot is already off by default):
 
 ```sh
-python3 recomp/tools/local/run.py --mode modernized --weapon-aim view --aim-assist original-lock --crosshair on --show-settings
+python3 recomp/tools/local/run.py --weapon-aim view --aim-assist original-lock --crosshair on --show-settings
 ```
 
 For original weapon aiming with the original red dot as the marker:
 
 ```sh
-python3 recomp/tools/local/run.py --mode modernized --weapon-aim original --red-dot on --show-settings
+python3 recomp/tools/local/run.py --weapon-aim original --red-dot on --show-settings
 ```
 
 These commands save preferences without launching. Old profiles are backed up
@@ -1046,9 +1056,9 @@ defaults. The line above the buttons describes the highlighted option.
 Crosshair, aim assist, red dot, jump, jump walls, landing, dynamite and view
 bob change at once; the others say **NEXT LAUNCH** and apply the next time you
 start the game. Confirmed settings are saved to your profile when the game
-closes, the same settings `run.py` and `--settings` change. Choosing PROFILE
-VANILLA starts the next launch in Vanilla, which has the original menus; use
-`run.py --mode modernized` to come back. Key bindings are still set with
+closes, the same settings `run.py` and `--settings` change. There is no
+profile choice here: Vanilla, with the original menus, is `run.py --vanilla`.
+Key bindings are still set with
 `run.py --bind`.
 
 **Backtick (`)** opens a Quake-style drop-down developer console (TTK Medium
@@ -1114,7 +1124,7 @@ lists accepted keys and reports conflicting assignments without changing them.
 You can also save a binding and return without launching:
 
 ```sh
-python3 recomp/tools/local/run.py --mode modernized --bind jump=J
+python3 recomp/tools/local/run.py --bind jump=J
 python3 recomp/tools/local/run.py --show-bindings
 ```
 

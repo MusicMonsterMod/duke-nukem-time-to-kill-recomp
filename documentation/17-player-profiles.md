@@ -26,13 +26,19 @@ the player's choice. Vanilla always launches with the original dot.
 
 ```sh
 python3 recomp/tools/local/run.py --settings
-python3 recomp/tools/local/run.py --mode vanilla
-python3 recomp/tools/local/run.py --mode modernized
+python3 recomp/tools/local/run.py              # always Modernized
+python3 recomp/tools/local/run.py --vanilla    # Vanilla, this launch only
 python3 recomp/tools/local/run.py --show-settings
 python3 recomp/tools/local/run.py --reset-profile modernized
 ```
 
-The terminal settings menu selects profiles/renderers and restores defaults.
+D33 (2026-10-20): the stored `active` field is always `modernized`; `save()`
+writes it so, `load()` moves a stored `vanilla` to Modernized once with a
+notice (both profiles kept) and a version 0 file without `mode` loads as
+Modernized. The in-game side file's `active` is ignored. See
+[note 158](158-d33-default-profile.md).
+
+The terminal settings menu edits the launched profile's renderer/display and restores defaults.
 Save and return exits without launching; a subsequent ordinary `run.py` uses the
 saved choice. Cancel abandons menu edits. Command-line selection and renderer
 changes persist. `--show-settings` combines with change flags for scripted edits

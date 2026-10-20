@@ -62,7 +62,7 @@ and leave bindings unchanged; there is no silent unbinding. Command-line edits
 also save and return without launching:
 
 ```sh
-python3 recomp/tools/local/run.py --mode modernized --bind jump=J
+python3 recomp/tools/local/run.py --bind jump=J
 python3 recomp/tools/local/run.py --show-bindings
 python3 recomp/tools/local/run.py --bind jump=W --bind move_forward=J
 ```

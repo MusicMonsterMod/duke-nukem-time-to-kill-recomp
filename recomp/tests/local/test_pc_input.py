@@ -98,7 +98,7 @@ class InputBindingsTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             path = Path(d) / 'profiles.json'
             cmd = [sys.executable, str(TOOLS / 'run.py'), '--settings-file', str(path)]
-            subprocess.run(cmd + ['--mode', 'modernized', '--bind', 'jump=G'], check=True, capture_output=True)
+            subprocess.run(cmd + ['--bind', 'jump=G'], check=True, capture_output=True)
             raw = path.read_bytes()
             failed = subprocess.run(cmd + ['--bind', 'fire=G'], capture_output=True, text=True)
             self.assertNotEqual(failed.returncode, 0)
@@ -106,13 +106,13 @@ class InputBindingsTest(unittest.TestCase):
             self.assertEqual(path.read_bytes(), raw)
             shown = subprocess.check_output(cmd + ['--show-bindings'], text=True)
             self.assertIn('jump=G', shown)
-            subprocess.run(cmd + ['--mode', 'vanilla', '--show-settings'], check=True, capture_output=True)
+            subprocess.run(cmd + ['--vanilla', '--show-settings'], check=True, capture_output=True)
             loaded, _ = profiles.load(path)
             self.assertEqual(loaded['profiles']['modernized']['bindings']['jump'], 'G')
 
     def test_menu_conflict_then_correction(self):
         settings = profiles.defaults()
-        replies = iter(['2', '6', 'jump=W', '6', 'jump=G', '5'])
+        replies = iter(['6', 'jump=W', '6', 'jump=G', '5'])
         output = []
         edited = profiles.menu(settings, lambda _: next(replies), output.append)
         self.assertIn('conflicts', '\n'.join(output))

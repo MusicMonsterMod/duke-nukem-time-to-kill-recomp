@@ -186,7 +186,7 @@ constexpr uint32_t font_small=0, font_menu=0x100, centre=4, right=8, blue=1;
 enum Icon {icon_triangle=4, icon_cross=6, icon_square=7, icon_change=11, icon_select=12};
 
 struct Choice {const char* label;const char* env;const char* json;};
-enum class Section {Controls, Presentation, Active};
+enum class Section {Controls, Presentation};
 struct Row {
     const char* label; Section section; const char* key; const char* env; bool live; const char* desc;
     std::vector<Choice> choices; int def; // a pick
@@ -231,8 +231,6 @@ std::vector<Screen> make_screens() {
          {{"FAST","fast","\"fast\""},{"ACCURATE","accurate","\"accurate\""}},0},
     }};
     s[2]={"MODERNIZED",{
-        {"PROFILE",Section::Active,"active",nullptr,false,"VANILLA PLAYS THE ORIGINAL GAME AND ITS MENUS",
-         {{"MODERNIZED","modernized","\"modernized\""},{"VANILLA","vanilla","\"vanilla\""}},0},
         {"CAMERA",Section::Controls,"camera","DNTTK_CAMERA_MODE",false,"INDEPENDENT: THE MOUSE TURNS THE CAMERA",
          {{"INDEPENDENT","independent","\"independent\""},{"ORIGINAL","original","\"original\""}},0},
         {"VIEW",Section::Controls,"view","DNTTK_CAMERA_VIEW",false,"P SWITCHES IN GAME",
@@ -409,17 +407,18 @@ bool enabled() {
 void write_settings() {
     const char* path=std::getenv("DNTTK_MENU_SETTINGS_FILE");
     if(!path || !*path) return;
-    std::string controls, presentation, active="\"modernized\"";
+    // Vanilla is a launch flag (run.py --vanilla, D33); the side file keeps its
+    // version 1 "active" field, always Modernized.
+    std::string controls, presentation;
     for(size_t s=0;s<screens.size();++s) for(size_t i=0;i<screens[s].rows.size();++i) {
         const Row& r=screens[s].rows[i];const int v=committed[s][i];
         char value[64];
         if(r.slider) std::snprintf(value,sizeof value,"%.2f",v*r.scale);
         else std::snprintf(value,sizeof value,"%s",r.choices[v].json);
-        if(r.section==Section::Active) {active=value;continue;}
         std::string& out=r.section==Section::Controls ? controls : presentation;
         out+=std::string(out.empty()?"":",")+"\""+r.key+"\":"+value;
     }
-    const std::string text="{\"version\":1,\"active\":"+active+",\"controls\":{"+controls+"},\"presentation\":{"+presentation+"}}\n";
+    const std::string text="{\"version\":1,\"active\":\"modernized\",\"controls\":{"+controls+"},\"presentation\":{"+presentation+"}}\n";
     const std::string temp=std::string(path)+".tmp";
     if(FILE* f=std::fopen(temp.c_str(),"wb")) {
         const bool ok=std::fwrite(text.data(),1,text.size(),f)==text.size();

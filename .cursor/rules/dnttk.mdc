@@ -10,7 +10,7 @@ Owned US SLUS-00583. Public tree is notes and jobs, not the disc.
 - GitHub: MusicMonsterMod/duke-nukem-time-to-kill-recomp
 - Use only MusicMonsterMod for git and GitHub on this repo
 - Ignore and never add: dumps under `game/` (except `game/README.md`), `research/`, `recomp/`, `.venv/`, BIOS, memcards
-- Vanilla remains available; Modernized is optional
+- Modernized is the default; Vanilla remains available with `run.py --vanilla`
 - `$continue-duke-recomp` (Codex) or `/continue-duke-recomp` (Claude Code) shows `MODERNIZATION_JOBS.md` and waits; do not start work unasked
 - Do not hand-edit generated C, overwrite original media, or use player memory cards
 - Do not launch or disturb an active game session unless the user asks

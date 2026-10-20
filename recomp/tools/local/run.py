@@ -22,7 +22,7 @@ def main(argv=None):
     p.add_argument('--display', choices=profiles.DISPLAYS, help='save how the selected profile opens; a fullscreen choice is also the F11 target')
     p.add_argument('--window-width', type=int, metavar='0|640..7680', help='save window width for the selected profile; 0 fits the display')
     p.add_argument('--output-filter', choices=profiles.OUTPUT_FILTERS, help='save how the finished image is scaled to the window')
-    p.add_argument('--mode', choices=profiles.MODES, help='select and remember the launch profile')
+    p.add_argument('--vanilla', action='store_true', help='play the original game (Vanilla profile) for this launch only; plain launches are Modernized')
     p.add_argument('--settings', action='store_true', help='open terminal settings, save and return without launching')
     p.add_argument('--show-settings', action='store_true', help='print active preferences without launching')
     p.add_argument('--reset-profile', choices=profiles.MODES, help='restore only the named profile defaults')
@@ -62,7 +62,7 @@ def main(argv=None):
     if not 1024 <= a.debug_port <= 65535:
         p.error('debug port must be in 1024..65535')
     if a.settings and not sys.stdin.isatty():
-        p.error('--settings requires a terminal; use --mode, --renderer and --show-settings in scripts')
+        p.error('--settings requires a terminal; use --vanilla, --renderer and --show-settings in scripts')
     try:
         settings, notices = profiles.load(a.settings_file)
         for notice in notices:
@@ -70,9 +70,8 @@ def main(argv=None):
         changed = profiles.absorb_menu_settings(a.settings_file, settings)
         changed = profiles.absorb_camera_state(a.settings_file, settings) or changed
         changed = profiles.absorb_presentation_state(a.settings_file, settings, settings['active']) or changed
-        if a.mode:
-            settings['active'] = a.mode
-            changed = True
+        if a.vanilla:
+            settings['active'] = 'vanilla'
         if a.reset_profile:
             profiles.reset(settings, a.reset_profile)
             changed = True
@@ -89,7 +88,7 @@ def main(argv=None):
             changed = True
         if a.bind:
             if settings['active'] != 'modernized':
-                raise ValueError('--bind requires Modernized; Vanilla retains keybinds.ini.')
+                raise ValueError('--bind edits Modernized; drop --vanilla (Vanilla retains keybinds.ini).')
             profile = settings['profiles']['modernized']
             profile['bindings'] = pc_input.rebind(profile['bindings'], a.bind)
             changed = True
@@ -260,7 +259,7 @@ def save_menu_settings(settings_file):
         settings, _ = profiles.load(settings_file)
         if profiles.absorb_menu_settings(settings_file, settings):
             profiles.save(settings_file, settings)
-            print(f"Saved the in-game OPTIONS settings; next launch: {settings['active']}.", flush=True)
+            print('Saved the in-game OPTIONS settings.', flush=True)
     except (OSError, ValueError) as exc:
         print(f'In-game OPTIONS settings not saved: {exc}', file=sys.stderr, flush=True)
 

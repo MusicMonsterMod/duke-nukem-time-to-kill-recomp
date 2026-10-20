@@ -140,8 +140,9 @@ That result establishes the selected backend, not universal OpenBIOS compatibili
 ## Persistent launch profiles
 
 `python3 recomp/tools/local/run.py --settings` opens the terminal selector and
-returns without launching. Ordinary `run.py` uses the saved selection;
-`--mode vanilla` or `--mode modernized` selects, saves and launches directly.
+returns without launching. Ordinary `run.py` always launches Modernized;
+`--vanilla` launches Vanilla for that run only and is never saved (D33,
+[note 158](158-d33-default-profile.md)).
 Modernized offers a guarded first-map movement/camera preview; weapon aiming stays original.
 `--renderer` now persists per profile. See [profile behavior and recovery](17-player-profiles.md).
 
@@ -193,7 +194,7 @@ The current Schema 5 launcher adds independent assistance, crosshair and red-dot
 controls. `--settings` choice 9 edits these for Modernized. For example:
 
 ```sh
-python3 recomp/tools/local/run.py --mode modernized --weapon-aim view --aim-assist original-lock --crosshair on --red-dot off --show-settings
+python3 recomp/tools/local/run.py --weapon-aim view --aim-assist original-lock --crosshair on --red-dot off --show-settings
 ```
 
 This saves preferences without starting a game. Assistance is experimental and
@@ -241,7 +242,7 @@ linear|nearest` only change how the finished image is shown. `--settings`
 choice R edits all four. Append `--show-settings` to save without launching:
 
 ```sh
-python3 recomp/tools/local/run.py --mode modernized --internal-scale 3 --display borderless --show-settings
+python3 recomp/tools/local/run.py --internal-scale 3 --display borderless --show-settings
 ```
 
 The launcher passes these as runtime CLI flags from the reviewed patch

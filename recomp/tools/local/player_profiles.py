@@ -247,8 +247,8 @@ def menu_presentation(presentation):
 def absorb_menu_settings(settings_path, settings):
     """Merge the settings last confirmed in the in-game OPTIONS screens (D19).
 
-    The side file holds the menu's whole state: the active profile, Modernized
-    controls and the display values it offers. Returns True when the settings
+    The side file holds the menu's whole state: Modernized controls and the
+    display values it offers (its "active" field is always Modernized, D33). Returns True when the settings
     changed. The side file is consumed; an invalid one is discarded with the
     profile left unchanged."""
     state = menu_settings_path(settings_path)
@@ -263,17 +263,20 @@ def absorb_menu_settings(settings_path, settings):
         profile = settings['profiles']['modernized']
         controls = validate_controls({**profile['controls'], **data['controls']})
         presentation = validate_presentation({**profile['presentation'], **data['presentation']})
-        active = data['active']
     except (ValueError, TypeError, KeyError, AttributeError, UnicodeError):
         controls = None
     state.unlink(missing_ok=True)
     if controls is None:
         return False
     profile = settings['profiles']['modernized']
-    if controls == profile['controls'] and presentation == profile['presentation'] and active == settings['active']:
+    if controls == profile['controls'] and presentation == profile['presentation']:
         return False
-    profile['controls'], profile['presentation'], settings['active'] = controls, presentation, active
+    profile['controls'], profile['presentation'] = controls, presentation
     return True
+
+
+VANILLA_NOTICE = ('Modernized is now the default profile; your Vanilla settings are kept. '
+                  'Launch with run.py --vanilla to play the original game.')
 
 
 def defaults():
@@ -288,7 +291,9 @@ def save(path, settings):
     fd, temporary = tempfile.mkstemp(prefix=path.name + '.', suffix='.tmp', dir=path.parent)
     try:
         with os.fdopen(fd, 'w') as stream:
-            json.dump(settings, stream, indent=2)
+            # Every launch starts Modernized; Vanilla is the one-launch
+            # run.py --vanilla flag and is never remembered (D33).
+            json.dump({**settings, 'active': 'modernized'}, stream, indent=2)
             stream.write('\n')
             stream.flush()
             os.fsync(stream.fileno())
@@ -324,18 +329,16 @@ def load(path):
         if type(version) is int and version > 33:
             raise ValueError(f'Profile settings version {version} is newer than this launcher; file left unchanged.')
         if type(version) is int and version == 0:
-            mode = data.get('mode', 'vanilla')
+            mode = data.get('mode', 'modernized')
             renderer = data.get('renderer', 'opengl')
             if mode in MODES:
-                result['active'] = mode
                 if renderer in RENDERERS:
                     result['profiles'][mode]['presentation']['renderer'] = renderer
             changed = True
             notices.append('Migrated version 0 profile settings to version 33.')
         elif type(version) is int and version in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33):
-            active = data.get('active')
-            if active in MODES:
-                result['active'] = active
+            if data.get('active') == 'vanilla':
+                notices.append(VANILLA_NOTICE)
             profiles = data.get('profiles', {})
             for mode in MODES:
                 profile = profiles.get(mode, {}) if isinstance(profiles, dict) else {}
@@ -395,7 +398,7 @@ def load(path):
                 notices.append('Modernized now uses fast CPU timing by default; '
                                'run.py --cpu-timing accurate restores the full cycle model.')
             changed = result != data
-            if changed:
+            if changed and result != {**data, 'active': 'modernized'}:
                 notices.append(f'Migrated version {version} profile settings to version 33; retained preferences and added control and presentation defaults.'
                                if version < 33 else
                                'Invalid or unsupported profile fields were reset; valid preferences were retained.')
@@ -419,7 +422,8 @@ def reset(settings, mode):
 def describe(settings):
     active = settings['active']
     renderer = settings['profiles'][active]['presentation']['renderer']
-    lines = [f'Profile: {active.title()}', f'Renderer: {renderer}',
+    lines = [('Profile: Vanilla (this launch only)' if active == 'vanilla' else
+              'Profile: Modernized (run.py --vanilla plays the original game for one launch)'), f'Renderer: {renderer}',
              describe_presentation(settings['profiles'][active]['presentation']),
              ('Gameplay: original movement, camera and aiming' if active == 'vanilla' else
               'Gameplay: first-map modern movement; ' + settings['profiles'][active]['controls']['camera'] + ' camera; ' + settings['profiles'][active]['controls']['weapon_aim'] + ' weapon aiming'),
@@ -529,12 +533,10 @@ def menu(settings, read=input, write=print):
     edited = copy.deepcopy(settings)
     while True:
         write('\n' + describe(edited))
-        write('1 Vanilla  |  2 Modernized preview  |  3 Renderer  |  4 Restore this profile  |  R Resolution and display\n'
+        write('3 Renderer  |  4 Restore this profile  |  R Resolution and display\n'
               'G Geometry and texture precision (Modernized)  |  D Draw distance (Modernized)  |  W Widescreen (Modernized)  |  J Jump style (Modernized)  |  K Jump wall contact (Modernized)  |  L Landing (Modernized)  |  T Dynamite (Modernized)  |  U Swimming (Modernized)  |  F Frame rate (Modernized)  |  B View bob (Modernized)  |  S Steroids (Modernized)  |  5 Save and return  |  6 PC bindings (Modernized)  |  7 Camera (Modernized)  |  8 Weapon aiming (Modernized)  |  9 Aiming display / assistance (Modernized)  |  0 Cancel')
         choice = read('Choice: ').strip()
-        if choice in ('1', '2'):
-            edited['active'] = MODES[int(choice) - 1]
-        elif choice == '3':
+        if choice == '3':
             write('1 OpenGL  |  2 Software')
             renderer = read('Renderer: ').strip()
             if renderer in ('1', '2'):

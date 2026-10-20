@@ -233,7 +233,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D26B | Opening the console leaves first person | Todo | D26, D11 |
 | D26C | Console command history (Up/Down) | Accepted | D26 |
 | D26D | Level select: authoritative order, numbering, names and categories | Todo | D26A |
-| D26G | Console: holding Backspace or a character key repeats it | Todo | D26 |
+| D26G | Console: holding Backspace or a character key repeats it | Done (user-accepted 2026-10-20) | D26 |
 | D27 | Caps Lock RUN MODE quotes; Shift-run clunk silence deferred | Done (quotes); clunk deferred low-priority | D04, D19A |
 | D27A | Modern Shift/run is silent: remove the walk/run toggle click `0x0001` from the Shift path, keep the D08A10 heartbeat | Done (user-accepted) | D27, D08A10 |
 | D28 | Scroll Lock holster and WEAPON LOWERED/RAISED quotes | Done | D04, D19A |
@@ -7558,7 +7558,10 @@ verification).
 
 ### D26G - Console key repeat
 
-**Todo. User request, 2026-10-08:** "Hold down backspace or other characters
+**Done (user-accepted 2026-10-20): "lock it in and close it out!!".** Held Backspace and held characters now take
+the OS key repeat (framework `main.cpp` `debug_console_event` no longer drops
+SDL repeat events for them). Checked with real X keys; see the 2026-10-20 work
+log. User request, 2026-10-08:** "Hold down backspace or other characters
 within the console to repeat". Holding Backspace or a character key in the
 backtick console should repeat it after the usual delay, like a desktop text
 field (SDL key repeat or a host timer), without affecting gameplay input.
@@ -14277,3 +14280,32 @@ in note 117 is the reference for future custom pickups.
   for another day". D34 research Done; the shareable page is linked from the
   job. Follow-ups D34A-D34G stay proposed in note 167 until the user opens
   them.
+
+## 2026-10-20 - D26G console key repeat (Needs playtest)
+
+- Selected by the user ("it should also include backspace repeat too").
+- Cause: `debug_console_event` (framework `runtime/src/main.cpp`) ignored
+  every SDL key event with `repeat` set for Backspace and the typed
+  characters, so a held key acted once. Fix: those two paths accept repeat
+  events; the OS repeat delay and rate apply, like a desktop text field.
+  Backtick toggling still ignores repeats. Up/Down, PgUp/PgDn and End
+  already repeated. The console consumes all keys while open, so gameplay
+  input is unchanged; closed, nothing changed.
+- Evidence (`recomp/analysis/d26g-20261020/keyrepeat.py`, real X key
+  events via xdotool keydown/keyup on private Xvfb :95, Xvfb default
+  autorepeat, private card copy, port 9247; line read back through `history`):
+  x held 1 s typed `xxxxxxxxxx`; y held 1 s, then Backspace held 2 s cleared
+  the line and `help` ran alone; taps `a b BackSpace c` gave `ac` (one
+  action per tap); Up recalled `ac`; closing the console recaptured the
+  mouse. The D17 harness now passes `--vanilla` only when asked (D33
+  removed `--mode`).
+- Patch exported; applies to the pinned clean framework and reproduces
+  `main.cpp`. No hashed header touched. Executable
+  `5ac80ba1394f8942b4998159d79fd515e09e959d73aea456e65b4eb95b7b03da`.
+- Not verified: the user's real keyboard and desktop repeat settings.
+
+## 2026-10-20 - D26G accepted (Done)
+
+- User: "lock it in and close it out!!". D26G Done; executable
+  `5ac80ba1394f8942b4998159d79fd515e09e959d73aea456e65b4eb95b7b03da` is the
+  regression baseline.

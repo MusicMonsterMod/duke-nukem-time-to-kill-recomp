@@ -1,5 +1,15 @@
 # Current status - 2026-10-04
 
+## 2026-10-20 - D26G accepted
+
+- User: "lock it in and close it out!!". D26G Done.
+
+## 2026-10-20 - D26G console key repeat (Needs playtest)
+
+- Cause: the console dropped SDL key repeat events for Backspace and
+  characters. Fixed in the framework (exported patch). Executable
+  `5ac80ba1394f8942b4998159d79fd515e09e959d73aea456e65b4eb95b7b03da`.
+
 ## 2026-10-20 - D17W accepted
 
 - User: "that cart is looking handsome!!". D17W Done; executable

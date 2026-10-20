@@ -1172,7 +1172,7 @@ console (F remains unbound for gameplay). Escape or backtick closes the console.
 The console keeps 512 lines: **PgUp / PgDn** or the **mouse wheel** scroll back
 through them, **Ctrl+Home** jumps to the oldest and **End** to the newest. New
 output scrolls back to the bottom. **Up / Down** recall the commands you typed
-(newest first; Down past the newest clears the line), and `history` lists them. While scrolled up, `-- MORE BELOW: PGDN / END --`
+(newest first; Down past the newest clears the line), and `history` lists them. Holding Backspace or a character key repeats it, like a desktop text field. While scrolled up, `-- MORE BELOW: PGDN / END --`
 shows above the prompt.
 
 **Debug level select (testing).** In a one-player game, open the console and

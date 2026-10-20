@@ -1,5 +1,19 @@
 # Next-session handoff
 
+## 2026-10-20 - D26G accepted
+
+- User: "lock it in and close it out!!". D26G Done; executable
+  `5ac80ba1394f8942b4998159d79fd515e09e959d73aea456e65b4eb95b7b03da` is the
+  regression baseline.
+
+## 2026-10-20 - D26G console key repeat (Needs playtest)
+
+- Held Backspace and characters repeat in the backtick console (framework
+  `debug_console_event` accepts SDL repeat events for them). Checked with
+  real X keys on private Xvfb. Executable
+  `5ac80ba1394f8942b4998159d79fd515e09e959d73aea456e65b4eb95b7b03da`.
+  Awaiting the user's playtest.
+
 ## 2026-10-20 - D17W accepted
 
 - User: "that cart is looking handsome!!". D17W Done; executable

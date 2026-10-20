@@ -219,8 +219,8 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D24A | Public clone gives the full experience: fonts, inventory icons/digits from a proper tracked or disc-derived source (no research/ dependency) | Accepted | D19A, D08A3 |
 | D24B | Savestate menu (F7) dressed in the TTK fonts and disc art | Accepted | D24A |
 | D24C | TTK-font `!` drawn from I and period; console prompt `>` instead of `]` | Done (user-accepted) | D24A |
-| D24D | `<` and `>` in messages fall back to the system font (e.g. ORIGINAL MOVEMENT <state>) | Todo | D24C |
-| D24E | TTK-font `%` drawn from period and slash (`./.`), as `!` was (e.g. MEDKIT 39%) | Todo | D24C |
+| D24D | `<` and `>` in messages fall back to the system font (e.g. ORIGINAL MOVEMENT <state>); actually `(` `)`, now built from the font's O | Done (user-accepted 2026-10-20) | D24C |
+| D24E | TTK-font `%` drawn from period and slash (`./.`), as `!` was (e.g. MEDKIT 39%) | Done (user-accepted 2026-10-20) | D24C |
 | D25 | Modernized edition release acceptance | Todo | D08, D08A, D08B, D09, D10, D14, D17, D18, D20, D21, D24 |
 | D26 | Backtick debug console (fps and helpers) | Done | D04 |
 | D26A | Debug level-select panel for whole-game testing | Accepted | D26, D22A |
@@ -6912,7 +6912,7 @@ message font; the console prompt and command echoes start with `>`.
 
 ### D24D - `<` and `>` in messages use the system-font fallback
 
-**Todo. User report, 2026-10-08:** "Message: original movement <state> but the
+**Done (user-accepted, 2026-10-20): "its perfect! lock it in close it out".** Originally Todo. User report, 2026-10-08:** "Message: original movement <state> but the
 < and > are in fallback font despite that we have those characters
 available." The message font set (built by `build_ttk_fonts.py`) appears to
 lack `<`/`>` even though the TTK fonts include them (the console already uses
@@ -6924,9 +6924,20 @@ still falls back.
 other message-font fallback for characters the disc fonts have; the user
 confirms.
 
+**Work log, 2026-10-20 (Needs playtest).** `<` and `>` were already native in
+every italic set. The message is `ORIGINAL MOVEMENT (%s)`, and its parentheses
+were the system-font glyphs, because the disc fonts have no `(` or `)`.
+`build_ttk_fonts.py` now builds `(` and `)` from each font's own `O` (the side
+strokes, with half the top and bottom bars following the slant). A scan of our
+UI strings found no other italic-set fallback in use except `%` (D24E). Font
+tests pass. An offscreen console echo `(PAREN) 50%` draws them in the TTK
+font. Only the font pack changed; executable `bbfaf117...` is unchanged. See
+[note 165](documentation/165-d24d-d24e-font-glyphs.md). Awaiting the user's
+check.
+
 ### D24E - TTK-font percent sign from period and slash
 
-**Todo. User request, 2026-10-08:** "We need to fake the percent symbol for our
+**Done (user-accepted, 2026-10-20): "its perfect! lock it in close it out".** Originally Todo. User request, 2026-10-08:** "We need to fake the percent symbol for our
 fonts in exactly the same way we constructed the exclamation mark. i think
 period, and forward slash might work like ./. with the first one being
 positioned at the top. This is especially necessary in "medkit 39%" or
@@ -6943,6 +6954,16 @@ panel) gets it.
 **Acceptance:** MEDKIT 39% (and any other `%` message) shows the built `%` in
 the message font; Big and Medium both have it; it reads as a percent sign at
 1x and 2x; font tests pass; the user confirms.
+
+**Work log, 2026-10-20 (Needs playtest).** `percent()` in
+`build_ttk_fonts.py` draws `./.` from each font's own `/` and two periods
+(trimmed as for `!`). One sits at the top left, the other on the baseline at
+the right, each one clear pixel from the slash. Big and Medium both have it,
+and previews at 1x and 2x read as `%`. An offscreen `dnstuff` + M run shows
+MEDKIT 100% with the built glyph. Font tests pass (new
+`test_parentheses_and_percent_from_own_font`). See
+[note 165](documentation/165-d24d-d24e-font-glyphs.md). Awaiting the user's
+check.
 
 ### D25 — Modernized edition release acceptance
 

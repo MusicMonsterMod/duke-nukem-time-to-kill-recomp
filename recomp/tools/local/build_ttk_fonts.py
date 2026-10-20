@@ -10,7 +10,8 @@ Sources (owned USA SLUS-00583, read only, hashes pinned):
                    16-colour CLUTs in column x = 1008.
   SLUS_005.83      the PSY-Q system font (FntPrint) at 0x800c7d70, 128x32,
                    ASCII 0x20..0x5f; the fallback for characters the italic
-                   fonts lack (% ( ) & + " and others; D24C draws its own !).
+                   fonts lack (& + " and others; D24C draws its own !,
+                   D24D ( ) and D24E %).
 Palettes: disc CLUT 225 (gold, the pause-menu text) and "Console steel", the
 project's own palette matching the old console font.
 
@@ -22,7 +23,9 @@ savestate panel mockup):
 Missing glyphs fall back to the system 8x8 font in the set's palette, except
 '!' (D24C): the italic fonts have none, so one is drawn from their own 'I' (a
 stem cut short and tapered, closed with the I's bottom edge) and '.' (top rows
-trimmed so the stem stays the taller part).
+trimmed so the stem stays the taller part); '(' and ')' (D24D), the two sides of
+the font's own 'O'; and '%' (D24E), './.' from its own '/' and two trimmed
+periods.
 
 It also writes ttk-ui.pack (TTKUI1): the disc's button sprites and radiation
 emblem for the D24B savestate panel.
@@ -153,6 +156,74 @@ def exclamation(glyphs, trim, taper):
     return w, h, [v for r in out for v in r]
 
 
+def crop(rows):
+    """Trim clear columns from a list of rows; returns (w, h, texels)."""
+    cols = [x for x in range(len(rows[0])) if any(r[x] for r in rows)]
+    a, b = cols[0], cols[-1]
+    return b - a + 1, len(rows), [v for r in rows for v in r[a:b + 1]]
+
+
+def parenthesis(glyphs, right):
+    """D24D: '(' or ')' from the font's own 'O': the stroke on that side of the
+    hole, and on the closed top and bottom rows the half of the bar on that side
+    of the row's own centre (so the halves follow the italic slant)."""
+    w, h, texels = glyphs['O']
+    out = []
+    for y in range(h):
+        r, keep = texels[y * w:(y + 1) * w], [0] * w
+        runs, start = [], None
+        for x, v in enumerate(list(r) + [0]):
+            if v and start is None:
+                start = x
+            if not v and start is not None:
+                runs.append((start, x - 1)); start = None
+        if len(runs) >= 2:
+            a, b = runs[-1] if right else runs[0]
+        elif runs:
+            a, b = runs[0][0], runs[-1][1]
+            mid = (a + b) // 2
+            a, b = (mid + 1, b) if right else (a, mid)
+        else:
+            a, b = 0, -1
+        keep[a:b + 1] = r[a:b + 1]
+        out.append(keep)
+    return crop(out)
+
+
+def percent(glyphs, trim):
+    """D24E: '%' as './.' from the font's own '/' and '.': one period (minus its
+    top `trim` rows, as D24C's '!') at the top left of the slash, one on the
+    baseline at the right, each one clear pixel from the slash on every row."""
+    sw, h, slash = glyphs['/']
+    pw, _, dot = glyphs['.']
+    period = [dot[y * pw:(y + 1) * pw] for y in range(h)]
+    lit = [y for y in range(h) if any(period[y])]
+    dot_rows = period[lit[0] + trim:lit[-1] + 1]
+    dw, dh, dot_px = crop(dot_rows)
+    dot_rows = [dot_px[y * dw:(y + 1) * dw] for y in range(dh)]
+    rows = [slash[y * sw:(y + 1) * sw] for y in range(h)]
+    span = lambda y: [x for x, v in enumerate(rows[y]) if v]
+    top = min(y for y in range(h) if span(y))
+    base = lit[-1] + 1 - dh
+    # Leftmost x for the bottom dot / rightmost x for the top dot, 1 px clear.
+    upper = min(min(span(top + i)) - 2 - max(x for x, v in enumerate(r) if v)
+                for i, r in enumerate(dot_rows) if span(top + i))
+    lower = max(max(span(base + i)) + 2 - min(x for x, v in enumerate(r) if v)
+                for i, r in enumerate(dot_rows) if span(base + i))
+    pad = max(0, -upper)
+    width = max(sw, lower + dw) + pad
+    out = [[0] * width for _ in range(h)]
+    for y in range(h):
+        for x, v in enumerate(rows[y]):
+            out[y][x + pad] = v
+    for oy, ox in ((top, upper + pad), (base, lower + pad)):
+        for i, r in enumerate(dot_rows):
+            for x, v in enumerate(r):
+                if v:
+                    out[oy + i][ox + x] = v
+    return crop(out)
+
+
 def micro_font(path=MICROFONT):
     """The open 3x5 Microfont (1D sheet, 3 px per ASCII code), 1-bit glyphs."""
     from build_ttk_inv_icons import read_rgba_png
@@ -211,6 +282,9 @@ def build(raw, exe):
     fonts = {name: sheet.font(rows, height) for name, (rows, height, _) in FONT_INFO.items() if rows}
     for name, (trim, taper) in EXCLAMATION.items():
         fonts[name]['!'] = exclamation(fonts[name], trim, taper)
+        fonts[name]['('] = parenthesis(fonts[name], False)
+        fonts[name][')'] = parenthesis(fonts[name], True)
+        fonts[name]['%'] = percent(fonts[name], trim)
     system = system_font(exe)
     fonts['system'] = system
     fonts['micro'] = micro_font()

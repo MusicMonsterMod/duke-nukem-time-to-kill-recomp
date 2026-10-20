@@ -1,4 +1,4 @@
-import struct, subprocess, sys, tempfile, unittest
+import json, struct, subprocess, sys, tempfile, unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -61,6 +61,23 @@ class DiscFontPack(unittest.TestCase):
             # stem, a clear gap, then the dot
             self.assertTrue(rows[0])
             self.assertIn(False, rows[:max(y for y in range(height) if rows[y])])
+
+    def test_parentheses_and_percent_from_own_font(self):
+        """D24D/D24E: '(' and ')' from the font's own O, '%' from its '/' and
+        two periods; none fall back to the system font in the italic sets."""
+        with tempfile.TemporaryDirectory() as tmp:
+            payload = self.build(tmp)[16:]
+            fallback = json.loads((Path(tmp) / 'fonts.json').read_text())['sets']
+        for s, height in ((0, 17), (1, 17), (2, 11), (3, 17), (4, 11), (5, 11)):
+            self.assertFalse(set('()%') & set(fallback[s]['system_font_fallback']))
+            rec = lambda c: struct.unpack_from('<BBBBI', payload, 4 + s * 768 + 8 + 8 * (ord(c) - 32))
+            for ch in '()%':
+                self.assertEqual(rec(ch)[1], height)
+            # Each parenthesis is narrower than the O it comes from; the percent
+            # sign is wider than its slash.
+            self.assertLess(rec('(')[0], rec('O')[0])
+            self.assertLess(rec(')')[0], rec('O')[0])
+            self.assertGreater(rec('%')[0], rec('/')[0])
 
     def test_ui_sprite_pack(self):
         with tempfile.TemporaryDirectory() as tmp:

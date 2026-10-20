@@ -1,5 +1,21 @@
 # Next-session handoff
 
+## 2026-10-20 - D24D + D24E accepted
+
+- User: "its perfect! lock it in close it out". D24D and D24E Done; font pack
+  `2609f2e6077a080c25d327582471ca1a19ab816ca1e078a44ddadeaaafe7316d`,
+  executable `bbfaf117ca261268335c0c19847663a3c02ac7185d24c77fda9ca81f38eecc29`
+  unchanged. Backlog: D19K, D19F, D19N, D26G.
+
+## 2026-10-20 - D24D + D24E TTK-font ( ) and % (Needs playtest)
+
+- `<` `>` were already native. ORIGINAL MOVEMENT uses `( )`, which the disc
+  fonts lack, so they are now built from each font's own `O`. `%` is `./.`
+  from its own `/` and periods. Only the font pack changed (executable
+  `bbfaf117...` unchanged). Font tests pass, and offscreen MEDKIT 100% and
+  console `(PAREN) 50%` show them in the TTK fonts.
+  [note 165](165-d24d-d24e-font-glyphs.md). Awaiting the user's check.
+
 ## 2026-10-20 - D19G1 accepted
 
 - User: "it works! i can confirm it works. lock it in close it out". D19G1

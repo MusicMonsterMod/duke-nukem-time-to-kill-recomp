@@ -174,7 +174,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D17U | Smooth loading screens (spinning Duke logo) at the saved frame rate | Done | D17T |
 | D17C | View bob: disable experiment, then a stable modern camera | Done (user-accepted) | D11 |
 | D17V | Modern view bob: steady Duke 3D-style tempo instead of a sped-up walk bob when running | Done (user-accepted) | D17C |
-| D17W | Overturned minecart (player UI slot 10, level 3) shows large white untextured triangles in first person | Todo | D11B |
+| D17W | Overturned minecart (player UI slot 10, level 3) shows large white untextured triangles in first person | Done (user-accepted 2026-10-20) | D11B |
 | D18 | FMV and audio presentation safeguards | Todo | D01, D02 |
 | D18A | Voice/music/gunfire crackle investigation | Done | D01, D02 |
 | D18B | Concurrent voice with music (no music mute) | Todo | D18, D21 |
@@ -4997,37 +4997,59 @@ step (keep off, make it an option, or redesign).
 
 ### D17W - Overturned minecart white triangles in first person
 
-**Done (user-accepted 2026-10-20: "confirmed working!").** Cause found and fixed in the framework:
-`savestate_grab_thumb` read CPU VRAM without a sync. The OpenGL renderer
-presents from its own framebuffer, and CPU VRAM only catches up on a readback.
-A savestate write does one, so the picture kept at pause entry was the image
-at the **previous save**: after one SAVE GAME, the next one got that save's
-OVERWRITE THIS SAVE? page. First person was not the cause. Fix: the grab
-syncs first (`gl_renderer_sync_cpu` / `vk_renderer_sync_cpu`, skipped on
-depth24 scanout, as screenshots do). F7 saves and the rewind thumbnails share
-`gpu_display_pixel_argb`. F7's capture follows the save's readback and was
-already correct; rewind (`psx_rewind.c capture_thumb`) is unchanged.
+**Done (user-accepted 2026-10-20: "that cart is looking handsome!!").**
+Executable `8169621316e555cd08b72367c835c1189e9a8d5ae68216497e2b04391cf4700c`
+is the regression baseline. Cause found and fixed in the near clip
+(`recomp/src/ttk/near_clip.cpp`, no framework change).
 
-Evidence (offscreen, OpenGL, 4x, 16:9, 120 Hz, private profile and
-savestates `recomp/analysis/d19k-load/cards-q1`, `k.py`; local). Executable
-`92178369fc5153178009edf801bd5c07299fee5d6d9bab927ea6ca2b6fc3e043`:
-- Two SAVE GAME saves in one session (slot 01, resume, move, slot 02):
-  without the fix, slot 02's picture was slot 01's OVERWRITE THIS SAVE? page
-  with YES highlighted, the player's report reproduced. With the fix, slot 02
-  shows the new position with no menu text.
-- First person (captured play, eye view): the picture is the eye view, no
-  menu.
-- Overwrite after LOAD GAME (play resumed, then pause, then save): fresh
-  picture of play.
-- Vanilla F7 save: picture of play; Vanilla play is unchanged (no gameplay
-  code touched).
-- Python 160 OK (2 skipped), `ttk-input-test`, `ttk-live-env-test`. A
-  pristine pinned framework plus the exported patch reproduces all 48
-  modified framework files. No hashed header touched.
+Cause: the cart model (object mesh `0x80129f58`) lays two faces on the same
+four corners of its back panel: a textured FT4 (records `0x8012a1d0`,
+`0x8012a1e0`) and a flat F4 (`0x8012a538`, `0x8012a540`, palette color 0,
+white). The original object renderer (`0x80010000`, F4 path `0x80010810`)
+gives both one AVSZ slot and inserts at the slot head, so the earlier record,
+the texture, is painted last and covers the flat face. In the eye view the
+D17A precise path draws every prop polygon within 3072 units itself, and each
+host piece took its own slot from its own average depth. Flat and gouraud
+triangles are never depth-tested in the GL renderer (painter order only), so
+flat pieces in nearer slots painted large white triangles over the panel.
+`DNTTK_NEAR_CLIP=0` and third person were clean, and `DNTTK_NEAR_TINT=1`
+showed the white areas as host object pieces. A depth push alone did not help
+(flat pieces have no depth), which confirmed the ordering cause.
 
-Remaining: a save after an F7 load
-into the pause menu still has no picture of play (note 171 limits). The
-player's existing slot 1 keeps its old picture until it is saved again.
+Fix (systemic, every object mesh drawn by the near clip, not this model): for
+each pair of host-drawn faces of one mesh that are coplanar (normals within
+0.9999, corners within half a unit of the plane) and overlap (separating axes
+in the plane, more than half a unit), the face the original paints first
+(farther slot, or the later record in one slot) is ranked behind the other.
+Every face of such a group sorts by the group's average depth and is emitted
+in rank order, so the ordering table paints them as the original did. A
+ranked face is also pushed back 1/4096 of its depth per rank for the depth
+test of textured pieces. `DNTTK_NEAR_COPLANAR=0` (developer) turns it off for
+comparisons. Third person and Vanilla never reach this code.
+
+Evidence (offscreen, OpenGL 4x, 16:9, 120 Hz, first person, private copy of
+the player's slot 10 in `recomp/analysis/d19k-load/cards-mine`; screenshots
+in `recomp/analysis/d17w-minecart/`, local). Executable
+`8169621316e555cd08b72367c835c1189e9a8d5ae68216497e2b04391cf4700c` (the slot 10
+shots were taken one build earlier, identical but for the developer switch):
+- Slot 10 cart: clean at the load position, walked closer, backed off, turned
+  left and right, looking down, strafed to the side (`fixed-*.png`). Before
+  the fix: white triangles at the same positions.
+- Trace (`DNTTK_PRIMITIVE_TRACE`): the two F4 records carry rank 1 and their
+  pieces share the panel's slot.
+- A/B on 12 other private savestates (copy of the D22D cards, levels 0 to
+  2 and the club), coplanar on and off: identical except animated actors
+  (chickens, dancers) and 14 pixels of noise.
+- Vanilla on slot 10: unchanged.
+- `ttk-near-test` (with the owned EXE): new case, a textured and a flat face
+  on the same corners in both record orders; the original's winner keeps the
+  nearer depth, both share one slot and the other face is drawn first. It
+  fails without the fix. Python 160 OK (2 skipped), `ttk-input-test`,
+  `ttk-live-env-test`.
+
+Remaining: world meshes (`0x80011020`) are not
+ranked; no coplanar world case is known. Flat/gouraud host pieces still have
+no depth in the GL renderer; ordering, not depth, protects them.
 
 **Opened 2026-10-20 (brief research).** User: "load up slot 10
 and take a look at the overturned minecart right in front of you and it is
@@ -6086,7 +6108,7 @@ the user judges it.
 
 ### D19Q1 - SAVE GAME thumbnail shows the save screen
 
-**Needs playtest (2026-10-20).** Cause found and fixed in the framework:
+**Done (user-accepted 2026-10-20: "confirmed working!").** Cause found and fixed in the framework:
 `savestate_grab_thumb` read CPU VRAM without a sync. The OpenGL renderer
 presents from its own framebuffer, and CPU VRAM only catches up on a readback.
 A savestate write does one, so the picture kept at pause entry was the image

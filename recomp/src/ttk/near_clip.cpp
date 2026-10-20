@@ -240,6 +240,9 @@ struct Poly {
     // the clipped polygon average in the developer conservative mode.
     double key_z;
     NearDepthPlane depth_plane;
+    // D17W: coplanar overlapping faces of the same mesh the original paints
+    // over this one (rank_coplanar).
+    unsigned coplanar_rank=0;
 };
 struct Frame {
     bool trace=false;uint64_t trace_call=0;uint32_t mesh=0,instance=0,caller=0;
@@ -458,7 +461,7 @@ void emit(Frame& f,const Poly& poly,const Vertex* v) {
     }
     if(f.trace) {
         std::ostringstream x;x<<std::setprecision(12)<<",\"packet\":"<<prim<<",\"slot\":"<<index
-          <<",\"command\":"<<poly.command<<",\"depth_only\":"<<poly.depth_only<<",\"precise\":"<<precise()<<",\"xy_depth\":[";
+          <<",\"command\":"<<poly.command<<",\"rank\":"<<poly.coplanar_rank<<",\"depth_only\":"<<poly.depth_only<<",\"precise\":"<<precise()<<",\"xy_depth\":[";
         if(precise()) for(int i=0;i<3;++i) {
             if(i)x<<',';x<<'[';for(int j=0;j<4;++j){if(j)x<<',';x<<trace_raster[i][j];}x<<']';
         }
@@ -629,6 +632,9 @@ void draw(Frame& f,const Poly& poly) {
         auto& p=local.depth_plane;
         p.d-=std::copysign(std::min((double)contact,std::abs(p.d)*0.5),p.d);
     }
+    // D17W: push a face the original paints over slightly behind its plane
+    // (about 0.8 units at 3400), so the depth test keeps the original's winner.
+    if(poly.coplanar_rank) local.depth_plane.d*=1+poly.coplanar_rank/4096.0;
     for(int k=0;k<5 && shape.size()>=3;++k) {
         // Most compact props are wholly inside the guard band. Preserve their
         // vertices directly instead of allocating/copying five temporary
@@ -824,6 +830,105 @@ unsigned object_record_size(uint32_t type) {
         default: return 0;
     }
 }
+// D17W: a model can lay two faces on the same corners (the overturned
+// minecart, level 3: a textured panel and a flat F4 on its four corners). The
+// original gives them one AVSZ slot and paints the earlier record last, so
+// the texture covers the flat face. Host pieces each sort by their own depth,
+// and flat and gouraud pieces are never depth-tested (painter order only), so
+// flat pieces in nearer slots painted large white triangles over the panel.
+// For each pair of coplanar faces that overlap, the one the original paints
+// first (farther slot, or the later record in one slot) is ranked behind the
+// other. Every face of such a group sorts by the group's average depth and
+// object() emits them in rank order, so the OT paints them as the original
+// did; draw() also pushes a ranked face back for the depth test.
+// DNTTK_NEAR_COPLANAR=0 (developer) turns it off for comparisons.
+void rank_coplanar(const Frame& f,std::vector<Poly>& polys) {
+    static const bool on=env_int("DNTTK_NEAR_COPLANAR",1,0,1)==1;
+    if(!on) return;
+    struct Face {double n[3],d,c[4][3];unsigned count;int slot;};
+    std::vector<Face> faces(polys.size());
+    std::vector<bool> planar(polys.size(),false);
+    std::vector<size_t> group(polys.size());
+    for(size_t i=0;i<group.size();++i) group[i]=i;
+    auto root=[&](size_t i) {while(group[i]!=i) i=group[i]=group[group[i]];return i;};
+    static const int order4[4]={0,1,3,2};
+    for(size_t i=0;i<polys.size();++i) {
+        const Poly& p=polys[i];Face& a=faces[i];a.count=p.count;
+        if(p.depth_only) continue;
+        uint32_t sum=0;
+        for(unsigned j=0;j<p.count;++j) {
+            const auto& v=f.verts[p.idx[p.count==4?order4[j]:j]];
+            for(int k=0;k<3;++k) a.c[j][k]=v.view[k];
+            sum+=f.verts[p.idx[j]].sz;
+        }
+        const NearDepthPlane plane=near_depth_plane(a.c[0],a.c[1],a.c[2]);
+        if(!plane.n[0] && !plane.n[1] && !plane.n[2]) continue;
+        for(int k=0;k<3;++k) a.n[k]=plane.n[k];a.d=plane.d;
+        bool flat=true;
+        for(unsigned j=3;j<p.count;++j) flat&=std::abs(a.n[0]*a.c[j][0]+a.n[1]*a.c[j][1]+a.n[2]*a.c[j][2]-a.d)<0.5;
+        const int64_t zsf=(int32_t)(p.count==4?f.zsf4:f.zsf3);
+        a.slot=(int)(((zsf*sum)>>12)>>3)+p.bias;
+        planar[i]=flat;
+    }
+    // Separating axes in the plane of a: overlap of more than half a unit.
+    auto overlap=[](const Face& a,const Face& b) {
+        double u[3]={a.c[1][0]-a.c[0][0],a.c[1][1]-a.c[0][1],a.c[1][2]-a.c[0][2]};
+        const double length=std::sqrt(u[0]*u[0]+u[1]*u[1]+u[2]*u[2]);
+        if(length<1e-9) return false;
+        for(double& x:u) x/=length;
+        const double w[3]={a.n[1]*u[2]-a.n[2]*u[1],a.n[2]*u[0]-a.n[0]*u[2],a.n[0]*u[1]-a.n[1]*u[0]};
+        double pa[4][2],pb[4][2];
+        auto flatten=[&](const Face& s,double out[4][2]) {
+            for(unsigned j=0;j<s.count;++j) {
+                out[j][0]=u[0]*s.c[j][0]+u[1]*s.c[j][1]+u[2]*s.c[j][2];
+                out[j][1]=w[0]*s.c[j][0]+w[1]*s.c[j][1]+w[2]*s.c[j][2];
+            }
+        };
+        flatten(a,pa);flatten(b,pb);
+        for(int pass=0;pass<2;++pass) {
+            const double (*s)[2]=pass?pb:pa;const unsigned n=pass?b.count:a.count;
+            for(unsigned j=0;j<n;++j) {
+                const double ax=-(s[(j+1)%n][1]-s[j][1]),ay=s[(j+1)%n][0]-s[j][0];
+                const double len=std::sqrt(ax*ax+ay*ay);if(len<1e-9) continue;
+                double lo[2]={1e300,1e300},hi[2]={-1e300,-1e300};
+                for(int q=0;q<2;++q) {
+                    const double (*t)[2]=q?pb:pa;const unsigned m=q?b.count:a.count;
+                    for(unsigned k=0;k<m;++k) {
+                        const double d=(t[k][0]*ax+t[k][1]*ay)/len;
+                        lo[q]=std::min(lo[q],d);hi[q]=std::max(hi[q],d);
+                    }
+                }
+                if(std::min(hi[0],hi[1])-std::max(lo[0],lo[1])<0.5) return false;
+            }
+        }
+        return true;
+    };
+    for(size_t i=0;i<polys.size();++i) {
+        if(!planar[i]) continue;
+        for(size_t j=i+1;j<polys.size();++j) {
+            if(!planar[j]) continue;
+            const Face& a=faces[i];const Face& b=faces[j];
+            const double dot=a.n[0]*b.n[0]+a.n[1]*b.n[1]+a.n[2]*b.n[2];
+            if(std::abs(dot)<0.9999) continue;
+            bool on=true;
+            for(unsigned k=0;k<b.count && on;++k) on=std::abs(a.n[0]*b.c[k][0]+a.n[1]*b.c[k][1]+a.n[2]*b.c[k][2]-a.d)<0.5;
+            if(!on || !overlap(a,b)) continue;
+            // i is the earlier record: it is painted last unless j sorts nearer.
+            ++polys[b.slot<a.slot?i:j].coplanar_rank;
+            group[root(i)]=root(j);
+        }
+    }
+    std::vector<double> sum(polys.size(),0);std::vector<unsigned> corners(polys.size(),0);
+    for(size_t i=0;i<polys.size();++i) {
+        for(unsigned j=0;j<polys[i].count;++j) sum[root(i)]+=f.verts[polys[i].idx[j]].sz;
+        corners[root(i)]+=polys[i].count;
+    }
+    for(size_t i=0;i<polys.size();++i) {
+        const size_t r=root(i);
+        if(corners[r]>polys[i].count && polys[i].key_z<=0) polys[i].key_z=sum[r]/corners[r];
+    }
+    std::stable_sort(polys.begin(),polys.end(),[](const Poly& a,const Poly& b) {return a.coplanar_rank<b.coplanar_rank;});
+}
 // 0x80010000 entry, same register contract as the world renderer.
 void object(CPUState* cpu) {
     const uint32_t mesh=cpu->gpr[4];
@@ -941,6 +1046,7 @@ void object(CPUState* cpu) {
     ++object_stats.taken;viewmodel_meshes+=viewmodel;
     const uint32_t flags=psx_mod_read_word(context+0x50),palette=vertices+count*8;
     const uint32_t command_bits=psx_mod_read_word(context+0x48),tpage_bits=psx_mod_read_word(context+0x4c);
+    std::vector<Poly> polys;polys.reserve(taken.size());
     for(const auto& [record,type,depth_only]:taken) {
         Poly p{};p.source=record;p.count=(type&8)?4:3;p.actor=actor;p.depth_only=depth_only;
         const uint32_t word=psx_mod_read_word(record);
@@ -976,8 +1082,10 @@ void object(CPUState* cpu) {
             else c=psx_mod_read_word(palette+4*psx_mod_read_byte(record+4));
             p.colors[j]=c&0xffffff;
         }
-        draw(f,p);
+        polys.push_back(p);
     }
+    if(!viewmodel) rank_coplanar(f,polys);
+    for(const auto& p:polys) draw(f,p);
     psx_mod_write_word(context,f.cursor);
 }
 // Occluder fade. The prop loop (0x80031fa0..0x80032078) makes a prop

@@ -1,5 +1,20 @@
 # Next-session handoff
 
+## 2026-10-20 - D17W accepted
+
+- User: "that cart is looking handsome!!". D17W Done; executable
+  `8169621316e555cd08b72367c835c1189e9a8d5ae68216497e2b04391cf4700c` is the
+  regression baseline.
+
+## 2026-10-20 - D17W minecart fixed (Needs playtest)
+
+- Slot 10's cart is clean in first person from every distance and angle
+  tried. Fix in `near_clip.cpp` `rank_coplanar` (coplanar overlapping faces
+  of one object mesh keep the original's paint order; `DNTTK_NEAR_COPLANAR=0`
+  compares). A/B on 12 other saves showed no change. Executable
+  `8169621316e555cd08b72367c835c1189e9a8d5ae68216497e2b04391cf4700c`. Awaiting
+  the user's playtest; D19Q1's Done header, misfiled under D17W, moved back.
+
 ## 2026-10-20 - D19Q1 accepted
 
 - User: "confirmed working!". D19Q1 Done; the executable below is the

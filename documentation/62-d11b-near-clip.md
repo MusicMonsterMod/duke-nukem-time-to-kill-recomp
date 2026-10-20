@@ -232,3 +232,25 @@ debug position writes on those private cards only, then walked into the wall.
 - Duke's own body is not clipped here (D12 owns hands and weapon).
 - If the runtime's widescreen X squash were enabled, host-drawn pieces would
   not be squashed (the project runs 4:3; D14 owns FOV and widescreen).
+
+## D17W: coplanar faces keep the original's paint order
+
+Player UI slot 10 (level 3): the overturned minecart's back panel showed large
+white triangles in first person only. The model (object mesh `0x80129f58`)
+lays a flat F4 (palette color 0, white) on the same four corners as a textured
+FT4. The object renderer gives both one AVSZ slot and inserts each packet at
+the slot head, so the earlier record (the texture) is painted last. Host
+pieces had each taken their own slot from their own average depth, and flat
+and gouraud triangles carry no host depth in the GL renderer (only textured
+batches are depth-tested), so flat pieces in nearer slots painted over the
+texture.
+
+`rank_coplanar` (object meshes, not the weapon): for each pair of host-drawn
+faces of one mesh that are coplanar and overlap in their plane, the face the
+original paints first (farther slot, or the later record in one slot) is
+ranked behind the other. The faces of such a group sort by the group's
+average depth and are emitted in rank order, so the OT paints them as the
+original did; a ranked face is also pushed back 1/4096 of its depth per rank
+for the textured depth test. `DNTTK_NEAR_COPLANAR=0` (developer) turns it off.
+Evidence and screenshots: the D17W work log and
+`recomp/analysis/d17w-minecart/` (local).

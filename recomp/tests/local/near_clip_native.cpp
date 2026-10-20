@@ -188,6 +188,40 @@ static void packet_contracts(const char* executable) {
         unsigned buckets=0;for(unsigned i=0;i<2048;++i)buckets+=psx_mod_read_word(ot+i*8)!=0;
         assert(buckets==(semi?2u:1u));
     }
+    // D17W: a textured face and a flat face on the same corners (the level 3
+    // minecart). The original paints the earlier record last, so that one
+    // must win the host depth test: the other is pushed behind its plane.
+    for(bool textured_first:{true,false}) {
+        auto c=reset();c.gpr[31]=0x80032288;
+        psx_mod_write_byte(mesh+6,3);word(mesh+0x10,verts);word(mesh+0x14,list);
+        word(verts,(uint16_t)-100|uint32_t(uint16_t(-100))<<16);word(verts+4,5000);
+        word(verts+8,100|uint32_t(uint16_t(-100))<<16);word(verts+12,5000);
+        word(verts+16,100u<<16);word(verts+20,5000);word(verts+24,0x00405060);
+        uint32_t at=list;
+        for(int face=0;face<2;++face) {
+            // One group per face: FT3 (16-byte record) or F3 (8 bytes, palette 0).
+            const bool tex=(face==0)==textured_first;
+            word(at,tex?0x00010024:0x00010020);word(at+4,0x00020100);word(at+8,0);
+            if(tex) {word(at+12,0x02000000|0x1f);word(at+16,0x1f00);}
+            at+=tex?20:12;
+        }
+        word(at,0xff);
+        observed_hook(&c,0x80010000);
+        assert(host_corners.size()==6);
+        // Corners 0-2 belong to the first record, 3-5 to the second.
+        for(int i=0;i<3;++i) {
+            assert(host_corners[i].x==host_corners[3+i].x && host_corners[i].y==host_corners[3+i].y);
+            assert(host_corners[i].depth<host_corners[3+i].depth);
+            assert(host_corners[3+i].depth<host_corners[i].depth*1.001f);
+        }
+        // Flat pieces are never depth-tested: both faces share one slot and
+        // the face the original paints under (the later record) goes in last, so the
+        // OT draws it first.
+        unsigned slots=0;uint32_t head=0;
+        for(unsigned i=0;i<2048;++i) if(const uint32_t h=psx_mod_read_word(ot+i*8)) {++slots;head=h;}
+        assert(slots==1);
+        assert((psx_mod_read_word(head+4)>>24)==(textured_first?0x30u:0x34u));
+    }
     // D17L: distant opaque static top faces retain native integer vertices,
     // affine UVs, quad topology and AVSZ4 ordering while gaining host depth.
     // Vertical, sloped, lower, translucent and foreign-caller faces stay native.

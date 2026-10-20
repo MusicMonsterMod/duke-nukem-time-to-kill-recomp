@@ -1,5 +1,20 @@
 # Current status - 2026-10-04
 
+## 2026-10-20 - D17W accepted
+
+- User: "that cart is looking handsome!!". D17W Done; executable
+  `8169621316e555cd08b72367c835c1189e9a8d5ae68216497e2b04391cf4700c` is the
+  regression baseline.
+
+## 2026-10-20 - D17W minecart fixed (Needs playtest)
+
+- Cause: the cart lays a flat white F4 on the corners of its textured back
+  panel. The original paints the texture last in one slot; the eye-view near
+  clip sorted each piece by its own depth and flat pieces have no depth test,
+  so white triangles painted over it. Coplanar overlapping faces of a mesh
+  now keep the original's paint order (near clip, no framework change).
+  Executable `8169621316e555cd08b72367c835c1189e9a8d5ae68216497e2b04391cf4700c`.
+
 ## 2026-10-20 - D19Q1 accepted
 
 - User: "confirmed working!". D19Q1 Done.

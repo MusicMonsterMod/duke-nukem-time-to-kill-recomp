@@ -81,6 +81,9 @@ Executable `15e3d7b2c761613f7f3999d107b0ae251fc333ad5322d85bf377f44daffe999b`.
 
 ## Limits
 
+- Follow-up D19Q1 (2026-10-20): in the player's game the thumbnail of a
+  SAVE GAME save showed the save page itself (first person); see the job.
+
 - Prompts still show PlayStation buttons (D19F).
 - The software renderer path and Vanilla F7 saves through the new atomic write
   were not run separately (the write path is the same function).

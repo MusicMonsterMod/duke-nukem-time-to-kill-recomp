@@ -190,6 +190,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D19K | LOAD GAME from our savestate menu, integrated into the reimplemented menus; replaces the memory-card LOAD GAME; startup memory card check unseen | Done (user-accepted 2026-10-20) | D19J, D24B |
 | D19R | Startup card probe hang: about 1.5 s of black screen where CHECKING MEMORY CARD was; remove or hide it (research done) | Done (2026-10-20, closeout delegated by the user) | D19K |
 | D19Q | SAVE GAME screen to match LOAD GAME: choose a savestate slot from the menus, overwrite asks, success / failure shown | Done (user-accepted 2026-10-20) | D19K |
+| D19Q1 | SAVE GAME thumbnail shows the save screen (OVERWRITE THIS SAVE?) instead of play (player UI slot 1, first person) | Todo | D19Q |
 | D19L | Menus stay up and responsive while demo scenes load behind the title menu (no blank spinner gap) | Done (user-accepted 2026-10-19 with D19O) | D19J, D19E |
 | D19M | QUIT GAME menu item that closes the whole program (pause list, death list, title main menu), with a YES / NO prompt | Done (user-accepted 2026-10-19; title item in D19J, accepted) | D19H |
 | D19O | Frontend redraws flash back to the previous menu image after a change (PRESS START -> main menu: 13 presents of PRESS START; also in the original menus) | Done (user-accepted 2026-10-19) | D19C, D19J |
@@ -6050,6 +6051,49 @@ that loads back to the saved moment; a refused or failed save says so and
 leaves the slot unchanged; Escape backs out without saving; Vanilla saves
 unchanged; the player's own cards and savestates are never used in testing;
 the user judges it.
+
+### D19Q1 - SAVE GAME thumbnail shows the save screen
+
+**Todo (opened 2026-10-20, brief research only).** User: "when you save the
+game from the new save screen the screenshot that it saves in the preview
+actually has the text of the save screen in it so it actually says overwrite
+this save and so on inside the screenshot ... within slot one which is my
+actual game."
+
+Evidence (read only; the player's files untouched): player UI slot 1
+(`saves/local-play/openbios/state_800AB6FC_slot00.*`, level 3 GOLD AND GUNS,
+sidecar `level 3` / `resume 1`) has as its thumbnail SAVE GAME's
+OVERWRITE THIS SAVE? page (SLOT 01 - GOLD AND GUNS, YES highlighted, prompts)
+over a darkened third-person view of Duke. Local copies:
+`recomp/analysis/d19q1-thumb/`.
+
+Brief findings:
+- `resume 1` proves `ttk::game_menu_saved` ran for SAVE GAME's own save, but
+  the picture kept at pause entry was not written over the framework's
+  capture: `savestate_write_thumb` was skipped (`pause_thumb_ok` false, or
+  one of `owned` / paused / `pause_screen == ours_sub` false at that moment)
+  or failed, or the kept picture was itself a menu image.
+- The D19Q tests that passed were all in third person. With the player's
+  profile in **first person**, the pause screen draws the world from a
+  third-person camera (Duke visible behind the list,
+  `first-person-pause.png`), which is what the slot 1 picture shows under the
+  prompt. So in first person the image grabbed at pause entry
+  (`sub == pause_top`) may already be a pause image, or the grab is skipped on
+  that path. Not yet run: SAVE GAME end to end in first person (the
+  harness's captured-input mode did not move the menu cursor; drive it
+  uncaptured after switching view, or through the debug pad).
+- Other paths that leave no picture of play by design: a save after an F7
+  load into the pause menu (note 171 limits).
+
+Direction: take the picture of play from the last gameplay presentation
+before the pause (first and third person), not from whatever the guest
+displays at pause entry; never fall back to a capture of our own pages (a
+plain darkened world without the menu text would be the minimum).
+
+**Acceptance:** SAVE GAME in first and third person, new and overwritten
+slots, from a fresh pause and after a LOAD GAME, always stores a picture of
+play with no menu text; LOAD GAME and F7 show it; Vanilla unchanged; the
+user judges it.
 
 ### D19R - Startup card probe hang
 

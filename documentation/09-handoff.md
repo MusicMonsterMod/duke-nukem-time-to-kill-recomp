@@ -1,5 +1,10 @@
 # Next-session handoff
 
+## 2026-10-20 - D19Q1 opened (SAVE GAME thumbnail shows the menu)
+
+- Player UI slot 1's picture is the OVERWRITE THIS SAVE? page; first person
+  pauses on a third-person view, untested by D19Q. Research in the job.
+
 ## 2026-10-20 - D19Q accepted
 
 - User: "im happy with this". D19Q Done; executable

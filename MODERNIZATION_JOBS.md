@@ -112,7 +112,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08U1 | Ladder that cannot be descended with E (player slot 12), systemic ladder-top coverage | Accepted | D08U, D22B |
 | D08U2 | Enemy standing at a ladder top blocks the climb-off: Duke should push it back (player slot 5) | Accepted | D08U, D08J |
 | D08T3 | Free manual push and pull while holding Grab (no fixed-size shoves) | Todo | D08T2 |
-| D08T4 | Save slot 10 dumpster: the grab prompt shows but it will not move; find out whether it is meant to be fixed (Vanilla check) | Todo | D08T2 |
+| D08T4 | Save slot 10 dumpster: the grab prompt shows but it will not move; find out whether it is meant to be fixed (Vanilla check) | Done (user-accepted 2026-10-20; fixed by design, no prompt there now) | D08T2 |
 | D08V | Sewer mantle/hang modern-control coverage (slot 12 area) | Done | D08, D08B |
 | D08W | Subway shallow-water sideways jumps (A/D + Space jumps forward) | Done | D08, D08C |
 | D08X | Hold-E airborne ledge grab and mantle (ladder-grab feel for ledges) | Done | D08, D08J, D08V |
@@ -3686,6 +3686,26 @@ actually move); if it is a regression, fix it game-wide, not for this level.
 **Acceptance:** the cause is established with evidence (Vanilla comparison);
 either the dumpster moves as in the original, or the prompt no longer offers a
 grab that cannot happen; other pushables unchanged; Vanilla unchanged.
+
+**2026-10-20 - Needs playtest.** Cause: case 1, fixed by design. The dumpster
+(level 5, object type 165, flags `0x081090e2`, identical to the alley one) sits
+on floor whose record (`*(player+0x48)`, byte 4) has bit 0 clear; the original
+idle grab `0x80051890` requires that bit before it even lines up, so in Vanilla
+on the same save copy holstered Cross does nothing and Cross + Up climbs it.
+Every reachable side reads 0; the alley reads 1. Our `push_contact_ready()`
+checked only the type flag, so the hint showed and Grab holstered for nothing.
+Fix (game-wide, `push.inc`): the contact predicate also requires the original's
+floor bit, so the hint and the Grab request only happen where the original can
+grab. Real keys: slot 10 no hint, no holster, nothing moves (A/B without the
+gate reproduces the report); alley dumpster and medieval block still grab and
+push (1131 / 1129); Vanilla identical before and after. Native suites pass.
+Executable `810c815782bce5874332bd762d9e69c66de4fe2e15ef4b9bc0b5a829a5a27df4`,
+[note 163](documentation/163-d08t4-fixed-pushables.md).
+
+**2026-10-20 - Done (user-accepted).** User: "lock it in, close it out,
+another winner". Executable
+`810c815782bce5874332bd762d9e69c66de4fe2e15ef4b9bc0b5a829a5a27df4` is the
+regression baseline.
 
 ### D08T3 - Free manual push and pull while holding Grab
 

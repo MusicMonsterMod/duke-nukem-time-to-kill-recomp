@@ -43,13 +43,22 @@ bool push_grab_ready() {
         psx_mod_read_word(camera+0xa4)==player && psx_mod_read_word(player+0x7d4)==camera &&
         push_state_early() && identity();
 }
-// Duke is touching a pushable object on normal ground (idle, gait or wall bump).
+// D08T4: 0x80051890 grabs only when bit 0 of byte 4 of Duke's floor record
+// (*(player+0x48)) is set; the levels clear it where a pushable object is
+// placed as fixed scenery (level 5 street dumpster), and the original Action
+// then does nothing there. Unaligned: the records are 7 bytes long.
+static bool push_floor_allows() {
+    const uint32_t floor=psx_mod_read_word(player+0x48);
+    return floor>=0x80010000u && floor<0x80200000u-4 && (psx_mod_read_byte(floor+4)&1);
+}
+// Duke is touching a pushable object on normal ground (idle, gait or wall bump)
+// where the original grab can start.
 bool push_contact_ready() {
     if(!player_identity_ready() || (psx_mod_read_word(player)&0x20002) ||
        psx_mod_read_byte(player+0x22c)!=0 || psx_mod_read_byte(player+0x22d)!=0)return false;
     const unsigned animation=psx_mod_read_half(player+0x60);
     if(!land_gait_anim(animation) && animation!=94 && animation!=95)return false;
-    return object_type_flags(psx_mod_read_word(player+0x174))&object_pushable;
+    return (object_type_flags(psx_mod_read_word(player+0x174))&object_pushable) && push_floor_allows();
 }
 // Original idle with the weapon stowed: a fresh Cross here reaches 0x80051890.
 bool push_idle_ready() {return interaction_ready() && psx_mod_read_half(player+0x60)==63;}

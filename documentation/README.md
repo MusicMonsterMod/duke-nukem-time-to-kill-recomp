@@ -87,3 +87,4 @@ D19G in-game KEY BINDINGS and live display, camera and mouse settings: [note 159
 D07F airborne shots follow the crosshair: [note 160](160-d07f-airborne-shots.md) (accepted).
 D10C Duke 3D look keys (Page Up / Page Down, Home / End): [note 161](161-d10c-look-keys.md) (accepted).
 D10D keyboard turning (Left / Right arrows): [note 162](162-d10d-keyboard-turning.md) (accepted).
+D08T4 fixed pushable objects (slot 10 dumpster, original floor gate): [note 163](163-d08t4-fixed-pushables.md) (accepted).

@@ -357,6 +357,18 @@ int main(int argc,char** argv) {
         assert(idle(0x80052c1c,p)==0);
         psx_mod_write_half(object+0x2c,1062);assert(idle(0x80052c1c,p)==1); // outside the table
         psx_mod_write_half(object+0x2c,165);
+        // D08T4: touching is offered only where the original grab can start:
+        // bit 0 of byte 4 of Duke's floor record (*(player+0x48), unaligned).
+        {
+            const uint32_t saved_floor=psx_mod_read_word(p+0x48),floor=0x801ea003;
+            psx_mod_write_half(p+0x60,63);psx_mod_write_word(p+0x48,floor);
+            psx_mod_write_byte(floor+4,0x01);assert(ttk::push_contact_ready());
+            psx_mod_write_byte(floor+4,0x00);assert(!ttk::push_contact_ready()); // level 5 street
+            psx_mod_write_byte(floor+4,0xfe);assert(!ttk::push_contact_ready());
+            psx_mod_write_byte(floor+4,0x01);psx_mod_write_word(p+0x48,0);assert(!ttk::push_contact_ready());
+            psx_mod_write_word(p+0x48,floor);psx_mod_write_word(table+28*165,0xe2);assert(!ttk::push_contact_ready());
+            psx_mod_write_word(table+28*165,0x081090e2);psx_mod_write_word(p+0x48,saved_floor);
+        }
         // Grab 121 remembering the object: camera-only lease, never locomotion.
         psx_mod_write_word(p+0x290,object);psx_mod_write_half(p+0x60,121);
         assert(ttk::push_grab_ready() && !ttk::locomotion_input_ready() && !ttk::movement_ready());
@@ -2937,6 +2949,6 @@ int main(int argc,char** argv) {
     std::puts("PASS: respawn boom, landing seam and pre-collision stride smoothing");
     std::puts("PASS: camera constraints, duplicate look, capture and original-camera gates");
     std::puts("PASS: Vanilla, actor/caller/overlay/code/state guards; movement/probe alignment; independent facing");
-    std::puts("PASS: D08T1 pushable masks (D08T2 types up to 1061, grab-only climb mask, E-only idle grab mask; caller/actor/flags/Vanilla/capture) and camera-only grab lease");
+    std::puts("PASS: D08T1 pushable masks (D08T4 floor gate, D08T2 types up to 1061, grab-only climb mask, E-only idle grab mask; caller/actor/flags/Vanilla/capture) and camera-only grab lease");
     std::puts("PASS: D12A first-person quick kick (boot request conversion from the attack only (E suppressed) and its guards, lease, sound, view-aimed hit sphere at the crosshair surface within reach, held attack with Boot, right-leg viewmodel with reversed thigh, third person untouched); D12C kick impact (thud (one octave up, three times its volume) once at the first sphere contact or a reachable wall, silent otherwise; third-person sphere made by the host, original neutralized, once per kick; Vanilla and other callers untouched)");
 }

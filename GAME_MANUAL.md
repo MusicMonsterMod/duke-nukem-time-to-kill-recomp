@@ -1269,6 +1269,11 @@ steps out behind Duke while he holds it and returns afterwards. Face the object
 roughly square, as in the original. Objects stop moving when something blocks
 them; Duke then lets go by himself.
 
+Some pushable objects are fixed in place where the level puts them, as in the
+original, for example a street dumpster in level 5 (debug console numbering),
+which is a step you climb. Those show no grab prompt and the grab button does
+nothing at them; **E** (with **W**) still climbs them.
+
 In **Vanilla** the original rules apply: stand still facing the object with no
 weapon drawn, hold **X**, then press **Up** to push or **Down** to pull. Holding a
 direction together with X climbs instead.

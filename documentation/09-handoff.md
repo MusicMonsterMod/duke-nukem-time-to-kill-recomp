@@ -1,5 +1,23 @@
 # Next-session handoff
 
+## 2026-10-20 - D08T4 accepted
+
+- User: "lock it in, close it out, another winner". D08T4 Done; executable
+  `810c815782bce5874332bd762d9e69c66de4fe2e15ef4b9bc0b5a829a5a27df4` is the
+  regression baseline. Backlog: D19G1, D19K, D19F, D19N, D24D, D26G.
+
+## 2026-10-20 - D08T4 slot 10 dumpster (Needs playtest)
+
+- Fixed by design: the level marks the floor at that dumpster as no-grab
+  (original idle grab `0x80051890` checks bit 0 of byte 4 of Duke's floor
+  record `*(player+0x48)`); Vanilla cannot grab it either, only climb it. Our
+  grab hint ignored that gate. Now the hint and Grab apply only where the
+  original can grab, game-wide; alley dumpster and medieval block unchanged,
+  Vanilla unchanged. Executable
+  `810c815782bce5874332bd762d9e69c66de4fe2e15ef4b9bc0b5a829a5a27df4`,
+  [note 163](163-d08t4-fixed-pushables.md). Native tests pass. Awaiting the
+  user's playtest.
+
 ## 2026-10-20 - D10D accepted
 
 - User: "perfect, lock it in, close it out". D10D Done; executable

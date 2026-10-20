@@ -525,8 +525,9 @@ Open questions for the user:
 2. Accept input delay (about 66 ms plus network) for the first online
    version, with rollback as a measured follow-up?
 3. Vanilla rules online too (pad sync, simplest), or Modernized only?
-4. Should a networked match keep the game's split-screen picture as an
-   option, or always show the own view full screen?
+4. **Decided (user, 2026-10-20):** online and LAN play are full screen,
+   each player's own view on their own machine, never split screen. Split
+   screen is for local play only.
 5. Is a small self-hosted relay acceptable as the official "server", with
    direct IP as the default?
 

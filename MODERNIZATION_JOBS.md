@@ -239,6 +239,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D32 | Game icon: replace the framework psxrecomp.ico/.png/.svg with the D31 in-engine icon (exe, window, taskbar, launcher) | Todo | D31 design |
 | D33 | Modernized as the default profile, `--vanilla` as the special flag (one launch) | Done (user-accepted 2026-10-20) | - |
 | D34 | Multiplayer investigation: modern split-screen, online play and self-hosting (research only; [note 167](documentation/167-d34-multiplayer-research.md)) | Done (research accepted 2026-10-20; follow-ups D34A-D34G proposed, not opened) | - |
+| D34B | Classic split-screen with two controllers: original controls and rules, both pads working, clean start / presentation / exit in a Modernized session | Todo | D34 |
 | R01 | DisruptorRecomp architecture and modernization reference research | Done | - |
 
 Recommended opening sequence: **D01 → D02 → D03 → D04**, then **D05 / D06 → D07 → D07A → D08**. D13 is an early graphics option after profiles exist. D22 and D23 should accumulate evidence throughout development. First-person, HD asset packs and precision rendering are optional follow-up milestones, not blockers for a good modern third-person release.
@@ -7721,6 +7722,53 @@ references.
 **Acceptance:** the user reviews note 167 and either accepts it or asks for
 changes. Then the user chooses which follow-up jobs to open. No
 implementation starts under D34.
+
+**Decided (user, 2026-10-20):** online and LAN play are full screen, each
+player's own view on their own machine, never split screen. Split screen is
+for local play only.
+
+### D34B - Classic split-screen with two controllers
+
+**Todo.** Opened 2026-10-20 at the user's request: "fix the split screen
+multiplayer so it can work just oldskool with 2 controllers and thats it,
+nothing particularly fancy there yet". The local, no-frills first step of
+[note 167](documentation/167-d34-multiplayer-research.md) phase B1. Modern
+split-screen (per-player modern controls, high refresh per viewport) stays
+in the proposed D34C; online and LAN play (full screen per player) stay in
+D34D onwards.
+
+**Problem (user playtest 2026-10-20, causes in note 167 section 2):**
+player 2 has no input (`MAX_PLAYERS 1`: no pad on port 2); the loading
+spinner appears to freeze while the arena already runs; Enter opens a pause
+screen; the split screen flickers left and right; the frame rate is about
+30-60; exit walks back through the setup pages.
+
+**Scope:**
+
+1. Two input seats: build with `MAX_PLAYERS 2`; each SDL controller drives
+   its own PS1 port with the original controls. Keyboard and mouse may be
+   player 1 with one controller as player 2, or two controllers; decide the
+   routing and document it.
+2. CHOOSE CHARACTER read from each player's own pad, as the original does
+   (replacing D19J's one-keyboard workaround in two-player only).
+3. In a two-player match the modern layer steps aside cleanly: original
+   controls for both players, original presentation (no stale replay or
+   loading image), widescreen off or a correct 4:3 picture, no flicker
+   caused by our presentation.
+4. Start, pause (either player), results screen and exit return cleanly to
+   our menus.
+5. Check first whether `MAX_PLAYERS 2` changes the savestate format; if it
+   would reject existing savestates, stop and ask the user before going on.
+
+**Out of scope:** per-player modern controls, high refresh in two-player,
+gamepad modern controls (D09), online or LAN play.
+
+**Acceptance:** two controllers play a full two-player match (character
+choice, arena, kills, respawn, time or kill limit, results, exit) with no
+frozen loading image and no flicker from our presentation. Single-player
+Modernized and Vanilla unchanged (regression checks as for other jobs);
+existing savestates still load, or the user approved the change. The user
+playtests on the real display.
 
 ## Working rules and evidence
 

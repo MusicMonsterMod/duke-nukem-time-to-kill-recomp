@@ -10,6 +10,7 @@
 // slot number and time only.
 #include "ttk_font.h"
 #include "level_select.h"
+#include "savestate_slots.h"
 #include "pc_input.h"
 #include "mod_plugins.h"
 #include "savestate.h"
@@ -58,6 +59,36 @@ bool load_ui() {
     ui_ok=sprites[cross].w>0 && sprites[radiation].w>0;
     return ui_ok;
 }
+}
+
+namespace ttk {
+const char* level_era(unsigned level) {
+    if(level==0 || level==5 || level==9)return "PRESENT DAY";
+    if(level<=3)return "OLD WEST";
+    if(level<=8)return "MEDIEVAL";
+    if(level<=12)return "ANCIENT ROME";
+    if(level>=21 && level<=26)return "CHALLENGE STAGE";
+    if(level>=27 && level<=29)return "BOSS";
+    return "";
+}
+
+std::string sidecar_path(int slot) {
+    char path[1024];
+    if(!savestate_slot_path(slot,path,sizeof path))return {};
+    return std::string(path)+".ttk";
+}
+// The recorded level, if this slot was saved with the sidecar and is not older than it.
+bool savestate_slot_level(int slot,unsigned& level) {
+    std::ifstream file(sidecar_path(slot));
+    unsigned value=0;std::string word;
+    if(!(file>>word>>value) || word!="level" || value>=32)return false;
+    level=value;return true;
+}
+}
+
+namespace {
+using ttk::level_era;
+using ttk::savestate_slot_level;
 
 struct Surface {
     uint32_t* px;int w,h;
@@ -81,29 +112,6 @@ struct Surface {
     }
     int text(int set,const char* s,int x,int y) {return ttk_font_draw(set,s,px,w,h,x,y);}
 };
-
-const char* era(unsigned level) {
-    if(level==0 || level==5 || level==9)return "PRESENT DAY";
-    if(level<=3)return "OLD WEST";
-    if(level<=8)return "MEDIEVAL";
-    if(level<=12)return "ANCIENT ROME";
-    if(level>=21 && level<=26)return "CHALLENGE STAGE";
-    if(level>=27 && level<=29)return "BOSS";
-    return "";
-}
-
-std::string sidecar_path(int slot) {
-    char path[1024];
-    if(!savestate_slot_path(slot,path,sizeof path))return {};
-    return std::string(path)+".ttk";
-}
-// The recorded level, if this slot was saved with the sidecar and is not older than it.
-bool slot_level(int slot,unsigned& level) {
-    std::ifstream file(sidecar_path(slot));
-    unsigned value=0;std::string word;
-    if(!(file>>word>>value) || word!="level" || value>=32)return false;
-    level=value;return true;
-}
 
 int render(uint32_t* dst,int w,int h,int selected) {
     if(!ttk::input_modernized() || !dst || w<640 || h<480 || ttk_font_line_height(TTK_FONT_PANEL_TITLE)<=0 || !load_ui())return 0;
@@ -143,7 +151,7 @@ int render(uint32_t* dst,int w,int h,int selected) {
         }
         unsigned level=0;
         char title[96]="",name[48]="";
-        const bool known=savestate_slot_exists(slot) && slot_level(slot,level) && ttk::level_title(level,name,sizeof name);
+        const bool known=savestate_slot_exists(slot) && savestate_slot_level(slot,level) && ttk::level_title(level,name,sizeof name);
         if(known)std::snprintf(title,sizeof title,"SLOT %02d - %s",slot+1,name);
         else std::snprintf(title,sizeof title,"SLOT %02d",slot+1);
         s.text(on?TTK_FONT_PANEL_SLOT_SELECTED:TTK_FONT_PANEL_SLOT,title,160,y+14);
@@ -159,7 +167,7 @@ int render(uint32_t* dst,int w,int h,int selected) {
         } else std::snprintf(line,sizeof line,"NEW SLOT");
         s.text(TTK_FONT_PANEL_TEXT,line,162,y+42);
         if(known) {
-            std::snprintf(line,sizeof line,"LEVEL %u  %s",level,era(level));
+            std::snprintf(line,sizeof line,"LEVEL %u  %s",level,level_era(level));
             s.text(TTK_FONT_PANEL_DIM,line,162,y+58);
         }
     }
@@ -180,7 +188,7 @@ int render(uint32_t* dst,int w,int h,int selected) {
 // Called by the framework after a successful save, while guest RAM still holds
 // the saved state: record the level beside the slot (gameplay only).
 extern "C" void ttk_savestate_saved(int slot) {
-    const std::string path=sidecar_path(slot);
+    const std::string path=ttk::sidecar_path(slot);
     if(path.empty())return;
     std::remove(path.c_str());
     if(psx_mod_read_half(0x800bcbb0)!=1)return; // not in gameplay: no level to record

@@ -4,7 +4,7 @@ This is the canonical job list for our **Duke Nukem: Time to Kill** PC project, 
 
 Invoke **`$continue-duke-recomp`** (Codex) or **`/continue-duke-recomp`** (Claude Code) to see the current jobs and choose one. You can also request a job directly: **`$continue-duke-recomp work on D01`** or **`/continue-duke-recomp work on D01`**. The skill reads this file rather than keeping a second backlog. It must not automatically start the next job.
 
-**Latest accepted job (2026-10-20): D19G1 (in-game FRAME RATE applies at once from any launch rate: a 60 launch starts replay presentation mid-session, 60 stops it and returns to the original presentation; software renderer says NEXT LAUNCH); executable `bbfaf117ca261268335c0c19847663a3c02ac7185d24c77fda9ca81f38eecc29` is the regression baseline, [note 164](documentation/164-d19g1-live-frame-rate.md).** Earlier (2026-10-20): D10D (keyboard turning: Left / Right arrows turn the view and Duke everywhere in Modernized play at Duke 3D rates, smooth at high refresh; arrows no longer reach the original D-pad in gameplay; KEY BINDINGS CAMERA rows, schema 35); executable `02150d53b5bdaf636ce7fb5abfe8b311d7cb61f75e75e347bac2a2e511da2892` is the regression baseline, [note 162](documentation/162-d10d-keyboard-turning.md).** Earlier (2026-10-20): **D10C (Duke 3D look keys: Page Up / Page Down look while held and ease back, Home / End lock the look, a tap recenters; first and third person, smooth at high refresh, KEY BINDINGS CAMERA rows, schema 34); executable `ee9d3adee53e952bce7acb0c9bc36840cf44fe0aba37b3e11a56d96038efaa19` is the regression baseline, [note 161](documentation/161-d10c-look-keys.md). New Todo D10D (arrow keys turn left / right).** Earlier (2026-10-20): **D07F (airborne shots follow the crosshair: jumps and falls use the view aim on the camera-only lease; RPG, shotgun, pistol, manual and assisted jump, first and third person); executable `38076cd85f3e0b686cd04d25e8ad6db2c6c2d213d695c775e0c57b8ce0e120ef` is the regression baseline, [note 160](documentation/160-d07f-airborne-shots.md).** Earlier (2026-10-20): **D19G (in-game KEY BINDINGS: every Modernized action, bound at once and saved, swap on conflict, DEFAULT asks; mouse, display, widescreen, camera, view, shoulder, distance and weapon aim live on CONFIRM, frame rate too unless launched at 60); executable `0d42f4523da0c8ec32abd470a6ccc03f1e84ec7dc5bc905265ea33cd3f3b03da` is the regression baseline, [note 159](documentation/159-d19g-options-stage-2.md). New Todo: D07F (airborne shots ignore the crosshair), D10C (Duke 3D look keys), D19G1 (frame rate live after a 60 launch).** Earlier (2026-10-20): **D33 (Modernized by default; `run.py --vanilla` plays Vanilla for one launch; `--mode` and the in-game PROFILE row removed); executable `fa415f5e183167b3b8a64b54959a9d3333f247a823527c7451553e2445d3dff2` is the regression baseline, [note 158](documentation/158-d33-default-profile.md).** Earlier (2026-10-20): **D08AB (SWIMMING MODERN / ORIGINAL in OPTIONS > MODERNIZED; ORIGINAL restores the pre-D08AA water speeds, forced shallow run included); executable `c7557a215c099cfb6ae10484af3555b869a1c7acb627bd0ab72506d246922508` is the regression baseline, [note 157](documentation/157-d08ab-swimming-option.md).** Earlier (2026-10-19): **D08AA (one walk/run pace on land, in shallow water, on the surface and underwater; Shift decides); executable `5e48b2c7cd4d44c92e59f2c7c7d78cd219c0d2f64af53b97570276cc99ed6366` is the regression baseline, [note 156](documentation/156-d08aa-unified-pace.md). New Todo D08AB (SWIMMING MODERN / ORIGINAL menu option).** Earlier (2026-10-19): **D07E (modern shots and movement keep their lease for one game frame, so slow scenes keep crosshair aim; `original` weapon aiming faces the camera); executable `1b3f3283586656df529f440547327307144d17523fe12382bcd3d8b40f2502f5` is the regression baseline, [note 154](documentation/154-d07e-frame-lease.md).** Earlier (2026-10-19): **D19P (death screen QUIT TO MENU beside QUIT GAME, via the game over screen; identity guard no longer covers the selected item `0x800c3f94`); executable `959bc0d76db2f1af64b666e84a9a57046394cea10ac36305877f3bfc9594fa63` is the regression baseline, [note 153](documentation/153-d19p-quit-to-menu.md).** Earlier (2026-10-19): **D22D (energy weapon locks the enemy under the crosshair and damages it; base and upgraded, first and third person); executable `3442279bb8cdde64dbb8d7239586b7f769d5aa311dfae372d61390d1e374ac98` is the regression baseline, [note 152](documentation/152-d22d-energy-beam.md). New Todo: D07E (stale-lease shots use the original auto-aim), D19P (death screen QUIT TO MENU).** Earlier (2026-10-19): **D17V (modern view bob: Duke 3D-style steady tempo, deeper not faster when running, no sway, even forward glide; accepted on strong too); executable `a1fea19a0a437d9637211d993747a55a8767f8238d1d7773e1ceed6fe9a06193` is the regression baseline, [note 151](documentation/151-d17v-view-bob.md).** Earlier (2026-10-19): **D19J (title main menu, difficulty, two player and character pages re-implemented in the original style, QUIT GAME on the title; saves wait for plugin guest calls); executable `a0246cadbcdb5ee4719dc6e5b08bfa8a0945cf696e47dd22e4a1af27e6873a3d` is the regression baseline, [note 150](documentation/150-d19j-title-menu.md). New Todo D19O (frontend redraw flash-back).** Earlier (2026-10-19): **D19M (QUIT GAME on the pause and death lists closes the program, QUIT GAME? YES / NO); executable `de5a152192ba04979e408a436c5f5541f72c6c36aade7e96d4091c86a7937d43` is the regression baseline, [note 149](documentation/149-d19m-quit-game.md). Title main menu item in D19J.** Earlier (2026-10-19): **D19I (in-game menu text at full brightness: drawn at the pause dispatch, after the paused world's darkening); executable `f99b46632c62d1ce43a674b3a494c8246dc5513c0c1b2651d3692db12a557f9c` is the regression baseline, [note 148](documentation/148-d19i-menu-brightness.md). New Todo: D19M (QUIT GAME closes the program), D19N (one OPTIONS screen, the rest under ADVANCED).** Earlier (2026-10-19): **D19H (Escape opens a list-style pause menu, death screen too, in the original style); executable `681ae485de9d04bbd91949f4811c7d62c65859d486414a51e94371ef5adc1ca2` is the regression baseline, [note 147](documentation/147-d19h-pause-menu.md). New Todo: D19I (dimmed in-game menu text), D19J (main menu re-implemented), D19K (integrated savestate LOAD GAME), D19L (menus during demo loads).** Earlier (2026-10-18): **D08O2B (swim-fire aims at the crosshair on every Duke model; shoulders found by part); executable `93093366872c16d100b05746cfc7d6c7745b0560eadecad459b474d2971bae25` is the regression baseline, [note 146](documentation/146-d08o2b-swim-fire-costumes.md). New Todo D08O4 (brief Ctrl dive drifts forward). Queued: D08O4, D19G, D19F, D08AA, D24D, D26G.** Earlier (2026-10-18): **D08G5 (partial cheat entry keeps mouse look; a breaking key acts at once); executable `18597e61f8fe332da32aff5154465d533dd852e6baefde24017766b109f23b79` is the regression baseline. Queued: D19G, D19F, D08O2B, D08AA, D24D, D26G.** Earlier (2026-10-18): **D08A22 (switcher strips and mission card scale with the game picture like the native HUD); executable `67eb7bc2d189b38624879a25f9b8c76c5567aa40a61e357a5e07352f394d4546` is the regression baseline. Queued: D19G, D19F, D08O2B, D08AA, D24D, D26G.** Earlier (2026-10-18): **D19 (in-game OPTIONS: PC CONTROLS, DISPLAY, MODERNIZED in the original menu style, title and pause); executable `fb169a561aa15a979b4b10b4903dbd5758b17708ebe24b669f58966faf16760b` is the regression baseline, [note 145](documentation/145-d19-game-menu.md). Queued: D19G, D19F, D08O2B, D08AA, D08A22, D24D, D26G.** Earlier (2026-10-18): **D19D (menu keys: Escape/Backspace back, Enter confirms, V Square, wheel moves; Escape never quits); executable `08bba860a9171fe2d147e211e569a8de90e434d262600749c476f4caf6b7e9fe` is the regression baseline, [note 144](documentation/144-d19d-menu-keys.md). Queued: D08O2B, D08AA, D08A22, D24D, D26G.** Earlier (2026-10-18): D30 (recomp.board listing: `.recomp.json` claims our row; README badge). Earlier: **Latest accepted job (2026-10-18): D19E (menu close-out: taps never lost during loads or on LOAD GAME, menu over the spinner one image sooner); executable `0092e2b261b333e0f1848e77b6a6a824079efbaba886e2fb158b3b9023e51aaf` is the regression baseline. Queued: D08O2B, D08AA, D08A22, D24D, D26G, D19D.** Earlier (2026-10-18): D19C (more responsive original menus over the demo); executable `1e1a4795ab8af038f9c95b50d2159cab10bfb1f4a363d84b1ac741025e3d6828` is the regression baseline. Queued: D19E (loading-spinner menus and full menu sweep), D08O2B, D08AA, D08A22, D24D, D26G, D19D.** Earlier (2026-10-18): D17U (smooth loading screens); executable `e1d32dc00d9b2e870f5c1aab4b3e4a21bb74b242c20c7483d4f6eeed7011f9fc`. Earlier (2026-10-18): D17T (smooth title menu and attract demo); executable `7ab8877528b05a46a1e793556660ab6cf09c538d93c7b2f1e6cb5bb744ce9829`. Earlier (2026-10-09): D08G6 (`dntlod` fun cheat); executable `74cec66e398217530d0b8abc3fa0ccfe06308f6b73a17e5aafa628b3f0f2a540`. Earlier (2026-10-09): D08A20 (challenge item HUD, option A - 14x14 icon in a square); executable `a047b37bbb833b84902a3ad344fff2e16c22ae3dc0093ad441d80c3eb9235a95`.** Earlier (2026-10-09): D08A21 (14x14 HUD item icons; the 16x16 versions kept in `recomp/assets/ui/items/16px/`); executable `72429e350806e0639f36e50cff0cb969f18df1662a2336794e17bd2263614c21`.** Earlier (2026-10-08): D08A12 (modern dynamite: unlit until fire, switch away freely, next stick drawn after a throw); executable `2d54e00b64bcf38917e41db47805338f75977b0b63a0868cb962242ffaaadb9d` is the regression baseline. Queued: D24D, D26G.** Earlier (2026-10-08): D08A19 (used mission items: USED and the green tick); executable `d67705eba48232029a90647cc781f3201d0aae29799678466b2b5b9337b5dbe8`. Earlier (2026-10-08): D08Z2 (mantle pose; frozen legs after a corner bump); executable `bfd41760f9c66f2f03cf859f820f7b7d27cd8991e8ce1f304f5456ea29bf8986` is the regression baseline. D08Z3 (modern landing) accepted 2026-10-08; executable `11187493c04ae830482c47c93b97ac332fbfce1de95f8eedaa2f8637d7fe164e` is the new regression baseline. Queued: D24D, D26G, D08A19.** Earlier (2026-10-08): D08Z1 (jump wall slide); executable `3f909c9f2cc4e5b09ba6faab5129ec9ae0ff938c4735e264ac67a66405c1ed34`. Earlier (2026-10-08): D08A17 (power-up countdowns); executable `8f338cde1c2dc4cf73da747621cffafe2478512f6419078a41d11b0d3b9268a9`. Earlier accepted jobs (2026-10-08): D08A14 (death ends steroids), D08A15 (heartbeat restart; a pickup mid-run stops steroids) and D08G4 (inventory cheats give full armor); executable `87fe38d4f0ea8560312f53171345c207f332e26b6f4d2ed7220e1afae66ba472` is the regression baseline.** Earlier: D08J2 (pole/chain A/D direction), D08U2 (climb off a ladder past an enemy), D08O3 (E in water keeps the weapon) and D08O2A (natural swim-fire pose v2), 2026-10-07.** Previous baseline `e8eebb809c3d5a4b29779f11f0c9db55efcd846dc5c71b39d5a59d43158eb08e` (D08U2). **D08J2 (pole/chain A/D direction) Accepted 2026-10-07**: executable `129a64f2df3f5395f2d3485a310a03d74c85f9b1086c7dab37fee59277c7968b` is the current regression baseline ([note 122](documentation/122-d08j2-pole-chain-sidestep.md)). Todo: D08J4 (ceiling monkey-bar drops, UI slot 3), D08J3 (free camera while climbing). Previous baseline `e75b50f156137fa2377e4643407b2efbd16f2e976fa4d697afcbceb228e2e554` (D08O3). **D23E (western-town stutter) Accepted 2026-10-07**; **D08O2A Accepted** ([note 119](documentation/119-d08o2a-natural-swim-fire-pose.md)), **D08O3 Accepted** ([note 120](documentation/120-d08o3-e-in-water.md)); **D23F (fast CPU timing) Accepted 2026-10-05 and now the Modernized default**; executable `e0737a9f712aa5622d1b057ee5071e12c33cc9a18de8e6d40ee8eee31083f966` (includes D23E), [note 104](documentation/104-d23e-busy-scene-stutter.md), [note 105](documentation/105-d23f-fast-timing.md). Next suggested: D23G (finish the fast path) and D17S (auto frame-rate default).
+**Latest accepted job (2026-10-20): D19K (LOAD GAME on the title, pause and death menus lists our savestates in the menu style, thumbnail beside, Console steel save time, LOAD THIS GAME?, opens on slot 01; startup memory card check runs unseen in Modernized; new Todo D19Q SAVE GAME, D19R startup card hang); executable `37966f924ec6348e1dfcb4a8ce17c5ad320c8b3535c40c4f8610a542abd2afe9` is the regression baseline, [note 169](documentation/169-d19k-load-game.md).** Earlier (2026-10-20): **D19G1 (in-game FRAME RATE applies at once from any launch rate: a 60 launch starts replay presentation mid-session, 60 stops it and returns to the original presentation; software renderer says NEXT LAUNCH); executable `bbfaf117ca261268335c0c19847663a3c02ac7185d24c77fda9ca81f38eecc29` is the regression baseline, [note 164](documentation/164-d19g1-live-frame-rate.md).** Earlier (2026-10-20): D10D (keyboard turning: Left / Right arrows turn the view and Duke everywhere in Modernized play at Duke 3D rates, smooth at high refresh; arrows no longer reach the original D-pad in gameplay; KEY BINDINGS CAMERA rows, schema 35); executable `02150d53b5bdaf636ce7fb5abfe8b311d7cb61f75e75e347bac2a2e511da2892` is the regression baseline, [note 162](documentation/162-d10d-keyboard-turning.md).** Earlier (2026-10-20): **D10C (Duke 3D look keys: Page Up / Page Down look while held and ease back, Home / End lock the look, a tap recenters; first and third person, smooth at high refresh, KEY BINDINGS CAMERA rows, schema 34); executable `ee9d3adee53e952bce7acb0c9bc36840cf44fe0aba37b3e11a56d96038efaa19` is the regression baseline, [note 161](documentation/161-d10c-look-keys.md). New Todo D10D (arrow keys turn left / right).** Earlier (2026-10-20): **D07F (airborne shots follow the crosshair: jumps and falls use the view aim on the camera-only lease; RPG, shotgun, pistol, manual and assisted jump, first and third person); executable `38076cd85f3e0b686cd04d25e8ad6db2c6c2d213d695c775e0c57b8ce0e120ef` is the regression baseline, [note 160](documentation/160-d07f-airborne-shots.md).** Earlier (2026-10-20): **D19G (in-game KEY BINDINGS: every Modernized action, bound at once and saved, swap on conflict, DEFAULT asks; mouse, display, widescreen, camera, view, shoulder, distance and weapon aim live on CONFIRM, frame rate too unless launched at 60); executable `0d42f4523da0c8ec32abd470a6ccc03f1e84ec7dc5bc905265ea33cd3f3b03da` is the regression baseline, [note 159](documentation/159-d19g-options-stage-2.md). New Todo: D07F (airborne shots ignore the crosshair), D10C (Duke 3D look keys), D19G1 (frame rate live after a 60 launch).** Earlier (2026-10-20): **D33 (Modernized by default; `run.py --vanilla` plays Vanilla for one launch; `--mode` and the in-game PROFILE row removed); executable `fa415f5e183167b3b8a64b54959a9d3333f247a823527c7451553e2445d3dff2` is the regression baseline, [note 158](documentation/158-d33-default-profile.md).** Earlier (2026-10-20): **D08AB (SWIMMING MODERN / ORIGINAL in OPTIONS > MODERNIZED; ORIGINAL restores the pre-D08AA water speeds, forced shallow run included); executable `c7557a215c099cfb6ae10484af3555b869a1c7acb627bd0ab72506d246922508` is the regression baseline, [note 157](documentation/157-d08ab-swimming-option.md).** Earlier (2026-10-19): **D08AA (one walk/run pace on land, in shallow water, on the surface and underwater; Shift decides); executable `5e48b2c7cd4d44c92e59f2c7c7d78cd219c0d2f64af53b97570276cc99ed6366` is the regression baseline, [note 156](documentation/156-d08aa-unified-pace.md). New Todo D08AB (SWIMMING MODERN / ORIGINAL menu option).** Earlier (2026-10-19): **D07E (modern shots and movement keep their lease for one game frame, so slow scenes keep crosshair aim; `original` weapon aiming faces the camera); executable `1b3f3283586656df529f440547327307144d17523fe12382bcd3d8b40f2502f5` is the regression baseline, [note 154](documentation/154-d07e-frame-lease.md).** Earlier (2026-10-19): **D19P (death screen QUIT TO MENU beside QUIT GAME, via the game over screen; identity guard no longer covers the selected item `0x800c3f94`); executable `959bc0d76db2f1af64b666e84a9a57046394cea10ac36305877f3bfc9594fa63` is the regression baseline, [note 153](documentation/153-d19p-quit-to-menu.md).** Earlier (2026-10-19): **D22D (energy weapon locks the enemy under the crosshair and damages it; base and upgraded, first and third person); executable `3442279bb8cdde64dbb8d7239586b7f769d5aa311dfae372d61390d1e374ac98` is the regression baseline, [note 152](documentation/152-d22d-energy-beam.md). New Todo: D07E (stale-lease shots use the original auto-aim), D19P (death screen QUIT TO MENU).** Earlier (2026-10-19): **D17V (modern view bob: Duke 3D-style steady tempo, deeper not faster when running, no sway, even forward glide; accepted on strong too); executable `a1fea19a0a437d9637211d993747a55a8767f8238d1d7773e1ceed6fe9a06193` is the regression baseline, [note 151](documentation/151-d17v-view-bob.md).** Earlier (2026-10-19): **D19J (title main menu, difficulty, two player and character pages re-implemented in the original style, QUIT GAME on the title; saves wait for plugin guest calls); executable `a0246cadbcdb5ee4719dc6e5b08bfa8a0945cf696e47dd22e4a1af27e6873a3d` is the regression baseline, [note 150](documentation/150-d19j-title-menu.md). New Todo D19O (frontend redraw flash-back).** Earlier (2026-10-19): **D19M (QUIT GAME on the pause and death lists closes the program, QUIT GAME? YES / NO); executable `de5a152192ba04979e408a436c5f5541f72c6c36aade7e96d4091c86a7937d43` is the regression baseline, [note 149](documentation/149-d19m-quit-game.md). Title main menu item in D19J.** Earlier (2026-10-19): **D19I (in-game menu text at full brightness: drawn at the pause dispatch, after the paused world's darkening); executable `f99b46632c62d1ce43a674b3a494c8246dc5513c0c1b2651d3692db12a557f9c` is the regression baseline, [note 148](documentation/148-d19i-menu-brightness.md). New Todo: D19M (QUIT GAME closes the program), D19N (one OPTIONS screen, the rest under ADVANCED).** Earlier (2026-10-19): **D19H (Escape opens a list-style pause menu, death screen too, in the original style); executable `681ae485de9d04bbd91949f4811c7d62c65859d486414a51e94371ef5adc1ca2` is the regression baseline, [note 147](documentation/147-d19h-pause-menu.md). New Todo: D19I (dimmed in-game menu text), D19J (main menu re-implemented), D19K (integrated savestate LOAD GAME), D19L (menus during demo loads).** Earlier (2026-10-18): **D08O2B (swim-fire aims at the crosshair on every Duke model; shoulders found by part); executable `93093366872c16d100b05746cfc7d6c7745b0560eadecad459b474d2971bae25` is the regression baseline, [note 146](documentation/146-d08o2b-swim-fire-costumes.md). New Todo D08O4 (brief Ctrl dive drifts forward). Queued: D08O4, D19G, D19F, D08AA, D24D, D26G.** Earlier (2026-10-18): **D08G5 (partial cheat entry keeps mouse look; a breaking key acts at once); executable `18597e61f8fe332da32aff5154465d533dd852e6baefde24017766b109f23b79` is the regression baseline. Queued: D19G, D19F, D08O2B, D08AA, D24D, D26G.** Earlier (2026-10-18): **D08A22 (switcher strips and mission card scale with the game picture like the native HUD); executable `67eb7bc2d189b38624879a25f9b8c76c5567aa40a61e357a5e07352f394d4546` is the regression baseline. Queued: D19G, D19F, D08O2B, D08AA, D24D, D26G.** Earlier (2026-10-18): **D19 (in-game OPTIONS: PC CONTROLS, DISPLAY, MODERNIZED in the original menu style, title and pause); executable `fb169a561aa15a979b4b10b4903dbd5758b17708ebe24b669f58966faf16760b` is the regression baseline, [note 145](documentation/145-d19-game-menu.md). Queued: D19G, D19F, D08O2B, D08AA, D08A22, D24D, D26G.** Earlier (2026-10-18): **D19D (menu keys: Escape/Backspace back, Enter confirms, V Square, wheel moves; Escape never quits); executable `08bba860a9171fe2d147e211e569a8de90e434d262600749c476f4caf6b7e9fe` is the regression baseline, [note 144](documentation/144-d19d-menu-keys.md). Queued: D08O2B, D08AA, D08A22, D24D, D26G.** Earlier (2026-10-18): D30 (recomp.board listing: `.recomp.json` claims our row; README badge). Earlier: **Latest accepted job (2026-10-18): D19E (menu close-out: taps never lost during loads or on LOAD GAME, menu over the spinner one image sooner); executable `0092e2b261b333e0f1848e77b6a6a824079efbaba886e2fb158b3b9023e51aaf` is the regression baseline. Queued: D08O2B, D08AA, D08A22, D24D, D26G, D19D.** Earlier (2026-10-18): D19C (more responsive original menus over the demo); executable `1e1a4795ab8af038f9c95b50d2159cab10bfb1f4a363d84b1ac741025e3d6828` is the regression baseline. Queued: D19E (loading-spinner menus and full menu sweep), D08O2B, D08AA, D08A22, D24D, D26G, D19D.** Earlier (2026-10-18): D17U (smooth loading screens); executable `e1d32dc00d9b2e870f5c1aab4b3e4a21bb74b242c20c7483d4f6eeed7011f9fc`. Earlier (2026-10-18): D17T (smooth title menu and attract demo); executable `7ab8877528b05a46a1e793556660ab6cf09c538d93c7b2f1e6cb5bb744ce9829`. Earlier (2026-10-09): D08G6 (`dntlod` fun cheat); executable `74cec66e398217530d0b8abc3fa0ccfe06308f6b73a17e5aafa628b3f0f2a540`. Earlier (2026-10-09): D08A20 (challenge item HUD, option A - 14x14 icon in a square); executable `a047b37bbb833b84902a3ad344fff2e16c22ae3dc0093ad441d80c3eb9235a95`.** Earlier (2026-10-09): D08A21 (14x14 HUD item icons; the 16x16 versions kept in `recomp/assets/ui/items/16px/`); executable `72429e350806e0639f36e50cff0cb969f18df1662a2336794e17bd2263614c21`.** Earlier (2026-10-08): D08A12 (modern dynamite: unlit until fire, switch away freely, next stick drawn after a throw); executable `2d54e00b64bcf38917e41db47805338f75977b0b63a0868cb962242ffaaadb9d` is the regression baseline. Queued: D24D, D26G.** Earlier (2026-10-08): D08A19 (used mission items: USED and the green tick); executable `d67705eba48232029a90647cc781f3201d0aae29799678466b2b5b9337b5dbe8`. Earlier (2026-10-08): D08Z2 (mantle pose; frozen legs after a corner bump); executable `bfd41760f9c66f2f03cf859f820f7b7d27cd8991e8ce1f304f5456ea29bf8986` is the regression baseline. D08Z3 (modern landing) accepted 2026-10-08; executable `11187493c04ae830482c47c93b97ac332fbfce1de95f8eedaa2f8637d7fe164e` is the new regression baseline. Queued: D24D, D26G, D08A19.** Earlier (2026-10-08): D08Z1 (jump wall slide); executable `3f909c9f2cc4e5b09ba6faab5129ec9ae0ff938c4735e264ac67a66405c1ed34`. Earlier (2026-10-08): D08A17 (power-up countdowns); executable `8f338cde1c2dc4cf73da747621cffafe2478512f6419078a41d11b0d3b9268a9`. Earlier accepted jobs (2026-10-08): D08A14 (death ends steroids), D08A15 (heartbeat restart; a pickup mid-run stops steroids) and D08G4 (inventory cheats give full armor); executable `87fe38d4f0ea8560312f53171345c207f332e26b6f4d2ed7220e1afae66ba472` is the regression baseline.** Earlier: D08J2 (pole/chain A/D direction), D08U2 (climb off a ladder past an enemy), D08O3 (E in water keeps the weapon) and D08O2A (natural swim-fire pose v2), 2026-10-07.** Previous baseline `e8eebb809c3d5a4b29779f11f0c9db55efcd846dc5c71b39d5a59d43158eb08e` (D08U2). **D08J2 (pole/chain A/D direction) Accepted 2026-10-07**: executable `129a64f2df3f5395f2d3485a310a03d74c85f9b1086c7dab37fee59277c7968b` is the current regression baseline ([note 122](documentation/122-d08j2-pole-chain-sidestep.md)). Todo: D08J4 (ceiling monkey-bar drops, UI slot 3), D08J3 (free camera while climbing). Previous baseline `e75b50f156137fa2377e4643407b2efbd16f2e976fa4d697afcbceb228e2e554` (D08O3). **D23E (western-town stutter) Accepted 2026-10-07**; **D08O2A Accepted** ([note 119](documentation/119-d08o2a-natural-swim-fire-pose.md)), **D08O3 Accepted** ([note 120](documentation/120-d08o3-e-in-water.md)); **D23F (fast CPU timing) Accepted 2026-10-05 and now the Modernized default**; executable `e0737a9f712aa5622d1b057ee5071e12c33cc9a18de8e6d40ee8eee31083f966` (includes D23E), [note 104](documentation/104-d23e-busy-scene-stutter.md), [note 105](documentation/105-d23f-fast-timing.md). Next suggested: D23G (finish the fast path) and D17S (auto frame-rate default).
 
 ## The experience we are building
 
@@ -186,7 +186,9 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D19H | In-game pause menu (Escape) rebuilt like the title menus: a highlighted list (RESUME, OPTIONS, LOAD, RESTART, MAIN MENU) driven by arrows/Enter/Esc; death screen too | Done (user-accepted 2026-10-19) | D19, D19D, D19E |
 | D19I | In-game menu text drawn dimmed (pause list, death list, pause OPTIONS): match the original's full brightness | Done (user-accepted 2026-10-19) | D19H |
 | D19J | Replace the title main menu (and its sub-screens) with a re-implementation in the original style, as OPTIONS and the pause menu were | Done (user-accepted 2026-10-19) | D19H |
-| D19K | LOAD GAME from our savestate menu, integrated into the reimplemented menus; replaces the memory-card LOAD GAME | Todo | D19J, D24B |
+| D19K | LOAD GAME from our savestate menu, integrated into the reimplemented menus; replaces the memory-card LOAD GAME; startup memory card check unseen | Done (user-accepted 2026-10-20) | D19J, D24B |
+| D19R | Startup card probe hang: about 1.5 s of black screen where CHECKING MEMORY CARD was; remove or hide it (research done) | Todo | D19K |
+| D19Q | SAVE GAME screen to match LOAD GAME: choose a savestate slot from the menus, overwrite asks, success / failure shown | Todo | D19K |
 | D19L | Menus stay up and responsive while demo scenes load behind the title menu (no blank spinner gap) | Done (user-accepted 2026-10-19 with D19O) | D19J, D19E |
 | D19M | QUIT GAME menu item that closes the whole program (pause list, death list, title main menu), with a YES / NO prompt | Done (user-accepted 2026-10-19; title item in D19J, accepted) | D19H |
 | D19O | Frontend redraws flash back to the previous menu image after a change (PRESS START -> main menu: 13 presents of PRESS START; also in the original menus) | Done (user-accepted 2026-10-19) | D19C, D19J |
@@ -5838,7 +5840,78 @@ the attract demo is unchanged; Vanilla keeps the original; the user judges it.
 
 ### D19K - LOAD GAME from our savestate menu, inside the menus
 
-**Todo (opened 2026-10-19).** User: access to "our load game menu, but more
+**Done (user-accepted 2026-10-20: "confirmed now working as intended. lock it in").**
+Executable `37966f924ec6348e1dfcb4a8ce17c5ad320c8b3535c40c4f8610a542abd2afe9` is the regression baseline. Follow-ups: D19Q (SAVE
+GAME screen), D19R (startup card probe hang).
+
+Implemented 2026-10-20; [note 169](documentation/169-d19k-load-game.md).
+Design: layout A of the private D19K mockup canvas (user, 2026-10-20: "it's
+got to be A!"). LOAD GAME on the title, pause and death lists opens our LOAD
+GAME page: the 12 savestate slots in the main menu's font (number and level
+name; EMPTY and saves from another build greyed), opening on slot 01 (revision 2),
+and beside it the chosen slot's thumbnail (a host image placed on the game
+picture), era and save time. Enter asks LOAD THIS GAME? (thumbnail, SLOT NN -
+LEVEL, and in game UNSAVED PROGRESS WILL BE LOST, revision 1); Enter loads
+the slot as F7 does, Escape goes back (to the list on LOAD GAME). Defaults
+taken for the open questions: details are LEVEL / ERA / SAVED only (no
+difficulty, health or armor); memory card saves stay Vanilla's; the
+statistics screen's SAVE GAME is left for D20. Framework: a thumbnail draw in
+both present paths, and `boot_state_check_buffer` no longer reports every
+slot compatible when the caller passes no reason buffer. Offscreen (private
+cards and savestates, 120 Hz, 16:9 and the 4:3 title): pause, title and death
+lists open the page and load (pause and death: level 0 from slot 03; title:
+mode 1 level 0); an edited codegen hash shows CANNOT LOAD and Enter does
+nothing; a body-damaged slot fails, keeps the game and shows THIS SAVE COULD
+NOT BE LOADED; a fresh save shows its level name and is selected; keys behind
+the LOAD GAME press are kept; Escape returns on LOAD GAME; Vanilla reaches the
+original memory card LOAD. Python 160 OK (12 skipped), `ttk-input-test`,
+`ttk-live-env-test`, `check_repo.py`; pristine pin plus the exported patch
+reproduces all 47 framework files. Executable
+`2856af4971e912b38805cf51e43fa949c65f197e721abbcf147a410cd31c9d46`. Not verified: the user's display,
+real mouse capture after a load from the title, two-player.
+
+**Work log (2026-10-20, revision 2, Needs playtest).** User: "superb,
+everything is working as intended! ... item 1 should be selected by default."
+LOAD GAME now always opens on slot 01 (it opened on the newest save, slot 10
+in the user's list). Offscreen: pause and title open on 01. Executable
+`37966f924ec6348e1dfcb4a8ce17c5ad320c8b3535c40c4f8610a542abd2afe9`.
+
+**Work log (2026-10-20, revision 1, Needs playtest).** User: "The
+loading-screen work is looking absolutely fantastic"; three asks: (1) the
+date / time in Console steel TTK Medium Italic, (2) remove the startup memory
+card checks from Modernized without losing real initialisation, (3) a new
+SAVE GAME backlog job (D19Q, below); plus, mid-turn, "progress since your last
+save will be lost could also be console steel, it looks dark too".
+- (1) The save time and the in-game warning are drawn by the host in the
+  console's set (TTK Medium Italic, Console steel, navy drop shadow), one pixel
+  of extra letter spacing, at 2x in a 960x720 composition of the 4:3 menu area
+  (a third larger than the console's own size, so it reads beside the menu
+  font). The warning is now UNSAVED PROGRESS WILL BE LOST (the long line was
+  wider than the menu area at that size). Thumbnail and text are one host
+  image (alpha-blended in GL). Without the font pack the guest text stays.
+- (2) Investigation: frontend state 1 shows CHECKING MEMORY CARD and probes
+  the card (`0x80082e6c`); state 2 shows CHECKING SAVE GAME FILE, reads the
+  file (`0x80083490`) and unpacks the saved settings (`0x80083070`: GORE,
+  STATUS BARS, GAME SPEED and pad layouts, which D19N keeps on the card);
+  state 3 is the no card / not formatted / no free block message, left with
+  CONTINUE for state 4 (PRESS START). In Modernized the card work runs
+  unchanged, both CHECKING texts are not drawn (an entry hook on the text call
+  `0x8008b454` points those two strings at their empty end, only from states 1
+  and 2; hook added to `game.local.toml`, regenerated, codegen hash unchanged
+  `0x8bab543c`), the original's tick waits before the probe and the read are
+  skipped, and state 3 continues at once as its CONTINUE does. The title
+  heading stays, as on PRESS START that follows. Cold boot with the private
+  card: no CHECKING text, the settings unpack ran (`card_loads` 1), state 1 to
+  PRESS START 2.4 s (state 1, the card probe, is about 1.8 s of black screen,
+  the emulated card itself, as before). Blank (unformatted) card: no message,
+  PRESS START 0.6 s after state 1; Vanilla shows the original NOT FORMATTED
+  message with CONTINUE.
+- Regression: pause, title and death loads; incompatible slot; tests (Python
+  160 OK, `ttk-input-test`, `ttk-live-env-test`, `check_repo.py`); the pin plus
+  the exported patch reproduces all 47 framework files. Executable
+  `2856af4971e912b38805cf51e43fa949c65f197e721abbcf147a410cd31c9d46`.
+
+**Opened 2026-10-19.** User: access to "our load game menu, but more
 integrated into this menu rather than feeling like a totally separate
 screen. This will almost certainly replace the memory card based load game
 entirely", which the user considers safe.
@@ -5867,6 +5940,111 @@ Never touch the player's own cards or savestates in testing.
 savestates in the menu style and loads the chosen one; empty and incompatible
 slots are handled; the memory-card LOAD is gone from Modernized and still
 works in Vanilla; the user judges it.
+
+### D19Q - SAVE GAME screen to match LOAD GAME
+
+**Todo (opened 2026-10-20).** User: "we currently have a Load Game option but
+no corresponding Save Game option. We should introduce a Save Game screen that
+aesthetically matches our newly developed Load Game interface ... a coherent
+pair of Save Game / Load Game interfaces that feel like two parts of the same
+system." Depends on D19K (its page, slot list, host image and steel text are
+the design and code to reuse). Not implemented yet.
+
+Intended behaviour (Modernized; Vanilla keeps the original saves):
+- SAVE GAME in an appropriate menu place (candidates: the pause list beside
+  LOAD GAME; the statistics screen's SAVE GAME between levels, which today
+  writes the memory card).
+- A SAVE GAME page in D19K's layout, fonts, highlighting and keys: the 12
+  slots with level name, thumbnail, era and save time; empty slots offered
+  as NEW SAVE (or similar).
+- Enter on an empty slot saves; on an occupied slot asks OVERWRITE SLOT NN?
+  (NO first, as the other destructive prompts). Escape goes back to the list it
+  came from on SAVE GAME.
+- Clear feedback: SAVED (slot, level) on success; a visible failure on a
+  refused or failed save, the slot unchanged.
+
+Existing systems to reuse (investigated 2026-10-20 during D19K):
+- Framework savestates: `savestate_request_save(slot)` staged for the next
+  safe point, `savestate_pending()`, `savestate_take_save_failed()`,
+  `savestate_status_json()` (generation, last_ok), the slot thumbnail
+  captured after a successful save, `savestate_slot_compatible()` (fixed in
+  D19K to answer without a reason buffer). Saves already wait while a plugin
+  guest call is open (D19J).
+- `ttk_savestate_saved()` (D24B) writes the level sidecar after a successful
+  save, gameplay only.
+- D19K's slot reading, list drawing, host overlay (`ttk_menu_thumb_image`)
+  and Console steel text.
+- The original memory card SAVE GAME (statistics screen) and the D19N card
+  settings pack (`0x80082f64`), which must stay intact for Vanilla.
+
+Questions to settle first:
+- What state a save from the pause menu should hold: the paused state with
+  our list open (a load then reopens the pause list, as F7 saves taken there
+  do today) or the moment before pausing, resuming straight into play.
+- The thumbnail: the framework captures the presented image after the save,
+  which on a menu page is the menu (D19K's test slot 12 shows the death list).
+  It likely needs the last gameplay image from before the menu opened.
+- Whether the statistics screen's SAVE GAME becomes ours in Modernized, and how
+  that relates to D20 (save management, quick saves) and the memory card's
+  settings, which still load at startup (D19K).
+- Saving where the original cannot (cutscenes, loads, two-player): which
+  states are refused, and how the page says so.
+- Failed writes (disk full, permissions) and a slot saved by another build:
+  overwrite allowed after the prompt, with what wording.
+
+**Acceptance:** SAVE GAME opens a page that reads as LOAD GAME's pair; saving to
+an empty slot and overwriting (after its prompt) both produce a slot that
+LOAD GAME lists with the right level name, a gameplay thumbnail and time, and
+that loads back to the saved moment; a refused or failed save says so and
+leaves the slot unchanged; Escape backs out without saving; Vanilla saves
+unchanged; the player's own cards and savestates are never used in testing;
+the user judges it.
+
+### D19R - Startup card probe hang
+
+**Todo (opened 2026-10-20).** User, after D19K: "in place of where it used to
+have the checking memory card message on startup, it now just hangs briefly
+and nothing of note happens. wonder if we can just remove that hang card
+entirely." Depends on D19K (which hid the CHECKING texts and skipped the
+original's waits, but kept the card work).
+
+Research (2026-10-20, `recomp/analysis/d19k-load/hang.py`, local; cold boot
+offscreen, Modernized, private card with a save):
+- The pause is frontend state 1's card probe `0x80082e6c(0,1)`: card status
+  `0x80020b44` (via `0x80020a74`), the card check `0x80020d78`, then the
+  directory listing `0x80021754` and a name compare per file (`0x800bb73c`)
+  for the game's save. Settings are read afterwards in state 2 (`0x80083490`,
+  then `0x80083070`), which is short.
+- State 1 lasted 1.5 s (90 fields). Sampled guest PCs were almost all in
+  kernel RAM `0x354c` / `0x3530` (the BIOS card routines waiting), with the SIO
+  registers (`0x1F801040`...) in hand. The game's main loop is blocked inside
+  the probe, so no image is presented: the screen stays black.
+- The raw transfer is not the cost: a directory read is about 2 KB, roughly
+  70 ms at the framework's card byte timing (`SIO_BAUD_CYCLES_DEFAULT` 1088,
+  `sio.c`). The BIOS card driver appears to advance about once per VBlank
+  (90 fields for the probe), so the wait is paced by frames, not bytes.
+- Not yet measured: which BIOS card call takes the fields (fntrace on the
+  `0x80020b44`, `0x80020d78`, `0x80021754` calls), and whether Vanilla takes
+  the same time (it should: same code; the text was simply on screen then).
+
+Options to evaluate (no change made yet):
+- Run the emulation unpaced while the guest waits in the BIOS card driver at
+  startup and nothing new is presented (a general "fast card wait", like the
+  CD-ROM acceleration after savestate loads); game logic unchanged, the wait
+  takes a fraction of a second.
+- Keep the last presented image (the title backdrop) up during the wait
+  instead of black, so the pause reads as part of the title appearing.
+- Move the probe off the critical path: start PRESS START at once and run the
+  card probe and settings read later (risky: the original orders them; the
+  settings must be in place before play).
+- Read the settings block from the card file on the host and skip the probe
+  (an HLE of the game's own check; least faithful, last resort).
+
+**Acceptance:** after the intro movies (or Escape) Modernized goes to the title
+with no visible hang or black gap from the card check; the saved settings
+(GORE, STATUS BARS, GAME SPEED, pad layouts) still load from the card; a blank
+or missing card still continues; memory card saving in Vanilla and the
+statistics screen are unaffected; Vanilla startup unchanged; the user judges it.
 
 ### D19L - Menus stay up while demo scenes load
 

@@ -1033,8 +1033,8 @@ the same way on every menu screen:
   OPTIONS (Left/Right change level, time, kills and split), then CHOOSE
   CHARACTER: one keyboard chooses for both players, player 1 first
   (Left/Right, Enter), then player 2, then Enter on START. Escape takes back
-  the last confirmed character, or goes back a page. LOAD GAME is the
-  original memory card screen. QUIT GAME asks QUIT GAME? (NO highlighted) and
+  the last confirmed character, or goes back a page. LOAD GAME lists your
+  savestates (below). QUIT GAME asks QUIT GAME? (NO highlighted) and
   closes the program. Left alone on the main menu, the game goes back to
   PRESS START after about five minutes, as the original does.
 - **Pause menu (Escape in game):** a list under the level name: RESUME,
@@ -1050,6 +1050,20 @@ the same way on every menu screen:
   and QUIT GAME). QUIT TO MENU asks QUIT TO MENU? and gives up through the
   game over screen to the title menu; QUIT GAME closes the program. CONTINUE asks CONFIRM CONTINUE (YES highlighted), the others ask
   YES / NO with NO highlighted. Escape does nothing on the list and cancels a prompt.
+- **LOAD GAME** (title, pause and death menus) lists the 12 savestate slots
+  (the same slots as F7) with the level name, opening on slot 01.
+  The chosen slot's picture, era and save time (in the console's steel
+  lettering) are shown beside the list.
+  Enter asks LOAD THIS GAME?; Enter again loads it, Escape goes back.
+  Empty slots and saves from another build are greyed and cannot be chosen.
+  Slots saved before level names were recorded read SAVED GAME. Memory card
+  saves are no longer offered here in Modernized; Vanilla
+  (`run.py --vanilla`) keeps the original memory card LOAD GAME.
+- **Startup:** Modernized no longer shows the PlayStation memory card checks
+  (CHECKING MEMORY CARD, CHECKING SAVE GAME FILE, or the no card / not
+  formatted message). The card is still read in the background, so the game
+  settings kept on it (gore, status bars, game speed) still load. Vanilla
+  shows the original checks.
 - **Escape never quits.** Inside sub-screens and prompts Escape goes back one
   level. Escape on the main menu and PRESS START does nothing (QUIT GAME is
   on the main menu list).

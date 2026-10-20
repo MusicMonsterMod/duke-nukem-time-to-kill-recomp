@@ -25,8 +25,7 @@
 // become lists in the same style (RESUME, MISSION BRIEFING, OPTIONS, LOAD
 // GAME, RESTART LEVEL, MAIN MENU; CONTINUE, LOAD GAME, RESTART LEVEL, QUIT)
 // on the free screen values 8 and 9, with YES / NO prompts. Each choice does
-// what the original's handler and main loop do with it; the originals' LOAD
-// screens are used as they are. Contract: documentation/147-d19h-pause-menu.md.
+// what the original's handler and main loop do with it (LOAD GAME: D19K). Contract: documentation/147-d19h-pause-menu.md.
 //
 // D19I: in gameplay our pages are drawn at the pause dispatch, where the
 // original draws its pause text, so they are as bright as the original's
@@ -37,6 +36,14 @@
 // when the window is closed (documentation/149-d19m-quit-game.md).
 // D19P: the death list's QUIT reads QUIT TO MENU (asking QUIT TO MENU?);
 // it still gives up through the game over screen to the title.
+//
+// D19K: LOAD GAME on the title, pause and death lists opens our LOAD GAME
+// page instead of the memory card's: the savestate slots (D24B: level name,
+// era, save time) as a list in the menu font, the chosen slot's thumbnail
+// beside it (a host image placed on the game picture), then LOAD THIS GAME?.
+// CONFIRM loads the slot as F7 does. The original's startup memory card
+// check (frontend states 1-3) still runs, unseen and without its waits
+// (documentation/169-d19k-load-game.md).
 //
 // D19J: the title main menu (frontend state 7), CHOOSE DIFFICULTY LEVEL (8),
 // TWO PLAYER OPTIONS (8) and CHOOSE CHARACTER (9) are ours too, plus QUIT GAME.
@@ -54,12 +61,16 @@
 #include "pc_input.h"
 #include "modern_controls.h"
 #include "psx_sdl.h"
+#include "savestate.h"
+#include "savestate_slots.h"
+#include "ttk_font.h"
 #include <algorithm>
 #include <array>
 #include <atomic>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <ctime>
 #include <deque>
 #include <mutex>
 #include <string>
@@ -146,11 +157,12 @@ constexpr uint32_t fn_card_pack=0x80082f64, card_unpacked=0x8008315cu;
 constexpr uint16_t auto_aim_bit=1, gore_bits=6, status_bars_bit=8;
 // D19H: the pause menu (0x800be56a = 12, its prompt 0x800dd1c4, reset flag
 // 0x800c3f28) and the death screen (15, prompt 0x800dd1c6, reset 0x800c3f34).
-constexpr uint32_t pause_screen=0x800be56a, death_prompt=0x800dd1c6;
+// D19K: their LOAD (pause screen 5, death prompt 3) is no longer used.
+constexpr uint32_t pause_screen=0x800be56a;
 constexpr uint32_t pause_reset=0x800c3f28, death_reset=0x800c3f34;
 constexpr uint32_t level_index=0x800be570, players=0x800c27bc, continues=0x800d7411;
 constexpr uint32_t level_names=0x800c3d2c, briefings=0x800c3e10, strings=0x800c60f4;
-constexpr uint16_t pause_top=12, death_top=15, pause_load=5;
+constexpr uint16_t pause_top=12, death_top=15;
 constexpr uint32_t paused=0x800be568, player=0x800d7198, player_size=0x8a4, player_flags=0x224;
 constexpr uint32_t fn_resume_sound=0x8006ac24, fn_resume_music=0x8003c3dc, fn_event=0x80094a38;
 constexpr uint32_t continue_request=0x800d71cd; // byte 2: the death screen's CONTINUE (not the challenge stages)
@@ -172,12 +184,23 @@ constexpr uint32_t char_choice=0x800dd1b8, char_locks=0x800dd1c0, char_saved=0x8
 // bit 0 = pressed at this tick, bit 1 = at the tick before.
 constexpr uint32_t pad_history=0x800d1aa0, history_cross=0x3c;
 constexpr uint32_t history_checked[]={0x10,0x14,0x18,0x1c,0x20,0x34,0x3c};
-constexpr uint16_t title_sub=12, state_start=4, state_load=10, state_difficulty=8, state_character=9;
+constexpr uint16_t title_sub=12, state_start=4, state_difficulty=8, state_character=9;
 constexpr uint16_t idle_fields=0x4650; // state 6: the main menu's idle time before PRESS START
 // Where the frontend calls 0x800220f4: state 12 before its sub-screen
 // dispatch, states 8 and 9 before their handlers.
 constexpr uint32_t from_options=0x80023248, from_difficulty=0x80023130, from_character=0x800231b4;
 constexpr uint32_t demo_load=0x800d24e2; // D19O: 0 = a demo scene's blocking load (no pad read)
+// D19K: the startup memory card check. State 1 shows CHECKING MEMORY CARD and
+// probes the card (0x80082e6c) once its status 0x800bdeb0 (starts at -3) has
+// counted up to -1; result 0 / 1 (a card) leads to state 2, else state 3.
+// State 2 shows CHECKING SAVE GAME FILE, waits on 0x800d24d0 (-3 up to 0),
+// reads the file (0x80083490) and unpacks the saved settings (0x80083070)
+// before PRESS START (state 4). State 3 is the no card / not formatted / no
+// free block message, left with CONTINUE (Cross) for state 4.
+constexpr uint32_t card_status=0x800bdeb0, card_wait=0x800d24d0;
+constexpr uint16_t state_card=1, state_save_file=2, state_card_message=3;
+constexpr int text_checking_card=0x39, text_checking_save=0xf2;
+constexpr uint32_t card_states_begin=0x80022440, card_states_end=0x80022664; // states 1 and 2
 // Text ids of the title pages (the originals pass the same).
 constexpr int text_title1=1, text_title2=2, text_one=0x57, text_two=0x58, text_load=0x31, text_options=0x59;
 constexpr int text_select=0x11, text_confirm=0x12, text_return=0x13, text_change=0x14, text_cancel=0x15, text_start=0x8a;
@@ -352,7 +375,8 @@ int pending_speed=-1;     // D19N: GAME SPEED for 0x80089920 at the next tick
 // OPTIONS (screen -1) and settings screens; the rest are gameplay pages.
 // D19J: Main, Difficulty, TwoPlayer and Character are the title pages.
 // D19G: Keys is KEY BINDINGS (from PC CONTROLS).
-enum class Page {Options, Pause, Death, Brief, Ask, Main, Difficulty, TwoPlayer, Character, Keys};
+// D19K: Load is LOAD GAME's slot list, LoadAsk its LOAD THIS GAME?.
+enum class Page {Options, Pause, Death, Brief, Ask, Main, Difficulty, TwoPlayer, Character, Keys, Load, LoadAsk};
 enum class Act {Resume, Brief, Options, Load, Restart, MainMenu, Continue, Quit, QuitGame, OnePlayer, TwoPlayer, Level, RestoreKeys};
 struct ListItem {const char* label;Act act;};
 bool title_page(Page p) {return p==Page::Main || p==Page::Difficulty || p==Page::TwoPlayer || p==Page::Character;}
@@ -362,8 +386,7 @@ enum class Cmd {Up, Down, Left, Right, Confirm, Back};
 std::vector<Cmd> title_cmds;
 bool title_activity=false;    // a key this tick: the main menu's idle time starts again
 bool title_enter=false;       // the main menu opens: state 6's idle time and level reset
-// A frontend state for the next tick's entry (LOAD 10, PRESS START 4, or a
-// handoff): the image of this tick still shows our page, as the original
+// A frontend state for the next tick's entry (PRESS START 4, or a handoff): the image of this tick still shows our page, as the original
 // handler draws its screen in the tick that chooses.
 int pending_state=-1;
 // Starting a game: the original handler (difficulty 8, character 9) runs
@@ -381,8 +404,6 @@ Act return_item=Act::Resume;  // the item highlighted when the list comes back
 // the old screen into the next image, which then shows for one frame.
 enum class Final {None, Resume, PauseRestart, PauseMainMenu, DeathContinue, DeathRestart, DeathQuit};
 Final pending_final=Final::None;
-bool pending_load=false;      // LOAD: the original LOAD screen (pause 5, death prompt 3)
-bool death_load=false;        // the death screen's LOAD is the original's now
 // After a resume the screen value stays ours through that dispatch and reads 0
 // again at the next composition.
 bool resumed=false;
@@ -396,7 +417,7 @@ uint32_t last_image=~0u;
 // menu drawn in the first: about 100 ms without the menu each time. A new
 // call site in the same image draws again.
 uint32_t last_draw_ra=0;
-uint64_t draws=0, entries=0, writes=0, finals=0;
+uint64_t draws=0, entries=0, writes=0, finals=0, card_skips=0, card_hidden=0;
 // D19N: slider objects in guest RAM, the original SOUND screen's three
 // (0x800dd290, +0x40, +0x80; the handler 0x8008aa08 initialises them each time
 // it opens, and it never runs while our screens are up). Objects in the
@@ -411,14 +432,17 @@ constexpr int slider_slots=3, slider_size=0x40;
 // title main menu).
 bool key_wait=false; // D19G: KEY BINDINGS waits for the new key (input_capture_key)
 uint32_t seen_loads=0;
+bool loading=false;  // D19K: a slot load is requested; keys wait for it
+void thumb_hide();
 void savestate_check() {
     const uint32_t n=psx_mod_savestate_loads();
     if(n==seen_loads) return;
     seen_loads=n;
     owned=false;page=Page::Options;screen=-1;pending_sub=pending_cursor=-1;
-    pending_final=Final::None;pending_load=false;death_load=false;resumed=false;
+    pending_final=Final::None;resumed=false;
     pending_state=-1;handoff=Handoff::None;title_cmds.clear();title_enter=false;
     if(key_wait) {key_wait=false;input_capture_key(false);}
+    loading=false;thumb_hide();
 }
 
 const char* intern(const char* text) {owned_strings.emplace_back(text);return owned_strings.back().c_str();}
@@ -711,6 +735,53 @@ void key_pressed(int code) {
     }
     key_wait_end();sound(0);
 }
+// ---- D19K: LOAD GAME from the savestate slots ----
+struct SlotInfo {bool exists=false,compatible=false,named=false;unsigned level=0;int64_t stamp=0;};
+SlotInfo slot_info[SAVESTATE_SLOTS];
+constexpr int load_rows_visible=9;
+Page load_from=Page::Main;   // the list LOAD GAME was chosen on
+uint32_t loading_from=0;     // psx_mod_savestate_loads() when the load was requested
+std::string load_note;       // a refused or failed load
+bool loadable(int slot) {return slot_info[slot].exists && slot_info[slot].compatible;}
+void read_slots() {
+    for(int i=0;i<SAVESTATE_SLOTS;++i) {
+        SlotInfo& s=slot_info[i];
+        s=SlotInfo{};
+        s.exists=savestate_slot_exists(i);
+        if(!s.exists) continue;
+        s.compatible=savestate_slot_compatible(i,nullptr,0);
+        s.named=savestate_slot_level(i,s.level);
+        if(!savestate_slot_mtime(i,&s.stamp)) s.stamp=0;
+    }
+}
+void load_scroll() {
+    if(cursor<top) top=cursor;
+    if(cursor>=top+load_rows_visible) top=cursor-load_rows_visible+1;
+}
+// The list opens on slot 1 (user, 2026-10-20).
+void open_load(Page from) {
+    load_from=from;read_slots();thumb_hide(); // a slot saved again since: its new picture
+    page=Page::Load;cursor=0;top=0;load_note.clear();
+}
+void load_back() {
+    thumb_hide();load_note.clear();
+    // On the title as LOAD's CANCEL returns there (state 6: idle time, level choice).
+    open_list(load_from,Act::Load);
+    if(load_from==Page::Main) title_enter=true;
+    sound(0);
+}
+void load_move(int dir) {
+    cursor=(cursor+dir+SAVESTATE_SLOTS)%SAVESTATE_SLOTS;
+    load_scroll();load_note.clear();sound(1);
+}
+// The load itself is F7's: the framework restores the slot at its next safe
+// point (never inside one of our guest calls) and the menu starts again from
+// the loaded state (savestate_check).
+void load_now() {
+    if(savestate_request_load(cursor)) {loading=true;loading_from=psx_mod_savestate_loads();sound(0);return;}
+    page=Page::Load;load_note="THIS SAVE COULD NOT BE LOADED";sound(1);
+}
+
 void ask_cancel() {
     if(ask_from==Page::Keys) keys_return();
     else open_list(ask_from,ask_act);
@@ -756,7 +827,7 @@ void list_confirm() {
     switch(a) {
     case Act::Brief: page=Page::Brief;sound(0);break;
     case Act::Options: page=Page::Options;screen=-1;cursor=0;top=0;back_label=contexts[1].back_label;sound(0);break;
-    case Act::Load: pending_load=true;sound(0);break;
+    case Act::Load: open_load(page);sound(0);break;
     case Act::Resume: act_now(a);break;
     default: ask_from=page;ask_act=a;page=Page::Ask;cursor=a==Act::Continue ? 0 : 1;sound(1);break;
     }
@@ -764,6 +835,8 @@ void list_confirm() {
 
 void move(int dir) {
     if(title_page(page)) {title_cmds.push_back(dir<0 ? Cmd::Up : Cmd::Down);return;}
+    if(page==Page::Load) {load_move(dir);return;}
+    if(page==Page::LoadAsk) return;
     if(page==Page::Keys) {if(!key_wait) keys_move(dir);return;}
     if(page==Page::Brief) return;
     if(page!=Page::Options) {
@@ -891,6 +964,8 @@ void confirm() {
         else ask_cancel();
         return;
     case Page::Keys: if(!key_wait) {key_wait=true;key_note.clear();input_capture_key(true);sound(0);} return;
+    case Page::Load: if(loadable(cursor)) {page=Page::LoadAsk;load_note.clear();sound(0);} return;
+    case Page::LoadAsk: load_now();return;
     case Page::Options: break;
     default: title_cmds.push_back(Cmd::Confirm);return; // D19J: the title pages
     }
@@ -907,6 +982,8 @@ void back(uint16_t mode) {
     case Page::Brief: open_list(Page::Pause,Act::Brief);sound(0);return;
     case Page::Ask: ask_cancel();return;
     case Page::Keys: keys_back();return;
+    case Page::Load: load_back();return;
+    case Page::LoadAsk: page=Page::Load;sound(1);return;
     case Page::Options: break;
     default: title_cmds.push_back(Cmd::Back);return; // D19J: the title pages
     }
@@ -939,7 +1016,14 @@ bool game_menu_input(const MenuKeys& keys) {
         if(psx_mod_read_half(game_mode)==0) return true;
         handoff=Handoff::None;
     }
-    if(busy || (owned && (pending_sub>=0 || pending_final!=Final::None || pending_load || pending_state>=0))) {
+    if(loading) {
+        // D19K: until the load (savestate_check ends this), or its failure.
+        if(!savestate_pending() && psx_mod_savestate_loads()==loading_from) {
+            loading=false;page=Page::Load;load_note="THIS SAVE COULD NOT BE LOADED";sound(1);
+        }
+        return owned;
+    }
+    if(busy || (owned && (pending_sub>=0 || pending_final!=Final::None || pending_state>=0))) {
         if(owned) carry=k;
         return owned;
     }
@@ -1356,6 +1440,190 @@ void draw_character(Guest& g,const Geometry& geo) {
     g.prompt_id(icon_triangle,geo.w/4,y,text_cancel);
 }
 
+// ---- D19K: LOAD GAME ----
+// The page's host image: the chosen slot's thumbnail (the menu font cannot
+// draw a picture) and the date / warning lines in Console steel (TTK Medium
+// Italic with its navy shadow, the console's set; user 2026-10-20). They are
+// composed in the 4:3 menu area at 960x720, the text at 2x (a third larger
+// than the console's 1x in the 480-line space, so it reads beside the menu
+// font), cropped to what is drawn, and the renderer places that rectangle on the game
+// picture after the guest's image. Shown while the page draws it; gone 250 ms
+// after the last draw (a page left, the game resumed) or at once on a change.
+constexpr int canvas_w=960, canvas_h=720, steel_set=2, steel_scale=2;
+struct OverlayText {std::string text;int x,y;bool operator==(const OverlayText& o) const {return text==o.text && x==o.x && y==o.y;}};
+struct Overlay {
+    int slot=-1;bool dim=false;int tx=0,ty=0,tw=0,th=0; // thumbnail, canvas pixels
+    std::vector<OverlayText> lines;                      // centred at x, top at y
+    bool operator==(const Overlay& o) const {return slot==o.slot && dim==o.dim && tx==o.tx && ty==o.ty && tw==o.tw && th==o.th && lines==o.lines;}
+};
+std::mutex thumb_mutex;
+Overlay overlay_next, overlay_shown;
+std::vector<uint32_t> overlay_px, overlay_out;
+int overlay_x=0, overlay_y=0, overlay_w=0, overlay_h=0;
+bool overlay_on=false, overlay_valid=false;
+uint64_t overlay_until=0;
+void thumb_hide() {std::lock_guard<std::mutex> lock(thumb_mutex);overlay_on=false;overlay_valid=false;}
+bool steel_text() {return ttk_font_line_height(steel_set)>0;}
+// Letter spacing one pixel wider than the console's, for dates and times.
+int steel_width(const std::string& t) {
+    int w=0;
+    for(char c:t) {const char one[2]={c,0};w+=ttk_font_text_width(steel_set,one)+1;}
+    return w>0 ? w*steel_scale : 0;
+}
+int canvas_x(const Geometry& geo,int x) {return (x-geo.x0)*canvas_w/geo.w;}
+int canvas_y(const Geometry& geo,int y) {return (y-geo.y0)*canvas_h/geo.h;}
+void overlay_thumb(int slot,bool dim,const Geometry& geo,int x,int y,int w,int h) {
+    Overlay& o=overlay_next;
+    o.slot=slot;o.dim=dim;o.tx=canvas_x(geo,x);o.ty=canvas_y(geo,y);
+    o.tw=canvas_x(geo,x+w)-o.tx;o.th=canvas_y(geo,y+h)-o.ty;
+}
+void overlay_text(const Geometry& geo,const std::string& text,int x,int y) {overlay_next.lines.push_back({text,canvas_x(geo,x),canvas_y(geo,y)});}
+// The slot's picture (bilinear) in the gold frame of the menu art with a dark
+// outer line; an incompatible slot darkened. Then the text lines.
+void overlay_compose(const Overlay& o) {
+    static uint32_t argb[SAVESTATE_THUMB_W*SAVESTATE_THUMB_H];
+    const bool picture=o.slot>=0 && savestate_read_thumb(o.slot,argb,SAVESTATE_THUMB_W,SAVESTATE_THUMB_H);
+    const int lh=(ttk_font_line_height(steel_set)+1)*steel_scale;
+    int x0=canvas_w,y0=canvas_h,x1=0,y1=0;
+    auto grow=[&](int a,int b,int c,int d) {x0=std::min(x0,a);y0=std::min(y0,b);x1=std::max(x1,c);y1=std::max(y1,d);};
+    if(picture) grow(o.tx,o.ty,o.tx+o.tw,o.ty+o.th);
+    for(const OverlayText& t:o.lines) {const int w=steel_width(t.text)+1;grow(t.x-w/2,t.y,t.x-w/2+w,t.y+lh);}
+    x0=std::max(x0,0);y0=std::max(y0,0);x1=std::min(x1,canvas_w);y1=std::min(y1,canvas_h);
+    if(x1<=x0 || y1<=y0) {overlay_w=overlay_h=0;return;}
+    overlay_x=x0;overlay_y=y0;overlay_w=x1-x0;overlay_h=y1-y0;
+    overlay_px.assign(size_t(overlay_w)*overlay_h,0u);
+    if(picture) for(int y=0;y<o.th;++y) for(int x=0;x<o.tw;++x) {
+        const int px=o.tx+x-x0, py=o.ty+y-y0;
+        if(px<0 || py<0 || px>=overlay_w || py>=overlay_h) continue;
+        const bool outer=x<2 || y<2 || x>=o.tw-2 || y>=o.th-2;
+        const bool inner=!outer && (x<5 || y<5 || x>=o.tw-5 || y>=o.th-5);
+        uint32_t c;
+        if(outer) c=0x160f33u;
+        else if(inner) c=0xc9861au;
+        else {
+            const float fx=std::max(0.f,(x+0.5f)*SAVESTATE_THUMB_W/o.tw-0.5f), fy=std::max(0.f,(y+0.5f)*SAVESTATE_THUMB_H/o.th-0.5f);
+            const int ix=std::min((int)fx,SAVESTATE_THUMB_W-1), iy=std::min((int)fy,SAVESTATE_THUMB_H-1);
+            const int jx=std::min(ix+1,SAVESTATE_THUMB_W-1), jy=std::min(iy+1,SAVESTATE_THUMB_H-1);
+            const float ax=fx-ix, ay=fy-iy;
+            c=0;
+            for(int sh=0;sh<24;sh+=8) {
+                auto ch=[&](int sx,int sy) {return float((argb[sy*SAVESTATE_THUMB_W+sx]>>sh)&255);};
+                const float v=(ch(ix,iy)*(1-ax)+ch(jx,iy)*ax)*(1-ay)+(ch(ix,jy)*(1-ax)+ch(jx,jy)*ax)*ay;
+                c|=uint32_t(std::min(255.f,v+0.5f))<<sh;
+            }
+            if(o.dim) c=(c>>2)&0x3f3f3fu;
+        }
+        overlay_px[size_t(py)*overlay_w+px]=0xff000000u|c;
+    }
+    // Each line at 1x, one pixel between letters, then scaled up.
+    for(const OverlayText& t:o.lines) {
+        const int w=steel_width(t.text)/steel_scale+1, h=ttk_font_line_height(steel_set)+1;
+        std::vector<uint32_t> line(size_t(w)*h,0u);
+        int x=0;
+        for(char c:t.text) {
+            const char one[2]={c,0};
+            ttk_font_draw(steel_set,one,line.data(),w,h,x,0);
+            x+=ttk_font_text_width(steel_set,one)+1;
+        }
+        const int left=t.x-w*steel_scale/2-x0, top=t.y-y0;
+        for(int y=0;y<h*steel_scale;++y) for(int x=0;x<w*steel_scale;++x) {
+            const uint32_t c=line[size_t(y/steel_scale)*w+x/steel_scale];
+            const int px=left+x, py=top+y;
+            if((c>>24) && px>=0 && py>=0 && px<overlay_w && py<overlay_h) overlay_px[size_t(py)*overlay_w+px]=c;
+        }
+    }
+}
+// The page drew its image: compose what changed and show it.
+void overlay_commit() {
+    std::lock_guard<std::mutex> lock(thumb_mutex);
+    Overlay o=overlay_next;overlay_next=Overlay{};
+    if(o.slot<0 && o.lines.empty()) {overlay_on=false;overlay_valid=false;return;}
+    if(!overlay_valid || !(o==overlay_shown)) {overlay_compose(o);overlay_shown=o;overlay_valid=true;}
+    overlay_on=overlay_w>0;overlay_until=SDL_GetTicks()+250;
+}
+// A string of the game's text table as host text.
+std::string text_of(int id) {
+    const uint32_t s=psx_mod_read_word(strings+4u*(uint32_t)id);
+    std::string t;
+    for(uint32_t a=s;s>=0x80010000u && s<0x80200000u && t.size()<40;++a) {const char ch=(char)psx_mod_read_byte(a);if(!ch) break;t+=ch;}
+    return t;
+}
+std::string slot_name(int slot) {
+    const SlotInfo& s=slot_info[slot];
+    if(!s.exists) return "EMPTY";
+    const int id=s.named ? half(level_names+2*s.level) : 0;
+    const std::string name=id>0 && id<=text_last ? text_of(id) : "";
+    return name.empty() ? "SAVED GAME" : name; // saved before D24B, or outside gameplay
+}
+std::string slot_time(int slot) {
+    std::time_t t=std::time_t(slot_info[slot].stamp);std::tm tm{};
+#ifdef _WIN32
+    localtime_s(&tm,&t);
+#else
+    localtime_r(&t,&tm);
+#endif
+    char line[32];std::strftime(line,sizeof line,"%Y-%m-%d %H:%M",&tm);
+    return line;
+}
+// Layout A (user-approved mockup, 2026-10-20): slots on the left in the main
+// menu's font, the chosen one's thumbnail and details on the right.
+void draw_load(Guest& g,const Geometry& geo) {
+    g.say_id(text_load,0,heading_y(geo),font_menu|centre);
+    const int x=-geo.w/2+36, y0=-66, spacing=14;
+    for(int j=0;j<load_rows_visible && top+j<SAVESTATE_SLOTS;++j) {
+        const int i=top+j, y=y0+spacing*j;
+        char number[16];std::snprintf(number,sizeof number,"%02d",i+1);
+        const std::string name=slot_name(i);
+        if(i==cursor || loadable(i)) {
+            g.say(number,x,y,font_small|(i==cursor?blue:0));
+            g.say(name.c_str(),x+28,y,font_small|(i==cursor?blue:0));
+        } else {g.say_dim(number,x,y,font_small);g.say_dim(name.c_str(),x+28,y,font_small);}
+    }
+    if(top>0 || top+load_rows_visible<SAVESTATE_SLOTS)
+        g.call(fn_sprite,sprites+16*icon_select,(uint32_t)(x-26),(uint32_t)(y0+spacing*load_rows_visible/2-8),0,100);
+    // 4:3 on screen: the menu area is 4:3, so w = h * geo.w / geo.h.
+    const SlotInfo& s=slot_info[cursor];
+    const int cx=geo.w/4+12, th=84, tw=th*geo.w/geo.h, ty=-68;
+    if(!s.exists) g.say_dim("EMPTY",cx,ty+th/2-4,font_small|centre);
+    else {
+        overlay_thumb(cursor,!s.compatible,geo,cx-tw/2,ty,tw,th);
+        if(!s.compatible) {
+            g.say("CANNOT LOAD",cx,ty+th+16,font_small|centre);
+            g.say_dim("FROM ANOTHER BUILD",cx,ty+th+30,font_small|centre);
+        } else {
+            if(s.named && *level_era(s.level)) g.say(level_era(s.level),cx,ty+th+16,font_small|centre);
+            // The save time in Console steel (the guest font without the font pack).
+            if(steel_text()) overlay_text(geo,slot_time(cursor),cx,ty+th+32);
+            else g.say(slot_time(cursor).c_str(),cx,ty+th+30,font_small|centre);
+        }
+    }
+    overlay_commit();
+    const int py=prompt_y(geo);
+    if(!load_note.empty()) g.say(load_note.c_str(),0,py-18,font_small|centre);
+    g.prompt_id(icon_select,-(geo.w/4),py,text_select);
+    g.prompt_id(icon_cross,0,py,text_confirm);
+    g.prompt_id(icon_triangle,geo.w/4,py,text_return);
+}
+// LOAD THIS GAME?, as the original LOAD screen asks, with CONFIRM and CANCEL.
+void draw_load_ask(Guest& g,const Geometry& geo) {
+    g.say_id(text_load,0,heading_y(geo),font_menu|centre);
+    const int th=96, tw=th*geo.w/geo.h, ty=-80;
+    overlay_thumb(cursor,false,geo,-tw/2,ty,tw,th);
+    char slot[24];std::snprintf(slot,sizeof slot,"SLOT %02d",cursor+1);
+    const std::string line=slot_info[cursor].named ? std::string(slot)+" - "+slot_name(cursor) : std::string(slot);
+    g.say(line.c_str(),0,ty+th+14,font_small|centre);
+    g.say("LOAD THIS GAME?",0,ty+th+34,font_menu|centre);
+    if(load_from!=Page::Main) {
+        static const char warning[]="UNSAVED PROGRESS WILL BE LOST";
+        if(steel_text()) overlay_text(geo,warning,0,ty+th+54);
+        else g.say_dim(warning,0,ty+th+52,font_small|centre);
+    }
+    overlay_commit();
+    const int py=prompt_y(geo);
+    g.prompt_id(icon_cross,-(geo.w/4),py,text_confirm);
+    g.prompt_id(icon_triangle,geo.w/4,py,text_cancel);
+}
+
 // ---- D19J: the title pages' actions, in the frontend tick ----
 // Each page's entry is what its handler does while its fresh flag is set.
 // The main menu on the original's cursor (the item a page was entered from).
@@ -1411,7 +1679,7 @@ int title_command(Cmd cmd) {
             switch(a) {
             case Act::OnePlayer: case Act::Level: psx_mod_write_half(players_choice,1);enter_difficulty();break;
             case Act::TwoPlayer: psx_mod_write_half(players_choice,2);enter_two();break;
-            case Act::Load: psx_mod_write_half(players_choice,1);pending_state=state_load;break;
+            case Act::Load: psx_mod_write_half(players_choice,1);open_load(Page::Main);break; // D19K
             case Act::Options:
                 // State 11: sub-screen 9, which D19 makes ours in this very tick.
                 page=Page::Options;screen=-1;cursor=0;top=0;back_label=contexts[0].back_label;
@@ -1628,17 +1896,6 @@ bool gameplay_tick(CPUState* cpu) {
         owned=false;page=Page::Options;screen=-1;return_item=Act::Resume;
         return true;
     }
-    if(pending_load) {
-        pending_load=false;
-        if(sub==death_sub) {
-            psx_mod_write_half(death_reset,0);psx_mod_write_half(death_prompt,3);
-            psx_mod_write_half(pause_screen,death_top);death_load=true;
-        } else if(sub==ours_sub) {
-            psx_mod_write_half(pause_reset,1);psx_mod_write_half(pause_screen,pause_load);
-        }
-        owned=false;page=Page::Options;screen=-1;
-        return true;
-    }
     if(sub==pause_top) {
         open_list(Page::Pause,return_item);return_item=Act::Resume;
         owned=true;back_label="RESUME";++entries;
@@ -1647,17 +1904,11 @@ bool gameplay_tick(CPUState* cpu) {
         return true;
     }
     if(sub==death_top) {
-        // Not while the original's LOAD runs for the death screen (prompt 3);
-        // its CANCEL clears the prompt and brings the list back.
-        if(death_load && psx_mod_read_half(death_prompt)==3) return true;
-        const Act highlight=death_load ? Act::Load : Act::Continue;
-        death_load=false;
-        open_list(Page::Death,highlight);owned=true;++entries;
+        open_list(Page::Death,Act::Continue);owned=true;++entries;
         input_release_for_menu();
         psx_mod_write_half(pause_screen,death_sub);
         return true;
     }
-    death_load=false;
     if(!sub) return_item=Act::Resume;
     if(!owned && !resumed && (sub==ours_sub || sub==death_sub)) {
         // A savestate saved on one of our screens: the list again. (Not after
@@ -1698,13 +1949,25 @@ bool title_tick(CPUState* cpu,const MenuContext* c) {
         // A savestate saved on one of our pages: the main menu again.
         enter_main();owned=true;back_label=c->back_label;title_cmds.clear();
     }
-    if(!title_page(page) && page!=Page::Ask) return false;
+    if(!title_page(page) && page!=Page::Ask && page!=Page::Load && page!=Page::LoadAsk) return false;
     busy=true;
     {
         Guest g(cpu);
-        for(size_t i=0;i<title_cmds.size() && pending_state<0 && title_page(page);++i) {
+        size_t i=0;
+        for(;i<title_cmds.size() && pending_state<0 && title_page(page);++i) {
             const int s=title_command(title_cmds[i]);
             if(s>=0) g.call(fn_sound,(uint32_t)s,0,0,0);
+        }
+        // D19K: keys queued behind the one that opened LOAD GAME (or QUIT
+        // GAME?) act on that page, as they would have a moment later.
+        for(;i<title_cmds.size() && pending_state<0 && (page==Page::Load || page==Page::LoadAsk || page==Page::Ask);++i) {
+            switch(title_cmds[i]) {
+            case Cmd::Up: move(-1);break;
+            case Cmd::Down: move(1);break;
+            case Cmd::Confirm: confirm();break;
+            case Cmd::Back: back(0);break;
+            default: break;
+            }
         }
         title_cmds.clear();
         if(title_enter) {
@@ -1748,6 +2011,13 @@ void title_entry(CPUState* cpu) {
         return;
     }
     if(handoff!=Handoff::None) return;
+    // D19K: the memory card check without its PlayStation presentation: no
+    // waits before the probe and the file read (the card work itself runs as
+    // before, so the saved settings still load), and no card message: state 3
+    // continues as its CONTINUE does.
+    if(state==state_card && (int16_t)psx_mod_read_half(card_status)<-1) {psx_mod_write_half(card_status,0xffff);++card_skips;}
+    else if(state==state_save_file && (int16_t)psx_mod_read_half(card_wait)<0) {psx_mod_write_half(card_wait,0);++card_skips;}
+    else if(state==state_card_message) {psx_mod_write_half(fe_state,state_start);++card_skips;return;}
     if(state==6 || state==7) {
         enter_main();
     } else if(state==state_difficulty || state==state_character) {
@@ -1776,6 +2046,7 @@ void draw_page(CPUState* cpu,const MenuContext* c) {
     if(image==last_image && cpu->gpr[31]==last_draw_ra) {++skip_image;skip_ra=cpu->gpr[31];return;}
     ++drawn_calls;
     last_image=image;last_draw_ra=cpu->gpr[31];
+    if(page!=Page::Load && page!=Page::LoadAsk) thumb_hide();
     busy=true;
     {
         Guest g(cpu);
@@ -1791,6 +2062,8 @@ void draw_page(CPUState* cpu,const MenuContext* c) {
         case Page::TwoPlayer: draw_two(g,geo);break;
         case Page::Character: draw_character(g,geo);break;
         case Page::Keys: draw_keys(g,geo);break;
+        case Page::Load: draw_load(g,geo);break;
+        case Page::LoadAsk: draw_load_ask(g,geo);break;
         }
     }
     busy=false;
@@ -1856,7 +2129,7 @@ void game_menu_frame(CPUState* cpu) {
     const MenuContext* c=current_context();
     if(!c) {
         std::lock_guard<std::recursive_mutex> lock(mutex);
-        owned=false;screen=-1;
+        owned=false;screen=-1;thumb_hide();
         return;
     }
     if(c->mode==1) return; // D19I: drawn at the pause dispatch (game_menu_tick)
@@ -1869,12 +2142,52 @@ void game_menu_frame(CPUState* cpu) {
 
 extern "C" const char* ttk_game_menu_json() {
     using namespace ttk;
-    static char buffer[768];
-    std::snprintf(buffer,sizeof buffer,"{\"settings\":{\"word\":%u,\"game_speed\":%u,\"enforced\":%llu,\"card_packs\":%llu,\"card_loads\":%llu,\"card_auto_aim\":%s},\"owned\":%s,\"page\":%d,\"screen\":%d,\"cursor\":%d,\"top\":%d,\"items\":%d,\"entries\":%llu,\"draws\":%llu,\"writes\":%llu,\"finals\":%llu,\"handoff\":%d,\"pending_state\":%d,\"identity\":%s,\"drops\":%llu,\"drop\":[%d,%u,%u],\"skips\":[%llu,%llu,%llu,%llu],\"skip_ra\":\"%x\"}",
+    static char buffer[1024];
+    std::snprintf(buffer,sizeof buffer,"{\"settings\":{\"word\":%u,\"game_speed\":%u,\"enforced\":%llu,\"card_packs\":%llu,\"card_loads\":%llu,\"card_auto_aim\":%s},\"owned\":%s,\"page\":%d,\"screen\":%d,\"cursor\":%d,\"top\":%d,\"items\":%d,\"entries\":%llu,\"draws\":%llu,\"writes\":%llu,\"finals\":%llu,\"handoff\":%d,\"pending_state\":%d,\"loading\":%s,\"card\":[%llu,%llu],\"identity\":%s,\"drops\":%llu,\"drop\":[%d,%u,%u],\"skips\":[%llu,%llu,%llu,%llu],\"skip_ra\":\"%x\"}",
         psx_mod_read_half(settings_word),psx_mod_read_half(game_speed),(unsigned long long)enforced,(unsigned long long)card_packs,(unsigned long long)card_loads,card.auto_aim?"true":"false",
         owned?"true":"false",(int)page,screen,cursor,top,(int)list.size(),(unsigned long long)entries,(unsigned long long)draws,(unsigned long long)writes,
-        (unsigned long long)finals,(int)handoff,pending_state,identity_checked?(identity_ok?"true":"false"):"null",(unsigned long long)drops,drop_why,drop_state,drop_sub,(unsigned long long)skip_owned,(unsigned long long)skip_screen,(unsigned long long)skip_image,(unsigned long long)drawn_calls,skip_ra);
+        (unsigned long long)finals,(int)handoff,pending_state,loading?"true":"false",(unsigned long long)card_skips,(unsigned long long)card_hidden,identity_checked?(identity_ok?"true":"false"):"null",(unsigned long long)drops,drop_why,drop_state,drop_sub,(unsigned long long)skip_owned,(unsigned long long)skip_screen,(unsigned long long)skip_image,(unsigned long long)drawn_calls,skip_ra);
     return buffer;
+}
+
+// D19K: the LOAD GAME host image for the renderer (gl_swap_with_osd,
+// host_osd_draw_sdl): its pixels (transparent around the thumbnail and text)
+// and its rectangle (x, y, w, h) as fractions of the 4:3 menu area of the game
+// picture. Valid until the next call.
+extern "C" int ttk_menu_thumb_pixels(const uint32_t* pixels) {
+    using namespace ttk;
+    return pixels && pixels==overlay_out.data();
+}
+extern "C" int ttk_menu_thumb_image(const uint32_t** pixels,int* width,int* height,float* rect) {
+    using namespace ttk;
+    std::lock_guard<std::mutex> lock(thumb_mutex);
+    if(!overlay_on || SDL_GetTicks()>overlay_until) return 0;
+    overlay_out=overlay_px;
+    *pixels=overlay_out.data();*width=overlay_w;*height=overlay_h;
+    rect[0]=float(overlay_x)/canvas_w;rect[1]=float(overlay_y)/canvas_h;
+    rect[2]=float(overlay_w)/canvas_w;rect[3]=float(overlay_h)/canvas_h;
+    return 1;
+}
+
+// D19K: CHECKING MEMORY CARD and CHECKING SAVE GAME FILE, drawn by states 1
+// and 2 with the text call 0x8008b454: the call draws the string's empty end
+// instead. The title above them stays, as on PRESS START that follows.
+namespace ttk {
+void card_text_entry(CPUState* cpu) {
+    if(!enabled() || psx_mod_read_half(game_mode)!=0) return;
+    const uint32_t ra=cpu->gpr[31];
+    if(ra<card_states_begin || ra>=card_states_end) return;
+    const uint16_t state=psx_mod_read_half(fe_state);
+    if(state!=state_card && state!=state_save_file) return;
+    ensure_init();
+    if(!authentic()) return;
+    const uint32_t s=cpu->gpr[4];
+    if(s!=psx_mod_read_word(strings+4u*text_checking_card) && s!=psx_mod_read_word(strings+4u*text_checking_save)) return;
+    uint32_t end=s;
+    while(end<s+64 && psx_mod_read_byte(end)) ++end;
+    if(psx_mod_read_byte(end)) return;
+    cpu->gpr[4]=end;++card_hidden;
+}
 }
 
 PSX_MOD_CONSTRUCTOR(register_ttk_game_menu) {
@@ -1885,6 +2198,8 @@ PSX_MOD_CONSTRUCTOR(register_ttk_game_menu) {
         psx_mod_register_function_entry_plugin("ttk.game.menu",a,[](CPUState* cpu,uint32_t){ttk::game_menu_tick(cpu);});
     // D19J: the frontend tick itself, before its pad read and state dispatch.
     psx_mod_register_function_entry_plugin("ttk.game.menu",0x80022324u,[](CPUState* cpu,uint32_t){ttk::title_entry(cpu);});
+    // D19K: the startup memory card texts.
+    psx_mod_register_function_entry_plugin("ttk.game.menu",ttk::fn_text,[](CPUState* cpu,uint32_t){ttk::card_text_entry(cpu);});
     // D19N: the memory card's settings pack and the end of its unpack.
     psx_mod_register_function_entry_plugin("ttk.game.menu",ttk::fn_card_pack,[](CPUState*,uint32_t){ttk::card_pack_entry();});
     psx_mod_register_function_entry_plugin("ttk.game.menu",ttk::fn_game_speed,[](CPUState* cpu,uint32_t){ttk::card_unpack_done(cpu);});

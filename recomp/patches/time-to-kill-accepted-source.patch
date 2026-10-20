@@ -484,10 +484,28 @@ index 149a3fdc..cb79f6a0 100644
      ${PSXRECOMP_ROOT}/runtime/src/psx_fiber.c
      ${PSXRECOMP_ROOT}/runtime/src/sio.c
 diff --git a/runtime/src/boot_state.c b/runtime/src/boot_state.c
-index f0284eaf..4a1491bf 100644
+index f0284eaf..af13321d 100644
 --- a/runtime/src/boot_state.c
 +++ b/runtime/src/boot_state.c
-@@ -779,7 +779,15 @@ int boot_state_check_buffer(const uint8_t* file, size_t file_len,
+@@ -740,9 +740,15 @@ int boot_state_check_buffer(const uint8_t* file, size_t file_len,
+                             char* reason, size_t reason_cap) {
+     BootStateHeader h;
+     char part[96];
++    /* The verdict is "no reason collected": a caller passing no buffer
++     * (savestate_slot_compatible(slot, NULL, 0)) still needs one. */
++    char local_reason[256];
+ 
+-    if (reason && reason_cap)
+-        reason[0] = '\0';
++    if (!reason || !reason_cap) {
++        reason = local_reason;
++        reason_cap = sizeof(local_reason);
++    }
++    reason[0] = '\0';
+ 
+     if (!file || file_len < BOOT_STATE_HEADER_WIRE_BYTES) {
+         boot_state_append_reason(reason, reason_cap, "missing_or_truncated");
+@@ -779,7 +785,15 @@ int boot_state_check_buffer(const uint8_t* file, size_t file_len,
                   (unsigned)h.entry_pc, (unsigned)entry_pc);
          boot_state_append_reason(reason, reason_cap, part);
      }
@@ -504,6 +522,15 @@ index f0284eaf..4a1491bf 100644
          snprintf(part, sizeof(part), "codegen_hash=%08X(want %08X)",
                   (unsigned)h.codegen_hash,
                   (unsigned)PSX_OVERLAY_CODEGEN_HASH);
+@@ -796,7 +810,7 @@ int boot_state_check_buffer(const uint8_t* file, size_t file_len,
+         boot_state_append_reason(reason, reason_cap, part);
+     }
+ 
+-    if (reason && reason_cap && reason[0])
++    if (reason[0])
+         return 0;
+     return 1;
+ }
 diff --git a/runtime/src/cdrom.c b/runtime/src/cdrom.c
 index dd5c231d..99d201ea 100644
 --- a/runtime/src/cdrom.c
@@ -1207,7 +1234,7 @@ index aaf69df7..85c3d886 100644
          gp0_ring = (GpuGp0RingEntry *)calloc(GP0_RING_CAP, sizeof(*gp0_ring));
          if (!gp0_ring) return;  /* OOM — capture disabled, no other effect */
 diff --git a/runtime/src/gpu_gl_renderer.c b/runtime/src/gpu_gl_renderer.c
-index d0ccc3d5..a4a2a4dd 100644
+index d0ccc3d5..8094ac4c 100644
 --- a/runtime/src/gpu_gl_renderer.c
 +++ b/runtime/src/gpu_gl_renderer.c
 @@ -68,6 +68,7 @@
@@ -3369,7 +3396,7 @@ index d0ccc3d5..a4a2a4dd 100644
      p_glUniform1i(s_present_uTex, 0);
      present_set_sharp(0, 0, 0, 0, 0);   /* OSD is authored at output res */
      /* Host OSD bitmaps are top-down (row 0 = top), same as guest CPU
-@@ -3951,19 +5044,25 @@ static void gl_draw_osd_image(const uint32_t *px, int ow, int oh,
+@@ -3951,19 +5044,26 @@ static void gl_draw_osd_image(const uint32_t *px, int ow, int oh,
       * cancel for already-oriented captures and made toasts upside-down. */
      p_glUniform4f(s_present_uUvRect, 0.f, 0.f, 1.f, 1.f);
      {
@@ -3389,6 +3416,7 @@ index d0ccc3d5..a4a2a4dd 100644
  
  /* Composite host toast + volume bar into the default framebuffer, then swap. */
 +extern int ttk_aim_crosshair_image(const uint32_t**,int*,int*);
++extern int ttk_menu_thumb_image(const uint32_t**,int*,int*,float*);
  static void gl_swap_with_osd(void) {
      if (s_present_prog && s_ctx) {
          int ww = 0, wh = 0;
@@ -3398,7 +3426,7 @@ index d0ccc3d5..a4a2a4dd 100644
              const uint32_t *px = NULL;
              int ow = 0, oh = 0;
              /* OSD authored for ~480-tall present; grow with drawable height. */
-@@ -3972,9 +5071,47 @@ static void gl_swap_with_osd(void) {
+@@ -3972,9 +5072,58 @@ static void gl_swap_with_osd(void) {
              if (ui < 1) ui = 1;
              if (ui > 8) ui = 8;
              margin = 8 * ui;
@@ -3445,11 +3473,22 @@ index d0ccc3d5..a4a2a4dd 100644
 +                    const int dw = (int)(ow * s + 0.5f), dh = (int)(oh * s + 0.5f);
 +                    gl_draw_osd_image(px,ow,oh,dw,dh,lx+(lw-dw)/2,ly+(int)(14.f*s+0.5f),ww,wh);
 +                }
++                {
++                    /* D19K: the LOAD GAME image (thumbnail, steel text), placed by the menu in
++                     * its 4:3 area (fractions), centred in the fitted picture. */
++                    float r[4];
++                    if (ttk_menu_thumb_image(&px, &ow, &oh, r) && px) {
++                        const float aw = (float)lh * 4.f / 3.f, ax = (float)lx + ((float)lw - aw) / 2.f;
++                        const int x0 = (int)(ax + r[0] * aw + 0.5f), y0 = (int)((float)ly + r[1] * (float)lh + 0.5f);
++                        const int x1 = (int)(ax + (r[0] + r[2]) * aw + 0.5f), y1 = (int)((float)ly + (r[1] + r[3]) * (float)lh + 0.5f);
++                        gl_draw_osd_image(px, ow, oh, x1 - x0, y1 - y0, x0, y0, ww, wh);
++                    }
++                }
 +            }
              if (host_osd_volume_image(&px, &ow, &oh) && px) {
                  const int dw = ow * ui, dh = oh * ui;
                  int vx = (ww > dw + margin) ? (ww - dw - margin) : margin;
-@@ -4012,6 +5149,7 @@ static void gl_swap_with_osd(void) {
+@@ -4012,6 +5161,7 @@ static void gl_swap_with_osd(void) {
                  uint8_t *rows = (uint8_t *)malloc((size_t)ww * wh * 3);
                  uint8_t *flip = rows ? (uint8_t *)malloc((size_t)ww * wh * 3) : NULL;
                  if (rows && flip) {
@@ -3457,7 +3496,7 @@ index d0ccc3d5..a4a2a4dd 100644
                      glPixelStorei(GL_PACK_ALIGNMENT, 1);
                      glReadPixels(0, 0, ww, wh, GL_RGB, GL_UNSIGNED_BYTE, rows);
                      for (int y = 0; y < wh; y++)
-@@ -4038,13 +5176,13 @@ static void present_target_quad(GLuint tex, int tex_w, int tex_h,
+@@ -4038,13 +5188,13 @@ static void present_target_quad(GLuint tex, int tex_w, int tex_h,
                                  int x, int y, int w, int h, int linear,
                                  int lx, int ly, int lw, int lh, int v_flip) {
      float u0, v0, u1, v1;
@@ -3473,7 +3512,7 @@ index d0ccc3d5..a4a2a4dd 100644
      p_glUniform1i(s_present_uTex, 0);
      /* The rasterized path already renders at the internal scale, so it has no
       * low-res source to reconstruct — keep the plain sample. */
-@@ -4068,10 +5206,10 @@ static void present_target_quad(GLuint tex, int tex_w, int tex_h,
+@@ -4068,10 +5218,10 @@ static void present_target_quad(GLuint tex, int tex_w, int tex_h,
          v1 = t;
      }
      p_glUniform4f(s_present_uUvRect, u0, v0, u1, v1);
@@ -3487,7 +3526,7 @@ index d0ccc3d5..a4a2a4dd 100644
  }
  
  /* Bezel art: a still image behind the frame, filling whatever the letterbox or
-@@ -4104,19 +5242,19 @@ int gl_renderer_has_bezel(void) { return s_bezel_tex != 0; }
+@@ -4104,19 +5254,19 @@ int gl_renderer_has_bezel(void) { return s_bezel_tex != 0; }
  static void present_bezel(int ww, int wh, int lx, int ly, int lw, int lh) {
      if (!s_bezel_tex || ww <= 0 || wh <= 0) return;
      if (lx <= 0 && ly <= 0 && lw >= ww && lh >= wh) return;
@@ -3514,7 +3553,7 @@ index d0ccc3d5..a4a2a4dd 100644
  }
  
  int gl_renderer_present_hold_last(void) {
-@@ -4131,8 +5269,8 @@ int gl_renderer_present_hold_last(void) {
+@@ -4131,8 +5281,8 @@ int gl_renderer_present_hold_last(void) {
       * the hold texture. Still present the host overlays: otherwise save-state
       * rejection/status messages are generated but remain invisible on GL. */
      if (s_hold_kind == HOLD_NONE || !s_hold_tex) {
@@ -3525,7 +3564,7 @@ index d0ccc3d5..a4a2a4dd 100644
          glClearColor(0.f, 0.f, 0.f, 1.f);
          glClear(GL_COLOR_BUFFER_BIT);
          latency_ring_mark(LAT_SWAP_BEGIN);
-@@ -4141,8 +5279,8 @@ int gl_renderer_present_hold_last(void) {
+@@ -4141,8 +5291,8 @@ int gl_renderer_present_hold_last(void) {
          s_probe_swap++;
          return 1;
      }
@@ -3536,7 +3575,7 @@ index d0ccc3d5..a4a2a4dd 100644
      glClearColor(0.f, 0.f, 0.f, 1.f);
      glClear(GL_COLOR_BUFFER_BIT);
      if (s_hold_kind == HOLD_DRAWABLE) {
-@@ -4204,7 +5342,8 @@ void gl_renderer_present_vram(int disp_x, int disp_y, int w, int h, int linear,
+@@ -4204,7 +5354,8 @@ void gl_renderer_present_vram(int disp_x, int disp_y, int w, int h, int linear,
          !present_dirty_test(disp_x, disp_y, disp_x + w - 1, disp_y + h - 1) &&
          !host_osd_needs_present() &&
          !psx_present_vsync_owns_cadence() &&
@@ -3546,7 +3585,7 @@ index d0ccc3d5..a4a2a4dd 100644
          s_probe_skip++;
          gl_perf_present_enter();
          gl_perf_present_exit(0);
-@@ -4221,12 +5360,22 @@ void gl_renderer_present_vram(int disp_x, int disp_y, int w, int h, int linear,
+@@ -4221,12 +5372,22 @@ void gl_renderer_present_vram(int disp_x, int disp_y, int w, int h, int linear,
       * display mode (e.g. 216/224-line menus) must fill the rect as before.
       * The FMV band fix lives in the depth24/CPU present paths only. */
  
@@ -3571,7 +3610,7 @@ index d0ccc3d5..a4a2a4dd 100644
      int interp_pair = interp_capture(s_hr_fbo, disp_x, disp_y, w, h,
                                       linear, force_4_3, GL_PRES_VRAM);
      if (interp_pair) {
-@@ -4270,7 +5419,11 @@ static void wide_blit_center(GLuint wide_fbo, int base_x, int disp_y, int disp_h
+@@ -4270,7 +5431,11 @@ static void wide_blit_center(GLuint wide_fbo, int base_x, int disp_y, int disp_h
      int native_w = g_wide_w - 2 * g_wide_off;
      if (native_w <= 0) return;
      int S = s_scale;
@@ -3584,7 +3623,7 @@ index d0ccc3d5..a4a2a4dd 100644
      /* Copy the canonical framebuffer column into the wide surface CENTRE over the
       * FULL VRAM height, not just the current display band [disp_y, disp_y+disp_h].
       * The wide surface holds BOTH vertical double-buffer bands (Ape flips
-@@ -4279,16 +5432,16 @@ static void wide_blit_center(GLuint wide_fbo, int base_x, int disp_y, int disp_h
+@@ -4279,16 +5444,16 @@ static void wide_blit_center(GLuint wide_fbo, int base_x, int disp_y, int disp_h
       * column makes the wide CENTRE bit-identical to what the full mirror would
       * have drawn there for every band, so nothing the present reads is ever left
       * black. The margins (x outside the centre) are untouched. */
@@ -3610,7 +3649,7 @@ index d0ccc3d5..a4a2a4dd 100644
  }
  
  /* GPU-direct native-wide present: blit the displayed buffer's wide FBO straight
-@@ -4315,7 +5468,8 @@ int gl_renderer_present_wide_fbo(int disp_x, int disp_y, int disp_h, int linear)
+@@ -4315,7 +5480,8 @@ int gl_renderer_present_wide_fbo(int disp_x, int disp_y, int disp_h, int linear)
          !present_dirty_test(0, disp_y, VRAM_W - 1, disp_y + disp_h - 1) &&
          !host_osd_needs_present() &&
          !psx_present_vsync_owns_cadence() &&
@@ -3620,7 +3659,7 @@ index d0ccc3d5..a4a2a4dd 100644
          s_probe_skip++;
          gl_perf_present_enter();
          gl_perf_present_exit(1);
-@@ -4327,12 +5481,23 @@ int gl_renderer_present_wide_fbo(int disp_x, int disp_y, int disp_h, int linear)
+@@ -4327,12 +5493,23 @@ int gl_renderer_present_wide_fbo(int disp_x, int disp_y, int disp_h, int linear)
      letterbox_rect(ww, wh, &lx, &ly, &lw, &lh);
      wide_blit_center(fbo, disp_x, disp_y, disp_h);   /* fast-path: authoritative centre */
  
@@ -3837,7 +3876,7 @@ index 5f66e0a9..470da031 100644
      return 0;
  }
 diff --git a/runtime/src/host_osd.c b/runtime/src/host_osd.c
-index 62c387d0..ba780eae 100644
+index 62c387d0..ced75e30 100644
 --- a/runtime/src/host_osd.c
 +++ b/runtime/src/host_osd.c
 @@ -11,19 +11,20 @@
@@ -3900,7 +3939,7 @@ index 62c387d0..ba780eae 100644
  
  static int      s_volume = 100;          /* host master 0..100 */
  static int      s_vol_pct = 100;         /* last shown bar fill */
-@@ -143,10 +166,52 @@ static int      s_vol_dirty = 1;
+@@ -143,10 +166,54 @@ static int      s_vol_dirty = 1;
  static int      s_needs_clear;
  
  #define OSD_IMG_W  ((OSD_PAD_X * 2 + OSD_MAX_CHARS * OSD_GLYPH_W) * OSD_SCALE)
@@ -3934,8 +3973,10 @@ index 62c387d0..ba780eae 100644
 +    (void)pixels;(void)w;(void)h;(void)available_width;return 0;
 +#endif
 +}
++extern int ttk_menu_thumb_pixels(const uint32_t*);
 +int host_osd_text_has_alpha(const uint32_t *pixels) {
 +    if(pixels == s_console_img)return 1;
++    if(ttk_menu_thumb_pixels(pixels))return 1; /* D19K: LOAD GAME image */
 +    if(pixels == s_debug_img && s_debug_font)return 1;
 +    if(ttk_aim_crosshair_pixels(pixels))return 1;
 +#if defined(TTK_CHEAT_OSD)
@@ -3954,7 +3995,17 @@ index 62c387d0..ba780eae 100644
  
  /* Vertical bar: outer 16x120 @ 2x → 32x240. Fill grows from the bottom. */
  #define VOL_BAR_W   (16 * OSD_SCALE)
-@@ -202,6 +267,12 @@ static int vol_visible(void) {
+@@ -169,6 +236,9 @@ static int          s_sdl_rw_th;
+ static SDL_Texture *s_sdl_ssm_tex;
+ static int          s_sdl_ssm_tw;
+ static int          s_sdl_ssm_th;
++static SDL_Texture *s_sdl_thumb_tex; /* D19K: LOAD GAME image */
++static int          s_sdl_thumb_tw;
++static int          s_sdl_thumb_th;
+ static SDL_Renderer *s_sdl_ren;
+ #endif
+ 
+@@ -202,6 +272,12 @@ static int vol_visible(void) {
  }
  
  static void rasterize_text(const char *msg) {
@@ -3967,7 +4018,7 @@ index 62c387d0..ba780eae 100644
      int n = (int)strlen(msg);
      if (n > OSD_MAX_CHARS) n = OSD_MAX_CHARS;
      s_img_w = (OSD_PAD_X * 2 + n * OSD_GLYPH_W) * OSD_SCALE;
-@@ -276,7 +347,14 @@ static void sdl_blit_argb(SDL_Renderer *renderer, SDL_Texture **tex,
+@@ -276,7 +352,14 @@ static void sdl_blit_argb(SDL_Renderer *renderer, SDL_Texture **tex,
                                   SDL_TEXTUREACCESS_STREAMING, w, h);
          *tw = w;
          *th = h;
@@ -3983,7 +4034,7 @@ index 62c387d0..ba780eae 100644
      }
      if (!*tex) return;
      void *locked = NULL;
-@@ -337,30 +415,232 @@ void host_osd_push(const char *msg, int duration_ms) {
+@@ -337,30 +420,232 @@ void host_osd_push(const char *msg, int duration_ms) {
      snprintf(s_msg, sizeof(s_msg), "%s", msg);
      s_expire_ms = SDL_GetTicks() + (Uint32)duration_ms;
      s_active = 1;
@@ -4046,10 +4097,10 @@ index 62c387d0..ba780eae 100644
 +    if (!line) line = "";
 +    snprintf(s_console_line, sizeof(s_console_line), "%s", line);
 +    s_console_dirty = 1;
-+    s_needs_clear = 0;
-+#endif
-+}
-+
+     s_needs_clear = 0;
+ #endif
+ }
+ 
 +void host_osd_console_clear(void) {
 +#if !HOST_OSD_VISUAL
 +    return;
@@ -4077,10 +4128,10 @@ index 62c387d0..ba780eae 100644
 +    }
 +    s_console_scroll = 0; /* new output shows the newest lines */
 +    s_console_dirty = 1;
-     s_needs_clear = 0;
- #endif
- }
- 
++    s_needs_clear = 0;
++#endif
++}
++
 +/* Scrollback (D24A follow-up): delta lines up (+) or down (-); a large value
 + * jumps to the oldest or newest line. Declared by main.cpp. */
 +void host_osd_console_scroll(int delta) {
@@ -4223,7 +4274,7 @@ index 62c387d0..ba780eae 100644
  void host_osd_show_volume(int percent, int duration_ms) {
  #if !HOST_OSD_VISUAL
      (void)percent;
-@@ -398,7 +678,7 @@ int host_osd_needs_present(void) {
+@@ -398,7 +683,7 @@ int host_osd_needs_present(void) {
  #if !HOST_OSD_VISUAL
      return 0;
  #else
@@ -4232,7 +4283,7 @@ index 62c387d0..ba780eae 100644
      return s_needs_clear;
  #endif
  }
-@@ -410,21 +690,14 @@ int host_osd_image(const uint32_t **pixels, int *w, int *h) {
+@@ -410,21 +695,14 @@ int host_osd_image(const uint32_t **pixels, int *w, int *h) {
      if (h) *h = 0;
      return 0;
  #else
@@ -4257,7 +4308,7 @@ index 62c387d0..ba780eae 100644
      if (pixels) *pixels = s_img;
      if (w) *w = s_img_w;
      if (h) *h = s_img_h;
-@@ -432,6 +705,60 @@ int host_osd_image(const uint32_t **pixels, int *w, int *h) {
+@@ -432,6 +710,60 @@ int host_osd_image(const uint32_t **pixels, int *w, int *h) {
  #endif
  }
  
@@ -4318,7 +4369,7 @@ index 62c387d0..ba780eae 100644
  int host_osd_volume_image(const uint32_t **pixels, int *w, int *h) {
  #if !HOST_OSD_VISUAL
      if (pixels) *pixels = NULL;
-@@ -457,14 +784,26 @@ void host_osd_present_done(void) {
+@@ -457,14 +789,39 @@ void host_osd_present_done(void) {
  #if !HOST_OSD_VISUAL
      return;
  #else
@@ -4328,6 +4379,7 @@ index 62c387d0..ba780eae 100644
  }
  
 +extern int ttk_aim_crosshair_image(const uint32_t**,int*,int*);
++extern int ttk_menu_thumb_image(const uint32_t**,int*,int*,float*);
  void host_osd_draw_sdl(struct SDL_Renderer *renderer) {
  #ifndef PSX_SDL_NO_RENDER
      if (!renderer) return;
@@ -4343,10 +4395,22 @@ index 62c387d0..ba780eae 100644
 +                          (w - dw) / 2, (h - dh) / 2, dw, dh);
 +        }
 +    }
++    {
++        /* D19K: the LOAD GAME image (thumbnail, steel text), placed by the menu in its 4:3 area
++         * (fractions) of the logical picture. */
++        const uint32_t *tp = NULL; int tw = 0, th = 0; float r[4];
++        if (ttk_menu_thumb_image(&tp, &tw, &th, r) && tp) {
++            int w = 640, h = 480; sdl_logical_size(renderer, &w, &h);
++            const float aw = (float)h * 4.f / 3.f, ax = ((float)w - aw) / 2.f;
++            const int x0 = (int)(ax + r[0] * aw + 0.5f), y0 = (int)(r[1] * (float)h + 0.5f);
++            const int x1 = (int)(ax + (r[0] + r[2]) * aw + 0.5f), y1 = (int)((r[1] + r[3]) * (float)h + 0.5f);
++            sdl_blit_argb(renderer, &s_sdl_thumb_tex, &s_sdl_thumb_tw, &s_sdl_thumb_th, tp, tw, th, x0, y0, x1 - x0, y1 - y0);
++        }
++    }
  #if HOST_OSD_VISUAL
      {
          const uint32_t *px;
-@@ -477,9 +816,132 @@ void host_osd_draw_sdl(struct SDL_Renderer *renderer) {
+@@ -477,9 +834,132 @@ void host_osd_draw_sdl(struct SDL_Renderer *renderer) {
          if (ui < 1) ui = 1;
          if (ui > 8) ui = 8;
          margin = 8 * ui;
@@ -4396,8 +4460,7 @@ index 62c387d0..ba780eae 100644
 +                SDL_SetRenderViewport(renderer, &old_view); SDL_SetRenderClipRect(renderer, clipped?&old_clip:NULL);
 +            } else
 +#endif
-             sdl_blit_argb(renderer, &s_sdl_tex, &s_sdl_tw, &s_sdl_th, px, w, h,
--                          margin, margin, w * ui, h * ui);
++            sdl_blit_argb(renderer, &s_sdl_tex, &s_sdl_tw, &s_sdl_th, px, w, h,
 +                          margin, margin, w * tui, h * tui);
 +        }
 +        if (host_osd_image(&px, &w, &h) && px) {
@@ -4432,7 +4495,8 @@ index 62c387d0..ba780eae 100644
 +                SDL_SetRenderViewport(renderer, &old_view); SDL_SetRenderClipRect(renderer, clipped?&old_clip:NULL);
 +            } else
 +#endif
-+            sdl_blit_argb(renderer, &s_sdl_tex, &s_sdl_tw, &s_sdl_th, px, w, h,
+             sdl_blit_argb(renderer, &s_sdl_tex, &s_sdl_tw, &s_sdl_th, px, w, h,
+-                          margin, margin, w * ui, h * ui);
 +                          host_osd_text_centered() ? (lw-w*tui)/2 : margin, margin, w * tui, h * tui);
 +        }
 +        /* Inventory is a separate temporary surface; never replaces quotes.

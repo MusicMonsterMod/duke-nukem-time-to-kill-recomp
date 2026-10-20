@@ -1,5 +1,42 @@
 # Current status - 2026-10-04
 
+## 2026-10-20 - D19K accepted; D19R opened
+
+- User: "confirmed now working as intended. lock it in." D19K Done; executable
+  `37966f924ec6348e1dfcb4a8ce17c5ad320c8b3535c40c4f8610a542abd2afe9` is the regression baseline.
+- New Todo D19R (startup card probe hang, research in the job): state 1's
+  card probe blocks the main loop for about 1.5 s (90 fields) in the BIOS card
+  routines, black screen; options listed (unpaced card wait, keep the title
+  image, defer the probe, host settings read).
+
+## 2026-10-20 - D19K revision 2: LOAD GAME opens on slot 01 (Needs playtest)
+
+- User: "superb, everything is working as intended!"; LOAD GAME now opens on
+  slot 01 instead of the newest save. Executable `37966f924ec6348e1dfcb4a8ce17c5ad320c8b3535c40c4f8610a542abd2afe9`.
+
+## 2026-10-20 - D19K revision 1: steel text, startup card check unseen; D19Q opened (Needs playtest)
+
+- LOAD GAME's save time and the in-game warning (now UNSAVED PROGRESS WILL BE
+  LOST) in Console steel TTK Medium Italic with its shadow, drawn by the host
+  with the thumbnail. Modernized startup no longer shows CHECKING MEMORY CARD,
+  CHECKING SAVE GAME FILE or the no-card message; the card reads and the
+  settings unpack still run (hook `0x8008B454` regenerated, codegen hash
+  unchanged). New Todo D19Q (SAVE GAME screen to match). Executable
+  `2856af4971e912b38805cf51e43fa949c65f197e721abbcf147a410cd31c9d46`, [note 169](169-d19k-load-game.md).
+
+## 2026-10-20 - D19K LOAD GAME from our savestates (Needs playtest)
+
+- LOAD GAME on the title, pause and death lists now opens our page (layout A
+  of the mockup): the 12 savestate slots by level name, newest selected, the
+  chosen slot's thumbnail, era and save time beside them, then LOAD THIS
+  GAME? and a load like F7's. Empty and other-build slots are greyed; a failed
+  load keeps the game and says so. The memory card LOAD stays Vanilla's.
+  Framework: thumbnail draw in both present paths; `boot_state_check_buffer`
+  no longer passes every slot when given no reason buffer. Offscreen loads
+  from pause, title and death; Vanilla original; tests pass; patch verified
+  against the pin. Executable `2856af4971e912b38805cf51e43fa949c65f197e721abbcf147a410cd31c9d46`,
+  [note 169](169-d19k-load-game.md).
+
 ## 2026-10-20 - D08Z4 accepted
 
 - User: "thats the one! lock it in and close it out!!". D08Z4 Done; executable

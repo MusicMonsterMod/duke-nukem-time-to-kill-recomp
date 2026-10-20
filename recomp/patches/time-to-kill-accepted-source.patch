@@ -7586,7 +7586,7 @@ index 00000000..da318805
 +
 +#endif
 diff --git a/runtime/src/savestate.c b/runtime/src/savestate.c
-index 7f191c99..6d56d195 100644
+index 7f191c99..cb798473 100644
 --- a/runtime/src/savestate.c
 +++ b/runtime/src/savestate.c
 @@ -62,6 +62,15 @@ static int      s_load_pending = -1;
@@ -7614,7 +7614,7 @@ index 7f191c99..6d56d195 100644
          !savestate_flat_context_ok(resume_pc, cpu->gpr[29]) ||
          !psx_scheduler_disk_snapshot_ready())
          return;
-@@ -593,14 +602,10 @@ int savestate_slot_mtime(int slot, int64_t* out_time) {
+@@ -593,15 +602,21 @@ int savestate_slot_mtime(int slot, int64_t* out_time) {
  #endif
  }
  
@@ -7629,9 +7629,20 @@ index 7f191c99..6d56d195 100644
 -    if (!savestate_thumb_path(slot, path, sizeof(path))) return 0;
 +    if (!thumb) return 0;
      gpu_get_display_info(&di);
++    /* GPU renderers present from their own VRAM; CPU VRAM is only current
++     * after a readback (a savestate write does one), so a grab between saves
++     * read the image of the last save. Sync it as screenshots do; never on
++     * depth24 (the readback clobbers packed RGB888 MDEC bytes). */
++    if (!di.depth24) {
++        extern void gl_renderer_sync_cpu(void);
++        extern void vk_renderer_sync_cpu(void);
++        gl_renderer_sync_cpu();
++        vk_renderer_sync_cpu();
++    }
      dw = di.width ? di.width : 320u;
      dh = di.height ? di.height : 240u;
-@@ -613,6 +618,19 @@ int savestate_capture_thumb(int slot) {
+     for (y = 0; y < SAVESTATE_THUMB_H; y++) {
+@@ -613,6 +628,19 @@ int savestate_capture_thumb(int slot) {
                  : (gpu_display_pixel_argb(&di, sx, sy) | 0xFF000000u);
          }
      }
@@ -7651,7 +7662,7 @@ index 7f191c99..6d56d195 100644
      hdr.magic[0] = 'P';
      hdr.magic[1] = 'S';
      hdr.magic[2] = 'T';
-@@ -902,6 +920,7 @@ uint32_t savestate_last_save_pc(void) {
+@@ -902,6 +930,7 @@ uint32_t savestate_last_save_pc(void) {
  
  void savestate_poll(CPUState* cpu, uint32_t resume_pc) {
      if (s_save_pending < 0 && s_load_pending < 0) return;   /* hot path: nothing staged */
@@ -7659,7 +7670,7 @@ index 7f191c99..6d56d195 100644
  
      if (s_save_pending >= 0) {
          int slot = s_save_pending;
-@@ -1178,6 +1197,7 @@ void savestate_poll(CPUState* cpu, uint32_t resume_pc) {
+@@ -1178,6 +1207,7 @@ void savestate_poll(CPUState* cpu, uint32_t resume_pc) {
              s_status_pending = 0;
              s_status_last_ok = 1;
              s_status_generation++;

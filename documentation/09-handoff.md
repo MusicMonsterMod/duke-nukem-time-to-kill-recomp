@@ -1,5 +1,18 @@
 # Next-session handoff
 
+## 2026-10-20 - D19Q1 accepted
+
+- User: "confirmed working!". D19Q1 Done; the executable below is the
+  regression baseline.
+
+## 2026-10-20 - D19Q1 fixed (Needs playtest)
+
+- SAVE GAME's picture came from stale CPU VRAM (the image at the previous
+  save, under OpenGL); not first person. `savestate_grab_thumb` syncs
+  first. Two saves in one session, first person, after LOAD GAME and Vanilla
+  F7 all store play. Executable
+  `92178369fc5153178009edf801bd5c07299fee5d6d9bab927ea6ca2b6fc3e043`.
+
 ## 2026-10-20 - D19Q1 opened (SAVE GAME thumbnail shows the menu)
 
 - Player UI slot 1's picture is the OVERWRITE THIS SAVE? page; first person

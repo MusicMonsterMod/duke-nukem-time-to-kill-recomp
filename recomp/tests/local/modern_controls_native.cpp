@@ -186,6 +186,8 @@ bool input_modernized(){return modern;}
 const InputFrame& input_snapshot(Context){return input;}
 uint16_t input_last_pad(){return 0xffff;}
 uint64_t input_host_frame(){return input.sequence;}
+static double clock_ms=1000;
+double input_clock_ms(){return clock_ms;}
 }
 static void call(uint32_t address,uint32_t a0,uint32_t a1,uint32_t ra,uint32_t sp=0x801f0000,uint32_t a2=0) {
     CPUState cpu{};cpu.gpr[4]=a0;cpu.gpr[5]=a1;cpu.gpr[6]=a2;cpu.gpr[31]=ra;cpu.gpr[29]=sp;
@@ -1684,6 +1686,37 @@ int main(int argc,char** argv) {
         assert(std::abs(metric("\"yaw\":")-quarter)<1e-6);
         assert(std::abs(metric("\"pitch\":")-metric("\"rest_pitch\":"))<1e-6);
         assert(metric("\"recenters\":")==before+1);
+        // D10C look keys: Look Up turns the pitch up (negative) at 150 deg/s
+        // while held and eases back to the rest pitch on release; Lock Look
+        // Down turns it at 80 deg/s and keeps it; a Look tap unlocks it.
+        {
+            const double deg=6.2831853071795864769/360,rest=metric("\"rest_pitch\":");
+            auto timed=[&](unsigned n){for(unsigned i=0;i<n;++i){ttk::clock_ms+=50;frame();}};
+            using ttk::Action;
+            ttk::input.held[ttk::look_up]=true;timed(4);   // the first update takes the key
+            assert(std::abs(metric("\"pitch\":")-ttk::clamp_pitch(rest-150*deg*0.15))<1e-6);
+            assert(std::strstr(ttk::controls_debug_json(),"\"hold\":-1"));
+            ttk::input.held[ttk::look_up]=false;timed(1);
+            assert(std::strstr(ttk::controls_debug_json(),"\"returning\":true"));
+            timed(20);
+            assert(std::abs(metric("\"pitch\":")-rest)<1e-6 && metric("\"returns\":")==1);
+            ttk::input.held[ttk::lock_look_down]=true;timed(3);
+            ttk::input.held[ttk::lock_look_down]=false;timed(20);
+            const double locked=ttk::clamp_pitch(rest+80*deg*0.15); // the release update ends the hold
+            assert(std::abs(metric("\"pitch\":")-locked)<1e-6);  // stays
+            // A tap released before the next camera update is only a counted press.
+            ttk::input.look_press_total+=1;timed(1);
+            assert(std::strstr(ttk::controls_debug_json(),"\"taps\":1"));
+            timed(20);
+            assert(std::abs(metric("\"pitch\":")-rest)<1e-6 && metric("\"returns\":")==2);
+            // Mouse motion during the ease back keeps the view where it is.
+            ttk::input.held[ttk::look_down]=true;timed(3);ttk::input.held[ttk::look_down]=false;timed(1);
+            ttk::input.total_y+=1;timed(1);
+            assert(std::strstr(ttk::controls_debug_json(),"\"returning\":false"));
+            const double kept=metric("\"pitch\":");timed(10);
+            assert(std::abs(metric("\"pitch\":")-kept)<1e-9 && kept>rest+0.05);
+            ttk::input.recenter_total+=1;for(unsigned i=0;i<60;++i)frame();
+        }
         psx_mod_write_half(p+0x1c,0);ttk::input.recenter_total=2;frame();
         ttk::input.total_x+=40;frame();
         assert(std::strstr(ttk::controls_debug_json(),"\"recentering\":false"));

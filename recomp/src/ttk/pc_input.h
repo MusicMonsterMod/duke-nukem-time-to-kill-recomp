@@ -22,6 +22,8 @@ struct InputFrame {
     double distance_total = 0;
     // D10: recenter presses this epoch; shoulder side -1 left, 0 centered, 1 right.
     uint64_t recenter_total = 0;
+    // D10C: Look Up / Down presses this epoch, so a tap between camera updates counts.
+    uint64_t look_press_total = 0;
     int shoulder = 0;
     // D11: player asked for the eye-level view (applies only in supported states).
     bool first_person = false;
@@ -56,6 +58,8 @@ const InputFrame& input_snapshot(Context context);
 // consumed). False unless Modernized gameplay holds the captured mouse.
 // at_ms >= 0: the look as it was at that time (performance clock, ms).
 bool input_live_look(uint64_t& epoch, double& x, double& y, double at_ms=-1);
+// The presenter clock input_live_look's at_ms uses (performance counter, ms).
+double input_clock_ms();
 bool input_modernized();
 // D19G: the KEY BINDINGS page. Codes are the DNTTK_INPUT_BINDINGS wire codes
 // (SDL scancode, mouse button -n, 0 unbound).

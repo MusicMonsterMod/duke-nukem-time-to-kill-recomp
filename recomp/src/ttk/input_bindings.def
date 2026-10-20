@@ -51,3 +51,9 @@ TTK_ACTION(weapon_group_0, 0, 39, 0)
 // D08A5: mission inventory, previous / next item (host only, never queued).
 TTK_ACTION(mission_previous, Comma, 54, 0)
 TTK_ACTION(mission_next, Period, 55, 0)
+// D10C: Duke 3D look keys, held (camera_recenter-style host actions, never
+// queued). Look turns the view and eases it back on release; lock keeps it.
+TTK_ACTION(look_up, PageUp, 75, 0)
+TTK_ACTION(look_down, PageDown, 78, 0)
+TTK_ACTION(lock_look_up, Home, 74, 0)
+TTK_ACTION(lock_look_down, End, 77, 0)

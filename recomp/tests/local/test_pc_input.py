@@ -14,10 +14,10 @@ import player_profiles as profiles
 
 class InputBindingsTest(unittest.TestCase):
     def test_defaults_wire_and_separate_movement(self):
-        self.assertEqual(len(pc_input.validate(pc_input.DEFAULTS)), 43)
+        self.assertEqual(len(pc_input.validate(pc_input.DEFAULTS)), 47)
         self.assertTrue(pc_input.wire(pc_input.DEFAULTS).startswith('1:26,22,4,7,'))
         # D08A5: Comma/Period browse the mission inventory; original strafe is unbound.
-        self.assertTrue(pc_input.wire(pc_input.DEFAULTS).endswith(',54,55'))
+        self.assertTrue(pc_input.wire(pc_input.DEFAULTS).endswith(',54,55,75,78,74,77'))  # D10C look keys last
         self.assertEqual((pc_input.DEFAULTS['original_strafe_left'], pc_input.DEFAULTS['original_strafe_right']),
                          ('Unbound', 'Unbound'))
         old = {k: v for k, v in pc_input.DEFAULTS.items() if not k.startswith('mission_')}
@@ -77,7 +77,7 @@ class InputBindingsTest(unittest.TestCase):
             raw = json.dumps(data)
             path.write_text(raw)
             loaded, notices = profiles.load(path)
-            self.assertEqual(loaded['version'], 33)
+            self.assertEqual(loaded['version'], 34)
             self.assertEqual(loaded['active'], 'modernized')
             self.assertEqual(loaded['profiles']['modernized']['presentation']['renderer'], 'software')
             self.assertEqual(loaded['profiles']['modernized']['bindings'], pc_input.DEFAULTS)

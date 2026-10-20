@@ -700,6 +700,14 @@ the view, so V mostly levels the camera's up/down angle.
 **H** cycles the camera shoulder: centered, right shoulder, left shoulder. Shots
 still go to the crosshair; walls still pull the camera in. The side you choose
 is saved too. Both keys are rebindable (`camera_recenter`, `camera_shoulder`).
+
+**Look keys (Duke 3D style).** Hold **Page Up** / **Page Down** to look up or
+down; let go and the view eases back to the normal angle. Hold **Home** /
+**End** to look up or down and keep the view there (it stays while you walk,
+and the mouse still adjusts it); tap Page Up or Page Down to bring it back.
+They work in first and third person and are rebindable in KEY BINDINGS
+(CAMERA: LOOK UP, LOOK DOWN, LOCK LOOK UP, LOCK LOOK DOWN) or with `--bind`
+(`look_up`, `look_down`, `lock_look_up`, `lock_look_down`). Vanilla has none of them.
 Save a distance or side without launching:
 
 ```sh

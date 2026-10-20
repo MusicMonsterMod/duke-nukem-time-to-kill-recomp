@@ -330,7 +330,7 @@ int main() {
     key(SDL_SCANCODE_RETURN,true);
     CHECK(!tick().active && !(ttk::input_pad()&8));key(SDL_SCANCODE_RETURN,false);
     // A saved custom speed binding keeps working; no action/schema migration.
-    SDL_setenv_unsafe("DNTTK_INPUT_BINDINGS", "1:26,22,4,7,-1,44,11,25,21,0,0,0,12,8,0,0,0,-3,226,51,52,27,16,225,13,17,5,47,48,24,20,30,31,32,33,34,35,36,37,38,39,54,55", 1);
+    SDL_setenv_unsafe("DNTTK_INPUT_BINDINGS", "1:26,22,4,7,-1,44,11,25,21,0,0,0,12,8,0,0,0,-3,226,51,52,27,16,225,13,17,5,47,48,24,20,30,31,32,33,34,35,36,37,38,39,54,55,75,78,74,77", 1);
     ttk::input_init(win);focus(true);key(SDL_SCANCODE_F10,true);ready=true;
     CHECK((ttk::input_pad() & 1024) == 0); // launch resets autorun off
     key(SDL_SCANCODE_R,true);CHECK((ttk::input_pad() & 1024) != 0);
@@ -546,6 +546,14 @@ int main() {
     key(SDL_SCANCODE_V,true);key(SDL_SCANCODE_V,true,true);key(SDL_SCANCODE_V,false); // auto-repeat is one press
     key(SDL_SCANCODE_V,true);key(SDL_SCANCODE_V,false);
     CHECK(tick().recenter_total==2 && tick().command_count==0);
+    // D10C look keys are held actions, never guest commands or pad bits.
+    key(SDL_SCANCODE_PAGEUP,true);key(SDL_SCANCODE_END,true);
+    {const auto& f=tick();CHECK(f.held[ttk::look_up] && f.held[ttk::lock_look_down] && !f.held[ttk::look_down] && f.command_count==0);}
+    key(SDL_SCANCODE_PAGEUP,false);key(SDL_SCANCODE_END,false);CHECK(!tick().held[ttk::look_up]);
+    // A Look press is counted (a tap between camera updates); repeats and Lock are not.
+    key(SDL_SCANCODE_PAGEDOWN,true);key(SDL_SCANCODE_PAGEDOWN,true,true);key(SDL_SCANCODE_PAGEDOWN,false);
+    key(SDL_SCANCODE_HOME,true);key(SDL_SCANCODE_HOME,false);
+    CHECK(tick().look_press_total==2 && tick().command_count==0);
     key(SDL_SCANCODE_H,true);key(SDL_SCANCODE_H,false);CHECK(tick().shoulder==0);
     key(SDL_SCANCODE_H,true);key(SDL_SCANCODE_H,false);CHECK(tick().shoulder==1);
     key(SDL_SCANCODE_H,true);key(SDL_SCANCODE_H,false);CHECK(tick().shoulder==-1 && tick().command_count==0);
@@ -721,7 +729,7 @@ int main() {
     leap_on=false;tick();CHECK((ttk::input_pad()&16384)!=0);
     holstered=false;
     // Rebinding fire preserves draw behavior; the old mouse binding is inactive.
-    ttk::input_release();SDL_setenv_unsafe("DNTTK_INPUT_BINDINGS", "1:26,22,4,7,10,44,11,25,21,0,0,0,12,8,0,0,0,-3,226,51,52,27,16,225,13,17,5,47,48,24,20,30,31,32,33,34,35,36,37,38,39,54,55",1);
+    ttk::input_release();SDL_setenv_unsafe("DNTTK_INPUT_BINDINGS", "1:26,22,4,7,10,44,11,25,21,0,0,0,12,8,0,0,0,-3,226,51,52,27,16,225,13,17,5,47,48,24,20,30,31,32,33,34,35,36,37,38,39,54,55,75,78,74,77",1);
     ttk::input_init(win);focus(true);key(SDL_SCANCODE_F10,true);ready=true;flight=false;holstered=true;
     mousefire(true);tick();CHECK((ttk::input_pad()&(8192|16384))==(8192|16384));mousefire(false);
     key(SDL_SCANCODE_G,true);tick();CHECK((ttk::input_pad()&8192)==0 && (ttk::input_pad()&16384)!=0);

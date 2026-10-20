@@ -1,5 +1,24 @@
 # Next-session handoff
 
+## 2026-10-20 - D10C accepted
+
+- User: "awesome!! ... lock this current one in, and close it out". D10C Done;
+  executable `ee9d3adee53e952bce7acb0c9bc36840cf44fe0aba37b3e11a56d96038efaa19` is the
+  regression baseline. New Todo: D10D (Left / Right arrows turn left / right
+  in Modernized). Backlog: D10D, D19G1, D19K, D19F, D19N, D24D, D26G.
+
+## 2026-10-20 - D10C Duke 3D look keys (Needs playtest)
+
+- Page Up / Page Down look up / down while held and ease back on release;
+  Home / End tilt and keep the view (a Page Up / Down tap brings it back).
+  First and third person, mouse look on top, smooth at high refresh (late
+  camera). KEY BINDINGS CAMERA rows and `--bind`; launcher schema 34 adds the
+  keys to older profiles. Lab offscreen (level 1 slot 9): holds, locks,
+  taps, mouse and V as described; KEY BINDINGS swap saved. Executable
+  `ee9d3adee53e952bce7acb0c9bc36840cf44fe0aba37b3e11a56d96038efaa19`,
+  [note 161](161-d10c-look-keys.md). Native and Python tests pass. Awaiting
+  the user's playtest; open question whether center should be level.
+
 ## 2026-10-20 - D07F accepted
 
 - User: "confirmed working. lock it in and close it out". D07F Done;

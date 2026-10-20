@@ -91,7 +91,7 @@ static float dx, dy;
 static double wheel_fraction, distance_total;
 // D10 camera: recenter presses are counted per epoch (clear() resets them);
 // the shoulder side survives capture changes and starts from the profile.
-static uint64_t recenter_total;
+static uint64_t recenter_total,look_press_total;
 static int shoulder;
 static bool first_person;
 static bool independent_camera() {
@@ -101,6 +101,7 @@ static bool independent_camera() {
 static void camera_action(int action) {
     if(!independent_camera())return;
     if(action==camera_recenter) {++recenter_total;return;}
+    if(action==look_up || action==look_down) {++look_press_total;return;}
     if(action==camera_view) {
         first_person=!first_person;
         const char* text=first_person?"CAMERA: FIRST PERSON":"CAMERA: THIRD PERSON";
@@ -173,7 +174,7 @@ static void clear() {
     cheat_typing.reset();cheat_pending=Cheat::None;menu_select_deadline=0;
     std::memset(keys, 0, sizeof keys);
     std::memset(mouse, 0, sizeof mouse);
-    dx = dy = 0;wheel_fraction=distance_total=0;recenter_total=0;command_count=0;
+    dx = dy = 0;wheel_fraction=distance_total=0;recenter_total=look_press_total=0;command_count=0;
     frame = {};jump_deadline=jump_pressed_at=0;airborne_interact=false;
     interaction_pending=false;interaction_pulse=0;interaction_started=false;holster_pulse=0;swim_redraw=0;
     push_reset();
@@ -258,7 +259,7 @@ void input_offer_gameplay_capture() { capture_offer_at.store(sequence); capture_
 static bool allowed(int code) {
     return code == 0
         || (code >= 4 && code <= 39 && code != 9)
-        || code == 71 || code == 224 || code == 226 || code == 47 || code == 48 || code == 51 || code == 52 || code == 44 || code == 54 || code == 55 || code == 225 || (code >= -5 && code <= -1);
+        || code == 71 || code == 224 || code == 226 || code == 47 || code == 48 || code == 51 || code == 52 || code == 44 || code == 54 || code == 55 || code == 225 || code == 74 || code == 75 || code == 77 || code == 78 || (code >= -5 && code <= -1);
 }
 void input_init(SDL_Window* w) {
     window = w;inventory_enter_down=false;
@@ -517,9 +518,10 @@ void input_event(const SDL_Event& e) {
             ttk_aim_toggle_crosshair();
             input_notice(ttk_aim_crosshair_enabled()?"CROSSHAIR ON":"CROSSHAIR OFF");
         }
-        if(pressed && captured)for(int i=weapon_previous;i<action_count;++i)
+        // D10C look keys (after mission_next) are held, never commands.
+        if(pressed && captured)for(int i=weapon_previous;i<=mission_next;++i)
             if(code==binds[i])command(i);
-        if(pressed && captured)for(int i:{camera_recenter,camera_shoulder,camera_view})
+        if(pressed && captured)for(int i:{camera_recenter,camera_shoulder,camera_view,look_up,look_down})
             if(code==binds[i])camera_action(i);
         if(code==SDL_SCANCODE_LALT || code==SDL_SCANCODE_RALT)wheel_fraction=0;
         if (code >= 0 && code < 512) keys[code] = pressed;
@@ -553,9 +555,9 @@ void input_event(const SDL_Event& e) {
                 ttk_aim_toggle_crosshair();
                 input_notice(ttk_aim_crosshair_enabled()?"CROSSHAIR ON":"CROSSHAIR OFF");
             }
-            if(e.type==SDL_MOUSEBUTTONDOWN)for(int i=weapon_previous;i<action_count;++i)
+            if(e.type==SDL_MOUSEBUTTONDOWN)for(int i=weapon_previous;i<=mission_next;++i)
                 if(binds[i]==-int(e.button.button))command(i);
-            if(e.type==SDL_MOUSEBUTTONDOWN)for(int i:{camera_recenter,camera_shoulder,camera_view})
+            if(e.type==SDL_MOUSEBUTTONDOWN)for(int i:{camera_recenter,camera_shoulder,camera_view,look_up,look_down})
                 if(binds[i]==-int(e.button.button))camera_action(i);
             device = Device::Mouse;
             if(e.type==SDL_MOUSEBUTTONDOWN && binds[jump]==-int(e.button.button) && !push_latched) {
@@ -735,7 +737,8 @@ void input_frame() {
     }
     // Diagnostics only (DNTTK_TEST_INPUT=<file>): a script steers the
     // offscreen game. The file is re-read every input frame: held key names
-    // (w a s d shift ctrl space e q up down enter left right x z c esc v backspace),
+    // (w a s d shift ctrl space e q up down enter left right x z c esc v backspace
+    // pgup pgdn home end),
     // cheat=<word> and act=<action> (D07E: once per change of word) and
     // dx=<counts> dy=<counts>
     // per frame.
@@ -750,7 +753,8 @@ void input_frame() {
             {"space",SDL_SCANCODE_SPACE},{"e",SDL_SCANCODE_E},{"q",SDL_SCANCODE_Q},
             {"up",SDL_SCANCODE_UP},{"down",SDL_SCANCODE_DOWN},{"enter",SDL_SCANCODE_RETURN},
             {"left",SDL_SCANCODE_LEFT},{"right",SDL_SCANCODE_RIGHT},{"x",SDL_SCANCODE_X},{"z",SDL_SCANCODE_Z},
-            {"c",SDL_SCANCODE_C},{"esc",SDL_SCANCODE_ESCAPE},{"v",SDL_SCANCODE_V},{"backspace",SDL_SCANCODE_BACKSPACE}};
+            {"c",SDL_SCANCODE_C},{"esc",SDL_SCANCODE_ESCAPE},{"v",SDL_SCANCODE_V},{"backspace",SDL_SCANCODE_BACKSPACE},
+            {"pgup",SDL_SCANCODE_PAGEUP},{"pgdn",SDL_SCANCODE_PAGEDOWN},{"home",SDL_SCANCODE_HOME},{"end",SDL_SCANCODE_END}};
         bool was[sizeof named/sizeof named[0]];
         for(size_t i=0;i<sizeof named/sizeof named[0];++i){was[i]=keys[named[i].code];keys[named[i].code]=false;}
         if(FILE* f=std::fopen(test_input,"r")) {
@@ -828,7 +832,7 @@ void input_frame() {
         frame.active = true;
         frame.command_serial=command_serial;frame.command_count=command_count;
         std::copy(commands,commands+command_count,frame.commands);frame.distance_total=distance_total;
-        frame.recenter_total=recenter_total;frame.shoulder=shoulder;frame.first_person=first_person;
+        frame.recenter_total=recenter_total;frame.look_press_total=look_press_total;frame.shoulder=shoulder;frame.first_person=first_person;
         total_x += dx; total_y += dy;
         frame.total_x = total_x; frame.total_y = total_y;
         for (int i = 0; i < action_count; ++i) frame.held[i] = down(binds[i]);
@@ -847,6 +851,9 @@ void input_frame() {
         if(view_aim_input_ready())frame.held[original_aim]=false;
     }
     dx = dy = 0;
+}
+double input_clock_ms() {
+    return (double)SDL_GetPerformanceCounter()*1000.0/(double)SDL_GetPerformanceFrequency();
 }
 bool input_live_look(uint64_t& out_epoch, double& x, double& y, double at_ms) {
     if(!modern || !focused || !captured || !window) return false;

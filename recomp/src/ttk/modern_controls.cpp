@@ -111,6 +111,46 @@ static uint64_t distance_epoch,distance_frame;
 static bool recentering,rest_pitch_valid;
 static double rest_pitch,shoulder_offset;
 static uint64_t recenter_seen,recenters;
+// D10C Duke 3D look keys. Look Up / Down turn the pitch while held and ease
+// it back to the rest pitch on release; Lock Look Up / Down turn it and leave
+// it. Timed on the presenter clock, so late_view draws the same pitch between
+// game frames (smooth at high refresh). Pitch grows downward (mouse down).
+static int key_hold;                 // pitch direction held: -1 up, 1 down
+static bool key_lock,key_return;
+static double key_ms=-1;             // when pitch last caught up with the keys
+static uint64_t key_looks,key_returns,key_taps,look_press_seen;
+static constexpr double key_look_rate=150*tau/360, key_lock_rate=80*tau/360;
+// The V swing's 0.75 per vblank, per second: home in about a third of a second.
+static constexpr double key_return_rate=17.26;
+static double key_pitch_at(double ms) {
+    if(key_ms<0 || (!key_hold && !key_return)) return pitch;
+    const double dt=std::clamp((ms-key_ms)/1000,-0.1,0.1);
+    if(key_hold) return clamp_pitch(pitch+key_hold*(key_lock?key_lock_rate:key_look_rate)*dt);
+    return clamp_pitch(rest_pitch+(pitch-rest_pitch)*std::exp(-key_return_rate*dt));
+}
+// Brings pitch up to now under the keys held so far, then takes the new keys.
+// A look key wins over a lock key; any key stops a V swing; mouse motion
+// stops the ease back (as it stops V).
+static void key_look(const InputFrame& f,bool mouse) {
+    const double now=input_clock_ms();
+    pitch=key_pitch_at(now);key_ms=now;
+    if(mouse) key_return=false;
+    if(key_return && std::abs(pitch-rest_pitch)<0.002) {pitch=clamp_pitch(rest_pitch);key_return=false;++key_returns;}
+    const int look=int(f.held[look_down])-int(f.held[look_up]);
+    // A Look press released before this update (a tap) still unlocks and
+    // eases back, as a held one does on release.
+    const bool tapped=f.look_press_total>look_press_seen && !look;
+    look_press_seen=f.look_press_total;
+    const int lock=int(f.held[lock_look_down])-int(f.held[lock_look_up]);
+    if(look || lock) {
+        if(!key_hold) ++key_looks;
+        key_hold=look?look:lock;key_lock=!look;key_return=false;recentering=false;
+    } else {
+        if(key_hold && !key_lock || tapped) key_return=true;
+        if(tapped) {++key_taps;recentering=false;}
+        key_hold=0;
+    }
+}
 static double saved_distance=-1,written_distance=-1;
 static int written_shoulder=2,seen_shoulder=2,written_view=2,seen_view=2;
 static uint64_t camera_pref_changed;
@@ -243,6 +283,7 @@ static void orbit_begin(uint32_t sp) {
         double fz=(int16_t)psx_mod_read_half(camera+16);
         yaw=std::atan2(fx,fz);pitch=clamp_pitch(std::atan2(fy,std::hypot(fx,fz)));
         look.reset();orbit_valid=true;recentering=false;
+        key_hold=0;key_return=false;key_ms=-1;
     }
     // The first seed is the original follow view; recenter returns to its pitch.
     if(!rest_pitch_valid){rest_pitch=pitch;rest_pitch_valid=true;}
@@ -252,7 +293,7 @@ static void orbit_begin(uint32_t sp) {
         if(saved_distance>0)radius=preferred_radius=saved_distance;
         else preferred_radius=std::clamp(radius,768.0,6144.0);
     }
-    if(distance_epoch!=f.epoch) {distance_epoch=f.epoch;distance_seen=0;recenter_seen=0;distance_frame=f.sequence;}
+    if(distance_epoch!=f.epoch) {distance_epoch=f.epoch;distance_seen=0;recenter_seen=0;look_press_seen=0;distance_frame=f.sequence;}
     if(f.distance_total!=distance_seen) {
         preferred_radius=std::clamp(preferred_radius-192.0*(f.distance_total-distance_seen),768.0,6144.0);
         saved_distance=preferred_radius;camera_pref_changed=f.sequence;
@@ -283,6 +324,7 @@ static void orbit_begin(uint32_t sp) {
         if(std::abs(dy)<0.005 && std::abs(dp)<0.005) {yaw=wrap_yaw(heading);pitch=clamp_pitch(rest_pitch);recentering=false;}
         if(!recentering)++recenters;
     }
+    key_look(f,delta.x || delta.z);
     const char* inverted=ttk_live_env("DNTTK_MOUSE_INVERT_Y");
     yaw=wrap_yaw(yaw+delta.x*sensitivity());
     pitch=clamp_pitch(pitch+delta.z*sensitivity()*(inverted && !std::strcmp(inverted,"1")?-1:1));
@@ -1408,7 +1450,7 @@ bool late_view(double& out_yaw,double& out_pitch,double at_ms) {
     if(!input_live_look(live_epoch,x,y,at_ms) || !look.valid || look.epoch!=live_epoch) return false;
     const char* inverted=ttk_live_env("DNTTK_MOUSE_INVERT_Y");
     out_yaw=wrap_yaw(yaw+(x-look.x)*sensitivity());
-    out_pitch=clamp_pitch(pitch+(y-look.y)*sensitivity()*(inverted && !std::strcmp(inverted,"1")?-1:1));
+    out_pitch=clamp_pitch(key_pitch_at(at_ms<0?input_clock_ms():at_ms)+(y-look.y)*sensitivity()*(inverted && !std::strcmp(inverted,"1")?-1:1));
     return true;
 }
 bool late_pivot(double* xyz) {return pivot(xyz);}
@@ -1448,10 +1490,10 @@ bool first_person_actor_drawing() {return actor_drawing;}
 bool first_person_weapon_drawing() {return weapon_viewmodel && weapon_duke_draw && first_person_view_live();}
 const char* controls_debug_json() {
     static char buffer[8192];
-    std::snprintf(buffer,sizeof buffer,"{\"mouse_deg\":%.4f,\"edge_jumps\":%u,\"step_drops\":%u,\"run_offs\":%u,\"delayed_jumps\":%u,\"standing_takeoffs\":%u,\"swim_mantles\":%u,\"wade_jumps\":%u,\"swim_dives\":%u,\"swim_dive_stops\":%u,\"swim_paces\":%u,\"swimming\":\"%s\",\"swim_fire_masks\":%u,\"swim_fire_restores\":%u,\"swim_aims\":%u,\"swim_aim_restores\":%u,\"swim_arm_aims\":%u,\"swim_redraws\":%u,\"ledge_assists\":%u,\"jet_updates\":%u,\"jet_hovers\":%u,\"jet_descents\":%u,\"jet_hold_captures\":%u,\"jet_root_nudges\":%u,\"jet\":%s,\"jet_scheme\":\"%s\",\"jet_classic\":%s,\"jet_classic_updates\":%u,\"push_masks\":%u,\"push_idle_masks\":%u,\"push_grab\":%s,\"ledge_reach_arms\":%u,\"air_mantles\":%u,\"hang_releases\":%u,\"lift_catches\":%u,\"turn_catches\":%u,\"drop_mantles\":%u,\"last_drop_rel\":%d,\"step_ups\":%u,\"mantle_upper_handoffs\":%u,\"mantle_upper_restores\":%u,\"last_step_rel\":%d,\"edge_postpones\":%u,\"jump_style\":\"%s\",\"air_steers\":%u,\"coyote_jumps\":%u,\"quick_takeoffs\":%u,\"air_cap\":%.0f,\"hang_settles\":%u,\"ceiling\":{\"ready\":%s,\"updates\":%u,\"turns\":%u,\"advances\":%u,\"drops\":%u},\"ladder_top\":{\"available\":%s,\"active\":%s,\"starts\":%u,\"mounts\":%u,\"aborts\":%u,\"leaps\":%u,\"leap_nudges\":%u,\"end_probes\":%u,\"end_hits\":%u,\"end_stops\":%u,\"mount_finishes\":%u,\"actor_exits\":%u,\"actor_exit_checks\":%u},\"pole\":{\"mount_starts\":%u,\"mounts\":%u,\"mount_aborts\":%u,\"floor_rejects\":%u,\"stall_drops\":%u,\"mounting\":%s},\"identity_calls\":%llu,\"identity_checks\":%llu,\"identity_us\":%llu,\"selections\":%llu,\"jumps\":%llu,\"speed_changes\":%llu,\"moves\":%llu,\"probes\":%llu,\"cameras\":%llu,\"frame_window\":%u,\"refusals\":%llu,\"ready\":%s,\"swim\":%s,\"looks\":%llu,\"orbits\":%llu,\"yaw\":%.6f,\"pitch\":%.6f,\"radius\":%.3f,\"preferred_radius\":%.3f,\"shoulder_offset\":%.3f,\"recentering\":%s,\"recenters\":%llu,\"rest_pitch\":%.6f,\"selected_item\":%u,\"last_weapon\":%u,\"crouch_entries\":%u,\"crouch_exits\":%u,\"crouch_blocked\":%u,\"facings\":%llu,\"arms\":%llu,\"orientations\":%llu,\"fp\":{\"requested\":%s,\"supported\":%s,\"blend\":%.3f,\"reason\":\"%s\",\"updates\":%llu,\"fallbacks\":%llu,\"follows\":%llu,\"head_hides\":%llu,\"head_reclaims\":%llu,\"head_flag\":%u,\"min_boom\":%u,\"projection\":%d,\"projections\":%llu,\"near\":%s,\"weapon\":{\"enabled\":%s,\"hands\":%llu,\"draws\":%llu,\"flashes\":%llu,\"items\":%llu,\"readies\":%llu,\"pose\":\"%s\",\"recorded\":%llu,\"arm_hides\":%llu,\"fade_clears\":%llu,\"matrix\":%u},\"kick\":%s},\"aim\":%s,\"draw_distance\":%s,\"steroids\":%s,\"steroid_beat\":%s,\"pickup_select\":%s,\"run_click\":%s,\"powerups\":%s,\"jump_walls\":%s,\"landing\":%s,\"dynamite\":%s}",
+    std::snprintf(buffer,sizeof buffer,"{\"mouse_deg\":%.4f,\"edge_jumps\":%u,\"step_drops\":%u,\"run_offs\":%u,\"delayed_jumps\":%u,\"standing_takeoffs\":%u,\"swim_mantles\":%u,\"wade_jumps\":%u,\"swim_dives\":%u,\"swim_dive_stops\":%u,\"swim_paces\":%u,\"swimming\":\"%s\",\"swim_fire_masks\":%u,\"swim_fire_restores\":%u,\"swim_aims\":%u,\"swim_aim_restores\":%u,\"swim_arm_aims\":%u,\"swim_redraws\":%u,\"ledge_assists\":%u,\"jet_updates\":%u,\"jet_hovers\":%u,\"jet_descents\":%u,\"jet_hold_captures\":%u,\"jet_root_nudges\":%u,\"jet\":%s,\"jet_scheme\":\"%s\",\"jet_classic\":%s,\"jet_classic_updates\":%u,\"push_masks\":%u,\"push_idle_masks\":%u,\"push_grab\":%s,\"ledge_reach_arms\":%u,\"air_mantles\":%u,\"hang_releases\":%u,\"lift_catches\":%u,\"turn_catches\":%u,\"drop_mantles\":%u,\"last_drop_rel\":%d,\"step_ups\":%u,\"mantle_upper_handoffs\":%u,\"mantle_upper_restores\":%u,\"last_step_rel\":%d,\"edge_postpones\":%u,\"jump_style\":\"%s\",\"air_steers\":%u,\"coyote_jumps\":%u,\"quick_takeoffs\":%u,\"air_cap\":%.0f,\"hang_settles\":%u,\"ceiling\":{\"ready\":%s,\"updates\":%u,\"turns\":%u,\"advances\":%u,\"drops\":%u},\"ladder_top\":{\"available\":%s,\"active\":%s,\"starts\":%u,\"mounts\":%u,\"aborts\":%u,\"leaps\":%u,\"leap_nudges\":%u,\"end_probes\":%u,\"end_hits\":%u,\"end_stops\":%u,\"mount_finishes\":%u,\"actor_exits\":%u,\"actor_exit_checks\":%u},\"pole\":{\"mount_starts\":%u,\"mounts\":%u,\"mount_aborts\":%u,\"floor_rejects\":%u,\"stall_drops\":%u,\"mounting\":%s},\"identity_calls\":%llu,\"identity_checks\":%llu,\"identity_us\":%llu,\"selections\":%llu,\"jumps\":%llu,\"speed_changes\":%llu,\"moves\":%llu,\"probes\":%llu,\"cameras\":%llu,\"frame_window\":%u,\"refusals\":%llu,\"ready\":%s,\"swim\":%s,\"looks\":%llu,\"orbits\":%llu,\"yaw\":%.6f,\"pitch\":%.6f,\"radius\":%.3f,\"preferred_radius\":%.3f,\"shoulder_offset\":%.3f,\"recentering\":%s,\"recenters\":%llu,\"rest_pitch\":%.6f,\"key_look\":{\"hold\":%d,\"lock\":%s,\"returning\":%s,\"looks\":%llu,\"returns\":%llu,\"taps\":%llu},\"selected_item\":%u,\"last_weapon\":%u,\"crouch_entries\":%u,\"crouch_exits\":%u,\"crouch_blocked\":%u,\"facings\":%llu,\"arms\":%llu,\"orientations\":%llu,\"fp\":{\"requested\":%s,\"supported\":%s,\"blend\":%.3f,\"reason\":\"%s\",\"updates\":%llu,\"fallbacks\":%llu,\"follows\":%llu,\"head_hides\":%llu,\"head_reclaims\":%llu,\"head_flag\":%u,\"min_boom\":%u,\"projection\":%d,\"projections\":%llu,\"near\":%s,\"weapon\":{\"enabled\":%s,\"hands\":%llu,\"draws\":%llu,\"flashes\":%llu,\"items\":%llu,\"readies\":%llu,\"pose\":\"%s\",\"recorded\":%llu,\"arm_hides\":%llu,\"fade_clears\":%llu,\"matrix\":%u},\"kick\":%s},\"aim\":%s,\"draw_distance\":%s,\"steroids\":%s,\"steroid_beat\":%s,\"pickup_select\":%s,\"run_click\":%s,\"powerups\":%s,\"jump_walls\":%s,\"landing\":%s,\"dynamite\":%s}",
         sensitivity()*360/tau,
         edge_jumps,step_drops,run_offs,delayed_jumps,standing_takeoffs,swim_mantles,wade_jumps,swim_dives,swim_dive_stops,swim_paces,swimming_modern()?"modern":"original",swim_fire_masks,swim_fire_restores,swim_aims,swim_aim_restores,swim_arm_aims,swim_redraws,ledge_assists,jet_updates,jet_hover_engages,jet_descents,jet_hold_captures,jet_root_nudges,jetpack_input_ready()?"true":"false",jetpack_classic()?"classic":"modern",jetpack_classic_input_ready()?"true":"false",jet_classic_updates,push_masks,push_idle_masks,push_grab_ready()?"true":"false",ledge_reach_arms,air_mantles,hang_releases,lift_catches,turn_catches,drop_mantles,last_drop_rel,step_ups,mantle_upper_handoffs,mantle_upper_restores,last_step_rel,edge_postpones,manual_jump()?"manual":"assisted",air_steers,coyote_jumps,quick_takeoffs,air_cap,hang_settles,ceiling_hang_ready()?"true":"false",ceiling_updates,ceiling_turns,ceiling_advances,ceiling_drops,ladder_top_available()?"true":"false",mount.active?"true":"false",ladder_mount_starts,ladder_mounts,ladder_mount_aborts,ladder_leaps,ladder_leap_nudges,ladder_end_probes,ladder_end_hits,ladder_end_stops,ladder_mount_finishes,ladder_actor_exits,ladder_actor_checks,pole_mount_starts,pole_mounts,pole_mount_aborts,pole_floor_rejects,pole_stall_drops,pole_mount.active?"true":"false",(unsigned long long)identity_calls,(unsigned long long)identity_checks,(unsigned long long)(identity_ns/1000),(unsigned long long)selections,(unsigned long long)jumps,(unsigned long long)speed_changes,(unsigned long long)moves,(unsigned long long)probes,(unsigned long long)cameras,frame_window,
-        (unsigned long long)refusals,lease_ready()?"true":"false",swim_lease_ready()?"true":"false",(unsigned long long)looks,(unsigned long long)orbits,yaw,pitch,radius,preferred_radius,shoulder_offset,recentering?"true":"false",(unsigned long long)recenters,rest_pitch,selected_item,last_equipped,crouch_entries,crouch_exits,crouch_blocked,(unsigned long long)facings,(unsigned long long)arms,(unsigned long long)orientations,
+        (unsigned long long)refusals,lease_ready()?"true":"false",swim_lease_ready()?"true":"false",(unsigned long long)looks,(unsigned long long)orbits,yaw,pitch,radius,preferred_radius,shoulder_offset,recentering?"true":"false",(unsigned long long)recenters,rest_pitch,key_hold,key_lock?"true":"false",key_return?"true":"false",(unsigned long long)key_looks,(unsigned long long)key_returns,(unsigned long long)key_taps,selected_item,last_equipped,crouch_entries,crouch_exits,crouch_blocked,(unsigned long long)facings,(unsigned long long)arms,(unsigned long long)orientations,
         input_snapshot(Context::Gameplay).first_person?"true":"false",fp_supported?"true":"false",fp_blend,fp_reason,(unsigned long long)fp_updates,(unsigned long long)fp_fallbacks,(unsigned long long)fp_follows,(unsigned long long)head_hides,(unsigned long long)head_reclaims,head_flag,psx_mod_read_word(min_boom_word),fp_blend>0?last_projection:(int)(int16_t)psx_mod_read_half(camera+0x42),(unsigned long long)projections,near_clip_debug_json(),weapon_view_enabled()?"true":"false",(unsigned long long)weapon_hands,(unsigned long long)weapon_draws,(unsigned long long)weapon_flashes,(unsigned long long)weapon_items,(unsigned long long)weapon_readies,weapon_ready_pose()?"ready":"animated",(unsigned long long)poses_recorded,(unsigned long long)arm_hides,(unsigned long long)fade_clears,weapon_matrix,kick_debug_json(),aim_debug_json(),draw_distance_debug_json(),steroids_debug_json(),steroids_beat_debug_json(),pickup_select_debug_json(),run_click_debug_json(),powerups_debug_json(),jump_walls_debug_json(),landing_debug_json(),dynamite_debug_json());
     return buffer;
 }

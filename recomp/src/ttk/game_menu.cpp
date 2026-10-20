@@ -430,6 +430,7 @@ struct KeyName {int code;const char* token;const char* shown;};
 const KeyName key_names[]={
     {0,"Unbound","NONE"},{44,"Space","SPACE"},{224,"LCtrl","LEFT CTRL"},{225,"LShift","SHIFT"},{226,"Alt","ALT"},
     {71,"ScrollLock","SCROLL LOCK"},{47,"LBracket","["},{48,"RBracket","]"},
+    {74,"Home","HOME"},{75,"PageUp","PAGE UP"},{77,"End","END"},{78,"PageDown","PAGE DOWN"},
     {51,"Semicolon","SEMICOLON"},{52,"Apostrophe","APOSTROPHE"},{54,"Comma","COMMA"},{55,"Period","PERIOD"},
     {-1,"Mouse1","LEFT MOUSE"},{-3,"Mouse2","RIGHT MOUSE"},{-2,"Mouse3","MIDDLE MOUSE"},{-4,"Mouse4","MOUSE 4"},{-5,"Mouse5","MOUSE 5"},
 };
@@ -571,6 +572,8 @@ const KeyRow key_rows[]={
     {"MEDKIT",medkit},{"STEROIDS",steroids},{"JETPACK",jetpack},{"GOGGLES",goggles},{"BIO MASK",biomask},
     {"PREVIOUS MISSION ITEM",mission_previous},{"NEXT MISSION ITEM",mission_next},
     {"CAMERA",-1},{"FIRST / THIRD PERSON",camera_view},{"SHOULDER",camera_shoulder},{"RECENTER CAMERA",camera_recenter},
+    {"LOOK UP",look_up,nullptr,"HOLD, EASES BACK ON RELEASE"},{"LOOK DOWN",look_down,nullptr,"HOLD, EASES BACK ON RELEASE"},
+    {"LOCK LOOK UP",lock_look_up,nullptr,"HOLD, STAYS UNTIL A LOOK KEY"},{"LOCK LOOK DOWN",lock_look_down,nullptr,"HOLD, STAYS UNTIL A LOOK KEY"},
     {"ORIGINAL CONTROLS",-1},{"ORIGINAL AIM",original_aim},{"ORIGINAL STRAFE LEFT",original_strafe_left},
     {"ORIGINAL STRAFE RIGHT",original_strafe_right},
 };

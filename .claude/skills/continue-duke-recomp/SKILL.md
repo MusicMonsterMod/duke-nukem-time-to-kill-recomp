@@ -22,7 +22,8 @@ Read `MODERNIZATION_JOBS.md` as the canonical backlog, plus `documentation/00-st
 
 When the selection above is empty:
 
-- Present the current job IDs, short names and statuses, grouped compactly by domain. Include all unfinished jobs; summarize completed and cancelled jobs separately.
+- Present the current job IDs, short names and statuses, grouped by domain. Include all unfinished jobs; summarize completed and cancelled jobs separately.
+- Layout (user preference, 2026-10-20): one `###` heading per domain, then one bullet per job, `- **ID** - short name`, with any non-Todo status or blocking dependency in brackets after the name, e.g. `(**Blocked**)` or `(waits on D21)`. No tables and no several jobs crammed onto one line. After the unfinished jobs, a short `## Finished` section (Done count with recent IDs, Accepted-not-closed count, Cancelled IDs), then `## Suggested starting points` with two or three short bullets, then the question.
 - Identify ready jobs from their dependencies and suggest a useful starting point. Explain any existing In progress job or blocker.
 - Ask which job the user wants to work on and **wait for their choice**. End the turn there. Listing jobs does not authorize starting one. Do not edit files, build, launch the game or mark a job In progress just to show the list.
 

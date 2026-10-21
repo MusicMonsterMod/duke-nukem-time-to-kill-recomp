@@ -196,6 +196,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D19Q1 | SAVE GAME thumbnail shows the save screen (OVERWRITE THIS SAVE?) instead of play (player UI slot 1; cause: stale CPU VRAM, not first person) | Done (user-accepted 2026-10-20) | D19Q |
 | D19S | Delete saves from LOAD GAME: Delete on a slot asks DELETE SAVED GAME: "<name>" (NO first) | Done (user-accepted 2026-10-21) | D19K, D19Q |
 | D19T | Real double quote marks (" and ") in the game's menu font: the text call draws `"` as a single quote | Done (user-accepted 2026-10-21) | D19S |
+| D19T1 | DELETE SAVED GAME: shows the slot's name without quotes (cleaner; D19T quotes stay available) | Done (user-accepted 2026-10-21) | D19S, D19T |
 | D19L | Menus stay up and responsive while demo scenes load behind the title menu (no blank spinner gap) | Done (user-accepted 2026-10-19 with D19O) | D19J, D19E |
 | D19M | QUIT GAME menu item that closes the whole program (pause list, death list, title main menu), with a YES / NO prompt | Done (user-accepted 2026-10-19; title item in D19J, accepted) | D19H |
 | D19O | Frontend redraws flash back to the previous menu image after a change (PRESS START -> main menu: 13 presents of PRESS START; also in the original menus) | Done (user-accepted 2026-10-19) | D19C, D19J |
@@ -6511,6 +6512,24 @@ plain darkened world without the menu text would be the minimum).
 slots, from a fresh pause and after a LOAD GAME, always stores a picture of
 play with no menu text; LOAD GAME and F7 show it; Vanilla unchanged; the
 user judges it.
+
+### D19T1 - No quotes around the name on DELETE SAVED GAME:
+
+**Done (user-accepted 2026-10-21: "perfect. again lock it in close it out").**
+Opened 2026-10-21. User (ad hoc): "on the load game menu, i want
+the quotes for the name to be removed when you delete a slot. im glad we
+created the glyphs, but after seeing it, it will look cleaner without them."
+
+Implementation: `draw_delete_ask` in `recomp/src/ttk/game_menu.cpp` builds the
+name line as `SLOT nn - <name>` (or `SLOT nn`) with no surrounding `"`, in
+both the Console steel path and the menu-font fallback. The D19T quote glyphs
+(menu font and font pack) are untouched and remain available to any string
+that contains `"`. Same prompt on SAVE GAME's Delete. Incremental build links;
+not launched (one-string change). Executable
+`95c420cfcfe6e4e25945f29405a14890f0892bb1f4096dc93c012f49c748db19`.
+
+**Acceptance:** Delete on a used LOAD GAME / SAVE GAME slot shows DELETE SAVED
+GAME: with the name line unquoted; nothing else changes; the user judges it.
 
 ### D19T - Real double quote marks in the menu font
 

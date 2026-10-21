@@ -1768,15 +1768,15 @@ void draw_save_ask(Guest& g,const Geometry& geo) {
     g.prompt(icon_cross,"CONFIRM",0,py);
     g.prompt(icon_triangle,"CANCEL",geo.w/4,py);
 }
-// D19S: DELETE SAVED GAME: and the slot's name in quotes, under the slot's
-// picture as OVERWRITE THIS SAVE? shows it; YES / NO with NO first.
+// D19S: DELETE SAVED GAME: and the slot's name (no quotes, D19T1), under the
+// slot's picture as OVERWRITE THIS SAVE? shows it; YES / NO with NO first.
 void draw_delete_ask(Guest& g,const Geometry& geo) {
     if(delete_from==Page::Save) g.say("SAVE GAME",0,heading_y(geo),font_menu|centre);
     else g.say_id(text_load,0,heading_y(geo),font_menu|centre);
     const int th=62, tw=th*geo.w/geo.h, ty=-76;
     overlay_thumb(cursor,!slot_info[cursor].compatible,geo,-tw/2,ty,tw,th);
     char slot[24];std::snprintf(slot,sizeof slot,"SLOT %02d",cursor+1);
-    const std::string name="\""+(slot_info[cursor].named ? std::string(slot)+" - "+slot_name(cursor) : std::string(slot))+"\"";
+    const std::string name=slot_info[cursor].named ? std::string(slot)+" - "+slot_name(cursor) : std::string(slot);
     g.say("DELETE SAVED GAME:",0,ty+th+14,font_menu|centre);
     // The save's name in Console steel, as the save time on the list.
     if(steel_text()) overlay_text(geo,name,0,ty+th+34);

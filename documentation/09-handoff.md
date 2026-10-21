@@ -1,5 +1,15 @@
 # Next-session handoff
 
+## 2026-10-21 - D19T1 accepted (no quotes on DELETE SAVED GAME:)
+
+- User: "perfect. again lock it in close it out." D19T1 Done.
+
+## 2026-10-21 - D19T1 no quotes on DELETE SAVED GAME: (Needs playtest)
+
+- Ad hoc user request: the slot name line on DELETE SAVED GAME: (LOAD GAME
+  and SAVE GAME) is drawn without quotes. D19T quote glyphs kept. Built, not
+  launched.
+
 ## 2026-10-21 - D19T accepted (real double quotes)
 
 - User: "that's awesome. lock it in close it out." D19T Done: real opening

@@ -1,5 +1,26 @@
 # Next-session handoff
 
+## 2026-10-21 - D17R accepted; D17R1 and D17X opened
+
+- User: "Perfect!! Lock this in." D17R Done; executable
+  `fbab9bc39f40bc820e4acf06dc161b6ada7ae730814ba174cb35f1807606552d` is the
+  regression baseline.
+- New Todo jobs: D17R1 (sky artifacting when looking up/down and turning,
+  medieval UI slot 2 with possible camera jerk, UI slot 8) and D17X (small
+  white triangles on boat posts, UI slot 6, and grave-dig soil, UI slot 7, in
+  first person; backlog, not started).
+
+## 2026-10-20 - D17R sky edges fixed (Needs playtest)
+
+- The black top corners and dark side edges when looking up in 16:9 came
+  from the shared sky routine still drawing for 4:3. New plugin
+  `recomp/src/ttk/sky_widescreen.cpp` (no regeneration, no framework change)
+  widens the fill, the backdrop and the sky clip rectangle. Checked offscreen
+  on slot 9, medieval slot 2, D17O slot 10, third person, 21:9 and 120 FPS.
+  HOG HEAVEN outdoors was not reached offscreen. Executable
+  `fbab9bc39f40bc820e4acf06dc161b6ada7ae730814ba174cb35f1807606552d`. Awaiting the user's playtest.
+  [Note 172](172-d17r-sky-edges.md).
+
 ## 2026-10-20 - D26G accepted
 
 - User: "lock it in and close it out!!". D26G Done; executable

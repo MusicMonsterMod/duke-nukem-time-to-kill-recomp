@@ -133,7 +133,7 @@ add_custom_target(ttk-math-shard ALL
 add_dependencies(ttk-math-shard psx-runtime)
 
 # D04 PC action input; framework seams are retained in patches/.
-target_sources(psx-runtime PRIVATE src/ttk/pc_input.cpp src/ttk/modern_controls.cpp src/ttk/weapon_aim.cpp src/ttk/near_clip.cpp src/ttk/frame_replay.cpp src/ttk/frontend_input.cpp src/ttk/level_select.cpp src/ttk/game_menu.cpp src/ttk/live_env.cpp)
+target_sources(psx-runtime PRIVATE src/ttk/pc_input.cpp src/ttk/modern_controls.cpp src/ttk/weapon_aim.cpp src/ttk/near_clip.cpp src/ttk/sky_widescreen.cpp src/ttk/frame_replay.cpp src/ttk/frontend_input.cpp src/ttk/level_select.cpp src/ttk/game_menu.cpp src/ttk/live_env.cpp)
 target_include_directories(psx-runtime PRIVATE src/ttk)
 
 # Explicit opt-in native input checks use the same SDL backend as the player.
@@ -173,6 +173,16 @@ if(TARGET SDL3::SDL3)
     target_compile_options(ttk-aim-test PRIVATE -UNDEBUG)
     target_compile_features(ttk-aim-test PRIVATE cxx_std_17)
     target_link_libraries(ttk-aim-test PRIVATE SDL3::SDL3)
+endif()
+
+if(TARGET SDL3::SDL3)
+    add_executable(ttk-sky-test EXCLUDE_FROM_ALL tests/local/sky_widescreen_native.cpp src/ttk/sky_widescreen.cpp
+        ${PSXRECOMP_ROOT}/runtime/src/psx_sha256.c)
+    target_include_directories(ttk-sky-test PRIVATE src/ttk ${PSXRECOMP_ROOT}/runtime/include)
+    target_compile_options(ttk-sky-test PRIVATE -UNDEBUG)
+    target_compile_features(ttk-sky-test PRIVATE cxx_std_17)
+    target_compile_definitions(ttk-sky-test PRIVATE PSX_SDL3=1)
+    target_link_libraries(ttk-sky-test PRIVATE SDL3::SDL3)
 endif()
 
 add_executable(ttk-scene-test EXCLUDE_FROM_ALL tests/local/scene_lifetime_native.cpp

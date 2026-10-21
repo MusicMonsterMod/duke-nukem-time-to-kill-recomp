@@ -1,5 +1,23 @@
 # Current status - 2026-10-04
 
+## 2026-10-21 - D17R accepted; D17R1 and D17X opened
+
+- User: "Perfect!! Lock this in." D17R Done; executable
+  `fbab9bc39f40bc820e4acf06dc161b6ada7ae730814ba174cb35f1807606552d` is the
+  regression baseline.
+- New Todo jobs: D17R1 (sky artifacting when looking up/down and turning,
+  medieval UI slot 2 with possible camera jerk, UI slot 8) and D17X (small
+  white triangles on boat posts, UI slot 6, and grave-dig soil, UI slot 7, in
+  first person; backlog, not started).
+
+## 2026-10-20 - D17R sky edges in widescreen (Needs playtest)
+
+- Cause: the sky routine runs after the root rectangle is back to 4:3, so its
+  sky-colour fill, camera-facing backdrop and clip rectangle stopped at the
+  original picture's edges in 16:9. `sky_widescreen.cpp` widens them by the
+  widescreen margin; 4:3 and Vanilla unchanged. Executable
+  `fbab9bc39f40bc820e4acf06dc161b6ada7ae730814ba174cb35f1807606552d`.
+
 ## 2026-10-20 - D26G accepted
 
 - User: "lock it in and close it out!!". D26G Done.

@@ -554,6 +554,11 @@ lookup change and its compiled oracle test. All these remain local to recomp.
   `ttk_input` near report has `whole_polygons` and `subdivided_kept`.
 - `ttk-near-test disc/SLUS_005.83` now also runs whole-polygon contracts.
 
+2026-10-20 D17R:
+- `ttk-sky-test disc/SLUS_005.83`: the sky fill, backdrop and clip
+  rectangle widening for the widescreen margin, with its call-site, split-screen
+  and sky-code identity gates ([note 172](172-d17r-sky-edges.md)).
+
 
 2026-10-04 D17Q ([note 99](99-d17q-uv-seams.md)):
 

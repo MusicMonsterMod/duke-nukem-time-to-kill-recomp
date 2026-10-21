@@ -90,6 +90,14 @@ bool savestate_slot_resumes(int slot) {
     while(file>>word>>value) if(word=="resume") return value==1;
     return false;
 }
+// The sidecar goes only once the slot file is gone: a failed delete leaves
+// the save as it was.
+bool savestate_slot_delete(int slot) {
+    if(!savestate_delete_slot(slot))return false;
+    const std::string path=sidecar_path(slot);
+    if(!path.empty())std::remove(path.c_str());
+    return true;
+}
 }
 
 namespace {

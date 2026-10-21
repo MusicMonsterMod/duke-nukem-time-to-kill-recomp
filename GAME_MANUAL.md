@@ -1087,6 +1087,13 @@ the same way on every menu screen:
   Slots saved before level names were recorded read SAVED GAME. Memory card
   saves are no longer offered here in Modernized; Vanilla
   (`run.py --vanilla`) keeps the original memory card LOAD GAME.
+- **Deleting a save:** on LOAD GAME or SAVE GAME, press Delete on a used slot.
+  DELETE SAVED GAME: asks with the slot's name in steel lettering (NO highlighted); YES removes
+  that save (and its picture) and the slot reads EMPTY, with DELETED SLOT NN
+  below the list. If the files cannot be removed the slot is kept and the page
+  says SLOT NN COULD NOT BE DELETED. Saves from another build (greyed on LOAD
+  GAME) can be deleted this way. Delete does nothing on an empty slot, and
+  never touches memory cards.
 - **Startup:** the memory card check runs at full speed, so the title follows
   the intro movies after a short black moment.
   Modernized no longer shows the PlayStation memory card checks

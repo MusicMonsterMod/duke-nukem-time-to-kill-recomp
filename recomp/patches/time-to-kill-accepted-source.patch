@@ -478,10 +478,20 @@ index 00000000..e34ef18e
 +
 +#endif
 diff --git a/runtime/include/savestate.h b/runtime/include/savestate.h
-index e03a1e4a..fd16f7a6 100644
+index e03a1e4a..e58c9aec 100644
 --- a/runtime/include/savestate.h
 +++ b/runtime/include/savestate.h
-@@ -86,6 +86,11 @@ int savestate_slot_mtime(int slot, int64_t* out_time);
+@@ -81,11 +81,21 @@ int savestate_write_slot(int slot, const void* data, size_t size);
+ /* 1 if the slot file exists and is non-empty. */
+ int savestate_slot_exists(int slot);
+ 
++/* Time to Kill D19S: delete a slot (its file, thumbnail and any leftover
++ * temp file). Refused while a save or load is staged. Returns 1 when the slot
++ * file is gone afterwards (or never existed), 0 when it is still there. */
++int savestate_delete_slot(int slot);
++
+ /* Slot file modified time, seconds since the Unix epoch. */
+ int savestate_slot_mtime(int slot, int64_t* out_time);
  
  /* Per-slot screenshot thumbnails captured after a successful save. */
  int savestate_capture_thumb(int slot);
@@ -7599,7 +7609,7 @@ index 00000000..da318805
 +
 +#endif
 diff --git a/runtime/src/savestate.c b/runtime/src/savestate.c
-index 7f191c99..cb798473 100644
+index 7f191c99..0ff00f14 100644
 --- a/runtime/src/savestate.c
 +++ b/runtime/src/savestate.c
 @@ -62,6 +62,15 @@ static int      s_load_pending = -1;
@@ -7627,7 +7637,28 @@ index 7f191c99..cb798473 100644
          !savestate_flat_context_ok(resume_pc, cpu->gpr[29]) ||
          !psx_scheduler_disk_snapshot_ready())
          return;
-@@ -593,15 +602,21 @@ int savestate_slot_mtime(int slot, int64_t* out_time) {
+@@ -572,6 +581,20 @@ int savestate_slot_exists(int slot) {
+     return sz > 0;
+ }
+ 
++int savestate_delete_slot(int slot) {
++    char path[600], extra[620];
++    FILE* f;
++    if (savestate_pending()) return 0;
++    if (!savestate_slot_path(slot, path, sizeof(path))) return 0;
++    if (remove(path) != 0 && errno != ENOENT) return 0;
++    f = fopen(path, "rb");
++    if (f) { fclose(f); return 0; }
++    snprintf(extra, sizeof(extra), "%s.tmp", path);
++    remove(extra);
++    if (savestate_thumb_path(slot, extra, sizeof(extra))) remove(extra);
++    return 1;
++}
++
+ int savestate_slot_mtime(int slot, int64_t* out_time) {
+     char path[600];
+     if (out_time) *out_time = 0;
+@@ -593,15 +616,21 @@ int savestate_slot_mtime(int slot, int64_t* out_time) {
  #endif
  }
  
@@ -7655,7 +7686,7 @@ index 7f191c99..cb798473 100644
      dw = di.width ? di.width : 320u;
      dh = di.height ? di.height : 240u;
      for (y = 0; y < SAVESTATE_THUMB_H; y++) {
-@@ -613,6 +628,19 @@ int savestate_capture_thumb(int slot) {
+@@ -613,6 +642,19 @@ int savestate_capture_thumb(int slot) {
                  : (gpu_display_pixel_argb(&di, sx, sy) | 0xFF000000u);
          }
      }
@@ -7675,7 +7706,7 @@ index 7f191c99..cb798473 100644
      hdr.magic[0] = 'P';
      hdr.magic[1] = 'S';
      hdr.magic[2] = 'T';
-@@ -902,6 +930,7 @@ uint32_t savestate_last_save_pc(void) {
+@@ -902,6 +944,7 @@ uint32_t savestate_last_save_pc(void) {
  
  void savestate_poll(CPUState* cpu, uint32_t resume_pc) {
      if (s_save_pending < 0 && s_load_pending < 0) return;   /* hot path: nothing staged */
@@ -7683,7 +7714,7 @@ index 7f191c99..cb798473 100644
  
      if (s_save_pending >= 0) {
          int slot = s_save_pending;
-@@ -1178,6 +1207,7 @@ void savestate_poll(CPUState* cpu, uint32_t resume_pc) {
+@@ -1178,6 +1221,7 @@ void savestate_poll(CPUState* cpu, uint32_t resume_pc) {
              s_status_pending = 0;
              s_status_last_ok = 1;
              s_status_generation++;

@@ -6,6 +6,8 @@ namespace ttk {
 bool savestate_slot_level(int slot, unsigned& level);
 // D19Q: the slot was saved on SAVE GAME (paused): loading it resumes play.
 bool savestate_slot_resumes(int slot);
+// D19S: delete a slot (file, thumbnail, sidecar); true when it is gone.
+bool savestate_slot_delete(int slot);
 // D19Q: from ttk_savestate_saved; true for SAVE GAME's own save.
 bool game_menu_saved(int slot);
 // D24B: the era a level belongs to ("" when none).

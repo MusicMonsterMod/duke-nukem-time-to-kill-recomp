@@ -194,6 +194,8 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D19R | Startup card probe hang: about 1.5 s of black screen where CHECKING MEMORY CARD was; remove or hide it (research done) | Done (2026-10-20, closeout delegated by the user) | D19K |
 | D19Q | SAVE GAME screen to match LOAD GAME: choose a savestate slot from the menus, overwrite asks, success / failure shown | Done (user-accepted 2026-10-20) | D19K |
 | D19Q1 | SAVE GAME thumbnail shows the save screen (OVERWRITE THIS SAVE?) instead of play (player UI slot 1; cause: stale CPU VRAM, not first person) | Done (user-accepted 2026-10-20) | D19Q |
+| D19S | Delete saves from LOAD GAME: Delete on a slot asks DELETE SAVED GAME: "<name>" (NO first) | Done (user-accepted 2026-10-21) | D19K, D19Q |
+| D19T | Real double quote marks (" and ") in the game's menu font: the text call draws `"` as a single quote | Todo | D19S |
 | D19L | Menus stay up and responsive while demo scenes load behind the title menu (no blank spinner gap) | Done (user-accepted 2026-10-19 with D19O) | D19J, D19E |
 | D19M | QUIT GAME menu item that closes the whole program (pause list, death list, title main menu), with a YES / NO prompt | Done (user-accepted 2026-10-19; title item in D19J, accepted) | D19H |
 | D19O | Frontend redraws flash back to the previous menu image after a change (PRESS START -> main menu: 13 presents of PRESS START; also in the original menus) | Done (user-accepted 2026-10-19) | D19C, D19J |
@@ -6509,6 +6511,78 @@ plain darkened world without the menu text would be the minimum).
 slots, from a fresh pause and after a LOAD GAME, always stores a picture of
 play with no menu text; LOAD GAME and F7 show it; Vanilla unchanged; the
 user judges it.
+
+### D19T - Real double quote marks in the menu font
+
+**Todo (opened 2026-10-21; not started).** User, accepting D19S: "i want a
+backlog job standing up for a real " and " for this font." The game's menu
+text call (glyph call `0x8008b210`, `font_small` / `font_menu` in
+`game_menu.cpp`) has no double-quote glyph: `"` comes out as a single quote
+mark (seen in D19S's DELETE SAVED GAME: prompt before its name line moved to
+Console steel, which has real quotes).
+
+Intended behaviour (Modernized; Vanilla unchanged):
+- Opening and closing double quotes (the user's " and ") in the menu font,
+  drawn in the disc font's own style (gold, outline, size and spacing of its
+  apostrophe and letters), for both the small and the large menu sizes.
+- Usable by every Modernized menu string that wants quotes; nothing in the
+  original's own text changes.
+- Find first how the glyph table maps characters (D19 glyph tables from
+  `0x800c3f38`, the identity guard in `game_menu.cpp`) and whether a new
+  glyph can come from the existing font pack / host overlay path or needs
+  pixels added to the font texture page in VRAM.
+
+**Acceptance:** a test string with " and " in both menu sizes shows real
+double quotes that match the font; no other glyph changes; menu identity
+guard still passes; Vanilla unchanged; the user judges it.
+
+### D19S - Delete saves from the LOAD GAME screen
+
+**Done (user-accepted 2026-10-21: "perfect. lock it in"), [note 175](documentation/175-d19s-delete-saves.md).**
+Delete on a used slot of LOAD GAME (title, pause, death) or SAVE GAME asks
+DELETE SAVED GAME: with the slot's name in quotes, in Console steel lettering
+(user request), under its picture, YES / NO with NO first. YES removes that
+slot's file, thumbnail and level sidecar through new framework call
+`savestate_delete_slot`; the list shows EMPTY at once and says DELETED SLOT
+NN, or SLOT NN COULD NOT BE DELETED with the slot intact. Delete is a fixed
+menu key (like Enter / Escape), not a KEY BINDINGS row, and has no prompt in
+the bottom bar yet (D19F). Executable
+`64e051548f31702e0509e9d9cb0131ef749e438c345ab2ca50ea4ee51a4d5974`.
+Offscreen tests on private savestate copies passed (note 175). Follow-up:
+D19T (real double quotes in the menu font).
+
+**Opened 2026-10-21.** User: "from the load game screen,
+we can delete saves. for modern keyboard controls, the user can press delete
+against a save, and it should bring up a dialogue "delete saved game:<br>
+"<savegame-name>"". Depends on D19K (the LOAD GAME page and slot list) and
+D19Q (its prompts, atomic slot writes and SAVED / failure messages).
+
+Intended behaviour (Modernized; Vanilla keeps the original memory card saves):
+- On LOAD GAME's page (title, pause and death lists), Delete on a used slot
+  opens a prompt in the page's style, two lines:
+  `DELETE SAVED GAME:` then the save's name in quotes, e.g.
+  `"SLOT 03 - <LEVEL NAME>"` (the name as the list shows it; slots have no
+  player-given names today).
+- YES / NO with NO first, as OVERWRITE THIS SAVE? and the other destructive
+  prompts. Enter on YES deletes; Escape or NO goes back to the list with the
+  same slot selected.
+- After a delete the slot shows EMPTY at once (thumbnail, era and save time
+  cleared); a short DELETED confirmation, or a visible failure with the slot
+  unchanged if the files cannot be removed.
+- Delete on an EMPTY slot does nothing. Greyed saves from another build can
+  be deleted (they cannot be loaded, so this is how to clear them).
+- Decide during the job whether SAVE GAME's page (D19Q) offers the same key,
+  and whether the Delete key should be rebindable in KEY BINDINGS (MENU) and
+  shown as a prompt (ties to D19F).
+- Removes only the chosen slot's savestate files (and its thumbnail) through
+  the framework's slot API, never memory cards or other slots. Rewind and F7
+  saves keep working.
+
+**Acceptance:** Delete on a used slot shows the two-line prompt with the
+right name; NO / Escape changes nothing; YES empties exactly that slot, the
+list updates, LOAD GAME and SAVE GAME stay correct afterwards and across a
+restart; failure is reported; title, pause and death lists all work; tested
+on private copies of savestates only; Vanilla unchanged; the user confirms.
 
 ### D19R - Startup card probe hang
 

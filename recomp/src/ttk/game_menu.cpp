@@ -385,7 +385,8 @@ int pending_speed=-1;     // D19N: GAME SPEED for 0x80089920 at the next tick
 // D19G: Keys is KEY BINDINGS (from PC CONTROLS).
 // D19K: Load is LOAD GAME's slot list, LoadAsk its LOAD THIS GAME?.
 // D19Q: Save is SAVE GAME's slot list, SaveAsk its OVERWRITE THIS SAVE?.
-enum class Page {Options, Pause, Death, Brief, Ask, Main, Difficulty, TwoPlayer, Character, Keys, Load, LoadAsk, Save, SaveAsk};
+// D19S: DeleteAsk is DELETE SAVED GAME: on either list.
+enum class Page {Options, Pause, Death, Brief, Ask, Main, Difficulty, TwoPlayer, Character, Keys, Load, LoadAsk, Save, SaveAsk, DeleteAsk};
 enum class Act {Resume, Brief, Options, Save, Load, Restart, MainMenu, Continue, Quit, QuitGame, OnePlayer, TwoPlayer, Level, RestoreKeys};
 struct ListItem {const char* label;Act act;};
 bool title_page(Page p) {return p==Page::Main || p==Page::Difficulty || p==Page::TwoPlayer || p==Page::Character;}
@@ -840,6 +841,25 @@ void save_confirm() {
     page=Page::SaveAsk;save_choice=1;load_note.clear();sound(0);
 }
 
+// ---- D19S: Delete on a used slot of LOAD GAME or SAVE GAME ----
+// DELETE SAVED GAME: and the slot's name, YES / NO with NO first. YES removes
+// that slot's file, thumbnail and sidecar (never a card or another slot) and
+// the list shows it EMPTY; a delete that fails leaves the slot as it was.
+// Saves from another build can be deleted too (the only way to clear them).
+Page delete_from=Page::Load;
+int delete_choice=1;  // DeleteAsk: 0 YES, 1 NO
+void delete_ask() {
+    if((page!=Page::Load && page!=Page::Save) || !slot_info[cursor].exists) return;
+    delete_from=page;page=Page::DeleteAsk;delete_choice=1;load_note.clear();sound(0);
+}
+void delete_now() {
+    page=delete_from;
+    char t[40];
+    if(!savestate_pending() && savestate_slot_delete(cursor)) {std::snprintf(t,sizeof t,"DELETED SLOT %02d",cursor+1);sound(0);}
+    else {std::snprintf(t,sizeof t,"SLOT %02d COULD NOT BE DELETED",cursor+1);sound(1);}
+    read_slots();thumb_hide();load_note=t;
+}
+
 void ask_cancel() {
     if(ask_from==Page::Keys) keys_return();
     else open_list(ask_from,ask_act);
@@ -898,6 +918,7 @@ void move(int dir) {
     if(page==Page::LoadAsk) return;
     if(page==Page::Save) {load_move(dir);return;}
     if(page==Page::SaveAsk) {save_choice^=1;sound(1);return;}
+    if(page==Page::DeleteAsk) {delete_choice^=1;sound(1);return;}
     if(page==Page::Keys) {if(!key_wait) keys_move(dir);return;}
     if(page==Page::Brief) return;
     if(page!=Page::Options) {
@@ -1029,6 +1050,7 @@ void confirm() {
     case Page::LoadAsk: load_now();return;
     case Page::Save: save_confirm();return;
     case Page::SaveAsk: if(save_choice==0) save_now(); else {page=Page::Save;sound(1);} return;
+    case Page::DeleteAsk: if(delete_choice==0) delete_now(); else {page=delete_from;sound(1);} return;
     case Page::Options: break;
     default: title_cmds.push_back(Cmd::Confirm);return; // D19J: the title pages
     }
@@ -1049,6 +1071,7 @@ void back(uint16_t mode) {
     case Page::LoadAsk: page=Page::Load;sound(1);return;
     case Page::Save: thumb_hide();load_note.clear();open_list(Page::Pause,Act::Save);sound(0);return;
     case Page::SaveAsk: page=Page::Save;sound(1);return;
+    case Page::DeleteAsk: page=delete_from;sound(1);return;
     case Page::Options: break;
     default: title_cmds.push_back(Cmd::Back);return; // D19J: the title pages
     }
@@ -1072,7 +1095,7 @@ bool game_menu_input(const MenuKeys& keys) {
     static MenuKeys carry;
     MenuKeys k=keys;
     k.up_taps+=carry.up_taps;k.down_taps+=carry.down_taps;k.left_taps+=carry.left_taps;k.right_taps+=carry.right_taps;
-    k.confirm_taps+=carry.confirm_taps;k.back_taps+=carry.back_taps;k.square_taps+=carry.square_taps;
+    k.confirm_taps+=carry.confirm_taps;k.back_taps+=carry.back_taps;k.square_taps+=carry.square_taps;k.delete_taps+=carry.delete_taps;
     carry=MenuKeys{};
     // Busy drawing, or a screen change waits for the next tick: keys wait too.
     if(quitting) return owned;
@@ -1125,9 +1148,10 @@ bool game_menu_input(const MenuKeys& keys) {
     if(k.confirm_taps) confirm();
     else if(k.back_taps) back(c->mode);
     else if(k.square_taps) defaults();
+    else if(k.delete_taps) delete_ask();
     // D19J: any key keeps the main menu from going back to PRESS START.
     if(k.up || k.down || k.left || k.right || k.confirm || k.back || k.square || k.wheel || k.up_taps || k.down_taps
-       || k.left_taps || k.right_taps || k.confirm_taps || k.back_taps || k.square_taps) title_activity=true;
+       || k.left_taps || k.right_taps || k.confirm_taps || k.back_taps || k.square_taps || k.delete_taps) title_activity=true;
     return true;
 }
 
@@ -1696,6 +1720,27 @@ void draw_save_ask(Guest& g,const Geometry& geo) {
     g.prompt(icon_cross,"CONFIRM",0,py);
     g.prompt(icon_triangle,"CANCEL",geo.w/4,py);
 }
+// D19S: DELETE SAVED GAME: and the slot's name in quotes, under the slot's
+// picture as OVERWRITE THIS SAVE? shows it; YES / NO with NO first.
+void draw_delete_ask(Guest& g,const Geometry& geo) {
+    if(delete_from==Page::Save) g.say("SAVE GAME",0,heading_y(geo),font_menu|centre);
+    else g.say_id(text_load,0,heading_y(geo),font_menu|centre);
+    const int th=62, tw=th*geo.w/geo.h, ty=-76;
+    overlay_thumb(cursor,!slot_info[cursor].compatible,geo,-tw/2,ty,tw,th);
+    char slot[24];std::snprintf(slot,sizeof slot,"SLOT %02d",cursor+1);
+    const std::string name="\""+(slot_info[cursor].named ? std::string(slot)+" - "+slot_name(cursor) : std::string(slot))+"\"";
+    g.say("DELETE SAVED GAME:",0,ty+th+14,font_menu|centre);
+    // The save's name in Console steel, as the save time on the list.
+    if(steel_text()) overlay_text(geo,name,0,ty+th+34);
+    else g.say(name.c_str(),0,ty+th+32,font_small|centre);
+    overlay_commit();
+    g.say_id(text_yes,0,ty+th+54,font_menu|centre|(delete_choice==0?blue:0));
+    g.say_id(text_no,0,ty+th+72,font_menu|centre|(delete_choice==1?blue:0));
+    const int py=prompt_y(geo);
+    g.prompt(icon_select,"SELECT",-geo.w/4,py);
+    g.prompt(icon_cross,"CONFIRM",0,py);
+    g.prompt(icon_triangle,"CANCEL",geo.w/4,py);
+}
 // LOAD THIS GAME?, as the original LOAD screen asks, with CONFIRM and CANCEL.
 void draw_load_ask(Guest& g,const Geometry& geo) {
     g.say_id(text_load,0,heading_y(geo),font_menu|centre);
@@ -2053,7 +2098,7 @@ bool title_tick(CPUState* cpu,const MenuContext* c) {
         // A savestate saved on one of our pages: the main menu again.
         enter_main();owned=true;back_label=c->back_label;title_cmds.clear();
     }
-    if(!title_page(page) && page!=Page::Ask && page!=Page::Load && page!=Page::LoadAsk) return false;
+    if(!title_page(page) && page!=Page::Ask && page!=Page::Load && page!=Page::LoadAsk && page!=Page::DeleteAsk) return false;
     busy=true;
     {
         Guest g(cpu);
@@ -2064,7 +2109,7 @@ bool title_tick(CPUState* cpu,const MenuContext* c) {
         }
         // D19K: keys queued behind the one that opened LOAD GAME (or QUIT
         // GAME?) act on that page, as they would have a moment later.
-        for(;i<title_cmds.size() && pending_state<0 && (page==Page::Load || page==Page::LoadAsk || page==Page::Ask);++i) {
+        for(;i<title_cmds.size() && pending_state<0 && (page==Page::Load || page==Page::LoadAsk || page==Page::DeleteAsk || page==Page::Ask);++i) {
             switch(title_cmds[i]) {
             case Cmd::Up: move(-1);break;
             case Cmd::Down: move(1);break;
@@ -2157,7 +2202,7 @@ void draw_page(CPUState* cpu,const MenuContext* c) {
     if(image==last_image && cpu->gpr[31]==last_draw_ra) {++skip_image;skip_ra=cpu->gpr[31];return;}
     ++drawn_calls;
     last_image=image;last_draw_ra=cpu->gpr[31];
-    if(page!=Page::Load && page!=Page::LoadAsk && page!=Page::Save && page!=Page::SaveAsk) thumb_hide();
+    if(page!=Page::Load && page!=Page::LoadAsk && page!=Page::Save && page!=Page::SaveAsk && page!=Page::DeleteAsk) thumb_hide();
     busy=true;
     {
         Guest g(cpu);
@@ -2177,6 +2222,7 @@ void draw_page(CPUState* cpu,const MenuContext* c) {
         case Page::LoadAsk: draw_load_ask(g,geo);break;
         case Page::Save: draw_load(g,geo,true);break;
         case Page::SaveAsk: draw_save_ask(g,geo);break;
+        case Page::DeleteAsk: draw_delete_ask(g,geo);break;
         }
     }
     busy=false;

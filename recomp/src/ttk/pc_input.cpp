@@ -41,10 +41,10 @@ static uint64_t jump_deadline,menu_select_deadline,jump_pressed_at;
 static bool escape_hold;
 // D19D: uncaptured mouse-wheel notches waiting to move a menu cursor.
 static std::atomic<int> menu_wheel{0};
-// D19H: menu key-down events (up, down, left, right, confirm, back, square)
-// since the menu last read them; taken (and dropped when no menu screen owns
-// the keys) on every pad read.
-static std::atomic<int> menu_downs[7];
+// D19H: menu key-down events (up, down, left, right, confirm, back, square,
+// D19S delete) since the menu last read them; taken (and dropped when no menu
+// screen owns the keys) on every pad read.
+static std::atomic<int> menu_downs[8];
 static void note_menu_down(int code) {
     int k=-1;
     switch(code) {
@@ -53,6 +53,7 @@ static void note_menu_down(int code) {
     case SDL_SCANCODE_RETURN: case SDL_SCANCODE_X: k=4;break;
     case SDL_SCANCODE_ESCAPE: case SDL_SCANCODE_BACKSPACE: case SDL_SCANCODE_Z: k=5;break;
     case SDL_SCANCODE_V: k=6;break;
+    case SDL_SCANCODE_DELETE: k=7;break;
     default: return;
     }
     if(menu_downs[k].load()<6)++menu_downs[k];
@@ -738,7 +739,7 @@ void input_frame() {
     // Diagnostics only (DNTTK_TEST_INPUT=<file>): a script steers the
     // offscreen game. The file is re-read every input frame: held key names
     // (w a s d shift ctrl space e q up down enter left right x z c esc v backspace
-    // pgup pgdn home end),
+    // pgup pgdn home end delete),
     // cheat=<word> and act=<action> (D07E: once per change of word) and
     // dx=<counts> dy=<counts>
     // per frame.
@@ -754,7 +755,7 @@ void input_frame() {
             {"up",SDL_SCANCODE_UP},{"down",SDL_SCANCODE_DOWN},{"enter",SDL_SCANCODE_RETURN},
             {"left",SDL_SCANCODE_LEFT},{"right",SDL_SCANCODE_RIGHT},{"x",SDL_SCANCODE_X},{"z",SDL_SCANCODE_Z},
             {"c",SDL_SCANCODE_C},{"esc",SDL_SCANCODE_ESCAPE},{"v",SDL_SCANCODE_V},{"backspace",SDL_SCANCODE_BACKSPACE},
-            {"pgup",SDL_SCANCODE_PAGEUP},{"pgdn",SDL_SCANCODE_PAGEDOWN},{"home",SDL_SCANCODE_HOME},{"end",SDL_SCANCODE_END}};
+            {"pgup",SDL_SCANCODE_PAGEUP},{"pgdn",SDL_SCANCODE_PAGEDOWN},{"home",SDL_SCANCODE_HOME},{"end",SDL_SCANCODE_END},{"delete",SDL_SCANCODE_DELETE}};
         bool was[sizeof named/sizeof named[0]];
         for(size_t i=0;i<sizeof named/sizeof named[0];++i){was[i]=keys[named[i].code];keys[named[i].code]=false;}
         if(FILE* f=std::fopen(test_input,"r")) {
@@ -1033,8 +1034,8 @@ static bool menu_owns_keys() {
     k.back=keys[SDL_SCANCODE_ESCAPE] || keys[SDL_SCANCODE_BACKSPACE] || keys[SDL_SCANCODE_Z];
     k.square=keys[SDL_SCANCODE_V];
     k.wheel=captured?0:menu_wheel.load();
-    int* const taps[7]={&k.up_taps,&k.down_taps,&k.left_taps,&k.right_taps,&k.confirm_taps,&k.back_taps,&k.square_taps};
-    for(int i=0;i<7;++i)*taps[i]=captured?0:menu_downs[i].exchange(0);
+    int* const taps[8]={&k.up_taps,&k.down_taps,&k.left_taps,&k.right_taps,&k.confirm_taps,&k.back_taps,&k.square_taps,&k.delete_taps};
+    for(int i=0;i<8;++i)*taps[i]=captured?0:menu_downs[i].exchange(0);
     if(captured)for(auto& d:menu_downs)d.store(0);
     const bool owns=!captured && menu_handler(k);
     if(owns) {

@@ -1,5 +1,12 @@
 # Next-session handoff
 
+## 2026-10-21 - D19S accepted (delete saves from LOAD GAME); D19T opened
+
+- User: "perfect. lock it in." Delete on a used LOAD GAME / SAVE GAME slot
+  asks DELETE SAVED GAME: with the name in Console steel (NO first); YES
+  removes only that slot's files. Note 175.
+- D19T opened (Todo): real double quote marks in the game's menu font.
+
 ## 2026-10-21 - D08Z5 accepted
 
 - User: "perfect!!! lock it in close it out." D08Z5 Done; executable

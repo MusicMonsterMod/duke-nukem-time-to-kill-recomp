@@ -1,5 +1,40 @@
 # Next-session handoff
 
+## 2026-10-21 - D20B accepted (statistics screen); D20F opened
+
+- User: "i can confirm its now working and positioned correctly with the overlap ... i think we can close out the current work, just to break this task down a bit, as it is indeed working fine now." D20B Done. Note 179. Executable
+  `f9687072f1387bb2b343cc291aa0d2bbb6501ad87f5f53fdcdf681d0888d2866`.
+- D20F (Todo, not actioned): CONTINUE and SAVE GAME as a selectable list on
+  the statistics screen (V is legacy and not discoverable on keyboard and
+  mouse). D20D (richer statistics) and D20E (research) stay Todo; D20D now
+  builds on D20F.
+
+## 2026-10-21 - D20B first playtest: SAVE GAME date overlap fixed (Needs playtest)
+
+- User: works functionally; on SAVE GAME from the statistics screen the date
+  overlapped the line under the picture (their 1444x1020 window). The host
+  image used the 16:9 fit while menu frames there are presented at 4:3; it now
+  follows the presented rect (framework, patch exported). Also covers the
+  title LOAD GAME in tall windows. Note 179. Executable
+  `f9687072f1387bb2b343cc291aa0d2bbb6501ad87f5f53fdcdf681d0888d2866`.
+
+## 2026-10-21 - D20B statistics screen rebuilt (Needs playtest); D20D, D20E opened
+
+- Option B, part 1 (user: remove the built-in save, "lets go for option B"):
+  after a one-player level the statistics screen is ours in the original's
+  look; V (SAVE) opens SAVE GAME (savestate slots), never the memory card;
+  CONFIRM goes on. Saves there show the level's last picture and LEVEL
+  COMPLETE on LOAD GAME and load back onto the screen. Vanilla and two-player
+  unchanged. Hooks `0x8001FCBC`, `0x800270E8`; codegen hash unchanged.
+  Note 179. Executable
+  `b217e8898cbfa52a2baabe0efa01d13a3cbea83d9b016950fff636a6757bbbf4`.
+- Testing aid: console `endlevel` ends the level as its exit does. Executable
+  `c4bc40729ab7a1efaf7ac90b3ec8492bbdc7bd2a7ad2c9cf123c574a182bc82a`.
+- Playtest: backtick, `endlevel`; wait for the prompts, V to save, Escape /
+  save back, Enter to continue; then load that slot from LOAD GAME.
+- D20D (richer lines, best times) and D20E (enemy total, accuracy, damage
+  research) opened, not actioned.
+
 ## 2026-10-21 - D20C and D20A accepted
 
 - User: "rock solid. it's working! the artifacting is no longer present upon

@@ -46,7 +46,7 @@ constexpr uint32_t mode=0x800bcbb0, phase=0x800ce1b0, level=0x800be570;
 constexpr uint32_t end_code=0x800be55e, load_request=0x800be560, dying=0x800be55c;
 constexpr uint32_t menu=0x800be56a, players=0x800c27bc;
 constexpr uint32_t names=0x800c3d2c, strings=0x800c60f4;
-constexpr uint8_t playing=1, restart=0xfd;
+constexpr uint8_t playing=1, restart=0xfd, level_complete=4;
 constexpr uint32_t init_teardown_return=0x80025474;
 
 long pending=-1;
@@ -142,6 +142,19 @@ bool level_console_command(const char* line, void (*say)(const char*), bool& clo
         if(input_quick(save ? Quick::Save : Quick::Load)==QuickResult::Ignored)
             say(save ? "Can't quicksave while not in a game." : "Can't quickload while not in a game.");
         else close=true;
+        return true;
+    }
+    // D20B (testing): end the level as reaching its exit does (end code 4):
+    // the statistics screen, then the next level.
+    if(!std::strcmp(line,"endlevel")) {
+        if(!authentic()) {say("endlevel unavailable: unrecognised game code");return true;}
+        if(const char* refusal=travel_refusal()) {
+            char reply[96];std::snprintf(reply,sizeof reply,"Cannot end the level now: %s",refusal);
+            say(reply);return true;
+        }
+        psx_mod_write_byte(end_code,level_complete);
+        say("Level complete");
+        close=true;
         return true;
     }
     const bool all=!std::strcmp(line,"levels") || !std::strcmp(line,"level");

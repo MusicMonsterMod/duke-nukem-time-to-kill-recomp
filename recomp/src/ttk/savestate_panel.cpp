@@ -90,6 +90,12 @@ bool savestate_slot_resumes(int slot) {
     while(file>>word>>value) if(word=="resume") return value==1;
     return false;
 }
+bool savestate_slot_complete(int slot) {
+    std::ifstream file(sidecar_path(slot));
+    std::string word;unsigned value=0;
+    while(file>>word>>value) if(word=="complete") return value==1;
+    return false;
+}
 // The sidecar goes only once the slot file is gone: a failed delete leaves
 // the save as it was.
 bool savestate_slot_delete(int slot) {
@@ -200,18 +206,21 @@ int render(uint32_t* dst,int w,int h,int selected) {
 }
 
 // Called by the framework after a successful save, while guest RAM still holds
-// the saved state: record the level beside the slot (gameplay only).
+// the saved state: record the level beside the slot (gameplay, and D20B the
+// statistics screen after it: the level just completed, "complete 1").
 extern "C" void ttk_savestate_saved(int slot) {
     const std::string path=ttk::sidecar_path(slot);
     if(path.empty())return;
     std::remove(path.c_str());
     const bool resume=ttk::game_menu_saved(slot); // D19Q: SAVE GAME's save, its picture
-    if(psx_mod_read_half(0x800bcbb0)!=1)return; // not in gameplay: no level to record
+    const uint16_t mode=psx_mod_read_half(0x800bcbb0);
+    if(mode!=1 && mode!=2)return; // not in a level: no level to record
     const unsigned level=psx_mod_read_word(0x800be570);
     if(level>=32)return;
     std::ofstream file(path);
     file<<"level "<<level<<"\n";
-    if(resume) file<<"resume 1\n";
+    if(mode==2) file<<"complete 1\n";      // loads onto the statistics screen
+    else if(resume) file<<"resume 1\n";
 }
 
 PSX_MOD_CONSTRUCTOR(register_ttk_savestate_panel) {

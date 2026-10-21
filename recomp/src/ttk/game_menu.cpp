@@ -53,6 +53,13 @@
 // game hands the last page to the original handler with one Cross press: it
 // draws the same image and exits the frontend itself
 // (documentation/150-d19j-title-menu.md).
+//
+// D20B: the one-player statistics screen (game mode 2) is ours too: the same
+// lines, positions and prompts, drawn at the flip of its run handler, and SAVE
+// opens our SAVE GAME page instead of the memory card's. The original still
+// runs underneath (its timer is held, so it never shows its prompts or reads
+// the pad, and its text is hidden); CONFIRM hands it the result its own Cross
+// gives (documentation/179-d20b-statistics-screen.md).
 #include "game_menu.h"
 #include "live_env.h"
 #include "cpu_state.h"
@@ -132,6 +139,10 @@ const Guard guards[]={
     {0x80082f64u,0x220u,"e860559817616eac4b4d75765356b5ea2ccf6a10b6f9e678d9ebcd9dbf572308"},  // card settings pack and unpack
     {0x8001e394u,0xb0u,"93339da683cb20d974a0bbdbd408155d2f24ceb84afdef270976b091aea716ce"},   // pad layout copies
     {0x800bda7cu,0x10u,"fb1a32f64869bc2512840a45c4e2191f18294129c8cfa8bc2f3d6d7b49b08bb3"},   // default pad layout
+    {0x800270e8u,0xe8u,"eb6e3fbd7db19271a49d47b0767dafd6f9ff9d4035320933519db031d8d0ffe2"},   // D20B: game mode 1 exit (to the statistics screen)
+    // D20B: game mode 2 (init, enter, the challenge, two-player and one-player
+    // screens, run, next level, exit).
+    {0x800271d0u,0x1018u,"49525d942bc3a82ceb034bde4dfc33f9b69b654a76fa60f2625907c8a3fbf572"},
 };
 std::array<std::vector<uint32_t>,sizeof guards/sizeof guards[0]> expected;
 
@@ -215,6 +226,29 @@ constexpr uint16_t state_card=1, state_save_file=2, state_card_message=3;
 constexpr int text_checking_card=0x39, text_checking_save=0xf2;
 constexpr uint32_t card_states_begin=0x80022440, card_states_end=0x80022664; // states 1 and 2
 constexpr uint32_t card_unpaced_budget=300; // D19R: fields per tick, well above the probe's 90
+// D20B: game mode 2, the statistics screen. Its run handler (0x80027df8)
+// draws a screen between 0x8001fe60(2) and the flip 0x8001fcbc(1) (return
+// 0x80027f4c), stores its result (0x800d2694: 1 SAVE, -1 CONTINUE) and leaves
+// the mode when that is negative. Page 0x800d2672: 0 statistics, 1 the memory
+// card's SAVE GAME (0x8008747c), 2 statistics after a save (CONTINUE only).
+// The screens show their prompts and read the pad only once the timer
+// 0x800d2670 (300 on entry, less the fields 0x800d21fc of each tick) is out:
+// one player 0x800277dc, challenge stages 0x80027214 (two players 0x80027474).
+constexpr uint32_t stats_timer=0x800d2670, stats_page=0x800d2672, stats_result=0x800d2694, tick_fields=0x800d21fc;
+constexpr uint32_t flip=0x8001fcbc, stats_flip_ra=0x80027f4c;
+// Game mode 1's exit (0x800270e8): end code 0x800be55e 4 (level complete), or
+// 0xfe in a challenge stage, leads to mode 2. The image on screen is still the
+// level's last; by mode 2's first flip it has been cleared.
+constexpr uint32_t gameplay_exit=0x800270e8, end_code=0x800be55e;
+constexpr uint32_t stats_one_begin=0x800277dc, stats_one_end=0x80027df8, stats_challenge_begin=0x80027214, stats_challenge_end=0x80027474;
+constexpr uint16_t stats_wait_fields=300;
+// The one-player screen's values: the player's kills (+0x3b6), time in ms
+// (+0x398), continues (+0x279) and secrets (+0x3b0), the level's secret count,
+// the challenge item found (0x800d79f6) and the challenge stages won (bits of
+// 0x800d79f7 from stage 21).
+constexpr uint32_t secrets_total=0x800beb18, challenge_found=0x800d79f6, challenges_done=0x800d79f7;
+constexpr int text_kills_label=0x86, text_time_label=0x87, text_continues_label=0xf9, text_secrets_label=0x88;
+constexpr int text_challenge_label=0xfa, text_completed=0xd5, text_failed=0xd6, text_save=0x17, text_continue_prompt=0x19;
 // Text ids of the title pages (the originals pass the same).
 constexpr int text_title1=1, text_title2=2, text_one=0x57, text_two=0x58, text_load=0x31, text_options=0x59;
 constexpr int text_select=0x11, text_confirm=0x12, text_return=0x13, text_change=0x14, text_cancel=0x15, text_start=0x8a;
@@ -394,7 +428,8 @@ int pending_speed=-1;     // D19N: GAME SPEED for 0x80089920 at the next tick
 // D19K: Load is LOAD GAME's slot list, LoadAsk its LOAD THIS GAME?.
 // D19Q: Save is SAVE GAME's slot list, SaveAsk its OVERWRITE THIS SAVE?.
 // D19S: DeleteAsk is DELETE SAVED GAME: on either list.
-enum class Page {Options, Pause, Death, Brief, Ask, Main, Difficulty, TwoPlayer, Character, Keys, Load, LoadAsk, Save, SaveAsk, DeleteAsk};
+// D20B: Stats is the statistics screen (game mode 2).
+enum class Page {Options, Pause, Death, Brief, Ask, Main, Difficulty, TwoPlayer, Character, Keys, Load, LoadAsk, Save, SaveAsk, DeleteAsk, Stats};
 enum class Act {Resume, Brief, Options, Save, Load, Restart, MainMenu, Continue, Quit, QuitGame, OnePlayer, TwoPlayer, Level, RestoreKeys};
 struct ListItem {const char* label;Act act;};
 bool title_page(Page p) {return p==Page::Main || p==Page::Difficulty || p==Page::TwoPlayer || p==Page::Character;}
@@ -479,6 +514,11 @@ uint32_t quick_loading_from=0;
 Page direct=Page::Options;
 uint64_t direct_until=0;
 bool direct_open=false;
+// D20B: our statistics screen is up (its page, or SAVE GAME opened from it);
+// fields until its prompts show; CONFIRM waits for the next flip; a savestate
+// was loaded since it last opened (it then opens with its prompts).
+bool stats_open=false, stats_continue=false, stats_after_load=false;
+int stats_wait=0;
 void thumb_hide();
 void savestate_check() {
     const uint32_t n=psx_mod_savestate_loads();
@@ -498,6 +538,8 @@ void savestate_check() {
     pending_state=-1;handoff=Handoff::None;title_cmds.clear();title_enter=false;
     if(key_wait) {key_wait=false;input_capture_key(false);}
     loading=false;saving=false;thumb_hide();
+    // D20B: a state loaded on the statistics screen opens it with its prompts.
+    stats_open=false;stats_continue=false;stats_after_load=psx_mod_read_half(game_mode)==2;
 }
 
 const char* intern(const char* text) {owned_strings.emplace_back(text);return owned_strings.back().c_str();}
@@ -798,7 +840,7 @@ void key_pressed(int code) {
     key_wait_end();sound(0);
 }
 // ---- D19K: LOAD GAME from the savestate slots ----
-struct SlotInfo {bool exists=false,compatible=false,named=false;unsigned level=0;int64_t stamp=0;};
+struct SlotInfo {bool exists=false,compatible=false,named=false,complete=false;unsigned level=0;int64_t stamp=0;};
 SlotInfo slot_info[SAVESTATE_SLOTS];
 constexpr int load_rows_visible=9;
 Page load_from=Page::Main;   // the list LOAD GAME was chosen on
@@ -813,6 +855,7 @@ void read_slots() {
         if(!s.exists) continue;
         s.compatible=savestate_slot_compatible(i,nullptr,0);
         s.named=savestate_slot_level(i,s.level);
+        s.complete=s.named && savestate_slot_complete(i); // D20B
         if(!savestate_slot_mtime(i,&s.stamp)) s.stamp=0;
     }
 }
@@ -873,6 +916,8 @@ void save_done() {
     // D20: SAVE GAME opened from play (F2, or F6 with no slot yet) closes on a
     // save, as EDuke32's does.
     if(save_written && direct_open) {input_notice("GAME SAVED");load_note.clear();act_now(Act::Resume);return;}
+    // D20B: from the statistics screen, back to it.
+    if(save_written && stats_open) {input_notice("GAME SAVED");load_note.clear();page=Page::Stats;sound(0);return;}
     if(save_written) {char t[32];std::snprintf(t,sizeof t,"SAVED TO SLOT %02d",save_slot+1);load_note=t;sound(0);}
     else {load_note="THE GAME COULD NOT BE SAVED";sound(1);}
 }
@@ -880,6 +925,15 @@ void save_confirm() {
     if(!slot_info[cursor].exists) {save_now();return;}
     page=Page::SaveAsk;save_choice=1;load_note.clear();sound(0);
 }
+
+// ---- D20B: the statistics screen ----
+// The original's choices once its prompts show: CONTINUE (Cross), and SAVE
+// (Square) on the statistics page before the last level's ending; after a
+// memory card save (page 2, a Vanilla state) CONTINUE only. SAVE is our SAVE
+// GAME; CONTINUE is handed to the original at the next flip.
+bool stats_can_save() {return psx_mod_read_half(stats_page)==0 && level()<29;}
+void stats_confirm() {if(stats_wait<=0) stats_continue=true;}
+void stats_save() {if(stats_wait<=0 && stats_can_save()) {open_save();sound(1);}}
 
 // ---- D19S: Delete on a used slot of LOAD GAME or SAVE GAME ----
 // DELETE SAVED GAME: and the slot's name, YES / NO with NO first. YES removes
@@ -981,7 +1035,7 @@ void move(int dir) {
     if(page==Page::SaveAsk) {save_choice^=1;sound(1);return;}
     if(page==Page::DeleteAsk) {delete_choice^=1;sound(1);return;}
     if(page==Page::Keys) {if(!key_wait) keys_move(dir);return;}
-    if(page==Page::Brief) return;
+    if(page==Page::Brief || page==Page::Stats) return;
     if(page!=Page::Options) {
         const int n=page==Page::Ask ? 2 : (int)list.size();
         if(n) cursor=(cursor+dir+n)%n;
@@ -1093,6 +1147,7 @@ void leave_screen(bool keep) {
     for(int i=0;i<option_count;++i) if(options_items[i].screen==s) cursor=i;
 }
 void defaults() {
+    if(page==Page::Stats) {stats_save();return;} // D20B: Square is SAVE
     if(page==Page::Keys) {if(!key_wait) keys_ask_default();return;}
     if(page!=Page::Options || screen<0) return;
     for(size_t i=0;i<screens[screen].rows.size();++i) draft[screen][i]=screens[screen].rows[i].def;
@@ -1109,6 +1164,7 @@ void confirm() {
     case Page::Keys: if(!key_wait) {key_wait=true;key_note.clear();input_capture_key(true);sound(0);} return;
     case Page::Load: if(loadable(cursor)) {page=Page::LoadAsk;load_note.clear();sound(0);} return;
     case Page::LoadAsk: load_now();return;
+    case Page::Stats: stats_confirm();return;
     case Page::Save: save_confirm();return;
     case Page::SaveAsk: if(save_choice==0) save_now(); else {page=Page::Save;sound(1);} return;
     case Page::DeleteAsk: if(delete_choice==0) delete_now(); else {page=delete_from;sound(1);} return;
@@ -1130,8 +1186,10 @@ void back(uint16_t mode) {
     case Page::Keys: keys_back();return;
     case Page::Load: load_back();return;
     case Page::LoadAsk: page=Page::Load;sound(1);return;
+    case Page::Stats: return; // as the original: only CONTINUE leaves
     case Page::Save:
         thumb_hide();load_note.clear();
+        if(stats_open) {page=Page::Stats;sound(0);return;} // D20B
         if(direct_open) {act_now(Act::Resume);return;} // D20: F2 / F6 from play: back to play
         open_list(Page::Pause,Act::Save);sound(0);return;
     case Page::SaveAsk: page=Page::Save;sound(1);return;
@@ -1218,12 +1276,14 @@ bool game_menu_input(const MenuKeys& keys) {
         if(!savestate_pending()) save_done();
         return owned;
     }
-    if(busy || (owned && (pending_sub>=0 || pending_final!=Final::None || pending_state>=0))) {
+    if(busy || (owned && (pending_sub>=0 || pending_final!=Final::None || pending_state>=0 || stats_continue))) {
         if(owned) carry=k;
         return owned;
     }
-    const MenuContext* c=current_context();
-    if(!owned || !c || !our_screen(c,psx_mod_read_half(c->sub))) {
+    // D20B: the statistics screen has no menu context of its own.
+    const bool stats=psx_mod_read_half(game_mode)==2;
+    const MenuContext* c=stats ? nullptr : current_context();
+    if(stats ? !(owned && stats_open) : (!owned || !c || !our_screen(c,psx_mod_read_half(c->sub)))) {
         if(rep_up.held || rep_down.held || rep_left.held || rep_right.held || k.up || k.down) {
             ++drops; drop_why=!owned?1:!c?2:3; drop_state=psx_mod_read_half(fe_state); drop_sub=c?psx_mod_read_half(c->sub):0xffff;
         }
@@ -1248,7 +1308,7 @@ bool game_menu_input(const MenuKeys& keys) {
     for(int w=k.wheel;w>0;--w) move(-1);
     for(int w=k.wheel;w<0;++w) move(1);
     if(k.confirm_taps) confirm();
-    else if(k.back_taps) back(c->mode);
+    else if(k.back_taps) back(stats ? 2 : c->mode);
     else if(k.square_taps) defaults();
     else if(k.delete_taps) delete_ask();
     // D19J: any key keeps the main menu from going back to PRESS START.
@@ -1831,7 +1891,9 @@ void draw_load(Guest& g,const Geometry& geo,bool save=false) {
             g.say(save ? "SAVE OVER" : "CANNOT LOAD",cx,ty+th+16,font_small|centre);
             g.say_dim("FROM ANOTHER BUILD",cx,ty+th+30,font_small|centre);
         } else {
-            if(s.named && *level_era(s.level)) g.say(level_era(s.level),cx,ty+th+16,font_small|centre);
+            // D20B: a save on the statistics screen: LEVEL COMPLETE, not the era.
+            if(s.complete) g.say("LEVEL COMPLETE",cx,ty+th+16,font_small|centre);
+            else if(s.named && *level_era(s.level)) g.say(level_era(s.level),cx,ty+th+16,font_small|centre);
             // The save time in Console steel (the guest font without the font pack).
             if(steel_text()) overlay_text(geo,slot_time(cursor),cx,ty+th+32);
             else g.say(slot_time(cursor).c_str(),cx,ty+th+30,font_small|centre);
@@ -1901,6 +1963,51 @@ void draw_load_ask(Guest& g,const Geometry& geo) {
     const int py=prompt_y(geo);
     g.prompt_id(icon_cross,-(geo.w/4),py,text_confirm);
     g.prompt_id(icon_triangle,geo.w/4,py,text_cancel);
+}
+
+// ---- D20B: the statistics screen, as 0x800277dc and 0x80027214 draw it ----
+// The level's name (small font, blue) 30 above the first row, which is at
+// y0 + (h - 60) / 2. One player: labels left-aligned at -(w/4) - 20, values
+// right-aligned at w/4 + 20, 15 apart: kills, time (mm:ss), continues, then
+// secrets (not the bosses 27-30) and the challenge item (levels 0, 2, 5, 7, 9,
+// 11). Challenge stages: COMPLETED or FAILED, centred on the first row.
+// Prompts: CONFIRM at x0 + w/3 and SAVE at -x0 - w/3, or CONTINUE alone.
+void draw_stats(Guest& g,const Geometry& geo) {
+    const int n=level(), row=(geo.h-60)/2+geo.y0;
+    if(n>=0 && n<32) {
+        const int id=half(level_names+2*n);
+        if(id>0 && id<=text_last) g.say_id(id,0,row-30,font_small|centre|blue);
+    }
+    if(challenge()) g.say_id((psx_mod_read_byte(challenges_done)>>(n-21))&1 ? text_completed : text_failed,0,row,font_small|centre);
+    else {
+        const int lx=-(geo.w/4)-20, vx=geo.w/4+20;
+        char value[32];
+        auto line=[&](int y,int label,const char* text) {g.say_id(label,lx,y,font_small);g.say(text,vx,y,font_small|right);};
+        std::snprintf(value,sizeof value,"%d",(int)half(player+0x3b6));
+        line(row,text_kills_label,value);
+        const int seconds=(int)psx_mod_read_word(player+0x398)/1000;
+        std::snprintf(value,sizeof value,"%02d:%02d",seconds/60,seconds%60);
+        line(row+15,text_time_label,value);
+        std::snprintf(value,sizeof value,"%d",(int)psx_mod_read_byte(player+0x279));
+        line(row+30,text_continues_label,value);
+        int y=row+30;
+        if((unsigned)(n-27)>=4u) {
+            y+=15;
+            std::snprintf(value,sizeof value,"%d OF %d",(int)half(player+0x3b0),(int)half(secrets_total));
+            line(y,text_secrets_label,value);
+        }
+        if(n==0 || n==2 || n==5 || n==7 || n==9 || n==11) {
+            y+=15;
+            g.say_id(text_challenge_label,lx,y,font_small);
+            g.say_id(psx_mod_read_byte(challenge_found) ? text_yes : text_no,vx,y,font_small|right);
+        }
+    }
+    if(stats_wait>0) return;
+    const int py=prompt_y(geo);
+    if(stats_can_save()) {
+        g.prompt_id(icon_cross,geo.x0+geo.w/3,py,text_confirm);
+        g.prompt_id(icon_square,-geo.x0-geo.w/3,py,text_save);
+    } else g.prompt_id(icon_cross,0,py,text_continue_prompt);
 }
 
 // ---- D19J: the title pages' actions, in the frontend tick ----
@@ -2381,6 +2488,81 @@ void draw_page(CPUState* cpu,const MenuContext* c) {
     ++draws;
 }
 
+// D20B: the one-player statistics screen is ours (Modernized, the authentic
+// code, not a replay, not the memory card's SAVE GAME page).
+bool stats_ours() {
+    return enabled() && !psx_mod_replay_active() && !g_precise_mode && !g_ls_mode && !g_psx_call_bail
+        && psx_mod_read_half(game_mode)==2 && psx_mod_read_word(players)==1 && psx_mod_read_half(stats_page)!=1 && authentic();
+}
+// The original screen's text (0x8008b454 called from its drawing) draws the
+// string's empty end: our page is drawn in its place.
+void stats_text_entry(CPUState* cpu) {
+    const uint32_t ra=cpu->gpr[31];
+    if(!((ra>=stats_one_begin && ra<stats_one_end) || (ra>=stats_challenge_begin && ra<stats_challenge_end))) return;
+    if(!stats_ours()) return;
+    uint32_t end=cpu->gpr[4];
+    for(int i=0;i<64 && psx_mod_read_byte(end);++i) ++end;
+    if(!psx_mod_read_byte(end)) cpu->gpr[4]=end;
+}
+uint64_t stats_entries=0, stats_continues=0;   // diagnostic
+uint32_t end_thumb[SAVESTATE_THUMB_W*SAVESTATE_THUMB_H];
+bool end_thumb_ok=false;
+// Gameplay ends towards the statistics screen: keep the level's last image.
+void gameplay_exit_entry() {
+    if(!enabled() || psx_mod_replay_active() || g_precise_mode || g_ls_mode || g_psx_call_bail) return;
+    const uint8_t code=psx_mod_read_byte(end_code);
+    if(psx_mod_read_word(players)!=1 || !(code==4 || (code==0xfe && challenge()))) return;
+    std::lock_guard<std::recursive_mutex> lock(mutex);
+    end_thumb_ok=savestate_grab_thumb(end_thumb)!=0;
+}
+// The flip at the end of the statistics screen's tick (0x8001fcbc called from
+// 0x80027df8): open the page, act, draw it into this image, and hold the
+// original's timer so it never shows its prompts or reads the pad.
+void stats_flip(CPUState* cpu) {
+    if(cpu->gpr[31]!=stats_flip_ra) return;
+    ensure_init();
+    if(!stats_ours()) return;
+    std::lock_guard<std::recursive_mutex> lock(mutex);
+    savestate_check();
+    if(!stats_open) {
+        // The original's own wait on entry; none after a savestate load.
+        stats_wait=stats_after_load ? 0 : stats_wait_fields;
+        // The picture of play for SAVE GAME: the level's last image (taken
+        // as gameplay ended), or the loaded slot's.
+        if(!stats_after_load) {
+            pause_thumb_ok=end_thumb_ok;
+            if(end_thumb_ok) std::memcpy(pause_thumb,end_thumb,sizeof pause_thumb);
+        } else if(!thumb_from_load) pause_thumb_ok=false;
+        end_thumb_ok=false;
+        thumb_from_load=false;resume_load=false;
+        stats_after_load=false;stats_open=true;stats_continue=false;
+        owned=true;page=Page::Stats;screen=-1;cursor=0;top=0;direct_open=false;++entries;++stats_entries;
+        input_release_for_menu();
+    } else stats_wait-=(int)psx_mod_read_word(tick_fields);
+    busy=true;
+    {
+        Guest g(cpu);
+        if(pending_sound>=0) {g.call(fn_sound,(uint32_t)pending_sound,0,0,0);pending_sound=-1;}
+        const Geometry geo=read_geometry();
+        switch(page) {
+        case Page::Save: draw_load(g,geo,true);break;
+        case Page::SaveAsk: draw_save_ask(g,geo);break;
+        case Page::DeleteAsk: draw_delete_ask(g,geo);break;
+        default: thumb_hide();draw_stats(g,geo);break;
+        }
+        if(stats_continue) {
+            // The original's Cross: its sound, then -1, and the run handler
+            // leaves the mode after this flip (this image still shows the page).
+            g.call(fn_sound,1,0,0,0);
+            psx_mod_write_half(stats_result,0xffff);
+            stats_continue=false;stats_open=false;owned=false;page=Page::Options;thumb_hide();++stats_continues;
+        }
+    }
+    busy=false;
+    ++draws;
+    if(stats_open) psx_mod_write_half(stats_timer,stats_wait_fields);
+}
+
 // ---- D19N: the original pad layout and the profile's AUTO AIM ----
 // Modernized keys send fixed pad buttons (Space Square, E Cross, ...), so play
 // needs the original CONTROLLER's default layout; AUTO AIM is the profile's
@@ -2440,6 +2622,7 @@ void game_menu_frame(CPUState* cpu) {
     const MenuContext* c=current_context();
     if(!c) {
         std::lock_guard<std::recursive_mutex> lock(mutex);
+        if(stats_open) return; // D20B: the statistics screen keeps its page
         owned=false;screen=-1;thumb_hide();
         return;
     }
@@ -2453,11 +2636,11 @@ void game_menu_frame(CPUState* cpu) {
 
 extern "C" const char* ttk_game_menu_json() {
     using namespace ttk;
-    static char buffer[1024];
-    std::snprintf(buffer,sizeof buffer,"{\"settings\":{\"word\":%u,\"game_speed\":%u,\"enforced\":%llu,\"card_packs\":%llu,\"card_loads\":%llu,\"card_auto_aim\":%s},\"owned\":%s,\"page\":%d,\"screen\":%d,\"cursor\":%d,\"top\":%d,\"items\":%d,\"entries\":%llu,\"draws\":%llu,\"writes\":%llu,\"finals\":%llu,\"handoff\":%d,\"pending_state\":%d,\"loading\":%s,\"card\":[%llu,%llu,%llu],\"identity\":%s,\"drops\":%llu,\"drop\":[%d,%u,%u],\"skips\":[%llu,%llu,%llu,%llu],\"skip_ra\":\"%x\",\"quick\":[%d,%d,%d]}",
+    static char buffer[1280];
+    std::snprintf(buffer,sizeof buffer,"{\"settings\":{\"word\":%u,\"game_speed\":%u,\"enforced\":%llu,\"card_packs\":%llu,\"card_loads\":%llu,\"card_auto_aim\":%s},\"owned\":%s,\"page\":%d,\"screen\":%d,\"cursor\":%d,\"top\":%d,\"items\":%d,\"entries\":%llu,\"draws\":%llu,\"writes\":%llu,\"finals\":%llu,\"handoff\":%d,\"pending_state\":%d,\"loading\":%s,\"card\":[%llu,%llu,%llu],\"identity\":%s,\"drops\":%llu,\"drop\":[%d,%u,%u],\"skips\":[%llu,%llu,%llu,%llu],\"skip_ra\":\"%x\",\"quick\":[%d,%d,%d],\"stats\":[%d,%d,%llu,%llu]}",
         psx_mod_read_half(settings_word),psx_mod_read_half(game_speed),(unsigned long long)enforced,(unsigned long long)card_packs,(unsigned long long)card_loads,card.auto_aim?"true":"false",
         owned?"true":"false",(int)page,screen,cursor,top,(int)list.size(),(unsigned long long)entries,(unsigned long long)draws,(unsigned long long)writes,
-        (unsigned long long)finals,(int)handoff,pending_state,loading?"true":"false",(unsigned long long)card_skips,(unsigned long long)card_hidden,(unsigned long long)psx_mod_unpaced_vblanks(),identity_checked?(identity_ok?"true":"false"):"null",(unsigned long long)drops,drop_why,drop_state,drop_sub,(unsigned long long)skip_owned,(unsigned long long)skip_screen,(unsigned long long)skip_image,(unsigned long long)drawn_calls,skip_ra,quick_slot,direct_open?1:0,(int)direct);
+        (unsigned long long)finals,(int)handoff,pending_state,loading?"true":"false",(unsigned long long)card_skips,(unsigned long long)card_hidden,(unsigned long long)psx_mod_unpaced_vblanks(),identity_checked?(identity_ok?"true":"false"):"null",(unsigned long long)drops,drop_why,drop_state,drop_sub,(unsigned long long)skip_owned,(unsigned long long)skip_screen,(unsigned long long)skip_image,(unsigned long long)drawn_calls,skip_ra,quick_slot,direct_open?1:0,(int)direct,stats_open?1:0,stats_wait,(unsigned long long)stats_entries,(unsigned long long)stats_continues);
     return buffer;
 }
 
@@ -2490,6 +2673,8 @@ bool game_menu_saved(int slot) {
     std::lock_guard<std::recursive_mutex> lock(mutex);
     if(pause_thumb_ok && owned && psx_mod_read_half(game_mode)==1 && psx_mod_read_half(paused) && psx_mod_read_half(pause_screen)==ours_sub)
         savestate_write_thumb(slot,pause_thumb);
+    // D20B: a save on the statistics screen gets the picture of the level's end.
+    else if(pause_thumb_ok && stats_open && psx_mod_read_half(game_mode)==2) savestate_write_thumb(slot,pause_thumb);
     const bool ours=saving && slot==save_slot;
     if(ours) save_written=true;
     quick_slot=slot; // D20: any save
@@ -2528,8 +2713,11 @@ PSX_MOD_CONSTRUCTOR(register_ttk_game_menu) {
         psx_mod_register_function_entry_plugin("ttk.game.menu",a,[](CPUState* cpu,uint32_t){ttk::game_menu_tick(cpu);});
     // D19J: the frontend tick itself, before its pad read and state dispatch.
     psx_mod_register_function_entry_plugin("ttk.game.menu",0x80022324u,[](CPUState* cpu,uint32_t){ttk::title_entry(cpu);});
-    // D19K: the startup memory card texts.
-    psx_mod_register_function_entry_plugin("ttk.game.menu",ttk::fn_text,[](CPUState* cpu,uint32_t){ttk::card_text_entry(cpu);});
+    // D19K: the startup memory card texts. D20B: the statistics screen's.
+    psx_mod_register_function_entry_plugin("ttk.game.menu",ttk::fn_text,[](CPUState* cpu,uint32_t){ttk::card_text_entry(cpu);ttk::stats_text_entry(cpu);});
+    // D20B: gameplay's exit (the level's last image) and the statistics screen's flip.
+    psx_mod_register_function_entry_plugin("ttk.game.menu",ttk::gameplay_exit,[](CPUState*,uint32_t){ttk::gameplay_exit_entry();});
+    psx_mod_register_function_entry_plugin("ttk.game.menu",ttk::flip,[](CPUState* cpu,uint32_t){ttk::stats_flip(cpu);});
     // D19N: the memory card's settings pack and the end of its unpack.
     psx_mod_register_function_entry_plugin("ttk.game.menu",ttk::fn_card_pack,[](CPUState*,uint32_t){ttk::card_pack_entry();});
     psx_mod_register_function_entry_plugin("ttk.game.menu",ttk::fn_game_speed,[](CPUState* cpu,uint32_t){ttk::card_unpack_done(cpu);});

@@ -1087,6 +1087,16 @@ the same way on every menu screen:
   Slots saved before level names were recorded read SAVED GAME. Memory card
   saves are no longer offered here in Modernized; Vanilla
   (`run.py --vanilla`) keeps the original memory card LOAD GAME.
+- **Statistics screen** (after each level, one player): the original screen
+  and layout (kills, time, continues, secrets, challenge item; COMPLETED or
+  FAILED after a challenge stage). After the original's short wait, Enter (X)
+  is CONFIRM and goes on to the next level; V (Square) is SAVE, which opens
+  SAVE GAME (a savestate slot, not the memory card). A save there returns to
+  the statistics screen with GAME SAVED; Escape on SAVE GAME also returns.
+  Such a save shows the level's last picture and LEVEL COMPLETE on LOAD GAME,
+  and loading it opens the statistics screen again, ready to continue. SAVE
+  is not offered before the final ending (CONTINUE only). Modernized never
+  writes a game save to the memory card; Vanilla keeps the original card SAVE.
 - **Deleting a save:** on LOAD GAME or SAVE GAME, press Delete on a used slot.
   DELETE SAVED GAME: asks with the slot's name in steel lettering (NO highlighted); YES removes
   that save (and its picture) and the slot reads EMPTY, with DELETED SLOT NN
@@ -1111,7 +1121,8 @@ the same way on every menu screen:
   highlighted action. There, Escape and Enter both mean Start ("PRESS START TO
   CONTINUE"), which opens its CONFIRM / CANCEL prompt; then Enter confirms and
   Escape cancels. Z, X, C and V still assign Triangle, Cross, Circle and Square.
-- **V** is Square, for example SAVE on the statistics screen.
+- **V** is Square, for example SAVE on the statistics screen (SAVE GAME in
+  Modernized, the memory card in Vanilla).
 - During gameplay Escape still pauses, Enter still uses the selected gadget
   and Backspace does nothing. Escape and Enter still skip the intro movies.
   The F7 savestate menu and the console keep their own keys.
@@ -1218,6 +1229,10 @@ The level select is refused on the title screen, in the pause menu, while a
 level is already ending and in two-player games. It does not write memory cards
 or saves. Modernized controls and the selected view work in every listed
 level.
+
+**End the level (testing).** In a one-player game, open the console and type
+`endlevel`: the level ends as if you reached its exit, so the statistics screen
+follows, then the next level. Refused in the same cases as the level select.
 
 **Debug spawn (testing, Modernized).** Like EDuke32's `spawn`: in captured
 Modernized gameplay, open the console and type `spawn <item>` (for example

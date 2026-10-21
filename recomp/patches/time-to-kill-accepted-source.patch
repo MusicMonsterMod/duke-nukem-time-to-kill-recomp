@@ -702,10 +702,43 @@ index f0284eaf..c52e0861 100644
      return 1;
  }
 diff --git a/runtime/src/cdrom.c b/runtime/src/cdrom.c
-index dd5c231d..99d201ea 100644
+index dd5c231d..14076460 100644
 --- a/runtime/src/cdrom.c
 +++ b/runtime/src/cdrom.c
-@@ -2386,6 +2386,13 @@ static void exec_command(uint8_t cmd) {
+@@ -667,11 +667,28 @@ static int initial_read_delay_cycles(void) {
+     return apply_read_speed(base);
+ }
+ 
+-static int seek_complete_delay_cycles(void) {
++static int msf_to_lba(int m, int s, int f);
++static int seek_complete_delay_cycles(int paused) {
+     /* PCSX carries a far-SetLoc seek state and explicitly calls out Rockman X5:
+-     * far SeekL/SeekP completes after roughly four 1x sector periods, while a
+-     * near/already-settled seek returns quickly. */
+-    int base = setloc_seek_far ? (CDROM_SINGLE_SPEED_SECTOR_CYCLES * 4) : 0x800;
++     * far SeekL/SeekP completes after roughly four 1x sector periods.
++     * A near seek follows Beetle's PS_CDC_CalcSeekTime: travel time over a
++     * 72-minute disc swept in one second (sectors * 33868800 / 324000 cycles),
++     * never under 20000 cycles, plus the restart from a paused drive (1237952 cycles at
++     * double speed, twice that at single speed). It must not complete inside
++     * libcd's CdControl: Time to Kill installs its seek callback only after
++     * CdControl(SeekL) returns, and a near seek from Pause (death, Continue)
++     * finished first, so the callback never ran and the music stayed silent. */
++    int base;
++    if (setloc_seek_far) {
++        base = CDROM_SINGLE_SPEED_SECTOR_CYCLES * 4;
++    } else {
++        int current_lba = (last_sector_lba >= 0)
++            ? last_sector_lba
++            : msf_to_lba(seek_min, seek_sec, seek_sect);
++        int64_t travel = (int64_t)abs(current_lba - s_setloc_lba) * 33868800 / (72 * 60 * 75);
++        base = travel < 20000 ? 20000 : (int)travel;
++        if (paused) base += (mode_reg & 0x80) ? 1237952 : 1237952 * 2;
++    }
+     return apply_speed(base);
+ }
+ 
+@@ -2386,6 +2403,15 @@ static void exec_command(uint8_t cmd) {
              set_irq(CDIRQ_ERROR);
              break;
          }
@@ -714,11 +747,22 @@ index dd5c231d..99d201ea 100644
 +         * ReadS is mistaken for a continuation of the OLD stream. Time to Kill
 +         * then plays adjacent speech clips instead of seeking to the requested
 +         * voice/music location. No Pause command is required before SeekL/P. */
++        /* Paused: motor spinning, neither reading nor playing (Beetle DS_PAUSED). */
++        int seek_from_pause = (stat_reg & CDSTAT_MOTOR) && !(stat_reg & (CDSTAT_READ | CDSTAT_PLAY | CDSTAT_SEEK)) && !reading;
 +        stop_read_stream();
 +        stat_reg &= (uint8_t)~CDSTAT_READ;
          xa_reset_decode();
          spu_cd_audio_reset();
          stop_cdda_playback();
+@@ -2393,7 +2419,7 @@ static void exec_command(uint8_t cmd) {
+         response_push(stat_reg);
+         set_irq(CDIRQ_ACK);
+         {
+-            int lat = seek_complete_delay_cycles();
++            int lat = seek_complete_delay_cycles(seek_from_pause);
+             pending_arm(cmd, lat, 1); /* 0x15/0x16 — completed in process_pending */
+             s_cd_probe_seek_count++;
+             s_cd_probe_seek_cycles += (uint64_t)lat;
 diff --git a/runtime/src/crash_trace.c b/runtime/src/crash_trace.c
 index 0fe0d272..0863cb1c 100644
 --- a/runtime/src/crash_trace.c

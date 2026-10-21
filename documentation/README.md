@@ -93,3 +93,4 @@ Multiplayer research (D34): [split-screen, online play and self-hosting feasibil
 First-person falls (D08Z4): [falls keep the eye, slot 6 cop car](168-d08z4-falls-keep-eye.md).
 Quick save and quick load (D20, F6 / F9, F2 / F3, console): [note 177](177-d20-quick-save.md); D20A savestate-after-load bug in the same note.
 Wrong colours / scrambled textures after a load (D20C) and the D20A halt, one cause: savestates now carry mod memory: [note 178](178-d20c-savestate-mod-memory.md).
+Music silent after death and Continue (D18D): near CD seeks now take Beetle's seek time: [note 182](182-d18d-music-after-continue.md).

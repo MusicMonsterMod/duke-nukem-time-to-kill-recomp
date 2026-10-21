@@ -1,5 +1,24 @@
 # Current status - 2026-10-04
 
+## 2026-10-21 - D18D accepted (music after Continue)
+
+- User: "i can confirm the music started with no further issue. lock it in,
+  close it out". D18D Done. Note 182. Executable
+  `23bea317011d6444d73fe58140fb80f5e8ae149bc0ea98c06b7b262bd911842a` is the regression baseline.
+
+## 2026-10-21 - D18D music after Continue (Needs playtest)
+
+- Cause: the runtime finished the near CD seek at Continue (drive paused a
+  few sectors from the music's resume point) in 0x800 cycles, inside
+  libcd's `CdControl`, before Time to Kill installed its seek callback, so
+  the music player stuck in state 1, CD muted, until a voice line.
+- Fix in the framework (`cdrom.c`, exported patch): near SeekL/SeekP use
+  Beetle's seek time (min 20000 cycles, plus the paused-drive restart).
+  Modernized and Vanilla resume music two frames after CONTINUE; level-start
+  voice-to-music and intro FMV unchanged; about 37 ms more per level load.
+  Not yet heard on the real audio device. Note 182. Executable
+  `23bea317011d6444d73fe58140fb80f5e8ae149bc0ea98c06b7b262bd911842a`.
+
 ## 2026-10-21 - D11G cancelled (cannot reproduce)
 
 - User: "cancel the job. i cant seem to replicate it either now. if it comes

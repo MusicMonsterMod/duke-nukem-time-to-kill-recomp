@@ -183,7 +183,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D18A | Voice/music/gunfire crackle investigation | Done | D01, D02 |
 | D18B | Concurrent voice with music (no music mute) | Todo | D18, D21 |
 | D18C | Load-sensitive crackle at construction signs and train ledge | Todo | D17B, D18A |
-| D18D | Music silent after death and Continue until Duke's next voice line | Todo | D01 |
+| D18D | Music silent after death and Continue until Duke's next voice line | Done (user-accepted 2026-10-21) | D01 |
 | D18E | Challenge stages 21-26 have no music: reuse fitting in-game tracks (user mapping) | Todo | D22B, D26A |
 | D19 | Modern in-game menus, settings and input prompts (replicates the original TTK menu; mockup approved 2026-10-18) | Done (user-accepted 2026-10-18; follow-ups D19G, D19F, D19F1) | D02, D04, D13 |
 | D19G | In-game OPTIONS stage 2: key bindings in PC CONTROLS; display and camera options applied live | Done (user-accepted 2026-10-20) | D19 |
@@ -5998,7 +5998,22 @@ coordinate D17G/H without duplicating those movement fixes.
 
 ### D18D - Music silent after death and Continue until Duke's next voice line
 
-**Todo - user report (2026-10-04).** After Duke is killed and the player
+**Done (user-accepted 2026-10-21: "i can confirm the music started with no further issue. lock it in, close it out").** Cause found in the emulated CD drive, not
+the menus: at Continue the game seeks back to the music's saved position a
+few sectors away from where death paused the drive. The runtime finished
+that near seek in 0x800 cycles, inside libcd's `CdControl`, before the game
+installed its seek callback (`0x8003b838`), so the music player stayed in
+state 1 with the CD muted until a voice line restarted it. Framework fix:
+near SeekL/SeekP now take Beetle's seek time (at least 20000 cycles, plus
+the restart from a paused drive); far seeks unchanged. Modernized and
+Vanilla both resume the music two frames after CONTINUE; level-start
+speech-to-music and the intro FMV unchanged; one load seek per level gets
+about 37 ms longer. Audible output, DuckStation/real hardware and other
+levels not checked by tooling; the user heard the music resume. Executable
+`23bea317011d6444d73fe58140fb80f5e8ae149bc0ea98c06b7b262bd911842a` is the regression baseline.
+[Note 182](documentation/182-d18d-music-after-continue.md).
+
+**Original report - user (2026-10-04).** After Duke is killed and the player
 chooses Continue, level music does not resume. It only starts once Duke says
 a voice line. Check whether Vanilla behaves the same and whether original
 hardware/DuckStation (portable copy only) does too, before assigning cause.

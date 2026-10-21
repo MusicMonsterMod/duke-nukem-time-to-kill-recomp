@@ -169,7 +169,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D17O | Unstable sky appearance when looking up (slot 10) | Done (user-accepted) | D17A, D17B |
 | D17P | Distant horizontal black bands in new subway slot 8 | Done (user-accepted) | D15 |
 | D17R | Sky turns black toward the left/right edges when looking up, game-wide (LEVEL01 slot 9, medieval UI slot 2) | Done (user-accepted 2026-10-21) | D14, D17O, D22A |
-| D17R1 | Sky artifacts when looking up/down and turning (medieval UI slot 2, with camera jerking; LEVEL01 UI slot 8) | Todo | D17R, D17O |
+| D17R1 | Sky artifacts when looking up/down and turning (medieval UI slot 2, with camera jerking; LEVEL01 UI slot 8) | Done (user-accepted 2026-10-21) | D17R, D17O |
 | D17S | Auto frame-rate default: follow the display up to a cap, step down on faster monitors | Todo | D17, D23F |
 | D17T | Smooth title menu and attract demo at the saved frame rate (first impression; demo measured at 10 images/s) | Done (user-accepted) | D17, D23F |
 | D17U | Smooth loading screens (spinning Duke logo) at the saved frame rate | Done | D17T |
@@ -5581,7 +5581,9 @@ separately reproduced. Executable
 
 ### D17R1 - Sky artifacts when looking up/down and turning
 
-**Todo.** User report, 2026-10-21, while accepting D17R ("Improvements to
+**Done (user-accepted 2026-10-21: "lock it in and close it out").** Executable
+`9b296ae1b7d828c5d9ca5880257cd24e4443dd5919d9b2e5c1097dc98adece3f`
+is the regression baseline. User report, 2026-10-21, while accepting D17R ("Improvements to
 the new skybox rendering"):
 
 - UI slot 2 (savestate file 01, SHA-256
@@ -5606,6 +5608,41 @@ the sky; split it out if so. Reuse note 92 (D17O) and note 172 (D17R).
 turning in first person, 16:9 and 4:3, at 60 and the saved high frame rate;
 no camera jerk; D17O slot 10 and D17R slot 9 unchanged; Vanilla unchanged;
 the user confirms.
+
+**Work log, 2026-10-21 (Needs playtest).** The user's recording
+(`research/screencaps/Video_2026-10-21_07-02-29.mp4`) showed the clouds cut
+into stair-stepped, screen-aligned blocks. Reproduced offscreen on the slot 2
+save at 60 and 120 FPS with the player's extended draw distance (whole with
+original distance). A GP0 dump showed the cloud quads were not drawn, not
+covered. Cause: the D11B near clip, which draws the eye view's near polygons
+(the sky's clouds included), wrote its packets into the game's render ring
+with a 60% per-frame cap; with extended distance the game alone used 61% of
+the ring (85.6 KB), so the sky, drawn last, fell back to the original path
+about 60 times a second and its near cloud quads were dropped. Change: the
+near clip's host packets now have their own 512 KB arena in the GPU DMA
+aperture (four 128 KB regions, one per frame), and the game's ring is no
+longer touched; framework `gpu.c` keys aperture addresses apart from main RAM
+in the host precise-vertex table (patch exported, applies clean to the pinned
+framework). Evidence: 0 fallbacks (was 123 per 2 s), clouds whole; 120 FPS
+sweeps of slot 2, LEVEL01 slot 8, D17R slot 9 and D17O slot 10 with 0
+fallbacks, 0 packet skips and 0 failed redraws; Vanilla unchanged; near (both
+precisions), sky, aim and input suites pass. The camera jerk was not
+reproduced or isolated. Executable
+`d632379685d59dd1fa953f088459ac69af1bff6022ef5bd8886ac2a0bbf27f03`.
+[Cause, change and evidence](documentation/173-d17r1-sky-blocks.md).
+
+**Work log, 2026-10-21 (regression fixed, Needs playtest).** User, first
+playtest: "quite a lot of graphically breaking issues ... this is a no go".
+The high-refresh redraw workers walked the ordering table with a loop that
+also ended at any bit-23 link, and every new arena address has bit 23 set:
+each in-between image stopped at the first host packet and showed only the
+sky fill over stale picture (no weapon, no HUD). Still screenshots show real
+frames, so the first checks missed it. Framework `render_replay.c` now ends
+the walk like the live walker (`0xFFFFFF`, or a bit-23 link outside the
+allocated aperture). Forced-turn redraw and walking/turning replay sequences
+on slot 2, LEVEL01 slot 8 and D17O slot 10 are whole, 0 failed; turn pops
+match the baseline executable. Patch re-exported and verified. Executable
+`9b296ae1b7d828c5d9ca5880257cd24e4443dd5919d9b2e5c1097dc98adece3f`.
 
 ### D17X - Small white triangles on posts and soil in first person
 

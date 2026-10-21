@@ -37,6 +37,7 @@ struct HookChain {
 static auto& hooks() {static std::map<uint32_t,HookChain> value;return value;}
 static unsigned writes, code_writes;
 extern "C" uint32_t psx_mod_alloc_guest_memory(uint32_t,uint32_t){return 0x801e0000;}
+extern "C" uint32_t psx_mod_alloc_gpu_dma_memory(uint32_t,uint32_t){return 0;}
 extern "C" uint8_t psx_mod_read_byte(uint32_t a) {return ram[a&0x1fffff];}
 extern "C" uint16_t psx_mod_read_half(uint32_t a) {return psx_mod_read_byte(a)|(psx_mod_read_byte(a+1)<<8);}
 extern "C" uint32_t psx_mod_read_word(uint32_t a) {return psx_mod_read_half(a)|(uint32_t(psx_mod_read_half(a+2))<<16);}

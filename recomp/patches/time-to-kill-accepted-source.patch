@@ -1038,7 +1038,7 @@ index be30e5af..f23d273d 100644
          now = SDL_GetPerformanceCounter();     /* ONE read per iteration */
          uint32_t ms = frame_pacing_sleep_ms(now, p->next_deadline, freq, period);
 diff --git a/runtime/src/gpu.c b/runtime/src/gpu.c
-index aaf69df7..85c3d886 100644
+index aaf69df7..6fe45fd3 100644
 --- a/runtime/src/gpu.c
 +++ b/runtime/src/gpu.c
 @@ -33,6 +33,7 @@
@@ -1049,7 +1049,7 @@ index aaf69df7..85c3d886 100644
  
  extern uint16_t psx_read_half(uint32_t addr);
  extern uint8_t  psx_read_byte(uint32_t addr);
-@@ -3318,6 +3319,125 @@ uint32_t gpu_texture_correction_hits(void) {
+@@ -3318,6 +3319,132 @@ uint32_t gpu_texture_correction_hits(void) {
      return sw_perspective_triangle_count();
  }
  
@@ -1074,8 +1074,15 @@ index aaf69df7..85c3d886 100644
 +static uint64_t s_hpv_stored = 0, s_hpv_hits = 0, s_hpv_nosrc = 0, s_hpv_addr = 0, s_hpv_word = 0;
 +static int      s_hpv_armed = 0;           /* current triangle got host data   */
 +static float    s_hpv_q[3];
-+static inline uint32_t hpv_slot(uint32_t addr) {
-+    return (((addr & 0x1FFFFCu) >> 2) * 2654435761u) >> (32 - 17);
++/* Entry key: a main-RAM address folded to its 2 MiB canonical form, or a
++ * GPU DMA aperture address (mod_memory.h) kept apart from the RAM it would
++ * otherwise fold onto. */
++static inline uint32_t hpv_key(uint32_t addr) {
++    const uint32_t canonical = addr & 0x00FFFFFCu;
++    return canonical >= PSX_MOD_GPU_DMA_APERTURE_BASE ? canonical : canonical & 0x1FFFFCu;
++}
++static inline uint32_t hpv_slot(uint32_t key) {
++    return ((key >> 2) * 2654435761u) >> (32 - 17);
 +}
 +extern int g_render_replay_record;
 +extern void render_replay_record_host_vertex(uint32_t addr, uint32_t word, int32_t x16, int32_t y16, float z, float u, float v, float depth_z);
@@ -1084,7 +1091,7 @@ index aaf69df7..85c3d886 100644
 +void gpu_host_vertex_store(uint32_t addr, uint32_t word, int32_t x16, int32_t y16, float z, float u, float v, float depth_z) {
 +    /* 8-way probe: reuse this address's entry, else the oldest in the window. */
 +    HostPV *t = hpv_table(), *e = NULL;
-+    const uint32_t a = addr & 0x1FFFFCu, base = hpv_slot(a);
++    const uint32_t a = hpv_key(addr), base = hpv_slot(a);
 +    for (uint32_t k = 0; k < HOST_PV_PROBE; k++) {
 +        HostPV *c = &t[(base + k) & (HOST_PV_CAP - 1u)];
 +        if (c->addr == a) { e = c; break; }
@@ -1118,7 +1125,7 @@ index aaf69df7..85c3d886 100644
 +    if (gp0_cmd_source_addr == 0xFFFFFFFFu) { s_hpv_nosrc++; return 0; }
 +    const HostPV *e[3];
 +    for (int i = 0; i < 3; i++) {
-+        uint32_t addr = (gp0_cmd_source_addr + (uint32_t)idx[i] * 4u) & 0x1FFFFCu;
++        uint32_t addr = hpv_key(gp0_cmd_source_addr + (uint32_t)idx[i] * 4u);
 +        const HostPV *t = hpv_table();
 +        const uint32_t base = hpv_slot(addr);
 +        e[i] = NULL;
@@ -1175,7 +1182,7 @@ index aaf69df7..85c3d886 100644
  /* Per-vertex precise positions (PGXP, ENHANCEMENTS.md G1). Each of the three
   * packet words is resolved independently: the address-keyed dataflow shadow
   * first (validated against the actual word — exact provenance, survives
-@@ -3327,9 +3447,45 @@ uint32_t gpu_texture_correction_hits(void) {
+@@ -3327,9 +3454,45 @@ uint32_t gpu_texture_correction_hits(void) {
   * it, so shared edges between neighbouring triangles cannot disagree by more
   * than the sub-pixel fraction. The integer delta folds in draw offsets and
   * any widescreen adjustment already applied by the caller. */
@@ -1221,7 +1228,7 @@ index aaf69df7..85c3d886 100644
      if (!gte_geometry_correction_enabled()) {
          gr_set_precise_triangle(0, 0,0, 0,0, 0,0);
          return;
-@@ -3359,6 +3515,29 @@ static void prepare_precise_triangle(int i0, int i1, int i2,
+@@ -3359,6 +3522,29 @@ static void prepare_precise_triangle(int i0, int i1, int i2,
      gr_set_precise_triangle(1, fx[0],fy[0], fx[1],fy[1], fx[2],fy[2]);
  }
  
@@ -1236,7 +1243,7 @@ index aaf69df7..85c3d886 100644
 +    const unsigned count=(op&8)?4:3,step=1+((op&4)!=0)+((op&16)!=0);
 +    for(unsigned i=0;i<count;++i) {
 +        const unsigned index=1+i*step;
-+        const uint32_t addr=(gp0_cmd_source_addr+4*index)&0x1ffffcu,base=hpv_slot(addr);
++        const uint32_t addr=hpv_key(gp0_cmd_source_addr+4*index),base=hpv_slot(addr);
 +        int found=0;
 +        for(unsigned k=0;k<HOST_PV_PROBE;++k) {
 +            const HostPV *p=&s_hpv_replay[(base+k)&(HOST_PV_CAP-1u)];
@@ -1251,7 +1258,7 @@ index aaf69df7..85c3d886 100644
  /* Arming rate for perspective-correct UVs, per condition.
   *
   * perspective_triangles alone cannot answer "how much texture warp is left",
-@@ -3390,6 +3569,11 @@ void gpu_texture_correction_stats(uint64_t *attempts, uint64_t *armed,
+@@ -3390,6 +3576,11 @@ void gpu_texture_correction_stats(uint64_t *attempts, uint64_t *armed,
   * SWC2 projection store at that same DMA packet address. This preserves the
   * association through ordering-table reordering and rejects CPU-built UI. */
  static void prepare_texture_triangle(int i0, int i1, int i2) {
@@ -1263,7 +1270,7 @@ index aaf69df7..85c3d886 100644
      gr_set_perspective_triangle(0, 0.0f, 0.0f, 0.0f);
      s_texcorr.attempts++;
      if (!s_texture_correction_enabled) { s_texcorr.no_correction++; return; }
-@@ -3649,7 +3833,7 @@ static void gp0_exec_mono_quad(void) {
+@@ -3649,7 +3840,7 @@ static void gp0_exec_mono_quad(void) {
      /* Semi axis-aligned mono quads (UI boxes/borders): one rect, not two tris.
       * Thin semi borders (e.g. CTR name-entry OT-1144 teal 3×H) otherwise double-
       * blend their shared diagonal — nearly the whole strip — and overpaint 3D. */
@@ -1272,7 +1279,7 @@ index aaf69df7..85c3d886 100644
          int32_t min_x = vx[0], max_x = vx[0], min_y = vy[0], max_y = vy[0];
          for (int i = 1; i < 4; i++) {
              if (vx[i] < min_x) min_x = vx[i];
-@@ -3875,7 +4059,7 @@ static void gp0_exec_textured_quad(void) {
+@@ -3875,7 +4066,7 @@ static void gp0_exec_textured_quad(void) {
  
      setup_textured_draw(color24, semi_trans, raw_texture);
  
@@ -1281,7 +1288,7 @@ index aaf69df7..85c3d886 100644
          vx[0] == vx[2] && vx[1] == vx[3] &&
          u[0] == u[2] && u[1] == u[3] &&
          v[0] == v[1] && v[2] == v[3]) {
-@@ -4526,7 +4710,7 @@ static void gp0_exec_vram_to_cpu(void) {
+@@ -4526,7 +4717,7 @@ static void gp0_exec_vram_to_cpu(void) {
  /* Determine how many words a GP0 command requires (header only, not counting
   * variable-length data for 0xA0). Returns -1 for polylines (terminated by
   * sentinel). Returns 0 for unknown commands (will be fatal). */
@@ -1290,7 +1297,7 @@ index aaf69df7..85c3d886 100644
      switch (opcode) {
          /* NOP / control */
          case 0x00: return 1;
-@@ -4874,6 +5058,10 @@ static uint64_t gp0_ring_seq    = 0;      /* total commands recorded */
+@@ -4874,6 +5065,10 @@ static uint64_t gp0_ring_seq    = 0;      /* total commands recorded */
  static uint32_t gp0_ring_head   = 0;      /* next write slot */
  
  static void gp0_ring_record(const uint32_t *words, int n) {
@@ -6714,10 +6721,10 @@ index 48319dfd..7acf3ccc 100644
  
 diff --git a/runtime/src/render_replay.c b/runtime/src/render_replay.c
 new file mode 100644
-index 00000000..f99ab1c9
+index 00000000..fafc0571
 --- /dev/null
 +++ b/runtime/src/render_replay.c
-@@ -0,0 +1,357 @@
+@@ -0,0 +1,362 @@
 +/* render_replay.c - presentation-only guest render replay (Time to Kill D17).
 + * See render_replay.h. The MMIO policy below is the whole device contract of
 + * a replay: GP0 and GPU DMA execute synchronously into the (saved) VRAM, reads
@@ -6904,8 +6911,13 @@ index 00000000..f99ab1c9
 +                    w = psx_mod_gpu_dma_resolve_address(w + 4u);
 +                }
 +            }
-+            if ((header & 0x00800000u) || (header & 0x00FFFFFFu) == 0x00FFFFFFu) break;
-+            addr = psx_mod_gpu_dma_resolve_address(header & 0x00FFFFFFu);
++            /* End as the live walker does (dma_gpu_ll.c): at 0xFFFFFF, or a
++             * bit-23 link that is not an allocated GPU DMA aperture packet
++             * (mod_memory.h; every aperture address has bit 23 set). */
++            const uint32_t next = header & 0x00FFFFFFu;
++            if (next == 0x00FFFFFFu) break;
++            if ((next & 0x00800000u) && psx_mod_gpu_dma_resolve_address(next) != (next & 0x00FFFFFCu)) break;
++            addr = psx_mod_gpu_dma_resolve_address(next);
 +        }
 +        if (g_render_replay_record) rec_marker(3u);
 +        else gpu_ws_end_linked_list();

@@ -1,5 +1,33 @@
 # Current status - 2026-10-04
 
+## 2026-10-21 - D17R1 accepted
+
+- User: "lock it in and close it out". D17R1 Done; executable
+  `9b296ae1b7d828c5d9ca5880257cd24e4443dd5919d9b2e5c1097dc98adece3f` is the
+  regression baseline.
+
+## 2026-10-21 - D17R1 first playtest: redraws broken, fixed (Needs playtest)
+
+- User: "quite a lot of graphically breaking issues". The redraw workers'
+  ordering-table walk ended at any bit-23 link, and every new host-packet
+  arena address has bit 23 set, so high-refresh in-between images lost
+  everything after the sky. Framework `render_replay.c` now ends the walk as
+  the live GPU walker does. Moving replay sequences checked whole. Executable
+  `9b296ae1b7d828c5d9ca5880257cd24e4443dd5919d9b2e5c1097dc98adece3f`.
+  [Note 173](173-d17r1-sky-blocks.md).
+
+## 2026-10-21 - D17R1 sky cloud blocks fixed (Needs playtest)
+
+- The stair-stepped holes in the clouds came from the near clip's packet
+  budget: with the extended draw distance the game filled 61% of its render
+  ring, the near clip's 60% cap was spent, and the sky (drawn last) fell back
+  to the original path, which drops its near cloud quads. The near clip now
+  has its own packet arena in the GPU DMA aperture; framework `gpu.c` keys
+  those addresses apart from RAM. 0 fallbacks in the canal and four sweeps.
+  Camera jerk not reproduced. Executable
+  `d632379685d59dd1fa953f088459ac69af1bff6022ef5bd8886ac2a0bbf27f03`.
+  Awaiting the user's playtest. [Note 173](173-d17r1-sky-blocks.md).
+
 ## 2026-10-21 - D17R accepted; D17R1 and D17X opened
 
 - User: "Perfect!! Lock this in." D17R Done; executable

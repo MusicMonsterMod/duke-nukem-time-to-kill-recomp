@@ -22,7 +22,8 @@ void near_clip_viewmodel_flush();
 // D17A: the frame accounting the near clip carries from one renderer call to
 // the next (packet budget, held weapon packets). A render replay worker loads
 // the live frame's value so its redraws take the same decisions.
-struct NearClipFrameState { uint32_t first_cursor,host_bytes,held_frame; };
+// host_region: the D17R1 host packet arena region the frame writes.
+struct NearClipFrameState { uint32_t first_cursor,host_bytes,held_frame,host_region; };
 // Reserve draw-time scratch before replay workers fork.
 void near_clip_prepare();
 NearClipFrameState near_clip_frame_state();

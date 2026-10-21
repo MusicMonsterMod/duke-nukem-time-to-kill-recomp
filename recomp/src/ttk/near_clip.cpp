@@ -127,14 +127,17 @@ bool conservative() {static const bool v=[]{const char* t=std::getenv("DNTTK_NEA
 uint32_t near_depth(uint32_t full) {return conservative()?0:full;}
 double depth_span() {static const double v=env_int("DNTTK_NEAR_DEPTH_SPAN",0,0,4096);return v;}
 constexpr unsigned max_depth=12;
-// Packet budget. The render arena (ctx+4..+8, 139744 bytes) is a ring the game
-// fills continuously; the club already uses about half of it per frame. Host
-// packets are capped per frame, and none are written once the frame's total
-// use would pass 60% of the ring, so the ring can never wrap onto packets of
-// the same frame. With 64 KB per frame and 60% of the ring as limits, short of budget, pieces stop splitting, and a mesh that
-// cannot be afforded stays entirely on the original path.
-constexpr uint32_t host_frame_bytes=64*1024, split_reserve=8*1024, takeover_reserve=6*1024;
-constexpr double ring_share=0.6;
+// Packet arena (D17R1). Host packets have their own arena in the GPU DMA
+// aperture (24-bit OT links reach it), never the game's render ring (ctx+4..+8,
+// 139744 bytes). Sharing that ring capped host packets at 60% of it per frame,
+// and with the extended draw distance the game alone fills 61% in the medieval
+// canal: every later mesh, the sky last of all, fell back to the original path,
+// whose near rejection left stair-stepped holes in the clouds. The arena has
+// four 128 KB regions, one per frame in turn, so a region is reused only three
+// frames after the GPU walked it (the canal peaks near 50 KB of host packets).
+// Short of budget, pieces stop splitting, and a mesh that cannot be afforded
+// stays entirely on the original path.
+constexpr uint32_t host_frame_bytes=128*1024, host_regions=4, split_reserve=8*1024, takeover_reserve=6*1024;
 // Polygons with a corner this near are also drawn here. The PS1 maps textures
 // affinely; where an original polygon meets a subdivided one the shared edge
 // would map differently and the texture kinks. Past this depth the difference
@@ -154,6 +157,16 @@ int32_t last_zsf3;
 uint32_t arena_size;uint64_t packet_skips,mesh_fallbacks;
 // Frame accounting: a frame starts when the OT bitmap is still empty.
 uint32_t frame_first_cursor,frame_host_bytes,frame_used_peak,host_bytes_peak;
+uint32_t host_arena_base,host_region;
+uint32_t host_arena() {
+    if(!host_arena_base) host_arena_base=psx_mod_alloc_gpu_dma_memory(host_frame_bytes*host_regions,16);
+    return host_arena_base;
+}
+// A new frame's packets start a fresh region; an unused one is kept.
+void host_frame_reset() {
+    if(frame_host_bytes) host_region=(host_region+1)%host_regions;
+    frame_host_bytes=0;
+}
 // D12 first-person weapon. Every polygon of the hand, weapon, flash and held
 // item meshes is drawn here while first_person_weapon_drawing(). Their packets
 // are written as usual but linked only when Duke's draw ends: sorted by depth
@@ -246,7 +259,7 @@ struct Poly {
 };
 struct Frame {
     bool trace=false;uint64_t trace_call=0;uint32_t mesh=0,instance=0,caller=0;
-    NearGte g;bool object,viewmodel;uint32_t cursor,start,end,far_limit,zsf3,zsf4;
+    NearGte g;bool object,viewmodel;uint32_t far_limit,zsf3,zsf4;
     std::vector<NearProjected> verts;unsigned emitted;Stats* stats;
 };
 
@@ -335,19 +348,10 @@ bool oversize(const Frame& f,const int* idx,unsigned corners) {
     }
     return x1-x0>1023 || y1-y0>511;
 }
-uint32_t ring_distance(const Frame& f,uint32_t from,uint32_t to) {
-    const uint32_t size=f.end-f.start;
-    return to>=from ? to-from : size-(from-to);
-}
 // Bytes still available to host packets this frame.
-uint32_t budget(const Frame& f) {
-    if(f.end<=f.start || f.cursor<f.start || f.cursor>=f.end) return 0;
-    if(frame_first_cursor<f.start || frame_first_cursor>=f.end) return 0;
-    const uint32_t used=ring_distance(f,frame_first_cursor,f.cursor);
-    const uint32_t ring=(uint32_t)((f.end-f.start)*ring_share);
-    const uint32_t by_ring=used<ring?ring-used:0;
-    const uint32_t by_host=frame_host_bytes<host_frame_bytes?host_frame_bytes-frame_host_bytes:0;
-    return std::min(by_ring,by_host);
+uint32_t budget(const Frame&) {
+    if(!host_arena()) return 0;
+    return frame_host_bytes<host_frame_bytes?host_frame_bytes-frame_host_bytes:0;
 }
 void screen(const Frame& f,const Vertex& v,double& x,double& y) {
     x=f.g.ofx/65536.0+f.g.h*v.p[0]/v.p[2];y=f.g.ofy/65536.0+f.g.h*v.p[1]/v.p[2];
@@ -395,8 +399,7 @@ void emit(Frame& f,const Poly& poly,const Vertex* v) {
     if(index<0) {trace_record(f,"far_reject",poly.source);return;}
     const uint32_t size=poly.textured?0x28:0x1c;
     if(budget(f)<size) {++packet_skips;trace_record(f,"packet_budget",poly.source);return;}
-    if(!(f.cursor+size<f.end)) f.cursor=f.start;
-    const uint32_t prim=f.cursor;
+    const uint32_t prim=host_arena()+host_region%host_regions*host_frame_bytes+frame_host_bytes;
     double cx=0,cy=0;
     for(int i=0;i<3;++i){double x,y;screen(f,v[i],x,y);cx+=x/3;cy+=y/3;}
     if(poly.textured) {
@@ -467,7 +470,7 @@ void emit(Frame& f,const Poly& poly,const Vertex* v) {
         }
         x<<']';trace_record(f,"emit",poly.source,x.str());
     }
-    f.cursor+=size;frame_host_bytes+=size;host_bytes_peak=std::max(host_bytes_peak,frame_host_bytes);++f.emitted;++f.stats->triangles;
+    frame_host_bytes+=size;host_bytes_peak=std::max(host_bytes_peak,frame_host_bytes);++f.emitted;++f.stats->triangles;
 }
 Vertex mid(const Vertex& a,const Vertex& b,double t) {
     Vertex m{};
@@ -694,7 +697,6 @@ bool front_facing(const Frame& f,const Poly& poly,uint32_t flags,bool second_tri
 }
 bool begin(Frame& f,CPUState* cpu,bool object) {
     f.g=read_gte(cpu);f.object=object;f.stats=object?&object_stats:&world_stats;
-    f.cursor=psx_mod_read_word(context);f.start=psx_mod_read_word(context+4);f.end=psx_mod_read_word(context+8);
     f.far_limit=psx_mod_read_word(context+0x78);f.zsf3=(uint32_t)(int32_t)(int16_t)cpu->gte_ctrl[29];last_zsf3=(int32_t)f.zsf3;
     f.zsf4=(uint32_t)(int32_t)(int16_t)cpu->gte_ctrl[30];
     return f.g.h>=64;
@@ -819,7 +821,6 @@ void world(CPUState* cpu) {
         }
         draw(f,p);
     }
-    psx_mod_write_word(context,f.cursor);
 }
 unsigned object_record_size(uint32_t type) {
     switch(type) {
@@ -1086,7 +1087,6 @@ void object(CPUState* cpu) {
     }
     if(!viewmodel) rank_coplanar(f,polys);
     for(const auto& p:polys) draw(f,p);
-    psx_mod_write_word(context,f.cursor);
 }
 // Occluder fade. The prop loop (0x80031fa0..0x80032078) makes a prop
 // semi-transparent and dims it by distance when it is nearer than the fade
@@ -1182,7 +1182,7 @@ void near_hook_body(CPUState* cpu,uint32_t address) {
         // Redraw workers enter this same boundary with their restored RAM.
         if(cpu->gpr[31]==0x800268f4 && identity()) {
             frame_first_cursor=psx_mod_read_word(context);
-            frame_host_bytes=0;
+            host_frame_reset();
             held_packets.clear();
         }
         return;
@@ -1192,7 +1192,7 @@ void near_hook_body(CPUState* cpu,uint32_t address) {
         const uint32_t cursor=psx_mod_read_word(context),start=psx_mod_read_word(context+4),end=psx_mod_read_word(context+8);
         bool empty=true;
         for(uint32_t i=0;i<0x100 && empty;i+=4) empty=!psx_mod_read_word(bitmap+i);
-        if(empty) {frame_first_cursor=cursor;frame_host_bytes=0;}
+        if(empty) {frame_first_cursor=cursor;host_frame_reset();}
         if(end>start && cursor>=start && cursor<end && frame_first_cursor>=start && frame_first_cursor<end) {
             arena_size=end-start;
             const uint32_t used=cursor>=frame_first_cursor?cursor-frame_first_cursor:arena_size-(frame_first_cursor-cursor);
@@ -1219,7 +1219,7 @@ void near_clip_counters(uint64_t out[8]) {
     out[4]=mesh_fallbacks;out[5]=world_stats.budget_hits+object_stats.budget_hits;out[6]=copy_overflows;out[7]=refused;
 }
 void near_clip_prepare() {
-    (void)guest_copy();
+    (void)guest_copy();(void)host_arena();
     if(!empty_rect) {
         empty_rect=psx_mod_alloc_guest_memory(16,16);
         if(empty_rect) {
@@ -1228,9 +1228,9 @@ void near_clip_prepare() {
         }
     }
 }
-NearClipFrameState near_clip_frame_state() {return {frame_first_cursor,frame_host_bytes,held_frame};}
+NearClipFrameState near_clip_frame_state() {return {frame_first_cursor,frame_host_bytes,held_frame,host_region};}
 void near_clip_load_frame_state(const NearClipFrameState& s) {
-    frame_first_cursor=s.first_cursor;frame_host_bytes=s.host_bytes;held_frame=s.held_frame;
+    frame_first_cursor=s.first_cursor;frame_host_bytes=s.host_bytes;held_frame=s.held_frame;host_region=s.host_region%host_regions;
     held_packets.clear();
 }
 

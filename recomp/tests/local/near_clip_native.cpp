@@ -34,11 +34,16 @@ struct HostCorner {uint32_t word;int32_t x,y;float z,u,v,depth;};
 static std::vector<HostCorner> host_corners;
 extern "C" {uint8_t* g_psx_ram=ram;uint32_t g_dirty_ram_code_gen=1;}
 extern "C" uint32_t psx_mod_alloc_guest_memory(uint32_t,uint32_t){return 0x801e0000;}
-extern "C" uint8_t psx_mod_read_byte(uint32_t a){return ram[a&0x1fffff];}
+// D17R1 host packet arena (GPU DMA aperture).
+extern "C" uint32_t psx_mod_alloc_gpu_dma_memory(uint32_t,uint32_t){return 0x80f00000;}
+// GPU DMA aperture (0x80f00000, mod_memory.h), apart from main RAM as in the runtime.
+static uint8_t aperture[0x100000];
+static uint8_t& byte_at(uint32_t a){return (a&0xffffff)>=0xf00000?aperture[a&0xfffff]:ram[a&0x1fffff];}
+extern "C" uint8_t psx_mod_read_byte(uint32_t a){return byte_at(a);}
 extern "C" uint16_t psx_mod_read_half(uint32_t a){return psx_mod_read_byte(a)|(psx_mod_read_byte(a+1)<<8);}
 extern "C" uint32_t psx_mod_read_word(uint32_t a){return psx_mod_read_half(a)|(uint32_t(psx_mod_read_half(a+2))<<16);}
-extern "C" void psx_mod_write_byte(uint32_t a,uint8_t v){ram[a&0x1fffff]=v;}
-extern "C" void psx_mod_write_word(uint32_t a,uint32_t v){for(int i=0;i<4;++i)ram[(a+i)&0x1fffff]=v>>(8*i);}
+extern "C" void psx_mod_write_byte(uint32_t a,uint8_t v){byte_at(a)=v;}
+extern "C" void psx_mod_write_word(uint32_t a,uint32_t v){for(int i=0;i<4;++i)byte_at(a+i)=v>>(8*i);}
 extern "C" int psx_mod_register_function_entry_plugin(const char*,uint32_t,PSXModFunctionEntryCallback cb){near_hook=cb;return 1;}
 extern "C" int psx_mod_gpu_host_vertex(uint32_t,uint32_t,int32_t,int32_t,float,float,float){return 1;}
 extern "C" int psx_mod_gpu_host_vertex_depth(uint32_t,uint32_t w,int32_t x,int32_t y,float z,float u,float v,float d){++host_vertices;host_corners.push_back({w,x,y,z,u,v,d});return 1;}
@@ -61,7 +66,7 @@ static void observed_hook(CPUState* cpu,uint32_t address) {
         const auto* b=static_cast<const uint8_t*>(p);
         for(size_t i=0;i<n;++i) {packet_digest^=b[i];packet_digest*=1099511628211ull;}
     };
-    hash(ram,sizeof ram);hash(cpu->gpr,sizeof cpu->gpr);
+    hash(ram,sizeof ram);hash(aperture,sizeof aperture);hash(cpu->gpr,sizeof cpu->gpr);
     hash(cpu->gte_ctrl,sizeof cpu->gte_ctrl);hash(&host_vertices,sizeof host_vertices);
 }
 // Optional owned-EXE integration: exercise the registered, identity-guarded
@@ -123,6 +128,10 @@ static void packet_contracts(const char* executable) {
     observed_hook(&cpu,0x80011020);
     assert(cpu.gpr[4]!=mesh && host_vertices>3);
     assert(psx_mod_read_word(ot+128*8)!=0);
+    // D17R1: host packets live in their own arena; the game's ring cursor
+    // and its packets are untouched.
+    assert(psx_mod_read_word(ot+128*8)>=0x80f00000u && psx_mod_read_word(ot+128*8)<0x80f80000u);
+    assert(psx_mod_read_word(ctx)==0x80160000);
     for(unsigned i=0;i<2048;++i)if(i!=128)assert(psx_mod_read_word(ot+i*8)==0);
     auto object_case=[&](uint32_t ra,int extent,bool expect_taken,bool occupied_ot=false) {
         auto c=reset();c.gpr[31]=ra;c.gpr[18]=0x80180000+extent*0x60;
@@ -251,7 +260,11 @@ static void packet_contracts(const char* executable) {
         if(kind==12) c.gte_ctrl[26]=64; // screen-snapped zero area
         if(kind==8) word(verts+7*8,psx_mod_read_word(verts+6*8)); // duplicate corner
         if(kind==9) psx_mod_write_byte(mesh+6,7); // incomplete box
-        if(kind==7) word(ctx+8,0x80161000); // whole-mesh budget fallback
+        if(kind==7) { // whole-mesh budget fallback: this frame's host arena is spent
+            word(bm,1);auto state=ttk::near_clip_frame_state();
+            state.host_bytes=0xffffffffu;ttk::near_clip_load_frame_state(state);
+        }
+        if(kind==13) word(ctx+8,0x80161000); // D17R1: a full game ring no longer matters
         observed_hook(&c,0x80010000);
         assert((host_vertices!=0)==expected);
         if(expected) {
@@ -274,7 +287,7 @@ static void packet_contracts(const char* executable) {
     };
     for(int bias:{-1,0,1}) top_case(0,0x80032288,true,bias);
     for(int kind:{1,2,3,4,5,7,8,9,10,12}) top_case(kind,0x80032288,false);
-    top_case(6,0x80032288,true);top_case(11,0x80032288,true);
+    top_case(6,0x80032288,true);top_case(11,0x80032288,true);top_case(13,0x80032288,true);
     top_case(0,0x80033778,false);top_case(0,0x800351f4,false);
     live_eye=false;top_case(0,0x80032288,false);live_eye=true;
     live_eye=false;object_case(0x80032288,100,false); // Vanilla/original view

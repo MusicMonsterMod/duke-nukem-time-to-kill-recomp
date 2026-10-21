@@ -71,6 +71,7 @@
 #include "savestate.h"
 #include "savestate_slots.h"
 #include "ttk_font.h"
+#include "inventory_hud.h"
 #include <algorithm>
 #include <array>
 #include <atomic>
@@ -164,6 +165,17 @@ constexpr int clut_amber=14*64;
 constexpr uint32_t fn_glyph=0x8008b210, glyph_table=0x800c3f30;
 struct QuoteMetrics {int pair_step,ink_rows;};
 const QuoteMetrics quote_metrics[]={{5,8},{6,10}}; // small font, menu font
+// D20D: the small font has no '!' or '%' either. They are the Modernized text
+// pack's (build_ttk_fonts.py: D24C '!' from I and period, D24E '%' as './.'),
+// drawn here as 1-row runs copied from the font's own I, '.' and '/' texels
+// (analysis d20d-stats/runs.py): {x, row, length, u, v} from the pen. The game's
+// glyph quads take u..u+w, v..v+11 at x..x+w, y..y+11 (exclusive).
+struct GlyphRun {uint8_t x,y,n,u,v;};
+constexpr GlyphRun small_bang[]={{3,0,4,18,84},{3,1,5,18,85},{2,2,5,17,86},{2,3,3,17,87},{5,3,1,21,87},{2,4,2,17,88},
+    {4,4,1,21,88},{1,5,3,16,89},{4,5,1,21,89},{1,6,4,16,94},{0,8,6,17,80},{0,9,6,17,81},{1,10,4,16,94}};
+constexpr GlyphRun small_percent[]={{0,0,6,17,80},{8,0,2,20,84},{0,1,6,17,81},{7,1,4,19,85},{1,2,4,16,94},{7,2,4,19,86},
+    {6,3,4,18,87},{6,4,4,27,76},{5,5,4,19,80},{5,6,4,18,90},{4,7,4,17,90},{4,8,4,18,90},{9,8,6,17,80},{3,9,4,16,92},
+    {9,9,6,17,81},{4,10,3,16,94},{10,10,4,16,94}};
 // D19N: a row with no effect is drawn at this texture modulation (0x80 is
 // full; D08A6 dims an off gadget's digits the same way). The font's grey CLUT
 // row 224 has an opaque entry 0: it drew a box behind each glyph.
@@ -518,6 +530,9 @@ bool direct_open=false;
 // fields until its prompts show; CONFIRM waits for the next flip; a savestate
 // was loaded since it last opened (it then opens with its prompts).
 bool stats_open=false, stats_continue=false, stats_after_load=false;
+// D20D: the best time for this level and difficulty (ms, 0 = none) and
+// whether this level just set it.
+uint32_t stats_best_ms=0;bool stats_new_best=false;
 int stats_wait=0;
 void thumb_hide();
 void savestate_check() {
@@ -1354,8 +1369,10 @@ struct Guest {
         for(;s[i] && i<100;++i) psx_mod_write_byte(text+i,(uint8_t)s[i]);
         psx_mod_write_byte(text+i,0);
     }
+    static bool drawn_char(char c,uint32_t flags) {return c=='"' || ((c=='!' || c=='%') && quote_font(flags)==0);}
+    static bool has_drawn(const char* s,uint32_t flags) {for(;*s;++s) if(drawn_char(*s,flags)) return true;return false;}
     void say(const char* s,int x,int y,uint32_t flags) {
-        if(std::strchr(s,'"')) {say_quoted(s,x,y,flags);return;}
+        if(has_drawn(s,flags)) {say_quoted(s,x,y,flags);return;}
         put(s);call(fn_text,text,(uint32_t)x,(uint32_t)y,flags);
     }
     // D19T: text with double quotes, as the text call would place it: the
@@ -1372,10 +1389,30 @@ struct Guest {
         if(flags&centre) x-=w/2; else if(flags&right) x-=w;
         std::string run;bool open=true;
         for(const char* p=s;;++p) {
-            if(*p && *p!='"') {run+=*p;continue;}
+            if(*p && !drawn_char(*p,flags)) {run+=*p;continue;}
             if(!run.empty()) {const int rw=width(run.c_str(),flags&0x300);put(run.c_str());call(fn_text,text,(uint32_t)x,(uint32_t)y,left);x+=rw;run.clear();}
             if(!*p) break;
-            say_quote(x,y,left,open);x+=quote_width(flags);open=!open;
+            if(*p=='"') {say_quote(x,y,left,open);x+=quote_width(flags);open=!open;}
+            else {say_runs(*p,x,y,left);x+=drawn_width(*p);}
+        }
+    }
+    // D20D: '!' and '%' in the small font, one glyph quad per run.
+    int drawn_width(char c) {return c=='!' ? width("I",0) : width("/",0)+7;}
+    void say_runs(char c,int x,int y,uint32_t flags) {
+        const GlyphRun* r=c=='!' ? small_bang : small_percent;
+        const size_t n=c=='!' ? std::size(small_bang) : std::size(small_percent);
+        for(size_t i=0;i<n && ok;++i) {
+            call(fn_glyph,'I',(uint32_t)x,(uint32_t)y,flags);
+            if(!ok) return;
+            const uint32_t p=psx_mod_read_word(glyph_next)-glyph_size;
+            const uint16_t x0=(uint16_t)(psx_mod_read_half(p+8)+r[i].x),y0=(uint16_t)(psx_mod_read_half(p+0xa)+r[i].y);
+            const uint16_t x1=(uint16_t)(x0+r[i].n),y1=(uint16_t)(y0+1);
+            const uint8_t u0=r[i].u,u1=(uint8_t)(r[i].u+r[i].n),v0=r[i].v,v1=(uint8_t)(r[i].v+1);
+            const uint16_t xs[4]={x0,x1,x0,x1},ys[4]={y0,y0,y1,y1};const uint8_t us[4]={u0,u1,u0,u1},vs[4]={v0,v0,v1,v1};
+            for(uint32_t k=0;k<4;++k) {
+                psx_mod_write_half(p+8+8*k,xs[k]);psx_mod_write_half(p+0xa+8*k,ys[k]);
+                psx_mod_write_byte(p+0xc+8*k,us[k]);psx_mod_write_byte(p+0xd+8*k,vs[k]);
+            }
         }
     }
     void say_quote(int x,int y,uint32_t flags,bool open) {
@@ -1400,9 +1437,11 @@ struct Guest {
         if(s>=0x80010000u && s<0x80200000u) call(fn_text,s,(uint32_t)x,(uint32_t)y,flags);
     }
     int width(const char* s,uint32_t font) {
-        if(const char* q=std::strchr(s,'"')) {
+        const char* q=s;
+        while(*q && !drawn_char(*q,font)) ++q;
+        if(*q) {
             const std::string before(s,q);
-            return (before.empty() ? 0 : width(before.c_str(),font))+quote_width(font)+(q[1] ? width(q+1,font) : 0);
+            return (before.empty() ? 0 : width(before.c_str(),font))+(*q=='"' ? quote_width(font) : drawn_width(*q))+(q[1] ? width(q+1,font) : 0);
         }
         put(s);return (int)call(fn_width,text,font>>8,0,0);
     }
@@ -1974,45 +2013,60 @@ void draw_load_ask(Guest& g,const Geometry& geo) {
 }
 
 // ---- D20B: the statistics screen, as 0x800277dc and 0x80027214 draw it ----
-// The level's name (small font, blue) 30 above the first row, which is at
-// y0 + (h - 60) / 2. One player: labels left-aligned at -(w/4) - 20, values
-// right-aligned at w/4 + 20, 15 apart: kills, time (mm:ss), continues, then
-// secrets (not the bosses 27-30) and the challenge item (levels 0, 2, 5, 7, 9,
-// 11). Challenge stages: COMPLETED or FAILED, centred on the first row.
-// Prompts: CONFIRM at x0 + w/3 and SAVE at -x0 - w/3, or CONTINUE alone.
-// D20F: the lines sit stats_lift higher, and the choices are a list in the
-// menu font under them (CONTINUE, SAVE GAME; 19 apart, blue highlighted) at
-// a fixed place, with SELECT / CONFIRM. Nothing of it before the wait ends.
+// The original: the level's name (small font, blue) 30 above the first row,
+// at y0 + (h - 60) / 2. One player: labels left-aligned at -(w/4) - 20,
+// values right-aligned at w/4 + 20, 15 apart: kills, time (mm:ss), continues,
+// then secrets (not the bosses 27-30) and the challenge item (levels 0, 2, 5,
+// 7, 9, 11). Challenge stages: COMPLETED or FAILED, centred on the first row.
+// D20F: the choices are a list in the menu font (CONTINUE, SAVE GAME; 19
+// apart, blue highlighted) at row + stats_list_y, with SELECT / CONFIRM.
+// Nothing of it before the wait ends.
+// D20D (layout approved 2026-10-21): the name 44 above the row and
+// DIFFICULTY: under it; the rows 13 apart from 12 above it (the original's
+// columns), adding BEST TIME under TIME TAKEN, MISSION ITEMS (levels that
+// have them) before the challenge item and HEALTH / ARMOR last. The list
+// keeps its place.
 constexpr int stats_lift=25, stats_list_y=95;
+constexpr int stats_title=44, stats_step=13;
 void draw_stats(Guest& g,const Geometry& geo) {
-    const int n=level(), row=(geo.h-60)/2+geo.y0-stats_lift;
+    const int n=level(), row=(geo.h-60)/2+geo.y0-stats_lift, title=row-stats_title;
     if(n>=0 && n<32) {
         const int id=half(level_names+2*n);
-        if(id>0 && id<=text_last) g.say_id(id,0,row-30,font_small|centre|blue);
+        if(id>0 && id<=text_last) g.say_id(id,0,title,font_small|centre|blue);
     }
+    const int d=std::clamp<int>(half(diff_cursor),0,3);
+    g.say(("DIFFICULTY: "+text_of((int)psx_mod_read_word(diff_ids+4*d))).c_str(),0,title+14,font_small|centre);
     if(challenge()) g.say_id((psx_mod_read_byte(challenges_done)>>(n-21))&1 ? text_completed : text_failed,0,row,font_small|centre);
     else {
         const int lx=-(geo.w/4)-20, vx=geo.w/4+20;
-        char value[32];
-        auto line=[&](int y,int label,const char* text) {g.say_id(label,lx,y,font_small);g.say(text,vx,y,font_small|right);};
+        int y=title+32;
+        char value[48];
+        auto line=[&](const char* label,const char* text,uint32_t vflags=0) {g.say(label,lx,y,font_small);g.say(text,vx,y,font_small|right|vflags);y+=stats_step;};
+        auto line_id=[&](int label,const char* text) {g.say_id(label,lx,y,font_small);g.say(text,vx,y,font_small|right);y+=stats_step;};
+        auto clock=[&](uint32_t ms) {const unsigned t=ms/1000;std::snprintf(value,sizeof value,"%02u:%02u",t/60,t%60);return value;};
         std::snprintf(value,sizeof value,"%d",(int)half(player+0x3b6));
-        line(row,text_kills_label,value);
-        const int seconds=(int)psx_mod_read_word(player+0x398)/1000;
-        std::snprintf(value,sizeof value,"%02d:%02d",seconds/60,seconds%60);
-        line(row+15,text_time_label,value);
+        line_id(text_kills_label,value);
+        line_id(text_time_label,clock(psx_mod_read_word(player+0x398)));
+        if(stats_new_best) line("BEST TIME:","NEW BEST!",blue);
+        else line("BEST TIME:",stats_best_ms ? clock(stats_best_ms) : "--:--");
         std::snprintf(value,sizeof value,"%d",(int)psx_mod_read_byte(player+0x279));
-        line(row+30,text_continues_label,value);
-        int y=row+30;
+        line_id(text_continues_label,value);
         if((unsigned)(n-27)>=4u) {
-            y+=15;
             std::snprintf(value,sizeof value,"%d OF %d",(int)half(player+0x3b0),(int)half(secrets_total));
-            line(y,text_secrets_label,value);
+            line_id(text_secrets_label,value);
         }
+        uint16_t flags[17]{};
+        for(unsigned i=6;i<17;++i) flags[i]=psx_mod_read_half(player+0x354+4*i);
+        int got=0,total=0;
+        mission_tally((unsigned)n,flags,got,total);
+        if(total) {std::snprintf(value,sizeof value,"%d OF %d",got,total);line("MISSION ITEMS:",value);}
         if(n==0 || n==2 || n==5 || n==7 || n==9 || n==11) {
-            y+=15;
             g.say_id(text_challenge_label,lx,y,font_small);
             g.say_id(psx_mod_read_byte(challenge_found) ? text_yes : text_no,vx,y,font_small|right);
+            y+=stats_step;
         }
+        std::snprintf(value,sizeof value,"%d%% / %d%%",(int16_t)half(player+0x32)/100,(int16_t)half(player+0x234)/100);
+        line("HEALTH / ARMOR:",value);
     }
     if(stats_wait>0) return;
     const int ly=row+stats_list_y, items=stats_items();
@@ -2533,6 +2587,50 @@ void gameplay_exit_entry() {
 // The flip at the end of the statistics screen's tick (0x8001fcbc called from
 // 0x80027df8): open the page, act, draw it into this image, and hold the
 // original's timer so it never shows its prompts or reads the pad.
+// ---- D20D: best times, per level and difficulty ----
+// ttk-best-times.txt beside the savestates (never the memory card): one line
+// "level difficulty milliseconds" per record. A finished level (not a
+// savestate loaded onto the statistics screen) records its TIME TAKEN when it
+// is the first or a shorter one; the screen then reads NEW BEST!.
+std::string best_times_path() {
+    const char* dir=savestate_dir();
+    return dir && *dir ? std::string(dir)+"/ttk-best-times.txt" : std::string();
+}
+struct BestTime {int level,difficulty;uint32_t ms;};
+std::vector<BestTime> best_times_read(const std::string& path) {
+    std::vector<BestTime> out;
+    if(FILE* f=std::fopen(path.c_str(),"rb")) {
+        int l,d;unsigned long ms;
+        while(std::fscanf(f,"%d %d %lu",&l,&d,&ms)==3) if(l>=0 && l<32 && d>=0 && d<4 && ms) out.push_back({l,d,(uint32_t)ms});
+        std::fclose(f);
+    }
+    return out;
+}
+void best_times_write(const std::string& path,const std::vector<BestTime>& all) {
+    std::string text;
+    for(const BestTime& b:all) {char line[48];std::snprintf(line,sizeof line,"%d %d %u\n",b.level,b.difficulty,b.ms);text+=line;}
+    const std::string temp=path+".tmp";
+    if(FILE* f=std::fopen(temp.c_str(),"wb")) {
+        const bool ok=std::fwrite(text.data(),1,text.size(),f)==text.size();
+        if(std::fclose(f)==0 && ok && std::rename(temp.c_str(),path.c_str())==0) return;
+    }
+    std::remove(temp.c_str());
+    std::fprintf(stderr,"[TTK menu] could not write %s\n",path.c_str());
+}
+void stats_best_update(bool finished) {
+    stats_best_ms=0;stats_new_best=false;
+    const int n=level(), d=half(diff_cursor);
+    const std::string path=best_times_path();
+    if(path.empty() || n<0 || n>=32 || d<0 || d>3 || challenge()) return;
+    std::vector<BestTime> all=best_times_read(path);
+    auto it=std::find_if(all.begin(),all.end(),[&](const BestTime& b) {return b.level==n && b.difficulty==d;});
+    if(it!=all.end()) stats_best_ms=it->ms;
+    const uint32_t ms=psx_mod_read_word(player+0x398);
+    if(!finished || !ms || (stats_best_ms && ms>=stats_best_ms)) return;
+    if(it!=all.end()) it->ms=ms; else all.push_back({n,d,ms});
+    best_times_write(path,all);
+    stats_best_ms=ms;stats_new_best=true;
+}
 void stats_flip(CPUState* cpu) {
     if(cpu->gpr[31]!=stats_flip_ra) return;
     ensure_init();
@@ -2549,6 +2647,7 @@ void stats_flip(CPUState* cpu) {
             if(end_thumb_ok) std::memcpy(pause_thumb,end_thumb,sizeof pause_thumb);
         } else if(!thumb_from_load) pause_thumb_ok=false;
         end_thumb_ok=false;
+        stats_best_update(!stats_after_load);
         thumb_from_load=false;resume_load=false;
         stats_after_load=false;stats_open=true;stats_continue=false;
         owned=true;page=Page::Stats;screen=-1;cursor=0;top=0;direct_open=false;++entries;++stats_entries;

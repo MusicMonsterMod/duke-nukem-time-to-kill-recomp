@@ -318,6 +318,15 @@ void mission_update(unsigned level,const uint16_t* mission) {
     mission_expires=SDL_GetTicks()+2500;
     expires=0;
 }
+void mission_tally(unsigned level,const uint16_t* flags,int& got,int& total) {
+    got=total=0;
+    for(const auto& d:mission_table) {
+        if(d.level!=level)continue;
+        ++total;
+        const unsigned v=flags[d.item];
+        if((v&1) || (v&mission_used_bit))++got;
+    }
+}
 void mission_browse_press(int direction) {browse_steps.fetch_add(direction);browse_presses.fetch_add(1);}
 }
 extern "C" int ttk_inventory_pixels(const uint32_t* p){return p==pixels || p==card_pixels;}

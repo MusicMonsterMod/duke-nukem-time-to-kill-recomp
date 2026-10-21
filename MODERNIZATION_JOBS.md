@@ -147,6 +147,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D11D | First-person eye height from Duke's real proportions, game-wide (LEVEL01 slot 8) | Accepted | D11, D22A |
 | D11E | First person while swimming (underwater eye view, game-wide) | Todo | D08O, D11, D22B |
 | D11F | First person while flying the jetpack (game-wide, all schemes) | Todo | D11, D08Q3, D22B |
+| D11G | New level can start in third person although first person is selected (player UI slot 11 -> next level); left click restores it | Todo | D11, D22B |
 | D13 | Higher internal resolution and display scaling | Done | D02 |
 | D14 | Widescreen, FOV and visibility | Done | D03, D13 |
 | D15 | Optional geometry and texture precision | Accepted | D13 |
@@ -214,7 +215,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D20B | Statistics screen rebuilt (option B, part 1): the original screen as ours, SAVE opens our SAVE GAME, no game saves on the memory card in Modernized | Done (user-accepted 2026-10-21) | D01, D02, D19Q |
 | D20C | Colours sometimes wrong after loading a savestate (intermittent; player UI slot 1, load several times) | Done (user-accepted 2026-10-21) | D20 |
 | D20F | Statistics screen choices as a selectable list: CONTINUE and SAVE GAME highlighted with arrows / wheel, Enter chooses (no hidden V for SAVE) | Done (user-accepted 2026-10-21) | D20B |
-| D20D | Richer statistics screen (option B, part 2): level, difficulty, mission items, best time per level and difficulty (our own file) | Todo | D20B, D08A5, D20F |
+| D20D | Richer statistics screen (option B, part 2): level, difficulty, mission items, best time per level and difficulty (our own file) | Done (user-accepted 2026-10-21) | D20B, D08A5, D20F |
 | D20E | Statistics research: enemy total (kills X of Y), shots / accuracy, damage taken; show only once verified | Todo | D20B |
 | D21 | Accessibility and sound controls | Todo | D04, D19 |
 | D22 | Campaign fidelity and overlay coverage | Todo | D01 |
@@ -4709,6 +4710,27 @@ firing and landing in at least two levels with each jetpack scheme; third
 person, ground first person and Vanilla unchanged; the user confirms it reads
 well.
 
+### D11G - New level can start in third person with first person selected
+
+Opened 2026-10-21 (user, when accepting D20D; not actioned): "starting a new
+level might result in duke loading in third person when first person was
+already selected. an example of this is loading our slot 11 save, and
+starting the next level, and duke starts in 3rd person. when you click the
+left mouse button, it goes back to first person."
+
+Reproduction to confirm: player UI slot 11, finish the level and CONTINUE
+from the statistics screen (or `endlevel`), with first person selected.
+Expected: the next level starts in first person, as in D22A / D22B. Left
+click (fire) bringing first person back suggests the view is restored by a
+later event rather than kept across the level start. Fix it game-wide, not
+for one level, and check other level starts (new game, level select,
+CONTINUE after a death) and the D11C head-visibility state.
+
+**Acceptance:** with first person selected, every level start reached by
+finishing a level (and the other starts above) begins in first person with no
+input needed; third person is kept when it is selected; Vanilla unchanged;
+the user confirms from slot 11.
+
 ### D12 — First-person weapons and state polish
 
 **Done - user accepted 2026-09-30:** "finally, we can mark this as accepted!!"
@@ -7395,6 +7417,33 @@ the game's fonts; mock-up first, as the user approved the D19 menus.
 
 **Acceptance:** a user-approved layout; every value matches the game; best
 times persist across launches and are per difficulty; Vanilla unchanged.
+
+**Done (user-accepted 2026-10-21: "accepted! ... close this work out, fully accepted").** D11G opened from the same message.
+
+**Work log (2026-10-21, Needs playtest; [note 181](documentation/181-d20d-richer-statistics.md)).**
+Mock-up drawn in the game (real fonts and values); user: "layout is approved",
+"dont mention cheats", the game timer (rewound by savestate loads) "is fine",
+and asked for the real `%` and `!` as in the font picker.
+Implementation (`game_menu.cpp`, `draw_stats`): level name, DIFFICULTY:
+(`0x800c3d7c`, the game's difficulty names), then 13 apart ENEMIES KILLED,
+TIME TAKEN, BEST TIME, CONTINUES REMAINING, SECRETS FOUND, MISSION ITEMS
+(D08A5 table via new `mission_tally`, held or used; levels that have them),
+CHALLENGE FOUND, HEALTH / ARMOR (`62% / 0%`); the D20F list keeps its place.
+Best times: `ttk-best-times.txt` beside the savestates, `level difficulty ms`;
+a finished level records a first or shorter time and shows NEW BEST! (blue);
+a savestate loaded onto the screen shows the stored best only. `!` and `%` in
+the game's small font: the shipped D24C / D24E glyphs drawn as 1-row runs
+copied from the font's own I, '.' and '/' (`Guest::say_runs`, D19T-style
+alignment). Font picker: '(' ')' '%' and double quotes added from the
+shipped builders, new section 16 (user request).
+Evidence (offscreen, `recomp/analysis/d20d-stats/t1.py`): record, slower,
+faster, other difficulty, persistence across launches, load onto the screen
+(no NEW BEST!), CONTINUE -> level 1, mission 2 OF 5 with one used, 137% / 50%,
+boss / challenge / final / level 1 variants, Vanilla original and file
+untouched. Python 164 OK, `ttk-input-test`, `ttk-near-test`, `check_repo.py`.
+No hook or framework change. Executable
+`076f949136de1f29bd0675da8cefd3a1fd7222a73468880c6014e888ad803d5d`.
+Limits: offscreen only; values set by memory writes, not a real level exit.
 
 ### D20E - Statistics research: enemy total, accuracy, damage
 

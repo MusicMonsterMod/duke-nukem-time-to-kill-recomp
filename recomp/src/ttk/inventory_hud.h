@@ -15,6 +15,9 @@ void mission_close();
 // D08A18: inventory item (6..16) of the browsed slot while the mission
 // inventory shows, else -1.
 int mission_browsed_item();
+// D20D: the level's mission items, and how many were collected (found or
+// used) from the same flags as mission_update; total 0 where it has none.
+void mission_tally(unsigned level,const uint16_t* flags,int& got,int& total);
 // D08A19: host marker in a mission item's flag halfword for "used". The
 // original only ever tests, sets and clears bit 0 of items 6..16 (pickup |= 1,
 // use at animation 47 &= ~1, level reset = 0), so the marker rides along in

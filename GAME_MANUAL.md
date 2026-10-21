@@ -1087,9 +1087,15 @@ the same way on every menu screen:
   Slots saved before level names were recorded read SAVED GAME. Memory card
   saves are no longer offered here in Modernized; Vanilla
   (`run.py --vanilla`) keeps the original memory card LOAD GAME.
-- **Statistics screen** (after each level, one player): the original screen
-  and layout (kills, time, continues, secrets, challenge item; COMPLETED or
-  FAILED after a challenge stage). After the original's short wait (about a
+- **Statistics screen** (after each level, one player): the original screen's
+  look, with more lines: the level name and DIFFICULTY, then ENEMIES KILLED,
+  TIME TAKEN, BEST TIME, CONTINUES REMAINING, SECRETS FOUND, MISSION ITEMS
+  (found or used, on levels that have them), CHALLENGE FOUND and HEALTH /
+  ARMOR (COMPLETED or FAILED after a challenge stage). BEST TIME is your
+  fastest finish of that level on that difficulty; a faster one reads NEW
+  BEST! and is kept in `ttk-best-times.txt` beside your savestates (never on
+  the memory card). Loading a savestate onto this screen shows the stored
+  best without recording again. After the original's short wait (about a
   second) a list appears under the lines: CONTINUE goes on to the next level,
   SAVE GAME opens SAVE GAME (a savestate slot, not the memory card). Up /
   Down or the mouse wheel choose, Enter (X) confirms; V is a shortcut for

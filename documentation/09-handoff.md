@@ -1,5 +1,24 @@
 # Next-session handoff
 
+## 2026-10-21 - D20D accepted (richer statistics); D11G opened
+
+- User: "accepted! ... close this work out, fully accepted". D20D Done.
+  Note 181. Executable
+  `076f949136de1f29bd0675da8cefd3a1fd7222a73468880c6014e888ad803d5d` is the regression baseline.
+- D11G (Todo, not actioned; next up): a new level can start in third person
+  although first person is selected (player UI slot 11, next level); a left
+  click brings first person back.
+
+## 2026-10-21 - D20D richer statistics screen (Needs playtest)
+
+- Approved layout: level name, DIFFICULTY:, kills, time, BEST TIME (NEW
+  BEST! when beaten), continues, secrets, MISSION ITEMS, challenge item,
+  HEALTH / ARMOR. Best times per level and difficulty in
+  `ttk-best-times.txt` beside the savestates. `!` and `%` now drawn in the
+  game's own small font; the font picker shows ( ) % and the double quotes
+  (section 16). Offscreen checks pass, Vanilla unchanged. Note 181.
+  Executable `076f949136de1f29bd0675da8cefd3a1fd7222a73468880c6014e888ad803d5d`.
+
 ## 2026-10-21 - D20F accepted (statistics screen list)
 
 - User: "thats so much better! lock it in, close it out, 10/10". D20F Done.

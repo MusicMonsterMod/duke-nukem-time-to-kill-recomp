@@ -1318,10 +1318,12 @@ These work the way they do in Duke Nukem 3D / EDuke32, in one-player games:
 - In Modernized, F6 no longer swaps controller ports; that stays in the F1
   runtime menu. Vanilla (`run.py --vanilla`) keeps F6 as the port swap and has
   no quick keys.
-- Known issue (job D20A): a save made within about a second or two after a
-  load can crash when it is loaded again after restarting the program (the
-  same save loads fine in the session that made it). This affects F7 and SAVE
-  GAME too. Until it is fixed, play a moment after a load before saving.
+- Fixed (D20C, which also covers D20A): loading a save could sometimes show
+  scrambled textures or wrong colours (mostly in first person), and a save
+  made just after a load could crash when loaded after a restart. Saves now
+  carry the enhancement memory the picture depends on. Saves made by earlier
+  builds also load cleanly, though the first frame after loading may be
+  partly drawn.
 
 The normal launcher stores memory-card data under `recomp/saves/local-play/`. Keep that folder between builds, and back it up while the game is closed. Development playback tests use separate save folders.
 

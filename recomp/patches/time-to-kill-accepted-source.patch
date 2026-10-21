@@ -90,6 +90,22 @@ index df6b213d..9865381f 100644
          add_test(NAME setup_package_bios_hint_test
                   COMMAND ${Python3_EXECUTABLE}
                           ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_setup_package_bios_hint.py)
+diff --git a/runtime/include/boot_state.h b/runtime/include/boot_state.h
+index 420b06a5..faf35a82 100644
+--- a/runtime/include/boot_state.h
++++ b/runtime/include/boot_state.h
+@@ -104,6 +104,11 @@ enum {
+                               from identical baselines). Optional on load for
+                               old blobs (left untouched when absent).          */
+     BS_SEC_SCHED  = 0x11,  /* deterministic scheduler return continuation       */
++    BS_SEC_MODMEM = 0x12,  /* mod memory: Expansion 1 + GPU DMA aperture with
++                              allocation records. Guest RAM links into them
++                              (OT -> enhancement primitive arena). Optional on
++                              load: without it the aperture is filled with
++                              end-of-list headers so stale links end.        */
+ };
+ 
+ /* Save a COMPLETE snapshot at game handoff. Returns 1 on success. */
 diff --git a/runtime/include/crash_trace.h b/runtime/include/crash_trace.h
 index 2c6b8a87..bf8ef045 100644
 --- a/runtime/include/crash_trace.h
@@ -192,6 +208,24 @@ index e4e6f307..e44860cf 100644
  
  /* Right-side vertical volume bar (percent clamped 0..100). */
  void host_osd_show_volume(int percent, int duration_ms);
+diff --git a/runtime/include/mod_memory.h b/runtime/include/mod_memory.h
+index 7406c39a..47453987 100644
+--- a/runtime/include/mod_memory.h
++++ b/runtime/include/mod_memory.h
+@@ -44,6 +44,13 @@ static inline uint32_t psx_mod_gpu_dma_resolve_address_for(
+ uint32_t psx_mod_gpu_dma_memory_alloc(uint32_t size, uint32_t alignment);
+ uint32_t psx_mod_gpu_dma_resolve_address(uint32_t address);
+ 
++/* Savestate section BS_SEC_MODMEM: both mod-memory regions (memory.c). */
++uint32_t    psx_mod_memory_snapshot_bytes(void);
++void        psx_mod_memory_snapshot_write(uint8_t *p);
++int         psx_mod_memory_snapshot_read(const uint8_t *p, uint32_t len);
++void        psx_mod_memory_snapshot_missing(void);
++const char *psx_mod_memory_snapshot_outcome(void);
++
+ #ifdef __cplusplus
+ }
+ #endif
 diff --git a/runtime/include/mod_plugins.h b/runtime/include/mod_plugins.h
 index a1e4645e..ed02d90a 100644
 --- a/runtime/include/mod_plugins.h
@@ -531,10 +565,36 @@ index 149a3fdc..cb79f6a0 100644
      ${PSXRECOMP_ROOT}/runtime/src/psx_fiber.c
      ${PSXRECOMP_ROOT}/runtime/src/sio.c
 diff --git a/runtime/src/boot_state.c b/runtime/src/boot_state.c
-index f0284eaf..9d86009c 100644
+index f0284eaf..c52e0861 100644
 --- a/runtime/src/boot_state.c
 +++ b/runtime/src/boot_state.c
-@@ -469,16 +469,27 @@ static int boot_state_save_to(BsOut* o, const CPUState* cpu,
+@@ -4,6 +4,7 @@
+ #include "gpu.h"           /* gpu_get_vram — CPU-auth mirror under dual-raster   */
+ #include "gpu_render.h"    /* gr_vram_transfer_in / gr_vram_transfer_out          */
+ #include "gpu_vram_dirty.h"
++#include "mod_memory.h"     /* BS_SEC_MODMEM */
+ #include "cpu_state.h"     /* gte_canonicalize_cpu_state after CPU wire restore   */
+ #include "interrupts.h"
+ #include "psx_cycles.h"
+@@ -371,7 +372,7 @@ static int boot_state_save_to(BsOut* o, const CPUState* cpu,
+     h.codegen_hash  = (uint32_t)PSX_OVERLAY_CODEGEN_HASH;
+     h.abi_tag       = (int32_t)PSX_OVERLAY_ABI_TAG;
+     h.codegen_ver   = (uint32_t)PSX_OVERLAY_CODEGEN_VER;
+-    h.section_count = 17;
++    h.section_count = 18;
+ 
+     ok = write_header_le(o, &h);
+ 
+@@ -437,6 +438,8 @@ static int boot_state_save_to(BsOut* o, const CPUState* cpu,
+     if (ok) ok = write_module_section(o, BS_SEC_DMA,   dma_snapshot_bytes,   dma_snapshot_write);
+     if (ok) ok = write_module_section(o, BS_SEC_SIO,   sio_snapshot_bytes,   sio_snapshot_write);
+     if (ok) ok = write_module_section(o, BS_SEC_MDEC,  mdec_snapshot_bytes,  mdec_snapshot_write);
++    if (ok) ok = write_module_section(o, BS_SEC_MODMEM, psx_mod_memory_snapshot_bytes,
++                                      psx_mod_memory_snapshot_write);
+     if (ok) {
+         /* I-cache tags: warm loads must replay with the fetch-cost state the
+          * live timeline had, or miss cycles differ per peer/retry and IRQ
+@@ -469,16 +472,27 @@ static int boot_state_save_to(BsOut* o, const CPUState* cpu,
  
  int boot_state_save(const CPUState* cpu, uint32_t bios_checksum,
                      uint32_t entry_pc, const char* path) {
@@ -565,7 +625,16 @@ index f0284eaf..9d86009c 100644
      return ok;
  }
  
-@@ -740,9 +751,15 @@ int boot_state_check_buffer(const uint8_t* file, size_t file_len,
+@@ -659,6 +673,8 @@ static int apply_section(uint32_t tag, const uint8_t* p, uint32_t len,
+         return sio_snapshot_read(p, len);
+     case BS_SEC_MDEC:
+         return mdec_snapshot_read(p, len);
++    case BS_SEC_MODMEM:
++        return psx_mod_memory_snapshot_read(p, len);
+     case BS_SEC_DIRTY: {
+         uint32_t wc;
+         uint32_t* words;
+@@ -740,9 +756,15 @@ int boot_state_check_buffer(const uint8_t* file, size_t file_len,
                              char* reason, size_t reason_cap) {
      BootStateHeader h;
      char part[96];
@@ -583,7 +652,7 @@ index f0284eaf..9d86009c 100644
  
      if (!file || file_len < BOOT_STATE_HEADER_WIRE_BYTES) {
          boot_state_append_reason(reason, reason_cap, "missing_or_truncated");
-@@ -779,7 +796,15 @@ int boot_state_check_buffer(const uint8_t* file, size_t file_len,
+@@ -779,7 +801,15 @@ int boot_state_check_buffer(const uint8_t* file, size_t file_len,
                   (unsigned)h.entry_pc, (unsigned)entry_pc);
          boot_state_append_reason(reason, reason_cap, part);
      }
@@ -600,13 +669,36 @@ index f0284eaf..9d86009c 100644
          snprintf(part, sizeof(part), "codegen_hash=%08X(want %08X)",
                   (unsigned)h.codegen_hash,
                   (unsigned)PSX_OVERLAY_CODEGEN_HASH);
-@@ -796,7 +821,7 @@ int boot_state_check_buffer(const uint8_t* file, size_t file_len,
+@@ -796,7 +826,7 @@ int boot_state_check_buffer(const uint8_t* file, size_t file_len,
          boot_state_append_reason(reason, reason_cap, part);
      }
  
 -    if (reason && reason_cap && reason[0])
 +    if (reason[0])
          return 0;
+     return 1;
+ }
+@@ -1029,6 +1059,8 @@ int boot_state_load_buffer(const uint8_t* file, size_t file_len,
+ 
+     if (!ok || (seen & required) != required)
+         return 0;
++    if (!(seen & (1u << BS_SEC_MODMEM)))
++        psx_mod_memory_snapshot_missing();
+ 
+     /* RAM was memcpy'd; force overlay revalidation before resume. */
+     overlay_watch_invalidate_after_ram_restore();
+@@ -1038,10 +1070,11 @@ int boot_state_load_buffer(const uint8_t* file, size_t file_len,
+         fprintf(stderr,
+                 "savestate: load_timing read=0.0 inflate=%.1f "
+                 "apply_ram=%.1f apply_vram=%.1f apply_spuram=%.1f "
+-                "apply_other=%.1f total=%.1f ms (file=%zu)\n",
++                "apply_other=%.1f total=%.1f ms (file=%zu) modmem=%s\n",
+                 inflate_ms,
+                 apply_ram_ms, apply_vram_ms, apply_spuram_ms,
+-                apply_other_ms, total_ms, file_len);
++                apply_other_ms, total_ms, file_len,
++                psx_mod_memory_snapshot_outcome());
+     }
      return 1;
  }
 diff --git a/runtime/src/cdrom.c b/runtime/src/cdrom.c
@@ -5963,7 +6055,7 @@ index fe317583..79e4bcda 100644
       * PSX_EXIT_HALT set, halt-and-serve here instead of shutting down so the
       * still-loaded overlays + full guest state are live-inspectable over TCP. */
 diff --git a/runtime/src/memory.c b/runtime/src/memory.c
-index 9d55ad16..36243514 100644
+index 9d55ad16..8634dd5b 100644
 --- a/runtime/src/memory.c
 +++ b/runtime/src/memory.c
 @@ -8,12 +8,14 @@
@@ -5981,7 +6073,42 @@ index 9d55ad16..36243514 100644
  #include "mdec.h"
  #include "mod_memory.h"
  #include "sio.h"
-@@ -60,6 +62,42 @@ uint32_t psx_mod_memory_alloc(uint32_t size, uint32_t alignment) {
+@@ -44,6 +46,30 @@ static uint32_t mod_memory_used;
+ static uint8_t mod_gpu_dma_memory[PSX_MOD_GPU_DMA_APERTURE_SIZE];
+ static uint32_t mod_gpu_dma_memory_used;
+ 
++/* Allocation records per region. Guest RAM holds pointers into both regions
++ * (a GPU ordering table links into the primitive arena), so savestates carry
++ * them (BS_SEC_MODMEM); the records tell a load whether the saving process laid
++ * its allocations out the same way, since the order is the plugins', not the
++ * guest's. */
++#define MOD_ALLOC_RECORDS 128u
++typedef struct { uint32_t start, size; } ModAlloc;
++typedef struct { ModAlloc rec[MOD_ALLOC_RECORDS]; uint32_t count; int overflow; } ModAllocs;
++static ModAllocs mod_allocs, mod_gpu_dma_allocs;
++static void mod_alloc_note(ModAllocs *a, uint32_t start, uint32_t size) {
++    if (a->count < MOD_ALLOC_RECORDS) {
++        a->rec[a->count].start = start;
++        a->rec[a->count].size = size;
++        a->count++;
++    } else {
++        a->overflow = 1;
++    }
++}
++/* Drop records past a watermark (render replay image loads reset it). */
++static void mod_alloc_trim(ModAllocs *a, uint32_t used) {
++    while (a->count && a->rec[a->count - 1u].start + a->rec[a->count - 1u].size > used)
++        a->count--;
++}
++
+ /*
+  * Trusted mods may opt into host-backed guest memory in Expansion 1. Before
+  * the first allocation this entire region retains hardware open-bus behavior.
+@@ -57,9 +83,48 @@ uint32_t psx_mod_memory_alloc(uint32_t size, uint32_t alignment) {
+     if (start > MOD_MEMORY_SIZE || size > MOD_MEMORY_SIZE - start) return 0u;
+     memset(mod_memory + start, 0, size);
+     mod_memory_used = start + size;
++    mod_alloc_note(&mod_allocs, start, size);
      return 0x9F000000u + start;
  }
  
@@ -6007,11 +6134,13 @@ index 9d55ad16..36243514 100644
 +    if (hdr[0] <= MOD_MEMORY_SIZE) {
 +        memcpy(mod_memory, src, hdr[0]);
 +        mod_memory_used = hdr[0];
++        mod_alloc_trim(&mod_allocs, mod_memory_used);
 +    }
 +    src += MOD_MEMORY_SIZE;
 +    if (hdr[1] <= PSX_MOD_GPU_DMA_APERTURE_SIZE) {
 +        memcpy(mod_gpu_dma_memory, src, hdr[1]);
 +        mod_gpu_dma_memory_used = hdr[1];
++        mod_alloc_trim(&mod_gpu_dma_allocs, mod_gpu_dma_memory_used);
 +    }
 +    /* RAM replacement bypasses every CPU/DMA code-write observer. A frozen
 +     * job must validate native code against its own image, not the preceding
@@ -6024,7 +6153,150 @@ index 9d55ad16..36243514 100644
  static int mod_memory_offset(uint32_t phys, uint32_t width, uint32_t *offset) {
      uint32_t off;
      if (phys < MOD_MEMORY_BASE) return 0;
-@@ -809,18 +847,22 @@ uint32_t overlay_watch_pagegen_sum(uint32_t phys, uint32_t len) {
+@@ -80,9 +145,142 @@ uint32_t psx_mod_gpu_dma_memory_alloc(uint32_t size, uint32_t alignment) {
+         return 0u;
+     memset(mod_gpu_dma_memory + start, 0, size);
+     mod_gpu_dma_memory_used = start + size;
++    mod_alloc_note(&mod_gpu_dma_allocs, start, size);
+     return PSX_MOD_GPU_DMA_GUEST_BASE + start;
+ }
+ 
++/* ---- Savestate section BS_SEC_MODMEM ------------------------------------
++ * Wire (LE): u32 version 1; then Expansion 1 and the GPU DMA aperture, each
++ * u32 used, u32 record count (bit 31: records overflowed), count x {u32 start,
++ * u32 size}, used bytes.
++ *
++ * Load, per region: records equal to this process's from the start are
++ * restored. When this process's records are all a prefix of the saved ones,
++ * the saved watermark is adopted too (those ranges were allocated later in the
++ * saving process; nothing here owns them yet). A mismatch keeps this process's
++ * own data from the first differing record on. The aperture holds only
++ * primitive/OT arenas, so any of it not restored is filled with end-of-list
++ * packet headers (0x00FFFFFF): a stale ordering-table link from the loaded RAM
++ * then ends the list instead of walking another frame's packets, which could
++ * draw garbage or upload into VRAM (wrong textures and colours until the level
++ * reloads them, or a halt on an unknown GP0 command). States without the
++ * section (older saves) get the same fill. */
++static const char *s_modmem_outcome = "none";
++const char *psx_mod_memory_snapshot_outcome(void) { return s_modmem_outcome; }
++
++static uint32_t modmem_region_bytes(const ModAllocs *a, uint32_t used) {
++    return 8u + 8u * a->count + used;
++}
++uint32_t psx_mod_memory_snapshot_bytes(void) {
++    return 4u + modmem_region_bytes(&mod_allocs, mod_memory_used) +
++           modmem_region_bytes(&mod_gpu_dma_allocs, mod_gpu_dma_memory_used);
++}
++static uint8_t *modmem_put32(uint8_t *p, uint32_t v) {
++    p[0] = (uint8_t)v; p[1] = (uint8_t)(v >> 8); p[2] = (uint8_t)(v >> 16); p[3] = (uint8_t)(v >> 24);
++    return p + 4;
++}
++static uint32_t modmem_get32(const uint8_t *p) {
++    return (uint32_t)p[0] | (uint32_t)p[1] << 8 | (uint32_t)p[2] << 16 | (uint32_t)p[3] << 24;
++}
++static uint8_t *modmem_region_write(uint8_t *p, const ModAllocs *a, const uint8_t *mem, uint32_t used) {
++    p = modmem_put32(p, used);
++    p = modmem_put32(p, a->count | (a->overflow ? 0x80000000u : 0u));
++    for (uint32_t i = 0; i < a->count; i++) {
++        p = modmem_put32(p, a->rec[i].start);
++        p = modmem_put32(p, a->rec[i].size);
++    }
++    memcpy(p, mem, used);
++    return p + used;
++}
++void psx_mod_memory_snapshot_write(uint8_t *p) {
++    p = modmem_put32(p, 1u);
++    p = modmem_region_write(p, &mod_allocs, mod_memory, mod_memory_used);
++    (void)modmem_region_write(p, &mod_gpu_dma_allocs, mod_gpu_dma_memory, mod_gpu_dma_memory_used);
++}
++
++typedef struct { uint32_t used, count; int overflow; const uint8_t *recs, *bytes; } ModmemSaved;
++static int modmem_region_parse(const uint8_t **p, const uint8_t *end, uint32_t cap, ModmemSaved *r) {
++    uint32_t word;
++    if (end - *p < 8) return 0;
++    r->used = modmem_get32(*p);
++    word = modmem_get32(*p + 4);
++    r->count = word & 0x7FFFFFFFu;
++    r->overflow = (word & 0x80000000u) != 0u;
++    *p += 8;
++    if (r->used > cap || r->count > MOD_ALLOC_RECORDS ||
++        (uint64_t)(end - *p) < 8ull * r->count + r->used)
++        return 0;
++    r->recs = *p;
++    *p += 8u * r->count;
++    r->bytes = *p;
++    *p += r->used;
++    for (uint32_t i = 0; i < r->count; i++) {
++        const uint32_t start = modmem_get32(r->recs + 8u * i), size = modmem_get32(r->recs + 8u * i + 4u);
++        if (start > r->used || size > r->used - start) return 0;
++    }
++    return 1;
++}
++static void modmem_fill_end_of_list(uint32_t from, uint32_t to) {
++    for (uint32_t off = (from + 3u) & ~3u; off + 4u <= to; off += 4u)
++        modmem_put32(mod_gpu_dma_memory + off, 0x00FFFFFFu);
++}
++/* Returns how many bytes from the start are restored exactly. */
++static uint32_t modmem_region_restore(const ModmemSaved *r, ModAllocs *a, uint8_t *mem, uint32_t *used) {
++    uint32_t same = 0;
++    while (same < r->count && same < a->count &&
++           modmem_get32(r->recs + 8u * same) == a->rec[same].start &&
++           modmem_get32(r->recs + 8u * same + 4u) == a->rec[same].size)
++        same++;
++    if (r->overflow || a->overflow) {
++        /* Records incomplete: all or nothing. */
++        if (r->overflow != a->overflow || same != a->count || r->count != a->count || r->used != *used)
++            return 0;
++        memcpy(mem, r->bytes, r->used);
++        return r->used;
++    }
++    if (same == a->count) {
++        /* This process's layout is a prefix of the saved one. */
++        for (uint32_t i = same; i < r->count; i++)
++            mod_alloc_note(a, modmem_get32(r->recs + 8u * i), modmem_get32(r->recs + 8u * i + 4u));
++        if (r->used > *used) *used = r->used;
++        memcpy(mem, r->bytes, r->used);
++        return r->used;
++    }
++    {
++        const uint32_t upto = same ? a->rec[same - 1u].start + a->rec[same - 1u].size : 0u;
++        memcpy(mem, r->bytes, upto);
++        return upto;
++    }
++}
++int psx_mod_memory_snapshot_read(const uint8_t *p, uint32_t len) {
++    const uint8_t *cur = p, *end = p + len;
++    ModmemSaved exp1, dma;
++    uint32_t exp1_ok, dma_ok;
++    if (len < 4u || modmem_get32(p) != 1u) {
++        psx_mod_memory_snapshot_missing();
++        s_modmem_outcome = "unknown_version";
++        return 1;
++    }
++    cur += 4;
++    if (!modmem_region_parse(&cur, end, MOD_MEMORY_SIZE, &exp1) ||
++        !modmem_region_parse(&cur, end, PSX_MOD_GPU_DMA_APERTURE_SIZE, &dma)) {
++        /* Malformed: never fail the load half-applied; treat as absent. */
++        psx_mod_memory_snapshot_missing();
++        s_modmem_outcome = "malformed";
++        return 1;
++    }
++    exp1_ok = modmem_region_restore(&exp1, &mod_allocs, mod_memory, &mod_memory_used);
++    dma_ok = modmem_region_restore(&dma, &mod_gpu_dma_allocs, mod_gpu_dma_memory, &mod_gpu_dma_memory_used);
++    if (dma_ok < mod_gpu_dma_memory_used)
++        modmem_fill_end_of_list(dma_ok, mod_gpu_dma_memory_used);
++    s_modmem_outcome = (exp1_ok >= exp1.used && dma_ok >= dma.used) ? "restored" : "partial";
++    return 1;
++}
++void psx_mod_memory_snapshot_missing(void) {
++    modmem_fill_end_of_list(0u, mod_gpu_dma_memory_used);
++    s_modmem_outcome = "absent";
++}
++
+ static int mod_gpu_dma_memory_offset(uint32_t phys, uint32_t width,
+                                      uint32_t *offset) {
+     return psx_mod_gpu_dma_aperture_offset_for(
+@@ -809,18 +1007,22 @@ uint32_t overlay_watch_pagegen_sum(uint32_t phys, uint32_t len) {
   * fast path and run native code against restored bytes they were not validated
   * for — hang / freeze after the restored frame presents. */
  void dirty_ram_text_guard_resync_after_restore(void) {
@@ -6056,7 +6328,7 @@ index 9d55ad16..36243514 100644
  }
  
  void overlay_watch_invalidate_after_ram_restore(void) {
-@@ -912,6 +954,9 @@ uint64_t g_mmio_access_count = 0;
+@@ -912,6 +1114,9 @@ uint64_t g_mmio_access_count = 0;
   * ANY store is not a pure poll loop. CPU stores and in-flight DMA writes
   * both funnel through the psx_write_*_raw chokepoints. */
  uint64_t g_guest_store_count = 0;
@@ -6066,7 +6338,7 @@ index 9d55ad16..36243514 100644
  
  /* ---- Card protocol trace: tracks I_MASK bit 7 transitions ---- */
  #define IMASK_TRACE_CAP 4096
-@@ -1175,6 +1220,7 @@ static uint32_t mmio_read32_impl(uint32_t addr) {
+@@ -1175,6 +1380,7 @@ static uint32_t mmio_read32_impl(uint32_t addr) {
   * single (side-effecting) read. Callers use mmio_read32; the body is _impl, so
   * the device read executes exactly once. */
  static uint32_t mmio_read32(uint32_t addr) {
@@ -6074,7 +6346,7 @@ index 9d55ad16..36243514 100644
      psx_devices_mmio_sync();
      uint32_t v = mmio_read32_impl(addr);
      debug_server_trace_mmio_read(addr, v, 4);
-@@ -1182,6 +1228,7 @@ static uint32_t mmio_read32(uint32_t addr) {
+@@ -1182,6 +1388,7 @@ static uint32_t mmio_read32(uint32_t addr) {
  }
  
  static void mmio_write32(uint32_t addr, uint32_t val) {
@@ -6082,7 +6354,7 @@ index 9d55ad16..36243514 100644
      psx_devices_mmio_sync();
      SHADOW_NOTE_MMIO();
      debug_server_trace_mmio_write(addr, val, 4);
-@@ -1292,6 +1339,7 @@ static uint16_t mmio_read16_impl(uint32_t addr) {
+@@ -1292,6 +1499,7 @@ static uint16_t mmio_read16_impl(uint32_t addr) {
  }
  
  static uint16_t mmio_read16(uint32_t addr) {
@@ -6090,7 +6362,7 @@ index 9d55ad16..36243514 100644
      psx_devices_mmio_sync();
      uint16_t v = mmio_read16_impl(addr);
      debug_server_trace_mmio_read(addr, (uint32_t)v, 2);
-@@ -1299,6 +1347,7 @@ static uint16_t mmio_read16(uint32_t addr) {
+@@ -1299,6 +1507,7 @@ static uint16_t mmio_read16(uint32_t addr) {
  }
  
  static void mmio_write16(uint32_t addr, uint16_t val) {
@@ -6098,7 +6370,7 @@ index 9d55ad16..36243514 100644
      psx_devices_mmio_sync();
      SHADOW_NOTE_MMIO();
      debug_server_trace_mmio_write(addr, (uint32_t)val, 2);
-@@ -1411,6 +1460,7 @@ static uint8_t mmio_read8_impl(uint32_t addr) {
+@@ -1411,6 +1620,7 @@ static uint8_t mmio_read8_impl(uint32_t addr) {
  }
  
  static uint8_t mmio_read8(uint32_t addr) {
@@ -6106,7 +6378,7 @@ index 9d55ad16..36243514 100644
      psx_devices_mmio_sync();
      uint8_t v = mmio_read8_impl(addr);
      debug_server_trace_mmio_read(addr, (uint32_t)v, 1);
-@@ -1418,6 +1468,7 @@ static uint8_t mmio_read8(uint32_t addr) {
+@@ -1418,6 +1628,7 @@ static uint8_t mmio_read8(uint32_t addr) {
  }
  
  static void mmio_write8(uint32_t addr, uint8_t val) {
@@ -6114,7 +6386,7 @@ index 9d55ad16..36243514 100644
      psx_devices_mmio_sync();
      SHADOW_NOTE_MMIO();
      debug_server_trace_mmio_write(addr, (uint32_t)val, 1);
-@@ -1649,7 +1700,9 @@ void psx_write_word(uint32_t addr, uint32_t val) {
+@@ -1649,7 +1860,9 @@ void psx_write_word(uint32_t addr, uint32_t val) {
      s_ls_op_active = 0;
  }
  static void psx_write_word_raw(uint32_t addr, uint32_t val) {
@@ -6124,7 +6396,7 @@ index 9d55ad16..36243514 100644
      /* (pgxp) plain-store shadow invalidation retired: the PGXP engine
       * validates tracked words against the actual packet word on read, so an
       * overwritten word can never be believed (ENHANCEMENTS.md G1). */
-@@ -1851,7 +1904,9 @@ void psx_write_half(uint32_t addr, uint16_t val) {
+@@ -1851,7 +2064,9 @@ void psx_write_half(uint32_t addr, uint16_t val) {
      s_ls_op_active = 0;
  }
  static void psx_write_half_raw(uint32_t addr, uint16_t val) {
@@ -6134,7 +6406,7 @@ index 9d55ad16..36243514 100644
      if (sr_ptr && (*sr_ptr & 0x10000u)) return;
  
          /* KSEG2 guard — see psx_read_word_raw. */
-@@ -2186,7 +2241,9 @@ void psx_write_byte(uint32_t addr, uint8_t val) {
+@@ -2186,7 +2401,9 @@ void psx_write_byte(uint32_t addr, uint8_t val) {
      s_ls_op_active = 0;
  }
  static void psx_write_byte_raw(uint32_t addr, uint8_t val) {

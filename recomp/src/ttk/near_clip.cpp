@@ -157,15 +157,41 @@ int32_t last_zsf3;
 uint32_t arena_size;uint64_t packet_skips,mesh_fallbacks;
 // Frame accounting: a frame starts when the OT bitmap is still empty.
 uint32_t frame_first_cursor,frame_host_bytes,frame_used_peak,host_bytes_peak;
-uint32_t host_arena_base,host_region;
+struct HeldPacket { uint32_t prim,tag; double z; };
+std::vector<HeldPacket> held_packets;
+uint32_t held_frame;
+// D20C: the region in use is mirrored in the word after the arena (mod memory,
+// which savestates carry with the arena). A loaded frame's ordering table links
+// into the region it was built in, so after a load the next frame moves on from
+// that one rather than from this process's, which could be the same region and
+// overwrite it. A state without mod memory reads an end-of-list fill: any region.
+uint32_t host_arena_base,host_region,region_mirror,region_loads;
+void region_mirror_store() {if(region_mirror) psx_mod_write_word(region_mirror,host_region);}
+// Reserved at startup (see the constructor below), not at the first packet: a
+// state loaded before that would find the aperture unmapped, and the loaded
+// ordering table's links into it would fold into main RAM and draw garbage.
+// The zeroed mirror matches the starting region 0.
 uint32_t host_arena() {
-    if(!host_arena_base) host_arena_base=psx_mod_alloc_gpu_dma_memory(host_frame_bytes*host_regions,16);
+    if(!host_arena_base) {
+        host_arena_base=psx_mod_alloc_gpu_dma_memory(host_frame_bytes*host_regions+16,16);
+        if(host_arena_base) region_mirror=host_arena_base+host_frame_bytes*host_regions;
+    }
     return host_arena_base;
+}
+void region_after_load() {
+    const uint32_t loads=psx_mod_savestate_loads();
+    if(loads==region_loads || psx_mod_replay_active()) return;
+    region_loads=loads;
+    if(!region_mirror) return;
+    host_region=psx_mod_read_word(region_mirror)%host_regions;
+    frame_host_bytes=1; // the reset below moves past the loaded region
+    held_packets.clear();
 }
 // A new frame's packets start a fresh region; an unused one is kept.
 void host_frame_reset() {
     if(frame_host_bytes) host_region=(host_region+1)%host_regions;
     frame_host_bytes=0;
+    region_mirror_store();
 }
 // D12 first-person weapon. Every polygon of the hand, weapon, flash and held
 // item meshes is drawn here while first_person_weapon_drawing(). Their packets
@@ -176,9 +202,7 @@ void host_frame_reset() {
 // Slot 1, not 0: the HUD (health and ammo boxes) is in slot 0 and must stay
 // on top of the weapon.
 constexpr uint32_t viewmodel_slot=1;
-struct HeldPacket { uint32_t prim,tag; double z; };
-std::vector<HeldPacket> held_packets;
-uint32_t held_frame;
+
 uint64_t viewmodel_meshes,viewmodel_packets,viewmodel_discards;
 
 // DNTTK_NEAR_CLIP (developer A/B, not a saved preference): 0 off, "world" or
@@ -1181,6 +1205,7 @@ void near_hook_body(CPUState* cpu,uint32_t address) {
         // retaining a stale (or initially zero) budget cursor in some views.
         // Redraw workers enter this same boundary with their restored RAM.
         if(cpu->gpr[31]==0x800268f4 && identity()) {
+            region_after_load();
             frame_first_cursor=psx_mod_read_word(context);
             host_frame_reset();
             held_packets.clear();
@@ -1192,7 +1217,7 @@ void near_hook_body(CPUState* cpu,uint32_t address) {
         const uint32_t cursor=psx_mod_read_word(context),start=psx_mod_read_word(context+4),end=psx_mod_read_word(context+8);
         bool empty=true;
         for(uint32_t i=0;i<0x100 && empty;i+=4) empty=!psx_mod_read_word(bitmap+i);
-        if(empty) {frame_first_cursor=cursor;host_frame_reset();}
+        if(empty) {region_after_load();frame_first_cursor=cursor;host_frame_reset();}
         if(end>start && cursor>=start && cursor<end && frame_first_cursor>=start && frame_first_cursor<end) {
             arena_size=end-start;
             const uint32_t used=cursor>=frame_first_cursor?cursor-frame_first_cursor:arena_size-(frame_first_cursor-cursor);
@@ -1327,6 +1352,7 @@ const char* near_clip_debug_json() {
 }
 }
 PSX_MOD_CONSTRUCTOR(register_ttk_near_clip) {
+    (void)ttk::host_arena();
     for(uint32_t address:{0x80010000u,0x80011020u,0x8002ee50u,0x80026164u,0x800114ecu,0x8001160cu})
         psx_mod_register_function_entry_plugin("ttk.near.clip",address,ttk::hook);
 }

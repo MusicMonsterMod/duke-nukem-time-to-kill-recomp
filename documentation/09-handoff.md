@@ -1,5 +1,28 @@
 # Next-session handoff
 
+## 2026-10-21 - D20C and D20A accepted
+
+- User: "rock solid. it's working! the artifacting is no longer present upon
+  load. i recreated the steps here and it's all fine. lock it in, close it
+  out." D20C and D20A Done (one cause: savestates now carry mod memory).
+  Note 178. Executable
+  `03bbe5f438a99b402b07e18ce25ade8685da787b6584d93f0950d8f711ebb0e5`.
+
+## 2026-10-21 - D20C wrong colours after a load fixed (Needs playtest); D20A same cause
+
+- Cause: savestates did not carry mod memory (Expansion 1 and the GPU-DMA
+  aperture). The first-person near clip's packet arena is in the aperture and
+  linked from the game's ordering table, so a load could walk another frame's
+  packets: scrambled textures, wrong colours kept in VRAM, or a GP0 halt.
+  D20A's halting list `0x80F40BD0` is in that arena: same bug.
+- Fix: framework section `BS_SEC_MODMEM` (restored on matching layout; the
+  aperture is otherwise filled with end-of-list headers, also for older
+  saves); near clip reserves its arena at startup and resumes past the
+  loaded region. Codegen hash unchanged. Note 178. Executable
+  `03bbe5f438a99b402b07e18ce25ade8685da787b6584d93f0950d8f711ebb0e5`.
+- Playtest: load the player's slot 1 several times (F9 / LOAD GAME), in first
+  person; also F6 right after F9, restart, load.
+
 ## 2026-10-21 - D20 accepted (quick save and quick load); D20C opened
 
 - User: "its all working!" D20 Done. Note 177.

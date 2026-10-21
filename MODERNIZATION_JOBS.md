@@ -210,9 +210,9 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D19F | PC button icons: keyboard and mouse prompt sprites drawn in the exact style of the disc's PS1 button sprites | Todo | D19D, D24A |
 | D19F1 | Prompt icons follow the input device in use (keyboard/mouse or controller), switching live like a modern game | Todo | D19F, D09 |
 | D20 | EDuke32-style quick save / quick load (F6 / F9, console `quicksave` / `quickload`) and F2 / F3 save / load menus | Done (user-accepted 2026-10-21) | D01, D02 |
-| D20A | Savestates taken within ~1.5 s after a load can halt the emulator when loaded after a restart (GP0 0xFA; framework, pre-existing) | Todo | D20 |
+| D20A | Savestates taken within ~1.5 s after a load can halt the emulator when loaded after a restart (GP0 0xFA; framework, pre-existing) | Done (user-accepted 2026-10-21; fixed by D20C, same cause) | D20 |
 | D20B | Original memory card saves understandable and reliable (statistics-screen SAVE; split from D20) | Todo | D01, D02 |
-| D20C | Colours sometimes wrong after loading a savestate (intermittent; player UI slot 1, load several times) | Todo | D20 |
+| D20C | Colours sometimes wrong after loading a savestate (intermittent; player UI slot 1, load several times) | Done (user-accepted 2026-10-21) | D20 |
 | D21 | Accessibility and sound controls | Todo | D04, D19 |
 | D22 | Campaign fidelity and overlay coverage | Todo | D01 |
 | D22A | Portal transition loses Modernized controls and first person (slot 7) | Accepted | D05, D06, D11 |
@@ -7197,6 +7197,16 @@ streaming state is a candidate) and fix it in the framework.
 **Acceptance:** saves taken at any time after a load (0-3 s sweep) load after
 a restart; existing good savestates still load; patch exported.
 
+**Done (user-accepted 2026-10-21 with D20C), fixed with D20C, [note 178](documentation/178-d20c-savestate-mod-memory.md).**
+Same cause as D20C: the halting list address `0x80F40BD0` is in the mod
+GPU-DMA aperture (the near clip's packet arena, region 2), which savestates did
+not carry; in a fresh process the arena was not yet allocated and the link
+folded into main RAM. Evidence: the 0-3 s sweep (nine delays) loads after a
+restart 36 / 36 (Modernized and Vanilla, two source saves); D20A's four
+recorded bad saves now load and run in a fresh process; existing saves load
+(codegen hash unchanged); patch exported and verified. The manual's "play a
+moment after a load before saving" warning is replaced.
+
 ### D20C - Colours sometimes wrong after loading a savestate
 
 Opened 2026-10-21 (user, after accepting D20): "when loading, sometimes the
@@ -7210,6 +7220,39 @@ whether F7 loads show it too and whether it relates to D20A.
 
 **Acceptance:** repeated loads of the reported kind of save show correct
 colours every time; the cause is recorded; Vanilla unchanged.
+
+**Done (user-accepted 2026-10-21: "rock solid. it's working! the artifacting is no longer present upon load. i recreated the steps here and it's all fine."), [note 178](documentation/178-d20c-savestate-mod-memory.md).**
+Reproduced on a private level 3 mine save with the player's settings (first
+person, 120 Hz, OpenGL 4x): F6 once, then walk/turn and F9 repeatedly. Before
+the fix, load 4 showed scrambled textures, load 7 wrong textures and colours
+that persisted, and load 8 halted (`GP0 unknown command 0xF4`). Third-person
+debug loads with no play in between were always clean.
+
+Cause: mods can allocate guest-addressable memory (Expansion 1 and a GPU-DMA
+aperture). The first-person near clip links its host packets (an arena in the
+aperture) into the game's ordering table, but savestates did not save that
+memory. A loaded ordering table then linked into whatever this process had
+written there since; walking it drew garbage and uploaded into VRAM (textures
+and CLUTs stayed wrong) or halted.
+
+Fix: framework savestate section `BS_SEC_MODMEM` (both regions, allocation
+records, bytes; restored on load when the layout matches; any unrestored part
+of the aperture, and the whole aperture for older saves without the section,
+is filled with end-of-list packet headers so stale links end the list).
+`near_clip.cpp` reserves its arena at startup and mirrors its current region
+in the saved memory, moving past the loaded region after a load. Codegen hash
+unchanged: all existing saves load.
+
+Evidence: 20 / 20 F9 loads of a new-format save and 20 / 20 loads of an
+old-format save clean in first person (no FATAL, shots match); D20A sweep and
+bad saves pass (above); `ttk-near-test`, `ttk-input-test`, Python 164 OK,
+framework savestate guards; pristine pin + exported patch reproduces all 50
+framework files. Executable
+`03bbe5f438a99b402b07e18ce25ade8685da787b6584d93f0950d8f711ebb0e5`.
+
+Limits: offscreen only; the player's own slot 1 was not used. An old-format
+save's first frame after loading may be partly drawn (its packets are gone);
+saving again stores the new format.
 
 ### D20B - Original memory card saves understandable and reliable
 

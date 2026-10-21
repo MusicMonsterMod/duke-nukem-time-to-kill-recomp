@@ -92,3 +92,4 @@ D08T4 fixed pushable objects (slot 10 dumpster, original floor gate): [note 163]
 Multiplayer research (D34): [split-screen, online play and self-hosting feasibility](167-d34-multiplayer-research.md).
 First-person falls (D08Z4): [falls keep the eye, slot 6 cop car](168-d08z4-falls-keep-eye.md).
 Quick save and quick load (D20, F6 / F9, F2 / F3, console): [note 177](177-d20-quick-save.md); D20A savestate-after-load bug in the same note.
+Wrong colours / scrambled textures after a load (D20C) and the D20A halt, one cause: savestates now carry mod memory: [note 178](178-d20c-savestate-mod-memory.md).

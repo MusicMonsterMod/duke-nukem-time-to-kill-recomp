@@ -2028,6 +2028,28 @@ void draw_load_ask(Guest& g,const Geometry& geo) {
 // keeps its place.
 constexpr int stats_lift=25, stats_list_y=95;
 constexpr int stats_title=44, stats_step=13;
+// D20E: the level's enemy total, by the rule the level load 0x800242b0 uses
+// for its enemies-left count 0x800d253c: placement rows (*0x800de720, 48
+// bytes, count 0x800de724) whose type is not Duke (0x20), has type flag bit
+// 0 (*0x800d2660 + 28*type) and is not in the load's exclusion list. The
+// count itself is no use here: dancers are counted but never subtracted.
+// The rows stay through deaths, Continue and the statistics screen. -1 when
+// the table does not read sensibly.
+int enemy_total() {
+    static constexpr uint32_t excluded[]={0x7a,0x7b,0xa7,0xcc,0x112,0x13f,0x158,0x21a,0x21c,0x243,0x25d};
+    const uint32_t table=psx_mod_read_word(0x800de720),count=psx_mod_read_word(0x800de724),types=psx_mod_read_word(0x800d2660);
+    auto inside=[](uint32_t a,uint32_t n) {return !(a&3) && a>=0x80010000 && a<=0x80200000-n;};
+    if(!count || count>1024 || !inside(table,count*48) || !inside(types,28*1100)) return -1;
+    int total=0;
+    for(uint32_t i=0;i<count;++i) {
+        const uint32_t type=psx_mod_read_word(table+48*i);
+        if(type>=1100) return -1;
+        if(type==0x20 || !(psx_mod_read_word(types+28*type)&1) ||
+           std::find(std::begin(excluded),std::end(excluded),type)!=std::end(excluded)) continue;
+        ++total;
+    }
+    return total;
+}
 void draw_stats(Guest& g,const Geometry& geo) {
     const int n=level(), row=(geo.h-60)/2+geo.y0-stats_lift, title=row-stats_title;
     if(n>=0 && n<32) {
@@ -2044,7 +2066,9 @@ void draw_stats(Guest& g,const Geometry& geo) {
         auto line=[&](const char* label,const char* text,uint32_t vflags=0) {g.say(label,lx,y,font_small);g.say(text,vx,y,font_small|right|vflags);y+=stats_step;};
         auto line_id=[&](int label,const char* text) {g.say_id(label,lx,y,font_small);g.say(text,vx,y,font_small|right);y+=stats_step;};
         auto clock=[&](uint32_t ms) {const unsigned t=ms/1000;std::snprintf(value,sizeof value,"%02u:%02u",t/60,t%60);return value;};
-        std::snprintf(value,sizeof value,"%d",(int)half(player+0x3b6));
+        const int enemies=enemy_total(), kills=(int)half(player+0x3b6);
+        if(enemies>0) std::snprintf(value,sizeof value,"%d OF %d",kills,enemies);
+        else std::snprintf(value,sizeof value,"%d",kills);
         line_id(text_kills_label,value);
         line_id(text_time_label,clock(psx_mod_read_word(player+0x398)));
         if(stats_new_best) line("BEST TIME:","NEW BEST!",blue);

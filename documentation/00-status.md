@@ -1,5 +1,20 @@
 # Current status - 2026-10-04
 
+## 2026-10-22 - D20E accepted (ENEMIES KILLED X OF Y)
+
+- User: "lock it in, this is complete. close it out". D20E Done. Note 183. Executable
+  `156b7e93695588bf65a8e1ed64957a1dbe1686d07adea819665668c2d79f61ef` is the regression baseline.
+
+## 2026-10-22 - D20E statistics research: ENEMIES KILLED X OF Y (Needs playtest)
+
+- The statistics screen's kills line now reads `X OF Y`. Y uses the level
+  load's own rule for its enemies-left count (placement table, same totals on
+  7 levels and on every difficulty); the live count is not used because
+  dancers are counted but never subtracted. Kills survive death and Continue.
+- Accuracy dropped by the user (shots `+0x3b2` and hits `+0x3b4` documented
+  only); damage taken parked (no original counter). Note 183.
+  Executable `156b7e93695588bf65a8e1ed64957a1dbe1686d07adea819665668c2d79f61ef`.
+
 ## 2026-10-21 - D18D accepted (music after Continue)
 
 - User: "i can confirm the music started with no further issue. lock it in,

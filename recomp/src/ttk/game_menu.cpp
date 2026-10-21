@@ -917,7 +917,7 @@ void save_done() {
     // save, as EDuke32's does.
     if(save_written && direct_open) {input_notice("GAME SAVED");load_note.clear();act_now(Act::Resume);return;}
     // D20B: from the statistics screen, back to it.
-    if(save_written && stats_open) {input_notice("GAME SAVED");load_note.clear();page=Page::Stats;sound(0);return;}
+    if(save_written && stats_open) {input_notice("GAME SAVED");load_note.clear();page=Page::Stats;cursor=1;sound(0);return;}
     if(save_written) {char t[32];std::snprintf(t,sizeof t,"SAVED TO SLOT %02d",save_slot+1);load_note=t;sound(0);}
     else {load_note="THE GAME COULD NOT BE SAVED";sound(1);}
 }
@@ -931,9 +931,16 @@ void save_confirm() {
 // (Square) on the statistics page before the last level's ending; after a
 // memory card save (page 2, a Vanilla state) CONTINUE only. SAVE is our SAVE
 // GAME; CONTINUE is handed to the original at the next flip.
+// D20F: a list, CONTINUE then SAVE GAME (cursor 0 / 1); V stays a shortcut.
 bool stats_can_save() {return psx_mod_read_half(stats_page)==0 && level()<29;}
+int stats_items() {return stats_can_save() ? 2 : 1;}
 void stats_confirm() {if(stats_wait<=0) stats_continue=true;}
 void stats_save() {if(stats_wait<=0 && stats_can_save()) {open_save();sound(1);}}
+void stats_choose() {if(cursor==1 && stats_can_save()) stats_save(); else stats_confirm();}
+void stats_move(int dir) {
+    if(stats_wait>0 || stats_items()<2) return;
+    cursor=(cursor+dir+2)%2;sound(1);
+}
 
 // ---- D19S: Delete on a used slot of LOAD GAME or SAVE GAME ----
 // DELETE SAVED GAME: and the slot's name, YES / NO with NO first. YES removes
@@ -1035,7 +1042,8 @@ void move(int dir) {
     if(page==Page::SaveAsk) {save_choice^=1;sound(1);return;}
     if(page==Page::DeleteAsk) {delete_choice^=1;sound(1);return;}
     if(page==Page::Keys) {if(!key_wait) keys_move(dir);return;}
-    if(page==Page::Brief || page==Page::Stats) return;
+    if(page==Page::Stats) {stats_move(dir);return;}
+    if(page==Page::Brief) return;
     if(page!=Page::Options) {
         const int n=page==Page::Ask ? 2 : (int)list.size();
         if(n) cursor=(cursor+dir+n)%n;
@@ -1164,7 +1172,7 @@ void confirm() {
     case Page::Keys: if(!key_wait) {key_wait=true;key_note.clear();input_capture_key(true);sound(0);} return;
     case Page::Load: if(loadable(cursor)) {page=Page::LoadAsk;load_note.clear();sound(0);} return;
     case Page::LoadAsk: load_now();return;
-    case Page::Stats: stats_confirm();return;
+    case Page::Stats: stats_choose();return;
     case Page::Save: save_confirm();return;
     case Page::SaveAsk: if(save_choice==0) save_now(); else {page=Page::Save;sound(1);} return;
     case Page::DeleteAsk: if(delete_choice==0) delete_now(); else {page=delete_from;sound(1);} return;
@@ -1189,7 +1197,7 @@ void back(uint16_t mode) {
     case Page::Stats: return; // as the original: only CONTINUE leaves
     case Page::Save:
         thumb_hide();load_note.clear();
-        if(stats_open) {page=Page::Stats;sound(0);return;} // D20B
+        if(stats_open) {page=Page::Stats;cursor=1;sound(0);return;} // D20B; D20F: on SAVE GAME
         if(direct_open) {act_now(Act::Resume);return;} // D20: F2 / F6 from play: back to play
         open_list(Page::Pause,Act::Save);sound(0);return;
     case Page::SaveAsk: page=Page::Save;sound(1);return;
@@ -1972,8 +1980,12 @@ void draw_load_ask(Guest& g,const Geometry& geo) {
 // secrets (not the bosses 27-30) and the challenge item (levels 0, 2, 5, 7, 9,
 // 11). Challenge stages: COMPLETED or FAILED, centred on the first row.
 // Prompts: CONFIRM at x0 + w/3 and SAVE at -x0 - w/3, or CONTINUE alone.
+// D20F: the lines sit stats_lift higher, and the choices are a list in the
+// menu font under them (CONTINUE, SAVE GAME; 19 apart, blue highlighted) at
+// a fixed place, with SELECT / CONFIRM. Nothing of it before the wait ends.
+constexpr int stats_lift=25, stats_list_y=95;
 void draw_stats(Guest& g,const Geometry& geo) {
-    const int n=level(), row=(geo.h-60)/2+geo.y0;
+    const int n=level(), row=(geo.h-60)/2+geo.y0-stats_lift;
     if(n>=0 && n<32) {
         const int id=half(level_names+2*n);
         if(id>0 && id<=text_last) g.say_id(id,0,row-30,font_small|centre|blue);
@@ -2003,11 +2015,14 @@ void draw_stats(Guest& g,const Geometry& geo) {
         }
     }
     if(stats_wait>0) return;
+    const int ly=row+stats_list_y, items=stats_items();
+    g.say("CONTINUE",0,ly,font_menu|centre|(cursor==0 || items<2 ? blue : 0));
+    if(items>1) g.say("SAVE GAME",0,ly+19,font_menu|centre|(cursor==1 ? blue : 0));
     const int py=prompt_y(geo);
-    if(stats_can_save()) {
-        g.prompt_id(icon_cross,geo.x0+geo.w/3,py,text_confirm);
-        g.prompt_id(icon_square,-geo.x0-geo.w/3,py,text_save);
-    } else g.prompt_id(icon_cross,0,py,text_continue_prompt);
+    if(items>1) {
+        g.prompt(icon_select,"SELECT",-geo.w/8,py);
+        g.prompt(icon_cross,"CONFIRM",geo.w/8,py);
+    } else g.prompt(icon_cross,"CONFIRM",0,py);
 }
 
 // ---- D19J: the title pages' actions, in the frontend tick ----

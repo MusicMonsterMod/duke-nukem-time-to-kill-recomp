@@ -1089,9 +1089,11 @@ the same way on every menu screen:
   (`run.py --vanilla`) keeps the original memory card LOAD GAME.
 - **Statistics screen** (after each level, one player): the original screen
   and layout (kills, time, continues, secrets, challenge item; COMPLETED or
-  FAILED after a challenge stage). After the original's short wait, Enter (X)
-  is CONFIRM and goes on to the next level; V (Square) is SAVE, which opens
-  SAVE GAME (a savestate slot, not the memory card). A save there returns to
+  FAILED after a challenge stage). After the original's short wait (about a
+  second) a list appears under the lines: CONTINUE goes on to the next level,
+  SAVE GAME opens SAVE GAME (a savestate slot, not the memory card). Up /
+  Down or the mouse wheel choose, Enter (X) confirms; V is a shortcut for
+  SAVE GAME. A save there returns to
   the statistics screen with GAME SAVED; Escape on SAVE GAME also returns.
   Such a save shows the level's last picture and LEVEL COMPLETE on LOAD GAME,
   and loading it opens the statistics screen again, ready to continue. SAVE
@@ -1121,8 +1123,8 @@ the same way on every menu screen:
   highlighted action. There, Escape and Enter both mean Start ("PRESS START TO
   CONTINUE"), which opens its CONFIRM / CANCEL prompt; then Enter confirms and
   Escape cancels. Z, X, C and V still assign Triangle, Cross, Circle and Square.
-- **V** is Square, for example SAVE on the statistics screen (SAVE GAME in
-  Modernized, the memory card in Vanilla).
+- **V** is Square, for example SAVE on the statistics screen (a shortcut for
+  SAVE GAME in Modernized, the memory card in Vanilla).
 - During gameplay Escape still pauses, Enter still uses the selected gadget
   and Backspace does nothing. Escape and Enter still skip the intro movies.
   The F7 savestate menu and the console keep their own keys.

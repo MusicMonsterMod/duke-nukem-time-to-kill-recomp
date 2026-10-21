@@ -1,7 +1,7 @@
 # D20B - Statistics screen rebuilt; SAVE opens SAVE GAME
 
 Job: [D20B](../MODERNIZATION_JOBS.md). Status: Done (user-accepted 2026-10-21). Follow-ups: D20F (selectable
-CONTINUE / SAVE GAME), D20D (richer lines), D20E (research).
+CONTINUE / SAVE GAME, done, note 180), D20D (richer lines), D20E (research).
 Option B of the statistics screen review (user, 2026-10-21): part 1 rebuilds
 the screen as ours with SAVE going to our savestates; part 2 is D20D (richer
 lines), with counters still to be found in D20E. Modernized only, one-player
@@ -84,7 +84,7 @@ writing end code 4). Scripts: `ex1.py` (the original), `t1.py`-`t4.py`,
 
 | Check | Result |
 | --- | --- |
-| Statistics screen, first 5 s | the five lines, no prompts; X ignored |
+| Statistics screen, during the wait (about 1 s; see D20F) | the five lines, no prompts; X ignored |
 | After the wait | CONFIRM and SAVE, matching the original's capture |
 | V | SAVE GAME, slot list and pictures |
 | Save to an empty slot / over a used one | back to the statistics screen, GAME SAVED; sidecar `level 0`, `complete 1` |
@@ -122,5 +122,5 @@ codegen hash unchanged. Executable
 ## Limits
 
 Not yet played through a real level exit in a window; the variants were
-checked for drawing only. The original's 5-second wait is kept (part 1 is
-faithful). Two-player statistics are the original's.
+checked for drawing only. The original's wait is kept (part 1 is
+faithful); D20F measured it at about 1 s, not 5 s (300 fields, 10 per tick). Two-player statistics are the original's.

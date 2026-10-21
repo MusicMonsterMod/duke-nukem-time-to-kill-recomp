@@ -1,5 +1,21 @@
 # Current status - 2026-10-04
 
+## 2026-10-21 - D20F accepted (statistics screen list)
+
+- User: "thats so much better! lock it in, close it out, 10/10". D20F Done.
+  Note 180. Executable
+  `3e1b96bc8faab8834e9c9e2ed3ffaceb236ed72de7e4c2fcd7142b1be13be496` is the regression baseline.
+  D20D (richer statistics, builds on this layout) and D20E stay Todo.
+
+## 2026-10-21 - D20F statistics screen list (Needs playtest)
+
+- CONTINUE and SAVE GAME are a selectable list under the statistics lines
+  (lines moved up 25); Up / Down / wheel, Enter chooses, V still saves;
+  Escape or a save returns on SAVE GAME; CONTINUE only before the final
+  ending. The original's wait is about 1 s, not 5 s (note 179 corrected).
+  Offscreen checks pass, Vanilla unchanged. Note 180. Executable
+  `3e1b96bc8faab8834e9c9e2ed3ffaceb236ed72de7e4c2fcd7142b1be13be496`.
+
 ## 2026-10-21 - D20B accepted (statistics screen); D20F opened
 
 - User: "i can confirm its now working and positioned correctly with the overlap ... i think we can close out the current work, just to break this task down a bit, as it is indeed working fine now." D20B Done. Note 179. Executable

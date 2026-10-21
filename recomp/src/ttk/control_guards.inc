@@ -98,6 +98,10 @@ static const Guard guards[] = {
     // D08Z1 safety net: the bounce 0x8003ef08 and deflection 0x8003ef78 (their
     // return address at sp+0x24 when they rerun the integration).
     {0x8003ef08, 200, "8d26016f889b53acbc9d6b82a4dc171fb287551b47fcce712a6ea7d6af7cc4a7"},
+    // D08Z5: the slope slide's steep-side choice 0x8005446c (143/145) and the
+    // slide handler 0x80054568, whose fall start 0x8003f060 wall_backflip.inc changes.
+    {0x8005446c, 124, "b567d41d550b612e4173eec593e5dd113d1e9b6f19561061f8eb890aa7a0bf85"},
+    {0x80054568, 740, "5e960ebb643eba7201bee2b42e344742e4657ddbffbd1a4b23e36b3346dee6eb"},
     // D08Z3: the landing-pose handler for 105/106 (collision and root step, no
     // input), which landing.inc leaves at the ground dispatcher 0x80048410.
     {0x80052fb8, 128, "3ab421327a51edaeafbfc92a176241564a63e332c859d64ff4658f93ab3811d3"},

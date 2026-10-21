@@ -1277,6 +1277,79 @@ int main(int argc,char** argv) {
         psx_mod_write_half(p+0x68,0);psx_mod_write_half(p+0x6a,0);psx_mod_write_byte(p+0x22d,0);
         std::puts("PASS: D08Z3 landing recovery (direction to walk/run, jump to stance; idle, first update, 106, caller, crouch, aim, original and Vanilla untouched)");
     }
+    // D08Z5: a fall started from the slope slide handler (0x8003f060, ra
+    // 0x800546c4/dc/ec, mode 2) gets no launch: the table vector its flight
+    // start rotates (0x80066e34, ra 0x8003e488, a1 = +0x1f4) is zeroed.
+    // Other fall callers, other rotations, other modes, wall_backflip=original
+    // and Vanilla keep the launch; one fall start arms one rotation only.
+    {
+        const uint8_t mode=psx_mod_read_byte(p+0x22c);
+        auto launch=[&](uint32_t fall_ra,uint32_t rotate_ra=0x8003e488,uint32_t vector=0){
+            if(!vector)vector=p+0x1f4;
+            psx_mod_write_byte(p+0x22c,2);psx_mod_write_half(p+0x60,145);
+            call(0x8003f060,p,0,fall_ra);
+            psx_mod_write_word(p+0x1f4,0);psx_mod_write_word(p+0x1f8,0);psx_mod_write_word(p+0x1fc,uint32_t(-3040));
+            call(0x80066e34,0x801effe0,vector,rotate_ra);
+            return int32_t(psx_mod_read_word(p+0x1fc));
+        };
+        for(uint32_t ra:{0x800546c4u,0x800546dcu,0x800546ecu}) assert(launch(ra)==0 && psx_mod_read_word(p+0x1f4)==0);
+        assert(std::strstr(ttk::controls_debug_json(),"\"wall_backflip\":{\"modern\":true,\"slides\":0,\"stops\":3,\"jumps\":0,\"climbs\":0,\"lifts\":0}"));
+        assert(launch(0x80043f44)==-3040);                    // another fall start
+        assert(launch(0x800546dc,0x8007f2e0)==-3040);         // another rotation (0x8007f224's own)
+        call(0x80066e34,0x801effe0,p+0x1f4,0x8003e488);assert(psx_mod_read_word(p+0x1fc)==0); // then this fall's flight start
+        psx_mod_write_word(p+0x1fc,uint32_t(-3040));
+        call(0x80066e34,0x801effe0,p+0x1f4,0x8003e488);assert(int32_t(psx_mod_read_word(p+0x1fc))==-3040); // armed once
+        assert(launch(0x800546dc,0x8003e488,p+0x200)==-3040); // another vector
+        psx_mod_write_byte(p+0x22c,9);call(0x8003f060,p,0,0x800546dc);
+        psx_mod_write_word(p+0x1fc,uint32_t(-3040));call(0x80066e34,0x801effe0,p+0x1f4,0x8003e488);
+        assert(int32_t(psx_mod_read_word(p+0x1fc))==-3040);  // not from mode 2
+        setenv("DNTTK_WALL_BACKFLIP","original",1);assert(launch(0x800546dc)==-3040);unsetenv("DNTTK_WALL_BACKFLIP");
+        ttk::modern=false;assert(launch(0x800546dc)==-3040);ttk::modern=true;
+        // The slide start after the mode 2 store is counted (diagnostics only).
+        writes=0;call(0x8005446c,p,0,0x80055fc0);call(0x8005446c,p,0,0x800547fc);assert(writes==0);
+        // The slide's jump branch (its facing test, ra 0x800547fc) picked 99/100,
+        // the backflip: Modern starts 98 instead, in mode 2 or after the fall
+        // start's 9. Only that branch's next initialization (0x800493a4 from the
+        // lower-body update), only 99/100; a standing jump's 99, original and
+        // Vanilla keep it.
+        auto start=[&](unsigned anim,uint8_t m,bool armed,uint32_t ra=0x8005a3a0){
+            if(armed)call(0x8005446c,p,0,0x800547fc);
+            psx_mod_write_byte(p+0x22c,m);psx_mod_write_half(p+0x60,anim);psx_mod_write_half(p+0x68,0);psx_mod_write_half(p+0x23e,anim);
+            call(0x800493a4,p,0,ra);
+            return unsigned(psx_mod_read_half(p+0x60));
+        };
+        assert(start(99,2,false)==98 && psx_mod_read_half(p+0x23e)==98); // armed by the call above
+        assert(start(100,9,true,0x8005a4d0)==98);
+        assert(start(99,9,false)==99);                          // a standing jump (Down at 0x8005492c)
+        assert(start(98,2,true)==98 && start(99,2,false)==99);  // facing down the slope: 98, then disarmed
+        assert(start(99,2,true,0x8004b5bc)==99);                // another initializer caller
+        assert(start(99,2,false)==98);                          // ... leaves it armed for the update's own
+        setenv("DNTTK_WALL_BACKFLIP","original",1);assert(start(99,2,true)==99);unsetenv("DNTTK_WALL_BACKFLIP");
+        ttk::modern=false;assert(start(100,2,true)==100);ttk::modern=true;
+        call(0x800493a4,p,0,0x8005a3a0);
+        // The 98 it starts rises and drifts up the slope only as fast as the arc
+        // still leaves the face (k 0.25: uphill * tan(face) = rise / 4), on its
+        // first airborne update (0x8003ebf4 from 0x80055934). From the bottom of
+        // the face (mode 9, the fall's velocity) it gets the slope jump's rise.
+        auto climb=[&](int32_t vy,uint32_t ra=0x80055934){
+            assert(start(99,2,true)==98);
+            psx_mod_write_byte(p+0x22c,9);psx_mod_write_half(p+0x2bc,64453);psx_mod_write_half(p+0x2be,uint16_t(-586));
+            psx_mod_write_word(p+0x1f4,5952);psx_mod_write_word(p+0x1f8,uint32_t(vy));psx_mod_write_word(p+0x1fc,808);
+            call(0x8003ebf4,p,0,ra);
+        };
+        auto near=[&](uint32_t at,int32_t want){return std::abs(int32_t(psx_mod_read_word(p+at))-want)<=2;};
+        climb(-6917);assert(near(0x1f4,1370) && near(0x1f8,-6917) && near(0x1fc,124));
+        climb(0);assert(near(0x1f4,1370) && near(0x1f8,-6917) && near(0x1fc,124));
+        climb(-6917,0x80055a00);assert(near(0x1f4,5952) && near(0x1fc,808));   // another caller
+        call(0x8003ebf4,p,0,0x80055934);assert(near(0x1f4,1370));               // ... the jump's own update still does
+        psx_mod_write_word(p+0x1f4,5952);call(0x8003ebf4,p,0,0x80055934);
+        psx_mod_write_word(p+0x1f8,uint32_t(-6917));psx_mod_write_word(p+0x1f4,5952);
+        call(0x8003ebf4,p,0,0x80055934);assert(near(0x1f4,5952));               // once per jump
+        psx_mod_write_word(p+0x1f8,0);psx_mod_write_byte(p+0x22c,mode);psx_mod_write_half(p+0x60,63);
+        assert(std::strstr(ttk::controls_debug_json(),"\"wall_backflip\":{\"modern\":true,\"slides\":1,\"stops\":4,\"jumps\":6,\"climbs\":3,"));
+        psx_mod_write_word(p+0x1fc,0);psx_mod_write_byte(p+0x22c,mode);psx_mod_write_half(p+0x60,63);
+        std::puts("PASS: D08Z5 wall backflip (no launch off a slope slide, its jump starts 98 not 99/100 and climbs the slope; other falls, rotations, jumps, original and Vanilla keep theirs)");
+    }
     psx_mod_write_half(p+0x60,63);
     uint32_t sp=0x801f0000-0x30-0x58;
     psx_mod_write_word(sp+0x54,0x80053548);psx_mod_write_word(sp+0x10,0);psx_mod_write_word(sp+0x18,275);

@@ -122,6 +122,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08Z2 | Mantle regression since D08Z1: the mantle plays as a static leg pose | Done (user-accepted) | D08Z1 |
 | D08Z3 | Modern landing: no stand-still after a jump (recovery 105 ends on input; landing hop) | Done (user-accepted) | D08Z1 |
 | D08Z4 | First person briefly cuts to third person when jumping into the cop car (UI slot 6) | Done (user-accepted 2026-10-20) | D08Z1, D08V, D11 |
+| D08Z5 | WALL BACKFLIP option: Modern (default) replaces the steep-slope backflip and its backwards push with a slope jump that climbs; Original keeps it (UI slot 10 police car) | Done (user-accepted 2026-10-21) | D08Z1, D08Z4, D19N |
 | D08J1 | Hold-E run-up grab for overhead ladders (slot-6 ladder) | Done | D08J, D08X, D08U |
 | D08J2 | Poles and chains: A/D turn the wrong way (A turns right, D left) | Accepted | D08J |
 | D08J4 | Ceiling monkey-bar climbing: camera-relative travel, no mid-span drops (player UI slot 3) | Accepted | D08J, D22B |
@@ -4242,6 +4243,216 @@ part of this change. The user has to confirm the feel.
 **2026-10-20 - Done (user-accepted).** User: "thats the one! lock it in and
 close it out!!". Executable
 `117653dd0e38fa1c6cac2efe6e885449990ee1a5ffeaf23523024587a22e3778` is the regression baseline.
+
+### D08Z5 - Wall Backflip option: Modern (slope jump that climbs) / Original
+
+**Done (user-accepted 2026-10-21).** Opened 2026-10-21. User request: Duke's
+automatic wall backflip is a legacy movement mechanic that gets in the way of
+precise platforming, worst with the Modernized first-person controls. Make it
+optional with a new ADVANCED setting, Modern by default.
+
+User report: "When Duke jumps against certain walls or obstacles, the original
+game can automatically trigger a backflip. In third-person mode, this is
+visually apparent. However, in first-person mode, the animation is barely
+noticeable, while the associated backwards displacement still occurs." During
+consecutive jumps against a wall, or when climbing onto a raised surface, an
+accidental backflip can throw Duke several feet backwards.
+
+**Reproduction (player UI slot 10; check which file it maps to, e.g. file
+`slot09`, and work only on a private copy):**
+
+1. Load UI slot 10: Duke stands directly in front of a police car.
+2. Enter first person.
+3. Hold Shift to run.
+4. Press W to move toward the police car.
+5. Jump into the car at the right angle.
+6. Duke does an automatic backwards backflip away from it.
+
+Use the player's settings (Modernized, first person, their JUMP and JUMP WALLS
+choices) and also repeat in third person, with `jump_walls original`, and in
+Vanilla for reference.
+
+**Relation to earlier jobs (read first).** This overlaps work already done:
+
+- D08Z1 ([note 134](documentation/134-d08z1-jump-wall-slide.md)) added JUMP
+  WALLS (`controls.jump_walls`, `slide` default) to stop the original
+  airborne wall response (bounce animation 107, reflected velocity at 0.25..1.0
+  of the speed, rumble, sound `0x2008`) in the running/directional airborne
+  handler `0x80055904`. Its safety net undoes a 107 that still reaches
+  `0x8003ef08` / `0x8003ef78` at convex corners, but that update's push has
+  already been applied, and hits with a near-vertical normal are left to the
+  original. So either the backflip comes from a path D08Z1 does not cover, or
+  the slide or safety net misses it here.
+- D08Z4 ([note 168](documentation/168-d08z4-falls-keep-eye.md)) found that a
+  run-up jump at the UI slot 6 cop car lands on the sloped car body and the
+  original steep-slope slide takes over (145 in mode 2, then 108, 105, 108).
+  That fix keeps first person in the eye through those frames, which may be
+  why the backflip is "barely noticeable" in first person while its
+  displacement remains. Find out whether the backflip is 107, the 145
+  steep-slope slide, a ceiling hit (sweep result 3), a landing/recovery
+  animation or something else.
+- D08Y/D08X/D08Z3 ledge helpers and the modern landing also start from wall
+  contacts (`jump_wall_recent()`), so changes here touch them.
+
+**Investigation (before implementing):**
+
+- Where the backflip is triggered: handler, sweep result, animation number,
+  and whether it is in Duke's mode 9 airborne path, the slope/landing path or
+  another.
+- What collision conditions start it (surface normal and slope, angle of
+  approach, height of Duke's feet against the obstacle, speed, gait, manual vs
+  assisted jump).
+- What moves Duke back: animation root motion, a velocity write (reflection,
+  slope slide), a position correction, or a mix.
+- Whether it differs between first and third person (presentation only, or
+  also behaviour).
+- Dependencies: D08Z1 slide and safety net, D08X/D08Y mantles and step-ups,
+  D08Z3 landing, D08L edge run-off, D08Z4 first-person falls, swimming and
+  jetpack paths, scripted moves.
+- Whether recent movement and collision changes (D08Z1 to D08Z4, D22B) changed
+  when it fires; compare with `jump_walls original` and Vanilla.
+
+**Proposed setting:** ADVANCED > MOVEMENT, **WALL BACKFLIP**: **MODERN**
+(default) / **LEGACY**, following the D19N menu conventions and persisted in
+the profile like JUMP WALLS (schema bump with migration, `run.py` flag,
+`--settings` entry, environment override, Vanilla always Legacy). If the
+investigation shows the backflip is the same mechanism JUMP WALLS already owns,
+propose to the user whether to fold it into JUMP WALLS instead of adding an
+overlapping row; do not ship two settings that fight each other.
+
+- **Modern:** jumping into a wall, vehicle or other obstacle never starts the
+  automatic backflip or its forced backwards movement. Normal collision,
+  gravity and jumping stay; no wall climbing, no clipping into geometry, no
+  other movement change.
+- **Legacy:** the original behaviour exactly, animation and movement.
+
+Fix the system, not the car: the rule must hold for every wall and obstacle in
+every level.
+
+**Acceptance:**
+
+- The backflip reproduces reliably from UI slot 10 (private copy) before the
+  change, and the cause is documented.
+- Modern: no automatic wall backflip and no backwards displacement at the slot
+  10 car from several headings and gaits (standing, walking, running; manual
+  and assisted jump), and at other walls and obstacles in other levels.
+- Legacy keeps the original behaviour; Vanilla is unchanged.
+- Works the same in first and third person.
+- The setting persists across sessions (profile, menu and CLI agree).
+- Normal jumping, collision and platforming unaffected: D08Z1 slide routes,
+  D08X/D08Y mantles and step-ups, D08Z3 landings, D08Z4 cop car first person,
+  D08L run-off, ladder, swim and jetpack routes; native tests pass.
+- No regression to the modern movement controls; the user confirms in play.
+
+**2026-10-21 - Needs playtest.** Reproduced on a private copy of UI slot 10
+(file `slot09`, SHA-256
+`467a8934092b3b717b27736a2c866a8321904f9c26b7495b9a7050f5391a90b0`) with the
+player's settings, first and third person: every run-up jump of 0.1 to 0.6 s
+ends 525 to 812 units behind its furthest point. Cause: not a wall response
+(no 107, no D08Z1 slide). Duke lands on the car body, a floor 40..70 degrees
+steep; the ground step `0x80055e80` enters the steep-slope slide (mode 2, slip
+pose 145, sound `0x2006`, handler `0x80054568`). When the face ends, the fall
+`0x8003f060` takes a launch from the table `0x800c27c8` by the pose (145: 84
+units straight back from Duke's facing, about (-3040, 0, -380) velocity), and
+that launch, not the slide (about 70), carries him back. JUMP WALLS cannot
+reach it (airborne walls only), so this is a separate row.
+
+Change (`wall_backflip.inc`, game-wide, no geometry case): Modern keeps the
+slide and zeroes that launch, only for falls started by the slide handler
+(ra `0x800546c4/dc/ec`, mode 2), before the flight start rotates it
+(`0x80066e34`, ra `0x8003e488`). Duke drops where the steep face ends. Setting
+ADVANCED > MOVEMENT > WALL BACKFLIP MODERN (default) / ORIGINAL (the row
+convention; ORIGINAL is the "Legacy" of this request), profile schema 37
+`controls.wall_backflip`, `run.py --wall-backflip`, `--settings` choice P,
+`DNTTK_WALL_BACKFLIP`, Vanilla always original. New entry hooks `0x8005446C`
+and `0x8003F060` (regenerated, codegen hash unchanged, savestates load);
+guards for `0x8005446c` and `0x80054568`.
+
+Evidence, executable `191646ef67d6890ec435ddc771a9f31c9da349eb6e83d8a8c5b341860a4d3647`
+([note 174](documentation/174-d08z5-wall-backflip.md)): slot-10 car, back for
+0.1/0.2/0.4/0.6 s run-ups, Original 733/525/812/525 against Modern
+280/70/410/160 (first person), 132/70/410/141 (third person), 218/70/394/141
+(assisted); turned left, Original 625/594/0/597 against Modern 199/322/0/333.
+Slot-6 car: Original 665/580/669 against Modern 140/70/137. Every Modern
+slide was followed by a stopped launch. The rest is the slide down the panels
+and the straight drop. D08Z1 regression routes in both modes: no slope slide
+on any route, outcomes as before. OPTIONS row toggles live and persists;
+Vanilla reports original. Python 162 OK; `ttk-controls-test` 49 groups (new
+D08Z5 group), `ttk-aim-test`, `ttk-input-test` PASS.
+
+Limits: only the two level-0 police cars were driven. The slide itself stays
+(70 to 410 units at these cars). The slip pose 145 still shows briefly in
+third person; a pose swap is the next step if it still reads as a flip.
+Separate finding, not investigated: the player's slot 10 file halts the
+emulator on some reloads in one session (GPU GP0 unknown command; always on a
+second debug-port load, once on a third LOAD GAME). The user has to confirm
+the feel.
+
+**2026-10-21, first playtest: the backflip was still there; fixed.** User:
+"this absolutely doesnt seem to have provided any kind of fix. as you can
+see, the backflip still happens, third person or first person. there is even
+a chance duke will slip out of first person" (video
+`Video_2026-10-21_17-06-55.mp4`). The session logs showed animations 99/100,
+which the first delivery never touched. The slope slide handler's jump branch
+(`0x800547ac..0x80054834`): with Jump (Square word `0x800d1b88`) pressed
+while Duke slides, `0x8005446c` picks 99 (100 after a 99) when Duke faces up
+the slope, 98 when he faces down it. 99/100 is the backflip; the branch also
+runs after the handler's fall start in the same update, so it begins in mode
+2 or 9. Reproduced by mashing Space into the car: Original 2386 to 2449 units
+back. The first harness held Space only 0.15 s before the landing and never
+hit it. Change: the facing test from that branch (ra `0x800547fc`) arms
+`wall_backflip_jump`; at the next initialization from the lower-body update
+(`0x800493a4`, ra `0x8005a3a0`/`0x8005a4d0`) a 99/100 becomes 98, the
+original's own slope jump, in Duke's facing (new plugin, no new hook entry).
+A standing jump's 99/100 (Down at `0x8005492c`), ORIGINAL and Vanilla keep
+theirs. `slide_state_early()` also covers 99/100 at mode 9 from 0 (enter,
+slide and leave in one update), which dropped the lease and first person in
+ORIGINAL.
+
+Evidence, executable `cd458c38c3ab3b22658ef1b0896fc3bed36df2cf02a8976ce391d2514bd261d2`: slot-10 car, Space mashed for 1 s after a
+0.1/0.2/0.4 s run-up jump: Modern third person 12 runs and first person 6
+runs, no 99/100, 17 rewrites (`ttk-wall-backflip jump`, mode 2 and 9), no
+lease loss; Duke often lands on the car. Back distance at most 70 in third
+person, up to 487 in first person where repeated 98s land high on the roof
+and slide down the panels again (slide only, no launch). ORIGINAL first
+person: 99 kept (2386/2414 back), no lease loss. Native D08Z5 group extended
+(armed 99/100 at mode 2 and 9, standing 99, 98, other caller, original,
+Vanilla); `ttk-controls-test` 49 groups, `ttk-aim-test`, `ttk-input-test`,
+Python 162 OK (2 skipped), `check_repo.py` OK. The D08Z1 regression routes
+were not rerun: the rule acts only after the slide's jump branch, and none of
+those routes slides.
+
+**2026-10-21, second playtest: the slope jump now climbs.** User: "i dont like how this feels ... i prefer the idea of when jumping again, duke is actually trying to jump up a gradient slope a little higher ... What we've got right now is that dukes jump feels almost cancelled out".
+Cause: the 98 that replaced the backflip never left the face. Duke takes off
+pressed into it, so the airborne sweep `0x8007a98c` returns 2 (floor) on the
+first update even while he moves away; the handler then moves him only
+sideways and picks a landing pose (`0x80054c04`), and the next ground step
+slides him again (no rise at all in the traces). From the bottom of the face
+the fall has already started and 98 keeps the fall's velocity (no rise).
+Change (`wall_backflip_climb`, own plugin at `0x8003ebf4`, ra `0x80055934`,
+before D08Z1): on the jump's first airborne update Duke keeps the rise
+(-6917; given to the bottom-of-face case too) and drifts straight uphill
+(`+0x2bc` + 180 degrees) at k * rise / tan(face), face = -`+0x2be` (51.5
+degrees at this car), k 0.25 (`DNTTK_SLOPE_JUMP_K`, diagnostics). While he
+rises (98, mode 9, upward velocity, at most 40 updates) each update is tested
+with isolated original integrations and sweeps, restoring Duke: the drift;
+if that reports floor, straight up; if that does too, lifted 24/48/96/160
+units, whichever the sweep finds free. Coming down, the face lands and slides
+him as in the original.
+
+Evidence, executable `4114333b209e8f1797ef6b4cf12b4898f97f22ee4d379c0c6b0659a3223b82da`, slot-10 car, third person, Space tapped every
+0.15 or 0.3 s for 3 s after a 0.1/0.2/0.4 s run-up jump: jumps rise about 430
+units and land 90 to 390 higher on the face; 3 of 6 runs ended standing on
+the car, the others slid back off. First person (tap 0.2 s): no lease loss.
+The sweep log shows drift blocked, straight up free on the first update.
+Native D08Z5 group extended (drift and rise from the face's tilt, the
+bottom-of-face rise, another caller, once per jump); `ttk-controls-test` 49
+groups, `ttk-aim-test`, `ttk-input-test`, Python 162 OK (2 skipped),
+`check_repo.py` OK. Not rerun: the D08Z1 regression routes (the rule acts
+only after a slope slide's jump branch).
+
+**2026-10-21, accepted.** User: "perfect!!! lock it in close it out." D08Z5
+Done; executable `4114333b209e8f1797ef6b4cf12b4898f97f22ee4d379c0c6b0659a3223b82da` is the regression baseline.
 
 ### D08J1 - Hold-E run-up grab for overhead ladders (slot 6)
 

@@ -63,6 +63,11 @@ DYNAMITE_MODES = ('modern', 'original')
 # original: the original water speeds (forced run in shallow water, fixed
 # surface strokes and underwater thrust) with modern controls.
 SWIMMING_MODES = ('modern', 'original')
+# D08Z5 wall backflip (Modernized only; Vanilla keeps the original). modern:
+# sliding off a face too steep to stand on (a car body, a steep slope) Duke
+# drops where it ends; original: he is launched down the slope, backwards
+# after the backflip-like slip pose.
+WALL_BACKFLIPS = ('modern', 'original')
 # D17 presentation rate (Modernized only; Vanilla presents at 60 as always).
 # Game logic keeps its original timing at every value: display follows the
 # monitor's refresh rate, 30 shows each new game image once, 60 is the
@@ -81,7 +86,7 @@ DRAW_DISTANCES = ('original', 'extended')
 STEROIDS_MODES = ('portable', 'original')
 # Alt-wheel boom range in game units; 0 keeps the original follow distance.
 CAMERA_DISTANCE_RANGE = (768, 6144)
-DEFAULT_CONTROLS = {'camera': 'independent', 'mouse_sensitivity': 0.12, 'invert_y': False, 'weapon_aim': 'view', 'crosshair': True, 'red_dot': False, 'aim_assist': 'off', 'jetpack': 'modern', 'camera_distance': 0, 'shoulder': 'center', 'view': 'third', 'widescreen': '16:9', 'cpu_overclock': 150, 'cpu_timing': 'fast', 'jump': 'assisted', 'frame_rate': '60', 'view_bob': 'on', 'geometry_precision': 'original', 'texture_precision': 'original', 'draw_distance': 'extended', 'steroids': 'portable', 'jump_walls': 'slide', 'landing': 'modern', 'dynamite': 'modern', 'swimming': 'modern'}
+DEFAULT_CONTROLS = {'camera': 'independent', 'mouse_sensitivity': 0.12, 'invert_y': False, 'weapon_aim': 'view', 'crosshair': True, 'red_dot': False, 'aim_assist': 'off', 'jetpack': 'modern', 'camera_distance': 0, 'shoulder': 'center', 'view': 'third', 'widescreen': '16:9', 'cpu_overclock': 150, 'cpu_timing': 'fast', 'jump': 'assisted', 'frame_rate': '60', 'view_bob': 'on', 'geometry_precision': 'original', 'texture_precision': 'original', 'draw_distance': 'extended', 'steroids': 'portable', 'jump_walls': 'slide', 'landing': 'modern', 'dynamite': 'modern', 'swimming': 'modern', 'wall_backflip': 'modern'}
 # display is how the game opens (the runtime reports the last state at exit);
 # fullscreen_mode is what F11 enters from a window.
 DEFAULT_PRESENTATION = {'renderer': 'opengl', 'internal_scale': 1, 'display': 'windowed', 'fullscreen_mode': 'borderless', 'window_width': 0, 'output_filter': 'linear'}
@@ -105,11 +110,11 @@ def validate_controls(value):
         value['cpu_overclock'] not in CPU_OVERCLOCKS or value['cpu_timing'] not in CPU_TIMINGS or value['jump'] not in JUMP_STYLES or
         value['geometry_precision'] not in PRECISION_MODES or value['texture_precision'] not in PRECISION_MODES or
         value['frame_rate'] not in FRAME_RATES or value['view_bob'] not in VIEW_BOBS or
-        value['draw_distance'] not in DRAW_DISTANCES or value['steroids'] not in STEROIDS_MODES or value['jump_walls'] not in JUMP_WALLS or value['landing'] not in LANDINGS or value['dynamite'] not in DYNAMITE_MODES or value['swimming'] not in SWIMMING_MODES):
+        value['draw_distance'] not in DRAW_DISTANCES or value['steroids'] not in STEROIDS_MODES or value['jump_walls'] not in JUMP_WALLS or value['landing'] not in LANDINGS or value['dynamite'] not in DYNAMITE_MODES or value['swimming'] not in SWIMMING_MODES or value['wall_backflip'] not in WALL_BACKFLIPS):
         raise ValueError('Camera must be independent/original; sensitivity 0.01..2 degrees/count; invert_y boolean; jetpack modern/classic; '
                          'camera_distance 0 (original) or 768..6144; shoulder center/right/left; view third/first; '
                          'widescreen off/16:9/16:10/21:9/auto; cpu_overclock 100/125/150/175/200; cpu_timing accurate/fast; jump assisted/manual; '
-                         'frame_rate ' + '/'.join(FRAME_RATES) + '; view_bob ' + '/'.join(VIEW_BOBS) + '; geometry_precision and texture_precision original/corrected; draw_distance original/extended; steroids portable/original; jump_walls slide/original; landing modern/original; dynamite modern/original; swimming modern/original.')
+                         'frame_rate ' + '/'.join(FRAME_RATES) + '; view_bob ' + '/'.join(VIEW_BOBS) + '; geometry_precision and texture_precision original/corrected; draw_distance original/extended; steroids portable/original; jump_walls slide/original; landing modern/original; dynamite modern/original; swimming modern/original; wall_backflip modern/original.')
     return dict(value)
 
 
@@ -283,7 +288,7 @@ VANILLA_NOTICE = ('Modernized is now the default profile; your Vanilla settings 
 
 
 def defaults():
-    return {'version': 36, 'active': 'modernized',
+    return {'version': 37, 'active': 'modernized',
             'profiles': {mode: default_profile(mode) for mode in MODES}}
 
 
@@ -329,7 +334,7 @@ def load(path):
         notices.append('Unreadable profile settings; restored Modernized defaults.')
     else:
         version = data.get('version')
-        if type(version) is int and version > 36:
+        if type(version) is int and version > 37:
             raise ValueError(f'Profile settings version {version} is newer than this launcher; file left unchanged.')
         if type(version) is int and version == 0:
             mode = data.get('mode', 'modernized')
@@ -338,8 +343,8 @@ def load(path):
                 if renderer in RENDERERS:
                     result['profiles'][mode]['presentation']['renderer'] = renderer
             changed = True
-            notices.append('Migrated version 0 profile settings to version 36.')
-        elif type(version) is int and version in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36):
+            notices.append('Migrated version 0 profile settings to version 37.')
+        elif type(version) is int and version in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37):
             if data.get('active') == 'vanilla':
                 notices.append(VANILLA_NOTICE)
             profiles = data.get('profiles', {})
@@ -361,7 +366,7 @@ def load(path):
                         notices.append(f'{mode}: {exc} Restored presentation defaults.')
                 if isinstance(profile, dict) and isinstance(profile.get('controls'), dict):
                     try:
-                        result['profiles'][mode]['controls'] = validate_controls({**({k:v for k,v in DEFAULT_CONTROLS.items() if k in ('crosshair','red_dot','aim_assist')} if version < 5 else {}), **({'weapon_aim':'view'} if version < 4 else {}), **({'jetpack':'modern'} if version < 11 else {}), **({'camera_distance':0,'shoulder':'center'} if version < 12 else {}), **({'view':'third'} if version < 13 else {}), **({'widescreen':'16:9'} if version < 18 else {}), **({'cpu_overclock':150} if version < 19 else {}), **({'jump':'assisted'} if version < 20 else {}), **({'frame_rate':'60'} if version < 21 else {}), **({'view_bob':'on'} if version < 22 else {}), **({'geometry_precision':'original','texture_precision':'original'} if version < 23 else {}), **({'draw_distance':'extended'} if version < 24 else {}), **({'cpu_timing':'fast'} if version < 25 else {}), **({'steroids':'portable'} if version < 29 else {}), **({'jump_walls':'slide'} if version < 30 else {}), **({'landing':'modern'} if version < 31 else {}), **({'dynamite':'modern'} if version < 32 else {}), **({'swimming':'modern'} if version < 33 else {}), **profile['controls']})
+                        result['profiles'][mode]['controls'] = validate_controls({**({k:v for k,v in DEFAULT_CONTROLS.items() if k in ('crosshair','red_dot','aim_assist')} if version < 5 else {}), **({'weapon_aim':'view'} if version < 4 else {}), **({'jetpack':'modern'} if version < 11 else {}), **({'camera_distance':0,'shoulder':'center'} if version < 12 else {}), **({'view':'third'} if version < 13 else {}), **({'widescreen':'16:9'} if version < 18 else {}), **({'cpu_overclock':150} if version < 19 else {}), **({'jump':'assisted'} if version < 20 else {}), **({'frame_rate':'60'} if version < 21 else {}), **({'view_bob':'on'} if version < 22 else {}), **({'geometry_precision':'original','texture_precision':'original'} if version < 23 else {}), **({'draw_distance':'extended'} if version < 24 else {}), **({'cpu_timing':'fast'} if version < 25 else {}), **({'steroids':'portable'} if version < 29 else {}), **({'jump_walls':'slide'} if version < 30 else {}), **({'landing':'modern'} if version < 31 else {}), **({'dynamite':'modern'} if version < 32 else {}), **({'swimming':'modern'} if version < 33 else {}), **({'wall_backflip':'modern'} if version < 37 else {}), **profile['controls']})
                     except ValueError as exc:
                         notices.append(f'{mode}: {exc} Restored camera defaults.')
                 # Schema 28 (D08A5): Comma/Period move from original strafe to the mission
@@ -411,8 +416,8 @@ def load(path):
                         profile['bindings']['item_use'] = 'Unbound'
             changed = result != data
             if changed and result != {**data, 'active': 'modernized'}:
-                notices.append(f'Migrated version {version} profile settings to version 36; retained preferences and added control and presentation defaults.'
-                               if version < 36 else
+                notices.append(f'Migrated version {version} profile settings to version 37; retained preferences and added control and presentation defaults.'
+                               if version < 37 else
                                'Invalid or unsupported profile fields were reset; valid preferences were retained.')
         else:
             changed = True
@@ -458,6 +463,7 @@ def describe(settings):
         lines.append(f"Jump: {describe_jump(controls['jump'])}")
         lines.append(f"Jump wall contact: {describe_jump_walls(controls['jump_walls'])}")
         lines.append(f"Landing: {describe_landing(controls['landing'])}")
+        lines.append(f"Wall backflip: {describe_wall_backflip(controls['wall_backflip'])}")
         lines.append(f"Dynamite: {describe_dynamite(controls['dynamite'])}")
         lines.append(f"Swimming: {describe_swimming(controls['swimming'])}")
         lines.append(f"Mesh geometry: {controls['geometry_precision']}; textures: {controls['texture_precision']} (OpenGL; next launch)")
@@ -513,6 +519,12 @@ def describe_jump_walls(value):
     return 'original (a wall bounces Duke off and the jump is lost)'
 
 
+def describe_wall_backflip(value):
+    if value == 'modern':
+        return 'modern (sliding off a steep car body or slope, Duke drops where it ends)'
+    return 'original (sliding off one, Duke is launched backwards after a backflip-like slip)'
+
+
 def describe_landing(value):
     if value == 'modern':
         return 'modern (a direction or jump pressed on landing moves Duke at once)'
@@ -549,7 +561,7 @@ def menu(settings, read=input, write=print):
     while True:
         write('\n' + describe(edited))
         write('3 Renderer  |  4 Restore this profile  |  R Resolution and display\n'
-              'G Geometry and texture precision (Modernized)  |  D Draw distance (Modernized)  |  W Widescreen (Modernized)  |  J Jump style (Modernized)  |  K Jump wall contact (Modernized)  |  L Landing (Modernized)  |  T Dynamite (Modernized)  |  U Swimming (Modernized)  |  F Frame rate (Modernized)  |  B View bob (Modernized)  |  S Steroids (Modernized)  |  5 Save and return  |  6 PC bindings (Modernized)  |  7 Camera (Modernized)  |  8 Weapon aiming (Modernized)  |  9 Aiming display / assistance (Modernized)  |  0 Cancel')
+              'G Geometry and texture precision (Modernized)  |  D Draw distance (Modernized)  |  W Widescreen (Modernized)  |  J Jump style (Modernized)  |  K Jump wall contact (Modernized)  |  P Wall backflip (Modernized)  |  L Landing (Modernized)  |  T Dynamite (Modernized)  |  U Swimming (Modernized)  |  F Frame rate (Modernized)  |  B View bob (Modernized)  |  S Steroids (Modernized)  |  5 Save and return  |  6 PC bindings (Modernized)  |  7 Camera (Modernized)  |  8 Weapon aiming (Modernized)  |  9 Aiming display / assistance (Modernized)  |  0 Cancel')
         choice = read('Choice: ').strip()
         if choice == '3':
             write('1 OpenGL  |  2 Software')
@@ -610,6 +622,17 @@ def menu(settings, read=input, write=print):
                 edited['profiles']['modernized']['controls']['jump_walls'] = value
             elif value:
                 write('Choose one of the listed values; jump wall contact unchanged.')
+        elif choice.lower() == 'p':
+            if edited['active'] != 'modernized':
+                write('Vanilla always keeps the original wall backflip; select Modernized for the wall backflip.')
+                continue
+            write('modern: when Duke lands on a face too steep to stand on (a car body, a steep slope) he slides down it '
+                  'and drops where it ends. original: he slips back in a backflip-like pose and is launched down the slope.')
+            value = read('Wall backflip (' + '/'.join(WALL_BACKFLIPS) + '; blank cancels): ').strip()
+            if value in WALL_BACKFLIPS:
+                edited['profiles']['modernized']['controls']['wall_backflip'] = value
+            elif value:
+                write('Choose one of the listed values; wall backflip unchanged.')
         elif choice.lower() == 'l':
             if edited['active'] != 'modernized':
                 write('Vanilla always keeps the original landing; select Modernized for the landing.')

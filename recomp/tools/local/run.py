@@ -45,6 +45,7 @@ def main(argv=None):
     p.add_argument('--cpu-timing', choices=profiles.CPU_TIMINGS, help='save Modernized CPU timing model: fast (default; gameplay uses far less host CPU at the same emulated speed) or accurate (full cycle model); Vanilla always uses accurate')
     p.add_argument('--cpu-overclock', type=int, choices=profiles.CPU_OVERCLOCKS, help='save Modernized emulated CPU speed in percent (default 150 keeps busy views at 30 fps; 100 = original; Vanilla always uses 100)')
     p.add_argument('--jump-walls', choices=profiles.JUMP_WALLS, help='save Modernized jump wall contact: slide (EDuke32 style, keep the arc and slide along) or original (bounce off)')
+    p.add_argument('--wall-backflip', choices=profiles.WALL_BACKFLIPS, help='save Modernized wall backflip: modern (default; sliding off a steep car body or slope, Duke drops where it ends) or original (the backflip-like slip and backwards launch); Vanilla always uses original')
     p.add_argument('--landing', choices=profiles.LANDINGS, help='save Modernized landing: modern (a direction or jump pressed on landing moves Duke at once) or original (stands still about 0.6 s after some landings)')
     p.add_argument('--swimming', choices=profiles.SWIMMING_MODES, help='save Modernized swimming: modern (default; Shift walks or runs in water at the land speeds) or original (the original water speeds, shallow water always runs); Vanilla always uses original')
     p.add_argument('--dynamite', choices=profiles.DYNAMITE_MODES, help='save Modernized dynamite: modern (default; a drawn stick stays unlit until fire, so you can switch away) or original (drawing it lights the fuse); Vanilla always uses original')
@@ -92,7 +93,7 @@ def main(argv=None):
             profile = settings['profiles']['modernized']
             profile['bindings'] = pc_input.rebind(profile['bindings'], a.bind)
             changed = True
-        if a.steroids is not None or a.draw_distance is not None or a.geometry_precision is not None or a.texture_precision is not None or a.view_bob is not None or a.frame_rate is not None or a.jump is not None or a.jump_walls is not None or a.landing is not None or a.dynamite is not None or a.swimming is not None or a.cpu_overclock is not None or a.cpu_timing is not None or a.widescreen is not None or a.camera_distance is not None or a.shoulder is not None or a.view is not None or a.jetpack is not None or a.aim_assist is not None or a.red_dot is not None or a.crosshair is not None or a.weapon_aim is not None or a.camera is not None or a.mouse_sensitivity is not None or a.invert_y is not None:
+        if a.steroids is not None or a.draw_distance is not None or a.geometry_precision is not None or a.texture_precision is not None or a.view_bob is not None or a.frame_rate is not None or a.jump is not None or a.jump_walls is not None or a.landing is not None or a.wall_backflip is not None or a.dynamite is not None or a.swimming is not None or a.cpu_overclock is not None or a.cpu_timing is not None or a.widescreen is not None or a.camera_distance is not None or a.shoulder is not None or a.view is not None or a.jetpack is not None or a.aim_assist is not None or a.red_dot is not None or a.crosshair is not None or a.weapon_aim is not None or a.camera is not None or a.mouse_sensitivity is not None or a.invert_y is not None:
             controls = dict(settings['profiles']['modernized']['controls'])
             if a.aim_assist is not None: controls['aim_assist'] = a.aim_assist
             if a.jetpack is not None: controls['jetpack'] = a.jetpack
@@ -102,6 +103,7 @@ def main(argv=None):
             if a.jump is not None: controls['jump'] = a.jump
             if a.jump_walls is not None: controls['jump_walls'] = a.jump_walls
             if a.landing is not None: controls['landing'] = a.landing
+            if a.wall_backflip is not None: controls['wall_backflip'] = a.wall_backflip
             if a.dynamite is not None: controls['dynamite'] = a.dynamite
             if a.swimming is not None: controls['swimming'] = a.swimming
             if a.steroids is not None: controls['steroids'] = a.steroids
@@ -209,6 +211,7 @@ def main(argv=None):
     env['DNTTK_JUMP'] = controls['jump'] if modernized else 'assisted'
     env['DNTTK_JUMP_WALLS'] = controls['jump_walls'] if modernized else 'original'
     env['DNTTK_LANDING'] = controls['landing'] if modernized else 'original'
+    env['DNTTK_WALL_BACKFLIP'] = controls['wall_backflip'] if modernized else 'original'
     env['DNTTK_DYNAMITE'] = controls['dynamite'] if modernized else 'original'
     env['DNTTK_SWIMMING'] = controls['swimming'] if modernized else 'original'
     env['DNTTK_STEROIDS'] = controls['steroids'] if modernized else 'original'

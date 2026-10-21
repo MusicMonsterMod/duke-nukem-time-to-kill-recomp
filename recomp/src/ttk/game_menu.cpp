@@ -314,6 +314,8 @@ std::vector<Screen> make_screens() {
          {{"ASSISTED","assisted","\"assisted\""},{"MANUAL","manual","\"manual\""}},0},
         {"JUMP WALLS",Section::Controls,"jump_walls","DNTTK_JUMP_WALLS",true,"SLIDE: A WALL ONLY STOPS THE MOTION INTO IT",
          {{"SLIDE","slide","\"slide\""},{"ORIGINAL","original","\"original\""}},0},
+        {"WALL BACKFLIP",Section::Controls,"wall_backflip","DNTTK_WALL_BACKFLIP",true,"MODERN: NO BACKWARDS LAUNCH OFF STEEP CARS AND SLOPES",
+         {{"MODERN","modern","\"modern\""},{"ORIGINAL","original","\"original\""}},0},
         {"LANDING",Section::Controls,"landing","DNTTK_LANDING",true,"MODERN: MOVE AT ONCE ON LANDING",
          {{"MODERN","modern","\"modern\""},{"ORIGINAL","original","\"original\""}},0},
         {"SWIMMING",Section::Controls,"swimming","DNTTK_SWIMMING",true,"MODERN: SHIFT WALKS OR RUNS IN WATER AS ON LAND",

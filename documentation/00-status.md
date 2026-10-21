@@ -1,5 +1,53 @@
 # Current status - 2026-10-04
 
+## 2026-10-21 - D08Z5 accepted
+
+- User: "perfect!!! lock it in close it out." D08Z5 Done; executable
+  `4114333b209e8f1797ef6b4cf12b4898f97f22ee4d379c0c6b0659a3223b82da` is the regression baseline.
+
+## 2026-10-21 - D08Z5 second playtest: slope jump climbs (Needs playtest)
+
+- User: "i dont like how this feels ... i prefer the idea of when jumping again, duke is actually trying to jump up a gradient slope a little higher ... What we've got right now is that dukes jump feels almost cancelled out". The Modern slope jump (98) never rose: Duke took off
+  pressed into the face, so the air sweep `0x8007a98c` called it floor on the
+  first update and landed him. Modern now keeps the jump's rise, drifts up the
+  slope only as fast as the arc clears the face (k 0.25 of the rise against
+  the face's tilt `+0x2be`), and while rising tests each update with the
+  original sweep (drift, straight up, or lifted up to 160 units). A jump at
+  the bottom of the face gets the same rise. Slot 10 car: jumps rise about
+  430 units and land 90 to 390 higher on the face; tapped runs ended on the
+  car in 3 of 6. Executable `4114333b209e8f1797ef6b4cf12b4898f97f22ee4d379c0c6b0659a3223b82da`. [Note 174](174-d08z5-wall-backflip.md).
+
+## 2026-10-21 - D08Z5 first playtest: backflip still there, fixed (Needs playtest)
+
+- User: "this absolutely doesnt seem to have provided any kind of fix ...
+  there is even a chance duke will slip out of first person". The player's
+  logs showed animations 99/100, not the launch the first delivery removed:
+  Jump pressed while Duke slides on the car face, facing up the slope, makes
+  the slide handler's jump branch (`0x800547ac`) start the backflip 99/100
+  (up to about 2400 units back). The first harness only tapped Space before
+  the landing, so it never reached it. Modern now starts the original's own
+  slope jump 98 in Duke's facing instead (armed by the branch's facing test
+  `0x8005446c`, ra `0x800547fc`; rewritten at the initializer `0x800493a4`).
+  The camera lease now also covers 99/100 from mode 0 or 9 (it dropped first
+  person in ORIGINAL). Mashing Space into the slot 10 car: 18 Modern runs, no
+  99/100, 17 slide jumps turned into 98; ORIGINAL keeps the backflip with the
+  camera held. Executable `cd458c38c3ab3b22658ef1b0896fc3bed36df2cf02a8976ce391d2514bd261d2`. [Note 174](174-d08z5-wall-backflip.md).
+
+## 2026-10-21 - D08Z5 wall backflip option (Needs playtest)
+
+- The "backflip" off the slot 10 police car is the original steep-slope
+  slide (mode 2, slip pose 145) followed by a backwards launch from the fall
+  table `0x800c27c8` when the face ends (525 to 812 units back). New
+  ADVANCED > MOVEMENT > WALL BACKFLIP, MODERN (default) / ORIGINAL: Modern
+  keeps the slide but zeroes that launch (`wall_backflip.inc`), so Duke drops
+  where the face ends (70 to 410 back). Profile schema 37, `run.py
+  --wall-backflip`, Vanilla original. Hooks `0x8005446C`, `0x8003F060`
+  regenerated (codegen hash unchanged). Executable
+  `191646ef67d6890ec435ddc771a9f31c9da349eb6e83d8a8c5b341860a4d3647`.
+  [Note 174](174-d08z5-wall-backflip.md).
+- Separate finding: the player's slot 10 save halts the emulator on some
+  reloads in one session (GPU GP0 unknown command). Not investigated.
+
 ## 2026-10-21 - D17R1 accepted
 
 - User: "lock it in and close it out". D17R1 Done; executable

@@ -564,6 +564,27 @@ python3 recomp/tools/local/run.py --jump-walls slide --show-settings
 (`--settings`, choice K, does the same.) Vanilla always keeps the original
 bounce.
 
+**Wall backflip (Modernized, D08Z5).** In the original game a jump that lands
+on a face too steep to stand on (the sloped body of a car, a steep slope) makes
+Duke slip back in a backflip-like pose and then throws him several feet
+backwards as he drops off it. In Modernized (`modern`, the default) he still
+slips and slides down the steep face, but drops straight down where it ends,
+so he stays next to the car or slope instead of being thrown away from it.
+Pressing Jump while he slips makes the original do a backflip off the face.
+In Modernized Duke jumps up the face instead: he rises and drifts uphill,
+lands on it a little higher and slips again, so with well-timed jumps you can
+work your way up (as in Duke Nukem 3D), and sometimes onto the car.
+First and third person behave the same. Wall contact in the air is the
+separate JUMP WALLS setting above. In game: OPTIONS > ADVANCED > MOVEMENT >
+WALL BACKFLIP. To get the original back:
+
+```
+python3 recomp/tools/local/run.py --wall-backflip original --show-settings
+python3 recomp/tools/local/run.py --wall-backflip modern --show-settings
+```
+
+(`--settings`, choice P, does the same.) Vanilla always keeps the original.
+
 **Landing (Modernized, D08Z3, accepted 2026-10-08).** In the original game some
 landings stand Duke still for about 0.6 s whatever you press: a jump straight
 up (Space alone, even if you steer it in the air) and a jump whose direction
@@ -1103,8 +1124,9 @@ the original's style:
 - **GAMEPLAY**: view, shoulder, camera distance, crosshair, gore, status bars
   and view bob.
 - **ADVANCED**: one list under headings. CAMERA AND AIM: camera, weapon aim.
-  MOVEMENT: jump, jump walls, landing, swimming, jetpack. ITEMS: dynamite,
-  steroids. GRAPHICS: renderer, filter, draw distance, geometry, textures.
+  MOVEMENT: jump, jump walls, wall backflip, landing, swimming, jetpack.
+  ITEMS: dynamite, steroids. GRAPHICS: renderer, filter, draw distance,
+  geometry, textures.
   PERFORMANCE: CPU speed, CPU timing. ORIGINAL GAME: **auto aim**, red dot,
   game speed.
 

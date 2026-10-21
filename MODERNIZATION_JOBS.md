@@ -195,7 +195,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D19Q | SAVE GAME screen to match LOAD GAME: choose a savestate slot from the menus, overwrite asks, success / failure shown | Done (user-accepted 2026-10-20) | D19K |
 | D19Q1 | SAVE GAME thumbnail shows the save screen (OVERWRITE THIS SAVE?) instead of play (player UI slot 1; cause: stale CPU VRAM, not first person) | Done (user-accepted 2026-10-20) | D19Q |
 | D19S | Delete saves from LOAD GAME: Delete on a slot asks DELETE SAVED GAME: "<name>" (NO first) | Done (user-accepted 2026-10-21) | D19K, D19Q |
-| D19T | Real double quote marks (" and ") in the game's menu font: the text call draws `"` as a single quote | Todo | D19S |
+| D19T | Real double quote marks (" and ") in the game's menu font: the text call draws `"` as a single quote | Done (user-accepted 2026-10-21) | D19S |
 | D19L | Menus stay up and responsive while demo scenes load behind the title menu (no blank spinner gap) | Done (user-accepted 2026-10-19 with D19O) | D19J, D19E |
 | D19M | QUIT GAME menu item that closes the whole program (pause list, death list, title main menu), with a YES / NO prompt | Done (user-accepted 2026-10-19; title item in D19J, accepted) | D19H |
 | D19O | Frontend redraws flash back to the previous menu image after a change (PRESS START -> main menu: 13 presents of PRESS START; also in the original menus) | Done (user-accepted 2026-10-19) | D19C, D19J |
@@ -6514,7 +6514,18 @@ user judges it.
 
 ### D19T - Real double quote marks in the menu font
 
-**Todo (opened 2026-10-21; not started).** User, accepting D19S: "i want a
+**Done (user-accepted 2026-10-21: "that's awesome. lock it in close it out."), [note 176](documentation/176-d19t-menu-double-quotes.md).**
+Any `"` in a Modernized menu string now draws as a real double quote in both
+menu sizes: two of the font's own apostrophes, closing as they are, opening
+turned half round (texture flipped on both axes), alternating open / close.
+Widths and alignment count the quotes. Offscreen checks passed in both
+sizes. First playtest: the steel name line on DELETE SAVED GAME: still showed
+the fallback quotes; the font pack (Big / Medium Italic) now has the same
+quotes, alternating, and that line shows them. Identity guard passes,
+Vanilla boots, tests pass. Executable
+`52f5f1a3ae67040f6e9d52d544ba914e7115c1e38985a23ce066937c22aea29c`.
+
+**Opened 2026-10-21.** User, accepting D19S: "i want a
 backlog job standing up for a real " and " for this font." The game's menu
 text call (glyph call `0x8008b210`, `font_small` / `font_menu` in
 `game_menu.cpp`) has no double-quote glyph: `"` comes out as a single quote

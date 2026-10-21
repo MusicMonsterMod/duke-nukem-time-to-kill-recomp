@@ -145,6 +145,14 @@ constexpr uint32_t fn_prompt=0x8008411c, sprites=0x800c43b4, sentinel=0x800000fc
 // ramp (row 239, 14 rows below gold 225; entry 0 transparent like gold's).
 constexpr uint32_t glyph_next=0x800d67a8, glyph_size=40;
 constexpr int clut_amber=14*64;
+// D19T: the font has no double quote (the small font's '"' entry is its
+// apostrophe, the large one's stray pixels): a quote is two of its own
+// apostrophes, closing as they are, opening turned half round (both texture
+// axes flipped over the apostrophe's ink rows). Glyph call (char, x, y, flags);
+// glyph table 0x800c3f30 + font * 0x100 + char * 4: u, v, width (guarded).
+constexpr uint32_t fn_glyph=0x8008b210, glyph_table=0x800c3f30;
+struct QuoteMetrics {int pair_step,ink_rows;};
+const QuoteMetrics quote_metrics[]={{5,8},{6,10}}; // small font, menu font
 // D19N: a row with no effect is drawn at this texture modulation (0x80 is
 // full; D08A6 dims an off gadget's digits the same way). The font's grey CLUT
 // row 224 has an opaque entry 0: it drew a box behind each glyph.
@@ -1184,13 +1192,58 @@ struct Guest {
         for(;s[i] && i<100;++i) psx_mod_write_byte(text+i,(uint8_t)s[i]);
         psx_mod_write_byte(text+i,0);
     }
-    void say(const char* s,int x,int y,uint32_t flags) {put(s);call(fn_text,text,(uint32_t)x,(uint32_t)y,flags);}
+    void say(const char* s,int x,int y,uint32_t flags) {
+        if(std::strchr(s,'"')) {say_quoted(s,x,y,flags);return;}
+        put(s);call(fn_text,text,(uint32_t)x,(uint32_t)y,flags);
+    }
+    // D19T: text with double quotes, as the text call would place it: the
+    // runs between quotes left-aligned from the aligned start, '"' opening
+    // and closing in turn.
+    static int quote_font(uint32_t flags) {return (flags>>8&3)==1 ? 1 : 0;}
+    int quote_width(uint32_t flags) {
+        const int f=quote_font(flags);
+        return quote_metrics[f].pair_step+psx_mod_read_byte(glyph_table+0x100u*(uint32_t)f+4u*'\''+2);
+    }
+    void say_quoted(const char* s,int x,int y,uint32_t flags) {
+        const uint32_t left=flags&~(centre|right);
+        const int w=width(s,flags&0x300);
+        if(flags&centre) x-=w/2; else if(flags&right) x-=w;
+        std::string run;bool open=true;
+        for(const char* p=s;;++p) {
+            if(*p && *p!='"') {run+=*p;continue;}
+            if(!run.empty()) {const int rw=width(run.c_str(),flags&0x300);put(run.c_str());call(fn_text,text,(uint32_t)x,(uint32_t)y,left);x+=rw;run.clear();}
+            if(!*p) break;
+            say_quote(x,y,left,open);x+=quote_width(flags);open=!open;
+        }
+    }
+    void say_quote(int x,int y,uint32_t flags,bool open) {
+        const QuoteMetrics& m=quote_metrics[quote_font(flags)];
+        for(int i=0;i<2;++i) {
+            call(fn_glyph,'\'',(uint32_t)(x+i*m.pair_step),(uint32_t)y,flags);
+            if(!open || !ok) continue;
+            const uint32_t p=psx_mod_read_word(glyph_next)-glyph_size; // the packet just added
+            const uint8_t u=psx_mod_read_byte(p+0xc),v=psx_mod_read_byte(p+0xd),u1=psx_mod_read_byte(p+0x14);
+            const uint8_t v1=(uint8_t)(v+m.ink_rows-1);
+            psx_mod_write_byte(p+0xc,u1);psx_mod_write_byte(p+0xd,v1);
+            psx_mod_write_byte(p+0x14,u);psx_mod_write_byte(p+0x15,v1);
+            psx_mod_write_byte(p+0x1c,u1);psx_mod_write_byte(p+0x1d,v);
+            psx_mod_write_byte(p+0x24,u);psx_mod_write_byte(p+0x25,v);
+            const uint16_t y1=(uint16_t)(psx_mod_read_half(p+0xa)+m.ink_rows-1);
+            psx_mod_write_half(p+0x1a,y1);psx_mod_write_half(p+0x22,y1);
+        }
+    }
     // A string of the game's text table, by id, as the original passes it.
     void say_id(int id,int x,int y,uint32_t flags) {
         const uint32_t s=psx_mod_read_word(strings+4u*(uint32_t)id);
         if(s>=0x80010000u && s<0x80200000u) call(fn_text,s,(uint32_t)x,(uint32_t)y,flags);
     }
-    int width(const char* s,uint32_t font) {put(s);return (int)call(fn_width,text,font>>8,0,0);}
+    int width(const char* s,uint32_t font) {
+        if(const char* q=std::strchr(s,'"')) {
+            const std::string before(s,q);
+            return (before.empty() ? 0 : width(before.c_str(),font))+quote_width(font)+(q[1] ? width(q+1,font) : 0);
+        }
+        put(s);return (int)call(fn_width,text,font>>8,0,0);
+    }
     // D19N: text drawn dimmer: the modulation of the glyph packets just added.
     void say_dim(const char* s,int x,int y,uint32_t flags) {
         const uint32_t before=psx_mod_read_word(glyph_next);
@@ -1613,12 +1666,7 @@ void overlay_compose(const Overlay& o) {
     for(const OverlayText& t:o.lines) {
         const int w=steel_width(t.text)/steel_scale+1, h=ttk_font_line_height(steel_set)+1;
         std::vector<uint32_t> line(size_t(w)*h,0u);
-        int x=0;
-        for(char c:t.text) {
-            const char one[2]={c,0};
-            ttk_font_draw(steel_set,one,line.data(),w,h,x,0);
-            x+=ttk_font_text_width(steel_set,one)+1;
-        }
+        ttk_font_draw_spaced(steel_set,t.text.c_str(),line.data(),w,h,0,0,1);
         const int left=t.x-w*steel_scale/2-x0, top=t.y-y0;
         for(int y=0;y<h*steel_scale;++y) for(int x=0;x<w*steel_scale;++x) {
             const uint32_t c=line[size_t(y/steel_scale)*w+x/steel_scale];
@@ -2224,6 +2272,10 @@ void draw_page(CPUState* cpu,const MenuContext* c) {
         case Page::SaveAsk: draw_save_ask(g,geo);break;
         case Page::DeleteAsk: draw_delete_ask(g,geo);break;
         }
+        // Diagnostics only (DNTTK_TEST_MENU_TEXT=<text>): the text in both
+        // menu fonts at the top of every page (D19T glyph checks).
+        static const char* test_text=std::getenv("DNTTK_TEST_MENU_TEXT");
+        if(test_text) {g.say(test_text,0,-110,font_small|centre);g.say(test_text,0,96,font_menu|centre);}
     }
     busy=false;
     ++draws;

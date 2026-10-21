@@ -1,5 +1,20 @@
 # Current status - 2026-10-04
 
+## 2026-10-21 - D19T accepted (real double quotes)
+
+- User: "that's awesome. lock it in close it out." D19T Done: real opening
+  and closing double quotes in the menu font and the font pack (steel name
+  line on DELETE SAVED GAME:). Note 176.
+
+## 2026-10-21 - D19T real double quotes in the menu font (Needs playtest)
+
+- `"` in Modernized menu text draws as real double quotes in both menu
+  sizes, built from the font's own apostrophe (opening one turned half
+  round), and in the font pack (Console steel: the DELETE SAVED GAME: name
+  line, after the user's first playtest). Test with `DNTTK_TEST_MENU_TEXT`.
+  Note 176. Executable
+  `52f5f1a3ae67040f6e9d52d544ba914e7115c1e38985a23ce066937c22aea29c`.
+
 ## 2026-10-21 - D19S accepted (delete saves from LOAD GAME); D19T opened
 
 - User: "perfect. lock it in." Delete on a used LOAD GAME / SAVE GAME slot

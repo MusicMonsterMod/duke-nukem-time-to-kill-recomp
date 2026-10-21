@@ -60,11 +60,13 @@ bool load() {
     }
     loaded=true;return true;
 }
+// D19T: '"' opens and closes in turn: the pack's '`' is the opening quote.
 std::string ascii(const char* text) {
-    std::string result;
+    std::string result;bool open=true;
     for(const unsigned char* p=reinterpret_cast<const unsigned char*>(text);*p && result.size()<256;) {
         unsigned c=*p++;
-        if(c>=32 && c<=126)result.push_back(char(c));
+        if(c=='"'){result.push_back(open?'`':'"');open=!open;}
+        else if(c>=32 && c<=126)result.push_back(char(c));
         else if(c=='\n')result.push_back('\n');
         else if(c=='\t')result.push_back(' ');
         else {
@@ -131,12 +133,15 @@ extern "C" int ttk_font_rasterize(const char* text,int style,uint32_t* pixels,in
 // (the savestate panel). No Modernized gate: callers decide. Returns the width
 // drawn, or -1 without a valid pack or set.
 extern "C" int ttk_font_draw(int set,const char* text,uint32_t* dst,int dst_w,int dst_h,int x,int y) {
+    return ttk_font_draw_spaced(set,text,dst,dst_w,dst_h,x,y,0);
+}
+extern "C" int ttk_font_draw_spaced(int set,const char* text,uint32_t* dst,int dst_w,int dst_h,int x,int y,int spacing) {
     if(!text || !dst || !load() || set<0 || unsigned(set)>=set_count)return -1;
     const Set& font=sets[set];
     const int scale=int(font.scale);
     const std::string line=ascii(text);
     int width=0;
-    for(char c:line){if(c=='\n')break;width+=int(font.glyphs[(unsigned char)c-32].advance);}
+    for(char c:line){if(c=='\n')break;width+=int(font.glyphs[(unsigned char)c-32].advance)+spacing;}
     auto pixel=[&](int px,int py,uint32_t colour){if(px>=0 && py>=0 && px<dst_w && py<dst_h)dst[py*dst_w+px]=colour;};
     for(int shadow=font.shadow?1:0;shadow>=0;--shadow) {
         int cx=0;
@@ -149,7 +154,7 @@ extern "C" int ttk_font_draw(int set,const char* text,uint32_t* dst,int dst_w,in
                 for(int dy=0;dy<scale;++dy)for(int dx=0;dx<scale;++dx)
                     pixel(x+(cx+int(ix)+shadow)*scale+dx,y+(int(v.y+iy)+shadow)*scale+dy,shadow?font.shadow_colour:colour);
             }
-            cx+=int(v.advance);
+            cx+=int(v.advance)+spacing;
         }
     }
     return width*scale;

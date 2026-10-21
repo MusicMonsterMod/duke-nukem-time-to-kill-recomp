@@ -10,8 +10,8 @@ Sources (owned USA SLUS-00583, read only, hashes pinned):
                    16-colour CLUTs in column x = 1008.
   SLUS_005.83      the PSY-Q system font (FntPrint) at 0x800c7d70, 128x32,
                    ASCII 0x20..0x5f; the fallback for characters the italic
-                   fonts lack (& + " and others; D24C draws its own !,
-                   D24D ( ) and D24E %).
+                   fonts lack (& + and others; D24C draws its own !,
+                   D24D ( ), D24E % and D19T the double quotes).
 Palettes: disc CLUT 225 (gold, the pause-menu text) and "Console steel", the
 project's own palette matching the old console font.
 
@@ -25,7 +25,9 @@ Missing glyphs fall back to the system 8x8 font in the set's palette, except
 stem cut short and tapered, closed with the I's bottom edge) and '.' (top rows
 trimmed so the stem stays the taller part); '(' and ')' (D24D), the two sides of
 the font's own 'O'; and '%' (D24E), './.' from its own '/' and two trimmed
-periods.
+periods; and the double quotes (D19T), two of its own apostrophes: '"' the
+closing quote, '`' the opening one (the pair turned half round). The text
+renderer draws every other '"' of a string as '`' (ttk_font.cpp).
 
 It also writes ttk-ui.pack (TTKUI1): the disc's button sprites and radiation
 emblem for the D24B savestate panel.
@@ -75,6 +77,7 @@ SETS = [  # name, font, palette or '#rrggbb' tint (system font), scale, spacing,
 ]
 FONT_INFO = {'big': (BIG_ROWS, 17, 8), 'medium': (MEDIUM_ROWS, 11, 5), 'system': (None, 8, 8), 'micro': (None, 5, 4)}  # rows, height, space
 EXCLAMATION = {'big': (2, 3), 'medium': (1, 2)}  # D24C: period rows trimmed, stem taper (px)
+QUOTE_STEP = {'big': 6, 'medium': 5}  # D19T: px between the two apostrophes (as the menu font's)
 MICROFONT = ROOT / 'assets/ui/fonts/microfont/3x5-Microfont_1D.png'  # CC0, tracked
 
 
@@ -224,6 +227,27 @@ def percent(glyphs, trim):
     return crop(out)
 
 
+def quotes(glyphs, step):
+    """D19T: closing and opening double quotes from the font's own apostrophe
+    (its shape is a closing quote): two apostrophes `step` px apart, the second
+    over the first; the opening one is that pair turned half round over the
+    apostrophe's ink rows, so it stays at the top of the line. As the menu
+    font's quotes (game_menu.cpp)."""
+    w, h, texels = glyphs["'"]
+    rows = [[0] * (w + step) for _ in range(h)]
+    for k in (0, step):
+        for y in range(h):
+            for x in range(w):
+                if texels[y * w + x]:
+                    rows[y][x + k] = texels[y * w + x]
+    lit = [y for y in range(h) if any(rows[y])]
+    a, b = lit[0], lit[-1]
+    opening = [list(r) for r in rows]
+    for y in range(a, b + 1):
+        opening[y] = rows[a + b - y][::-1]
+    return crop(rows), crop(opening)
+
+
 def micro_font(path=MICROFONT):
     """The open 3x5 Microfont (1D sheet, 3 px per ASCII code), 1-bit glyphs."""
     from build_ttk_inv_icons import read_rgba_png
@@ -285,6 +309,7 @@ def build(raw, exe):
         fonts[name]['('] = parenthesis(fonts[name], False)
         fonts[name][')'] = parenthesis(fonts[name], True)
         fonts[name]['%'] = percent(fonts[name], trim)
+        fonts[name]['"'], fonts[name]['`'] = quotes(fonts[name], QUOTE_STEP[name])  # D19T: '`' holds the opening quote
     system = system_font(exe)
     fonts['system'] = system
     fonts['micro'] = micro_font()

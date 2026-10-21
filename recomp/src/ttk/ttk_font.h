@@ -23,6 +23,9 @@ enum {TTK_FONT_PANEL_TITLE=3,TTK_FONT_PANEL_SLOT=4,TTK_FONT_PANEL_SLOT_SELECTED=
 enum {TTK_FONT_MISSION_FOUND=8,TTK_FONT_MISSION_LABEL=9,TTK_FONT_MISSION_COUNT=10,TTK_FONT_MISSION_COMPLETE=11,
       TTK_FONT_MISSION_USED=12};
 int ttk_font_draw(int set,const char* text,uint32_t* dst,int dst_w,int dst_h,int x,int y);
+// D19T: the same with `spacing` extra pixels after each letter (one call per
+// line, so its double quotes open and close in turn).
+int ttk_font_draw_spaced(int set,const char* text,uint32_t* dst,int dst_w,int dst_h,int x,int y,int spacing);
 // Width in pixels ttk_font_draw would draw, or -1 without a valid pack/set.
 int ttk_font_text_width(int set,const char* text);
 int ttk_font_line_height(int set);

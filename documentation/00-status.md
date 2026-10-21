@@ -1,5 +1,18 @@
 # Current status - 2026-10-04
 
+## 2026-10-21 - D11G cancelled (cannot reproduce)
+
+- User: "cancel the job. i cant seem to replicate it either now. if it comes
+  back i'll let you know but close it as cant replicate". No code changed.
+- Six routes from a private copy of UI slot 11 all started the next level in
+  first person with no input (debug load, pause LOAD GAME, title LOAD GAME,
+  F3, statistics SAVE GAME then CONTINUE; the player's profile at 120 fps in
+  a window and on the real GPU). If it returns, keep the session log: the
+  likely causes are capture-related (focus lost during the load, an F10
+  opt-out) or a level-start state that holds the camera lease inactive.
+  Regression baseline unchanged:
+  `076f949136de1f29bd0675da8cefd3a1fd7222a73468880c6014e888ad803d5d`.
+
 ## 2026-10-21 - D20D accepted (richer statistics); D11G opened
 
 - User: "accepted! ... close this work out, fully accepted". D20D Done.

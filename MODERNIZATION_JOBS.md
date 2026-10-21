@@ -147,7 +147,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D11D | First-person eye height from Duke's real proportions, game-wide (LEVEL01 slot 8) | Accepted | D11, D22A |
 | D11E | First person while swimming (underwater eye view, game-wide) | Todo | D08O, D11, D22B |
 | D11F | First person while flying the jetpack (game-wide, all schemes) | Todo | D11, D08Q3, D22B |
-| D11G | New level can start in third person although first person is selected (player UI slot 11 -> next level); left click restores it | Todo | D11, D22B |
+| D11G | New level can start in third person although first person is selected (player UI slot 11 -> next level); left click restores it | Cancelled (cannot reproduce, 2026-10-21; reopen if seen again) | D11, D22B |
 | D13 | Higher internal resolution and display scaling | Done | D02 |
 | D14 | Widescreen, FOV and visibility | Done | D03, D13 |
 | D15 | Optional geometry and texture precision | Accepted | D13 |
@@ -4711,6 +4711,32 @@ person, ground first person and Vanilla unchanged; the user confirms it reads
 well.
 
 ### D11G - New level can start in third person with first person selected
+
+**Cancelled 2026-10-21: cannot reproduce.** User: "cancel the job. i cant
+seem to replicate it either now. if it comes back i'll let you know but close
+it as cant replicate". Reopen if it is seen again. The user later clarified
+that the left click was simply how they restored the view, not the only way.
+
+**Work log (2026-10-21, no repro; no code changed).** Private copy of the
+player's UI slot 11 (file slot 10, SHA-256
+`436ae18d35c2287783b9324ae363c3aa1b3939ed095311435237b668c1a466c0`, saved
+on the LEVEL 0 statistics screen), private cards and port 9391, harness in
+`recomp/analysis/d11g-fp-start/` (local only: `x1.py` real keys on private
+Xvfb with the real capture logic, `g1.py` real GPU offscreen). Every route
+started the next level (level 1) in first person with no input: debug load
+then Enter on CONTINUE; pause menu LOAD GAME; title LOAD GAME after launch;
+F3 load menu during play; statistics SAVE GAME then CONTINUE; the player's
+own profile copy (120 fps, distance 1728, right shoulder, corrected
+precision) in a window and on the real GPU at 120. In each, the mouse was
+captured automatically when gameplay appeared (about 6.5 s after Enter
+under Xvfb) and the eye view blended in within about 0.6 s. Code reading:
+the gameplay input frame carries the first-person preference only while
+the mouse is captured, so uncaptured play shows the original third-person
+camera; recapture follows the automatic offer (needs `initial_capture`,
+window focus, no Escape hold) or F10. Candidate causes if it returns: the
+window losing focus during the level load, an F10 opt-out, or a level-start
+state that keeps the camera lease inactive. A session log from the
+occurrence would decide it.
 
 Opened 2026-10-21 (user, when accepting D20D; not actioned): "starting a new
 level might result in duke loading in third person when first person was
@@ -15068,3 +15094,16 @@ in note 117 is the reference for future custom pickups.
   triangles on the boat's wooden posts (UI slot 6, level 6) and the
   grave-dig soil corners (UI slot 7, level 1) in first person, possibly
   related to D17W. Save hashes are recorded in each job.
+
+## 2026-10-21 - D11G cancelled (cannot reproduce)
+
+- User: "cancel the job. i cant seem to replicate it either now. if it comes
+  back i'll let you know but close it as cant replicate". No code changed.
+- Six routes from a private copy of UI slot 11 all started the next level in
+  first person with no input (debug load, pause LOAD GAME, title LOAD GAME,
+  F3, statistics SAVE GAME then CONTINUE; the player's profile at 120 fps in
+  a window and on the real GPU). If it returns, keep the session log: the
+  likely causes are capture-related (focus lost during the load, an F10
+  opt-out) or a level-start state that holds the camera lease inactive.
+  Regression baseline unchanged:
+  `076f949136de1f29bd0675da8cefd3a1fd7222a73468880c6014e888ad803d5d`.

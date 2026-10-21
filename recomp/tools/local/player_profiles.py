@@ -288,7 +288,7 @@ VANILLA_NOTICE = ('Modernized is now the default profile; your Vanilla settings 
 
 
 def defaults():
-    return {'version': 37, 'active': 'modernized',
+    return {'version': 38, 'active': 'modernized',
             'profiles': {mode: default_profile(mode) for mode in MODES}}
 
 
@@ -334,7 +334,7 @@ def load(path):
         notices.append('Unreadable profile settings; restored Modernized defaults.')
     else:
         version = data.get('version')
-        if type(version) is int and version > 37:
+        if type(version) is int and version > 38:
             raise ValueError(f'Profile settings version {version} is newer than this launcher; file left unchanged.')
         if type(version) is int and version == 0:
             mode = data.get('mode', 'modernized')
@@ -343,8 +343,8 @@ def load(path):
                 if renderer in RENDERERS:
                     result['profiles'][mode]['presentation']['renderer'] = renderer
             changed = True
-            notices.append('Migrated version 0 profile settings to version 37.')
-        elif type(version) is int and version in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37):
+            notices.append('Migrated version 0 profile settings to version 38.')
+        elif type(version) is int and version in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38):
             if data.get('active') == 'vanilla':
                 notices.append(VANILLA_NOTICE)
             profiles = data.get('profiles', {})
@@ -374,9 +374,10 @@ def load(path):
                 # Schema 34 (D10C): the look keys take PageUp/PageDown/Home/End when free.
                 # Schema 35 (D10D): the turn keys take Left/Right when free.
                 # Schema 36 (D19N): USE ITEM is Enter only; the old default U is unbound.
+                # Schema 38 (D20): QUICK SAVE / QUICK LOAD take F6 / F9.
                 if isinstance(profile, dict) and 'bindings' in profile:
                     try:
-                        result['profiles'][mode]['bindings'] = dict(pc_input.migrate_bindings(profile['bindings']) if version < 8 else pc_input.migrate_grab(profile['bindings']) if version < 35 else pc_input.validate(profile['bindings']))
+                        result['profiles'][mode]['bindings'] = dict(pc_input.migrate_bindings(profile['bindings']) if version < 8 else pc_input.migrate_grab(profile['bindings']) if version < 38 else pc_input.validate(profile['bindings']))
                     except ValueError as exc:
                         notices.append(f'{mode}: {exc} Restored action defaults.')
             if version < 6:
@@ -416,8 +417,8 @@ def load(path):
                         profile['bindings']['item_use'] = 'Unbound'
             changed = result != data
             if changed and result != {**data, 'active': 'modernized'}:
-                notices.append(f'Migrated version {version} profile settings to version 37; retained preferences and added control and presentation defaults.'
-                               if version < 37 else
+                notices.append(f'Migrated version {version} profile settings to version 38; retained preferences and added control and presentation defaults.'
+                               if version < 38 else
                                'Invalid or unsupported profile fields were reset; valid preferences were retained.')
         else:
             changed = True
@@ -457,6 +458,8 @@ def describe(settings):
         lines.append(f"Look keys: {pc_input_key(settings, 'look_up')}/{pc_input_key(settings, 'look_down')} look up/down while held, "
                      f"{pc_input_key(settings, 'lock_look_up')}/{pc_input_key(settings, 'lock_look_down')} lock the look up/down; "
                      f"{pc_input_key(settings, 'turn_left')}/{pc_input_key(settings, 'turn_right')} turn left/right")
+        lines.append(f"Saves: {pc_input_key(settings, 'quick_save')} quick save, {pc_input_key(settings, 'quick_load')} quick load "
+                     "(last slot used; F2 / F3 open SAVE GAME / LOAD GAME)")
         lines.append(f"View: {controls['view']} person ({pc_input_key(settings, 'camera_view')} toggles in game, saved; "
                      "first-person is a prototype: swimming and jetpack flight use third person)")
         lines.append(f"Widescreen: {describe_widescreen(controls['widescreen'])}")

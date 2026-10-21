@@ -209,7 +209,10 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D19E | Menu responsiveness close-out: menus over the loading spinner are less responsive; sweep every frontend menu and screen for best response | Done (accepted 2026-10-18) | D19C, D17U |
 | D19F | PC button icons: keyboard and mouse prompt sprites drawn in the exact style of the disc's PS1 button sprites | Todo | D19D, D24A |
 | D19F1 | Prompt icons follow the input device in use (keyboard/mouse or controller), switching live like a modern game | Todo | D19F, D09 |
-| D20 | Save management and optional quick saves | Todo | D01, D02 |
+| D20 | EDuke32-style quick save / quick load (F6 / F9, console `quicksave` / `quickload`) and F2 / F3 save / load menus | Done (user-accepted 2026-10-21) | D01, D02 |
+| D20A | Savestates taken within ~1.5 s after a load can halt the emulator when loaded after a restart (GP0 0xFA; framework, pre-existing) | Todo | D20 |
+| D20B | Original memory card saves understandable and reliable (statistics-screen SAVE; split from D20) | Todo | D01, D02 |
+| D20C | Colours sometimes wrong after loading a savestate (intermittent; player UI slot 1, load several times) | Todo | D20 |
 | D21 | Accessibility and sound controls | Todo | D04, D19 |
 | D22 | Campaign fidelity and overlay coverage | Todo | D01 |
 | D22A | Portal transition loses Modernized controls and first person (slot 7) | Accepted | D05, D06, D11 |
@@ -7136,11 +7139,85 @@ Modernized prompt shows the device last used and changes within one image
 of switching; no flicker from idle devices; the fixed settings hold;
 Vanilla unchanged.
 
-### D20 — Save management and optional quick saves
+### D20 - EDuke32-style quick save and quick load
 
-First make original memory-card saves understandable and reliable. Investigate quick saves/checkpoints as optional Modernized features, accounting for CPU, device, streaming and overlay state. Define compatibility and restoration boundaries before implementing snapshots.
+**Done (user-accepted 2026-10-21: "its all working!"), [note 177](documentation/177-d20-quick-save.md).**
+Scoped with the user on 2026-10-21: "mimic exactly how this all works in
+duke3d/eduke32 ... quicksave for example is f6 - it is a hotkey that updates
+the last used save slot automatically ... quick load is f9. quicksave, and
+quickload, are also console commands that do exactly this". EDuke32's source
+was read for the behaviour; the user took the recommended choices ("go with
+your recommendations"): the quick slot is the slot last saved to or loaded
+from (EDuke32's load-resets-last-save quirk not copied), not kept across
+launches, no level-start autosave, Modernized only, and the original memory
+card half of this job split to D20B.
 
-**Acceptance:** original save/load round trips pass; player cards are never replaced by test cards. Any quick-save feature actually shipped restores a documented gameplay scenario reliably and detects incompatible versions. If full snapshots prove unsuitable, document the result and split their implementation into a new job; original save management alone does not prove quick saves work.
+Implementation: F6 saves over the quick slot without pausing (GAME SAVED), or
+opens SAVE GAME with no slot yet; dead: CAN'T SAVE WHILE DEAD. F9 loads it at
+once (a SAVE GAME save resumes play), or opens LOAD GAME with no usable slot;
+it works on the death list too. F2 / F3 open SAVE GAME / LOAD GAME straight
+from play; Escape returns to play and a save there closes the page with GAME
+SAVED. Console `quicksave` / `quickload`. KEY BINDINGS section SAVES (QUICK
+SAVE, QUICK LOAD; F4, F5, F6, F9, F12 bindable); launcher schema 38. The
+framework's F6 port swap is off in Modernized (F1 menu keeps it). Code:
+`pc_input.cpp` (`quick_press`, `input_quick`), `game_menu.cpp`
+(`game_menu_quick`, `quick_poll`, direct pages), `level_select.cpp`
+(console), framework `main.cpp` (help, port-swap gate; exported patch).
+
+Evidence: offscreen private runs (note 177 table): F6 and F9 round trip on
+slot 05 with identical start and loaded frames, console commands, F2 / F3
+pages and Escape, save to an empty slot from F2, F9 fallback with the slot
+deleted, death-list F3 / F6 / F9, a new game from the title (F6 opens SAVE
+GAME), KEY BINDINGS rows. `ttk-input-test` D20 cases, Python 164 OK, patch
+verified against the pristine pin. Executable
+`20f8edc1d1d6260e59747df7d31ae4a438f4081a8eb19ee402ea9924f1b3e930`.
+
+Limits: found a pre-existing framework bug, D20A: a savestate taken within
+about 1.5 s after a load can halt the emulator when loaded after a restart
+(F7 and SAVE GAME too). The manual tells players to play a moment after a
+load before saving until it is fixed. Not run in a visible window; the user's
+playtest judges the feel.
+
+**Acceptance:** F6 / F9 / F2 / F3 and the console commands behave as above in
+one-player Modernized play; quick saves restore the saved scenario and other
+builds' saves are refused (LOAD GAME opens); Vanilla unchanged; the user
+judges it in play.
+
+### D20A - Savestates taken shortly after a load halt when loaded after a restart
+
+Found during D20 (2026-10-21), [note 177](documentation/177-d20-quick-save.md#d20a-savestates-taken-shortly-after-a-load-framework-pre-existing).
+A save taken about 0.3-1.5 s after a savestate load can load fine in the
+session that made it but halt the emulator after a restart: `FATAL: GPU GP0
+unknown command 0xFA (word 0xFA000045)`, DMA channel 2 linked list at
+`0x80F40BD0`. Reproduced with the framework's own save path (F7), the console
+and F6, Modernized and Vanilla, 60 and 120 Hz; saved DMA state is idle and the
+CPU is in libetc VSync. Find what the snapshot misses after a load (CD-ROM
+streaming state is a candidate) and fix it in the framework.
+
+**Acceptance:** saves taken at any time after a load (0-3 s sweep) load after
+a restart; existing good savestates still load; patch exported.
+
+### D20C - Colours sometimes wrong after loading a savestate
+
+Opened 2026-10-21 (user, after accepting D20): "when loading, sometimes the
+colors are screwed up? i cant explain, try loading several times. i was
+testing with my save in slot one." Intermittent; seen with quick load / LOAD
+GAME of the player's UI slot 1. Not investigated yet. Reproduce on a private
+copy of a comparable save (never the player's own files): load repeatedly,
+capture the bad frames, and find which state the load leaves wrong (palette /
+CLUT VRAM, texture page, renderer cache, D17 replay presentation). Check
+whether F7 loads show it too and whether it relates to D20A.
+
+**Acceptance:** repeated loads of the reported kind of save show correct
+colours every time; the cause is recorded; Vanilla unchanged.
+
+### D20B - Original memory card saves understandable and reliable
+
+Split from D20 (2026-10-21). First make original memory-card saves (the
+statistics screen's SAVE, Vanilla's LOAD GAME) understandable and reliable.
+
+**Acceptance:** original save/load round trips pass; player cards are never
+replaced by test cards.
 
 ### D21 — Accessibility and sound controls
 

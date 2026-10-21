@@ -93,6 +93,15 @@ uint16_t input_pad();
 // D19: the menu screens (game_menu.cpp) register their key handler here.
 struct MenuKeys;
 void input_set_menu_handler(bool (*handler)(const MenuKeys&));
+// D20: EDuke32's quick save / quick load (bindable, F6 / F9; console
+// quicksave / quickload) and its save / load menu keys (F2 / F3). game_menu.cpp
+// answers what it did: nothing (not in a one-player game), done, the pause to
+// open SAVE / LOAD GAME on, or a load under way.
+enum class Quick {Save, Load, SaveMenu, LoadMenu};
+enum class QuickResult {Ignored, Done, Pause, Load};
+void input_set_quick_handler(QuickResult (*handler)(Quick));
+// The handler's answer, with the mouse and pause it asks for applied.
+QuickResult input_quick(Quick quick);
 // Diagnostics: the last value input_pad() returned (no side effects).
 uint16_t input_last_pad();
 // D19O: our menu's keys while the game reads no pad (a demo scene's blocking

@@ -17,4 +17,8 @@ bool game_menu_input(const MenuKeys& keys);
 // From the frontend's composition (0x80026164) and logo (0x80025554) entry
 // hooks on live frames, before the D17 capture: draw at most once per image.
 void game_menu_frame(CPUState* cpu);
+// D20: quick save, quick load and the F2 / F3 menus (pc_input.h's Quick).
+enum class Quick;
+enum class QuickResult;
+QuickResult game_menu_quick(Quick q);
 }

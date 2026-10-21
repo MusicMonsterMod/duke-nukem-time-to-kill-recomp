@@ -37,6 +37,8 @@ static bool trav_camera, roll_camera;
 static bool ladder_top,ladder_on,ladder_exit,ladder_end,pole,pole_front,pole_end,ceiling,ceiling_adv,ceiling_let_go;static int ladder_hang;
 static unsigned ladder_requests;
 static bool ladder_leap,leap_on;static unsigned ladder_leaps;
+static ttk::Quick last_quick;static ttk::QuickResult quick_answer;static int quick_calls;
+static ttk::QuickResult quick_handler(ttk::Quick q) {last_quick=q;++quick_calls;return quick_answer;}
 static void key(SDL_Scancode code, bool down, bool repeat = false) {
     SDL_Event e{};
     e.type = down ? SDL_KEYDOWN : SDL_KEYUP;
@@ -341,7 +343,7 @@ int main() {
     key(SDL_SCANCODE_RETURN,true);
     CHECK(!tick().active && !(ttk::input_pad()&8));key(SDL_SCANCODE_RETURN,false);
     // A saved custom speed binding keeps working; no action/schema migration.
-    SDL_setenv_unsafe("DNTTK_INPUT_BINDINGS", "1:26,22,4,7,-1,44,11,25,21,0,0,0,12,8,0,0,0,-3,226,51,52,27,16,225,13,17,5,47,48,24,20,30,31,32,33,34,35,36,37,38,39,54,55,75,78,74,77,80,79", 1);
+    SDL_setenv_unsafe("DNTTK_INPUT_BINDINGS", "1:26,22,4,7,-1,44,11,25,21,0,0,0,12,8,0,0,0,-3,226,51,52,27,16,225,13,17,5,47,48,24,20,30,31,32,33,34,35,36,37,38,39,54,55,75,78,74,77,80,79,63,66", 1);
     ttk::input_init(win);focus(true);key(SDL_SCANCODE_F10,true);ready=true;
     CHECK((ttk::input_pad() & 1024) == 0); // launch resets autorun off
     key(SDL_SCANCODE_R,true);CHECK((ttk::input_pad() & 1024) != 0);
@@ -740,7 +742,7 @@ int main() {
     leap_on=false;tick();CHECK((ttk::input_pad()&16384)!=0);
     holstered=false;
     // Rebinding fire preserves draw behavior; the old mouse binding is inactive.
-    ttk::input_release();SDL_setenv_unsafe("DNTTK_INPUT_BINDINGS", "1:26,22,4,7,10,44,11,25,21,0,0,0,12,8,0,0,0,-3,226,51,52,27,16,225,13,17,5,47,48,24,20,30,31,32,33,34,35,36,37,38,39,54,55,75,78,74,77,80,79",1);
+    ttk::input_release();SDL_setenv_unsafe("DNTTK_INPUT_BINDINGS", "1:26,22,4,7,10,44,11,25,21,0,0,0,12,8,0,0,0,-3,226,51,52,27,16,225,13,17,5,47,48,24,20,30,31,32,33,34,35,36,37,38,39,54,55,75,78,74,77,80,79,63,66",1);
     ttk::input_init(win);focus(true);key(SDL_SCANCODE_F10,true);ready=true;flight=false;holstered=true;
     mousefire(true);tick();CHECK((ttk::input_pad()&(8192|16384))==(8192|16384));mousefire(false);
     key(SDL_SCANCODE_G,true);tick();CHECK((ttk::input_pad()&8192)==0 && (ttk::input_pad()&16384)!=0);
@@ -790,13 +792,45 @@ int main() {
     guest={{0x800bcbb0u,1}};ttk::input_event(notch);
     for(int i=0;i<10;++i){++s_frame_count;CHECK(ttk::input_pad()==0xffff);}
     guest={{0x800bcbb0u,1}};
+    // D20: F6 / F9 (bindable) and F2 / F3 reach the quick handler. A save keeps
+    // the mouse; a load frees it (recapture follows); SAVE / LOAD GAME pause
+    // with the Start pulse; Ignored passes on to the usual F-key release.
+    ttk::input_release();unsetenv("DNTTK_INPUT_BINDINGS");
+    ttk::input_init(win);focus(true);key(SDL_SCANCODE_F10,true);key(SDL_SCANCODE_F10,false);
+    CHECK(SDL_GetWindowRelativeMouseMode(win) && ttk::input_binding_code(ttk::quick_save)==SDL_SCANCODE_F6 && ttk::input_binding_code(ttk::quick_load)==SDL_SCANCODE_F9);
+    ttk::input_set_quick_handler(quick_handler);
+    quick_answer=ttk::QuickResult::Done;
+    key(SDL_SCANCODE_F6,true);key(SDL_SCANCODE_F6,false);
+    CHECK(quick_calls==1 && last_quick==ttk::Quick::Save && SDL_GetWindowRelativeMouseMode(win));
+    key(SDL_SCANCODE_F6,true,true);CHECK(quick_calls==1); // repeats never save again
+    {SDL_Event e{};e.type=SDL_KEYDOWN;e.key.windowID=SDL_GetWindowID(win);e.key.scancode=SDL_SCANCODE_F6;e.key.mod=SDL_KMOD_LCTRL;ttk::input_event(e);}
+    CHECK(quick_calls==1 && !SDL_GetWindowRelativeMouseMode(win)); // Ctrl+F6 is not quick save
+    key(SDL_SCANCODE_F6,false);key(SDL_SCANCODE_F10,true);key(SDL_SCANCODE_F10,false);
+    quick_answer=ttk::QuickResult::Load;
+    key(SDL_SCANCODE_F9,true);key(SDL_SCANCODE_F9,false);
+    CHECK(quick_calls==2 && last_quick==ttk::Quick::Load && !SDL_GetWindowRelativeMouseMode(win) && ttk::input_wants_initial_capture());
+    key(SDL_SCANCODE_F10,true);key(SDL_SCANCODE_F10,false);
+    quick_answer=ttk::QuickResult::Pause;
+    key(SDL_SCANCODE_F2,true);key(SDL_SCANCODE_F2,false);
+    CHECK(quick_calls==3 && last_quick==ttk::Quick::SaveMenu && !SDL_GetWindowRelativeMouseMode(win));
+    ++s_frame_count;CHECK((ttk::input_pad()&8)==0); // Start: the pause
+    for(int i=0;i<12;++i){++s_frame_count;ttk::input_pad();}
+    key(SDL_SCANCODE_F3,true);key(SDL_SCANCODE_F3,false);CHECK(quick_calls==4 && last_quick==ttk::Quick::LoadMenu);
+    CHECK(ttk::input_quick(ttk::Quick::Load)==ttk::QuickResult::Pause && quick_calls==5); // the console's way in
+    // Ignored leaves the F-key as before.
+    for(int i=0;i<12;++i){++s_frame_count;ttk::input_pad();}
+    key(SDL_SCANCODE_F10,true);key(SDL_SCANCODE_F10,false);quick_answer=ttk::QuickResult::Ignored;
+    key(SDL_SCANCODE_F9,true);key(SDL_SCANCODE_F9,false);
+    CHECK(quick_calls==6 && !SDL_GetWindowRelativeMouseMode(win));
+    ttk::input_set_quick_handler(nullptr);
+    CHECK(ttk::input_quick(ttk::Quick::Save)==ttk::QuickResult::Ignored && quick_calls==6);
     ttk::input_release();SDL_setenv_unsafe("DNTTK_INPUT_MODE", "vanilla", 1);
     ttk::input_init(win);focus(true);key(SDL_SCANCODE_F10,true);
     key(SDL_SCANCODE_CAPSLOCK,true);key(SDL_SCANCODE_R,true);
     CHECK(!tick().active && ttk::input_pad()==0xffff);
     SDL_DestroyWindow(win);
     SDL_Quit();
-    std::puts("PASS: independent movement, normalized diagonals, context isolation, mouse deltas, focus loss, repeat suppression, Escape/pause/inventory release, menu fallback, overlay capture guard, captured tank WASD strafe fallback, D08V1 identity fallback mouse turn, F7 savestate recapture and fresh-offer capture, D08T1 hold-to-grab (E mantles, RMB/Alt grab latch, push-pull, release, fresh press, holster, legacy precision aim), D08U ladder-top E request, hint and S descent Cross, D08J1 one ladder leap jump per E hold, reach held through the leap, D08J5 Ctrl and S-at-the-end let go of a pole or chain, D19D menu Escape/Backspace/Enter/V/wheel per screen with latched buttons");
+    std::puts("PASS: independent movement, normalized diagonals, context isolation, mouse deltas, focus loss, repeat suppression, Escape/pause/inventory release, menu fallback, overlay capture guard, captured tank WASD strafe fallback, D08V1 identity fallback mouse turn, F7 savestate recapture and fresh-offer capture, D08T1 hold-to-grab (E mantles, RMB/Alt grab latch, push-pull, release, fresh press, holster, legacy precision aim), D08U ladder-top E request, hint and S descent Cross, D08J1 one ladder leap jump per E hold, reach held through the leap, D08J5 Ctrl and S-at-the-end let go of a pole or chain, D19D menu Escape/Backspace/Enter/V/wheel per screen with latched buttons, D20 quick save / load and F2 / F3 keys");
 }
 
 namespace ttk { bool directional_takeoff_ready(){return preparing;} bool edge_jump_queued(){return edge_queued;}

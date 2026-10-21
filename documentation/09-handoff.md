@@ -1,5 +1,23 @@
 # Next-session handoff
 
+## 2026-10-21 - D20 accepted (quick save and quick load); D20C opened
+
+- User: "its all working!" D20 Done. Note 177.
+- D20C (Todo, not actioned): colours sometimes wrong after loading a
+  savestate (their slot 1, intermittent; "try loading several times").
+
+## 2026-10-21 - D20 quick save and quick load (Needs playtest); D20A, D20B opened
+
+- EDuke32-style, Modernized one-player: F6 quick save over the last slot
+  used (saved to or loaded from; none at launch: SAVE GAME opens), F9 quick
+  load (no slot: LOAD GAME), F2 / F3 open SAVE / LOAD GAME from play (Escape
+  back to play), console `quicksave` / `quickload`, KEY BINDINGS SAVES rows,
+  launcher schema 38. F6 port swap off in Modernized. Note 177. Executable
+  `20f8edc1d1d6260e59747df7d31ae4a438f4081a8eb19ee402ea9924f1b3e930`.
+- D20A (framework, pre-existing): a save within ~1.5 s after a load can halt
+  the emulator when loaded after a restart (GP0 0xFA). D20B: the original
+  memory card saves, split from D20.
+
 ## 2026-10-21 - D19T1 accepted (no quotes on DELETE SAVED GAME:)
 
 - User: "perfect. again lock it in close it out." D19T1 Done.

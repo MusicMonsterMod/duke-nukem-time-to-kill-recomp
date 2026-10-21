@@ -465,11 +465,34 @@ bool pause_thumb_ok=false;
 // restored, play resumes at once instead of the pause list coming back.
 bool resume_load=false, quiet_resume=false;
 bool thumb_from_load=false; // pause_thumb is the loaded slot's picture
+// D20: EDuke32's quick save and quick load. The slot last saved to or loaded
+// from this session (any way: menus, F7, the quick keys); none at launch, as in
+// EDuke32, so the first quick save opens SAVE GAME and quick load LOAD GAME.
+int quick_slot=-1;
+// A quick save or load under way: its notice comes once the framework is done.
+bool quick_saving=false, quick_saved=false, quick_loading=false;
+int quick_save_slot=-1;
+uint32_t quick_loading_from=0;
+// F2 / F3 (or a quick key with no slot yet): the pause menu about to open goes
+// straight to SAVE GAME or LOAD GAME (direct, until direct_until), and Escape
+// there returns to play (direct_open), as EDuke32's menus opened from play do.
+Page direct=Page::Options;
+uint64_t direct_until=0;
+bool direct_open=false;
 void thumb_hide();
 void savestate_check() {
     const uint32_t n=psx_mod_savestate_loads();
     if(n==seen_loads) return;
     seen_loads=n;
+    {   // D20: the slot just loaded (LOAD GAME, F7 or quick load).
+        char status[192];savestate_status_json(status,sizeof status);
+        const char* at=std::strstr(status,"\"last_slot\":");
+        if(std::strstr(status,"\"last_op\":\"load\"") && at) {
+            const int slot=std::atoi(at+12);
+            if(slot>=0 && slot<SAVESTATE_SLOTS) quick_slot=slot;
+        }
+    }
+    direct=Page::Options;direct_open=false;
     owned=false;page=Page::Options;screen=-1;pending_sub=pending_cursor=-1;
     pending_final=Final::None;resumed=false;
     pending_state=-1;handoff=Handoff::None;title_cmds.clear();title_enter=false;
@@ -542,6 +565,7 @@ const KeyName key_names[]={
     {71,"ScrollLock","SCROLL LOCK"},{47,"LBracket","["},{48,"RBracket","]"},
     {74,"Home","HOME"},{75,"PageUp","PAGE UP"},{77,"End","END"},{78,"PageDown","PAGE DOWN"},
     {80,"Left","LEFT ARROW"},{79,"Right","RIGHT ARROW"},
+    {61,"F4","F4"},{62,"F5","F5"},{63,"F6","F6"},{66,"F9","F9"},{69,"F12","F12"},
     {51,"Semicolon","SEMICOLON"},{52,"Apostrophe","APOSTROPHE"},{54,"Comma","COMMA"},{55,"Period","PERIOD"},
     {-1,"Mouse1","LEFT MOUSE"},{-3,"Mouse2","RIGHT MOUSE"},{-2,"Mouse3","MIDDLE MOUSE"},{-4,"Mouse4","MOUSE 4"},{-5,"Mouse5","MOUSE 5"},
 };
@@ -674,7 +698,7 @@ int item_of(Act a) {
     return 0;
 }
 void open_list(Page p,Act highlight) {
-    page=p;build_list(p);cursor=item_of(highlight);top=0;screen=-1;
+    page=p;build_list(p);cursor=item_of(highlight);top=0;screen=-1;direct_open=false;
 }
 // ---- D19G: KEY BINDINGS ----
 // Every action, grouped; a row without an action is a section heading (the
@@ -702,11 +726,14 @@ const KeyRow key_rows[]={
     {"LOOK UP",look_up,nullptr,"HOLD, EASES BACK ON RELEASE"},{"LOOK DOWN",look_down,nullptr,"HOLD, EASES BACK ON RELEASE"},
     {"LOCK LOOK UP",lock_look_up,nullptr,"HOLD, STAYS UNTIL A LOOK KEY"},{"LOCK LOOK DOWN",lock_look_down,nullptr,"HOLD, STAYS UNTIL A LOOK KEY"},
     {"TURN LEFT",turn_left,nullptr,"HOLD, SPEEDS UP, FASTER RUNNING"},{"TURN RIGHT",turn_right,nullptr,"HOLD, SPEEDS UP, FASTER RUNNING"},
+    // D20: EDuke32's quick keys (F2 / F3 always open SAVE / LOAD GAME).
+    {"SAVES",-1},{"QUICK SAVE",quick_save,nullptr,"SAVES OVER THE LAST SLOT USED"},
+    {"QUICK LOAD",quick_load,nullptr,"LOADS THE LAST SLOT USED"},
     {"ORIGINAL CONTROLS",-1},{"ORIGINAL AIM",original_aim},{"ORIGINAL STRAFE LEFT",original_strafe_left},
     {"ORIGINAL STRAFE RIGHT",original_strafe_right},
 };
 constexpr int key_row_count=sizeof key_rows/sizeof key_rows[0], key_rows_visible=9;
-static_assert(key_row_count==action_count+5,"every action has one KEY BINDINGS row");
+static_assert(key_row_count==action_count+6,"every action has one KEY BINDINGS row");
 std::string key_note;         // the description's message after a change
 int keys_cursor=1, keys_top=0; // kept while DEFAULT asks
 const char* action_label(int a) {
@@ -798,8 +825,10 @@ void open_load(Page from) {
     load_from=from;read_slots();thumb_hide(); // a slot saved again since: its new picture
     page=Page::Load;cursor=0;top=0;load_note.clear();
 }
+void act_now(Act a);
 void load_back() {
     thumb_hide();load_note.clear();
+    if(direct_open) {act_now(Act::Resume);return;} // D20: F3 / F9 from play: back to play
     // On the title as LOAD's CANCEL returns there (state 6: idle time, level choice).
     open_list(load_from,Act::Load);
     if(load_from==Page::Main) title_enter=true;
@@ -841,6 +870,9 @@ void save_now() {
 }
 void save_done() {
     saving=false;read_slots();thumb_hide();page=Page::Save;
+    // D20: SAVE GAME opened from play (F2, or F6 with no slot yet) closes on a
+    // save, as EDuke32's does.
+    if(save_written && direct_open) {input_notice("GAME SAVED");load_note.clear();act_now(Act::Resume);return;}
     if(save_written) {char t[32];std::snprintf(t,sizeof t,"SAVED TO SLOT %02d",save_slot+1);load_note=t;sound(0);}
     else {load_note="THE GAME COULD NOT BE SAVED";sound(1);}
 }
@@ -867,6 +899,27 @@ void delete_now() {
     else {std::snprintf(t,sizeof t,"SLOT %02d COULD NOT BE DELETED",cursor+1);sound(1);}
     read_slots();thumb_hide();load_note=t;
 }
+
+// ---- D20: quick save and quick load (EDuke32's F6 / F9) ----
+// Duke is dead (player word 0 bit 1, health 0; see steroids.inc).
+bool duke_dead() {return (psx_mod_read_word(player)&2) && (int16_t)psx_mod_read_half(player+0x32)<=0;}
+// The notices once the framework has taken a quick save or load.
+void quick_poll() {
+    if(quick_saving && !savestate_pending()) {
+        quick_saving=false;
+        input_notice(quick_saved ? "GAME SAVED" : "THE GAME COULD NOT BE SAVED");
+    }
+    if(quick_loading && !savestate_pending()) {
+        quick_loading=false;
+        if(psx_mod_savestate_loads()==quick_loading_from) {
+            resume_load=false;thumb_from_load=false;
+            input_notice("THIS SAVE COULD NOT BE LOADED");
+        }
+    }
+    if(direct!=Page::Options && SDL_GetTicks()>direct_until) direct=Page::Options;
+}
+// The pause menu about to open goes to SAVE GAME or LOAD GAME.
+QuickResult quick_open(Page p) {direct=p;direct_until=SDL_GetTicks()+1500;return QuickResult::Pause;}
 
 void ask_cancel() {
     if(ask_from==Page::Keys) keys_return();
@@ -1077,7 +1130,10 @@ void back(uint16_t mode) {
     case Page::Keys: keys_back();return;
     case Page::Load: load_back();return;
     case Page::LoadAsk: page=Page::Load;sound(1);return;
-    case Page::Save: thumb_hide();load_note.clear();open_list(Page::Pause,Act::Save);sound(0);return;
+    case Page::Save:
+        thumb_hide();load_note.clear();
+        if(direct_open) {act_now(Act::Resume);return;} // D20: F2 / F6 from play: back to play
+        open_list(Page::Pause,Act::Save);sound(0);return;
     case Page::SaveAsk: page=Page::Save;sound(1);return;
     case Page::DeleteAsk: page=delete_from;sound(1);return;
     case Page::Options: break;
@@ -1093,6 +1149,44 @@ void back(uint16_t mode) {
     pending_cursor=0;pending_sub=title_sub;sound(0);
 }
 } // namespace
+
+// D20, from a key press or the console (not the emulation thread): EDuke32's
+// Quick_Save, Quick_Load and its F2 / F3 save / load menus, in a one-player
+// game (gameplay, or the death list for loads).
+QuickResult game_menu_quick(Quick q) {
+    if(!enabled() || psx_mod_replay_active()) return QuickResult::Ignored;
+    std::lock_guard<std::recursive_mutex> lock(mutex);
+    if(!identity_checked || !identity_ok || psx_mod_read_half(game_mode)!=1 || psx_mod_read_word(players)!=1)
+        return QuickResult::Ignored;
+    // One thing at a time; menus (other than the death list) keep their keys.
+    if(quitting || loading || saving || quick_saving || quick_loading || savestate_pending()
+       || pending_final!=Final::None || resumed || direct!=Page::Options) return QuickResult::Done;
+    const bool death_list=owned && page==Page::Death && psx_mod_read_half(pause_screen)==death_sub;
+    if(!death_list && (owned || psx_mod_read_half(paused) || psx_mod_read_half(pause_screen))) return QuickResult::Done;
+    if(q==Quick::Save || q==Quick::SaveMenu) {
+        if(death_list || duke_dead()) {input_notice("CAN'T SAVE WHILE DEAD");return QuickResult::Done;}
+        if(q==Quick::SaveMenu || quick_slot<0) return quick_open(Page::Save);
+        quick_save_slot=quick_slot;quick_saved=false;
+        if(savestate_request_save(quick_slot)) quick_saving=true;
+        else input_notice("THE GAME COULD NOT BE SAVED");
+        return QuickResult::Done;
+    }
+    bool ready=q==Quick::Load && quick_slot>=0;
+    if(ready) {read_slots();ready=loadable(quick_slot);}
+    if(!ready) {
+        // No slot yet (or it is gone): LOAD GAME, from the death list too.
+        if(!death_list) return quick_open(Page::Load);
+        open_load(Page::Death);sound(0);
+        return QuickResult::Done;
+    }
+    const uint32_t from=psx_mod_savestate_loads();
+    if(!savestate_request_load(quick_slot)) {input_notice("THIS SAVE COULD NOT BE LOADED");return QuickResult::Done;}
+    quick_loading=true;quick_loading_from=from;
+    // As LOAD GAME: a SAVE GAME save (taken paused) resumes play at once.
+    resume_load=savestate_slot_resumes(quick_slot);
+    pause_thumb_ok=thumb_from_load=savestate_read_thumb(quick_slot,pause_thumb,SAVESTATE_THUMB_W,SAVESTATE_THUMB_H)!=0;
+    return QuickResult::Load;
+}
 
 uint64_t drops=0; int drop_why=0; uint16_t drop_state=0, drop_sub=0;   // diagnostic
 bool game_menu_input(const MenuKeys& keys) {
@@ -2080,13 +2174,19 @@ bool gameplay_tick(CPUState* cpu) {
             ++finals;
             if(trace()) std::fprintf(stderr,"[TTK menu] final %d\n",(int)f);
         }
-        owned=false;page=Page::Options;screen=-1;return_item=Act::Resume;
+        owned=false;page=Page::Options;screen=-1;return_item=Act::Resume;direct_open=false;
         return true;
     }
     if(sub==pause_top) {
         // D19Q: the displayed image is still the last of play.
         pause_thumb_ok=savestate_grab_thumb(pause_thumb)!=0;
         open_list(Page::Pause,return_item);return_item=Act::Resume;
+        // D20: F2 / F3 (or a quick key with no slot yet): straight to the page.
+        if(direct!=Page::Options && SDL_GetTicks()<=direct_until) {
+            if(direct==Page::Save) open_save(); else open_load(Page::Pause);
+            direct_open=true;
+        }
+        direct=Page::Options;
         owned=true;back_label="RESUME";++entries;
         input_release_for_menu();
         psx_mod_write_half(pause_screen,ours_sub);
@@ -2327,7 +2427,7 @@ void card_unpack_done(CPUState* cpu) {
 
 void game_menu_frame(CPUState* cpu) {
     if(!enabled() || psx_mod_replay_active() || g_precise_mode || g_ls_mode || g_psx_call_bail) return;
-    {std::lock_guard<std::recursive_mutex> lock(mutex);savestate_check();}
+    {std::lock_guard<std::recursive_mutex> lock(mutex);savestate_check();quick_poll();}
     if(authentic()) enforce_modern_settings();
     if(resumed) {
         // After our resume (or continue, restart, quit) the screen value goes
@@ -2354,10 +2454,10 @@ void game_menu_frame(CPUState* cpu) {
 extern "C" const char* ttk_game_menu_json() {
     using namespace ttk;
     static char buffer[1024];
-    std::snprintf(buffer,sizeof buffer,"{\"settings\":{\"word\":%u,\"game_speed\":%u,\"enforced\":%llu,\"card_packs\":%llu,\"card_loads\":%llu,\"card_auto_aim\":%s},\"owned\":%s,\"page\":%d,\"screen\":%d,\"cursor\":%d,\"top\":%d,\"items\":%d,\"entries\":%llu,\"draws\":%llu,\"writes\":%llu,\"finals\":%llu,\"handoff\":%d,\"pending_state\":%d,\"loading\":%s,\"card\":[%llu,%llu,%llu],\"identity\":%s,\"drops\":%llu,\"drop\":[%d,%u,%u],\"skips\":[%llu,%llu,%llu,%llu],\"skip_ra\":\"%x\"}",
+    std::snprintf(buffer,sizeof buffer,"{\"settings\":{\"word\":%u,\"game_speed\":%u,\"enforced\":%llu,\"card_packs\":%llu,\"card_loads\":%llu,\"card_auto_aim\":%s},\"owned\":%s,\"page\":%d,\"screen\":%d,\"cursor\":%d,\"top\":%d,\"items\":%d,\"entries\":%llu,\"draws\":%llu,\"writes\":%llu,\"finals\":%llu,\"handoff\":%d,\"pending_state\":%d,\"loading\":%s,\"card\":[%llu,%llu,%llu],\"identity\":%s,\"drops\":%llu,\"drop\":[%d,%u,%u],\"skips\":[%llu,%llu,%llu,%llu],\"skip_ra\":\"%x\",\"quick\":[%d,%d,%d]}",
         psx_mod_read_half(settings_word),psx_mod_read_half(game_speed),(unsigned long long)enforced,(unsigned long long)card_packs,(unsigned long long)card_loads,card.auto_aim?"true":"false",
         owned?"true":"false",(int)page,screen,cursor,top,(int)list.size(),(unsigned long long)entries,(unsigned long long)draws,(unsigned long long)writes,
-        (unsigned long long)finals,(int)handoff,pending_state,loading?"true":"false",(unsigned long long)card_skips,(unsigned long long)card_hidden,(unsigned long long)psx_mod_unpaced_vblanks(),identity_checked?(identity_ok?"true":"false"):"null",(unsigned long long)drops,drop_why,drop_state,drop_sub,(unsigned long long)skip_owned,(unsigned long long)skip_screen,(unsigned long long)skip_image,(unsigned long long)drawn_calls,skip_ra);
+        (unsigned long long)finals,(int)handoff,pending_state,loading?"true":"false",(unsigned long long)card_skips,(unsigned long long)card_hidden,(unsigned long long)psx_mod_unpaced_vblanks(),identity_checked?(identity_ok?"true":"false"):"null",(unsigned long long)drops,drop_why,drop_state,drop_sub,(unsigned long long)skip_owned,(unsigned long long)skip_screen,(unsigned long long)skip_image,(unsigned long long)drawn_calls,skip_ra,quick_slot,direct_open?1:0,(int)direct);
     return buffer;
 }
 
@@ -2392,6 +2492,8 @@ bool game_menu_saved(int slot) {
         savestate_write_thumb(slot,pause_thumb);
     const bool ours=saving && slot==save_slot;
     if(ours) save_written=true;
+    quick_slot=slot; // D20: any save
+    if(quick_saving && slot==quick_save_slot) quick_saved=true;
     return ours;
 }
 }
@@ -2419,6 +2521,7 @@ void card_text_entry(CPUState* cpu) {
 
 PSX_MOD_CONSTRUCTOR(register_ttk_game_menu) {
     ttk::input_set_menu_handler(ttk::game_menu_input);
+    ttk::input_set_quick_handler(ttk::game_menu_quick);
     // Each context's tick, just before its screen dispatch: the frontend's
     // background 0x800220f4 and the pause menu dispatch 0x80025fb0.
     for(uint32_t a:{0x800220f4u,0x80025fb0u})

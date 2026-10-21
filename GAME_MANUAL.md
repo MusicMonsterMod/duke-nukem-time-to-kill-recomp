@@ -1292,6 +1292,37 @@ For keyboard remapping, edit the runtime's `keybinds.ini` after closing the game
 
 Save when offered after completing a level. Load from the game's menus. Re-entry points and continues are not permanent saves.
 
+### Quick save and quick load (Modernized, D20)
+
+These work the way they do in Duke Nukem 3D / EDuke32, in one-player games:
+
+- **F6 quick save** saves over the last slot you used this session (saved to
+  or loaded from, by any route: SAVE GAME, LOAD GAME, F7 or the quick keys)
+  and says GAME SAVED. Play does not stop. If you have not used a slot yet
+  since starting the program, F6 opens SAVE GAME instead. Dead, it says
+  CAN'T SAVE WHILE DEAD.
+- **F9 quick load** loads that slot at once, with no question, and play goes
+  on from it. With no slot used yet (or if that save is gone or from another
+  build) it opens LOAD GAME. F9 also works on the death screen.
+- **F2** opens SAVE GAME and **F3** opens LOAD GAME straight from play.
+  Escape there goes back to play, and a save made there returns to play with
+  GAME SAVED. (F3 on the death screen opens LOAD GAME, and Escape returns to
+  the death screen.)
+- The quick keys do nothing in the title menus, the pause menu and two-player
+  games. QUICK SAVE and QUICK LOAD can be rebound in KEY BINDINGS (section
+  SAVES; F4, F5, F6, F9 and F12 can be used there). F2 / F3 are fixed.
+- The console has the same commands: `quicksave` and `quickload` ("Can't
+  quicksave while not in a game." outside one).
+- The last slot used is not remembered when you close the program, as in
+  EDuke32.
+- In Modernized, F6 no longer swaps controller ports; that stays in the F1
+  runtime menu. Vanilla (`run.py --vanilla`) keeps F6 as the port swap and has
+  no quick keys.
+- Known issue (job D20A): a save made within about a second or two after a
+  load can crash when it is loaded again after restarting the program (the
+  same save loads fine in the session that made it). This affects F7 and SAVE
+  GAME too. Until it is fixed, play a moment after a load before saving.
+
 The normal launcher stores memory-card data under `recomp/saves/local-play/`. Keep that folder between builds, and back it up while the game is closed. Development playback tests use separate save folders.
 
 ## Playback and troubleshooting
@@ -1406,7 +1437,8 @@ Kill's own look:
   (the selected slot in blue), the save time, and the level and its era;
 - the PlayStation button prompts from the disc.
 
-The keys are unchanged: arrows pick a slot, **Enter** or **L** loads,
+F6 / F9 quick save and quick load use the same slots (see Quick save and
+quick load). The keys are unchanged: arrows pick a slot, **Enter** or **L** loads,
 **Shift+Enter** or **S** saves, **Escape** goes back. The level is recorded when
 you save, so slots saved before this version show only their number and time
 until saved again. Vanilla, or a build without the disc-derived packs, shows the

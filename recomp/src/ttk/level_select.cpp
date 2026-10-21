@@ -18,6 +18,7 @@
 #include "cpu_state.h"
 #include "mod_plugins.h"
 #include "code_identity.h"
+#include "pc_input.h"
 #include <array>
 #include <cstdio>
 #include <cstdlib>
@@ -135,6 +136,14 @@ bool level_console_command(const char* line, void (*say)(const char*), bool& clo
     close=false;
     if(spawn_console_command(line,say,close))return true;
     if(beat_console_command(line,say,close))return true;
+    // D20: EDuke32's quicksave / quickload, the F6 / F9 keys' own action.
+    if(!std::strcmp(line,"quicksave") || !std::strcmp(line,"quickload")) {
+        const bool save=line[5]=='s';
+        if(input_quick(save ? Quick::Save : Quick::Load)==QuickResult::Ignored)
+            say(save ? "Can't quicksave while not in a game." : "Can't quickload while not in a game.");
+        else close=true;
+        return true;
+    }
     const bool all=!std::strcmp(line,"levels") || !std::strcmp(line,"level");
     if(!all && std::strncmp(line,"level ",6))return false;
     if(!authentic()) {say("Level select unavailable: unrecognised game code");return true;}

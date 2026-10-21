@@ -59,6 +59,7 @@ static void note_menu_down(int code) {
     if(menu_downs[k].load()<6)++menu_downs[k];
 }
 static uint64_t escape_start_deadline,escape_at;
+static bool quick_press(int code,int mods); // D20
 static bool airborne_interact;
 static uint64_t interaction_deadline, interaction_pulse, capture_after, holster_pulse;
 static uint64_t swim_redraw; // D08O3: E redraw in water pending until this frame
@@ -260,7 +261,9 @@ void input_offer_gameplay_capture() { capture_offer_at.store(sequence); capture_
 static bool allowed(int code) {
     return code == 0
         || (code >= 4 && code <= 39 && code != 9)
-        || code == 71 || code == 224 || code == 226 || code == 47 || code == 48 || code == 51 || code == 52 || code == 44 || code == 54 || code == 55 || code == 225 || code == 74 || code == 75 || code == 77 || code == 78 || code == 79 || code == 80 || (code >= -5 && code <= -1);
+        || code == 71 || code == 224 || code == 226 || code == 47 || code == 48 || code == 51 || code == 52 || code == 44 || code == 54 || code == 55 || code == 225 || code == 74 || code == 75 || code == 77 || code == 78 || code == 79 || code == 80 || (code >= -5 && code <= -1)
+        // D20: F4, F5, F6, F9 and F12 (F2 / F3 are SAVE / LOAD GAME; the rest are the framework's).
+        || code == 61 || code == 62 || code == 63 || code == 66 || code == 69;
 }
 void input_init(SDL_Window* w) {
     window = w;inventory_enter_down=false;
@@ -486,6 +489,7 @@ void input_event(const SDL_Event& e) {
                 return;
             }
         }
+        if(pressed && code!=0 && quick_press(code,mods)) return;
         // Escape, F7 savestate and other host overlays return to menu input.
         // F10 opts out of auto-capture. F7 must request recapture even if the
         // mouse is already free: otherwise loading slot 2 leaves WASD/mouse
@@ -550,6 +554,7 @@ void input_event(const SDL_Event& e) {
     } else if (e.type == SDL_MOUSEBUTTONDOWN || e.type == SDL_MOUSEBUTTONUP) {
         if (e.button.windowID != SDL_GetWindowID(window)) return;
         if(e.type==SDL_MOUSEBUTTONDOWN)cheat_typing.reset();
+        if(e.type==SDL_MOUSEBUTTONDOWN && e.button.button<6 && quick_press(-int(e.button.button),(int)SDL_GetModState())) return;
         if (captured && e.button.button < 6) {
             mouse[e.button.button] = e.type == SDL_MOUSEBUTTONDOWN;
             if(e.type==SDL_MOUSEBUTTONDOWN && binds[inventory]==-int(e.button.button)) {
@@ -740,13 +745,16 @@ void input_frame() {
     // offscreen game. The file is re-read every input frame: held key names
     // (w a s d shift ctrl space e q up down enter left right x z c esc v backspace
     // pgup pgdn home end delete),
-    // cheat=<word> and act=<action> (D07E: once per change of word) and
+    // cheat=<word>, act=<action> (D07E) and quick=<save/load/savemenu/loadmenu>
+    // (D20; once per change of word) and
     // dx=<counts> dy=<counts>
     // per frame.
     // Never set by run.py.
     static const char* test_input=std::getenv("DNTTK_TEST_INPUT");
     if(test_input && modern) {
         // DNTTK_TEST_UNCAPTURED: menus as a player sees them (X/Z/C are pad buttons).
+        // D20: a file without a quick= word ends the last one (the same word again acts again).
+        static char quick_last[16];bool quick_seen=false;
         static const bool uncaptured=std::getenv("DNTTK_TEST_UNCAPTURED")!=nullptr;
         focused=true; captured=!uncaptured;
         static const struct {const char* name;SDL_Scancode code;} named[]={{"w",SDL_SCANCODE_W},{"a",SDL_SCANCODE_A},
@@ -780,6 +788,17 @@ void input_frame() {
                         for(int i=0;i<action_count;++i) if(!std::strcmp(last,names[i]))command(i);
                     }
                 }
+                // D20: quick=save|load|savemenu|loadmenu, once per change (F6 / F9 / F2 / F3).
+                else if(!std::strncmp(word,"quick=",6)) {
+                    quick_seen=true;
+                    if(std::strcmp(quick_last,word+6)) {
+                        std::snprintf(quick_last,sizeof quick_last,"%s",word+6);
+                        if(!std::strcmp(quick_last,"save")) input_quick(Quick::Save);
+                        else if(!std::strcmp(quick_last,"load")) input_quick(Quick::Load);
+                        else if(!std::strcmp(quick_last,"savemenu")) input_quick(Quick::SaveMenu);
+                        else if(!std::strcmp(quick_last,"loadmenu")) input_quick(Quick::LoadMenu);
+                    }
+                }
                 // D19G: "play" is captured gameplay for this frame (menus run uncaptured).
                 else if(!std::strcmp(word,"play")) captured=true;
                 else if(!std::strncmp(word,"dx=",3)) dx+=std::atof(word+3);
@@ -787,6 +806,7 @@ void input_frame() {
                 else for(const auto& n:named) if(!std::strcmp(word,n.name)) keys[n.code]=true;
             }
             std::fclose(f);
+            if(!quick_seen) quick_last[0]=0;
         }
         // DNTTK_TEST_EDGES: keys change only when the file does, as a real
         // keyboard's do (a held key that the input layer clears stays clear).
@@ -1022,6 +1042,37 @@ static uint16_t menu_wheel_pad() {
 // up; the pad then reads as nothing pressed. Keys still held when they hand
 // back to an original screen stay released until pressed again, so the press
 // that opened SOUND is never SOUND's own Cross.
+// D20: what the pause key does, without an Escape: the Start pulse that
+// opens the pause menu (here on SAVE / LOAD GAME) and the mouse it frees.
+static void pause_from_play() {
+    initial_capture=true;
+    const bool was_captured=captured;
+    input_release();
+    escape_start_deadline=sequence+6;
+    if(allow_capture && (was_captured || sequence-capture_offer_at.load()<=capture_offer_window)) {
+        escape_hold=true;escape_at=sequence;
+    }
+}
+static QuickResult (*quick_handler)(Quick);
+void input_set_quick_handler(QuickResult (*handler)(Quick)) {quick_handler=handler;}
+QuickResult input_quick(Quick quick) {
+    const QuickResult r=modern && quick_handler ? quick_handler(quick) : QuickResult::Ignored;
+    // A load recaptures once play resumes, as after an F7 load.
+    if(r==QuickResult::Load) {initial_capture=true;input_release();}
+    else if(r==QuickResult::Pause) pause_from_play();
+    return r;
+}
+// A press of a quick key (scancode, mouse button -n); true when it was taken.
+static bool quick_press(int code,int mods) {
+    if(mods&(KMOD_CTRL|KMOD_ALT|KMOD_GUI)) return false;
+    Quick q;
+    if(code==binds[quick_save]) q=Quick::Save;
+    else if(code==binds[quick_load]) q=Quick::Load;
+    else if(code==SDL_SCANCODE_F2) q=Quick::SaveMenu;
+    else if(code==SDL_SCANCODE_F3) q=Quick::LoadMenu;
+    else return false;
+    return input_quick(q)!=QuickResult::Ignored;
+}
 static bool (*menu_handler)(const MenuKeys&);
 static bool menu_had_keys;
 void input_set_menu_handler(bool (*handler)(const MenuKeys&)) {menu_handler=handler;}

@@ -63,3 +63,6 @@ TTK_ACTION(lock_look_down, End, 77, 0)
 // reach the original D-pad Left / Right.
 TTK_ACTION(turn_left, Left, 80, 0)
 TTK_ACTION(turn_right, Right, 79, 0)
+// D20: EDuke32's Quick_Save / Quick_Load, on a press (host only, never queued).
+TTK_ACTION(quick_save, F6, 63, 0)
+TTK_ACTION(quick_load, F9, 66, 0)

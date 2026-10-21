@@ -5,7 +5,7 @@ import re
 DEFINITIONS = (Path(__file__).resolve().parents[2] / 'src/ttk/input_bindings.def')
 ROWS = re.findall(r'TTK_ACTION\((\w+), (\w+), (-?\d+), (\d+)\)', DEFINITIONS.read_text())
 DEFAULTS = {name: token for name, token, _, _ in ROWS}
-# Function keys, Tab and Escape are reserved; Ctrl is bindable. Alt (either Alt
+# Tab, Escape and the function keys the game or framework use are reserved; Ctrl is bindable. Alt (either Alt
 # key) is bindable as a held action; Alt + wheel still sets camera distance.
 # Fixed menu controls stay available even after every action is rebound.
 TOKENS = {chr(65+i): 4+i for i in range(26) if chr(65+i) not in 'CF'}
@@ -13,7 +13,9 @@ TOKENS['C'] = 6  # Only holster may share the fixed original Circle key.
 TOKENS.update({str(i): 29+i for i in range(1, 10)})
 TOKENS.update({'LCtrl':224, 'LBracket':47, 'RBracket':48, 'Semicolon':51, 'Apostrophe':52, 'Comma': 54, 'Period': 55, '0': 39, 'Space': 44, 'LShift': 225, 'ScrollLock': 71, 'Unbound': 0, 'Mouse1': -1,
                'Mouse2': -3, 'Mouse3': -2, 'Mouse4': -4, 'Mouse5': -5, 'Alt': 226,
-               'Home': 74, 'PageUp': 75, 'End': 77, 'PageDown': 78, 'Right': 79, 'Left': 80})
+               'Home': 74, 'PageUp': 75, 'End': 77, 'PageDown': 78, 'Right': 79, 'Left': 80,
+               # D20: the function keys the game leaves free (F2 / F3 are SAVE / LOAD GAME).
+               'F4': 61, 'F5': 62, 'F6': 63, 'F9': 66, 'F12': 69})
 
 
 def validate(bindings):

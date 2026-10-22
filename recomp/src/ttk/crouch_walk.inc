@@ -61,7 +61,7 @@ static bool crouch_walk_eligible(bool landed=false) {
     const unsigned animation=psx_mod_read_half(player+0x60);
     return input_modernized() && crouch_walk_modern() && crouch_owned && (animation==176 || animation==178) &&
            player_identity_ready() && !(psx_mod_read_word(player)&0x20002) &&
-           psx_mod_read_byte(player+0x22c)==0 && (psx_mod_read_byte(player+0x22d)==0 || (landed && psx_mod_read_byte(player+0x22d)==9)) && !in_water_early() &&
+           crouch_ground_state(landed) && crouch_water_supported() &&
            crouch_walk_frames(1,first,count) && crouch_walk_frames(crouch_idle_clip,first,count);
 }
 // The pose last given to channel 0, applied again to Duke's joints right

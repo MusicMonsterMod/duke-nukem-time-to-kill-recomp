@@ -30,6 +30,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Install local tool and test dependencies
+        run: python3 -m pip install -r recomp/requirements-local.txt
       - name: Apply the complete patch to pinned upstream source
         run: |
           python3 recomp/tools/local/apply_runtime_patches.py

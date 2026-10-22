@@ -940,6 +940,7 @@ static void hook(CPUState* cpu, uint32_t address) {
 }
 
 static void hook_body(CPUState* cpu, uint32_t address) {
+    crouch_water_restore(); // D08K11: scoped native crouch water veto, also after loads/Vanilla.
     // D08A13: running steroids hidden from Duke's damage handler come back at
     // the first hook after it.
     steroids_damage_restore();
@@ -1091,6 +1092,7 @@ static void hook_body(CPUState* cpu, uint32_t address) {
             }
         }
     } else if (address==0x80048410) {
+        if(crouch_water_dispatch(cpu,ra))return;
         if(landing_recover(cpu,ra,f))return; // D08Z3
         // Switch only the two ordinary walk/run gait pairs, at the original
         // locomotion dispatcher. Restart their original animation just as the

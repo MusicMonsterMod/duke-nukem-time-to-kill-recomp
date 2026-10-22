@@ -1562,6 +1562,10 @@ the existing ground transition.
 In first person, Modern crouching keeps the knife, axe, crossbow, pipe bomb,
 Holy Hand Grenade and dynamite in their standing view positions while kneeling
 and crouch walking; their throw and reload motions still play.
+Modern crouching also works in shallow and mid-depth water while Duke is
+walking on the bottom, with either SWIMMING setting. Hold Ctrl to kneel or
+crouch walk; release to stand when there is room. Surface swimming and
+underwater swimming keep their usual controls, including Ctrl to dive.
 The gait is built from your disc when the game is built (no extra files to fetch).
 Known prototype limits: no footstep sounds while crouch walking, and diagonals use
 the nearest of the four directions' animations. The crouch-walk motion is a captured

@@ -1802,6 +1802,56 @@ int main(int argc,char** argv) {
     clearance_result=2048;ttk::input.active=false;
     call(0x8005a210,p,0x800c2754,0x80041b34,0x801ff000);
     assert(psx_mod_read_half(p+0x60)==176 && psx_mod_read_half(p+0x6a)==1); // focus release also stands
+    // D08K11: shallow water is grounded crouch territory, including a body
+    // below the plane. Native swim/deep water and Original crouch stay out.
+    {
+        const auto saved_water=psx_mod_read_word(p+0x834),saved_flag=psx_mod_read_word(p+0x20c);
+        const auto saved_y=psx_mod_read_word(p+8),saved_floor=psx_mod_read_word(p+0x1c8);
+        for(int test=0;test<8;++test) {
+            ttk::input.active=true;ttk::input.held[ttk::crouch]=false;
+            psx_mod_write_half(p+0x60,63);psx_mod_write_byte(p+0x22c,0);psx_mod_write_byte(p+0x22d,0);
+            psx_mod_write_word(p+0x224,0);psx_mod_write_word(p+0x834,0x40000000);psx_mod_write_word(p+0x20c,0);
+            call(0x8005a210,p,0x800c2754,0x80041b34,0x801ff000);
+            const int depth=test==1?512:test==2?640:test==3?641:128;
+            psx_mod_write_word(p+0x834,-depth);psx_mod_write_word(p+0x1c8,0);
+            psx_mod_write_word(p+8,-282);psx_mod_write_word(p+0x20c,0x3b800);
+            if(test==1 || test==2) {psx_mod_write_byte(p+0x22c,1);psx_mod_write_byte(p+0x22d,1);}
+            if(test==4)psx_mod_write_byte(p+0x22c,4);
+            if(test==5)psx_mod_write_byte(p+0x22c,5);
+            if(test==6)setenv("DNTTK_CROUCH","original",1);
+            if(test==7)ttk::modern=false;
+            ++ttk::input.sequence;call(0x8003ade4,c,p,0x80025ee8);
+            ttk::input.held[ttk::crouch]=true;
+            call(0x8005a210,p,0x800c2754,0x80041b34,0x801ff000);
+            assert(psx_mod_read_half(p+0x60)==(test<3?176:63));
+            assert(psx_mod_read_word(p+0x20c)==0x3b800); // never force submersion
+            assert(psx_mod_read_byte(p+0x22c)==(test==4?4:test==5?5:(test==1 || test==2)?1:0));
+            if(test<3) {
+                psx_mod_write_half(p+0x60,178);
+                call(0x80048410,p,0,0x8004b634,0x801ff000);
+                assert(psx_mod_read_word(0x800548e8)==(test?0x10000008u:0x14400008u));
+                // The next hook restores before checking identity, even in Vanilla.
+                ttk::modern=false;call(0x80058120,p,0,0x80041c44,0x801ff000);
+                assert(psx_mod_read_word(0x800548e8)==0x14400008u);
+                ttk::modern=true;
+                // A held crouch crossing into deep water plays the normal
+                // exit so native swim checks are no longer excluded by 178.
+                psx_mod_write_word(p+0x834,-800);clearance_result=500;
+                call(0x8005a210,p,0x800c2754,0x80041b34,0x801ff000);
+                assert(psx_mod_read_half(p+0x60)==178); // keep clearance
+                clearance_result=2048;
+                call(0x8005a210,p,0x800c2754,0x80041b34,0x801ff000);
+                assert(psx_mod_read_half(p+0x60)==176 && psx_mod_read_half(p+0x6a)==1);
+                assert(psx_mod_read_word(p+0x20c)==0x3b800);
+            }
+            ttk::modern=true;unsetenv("DNTTK_CROUCH");
+        }
+        psx_mod_write_word(p+0x834,saved_water);psx_mod_write_word(p+0x20c,saved_flag);
+        psx_mod_write_word(p+8,saved_y);psx_mod_write_word(p+0x1c8,saved_floor);
+        ttk::input.held[ttk::crouch]=false;ttk::input.active=false;
+        psx_mod_write_half(p+0x60,63);psx_mod_write_byte(p+0x22c,0);
+        std::puts("PASS: D08K11 shallow/mid water crouch, submerged body, deep/swim/Original/Vanilla exclusions, native water mask preserved");
+    }
     // D08K2 crouch probe via the debug mover (crouchgo): a crouched Duke (178)
     // steps by (20, 0) per update when the crouch hull fits, with the head ray
     // at feet - 0x2c0; each refusal reason leaves him where he was.

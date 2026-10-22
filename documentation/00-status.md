@@ -1,5 +1,37 @@
 # Current status - 2026-10-04
 
+## 2026-10-22 - D08K11 accepted (Done)
+
+User: "awesome! i accept the behaviour here, very good. lock it in and close it out."
+Shallow/mid-water Modern crouch and crouch walking accepted; documentation,
+commit and push authorized. [Note 193](193-d08k11-shallow-water-crouch.md).
+Executable `1e16b7eaabeef854bddc5f777cbc2f487b89f839491a9dfca4a78b576039c1f8`
+is the accepted regression baseline. D08K5's broad collision/campaign sweep
+remains separate. No next gameplay job started.
+
+Closeout CI sweep: [run 39793587393](https://github.com/MusicMonsterMod/duke-nukem-time-to-kill-recomp/actions/runs/39793587393)
+failed importing `ttk_anim` because NumPy was not installed. Local requirements
+now include NumPy/Pillow and CI installs them before testing. A clean source-only
+checkout with a fresh Python environment passes 180 tests (23 owned-input/tool
+skips), the media-validator build, and all three framework regression scripts.
+The exported framework patch is unchanged and applies idempotently to the pinned
+clean dependency. This CI fix changes no gameplay or accepted executable.
+
+
+## 2026-10-22 - D08K11 shallow-water crouch (Needs playtest)
+
+Modern crouch/crouch walk now works in grounded shallow and mid-depth water,
+including native mode 1; the original mid-water stand-up veto is bypassed
+only during an owned crouch dispatch, then restored. Deep-water handoff
+uses the original clearance-checked stand-up and native swim rules.
+Build and native input/aim/controls pass; private slot 10, direction/fire/
+stand-up checks, both cameras and water options, controlled depth fixtures
+and separate swimming/Original/Vanilla regressions completed. Natural
+shoreline and player feel review remain. [Note 193](193-d08k11-shallow-water-crouch.md).
+Candidate `1e16b7eaabeef854bddc5f777cbc2f487b89f839491a9dfca4a78b576039c1f8`.
+D08K10 remains the accepted baseline. No commit/push or next job.
+
+
 ## 2026-10-22 - D08K10 accepted (Done)
 
 User: "perfect!! lock it in, close it out. great work". First-person crouched
@@ -61,6 +93,17 @@ Functional behavior accepted by the user; follow-up hides LANDING from
 Advanced and makes crouch-on-landing follow CROUCH alone. Build, native
 controls and live LANDING ORIGINAL check pass. Revised candidate
 `a77ba035cdbbbfa983e6f02ca1d02aca552f97c1bf07531afa672f0e1d0bef91`.
+
+
+## 2026-10-22 - D08K11 opened (Todo, backlog only)
+
+[D08K11: shallow-water crouching](../MODERNIZATION_JOBS.md#d08k11---enable-modern-crouching-and-crouch-walking-in-shallow-water)
+records the user's slot 10 flooded-subway report and a source-only investigation.
+Crouch entry and walk eligibility explicitly reject the broad water predicate;
+176 also serves as a water-dip animation. Depth/state, collision, input ownership
+and head-submersion handling need a later private-copy runtime investigation.
+No gameplay changes, build or launch; the D08K8 accepted build remains current.
+Include D08K11 before D08K5's final coverage; no implementation job started.
 
 
 ## 2026-10-22 - D08K8 accepted (Done)

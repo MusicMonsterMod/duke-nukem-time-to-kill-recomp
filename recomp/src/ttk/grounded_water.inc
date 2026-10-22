@@ -57,6 +57,15 @@ static void grounded_water_restore() {
     }
     ground_water_patch_mask=0;
 }
+// D08AE: airborne support can be the water surface, not solid ground.
+// The native water query clips the volume against level geometry.
+// Only protect flight in its shallow band; otherwise leave the native
+// descending body/neck entry and splash path in charge. Grounded gaits keep
+// their support-based policy, including shelves inside a deeper water volume.
+static bool grounded_water_flight() {
+    return grounded_water_modern() &&
+        (int32_t)psx_mod_read_word(player+0x838)<=0x280;
+}
 static void grounded_water_dispatch(CPUState* cpu,uint32_t ra) {
     ground_water_dispatch_sp=0;
     const auto& f=input_snapshot(Context::Gameplay);
@@ -66,6 +75,7 @@ static void grounded_water_dispatch(CPUState* cpu,uint32_t ra) {
        (psx_mod_read_word(player+0x224)&0x202002c1) || !player_identity_ready())return;
     const unsigned a=psx_mod_read_half(player+0x60);
     const bool flight=psx_mod_read_byte(player+0x22c)==9 && a>=97 && a<=108;
+    if(flight && !grounded_water_flight())return;
     if(!((a>=72 && a<=79) || (a==96 && takeoff_owned()) || flight))return;
     ground_water_dispatch_sp=cpu->gpr[29];ground_water_dispatch_epoch=f.epoch;
     ground_water_kind=flight?3:1;
@@ -77,7 +87,7 @@ static void grounded_water_dispatch(CPUState* cpu,uint32_t ra) {
 // existing surface/underwater modes retain native physics and effects.
 static void grounded_water_transition(CPUState* cpu,uint32_t ra) {
     ground_water_dispatch_sp=0;
-    if(cpu->gpr[4]!=player || ra!=0x8005a4f8 || !grounded_water_modern() ||
+    if(cpu->gpr[4]!=player || ra!=0x8005a4f8 || !grounded_water_flight() ||
        psx_mod_read_byte(player+0x22c)!=9 || !input_snapshot(Context::Gameplay).active ||
        !independent_camera() || !player_identity_ready())return;
     ground_water_dispatch_sp=cpu->gpr[29];
@@ -114,7 +124,8 @@ static void grounded_water_query(CPUState* cpu,uint32_t address) {
        (!entry && (sp>ground_water_dispatch_sp-frame_size ||
                     psx_mod_read_word(ground_water_dispatch_sp-ra_offset)!=caller)) ||
        g_precise_mode || g_ls_mode || g_psx_call_bail || !identity() ||
-       (ground_water_kind>=2 && !grounded_water_modern())) {
+       (ground_water_kind>=2 && !grounded_water_modern()) ||
+       ((ground_water_kind==2 || ground_water_kind==3) && !grounded_water_flight())) {
         ground_water_dispatch_sp=0;return;
     }
     for(const auto& p:ground_water_patches)

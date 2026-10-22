@@ -8,8 +8,8 @@ Invoke **`$continue-duke-recomp`** (Codex) or **`/continue-duke-recomp`** (Claud
 
 **Accepted 2026-10-22: D08AD, full third-person walk/run cycles in deeper
 shallow water. Baseline executable `9bf9a7ff60c818149978f0a4317b7ff4f6464c2943a1bd26b08c5999d6030c68`.
-New Todo: D08AE, deep-water entry resistance/handoff (UI slots 9 and 2).
-D08AE investigated only; no fix implemented.**
+D08AE Done: deep-water entry and shallow-water regression accepted by the user.
+D17R2 Todo: current slot 8 sky turns black when looking left/up; investigation only.**
 
 ## The experience we are building
 
@@ -110,7 +110,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08AB | SWIMMING menu option: MODERN (D08AA pace) / ORIGINAL swim speeds | Done (user-accepted 2026-10-20) | D08AA, D19 |
 | D08AC | Normalise Shallow-Water Locomotion and Jump Physics | Done (user-accepted 2026-10-22) | D08AA, D08AB, D08K11, D08Z |
 | D08AD | Fix third-person walk/run animations in deeper shallow water (updated slot 10) | Done (user-accepted 2026-10-22) | D08AC, D08K11 |
-| D08AE | Restore deep-water entry resistance and timely swim handoff (slots 9 and 2) | Todo | D08AC, D08AD |
+| D08AE | Restore deep-water entry resistance and timely swim handoff (slots 9 and 2) | Done (user-accepted 2026-10-22) | D08AC, D08AD |
 | D08O3 | E in water keeps the weapon: redraw when no climb-out follows the stow | Accepted | D08O1 |
 | D08O4 | Brief Ctrl dive keeps swimming forward after release (dive anim plays on; player UI slot 3) | Done (user-accepted) | D08O |
 | D08N | Duke3D-style scuba gear item | Cancelled (out of scope) | — |
@@ -191,6 +191,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D17P | Distant horizontal black bands in new subway slot 8 | Done (user-accepted) | D15 |
 | D17R | Sky turns black toward the left/right edges when looking up, game-wide (LEVEL01 slot 9, medieval UI slot 2) | Done (user-accepted 2026-10-21) | D14, D17O, D22A |
 | D17R1 | Sky artifacts when looking up/down and turning (medieval UI slot 2, with camera jerking; LEVEL01 UI slot 8) | Done (user-accepted 2026-10-21) | D17R, D17O |
+| D17R2 | Sky turns black when looking left/up from current save slot 8 | Todo | D17O, D17R, D17R1 |
 | D17S | Auto frame-rate default: follow the display up to a cap, step down on faster monitors | Todo | D17, D23F |
 | D17T | Smooth title menu and attract demo at the saved frame rate (first impression; demo measured at 10 images/s) | Done (user-accepted) | D17, D23F |
 | D17U | Smooth loading screens (spinning Duke logo) at the saved frame rate | Done | D17T |
@@ -2992,7 +2993,15 @@ alternative hypotheses and the future trace plan. No game launched here.
 
 ### D08AE - Restore deep-water entry resistance and timely swim handoff
 
-**Todo (2026-10-22). Investigation/backlog only; implementation not authorized.**
+**Done (user-accepted 2026-10-22).** Native deep-water entry restored by requiring
+local volume depth <=640 for shallow-flight protections. Pool/moat entry
+samples now match native comparison timing; both camera selections, jump
+styles, 60/120 Hz, depth boundaries, shelf, gait/crouch and swim regressions
+checked. Accepted executable `c1781e76badc0d8fb0459ef3fee4afd0abcc3dd960709eb92af06c40b26869af`.
+User tested both reported locations and shallow water: "all solid".
+Implementation/documentation commit and push authorized after D17R2 backlog creation.
+
+The following findings describe the original report and investigation.
 Reported during D08AD acceptance: jumping into deep water feels like jumping
 into air, without resistance. Reproduce from current UI slot 9 (pool ahead)
 and UI slot 2 (moat). Research: [note 196](documentation/196-d08ae-deep-water-entry.md).
@@ -6708,6 +6717,27 @@ allocated aperture). Forced-turn redraw and walking/turning replay sequences
 on slot 2, LEVEL01 slot 8 and D17O slot 10 are whole, 0 failed; turn pops
 match the baseline executable. Patch re-exported and verified. Executable
 `9b296ae1b7d828c5d9ca5880257cd24e4443dd5919d9b2e5c1097dc98adece3f`.
+
+### D17R2 - Sky turns black at certain viewing angles (slot 8)
+
+**Todo (2026-10-22). Minor visual follow-up; backlog/investigation only.**
+Load current UI slot 8, look left immediately, and slightly upwards if needed:
+the sky turns black depending on camera direction. Expected: continuous,
+correct sky across orientations, without black gaps or empty background.
+
+Initial source findings and later diagnostic plan: [note 197](documentation/197-d17r2-angle-dependent-black-sky.md).
+Inspect camera-relative sky transforms (D17O), backdrop/fill/clip widening
+(D17R), near-clipped cloud geometry and packet fallback (D17R1). Those are
+candidate paths, not proven causes; do not assume a texture problem or that
+this is the historical LEVEL01 slot-8 save. No live reproduction, rendering
+code change, build or launch for this backlog task. Implement only on selection.
+
+**Acceptance:** slot 8 left/up view stays correct; stable yaw/pitch sweeps and
+moving turns; prior sky improvements intact; no rendering, culling or
+performance regressions; 60/high-refresh presented checks and user playtest.
+Preserve Vanilla and existing display/camera modes.
+
+**Dependencies:** D17O, D17R, D17R1 (Done).
 
 ### D17X - Small white triangles on posts and soil in first person
 
@@ -16374,3 +16404,37 @@ acceptance stand. Existing framework export unchanged and verified against
 the pinned clean dependency. No rebuild required for documentation closeout.
 Remaining limitations / next action: Select D08AE later to implement and
 playtest a correction; preserve all accepted shallow-water work.
+
+
+### 2026-10-22 / D08AE candidate (Needs playtest)
+
+Selected deep-water entry correction implemented in `grounded_water.inc`.
+Flight bypasses now require native queried local depth <=640 as well as the
+existing shallow support predicate, including after nested water refreshes.
+Native body/neck entry, splash and swimming own deep descent; no new drag or
+velocity retuning. Grounded shallow gait policy is unchanged.
+
+Build, native input/aim/controls (21 overlays) and five hook contracts pass.
+Private pool/moat entry matrix, verified-depth routes, deep-region shelf,
+sloping handoff, 60/120 gait cycles, crouch, dive/ascent/fire, ORIGINAL and
+Vanilla checked. All 39 original player files unchanged. Note 196 records
+sampling limits and an existing crouch-branch diagnostic warning. Candidate
+`c1781e76badc0d8fb0459ef3fee4afd0abcc3dd960709eb92af06c40b26869af`.
+Remaining: user playtest in UI slots 9 and 2; broad campaign shoreline/exit
+coverage is not exhaustive. No acceptance, commit, push or next job.
+
+
+### 2026-10-22 / D08AE accepted; D17R2 backlog created
+
+User accepted deep-water entry at the reported locations and rechecked shallow
+water: "all solid". D08AE Done; accepted executable
+`c1781e76badc0d8fb0459ef3fee4afd0abcc3dd960709eb92af06c40b26869af`.
+No gameplay rebuild for closeout. Existing test evidence is in note 196.
+Framework patch exported unchanged and verified against the pinned clean
+source, all 50 files matching. Commit/push explicitly authorized.
+
+Created exactly one unrelated Todo: D17R2, current slot 8's black sky when
+looking left/slightly up. Source-only investigation links D17O/D17R/D17R1,
+records clipping/matrix/packet hypotheses and reproduction/acceptance in
+note 197. Actual cause unestablished. No rendering change, build or launch;
+implementation waits for selection. No next job started.

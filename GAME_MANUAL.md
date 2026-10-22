@@ -865,6 +865,10 @@ they use TTK’s original standing-directional arc. **Modernized swimming** (D08
 **Space** uses ordinary land jumps with SWIMMING MODERN (D08AC), including
 normal running jumps onto platforms. SWIMMING ORIGINAL retains the older
 wade jump and special ledge assistance.
+**Deep-water entry (D08AE, accepted):** jumping or running into deep
+water now hands control to the original water-entry response near the surface,
+while shallow-water jumps retain their land behavior. Swimming controls and
+speeds are unchanged.
 On the surface of deep water, face the camera: **W/S** swim forward/back,
 **A/D** strafe (camera-relative), **Ctrl** dives for as long as you hold it
 (let go and Duke stops, unless W/A/S/D is held - D08O4). Underwater, **W/A/S/D**

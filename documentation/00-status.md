@@ -1,5 +1,38 @@
 # Current status - 2026-10-04
 
+## 2026-10-22 - D08AE accepted; D17R2 queued
+
+User fully accepted D08AE after testing the reported deep-water locations
+and shallow water: "all solid". D08AE Done; accepted executable
+`c1781e76badc0d8fb0459ef3fee4afd0abcc3dd960709eb92af06c40b26869af`.
+[Note 196](196-d08ae-deep-water-entry.md) retains tests and coverage limits.
+Commit/push of authored implementation and documentation explicitly authorized.
+Framework export unchanged; patch verified against the clean pinned dependency
+and all 50 patched files match. No gameplay rebuild for closeout.
+
+D17R2 Todo: current UI slot 8, look left then slightly upwards; sky turns
+black. [Note 197](197-d17r2-angle-dependent-black-sky.md) records source-only
+findings, candidate matrix/clipping/packet paths, prior D17O/D17R/D17R1 work
+and acceptance criteria. No live reproduction or confirmed cause, no rendering
+code changed, no build/launch. Wait for selection before implementation.
+
+
+## 2026-10-22 - D08AE deep-water entry (Needs playtest)
+
+Deep entry now releases shallow-flight protection when native queried local
+volume depth exceeds 640. Original body/neck entry and effects take over;
+no new drag constants, velocity writes, hooks or framework edits.
+Candidate `c1781e76badc0d8fb0459ef3fee4afd0abcc3dd960709eb92af06c40b26869af`.
+Private slot 9/2 entry matrix and 24 verified-depth routes pass, together with
+shelf/slope, gait/crouch, swim-fire/dive/ascent, ORIGINAL and Vanilla checks.
+Build, native controls over 21 overlays, input/aim and hook contracts pass.
+All 39 original player manifest files unchanged. [Note 196](196-d08ae-deep-water-entry.md)
+records evidence, sampling limits and an existing crouch-branch warning.
+User entry-feel review remains; D08AD stays the accepted baseline.
+No acceptance, commit/push or next job. Launch from this workspace with
+`python3 recomp/tools/local/run.py`, test pool UI slot 9 and moat UI slot 2.
+
+
 ## 2026-10-22 - D08AD accepted; D08AE queued
 
 User accepted D08AD: "the animation is fixed. lock it in and close it out."

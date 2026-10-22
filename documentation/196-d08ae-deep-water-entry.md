@@ -1,6 +1,92 @@
 # D08AE - Restore deep-water entry resistance and timely swim handoff
 
-2026-10-22. Status: Todo. Investigation/backlog only; no implementation.
+2026-10-22. Status: Done, user-accepted.
+
+User: "Fully accepted as working, tested in the appropriate locations, and
+again in shallow water, all solid. lock this job in."
+Implementation and documentation commit/push explicitly authorized after
+adding the unrelated D17R2 sky backlog. The executable below is the accepted
+regression baseline. Framework export is unchanged and verified against the
+pinned clean dependency (all 50 patched files match). No rebuild needed for
+acceptance closeout.
+
+## Accepted correction
+
+`grounded_water.inc` now requires the native local water volume depth
+(`player+0x838`) to be at most 640 as well as the existing support-based
+shallow-water predicate before protecting an airborne dispatch or transition.
+The final nested-hook checks reapply the same gate after native water queries.
+Grounded gait and stride-completion eligibility are unchanged. There are no
+new hooks, velocity writes, drag constants, water-mask changes or framework
+edits. Native descending body/neck checks, entry animation 127, effects and
+swim dispatch regain ownership in deep water.
+
+The native query `0x8005b85c` calculates a local top/bottom interval and
+consults geometry through `0x8005d358` before storing its depth. The added
+check supplements the support predicate; it does not replace all grounded
+classification with a volume-only rule. Deep entry itself still requires
+the native body, neck, direction and animation conditions.
+
+Accepted executable SHA256:
+`c1781e76badc0d8fb0459ef3fee4afd0abcc3dd960709eb92af06c40b26869af`.
+
+Private tests/evidence remain in `recomp/analysis/d08ae-research/` and
+`recomp/analysis/d08ad-lab/`. The six initial candidate entry routes reproduce
+the earlier comparison: running-jump entry is at sampled body depth 380 in
+the pool and 577 in the moat, matching the earlier ORIGINAL samples, instead
+of 2452/4378. The other walk/run-off entries span 352-589.
+
+A further 24 entry trials cover 60 Hz assisted/first-person selection,
+120 Hz manual/first-person selection and 120 Hz assisted/third person,
+both locations, held direction/Space and released run-jump input. Every trial
+entered swimming at sampled body depth 352-589; the air-steer counter stayed
+constant throughout subsequent swimming. Traces include body, foot and neck,
+water surface, native volume, support, modes/animations, velocities and input.
+These are sampled observations, not exact simulation-boundary timestamps.
+Some assisted run-jump attempts at the moat reached the edge as run-offs;
+this distinction is retained in the animation traces. First-person swimming
+still uses its existing camera fallback (D11E is a separate open job).
+
+Native controls tests pass with all 21 level overlays, along with input and
+aim suites. Added contract cases cover shallow/deep thresholds, support equal
+to surface, refresh from shallow to deep within either native scope, preserved
+water identity, and grounded stride selection inside a deep volume. Live regressions confirm complete walk clips 72/74 (frames 16-19/32-35)
+and run clips 76/78 (105-107/117-119) at 60/120 Hz. Dive, underwater
+movement/fire (three shots), ascent to surface mode 4, crouch/stand-up,
+SWIMMING ORIGINAL and Vanilla were checked separately on private copies.
+Five hook-contract tests also pass.
+
+A controlled shelf case extends the native water record's bottom far below
+the local floor: the native query still clips the local volume to 512.
+Neutral/directional/run jumps and crouch remain on land, demonstrating why
+the queried local depth matters more than the authored region's full depth.
+The updated slot-10 route also slopes from shallow toward deeper water;
+raising its surface makes a run cross 640 into 768 before landing, where a
+native swim transition is expected. An initial blanket 'never swim' harness
+assertion was rejected on those recorded depths. Older hard-coded-region
+physics runs did not alter the current save's water and are excluded from
+the depth-boundary evidence. The corrected harness resolves `+0x83c` and
+asserts the requested starting depth before each trial.
+
+The corrected depth harness passes 24 routes: starting depths 128/512/640,
+neutral/walk/run jumps and held-crouch landing, manual/third person at 60 Hz
+and assisted/first-person selection at 120 Hz. No sample swims in a queried
+local volume of 640 or less. Additional moat trials with earlier Space presses
+confirm actual assisted jump clips 98 and 103 before native swim entry, not
+only run-offs. Final build, native controls and hook contracts pass.
+
+The high-refresh controlled crouch/depth fixture logs 38 temporary identity
+refusals for the existing owned crouch branch at `0x800548e8`; the same branch
+warning occurs in the pre-D08AE `d08ad-lab/physics120.log`. It is not a new
+water-entry code change and was not silently fixed in this job. Grounded
+animation cycles and the deep-entry matrix have zero reported refusals.
+
+All 39 files in the original player manifest have unchanged hashes. Dummy audio establishes native effect
+routing, not audible splash quality. User playtest confirms the two reported locations and shallow-water behavior;
+broad campaign shorelines, object shelves and
+all exit geometries are not exhaustively established by these routes.
+
+## Original investigation (before implementation)
 
 ## Report and reproduction
 

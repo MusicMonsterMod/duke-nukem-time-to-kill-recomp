@@ -3272,6 +3272,7 @@ int main(int argc,char** argv) {
         assert(psx_mod_read_word(0x8004866c)==0x10400332);
         assert(psx_mod_read_word(0x80054964)==0x10400060);
         ttk::modern=true;
+        psx_mod_write_word(p+0x838,640);
         for(int depth:{640,641}) {
             psx_mod_write_word(p+0x834,-depth);psx_mod_write_half(p+0x60,98);
             psx_mod_write_byte(p+0x22c,9);psx_mod_write_byte(p+0x22d,9);
@@ -3296,6 +3297,30 @@ int main(int argc,char** argv) {
         call(0x8006b270,0x3001,p+4,0x80054cb0,0x801fef80);
         assert(psx_mod_read_word(0x80054cbc)==0x1440000a);
         assert(psx_mod_read_word(p+0x20c)==0x3b800);
+        // D08AE: cached support at the surface must not suppress native
+        // deep entry. Also release an already armed shallow scope when the
+        // native query refreshes only the volume (the support stays stale).
+        for(unsigned target:{0x80055e80u,0x80048410u})for(int volume:{640,641,3072,5120}) {
+            const bool transition=target==0x80055e80;
+            const uint32_t branch=transition?0x80056240:0x80054cbc;
+            const uint32_t original=transition?0x1040005c:0x1440000a;
+            const uint32_t patched=transition?0x1000005c:0x1000000a;
+            const uint32_t caller=transition?0x8005a4f8:0x8004b634;
+            psx_mod_write_word(p+0x834,0);psx_mod_write_word(p+0x1c8,0);
+            psx_mod_write_word(p+0x838,volume);psx_mod_write_half(p+0x60,98);
+            psx_mod_write_byte(p+0x22c,9);psx_mod_write_byte(p+0x22d,9);
+            call(target,p,0,caller,0x801ff000);
+            assert(psx_mod_read_word(branch)==(volume==640?patched:original));
+            psx_mod_write_word(0x801feffc,caller);
+            psx_mod_write_word(p+0x838,5120);
+            call(0x8006b270,0x3001,p+4,0x80054cb0,0x801fef80);
+            assert(psx_mod_read_word(branch)==original);
+            assert(psx_mod_read_word(p+0x20c)==0x3b800);
+            call(0x80058120,p,0,0x80041c44,0x801ff010);
+        }
+        // Grounded shelf policy still depends on solid support, even if the
+        // enclosing water volume is deep; only flight protection changed.
+        psx_mod_write_word(p+0x838,5120);
         // D08AD: a walking terrain probe runs before the dispatcher's stack
         // exists. Re-entering the outer hook must arm its scope afterwards.
         psx_mod_write_word(p+0x834,-512);psx_mod_write_half(p+0x60,72);

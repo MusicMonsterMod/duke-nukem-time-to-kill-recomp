@@ -1044,13 +1044,19 @@ void object(CPUState* cpu) {
     // and can draw over a platform even after the platform gains depth. Extend
     // compact coverage only for walk-over pickups, identified by the original
     // type-table flag, not a level-specific object or mesh address.
-    bool pickup=false;
+    bool pickup=false,ladder=false;
     if(static_candidate && platform_depth() && subdivision_bypass()) {
         const uint32_t instance=cpu->gpr[18],table=psx_mod_read_word(0x800d2660);
         if(instance>=0x80010000u && instance<=0x801fffd0u && !(instance&3) &&
            table>=0x80010000u && table<=0x801f8bd8u && !(table&3)) {
             const unsigned type=psx_mod_read_half(instance+0x2c);
-            pickup=type<1062 && (psx_mod_read_word(table+28*type)&0x20000000u);
+            const uint32_t flags=type<1062?psx_mod_read_word(table+28*type):0;
+            pickup=(flags&0x20000000u)!=0;
+            // Same plain-ladder classification as the original climb rules.
+            // Tall ladders cross the near boundary: native upper panels must
+            // share depth with intervening host-rendered platforms.
+            static const bool ladder_depth=env_int("DNTTK_LADDER_DEPTH",1,0,1)!=0;
+            ladder=ladder_depth && (flags&0x200u) && !(flags&0x500u);
         }
     }
     const int extent=pickup?320:256;
@@ -1076,7 +1082,7 @@ void object(CPUState* cpu) {
     double compact_key=0;
     if(static_depth) {for(const auto& v:f.verts) compact_key+=v.sz;compact_key/=count;}
     trace_vertices(f);
-    if(!any && !static_top) {trace_record(f,"native_mesh",0);if(!f.trace) return;}
+    if(!any && !static_top && !ladder) {trace_record(f,"native_mesh",0);if(!f.trace) return;}
     struct Taken {uint32_t record,type;bool depth_only;};
     std::vector<Group> groups;std::vector<Taken> taken;
     uint32_t cursor=list;
@@ -1117,12 +1123,21 @@ void object(CPUState* cpu) {
                 const int cz=(int16_t)psx_mod_read_half(vertices+8*idx[2]+4);
                 depth_only=(int64_t)(bx-ax)*(cz-az)!=(int64_t)(bz-az)*(cx-ax);
             }
-            trace_face(f,cursor,corners,depth_only?"native_top_depth":any && unsafe?"host_candidate":"native_kept");
+            bool ladder_face=ladder && !unsafe && textured && !(bits&0x10) &&
+                !(psx_mod_read_word(context+0x48)&0x02000000u);
+            uint32_t ladder_z=0xffff;
+            for(unsigned j=0;j<corners && ladder_face;++j) {
+                ladder_face=f.verts[idx[j]].safe;
+                ladder_z=std::min<uint32_t>(ladder_z,f.verts[idx[j]].sz);
+            }
+            ladder_face=ladder_face && ladder_z<platform_depth_z;
+            depth_only|=ladder_face;
+            trace_face(f,cursor,corners,ladder_face?"native_ladder_depth":depth_only?"native_top_depth":any && unsafe?"host_candidate":"native_kept");
             if(unsafe || depth_only) taken.push_back({cursor,type,depth_only}); else group.kept.push_back(cursor);
         }
         if(!group.kept.empty()) groups.push_back(std::move(group));
     }
-    if((!any && !static_top) || taken.empty()) return;
+    if((!any && !static_top && !ladder) || taken.empty()) return;
     if(budget(f)<takeover_reserve+(uint32_t)taken.size()*0x28*3) {++mesh_fallbacks;trace_record(f,"mesh_budget_fallback",0);return;}
     const uint32_t copy=guest_copy();
     if(!copy || 0x20+list_bytes(groups)>copy_size) {++copy_overflows;return;}

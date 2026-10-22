@@ -191,7 +191,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D17K | Coplanar ground blood in save slot 12 | Accepted | D17D |
 | D17L | Tabletop props cut off on approach/retreat in save slot 11 | Done | D17D |
 | D17M | Shotgun ammo visible through ladder platform | Done (user-accepted 2026-10-22) | D17D |
-| D17M1 | Upper ladder visible through platform (updated UI slot 10) | Todo | D17M |
+| D17M1 | Upper ladder visible through platform (updated UI slot 10) | Done (user-accepted 2026-10-22) | D17M |
 | D17N | Diagonal wall artifacts during movement (world subdivision) | Accepted | D17A |
 | D17Q | Residual wall/surface flicker: Corrected-renderer stability polish | Done (user-accepted) | D17N |
 | D17O | Unstable sky appearance when looking up (slot 10) | Done (user-accepted) | D17A, D17B |
@@ -6462,7 +6462,7 @@ See [save identity and regression baseline](documentation/89-d17-playtest-follow
 
 ### D17M1 - Upper ladder visible through platform (updated UI slot 10)
 
-**Todo (2026-10-22).** User reports the upper ladder showing through the
+**Done (user-accepted 2026-10-22).** Fix accepted and closeout authorized; [note 201](documentation/201-d17m1-ladder-platform.md). User reports the upper ladder showing through the
 platform when looking slightly upward; small movements and pitch changes
 make it easy to see. Intake uses a private copy of the updated UI slot 10
 (file 09), SHA-256
@@ -6488,7 +6488,7 @@ up/down and shifting slightly left/right beneath the ladder platform.
 and ladder ascent/descent; legitimately exposed rails/rungs remain visible.
 Check both camera views, 60/120/180, nearby geometry and accepted D17M ammo
 occlusion. Preserve Original texture and Vanilla behavior, climb controls and
-performance. Use private copies only. User confirms. Deferred until selected.
+performance. Use private copies only. User confirmed the fix and authorized closeout on 2026-10-22.
 
 ### D17N - Diagonal wall artifacts during movement in save slot 12
 
@@ -16663,3 +16663,30 @@ investigation also remains Todo. Earlier D17G/H/I/J triage and D17M code/tests
 are included in the explicitly authorized commit/push.
 
 Launch: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-22 - D17M1 ladder/platform depth (Needs playtest)
+
+User selected D17M1. Traces identify the ladder upper panels remaining native
+while the D17M platform already writes depth. Plain-ladder type flags now
+allow safe nearby opaque textured panels into source-ordered depth drawing,
+with original texture and Vanilla paths preserved. No climb-control changes.
+Build and five owned-EXE renderer configurations pass; trace tests pass in both
+texture modes. Offscreen sweeps cover both views at 60/120/180, six older scenes,
+Vanilla, and a 180-target performance comparison (180.2 off / 180.0 on).
+Scripted ladder contact does not establish ascent/descent acceptance. Needs
+player check in updated UI slot 10. [Note 201](documentation/201-d17m1-ladder-platform.md).
+Candidate `1381185d45a6b0a68b5f8529fe6f4e812e5130c645a9a313319cb0d37186559f`.
+No framework edits, acceptance closeout, commit or push.
+
+
+## 2026-10-22 - D17M1 accepted (Done)
+
+User: "it's fixed!! accepted. lock it in, and close it out". D17M1 is Done
+on user gameplay acceptance; the earlier scripted traversal limit remains
+recorded in [note 201](documentation/201-d17m1-ladder-platform.md).
+No further gameplay changes or rebuild. Accepted executable:
+`1381185d45a6b0a68b5f8529fe6f4e812e5130c645a9a313319cb0d37186559f`.
+Framework patch re-export unchanged; applies to the clean pinned dependency
+and matches all 50 patched files. Implementation, tests and documentation
+included in the authorized commit/push. No next job started.

@@ -1,5 +1,31 @@
 # Current status - 2026-10-04
 
+## 2026-10-22 - D17M1 accepted (Done)
+
+User confirmed the ladder/platform fix and explicitly authorized closeout.
+D17M1 is Done on user gameplay acceptance; [note 201](201-d17m1-ladder-platform.md)
+retains automated evidence and the scripted traversal limitation.
+Accepted executable: `1381185d45a6b0a68b5f8529fe6f4e812e5130c645a9a313319cb0d37186559f`.
+No new gameplay changes or rebuild. Framework patch export unchanged;
+clean pinned-dependency verification matches all 50 patched files.
+Implementation, tests and documentation included in the authorized commit/push.
+No next job started. Launch: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-22 - D17M1 candidate (Needs playtest)
+
+Plain ladder upper panels now share depth with the intervening platform while
+retaining their original draw ordering. Authenticated type flags select the
+correction, not a slot or mesh address. Original textures, Vanilla and climb
+controls retain their existing paths. Build, renderer/trace tests and offscreen
+60/120/180 camera sweeps pass; older-scene and performance checks recorded in
+[note 201](201-d17m1-ladder-platform.md). Player ascent/descent acceptance remains.
+Candidate: `1381185d45a6b0a68b5f8529fe6f4e812e5130c645a9a313319cb0d37186559f`.
+Use updated UI slot 10 with Corrected textures; F10 if capture is needed.
+Launch: `python3 recomp/tools/local/run.py`.
+No framework edits, acceptance closeout, commit or push.
+
+
 ## 2026-10-22 - D17M accepted; D17M1 ladder backlog
 
 User fully accepted D17M and explicitly authorized closeout, commit and push.

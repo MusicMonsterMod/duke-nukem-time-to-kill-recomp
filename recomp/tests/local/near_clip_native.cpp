@@ -195,15 +195,15 @@ static void packet_contracts(const char* executable) {
     word(mesh+0x48,0x02000000);word(mesh+0x4c,0xff);
     observed_hook(&cpu,0x80011020);
     assert(cpu.gpr[4]==mesh && host_vertices==0);
-    auto object_case=[&](uint32_t ra,int extent,bool expect_taken,bool occupied_ot=false,uint32_t pickup_flags=0) {
+    auto object_case=[&](uint32_t ra,int extent,bool expect_taken,bool occupied_ot=false,uint32_t pickup_flags=0,int z=5000,bool semi=false) {
         auto c=reset();c.gpr[31]=ra;c.gpr[18]=0x80180000+extent*0x60;
         word(0x800d2660,0x80190000);word(c.gpr[18]+0x2c,3);word(0x80190000+28*3,pickup_flags);
         psx_mod_write_byte(mesh+6,3);word(mesh+0x10,verts);word(mesh+0x14,list);
-        word(verts,(uint16_t)-extent|uint32_t(uint16_t(-extent))<<16);word(verts+4,5000);
-        word(verts+8,extent|uint32_t(uint16_t(-extent))<<16);word(verts+12,5000);
-        word(verts+16,uint32_t(extent)<<16);word(verts+20,5000);
+        word(verts,(uint16_t)-extent|uint32_t(uint16_t(-extent))<<16);word(verts+4,z);
+        word(verts+8,extent|uint32_t(uint16_t(-extent))<<16);word(verts+12,z);
+        word(verts+16,uint32_t(extent)<<16);word(verts+20,z);
         word(list,0x00010024);word(list+4,0x00020100);word(list+8,0);
-        word(list+12,0x0200001f);word(list+16,0x1f00);word(list+20,0xff);
+        word(list+12,semi?0x2200001f:0x0200001f);word(list+16,0x1f00);word(list+20,0xff);
         if(occupied_ot) {
             // A sprite before the first mesh leaves the OT nonempty. Starting
             // from a loaded scene must still get a fresh, bounded clip budget.
@@ -220,6 +220,12 @@ static void packet_contracts(const char* executable) {
         observed_hook(&c,0x80010000);
         assert((c.gpr[4]!=mesh)==expect_taken);
         assert((host_vertices>0)==expect_taken);
+        if(pickup_flags==0x200 && expect_taken) {
+            assert(host_vertices==3); // no subdivision or compact regrouping
+            const unsigned slot=unsigned((int64_t(341)*3*z)>>12)>>3;
+            for(unsigned i=0;i<2048;++i) assert((psx_mod_read_word(ot+i*8)!=0)==(i==slot));
+            for(const auto& v:host_corners) assert(v.z==z && v.depth>0);
+        }
         if(occupied_ot) {
             const auto frame=ttk::near_clip_frame_state();
             assert(frame.host_bytes>0);
@@ -245,6 +251,17 @@ static void packet_contracts(const char* executable) {
     object_case(0x80032288,160,false,false,0x10000000); // a different type flag
     object_case(0x80033778,160,false,false,0x20000000); // foreign caller
     live_eye=false;object_case(0x80032288,160,false,false,0x20000000);live_eye=true;
+    // D17M1: distant tall ladder panels retain their source ordering but
+    // participate in platform depth. Other climb types/callers stay native.
+    const bool ladder_bridge=bridge && (!std::getenv("DNTTK_LADDER_DEPTH") || std::string_view(std::getenv("DNTTK_LADDER_DEPTH"))!="0");
+    object_case(0x80032288,400,ladder_bridge,false,0x200);
+    object_case(0x80032288,400,false,false,0x200,8192);
+    object_case(0x80032288,400,ladder_bridge,false,0x200,8191);
+    object_case(0x80032288,400,false,false,0x200,5000,true);
+    object_case(0x80032288,400,false,false,0x100);
+    object_case(0x80032288,400,false,false,0x600);
+    object_case(0x80033778,400,false,false,0x200);
+    live_eye=false;object_case(0x80032288,400,false,false,0x200);live_eye=true;
     // Two opaque faces of a compact prop stay in one ordering bucket so
     // host/native draw state cannot alternate for each face. Translucent
     // faces must keep their independent ordering.

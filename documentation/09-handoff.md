@@ -1,5 +1,24 @@
 # Next-session handoff
 
+## 2026-10-22 - D08K8 accepted (Done)
+
+User: "this is perfect!! lock it in, close it out". Stationary kneel and
+transitions accepted; closeout authorized. [Note 190](190-d08k8-stationary-kneel.md).
+Executable `d798757cb2de56f946074165423faea379a1711d51f81b60cf00c70d8780e1f3`
+is the accepted regression baseline. Next suggested: D08K9, D08K10, then D08K5.
+No next job started; no rebuild needed for documentation closeout.
+
+
+## 2026-10-22 - D08K8 stationary kneel (Needs playtest)
+
+CROUCH MODERN now holds the original one-knee pose, blending from the last
+shown pose into and out of walking. Saved animation tables refresh on load.
+Build and focused tests pass; private 60/120 Hz checks completed. User visual
+acceptance and unarmed gameplay review remain. See [note 190](190-d08k8-stationary-kneel.md).
+Executable `d798757cb2de56f946074165423faea379a1711d51f81b60cf00c70d8780e1f3`.
+No commit or push; D08K7 remains the accepted baseline.
+
+
 ## 2026-10-22 - D08K7 accepted (Done)
 
 - User: "confirmed working! lock it in and close it out"

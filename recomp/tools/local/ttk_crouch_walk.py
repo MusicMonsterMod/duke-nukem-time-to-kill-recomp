@@ -502,6 +502,17 @@ PELVIS, BOB, LEAN, STEP, STANCE, LIFT, WIDTH, FRAMES = 300.0, 10.0, 25.0, 240.0,
 
 
 def host_clip(group, direction, upper=False):
+    if direction == 'idle':
+        # D08K8: hold the disc's one-knee pose in the same host frame format
+        # as the walk. Upper and lower joints remain separate channel sets.
+        q, _ = group.animation_quats(178, 0)
+        upper_ids = {9, 16, 10, 11, 12, 13, 14, 15}
+        ids = upper_ids if upper else set(range(9))
+        commands = [dict(joint=j, q=list(q.get(j, (0, 0, 0, 4095))), flags=0)
+                    for j in sorted(ids)]
+        if not upper:
+            commands.insert(0, dict(joint=0, root=[0, 282, 0], flags=2))
+        return host_frames([dict(events=0, ticks=HOST_TICKS, commands=commands)] * 2, keep_root=True)
     if MOCAP.exists():
         frames = mocap_frames(group, direction)
         if upper:

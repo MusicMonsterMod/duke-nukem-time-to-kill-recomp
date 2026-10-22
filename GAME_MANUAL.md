@@ -1546,7 +1546,8 @@ With **CROUCH: MODERN** (the default; OPTIONS > ADVANCED > MOVEMENT, or
 `run.py --crouch modern|original`), **hold Left Ctrl** and use **W/A/S/D** to walk
 low in any direction at the walking pace, hunched like Duke 3D's crouch. Duke keeps
 facing where you look, so you can strafe and back up while aiming and firing as usual;
-held still he stays low. He stops at walls, objects and edges instead
+held still he holds the original one-knee kneel, blending into the crouch walk
+when you move and back to the kneel when you stop. He stops at walls, objects and edges instead
 of falling, and stands up when you release Ctrl where there is room. He can crouch
 walk on top of dumpsters and crates as he walks on them standing, stopping at their
 edges. Released where there is no room to stand, he stays low and W/A/S/D keep

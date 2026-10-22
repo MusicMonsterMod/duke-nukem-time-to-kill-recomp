@@ -169,6 +169,21 @@ class OwnedDisc(unittest.TestCase):
             # the user's chosen low crouch (variant C, hip ratio 0.56) is about 48.
             self.assertGreater(sum(drops) / len(drops), 40, name)
 
+    def test_stationary_kneel(self):
+        import ttk_crouch_walk as cw
+        original, _ = self.g.animation_quats(178, 0)
+        legs = cw.host_clip(self.g, 'idle')[1]
+        upper = cw.host_clip(self.g, 'idle', upper=True)[1]
+        lq, uq = t.joint_quats_for_frame(legs), t.joint_quats_for_frame(upper)
+        self.assertFalse(set(lq) & set(uq))
+        for j, q in {**lq, **uq}.items():
+            self.assertEqual(tuple(q), tuple(original.get(j, (0, 0, 0, 4095))))
+        self.assertEqual(legs['commands'][0]['root'], [0, 282, 0])
+        for f in (legs, upper):
+            for command in f['commands']:
+                a, b = t.encode_command(command)
+                self.assertEqual('root' in command, 'root' in t.decode_command(a, b))
+
     def test_clip_digest_stable(self):
         self.assertEqual(t.clip_digest(self.g, 0), t.clip_digest(self.g, 0))
         self.assertNotEqual(t.clip_digest(self.g, 0), t.clip_digest(self.g, 1))

@@ -274,7 +274,9 @@ void hook(CPUState* cpu,uint32_t) {
         return; // not ours, or unrecoverable: leave the guest as it is
     }
     if(!buffer && b) {buffer=b;++adopted;}
-    if(!modern || b!=buffer) {restore(b);if(modern && main_ram(psx_mod_read_word(frm_global))) apply(psx_mod_read_word(frm_global),psx_mod_read_word(rot_global));}
+    // A savestate can carry an older version of the host clips. Rebuild from
+    // the current pack after restoring its original table references.
+    if(!modern || b!=buffer || after_load) {restore(b);if(modern && main_ram(psx_mod_read_word(frm_global))) apply(psx_mod_read_word(frm_global),psx_mod_read_word(rot_global));}
 }
 }
 }

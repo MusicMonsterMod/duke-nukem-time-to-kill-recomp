@@ -17,9 +17,8 @@
 //   frames (30000 ticks) keep the original stepper from advancing them (it
 //   would loop within animation 178's clip, i.e. walk on past the extra clips;
 //   a padding clip follows them in the pack);
-// - held still, Duke keeps the same low stance (extra clip 5, both feet
-//   planted) instead of the original kneel, so stopping and starting never pop
-//   between the kneel and the walk; every clip change blends over 6 updates;
+// - held still, extra clip 5 holds the original one-knee kneel. Clip changes
+//   blend from the last displayed pose, including interrupted transitions;
 // - the pelvis follows the clip's height (300 + 10 cos(4 pi phase) over the
 //   feet), eased from the kneel's 282 on entry.
 // The arms and torso (channels 1-3) stay with the original: crouch idle, aim,
@@ -36,9 +35,13 @@ static constexpr unsigned crouch_walk_ticks=30000, crouch_walk_ramp=6, crouch_id
 static double crouch_walk_step() {return modern_pace_step(false);}
 static std::atomic<bool> crouch_walk_owning{false};
 // Host state: which extra clip channel 0 shows (0 = none: the original's own
-// kneel), the gait phase, the frame a blend starts from and its remaining ramp.
-static unsigned crouch_walk_clip,crouch_walk_ramp_left,crouch_walk_from_frame;
-static double crouch_walk_phase,crouch_walk_height;
+// kneel), the gait phase and the remaining pose transition.
+static unsigned crouch_walk_clip,crouch_walk_ramp_left;
+static double crouch_walk_phase,crouch_walk_height,crouch_transition_height;
+static std::array<std::array<double,4>,32> crouch_display_pose{},crouch_transition_pose{};
+static uint32_t crouch_display_mask,crouch_transition_mask;
+static double crouch_transition_t=1.0;
+static double crouch_fire_weight=0.0;
 static unsigned crouch_walk_starts,crouch_walk_updates,crouch_walk_stops,crouch_walk_blocked;
 static bool crouch_walk_modern() {
     const char* v=ttk_live_env("DNTTK_CROUCH");
@@ -89,8 +92,6 @@ static double crouch_frame_pelvis(uint32_t frame) {
     }
     return 0;
 }
-// The frame channel 0 shows now (the blend's new start when the clip changes).
-static uint32_t crouch_walk_frame_now() {return psx_mod_read_half(player+0x66);}
 // Not in control (not eligible, another animation, a savestate load, focus
 // lost...) but channel 0 still on a crouch-walk frame: hand it back to the
 // first frame of the current animation's own legs clip with that frame's
@@ -167,11 +168,12 @@ static void crouch_walk_update(CPUState* cpu) {
     if(!eligible || psx_mod_read_half(player+0x60)!=178) {
         if(crouch_walk_clip) ++crouch_walk_stops;
         crouch_walk_clip=0;crouch_pose_valid=false;
+        crouch_display_mask=crouch_transition_mask=0;crouch_transition_t=1.0;crouch_fire_weight=0.0;
         crouch_walk_release();
         return;
     }
     const bool moving=f.move_x || f.move_y;
-    // Clip: the squat idle while still, otherwise the dominant input axis
+    // Clip: the one-knee idle while still, otherwise the dominant input axis
     // (Duke faces the view: +x is his right).
     const unsigned clip=!moving ? crouch_idle_clip :
         std::fabs(f.move_y)>=std::fabs(f.move_x) ? (f.move_y>0?1u:2u) : (f.move_x>0?3u:4u);
@@ -179,7 +181,9 @@ static void crouch_walk_update(CPUState* cpu) {
     if(!crouch_walk_frames(clip,first,count))return;
     if(clip!=crouch_walk_clip) {
         if(!crouch_walk_clip) {crouch_walk_phase=0;crouch_walk_height=crouch_kneel_pelvis;++crouch_walk_starts;}
-        crouch_walk_from_frame=crouch_walk_frame_now();
+        crouch_transition_pose=crouch_display_pose;
+        crouch_transition_mask=crouch_display_mask;
+        crouch_transition_height=crouch_walk_height;
         crouch_walk_ramp_left=crouch_walk_ramp;
         crouch_walk_clip=clip;
     }
@@ -211,9 +215,11 @@ static void crouch_walk_update(CPUState* cpu) {
     const double idx=crouch_walk_phase*count;
     const unsigned k=moving ? unsigned(idx)%count : 0;
     const double t=moving ? idx-std::floor(idx) : 0.0;
+    crouch_transition_t=1.0;
     if(crouch_walk_ramp_left) {
         const double ramp=1.0-double(crouch_walk_ramp_left)/double(crouch_walk_ramp+1);
-        crouch_walk_channel(crouch_walk_from_frame,first+(moving?(k+1)%count:0),ramp);
+        crouch_transition_t=ramp*ramp*(3.0-2.0*ramp);
+        crouch_walk_channel(first+k,first+(moving?(k+1)%count:0),t);
         if(--crouch_walk_ramp_left==0 && !moving) crouch_walk_channel(first,first,0);
     } else if(moving) crouch_walk_channel(first+k,first+(k+1)%count,t);
     else crouch_walk_channel(first,first,0);
@@ -222,7 +228,9 @@ static void crouch_walk_update(CPUState* cpu) {
     if(ha>0 && hb>0) target=ha+(hb-ha)*crouch_pose_t;
     else if(hb>0) target=hb;
     else if(moving) target+=crouch_walk_bob*std::cos(4*3.141592653589793*crouch_walk_phase);
-    crouch_walk_pelvis_height(crouch_walk_ramp_left ? crouch_walk_height+(target-crouch_walk_height)*0.5 : target);
+    crouch_walk_pelvis_height(crouch_transition_height+(target-crouch_transition_height)*crouch_transition_t);
+    const double lean_target=moving ? 1.0 : 0.0;
+    crouch_fire_weight+=std::clamp(lean_target-crouch_fire_weight,-1.0/crouch_walk_ramp,1.0/crouch_walk_ramp);
     ++crouch_walk_updates;
 }
 // Joint quaternions of one frame (merged tables): ROT joint id -> Q12 x,y,z,w.
@@ -274,7 +282,7 @@ static bool crouch_fire_direction(int32_t dir[3]) {
     for(double& v:d)v/=n;
     for(double& v:r)v/=rn;
     const double u[3]={d[1]*r[2]-d[2]*r[1],d[2]*r[0]-d[0]*r[2],d[0]*r[1]-d[1]*r[0]};
-    const double a=crouch_fire_lean*3.141592653589793/180.0,c=std::cos(a),s=std::sin(a);
+    const double a=crouch_fire_weight*crouch_fire_lean*3.141592653589793/180.0,c=std::cos(a),s=std::sin(a);
     for(int i=0;i<3;++i)dir[i]=int32_t(std::lround((d[i]*c+u[i]*s)*4096.0));
     return true;
 }
@@ -366,7 +374,7 @@ static void crouch_walk_upper(uint32_t desc,bool owning) {
             std::array<CrouchQuat,32> q[4]{};uint32_t m[4]{};
             for(unsigned ch=1;ch<4;++ch) if(!crouch_channel_pose(ch,q[ch],m[ch])) m[ch]=0;
             // M(q') = A_tilt^T M(q): q' = q (x) (sin(-lean/2), 0, 0, cos(lean/2)).
-            const double h=-crouch_fire_lean*3.141592653589793/360.0;
+            const double h=-crouch_fire_weight*crouch_fire_lean*3.141592653589793/360.0;
             const CrouchQuat untilt{std::sin(h),0,0,std::cos(h)};
             for(unsigned j:crouch_upper_ids) {
                 const unsigned ch=j>=13 && j<=15 ? 1 : j>=10 && j<=12 ? 2 : 3;
@@ -471,5 +479,23 @@ static void crouch_walk_pose(CPUState* cpu) {
         const uint32_t r=desc+0x44+0x28*record+4;
         for(int i=0;i<4;++i)psx_mod_write_word(r+4*i,uint32_t(int32_t(std::lround(qa[i]*wa+qb[i]*wb))));
     }
+    // Blend from the pose actually displayed, not the old clip's next frame.
+    // Save the result each update so a rapid stop/restart stays continuous.
+    for(unsigned j=0;j<9;++j) {
+        const uint32_t r=crouch_joint_record(desc,j);
+        if(!r)continue;
+        auto q=crouch_record_q(r);
+        if(crouch_transition_mask>>j&1)q=crouch_slerp(crouch_transition_pose[j],q,crouch_transition_t);
+        crouch_record_write(r,q);crouch_display_pose[j]=q;crouch_display_mask|=1u<<j;
+    }
     crouch_walk_upper(desc,true);
+    for(unsigned j:crouch_upper_ids) {
+        const uint32_t r=crouch_joint_record(desc,j);
+        if(!r)continue;
+        auto q=crouch_record_q(r);
+        // Aimed shoulders must retain the exact chest-tilt compensation.
+        if(!(psx_mod_read_word(player+0x224)&0x100) && (crouch_transition_mask>>j&1))
+            q=crouch_slerp(crouch_transition_pose[j],q,crouch_transition_t);
+        crouch_record_write(r,q);crouch_display_pose[j]=q;crouch_display_mask|=1u<<j;
+    }
 }

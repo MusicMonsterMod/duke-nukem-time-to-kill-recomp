@@ -90,7 +90,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08K5 | Crouch-walk coverage: low ceilings, stairs/edges, weapons, both cameras, traversal interruptions, game-wide; Vanilla unchanged | Todo | D08K4, D22B |
 | D08K6 | Crouch-walk animation quality: a realistic, Solid Snake-style tactical crouch walk (not "sitting on a toilet"), deep study of the captured animation pack; fix the left-arm shake while crouch walking | Done (user-accepted 2026-10-22) | D08K4 |
 | D08K7 | Stuck crouch on the slot 10 dumpster: Ctrl released leaves Duke on one knee and W then plays the original roll (object-relative stand-up refusal; crouch state machine) | Done (user-accepted 2026-10-22) | D08K2, D08K4 |
-| D08K8 | One-knee kneel as the stationary crouch pose (Modern crouch), with smooth kneel <-> crouch-walk <-> stand transitions | Todo | D08K6, D08K7 |
+| D08K8 | One-knee kneel as the stationary crouch pose (Modern crouch), with smooth kneel <-> crouch-walk <-> stand transitions | Done (user-accepted 2026-10-22) | D08K6, D08K7 |
 | D08K9 | Crouch held through a jump: crouch at once on landing, no recovery pause or stand/run frame in between (slot 4) | Todo | D08K4, D08Z3, D08K8 |
 | D08L | Inertial platform edge run-off | Done | D08 |
 | D08M | Modern underwater swimming controls (foundation) | Done | D08 |
@@ -3896,7 +3896,9 @@ roll; Vanilla unchanged. Checked on the slot 10 dumpster, the alley dumpster
 
 ### D08K8 - One-knee kneel as the stationary crouch pose
 
-**Todo (opened 2026-10-22, user request; research done, no change yet).**
+**Done (user-accepted 2026-10-22).** Implemented: original kneel, transitions from
+the displayed pose, saved animation pack refresh. [Note 190](documentation/190-d08k8-stationary-kneel.md).
+User: "this is perfect!! lock it in, close it out". The findings below record the design research.
 After D08K7 (it showed the kneel the user wants).
 
 User: the D08K4 still crouch (both feet planted, the squat idle) works, but
@@ -15779,3 +15781,22 @@ in note 117 is the reference for future custom pickups.
 - D08K7 Done (note 189). Executable
   `a98a334afdc8f5860894c73f82cfd5d515cebd2e14a998dd241054c6db591963` is the regression baseline. Next in the crouch series: D08K8, D08K9,
   then D08K5.
+
+
+## 2026-10-22 - D08K8 stationary kneel (Needs playtest)
+
+Original one-knee idle in CROUCH MODERN, six-update transitions from the last
+shown pose, original stationary firing pose and moving hunch compensation.
+Loaded saves refresh their embedded animation pack. Movement/collision unchanged.
+Build, 15 animation tests and native input/aim/controls pass; private 60/120 Hz
+checks on slot 10. Third-person look and unarmed gameplay await user review.
+Details and limits: [note 190](documentation/190-d08k8-stationary-kneel.md).
+No commit or push.
+
+## 2026-10-22 - D08K8 accepted (Done)
+
+User: "this is perfect!! lock it in, close it out". Stationary kneel and
+transitions accepted; documentation, commit and push authorized. Note 190.
+Executable `d798757cb2de56f946074165423faea379a1711d51f81b60cf00c70d8780e1f3`
+is the accepted regression baseline. No new build or gameplay changes for closeout.
+Next suggested: D08K9, then D08K10 and D08K5; none started.

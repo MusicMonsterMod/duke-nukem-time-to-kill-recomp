@@ -194,10 +194,10 @@ bool swim_thrust_input_ready() {
     if(traversal_input_ready() || airborne_input_ready())return false;
     return true;
 }
-// Suppress Square for wade jumps AND free-swim vertical — Square is thrust/176,
-// not modern ascend.
+// Suppress Square for legacy wade jumps and free-swim vertical. D08AC
+// grounded Modern water uses the same buffered Square as dry-ground jumps.
 bool swim_host_owns_jump() {
-    return swim_lease_ready() && (wading() || free_swimming());
+    return swim_lease_ready() && (free_swimming() || (wading() && !grounded_water_modern()));
 }
 
 static void swim_face_view_upright() {
@@ -798,7 +798,7 @@ static void swim_update(CPUState* cpu,bool late) {
     if(late)swim_reassert_boost();
 
     if(wading()) {
-        if(cpu)swim_try_wade_jump(cpu,f);
+        if(cpu && !grounded_water_modern())swim_try_wade_jump(cpu,f);
         return;
     }
 

@@ -12,7 +12,7 @@ static bool crouch_landing_input() {
     return f.active && f.held[crouch] && !f.held[original_aim] && !f.held[interact] &&
         independent_camera() && crouch_walk_modern() &&
         player_identity_ready() && !(psx_mod_read_word(player)&0x20002) &&
-        !(psx_mod_read_word(player+0x224)&0x202002c1) && !in_water_early() &&
+        !(psx_mod_read_word(player+0x224)&0x202002c1) && (!in_water_early() || grounded_water_modern()) &&
         crouch_walk_frames(1,first,count) && crouch_walk_frames(crouch_idle_clip,first,count);
 }
 static void crouch_landing_track(CPUState* cpu) {

@@ -31,7 +31,7 @@ static bool landing_recover(CPUState* cpu,uint32_t ra,const InputFrame& f) {
     if(!f.active || (!move && !input_jump_pending()) || f.held[crouch] || f.held[original_aim] ||
        (psx_mod_read_word(player)&0x20002) || (psx_mod_read_word(player+0x224)&0x202002c1) ||
        psx_mod_read_word(camera+0xa4)!=player || psx_mod_read_word(player+0x7d4)!=camera ||
-       shallow_land_water_early() || !player_identity_ready())return false;
+       (shallow_land_water_early() && !grounded_water_modern()) || !player_identity_ready())return false;
     // A jump pressed on landing with no direction: the stance 63, where the
     // host's buffered press reaches the original standing jump (the buffer
     // only feeds the pad in a settled gait, and lapses within 105).

@@ -103,7 +103,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08O2B | Swim-fire aims down again (regression): weapon points down while swimming and firing (player UI slot 3; slot 2 still correct) | Done (user-accepted) | D08O2A |
 | D08AA | Unify walking/running speeds across land, shallow water, surface swim and underwater | Done (user-accepted 2026-10-19) | D08, D08M, D08O |
 | D08AB | SWIMMING menu option: MODERN (D08AA pace) / ORIGINAL swim speeds | Done (user-accepted 2026-10-20) | D08AA, D19 |
-| D08AC | Normalise Shallow-Water Locomotion and Jump Physics | Todo | D08AA, D08AB, D08K11, D08Z |
+| D08AC | Normalise Shallow-Water Locomotion and Jump Physics | Done (user-accepted 2026-10-22) | D08AA, D08AB, D08K11, D08Z |
 | D08O3 | E in water keeps the weapon: redraw when no climb-out follows the stow | Accepted | D08O1 |
 | D08O4 | Brief Ctrl dive keeps swimming forward after release (dive anim plays on; player UI slot 3) | Done (user-accepted) | D08O |
 | D08N | Duke3D-style scuba gear item | Cancelled (out of scope) | — |
@@ -2883,9 +2883,13 @@ unchanged; the user confirms.
 
 ### D08AC - Normalise Shallow-Water Locomotion and Jump Physics
 
-**Todo. Opened 2026-10-22; backlog and source research only.** User reports
-stunted jumps in the flooded subway, UI save slot 10, compared with nearby
-dry ground. No runtime reproduction or new measurements in this session.
+**Accepted (2026-10-22).** User: "perfect!!! lock it in and close us out".
+Implemented shared land gaits, takeoffs,
+air control and landing in grounded shallow/mid water with SWIMMING MODERN.
+SWIMMING ORIGINAL retains its accepted wade behavior; Vanilla is unchanged.
+Private slot-10 reproduction and paired traces confirm the old water path
+selected a reduced forward jump even for neutral Space. See the work log
+below for measured evidence and acceptance.
 Research: [note 194](documentation/194-d08ac-shallow-water-locomotion.md).
 
 **Objective:** grounded shallow water should use the same locomotion model
@@ -2900,7 +2904,7 @@ coverage with D08K5; it does not block investigation. Resolve how the new
 shallow-ground policy coexists with D08AB's explicitly accepted ORIGINAL
 shallow forced-run choice before implementation; do not silently redefine it.
 
-**Reproduction for future implementation:** use a dated private copy of UI
+**Reproduction:** use a dated private copy of UI
 slot 10, confirm the flooded-subway grounded state, then compare walk, run,
 standing and directional jumps with nearby dry ground under identical
 settings and inputs. Record height, launch velocity, gravity/airtime,
@@ -2926,8 +2930,9 @@ Test open floor separately from walls and assisted platform exits.
 **Initial findings:** the water jump path launches 97/98 directly, sets
 `air_cap=0` (disabling manual steering), maintains its own horizontal boost,
 and has separate ledge lift/hold logic. D08AA shares pace but did not unify
-jump physics. The exact cause of the reported reduced height is unproven.
-No gameplay implementation is authorized by this backlog entry.
+jump physics. D08AC bypasses that path for grounded MODERN water, and
+scoped authenticated native branch changes prevent mid-water gait/landing
+rewrites from cancelling ordinary jumps. Water queries and effects remain.
 
 ### D08O3 - E in water keeps the weapon
 
@@ -16181,3 +16186,54 @@ Source confirms separate wade takeoff/boost and disabled manual air steering;
 reported slot-10 jump-height difference remains unmeasured. D08AB ORIGINAL
 option semantics need an explicit design decision. No gameplay code, build,
 launch, save/card writes, commit or push. D08K11 remains the accepted baseline.
+
+
+## 2026-10-22 - D08AC shared grounded-water movement (Needs playtest)
+
+Selected by the user. Grounded SWIMMING MODERN now shares land gaits,
+buffered takeoffs, manual air control, terrain assistance, landing recovery
+and held-crouch landing. Original water masks, volume, position and velocity
+are not overwritten by the new helper. Scoped native patches bypass only
+the mid-water gait, jump-depth and shallow landing vetoes; refreshed deep
+water releases landing overrides. Identity checks recognize only exact
+currently owned substitutions. SWIMMING ORIGINAL retains legacy water
+jumps/ledge assistance; Vanilla and true swimming remain excluded.
+
+Private offscreen tests in `recomp/analysis/d08ac-lab/`: paired same-geometry
+dry/shallow/mid-depth jumps, manual and assisted, both cameras, 60/120 Hz;
+neutral, walk/run, side/back/diagonal and reversing air input. Baseline
+neutral water Space selected forward animation 98 and rose about 513 units;
+ordinary neutral 97 now rises about 1070 (manual). Directional manual jumps
+rose 351 on dry and grounded water fixtures. Run traces vary with stride
+and timestep; shared takeoff velocities and unmodified native gravity were
+checked. Nearby platform geometry obstructs some arcs, so controlled water
+height fixtures provided the open-floor comparison. Three natural short
+run-up platform exits succeeded without legacy wade jumps or ledge assists.
+Upper grounded depth 640 retains ordinary landing; 641/deep is excluded.
+Crouch/crouch-walk, held-crouch touchdown, deep dive/ascent/swim-fire,
+ORIGINAL and Vanilla were exercised. Water rendering was visually checked;
+original sound dispatch remains, but dummy-audio runs do not establish
+audible quality. Native controls (all 21 overlays), input and aim suites
+and player build pass. Final ownership-hardening rebuild passed controls
+and upper-band live smoke with no identity refusals. All 34 source player
+save/card manifest files remain unchanged.
+
+Candidate SHA256:
+`30ca9b3fa5bd0a6350dd8b7ef1a509914ecfb3e60dcf74ec9ebba0982b7eb838`.
+User feel/animation/audio review, natural shoreline/deep-entry routes and
+broader campaign traversal remain unaccepted. D08K11 stays the accepted
+baseline. No acceptance documentation closeout, commit, push or next job.
+
+
+## 2026-10-22 - D08AC accepted (Done)
+
+User: "perfect!!! lock it in and close us out". Grounded shallow/mid-water
+land movement, jumps, air control and landing accepted. SWIMMING MODERN
+uses shared land mechanics; ORIGINAL retains its legacy wade jumps and
+ledge assistance. Deep swimming and Vanilla remain unchanged.
+[Note 194](documentation/194-d08ac-shallow-water-locomotion.md) records implementation,
+paired traces, native suites and live regressions. Executable
+`30ca9b3fa5bd0a6350dd8b7ef1a509914ecfb3e60dcf74ec9ebba0982b7eb838`
+is the accepted regression baseline. Broad campaign/shoreline coverage
+remains an ongoing regression concern, not a claim of exhaustive testing.
+Implementation and documentation commit/push authorized. No next job started.

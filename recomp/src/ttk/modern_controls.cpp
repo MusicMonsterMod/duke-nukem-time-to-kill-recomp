@@ -414,6 +414,7 @@ static int level_index(uint32_t tag) {
 static uint32_t (*level_reader(uint32_t tag))(uint32_t) {
     return tag==3?apartment_identity_word:psx_mod_read_word;
 }
+static uint32_t grounded_water_identity_word(uint32_t address);
 static bool identity() {
     static thread_local std::array<std::vector<uint32_t>,sizeof guards/sizeof guards[0]> expected;
     static thread_local std::array<std::vector<uint32_t>,sizeof state_guards/sizeof state_guards[0]> state_expected;
@@ -426,7 +427,7 @@ static bool identity() {
         const auto t0=std::chrono::steady_clock::now();
         const uint32_t tag=psx_mod_read_word(level_base);
         const int level=level_index(tag);
-        const bool ok=level>=0 && code_identity(guards,expected,psx_mod_read_word,g_psx_ram) &&
+        const bool ok=level>=0 && code_identity(guards,expected,grounded_water_identity_word,g_psx_ram) &&
             masked_identity(state_guards,state_expected) &&
             code_identity(level_overlays[level].body,level_expected[level],level_reader(tag),g_psx_ram);
         memo.set(frame,g_dirty_ram_code_gen,ok);memo_tag=ok?tag:0;
@@ -507,6 +508,13 @@ static bool shallow_land_water_early() {
     const int32_t depth=(int32_t)psx_mod_read_word(player+0x1c8)-
         (int32_t)psx_mod_read_word(player+0x834);
     return depth<0x281;
+}
+// D08AC: land mechanics in grounded water belong to SWIMMING MODERN.
+// ORIGINAL retains its accepted wade pace, jump boosts and ledge assistance.
+static bool grounded_water_modern() {
+    const char* option=ttk_live_env("DNTTK_SWIMMING");
+    return input_modernized() && (!option || std::strcmp(option,"original")) &&
+        shallow_land_water_early();
 }
 static bool land_gait_anim(unsigned animation) {
     return animation==63 || (animation>=72 && animation<=79) ||
@@ -631,6 +639,7 @@ static bool state(bool camera_only=false) {
     // Crystal-2 wade: original plays tank turns 70/71 in this water. Those used
     // to fail state() and kill mouse/Shift. Waist-deep water keeps the land lease.
     const bool wade_land=!camera_only && shallow_land_water_early() && (wade_land_anim(animation) ||
+        (grounded_water_modern() && (animation==80 || animation==81)) ||
         original_step_anim(animation) || animation==86 || animation==87 || animation==92 || animation==93);
     // D08Q: jetpack flight (mode 10) and the fall after it cuts out keep the
     // camera-only lease, like swimming; the original handler owns the motion.
@@ -868,6 +877,7 @@ static void face_view() {
 #include "crouch_walk.inc"
 #include "crouch_landing.inc"
 #include "swim.inc"
+#include "grounded_water.inc"
 #include "jetpack.inc"
 #include "first_person.inc"
 #include "kick.inc"
@@ -916,7 +926,7 @@ static void hook(CPUState* cpu, uint32_t address) {
     const bool update=address==0x8005a210 && cpu->gpr[4]==player;
     if(update && input_modernized()) {overclock_lease();ttk_fast_timing_renew();}
     const bool trace=frame_trace_on();
-    if(!trace) {hook_body(cpu,address);return;}
+    if(!trace) {hook_body(cpu,address);grounded_water_query(cpu,address);return;}
     using clk=std::chrono::steady_clock;
     static clk::time_point last_update;
     if(update) {
@@ -934,12 +944,13 @@ static void hook(CPUState* cpu, uint32_t address) {
         }
         last_update=now;frame_us=0;frame_per.clear();
     }
-    const auto t0=clk::now();hook_body(cpu,address);
+    const auto t0=clk::now();hook_body(cpu,address);grounded_water_query(cpu,address);
     const long us=(long)std::chrono::duration_cast<std::chrono::microseconds>(clk::now()-t0).count();
     frame_trace_account(address,us);
 }
 
 static void hook_body(CPUState* cpu, uint32_t address) {
+    grounded_water_restore();
     crouch_water_restore(); // D08K11: scoped native crouch water veto, also after loads/Vanilla.
     // D08A13: running steroids hidden from Duke's damage handler come back at
     // the first hook after it.
@@ -972,7 +983,7 @@ static void hook_body(CPUState* cpu, uint32_t address) {
         swim_fire_hide(cpu,ra);
         return;
     }
-    if(address==0x80055e80) {crouch_landing_finish(cpu,ra);return;}
+    if(address==0x80055e80) {crouch_landing_finish(cpu,ra);grounded_water_transition(cpu,ra);return;}
     if(address==0x800411b8) {crouch_walk_pose(cpu);swim_aim_begin(cpu,ra);return;}
     if(address==0x8002b9f4) {
         // The original level teardown destroys these records. Forget host
@@ -987,6 +998,8 @@ static void hook_body(CPUState* cpu, uint32_t address) {
     if (address==0x800493a4) {
         if(std::getenv("DNTTK_TRAVERSAL_TRACE") && cpu->gpr[4]==player && psx_mod_read_half(player+0x60)==96)
             std::fprintf(stderr,"ttk-standing ra=%08x track=%u active=%d dir=%.2f/%.2f frame=%llu/%llu epoch=%llu/%llu state=%u/%u flags=%08x player=%08x identity=%d aim=%d crouch=%d\n",ra,psx_mod_read_half(player+0x68),f.active,f.move_x,f.move_y,(unsigned long long)f.sequence,(unsigned long long)camera_frame,(unsigned long long)f.epoch,(unsigned long long)camera_epoch,psx_mod_read_byte(player+0x22c),psx_mod_read_byte(player+0x22d),psx_mod_read_word(player+0x224),psx_mod_read_word(player),player_identity_ready(),f.held[original_aim],f.held[crouch]);
+        if(cpu->gpr[4]==player && (ra==0x8005a3a0 || ra==0x8005a4d0 || ra==0x8005a490 || ra==0x8005a520 || ra==0x8005a548))
+            grounded_water_gait();
         crouch_landing_start(cpu,ra);
         kick_convert(cpu,ra);
         // Original lower-body initializer, after the game accepted jump from
@@ -1017,6 +1030,7 @@ static void hook_body(CPUState* cpu, uint32_t address) {
             cheats_update(cpu);
             spawn_update(cpu);
             steroids_beat(cpu); // D08A10
+            grounded_water_gait();
             terrain_update(cpu);
             crouch_landing_track(cpu);
             stance_request(cpu);
@@ -1057,7 +1071,7 @@ static void hook_body(CPUState* cpu, uint32_t address) {
                independent_camera() && movement_ready() && (f.move_x || f.move_y) &&
                !(psx_mod_read_word(player+0x224)&0x202002c1) && !thrust &&
                !f.held[crouch] && !f.held[original_aim] && input_take_jump()) {
-                // Shallow-water standing jumps (no WASD) are handled in swim_try_wade_jump.
+                // Neutral jumps use the original idle handler on dry and Modern water ground.
                 takeoff_intent=movement(view_yaw(),f.move_x,f.move_y);
                 takeoff_epoch=f.epoch;takeoff_frame=f.sequence;takeoff_valid=true;takeoff_obstacle=false;takeoff_direction=true;++standing_takeoffs;
                 psx_mod_write_half(player+0x60,96);psx_mod_write_half(player+0x68,0);psx_mod_write_half(player+0x6a,0);
@@ -1092,6 +1106,8 @@ static void hook_body(CPUState* cpu, uint32_t address) {
             }
         }
     } else if (address==0x80048410) {
+        if(cpu->gpr[4]==player && ra==0x8004b634)grounded_water_gait();
+        grounded_water_dispatch(cpu,ra);
         if(crouch_water_dispatch(cpu,ra))return;
         if(landing_recover(cpu,ra,f))return; // D08Z3
         // Switch only the two ordinary walk/run gait pairs, at the original
@@ -1557,8 +1573,9 @@ PSX_MOD_CONSTRUCTOR(register_ttk_controls) {
     psx_mod_register_function_entry_plugin("ttk.modern.controls",0x800b42ec,[](CPUState* cpu,uint32_t){ttk::swim_aim_arm(cpu);});
     // D08AA: a shared rotation; only the swim tail's call (ra 0x80046ec8) goes further.
     psx_mod_register_function_entry_plugin("ttk.modern.controls",0x80066e34,[](CPUState* cpu,uint32_t){if(cpu->gpr[31]==0x80046ec8u)ttk::swim_pace(cpu);});
-    // D08J5: a shared bone lookup; only the pole/chain down probe's call (ra 0x8007d7fc) goes further.
-    psx_mod_register_function_entry_plugin("ttk.modern.controls",0x8003964c,[](CPUState* cpu,uint32_t){if(cpu->gpr[31]==0x8007d7fcu)ttk::pole_probe_floor(cpu);});
+    // Shared bone lookup: D08J5 pole floor probe and D08AC final water-entry
+    // neck query only. Other joint lookups retain the cheap caller check.
+    psx_mod_register_function_entry_plugin("ttk.modern.controls",0x8003964c,[](CPUState* cpu,uint32_t){if(cpu->gpr[31]==0x8007d7fcu)ttk::pole_probe_floor(cpu);else if(cpu->gpr[31]==0x8005610cu)ttk::hook(cpu,0x8003964c);});
     // D08A4: the sound routine; only the pickup tail's call (ra 0x800828d8) goes further.
     psx_mod_register_function_entry_plugin("ttk.modern.controls",0x8006b73c,[](CPUState* cpu,uint32_t){ttk::steroids_damage_restore();ttk::sound_logged(cpu);if(cpu->gpr[31]==0x800828d8u)ttk::steroids_pickup_sound(cpu);});
     // D27A: the player update; only Duke's call goes further.
@@ -1585,5 +1602,5 @@ PSX_MOD_CONSTRUCTOR(register_ttk_controls) {
     psx_mod_register_function_entry_plugin("ttk.modern.controls",0x8004dea4,[](CPUState* cpu,uint32_t){ttk::dynamite_entry(cpu);});
     // D08A12: the sparks and the sizzle; only the unlit stick's calls (ra 0x8004e138 / 0x8004e154) go further.
     psx_mod_register_function_entry_plugin("ttk.modern.controls",0x8006d594,[](CPUState* cpu,uint32_t){ttk::dynamite_sparks(cpu);});
-    psx_mod_register_function_entry_plugin("ttk.modern.controls",0x8006b270,[](CPUState* cpu,uint32_t){ttk::dynamite_sizzle(cpu);});
+    psx_mod_register_function_entry_plugin("ttk.modern.controls",0x8006b270,[](CPUState* cpu,uint32_t){if(cpu->gpr[31]==0x80054cb0u)ttk::hook(cpu,0x8006b270);ttk::dynamite_sizzle(cpu);});
 }

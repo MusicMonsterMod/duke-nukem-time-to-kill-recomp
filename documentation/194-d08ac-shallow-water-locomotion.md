@@ -1,7 +1,55 @@
 # D08AC - Normalise Shallow-Water Locomotion and Jump Physics
 
-Status: Todo. Backlog and lightweight source research only, 2026-10-22.
-No implementation, runtime reproduction or new physics measurements.
+Status: Done, user-accepted 2026-10-22: "perfect!!! lock it in and close us out".
+
+## Accepted implementation and evidence
+
+SWIMMING MODERN uses shared land gaits, buffered takeoffs, manual air
+control, terrain assistance, landing recovery and held-crouch landing in
+grounded shallow/mid water. SWIMMING ORIGINAL retains its accepted legacy
+wade path, including jump boosts and ledge help. Vanilla remains unchanged.
+
+`grounded_water.inc` converts eligible mid-wade gait states to ordinary
+land gaits and applies scoped, authenticated native branch substitutions.
+These prevent post-gait water rewrites from cancelling run jumps, bypass
+the depth-only directional jump veto, and retain normal shallow landings.
+Original collision, water queries, effects and deep-water handoff remain.
+The helper does not overwrite water masks, volume, position or velocities.
+Patches restore before hook identity checks; other plugins recognize only
+exact substitutions owned by the current scope. A refreshed deep-water
+classification releases the shallow landing override.
+
+Private offscreen evidence: `recomp/analysis/d08ac-lab/`. Same-geometry
+paired dry/shallow/mid-water traces covered both jump styles, cameras and
+60/120 Hz. Baseline neutral Space selected forward animation 98 and rose
+about 513 units; the ordinary neutral animation 97 now rises about 1070
+in manual mode. Directional manual jumps rose 351 on dry and water fixtures.
+Run arcs vary with stride/timestep; shared launch velocities and unchanged
+native gravity were checked. Nearby platform geometry obstructed some arcs,
+so controlled water-height fixtures isolated the open-floor comparison.
+Three natural short run-up platform exits succeeded without legacy wade
+jumps or ledge assists. Depth 640 retained normal landing; deep/641 was
+excluded. Crouch/walk, held-crouch touchdown, dive/ascent/swim-fire,
+ORIGINAL and Vanilla regressions passed. Final rebuild and live smoke
+passed without identity refusals; final deep regression fired three shots
+and returned from mode 5 to surface mode 4.
+
+Player build and native controls (all 21 overlays), input and aim suites
+passed. All 34 original player save/card manifest files remained unchanged.
+Water rendering was inspected; dummy-audio tests establish dispatch, not
+audible quality. User acceptance establishes the requested behavior; broad
+campaign and natural shoreline coverage remain regression concerns.
+
+Accepted executable SHA256:
+`30ca9b3fa5bd0a6350dd8b7ef1a509914ecfb3e60dcf74ec9ebba0982b7eb838`.
+No gameplay rebuild was needed for acceptance closeout. The existing
+framework patch was re-exported unchanged and verified against the pinned
+clean dependency.
+
+## Original pre-implementation research
+
+The sections below preserve the initial investigation and proposed checks;
+statements about unresolved behavior describe that earlier research stage.
 
 ## Report and intended design
 

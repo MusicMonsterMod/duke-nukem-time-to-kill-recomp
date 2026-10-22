@@ -21,7 +21,7 @@ static bool terrain_probe(CPUState* cpu,uint32_t function,Vec2 direction,int32_t
 static bool terrain_step_probe(CPUState* cpu) {
     const auto& f=input_snapshot(Context::Gameplay);
     if(f.held[crouch] || f.held[interact] || (psx_mod_read_word(player+0x224)&0x202002c1) ||
-       psx_mod_read_word(player+0x20c))return false;
+       (psx_mod_read_word(player+0x20c) && !grounded_water_modern()))return false;
     int32_t result=0,floor=0;
     return terrain_probe(cpu,0x8007926c,movement(view_yaw(),f.move_x,f.move_y),result,floor) &&
         result==6 && floor>256 && floor<=768;
@@ -52,7 +52,7 @@ static void terrain_update(CPUState* cpu) {
             previous,had_movement,(long long)(f.sequence-movement_frame));
     if(animation==108 && !short_fall && had_movement && intent_epoch==f.epoch &&
        f.sequence>=movement_frame && f.sequence-movement_frame<=8 &&
-       drop>256 && (drop<=768 || run_off) && !psx_mod_read_word(player+0x20c)) {
+       drop>256 && (drop<=768 || run_off) && (!psx_mod_read_word(player+0x20c) || grounded_water_modern())) {
         short_fall=true;fall_velocity_pending=true;fall_walking=!input_running();large_fall=drop>768;
         fall_speed=stride_epoch==f.epoch && (f.move_x || f.move_y)?stride_speed:0;flight_valid=true;flight_epoch=f.epoch;flight_intent=intent;air_cap=0;
         if(large_fall)++run_offs; else ++step_drops;

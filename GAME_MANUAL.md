@@ -336,14 +336,17 @@ See [notes](documentation/138-d08a12-modern-dynamite.md).
 
 ### Swimming (Modernized, D08AB)
 
-**SWIMMING** in OPTIONS > ADVANCED picks how fast Duke moves in water.
+**SWIMMING** in OPTIONS > ADVANCED selects water movement behavior.
 `MODERN` (the Modernized default) is the D08AA pace: walk, or run with **Shift**,
 at the land speeds in shallow water, wading, on the surface and underwater.
 `ORIGINAL` keeps the modern controls but restores the original water speeds:
 shallow and waist-deep water always run, the surface strokes are the original
 fixed speeds (fast forward, slower back, a slow sideways stroke) and
-underwater thrust is the original fixed speed, whatever Shift says. Steering,
-diving, Space / Ctrl, swim-fire and leaving the water are the same in both.
+underwater thrust is the original fixed speed, whatever Shift says.
+With `MODERN`, walking on the bottom uses normal land jumps, air control
+and landing, following the selected JUMPING style. `ORIGINAL` retains the
+older wade jumps and special ledge help. Deep-water diving, ascent and
+swim-fire controls remain the same in both.
 A change applies at once, even mid-swim, and is saved. Vanilla always uses the
 original speeds. Choose **U** in `--settings`, or:
 
@@ -480,11 +483,13 @@ Boot retains its unarmed attack. Ordinary ground draw/holster animations run at
 the original up/down controls, **A/D** feed left/right, and **E** keeps the action
 held. The game controls the attached climbing motion and camera.
 
-**Jumping in shallow water (Modernized, D08W).** In ankle- or
-waist-deep water (the subway tunnels, the crystal-2 corridor) W/A/S/D plus Space
-now jump in the held camera-relative direction, as on dry ground, including a
-sideways jump after running forward. Space alone and W + Space toward a platform
-keep the D08O ledge help.
+**Jumping in shallow water (Modernized, D08AC).** With SWIMMING MODERN,
+walking on the bottom uses the same movement, jumps and landings as dry
+ground. Space alone jumps vertically; W/A/S/D plus Space jumps in the held
+camera-relative direction, with Shift for a running jump. The selected
+JUMPING style controls the arc and air steering. Water effects remain.
+Use ordinary jumps to reach platforms; the older water-specific jump boost
+and ledge help remain available only with SWIMMING ORIGINAL.
 
 **Grabbing a ledge in the air (Modernized, D08X, awaiting playtest).** Hold **E**
 as you jump at a ledge within reach and Duke reaches for it from takeoff, catches
@@ -852,11 +857,9 @@ it allows the original stop. There is no air steering. Obstacle impacts retain
 the original recovery. Both alternating running-jump animations are supported.
 Standing directional jumps also retain their takeoff direction and mouse camera;
 they use TTK’s original standing-directional arc. **Modernized swimming** (D08M foundation and D08O polish both Done): shallow-water
-**Space** jumps like on land. Facing a raised ledge such as the subway
-platforms, **Space** (alone or with W) hops you up onto it from the wall or
-from a run-up — the ordinary jump, a little taller, that waits for the feet to
-clear the lip before moving in; no distance puzzle. Facing a plain wall,
-W+Space is a vertical hop.
+**Space** uses ordinary land jumps with SWIMMING MODERN (D08AC), including
+normal running jumps onto platforms. SWIMMING ORIGINAL retains the older
+wade jump and special ledge assistance.
 On the surface of deep water, face the camera: **W/S** swim forward/back,
 **A/D** strafe (camera-relative), **Ctrl** dives for as long as you hold it
 (let go and Duke stops, unless W/A/S/D is held - D08O4). Underwater, **W/A/S/D**
@@ -868,7 +871,7 @@ on the surface and underwater, at the same two speeds as on dry ground and in
 every direction (sideways and backward strokes included). Underwater, Space
 and Ctrl keep their own up/down speed. Like on land, walking stops at the edge
 of a drop such as a pool rim; run or jump to go over it. **SWIMMING ORIGINAL**
-(D08AB, below) brings back the original water speeds instead. Leave the water with
+(D08AB, below) brings back the original water speeds and wade jumps. Leave deep water with
 **E** / mantle — Space never hops you out at a ledge. E puts the weapon away
 to climb; if there is no ledge to climb, Duke draws it again by himself
 (D08O3). Water/oxygen stay with the original game.

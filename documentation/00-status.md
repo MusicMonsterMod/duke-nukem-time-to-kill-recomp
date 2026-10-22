@@ -1,16 +1,17 @@
 # Current status - 2026-10-04
 
-## 2026-10-22 - D08AC opened (backlog and research only)
+## 2026-10-22 - D08AC accepted (Done)
 
-D08AC queues shallow-water grounded locomotion/jump parity with dry land,
-using UI slot 10 and nearby dry ground for the future paired comparison.
-[Note 194](194-d08ac-shallow-water-locomotion.md) separates source findings
-from hypotheses: wade jumps have their own launch/boost path and disable
-manual air steering; the reported reduced jump height is not yet measured.
-Prefer shared grounded logic with water effects retained. Preserve native
-surface/underwater mechanics and resolve D08AB ORIGINAL option semantics
-before implementation. Todo only; no gameplay changes, build, launch or
-save/card writes. D08K11 remains the accepted executable. No commit/push.
+User: "perfect!!! lock it in and close us out". Grounded shallow/mid-water
+land movement, jumps, air control and landing accepted. SWIMMING MODERN
+uses shared land mechanics; ORIGINAL retains its legacy wade jumps and
+ledge assistance. Deep swimming and Vanilla remain unchanged.
+[Note 194](194-d08ac-shallow-water-locomotion.md) records implementation,
+paired traces, native suites and live regressions. Executable
+`30ca9b3fa5bd0a6350dd8b7ef1a509914ecfb3e60dcf74ec9ebba0982b7eb838`
+is the accepted regression baseline. Broad campaign/shoreline coverage
+remains an ongoing regression concern, not a claim of exhaustive testing.
+Implementation and documentation commit/push authorized. No next job started.
 
 
 ## 2026-10-22 - D08K11 accepted (Done)

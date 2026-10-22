@@ -1318,19 +1318,23 @@ int main(int argc,char** argv) {
             ttk::input.held[ttk::crouch]=reject!=6;        // released before landing
             if(reject==7)++ttk::input.epoch;             // load/focus invalidates request
             if(reject==8)ttk::modern=false;
-            if(reject==9)psx_mod_write_word(p+0x834,psx_mod_read_word(p+8)-1);
+            if(reject==9)psx_mod_write_word(p+0x834,psx_mod_read_word(p+0x1c8)-800); // deep water
+            if(reject==14 || reject==15) {
+                psx_mod_write_word(p+0x834,psx_mod_read_word(p+0x1c8)-128);
+                if(reject==15)setenv("DNTTK_SWIMMING","original",1);
+            }
             if(reject==10)ttk::input.held[ttk::original_aim]=true;
             if(reject==11)poke(0x54c04);
             call(0x800493a4,p,0,reject==12?0x8005a3a0:0x8005a4d0,
                  reject==13?0x801fefb0:0x801fefc0);
             const unsigned result=psx_mod_read_half(p+0x60);
             if(reject==11)poke(0x54c04);
-            unsetenv("DNTTK_CROUCH");unsetenv("DNTTK_LANDING");landing_clips=true;ttk::modern=true;
+            unsetenv("DNTTK_SWIMMING");unsetenv("DNTTK_CROUCH");unsetenv("DNTTK_LANDING");landing_clips=true;ttk::modern=true;
             return result;
         };
         for(unsigned a:{105u,78u,84u,85u,96u})assert(land(a)==178);
         for(unsigned a:{106u,127u,227u,158u,161u,134u})assert(land(a)==a);
-        for(int reject=1;reject<=13;++reject) {const unsigned result=land(105,reject);const unsigned expected=reject==4?178u:105u;if(result!=expected)std::fprintf(stderr,"D08K9 rejection %d returned %u\n",reject,result);assert(result==expected);}
+        for(int reject=1;reject<=15;++reject) {const unsigned result=land(105,reject);const unsigned expected=(reject==4 || reject==14)?178u:105u;if(result!=expected)std::fprintf(stderr,"D08K9 rejection %d returned %u\n",reject,result);assert(result==expected);}
         landing_clips=false;ttk::input=saved;
         psx_mod_write_word(p+0x834,0x40000000);psx_mod_write_word(p+0x224,0);
         psx_mod_write_half(p+0x60,63);psx_mod_write_byte(p+0x22c,0);psx_mod_write_byte(p+0x22d,0);
@@ -3219,6 +3223,78 @@ int main(int argc,char** argv) {
     psx_mod_write_half(p+0x60,63);++ttk::input.sequence;
     call(0x8003ade4,c,p,0x80025ee8);assert(ttk::movement_ready());
     std::puts("PASS: turret-wade land lease, anim-70/71 run, Escape recapture");
+    // D08AC: authenticated mid-water gaits use the land dispatcher without
+    // removing the water mask or changing floor/position/velocity. Native
+    // swimming, Original, Vanilla, foreign callers and changed code stay out.
+    {
+        const auto saved=ttk::input;
+        uint8_t body[0x8a4];for(unsigned i=0;i<sizeof body;++i)body[i]=psx_mod_read_byte(p+i);
+        for(int test=0;test<8;++test) {
+            for(unsigned i=0;i<sizeof body;++i)psx_mod_write_byte(p+i,body[i]);
+            ttk::input=saved;ttk::input.active=true;ttk::input.move_x=0;ttk::input.move_y=1;
+            ttk::input.held[ttk::crouch]=false;ttk::input.held[ttk::original_aim]=false;
+            psx_mod_write_word(p+0x224,0);psx_mod_write_word(p,0);
+            psx_mod_write_half(p+0x60,80);psx_mod_write_half(p+0x68,0);
+            psx_mod_write_byte(p+0x22c,test==2?4:test==3?5:1);psx_mod_write_byte(p+0x22d,1);
+            psx_mod_write_word(p+0x834,-512);psx_mod_write_word(p+0x1c8,test==1?288:0);
+            psx_mod_write_word(p+0x20c,0x3b800);
+            if(test==4)setenv("DNTTK_SWIMMING","original",1);
+            if(test==5)ttk::modern=false;
+            if(test==7)poke(0x5492c);
+            call(0x800493a4,p,0,test==6?0x8005a3a4:0x8005a3a0);
+            assert(psx_mod_read_half(p+0x60)==(test==0?(ttk::input_running()?76:72):80));
+            assert(psx_mod_read_byte(p+0x22c)==(test==0?0:test==2?4:test==3?5:1));
+            assert(psx_mod_read_word(p+0x20c)==0x3b800 && int32_t(psx_mod_read_word(p+0x834))==-512);
+            for(unsigned o:{4u,8u,12u,0x1f4u,0x1f8u,0x1fcu})
+                for(unsigned i=0;i<4;++i)assert(psx_mod_read_byte(p+o+i)==body[o+i]);
+            if(test==7)poke(0x5492c);
+            ttk::modern=true;unsetenv("DNTTK_SWIMMING");
+        }
+        ttk::input.active=true;ttk::input.move_y=1;
+        ttk::input.held[ttk::original_aim]=ttk::input.held[ttk::crouch]=false;
+        psx_mod_write_word(p,0);psx_mod_write_word(p+0x224,0);
+        psx_mod_write_word(p+0x834,-512);psx_mod_write_word(p+0x1c8,0);
+        psx_mod_write_word(p+0x20c,0x3b800);
+        psx_mod_write_half(p+0x60,72);psx_mod_write_byte(p+0x22c,0);psx_mod_write_byte(p+0x22d,0);
+        call(0x8003ade4,c,p,0x80025ee8);
+        call(0x80048410,p,0,0x8004b634,0x801ff000);
+        assert(psx_mod_read_word(0x8004866c)==0x10000332);
+        assert(psx_mod_read_word(0x80054964)==0);
+        psx_mod_write_word(0x801feffc,0x8004b634);
+        call(0x800780b4,0,0,0,0x801fefc0); // nested hook restores, checks, reapplies
+        assert(psx_mod_read_word(0x8004866c)==0x10000332);
+        ttk::modern=false;call(0x80058120,p,0,0x80041c44,0x801ff010);
+        assert(psx_mod_read_word(0x8004866c)==0x10400332);
+        assert(psx_mod_read_word(0x80054964)==0x10400060);
+        ttk::modern=true;
+        for(int depth:{640,641}) {
+            psx_mod_write_word(p+0x834,-depth);psx_mod_write_half(p+0x60,98);
+            psx_mod_write_byte(p+0x22c,9);psx_mod_write_byte(p+0x22d,9);
+            call(0x80055e80,p,0,0x8005a4f8,0x801ff000);
+            assert(psx_mod_read_word(0x80056240)==(depth==640?0x1000005cu:0x1040005cu));
+            call(0x80058120,p,0,0x80041c44,0x801ff010);
+            assert(psx_mod_read_word(0x80056240)==0x1040005c);
+        }
+        psx_mod_write_word(p+0x834,-640);psx_mod_write_half(p+0x60,98);
+        psx_mod_write_byte(p+0x22c,9);psx_mod_write_byte(p+0x22d,9);
+        call(0x80048410,p,0,0x8004b634,0x801ff000);
+        assert(psx_mod_read_word(0x80054cbc)==0x1000000a);
+        assert(ttk::player_identity_ready()); // collision/aim plugins see owned code
+        psx_mod_write_code_word(0x80054964,0); // known substitution, but not owned in this scope
+        assert(!ttk::player_identity_ready());
+        psx_mod_write_code_word(0x80054964,0x10400060);
+        poke(0x54c04);assert(!ttk::player_identity_ready());poke(0x54c04);
+        assert(ttk::player_identity_ready());
+        // A real floor/water change during collision must release the shallow
+        // landing rule before the native selector reads the volume depth.
+        psx_mod_write_word(0x801feffc,0x8004b634);psx_mod_write_word(p+0x834,-800);
+        call(0x8006b270,0x3001,p+4,0x80054cb0,0x801fef80);
+        assert(psx_mod_read_word(0x80054cbc)==0x1440000a);
+        assert(psx_mod_read_word(p+0x20c)==0x3b800);
+        for(unsigned i=0;i<sizeof body;++i)psx_mod_write_byte(p+i,body[i]);
+        ttk::input=saved;
+        std::puts("PASS: D08AC shared mid-water gait; water identity/physics preserved; deep/swim/Original/Vanilla/caller/code exclusions");
+    }
     // Mid-depth wade (flooded corridor ledge): depth 0x200, mode 1, clip 81.
     // The wade handler's root is retargeted to camera-relative WASD at land
     // pace; camera-only lease keeps mouse look; no direction keeps the clip.
@@ -3227,7 +3303,7 @@ int main(int argc,char** argv) {
     psx_mod_write_word(p+0x834,(uint32_t)-6144);psx_mod_write_word(p+0x1c8,(uint32_t)-5632);
     ttk::input.active=true;ttk::input.move_x=0;ttk::input.move_y=0;++ttk::input.sequence;
     call(0x8003ade4,c,p,0x80025ee8);
-    assert(!ttk::movement_ready() && ttk::locomotion_input_ready() && !ttk::swim_input_ready());
+    assert(ttk::movement_ready() && ttk::locomotion_input_ready() && !ttk::swim_input_ready());
     assert(ttk::mid_wade_input_ready());
     psx_mod_write_half(c+12,0);psx_mod_write_half(c+16,4096); // view +Z
     psx_mod_write_half(p+0xfc,(uint16_t)(int16_t)-22);psx_mod_write_half(p+0x100,0); // clip root, body-relative world

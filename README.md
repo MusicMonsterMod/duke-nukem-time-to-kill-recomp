@@ -74,6 +74,12 @@ and Unlimited stress/debug. There is no 120 FPS ceiling. See the
   `recomp/assets/ui/fonts/microfont/`.
 - **Original UI art** (the inventory selection frame and the crosshair) by
   MusicMonsterMod, in `recomp/assets/ui/`.
+- **Crouch-walk motion**: the "walk crouch" animation of
+  [Modern Army Soldier with +24 pro Animations](https://sketchfab.com/3d-models/modern-army-soldier-with-24-pro-animations-37566d930fa7404f87847b7fca8dca97)
+  by [abdlilah ben](https://sketchfab.com/m152027350)
+  ([CC BY 4.0](http://creativecommons.org/licenses/by/4.0/)). Changed: sampled and
+  reduced to hip, ankle and foot motion (`recomp/assets/anim/crouch-walk-mocap.json`),
+  then retargeted onto Duke's skeleton for the Modernized crouch walk.
 
 Third-party licenses remain applicable: the title scaffold has its license in
 `recomp/LICENSE`; framework/UI dependencies retain their own licenses. The

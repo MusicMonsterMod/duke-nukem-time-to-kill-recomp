@@ -82,7 +82,13 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08H | Apartment furniture, hidden pickup and switch targeting | Done | D08 |
 | D08I | Responsive run-start and edge jumps | Done | D08 |
 | D08J | Armed airborne ladder grabs and automatic weapon transitions | Done | D08, D08E |
-| D08K | True crouch walking and animation feasibility | Blocked | D08 |
+| D08K | True crouch walking and animation feasibility (parent; split into D08K1-D08K6 on 2026-10-22; D08K1-D08K4 Done) | Todo | D08K5, D08K6 |
+| D08K1 | Animation pipeline: decode the skeleton (HIE) and joint/mesh mapping, preview poses, round-trip a local animation override (research + tooling) | Done (user-accepted 2026-10-22) | D08 |
+| D08K2 | Crouch-height movement collision: low hull and headroom checks while moving, safe stand-up (no new animation needed) | Done (user-accepted 2026-10-22) | D08 |
+| D08K3 | Crouch-walk animation: low-gait loops for every direction with planted feet, matching root travel and original events | Done (user-accepted 2026-10-22; look refined in D08K6) | D08K1 |
+| D08K4 | Modernized crouch walking: hold crouch + direction walks low (no automatic roll), aim and fire, safe stand-up, roll binding | Done (user-accepted 2026-10-22, technical; look in D08K6) | D08K2, D08K3 |
+| D08K5 | Crouch-walk coverage: low ceilings, stairs/edges, weapons, both cameras, traversal interruptions, game-wide; Vanilla unchanged | Todo | D08K4, D22B |
+| D08K6 | Crouch-walk animation quality: a realistic, Solid Snake-style tactical crouch walk (not "sitting on a toilet"), deep study of the captured animation pack; fix the left-arm shake while crouch walking | Todo | D08K4 |
 | D08L | Inertial platform edge run-off | Done | D08 |
 | D08M | Modern underwater swimming controls (foundation) | Done | D08 |
 | D08O | Deep free-swim polish (strafe, Ctrl dive, mantle-only exit) | Done | D08M |
@@ -3559,6 +3565,196 @@ retain original roll in Vanilla and document any separate Modernized roll bindin
 without replacing custom bindings. Test low ceilings, edges/stairs, release,
 weapon/traversal interruption and camera. Do not promise a new skeletal animation
 before verifying the asset pipeline; record concrete blockers if no safe prototype.
+
+**Split into sub-jobs (2026-10-22, user request).** The audit's four
+concrete dependencies are now separate jobs: D08K1 (animation pipeline),
+D08K2 (crouch-height collision), D08K3 (crouch-walk animation), D08K4
+(Modernized controls prototype) and D08K5 (coverage). D08K stays Blocked as
+the parent and is Done when D08K5 is.
+
+### D08K1 - Animation pipeline: skeleton, pose preview and local override
+
+**Done (user-accepted 2026-10-22).** User: "ok!!! now it's functionally working. the job is fulfilled on a technical level ... lock in and close out the done tasks which is the tech implementation." Animation quality continues in D08K6.
+
+**Needs review (2026-10-22).** Implemented and verified; see
+[note 184](documentation/184-d08k1-animation-pipeline.md). Formats recovered
+from the readers: HIE (record byte 1 = ROT joint id written by the loader from
+the header table), MOD (vertices at [+0x10], GPU-style primitive groups), ANM /
+FRM / ROT (Q12 quaternions, cumulative root height, per-frame z travel), and
+the animation -> four-clip table in the executable, whose clips are body
+channels (legs/root, right arm, left arm, chest+head; player channels at
++0x60/+0x74/+0x88/+0x9c), not alternatives as the D08K audit read them.
+`ttk_anim.py` decodes, renders, round-trips (9,481 clips byte for byte),
+bridges to Blender 4.0 (`ttk_anim_blender.py`) and builds override packs;
+`anim_override.cpp` loads them at run time (Modernized only, verified by clip
+digest, buffer in the GPU-DMA aperture, savestate adopt/restore). Evidence:
+live FK within 4.4 units; blended frames within 8/4096 for idle, walk, crouch
+transition, crouch and roll; Blender re-encoded idle in play within 2.39/4096;
+demo override visible; Vanilla route reviewed. Limits: preview is unlit, the
+chase camera crops the in-game side-by-side, rebase covers the player's
+channels only, and new animation ids (D08K3/D08K4) need a host-side mapping.
+
+**Opened 2026-10-22 (split from D08K).** The D08K audit decoded the ANM
+start/count pairs, eight-byte FRM records and eight-byte ROT commands
+(readers `800593b4`, `80058c70`, `800597e4`; Q12 quaternion rotations,
+bit29 translation, top five bits of word1 select the joint), but nothing yet
+maps joints to Duke's mesh or proves a replacement animation can be loaded.
+Start from `recomp/tools/local/audit_crouch_assets.py` and
+[the audit](documentation/43-crouch-walk-audit.md).
+
+**Acceptance:** document the HIE hierarchy and the joint-to-mesh mapping for
+Duke. A local tool renders any original frame of any clip as a pose preview
+that matches the live game (side-by-side capture of at least the crouch
+178, crouch transition 176 and forward roll 181). A non-destructive local
+override mechanism (outside `game/`, original media read-only, no
+hand-edited generated C) replaces one original clip at runtime; re-encoding
+an original clip through the pipeline and loading it as the override is
+indistinguishable from the original in play, including frame events.
+Vanilla loads no overrides. If any step is not feasible, record the concrete
+blocker.
+
+### D08K2 - Crouch-height movement collision and safe stand-up
+
+**Done (user-accepted 2026-10-22).** User: "ok!!! now it's functionally working. the job is fulfilled on a technical level ... lock in and close out the done tasks which is the tech implementation." Animation quality continues in D08K6.
+
+Was Needs review (2026-10-22). See [note 185](documentation/185-d08k2-crouch-hull.md).
+The original move probe `0x8007926c` judges steps with standing clearance
+0x370 and a head ray 0x370 up; `recomp/src/ttk/crouch_hull.inc` asks the same
+original queries (object probe `0x800780b4`, floor/ceiling `0x8007765c`, head
+ray `0x800774cc`, slope `0x80077438`) with a 0x2c0 hull (kneeling Duke is 591
+tall, D08K1; the D08K3 crouch walk 654), refuses steps up or drops over 0x100, and follows the floor.
+Debug-only test mover (`crouchwalk` / `crouchgo`) and `crouchscan` on the
+backtick console. Finding: no crouch-only ceiling or overhang at any
+selectable level start (scans of levels 0-3 and 5-12), and the walkthrough
+mentions crouch/roll only for combat, so the hull is a safety rule; the
+user's goal is precise combat movement. Evidence: walls, props, curbs,
+stairs and two real edges in play; clearance gate shown with a test hull;
+native fixture for the crouch-only case; suites and Vanilla route pass.
+Limits: no natural low ceiling to show in play, steep slopes not met live,
+feet slide in the test mover (animation and controls are D08K3/D08K4).
+
+**Opened 2026-10-22 (split from D08K).** The roll movement path
+(`80054308` -> `8007926c`, and `80054218`) uses a fixed standing clearance
+`0x370` and head-ray offsets at `800794d0`, `80079530`, `800795dc`. A
+crouched mover needs a lower hull. This job is independent of the animation
+work and can proceed in parallel.
+
+**Acceptance:** a Modernized-only movement mode moves Duke at a low hull
+height so he passes under ceilings that block standing movement and is still
+stopped by walls, edges and props. Stand-up is refused while the standing
+headroom is blocked and allowed once it is clear. Prove it with a debug-only
+test mover (the crouch idle may slide its feet here; this is not shipped
+play), across low ceilings, slopes, stairs and ledge edges, with no clipping
+into geometry and no falling through floors. Vanilla collision unchanged.
+
+### D08K3 - Crouch-walk animation loops
+
+**Done (user-accepted 2026-10-22).** User: "ok!!! now it's functionally working. the job is fulfilled on a technical level ... lock in and close out the done tasks which is the tech implementation." Animation quality continues in D08K6.
+
+Was Needs review (2026-10-22). See [note 186](documentation/186-d08k3-crouch-walk-loops.md).
+Every original crouch pose is a one-knee kneel, so the crouch walk is a new
+gait: `recomp/tools/local/ttk_crouch_walk.py` solves two-bone IK on Duke's
+skeleton (pelvis 330, 60% stance, feet flat and forward, travel equal to the
+planted foot's slide) for forward, backward and both strafes, 8 keyframes at
+about 200 units/s, footstep events like the walks, forward/backward split into
+half-cycle clips like 72/74 and 82/83. Generated locally from the disc, never
+committed. Planted feet slide at most 1.7 units (original walks 23-40 on
+average); top 654, so the D08K2 hull is now 0x2c0. A preview pack replacing the
+walk clips shows the crouch walk in game; a Blender file holds the clips for
+review. Limits: D08K4 must drive the speed (Modernized pace is faster) and
+judge the kneel entry/exit blends.
+
+**Opened 2026-10-22 (split from D08K).** There is no original low walk; the
+directional crouch clips (181-184) are full-body rolls. Using the D08K1
+pipeline, author or blend (from the crouch 178, low pose 179 and walk
+clips) low-gait loops.
+
+**Acceptance:** loops for forward, backward and both strafe directions (or a
+documented blend that covers them) with alternating planted feet, root
+travel that matches the intended crouch speed (no foot sliding at that
+speed), clean entry from and exit to the crouch 178, and original event
+semantics kept (footsteps or none, no stray events). Weapon-holding upper
+body stays usable for aiming. Previewed in the D08K1 tool and loaded in game
+through the override. Any new art is ours, tracked as a project asset, not
+derived retail data committed to the repo.
+
+### D08K4 - Modernized crouch walking prototype
+
+**Done (user-accepted 2026-10-22).** User: "ok!!! now it's functionally working. the job is fulfilled on a technical level ... lock in and close out the done tasks which is the tech implementation." Animation quality continues in D08K6.
+
+Was Needs playtest (2026-10-22). See [note 187](documentation/187-d08k4-crouch-walking.md).
+User: "the options should be vanilla (roll) OR modern crouch walking with
+modern crouch being the default". CROUCH MODERN (default; schema 39, run.py
+`--crouch`, OPTIONS > ADVANCED > MOVEMENT) walks low with held crouch plus a
+direction, Duke facing the view, through the D08K2 crouch probe, playing the
+D08K3 clips on channel 0 (host-driven frames, pack built from the disc by
+CMake); CROUCH ORIGINAL keeps the roll; Vanilla unchanged. Lab: no roll,
+crouch-walk frames in four directions, kneel on stop, stand on release;
+original setting rolls. Executable `862d7b9b8a98c91c55427ada9a49e402ef2d3083be99450a5e7475e02fc81c32`. Limits: no footstep sounds,
+diagonals use the dominant clip, fixed speed.
+
+**Opened 2026-10-22 (split from D08K).** Combine the D08K2 low hull with the
+D08K3 loops into the control the user asked for: hold crouch plus a
+direction to walk low and slowly in every direction, not roll.
+
+**Acceptance:** in Modernized, held crouch + direction walks low with the new
+loops and camera-relative direction; no automatic roll for ordinary
+crouch + direction. Aiming and firing work while crouch-walking; release
+stands up only where headroom allows (otherwise stays low). The original
+roll stays reachable through a documented separate Modernized binding (or a
+menu choice) without replacing custom bindings; Vanilla keeps the original
+roll and controls unchanged. Third and first person both work.
+
+### D08K5 - Crouch-walk coverage and regression
+
+**Opened 2026-10-22 (split from D08K).** Game-wide verification of D08K4,
+following D22B (modern controls in every level).
+
+**Acceptance:** tested in several levels and eras: low ceilings and vents,
+stairs, slopes and edges, release under cover, weapon switching and firing,
+taking damage, jumping/mantling/ladders/swimming interrupting a crouch
+walk, both cameras, high refresh rates, savestate load while crouched, death
+and Continue. Vanilla regression route passes unchanged. User playtest
+accepts it; then D08K closes too.
+
+### D08K6 - Crouch-walk animation quality (Solid Snake, not "on the toilet")
+
+**Opened 2026-10-22 from the user's D08K4 acceptance.** User: "now it's time
+to actually refine the animation ... make it look much more realistic and
+higher quality rather than the "duke sat on a toilet" look. we can use the
+research/crouchwalk-anim as a deep study because it doesnt feel like this even
+resembled this cool looking walk ... the only glitch im seeing now is that there
+is a slight shake in duke's left arm when crouch walking. We need to go from
+this "on the toilet" look to a real solid snake type look."
+
+Starting point (D08K4 revision 3, note 187): the CC-BY "walk crouch" of
+"Modern Army Soldier with +24 pro Animations" (abdlilah ben, Sketchfab) is
+reduced to hips height, torso direction, ankle paths and foot rotations
+(`recomp/assets/anim/crouch-walk-mocap.json`, `extract_crouch_mocap.py`) and
+retargeted onto Duke's legs with two-bone IK (`ttk_crouch_walk.py`); the pelvis
+is forced to 300 (deeper than the capture's 366) with only the lean taken from
+the torso direction, the upper body stays on the original channels, strafes
+turn the stride sideways.
+
+Study and acceptance:
+- Study the source rig's full motion (hips orientation including yaw/roll,
+  spine/chest bend, knee direction, foot placement width and toe-out, arm
+  carry) against what reaches Duke, side by side in Blender and in game, and
+  find what makes it read as "sitting" (likely: pelvis too low and too far
+  back for the stride, upright chest on a pitched pelvis, knees splayed,
+  feet too wide, missing hip sway/rotation).
+- A tactical crouch walk in the spirit of Solid Snake / the capture: weight
+  forward, chest leaning over the knees, smooth heel-to-toe steps, natural
+  hip and shoulder counter-rotation; strafes and backward that read as
+  intentional (dedicated captured cycles or a retarget of the pack's other
+  motions if better); the squat idle and entry/exit (`idle simple to crouch`,
+  `simple to crouch`) considered.
+- Upper body: carry the weapon low and ready while crouch walking where the
+  channels allow (chest/arm presentation without breaking aim or fire).
+- Fix the slight left-arm shake while crouch walking.
+- Keep: planted feet at the walking pace, the D08K2 collision and hull,
+  first person, Vanilla unchanged, the attribution.
+- User playtest accepts the look.
 
 ### D08T - Pushable objects: modern grab, push/pull and climb
 
@@ -15151,3 +15347,121 @@ in note 117 is the reference for future custom pickups.
   opt-out) or a level-start state that holds the camera lease inactive.
   Regression baseline unchanged:
   `076f949136de1f29bd0675da8cefd3a1fd7222a73468880c6014e888ad803d5d`.
+
+## 2026-10-22 - D08K split into D08K1-D08K5 (Todo)
+
+- User: "we should firstly split it into sub-jobs now so we can actually
+  tackle this. stand them up in the backlog now". Board only; no code changed.
+- From the D08K audit's four required steps: D08K1 animation pipeline
+  (skeleton, pose preview, local override), D08K2 crouch-height collision and
+  safe stand-up (parallel, no animation needed), D08K3 crouch-walk loops
+  (waits on D08K1), D08K4 Modernized controls prototype (waits on D08K2,
+  D08K3), D08K5 game-wide coverage (waits on D08K4, D22B). D08K stays Blocked
+  as the parent until D08K5 is Done.
+
+## 2026-10-22 - D08K1 animation pipeline (Needs review)
+
+- User: "you have everything you need to get going with this job now ...
+  work autonomously on these jobs, starting with D08K1. feel free to move
+  onto the next job as far as possible."
+- Implementation: `recomp/tools/local/ttk_anim.py`, `ttk_anim_blender.py`,
+  `recomp/src/ttk/anim_override.cpp` (CMake source list), tests
+  `recomp/tests/local/test_ttk_anim.py`, note 184. No game.local.toml change
+  (player update 0x8005a210 was already an entry hook); no framework edit.
+- Evidence (private lab `recomp/analysis/d08k1-anim`, port 9401): byte-exact
+  round trip of 9,481 clips; live VRAM equals the A/B.RAW placement; live FK
+  within 4.4 units; blended frames within 8/4096 (anims 63, 76/78, 176/178,
+  216, 181); Blender round trip within 1.08/4096 (byte-identical with
+  --keep-original); rt.pack in play within 2.39/4096 of the original; demo
+  pack visible, saved and reloaded (adopt), reloaded without a pack and in
+  Vanilla (restore). Python 175 OK (2 skipped); input/near/aim/controls native
+  tests PASS; Vanilla route `d08k1-20261022-01` checkpoints reviewed.
+  Executable `5998cf36936d588c5433f3cc5e9cc001308a8717e78a4b9388ec029f3f6d3cfe`.
+- Limits: see the job entry. Next: D08K2 (independent of D08K1).
+
+## 2026-10-22 - D08K2 crouch-height collision (Needs review)
+
+- User (on the scan finding): "my justification for wanting crouch manouvre is
+  not only to allow duke to potentially reach new places, but for more
+  accurate combat ... So still glad we are standing this feature up".
+- Implementation: `recomp/src/ttk/crouch_hull.inc` (included by
+  modern_controls.cpp, called from the player update after the stance
+  request), console commands via `level_select.h/.cpp`, native fixture in
+  `tests/local/modern_controls_native.cpp`, note 185. No framework or
+  game.local.toml change.
+- Evidence (private lab `recomp/analysis/d08k2-hull`, ports 9402/9403): see
+  the job entry and note 185. Write traces need `PSX_FORENSICS=1` (the
+  launcher's player default mutes the forensic write hook; noted for tooling).
+  Executable `3e58625a743856ff8e1832cfc5baac9c86e5d797b80cf2fa21e1f94e6d61b8e0`.
+- Next: D08K3 (crouch-walk loops, needs D08K1 accepted) or D08K4 design.
+
+## 2026-10-22 - D08K3 crouch-walk loops (Needs review)
+
+- Implementation: `recomp/tools/local/ttk_crouch_walk.py` (IK gait builder and
+  metrics), test `test_crouch_walk_gait`, note 186; D08K2 hull 0x290 -> 0x2c0
+  (`crouch_hull.inc`, native fixture, note 185).
+- Evidence: see the job entry and note 186. Python ttk_anim tests 12 OK;
+  ttk-controls-test PASS. Executable `3e58625a743856ff8e1832cfc5baac9c86e5d797b80cf2fa21e1f94e6d61b8e0`.
+- Next: D08K4 (Modernized crouch walking: input, speed, aim, channel blends,
+  roll binding).
+
+## 2026-10-22 - D08K4 Modernized crouch walking (Needs playtest)
+
+- User: "i couldnt quite get the crouch walk to work? ... duke was just rolling
+  instead? the options should be vanilla (roll) OR modern crouch walking with
+  modern crouch being the default."
+- Implementation: `recomp/src/ttk/crouch_walk.inc`, `anim_override.cpp/.h`
+  extra clips, `pc_input.cpp` direction mask, `ttk_crouch_walk.py --host-pack`
+  and CMake `ttk-anim-assets`, profile schema 39 `crouch` (player_profiles.py,
+  run.py, game_menu.cpp), tests (profiles, input harness), GAME_MANUAL.md,
+  note 187. Executable `862d7b9b8a98c91c55427ada9a49e402ef2d3083be99450a5e7475e02fc81c32`.
+
+## 2026-10-22 - D08K4 revision 2: glitch fixed, walking pace, Duke3D-style crouch (Needs playtest)
+
+- User: "the crouch walk is very glitched currently. i would prefer if crouch
+  speed was the same as walking pace ... I'd like the feel to be generally that
+  of how they did it in duke3d".
+- Causes: with a weapon drawn the original armed path left the legs at
+  identity (standing legs: the video's glitch); the original stepper could run
+  the host channel past the extra clips into the command table (hang); kneel /
+  walk popping on stop / start. Fixes: pose written at `0x800411b8` before the
+  model build, 30000-tick host frames with sentinel and padding frames, squat
+  idle clip. Speed = Modernized walking pace (631 vs 634 units/s); hunched
+  Duke3D-like pose (pelvis 300, 25 degree lean, 12 frames). Note 187 revision 2.
+  Executable `e3b41dfa105e8dd17b47381ef5a5fa4a28e819b8666be073e24de6a0f184dbf7`.
+
+## 2026-10-22 - D08K4 revision 3: captured crouch walk (Needs playtest)
+
+- User: "it's closer, but still has a way to go" (video crouch-glitch-new.mp4),
+  offering a CC-BY 4.0 animated soldier (Sketchfab, abdlilah ben).
+- Its "walk crouch" is extracted (`extract_crouch_mocap.py`, Blender) into a
+  tracked motion asset (`recomp/assets/anim/crouch-walk-mocap.json`) and
+  retargeted onto Duke with IK (`ttk_crouch_walk.py`): planted ankles slide
+  under 1 unit a frame, foot roll, captured bob and lean; strafes with quicker
+  side steps; pelvis height carried per frame. README credit added. Note 187
+  revision 3. Executable `3548c78dc3bd6724d004998940870e62e9c011fbc91043c6010e88be295a6239`.
+
+## 2026-10-22 - D08K4 revision 4: static legs after crouching fixed (Needs playtest)
+
+- User video: legs static (straight) after crouching, also after releasing Ctrl.
+- Cause: animation 178 syncs its upper channels to the legs by frame offset;
+  on crouch-walk frames they played leg joints and their OR-only joint masks
+  kept leg bits, so the blend's fade set the legs to identity in every later
+  animation. Fix: upper channels are kept off crouch-walk frames and their
+  masks free of leg joints every update; channel 0 handed back on release.
+  Note 187 revision 4. Executable `993c2c705d1f86fa27c1608ed92ba0574a1ade50097c909918b656b65e1c46c5`.
+
+## 2026-10-22 - D08K1-D08K4 accepted (Done); D08K6 opened (Todo)
+
+- User: "ok!!! now it's functionally working. the job is fulfilled on a
+  technical level ... I actually want us to be able to lock in and close out the
+  done tasks which is the tech implementation. now it's time to actually refine
+  the animation. Do not work on the animation job now, just stand up a backlog
+  job for it".
+- D08K1 (pipeline), D08K2 (crouch hull), D08K3 (gait builder), D08K4
+  (Modernized crouch walking, CROUCH MODERN default) Done. Executable
+  `993c2c705d1f86fa27c1608ed92ba0574a1ade50097c909918b656b65e1c46c5` is the regression baseline.
+- D08K6 (Todo): animation quality, a Solid Snake-style tactical crouch walk
+  from a deep study of the captured pack, and the slight left-arm shake while
+  crouch walking. D08K parent now waits on D08K5 and D08K6.
+

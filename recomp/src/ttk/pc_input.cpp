@@ -1278,6 +1278,9 @@ uint16_t input_pad() {
     if (captured && !swim_input_ready() && !push_owned && !push_releasing &&
         (down(binds[move_forward]) != down(binds[move_back]) ||
          down(binds[move_right]) != down(binds[move_left])) && locomotion) value &= ~16;
+    // D08K4: crouched with Modern crouch, the host walks Duke; any direction
+    // reaching the original crouch handler would start a roll.
+    if(captured && crouch_walk_input_ready()) value |= 16|32|64|128;
     // D08T/D08T1: the host owns every direction, Cross, Circle and Square while
     // Grab requests or holds a pushable object; the original grab/push/pull
     // run. Fire, Space and precision aim wait until Duke lets go.

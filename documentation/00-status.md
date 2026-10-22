@@ -1,5 +1,59 @@
 # Current status - 2026-10-04
 
+## 2026-10-22 - D08K1-D08K4 accepted (crouch walking, technical)
+
+- User: "now it's functionally working. the job is fulfilled on a technical
+  level ... close out the done tasks". D08K1-D08K4 Done (notes 184-187).
+  Executable `993c2c705d1f86fa27c1608ed92ba0574a1ade50097c909918b656b65e1c46c5` is the regression baseline.
+- D08K6 opened (Todo): crouch-walk look (Solid Snake, not "on the toilet") and
+  the slight left-arm shake while crouch walking.
+
+## 2026-10-22 - D08K4 Modernized crouch walking (Needs playtest)
+
+- CROUCH MODERN (default) walks low with held crouch plus a direction, Duke
+  facing the view; CROUCH ORIGINAL rolls; Vanilla unchanged. Profile schema 39.
+  Clips built from the disc at build time. Note 187. Executable
+  `862d7b9b8a98c91c55427ada9a49e402ef2d3083be99450a5e7475e02fc81c32`.
+
+## 2026-10-22 - D08K3 crouch-walk loops (Needs review)
+
+- New IK gait for a crouch walk (the original has only a kneel): forward,
+  backward and strafes, planted feet (slide under 2 units vs 23-40 in the
+  original walks), footstep events, generated locally from the disc by
+  `ttk_crouch_walk.py`. In-game preview by pack; Blender file for review.
+  D08K2 hull raised to 0x2c0 for the walk's 654 height. Note 186.
+
+## 2026-10-22 - D08K2 crouch-height collision (Needs review)
+
+- A crouch probe asks the original move queries (object probe, floor and
+  ceiling, head ray, slope) with a 0x2c0 crouch hull instead of the standing
+  0x370, refuses steps up or drops over 0x100, and follows the floor. Debug
+  console `crouchwalk` / `crouchgo` (test mover) and `crouchscan`; Modernized
+  only, nothing changes without them. Stand-up keeps the 0x370 rule.
+- Finding: no crouch-only ceiling or overhang at any selectable level start
+  (levels 0-3, 5-12); the walkthrough agrees, so the hull is a safety rule and
+  the feature's value is precise combat movement. Live: walls, props, curbs,
+  stairs and two edges behave; clearance gate shown with a test hull; native
+  fixture covers the crouch-only case. Note 185. Executable
+  `3e58625a743856ff8e1832cfc5baac9c86e5d797b80cf2fa21e1f94e6d61b8e0`.
+
+## 2026-10-22 - D08K1 animation pipeline (Needs review)
+
+- Duke's skeleton, meshes, textures and animations are decoded from the disc
+  (HIE/MOD/ANM/FRM/ROT, A/B.RAW) by `recomp/tools/local/ttk_anim.py`; every
+  clip of DB00-DB09 (9,481) re-encodes byte for byte. An animation's four
+  clips are body channels (legs/root, right arm, left arm, chest+head), so a
+  crouch walk needs only a new legs clip.
+- Renders and offline FK match live memory (joints within 4.4 units, blended
+  quaternions within 8/4096). Blender bridge (`ttk_anim_blender.py`) exports
+  rigged, textured Duke with clips as actions and imports edits back.
+- Runtime override packs (`recomp/src/ttk/anim_override.cpp`, Modernized
+  only, `DNTTK_ANIM_PACK` or `ttk-anim.pack`; none ships): a Blender
+  re-encoded idle plays within 2.39/4096 of the original; a demo pack makes
+  Duke idle kneeling; savestates adopt or restore it. Vanilla unaffected
+  (route reviewed). Note 184. Executable
+  `5998cf36936d588c5433f3cc5e9cc001308a8717e78a4b9388ec029f3f6d3cfe`.
+
 ## 2026-10-22 - D20E accepted (ENEMIES KILLED X OF Y)
 
 - User: "lock it in, this is complete. close it out". D20E Done. Note 183. Executable

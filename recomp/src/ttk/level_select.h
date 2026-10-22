@@ -10,6 +10,9 @@ bool level_console_command(const char* line, void (*say)(const char*), bool& clo
 bool spawn_console_command(const char* line, void (*say)(const char*), bool& close);
 // D08A10: "sfx <id>" plays a game sound at Duke (debug audition).
 bool beat_console_command(const char* line, void (*say)(const char*), bool& close);
+// D08K2 (debug): "crouchwalk <fwd> [side] [hull]", "crouchgo <dx> <dz> [hull]" (world units),
+// "crouchwalk off" and "crouchscan [radius] [grid]".
+bool crouch_console_command(const char* line, void (*say)(const char*), bool& close);
 // D24B: the game's own name for level n (from guest RAM, "" when unavailable).
 bool level_title(unsigned n, char* out, unsigned cap);
 }

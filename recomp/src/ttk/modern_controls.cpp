@@ -2,6 +2,7 @@
 // control_guards.inc (LEVEL00, LEVEL01). Original routines retain all integration,
 // collision responses and camera constraints. No final position writes.
 #include "modern_controls.h"
+#include "anim_override.h"
 #include "weapon_aim.h"
 #include "aim_weapons.h"
 #include "pc_input.h"
@@ -838,6 +839,7 @@ static bool facing_ready() {
 #include "run_click.inc"
 #include "pickup_select.inc"
 #include "crouch.inc"
+#include "crouch_hull.inc"
 #include "manual_jump.inc"
 #include "terrain.inc"
 #include "cheats.inc"
@@ -863,6 +865,7 @@ static void face_view() {
     ++facings;
 }
 #include "duke_model.inc"
+#include "crouch_walk.inc"
 #include "swim.inc"
 #include "jetpack.inc"
 #include "first_person.inc"
@@ -968,7 +971,7 @@ static void hook_body(CPUState* cpu, uint32_t address) {
         return;
     }
     if(address==0x80055e80) return;
-    if(address==0x800411b8) {swim_aim_begin(cpu,ra);return;}
+    if(address==0x800411b8) {crouch_walk_pose(cpu);swim_aim_begin(cpu,ra);return;}
     if(address==0x8002b9f4) {
         // The original level teardown destroys these records. Forget host
         // ownership before their addresses can be reused by another scene.
@@ -1013,6 +1016,8 @@ static void hook_body(CPUState* cpu, uint32_t address) {
             steroids_beat(cpu); // D08A10
             terrain_update(cpu);
             stance_request(cpu);
+            crouch_hull_update(cpu); // D08K2
+            crouch_walk_update(cpu); // D08K4
             swim_update(cpu,false);
             jetpack_update();
             ladder_top_update(cpu);

@@ -11,6 +11,7 @@ extern "C" void gte_nclip_culling_set(int) {}
 extern "C" void gte_nclip_culling_stats(uint64_t* checks,uint64_t* flips) {*checks=*flips=0;}
 // Owned-data integration harness. Models call contracts, not terrain/animation.
 #include "modern_controls.h"
+#include "level_select.h"
 #include "control_math.h"
 #include "pc_input.h"
 #include "cpu_state.h"
@@ -62,6 +63,7 @@ extern "C" int psx_mod_set_adaptive_display_aspect(uint32_t n,uint32_t d) {adapt
 extern "C" int32_t psx_mod_widescreen_x_margin(void) {return ws_margin;}
 extern "C" {int g_precise_mode=0,g_ls_mode=0,g_psx_call_bail=0;}
 static int clearance_result=2048;
+static uint32_t hull_object;static int hull_ray_hit,hull_steep;static std::vector<int32_t> hull_ray_y;   // D08K2
 static int ladder_end_result=0;static unsigned ladder_end_calls;
 static unsigned kicks, edge_launches;
 static int terrain_result=3,terrain_floor=-1000;
@@ -135,6 +137,13 @@ extern "C" void psx_dispatch_call(CPUState* cpu,uint32_t address,uint32_t) {
         ++ladder_end_calls;psx_mod_write_word(0x800d7198+0x174,0);psx_mod_write_half(0x800d7198+0x178,0xffff);
         cpu->gpr[2]=ladder_end_result;cpu->pc=0;return;
     }
+    // D08K2 crouch probe: object probe, head ray (records the ray height), slope test.
+    if(address==0x800780b4) {psx_mod_write_word(0x800d7198+0x174,hull_object);cpu->pc=0;return;}
+    if(address==0x800774cc) {
+        hull_ray_y.push_back(int32_t(psx_mod_read_word(cpu->gpr[5]+4)));hull_ray_y.push_back(int32_t(psx_mod_read_word(cpu->gpr[6]+4)));
+        cpu->gpr[2]=hull_ray_hit;cpu->pc=0;return;
+    }
+    if(address==0x80077438) {assert(cpu->gpr[4]==0x800d7198+0x1a4);cpu->gpr[2]=hull_steep;cpu->pc=0;return;}
     assert(address==0x8007926c || address==0x800797f4 || address==0x800402d0 || address==0x8007765c || address==0x800517a4);
     if(address==0x800517a4)++kicks;
     if(address==0x8007926c || address==0x800797f4) {
@@ -147,6 +156,8 @@ extern "C" void psx_dispatch_call(CPUState* cpu,uint32_t address,uint32_t) {
     cpu->pc=0;
 }
 namespace ttk {bool input_live_look(uint64_t&,double&,double&,double){return false;} void input_state_loaded(){}}
+// D08K4: no crouch-walk clips in the harness (anim_override.cpp is the player build's).
+namespace ttk {bool anim_extra_clip(unsigned,uint32_t&,uint32_t&){return false;}}
 // D23E: no high-refresh redraws in the harness; the overclock lease pauses.
 namespace ttk {int replay_load_window(int window){return window==1 ? -1 : 0;}}
 extern "C" void ttk_fast_timing_renew(void) {}
@@ -1743,6 +1754,48 @@ int main(int argc,char** argv) {
     clearance_result=2048;ttk::input.active=false;
     call(0x8005a210,p,0x800c2754,0x80041b34,0x801ff000);
     assert(psx_mod_read_half(p+0x60)==176 && psx_mod_read_half(p+0x6a)==1); // focus release also stands
+    // D08K2 crouch probe via the debug mover (crouchgo): a crouched Duke (178)
+    // steps by (20, 0) per update when the crouch hull fits, with the head ray
+    // at feet - 0x2c0; each refusal reason leaves him where he was.
+    {
+        bool close=false;
+        const auto say=[](const char*){};
+        uint32_t keep[5];for(int i=0;i<4;++i)keep[i]=psx_mod_read_word(p+4+4*i);keep[4]=psx_mod_read_word(p+0x1c8);
+        assert(ttk::crouch_console_command("crouchgo 20 0",say,close) && close);
+        // An unowned 178 with crouch released: crouch.inc neither requests nor
+        // releases (one update at 63 drops the earlier fixture's ownership).
+        ttk::input.held[ttk::crouch]=false;psx_mod_write_half(p+0x60,63);
+        call(0x8005a210,p,0x800c2754,0x80041b34,0x801ff000);psx_mod_write_half(p+0x60,178);
+        psx_mod_write_word(p+0x1c8,uint32_t(-1000));psx_mod_write_word(p+8,uint32_t(-1500));
+        auto step=[&](int clearance,int32_t floor_step,uint32_t object,int ray,int steep){
+            clearance_result=clearance;lookahead_drop=floor_step;hull_object=object;hull_ray_hit=ray;hull_steep=steep;hull_ray_y.clear();
+            const int32_t x0=int32_t(psx_mod_read_word(p+4));
+            if(psx_mod_read_half(p+0x60)!=63)psx_mod_write_half(p+0x60,178);
+            call(0x8005a210,p,0x800c2754,0x80041b34,0x801ff000);
+            const int32_t moved=int32_t(psx_mod_read_word(p+4))-x0;
+            return moved;
+        };
+        assert(step(0x2e0,0,0,0,0)==20);                     // fits crouched (704) but not standing (880)
+        assert(hull_ray_y.size()==2 && hull_ray_y[0]==-1000-0x2c0 && hull_ray_y[1]==-1000-0x2c0);
+        assert(step(0x2b0,0,0,0,0)==0);                      // too low even crouched
+        assert(step(0xffff,int32_t(0xffff0000u),0,0,0)==0);  // no floor: wall
+        assert(step(2048,0x180,0,0,0)==0);                   // drop over 0x100: edge
+        assert(step(2048,-0x180,0,0,0)==0);                  // step up over 0x100
+        assert(step(2048,0,0x1234,0,0)==0);                  // object contact
+        assert(psx_mod_read_word(p+0x174)==0);               // restored after the refusal
+        assert(step(2048,0,0,1,0)==0);                       // head ray hit
+        assert(step(2048,-0x80,0,0,1)==0);                   // steep step up
+        const int32_t y0=int32_t(psx_mod_read_word(p+8));
+        assert(step(2048,0x40,0,0,0)==20);                   // step down follows the floor
+        assert(int32_t(psx_mod_read_word(p+8))==y0+0x40 && int32_t(psx_mod_read_word(p+0x1c8))==-1000+0x40);
+        psx_mod_write_half(p+0x60,63);assert(step(2048,0,0,0,0)==0);psx_mod_write_half(p+0x60,178);   // only while crouched (178)
+        assert(ttk::crouch_console_command("crouchwalk off",say,close) && !close);
+        psx_mod_write_half(p+0x60,178);assert(step(2048,0,0,0,0)==0);  // off
+        clearance_result=2048;lookahead_drop=-100000;hull_object=0;hull_ray_hit=hull_steep=0;
+        ttk::input.held[ttk::crouch]=false;psx_mod_write_half(p+0x60,63);
+        for(int i=0;i<4;++i)psx_mod_write_word(p+4+4*i,keep[i]);psx_mod_write_word(p+0x1c8,keep[4]);
+        std::puts("PASS: D08K2 crouch probe (crouch-only clearance passes, head ray at feet-0x2c0, low/wall/edge/step/object/ray/slope refusals restore state, floor follow, 178 only, off)");
+    }
     // Distance clamps/smoothing, wall compression independence and no FOV mutation.
     ttk::input.active=true;ttk::input.held[ttk::crouch]=false;psx_mod_write_half(p+0x60,63);
     psx_mod_write_word(c+0x50,p+0x7bc);psx_mod_write_word(c+0x4c,p+0x7bc);

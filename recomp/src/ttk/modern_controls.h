@@ -10,6 +10,8 @@ bool frame_trace_on();
 void frame_trace_account(uint32_t address,long us);
 bool view_aim_input_ready();
 bool locomotion_input_ready();
+/* D08K4: the Modernized crouch walk owns the stance; withhold the directions. */
+bool crouch_walk_input_ready();
 bool airborne_input_ready();
 /* D07F: view-aimed shots in takeoff, jumps, falls and the landing frame. */
 bool airborne_shot_ready();

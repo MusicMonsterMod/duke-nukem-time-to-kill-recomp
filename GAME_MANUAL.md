@@ -433,7 +433,7 @@ mouse movement orbits the third-person camera. With view weapon aiming enabled,
 Duke turns to face the view horizontally when holstered or using a supported weapon.
 
 While captured, use **left mouse** to fire/action, **Space** to jump, **Scroll Lock** (tap) to
-draw/holster, **hold Left Ctrl** to crouch and release to stand (when overhead clearance permits), **Left Shift** as the speed modifier,
+draw/holster, **hold Left Ctrl** to crouch (with W/A/S/D: crouch walk, see Crouch walking) and release to stand (when overhead clearance permits), **Left Shift** as the speed modifier,
 **hold right mouse** (or **Alt**) to grab a pushable object, **comma/period** to browse the mission items (see Mission items below; the original sidesteps are unbound, A/D strafe),
 and **I** for inventory. **E is interaction-only and never fires.** If necessary,
 a tap automatically requests holstering and then interacts once that animation
@@ -1540,6 +1540,16 @@ gadget, there is no box. Vanilla is unchanged.
 Typed cheats stay silent until a completed result appears, horizontally centered
 at the top of the screen. Partial, invalid and cancelled entries display nothing.
 
-True crouch walking is **not implemented**. Held crouch plus direction retains the
-original roll. The [asset/collision audit](documentation/43-crouch-walk-audit.md)
-records the concrete work needed for a safe low gait; original assets are unchanged.
+### Crouch walking (Modernized, prototype)
+
+With **CROUCH: MODERN** (the default; OPTIONS > ADVANCED > MOVEMENT, or
+`run.py --crouch modern|original`), **hold Left Ctrl** and use **W/A/S/D** to walk
+low in any direction at the walking pace, hunched like Duke 3D's crouch. Duke keeps
+facing where you look, so you can strafe and back up while aiming and firing as usual;
+held still he stays low. He stops at walls, objects and edges instead
+of falling, and stands up when you release Ctrl where there is room. **CROUCH:
+ORIGINAL** keeps the original roll on crouch plus a direction. Vanilla always rolls.
+The gait is built from your disc when the game is built (no extra files to fetch).
+Known prototype limits: no footstep sounds while crouch walking, and diagonals use
+the nearest of the four directions' animations. The crouch-walk motion is a captured
+animation by abdlilah ben (CC BY 4.0, see README Credits), retargeted onto Duke.

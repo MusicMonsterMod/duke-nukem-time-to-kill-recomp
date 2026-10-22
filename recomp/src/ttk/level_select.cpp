@@ -136,6 +136,7 @@ bool level_console_command(const char* line, void (*say)(const char*), bool& clo
     close=false;
     if(spawn_console_command(line,say,close))return true;
     if(beat_console_command(line,say,close))return true;
+    if(crouch_console_command(line,say,close))return true;
     // D20: EDuke32's quicksave / quickload, the F6 / F9 keys' own action.
     if(!std::strcmp(line,"quicksave") || !std::strcmp(line,"quickload")) {
         const bool save=line[5]=='s';

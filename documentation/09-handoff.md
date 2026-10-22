@@ -1,5 +1,18 @@
 # Next-session handoff
 
+## 2026-10-22 - D08AC opened (backlog and research only)
+
+D08AC queues shallow-water grounded locomotion/jump parity with dry land,
+using UI slot 10 and nearby dry ground for the future paired comparison.
+[Note 194](194-d08ac-shallow-water-locomotion.md) separates source findings
+from hypotheses: wade jumps have their own launch/boost path and disable
+manual air steering; the reported reduced jump height is not yet measured.
+Prefer shared grounded logic with water effects retained. Preserve native
+surface/underwater mechanics and resolve D08AB ORIGINAL option semantics
+before implementation. Todo only; no gameplay changes, build, launch or
+save/card writes. D08K11 remains the accepted executable. No commit/push.
+
+
 ## 2026-10-22 - D08K11 accepted (Done)
 
 User: "awesome! i accept the behaviour here, very good. lock it in and close it out."

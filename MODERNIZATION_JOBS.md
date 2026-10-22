@@ -103,6 +103,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08O2B | Swim-fire aims down again (regression): weapon points down while swimming and firing (player UI slot 3; slot 2 still correct) | Done (user-accepted) | D08O2A |
 | D08AA | Unify walking/running speeds across land, shallow water, surface swim and underwater | Done (user-accepted 2026-10-19) | D08, D08M, D08O |
 | D08AB | SWIMMING menu option: MODERN (D08AA pace) / ORIGINAL swim speeds | Done (user-accepted 2026-10-20) | D08AA, D19 |
+| D08AC | Normalise Shallow-Water Locomotion and Jump Physics | Todo | D08AA, D08AB, D08K11, D08Z |
 | D08O3 | E in water keeps the weapon: redraw when no climb-out follows the stow | Accepted | D08O1 |
 | D08O4 | Brief Ctrl dive keeps swimming forward after release (dive anim plays on; player UI slot 3) | Done (user-accepted) | D08O |
 | D08N | Duke3D-style scuba gear item | Cancelled (out of scope) | — |
@@ -2879,6 +2880,54 @@ the original speeds whatever the row says).
 the D08AA "before" table in [note 156](documentation/156-d08aa-unified-pace.md)
 for the swim states; toggling mid-swim changes speed without a hitch; Vanilla
 unchanged; the user confirms.
+
+### D08AC - Normalise Shallow-Water Locomotion and Jump Physics
+
+**Todo. Opened 2026-10-22; backlog and source research only.** User reports
+stunted jumps in the flooded subway, UI save slot 10, compared with nearby
+dry ground. No runtime reproduction or new measurements in this session.
+Research: [note 194](documentation/194-d08ac-shallow-water-locomotion.md).
+
+**Objective:** grounded shallow water should use the same locomotion model
+as dry land, with water visuals, sounds and environmental effects retained.
+Prefer shared grounded movement, jump and air-control logic over duplicated
+water physics. Surface and underwater swimming are outside the change.
+
+**Dependencies:** D08AA shared pace, D08AB swimming option, D08K11 grounded
+water crouch, D08Z manual/assisted jumping (all accepted). Related: D08C,
+D08I, D08L, D08M/O/P/W/Y, D08Z1/Z3, D08K5/K9. Coordinate broader crouch
+coverage with D08K5; it does not block investigation. Resolve how the new
+shallow-ground policy coexists with D08AB's explicitly accepted ORIGINAL
+shallow forced-run choice before implementation; do not silently redefine it.
+
+**Reproduction for future implementation:** use a dated private copy of UI
+slot 10, confirm the flooded-subway grounded state, then compare walk, run,
+standing and directional jumps with nearby dry ground under identical
+settings and inputs. Record height, launch velocity, gravity/airtime,
+horizontal travel and acceleration, input latency and airborne steering.
+Test open floor separately from walls and assisted platform exits.
+
+**Acceptance:**
+- Shallow grounded jumps match dry-land height, vertical velocity,
+  acceleration/gravity and airtime under the same selected jump style.
+- Walk/run speed, acceleration/deceleration, sprint/jump input timing and
+  directional responsiveness match dry ground; no stutter or artificial
+  slowdown. Manual air control matches the dry-ground policy.
+- Modern crouch/crouch-walk, safe stand-up and crouch-on-landing remain
+  compatible, including grounded mid-depth water where Duke still walks.
+- Natural shallow/deep transitions, jumps into deep water and return to
+  ground remain stable; surface/underwater physics and swim-fire unchanged.
+- Water audiovisual/environmental effects stay intact. Existing single-player
+  traversal, collision, aiming and both cameras do not regress; Vanilla
+  remains unchanged. Verify both jump styles and document option semantics.
+- Measured paired traces plus user playtest establish parity; build success
+  alone is insufficient.
+
+**Initial findings:** the water jump path launches 97/98 directly, sets
+`air_cap=0` (disabling manual steering), maintains its own horizontal boost,
+and has separate ledge lift/hold logic. D08AA shares pace but did not unify
+jump physics. The exact cause of the reported reduced height is unproven.
+No gameplay implementation is authorized by this backlog entry.
 
 ### D08O3 - E in water keeps the weapon
 
@@ -16122,3 +16171,13 @@ commit and push authorized. [Note 193](documentation/193-d08k11-shallow-water-cr
 Executable `1e16b7eaabeef854bddc5f777cbc2f487b89f839491a9dfca4a78b576039c1f8`
 is the accepted regression baseline. D08K5's broad collision/campaign sweep
 remains separate. No next gameplay job started.
+
+## 2026-10-22 - D08AC opened (Todo, backlog and research only)
+
+User requested grounded shallow-water locomotion and jumps match dry land,
+with water effects retained and surface/underwater swimming unchanged.
+Added D08AC and [note 194](documentation/194-d08ac-shallow-water-locomotion.md).
+Source confirms separate wade takeoff/boost and disabled manual air steering;
+reported slot-10 jump-height difference remains unmeasured. D08AB ORIGINAL
+option semantics need an explicit design decision. No gameplay code, build,
+launch, save/card writes, commit or push. D08K11 remains the accepted baseline.

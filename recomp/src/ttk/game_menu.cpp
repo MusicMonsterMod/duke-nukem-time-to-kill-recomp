@@ -338,9 +338,9 @@ std::vector<Screen> make_screens() {
          {{"1X","1","1"},{"2X","2","2"},{"3X","3","3"},{"4X","4","4"}},3},
         {"WIDESCREEN",Section::Controls,"widescreen","DNTTK_WIDESCREEN",true,"A WIDER VIEW, HUD IN THE CORNERS. MOVIES STAY 4:3",
          {{"16:9","16:9","\"16:9\""},{"16:10","16:10","\"16:10\""},{"21:9","21:9","\"21:9\""},{"AUTO","auto","\"auto\""},{"OFF","off","\"off\""}},0},
-        {"FRAME RATE",Section::Controls,"frame_rate","DNTTK_FRAME_RATE",true,"SMOOTHER MOTION. THE GAME SPEED NEVER CHANGES",
-         {{"DISPLAY","display","\"display\""},{"30","30","\"30\""},{"60","60","\"60\""},{"120","120","\"120\""},{"144","144","\"144\""},
-          {"165","165","\"165\""},{"180","180","\"180\""},{"240","240","\"240\""},{"UNLIMITED","unlimited","\"unlimited\""}},2},
+        {"FRAME RATE",Section::Controls,"frame_rate","DNTTK_FRAME_RATE",true,"AUTO CHOOSES UP TO 120 FPS. GAME SPEED NEVER CHANGES",
+         {{"AUTO","auto","\"auto\""},{"DISPLAY","display","\"display\""},{"30","30","\"30\""},{"60","60","\"60\""},{"120","120","\"120\""},{"144","144","\"144\""},
+          {"165","165","\"165\""},{"180","180","\"180\""},{"240","240","\"240\""},{"UNLIMITED","unlimited","\"unlimited\""}},0},
     }};
     s[2]={"GAMEPLAY",{
         {"VIEW",Section::Controls,"view","DNTTK_CAMERA_VIEW",true,"THE FIRST / THIRD PERSON KEY SWITCHES IN GAME",

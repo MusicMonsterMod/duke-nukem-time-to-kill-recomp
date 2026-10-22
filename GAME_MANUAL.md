@@ -136,7 +136,13 @@ OPTIONS > DISPLAY > FRAME RATE, which applies as soon as you confirm, also
 after a launch at 60 (OpenGL renderer; with the software renderer it waits
 for the next launch):
 
-- `60` (default): the original presentation.
+- `auto` (default for new Modernized settings): the highest evenly spaced
+  display rate up to 120 FPS. Examples: 60 Hz -> 60 FPS, 120 Hz -> 120,
+  144 Hz -> 72, 165 Hz -> 82.5, 180 Hz -> 90, 240 Hz -> 120. Displays
+  below 120 Hz use their refresh rate; unknown refresh falls back to 60.
+  AUTO follows display changes and preserves fractional rates such as 59.94.
+  Existing saved choices stay selected; choose AUTO explicitly to try it.
+- `60`: the original presentation.
 - `display`: your monitor's refresh rate (for example 180 on a 180 Hz screen).
   It follows the window if you move it to another monitor.
 - `30`: each new game image is shown exactly once.

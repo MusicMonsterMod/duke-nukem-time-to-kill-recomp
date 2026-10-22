@@ -1,5 +1,32 @@
 # Current status - 2026-10-04
 
+## 2026-10-22 - D17S accepted (Done)
+
+User fully accepted AUTO and explicitly authorized closeout. D17S is Done.
+New Modernized profiles use AUTO: a whole display-refresh divisor capped at
+120 FPS; existing choices and Vanilla remain intact.
+[Note 203](203-d17s-auto-frame-rate.md) retains evidence and measurement limits.
+Accepted executable: `482a3479813ddca0da3a5237034b2b84edf22c77ede8061f339a64c313eba1e9`.
+No gameplay changes or rebuild. Framework patch re-exported and clean-pin
+verification matches all 51 changed/new files. Implementation, tests and
+documentation included in the authorized commit/push as MusicMonsterMod.
+No next job started. Launch: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-22 - D17S AUTO frame rate (Needs playtest)
+
+AUTO added to FRAME RATE and the launcher, default for new Modernized profiles;
+existing saved choices retained. Compatibility-first target is the highest
+display-refresh divisor at or below 120 FPS (180 Hz -> 90, 240 Hz -> 120),
+unknown display -> 60. Live display changes re-evaluate the target.
+Build, compiled rate/setter tests, 88 profile tests, isolated offscreen live
+menu transitions and clean-pin patch verification pass. Physical monitor
+pacing and user acceptance remain. [Note 203](203-d17s-auto-frame-rate.md).
+Candidate: `482a3479813ddca0da3a5237034b2b84edf22c77ede8061f339a64c313eba1e9`.
+Launch: `python3 recomp/tools/local/run.py --frame-rate auto` (saves AUTO).
+No commit or push.
+
+
 ## 2026-10-22 - D17X accepted (Done)
 
 User fully accepted both fixes and explicitly authorized closeout.

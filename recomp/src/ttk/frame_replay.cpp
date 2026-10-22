@@ -17,7 +17,7 @@
 //     draws its stream into saved/restored VRAM and presents it.
 //
 // The live guest never sees a replay. DNTTK_FRAME_RATE selects the present
-// rate: display (the monitor's refresh), 30, 60 (the original presentation,
+// rate: auto (display-aware, capped at 120), display (the monitor's refresh), 30, 60 (the original presentation,
 // no replays), 120, 144, 165, 180, 240 or unlimited. Vanilla always runs 60.
 // DNTTK_FRAME_INTERP=off disables the redraws (developer, documentation/80).
 #include "cpu_state.h"
@@ -484,7 +484,7 @@ uint32_t append_render(const Frame& base,uint8_t* out,uint32_t used) {
 }
 
 int32_t parse_rate(const char* text) {
-    if(!text || !*text) return 60;
+    if(!text || !*text || !std::strcmp(text,"auto")) return -2;
     if(!std::strcmp(text,"display")) return 0;
     if(!std::strcmp(text,"unlimited")) return -1;
     char* end=nullptr;
@@ -643,7 +643,7 @@ void late_pace(bool bad) {
     if(pace_presents<90) return;
     const double ratio=(double)pace_bad/(double)pace_presents;
     pace_presents=pace_bad=0; ++pace_windows; pace_last_ratio=ratio;
-    if(ratio>0.10 && pace_div<(target_hz<0 ? 16 : 3)) {
+    if(ratio>0.10 && pace_div<(target_hz==-1 ? 16 : 3)) {
         if(pace_down_window && pace_windows-pace_down_window<=3) pace_backoff=std::min(pace_backoff*2,32);
         ++pace_div;pace_clean=0;psx_mod_set_present_divisor(pace_div);++pace_changes;pace_log("repeats",ratio,pace_backoff);
     } else if(ratio<0.02 && pace_div>1) {
@@ -1377,13 +1377,13 @@ int timeline_provider(const PSXModPresentInfo* info) {
         int c=cache_find(best->serial,pick);bool drawn=false;
         if(c<0 && info->slack_ms>=slack_floor_ms && render(*best,pick,info,true)) {c=cache_find(best->serial,pick);drawn=true;}
         if(c>=0) {
-            if(target_hz<0) late_pace(c==last_shown_cache);
+            if(target_hz==-1) late_pace(c==last_shown_cache);
             shown_serial=best->serial;cache[c].used=++cache_clock;++reused;
             trace(info,best->alpha[pick],best,pick,drawn);last_shown_cache=c;return c+1;
         }
     }
     if(last_shown_cache>=0 && psx_mod_replay_cache_valid(last_shown_cache)) {
-        ++late_repeats;if(target_hz<0) late_pace(true);
+        ++late_repeats;if(target_hz==-1) late_pace(true);
         trace(info,0,nullptr,-2,false);return last_shown_cache+1;
     }
     ++no_job;trace(info,0,nullptr,-1,false);return 0;
@@ -1451,7 +1451,7 @@ void apply_rate(int32_t hz) {
     // Past idle time is not a present deadline. With the optimized rendering
     // path, fixed-rate camera images must not be withheld by that stale EMA.
     // Unlimited retains the guard so overload feeds its adaptive cadence.
-    if(!slack_fixed) slack_floor_ms=continuous_timeline() && hz>=0 ? 0.0 : 0.5;
+    if(!slack_fixed) slack_floor_ms=continuous_timeline() && hz!=-1 ? 0.0 : 0.5;
     pace_div=1;pace_clean=0;pace_backoff=1;
     psx_mod_set_present_divisor(1);
 }
@@ -1662,7 +1662,7 @@ int replay_load_window(int window) {
         shed_clean=0;shed_full_clean=0;
         if(++shed_bad<2) return 0;
         shed_bad=0;
-        if(pace_div>=(target_hz<0 ? 16 : 3)) return -1;
+        if(pace_div>=(target_hz==-1 ? 16 : 3)) return -1;
         const bool failed_probe=shed_since_probe<=10;
         if(failed_probe) {shed_backoff=std::min(shed_backoff*2,16);++shed_failed_probes;}
         ++pace_div;++shed_steps;pace_clean=0;pace_presents=pace_bad=0;psx_mod_set_present_divisor(pace_div);++pace_changes;++emu_sheds;

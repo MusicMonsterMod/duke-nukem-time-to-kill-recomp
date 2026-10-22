@@ -1,5 +1,7 @@
 # Time to Kill — modernization jobs
 
+**Latest accepted job (2026-10-22): D17S AUTO frame rate is Done. Executable `482a3479813ddca0da3a5237034b2b84edf22c77ede8061f339a64c313eba1e9` is the regression baseline. [Note 203](documentation/203-d17s-auto-frame-rate.md).**
+
 **Latest accepted job (2026-10-22): D12D upgraded first-person weapon framing is Done. Executable `bb86f2da7265785ba692c3dadbbcc19e03e5d5f19e0a02d2cd85a57b28e390d0` is the regression baseline. [Note 199](documentation/199-d12d-upgraded-viewmodels.md).**
 
 **Latest acceptance (2026-10-22): D08K5 final coverage and D08K crouch-walking parent are Done. No gameplay changes; D17R2 executable remains the regression baseline. [Note 198](documentation/198-d08k5-crouch-coverage.md).**
@@ -199,7 +201,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D17R | Sky turns black toward the left/right edges when looking up, game-wide (LEVEL01 slot 9, medieval UI slot 2) | Done (user-accepted 2026-10-21) | D14, D17O, D22A |
 | D17R1 | Sky artifacts when looking up/down and turning (medieval UI slot 2, with camera jerking; LEVEL01 UI slot 8) | Done (user-accepted 2026-10-21) | D17R, D17O |
 | D17R2 | Sky turns black when looking left/up from current save slot 8 | Done (user-accepted 2026-10-22) | D17O, D17R, D17R1 |
-| D17S | Auto frame-rate default: follow the display up to a cap, step down on faster monitors | Todo | D17, D23F |
+| D17S | Auto frame-rate default: follow the display up to a cap, step down on faster monitors | Done (user-accepted 2026-10-22) | D17, D23F |
 | D17T | Smooth title menu and attract demo at the saved frame rate (first impression; demo measured at 10 images/s) | Done (user-accepted) | D17, D23F |
 | D17U | Smooth loading screens (spinning Duke logo) at the saved frame rate | Done | D17T |
 | D17C | View bob: disable experiment, then a stable modern camera | Done (user-accepted) | D11 |
@@ -5976,19 +5978,19 @@ immediate in first and third person; gameplay timing unchanged.
 
 ### D17S - Auto frame-rate default: follow the display up to a cap
 
-**Todo. Opened 2026-10-05.** The user worries about 120 Hz as the default and
-asked for an automatic default: 120 when the display supports it, or the next
-step down; players can choose higher. The existing `display` value follows the
-monitor's refresh without a cap. Proposed `auto` (new Modernized default):
-the display's refresh rate when it is 120 Hz or less; on faster monitors the
-largest rate at or below the cap that divides the refresh evenly, so every
-picture still lands on a refresh (240 -> 120, 144 -> 72 or 144 (to be
-measured and decided), 165 -> 82.5 or 165). Explicit values stay available.
-Re-evaluate when the display changes (window moved, fullscreen).
+**Done (user-accepted 2026-10-22).** AUTO is the default for new Modernized
+profiles. Existing explicit choices are preserved. The compatibility-first
+candidate uses `refresh / ceil(refresh / 120)`: the highest refresh divisor
+at or below 120 FPS, without assuming variable-refresh support. Examples:
+60 -> 60, 120 -> 120, 144 -> 72, 165 -> 82.5, 180 -> 90, 240 -> 120.
+Fractional refresh is retained; unknown refresh falls back to 60. This
+supersedes the earlier undecided 144/165 exceptions. AUTO follows display
+changes and applies from the in-game menu. Vanilla remains unchanged.
 
-**Acceptance:** `auto` picks the documented rate on 60, 120, 144 and 240 Hz
-modes (measured, plus unit tests of the rule); existing explicit choices are
-kept; the user judges the default on their display.
+**Acceptance:** compiled production resolver and live setter tests cover the
+listed modes and display changes; build, profile tests and offscreen live
+menu transitions pass. The user fully accepted the result on 2026-10-22. Physical monitor transitions
+and the broader hardware matrix remain unmeasured by the agent. [Note 203](documentation/203-d17s-auto-frame-rate.md).
 
 ### D17T - Smooth title menu and attract demo at the saved frame rate
 
@@ -16740,4 +16742,29 @@ or rebuild. Accepted executable:
 `e5a6a69cf7bf8ff9d72581ee2171b1b8c7f64546f71809b846b0b3de3f3e7b4a`.
 Framework patch re-exported and verified against the clean pinned dependency,
 matching all 50 patched files. Implementation, tests and documentation are
+included in the authorized commit/push as MusicMonsterMod. No next job started.
+
+
+## 2026-10-22 - D17S AUTO frame rate (Needs playtest)
+
+User selected a compatibility-first automatic default with 120 FPS as the
+preferred ceiling. Implemented AUTO in the menu, launcher and replay renderer;
+new Modernized profiles default to AUTO, saved explicit rates stay selected.
+The candidate selects a whole display-refresh divisor capped at 120, with
+fractional refresh and an unknown-display fallback of 60. Display changes
+reset its presentation deadline. AUTO does not use Unlimited's governor.
+Build, compiled production-rate/setter tests, 88 profile tests, live offscreen
+AUTO/120/60/Display transitions and clean-pin patch verification pass.
+Physical-display pacing remains for playtest. See note 203. No commit or push.
+
+
+## 2026-10-22 - D17S accepted (Done)
+
+User: "fully accept. lock it in and close it out".
+AUTO's compatibility-first rate selection is accepted. D17S is Done.
+Note 203 retains the test evidence and physical-display measurement limits.
+No gameplay changes or rebuild during closeout. Accepted executable:
+`482a3479813ddca0da3a5237034b2b84edf22c77ede8061f339a64c313eba1e9`.
+Framework patch re-exported and verified against the clean pinned dependency,
+matching all 51 changed/new files. Implementation, tests and documentation
 included in the authorized commit/push as MusicMonsterMod. No next job started.

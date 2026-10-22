@@ -76,7 +76,7 @@ CROUCH_MODES = ('modern', 'original')
 # Game logic keeps its original timing at every value: display follows the
 # monitor's refresh rate, 30 shows each new game image once, 60 is the
 # original presentation, higher values and unlimited present more often.
-FRAME_RATES = ('display', '30', '60', '120', '144', '165', '180', '240', 'unlimited')
+FRAME_RATES = ('auto', 'display', '30', '60', '120', '144', '165', '180', '240', 'unlimited')
 # Modernized first-person view bob (D17C): deliberate eye motion while walking.
 VIEW_BOBS = ('off', 'subtle', 'on', 'strong')
 # D17P draw distance (Modernized only; Vanilla keeps the original limits).
@@ -90,7 +90,7 @@ DRAW_DISTANCES = ('original', 'extended')
 STEROIDS_MODES = ('portable', 'original')
 # Alt-wheel boom range in game units; 0 keeps the original follow distance.
 CAMERA_DISTANCE_RANGE = (768, 6144)
-DEFAULT_CONTROLS = {'camera': 'independent', 'mouse_sensitivity': 0.12, 'invert_y': False, 'weapon_aim': 'view', 'crosshair': True, 'red_dot': False, 'aim_assist': 'off', 'jetpack': 'modern', 'camera_distance': 0, 'shoulder': 'center', 'view': 'third', 'widescreen': '16:9', 'cpu_overclock': 150, 'cpu_timing': 'fast', 'jump': 'assisted', 'frame_rate': '60', 'view_bob': 'on', 'geometry_precision': 'original', 'texture_precision': 'original', 'draw_distance': 'extended', 'steroids': 'portable', 'jump_walls': 'slide', 'landing': 'modern', 'dynamite': 'modern', 'swimming': 'modern', 'wall_backflip': 'modern', 'crouch': 'modern'}
+DEFAULT_CONTROLS = {'camera': 'independent', 'mouse_sensitivity': 0.12, 'invert_y': False, 'weapon_aim': 'view', 'crosshair': True, 'red_dot': False, 'aim_assist': 'off', 'jetpack': 'modern', 'camera_distance': 0, 'shoulder': 'center', 'view': 'third', 'widescreen': '16:9', 'cpu_overclock': 150, 'cpu_timing': 'fast', 'jump': 'assisted', 'frame_rate': 'auto', 'view_bob': 'on', 'geometry_precision': 'original', 'texture_precision': 'original', 'draw_distance': 'extended', 'steroids': 'portable', 'jump_walls': 'slide', 'landing': 'modern', 'dynamite': 'modern', 'swimming': 'modern', 'wall_backflip': 'modern', 'crouch': 'modern'}
 # display is how the game opens (the runtime reports the last state at exit);
 # fullscreen_mode is what F11 enters from a window.
 DEFAULT_PRESENTATION = {'renderer': 'opengl', 'internal_scale': 1, 'display': 'windowed', 'fullscreen_mode': 'borderless', 'window_width': 0, 'output_filter': 'linear'}
@@ -141,6 +141,8 @@ def validate_presentation(value):
 def default_profile(mode):
     profile = copy.deepcopy(DEFAULT_PROFILE)
     profile['presentation'].update(MODE_PRESENTATION[mode])
+    if mode == 'vanilla':
+        profile['controls']['frame_rate'] = '60'
     return profile
 
 
@@ -492,6 +494,8 @@ def describe_steroids(value, key='R'):
 
 
 def describe_frame_rate(value):
+    if value == 'auto':
+        return 'auto (display-aware rate up to 120 FPS; game speed unchanged)'
     if value == '60':
         return '60 (original presentation)'
     if value == 'display':

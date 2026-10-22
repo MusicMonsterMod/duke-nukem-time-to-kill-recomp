@@ -283,7 +283,7 @@ class CameraPreferencesTest(unittest.TestCase):
             subprocess.run(cmd+['--camera','original','--mouse-sensitivity','0.25','--invert-y','on'],check=True,capture_output=True)
             raw=path.read_bytes()
             result,_=profiles.load(path)
-            self.assertEqual(result['profiles']['modernized']['controls'],{'camera':'original','mouse_sensitivity':0.25,'invert_y':True,'weapon_aim':'view','crosshair':True,'red_dot':False,'aim_assist':'off','jetpack':'modern','camera_distance':0,'shoulder':'center','view':'third','widescreen':'16:9','cpu_overclock':150,'cpu_timing':'fast','jump':'assisted','frame_rate':'60','view_bob':'on','geometry_precision':'original','texture_precision':'original','draw_distance':'extended','steroids':'portable','jump_walls':'slide','landing':'modern','dynamite':'modern','swimming':'modern','wall_backflip':'modern','crouch':'modern'})
+            self.assertEqual(result['profiles']['modernized']['controls'],{'camera':'original','mouse_sensitivity':0.25,'invert_y':True,'weapon_aim':'view','crosshair':True,'red_dot':False,'aim_assist':'off','jetpack':'modern','camera_distance':0,'shoulder':'center','view':'third','widescreen':'16:9','cpu_overclock':150,'cpu_timing':'fast','jump':'assisted','frame_rate':'auto','view_bob':'on','geometry_precision':'original','texture_precision':'original','draw_distance':'extended','steroids':'portable','jump_walls':'slide','landing':'modern','dynamite':'modern','swimming':'modern','wall_backflip':'modern','crouch':'modern'})
             invalid=subprocess.run(cmd+['--mouse-sensitivity','nan'],capture_output=True)
             self.assertNotEqual(invalid.returncode,0);self.assertEqual(path.read_bytes(),raw)
             subprocess.run(cmd+['--vanilla'],check=True,capture_output=True)
@@ -293,7 +293,7 @@ class CameraPreferencesTest(unittest.TestCase):
     def test_terminal_camera_edit(self):
         replies=iter(['7','independent 0.2 on','5'])
         edited=profiles.menu(profiles.defaults(),lambda _:next(replies),lambda _:None)
-        self.assertEqual(edited['profiles']['modernized']['controls'],{'camera':'independent','mouse_sensitivity':0.2,'invert_y':True,'weapon_aim':'view','crosshair':True,'red_dot':False,'aim_assist':'off','jetpack':'modern','camera_distance':0,'shoulder':'center','view':'third','widescreen':'16:9','cpu_overclock':150,'cpu_timing':'fast','jump':'assisted','frame_rate':'60','view_bob':'on','geometry_precision':'original','texture_precision':'original','draw_distance':'extended','steroids':'portable','jump_walls':'slide','landing':'modern','dynamite':'modern','swimming':'modern','wall_backflip':'modern','crouch':'modern'})
+        self.assertEqual(edited['profiles']['modernized']['controls'],{'camera':'independent','mouse_sensitivity':0.2,'invert_y':True,'weapon_aim':'view','crosshair':True,'red_dot':False,'aim_assist':'off','jetpack':'modern','camera_distance':0,'shoulder':'center','view':'third','widescreen':'16:9','cpu_overclock':150,'cpu_timing':'fast','jump':'assisted','frame_rate':'auto','view_bob':'on','geometry_precision':'original','texture_precision':'original','draw_distance':'extended','steroids':'portable','jump_walls':'slide','landing':'modern','dynamite':'modern','swimming':'modern','wall_backflip':'modern','crouch':'modern'})
 
     def test_view_bob_menu_and_migration(self):
         replies=iter(['b','subtle','b','wobbly','5'])
@@ -1021,7 +1021,24 @@ class FrameRateTest(unittest.TestCase):
             bad['profiles']['modernized']['controls']['frame_rate']='75'
             path.write_text(json.dumps(bad))
             loaded,notes=profiles.load(path)
-            self.assertEqual(loaded['profiles']['modernized']['controls']['frame_rate'],'60')
+            self.assertEqual(loaded['profiles']['modernized']['controls']['frame_rate'],'auto')
+
+    def test_auto_default_saved_choice_and_vanilla(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / 'profiles.json'
+            data = profiles.defaults()
+            self.assertEqual(data['profiles']['modernized']['controls']['frame_rate'], 'auto')
+            self.assertEqual(data['profiles']['vanilla']['controls']['frame_rate'], '60')
+            for choice in profiles.FRAME_RATES:
+                data['profiles']['modernized']['controls']['frame_rate'] = choice
+                profiles.save(path, data)
+                self.assertEqual(profiles.load(path)[0]['profiles']['modernized']['controls']['frame_rate'], choice)
+            with patch.object(Path, 'is_file', return_value=True), patch.object(run.subprocess, 'call', return_value=0) as launch, patch.object(run, 'ensure_movie_shard'):
+                run.main(['--settings-file', str(path), '--no-session-log', '--frame-rate', 'auto'])
+                self.assertEqual(launch.call_args.kwargs['env']['DNTTK_FRAME_RATE'], 'auto')
+                run.main(['--settings-file', str(path), '--no-session-log', '--vanilla'])
+                self.assertEqual(launch.call_args.kwargs['env']['DNTTK_FRAME_RATE'], '60')
+                self.assertEqual(profiles.load(path)[0]['profiles']['modernized']['controls']['frame_rate'], 'auto')
 
     def test_menu_edits_frame_rate(self):
         settings=profiles.defaults()

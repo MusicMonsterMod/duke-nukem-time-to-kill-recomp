@@ -1,5 +1,49 @@
 # Next-session handoff
 
+## 2026-10-22 - D17X accepted (Done)
+
+User fully accepted both fixes and explicitly authorized closeout.
+D17X is Done: boat-support flat host depth and native warped-quad triangles
+for soil floor contact. [Note 202](202-d17x-posts-soil.md) retains test evidence
+and limits. No further gameplay changes or rebuild. Accepted executable:
+`e5a6a69cf7bf8ff9d72581ee2171b1b8c7f64546f71809b846b0b3de3f3e7b4a`.
+Framework patch exported and clean-pin verification matches all 50 files.
+Implementation, tests and documentation included in the authorized commit/push
+as MusicMonsterMod. No next job started.
+Launch: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-22 - D17X soil revision (Needs playtest)
+
+User confirmed slot 6 fixed. Slot 7 now reproduces as triangular soil cutouts
+exposing brighter ground during movement; the earlier nonreproduction note
+is superseded. Warped host quads retain the native diagonal and per-triangle
+plane depth/contact correction. World ordering and the boat fix are retained.
+Build and owned geometry/ordering tests pass, as do the GL batch tests.
+Inspected 60/120 FPS, 16:9/4:3 routes and continuous redraw sequences retain
+the soil edges; boat, minecart and six older scenes checked.
+[Note 202](202-d17x-posts-soil.md) records details and limits.
+Candidate: `e5a6a69cf7bf8ff9d72581ee2171b1b8c7f64546f71809b846b0b3de3f3e7b4a`.
+Recheck UI slot 7, first person, slowly forward/back and sideways near the
+soil corners. F10 if needed. Launch: `python3 recomp/tools/local/run.py`.
+No acceptance closeout, commit or push.
+
+
+## 2026-10-22 - D17X candidate (Needs playtest)
+
+Boat-support white slivers reproduce on private UI slot 6 and are corrected
+by honoring opaque host flat/gouraud depth in GL. UI slot 7 soil white corners
+did not reproduce on the current baseline; their cause remains unestablished.
+Build, compiled GL batch checks and owned near tests pass. Offscreen 60/120,
+16:9/4:3 routes cover both saves and the preserved D17W cart; six older scenes
+were inspected. [Note 202](202-d17x-posts-soil.md) records evidence and limits.
+Candidate: `8ef0ab59d8889f80a1f89e58282c8e30a4c62a602359ebc34d3bd60ae060c4a3`.
+Framework patch exported and verified against the clean pin (50 files).
+Player saves/profile unchanged. No acceptance closeout, commit or push.
+Player check: first person, slowly forward/back at the slot 6 posts and slot 7
+soil corners. F10 if capture is needed. Launch: `python3 recomp/tools/local/run.py`.
+
+
 ## 2026-10-22 - D17M1 accepted (Done)
 
 User confirmed the ladder/platform fix and explicitly authorized closeout.

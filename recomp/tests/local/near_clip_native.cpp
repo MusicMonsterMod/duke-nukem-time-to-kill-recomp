@@ -133,6 +133,18 @@ static void packet_contracts(const char* executable) {
     assert(psx_mod_read_word(ot+128*8)>=0x80f00000u && psx_mod_read_word(ot+128*8)<0x80f80000u);
     assert(psx_mod_read_word(ctx)==0x80160000);
     for(unsigned i=0;i<2048;++i)if(i!=128)assert(psx_mod_read_word(ot+i*8)==0);
+    // D17X: both native halves of a warped world quad retain the original
+    // four-corner maximum depth, even when one half has only near vertices.
+    {
+        auto c=reset();c.gpr[31]=0x80037344;
+        word(mesh+0x14,4);word(mesh+0x18,0x50);
+        const uint32_t packed[4]={0x0001ff3f,0x0001ff01,0x0001013f,0x00020101};
+        for(int i=0;i<4;++i) {word(mesh+0x1c+8*i,packed[i]);word(mesh+0x20+8*i,0x34808080);}
+        word(mesh+0x50,0x00010061);word(mesh+0x54,0x03020100);
+        word(mesh+0x58,0x02000000);word(mesh+0x5c,0xff);
+        observed_hook(&c,0x80011020);assert(host_vertices>=6);
+        for(unsigned i=0;i<2048;++i) assert((psx_mod_read_word(ot+i*8)!=0)==(i==64));
+    }
     // D17M: overhead horizontal world faces in the prop-depth band write depth,
     // preserving their maximum-SZ slot, corners and native quad diagonal.
     // No takeover outside the band, in Original textures, or in Vanilla.
@@ -281,6 +293,31 @@ static void packet_contracts(const char* executable) {
         observed_hook(&c,0x80010000);assert(host_vertices==6);
         unsigned buckets=0;for(unsigned i=0;i<2048;++i)buckets+=psx_mod_read_word(ot+i*8)!=0;
         assert(buckets==(semi?2u:1u));
+    }
+    // D17X: a warped quad meeting a floor must retain the PS1 1-2
+    // diagonal and a valid plane for each half, including per-corner UVs.
+    {
+        auto c=reset();c.gpr[31]=0x80032288;
+        psx_mod_write_byte(mesh+6,4);word(mesh+0x10,verts);word(mesh+0x14,list);
+        const int xyz[4][3]={{-100,-100,5000},{100,-100,5000},
+                             {-100,100,5000},{100,100,5050}};
+        for(int i=0;i<4;++i) {
+            word(verts+i*8,uint16_t(xyz[i][0])|uint32_t(uint16_t(xyz[i][1]))<<16);
+            word(verts+i*8+4,xyz[i][2]);
+        }
+        word(list,0x0001002c);word(list+4,0x03020100);
+        word(list+8,0);word(list+12,0x0200001f);
+        word(list+16,0x1f1f1f00);word(list+20,0xff);
+        observed_hook(&c,0x80010000);assert(host_corners.size()==6);
+        const char* split=std::getenv("DNTTK_WARPED_QUADS");
+        const bool native=!(split && std::string_view(split)=="0");
+        const int order[2][6]={{0,1,3,0,3,2},{0,1,2,2,1,3}};
+        for(int i=0;i<6;++i) {
+            const int source=order[native][i];const auto& v=host_corners[i];
+            assert(v.z==xyz[source][2]);
+            assert(v.u==(source%2?31:0) && v.v==(source>=2?31:0));
+            if(native && i<3) assert(std::abs(v.depth-4998.0f)<0.01f);
+        }
     }
     // D17W: a textured face and a flat face on the same corners (the level 3
     // minecart). The original paints the earlier record last, so that one

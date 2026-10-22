@@ -205,7 +205,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D17C | View bob: disable experiment, then a stable modern camera | Done (user-accepted) | D11 |
 | D17V | Modern view bob: steady Duke 3D-style tempo instead of a sped-up walk bob when running | Done (user-accepted) | D17C |
 | D17W | Overturned minecart (player UI slot 10, level 3) shows large white untextured triangles in first person | Done (user-accepted 2026-10-20) | D11B |
-| D17X | Small white triangles on the boat's wooden posts (UI slot 6, level 6) and the grave-dig soil corners (UI slot 7, level 1) in first person | Todo | D17W |
+| D17X | Small white triangles on the boat's wooden posts (UI slot 6, level 6) and the grave-dig soil corners (UI slot 7, level 1) in first person | Done (user-accepted 2026-10-22) | D17W |
 | D18 | FMV and audio presentation safeguards | Todo | D01, D02 |
 | D18A | Voice/music/gunfire crackle investigation | Done | D01, D02 |
 | D18B | Concurrent voice with music (no music mute) | Todo | D18, D21 |
@@ -6833,8 +6833,12 @@ Preserve Vanilla and existing display/camera modes.
 
 ### D17X - Small white triangles on posts and soil in first person
 
-**Todo, backlog (user, 2026-10-21: "stand this up as a backlog job now but
-do not work on it").** The user thinks it is similar to D17W (the minecart's
+**Done (user-accepted 2026-10-22).** Both slot 6 and slot 7 are accepted.
+Slot 7 reproduced as triangular soil cutouts exposing brighter ground during
+movement. Warped host quads now retain the native diagonal and per-triangle
+plane depth, preserving the mound's floor contact. Both fixes are in the
+accepted build. [Note 202](documentation/202-d17x-posts-soil.md).
+Originally queued on 2026-10-21. The user thinks it is similar to D17W (the minecart's
 white triangles).
 
 - UI slot 6 (savestate file 05, SHA-256
@@ -16690,3 +16694,50 @@ No further gameplay changes or rebuild. Accepted executable:
 Framework patch re-export unchanged; applies to the clean pinned dependency
 and matches all 50 patched files. Implementation, tests and documentation
 included in the authorized commit/push. No next job started.
+
+## 2026-10-22 - D17X boat-support depth candidate (Needs playtest)
+
+Selected by the user. Verified the slot 6/7 hashes and tested private copies.
+Boat slivers are internal flat object faces whose host depth was ignored by
+GL's flat pipeline. Opaque precise host flat/gouraud pieces now share textured
+host depth; native polygons, translucent effects, lines and weapons retain
+painter order. No model-specific gate, title hook or generated-code change.
+
+Build and compiled flat-batch boundary tests pass; owned near-clip tests pass
+in Original/Corrected textures. Offscreen routes cover 60/120, 16:9/4:3, both
+reported saves, the preserved minecart and six older rendering scenes. Soil
+white corners were not reproduced on the baseline, so no cause/fix is claimed
+for that part. Player acceptance remains. [Note 202](documentation/202-d17x-posts-soil.md).
+Candidate `8ef0ab59d8889f80a1f89e58282c8e30a4c62a602359ebc34d3bd60ae060c4a3`.
+Framework patch exported and verified against its clean pin (50 files).
+Player saves/profile unchanged. No acceptance closeout, commit or push.
+
+## 2026-10-22 - D17X revision 2: soil-corner cutouts (Needs playtest)
+
+User confirmed slot 6 fixed, slot 7 still affected. Continuous walking captures
+reproduce triangular soil cutouts exposing the brighter ground; the first
+pass's soil nonreproduction statement is superseded. Warped quads had the
+wrong fan diagonal and no plane-depth correction. The precise host path now
+splits on the native PS1 diagonal before clipping, preserving UV/color corners
+and per-half plane depth/contact correction. World halves keep the original
+quad's maximum-depth ordering key. No model-specific conditions or new
+framework changes; the accepted boat fix is retained.
+
+Build, new owned-EXE geometry/ordering contracts and existing flat-depth tests
+pass. Continuous redraw sequences and 60/120 FPS, 16:9/4:3 movement routes
+retain soil boundaries; boat, minecart and six older scene checks are clean in
+inspected captures. [Note 202](documentation/202-d17x-posts-soil.md).
+Candidate `e5a6a69cf7bf8ff9d72581ee2171b1b8c7f64546f71809b846b0b3de3f3e7b4a`.
+Player confirmation remains. No acceptance closeout, commit or push.
+
+## 2026-10-22 - D17X accepted (Done)
+
+User: "the fix is in! fully accepted. lock it in and close it out".
+Both the boat-support flat-depth correction and soil warped-quad correction
+are accepted. D17X is Done. [Note 202](documentation/202-d17x-posts-soil.md)
+retains the automated evidence and its limits. No further gameplay changes
+or rebuild. Accepted executable:
+`e5a6a69cf7bf8ff9d72581ee2171b1b8c7f64546f71809b846b0b3de3f3e7b4a`.
+Framework patch re-exported and verified against the clean pinned dependency,
+matching all 50 patched files. Implementation, tests and documentation are
+included in the authorized commit/push as MusicMonsterMod. No next job started.

@@ -618,6 +618,7 @@ void refine(Frame& f,const Poly& poly,const std::vector<Vertex>& shape,unsigned 
 // so the outline is 0 1 3 2.
 void draw(Frame& f,const Poly& poly) {
     ++f.stats->polys;
+    static const bool source_order=env_int("DNTTK_SOURCE_ORDER",1,0,1)!=0;
     std::vector<Vertex> shape;shape.reserve(poly.count);
     static const int order3[3]={0,1,2},order4[4]={0,1,3,2};
     const int* order=poly.count==3?order3:order4;
@@ -636,13 +637,33 @@ void draw(Frame& f,const Poly& poly) {
     }
     Poly local=poly;
     local.depth_plane=near_depth_plane(shape[0].p,shape[1].p,shape[2].p);
-    // A non-planar source quad must retain its original depth geometry.
+    // A warped quad is two PS1 triangles, not one plane. Preserve its native
+    // 1-2 diagonal before clipping; otherwise fan triangulation changes the
+    // surface and disabling plane depth lets snapped pieces intersect floors.
+    bool warped=false;
     for(const auto& v:shape) {
         const auto& p=local.depth_plane;
-        if(std::abs(p.n[0]*v.p[0]+p.n[1]*v.p[1]+p.n[2]*v.p[2]-p.d)>1e-5) {
-            local.depth_plane={};break;
-        }
+        warped|=std::abs(p.n[0]*v.p[0]+p.n[1]*v.p[1]+p.n[2]*v.p[2]-p.d)>1e-5;
     }
+    static const bool warped_split=env_int("DNTTK_WARPED_QUADS",1,0,1)!=0;
+    if(warped && poly.count==4 && !poly.depth_only && precise() && warped_split) {
+        --f.stats->polys; // each native half is counted by its recursive draw
+        static const int triangles[2][3]={{0,1,2},{2,1,3}};
+        for(const auto& indices:triangles) {
+            Poly tri=poly;tri.count=3;
+            for(unsigned j=0;j<3;++j) {
+                tri.idx[j]=poly.idx[indices[j]];
+                tri.colors[j]=poly.colors[indices[j]];
+                tri.uv[j]=poly.uv[indices[j]];
+            }
+            // Keep the source world's maximum-depth key across both halves.
+            if(!f.object && source_order)
+                for(unsigned j=0;j<4;++j) tri.key_z=std::max(tri.key_z,(double)f.verts[poly.idx[j]].sz);
+            draw(f,tri);
+        }
+        return;
+    }
+    if(warped) local.depth_plane={};
     // D17L/D17M: retain the native ordering slot and PS1 quad diagonal for
     // depth-only surfaces. Position/texture precision still follows the
     // selected settings. No clipping, splitting or contact offset is added.
@@ -688,7 +709,6 @@ void draw(Frame& f,const Poly& poly) {
     // a maximum, not a minimum. Sorting subdivisions individually lets a
     // near floor piece overwrite native decals/props that were ordered in
     // front of the whole floor. Host depth still resolves host-host overlap.
-    static const bool source_order=env_int("DNTTK_SOURCE_ORDER",1,0,1)!=0;
     if(source_order && precise() && !f.object) {
         for(unsigned j=0;j<poly.count;++j)
             local.key_z=std::max(local.key_z,(double)f.verts[poly.idx[j]].sz);

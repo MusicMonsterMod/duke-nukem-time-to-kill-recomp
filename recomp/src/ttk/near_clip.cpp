@@ -147,6 +147,9 @@ constexpr uint32_t perspective_z=1536;
 // whole average depth, and a host wall piece beside it could cover it (the
 // apartment wardrobe's inner door, about 2000 units away).
 constexpr uint32_t object_perspective_z=3072;
+// Include the normal third-person camera setback when covering thin platforms.
+constexpr uint32_t platform_depth_z=8192;
+bool platform_depth() {static const bool v=env_int("DNTTK_PLATFORM_DEPTH",1,0,1)!=0;return v;}
 
 struct Stats { uint64_t seen,taken,polys,culled,triangles,budget_hits; };
 Stats world_stats,object_stats;
@@ -640,10 +643,9 @@ void draw(Frame& f,const Poly& poly) {
             local.depth_plane={};break;
         }
     }
-    // D17L: a distant static top can paint over a depth-tested cup. Give
-    // only that opaque planar surface depth, retaining its native AVSZ order,
-    // integer corners, affine UVs and PS1 quad diagonal. No clipping/splitting,
-    // contact offset, all-object takeover or precision setting is involved.
+    // D17L/D17M: retain the native ordering slot and PS1 quad diagonal for
+    // depth-only surfaces. Position/texture precision still follows the
+    // selected settings. No clipping, splitting or contact offset is added.
     if(poly.depth_only) {
         const Vertex first[3]={shape[0],shape[1],shape[poly.count==4?3:2]};
         emit(f,local,first);
@@ -753,6 +755,7 @@ bool animate(uint32_t& t1,uint32_t& t2,uint32_t& t3,bool object) {
     return true;
 }
 
+bool subdivision_bypass();
 // 0x80011020 entry: a0 mesh, a1 ordering table, a2 render context, a3 bitmap.
 void world(CPUState* cpu) {
     const uint32_t mesh=cpu->gpr[4],ra=cpu->gpr[31];
@@ -765,13 +768,24 @@ void world(CPUState* cpu) {
     const uint32_t flags=psx_mod_read_word(context+0x50);
     const int32_t fog=(int32_t)psx_mod_read_word(context+0x6c);
     std::vector<uint32_t> colors(count);
+    uint32_t packed_vertices[256];
     f.verts.resize(count);
-    bool any=false;
+    // D17M: props already have depth out to 3072, while world takeover ends
+    // at 1536. In that gap an intervening native platform cannot occlude
+    // later prop packets. Give safe overhead horizontal faces depth without
+    // subdividing them or changing their source ordering key. Do not take
+    // unrelated walls/floors into this path: that adds costly depth runs.
+    // Corrected textures already
+    // use whole native faces (D17N); leave the original subdivision mode alone.
+    const bool bridge=platform_depth() && precise() && !conservative() && subdivision_bypass();
+    bool any=false,platform_candidate=false;
     for(unsigned i=0;i<count;++i) {
         const uint32_t record=mesh+0x1c+8*i,w0=psx_mod_read_word(record),w1=psx_mod_read_word(record+4);
+        packed_vertices[i]=w0;
         const uint32_t xy=((w0&0xff)<<10)|((w0&0xff00)<<15);
         f.verts[i]=near_project(f.g,(int16_t)xy,(int16_t)(xy>>16),(int16_t)((((w0>>16)&0xff)<<10)&0xffff));
         any|=!f.verts[i].safe || f.verts[i].sz<std::max<uint32_t>(near_depth(perspective_z),2048);
+        platform_candidate|=bridge && f.verts[i].sz<platform_depth_z;
         uint32_t c=w1;
         if(flags&2) c=(w1&0xff000000u)|(psx_mod_read_word(context+0x54)&0xffffff);
         else if(const uint32_t nibble=(w0>>24)&0xf) c=(w1&0xff000000u)|(psx_mod_read_word(color_table+nibble*4)&0xffffff);
@@ -779,7 +793,7 @@ void world(CPUState* cpu) {
         colors[i]=d>0?near_dpcs(f.g,c,(int16_t)d):c;
     }
     trace_vertices(f);
-    if(!any) {trace_record(f,"native_mesh",0);if(!f.trace) return;}
+    if(!any && !platform_candidate) {trace_record(f,"native_mesh",0);if(!f.trace) return;}
     const uint32_t list=mesh+psx_mod_read_word(mesh+0x18);
     std::vector<Group> groups;std::vector<uint32_t> taken;
     uint32_t cursor=list;
@@ -800,12 +814,40 @@ void world(CPUState* cpu) {
             }
             unsafe|=oversize(f,idx,corners);
             unsafe|=zmin<near_depth(perspective_z);(void)zmax;
-            trace_face(f,cursor,corners,any && unsafe?"host_candidate":"native_kept");
-            if(unsafe) taken.push_back(cursor|(type==0x61)); else group.kept.push_back(cursor);
+            bool depth_only=bridge && !unsafe && zmin<platform_depth_z;
+            const uint32_t height=packed_vertices[idx[0]]&0xff00;
+            for(unsigned j=1;j<corners && depth_only;++j)
+                depth_only=(packed_vertices[idx[j]]&0xff00)==height;
+            if(depth_only) {
+                // Local +Y points down. Dot the view-space position with the
+                // transformed local Y axis to select surfaces above the eye.
+                const auto& v=f.verts[idx[0]].view;
+                depth_only=f.g.r[0][1]*v[0]+f.g.r[1][1]*v[1]+f.g.r[2][1]*v[2]<0;
+            }
+            if(depth_only) {
+                // A thin platform has matching upper corners directly above
+                // its underside. Bound this to 128/256-unit slabs, rather
+                // than adding depth passes for whole room ceilings. Packed
+                // world Y advances by 128 units; X/Z and lighting are separate.
+                unsigned thicknesses=3;
+                for(unsigned j=0;j<corners && thicknesses;++j) {
+                    const uint32_t v=packed_vertices[idx[j]];unsigned matches=0;
+                    for(unsigned k=0;k<count;++k) {
+                        const uint32_t other=packed_vertices[k];
+                        if((v&0x00ff00ffu)!=(other&0x00ff00ffu)) continue;
+                        const int dy=int((v>>8)&255)-int((other>>8)&255);
+                        if(dy==1 || dy==2) matches|=1u<<(dy-1);
+                    }
+                    thicknesses&=matches;
+                }
+                depth_only=thicknesses!=0;
+            }
+            trace_face(f,cursor,corners,depth_only?"native_platform_depth":any && unsafe?"host_candidate":"native_kept");
+            if((any && unsafe) || depth_only) taken.push_back(cursor|(type==0x61)|(depth_only?2u:0u)); else group.kept.push_back(cursor);
         }
         if(!group.kept.empty()) groups.push_back(std::move(group));
     }
-    if(!any || taken.empty()) return;
+    if((!any && !platform_candidate) || taken.empty()) return;
     if(budget(f)<takeover_reserve+(uint32_t)taken.size()*0x28*3) {++mesh_fallbacks;trace_record(f,"mesh_budget_fallback",0);return;}
     const uint32_t copy=guest_copy();
     const unsigned read_verts=(count+2)/3*3;
@@ -825,11 +867,16 @@ void world(CPUState* cpu) {
     ++world_stats.taken;
     const uint32_t textures=psx_mod_read_word(context+0x58);
     for(uint32_t tagged:taken) {
-        const uint32_t record=tagged&~1u;
+        const uint32_t record=tagged&~3u;
         Poly p{};p.source=record;p.count=(tagged&1)?4:3;p.textured=true;p.command=0x34000000u;
         const uint32_t word=psx_mod_read_word(record);
         for(unsigned j=0;j<p.count;++j) p.idx[j]=(word>>(8*j))&0xff;
         if(!(psx_mod_read_half(record+6)&0x200) && !front_facing(f,p,flags,true)) {++world_stats.culled;trace_record(f,"backface",record);continue;}
+        p.depth_only=(tagged&2)!=0;
+        if(p.depth_only) {
+            uint32_t zmax=0;for(unsigned j=0;j<p.count;++j) zmax=std::max<uint32_t>(zmax,f.verts[p.idx[j]].sz);
+            p.native_slot=(zmax>>2)>=f.far_limit?-1:(int)std::min<uint32_t>(zmax>>5,0x7ff);
+        }
         const int16_t tex=(int16_t)psx_mod_read_half(record+4);
         const uint32_t entry=textures+(uint32_t)(tex*12);
         uint32_t t1=psx_mod_read_word(entry),t2=psx_mod_read_word(entry+4),t3=psx_mod_read_word(entry+8);
@@ -992,7 +1039,22 @@ void object(CPUState* cpu) {
     // Extend depth coverage only for compact props (at most 256 local units
     // per axis), such as cups/bowls. Large distant scenery retains the
     // original path and its draw budget; no radius or screen-edge culling changes.
-    const bool static_depth=static_candidate && hi[0]-lo[0]<=256 && hi[1]-lo[1]<=256 && hi[2]-lo[2]<=256;
+    // D17M: the shotgun-ammo mesh is just outside the compact-prop bounds
+    // (298x156x265). At third-person distance it otherwise stays painter-only
+    // and can draw over a platform even after the platform gains depth. Extend
+    // compact coverage only for walk-over pickups, identified by the original
+    // type-table flag, not a level-specific object or mesh address.
+    bool pickup=false;
+    if(static_candidate && platform_depth() && subdivision_bypass()) {
+        const uint32_t instance=cpu->gpr[18],table=psx_mod_read_word(0x800d2660);
+        if(instance>=0x80010000u && instance<=0x801fffd0u && !(instance&3) &&
+           table>=0x80010000u && table<=0x801f8bd8u && !(table&3)) {
+            const unsigned type=psx_mod_read_half(instance+0x2c);
+            pickup=type<1062 && (psx_mod_read_word(table+28*type)&0x20000000u);
+        }
+    }
+    const int extent=pickup?320:256;
+    const bool static_depth=static_candidate && hi[0]-lo[0]<=extent && hi[1]-lo[1]<=extent && hi[2]-lo[2]<=extent;
     any|=static_depth;
     static const bool top_depth=env_int("DNTTK_STATIC_TOP_DEPTH",1,0,1)!=0;
     // Bound distant coverage to simple boxes. Compound scenery (stage

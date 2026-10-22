@@ -1,5 +1,88 @@
 # Current status - 2026-10-04
 
+## 2026-10-22 - D17M accepted; D17M1 ladder backlog
+
+User fully accepted D17M and explicitly authorized closeout, commit and push.
+D17M is Done; accepted executable remains
+`8a034f815fc3abf27c27f843dfcc27e01444b4a5e383fa177fe7370ed98412da`.
+No rebuild or further gameplay edits. Framework patch export unchanged;
+verification against the clean pinned dependency matches all 50 patched files.
+[Note 200](200-d17m-platform-ammo.md) retains test evidence and limits.
+
+Brief inspection of a private copy of updated UI slot 10 supports a separate
+D17M1 Todo for upper-ladder/platform visibility. The compact-object depth gates
+are a plausible lead, not an established cause. Board entry records save hash,
+reproduction and acceptance. No implementation started. D19Q2 paused-save
+investigation also remains Todo. Earlier D17G/H/I/J triage and D17M code/tests
+are included in the explicitly authorized commit/push.
+
+Launch: `python3 recomp/tools/local/run.py`.
+
+## 2026-10-22 - D17M platform ammo correction (Needs playtest)
+
+Current reproduction is UI slot 10. The candidate gives thin overhead
+platforms depth and narrowly extends compact depth coverage to walk-over
+pickups in Corrected textures. Original textures and Vanilla keep their
+existing paths. Owned-EXE renderer tests pass in five settings combinations;
+primitive-trace tests pass in both texture modes. Offscreen captures cover
+first person at 60/120/180, third person at 120, elevated pickup visibility,
+and six older regression scenes. The final 180-target stationary samples
+measure 178.6/s at the old table and 180.3/s at the platform, with zero dummy-
+audio underruns. User ladder ascent/descent and gameplay acceptance remain.
+Player saves/cards/profile unchanged. No framework/generated-source edits,
+commit or push. [Note 200](200-d17m-platform-ammo.md) records bounds and evidence.
+Candidate: `8a034f815fc3abf27c27f843dfcc27e01444b4a5e383fa177fe7370ed98412da`.
+
+Added D19Q2 Todo at the user's request for recurring paused-save behavior.
+It remains deferred; diagnostic loading into a pause menu alone does not
+prove a player SAVE/LOAD regression. No other job started.
+
+Load slot 10 with Corrected textures for playtest:
+`python3 recomp/tools/local/run.py` (F10 if mouse capture is needed).
+
+## 2026-10-22 - D17J complete, no action necessary
+
+The user confirmed the apartment, alley platform, pavement, club stairs and
+bar-stool environments are all stable and explicitly requested completion
+with no action necessary. D17J is Done on user gameplay evidence. Frame rate
+and camera were not reported; no specific resolving change is established.
+No gameplay changes, rebuild or automated tests. The accepted D12D executable
+remains the baseline. Documentation only; no commit or push. D17M is the next
+unfinished D17 report for manual review; implementation has not started.
+
+
+## 2026-10-22 - D17I complete, no action necessary
+
+After receiving the manual Unlimited camera test instructions, the user
+explicitly requested completion with no action necessary. D17I is Done
+on user acceptance. No detailed test observations or settings were supplied;
+no measured timing improvement or specific resolving change is claimed.
+No gameplay changes, rebuild or automated tests. The accepted D12D executable
+remains the baseline. Documentation only; no commit or push. No next job started.
+
+
+## 2026-10-22 - D17H complete, no action needed
+
+The user could not reproduce the old train-control and platform/ledge stutters
+after receiving the manual test route, reporting "play is totally smooth".
+They explicitly requested completion with no action needed. D17H is Done
+on user gameplay evidence. Frame rate was not reported; no specific resolving
+change is established. No gameplay changes, rebuild or automated tests.
+The accepted D12D executable remains the baseline. Documentation only;
+no commit or push. No next job started.
+
+
+## 2026-10-22 - D17G complete, no action needed
+
+The user retested the old strip-club translation-jerk report on the current
+player build and could not reproduce it, reporting perfect graphics and
+stability in that area. They explicitly requested D17G be marked complete
+with no action needed. D17G is Done on user gameplay evidence; frame rate
+and camera were not reported, and no specific resolving change is established.
+No gameplay changes, rebuild or automated tests. The accepted D12D executable
+remains the baseline. Documentation only; no commit or push. No next job started.
+
+
 ## 2026-10-22 - D12D accepted (Done)
 
 User: "fully accepted!! lock it in, and close us out". Upgraded first-person

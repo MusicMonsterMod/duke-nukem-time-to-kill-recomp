@@ -133,8 +133,71 @@ static void packet_contracts(const char* executable) {
     assert(psx_mod_read_word(ot+128*8)>=0x80f00000u && psx_mod_read_word(ot+128*8)<0x80f80000u);
     assert(psx_mod_read_word(ctx)==0x80160000);
     for(unsigned i=0;i<2048;++i)if(i!=128)assert(psx_mod_read_word(ot+i*8)==0);
-    auto object_case=[&](uint32_t ra,int extent,bool expect_taken,bool occupied_ot=false) {
+    // D17M: overhead horizontal world faces in the prop-depth band write depth,
+    // preserving their maximum-SZ slot, corners and native quad diagonal.
+    // No takeover outside the band, in Original textures, or in Vanilla.
+    const char* bridge_env=std::getenv("DNTTK_PLATFORM_DEPTH");
+    const char* subdiv_env=std::getenv("DNTTK_WORLD_SUBDIVISION");
+    const bool bridge=pgxp_mesh_textures() && !(bridge_env && std::string_view(bridge_env)=="0") &&
+        !(subdiv_env && std::string_view(subdiv_env)=="1");
+    auto world_bridge=[&](bool quad,int shift,uint32_t ra,int far_limit,bool exhausted,bool expect,int kind=0) {
+        auto c=reset();c.gpr[31]=ra;c.gte_ctrl[7]=shift;c.gte_ctrl[6]=-512;
+        if(kind==1) c.gte_ctrl[6]=256; // floor below the eye
+        word(mesh+0x14,8);word(mesh+0x18,0x80);
+        uint32_t packed[4]={0x0002013f,0x00020101,0x0003013f,0x00030101};
+        if(kind>=4) for(auto& v:packed) v=(v&~0xff00u)|uint32_t(kind==5?3:2)<<8;
+        for(int i=0;i<4;++i) {word(mesh+0x1c+8*i,packed[i]);word(mesh+0x20+8*i,0x34808080);}
+        for(int i=0;i<4;++i) {word(mesh+0x1c+8*(i+4),packed[i]&~0xff00u);word(mesh+0x20+8*(i+4),0x34808080);}
+        if(kind==6) word(mesh+0x1c+8*6,(packed[2]&~0xff00u)|0x100); // upper corners at mixed heights
+        if(kind==3) word(mesh+0x1c+8*6,(packed[2]&~0xff00u)+1); // missing upper corner
+        if(kind==2) word(mesh+0x1c+16,packed[2]+0x100); // sloped/nonplanar
+        word(mesh+0x80,quad?0x00010061:0x00010060);word(mesh+0x84,quad?0x03020100:0x00020100);
+        word(mesh+0x88,0x02000000);word(mesh+0x8c,0xff);word(ctx+0x78,far_limit);
+        if(exhausted) {word(bm,1);auto state=ttk::near_clip_frame_state();state.host_bytes=0xffffffffu;ttk::near_clip_load_frame_state(state);}
+        observed_hook(&c,0x80011020);
+        assert((host_vertices!=0)==expect);
+        if(expect) {
+            assert(host_vertices==(quad?6u:3u));
+            for(unsigned i=0;i<2048;++i) assert((psx_mod_read_word(ot+i*8)!=0)==(i==96));
+            const int index[6]={0,1,2,2,1,3};
+            ttk::NearGte g{};for(int i=0;i<3;++i)g.r[i][i]=4096;g.h=256;g.tr[1]=-512;
+            const float uv[4][2]={{0,0},{31,0},{0,31},{31,31}};
+            for(unsigned i=0;i<host_vertices;++i) {
+                const auto& v=host_corners[i];const int j=index[i];const uint32_t w=packed[j];
+                const auto projected=ttk::near_project(g,(int16_t)((w&255)<<10),(int16_t)(((w&0xff00)<<15)>>16),(int16_t)(((w>>16)&255)<<10));
+                assert(v.word==projected.sxy && v.z==projected.sz && v.depth>0);
+                assert(v.u==uv[j][0] && v.v==uv[j][1]);
+            }
+        }
+    };
+    for(bool quad:{false,true}) {
+        world_bridge(quad,0,0x80062db8,0xffff,false,bridge);
+        world_bridge(quad,6144,0x80062db8,0xffff,false,false);
+        world_bridge(quad,0,0x80032288,0xffff,false,false);
+        world_bridge(quad,0,0x80062db8,768,false,false);
+        world_bridge(quad,0,0x80062db8,0xffff,true,false);
+        world_bridge(quad,0,0x80062db8,0xffff,false,false,1);
+        world_bridge(quad,0,0x80062db8,0xffff,false,false,2);
+        world_bridge(quad,0,0x80062db8,0xffff,false,false,3);
+        world_bridge(quad,0,0x80062db8,0xffff,false,bridge,4);
+        world_bridge(quad,0,0x80062db8,0xffff,false,false,5);
+        world_bridge(quad,0,0x80062db8,0xffff,false,false,6);
+        live_eye=false;world_bridge(quad,0,0x80062db8,0xffff,false,false);live_eye=true;
+    }
+    // Searching farther for platforms must not extend the old takeover
+    // boundary for unrelated wide world faces.
+    cpu=reset();cpu.gpr[31]=0x80062db8;
+    word(mesh+0x14,3);word(mesh+0x18,0x40);
+    word(mesh+0x1c,0x00040038);word(mesh+0x20,0x34808080);
+    word(mesh+0x24,0x00040008);word(mesh+0x28,0x34808080);
+    word(mesh+0x2c,0x00040100);word(mesh+0x30,0x34808080);
+    word(mesh+0x40,0x00010060);word(mesh+0x44,0x00020100);
+    word(mesh+0x48,0x02000000);word(mesh+0x4c,0xff);
+    observed_hook(&cpu,0x80011020);
+    assert(cpu.gpr[4]==mesh && host_vertices==0);
+    auto object_case=[&](uint32_t ra,int extent,bool expect_taken,bool occupied_ot=false,uint32_t pickup_flags=0) {
         auto c=reset();c.gpr[31]=ra;c.gpr[18]=0x80180000+extent*0x60;
+        word(0x800d2660,0x80190000);word(c.gpr[18]+0x2c,3);word(0x80190000+28*3,pickup_flags);
         psx_mod_write_byte(mesh+6,3);word(mesh+0x10,verts);word(mesh+0x14,list);
         word(verts,(uint16_t)-extent|uint32_t(uint16_t(-extent))<<16);word(verts+4,5000);
         word(verts+8,extent|uint32_t(uint16_t(-extent))<<16);word(verts+12,5000);
@@ -177,6 +240,11 @@ static void packet_contracts(const char* executable) {
     object_case(0x80033778,100,false); // dancer's articulated mesh
     object_case(0x800351f4,100,false); // actor joint
     object_case(0x80032288,400,false); // distant large scenery stays original
+    object_case(0x80032288,160,bridge,false,0x20000000); // compact walk-over pickup
+    object_case(0x80032288,161,false,false,0x20000000); // bounded at 320 units
+    object_case(0x80032288,160,false,false,0x10000000); // a different type flag
+    object_case(0x80033778,160,false,false,0x20000000); // foreign caller
+    live_eye=false;object_case(0x80032288,160,false,false,0x20000000);live_eye=true;
     // Two opaque faces of a compact prop stay in one ordering bucket so
     // host/native draw state cannot alternate for each face. Translucent
     // faces must keep their independent ordering.

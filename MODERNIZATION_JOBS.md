@@ -184,13 +184,14 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D17D | Club-exit furniture: lower wooden board popping | Accepted | D17A |
 | D17E | Subway peripheral wall visibility near the camera | Accepted | D17A |
 | D17F | Apartment/club closet edge and lower-geometry artifacts | Accepted | D17A |
-| D17G | Strip-club translation jerk during Shift+W / Shift+S | Todo | D17B |
-| D17H | Train-control and platform/ledge movement stutters | Todo | D17B |
-| D17I | Unlimited stale-camera scheduling episodes | Todo | D17B |
-| D17J | Verify older isolated visual reports against accepted baseline | Todo | D17A |
+| D17G | Strip-club translation jerk during Shift+W / Shift+S | Done (user-verified 2026-10-22; no action needed) | D17B |
+| D17H | Train-control and platform/ledge movement stutters | Done (user-verified 2026-10-22; no action needed) | D17B |
+| D17I | Unlimited stale-camera scheduling episodes | Done (user-accepted 2026-10-22; no action necessary) | D17B |
+| D17J | Verify older isolated visual reports against accepted baseline | Done (user-verified 2026-10-22; no action necessary) | D17A |
 | D17K | Coplanar ground blood in save slot 12 | Accepted | D17D |
 | D17L | Tabletop props cut off on approach/retreat in save slot 11 | Done | D17D |
-| D17M | Shotgun ammo visible through ladder platform in save slot 9 | Todo | D17D |
+| D17M | Shotgun ammo visible through ladder platform | Done (user-accepted 2026-10-22) | D17D |
+| D17M1 | Upper ladder visible through platform (updated UI slot 10) | Todo | D17M |
 | D17N | Diagonal wall artifacts during movement (world subdivision) | Accepted | D17A |
 | D17Q | Residual wall/surface flicker: Corrected-renderer stability polish | Done (user-accepted) | D17N |
 | D17O | Unstable sky appearance when looking up (slot 10) | Done (user-accepted) | D17A, D17B |
@@ -221,6 +222,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D19R | Startup card probe hang: about 1.5 s of black screen where CHECKING MEMORY CARD was; remove or hide it (research done) | Done (2026-10-20, closeout delegated by the user) | D19K |
 | D19Q | SAVE GAME screen to match LOAD GAME: choose a savestate slot from the menus, overwrite asks, success / failure shown | Done (user-accepted 2026-10-20) | D19K |
 | D19Q1 | SAVE GAME thumbnail shows the save screen (OVERWRITE THIS SAVE?) instead of play (player UI slot 1; cause: stale CPU VRAM, not first person) | Done (user-accepted 2026-10-20) | D19Q |
+| D19Q2 | Saves restore paused: investigate recurring pause/menu state on load and resume behavior | Todo | D19Q, D20 |
 | D19S | Delete saves from LOAD GAME: Delete on a slot asks DELETE SAVED GAME: "<name>" (NO first) | Done (user-accepted 2026-10-21) | D19K, D19Q |
 | D19T | Real double quote marks (" and ") in the game's menu font: the text call draws `"` as a single quote | Done (user-accepted 2026-10-21) | D19S |
 | D19T1 | DELETE SAVED GAME: shows the slot's name without quotes (cleaner; D19T quotes stay available) | Done (user-accepted 2026-10-21) | D19S, D19T |
@@ -6292,6 +6294,10 @@ and 180. Do not smooth away normal moving-camera PS1 character.
 
 ### D17G - Strip-club translation jerk during Shift+W / Shift+S
 
+**Done (2026-10-22), no action needed.** The user retested the strip-club area on the current build and could not reproduce the issue: "The graphics and stability is perfect in this area now." They explicitly requested completion. This supersedes the historical Todo and reproduction notes below. No specific adjacent fix is established as the cause of resolution; frame rate and camera were not reported. No implementation change, rebuild or automated test was needed.
+
+**Historical report:**
+
 **Todo. Primary remaining movement polish.** Current UI 12 (`cards-user8`,
 file 11): repeatedly Shift+W, Shift+S. User describes a minor polish issue;
 club mouse rotation and general playability are accepted. Compare current
@@ -6312,6 +6318,10 @@ late mouse response, original gameplay timing, 180 support and PS1 identity.
 
 ### D17H - Train-control and platform/ledge movement stutters
 
+**Done (2026-10-22), no action needed.** After receiving the train-switch and platform/ledge test route, the user could not reproduce the issue and reported: "play is totally smooth". They explicitly requested completion with no action needed. This supersedes the historical Todo and reproduction notes below. Frame rate was not reported; no specific resolving change is established. No implementation change, rebuild or automated test was needed.
+
+**Historical report:**
+
 **Todo.** Current UI 2 (`cards-user8`, file 01): activate train switch, leave
 the door while the train moves, approach the pig cops at the far end. Current
 UI 10 (file 09): turn around, walk forward, jump onto the ledge and move there.
@@ -6331,6 +6341,10 @@ and 180 with unchanged train/AI/gameplay timing and opening/club baseline.
 
 ### D17I - Unlimited stale-camera scheduling episodes
 
+**Done (2026-10-22), no action necessary.** After receiving the manual Unlimited camera test instructions, the user explicitly requested: "mark this as complete and no action necessary". Closed on user acceptance; no detailed test observations or settings were supplied. This supersedes the historical Todo below, without claiming a measured timing improvement or a specific resolving change. No implementation change, rebuild or automated test was needed.
+
+**Historical report:**
+
 **Todo. Lower priority stress/debug.** Use `cards-user7` UI 5 early dancers,
 UI 10 later club, and current `cards-user8` UI 12. Earlier Unlimited capture:
 about 161 distinct images/s, 114 ms stale camera sample and catch-up turns,
@@ -6343,6 +6357,10 @@ retain frame-rate independence at 240+, and prove no 120/180 regression.
 Do not impose a 120 ceiling or retune normal play solely for this stress mode.
 
 ### D17J - Verify older isolated visual reports against accepted baseline
+
+**Done (2026-10-22), no action necessary.** After receiving the location-by-location visual checklist, the user confirmed "these environments are all stable now" and explicitly requested completion. This supersedes the historical Todo below. Frame rate and camera were not reported; no specific resolving change is established. No implementation change, rebuild or automated test was needed.
+
+**Historical report:**
 
 **Todo. Bounded reproduction triage only.** Preserve reports without reliable
 current slot identity: apartment after light switch/bed-secret reveal (black
@@ -6409,7 +6427,23 @@ character. User confirms stable tabletop props. D17D/F remain accepted.
 
 **Historical candidate/evidence (superseded by note 95):** The candidate gives compact static props consistent depth beyond the near radius and groups opaque faces to control draw cost. The user does not accept this candidate as resolving the isolated cup. Read-only mesh inspection establishes polygonal table/cup geometry and shared cup meshes across table/bar instances, but does not yet establish the residual flicker cause. Trace the specific failing instance and supporting surface across a bad frame before changing behavior. See [follow-up inspection](documentation/89-d17-playtest-followup.md). See [implementation and verification](documentation/88-d17e-k-l-visuals.md). D17D/F remain accepted.
 
-### D17M - Shotgun ammo visible through ladder platform in save slot 9
+### D17M - Shotgun ammo visible through ladder platform (current slot 10)
+
+**Done (2026-10-22).** User: "lock it in and close it out, fix fully accepted."
+Implementation and documentation commit/push explicitly authorized. The updated
+slot-10 upper-ladder report is separate D17M1 and does not reopen accepted ammo
+occlusion. [Note 200](documentation/200-d17m-platform-ammo.md).
+
+Historical candidate evidence follows.
+
+**Needs playtest (2026-10-22).** Reproduced on the current private slot-10 copy.
+The candidate adds bounded thin-platform depth coverage and compact pickup
+depth for Corrected textures, preserving Original textures and Vanilla.
+Build/native renderer tests and offscreen checks are recorded in
+[note 200](documentation/200-d17m-platform-ammo.md). User ladder ascent/descent
+and unobstructed pickup acceptance remain. No commit or push.
+
+Historical intake follows; its slot number is not the current reproduction.
 
 **Todo - separate backlog bug (2026-10-04).** Load UI save slot 9 (file 08)
 and begin climbing the ladder. The shotgun shell/ammo pickup is visible
@@ -6425,6 +6459,36 @@ descent, with the pickup visible when unobstructed. Check nearby geometry,
 60/120/180 and Vanilla/Modernized; preserve accepted D17C/D/E/F/K behavior.
 No blanket sprite-depth or visibility bypass. User confirms the result.
 See [save identity and regression baseline](documentation/89-d17-playtest-followup.md).
+
+### D17M1 - Upper ladder visible through platform (updated UI slot 10)
+
+**Todo (2026-10-22).** User reports the upper ladder showing through the
+platform when looking slightly upward; small movements and pitch changes
+make it easy to see. Intake uses a private copy of the updated UI slot 10
+(file 09), SHA-256
+`1b709040b1614b4abd6418021cf7bcea99801bf121a611154ff4ee004ce2c9e5`.
+This is a separate ladder/platform pair from D17M's accepted ammo occlusion.
+
+**Quick research:** offscreen first-person inspection at 120 with the accepted
+D17M executable; local captures in
+`recomp/analysis/d17m-platform/shots/ladder-*.png`. Code inspection shows
+D17M extends compact pickup depth only to 320 local units, ordinary compact
+props remain limited to 256, and thin-platform coverage is gated. A ladder
+could remain on the native ordering path; this is a plausible cause, not a
+traced diagnosis. A bounded renderer correction appears feasible. No ladder
+fix, code changes, rebuild or broad investigation during this intake.
+
+**Next investigation:** authenticate ladder and intervening platform packets,
+then compare native ordering, host depth participation and geometric overlap.
+Distinguish truly hidden ladder portions from rails physically in front of or
+extending above the platform. Reproduce by loading this updated state, looking
+up/down and shifting slightly left/right beneath the ladder platform.
+
+**Acceptance:** hidden upper ladder portions occluded through nearby movement
+and ladder ascent/descent; legitimately exposed rails/rungs remain visible.
+Check both camera views, 60/120/180, nearby geometry and accepted D17M ammo
+occlusion. Preserve Original texture and Vanilla behavior, climb controls and
+performance. Use private copies only. User confirms. Deferred until selected.
 
 ### D17N - Diagonal wall artifacts during movement in save slot 12
 
@@ -16531,3 +16595,71 @@ authorized. Executable `bb86f2da7265785ba692c3dadbbcc19e03e5d5f19e0a02d2cd85a57b
 is the regression baseline. No gameplay rebuild. Framework export unchanged;
 clean pinned dependency verification matches all 50 patched files.
 [Note 199](documentation/199-d12d-upgraded-viewmodels.md). No next job started.
+
+
+## 2026-10-22 - D17G complete, no action needed
+
+The user retested the strip-club movement report on the current player build, could not reproduce it, and reported perfect graphics and stability in that area. Explicit instruction: "mark as complete/no action needed". D17G is Done on user gameplay evidence. Frame rate and camera were not reported; the specific change that resolved the historical symptom is not established. No gameplay edits, build, launch or automated tests. Documentation only; no commit or push. No next job started.
+
+
+## 2026-10-22 - D17H complete, no action needed
+
+The user could not reproduce the old train-control and platform/ledge stutters after receiving the manual test route, reporting "play is totally smooth". They explicitly requested completion with no action needed. D17H is Done on user gameplay evidence. Frame rate was not reported; no specific resolving change is established. No gameplay edits, build, launch or automated tests. Documentation only; no commit or push. No next job started.
+
+
+## 2026-10-22 - D17I complete, no action necessary
+
+After receiving the manual Unlimited camera test instructions, the user explicitly requested D17I be marked complete with no action necessary. D17I is Done on user acceptance. No detailed test observations or settings were supplied; no measured timing improvement or specific resolving change is claimed. No gameplay edits, build, launch or automated tests. Documentation only; no commit or push. No next job started.
+
+
+## 2026-10-22 - D17J complete, no action necessary
+
+After receiving the apartment, alley platform, pavement, club stairs and bar-stool checklist, the user confirmed "these environments are all stable now" and explicitly requested completion with no action necessary. D17J is Done on user gameplay evidence. Frame rate and camera were not reported; no specific resolving change is established. No gameplay edits, build, launch or automated tests. Documentation only; no commit or push. D17M is the next unfinished D17 report for manual review; implementation has not started.
+
+
+### D19Q2 - Saves restore paused
+
+**Todo (2026-10-22), user-requested investigation.** During D17M intake, the current UI slot 10 restored to the pause menu through the debug savestate loader. The user reports saves while paused have occurred more than once and suspects a small regression. Do not assume the diagnostic load path proves a player LOAD GAME regression.
+
+**Acceptance:** use private save/card copies to compare SAVE GAME, quicksave and relevant legacy/debug save/load paths from gameplay and menus. Establish which paths preserve or clear pause and menu state; verify intended player loads resume reliably with working controls and mouse capture. Preserve deliberate pause behavior and Vanilla; no player saves/cards modified. Record reproduction evidence and fix only a confirmed regression. Deferred until selected; D17M remains the active job.
+
+
+## 2026-10-22 - D17M platform ammo correction (Needs playtest)
+
+Current reproduction is UI slot 10. The candidate gives thin overhead
+platforms depth and narrowly extends compact depth coverage to walk-over
+pickups in Corrected textures. Original textures and Vanilla keep their
+existing paths. Owned-EXE renderer tests pass in five settings combinations;
+primitive-trace tests pass in both texture modes. Offscreen captures cover
+first person at 60/120/180, third person at 120, elevated pickup visibility,
+and six older regression scenes. The final 180-target stationary samples
+measure 178.6/s at the old table and 180.3/s at the platform, with zero dummy-
+audio underruns. User ladder ascent/descent and gameplay acceptance remain.
+Player saves/cards/profile unchanged. No framework/generated-source edits,
+commit or push. [Note 200](documentation/200-d17m-platform-ammo.md) records bounds and evidence.
+Candidate: `8a034f815fc3abf27c27f843dfcc27e01444b4a5e383fa177fe7370ed98412da`.
+
+Added D19Q2 Todo at the user's request for recurring paused-save behavior.
+It remains deferred; diagnostic loading into a pause menu alone does not
+prove a player SAVE/LOAD regression. No other job started.
+
+Load slot 10 with Corrected textures for playtest:
+`python3 recomp/tools/local/run.py` (F10 if mouse capture is needed).
+
+## 2026-10-22 - D17M accepted; D17M1 ladder backlog
+
+User fully accepted D17M and explicitly authorized closeout, commit and push.
+D17M is Done; accepted executable remains
+`8a034f815fc3abf27c27f843dfcc27e01444b4a5e383fa177fe7370ed98412da`.
+No rebuild or further gameplay edits. Framework patch export unchanged;
+verification against the clean pinned dependency matches all 50 patched files.
+[Note 200](documentation/200-d17m-platform-ammo.md) retains test evidence and limits.
+
+Brief inspection of a private copy of updated UI slot 10 supports a separate
+D17M1 Todo for upper-ladder/platform visibility. The compact-object depth gates
+are a plausible lead, not an established cause. Board entry records save hash,
+reproduction and acceptance. No implementation started. D19Q2 paused-save
+investigation also remains Todo. Earlier D17G/H/I/J triage and D17M code/tests
+are included in the explicitly authorized commit/push.
+
+Launch: `python3 recomp/tools/local/run.py`.

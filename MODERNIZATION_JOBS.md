@@ -1,5 +1,7 @@
 # Time to Kill — modernization jobs
 
+**Latest acceptance (2026-10-22): D08K5 final coverage and D08K crouch-walking parent are Done. No gameplay changes; D17R2 executable remains the regression baseline. [Note 198](documentation/198-d08k5-crouch-coverage.md).**
+
 **Latest accepted job (2026-10-22): D17R2 (angle-dependent black sky); executable `c8524d2c08d0b935b92f54780642d9e2e92e9f218ac88823212278d491aa0318` is the regression baseline. [Note 197](documentation/197-d17r2-angle-dependent-black-sky.md).**
 
 This is the canonical job list for our **Duke Nukem: Time to Kill** PC project, targeting the owned US SLUS-00583 disc. The ambition is a polished, game-specific PC edition: faithful original play plus an optional modern experience. This is a plan, not a list of features already available.
@@ -89,12 +91,12 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08H | Apartment furniture, hidden pickup and switch targeting | Done | D08 |
 | D08I | Responsive run-start and edge jumps | Done | D08 |
 | D08J | Armed airborne ladder grabs and automatic weapon transitions | Done | D08, D08E |
-| D08K | True crouch walking and animation feasibility (parent; split into D08K1-D08K6 on 2026-10-22; D08K1-D08K4 and D08K6 Done) | Todo | D08K5 |
+| D08K | True crouch walking (parent; implementation, animation and final coverage accepted) | Done (user-accepted 2026-10-22) | D08K5 |
 | D08K1 | Animation pipeline: decode the skeleton (HIE) and joint/mesh mapping, preview poses, round-trip a local animation override (research + tooling) | Done (user-accepted 2026-10-22) | D08 |
 | D08K2 | Crouch-height movement collision: low hull and headroom checks while moving, safe stand-up (no new animation needed) | Done (user-accepted 2026-10-22) | D08 |
 | D08K3 | Crouch-walk animation: low-gait loops for every direction with planted feet, matching root travel and original events | Done (user-accepted 2026-10-22; look refined in D08K6) | D08K1 |
 | D08K4 | Modernized crouch walking: hold crouch + direction walks low (no automatic roll), aim and fire, safe stand-up, roll binding | Done (user-accepted 2026-10-22, technical; look in D08K6) | D08K2, D08K3 |
-| D08K5 | Crouch-walk coverage: low ceilings, stairs/edges, weapons, both cameras, traversal interruptions, game-wide; Vanilla unchanged | Todo | D08K4, D22B |
+| D08K5 | Crouch-walk coverage: low ceilings, stairs/edges, weapons, both cameras, traversal interruptions, game-wide; Vanilla unchanged | Done (user-accepted 2026-10-22) | D08K4, D22B |
 | D08K6 | Crouch-walk animation quality: a realistic, Solid Snake-style tactical crouch walk (not "sitting on a toilet"), deep study of the captured animation pack; fix the left-arm shake while crouch walking | Done (user-accepted 2026-10-22) | D08K4 |
 | D08K7 | Stuck crouch on the slot 10 dumpster: Ctrl released leaves Duke on one knee and W then plays the original roll (object-relative stand-up refusal; crouch state machine) | Done (user-accepted 2026-10-22) | D08K2, D08K4 |
 | D08K8 | One-knee kneel as the stationary crouch pose (Modern crouch), with smooth kneel <-> crouch-walk <-> stand transitions | Done (user-accepted 2026-10-22) | D08K6, D08K7 |
@@ -3702,9 +3704,17 @@ descends as before, and releasing them holds the new height; landing,
 fuel, J off, firing and D08Q5 weapon switching unchanged; Classic and Vanilla
 unchanged; the user confirms.
 
-### D08K — True crouch walking and animation feasibility
+### D08K - True crouch walking and animation feasibility
 
-**Blocked after original-asset/collision audit:** no validated low-walk gait/override
+**Done (user-accepted 2026-10-22).** D08K5 final coverage fully accepted:
+"total acceptance! lets lock it in and close this one out!!!" This completes
+the parent: animation pipeline, low hull and safe stand-up, crouch-walk
+animation, Modernized controls, refinements and final regression coverage.
+[Note 198](documentation/198-d08k5-crouch-coverage.md) records the final
+checks and coverage limits. Original crouch/roll remains available through
+CROUCH ORIGINAL; Vanilla remains unchanged.
+
+**Historical blocker, resolved by D08K1-D08K6:** no validated low-walk gait/override
 pipeline and movement collision still uses standing clearance. See
 [concrete findings and required next work](documentation/43-crouch-walk-audit.md).
 No substitute slow-roll/sliding prototype was shipped. User wants held
@@ -3727,8 +3737,8 @@ before verifying the asset pipeline; record concrete blockers if no safe prototy
 **Split into sub-jobs (2026-10-22, user request).** The audit's four
 concrete dependencies are now separate jobs: D08K1 (animation pipeline),
 D08K2 (crouch-height collision), D08K3 (crouch-walk animation), D08K4
-(Modernized controls prototype) and D08K5 (coverage). D08K stays Blocked as
-the parent and is Done when D08K5 is.
+(Modernized controls prototype) and D08K5 (coverage). All are now accepted;
+D08K5 acceptance completes the parent.
 
 ### D08K1 - Animation pipeline: skeleton, pose preview and local override
 
@@ -3864,6 +3874,16 @@ menu choice) without replacing custom bindings; Vanilla keeps the original
 roll and controls unchanged. Third and first person both work.
 
 ### D08K5 - Crouch-walk coverage and regression
+
+**Done (user-accepted 2026-10-22).** Verification complete
+without gameplay changes. [Note 198](documentation/198-d08k5-crouch-coverage.md)
+records four-level/multi-era 120 Hz coverage, first-person 60/120 Hz checks,
+combat, crouched saves, native mantle/ladder/swim transitions, death/Continue,
+all three native suites and the reviewed Vanilla route. Earlier accepted
+terrain coverage is retained; low-headroom safety is fixture-proven, not a
+claim of a natural crouch-only vent. User reports extensive happy continued
+use. Final acceptance now completes D08K too. User explicitly authorized
+documentation, commit and push closeout.
 
 **Opened 2026-10-22 (split from D08K).** Game-wide verification of D08K4,
 following D22B (modern controls in every level).
@@ -16459,3 +16479,25 @@ Authored implementation, native tests and documentation included in closeout.
 Framework export unchanged; patch applies to the clean pinned dependency and
 all 50 modified/new framework files match. No rebuild needed for documentation
 closeout. No next job started.
+
+
+## 2026-10-22 - D08K5 final crouch coverage (Needs playtest)
+
+Verification only on accepted D17R2 executable `c8524d2c08d0b935b92f54780642d9e2e92e9f218ac88823212278d491aa0318`.
+No gameplay changes. Four levels at 120 Hz, both cameras, actual enemy damage,
+five valid crouched save restores, mantle/ladder/swim recovery, death/Continue,
+input/aim/controls suites (21 overlays), reviewed Vanilla route pass. Prior
+accepted terrain evidence and low-ceiling fixture limits are explicit in
+[note 198](documentation/198-d08k5-crouch-coverage.md). Final user acceptance
+pending; D08K remains open until then. No acceptance closeout, commit or push.
+
+
+## 2026-10-22 - D08K5 and D08K accepted (Done)
+
+User: "total acceptance! lets lock it in and close this one out!!!"
+Final coverage fully accepted; D08K5 and the D08K parent are Done.
+Documentation, commit and push closeout explicitly authorized. No gameplay
+change or rebuild: accepted executable remains
+`c8524d2c08d0b935b92f54780642d9e2e92e9f218ac88823212278d491aa0318`.
+[Note 198](documentation/198-d08k5-crouch-coverage.md) retains the verification
+results and bounded coverage limits. No next job started.

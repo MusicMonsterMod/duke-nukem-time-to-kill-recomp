@@ -1,5 +1,28 @@
 # Current status - 2026-10-04
 
+## 2026-10-22 - D08K5 and D08K accepted (Done)
+
+User: "total acceptance! lets lock it in and close this one out!!!"
+Final coverage accepted; D08K5 and the D08K crouch-walking parent are Done.
+Documentation, commit and push closeout explicitly authorized. No gameplay
+changes or rebuild. Accepted executable remains
+`c8524d2c08d0b935b92f54780642d9e2e92e9f218ac88823212278d491aa0318`.
+[Note 198](198-d08k5-crouch-coverage.md) retains verification and coverage limits.
+No next job started. Launch: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-22 - D08K5 coverage ready for final acceptance
+
+D08K5 Needs playtest (final acceptance), D08K still awaiting it. No gameplay
+changes; accepted D17R2 executable remains `c8524d2c08d0b935b92f54780642d9e2e92e9f218ac88823212278d491aa0318`.
+Fresh multi-era/camera, combat, saves, traversal and death/Continue checks,
+all three native suites and reviewed Vanilla route pass. Prior terrain
+coverage and fixture-only low-ceiling evidence are distinguished in
+[note 198](198-d08k5-crouch-coverage.md). User reports extensive happy use.
+No request for a full campaign replay. No acceptance closeout, commit/push
+or next job started. Launch: `python3 recomp/tools/local/run.py`.
+
+
 ## 2026-10-22 - D17R2 accepted (Done)
 
 User fully accepted D17R2 and explicitly requested closeout. Accepted executable

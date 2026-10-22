@@ -2216,6 +2216,33 @@ int main(int argc,char** argv) {
                  hooks().at(0x800292a0)(&cpu,0x800292a0);assert(cpu.gpr[5]==hand);}
                 call(0x8001ca4c,0x800d0000,0,0x800376b4);
                 assert(std::equal(before.begin(),before.end(),ram+(mats&0x1fffff)));
+                // D12D: resolved upgrade records must have the complete base
+                // viewmodel transform and mesh scale, before and after firing.
+                // Exercise the real draw hooks, leaving the guest record intact.
+                {
+                    auto framing=[&](unsigned slot,bool flash) {
+                        psx_mod_write_byte(p+0x3b9,slot);
+                        call(0x800348d8,c,p,0x8003769c);
+                        for(unsigned i=0;i<40;++i)hook(0x800292a0,c,hand,0x80034c6c,7);
+                        if(flash) {
+                            assert(hook(0x800341e4,hand,4,0x80035348,7).gpr[4]==vm);
+                            hook(0x800292a0,c,hand,0x80034c6c,7);
+                        }
+                        std::array<uint8_t,32> matrix{};
+                        std::copy(ram+(vm&0x1fffff),ram+(vm&0x1fffff)+32,matrix.begin());
+                        const auto mesh=hook(0x80033e40,hand,0,0x8003531c,7,4096);
+                        assert(psx_mod_read_byte(p+0x3b9)==slot);
+                        call(0x8001ca4c,0x800d0000,0,0x800376b4);
+                        return std::make_pair(matrix,mesh.gpr[7]);
+                    };
+                    for(bool flash:{false,true}) {
+                        assert(framing(9,flash)==framing(27,flash));
+                        assert(framing(7,flash)==framing(28,flash));
+                        assert(framing(8,flash)==framing(29,flash));
+                    }
+                    assert(std::equal(before.begin(),before.end(),ram+(mats&0x1fffff)));
+                    psx_mod_write_byte(p+0x3b9,4);
+                }
                 // D08K10: crouch display comes from the arm channel, never the
                 // hunch-adjusted world hand. A synthetic arm checks independence
                 // from that matrix and that animated channel motion still plays.
@@ -2315,12 +2342,24 @@ int main(int argc,char** argv) {
                 }
                 psx_mod_write_byte(p+0x3b8,saved_state);psx_mod_write_byte(p+0x3b9,saved_slot);
                 ttk::input.first_person=false;for(unsigned i=0;i<40;++i)frame();
-                // Third person: the hand keeps its own matrix.
-                call(0x800348d8,c,p,0x8003769c);psx_mod_write_byte(p+0x3b8,2);
-                assert(hook(0x800292a0,c,hand,0x80034c6c,7).gpr[5]==hand);
-                call(0x8001ca4c,0x800d0000,0,0x800376b4);
-                psx_mod_write_byte(p+0x3b8,saved_state);
+                // Third person and Vanilla: upgraded records keep the original
+                // hand, attached mesh scale and muzzle-flash transform.
+                for(bool modern:{true,false}) {
+                    ttk::modern=modern;
+                    for(unsigned slot:{4u,5u,10u,27u,28u,29u}) {
+                        call(0x800348d8,c,p,0x8003769c);
+                        psx_mod_write_byte(p+0x3b8,2);psx_mod_write_byte(p+0x3b9,slot);
+                        assert(hook(0x800292a0,c,hand,0x80034c6c,7).gpr[5]==hand);
+                        const auto mesh=hook(0x80033e40,hand,0,0x8003531c,7,4096);
+                        assert(mesh.gpr[4]==hand && mesh.gpr[7]==4096);
+                        assert(hook(0x800341e4,hand,4,0x80035348,7).gpr[4]==hand);
+                        call(0x8001ca4c,0x800d0000,0,0x800376b4);
+                    }
+                }
+                ttk::modern=true;
+                psx_mod_write_byte(p+0x3b8,saved_state);psx_mod_write_byte(p+0x3b9,saved_slot);
                 ttk::input.first_person=true;for(unsigned i=0;i<40;++i)frame();
+                std::puts("PASS: D12D upgraded first-person framing (base-equivalent pose/recoil/scale, held record preserved, third-person and Vanilla exclusion)");
             }
             // D12A quick kick: an original boot request (112..115, not yet
             // initialized) becomes the quick kick at the lower-body initializer;

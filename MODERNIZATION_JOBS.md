@@ -1,5 +1,7 @@
 # Time to Kill — modernization jobs
 
+**Latest accepted job (2026-10-22): D12D upgraded first-person weapon framing is Done. Executable `bb86f2da7265785ba692c3dadbbcc19e03e5d5f19e0a02d2cd85a57b28e390d0` is the regression baseline. [Note 199](documentation/199-d12d-upgraded-viewmodels.md).**
+
 **Latest acceptance (2026-10-22): D08K5 final coverage and D08K crouch-walking parent are Done. No gameplay changes; D17R2 executable remains the regression baseline. [Note 198](documentation/198-d08k5-crouch-coverage.md).**
 
 **Latest accepted job (2026-10-22): D17R2 (angle-dependent black sky); executable `c8524d2c08d0b935b92f54780642d9e2e92e9f218ac88823212278d491aa0318` is the regression baseline. [Note 197](documentation/197-d17r2-angle-dependent-black-sky.md).**
@@ -165,7 +167,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D12A | First-person quick kick without leaving the eye view | Done | D12 |
 | D12B | Costume-aware first-person kick leg, game-wide (LEVEL01 slots 8/9) | Accepted | D12A, D22A |
 | D12C | Kick impact sound on a real hit only (wall, crate, actor); empty-air and out-of-range kicks stay silent | Done (user-accepted) | D12A |
-| D12D | First-person rocket launcher blocks the view in Challenge Stage 4 (level 24; probably the upgraded Incendiary RPG) | Todo | D12, D22B |
+| D12D | Upgraded first-person weapon framing (Challenge Stage 4 Incendiary RPG) | Done (user-accepted 2026-10-22) | D12, D22B |
 | D11C | Savestates can keep Duke's first-person head hidden (slot 12) | Done | D11 |
 | D11D | First-person eye height from Duke's real proportions, game-wide (LEVEL01 slot 8) | Accepted | D11, D22A |
 | D11E | First person while swimming (underwater eye view, game-wide) | Todo | D08O, D11, D22B |
@@ -5743,13 +5745,18 @@ boot hits nothing, I should hear nothing."
 
 ### D12D - First-person rocket launcher blocks the view in Challenge Stage 4
 
-**Todo. User report, 2026-10-08:** "In challenges, level 24, you spawn in with
+**Done (user-accepted 2026-10-22).** Separate upgrade records 27/28/29 now share
+the complete base first-person framing, including firing seeds. Challenge
+stages 23/24/25 and all six campaign upgrades checked; native suites pass.
+User fully accepted and authorized closeout. [Note 199](documentation/199-d12d-upgraded-viewmodels.md).
+
+**Original user report, 2026-10-08:** "In challenges, level 24, you spawn in with
 the rocket launcher, however in first person mode, it's view is obscuring your
 vision. We came into a similar bug like this early on when we created first
 person mode for the first time." Evidence: `research/rocket-launcher-challenge.png`
 (the launcher fills the middle of the screen in first person).
 
-Lead (not yet verified): challenge stages 21-26 set upgrade bit (level - 21)
+Historical lead (resolved in note 199): challenge stages 21-26 set upgrade bit (level - 21)
 in `player+0x85f` (`0x800950cc`), so stage 4 (level 24) upgrades weapon 8,
 the RPG, which `0x8003df40` resolves to record 29 (Incendiary RPG). The D12
 first-person tables in `recomp/src/ttk/first_person.inc` (`weapon_slot_offset`,
@@ -16501,3 +16508,26 @@ change or rebuild: accepted executable remains
 `c8524d2c08d0b935b92f54780642d9e2e92e9f218ac88823212278d491aa0318`.
 [Note 198](documentation/198-d08k5-crouch-coverage.md) retains the verification
 results and bounded coverage limits. No next job started.
+
+
+## 2026-10-22 - D12D upgraded viewmodel framing (Needs playtest)
+
+Reproduced Challenge Stage 4 holding record 29 with missing framing.
+Presentation-only 27/28/29 -> 9/7/8 mapping shares the base offset, tilt,
+scale and seeded pose; original held records and gameplay stay unchanged.
+Player build and input/aim/controls suites pass, including new draw-hook
+contracts and third-person/Vanilla exclusions. Offscreen presented captures
+cover stage 4 at 60/120 Hz, stages 23/25, and all six campaign upgrades
+standing/firing/crouched. User confirmation remains; no commit or push.
+Candidate `bb86f2da7265785ba692c3dadbbcc19e03e5d5f19e0a02d2cd85a57b28e390d0`.
+[Note 199](documentation/199-d12d-upgraded-viewmodels.md).
+
+
+## 2026-10-22 - D12D accepted (Done)
+
+User: "fully accepted!! lock it in, and close us out". Upgraded first-person
+weapon framing accepted; implementation, tests and documentation closeout
+authorized. Executable `bb86f2da7265785ba692c3dadbbcc19e03e5d5f19e0a02d2cd85a57b28e390d0`
+is the regression baseline. No gameplay rebuild. Framework export unchanged;
+clean pinned dependency verification matches all 50 patched files.
+[Note 199](documentation/199-d12d-upgraded-viewmodels.md). No next job started.

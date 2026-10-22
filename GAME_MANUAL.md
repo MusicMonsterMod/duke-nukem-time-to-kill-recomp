@@ -772,7 +772,9 @@ air too, when jumping or falling). Crouch
 lowers the view, and jumps keep it. Duke's head and body are hidden. With a weapon
 drawn you see Duke's own gloved hand holding it at the lower right, always in
 front of walls, with the original muzzle flash and a small kick when firing.
-Each weapon is framed to point at the crosshair; the HUD stays on top. Holstering or drawing makes it disappear or
+Each weapon is framed to point at the crosshair; the HUD stays on top.
+Upgraded weapons use the same first-person framing as their base versions,
+including the Incendiary RPG in Challenge Stage 4. Holstering or drawing makes it disappear or
 appear at once. **Q** in first person is a quick kick, like Duke Nukem 3D's:
 Duke's leg snaps out from the lower left and kicks whatever the crosshair is
 on within leg reach (look down at a low prop such as a garbage bag to kick

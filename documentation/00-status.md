@@ -1,5 +1,31 @@
 # Current status - 2026-10-04
 
+## 2026-10-22 - D12D accepted (Done)
+
+User: "fully accepted!! lock it in, and close us out". Upgraded first-person
+weapon framing is accepted. Implementation, tests and documentation commit/push
+explicitly authorized. Accepted regression baseline:
+`bb86f2da7265785ba692c3dadbbcc19e03e5d5f19e0a02d2cd85a57b28e390d0`.
+[Note 199](199-d12d-upgraded-viewmodels.md) retains tests and coverage limits.
+No gameplay rebuild; framework export unchanged and verified against the clean
+pinned dependency (all 50 patched files match). No next job started.
+Launch: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-22 - D12D upgraded viewmodels (Needs playtest)
+
+Challenge Stage 4's held record 29 had no first-person framing or firing
+seed. The three separate upgraded records now share their base presentation
+slots (27/28/29 -> 9/7/8), with original weapon gameplay records untouched.
+Candidate `bb86f2da7265785ba692c3dadbbcc19e03e5d5f19e0a02d2cd85a57b28e390d0`.
+Build and native input/aim/controls suites pass; live offscreen captures cover
+stage 4 at 60/120 Hz, stages 23/25, all six campaign upgrades standing/firing/
+crouched, and third-person/Vanilla exclusion smoke checks.
+[Note 199](199-d12d-upgraded-viewmodels.md) records evidence and limits.
+User visual acceptance remains. No framework changes, commit or push.
+Launch: `python3 recomp/tools/local/run.py`; P first person, F10 if needed.
+
+
 ## 2026-10-22 - D08K5 and D08K accepted (Done)
 
 User: "total acceptance! lets lock it in and close this one out!!!"

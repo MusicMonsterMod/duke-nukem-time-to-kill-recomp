@@ -509,8 +509,19 @@ static void quat_mat(const double* q,Mat3 m) {
 // back, decaying by 0.7 a frame.
 static constexpr double kick_angle=7*3.14159265358979/180, kick_back=30, kick_decay=0.7;
 static double kick;
-static unsigned held_weapon_slot() {
-    return psx_mod_read_byte(player+0x3b8)==2 ? psx_mod_read_byte(player+0x3b9) : 32u;
+static unsigned weapon_view_slot() {
+    const unsigned slot=psx_mod_read_byte(player+0x3b8)==2 ? psx_mod_read_byte(player+0x3b9) : 32u;
+    // D12D: 8003df40 resolves the upgraded flamethrower, gatling and RPG
+    // to separate records, but they retain their base mesh and animation.
+    // Share the complete first-person framing, including the seeded pose
+    // before the first shot. This is display-only; never change the held
+    // record used by the original game's ammo, damage or projectile paths.
+    switch(slot) {
+    case 27:return 9;
+    case 28:return 7;
+    case 29:return 8;
+    default:return slot;
+    }
 }
 // D08K10: the animated weapons must not inherit the crouch body's shoulder
 // compensation. Rebuild the hand relative to the chest from the right arm's
@@ -528,7 +539,7 @@ static bool crouch_weapon_active() {
          (crouch_owned && crouch_pose(psx_mod_read_half(player+0x60))));
 }
 static bool crouch_weapon_channel(double* q,double* pos) {
-    const unsigned slot=held_weapon_slot();
+    const unsigned slot=weapon_view_slot();
     if(!crouch_weapon_active() ||
        !(slot==1 || slot==2 || slot==3 || slot==12 || slot==13 || slot==14 || slot==32))return false;
     const uint32_t desc=duke_model();
@@ -559,7 +570,7 @@ static bool crouch_weapon_channel(double* q,double* pos) {
 // by that pose's torso (or the pistol's for a weapon not yet seen firing).
 static bool display_pose(Mat3 lh,double* rel,bool& ready) {
     ready=false;
-    const unsigned slot=held_weapon_slot();
+    const unsigned slot=weapon_view_slot();
     const FirePose* p=slot<32 && fire_poses[slot].known ? &fire_poses[slot] : nullptr;
     const FirePose& torso=p?*p:fire_poses[4];
     if(!torso.known) return false;
@@ -687,7 +698,7 @@ static void first_person_weapon_joint(CPUState* cpu,uint32_t ra) {
     {
         // Per-weapon tilt: pitch about x (muzzle up is negative about x, game Y
         // down), yaw about y, roll about z, all in the level frame.
-        const unsigned tslot=held_weapon_slot();
+        const unsigned tslot=weapon_view_slot();
         const double* tilt=tslot<32 ? slot_tilt(tslot) : weapon_slot_tilt[0];
         if(tilt[0] || tilt[1] || tilt[2]) {
             const double d=3.14159265358979/180,p=-tilt[0]*d,y=tilt[1]*d,r=tilt[2]*d;
@@ -698,7 +709,7 @@ static void first_person_weapon_joint(CPUState* cpu,uint32_t ra) {
         }
     }
     const double* anchor=weapon_anchor();const double k=weapon_motion();
-    const unsigned slot=held_weapon_slot();
+    const unsigned slot=weapon_view_slot();
     const double* extra=slot<32 ? slot_offset(slot) : weapon_slot_offset[0];
     for(int r=0;r<3;++r) v[r]=anchor[r]+k*(rel[r]-weapon_reference[r])+extra[r];
     // The level-frame world rotation lh is shown pitched with the view: world
@@ -720,13 +731,13 @@ static void first_person_weapon_joint(CPUState* cpu,uint32_t ra) {
 static void first_person_weapon_attached(CPUState* cpu,uint32_t address,uint32_t ra) {
     if(!weapon_live || !weapon_duke_draw || cpu->gpr[20]!=player || cpu->gpr[4]!=hand_matrix()) return;
     if(address==0x80033e40 && ra==0x8003531c) {
-        const double scale=slot_scale(held_weapon_slot());
+        const double scale=slot_scale(weapon_view_slot());
         if(scale!=1) cpu->gpr[7]=(uint32_t)(int32_t)std::lround((int16_t)cpu->gpr[7]*scale);
         ++weapon_draws;
     }
     else if(address==0x800341e4 && ra==0x80035348) {
         // Record this weapon's firing pose (live animation, not the displayed one).
-        const unsigned slot=held_weapon_slot();
+        const unsigned slot=weapon_view_slot();
         if(slot<32 && live_valid && (!fire_poses[slot].seeded || std::getenv("DNTTK_FP_WEAPON_TRACE"))) {
             FirePose& p=fire_poses[slot];
             if(!p.seeded) {

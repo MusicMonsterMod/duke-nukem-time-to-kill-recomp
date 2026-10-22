@@ -7,8 +7,9 @@
 // 0x2c0 (704) hull, about the standing margin:
 // clearance, the head ray at crouch height, a slope check (0x80077438), the
 // object probe (0x800780b4), no step up over 0x100 and no drop over 0x100 (a
-// crouched Duke stops at edges rather than falling). Stand-up keeps the existing
-// crouch.inc rule: clearance 0x370 at Duke's position, never object-relative.
+// crouched Duke stops at edges rather than falling). Objects as the original
+// judges them (D08K7, crouch_floor). Stand-up (crouch.inc) needs 0x370 over the
+// floor Duke is on.
 // The test mover below is debug-only (backtick console "crouchwalk"); D08K4
 // turns the probe into the Modernized crouch walk.
 static constexpr int32_t crouch_hull=0x2c0, crouch_step_up=0x100, crouch_step_down=0x100;
@@ -47,27 +48,82 @@ static constexpr uint32_t hull_state_first=0x174, hull_state_words=(0x1c8-0x174)
 struct HullState {uint32_t w[hull_state_words];};
 static HullState hull_save() {HullState s;for(unsigned i=0;i<hull_state_words;++i)s.w[i]=psx_mod_read_word(player+hull_state_first+4*i);return s;}
 static void hull_restore(const HullState& s) {for(unsigned i=0;i<hull_state_words;++i)psx_mod_write_word(player+hull_state_first+4*i,s.w[i]);}
+// D08K7: the floor at Duke's position + (dx, dz) as 0x8007926c judges it.
+// After the object probe 0x800780b4 (contact in +0x174) the original never
+// refuses a contact outright: it asks 0x80077748 for the step onto the
+// object's top, refuses one taller than a step, walks on the top of an object
+// whose type has flag 0x1000 (the dumpsters, crates) and, for any other,
+// clears the contact and lets the room decide (0x800790ec). On success step
+// is the floor change (positive = down) and headroom the room's clearance
+// above that floor (a walkable top counts as floor: the slot 10 dumpster,
+// where a contact used to refuse every crouch step and the stand-up).
+// Leaves the player's query fields describing the destination.
+static HullBlock crouch_floor(CPUState* cpu,HullScratch& scratch,int32_t dx,int32_t dz,int32_t& step,int32_t& headroom) {
+    const int32_t x=int32_t(psx_mod_read_word(player+4)),y=int32_t(psx_mod_read_word(player+8)),z=int32_t(psx_mod_read_word(player+0xc));
+    if(!original_call(cpu,0x800780b4,scratch.point(0,dx,0,dz))) return hull_failed;
+    const uint32_t object=psx_mod_read_word(player+0x174);
+    const uint32_t dest=scratch.point(1,x+dx,y,z+dz);
+    bool on_top=false;
+    if(object) {
+        if(!original_call(cpu,0x80077748,dest)) return hull_failed;
+        const int32_t top=int32_t(psx_mod_read_word(player+0x1c4));
+        const uint32_t types=psx_mod_read_word(0x800d2660);
+        const bool walkable=(psx_mod_read_word(types+28*psx_mod_read_half(object+0x2c))&0x1000)!=0;
+        if(top<=-0x10000) return hull_object;
+        if(top<-crouch_step_up) {
+            // Taller than a step: in the way, unless Duke already overlaps it
+            // and steps away from it (never pinned to an object he stood up
+            // or crouched against).
+            const int64_t ox=int64_t(int32_t(psx_mod_read_word(object+4)))-x,oz=int64_t(int32_t(psx_mod_read_word(object+0xc)))-z;
+            if(!(dx || dz) || ox*dx+oz*dz>=0) return hull_object;
+            if(!original_call(cpu,0x800780b4,scratch.point(0,0,0,0))) return hull_failed;
+            if(psx_mod_read_word(player+0x174)!=object) return hull_object;
+        } else on_top=walkable;
+        if(!on_top) {psx_mod_write_word(player+0x174,0);psx_mod_write_half(player+0x178,0xffff);}
+    }
+    int32_t clearance=0;
+    if(!original_call(cpu,0x8007765c,dest,&clearance)) return hull_failed;
+    step=int32_t(psx_mod_read_word(player+0x1c4));
+    if(step<=-0x10000 || clearance==0xffff) return hull_wall;    // no floor there
+    headroom=clearance;
+    if(on_top) {
+        // The object's top is the floor: headroom from it to the room's ceiling,
+        // step and floor normal (0x80077748 writes both) from the object.
+        const int32_t room_step=step;
+        if(!original_call(cpu,0x80077748,dest)) return hull_failed;
+        step=int32_t(psx_mod_read_word(player+0x1c4));
+        if(step<=-0x10000) return hull_object;
+        headroom=clearance-room_step+step;
+    }
+    return hull_clear;
+}
 // Judge a step of (dx, dz) from Duke's position with the crouch hull. On
 // success step_y is the floor change (positive = down) and the player fields
 // describe the destination, as after an original accepted probe.
 static HullBlock crouch_probe(CPUState* cpu,int32_t dx,int32_t dz,int32_t& step_y,int32_t hull=crouch_hull) {
     ++hull_probes;
-    const int32_t x=int32_t(psx_mod_read_word(player+4)),y=int32_t(psx_mod_read_word(player+8)),z=int32_t(psx_mod_read_word(player+0xc));
+    const int32_t x=int32_t(psx_mod_read_word(player+4)),z=int32_t(psx_mod_read_word(player+0xc));
     const int32_t feet=int32_t(psx_mod_read_word(player+0x1c8));
     const HullState before=hull_save();
     HullScratch scratch(cpu->gpr[29]);
     auto fail=[&](HullBlock b){hull_restore(before);++hull_blocks[b];return b;};
-    // Objects first, as 0x8007926c does (it clears and sets the contact 0x174).
-    const uint32_t delta=scratch.point(0,dx,0,dz);
-    if(!original_call(cpu,0x800780b4,delta)) return fail(hull_failed);
-    if(psx_mod_read_word(player+0x174)) return fail(hull_object);
-    int32_t clearance=0;
-    if(!original_call(cpu,0x8007765c,scratch.point(1,x+dx,y,z+dz),&clearance)) return fail(hull_failed);
-    const int32_t step=int32_t(psx_mod_read_word(player+0x1c4));
-    if(step<=-0x10000 || clearance==0xffff) return fail(hull_wall);    // no floor there
-    if(clearance<hull) return fail(hull_low);
-    if(step<-crouch_step_up) return fail(hull_wall);
-    if(step>crouch_step_down) return fail(hull_edge);
+    auto judge=[&](int32_t ax,int32_t az,int32_t& step) {
+        int32_t headroom=0;
+        const HullBlock b=crouch_floor(cpu,scratch,ax,az,step,headroom);
+        return b!=hull_clear ? b : headroom<hull ? hull_low : step<-crouch_step_up ? hull_wall : step>crouch_step_down ? hull_edge : hull_clear;
+    };
+    // D08K7: first the point 0x8007926c judges, Duke's radius-based look-ahead
+    // (+0xb0 * 275 >> 12, built by 0x80073b7c) along the step, so the crouch
+    // stops as far from ledges, walls and objects as the standing walk does
+    // (on the slot 10 dumpster it walked about 300 units further, over the
+    // drop); then the step itself for the height.
+    int32_t step=0;
+    if(dx || dz) {
+        const double len=std::hypot(double(dx),double(dz));
+        const double ahead=std::max(len,double((uint32_t(psx_mod_read_half(player+0xb0))*275u)>>12));
+        if(const HullBlock b=judge(int32_t(std::lround(dx*ahead/len)),int32_t(std::lround(dz*ahead/len)),step); b!=hull_clear) return fail(b);
+    }
+    if(const HullBlock b=judge(dx,dz,step); b!=hull_clear) return fail(b);
     // Head ray at crouch height, from here to there (0x8007926c uses 0x370).
     int32_t hit=0;
     const uint32_t from=scratch.point(0,x,feet-hull,z),to=scratch.point(1,x+dx,feet+step-hull,z+dz);
@@ -80,6 +136,22 @@ static HullBlock crouch_probe(CPUState* cpu,int32_t dx,int32_t dz,int32_t& step_
     }
     step_y=step;
     return hull_clear;
+}
+// D08K7 stand-up (crouch.inc): the standing clearance 0x370 (as 0x8007926c)
+// over the floor Duke is on, a walkable object's top included; anything
+// taller than a step overlapping him refuses. Player fields unchanged.
+static unsigned stand_checks,stand_refusals;
+static std::atomic<bool> stand_test_block{false};   // debug: "crouchstand block" refuses every stand-up
+static bool crouch_stand_room(CPUState* cpu) {
+    ++stand_checks;
+    if(stand_test_block.load()) {++stand_refusals;return false;}
+    const HullState before=hull_save();
+    HullScratch scratch(cpu->gpr[29]);
+    int32_t step=0,headroom=0;
+    const bool room=crouch_floor(cpu,scratch,0,0,step,headroom)==hull_clear && headroom>=0x370;
+    hull_restore(before);
+    if(!room) ++stand_refusals;
+    return room;
 }
 // Debug test mover: while Duke holds the stationary crouch (lower animation
 // 178) on ordinary ground, move him (fwd, side) units per update relative to
@@ -180,6 +252,14 @@ static void crouch_hull_update(CPUState* cpu) {
 bool crouch_console_command(const char* line,void (*say)(const char*),bool& close) {
     close=false;
     const bool go=!std::strncmp(line,"crouchgo",8);
+    if(!std::strncmp(line,"crouchstand",11)) {
+        if(!input_modernized()) {say("Crouch tests: Modernized profile only");return true;}
+        if(std::strstr(line,"block")) stand_test_block.store(true);
+        else if(std::strstr(line,"free")) stand_test_block.store(false);
+        char text[96];
+        std::snprintf(text,sizeof text,"Crouch stand-up %s; checks %u refused %u",stand_test_block.load()?"blocked (test)":"normal",stand_checks,stand_refusals);
+        say(text);return true;
+    }
     if(std::strncmp(line,"crouchwalk",10) && std::strncmp(line,"crouchscan",10) && !go)return false;
     if(go) line+=8; else if(!std::strncmp(line,"crouchwalk",10)) line+=10;
     if(!input_modernized()) {say("Crouch tests: Modernized profile only");return true;}
@@ -192,8 +272,8 @@ bool crouch_console_command(const char* line,void (*say)(const char*),bool& clos
     int fwd=0,side=0,height=crouch_hull;
     if(std::strstr(line,"off") || std::sscanf(line,"%d %d %d",&fwd,&side,&height)<1) {hull_test_on.store(false);hull_test_fwd=hull_test_side=0;}
     else {hull_test_world.store(go);hull_test_fwd=fwd;hull_test_side=side;hull_test_height.store(height<0x100?0x100:height>0x800?0x800:height);hull_test_on.store(true);}
-    std::snprintf(text,sizeof text,"Crouch walk test %s (fwd %d side %d hull %d); probes %u moves %u blocked low %u wall %u ray %u slope %u edge %u object %u",
+    std::snprintf(text,sizeof text,"Crouch walk test %s (fwd %d side %d hull %d); probes %u moves %u blocked low %u wall %u ray %u slope %u edge %u object %u; stand %u refused %u",
                   hull_test_on.load()?"on":"off",hull_test_fwd,hull_test_side,hull_test_height.load(),hull_probes,hull_moves,hull_blocks[hull_low],hull_blocks[hull_wall],
-                  hull_blocks[hull_ray],hull_blocks[hull_slope],hull_blocks[hull_edge],hull_blocks[hull_object]);
+                  hull_blocks[hull_ray],hull_blocks[hull_slope],hull_blocks[hull_edge],hull_blocks[hull_object],stand_checks,stand_refusals);
     say(text);close=hull_test_on.load();return true;
 }

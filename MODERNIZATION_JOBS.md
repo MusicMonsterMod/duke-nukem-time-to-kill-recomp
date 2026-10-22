@@ -89,6 +89,9 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08K4 | Modernized crouch walking: hold crouch + direction walks low (no automatic roll), aim and fire, safe stand-up, roll binding | Done (user-accepted 2026-10-22, technical; look in D08K6) | D08K2, D08K3 |
 | D08K5 | Crouch-walk coverage: low ceilings, stairs/edges, weapons, both cameras, traversal interruptions, game-wide; Vanilla unchanged | Todo | D08K4, D22B |
 | D08K6 | Crouch-walk animation quality: a realistic, Solid Snake-style tactical crouch walk (not "sitting on a toilet"), deep study of the captured animation pack; fix the left-arm shake while crouch walking | Done (user-accepted 2026-10-22) | D08K4 |
+| D08K7 | Stuck crouch on the slot 10 dumpster: Ctrl released leaves Duke on one knee and W then plays the original roll (object-relative stand-up refusal; crouch state machine) | Done (user-accepted 2026-10-22) | D08K2, D08K4 |
+| D08K8 | One-knee kneel as the stationary crouch pose (Modern crouch), with smooth kneel <-> crouch-walk <-> stand transitions | Todo | D08K6, D08K7 |
+| D08K9 | Crouch held through a jump: crouch at once on landing, no recovery pause or stand/run frame in between (slot 4) | Todo | D08K4, D08Z3, D08K8 |
 | D08L | Inertial platform edge run-off | Done | D08 |
 | D08M | Modern underwater swimming controls (foundation) | Done | D08 |
 | D08O | Deep free-swim polish (strafe, Ctrl dive, mantle-only exit) | Done | D08M |
@@ -3717,6 +3720,10 @@ walk, both cameras, high refresh rates, savestate load while crouched, death
 and Continue. Vanilla regression route passes unchanged. User playtest
 accepts it; then D08K closes too.
 
+The crouch refinements D08K7 (stuck crouch / roll on objects), D08K8 (kneel
+idle) and D08K9 (crouch on landing), opened 2026-10-22, are best done first
+so the coverage pass tests the final behaviour.
+
 ### D08K6 - Crouch-walk animation quality (Solid Snake, not "on the toilet")
 
 **Done (user-accepted 2026-10-22).** User: "that's it!! i'm happy with this end to end. the anim is now fully complete. the technical implementation is now fully complete. this is totally playable in every way at this point. lock it in, close it out". Final: variant C, head level, hunched
@@ -3801,6 +3808,195 @@ Study and acceptance:
 - Keep: planted feet at the walking pace, the D08K2 collision and hull,
   first person, Vanilla unchanged, the attribution.
 - User playtest accepts the look.
+
+### D08K7 - Stuck crouch and legacy roll on the slot 10 dumpster
+
+**Done (user-accepted 2026-10-22).** User: "confirmed working! lock it in and close it out". Executable
+`a98a334afdc8f5860894c73f82cfd5d515cebd2e14a998dd241054c6db591963` is the regression baseline.
+
+Was Needs playtest (2026-10-22). See [note 189](documentation/189-d08k7-crouch-on-objects.md).
+Confirmed in a lab copy of slot 10: after a step on the dumpster `+0x174`
+holds it, every crouch probe was refused (`hull_object`), stand-up refused
+forever, and W reached the original crouch handler (roll 181, off the
+dumpster). The original walker (`0x8007926c`) never refuses a contact: it asks
+`0x80077748` for the step onto the object's top, refuses one taller than a
+step, walks on objects whose type has flag `0x1000` (the dumpsters) and lets
+the room decide for others; it also judges a look-ahead point
+(`(+0xb0 * 275) >> 12` along the move). The crouch probe and stand-up now
+follow the same rules (`crouch_floor`, `crouch_stand_room`), and while a
+released crouch waits for room the crouch walk keeps the directions (no
+roll) and Duke stands by himself once there is room. Lab: slot 10 crouch walks
+over the top, stops at the edge where standing does, stands on release, W no
+roll; refused stand-up (debug `crouchstand block`) crouch walks and stands
+when freed; CROUCH ORIGINAL rolls and now stands on the dumpster; the alley
+dumpster stops the crouch at its side and is crouch walked on top. Suites
+pass. Executable
+`a98a334afdc8f5860894c73f82cfd5d515cebd2e14a998dd241054c6db591963`.
+
+Opened 2026-10-22 from a user report.
+First of three crouch refinements after D08K6 (D08K7, then D08K8, then D08K9).
+
+Reproduction (player UI slot 10; level 5, the dumpster on top of which Duke
+starts, type 165, flags `0x081090e2`, the fixed-step dumpster of D08T4 /
+[note 163](documentation/163-d08t4-fixed-pushables.md)): hold LCtrl to crouch,
+try to crouch walk forward, release everything. Duke stays on one knee instead
+of standing; pressing W then plays the original roll.
+
+Code findings (2026-10-22, reading only; not yet confirmed in a lab run):
+
+- Stand-up is refused whenever Duke has an object contact.
+  `stance_request()` (`recomp/src/ttk/crouch.inc`) returns early
+  (`++crouch_blocked`) on release if `player+0x174` is non-zero, before the
+  0x370 clearance query `0x8007765c`. Entering crouch has no such test, so on
+  an object Duke can crouch but never stand up again. The refusal repeats every
+  update with no time limit and no other way out. If standing on the dumpster
+  keeps the dumpster in `+0x174`, it alone explains "stuck on one knee".
+- The crouch walk cannot move there either. `crouch_probe()`
+  (`recomp/src/ttk/crouch_hull.inc`) runs the object probe `0x800780b4` first
+  and fails with `hull_object` whenever it leaves a contact. On top of an
+  object that probe may report the supporting object itself, so every step is
+  refused (count in `crouch_walk_blocked` / `hull_blocks[6]`).
+- The roll is the original handler. After release `crouch_owned` stays true
+  and the lower animation stays 178. `crouch_walk_eligible()` requires
+  crouch held, so `crouch_walk_owning` drops, `crouch_walk_release()` returns
+  channel 0 to animation 178's own clip (the original one-knee kneel, not the
+  D08K4 squat idle), and `pc_input.cpp` (`crouch_walk_input_ready()`) stops
+  withholding directions. W then reaches the original crouch handler, which
+  starts the roll 181. The same holds wherever stand-up is refused for a
+  real reason (a low ceiling): with Ctrl released, any direction rolls. That
+  is a state-machine gap, not only a dumpster case.
+
+So it is likely both: an object-relative stand-up rule that is too strict
+(collision edge case) and a crouch state machine whose owned but refused
+state hands directions to the original roll (broader). Confirm in a private
+lab copy of slot 10 (offscreen, `DNTTK_TRAVERSAL_TRACE`, debug counters
+`crouch_blocked`, `hull_blocks`, the value of `+0x174` and the floor record
+under Duke, crouched and standing on the dumpster) before changing anything.
+
+Fix direction to evaluate (not decided):
+- Stand-up on an object: judge the standing headroom with the room query at
+  Duke's position plus the supporting object's top. Treat the object
+  underneath as floor, not a blocker, as the original standing move probe
+  `0x8007926c` does when Duke walks on it. Still refuse under a real
+  overhang.
+- Crouch probe: ignore the contact that is the object Duke stands on; keep
+  refusing objects in the way.
+- While Modern crouch still owns a refused stance (Ctrl released, no room),
+  keep the host owning the directions (crouch walk) so the original roll never
+  starts, and stand up automatically when room appears. CROUCH ORIGINAL and
+  Vanilla keep the original roll.
+
+**Acceptance:** the exact slot 10 sequence stands Duke up on release and W
+walks normally (no roll). Crouch walking works on top of objects Duke can
+stand on, stopping at their edges. Where standing is genuinely blocked, Duke
+stays crouched, directions crouch walk (never the original roll in CROUCH
+MODERN), and he stands as soon as headroom allows. CROUCH ORIGINAL keeps its
+roll; Vanilla unchanged. Checked on the slot 10 dumpster, the alley dumpster
+(pushable) and at least one ordinary floor and one low ceiling.
+
+### D08K8 - One-knee kneel as the stationary crouch pose
+
+**Todo (opened 2026-10-22, user request; research done, no change yet).**
+After D08K7 (it showed the kneel the user wants).
+
+User: the D08K4 still crouch (both feet planted, the squat idle) works, but
+the original one-knee crouch looked better and fits Duke. Wanted: still
+crouched = one knee, held steady; smooth into the crouch walk when moving,
+back to the kneel on stop, and back to standing on release. Animation only,
+no change to crouch physics or speed.
+
+Code findings (2026-10-22):
+
+- The one-knee pose is the original crouch idle, animation 178 (entered and
+  left through 176, `recomp/src/ttk/crouch.inc`). Every original crouch pose
+  is a one-knee kneel (note 186). In D08K7 it appears because
+  `crouch_walk_release()` hands channel 0 back to 178's own clip.
+- It was replaced on purpose. In D08K4 revision 2 (note 187, "Kneel / walk
+  popping") stopping returned to the kneel and starting left it again, with a
+  visible pop, so held Modern crouch now shows the squat idle
+  (`crouch_idle_clip` 5 in `crouch_walk.inc`, upper body from host clip 15)
+  and every change blends over `crouch_walk_ramp` (6) updates. Going back to
+  the kneel means fixing that pop, not just changing the idle clip.
+- What changes between kneel and walk: pelvis 282 (`crouch_kneel_pelvis`)
+  against about 300 plus bob; one knee down against both feet planted; the
+  kneel's upper channels (arms hanging toward the knees, note 188) against
+  the D08K6 hunched chest and fists, or a weapon pose. The upper body is
+  written by `crouch_walk_upper()`, which keeps its own weight ramp.
+- Collision stays as it is. The kneel is 591 tall, under the 0x2c0 hull (D08K2).
+
+Options to evaluate (pick by preview and in-game look, D08K1 tools
+`ttk_anim.py`, `ttk_pose_study.py`):
+1. Idle on 178's own frames for legs and the original upper channels.
+   Authored transition clips kneel -> walk and walk -> kneel (host extra
+   clips, a few frames, feet planted, knee rising first) rather than a 6-update
+   slerp. Upper body ramps between the kneel's channels and the D08K6 carry.
+2. Retarget the kneel into a host idle clip that shares the walk's pelvis
+   frame and joint conventions, so the existing blend has less to bridge.
+Also decide the upper body while kneeling armed (the weapon's crouched aim
+pose stays original; the D08K6 firing hunch is for the walk) and keep the
+D08K6 fixes (channel masks, no left-arm shake, crouched fire on the
+crosshair).
+
+**Acceptance:** in CROUCH MODERN, stationary crouch shows the one-knee kneel,
+steady while held (armed and unarmed). Starting to move goes into the crouch
+walk, and stopping returns to the kneel, both without a pop and with no input
+delay. Releasing crouch stands as before (D08K7 rules). Firing from the kneel
+aims on the crosshair. Crouch-walk look and speed unchanged; CROUCH ORIGINAL
+and Vanilla unchanged. User playtest judges the look in third person.
+
+### D08K9 - Crouch held through a jump: crouch at once on landing
+
+**Todo (opened 2026-10-22, user report; research done, no fix yet).** After
+D08K8 (the landing should go straight into whatever the stationary crouch
+pose then is).
+
+Reproduction (player UI slot 4, `dnmonsters` optional): Shift + W run, Space
+to jump, hold LCtrl in the air and through the landing. A short pause or
+judder between touching down and crouching. Wanted: Duke3D / Half-Life feel.
+Crouch held in the air is honoured on landing with no standing frame, pause
+or snap. Jumps, landings, fall damage and collision stay intact.
+
+Code findings (2026-10-22, reading only; which path the run jump takes
+must be traced):
+
+- No crouch request survives the flight. `stance_request()` only starts
+  crouch (176) on supported ground with `movement_ready()` and
+  `!(+0x224 & 0x200002c5)`; it ignores the airborne updates, so the request
+  happens only once the landing has handed back a ground state.
+- Path A, landing recovery 105 (no direction held at touch-down, or a
+  straight flight): D08Z3 `landing_recover()` (`recomp/src/ttk/landing.inc`)
+  deliberately returns false when crouch is held, so the original landing
+  pose handler `0x80052fb8` keeps 105 until it ends (about 37 fields at 60 Hz,
+  about 0.6 s, no input taken) before crouch can begin.
+- Path B, gait continued (a running flight with W still held): the landing
+  selector `0x80054c04` continues the run 76. The crouch then starts on a
+  later update from a running pose, so at least one run/stand frame is shown
+  and the 176 entry (boosted 4x in `stance_advance()`) blends from a run
+  stride.
+- With W held the crouch walk can take over only after 176 has reached 178
+  (`crouch_walk_eligible()`), adding the 176 entry and the 6-update ramp.
+- Manual (D08Z) and assisted jumps share these paths. The D08Z3 hard landing
+  106 and fall damage are original.
+
+So the delay is most likely gameplay state handling (no airborne crouch
+request; 105 lock or gait continuation) plus animation selection (176 from
+a run pose). Confirm with a lab trace (private slot 4 copy, held keys at the
+user's timing, `DNTTK_TRAVERSAL_TRACE` landing lines, per-update `+0x60`,
+`+0x22c/+0x22d`, frame and position) in both paths before fixing.
+
+Fix direction to evaluate (not decided): remember crouch held during an
+owned flight; on the landing update (where `landing_recover()` runs) start
+crouch directly instead of 105 or the gait, that is 176 at the frame matching
+a landed crouch, or straight into 178 / the D08K8 idle with a short pelvis
+ease, and with a direction held go straight into the crouch walk. Keep the
+hard landing 106, fall damage, water entries and the landing sound.
+
+**Acceptance:** with crouch held through a jump (standing, walking and
+running jumps, manual and assisted jump styles, with and without a direction
+held at landing), Duke is crouched from the landing update: no standing or
+running frame, no 105 pause, no visible snap, in both cameras. Crouch pressed
+only after landing behaves as today. Hard landings still play 106; jumps,
+landings, collision and Vanilla unchanged.
 
 ### D08T - Pushable objects: modern grab, push/pull and climb
 
@@ -15558,3 +15754,28 @@ in note 117 is the reference for future custom pickups.
   regression baseline. Possible small follow-ups (not opened): crouch-walk
   footsteps, dedicated diagonal steps, first-person comfort with the lean.
 
+## 2026-10-22 - D08K7 stuck crouch on objects (Needs playtest)
+
+- Cause confirmed in a private copy of slot 10 (`recomp/analysis/d08k7-lab/`):
+  after a step on the dumpster `+0x174` holds it; the crouch probe refused
+  every step (126/126 `hull_object`), crouch.inc refused the stand-up on any
+  contact, and with Ctrl released W reached the original roll (181).
+- Fix (`crouch_hull.inc` `crouch_floor` / `crouch_stand_room`, `crouch.inc`,
+  `crouch_walk.inc`): objects judged as `0x8007926c` judges them (step onto
+  the top via `0x80077748`, taller than a step refused, flag `0x1000` tops are
+  floor, others ignored, the radius look-ahead), stand-up needs 0x370 over the
+  floor Duke is on, and a refused stand-up keeps the crouch walk on the
+  directions until there is room. Debug `crouchstand block|free`.
+- Evidence: slot 10 and the alley dumpster in third person 60 Hz and first
+  person 120 Hz; CROUCH ORIGINAL; Python 179 OK, input/controls/aim/near
+  harnesses PASS (new D08K7 cases). Note 189. Executable
+  `a98a334afdc8f5860894c73f82cfd5d515cebd2e14a998dd241054c6db591963`.
+- Open: user playtest; no natural crouch-only ceiling to show the refused
+  stand-up in real geometry.
+
+## 2026-10-22 - D08K7 accepted (Done)
+
+- User: "confirmed working! lock it in and close it out"
+- D08K7 Done (note 189). Executable
+  `a98a334afdc8f5860894c73f82cfd5d515cebd2e14a998dd241054c6db591963` is the regression baseline. Next in the crouch series: D08K8, D08K9,
+  then D08K5.

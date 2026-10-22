@@ -1,5 +1,33 @@
 # Next-session handoff
 
+## 2026-10-22 - D08K7 accepted (Done)
+
+- User: "confirmed working! lock it in and close it out"
+- D08K7 Done (note 189). Executable
+  `a98a334afdc8f5860894c73f82cfd5d515cebd2e14a998dd241054c6db591963` is the regression baseline. Next suggested: D08K8, D08K9, then D08K5.
+
+## 2026-10-22 - D08K7 stuck crouch on objects (Needs playtest)
+
+- Slot 10 dumpster: crouch walks over the top and stops at the edge where the
+  standing walk stops; releasing Ctrl stands Duke; W never rolls in CROUCH
+  MODERN. Objects are judged as the original walker (`0x8007926c`) judges
+  them; a refused stand-up keeps the crouch walk on the directions and stands
+  Duke once there is room. Note 189. Executable
+  `a98a334afdc8f5860894c73f82cfd5d515cebd2e14a998dd241054c6db591963`.
+- Next suggested: D08K8 (kneel as the still crouch), D08K9, then D08K5.
+
+## 2026-10-22 - Crouch refinements D08K7-D08K9 opened (backlog only)
+
+- User report and requests, research only, no code changed. D08K7: Ctrl
+  released on the slot 10 dumpster leaves Duke kneeling and W rolls. Likely
+  cause: `crouch.inc` refuses stand-up whenever `player+0x174` (object
+  contact) is set, and with Ctrl released the original handler gets the
+  directions and rolls. D08K8: the one-knee kneel (178) as the still crouch;
+  D08K4 revision 2 replaced it because of a kneel/walk pop, which must be
+  solved. D08K9: crouch held through a jump; `landing_recover()` skips
+  crouch, so 105 or the run gait plays before 176. Suggested order K7, K8, K9,
+  then D08K5.
+
 ## 2026-10-22 - D08K6 accepted (Done)
 
 - User: "that's it!! i'm happy with this end to end. the anim is now fully complete. the technical implementation is now fully complete. this is totally playable in every way at this point. lock it in, close it out"

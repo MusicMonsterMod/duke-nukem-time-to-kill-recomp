@@ -58,6 +58,12 @@ On success the step is applied as the walk handler applies its velocity (x/z,
 plus the floor change to `+8` and `+0x1c8`). Stand-up is unchanged (0x370 at
 the position, never object-relative).
 
+D08K7 ([note 189](189-d08k7-crouch-on-objects.md)) replaced step 1's "refused on
+contact" and the object-blind stand-up: objects are judged as `0x8007926c`
+judges them (step onto the top via `0x80077748`, taller than a step refused,
+flag `0x1000` tops are floor, others ignored), at the original's radius
+look-ahead, and stand-up needs 0x370 over the floor Duke is on.
+
 Debug tools (Modernized, backtick console; nothing changes without them):
 
 - `crouchgo <dx> <dz> [hull]`: the same in world units per update.

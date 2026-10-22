@@ -1547,7 +1547,10 @@ With **CROUCH: MODERN** (the default; OPTIONS > ADVANCED > MOVEMENT, or
 low in any direction at the walking pace, hunched like Duke 3D's crouch. Duke keeps
 facing where you look, so you can strafe and back up while aiming and firing as usual;
 held still he stays low. He stops at walls, objects and edges instead
-of falling, and stands up when you release Ctrl where there is room. **CROUCH:
+of falling, and stands up when you release Ctrl where there is room. He can crouch
+walk on top of dumpsters and crates as he walks on them standing, stopping at their
+edges. Released where there is no room to stand, he stays low and W/A/S/D keep
+crouch walking (never the roll) until there is room, then he stands. **CROUCH:
 ORIGINAL** keeps the original roll on crouch plus a direction. Vanilla always rolls.
 The gait is built from your disc when the game is built (no extra files to fetch).
 Known prototype limits: no footstep sounds while crouch walking, and diagonals use

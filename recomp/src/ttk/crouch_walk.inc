@@ -23,7 +23,8 @@
 // - the pelvis follows the clip's height (300 + 10 cos(4 pi phase) over the
 //   feet), eased from the kneel's 282 on entry.
 // The arms and torso (channels 1-3) stay with the original: crouch idle, aim,
-// fire. Release stands up through crouch.inc where the headroom allows.
+// fire. Release stands up through crouch.inc where the headroom allows;
+// until then the crouch walk keeps the directions (D08K7).
 // Clip design (ttk_crouch_walk.py): a captured crouch walk retargeted onto
 // Duke (assets/anim/crouch-walk-mocap.json, CC-BY 4.0), pelvis about 300 with
 // the capture's bob (carried per frame) and torso lean, 640 units a cycle.
@@ -159,7 +160,9 @@ static void crouch_channels_sanitize() {
 static void crouch_walk_update(CPUState* cpu) {
     crouch_channels_sanitize();
     const auto& f=input_snapshot(Context::Gameplay);
-    const bool eligible=crouch_walk_eligible() && f.active && f.held[crouch];
+    // D08K7: also while a released crouch waits for room to stand (directions
+    // crouch walk; the original would roll).
+    const bool eligible=crouch_walk_eligible() && f.active && (f.held[crouch] || crouch_stand_pending);
     crouch_walk_owning.store(eligible);
     if(!eligible || psx_mod_read_half(player+0x60)!=178) {
         if(crouch_walk_clip) ++crouch_walk_stops;

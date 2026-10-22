@@ -64,6 +64,7 @@ extern "C" int32_t psx_mod_widescreen_x_margin(void) {return ws_margin;}
 extern "C" {int g_precise_mode=0,g_ls_mode=0,g_psx_call_bail=0;}
 static int clearance_result=2048;
 static uint32_t hull_object;static int hull_ray_hit,hull_steep;static std::vector<int32_t> hull_ray_y;   // D08K2
+static int32_t hull_object_top;   // D08K7: the step 0x80077748 reports onto the contact's top
 static int ladder_end_result=0;static unsigned ladder_end_calls;
 static unsigned kicks, edge_launches;
 static int terrain_result=3,terrain_floor=-1000;
@@ -144,6 +145,7 @@ extern "C" void psx_dispatch_call(CPUState* cpu,uint32_t address,uint32_t) {
         cpu->gpr[2]=hull_ray_hit;cpu->pc=0;return;
     }
     if(address==0x80077438) {assert(cpu->gpr[4]==0x800d7198+0x1a4);cpu->gpr[2]=hull_steep;cpu->pc=0;return;}
+    if(address==0x80077748) {assert(psx_mod_read_word(0x800d7198+0x174));psx_mod_write_word(0x800d7198+0x1c4,uint32_t(hull_object_top));cpu->pc=0;return;}
     assert(address==0x8007926c || address==0x800797f4 || address==0x800402d0 || address==0x8007765c || address==0x800517a4);
     if(address==0x800517a4)++kicks;
     if(address==0x8007926c || address==0x800797f4) {
@@ -1781,8 +1783,66 @@ int main(int argc,char** argv) {
         assert(step(0xffff,int32_t(0xffff0000u),0,0,0)==0);  // no floor: wall
         assert(step(2048,0x180,0,0,0)==0);                   // drop over 0x100: edge
         assert(step(2048,-0x180,0,0,0)==0);                  // step up over 0x100
-        assert(step(2048,0,0x1234,0,0)==0);                  // object contact
+        // D08K7: objects as 0x8007926c judges them. A fake object (type 5) and
+        // type table; flag 0x1000 marks a walkable top (the dumpsters).
+        constexpr uint32_t obj=0x801c0000,types=0x801c0100;
+        psx_mod_write_word(0x800d2660,types);psx_mod_write_half(obj+0x2c,5);
+        const int32_t duke_x=int32_t(psx_mod_read_word(p+4));
+        auto place=[&](int32_t dx,uint32_t flags,int32_t top){
+            psx_mod_write_word(obj+4,uint32_t(duke_x+dx));psx_mod_write_word(obj+0xc,psx_mod_read_word(p+0xc));
+            psx_mod_write_word(types+28*5,flags);hull_object_top=top;
+        };
+        place(100,0x1000,-0x180);
+        assert(step(2048,0,obj,0,0)==0);                     // taller than a step: in the way
         assert(psx_mod_read_word(p+0x174)==0);               // restored after the refusal
+        place(-100,0x1000,-0x180);
+        assert(step(2048,0,obj,0,0)==20);                    // already overlapping it: stepping away is allowed
+        place(0,0x1000,-0x80);
+        assert(step(0x2e0,0x400,obj,0,0)==0);                // walkable top: headroom from it (0x2e0-0x400-0x80) too low
+        hull_ray_y.clear();
+        const int32_t top_y=int32_t(psx_mod_read_word(p+8));
+        assert(step(0x800,0x400,obj,0,0)==20);               // walkable top is the floor: up 0x80 onto it
+        assert(int32_t(psx_mod_read_word(p+8))==top_y-0x80 && psx_mod_read_word(p+0x174)==obj);
+        assert(hull_ray_y.size()==2 && hull_ray_y[1]==-1000-0x80-0x2c0);
+        psx_mod_write_word(p+8,uint32_t(top_y));psx_mod_write_word(p+0x1c8,uint32_t(-1000));
+        place(0,0x1000,0);
+        assert(step(0x800,0x180,obj,0,0)==20);               // its top at feet level over a 0x180 drop: no edge
+        place(0,0x1000,0x180);
+        assert(step(0x800,0x180,obj,0,0)==0);                // off its top over the drop: edge
+        place(0,0,-0x80);
+        assert(step(2048,0,obj,0,0)==20);                    // not walkable: the room decides, contact cleared
+        assert(psx_mod_read_word(p+0x174)==0 && int32_t(psx_mod_read_word(p+0x1c8))==-1000);
+        // Stand-up on a walkable top: 0x370 from the top to the room's ceiling
+        // (the slot 10 dumpster: refused on any contact before).
+        assert(ttk::crouch_console_command("crouchwalk off",say,close) && !close);
+        place(0,0x1000,0);
+        auto stand=[&](int clearance,int32_t room_step,uint32_t object=0x801c0000){
+            clearance_result=clearance;lookahead_drop=room_step;hull_object=object;
+            ttk::input.active=true;++ttk::input.sequence;ttk::input.command_count=0;
+            ttk::input.held[ttk::crouch]=true;psx_mod_write_half(p+0x60,63);
+            call(0x8003ade4,c,p,0x80025ee8);
+            call(0x8005a210,p,0x800c2754,0x80041b34,0x801ff000);      // owned crouch (176)
+            assert(psx_mod_read_half(p+0x60)==176);
+            psx_mod_write_half(p+0x60,178);ttk::input.held[ttk::crouch]=false;
+            call(0x8005a210,p,0x800c2754,0x80041b34,0x801ff000);
+            return psx_mod_read_half(p+0x60)==176 && psx_mod_read_half(p+0x6a)==1;
+        };
+        assert(!stand(0x600,0x400));                         // 0x200 over the top: stays down
+        assert(psx_mod_read_word(p+0x174)==0);               // query fields restored
+        assert(stand(0x800,0x400));                          // 0x400 over the top: stands
+        place(0,0x1000,-0x180);
+        assert(!stand(0x2000,0));                            // overlapping something taller than a step
+        assert(ttk::crouch_console_command("crouchstand block",say,close));
+        assert(!stand(0x2000,0,0));                          // debug block
+        assert(ttk::crouch_console_command("crouchstand free",say,close));
+        assert(stand(0x2000,0,0));
+        ttk::input.active=false;
+        psx_mod_write_word(0x800d2660,0);hull_object=0;hull_object_top=0;
+        for(int i=0;i<4;++i)psx_mod_write_word(p+4+4*i,keep[i]);psx_mod_write_word(p+0x1c8,keep[4]);
+        psx_mod_write_word(p+0x1c8,uint32_t(-1000));psx_mod_write_word(p+8,uint32_t(-1500));
+        assert(ttk::crouch_console_command("crouchgo 20 0",say,close) && close);
+        ttk::input.held[ttk::crouch]=false;psx_mod_write_half(p+0x60,63);
+        call(0x8005a210,p,0x800c2754,0x80041b34,0x801ff000);psx_mod_write_half(p+0x60,178);
         assert(step(2048,0,0,1,0)==0);                       // head ray hit
         assert(step(2048,-0x80,0,0,1)==0);                   // steep step up
         const int32_t y0=int32_t(psx_mod_read_word(p+8));
@@ -1794,7 +1854,7 @@ int main(int argc,char** argv) {
         clearance_result=2048;lookahead_drop=-100000;hull_object=0;hull_ray_hit=hull_steep=0;
         ttk::input.held[ttk::crouch]=false;psx_mod_write_half(p+0x60,63);
         for(int i=0;i<4;++i)psx_mod_write_word(p+4+4*i,keep[i]);psx_mod_write_word(p+0x1c8,keep[4]);
-        std::puts("PASS: D08K2 crouch probe (crouch-only clearance passes, head ray at feet-0x2c0, low/wall/edge/step/object/ray/slope refusals restore state, floor follow, 178 only, off)");
+        std::puts("PASS: D08K2 crouch probe (crouch-only clearance passes, head ray at feet-0x2c0, low/wall/edge/step/object/ray/slope refusals restore state, floor follow, 178 only, off); D08K7 objects as the original walk judges them (tall refused, step away, walkable top as floor, other objects ignored) and stand-up on a walkable top");
     }
     // Distance clamps/smoothing, wall compression independence and no FOV mutation.
     ttk::input.active=true;ttk::input.held[ttk::crouch]=false;psx_mod_write_half(p+0x60,63);

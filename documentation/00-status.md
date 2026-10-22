@@ -1,5 +1,42 @@
 # Current status - 2026-10-04
 
+## 2026-10-22 - D08K10 accepted (Done)
+
+User: "perfect!! lock it in, close it out. great work". First-person crouched
+weapon alignment, including revision 2's high-refresh crouch walking, accepted.
+Documentation, commit and push authorized. [Note 192](192-d08k10-crouched-viewmodel.md).
+Executable `72edb8aec75b3786e92359e29b654ef6e18911ae27c7edda0ea46049698d623f`
+is the accepted regression baseline. No next job started; no rebuild needed
+for documentation closeout.
+
+
+## 2026-10-22 - D08K10 revision 2: replay crouch poses (Needs playtest)
+
+User confirmed idle but reported bad weapon poses while crouch walking.
+Reproduced at 120 Hz: render workers lacked the crouch eligibility state
+and used stale fork-time values. Each published frame now includes it.
+Player build and native controls pass, including a forked-worker snapshot
+regression. Actual presented captures verify all six weapons while moving
+forward/sideways/backward. The earlier high-refresh verification claim
+was too broad; this revision checks the worker's visible output.
+[Note 192](192-d08k10-crouched-viewmodel.md). Candidate
+`72edb8aec75b3786e92359e29b654ef6e18911ae27c7edda0ea46049698d623f`.
+User retest pending. No framework edit, commit/push or next job started.
+
+
+## 2026-10-22 - D08K10 crouched first-person weapons (Needs playtest)
+
+Animated weapons and held items now read the right arm's animation channel
+for the eye-view copy during Modern crouching, avoiding the crouch body's
+shoulder compensation. Standing and seeded guns retain their framing;
+third-person animation, Original crouch and Vanilla paths are unchanged.
+Build and native input/aim/controls pass; private 60/120 Hz weapon checks
+completed. User review of appearance and transitions remains.
+[Note 192](192-d08k10-crouched-viewmodel.md). Candidate executable
+`fd7ed0ef639a96d79cfdb27b4cf18e2c72e3128a856575e125198f4418abced0`.
+D08K9 remains the accepted baseline. No commit/push or next job started.
+
+
 ## 2026-10-22 - D08K9 accepted (Done)
 
 User: "lock it in, close it out!" Held crouch on touchdown and the final

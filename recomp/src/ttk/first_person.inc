@@ -512,6 +512,48 @@ static double kick;
 static unsigned held_weapon_slot() {
     return psx_mod_read_byte(player+0x3b8)==2 ? psx_mod_read_byte(player+0x3b9) : 32u;
 }
+// D08K10: the animated weapons must not inherit the crouch body's shoulder
+// compensation. Rebuild the hand relative to the chest from the right arm's
+// own animation channel, bypassing crouch_walk_upper's joint-record edits.
+// This keeps draw/throw/reload motion, without per-weapon crouch offsets or
+// new pose seeds. Standing uses the original D12 display path; the seeded
+// guns never enter this path.
+// Replay workers do not run the stance/animation updates. Their fork-time
+// crouch statics are stale, so use the eligibility published with this frame.
+static bool override_crouch_weapon;
+static bool crouch_weapon_active() {
+    if(render_override)return override_crouch_weapon;
+    return input_modernized() && crouch_walk_modern() &&
+        (crouch_upper_weight>0 || crouch_fire_tilting ||
+         (crouch_owned && crouch_pose(psx_mod_read_half(player+0x60))));
+}
+static bool crouch_weapon_channel(double* q,double* pos) {
+    const unsigned slot=held_weapon_slot();
+    if(!crouch_weapon_active() ||
+       !(slot==1 || slot==2 || slot==3 || slot==12 || slot==13 || slot==14 || slot==32))return false;
+    const uint32_t desc=duke_model();
+    if(!desc)return false;
+    std::array<CrouchQuat,32> arm{};uint32_t mask=0;
+    if(!crouch_channel_pose(1,arm,mask) || (mask&0xe000u)!=0xe000u)return false;
+    Mat3 hand={{1,0,0},{0,1,0},{0,0,1}};
+    double rel[3]={};
+    for(unsigned part=13;part<=15;++part) {
+        const int joint=duke_part_joint(desc,part);
+        if(joint<0)return false;
+        const uint32_t record=desc+0x44+0x28*joint;
+        if(psx_mod_read_byte(record+2)!=part-10)return false;
+        double offset[3];
+        for(int i=0;i<3;++i)offset[i]=int32_t(psx_mod_read_word(record+0x14+4*i));
+        for(int i=0;i<3;++i)rel[i]+=hand[i][0]*offset[0]+hand[i][1]*offset[1]+hand[i][2]*offset[2];
+        // Game quaternions are x,y,z,w and build the transpose of the usual
+        // rotation matrix. Offsets are transformed by the parent, not child.
+        const auto& a=arm[part];
+        const double conventional[4]={a[3],-a[0],-a[1],-a[2]};
+        Mat3 local;quat_mat(conventional,local);mat_mul(hand,local,hand);
+    }
+    mat_quat(hand,q);std::memcpy(pos,rel,sizeof rel);
+    return true;
+}
 // Level-frame hand (orientation lh, position rel from the eye) for display:
 // the torso-relative live pose, blended toward the slot's firing pose, placed
 // by that pose's torso (or the pistol's for a weapon not yet seen firing).
@@ -523,10 +565,11 @@ static bool display_pose(Mat3 lh,double* rel,bool& ready) {
     if(!torso.known) return false;
     double q[4],pos[3],w=0;
     std::memcpy(q,live_q,sizeof q);std::memcpy(pos,live_rel,sizeof pos);
+    const bool channel_pose=crouch_weapon_channel(q,pos);
     // Modernized view aiming (D07A) turns Duke's arms toward the view even at
     // rest, so a live pose blend would add the view pitch twice. The ready
     // pose is the firing pose throughout; the flash adds its kick below.
-    if(p && weapon_ready_pose()) {w=1;std::memcpy(q,p->q,sizeof q);std::memcpy(pos,p->rel,sizeof pos);}
+    if(p && weapon_ready_pose() && !channel_pose) {w=1;std::memcpy(q,p->q,sizeof q);std::memcpy(pos,p->rel,sizeof pos);}
     double tm[3][3],r[3][3];
     quat_mat(torso.torso_q,tm);quat_mat(q,r);
     mat_mul(tm,r,lh);

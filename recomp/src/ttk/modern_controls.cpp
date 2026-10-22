@@ -1469,7 +1469,7 @@ static void hook_body(CPUState* cpu, uint32_t address) {
 // published frame and loaded in the worker process that redraws it (a worker
 // holds only a fork-time copy of this file's statics).
 struct RenderState {
-    double fp_blend; bool orbit_valid, eye_offset_valid, live_valid, lease_cam;
+    double fp_blend; bool orbit_valid, eye_offset_valid, live_valid, lease_cam, crouch_weapon;
     double eye_offset[3], live_q[4], live_rel[3], live_torso_q[4], live_torso[3], kick;
     FirePose fire_poses[32];
     uint32_t weapon_matrix, hidden_matrix;
@@ -1507,6 +1507,7 @@ void render_state_save(void* out) {
     RenderState r{};
     r.fp_blend=fp_blend; r.orbit_valid=orbit_valid; r.eye_offset_valid=eye_offset_valid; r.live_valid=live_valid;
     r.lease_cam=last_lease_cam;
+    r.crouch_weapon=crouch_weapon_active();
     std::memcpy(r.eye_offset,eye_offset,sizeof eye_offset); std::memcpy(r.live_q,live_q,sizeof live_q);
     std::memcpy(r.live_rel,live_rel,sizeof live_rel); std::memcpy(r.live_torso_q,live_torso_q,sizeof live_torso_q);
     std::memcpy(r.live_torso,live_torso,sizeof live_torso); r.kick=kick;
@@ -1530,6 +1531,7 @@ void render_state_load(const void* in) {
     // Draw-time transients start clean, as at the start of a live frame.
     head_flag=0; duke_drawing=false; actor_drawing=false; weapon_duke_draw=false; weapon_viewmodel=false;
     render_override=true; override_lease_cam=r.lease_cam;
+    override_crouch_weapon=r.crouch_weapon;
 }
 bool first_person_view_live() {return input_modernized() && fp_blend>0 && orbit_valid;}
 bool first_person_duke_drawing() {return duke_drawing;}

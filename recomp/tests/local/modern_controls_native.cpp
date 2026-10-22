@@ -26,6 +26,7 @@ extern "C" void gte_nclip_culling_stats(uint64_t* checks,uint64_t* flips) {*chec
 #include <array>
 #include <vector>
 #include <unistd.h>
+#include <sys/wait.h>
 #include <string>
 #include <iterator>
 #include <algorithm>
@@ -2156,6 +2157,103 @@ int main(int argc,char** argv) {
                  hooks().at(0x800292a0)(&cpu,0x800292a0);assert(cpu.gpr[5]==hand);}
                 call(0x8001ca4c,0x800d0000,0,0x800376b4);
                 assert(std::equal(before.begin(),before.end(),ram+(mats&0x1fffff)));
+                // D08K10: crouch display comes from the arm channel, never the
+                // hunch-adjusted world hand. A synthetic arm checks independence
+                // from that matrix and that animated channel motion still plays.
+                {
+                    const std::vector<uint8_t> saved_ram(ram,ram+sizeof ram);
+                    const auto saved_input=ttk::input;
+                    const uint32_t frm=0x801d7000,rot=0x801d7100;
+                    psx_mod_write_word(0x800d8324,frm);psx_mod_write_word(0x800d8320,rot);
+                    psx_mod_write_word(frm,100u<<16);psx_mod_write_word(frm+4,3u<<16);
+                    for(unsigned j=13;j<=15;++j) {
+                        const unsigned index=psx_mod_read_byte(desc+0x24+j);
+                        const uint32_t rec=desc+0x44+0x28*index;
+                        psx_mod_write_byte(rec+2,j-10);
+                        for(unsigned i=0;i<3;++i)psx_mod_write_word(rec+0x14+4*i,i==j-13?100:0);
+                        psx_mod_write_word(rot+8*(j-13),0);
+                        psx_mod_write_word(rot+8*(j-13)+4,(j<<27)|(4095u<<14));
+                    }
+                    psx_mod_write_half(p+0x74,39);psx_mod_write_half(p+0x76,100);
+                    psx_mod_write_half(p+0x78,0);psx_mod_write_half(p+0x7a,0);
+                    ttk::input.held[ttk::crouch]=true;ttk::input.held[ttk::interact]=false;
+                    ttk::input.held[ttk::original_aim]=false;
+                    psx_mod_write_half(p+0x60,63);psx_mod_write_word(p+0x224,0);
+                    psx_mod_write_byte(p+0x22c,0);psx_mod_write_byte(p+0x22d,0);
+                    call(0x8003ade4,c,p,0x80025ee8);
+                    call(0x8005a210,p,0x800c2754,0x80041b34);
+                    assert(psx_mod_read_half(p+0x60)==176);
+                    auto displayed=[&]() {
+                        call(0x800348d8,c,p,0x8003769c);
+                        const auto result=hook(0x800292a0,c,hand,0x80034c6c,7);
+                        assert(result.gpr[5]!=hand);
+                        std::array<uint8_t,32> bytes{};
+                        std::copy(ram+(result.gpr[5]&0x1fffff),ram+(result.gpr[5]&0x1fffff)+32,bytes.begin());
+                        call(0x8001ca4c,0x800d0000,0,0x800376b4);
+                        return bytes;
+                    };
+                    for(unsigned slot:{1u,2u,3u,12u,13u,14u,32u}) {
+                        psx_mod_write_byte(p+0x3b8,slot==32?1:2);
+                        psx_mod_write_byte(p+0x3b9,slot==32?12:slot);
+                        const auto neutral=displayed();
+                        psx_mod_write_word(hand+0x14,psx_mod_read_word(hand+0x14)+600);
+                        assert(displayed()==neutral);
+                        // Original crouch and standing retain D12's live path.
+                        setenv("DNTTK_CROUCH","original",1);assert(displayed()!=neutral);
+                        unsetenv("DNTTK_CROUCH");assert(displayed()==neutral);
+                        psx_mod_write_half(p+0x60,63);assert(displayed()!=neutral);
+                        psx_mod_write_half(p+0x60,178);assert(displayed()==neutral);
+                        // Rotate the shoulder in its animation frame, as a throw
+                        // does. Its display must animate even though the world
+                        // hand has not changed.
+                        psx_mod_write_word(rot,2896);
+                        psx_mod_write_word(rot+4,(13u<<27)|(2896u<<14));
+                        assert(displayed()!=neutral);
+                        psx_mod_write_word(rot,0);psx_mod_write_word(rot+4,(13u<<27)|(4095u<<14));
+                        assert(displayed()==neutral);
+                    }
+                    // D12's seeded guns keep exactly their existing matrices.
+                    for(unsigned slot=4;slot<=11;++slot) {
+                        psx_mod_write_byte(p+0x3b8,2);psx_mod_write_byte(p+0x3b9,slot);
+                        const auto seeded=displayed();
+                        setenv("DNTTK_CROUCH","original",1);assert(displayed()==seeded);
+                        unsetenv("DNTTK_CROUCH");assert(displayed()==seeded);
+                    }
+                    psx_mod_write_byte(p+0x3b9,1);
+                    // A replay worker redraws with fork-time stance statics.
+                    // Publish eligibility with each frame, including disabling it
+                    // again for Original/standing frames in the same worker.
+                    {
+                        const auto corrected=displayed();
+                        std::vector<uint8_t> active(ttk::render_state_size()),inactive(active.size());
+                        ttk::render_state_save(active.data());
+                        setenv("DNTTK_CROUCH","original",1);
+                        const auto original=displayed();ttk::render_state_save(inactive.data());
+                        unsetenv("DNTTK_CROUCH");assert(original!=corrected);
+                        const pid_t child=fork();assert(child>=0);
+                        if(child==0) {
+                            // Simulate a worker forked before crouch began.
+                            ttk::input.held[ttk::crouch]=false;psx_mod_write_half(p+0x60,63);
+                            call(0x8005a210,p,0x800c2754,0x80041b34);
+                            psx_mod_write_half(p+0x60,178);
+                            assert(displayed()==original);
+                            ttk::render_state_load(active.data());assert(displayed()==corrected);
+                            ttk::render_state_load(inactive.data());assert(displayed()==original);
+                            ttk::render_state_load(active.data());assert(displayed()==corrected);
+                            _exit(0);
+                        }
+                        int status=0;assert(waitpid(child,&status,0)==child);
+                        assert(WIFEXITED(status) && WEXITSTATUS(status)==0);
+                    }
+                    // Missing hand data falls back instead of inventing a pose.
+                    const auto neutral=displayed();psx_mod_write_word(frm+4,2u<<16);
+                    assert(displayed()!=neutral);
+                    std::copy(saved_ram.begin(),saved_ram.end(),ram);++g_dirty_ram_code_gen;
+                    ttk::input=saved_input;
+                    psx_mod_write_half(p+0x60,63);
+                    call(0x8005a210,p,0x800c2754,0x80041b34);
+                    std::puts("PASS: D08K10 crouched viewmodel (six weapons and held item, channel motion, live-matrix independence, Original/standing and missing-data fallback)");
+                }
                 psx_mod_write_byte(p+0x3b8,saved_state);psx_mod_write_byte(p+0x3b9,saved_slot);
                 ttk::input.first_person=false;for(unsigned i=0;i<40;++i)frame();
                 // Third person: the hand keeps its own matrix.

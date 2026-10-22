@@ -1,5 +1,51 @@
 # Current status - 2026-10-04
 
+## 2026-10-22 - D08AD accepted; D08AE queued
+
+User accepted D08AD: "the animation is fixed. lock it in and close it out."
+The accepted executable remains
+`9bf9a7ff60c818149978f0a4317b7ff4f6464c2943a1bd26b08c5999d6030c68`.
+Implementation, documentation, commit and push authorized after creating
+D08AE: restore deep-water entry resistance and timely swim handoff.
+
+D08AE stays Todo, investigation only. Private current UI slots 9 (pool) and
+2 (moat) reproduce submerged airborne descent almost to the bottom under
+MODERN. ORIGINAL enters swimming much earlier. Cached support equals water
+surface, despite deep native volume: D08AC's shallow-flight bypass predicate
+is strongly implicated. No deep-water fix applied; do not automatically start
+it. [Note 195](195-d08ad-deeper-water-animation.md) and
+[note 196](196-d08ae-deep-water-entry.md). Prior tests of already-swimming
+states did not establish entry fidelity. Framework export unchanged and
+verified against the pinned clean dependency; no gameplay rebuild needed.
+
+
+## 2026-10-22 - D08AD deeper-water animation fix (Needs playtest)
+
+Walking's terrain probe invalidated the D08AC patch scope before native
+dispatch, resetting the walk clip every update. A separate native completion
+selector restarted the same running stride half. Arm the scope after the
+probe and retain native land stride choices at completion. No physics or
+backpack-specific changes. [Note 195](195-d08ad-deeper-water-animation.md).
+
+Candidate `9bf9a7ff60c818149978f0a4317b7ff4f6464c2943a1bd26b08c5999d6030c68`:
+full 72/74 and 76/78 cycles at 60/120 Hz, private updated slot-10 route and
+visual captures; native controls over 21 overlays, input, aim and hook-contract
+tests pass. Paired jump heights, crouch, deep swimming, ORIGINAL and Vanilla
+regressions checked. All original save/card hashes unchanged. User playtest
+pending; no acceptance, commit or push. Existing framework edits preserved.
+
+
+## 2026-10-22 - D08AD queued (backlog/source investigation only)
+
+Added one Todo follow-up for frozen third-person walking and abbreviated
+running in the user's updated deeper-water UI slot 10. D08AC movement/jump
+physics and D08K11 crouching remain accepted. [Note 195](195-d08ad-deeper-water-animation.md)
+records depth classification, legacy 80/81 conversion and possible repeated
+track resets; these are source findings and hypotheses, not a reproduced
+root cause. No gameplay edits, build, launch or save/card access. Implement
+only when selected; no commit/push authorized by this backlog request.
+
+
 ## 2026-10-22 - D08AC accepted (Done)
 
 User: "perfect!!! lock it in and close us out". Grounded shallow/mid-water

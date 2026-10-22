@@ -6,6 +6,11 @@ Invoke **`$continue-duke-recomp`** (Codex) or **`/continue-duke-recomp`** (Claud
 
 **Latest accepted job (2026-10-22): D08K11 (Modern crouch and crouch walking in grounded shallow/mid-depth water); executable `1e16b7eaabeef854bddc5f777cbc2f487b89f839491a9dfca4a78b576039c1f8` is the regression baseline, [note 193](documentation/193-d08k11-shallow-water-crouch.md).** Earlier: **Latest accepted job (2026-10-22): D08K10 (first-person crouched weapons retain standing framing, including high-refresh crouch walking); executable `72edb8aec75b3786e92359e29b654ef6e18911ae27c7edda0ea46049698d623f` is the regression baseline, [note 192](documentation/192-d08k10-crouched-viewmodel.md).** Earlier: **Latest accepted job (2026-10-22): D08K9 (held crouch takes over on soft touchdown; CROUCH owns the feature, LANDING hidden from Advanced). Executable `a77ba035cdbbbfa983e6f02ca1d02aca552f97c1bf07531afa672f0e1d0bef91` is the regression baseline, [note 191](documentation/191-d08k9-crouch-on-landing.md).** Earlier: **Latest accepted job (2026-10-22): D20E (the statistics screen reads ENEMIES KILLED X OF Y, Y by the level load's own enemy rule; accuracy dropped, damage taken parked); executable `156b7e93695588bf65a8e1ed64957a1dbe1686d07adea819665668c2d79f61ef` is the regression baseline, [note 183](documentation/183-d20e-statistics-research.md).** Earlier (2026-10-21): **D20F (the statistics screen's CONTINUE / SAVE GAME are a selectable list under the lines: Up / Down / wheel, Enter chooses, V still saves; the original's wait is about 1 s); executable `3e1b96bc8faab8834e9c9e2ed3ffaceb236ed72de7e4c2fcd7142b1be13be496` is the regression baseline, [note 180](documentation/180-d20f-statistics-list.md).** Earlier (2026-10-21): **D20B (the one-player statistics screen is ours in the original look; SAVE opens our SAVE GAME, nothing in Modernized writes a game save to the memory card; LOAD GAME shows LEVEL COMPLETE saves with the level's last picture; console `endlevel` for testing; menu host image follows the presented 4:3 / 16:9 rect); executable `f9687072f1387bb2b343cc291aa0d2bbb6501ad87f5f53fdcdf681d0888d2866` is the regression baseline, [note 179](documentation/179-d20b-statistics-screen.md). New Todo: D20F (selectable CONTINUE / SAVE GAME), D20D (richer statistics), D20E (statistics research).** Earlier (2026-10-21): **D17R (the sky now runs to both edges in widescreen: the shared sky routine's colour fill, camera-facing backdrop and clip rectangle are widened by the widescreen margin; 4:3 and Vanilla unchanged); executable `fbab9bc39f40bc820e4acf06dc161b6ada7ae730814ba174cb35f1807606552d` is the regression baseline, [note 172](documentation/172-d17r-sky-edges.md).** Earlier (2026-10-20): **D19Q1 (SAVE GAME's picture read from stale CPU VRAM, the image at the previous save; the grab now syncs the GPU renderer first); executable `92178369fc5153178009edf801bd5c07299fee5d6d9bab927ea6ca2b6fc3e043` is the regression baseline.** Earlier (2026-10-20): **D19Q (SAVE GAME on the pause list, LOAD GAME's page with every slot open, OVERWRITE THIS SAVE? with NO first, SAVED / COULD NOT BE SAVED, gameplay thumbnail, LOAD GAME resumes play; atomic slot writes; menu identity guard no longer covers card-restored settings); executable `15e3d7b2c761613f7f3999d107b0ae251fc333ad5322d85bf377f44daffe999b` is the regression baseline, [note 171](documentation/171-d19q-save-game.md).** Earlier (2026-10-20): **D19R (startup memory card wait runs at host speed: the black gap after the movies went from about 2 s to about 0.35 s, the same guest fields, settings still loaded, Vanilla unchanged; closeout delegated by the user); executable `2fb1bd3cc0e8ee78fd94c41da6c66c39a5fe7d5ff4eddd813e321bc2f2833408`, [note 170](documentation/170-d19r-card-wait.md).** Earlier (2026-10-20): **D19K (LOAD GAME on the title, pause and death menus lists our savestates in the menu style, thumbnail beside, Console steel save time, LOAD THIS GAME?, opens on slot 01; startup memory card check runs unseen in Modernized; new Todo D19Q SAVE GAME, D19R startup card hang); executable `37966f924ec6348e1dfcb4a8ce17c5ad320c8b3535c40c4f8610a542abd2afe9` is the regression baseline, [note 169](documentation/169-d19k-load-game.md).** Earlier (2026-10-20): **D19G1 (in-game FRAME RATE applies at once from any launch rate: a 60 launch starts replay presentation mid-session, 60 stops it and returns to the original presentation; software renderer says NEXT LAUNCH); executable `bbfaf117ca261268335c0c19847663a3c02ac7185d24c77fda9ca81f38eecc29` is the regression baseline, [note 164](documentation/164-d19g1-live-frame-rate.md).** Earlier (2026-10-20): D10D (keyboard turning: Left / Right arrows turn the view and Duke everywhere in Modernized play at Duke 3D rates, smooth at high refresh; arrows no longer reach the original D-pad in gameplay; KEY BINDINGS CAMERA rows, schema 35); executable `02150d53b5bdaf636ce7fb5abfe8b311d7cb61f75e75e347bac2a2e511da2892` is the regression baseline, [note 162](documentation/162-d10d-keyboard-turning.md).** Earlier (2026-10-20): **D10C (Duke 3D look keys: Page Up / Page Down look while held and ease back, Home / End lock the look, a tap recenters; first and third person, smooth at high refresh, KEY BINDINGS CAMERA rows, schema 34); executable `ee9d3adee53e952bce7acb0c9bc36840cf44fe0aba37b3e11a56d96038efaa19` is the regression baseline, [note 161](documentation/161-d10c-look-keys.md). New Todo D10D (arrow keys turn left / right).** Earlier (2026-10-20): **D07F (airborne shots follow the crosshair: jumps and falls use the view aim on the camera-only lease; RPG, shotgun, pistol, manual and assisted jump, first and third person); executable `38076cd85f3e0b686cd04d25e8ad6db2c6c2d213d695c775e0c57b8ce0e120ef` is the regression baseline, [note 160](documentation/160-d07f-airborne-shots.md).** Earlier (2026-10-20): **D19G (in-game KEY BINDINGS: every Modernized action, bound at once and saved, swap on conflict, DEFAULT asks; mouse, display, widescreen, camera, view, shoulder, distance and weapon aim live on CONFIRM, frame rate too unless launched at 60); executable `0d42f4523da0c8ec32abd470a6ccc03f1e84ec7dc5bc905265ea33cd3f3b03da` is the regression baseline, [note 159](documentation/159-d19g-options-stage-2.md). New Todo: D07F (airborne shots ignore the crosshair), D10C (Duke 3D look keys), D19G1 (frame rate live after a 60 launch).** Earlier (2026-10-20): **D33 (Modernized by default; `run.py --vanilla` plays Vanilla for one launch; `--mode` and the in-game PROFILE row removed); executable `fa415f5e183167b3b8a64b54959a9d3333f247a823527c7451553e2445d3dff2` is the regression baseline, [note 158](documentation/158-d33-default-profile.md).** Earlier (2026-10-20): **D08AB (SWIMMING MODERN / ORIGINAL in OPTIONS > MODERNIZED; ORIGINAL restores the pre-D08AA water speeds, forced shallow run included); executable `c7557a215c099cfb6ae10484af3555b869a1c7acb627bd0ab72506d246922508` is the regression baseline, [note 157](documentation/157-d08ab-swimming-option.md).** Earlier (2026-10-19): **D08AA (one walk/run pace on land, in shallow water, on the surface and underwater; Shift decides); executable `5e48b2c7cd4d44c92e59f2c7c7d78cd219c0d2f64af53b97570276cc99ed6366` is the regression baseline, [note 156](documentation/156-d08aa-unified-pace.md). New Todo D08AB (SWIMMING MODERN / ORIGINAL menu option).** Earlier (2026-10-19): **D07E (modern shots and movement keep their lease for one game frame, so slow scenes keep crosshair aim; `original` weapon aiming faces the camera); executable `1b3f3283586656df529f440547327307144d17523fe12382bcd3d8b40f2502f5` is the regression baseline, [note 154](documentation/154-d07e-frame-lease.md).** Earlier (2026-10-19): **D19P (death screen QUIT TO MENU beside QUIT GAME, via the game over screen; identity guard no longer covers the selected item `0x800c3f94`); executable `959bc0d76db2f1af64b666e84a9a57046394cea10ac36305877f3bfc9594fa63` is the regression baseline, [note 153](documentation/153-d19p-quit-to-menu.md).** Earlier (2026-10-19): **D22D (energy weapon locks the enemy under the crosshair and damages it; base and upgraded, first and third person); executable `3442279bb8cdde64dbb8d7239586b7f769d5aa311dfae372d61390d1e374ac98` is the regression baseline, [note 152](documentation/152-d22d-energy-beam.md). New Todo: D07E (stale-lease shots use the original auto-aim), D19P (death screen QUIT TO MENU).** Earlier (2026-10-19): **D17V (modern view bob: Duke 3D-style steady tempo, deeper not faster when running, no sway, even forward glide; accepted on strong too); executable `a1fea19a0a437d9637211d993747a55a8767f8238d1d7773e1ceed6fe9a06193` is the regression baseline, [note 151](documentation/151-d17v-view-bob.md).** Earlier (2026-10-19): **D19J (title main menu, difficulty, two player and character pages re-implemented in the original style, QUIT GAME on the title; saves wait for plugin guest calls); executable `a0246cadbcdb5ee4719dc6e5b08bfa8a0945cf696e47dd22e4a1af27e6873a3d` is the regression baseline, [note 150](documentation/150-d19j-title-menu.md). New Todo D19O (frontend redraw flash-back).** Earlier (2026-10-19): **D19M (QUIT GAME on the pause and death lists closes the program, QUIT GAME? YES / NO); executable `de5a152192ba04979e408a436c5f5541f72c6c36aade7e96d4091c86a7937d43` is the regression baseline, [note 149](documentation/149-d19m-quit-game.md). Title main menu item in D19J.** Earlier (2026-10-19): **D19I (in-game menu text at full brightness: drawn at the pause dispatch, after the paused world's darkening); executable `f99b46632c62d1ce43a674b3a494c8246dc5513c0c1b2651d3692db12a557f9c` is the regression baseline, [note 148](documentation/148-d19i-menu-brightness.md). New Todo: D19M (QUIT GAME closes the program), D19N (one OPTIONS screen, the rest under ADVANCED).** Earlier (2026-10-19): **D19H (Escape opens a list-style pause menu, death screen too, in the original style); executable `681ae485de9d04bbd91949f4811c7d62c65859d486414a51e94371ef5adc1ca2` is the regression baseline, [note 147](documentation/147-d19h-pause-menu.md). New Todo: D19I (dimmed in-game menu text), D19J (main menu re-implemented), D19K (integrated savestate LOAD GAME), D19L (menus during demo loads).** Earlier (2026-10-18): **D08O2B (swim-fire aims at the crosshair on every Duke model; shoulders found by part); executable `93093366872c16d100b05746cfc7d6c7745b0560eadecad459b474d2971bae25` is the regression baseline, [note 146](documentation/146-d08o2b-swim-fire-costumes.md). New Todo D08O4 (brief Ctrl dive drifts forward). Queued: D08O4, D19G, D19F, D08AA, D24D, D26G.** Earlier (2026-10-18): **D08G5 (partial cheat entry keeps mouse look; a breaking key acts at once); executable `18597e61f8fe332da32aff5154465d533dd852e6baefde24017766b109f23b79` is the regression baseline. Queued: D19G, D19F, D08O2B, D08AA, D24D, D26G.** Earlier (2026-10-18): **D08A22 (switcher strips and mission card scale with the game picture like the native HUD); executable `67eb7bc2d189b38624879a25f9b8c76c5567aa40a61e357a5e07352f394d4546` is the regression baseline. Queued: D19G, D19F, D08O2B, D08AA, D24D, D26G.** Earlier (2026-10-18): **D19 (in-game OPTIONS: PC CONTROLS, DISPLAY, MODERNIZED in the original menu style, title and pause); executable `fb169a561aa15a979b4b10b4903dbd5758b17708ebe24b669f58966faf16760b` is the regression baseline, [note 145](documentation/145-d19-game-menu.md). Queued: D19G, D19F, D08O2B, D08AA, D08A22, D24D, D26G.** Earlier (2026-10-18): **D19D (menu keys: Escape/Backspace back, Enter confirms, V Square, wheel moves; Escape never quits); executable `08bba860a9171fe2d147e211e569a8de90e434d262600749c476f4caf6b7e9fe` is the regression baseline, [note 144](documentation/144-d19d-menu-keys.md). Queued: D08O2B, D08AA, D08A22, D24D, D26G.** Earlier (2026-10-18): D30 (recomp.board listing: `.recomp.json` claims our row; README badge). Earlier: **Latest accepted job (2026-10-18): D19E (menu close-out: taps never lost during loads or on LOAD GAME, menu over the spinner one image sooner); executable `0092e2b261b333e0f1848e77b6a6a824079efbaba886e2fb158b3b9023e51aaf` is the regression baseline. Queued: D08O2B, D08AA, D08A22, D24D, D26G, D19D.** Earlier (2026-10-18): D19C (more responsive original menus over the demo); executable `1e1a4795ab8af038f9c95b50d2159cab10bfb1f4a363d84b1ac741025e3d6828` is the regression baseline. Queued: D19E (loading-spinner menus and full menu sweep), D08O2B, D08AA, D08A22, D24D, D26G, D19D.** Earlier (2026-10-18): D17U (smooth loading screens); executable `e1d32dc00d9b2e870f5c1aab4b3e4a21bb74b242c20c7483d4f6eeed7011f9fc`. Earlier (2026-10-18): D17T (smooth title menu and attract demo); executable `7ab8877528b05a46a1e793556660ab6cf09c538d93c7b2f1e6cb5bb744ce9829`. Earlier (2026-10-09): D08G6 (`dntlod` fun cheat); executable `74cec66e398217530d0b8abc3fa0ccfe06308f6b73a17e5aafa628b3f0f2a540`. Earlier (2026-10-09): D08A20 (challenge item HUD, option A - 14x14 icon in a square); executable `a047b37bbb833b84902a3ad344fff2e16c22ae3dc0093ad441d80c3eb9235a95`.** Earlier (2026-10-09): D08A21 (14x14 HUD item icons; the 16x16 versions kept in `recomp/assets/ui/items/16px/`); executable `72429e350806e0639f36e50cff0cb969f18df1662a2336794e17bd2263614c21`.** Earlier (2026-10-08): D08A12 (modern dynamite: unlit until fire, switch away freely, next stick drawn after a throw); executable `2d54e00b64bcf38917e41db47805338f75977b0b63a0868cb962242ffaaadb9d` is the regression baseline. Queued: D24D, D26G.** Earlier (2026-10-08): D08A19 (used mission items: USED and the green tick); executable `d67705eba48232029a90647cc781f3201d0aae29799678466b2b5b9337b5dbe8`. Earlier (2026-10-08): D08Z2 (mantle pose; frozen legs after a corner bump); executable `bfd41760f9c66f2f03cf859f820f7b7d27cd8991e8ce1f304f5456ea29bf8986` is the regression baseline. D08Z3 (modern landing) accepted 2026-10-08; executable `11187493c04ae830482c47c93b97ac332fbfce1de95f8eedaa2f8637d7fe164e` is the new regression baseline. Queued: D24D, D26G, D08A19.** Earlier (2026-10-08): D08Z1 (jump wall slide); executable `3f909c9f2cc4e5b09ba6faab5129ec9ae0ff938c4735e264ac67a66405c1ed34`. Earlier (2026-10-08): D08A17 (power-up countdowns); executable `8f338cde1c2dc4cf73da747621cffafe2478512f6419078a41d11b0d3b9268a9`. Earlier accepted jobs (2026-10-08): D08A14 (death ends steroids), D08A15 (heartbeat restart; a pickup mid-run stops steroids) and D08G4 (inventory cheats give full armor); executable `87fe38d4f0ea8560312f53171345c207f332e26b6f4d2ed7220e1afae66ba472` is the regression baseline.** Earlier: D08J2 (pole/chain A/D direction), D08U2 (climb off a ladder past an enemy), D08O3 (E in water keeps the weapon) and D08O2A (natural swim-fire pose v2), 2026-10-07.** Previous baseline `e8eebb809c3d5a4b29779f11f0c9db55efcd846dc5c71b39d5a59d43158eb08e` (D08U2). **D08J2 (pole/chain A/D direction) Accepted 2026-10-07**: executable `129a64f2df3f5395f2d3485a310a03d74c85f9b1086c7dab37fee59277c7968b` is the current regression baseline ([note 122](documentation/122-d08j2-pole-chain-sidestep.md)). Todo: D08J4 (ceiling monkey-bar drops, UI slot 3), D08J3 (free camera while climbing). Previous baseline `e75b50f156137fa2377e4643407b2efbd16f2e976fa4d697afcbceb228e2e554` (D08O3). **D23E (western-town stutter) Accepted 2026-10-07**; **D08O2A Accepted** ([note 119](documentation/119-d08o2a-natural-swim-fire-pose.md)), **D08O3 Accepted** ([note 120](documentation/120-d08o3-e-in-water.md)); **D23F (fast CPU timing) Accepted 2026-10-05 and now the Modernized default**; executable `e0737a9f712aa5622d1b057ee5071e12c33cc9a18de8e6d40ee8eee31083f966` (includes D23E), [note 104](documentation/104-d23e-busy-scene-stutter.md), [note 105](documentation/105-d23f-fast-timing.md). Next suggested: D23G (finish the fast path) and D17S (auto frame-rate default).
 
+**Accepted 2026-10-22: D08AD, full third-person walk/run cycles in deeper
+shallow water. Baseline executable `9bf9a7ff60c818149978f0a4317b7ff4f6464c2943a1bd26b08c5999d6030c68`.
+New Todo: D08AE, deep-water entry resistance/handoff (UI slots 9 and 2).
+D08AE investigated only; no fix implemented.**
+
 ## The experience we are building
 
 **Vanilla** preserves the original movement, camera, aiming, game rules and presentation by default. Correctness fixes, reliable audio/video, clean shutdown and necessary PC integration belong in both modes. Optional display enhancements should remain independently selectable.
@@ -104,6 +109,8 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08AA | Unify walking/running speeds across land, shallow water, surface swim and underwater | Done (user-accepted 2026-10-19) | D08, D08M, D08O |
 | D08AB | SWIMMING menu option: MODERN (D08AA pace) / ORIGINAL swim speeds | Done (user-accepted 2026-10-20) | D08AA, D19 |
 | D08AC | Normalise Shallow-Water Locomotion and Jump Physics | Done (user-accepted 2026-10-22) | D08AA, D08AB, D08K11, D08Z |
+| D08AD | Fix third-person walk/run animations in deeper shallow water (updated slot 10) | Done (user-accepted 2026-10-22) | D08AC, D08K11 |
+| D08AE | Restore deep-water entry resistance and timely swim handoff (slots 9 and 2) | Todo | D08AC, D08AD |
 | D08O3 | E in water keeps the weapon: redraw when no climb-out follows the stow | Accepted | D08O1 |
 | D08O4 | Brief Ctrl dive keeps swimming forward after release (dive anim plays on; player UI slot 3) | Done (user-accepted) | D08O |
 | D08N | Duke3D-style scuba gear item | Cancelled (out of scope) | — |
@@ -2933,6 +2940,87 @@ and has separate ledge lift/hold logic. D08AA shares pace but did not unify
 jump physics. D08AC bypasses that path for grounded MODERN water, and
 scoped authenticated native branch changes prevent mid-water gait/landing
 rewrites from cancelling ordinary jumps. Water queries and effects remain.
+
+### D08AD - Fix third-person locomotion animations in deeper shallow water
+
+**Accepted (2026-10-22).** User: "the animation is fixed. lock it in and close it out."
+D08AD is Done. Separate reported deep-water entry regression queued as D08AE;
+its investigation does not reopen the accepted animation work.
+Walking's nested terrain probe was clearing the dispatcher patch scope before
+native dispatch; the separate run-segment completion selector also still
+chose water clips. Scope arming now follows the probe, and authenticated
+completion branches retain both native land stride halves. Walk/run cycles
+pass at 60/120 Hz; jump/crouch/swim regressions pass. User visual acceptance received. Executable
+`9bf9a7ff60c818149978f0a4317b7ff4f6464c2943a1bd26b08c5999d6030c68`.
+ Follow-up to accepted D08AC shallow-water locomotion and
+jump physics, with D08K11 crouch behavior preserved. Dependencies are Done.
+Research: [note 195](documentation/195-d08ad-deeper-water-animation.md).
+
+**Reproduction:** the user updated UI save slot 10 to slightly deeper
+shallow water. Walking appears frozen until returning to shallower water;
+running has abbreviated leg steps and a repeatedly one-sided backpack swing.
+The backpack observation is a visual hypothesis, not a confirmed cause.
+Normal knee-depth water works perfectly; movement physics, jumping and
+crouching work correctly at the new location, per the user's report.
+
+**Scope:** investigate depth-dependent third-person clip selection, frame
+progression and transitions, including legacy wade clips and movement-state
+classification. Preserve
+D08AC movement/jumps, D08K11 crouch, surface/underwater swimming, SWIMMING
+ORIGINAL and Vanilla. Do not retune physics to mask an animation defect.
+
+**Acceptance:**
+- Walk and run use natural, complete locomotion cycles consistent with dry
+  land throughout grounded shallow/mid-depth water.
+- Crossing between shallow depths, starting/stopping and changing walk/run
+  remain smooth without frozen poses or repeatedly restarted partial cycles.
+- Backpack motion follows the complete animation naturally, with no assumed
+  backpack-specific fix unless evidence establishes one is needed.
+- Updated slot 10, nearby knee-depth water and dry ground pass matched
+  third-person traces and visual playtesting at 60/high refresh; accepted
+  movement, jumping, crouching, deep swimming and option boundaries survive.
+- Root cause is supported by clip/state/track traces and user playtest;
+  a build or speed measurement alone does not establish animation completion.
+
+**Initial findings:** depth 512..640 is the native mid-wade band, but the
+new slot's actual depth has not been measured. D08AC converts 80/81 to
+63/72/76 and zeros +0x68/+0x6a; repeated native reselection could therefore
+restart playback. Scoped dispatcher patches already suppress four water
+rewrites. Check their coverage/lifetime and other transition writers before
+assuming legacy clips alone explain the symptom. See note 195 for evidence,
+alternative hypotheses and the future trace plan. No game launched here.
+
+### D08AE - Restore deep-water entry resistance and timely swim handoff
+
+**Todo (2026-10-22). Investigation/backlog only; implementation not authorized.**
+Reported during D08AD acceptance: jumping into deep water feels like jumping
+into air, without resistance. Reproduce from current UI slot 9 (pool ahead)
+and UI slot 2 (moat). Research: [note 196](documentation/196-d08ae-deep-water-entry.md).
+
+**Findings:** private running/walking jumps and run-offs retain native airborne
+mode 9 far below the surface with MODERN swimming. In running-jump samples,
+mode 5 begins about 2452 units below the pool surface and 4378 below the moat
+surface. Cached support equals water surface (apparent depth zero) despite
+native volume depth 3072/about 5000. D08AC's flight protections use that cached
+support predicate to bypass native swim entry. ORIGINAL comparison restores
+earlier entry. This strongly implicates classification/handoff, not a missing
+arbitrary drag coefficient; no corrective experiment or gameplay edit made.
+Do not claim D08AD introduced the regression without historical comparison.
+
+**Scope:** restore deep-water entry response and timely transition from air
+to swimming while retaining accepted grounded shallow/mid-water behavior.
+Investigate native volume/geometry/body checks and airborne ownership; avoid
+blanket physics retunes or removal of shallow-water jump protection.
+
+**Acceptance:** both saves' walk/run jumps and run-offs feel like entering
+water and no longer continue an air-like descent nearly to the bottom;
+matched state/velocity traces and user playtest confirm it. Cover manual and
+assisted jumping, held/released input, both cameras and 60/120 Hz. Preserve
+D08AC jumps/landing, D08AD animation cycles, D08K11 crouch, surface/underwater
+controls and swim-fire, effects, ORIGINAL and Vanilla. Test natural shorelines,
+shallow shelves in deep volumes and return to ground. See note 196 for detail.
+
+**Dependencies:** D08AC, D08AD (Done). Related: D08AA/AB, D08O, D08Z, D08K11.
 
 ### D08O3 - E in water keeps the weapon
 
@@ -16237,3 +16325,52 @@ paired traces, native suites and live regressions. Executable
 is the accepted regression baseline. Broad campaign/shoreline coverage
 remains an ongoing regression concern, not a claim of exhaustive testing.
 Implementation and documentation commit/push authorized. No next job started.
+
+### 2026-10-22 / D08AD / Todo
+
+Scope and decisions: Added one follow-up job for third-person locomotion
+animations in the user's updated deeper-water slot 10. Backlog/source
+investigation only, explicitly no implementation.
+Files or build identity: Board and note 195; D08AC accepted executable
+`30ca9b3fa5bd0a6350dd8b7ef1a509914ecfb3e60dcf74ec9ebba0982b7eb838`
+remains the documented baseline, not a newly tested build.
+Verification and evidence: Inspected grounded_water.inc, modern_controls.cpp,
+swim.inc and accepted notes 156/193/194. Separated reported symptoms from
+source facts and unconfirmed frame-reset/classification hypotheses.
+Remaining limitations / next action: Reproduce from a fresh private slot-10
+copy and trace native clip writers and playback when implementation is
+selected. No gameplay edits, build, launch, save/card access, commit or push.
+
+### 2026-10-22 / D08AD / Needs playtest
+
+Scope and decisions: User selected implementation. Fixed the walking scope
+lifetime and the separate native stride-completion water selection; retained
+native frame playback and accepted physics. No backpack-specific changes.
+Files or build identity: grounded_water.inc, modern_controls.cpp,
+game.local.toml, controls native tests, manual and note 195. Executable
+`9bf9a7ff60c818149978f0a4317b7ff4f6464c2943a1bd26b08c5999d6030c68`.
+Verification and evidence: Fresh private slot-10 route reproduced the depth-512
+freeze/short run. Write traces confirmed repeated 72 -> 81 -> 72 and
+76 -> 81 -> 76. Candidate completes both stride halves at 60/120 Hz;
+offscreen visual captures inspected. Build, controls over 21 overlays, input,
+aim and five hook-contract tests pass. D08AC paired jump measurements,
+crouch and deep-swim regressions pass; ORIGINAL and Vanilla remain excluded.
+All 39 original save/card files match the pre-test manifest. No framework
+source edits, generated-C hand edits, commit or push.
+Remaining limitations / next action: User third-person playtest of updated
+slot 10, full walk/run cycles, backpack motion and depth transitions; broader
+campaign coverage remains separate. Do not close out without instruction.
+
+### 2026-10-22 / D08AD Done; D08AE Todo
+
+Scope and decisions: User accepted the animation fix and authorized closeout,
+commit and push after a new deep-water entry job was created. D08AE is backlog
+and investigation only. No gameplay changes made for the new regression.
+Verification and evidence: Private current slots 9/2, walk/run jumps and
+run-offs, MODERN/ORIGINAL comparisons. Cached support/surface depth zero
+misclassifies deep submerged flight; note 196 records measured delays and
+suspected D08AC flight-bypass involvement. D08AD's prior build/tests and user
+acceptance stand. Existing framework export unchanged and verified against
+the pinned clean dependency. No rebuild required for documentation closeout.
+Remaining limitations / next action: Select D08AE later to implement and
+playtest a correction; preserve all accepted shallow-water work.

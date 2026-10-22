@@ -485,11 +485,16 @@ held. The game controls the attached climbing motion and camera.
 
 **Jumping in shallow water (Modernized, D08AC).** With SWIMMING MODERN,
 walking on the bottom uses the same movement, jumps and landings as dry
-ground. Space alone jumps vertically; W/A/S/D plus Space jumps in the held
+ground. Third-person walking and running retain their complete land animation
+cycles through grounded mid-depth water (D08AD, accepted).
+Space alone jumps vertically; W/A/S/D plus Space jumps in the held
 camera-relative direction, with Shift for a running jump. The selected
 JUMPING style controls the arc and air steering. Water effects remain.
 Use ordinary jumps to reach platforms; the older water-specific jump boost
 and ledge help remain available only with SWIMMING ORIGINAL.
+Known issue (D08AE): jumping into deep pools/moats can retain airborne motion
+too far below the surface before swimming takes over. This is queued for a
+separate fix; shallow-water locomotion and animations remain accepted.
 
 **Grabbing a ledge in the air (Modernized, D08X, awaiting playtest).** Hold **E**
 as you jump at a ledge within reach and Duke reaches for it from takeoff, catches

@@ -37,6 +37,12 @@ static constexpr GroundWaterPatch ground_water_patches[]={
     {0x80054964,0x10400060,0x00000000},
     {0x80056240,0x1040005c,0x1000005c},
     {0x80054cbc,0x1440000a,0x1000000a},
+    // D08AD: end-of-segment selection must alternate the land stride halves,
+    // not select 80/81 and restart the same land segment in the initializer.
+    {0x8004b874,0x1040000a,0x1000000a},
+    {0x8004b8fc,0x1040000a,0x1000000a},
+    {0x8004ba00,0x1040000a,0x1000000a},
+    {0x8004bb04,0x1040000a,0x1000000a},
 };
 static uint32_t ground_water_dispatch_sp;
 static uint64_t ground_water_dispatch_epoch;
@@ -77,17 +83,36 @@ static void grounded_water_transition(CPUState* cpu,uint32_t ra) {
     ground_water_dispatch_sp=cpu->gpr[29];
     ground_water_dispatch_epoch=input_snapshot(Context::Gameplay).epoch;ground_water_kind=2;
 }
+static void grounded_water_complete(CPUState* cpu) {
+    ground_water_dispatch_sp=0;
+    const auto& f=input_snapshot(Context::Gameplay);
+    const unsigned a=psx_mod_read_half(player+0x60);
+    if(cpu->gpr[4]!=player || cpu->gpr[31]!=0x8005a470 ||
+       !grounded_water_modern() || !f.active || f.held[original_aim] || f.held[crouch] ||
+       !independent_camera() || !player_identity_ready() ||
+       (psx_mod_read_word(player)&0x20002) ||
+       (psx_mod_read_word(player+0x224)&0x202002c1) ||
+       psx_mod_read_byte(player+0x22c)>1 || a<72 || a>79)return;
+    ground_water_dispatch_sp=cpu->gpr[29];ground_water_dispatch_epoch=f.epoch;
+    ground_water_kind=4;
+}
 static void grounded_water_query(CPUState* cpu,uint32_t address) {
+    // Arm after hook_body: walking's terrain probe calls guest functions
+    // before the dispatcher has pushed its frame. Arming before that probe
+    // made its nested hooks reject the not-yet-existing dispatcher stack.
+    if(address==0x80048410)grounded_water_dispatch(cpu,cpu->gpr[31]);
+    if(address==0x8004b644)grounded_water_complete(cpu);
     if(!ground_water_dispatch_sp)return;
     const uint32_t sp=cpu->gpr[29];
-    const uint32_t target=ground_water_kind==2?0x80055e80:0x80048410;
-    const uint32_t caller=ground_water_kind==2?0x8005a4f8:0x8004b634;
-    const unsigned frame_size=ground_water_kind==2?0x50:0x28;
+    const uint32_t target=ground_water_kind==4?0x8004b644:ground_water_kind==2?0x80055e80:0x80048410;
+    const uint32_t caller=ground_water_kind==4?0x8005a470:ground_water_kind==2?0x8005a4f8:0x8004b634;
+    const unsigned frame_size=ground_water_kind==4?0x20:ground_water_kind==2?0x50:0x28;
+    const unsigned ra_offset=ground_water_kind==4?8:4;
     const bool entry=address==target && sp==ground_water_dispatch_sp;
     if(!input_modernized() || input_snapshot(Context::Gameplay).epoch!=ground_water_dispatch_epoch ||
        sp<0x80010100 || sp>0x801ffff0 ||
        (!entry && (sp>ground_water_dispatch_sp-frame_size ||
-                    psx_mod_read_word(ground_water_dispatch_sp-4)!=caller)) ||
+                    psx_mod_read_word(ground_water_dispatch_sp-ra_offset)!=caller)) ||
        g_precise_mode || g_ls_mode || g_psx_call_bail || !identity() ||
        (ground_water_kind>=2 && !grounded_water_modern())) {
         ground_water_dispatch_sp=0;return;
@@ -96,9 +121,10 @@ static void grounded_water_query(CPUState* cpu,uint32_t address) {
         if(psx_mod_read_word(p.address)!=p.original) {ground_water_dispatch_sp=0;return;}
     for(unsigned i=0;i<std::size(ground_water_patches);++i) {
         const auto& p=ground_water_patches[i];
-        if((ground_water_kind==1 && p.address!=0x80056240 && p.address!=0x80054cbc) ||
+        if((ground_water_kind==1 && i<5) ||
            (ground_water_kind==2 && p.address==0x80056240) ||
-           (ground_water_kind==3 && p.address==0x80054cbc)) {
+           (ground_water_kind==3 && p.address==0x80054cbc) ||
+           (ground_water_kind==4 && i>=7)) {
             psx_mod_write_code_word(p.address,p.replacement);
             ground_water_patch_mask|=1u<<i;
         }

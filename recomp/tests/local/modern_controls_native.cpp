@@ -68,6 +68,7 @@ static uint32_t hull_object;static int hull_ray_hit,hull_steep;static std::vecto
 static int32_t hull_object_top;   // D08K7: the step 0x80077748 reports onto the contact's top
 static int ladder_end_result=0;static unsigned ladder_end_calls;
 static unsigned kicks, edge_launches;
+static bool terrain_nested_hook;static unsigned terrain_nested_calls;
 static int terrain_result=3,terrain_floor=-1000;
 static uint32_t terrain_reference;
 static std::vector<uint32_t> cheat_calls;
@@ -150,6 +151,10 @@ extern "C" void psx_dispatch_call(CPUState* cpu,uint32_t address,uint32_t) {
     assert(address==0x8007926c || address==0x800797f4 || address==0x800402d0 || address==0x8007765c || address==0x800517a4);
     if(address==0x800517a4)++kicks;
     if(address==0x8007926c || address==0x800797f4) {
+        if(terrain_nested_hook) {
+            CPUState nested=*cpu;nested.gpr[29]-=0x158;nested.gpr[31]=0x800794b8;
+            hooks()[0x800780b4](&nested,0x800780b4);++terrain_nested_calls;
+        }
         terrain_reference=psx_mod_read_word(0x800d7198+0x1c8);
         psx_mod_write_word(0x800d7198+0x1c4,terrain_floor);cpu->gpr[2]=terrain_result;
     } else {
@@ -3291,6 +3296,54 @@ int main(int argc,char** argv) {
         call(0x8006b270,0x3001,p+4,0x80054cb0,0x801fef80);
         assert(psx_mod_read_word(0x80054cbc)==0x1440000a);
         assert(psx_mod_read_word(p+0x20c)==0x3b800);
+        // D08AD: a walking terrain probe runs before the dispatcher's stack
+        // exists. Re-entering the outer hook must arm its scope afterwards.
+        psx_mod_write_word(p+0x834,-512);psx_mod_write_half(p+0x60,72);
+        psx_mod_write_byte(p+0x22c,0);psx_mod_write_byte(p+0x22d,0);
+        ttk::running=false;ttk::input.move_y=1;ttk::input.move_x=0;
+        ttk::input.held[ttk::jump]=false;
+        call(0x8003ade4,c,p,0x80025ee8);
+        psx_mod_write_word(0x801feffc,p);
+        terrain_nested_hook=true;terrain_nested_calls=0;
+        call(0x80048410,p,0,0x8004b634,0x801ff000);
+        terrain_nested_hook=false;assert(terrain_nested_calls>0);
+        assert(psx_mod_read_word(0x800485e4)==0x10000354);
+        psx_mod_write_word(0x801feffc,0x8004b634);
+        call(0x80053404,p,0,0x800485dc,0x801fefd8);
+        assert(psx_mod_read_word(0x800485e4)==0x10000354);
+        call(0x80058120,p,0,0x80041c44,0x801ff010);
+        // The completion selector has a different saved-RA offset (-8).
+        // Preserve the native phase/frame data: no host phase reconstruction.
+        for(unsigned a:{72u,74u,76u,78u})for(int test=0;test<7;++test) {
+            ttk::input=saved;ttk::input.active=true;ttk::input.move_y=1;
+            ttk::input.held[ttk::original_aim]=ttk::input.held[ttk::crouch]=false;
+            psx_mod_write_word(p,0);psx_mod_write_word(p+0x224,0);
+            psx_mod_write_word(p+0x834,test==1?-641:-512);
+            psx_mod_write_word(p+0x1c8,0);psx_mod_write_word(p+0x20c,0x3b800);
+            psx_mod_write_byte(p+0x22c,test==2?4:0);
+            psx_mod_write_half(p+0x60,a);psx_mod_write_half(p+0x68,2);
+            psx_mod_write_half(p+0x64,117);psx_mod_write_half(p+0x66,118);
+            if(test==3)setenv("DNTTK_SWIMMING","original",1);
+            if(test==4)ttk::modern=false;
+            if(test==6)poke(0x4b874);
+            const auto original=psx_mod_read_word(0x8004b874);
+            call(0x8004b644,p,0,test==5?0x8005a474:0x8005a470,0x801ff000);
+            assert(psx_mod_read_word(0x8004b874)==(test==0?0x1000000au:original));
+            assert(psx_mod_read_word(0x8004bb04)==(test==0?0x1000000au:0x1040000au));
+            assert(psx_mod_read_half(p+0x60)==a && psx_mod_read_half(p+0x68)==2);
+            assert(psx_mod_read_half(p+0x64)==117 && psx_mod_read_half(p+0x66)==118);
+            assert(psx_mod_read_word(p+0x20c)==0x3b800);
+            if(test==0) {
+                psx_mod_write_word(0x801feff8,0x8005a470);
+                call(0x800780b4,0,0,0,0x801fefc0);
+                assert(psx_mod_read_word(0x8004b874)==0x1000000a);
+            }
+            call(0x80058120,p,0,0x80041c44,0x801ff010);
+            assert(psx_mod_read_word(0x8004b874)==original);
+            if(test==6)poke(0x4b874);
+            ttk::modern=true;unsetenv("DNTTK_SWIMMING");
+        }
+        std::puts("PASS: D08AD post-probe dispatcher scope and native stride completion; phase preservation and exclusions");
         for(unsigned i=0;i<sizeof body;++i)psx_mod_write_byte(p+i,body[i]);
         ttk::input=saved;
         std::puts("PASS: D08AC shared mid-water gait; water identity/physics preserved; deep/swim/Original/Vanilla/caller/code exclusions");

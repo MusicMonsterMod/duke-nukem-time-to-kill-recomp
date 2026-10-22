@@ -1,5 +1,7 @@
 # Time to Kill — modernization jobs
 
+**Latest accepted job (2026-10-22): D17R2 (angle-dependent black sky); executable `c8524d2c08d0b935b92f54780642d9e2e92e9f218ac88823212278d491aa0318` is the regression baseline. [Note 197](documentation/197-d17r2-angle-dependent-black-sky.md).**
+
 This is the canonical job list for our **Duke Nukem: Time to Kill** PC project, targeting the owned US SLUS-00583 disc. The ambition is a polished, game-specific PC edition: faithful original play plus an optional modern experience. This is a plan, not a list of features already available.
 
 Invoke **`$continue-duke-recomp`** (Codex) or **`/continue-duke-recomp`** (Claude Code) to see the current jobs and choose one. You can also request a job directly: **`$continue-duke-recomp work on D01`** or **`/continue-duke-recomp work on D01`**. The skill reads this file rather than keeping a second backlog. It must not automatically start the next job.
@@ -9,7 +11,7 @@ Invoke **`$continue-duke-recomp`** (Codex) or **`/continue-duke-recomp`** (Claud
 **Accepted 2026-10-22: D08AD, full third-person walk/run cycles in deeper
 shallow water. Baseline executable `9bf9a7ff60c818149978f0a4317b7ff4f6464c2943a1bd26b08c5999d6030c68`.
 D08AE Done: deep-water entry and shallow-water regression accepted by the user.
-D17R2 Todo: current slot 8 sky turns black when looking left/up; investigation only.**
+D17R2 Done: current slot 8 sky-pass omission fixed and user-accepted; note 197.**
 
 ## The experience we are building
 
@@ -191,7 +193,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D17P | Distant horizontal black bands in new subway slot 8 | Done (user-accepted) | D15 |
 | D17R | Sky turns black toward the left/right edges when looking up, game-wide (LEVEL01 slot 9, medieval UI slot 2) | Done (user-accepted 2026-10-21) | D14, D17O, D22A |
 | D17R1 | Sky artifacts when looking up/down and turning (medieval UI slot 2, with camera jerking; LEVEL01 UI slot 8) | Done (user-accepted 2026-10-21) | D17R, D17O |
-| D17R2 | Sky turns black when looking left/up from current save slot 8 | Todo | D17O, D17R, D17R1 |
+| D17R2 | Sky turns black when looking left/up from current save slot 8 | Done (user-accepted 2026-10-22) | D17O, D17R, D17R1 |
 | D17S | Auto frame-rate default: follow the display up to a cap, step down on faster monitors | Todo | D17, D23F |
 | D17T | Smooth title menu and attract demo at the saved frame rate (first impression; demo measured at 10 images/s) | Done (user-accepted) | D17, D23F |
 | D17U | Smooth loading screens (spinning Duke logo) at the saved frame rate | Done | D17T |
@@ -6720,17 +6722,16 @@ match the baseline executable. Patch re-exported and verified. Executable
 
 ### D17R2 - Sky turns black at certain viewing angles (slot 8)
 
-**Todo (2026-10-22). Minor visual follow-up; backlog/investigation only.**
-Load current UI slot 8, look left immediately, and slightly upwards if needed:
-the sky turns black depending on camera direction. Expected: continuous,
-correct sky across orientations, without black gaps or empty background.
+**Done (user-accepted 2026-10-22).** Current slot 8 is LEVEL06 room 28.
+Turning away from sky-flagged room 22 makes the portal walk return no sky,
+so the entire sky pass is skipped. Modernized now keeps the loaded sky as
+background after the original far-limit decisions, with guarded caller,
+camera, stack and code identity. Vanilla and empty-sky levels are unchanged.
 
-Initial source findings and later diagnostic plan: [note 197](documentation/197-d17r2-angle-dependent-black-sky.md).
-Inspect camera-relative sky transforms (D17O), backdrop/fill/clip widening
-(D17R), near-clipped cloud geometry and packet fallback (D17R1). Those are
-candidate paths, not proven causes; do not assume a texture problem or that
-this is the historical LEVEL01 slot-8 save. No live reproduction, rendering
-code change, build or launch for this backlog task. Implement only on selection.
+Build and sky/near contracts pass. Current-slot 60/120 motion, 48-view sweep,
+4:3/third-person/original precision-distance samples and prior sky scenarios
+pass; user fully accepted the result. [Note 197](documentation/197-d17r2-angle-dependent-black-sky.md).
+Accepted executable `c8524d2c08d0b935b92f54780642d9e2e92e9f218ac88823212278d491aa0318`.
 
 **Acceptance:** slot 8 left/up view stays correct; stable yaw/pitch sweeps and
 moving turns; prior sky improvements intact; no rendering, culling or
@@ -16438,3 +16439,23 @@ looking left/slightly up. Source-only investigation links D17O/D17R/D17R1,
 records clipping/matrix/packet hypotheses and reproduction/acceptance in
 note 197. Actual cause unestablished. No rendering change, build or launch;
 implementation waits for selection. No next job started.
+
+
+### 2026-10-22 / D17R2 candidate (Needs playtest)
+
+User selected D17R2. Reproduced current slot-8 black sky as an absent sky
+request from the visible-room walk (LEVEL06 room 28 has no sky bit).
+`sky_widescreen.cpp` enables the loaded Modernized sky background after
+far-limit selection, using existing hooks and authenticated code/stack.
+Sky/near native contracts and build pass; 60/120 moving views, 48-angle
+sweep, display/camera comparisons and prior sky scenes pass. Note 197 records
+evidence and limits. No framework edits, acceptance, commit, push or next job.
+
+
+### 2026-10-22 / D17R2 accepted (Done)
+
+User: "fully accepted. lock it in, and close us out". D17R2 is Done.
+Authored implementation, native tests and documentation included in closeout.
+Framework export unchanged; patch applies to the clean pinned dependency and
+all 50 modified/new framework files match. No rebuild needed for documentation
+closeout. No next job started.

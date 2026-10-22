@@ -14,6 +14,7 @@
 static uint8_t ram[0x200000];
 static std::map<uint32_t,PSXModFunctionEntryCallback> hooks;
 static int32_t margin=0;
+static bool modern=true;
 extern "C" {uint8_t* g_psx_ram=ram;uint32_t g_dirty_ram_code_gen=1;}
 extern "C" uint8_t psx_mod_read_byte(uint32_t a){return ram[a&0x1fffff];}
 extern "C" uint16_t psx_mod_read_half(uint32_t a){return psx_mod_read_byte(a)|(psx_mod_read_byte(a+1)<<8);}
@@ -22,7 +23,7 @@ extern "C" void psx_mod_write_half(uint32_t a,uint16_t v){ram[a&0x1fffff]=v;ram[
 extern "C" void psx_mod_write_word(uint32_t a,uint32_t v){for(int i=0;i<4;++i)ram[(a+i)&0x1fffff]=v>>(8*i);}
 extern "C" int psx_mod_register_function_entry_plugin(const char*,uint32_t a,PSXModFunctionEntryCallback cb){hooks[a]=cb;return 1;}
 extern "C" int32_t psx_mod_widescreen_x_margin(void){return margin;}
-namespace ttk {uint64_t input_host_frame(){static uint64_t f=0;return ++f;}}
+namespace ttk {uint64_t input_host_frame(){static uint64_t f=0;return ++f;} bool input_modernized(){return modern;}}
 
 static int16_t h(uint32_t a){return (int16_t)psx_mod_read_half(a);}
 static void sh(uint32_t a,int v){psx_mod_write_half(a,(uint16_t)(int16_t)v);}
@@ -105,6 +106,41 @@ int main(int argc,char** argv) {
     reset();run_all();assert(untouched());
     psx_mod_write_word(0x80038b08u,word);++g_dirty_ram_code_gen;
     reset();run_all();assert(h(packet+8)==-341);
+
+    // D17R2: sky omitted by the portal walk, with a loaded backdrop. Only
+    // the eventual sky return changes; far limits and room data stay intact.
+    CPUState cpu{};cpu.gpr[31]=0x8002e6dc;cpu.gpr[4]=camera;cpu.gpr[29]=0x801ffe00;
+    const uint32_t flag=cpu.gpr[29]+0x28;
+    psx_mod_write_word(0x800da464,1);
+    psx_mod_write_word(context+0x74,24576);
+    auto background=[&](){hooks.at(0x8002ffec)(&cpu,0x8002ffec);};
+    for(int m:{0,85,192}) {
+        margin=m;psx_mod_write_word(flag,0);background();
+        assert(psx_mod_read_word(flag)==1 && psx_mod_read_word(context+0x74)==24576);
+    }
+    psx_mod_write_word(flag,0);modern=false;background();assert(!psx_mod_read_word(flag));modern=true;
+    psx_mod_write_word(0x800c27bc,2);background();assert(!psx_mod_read_word(flag));
+    psx_mod_write_word(0x800c27bc,1);
+    cpu.gpr[31]=0x80026278;background();assert(!psx_mod_read_word(flag));cpu.gpr[31]=0x8002e6dc;
+    cpu.gpr[4]=camera+0x160;background();assert(!psx_mod_read_word(flag));cpu.gpr[4]=camera;
+    cpu.gpr[29]=0x801fffe0;background();assert(!psx_mod_read_word(flag));cpu.gpr[29]=0x801ffe00;
+    // Empty sky: never enable one. Each actual sky component can request it.
+    const uint32_t assets[]={0x800da468,0x800da464,0x800da344,0x800da45c,0x800da46c};
+    for(auto a:assets) psx_mod_write_word(a,0);
+    background();assert(!psx_mod_read_word(flag));
+    for(auto a:assets) {
+        psx_mod_write_word(a,1);background();assert(psx_mod_read_word(flag)==1);
+        psx_mod_write_word(a,0);psx_mod_write_word(flag,0);
+    }
+    psx_mod_write_word(0x800da464,1);
+    for(uint32_t a:{0x8002e830u,0x800265b4u,0x80038b08u}) {
+        const uint32_t original=psx_mod_read_word(a);
+        psx_mod_write_word(a,original^1);++g_dirty_ram_code_gen;
+        background();assert(!psx_mod_read_word(flag));
+        psx_mod_write_word(a,original);++g_dirty_ram_code_gen;
+        background();assert(psx_mod_read_word(flag)==1);psx_mod_write_word(flag,0);
+    }
+    psx_mod_write_word(flag,7);background();assert(psx_mod_read_word(flag)==7);
     std::puts("sky widescreen: ok");
     return 0;
 }

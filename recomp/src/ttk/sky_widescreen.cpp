@@ -33,6 +33,37 @@ namespace ttk {
 namespace {
 constexpr uint32_t camera=0x800d6eb0u,context=0x800d67a8u,players=0x800c27bcu;
 
+// D17R2: the portal walk requests sky only when a visible room has bit 8.
+// An open roof need not have that bit (LEVEL06 room 28): turning away from
+// its outdoor neighbour drops the whole sky. Modernized's independent view
+// needs the loaded sky as its background even when that neighbour is culled.
+// Set only the render function's eventual sky return, AFTER the same flag
+// has selected the original room far limit. No room flags or visibility change.
+void sky_background(CPUState* cpu) {
+    if(cpu->gpr[31]!=0x8002e6dcu || cpu->gpr[4]!=camera ||
+       !input_modernized() || psx_mod_read_word(players)!=1) return;
+    static const bool enabled=[]{const char* t=std::getenv("DNTTK_SKY_BACKGROUND");
+        return !t || std::strcmp(t,"0");}();
+    if(!enabled) return;
+    const uint32_t sp=cpu->gpr[29];
+    if(sp<0x80010000u || sp>0x801fffb8u || psx_mod_read_word(sp+0x28)) return;
+    if(!(psx_mod_read_word(0x800da468u)&0xffffffu) &&
+       !psx_mod_read_word(0x800da464u) && !psx_mod_read_word(0x800da344u) &&
+       !psx_mod_read_word(0x800da45cu) && !psx_mod_read_word(0x800da46cu)) return;
+    struct Guard {uint32_t address,size;const char* digest;};
+    static const Guard guards[]={
+        {0x8002e610u,0x240u,"4b2d97487b942d6385d247a6bbe76a1c5c523a85114ed1365a14ea846ed2dde8"},
+        {0x800265b4u,0x18u,"f2c1356dabf524276451a5e06a8bfd7906b975495c95ccb52d1b8b5477517054"},
+    };
+    static std::array<std::vector<uint32_t>,2> words;
+    static IdentityMemo memo;
+    if(!memo.valid(input_host_frame(),g_dirty_ram_code_gen))
+        memo.set(input_host_frame(),g_dirty_ram_code_gen,code_identity(guards,words,psx_mod_read_word,g_psx_ram));
+    static SkyRenderIdentity sky;
+    if(memo.ok && sky.valid(input_host_frame(),g_dirty_ram_code_gen,g_psx_ram))
+        psx_mod_write_word(sp+0x28,1);
+}
+
 int32_t margin() {
     static const bool off=[]{const char* t=std::getenv("DNTTK_SKY_WIDE");return t && !std::strcmp(t,"0");}();
     if(off) return 0;
@@ -50,6 +81,7 @@ void widen(uint32_t left,uint32_t right,int32_t m) {
 }
 
 void hook(CPUState* cpu,uint32_t address) {
+    if(address==0x8002ffecu) {sky_background(cpu);return;}
     const uint32_t ra=cpu->gpr[31];
     if(address==0x8002bc18u) {
         if(ra!=0x80038bb4u) return;
@@ -83,6 +115,6 @@ void hook(CPUState* cpu,uint32_t address) {
 }
 
 PSX_MOD_CONSTRUCTOR(register_ttk_sky_widescreen) {
-    for(uint32_t address:{0x8002bc18u,0x800292a0u,0x80010000u})
+    for(uint32_t address:{0x8002bc18u,0x800292a0u,0x80010000u,0x8002ffecu})
         psx_mod_register_function_entry_plugin("ttk.sky.widescreen",address,ttk::hook);
 }

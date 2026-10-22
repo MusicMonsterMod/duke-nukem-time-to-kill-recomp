@@ -1,5 +1,30 @@
 # Current status - 2026-10-04
 
+## 2026-10-22 - D17R2 accepted (Done)
+
+User fully accepted D17R2 and explicitly requested closeout. Accepted executable
+`c8524d2c08d0b935b92f54780642d9e2e92e9f218ac88823212278d491aa0318`.
+The angle-dependent black sky is fixed; [note 197](197-d17r2-angle-dependent-black-sky.md)
+records implementation, tests and coverage limits. Implementation, tests and
+documentation commit/push authorized. Framework export unchanged; verified
+against the clean pinned dependency, all 50 patched files match. No rebuild
+for documentation closeout. No next job started; wait for user selection.
+
+
+## 2026-10-22 - D17R2 sky-pass omission (Needs playtest)
+
+Current UI slot 8 is LEVEL06 room 28. Turning away from a sky-flagged
+neighbour culls that neighbour and skips the entire original sky pass.
+Modernized now draws the loaded sky background independently of that flag,
+after its original far-limit use. No world visibility or Vanilla changes.
+Candidate `c8524d2c08d0b935b92f54780642d9e2e92e9f218ac88823212278d491aa0318`.
+Build, native sky/near contracts, current-slot 60/120 motion and angle sweep,
+4:3/third-person/original precision-distance samples and previous sky views
+pass. [Note 197](197-d17r2-angle-dependent-black-sky.md) records evidence and
+limits. User slot-8 left/up playtest remains. No framework changes or commit/push.
+Launch: `python3 recomp/tools/local/run.py` (F10 if capture is needed).
+
+
 ## 2026-10-22 - D08AE accepted; D17R2 queued
 
 User fully accepted D08AE after testing the reported deep-water locations

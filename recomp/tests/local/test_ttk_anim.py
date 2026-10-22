@@ -138,7 +138,36 @@ class OwnedDisc(unittest.TestCase):
             path = Path(tmp) / 'anim.pack'
             cw.write_host_pack(self.g, path)
             data = path.read_bytes()
-        self.assertEqual(struct.unpack_from('<I', data, 8)[0], 6)   # 4 walks, idle, padding
+        self.assertEqual(struct.unpack_from('<I', data, 8)[0], 11)  # 4 walks, idle, their 5 upper clips, padding
+
+    def test_tactical_crouch_posture(self):
+        # D08K6: not "sitting": hip joints well above knee height, feet near
+        # hip width, chest leaning over the knees, everything under the hull,
+        # and the upper body encodes and stays separate from the legs.
+        import ttk_crouch_walk as cw
+        if not cw.MOCAP.exists():
+            self.skipTest('no motion asset')
+        h = self.g.hierarchies[t.DUKE_HIERARCHY]
+        for name in ('forward', 'backward', 'strafe_pos_x', 'strafe_neg_x', 'idle'):
+            frames = cw.mocap_frames(self.g, name)
+            self.assertLess(cw.pose_top(self.g, frames), 0x2c0, name)
+            drops = []
+            for f in frames:
+                self.assertEqual(set(f['upper']), {9, 16, 10, 11, 12, 13, 14, 15})
+                self.assertFalse({c['joint'] for c in f['commands'] if 'q' in c} & set(f['upper']))
+                for j, q in f['upper'].items():
+                    t.encode_command(dict(joint=j, q=q, flags=0))
+                q = t.joint_quats_for_frame(f)
+                q.update(f['upper'])
+                m = t.pose(h, q, root_position=(0, -f['commands'][0]['root'][1], 0))
+                drops += [m[knee][1][1] - m[hip][1][1] for hip, knee in ((10, 11), (14, 15))]
+                if name != 'strafe_pos_x' and name != 'strafe_neg_x':
+                    self.assertLess(abs(m[12][1][0] - m[16][1][0]), 180, name)  # feet near hip width
+                lean = m[9][1] - m[1][1]
+                self.assertGreater(math.degrees(math.atan2(lean[2], -lean[1])), 45, name)
+            # Thighs pitched down on average: D08K4's were level (about 20);
+            # the user's chosen low crouch (variant C, hip ratio 0.56) is about 48.
+            self.assertGreater(sum(drops) / len(drops), 40, name)
 
     def test_clip_digest_stable(self):
         self.assertEqual(t.clip_digest(self.g, 0), t.clip_digest(self.g, 0))

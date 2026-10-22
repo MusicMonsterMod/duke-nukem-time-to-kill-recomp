@@ -18,6 +18,7 @@ ignored recomp/analysis/ or the build tree).
 
   python3 recomp/tools/local/ttk_crouch_walk.py OUT_DIR [--pelvis 330] [--speed 200]
   python3 recomp/tools/local/ttk_crouch_walk.py --host-pack build-local/ttk-anim.pack
+  python3 recomp/tools/local/ttk_crouch_walk.py --host-pack low.pack --set hip_ratio=0.6   # a variant
 """
 import argparse
 import json
@@ -264,16 +265,34 @@ def split_half(frames, first, count):
 
 
 # ------------------------------------------------------------------ mocap
-# D08K4 revision 3: the motion of a captured crouch walk (CC-BY 4.0, see
-# recomp/assets/anim/crouch-walk-mocap.json, written by extract_crouch_mocap.py)
-# retargeted onto Duke: his pelvis at PELVIS with the capture's bob and torso
-# lean, each ankle on the capture's path (relative to the hips, scaled by leg
-# length, the stride scaled so a cycle travels exactly CYCLE), feet rolling as
-# in the capture, solved with the same two-bone IK.
+# D08K6: a tactical crouch walk. The motion of a captured crouch walk (CC-BY
+# 4.0, see recomp/assets/anim/crouch-walk-mocap.json, written by
+# extract_crouch_mocap.py) retargeted onto Duke by proportion, plus a designed
+# upper body (documentation note 188):
+# - legs: the hip joints at the capture's height in leg lengths (HIP_RATIO),
+#   each ankle on the capture's path (scaled to Duke's leg, the stride scaled
+#   so a cycle travels exactly CYCLE), the feet narrow under the hips (WIDTH x
+#   the hip joints' spread, slight toe-out) and rolling heel to toe as
+#   captured, knees over the toes, the same two-bone IK. D08K4 put the pelvis
+#   at 300 (thighs level) with the feet 4x the hips apart: Duke "sitting".
+# - pelvis: nearly level (PELVIS_PITCH) with the capture's hip yaw and roll
+#   swing; the capture bends at the spine, not the pelvis.
+# - chest (Duke's torso is one joint): leaning CHEST_PITCH over the knees with
+#   a shoulder counter-swing; head (HEAD_PITCH) looking ahead.
+# - arms, when no weapon owns them: fists up in front of the chest with a small
+#   counter-swing (the kneel's arms hung to the knees).
+# Upper-body joints go in separate host clips (UPPER_CLIPS) that the runtime
+# reads directly; they are never put on a channel (a channel's joint mask only
+# grows, see crouch_channels_sanitize in crouch_walk.inc).
 MOCAP = Path(__file__).resolve().parents[2] / 'assets/anim/crouch-walk-mocap.json'
 CYCLE = 640.0
 # Strafes: quicker, smaller side steps (a 640 sideways stride reads as a split).
 STRAFE_CYCLE = 380.0
+STRAFE_FORWARD = 0.3
+TACTICAL = dict(hip_ratio=0.56, width=1.5, toe_out=6.0, pelvis_pitch=12.0, yaw_swing=1.0, roll_swing=1.0,
+                chest_pitch=62.0, chest_counter=0.6, head_pitch=5.0,
+                hand_forward=150.0, hand_down=70.0, hand_in=40.0, arm_swing=12.0)
+ARMS = ((2, 3, 4), (5, 6, 7))   # shoulder, forearm, hand records (left, right)
 
 
 def _orthonormal(m):
@@ -315,88 +334,182 @@ def resample_by_travel(mc, count=24):
     return out
 
 
-def mocap_frames(group, direction, pelvis_height=None, width=None, idle=False):
-    pelvis_height = PELVIS if pelvis_height is None else pelvis_height
-    width = WIDTH if width is None else width
+def rot_x(deg):
+    """Pitch: +deg tips the top of the body towards +z (forward)."""
+    return axis_angle([1.0, 0.0, 0.0], -math.radians(deg))
+
+
+def rot_y(deg):
+    return axis_angle([0.0, 1.0, 0.0], math.radians(deg))
+
+
+def rot_z(deg):
+    return axis_angle([0.0, 0.0, 1.0], math.radians(deg))
+
+
+def yaw_roll(m):
+    """Yaw (about y) and roll (about z) of a game-axes rotation, degrees."""
+    fw, rt = m @ np.array([0.0, 0.0, 1.0]), m @ np.array([1.0, 0.0, 0.0])
+    return math.degrees(math.atan2(fw[0], fw[2])), math.degrees(math.atan2(-rt[1], rt[0]))
+
+
+class Arm(Leg):
+    """Shoulder, forearm (a hinge about local x that bends negative, as in the
+    original arms) and hand records."""
+    def __init__(self, group, records):
+        h = group.hierarchies[t.DUKE_HIERARCHY]
+        self.records = records
+        self.rot = [h['joints'][r]['rot_id'] for r in records]
+        self.hip_offset = np.array(h['joints'][records[0]]['offset'], float)
+        self.thigh = np.array(h['joints'][records[1]]['offset'], float)
+        self.shin = np.array(h['joints'][records[2]]['offset'], float)
+
+    def knee_local(self, d):
+        def hinge(theta):
+            return t.quat_matrix([math.sin(theta / 2) * 4096, 0, 0, math.cos(theta / 2) * 4096])
+
+        def span(theta):
+            return np.linalg.norm(self.thigh + hinge(theta) @ self.shin)
+        lo, hi = 0.0, -math.pi * 0.9
+        d = min(max(d, span(hi) + 1e-3), span(lo) - 1e-3)
+        for _ in range(60):
+            mid = (lo + hi) / 2
+            if span(mid) > d:
+                lo = mid
+            else:
+                hi = mid
+        return hinge((lo + hi) / 2)
+
+
+def mocap_frames(group, direction, params=None):
+    """Legs frames (channel 0: root height command, pelvis, legs) for a
+    direction ('forward', 'backward', 'strafe_pos_x', 'strafe_neg_x', 'idle');
+    each frame also carries 'upper': ROT id -> Q12 quaternion for the chest,
+    head and both arms."""
+    p = dict(TACTICAL, **(params or {}))
+    idle = direction == 'idle'
     mc = json.loads(MOCAP.read_text())
     src = resample_by_travel(mc)
+    n = len(src)
     h = group.hierarchies[t.DUKE_HIERARCHY]
+    joints = h['joints']
     idle_q, idle_roots = group.animation_quats(IDLE, 0)
     idle_pose = t.pose(h, idle_q, root_position=t.root_position(h, idle_roots))
     legs = [Leg(group, r) for r in LEGS]
+    arms = [Arm(group, r) for r in ARMS]
     leg_len = float(np.linalg.norm(legs[0].thigh) + np.linalg.norm(legs[0].shin))
     ankle_world = [idle_pose[l.records[2]][0] for l in legs]
     toe = {l.rot[3]: idle_q.get(l.rot[3], (0, 0, 0, 0)) for l in legs}
     # Capture sides: legs[0] is Duke's negative-x leg.
     sides = ('left', 'right') if mc['left_is_game_negative_x'] else ('right', 'left')
-    neutral_x = [idle_pose[l.records[2]][1][0] * width for l in legs]
     mean_hips = float(np.mean([f['hips_height'] for f in src]))
     rel = {sd: np.array([f[sd + '_ankle'] for f in src]) * leg_len for sd in sides}
     mean_z = {sd: float(rel[sd][:, 2].mean()) for sd in sides}
     # Stride: the planted (lower) foot's travel per cycle, scaled to CYCLE.
-    n = len(src)
     travel = 0.0
     for k in range(n):
         a, b = src[k], src[(k + 1) % n]
         sd = min(sides, key=lambda x: a[x + '_ankle_height'] + b[x + '_ankle_height'])
         travel += abs(b[sd + '_ankle'][2] - a[sd + '_ankle'][2]) * leg_len
     stride = (STRAFE_CYCLE if direction.startswith('strafe') else CYCLE) / travel
+    swings = [yaw_roll(np.array(f['hips_rotation'])) for f in src]
+    mean_yaw, mean_roll = (float(np.mean([s[i] for s in swings])) for i in (0, 1))
+    # Pelvis over the floor: the hip joints (offset +y below it) at the capture's
+    # height over the ankles, in leg lengths.
+    pelvis_height = ANKLE_HEIGHT + p['hip_ratio'] * leg_len + joints[LEGS[0][0]]['offset'][1]
     order = list(range(n))
     if direction == 'backward':
         order = order[::-1]
     out = []
     for k in order:
         f = src[k]
-        torso = np.array(f['torso'])
-        lean = math.atan2(torso[2], -torso[1])          # forward pitch, lateral twist dropped
-        pelvis_m = axis_angle([1.0, 0.0, 0.0], -lean)
-        bob = 0.0 if idle else (f['hips_height'] - mean_hips) * leg_len
-        pelvis_t = np.array([0.0, -(pelvis_height + bob), 0.0])
+        yaw = 0.0 if idle else (swings[k][0] - mean_yaw) * p['yaw_swing']
+        roll = 0.0 if idle else (swings[k][1] - mean_roll) * p['roll_swing']
+        pelvis_m = rot_y(yaw) @ rot_z(roll) @ rot_x(p['pelvis_pitch'])
+        height = pelvis_height + (0.0 if idle else (f['hips_height'] - mean_hips) * leg_len)
+        pelvis_t = np.array([0.0, -height, 0.0])
         # Host clips carry the pelvis height over the feet (absolute, x = z = 0)
         # in a root translation command; crouch_walk.inc reads it.
-        cmds = [dict(joint=0, root=[0, int(round(pelvis_height + bob)), 0], flags=2), dict(joint=0, q=game_q(pelvis_m), flags=0)]
+        cmds = [dict(joint=0, root=[0, int(round(height)), 0], flags=2), dict(joint=0, q=game_q(pelvis_m), flags=0)]
         for i, leg in enumerate(legs):
             sd = sides[i]
+            side = -1.0 if leg.hip_offset[0] < 0 else 1.0
             dz = 0.0 if idle else (rel[sd][k][2] - mean_z[sd]) * stride
             along = np.array([0.0, 0.0, mean_z[sd] + dz])
+            # Strafes: the side step under the hips (the capture's forward
+            # stance offset would bring the knees forward: "sitting").
             if direction == 'strafe_pos_x':
-                along = np.array([dz, 0.0, mean_z[sd]])
+                along = np.array([dz, 0.0, mean_z[sd] * STRAFE_FORWARD])
             elif direction == 'strafe_neg_x':
-                along = np.array([-dz, 0.0, mean_z[sd]])
-            height = 0.0 if idle else f[sd + '_ankle_height'] * leg_len
-            target = np.array([neutral_x[i] + along[0], -(ANKLE_HEIGHT + height), along[2]])
+                along = np.array([-dz, 0.0, mean_z[sd] * STRAFE_FORWARD])
+            lift = 0.0 if idle else f[sd + '_ankle_height'] * leg_len
+            target = np.array([leg.hip_offset[0] * p['width'] + along[0], -(ANKLE_HEIGHT + lift), along[2]])
+            toe_out = rot_y(side * p['toe_out'])
             foot = np.eye(3) if idle else np.array(f[sd + '_foot_rotation'])
-            foot_world = foot @ ankle_world[i]
+            foot_world = toe_out @ foot @ ankle_world[i]
             # Duke's foot is longer than the capture's (leg-relative): lift the
             # ankle so a pitched-down toe stays on the floor.
             toe_y = target[1] + (foot_world @ leg.toe)[1]
             if toe_y > 0:
                 target[1] -= toe_y
-            hip_l, knee_l, ankle_l, _ = leg.solve(pelvis_m, pelvis_t, target, foot_world, np.array([0.0, 0.0, 1.0]))
+            hip_l, knee_l, ankle_l, _ = leg.solve(pelvis_m, pelvis_t, target, foot_world, toe_out @ np.array([0.0, 0.0, 1.0]))
             cmds += [dict(joint=leg.rot[0], q=game_q(hip_l), flags=0), dict(joint=leg.rot[1], q=game_q(knee_l), flags=0),
                      dict(joint=leg.rot[2], q=game_q(ankle_l), flags=0)]
             if toe[leg.rot[3]] != (0, 0, 0, 0):
                 cmds.append(dict(joint=leg.rot[3], q=list(toe[leg.rot[3]]), flags=0))
-        out.append(dict(events=0, ticks=HOST_TICKS, commands=cmds))
+        # Upper body: world targets turned into locals under the pelvis.
+        chest_m = rot_y(-yaw * p['chest_counter']) @ rot_x(p['chest_pitch'])
+        head_m = rot_y(-yaw * 0.3) @ rot_x(p['head_pitch'])
+        upper = {9: game_q(pelvis_m.T @ chest_m), 16: game_q(chest_m.T @ head_m)}
+        chest_t = pelvis_m @ np.array(joints[1]['offset'], float) + pelvis_t
+        swing = 0.0 if idle else math.sin(2 * math.pi * k / n) * p['arm_swing']
+        for a, arm in enumerate(arms):
+            side = -1.0 if a == 0 else 1.0
+            shoulder = chest_m @ arm.hip_offset + chest_t
+            target = shoulder + np.array([-side * p['hand_in'], p['hand_down'], p['hand_forward'] + (swing if a == 0 else -swing)])
+            # Elbows back, down and out; the fist turned palm-in.
+            s, e, hand, _ = arm.solve(chest_m, chest_t, target, rot_x(-70), np.array([side * 0.5, 0.6, -1.0]))
+            upper.update({arm.rot[0]: game_q(s), arm.rot[1]: game_q(e), arm.rot[2]: game_q(hand)})
+        out.append(dict(events=0, ticks=HOST_TICKS, commands=cmds, upper=upper))
     return out[:2] if idle else out
+
+
+def pose_top(group, frames):
+    """Highest vertex over the floor of the full pose (legs and upper body)."""
+    h = group.hierarchies[t.DUKE_HIERARCHY]
+    top = 0.0
+    for f in frames:
+        q = t.joint_quats_for_frame(f)
+        q.update(f.get('upper', {}))
+        mats = t.pose(h, q, root_position=(0.0, -f['commands'][0]['root'][1], 0.0))
+        for j, joint in enumerate(h['joints']):
+            v = np.array(group.model(joint['model'])['vertices'], float) @ mats[j][0].T + mats[j][1]
+            top = max(top, -float(v[:, 1].min()))
+    return top
 
 
 # D08K4 host-driven clips: the crouch walk's channel 0 is set by the host every
 # update (crouch_walk.inc), so the frames are long (the original stepper never
-# advances them) and carry no root commands (the host moves Duke and sets the
-# pelvis height: PELVIS + BOB cos(4 pi phase)). Pack entries with group 0xffff
-# are extra clips: appended, never bound to an original clip id.
+# advances them). Pack entries with group 0xffff are extra clips: appended,
+# never bound to an original clip id. UPPER_CLIPS hold the same frames' chest,
+# head and arm joints (D08K6), read by the host only.
 HOST_CLIPS = {1: 'forward', 2: 'backward', 3: 'strafe_pos_x', 4: 'strafe_neg_x', 5: 'idle'}
+UPPER_CLIPS = {cid + 10: name for cid, name in HOST_CLIPS.items()}
 HOST_TICKS = 30000
-# The Duke3D-like crouch (user reference 2026-10-22): low, hunched forward,
-# long strides at the walking pace. The host mirrors PELVIS/BOB and the cycle
-# travel STEP / STANCE (crouch_walk.inc).
+# Procedural fallback (no motion asset): the D08K4 revision 2 gait. The host
+# mirrors PELVIS/BOB and the cycle travel STEP / STANCE (crouch_walk.inc).
 PELVIS, BOB, LEAN, STEP, STANCE, LIFT, WIDTH, FRAMES = 300.0, 10.0, 25.0, 240.0, 0.55, 45.0, 0.95, 12
 
 
-def host_clip(group, direction):
-    if MOCAP.exists():        # revision 3: the captured crouch walk
-        return host_frames(mocap_frames(group, direction if direction != 'idle' else 'forward', idle=direction == 'idle'), keep_root=True)
+def host_clip(group, direction, upper=False):
+    if MOCAP.exists():
+        frames = mocap_frames(group, direction)
+        if upper:
+            frames = [dict(events=0, ticks=HOST_TICKS, commands=[dict(joint=j, q=q, flags=0) for j, q in f['upper'].items()])
+                      for f in frames]
+        return host_frames(frames, keep_root=True)
+    if upper:
+        return None
     if direction == 'idle':   # the crouch held still: both feet planted under the hips
         frames = build(group, 'forward', PELVIS, frames=2, stance=STANCE, step=0.0, lift=0.0, stance_width=WIDTH, bob=0.0, lean=LEAN)
     else:
@@ -418,6 +531,10 @@ def host_frames(frames, keep_root=False):
 def write_host_pack(group, path):
     entries = [dict(group=0xffff, clip=cid, source_sha256='00' * 32, frames=host_clip(group, name))
                for cid, name in HOST_CLIPS.items()]
+    for cid, name in UPPER_CLIPS.items():
+        frames = host_clip(group, name, upper=True)
+        if frames:
+            entries.append(dict(group=0xffff, clip=cid, source_sha256='00' * 32, frames=frames))
     # Padding after the last clip: the original stepper (0x80059db0) loops a
     # channel within the animation's own clip, so if it ever advanced a
     # host-driven channel it would walk on past the extra clips; with a weapon
@@ -439,7 +556,15 @@ def main():
     p.add_argument('--frames', type=int, default=8)
     p.add_argument('--host-pack', action='store_true',
                    help='write OUTPUT as the runtime crouch-walk pack (ttk-anim.pack) instead of clip JSON files')
+    p.add_argument('--set', action='append', default=[], metavar='KEY=VALUE',
+                   help='tactical crouch-walk parameter (TACTICAL), e.g. --set hip_ratio=0.62; for variant packs '
+                        'tried with DNTTK_ANIM_PACK')
     a = p.parse_args()
+    for kv in a.set:
+        key, value = kv.split('=', 1)
+        if key not in TACTICAL:
+            p.error(f'unknown parameter {key}; one of {", ".join(TACTICAL)}')
+        TACTICAL[key] = float(value)
     group = t.Group(a.group)
     if a.host_pack:
         a.output.parent.mkdir(parents=True, exist_ok=True)

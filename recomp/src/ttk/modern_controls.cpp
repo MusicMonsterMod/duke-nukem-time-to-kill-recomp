@@ -1209,8 +1209,11 @@ static void hook_body(CPUState* cpu, uint32_t address) {
             psx_mod_read_byte(player+0x3b8)!=2 || !presentation_ready()) return;
         if (!presentation_vector) presentation_vector=psx_mod_alloc_guest_memory(16,16);
         if (!presentation_vector) return;
-        for(int i=0;i<3;++i) psx_mod_write_word(presentation_vector+4*i,
-            (int32_t)(int16_t)psx_mod_read_half(camera+12+2*i));
+        int32_t dir[3];
+        for(int i=0;i<3;++i) dir[i]=(int32_t)(int16_t)psx_mod_read_half(camera+12+2*i);
+        // D08K6: the chest (depth 2, 0x1f800040) stays hunched when firing crouched.
+        if(cpu->gpr[4]==0x1f800040) crouch_fire_direction(dir);
+        for(int i=0;i<3;++i) psx_mod_write_word(presentation_vector+4*i,dir[i]);
         cpu->gpr[5]=presentation_vector;
         ++arms;
     } else if (address==0x8002a038) {

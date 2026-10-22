@@ -82,13 +82,13 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08H | Apartment furniture, hidden pickup and switch targeting | Done | D08 |
 | D08I | Responsive run-start and edge jumps | Done | D08 |
 | D08J | Armed airborne ladder grabs and automatic weapon transitions | Done | D08, D08E |
-| D08K | True crouch walking and animation feasibility (parent; split into D08K1-D08K6 on 2026-10-22; D08K1-D08K4 Done) | Todo | D08K5, D08K6 |
+| D08K | True crouch walking and animation feasibility (parent; split into D08K1-D08K6 on 2026-10-22; D08K1-D08K4 and D08K6 Done) | Todo | D08K5 |
 | D08K1 | Animation pipeline: decode the skeleton (HIE) and joint/mesh mapping, preview poses, round-trip a local animation override (research + tooling) | Done (user-accepted 2026-10-22) | D08 |
 | D08K2 | Crouch-height movement collision: low hull and headroom checks while moving, safe stand-up (no new animation needed) | Done (user-accepted 2026-10-22) | D08 |
 | D08K3 | Crouch-walk animation: low-gait loops for every direction with planted feet, matching root travel and original events | Done (user-accepted 2026-10-22; look refined in D08K6) | D08K1 |
 | D08K4 | Modernized crouch walking: hold crouch + direction walks low (no automatic roll), aim and fire, safe stand-up, roll binding | Done (user-accepted 2026-10-22, technical; look in D08K6) | D08K2, D08K3 |
 | D08K5 | Crouch-walk coverage: low ceilings, stairs/edges, weapons, both cameras, traversal interruptions, game-wide; Vanilla unchanged | Todo | D08K4, D22B |
-| D08K6 | Crouch-walk animation quality: a realistic, Solid Snake-style tactical crouch walk (not "sitting on a toilet"), deep study of the captured animation pack; fix the left-arm shake while crouch walking | Todo | D08K4 |
+| D08K6 | Crouch-walk animation quality: a realistic, Solid Snake-style tactical crouch walk (not "sitting on a toilet"), deep study of the captured animation pack; fix the left-arm shake while crouch walking | Done (user-accepted 2026-10-22) | D08K4 |
 | D08L | Inertial platform edge run-off | Done | D08 |
 | D08M | Modern underwater swimming controls (foundation) | Done | D08 |
 | D08O | Deep free-swim polish (strafe, Ctrl dive, mantle-only exit) | Done | D08M |
@@ -3718,6 +3718,52 @@ and Continue. Vanilla regression route passes unchanged. User playtest
 accepts it; then D08K closes too.
 
 ### D08K6 - Crouch-walk animation quality (Solid Snake, not "on the toilet")
+
+**Done (user-accepted 2026-10-22).** User: "that's it!! i'm happy with this end to end. the anim is now fully complete. the technical implementation is now fully complete. this is totally playable in every way at this point. lock it in, close it out". Final: variant C, head level, hunched
+firing on the crosshair, steady arms. Executable
+`789d532a18086bf3c1f0612897106ac8ddde51f8007bbbdc81eb07e179cefa03`.
+
+**Was Needs playtest (2026-10-22).** See [note 188](documentation/188-d08k6-crouch-walk-animation-quality.md),
+which is also the reference for future custom animation and model work (user
+request). Measured why D08K4 sat: pelvis 300 (hip joints 0.47 leg lengths over
+the ankles against the capture's 0.69, thighs level), feet about 4x the hips'
+spread, lean put in the pelvis (the capture's pelvis stays level and bends at
+the spine), kneel arms hanging to the knees. New gait (`ttk_crouch_walk.py`
+`TACTICAL`): hips at 0.62 leg lengths, feet narrow under the hips, knees over
+the toes, pelvis 12 degrees with the capture's yaw/roll swing, chest 48
+degrees over the knees with counter-swing, head level, fists up front when no
+weapon owns the arms; upper body in separate host clips 11-15, written at
+`0x800411b8` after every blend (`crouch_walk_upper`), weapon-owned arms
+compensated to keep the pose's world direction, 6-update ramps. Left-arm
+shake: animation 178's upper channels followed the host legs frames and were
+reset every update, leaving the chest/left arm 2-26 degrees off every few
+updates armed; now never reaches the model. Variant packs (`--set`,
+`DNTTK_ANIM_PACK`), `ttk_pose_study.py` (sample / metrics / flipbook). Lab:
+in-game pose numbers, chase shots of old and four variants, release stands;
+`test_ttk_anim` 14 OK. Executable
+`dda1d28f2626ffa5b0464d0adcc83bb99483dc3879ef9e1009069d342382a3be`.
+Revision 2 (user: "arms are now pointing straight down after crouch"): armed,
+the left-arm/chest channels' joint masks gained the right arm and chest
+(masks only grow) and the weapon-arm compensation compounded on records the
+game had not rewritten; masks are now trimmed to each channel's original
+joints and the weapon arm is computed from its own channel frames. Arms match
+their pre-crouch pose after release; the pistol stays up by the shoulder.
+Executable `6ca0122ee58dce894263394fa0d1ba7623763e8bba5aa36f6967bf9c6d77dbcf`.
+Revision 3 (user: "when duke shoots crouched, he shoots directly up"): the
+original aim build replaces the chest with a view look-at while firing (bit
+`0x100`, as in the swim work), so our lean/compensation tipped the gun 49-58
+degrees up; while the bit is set the upper body now takes its channels' own
+pose and the lean ramps back after. Crouched fire -9 to 0 degrees (standing
+-2), also while crouch walking. Executable
+`cd48d3e3d7cd5f0b35f3364b2179d0a4209b1ca3ac79b67ec6354312f92db900`.
+Revision 4 (user: "i liked C ... he is constantly looking down ... his torso
+doesnt jerk upwards like bolt upright"): default is variant C; the head was
+never written with a weapon drawn (arm range bug) and now looks ahead (5
+degrees); firing tilts the original aim's chest look-at down 50 degrees and
+turns the shoulders back by the same tilt, so Duke stays hunched (62 -> 56
+degrees) with the gun on the crosshair. Executable
+`789d532a18086bf3c1f0612897106ac8ddde51f8007bbbdc81eb07e179cefa03`.
+Limits: first person not judged, no footsteps, diagonals dominant clip.
 
 **Opened 2026-10-22 from the user's D08K4 acceptance.** User: "now it's time
 to actually refine the animation ... make it look much more realistic and
@@ -15464,4 +15510,51 @@ in note 117 is the reference for future custom pickups.
 - D08K6 (Todo): animation quality, a Solid Snake-style tactical crouch walk
   from a deep study of the captured pack, and the slight left-arm shake while
   crouch walking. D08K parent now waits on D08K5 and D08K6.
+
+## 2026-10-22 - D08K6 tactical crouch walk and left-arm shake (Needs playtest)
+
+- Deep study of the capture against Duke (`ttk_pose_study.py`); new gait and
+  designed upper body; left-arm shake cause found and removed; variant packs
+  for the look; foundational reference for custom animations and models in
+  note 188 (user: "document all of our discoveries in this job").
+- Executable `dda1d28f2626ffa5b0464d0adcc83bb99483dc3879ef9e1009069d342382a3be`.
+
+## 2026-10-22 - D08K6 revision 2: arms straight down after crouch (Needs playtest)
+
+- Cause: armed, animation 178's frame-offset sync gave the left-arm and chest
+  channels the right arm and chest joints (masks only grow), so later
+  animations faded both arms to identity; and the weapon-arm compensation
+  compounded on records the game had not rewritten while Duke held still.
+- Fix: upper channel masks trimmed to their original joint sets every update
+  (also repairs saves); weapon arm computed from its channel frames. Note 188
+  revision 2. Executable `6ca0122ee58dce894263394fa0d1ba7623763e8bba5aa36f6967bf9c6d77dbcf`.
+
+## 2026-10-22 - D08K6 revision 3: crouched shots aimed up (Needs playtest)
+
+- Firing sets `+0x224 & 0x100`; the aim build replaces the chest with a view
+  look-at, so the lean and weapon-arm compensation tipped the gun up. While the
+  bit is set the upper body uses its channels' own pose; lean ramps back after.
+  Lab: crouched fire level (-9 to 0 degrees), also crouch walking. Test input
+  gains `mouse1` (diagnostics). Note 188 revision 3. Executable
+  `cd48d3e3d7cd5f0b35f3364b2179d0a4209b1ca3ac79b67ec6354312f92db900`.
+
+## 2026-10-22 - D08K6 revision 4: variant C, head up, hunched firing (Needs playtest)
+
+- Default crouch is the user's variant C (hip ratio 0.56, chest 62, head 5).
+- "Looking down": the upper-body loop treated the head (ROT 16) as an arm, so
+  armed it kept the kneel's head under the leaned chest (56-62 degrees down);
+  now 5 degrees, as designed.
+- Firing: the chest's aim look-at is tilted down 50 degrees and the shoulders
+  turned back by the same tilt (the swim D08O2A approach), so Duke stays
+  hunched with the gun on the crosshair. Note 188 revision 4. Executable
+  `789d532a18086bf3c1f0612897106ac8ddde51f8007bbbdc81eb07e179cefa03`.
+
+## 2026-10-22 - D08K6 accepted (Done)
+
+- User: "that's it!! i'm happy with this end to end. the anim is now fully complete. the technical implementation is now fully complete. this is totally playable in every way at this point. lock it in, close it out"
+- D08K6 Done (note 188, the reference for future custom animation and model
+  work). D08K now waits only on D08K5. Executable
+  `789d532a18086bf3c1f0612897106ac8ddde51f8007bbbdc81eb07e179cefa03` is the
+  regression baseline. Possible small follow-ups (not opened): crouch-walk
+  footsteps, dedicated diagonal steps, first-person comfort with the lean.
 

@@ -1,5 +1,47 @@
 # Next-session handoff
 
+## 2026-10-22 - D08K6 accepted (Done)
+
+- User: "that's it!! i'm happy with this end to end. the anim is now fully complete. the technical implementation is now fully complete. this is totally playable in every way at this point. lock it in, close it out"
+- D08K6 Done (note 188). D08K waits only on D08K5. Executable
+  `789d532a18086bf3c1f0612897106ac8ddde51f8007bbbdc81eb07e179cefa03` is the
+  regression baseline.
+
+## 2026-10-22 - D08K6 revision 4: variant C, head up, hunched firing (Needs playtest)
+
+- Default crouch is variant C. Head looks ahead (an arm-range bug left it on
+  the kneel's head when armed). Firing keeps the hunch: the chest's aim
+  look-at is tilted down 50 degrees and the shoulders compensate, so the gun
+  stays on the crosshair. Note 188 revision 4. Executable
+  `789d532a18086bf3c1f0612897106ac8ddde51f8007bbbdc81eb07e179cefa03`.
+
+## 2026-10-22 - D08K6 revision 3: crouched shots aimed up fixed (Needs playtest)
+
+- While firing, the original aim build points the chest at the view; our lean
+  and arm compensation on top tipped the gun 49-58 degrees up. The upper body
+  now uses its channels' own pose while the aim bit is set. Crouched fire is
+  level, also while crouch walking. Note 188 revision 3. Executable
+  `cd48d3e3d7cd5f0b35f3364b2179d0a4209b1ca3ac79b67ec6354312f92db900`.
+
+## 2026-10-22 - D08K6 revision 2: arms straight down after crouch fixed (Needs playtest)
+
+- Armed crouch left both arms at identity in every later animation: channel
+  joint masks grew (left arm/chest channels gained the right arm and chest)
+  and the weapon-arm compensation compounded on stale records. Masks trimmed
+  to each channel's original joints; weapon arm from its channel frames.
+  Note 188 revision 2. Executable `6ca0122ee58dce894263394fa0d1ba7623763e8bba5aa36f6967bf9c6d77dbcf`.
+
+## 2026-10-22 - D08K6 tactical crouch walk (Needs playtest)
+
+- New crouch-walk look: hips higher (0.62 leg lengths), feet under the hips,
+  chest 48 degrees over the knees, head level, fists up front; upper body
+  written after every blend, so the armed left-arm shake (animation 178's
+  upper channels churning) is gone. Note 188 also records everything needed
+  for future custom animations and models. Variant packs a/b/c/d under
+  `recomp/analysis/d08k6/packs/` for `DNTTK_ANIM_PACK`.
+- Executable `dda1d28f2626ffa5b0464d0adcc83bb99483dc3879ef9e1009069d342382a3be`.
+  Limits: pistol idle hangs at the thigh; first person not judged.
+
 ## 2026-10-22 - D08K1-D08K4 accepted (crouch walking, technical)
 
 - User: "now it's functionally working. the job is fulfilled on a technical

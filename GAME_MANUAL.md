@@ -592,7 +592,8 @@ key you let go before touching down. In
 Modernized (`modern`, the default) Duke still settles into his landing pose
 when you press nothing, but hold a direction as he lands (or press one while
 he settles) and he walks or runs off at once; press Space as he lands and he
-jumps again. Jumps that already landed straight into a run (a direction held
+jumps again. With CROUCH MODERN, hold Ctrl in the air to enter the kneel or
+crouch walk directly on a soft landing. Jumps that already landed straight into a run (a direction held
 through a directional or running jump) are unchanged, and so are fall damage
 and landings in water. To get the original landing back:
 
@@ -1150,7 +1151,7 @@ the original's style:
 - **GAMEPLAY**: view, shoulder, camera distance, crosshair, gore, status bars
   and view bob.
 - **ADVANCED**: one list under headings. CAMERA AND AIM: camera, weapon aim.
-  MOVEMENT: jump, jump walls, wall backflip, landing, swimming, jetpack.
+  MOVEMENT: jump, jump walls, wall backflip, crouch, swimming, jetpack.
   ITEMS: dynamite, steroids. GRAPHICS: renderer, filter, draw distance,
   geometry, textures.
   PERFORMANCE: CPU speed, CPU timing. ORIGINAL GAME: **auto aim**, red dot,
@@ -1553,6 +1554,11 @@ walk on top of dumpsters and crates as he walks on them standing, stopping at th
 edges. Released where there is no room to stand, he stays low and W/A/S/D keep
 crouch walking (never the roll) until there is room, then he stands. **CROUCH:
 ORIGINAL** keeps the original roll on crouch plus a direction. Vanilla always rolls.
+With **CROUCH: MODERN**, holding Ctrl in the air starts crouch on a
+soft touchdown: keep a direction held to crouch walk, or release the direction
+to kneel. The flight pose blends into crouch without a recovery wait. Hard
+landings still finish their recovery; pressing Ctrl only after landing keeps
+the existing ground transition.
 The gait is built from your disc when the game is built (no extra files to fetch).
 Known prototype limits: no footstep sounds while crouch walking, and diagonals use
 the nearest of the four directions' animations. The crouch-walk motion is a captured

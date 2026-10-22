@@ -158,8 +158,11 @@ extern "C" void psx_dispatch_call(CPUState* cpu,uint32_t address,uint32_t) {
     cpu->pc=0;
 }
 namespace ttk {bool input_live_look(uint64_t&,double&,double&,double){return false;} void input_state_loaded(){}}
-// D08K4: no crouch-walk clips in the harness (anim_override.cpp is the player build's).
-namespace ttk {bool anim_extra_clip(unsigned,uint32_t&,uint32_t&){return false;}}
+// D08K9: opt-in clip availability for landing ownership fixtures.
+static bool landing_clips;
+namespace ttk {bool anim_extra_clip(unsigned clip,uint32_t& first,uint32_t& count){
+    if(!landing_clips)return false;first=10000+clip*10;count=3;return true;
+}}
 // D23E: no high-refresh redraws in the harness; the overclock lease pauses.
 namespace ttk {int replay_load_window(int window){return window==1 ? -1 : 0;}}
 extern "C" void ttk_fast_timing_renew(void) {}
@@ -1289,6 +1292,48 @@ int main(int argc,char** argv) {
         ttk::input.move_x=mx;ttk::input.move_y=my;
         psx_mod_write_half(p+0x68,0);psx_mod_write_half(p+0x6a,0);psx_mod_write_byte(p+0x22d,0);
         std::puts("PASS: D08Z3 landing recovery (direction to walk/run, jump to stance; idle, first update, 106, caller, crouch, aim, original and Vanilla untouched)");
+    }
+    // D08K9: the real initializer hook changes only a soft landing reached
+    // from held crouch in this same authenticated player update. Damage and
+    // water have already been decided by the original selector.
+    {
+        const auto saved=ttk::input;
+        landing_clips=true;
+        auto land=[&](unsigned next,int reject=0) {
+            ttk::modern=true;ttk::input=saved;ttk::input.active=true;
+            ttk::input.held[ttk::crouch]=true;ttk::input.held[ttk::original_aim]=false;
+            ttk::input.held[ttk::interact]=false;
+            psx_mod_write_word(p,0);psx_mod_write_word(p+0x224,2);
+            psx_mod_write_word(p+0x834,0x40000000);
+            psx_mod_write_half(p+0x60,104);psx_mod_write_byte(p+0x22c,9);psx_mod_write_byte(p+0x22d,9);
+            if(reject==1)ttk::input.held[ttk::crouch]=false; // only pressed after landing
+            if(reject==2)psx_mod_write_byte(p+0x22c,8);    // traversal, not a flight
+            if(reject==3)setenv("DNTTK_CROUCH","original",1);
+            if(reject==4)setenv("DNTTK_LANDING","original",1);
+            if(reject==5)landing_clips=false;
+            call(0x8005a210,p,0x800c2754,0x80041b34,0x801ff000);
+            psx_mod_write_half(p+0x60,next);psx_mod_write_half(p+0x68,0);
+            psx_mod_write_byte(p+0x22c,next==127?5:0);psx_mod_write_byte(p+0x22d,9);
+            ttk::input.held[ttk::crouch]=reject!=6;        // released before landing
+            if(reject==7)++ttk::input.epoch;             // load/focus invalidates request
+            if(reject==8)ttk::modern=false;
+            if(reject==9)psx_mod_write_word(p+0x834,psx_mod_read_word(p+8)-1);
+            if(reject==10)ttk::input.held[ttk::original_aim]=true;
+            if(reject==11)poke(0x54c04);
+            call(0x800493a4,p,0,reject==12?0x8005a3a0:0x8005a4d0,
+                 reject==13?0x801fefb0:0x801fefc0);
+            const unsigned result=psx_mod_read_half(p+0x60);
+            if(reject==11)poke(0x54c04);
+            unsetenv("DNTTK_CROUCH");unsetenv("DNTTK_LANDING");landing_clips=true;ttk::modern=true;
+            return result;
+        };
+        for(unsigned a:{105u,78u,84u,85u,96u})assert(land(a)==178);
+        for(unsigned a:{106u,127u,227u,158u,161u,134u})assert(land(a)==a);
+        for(int reject=1;reject<=13;++reject) {const unsigned result=land(105,reject);const unsigned expected=reject==4?178u:105u;if(result!=expected)std::fprintf(stderr,"D08K9 rejection %d returned %u\n",reject,result);assert(result==expected);}
+        landing_clips=false;ttk::input=saved;
+        psx_mod_write_word(p+0x834,0x40000000);psx_mod_write_word(p+0x224,0);
+        psx_mod_write_half(p+0x60,63);psx_mod_write_byte(p+0x22c,0);psx_mod_write_byte(p+0x22d,0);
+        std::puts("PASS: D08K9 same-update soft crouch landing; hard landing/death/water/traversal, release/late press, epoch, Original crouch, missing clips, code/caller/stack and Vanilla exclusions; crouch landing independent of legacy landing option");
     }
     // D08Z5: a fall started from the slope slide handler (0x8003f060, ra
     // 0x800546c4/dc/ec, mode 2) gets no launch: the table vector its flight

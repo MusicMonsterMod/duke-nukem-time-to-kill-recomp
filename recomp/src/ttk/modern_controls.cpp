@@ -866,6 +866,7 @@ static void face_view() {
 }
 #include "duke_model.inc"
 #include "crouch_walk.inc"
+#include "crouch_landing.inc"
 #include "swim.inc"
 #include "jetpack.inc"
 #include "first_person.inc"
@@ -970,7 +971,7 @@ static void hook_body(CPUState* cpu, uint32_t address) {
         swim_fire_hide(cpu,ra);
         return;
     }
-    if(address==0x80055e80) return;
+    if(address==0x80055e80) {crouch_landing_finish(cpu,ra);return;}
     if(address==0x800411b8) {crouch_walk_pose(cpu);swim_aim_begin(cpu,ra);return;}
     if(address==0x8002b9f4) {
         // The original level teardown destroys these records. Forget host
@@ -985,6 +986,7 @@ static void hook_body(CPUState* cpu, uint32_t address) {
     if (address==0x800493a4) {
         if(std::getenv("DNTTK_TRAVERSAL_TRACE") && cpu->gpr[4]==player && psx_mod_read_half(player+0x60)==96)
             std::fprintf(stderr,"ttk-standing ra=%08x track=%u active=%d dir=%.2f/%.2f frame=%llu/%llu epoch=%llu/%llu state=%u/%u flags=%08x player=%08x identity=%d aim=%d crouch=%d\n",ra,psx_mod_read_half(player+0x68),f.active,f.move_x,f.move_y,(unsigned long long)f.sequence,(unsigned long long)camera_frame,(unsigned long long)f.epoch,(unsigned long long)camera_epoch,psx_mod_read_byte(player+0x22c),psx_mod_read_byte(player+0x22d),psx_mod_read_word(player+0x224),psx_mod_read_word(player),player_identity_ready(),f.held[original_aim],f.held[crouch]);
+        crouch_landing_start(cpu,ra);
         kick_convert(cpu,ra);
         // Original lower-body initializer, after the game accepted jump from
         // normal ground. Keep its 96 preparation and clearance choice intact.
@@ -1015,6 +1017,7 @@ static void hook_body(CPUState* cpu, uint32_t address) {
             spawn_update(cpu);
             steroids_beat(cpu); // D08A10
             terrain_update(cpu);
+            crouch_landing_track(cpu);
             stance_request(cpu);
             crouch_hull_update(cpu); // D08K2
             crouch_walk_update(cpu); // D08K4

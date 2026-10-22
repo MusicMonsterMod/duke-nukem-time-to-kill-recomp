@@ -56,12 +56,12 @@ static bool crouch_walk_frames(unsigned clip,uint32_t& first,uint32_t& count) {
     if(!ttk::anim_extra_clip(clip,first,count) || count<2) return false;
     ++first;--count;return true;
 }
-static bool crouch_walk_eligible() {
+static bool crouch_walk_eligible(bool landed=false) {
     uint32_t first,count;
     const unsigned animation=psx_mod_read_half(player+0x60);
     return input_modernized() && crouch_walk_modern() && crouch_owned && (animation==176 || animation==178) &&
            player_identity_ready() && !(psx_mod_read_word(player)&0x20002) &&
-           psx_mod_read_byte(player+0x22c)==0 && psx_mod_read_byte(player+0x22d)==0 && !in_water_early() &&
+           psx_mod_read_byte(player+0x22c)==0 && (psx_mod_read_byte(player+0x22d)==0 || (landed && psx_mod_read_byte(player+0x22d)==9)) && !in_water_early() &&
            crouch_walk_frames(1,first,count) && crouch_walk_frames(crouch_idle_clip,first,count);
 }
 // The pose last given to channel 0, applied again to Duke's joints right
@@ -158,12 +158,12 @@ static void crouch_channels_sanitize() {
         }
     }
 }
-static void crouch_walk_update(CPUState* cpu) {
+static void crouch_walk_update(CPUState* cpu,bool landed=false) {
     crouch_channels_sanitize();
     const auto& f=input_snapshot(Context::Gameplay);
     // D08K7: also while a released crouch waits for room to stand (directions
     // crouch walk; the original would roll).
-    const bool eligible=crouch_walk_eligible() && f.active && (f.held[crouch] || crouch_stand_pending);
+    const bool eligible=crouch_walk_eligible(landed) && f.active && (f.held[crouch] || crouch_stand_pending);
     crouch_walk_owning.store(eligible);
     if(!eligible || psx_mod_read_half(player+0x60)!=178) {
         if(crouch_walk_clip) ++crouch_walk_stops;
@@ -180,7 +180,7 @@ static void crouch_walk_update(CPUState* cpu) {
     uint32_t first,count;
     if(!crouch_walk_frames(clip,first,count))return;
     if(clip!=crouch_walk_clip) {
-        if(!crouch_walk_clip) {crouch_walk_phase=0;crouch_walk_height=crouch_kneel_pelvis;++crouch_walk_starts;}
+        if(!crouch_walk_clip) {crouch_walk_phase=0;if(!landed)crouch_walk_height=crouch_kneel_pelvis;++crouch_walk_starts;}
         crouch_transition_pose=crouch_display_pose;
         crouch_transition_mask=crouch_display_mask;
         crouch_transition_height=crouch_walk_height;

@@ -1,5 +1,31 @@
 # Next-session handoff
 
+## 2026-10-22 - D08K9 accepted (Done)
+
+User: "lock it in, close it out!" Held crouch on touchdown and the final
+CROUCH-toggle/menu revision accepted. LANDING is hidden from Advanced;
+crouch-on-landing follows CROUCH alone. Documentation, commit and push
+closeout authorized. [Note 191](191-d08k9-crouch-on-landing.md). Executable
+`a77ba035cdbbbfa983e6f02ca1d02aca552f97c1bf07531afa672f0e1d0bef91`
+is the accepted regression baseline. No next job started.
+
+
+## 2026-10-22 - D08K9 crouch on landing (Needs playtest)
+
+Crouch held through a jump takes over in the soft touchdown update, with
+a flight-to-kneel/walk blend and no recovery wait or intermediate gait.
+Private slot 4: 24/24 cases across both jump styles/cameras at 120 Hz;
+60 Hz follow-ups, release/late press and damaging-fall fixture pass. Native
+input/aim/controls and player build pass. User review of feel is pending.
+[Note 191](191-d08k9-crouch-on-landing.md). Candidate executable
+`5bff834e83785cb7d7023001198aebba1d66df881de7d05cbe13d051b081b091`.
+D08K8 remains the accepted baseline. No commit/push or next job started.
+Functional behavior accepted by the user; follow-up hides LANDING from
+Advanced and makes crouch-on-landing follow CROUCH alone. Build, native
+controls and live LANDING ORIGINAL check pass. Revised candidate
+`a77ba035cdbbbfa983e6f02ca1d02aca552f97c1bf07531afa672f0e1d0bef91`.
+
+
 ## 2026-10-22 - D08K8 accepted (Done)
 
 User: "this is perfect!! lock it in, close it out". Stationary kneel and

@@ -48,7 +48,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D03 | Player, camera and aiming state research | Done | D01 |
 | D04 | PC action input, rebinding and mouse capture | Done | D02 |
 | D04A | Escape reliably frees the mouse for the pause menu | Done | D04 |
-| D04B | Robust Modern controls: load/Escape recovery, settings-only scheme selection, no implicit Legacy fallback or F10 scheme switching | Todo | D04A, D08V1, D19Q2, D22C, D33 |
+| D04B | Robust Modern controls: load/Escape recovery, settings-only scheme selection, no implicit Legacy fallback or F10 scheme switching | Done (user-accepted 2026-10-23) | D04A, D08V1, D19Q2, D22C, D33 |
 | D05 | Camera-relative WASD movement | Done | D03, D04 |
 | D06 | Independent third-person mouse camera | Done | D03, D04 |
 | D07 | Modern weapon aiming and crosshair | Done | D05, D06 |
@@ -209,6 +209,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D17V | Modern view bob: steady Duke 3D-style tempo instead of a sped-up walk bob when running | Done (user-accepted) | D17C |
 | D17W | Overturned minecart (player UI slot 10, level 3) shows large white untextured triangles in first person | Done (user-accepted 2026-10-20) | D11B |
 | D17X | Small white triangles on the boat's wooden posts (UI slot 6, level 6) and the grave-dig soil corners (UI slot 7, level 1) in first person | Done (user-accepted 2026-10-22) | D17W |
+| D17Y | Slot 8: fire-platform flicker and upper castle walls disappearing during a jump | Todo | D17A, D11B, D14 |
 | D18 | FMV and audio presentation safeguards | Todo | D01, D02 |
 | D18A | Voice/music/gunfire crackle investigation | Done | D01, D02 |
 | D18B | Concurrent voice with music (no music mute) | Todo | D18, D21 |
@@ -332,11 +333,12 @@ User report (2026-09-30): pressing Escape to open the pause menu should release 
 
 ### D04B - Robust Modern controls and settings-only scheme selection
 
-**Todo (2026-10-23), user-requested backlog only.** After loading a game and
+**Done (user-accepted 2026-10-23).** After loading a game and
 pressing Escape shortly afterward, Duke can leave the Modern control scheme.
 This is a new user-reported control-recovery problem, separate from D19Q2's
-accepted paused-save investigation. Its cause and exact timing are not yet
-established; D19Q2's successful ordinary load/resume probes do not disprove it.
+accepted paused-save investigation. The candidate reproduces a persistent
+Escape capture hold and fixes its recovery; see note 205 below. D19Q2's
+successful ordinary load/resume probes did not disprove this timing failure.
 
 **Required behavior:** Modern is the default control scheme. Within a
 Modernized session, Legacy controls may be selected only by an explicit,
@@ -371,7 +373,7 @@ The user explicitly rejects silent fallback to Legacy controls.
 - Preserve explicit `run.py --vanilla` behavior. Update the manual and
   settings/help text to describe the implemented scheme and capture behavior.
 
-Implementation has not started. The older D04A acceptance that left F10
+Candidate and evidence: [note 205](documentation/205-d04b-control-recovery.md). The older D04A acceptance that left F10
 unchanged is superseded by this job's new requested behavior when implemented.
 
 ### D05 — Camera-relative WASD movement
@@ -6907,6 +6909,31 @@ covers them. Fix the system, not these models.
 **Acceptance:** no white triangles on the slot 6 posts or slot 7 soil while
 walking slowly in first person, 16:9 and 4:3, at 60 and the saved high frame
 rate; D17W slot 10 cart unchanged; Vanilla unchanged; the user confirms.
+
+### D17Y - Slot 8 fire-platform flicker and jumping castle-wall disappearance
+
+**Todo (2026-10-23), backlog only. Do not start until selected.**
+User reported two rendering problems from their current UI save slot 8:
+
+- Load slot 8, jump and look on top of the fires to Duke's right. The
+  platform supporting those fires flickers heavily.
+- From the loaded orientation, turn approximately 90 degrees right and jump
+  vertically. The castle walls at the top of the screen disappear during
+  the jump, then return when Duke lands.
+
+Both are user reports, not reproduced or diagnosed in this session. Camera
+view, frame rate, display settings and the current save's identity must be
+recorded when selected. Slot numbers can change; use a dated private copy,
+never the player's writable save/card directory. Do not assume these share a
+cause, or that earlier sky, depth or visibility fixes explain them.
+
+**Acceptance:** reproduce both routes; keep the fire platform stable and the
+upper castle walls visible throughout takeoff, apex and landing. Check both
+camera views, 4:3/16:9, 60 FPS and the saved high-refresh setting; retain
+correct occlusion, nearby geometry, existing sky/depth fixes and Vanilla.
+Use a systemic fix supported by evidence, and obtain user playtest acceptance.
+
+**Dependencies:** D17A, D11B, D14 (completed/accepted).
 
 ### D18 — FMV and audio presentation safeguards
 
@@ -16836,3 +16863,34 @@ settings-only scheme selection with Modern default, no implicit Legacy
 fallback and no F10 scheme switching. Added D04B Todo with reproduction and
 acceptance criteria; no implementation started. User explicitly authorized
 this documentation commit and push as MusicMonsterMod.
+
+
+## 2026-10-23 - D04B control recovery (Needs playtest)
+
+Reproduced the persistent loss of capture after quickload and rapid Escape on
+the accepted baseline. The Escape hold expected a gameplay-offer gap which
+never occurred. Menu acknowledgement and fresh gameplay after the expired
+Start pulse now end the hold. Removed F10 capture opt-out and implicit tank
+fallback; OPTIONS > CONTROLS has a persistent MODERN / LEGACY choice (schema
+40). Identity guards and Vanilla preserved. Build, native input/aim/controls
+suites, 100 Python tests, 36 live timing cases across six rates, menu-save/load
+routes and a Vanilla save/pause check pass. Player acceptance and broader live
+death/traversal coverage remain. [Note 205](documentation/205-d04b-control-recovery.md).
+Candidate `31b9ed43bc8738ad4eeb968af629d3be423ff2172a97cfa0d22305766bed950c`.
+No commit or push; no player settings/saves changed.
+
+
+## 2026-10-23 - D04B accepted and closed; D17Y queued
+
+User accepted D04B as "way better", noting a split-second interruption after
+Escape immediately following load, followed by automatic recovery. Authorized
+a bounded polish pass and implementation/documentation commit and push.
+Quick win: a confirmed menu exit now drops the generic 12-host-frame capture
+cooldown, but requires a new authenticated gameplay offer. Native regression
+checks immediate capture from that new offer and refusal of stale offers.
+The no-menu-gap safety path remains; no claim that every brief interruption
+has vanished. Final build and focused live checks recorded in note 205.
+
+D17Y records the user's current slot-8 fire-platform flicker and upper castle
+wall disappearance while jumping. Backlog only: not reproduced, investigated,
+built for, or implemented. No next job started.

@@ -207,6 +207,7 @@ static bool jump_animation(unsigned animation) {
 }
 static bool first_person_anchor(const double* forward,double* anchor);
 static bool independent_camera() {
+    if(!input_modern_controls())return false;
     const char* mode=ttk_live_env("DNTTK_CAMERA_MODE");
     return !mode || !std::strcmp(mode,"independent");
 }

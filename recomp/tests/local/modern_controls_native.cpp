@@ -205,7 +205,7 @@ static bool grab_owns;
 bool input_push_grab_owns_cross(){return grab_owns;}
 static bool reach_held;
 bool input_airborne_reach_held(){return reach_held;}
-bool input_modernized(){return modern;}
+bool input_modernized(){return modern;}bool input_modern_controls(){return modern;}
 const InputFrame& input_snapshot(Context){return input;}
 uint16_t input_last_pad(){return 0xffff;}
 uint64_t input_host_frame(){return input.sequence;}

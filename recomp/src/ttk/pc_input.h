@@ -61,6 +61,8 @@ bool input_live_look(uint64_t& epoch, double& x, double& y, double at_ms=-1);
 // The presenter clock input_live_look's at_ms uses (performance counter, ms).
 double input_clock_ms();
 bool input_modernized();
+// Host preference; independent of capture, saves and guest control leases.
+bool input_modern_controls();
 // D19G: the KEY BINDINGS page. Codes are the DNTTK_INPUT_BINDINGS wire codes
 // (SDL scancode, mouse button -n, 0 unbound).
 int input_binding_code(Action action);
@@ -108,8 +110,7 @@ uint16_t input_last_pad();
 // load behind the title menu).
 void input_menu_poll();
 void input_release();
-// D19H: our pause and death lists free the mouse (only if it is captured:
-// the death screen opens from captured play).
+// Pause/death lists acknowledge the menu and release capture if held.
 void input_release_for_menu();
 void input_state_loaded();
 void input_allow_capture(bool allow);

@@ -324,6 +324,9 @@ Row heading(const char* label) {Row r{label,Section::Controls,nullptr,nullptr,fa
 std::vector<Screen> make_screens() {
     std::vector<Screen> s(4);
     s[0]={"CONTROLS",{
+        {"CONTROL SCHEME",Section::Controls,"scheme","DNTTK_CONTROL_SCHEME",true,
+         "MODERN: MOUSE LOOK AND STRAFE. LEGACY: TURN WITH A/D",
+         {{"MODERN","modern","\"modern\""},{"LEGACY","legacy","\"legacy\""}},0},
         {"MOUSE SENSITIVITY",Section::Controls,"mouse_sensitivity","DNTTK_MOUSE_SENSITIVITY",true,
          "HOW FAR THE CAMERA TURNS FOR EACH MOUSE MOVE",{},12,true,1,200,1,0.01},
         {"INVERT MOUSE",Section::Controls,"invert_y","DNTTK_MOUSE_INVERT_Y",true,

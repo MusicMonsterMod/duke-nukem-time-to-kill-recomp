@@ -1,5 +1,42 @@
 # Current status - 2026-10-04
 
+## 2026-10-23 - D04B accepted and closed; D17Y queued
+
+User accepted D04B ("way better") and authorized the bounded follow-up and
+implementation/documentation commit/push. A brief post-load Escape interruption
+still recovers automatically; no claim that every split-second interruption is
+gone. Quick win: confirmed menu exit bypasses the generic 12-frame capture
+cooldown, while requiring a new authenticated gameplay offer. Build and input
+regression suite pass; focused live timing checks are in [note 205](205-d04b-control-recovery.md).
+Final executable: `41bb0257acb5bd2e89677b5062fad2c74da0ed0e94d08cca546ae9847dd564c5`.
+Broader prior evidence and coverage limits remain in that note.
+
+D17Y is Todo: current UI slot 8, jumping while looking at the fire platform to
+Duke's right causes severe flicker; turning 90 degrees right and jumping makes
+the upper castle walls disappear until landing. User report only; not started.
+Choose a job before any further implementation. Framework patch re-exported
+unchanged and verified against the clean pin (51 files). No player saves/cards
+changed. Launch: `python3 recomp/tools/local/run.py`; no F10 step required.
+
+
+## 2026-10-23 - D04B control recovery candidate (Needs playtest)
+
+Quickload plus rapid Escape reproduced a permanent host capture hold on the
+accepted D17S baseline. The candidate ends that hold on explicit menu
+acknowledgement or fresh gameplay after the Start pulse. F10 is inert; no
+implicit tank fallback. OPTIONS > CONTROLS > CONTROL SCHEME is the persistent
+MODERN / LEGACY choice (schema 40, default Modern). Identity guards retained.
+
+Build, native input/aim/controls suites (all 21 overlay guards), 100 Python
+tests, 36 timing sequences across 30/60/120/180/240/Unlimited and both views,
+real menu/save/load/console routes, and Vanilla save/pause checks pass.
+[Note 205](205-d04b-control-recovery.md) records evidence and remaining player
+acceptance / live death and traversal limits. Candidate:
+`31b9ed43bc8738ad4eeb968af629d3be423ff2172a97cfa0d22305766bed950c`.
+D17S remains the accepted baseline. No commit/push or player-save changes.
+Launch: `python3 recomp/tools/local/run.py`. No F10 step required.
+
+
 ## 2026-10-23 - D19Q2 accepted (Done); D04B queued (Todo)
 
 User accepted the paused-save investigation and explicitly requested commit

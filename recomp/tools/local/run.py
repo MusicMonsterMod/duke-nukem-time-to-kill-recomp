@@ -184,6 +184,7 @@ def main(argv=None):
     env['DNTTK_INPUT_MODE'] = settings['active']
     env['DNTTK_INPUT_BINDINGS'] = pc_input.wire(settings['profiles'][settings['active']]['bindings'])
     controls = settings['profiles'][settings['active']]['controls']
+    env['DNTTK_CONTROL_SCHEME'] = controls['scheme'] if settings['active'] == 'modernized' else 'legacy'
     env['DNTTK_AIM_ASSIST'] = controls['aim_assist'] if settings['active'] == 'modernized' else 'off'
     env['DNTTK_RED_DOT'] = '0' if settings['active'] == 'modernized' and not controls['red_dot'] else '1'
     env['DNTTK_CROSSHAIR'] = '1' if controls['crosshair'] else '0'

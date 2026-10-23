@@ -40,6 +40,7 @@ static uint64_t beam_epoch;
 static bool beam_pending;
 static unsigned view_beams;
 static bool view_mode() {
+    if(!input_modern_controls())return false;
     const char* mode=ttk_live_env("DNTTK_WEAPON_AIM");
     return mode && !std::strcmp(mode,"view");
 }

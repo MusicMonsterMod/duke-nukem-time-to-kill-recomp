@@ -242,7 +242,12 @@ void input_release() {
     capture_after=sequence+12;
     clear();
 }
-void input_release_for_menu() {if(captured)input_release();}
+void input_release_for_menu() {
+    if(captured)input_release();
+    // The guest acknowledged the pause. Do not infer that acknowledgement
+    // from a gap in host frames: a load/resume can finish before that gap.
+    escape_hold=false;capture_offer=false;
+}
 void input_allow_capture(bool allow) {
     allow_capture = allow;
     if (!allow) input_release();
@@ -304,9 +309,13 @@ void input_init(SDL_Window* w) {
         if (valid) std::copy(parsed, parsed + action_count, binds);
         else std::fprintf(stderr, "[TTK input] Invalid binding payload; using defaults.\n");
     }
-    std::fprintf(stderr, "[TTK input] Modernized controls: automatic gameplay capture; F10 toggles; Escape pauses; Enter uses selected inventory. Unsupported states use original controls.\n");
+    std::fprintf(stderr, "[TTK input] Modernized controls: automatic gameplay capture; Escape pauses and frees the mouse; resume captures automatically. OPTIONS selects Modern or Legacy controls; F10 has no action.\n");
 }
 bool input_modernized() { return modern; }
+bool input_modern_controls() {
+    const char* scheme=ttk_live_env("DNTTK_CONTROL_SCHEME");
+    return modern && (!scheme || std::strcmp(scheme,"legacy"));
+}
 // D19G: bindings changed in the KEY BINDINGS page.
 int input_binding_code(Action action) {return action>=0 && action<action_count ? binds[action] : 0;}
 int input_default_code(Action action) {
@@ -457,24 +466,15 @@ void input_event(const SDL_Event& e) {
         // Enter uses the selected gadget while captured (EDuke Inventory). Escape pauses.
         if(code==SDL_SCANCODE_RETURN && pressed) {
             if(inventory_enter_down)return;
-            if(captured && !(mods&(KMOD_CTRL|KMOD_ALT|KMOD_GUI))) {
+            if(captured && input_modern_controls() && !(mods&(KMOD_CTRL|KMOD_ALT|KMOD_GUI))) {
                 inventory_enter_down=true;command(item_use);return;
             }
         }
-        // F10 that frees the mouse opts out of automatic capture; F10 that
-        // captures opts back in, so console travel and later releases recapture
-        // as before (D22C: a stale opt-out left every next level uncaptured).
-        if (pressed && code == SDL_SCANCODE_F10) {
-            initial_capture=!captured;
-            if (captured) input_release();
-            else if (allow_capture) capture_now();
-            std::fprintf(stderr, "[TTK input] Mouse %s%s\n", captured ? "captured" : "released",
-                         captured ? " (F10 releases)" : "");
-            return;
-        }
+        // Scheme selection belongs to OPTIONS. F10 cannot disable recovery.
+        if (code == SDL_SCANCODE_F10) return;
         // D08G5: typing only owns the keyboard. Mouse look stays live, and a key
         // that breaks the sequence acts at once as its normal gameplay key.
-        if(captured && !(mods&(KMOD_CTRL|KMOD_ALT|KMOD_GUI))) {
+        if(captured && input_modern_controls() && !(mods&(KMOD_CTRL|KMOD_ALT|KMOD_GUI))) {
             const bool typing=cheat_typing.active();
             if(pressed && code>=SDL_SCANCODE_A && code<=SDL_SCANCODE_Z) {
                 auto result=cheat_typing.feed(char('a'+code-SDL_SCANCODE_A),sequence);
@@ -491,13 +491,13 @@ void input_event(const SDL_Event& e) {
         }
         if(pressed && code!=0 && quick_press(code,mods)) return;
         // Escape, F7 savestate and other host overlays return to menu input.
-        // F10 opts out of auto-capture. F7 must request recapture even if the
+        // F7 requests recapture even if the
         // mouse is already free: otherwise loading slot 2 leaves WASD/mouse
         // dead. Enter never pauses.
         if (pressed && (code == SDL_SCANCODE_ESCAPE
             || (code >= SDL_SCANCODE_F1 && code <= SDL_SCANCODE_F12)
             || (mods & KMOD_GUI) || (code==SDL_SCANCODE_TAB && (mods & KMOD_ALT)))) {
-            if(code!=SDL_SCANCODE_F10)initial_capture=true;
+            initial_capture=true;
             const bool was_captured=captured;
             input_release();
             // Only an Escape from running gameplay (captured, or offers still
@@ -627,8 +627,13 @@ void input_frame() {
     // Host overlays (F7) do not advance sequence, so their offer stays fresh.
     // Escape's hold ends once offers stop (pause menu open); resume recaptures.
     // No offers arrive while captured, so the gap counts from the Escape press.
+    // A load may consume/replace Start, or two fast Escape presses may merge
+    // into one pulse. Fresh authenticated gameplay AFTER that pulse is also
+    // acknowledgement: never wait forever for a pause which did not happen.
     if(escape_hold && (!allow_capture ||
-       sequence-std::max<uint64_t>(capture_offer_at.load(),escape_at)>capture_offer_window))escape_hold=false;
+       sequence-std::max<uint64_t>(capture_offer_at.load(),escape_at)>capture_offer_window ||
+       (sequence>escape_start_deadline+capture_offer_window &&
+        capture_offer_at.load()>escape_start_deadline)))escape_hold=false;
     if (initial_capture && !escape_hold && sequence>=capture_after && modern && focused && allow_capture && !captured
         && capture_offer.load() && sequence-capture_offer_at.load()<=capture_offer_window) {
         capture_offer.store(false);
@@ -852,7 +857,7 @@ void input_frame() {
     }
     frame = {};
     frame.sequence = ++sequence; frame.epoch = epoch;
-    if (modern && focused && captured) {
+    if (input_modern_controls() && focused && captured) {
         frame.active = true;
         frame.command_serial=command_serial;frame.command_count=command_count;
         std::copy(commands,commands+command_count,frame.commands);frame.distance_total=distance_total;
@@ -879,7 +884,7 @@ double input_clock_ms() {
     return (double)SDL_GetPerformanceCounter()*1000.0/(double)SDL_GetPerformanceFrequency();
 }
 bool input_live_look(uint64_t& out_epoch, double& x, double& y, double at_ms) {
-    if(!modern || !focused || !captured || !window) return false;
+    if(!input_modern_controls() || !focused || !captured || !window) return false;
     double px=dx,py=dy;
     // Samples: consumed motion, then the peeked queue continuing the sums.
     static LookSample s[640];
@@ -932,24 +937,6 @@ const InputFrame& input_snapshot(Context context) {
     return context == Context::Gameplay ? frame : empty;
 }
 static uint16_t last_pad=0xffff;
-// D08V1: the identity fallback's mouse turn. Horizontal mouse counts bank up
-// and are paid out as the original tank turn (D-pad Right 32 / Left 128), one
-// input frame of turn per fallback_turn_counts counts, so a flick turns about
-// as far as it would turn the modern camera at the default sensitivity.
-static constexpr double fallback_turn_counts=11, fallback_turn_cap=fallback_turn_counts*30;
-static uint16_t fallback_turn_pad() {
-    static double pending;static uint64_t seen;static uint16_t pad;
-    if(frame.sequence==seen)return pad;
-    if(seen+1!=frame.sequence)pending=0;
-    seen=frame.sequence;
-    pending=std::clamp(pending+frame.look_x,-fallback_turn_cap,fallback_turn_cap);
-    pad=0;
-    if(std::abs(pending)>=fallback_turn_counts*0.5) {
-        pad=pending>0?32:128;
-        pending-=std::copysign(std::min(std::abs(pending),fallback_turn_counts),pending);
-    }
-    return pad;
-}
 // D19D: the original menus as a PC player expects them (Modernized only).
 // Escape (and Backspace) goes back one level, Enter confirms, the mouse wheel
 // moves the cursor and V reaches Square. The PS1 buttons per screen:
@@ -1093,8 +1080,14 @@ static bool menu_owns_keys() {
     if(captured)for(auto& d:menu_downs)d.store(0);
     const bool owns=!captured && menu_handler(k);
     if(owns) {
+        // Covers restored pause lists too, which bypass their entry hook.
+        escape_hold=false;capture_offer=false;
         if(k.wheel)menu_wheel.fetch_sub(k.wheel);
     } else if(menu_had_keys) {
+        // The menu explicitly handed control back. Its resume press must not
+        // impose the generic twelve-frame release cooldown. Require a NEW
+        // authenticated gameplay offer, so a stale pre-menu offer cannot grab.
+        escape_hold=false;capture_after=sequence;capture_offer=false;
         for(int code:{SDL_SCANCODE_UP,SDL_SCANCODE_DOWN,SDL_SCANCODE_LEFT,SDL_SCANCODE_RIGHT,SDL_SCANCODE_RETURN,
                       SDL_SCANCODE_X,SDL_SCANCODE_ESCAPE,SDL_SCANCODE_BACKSPACE,SDL_SCANCODE_Z,SDL_SCANCODE_V})keys[code]=false;
         escape_start_deadline=0;
@@ -1117,7 +1110,11 @@ uint16_t input_pad() {
     value &= ~latched(latch_backspace,!captured && keys[SDL_SCANCODE_BACKSPACE],MenuKey::Backspace);
     value &= ~latched(latch_enter,keys[SDL_SCANCODE_RETURN],MenuKey::Confirm);
     if(!captured)value &= ~menu_wheel_pad();
-    // Unrebindable escape hatch for menus and the original tank movement preview.
+    // Uncaptured gameplay is waiting for recovery, not a second control scheme.
+    const bool running=psx_mod_read_half(0x800bcbb0)==1 &&
+        !psx_mod_read_half(0x800be568) && !psx_mod_read_half(0x800d2540);
+    if(!captured && running && input_modern_controls()) {last_pad=value;return value;}
+    // Fixed keys navigate menus; Modern gameplay uses only bound actions.
     const int fixed[] = {SDL_SCANCODE_UP, SDL_SCANCODE_RIGHT, SDL_SCANCODE_DOWN,
         SDL_SCANCODE_LEFT, SDL_SCANCODE_X, SDL_SCANCODE_C, SDL_SCANCODE_RSHIFT, SDL_SCANCODE_Z, SDL_SCANCODE_V};
     const uint16_t bits[] = {16, 32, 64, 128, 16384, 8192, 1, 4096, 32768};
@@ -1126,7 +1123,21 @@ uint16_t input_pad() {
     // the host layer stopped mid-flight (hover lock left on, WASD dead).
     // D19D: V (Square: pause OPTIONS, statistics SAVE) is a menu key only.
     // D10D: captured, Left / Right are keyboard turning, never the D-pad turn.
-    for (int i = 0; i < 9; ++i) if (!(captured && (fixed[i]==SDL_SCANCODE_LEFT || fixed[i]==SDL_SCANCODE_RIGHT || fixed[i]==SDL_SCANCODE_X || fixed[i]==SDL_SCANCODE_Z || fixed[i]==SDL_SCANCODE_C || fixed[i]==SDL_SCANCODE_RSHIFT || fixed[i]==SDL_SCANCODE_V)) && keys[fixed[i]]) value &= ~bits[i];
+    for (int i = 0; i < 9; ++i) if (!(captured && ((input_modern_controls() && (fixed[i]==SDL_SCANCODE_UP || fixed[i]==SDL_SCANCODE_DOWN)) || fixed[i]==SDL_SCANCODE_LEFT || fixed[i]==SDL_SCANCODE_RIGHT || fixed[i]==SDL_SCANCODE_X || fixed[i]==SDL_SCANCODE_Z || fixed[i]==SDL_SCANCODE_C || fixed[i]==SDL_SCANCODE_RSHIFT || fixed[i]==SDL_SCANCODE_V)) && keys[fixed[i]]) value &= ~bits[i];
+    // Legacy is an explicit host preference, never a consequence of capture
+    // or lease loss. Keep the Modernized menus and saved bindings available.
+    if(captured && !input_modern_controls()) {
+        for(int i=0;i<action_count;++i) if(down(binds[i])) value &= ~pads[i];
+        if(down(binds[crouch])) value &= ~4096;
+        if(down(binds[grab]) || down(binds[grab_alt])) value &= ~2048;
+        if(down(binds[interact])) value &= ~16384;
+        if(down(binds[inventory])) value &= ~1;
+        if(down(binds[move_forward])) value &= ~16;
+        if(down(binds[move_back])) value &= ~64;
+        if(down(binds[move_left]) || down(binds[turn_left])) value &= ~128;
+        if(down(binds[move_right]) || down(binds[turn_right])) value &= ~32;
+        last_pad=value;return value;
+    }
     // Retain a brief tap across host polling and a short original transition.
     // Grounded locomotion, and host-owned shallow-water jumps.
     if(captured && jump_deadline && sequence<=jump_deadline &&
@@ -1150,8 +1161,6 @@ uint16_t input_pad() {
     const bool push_releasing = captured && !push_owned && push_letting_go && push_grab_ready();
     // D08V: mouse camera kept through a mantle/hang/pull-up or unowned fall.
     const bool traversal_camera = captured && traversal_camera_ready();
-    const bool modern_lease = locomotion || jet || push_owned || push_releasing || traversal_camera || (captured && (traversal_input_ready() ||
-        swim_input_ready() || swim_thrust_input_ready()));
     if (captured) for (int i = 0; i < action_count; ++i)
         if (!(locomotion && i == walk) && !(jet && i == walk && !jetpack_classic_input_ready()) &&
             !(i==original_aim && view_aim_input_ready()) &&
@@ -1314,52 +1323,8 @@ uint16_t input_pad() {
         else value &= ~8192;
     }
     if(push_releasing) value |= 16|32|64|128|16384|8192|32768|2048;
-    // WASD actions have pad 0: camera-relative play injects Forward only while
-    // the modern camera lease is live. A scripted/alternate camera (turret,
-    // crystal-2 ceiling gun) drops that lease and used to leave captured WASD
-    // inert. Feed original forward/back plus L2/R2 strafe until the lease
-    // returns. D-pad Left/Right are tank *turns* (anims 71/70) and must not
-    // be A/D — that is what spun Duke in the turret wade.
-    static bool tank_fallback, tank_notified;
-    static uint64_t tank_since;
-    if (captured && !modern_lease) {
-        const bool tank_move=down(binds[move_forward])!=down(binds[move_back]) ||
-            down(binds[move_left])!=down(binds[move_right]);
-        if (tank_move && !tank_fallback) {
-            tank_fallback = true;tank_since=sequence;tank_notified=false;
-            std::fprintf(stderr, "[TTK input] WASD tank fallback (modern camera lease inactive: %s)\n", lease_refusal_reason());
-        }
-        // Hit reactions and wall bumps pass in a moment; only a sustained loss
-        // is announced, with the lease's own reason, so a playtest can name it.
-        // D08V1: an identity refusal (the guarded original code no longer
-        // matches) has no camera to steer by, so it says so and the mouse turns
-        // Duke through the original D-pad turn (the turn keys still work too).
-        const bool identity_lost=!std::strcmp(lease_refusal_reason(),"identity");
-        if (tank_fallback && !tank_notified && sequence-tank_since>=45) {
-            tank_notified=true;
-            char text[96];
-            if(identity_lost)std::snprintf(text,sizeof text,"MODERN CONTROLS PAUSED - MOUSE TURNS, WASD MOVES");
-            else std::snprintf(text,sizeof text,"ORIGINAL MOVEMENT (%s)",lease_refusal_reason());
-            host_osd_push_centered(text,identity_lost?4000:2500);
-            std::fprintf(stderr, "[TTK input] %s (%s)\n", text, lease_refusal_reason());
-        }
-        uint16_t strafe_left=0,strafe_right=0;
-        swim_strafe_pads(strafe_left,strafe_right);
-        if(down(binds[move_forward]) && !down(binds[move_back])) value &= ~16;
-        if(down(binds[move_back]) && !down(binds[move_forward])) value &= ~64;
-        if(down(binds[move_left]) && !down(binds[move_right])) value &= ~strafe_left;
-        if(down(binds[move_right]) && !down(binds[move_left])) value &= ~strafe_right;
-        if(identity_lost)value &= ~fallback_turn_pad();
-        // D10D: without the modern camera the turn keys turn Duke through the
-        // original D-pad turn.
-        if(down(binds[turn_left]) && !down(binds[turn_right])) value &= ~128;
-        if(down(binds[turn_right]) && !down(binds[turn_left])) value &= ~32;
-    } else if (captured && tank_fallback) {
-        tank_fallback = false;
-        std::fprintf(stderr, "[TTK input] Modern movement lease resumed\n");
-        if (tank_notified) host_osd_push_centered("MODERN MOVEMENT RESUMED",1500);
-        tank_notified=false;
-    }
+    // No implicit tank movement or mouse-to-D-pad conversion when a Modern
+    // lease is unavailable. Hooks retain their identity and state guards.
     last_pad=value;
     return value;
 }
@@ -1374,9 +1339,11 @@ extern "C" const char* ttk_input_debug_json() {
     {size_t n=0;for(int i=0;i<ttk::action_count && n<sizeof binds_text-8;++i)
         n+=std::snprintf(binds_text+n,sizeof binds_text-n,"%s%d",i?",":"",ttk::binds[i]);}
     std::snprintf(buffer, sizeof buffer,
-        "{\"binds\":[%s],\"sequence\":%llu,\"jump_remaining\":%llu,\"modernized\":%s,\"focused\":%s,\"captured\":%s,\"pad\":%u,\"move_x\":%.5f,\"move_y\":%.5f,\"look_x\":%.1f,\"look_y\":%.1f,\"device\":%d,\"controls\":%s,\"cpu_timing\":%s}",
+        "{\"binds\":[%s],\"sequence\":%llu,\"jump_remaining\":%llu,\"modernized\":%s,\"focused\":%s,\"captured\":%s,\"capture_hold\":%s,\"capture_allowed\":%s,\"capture_requested\":%s,\"offer_age\":%llu,\"scheme\":\"%s\",\"pad\":%u,\"move_x\":%.5f,\"move_y\":%.5f,\"look_x\":%.1f,\"look_y\":%.1f,\"device\":%d,\"controls\":%s,\"cpu_timing\":%s}",
         binds_text, (unsigned long long)ttk::sequence, (unsigned long long)(ttk::input_jump_pending()?ttk::jump_deadline-ttk::sequence+1:0),
         ttk::modern ? "true" : "false", ttk::focused ? "true" : "false", ttk::captured ? "true" : "false",
+        ttk::escape_hold?"true":"false",ttk::allow_capture?"true":"false",ttk::initial_capture?"true":"false",
+        (unsigned long long)(ttk::sequence-ttk::capture_offer_at.load()),ttk::input_modern_controls()?"modern":"legacy",
         ttk::input_pad(), f.move_x, f.move_y, f.look_x, f.look_y, (int)f.device, ttk::controls_debug_json(), ttk_fast_timing_json());
     return buffer;
 }

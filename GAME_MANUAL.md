@@ -47,7 +47,7 @@ python3 recomp/tools/local/run.py --vanilla --settings
 Change OpenGL/software rendering, the display options, or restore that
 profile's defaults. Save and return, then launch normally.
 Each profile remembers its own renderer and resolution/display settings. Modernized also remembers its PC action bindings, camera selection, mouse sensitivity and inversion. Changes take effect on the next launch. In Modernized most of these can also be changed in the game, from OPTIONS ([in-game OPTIONS](#in-game-options-modernized)).
-**Modernized movement and camera have passed user playtesting in the first-level preview.
+**Modernized movement and camera have passed user playtesting in the first-level preview.**
 Supported first-map climbing uses the original traversal routines with Modernized
 input. In the crystal-2 flooded turret corridor, waist-deep water uses the same
 camera-relative movement, mouse look and Shift walk/run as dry ground - it is not a swim.
@@ -61,20 +61,22 @@ Escape then resume recaptures, and keys you keep holding across that pause
 (Shift, W, Ctrl…) stay held — releasing and re-pressing Shift is not needed.
 F7 load of the turret-corner savestates (UI slots 2 and 3) also recaptures automatically,
 again keeping held keys. Capture is not taken inside the original pause menu.
-If a scripted camera still drops the modern lease, W/S walk and A/D strafe
-(original L2/R2) until the normal camera returns — A/D must not tank-turn.
-When that fallback lasts more than about a second the screen shows
-`ORIGINAL MOVEMENT (reason)` and `MODERN MOVEMENT RESUMED` when the lease
-returns; the reason (`state`, `identity`, `context`, `released`) is the one
-to report. If the game's code check itself fails (`identity`), the screen says
-`MODERN CONTROLS PAUSED - MOUSE TURNS, WASD MOVES`: the mouse turns Duke and
-W/S/A/D move him with the original controls, and Modernized returns as soon as
-the check passes again. Climbing, hanging and pole or chain moves no longer
-trigger it. `run.py` mirrors these `[TTK …]` lines into
-`recomp/build-local/logs/session-*.log` (last five launches;
-`--no-session-log` disables).
-F10 toggles mouse capture only; press it again if the
-cursor is free. A frozen window that ignores F10 is a separate halt.**
+Modern controls never switch to tank movement when mouse capture or a guarded
+control hook is temporarily unavailable. Capture returns automatically when
+verified gameplay resumes. Unknown code still fails its identity checks; the
+hooks are not forced onto it. Report any remaining loss of control with the
+session log in `recomp/build-local/logs/`.
+**F10 has no action.** Use Escape to pause and free the cursor, then resume to
+recapture. In **OPTIONS > CONTROLS > CONTROL SCHEME**, choose **MODERN**
+(default) or explicitly choose **LEGACY** and CONFIRM. The choice applies
+immediately and survives relaunches; loading a save cannot change it.
+
+Legacy uses original turning and aiming with the configured action bindings:
+W/S forward/back, A/D or Left/Right turn, Space jumps, left mouse fires/actions,
+Ctrl crouches, right mouse aims, Scroll Lock draws/holsters, and I opens the
+original inventory. Modernized menus and save features remain available.
+Choose MODERN in the same settings panel to return to independent movement,
+camera and aiming. Vanilla remains a separate one-launch option.
 
 ### Resolution and display
 
@@ -433,11 +435,10 @@ Pause, inventory, focus loss and host menus (including **F7** savestates) releas
 capture again after returning. **Escape** pauses/resumes; the pause menu always frees the mouse cursor and
 resuming captures it again. **Enter** uses the
 currently selected inventory gadget (EDuke-style); it never opens the pause menu.
-**F10** explicitly toggles capture; use it to opt out
-of automatic capture until you capture again. Capturing with F10 opts back in, so
-later releases (console, `level N`, menus) recapture automatically as usual. Pausing while captured restores
-automatic capture on return. Loading an F7 savestate also restores automatic
-capture once gameplay is live again. In supported first-level standing/walking states,
+**F10 has no action.** Control scheme selection is only in
+**OPTIONS > CONTROLS > CONTROL SCHEME**, followed by CONFIRM.
+Loading an F7 savestate restores automatic capture once gameplay is live again.
+In supported first-level standing/walking states,
 mouse movement orbits the third-person camera. With view weapon aiming enabled,
 Duke turns to face the view horizontally when holstered or using a supported weapon.
 
@@ -449,7 +450,7 @@ a tap automatically requests holstering and then interacts once that animation
 finishes. Keep E held for continuous action while climbing. Your weapon is
 automatically drawn again after the interaction ends and normal movement returns.
 This temporary holster request survives pause and inventory. Supported ladder/ledge
-states can recapture automatically after pause; F10 still lets you opt out.
+states recapture automatically after pause.
 Short jump taps are buffered for about 130 ms in supported grounded movement.
 Running jumps respond to your takeoff request instead of waiting for an edge. A fresh
 run-start jump no longer waits for the first stride to finish. A six-input-frame
@@ -843,11 +844,10 @@ autorun (centered `RUN MODE ON` / `RUN MODE OFF`), and Shift then temporarily wa
 Autorun survives capture/focus/pause
 changes within that session, but resets off on relaunch; it does not follow the
 keyboard Caps Lock light. A Shift (or any bound gameplay key) that is already
-held when the mouse is recaptured — after Escape/resume, F7 load, inventory or
-F10 — is read from the keyboard state, so running continues without re-pressing. Your existing speed-modifier binding is preserved
+held when the mouse is recaptured - after Escape/resume, F7 load or inventory - is read from the keyboard state, so running continues without re-pressing. Your existing speed-modifier binding is preserved
 (the binding editor calls it `walk` for compatibility). These speed controls apply
 to supported Modernized locomotion, including wading and swimming (D08AA: the same walk and
-run speeds as on land); original fallback controls remain available. Diagonals are
+run speeds as on land); Legacy is available only through the explicit control scheme setting. Diagonals are
 normalized. Walk/run changes restart the corresponding gait promptly (soft-keeping walk
 phase inside a run anim caused a stiff frozen pose and was reverted); speed and deceleration come from its original animation, and the
 original collision routines remain active. Normal stride speed pulses are smoothed
@@ -1144,7 +1144,7 @@ the same way on every menu screen:
   level. Escape on the main menu and PRESS START does nothing (QUIT GAME is
   on the main menu list).
 - These lists free the mouse and work the same with modern controls captured,
-  released with F10 or set to the original camera. Gameplay recaptures the
+  released for a menu or set to the original camera. Gameplay recaptures the
   mouse after RESUME or CONTINUE.
 - **CONFIGURE CONTROLLER** assigns whichever pad button you press to the
   highlighted action. There, Escape and Enter both mean Start ("PRESS START TO
@@ -1445,7 +1445,7 @@ direction together with X climbs instead.
 
 Stand on solid ground with mouse capture active and type a code directly—no console
 or Enter. A message confirms the result. The first D can move Duke slightly, so
-start away from ledges. F10 toggles capture; Escape or focus loss cancels typing.
+start away from ledges. Escape or focus loss cancels typing; F10 has no action.
 The mouse keeps turning the camera while you type. Any key that is not the next
 letter of a code (W, Space and so on) or a mouse click cancels the code and does
 its normal job straight away.

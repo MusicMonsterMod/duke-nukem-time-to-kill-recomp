@@ -1428,17 +1428,25 @@ other object you can climb.
 | **E** while holding it | Let go, then E works as usual (W + E climbs) |
 
 Grab is a held action: Duke holds the object only while you hold the button.
-After Duke lets go by himself (the object is blocked, he is hit, or you pause),
+After Duke lets go by himself (for example, he is hit or you pause),
 release and press again to grab once more. Space, fire and weapon changes wait
-until you let go. A push or pull that has already started finishes its original
-shove before Duke lets go. Touching a pushable object shows which button
+until you let go. W/S move the object continuously: release movement to stop
+while keeping your grip, or reverse without regrabbing. Release Grab to stop
+and let go. Touching a pushable object shows which button
 grabs, and each grab shows the push/pull keys (at most once every few seconds). With `original` weapon aiming or camera, only **Alt** grabs (right mouse
 is precision aim there); both are rebindable (`grab`, `grab_alt`).
 
 Mouse look keeps working while you hold an object. In first person the view
 steps out behind Duke while he holds it and returns afterwards. Face the object
 roughly square, as in the original. Objects stop moving when something blocks
-them; Duke then lets go by himself.
+them or their footprint reaches unsupported ground. Duke keeps holding the
+object, so you can reverse away from the obstruction. Existing floating objects
+in older saves are not repositioned.
+
+Known movement limitation: after moving the alley dumpster beneath low overhead
+clearance and climbing onto it, Duke can be forced to crouch and unable to walk
+off its edge. The separate D08L1 locomotion job tracks this; it does not change
+the object's push limits.
 
 Some pushable objects are fixed in place where the level puts them, as in the
 original, for example a street dumpster in level 5 (debug console numbering),

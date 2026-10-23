@@ -17,7 +17,8 @@
 // through the original 0x80051cf0 branch. Holding Grab / Manipulate grabs any
 // pushable object, W/S push/pull relative to the camera and releasing Grab lets
 // go. The original grab, alignment, push/pull motion and climb animations stay
-// authoritative; the host only chooses which original button reaches them.
+// authoritative for the original interaction. D08T3 below replaces the fixed
+// shove with supported, input-driven travel in Modernized.
 static constexpr uint32_t object_pushable=0x08000000u, object_climbable=0xc0u;
 // 0x8001b634 allocates the type table as 0x7428 bytes: 1062 types of 28 bytes.
 // D08T2: later eras use types above 512 (medieval Duke-symbol block: 924).
@@ -106,4 +107,190 @@ static void push_idle_action(CPUState* cpu,uint32_t ra) {
        !f.active || input_push_grab_owns_cross() || !player_identity_ready())return;
     if(!push_only_object(psx_mod_read_word(player+0x174)))return;
     if(push_mask_cross())++push_idle_masks;
+}
+
+// D08T3: movement belongs to the held input, not the one-shot animation.
+// Keep the original line-up, axis and clips. The dispatcher still runs, but
+// receives zero root motion and no bone-driven object displacement.
+static bool object_box(uint32_t object,int16_t* box);
+static bool ladder_box(uint32_t object,int16_t* box);
+static uint32_t push_manual_object;
+static uint64_t push_manual_epoch;
+static double push_sound_distance;
+static int push_blocked_pad;
+static unsigned push_manual_moves,push_manual_blocks;
+static bool push_manual_enabled() {
+    const char* value=std::getenv("DNTTK_PUSH");
+    return !value || std::strcmp(value,"original");
+}
+struct PushBounds {int32_t x0,x1,y0,y1,z0,z1;};
+static bool push_bounds(uint32_t object,PushBounds& b) {
+    int16_t box[8];
+    if(!object_box(object,box)) {
+        // Ladder collision panels have zero depth. They still stop a block.
+        if(!(object_type_flags(object)&0x200) || !ladder_box(object,box))return false;
+        if(box[0]==box[4]){box[0]-=16;box[4]+=16;}
+        if(box[2]==box[6]){box[2]-=16;box[6]+=16;}
+    }
+    // Original pushables line up on cardinal axes. Rotate their collision
+    // box, rather than assuming the dumpster and symbol cube have one size.
+    const double a=int16_t(psx_mod_read_half(object+0x1c))*tau/4096;
+    const double c=std::cos(a),s=std::sin(a);
+    double x0=1e9,x1=-1e9,z0=1e9,z1=-1e9;
+    for(int x:{int(box[0]),int(box[4])})for(int z:{int(box[2]),int(box[6])}) {
+        const double rx=x*c+z*s,rz=z*c-x*s;
+        x0=std::min(x0,rx);x1=std::max(x1,rx);z0=std::min(z0,rz);z1=std::max(z1,rz);
+    }
+    const int32_t x=int32_t(psx_mod_read_word(object+4)),y=int32_t(psx_mod_read_word(object+8)),z=int32_t(psx_mod_read_word(object+12));
+    b={x+int32_t(std::lround(x0)),x+int32_t(std::lround(x1)),y+box[1],y+box[5],z+int32_t(std::lround(z0)),z+int32_t(std::lround(z1))};
+    return true;
+}
+static bool push_step_clear(CPUState* cpu,uint32_t object,int dx,int dz) {
+    PushBounds b;if(!push_bounds(object,b))return false;
+    const HullState saved=hull_save();const uint32_t feet=psx_mod_read_word(player+0x1c8);
+    HullScratch scratch(cpu->gpr[29]);
+    auto finish=[&](bool ok){hull_restore(saved);psx_mod_write_word(player+0x1c8,feet);return ok;};
+    // At the leading/trailing corners and centre, the block must retain the
+    // same support and enough room for its full height. No gravity or puzzle
+    // grid snapping: stop at the last supported position.
+    psx_mod_write_word(player+0x1c8,b.y1);
+    for(int x:{b.x0+16,(b.x0+b.x1)/2,b.x1-16})for(int z:{b.z0+16,(b.z0+b.z1)/2,b.z1-16}) {
+        int32_t clearance=0;
+        if(!original_call(cpu,0x8007765c,scratch.point(0,x+dx,b.y1-64,z+dz),&clearance))return finish(false);
+        const int32_t step=int32_t(psx_mod_read_word(player+0x1c4));
+        if(std::abs(int64_t(step))>48 || clearance<b.y1-b.y0-32 || clearance==0xffff)return finish(false);
+    }
+    // Duke must also have supported floor behind him when pulling, and
+    // standing clearance. This room query does not collide with the held box.
+    psx_mod_write_word(player+0x1c8,feet);
+    int32_t clearance=0;
+    const int32_t px=int32_t(psx_mod_read_word(player+4)),pz=int32_t(psx_mod_read_word(player+12));
+    if(!original_call(cpu,0x8007765c,scratch.point(0,px+dx,int32_t(feet)-64,pz+dz),&clearance) ||
+       std::abs(int64_t(int32_t(psx_mod_read_word(player+0x1c4))))>64 || clearance<0x370 || clearance==0xffff)return finish(false);
+    // Sweep the leading face at foot and head height as well as checking
+    // destination floors: thin walls cannot be crossed between samples.
+    for(int x:{b.x0+16,b.x1-16})for(int z:{b.z0+16,b.z1-16})for(int y:{b.y0+32,b.y1-32}) {
+        int32_t hit=0;
+        const uint32_t from=scratch.point(0,x,y,z),to=scratch.point(1,x+dx,y,z+dz);
+        if(!original_call(cpu,0x800774cc,from,&hit,to) || hit)return finish(false);
+    }
+    int32_t hit=0;
+    const uint32_t from=scratch.point(0,px,int32_t(feet)-0x370,pz),to=scratch.point(1,px+dx,int32_t(feet)-0x370,pz+dz);
+    if(!original_call(cpu,0x800774cc,from,&hit,to) || hit)return finish(false);
+    // Duke's nearby list is culled for his body and can discover an obstacle
+    // after the much wider held block has already crossed it. The room lists
+    // used by 0x80095cb0 contain the complete placed objects (88-byte rooms,
+    // list at +0x48), including flat ladder panels across a room boundary.
+    auto list_clear=[&](uint32_t node) {
+        for(unsigned n=0;node && n<1024;++n) {
+            if(node<0x80010000 || node>0x801ffff0 || (node&3))return false;
+            const uint32_t other=psx_mod_read_word(node+8);node=psx_mod_read_word(node+4);
+            const uint32_t flags=object_type_flags(other);
+            if(other==object || other==player || !flags || (flags&8))continue;
+            PushBounds q;if(!push_bounds(other,q))continue;
+            if(px+dx-220<q.x1 && px+dx+220>q.x0 && pz+dz-220<q.z1 && pz+dz+220>q.z0 && int32_t(feet)-0x370<q.y1-8 && int32_t(feet)>q.y0+8)return false;
+            if(b.x0+dx<q.x1-8 && b.x1+dx>q.x0+8 && b.z0+dz<q.z1-8 && b.z1+dz>q.z0+8 && b.y0<q.y1-8 && b.y1>q.y0+8)return false;
+        }
+        return !node;
+    };
+    if(!list_clear(psx_mod_read_word(player+0x220)))return finish(false);
+    const uint32_t rooms=psx_mod_read_word(0x800da454),count=psx_mod_read_word(0x800da47c);
+    if(count>128 || (count && (rooms<0x80010000 || rooms>0x80200000-count*88 || (rooms&3))))return finish(false);
+    for(unsigned room=0;room<count;++room)
+        if(!list_clear(psx_mod_read_word(rooms+88*room+0x48)))return finish(false);
+    return finish(true);
+}
+static void push_manual_release(bool orphan=false) {
+    if((push_manual_object || orphan) && push_animation(psx_mod_read_half(player+0x60))) {
+        // The original hold's release branch finishes the interaction. Restart
+        // all channels so no walking clip survives into the next action.
+        for(unsigned ch=0;ch<4;++ch) {
+            const uint32_t a=player+0x60+0x14*ch;
+            psx_mod_write_half(a,121);psx_mod_write_half(a+8,0);psx_mod_write_half(a+10,0);
+        }
+        psx_mod_write_word(player+0x224,psx_mod_read_word(player+0x224)&~0x2000u);
+        for(unsigned a:{0xfcu,0xfeu,0x100u})psx_mod_write_half(player+a,0);
+    }
+    push_manual_object=0;push_sound_distance=0;push_blocked_pad=0;
+}
+static void push_manual_prepare(CPUState* cpu) {
+    const auto& f=input_snapshot(Context::Gameplay);
+    if(push_manual_object && push_manual_epoch!=f.epoch)push_manual_release();
+    if(!push_manual_enabled() || !f.active || !input_push_grab_owns_cross() || !push_grab_ready()) {
+        const unsigned animation=psx_mod_read_half(player+0x60);
+        push_manual_release(push_manual_enabled() && push_grab_ready() && (animation==119 || animation==120));return;
+    }
+    const unsigned animation=psx_mod_read_half(player+0x60);
+    if(!push_manual_object) {
+        if(animation!=121 || psx_mod_read_half(player+0x68)!=3)return;
+        push_manual_object=psx_mod_read_word(player+0x290);push_manual_epoch=f.epoch;push_sound_distance=0;
+    }
+    if(push_manual_object!=psx_mod_read_word(player+0x290)){push_manual_release();return;}
+    const uint16_t pad=push_pad(f.move_x,f.move_y);
+    const unsigned want=pad==push_blocked_pad?121:pad==16?120:pad==64?119:121;
+    for(unsigned ch=0;ch<4;++ch) {
+        const uint32_t a=player+0x60+0x14*ch;
+        if(psx_mod_read_half(a)!=want) {
+            psx_mod_write_half(a,want);psx_mod_write_half(a+8,0);psx_mod_write_half(a+10,0);
+        } else if(want!=121 && psx_mod_read_half(a+8)==1) {
+            const unsigned clip=psx_mod_read_half(0x800c2d64+8*want+2*ch);
+            if(clip>=2048)continue;
+            const uint32_t rec=psx_mod_read_word(0x800d8328+4*clip),first=rec&0xffff,count=rec>>16;
+            // Loop the working part of the disc's clip, before its release.
+            if(count>=6 && psx_mod_read_half(a+6)>=first+count-2) {
+                const unsigned next=first+2;
+                psx_mod_write_half(a+4,psx_mod_read_half(a+6));psx_mod_write_half(a+6,next);
+                const unsigned ticks=psx_mod_read_word(psx_mod_read_word(0x800d8324)+8*next)>>16;
+                psx_mod_write_half(a+2,ticks?ticks:50);
+            }
+        }
+    }
+}
+static void push_manual_dispatch(CPUState* cpu,uint32_t ra) {
+    if(cpu->gpr[4]!=player || ra!=0x8004b634 || !push_manual_enabled())return;
+    const auto& f=input_snapshot(Context::Gameplay);
+    // The animation update between prepare and dispatch can finish the grab.
+    // Claim it here before the original dispatcher consumes an already-held
+    // direction and starts its unowned, one-shot shove.
+    if(!push_manual_object) {
+        if(!f.active || !input_push_grab_owns_cross() || !push_grab_ready() ||
+           psx_mod_read_half(player+0x60)!=121 || psx_mod_read_half(player+0x68)!=3)return;
+        push_manual_object=psx_mod_read_word(player+0x290);push_manual_epoch=f.epoch;push_sound_distance=0;
+    }
+    if(!f.active || !input_push_grab_owns_cross() || !push_grab_ready() || push_manual_epoch!=f.epoch) {push_manual_release();return;}
+    for(unsigned a:{0xfcu,0xfeu,0x100u})psx_mod_write_half(player+a,0);
+    psx_mod_write_word(player+0x224,psx_mod_read_word(player+0x224)&~0x2000u);
+    psx_mod_write_half(player+0xb8,psx_mod_read_half(player+0xb8)&~0x1800u);
+    const uint16_t pad=push_pad(f.move_x,f.move_y);
+    // Hold has no original directional transition; prepare chooses the clip.
+    for(uint32_t table:{0x800d1ce8u,0x800d14f8u}) {
+        const uint32_t a=psx_mod_read_word(table+4*psx_mod_read_byte(player+0x233));
+        if(a>=0x80010000 && a<0x80200000 && !(a&3))psx_mod_write_word(a,psx_mod_read_word(a)&~1u);
+    }
+    if(!pad){push_blocked_pad=0;return;}
+    const unsigned axis=((psx_mod_read_half(player+0x1c)+512)&4095)/1024;
+    const int sign=(axis==0 || axis==1?1:-1)*(pad==16?1:-1);
+    // Simulation ticks, not presentation frames (about 900 units/second).
+    const int ticks=std::min(32u,psx_mod_read_word(0x800d21fc));
+    const int amount=std::max(1,ticks*3);
+    int moved=0;
+    while(moved<amount) {
+        const int step=std::min(16,amount-moved)*sign,dx=(axis&1)?step:0,dz=(axis&1)?0:step;
+        if(!push_step_clear(cpu,push_manual_object,dx,dz)){++push_manual_blocks;break;}
+        for(uint32_t object:{player,push_manual_object}) {
+            psx_mod_write_word(object+4,psx_mod_read_word(object+4)+dx);
+            psx_mod_write_word(object+12,psx_mod_read_word(object+12)+dz);
+        }
+        moved+=std::abs(step);++push_manual_moves;
+    }
+    push_blocked_pad=moved?0:pad;
+    if(moved) {
+        int32_t ignored=0;hull_call(cpu,0x80095cb0,push_manual_object,&ignored);
+        push_sound_distance+=moved;
+        if(push_sound_distance>=180) {
+            CPUState sound=*cpu;sound.gpr[5]=push_manual_object+4;sound.gpr[6]=0;
+            hull_call(&sound,0x8006b270,0x7008,&ignored);push_sound_distance=0;
+        }
+    }
+    if(std::getenv("DNTTK_PUSH_TRACE"))std::fprintf(stderr,"ttk-push object=%08x pad=%u amount=%d moved=%d blocks=%u\n",push_manual_object,pad,amount,moved,push_manual_blocks);
 }

@@ -152,6 +152,9 @@ static const Guard guards[] = {
     // climb/ladder selection), grab 121's Up/Down push-pull choice and the
     // dispatcher's 119..121 table entries.
     {0x80051cf0, 812, "661e85fd56727f88ddec7b0140466cecd8623de8b34e37835b3f21ce3887e8b9"},
+    // D08T3: original push displacement and object room membership.
+    {0x80048e84, 380, "e845d70f5be1dca2c9df2bf28895903f653fd423a2649012f49be892fc3b02ed"},
+    {0x80095cb0, 236, "98afbfc20f761fdaff80d2c4878f102f555221194a68187e7303078cc0a47c89"},
     {0x80048c74, 240, "aa570a9f6c633a71de8d7e1a3d1e61da4e4f24e321dfa56f817f58e3be7e719e"},
     {0x80014188, 12, "b978e2b97b5ca40863a4e771aa6d3f7d942a88410571918b5a02e9ccd58942fc"},
     // D12A first-person quick kick: the boot dispatcher case 112..115 (sphere

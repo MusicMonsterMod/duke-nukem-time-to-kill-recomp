@@ -1,5 +1,48 @@
 # Next-session handoff
 
+## 2026-10-23 - D08T3 accepted and closed; D08L1 Todo
+
+User accepted Free Push after final testing of slots 9-12 and explicitly
+requested closeout and commit/push. D08T3 is Done: free dumpster movement to the
+ladder, box push/pull, stable enemy collision and supported-edge refusal all
+confirmed. Accepted executable: `1e6c1004a8d32da3758035c3eca3a90de66de3971ade2a5e4c27731738c3c118`.
+No further gameplay changes or rebuild after acceptance. Authored source,
+native regression tests, manual and [note 208](208-d08t3-manual-push-pull.md)
+are included in closeout; player saves and media unchanged.
+
+**Next selectable job: D08L1 (Todo)** in [the job board](../MODERNIZATION_JOBS.md#d08l1---modern-locomotion---allow-walking-and-crouch-walking-off-ledges).
+After pushing the slot-12 dumpster to the ladder and mantling it, low overhead
+clearance forces crouching and Duke cannot crouch-walk off. Record this as a
+separate locomotion softlock, not a Free Push defect. Investigate original vs
+modern ledge restrictions, grounded/crouched support and falling transitions.
+Allow standing and forced/voluntary crouched walk-offs while preserving object
+ledge safety, jumps, mantles, collision and Vanilla. Not implemented or started.
+
+Candidate history below predates this acceptance.
+
+
+
+## 2026-10-23 - D08T3 candidate (Needs playtest)
+
+Review revision: reproduced and fixed the held-W grab timing failure that
+escaped the first pass, plus the dumpster crossing its ladder. Flat panels
+and complete room object lists now block the dumpster before contact. Final
+private routes on slots 9-12 pass held-W grabbing, neutral hold, reverse,
+sustained boundary refusal and release; native regressions cover both bugs.
+Earlier pause/focus/mantle evidence below is from the first candidate.
+
+Manual held push/pull and supported-edge checks are built. W/S stop immediately
+on release, Grab stays held, reverse works, and a blocked object stays held.
+Slot 9 stops at its ledge; slot 8's already-floating block is not relocated.
+Build/native suites and isolated gameplay checks pass for the supplied objects,
+release/pause/focus, saved moving pose, repeated loads and E mantle. User feel,
+sound and puzzle-completion acceptance remain. See
+[note 208](208-d08t3-manual-push-pull.md) for evidence and limits.
+
+Candidate: `1e6c1004a8d32da3758035c3eca3a90de66de3971ade2a5e4c27731738c3c118`.
+No player-save/settings or framework changes. No acceptance closeout, commit or
+push. Launch: `python3 recomp/tools/local/run.py`; automatic capture.
+
 
 ## 2026-10-23 - D26B accepted and closed
 

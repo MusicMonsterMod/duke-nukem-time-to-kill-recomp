@@ -977,6 +977,7 @@ static void hook(CPUState* cpu, uint32_t address) {
 // Discard old draw tokens without writing them into the newly loaded RAM;
 // first_person_draw reclaims any hidden flags stored in the save itself.
 static void camera_world_reset() {
+    push_manual_object=0;push_sound_distance=0;push_blocked_pad=0;
     orbit_valid=false;look.reset();camera_frame=0;fp_frame=0;walking=false;
     fp_blend=0;fp_supported=false;fp_reason="world-change";
     head_flag=0;min_boom_written=false;
@@ -1056,6 +1057,7 @@ static void hook_body(CPUState* cpu, uint32_t address) {
         if(takeoff_direction)++standing_takeoffs;
     } else if (address==0x8005a210) {
         if(cpu->gpr[4]==player && cpu->gpr[5]==0x800c2754 && ra==0x80041b34) {
+            push_manual_prepare(cpu);
             // Attached cameras remain original-owned. Resume capture through
             // the authenticated player update, without needing an active input
             // frame or a normal locomotion camera to bootstrap it.
@@ -1146,6 +1148,7 @@ static void hook_body(CPUState* cpu, uint32_t address) {
             }
         }
     } else if (address==0x80048410) {
+        push_manual_dispatch(cpu,ra);
         if(cpu->gpr[4]==player && ra==0x8004b634)grounded_water_gait();
         if(crouch_water_dispatch(cpu,ra))return;
         if(landing_recover(cpu,ra,f))return; // D08Z3

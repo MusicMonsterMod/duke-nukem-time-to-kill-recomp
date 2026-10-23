@@ -1,6 +1,8 @@
 # Time to Kill — modernization jobs
 
 
+**Latest accepted job (2026-10-23): D08T3 Free Push is Done. Executable `1e6c1004a8d32da3758035c3eca3a90de66de3971ade2a5e4c27731738c3c118` is the accepted baseline. New Todo: D08L1, walking/crouch-walking off ledges. [Note 208](documentation/208-d08t3-manual-push-pull.md).**
+
 **Latest accepted job (2026-10-23): D26B view/control ownership is Done. Executable `a7ef7350de0b11fcb8235786e8a790faff19ddcc12dc9c186f6b320b4cc2caec` is the regression baseline. [Note 207](documentation/207-d26b-view-ownership.md).**
 
 **Latest accepted job (2026-10-22): D17S AUTO frame rate is Done. Executable `482a3479813ddca0da3a5237034b2b84edf22c77ede8061f339a64c313eba1e9` is the regression baseline. [Note 203](documentation/203-d17s-auto-frame-rate.md).**
@@ -112,6 +114,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08K10 | First-person crouched weapon and arm alignment: knife, axe, dynamite, Holy Hand Grenade and crossbow match their standing view when crouched (standing is the baseline) | Done (user-accepted 2026-10-22) | D12, D08K6, D08K8 |
 | D08K11 | Enable Modern Crouching and Crouch-Walking in Shallow Water (slot 10 flooded subway; crouch behaviour refinement) | Done | D08K2, D08K4, D08K7, D08K8, D08AA, D08AB |
 | D08L | Inertial platform edge run-off | Done | D08 |
+| D08L1 | Modern locomotion - allow walking and crouch-walking off ledges | Todo | D08L, D08K, D08T3 |
 | D08M | Modern underwater swimming controls (foundation) | Done | D08 |
 | D08O | Deep free-swim polish (strafe, Ctrl dive, mantle-only exit) | Done | D08M |
 | D08O1 | Fire weapons while swimming (Modernized, game-wide; medieval UI slot 2) | Accepted | D07C, D08O, D22B |
@@ -142,7 +145,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08U | Top-of-ladder mount: grab a ladder from a platform and climb down | Done | D08, D08J |
 | D08U1 | Ladder that cannot be descended with E (player slot 12), systemic ladder-top coverage | Accepted | D08U, D22B |
 | D08U2 | Enemy standing at a ladder top blocks the climb-off: Duke should push it back (player slot 5) | Accepted | D08U, D08J |
-| D08T3 | Free manual push and pull while holding Grab (no fixed-size shoves) | Todo | D08T2 |
+| D08T3 | Free manual push and pull while holding Grab (no fixed-size shoves) | Done (user-accepted 2026-10-23) | D08T2 |
 | D08T4 | Save slot 10 dumpster: the grab prompt shows but it will not move; find out whether it is meant to be fixed (Vanilla check) | Done (user-accepted 2026-10-20; fixed by design, no prompt there now) | D08T2 |
 | D08V | Sewer mantle/hang modern-control coverage (slot 12 area) | Done | D08, D08B |
 | D08W | Subway shallow-water sideways jumps (A/D + Space jumps forward) | Done | D08, D08C |
@@ -2555,6 +2558,48 @@ accepted furniture drops, jump grace and Vanilla.
 exterior platforms and apartment furniture edges; no added reach, no double jumps,
 no wall clipping; Vanilla unchanged.
 
+### D08L1 - Modern locomotion - allow walking and crouch-walking off ledges
+
+**Todo - recorded 2026-10-23 at D08T3 acceptance. Do not implement until selected.**
+
+**Objective:** Duke can walk or crouch-walk naturally off platforms, objects
+and ledges without jumping. On losing support, transition naturally to falling
+with consistent modern gravity, collision and landing, responsive input and no
+artificial stop simply because the ground ends. Include forced crouching under
+low ceilings. Preserve jumping, mantling, crouching and Vanilla behavior.
+
+**User reproduction / primary acceptance (current UI slot 12):**
+
+1. Load a private copy of slot 12 and approach the dumpster.
+2. Hold RMB and W to push it as far toward the ladder as permitted.
+3. Release Grab and mantle onto the dumpster.
+4. The overhead clearance forces Duke to remain crouched.
+5. Attempt to crouch-walk off its edge: currently Duke cannot leave and is
+   effectively trapped. After this job, he must walk off while crouched,
+   transition to falling and land safely without jumping or changing Free Push.
+
+**Investigation:** establish whether this restriction comes from the original
+ledge/grounded movement handlers or the modern adapter. Trace ledge detection,
+crouch movement gates, support loss, low-ceiling clearance, collision and
+falling-state transitions; compare original and modern behavior using private
+save copies. Existing D08L run-off momentum work does not establish that every
+walking/crouched departure is permitted. Related: D08Z/Z3 jumping and landing,
+D08K5/K9 crouch coverage/touchdown, D08X/Y mantling.
+
+**Acceptance:** the slot-12 softlock is resolved by crouch-walking off; normal
+standing walks and voluntary/forced crouch walks can leave representative
+object and level-geometry ledges in first and third person. Falling, gravity,
+collision and landing remain consistent, with no ceiling penetration, invisible
+edge barrier or loss of responsiveness. Existing jumps, mantles and crouch
+clearance remain intact; Vanilla unchanged; user confirms.
+
+**Scope boundary:** this is Duke's own locomotion, not pushable-object travel.
+D08T3 is accepted and must retain its collision and support checks. In
+particular, slot 9's block must still stop before unsupported ground, and slot
+12's dumpster must still stop before the ladder. Do not add object gravity or
+relax object ledge safety. The reported softlock is a separate movement issue,
+not a Free Push defect. See [note 208](documentation/208-d08t3-manual-push-pull.md).
+
 ### D08M — Modern underwater swimming controls (foundation)
 
 **Done — shallow/ledge + Space ascend foundation accepted, 2026-09-28.**
@@ -4612,7 +4657,36 @@ regression baseline.
 
 ### D08T3 - Free manual push and pull while holding Grab
 
-**Todo. User request, 2026-10-05 (D08T2 playtest).** "The rmb pull and push
+**Done - user-accepted 2026-10-23; explicit closeout/commit/push requested.**
+Final user tests: slot 12 dumpster pushes freely and stops toward the ladder;
+slot 11 push/pull works throughout permitted travel; slot 10 cube stops at an
+enemy and remains stable; slot 9 block stops at its supported edge, preventing
+the old floating result. Accepted behavior and prior regression evidence
+satisfy this job's acceptance. Full-campaign coverage is not claimed.
+The forced-crouch trap after mantling the moved dumpster is a separate
+locomotion limitation, recorded as **D08L1 (Todo)** above, not implemented.
+Accepted executable: `1e6c1004a8d32da3758035c3eca3a90de66de3971ade2a5e4c27731738c3c118`.
+The candidate history below is retained as evidence, not current status.
+
+**Review revision, 2026-10-23 - Needs playtest.** Fixed the reproduced held-W
+handoff into an original one-shot shove. Flat ladder panels and complete room
+object lists now stop the dumpster before the ladder. Private keyboard/mouse
+routes on slots 9-12 pass continuous movement, neutral hold, reverse, sustained
+boundary refusal and release. Native regressions cover both missed cases.
+See note 208 for revision evidence. No acceptance closeout or commit/push.
+
+**2026-10-23 - Needs playtest.** Manual held push/pull, immediate directional
+stop, retained grab, reverse and supported-edge/wall checks are implemented.
+Private copies of slots 9-12 exercised; slot 9 stops at the supported edge
+instead of reaching slot 8's already-floating position. Build/native suites
+pass; release, pause, focus, saved moving pose, repeated loads and E mantle
+checked. User feel, sound and puzzle-completion acceptance remain. Candidate
+`1e6c1004a8d32da3758035c3eca3a90de66de3971ade2a5e4c27731738c3c118`.
+[Note 208](documentation/208-d08t3-manual-push-pull.md). No commit/push.
+
+**Selected 2026-10-23.** Test private copies of current UI slots 10, 11 and 12; slot 9 reproduces a block pushed off support after three shoves, and slot 8 records the floating result. Investigate original stopping rules and stop at unsupported edges rather than adding physics.
+
+**Original request. User request, 2026-10-05 (D08T2 playtest).** "The rmb pull and push
 mechanic seems to work in set amounts at a time ... hold rmb and press W and
 duke will push the stone a set amount (im guessing 1130 units) and then stop
 and release. I would love to give the user the actual freedom to properly move
@@ -16966,3 +17040,41 @@ Runtime patch re-exported unchanged and verified against the pinned clean
 framework: all 51 patched files match. No framework edits or player-save changes.
 Coverage limits and deliberate camera overrides remain in
 [note 207](documentation/207-d26b-view-ownership.md). No next job started.
+
+
+## 2026-10-23 - D08T3 manual push/pull candidate (Needs playtest)
+
+Selected with current test slots 10-12, slot 9 edge reproduction and slot 8's
+floating result. Original fixed shove traced; Modernized now moves by held
+input, retains grip at rest/obstructions, reverses and refuses unsupported
+footprints. Existing axis, line-up, clips, room bookkeeping and mantle remain.
+Build and native suites pass; isolated real-key runs cover supplied objects,
+edge stop/reverse, release, pause/focus, a private mid-push save, repeated loads,
+and E mantle. Player source-save hashes unchanged. Candidate and remaining
+user acceptance in [note 208](documentation/208-d08t3-manual-push-pull.md).
+No next job, acceptance closeout, commit or push.
+
+
+## 2026-10-23 - D08T3 review revision (Needs playtest)
+
+User reported single-shove/release and dumpster travel through the ladder.
+Reproduced both. Fixed grab acquisition when held W advances the original
+animation between hooks; included flat ladder panels and full room object
+lists so the dumpster's front cannot pass the panel before Duke detects it.
+Private slots 9-12 pass held-W acquisition, stop, reverse, boundary hold and
+release. Slot 12 stops at X 8418 before the ladder at X 9225; slot 9 at X 8700.
+Build and controls/input/aim suites pass. Source save hashes unchanged.
+Revised candidate and limits: [note 208](documentation/208-d08t3-manual-push-pull.md).
+No acceptance closeout, commit or push.
+
+
+## 2026-10-23 - D08T3 accepted and closed; D08L1 recorded
+
+User accepted Free Push after final tests across slots 9-12 and explicitly
+requested documentation/commit/push closeout. Slot 12 free dumpster travel,
+slot 11 free push/pull, slot 10 stable enemy collision and slot 9 supported-edge
+safety confirmed. D08T3 is Done. New Todo D08L1 records the separate slot-12
+forced-crouch trap after mantling the moved dumpster, with standing/crouched
+walk-off objectives, investigation and acceptance. No D08L1 implementation.
+Accepted gameplay executable unchanged; authored source, tests, manual and
+evidence included in closeout. No player-save or media changes.

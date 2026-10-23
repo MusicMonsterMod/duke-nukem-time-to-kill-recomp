@@ -92,6 +92,7 @@ static unsigned overclock_renewals;extern "C" void psx_overclock_renew(void){++o
 // normal (jw_nx, 0, jw_nz) for its first `jw_hits` calls, then a clear path.
 static int jw_result,jw_hits,jw_sweeps;static int32_t jw_nx,jw_nz;
 extern "C" void psx_dispatch_call(CPUState* cpu,uint32_t address,uint32_t) {
+    if(address==0x80095cb0) {cpu->pc=0;return;} // D08T3 room membership
     if(address==0x8007a98c) {
         const bool hit=++jw_sweeps<=jw_hits;
         psx_mod_write_word(0x800d7198+0x194,uint32_t(jw_nx));psx_mod_write_word(0x800d7198+0x198,0);
@@ -397,6 +398,65 @@ int main(int argc,char** argv) {
         // Grab 121 remembering the object: camera-only lease, never locomotion.
         psx_mod_write_word(p+0x290,object);psx_mod_write_half(p+0x60,121);
         assert(ttk::push_grab_ready() && !ttk::locomotion_input_ready() && !ttk::movement_ready());
+        // D08T3: arbitrary short movement, neutral hold, support and wall
+        // refusal, release and actor/profile isolation, using real callbacks.
+        {
+            const auto saved_push_epoch=ttk::input.epoch;
+            const uint32_t saved_push_ticks=psx_mod_read_word(0x800d21fc);
+            uint8_t before[0x8a4];for(unsigned i=0;i<sizeof before;++i)before[i]=psx_mod_read_byte(p+i);
+            const uint32_t list=0x801ea100,box=0x801ea120;
+            psx_mod_write_word(object+0x44,list);psx_mod_write_word(list+8,box);
+            const int16_t bounds[]={-512,-512,-512,0,512,512,512,0};
+            for(int i=0;i<8;++i)psx_mod_write_half(box+2*i,uint16_t(bounds[i]));
+            psx_mod_write_word(object+4,2000);psx_mod_write_word(object+8,0);psx_mod_write_word(object+12,2000);
+            psx_mod_write_word(p+0x220,0);psx_mod_write_half(p+0x68,3);
+            psx_mod_write_half(p+0x1c,1024);psx_mod_write_word(0x800d21fc,10);
+            psx_mod_write_word(p+0x1c8,512);psx_mod_write_word(p+0x1c4,77);
+            ttk::grab_owns=true;lookahead_drop=0;clearance_result=2048;
+            auto prepare=[&]{call(0x8005a210,p,0x800c2754,0x80041b34,0x801fff00);};
+            auto move=[&]{call(0x80048410,p,0,0x8004b634,0x801fff00);};
+            // W is already down while grab finishes between the two hooks.
+            psx_mod_write_half(p+0x68,1);ttk::input.move_y=1;prepare();
+            psx_mod_write_half(p+0x68,3);
+            if(!ttk::push_pad(0,1)){ttk::input.move_x=1;ttk::input.move_y=0;}
+            const int x0=int32_t(psx_mod_read_word(object+4));
+            move();const int x1=int32_t(psx_mod_read_word(object+4));assert(std::abs(x1-x0)==30);
+            assert(psx_mod_read_word(p+0x1c4)==77 && psx_mod_read_word(p+0x1c8)==512);
+            const float mx=ttk::input.move_x,my=ttk::input.move_y;
+            ttk::input.move_x=ttk::input.move_y=0;move();assert(int32_t(psx_mod_read_word(object+4))==x1);
+            ttk::input.move_x=mx;ttk::input.move_y=my;lookahead_drop=512;move();assert(int32_t(psx_mod_read_word(object+4))==x1);
+            lookahead_drop=0;hull_ray_hit=1;move();assert(int32_t(psx_mod_read_word(object+4))==x1);hull_ray_hit=0;
+            ttk::input.move_x=-mx;ttk::input.move_y=-my;move();assert(int32_t(psx_mod_read_word(object+4))==x0);
+            // A zero-depth ladder panel, rotated across the travel axis, must
+            // stop the block while allowing it to retreat without regrabbing.
+            const uint32_t ladder=0x801ea200,ladder_list=0x801ea300,ladder_box=0x801ea320,node=0x801ea400;
+            psx_mod_write_half(ladder+0x2c,46);psx_mod_write_word(table+28*46,0x108212);
+            psx_mod_write_word(ladder+0x44,ladder_list);psx_mod_write_word(ladder_list+8,ladder_box);
+            const int16_t panel[]={-189,-1023,0,0,189,1023,0,0};
+            for(int i=0;i<8;++i)psx_mod_write_half(ladder_box+2*i,uint16_t(panel[i]));
+            psx_mod_write_half(ladder+0x1c,1024);psx_mod_write_word(ladder+8,0);psx_mod_write_word(ladder+12,2000);
+            const int direction=x1>x0?1:-1;
+            psx_mod_write_word(ladder+4,x0+direction*(512+24));
+            psx_mod_write_word(node+4,0);psx_mod_write_word(node+8,ladder);
+            const uint32_t saved_rooms=psx_mod_read_word(0x800da454),saved_count=psx_mod_read_word(0x800da47c);
+            psx_mod_write_word(0x800da454,0x801ea500);psx_mod_write_word(0x800da47c,1);
+            psx_mod_write_word(0x801ea548,node);psx_mod_write_word(p+0x220,0);
+            ttk::input.move_x=mx;ttk::input.move_y=my;move();
+            const int stopped=int32_t(psx_mod_read_word(object+4));
+            assert(std::abs(stopped-x0)<30);move();assert(int32_t(psx_mod_read_word(object+4))==stopped);
+            ttk::input.move_x=-mx;ttk::input.move_y=-my;move();
+            assert(int32_t(psx_mod_read_word(object+4))==stopped-direction*30);
+            psx_mod_write_word(0x800da454,saved_rooms);psx_mod_write_word(0x800da47c,saved_count);
+            psx_mod_write_word(p+0x220,0);psx_mod_write_word(object+4,x0);
+            psx_mod_write_half(p+0x60,120);++ttk::input.epoch;ttk::grab_owns=false;prepare();
+            assert(psx_mod_read_half(p+0x60)==121); // capture/pause epoch must end the old clip
+            ttk::grab_owns=false;prepare();move();assert(int32_t(psx_mod_read_word(object+4))==x0);
+            ttk::modern=false;ttk::grab_owns=true;prepare();move();assert(int32_t(psx_mod_read_word(object+4))==x0);
+            ttk::modern=true;ttk::grab_owns=false;ttk::input.move_x=ttk::input.move_y=0;lookahead_drop=-100000;
+            ttk::input.epoch=saved_push_epoch;psx_mod_write_word(0x800d21fc,saved_push_ticks);
+            for(unsigned i=0;i<sizeof before;++i)psx_mod_write_byte(p+i,before[i]);
+            std::puts("PASS: D08T3 held-direction grab handoff, flat ladder, stop/reverse, held neutral, support/wall refusal, query restoration and Vanilla");
+        }
         psx_mod_write_half(p+0x60,63);psx_mod_write_word(p+0x174,0);psx_mod_write_word(p+0x290,0);
         assert(!ttk::push_grab_ready() && ttk::movement_ready());
         psx_mod_write_word(0x800d2660,saved[0]);psx_mod_write_word(0x800d1b50,saved[1]);psx_mod_write_word(word,saved[2]);

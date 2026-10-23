@@ -177,7 +177,9 @@ static void clear() {
     std::memset(keys, 0, sizeof keys);
     std::memset(mouse, 0, sizeof mouse);
     dx = dy = 0;wheel_fraction=distance_total=0;recenter_total=look_press_total=0;command_count=0;
-    frame = {};jump_deadline=jump_pressed_at=0;airborne_interact=false;
+    frame = {};frame.first_person=first_person;frame.shoulder=shoulder;
+    frame.sequence=sequence;frame.epoch=epoch+1;
+    jump_deadline=jump_pressed_at=0;airborne_interact=false;
     interaction_pending=false;interaction_pulse=0;interaction_started=false;holster_pulse=0;swim_redraw=0;
     push_reset();
     ++epoch; total_x = total_y = 0; look_n=0; look_cx=look_cy=0;
@@ -857,6 +859,8 @@ void input_frame() {
     }
     frame = {};
     frame.sequence = ++sequence; frame.epoch = epoch;
+    // Player intent survives menus, console, focus loss and explicit Legacy.
+    frame.first_person=first_person;frame.shoulder=shoulder;
     if (input_modern_controls() && focused && captured) {
         frame.active = true;
         frame.command_serial=command_serial;frame.command_count=command_count;

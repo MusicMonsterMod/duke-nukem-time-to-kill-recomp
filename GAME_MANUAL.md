@@ -801,11 +801,19 @@ DNTTK_FP_KICK_THIGH=0 python3 recomp/tools/local/run.py
 Swimming and jetpack flight switch back to third
 person on their own and return when you land; ladders, poles, chains and
 ledges show the free third-person camera while Duke climbs; scripted and
-turret cameras, death and menus use the original camera as before. Dodge rolls
+turret cameras and death use the original camera. Dodge rolls
 and slides down steep slopes stay in first person, and so do falls (off an edge, a
 car roof or after bumping a wall); only grabbing a ledge switches. Pressing P
-again returns to third person. The choice is saved; to set it without
-launching:
+again returns to third person. Console, pause, menus and focus loss retain the
+selected perspective and stop gameplay input. Returning to play captures input
+automatically without resetting the camera direction. Loading a save keeps your
+current view and control choices; the loaded world supplies the viewing direction.
+An explicitly paused debug save stays paused until you resume.
+
+Explicit LEGACY controls or ORIGINAL camera use the original camera; your
+first/third-person choice remains saved for when you return to MODERN with the
+INDEPENDENT camera. Unsupported traversal temporarily uses third person without
+changing that choice. The choice is saved; to set it without launching:
 
 ```sh
 python3 recomp/tools/local/run.py --view first --show-settings

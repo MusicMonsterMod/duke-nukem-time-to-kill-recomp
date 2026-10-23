@@ -1,5 +1,8 @@
 # Time to Kill — modernization jobs
 
+
+**Latest accepted job (2026-10-23): D26B view/control ownership is Done. Executable `a7ef7350de0b11fcb8235786e8a790faff19ddcc12dc9c186f6b320b4cc2caec` is the regression baseline. [Note 207](documentation/207-d26b-view-ownership.md).**
+
 **Latest accepted job (2026-10-22): D17S AUTO frame rate is Done. Executable `482a3479813ddca0da3a5237034b2b84edf22c77ede8061f339a64c313eba1e9` is the regression baseline. [Note 203](documentation/203-d17s-auto-frame-rate.md).**
 
 **Latest accepted job (2026-10-22): D12D upgraded first-person weapon framing is Done. Executable `bb86f2da7265785ba692c3dadbbcc19e03e5d5f19e0a02d2cd85a57b28e390d0` is the regression baseline. [Note 199](documentation/199-d12d-upgraded-viewmodels.md).**
@@ -275,7 +278,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D26A | Debug level-select panel for whole-game testing | Accepted | D26, D22A |
 | D26E | Debug `spawn <item>` console command (EDuke32-style) | Accepted | D26A |
 | D26F | Spawning in-game items, continued: level crystals as custom pickups (`spawn 1761/2761/3761`) | Done | D26E, D08A5 |
-| D26B | Opening the console leaves first person | Todo | D26, D11 |
+| D26B | Own view/control selections across console, menus, loads and transitions | Done (user-accepted 2026-10-23) | D26, D11 |
 | D26C | Console command history (Up/Down) | Accepted | D26 |
 | D26D | Level select: authoritative order, numbering, names and categories | Todo | D26A |
 | D26G | Console: holding Backspace or a character key repeats it | Done (user-accepted 2026-10-20) | D26 |
@@ -9391,16 +9394,22 @@ field (SDL key repeat or a host timer), without affecting gameplay input.
 in the console; gameplay keys and command history (D26C) unchanged; the user
 confirms.
 
-### D26B - Opening the console leaves first person
+### D26B - Own view and control selections across transitions
 
-**Todo, small. User report, 2026-10-05.** Opening the backtick console switches
-the game out of first person. The console is an overlay: opening and closing it
-must return the player to exactly the perspective and state they had. Check
-whether the console's input context or paused frames release the camera lease
-(`first_person_release`) and how the view comes back.
+**Done (user-accepted 2026-10-23).** Implementation and verification: [note 207](documentation/207-d26b-view-ownership.md). Expanded by the user from the console report to
+ownership of first/third-person view and Modern/Legacy controls across console,
+menus, focus, saves/loads and gameplay transitions. Investigate all writers and
+separate persistent player intent, temporary input suspension, and authenticated
+camera/state support. Preserve explicit selections and identity guards; do not
+silently substitute Legacy controls when input capture is temporarily absent.
 
-**Acceptance:** open/close the console in first and third person; the view and
-capture are unchanged afterwards; the user confirms.
+**Acceptance:** console/menu/focus and save/load routes preserve the selected
+view and control scheme, with reliable automatic recovery and no unintended
+third-person flash caused by input suspension. Explicit settings changes still
+work. Test first/third person and Modern/Legacy, paused and gameplay saves,
+repeated/rapid transitions and supported traversal. Explain genuine scripted or
+unsupported camera overrides and verify return to the selected view. Vanilla
+remains unchanged. User gameplay confirmation required.
 
 ### D26C - Console command history
 
@@ -16928,3 +16937,32 @@ this closeout. Build and focused matrix evidence remain in [note 206](documentat
 Runtime patch re-exported unchanged and checked against the clean pinned
 framework. No new framework changes or player settings/save changes. No next
 job started. Launch: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-23 - D26B view/control ownership (Needs playtest)
+
+Expanded by the user to console, menus, focus, loads and gameplay transitions.
+Reproduced console/pause dropping first person: inactive input snapshots lost
+view preferences and camera ownership depended on captured input. Presentation
+now has a separate authenticated lease; input suspension preserves selected view
+and orientation. Loads and level teardown invalidate old camera/draw state,
+then acquire the selected view from the new world, including known jumps.
+Existing Modern/Legacy selection and movement/identity gates are preserved.
+
+Build and input/aim/controls suites pass (all 21 overlay guards). Six live
+60/120/240 FPS first/third-person transition runs pass; final level transitions,
+same-level restart and Vanilla save/pause checks pass. Full evidence, final
+executable and deliberate overrides are in [note 207](documentation/207-d26b-view-ownership.md).
+User playtest remains. No commit/push, framework changes or player-save changes.
+
+
+## 2026-10-23 - D26B accepted and closed
+
+User accepted the candidate and explicitly authorized closeout: "perfect! lock
+it in, close it out." D26B is Done. Authored implementation, native regression
+tests, manual and evidence documentation are included in the authorized
+MusicMonsterMod commit/push. The accepted executable remains unchanged.
+Runtime patch re-exported unchanged and verified against the pinned clean
+framework: all 51 patched files match. No framework edits or player-save changes.
+Coverage limits and deliberate camera overrides remain in
+[note 207](documentation/207-d26b-view-ownership.md). No next job started.

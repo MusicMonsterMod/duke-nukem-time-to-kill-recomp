@@ -310,8 +310,10 @@ int main() {
     capture_fixture();
     ttk::input_pad_context(0xfff7); // controller pause releases too
     CHECK(!SDL_GetWindowRelativeMouseMode(win));
+    guest[0x800be568]=1; // the original pause has acknowledged Start
     key(SDL_SCANCODE_Z, true);
     CHECK((ttk::input_pad() & 4096) == 0); // game's menu back is Triangle
+    guest[0x800be568]=0;
     capture_fixture();
     SDL_Event quit{}; quit.type = SDL_QUIT;
     ttk::input_event(quit);
@@ -571,6 +573,17 @@ int main() {
     key(SDL_SCANCODE_P,true);key(SDL_SCANCODE_P,false);CHECK(tick().first_person);
     ttk::input_release();key(SDL_SCANCODE_P,true);key(SDL_SCANCODE_P,false);
     capture_fixture();CHECK(tick().first_person);
+    // D26B: preference is observable even while every gameplay action is off.
+    ttk::input_set_shoulder(1);ttk::input_allow_capture(false);
+    for(int i=0;i<5;++i) {
+        const auto& f=tick();CHECK(!f.active && f.first_person && f.shoulder==1);
+        CHECK(f.move_x==0 && f.move_y==0 && f.look_x==0 && f.command_count==0);
+    }
+    ttk::input_state_loaded();CHECK(tick().first_person);
+    SDL_setenv_unsafe("DNTTK_CONTROL_SCHEME","legacy",1);
+    CHECK(!tick().active && tick().first_person);
+    SDL_unsetenv_unsafe("DNTTK_CONTROL_SCHEME");
+    ttk::input_allow_capture(true);capture_fixture();CHECK(tick().first_person);
     SDL_setenv_unsafe("DNTTK_CAMERA_MODE","original",1);
     key(SDL_SCANCODE_P,true);key(SDL_SCANCODE_P,false);CHECK(tick().first_person);
     SDL_unsetenv_unsafe("DNTTK_CAMERA_MODE");SDL_unsetenv_unsafe("DNTTK_CAMERA_VIEW");

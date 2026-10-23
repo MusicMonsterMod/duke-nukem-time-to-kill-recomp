@@ -286,9 +286,9 @@ static void orbit_begin(uint32_t sp) {
     // A slow original game update is not a camera ownership transition.
     // The dancers legitimately take five guest fields; the old four-field
     // timeout reseeded from an older camera and discarded accumulated mouse
-    // motion. Loads, input epochs and an explicit lease release already
+    // motion. Loads and an explicit camera ownership release already
     // invalidate orbit_valid. Preserve the look across variable game cadence.
-    if (!orbit_valid || camera_epoch!=f.epoch) {
+    if (!orbit_valid) {
         if(std::getenv("DNTTK_CAMERA_RESEED_TRACE"))
             std::fprintf(stderr,"[camera reseed] gap=%llu valid=%d epoch=%llu/%llu yaw=%.6f field=%llu\n",
                 (unsigned long long)(f.sequence-camera_frame),orbit_valid?1:0,
@@ -319,6 +319,13 @@ static void orbit_begin(uint32_t sp) {
         key_hold=0;key_return=false;key_ms=-1;
         turn_hold=0;turn_ms=-1;
     }
+    // Input epochs discard deltas, never the selected camera orientation.
+    // Loads and unauthenticated/scripted camera transitions invalidate the
+    // orbit separately. A console/menu/focus boundary only stops input.
+    if(camera_epoch!=f.epoch || !f.active) {
+        look.reset();recentering=false;key_hold=0;key_return=false;key_ms=-1;
+        turn_hold=0;turn_ms=-1;
+    }
     // The first seed is the original follow view; recenter returns to its pitch.
     if(!rest_pitch_valid){rest_pitch=pitch;rest_pitch_valid=true;}
     if(preferred_radius==0) {
@@ -328,7 +335,7 @@ static void orbit_begin(uint32_t sp) {
         else preferred_radius=std::clamp(radius,768.0,6144.0);
     }
     if(distance_epoch!=f.epoch) {distance_epoch=f.epoch;distance_seen=0;recenter_seen=0;look_press_seen=0;distance_frame=f.sequence;}
-    if(f.distance_total!=distance_seen) {
+    if(f.active && f.distance_total!=distance_seen) {
         preferred_radius=std::clamp(preferred_radius-192.0*(f.distance_total-distance_seen),768.0,6144.0);
         saved_distance=preferred_radius;camera_pref_changed=f.sequence;
     }
@@ -346,7 +353,7 @@ static void orbit_begin(uint32_t sp) {
         shoulder_offset+=(side-shoulder_offset)*blend;
     }
     auto delta=look.consume(f.epoch,f.total_x,f.total_y);
-    if(f.recenter_total>recenter_seen) recentering=true;
+    if(f.active && f.recenter_total>recenter_seen) recentering=true;
     recenter_seen=f.recenter_total;
     // Mouse movement always wins over a swing in progress.
     if(delta.x || delta.z) recentering=false;
@@ -358,8 +365,7 @@ static void orbit_begin(uint32_t sp) {
         if(std::abs(dy)<0.005 && std::abs(dp)<0.005) {yaw=wrap_yaw(heading);pitch=clamp_pitch(rest_pitch);recentering=false;}
         if(!recentering)++recenters;
     }
-    key_look(f,delta.x || delta.z);
-    key_turn(f);
+    if(f.active) {key_look(f,delta.x || delta.z);key_turn(f);}
     const char* inverted=ttk_live_env("DNTTK_MOUSE_INVERT_Y");
     yaw=wrap_yaw(yaw+delta.x*sensitivity());
     pitch=clamp_pitch(pitch+delta.z*sensitivity()*(inverted && !std::strcmp(inverted,"1")?-1:1));
@@ -626,8 +632,12 @@ static bool climb_state_early() {
         (previous==0 || previous==3 || previous==6 || previous==7 || previous==8 || previous==9);
 }
 static bool traversal_camera_early() { return mantle_state_early() || unowned_fall_early() || ladder_mount_early() || committed_move_early() || climb_state_early(); }
-static bool state(bool camera_only=false) {
-    if(!gameplay_context())return false;
+static bool state(bool camera_only=false,bool presentation=false) {
+    // Menus suspend gameplay, not the authenticated world behind the menu.
+    // Only the presentation lease may ignore the guest pause/inventory word.
+    if(presentation) {
+        if(psx_mod_read_half(0x800bcbb0)!=1 || psx_mod_read_half(0x800d2540))return false;
+    } else if(!gameplay_context())return false;
     unsigned animation=psx_mod_read_half(player+0x60);
     // Guarded idle/locomotion dispatch; wall bumps and this jump lease permit camera only.
     // Death can retain state bytes 0/0 and the normal camera pointer.
@@ -648,7 +658,9 @@ static bool state(bool camera_only=false) {
         (jet_fall_grace && animation==108 && (psx_mod_read_byte(player+0x22c)==9 || psx_mod_read_byte(player+0x22c)==10)));
     // D11/D22B unowned jump: camera only; original takeoff, flight and landing.
     const unsigned mode=psx_mod_read_byte(player+0x22c), previous=psx_mod_read_byte(player+0x22d);
-    const bool eye_air=camera_only && jump_camera && jump_animation(animation) &&
+    // Rendering a known jump does not need a previous input lease (a save
+    // can start in midair). Action consumers retain jump_camera's continuity.
+    const bool eye_air=camera_only && (jump_camera || presentation) && jump_animation(animation) &&
         (mode==0 || mode==9) && (previous==0 || previous==9);
     // D08T grab/push/pull 119..121: mouse look only; the original owns motion.
     const bool pushing=camera_only && push_state_early();
@@ -682,6 +694,16 @@ static bool lease_ready(bool camera_only=false) {
     const auto& f=input_snapshot(Context::Gameplay);
     return eligible(camera_only) && camera_frame && f.epoch==camera_epoch &&
         within_frame(f.sequence,camera_frame);
+}
+// Camera presentation is not permission to move, aim, fire or capture input.
+// It remains owned while the console/menu/focus suspends those actions.
+static bool camera_eligible() {
+    return input_modern_controls() && state(true,true);
+}
+static bool camera_lease_ready() {
+    // Capture epochs/freshness belong to actions. A pause may keep drawing
+    // this camera without another normal update; it still owns presentation.
+    return camera_eligible() && camera_frame && orbit_valid;
 }
 bool movement_ready() { return lease_ready() && identity(); }
 // D07E: why a shot missed the movement lease (diagnostics only).
@@ -950,7 +972,23 @@ static void hook(CPUState* cpu, uint32_t address) {
     frame_trace_account(address,us);
 }
 
+// Host-owned pointers and smoothing describe one guest world only. A load
+// may resume midway through drawing, before the next normal-camera callback.
+// Discard old draw tokens without writing them into the newly loaded RAM;
+// first_person_draw reclaims any hidden flags stored in the save itself.
+static void camera_world_reset() {
+    orbit_valid=false;look.reset();camera_frame=0;fp_frame=0;walking=false;
+    fp_blend=0;fp_supported=false;fp_reason="world-change";
+    head_flag=0;min_boom_written=false;
+    eye_offset_valid=false;eye_rel_valid=false;bob_last_valid=false;bob_frame=0;
+    jump_camera=false;flight_valid=false;takeoff_valid=false;
+}
 static void hook_body(CPUState* cpu, uint32_t address) {
+    static uint32_t loads_seen=psx_mod_savestate_loads();
+    const uint32_t loads=psx_mod_savestate_loads();
+    if(loads!=loads_seen) {
+        loads_seen=loads;camera_world_reset();input_state_loaded();
+    }
     grounded_water_restore();
     crouch_water_restore(); // D08K11: scoped native crouch water veto, also after loads/Vanilla.
     // D08A13: running steroids hidden from Duke's damage handler come back at
@@ -992,6 +1030,7 @@ static void hook_body(CPUState* cpu, uint32_t address) {
         bool reset_caller=false;
         for(uint32_t r:{0x8001b510u,0x8001b8a0u,0x800222a8u,0x80025474u,0x800270d0u,0x80028594u})reset_caller|=ra==r;
         if(cpu->gpr[4]==1 && reset_caller && psx_mod_read_word(ra-8)==0x0c00ae7d) {
+            camera_world_reset(); // also a same-level restart/new game, not just a new overlay
             hidden_enemies.clear();monsters_hidden=false;hidden_table=hidden_count=0;
         }
         return;
@@ -1207,7 +1246,7 @@ static void hook_body(CPUState* cpu, uint32_t address) {
         // Normal camera's final orientation conversion after position collision.
         // Supply the requested view matrix to its original quaternion/smoothing
         // path, so a shortened/sideways boom cannot pin look-at yaw to the wall.
-        if (!orbit_valid || !lease_ready(true) || !identity() ||
+        if (!orbit_valid || !camera_lease_ready() || !identity() ||
             cpu->gpr[18]!=camera || sp!=orbit_sp-0xb8-0xa8) return;
         const bool smooth=ra==0x80029220 && cpu->gpr[4]==sp+0x18 && cpu->gpr[5]==sp+0x68;
         const bool direct=ra==0x8002920c && cpu->gpr[4]==camera && cpu->gpr[5]==camera+0x54;
@@ -1257,7 +1296,7 @@ static void hook_body(CPUState* cpu, uint32_t address) {
         {
             // D17: the live evaluation is kept for render replay workers;
             // lease_ready() itself must not be called again (state() has effects).
-            const bool lease_cam=render_override ? override_lease_cam : lease_ready(true);
+            const bool lease_cam=render_override ? override_lease_cam : camera_lease_ready();
             if(!render_override && duke_drawing) last_lease_cam=lease_cam;
             first_person_draw(duke_drawing && identity(),psx_mod_read_word(camera+0xa4)==player && lease_cam);
         }
@@ -1272,19 +1311,14 @@ static void hook_body(CPUState* cpu, uint32_t address) {
         first_person_weapon_attached(cpu,address,ra);
     } else if (address==0x8003ade4) {
         min_boom_restore();
-        // After a savestate load the camera starts from the loaded game's
-        // view: keeping the previous yaw turned Duke away from his saved
-        // facing within a few frames (2026-10-03).
-        {
-            static uint32_t loads_seen=psx_mod_savestate_loads();
-            const uint32_t loads=psx_mod_savestate_loads();
-            if(loads!=loads_seen) {
-                loads_seen=loads;orbit_valid=false;look.reset();camera_frame=0;walking=false;
-                input_state_loaded();
-            }
-        }
         if (cpu->gpr[4]!=camera || cpu->gpr[5]!=player || ra!=0x80025ee8) return;
         const bool ident=identity();
+        // A different authenticated level is a different world, even if no
+        // normal-camera callback ran during the intervening loading screen.
+        static uint32_t camera_level_tag;
+        if(ident && camera_level_tag!=identity_tag) {
+            camera_level_tag=identity_tag;camera_world_reset();
+        }
         if(input_wants_initial_capture() && ident && gameplay_context() &&
            (state() || state(true) || swim_lease_ready())) input_offer_gameplay_capture();
         unsigned animation=psx_mod_read_half(player+0x60);
@@ -1293,24 +1327,28 @@ static void hook_body(CPUState* cpu, uint32_t address) {
         if(!jump_animation(animation)) jump_camera=false;
         else if(!jump_camera && orbit_valid && camera_frame && camera_epoch==f.epoch &&
                 within_frame(f.sequence,camera_frame)) jump_camera=true;
-        if (!eligible(true) || !ident) {
-            lease_refuse_trace(!gameplay_context()?"context":!ident?"identity":!f.active?"released":"state",ident);
+        if (!camera_eligible() || !ident) {
+            const char* reason=!input_modern_controls()?"legacy":!ident?"identity":
+                psx_mod_read_half(0x800bcbb0)!=1 || psx_mod_read_half(0x800d2540)?"frontend":
+                psx_mod_read_word(camera+0xa4)!=player?"scripted":"unsupported-camera";
+            lease_refuse_trace(reason,ident);
             distance_seen=f.distance_total;distance_epoch=f.epoch;camera_frame=0;walking=false;orbit_valid=false;look.reset();
-            first_person_release("lease");return;
+            first_person_release(reason);return;
         }
         if (flight_epoch!=f.epoch || (psx_mod_read_half(player+0x60)!=98 && psx_mod_read_half(player+0x60)!=103 && psx_mod_read_half(player+0x60)!=104 && psx_mod_read_half(player+0x60)!=105 && psx_mod_read_half(player+0x60)!=109 && !(short_fall && psx_mod_read_half(player+0x60)==108))) flight_valid=false;
         if(first_map())apartment_patch_install();
+        const bool acquiring=!orbit_valid;
         orbit_begin(sp);
-        if(!orbit_valid) first_person_release("orbit");
+        if(!orbit_valid) first_person_release(independent_camera()?"orbit":"original-camera");
         else {
             const unsigned ticks=fp_frame && f.sequence>fp_frame ? unsigned(std::min<uint64_t>(f.sequence-fp_frame,4)) : 1;
-            first_person_update(f,ticks);fp_frame=f.sequence;
+            first_person_update(f,ticks,acquiring);fp_frame=f.sequence;
         }
-        if(shallow_land_water_early() && !f.held[original_aim])face_view();
+        if(f.active && gameplay_context() && shallow_land_water_early() && !f.held[original_aim])face_view();
         if(camera_frame && camera_epoch==f.epoch) frame_window_note(f.sequence-camera_frame);
         else frame_window_reset();
         camera_frame=f.sequence; camera_epoch=f.epoch; ++cameras;
-        if(swim_lease_ready()) {
+        if(f.active && swim_lease_ready()) {
             swim_frame=f.sequence;swim_epoch=f.epoch;
             swim_update(cpu,true);
         }
@@ -1325,7 +1363,7 @@ static void hook_body(CPUState* cpu, uint32_t address) {
         }
         if (psx_mod_read_half(player+0x60)==63 && !f.move_x && !f.move_y) had_movement=false;
     } else if (address==0x8003aa48) {
-        if (!orbit_valid || !lease_ready(true) || !identity() || cpu->gpr[4]!=camera || ra!=0x8003aeb0 ||
+        if (!orbit_valid || !camera_lease_ready() || !identity() || cpu->gpr[4]!=camera || ra!=0x8003aeb0 ||
             sp!=orbit_sp-0xb8 || sp<0x80010000 || sp>0x801fffdc || (sp&3) ||
             cpu->gpr[5]!=sp+0x18) {min_boom_restore();return;}
         first_person_constraint();

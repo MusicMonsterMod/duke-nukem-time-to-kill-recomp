@@ -90,11 +90,11 @@ static void first_person_projection(CPUState* cpu,uint32_t ra) {
 }
 static void first_person_release(const char* reason) {
     if(fp_blend>0) ++fp_fallbacks;
-    fp_blend=0;eye_offset_valid=false;fp_reason=reason;
+    fp_blend=0;eye_offset_valid=false;fp_supported=false;fp_reason=reason;
     min_boom_restore();head_restore();
 }
 // Once per verified normal-camera update, after orbit_begin.
-static void first_person_update(const InputFrame& f,unsigned ticks) {
+static void first_person_update(const InputFrame& f,unsigned ticks,bool acquiring=false) {
     // Waist-deep water keeps the land gait and is supported (the swim lease is
     // also live there); swim modes 4/5 and deeper water are not.
     const bool swimming=in_water_early() && !shallow_land_water_early();
@@ -111,7 +111,11 @@ static void first_person_update(const InputFrame& f,unsigned ticks) {
         (!traversal_camera_early() || committed_move_early() || unowned_fall_early());
     fp_supported=supported;
     const bool wanted=f.first_person && supported;
-    fp_reason=!f.first_person?"off":!supported?"unsupported":"active";
+    fp_reason=!f.first_person?"off":swimming?"swimming":jetpack_camera_only()?"jetpack":
+        push_state_early()?"push-object":!supported?"traversal":f.active?"active":"input-suspended";
+    // A newly authenticated world starts in the selected view. Never blend
+    // from an unrelated old save/camera or flash a third-person load frame.
+    if(acquiring)fp_blend=wanted?1.0:0.0;
     if(!wanted && fp_blend==0) {eye_offset_valid=false;return;}
     if(ticks) {
         const double blend=1-std::pow(0.7,ticks);

@@ -1,5 +1,43 @@
 # Current status - 2026-10-04
 
+
+## 2026-10-23 - D26B accepted and closed
+
+User accepted the view/control ownership candidate and explicitly requested
+"lock it in, close it out". D26B is Done. The authored camera/input changes,
+native regression tests, manual and evidence notes are included in the
+MusicMonsterMod closeout. No new implementation or build after acceptance.
+
+Accepted executable:
+`a7ef7350de0b11fcb8235786e8a790faff19ddcc12dc9c186f6b320b4cc2caec`.
+[Note 207](207-d26b-view-ownership.md) records the ownership contract, verification,
+deliberate overrides and remaining coverage limits. Runtime patch re-exported
+unchanged and verified against the clean pinned framework (51 files match).
+No framework/pin or player-save changes. No next job started.
+Launch: `python3 recomp/tools/local/run.py`. Automatic capture, no F10 step.
+
+
+## 2026-10-23 - D26B view/control ownership candidate (Needs playtest)
+
+D26B now covers the user's requested ownership of view/control choices across
+console, menus, focus, saves/loads and transitions. Reproduced console/pause
+camera teardown on input release. Player preferences now survive inactive
+snapshots; authenticated camera presentation is separate from action/capture
+permission. Loads and level teardown discard old world-specific camera state;
+newly acquired supported cameras start in the selected view, including jumps.
+
+Build and native input/aim/controls suites pass, with all 21 level guards. Six
+live first/third-person runs at 60/120/240 FPS cover console, pause, focus, F7,
+cross-perspective loads and rapid load/Escape. Final live level transitions,
+same-level restart and Vanilla save/pause checks pass. See
+[note 207](207-d26b-view-ownership.md) for evidence and explicit coverage limits.
+Legacy/Original camera and unsupported traversal retain deliberate overrides;
+they do not overwrite the saved view. User gameplay acceptance remains.
+
+Candidate: `a7ef7350de0b11fcb8235786e8a790faff19ddcc12dc9c186f6b320b4cc2caec`.
+No commit/push or acceptance closeout. No framework or player-save changes.
+Launch: `python3 recomp/tools/local/run.py`. Automatic capture, no F10 step.
+
 ## 2026-10-23 - D17Y accepted and closed
 
 User confirmed both slot-8 graphical oddities are completely resolved, fully

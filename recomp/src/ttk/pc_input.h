@@ -25,7 +25,8 @@ struct InputFrame {
     // D10C: Look Up / Down presses this epoch, so a tap between camera updates counts.
     uint64_t look_press_total = 0;
     int shoulder = 0;
-    // D11: player asked for the eye-level view (applies only in supported states).
+    // Persistent view intent, including inactive frames. Active gates actions,
+    // never this preference (the eye applies only in supported camera states).
     bool first_person = false;
     bool held[action_count]{};
     float move_x = 0, move_y = 0, look_x = 0, look_y = 0;

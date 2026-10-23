@@ -172,7 +172,8 @@ namespace ttk {bool anim_extra_clip(unsigned clip,uint32_t& first,uint32_t& coun
 // D23E: no high-refresh redraws in the harness; the overclock lease pauses.
 namespace ttk {int replay_load_window(int window){return window==1 ? -1 : 0;}}
 extern "C" void ttk_fast_timing_renew(void) {}
-extern "C" uint32_t psx_mod_savestate_loads(void){return 0;}
+static uint32_t save_loads;
+extern "C" uint32_t psx_mod_savestate_loads(void){return save_loads;}
 extern "C" int psx_mod_replay_active(void){return 0;}
 namespace ttk {
 const char* aim_debug_json(){return "{}";}
@@ -205,7 +206,7 @@ static bool grab_owns;
 bool input_push_grab_owns_cross(){return grab_owns;}
 static bool reach_held;
 bool input_airborne_reach_held(){return reach_held;}
-bool input_modernized(){return modern;}bool input_modern_controls(){return modern;}
+bool input_modernized(){return modern;}bool input_modern_controls(){const char* s=std::getenv("DNTTK_CONTROL_SCHEME");return modern && (!s || std::strcmp(s,"legacy"));}
 const InputFrame& input_snapshot(Context){return input;}
 uint16_t input_last_pad(){return 0xffff;}
 uint64_t input_host_frame(){return input.sequence;}
@@ -1501,7 +1502,8 @@ int main(int argc,char** argv) {
         assert(std::abs(after-before-2.4*3.141592653589793/180)<0.002);
     }
     std::puts("PASS: camera preserves mouse rotation across slow game updates");
-    ttk::input.active=false;writes=0;call(0x8003aa48,c,sp+0x18,0x8003aeb0,sp);assert(writes==0);
+    ttk::input.active=false;writes=0;call(0x8003aa48,c,sp+0x18,0x8003aeb0,sp);
+    assert(writes>0 && !ttk::movement_ready()); // presentation survives input release
     ttk::input.active=true;
     psx_mod_write_word(p,2);writes=0;call(0x8003ade4,c,p,0x80025ee8);call(0x8003aa48,c,sp+0x18,0x8003aeb0,sp);assert(writes==0);
     psx_mod_write_word(p,0);psx_mod_write_half(p+0x60,218);writes=0;call(0x8003ade4,c,p,0x80025ee8);assert(writes==0 && !ttk::movement_ready());
@@ -1515,7 +1517,8 @@ int main(int argc,char** argv) {
     ttk::input.total_y=-50;++ttk::input.sequence;
     call(0x8003ade4,c,p,0x80025ee8);call(0x8003aa48,c,sp+0x18,0x8003aeb0,sp);
     assert((int16_t)psx_mod_read_half(c+14)>800); // inverted 12 degree pitch
-    // Recapture with a wall-displaced boom seeds visible +X, not anchor's +Z.
+    // A loaded world with a wall-displaced boom seeds visible +X, not anchor's +Z.
+    ++save_loads;
     psx_mod_write_half(c+12,4096);psx_mod_write_half(c+14,0);psx_mod_write_half(c+16,0);
     ++ttk::input.epoch;ttk::input.total_x=ttk::input.total_y=0;
     call(0x8003ade4,c,p,0x80025ee8);call(0x8003aa48,c,sp+0x18,0x8003aeb0,sp);
@@ -2574,17 +2577,68 @@ int main(int argc,char** argv) {
             // A relaxed word captured by a save state is repaired, not adopted.
             psx_mod_write_word(0x800c3c48,0);frame();
             assert(psx_mod_read_word(0x800c3c48)==768);
-            // Losing the lease mid-blend restores the boom and head at once.
-            ttk::input.first_person=true;for(unsigned i=0;i<3;++i)frame();
-            call(0x8003aa48,c,sp+0x18,0x8003aeb0,sp);assert(psx_mod_read_word(0x800c3c48)<768);
-            call(0x800348d8,c,p,0x8003769c);assert(psx_mod_read_byte(record)&1 || metric("\"blend\":")<0.5);
-            ttk::input.active=false;frame();
-            assert(!(psx_mod_read_byte(record)&1));
-            assert(psx_mod_read_word(0x800c3c48)==768 && metric("\"blend\":")==0);
-            {
+            // D26B: console/focus/input epochs and guest pause retain the
+            // eye, orientation and head policy without granting movement.
+            ttk::input.first_person=true;for(unsigned i=0;i<40;++i)frame();
+            const double owned_yaw=metric("\"yaw\":"),owned_pitch=metric("\"pitch\":");
+            for(unsigned paused:{0u,1u}) {
+                ttk::input.active=false;++ttk::input.epoch;
+                ttk::input.total_x=ttk::input.total_y=0;
+                psx_mod_write_half(0x800be568,paused);
+                ttk::input.sequence+=50; // paused redraw before another camera update
+                call(0x800348d8,c,p,0x8003769c);assert(psx_mod_read_byte(record)&1);
+                call(0x8001ca4c,0x800d0000,0,0x800376b4);
+                for(unsigned i=0;i<8;++i)frame();
+                assert(metric("\"blend\":")==1 && !ttk::movement_ready());
+                assert(metric("\"yaw\":")==owned_yaw && metric("\"pitch\":")==owned_pitch);
+                call(0x8003aa48,c,sp+0x18,0x8003aeb0,sp);
+                assert(psx_mod_read_word(0x800c3c48)==0);
+                call(0x8002a038,0,1,0x8003af40,sp);
+                call(0x800348d8,c,p,0x8003769c);assert(psx_mod_read_byte(record)&1);
+                call(0x8001ca4c,0x800d0000,0,0x800376b4);assert(!(psx_mod_read_byte(record)&1));
                 CPUState cpu{};cpu.gpr[4]=386;cpu.gpr[31]=0x8002e4d0;cpu.gpr[29]=0x801f0000;
-                hooks().at(0x800b4d9c)(&cpu,0x800b4d9c);assert(cpu.gpr[4]==386); // third person untouched
+                hooks().at(0x800b4d9c)(&cpu,0x800b4d9c);assert(cpu.gpr[4]==256);
             }
+            psx_mod_write_half(0x800be568,0);
+            ttk::input.active=true;++ttk::input.epoch;frame();
+            assert(metric("\"blend\":")==1 && ttk::movement_ready());
+            assert(metric("\"yaw\":")==owned_yaw);
+            // Load a different stored heading while input is suspended: adopt
+            // that world's direction, but immediately use our selected view.
+            ttk::input.active=false;
+            call(0x800348d8,c,p,0x8003769c);assert(psx_mod_read_byte(record)&1);
+            ++save_loads;psx_mod_write_byte(record,0x11);
+            call(0x800b4d9c,386,0,0x8002e4d0); // load resumes inside a draw
+            assert(psx_mod_read_byte(record)==0x11 && metric("\"blend\":")==0);
+            psx_mod_write_half(c+12,4096);psx_mod_write_half(c+14,0);psx_mod_write_half(c+16,0);
+            frame();assert(metric("\"blend\":")==1);
+            assert(std::abs(metric("\"yaw\":")-quarter)<1e-6);
+            // A load may start in an unowned jump; camera acquisition must
+            // not depend on input/flight state from before that save.
+            for(unsigned a:{96u,97u,98u,103u,104u,105u,109u}) {
+                ++save_loads;psx_mod_write_half(p+0x60,a);
+                psx_mod_write_byte(p+0x22c,9);psx_mod_write_byte(p+0x22d,9);
+                ++ttk::input.epoch;frame();
+                assert(metric("\"blend\":")==1 && !ttk::movement_ready());
+            }
+            psx_mod_write_half(p+0x60,63);psx_mod_write_byte(p+0x22c,0);psx_mod_write_byte(p+0x22d,0);frame();
+            // Explicit Legacy owns the original camera; the first-person
+            // preference is dormant and returns when Modern is selected.
+            setenv("DNTTK_CONTROL_SCHEME","legacy",1);frame();
+            assert(metric("\"blend\":")==0 && ttk::input.first_person);
+            unsetenv("DNTTK_CONTROL_SCHEME");frame();assert(metric("\"blend\":")==1);
+            // Unknown code and an actual camera-owner change still revoke
+            // presentation, even though the request itself remains first.
+            poke(0x43eb8);frame();assert(metric("\"blend\":")==0);poke(0x43eb8);
+            frame();assert(metric("\"blend\":")==1);
+            psx_mod_write_word(c+0xa4,0);frame();assert(metric("\"blend\":")==0);
+            psx_mod_write_word(c+0xa4,p);frame();assert(metric("\"blend\":")==1);
+            // Same-level teardown cannot inherit the old orbit either.
+            call(0x8002b9f4,0,0,0x80025474);assert(metric("\"blend\":")==1);
+            call(0x8002b9f4,1,0,0x80025478);assert(metric("\"blend\":")==1);
+            call(0x8002b9f4,1,0,0x80025474);assert(metric("\"blend\":")==0);
+            frame();assert(metric("\"blend\":")==1 && ttk::input.first_person);
+            std::puts("PASS: D26B view ownership across input suspension, pause, capture epochs, load, explicit scheme and camera ownership; movement and identity gates retained");
             ttk::input.active=true;ttk::input.first_person=false;++ttk::input.epoch;
             for(unsigned i=0;i<40;++i)frame();
             for(int i=0;i<3;++i)psx_mod_write_word(p+4+4*i,saved_root[i]);
@@ -2597,6 +2651,8 @@ int main(int argc,char** argv) {
     }
     // Standing-jump preparation retains a bounded direction lease, then redirects
     // original animation 98 velocity once. No forced state, height or position.
+    // Start an independent fixture facing +Z, not an input-recapture reseed.
+    ++save_loads;psx_mod_write_half(c+12,0);psx_mod_write_half(c+14,0);psx_mod_write_half(c+16,4096);
     auto ground=[&](){
         ++ttk::input.epoch;++ttk::input.sequence;ttk::input.active=true;
         ttk::input.held[ttk::original_aim]=false;ttk::input.held[ttk::crouch]=false;

@@ -1,5 +1,35 @@
 # Current status - 2026-10-04
 
+## 2026-10-23 - D19Q2 accepted (Done); D04B queued (Todo)
+
+User accepted the paused-save investigation and explicitly requested commit
+and push. [Note 204](204-d19q2-paused-saves.md) retains evidence and limits.
+No gameplay changes or rebuild; D17S executable remains the baseline.
+
+New separate report: loading then pressing Escape shortly afterward can lose
+Modern controls. D04B is Todo: Modern default, persistent settings-only
+Modern/Legacy choice, no implicit Legacy fallback, no F10 scheme switching or
+manual recovery requirement, reliable pause/focus/load transitions. Detailed
+acceptance is on the board. D04B has not started; choose it explicitly before
+implementation. D19Q2 testing does not disprove this new timing report.
+
+Documentation-only closeout authorized as MusicMonsterMod. Player saves/cards
+unchanged. Launch: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-23 - D19Q2 paused-save investigation (Needs review)
+
+No confirmed regression on the unchanged D17S executable `482a3479813ddca0da3a5237034b2b84edf22c77ede8061f339a64c313eba1e9`.
+The reported UI slot 10 preserves pause on debug load, but quickload resumes.
+SAVE GAME/F2, gameplay quicksave, F3/title loads, F7/debug and Vanilla routes
+checked on private copies. Real keyboard loads resume and recapture correctly.
+Legacy/debug paused saves without `resume 1` deliberately remain paused.
+[Note 204](204-d19q2-paused-saves.md) records the matrix and limits.
+No gameplay change, rebuild, player-save modification, commit or push.
+Awaiting user review; do not mark Done or perform acceptance closeout yet.
+Launch: `python3 recomp/tools/local/run.py`.
+
+
 ## 2026-10-22 - D17S accepted (Done)
 
 User fully accepted AUTO and explicitly authorized closeout. D17S is Done.

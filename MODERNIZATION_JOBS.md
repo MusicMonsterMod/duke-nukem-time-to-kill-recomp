@@ -48,6 +48,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D03 | Player, camera and aiming state research | Done | D01 |
 | D04 | PC action input, rebinding and mouse capture | Done | D02 |
 | D04A | Escape reliably frees the mouse for the pause menu | Done | D04 |
+| D04B | Robust Modern controls: load/Escape recovery, settings-only scheme selection, no implicit Legacy fallback or F10 scheme switching | Todo | D04A, D08V1, D19Q2, D22C, D33 |
 | D05 | Camera-relative WASD movement | Done | D03, D04 |
 | D06 | Independent third-person mouse camera | Done | D03, D04 |
 | D07 | Modern weapon aiming and crosshair | Done | D05, D06 |
@@ -224,7 +225,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D19R | Startup card probe hang: about 1.5 s of black screen where CHECKING MEMORY CARD was; remove or hide it (research done) | Done (2026-10-20, closeout delegated by the user) | D19K |
 | D19Q | SAVE GAME screen to match LOAD GAME: choose a savestate slot from the menus, overwrite asks, success / failure shown | Done (user-accepted 2026-10-20) | D19K |
 | D19Q1 | SAVE GAME thumbnail shows the save screen (OVERWRITE THIS SAVE?) instead of play (player UI slot 1; cause: stale CPU VRAM, not first person) | Done (user-accepted 2026-10-20) | D19Q |
-| D19Q2 | Saves restore paused: investigate recurring pause/menu state on load and resume behavior | Todo | D19Q, D20 |
+| D19Q2 | Saves restore paused: investigate recurring pause/menu state on load and resume behavior | Done (user-accepted 2026-10-23) | D19Q, D20 |
 | D19S | Delete saves from LOAD GAME: Delete on a slot asks DELETE SAVED GAME: "<name>" (NO first) | Done (user-accepted 2026-10-21) | D19K, D19Q |
 | D19T | Real double quote marks (" and ") in the game's menu font: the text call draws `"` as a single quote | Done (user-accepted 2026-10-21) | D19S |
 | D19T1 | DELETE SAVED GAME: shows the slot's name without quotes (cleaner; D19T quotes stay available) | Done (user-accepted 2026-10-21) | D19S, D19T |
@@ -328,6 +329,50 @@ User report (2026-09-30): pressing Escape to open the pause menu should release 
 **Work log (2026-09-30, playtest fix, Needs playtest):** user: "when hitting esc again, it seems to leave modern controls and my mouse is not recaptured". Session log confirmed `Mouse released (Escape)` with no automatic recapture afterwards (F10 used). Cause: the resume Escape in the pause menu also set the hold, counted from that press; the game resumed within the freshness window, offers never gapped and the hold never cleared. Fix: only an Escape from running gameplay (captured, or offers still fresh) sets the hold; Escape in the pause menu only pulses Start. `ttk-input-test` PASS with a new pause-menu resume case. Game rebuilt after the session closed: binary `198673f5f5643aed5f25c543b79ec69ed0216d69e2f211a075394f3b86ded68e`.
 
 **Work log (2026-09-30, Done):** user playtest on binary `198673f5...ded68e`: "perfect, accept". Escape opens the pause menu with the cursor free and Escape again resumes with the mouse recaptured.
+
+### D04B - Robust Modern controls and settings-only scheme selection
+
+**Todo (2026-10-23), user-requested backlog only.** After loading a game and
+pressing Escape shortly afterward, Duke can leave the Modern control scheme.
+This is a new user-reported control-recovery problem, separate from D19Q2's
+accepted paused-save investigation. Its cause and exact timing are not yet
+established; D19Q2's successful ordinary load/resume probes do not disprove it.
+
+**Required behavior:** Modern is the default control scheme. Within a
+Modernized session, Legacy controls may be selected only by an explicit,
+persistent setting in the settings panel. F10 must not switch Modern/Legacy
+or be required to recover Modern controls. Mouse capture/release is a
+menu/focus concern, not permission to change the selected control scheme.
+The user explicitly rejects silent fallback to Legacy controls.
+
+**Acceptance:**
+
+- Reproduce and fix load followed quickly by Escape, including repeated
+  Escape presses around load completion and pause/resume. Test SAVE GAME,
+  F2/F3, F6/F9, F7 and relevant legacy/debug saves using private copies.
+- With Modern selected, movement, independent camera and weapon aiming remain
+  Modern across loads, pause/resume, menus, console, focus loss/return, death,
+  level/overlay changes and traversal interruptions. No implicit tank/Legacy
+  fallback when capture or a control lease is lost. Preserve verified hook
+  identity checks; robustness must not mean running hooks on unknown code.
+- Settings are the sole in-game authority for Modern/Legacy selection;
+  Modern is the default. An explicit Legacy setting persists and can be
+  changed back there. Savestates and transient input state cannot silently
+  override that preference.
+- Remove F10's Modern/Legacy switching behavior. Normal play and returning
+  from menus recover automatically without F10 or another recovery shortcut.
+  Audit all other shortcuts and fallback paths for implicit scheme changes.
+- Escape reliably pauses with a free cursor; resume restores Modern controls
+  and mouse capture. Focus loss safely releases held inputs without changing
+  the scheme. Menus remain usable and the pointer is never trapped.
+- Test rapid transition sequences at supported frame rates, both camera
+  views, and a representative set of levels/traversal states. Include
+  regression tests for the confirmed timing failure and manual playtest.
+- Preserve explicit `run.py --vanilla` behavior. Update the manual and
+  settings/help text to describe the implemented scheme and capture behavior.
+
+Implementation has not started. The older D04A acceptance that left F10
+unchanged is superseded by this job's new requested behavior when implemented.
 
 ### D05 — Camera-relative WASD movement
 
@@ -16768,3 +16813,26 @@ No gameplay changes or rebuild during closeout. Accepted executable:
 Framework patch re-exported and verified against the clean pinned dependency,
 matching all 51 changed/new files. Implementation, tests and documentation
 included in the authorized commit/push as MusicMonsterMod. No next job started.
+
+
+## 2026-10-23 - D19Q2 paused-save investigation (Needs review)
+
+Private-copy comparisons reproduce the reported UI slot 10 as paused only
+through the debug route; quickload resumes it. New SAVE GAME/F2 saves resume
+through player loads; gameplay quicksaves remain playing. F7/debug paused
+saves and legacy saves without the resume marker retain deliberate pause.
+Real keyboard F9/F3/F7 checks verify resume and mouse recapture; Vanilla
+play/pause save-load behavior preserved. No confirmed regression, no gameplay
+change or rebuild. [Note 204](documentation/204-d19q2-paused-saves.md) records
+evidence and harness limits. Awaiting review; no commit or push.
+
+
+## 2026-10-23 - D19Q2 accepted; D04B queued (documentation closeout)
+
+User confirmed D19Q2 works and accepted the investigation. D19Q2 is Done;
+no gameplay fix or new executable. User separately reported losing Modern
+controls after loading and quickly pressing Escape, and requested robust
+settings-only scheme selection with Modern default, no implicit Legacy
+fallback and no F10 scheme switching. Added D04B Todo with reproduction and
+acceptance criteria; no implementation started. User explicitly authorized
+this documentation commit and push as MusicMonsterMod.

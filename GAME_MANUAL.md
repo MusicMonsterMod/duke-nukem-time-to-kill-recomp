@@ -1443,10 +1443,12 @@ them or their footprint reaches unsupported ground. Duke keeps holding the
 object, so you can reverse away from the obstruction. Existing floating objects
 in older saves are not repositioned.
 
-Known movement limitation: after moving the alley dumpster beneath low overhead
-clearance and climbing onto it, Duke can be forced to crouch and unable to walk
-off its edge. The separate D08L1 locomotion job tracks this; it does not change
-the object's push limits.
+The first-level alley dumpster stops short of the ladder platform, at the
+position recorded in the reference slot 7, leaving room for the ladder approach.
+You can reverse while keeping your grip. Original floor restrictions on starting
+a new grab still apply. Older saves with it closer to the ladder keep their
+position and permit movement away from the limit while held. Modern standing and crouched walks can leave the
+dumpster's edge (D08L1).
 
 Some pushable objects are fixed in place where the level puts them, as in the
 original, for example a street dumpster in level 5 (debug console numbering),

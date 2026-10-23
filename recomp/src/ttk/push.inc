@@ -145,6 +145,18 @@ static bool push_bounds(uint32_t object,PushBounds& b) {
     b={x+int32_t(std::lround(x0)),x+int32_t(std::lround(x1)),y+box[1],y+box[5],z+int32_t(std::lround(z0)),z+int32_t(std::lround(z1))};
     return true;
 }
+// D08T5: LEVEL00 alley dumpster. The user's reference save (UI slot 7,
+// 2026-10-23) places its centre at (7292,-9728,13829), yaw 2048.
+// Authenticate the overlay and placed object's lane, not its RAM address.
+// Clamp only travel toward the ladder. Older saves beyond the limit can retreat.
+static int push_ladder_limit(uint32_t object,int dx) {
+    if(dx<=0 || !first_map() || psx_mod_read_half(object+0x2c)!=165 ||
+       int32_t(psx_mod_read_word(object+8))!=-9728 ||
+       int32_t(psx_mod_read_word(object+12))!=13829 ||
+       (psx_mod_read_half(object+0x1c)&4095)!=2048)return dx;
+    const int64_t remaining=7292-int64_t(int32_t(psx_mod_read_word(object+4)));
+    return int(std::max<int64_t>(0,std::min<int64_t>(dx,remaining)));
+}
 static bool push_step_clear(CPUState* cpu,uint32_t object,int dx,int dz) {
     PushBounds b;if(!push_bounds(object,b))return false;
     const HullState saved=hull_save();const uint32_t feet=psx_mod_read_word(player+0x1c8);
@@ -275,7 +287,10 @@ static void push_manual_dispatch(CPUState* cpu,uint32_t ra) {
     const int amount=std::max(1,ticks*3);
     int moved=0;
     while(moved<amount) {
-        const int step=std::min(16,amount-moved)*sign,dx=(axis&1)?step:0,dz=(axis&1)?0:step;
+        int step=std::min(16,amount-moved)*sign;
+        if(axis&1)step=push_ladder_limit(push_manual_object,step);
+        if(!step){++push_manual_blocks;break;}
+        const int dx=(axis&1)?step:0,dz=(axis&1)?0:step;
         if(!push_step_clear(cpu,push_manual_object,dx,dz)){++push_manual_blocks;break;}
         for(uint32_t object:{player,push_manual_object}) {
             psx_mod_write_word(object+4,psx_mod_read_word(object+4)+dx);

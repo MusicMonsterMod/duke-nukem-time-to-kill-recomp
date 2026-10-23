@@ -1,5 +1,35 @@
 # Next-session handoff
 
+## 2026-10-24 - D08T5 accepted and closed
+
+User: "lock it in!! close us out". D08T5 is Done: the dumpster stops at slot 7's
+X 7292 reference position. Prior build/native/live evidence and existing grab-floor
+restrictions are retained in [note 210](210-d08t5-dumpster-limit.md).
+Accepted executable: `bf634052fc9cf7758e08474d8c1f87d73d7b259a00e8a9e9cf36f70a9d397459`.
+No gameplay edits or rebuild after acceptance. Runtime patch re-exported unchanged
+and verified against the clean pin (51 files match). Implementation, tests,
+manual and evidence included in authorized MusicMonsterMod closeout.
+No next job started. Launch: `python3 recomp/tools/local/run.py`; automatic capture.
+
+Candidate history below predates acceptance.
+
+
+## 2026-10-23 - D08T5 dumpster ladder limit (Needs playtest)
+
+User selected a new job and authorized immediate work. Current UI slot 7's
+LEVEL00 dumpster centre is (7292,-9728,13829); Modern push now stops at X 7292,
+1126 units before the former boundary. Held reverse and exact return verified;
+other pushable support/collision checks and Vanilla retained. Native suites pass.
+Real-input slot-7 approach catches the ladder and reaches climbing animation 187.
+
+Existing west-side regrab refusal reproduces on both baseline and candidate:
+that floor's original grab bit is clear. No new floor-rule exemption added.
+Final spacing/ladder feel awaits user playtest. See [note 210](210-d08t5-dumpster-limit.md).
+Candidate: `bf634052fc9cf7758e08474d8c1f87d73d7b259a00e8a9e9cf36f70a9d397459`.
+All 36 intake source save files unchanged. No framework changes, commit/push or
+acceptance closeout. Launch: `python3 recomp/tools/local/run.py`; automatic capture.
+
+
 ## 2026-10-23 - D08L1 accepted and closed
 
 User: "it's definitely working. i'm happy to accept this lock it in and close it out".

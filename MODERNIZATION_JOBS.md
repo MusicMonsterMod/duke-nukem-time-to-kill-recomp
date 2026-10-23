@@ -1,5 +1,7 @@
 # Time to Kill — modernization jobs
 
+**Latest accepted job (2026-10-24): D08T5 alley dumpster ladder limit is Done. Slot 7's X 7292 is the maximum push toward the ladder. [Note 210](documentation/210-d08t5-dumpster-limit.md).**
+
 **Latest accepted job (2026-10-23): D08L1 walking and crouched walk-offs is Done. Executable `8de27e4cae38b5053c5b456c3fc60ef96a2d2a46df4630dbb7309a8c01a63097` is the accepted baseline. [Note 209](documentation/209-d08l1-walk-offs.md).**
 
 
@@ -148,6 +150,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08U1 | Ladder that cannot be descended with E (player slot 12), systemic ladder-top coverage | Accepted | D08U, D22B |
 | D08U2 | Enemy standing at a ladder top blocks the climb-off: Duke should push it back (player slot 5) | Accepted | D08U, D08J |
 | D08T3 | Free manual push and pull while holding Grab (no fixed-size shoves) | Done (user-accepted 2026-10-23) | D08T2 |
+| D08T5 | Alley dumpster push limit at the slot-7 reference position | Done (user-accepted 2026-10-24) | D08T3 |
 | D08T4 | Save slot 10 dumpster: the grab prompt shows but it will not move; find out whether it is meant to be fixed (Vanilla check) | Done (user-accepted 2026-10-20; fixed by design, no prompt there now) | D08T2 |
 | D08V | Sewer mantle/hang modern-control coverage (slot 12 area) | Done | D08, D08B |
 | D08W | Subway shallow-water sideways jumps (A/D + Space jumps forward) | Done | D08, D08C |
@@ -4660,6 +4663,38 @@ Executable `810c815782bce5874332bd762d9e69c66de4fe2e15ef4b9bc0b5a829a5a27df4`,
 another winner". Executable
 `810c815782bce5874332bd762d9e69c66de4fe2e15ef4b9bc0b5a829a5a27df4` is the
 regression baseline.
+
+### D08T5 - Alley dumpster ladder approach limit
+
+**Done - user-accepted 2026-10-24.** User: "lock it in!! close us out".
+The candidate is accepted with its recorded existing floor-based regrab rules
+and bounded route coverage. Implementation and documentation closeout authorized.
+No further gameplay edits or rebuild. Candidate history below is retained.
+
+**Needs playtest - candidate 2026-10-23.** Exact slot-7 limit X 7292 implemented.
+Build/native suites pass; live held stop, reverse, return, saved position and
+slot-9 edge regression checked. Real-input slot-7 route attaches to the ladder
+and reaches climbing animation 187. Regrab from the west-side floor is refused
+in both baseline and candidate by the existing floor permission rule; position
+persistence is not a successful regrab test. Final spacing/ladder feel awaits
+user acceptance. [Note 210](documentation/210-d08t5-dumpster-limit.md).
+
+**Selected 2026-10-23.** User explicitly requested investigation,
+backlog creation and implementation in this session.
+
+Load a private copy of current UI slot 7 and record the alley dumpster's saved
+position. In Modernized, use that point as the furthest permitted push toward
+the ladder so a ladder approach does not put Duke onto the dumpster under the
+platform. Scope to the authenticated level and this dumpster; preserve free
+pulling away, other pushables, collision/support checks and Vanilla.
+
+**Acceptance:** measure and visually inspect slot 7; sustained pushing stops at
+its reference boundary without drift, release/regrab and save/load preserve the
+limit, and reverse works. Verify the ladder approach in gameplay; retain existing
+block edge/collision and crouched walk-off behavior. Already beyond-limit saves
+must allow retreat without an unsolicited relocation. Build/native regressions
+and private live tests; user playtest for final ladder feel. No commit or push
+without explicit closeout instruction.
 
 ### D08T3 - Free manual push and pull while holding Grab
 
@@ -17113,4 +17148,27 @@ that acceptance gap without changing the historical test record. Accepted execut
 remains `8de27e4cae38b5053c5b456c3fc60ef96a2d2a46df4630dbb7309a8c01a63097`.
 No new gameplay change or rebuild. Authored implementation, native regressions,
 manual and evidence are included in the authorized MusicMonsterMod closeout.
+No next job started.
+
+
+## 2026-10-23 - D08T5 dumpster ladder limit candidate
+
+User requested a new job and immediate implementation using current UI slot 7.
+Private reference: LEVEL00 type 165 at (7292,-9728,13829), yaw 2048. Modern push
+now stops at that exact X while preserving held reverse and all existing
+collision/support checks. No relocation of older saves or Vanilla change.
+Build, controls/input/aim suites and private gameplay checks pass for the bound;
+slot-7 approach catches the ladder. Existing floor-gated west-side regrab refusal
+reproduces on accepted baseline and candidate. Final user review remains;
+D08T5 is Needs playtest. [Note 210](documentation/210-d08t5-dumpster-limit.md).
+No framework edits, player save writes, commit or push.
+
+
+## 2026-10-24 - D08T5 accepted and closed
+
+User: "lock it in!! close us out". D08T5 is Done; the slot-7 dumpster limit
+candidate is accepted. No gameplay changes or rebuild after acceptance.
+Authored implementation, native regressions, manual and evidence included in
+MusicMonsterMod closeout. Existing grab-floor restrictions and automation limits
+remain explicit in [note 210](documentation/210-d08t5-dumpster-limit.md).
 No next job started.

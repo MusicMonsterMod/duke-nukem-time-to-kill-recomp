@@ -452,6 +452,26 @@ int main(int argc,char** argv) {
             ttk::input.move_x=-mx;ttk::input.move_y=-my;move();
             assert(int32_t(psx_mod_read_word(object+4))==stopped-direction*30);
             psx_mod_write_word(0x800da454,saved_rooms);psx_mod_write_word(0x800da47c,saved_count);
+            // D08T5: slot-7 boundary is exact even for a partial final step.
+            // Old saves beyond it can retreat; another lane/type is unaffected.
+            const uint32_t oy=psx_mod_read_word(object+8),oz=psx_mod_read_word(object+12);
+            const uint16_t angle=psx_mod_read_half(object+0x1c);
+            psx_mod_write_word(p+0x220,0);
+            psx_mod_write_word(object+8,uint32_t(-9728));psx_mod_write_word(object+12,13829);
+            psx_mod_write_half(object+0x1c,2048);
+            ttk::input.move_x=mx*direction;ttk::input.move_y=my*direction;
+            psx_mod_write_word(object+4,7287);move();assert(psx_mod_read_word(object+4)==7292);
+            move();move();assert(psx_mod_read_word(object+4)==7292);
+            ttk::input.move_x=-mx*direction;ttk::input.move_y=-my*direction;
+            move();assert(psx_mod_read_word(object+4)==7262);
+            psx_mod_write_word(object+4,8418);move();assert(psx_mod_read_word(object+4)==8388);
+            ttk::input.move_x=mx*direction;ttk::input.move_y=my*direction;
+            move();assert(psx_mod_read_word(object+4)==8388);
+            psx_mod_write_word(object+12,2000);move();assert(psx_mod_read_word(object+4)==8418);
+            psx_mod_write_word(object+12,13829);psx_mod_write_half(object+0x2c,924);
+            move();assert(psx_mod_read_word(object+4)==8448);psx_mod_write_half(object+0x2c,165);
+            psx_mod_write_word(object+8,oy);psx_mod_write_word(object+12,oz);psx_mod_write_half(object+0x1c,angle);
+            std::puts("PASS: D08T5 exact alley limit, held stop, retreat from old save, other lane/type");
             psx_mod_write_word(p+0x220,0);psx_mod_write_word(object+4,x0);
             psx_mod_write_half(p+0x60,120);++ttk::input.epoch;ttk::grab_owns=false;prepare();
             assert(psx_mod_read_half(p+0x60)==121); // capture/pause epoch must end the old clip

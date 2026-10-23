@@ -6,8 +6,9 @@
 // crouch probe asks the same questions of the same original queries with a
 // 0x2c0 (704) hull, about the standing margin:
 // clearance, the head ray at crouch height, a slope check (0x80077438), the
-// object probe (0x800780b4), no step up over 0x100 and no drop over 0x100 (a
-// crouched Duke stops at edges rather than falling). Objects as the original
+// object probe (0x800780b4), no step up over 0x100. The debug mover stops
+// at drops over 0x100; D08L1 lets the gameplay mover start an original fall.
+// Objects as the original
 // judges them (D08K7, crouch_floor). Stand-up (crouch.inc) needs 0x370 over the
 // floor Duke is on.
 // The test mover below is debug-only (backtick console "crouchwalk"); D08K4
@@ -100,7 +101,7 @@ static HullBlock crouch_floor(CPUState* cpu,HullScratch& scratch,int32_t dx,int3
 // Judge a step of (dx, dz) from Duke's position with the crouch hull. On
 // success step_y is the floor change (positive = down) and the player fields
 // describe the destination, as after an original accepted probe.
-static HullBlock crouch_probe(CPUState* cpu,int32_t dx,int32_t dz,int32_t& step_y,int32_t hull=crouch_hull) {
+static HullBlock crouch_probe(CPUState* cpu,int32_t dx,int32_t dz,int32_t& step_y,int32_t hull=crouch_hull,bool allow_drop=false) {
     ++hull_probes;
     const int32_t x=int32_t(psx_mod_read_word(player+4)),z=int32_t(psx_mod_read_word(player+0xc));
     const int32_t feet=int32_t(psx_mod_read_word(player+0x1c8));
@@ -110,13 +111,17 @@ static HullBlock crouch_probe(CPUState* cpu,int32_t dx,int32_t dz,int32_t& step_
     auto judge=[&](int32_t ax,int32_t az,int32_t& step) {
         int32_t headroom=0;
         const HullBlock b=crouch_floor(cpu,scratch,ax,az,step,headroom);
-        return b!=hull_clear ? b : headroom<hull ? hull_low : step<-crouch_step_up ? hull_wall : step>crouch_step_down ? hull_edge : hull_clear;
+        // A walk-off crosses at the current feet height, not at the floor
+        // below. Check clearance above that height even when the floor drops.
+        const int32_t clearance=allow_drop && step>crouch_step_down ? headroom-step : headroom;
+        return b!=hull_clear ? b : clearance<hull ? hull_low : step<-crouch_step_up ? hull_wall :
+            (!allow_drop && step>crouch_step_down) ? hull_edge : hull_clear;
     };
     // D08K7: first the point 0x8007926c judges, Duke's radius-based look-ahead
     // (+0xb0 * 275 >> 12, built by 0x80073b7c) along the step, so the crouch
-    // stops as far from ledges, walls and objects as the standing walk does
-    // (on the slot 10 dumpster it walked about 300 units further, over the
-    // drop); then the step itself for the height.
+    // checks walls and objects at the original standing-walk radius. D08L1
+    // permits the floor to drop there, but starts falling only when the
+    // actual destination loses support; then the step itself for the height.
     int32_t step=0;
     if(dx || dz) {
         const double len=std::hypot(double(dx),double(dz));
@@ -126,7 +131,7 @@ static HullBlock crouch_probe(CPUState* cpu,int32_t dx,int32_t dz,int32_t& step_
     if(const HullBlock b=judge(dx,dz,step); b!=hull_clear) return fail(b);
     // Head ray at crouch height, from here to there (0x8007926c uses 0x370).
     int32_t hit=0;
-    const uint32_t from=scratch.point(0,x,feet-hull,z),to=scratch.point(1,x+dx,feet+step-hull,z+dz);
+    const uint32_t from=scratch.point(0,x,feet-hull,z),to=scratch.point(1,x+dx,feet+(allow_drop && step>crouch_step_down?0:step)-hull,z+dz);
     if(!original_call(cpu,0x800774cc,from,&hit,to)) return fail(hull_failed);
     if(hit) return fail(hull_ray);
     if(step<0) {

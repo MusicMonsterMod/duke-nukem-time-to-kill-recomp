@@ -24,7 +24,7 @@ static bool terrain_step_probe(CPUState* cpu) {
        (psx_mod_read_word(player+0x20c) && !grounded_water_modern()))return false;
     int32_t result=0,floor=0;
     return terrain_probe(cpu,0x8007926c,movement(view_yaw(),f.move_x,f.move_y),result,floor) &&
-        result==6 && floor>256 && floor<=768;
+        result==6 && floor>256;
 }
 static void terrain_update(CPUState* cpu) {
     const auto& f=input_snapshot(Context::Gameplay);
@@ -40,13 +40,13 @@ static void terrain_update(CPUState* cpu) {
     if(small_landing) {landing_until=f.sequence+12;landing_epoch=f.epoch;}
     if(short_fall && animation!=108 && animation!=105)short_fall=fall_velocity_pending=false;
     if(delayed_takeoff && animation!=98)delayed_takeoff=false;
-    // D08L: a run off a larger ledge (only the original run dispatcher falls
-    // there; walking stops at the edge) keeps the same lease when the fall
+    // D08L/D08L1: run-offs and walk-offs from larger ledges keep the lease
+    // (the dispatcher uses the original run fall path at walking speed). The fall
     // directly follows a ground stride, so it departs at running speed, not
     // the original fall initializer's 3058. Capped below a running jump's
     // 10085 and without its upward impulse, so it never outreaches a jump.
     const int32_t drop=(int32_t)psx_mod_read_word(player+0x1c4);
-    const bool run_off=drop>768 && input_running() && previous>=72 && previous<=79;
+    const bool run_off=drop>768 && previous>=72 && previous<=79;
     if(std::getenv("DNTTK_TRAVERSAL_TRACE") && animation==108 && !short_fall)
         std::fprintf(stderr,"ttk-runoff seq=%llu drop=%d run=%d previous=%u had=%d gap=%lld\n",(unsigned long long)f.sequence,drop,input_running(),
             previous,had_movement,(long long)(f.sequence-movement_frame));

@@ -67,7 +67,7 @@ static int clearance_result=2048;
 static uint32_t hull_object;static int hull_ray_hit,hull_steep;static std::vector<int32_t> hull_ray_y;   // D08K2
 static int32_t hull_object_top;   // D08K7: the step 0x80077748 reports onto the contact's top
 static int ladder_end_result=0;static unsigned ladder_end_calls;
-static unsigned kicks, edge_launches;
+static unsigned kicks, edge_launches, crouch_falls;
 static bool terrain_nested_hook;static unsigned terrain_nested_calls;
 static int terrain_result=3,terrain_floor=-1000;
 static uint32_t terrain_reference;
@@ -92,6 +92,11 @@ static unsigned overclock_renewals;extern "C" void psx_overclock_renew(void){++o
 // normal (jw_nx, 0, jw_nz) for its first `jw_hits` calls, then a clear path.
 static int jw_result,jw_hits,jw_sweeps;static int32_t jw_nx,jw_nz;
 extern "C" void psx_dispatch_call(CPUState* cpu,uint32_t address,uint32_t) {
+    if(address==0x8003f060) {
+        assert(cpu->gpr[4]==0x800d7198 && cpu->gpr[5]==1);++crouch_falls;
+        psx_mod_write_half(0x800d7198+0x60,108);psx_mod_write_byte(0x800d7198+0x22c,9);
+        psx_mod_write_word(0x800d7198+0x1f8,0);cpu->pc=0;return;
+    }
     if(address==0x80095cb0) {cpu->pc=0;return;} // D08T3 room membership
     if(address==0x8007a98c) {
         const bool hit=++jw_sweeps<=jw_hits;
@@ -2038,6 +2043,52 @@ int main(int argc,char** argv) {
     psx_mod_write_word(c+0x64,0);psx_mod_write_word(c+0x68,0);psx_mod_write_word(c+0x6c,10);
     ++ttk::input.epoch;ttk::input.distance_total=0;++ttk::input.sequence;call(0x8003ade4,c,p,0x80025ee8);
     assert(metric("\"preferred_radius\":")==6144); // solved wall boom cannot become preference
+    // D08L1: real crouch mover crosses only a collision-checked drop, keeps
+    // departure feet height and starts original falling without upward speed.
+    {
+        const auto saved=ttk::input;
+        const uint32_t saved_x=psx_mod_read_word(p+4),saved_z=psx_mod_read_word(p+12);
+        for(int reject=0;reject<6;++reject) {
+            ttk::input=saved;ttk::input.active=true;ttk::input.move_x=0;ttk::input.move_y=1;
+            ttk::input.held[ttk::crouch]=false;ttk::input.held[ttk::interact]=false;
+            ttk::input.held[ttk::original_aim]=false;
+            psx_mod_write_word(p,0);psx_mod_write_word(p+0x224,0);psx_mod_write_word(p+0x20c,0);
+            psx_mod_write_word(p+0x834,0x40000000);psx_mod_write_half(p+0x60,63);
+            psx_mod_write_byte(p+0x22c,0);psx_mod_write_byte(p+0x22d,0);
+            psx_mod_write_half(p+0xba,11);psx_mod_write_word(p+0x1c8,uint32_t(-1000));
+            psx_mod_write_word(p+8,uint32_t(-1282));
+            lookahead_drop=0;clearance_result=2048;hull_object=0;hull_ray_hit=0;
+            call(0x8003ade4,c,p,0x80025ee8);
+            call(0x8005a210,p,0x800c2754,0x80041b34,0x801ff000);
+            ttk::input.held[ttk::crouch]=reject!=5;landing_clips=true;
+            if(reject==5) { // native forced kneel, no modern crouch request
+                psx_mod_write_half(p+0x60,178);clearance_result=0x2e0;ttk::input.move_y=0;
+            }
+            call(0x8005a210,p,0x800c2754,0x80041b34,0x801ff000);
+            if(reject==5){assert(ttk::crouch_walk_input_ready());ttk::input.held[ttk::crouch]=true;}
+            ttk::input.move_y=1;
+            psx_mod_write_half(p+0x60,178);
+            lookahead_drop=1024;clearance_result=1024+0x2e0;hull_ray_y.clear();
+            if(reject==1)clearance_result=1024+0x2b0; // room below fits, departure does not
+            if(reject==2)hull_ray_hit=1;
+            if(reject==3)lookahead_drop=-384;
+            if(reject==4){lookahead_drop=-65536;clearance_result=0xffff;}
+            const auto before=crouch_falls;const auto feet=psx_mod_read_word(p+0x1c8);
+            call(0x8005a210,p,0x800c2754,0x80041b34,0x801ff000);
+            assert(crouch_falls==before+(reject==0 || reject==5));
+            assert(psx_mod_read_word(p+0x1c8)==feet);
+            if(reject==0 || reject==5) {
+                assert(psx_mod_read_half(p+0x60)==108 && psx_mod_read_byte(p+0x22c)==9);
+                assert(psx_mod_read_word(p+0x1f8)==0 && !ttk::crouch_walk_input_ready());
+                assert(hull_ray_y.size()==2 && hull_ray_y[0]==hull_ray_y[1]);
+            }
+        }
+        landing_clips=false;hull_ray_hit=0;lookahead_drop=-100000;clearance_result=2048;
+        ttk::input=saved;psx_mod_write_half(p+0x60,63);psx_mod_write_byte(p+0x22c,0);
+        psx_mod_write_half(p+0xba,0);
+        psx_mod_write_word(p+4,saved_x);psx_mod_write_word(p+12,saved_z);
+        std::puts("PASS: D08L1 crouch walk-off uses original fall; departure clearance, wall ray, tall step and missing-floor refusals");
+    }
     // D10 recenter: V swings yaw behind Duke's heading and pitch to the first
     // (original) follow pitch; mouse motion cancels a swing. Shoulder offsets
     // only the requested eye along the view's right row before the original solve.
@@ -2881,7 +2932,7 @@ int main(int argc,char** argv) {
         terrain_result=check.first;terrain_floor=check.second;
         psx_mod_write_word(p+0x1c4,123);
         call(0x80048410,p,0,0x8004b634,0x801fff00);
-        assert(psx_mod_read_half(p+0x60)==(check.first==6 && check.second==384?76:72));
+        assert(psx_mod_read_half(p+0x60)==(check.first==6 && check.second>256?76:72));
         assert(psx_mod_read_word(p+0x1c4)==123);
     }
     for(int height:{384,900}) {
@@ -2905,14 +2956,14 @@ int main(int argc,char** argv) {
         ttk::input.active=false;assert(!ttk::short_fall_input_ready());ttk::input.active=true;
         psx_mod_write_half(p+0x60,74);psx_mod_write_byte(p+0x22c,0);psx_mod_write_byte(p+0x22d,0);
         call(0x8005a210,p,0x800c2754,0x80041b34,0x801fff00);
-        // A later large fall must not inherit an old furniture landing lease.
+        // D08L1: a later walking ground stride also permits a large walk-off.
         psx_mod_write_half(p+0x60,108);psx_mod_write_byte(p+0x22c,9);psx_mod_write_byte(p+0x22d,9);
         psx_mod_write_word(p+0x1c4,900);
         call(0x8005a210,p,0x800c2754,0x80041b34,0x801fff00);
-        call(0x8003ade4,c,p,0x80025ee8);assert(!ttk::short_fall_input_ready());
+        call(0x8003ade4,c,p,0x80025ee8);assert(ttk::short_fall_input_ready());
     }
     // A running furniture fall inherits actual ground speed, once. Original
-    // collision can subsequently stop it, and large falls never receive it.
+    // collision can subsequently stop it; the velocity is never reinjected.
     ground();ttk::input.move_x=0;ttk::input.move_y=1;ttk::running=true;
     psx_mod_write_half(p+0x60,76);psx_mod_write_half(p+0xba,11);
     psx_mod_write_half(p+0xfc,0);psx_mod_write_half(p+0x100,88);
@@ -2928,8 +2979,8 @@ int main(int argc,char** argv) {
     psx_mod_write_half(p+0xba,0);ttk::running=false;
     std::puts("PASS: ascending clearance reference, retained vertical impulse, bounded small drops and expired landing lease");
     // D08L: running off a larger ledge straight from a ground stride departs
-    // at ground speed, capped below the running jump. Walking and a fall that
-    // follows a jump (103) keep the original 3058.
+    // at ground speed, capped below the running jump. D08L1 caps a walking
+    // departure at 2048; a fall following a jump (103) keeps original 3058.
     for(int variant=0;variant<4;++variant) {
         ground();ttk::input.move_x=0;ttk::input.move_y=1;ttk::running=variant!=1;
         psx_mod_write_half(p+0x60,76);psx_mod_write_half(p+0xba,11);
@@ -2947,6 +2998,7 @@ int main(int argc,char** argv) {
         const auto vz=(int32_t)psx_mod_read_word(p+0x1fc),vx=(int32_t)psx_mod_read_word(p+0x1f4);
         if(variant==0)assert(std::abs(vz-run_off)<2 && vx==0);
         else if(variant==3)assert(run_off>10000 && vz==10000);
+        else if(variant==1)assert(vx==0 && vz==2048);
         else assert(vx==3058 && vz==0);
         assert(psx_mod_read_word(p+0x1f8)==456);
         psx_mod_write_word(p+0x1fc,0);call(0x8003ebf4,p,0,0x80055934);assert(psx_mod_read_word(p+0x1fc)==0);
@@ -2966,7 +3018,7 @@ int main(int argc,char** argv) {
     psx_mod_write_half(p+0x60,74);psx_mod_write_byte(p+0x22c,0);psx_mod_write_byte(p+0x22d,0);
     call(0x8005a210,p,0x800c2754,0x80041b34,0x801fff00);
     psx_mod_write_half(p+0xba,0);ttk::running=false;
-    std::puts("PASS: running large-ledge run-off keeps capped ground speed; walking and post-jump falls unchanged; spiked strides capped");
+    std::puts("PASS: running large-ledge run-off keeps capped ground speed; walking capped at 2048 and post-jump falls unchanged; spiked strides capped");
     terrain_result=3;terrain_floor=-1000;
     // Original grant dispatch, flags, unsupported-context rejection, and
     // hostile-only hide/show ownership. Guest routines are modeled separately.

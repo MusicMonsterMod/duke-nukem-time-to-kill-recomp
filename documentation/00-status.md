@@ -1,5 +1,45 @@
 # Current status - 2026-10-04
 
+## 2026-10-23 - D08L1 accepted and closed
+
+User: "it's definitely working. i'm happy to accept this lock it in and close it out".
+D08L1 is Done: user gameplay confirmation closes the remaining forced-crouch
+walk-off acceptance. Native/live tests, Vanilla comparison and unchanged object
+edge restrictions are recorded in [note 209](209-d08l1-walk-offs.md). Automated
+tests did not reproduce the exact slot-12 climb; that limitation remains recorded.
+
+Accepted executable: `8de27e4cae38b5053c5b456c3fc60ef96a2d2a46df4630dbb7309a8c01a63097`.
+No gameplay changes or rebuild after acceptance. Authored implementation, tests,
+manual and evidence are included in the authorized MusicMonsterMod closeout.
+No next job started. Launch: `python3 recomp/tools/local/run.py`; automatic capture.
+
+Candidate history below predates this acceptance.
+
+
+## 2026-10-23 - D08L1 walk-offs candidate (Needs playtest)
+
+Standing walks now use the original fall path for larger drops at walking speed.
+Modern crouch walking permits collision-checked departures and hands support loss
+to the original fall, without snapping down to the floor. Native/loaded forced
+kneels can acquire Modern crouch ownership; stand-up still checks clearance.
+
+Build and controls/input/aim suites pass, including all 21 level guards. Accepted
+binary comparisons reproduce standing/crouched platform stops and the crouched
+bed-edge stop; candidate third-person 60 FPS and first-person 120 FPS routes fall
+and land. Slot 9's block still stops at X 8700 and reverses; slot 12's dumpster
+still stops at X 8418. All 15 checked player save/sidecar/thumbnail hashes match.
+
+**Primary acceptance remains unverified:** real-input front/side approaches did
+not complete the slot-12 mantle. Separate diagnostic top placements fall, but
+do not establish the actual forced-crouch escape or ceiling-safe appearance.
+The user confirmed they mantled onto it; gameplay acceptance is still needed. Do not mark Done or claim the exact
+softlock resolved. See [note 209](209-d08l1-walk-offs.md) for evidence and limits.
+
+Candidate: `8de27e4cae38b5053c5b456c3fc60ef96a2d2a46df4630dbb7309a8c01a63097`.
+No framework/pin, media or player-settings edits; no acceptance closeout, commit
+or push. Launch: `python3 recomp/tools/local/run.py`; automatic capture.
+
+
 ## 2026-10-23 - D08T3 accepted and closed; D08L1 Todo
 
 User accepted Free Push after final testing of slots 9-12 and explicitly

@@ -196,15 +196,38 @@ static void crouch_walk_update(CPUState* cpu,bool landed=false) {
         const double step_len=crouch_walk_step()*mag;
         int32_t dx=int32_t(std::lround(dir.x*step_len)),dz=int32_t(std::lround(dir.z*step_len));
         int32_t step=0,mx=dx,mz=dz;
-        HullBlock b=crouch_probe(cpu,dx,dz,step);
+        HullBlock b=crouch_probe(cpu,dx,dz,step,crouch_hull,true);
         if(b!=hull_clear && dx && dz) {
-            mx=dx;mz=0;b=crouch_probe(cpu,mx,mz,step);
-            if(b!=hull_clear) {mx=0;mz=dz;b=crouch_probe(cpu,mx,mz,step);}
+            mx=dx;mz=0;b=crouch_probe(cpu,mx,mz,step,crouch_hull,true);
+            if(b!=hull_clear) {mx=0;mz=dz;b=crouch_probe(cpu,mx,mz,step,crouch_hull,true);}
         }
         double moved=0;
         if(b==hull_clear) {
             psx_mod_write_word(player+4,psx_mod_read_word(player+4)+uint32_t(mx));
             psx_mod_write_word(player+0xc,psx_mod_read_word(player+0xc)+uint32_t(mz));
+            if(step>crouch_step_down && (mx || mz)) {
+                // The destination lost support. Keep the departure height and
+                // let the original fall own gravity, swept collision and landing.
+                // Never snap down to the probed floor or launch a jump.
+                crouch_walk_release();
+                if(original_call(cpu,0x8003f060,1)) {
+                    const unsigned dt=psx_mod_read_half(player+0xba);
+                    const double speed=dt ? std::min(2048.0,std::hypot(double(mx),double(mz))*1024.0/dt) : 0;
+                    const double len=std::hypot(double(mx),double(mz));
+                    psx_mod_write_word(player+0x1f4,int32_t(std::lround(mx*speed/len)));
+                    psx_mod_write_word(player+0x1fc,int32_t(std::lround(mz*speed/len)));
+                    crouch_owned=crouch_stand_pending=false;
+                    crouch_walk_owning.store(false);crouch_walk_clip=0;crouch_pose_valid=false;
+                    crouch_display_mask=crouch_transition_mask=0;crouch_fire_weight=0;
+                    ++hull_moves;
+                    return;
+                }
+                // Guest calls may be unavailable during a precise replay.
+                psx_mod_write_word(player+4,psx_mod_read_word(player+4)-uint32_t(mx));
+                psx_mod_write_word(player+0xc,psx_mod_read_word(player+0xc)-uint32_t(mz));
+                ++crouch_walk_blocked;
+                return;
+            }
             psx_mod_write_word(player+0x1c8,psx_mod_read_word(player+0x1c8)+uint32_t(step));
             moved=std::hypot(double(mx),double(mz));
             ++hull_moves;

@@ -7,6 +7,7 @@ static unsigned crouch_entries,crouch_exits,crouch_blocked;
 // yet allowed. crouch_walk.inc keeps the directions (never the original roll)
 // and stance_request stands Duke as soon as there is room.
 static bool crouch_stand_pending;
+static bool crouch_walk_modern();
 static bool crouch_stand_room(CPUState* cpu);   // crouch_hull.inc
 static bool crouch_pose(unsigned animation) {return animation==176 || (animation>=178 && animation<=184);}
 // D08K11: water alone does not imply swimming. Keep the original depth
@@ -46,6 +47,14 @@ static void stance_request(CPUState* cpu) {
     unsigned animation=psx_mod_read_half(player+0x60),flags=psx_mod_read_word(player+0x224);
     if(crouch_owned && !crouch_pose(animation))crouch_owned=false;
     bool held=f.active && f.held[crouch];
+    // D08L1: a native low-clearance mantle (or a save of that stance) can
+    // deliver 178 without a host crouch request. Adopt that grounded stance
+    // so forced crouching can walk out instead of using the original rolls.
+    uint32_t crouch_first=0,crouch_count=0;
+    if(!crouch_owned && animation==178 && f.active && independent_camera() &&
+       input_modernized() && crouch_walk_modern() && !(flags&0x200002c5) &&
+       !f.held[original_aim] && !f.held[interact] &&
+       ttk::anim_extra_clip(1,crouch_first,crouch_count) && crouch_count>=2)crouch_owned=true;
     if(held && !crouch_owned && movement_ready() && !(flags&0x200002c5) && !f.held[original_aim] && !f.held[interact]) {
         psx_mod_write_half(player+0x60,176);psx_mod_write_half(player+0x68,0);psx_mod_write_half(player+0x6a,0);
         crouch_owned=true;++crouch_entries;

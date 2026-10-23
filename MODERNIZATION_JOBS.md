@@ -1,5 +1,7 @@
 # Time to Kill — modernization jobs
 
+**Latest accepted job (2026-10-23): D08L1 walking and crouched walk-offs is Done. Executable `8de27e4cae38b5053c5b456c3fc60ef96a2d2a46df4630dbb7309a8c01a63097` is the accepted baseline. [Note 209](documentation/209-d08l1-walk-offs.md).**
+
 
 **Latest accepted job (2026-10-23): D08T3 Free Push is Done. Executable `1e6c1004a8d32da3758035c3eca3a90de66de3971ade2a5e4c27731738c3c118` is the accepted baseline. New Todo: D08L1, walking/crouch-walking off ledges. [Note 208](documentation/208-d08t3-manual-push-pull.md).**
 
@@ -114,7 +116,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08K10 | First-person crouched weapon and arm alignment: knife, axe, dynamite, Holy Hand Grenade and crossbow match their standing view when crouched (standing is the baseline) | Done (user-accepted 2026-10-22) | D12, D08K6, D08K8 |
 | D08K11 | Enable Modern Crouching and Crouch-Walking in Shallow Water (slot 10 flooded subway; crouch behaviour refinement) | Done | D08K2, D08K4, D08K7, D08K8, D08AA, D08AB |
 | D08L | Inertial platform edge run-off | Done | D08 |
-| D08L1 | Modern locomotion - allow walking and crouch-walking off ledges | Todo | D08L, D08K, D08T3 |
+| D08L1 | Modern locomotion - allow walking and crouch-walking off ledges | Done (user-accepted 2026-10-23) | D08L, D08K, D08T3 |
 | D08M | Modern underwater swimming controls (foundation) | Done | D08 |
 | D08O | Deep free-swim polish (strafe, Ctrl dive, mantle-only exit) | Done | D08M |
 | D08O1 | Fire weapons while swimming (Modernized, game-wide; medieval UI slot 2) | Accepted | D07C, D08O, D22B |
@@ -2560,7 +2562,11 @@ no wall clipping; Vanilla unchanged.
 
 ### D08L1 - Modern locomotion - allow walking and crouch-walking off ledges
 
-**Todo - recorded 2026-10-23 at D08T3 acceptance. Do not implement until selected.**
+**Done - user-accepted 2026-10-23:** "it's definitely working. i'm happy to accept this lock it in and close it out".
+The user confirms the candidate works, closing the remaining gameplay acceptance.
+Standing/crouched bed and platform routes, native regressions, Vanilla comparison
+and pushable-object edge checks are recorded in [note 209](documentation/209-d08l1-walk-offs.md).
+Accepted executable: `8de27e4cae38b5053c5b456c3fc60ef96a2d2a46df4630dbb7309a8c01a63097`.
 
 **Objective:** Duke can walk or crouch-walk naturally off platforms, objects
 and ledges without jumping. On losing support, transition naturally to falling
@@ -17078,3 +17084,33 @@ forced-crouch trap after mantling the moved dumpster, with standing/crouched
 walk-off objectives, investigation and acceptance. No D08L1 implementation.
 Accepted gameplay executable unchanged; authored source, tests, manual and
 evidence included in closeout. No player-save or media changes.
+
+
+## 2026-10-23 - D08L1 walking/crouched walk-offs (Needs playtest)
+
+Selected by the user. The standing walk uses the existing collision-checked fall
+dispatch at walking speed for larger drops. Modern crouch movement permits a
+validated drop, checks headroom at departure height, and starts the original fall
+without snapping down to the floor. Native/loaded forced kneels can acquire the
+Modern crouch mover. Original crouch and Vanilla retain their paths.
+
+Build and controls/input/aim suites pass, including all 21 level guards. Accepted
+binary comparisons reproduce the crouched bed-edge stop and standing/crouched
+platform stops; candidate routes fall and land in third person at 60 FPS and
+first person at 120 FPS. Slot 9's pushed block still stops at X 8700 and reverses;
+slot 12's dumpster still stops at X 8418 before the ladder. Exact slot-12 climb
+and forced-crouch escape remain unverified; diagnostic top placement was tested
+separately and is not route acceptance. See note 209 for limits and evidence.
+No acceptance closeout, commit or push.
+
+
+## 2026-10-23 - D08L1 accepted and closed
+
+User: "it's definitely working. i'm happy to accept this lock it in and close it out".
+D08L1 is Done on user gameplay confirmation and the recorded native/live evidence.
+The exact slot-12 route was not reproduced by automation; user confirmation closes
+that acceptance gap without changing the historical test record. Accepted executable
+remains `8de27e4cae38b5053c5b456c3fc60ef96a2d2a46df4630dbb7309a8c01a63097`.
+No new gameplay change or rebuild. Authored implementation, native regressions,
+manual and evidence are included in the authorized MusicMonsterMod closeout.
+No next job started.

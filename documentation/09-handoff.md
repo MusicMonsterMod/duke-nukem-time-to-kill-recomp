@@ -1,5 +1,40 @@
 # Next-session handoff
 
+## 2026-10-23 - D17Y accepted and closed
+
+User confirmed both slot-8 graphical oddities are completely resolved, fully
+accepted the fix and explicitly requested "lock it in. close it out". D17Y is
+Done. The missing-animation face filter and direct open upper portal correction
+are accepted, with their authored implementation and regression tests included
+in the closeout. See [note 206](206-d17y-slot8-rendering.md) for diagnosis,
+validated build, capture matrix, native tests and coverage limits.
+
+Runtime patch re-exported unchanged and verified against the clean pinned
+framework. No new framework edits or player settings/save changes. No next
+job started; wait for the user's selection. Launch:
+`python3 recomp/tools/local/run.py`. Gameplay capture remains automatic.
+
+
+## 2026-10-23 - D17Y rendering candidate (Needs playtest)
+
+Both current slot-8 reports reproduced and corrected in focused captures.
+The fire platform was covered by missing-animation faces sampling the live
+framebuffer; Modernized now filters those faces from a private mesh copy.
+The wall strips were clipped at an open upper portal boundary; Extended draw
+distance now extends only the direct taller sky-room neighbor's top edge.
+Downstream apertures, valid flame textures and original meshes are preserved.
+
+Build and native near/controls regression suites pass. First/third-person,
+4:3/16:9, 60/120 FPS captures pass. Saved Auto was checked offscreen, where
+it resolves to 60 without a physical monitor. User playtest and physical-display
+Auto remain. See [note 206](206-d17y-slot8-rendering.md) for diagnosis, private
+save identity, executable hash, evidence and limits. Player profile and all
+39 save/card files unchanged. No framework edits, commit or push.
+
+Launch: `python3 recomp/tools/local/run.py`. Resume captures automatically;
+no F10 step. Await the user's slot-8 retest before acceptance/closeout.
+
+
 ## 2026-10-23 - D04B accepted and closed; D17Y queued
 
 User accepted D04B ("way better") and authorized the bounded follow-up and

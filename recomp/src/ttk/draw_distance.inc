@@ -69,6 +69,35 @@ static int32_t portal_margin() {
         const long n=t?std::atol(t):2;return n>=0 && n<=8 ? (int32_t)n : 2;}();
     return v;
 }
+// A full-height boundary into a taller sky room is an open upper edge.
+// Its authored portal ends at the source room ceiling, but the independent
+// camera can see the neighbour above that edge. Extend only that direct
+// neighbour's top; downstream door/window apertures remain intact.
+static bool open_upper_portal(uint32_t target) {
+    static const bool enabled=[] {const char* e=std::getenv("DNTTK_OPEN_PORTAL_TOP");return !e || std::strcmp(e,"0");}();
+    if(!enabled) return false;
+    const uint32_t table=psx_mod_read_word(0x800da454),source=psx_mod_read_word(camera+0x90);
+    if(source>=256 || target>=256 || source==target || table<0x80010000u || table>0x801fa800u || (table&3)) return false;
+    const uint32_t a=table+source*88,b=table+target*88;
+    if(!(psx_mod_read_word(b+12)&8)) return false;
+    const int32_t top=(int32_t)psx_mod_read_word(a+0x14);
+    if((int32_t)psx_mod_read_word(b+0x14)>=top) return false;
+    const unsigned count=psx_mod_read_byte(a+0x30);
+    const uint32_t portals=psx_mod_read_word(a+0x38);
+    if(!count || count>32 || portals<0x80010000u || portals>0x80200000u-count*36 || (portals&3)) return false;
+    const int32_t origin=(int32_t)psx_mod_read_word(a+4);
+    for(unsigned i=0;i<count;++i) {
+        const uint32_t p=portals+i*36;
+        if((int16_t)psx_mod_read_half(p+14)!=(int32_t)target) continue;
+        int32_t lo=INT32_MAX,hi=INT32_MIN;
+        for(unsigned j=0;j<4;++j) {
+            const int32_t y=origin+(int16_t)psx_mod_read_half(p+8*j+2);
+            lo=std::min(lo,y);hi=std::max(hi,y);
+        }
+        if(lo==top && hi>lo) return true;
+    }
+    return false;
+}
 static void widen_portals() {
     const int32_t m=portal_margin();
     const uint32_t count=psx_mod_read_word(0x800d68a8);
@@ -80,7 +109,7 @@ static void widen_portals() {
         const int32_t x=(int16_t)psx_mod_read_half(e),y=(int16_t)psx_mod_read_half(e+2);
         const int32_t w=(int16_t)psx_mod_read_half(e+4),h=(int16_t)psx_mod_read_half(e+6);
         if(w<=0 || h<=0) continue;
-        const int32_t x0=std::max(rx,x-m),y0=std::max(ry,y-m),x1=std::min(rx2,x+w+m),y1=std::min(ry2,y+h+m);
+        const int32_t x0=std::max(rx,x-m),y0=open_upper_portal(psx_mod_read_word(e+8))?ry:std::max(ry,y-m),x1=std::min(rx2,x+w+m),y1=std::min(ry2,y+h+m);
         if(x1<=x0 || y1<=y0 || (x0==x && y0==y && x1==x+w && y1==y+h)) continue;
         psx_mod_write_half(e,(uint16_t)(int16_t)x0);psx_mod_write_half(e+2,(uint16_t)(int16_t)y0);
         psx_mod_write_half(e+4,(uint16_t)(int16_t)(x1-x0));psx_mod_write_half(e+6,(uint16_t)(int16_t)(y1-y0));

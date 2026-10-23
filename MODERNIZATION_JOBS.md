@@ -209,7 +209,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D17V | Modern view bob: steady Duke 3D-style tempo instead of a sped-up walk bob when running | Done (user-accepted) | D17C |
 | D17W | Overturned minecart (player UI slot 10, level 3) shows large white untextured triangles in first person | Done (user-accepted 2026-10-20) | D11B |
 | D17X | Small white triangles on the boat's wooden posts (UI slot 6, level 6) and the grave-dig soil corners (UI slot 7, level 1) in first person | Done (user-accepted 2026-10-22) | D17W |
-| D17Y | Slot 8: fire-platform flicker and upper castle walls disappearing during a jump | Todo | D17A, D11B, D14 |
+| D17Y | Slot 8: fire-platform flicker and upper castle walls disappearing during a jump | Done | D17A, D11B, D14 |
 | D18 | FMV and audio presentation safeguards | Todo | D01, D02 |
 | D18A | Voice/music/gunfire crackle investigation | Done | D01, D02 |
 | D18B | Concurrent voice with music (no music mute) | Todo | D18, D21 |
@@ -6912,7 +6912,7 @@ rate; D17W slot 10 cart unchanged; Vanilla unchanged; the user confirms.
 
 ### D17Y - Slot 8 fire-platform flicker and jumping castle-wall disappearance
 
-**Todo (2026-10-23), backlog only. Do not start until selected.**
+**Done - user accepted and authorized closeout (2026-10-23).**
 User reported two rendering problems from their current UI save slot 8:
 
 - Load slot 8, jump and look on top of the fires to Duke's right. The
@@ -6921,11 +6921,19 @@ User reported two rendering problems from their current UI save slot 8:
   vertically. The castle walls at the top of the screen disappear during
   the jump, then return when Duke lands.
 
-Both are user reports, not reproduced or diagnosed in this session. Camera
-view, frame rate, display settings and the current save's identity must be
-recorded when selected. Slot numbers can change; use a dated private copy,
-never the player's writable save/card directory. Do not assume these share a
-cause, or that earlier sky, depth or visibility fixes explain them.
+Both routes reproduced on a private dated copy. The fire artifact came from
+animated faces using the game's empty missing-texture descriptor and sampling
+the live framebuffer; Modernized now filters those faces from a private mesh
+copy. The wall strips were clipped by the top of a direct portal into a taller
+sky-bearing room; Extended draw distance now preserves that open upper edge
+without opening downstream apertures. See [note 206](documentation/206-d17y-slot8-rendering.md).
+
+Build and native regression suites pass. First/third-person, 4:3/16:9,
+60/120 FPS jump captures pass; saved Auto also checked offscreen (60 FPS
+fallback without a physical display). User confirmed the graphical oddities are completely resolved and fully
+accepted the fix: "lock it in. close it out". Player settings/saves were
+unchanged by implementation/testing; implementation and documentation are
+included in the authorized closeout.
 
 **Acceptance:** reproduce both routes; keep the fire platform stable and the
 upper castle walls visible throughout takeoff, apex and landing. Check both
@@ -16894,3 +16902,29 @@ has vanished. Final build and focused live checks recorded in note 205.
 D17Y records the user's current slot-8 fire-platform flicker and upper castle
 wall disappearance while jumping. Backlog only: not reproduced, investigated,
 built for, or implemented. No next job started.
+
+
+## 2026-10-23 - D17Y rendering candidate (Needs playtest)
+
+Reproduced both current slot-8 reports using private save/card copies. Filtered
+missing-animation sentinel faces from private render meshes, preserving the
+valid flame and grating. Corrected only direct open upper portal boundaries
+into taller sky rooms, retaining downstream clipping. No per-level mesh IDs.
+Build, near-renderer contracts and complete controls fixture suite pass;
+first/third-person, 4:3/16:9, 60/120 FPS captures remain stable through the
+jump. Auto resolves to 60 offscreen; physical-display Auto awaits playtest.
+Details and evidence limits: [note 206](documentation/206-d17y-slot8-rendering.md).
+Player profile and all 39 save/card files unchanged. No framework edits,
+commit or push. Launch: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-23 - D17Y accepted and closed
+
+User reported: "this fix is excellent. it's completely resolved these graphical
+oddities. i fully accept. lock it in. close it out". D17Y is Done. Both the
+missing-animation face filter and direct open upper portal correction are
+accepted. Implementation, regression tests and documentation are retained in
+this closeout. Build and focused matrix evidence remain in [note 206](documentation/206-d17y-slot8-rendering.md).
+Runtime patch re-exported unchanged and checked against the clean pinned
+framework. No new framework changes or player settings/save changes. No next
+job started. Launch: `python3 recomp/tools/local/run.py`.

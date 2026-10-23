@@ -922,6 +922,54 @@ unsigned object_record_size(uint32_t type) {
         default: return 0;
     }
 }
+// D17Y: the retail texture resolver returns this zero descriptor when a
+// texture bank is absent (e.g. 0x8003cd6c). Treat animated faces referencing
+// that sentinel as absent. Otherwise their zero TPAGE/CLUT samples the live
+// framebuffer, producing opaque patches that depend on camera/draw order.
+// Filter a private mesh copy before both native and host rendering; never
+// alter the level mesh or suppress valid black/transparent texture frames.
+uint32_t missing_texture_copy;
+uint64_t missing_texture_faces;
+void filter_missing_animation(CPUState* cpu) {
+    static const bool on=env_int("DNTTK_MISSING_ANIMATION",1,0,1)!=0;
+    if(!on || !input_modernized()) return;
+    constexpr uint32_t missing=0x800c5784;
+    if(psx_mod_read_word(missing) || psx_mod_read_word(missing+4) || psx_mod_read_word(missing+8)) return;
+    const uint32_t anim=psx_mod_read_word(context+0x60),mesh=cpu->gpr[4];
+    if(anim<0x80010000u || anim>0x801ffff0u || (anim&3)) return;
+    uint32_t cursor=psx_mod_read_word(mesh+0x14);
+    std::vector<Group> groups;
+    unsigned removed=0,bytes=0;
+    for(unsigned guard=0;;++guard) {
+        if(guard>256 || cursor<0x80010000u || cursor>0x801ffffcu || (cursor&3)) return;
+        const uint32_t header=psx_mod_read_word(cursor);cursor+=4;
+        const uint32_t type=header&0xffff,n=header>>16;
+        if(type==0xff) break;
+        const unsigned size=object_record_size(type);
+        if(!size || !n || n>4096 || cursor>0x80200000u-n*size) return;
+        bytes+=4+n*size;
+        if(bytes>copy_size-0x24) return;
+        Group group{type,size,{}};
+        for(uint32_t k=0;k<n;++k,cursor+=size) {
+            bool absent=false;
+            if((type&4) && (psx_mod_read_word(cursor+8)&0x40000000u)) {
+                const uint32_t index=psx_mod_read_word(cursor+4)>>16;
+                const uint32_t entry=anim+index*16;
+                absent=entry<=0x801ffff4u && psx_mod_read_word(entry+8)==missing;
+            }
+            if(absent) ++removed; else group.kept.push_back(cursor);
+        }
+        if(!group.kept.empty()) groups.push_back(std::move(group));
+    }
+    if(!removed) return;
+    if(!missing_texture_copy) missing_texture_copy=psx_mod_alloc_guest_memory(copy_size,16);
+    if(!missing_texture_copy) return;
+    for(uint32_t i=0;i<0x18;i+=4) psx_mod_write_word(missing_texture_copy+i,psx_mod_read_word(mesh+i));
+    psx_mod_write_word(missing_texture_copy+0x14,missing_texture_copy+0x20);
+    write_list(missing_texture_copy+0x20,groups);
+    cpu->gpr[4]=missing_texture_copy;
+    missing_texture_faces+=removed;
+}
 // D17W: a model can lay two faces on the same corners (the overturned
 // minecart, level 3: a textured panel and a flat F4 on its four corners). The
 // original gives them one AVSZ slot and paints the earlier record last, so
@@ -1030,7 +1078,7 @@ void object(CPUState* cpu) {
     ++object_stats.seen;
     const unsigned count=psx_mod_read_byte(mesh+6);
     const uint32_t vertices=psx_mod_read_word(mesh+0x10),list=psx_mod_read_word(mesh+0x14);
-    if(!count || vertices<0x80010000 || vertices>0x801ffff0 || list<0x80010000 || list>0x801ffff0) return;
+    if(!count || vertices<0x80010000 || vertices>0x801ffff0 || list<0x80010000 || (list>0x801ffff0 && list!=missing_texture_copy+0x20)) return;
     Frame f{};if(!begin(f,cpu,true)) return;
     trace_begin(f,cpu);
     f.viewmodel=viewmodel;
@@ -1294,7 +1342,9 @@ void near_hook_body(CPUState* cpu,uint32_t address) {
         pgxp_mesh_register_boundary();
     }
     const bool eye=first_person_view_live();
-    if(!eye && !widescreen_near_clip_live()) return;
+    const bool clip_live=eye || widescreen_near_clip_live();
+    const bool object_filter=address==0x80010000 && input_modernized();
+    if(!clip_live && !object_filter) return;
     if(address==0x80026164) {
         // Start accounting at scene composition, before any world/prop draw.
         // An empty OT at the first mesh is not a frame boundary: earlier
@@ -1321,11 +1371,13 @@ void near_hook_body(CPUState* cpu,uint32_t address) {
             frame_used_peak=std::max(frame_used_peak,used);
         }
     }
-    if(!enabled()) return;
+    if(!enabled() && !object_filter) return;
     const uint32_t mesh=cpu->gpr[4];
     if(!mesh || cpu->gpr[5]!=ordering || cpu->gpr[6]!=context || cpu->gpr[7]!=bitmap) return;
     if(mesh<0x80010000 || mesh>0x801f0000 || (mesh&3)) return;
     if(!identity()) {++refused;return;}
+    if(object_filter) filter_missing_animation(cpu);
+    if(!clip_live || !enabled()) return;
     if(address==0x80011020 && (renderers()&1)) world(cpu);
     else if(address==0x80010000 && (renderers()&2)) object(cpu);
 }

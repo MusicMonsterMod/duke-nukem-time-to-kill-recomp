@@ -217,6 +217,7 @@ static void call(uint32_t address,uint32_t a0,uint32_t a1,uint32_t ra,uint32_t s
     hooks().at(address)(&cpu,address);
 }
 int main(int argc,char** argv) {
+    setenv("DNTTK_DRAW_DISTANCE","extended",1);
     assert(argc>=3 && argc<=5);
     std::ifstream exe(argv[1],std::ios::binary);exe.seekg(2048);exe.read((char*)ram+0x10000,0xbb000);assert(exe.gcount()==0xbb000);
     std::ifstream overlay(argv[2],std::ios::binary);overlay.read((char*)ram+0xca968,9668);assert(overlay.gcount()==9668);
@@ -3516,6 +3517,38 @@ int main(int argc,char** argv) {
     assert(ttk::capture_offers==slot2_offers+1);
     ttk::want_capture=false;
     std::puts("PASS: F7 slot-2 patched overlay identity, wade lease, recapture offer");
+    // D17Y: widen only a direct, open upper room boundary. Downstream
+    // windows retain their authored aperture, as do indoor/short portals.
+    {
+        setenv("DNTTK_DRAW_DISTANCE","extended",1);
+        constexpr uint32_t table=0x80180000,portals=0x80181000,entry=0x800d68b0,rect=0x800d2210;
+        auto setup=[&] {
+            psx_mod_write_word(0x800da454,table);psx_mod_write_word(c+0x90,0);
+            psx_mod_write_word(table+4,1024);psx_mod_write_word(table+0x14,1024);
+            psx_mod_write_byte(table+0x30,1);psx_mod_write_word(table+0x38,portals);
+            psx_mod_write_word(table+88+12,8);psx_mod_write_word(table+88+0x14,uint32_t(-2048));
+            psx_mod_write_half(portals+14,1);
+            for(unsigned j=0;j<4;++j) psx_mod_write_half(portals+j*8+2,(j&1)?5120:0);
+            psx_mod_write_half(rect,uint16_t(-256));psx_mod_write_half(rect+2,uint16_t(-120));
+            psx_mod_write_half(rect+4,512);psx_mod_write_half(rect+6,240);
+            psx_mod_write_word(0x800d68a8,1);
+            psx_mod_write_half(entry,uint16_t(-100));psx_mod_write_half(entry+2,uint16_t(-80));
+            psx_mod_write_half(entry+4,200);psx_mod_write_half(entry+6,160);psx_mod_write_word(entry+8,1);
+            psx_mod_write_word(0x800da450,1000);psx_mod_write_word(0x800da34c,2000);
+            psx_mod_write_word(0x800d67a8+0x74,1000+0x13d0);
+        };
+        auto top=[&]{return int16_t(psx_mod_read_half(entry+2));};
+        auto run=[&]{call(0x80062b48,0,0,0x8002e688);};
+        setup();run();assert(top()==-120);run();assert(top()==-120);
+        setup();psx_mod_write_word(entry+8,2);run();assert(top()==-82); // indirect
+        setup();psx_mod_write_word(table+88+12,0);run();assert(top()==-82); // indoors
+        setup();psx_mod_write_word(table+88+0x14,1024);run();assert(top()==-82);
+        setup();for(unsigned j=0;j<4;j+=2)psx_mod_write_half(portals+j*8+2,64);run();assert(top()==-82);
+        setup();psx_mod_write_word(table+0x38,0x801ffff0);run();assert(top()==-82);
+        setup();ttk::modern=false;run();assert(top()==-80);ttk::modern=true;
+        setup();call(0x80062b48,0,0,0x80012345);assert(top()==-80);
+        std::puts("PASS: D17Y open upper portal, downstream/indoor/height/bounds/caller and Vanilla guards");
+    }
     std::puts("PASS: distance clamps, convergence, epoch recovery and wall-independent preference; D10 recenter, shoulder offset and camera side file");
     std::puts("PASS: all semantic groups, upgrades, empty remote, history, unsafe attack/item guards, crouch delta and clearance fixtures");
     std::puts("PASS: immediate takeoff support probe, guarded caller/code, owned airborne reach lease");

@@ -21,6 +21,7 @@ Original media under `game/`, research, generated game code, builds, captures, p
 - Modernized is the default profile. Vanilla stays available, unchanged in play, with `run.py --vanilla` (one launch, not saved).
 - Modern controls mean independent movement, camera, and weapon aiming, not keyboard remapping alone.
 - Job board: `MODERNIZATION_JOBS.md`. Status evidence: `documentation/00-status.md` and `documentation/09-handoff.md`.
+- When the user reports performance problems, promptly check the computer's state as well as gameplay logs: Timeshift/rsync and other backups, updates, CPU load, disk I/O pressure, memory/swap and relevant system events. Correlate historical activity with the reported session; a later idle machine does not establish conditions during the slowdown. Do not assume a game regression or change code before investigating host contention. Distinguish confirmed slowdowns, suspected causes and reproducibility; background activity alone does not prove causation. User instruction, 2026-10-24; see the handoff's slot 12 mantle report.
 - `$continue-duke-recomp` (Codex) or `/continue-duke-recomp` (Claude Code) lists jobs and waits for a choice. Listing does not start a job.
 - Do not mark a job In progress, edit gameplay code, build, or launch the game just to show the list.
 - Never hand-edit generated recompilation C, overwrite original media, or use the player's memory cards.

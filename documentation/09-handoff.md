@@ -1,5 +1,31 @@
 # Next-session handoff
 
+## 2026-10-24 - Slot 12 mantle slowdown: not reproduced on user retest
+
+User reported severe slowdowns while pushing the dumpster to its limit, mantling
+it and mantling the alley platforms from UI slot 12. The local session log
+`recomp/build-local/logs/session-20261024-080422.log` confirms internal slot 11
+loaded and emulation fell to 33.0 and 26.7 frames/s around the climbing sequence,
+with high-refresh presentation reduced.
+
+Read-only system checks found Timeshift started at 08:00:01 BST and its rsync
+processes were still active at 08:07, overlapping the 08:04-08:05 gameplay.
+Backup and game shared the same physical disk. At inspection, I/O pressure
+averaged about 54% over the preceding minute; about 27 GiB RAM was available
+with negligible swap use. Flatpak update activity also overlapped gameplay.
+These observations make host contention a suspect, not a proven cause of the
+mantle-specific stalls. The log did not contain per-frame profiling, and the
+available historical atop sample ended before this gameplay session.
+
+The user then reported they could not reproduce it on another attempt. No code,
+settings or background processes were changed by the agent; no regression or
+fix is established. Do not reopen mantle work on this evidence alone.
+
+Standing user instruction: whenever performance is reported, check the state
+of the computer at the time, including backups and updates, before assuming a
+regression. Capture current evidence promptly and correlate system history with
+the gameplay log. This rule is also recorded in `AGENTS.md`.
+
 ## 2026-10-24 - D08T5 accepted and closed
 
 User: "lock it in!! close us out". D08T5 is Done: the dumpster stops at slot 7's

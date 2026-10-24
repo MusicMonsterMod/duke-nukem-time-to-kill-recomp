@@ -112,6 +112,10 @@ static void first_person_update(const InputFrame& f,unsigned ticks,bool acquirin
     facts.committed=committed_move_early();facts.fall=unowned_fall_early();
     facts.swim=first_person_swimming();facts.jet=mode==10 && jetpack_anim(animation);
     fp_policy=resolve_perspective(facts);
+    // Only the resolved swimming owner gets this preference. Lingering water
+    // flags must not apply it to a mantle, fall or another owning action.
+    if(fp_policy.action==PerspectiveAction::Swimming)
+        fp_policy=resolve_perspective(facts,swimming_view());
     const bool wanted=fp_policy.effective;
     // A newly authenticated world starts in the selected view. Never blend
     // from an unrelated old save/camera or flash a third-person load frame.

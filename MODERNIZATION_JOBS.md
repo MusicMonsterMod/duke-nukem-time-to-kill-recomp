@@ -1,5 +1,7 @@
 # Time to Kill — modernization jobs
 
+**Latest accepted job (2026-10-24): D35B swimming perspective option is Done. User fully accepted the First Person / Third Person choice and explicitly requested closeout. [Note 224](documentation/224-d35b-swimming-perspective.md).**
+
 **Latest accepted job (2026-10-24): D08Z6 blocked-run ledge jumps and first-press response are Done. User accepted revision 2 and explicitly authorized lock-in/closeout. [Note 218](documentation/218-d08z6-blocked-run-jumps.md).**
 
 
@@ -317,7 +319,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D34B | Classic split-screen with two controllers: original controls and rules, both pads working, clean start / presentation / exit in a Modernized session | Todo | D34 |
 | D35 | Comprehensive first-person camera transition audit and modernization roadmap | Needs review | D11, D11E, D11F, D10B |
 | D35A | Shared action-perspective policy and persistent Advanced Settings foundation | Done | D35 |
-| D35B | Swimming perspective option using accepted first-person swimming | Todo | D35A, D11E |
+| D35B | Swimming perspective option using accepted first-person swimming | Done | D35A, D11E |
 | D35C | Jetpack perspective option using accepted first-person flight | Todo | D35A, D11F |
 | D35D | First-person push/pull and grab presentation | Todo | D35A, D08T3, D08T7 |
 | D35E | First-person ladder climbing lifecycle | Todo | D35A, D08J3, D08U, D08J1 |
@@ -381,7 +383,8 @@ animation or settings edits, commit or push are part of this research result.
 
 ### D35B - Swimming perspective option using accepted first-person swimming
 
-**Status:** Todo. **Dependencies:** D35A, D11E.
+**Status:** Done. **Dependencies:** D35A, D11E.
+**Accepted:** [Note 224](documentation/224-d35b-swimming-perspective.md).
 **Research:** [D35 central audit](documentation/222-d35-first-person-audit.md).
 
 **Current behavior:** D11E supports surface/dive/underwater FP. SWIMMING selects pace only; no temporary legacy perspective option.
@@ -18194,3 +18197,32 @@ Authored implementation/tests and supporting documentation are included in the
 authorized commit/push as MusicMonsterMod. No new gameplay edits or rebuilds
 at closeout. D35B-D35N remain unstarted; the D35 research review status is not
 changed by this implementation closeout.
+
+
+## 2026-10-24 - D35B swimming perspective candidate (Needs playtest)
+
+User selected D35B once D35 research completeness was checked. The source audit
+and roadmap are complete; pending event traces remain separate jobs. D35's
+research review status is unchanged; no acceptance closeout was requested.
+
+SWIMMING VIEW now offers FIRST PERSON / THIRD PERSON in ADVANCED >
+ACTION PERSPECTIVE, live on CONFIRM and saved independently of swimming pace.
+Schema 41, --swim-view and environment plumbing are implemented. Global third
+person wins; exit follows current global view. Mantles retain their own policy.
+
+Player build, native controls/input and all 91 profile tests passed. Private
+menu cancel/confirm, live switching, underwater load and relaunch passed.
+Two-level matrix: 64 samples, both paces/views at configured 60/120 FPS,
+holster/draw/fire/dive/resurface and global-view changes. See [note 224](documentation/224-d35b-swimming-perspective.md).
+Natural entry/exit and transition feel remain user playtests. No player saves
+or settings changed, no framework edits, commit or push. No next job started.
+
+
+## 2026-10-24 - D35B accepted and closeout authorized
+
+User: "great work. fully accept, close it out". D35B is Done, including the
+requested shorter Third Person label. Implementation, tests, manual and
+supporting documentation are included in authorized closeout as MusicMonsterMod.
+Runtime patch re-export is unchanged and reproduces all 51 modified/new files
+against the pinned clean framework. No gameplay edits, rebuild or launch at
+closeout. Existing test coverage limits remain in note 224. No next job started.

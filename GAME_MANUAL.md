@@ -365,6 +365,18 @@ python3 recomp/tools/local/run.py --swimming modern --show-settings
 
 See [notes](documentation/157-d08ab-swimming-option.md).
 
+**SWIMMING VIEW** in OPTIONS > ADVANCED > ACTION PERSPECTIVE is independent
+of swimming pace. With global VIEW set to FIRST PERSON, Modern controls and
+Independent camera, choose FIRST PERSON (default) to keep the eye view or
+THIRD PERSON to use the existing third-person swim camera. CONFIRM
+applies and saves the choice, including mid-swim. Leaving water follows the
+current global VIEW; switching to third person during swimming stays third
+person afterward. Water climb-outs still use the mantle's third-person view.
+
+The launcher also accepts `--swim-view first` or `--swim-view legacy-third`;
+these update the saved preference. Add `--show-settings` to save without launching.
+
+
 ### View bob (Modernized, first person)
 
 Standing still, the first-person view settles into a substantially stable

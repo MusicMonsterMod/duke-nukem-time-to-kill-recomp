@@ -317,7 +317,7 @@ Row heading(const char* label) {Row r{label,Section::Controls,nullptr,nullptr,fa
 Row view_row(const char* label,const char* key,const char* env,const char* help,bool action=false) {
     return {label,Section::Controls,key,env,true,help,
         action?std::vector<Choice>{{"FIRST PERSON","first","\"first\""},
-                                   {"LEGACY THIRD PERSON","legacy-third","\"legacy-third\""}}:
+                                   {"THIRD PERSON","legacy-third","\"legacy-third\""}}:
                std::vector<Choice>{{"THIRD PERSON","third","\"third\""},
                                    {"FIRST PERSON","first","\"first\""}},0};
 }
@@ -373,6 +373,9 @@ std::vector<Screen> make_screens() {
          {{"INDEPENDENT","independent","\"independent\""},{"ORIGINAL","original","\"original\""}},0},
         {"WEAPON AIM",Section::Controls,"weapon_aim","DNTTK_WEAPON_AIM",true,"VIEW: SHOTS GO WHERE THE CROSSHAIR POINTS",
          {{"VIEW","view","\"view\""},{"ORIGINAL","original","\"original\""}},0},
+        heading("ACTION PERSPECTIVE"),
+        view_row("SWIMMING VIEW","swim_view","DNTTK_SWIM_VIEW",
+                 "FIRST PERSON ONLY. MODERN CONTROLS / INDEPENDENT CAMERA",true),
         heading("MOVEMENT"),
         {"JUMP",Section::Controls,"jump","DNTTK_JUMP",true,"MANUAL: LEAVE ON THE PRESS AND STEER IN THE AIR",
          {{"ASSISTED","assisted","\"assisted\""},{"MANUAL","manual","\"manual\""}},0},

@@ -220,6 +220,11 @@ static bool jump_animation(unsigned animation) {
         animation==104 || animation==105 || animation==109;
 }
 static bool first_person_anchor(const double* forward,double* anchor);
+static ActionView swimming_view() {
+    ActionView choice=ActionView::First;
+    parse_action_view(ttk_live_env("DNTTK_SWIM_VIEW"),choice);
+    return choice;
+}
 static bool independent_camera() {
     if(!input_modern_controls())return false;
     const char* mode=ttk_live_env("DNTTK_CAMERA_MODE");
@@ -713,7 +718,7 @@ static bool state(bool camera_only=false,bool presentation=false) {
     // that transient, without widening movement/aim/capture permissions or
     // the existing third-person policy. Death and special camera guards above
     // still apply; the script inhibit bit 0x20000000 is never relaxed.
-    const bool swim_eye=presentation && camera_only && swimming &&
+    const bool swim_eye=presentation && camera_only && swimming && swimming_view()==ActionView::First &&
         input_snapshot(Context::Gameplay).first_person &&
         (mode==4 || mode==5) && animation>=122 && animation<=133;
     const uint32_t inhibit=(shallow_land_water_early() || swim_eye)?0x20000000u:0x20000200u;

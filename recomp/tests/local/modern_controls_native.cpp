@@ -3149,6 +3149,47 @@ int main(int argc,char** argv) {
                         ttk::input.first_person=true;++save_loads;frame();assert(metric("\"blend\":")==1);
                     }
                 }
+                // D35B: live action choice, global precedence, reset and replay.
+                for(const char* pace:{"modern","original"}) {
+                    setenv("DNTTK_SWIMMING",pace,1);
+                    for(unsigned mode:{4u,5u}) {
+                        psx_mod_write_byte(p+0x22c,mode);psx_mod_write_byte(p+0x22d,mode);
+                        psx_mod_write_half(p+0x60,mode==4?122:128);
+                        ttk::input.first_person=true;
+                        setenv("DNTTK_SWIM_VIEW","legacy-third",1);
+                        ++save_loads;frame();
+                        assert(metric("\"blend\":")==0 && ttk::input.first_person);
+                        assert(std::strstr(ttk::controls_debug_json(),"\"reason\":\"legacy-choice\""));
+                        // Legacy swim uses the existing third-person equip
+                        // guard. The FP-only 0x200 exception must not leak into it.
+                        const auto flags=psx_mod_read_word(p+0x224);
+                        psx_mod_write_word(p+0x224,flags|0x200);frame();
+                        assert(metric("\"blend\":")==0 && !ttk::movement_ready());
+                        assert(std::strstr(ttk::controls_debug_json(),"\"reason\":\"unsupported-camera\""));
+                        psx_mod_write_word(p+0x224,flags);frame();
+                        std::vector<uint8_t> legacy(ttk::render_state_size()),eye(legacy.size());
+                        ttk::render_state_save(legacy.data());
+                        setenv("DNTTK_SWIM_VIEW","first",1);
+                        for(int i=0;i<40;++i)frame();assert(metric("\"blend\":")==1);
+                        ttk::render_state_save(eye.data());
+                        ttk::render_state_load(legacy.data());assert(metric("\"blend\":")==0);
+                        ttk::render_state_load(eye.data());assert(metric("\"blend\":")==1);
+                        ttk::input.first_person=false;
+                        for(const char* view:{"first","legacy-third"}) {
+                            setenv("DNTTK_SWIM_VIEW",view,1);++save_loads;frame();
+                            assert(metric("\"blend\":")==0);
+                        }
+                        // P during the action wins on land, no saved-view restore.
+                        psx_mod_write_word(p+0x834,0x40000000);psx_mod_write_word(p+0x20c,0);
+                        psx_mod_write_byte(p+0x22c,0);psx_mod_write_byte(p+0x22d,0);psx_mod_write_half(p+0x60,63);
+                        ++save_loads;frame();assert(metric("\"blend\":")==0);
+                        ttk::input.first_person=true;
+                        for(int i=0;i<40;++i)frame();assert(metric("\"blend\":")==1);
+                        psx_mod_write_word(p+0x834,root[1]-198);psx_mod_write_word(p+0x20c,1);
+                    }
+                }
+                unsetenv("DNTTK_SWIMMING");unsetenv("DNTTK_SWIM_VIEW");
+                std::puts("PASS: D35B both paces, live swim view, global third precedence, land return, reset and replay policy");
                 // A water-to-mantle handoff still has previous mode 4/5 and
                 // may retain the water flag. Yield before the first climb frame.
                 for(unsigned previous:{4u,5u}) {

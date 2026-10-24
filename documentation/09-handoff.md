@@ -1,5 +1,41 @@
 # Next-session handoff
 
+## 2026-10-24 - D35B accepted and closed out
+
+User: "great work. fully accept, close it out". D35B is Done: SWIMMING VIEW
+selects First Person / Third Person, applies live on CONFIRM, and persists
+independently of swimming pace. Global third person wins; exit follows current
+global view. Mantles retain their existing policy. See [note 224](224-d35b-swimming-perspective.md).
+
+Accepted executable: `37b2f270bb73c026ac094963adf283e82083f565cba536d31d71130d1d7558b5`.
+Implementation, tests, manual and supporting documentation are included in
+authorized closeout as MusicMonsterMod. Runtime patch re-export unchanged;
+clean pinned-framework verification reproduced all 51 modified/new files.
+No gameplay edits, rebuilds or launches at closeout. Existing coverage limits
+remain recorded. No next job started; D35 research review status is unchanged.
+Launch `python3 recomp/tools/local/run.py` with saved preferences.
+
+
+## 2026-10-24 - D35B swimming perspective candidate (Needs playtest)
+
+SWIMMING VIEW in ADVANCED > ACTION PERSPECTIVE offers FIRST PERSON (default)
+or THIRD PERSON. CONFIRM applies live and persists independently of
+swimming pace. Global third person wins; exits follow current global view.
+Mantles retain their third-person policy. Schema 41; launcher --swim-view.
+See [note 224](224-d35b-swimming-perspective.md).
+
+Player build, native controls/input and all 91 profile tests pass. Private
+menu cancel/confirm, live switch, underwater load/relaunch and 64 two-level
+matrix samples pass (both paces/views, configured 60/120 FPS). Natural entry/
+exit and transition feel await user playtest. Candidate:
+`37b2f270bb73c026ac094963adf283e82083f565cba536d31d71130d1d7558b5`.
+No player data changed; diagnostic processes stopped. No framework edits,
+acceptance closeout, commit or push. D35 research is complete as a deliverable,
+with its review status unchanged. No next job started.
+Launch `python3 recomp/tools/local/run.py`; select first person with P if needed,
+then try both SWIMMING VIEW choices. Gameplay captures automatically.
+
+
 
 ## 2026-10-24 - D35A accepted and closed out
 

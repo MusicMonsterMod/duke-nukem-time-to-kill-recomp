@@ -1,5 +1,77 @@
 # Next-session handoff
 
+## 2026-10-24 - D11E accepted and closed
+
+User accepted first-person swimming and explicitly requested lock-in/closeout.
+D11E is Done. [Note 216](216-d11e-first-person-swimming.md) records the accepted
+stable swim eye, animated weapon display, replay publication, holster-camera
+continuity and deliberate third-person mantle behavior, with test limits.
+
+Accepted executable:
+`6725addce03114878375d08d81331a4bd4032aa5169d21fff74a586602b73ea6`.
+No gameplay changes, rebuild or new live test after acceptance. Existing native
+and live results were reviewed; acceptance does not add unperformed coverage.
+Implementation, tests, manual and research/candidate notes are in closeout.
+Runtime patch re-exported unchanged and verified against clean framework pin
+`08ec704a974b1f3a16335b4afeb340b9eff19926`: all 51 files match. Pins unchanged.
+Commit/push explicitly authorized as MusicMonsterMod.
+
+D08Z6 (slot-10 blocked-run ledge jump) and D08AF (slot-9 plunge-to-swim
+hesitation) remain Todo. No next job started. Earlier D11E Needs review /
+Needs playtest entries below are historical.
+
+Launch: `python3 recomp/tools/local/run.py`; P selects first person if needed.
+Space ascends, Ctrl dives, E climbs out. Capture remains automatic.
+
+
+## 2026-10-24 - D11E candidate ready for playtest
+
+User authorized first-person swimming implementation after the research phase.
+D11E is Needs playtest. [Note 216](216-d11e-first-person-swimming.md) records
+the stable surface/underwater eye, animation-channel swim weapon display,
+replay publication, swim holster presentation guard and early mantle override.
+Mantles still use third person and return to the selected view on supported land.
+
+Player build and final native controls suite pass, with new swimming/weapon/
+worker/transition coverage. Input, aim and near-clip suites pass. Evidence
+includes 415 swimming samples across levels 2/6 at configured 60/120/240,
+real keyboard holster/P/pause/console/save-load checks, plus final first/third/
+Vanilla and actual 4:3 regression captures. Note 216 distinguishes candidate
+revisions and failed diagnostic attempts. Full natural entry/climb-out routes,
+wider geometry/costume coverage and user feel remain acceptance work.
+
+Candidate executable:
+`6725addce03114878375d08d81331a4bd4032aa5169d21fff74a586602b73ea6`.
+Accepted pre-D11E baseline remains `95b61d027a5b0a3bf152d8fb59a1ab3881a6bc9dc173ef4eb8c879902de9e88f`.
+Private test profiles/cards only; diagnostic game/Xvfb processes stopped.
+No framework/generated-C/media changes, commit or push. No new job started.
+Launch `python3 recomp/tools/local/run.py`; press P if needed. Space ascends,
+Ctrl dives, E climbs out; capture is automatic.
+
+
+## 2026-10-24 - D11E swimming first-person research ready for review
+
+User selected D11E for deep research before implementation. The board now says
+Needs review (research; implementation outstanding).
+[Note 215](215-d11e-first-person-swimming-research.md) is the implementation
+handoff: current source contracts, six owned-EXE guard matches, original camera
+flow, 360 private baseline samples in levels 2/6 at configured 60/120 FPS,
+proposed eye/weapon/replay work and explicit remaining questions/test matrix.
+
+The first-person preference survives swimming; current source deliberately
+refuses the eye view. Raw neck position changes by hundreds of units with swim
+posture, so merely removing that refusal is insufficient. Research supports a
+bounded prototype, not finished waterline/weapon rendering. Preserve current
+swim physics, oxygen, combat, costume lookup and D26B ownership. Decide and
+verify the existing temporary third-person mantle exception explicitly.
+
+No gameplay/framework edits or rebuild; accepted executable remains
+`95b61d027a5b0a3bf152d8fb59a1ab3881a6bc9dc173ef4eb8c879902de9e88f`.
+No player saves/cards/settings used by diagnostics; private test processes
+stopped. No commit/push. Local evidence: `recomp/analysis/d11e-research/`.
+Implementation, visual playtesting and acceptance remain outstanding.
+
+
 ## 2026-10-24 - D08T6 accepted and closed
 
 User explicitly authorized completion notes, Done status, commit and push.

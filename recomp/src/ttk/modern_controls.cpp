@@ -680,7 +680,15 @@ static bool state(bool camera_only=false,bool presentation=false) {
         (camera_only && (animation==70 || animation==71 || animation==80 || animation==81 || landing_pose_anim(animation) ||
                          animation==175 || animation==176 || animation==177 || animation==181 ||
                          (animation>=178 && animation<=184))) || preparing || flight || swimming || jet || eye_air || pushing || eye_kick || mantle || settle)) return false;
-    const uint32_t inhibit=shallow_land_water_early()?0x20000000u:0x20000200u;
+    // D11E: original swim weapon transitions briefly set 0x200 (observed
+    // while holstering in 127). Keep the selected eye presentation through
+    // that transient, without widening movement/aim/capture permissions or
+    // the existing third-person policy. Death and special camera guards above
+    // still apply; the script inhibit bit 0x20000000 is never relaxed.
+    const bool swim_eye=presentation && camera_only && swimming &&
+        input_snapshot(Context::Gameplay).first_person &&
+        (mode==4 || mode==5) && animation>=122 && animation<=133;
+    const uint32_t inhibit=(shallow_land_water_early() || swim_eye)?0x20000000u:0x20000200u;
     return psx_mod_read_word(camera+0xa4)==player && psx_mod_read_word(player+0x7d4)==camera
         && !(psx_mod_read_word(player+0x224)&inhibit)
         && (swimming || wade_land || jet || eye_air || mantle || settle || ((flight || (preparing && animation==97)) ? ((psx_mod_read_byte(player+0x22c)==9 && (psx_mod_read_byte(player+0x22d)==9 || psx_mod_read_byte(player+0x22d)==0)) ||
@@ -1529,7 +1537,7 @@ static void hook_body(CPUState* cpu, uint32_t address) {
 // published frame and loaded in the worker process that redraws it (a worker
 // holds only a fork-time copy of this file's statics).
 struct RenderState {
-    double fp_blend; bool orbit_valid, eye_offset_valid, live_valid, lease_cam, crouch_weapon;
+    double fp_blend; bool orbit_valid, eye_offset_valid, live_valid, lease_cam, crouch_weapon, swim_weapon;
     double eye_offset[3], live_q[4], live_rel[3], live_torso_q[4], live_torso[3], kick;
     FirePose fire_poses[32];
     uint32_t weapon_matrix, hidden_matrix;
@@ -1568,6 +1576,7 @@ void render_state_save(void* out) {
     r.fp_blend=fp_blend; r.orbit_valid=orbit_valid; r.eye_offset_valid=eye_offset_valid; r.live_valid=live_valid;
     r.lease_cam=last_lease_cam;
     r.crouch_weapon=crouch_weapon_active();
+    r.swim_weapon=swim_weapon_view_active();
     std::memcpy(r.eye_offset,eye_offset,sizeof eye_offset); std::memcpy(r.live_q,live_q,sizeof live_q);
     std::memcpy(r.live_rel,live_rel,sizeof live_rel); std::memcpy(r.live_torso_q,live_torso_q,sizeof live_torso_q);
     std::memcpy(r.live_torso,live_torso,sizeof live_torso); r.kick=kick;
@@ -1592,6 +1601,7 @@ void render_state_load(const void* in) {
     head_flag=0; duke_drawing=false; actor_drawing=false; weapon_duke_draw=false; weapon_viewmodel=false;
     render_override=true; override_lease_cam=r.lease_cam;
     override_crouch_weapon=r.crouch_weapon;
+    override_swim_weapon=r.swim_weapon;
 }
 bool first_person_view_live() {return input_modernized() && fp_blend>0 && orbit_valid;}
 bool first_person_duke_drawing() {return duke_drawing;}

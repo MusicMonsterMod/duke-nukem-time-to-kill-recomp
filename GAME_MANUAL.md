@@ -801,8 +801,13 @@ a wall. A kick that hits nothing stays silent. To compare the leg without its th
 DNTTK_FP_KICK_THIGH=0 python3 recomp/tools/local/run.py
 ```
 
-Swimming and jetpack flight switch back to third
-person on their own and return when you land; ladders, poles, chains and
+First-person view stays active while swimming at the surface, diving and
+swimming underwater. The swimming eye stays steady through the stroke, with
+no walking bob; mouse look, movement and firing use the existing swim controls.
+Space ascends, Ctrl dives, and E remains the way to climb out. A mantle still
+uses the third-person traversal view, then returns to your selected view.
+Jetpack flight switches back to third person and returns when you land;
+ladders, poles, chains and
 ledges show the free third-person camera while Duke climbs; scripted and
 turret cameras and death use the original camera. Dodge rolls
 and slides down steep slopes stay in first person, and so do falls (off an edge, a

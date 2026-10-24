@@ -2529,6 +2529,37 @@ int main(int argc,char** argv) {
                         psx_mod_write_word(rot,0);psx_mod_write_word(rot+4,(13u<<27)|(4095u<<14));
                         assert(displayed()==neutral);
                     }
+                    // D11E uses the same arm animation in water, even with
+                    // Original crouch selected. Worker snapshots must carry
+                    // swim eligibility in both directions independently of it.
+                    {
+                        const auto water=psx_mod_read_word(p+0x834),flag=psx_mod_read_word(p+0x20c),floor=psx_mod_read_word(p+0x1c8);
+                        setenv("DNTTK_CROUCH","original",1);
+                        psx_mod_write_word(p+0x834,root[1]-198);psx_mod_write_word(p+0x20c,1);psx_mod_write_word(p+0x1c8,root[1]+2000);
+                        psx_mod_write_byte(p+0x22c,5);psx_mod_write_half(p+0x60,128);
+                        for(unsigned slot:{3u,12u,32u}) {
+                            psx_mod_write_byte(p+0x3b8,slot==32?1:2);psx_mod_write_byte(p+0x3b9,slot==32?12:slot);
+                            const auto corrected=displayed();
+                            psx_mod_write_word(hand+0x14,psx_mod_read_word(hand+0x14)+600);assert(displayed()==corrected);
+                            std::vector<uint8_t> active(ttk::render_state_size()),inactive(active.size());
+                            ttk::render_state_save(active.data());
+                            psx_mod_write_word(p+0x834,0x40000000);psx_mod_write_word(p+0x20c,0);psx_mod_write_byte(p+0x22c,0);
+                            const auto original=displayed();assert(original!=corrected);ttk::render_state_save(inactive.data());
+                            const pid_t child=fork();assert(child>=0);
+                            if(child==0) {
+                                ttk::render_state_load(active.data());assert(displayed()==corrected);
+                                ttk::render_state_load(inactive.data());assert(displayed()==original);
+                                ttk::render_state_load(active.data());assert(displayed()==corrected);_exit(0);
+                            }
+                            int status=0;assert(waitpid(child,&status,0)==child && WIFEXITED(status) && WEXITSTATUS(status)==0);
+                            psx_mod_write_word(p+0x834,root[1]-198);psx_mod_write_word(p+0x20c,1);psx_mod_write_byte(p+0x22c,5);
+                            psx_mod_write_word(rot,2896);psx_mod_write_word(rot+4,(13u<<27)|(2896u<<14));assert(displayed()!=corrected);
+                            psx_mod_write_word(rot,0);psx_mod_write_word(rot+4,(13u<<27)|(4095u<<14));assert(displayed()==corrected);
+                        }
+                        psx_mod_write_word(p+0x834,water);psx_mod_write_word(p+0x20c,flag);psx_mod_write_word(p+0x1c8,floor);
+                        psx_mod_write_byte(p+0x22c,0);psx_mod_write_half(p+0x60,178);unsetenv("DNTTK_CROUCH");
+                        std::puts("PASS: D11E animated swim weapons ignore compensated world hand, retain animation, publish worker eligibility and restore ground framing");
+                    }
                     // D12's seeded guns keep exactly their existing matrices.
                     for(unsigned slot=4;slot<=11;++slot) {
                         psx_mod_write_byte(p+0x3b8,2);psx_mod_write_byte(p+0x3b9,slot);
@@ -2866,6 +2897,61 @@ int main(int argc,char** argv) {
             call(0x8002b9f4,1,0,0x80025474);assert(metric("\"blend\":")==0);
             frame();assert(metric("\"blend\":")==1 && ttk::input.first_person);
             std::puts("PASS: D26B view ownership across input suspension, pause, capture epochs, load, explicit scheme and camera ownership; movement and identity gates retained");
+            // D11E: swimming is a presentation state, independent of active
+            // input and of the pitched/turning neck. Keep original water and
+            // velocity fields untouched, including a load directly underwater.
+            {
+                const auto water=psx_mod_read_word(p+0x834),flag=psx_mod_read_word(p+0x20c),floor=psx_mod_read_word(p+0x1c8);
+                auto solved_eye=[&](int axis) {
+                    call(0x8003aa48,c,sp+0x18,0x8003aeb0,sp);
+                    const double v=(int32_t)psx_mod_read_word(sp+0x18+4*axis)+(int32_t)psx_mod_read_word(c+0x64+4*axis)-
+                        (int16_t)psx_mod_read_half(c+12+2*axis)/4096.0*193;
+                    call(0x8002a038,0,1,0x8003af40,sp);return v;
+                };
+                ttk::input.active=false;
+                psx_mod_write_word(p+0x834,root[1]-198);psx_mod_write_word(p+0x20c,1);
+                psx_mod_write_word(p+0x1c8,root[1]+2000);
+                for(const uint8_t* parts:{first_map,cowboy}) {
+                    layout(parts);const unsigned head=psx_mod_read_byte(desc+0x34);
+                    for(unsigned mode:{0u,1u,4u,5u}) {
+                        psx_mod_write_byte(p+0x22c,mode);psx_mod_write_byte(p+0x22d,mode);
+                        psx_mod_write_half(p+0x60,mode==4?122:mode==5?128:176);
+                        ++save_loads;frame();
+                        assert(metric("\"blend\":")==1 && !ttk::movement_ready());
+                        const uint32_t water_flag=psx_mod_read_word(p+0x20c),velocity=psx_mod_read_word(p+0x1f8);
+                        for(int pose:{-400,0,450}) {
+                            for(int i=0;i<3;++i)psx_mod_write_word(mats+0x20*head+0x14+4*i,root[i]+pose);
+                            for(int i=0;i<24;++i)frame();
+                            assert(std::abs(solved_eye(0)-root[0])<2 && std::abs(solved_eye(2)-root[2])<2);
+                            assert(std::abs(solved_eye(1)-(root[1]-294))<2);
+                            assert(psx_mod_read_word(p+0x20c)==water_flag && psx_mod_read_word(p+0x1f8)==velocity);
+                            for(int i=0;i<3;++i)assert((int32_t)psx_mod_read_word(p+4+4*i)==root[i]);
+                        }
+                        const auto flags=psx_mod_read_word(p+0x224);
+                        psx_mod_write_word(p+0x224,flags|0x200);frame();assert(metric("\"blend\":")==((mode==4 || mode==5)?1:0) && !ttk::movement_ready());
+                        psx_mod_write_word(p+0x224,flags|0x20000000);frame();assert(metric("\"blend\":")==0);
+                        psx_mod_write_word(p+0x224,flags);frame();assert(metric("\"blend\":")==1);
+                        psx_mod_write_half(0x800be568,1);frame();assert(metric("\"blend\":")==1);
+                        psx_mod_write_half(0x800be568,0);
+                        ttk::input.first_person=false;for(int i=0;i<40;++i)frame();assert(metric("\"blend\":")==0);
+                        ttk::input.first_person=true;++save_loads;frame();assert(metric("\"blend\":")==1);
+                    }
+                }
+                // A water-to-mantle handoff still has previous mode 4/5 and
+                // may retain the water flag. Yield before the first climb frame.
+                for(unsigned previous:{4u,5u}) {
+                    psx_mod_write_byte(p+0x22c,8);psx_mod_write_byte(p+0x22d,previous);psx_mod_write_half(p+0x60,134);
+                    ++save_loads;frame();assert(metric("\"blend\":")==0);
+                    assert(std::strstr(ttk::controls_debug_json(),"\"reason\":\"traversal\""));
+                }
+                layout(first_map);
+                for(int i=0;i<3;++i)psx_mod_write_word(mats+0x20*9+0x14+4*i,neck[i]);
+                psx_mod_write_word(p+0x834,water);psx_mod_write_word(p+0x20c,flag);psx_mod_write_word(p+0x1c8,floor);
+                psx_mod_write_byte(p+0x22c,0);psx_mod_write_byte(p+0x22d,0);psx_mod_write_half(p+0x60,63);
+                ++save_loads;frame();
+                std::puts("PASS: D11E surface/underwater eye, two costume layouts, pose independence, suspended input/pause, loaded view, third-person switch and no water/velocity/position writes");
+            }
+
             ttk::input.active=true;ttk::input.first_person=false;++ttk::input.epoch;
             for(unsigned i=0;i<40;++i)frame();
             for(int i=0;i<3;++i)psx_mod_write_word(p+4+4*i,saved_root[i]);

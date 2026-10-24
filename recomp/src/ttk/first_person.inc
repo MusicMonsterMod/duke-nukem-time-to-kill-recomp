@@ -25,7 +25,7 @@
 // - 0x800348d8 draws an actor joint by joint and skips a joint whose record
 //   flag byte has bit 0 set. The head joint is flagged only between Duke's
 //   draw entry and the object-list step that follows it.
-// Unsupported states (swimming, jetpack flight, grabbing a pushable object,
+// Unsupported states (jetpack flight, grabbing a pushable object,
 // anything without the orbit lease) blend back to the third-person orbit.
 static constexpr uint32_t min_boom_word=0x800c3c48, min_boom_original=768;
 // Eye above the neck pivot, in game units. It stays over the neck (not ahead
@@ -93,11 +93,13 @@ static void first_person_release(const char* reason) {
     fp_blend=0;eye_offset_valid=false;fp_supported=false;fp_reason=reason;
     min_boom_restore();head_restore();
 }
+// Presentation only: never use the action lease here (pause/focus retain the
+// selected view). The normal-camera owner/identity has already been checked.
+static bool first_person_swimming() {
+    return in_water_early() && !shallow_land_water_early();
+}
 // Once per verified normal-camera update, after orbit_begin.
 static void first_person_update(const InputFrame& f,unsigned ticks,bool acquiring=false) {
-    // Waist-deep water keeps the land gait and is supported (the swim lease is
-    // also live there); swim modes 4/5 and deeper water are not.
-    const bool swimming=in_water_early() && !shallow_land_water_early();
     // D08T: grabbing/pushing a large object puts the eye inside it; show the
     // push from the orbit and return to the eye after letting go.
     // D08V: mantles, hangs and climbs also show from the orbit (the eye
@@ -107,11 +109,17 @@ static void first_person_update(const InputFrame& f,unsigned ticks,bool acquirin
     // animations and put the eye nowhere new; a slope slide on a car body
     // alternates 145/108/105, and each 108 the slide latch missed cut to the
     // orbit, then the drop off the car showed the whole fall from behind.
-    const bool supported=!swimming && !jetpack_camera_only() && !push_state_early() &&
+    // The first water-exit frame can still carry previous mode 4/5, before
+    // mantle_state_early's land/traversal history matches. It must already
+    // yield the eye, even if the original water flag has not cleared yet.
+    const unsigned mode=psx_mod_read_byte(player+0x22c), previous=psx_mod_read_byte(player+0x22d);
+    const unsigned animation=psx_mod_read_half(player+0x60);
+    const bool swim_exit=mode==8 && (previous==4 || previous==5) && animation>=134 && animation<=142;
+    const bool supported=!swim_exit && !jetpack_camera_only() && !push_state_early() &&
         (!traversal_camera_early() || committed_move_early() || unowned_fall_early());
     fp_supported=supported;
     const bool wanted=f.first_person && supported;
-    fp_reason=!f.first_person?"off":swimming?"swimming":jetpack_camera_only()?"jetpack":
+    fp_reason=!f.first_person?"off":jetpack_camera_only()?"jetpack":
         push_state_early()?"push-object":!supported?"traversal":f.active?"active":"input-suspended";
     // A newly authenticated world starts in the selected view. Never blend
     // from an unrelated old save/camera or flash a third-person load frame.
@@ -170,6 +178,14 @@ static constexpr double bob_lead=16, bob_lag=64;
 static double eye_rel[3], bob_phase, bob_amount, bob_last[3], bob_dip, bob_glide[2], bob_velocity[2];
 static uint64_t bob_frame;
 static unsigned bob_still;
+// D11E: a swimming head pitches through the whole stroke (over 400 units of
+// vertical pose change). Keep the eye on the body, with the floating neck's
+// measured height (about 198) plus the existing 96-unit eye offset. Surface
+// mode uses the water plane so the idle stroke cannot bob across it.
+static constexpr double swim_eye_above_root=294;
+static bool eye_was_swimming;
+static double eye_reference_offset;
+
 static bool eye_rel_valid, bob_last_valid;
 uint64_t bob_updates;
 // Requested anchor for the eye view; false when the neck joint is unavailable.
@@ -180,9 +196,21 @@ static bool first_person_anchor(const double* forward,double* anchor) {
     for(int i=0;i<3;++i) root[i]=(int32_t)psx_mod_read_word(player+4+4*i);
     const bool pivoted=psx_mod_read_word(camera+0x50)==player+0x7bc;
     pivot_y=pivoted ? (int32_t)psx_mod_read_word(player+0x7c0) : root[1];
+    const bool swimming=first_person_swimming();
+    if(swimming) pivot_y=root[1];
+    // Rebase the previous offset when switching between root and land pivot;
+    // real body travel stays immediate, only the posture difference is eased.
+    if(eye_rel_valid && eye_offset_valid && swimming!=eye_was_swimming)
+        eye_rel[1]+=eye_reference_offset-(pivot_y-root[1]);
+    eye_reference_offset=pivot_y-root[1];eye_was_swimming=swimming;
     // Eye relative to its references: x/z to the root, y to the pivot.
     // Game Y grows downward.
-    const double target[3]={neck[0]-root[0],neck[1]-eye_height-pivot_y,neck[2]-root[2]};
+    double target[3]={neck[0]-root[0],neck[1]-eye_height-pivot_y,neck[2]-root[2]};
+    if(swimming) {
+        target[0]=target[2]=0;
+        target[1]=psx_mod_read_byte(player+0x22c)==4 ?
+            (int32_t)psx_mod_read_word(player+0x834)-eye_height-root[1] : -swim_eye_above_root;
+    }
     // D15: the slow centring drift was still feeding idle neck animation into
     // the camera after locomotion stopped. Hold within the existing dead band
     // while stationary; actual travel, posture changes beyond the band and
@@ -195,13 +223,16 @@ static bool first_person_anchor(const double* forward,double* anchor) {
         // the excess promptly.
         const double d=target[i]-eye_rel[i],band=i==1?64.0:24.0;
         const double step=std::abs(d)>band ? (d-std::copysign(band,d))*0.5 : (hold_centre?0.0:d*0.004);
-        eye_rel[i]=eye_rel_valid && eye_offset_valid ? eye_rel[i]+step : target[i];
+        // Swim offsets must converge completely, including surface clearance;
+        // the land dead band would retain the previous posture indefinitely.
+        const double swim_step=d*0.5;
+        eye_rel[i]=eye_rel_valid && eye_offset_valid ? eye_rel[i]+(swimming?swim_step:step) : target[i];
         eye_offset[i]=eye_rel[i];
     }
     const bool was_valid=eye_offset_valid;
     eye_rel_valid=eye_offset_valid=true;
     // Deliberate view bob and glide (D17V).
-    const double scale=view_bob_scale();
+    const double scale=swimming?0.0:view_bob_scale();
     const uint64_t frame=input_host_frame();
     const bool advanced=frame>bob_frame;
     if(scale>0 && bob_last_valid && was_valid && advanced) {
@@ -535,16 +566,23 @@ static unsigned weapon_view_slot() {
 // guns never enter this path.
 // Replay workers do not run the stance/animation updates. Their fork-time
 // crouch statics are stale, so use the eligibility published with this frame.
-static bool override_crouch_weapon;
+static bool override_crouch_weapon, override_swim_weapon;
 static bool crouch_weapon_active() {
     if(render_override)return override_crouch_weapon;
     return input_modernized() && crouch_walk_modern() &&
         (crouch_upper_weight>0 || crouch_fire_tilting ||
          (crouch_owned && crouch_pose(psx_mod_read_half(player+0x60))));
 }
-static bool crouch_weapon_channel(double* q,double* pos) {
+// D11E: swimming also compensates the shoulder against a pitched torso.
+// Reconstruct only the display copy from the same animation channel; never
+// carry that world-space compensation into the first-person hand a second time.
+static bool swim_weapon_view_active() {
+    if(render_override)return override_swim_weapon;
+    return input_modernized() && first_person_swimming();
+}
+static bool animated_weapon_channel(double* q,double* pos) {
     const unsigned slot=weapon_view_slot();
-    if(!crouch_weapon_active() ||
+    if((!crouch_weapon_active() && !swim_weapon_view_active()) ||
        !(slot==1 || slot==2 || slot==3 || slot==12 || slot==13 || slot==14 || slot==32))return false;
     const uint32_t desc=duke_model();
     if(!desc)return false;
@@ -580,7 +618,7 @@ static bool display_pose(Mat3 lh,double* rel,bool& ready) {
     if(!torso.known) return false;
     double q[4],pos[3],w=0;
     std::memcpy(q,live_q,sizeof q);std::memcpy(pos,live_rel,sizeof pos);
-    const bool channel_pose=crouch_weapon_channel(q,pos);
+    const bool channel_pose=animated_weapon_channel(q,pos);
     // Modernized view aiming (D07A) turns Duke's arms toward the view even at
     // rest, so a live pose blend would add the view pitch twice. The ready
     // pose is the firing pose throughout; the flash adds its kick below.

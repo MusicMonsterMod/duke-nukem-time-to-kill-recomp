@@ -1,5 +1,7 @@
 # Time to Kill — modernization jobs
 
+**Latest accepted job (2026-10-24): D11E first-person swimming is Done. User accepted and authorized lock-in/closeout. [Note 216](documentation/216-d11e-first-person-swimming.md). D08Z6 and D08AF remain Todo.**
+
 **Latest accepted job (2026-10-24): D08T8 apartment alley platform pull-up/drop is Done. User confirms it works exactly as intended and authorizes closeout. [Note 214](documentation/214-d08t8-alley-platform-hang.md).**
 
 **Latest accepted job (2026-10-24): D20G reload-halt investigation is Done (not reproduced; cause unresolved). If a similar save/load GPU halt or corruption recurs, revisit D20G and [note 213](documentation/213-d20g-slot11-load-halt.md) before starting from scratch. D08T8 is now accepted; see note 214.**
@@ -134,6 +136,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08AC | Normalise Shallow-Water Locomotion and Jump Physics | Done (user-accepted 2026-10-22) | D08AA, D08AB, D08K11, D08Z |
 | D08AD | Fix third-person walk/run animations in deeper shallow water (updated slot 10) | Done (user-accepted 2026-10-22) | D08AC, D08K11 |
 | D08AE | Restore deep-water entry resistance and timely swim handoff (slots 9 and 2) | Done (user-accepted 2026-10-22) | D08AC, D08AD |
+| D08AF | Smooth plunge-to-swimming control handoff at maximum depth (UI slot 9) | Todo | D08AE, D08O |
 | D08O3 | E in water keeps the weapon: redraw when no climb-out follows the stow | Accepted | D08O1 |
 | D08O4 | Brief Ctrl dive keeps swimming forward after release (dive anim plays on; player UI slot 3) | Done (user-accepted) | D08O |
 | D08N | Duke3D-style scuba gear item | Cancelled (out of scope) | — |
@@ -169,6 +172,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08Z3 | Modern landing: no stand-still after a jump (recovery 105 ends on input; landing hop) | Done (user-accepted) | D08Z1 |
 | D08Z4 | First person briefly cuts to third person when jumping into the cop car (UI slot 6) | Done (user-accepted 2026-10-20) | D08Z1, D08V, D11 |
 | D08Z5 | WALL BACKFLIP option: Modern (default) replaces the steep-slope backflip and its backwards push with a slope jump that climbs; Original keeps it (UI slot 10 police car) | Done (user-accepted 2026-10-21) | D08Z1, D08Z4, D19N |
+| D08Z6 | Fluid forward jumps onto tall steps/ledges from a blocked run (UI slot 10, right corner) | Todo | D08Z, D08Z1 |
 | D08J1 | Hold-E run-up grab for overhead ladders (slot-6 ladder) | Done | D08J, D08X, D08U |
 | D08J2 | Poles and chains: A/D turn the wrong way (A turns right, D left) | Accepted | D08J |
 | D08J4 | Ceiling monkey-bar climbing: camera-relative travel, no mid-span drops (player UI slot 3) | Accepted | D08J, D22B |
@@ -191,7 +195,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D12D | Upgraded first-person weapon framing (Challenge Stage 4 Incendiary RPG) | Done (user-accepted 2026-10-22) | D12, D22B |
 | D11C | Savestates can keep Duke's first-person head hidden (slot 12) | Done | D11 |
 | D11D | First-person eye height from Duke's real proportions, game-wide (LEVEL01 slot 8) | Accepted | D11, D22A |
-| D11E | First person while swimming (underwater eye view, game-wide) | Todo | D08O, D11, D22B |
+| D11E | First person while swimming (underwater eye view, game-wide) | Done (user-accepted 2026-10-24) | D08O, D11, D22B |
 | D11F | First person while flying the jetpack (game-wide, all schemes) | Todo | D11, D08Q3, D22B |
 | D11G | New level can start in third person although first person is selected (player UI slot 11 -> next level); left click restores it | Cancelled (cannot reproduce, 2026-10-21; reopen if seen again) | D11, D22B |
 | D13 | Higher internal resolution and display scaling | Done | D02 |
@@ -3153,6 +3157,48 @@ shallow shelves in deep volumes and return to ground. See note 196 for detail.
 
 **Dependencies:** D08AC, D08AD (Done). Related: D08AA/AB, D08O, D08Z, D08K11.
 
+
+### D08AF - Smooth plunge-to-swimming control handoff at maximum depth
+
+**Todo. User report, 2026-10-24. Backlog only; do not start investigation or
+implementation without selection.** Use the player's current **UI slot 9**
+(private test copy when selected).
+
+**Reproduction:** load UI slot 9, hold **Shift + W** to run along the ledge,
+then press **Space** while continuing forward to jump straight into the water
+below. Follow Duke through the plunge. At the deepest point of the entry,
+just before full swimming control returns, the user feels a small slowdown
+or hesitation between the downward carry from the fall and freely swimming.
+The right observation point is the end of the plunge, not the initial splash.
+
+**Goal:** a more modern, fluid and streamlined transition from the plunge
+into controllable swimming, without the stiff pause at maximum entry depth.
+The user describes fall-dependent inertia/depth; this is a perceived mechanism,
+not an established diagnosis. Cause and exact state transition are unconfirmed.
+
+**Investigation when selected:** reproduce with the stated held-input sequence;
+trace entry depth, vertical/horizontal motion, animation, mode and input/control
+ownership through the deepest point and first controlled swim movement. Compare
+held versus released/reapplied movement, different approach/fall heights and
+camera views. Distinguish physical deceleration, animation recovery, control
+handoff and actual frame pacing. If timing evidence indicates a performance
+slowdown, correlate gameplay logs with host activity as required by AGENTS.md.
+
+Read the accepted D08AE water-entry work and
+[note 196](documentation/196-d08ae-deep-water-entry.md) before changing the
+handoff. D08AE restored water-entry resistance; this report concerns the feel
+at the end of the plunge and does not establish a regression in that fix or
+in D11E. Preserve believable entry resistance and existing shallow-water rules;
+do not choose a blanket speed boost or immediate dive cancellation in advance.
+
+**Acceptance:** the slot-9 running-jump entry flows into responsive swimming
+without the reported hesitation at maximum depth, confirmed by the user and
+input/state/motion evidence. Preserve collision, oxygen, surface/deep swimming,
+water-entry resistance, shallow-water jumps and weapon use; no unintended
+forward drift or excessive travel after release. Check both cameras, multiple
+entry heights and another water location. Vanilla remains unchanged.
+
+
 ### D08O3 - E in water keeps the weapon
 
 **Accepted (2026-10-07)** (user: "fully passed my playtest. feels great to play. i accept this job now as complete!!") ([note 120](documentation/120-d08o3-e-in-water.md)).
@@ -5560,6 +5606,39 @@ only after a slope slide's jump branch).
 **2026-10-21, accepted.** User: "perfect!!! lock it in close it out." D08Z5
 Done; executable `4114333b209e8f1797ef6b4cf12b4898f97f22ee4d379c0c6b0659a3223b82da` is the regression baseline.
 
+
+### D08Z6 - Fluid forward jumps onto tall steps/ledges from a blocked run
+
+**Todo. User report, 2026-10-24. Backlog only; not yet investigated.**
+Use the player's current **UI slot 10**, with a private test copy when selected.
+The tall step/ledge directly ahead produces a stiff, awkward jump with very
+little forward inertia or freedom of movement.
+
+**Reproduction:**
+1. Load UI slot 10 and approach the step in front of Duke, preferably close
+   to the ledge's **right-hand corner**. The user reports that this enhances
+   the effect, although it may occur elsewhere along the ledge.
+2. Hold **Shift**, then hold **W**, and run directly into the step.
+3. Keep Shift + W held until Duke has stopped moving against the step.
+4. While still holding both keys, press **Space**.
+5. Observe Duke rising mostly vertically with very little forward carry onto
+   or over the ledge. The jump feels rigid rather than fluid and modern.
+
+**Goal:** make a jump initiated while pressing forward into a tall step feel
+responsive and fluid, with useful forward movement as clearance becomes
+available above the lip. Investigate the blocked-run takeoff, forward input/
+velocity handling and corner collision before choosing a fix. The cause is
+unconfirmed; do not assume it is the existing wall-slide or mantle behavior.
+Compare the right corner with the middle/other approaches and ordinary open
+running jumps. Record the active jump/wall options from the reproduction.
+
+**Acceptance:** the slot-10 reproduction, especially near the right corner,
+feels naturally forward-moving and controllable to the user. No clipping
+through solid geometry, unintended automatic vault, excessive launch, or
+regression in ordinary jumps, wall slides, mantles and landings. Verify both
+camera views and representative other ledges. Vanilla remains unchanged.
+
+
 ### D08J1 - Hold-E run-up grab for overhead ladders (slot 6)
 
 **Done (2026-10-01, user-accepted: "genuinely working solidly").** User: the ladder at save slot 6 is awkward to
@@ -5769,7 +5848,9 @@ crouch, ladders, swim) still look right; the user confirms.
 
 ### D11E - First person while swimming (game-wide)
 
-**Todo. Found by the D22B survey, 2026-10-04.** In BLOOD BATHS (and any deep
+**Done (user-accepted 2026-10-24).** User accepted first-person swimming and explicitly requested lock-in and closeout. Stable surface/underwater eye, animated weapon display, replay state and swim holster presentation are accepted. Mantles retain the established third-person traversal view. [Note 216](documentation/216-d11e-first-person-swimming.md) preserves implementation, test evidence and coverage limits; [note 215](documentation/215-d11e-first-person-swimming-research.md) records the research. Accepted executable: `6725addce03114878375d08d81331a4bd4032aa5169d21fff74a586602b73ea6`.
+
+**Found by the D22B survey, 2026-10-04.** In BLOOD BATHS (and any deep
 water) Duke swims in modes 4/5 (anims 122-128). The Modernized swim controls
 and mouse camera own it (D08M/D08O), but `first_person.inc` deliberately treats
 swim modes as unsupported, so a first-person player is shown the orbit view
@@ -17416,3 +17497,76 @@ No new gameplay/framework changes, build or live test. Wider placement coverage
 and the separate unresolved reload-halt investigation remain explicit limits.
 Accepted executable remains `95b61d027a5b0a3bf152d8fb59a1ab3881a6bc9dc173ef4eb8c879902de9e88f`.
 No subsequent job started.
+
+
+## 2026-10-24 - D11E first-person swimming research (Needs review)
+
+User selected D11E and requested deep research before implementation.
+[Note 215](documentation/215-d11e-first-person-swimming-research.md) records
+current camera/movement/aim ownership, owned-EXE camera disassembly and six
+matching source guards. Private unchanged-build runs collected 360 samples in
+levels 2 and 6 at configured 60/120 FPS. Surface/dive/thrust and longer ascents
+retain the first-person preference but deliberately report swimming fallback.
+Large neck/root pose changes establish why a stable swim eye needs explicit
+handling. A bounded implementation plan covers eye/waterline behavior, weapon
+transforms, draw visibility, replay and transitions, with remaining visual
+questions and a two-level acceptance matrix.
+
+Research is ready for review; the feature is not implemented or accepted.
+No gameplay/framework edits, rebuild, generated-source changes or commit/push.
+Private profiles/cards only; test processes stopped. Accepted executable remains
+`95b61d027a5b0a3bf152d8fb59a1ab3881a6bc9dc173ef4eb8c879902de9e88f`.
+
+
+## 2026-10-24 - D11E first-person swimming candidate (Needs playtest)
+
+User authorized implementation after the research review. Stable root/surface
+anchor keeps first person through swimming, dive and surfacing without stroke
+pitch or ground bob. Animated swim weapons use their own arm channel, with
+eligibility published to replay workers. Native swim holster transients retain
+eye presentation only; early water-to-mantle frames yield to traversal.
+[Note 216](documentation/216-d11e-first-person-swimming.md) records the change.
+
+Final player build and controls suite pass (LEVEL00, LEVEL01, all overlay
+identities); input/aim/near suites pass. Two-level 60/120/240 swimming matrix,
+real holster/P/pause/console/load checks, and final first/third/Vanilla plus
+4:3 regression runs are recorded with revision boundaries. Full natural
+entry/climb-out routes and user feel acceptance remain unverified. D11E is
+Needs playtest, not Done. No framework/media/generated-C edits, no player
+save/card/settings use by tests, no commit/push. Diagnostic processes stopped.
+Candidate executable: `6725addce03114878375d08d81331a4bd4032aa5169d21fff74a586602b73ea6`.
+
+
+## 2026-10-24 - D08Z6 queued: tall-step jump from a blocked run
+
+User requested a backlog entry before reviewing D11E. Added D08Z6 (Todo)
+with the UI-slot-10 reproduction: hold Shift + W against the step until
+stopped, then press Space, preferably near the right-hand corner. Goal is a
+more fluid, modern forward jump onto the ledge. Cause not investigated.
+Backlog edit only; no build, launch, gameplay changes, commit or push.
+D11E remains Needs playtest.
+
+
+## 2026-10-24 - D08AF queued: plunge-to-swimming hesitation
+
+Added D08AF (Todo) at the user's request: UI slot 9, Shift + W running jump
+into the water, then a perceived slowdown at maximum plunge depth just before
+full swimming control returns. Records a research-first scope and the goal of
+a fluid control handoff, with D08AE as relevant accepted prior work. No cause
+claimed; no investigation, gameplay edit, build, launch, commit or push.
+D11E remains Needs playtest.
+
+
+## 2026-10-24 - D11E accepted and closed
+
+User: "awesome!! in that case, we can now accept the first person swimming.
+lock it in and close it out". D11E is Done by user acceptance. Implementation,
+native tests, manual and research/candidate notes are included in closeout.
+No additional gameplay changes, build or live test after acceptance. Previously
+recorded coverage limits remain; no new campaign-wide evidence is claimed.
+
+Accepted executable: `6725addce03114878375d08d81331a4bd4032aa5169d21fff74a586602b73ea6`.
+Runtime patch re-exported unchanged and applied to the clean pinned framework
+`08ec704a974b1f3a16335b4afeb340b9eff19926`; all 51 patched files match the
+existing framework worktree. Submodule pins unchanged. Commit/push authorized
+as MusicMonsterMod. D08Z6 and D08AF remain Todo; neither job was started.

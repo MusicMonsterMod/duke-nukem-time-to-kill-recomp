@@ -1,5 +1,41 @@
 # Next-session handoff
 
+## 2026-10-24 - D35G accepted and closed out
+
+User: "lock it in, close it out!". D35G is Done. MANTLE VIEW offers First
+Person / Third Person through mantles, ledge hangs, shimmy and water climb-outs,
+with a stable eye and native hands. Movement and collision remain unchanged.
+See [note 229](229-d35g-first-person-mantles.md) for tests and coverage limits.
+
+Accepted executable: `96cb138081ecd17feda384a95f41ff7d26a49d9721563da34c898e6838d9f41d`.
+Authored implementation, tests, manual and job records included in authorized
+closeout as MusicMonsterMod. Runtime patch re-exported unchanged and verified
+against the pinned clean framework index: all 51 changed/new files matched.
+No post-acceptance gameplay edits, rebuilds or launches. Acceptance does not
+establish unrecorded whole-campaign or blocked-ceiling coverage. No player data
+changed and no next job started. Launch: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-24 - D35G first-person mantles (Needs playtest)
+
+MANTLE VIEW in Advanced Action Perspective offers First Person (default) /
+Third Person for ledge hangs, shimmy, pull-ups and water climb-outs. Stable
+body-height eye and native hands; movement/collision/attachment unchanged.
+Schema 46, launcher `--mantle-view`. [Note 229](229-d35g-first-person-mantles.md).
+
+Build, native controls/input/aim/near and all 96 profile tests pass. Private
+alley, sewer, airborne catch and natural level-6 water exit retain first
+person; both action choices, saved hangs, global P and live menu cancel/confirm
+pass. Pull-up image sequence and menu inspected. User comfort and broader
+campaign/blocked-ceiling coverage remain unverified.
+
+Candidate: `96cb138081ecd17feda384a95f41ff7d26a49d9721563da34c898e6838d9f41d`.
+All diagnostic sessions stopped. No player settings/saves/cards, framework
+source, generated C or pins changed. No acceptance closeout, commit or push.
+Launch: `python3 recomp/tools/local/run.py`. P selects First Person;
+MANTLE VIEW defaults to First Person. Gameplay captures automatically.
+
+
 ## 2026-10-24 - D35F accepted and closed out
 
 User: "so so good! let's lock it in and close it out!". D35F is Done.

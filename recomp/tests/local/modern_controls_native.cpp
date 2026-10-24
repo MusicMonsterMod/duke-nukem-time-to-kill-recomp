@@ -253,13 +253,13 @@ static void call(uint32_t address,uint32_t a0,uint32_t a1,uint32_t ra,uint32_t s
 int main(int argc,char** argv) {
     const char* tight_env=std::getenv("DNTTK_TIGHT_CAMERA");
     const bool tight_enabled=tight_env && !std::strcmp(tight_env,"1");
-    // D35D: push now has an eye path; water exits and unsupported traversal do not.
-    for(unsigned mask=0;mask<2048;++mask) {
+    // D35G: water exits and ledges have eye paths; other traversal stays gated.
+    for(unsigned mask=0;mask<4096;++mask) {
         ttk::PerspectiveFacts f{};
         f.selected=mask&1;f.active=mask&2;f.water_exit=mask&4;f.push=mask&8;
-        f.traversal=mask&16;f.committed=mask&32;f.fall=mask&64;f.swim=mask&128;f.jet=mask&256;f.ladder=mask&512;f.pole=mask&1024;
+        f.traversal=mask&16;f.committed=mask&32;f.fall=mask&64;f.swim=mask&128;f.jet=mask&256;f.ladder=mask&512;f.pole=mask&1024;f.mantle=mask&2048;
         const auto r=ttk::resolve_perspective(f);
-        const bool old=!f.water_exit && (f.push || f.ladder || f.pole || !f.traversal || f.committed || f.fall);
+        const bool old=f.water_exit || f.mantle || f.push || f.ladder || f.pole || !f.traversal || f.committed || f.fall;
         assert(r.capable==old && r.effective==(f.selected && old));
         const char* reason=!f.selected?"off":!old?"traversal":f.active?"active":"input-suspended";
         assert(!std::strcmp(ttk::perspective_reason(r.reason),reason));
@@ -275,7 +275,7 @@ int main(int argc,char** argv) {
     assert(!ttk::parse_action_view("third",choice) && choice==ttk::ActionView::LegacyThird);
     assert(!ttk::parse_action_view(nullptr,choice));
     assert(ttk::parse_action_view("first",choice) && choice==ttk::ActionView::First);
-    std::puts("PASS: D35F presentation policy covers all 2048 fact combinations; denials and enum validation");
+    std::puts("PASS: D35G presentation policy covers all 4096 fact combinations; denials and enum validation");
     setenv("DNTTK_DRAW_DISTANCE","extended",1);
     assert(argc>=3 && argc<=5);
     std::ifstream exe(argv[1],std::ios::binary);exe.seekg(2048);exe.read((char*)ram+0x10000,0xbb000);assert(exe.gcount()==0xbb000);
@@ -3193,6 +3193,34 @@ int main(int argc,char** argv) {
                 assert(metric("\"blend\":")==1);
                 std::puts("PASS: D35D push/pull/grab presentation, choice, pause, load, replay and movement isolation");
             }
+            // D35G: every native ledge lifecycle pose, independent choices,
+            // save acquisition and paused presentation. No movement permission.
+            {
+                const auto equip=psx_mod_read_byte(p+0x3b8);
+                psx_mod_write_byte(p+0x3b8,0);
+                for(unsigned mode:{0u,6u,7u,8u,9u}) {
+                    const unsigned lo=(mode==0 || mode==8)?134:mode==9?108:mode==6?147:149;
+                    const unsigned hi=(mode==0 || mode==8)?142:mode==9?108:153;
+                    for(unsigned pose=lo;pose<=hi;++pose) {
+                        psx_mod_write_half(p+0x60,pose);
+                        psx_mod_write_byte(p+0x22c,mode);psx_mod_write_byte(p+0x22d,mode==9?6:mode);
+                        for(const char* choice:{"first","legacy-third"}) {
+                            setenv("DNTTK_MANTLE_VIEW",choice,1);++save_loads;frame();
+                            const bool eye=!std::strcmp(choice,"first");
+                            assert(metric("\"blend\":")==int(eye));
+                            if(eye || (mode!=0 && mode!=9))assert(std::strstr(ttk::controls_debug_json(),"\"action\":\"mantle\""));
+                            assert(!ttk::movement_ready() && !ttk::locomotion_input_ready());
+                            ttk::input.active=false;frame();assert(metric("\"blend\":")==int(eye));ttk::input.active=true;
+                            ttk::input.first_person=false;++save_loads;frame();assert(metric("\"blend\":")==0);
+                            ttk::input.first_person=true;
+                        }
+                    }
+                }
+                unsetenv("DNTTK_MANTLE_VIEW");psx_mod_write_byte(p+0x3b8,equip);
+                psx_mod_write_half(p+0x60,63);psx_mod_write_byte(p+0x22c,0);psx_mod_write_byte(p+0x22d,0);
+                ++save_loads;frame();assert(metric("\"blend\":")==1);
+                std::puts("PASS: D35G mantle/hang/shimmy/drop lifecycle, choices, pause, load and ground return");
+            }
             // D35E: shared clips need a plain ladder, exits may already
             // own the landing. Presentation never grants locomotion/aim.
             {
@@ -3436,11 +3464,11 @@ int main(int argc,char** argv) {
                 unsetenv("DNTTK_SWIMMING");unsetenv("DNTTK_SWIM_VIEW");
                 std::puts("PASS: D35B both paces, live swim view, global third precedence, land return, reset and replay policy");
                 // A water-to-mantle handoff still has previous mode 4/5 and
-                // may retain the water flag. Yield before the first climb frame.
+                // may retain the water flag. D35G keeps the eye from the first climb frame.
                 for(unsigned previous:{4u,5u}) {
                     psx_mod_write_byte(p+0x22c,8);psx_mod_write_byte(p+0x22d,previous);psx_mod_write_half(p+0x60,134);
-                    ++save_loads;frame();assert(metric("\"blend\":")==0);
-                    assert(std::strstr(ttk::controls_debug_json(),"\"reason\":\"traversal\""));
+                    ++save_loads;frame();assert(metric("\"blend\":")==1);
+                    assert(std::strstr(ttk::controls_debug_json(),"\"action\":\"water-exit\""));
                     // P during fallback is authoritative after exit and world reset.
                     ttk::input.first_person=false;frame();
                     psx_mod_write_byte(p+0x22c,4);psx_mod_write_byte(p+0x22d,4);psx_mod_write_half(p+0x60,171);

@@ -104,7 +104,7 @@ DRAW_DISTANCES = ('original', 'extended')
 STEROIDS_MODES = ('portable', 'original')
 # Alt-wheel boom range in game units; 0 keeps the original follow distance.
 CAMERA_DISTANCE_RANGE = (768, 6144)
-DEFAULT_CONTROLS = {'scheme': 'modern', 'camera': 'independent', 'mouse_sensitivity': 0.12, 'invert_y': False, 'weapon_aim': 'view', 'crosshair': True, 'red_dot': False, 'aim_assist': 'off', 'jetpack': 'modern', 'camera_distance': 0, 'shoulder': 'center', 'view': 'third', 'widescreen': '16:9', 'cpu_overclock': 150, 'cpu_timing': 'fast', 'jump': 'assisted', 'frame_rate': 'auto', 'view_bob': 'on', 'geometry_precision': 'original', 'texture_precision': 'original', 'draw_distance': 'extended', 'steroids': 'portable', 'jump_walls': 'slide', 'landing': 'modern', 'dynamite': 'modern', 'swimming': 'modern', 'swim_view': 'first', 'jetpack_view': 'first', 'push_view': 'first', 'ladder_view': 'first', 'pole_view': 'first', 'wall_backflip': 'modern', 'crouch': 'modern'}
+DEFAULT_CONTROLS = {'scheme': 'modern', 'camera': 'independent', 'mouse_sensitivity': 0.12, 'invert_y': False, 'weapon_aim': 'view', 'crosshair': True, 'red_dot': False, 'aim_assist': 'off', 'jetpack': 'modern', 'camera_distance': 0, 'shoulder': 'center', 'view': 'third', 'widescreen': '16:9', 'cpu_overclock': 150, 'cpu_timing': 'fast', 'jump': 'assisted', 'frame_rate': 'auto', 'view_bob': 'on', 'geometry_precision': 'original', 'texture_precision': 'original', 'draw_distance': 'extended', 'steroids': 'portable', 'jump_walls': 'slide', 'landing': 'modern', 'dynamite': 'modern', 'swimming': 'modern', 'swim_view': 'first', 'jetpack_view': 'first', 'push_view': 'first', 'ladder_view': 'first', 'pole_view': 'first', 'mantle_view': 'first', 'wall_backflip': 'modern', 'crouch': 'modern'}
 # display is how the game opens (the runtime reports the last state at exit);
 # fullscreen_mode is what F11 enters from a window.
 DEFAULT_PRESENTATION = {'renderer': 'opengl', 'internal_scale': 1, 'display': 'windowed', 'fullscreen_mode': 'borderless', 'window_width': 0, 'output_filter': 'linear'}
@@ -125,6 +125,7 @@ def validate_controls(value):
     validate_action_view(value['push_view'])
     validate_action_view(value['ladder_view'])
     validate_action_view(value['pole_view'])
+    validate_action_view(value['mantle_view'])
     sensitivity = value['mouse_sensitivity']
     if (value['weapon_aim'] not in AIM_MODES or value['scheme'] not in ('modern', 'legacy') or value['camera'] not in CAMERAS or value['aim_assist'] not in ('off','original-lock') or value['jetpack'] not in JETPACK_SCHEMES or type(value['red_dot']) is not bool or type(value['crosshair']) is not bool or type(value['invert_y']) is not bool or
         type(sensitivity) not in (int, float) or not math.isfinite(sensitivity) or
@@ -313,7 +314,7 @@ VANILLA_NOTICE = ('Modernized is now the default profile; your Vanilla settings 
 
 
 def defaults():
-    return {'version': 45, 'active': 'modernized',
+    return {'version': 46, 'active': 'modernized',
             'profiles': {mode: default_profile(mode) for mode in MODES}}
 
 
@@ -359,7 +360,7 @@ def load(path):
         notices.append('Unreadable profile settings; restored Modernized defaults.')
     else:
         version = data.get('version')
-        if type(version) is int and version > 45:
+        if type(version) is int and version > 46:
             raise ValueError(f'Profile settings version {version} is newer than this launcher; file left unchanged.')
         if type(version) is int and version == 0:
             mode = data.get('mode', 'modernized')
@@ -368,8 +369,8 @@ def load(path):
                 if renderer in RENDERERS:
                     result['profiles'][mode]['presentation']['renderer'] = renderer
             changed = True
-            notices.append('Migrated version 0 profile settings to version 45.')
-        elif type(version) is int and version in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45):
+            notices.append('Migrated version 0 profile settings to version 46.')
+        elif type(version) is int and version in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46):
             if data.get('active') == 'vanilla':
                 notices.append(VANILLA_NOTICE)
             profiles = data.get('profiles', {})
@@ -391,7 +392,7 @@ def load(path):
                         notices.append(f'{mode}: {exc} Restored presentation defaults.')
                 if isinstance(profile, dict) and isinstance(profile.get('controls'), dict):
                     try:
-                        result['profiles'][mode]['controls'] = validate_controls({**({k:v for k,v in DEFAULT_CONTROLS.items() if k in ('crosshair','red_dot','aim_assist')} if version < 5 else {}), **({'weapon_aim':'view'} if version < 4 else {}), **({'jetpack':'modern'} if version < 11 else {}), **({'camera_distance':0,'shoulder':'center'} if version < 12 else {}), **({'view':'third'} if version < 13 else {}), **({'widescreen':'16:9'} if version < 18 else {}), **({'cpu_overclock':150} if version < 19 else {}), **({'jump':'assisted'} if version < 20 else {}), **({'frame_rate':'60'} if version < 21 else {}), **({'view_bob':'on'} if version < 22 else {}), **({'geometry_precision':'original','texture_precision':'original'} if version < 23 else {}), **({'draw_distance':'extended'} if version < 24 else {}), **({'cpu_timing':'fast'} if version < 25 else {}), **({'steroids':'portable'} if version < 29 else {}), **({'jump_walls':'slide'} if version < 30 else {}), **({'landing':'modern'} if version < 31 else {}), **({'dynamite':'modern'} if version < 32 else {}), **({'swimming':'modern'} if version < 33 else {}), **({'wall_backflip':'modern'} if version < 37 else {}), **({'crouch':'modern'} if version < 39 else {}), **({'scheme':'modern'} if version < 40 else {}), **({'swim_view':'first'} if version < 41 else {}), **({'jetpack_view':'first'} if version < 42 else {}), **({'push_view':'first'} if version < 43 else {}), **({'ladder_view':'first'} if version < 44 else {}), **({'pole_view':'first'} if version < 45 else {}), **profile['controls']})
+                        result['profiles'][mode]['controls'] = validate_controls({**({k:v for k,v in DEFAULT_CONTROLS.items() if k in ('crosshair','red_dot','aim_assist')} if version < 5 else {}), **({'weapon_aim':'view'} if version < 4 else {}), **({'jetpack':'modern'} if version < 11 else {}), **({'camera_distance':0,'shoulder':'center'} if version < 12 else {}), **({'view':'third'} if version < 13 else {}), **({'widescreen':'16:9'} if version < 18 else {}), **({'cpu_overclock':150} if version < 19 else {}), **({'jump':'assisted'} if version < 20 else {}), **({'frame_rate':'60'} if version < 21 else {}), **({'view_bob':'on'} if version < 22 else {}), **({'geometry_precision':'original','texture_precision':'original'} if version < 23 else {}), **({'draw_distance':'extended'} if version < 24 else {}), **({'cpu_timing':'fast'} if version < 25 else {}), **({'steroids':'portable'} if version < 29 else {}), **({'jump_walls':'slide'} if version < 30 else {}), **({'landing':'modern'} if version < 31 else {}), **({'dynamite':'modern'} if version < 32 else {}), **({'swimming':'modern'} if version < 33 else {}), **({'wall_backflip':'modern'} if version < 37 else {}), **({'crouch':'modern'} if version < 39 else {}), **({'scheme':'modern'} if version < 40 else {}), **({'swim_view':'first'} if version < 41 else {}), **({'jetpack_view':'first'} if version < 42 else {}), **({'push_view':'first'} if version < 43 else {}), **({'ladder_view':'first'} if version < 44 else {}), **({'pole_view':'first'} if version < 45 else {}), **({'mantle_view':'first'} if version < 46 else {}), **profile['controls']})
                     except ValueError as exc:
                         notices.append(f'{mode}: {exc} Restored camera defaults.')
                 # Schema 28 (D08A5): Comma/Period move from original strafe to the mission
@@ -442,8 +443,8 @@ def load(path):
                         profile['bindings']['item_use'] = 'Unbound'
             changed = result != data
             if changed and result != {**data, 'active': 'modernized'}:
-                notices.append(f'Migrated version {version} profile settings to version 45; retained preferences and added control and presentation defaults.'
-                               if version < 45 else
+                notices.append(f'Migrated version {version} profile settings to version 46; retained preferences and added control and presentation defaults.'
+                               if version < 46 else
                                'Invalid or unsupported profile fields were reset; valid preferences were retained.')
         else:
             changed = True
@@ -496,6 +497,7 @@ def describe(settings):
         lines.append(f"Crouch: {describe_crouch(controls['crouch'])}")
         lines.append(f"Dynamite: {describe_dynamite(controls['dynamite'])}")
         lines.append(f"Swimming: {describe_swimming(controls['swimming'])}")
+        lines.append(f"Mantle view: {controls['mantle_view']} (when global view is first person)")
         lines.append(f"Chain/pole view: {controls['pole_view']} (when global view is first person)")
         lines.append(f"Ladder view: {controls['ladder_view']} (when global view is first person)")
         lines.append(f"Push/pull view: {controls['push_view']} (when global view is first person)")

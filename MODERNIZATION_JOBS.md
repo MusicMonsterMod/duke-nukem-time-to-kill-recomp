@@ -1,5 +1,7 @@
 # Time to Kill — modernization jobs
 
+**Latest accepted job (2026-10-24): D35G first-person mantles, ledge hangs and water climb-outs is Done. User: "lock it in, close it out!". [Note 229](documentation/229-d35g-first-person-mantles.md).**
+
 **Latest accepted job (2026-10-24): D35F first-person chains/poles is Done. User: "so so good! let's lock it in and close it out!". [Note 228](documentation/228-d35f-first-person-poles.md).**
 
 **Latest accepted job (2026-10-24): D35E first-person ladder lifecycle is Done. User: "lock it in, close it out!!!". [Note 227](documentation/227-d35e-first-person-ladders.md).**
@@ -333,7 +335,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D35D | First-person push/pull and grab presentation | Done | D35A, D08T3, D08T7 |
 | D35E | First-person ladder climbing lifecycle | Done | D35A, D08J3, D08U, D08J1 |
 | D35F | First-person chain, pole and pole-class lamppost climbing | Done | D35A, D35E, D08J5 |
-| D35G | First-person mantles, ledge hangs and water climb-outs | Todo | D35A, D35E, D08V, D08X, D08T8 |
+| D35G | First-person mantles, ledge hangs and water climb-outs | Done | D35A, D35E, D08V, D08X, D08T8 |
 | D35H | First-person overhead and monkey-bar traversal | Todo | D35A, D35G, D08J4 |
 | D35I | First-person climbing walls | Todo | D35A, D35E |
 | D35J | Damage and native inventory transient perspective gaps | Todo | D35 |
@@ -496,10 +498,10 @@ animation or settings edits, commit or push are part of this research result.
 
 ### D35G - First-person mantles, ledge hangs and water climb-outs
 
-**Status:** Todo. **Dependencies:** D35A, D35E, D08V, D08X, D08T8.
+**Status:** Done, user-accepted 2026-10-24. **Dependencies:** D35A, D35E, D08V, D08X, D08T8.
 **Research:** [D35 central audit](documentation/222-d35-first-person-audit.md).
 
-**Current behavior:** Mode 6/7 hangs/shimmy and mode 8 134..142 force orbit; early water-exit previous 4/5 has a separate explicit rejection.
+**Accepted implementation:** MANTLE VIEW keeps the eye and native hands through ledge hangs, shimmy, pull-up and water climb-outs, or selects the existing third-person view. Schema 46; see [note 229](documentation/229-d35g-first-person-mantles.md) for verification and coverage limits.
 
 **Desired result:** Implement an eye path over the lip with hang/shimmy/pull-up hands and comfortable orientation; retain native motion/events for ground/object/airborne/water entry and abort/drop.
 
@@ -18458,3 +18460,28 @@ Accepted executable remains
 No post-acceptance gameplay edits, rebuilds or launches. Recorded coverage
 limits remain in note 228; acceptance does not establish additional routes.
 No player data changed and no next job started.
+
+
+## 2026-10-24 - D35G first-person mantle candidate (Needs playtest)
+
+User selected D35G. Added MANTLE VIEW, stable body-height eye through ledge
+and water-exit lifecycles, native interaction hands, and schema-46 persistence.
+Movement, collision, attachment and weapon stow/redraw remain native.
+Build, native controls/input/aim/near and all 96 profile tests pass. Private
+alley, sewer, airborne catch and natural level-6 water exit retain first person;
+Third Person comparisons and live menu cancel/confirm/global P pass. Pull-up
+image sequence inspected. See [note 229](documentation/229-d35g-first-person-mantles.md).
+User comfort and broader campaign/blocked-ceiling coverage await playtest.
+All diagnostic sessions stopped. No player data, framework source, generated
+C or pins changed. No acceptance closeout, commit or push.
+
+
+## 2026-10-24 - D35G accepted and closeout authorized
+
+User: "lock it in, close it out!". D35G is Done. The tested implementation,
+native hands, MANTLE VIEW setting and schema-46 persistence are accepted.
+Authored implementation, tests, manual and job records are included in the
+explicitly authorized MusicMonsterMod commit/push closeout. Runtime patch
+re-export is unchanged and reproduces all 51 changed/new files against the
+pinned clean framework index. No post-acceptance gameplay edits, rebuilds or
+launches. Coverage limits remain recorded in note 229; no next job started.

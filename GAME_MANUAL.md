@@ -736,6 +736,11 @@ Mouse look stays independent, including the top mount's half-turn. Held A/D
 keeps its direction when you look across to the other side; release and press
 again to choose the direction relative to the new view. CONFIRM applies and
 saves the choice; `--pole-view first` or `--pole-view legacy-third` also saves it.
+**MANTLE VIEW** offers FIRST PERSON (default) / THIRD PERSON for ledge hangs,
+shimmying, pull-ups and water climb-outs. The eye follows Duke over the lip and
+his hands keep their native poses. E catches/climbs, W pulls up, A/D shimmy and
+Space or S drops from a settled ledge hang as before. CONFIRM applies and saves
+it; `--mantle-view first` or `--mantle-view legacy-third` also saves the choice.
 Climbing walls still step out to third person. Vanilla keeps the original
 climbing camera.
 
@@ -853,18 +858,18 @@ DNTTK_FP_KICK_THIGH=0 python3 recomp/tools/local/run.py
 First-person view stays active while swimming at the surface, diving and
 swimming underwater. The swimming eye stays steady through the stroke, with
 no walking bob; mouse look, movement and firing use the existing swim controls.
-Space ascends, Ctrl dives, and E remains the way to climb out. A mantle still
-uses the third-person traversal view, then returns to your selected view.
+Space ascends, Ctrl dives, and E remains the way to climb out. MANTLE VIEW chooses first or third person for the climb-out.
 First person also stays active during jetpack takeoff, flight and landing
 with Modern, Classic and EDuke32 flight controls. The eye stays centered above
 Duke through flight lean; aiming and the crosshair work as on the ground.
 Plain ladders retain first person by default, with LADDER VIEW offering the
 existing third-person camera. Chains and poles also retain first person by
-default, with CHAIN/POLE VIEW offering third person. Ledges and climbing walls
-still show the free third-person camera while Duke climbs; scripted and
+default, with CHAIN/POLE VIEW offering third person. Ledges retain first person
+by default, with MANTLE VIEW offering third person. Climbing walls still show
+the free third-person camera; scripted and
 turret cameras and death use the original camera. Dodge rolls
 and slides down steep slopes stay in first person, and so do falls (off an edge, a
-car roof or after bumping a wall); only grabbing a ledge switches. Pressing P
+car roof or after bumping a wall). Pressing P
 again returns to third person. Console, pause, menus and focus loss retain the
 selected perspective and stop gameplay input. Returning to play captures input
 automatically without resetting the camera direction. Loading a save keeps your

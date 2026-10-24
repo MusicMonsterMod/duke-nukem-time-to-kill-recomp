@@ -121,6 +121,20 @@ static bool first_person_pole() {
     if(!pole_object(object_type_flags(psx_mod_read_word(player+0x17c))))return false;
     return climb_state_early() && (a==147 || a==148 || a==154 || (a>=191 && a<=196));
 }
+// D35G: ledge ownership is distinct from the attached ladder/pole set.
+// Water exit owns its early 8/4 or 8/5 tick before swim flags clear.
+static bool first_person_mantle() {
+    const unsigned a=psx_mod_read_half(player+0x60);
+    const unsigned mode=psx_mod_read_byte(player+0x22c),prev=psx_mod_read_byte(player+0x22d);
+    // Native takeoff installs the clip before its dispatcher sets mode 8.
+    if(mode==0 && (prev==0 || prev==9) && a>=134 && a<=142)return true;
+    if(mode==8 && a>=134 && a<=142)
+        return prev==0 || prev==4 || prev==5 || prev==6 || prev==7 || prev==8 || prev==9;
+    if(mode==6 && a>=147 && a<=153)
+        return prev==0 || prev==6 || prev==7 || prev==8 || prev==9;
+    if(mode==7 && a>=149 && a<=153)return prev==6 || prev==7 || prev==9;
+    return mode==9 && a==108 && (prev==6 || prev==7 || prev==8);
+}
 // Once per verified normal-camera update, after orbit_begin.
 static void first_person_update(const InputFrame& f,unsigned ticks,bool acquiring=false) {
     const unsigned mode=psx_mod_read_byte(player+0x22c), previous=psx_mod_read_byte(player+0x22d);
@@ -129,6 +143,7 @@ static void first_person_update(const InputFrame& f,unsigned ticks,bool acquirin
     facts.selected=f.first_person;facts.active=f.active;
     // Water exit takes ownership before the lingering water flag clears.
     facts.water_exit=mode==8 && (previous==4 || previous==5) && animation>=134 && animation<=142;
+    facts.mantle=first_person_mantle();
     facts.ladder=first_person_ladder();facts.pole=first_person_pole();
     facts.push=push_state_early();facts.traversal=traversal_camera_early();
     facts.committed=committed_move_early();facts.fall=unowned_fall_early();
@@ -146,6 +161,8 @@ static void first_person_update(const InputFrame& f,unsigned ticks,bool acquirin
         fp_policy=resolve_perspective(facts,ladder_view());
     if(fp_policy.action==PerspectiveAction::Pole)
         fp_policy=resolve_perspective(facts,pole_view());
+    if(fp_policy.action==PerspectiveAction::Mantle || fp_policy.action==PerspectiveAction::WaterExit)
+        fp_policy=resolve_perspective(facts,mantle_view());
     const bool wanted=fp_policy.effective;
     // A newly authenticated world starts in the selected view. Never blend
     // from an unrelated old save/camera or flash a third-person load frame.
@@ -225,11 +242,12 @@ static bool first_person_anchor(const double* forward,double* anchor) {
     for(int i=0;i<3;++i) root[i]=(int32_t)psx_mod_read_word(player+4+4*i);
     const bool pivoted=psx_mod_read_word(camera+0x50)==player+0x7bc;
     pivot_y=pivoted ? (int32_t)psx_mod_read_word(player+0x7c0) : root[1];
-    const bool swimming=first_person_swimming();
+    const bool mantling=(fp_policy.action==PerspectiveAction::Mantle || fp_policy.action==PerspectiveAction::WaterExit) && fp_policy.effective;
+    const bool swimming=first_person_swimming() && !mantling;
     const bool jetting=jetpack_flying_early();
     const bool pushing=fp_policy.action==PerspectiveAction::Push && fp_policy.effective;
     const bool climbing=(fp_policy.action==PerspectiveAction::Ladder || fp_policy.action==PerspectiveAction::Pole) && fp_policy.effective;
-    const bool root_anchored=swimming || jetting || pushing || climbing;
+    const bool root_anchored=swimming || jetting || pushing || climbing || mantling;
     if(root_anchored) pivot_y=root[1];
     // Rebase the previous offset when switching between root and land pivot;
     // real body travel stays immediate, only the posture difference is eased.
@@ -252,7 +270,9 @@ static bool first_person_anchor(const double* forward,double* anchor) {
     // eye over the body at standing height; hands retain their native pose.
     // D35E uses the same stable upright offset: the native ladder root is
     // 200 units off its panel, so looking around cannot put the eye through it.
-    if(pushing || climbing) {target[0]=target[2]=0;target[1]=-294;}
+    // D35G: follow native root travel over the lip, without the animated
+    // neck lean or a stale swimming plane pulling the eye into the ledge.
+    if(pushing || climbing || mantling) {target[0]=target[2]=0;target[1]=-294;}
     // D15: the slow centring drift was still feeding idle neck animation into
     // the camera after locomotion stopped. Hold within the existing dead band
     // while stationary; actual travel, posture changes beyond the band and
@@ -730,7 +750,7 @@ static bool interaction_arm;
 static void first_person_weapon_joint(CPUState* cpu,uint32_t ra) {
     interaction_arm=false;
     if(ra==0x80034c6c && weapon_duke_draw && fp_blend>=0.5 && orbit_valid &&
-       fp_policy.effective && (fp_policy.action==PerspectiveAction::Push || fp_policy.action==PerspectiveAction::Ladder || fp_policy.action==PerspectiveAction::Pole) &&
+       fp_policy.effective && (fp_policy.action==PerspectiveAction::Push || fp_policy.action==PerspectiveAction::Ladder || fp_policy.action==PerspectiveAction::Pole || fp_policy.action==PerspectiveAction::Mantle || fp_policy.action==PerspectiveAction::WaterExit) &&
        cpu->gpr[4]==camera && cpu->gpr[20]==player) {
         const int part=duke_joint_part(duke_model(),cpu->gpr[23]);
         interaction_arm=part>=int(part_arm_first) && part<=0x0f;
@@ -867,12 +887,12 @@ static void first_person_weapon_attached(CPUState* cpu,uint32_t address,uint32_t
 
 // D35E: the native joint loop skips an entire arm when its origin is
 // nearer than GTE H, before the polygon near clipper can see it. Only for
-// ladder/pole arms, let the loop reach that clipper without moving the matrices
+// ladder/pole/ledge arms, let the loop reach that clipper without moving the matrices
 // or changing projection. s0 is the loop's saved joint depth; the remaining
 // mesh path uses the real transform and host world-depth packets.
 static void first_person_ladder_near(CPUState* cpu,uint32_t ra) {
     if(ra!=0x80034c8c || !interaction_arm || !weapon_duke_draw ||
-       (fp_policy.action!=PerspectiveAction::Ladder && fp_policy.action!=PerspectiveAction::Pole) || !fp_policy.effective ||
+       (fp_policy.action!=PerspectiveAction::Ladder && fp_policy.action!=PerspectiveAction::Pole && fp_policy.action!=PerspectiveAction::Mantle && fp_policy.action!=PerspectiveAction::WaterExit) || !fp_policy.effective ||
        !orbit_valid || fp_blend<0.5 || cpu->gpr[20]!=player)return;
     // The actor loop saves a0 (camera) at sp+0x98. s3 is its render context,
     // not the camera pointer (0x8003490c / 0x80034abc).

@@ -1505,9 +1505,15 @@ and let go. Touching a pushable object shows which button
 grabs, and each grab shows the push/pull keys (at most once every few seconds). With `original` weapon aiming or camera, only **Alt** grabs (right mouse
 is precision aim there); both are rebindable (`grab`, `grab_alt`).
 
-Mouse look keeps working while you hold an object. In first person the view
-steps out behind Duke while he holds it and returns afterwards. Face the object
-roughly square, as in the original. Objects stop moving when something blocks
+Mouse look keeps working while you hold an object. With global VIEW set to
+FIRST PERSON, **PUSH/PULL VIEW** in OPTIONS > ADVANCED > ACTION PERSPECTIVE
+selects FIRST PERSON (default) or the existing THIRD PERSON interaction view.
+CONFIRM applies and saves it. The eye stays over Duke's body; look down toward
+the contact point to see his native hands. Global THIRD PERSON always wins,
+and releasing the object follows the current global VIEW. E-to-mantle still
+uses the existing third-person mantle camera. The launcher accepts
+`--push-view first` or `--push-view legacy-third`; these save the preference.
+Face the object roughly square, as in the original. Objects stop moving when something blocks
 them or their footprint reaches unsupported ground. Duke keeps holding the
 object, so you can reverse away from the obstruction. Existing floating objects
 in older saves are not repositioned.

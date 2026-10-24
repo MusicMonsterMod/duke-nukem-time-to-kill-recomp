@@ -25,8 +25,7 @@
 // - 0x800348d8 draws an actor joint by joint and skips a joint whose record
 //   flag byte has bit 0 set. The head joint is flagged only between Duke's
 //   draw entry and the object-list step that follows it.
-// Unsupported states (grabbing a pushable object,
-// anything without the orbit lease) blend back to the third-person orbit.
+// Unsupported states without the orbit lease return to the third-person orbit.
 static constexpr uint32_t min_boom_word=0x800c3c48, min_boom_original=768;
 // Eye above the neck pivot, in game units. It stays over the neck (not ahead
 // of it) to keep the most room between the eye and a wall Duke touches.
@@ -118,6 +117,8 @@ static void first_person_update(const InputFrame& f,unsigned ticks,bool acquirin
         fp_policy=resolve_perspective(facts,swimming_view());
     if(fp_policy.action==PerspectiveAction::Jetpack)
         fp_policy=resolve_perspective(facts,jetpack_view());
+    if(fp_policy.action==PerspectiveAction::Push)
+        fp_policy=resolve_perspective(facts,push_view());
     const bool wanted=fp_policy.effective;
     // A newly authenticated world starts in the selected view. Never blend
     // from an unrelated old save/camera or flash a third-person load frame.
@@ -199,7 +200,8 @@ static bool first_person_anchor(const double* forward,double* anchor) {
     pivot_y=pivoted ? (int32_t)psx_mod_read_word(player+0x7c0) : root[1];
     const bool swimming=first_person_swimming();
     const bool jetting=jetpack_flying_early();
-    const bool root_anchored=swimming || jetting;
+    const bool pushing=fp_policy.action==PerspectiveAction::Push && fp_policy.effective;
+    const bool root_anchored=swimming || jetting || pushing;
     if(root_anchored) pivot_y=root[1];
     // Rebase the previous offset when switching between root and land pivot;
     // real body travel stays immediate, only the posture difference is eased.
@@ -218,6 +220,9 @@ static bool first_person_anchor(const double* forward,double* anchor) {
         target[0]=target[2]=0;
         target[1]=-jet_eye_above_root;
     }
+    // D35D: the grab leans the animated neck toward the object. Keep the
+    // eye over the body at standing height; hands retain their native pose.
+    if(pushing) {target[0]=target[2]=0;target[1]=-294;}
     // D15: the slow centring drift was still feeding idle neck animation into
     // the camera after locomotion stopped. Hold within the existing dead band
     // while stationary; actual travel, posture changes beyond the band and
@@ -676,7 +681,15 @@ static void fade_restore(CPUState* cpu) {
     fade_save.active=false;
 }
 // 0x800292a0 entry from the joint loop (ra 0x80034c6c): the hand joint's transform.
+static bool interaction_arm;
 static void first_person_weapon_joint(CPUState* cpu,uint32_t ra) {
+    interaction_arm=false;
+    if(ra==0x80034c6c && weapon_duke_draw && fp_blend>=0.5 && orbit_valid &&
+       fp_policy.effective && fp_policy.action==PerspectiveAction::Push &&
+       cpu->gpr[4]==camera && cpu->gpr[20]==player) {
+        const int part=duke_joint_part(duke_model(),cpu->gpr[23]);
+        interaction_arm=part>=int(part_arm_first) && part<=0x0f;
+    }
     if(ra==0x80034c6c) {weapon_viewmodel=false;fade_restore(cpu);}
     // D12A: the right leg while the first-person quick kick plays (kick.inc).
     if(ra==0x80034c6c && weapon_duke_draw && fp_blend>=0.5 && orbit_valid && kick_leg_joint(cpu)) return;

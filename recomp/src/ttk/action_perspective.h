@@ -41,9 +41,9 @@ inline ActionPerspective resolve_perspective(const PerspectiveFacts& f, ActionVi
         f.committed?PerspectiveAction::Committed:f.fall?PerspectiveAction::Fall:
         f.traversal?PerspectiveAction::Traversal:f.swim?PerspectiveAction::Swimming:
         f.jet?PerspectiveAction::Jetpack:PerspectiveAction::Ground;
-    r.capable=!f.water_exit && !f.push && (!f.traversal || f.committed || f.fall);
+    r.capable=!f.water_exit && (f.push || !f.traversal || f.committed || f.fall);
     r.effective=f.selected && r.capable && choice==ActionView::First;
-    r.reason=!f.selected?PerspectiveReason::Off:f.push?PerspectiveReason::Push:
+    r.reason=!f.selected?PerspectiveReason::Off:
         !r.capable?PerspectiveReason::Traversal:choice==ActionView::LegacyThird?PerspectiveReason::LegacyChoice:
         f.active?PerspectiveReason::Active:PerspectiveReason::Suspended;
     return r;

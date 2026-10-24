@@ -1,5 +1,43 @@
 # Current status - 2026-10-04
 
+## 2026-10-24 - D35D accepted and closed out
+
+User: "lock it in, and close it out!!". D35D is Done. PUSH/PULL VIEW offers
+First Person / Third Person, with a stable body eye and native hands during
+grab/push/pull. Movement and limits remain unchanged. See
+[note 226](226-d35d-first-person-push-pull.md) for tests and coverage limits.
+
+Accepted executable: `09c5d8237e1f6da7da0c2651cf794ec27e1db12c466f88cebe7f9d558c0bca45`.
+Implementation, tests, manual and job records included in authorized closeout
+as MusicMonsterMod. Runtime patch re-exported unchanged and verified against
+the pinned clean framework index: all 51 modified/new files reproduced.
+No post-acceptance gameplay edits, rebuilds or launches. Acceptance does not
+establish unrecorded full-campaign or damage-interruption coverage. No player
+data changed and no next job started. Launch: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-24 - D35D first-person push/pull candidate (Needs playtest)
+
+PUSH/PULL VIEW offers First Person (default) / Third Person under Advanced
+Action Perspective. Stable body eye, native arm poses and ordinary world-depth
+near clipping; existing movement, lanes and limits unchanged. Global Third
+Person wins. Schema 43; launcher --push-view. See [note 226](226-d35d-first-person-push-pull.md).
+
+Build, native controls/input/aim/near and all 93 profile tests pass. Four prior
+private dumpster/symbol-block saves pass acquisition with W held, stop/reverse,
+boundaries, looking around, blocked fire and release/redraw at 120 FPS setting:
+1,072 sampled states retained first person, including 991 push states. At 60,
+menu cancel/confirm, global view, pause and private grab save/load pass. Opposite
+dumpster-face regrab, fixed-object exclusion and held W+E mantle also pass.
+Eye height, hand visibility and transition feel await user playtest.
+
+Candidate: `09c5d8237e1f6da7da0c2651cf794ec27e1db12c466f88cebe7f9d558c0bca45`.
+All diagnostic sessions stopped. No player data, framework source, generated C
+or pins changed. No commit, push or acceptance closeout. Launch:
+`python3 recomp/tools/local/run.py`. P selects global First Person; gameplay
+captures automatically.
+
+
 ## 2026-10-24 - D35C accepted and closed out
 
 User: "lock it in, close it out". D35C is Done. JETPACK VIEW offers

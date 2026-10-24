@@ -1076,7 +1076,7 @@ void object(CPUState* cpu) {
     const bool viewmodel=first_person_weapon_drawing();
     const double coverage=third_person_duke_drawing()?third_person_body_coverage():1.0;
     const bool body=third_person_duke_drawing() && third_person_camera_live() && coverage<1.0;
-    if(!viewmodel && (first_person_duke_drawing() || third_person_duke_drawing()) && !body) {++duke_skips;return;}
+    if(!viewmodel && !first_person_interaction_drawing() && (first_person_duke_drawing() || third_person_duke_drawing()) && !body) {++duke_skips;return;}
     const bool actor=first_person_actor_drawing() || third_person_duke_drawing();
     ++object_stats.seen;
     const unsigned count=psx_mod_read_byte(mesh+6);

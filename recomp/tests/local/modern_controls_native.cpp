@@ -253,15 +253,15 @@ static void call(uint32_t address,uint32_t a0,uint32_t a1,uint32_t ra,uint32_t s
 int main(int argc,char** argv) {
     const char* tight_env=std::getenv("DNTTK_TIGHT_CAMERA");
     const bool tight_enabled=tight_env && !std::strcmp(tight_env,"1");
-    // Compare every combination with the pre-D35A presentation rule.
+    // D35D: push now has an eye path; water exits and unsupported traversal do not.
     for(unsigned mask=0;mask<512;++mask) {
         ttk::PerspectiveFacts f{};
         f.selected=mask&1;f.active=mask&2;f.water_exit=mask&4;f.push=mask&8;
         f.traversal=mask&16;f.committed=mask&32;f.fall=mask&64;f.swim=mask&128;f.jet=mask&256;
         const auto r=ttk::resolve_perspective(f);
-        const bool old=!f.water_exit && !f.push && (!f.traversal || f.committed || f.fall);
+        const bool old=!f.water_exit && (f.push || !f.traversal || f.committed || f.fall);
         assert(r.capable==old && r.effective==(f.selected && old));
-        const char* reason=!f.selected?"off":f.push?"push-object":!old?"traversal":f.active?"active":"input-suspended";
+        const char* reason=!f.selected?"off":!old?"traversal":f.active?"active":"input-suspended";
         assert(!std::strcmp(ttk::perspective_reason(r.reason),reason));
         assert(!ttk::resolve_perspective(f,ttk::ActionView::LegacyThird).effective);
         for(auto denied:{ttk::PerspectiveReason::Identity,ttk::PerspectiveReason::Scripted,
@@ -275,7 +275,7 @@ int main(int argc,char** argv) {
     assert(!ttk::parse_action_view("third",choice) && choice==ttk::ActionView::LegacyThird);
     assert(!ttk::parse_action_view(nullptr,choice));
     assert(ttk::parse_action_view("first",choice) && choice==ttk::ActionView::First);
-    std::puts("PASS: D35A presentation policy matches all 512 baseline fact combinations; denials and enum validation");
+    std::puts("PASS: D35D presentation policy covers all 512 fact combinations; denials and enum validation");
     setenv("DNTTK_DRAW_DISTANCE","extended",1);
     assert(argc>=3 && argc<=5);
     std::ifstream exe(argv[1],std::ios::binary);exe.seekg(2048);exe.read((char*)ram+0x10000,0xbb000);assert(exe.gcount()==0xbb000);
@@ -3142,6 +3142,56 @@ int main(int argc,char** argv) {
                 ttk::render_state_load(orbit.data());
                 assert(std::strstr(ttk::controls_debug_json(),"\"effective\":false,\"requested\":false"));
                 ttk::input.first_person=true;frame();
+            }
+            // D35D: authenticated push poses retain the eye without granting
+            // locomotion. Choice/global view, load, pause and replay ownership.
+            {
+                const uint32_t object=0x801ea000,table=0x801e8000;
+                const auto saved_table=psx_mod_read_word(0x800d2660);
+                psx_mod_write_word(0x800d2660,table);
+                const auto old_object=psx_mod_read_word(p+0x290);
+                const auto flags=psx_mod_read_word(table+28*165);
+                const auto equip=psx_mod_read_byte(p+0x3b8);
+                psx_mod_write_half(object+0x2c,165);
+                psx_mod_write_word(table+28*165,0x081090e2);
+                psx_mod_write_word(p+0x290,object);psx_mod_write_byte(p+0x3b8,0);
+                for(unsigned pose:{119u,120u,121u}) {
+                    psx_mod_write_half(p+0x60,pose);
+                    for(const char* choice:{"first","legacy-third"}) {
+                        setenv("DNTTK_PUSH_VIEW",choice,1);++save_loads;frame();
+                        const bool eye=!std::strcmp(choice,"first");
+                        assert(metric("\"blend\":")==int(eye));
+                        assert(!ttk::movement_ready() && !ttk::locomotion_input_ready());
+                        assert(std::strstr(ttk::controls_debug_json(),"\"action\":\"push\""));
+                        if(eye) {
+                            for(int i=0;i<30;++i)frame();
+                            for(unsigned part:{0x09u,0x0au,0x0bu,0x0cu,0x0du,0x0eu,0x0fu,0x10u}) {
+                                call(0x800348d8,c,p,0x8003769c);
+                                CPUState joint{};joint.gpr[4]=c;joint.gpr[20]=p;joint.gpr[29]=0x801f0000;
+                                joint.gpr[23]=psx_mod_read_byte(desc+0x24+part);
+                                joint.gpr[5]=mats+0x20*joint.gpr[23];joint.gpr[31]=0x80034c6c;
+                                hooks().at(0x800292a0)(&joint,0x800292a0);
+                                assert(ttk::first_person_interaction_drawing()==(part>=0x0a && part<=0x0f));
+                                assert(joint.gpr[5]==mats+0x20*joint.gpr[23]); // native hand matrices
+                                call(0x8001ca4c,0x800d0000,0,0x800376b4);
+                                assert(!ttk::first_person_interaction_drawing());
+                            }
+                        }
+                        ttk::input.active=false;frame();assert(metric("\"blend\":")==int(eye));
+                        ttk::input.active=true;
+                        std::vector<uint8_t> state(ttk::render_state_size());ttk::render_state_save(state.data());
+                        ttk::input.first_person=false;for(int i=0;i<40;++i)frame();
+                        assert(metric("\"blend\":")==0);
+                        ttk::render_state_load(state.data());assert(metric("\"blend\":")==int(eye));
+                        ttk::input.first_person=true;
+                    }
+                }
+                unsetenv("DNTTK_PUSH_VIEW");psx_mod_write_word(p+0x290,old_object);
+                psx_mod_write_word(0x800d2660,saved_table);
+                psx_mod_write_word(table+28*165,flags);psx_mod_write_byte(p+0x3b8,equip);
+                psx_mod_write_half(p+0x60,63);++save_loads;frame();
+                assert(metric("\"blend\":")==1);
+                std::puts("PASS: D35D push/pull/grab presentation, choice, pause, load, replay and movement isolation");
             }
             // D11E: swimming is a presentation state, independent of active
             // input and of the pitched/turning neck. Keep original water and

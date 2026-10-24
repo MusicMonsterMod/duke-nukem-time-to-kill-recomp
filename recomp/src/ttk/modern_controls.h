@@ -127,6 +127,7 @@ void third_person_mesh_begin(CPUState* cpu);
 bool first_person_duke_drawing();
 // D11B: any actor draw (0x800348d8) is in progress, until the next list step.
 bool first_person_actor_drawing();
+bool first_person_interaction_drawing();
 // D12: true while Duke's hand joint, its weapon, muzzle flash or held item is
 // drawn with the first-person weapon transform.
 bool first_person_weapon_drawing();

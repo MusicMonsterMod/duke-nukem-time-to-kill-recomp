@@ -28,7 +28,7 @@ extern "C" int pgxp_mesh_vertex(uint32_t addr,uint32_t,int32_t* x,int32_t* y,uin
 #include <vector>
 static uint8_t ram[0x200000];
 static PSXModFunctionEntryCallback near_hook;
-static bool live_eye=false,modern=true,live_third=false,duke=false;
+static bool live_eye=false,modern=true,live_third=false,duke=false,interaction=false;
 static double body_coverage=1;
 static float observed_coverage=1;
 static unsigned host_vertices;
@@ -54,7 +54,7 @@ extern "C" int psx_mod_gpu_host_vertex_coverage(uint32_t a,uint32_t w,int32_t x,
 extern "C" int psx_mod_replay_active(void){return 0;}
 extern "C" uint32_t psx_mod_savestate_loads(void){return 0;}
 namespace ttk {bool frame_trace_on(){return false;} void frame_trace_account(uint32_t,long){}}
-namespace ttk {void third_person_mesh_begin(CPUState*){} bool input_modernized(){return modern;} bool first_person_view_live(){return live_eye;} bool third_person_camera_live(){return modern && live_third;} double third_person_body_coverage(){return body_coverage;} bool widescreen_near_clip_live(){return false;} bool third_person_duke_drawing(){return duke;} bool first_person_duke_drawing(){return duke;} bool first_person_actor_drawing(){return duke;} bool first_person_weapon_drawing(){return false;} uint64_t input_host_frame(){return 0;}}
+namespace ttk {void third_person_mesh_begin(CPUState*){} bool input_modernized(){return modern;} bool first_person_view_live(){return live_eye;} bool third_person_camera_live(){return modern && live_third;} double third_person_body_coverage(){return body_coverage;} bool widescreen_near_clip_live(){return false;} bool third_person_duke_drawing(){return duke;} bool first_person_duke_drawing(){return duke;} bool first_person_actor_drawing(){return duke;} bool first_person_interaction_drawing(){return interaction;} bool first_person_weapon_drawing(){return false;} uint64_t input_host_frame(){return 0;}}
 static int16_t sx(uint32_t p){return (int16_t)p;} static int16_t sy(uint32_t p){return (int16_t)(p>>16);}
 // A whole-hook observation oracle: compare this digest across separate runs
 // with the diagnostic gate disabled/enabled. Covers all fixture RAM and CPU
@@ -313,6 +313,12 @@ static void packet_contracts(const char* executable) {
     }
     std::puts("PASS: D10B1 native third-person occluder input preserved; first-person suppression retained");
     std::puts("PASS: D10B body packet coverage, native opaque body, solid-door caller and Vanilla gates");
+    // D35D: native interaction hands use ordinary near clipping/depth, not
+    // the weapon overlay. Other first-person body joints remain native.
+    duke=true;
+    object_case(0x80034dd0,100,false,false,0,100);
+    interaction=true;object_case(0x80034dd0,100,true,false,0,100);
+    interaction=false;duke=false;
     object_case(0x80032288,100,true); // compact static prop beyond near radius
     object_case(0x80032288,100,true,true); // first mesh need not see an empty OT
     object_case(0x80032288,128,true); // inclusive 256-unit extent

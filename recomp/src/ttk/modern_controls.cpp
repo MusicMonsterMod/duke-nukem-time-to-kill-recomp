@@ -232,6 +232,11 @@ static ActionView jetpack_view() {
     parse_action_view(ttk_live_env("DNTTK_JETPACK_VIEW"),choice);
     return choice;
 }
+static ActionView push_view() {
+    ActionView choice=ActionView::First;
+    parse_action_view(ttk_live_env("DNTTK_PUSH_VIEW"),choice);
+    return choice;
+}
 static bool independent_camera() {
     if(!input_modern_controls())return false;
     const char* mode=ttk_live_env("DNTTK_CAMERA_MODE");
@@ -1750,6 +1755,7 @@ double third_person_body_coverage() {
 bool first_person_view_live() {return input_modernized() && fp_blend>0 && orbit_valid;}
 bool first_person_duke_drawing() {return duke_drawing;}
 bool first_person_actor_drawing() {return actor_drawing;}
+bool first_person_interaction_drawing() {return interaction_arm && weapon_duke_draw && first_person_view_live();}
 bool first_person_weapon_drawing() {return weapon_viewmodel && weapon_duke_draw && first_person_view_live();}
 const char* controls_debug_json() {
     static char buffer[8192];

@@ -1,5 +1,7 @@
 # Time to Kill — modernization jobs
 
+**Latest accepted job (2026-10-24): D35D first-person push/pull/grab is Done. User: "lock it in, and close it out!!". [Note 226](documentation/226-d35d-first-person-push-pull.md).**
+
 **Latest accepted job (2026-10-24): D35C jetpack perspective option is Done. User: "lock it in, close it out". [Note 225](documentation/225-d35c-jetpack-perspective.md).**
 
 **Latest accepted job (2026-10-24): D35B swimming perspective option is Done. User fully accepted the First Person / Third Person choice and explicitly requested closeout. [Note 224](documentation/224-d35b-swimming-perspective.md).**
@@ -324,7 +326,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D35A | Shared action-perspective policy and persistent Advanced Settings foundation | Done | D35 |
 | D35B | Swimming perspective option using accepted first-person swimming | Done | D35A, D11E |
 | D35C | Jetpack perspective option using accepted first-person flight | Done | D35A, D11F |
-| D35D | First-person push/pull and grab presentation | Todo | D35A, D08T3, D08T7 |
+| D35D | First-person push/pull and grab presentation | Done | D35A, D08T3, D08T7 |
 | D35E | First-person ladder climbing lifecycle | Todo | D35A, D08J3, D08U, D08J1 |
 | D35F | First-person chain, pole and pole-class lamppost climbing | Todo | D35A, D35E, D08J5 |
 | D35G | First-person mantles, ledge hangs and water climb-outs | Todo | D35A, D35E, D08V, D08X, D08T8 |
@@ -427,7 +429,9 @@ animation or settings edits, commit or push are part of this research result.
 
 ### D35D - First-person push/pull and grab presentation
 
-**Status:** Todo. **Dependencies:** D35A, D08T3, D08T7.
+**Status:** Done (user-accepted 2026-10-24). **Dependencies:** D35A, D08T3, D08T7.
+**Accepted:** [Note 226](documentation/226-d35d-first-person-push-pull.md). Stable body eye, native hands and saved First Person / Third Person choice; user accepted and explicitly authorized closeout.
+
 **Research:** [D35 central audit](documentation/222-d35-first-person-audit.md).
 
 **Current behavior:** Holstered pushable 119..121 in 0/0 explicitly yields the eye to avoid the object face.
@@ -18345,3 +18349,32 @@ the pinned clean framework index: all 51 modified/new files reproduced.
 No post-acceptance gameplay edits, rebuilds or launches. User acceptance does
 not establish unrecorded water/contact or full-campaign coverage. No player
 data changed and no next job started. Launch: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-24 - D35D first-person push/pull candidate (Needs playtest)
+
+User selected D35D and pointed to prior object savestates. Added PUSH/PULL VIEW
+under Advanced Action Perspective, default First Person; global Third Person
+wins. Stable body eye replaces grab-neck lean; native interaction arms receive
+ordinary near clipping and world depth. Movement, limits and animation unchanged.
+Schema 43, launcher --push-view. See [note 226](documentation/226-d35d-first-person-push-pull.md).
+
+Build, controls/input/aim/near suites and all 93 profile tests pass. Four prior
+private object saves passed the 120 FPS interaction route (1,072 sampled states,
+991 push states). Real menu cancel/confirm, pause, global view, private save/load,
+opposite dumpster face, fixed-object exclusion and held W+E mantle pass.
+User review of eye/hand presentation remains. No full-campaign claim.
+Candidate: `09c5d8237e1f6da7da0c2651cf794ec27e1db12c466f88cebe7f9d558c0bca45`.
+No framework edits, player-data changes, commit, push or acceptance closeout.
+
+
+## 2026-10-24 - D35D accepted and closeout authorized
+
+User: "lock it in, and close it out!!". D35D is Done on user acceptance and
+the recorded candidate evidence. No subsequent gameplay edits, build or launch.
+Implementation, tests, manual and job records are included in the authorized
+MusicMonsterMod commit/push. Runtime patch re-exported unchanged; all 51 files
+match application to the clean pinned dependency index. No player data changed
+and no next job started. Acceptance does not establish unrecorded full-campaign
+or damage-interruption coverage. Accepted executable:
+`09c5d8237e1f6da7da0c2651cf794ec27e1db12c466f88cebe7f9d558c0bca45`.

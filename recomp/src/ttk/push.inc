@@ -52,6 +52,28 @@ static bool push_floor_allows() {
     const uint32_t floor=psx_mod_read_word(player+0x48);
     return floor>=0x80010000u && floor<0x80200000u-4 && (psx_mod_read_byte(floor+4)&1);
 }
+// D08T7: authored mobility for the verified X travel lanes. Position along
+// the lane is deliberately not identity: a loaded boundary save must work on
+// its first grab. Overlay + type + lane/rotation distinguish fixed scenery,
+// including LEVEL05's otherwise identical dumpster. No floor bits are changed.
+// Keep this data separate from acquisition and collision for future placements.
+struct PushLane {uint32_t tag;unsigned type;int32_t y,z;unsigned yaw;};
+static constexpr PushLane push_lanes[]={
+    {3,165,-9728,13829,2048}, // LEVEL00 alley
+    {9,924,5632,33268,3072}, // LEVEL06 symbol blocks, recent slots 9-11
+    {9,924,5632,32244,3072},
+    {9,924,5632,30196,3072},
+};
+static bool push_lane_allows(uint32_t object) {
+    if(!input_modernized() || !object_type_flags(object) || !identity())return false;
+    for(const auto& lane:push_lanes)
+        if(identity_tag==lane.tag && psx_mod_read_half(object+0x2c)==lane.type &&
+           int32_t(psx_mod_read_word(object+8))==lane.y &&
+           int32_t(psx_mod_read_word(object+12))==lane.z &&
+           (psx_mod_read_half(object+0x1c)&4095)==lane.yaw)return true;
+    return false;
+}
+static void push_lane_acquire(CPUState* cpu);
 // Duke is touching a pushable object on normal ground (idle, gait or wall bump)
 // where the original grab can start.
 bool push_contact_ready() {
@@ -59,7 +81,7 @@ bool push_contact_ready() {
        psx_mod_read_byte(player+0x22c)!=0 || psx_mod_read_byte(player+0x22d)!=0)return false;
     const unsigned animation=psx_mod_read_half(player+0x60);
     if(!land_gait_anim(animation) && animation!=94 && animation!=95)return false;
-    return (object_type_flags(psx_mod_read_word(player+0x174))&object_pushable) && push_floor_allows();
+    return (object_type_flags(psx_mod_read_word(player+0x174))&object_pushable) && (push_floor_allows() || push_lane_allows(psx_mod_read_word(player+0x174)));
 }
 // Original idle with the weapon stowed: a fresh Cross here reaches 0x80051890.
 bool push_idle_ready() {return interaction_ready() && psx_mod_read_half(player+0x60)==63;}
@@ -104,7 +126,8 @@ static void push_obstacle_action(CPUState* cpu,uint32_t ra) {
 static void push_idle_action(CPUState* cpu,uint32_t ra) {
     const auto& f=input_snapshot(Context::Gameplay);
     if(cpu->gpr[4]!=player || (ra!=0x800467fc && ra!=0x80052c1c) ||
-       !f.active || input_push_grab_owns_cross() || !player_identity_ready())return;
+       !f.active || !player_identity_ready())return;
+    if(input_push_grab_owns_cross()) {push_lane_acquire(cpu);return;}
     if(!push_only_object(psx_mod_read_word(player+0x174)))return;
     if(push_mask_cross())++push_idle_masks;
 }
@@ -211,6 +234,40 @@ static bool push_step_clear(CPUState* cpu,uint32_t object,int dx,int dz) {
     for(unsigned room=0;room<count;++room)
         if(!list_clear(psx_mod_read_word(rooms+88*room+0x48)))return finish(false);
     return finish(true);
+}
+// Mirror only the original grab branch (0x800518e0..0x800519b4), replacing
+// its floor permission with the placement policy. Original line-up and the
+// manual mover's support/collision checks must both succeed. Roll back all
+// player query/alignment fields on refusal; the room's floor data stays intact.
+static void push_lane_acquire(CPUState* cpu) {
+    const uint32_t object=psx_mod_read_word(player+0x174);
+    if(guest_busy || push_floor_allows() || !push_manual_enabled() ||
+       !push_contact_ready() || !push_lane_allows(object) || !push_only_object(object) ||
+       psx_mod_read_half(player+0x60)!=63 || psx_mod_read_byte(player+0x3b8) ||
+       psx_mod_read_word(player+0x17c) || (psx_mod_read_word(player+0x224)&0x241))return;
+    const unsigned layout=psx_mod_read_byte(player+0x233);
+    if(layout>=4)return;
+    const uint32_t cross=psx_mod_read_word(0x800d1b50+4*layout);
+    if(cross<0x80010000 || cross>0x801ffffc || (cross&3) ||
+       (psx_mod_read_word(cross)&3)!=1)return;
+    push_mask_cross(); // original idle action must not process the same press
+    uint32_t saved[0x8a4/4];
+    for(unsigned i=0;i<0x8a4/4;++i)saved[i]=psx_mod_read_word(player+4*i);
+    int32_t lined=0;
+    const bool aligned=original_call(cpu,0x8007ec4c,0x113,&lined) && (lined&0xffff);
+    // The extra acquisition permission belongs to these X lanes. The original
+    // line-up computes target facing at +0x24; it still rejects oblique grabs.
+    const bool along=((((psx_mod_read_half(player+0x24)+512)&4095)/1024)&1)!=0;
+    const bool clear=aligned && along && push_step_clear(cpu,object,0,0);
+    if(!clear) {
+        for(unsigned i=0;i<0x8a4/4;++i)psx_mod_write_word(player+4*i,saved[i]);
+    } else {
+        psx_mod_write_half(player+0x60,121);
+        psx_mod_write_word(player+0x290,object);
+        psx_mod_write_half(player+0x68,0);psx_mod_write_half(player+0x6a,0);
+    }
+    if(std::getenv("DNTTK_PUSH_TRACE"))std::fprintf(stderr,
+        "ttk-push acquire object=%08x aligned=%d along=%d clear=%d\n",object,aligned,along,clear);
 }
 static void push_manual_release(bool orphan=false) {
     if((push_manual_object || orphan) && push_animation(psx_mod_read_half(player+0x60))) {

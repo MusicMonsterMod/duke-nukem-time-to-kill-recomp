@@ -1,5 +1,7 @@
 # Time to Kill — modernization jobs
 
+**Latest accepted job (2026-10-24): D08T7 lane regrab is Done. Next: D20G slot-11 reload investigation (Todo, deferred to fresh context). D08T8 side mantle remains Todo.**
+
 **Latest accepted job (2026-10-24): D08T5 alley dumpster ladder limit is Done. Slot 7's X 7292 is the maximum push toward the ladder. [Note 210](documentation/210-d08t5-dumpster-limit.md).**
 
 **Latest accepted job (2026-10-23): D08L1 walking and crouched walk-offs is Done. Executable `8de27e4cae38b5053c5b456c3fc60ef96a2d2a46df4630dbb7309a8c01a63097` is the accepted baseline. [Note 209](documentation/209-d08l1-walk-offs.md).**
@@ -151,6 +153,9 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08U2 | Enemy standing at a ladder top blocks the climb-off: Duke should push it back (player slot 5) | Accepted | D08U, D08J |
 | D08T3 | Free manual push and pull while holding Grab (no fixed-size shoves) | Done (user-accepted 2026-10-23) | D08T2 |
 | D08T5 | Alley dumpster push limit at the slot-7 reference position | Done (user-accepted 2026-10-24) | D08T3 |
+| D08T6 | Push/pull ownership and lock-zone investigation (recent slots) | Needs review | D08T3, D08T4, D08T5 |
+| D08T7 | Regrab movable objects throughout their permitted travel lane | Done (user-accepted 2026-10-24) | D08T6 |
+| D08T8 | Dumpster side mantle stalls: W cannot climb, Space cannot drop | Todo | D08V, D08X, D08T3 |
 | D08T4 | Save slot 10 dumpster: the grab prompt shows but it will not move; find out whether it is meant to be fixed (Vanilla check) | Done (user-accepted 2026-10-20; fixed by design, no prompt there now) | D08T2 |
 | D08V | Sewer mantle/hang modern-control coverage (slot 12 area) | Done | D08, D08B |
 | D08W | Subway shallow-water sideways jumps (A/D + Space jumps forward) | Done | D08, D08C |
@@ -260,6 +265,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D20F | Statistics screen choices as a selectable list: CONTINUE and SAVE GAME highlighted with arrows / wheel, Enter chooses (no hidden V for SAVE) | Done (user-accepted 2026-10-21) | D20B |
 | D20D | Richer statistics screen (option B, part 2): level, difficulty, mission items, best time per level and difficulty (our own file) | Done (user-accepted 2026-10-21) | D20B, D08A5, D20F |
 | D20E | Statistics research: enemy total (kills X of Y), shots / accuracy, damage taken; show only once verified | Done (user-accepted 2026-10-22) | D20B |
+| D20G | Investigate UI slot 11 reload fatal GPU halt: regression assessment and fix decision | Todo | D20C |
 | D21 | Accessibility and sound controls | Todo | D04, D19 |
 | D22 | Campaign fidelity and overlay coverage | Todo | D01 |
 | D22A | Portal transition loses Modernized controls and first person (slot 7) | Accepted | D05, D06, D11 |
@@ -4664,6 +4670,75 @@ another winner". Executable
 `810c815782bce5874332bd762d9e69c66de4fe2e15ef4b9bc0b5a829a5a27df4` is the
 regression baseline.
 
+### D08T6 - Push/pull ownership and lock-zone investigation
+
+**Needs review (2026-10-24).** User-selected research, not a gameplay regression
+claim. Map acquisition versus held travel for recent slots 7-12; explain why a
+movable object can stop accepting a new grab inside its permitted lane. Source
+and retained live evidence establish the boundary regrab floor gate, while
+held reversal works. Full per-slot live coverage is not claimed.
+
+Deliverable: [note 211](documentation/211-push-pull-lock-zones.md), ownership map,
+evidence limits, proposed mobility policy and separate implementation jobs.
+Research acceptance: review the bounded design and evidence; no gameplay change
+is required to accept this investigation. D08T7 and D08T8 remain Todo.
+
+### D08T7 - Regrab movable objects throughout their permitted travel lane
+
+**Done (user-accepted 2026-10-24).** Selected by the user after D08T6 investigation. User wants flexible push/pull within the
+existing imaginary rail, including pulling slot 12's dumpster back after it
+reaches the limit and is released. Preserve D08T3/D08T5 travel guardrails.
+
+Investigate and implement object/placement mobility separate from Duke's local
+floor grab permission. Cover both host prompt/Grab eligibility and original
+acquisition. Do not globally bypass floor gates or unlock intentionally fixed
+scenery. Determine a stable identity and loaded-save policy; a session-only
+previous-grab latch is insufficient. See note 211 for source/evidence and matrix.
+
+Acceptance:
+- Movable dumpster and recent symbol blocks can be released, safely reacquired
+  and reversed at reachable valid positions throughout their permitted lane.
+- Continuous-held reverse remains responsive; the slot-12 X 7292 stop remains.
+- Reload at the boundary retains eligibility; approach from both reachable lane
+  ends works without snapping, changing axes or corrupting object placement.
+- Support, wall/actor/ladder collision and Duke clearance remain enforced;
+  fixed level-5 scenery stays fixed and prompts match actual eligibility.
+- Private-copy slots 7/9/10/11/12 matrix, pause/load and both cameras/rates tested;
+  slot 8 unsupported state is not relocated; Vanilla and player files unchanged.
+
+Future editor metadata is an architectural consideration, not an editor task.
+
+**Candidate:** verified placement lanes now permit original-aligned acquisition
+without Duke's local floor grab bit. Guarded original line-up plus existing
+support/collision checks; no floor mutation or save-state cache. Live boundary
+release/regrab/reverse, save/reload, both dumpster ends, slots 9-11, fixed level-5
+control and first-person preference at 120 FPS with pause/resume pass. Native
+controls/input/aim pass, including lane refusal across all 21 level guards.
+User reports the mechanic is "absolutely solid" after several tests and explicitly
+authorized locking in D08T7 with commit/push. Broader campaign placements are not inferred.
+[Note 212](documentation/212-d08t7-lane-regrab.md). D08T8 remains Todo.
+Acceptance closeout and commit/push explicitly authorized. The separate load-time
+fatal halt is D20G (Todo); its cause and relationship to D08T7 are not established.
+
+### D08T8 - Dumpster side mantle stalls: W cannot climb, Space cannot drop
+
+**Todo (2026-10-24, user report; investigation first).** Dependencies: D08V,
+D08X, D08T3. Walk into the dumpster's side and press E: Duke assumes a mantle
+pose, W again does not climb, Space does not drop, S drops him. Separate from
+D08T7; no shared root cause established. Exact state not reproduced this pass.
+
+Acceptance:
+- Reproduce on an identified private slot/placement and compare original input.
+  Record animation/mode, attachment, input ownership and clearance evidence.
+- Where the top is safely reachable, forward input completes the intended climb.
+  Where blocked, provide a consistent safe cancellation/drop; Space must not
+  silently fail in a cancellable hang. Preserve S's working escape.
+- Verify side/end approaches before/after pushing, E tap/hold, both cameras,
+  weapon states, ordinary mantles, D08L1 crouched escape, ladders/ceiling hangs
+  and Vanilla. No forced climb through ceilings or loss of accepted guardrails.
+
+See [note 211](documentation/211-push-pull-lock-zones.md) for diagnostic targets.
+
 ### D08T5 - Alley dumpster ladder approach limit
 
 **Done - user-accepted 2026-10-24.** User: "lock it in!! close us out".
@@ -8327,6 +8402,33 @@ Vanilla keeps the original PS1 prompts.
 Modernized prompt shows the device last used and changes within one image
 of switching; no flicker from idle devices; the fixed settings hold;
 Vanilla unchanged.
+
+### D20G - UI slot 11 reload fatal GPU halt: regression assessment
+
+**Todo (2026-10-24, backlog only).** User explicitly deferred investigation until
+fresh context. Next selected work is this investigation, then return to the
+push/pull backlog (D08T8 still Todo). Do not start from this closeout.
+
+At 08:46:44 BST, UI slot 11 (internal/file index 10) restored successfully, then
+halted on GPU GP0 opcode 0x1F, word 0x1F20161D. Same slot loaded earlier in the
+session. Preserved evidence and exact facts:
+[note 213](documentation/213-d20g-slot11-load-halt.md).
+
+Scope: determine whether this is a D08T7/recent regression, a pre-existing
+save/load defect, or presently unreproduced; decide whether a fix is necessary.
+Compare the same private save copies and relevant session/load sequence on the
+accepted D08T7 build and pre-D08T7 D08T5 baseline. Review D20A/D20C restore fixes,
+GPU/DMA state and host history. Do not infer causation from opcode alone or
+silently suppress it. Preserve player files and Vanilla.
+
+Acceptance:
+- Report reproducibility and baseline/candidate results with hashes, settings,
+  actual load sequence, and which findings are observations versus hypotheses.
+- Explain the best-supported failure path and whether a fix is justified. A
+  non-reproduction is not proof of absence or proof that a save is corrupt.
+- If unresolved, preserve a concrete diagnostic next step; if a fix is needed,
+  scope a bounded follow-up with regression tests rather than guess a patch.
+- Record a reviewable investigation result before returning to push/pull work.
 
 ### D20 - EDuke32-style quick save and quick load
 
@@ -17172,3 +17274,36 @@ Authored implementation, native regressions, manual and evidence included in
 MusicMonsterMod closeout. Existing grab-floor restrictions and automation limits
 remain explicit in [note 210](documentation/210-d08t5-dumpster-limit.md).
 No next job started.
+
+## 2026-10-24 - D08T6 investigation; D08T7 and D08T8 queued
+
+User requested investigation and incremental backlog work for more flexible
+push/pull and a separate dumpster-side mantle hang. D08T6 is Needs review:
+source and retained D08T5 traces distinguish failed floor-gated regrab from
+working held reversal. D08T7 is Todo for safe lane-wide reacquisition; D08T8 is
+Todo for W/Space side-mantle behavior. [Note 211](documentation/211-push-pull-lock-zones.md)
+records ownership, uncertainty and acceptance routes. No new live run, build,
+gameplay edits, acceptance closeout, commit or push. Current game remains the
+accepted D08T5 build; this is a requested feel improvement.
+
+## 2026-10-24 - D08T7 lane regrab candidate (Needs playtest)
+
+Selected implementation after D08T6. Acquisition now uses verified movable-lane
+permission when the original player-floor bit is clear; original line-up and
+existing support/collision checks still decide safety. Lane data survives loads
+without a new cache/sidecar. D08T5's X 7292 stop and fixed scenery remain intact.
+Build/native tests and private real-input routes pass; see
+[note 212](documentation/212-d08t7-lane-regrab.md) for exact coverage, failed route
+history and remaining limits. Candidate `0a4f3a5a5837e867936095107c2ae6f5f20dc33e4007ab88113ae3708e117078`.
+User feel awaits playtest. D08T8 remains Todo. No framework edits, player-file
+writes, acceptance closeout, commit or push.
+
+## 2026-10-24 - D08T7 accepted; D20G queued for fresh context
+
+User reports the mechanic is "absolutely solid" across several tests and
+explicitly requested commit/push, locking in D08T7. Marked Done; existing
+implementation/native/live evidence retained in note 212. No gameplay changes
+or rebuild during closeout. D20G is a backlog-only regression/fix-decision
+investigation of the preserved slot-11 fatal GPU halt. No investigation started
+in closeout; next session works on D20G before returning to push/pull jobs.
+D08T8 remains Todo. D08T6's research remains recorded separately for review.

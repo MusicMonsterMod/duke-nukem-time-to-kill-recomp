@@ -472,6 +472,39 @@ int main(int argc,char** argv) {
             move();assert(psx_mod_read_word(object+4)==8448);psx_mod_write_half(object+0x2c,165);
             psx_mod_write_word(object+8,oy);psx_mod_write_word(object+12,oz);psx_mod_write_half(object+0x1c,angle);
             std::puts("PASS: D08T5 exact alley limit, held stop, retreat from old save, other lane/type");
+            // D08T7: a boundary load can acquire without any previous host
+            // grab. Eligibility and original alignment are separate from travel.
+            {
+                uint32_t keep[0x8a4/4];for(unsigned i=0;i<0x8a4/4;++i)keep[i]=psx_mod_read_word(p+4*i);
+                const uint32_t floor=0x801ea003;
+                psx_mod_write_word(p+0x48,floor);psx_mod_write_byte(floor+4,0xfe);
+                psx_mod_write_word(p+0x174,object);psx_mod_write_word(p+0x17c,0);
+                psx_mod_write_word(p+0x224,0);psx_mod_write_byte(p+0x3b8,0);
+                psx_mod_write_half(p+0x60,63);psx_mod_write_half(p+0x24,1024);
+                psx_mod_write_word(p+0x220,0);psx_mod_write_word(0x800da47c,0);
+                psx_mod_write_word(object+4,7292);psx_mod_write_word(object+8,uint32_t(-9728));
+                psx_mod_write_word(object+12,13829);psx_mod_write_half(object+0x1c,2048);
+                assert(ttk::push_contact_ready());
+                auto acquire=[&]{psx_mod_write_word(word,1);call(0x80051890,p,0,0x80052c1c,0x801fff00);};
+                auto refused=[&]{acquire();assert(psx_mod_read_half(p+0x60)==63 && psx_mod_read_byte(floor+4)==0xfe);};
+                lineup_ok=0;refused();lineup_ok=1;
+                hull_ray_hit=1;refused();hull_ray_hit=0;
+                lookahead_drop=512;refused();lookahead_drop=0;
+                psx_mod_write_half(p+0x24,0);refused();psx_mod_write_half(p+0x24,1024);
+                psx_mod_write_word(p+0x17c,object);refused();psx_mod_write_word(p+0x17c,0);
+                psx_mod_write_word(p+0x224,0x40);refused();psx_mod_write_word(p+0x224,0);
+                ttk::modern=false;refused();ttk::modern=true;
+                ttk::input.active=false;refused();ttk::input.active=true;
+                acquire();assert(psx_mod_read_half(p+0x60)==121 && psx_mod_read_word(p+0x290)==object);
+                assert(psx_mod_read_byte(floor+4)==0xfe && psx_mod_read_word(object+4)==7292);
+                psx_mod_write_half(p+0x60,63);psx_mod_write_word(object+4,8418);
+                acquire();assert(psx_mod_read_half(p+0x60)==121); // old beyond-limit save
+                psx_mod_write_half(p+0x60,63);psx_mod_write_word(object+12,13830);
+                assert(!ttk::push_contact_ready());refused();
+                for(unsigned i=0;i<0x8a4/4;++i)psx_mod_write_word(p+4*i,keep[i]);
+                std::puts("PASS: D08T7 fresh boundary acquisition, old save, line-up/support/wall/axis/state/profile refusal, unchanged floor");
+            }
+
             psx_mod_write_word(p+0x220,0);psx_mod_write_word(object+4,x0);
             psx_mod_write_half(p+0x60,120);++ttk::input.epoch;ttk::grab_owns=false;prepare();
             assert(psx_mod_read_half(p+0x60)==121); // capture/pause epoch must end the old clip
@@ -1117,6 +1150,21 @@ int main(int argc,char** argv) {
             if(previous_tag) {
                 psx_mod_write_word(0x800ca968,previous_tag);tick();assert(!ttk::movement_ready());
                 psx_mod_write_word(0x800ca968,tag);tick();assert(ttk::movement_ready());
+            }
+            // D08T7 mobility is level/placement data, not just a type flag.
+            // In particular LEVEL05's type-165 scenery remains fixed.
+            {
+                const uint32_t object=0x801e9000,table=0x801e8000,floor=0x801ea003;
+                const uint32_t old_table=psx_mod_read_word(0x800d2660),old_contact=psx_mod_read_word(p+0x174),old_floor=psx_mod_read_word(p+0x48);
+                psx_mod_write_word(0x800d2660,table);psx_mod_write_word(p+0x174,object);psx_mod_write_word(p+0x48,floor);
+                psx_mod_write_byte(floor+4,0);psx_mod_write_word(table+28*165,0x081090e2);psx_mod_write_word(table+28*924,0x081890e2);
+                psx_mod_write_half(object+0x2c,165);psx_mod_write_word(object+8,uint32_t(-9728));
+                psx_mod_write_word(object+12,13829);psx_mod_write_half(object+0x1c,2048);
+                assert(ttk::push_contact_ready()==(level.number==0));
+                psx_mod_write_half(object+0x2c,924);psx_mod_write_word(object+8,5632);psx_mod_write_half(object+0x1c,3072);
+                for(int z:{33268,32244,30196}) {psx_mod_write_word(object+12,z);assert(ttk::push_contact_ready()==(level.number==6));}
+                psx_mod_write_word(object+12,30197);assert(!ttk::push_contact_ready());
+                psx_mod_write_word(0x800d2660,old_table);psx_mod_write_word(p+0x174,old_contact);psx_mod_write_word(p+0x48,old_floor);
             }
             previous_tag=tag;
             if(level.number==0) { // restore the original pair for the next level

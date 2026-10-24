@@ -1,5 +1,59 @@
 # Current status - 2026-10-04
 
+## 2026-10-24 - D08T7 accepted and closed; D20G next after context clear
+
+User: mechanic is "absolutely solid" after several tests, then explicitly
+requested backlog creation and commit/push to lock in the completed task.
+D08T7 is Done. Accepted executable:
+`0a4f3a5a5837e867936095107c2ae6f5f20dc33e4007ab88113ae3708e117078`.
+Implementation, tests, manual and evidence are part of authorized closeout.
+No gameplay edits or rebuild after acceptance; player files unchanged.
+Runtime patch re-exported unchanged and verified against clean pin
+`08ec704a974b1f3a16335b4afeb340b9eff19926`: all 51 files match.
+
+**Next work: D20G (Todo), only after fresh context.** Investigate the captured
+UI slot 11 reload GPU fatal halt, assess regression versus baseline and whether
+any fix is necessary. [Note 213](213-d20g-slot11-load-halt.md) is the intake.
+This closeout does not start that investigation or implement a speculative fix.
+After its review/closeout, return to push/pull work; D08T8 remains Todo.
+D08T6 is the earlier research record, still Needs review on the board.
+
+Launch: `python3 recomp/tools/local/run.py`; automatic capture.
+
+
+## 2026-10-24 - D08T7 lane regrab candidate (Needs playtest)
+
+The alley dumpster and three verified LEVEL06 symbol-block lanes can acquire a
+new grab when Duke's original floor permission bit is clear. Original alignment,
+standing/support/collision checks and the X 7292 ladder cap remain. Fixed LEVEL05
+scenery stays fixed. Policy uses authenticated level/type/lane/rotation, not RAM
+addresses, slot numbers or previous host grabs, so boundary reloads work.
+
+Private real-input tests pass: boundary regrab/reverse, midpoint, exact return,
+save/reload, both dumpster ends, recent slots 9-11, fixed-dumpster control and
+first-person preference at 120 FPS with pause/resume. Build and native
+controls/input/aim pass, including all 21 level guards. 40 intake-source files
+unchanged. See [note 212](212-d08t7-lane-regrab.md) for evidence and limitations.
+Candidate: `0a4f3a5a5837e867936095107c2ae6f5f20dc33e4007ab88113ae3708e117078`.
+
+User feel and broader approach coverage remain. D08T8 side mantle is unchanged
+and Todo. No framework edits, acceptance closeout, commit or push. Launch:
+`python3 recomp/tools/local/run.py`; automatic capture, saved player preferences.
+
+
+## 2026-10-24 - Push/pull lock-zone research and adjacent mantle backlog
+
+D08T6 is Needs review; D08T7 (lane-wide regrab) and D08T8 (dumpster side mantle)
+are Todo. See [note 211](211-push-pull-lock-zones.md). Current source and retained
+D08T5 traces show held reverse works at X 7292, but new grabs can fail because
+Duke's floor lacks the original grab bit. A mobility policy must also cover
+original acquisition and reloads while preserving fixed scenery and guardrails.
+The reported side mantle W/Space failure is not freshly reproduced; no common
+cause is established. Research only, no build/live run or gameplay changes.
+The accepted D08T5 executable remains current. No commit/push or acceptance
+closeout. Implementation remains separate incremental work.
+
+
 ## 2026-10-24 - D08T5 accepted and closed
 
 User: "lock it in!! close us out". D08T5 is Done: the dumpster stops at slot 7's

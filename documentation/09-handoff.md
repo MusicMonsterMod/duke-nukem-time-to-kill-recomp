@@ -1,5 +1,89 @@
 # Next-session handoff
 
+## 2026-10-24 - D08T7 accepted and closed; D20G next after context clear
+
+User: mechanic is "absolutely solid" after several tests, then explicitly
+requested backlog creation and commit/push to lock in the completed task.
+D08T7 is Done. Accepted executable:
+`0a4f3a5a5837e867936095107c2ae6f5f20dc33e4007ab88113ae3708e117078`.
+Implementation, tests, manual and evidence are part of authorized closeout.
+No gameplay edits or rebuild after acceptance; player files unchanged.
+Runtime patch re-exported unchanged and verified against clean pin
+`08ec704a974b1f3a16335b4afeb340b9eff19926`: all 51 files match.
+
+**Next work: D20G (Todo), only after fresh context.** Investigate the captured
+UI slot 11 reload GPU fatal halt, assess regression versus baseline and whether
+any fix is necessary. [Note 213](213-d20g-slot11-load-halt.md) is the intake.
+This closeout does not start that investigation or implement a speculative fix.
+After its review/closeout, return to push/pull work; D08T8 remains Todo.
+D08T6 is the earlier research record, still Needs review on the board.
+
+Launch: `python3 recomp/tools/local/run.py`; automatic capture.
+
+
+## 2026-10-24 - UI slot 11 reload fatal halt captured (08:46:44 BST)
+
+User reports D08T7's mechanic is solid across several tests, but asked to inspect
+an app frozen while loading UI slot 11 before giving further feedback. No job
+acceptance closeout or commit/push was requested.
+
+`session-20261024-083523.log`: internal slot 10 preflight/apply succeed, 20.2 ms
+restore and 22.9 ms total load; then fatal GPU GP0 command 0x1F, word 0x1F20161D.
+The same slot loaded successfully earlier in the session. At capture, debug
+frame is 40732 and savestate generation 4 reports last load successful. The
+fatal dump shows GPU DMA channel 2 active. This establishes a post-restore
+emulation halt, not a host process crash or proof of a corrupt save. Root cause
+and any relationship to D08T7 remain unproven; do not suppress the opcode blindly.
+
+Private evidence: `recomp/analysis/slot11-halt-20261024/`: copied session log,
+28 MB automatic fatal dump, full 2 MiB live RAM, debug status/input, system journal,
+process snapshot, private copies of current UI slots 11/12 and SHA-256 manifest.
+All six source save/sidecar/thumbnail files unchanged. Debug quit initially
+reported busy/frozen; the app exited before the subsequent TERM attempt (PIDs
+already absent). No application process remains. No gameplay or framework edits.
+
+Host snapshot at 08:47:44: CPU/I/O/memory pressure avg10/avg60 zero, about 25 GiB
+available RAM, negligible swap, no Timeshift/rsync process found. Journal:
+automatic upgrades 08:41:10-08:41:21; Bottles scope ended 08:46:18; PackageKit
+ended 08:46:19; firmware metadata refresh 08:47:06. These do not establish host
+conditions at every frame or a cause of the fatal GPU command. No OOM or GPU
+reset appears in the captured interval. No new reproduction/build was attempted
+for this immediate log inspection; preserved evidence supports later isolation.
+
+
+## 2026-10-24 - D08T7 lane regrab candidate (Needs playtest)
+
+The alley dumpster and three verified LEVEL06 symbol-block lanes can acquire a
+new grab when Duke's original floor permission bit is clear. Original alignment,
+standing/support/collision checks and the X 7292 ladder cap remain. Fixed LEVEL05
+scenery stays fixed. Policy uses authenticated level/type/lane/rotation, not RAM
+addresses, slot numbers or previous host grabs, so boundary reloads work.
+
+Private real-input tests pass: boundary regrab/reverse, midpoint, exact return,
+save/reload, both dumpster ends, recent slots 9-11, fixed-dumpster control and
+first-person preference at 120 FPS with pause/resume. Build and native
+controls/input/aim pass, including all 21 level guards. 40 intake-source files
+unchanged. See [note 212](212-d08t7-lane-regrab.md) for evidence and limitations.
+Candidate: `0a4f3a5a5837e867936095107c2ae6f5f20dc33e4007ab88113ae3708e117078`.
+
+User feel and broader approach coverage remain. D08T8 side mantle is unchanged
+and Todo. No framework edits, acceptance closeout, commit or push. Launch:
+`python3 recomp/tools/local/run.py`; automatic capture, saved player preferences.
+
+
+## 2026-10-24 - Push/pull lock-zone research and adjacent mantle backlog
+
+D08T6 is Needs review; D08T7 (lane-wide regrab) and D08T8 (dumpster side mantle)
+are Todo. See [note 211](211-push-pull-lock-zones.md). Current source and retained
+D08T5 traces show held reverse works at X 7292, but new grabs can fail because
+Duke's floor lacks the original grab bit. A mobility policy must also cover
+original acquisition and reloads while preserving fixed scenery and guardrails.
+The reported side mantle W/Space failure is not freshly reproduced; no common
+cause is established. Research only, no build/live run or gameplay changes.
+The accepted D08T5 executable remains current. No commit/push or acceptance
+closeout. Implementation remains separate incremental work.
+
+
 ## 2026-10-24 - Slot 12 mantle slowdown: not reproduced on user retest
 
 User reported severe slowdowns while pushing the dumpster to its limit, mantling

@@ -315,9 +315,316 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D33 | Modernized as the default profile, `--vanilla` as the special flag (one launch) | Done (user-accepted 2026-10-20) | - |
 | D34 | Multiplayer investigation: modern split-screen, online play and self-hosting (research only; [note 167](documentation/167-d34-multiplayer-research.md)) | Done (research accepted 2026-10-20; follow-ups D34A-D34G proposed, not opened) | - |
 | D34B | Classic split-screen with two controllers: original controls and rules, both pads working, clean start / presentation / exit in a Modernized session | Todo | D34 |
+| D35 | Comprehensive first-person camera transition audit and modernization roadmap | Needs review | D11, D11E, D11F, D10B |
+| D35A | Shared action-perspective policy and persistent Advanced Settings foundation | Done | D35 |
+| D35B | Swimming perspective option using accepted first-person swimming | Todo | D35A, D11E |
+| D35C | Jetpack perspective option using accepted first-person flight | Todo | D35A, D11F |
+| D35D | First-person push/pull and grab presentation | Todo | D35A, D08T3, D08T7 |
+| D35E | First-person ladder climbing lifecycle | Todo | D35A, D08J3, D08U, D08J1 |
+| D35F | First-person chain, pole and pole-class lamppost climbing | Todo | D35A, D35E, D08J5 |
+| D35G | First-person mantles, ledge hangs and water climb-outs | Todo | D35A, D35E, D08V, D08X, D08T8 |
+| D35H | First-person overhead and monkey-bar traversal | Todo | D35A, D35G, D08J4 |
+| D35I | First-person climbing walls | Todo | D35A, D35E |
+| D35J | Damage and native inventory transient perspective gaps | Todo | D35 |
+| D35K | Native scripted and special-camera event inventory | Todo | D35 |
+| D35L | First-person death and respawn presentation research | Todo | D35 |
+| D35M | First-person door opening and related use interactions | Todo | D35A |
+| D35N | First-person mirror interactions | Todo | D35A |
 | R01 | DisruptorRecomp architecture and modernization reference research | Done | - |
 
 Recommended opening sequence: **D01 → D02 → D03 → D04**, then **D05 / D06 → D07 → D07A → D08**. D13 is an early graphics option after profiles exist. D22 and D23 should accumulate evidence throughout development. First-person, HD asset packs and precision rendering are optional follow-up milestones, not blockers for a good modern third-person release.
+
+
+## First-person action roadmap (D35 research)
+
+### D35 - Comprehensive first-person camera transition audit
+
+**Status:** Needs review. **Dependencies:** D11, D11E, D11F, D10B.
+
+Research, documentation and planning only. Trace every discovered direct and
+indirect perspective entry point across camera ownership, animation/state,
+input, rendering, scripts and world lifetime; distinguish code-confirmed,
+user-reported and suspected events. Verify accepted swimming/jetpack support
+and existing settings before proposing work. Doors and mirror interactions
+were explicitly added by the user during the audit.
+
+**Deliverable:** [Note 222](documentation/222-d35-first-person-audit.md), including
+source inventory, action matrix, configuration architecture, dependencies,
+risks, acceptance criteria and implementation order. D35A-D35N below are
+independent Todo jobs; none is started by delivering this research.
+
+**Acceptance:** source findings are reviewable and evidence limits explicit;
+existing features are not duplicated; new jobs have current/desired behavior,
+source references, perspective policy, dependencies, reproduction/tests and
+regression criteria. Campaign event tracing remains explicit work rather than
+an unsupported claim of complete gameplay coverage. No gameplay, camera,
+animation or settings edits, commit or push are part of this research result.
+
+### D35A - Shared action-perspective policy and persistent Advanced Settings foundation
+
+**Status:** Done. **Dependencies:** D35.
+**Research:** [D35 central audit](documentation/222-d35-first-person-audit.md).
+
+**Current behavior:** Presentation eligibility and fallback are embedded in first_person_update/state; global VIEW persists, but no action view choices exist. Launcher text still incorrectly says swimming/jetpack force third person.
+
+**Desired result:** Centralize presentation-only action classification, capability, effective view and reason without changing current action support. Preserve global view, third-person behavior and safety guards. Provide shared enum validation/menu-row helpers and replay-safe state; correct stale launcher wording.
+
+**Perspective/configuration:** No inert user-facing action rows. Define first / legacy-third schema contract for the action jobs; defaults must preserve existing global view and current supported FP behavior.
+
+**Source references:** recomp/src/ttk/first_person.inc:first_person_update; modern_controls.cpp:state, camera_world_reset, RenderState; pc_input.cpp:camera_action; game_menu.cpp:make_screens/apply_live/write_settings; player_profiles.py:validate_controls/load/absorb_camera_state; run.py.
+
+**Reproduction and tests:** Compare current action matrix before/after refactor using private fixtures; profile migration, malformed values, side-file merge, menu cancel/confirm, reset and relaunch; P during temporary fallback; replay snapshots.
+
+**Acceptance:** Existing supported/unsupported actions retain behavior; presentation cannot grant movement/aim/fire; one resolver explains effective view; preference remains intact across reset; settings helpers integrate existing atomic persistence; stale text corrected.
+
+**Regression risks:** Accidental state() side effects, stale replay workers, schema loss, rewriting VIEW, broadening owner/identity permissions.
+
+### D35B - Swimming perspective option using accepted first-person swimming
+
+**Status:** Todo. **Dependencies:** D35A, D11E.
+**Research:** [D35 central audit](documentation/222-d35-first-person-audit.md).
+
+**Current behavior:** D11E supports surface/dive/underwater FP. SWIMMING selects pace only; no temporary legacy perspective option.
+
+**Desired result:** Reuse D11E eye and weapons. Add independent swim presentation choice; mantle exit remains governed by mantle policy.
+
+**Perspective/configuration:** SWIMMING VIEW: First-Person / Legacy Third-Person, default First-Person when global FP is selected; persist and apply live.
+
+**Source references:** recomp/src/ttk/first_person.inc:first_person_swimming/first_person_anchor; modern_controls.cpp:state swim_eye; game_menu.cpp; player_profiles.py; documentation/216-d11e-first-person-swimming.md.
+
+**Reproduction and tests:** Private surface and underwater saves in two levels; dive/resurface/holster/fire; switch view and setting in water; water-to-mantle boundary; both pace modes; pause/load/relaunch.
+
+**Acceptance:** FP reproduces accepted D11E behavior; legacy shows accepted third-person swim and returns to current global view on exit; no pace/physics changes; no false claim that mantle support ships here.
+
+**Regression risks:** Water-plane crossings, equip-bit transient, double shoulder compensation, legacy view accidentally forcing FP on exit.
+
+### D35C - Jetpack perspective option using accepted first-person flight
+
+**Status:** Todo. **Dependencies:** D35A, D11F.
+**Research:** [D35 central audit](documentation/222-d35-first-person-audit.md).
+
+**Current behavior:** D11F retains FP across Modern/Classic/EDuke32 flight. JETPACK chooses movement/fuel scheme, not perspective.
+
+**Desired result:** Add independent flight presentation choice without changing flight, fuel, platform hovering or reflected flames.
+
+**Perspective/configuration:** JETPACK VIEW: First-Person / Legacy Third-Person; default First-Person under global FP; live and persistent independently of next-launch flight scheme.
+
+**Source references:** recomp/src/ttk/first_person.inc:first_person_anchor; modern_controls.cpp:jetpack_flying_early/state jet_eye/settle; jetpack.inc; game_menu.cpp; player_profiles.py; documentation/220-d11f-first-person-jetpack.md.
+
+**Reproduction and tests:** Two levels, all three schemes; J start/off, takeoff/landing, fuel exhaustion, flight save/load, water/contact interruption, platform descent and mirror flames; switch perspective while airborne and relaunch.
+
+**Acceptance:** FP retains accepted transition bridges; legacy returns gracefully after off/fall/landing; movement/fuel/root and audio remain unchanged; setting persists and global third person wins.
+
+**Regression risks:** One-frame pack-cleared pose, previous-mode-10 landing, stale floor/hover state, reflection flags and replay.
+
+### D35D - First-person push/pull and grab presentation
+
+**Status:** Todo. **Dependencies:** D35A, D08T3, D08T7.
+**Research:** [D35 central audit](documentation/222-d35-first-person-audit.md).
+
+**Current behavior:** Holstered pushable 119..121 in 0/0 explicitly yields the eye to avoid the object face.
+
+**Desired result:** Implement stable eye/interaction hands with object-face clearance through alignment, grab, continuous push/pull and release. Keep native movement lanes and input restrictions.
+
+**Perspective/configuration:** PUSH/PULL VIEW: First-Person / Legacy Third-Person; accepted modern orbit as legacy, FP default once supported.
+
+**Source references:** recomp/src/ttk/push.inc:push_state_early/push_manual; first_person.inc:first_person_update; pc_input.cpp:push_owned pad bridge; documentation/208-d08t3-manual-push-pull.md.
+
+**Reproduction and tests:** Private alley dumpster plus later-era Duke-symbol block; grab from both directions, travel to limits, release/regrab, obstruction, E-to-mantle and weapon redraw; camera pitched/turned near face.
+
+**Acceptance:** No third-person frames in FP through complete interaction; eye never inside block; hands read correctly; original displacement, limits, fire suppression and redraw preserved; legacy and global-third routes match baseline.
+
+**Regression risks:** Camera-relative push direction feedback, face clipping, free-push lanes, weapon restoration and object ownership.
+
+### D35E - First-person ladder climbing lifecycle
+
+**Status:** Todo. **Dependencies:** D35A, D08J3, D08U, D08J1.
+**Research:** [D35 central audit](documentation/222-d35-first-person-audit.md).
+
+**Current behavior:** Attached ladder and top mount use camera-only orbit; traversal policy suppresses FP, including mount/exit transfers.
+
+**Desired result:** Implement comfortable panel-relative eye across ground/airborne/top entry, climb, bottom hang, drop and top/bottom exits; retain look without rotating collision or root motion.
+
+**Perspective/configuration:** LADDER VIEW: First-Person / Legacy Third-Person; centered accepted orbit for legacy.
+
+**Source references:** recomp/src/ttk/modern_controls.cpp:climb_state_early/mantle_state_early/traversal_state_ready; ladder_top.inc:ladder_mount_early/ladder_bottom_hang; pc_input.cpp:traversal pad bridge.
+
+**Reproduction and tests:** Historical alley slot-5/slot-6 routes using verified private copies; top mount, floor-level and high-bottom ladder, enemy at top, failed grab, Space drop and save on rung; check transfer 147/148/156/207/210/211.
+
+**Acceptance:** Full ladder lifecycle remains FP when requested; safe near-panel eye and readable hands; no lost movement or unexpected view frame during shared transfer states; existing top-exit enemy handling and third person unchanged.
+
+**Regression risks:** Transfer classification shared with poles/hangs, top-exit wall penetration, auto shoulder return and held-input direction.
+
+### D35F - First-person chain, pole and pole-class lamppost climbing
+
+**Status:** Todo. **Dependencies:** D35A, D35E, D08J5.
+**Research:** [D35 central audit](documentation/222-d35-first-person-audit.md).
+
+**Current behavior:** Pole-class 0x400 attached objects (192..195, catch 154, exits 191/196) use third-person orbit. Lampposts must be classified by object flags, not scenery name.
+
+**Desired result:** Provide axis-aware eye and hand placement during climb/circle/top mount/descent/drop. Adapt view-relative input interpretation without altering native attachment.
+
+**Perspective/configuration:** CHAIN/POLE VIEW: First-Person / Legacy Third-Person.
+
+**Source references:** recomp/src/ttk/pole_climb.inc:pole_axis/pole_mount; ladder_top.inc:pole_sidestep_ready/pole_view_from_front; modern_controls.cpp:climb_state_early/mantle_state_early; pc_input.cpp:1198.
+
+**Reproduction and tests:** Private historical slot-3 chain, another pole and confirmed climbable lamppost if present; circle both ways with held A/D and mouse look, top mount, lower floor, no-floor drop, top exit and failed catch.
+
+**Acceptance:** FP remains stable and clear of column; input never reverses unexpectedly on view-side change; mount/descent positioning and native exit logic preserved; list unlocated object variants honestly.
+
+**Regression risks:** Front/back A/D latch, 225-unit axis offset, mount half-turn comfort, phantom upper-floor exit and pole/ladder transfer ambiguity.
+
+### D35G - First-person mantles, ledge hangs and water climb-outs
+
+**Status:** Todo. **Dependencies:** D35A, D35E, D08V, D08X, D08T8.
+**Research:** [D35 central audit](documentation/222-d35-first-person-audit.md).
+
+**Current behavior:** Mode 6/7 hangs/shimmy and mode 8 134..142 force orbit; early water-exit previous 4/5 has a separate explicit rejection.
+
+**Desired result:** Implement an eye path over the lip with hang/shimmy/pull-up hands and comfortable orientation; retain native motion/events for ground/object/airborne/water entry and abort/drop.
+
+**Perspective/configuration:** MANTLE VIEW: First-Person / Legacy Third-Person, including water climb-out. Ladder/pole exit ownership follows the shared transfer classification.
+
+**Source references:** recomp/src/ttk/first_person.inc:first_person_update swim_exit; modern_controls.cpp:mantle_state_early; ledge_reach.inc; swim.inc; pc_input.cpp:ledge drop/restore; documentation/214-d08t8-alley-platform-hang.md.
+
+**Reproduction and tests:** Private sewer and alley platform, crate/furniture and level-geometry ledges; hold-E airborne catch, shimmy, pull-up, Space/drop, blocked pull-up, water exit and save in hang; both view choices.
+
+**Acceptance:** Continuous FP through lip crossing without ceiling/ledge penetration or invalid hands; interrupted moves restore current selected view; input, root/collision and weapon stow/redraw match baseline; water-to-land never briefly uses orbit in FP.
+
+**Regression risks:** Large root/posture changes, head inside lip, stale previous water mode, shared ladder/pole exits, near-wall clipping and visual nausea.
+
+### D35H - First-person overhead and monkey-bar traversal
+
+**Status:** Todo. **Dependencies:** D35A, D35G, D08J4.
+**Research:** [D35 central audit](documentation/222-d35-first-person-audit.md).
+
+**Current behavior:** Ceiling climbable type flags 0x80, mode 7 149..151 use traversal orbit despite accepted camera-relative movement.
+
+**Desired result:** Implement below-ceiling eye and reachable hand presentation through catch, turn, advance, transfer and drop, without converting body turns into camera roll/sway.
+
+**Perspective/configuration:** OVERHEAD VIEW: First-Person / Legacy Third-Person.
+
+**Source references:** recomp/src/ttk/ceiling_hang.inc:ceiling_hang_state/ceiling_hang_update; modern_controls.cpp:mantle_state_early; pc_input.cpp:ceiling_hang_ready bridge.
+
+**Reproduction and tests:** Private historical overhead slot-3 route after confirming fixture identity; diagonal travel, turn-in-place, mid-span hold, low ceiling, edge/drop and regrab; compare body trajectory under both settings.
+
+**Acceptance:** FP eye clears ceiling and arms; no feedback loop between camera-relative movement and body heading; no mid-span accidental drop; legacy/Vanilla movement and handoffs preserved.
+
+**Regression risks:** Mode-7 overlap with ledge shimmy, camera/body feedback, ceiling clipping and excessive animation sway.
+
+### D35I - First-person climbing walls
+
+**Status:** Todo. **Dependencies:** D35A, D35E.
+**Research:** [D35 central audit](documentation/222-d35-first-person-audit.md).
+
+**Current behavior:** Mode-3 climb predicate covers wall animations 198..205, but historical free-camera testing did not include a climbing-wall route.
+
+**Desired result:** First identify a real wall fixture and transfer states; add panel-clear first-person climbing presentation using shared lifecycle support only where verified.
+
+**Perspective/configuration:** WALL CLIMB VIEW: First-Person / Legacy Third-Person.
+
+**Source references:** recomp/src/ttk/modern_controls.cpp:climb_state_early; ladder_top.inc:pole_sidestep_ready comments; documentation/124-d08j3-climb-camera.md.
+
+**Reproduction and tests:** Locate native climbable-wall object and record flags/overlay; test vertical/lateral movement, top/bottom/side boundary, transfer/drop, armed approach and saved attachment.
+
+**Acceptance:** Actual wall route documented before implementation; continuous safe FP for supported lifecycle, independent mouse look and coherent hands; no change to native travel or ladder/pole behavior.
+
+**Regression risks:** Unverified object mapping, side edges, assumed ladder equivalence and broad animation ranges.
+
+### D35J - Damage and native inventory transient perspective gaps
+
+**Status:** Todo. **Dependencies:** D35.
+**Research:** [D35 central audit](documentation/222-d35-first-person-audit.md).
+
+**Current behavior:** state rejects unknown lower poses/mode histories and +0x224 bit 0x200 outside documented water exceptions. Event-specific hit reactions are not comprehensively mapped.
+
+**Desired result:** Research exact damage/stagger/knockdown/hazard and held-inventory transitions with traces. Produce narrowly scoped fixes only for reproduced gaps; do not pre-authorize broad guard relaxation.
+
+**Perspective/configuration:** Propose DAMAGE REACTION VIEW only if meaningful committed reactions need a choice. Ordinary inventory/pause should preserve view without a redundant toggle.
+
+**Source references:** recomp/src/ttk/modern_controls.cpp:state/hold_button_sampled; pc_input.cpp:Circle tapping; first_person.inc:first_person_update; documentation/222-d35-first-person-audit.md sections 1-2.
+
+**Reproduction and tests:** Private natural enemy hit, explosive knockback, heavy fall, water hazard and held holster/inventory interaction; capture lower/upper anim, flags, modes and owner before/during/after. Separate death from survivable damage.
+
+**Acceptance:** Research maps every reproduced event to reason and ownership with baseline evidence; identifies retained input restrictions and recovery; creates focused implementation child jobs only where necessary. No guessed damage animation IDs or unproven fixes.
+
+**Regression risks:** Granting input during committed hurt, suppressing damage/death logic, confusing equipment flag with script bit, overselling no-repro cases.
+
+### D35K - Native scripted and special-camera event inventory
+
+**Status:** Todo. **Dependencies:** D35.
+**Research:** [D35 central audit](documentation/222-d35-first-person-audit.md).
+
+**Current behavior:** Alternate camera dispatch and native entry/exit are confirmed; indirect overlay callback-to-event mapping remains incomplete.
+
+**Desired result:** Research per-level gameplay special views versus intentional cinematics/frontend; enumerate owner/pivot/inhibit writes, callbacks and return paths. Feed D22 coverage and create bounded per-mechanism jobs.
+
+**Perspective/configuration:** Only propose SCRIPTED GAMEPLAY VIEW for verified controllable events; do not add a blanket cutscene override. Door/mirror choices remain in D35M/N.
+
+**Source references:** Generated resident addresses 0x80025e88..0x80025ee8, 0x8003b36c/0x8003b474/0x8003b4f4, original callbacks/overlays; modern_controls.cpp:state/hook_body; documentation/222-d35-first-person-audit.md native evidence.
+
+**Reproduction and tests:** Use private route captures for level openings, interaction camera objects, boss/event views, potential turret use and endings; trace writes to camera owner/pivot, player camera pointer and script bit; cross-check event names against gameplay.
+
+**Acceptance:** Catalog confirmed entry/exit addresses, callers, exact triggers and intended player control; distinguish cinematic exemptions from missing playable FP; every unresolved mapping remains named; no unsafe global script-bit override.
+
+**Regression risks:** Indirect overlays, transient object lifetime, two-player cameras, bypassed normal hook, misclassifying a cinematic as player camera.
+
+### D35L - First-person death and respawn presentation research
+
+**Status:** Todo. **Dependencies:** D35.
+**Research:** [D35 central audit](documentation/222-d35-first-person-audit.md).
+
+**Current behavior:** Actor death flags revoke the modern view; original death presentation runs. Continue/restart/load reset host state and reacquire selected view, with bounded existing tests.
+
+**Desired result:** Research eye/death-body policy for normal death, drowning, burning/explosive variants and restore control on Continue. Deliver design and focused implementation follow-ups, not a death-input bypass.
+
+**Perspective/configuration:** Proposed DEATH VIEW: First-Person / Legacy Third-Person; decide supported variants and comfort before exposing the row.
+
+**Source references:** recomp/src/ttk/modern_controls.cpp:state/camera_world_reset; first_person.inc:head_restore/first_person_draw; pc_input.cpp:death menu; game_menu.cpp; documentation/61-d11-first-person.md.
+
+**Reproduction and tests:** Private natural deaths on land, water, airborne and attached action; Continue, Restart and Load; watch selected/effective view, actor allocation, hidden head flags, weapon state and first controllable frame.
+
+**Acceptance:** Design explicitly covers eye collapse/body visibility, severed/invalid model cases, death-menu usability and selected-view recovery; preserves death action lockouts and global third-person/Vanilla. Open implementation only after concrete requirements exist.
+
+**Regression risks:** Invalid/replaced actor data, dismemberment head lookup, nausea, hidden reflected body and granting movement after death.
+
+### D35M - First-person door opening and related use interactions
+
+**Status:** Todo. **Dependencies:** D35A.
+**Research:** [D35 central audit](documentation/222-d35-first-person-audit.md).
+
+**Current behavior:** User confirms door opening switches to third person (2026-10-24). E stow/action/redraw and native finder/callback routing are known; the exact door animation, script flag or owner causing this report is not yet traced.
+
+**Desired result:** Reproduce door opening, then provide an aligned, comfortable eye/hand interaction through completion and weapon return. Survey switches/key locks/mission-item insertion for the same mechanism; split materially different systems into children.
+
+**Perspective/configuration:** DOOR VIEW: First-Person / Legacy Third-Person. Share a broader USE INTERACTION VIEW only if research proves the same lifecycle; do not conflate with push/mantle or mirror preference.
+
+**Source references:** recomp/src/ttk/pc_input.cpp:update interaction_pending/restore_owned and input_pad; modern_controls.cpp:interaction_ready/interaction_alive/interaction_restore_ready/state; apartment_interaction.inc:apartment_switch_query; shortcuts.inc:mission_use; native 0x80051890 -> 0x80077f28 and object callback table 0x800dd84c.
+
+**Reproduction and tests:** Locate a user-reported ordinary opening door using private save copy; record E entry, lower/upper animation+track, owner/pivot and flags. Compare armed/holstered, locked/unlocked, repeat press, obstruction, key use, moving door and exit. Test switches separately before grouping.
+
+**Acceptance:** Exact reproduced cause recorded before gameplay edits; FP option retains a physically correct eye and action animation/events; legacy returns to current selected view; no early item use, duplicate callback, collision bypass or lost weapon redraw. Suspected switch/key cases are not claimed fixed without tests.
+
+**Regression risks:** Door callback scripts, alignment root motion, event timing, closed-door transparency, animation-only fix missing alternate camera ownership; old security-card freeze cause remains unresolved.
+
+### D35N - First-person mirror interactions
+
+**Status:** Todo. **Dependencies:** D35A.
+**Research:** [D35 central audit](documentation/222-d35-first-person-audit.md).
+
+**Current behavior:** User confirms mirror interactions switch to third person (2026-10-24). Reflection rendering and accepted jetpack mirror flames do not establish interaction support. Exact object callback and owner transition remain unresolved.
+
+**Desired result:** Reproduce the mirror interaction and identify whether it is an animation-owned interaction or native special view. Implement appropriate first-person eye/hands/interaction timing while retaining full reflected Duke and optional legacy presentation.
+
+**Perspective/configuration:** MIRROR VIEW: First-Person / Legacy Third-Person, independent of door preference unless user later chooses consolidation.
+
+**Source references:** recomp/src/ttk/pc_input.cpp:E interaction lifecycle; modern_controls.cpp:normal-camera hook and actor draw 0x800348d8 (primary 0x8003769c, mirror 0x8003816c); first_person.inc:first_person_draw/weapon_draw_bounds; native callback and 0x8003b36c special view are tracing candidates, not proven mirror cause.
+
+**Reproduction and tests:** Locate an interactive mirror with private setup; distinguish passive looking/reflection from E-triggered action; trace object type/callback, lower/upper animations, flags and both camera owners; test repeated/aborted interaction, weapon redraw, first/third global views and reflected head/arms/jet flames.
+
+**Acceptance:** Report exact cause before implementation; complete interaction remains first person with correct timing and readable reflection; primary-view hiding never hides reflected Duke; legacy restores current preference; no duplicated event/quote or ownership leak.
+
+**Regression risks:** Confusing mirrored drawing with perspective ownership, head flags leaking to reflection, scripted transform and animation timing; do not infer cause solely from special-camera routine proximity.
 
 ## Foundation and controls
 
@@ -17824,3 +18131,66 @@ in closeout. Existing test evidence stands; no post-acceptance gameplay changes,
 rebuild or game launch. Runtime patch re-exported unchanged and checked against
 the clean pinned framework. Commit/push authorized as MusicMonsterMod.
 No next job started. See [note 220](documentation/220-d11f-first-person-jetpack.md).
+
+
+## 2026-10-24 - D35 opened and started (research only)
+
+User selected a comprehensive codebase audit of automatic perspective changes,
+verification of existing swimming/jetpack support and settings, shared policy
+design, and incremental implementation backlog planning. No gameplay, camera,
+animation or settings changes are authorized by this job. Central artifact:
+[Note 222](documentation/222-d35-first-person-audit.md).
+
+**Acceptance:** inventory direct and indirect perspective ownership paths with
+source references and evidence limits; distinguish supported actions from gaps;
+record current settings/persistence; propose focused, nonduplicate follow-ups
+with dependencies, tests and regression criteria. Submit research for review.
+
+## 2026-10-24 - D35 research candidate (Needs review)
+
+Created [note 222](documentation/222-d35-first-person-audit.md): selected versus
+effective view, every discovered host blend/release/reset/anchor failure path,
+resident alternate-camera entry/update/exit, action matrix, settings/persistence,
+shared policy proposal, risks, test strategy and order. Swimming D11E and jetpack
+D11F remain Done; missing perspective choices are D35B/C, not duplicate feature
+implementations. User-confirmed doors and mirror interactions have separate
+D35M/N jobs, with exact callback/state cause awaiting reproduction.
+
+D35A-D35N are Todo, not started. D35J/K/L are bounded research/design stages
+for unresolved damage/inventory, scripted-camera and death mappings. D22 retains
+whole-campaign coverage; D11G remains cancelled unless reproduced. Source and
+existing tests were inspected, not executed. No gameplay code, settings, build,
+launch, player data, framework changes, commit or push. Research awaits review;
+this is not an exhaustive live campaign certification or acceptance closeout.
+
+
+## 2026-10-24 - D35A foundation candidate (Needs playtest)
+
+Selected by the user after the D35 audit. Implemented the presentation-only
+resolver, replay snapshot/reset contract, shared enum/menu-row helpers and
+corrected launcher wording. Existing action support and permission guards are
+preserved; no inert action settings or new eye paths. Schema 40 stays unchanged
+because no stored fields are introduced. See
+[note 223](documentation/223-d35a-action-perspective.md).
+
+Player build, native controls/input and Python profile suite passed. Added
+512-combination comparison with the previous policy, replay restoration and
+P-during-water-exit/reset coverage. Private offscreen 120 FPS view/save-load
+and menu draft/cancel/confirm/resume/persistence checks passed. Existing
+framework and D35 research changes were preserved. User camera regression
+playtest remains; no acceptance closeout, commit or push. No other job started.
+
+
+## 2026-10-24 - D35A accepted and closed out
+
+User confirmed the unchanged-behavior regression playtest and explicitly asked
+to close out D35A. D35A is Done. Accepted the shared presentation policy,
+replay/reset state and settings helpers with no intended gameplay changes or
+new action-view rows. Build and automated/private-session evidence remain in
+[note 223](documentation/223-d35a-action-perspective.md).
+
+Accepted executable: `d0710eb9081889a13856dc12a203cccc27a4fd09b169ed1bb264a420e4db8fc3`.
+Authored implementation/tests and supporting documentation are included in the
+authorized commit/push as MusicMonsterMod. No new gameplay edits or rebuilds
+at closeout. D35B-D35N remain unstarted; the D35 research review status is not
+changed by this implementation closeout.

@@ -1,5 +1,56 @@
 # Current status - 2026-10-04
 
+
+## 2026-10-24 - D35A accepted and closed out
+
+User confirmed unchanged behavior and explicitly requested closeout. D35A is
+Done: shared presentation policy, replay-safe resolved state and settings
+helpers, with current action support and guards preserved. No new action
+options. See [note 223](223-d35a-action-perspective.md).
+
+Accepted build: `d0710eb9081889a13856dc12a203cccc27a4fd09b169ed1bb264a420e4db8fc3`.
+Implementation, tests and supporting documentation are included in authorized
+closeout as MusicMonsterMod. No gameplay edits, rebuilds or launches at
+closeout. D35B-D35N remain unstarted; D35 research status remains Needs review.
+Launch `python3 recomp/tools/local/run.py` with saved preferences.
+
+
+## 2026-10-24 - D35A foundation candidate (Needs playtest)
+
+The shared presentation resolver, replay-safe policy state and settings helpers
+are implemented. Existing first-person support/fallbacks and action permissions
+are preserved. No action toggle is exposed before its implementation. Launcher
+wording now reflects accepted swimming/jetpack support. See
+[note 223](223-d35a-action-perspective.md) for changes and evidence.
+
+Player build, controls/input/profile tests and private offscreen view/save-load
+and menu cancel/confirm/resume checks passed. User regression playtest remains.
+Candidate: `d0710eb9081889a13856dc12a203cccc27a4fd09b169ed1bb264a420e4db8fc3`.
+No acceptance closeout, commit or push; prior D35 research and framework changes
+preserved. Launch `python3 recomp/tools/local/run.py` with saved settings.
+
+## 2026-10-24 - D35 first-person audit ready for review
+
+Research only: [note 222](222-d35-first-person-audit.md) inventories host camera
+ownership, blend/release/reset and indirect anchor failures, native special-view
+entry/exit, supported actions, missing action perspectives and configuration.
+D35 is Needs review; D35A-D35N are Todo and none is started.
+
+Swimming and jetpack FP are already accepted; only per-action legacy-view
+choices are missing. Push/pull and attached traversal explicitly yield FP.
+Doors and mirror interactions are user-confirmed transitions with exact native
+causes still awaiting traces, tracked separately as D35M/N. Damage/inventory,
+other scripts and death have focused research stages. Whole-campaign coverage
+remains D22; no claim of exhaustive dynamic event coverage.
+
+Recommended start after research acceptance: D35A shared policy, then D35B/C
+small configuration jobs; reproduce doors/mirrors early, then bounded push/pull
+and climb work. No gameplay/settings/animation changes, builds or launches;
+existing framework modifications preserved. No commit/push or acceptance
+closeout. Current saved-settings launch remains:
+`python3 recomp/tools/local/run.py`.
+
+
 ## 2026-10-24 - D10B accepted and closed out
 
 User: "fully accept!! lock it in and close it out". D10B is Done. Accepted

@@ -24,6 +24,20 @@ CAMERAS = ('independent', 'original')
 JETPACK_SCHEMES = ('modern', 'classic', 'eduke32')
 SHOULDERS = ('center', 'right', 'left')
 VIEWS = ('third', 'first')
+# D35A: action keys are added only with implemented eye paths. Their values
+# differ from global VIEW: legacy-third means the Modernized orbit for an action.
+ACTION_VIEWS = ('first', 'legacy-third')
+
+
+def valid_enum(value, choices):
+    return isinstance(value, str) and value in choices
+
+
+def validate_action_view(value):
+    if not valid_enum(value, ACTION_VIEWS):
+        raise ValueError('Action view must be first or legacy-third.')
+    return value
+
 # D14 widescreen (Modernized only; Vanilla stays 4:3). auto follows the window
 # between 4:3 and 21:9, so borderless fullscreen matches the monitor.
 WIDESCREEN_MODES = ('off', '16:9', '16:10', '21:9', 'auto')
@@ -109,7 +123,7 @@ def validate_controls(value):
     sensitivity = value['mouse_sensitivity']
     if (value['weapon_aim'] not in AIM_MODES or value['scheme'] not in ('modern', 'legacy') or value['camera'] not in CAMERAS or value['aim_assist'] not in ('off','original-lock') or value['jetpack'] not in JETPACK_SCHEMES or type(value['red_dot']) is not bool or type(value['crosshair']) is not bool or type(value['invert_y']) is not bool or
         type(sensitivity) not in (int, float) or not math.isfinite(sensitivity) or
-        not 0.01 <= sensitivity <= 2 or not valid_camera_distance(value['camera_distance']) or value['shoulder'] not in SHOULDERS or value['view'] not in VIEWS or
+        not 0.01 <= sensitivity <= 2 or not valid_camera_distance(value['camera_distance']) or value['shoulder'] not in SHOULDERS or not valid_enum(value['view'], VIEWS) or
         value['widescreen'] not in WIDESCREEN_MODES or type(value['cpu_overclock']) is not int or
         value['cpu_overclock'] not in CPU_OVERCLOCKS or value['cpu_timing'] not in CPU_TIMINGS or value['jump'] not in JUMP_STYLES or
         value['geometry_precision'] not in PRECISION_MODES or value['texture_precision'] not in PRECISION_MODES or
@@ -467,7 +481,7 @@ def describe(settings):
         lines.append(f"Saves: {pc_input_key(settings, 'quick_save')} quick save, {pc_input_key(settings, 'quick_load')} quick load "
                      "(last slot used; F2 / F3 open SAVE GAME / LOAD GAME)")
         lines.append(f"View: {controls['view']} person ({pc_input_key(settings, 'camera_view')} toggles in game, saved; "
-                     "first-person is a prototype: swimming and jetpack flight use third person)")
+                     "first-person supports swimming and jetpack flight; push/pull and attached traversal use third person)")
         lines.append(f"Widescreen: {describe_widescreen(controls['widescreen'])}")
         lines.append(f"Jump: {describe_jump(controls['jump'])}")
         lines.append(f"Jump wall contact: {describe_jump_walls(controls['jump_walls'])}")

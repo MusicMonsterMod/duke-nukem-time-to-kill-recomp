@@ -313,6 +313,14 @@ struct Screen {const char* title; std::vector<Row> rows;};
 
 const Choice on_off[]={{"ON","1","true"},{"OFF","0","false"}};
 Row heading(const char* label) {Row r{label,Section::Controls,nullptr,nullptr,false,"",{},0};r.heading=true;return r;}
+// Enum rows use the existing draft/apply_live/atomic write_settings path.
+Row view_row(const char* label,const char* key,const char* env,const char* help,bool action=false) {
+    return {label,Section::Controls,key,env,true,help,
+        action?std::vector<Choice>{{"FIRST PERSON","first","\"first\""},
+                                   {"LEGACY THIRD PERSON","legacy-third","\"legacy-third\""}}:
+               std::vector<Choice>{{"THIRD PERSON","third","\"third\""},
+                                   {"FIRST PERSON","first","\"first\""}},0};
+}
 // D19N (user-approved layout A, 2026-10-20): OPTIONS is SOUND (the original
 // screen), CONTROLS, DISPLAY and GAMEPLAY with the everyday rows, and ADVANCED
 // with every original / modern switch under section headings. The original
@@ -346,8 +354,7 @@ std::vector<Screen> make_screens() {
           {"165","165","\"165\""},{"180","180","\"180\""},{"240","240","\"240\""},{"UNLIMITED","unlimited","\"unlimited\""}},0},
     }};
     s[2]={"GAMEPLAY",{
-        {"VIEW",Section::Controls,"view","DNTTK_CAMERA_VIEW",true,"THE FIRST / THIRD PERSON KEY SWITCHES IN GAME",
-         {{"THIRD PERSON","third","\"third\""},{"FIRST PERSON","first","\"first\""}},0},
+        view_row("VIEW","view","DNTTK_CAMERA_VIEW","THE FIRST / THIRD PERSON KEY SWITCHES IN GAME"),
         {"SHOULDER",Section::Controls,"shoulder","DNTTK_CAMERA_SHOULDER",true,"THE SHOULDER KEY CYCLES IN GAME",
          {{"CENTER","center","\"center\""},{"RIGHT","right","\"right\""},{"LEFT","left","\"left\""}},0},
         {"CAMERA DISTANCE",Section::Controls,"camera_distance","DNTTK_CAMERA_DISTANCE",true,"ALT AND THE MOUSE WHEEL ALSO SET IT IN GAME",

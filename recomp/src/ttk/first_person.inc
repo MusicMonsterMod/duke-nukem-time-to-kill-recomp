@@ -42,12 +42,12 @@ static int eye_projection() {
     return value;
 }
 static double eye_offset[3];
-static bool eye_offset_valid, fp_supported;
+static bool eye_offset_valid;
+static ActionPerspective fp_policy;
 static bool min_boom_written;
 static uint32_t head_flag;
 static uint64_t fp_updates, fp_fallbacks, head_hides, projections;
 static int last_projection;
-static const char* fp_reason="off";
 
 static int head_joint() {
     const uint32_t desc=duke_model();
@@ -88,9 +88,11 @@ static void first_person_projection(CPUState* cpu,uint32_t ra) {
     cpu->gpr[4]=(uint32_t)last_projection;
     ++projections;
 }
-static void first_person_release(const char* reason) {
+static void first_person_release(PerspectiveReason reason) {
     if(fp_blend>0) ++fp_fallbacks;
-    fp_blend=0;eye_offset_valid=false;fp_supported=false;fp_reason=reason;
+    fp_blend=0;eye_offset_valid=false;
+    PerspectiveFacts facts{};facts.selected=input_snapshot(Context::Gameplay).first_person;
+    facts.denial=reason;fp_policy=resolve_perspective(facts);
     min_boom_restore();head_restore();
 }
 // Presentation only: never use the action lease here (pause/focus retain the
@@ -100,27 +102,17 @@ static bool first_person_swimming() {
 }
 // Once per verified normal-camera update, after orbit_begin.
 static void first_person_update(const InputFrame& f,unsigned ticks,bool acquiring=false) {
-    // D08T: grabbing/pushing a large object puts the eye inside it; show the
-    // push from the orbit and return to the eye after letting go.
-    // D08V: mantles, hangs and climbs also show from the orbit (the eye
-    // would be inside the ledge).
-    // D22B: dodge rolls and slope slides stay in the eye view.
-    // D08Z4: so do unowned falls (107/108). They are the owned flight's own
-    // animations and put the eye nowhere new; a slope slide on a car body
-    // alternates 145/108/105, and each 108 the slide latch missed cut to the
-    // orbit, then the drop off the car showed the whole fall from behind.
-    // The first water-exit frame can still carry previous mode 4/5, before
-    // mantle_state_early's land/traversal history matches. It must already
-    // yield the eye, even if the original water flag has not cleared yet.
     const unsigned mode=psx_mod_read_byte(player+0x22c), previous=psx_mod_read_byte(player+0x22d);
     const unsigned animation=psx_mod_read_half(player+0x60);
-    const bool swim_exit=mode==8 && (previous==4 || previous==5) && animation>=134 && animation<=142;
-    const bool supported=!swim_exit && !push_state_early() &&
-        (!traversal_camera_early() || committed_move_early() || unowned_fall_early());
-    fp_supported=supported;
-    const bool wanted=f.first_person && supported;
-    fp_reason=!f.first_person?"off":
-        push_state_early()?"push-object":!supported?"traversal":f.active?"active":"input-suspended";
+    PerspectiveFacts facts{};
+    facts.selected=f.first_person;facts.active=f.active;
+    // Water exit takes ownership before the lingering water flag clears.
+    facts.water_exit=mode==8 && (previous==4 || previous==5) && animation>=134 && animation<=142;
+    facts.push=push_state_early();facts.traversal=traversal_camera_early();
+    facts.committed=committed_move_early();facts.fall=unowned_fall_early();
+    facts.swim=first_person_swimming();facts.jet=mode==10 && jetpack_anim(animation);
+    fp_policy=resolve_perspective(facts);
+    const bool wanted=fp_policy.effective;
     // A newly authenticated world starts in the selected view. Never blend
     // from an unrelated old save/camera or flash a third-person load frame.
     if(acquiring)fp_blend=wanted?1.0:0.0;

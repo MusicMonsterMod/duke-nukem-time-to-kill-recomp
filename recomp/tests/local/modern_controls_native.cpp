@@ -1,3 +1,4 @@
+#include "action_perspective.h"
 #include "tight_camera.h"
 static bool renderer_available=true;
 extern "C" int psx_mod_present_replay_available(void){return renderer_available;}
@@ -250,6 +251,29 @@ static void call(uint32_t address,uint32_t a0,uint32_t a1,uint32_t ra,uint32_t s
     hooks().at(address)(&cpu,address);
 }
 int main(int argc,char** argv) {
+    // Compare every combination with the pre-D35A presentation rule.
+    for(unsigned mask=0;mask<512;++mask) {
+        ttk::PerspectiveFacts f{};
+        f.selected=mask&1;f.active=mask&2;f.water_exit=mask&4;f.push=mask&8;
+        f.traversal=mask&16;f.committed=mask&32;f.fall=mask&64;f.swim=mask&128;f.jet=mask&256;
+        const auto r=ttk::resolve_perspective(f);
+        const bool old=!f.water_exit && !f.push && (!f.traversal || f.committed || f.fall);
+        assert(r.capable==old && r.effective==(f.selected && old));
+        const char* reason=!f.selected?"off":f.push?"push-object":!old?"traversal":f.active?"active":"input-suspended";
+        assert(!std::strcmp(ttk::perspective_reason(r.reason),reason));
+        assert(!ttk::resolve_perspective(f,ttk::ActionView::LegacyThird).effective);
+        for(auto denied:{ttk::PerspectiveReason::Identity,ttk::PerspectiveReason::Scripted,
+                         ttk::PerspectiveReason::Original,ttk::PerspectiveReason::WorldChange}) {
+            f.denial=denied;const auto d=ttk::resolve_perspective(f);
+            assert(!d.capable && !d.effective && d.selected==f.selected && d.reason==denied);
+        }
+    }
+    ttk::ActionView choice=ttk::ActionView::First;
+    assert(ttk::parse_action_view("legacy-third",choice) && choice==ttk::ActionView::LegacyThird);
+    assert(!ttk::parse_action_view("third",choice) && choice==ttk::ActionView::LegacyThird);
+    assert(!ttk::parse_action_view(nullptr,choice));
+    assert(ttk::parse_action_view("first",choice) && choice==ttk::ActionView::First);
+    std::puts("PASS: D35A presentation policy matches all 512 baseline fact combinations; denials and enum validation");
     setenv("DNTTK_DRAW_DISTANCE","extended",1);
     assert(argc>=3 && argc<=5);
     std::ifstream exe(argv[1],std::ios::binary);exe.seekg(2048);exe.read((char*)ram+0x10000,0xbb000);assert(exe.gcount()==0xbb000);
@@ -3073,6 +3097,18 @@ int main(int argc,char** argv) {
             call(0x8002b9f4,1,0,0x80025474);assert(metric("\"blend\":")==0);
             frame();assert(metric("\"blend\":")==1 && ttk::input.first_person);
             std::puts("PASS: D26B view ownership across input suspension, pause, capture epochs, load, explicit scheme and camera ownership; movement and identity gates retained");
+            // Replay must restore policy, not inherit a later live view choice.
+            {
+                std::vector<uint8_t> eye(ttk::render_state_size()),orbit(eye.size());
+                ttk::render_state_save(eye.data());
+                ttk::input.first_person=false;for(unsigned i=0;i<40;++i)frame();
+                ttk::render_state_save(orbit.data());
+                ttk::render_state_load(eye.data());
+                assert(std::strstr(ttk::controls_debug_json(),"\"effective\":true,\"requested\":true"));
+                ttk::render_state_load(orbit.data());
+                assert(std::strstr(ttk::controls_debug_json(),"\"effective\":false,\"requested\":false"));
+                ttk::input.first_person=true;frame();
+            }
             // D11E: swimming is a presentation state, independent of active
             // input and of the pitched/turning neck. Keep original water and
             // velocity fields untouched, including a load directly underwater.
@@ -3119,6 +3155,12 @@ int main(int argc,char** argv) {
                     psx_mod_write_byte(p+0x22c,8);psx_mod_write_byte(p+0x22d,previous);psx_mod_write_half(p+0x60,134);
                     ++save_loads;frame();assert(metric("\"blend\":")==0);
                     assert(std::strstr(ttk::controls_debug_json(),"\"reason\":\"traversal\""));
+                    // P during fallback is authoritative after exit and world reset.
+                    ttk::input.first_person=false;frame();
+                    psx_mod_write_byte(p+0x22c,4);psx_mod_write_byte(p+0x22d,4);psx_mod_write_half(p+0x60,171);
+                    ++save_loads;frame();assert(metric("\"blend\":")==0 && !ttk::input.first_person);
+                    ttk::input.first_person=true;for(int i=0;i<40;++i)frame();
+                    assert(metric("\"blend\":")==1);
                 }
                 layout(first_map);
                 for(int i=0;i<3;++i)psx_mod_write_word(mats+0x20*9+0x14+4*i,neck[i]);

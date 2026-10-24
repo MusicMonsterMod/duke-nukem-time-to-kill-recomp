@@ -25,6 +25,17 @@ class ProfilesTest(unittest.TestCase):
         return subprocess.run([sys.executable, str(TOOLS / 'run.py'), '--settings-file', str(self.path),
                                '--show-settings', *args], capture_output=True, text=True, check=True).stdout
 
+    def test_action_view_contract_and_current_settings(self):
+        for value in ('first', 'legacy-third'):
+            self.assertEqual(profiles.validate_action_view(value), value)
+        for value in ('third', 'FIRST', '', None, False, 0, [], {}):
+            with self.assertRaises(ValueError):
+                profiles.validate_action_view(value)
+        self.assertNotIn('swim_view', profiles.DEFAULT_CONTROLS)
+        output = self.cli('--view', 'first')
+        self.assertIn('first-person supports swimming and jetpack flight', output)
+        self.assertNotIn('swimming and jetpack flight use third person', output)
+
     def test_control_scheme_migration_and_menu_persistence(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / 'profiles.json'

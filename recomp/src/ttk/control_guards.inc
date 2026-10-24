@@ -1,5 +1,6 @@
 // SLUS-00583 code SHA-256 guards; derived read-only from the owned executable.
 static const Guard guards[] = {
+    {0x8007cde8, 1968, "a6c00d0da87e09a5e37db645d2cd728032ca3aefe2726f7c2e1a147b6b9a9583"}, // D08T8 original pull-up and clearance queries
     {0x8007ec4c, 856, "dab8fa288d3921481d3b5f15bc54a30c591cfbfe8097a3e9847776954e814131"}, // D08T7 original object line-up
 
     {0x80089388, 68, "97a79166b6b9f5a27274fa376ce0d4b5ece8699509573c6cfd582338054eefa6"},

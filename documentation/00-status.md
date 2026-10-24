@@ -1,5 +1,49 @@
 # Current status - 2026-10-04
 
+## 2026-10-24 - D08T8 accepted and closed
+
+User confirms the apartment-platform fix works exactly as intended and
+explicitly authorizes lock-in and closeout. D08T8 is Done. Accepted build:
+`95b61d027a5b0a3bf152d8fb59a1ab3881a6bc9dc173ef4eb8c879902de9e88f`.
+Implementation, native tests, manual and evidence are included in closeout.
+[Note 214](214-d08t8-alley-platform-hang.md) preserves test coverage and limits.
+The private high-refresh reload GPU halt remains unresolved; revisit note 213
+if it recurs. This acceptance does not claim that GPU problem was fixed or
+that every campaign placement was tested. No subsequent job is started.
+Earlier Needs playtest entries below are historical.
+
+## 2026-10-24 - D08T8 candidate ready for playtest
+
+Implemented the apartment-platform pull-up retry using the original clearance
+query, plus Space-to-Down drop with held-input consumption. Dumpster/dragging
+and platform route pass; W, Space, S, pause, stowed climbing and fresh regrab
+pass in private runs. Native controls/input/aim pass; Vanilla remains original.
+Both cameras reach the platform. One first-person 120 FPS private hang reload
+halted with GP0 0x1F323232; subsequent baseline/candidate restores passed.
+Cause unresolved and live post-mortem capture incomplete; see D20G recurrence
+checklist and [note 214](214-d08t8-alley-platform-hang.md). No GPU changes.
+
+D08T8 is Needs playtest, not accepted. Wider placement/obstruction matrix and
+fresh live ladder/ceiling/crouched-escape checks remain. Test processes stopped;
+all 41 player source hashes unchanged. No framework edits or commit/push.
+Candidate identity and test evidence are in note 214. Earlier entries below
+are historical, including the pre-fix executable and reproduction-only status.
+
+## 2026-10-24 - D08T8 apartment platform hang reproduced
+
+User corrected the location: current UI slot 7, climb the dumpster successfully,
+then mantle the apartment platform directly ahead. Dragging checks pass by user
+report. Two private routes reach the platform hang; separate W/Space/S checks
+confirm W cannot pull up, Space cannot drop, S releases. Mode 6, animation 149;
+host pad routes all three inputs with capture active. Cause remains open.
+
+[Note 214](214-d08t8-alley-platform-hang.md) records evidence and limits.
+D08T8 is Needs review for this requested reproduction, with fix outstanding.
+D08T6 remains Needs review; D08T7 remains Done. All 41 player source files
+unchanged; test processes stopped. No gameplay/framework edits, build or
+commit/push. Accepted executable remains `0a4f3a5a5837e867936095107c2ae6f5f20dc33e4007ab88113ae3708e117078`.
+
+
 ## 2026-10-24 - D20G investigation accepted and closed
 
 D20G is Done by explicit user instruction. 82 private restores across accepted

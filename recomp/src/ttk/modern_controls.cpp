@@ -1090,6 +1090,7 @@ static void hook_body(CPUState* cpu, uint32_t address) {
             mantle_glide();
             mantle_upper_restore(); // D08Z2
             ledge_hang_settle();
+            ledge_pullup_retry(cpu); // D08T8
             object_hang_update();
             ceiling_hang_update();
             unsigned animation=psx_mod_read_half(player+0x60);

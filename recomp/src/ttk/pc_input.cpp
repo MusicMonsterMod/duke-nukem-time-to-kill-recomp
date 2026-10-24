@@ -61,6 +61,7 @@ static void note_menu_down(int code) {
 static uint64_t escape_start_deadline,escape_at;
 static bool quick_press(int code,int mods); // D20
 static bool airborne_interact;
+static bool ledge_dropping;
 static uint64_t interaction_deadline, interaction_pulse, capture_after, holster_pulse;
 static uint64_t swim_redraw; // D08O3: E redraw in water pending until this frame
 // Ownership belongs only to an E-triggered holster. Focus/pause clear held
@@ -179,7 +180,7 @@ static void clear() {
     dx = dy = 0;wheel_fraction=distance_total=0;recenter_total=look_press_total=0;command_count=0;
     frame = {};frame.first_person=first_person;frame.shoulder=shoulder;
     frame.sequence=sequence;frame.epoch=epoch+1;
-    jump_deadline=jump_pressed_at=0;airborne_interact=false;
+    jump_deadline=jump_pressed_at=0;airborne_interact=false;ledge_dropping=false;
     interaction_pending=false;interaction_pulse=0;interaction_started=false;holster_pulse=0;swim_redraw=0;
     push_reset();
     ++epoch; total_x = total_y = 0; look_n=0; look_cx=look_cy=0;
@@ -391,7 +392,7 @@ bool input_auto_stow_pending() {
 // started is live) during a jump: the host may arm the original reach early.
 bool input_airborne_reach_held() {
     return modern && focused && captured && !push_latched && !push_request &&
-        (down(binds[interact]) || airborne_interact || interaction_pending || ladder_leap_active());
+        !ledge_dropping && (down(binds[interact]) || airborne_interact || interaction_pending || ladder_leap_active());
 }
 bool input_jump_pending() {
     return modern && focused && captured && jump_deadline && sequence<=jump_deadline;
@@ -1204,6 +1205,16 @@ uint16_t input_pad() {
             value &= ~pads[jump];value |= 64;ladder_let_go=true;
         }
     }
+    // D08T8: consume the drop press through the original release animation.
+    // Otherwise held Space jumps again on the dumpster, and held W/E catches
+    // the same ledge immediately. Fresh presses after release work normally.
+    if(!captured || (!down(binds[jump]) && !down(binds[interact]) && !traversal_input_ready()))ledge_dropping=false;
+    if(captured && ledge_hang_ready() && down(binds[jump]))ledge_dropping=true;
+    if(ledge_dropping) {
+        jump_deadline=jump_pressed_at=0;airborne_interact=false;
+        interaction_pending=false;interaction_pulse=0;interaction_started=false;holster_pulse=0;
+        ladder_let_go=true;
+    }
     // D08J4: under a climbable ceiling the host steers Duke's yaw from WASD and
     // the camera; the original only gets Up to carry him, or Square for Ctrl.
     if(captured && ceiling_hang_ready()) {
@@ -1329,6 +1340,11 @@ uint16_t input_pad() {
     if(push_releasing) value |= 16|32|64|128|16384|8192|32768|2048;
     // No implicit tank movement or mouse-to-D-pad conversion when a Modern
     // lease is unavailable. Hooks retain their identity and state guards.
+    if(ledge_dropping) {
+        value |= 16384|pads[jump];
+        if(traversal_input_ready())value |= 16|32|64|128;
+        if(ledge_hang_ready())value &= ~64;
+    }
     last_pad=value;
     return value;
 }

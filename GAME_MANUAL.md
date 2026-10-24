@@ -488,7 +488,10 @@ click released during drawing leaves it drawn without firing a delayed shot.
 Boot retains its unarmed attack. Ordinary ground draw/holster animations run at
 1.5x; E-owned airborne stow and its final blend use a bounded 4x animation budget; original firing speed is unchanged. On supported ladders and ledges, **W/S** feed
 the original up/down controls, **A/D** feed left/right, and **E** keeps the action
-held. The game controls the attached climbing motion and camera.
+held. The game controls the attached climbing motion and camera. In a settled
+ledge hang, **W** pulls up when the landing is clear; **Space** or **S** releases.
+Release Space and E before asking for a fresh grab. The apartment platform
+pull-up correction (D08T8) is accepted.
 
 **Jumping in shallow water (Modernized, D08AC).** With SWIMMING MODERN,
 walking on the bottom uses the same movement, jumps and landings as dry

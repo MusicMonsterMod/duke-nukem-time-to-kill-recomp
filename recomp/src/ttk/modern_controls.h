@@ -28,6 +28,8 @@ bool interaction_holster_ready();
 bool weapon_drawn();
 bool weapon_holstered();
 bool traversal_input_ready();
+/* Settled world/object ledge hang; Space uses its original Down release. */
+bool ledge_hang_ready();
 /* D08V: camera-only lease through an original mantle/hang/pull-up or unowned fall. */
 bool traversal_camera_ready();
 bool committed_camera_ready();

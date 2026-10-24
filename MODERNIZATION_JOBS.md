@@ -1,6 +1,8 @@
 # Time to Kill — modernization jobs
 
-**Latest accepted job (2026-10-24): D20G reload-halt investigation is Done (not reproduced; cause unresolved). If a similar save/load GPU halt or corruption recurs, revisit D20G and [note 213](documentation/213-d20g-slot11-load-halt.md) before starting from scratch. D08T8 side mantle remains Todo.**
+**Latest accepted job (2026-10-24): D08T8 apartment alley platform pull-up/drop is Done. User confirms it works exactly as intended and authorizes closeout. [Note 214](documentation/214-d08t8-alley-platform-hang.md).**
+
+**Latest accepted job (2026-10-24): D20G reload-halt investigation is Done (not reproduced; cause unresolved). If a similar save/load GPU halt or corruption recurs, revisit D20G and [note 213](documentation/213-d20g-slot11-load-halt.md) before starting from scratch. D08T8 is now accepted; see note 214.**
 
 **Latest accepted job (2026-10-24): D08T5 alley dumpster ladder limit is Done. Slot 7's X 7292 is the maximum push toward the ladder. [Note 210](documentation/210-d08t5-dumpster-limit.md).**
 
@@ -155,7 +157,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08T5 | Alley dumpster push limit at the slot-7 reference position | Done (user-accepted 2026-10-24) | D08T3 |
 | D08T6 | Push/pull ownership and lock-zone investigation (recent slots) | Needs review | D08T3, D08T4, D08T5 |
 | D08T7 | Regrab movable objects throughout their permitted travel lane | Done (user-accepted 2026-10-24) | D08T6 |
-| D08T8 | Dumpster side mantle stalls: W cannot climb, Space cannot drop | Todo | D08V, D08X, D08T3 |
+| D08T8 | Apartment alley platform mantle stalls: W cannot climb, Space cannot drop | Done | D08V, D08X, D08T3 |
 | D08T4 | Save slot 10 dumpster: the grab prompt shows but it will not move; find out whether it is meant to be fixed (Vanilla check) | Done (user-accepted 2026-10-20; fixed by design, no prompt there now) | D08T2 |
 | D08V | Sewer mantle/hang modern-control coverage (slot 12 area) | Done | D08, D08B |
 | D08W | Subway shallow-water sideways jumps (A/D + Space jumps forward) | Done | D08, D08C |
@@ -4720,12 +4722,14 @@ authorized locking in D08T7 with commit/push. Broader campaign placements are no
 Acceptance closeout and commit/push explicitly authorized. The separate load-time
 fatal halt is D20G (Todo); its cause and relationship to D08T7 are not established.
 
-### D08T8 - Dumpster side mantle stalls: W cannot climb, Space cannot drop
+### D08T8 - Apartment alley platform mantle stalls: W cannot climb, Space cannot drop
 
-**Todo (2026-10-24, user report; investigation first).** Dependencies: D08V,
-D08X, D08T3. Walk into the dumpster's side and press E: Duke assumes a mantle
-pose, W again does not climb, Space does not drop, S drops him. Separate from
-D08T7; no shared root cause established. Exact state not reproduced this pass.
+**Done - user-accepted 2026-10-24; closeout explicitly authorized.** Dependencies: D08V,
+D08X, D08T3. User now confirms all dragging checks pass and the dumpster mantle works.
+Load UI slot 7, climb the dumpster, then mantle the apartment alley platform
+directly ahead: Duke hangs without pulling up; only S drops him. This corrects
+the earlier dumpster-side attribution. Reproduce on a private copy before
+assigning a cause or changing gameplay. Separate from accepted D08T7.
 
 Acceptance:
 - Reproduce on an identified private slot/placement and compare original input.
@@ -4737,7 +4741,14 @@ Acceptance:
   weapon states, ordinary mantles, D08L1 crouched escape, ladders/ceiling hangs
   and Vanilla. No forced climb through ceilings or loss of accepted guardrails.
 
-See [note 211](documentation/211-push-pull-lock-zones.md) for diagnostic targets.
+Fresh reproduction: dumpster climb succeeds; platform hangs in mode 6,
+animation 149. W and Space reach the host pad but do not change the hang;
+S releases. [Note 214](documentation/214-d08t8-alley-platform-hang.md).
+Candidate retries the original clearance query without stale lower support and
+maps Space to original Down in settled hangs. Live route, drop and dragging
+checks pass; user confirms the fix works exactly as intended. The broader
+placement/obstruction matrix was not exhaustively tested.
+A first-person 120 FPS private reload GPU halt remains unexplained; see note 214.
 
 ### D08T5 - Alley dumpster ladder approach limit
 
@@ -17340,3 +17351,44 @@ recur. D20G is Done as an investigation: 82 successful comparative restores,
 original fatal unreproduced, cause/regression origin unresolved, no fix claimed.
 Note 213, status and handoff link the recurrence checklist. No gameplay edits
 or rebuild; accepted D08T7 executable remains current. D08T8 remains Todo.
+
+
+## 2026-10-24 - D08T8 corrected route reproduced (Needs review)
+
+User confirms dragging checks and dumpster climbing pass; the failure is the
+apartment platform ahead from UI slot 7. Private real-input reproduction:
+dumpster 139/140 mode 8, then platform 149 mode 6. Fresh W and Space fail;
+S releases. Capture and corresponding pad bits confirmed. Note 214 records
+route, screenshots, source hashes and limits. No gameplay changes/build or
+commit/push. Root cause/fix outstanding; D08T6 remains Needs review.
+
+
+## 2026-10-24 - D08T8 implementation selected
+
+User requested the corrected platform-hang job be logged, then implemented.
+D08T8 is In progress. Preserve dumpster climbing and dragging; diagnose original
+mode-6 pull-up and drop decisions before applying a bounded Modernized fix.
+
+
+## 2026-10-24 - D08T8 candidate implemented (Needs playtest)
+
+Original pull-up query selected the dumpster top through stale support at the
+higher platform. Modernized retries the guarded original query against the
+recorded ledge and rolls back refusal. Space requests original Down, consumes
+the press through release and prevents held E from immediately regrabbing.
+Build/native suites pass; private live tests cover both cameras' full route,
+W/Space/S, pause, dragging, deliberate stow and fresh climb after dropping.
+Vanilla retains original behavior. Full high-refresh saved-hang matrix remains
+incomplete after one GP0 reload halt; baseline/candidate comparison did not
+reproduce it. Wider placement/obstruction acceptance remains outstanding.
+[Note 214](documentation/214-d08t8-alley-platform-hang.md). All 41 player source
+files unchanged; no framework edits, commit or push. Await user playtest.
+
+
+## 2026-10-24 - D08T8 accepted and closeout authorized
+
+User: "completely accepted. this works exactly as intended now. lock it in and close it out".
+D08T8 is Done. Accepted implementation and manual/note/status evidence are
+being committed together. The isolated high-refresh reload halt remains an
+unresolved observation under the D20G recurrence guidance, not a fixed GPU
+issue. No further job is started.

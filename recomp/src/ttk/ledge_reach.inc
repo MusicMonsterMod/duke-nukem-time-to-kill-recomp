@@ -248,6 +248,47 @@ static void ledge_reach_mantle(CPUState* cpu) {
     bounce_updates=5;++air_mantles;
 }
 
+// D08T8: mode-6 hangs release through original Down, not Square. Restrict
+// this to the settled ledge pose; ladders, ceilings and committed climbs own
+// their own buttons. The original handler retains its action/clearance checks.
+bool ledge_hang_ready() {
+    return traversal_input_ready() && psx_mod_read_byte(player+0x22c)==6 &&
+        psx_mod_read_byte(player+0x22d)==6 && psx_mod_read_half(player+0x60)==149;
+}
+// A climb from an object onto a higher world ledge can keep +0x17c attached
+// to the old object. 0x8007d240 then probes at the object's top instead of the
+// new hang's +0x1c8. Retry only that mismatched support with the original world
+// pull-up test. It must find a landing within 63 of the hang and full standing
+// headroom; no position, collision result or floor permission is invented.
+static void ledge_pullup_retry(CPUState* cpu) {
+    const auto& f=input_snapshot(Context::Gameplay);
+    if(!ledge_hang_ready() || !f.held[move_forward] || f.held[move_back] ||
+       f.held[jump] || f.held[original_aim] || !((~input_last_pad())&16) || guest_busy ||
+       (psx_mod_read_word(player+0x224)&0x200241u))return;
+    const unsigned upper=psx_mod_read_half(player+0x74);
+    if(upper>=256 || (psx_mod_read_word(0x800c2824+4*upper)&8))return;
+    const uint32_t object=psx_mod_read_word(player+0x17c);
+    const uint32_t flags=object_type_flags(object);
+    if((flags&object_mantle)!=object_mantle || (flags&0x700) ||
+       psx_mod_read_half(player+0x180)!=0)return;
+    int32_t top=0;
+    const uint32_t ledge=psx_mod_read_word(player+0x1c8);
+    if(!object_top(object,top) || int64_t(int32_t(ledge))>=int64_t(top)-64)return;
+    const HullState before=hull_save();
+    psx_mod_write_word(player+0x174,0);psx_mod_write_half(player+0x178,0);
+    psx_mod_write_word(player+0x17c,0);psx_mod_write_half(player+0x180,0);
+    int32_t passed=0;
+    if(!original_call(cpu,0x8007d240,0,&passed) || !passed) {
+        hull_restore(before);psx_mod_write_word(player+0x1c8,ledge);return;
+    }
+    // Match 0x80047348..50 / 0x800476c4..c8. The normal animation dispatcher
+    // enters mode 8 and performs the pull-up, including weapon restoration.
+    psx_mod_write_half(player+0x60,140);
+    psx_mod_write_half(player+0x68,0);psx_mod_write_half(player+0x6a,0);
+    if(std::getenv("DNTTK_TRAVERSAL_TRACE"))
+        std::fprintf(stderr,"ttk-ledge pull-up: old support=%08x top=%d ledge=%d\n",object,top,int32_t(ledge));
+}
+
 // D08X: the original object hang (mode 7, 149..151 after the reach catches a
 // climbable object). On a crate-type climbable (0xc0: a crate, the dumpster)
 // it is a dead end: hung from the side of a crate stack, Up finds no pull-up

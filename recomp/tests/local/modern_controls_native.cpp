@@ -71,6 +71,7 @@ static unsigned kicks, edge_launches, crouch_falls;
 static bool terrain_nested_hook;static unsigned terrain_nested_calls;
 static int terrain_result=3,terrain_floor=-1000;
 static uint32_t terrain_reference;
+static unsigned ledge_probe_calls; static bool ledge_probe_pass;
 static std::vector<uint32_t> cheat_calls;
 static uint32_t enemy_restore_actor;
 // D08X lift: the stubbed acquisition catches only when Duke is at or above lift_catch_y.
@@ -92,6 +93,13 @@ static unsigned overclock_renewals;extern "C" void psx_overclock_renew(void){++o
 // normal (jw_nx, 0, jw_nz) for its first `jw_hits` calls, then a clear path.
 static int jw_result,jw_hits,jw_sweeps;static int32_t jw_nx,jw_nz;
 extern "C" void psx_dispatch_call(CPUState* cpu,uint32_t address,uint32_t) {
+    if(address==0x8007d240) {
+        const uint32_t p=0x800d7198;++ledge_probe_calls;
+        assert(psx_mod_read_word(p+0x17c)==0 && psx_mod_read_word(p+0x174)==0);
+        psx_mod_write_word(p+0x184,1234); // query scratch must roll back on refusal
+        psx_mod_write_word(p+0x1c8,uint32_t(-11264));
+        cpu->gpr[2]=ledge_probe_pass;cpu->pc=0;return;
+    }
     if(address==0x8003f060) {
         assert(cpu->gpr[4]==0x800d7198 && cpu->gpr[5]==1);++crouch_falls;
         psx_mod_write_half(0x800d7198+0x60,108);psx_mod_write_byte(0x800d7198+0x22c,9);
@@ -214,7 +222,8 @@ static bool reach_held;
 bool input_airborne_reach_held(){return reach_held;}
 bool input_modernized(){return modern;}bool input_modern_controls(){const char* s=std::getenv("DNTTK_CONTROL_SCHEME");return modern && (!s || std::strcmp(s,"legacy"));}
 const InputFrame& input_snapshot(Context){return input;}
-uint16_t input_last_pad(){return 0xffff;}
+static uint16_t test_pad=0xffff;
+uint16_t input_last_pad(){return test_pad;}
 uint64_t input_host_frame(){return input.sequence;}
 static double clock_ms=1000;
 double input_clock_ms(){return clock_ms;}
@@ -519,6 +528,45 @@ int main(int argc,char** argv) {
         assert(!ttk::push_grab_ready() && ttk::movement_ready());
         psx_mod_write_word(0x800d2660,saved[0]);psx_mod_write_word(0x800d1b50,saved[1]);psx_mod_write_word(word,saved[2]);
         psx_mod_write_byte(p+0x233,saved_player);
+    }
+    // D08T8: only mismatched object support in a settled ledge hang retries
+    // the original clearance probe. A refusal restores all query state.
+    {
+        const auto memory=std::vector<uint8_t>(ram,ram+sizeof ram);
+        const auto input=ttk::input;
+        const uint32_t object=0x801e9000,table=0x801e8000,list=0x801ea100,box=list+32;
+        psx_mod_write_word(0x800d2660,table);psx_mod_write_word(table+28*165,0x081090e2);
+        psx_mod_write_half(object+0x2c,165);psx_mod_write_word(object+8,uint32_t(-9728));
+        psx_mod_write_word(object+0x44,list);psx_mod_write_word(list+8,box);
+        const int16_t bounds[]={-512,-512,-512,0,512,512,512,0};
+        for(unsigned i=0;i<8;++i)psx_mod_write_half(box+2*i,uint16_t(bounds[i]));
+        ttk::input={};ttk::input.active=true;ttk::input.held[ttk::move_forward]=true;
+        psx_mod_write_word(p,0);psx_mod_write_word(p+0x224,0);psx_mod_write_byte(p+0x3b8,0);
+        psx_mod_write_byte(p+0x22c,6);psx_mod_write_byte(p+0x22d,6);
+        psx_mod_write_half(p+0x60,149);psx_mod_write_half(p+0x74,149);
+        psx_mod_write_word(p+0x174,object);psx_mod_write_word(p+0x17c,object);psx_mod_write_half(p+0x180,0);
+        psx_mod_write_word(p+0x1c8,uint32_t(-11264));psx_mod_write_word(p+0x184,777);
+        auto update=[&]{++ttk::input.sequence;call(0x8005a210,p,0x800c2754,0x80041b34,0x801fff00);};
+        ttk::test_pad=0xffef;assert(ttk::ledge_hang_ready());ledge_probe_pass=false;auto n=ledge_probe_calls;update();
+        assert(ledge_probe_calls==n+1 && psx_mod_read_half(p+0x60)==149);
+        assert(psx_mod_read_word(p+0x17c)==object && psx_mod_read_word(p+0x174)==object && psx_mod_read_word(p+0x184)==777);
+        auto refuses=[&]{auto before=ledge_probe_calls;update();assert(ledge_probe_calls==before && psx_mod_read_half(p+0x60)==149);};
+        ttk::test_pad=0xffbf;refuses();ttk::test_pad=0xffef;
+        ttk::input.held[ttk::jump]=true;refuses();ttk::input.held[ttk::jump]=false;
+        ttk::input.held[ttk::move_back]=true;refuses();ttk::input.held[ttk::move_back]=false;
+        ttk::input.held[ttk::move_forward]=false;refuses();ttk::input.held[ttk::move_forward]=true;
+        ttk::input.active=false;refuses();ttk::input.active=true;
+        ttk::modern=false;refuses();ttk::modern=true;
+        psx_mod_write_byte(p+0x22c,3);assert(!ttk::ledge_hang_ready());refuses();
+        psx_mod_write_byte(p+0x22c,7);assert(!ttk::ledge_hang_ready());refuses();psx_mod_write_byte(p+0x22c,6);
+        psx_mod_write_word(p+0x1c8,uint32_t(-10240));refuses();psx_mod_write_word(p+0x1c8,uint32_t(-11264));
+        psx_mod_write_half(p+0x180,1);refuses();psx_mod_write_half(p+0x180,0);
+        psx_mod_write_word(p+0x224,0x40);refuses();psx_mod_write_word(p+0x224,0);
+        poke(0x7d240);assert(!ttk::ledge_hang_ready());refuses();poke(0x7d240);
+        ledge_probe_pass=true;update();assert(psx_mod_read_half(p+0x60)==140 && psx_mod_read_word(p+0x17c)==0);
+        assert(psx_mod_read_half(p+0x68)==0 && psx_mod_read_half(p+0x6a)==0);
+        std::copy(memory.begin(),memory.end(),ram);++g_dirty_ram_code_gen;ttk::input=input;ttk::test_pad=0xffff;
+        std::puts("PASS: D08T8 support mismatch, clearance refusal restoration, original pull-up and input/state/profile/code guards");
     }
     // D08U top-of-ladder mount: the slot-12 sewer ladder (type 308, a 378 x 6142
     // panel at x -4136, yaw 1024, top 507 below the walkway). E's request at the

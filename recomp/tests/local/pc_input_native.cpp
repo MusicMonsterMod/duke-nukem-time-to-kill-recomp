@@ -36,6 +36,7 @@ static const char* refusal="state";
 static bool alive=true,view_aim;
 static bool push_grab,push_contact,push_idle;
 static bool trav_camera, roll_camera;
+static bool ledge_hang;
 static bool ladder_top,ladder_on,ladder_exit,ladder_end,pole,pole_front,pole_end,ceiling,ceiling_adv,ceiling_let_go;static int ladder_hang;
 static unsigned ladder_requests;
 static bool ladder_leap,leap_on;static unsigned ladder_leaps;
@@ -695,6 +696,14 @@ int main() {
     ladder_on=true;key(SDL_SCANCODE_W,true);tick();CHECK((ttk::input_pad()&16384)!=0);
     ladder_exit=true;tick();CHECK((ttk::input_pad()&(16|64))==(16|64)); // exits play out with neutral directions
     ladder_exit=false;key(SDL_SCANCODE_W,false);key(SDL_SCANCODE_S,false);ladder_on=false;tick();
+    // D08T8: Space releases a ledge through Down, overriding held W/E/A.
+    ledge_hang=true;key(SDL_SCANCODE_SPACE,true);key(SDL_SCANCODE_W,true);key(SDL_SCANCODE_E,true);key(SDL_SCANCODE_A,true);tick();
+    CHECK((ttk::input_pad()&(16|32|64|128|16384|32768))==(16|32|128|16384|32768));
+    ledge_hang=false;tick();CHECK((ttk::input_pad()&(16|64|16384|32768))==(16|64|16384|32768)); // committed release
+    traversal=false;tick();CHECK((ttk::input_pad()&(16384|32768))==(16384|32768)); // no re-jump/regrab
+    key(SDL_SCANCODE_SPACE,false);key(SDL_SCANCODE_W,false);key(SDL_SCANCODE_E,false);key(SDL_SCANCODE_A,false);tick();(void)ttk::input_pad();
+    traversal=true;key(SDL_SCANCODE_SPACE,true);tick();CHECK((ttk::input_pad()&32768)==0); // new ladder jump retains Square
+    key(SDL_SCANCODE_SPACE,false);tick();
     // D08J2: A/D on a ladder send Left/Right; on a pole or chain (192..195) they are swapped.
     key(SDL_SCANCODE_A,true);tick();CHECK((ttk::input_pad()&(32|128))==32);
     pole=true;tick();CHECK((ttk::input_pad()&(32|128))==128);
@@ -834,5 +843,5 @@ namespace ttk { bool directional_takeoff_ready(){return preparing;} bool edge_ju
 bool short_fall_input_ready() { return shortfall && flight; } bool fire_draw_ready() { return ready && holstered; } bool airborne_input_ready() { return flight; } bool interaction_alive() { return alive; } bool interaction_restore_ready() { return ready && holstered; } bool interaction_swim_restore_ready() { return false; } bool view_aim_input_ready(){return view_aim;}
 bool weapon_drawn() { return !holstered; } bool weapon_holstered() { return holstered; } bool player_identity_ready() { return true; }
 bool crouch_walk_input_ready() { return crouch_walk; } bool movement_ready() { return ready; } bool locomotion_input_ready() { return flight; } bool traversal_input_ready() { return traversal; } bool traversal_camera_ready() { return trav_camera; } bool committed_camera_ready() { return roll_camera; } bool swim_input_ready() { return false; } bool wade_full_speed_ready() { return false; } bool swim_host_owns_jump() { return false; } void swim_strafe_pads(uint16_t& left,uint16_t& right) { left=0x100; right=0x200; } bool swim_thrust_input_ready() { return false; } bool jetpack_input_ready() { return jet; } bool jetpack_classic_input_ready() { return jet && jet_classic; } bool interaction_holster_ready() { return (ready || flight) && !holstered && !switching; } bool interaction_ready() { return (ready || flight || traversal) && holstered && !switching; } bool push_grab_ready() { return push_grab; } bool push_contact_ready() { return push_contact; } bool push_idle_ready() { return push_idle; } uint16_t push_pad(float,float y) { return !push_grab?0:y>0?16:y<0?64:0; } const char* controls_debug_json() { return "{}"; } const char* lease_refusal_reason() { return refusal; }
-bool ladder_top_available() { return ladder_top; } void ladder_top_request() { ++ladder_requests; } bool ladder_descent_ready() { return ladder_on && traversal; } int ladder_bottom_hang() { return traversal ? ladder_hang : 0; } bool ladder_end_below() { return traversal && ladder_end; } bool ladder_mount_finishing() { return false; } bool ladder_exit_ready() { return ladder_exit && traversal; } bool object_hang_release_ready() { return false; } bool pole_sidestep_ready() { return pole && traversal; } bool pole_view_from_front(bool held) { static bool front; if(!held) front=pole_front; return front; } bool pole_let_go_ready() { return pole_end && pole && traversal; } bool ceiling_hang_ready() { return ceiling && traversal; } bool ceiling_hang_advance() { return ceiling_adv && ceiling && traversal; } bool ceiling_hang_drop() { return ceiling_let_go && ceiling && traversal; }
+bool ladder_top_available() { return ladder_top; } void ladder_top_request() { ++ladder_requests; } bool ladder_descent_ready() { return ladder_on && traversal; } int ladder_bottom_hang() { return traversal ? ladder_hang : 0; } bool ladder_end_below() { return traversal && ladder_end; } bool ladder_mount_finishing() { return false; } bool ladder_exit_ready() { return ladder_exit && traversal; } bool object_hang_release_ready() { return false; } bool ledge_hang_ready() { return ledge_hang && traversal; } bool pole_sidestep_ready() { return pole && traversal; } bool pole_view_from_front(bool held) { static bool front; if(!held) front=pole_front; return front; } bool pole_let_go_ready() { return pole_end && pole && traversal; } bool ceiling_hang_ready() { return ceiling && traversal; } bool ceiling_hang_advance() { return ceiling_adv && ceiling && traversal; } bool ceiling_hang_drop() { return ceiling_let_go && ceiling && traversal; }
 bool ladder_leap_ready() { return ladder_leap; } bool ladder_leap_active() { return leap_on; } void ladder_leap_note() { ++ladder_leaps; } }

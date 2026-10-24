@@ -1,6 +1,6 @@
 # Time to Kill — modernization jobs
 
-**Latest accepted job (2026-10-24): D11E first-person swimming is Done. User accepted and authorized lock-in/closeout. [Note 216](documentation/216-d11e-first-person-swimming.md). D08Z6 and D08AF remain Todo.**
+**Latest accepted job (2026-10-24): D08AF plunge-to-swimming handoff is Done. User accepted and authorized lock-in/closeout. [Note 217](documentation/217-d08af-plunge-swim-handoff.md). D08Z6 remains Todo.**
 
 **Latest accepted job (2026-10-24): D08T8 apartment alley platform pull-up/drop is Done. User confirms it works exactly as intended and authorizes closeout. [Note 214](documentation/214-d08t8-alley-platform-hang.md).**
 
@@ -136,7 +136,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08AC | Normalise Shallow-Water Locomotion and Jump Physics | Done (user-accepted 2026-10-22) | D08AA, D08AB, D08K11, D08Z |
 | D08AD | Fix third-person walk/run animations in deeper shallow water (updated slot 10) | Done (user-accepted 2026-10-22) | D08AC, D08K11 |
 | D08AE | Restore deep-water entry resistance and timely swim handoff (slots 9 and 2) | Done (user-accepted 2026-10-22) | D08AC, D08AD |
-| D08AF | Smooth plunge-to-swimming control handoff at maximum depth (UI slot 9) | Todo | D08AE, D08O |
+| D08AF | Smooth plunge-to-swimming control handoff at maximum depth (UI slot 9) | Done | D08AE, D08O |
 | D08O3 | E in water keeps the weapon: redraw when no climb-out follows the stow | Accepted | D08O1 |
 | D08O4 | Brief Ctrl dive keeps swimming forward after release (dive anim plays on; player UI slot 3) | Done (user-accepted) | D08O |
 | D08N | Duke3D-style scuba gear item | Cancelled (out of scope) | — |
@@ -3160,8 +3160,11 @@ shallow shelves in deep volumes and return to ground. See note 196 for detail.
 
 ### D08AF - Smooth plunge-to-swimming control handoff at maximum depth
 
-**Todo. User report, 2026-10-24. Backlog only; do not start investigation or
-implementation without selection.** Use the player's current **UI slot 9**
+**Done. User-accepted 2026-10-24:** "yep! its a winner, lock it in and close it out".
+Accepted implementation and evidence:
+[note 217](documentation/217-d08af-plunge-swim-handoff.md). Blends held
+horizontal input into the native plunge tail before collision; vertical
+resistance and released-input damping stay native. Use the player's current **UI slot 9**
 (private test copy when selected).
 
 **Reproduction:** load UI slot 9, hold **Shift + W** to run along the ledge,
@@ -17570,3 +17573,36 @@ Runtime patch re-exported unchanged and applied to the clean pinned framework
 `08ec704a974b1f3a16335b4afeb340b9eff19926`; all 51 patched files match the
 existing framework worktree. Submodule pins unchanged. Commit/push authorized
 as MusicMonsterMod. D08Z6 and D08AF remain Todo; neither job was started.
+
+
+## 2026-10-24 - D08AF candidate ready for playtest
+
+Selected directly by the user. Traced current private UI slots 9/2 and
+identified the residual-fall path that continues after stroke animation 128
+begins. Added a scoped horizontal-intent blend before native collision;
+vertical resistance, water ownership and released-input damping stay native.
+[Note 217](documentation/217-d08af-plunge-swim-handoff.md) records the guarded
+hook contract, failed early prototypes, accepted-binary comparison and limits.
+
+24 candidate entry routes cover both cameras, 60/120 Hz, two locations,
+running jumps/run-offs and held/released/reapplied input. Dive/ascent/fire,
+oxygen recovery, shallow movement, ORIGINAL and Vanilla regressions complete.
+Accepted-binary slot-9 release comparison ends at identical XYZ with zero
+velocity. All 40 player files retain their hashes. D08AF is Needs playtest;
+user feel acceptance and wider geometry coverage remain outstanding. No
+framework/generated-C/media changes, commit, push or next job started.
+
+
+## 2026-10-24 - D08AF accepted and closed
+
+User: "yep! its a winner, lock it in and close it out". D08AF is Done;
+implementation, tests, manual and documentation closeout explicitly authorized.
+[Note 217](documentation/217-d08af-plunge-swim-handoff.md) records the accepted
+horizontal plunge-tail blend and its native vertical/collision/release gates.
+Previous build/native/live evidence reviewed; no gameplay edits, rebuild or
+new live testing after acceptance. Wider campaign coverage is not implied.
+
+Accepted executable: `710de20931fbebc816ef47e3b601b0b76afb381a6f1c4fafd4c84f7d22d1605c`.
+Runtime patch re-exported unchanged and verified against pinned clean framework
+`08ec704a974b1f3a16335b4afeb340b9eff19926`: all 51 files match. Pins unchanged.
+Commit/push authorized as MusicMonsterMod. D08Z6 remains Todo; no next job started.

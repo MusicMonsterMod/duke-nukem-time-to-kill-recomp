@@ -1025,6 +1025,7 @@ static void hook_body(CPUState* cpu, uint32_t address) {
     if(address==0x80051cf0) {push_obstacle_action(cpu,ra);return;}
     if(address==0x80051890) {push_idle_action(cpu,ra);return;}
     if(address==0x800455bc) {
+        swim_plunge_begin(cpu);
         // D08O1: the ground weapon-selection point (0x80058120) is not reached
         // in the original swim states; their handler entry takes its place.
         if(cpu->gpr[4]==player && ra==0x8004b5bc && swim_weapon_ready()) select_weapon(cpu);
@@ -1625,9 +1626,9 @@ PSX_MOD_CONSTRUCTOR(register_ttk_controls) {
     psx_mod_register_function_entry_plugin("ttk.modern.controls",0x800b42ec,[](CPUState* cpu,uint32_t){ttk::swim_aim_arm(cpu);});
     // D08AA: a shared rotation; only the swim tail's call (ra 0x80046ec8) goes further.
     psx_mod_register_function_entry_plugin("ttk.modern.controls",0x80066e34,[](CPUState* cpu,uint32_t){if(cpu->gpr[31]==0x80046ec8u)ttk::swim_pace(cpu);});
-    // Shared bone lookup: D08J5 pole floor probe and D08AC final water-entry
+    // Shared bone lookup: D08AF plunge sweep, D08J5 pole floor probe and D08AC final water-entry
     // neck query only. Other joint lookups retain the cheap caller check.
-    psx_mod_register_function_entry_plugin("ttk.modern.controls",0x8003964c,[](CPUState* cpu,uint32_t){if(cpu->gpr[31]==0x8007d7fcu)ttk::pole_probe_floor(cpu);else if(cpu->gpr[31]==0x8005610cu)ttk::hook(cpu,0x8003964c);});
+    psx_mod_register_function_entry_plugin("ttk.modern.controls",0x8003964c,[](CPUState* cpu,uint32_t){if(cpu->gpr[31]==0x8007a9f8u)ttk::swim_plunge_sweep(cpu);else if(cpu->gpr[31]==0x8007d7fcu)ttk::pole_probe_floor(cpu);else if(cpu->gpr[31]==0x8005610cu)ttk::hook(cpu,0x8003964c);});
     // D08A4: the sound routine; only the pickup tail's call (ra 0x800828d8) goes further.
     psx_mod_register_function_entry_plugin("ttk.modern.controls",0x8006b73c,[](CPUState* cpu,uint32_t){ttk::steroids_damage_restore();ttk::sound_logged(cpu);if(cpu->gpr[31]==0x800828d8u)ttk::steroids_pickup_sound(cpu);});
     // D27A: the player update; only Duke's call goes further.

@@ -191,6 +191,8 @@ static const Guard guards[] = {
     // returning to 0x8007d7fc).
     {0x8004421c, 748, "8e5705009b24e4958092a918db7c4a3f696b3391236a1d36ba8c65f9acd5916e"},
     {0x8007d65c, 1784, "e6ac983c8c12c0397a55f13aa808acadf9e105da765894ef8c5874fa14b9e9bb"},
+    // D08AF: native plunge drag, displacement and completion threshold.
+    {0x8003e4b0, 804, "c756eec1b7e3926a7a804d91eb7483f32a83e8c416210156ef4012c520b0623f"},
     // D08O1 fire while swimming: the swim state handler and its anim table
     // (Cross tested before Square in idle 127 / thrust 128-130), the player
     // update callbacks and the next step (80055e80) that restores the word.

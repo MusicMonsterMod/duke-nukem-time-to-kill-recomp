@@ -1,5 +1,42 @@
 # Current status - 2026-10-04
 
+
+## 2026-10-24 - D08AF accepted and closed
+
+User accepted the plunge-to-swimming handoff and explicitly requested lock-in
+and closeout. D08AF is Done. [Note 217](217-d08af-plunge-swim-handoff.md)
+records the accepted horizontal blend, native resistance/collision/release
+behavior and existing test limits. No gameplay edits, rebuild or new live
+test after acceptance; earlier candidate entries below are historical.
+
+Accepted executable:
+`710de20931fbebc816ef47e3b601b0b76afb381a6f1c4fafd4c84f7d22d1605c`.
+Runtime patch re-exported unchanged and verified against clean framework pin
+`08ec704a974b1f3a16335b4afeb340b9eff19926`: all 51 files match. Pins unchanged.
+Implementation/tests/manual/documentation commit and push explicitly authorized
+as MusicMonsterMod. Wider campaign geometry remains unexhausted. D08Z6 remains
+Todo; no next job started.
+
+Launch: `python3 recomp/tools/local/run.py`. Capture is automatic; P changes
+camera view. SWIMMING MODERN includes the accepted handoff.
+
+
+## 2026-10-24 - D08AF candidate ready for playtest
+
+D08AF is Needs playtest. [Note 217](217-d08af-plunge-swim-handoff.md) records
+the native residual-fall motion dip and bounded horizontal swim-input blend.
+The accepted-binary comparison shows a reduced slot-9 late motion dip, equal
+sampled entry depth and identical released-input final XYZ/zero velocity.
+24 candidate entry routes cover both cameras, 60/120 Hz and two water
+locations; separate swim/oxygen/fire/Original/Vanilla checks complete.
+All 40 player save/card files retain their hashes. User feel and wider
+geometry acceptance remain outstanding. No commit/push or next job started.
+
+Launch `python3 recomp/tools/local/run.py`. Load UI slot 9, hold Shift + W,
+press Space and keep moving into the water. Judge the end of the plunge;
+release/reapply W as a second check. P switches cameras. Capture is automatic.
+The previous D08AF Todo entries below are historical.
+
 ## 2026-10-24 - D11E accepted and closed
 
 User accepted first-person swimming and explicitly requested lock-in/closeout.

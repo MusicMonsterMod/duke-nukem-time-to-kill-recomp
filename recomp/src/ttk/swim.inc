@@ -597,6 +597,59 @@ static void swim_pace(CPUState* cpu) {
     ++swim_paces;
 }
 
+// D08AF: the swim handler keeps fall displacement (flag 0x04000000) until native
+// drag finishes, even after selecting thrust 128. Blend horizontal intent into
+// the last part of that displacement at the sweep's first bone lookup,
+// before it reads horizontal root. The handler uses 0x60 bytes of stack and
+// the sweep uses 0x58; caller + stack + input epoch scope this single use.
+// Vertical velocity/root, drag accumulators, water ownership and completion
+// remain native. Nothing is retained in guest velocity after input release.
+static bool swim_plunge_pending;
+static uint32_t swim_plunge_sp;
+static uint64_t swim_plunge_epoch,swim_plunge_frame;
+static void swim_plunge_begin(CPUState* cpu) {
+    swim_plunge_pending=false;
+    if(cpu->gpr[4]!=player || cpu->gpr[31]!=0x8004b5bcu ||
+       !swimming_modern() || !swim_lease_ready() || !swim_native_underwater() ||
+       !(psx_mod_read_word(player)&0x04000000) ||
+       (psx_mod_read_word(player+0x224)&0x200241) ||
+       psx_mod_read_half(player+0x60)<127 || psx_mod_read_half(player+0x60)>130 ||
+       (int32_t)psx_mod_read_word(player+0x1f8)<=0)return;
+    const auto& f=input_snapshot(Context::Gameplay);
+    if(!f.move_x && !f.move_y)return;
+    swim_plunge_pending=true;swim_plunge_sp=cpu->gpr[29];
+    swim_plunge_epoch=f.epoch;swim_plunge_frame=f.sequence;
+}
+static void swim_plunge_sweep(CPUState* cpu) {
+    if(cpu->gpr[31]!=0x8007a9f8u)return;
+    const bool pending=swim_plunge_pending;swim_plunge_pending=false;
+    const auto& f=input_snapshot(Context::Gameplay);
+    if(!pending || cpu->gpr[4]!=player || cpu->gpr[29]+0xb8u!=swim_plunge_sp ||
+       f.epoch!=swim_plunge_epoch || f.sequence!=swim_plunge_frame ||
+       !swimming_modern() || !swim_lease_ready() || !swim_native_underwater() ||
+       (!f.move_x && !f.move_y))return;
+    const int dt=(int16_t)psx_mod_read_half(player+0xba);
+    if(dt<=0 || dt>64)return;
+    // Begin below 8192 native velocity units, reaching full intent at the
+    // native 1024 stop threshold. Smoothstep avoids a new acceleration corner at the gate.
+    const double vy=(int32_t)psx_mod_read_word(player+0x1f8);
+    const double t=std::clamp((8192.0-vy)/(8192.0-1024.0),0.0,1.0);
+    const double blend=t*t*(3-2*t);
+    if(blend<=0)return;
+    if(swim_trace())std::fprintf(stderr,"ttk-plunge vy=%.0f blend=%.3f dt=%d root=%d/%d/%d\n",vy,blend,dt,
+        (int16_t)psx_mod_read_half(player+0xfc),(int16_t)psx_mod_read_half(player+0xfe),(int16_t)psx_mod_read_half(player+0x100));
+    const auto dir=movement(view_yaw(),f.move_x,f.move_y);
+    const double slope=f.held[jump]!=f.held[crouch]?1.0:
+        std::cos((int16_t)psx_mod_read_half(player+0x1e)*tau/4096);
+    const double step=modern_pace(input_running())*slope*dt/1024.0;
+    const double desired[]={dir.x*step,dir.z*step};
+    for(unsigned i=0;i<2;++i) {
+        const uint32_t address=player+0xfc+4*i;
+        const double native=(int16_t)psx_mod_read_half(address);
+        psx_mod_write_half(address,(int16_t)std::lround(native+(desired[i]-native)*blend));
+    }
+}
+
 // D08O1 - fire while swimming underwater. The original state-5 handlers
 // (800455bc via table 80013ed8: idle 127 at 8004653c, thrust 128-130 at
 // 80046994) test the Cross action word before Square: with a weapon out, held

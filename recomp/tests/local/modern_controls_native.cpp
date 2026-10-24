@@ -3867,6 +3867,53 @@ int main(int argc,char** argv) {
         ttk::input.move_x=-1;ttk::input.move_y=0;stroke(4,123,-0x444,0);assert(vx()==-0x444);
         ttk::input.move_x=0;ttk::input.move_y=1;stroke(5,128,0,0x149f,-300);assert(vz()==0x149f && (int16_t)psx_mod_read_half(angles+2)==-300);
         unsetenv("DNTTK_SWIMMING");stroke(4,125,0,0x1333);assert(vz()==9520);
+        // D08AF: bracket the native integrator and pre-collision sweep.
+        // Simulate its output; the blend may change only horizontal root.
+        auto plunge=[&](int vy,bool release=false,uint32_t caller=0x8004b5bc,
+                        bool stale=false,unsigned mode=5,unsigned anim=128,uint32_t flags=0x04000000) {
+            psx_mod_write_word(p,(psx_mod_read_word(p)&~0x04000020u)|flags);
+            psx_mod_write_byte(p+0x22c,mode);psx_mod_write_half(p+0x60,anim);
+            psx_mod_write_word(p+0x224,0);psx_mod_write_word(v+4,vy?vy:1100);
+            psx_mod_write_half(p+0xba,17);
+            ttk::input.move_y=1;
+            CPUState cpu{};cpu.gpr[4]=p;cpu.gpr[29]=0x801fff00;cpu.gpr[31]=caller;
+            hooks().at(0x800455bc)(&cpu,0x800455bc);
+            psx_mod_write_word(v,500);psx_mod_write_word(v+4,vy);psx_mod_write_word(v+8,2000);
+            psx_mod_write_half(p+0xfc,8);psx_mod_write_half(p+0xfe,31);psx_mod_write_half(p+0x100,32);
+            if(release)ttk::input.move_y=0;
+            if(stale)++ttk::input.epoch;
+            cpu.gpr[31]=0x8007a9f8;cpu.gpr[29]-=0xb8;
+            const unsigned before=writes;
+            hooks().at(0x8003964c)(&cpu,0x8003964c);
+            assert(psx_mod_read_word(v)==500 && (int32_t)psx_mod_read_word(v+4)==vy && psx_mod_read_word(v+8)==2000);
+            assert(psx_mod_read_half(p+0xfe)==31); // native plunge depth untouched
+            const bool changed=writes!=before;
+            const unsigned after=writes;
+            hooks().at(0x8003964c)(&cpu,0x8003964c);assert(writes==after); // consumed once
+            if(stale)--ttk::input.epoch;
+            return changed;
+        };
+        assert(!plunge(16000));assert(!plunge(8192)); // initial resistance unchanged
+        assert(plunge(2048));
+        const int partial_x=(int16_t)psx_mod_read_half(p+0xfc),partial_z=(int16_t)psx_mod_read_half(p+0x100);
+        assert(plunge(0)); // native stop reaches the existing swim pace
+        const int full_x=(int16_t)psx_mod_read_half(p+0xfc),full_z=(int16_t)psx_mod_read_half(p+0x100);
+        const double expected=9520*std::cos((int16_t)psx_mod_read_half(p+0x1e)*ttk::tau/4096)*17/1024;
+        assert(std::abs(std::hypot(full_x,full_z)-expected)<1);
+        assert(std::abs(partial_x-full_x)<=std::abs(8-full_x));
+        assert(std::abs(partial_z-full_z)<=std::abs(32-full_z));
+        assert(!plunge(2048,true)); // release retains native damping
+        assert(!plunge(2048,false,0x80046d78)); // foreign caller
+        assert(!plunge(2048,false,0x8004b5bc,true)); // load/context epoch
+        assert(!plunge(2048,false,0x8004b5bc,false,1,80)); // shallow water
+        assert(!plunge(2048,false,0x8004b5bc,false,4,125)); // surface
+        assert(!plunge(2048,false,0x8004b5bc,false,5,133)); // explicit dive
+        assert(!plunge(2048,false,0x8004b5bc,false,5,128,0)); // ordinary stroke
+        ttk::modern=false;assert(!plunge(2048));ttk::modern=true;
+        setenv("DNTTK_SWIMMING","original",1);assert(!plunge(2048));unsetenv("DNTTK_SWIMMING");
+        poke(0x3e4b0);assert(!plunge(2048));poke(0x3e4b0);assert(plunge(2048));
+        psx_mod_write_word(p,psx_mod_read_word(p)&~0x04000000u);
+        std::puts("PASS: D08AF plunge tail, native vertical/velocity preservation, release, caller, epoch, Original, Vanilla and changed-code gates");
         psx_mod_write_word(v,0);psx_mod_write_word(v+8,0);
     }
     ttk::running=false;ttk::input.move_x=0;ttk::input.move_y=0;

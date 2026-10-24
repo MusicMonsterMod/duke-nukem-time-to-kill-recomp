@@ -1,6 +1,9 @@
 # Time to Kill — modernization jobs
 
-**Latest accepted job (2026-10-24): D08AF plunge-to-swimming handoff is Done. User accepted and authorized lock-in/closeout. [Note 217](documentation/217-d08af-plunge-swim-handoff.md). D08Z6 remains Todo.**
+**Latest accepted job (2026-10-24): D08Z6 blocked-run ledge jumps and first-press response are Done. User accepted revision 2 and explicitly authorized lock-in/closeout. [Note 218](documentation/218-d08z6-blocked-run-jumps.md).**
+
+
+**Latest accepted job (2026-10-24): D08AF plunge-to-swimming handoff is Done. User accepted and authorized lock-in/closeout. [Note 217](documentation/217-d08af-plunge-swim-handoff.md). D08Z6 is now Done; see its acceptance entry above.**
 
 **Latest accepted job (2026-10-24): D08T8 apartment alley platform pull-up/drop is Done. User confirms it works exactly as intended and authorizes closeout. [Note 214](documentation/214-d08t8-alley-platform-hang.md).**
 
@@ -172,7 +175,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08Z3 | Modern landing: no stand-still after a jump (recovery 105 ends on input; landing hop) | Done (user-accepted) | D08Z1 |
 | D08Z4 | First person briefly cuts to third person when jumping into the cop car (UI slot 6) | Done (user-accepted 2026-10-20) | D08Z1, D08V, D11 |
 | D08Z5 | WALL BACKFLIP option: Modern (default) replaces the steep-slope backflip and its backwards push with a slope jump that climbs; Original keeps it (UI slot 10 police car) | Done (user-accepted 2026-10-21) | D08Z1, D08Z4, D19N |
-| D08Z6 | Fluid forward jumps onto tall steps/ledges from a blocked run (UI slot 10, right corner) | Todo | D08Z, D08Z1 |
+| D08Z6 | Fluid forward jumps onto tall steps/ledges from a blocked run (UI slot 10, right corner) | Done | D08Z, D08Z1 |
 | D08J1 | Hold-E run-up grab for overhead ladders (slot-6 ladder) | Done | D08J, D08X, D08U |
 | D08J2 | Poles and chains: A/D turn the wrong way (A turns right, D left) | Accepted | D08J |
 | D08J4 | Ceiling monkey-bar climbing: camera-relative travel, no mid-span drops (player UI slot 3) | Accepted | D08J, D22B |
@@ -5612,7 +5615,7 @@ Done; executable `4114333b209e8f1797ef6b4cf12b4898f97f22ee4d379c0c6b0659a3223b82
 
 ### D08Z6 - Fluid forward jumps onto tall steps/ledges from a blocked run
 
-**Todo. User report, 2026-10-24. Backlog only; not yet investigated.**
+**Done (user-accepted 2026-10-24). Revision 2 accepts the first Space press during the grounded run stop and builds forward speed after clearance. [Note 218](documentation/218-d08z6-blocked-run-jumps.md).**
 Use the player's current **UI slot 10**, with a private test copy when selected.
 The tall step/ledge directly ahead produces a stiff, awkward jump with very
 little forward inertia or freedom of movement.
@@ -17606,3 +17609,41 @@ Accepted executable: `710de20931fbebc816ef47e3b601b0b76afb381a6f1c4fafd4c84f7d22
 Runtime patch re-exported unchanged and verified against pinned clean framework
 `08ec704a974b1f3a16335b4afeb340b9eff19926`: all 51 files match. Pins unchanged.
 Commit/push authorized as MusicMonsterMod. D08Z6 remains Todo; no next job started.
+
+
+## 2026-10-24 - D08Z6 candidate ready for playtest
+
+Selected by the user. Reproduced low forward carry after a blocked run on
+private UI-slot-10 copies: 97 -> 98 clearance handoff caps manual steering
+at standing speed (about 2734), versus about 10100 for a running jump.
+After existing clearance accepts the handoff, held dry-ground manual running
+can accelerate through normal air steering to 10000. Vertical arc, collision,
+walking, assisted and Vanilla paths remain unchanged. [Note 218](documentation/218-d08z6-blocked-run-jumps.md).
+
+Player build and controls/input/aim suites pass. Live checks cover both views
+at 60/120 Hz, middle/right corners, release and steering. Matched accepted/
+candidate routes retain the same apex; other tested obstacle and open-run
+routes remain unchanged. Player files/settings retain hashes. Candidate
+needs user feel/geometry acceptance; no commit/push or next job started.
+
+
+## 2026-10-24 - D08Z6 revision 2: first-press response
+
+User critique: first Space press does nothing, second works. Reproduced an
+early grounded stop-animation tap expiring before idle. The manual-running
+preparation path now accepts a fresh press in 94/95, with current camera,
+epoch, identity, grounded-state and action guards. Existing forward carry,
+clearance and vertical arc preserved. Build and native controls tests pass;
+fresh single-tap routes cover both views at 60/120 Hz. [Note 218](documentation/218-d08z6-blocked-run-jumps.md).
+Still Needs playtest. No acceptance, commit, push or next job.
+
+
+## 2026-10-24 - D08Z6 accepted and closeout authorized
+
+User: "this is perfect! lock it in and close it out!!!!" Revision 2 is accepted,
+including first-press response and forward carry. D08Z6 is Done. Note 218,
+manual and status/handoff finalized; authored source and tests included in
+closeout. No gameplay changes, rebuild or additional live testing after
+acceptance. Runtime patch re-exported unchanged and verified against the clean
+pinned framework: all 51 files match. Commit and push explicitly authorized
+as MusicMonsterMod. No next job started.

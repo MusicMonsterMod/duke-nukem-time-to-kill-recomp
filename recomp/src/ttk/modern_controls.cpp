@@ -1119,8 +1119,17 @@ static void hook_body(CPUState* cpu, uint32_t address) {
             const unsigned jet=psx_mod_read_half(player+0x358);
             const bool thrust=(jet&3)==3 && (int16_t)psx_mod_read_half(player+0x35a)>=
                 (int32_t)psx_mod_read_word(0x800d21fc);
-            if((animation==63 || (animation>=72 && animation<=75)) &&
-               independent_camera() && movement_ready() && (f.move_x || f.move_y) &&
+            // D08Z6: a wall ends the run in 94/95 for about 20 fields.
+            // That exceeds the jump buffer, so a press just after contact
+            // used to vanish before idle. A fresh grounded manual-run press
+            // may enter the same preparation now, using the camera-only
+            // stop lease. Do not interrupt landings or other committed moves.
+            const bool stopped_run=(animation==94 || animation==95) && manual_jump() &&
+                input_running() && psx_mod_read_byte(player+0x22c)==0 &&
+                psx_mod_read_byte(player+0x22d)==0 && !psx_mod_read_word(player+0x20c) &&
+                lease_ready(true) && identity();
+            if((((animation==63 || (animation>=72 && animation<=75)) && movement_ready()) || stopped_run) &&
+               independent_camera() && (f.move_x || f.move_y) &&
                !(psx_mod_read_word(player+0x224)&0x202002c1) && !thrust &&
                !f.held[crouch] && !f.held[original_aim] && input_take_jump()) {
                 // Neutral jumps use the original idle handler on dry and Modern water ground.
@@ -1229,6 +1238,15 @@ static void hook_body(CPUState* cpu, uint32_t address) {
             manual_air_control(f);
             return;
         }
+        // D08Z6: a blocked running request takes the standing 97 -> 98
+        // clearance path. Its small horizontal initializer must not also cap
+        // manual air steering for the whole flight. Only after terrain_update
+        // has accepted clearance, allow held run input to build toward the
+        // ordinary running speed. Keep the original vertical arc and sweep.
+        const bool cleared_run=delayed_takeoff && terrain_epoch==f.epoch &&
+            takeoff_owned() && takeoff_direction && manual_jump() && input_running() &&
+            (f.move_x || f.move_y) && !f.held[original_aim] &&
+            !psx_mod_read_word(player+0x20c);
         if(delayed_takeoff && terrain_epoch==f.epoch) {
             psx_mod_write_word(player+0x1f8,delayed_vertical);delayed_takeoff=false;
         }
@@ -1253,6 +1271,10 @@ static void hook_body(CPUState* cpu, uint32_t address) {
                 psx_mod_write_word(player+0x1fc,(int32_t)std::lround(v.z));++jumps;
             }
             manual_air_seed();
+            if(cleared_run) {
+                air_cap=std::max(air_cap,10000.0);
+                manual_air_control(f);
+            }
         } else manual_air_control(f);
     } else if (address==0x8002a7fc) {
         min_boom_restore();

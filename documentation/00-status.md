@@ -1,5 +1,65 @@
 # Current status - 2026-10-04
 
+## 2026-10-24 - D08Z6 accepted and closed
+
+User accepted revision 2 and explicitly requested lock-in/closeout. D08Z6 is
+Done. [Note 218](218-d08z6-blocked-run-jumps.md) records forward carry after
+clearance and first-press response during grounded run stops, with native
+and live evidence and the separate diagnostic reload-halt limitation.
+Earlier Needs playtest entries below are historical.
+
+Accepted executable:
+`e250b5b5ec43c2a2a8fd1c39e6ab414b89d90d3b0329979dbdb42ba05a7fa78f`.
+No gameplay edits, rebuild or new live test after acceptance. Runtime patch
+re-exported unchanged and verified against clean pinned framework
+`08ec704a974b1f3a16335b4afeb340b9eff19926`: all 51 files match. Pins unchanged.
+Implementation, tests, manual and documentation commit/push explicitly
+authorized as MusicMonsterMod. No next job started.
+
+Launch `python3 recomp/tools/local/run.py`. Current saved settings select
+manual jumping and slide walls. Slot 10: Shift + W against the step, then
+one Space tap. P changes view; capture is automatic.
+
+
+## 2026-10-24 - D08Z6 revision 2: first Space press
+
+User reports the first Space press does nothing. Reproduced a short tap during
+grounded stop animation 94 expiring before idle; the earlier 2-second waits
+missed this interval. Manual running now starts the same 96 preparation from
+grounded 94/95 on a fresh press, with camera/epoch/identity and action guards.
+Forward carry and original clearance remain intact. [Note 218](218-d08z6-blocked-run-jumps.md).
+
+Build and controls suite pass. Single-tap tests cover both views at 60/120 Hz,
+early/late stop and settled idle. Candidate is Needs playtest, not accepted.
+Executable `e250b5b5ec43c2a2a8fd1c39e6ab414b89d90d3b0329979dbdb42ba05a7fa78f`.
+A preliminary private reload dispatch halt and its evidence limits are in
+note 218; valid jump tests used fresh launches. No framework edits or commits.
+Launch `python3 recomp/tools/local/run.py`; UI slot 10, Shift + W into the
+step then one Space tap. P switches views; capture is automatic.
+
+
+## 2026-10-24 - D08Z6 candidate ready for playtest
+
+D08Z6 is Needs playtest. [Note 218](218-d08z6-blocked-run-jumps.md) records
+the blocked-run standing-speed cap and bounded manual air-steering correction.
+The existing 97 -> 98 clearance handoff now permits held running input to
+build toward normal running-jump speed, preserving the native vertical arc
+and collision. Walking, assisted, ordinary running and Vanilla are unchanged.
+
+Player build and native controls/input/aim suites pass. Private live routes
+cover both views at 60/120 Hz, slot-10 middle/right approaches, early and late
+release, lateral steering, and matched accepted-build obstacle/open-run checks.
+Same tested apex; greater forward carry onto the target ledge. Player saves,
+cards and settings unchanged; diagnostic games stopped. Wider geometry and
+user feel remain acceptance work. No framework edits, commit or push.
+
+Candidate executable: `eff4617cd7d7558db0f1308c3d742bbbc6d4e0655f53d5007bca8348eaa56045`.
+Launch `python3 recomp/tools/local/run.py`. Current player settings already
+select manual jumping and slide walls. Load UI slot 10, hold Shift + W into
+the step near its right corner until stopped, then press Space without
+releasing Shift + W. P changes view; capture is automatic. No next job started.
+
+
 
 ## 2026-10-24 - D08AF accepted and closed
 

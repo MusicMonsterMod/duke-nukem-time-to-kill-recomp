@@ -549,9 +549,16 @@ jump to you:
 - Pressed a fraction of a second too late, just after running off an edge, the
   jump still happens (about 0.15 s of grace).
 - In the air, **W/A/S/D** steer relative to the camera: turn the jump with the
-  mouse and W, brake or back out with S. Steering never makes Duke faster than
-  he took off; with no key held he keeps his momentum. This also works while
+  mouse and W, brake or back out with S. Steering is capped at takeoff speed;
+  with no key held he keeps his momentum. This also works while
   reaching for a ledge with **E**.
+- When **Shift + W** is blocked against a dry step, keep it held and press
+  **Space**. Once the rising jump clears the lip, forward steering can build
+  toward normal running-jump speed instead of retaining the slower standing
+  jump cap. Clearance and collision still apply; jump height is unchanged.
+  A fresh Space tap also starts the jump during the brief grounded stopping
+  animation; you do not need to wait for idle or press twice.
+  D08Z6, including first-press response, was accepted on 2026-10-24.
 - Standing and walking jumps leave the ground about three times sooner (a short
   crouch instead of a quarter-second wind-up).
 

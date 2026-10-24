@@ -2984,6 +2984,24 @@ int main(int argc,char** argv) {
             assert(psx_mod_read_half(p+0x68)==0 && psx_mod_read_half(p+0x6a)==0);
         } else assert(psx_mod_read_half(p+0x60)==animation && ttk::jump_pending);
     }
+    // D08Z6 first press during grounded wall-stop preparation. These poses
+    // have a camera-only lease; waiting for idle would expire a short tap.
+    for(unsigned animation:{94u,95u}) for(int reject=0;reject<7;++reject) {
+        setenv("DNTTK_JUMP",reject==1?"assisted":"manual",1);
+        ground();psx_mod_write_half(p+0x60,animation);ttk::input.move_x=0;ttk::input.move_y=1;
+        ttk::running=reject!=2;ttk::jump_pending=true;
+        psx_mod_write_half(p+0x358,0);psx_mod_write_word(p+0x20c,0);
+        if(reject==3)psx_mod_write_byte(p+0x22d,9);
+        if(reject==4)ttk::input.held[ttk::crouch]=true;
+        if(reject==5)ttk::input.held[ttk::original_aim]=true;
+        call(0x8003ade4,c,p,0x80025ee8);
+        if(reject==6)++ttk::input.epoch;
+        call(0x8005a210,p,0x800c2754,0x80041b34);
+        assert(psx_mod_read_half(p+0x60)==(reject?animation:96));
+        assert(ttk::jump_pending==bool(reject));
+    }
+    unsetenv("DNTTK_JUMP");ttk::running=false;ttk::jump_pending=false;
+    std::puts("PASS: D08Z6 first buffered press during grounded run stop; assisted/walk/landing/crouch/aim/epoch exclusions");
     ground();psx_mod_write_half(p+0x60,72);ttk::input.move_x=1;
     psx_mod_write_half(p+0x358,3);psx_mod_write_half(p+0x35a,100);psx_mod_write_word(0x800d21fc,1);
     ttk::jump_pending=true;call(0x8005a210,p,0x800c2754,0x80041b34);
@@ -3125,6 +3143,37 @@ int main(int argc,char** argv) {
     call(0x8005a210,p,0x800c2754,0x80041b34,0x801fff00);assert(psx_mod_read_half(p+0x60)==97);
     psx_mod_write_word(p+0x10,-11648);
     call(0x8005a210,p,0x800c2754,0x80041b34,0x801fff00);assert(psx_mod_read_half(p+0x60)==98);
+    // D08Z6: clearance, not proximity, permits forward acceleration. Manual
+    // running builds speed through the ordinary steering and sweep path;
+    // walking/assisted keep the standing cap, and release adds no impulse.
+    for(int variant=0;variant<3;++variant) {
+        setenv("DNTTK_JUMP",variant==2?"assisted":"manual",1);
+        ground();ttk::input.move_x=0;ttk::input.move_y=1;ttk::running=variant!=1;
+        psx_mod_write_word(p+0x20c,0);
+        call(0x800493a4,p,0,0x8005a3a0);call(0x8003ade4,c,p,0x80025ee8);
+        psx_mod_write_half(p+0x60,97);psx_mod_write_byte(p+0x22c,9);psx_mod_write_byte(p+0x22d,9);
+        psx_mod_write_word(p+0x1f8,-4000);psx_mod_write_word(p+0x1c4,0);
+        psx_mod_write_word(p+0x10,-11500);psx_mod_write_half(p+0xba,11);
+        terrain_result=3;terrain_floor=100;
+        call(0x8005a210,p,0x800c2754,0x80041b34,0x801fff00);
+        assert(psx_mod_read_half(p+0x60)==97);
+        terrain_result=0;
+        call(0x8005a210,p,0x800c2754,0x80041b34,0x801fff00);
+        assert(psx_mod_read_half(p+0x60)==98);
+        psx_mod_write_word(p+0x1f4,0);psx_mod_write_word(p+0x1fc,2734);
+        psx_mod_write_word(p+0x1f8,-9000);
+        const uint32_t xyz[]={psx_mod_read_word(p+4),psx_mod_read_word(p+8),psx_mod_read_word(p+12)};
+        call(0x8003ebf4,p,0,0x80055934);
+        assert((int32_t)psx_mod_read_word(p+0x1f8)==-4000);
+        assert((int32_t)psx_mod_read_word(p+0x1fc)==(variant==0?4134:2734));
+        for(int i=0;i<12;++i)call(0x8003ebf4,p,0,0x80055934);
+        assert((int32_t)psx_mod_read_word(p+0x1fc)==(variant==0?10000:2734));
+        for(int i=0;i<3;++i)assert(psx_mod_read_word(p+4+4*i)==xyz[i]);
+        ttk::input.move_y=0;psx_mod_write_word(p+0x1fc,0);writes=0;
+        call(0x8003ebf4,p,0,0x80055934);assert(writes==0);
+    }
+    unsetenv("DNTTK_JUMP");ttk::running=false;
+    std::puts("PASS: D08Z6 cleared running jump builds bounded horizontal speed; vertical/position, release, walking and assisted preserved");
     // Only the original clear drop result, in the small-drop range, selects
     // the original run/fall dispatcher for a walking-speed step.
     for(auto check:std::vector<std::pair<int,int>>{{6,384},{6,900},{3,384},{6,200}}) {

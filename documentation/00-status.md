@@ -1,5 +1,43 @@
 # Current status - 2026-10-04
 
+## 2026-10-24 - D35E accepted and closed out
+
+User: "lock it in, close it out!!!". D35E is Done. LADDER VIEW offers First
+Person / Third Person, with a stable body eye and native climbing hands through
+plain-ladder traversal. Existing movement and collision remain unchanged.
+See [note 227](227-d35e-first-person-ladders.md) for tests and coverage limits.
+
+Accepted executable: `f1a319d4581e1713f7cf2a78c81480a0aa1674916690856c06c4ca5cf9b55ebc`.
+Authored implementation, tests, manual and job records included in authorized
+closeout as MusicMonsterMod. Runtime patch re-exported unchanged and verified
+against the pinned clean framework index: all 51 modified/new files matched.
+No post-acceptance gameplay edits, rebuilds or launches. Acceptance does not
+establish unrecorded full-campaign or every-costume coverage. No player data
+changed and no next job started. Launch: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-24 - D35E first-person ladder candidate (Needs playtest)
+
+LADDER VIEW in OPTIONS > ADVANCED > ACTION PERSPECTIVE offers First Person
+(default) / Third Person, live on CONFIRM and saved (schema 44). Plain ladders
+retain a stable body eye and native hands through mount, climb, hang and exit;
+shared pole/ledge transfers keep their earlier policy. Existing movement and
+collision remain unchanged. See [note 227](227-d35e-first-person-ladders.md).
+
+Build, native controls/input/aim/near and all 94 profile tests pass. Private
+lifecycle, enemy-at-top exit, rung save/load, pause, global view, menu cancel/
+confirm and third-person comparison pass within the note's coverage limits.
+The final extra 120-setting route covers failed grab, standing catch and
+hang-to-ladder transfers. Camera comfort, hands and near-panel feel await the
+user's playtest. No full-campaign or every-intermediate-frame certification.
+
+Candidate: `f1a319d4581e1713f7cf2a78c81480a0aa1674916690856c06c4ca5cf9b55ebc`.
+All diagnostic sessions stopped. No player settings/saves/cards, framework
+source or pins changed. New getter hook generated normally; no hand-edited
+C. No acceptance closeout, commit or push. Launch:
+`python3 recomp/tools/local/run.py`. P selects First Person; capture is automatic.
+
+
 ## 2026-10-24 - D35D accepted and closed out
 
 User: "lock it in, and close it out!!". D35D is Done. PUSH/PULL VIEW offers

@@ -722,8 +722,14 @@ Alt+wheel, and press **V** to swing it back behind him. Climbing works as before
 (W/S up and down). On poles and chains **A** and **D** always take Duke left and
 right as seen on screen, whichever side you view him from. While he climbs the
 view is centred behind him even if you play over the shoulder (H); your
-shoulder side comes back when he gets off. In first person the
-view steps out behind Duke while he climbs and returns afterwards. Vanilla keeps
+shoulder side comes back when he gets off. With global First Person selected,
+**LADDER VIEW** in OPTIONS > ADVANCED > ACTION PERSPECTIVE chooses FIRST PERSON
+(default) or THIRD PERSON for plain ladders. CONFIRM applies and saves it.
+First Person keeps a steady body-height eye through mounting, climbing, hanging
+at the bottom and exiting. Mouse look does not turn Duke on the ladder; his
+hands keep their native climbing poses. Global Third Person always wins.
+`--ladder-view first` or `--ladder-view legacy-third` also saves this choice.
+Poles, chains and climbing walls still step out to third person. Vanilla keeps
 the original climbing camera.
 
 **Climbable ceilings / monkey bars (Modernized, D08J4).**
@@ -845,8 +851,9 @@ uses the third-person traversal view, then returns to your selected view.
 First person also stays active during jetpack takeoff, flight and landing
 with Modern, Classic and EDuke32 flight controls. The eye stays centered above
 Duke through flight lean; aiming and the crosshair work as on the ground.
-Ladders, poles, chains and
-ledges show the free third-person camera while Duke climbs; scripted and
+Plain ladders retain first person by default, with LADDER VIEW offering the
+existing third-person camera. Poles, chains and ledges still show the free
+third-person camera while Duke climbs; scripted and
 turret cameras and death use the original camera. Dodge rolls
 and slides down steep slopes stay in first person, and so do falls (off an edge, a
 car roof or after bumping a wall); only grabbing a ledge switches. Pressing P

@@ -237,6 +237,11 @@ static ActionView push_view() {
     parse_action_view(ttk_live_env("DNTTK_PUSH_VIEW"),choice);
     return choice;
 }
+static ActionView ladder_view() {
+    ActionView choice=ActionView::First;
+    parse_action_view(ttk_live_env("DNTTK_LADDER_VIEW"),choice);
+    return choice;
+}
 static bool independent_camera() {
     if(!input_modern_controls())return false;
     const char* mode=ttk_live_env("DNTTK_CAMERA_MODE");
@@ -669,6 +674,7 @@ static bool climb_state_early() {
     return mode==3 && ((animation>=147 && animation<=156) || (animation>=185 && animation<=211)) &&
         (previous==0 || previous==3 || previous==6 || previous==7 || previous==8 || previous==9);
 }
+static bool first_person_ladder();
 static bool traversal_camera_early() { return mantle_state_early() || unowned_fall_early() || ladder_mount_early() || committed_move_early() || climb_state_early(); }
 static bool state(bool camera_only=false,bool presentation=false) {
     // Menus suspend gameplay, not the authenticated world behind the menu.
@@ -714,7 +720,9 @@ static bool state(bool camera_only=false,bool presentation=false) {
     // D08V: mantles, hangs, pull-ups and unowned falls keep the mouse camera, and
     // so does ordinary gait while the previous-mode byte still says mantle/fall
     // (the first frames after a pull-up or landing).
-    const bool mantle=camera_only && traversal_camera_early();
+    const bool ladder_eye=presentation && camera_only && ladder_view()==ActionView::First &&
+        input_snapshot(Context::Gameplay).first_person && first_person_ladder();
+    const bool mantle=camera_only && (traversal_camera_early() || ladder_eye);
     // D22B: also the landing poses themselves (an unleased landing frame left a
     // jump taken from it without camera continuity) and after a slide.
     const bool settle=camera_only && (land_gait_anim(animation) || original_step_anim(animation) ||
@@ -1424,6 +1432,8 @@ static void hook_body(CPUState* cpu, uint32_t address) {
         duke_drawing=false;actor_drawing=false;
         if(ra==0x8007fe78) pickup_select_end(); // D08A9: after the pickup dispatcher
         if(ra==0x800376b4) {third_body_drawing=false;head_restore();weapon_draw_bounds(false,true);}
+    } else if (address==0x800b4d2c) {
+        first_person_ladder_near(cpu,ra);
     } else if (address==0x800292a0) {
         first_person_weapon_joint(cpu,ra);
         if(ra==0x80034c6c) third_person_mesh_begin(cpu);
@@ -1769,7 +1779,7 @@ const char* controls_debug_json() {
 }
 PSX_MOD_CONSTRUCTOR(register_ttk_controls) {
     psx_mod_register_activation_plugin("ttk.widescreen",ttk::widescreen_activate);
-    for (uint32_t address: {0x80076330u,0x80081a48u,0x8002b9f4u,0x800493a4u,0x80054308u,0x8005a210u,0x80059db0u,0x80048410u,0x8004b644u,0x8003ebf4u,0x8002a7fcu,0x80058120u,0x80097a44u,0x80054218u,0x80053404u,0x80053500u,0x800539f8u,0x800780b4u,0x8003ade4u,0x8003aa48u,0x800348d8u,0x8001ca4cu,0x8002a038u,0x800b4d9cu,0x800292a0u,0x80033e40u,0x800341e4u,0x80033f5cu,0x80051cf0u,0x80051890u,0x8008ba30u,0x8001fc44u,0x8006276cu,0x80062b48u,0x8002ffecu,0x800455bcu,0x80055e80u,0x800411b8u})
+    for (uint32_t address: {0x80076330u,0x80081a48u,0x8002b9f4u,0x800493a4u,0x80054308u,0x8005a210u,0x80059db0u,0x80048410u,0x8004b644u,0x8003ebf4u,0x8002a7fcu,0x80058120u,0x80097a44u,0x80054218u,0x80053404u,0x80053500u,0x800539f8u,0x800780b4u,0x8003ade4u,0x8003aa48u,0x800348d8u,0x8001ca4cu,0x8002a038u,0x800b4d9cu,0x800b4d2cu,0x800292a0u,0x80033e40u,0x800341e4u,0x80033f5cu,0x80051cf0u,0x80051890u,0x8008ba30u,0x8001fc44u,0x8006276cu,0x80062b48u,0x8002ffecu,0x800455bcu,0x80055e80u,0x800411b8u})
         psx_mod_register_function_entry_plugin("ttk.modern.controls",address,ttk::hook);
     // D08O2A: a shared matrix routine; its own hook keeps the per-joint cost to a few compares.
     psx_mod_register_function_entry_plugin("ttk.modern.controls",0x800b42ec,[](CPUState* cpu,uint32_t){ttk::swim_aim_arm(cpu);});

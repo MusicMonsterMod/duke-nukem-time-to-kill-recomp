@@ -380,6 +380,8 @@ std::vector<Screen> make_screens() {
                  "FIRST PERSON ONLY. INDEPENDENT OF JETPACK FLIGHT SCHEME",true),
         view_row("PUSH/PULL VIEW","push_view","DNTTK_PUSH_VIEW",
                  "FIRST PERSON ONLY. GRAB, PUSH AND PULL OBJECTS",true),
+        view_row("LADDER VIEW","ladder_view","DNTTK_LADDER_VIEW",
+                 "FIRST PERSON ONLY. LADDER MOUNTS, CLIMBING AND EXITS",true),
         heading("MOVEMENT"),
         {"JUMP",Section::Controls,"jump","DNTTK_JUMP",true,"MANUAL: LEAVE ON THE PRESS AND STEER IN THE AIR",
          {{"ASSISTED","assisted","\"assisted\""},{"MANUAL","manual","\"manual\""}},0},

@@ -1,5 +1,7 @@
 # Time to Kill — modernization jobs
 
+**Latest accepted job (2026-10-24): D35E first-person ladder lifecycle is Done. User: "lock it in, close it out!!!". [Note 227](documentation/227-d35e-first-person-ladders.md).**
+
 **Latest accepted job (2026-10-24): D35D first-person push/pull/grab is Done. User: "lock it in, and close it out!!". [Note 226](documentation/226-d35d-first-person-push-pull.md).**
 
 **Latest accepted job (2026-10-24): D35C jetpack perspective option is Done. User: "lock it in, close it out". [Note 225](documentation/225-d35c-jetpack-perspective.md).**
@@ -327,7 +329,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D35B | Swimming perspective option using accepted first-person swimming | Done | D35A, D11E |
 | D35C | Jetpack perspective option using accepted first-person flight | Done | D35A, D11F |
 | D35D | First-person push/pull and grab presentation | Done | D35A, D08T3, D08T7 |
-| D35E | First-person ladder climbing lifecycle | Todo | D35A, D08J3, D08U, D08J1 |
+| D35E | First-person ladder climbing lifecycle | Done | D35A, D08J3, D08U, D08J1 |
 | D35F | First-person chain, pole and pole-class lamppost climbing | Todo | D35A, D35E, D08J5 |
 | D35G | First-person mantles, ledge hangs and water climb-outs | Todo | D35A, D35E, D08V, D08X, D08T8 |
 | D35H | First-person overhead and monkey-bar traversal | Todo | D35A, D35G, D08J4 |
@@ -450,7 +452,7 @@ animation or settings edits, commit or push are part of this research result.
 
 ### D35E - First-person ladder climbing lifecycle
 
-**Status:** Todo. **Dependencies:** D35A, D08J3, D08U, D08J1.
+**Status:** Done. **Dependencies:** D35A, D08J3, D08U, D08J1.
 **Research:** [D35 central audit](documentation/222-d35-first-person-audit.md).
 
 **Current behavior:** Attached ladder and top mount use camera-only orbit; traversal policy suppresses FP, including mount/exit transfers.
@@ -466,6 +468,8 @@ animation or settings edits, commit or push are part of this research result.
 **Acceptance:** Full ladder lifecycle remains FP when requested; safe near-panel eye and readable hands; no lost movement or unexpected view frame during shared transfer states; existing top-exit enemy handling and third person unchanged.
 
 **Regression risks:** Transfer classification shared with poles/hangs, top-exit wall penetration, auto shoulder return and held-input direction.
+
+**Accepted evidence:** [Note 227](documentation/227-d35e-first-person-ladders.md). LADDER VIEW, stable eye, native hands, guarded mount/drop bridges; build/native suites and 94 profile tests pass. Private lifecycle and menu checks recorded; user accepted and explicitly authorized closeout.
 
 ### D35F - First-person chain, pole and pole-class lamppost climbing
 
@@ -18378,3 +18382,43 @@ match application to the clean pinned dependency index. No player data changed
 and no next job started. Acceptance does not establish unrecorded full-campaign
 or damage-interruption coverage. Accepted executable:
 `09c5d8237e1f6da7da0c2651cf794ec27e1db12c466f88cebe7f9d558c0bca45`.
+
+
+## 2026-10-24 - D35E first-person ladder candidate (Needs playtest)
+
+User selected D35E. LADDER VIEW offers First Person (default) / Third Person
+under Advanced Action Perspective, live on CONFIRM and persistent (schema 44).
+Stable body eye, native climbing hands and normal world-depth near clipping.
+Plain-ladder family gates keep shared transfers separate from poles and ledges.
+Ground mount 185 at 8/0 and drop 108 at 9/3 retain the eye presentation; existing
+movement, collision, actor-at-top exit and third-person controls are unchanged.
+
+Build, native controls/input/aim/near suites and all 94 profile tests pass.
+Private 120-setting lifecycle: 1,115 full-eye samples, 683 Ladder; final extra
+standing-catch/hang/transfer route: 457 full-eye samples. Final 60-setting
+legacy-action comparison: 1,288 samples, 675 Ladder, none effective first.
+Enemy-at-top handling exercised; rung save/load, pause, global view and real
+menu cancel/confirm pass. See [note 227](documentation/227-d35e-first-person-ladders.md)
+for chronology, hand captures, exact coverage and limitations.
+
+Candidate `f1a319d4581e1713f7cf2a78c81480a0aa1674916690856c06c4ca5cf9b55ebc`.
+User comfort, hand framing and near-panel entry/exit feel await playtest.
+No player data or framework source changed. One generated hook shard was
+regenerated through the standard tool, never hand-edited; movie/math shards
+updated normally. Diagnostic sessions stopped. No commit/push or acceptance
+closeout. Launch: `python3 recomp/tools/local/run.py`; P selects First Person.
+
+
+## 2026-10-24 - D35E accepted and closeout authorized
+
+User: "lock it in, close it out!!!". D35E is Done. LADDER VIEW offers First
+Person / Third Person with a stable body eye and native climbing hands.
+Acceptance covers the candidate; it does not enumerate additional campaign
+routes or remove the evidence limits in [note 227](documentation/227-d35e-first-person-ladders.md).
+
+Accepted executable: `f1a319d4581e1713f7cf2a78c81480a0aa1674916690856c06c4ca5cf9b55ebc`.
+Authored implementation, tests, manual and job records included in authorized
+MusicMonsterMod closeout. Runtime patch re-exported unchanged and verified
+against the pinned clean framework index: all 51 modified/new files matched.
+No post-acceptance gameplay edits, builds or launches. No player data changed;
+no next job started. Launch: `python3 recomp/tools/local/run.py`.

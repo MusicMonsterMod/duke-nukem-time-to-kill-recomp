@@ -28,12 +28,14 @@ extern "C" int pgxp_mesh_vertex(uint32_t addr,uint32_t,int32_t* x,int32_t* y,uin
 #include <vector>
 static uint8_t ram[0x200000];
 static PSXModFunctionEntryCallback near_hook;
-static bool live_eye=false,modern=true;
+static bool live_eye=false,modern=true,live_third=false,duke=false;
+static double body_coverage=1;
+static float observed_coverage=1;
 static unsigned host_vertices;
 struct HostCorner {uint32_t word;int32_t x,y;float z,u,v,depth;};
 static std::vector<HostCorner> host_corners;
 extern "C" {uint8_t* g_psx_ram=ram;uint32_t g_dirty_ram_code_gen=1;}
-extern "C" uint32_t psx_mod_alloc_guest_memory(uint32_t size,uint32_t){static uint32_t next=0x801e0000;const auto result=next;next+=size;assert(next<=0x80200000);return result;}
+extern "C" uint32_t psx_mod_alloc_guest_memory(uint32_t size,uint32_t){static uint32_t next=0x801d0000;const auto result=next;next+=size;assert(next<=0x80200000);return result;}
 // D17R1 host packet arena (GPU DMA aperture).
 extern "C" uint32_t psx_mod_alloc_gpu_dma_memory(uint32_t,uint32_t){return 0x80f00000;}
 // GPU DMA aperture (0x80f00000, mod_memory.h), apart from main RAM as in the runtime.
@@ -47,10 +49,12 @@ extern "C" void psx_mod_write_word(uint32_t a,uint32_t v){for(int i=0;i<4;++i)by
 extern "C" int psx_mod_register_function_entry_plugin(const char*,uint32_t,PSXModFunctionEntryCallback cb){near_hook=cb;return 1;}
 extern "C" int psx_mod_gpu_host_vertex(uint32_t,uint32_t,int32_t,int32_t,float,float,float){return 1;}
 extern "C" int psx_mod_gpu_host_vertex_depth(uint32_t,uint32_t w,int32_t x,int32_t y,float z,float u,float v,float d){++host_vertices;host_corners.push_back({w,x,y,z,u,v,d});return 1;}
+extern "C" int psx_mod_gpu_host_vertex_coverage(uint32_t a,uint32_t w,int32_t x,int32_t y,float z,float u,float v,float d,float coverage){observed_coverage=coverage;return psx_mod_gpu_host_vertex_depth(a,w,x,y,z,u,v,d);}
+
 extern "C" int psx_mod_replay_active(void){return 0;}
 extern "C" uint32_t psx_mod_savestate_loads(void){return 0;}
 namespace ttk {bool frame_trace_on(){return false;} void frame_trace_account(uint32_t,long){}}
-namespace ttk {bool input_modernized(){return modern;} bool first_person_view_live(){return live_eye;} bool widescreen_near_clip_live(){return false;} bool first_person_duke_drawing(){return false;} bool first_person_actor_drawing(){return false;} bool first_person_weapon_drawing(){return false;} uint64_t input_host_frame(){return 0;}}
+namespace ttk {void third_person_mesh_begin(CPUState*){} bool input_modernized(){return modern;} bool first_person_view_live(){return live_eye;} bool third_person_camera_live(){return modern && live_third;} double third_person_body_coverage(){return body_coverage;} bool widescreen_near_clip_live(){return false;} bool third_person_duke_drawing(){return duke;} bool first_person_duke_drawing(){return duke;} bool first_person_actor_drawing(){return duke;} bool first_person_weapon_drawing(){return false;} uint64_t input_host_frame(){return 0;}}
 static int16_t sx(uint32_t p){return (int16_t)p;} static int16_t sy(uint32_t p){return (int16_t)(p>>16);}
 // A whole-hook observation oracle: compare this digest across separate runs
 // with the diagnostic gate disabled/enabled. Covers all fixture RAM and CPU
@@ -282,6 +286,24 @@ static void packet_contracts(const char* executable) {
             assert(ttk::near_clip_frame_state().host_bytes==frame.host_bytes);
         }
     };
+    // D10B: body coverage travels with real emitted packets; a fully opaque
+    // body remains native. Doors use only the authenticated occluder caller.
+    live_eye=false;live_third=true;duke=true;body_coverage=0.375;
+    object_case(0x80034dd0,100,true);
+    assert(observed_coverage==0.375f);
+    body_coverage=1;object_case(0x80034dd0,100,false);
+    modern=false;body_coverage=0.375;object_case(0x80034dd0,100,false);modern=true;
+    duke=false;body_coverage=1;
+    {
+        auto c=reset();c.gpr[4]=0x80140000;c.gpr[31]=0x80032010;
+        observed_hook(&c,0x8002ee50);assert(c.gpr[4]!=0x80140000);
+        c.gpr[4]=0x80140000;c.gpr[31]=0x80032014;
+        observed_hook(&c,0x8002ee50);assert(c.gpr[4]==0x80140000);
+        c.gpr[31]=0x80032010;modern=false;
+        observed_hook(&c,0x8002ee50);assert(c.gpr[4]==0x80140000);modern=true;
+    }
+    live_third=false;live_eye=true;
+    std::puts("PASS: D10B body packet coverage, native opaque body, solid-door caller and Vanilla gates");
     object_case(0x80032288,100,true); // compact static prop beyond near radius
     object_case(0x80032288,100,true,true); // first mesh need not see an empty OT
     object_case(0x80032288,128,true); // inclusive 256-unit extent

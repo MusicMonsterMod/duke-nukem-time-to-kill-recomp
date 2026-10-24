@@ -1,5 +1,40 @@
 # Current status - 2026-10-04
 
+## 2026-10-24 - D10B accepted and closed out
+
+User: "fully accept!! lock it in and close it out". D10B is Done. Accepted
+collision-aware third-person compression, shoulder centering and eased return,
+Duke-only proximity fade, and solid near doors/walls. Saved framing, Vanilla
+and Original camera behavior are preserved.
+Accepted build: `4396ea72a48d95b6de13999501ff8b4f53f46515533b8aa7d7a6ca42d54429eb`.
+
+Implementation, regression tests, exported framework patch and documentation
+included in authorized closeout as MusicMonsterMod. Existing test evidence and
+limits remain in [note 221](221-d10b-tight-camera.md). No post-acceptance gameplay
+edits, rebuilds or launches. Runtime patch re-exported and verified against the
+clean pinned framework. No next job started.
+Launch `python3 recomp/tools/local/run.py` with saved preferences.
+
+
+## 2026-10-24 - D10B tight-space camera candidate (Needs playtest)
+
+Collision-aware third-person compression, shoulder centering, held/eased return
+and Duke-only proximity fade on OpenGL are implemented. Near doors/walls stay
+solid. Saved framing is preserved; Vanilla and Original camera retain their
+behavior. Software retains the native body fade.
+
+Build, controls/input/aim/near-clipping and replay codec tests pass. Final private
+60/120 FPS apartment routes passed yaw/shoulder/view changes, firing and private
+save/load; the sewer ladder-bottom heading sweep also completed. Runtime patch
+exported and verified against the clean pinned framework. See
+[note 221](221-d10b-tight-camera.md) for evidence and remaining acceptance.
+
+Candidate: `4396ea72a48d95b6de13999501ff8b4f53f46515533b8aa7d7a6ca42d54429eb`.
+User playtest remains for camera feel, fade appearance and wider campaign routes.
+No commit, push or acceptance closeout. Launch `python3 recomp/tools/local/run.py`
+with saved preferences; select third person (P by default) to try D10B.
+
+
 ## 2026-10-24 - D11F accepted and closed out
 
 User: "lock it in and accept! close it out!" D11F is Done. Accepted first-person

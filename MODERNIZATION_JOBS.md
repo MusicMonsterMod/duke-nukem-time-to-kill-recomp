@@ -185,7 +185,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D09 | Modern controller support | Todo | D05, D06, D07 |
 | D10 | Third-person camera polish | Done | D08 |
 | D10A | Rapid mouse turning and Shift-running investigation | Done | D06, D07C, D08 |
-| D10B | Tight-space third-person camera: translucent Duke and see-through doors | Todo | D10, D11B |
+| D10B | Tight-space third-person camera: translucent Duke and see-through doors | Done | D10, D11B |
 | D10C | Duke 3D look keys: Page Up / Page Down look up / down while held and recenter on release; Home / End lock the look up / down (bindable) | Done (user-accepted 2026-10-20) | D06, D19G |
 | D10D | Keyboard turning in Modernized: Left / Right arrows turn the view left / right (Duke 3D style, alongside the mouse) | Done (user-accepted 2026-10-20) | D06, D10C |
 | D11 | First-person playable prototype | Done | D08, D10 |
@@ -5730,6 +5730,34 @@ verified repair where supported, with responsive turning and original camera
 constraints intact. Full matrix: [current brief](documentation/45-playtest-turning-audio-follow-up.md).
 
 ### D10B - Tight-space third-person camera: translucent Duke and see-through doors
+
+**Done - user accepted 2026-10-24:** "fully accept!! lock it in and close it out".
+Accepted compression, shoulder centering/recovery, Duke-only proximity fade and
+solid near scenery under the agreed policy below. Accepted build `4396ea72a48d95b6de13999501ff8b4f53f46515533b8aa7d7a6ca42d54429eb`.
+Implementation, tests, framework patch and documentation included in authorized
+closeout. See [note 221](documentation/221-d10b-tight-camera.md) for evidence and
+scope limits. No further gameplay changes or next job started.
+
+**Work log (2026-10-24, Needs playtest):** implemented collision compression,
+shoulder centering, held/eased recovery and Duke-only proximity coverage on
+OpenGL, with solid near scenery. Build, controls/input/aim/near-clipping and
+replay codec tests pass. Private apartment routes pass at 60/120 FPS, including
+view and shoulder switching, firing and save/load. Framework patch exported
+and verified against the clean pinned dependency. See [note 221](documentation/221-d10b-tight-camera.md)
+for captures, candidate hash and limits. User camera-feel and campaign playtest
+remain; no commit, push or acceptance closeout.
+
+**2026-10-24 - selected implementation:** collision-aware third-person compression,
+shoulder centering in confined spaces, smooth return to the saved framing,
+and a deliberate Duke proximity fade only when needed. Doors/walls remain
+solid; no automatic perspective switch or aiming delay. User delegated design
+and implementation. Candidate requires private route verification and user playtest.
+
+The agreed acceptance supersedes the absolute head/body visibility requirement
+below: preserve a clear view of the action, keeping Duke opaque where practical
+and fading him smoothly only when proximity obstructs the view. Show before/after
+sewer, door and tight-corner approaches, backing in/out, camera/aim regressions
+and unchanged Vanilla.
 
 **Correction (2026-09-30):** the missing head is not a camera effect. It was a
 first-person hide flag stuck in the slot-12 savestate; see D11C. This job

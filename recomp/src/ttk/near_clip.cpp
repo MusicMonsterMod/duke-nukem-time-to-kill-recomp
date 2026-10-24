@@ -286,6 +286,7 @@ struct Poly {
 };
 struct Frame {
     bool trace=false;uint64_t trace_call=0;uint32_t mesh=0,instance=0,caller=0;
+    double coverage=1.0;
     NearGte g;bool object,viewmodel;uint32_t far_limit,zsf3,zsf4;
     std::vector<NearProjected> verts;unsigned emitted;Stats* stats;
 };
@@ -463,7 +464,7 @@ void emit(Frame& f,const Poly& poly,const Vertex* v) {
     // view depth so the GPU maps the texture with correct perspective instead
     // of the PS1's affine warp across a polygon beside the eye.
     double trace_raster[3][4];
-    if(precise()) {
+    if(precise() || f.coverage<1.0) {
         for(int i=0;i<3;++i) {
             const uint32_t addr=prim+(poly.textured?8+12*i:8+8*i),word=psx_mod_read_word(addr);
             int32_t x16=(int32_t)(int16_t)word*65536,y16=(int32_t)(int16_t)(word>>16)*65536;
@@ -485,7 +486,7 @@ void emit(Frame& f,const Poly& poly,const Vertex* v) {
             static const bool depth_fix=env_int("DNTTK_PLANE_DEPTH",1,0,1)!=0;
             const double depth=depth_fix ? near_raster_depth(poly.depth_plane,f.g,x16/65536.0,y16/65536.0,v[i].p[2]) : v[i].p[2];
             if(f.trace) {trace_raster[i][0]=x16/65536.0;trace_raster[i][1]=y16/65536.0;trace_raster[i][2]=v[i].p[2];trace_raster[i][3]=f.viewmodel?-v[i].p[2]:depth;}
-            psx_mod_gpu_host_vertex_depth(addr,word,x16,y16,poly.depth_only && !pgxp_mesh_textures()?1.0f:(float)v[i].p[2],poly.textured?(float)std::clamp(v[i].uv[0],0.0,255.0):-1.0f,poly.textured?(float)std::clamp(v[i].uv[1],0.0,255.0):-1.0f,(float)(f.viewmodel?-v[i].p[2]:depth));
+            psx_mod_gpu_host_vertex_coverage(addr,word,x16,y16,poly.depth_only && !pgxp_mesh_textures()?1.0f:(float)v[i].p[2],poly.textured?(float)std::clamp(v[i].uv[0],0.0,255.0):-1.0f,poly.textured?(float)std::clamp(v[i].uv[1],0.0,255.0):-1.0f,(float)(f.viewmodel?-v[i].p[2]:depth), (float)f.coverage);
         }
         ++precise_triangles;
     }
@@ -1073,15 +1074,17 @@ void rank_coplanar(const Frame& f,std::vector<Poly>& polys) {
 void object(CPUState* cpu) {
     const uint32_t mesh=cpu->gpr[4];
     const bool viewmodel=first_person_weapon_drawing();
-    if(!viewmodel && first_person_duke_drawing()) {++duke_skips;return;}
-    const bool actor=first_person_actor_drawing();
+    const double coverage=third_person_duke_drawing()?third_person_body_coverage():1.0;
+    const bool body=third_person_duke_drawing() && third_person_camera_live() && coverage<1.0;
+    if(!viewmodel && (first_person_duke_drawing() || third_person_duke_drawing()) && !body) {++duke_skips;return;}
+    const bool actor=first_person_actor_drawing() || third_person_duke_drawing();
     ++object_stats.seen;
     const unsigned count=psx_mod_read_byte(mesh+6);
     const uint32_t vertices=psx_mod_read_word(mesh+0x10),list=psx_mod_read_word(mesh+0x14);
     if(!count || vertices<0x80010000 || vertices>0x801ffff0 || list<0x80010000 || (list>0x801ffff0 && list!=missing_texture_copy+0x20)) return;
     Frame f{};if(!begin(f,cpu,true)) return;
     trace_begin(f,cpu);
-    f.viewmodel=viewmodel;
+    f.viewmodel=viewmodel;f.coverage=coverage;
     if(viewmodel && held_frame!=frame_first_cursor) {held_packets.clear();held_frame=frame_first_cursor;}
     f.verts.resize(count);
     // Small static props can intersect a host-rendered table while every corner of
@@ -1094,7 +1097,7 @@ void object(CPUState* cpu) {
     const bool static_candidate=precise() && !conservative() && !actor && !viewmodel &&
         prop_depth && cpu->gpr[31]==0x80032288;
     int lo[3]={32767,32767,32767},hi[3]={-32768,-32768,-32768};
-    bool any=viewmodel;
+    bool any=viewmodel || body;
     for(unsigned i=0;i<count;++i) {
         const uint32_t xy=psx_mod_read_word(vertices+8*i);
         f.verts[i]=near_project(f.g,(int16_t)xy,(int16_t)(xy>>16),(int16_t)psx_mod_read_half(vertices+8*i+4));
@@ -1173,7 +1176,7 @@ void object(CPUState* cpu) {
             // The original drops a polygon whose corners are all nearer than
             // H; in the eye view that made props see-through up close, so such
             // polygons are drawn here too.
-            unsafe|=all_near || oversize(f,idx,corners) || viewmodel || static_depth;
+            unsafe|=all_near || oversize(f,idx,corners) || viewmodel || body || static_depth;
             // Only a mesh's horizontal upper boundary, not its sides or
             // undersides. Original near/unsafe faces keep the established path.
             const bool textured=(type&4)!=0;
@@ -1342,7 +1345,8 @@ void near_hook_body(CPUState* cpu,uint32_t address) {
         pgxp_mesh_register_boundary();
     }
     const bool eye=first_person_view_live();
-    const bool clip_live=eye || widescreen_near_clip_live();
+    const bool third=third_person_camera_live();
+    const bool clip_live=eye || third || widescreen_near_clip_live();
     const bool object_filter=address==0x80010000 && input_modernized();
     if(!clip_live && !object_filter) return;
     if(address==0x80026164) {
@@ -1359,7 +1363,7 @@ void near_hook_body(CPUState* cpu,uint32_t address) {
         }
         return;
     }
-    if(address==0x8002ee50) {if(eye && identity()) occluder_test(cpu); return;}
+    if(address==0x8002ee50) {if((eye || third) && identity()) occluder_test(cpu); return;}
     {
         const uint32_t cursor=psx_mod_read_word(context),start=psx_mod_read_word(context+4),end=psx_mod_read_word(context+8);
         bool empty=true;
@@ -1376,7 +1380,7 @@ void near_hook_body(CPUState* cpu,uint32_t address) {
     if(!mesh || cpu->gpr[5]!=ordering || cpu->gpr[6]!=context || cpu->gpr[7]!=bitmap) return;
     if(mesh<0x80010000 || mesh>0x801f0000 || (mesh&3)) return;
     if(!identity()) {++refused;return;}
-    if(object_filter) filter_missing_animation(cpu);
+    if(object_filter) {third_person_mesh_begin(cpu);filter_missing_animation(cpu);}
     if(!clip_live || !enabled()) return;
     if(address==0x80011020 && (renderers()&1)) world(cpu);
     else if(address==0x80010000 && (renderers()&2)) object(cpu);

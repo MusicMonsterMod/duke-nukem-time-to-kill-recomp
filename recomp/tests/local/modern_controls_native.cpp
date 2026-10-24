@@ -1,3 +1,6 @@
+#include "tight_camera.h"
+static bool renderer_available=true;
+extern "C" int psx_mod_present_replay_available(void){return renderer_available;}
 #include <cstdint>
 #include <cstdlib>
 #include <string_view>
@@ -56,6 +59,7 @@ extern "C" void psx_mod_write_code_word(uint32_t a,uint32_t v) {++code_writes;ps
 extern "C" int psx_mod_register_function_entry_plugin(const char*,uint32_t a,PSXModFunctionEntryCallback cb) {hooks()[a].list.push_back(cb);return 1;}
 extern "C" int psx_mod_gpu_host_vertex(uint32_t,uint32_t,int32_t,int32_t,float,float,float){return 1;}
 extern "C" int psx_mod_gpu_host_vertex_depth(uint32_t,uint32_t,int32_t,int32_t,float,float,float,float){return 1;}
+extern "C" int psx_mod_gpu_host_vertex_coverage(uint32_t,uint32_t,int32_t,int32_t,float,float,float,float,float){return 1;}
 static PSXModActivationCallback activation;static unsigned aspect_num,aspect_den;
 extern "C" int psx_mod_register_activation_plugin(const char*,PSXModActivationCallback cb) {activation=cb;return 1;}
 extern "C" int psx_mod_set_fixed_display_aspect(uint32_t n,uint32_t d) {aspect_num=n;aspect_den=d;return 1;}
@@ -1743,7 +1747,8 @@ int main(int argc,char** argv) {
     orientation.gpr[4]=orientation.gpr[29]+0x18;orientation.gpr[5]=orientation.gpr[29]+0x68;
     const auto requested_x=psx_mod_read_half(c+12);
     writes=0;hooks().at(0x8002a7fc)(&orientation,0x8002a7fc);
-    assert(writes==9 && psx_mod_read_half(orientation.gpr[4]+12)==requested_x);
+    assert(writes==11 && psx_mod_read_half(orientation.gpr[4]+12)==requested_x);
+    assert(psx_mod_read_word(0x800c3c48)==768); // D10B temporary minimum restored
     assert(psx_mod_read_word(c+0x64)==0 && (int32_t)psx_mod_read_word(c+0x6c)==-3000);
     orientation.gpr[31]=0x80029218;writes=0;
     hooks().at(0x8002a7fc)(&orientation,0x8002a7fc);assert(writes==0);
@@ -1783,6 +1788,7 @@ int main(int argc,char** argv) {
     ttk::input.active=false;writes=0;call(0x8003aa48,c,sp+0x18,0x8003aeb0,sp);
     assert(writes>0 && !ttk::movement_ready()); // presentation survives input release
     ttk::input.active=true;
+    call(0x8002a038,0,1,0x8003af40,sp); // complete the preceding camera solve
     psx_mod_write_word(p,2);writes=0;call(0x8003ade4,c,p,0x80025ee8);call(0x8003aa48,c,sp+0x18,0x8003aeb0,sp);assert(writes==0);
     psx_mod_write_word(p,0);psx_mod_write_half(p+0x60,218);writes=0;call(0x8003ade4,c,p,0x80025ee8);assert(writes==0 && !ttk::movement_ready());
     psx_mod_write_half(p+0x60,63);
@@ -2410,6 +2416,78 @@ int main(int argc,char** argv) {
         std::remove(state);unsetenv("DNTTK_CAMERA_STATE_FILE");
         ttk::input.shoulder=0;for(unsigned i=0;i<60;++i)frame();
         assert(std::abs(metric("\"shoulder_offset\":"))<1);
+        // D10B: verified constraint scope, collision-first inward movement,
+        // outward hysteresis, preserved preference and native constant restore.
+        {
+            const double preference=metric("\"preferred_radius\":");
+            frame();sp=0x801f0000-0xb8;
+            call(0x8003aa48,c,sp+0x18,0x8003aeb0,sp);
+            assert(psx_mod_read_word(0x800c3c48)==256);
+            const double y=metric("\"yaw\":"),pitch=metric("\"pitch\":");
+            const double forward[]={std::sin(y)*std::cos(pitch),std::sin(pitch),std::cos(y)*std::cos(pitch)};
+            for(int i=0;i<3;++i) {
+                double target=(int32_t)psx_mod_read_word(p+0x7bc+4*i);
+                if(i==1)target+=(int32_t)psx_mod_read_word(c+0x88);
+                psx_mod_write_word(sp+0x28+4*i,(int32_t)std::lround(target-forward[i]*2000));
+            }
+            psx_mod_write_word(sp+0x20,1500);
+            auto follow=[&](uint32_t ra,int delta) {
+                CPUState cpu{};cpu.gpr[4]=delta;cpu.gpr[5]=4;cpu.gpr[29]=sp;cpu.gpr[31]=ra;
+                hooks().at(0x8002a038)(&cpu,0x8002a038);return cpu;
+            };
+            assert(follow(0x8003af40,100).gpr[5]==1);
+            assert(psx_mod_read_word(0x800c3c48)==768);
+            assert(follow(0x8003af80,1500).gpr[5]==1);
+            assert(follow(0x8003af80,-100).gpr[4]==0);
+            for(int i=0;i<10;++i)frame();
+            assert(follow(0x8003af80,-100).gpr[5]>1);
+            assert(follow(0x80012345,-100).gpr[5]==4);
+            assert(metric("\"preferred_radius\":")==preference);
+            // End at a clear solve, so later camera fixtures have no obstruction.
+            psx_mod_write_word(sp+0x20,-5000);follow(0x8003af40,0);
+            call(0x800348d8,c,p,0x8003769c);
+            constexpr uint32_t ctx=0x800d67a8;
+            const uint32_t oldflags=psx_mod_read_word(p),old224=psx_mod_read_word(p+0x224);
+            const uint16_t effects[]={psx_mod_read_half(p+0x89c),psx_mod_read_half(p+0x89e),psx_mod_read_half(p+0x8a0)};
+            psx_mod_write_word(p,oldflags&~0x6040u);psx_mod_write_word(p+0x224,old224&~0x200000u);
+            for(int i=0;i<3;++i)psx_mod_write_half(p+0x89c+2*i,0);
+            auto native_fade=[&] {psx_mod_write_word(ctx+0x48,0x02000000);psx_mod_write_word(ctx+0x4c,0x600000);};
+            CPUState draw{};
+            call(0x8001ca4c,0,0,0x80012345); // nested list iteration cannot end Duke
+            assert(ttk::third_person_duke_drawing());
+            native_fade();ttk::third_person_mesh_begin(&draw);
+            assert(psx_mod_read_word(ctx+0x48)==0 && psx_mod_read_word(ctx+0x4c)==0);
+            call(0x8001ca4c,0,0,0x800376b4);
+            assert(psx_mod_read_word(ctx+0x48)==0x02000000);
+            call(0x800348d8,c,p,0x8003769c);
+            {
+                uint32_t eye[3];
+                for(int i=0;i<3;++i) {
+                    eye[i]=psx_mod_read_word(c+0x14+4*i);
+                    const int root=(int32_t)psx_mod_read_word(p+4+4*i)-(i==1?640:0);
+                    psx_mod_write_word(c+0x14+4*i,root-(int32_t)std::lround(forward[i]*1000));
+                }
+                const double opacity=ttk::third_person_body_coverage();assert(opacity>0 && opacity<1);
+                std::vector<uint8_t> image(ttk::render_state_size());ttk::render_state_save(image.data());
+                const pid_t child=fork();assert(child>=0);
+                if(child==0) {
+                    renderer_available=false;ttk::render_state_load(image.data());
+                    assert(ttk::third_person_camera_live());
+                    assert(std::abs(ttk::third_person_body_coverage()-opacity)<1e-9);
+                    _exit(0);
+                }
+                int status=0;assert(waitpid(child,&status,0)==child && WIFEXITED(status) && WEXITSTATUS(status)==0);
+                for(int i=0;i<3;++i)psx_mod_write_word(c+0x14+4*i,eye[i]);
+            }
+            psx_mod_write_half(p+0x89c,1);native_fade();ttk::third_person_mesh_begin(&draw);
+            assert(psx_mod_read_word(ctx+0x48)==0x02000000);
+            assert(ttk::third_person_body_coverage()==1);
+            call(0x8001ca4c,0,0,0x800376b4);
+            psx_mod_write_word(p,oldflags);psx_mod_write_word(p+0x224,old224);
+            for(int i=0;i<3;++i)psx_mod_write_half(p+0x89c+2*i,effects[i]);
+            psx_mod_write_word(ctx+0x48,0);psx_mod_write_word(ctx+0x4c,0);
+            std::puts("PASS: D10B scoped minimum, inward solve, outward hold/recovery and saved-distance isolation");
+        }
         // D11 first-person: the eye follows the neck joint; the anchor sits half a
         // projection distance ahead of it. The original minimum boom is relaxed
         // only while the eye view blends in, and the head joint is flagged only
@@ -2913,7 +2991,8 @@ int main(int argc,char** argv) {
             for(unsigned i=0;i<40;++i)frame();
             assert(metric("\"blend\":")==0);
             call(0x8003aa48,c,sp+0x18,0x8003aeb0,sp);
-            assert(psx_mod_read_word(0x800c3c48)==768 && (int16_t)psx_mod_read_half(c+0x42)==386);
+            assert(psx_mod_read_word(0x800c3c48)==256 && (int16_t)psx_mod_read_half(c+0x42)==386);
+            call(0x8002a038,0,1,0x8003af40,sp);assert(psx_mod_read_word(0x800c3c48)==768);
             call(0x800348d8,c,p,0x8003769c);assert(!(psx_mod_read_byte(record)&1));
             // D11C: a head hide captured by a save state (bit 0 set, host owns
             // nothing after the load) is reclaimed at Duke's next draw in third
@@ -4202,6 +4281,15 @@ int main(int argc,char** argv) {
         setup();call(0x80062b48,0,0,0x80012345);assert(top()==-80);
         std::puts("PASS: D17Y open upper portal, downstream/indoor/height/bounds/caller and Vanilla guards");
     }
+    assert(ttk::camera_body_coverage(650,0)==0);
+    assert(ttk::camera_body_coverage(1700,0)==1);
+    assert(ttk::camera_body_coverage(650,660)==1);
+    for(int d=650;d<1700;++d) {
+        const double a=ttk::camera_body_coverage(d,0),b=ttk::camera_body_coverage(d+1,0);
+        assert(a>=0 && b<=1 && b>=a && b-a<0.002);
+        assert(ttk::camera_body_coverage(d,400)==ttk::camera_body_coverage(d,-400));
+    }
+    std::puts("PASS: D10B proximity coverage bounds, continuity, monotonicity and shoulder symmetry");
     std::puts("PASS: distance clamps, convergence, epoch recovery and wall-independent preference; D10 recenter, shoulder offset and camera side file");
     std::puts("PASS: all semantic groups, upgrades, empty remote, history, unsafe attack/item guards, crouch delta and clearance fixtures");
     std::puts("PASS: immediate takeoff support probe, guarded caller/code, owned airborne reach lease");

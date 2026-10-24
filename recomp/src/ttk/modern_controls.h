@@ -1,6 +1,7 @@
 #pragma once
 #include <cstddef>
 #include <cstdint>
+struct CPUState;
 namespace ttk {
 bool movement_ready();
 const char* movement_lease_miss();
@@ -118,6 +119,10 @@ void render_state_save(void* out);
 void render_state_load(const void* in);
 // D11B: the eye view is live (Modernized, orbit lease, first-person blend > 0).
 bool first_person_view_live();
+bool third_person_camera_live();
+bool third_person_duke_drawing();
+double third_person_body_coverage();
+void third_person_mesh_begin(CPUState* cpu);
 // D11B: Duke's own actor draw is in progress (object meshes belong to him).
 bool first_person_duke_drawing();
 // D11B: any actor draw (0x800348d8) is in progress, until the next list step.

@@ -754,6 +754,13 @@ the view, so V mostly levels the camera's up/down angle.
 still go to the crosshair; walls still pull the camera in. The side you choose
 is saved too. Both keys are rebindable (`camera_recenter`, `camera_shoulder`).
 
+In tight spaces, the Modernized independent third-person camera pulls inward
+quickly and brings the shoulder toward center. It pauses briefly before easing
+back to your saved framing when there is room. On OpenGL, Duke fades smoothly
+when he crowds the view; doors and walls stay solid. The fade uses a fine
+spatial pattern, most visible at low internal resolutions. Software keeps the
+original body fade. The camera never switches perspective automatically.
+
 **Look keys (Duke 3D style).** Hold **Page Up** / **Page Down** to look up or
 down; let go and the view eases back to the normal angle. Hold **Home** /
 **End** to look up or down and keep the view there (it stays while you walk,

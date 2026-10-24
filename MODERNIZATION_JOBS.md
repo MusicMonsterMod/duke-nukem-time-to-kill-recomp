@@ -199,7 +199,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D11C | Savestates can keep Duke's first-person head hidden (slot 12) | Done | D11 |
 | D11D | First-person eye height from Duke's real proportions, game-wide (LEVEL01 slot 8) | Accepted | D11, D22A |
 | D11E | First person while swimming (underwater eye view, game-wide) | Done (user-accepted 2026-10-24) | D08O, D11, D22B |
-| D11F | First person while flying the jetpack (game-wide, all schemes) | Todo | D11, D08Q3, D22B |
+| D11F | First person while flying the jetpack (game-wide, all schemes) | Done | D11, D08Q3, D22B |
 | D11G | New level can start in third person although first person is selected (player UI slot 11 -> next level); left click restores it | Cancelled (cannot reproduce, 2026-10-21; reopen if seen again) | D11, D22B |
 | D13 | Higher internal resolution and display scaling | Done | D02 |
 | D14 | Widescreen, FOV and visibility | Done | D03, D13 |
@@ -5887,10 +5887,16 @@ and Vanilla unchanged; user confirms it reads well.
 
 ### D11F - First person while flying the jetpack (game-wide)
 
-**Todo. User request, 2026-10-06.** "add another job in for first person
-jetpack." Today jetpack flight (mode 10) is unsupported by `first_person.inc`,
-so a first-person player is switched back to the third-person orbit while
-flying (GAME_MANUAL: "Swimming and jetpack flight switch back to third").
+**Done (2026-10-24).** User accepted the final slot-12 correction and explicitly
+requested closeout: "lock it in and accept! close it out!" First person stays
+active in Modern, Classic and EDuke32. Modern/EDuke32 keep the pack running at
+floor/platform hover, descend below departed platforms and retain the chosen
+height on release; reflected flames are visible. Native suites and private
+flight/platform routes are recorded in
+[note 220](documentation/220-d11f-first-person-jetpack.md), with coverage limits.
+Implementation and documentation closeout authorized as MusicMonsterMod.
+
+Original user request, 2026-10-06: "add another job in for first person jetpack."
 
 Give jetpack flight a first-person eye view for every jetpack scheme (Modern,
 Classic, and the EDuke32 scheme from D08S once it exists): eye anchor through
@@ -17729,3 +17735,64 @@ Existing build/native tests and private 60/120 FPS evidence stand; no
 post-acceptance gameplay changes or additional game launches. Runtime patch
 re-exported unchanged and verified against the clean pinned framework.
 Commit and push authorized as MusicMonsterMod. No next job started.
+
+
+## 2026-10-24 - D11F first-person jetpack candidate (Needs playtest)
+
+User selected D11F. Removed the explicit flight fallback and centered the eye
+above the body root, preserving the normal camera solver and existing weapon
+presentation. First-person-only presentation covers native pack-off, first-fall
+and landing transition frames; flight physics and action eligibility unchanged.
+
+Build and native controls/input/aim/near suites pass. The two-level matrix
+covers Modern, Classic and EDuke32 at 120 FPS (1,070 samples); the final binary
+adds the narrowly scoped fuel-out transition and passes full native controls
+plus 224 Modern/EDuke32 transition samples at 60 FPS, including airborne
+save/load, pause, view toggles, firing and fuel exhaustion. Exact coverage,
+exploratory harness limitations and host I/O pressure are in note 220.
+
+Candidate `9912e67e4ba820de6b620bf6727c7990125c5c8578261e8b21e98050e76c2438`.
+Private test data only; diagnostic sessions stopped. No framework changes,
+commit, push, acceptance closeout or next job. Await user playtest.
+
+
+## 2026-10-24 - D11F ground-hover and mirror follow-up (Needs playtest)
+
+User reported near-complete acceptance, requesting continuous pack sound/flames
+at ground level and visible flames in the mirror. Modern/EDuke32 Ctrl descent
+now stops just above floor contact and holds there on release; Space climbs,
+J ends flight. Native flame flags are restored for each Duke draw, including
+the mirror after the primary draw consumes its flame flag. Classic/Vanilla
+physics remain unchanged. Built and native controls/input/aim/near tests pass,
+including the EDuke32 fuel/toggle suite. Private club-floor routes at Modern
+60 FPS and EDuke32 120 FPS passed 248 sampled checks including J-off. Mirror
+flames visually verified. See [note 220](documentation/220-d11f-first-person-jetpack.md)
+for scope, evidence and candidate hash. No commit/push or acceptance closeout.
+
+
+## 2026-10-24 - D11F slot 12 platforms (Needs playtest)
+
+Reproduced the platform-height descent limit using a private copy of slot 12.
+The previous flat-floor clamp incorrectly trusted cached +0x1c8. Replaced it
+with a guarded, isolated native flight collision sweep with actor scratch
+rollback. Expanded contact margin for animated feet and release drift;
+Space/Ctrl release holds the chosen height instead of returning toward the
+old platform. Modern 60 FPS and EDuke32 120 FPS platform-to-street routes kept
+flight and their native sound loop until J-off. Final EDuke32 route also
+checks release below the old platform (138 flight samples). Full controls and
+EDuke32 fuel/toggle/safety tests pass. Mirror regression checked separately.
+See [note 220](documentation/220-d11f-first-person-jetpack.md) for hashes,
+setup limitations and evidence. No commit/push or acceptance closeout.
+
+
+## 2026-10-24 - D11F accepted and closed out
+
+User: "lock it in and accept! close it out!" D11F is Done. Accepted build
+`85d6969593b96e0dc0b8358e310daca0b83e31e0f12ee95780bcf191042a3fd9`
+includes first-person flight, continuous platform/floor hover, fresh collision
+queries after leaving platforms, release-height retention and reflected flames.
+Implementation, native regression tests, manual and engineering notes included
+in closeout. Existing test evidence stands; no post-acceptance gameplay changes,
+rebuild or game launch. Runtime patch re-exported unchanged and checked against
+the clean pinned framework. Commit/push authorized as MusicMonsterMod.
+No next job started. See [note 220](documentation/220-d11f-first-person-jetpack.md).

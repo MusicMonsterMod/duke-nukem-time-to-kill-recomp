@@ -297,6 +297,8 @@ int main(int argc,char** argv) {
         psx_mod_write_word(0x800d21fc,10);psx_mod_write_half(0x800c3cc4,0);psx_mod_write_half(0x800c3cc6,0);
         toggle();assert(psx_mod_read_byte(p+0x22c)==10 && psx_mod_read_half(p+0x60)==163 && psx_mod_read_half(p+0x84c)==5);
         update(2);assert((int32_t)psx_mod_read_word(p+0x1f8)<0); // J alone starts lift, no Space
+        // This hook-only fixture does not integrate the preceding lift.
+        psx_mod_write_word(p+0x1c8,psx_mod_read_word(p+0x10)+1000);
         ttk::input.held[ttk::crouch]=true;update(2);
         assert((int32_t)psx_mod_read_word(p+0x1f8)>0); // Ctrl cancels startup lift immediately
         ttk::input.held[ttk::crouch]=false;
@@ -369,7 +371,7 @@ int main(int argc,char** argv) {
             assert(!(psx_mod_read_word(p+0x224)&0x08000000u)); // hover lock off
             for(int axis=0;axis<3;++axis)assert(psx_mod_read_word(p+0x1e4+4*axis)==0);
             assert(bv(0)==0 && bv(1)==0 && bv(2)==0 && psx_mod_read_half(p+0x35a)==4990); // held; idle fuel -dt
-            post();assert(psx_mod_read_word(p+0x224)&0x02000000u); // flame while hovering
+            post();assert((psx_mod_read_word(p+0x224)&0x82000000u)==0x82000000u); // both native flame-render bits
             // W: camera-relative (heading = view), eases in; +-2 vertical steps.
             ttk::input.move_y=1;update();
             const double yaw=psx_mod_read_half(p+0x1c)*6.283185307179586/4096;
@@ -398,7 +400,41 @@ int main(int argc,char** argv) {
             ttk::input.held[ttk::jump]=false;y(-11000,1200);for(int i=0;i<40;++i)update();
             assert(std::abs(bv(1))<=120); // captured at -11000 (plus any learned offset)
             ttk::input.held[ttk::crouch]=true;for(int i=0;i<30;++i)update();assert(std::abs(bv(1)-6000)<=300);
+            // D11F follow-up: floor approach keeps the running jetpack in
+            // flight. Ctrl's positive step is bounded; release does not apply
+            // the old 512-unit automatic clearance rise.
+            y(-11000,64);psx_mod_write_half(p+0xfe,0);
+            jw_result=2;jw_hits=1000;jw_sweeps=0;
+            const auto query_scratch=psx_mod_read_word(p+0x194);
+            // The contact guard uses a -2-unit root to keep native horizontal
+            // collision active, plus the learned sub-unit root correction.
+            update();assert(bv(1)>=-350 && bv(1)<=120 && psx_mod_read_byte(p+0x22c)==10);
+            assert(jw_sweeps>0 && psx_mod_read_word(p+0x194)==query_scratch);
+            // Leaving the platform must allow descent despite stale +1c8.
+            jw_hits=0;update();assert(bv(1)>1000);
+            // Releasing Ctrl below the stale platform must hold the new
+            // height, not pull Duke back up toward that cached floor.
             ttk::input.held[ttk::crouch]=false;
+            for(int i=0;i<40;++i)update();assert(std::abs(bv(1))<=120);
+            ttk::input.held[ttk::crouch]=true;
+            // A newly encountered platform is detected even with stale low floor.
+            y(-11000,5000);jw_hits=1000;update();assert(bv(1)>=-350 && bv(1)<=120);
+            post();assert((psx_mod_read_word(p+0x224)&0x82000000u)==0x82000000u);
+            // The ordinary draw consumes 0x02000000 before the mirror draw.
+            psx_mod_write_word(p+0x224,psx_mod_read_word(p+0x224)&~0x02000000u);
+            call(0x800348d8,0x801ffe58,p,0x8003816c);
+            assert((psx_mod_read_word(p+0x224)&0x82000000u)==0x82000000u);
+            psx_mod_write_word(p+0x224,psx_mod_read_word(p+0x224)&~0x02000000u);
+            call(0x800348d8,0x801ffe58,0x800d8000,0x8003816c);
+            assert(!(psx_mod_read_word(p+0x224)&0x02000000u));
+            ttk::modern=false;call(0x800348d8,0x801ffe58,p,0x8003816c);
+            assert(!(psx_mod_read_word(p+0x224)&0x02000000u));ttk::modern=true;
+            ttk::input.held[ttk::crouch]=false;
+            for(int i=0;i<40;++i)update();
+            assert(bv(1)>=-350 && bv(1)<=120 && psx_mod_read_byte(p+0x22c)==10);
+            jw_hits=0;
+            ttk::input.held[ttk::jump]=true;update();assert(bv(1)<0);
+            ttk::input.held[ttk::jump]=false;
             psx_mod_write_half(0x800c3cc4,1);const uint16_t f0=psx_mod_read_half(p+0x35a);update();assert(psx_mod_read_half(p+0x35a)==f0); // original skip
             psx_mod_write_half(0x800c3cc4,0);
             for(int axis=0;axis<3;++axis){psx_mod_write_word(p+0x1f4+4*axis,0);psx_mod_write_word(p+0x1e4+4*axis,0);}
@@ -3011,6 +3047,67 @@ int main(int argc,char** argv) {
                 psx_mod_write_byte(p+0x22c,0);psx_mod_write_byte(p+0x22d,0);psx_mod_write_half(p+0x60,63);
                 ++save_loads;frame();
                 std::puts("PASS: D11E surface/underwater eye, two costume layouts, pose independence, suspended input/pause, loaded view, third-person switch and no water/velocity/position writes");
+            }
+
+            // D11F: camera-only flight keeps the selected eye with no action
+            // lease. Lean animation cannot shift it into a wall or the pack.
+            {
+                const auto pack=psx_mod_read_half(p+0x358);
+                const auto water=psx_mod_read_word(p+0x20c);
+                psx_mod_write_word(p+0x20c,0);
+                psx_mod_write_half(p+0x358,3);
+                ttk::input.active=false;
+                for(const char* scheme:{"modern","classic","eduke32"}) {
+                    setenv("DNTTK_JETPACK",scheme,1);
+                    for(const uint8_t* parts:{first_map,cowboy}) {
+                        layout(parts);const unsigned head=psx_mod_read_byte(desc+0x34);
+                        for(unsigned animation=163;animation<=170;++animation) {
+                            psx_mod_write_byte(p+0x22c,10);psx_mod_write_byte(p+0x22d,0);
+                            psx_mod_write_half(p+0x60,animation);
+                            ++save_loads;frame();
+                            assert(metric("\"blend\":")==1 && !ttk::movement_ready());
+                            const auto velocity=psx_mod_read_word(p+0x1f8);
+                            for(int pose:{-400,450}) {
+                                for(int i=0;i<3;++i)psx_mod_write_word(mats+0x20*head+0x14+4*i,root[i]+pose);
+                                for(int i=0;i<24;++i)frame();
+                                call(0x8003aa48,c,sp+0x18,0x8003aeb0,sp);
+                                for(int i=0;i<3;++i) {
+                                    const double eye=(int32_t)psx_mod_read_word(sp+0x18+4*i)+(int32_t)psx_mod_read_word(c+0x64+4*i)-
+                                        (int16_t)psx_mod_read_half(c+12+2*i)/4096.0*193;
+                                    assert(std::abs(eye-(root[i]-(i==1?294:0)))<2);
+                                    assert((int32_t)psx_mod_read_word(p+4+4*i)==root[i]);
+                                }
+                                call(0x8002a038,0,1,0x8003af40,sp);
+                                assert(psx_mod_read_word(p+0x1f8)==velocity && psx_mod_read_half(p+0x358)==3);
+                            }
+                        }
+                    }
+                }
+                // Native off/fuel-out clears the pack one tick before the
+                // flight animation changes; landing retains previous mode 10.
+                psx_mod_write_half(p+0x358,1);frame();
+                assert(metric("\"blend\":")==1 && !ttk::jetpack_input_ready());
+                psx_mod_write_byte(p+0x22c,9);psx_mod_write_byte(p+0x22d,10);
+                psx_mod_write_half(p+0x60,108);frame();assert(metric("\"blend\":")==1);
+                for(unsigned animation:{63u,105u,106u}) {
+                    psx_mod_write_byte(p+0x22c,0);psx_mod_write_byte(p+0x22d,10);
+                    psx_mod_write_half(p+0x60,animation);frame();assert(metric("\"blend\":")==1);
+                }
+                psx_mod_write_half(p+0x358,3);psx_mod_write_byte(p+0x22c,10);
+                psx_mod_write_half(p+0x60,164);frame();
+                unsetenv("DNTTK_JETPACK");
+                psx_mod_write_word(p,2);frame();assert(metric("\"blend\":")==0);
+                psx_mod_write_word(p,0);frame();assert(metric("\"blend\":")==1);
+                ttk::modern=false;frame();assert(!ttk::first_person_view_live());
+                ttk::modern=true;frame();assert(metric("\"blend\":")==1);
+                ttk::input.first_person=false;for(int i=0;i<40;++i)frame();assert(metric("\"blend\":")==0);
+                ttk::input.first_person=true;frame();
+                layout(first_map);
+                for(int i=0;i<3;++i)psx_mod_write_word(mats+0x20*9+0x14+4*i,neck[i]);
+                psx_mod_write_half(p+0x358,pack);psx_mod_write_word(p+0x20c,water);
+                psx_mod_write_byte(p+0x22c,0);psx_mod_write_byte(p+0x22d,0);psx_mod_write_half(p+0x60,63);
+                ++save_loads;frame();assert(metric("\"blend\":")==1);
+                std::puts("PASS: D11F flight eye across schemes, poses and costumes; loaded/suspended presentation, death, Vanilla, third-person and ground handoff");
             }
 
             ttk::input.active=true;ttk::input.first_person=false;++ttk::input.epoch;

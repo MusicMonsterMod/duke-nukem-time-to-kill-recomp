@@ -25,7 +25,7 @@
 // - 0x800348d8 draws an actor joint by joint and skips a joint whose record
 //   flag byte has bit 0 set. The head joint is flagged only between Duke's
 //   draw entry and the object-list step that follows it.
-// Unsupported states (jetpack flight, grabbing a pushable object,
+// Unsupported states (grabbing a pushable object,
 // anything without the orbit lease) blend back to the third-person orbit.
 static constexpr uint32_t min_boom_word=0x800c3c48, min_boom_original=768;
 // Eye above the neck pivot, in game units. It stays over the neck (not ahead
@@ -115,11 +115,11 @@ static void first_person_update(const InputFrame& f,unsigned ticks,bool acquirin
     const unsigned mode=psx_mod_read_byte(player+0x22c), previous=psx_mod_read_byte(player+0x22d);
     const unsigned animation=psx_mod_read_half(player+0x60);
     const bool swim_exit=mode==8 && (previous==4 || previous==5) && animation>=134 && animation<=142;
-    const bool supported=!swim_exit && !jetpack_camera_only() && !push_state_early() &&
+    const bool supported=!swim_exit && !push_state_early() &&
         (!traversal_camera_early() || committed_move_early() || unowned_fall_early());
     fp_supported=supported;
     const bool wanted=f.first_person && supported;
-    fp_reason=!f.first_person?"off":jetpack_camera_only()?"jetpack":
+    fp_reason=!f.first_person?"off":
         push_state_early()?"push-object":!supported?"traversal":f.active?"active":"input-suspended";
     // A newly authenticated world starts in the selected view. Never blend
     // from an unrelated old save/camera or flash a third-person load frame.
@@ -183,7 +183,10 @@ static unsigned bob_still;
 // measured height (about 198) plus the existing 96-unit eye offset. Surface
 // mode uses the water plane so the idle stroke cannot bob across it.
 static constexpr double swim_eye_above_root=294;
-static bool eye_was_swimming;
+// D11F: flight has the same measured upright neck height (about 198).
+// Anchor above the root so native flight lean cannot move the eye sideways.
+static constexpr double jet_eye_above_root=294;
+static bool eye_was_root_anchored;
 static double eye_reference_offset;
 
 static bool eye_rel_valid, bob_last_valid;
@@ -197,12 +200,14 @@ static bool first_person_anchor(const double* forward,double* anchor) {
     const bool pivoted=psx_mod_read_word(camera+0x50)==player+0x7bc;
     pivot_y=pivoted ? (int32_t)psx_mod_read_word(player+0x7c0) : root[1];
     const bool swimming=first_person_swimming();
-    if(swimming) pivot_y=root[1];
+    const bool jetting=jetpack_flying_early();
+    const bool root_anchored=swimming || jetting;
+    if(root_anchored) pivot_y=root[1];
     // Rebase the previous offset when switching between root and land pivot;
     // real body travel stays immediate, only the posture difference is eased.
-    if(eye_rel_valid && eye_offset_valid && swimming!=eye_was_swimming)
+    if(eye_rel_valid && eye_offset_valid && root_anchored!=eye_was_root_anchored)
         eye_rel[1]+=eye_reference_offset-(pivot_y-root[1]);
-    eye_reference_offset=pivot_y-root[1];eye_was_swimming=swimming;
+    eye_reference_offset=pivot_y-root[1];eye_was_root_anchored=root_anchored;
     // Eye relative to its references: x/z to the root, y to the pivot.
     // Game Y grows downward.
     double target[3]={neck[0]-root[0],neck[1]-eye_height-pivot_y,neck[2]-root[2]};
@@ -210,6 +215,10 @@ static bool first_person_anchor(const double* forward,double* anchor) {
         target[0]=target[2]=0;
         target[1]=psx_mod_read_byte(player+0x22c)==4 ?
             (int32_t)psx_mod_read_word(player+0x834)-eye_height-root[1] : -swim_eye_above_root;
+    }
+    if(jetting) {
+        target[0]=target[2]=0;
+        target[1]=-jet_eye_above_root;
     }
     // D15: the slow centring drift was still feeding idle neck animation into
     // the camera after locomotion stopped. Hold within the existing dead band
@@ -223,16 +232,16 @@ static bool first_person_anchor(const double* forward,double* anchor) {
         // the excess promptly.
         const double d=target[i]-eye_rel[i],band=i==1?64.0:24.0;
         const double step=std::abs(d)>band ? (d-std::copysign(band,d))*0.5 : (hold_centre?0.0:d*0.004);
-        // Swim offsets must converge completely, including surface clearance;
+        // Swim/flight offsets converge completely, including surface clearance;
         // the land dead band would retain the previous posture indefinitely.
-        const double swim_step=d*0.5;
-        eye_rel[i]=eye_rel_valid && eye_offset_valid ? eye_rel[i]+(swimming?swim_step:step) : target[i];
+        const double anchored_step=d*0.5;
+        eye_rel[i]=eye_rel_valid && eye_offset_valid ? eye_rel[i]+(root_anchored?anchored_step:step) : target[i];
         eye_offset[i]=eye_rel[i];
     }
     const bool was_valid=eye_offset_valid;
     eye_rel_valid=eye_offset_valid=true;
     // Deliberate view bob and glide (D17V).
-    const double scale=swimming?0.0:view_bob_scale();
+    const double scale=root_anchored?0.0:view_bob_scale();
     const uint64_t frame=input_host_frame();
     const bool advanced=frame>bob_frame;
     if(scale>0 && bob_last_valid && was_valid && advanced) {

@@ -659,7 +659,12 @@ static bool state(bool camera_only=false,bool presentation=false) {
         original_step_anim(animation) || animation==86 || animation==87 || animation==92 || animation==93);
     // D08Q: jetpack flight (mode 10) and the fall after it cuts out keep the
     // camera-only lease, like swimming; the original handler owns the motion.
-    const bool jet=camera_only && (jetpack_flying_early() ||
+    // D11F: the native off/fuel-out tick can clear the pack before replacing
+    // its flight pose. Retain only first-person presentation for that tick.
+    const bool jet_eye=presentation && camera_only && input_snapshot(Context::Gameplay).first_person &&
+        ((psx_mod_read_byte(player+0x22c)==10 && jetpack_anim(animation)) ||
+         (psx_mod_read_byte(player+0x22c)==9 && psx_mod_read_byte(player+0x22d)==10 && animation==108));
+    const bool jet=camera_only && (jetpack_flying_early() || jet_eye ||
         (jet_fall_grace && animation==108 && (psx_mod_read_byte(player+0x22c)==9 || psx_mod_read_byte(player+0x22c)==10)));
     // D11/D22B unowned jump: camera only; original takeoff, flight and landing.
     const unsigned mode=psx_mod_read_byte(player+0x22c), previous=psx_mod_read_byte(player+0x22d);
@@ -680,7 +685,9 @@ static bool state(bool camera_only=false,bool presentation=false) {
     // D22B: also the landing poses themselves (an unleased landing frame left a
     // jump taken from it without camera continuity) and after a slide.
     const bool settle=camera_only && (land_gait_anim(animation) || original_step_anim(animation) ||
-        landing_pose_anim(animation)) && mode==0 && (previous==8 || previous==9 || previous==2);
+        landing_pose_anim(animation) || (animation==105 && previous==10 && presentation &&
+        input_snapshot(Context::Gameplay).first_person)) && mode==0 && (previous==8 || previous==9 || previous==2 ||
+        (previous==10 && presentation && input_snapshot(Context::Gameplay).first_person));
     if ((psx_mod_read_word(player)&0x20002) || !(land_gait_anim(animation) || original_step_anim(animation) || wade_land ||
         (camera_only && (animation==70 || animation==71 || animation==80 || animation==81 || landing_pose_anim(animation) ||
                          animation==175 || animation==176 || animation==177 || animation==181 ||
@@ -1337,6 +1344,12 @@ static void hook_body(CPUState* cpu, uint32_t address) {
         widescreen_view_rect(ra);
         first_person_projection(cpu,ra);
     } else if (address==0x800348d8) {
+        // The main draw consumes the flame bit before the mirror pass
+        // (0x8003816c). Re-arm native flames for each draw of the running pack.
+        if(cpu->gpr[5]==player && jet_flight_live && jetpack_flying_early() &&
+           input_modernized() && !jetpack_classic() && identity() &&
+           psx_mod_read_word(camera+0xa4)==player && psx_mod_read_word(player+0x7d4)==camera)
+            psx_mod_write_word(player+0x224,psx_mod_read_word(player+0x224)|0x82000000u);
         // Original actor draw (a0 camera, a1 actor) from the object-list loop.
         actor_drawing=true;
         duke_drawing=cpu->gpr[4]==camera && cpu->gpr[5]==player && ra==0x8003769c;

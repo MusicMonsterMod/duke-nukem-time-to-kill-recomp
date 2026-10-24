@@ -1,5 +1,68 @@
 # Current status - 2026-10-04
 
+## 2026-10-24 - D11F accepted and closed out
+
+User: "lock it in and accept! close it out!" D11F is Done. Accepted first-person
+jetpack flight in all three schemes, with Modern/EDuke32 floor/platform hover,
+descent below departed platforms, release-height retention and mirror flames.
+Accepted build: `85d6969593b96e0dc0b8358e310daca0b83e31e0f12ee95780bcf191042a3fd9`.
+
+Implementation, regression tests and documentation included in authorized
+closeout as MusicMonsterMod. Existing test evidence and limitations remain in
+[note 220](220-d11f-first-person-jetpack.md). No post-acceptance gameplay edits,
+rebuilds or launches. Runtime patch re-exported unchanged and verified against
+the clean pinned framework. No next job started; user chooses next work.
+Launch `python3 recomp/tools/local/run.py` with saved preferences.
+
+
+## 2026-10-24 - D11F slot 12 platform correction (Needs playtest)
+
+The earlier ground-level fix trusted a stale native floor cache. A fresh native
+collision sweep now prevents descent onto platforms from ending flight and
+allows Ctrl to descend below them after leaving. Space/Ctrl release keeps the
+new height. Modern 60 FPS / EDuke32 120 FPS private slot-12 routes pass;
+final EDuke32 route includes release-height and J-off checks (138 samples).
+Native controls and EDuke32 fuel/toggle/safety suites pass. See
+[note 220](220-d11f-first-person-jetpack.md) for setup limits and mirror evidence.
+
+Candidate `85d6969593b96e0dc0b8358e310daca0b83e31e0f12ee95780bcf191042a3fd9`.
+No framework changes, player-save writes, commit, push or acceptance closeout.
+Launch `python3 recomp/tools/local/run.py`; user slot-12 playtest remains.
+
+
+## 2026-10-24 - D11F ground-hover and mirror follow-up (Needs playtest)
+
+Modern/EDuke32 Ctrl descent keeps the pack running at a low ground-level hover,
+including its sound and flames; release holds, Space climbs and J shuts it off.
+The mirror now receives the flame flags consumed by the primary Duke draw.
+Classic and Vanilla physics remain unchanged. Build/native controls (including
+EDuke32 fuel/toggles), input, aim and near-clipping suites pass. Private Modern
+60 FPS / EDuke32 120 FPS club-floor routes passed 248 samples, including J-off;
+mirror flames visually verified. Remaining user playtest and limitations are in
+[note 220](220-d11f-first-person-jetpack.md).
+
+Candidate `46a93ab9f8eef1a500275f4013a3bd59b98efba9484b25dc9bd8e0151a9fe769`.
+No framework edits, commit, push or acceptance closeout.
+Launch `python3 recomp/tools/local/run.py`; press P if needed.
+
+
+## 2026-10-24 - D11F first-person jetpack candidate (Needs playtest)
+
+Modern, Classic and EDuke32 retain selected first person through flight,
+with a stable eye and presentation coverage for pack-off/fuel-out/landing.
+Flight physics, controls and third-person policies remain unchanged.
+[Note 220](220-d11f-first-person-jetpack.md) records implementation and limits.
+
+Build/native suites pass. Two-level 120 FPS flight matrix: 1,070 samples.
+Final executable: native controls plus 224 Modern/EDuke32 60 FPS transition
+samples, including flight save/load, pause/resume, toggles and fuel-out.
+Broader campaign/weapon/clipping coverage and user camera-feel acceptance remain.
+Candidate `9912e67e4ba820de6b620bf6727c7990125c5c8578261e8b21e98050e76c2438`.
+
+No framework edits, commit, push or acceptance closeout. Private diagnostic
+sessions stopped. Launch `python3 recomp/tools/local/run.py`; press P if needed.
+
+
 ## 2026-10-24 - D08S accepted and closeout authorized
 
 User: "this is it!!! lock it in, close it out". Revision 4 is accepted:

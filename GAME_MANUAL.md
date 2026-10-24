@@ -814,8 +814,10 @@ swimming underwater. The swimming eye stays steady through the stroke, with
 no walking bob; mouse look, movement and firing use the existing swim controls.
 Space ascends, Ctrl dives, and E remains the way to climb out. A mantle still
 uses the third-person traversal view, then returns to your selected view.
-Jetpack flight switches back to third person and returns when you land;
-ladders, poles, chains and
+First person also stays active during jetpack takeoff, flight and landing
+with Modern, Classic and EDuke32 flight controls. The eye stays centered above
+Duke through flight lean; aiming and the crosshair work as on the ground.
+Ladders, poles, chains and
 ledges show the free third-person camera while Duke climbs; scripted and
 turret cameras and death use the original camera. Dodge rolls
 and slides down steep slopes stay in first person, and so do falls (off an edge, a
@@ -929,8 +931,7 @@ but only between the weapons the original allows there (Desert Eagle,
 Combat Shotgun, Gatling Gun / Laser Gatling, Buffalo Rifle, Crossbow and Pipe
 Bomb); the others (Boot, knife, axe, RPG, Energy Weapon, Flamethrower,
 Freezer, Dynamite, Holy Hand Grenade) are skipped. Holstered, fire does nothing
-underwater, as in the original. First person still switches to third person in
-the water (D11E).
+underwater, as in the original. First person stays active in the water (D11E).
 
 **Modernized jetpack**: **J** immediately starts flight. From the ground it
 gives a short automatic lift, then hovers. During a jump or fall it arrests
@@ -940,12 +941,14 @@ closing. In the air the **mouse** turns Duke and the
 camera together (so do **Left** / **Right**), **W/A/S/D** (or **Up** / **Down**) fly relative to the camera at the
 original top speed with a short start and stop,
 releasing every key **hovers** perfectly still, **Ctrl** descends quickly (the same speed as diving
-underwater) until a soft landing, and
+underwater) to a low hover at ground level. The sound and flames stay on;
+**Space** climbs again without restarting the pack, and
 **J** switches the pack off for a controlled fall with the camera still live.
 Duke's height stays where **Space** or **Ctrl** left it: flying, turning,
 looking up or down and hovering do not change it (D08Q6; there is no hover
-bob in Modern, and **Shift** does nothing in flight). Over higher ground such as a rooftop he rises to clear
-it, then returns to that height.
+bob in Modern, and **Shift** does nothing in flight). Descent checks the surface
+beneath Duke: leaving a platform lets **Ctrl** continue down to lower ground,
+and releasing it holds the new height.
 Fuel drains while flying and while hovering (the original rule); when it runs
 out Duke falls the same way. The ground controls return the moment he lands.
 With view aiming enabled, aim with the mouse and fire the equipped weapon with
@@ -955,8 +958,8 @@ the **wheel**, **semicolon/apostrophe** and **X** (D08Q5), with the normal
 draw while Duke keeps flying; wait for an attack or draw to finish before the
 next switch. Gadget keys other than **J** and the quick kick still wait for
 the ground. Dynamite thrown close below Duke knocks him out of flight with its
-blast (the original reaction). The existing third-person flight view and return to
-your selected view on landing are unchanged.
+blast (the original reaction). Flight retains your selected first- or third-person
+view, including takeoff, switching the pack off and landing.
 Details: [documentation/57-jetpack-controls.md](documentation/57-jetpack-controls.md).
 In Modernized, a jetpack left unavailable by interrupted deployment and Continue
 now recovers when normal captured ground play resumes, including affected saves.
@@ -970,9 +973,10 @@ it off immediately into a normal fall. **Space** climbs, **Ctrl** descends,
 **W/A/S/D** fly relative to the view, and releasing input hovers. A full pack
 provides 61 seconds of flight, including hover; pausing does not use fuel.
 The existing percentage shows the remaining share of that duration. Fuel-out
-also switches the pack off. God mode keeps unlimited fuel. Landing or entering
-water uses the original collision result and closes the pack; underwater
-activation is refused. Flight still uses the existing third-person view.
+also switches the pack off. God mode keeps unlimited fuel. Descending to ground
+level keeps the sound and flames running until **J** switches the pack off.
+Entering water uses the original collision result and closes the pack; underwater
+activation is refused. Flight retains your selected first- or third-person view.
 
 Select **EDUKE32** in **OPTIONS > ADVANCED**, **JETPACK** under the MOVEMENT
 heading (next launch), or launch with the following command. This saves the preference:

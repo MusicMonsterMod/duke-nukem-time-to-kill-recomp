@@ -74,6 +74,9 @@ static constexpr float k_jet_hold_max = 600.f;
 // Vertical speed (bv) under which a released climb/descent is captured.
 static constexpr float k_jet_capture_speed = 300.f;
 static constexpr int32_t k_jet_floor_clearance = 0x200;
+// Cover animated foot/flight-pose changes between the pre-state sweep and
+// native integration, including transitions across platform edges.
+static constexpr int32_t k_jet_touchdown_clearance = 160;
 static unsigned jet_hover_engages, jet_descents, jet_updates, jet_classic_updates, jet_hold_captures, jet_root_nudges;
 static bool jet_was_flying, jet_hold_valid, jet_flight_live, jet_nudge_down;
 static bool jet_air_height_hold;
@@ -101,6 +104,23 @@ static int32_t jet_hold_target(int32_t y) {
     if(jet_air_height_hold)return jet_hold_y;
     const int32_t floor=(int32_t)psx_mod_read_word(player+0x1c8),foot=(int32_t)psx_mod_read_word(player+0x10);
     return std::min(jet_hold_y,y+(floor-foot)-k_jet_floor_clearance);
+}
+// The cached +0x1c8 is not a live floor query: it can retain the last
+// platform after Duke has left it. Ask the original flight collision sweep
+// about the next step instead, including object platforms. Roll back all
+// actor scratch/position writes, just as the isolated wall-jump sweep does.
+static bool jet_floor_contact(CPUState* cpu,float dx,float down,float dz) {
+    uint32_t saved[0x8a4/4];
+    for(unsigned i=0;i<0x8a4/4;++i)saved[i]=psx_mod_read_word(player+4*i);
+    psx_mod_write_word(player+4,saved[1]+(int32_t)std::lround(dx));
+    psx_mod_write_word(player+12,saved[3]+(int32_t)std::lround(dz));
+    psx_mod_write_half(player+0xfc,0);psx_mod_write_half(player+0x100,0);
+    psx_mod_write_half(player+0xfe,(uint16_t)std::clamp((int)std::ceil(down)+k_jet_touchdown_clearance,1,32767));
+    int32_t hit=-1;
+    const bool ok=original_call(cpu,0x8007a98c,0,&hit);
+    for(unsigned i=0;i<0x8a4/4;++i)
+        if(psx_mod_read_word(player+4*i)!=saved[i])psx_mod_write_word(player+4*i,saved[i]);
+    return ok && hit==2;
 }
 bool jetpack_input_ready() {
     if(!input_modernized() || !gameplay_context() || !independent_camera())return false;
@@ -284,10 +304,10 @@ static void jetpack_update(CPUState* cpu) {
     const bool descend=f.held[crouch] && !f.held[jump];
     float want_y=0.f;
     if(ascend) {
-        jet_air_height_hold=false;
+        jet_air_height_hold=true;
         want_y=-k_jet_climb;jet_hold_valid=false;
     } else if(descend) {
-        jet_air_height_hold=false;
+        jet_air_height_hold=true;
         want_y=k_jet_descend;jet_hold_valid=false;++jet_descents;
     } else if(!jet_hold_valid) {
         // Ease the climb/descent out, then hold where it settled.
@@ -338,6 +358,15 @@ static void jetpack_update(CPUState* cpu) {
         jet_nudge_down=!jet_nudge_down;
         ++jet_root_nudges;
     }
+    // Check every non-rising flight step, including release drift and loaded
+    // low hovers. A fresh sweep stops descent at platforms and releases it
+    // immediately when there is no longer a surface underneath.
+    if(!ascend && vertical>=0 && jet_floor_contact(cpu,jet_vel[0]*dt/1024.f,vertical,jet_vel[2]*dt/1024.f)) {
+        // Zero drops native horizontal motion; a tiny upward root also
+        // prevents its later animated-foot update from turning this into land.
+        vertical=-2;jet_vel[1]=0;jet_air_height_hold=true;
+        jet_hold_y=y;jet_hold_valid=!descend;
+    }
     jet_root_planned=vertical;
     bv[1]=(int32_t)std::lround((vertical-jet_root_bias)*1024.f/dt);
     for(int axis=0;axis<3;++axis) {
@@ -360,7 +389,7 @@ static void jetpack_update(CPUState* cpu) {
 }
 // After the mode-10 handler (0x80058120 hook): remember the original's thrust
 // for the next update's cancellation, and show the jetpack flame (drawn from
-// +0x224 & 0x02000000, which the handler sets only while it thrusts) while
+// +0x224 & 0x82000000: both native thrust/render bits are required) while
 // Duke hovers or descends on the host.
 static void jet_post_update(CPUState* cpu) {
     if(jet_fuel_pending) {
@@ -383,7 +412,7 @@ static void jet_post_update(CPUState* cpu) {
     // +0xfe keeps this update's applied vertical root (8004ac08 restores it).
     const float error=(float)(int16_t)psx_mod_read_half(player+0xfe)-jet_root_planned;
     jet_root_bias=std::clamp(jet_root_bias+0.3f*error,-12.f,12.f);
-    psx_mod_write_word(player+0x224,psx_mod_read_word(player+0x224)|0x02000000u);
+    psx_mod_write_word(player+0x224,psx_mod_read_word(player+0x224)|0x82000000u);
     if(jet_trace())std::fprintf(stderr,"ttk-jpost anim=%u fed=%d xyz=%d,%d,%d v=%d/%d/%d root=%d/%d/%d\n",psx_mod_read_half(player+0x60),jet_pads_fed,
         (int32_t)psx_mod_read_word(player+4),(int32_t)psx_mod_read_word(player+8),(int32_t)psx_mod_read_word(player+12),
         jet_thrust_prev[0],jet_thrust_prev[1],jet_thrust_prev[2],

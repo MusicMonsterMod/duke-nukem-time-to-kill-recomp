@@ -155,7 +155,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08U2 | Enemy standing at a ladder top blocks the climb-off: Duke should push it back (player slot 5) | Accepted | D08U, D08J |
 | D08T3 | Free manual push and pull while holding Grab (no fixed-size shoves) | Done (user-accepted 2026-10-23) | D08T2 |
 | D08T5 | Alley dumpster push limit at the slot-7 reference position | Done (user-accepted 2026-10-24) | D08T3 |
-| D08T6 | Push/pull ownership and lock-zone investigation (recent slots) | Needs review | D08T3, D08T4, D08T5 |
+| D08T6 | Push/pull ownership and lock-zone investigation (recent slots) | Done | D08T3, D08T4, D08T5 |
 | D08T7 | Regrab movable objects throughout their permitted travel lane | Done (user-accepted 2026-10-24) | D08T6 |
 | D08T8 | Apartment alley platform mantle stalls: W cannot climb, Space cannot drop | Done | D08V, D08X, D08T3 |
 | D08T4 | Save slot 10 dumpster: the grab prompt shows but it will not move; find out whether it is meant to be fixed (Vanilla check) | Done (user-accepted 2026-10-20; fixed by design, no prompt there now) | D08T2 |
@@ -4674,16 +4674,27 @@ regression baseline.
 
 ### D08T6 - Push/pull ownership and lock-zone investigation
 
-**Needs review (2026-10-24).** User-selected research, not a gameplay regression
-claim. Map acquisition versus held travel for recent slots 7-12; explain why a
-movable object can stop accepting a new grab inside its permitted lane. Source
-and retained live evidence establish the boundary regrab floor gate, while
-held reversal works. Full per-slot live coverage is not claimed.
+**Done (user-accepted 2026-10-24; documentation/commit/push closeout authorized).**
+Research separated floor-gated acquisition from held travel: releasing a movable
+object on a floor without grab permission could prevent regrabbing, while held
+reversal still worked. [Note 211](documentation/211-push-pull-lock-zones.md)
+records the ownership map, bounded design and evidence limits.
 
-Deliverable: [note 211](documentation/211-push-pull-lock-zones.md), ownership map,
-evidence limits, proposed mobility policy and separate implementation jobs.
-Research acceptance: review the bounded design and evidence; no gameplay change
-is required to accept this investigation. D08T7 and D08T8 remain Todo.
+The resulting implementation jobs are complete:
+
+- D08T7 implemented safe reacquisition for the verified alley dumpster and three
+  symbol-block lanes, including loaded boundary saves. Original alignment,
+  support/collision, fixed scenery and D08T5's X 7292 cap remain enforced.
+  [Note 212](documentation/212-d08t7-lane-regrab.md) records tests and acceptance.
+- D08T8 resolved the separately reported hang, corrected to the apartment
+  platform beyond the dumpster. Stale lower support blocked the original
+  pull-up query; the guarded retry and Space-to-Down drop are accepted.
+  [Note 214](documentation/214-d08t8-alley-platform-hang.md) records the fix.
+
+D08T6 is complete as the research and continuity record linking those accepted
+results. This closeout adds no gameplay changes or fresh tests and does not
+claim every campaign placement was tested. The intermittent reload GPU halt
+remains unresolved under D20G's recurrence guidance, separate from this work.
 
 ### D08T7 - Regrab movable objects throughout their permitted travel lane
 
@@ -17392,3 +17403,16 @@ D08T8 is Done. Accepted implementation and manual/note/status evidence are
 being committed together. The isolated high-refresh reload halt remains an
 unresolved observation under the D20G recurrence guidance, not a fixed GPU
 issue. No further job is started.
+
+## 2026-10-24 - D08T6 accepted and closed as the continuity record
+
+User explicitly requested completion notes tying D08T6 to completed D08T7/D08T8,
+Done status, commit and push. Reviewed current push acquisition/collision source,
+native assertions and retained D08T7 live JSON evidence. Research identified
+floor-gated reacquisition separately from held travel; D08T7 supplied verified
+lane eligibility and D08T8 fixed the separately diagnosed platform pull-up/drop.
+Note 211 now links both accepted results and preserves the original research.
+No new gameplay/framework changes, build or live test. Wider placement coverage
+and the separate unresolved reload-halt investigation remain explicit limits.
+Accepted executable remains `95b61d027a5b0a3bf152d8fb59a1ab3881a6bc9dc173ef4eb8c879902de9e88f`.
+No subsequent job started.

@@ -1,7 +1,50 @@
 # D08T6 - Push/pull lock-zone investigation
 
-Status: Needs review. Research and backlog scoped on 2026-10-24.
-No gameplay implementation, build or new live test in this pass.
+Status: Done, user-accepted 2026-10-24. Completion/continuity notes and
+commit/push explicitly authorized. D08T7 and D08T8 are accepted and Done.
+
+## Completion and continuity
+
+D08T6 delivered the ownership map and separated acquisition permission from
+held travel. The floor beneath Duke could forbid a new grab without preventing
+an already-held object from reversing. The bounded design became D08T7;
+the separate hang report became D08T8. Both are now complete:
+
+- [D08T7, note 212](212-d08t7-lane-regrab.md): verified placement lanes permit
+  safe reacquisition for the LEVEL00 alley dumpster and three LEVEL06 symbol
+  blocks. Eligibility uses authenticated overlay/type/height/lane/rotation,
+  not UI slot numbers, RAM addresses or a previous-grab latch. Loaded boundary
+  saves work immediately. Original line-up and support/collision checks remain;
+  fixed LEVEL05 scenery and D08T5's X 7292 ladder cap are preserved.
+- [D08T8, note 214](214-d08t8-alley-platform-hang.md): the corrected report was
+  the apartment platform ahead of the dumpster, whose own mantle already worked.
+  Stale lower support blocked the original pull-up query. A guarded retry uses
+  the original clearance query; Space requests original Down with held-input
+  consumption. The platform pull-up/drop and dragging regression were accepted.
+
+The completion review checked current source, native assertions and retained
+D08T7 live JSON: boundary/midpoint reacquisition, reverse, boundary save/reload,
+three symbol-block lanes, corrected opposite-end approach, fixed-scenery control,
+and first-person preference at 120 FPS with pause/resume. These are historical
+runs, not newly executed tests. The earlier failed opposite-end approach in
+`matrix.json` is superseded by the corrected route in `east-fixed.json`.
+
+No further gameplay implementation is required by D08T6's research scope.
+Broader campaign placement coverage remains limited; this is not a generic
+mobility classifier, editor or unsupported-object rescue. D08T8's incomplete
+wider live matrix remains documented. The intermittent high-refresh reload GPU
+halt remains unresolved; consult [note 213](213-d20g-slot11-load-halt.md) if it
+recurs. Completion does not claim a GPU fix.
+
+This closeout changes documentation only. No build or fresh live test, gameplay
+or framework edits, or player save/settings changes. Accepted executable remains
+`95b61d027a5b0a3bf152d8fb59a1ab3881a6bc9dc173ef4eb8c879902de9e88f`.
+
+## Original investigation record
+
+The sections below preserve the initial research and proposed validation scope.
+Their pending-work language is historical; the completion above and linked
+D08T7/D08T8 notes supersede it, including the original dumpster-side attribution.
 
 ## Requested behavior
 

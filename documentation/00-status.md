@@ -1,5 +1,21 @@
 # Current status - 2026-10-04
 
+## 2026-10-24 - D08T6 accepted and closed
+
+User explicitly authorized completion notes, Done status, commit and push.
+D08T6 now ties its acquisition-versus-held-travel investigation to accepted
+D08T7 lane reacquisition and D08T8 apartment-platform pull-up/drop.
+[Note 211](211-push-pull-lock-zones.md) preserves the original research and adds
+completion evidence, corrected location and links to both implementation records.
+
+Documentation-only closeout after source/native-assertion/retained-evidence
+review; no build, new live test or gameplay/framework edits. Accepted executable
+remains `95b61d027a5b0a3bf152d8fb59a1ab3881a6bc9dc173ef4eb8c879902de9e88f`.
+Wider placement coverage remains limited. The intermittent reload GPU halt is
+still unresolved; note 213's recurrence guidance applies. No next job started.
+Earlier Needs review entries for D08T6 below are historical.
+
+
 ## 2026-10-24 - D08T8 accepted and closed
 
 User confirms the apartment-platform fix works exactly as intended and

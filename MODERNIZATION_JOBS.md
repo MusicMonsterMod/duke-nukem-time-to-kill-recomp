@@ -149,7 +149,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08Q1 | Faster Modern jetpack Ctrl descent (underwater dive speed) | Done | D08Q |
 | D08Q2 | Jetpack unavailable after death, Continue and dnstuff (slot 10) | Done | D08Q, D08A1, D08G |
 | D08Q3 | Jetpack weapon aiming and missing crosshair | Done | D07C, D08Q, D08Q2, D08R |
-| D08S | EDuke32-style jetpack scheme (instant J on/off, midair, 61 s fuel) | Todo (reopened 2026-10-06) | D08R, D08Q3 |
+| D08S | EDuke32-style jetpack scheme (instant J on/off, midair, 61 s fuel) | Done | D08R, D08Q3 |
 | D08Q4 | Duke3D-style `dnkroz`: health to 100 and unlimited jetpack fuel | Accepted | D08G, D08Q |
 | D08Q5 | Weapon switching while flying the jetpack (number keys and wheel) | Done (user-accepted) | D08A, D08Q3 |
 | D08Q6 | Modern jetpack altitude creeps upward in level flight (hold height unless Space/Ctrl) | Accepted | D08Q, D08Q1 |
@@ -3713,10 +3713,23 @@ and the other Modern inputs unchanged; user confirms the feel.
 
 ### D08S - EDuke32-style jetpack (instant J on/off, 61-second fuel)
 
-**Todo. Reopened 2026-10-06 by user request** (cancelled 2026-09-29, may
-revisit). User: "eduke style jetpack, where you press J and immediately begin
+**Done (2026-10-24).** User accepted revision 4 and explicitly authorized
+closeout, commit and push. The third `eduke32` scheme is implemented;
+[Note 219](documentation/219-d08s-instant-jetpack.md) records implementation,
+private live checks and acceptance.
+
+**User correction (2026-10-24):** Modern must also start flight with J alone,
+with a small automatic lift like the supplied EDuke32 video. Modern and
+EDuke32 now share that startup lift; their fuel rules remain distinct.
+The follow-up also enables Modern J during jumps/falls, including a quick
+restart while its native close animation is still running.
+**Latest clarification:** the ground boost stays, but midair activation must
+arrest vertical movement and hold the activation height without that boost.
+This supersedes the original requirement below to leave Modern activation unchanged.
+
+**Original request, reopened 2026-10-06** (previously cancelled 2026-09-29). User: "eduke style jetpack, where you press J and immediately begin
 flying, and the jetpack fuel lasts for 61 seconds, matching that of eduke,
-pressing j again stops flying." Nothing implemented yet.
+pressing j again stops flying."
 
 **Scope.** A third Modernized jetpack scheme, alongside Modern and Classic
 (D08Q, D08R), selectable by `--jetpack` and later the menu (D19). **J** starts
@@ -17647,3 +17660,72 @@ closeout. No gameplay changes, rebuild or additional live testing after
 acceptance. Runtime patch re-exported unchanged and verified against the clean
 pinned framework: all 51 files match. Commit and push explicitly authorized
 as MusicMonsterMod. No next job started.
+
+
+## 2026-10-24 - D08S EDuke32 jetpack candidate (Needs playtest)
+
+Selected by the user. Added persisted `eduke32` CLI/menu choice, immediate
+J ground/air entry and shutoff, 61-second fuel accounting in existing
+capacity/HUD/save units, pause/load guards, and native landing/water cleanup.
+Modern and Classic retain their behavior; Vanilla remains guarded out.
+See [note 219](documentation/219-d08s-instant-jetpack.md) for research,
+test evidence, invalid initial diagnostic attempts and remaining limits.
+Candidate `de95de02b313f248375862ab39bcc46405807473f5bf96dd135c670dc1a1f887`.
+Player build, controls/input/aim native suites and 89 profile tests pass.
+Private full tanks timed about 61.1 seconds at both 60/120 presentation FPS;
+movement, fire, toggles, pause, landing and water checks are recorded.
+User feel and wider campaign acceptance remain. No framework changes,
+commit or push. No next job started.
+
+Launch `python3 recomp/tools/local/run.py --jetpack eduke32`; this saves the
+scheme. J toggles flight; Space/Ctrl, WASD and mouse control it. Flight keeps
+the existing third-person view; D11F is separate.
+
+
+## 2026-10-24 - D08S revision 2: Modern J-only lift (Needs playtest)
+
+User supplied an EDuke32 reference video and required Modern to start flying
+with J alone and a small lift. Read the video and local EDuke32 startup code.
+Modern now enters flight from grounded J; Modern/EDuke32 share a short
+accelerating, collision-checked startup rise, then hover. Space/Ctrl override
+it. Their fuel rules and Classic activation stay intact. Details and live
+60/120 FPS/native evidence: [note 219](documentation/219-d08s-instant-jetpack.md).
+Candidate `6564b4e4101957de920a0773dedc4237a25ba761c593462cd635097dee7ed89c`.
+No commit/push. User feel remains acceptance work.
+
+
+## 2026-10-24 - D08S revision 3: Modern midair start (Needs playtest)
+
+User accepted the lift/controls and requested midair activation. Modern now
+accepts J from jumps/falls and can reverse its own pending pack close on a
+rapid off/on press. Lift/flight feel, fuel and existing off behavior preserved.
+Private live 60/120 FPS rising-jump and rapid falling restart checks pass;
+player build and native controls/D08S suites pass. [Note 219](documentation/219-d08s-instant-jetpack.md).
+Candidate `d57f64b3c33bdff4182b5bc66f81f5a933abc26e26c14428f0018389214e7ae6`.
+No closeout, commit or push; user confirmation of this addition remains.
+
+
+## 2026-10-24 - D08S revision 4: no midair boost (Needs playtest)
+
+User clarified that midair starts should hold height without the ground
+boost. Modern/EDuke32 now capture the activation height and bypass the host
+floor-clearance climb until explicit vertical input. Native collision and
+the accepted ground lift remain. Build and native controls suites pass;
+private 60/120 FPS jump/falling-restart checks hold exactly, with a 642-unit
+ground lift regression check. [Note 219](documentation/219-d08s-instant-jetpack.md).
+Candidate `8e976893091271ddbaaa019878cba08f5acede6874433336fcdfca69a611b548`.
+No closeout, commit or push. User playtest remains.
+
+
+## 2026-10-24 - D08S accepted and closeout authorized
+
+User: "this is it!!! lock it in, close it out". Revision 4 is accepted:
+J starts immediately, ground starts lift slightly, and midair starts hold
+the activation height without a boost. Modern and EDuke32 share these
+controls; EDuke32 retains its 61-second fuel rule. D08S is Done.
+
+Implementation, tests and player documentation are included in closeout.
+Existing build/native tests and private 60/120 FPS evidence stand; no
+post-acceptance gameplay changes or additional game launches. Runtime patch
+re-exported unchanged and verified against the clean pinned framework.
+Commit and push authorized as MusicMonsterMod. No next job started.

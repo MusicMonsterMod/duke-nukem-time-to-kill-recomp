@@ -21,7 +21,7 @@ PRECISION_MODES = ('original', 'corrected')
 WINDOW_WIDTH_RANGE = (640, 7680)
 AIM_MODES = ('view', 'original')
 CAMERAS = ('independent', 'original')
-JETPACK_SCHEMES = ('modern', 'classic')
+JETPACK_SCHEMES = ('modern', 'classic', 'eduke32')
 SHOULDERS = ('center', 'right', 'left')
 VIEWS = ('third', 'first')
 # D14 widescreen (Modernized only; Vanilla stays 4:3). auto follows the window
@@ -115,7 +115,7 @@ def validate_controls(value):
         value['geometry_precision'] not in PRECISION_MODES or value['texture_precision'] not in PRECISION_MODES or
         value['frame_rate'] not in FRAME_RATES or value['view_bob'] not in VIEW_BOBS or
         value['draw_distance'] not in DRAW_DISTANCES or value['steroids'] not in STEROIDS_MODES or value['jump_walls'] not in JUMP_WALLS or value['landing'] not in LANDINGS or value['dynamite'] not in DYNAMITE_MODES or value['swimming'] not in SWIMMING_MODES or value['wall_backflip'] not in WALL_BACKFLIPS or value['crouch'] not in CROUCH_MODES):
-        raise ValueError('Camera must be independent/original; sensitivity 0.01..2 degrees/count; invert_y boolean; jetpack modern/classic; '
+        raise ValueError('Camera must be independent/original; sensitivity 0.01..2 degrees/count; invert_y boolean; jetpack modern/classic/eduke32; '
                          'camera_distance 0 (original) or 768..6144; shoulder center/right/left; view third/first; '
                          'widescreen off/16:9/16:10/21:9/auto; cpu_overclock 100/125/150/175/200; cpu_timing accurate/fast; jump assisted/manual; '
                          'frame_rate ' + '/'.join(FRAME_RATES) + '; view_bob ' + '/'.join(VIEW_BOBS) + '; geometry_precision and texture_precision original/corrected; draw_distance original/extended; steroids portable/original; jump_walls slide/original; landing modern/original; dynamite modern/original; swimming modern/original; wall_backflip modern/original; crouch modern/original.')
@@ -457,7 +457,7 @@ def describe(settings):
         lines.append(f"Mouse: {controls['mouse_sensitivity']} degrees/count; invert Y: {controls['invert_y']}")
         lines.append(f"Aim assistance: {controls['aim_assist']}; red dot: {'on' if controls['red_dot'] else 'off'}")
         lines.append(f"Crosshair: {'on' if controls['crosshair'] else 'off'}")
-        lines.append(f"Jetpack: {controls['jetpack']}" + (' (modern mouse/WASD controls; original burst flight: Space boosts, gravity otherwise, Shift hover toggle)' if controls['jetpack'] == 'classic' else ' (camera-relative WASD, Space up, Ctrl down, hover on release)'))
+        lines.append(f"Jetpack: {controls['jetpack']}" + (' (modern mouse/WASD controls; original burst flight: Space boosts, gravity otherwise, Shift hover toggle)' if controls['jetpack'] == 'classic' else ' (J toggles instant flight, including midair; 61 seconds of fuel; Space up, Ctrl down)' if controls['jetpack'] == 'eduke32' else ' (J starts with a short lift; camera-relative WASD, Space up, Ctrl down, hover on release)'))
         distance = controls['camera_distance']
         lines.append(f"Camera distance: {'original' if not distance else round(distance)} (Alt+wheel in game, saved); shoulder: {controls['shoulder']} "
                      f"({pc_input_key(settings, 'camera_shoulder')} cycles, {pc_input_key(settings, 'camera_recenter')} recenters)")

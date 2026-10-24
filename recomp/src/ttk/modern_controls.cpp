@@ -556,6 +556,11 @@ static bool jetpack_classic() {
     static const bool classic=[] {const char* v=std::getenv("DNTTK_JETPACK");return v && !std::strcmp(v,"classic");}();
     return classic;
 }
+static bool jetpack_eduke32() {
+    static const bool enabled=[] {const char* v=std::getenv("DNTTK_JETPACK");return v && !std::strcmp(v,"eduke32");}();
+    return enabled;
+}
+static bool jet_instant_toggle(CPUState* cpu);
 // After the jetpack cuts out in the air (fuel, J) the original falls with 108
 // in mode 9; keep the mouse camera through that fall until the landing.
 static bool jet_fall_grace;
@@ -985,6 +990,11 @@ static void hook(CPUState* cpu, uint32_t address) {
 // Discard old draw tokens without writing them into the newly loaded RAM;
 // first_person_draw reclaims any hidden flags stored in the save itself.
 static void camera_world_reset() {
+    jet_lift_active=false;jet_air_height_hold=false;
+    if(jetpack_eduke32()) {
+        jet_fuel_pending=false;jet_fuel_frame=0;jet_fuel_fraction=0;jet_fuel_expected=-1;
+        jet_flight_live=false;jet_hold_valid=false;jet_was_flying=false;jet_fall_grace=false;
+    }
     push_manual_object=0;push_sound_distance=0;push_blocked_pad=0;
     orbit_valid=false;look.reset();camera_frame=0;fp_frame=0;walking=false;
     fp_blend=0;fp_supported=false;fp_reason="world-change";
@@ -998,6 +1008,9 @@ static void hook_body(CPUState* cpu, uint32_t address) {
     if(loads!=loads_seen) {
         loads_seen=loads;camera_world_reset();input_state_loaded();
     }
+    // D08S pause/menus can keep fields advancing without a player update.
+    // Do not charge that gap when normal flight resumes.
+    if(jetpack_eduke32() && !gameplay_context())jet_fuel_frame=0;
     grounded_water_restore();
     crouch_water_restore(); // D08K11: scoped native crouch water veto, also after loads/Vanilla.
     // D08A13: running steroids hidden from Duke's damage handler come back at
@@ -1088,7 +1101,7 @@ static void hook_body(CPUState* cpu, uint32_t address) {
             crouch_hull_update(cpu); // D08K2
             crouch_walk_update(cpu); // D08K4
             swim_update(cpu,false);
-            jetpack_update();
+            jetpack_update(cpu);
             ladder_top_update(cpu);
             pole_climb_update();
             ladder_leap_update();
@@ -1291,7 +1304,7 @@ static void hook_body(CPUState* cpu, uint32_t address) {
         // Immediately after original heading update; before original aim/model work.
         if (cpu->gpr[4]==player && ra==0x80041c44) {
             god_mode_update(); // after this update's mode-10 fuel drain, before the HUD
-            jet_post_update();
+            jet_post_update(cpu);
             select_weapon(cpu);
             kick_update(cpu);
             if(facing_ready())face_view();
@@ -1634,7 +1647,7 @@ const char* controls_debug_json() {
     static char buffer[8192];
     std::snprintf(buffer,sizeof buffer,"{\"mouse_deg\":%.4f,\"edge_jumps\":%u,\"step_drops\":%u,\"run_offs\":%u,\"delayed_jumps\":%u,\"standing_takeoffs\":%u,\"swim_mantles\":%u,\"wade_jumps\":%u,\"swim_dives\":%u,\"swim_dive_stops\":%u,\"swim_paces\":%u,\"swimming\":\"%s\",\"swim_fire_masks\":%u,\"swim_fire_restores\":%u,\"swim_aims\":%u,\"swim_aim_restores\":%u,\"swim_arm_aims\":%u,\"swim_redraws\":%u,\"ledge_assists\":%u,\"jet_updates\":%u,\"jet_hovers\":%u,\"jet_descents\":%u,\"jet_hold_captures\":%u,\"jet_root_nudges\":%u,\"jet\":%s,\"jet_scheme\":\"%s\",\"jet_classic\":%s,\"jet_classic_updates\":%u,\"push_masks\":%u,\"push_idle_masks\":%u,\"push_grab\":%s,\"ledge_reach_arms\":%u,\"air_mantles\":%u,\"hang_releases\":%u,\"lift_catches\":%u,\"turn_catches\":%u,\"drop_mantles\":%u,\"last_drop_rel\":%d,\"step_ups\":%u,\"mantle_upper_handoffs\":%u,\"mantle_upper_restores\":%u,\"last_step_rel\":%d,\"edge_postpones\":%u,\"jump_style\":\"%s\",\"air_steers\":%u,\"coyote_jumps\":%u,\"quick_takeoffs\":%u,\"air_cap\":%.0f,\"hang_settles\":%u,\"ceiling\":{\"ready\":%s,\"updates\":%u,\"turns\":%u,\"advances\":%u,\"drops\":%u},\"ladder_top\":{\"available\":%s,\"active\":%s,\"starts\":%u,\"mounts\":%u,\"aborts\":%u,\"leaps\":%u,\"leap_nudges\":%u,\"end_probes\":%u,\"end_hits\":%u,\"end_stops\":%u,\"mount_finishes\":%u,\"actor_exits\":%u,\"actor_exit_checks\":%u},\"pole\":{\"mount_starts\":%u,\"mounts\":%u,\"mount_aborts\":%u,\"floor_rejects\":%u,\"stall_drops\":%u,\"mounting\":%s},\"identity_calls\":%llu,\"identity_checks\":%llu,\"identity_us\":%llu,\"selections\":%llu,\"jumps\":%llu,\"speed_changes\":%llu,\"moves\":%llu,\"probes\":%llu,\"cameras\":%llu,\"frame_window\":%u,\"refusals\":%llu,\"ready\":%s,\"swim\":%s,\"looks\":%llu,\"orbits\":%llu,\"yaw\":%.6f,\"pitch\":%.6f,\"radius\":%.3f,\"preferred_radius\":%.3f,\"shoulder_offset\":%.3f,\"recentering\":%s,\"recenters\":%llu,\"rest_pitch\":%.6f,\"key_look\":{\"hold\":%d,\"lock\":%s,\"returning\":%s,\"looks\":%llu,\"returns\":%llu,\"taps\":%llu},\"key_turn\":{\"hold\":%d,\"running\":%s,\"turns\":%llu},\"selected_item\":%u,\"last_weapon\":%u,\"crouch_entries\":%u,\"crouch_exits\":%u,\"crouch_blocked\":%u,\"facings\":%llu,\"arms\":%llu,\"orientations\":%llu,\"fp\":{\"requested\":%s,\"supported\":%s,\"blend\":%.3f,\"reason\":\"%s\",\"updates\":%llu,\"fallbacks\":%llu,\"follows\":%llu,\"head_hides\":%llu,\"head_reclaims\":%llu,\"head_flag\":%u,\"min_boom\":%u,\"projection\":%d,\"projections\":%llu,\"near\":%s,\"weapon\":{\"enabled\":%s,\"hands\":%llu,\"draws\":%llu,\"flashes\":%llu,\"items\":%llu,\"readies\":%llu,\"pose\":\"%s\",\"recorded\":%llu,\"arm_hides\":%llu,\"fade_clears\":%llu,\"matrix\":%u},\"kick\":%s},\"aim\":%s,\"draw_distance\":%s,\"steroids\":%s,\"steroid_beat\":%s,\"pickup_select\":%s,\"run_click\":%s,\"powerups\":%s,\"jump_walls\":%s,\"landing\":%s,\"wall_backflip\":%s,\"dynamite\":%s}",
         sensitivity()*360/tau,
-        edge_jumps,step_drops,run_offs,delayed_jumps,standing_takeoffs,swim_mantles,wade_jumps,swim_dives,swim_dive_stops,swim_paces,swimming_modern()?"modern":"original",swim_fire_masks,swim_fire_restores,swim_aims,swim_aim_restores,swim_arm_aims,swim_redraws,ledge_assists,jet_updates,jet_hover_engages,jet_descents,jet_hold_captures,jet_root_nudges,jetpack_input_ready()?"true":"false",jetpack_classic()?"classic":"modern",jetpack_classic_input_ready()?"true":"false",jet_classic_updates,push_masks,push_idle_masks,push_grab_ready()?"true":"false",ledge_reach_arms,air_mantles,hang_releases,lift_catches,turn_catches,drop_mantles,last_drop_rel,step_ups,mantle_upper_handoffs,mantle_upper_restores,last_step_rel,edge_postpones,manual_jump()?"manual":"assisted",air_steers,coyote_jumps,quick_takeoffs,air_cap,hang_settles,ceiling_hang_ready()?"true":"false",ceiling_updates,ceiling_turns,ceiling_advances,ceiling_drops,ladder_top_available()?"true":"false",mount.active?"true":"false",ladder_mount_starts,ladder_mounts,ladder_mount_aborts,ladder_leaps,ladder_leap_nudges,ladder_end_probes,ladder_end_hits,ladder_end_stops,ladder_mount_finishes,ladder_actor_exits,ladder_actor_checks,pole_mount_starts,pole_mounts,pole_mount_aborts,pole_floor_rejects,pole_stall_drops,pole_mount.active?"true":"false",(unsigned long long)identity_calls,(unsigned long long)identity_checks,(unsigned long long)(identity_ns/1000),(unsigned long long)selections,(unsigned long long)jumps,(unsigned long long)speed_changes,(unsigned long long)moves,(unsigned long long)probes,(unsigned long long)cameras,frame_window,
+        edge_jumps,step_drops,run_offs,delayed_jumps,standing_takeoffs,swim_mantles,wade_jumps,swim_dives,swim_dive_stops,swim_paces,swimming_modern()?"modern":"original",swim_fire_masks,swim_fire_restores,swim_aims,swim_aim_restores,swim_arm_aims,swim_redraws,ledge_assists,jet_updates,jet_hover_engages,jet_descents,jet_hold_captures,jet_root_nudges,jetpack_input_ready()?"true":"false",jetpack_classic()?"classic":jetpack_eduke32()?"eduke32":"modern",jetpack_classic_input_ready()?"true":"false",jet_classic_updates,push_masks,push_idle_masks,push_grab_ready()?"true":"false",ledge_reach_arms,air_mantles,hang_releases,lift_catches,turn_catches,drop_mantles,last_drop_rel,step_ups,mantle_upper_handoffs,mantle_upper_restores,last_step_rel,edge_postpones,manual_jump()?"manual":"assisted",air_steers,coyote_jumps,quick_takeoffs,air_cap,hang_settles,ceiling_hang_ready()?"true":"false",ceiling_updates,ceiling_turns,ceiling_advances,ceiling_drops,ladder_top_available()?"true":"false",mount.active?"true":"false",ladder_mount_starts,ladder_mounts,ladder_mount_aborts,ladder_leaps,ladder_leap_nudges,ladder_end_probes,ladder_end_hits,ladder_end_stops,ladder_mount_finishes,ladder_actor_exits,ladder_actor_checks,pole_mount_starts,pole_mounts,pole_mount_aborts,pole_floor_rejects,pole_stall_drops,pole_mount.active?"true":"false",(unsigned long long)identity_calls,(unsigned long long)identity_checks,(unsigned long long)(identity_ns/1000),(unsigned long long)selections,(unsigned long long)jumps,(unsigned long long)speed_changes,(unsigned long long)moves,(unsigned long long)probes,(unsigned long long)cameras,frame_window,
         (unsigned long long)refusals,lease_ready()?"true":"false",swim_lease_ready()?"true":"false",(unsigned long long)looks,(unsigned long long)orbits,yaw,pitch,radius,preferred_radius,shoulder_offset,recentering?"true":"false",(unsigned long long)recenters,rest_pitch,key_hold,key_lock?"true":"false",key_return?"true":"false",(unsigned long long)key_looks,(unsigned long long)key_returns,(unsigned long long)key_taps,turn_hold,turn_running?"true":"false",(unsigned long long)key_turns,selected_item,last_equipped,crouch_entries,crouch_exits,crouch_blocked,(unsigned long long)facings,(unsigned long long)arms,(unsigned long long)orientations,
         input_snapshot(Context::Gameplay).first_person?"true":"false",fp_supported?"true":"false",fp_blend,fp_reason,(unsigned long long)fp_updates,(unsigned long long)fp_fallbacks,(unsigned long long)fp_follows,(unsigned long long)head_hides,(unsigned long long)head_reclaims,head_flag,psx_mod_read_word(min_boom_word),fp_blend>0?last_projection:(int)(int16_t)psx_mod_read_half(camera+0x42),(unsigned long long)projections,near_clip_debug_json(),weapon_view_enabled()?"true":"false",(unsigned long long)weapon_hands,(unsigned long long)weapon_draws,(unsigned long long)weapon_flashes,(unsigned long long)weapon_items,(unsigned long long)weapon_readies,weapon_ready_pose()?"ready":"animated",(unsigned long long)poses_recorded,(unsigned long long)arm_hides,(unsigned long long)fade_clears,weapon_matrix,kick_debug_json(),aim_debug_json(),draw_distance_debug_json(),steroids_debug_json(),steroids_beat_debug_json(),pickup_select_debug_json(),run_click_debug_json(),powerups_debug_json(),jump_walls_debug_json(),landing_debug_json(),wall_backflip_debug_json(),dynamite_debug_json());
     return buffer;

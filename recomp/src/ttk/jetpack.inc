@@ -52,7 +52,8 @@
 // lease, mouse facing, WASD / Up / Down bridge to the original pads, J shortcut and
 // cut-out fall grace, with the original flight physics: Space lift, gravity,
 // fuel and the hover toggle (physical L1 = Shift).
-// Never: anim/mode writes or any change in Vanilla. Modern host writes are the
+// Classic never writes anim/mode; Modern/EDuke32 startup below uses native
+// entry/exit state contracts. No scheme changes Vanilla. Flight host writes are the
 // hover lock bit (cleared), the ballistic and thrust velocities
 // (+0x1f4..+0x1fc, +0x1e4..+0x1ec), fuel (+0x35a) and the body heading.
 
@@ -75,6 +76,7 @@ static constexpr float k_jet_capture_speed = 300.f;
 static constexpr int32_t k_jet_floor_clearance = 0x200;
 static unsigned jet_hover_engages, jet_descents, jet_updates, jet_classic_updates, jet_hold_captures, jet_root_nudges;
 static bool jet_was_flying, jet_hold_valid, jet_flight_live, jet_nudge_down;
+static bool jet_air_height_hold;
 static int32_t jet_hold_y;
 static float jet_vel[3];
 // The original's thrust velocity +0x1e4..+0x1ec after the previous update
@@ -94,6 +96,9 @@ static bool jet_trace() {
 // Held altitude, but never lower (larger Y) than the floor approach height
 // over the floor under Duke's feet.
 static int32_t jet_hold_target(int32_t y) {
+    // Air activation must not turn a low jump into an automatic floor-clearance
+    // climb. Native collision still owns the floor, walls and ceiling.
+    if(jet_air_height_hold)return jet_hold_y;
     const int32_t floor=(int32_t)psx_mod_read_word(player+0x1c8),foot=(int32_t)psx_mod_read_word(player+0x10);
     return std::min(jet_hold_y,y+(floor-foot)-k_jet_floor_clearance);
 }
@@ -107,9 +112,97 @@ bool jetpack_input_ready() {
 }
 // Same controls as Modern (lease, mouse, WASD); only the flight physics differ.
 bool jetpack_classic_input_ready() { return jetpack_classic() && jetpack_input_ready(); }
+// D08S: keep native item capacity/HUD/save units. One full pack is 3660
+// 60 Hz input fields (61 seconds), independent of presentation rate and the
+// original variable animation dt. A sub-unit remainder is host-only.
+static uint64_t jet_fuel_frame, jet_fuel_epoch, jet_fuel_fraction;
+static int jet_fuel_expected=-1, jet_fuel_after, jet_fuel_seed;
+static bool jet_fuel_pending;
+// J's short, accelerating lift follows the reference's ten 30 Hz updates.
+// Move through native velocity/collision, never by teleporting the root.
+static constexpr float k_jet_start_lift=640.f;
+static constexpr uint64_t k_jet_start_fields=20;
+static bool jet_lift_active;
+static uint64_t jet_lift_frame,jet_lift_epoch;
+static int32_t jet_lift_y;
+static bool jet_instant_ready() {
+    const auto& f=input_snapshot(Context::Gameplay);
+    return input_modernized() && !jetpack_classic() && f.active && gameplay_context() &&
+        independent_camera() && player_identity_ready() && lease_ready(true) &&
+        psx_mod_read_byte(player+0x233)==0 && (int16_t)psx_mod_read_half(player+0x32)>0 &&
+        !(psx_mod_read_word(player)&0x20002) &&
+        psx_mod_read_word(camera+0xa4)==player && psx_mod_read_word(player+0x7d4)==camera;
+}
+static void jet_eduke_pose(unsigned animation,unsigned mode) {
+    psx_mod_write_half(player+0x60,animation);
+    psx_mod_write_half(player+0x68,0);psx_mod_write_half(player+0x6a,0);
+    psx_mod_write_byte(player+0x22c,mode);psx_mod_write_byte(player+0x22d,mode);
+    for(unsigned axis=0;axis<3;++axis) {
+        psx_mod_write_word(player+0x1e4+4*axis,0);
+        psx_mod_write_word(player+0x1f4+4*axis,0);
+        psx_mod_write_half(player+0xfc+2*axis,0);
+    }
+    jet_lift_active=false;jet_air_height_hold=false;
+    jet_flight_live=false;jet_hold_valid=false;jet_root_bias=0;
+    takeoff_valid=false;flight_valid=false;delayed_takeoff=false;fall_velocity_pending=false;
+}
+static bool jet_eduke_off(CPUState* cpu,bool fall=true) {
+    // Original close stops the flight loop sound and clears its flags.
+    if(!original_call(cpu,0x8003ff6c,1))return false;
+    psx_mod_write_half(player+0x84c,1);psx_mod_write_half(player+0x84e,0);
+    if(!original_call(cpu,0x8004001c,0))return false; // close mesh endpoint
+    if(fall) {
+        psx_mod_write_word(player+0x224,psx_mod_read_word(player+0x224)&~0x8e000000u);
+        jet_eduke_pose(108,9);
+    }
+    jet_fall_grace=fall;jet_was_flying=false;
+    jet_epoch=input_snapshot(Context::Gameplay).epoch;
+    jet_fuel_frame=0;jet_fuel_pending=false;
+    return true;
+}
+static bool jet_instant_toggle(CPUState* cpu) {
+    if(!jet_instant_ready())return false;
+    if(jetpack_flying_early()) {
+        if(!jet_eduke_off(cpu))return false;
+        input_notice("JETPACK OFF");return true;
+    }
+    const unsigned mode=psx_mod_read_byte(player+0x22c);
+    const unsigned flags=psx_mod_read_word(player+0x224);
+    const unsigned owned=psx_mod_read_half(player+0x358);
+    // A fresh J can reverse this pack's own airborne close immediately.
+    // Other pending item transitions retain ownership.
+    const bool closing=mode==9 && (owned&0x8003)==0x8001 &&
+        (flags&0x10000000u) && psx_mod_read_word(player+0x884)==1;
+    // Only normal ground/jump/fall ownership. Never steal a climb, swim,
+    // scripted interaction, death, or pending item/weapon transition.
+    if((mode!=0 && mode!=9) || (flags&0x2000028cu) || !(owned&1) ||
+       ((owned&0x8000) && !closing) || (int16_t)psx_mod_read_half(player+0x35a)<=0 ||
+       ((int32_t)psx_mod_read_word(player+0x834)!=0x40000000 &&
+        (int32_t)psx_mod_read_word(player+8)>=(int32_t)psx_mod_read_word(player+0x834)))return false;
+    if(guest_busy || cpu->gpr[29]<0x801f4000 || cpu->gpr[29]>0x801ffff0 ||
+       g_precise_mode || g_ls_mode || g_psx_call_bail)return false;
+    psx_mod_write_half(player+0x358,owned|0x8002);
+    if(!original_call(cpu,0x800402d0,1))return false;
+    // Finish the original opening mesh update immediately (its endpoint is 5).
+    psx_mod_write_half(player+0x84c,4);psx_mod_write_half(player+0x84e,0);
+    if(!original_call(cpu,0x8004001c,0))return false;
+    psx_mod_write_word(player,psx_mod_read_word(player)&~0x20u);
+    psx_mod_write_word(player+0x224,psx_mod_read_word(player+0x224)&~0x88000041u);
+    jet_eduke_pose(163,10); // authenticated native entry's lower-body setup
+    jet_fall_grace=false;
+    // Ground starts lift off; airborne starts arrest vertical motion and
+    // capture the current height without replaying the ground launch boost.
+    jet_lift_active=mode==0;jet_lift_y=(int32_t)psx_mod_read_word(player+8);
+    jet_air_height_hold=mode==9;
+    if(jet_air_height_hold) {jet_hold_y=jet_lift_y;jet_hold_valid=true;}
+    jet_lift_frame=input_host_frame();jet_lift_epoch=input_snapshot(Context::Gameplay).epoch;
+    jet_fuel_frame=input_host_frame();jet_fuel_epoch=input_snapshot(Context::Gameplay).epoch;
+    jet_fuel_expected=(int16_t)psx_mod_read_half(player+0x35a);
+    input_notice("JETPACK ON");return true;
+}
 // Player-update entry (8005a210 hook), before the pre-state step and the
 // mode-10 handler read heading, pads and velocities for this update.
-static void jetpack_update() {
+static void jetpack_update(CPUState* cpu) {
     const auto& f=input_snapshot(Context::Gameplay);
     const bool flying=jetpack_flying_early();
     const unsigned animation=psx_mod_read_half(player+0x60);
@@ -130,6 +223,9 @@ static void jetpack_update() {
         // A new flight (or lease) starts from the original's own motion.
         if(jet_trace() && jet_flight_live)std::fprintf(stderr,"ttk-jet reset flying=%d ready=%d anim=%u mode=%u flags=%08x refusal=%s\n",
             flying,jetpack_input_ready(),animation,mode,psx_mod_read_word(player+0x224),lease_refusal_reason());
+        jet_lift_active=false;
+        if(!flying)jet_air_height_hold=false;
+        if(jetpack_eduke32())jet_fuel_frame=0;
         jet_flight_live=false;
         jet_hold_valid=false;
         jet_thrust_prev[0]=jet_thrust_prev[1]=jet_thrust_prev[2]=0;
@@ -143,6 +239,27 @@ static void jetpack_update() {
                 (int32_t)psx_mod_read_word(player+4),(int32_t)psx_mod_read_word(player+8),(int32_t)psx_mod_read_word(player+12));
         }
         return;
+    }
+    if(jetpack_eduke32()) {
+        const int fuel=(int16_t)psx_mod_read_half(player+0x35a);
+        const int cap=(int16_t)psx_mod_read_half(0x800c2716);
+        const uint64_t frame=input_host_frame();
+        if(f.epoch!=jet_fuel_epoch || fuel!=jet_fuel_expected || frame<jet_fuel_frame)
+            jet_fuel_fraction=0;
+        const uint64_t elapsed=jet_fuel_frame && f.epoch==jet_fuel_epoch && frame>=jet_fuel_frame ? frame-jet_fuel_frame : 0;
+        jet_fuel_frame=frame;jet_fuel_epoch=f.epoch;
+        if(cap>0 && !psx_mod_read_half(0x800c3cc4) && !psx_mod_read_half(0x800c3cc6))
+            jet_fuel_fraction+=elapsed*(unsigned)cap;
+        const int drain=(int)(jet_fuel_fraction/3660);jet_fuel_fraction%=3660;
+        jet_fuel_after=std::max(0,fuel-drain);jet_fuel_expected=jet_fuel_after;
+        if(!jet_fuel_after) {
+            psx_mod_write_half(player+0x35a,0);jet_eduke_off(cpu);return;
+        }
+        // The original handler must not cut out on its dt-based threshold.
+        // Restore our save/HUD units at the same update's post-handler hook.
+        jet_fuel_seed=std::max(jet_fuel_after,2*(int)psx_mod_read_word(0x800d21fc)+1);
+        psx_mod_write_half(player+0x35a,jet_fuel_seed);
+        jet_fuel_pending=true;
     }
     ++jet_updates;
     if(!f.held[original_aim])face_view();
@@ -167,8 +284,10 @@ static void jetpack_update() {
     const bool descend=f.held[crouch] && !f.held[jump];
     float want_y=0.f;
     if(ascend) {
+        jet_air_height_hold=false;
         want_y=-k_jet_climb;jet_hold_valid=false;
     } else if(descend) {
+        jet_air_height_hold=false;
         want_y=k_jet_descend;jet_hold_valid=false;++jet_descents;
     } else if(!jet_hold_valid) {
         // Ease the climb/descent out, then hold where it settled.
@@ -179,13 +298,29 @@ static void jetpack_update() {
     if(jet_hold_valid && !ascend && !descend) {
         want_y=std::clamp((float)(jet_hold_target(y)-y)*k_jet_hold_gain,-k_jet_hold_max,k_jet_hold_max);
     }
+    bool starting=false;
+    if(jet_lift_active) {
+        const uint64_t frame=input_host_frame();
+        const uint64_t age=frame>=jet_lift_frame ? frame-jet_lift_frame : k_jet_start_fields+1;
+        if(ascend || descend || f.epoch!=jet_lift_epoch || age>k_jet_start_fields) {
+            jet_lift_active=false;
+            if(!ascend && !descend) {
+                jet_hold_y=y;jet_hold_valid=true;jet_vel[1]=0;want_y=0;
+            }
+        } else {
+            const float phase=(float)age/(float)k_jet_start_fields;
+            const float target=jet_lift_y-k_jet_start_lift*(5.f*phase*phase+1.5f*phase)/6.5f;
+            want_y=std::clamp(target-y,-128.f,0.f)*1024.f/dt;
+            jet_hold_valid=false;starting=true;
+        }
+    }
     jet_vel[0]+=(want_x-jet_vel[0])*ease;
     jet_vel[2]+=(want_z-jet_vel[2])*ease;
     // Released: end the ease once under ~1 unit per update; the original's
     // root shift floors, so a residue of -1 would still creep a unit each update.
     if(magnitude==0.f && std::hypot(jet_vel[0],jet_vel[2])*dt<1024.f)jet_vel[0]=jet_vel[2]=0.f;
     // The hold is already a smooth controller; climbs and descents ease.
-    jet_vel[1]=jet_hold_valid && !ascend && !descend ? want_y : jet_vel[1]+(want_y-jet_vel[1])*ease_vertical;
+    jet_vel[1]=starting || (jet_hold_valid && !ascend && !descend) ? want_y : jet_vel[1]+(want_y-jet_vel[1])*ease_vertical;
     if(magnitude==0.f && !ascend && !descend)++jet_hover_engages;
     // Host-owned flight: the original's hover lock stays off. Moving or
     // climbing, input_pad feeds the original its own pads (flame, lean poses,
@@ -227,7 +362,22 @@ static void jetpack_update() {
 // for the next update's cancellation, and show the jetpack flame (drawn from
 // +0x224 & 0x02000000, which the handler sets only while it thrusts) while
 // Duke hovers or descends on the host.
-static void jet_post_update() {
+static void jet_post_update(CPUState* cpu) {
+    if(jet_fuel_pending) {
+        jet_fuel_pending=false;
+        if(input_modernized() && jetpack_eduke32() && player_identity_ready()) {
+            // Preserve a native pickup or god-mode top-up during this update.
+            const int current=(int16_t)psx_mod_read_half(player+0x35a);
+            if(current>jet_fuel_seed) {
+                jet_fuel_after=current;jet_fuel_fraction=0;jet_fuel_expected=current;
+            }
+            psx_mod_write_half(player+0x35a,jet_fuel_after);
+            // Native collision may land or submerge Duke. Keep that result,
+            // close the pack, and avoid leaving a ground-only Space restart.
+            if(psx_mod_read_byte(player+0x22c)!=10 && (psx_mod_read_half(player+0x358)&2))
+                jet_eduke_off(cpu,false);
+        }
+    }
     if(!jet_flight_live || !jetpack_flying_early() || !jetpack_input_ready() || jetpack_classic())return;
     for(int axis=0;axis<3;++axis)jet_thrust_prev[axis]=jet_pads_fed ? (int32_t)psx_mod_read_word(player+0x1e4+4*axis) : 0;
     // +0xfe keeps this update's applied vertical root (8004ac08 restores it).

@@ -162,6 +162,19 @@ extern "C" void psx_dispatch_call(CPUState* cpu,uint32_t address,uint32_t) {
     }
     if(address==0x80077438) {assert(cpu->gpr[4]==0x800d7198+0x1a4);cpu->gpr[2]=hull_steep;cpu->pc=0;return;}
     if(address==0x80077748) {assert(psx_mod_read_word(0x800d7198+0x174));psx_mod_write_word(0x800d7198+0x1c4,uint32_t(hull_object_top));cpu->pc=0;return;}
+    if(address==0x8003ff6c) {
+        psx_mod_write_half(0x800d7198+0x358,psx_mod_read_half(0x800d7198+0x358)&~2u);
+        psx_mod_write_word(0x800d7198+0x224,psx_mod_read_word(0x800d7198+0x224)|0x10000000);
+        cpu->pc=0;return;
+    }
+    if(address==0x8004001c) {
+        constexpr uint32_t p=0x800d7198;
+        const bool on=psx_mod_read_half(p+0x358)&2;
+        psx_mod_write_half(p+0x84c,on?5:0);
+        psx_mod_write_half(p+0x358,psx_mod_read_half(p+0x358)&~0x8000u);
+        psx_mod_write_word(p+0x224,psx_mod_read_word(p+0x224)&~0x10001000u);
+        cpu->pc=0;return;
+    }
     assert(address==0x8007926c || address==0x800797f4 || address==0x800402d0 || address==0x8007765c || address==0x800517a4);
     if(address==0x800517a4)++kicks;
     if(address==0x8007926c || address==0x800797f4) {
@@ -272,6 +285,54 @@ int main(int argc,char** argv) {
         ttk::input.sequence+=1;assert(!ttk::movement_ready());
         camera(1);assert(ttk::movement_ready());
         std::puts("PASS: D07E lease lasts one game frame, also in slow scenes");
+    }
+    if(const char* scheme=std::getenv("DNTTK_JETPACK");scheme && !std::strcmp(scheme,"eduke32")) {
+        auto camera=[&](){call(0x8003ade4,c,p,0x80025ee8);};
+        auto poll=[&](){call(0x80058120,p,0,0x80041c44,0x801fff00);};
+        auto toggle=[&](){ttk::input.commands[0]=ttk::jetpack;ttk::input.command_count=1;++ttk::input.command_serial;camera();poll();ttk::input.command_count=0;};
+        auto update=[&](unsigned fields){ttk::input.sequence+=fields;camera();call(0x8005a210,p,0x800c2754,0x80041b34,0x801fff00);poll();};
+        ttk::input.move_x=0;ttk::input.move_y=0;
+        psx_mod_write_half(p+0x32,10000);psx_mod_write_half(p+0x358,1);psx_mod_write_half(p+0x35a,9000);
+        psx_mod_write_word(p+0x834,0x40000000);psx_mod_write_word(p+0x224,0);
+        psx_mod_write_word(0x800d21fc,10);psx_mod_write_half(0x800c3cc4,0);psx_mod_write_half(0x800c3cc6,0);
+        toggle();assert(psx_mod_read_byte(p+0x22c)==10 && psx_mod_read_half(p+0x60)==163 && psx_mod_read_half(p+0x84c)==5);
+        update(2);assert((int32_t)psx_mod_read_word(p+0x1f8)<0); // J alone starts lift, no Space
+        ttk::input.held[ttk::crouch]=true;update(2);
+        assert((int32_t)psx_mod_read_word(p+0x1f8)>0); // Ctrl cancels startup lift immediately
+        ttk::input.held[ttk::crouch]=false;
+        for(int i=0;i<28;++i)update(2);
+        assert(psx_mod_read_half(p+0x35a)==8853); // one second, independent of animation dt
+        toggle();assert(psx_mod_read_byte(p+0x22c)==9 && psx_mod_read_half(p+0x60)==108 && psx_mod_read_half(p+0x84c)==0);
+        const auto fuel=psx_mod_read_half(p+0x35a);update(2);assert(psx_mod_read_half(p+0x35a)==fuel);
+        psx_mod_write_word(p+0x224,0x41);toggle();assert(psx_mod_read_byte(p+0x22c)==10); // airborne flags
+        psx_mod_write_half(p+0x35a,9000);
+        ++ttk::input.epoch;update(2);const auto restored=psx_mod_read_half(p+0x35a);
+        assert(restored==9000); // new capture/load never bills an old interval
+        for(int i=0;i<1829;++i)update(2);
+        assert(psx_mod_read_byte(p+0x22c)==10 && psx_mod_read_half(p+0x35a)>0);
+        update(2);assert(psx_mod_read_half(p+0x35a)==0 && psx_mod_read_byte(p+0x22c)==9);
+        toggle();assert(psx_mod_read_byte(p+0x22c)==9); // empty cannot activate
+        psx_mod_write_half(p+0x35a,9000);psx_mod_write_word(p+0x834,0);psx_mod_write_word(p+8,10);
+        toggle();assert(psx_mod_read_byte(p+0x22c)==9); // water veto
+        psx_mod_write_word(p+0x834,0x40000000);psx_mod_write_half(p+0x32,0);
+        toggle();assert(psx_mod_read_byte(p+0x22c)==9); // death veto
+        psx_mod_write_half(p+0x32,10000);poke(0x4ade0);toggle();assert(psx_mod_read_byte(p+0x22c)==9);poke(0x4ade0);
+        ttk::modern=false;toggle();assert(psx_mod_read_byte(p+0x22c)==9);ttk::modern=true;
+        toggle();assert(psx_mod_read_byte(p+0x22c)==10);
+        psx_mod_write_half(0x800c3cc6,1);const auto god_fuel=psx_mod_read_half(p+0x35a);
+        for(int i=0;i<30;++i)update(2);
+        assert(psx_mod_read_half(p+0x35a)==god_fuel);
+        psx_mod_write_half(0x800c3cc6,0);
+        psx_mod_write_half(p+0x35a,4000);update(2);
+        ttk::input.sequence+=2;camera();call(0x8005a210,p,0x800c2754,0x80041b34,0x801fff00);
+        psx_mod_write_half(p+0x35a,9000);poll();assert(psx_mod_read_half(p+0x35a)==9000); // pickup during native handler
+        psx_mod_write_half(0x800be568,1);ttk::input.sequence+=180;camera();
+        psx_mod_write_half(0x800be568,0);update(2);assert(psx_mod_read_half(p+0x35a)==9000); // no pause debt
+        // A native landing closes the pack without replacing the ground pose.
+        ttk::input.sequence+=2;camera();call(0x8005a210,p,0x800c2754,0x80041b34,0x801fff00);
+        psx_mod_write_byte(p+0x22c,0);psx_mod_write_half(p+0x60,105);poll();
+        assert(psx_mod_read_byte(p+0x22c)==0 && psx_mod_read_half(p+0x60)==105 && !(psx_mod_read_half(p+0x358)&2));
+        std::puts("PASS: D08S instant ground/air toggles, 61-second fuel, god mode, landing and safety gates");return 0;
     }
     // D08Q3: actual flight eligibility retains overlay, camera, capture and
     // alive checks, and never enables ground movement/air-steering writes.
@@ -3291,14 +3352,43 @@ int main(int argc,char** argv) {
             psx_mod_write_word(p,0);psx_mod_write_half(p+0x32,6250);
             psx_mod_write_word(p+0x224,0);psx_mod_write_half(p+0x358,0x8001);
             psx_mod_write_half(p+0x35a,9000);psx_mod_write_half(p+0x84c,0);
-            psx_mod_write_word(p+0x884,1);psx_mod_write_byte(p+0x22c,0);psx_mod_write_byte(p+0x22d,0);
+            psx_mod_write_word(p+0x884,1);psx_mod_write_half(p+0x60,63);psx_mod_write_byte(p+0x22c,0);psx_mod_write_byte(p+0x22d,0);
         };
         auto poll=[&](){call(0x80058120,p,0,0x80041c44);};
         stranded();poll();assert(psx_mod_read_half(p+0x358)==1 && psx_mod_read_half(p+0x35a)==9000);
         // Picker and activation use the repaired original record, without a cheat.
         psx_mod_write_half(0x800c3f94,5);request(ttk::item_next);assert(psx_mod_read_half(0x800c3f94)==1);
         ttk::input.commands[0]=ttk::jetpack;++ttk::input.command_serial;
-        call(0x80058120,p,0,0x80041c44,0x801fff00);assert(psx_mod_read_half(p+0x358)==0x8003);
+        call(0x80058120,p,0,0x80041c44,0x801fff00);assert(psx_mod_read_half(p+0x358)==3 && psx_mod_read_byte(p+0x22c)==10);
+        const uint32_t start_y=psx_mod_read_word(p+8);
+        ttk::input.held[ttk::jump]=false;ttk::input.held[ttk::crouch]=false;
+        ttk::input.sequence+=2;call(0x8003ade4,c,p,0x80025ee8);
+        call(0x8005a210,p,0x800c2754,0x80041b34,0x801fff00);
+        assert((int32_t)psx_mod_read_word(p+0x1f8)<0 && psx_mod_read_word(p+8)==start_y); // native collision applies lift
+
+        // Modern J also acquires a free fall, through the same guarded startup.
+        psx_mod_write_half(p+0x358,1);psx_mod_write_byte(p+0x22c,9);psx_mod_write_byte(p+0x22d,9);
+        psx_mod_write_half(p+0x60,108);psx_mod_write_word(p+0x224,0x41);
+        ++ttk::input.sequence;call(0x8003ade4,c,p,0x80025ee8);
+        ttk::input.commands[0]=ttk::jetpack;++ttk::input.command_serial;
+        call(0x80058120,p,0,0x80041c44,0x801fff00);
+        assert(psx_mod_read_byte(p+0x22c)==10 && psx_mod_read_half(p+0x358)==3);
+        // No ground-start boost or automatic clearance climb on a low air start.
+        const uint32_t air_y=psx_mod_read_word(p+8);
+        psx_mod_write_word(p+0x10,1000);psx_mod_write_word(p+0x1c8,1100);
+        psx_mod_write_word(0x800d21fc,10);
+        ttk::input.move_x=0;ttk::input.move_y=0;ttk::input.arrow_y=0;
+        ttk::input.sequence+=2;call(0x8003ade4,c,p,0x80025ee8);
+        call(0x8005a210,p,0x800c2754,0x80041b34,0x801fff00);
+        assert(psx_mod_read_word(p+8)==air_y && (int32_t)psx_mod_read_word(p+0x1f8)==0);
+        // Rapid off/on: the native close is still pending while Duke falls.
+        psx_mod_write_half(p+0x358,0x8001);psx_mod_write_byte(p+0x22c,9);psx_mod_write_byte(p+0x22d,9);
+        psx_mod_write_half(p+0x60,108);psx_mod_write_word(p+0x224,0x10000002);
+        psx_mod_write_word(p+0x884,1);psx_mod_write_half(p+0x84c,2);
+        ++ttk::input.sequence;call(0x8003ade4,c,p,0x80025ee8);++ttk::input.command_serial;
+        call(0x80058120,p,0,0x80041c44,0x801fff00);
+        assert(psx_mod_read_byte(p+0x22c)==10 && psx_mod_read_half(p+0x358)==3 && psx_mod_read_half(p+0x84c)==5);
+
         for(unsigned flag:{0x1000u,0x10000000u,4u,8u}) {
             stranded();psx_mod_write_word(p+0x224,flag);poll();assert(psx_mod_read_half(p+0x358)==0x8001);
         }

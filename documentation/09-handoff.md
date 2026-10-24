@@ -1,5 +1,82 @@
 # Next-session handoff
 
+## 2026-10-24 - D08S accepted and closeout authorized
+
+User: "this is it!!! lock it in, close it out". Revision 4 is accepted:
+J starts immediately, ground starts lift slightly, and midair starts hold
+the activation height without a boost. Modern and EDuke32 share these
+controls; EDuke32 retains its 61-second fuel rule. D08S is Done.
+
+Implementation, tests and player documentation are included in closeout.
+Existing build/native tests and private 60/120 FPS evidence stand; no
+post-acceptance gameplay changes or additional game launches. Runtime patch
+re-exported unchanged and verified against the clean pinned framework.
+Commit and push authorized as MusicMonsterMod. No next job started.
+
+## 2026-10-24 - D08S revision 4: no midair boost
+
+Latest user clarification: ground starts keep the accepted lift; airborne
+starts arrest vertical movement and hold the activation height. Modern and
+EDuke32 now skip both startup lift and extra host floor-clearance climb on
+air activation. Native collision and explicit Space/Ctrl controls remain.
+[Note 219](219-d08s-instant-jetpack.md).
+
+Build/native controls suites pass. Private jump/falling-restart checks at
+60/120 FPS held exactly; ground lift remains 642 units. Candidate:
+`8e976893091271ddbaaa019878cba08f5acede6874433336fcdfca69a611b548`.
+Needs playtest. No closeout, commit, push or next job.
+
+## 2026-10-24 - D08S revision 3: Modern midair activation
+
+User accepted the lift/controls and requested J activation in midair too.
+Modern now starts flight during jumps/falls; rapid off/on can reverse the
+pack's own closing transition. The accepted lift/flight feel and fuel are
+unchanged. [Note 219](219-d08s-instant-jetpack.md).
+
+Build/native suites pass; private live rising-jump and rapid falling off/on
+checks pass at 60/120 FPS. Candidate:
+`d57f64b3c33bdff4182b5bc66f81f5a933abc26e26c14428f0018389214e7ae6`.
+D08S remains Needs playtest for this addition. No commit/push or next job.
+Launch `python3 recomp/tools/local/run.py --jetpack modern` (saves Modern).
+
+
+## 2026-10-24 - D08S revision 2: J-only lift in Modern
+
+User supplied `research/screencaps/eduke32-jetpack.mp4` and corrected Modern:
+J must start flight and lift slightly without Space. Modern now enters
+flight from grounded J; Modern and EDuke32 share a short automatic lift
+through native velocity/collision, then hover. Their fuel rules remain
+unchanged; Classic still requires Space. [Note 219](219-d08s-instant-jetpack.md).
+
+J-only private live checks pass at 60/120 FPS (640-642 unit rise and stable
+hover); controls and D08S native suites pass, including early Ctrl override.
+Candidate `6564b4e4101957de920a0773dedc4237a25ba761c593462cd635097dee7ed89c`.
+D08S remains Needs playtest. No commit/push or next job.
+Launch `python3 recomp/tools/local/run.py --jetpack modern` (saves Modern).
+Press J alone; Space climbs further and Ctrl descends. Capture is automatic.
+
+
+## 2026-10-24 - D08S candidate ready for playtest
+
+D08S is Needs playtest. The new `eduke32` jetpack scheme gives instant J
+activation on ground/in midair, instant J-off/fuel-out into a fall, and a
+61-second full tank including hover. Existing Modern flight supplies movement,
+hover and collision; native landing/water transitions close the pack.
+[Note 219](219-d08s-instant-jetpack.md) records implementation and evidence.
+
+Player build, native controls/input/aim and 89 profile tests pass. Private
+60/120 FPS tank runs timed about 61.1 seconds; live toggles, movement/fire,
+pause, landing, water and Modern/Classic regressions are recorded. Wider
+campaign and user feel remain acceptance work. No framework edits, commit
+or push. Candidate:
+`de95de02b313f248375862ab39bcc46405807473f5bf96dd135c670dc1a1f887`.
+
+Launch `python3 recomp/tools/local/run.py --jetpack eduke32`. This saves the
+scheme; `--jetpack modern` restores the existing default. J on/off, Space up,
+Ctrl down, WASD/mouse; capture is automatic. Flight remains third person
+(D11F is separate). No next job started.
+
+
 ## 2026-10-24 - D08Z6 accepted and closed
 
 User accepted revision 2 and explicitly requested lock-in/closeout. D08Z6 is

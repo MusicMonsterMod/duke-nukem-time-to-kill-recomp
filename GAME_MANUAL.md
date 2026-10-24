@@ -932,8 +932,11 @@ Freezer, Dynamite, Holy Hand Grenade) are skipped. Holstered, fire does nothing
 underwater, as in the original. First person still switches to third person in
 the water (D11E).
 
-**Modernized jetpack**: switch it on with **J**, then
-**Space** lifts off and climbs. In the air the **mouse** turns Duke and the
+**Modernized jetpack**: **J** immediately starts flight. From the ground it
+gives a short automatic lift, then hovers. During a jump or fall it arrests
+vertical movement and holds the activation height, without the ground boost.
+**Space** climbs further. A quick J-off/J-on can restart flight while the pack is still
+closing. In the air the **mouse** turns Duke and the
 camera together (so do **Left** / **Right**), **W/A/S/D** (or **Up** / **Down**) fly relative to the camera at the
 original top speed with a short start and stop,
 releasing every key **hovers** perfectly still, **Ctrl** descends quickly (the same speed as diving
@@ -959,6 +962,24 @@ In Modernized, a jetpack left unavailable by interrupted deployment and Continue
 now recovers when normal captured ground play resumes, including affected saves.
 This restores selection/J without refilling fuel or granting a missing pack.
 
+
+**EDuke32 jetpack (optional, Modernized only, D08S candidate)**: **J** starts
+flight immediately: a short automatic lift from the ground, or a hover at
+the activation height during a jump/fall (no added boost). **J** again switches
+it off immediately into a normal fall. **Space** climbs, **Ctrl** descends,
+**W/A/S/D** fly relative to the view, and releasing input hovers. A full pack
+provides 61 seconds of flight, including hover; pausing does not use fuel.
+The existing percentage shows the remaining share of that duration. Fuel-out
+also switches the pack off. God mode keeps unlimited fuel. Landing or entering
+water uses the original collision result and closes the pack; underwater
+activation is refused. Flight still uses the existing third-person view.
+
+Select **EDUKE32** in **OPTIONS > ADVANCED**, **JETPACK** under the MOVEMENT
+heading (next launch), or launch with the following command. This saves the preference:
+
+```sh
+python3 recomp/tools/local/run.py --jetpack eduke32
+```
 
 **Classic jetpack (optional, Modernized only)**: modern controls with the
 original burst-style flight. Select it once from the terminal; it is remembered:

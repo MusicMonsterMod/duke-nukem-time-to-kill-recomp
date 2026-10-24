@@ -37,7 +37,7 @@ def main(argv=None):
     p.add_argument('--crosshair', choices=('on','off'), help='save Modernized crosshair visibility without changing aim behavior')
     p.add_argument('--aim-assist', choices=('off','original-lock'), help='save experimental Modernized view assistance')
     p.add_argument('--red-dot', choices=('on','off'), help='save original target marker visibility independently of assistance')
-    p.add_argument('--jetpack', choices=profiles.JETPACK_SCHEMES, help='save Modernized jetpack scheme: modern flight or classic original flight with WASD')
+    p.add_argument('--jetpack', choices=profiles.JETPACK_SCHEMES, help='save Modernized jetpack scheme: modern, classic or instant eduke32 flight (61 seconds)')
     p.add_argument('--camera-distance', metavar='original|768..6144', help='save Modernized third-person distance (Alt+wheel also saves it)')
     p.add_argument('--view', choices=profiles.VIEWS, help='save Modernized camera view, third or first person (the camera_view key also toggles it)')
     p.add_argument('--shoulder', choices=profiles.SHOULDERS, help='save Modernized camera shoulder side (the camera_shoulder key also cycles it)')

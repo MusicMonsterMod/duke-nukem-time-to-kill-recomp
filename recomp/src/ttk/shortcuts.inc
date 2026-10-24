@@ -257,6 +257,14 @@ static void select_weapon(CPUState* cpu) {
     bool mission_enter=false;
     if(mission_visible())for(unsigned n=0;n<f.command_count && n<32;++n)if(f.commands[n]==item_use)mission_enter=true;
     if(mission_enter) {const int item=mission_browsed_item();mission_close();mission_use(cpu,item);}
+    // D08S: Modern starts on ground or in a jump/fall. Its accepted in-flight
+    // off toggle stays intact; EDuke32 uses its immediate toggle in both states.
+    const unsigned jet_mode=psx_mod_read_byte(player+0x22c);
+    if(jetpack_eduke32() || (!jetpack_classic() && (jet_mode==0 || jet_mode==9)))for(unsigned n=0;n<f.command_count && n<32;++n)
+        if(f.commands[n]==jetpack || (f.commands[n]==item_use && selected_item==1 && !mission_enter)) {
+            if(jet_instant_toggle(cpu)) {remember_item(1);inventory_feedback(false);}
+            return;
+        }
     // D12A: in the eye view Q is the quick kick (kick.inc), with any weapon,
     // moving or in the air; it never touches the original equipment or animation.
     bool eye_kick=false;

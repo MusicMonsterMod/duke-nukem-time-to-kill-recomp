@@ -1,5 +1,43 @@
 # Next-session handoff
 
+## 2026-10-24 - D35F accepted and closed out
+
+User: "so so good! let's lock it in and close it out!". D35F is Done.
+CHAIN/POLE VIEW offers First Person / Third Person, with a steady eye and
+native hands through chain/pole traversal. Existing movement and attachment
+remain unchanged. See [note 228](228-d35f-first-person-poles.md).
+
+Accepted executable: `f8fcbc1703d1c2ff713c9df54c2eef10f794bb647284e002c0277814e6105506`.
+Authored implementation, tests, manual and job records included in authorized
+closeout as MusicMonsterMod. Runtime patch re-exported unchanged and verified
+against the pinned clean framework index: all 51 changed/new files matched.
+No post-acceptance gameplay edits, rebuilds or launches. Unlocated solid-pole/
+lamppost and natural no-floor-bottom coverage limits remain; acceptance does
+not establish unrecorded full-campaign coverage. No player data changed and
+no next job started. Launch: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-24 - D35F first-person chains/poles (Needs playtest)
+
+CHAIN/POLE VIEW offers First Person (default) / Third Person in Advanced
+Action Perspective. Stable body eye, column clearance and native hands;
+existing movement, attachment, A/D latch and exits unchanged. Schema 45;
+launcher `--pole-view`. See [note 228](228-d35f-first-person-poles.md).
+
+Build, native controls/input/aim/near suites and all 95 profile tests pass.
+Private chain types 842/841 cover top and airborne catches, circle/look,
+descent/exits, explicit drop, pause/save/load, menu cancel/confirm, global view
+and Third Person comparison. Shared catch 148's brief camera gap was found
+and fixed. Separate solid pole/lamppost and natural no-floor-bottom traversal
+remain unverified; user eye/hand/transition comfort acceptance is pending.
+
+Candidate: `f8fcbc1703d1c2ff713c9df54c2eef10f794bb647284e002c0277814e6105506`.
+All diagnostic sessions stopped. No player settings/saves/cards, framework
+source, generated C or pins changed. No acceptance closeout, commit or push.
+Launch: `python3 recomp/tools/local/run.py`. P selects global First Person;
+CHAIN/POLE VIEW defaults to First Person; gameplay captures automatically.
+
+
 ## 2026-10-24 - D35E accepted and closed out
 
 User: "lock it in, close it out!!!". D35E is Done. LADDER VIEW offers First

@@ -1,5 +1,7 @@
 # Time to Kill — modernization jobs
 
+**Latest accepted job (2026-10-24): D35F first-person chains/poles is Done. User: "so so good! let's lock it in and close it out!". [Note 228](documentation/228-d35f-first-person-poles.md).**
+
 **Latest accepted job (2026-10-24): D35E first-person ladder lifecycle is Done. User: "lock it in, close it out!!!". [Note 227](documentation/227-d35e-first-person-ladders.md).**
 
 **Latest accepted job (2026-10-24): D35D first-person push/pull/grab is Done. User: "lock it in, and close it out!!". [Note 226](documentation/226-d35d-first-person-push-pull.md).**
@@ -330,7 +332,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D35C | Jetpack perspective option using accepted first-person flight | Done | D35A, D11F |
 | D35D | First-person push/pull and grab presentation | Done | D35A, D08T3, D08T7 |
 | D35E | First-person ladder climbing lifecycle | Done | D35A, D08J3, D08U, D08J1 |
-| D35F | First-person chain, pole and pole-class lamppost climbing | Todo | D35A, D35E, D08J5 |
+| D35F | First-person chain, pole and pole-class lamppost climbing | Done | D35A, D35E, D08J5 |
 | D35G | First-person mantles, ledge hangs and water climb-outs | Todo | D35A, D35E, D08V, D08X, D08T8 |
 | D35H | First-person overhead and monkey-bar traversal | Todo | D35A, D35G, D08J4 |
 | D35I | First-person climbing walls | Todo | D35A, D35E |
@@ -473,10 +475,10 @@ animation or settings edits, commit or push are part of this research result.
 
 ### D35F - First-person chain, pole and pole-class lamppost climbing
 
-**Status:** Todo. **Dependencies:** D35A, D35E, D08J5.
+**Status:** Done. **Dependencies:** D35A, D35E, D08J5.
 **Research:** [D35 central audit](documentation/222-d35-first-person-audit.md).
 
-**Current behavior:** Pole-class 0x400 attached objects (192..195, catch 154, exits 191/196) use third-person orbit. Lampposts must be classified by object flags, not scenery name.
+**Accepted behavior:** Pole-class 0x400 attached objects retain first person through shared catches 147/148, transfer 154, climb 192..195 and exits 191/196. CHAIN/POLE VIEW also offers the existing third-person orbit. Lampposts are classified by object flags, not scenery name.
 
 **Desired result:** Provide axis-aware eye and hand placement during climb/circle/top mount/descent/drop. Adapt view-relative input interpretation without altering native attachment.
 
@@ -489,6 +491,8 @@ animation or settings edits, commit or push are part of this research result.
 **Acceptance:** FP remains stable and clear of column; input never reverses unexpectedly on view-side change; mount/descent positioning and native exit logic preserved; list unlocated object variants honestly.
 
 **Regression risks:** Front/back A/D latch, 225-unit axis offset, mount half-turn comfort, phantom upper-floor exit and pole/ladder transfer ambiguity.
+
+**Accepted evidence:** [Note 228](documentation/228-d35f-first-person-poles.md). Build, native suites and 95 profile tests pass. Two private chain types, top/airborne catch, circle/look, descent/exits/drop, save/load, menu and Third Person comparison checked. User accepted and explicitly authorized closeout. Separate solid-pole/lamppost and natural no-floor-bottom coverage are not claimed.
 
 ### D35G - First-person mantles, ledge hangs and water climb-outs
 
@@ -18422,3 +18426,35 @@ MusicMonsterMod closeout. Runtime patch re-exported unchanged and verified
 against the pinned clean framework index: all 51 modified/new files matched.
 No post-acceptance gameplay edits, builds or launches. No player data changed;
 no next job started. Launch: `python3 recomp/tools/local/run.py`.
+
+## 2026-10-24 - D35F first-person chain/pole candidate (Needs playtest)
+
+User selected D35F. CHAIN/POLE VIEW now offers First Person (default) /
+Third Person under Advanced Action Perspective. Stable body eye, radial
+column clearance and native hands; native attachment, circle mapping, mount,
+descent and exit rules unchanged. Schema 45; launcher `--pole-view`.
+
+Build, native controls/input/aim/near suites and 95 profile tests pass. Private
+historical chain types 842 and 841 cover mount, shared catch, lower-chain
+circling with held A/D across mouse side changes, descent, exits, explicit
+drop, pause/load, global view, menu cancel/confirm and legacy-third comparison.
+The second chain exposed shared catch 148; it is now classified by its owner.
+Full evidence and unlocated solid-pole/lamppost/no-floor-bottom limits are in
+[note 228](documentation/228-d35f-first-person-poles.md).
+
+Candidate `f8fcbc1703d1c2ff713c9df54c2eef10f794bb647284e002c0277814e6105506`.
+All diagnostic runs stopped. No player data, framework source, generated C
+or pins changed. No acceptance closeout, commit or push. Await user playtest.
+
+## 2026-10-24 - D35F accepted and closeout authorized
+
+User: "so so good! let's lock it in and close it out!". D35F is Done.
+CHAIN/POLE VIEW and its first-person eye/hands are accepted. Implementation,
+regression tests, manual and job records are included in the authorized
+MusicMonsterMod commit/push. Runtime patch re-export is unchanged; it applies
+to the pinned clean framework index and reproduces all 51 changed/new files.
+Accepted executable remains
+`f8fcbc1703d1c2ff713c9df54c2eef10f794bb647284e002c0277814e6105506`.
+No post-acceptance gameplay edits, rebuilds or launches. Recorded coverage
+limits remain in note 228; acceptance does not establish additional routes.
+No player data changed and no next job started.

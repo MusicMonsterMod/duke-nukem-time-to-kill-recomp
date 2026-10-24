@@ -729,8 +729,15 @@ First Person keeps a steady body-height eye through mounting, climbing, hanging
 at the bottom and exiting. Mouse look does not turn Duke on the ladder; his
 hands keep their native climbing poses. Global Third Person always wins.
 `--ladder-view first` or `--ladder-view legacy-third` also saves this choice.
-Poles, chains and climbing walls still step out to third person. Vanilla keeps
-the original climbing camera.
+**CHAIN/POLE VIEW** in the same menu offers FIRST PERSON (default) / THIRD
+PERSON for chains and pole-class climbable objects. The eye stays steady above
+Duke as he climbs or circles the column; his hands keep their climbing poses.
+Mouse look stays independent, including the top mount's half-turn. Held A/D
+keeps its direction when you look across to the other side; release and press
+again to choose the direction relative to the new view. CONFIRM applies and
+saves the choice; `--pole-view first` or `--pole-view legacy-third` also saves it.
+Climbing walls still step out to third person. Vanilla keeps the original
+climbing camera.
 
 **Climbable ceilings / monkey bars (Modernized, D08J4).**
 A jump with **E** held under a climbable ceiling (a grate or bars) makes Duke
@@ -852,8 +859,9 @@ First person also stays active during jetpack takeoff, flight and landing
 with Modern, Classic and EDuke32 flight controls. The eye stays centered above
 Duke through flight lean; aiming and the crosshair work as on the ground.
 Plain ladders retain first person by default, with LADDER VIEW offering the
-existing third-person camera. Poles, chains and ledges still show the free
-third-person camera while Duke climbs; scripted and
+existing third-person camera. Chains and poles also retain first person by
+default, with CHAIN/POLE VIEW offering third person. Ledges and climbing walls
+still show the free third-person camera while Duke climbs; scripted and
 turret cameras and death use the original camera. Dodge rolls
 and slides down steep slopes stay in first person, and so do falls (off an edge, a
 car roof or after bumping a wall); only grabbing a ledge switches. Pressing P

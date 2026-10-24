@@ -382,6 +382,8 @@ std::vector<Screen> make_screens() {
                  "FIRST PERSON ONLY. GRAB, PUSH AND PULL OBJECTS",true),
         view_row("LADDER VIEW","ladder_view","DNTTK_LADDER_VIEW",
                  "FIRST PERSON ONLY. LADDER MOUNTS, CLIMBING AND EXITS",true),
+        view_row("CHAIN/POLE VIEW","pole_view","DNTTK_POLE_VIEW",
+                 "FIRST PERSON ONLY. CHAIN AND POLE CLIMBING",true),
         heading("MOVEMENT"),
         {"JUMP",Section::Controls,"jump","DNTTK_JUMP",true,"MANUAL: LEAVE ON THE PRESS AND STEER IN THE AIR",
          {{"ASSISTED","assisted","\"assisted\""},{"MANUAL","manual","\"manual\""}},0},

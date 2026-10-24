@@ -254,12 +254,12 @@ int main(int argc,char** argv) {
     const char* tight_env=std::getenv("DNTTK_TIGHT_CAMERA");
     const bool tight_enabled=tight_env && !std::strcmp(tight_env,"1");
     // D35D: push now has an eye path; water exits and unsupported traversal do not.
-    for(unsigned mask=0;mask<1024;++mask) {
+    for(unsigned mask=0;mask<2048;++mask) {
         ttk::PerspectiveFacts f{};
         f.selected=mask&1;f.active=mask&2;f.water_exit=mask&4;f.push=mask&8;
-        f.traversal=mask&16;f.committed=mask&32;f.fall=mask&64;f.swim=mask&128;f.jet=mask&256;f.ladder=mask&512;
+        f.traversal=mask&16;f.committed=mask&32;f.fall=mask&64;f.swim=mask&128;f.jet=mask&256;f.ladder=mask&512;f.pole=mask&1024;
         const auto r=ttk::resolve_perspective(f);
-        const bool old=!f.water_exit && (f.push || f.ladder || !f.traversal || f.committed || f.fall);
+        const bool old=!f.water_exit && (f.push || f.ladder || f.pole || !f.traversal || f.committed || f.fall);
         assert(r.capable==old && r.effective==(f.selected && old));
         const char* reason=!f.selected?"off":!old?"traversal":f.active?"active":"input-suspended";
         assert(!std::strcmp(ttk::perspective_reason(r.reason),reason));
@@ -275,7 +275,7 @@ int main(int argc,char** argv) {
     assert(!ttk::parse_action_view("third",choice) && choice==ttk::ActionView::LegacyThird);
     assert(!ttk::parse_action_view(nullptr,choice));
     assert(ttk::parse_action_view("first",choice) && choice==ttk::ActionView::First);
-    std::puts("PASS: D35E presentation policy covers all 1024 fact combinations; denials and enum validation");
+    std::puts("PASS: D35F presentation policy covers all 2048 fact combinations; denials and enum validation");
     setenv("DNTTK_DRAW_DISTANCE","extended",1);
     assert(argc>=3 && argc<=5);
     std::ifstream exe(argv[1],std::ios::binary);exe.seekg(2048);exe.read((char*)ram+0x10000,0xbb000);assert(exe.gcount()==0xbb000);
@@ -3234,7 +3234,7 @@ int main(int argc,char** argv) {
                     }
                     setenv("DNTTK_LADDER_VIEW","first",1);
                     for(unsigned other:{0u,0x100u,0x400u,0x600u}) {
-                        psx_mod_write_word(table+28*46,other);++save_loads;frame();assert(metric("\"blend\":")==0);
+                        psx_mod_write_word(table+28*46,other);++save_loads;frame();assert(metric("\"blend\":")==int(other==0x400u && (pose==147 || pose==148)));
                     }
                     psx_mod_write_word(table+28*46,0x200);
                 }
@@ -3255,6 +3255,104 @@ int main(int argc,char** argv) {
                 psx_mod_write_half(p+0x60,63);psx_mod_write_byte(p+0x22c,0);psx_mod_write_byte(p+0x22d,0);
                 ++save_loads;frame();
                 std::puts("PASS: D35E ladder lifecycle policy, shared transfer exclusion, exits, choice, global view, pause, load and replay");
+            }
+            // D35F: shared clips need a plain pole, exits may already
+            // own the landing. Presentation never grants locomotion/aim.
+            {
+                const uint32_t object=0x801ea000,table=0x801e8000;
+                const auto old_table=psx_mod_read_word(0x800d2660),old_owner=psx_mod_read_word(p+0x17c);
+                const auto equip=psx_mod_read_byte(p+0x3b8);psx_mod_write_byte(p+0x3b8,0);
+                const auto flags=psx_mod_read_word(table+28*46);
+                psx_mod_write_word(0x800d2660,table);psx_mod_write_half(object+0x2c,46);
+                psx_mod_write_word(p+0x17c,object);psx_mod_write_word(table+28*46,0x400);
+                for(unsigned pose:{147u,148u,154u,191u,192u,193u,194u,195u,196u}) {
+                    psx_mod_write_half(p+0x60,pose);
+                    psx_mod_write_byte(p+0x22c,3);psx_mod_write_byte(p+0x22d,3);
+                    for(const char* choice:{"first","legacy-third"}) {
+                        setenv("DNTTK_POLE_VIEW",choice,1);++save_loads;frame();
+                        const bool eye=!std::strcmp(choice,"first");
+                        assert(metric("\"blend\":")==int(eye));
+                        assert(std::strstr(ttk::controls_debug_json(),"\"action\":\"pole\""));
+                        assert(!ttk::movement_ready() && !ttk::locomotion_input_ready());
+                        if(eye) {
+                            call(0x800348d8,c,p,0x8003769c);
+                            CPUState joint{};joint.gpr[4]=c;joint.gpr[19]=c;joint.gpr[20]=p;joint.gpr[29]=0x801f0000;
+                            joint.gpr[23]=psx_mod_read_byte(desc+0x24+0x0f);
+                            joint.gpr[5]=mats+0x20*joint.gpr[23];joint.gpr[31]=0x80034c6c;
+                            hooks().at(0x800292a0)(&joint,0x800292a0);
+                            assert(ttk::first_person_interaction_drawing());
+                            assert(joint.gpr[5]==mats+0x20*joint.gpr[23]);
+                            joint.gpr[31]=0x80034c8c;joint.gpr[16]=40;joint.gte_ctrl[26]=256;
+                            psx_mod_write_word(joint.gpr[29]+0x98,c);
+                            hooks().at(0x800b4d2c)(&joint,0x800b4d2c);
+                            assert(joint.gpr[16]==256 && joint.gte_ctrl[26]==256);
+                            joint.gpr[16]=40;joint.gpr[20]=p+4;
+                            hooks().at(0x800b4d2c)(&joint,0x800b4d2c);assert(joint.gpr[16]==40);
+                            call(0x8001ca4c,0x800d0000,0,0x800376b4);
+                        }
+                        ttk::input.active=false;frame();assert(metric("\"blend\":")==int(eye));ttk::input.active=true;
+                        std::vector<uint8_t> snap(ttk::render_state_size());ttk::render_state_save(snap.data());
+                        ttk::input.first_person=false;for(int i=0;i<40;++i)frame();assert(metric("\"blend\":")==0);
+                        ttk::render_state_load(snap.data());assert(metric("\"blend\":")==int(eye));ttk::input.first_person=true;
+                    }
+                    setenv("DNTTK_POLE_VIEW","first",1);
+                    for(unsigned other:{0u,0x100u,0x200u,0x600u}) {
+                        psx_mod_write_word(table+28*46,other);++save_loads;frame();assert(metric("\"blend\":")==int(other==0x200u && (pose==147 || pose==148)));
+                    }
+                    psx_mod_write_word(table+28*46,0x400);
+                }
+                // Circle-side mapping remains latched while A/D is held,
+                // even as the body and eye pass to the other side of the axis.
+                psx_mod_write_half(p+0x60,192);psx_mod_write_byte(p+0x22c,3);
+                const auto heading=psx_mod_read_half(p+0x1c);
+                const int face=int(std::lround(metric("\"yaw\":")*4096/(2*M_PI)))&4095;
+                psx_mod_write_half(p+0x1c,face);frame();
+                assert(!ttk::pole_view_from_front(false));
+                psx_mod_write_half(p+0x1c,(face+2048)&4095);frame();
+                assert(!ttk::pole_view_from_front(true));
+                assert(ttk::pole_view_from_front(false));
+                psx_mod_write_half(p+0x1c,face);frame();
+                assert(ttk::pole_view_from_front(true));
+                assert(!ttk::pole_view_from_front(false));
+                psx_mod_write_half(p+0x1c,heading);
+                // A wide rotated column keeps the presentation eye outside
+                // its bounds without changing attachment or native root.
+                const uint32_t list=0x801eb000,box=0x801eb020;
+                const auto old_list=psx_mod_read_word(object+0x44);
+                psx_mod_write_word(object+0x44,list);psx_mod_write_word(list+8,box);
+                psx_mod_write_half(object+0x1c,512);
+                psx_mod_write_word(object+4,root[0]);psx_mod_write_word(object+8,root[1]);psx_mod_write_word(object+12,root[2]+225);
+                auto eye_axis=[&](int axis) {
+                    call(0x8003aa48,c,sp+0x18,0x8003aeb0,sp);
+                    const double v=(int32_t)psx_mod_read_word(sp+0x18+4*axis)+(int32_t)psx_mod_read_word(c+0x64+4*axis)-
+                        (int16_t)psx_mod_read_half(c+12+2*axis)/4096.0*193;
+                    call(0x8002a038,0,1,0x8003af40,sp);return v;
+                };
+                for(int width:{69,256}) {
+                    const int16_t bounds[8]={int16_t(-width),-2048,int16_t(-width),0,int16_t(width),2048,int16_t(width),0};
+                    for(int i=0;i<8;++i)psx_mod_write_half(box+2*i,uint16_t(bounds[i]));
+                    ++save_loads;frame();for(int i=0;i<30;++i)frame();
+                    const double ex=eye_axis(0),ez=eye_axis(2);
+                    assert(std::hypot(ex-root[0],ez-root[2]-225)>=std::max(225.0,std::hypot(width,width)+32)-3);
+                    for(int i=0;i<3;++i)assert(int32_t(psx_mod_read_word(p+4+4*i))==root[i]);
+                    assert(psx_mod_read_word(p+0x17c)==object);
+                }
+                psx_mod_write_word(object+0x44,old_list);
+                psx_mod_write_byte(p+0x22d,3);
+                for(unsigned pose:{191u,196u}) {
+                    psx_mod_write_half(p+0x60,pose);psx_mod_write_byte(p+0x22c,8);
+                    psx_mod_write_word(p+0x17c,0);++save_loads;frame();assert(metric("\"blend\":")==1);
+                }
+                psx_mod_write_half(p+0x60,192);psx_mod_write_byte(p+0x22c,3);psx_mod_write_byte(p+0x22d,3);
+                psx_mod_write_word(p+0x17c,object);++save_loads;frame();
+                psx_mod_write_half(p+0x60,108);psx_mod_write_byte(p+0x22c,9);psx_mod_write_word(p+0x17c,0);
+                frame();assert(metric("\"blend\":")==1 && !ttk::movement_ready());
+                psx_mod_write_byte(p+0x3b8,equip);
+                unsetenv("DNTTK_POLE_VIEW");psx_mod_write_word(0x800d2660,old_table);
+                psx_mod_write_word(p+0x17c,old_owner);psx_mod_write_word(table+28*46,flags);
+                psx_mod_write_half(p+0x60,63);psx_mod_write_byte(p+0x22c,0);psx_mod_write_byte(p+0x22d,0);
+                ++save_loads;frame();
+                std::puts("PASS: D35F pole lifecycle policy, shared transfer exclusion, exits, choice, global view, pause, load and replay");
             }
             // D11E: swimming is a presentation state, independent of active
             // input and of the pitched/turning neck. Keep original water and

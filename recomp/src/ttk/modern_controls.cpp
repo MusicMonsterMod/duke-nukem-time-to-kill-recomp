@@ -242,6 +242,11 @@ static ActionView ladder_view() {
     parse_action_view(ttk_live_env("DNTTK_LADDER_VIEW"),choice);
     return choice;
 }
+static ActionView pole_view() {
+    ActionView choice=ActionView::First;
+    parse_action_view(ttk_live_env("DNTTK_POLE_VIEW"),choice);
+    return choice;
+}
 static bool independent_camera() {
     if(!input_modern_controls())return false;
     const char* mode=ttk_live_env("DNTTK_CAMERA_MODE");
@@ -675,6 +680,7 @@ static bool climb_state_early() {
         (previous==0 || previous==3 || previous==6 || previous==7 || previous==8 || previous==9);
 }
 static bool first_person_ladder();
+static bool first_person_pole();
 static bool traversal_camera_early() { return mantle_state_early() || unowned_fall_early() || ladder_mount_early() || committed_move_early() || climb_state_early(); }
 static bool state(bool camera_only=false,bool presentation=false) {
     // Menus suspend gameplay, not the authenticated world behind the menu.
@@ -722,7 +728,9 @@ static bool state(bool camera_only=false,bool presentation=false) {
     // (the first frames after a pull-up or landing).
     const bool ladder_eye=presentation && camera_only && ladder_view()==ActionView::First &&
         input_snapshot(Context::Gameplay).first_person && first_person_ladder();
-    const bool mantle=camera_only && (traversal_camera_early() || ladder_eye);
+    const bool pole_eye=presentation && camera_only && pole_view()==ActionView::First &&
+        input_snapshot(Context::Gameplay).first_person && first_person_pole();
+    const bool mantle=camera_only && (traversal_camera_early() || ladder_eye || pole_eye);
     // D22B: also the landing poses themselves (an unleased landing frame left a
     // jump taken from it without camera continuity) and after a slide.
     const bool settle=camera_only && (land_gait_anim(animation) || original_step_anim(animation) ||

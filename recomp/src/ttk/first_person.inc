@@ -112,6 +112,15 @@ static bool first_person_ladder() {
     return climb_state_early() && (a==147 || a==148 || a==156 ||
         (a>=185 && a<=190) || a==207 || a==210 || a==211);
 }
+// D35F: pole-class ownership, not scenery names, distinguishes shared catches.
+static bool first_person_pole() {
+    const unsigned a=psx_mod_read_half(player+0x60);
+    const unsigned mode=psx_mod_read_byte(player+0x22c),prev=psx_mod_read_byte(player+0x22d);
+    if(mode==9 && prev==3 && a==108 && fp_policy.action==PerspectiveAction::Pole)return true;
+    if(mode==8 && (prev==3 || prev==8) && (a==191 || a==196))return true;
+    if(!pole_object(object_type_flags(psx_mod_read_word(player+0x17c))))return false;
+    return climb_state_early() && (a==147 || a==148 || a==154 || (a>=191 && a<=196));
+}
 // Once per verified normal-camera update, after orbit_begin.
 static void first_person_update(const InputFrame& f,unsigned ticks,bool acquiring=false) {
     const unsigned mode=psx_mod_read_byte(player+0x22c), previous=psx_mod_read_byte(player+0x22d);
@@ -120,7 +129,7 @@ static void first_person_update(const InputFrame& f,unsigned ticks,bool acquirin
     facts.selected=f.first_person;facts.active=f.active;
     // Water exit takes ownership before the lingering water flag clears.
     facts.water_exit=mode==8 && (previous==4 || previous==5) && animation>=134 && animation<=142;
-    facts.ladder=first_person_ladder();
+    facts.ladder=first_person_ladder();facts.pole=first_person_pole();
     facts.push=push_state_early();facts.traversal=traversal_camera_early();
     facts.committed=committed_move_early();facts.fall=unowned_fall_early();
     facts.swim=first_person_swimming();facts.jet=mode==10 && jetpack_anim(animation);
@@ -135,6 +144,8 @@ static void first_person_update(const InputFrame& f,unsigned ticks,bool acquirin
         fp_policy=resolve_perspective(facts,push_view());
     if(fp_policy.action==PerspectiveAction::Ladder)
         fp_policy=resolve_perspective(facts,ladder_view());
+    if(fp_policy.action==PerspectiveAction::Pole)
+        fp_policy=resolve_perspective(facts,pole_view());
     const bool wanted=fp_policy.effective;
     // A newly authenticated world starts in the selected view. Never blend
     // from an unrelated old save/camera or flash a third-person load frame.
@@ -217,7 +228,7 @@ static bool first_person_anchor(const double* forward,double* anchor) {
     const bool swimming=first_person_swimming();
     const bool jetting=jetpack_flying_early();
     const bool pushing=fp_policy.action==PerspectiveAction::Push && fp_policy.effective;
-    const bool climbing=fp_policy.action==PerspectiveAction::Ladder && fp_policy.effective;
+    const bool climbing=(fp_policy.action==PerspectiveAction::Ladder || fp_policy.action==PerspectiveAction::Pole) && fp_policy.effective;
     const bool root_anchored=swimming || jetting || pushing || climbing;
     if(root_anchored) pivot_y=root[1];
     // Rebase the previous offset when switching between root and land pivot;
@@ -315,7 +326,22 @@ static bool first_person_anchor(const double* forward,double* anchor) {
             (unsigned long long)frame,root[0],root[1],root[2],std::hypot(bob_velocity[0],bob_velocity[1]),bob_amount,bob_phase,bob_dip,bob_glide[0],bob_glide[1]);
     ++bob_updates;
     const double half=std::max(0,(int)(int16_t)psx_mod_read_half(camera+0x42))/2.0;
-    const double eye[3]={root[0]+eye_rel[0]+bob_glide[0],pivot_y+eye_rel[1]+bob_dip,root[2]+eye_rel[2]+bob_glide[1]};
+    double eye[3]={root[0]+eye_rel[0]+bob_glide[0],pivot_y+eye_rel[1]+bob_dip,root[2]+eye_rel[2]+bob_glide[1]};
+    // D35F: the native root circles 225 units from the attachment axis.
+    // Keep the eye over that root, independent of animated neck sway or look.
+    // Wider pole boxes may need extra radial clearance; presentation only.
+    if(fp_policy.action==PerspectiveAction::Pole && fp_policy.effective &&
+       psx_mod_read_byte(player+0x22c)==3) {
+        const uint32_t object=psx_mod_read_word(player+0x17c);
+        PoleAxis axis;int16_t box[8];
+        if(pole_object(object_type_flags(object)) && pole_axis(object,axis) && ladder_box(object,box)) {
+            const double dx=eye[0]-axis.x,dz=eye[2]-axis.z,r=std::hypot(dx,dz);
+            const double clearance=std::hypot((box[4]-box[0])/2.0,(box[6]-box[2])/2.0)+32;
+            if(r>1 && r<clearance) {
+                eye[0]=axis.x+dx*clearance/r;eye[2]=axis.z+dz*clearance/r;
+            }
+        }
+    }
     for(int i=0;i<3;++i) anchor[i]=eye[i]+forward[i]*half;
     ++fp_updates;
     return true;
@@ -704,7 +730,7 @@ static bool interaction_arm;
 static void first_person_weapon_joint(CPUState* cpu,uint32_t ra) {
     interaction_arm=false;
     if(ra==0x80034c6c && weapon_duke_draw && fp_blend>=0.5 && orbit_valid &&
-       fp_policy.effective && (fp_policy.action==PerspectiveAction::Push || fp_policy.action==PerspectiveAction::Ladder) &&
+       fp_policy.effective && (fp_policy.action==PerspectiveAction::Push || fp_policy.action==PerspectiveAction::Ladder || fp_policy.action==PerspectiveAction::Pole) &&
        cpu->gpr[4]==camera && cpu->gpr[20]==player) {
         const int part=duke_joint_part(duke_model(),cpu->gpr[23]);
         interaction_arm=part>=int(part_arm_first) && part<=0x0f;
@@ -841,12 +867,12 @@ static void first_person_weapon_attached(CPUState* cpu,uint32_t address,uint32_t
 
 // D35E: the native joint loop skips an entire arm when its origin is
 // nearer than GTE H, before the polygon near clipper can see it. Only for
-// ladder arms, let the loop reach that clipper without moving the matrices
+// ladder/pole arms, let the loop reach that clipper without moving the matrices
 // or changing projection. s0 is the loop's saved joint depth; the remaining
 // mesh path uses the real transform and host world-depth packets.
 static void first_person_ladder_near(CPUState* cpu,uint32_t ra) {
     if(ra!=0x80034c8c || !interaction_arm || !weapon_duke_draw ||
-       fp_policy.action!=PerspectiveAction::Ladder || !fp_policy.effective ||
+       (fp_policy.action!=PerspectiveAction::Ladder && fp_policy.action!=PerspectiveAction::Pole) || !fp_policy.effective ||
        !orbit_valid || fp_blend<0.5 || cpu->gpr[20]!=player)return;
     // The actor loop saves a0 (camera) at sp+0x98. s3 is its render context,
     // not the camera pointer (0x8003490c / 0x80034abc).

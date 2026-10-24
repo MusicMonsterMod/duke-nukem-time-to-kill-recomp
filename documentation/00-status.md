@@ -1,5 +1,45 @@
 # Current status - 2026-10-04
 
+## 2026-10-24 - D35C accepted and closed out
+
+User: "lock it in, close it out". D35C is Done. JETPACK VIEW offers
+First Person / Third Person, applies live on CONFIRM and persists independently
+of the flight scheme. Global third person wins; flight exits follow the current
+global view. See [note 225](225-d35c-jetpack-perspective.md).
+
+Accepted executable: `9265a3f7b044df83eb47ba3de49e310993eabae3358892f8b24da772389f4053`.
+Implementation, tests, manual and job records included in authorized closeout
+as MusicMonsterMod. Runtime patch re-exported unchanged and verified against
+the pinned clean framework index: all 51 modified/new files reproduced.
+No post-acceptance gameplay edits, rebuilds or launches. User acceptance does
+not establish unrecorded water/contact or full-campaign coverage. No player
+data changed and no next job started. Launch: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-24 - D35C jetpack perspective candidate (Needs playtest)
+
+JETPACK VIEW in OPTIONS > ADVANCED > ACTION PERSPECTIVE offers First Person
+(default) / Third Person, live on CONFIRM and persistent independently of the
+flight scheme. Global third person wins; leaving flight follows the current
+global view. Shared resolver/replay policy and accepted D11F bridges reused.
+Schema 42; launcher --jetpack-view. No flight, fuel, hover or flame code changes.
+See [note 225](225-d35c-jetpack-perspective.md).
+
+Player build, native controls/input/near-clipping/EDuke32 fuel suites and all 92
+profile tests pass. Private real-menu cancel/confirm, airborne switching,
+flight save/load and relaunch passed. Two-level third-person routes cover all
+three schemes (1,066 samples, 775 in flight). Platform descent passed 138 active
+samples; mirror capture shows reflected flames. Sound continuity checked by
+native loop handle with dummy audio, not listening. Natural water/contact
+interruptions and camera-transition feel remain for user playtest. Final EDuke32
+fuel-out/fall/landing, global view toggles, pause/resume and flight save/load
+also passed. All diagnostic sessions stopped.
+
+Candidate: `9265a3f7b044df83eb47ba3de49e310993eabae3358892f8b24da772389f4053`.
+No player data, generated C or framework sources changed. No acceptance
+closeout, commit or push. Launch: `python3 recomp/tools/local/run.py`.
+
+
 ## 2026-10-24 - D10B1 accepted and closed out
 
 User: "lock it in and close it out!" D10B1 is Done. Native third-person

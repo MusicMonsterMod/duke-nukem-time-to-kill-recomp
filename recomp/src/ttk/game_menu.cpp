@@ -376,6 +376,8 @@ std::vector<Screen> make_screens() {
         heading("ACTION PERSPECTIVE"),
         view_row("SWIMMING VIEW","swim_view","DNTTK_SWIM_VIEW",
                  "FIRST PERSON ONLY. MODERN CONTROLS / INDEPENDENT CAMERA",true),
+        view_row("JETPACK VIEW","jetpack_view","DNTTK_JETPACK_VIEW",
+                 "FIRST PERSON ONLY. INDEPENDENT OF JETPACK FLIGHT SCHEME",true),
         heading("MOVEMENT"),
         {"JUMP",Section::Controls,"jump","DNTTK_JUMP",true,"MANUAL: LEAVE ON THE PRESS AND STEER IN THE AIR",
          {{"ASSISTED","assisted","\"assisted\""},{"MANUAL","manual","\"manual\""}},0},

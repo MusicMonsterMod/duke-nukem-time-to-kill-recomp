@@ -377,6 +377,17 @@ The launcher also accepts `--swim-view first` or `--swim-view legacy-third`;
 these update the saved preference. Add `--show-settings` to save without launching.
 
 
+**JETPACK VIEW** in OPTIONS > ADVANCED > ACTION PERSPECTIVE selects
+FIRST PERSON (default) or THIRD PERSON while flying with global VIEW set to
+FIRST PERSON, Modern controls and Independent camera. CONFIRM applies and
+saves it immediately, including during flight. Global THIRD PERSON always
+wins. Leaving flight returns to the current global VIEW.
+
+The choice is independent of JETPACK's Modern / Classic / EDuke32 movement
+and fuel scheme. It does not change flight controls, hover or reflected flames.
+The launcher accepts `--jetpack-view first` or `--jetpack-view legacy-third`;
+these update the saved preference. Add `--show-settings` to save without launching.
+
 ### View bob (Modernized, first person)
 
 Standing still, the first-person view settles into a substantially stable

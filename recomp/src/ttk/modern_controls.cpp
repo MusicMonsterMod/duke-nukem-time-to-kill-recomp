@@ -227,6 +227,11 @@ static ActionView swimming_view() {
     parse_action_view(ttk_live_env("DNTTK_SWIM_VIEW"),choice);
     return choice;
 }
+static ActionView jetpack_view() {
+    ActionView choice=ActionView::First;
+    parse_action_view(ttk_live_env("DNTTK_JETPACK_VIEW"),choice);
+    return choice;
+}
 static bool independent_camera() {
     if(!input_modern_controls())return false;
     const char* mode=ttk_live_env("DNTTK_CAMERA_MODE");

@@ -3279,6 +3279,49 @@ int main(int argc,char** argv) {
                         }
                     }
                 }
+                // D35C: flight choice, replay, global precedence and exit.
+                for(const char* scheme:{"modern","classic","eduke32"}) {
+                    setenv("DNTTK_JETPACK",scheme,1);
+                    for(unsigned animation=163;animation<=170;++animation) {
+                        psx_mod_write_byte(p+0x22c,10);psx_mod_write_byte(p+0x22d,0);
+                        psx_mod_write_half(p+0x60,animation);psx_mod_write_half(p+0x358,3);
+                        ttk::input.first_person=true;
+                        setenv("DNTTK_JETPACK_VIEW","legacy-third",1);
+                        ++save_loads;frame();assert(metric("\"blend\":")==0);
+                        assert(std::strstr(ttk::controls_debug_json(),"\"reason\":\"legacy-choice\""));
+                        const auto velocity=psx_mod_read_word(p+0x1f8);
+                        const auto fuel=psx_mod_read_half(p+0x35a);
+                        std::vector<uint8_t> third(ttk::render_state_size()),first(third.size());
+                        ttk::render_state_save(third.data());
+                        setenv("DNTTK_JETPACK_VIEW","first",1);
+                        for(int i=0;i<40;++i)frame();assert(metric("\"blend\":")==1);
+                        ttk::render_state_save(first.data());
+                        ttk::render_state_load(third.data());assert(metric("\"blend\":")==0);
+                        ttk::render_state_load(first.data());assert(metric("\"blend\":")==1);
+                        for(int i=0;i<3;++i)assert((int32_t)psx_mod_read_word(p+4+4*i)==root[i]);
+                        assert(psx_mod_read_word(p+0x1f8)==velocity && psx_mod_read_half(p+0x35a)==fuel);
+                        assert(psx_mod_read_half(p+0x358)==3 && !ttk::movement_ready());
+                        ttk::input.first_person=false;
+                        for(const char* view:{"first","legacy-third"}) {
+                            setenv("DNTTK_JETPACK_VIEW",view,1);++save_loads;frame();
+                            assert(metric("\"blend\":")==0);
+                        }
+                        ttk::input.first_person=true;
+                        psx_mod_write_half(p+0x358,1);++save_loads;frame();
+                        assert(metric("\"blend\":")==0 && !ttk::jetpack_input_ready());
+                        psx_mod_write_byte(p+0x22c,9);psx_mod_write_byte(p+0x22d,10);
+                        psx_mod_write_half(p+0x60,108);
+                        for(int i=0;i<40;++i)frame();assert(metric("\"blend\":")==1);
+                        for(unsigned pose:{63u,105u,106u}) {
+                            psx_mod_write_byte(p+0x22c,0);psx_mod_write_half(p+0x60,pose);
+                            frame();assert(metric("\"blend\":")==1);
+                        }
+                    }
+                }
+                unsetenv("DNTTK_JETPACK_VIEW");
+                psx_mod_write_byte(p+0x22c,10);psx_mod_write_byte(p+0x22d,0);
+                psx_mod_write_half(p+0x60,164);psx_mod_write_half(p+0x358,3);frame();
+                std::puts("PASS: D35C all schemes/poses, live choice, replay/reset, global precedence, off/fall/landing and unchanged flight fields");
                 // Native off/fuel-out clears the pack one tick before the
                 // flight animation changes; landing retains previous mode 10.
                 psx_mod_write_half(p+0x358,1);frame();

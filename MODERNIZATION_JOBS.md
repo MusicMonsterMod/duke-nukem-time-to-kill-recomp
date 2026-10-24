@@ -1,5 +1,7 @@
 # Time to Kill — modernization jobs
 
+**Latest accepted job (2026-10-24): D35C jetpack perspective option is Done. User: "lock it in, close it out". [Note 225](documentation/225-d35c-jetpack-perspective.md).**
+
 **Latest accepted job (2026-10-24): D35B swimming perspective option is Done. User fully accepted the First Person / Third Person choice and explicitly requested closeout. [Note 224](documentation/224-d35b-swimming-perspective.md).**
 
 **Latest accepted job (2026-10-24): D08Z6 blocked-run ledge jumps and first-press response are Done. User accepted revision 2 and explicitly authorized lock-in/closeout. [Note 218](documentation/218-d08z6-blocked-run-jumps.md).**
@@ -321,7 +323,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D35 | Comprehensive first-person camera transition audit and modernization roadmap | Needs review | D11, D11E, D11F, D10B |
 | D35A | Shared action-perspective policy and persistent Advanced Settings foundation | Done | D35 |
 | D35B | Swimming perspective option using accepted first-person swimming | Done | D35A, D11E |
-| D35C | Jetpack perspective option using accepted first-person flight | Todo | D35A, D11F |
+| D35C | Jetpack perspective option using accepted first-person flight | Done | D35A, D11F |
 | D35D | First-person push/pull and grab presentation | Todo | D35A, D08T3, D08T7 |
 | D35E | First-person ladder climbing lifecycle | Todo | D35A, D08J3, D08U, D08J1 |
 | D35F | First-person chain, pole and pole-class lamppost climbing | Todo | D35A, D35E, D08J5 |
@@ -404,10 +406,12 @@ animation or settings edits, commit or push are part of this research result.
 
 ### D35C - Jetpack perspective option using accepted first-person flight
 
-**Status:** Todo. **Dependencies:** D35A, D11F.
+**Status:** Done. **Dependencies:** D35A, D11F.
 **Research:** [D35 central audit](documentation/222-d35-first-person-audit.md).
 
 **Current behavior:** D11F retains FP across Modern/Classic/EDuke32 flight. JETPACK chooses movement/fuel scheme, not perspective.
+
+**Accepted:** Live, persistent JETPACK VIEW with First Person / Third Person labels. User accepted and explicitly authorized closeout. [Note 225](documentation/225-d35c-jetpack-perspective.md) records verification and coverage limits.
 
 **Desired result:** Add independent flight presentation choice without changing flight, fuel, platform hovering or reflected flames.
 
@@ -18303,3 +18307,41 @@ implementation, tests, manual and job records included in authorized closeout
 as MusicMonsterMod. Runtime patch re-exported unchanged and checked against
 the clean pinned framework index. No post-acceptance gameplay edits or rebuild.
 Launch: `python3 recomp/tools/local/run.py`.
+
+## 2026-10-24 - D35C jetpack perspective candidate (Needs playtest)
+
+JETPACK VIEW in OPTIONS > ADVANCED > ACTION PERSPECTIVE offers First Person
+(default) / Third Person, live on CONFIRM and persistent independently of the
+flight scheme. Global third person wins; leaving flight follows the current
+global view. Shared resolver/replay policy and accepted D11F bridges reused.
+Schema 42; launcher --jetpack-view. No flight, fuel, hover or flame code changes.
+See [note 225](documentation/225-d35c-jetpack-perspective.md).
+
+Player build, native controls/input/near-clipping/EDuke32 fuel suites and all 92
+profile tests pass. Private real-menu cancel/confirm, airborne switching,
+flight save/load and relaunch passed. Two-level third-person routes cover all
+three schemes (1,066 samples, 775 in flight). Platform descent passed 138 active
+samples; mirror capture shows reflected flames. Sound continuity checked by
+native loop handle with dummy audio, not listening. Natural water/contact
+interruptions and camera-transition feel remain for user playtest. Final EDuke32
+fuel-out/fall/landing, global view toggles, pause/resume and flight save/load
+also passed. All diagnostic sessions stopped.
+
+Candidate: `9265a3f7b044df83eb47ba3de49e310993eabae3358892f8b24da772389f4053`.
+No player data, generated C or framework sources changed. No acceptance
+closeout, commit or push. Launch: `python3 recomp/tools/local/run.py`.
+
+## 2026-10-24 - D35C accepted and closed out
+
+User: "lock it in, close it out". D35C is Done. JETPACK VIEW offers
+First Person / Third Person, applies live on CONFIRM and persists independently
+of the flight scheme. Global third person wins; flight exits follow the current
+global view. See [note 225](documentation/225-d35c-jetpack-perspective.md).
+
+Accepted executable: `9265a3f7b044df83eb47ba3de49e310993eabae3358892f8b24da772389f4053`.
+Implementation, tests, manual and job records included in authorized closeout
+as MusicMonsterMod. Runtime patch re-exported unchanged and verified against
+the pinned clean framework index: all 51 modified/new files reproduced.
+No post-acceptance gameplay edits, rebuilds or launches. User acceptance does
+not establish unrecorded water/contact or full-campaign coverage. No player
+data changed and no next job started. Launch: `python3 recomp/tools/local/run.py`.

@@ -116,6 +116,8 @@ static void first_person_update(const InputFrame& f,unsigned ticks,bool acquirin
     // flags must not apply it to a mantle, fall or another owning action.
     if(fp_policy.action==PerspectiveAction::Swimming)
         fp_policy=resolve_perspective(facts,swimming_view());
+    if(fp_policy.action==PerspectiveAction::Jetpack)
+        fp_policy=resolve_perspective(facts,jetpack_view());
     const bool wanted=fp_policy.effective;
     // A newly authenticated world starts in the selected view. Never blend
     // from an unrelated old save/camera or flash a third-person load frame.

@@ -302,7 +302,16 @@ static void packet_contracts(const char* executable) {
         c.gpr[31]=0x80032010;modern=false;
         observed_hook(&c,0x8002ee50);assert(c.gpr[4]==0x80140000);modern=true;
     }
-    live_third=false;live_eye=true;
+    live_third=false;
+    {
+        auto c=reset();c.gpr[4]=0x80140000;c.gpr[31]=0x80032010;
+        observed_hook(&c,0x8002ee50);
+        assert(c.gpr[4]==0x80140000); // D10B1: native third-person prop overlap test
+        live_eye=true;
+        observed_hook(&c,0x8002ee50);
+        assert(c.gpr[4]!=0x80140000); // Earlier first-person fix remains active
+    }
+    std::puts("PASS: D10B1 native third-person occluder input preserved; first-person suppression retained");
     std::puts("PASS: D10B body packet coverage, native opaque body, solid-door caller and Vanilla gates");
     object_case(0x80032288,100,true); // compact static prop beyond near radius
     object_case(0x80032288,100,true,true); // first mesh need not see an empty OT

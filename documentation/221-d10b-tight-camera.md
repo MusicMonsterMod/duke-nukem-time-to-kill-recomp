@@ -1,6 +1,6 @@
 # D10B - Tight-space third-person camera
 
-2026-10-24. Accepted and closed out.
+2026-10-24. Historical accepted implementation; default behavior superseded by D10B1.
 
 User: "fully accept!! lock it in and close it out". D10B is Done.
 The user accepted the candidate below and explicitly authorized documentation,
@@ -117,3 +117,35 @@ Closeout includes authored title implementation/tests, the exported framework
 patch, manual, board and status/handoff. Patch verification against the clean
 pinned framework preserves earlier accepted work. No retail assets, generated
 code, builds, captures or player saves/cards are included. No next job started.
+
+## 2026-10-24 - D10B later proximity fade (Needs playtest)
+
+User requested a later, gentler fade with the existing spatial pattern.
+Coverage now transitions over 450-1350 world units (previously 650-1700),
+keeping Duke solid closer to the camera. At centered distance 1200, coverage
+is about 93% instead of 54%. Shoulder relief and camera behavior are unchanged.
+Player build and native controls regression suite passed. No live visual
+verification in this follow-up; user playtest remains. No framework edits,
+commit, push or acceptance closeout. Launch: `python3 recomp/tools/local/run.py`.
+
+## D10B1 rollback supersedes the follow-up
+
+The later fade-curve candidate above was not accepted and has been removed.
+D10B is now developer opt-in only (`DNTTK_TIGHT_CAMERA=1`). Ordinary launch
+uses native third-person obstruction handling. See the D10B1 job entry.
+
+## 2026-10-24 - D10B1 accepted and closed out
+
+User: "lock it in and close it out!" D10B1 is Done. Native third-person
+obstruction handling and Duke/scenery fading are the default again; D10B is
+available only with explicit developer opt-in `DNTTK_TIGHT_CAMERA=1`.
+The earlier fade-curve experiment is superseded and removed. No other job
+started. Accepted executable:
+`eb44c596365fdc76922aff91fd294be84510ce497a8c133436ae82f065aa5cb5`.
+
+Build, controls (unset/0/1) and near-clipping tests passed as recorded below.
+User acceptance does not establish exhaustive campaign verification. Authored
+implementation, tests, manual and job records included in authorized closeout
+as MusicMonsterMod. Runtime patch re-exported unchanged and checked against
+the clean pinned framework index. No post-acceptance gameplay edits or rebuild.
+Launch: `python3 recomp/tools/local/run.py`.

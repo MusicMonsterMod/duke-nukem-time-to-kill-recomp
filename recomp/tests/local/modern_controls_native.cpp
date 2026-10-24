@@ -251,6 +251,8 @@ static void call(uint32_t address,uint32_t a0,uint32_t a1,uint32_t ra,uint32_t s
     hooks().at(address)(&cpu,address);
 }
 int main(int argc,char** argv) {
+    const char* tight_env=std::getenv("DNTTK_TIGHT_CAMERA");
+    const bool tight_enabled=tight_env && !std::strcmp(tight_env,"1");
     // Compare every combination with the pre-D35A presentation rule.
     for(unsigned mask=0;mask<512;++mask) {
         ttk::PerspectiveFacts f{};
@@ -1771,7 +1773,7 @@ int main(int argc,char** argv) {
     orientation.gpr[4]=orientation.gpr[29]+0x18;orientation.gpr[5]=orientation.gpr[29]+0x68;
     const auto requested_x=psx_mod_read_half(c+12);
     writes=0;hooks().at(0x8002a7fc)(&orientation,0x8002a7fc);
-    assert(writes==11 && psx_mod_read_half(orientation.gpr[4]+12)==requested_x);
+    assert(writes==(tight_enabled?11:9) && psx_mod_read_half(orientation.gpr[4]+12)==requested_x);
     assert(psx_mod_read_word(0x800c3c48)==768); // D10B temporary minimum restored
     assert(psx_mod_read_word(c+0x64)==0 && (int32_t)psx_mod_read_word(c+0x6c)==-3000);
     orientation.gpr[31]=0x80029218;writes=0;
@@ -2440,9 +2442,8 @@ int main(int argc,char** argv) {
         std::remove(state);unsetenv("DNTTK_CAMERA_STATE_FILE");
         ttk::input.shoulder=0;for(unsigned i=0;i<60;++i)frame();
         assert(std::abs(metric("\"shoulder_offset\":"))<1);
-        // D10B: verified constraint scope, collision-first inward movement,
-        // outward hysteresis, preserved preference and native constant restore.
-        {
+        // Exercise the optional D10B comparison in a separate process run.
+        if(tight_enabled) {
             const double preference=metric("\"preferred_radius\":");
             frame();sp=0x801f0000-0xb8;
             call(0x8003aa48,c,sp+0x18,0x8003aeb0,sp);
@@ -2511,6 +2512,39 @@ int main(int argc,char** argv) {
             for(int i=0;i<3;++i)psx_mod_write_half(p+0x89c+2*i,effects[i]);
             psx_mod_write_word(ctx+0x48,0);psx_mod_write_word(ctx+0x4c,0);
             std::puts("PASS: D10B scoped minimum, inward solve, outward hold/recovery and saved-distance isolation");
+        } else {
+            // D10B1: ordinary launches leave native collision/fade decisions intact.
+            frame();sp=0x801f0000-0xb8;
+            call(0x8003aa48,c,sp+0x18,0x8003aeb0,sp);
+            assert(psx_mod_read_word(0x800c3c48)==768);
+            for(uint32_t ra:{0x8003af40u,0x8003af60u,0x8003af80u}) {
+                CPUState cpu{};cpu.gpr[4]=(uint32_t)-100;cpu.gpr[5]=4;
+                cpu.gpr[29]=sp;cpu.gpr[31]=ra;
+                hooks().at(0x8002a038)(&cpu,0x8002a038);
+                assert(cpu.gpr[4]==(uint32_t)-100 && cpu.gpr[5]==4);
+            }
+            assert(!ttk::third_person_camera_live());
+            assert(ttk::third_person_body_coverage()==1);
+            call(0x800348d8,c,p,0x8003769c);
+            constexpr uint32_t ctx=0x800d67a8;
+            psx_mod_write_word(ctx+0x48,0x02000000);
+            psx_mod_write_word(ctx+0x4c,0x600000);
+            CPUState draw{};ttk::third_person_mesh_begin(&draw);
+            assert(psx_mod_read_word(ctx+0x48)==0x02000000);
+            assert(psx_mod_read_word(ctx+0x4c)==0x600000);
+            std::vector<uint8_t> image(ttk::render_state_size());
+            ttk::render_state_save(image.data());
+            const pid_t child=fork();assert(child>=0);
+            if(child==0) {
+                ttk::render_state_load(image.data());
+                assert(!ttk::third_person_camera_live());
+                assert(ttk::third_person_body_coverage()==1);
+                _exit(0);
+            }
+            int status=0;assert(waitpid(child,&status,0)==child && WIFEXITED(status) && WEXITSTATUS(status)==0);
+            call(0x8001ca4c,0,0,0x800376b4);
+            psx_mod_write_word(ctx+0x48,0);psx_mod_write_word(ctx+0x4c,0);
+            std::puts("PASS: D10B1 native minimum/follow/fade retained, no body dissolve, replay gate off");
         }
         // D11 first-person: the eye follows the neck joint; the anchor sits half a
         // projection distance ahead of it. The original minimum boom is relaxed
@@ -3015,7 +3049,7 @@ int main(int argc,char** argv) {
             for(unsigned i=0;i<40;++i)frame();
             assert(metric("\"blend\":")==0);
             call(0x8003aa48,c,sp+0x18,0x8003aeb0,sp);
-            assert(psx_mod_read_word(0x800c3c48)==256 && (int16_t)psx_mod_read_half(c+0x42)==386);
+            assert(psx_mod_read_word(0x800c3c48)==(tight_enabled?256u:768u) && (int16_t)psx_mod_read_half(c+0x42)==386);
             call(0x8002a038,0,1,0x8003af40,sp);assert(psx_mod_read_word(0x800c3c48)==768);
             call(0x800348d8,c,p,0x8003769c);assert(!(psx_mod_read_byte(record)&1));
             // D11C: a head hide captured by a save state (bit 0 set, host owns

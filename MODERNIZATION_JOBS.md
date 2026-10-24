@@ -187,7 +187,8 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D09 | Modern controller support | Todo | D05, D06, D07 |
 | D10 | Third-person camera polish | Done | D08 |
 | D10A | Rapid mouse turning and Shift-running investigation | Done | D06, D07C, D08 |
-| D10B | Tight-space third-person camera: translucent Duke and see-through doors | Done | D10, D11B |
+| D10B | Tight-space third-person camera: translucent Duke and see-through doors | Superseded by D10B1 | D10, D11B |
+| D10B1 | Roll back D10B behavior; restore native third-person obstruction handling | Done | D10B |
 | D10C | Duke 3D look keys: Page Up / Page Down look up / down while held and recenter on release; Home / End lock the look up / down (bindable) | Done (user-accepted 2026-10-20) | D06, D19G |
 | D10D | Keyboard turning in Modernized: Left / Right arrows turn the view left / right (Duke 3D style, alongside the mouse) | Done (user-accepted 2026-10-20) | D06, D10C |
 | D11 | First-person playable prototype | Done | D08, D10 |
@@ -6039,7 +6040,35 @@ aiming and Vanilla. **Acceptance:** documented failure/comparison and a bounded
 verified repair where supported, with responsive turning and original camera
 constraints intact. Full matrix: [current brief](documentation/45-playtest-turning-audio-follow-up.md).
 
+### D10B1 - Roll back D10B behavior
+
+**Done - accepted 2026-10-24:** "lock it in and close it out!"
+Implementation, tests and documentation included in authorized closeout.
+Build/controls/clipping checks passed; broad campaign coverage is not claimed.
+
+User compared slot 6 in both modes:
+native box transparency preserves third-person combat visibility; D10B's
+opaque boxes make the room less pleasant to play. User requested a separately
+logged rollback job before implementation.
+
+**Scope:** disable D10B by default using its existing complete behavior gate.
+Retain explicit developer opt-in for comparison, not a saved player preference.
+Restore native third-person Duke/scenery fading and camera obstruction response.
+Preserve pre-D10B work and subsequent jobs. Retain inert shared renderer/replay
+support rather than reversing unrelated framework changes.
+
+**Acceptance:** ordinary launch follows the existing `DNTTK_TIGHT_CAMERA=0`
+behavior without requiring that environment variable. Native fade state is not
+cleared; D10B camera minimum/follow overrides are inactive. First-person and
+Vanilla guards continue passing. Build and regression tests pass; user verifies
+slot 6 and cramped routes. No commit/push or acceptance closeout without request.
+The earlier unaccepted fade-curve experiment is superseded by this rollback.
+
 ### D10B - Tight-space third-person camera: translucent Duke and see-through doors
+
+**2026-10-24 follow-up - Superseded by D10B1 (not accepted):** user requested later, gentler proximity
+fade while retaining the accepted spatial effect. Tune only body coverage;
+camera collision and shoulder behavior remain as accepted.
 
 **Done - user accepted 2026-10-24:** "fully accept!! lock it in and close it out".
 Accepted compression, shoulder centering/recovery, Duke-only proximity fade and
@@ -18226,3 +18255,51 @@ supporting documentation are included in authorized closeout as MusicMonsterMod.
 Runtime patch re-export is unchanged and reproduces all 51 modified/new files
 against the pinned clean framework. No gameplay edits, rebuild or launch at
 closeout. Existing test coverage limits remain in note 224. No next job started.
+
+## 2026-10-24 - D10B later proximity fade candidate
+
+User requested keeping Duke solid longer while retaining the spatial effect.
+Changed the smooth coverage interval from 650-1700 to 450-1350 world units;
+shoulder relief, camera collision/recovery and rendering are unchanged.
+Player build and native controls suite passed, including coverage continuity,
+monotonicity, later onset, extreme-close clearance and camera/Vanilla guards.
+No live visual test in this follow-up; user camera-feel playtest remains.
+No framework edits, commit, push or acceptance closeout.
+
+## 2026-10-24 - D10B1 rollback candidate (Needs playtest)
+
+User's slot-6 comparison found native box translucency useful during combat;
+D10B's opaque scenery reduced visibility. Logged D10B1 before implementation.
+Ordinary launch now uses the former `DNTTK_TIGHT_CAMERA=0` behavior: native
+third-person obstruction/fade handling, no D10B compression, centering,
+follow overrides or patterned Duke dissolve. Only explicit
+`DNTTK_TIGHT_CAMERA=1` enables the historical D10B comparison. No saved setting
+changed. Earlier and subsequent jobs remain intact. The unaccepted later-fade
+curve experiment was removed; its historical record is retained below.
+
+Build PASS. Native controls suite PASS with environment unset, 0 and 1;
+near-clipping suite PASS, including native third-person occluder input and
+retained first-person suppression. Default tests cover native minimum/follow,
+untouched Duke fade and disabled replay coverage. Updated two old assertions
+that assumed D10B was always active. Logs: `recomp/analysis/d10b1/` (local).
+Candidate SHA-256: `eb44c596365fdc76922aff91fd294be84510ce497a8c133436ae82f065aa5cb5`.
+No new live gameplay observation; slot-6 acceptance of this build and cramped
+routes remain for user playtest. Framework modifications were not changed;
+shared renderer/replay support remains inert by default. No commit/push or
+acceptance closeout. Launch: `python3 recomp/tools/local/run.py`.
+
+## 2026-10-24 - D10B1 accepted and closed out
+
+User: "lock it in and close it out!" D10B1 is Done. Native third-person
+obstruction handling and Duke/scenery fading are the default again; D10B is
+available only with explicit developer opt-in `DNTTK_TIGHT_CAMERA=1`.
+The earlier fade-curve experiment is superseded and removed. No other job
+started. Accepted executable:
+`eb44c596365fdc76922aff91fd294be84510ce497a8c133436ae82f065aa5cb5`.
+
+Build, controls (unset/0/1) and near-clipping tests passed as recorded below.
+User acceptance does not establish exhaustive campaign verification. Authored
+implementation, tests, manual and job records included in authorized closeout
+as MusicMonsterMod. Runtime patch re-exported unchanged and checked against
+the clean pinned framework index. No post-acceptance gameplay edits or rebuild.
+Launch: `python3 recomp/tools/local/run.py`.

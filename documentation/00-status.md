@@ -1,5 +1,56 @@
 # Current status - 2026-10-04
 
+## 2026-10-24 - D10B1 accepted and closed out
+
+User: "lock it in and close it out!" D10B1 is Done. Native third-person
+obstruction handling and Duke/scenery fading are the default again; D10B is
+available only with explicit developer opt-in `DNTTK_TIGHT_CAMERA=1`.
+The earlier fade-curve experiment is superseded and removed. No other job
+started. Accepted executable:
+`eb44c596365fdc76922aff91fd294be84510ce497a8c133436ae82f065aa5cb5`.
+
+Build, controls (unset/0/1) and near-clipping tests passed as recorded below.
+User acceptance does not establish exhaustive campaign verification. Authored
+implementation, tests, manual and job records included in authorized closeout
+as MusicMonsterMod. Runtime patch re-exported unchanged and checked against
+the clean pinned framework index. No post-acceptance gameplay edits or rebuild.
+Launch: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-24 - D10B1 rollback candidate (Needs playtest)
+
+User's slot-6 comparison found native box translucency useful during combat;
+D10B's opaque scenery reduced visibility. Logged D10B1 before implementation.
+Ordinary launch now uses the former `DNTTK_TIGHT_CAMERA=0` behavior: native
+third-person obstruction/fade handling, no D10B compression, centering,
+follow overrides or patterned Duke dissolve. Only explicit
+`DNTTK_TIGHT_CAMERA=1` enables the historical D10B comparison. No saved setting
+changed. Earlier and subsequent jobs remain intact. The unaccepted later-fade
+curve experiment was removed; its historical record is retained below.
+
+Build PASS. Native controls suite PASS with environment unset, 0 and 1;
+near-clipping suite PASS, including native third-person occluder input and
+retained first-person suppression. Default tests cover native minimum/follow,
+untouched Duke fade and disabled replay coverage. Updated two old assertions
+that assumed D10B was always active. Logs: `recomp/analysis/d10b1/` (local).
+Candidate SHA-256: `eb44c596365fdc76922aff91fd294be84510ce497a8c133436ae82f065aa5cb5`.
+No new live gameplay observation; slot-6 acceptance of this build and cramped
+routes remain for user playtest. Framework modifications were not changed;
+shared renderer/replay support remains inert by default. No commit/push or
+acceptance closeout. Launch: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-24 - D10B later proximity fade (Needs playtest)
+
+User requested a later, gentler fade with the existing spatial pattern.
+Coverage now transitions over 450-1350 world units (previously 650-1700),
+keeping Duke solid closer to the camera. At centered distance 1200, coverage
+is about 93% instead of 54%. Shoulder relief and camera behavior are unchanged.
+Player build and native controls regression suite passed. No live visual
+verification in this follow-up; user playtest remains. No framework edits,
+commit, push or acceptance closeout. Launch: `python3 recomp/tools/local/run.py`.
+
+
 ## 2026-10-24 - D35B accepted and closed out
 
 User: "great work. fully accept, close it out". D35B is Done: SWIMMING VIEW

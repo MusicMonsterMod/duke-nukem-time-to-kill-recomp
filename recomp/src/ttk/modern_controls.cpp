@@ -118,7 +118,9 @@ static uint64_t tight_hold_until=0;
 static bool tight_compressed=false;
 static unsigned tight_return_rate=6;
 static bool tight_camera_enabled() {
-    static const bool enabled=[] {const char* t=std::getenv("DNTTK_TIGHT_CAMERA");return !t || std::strcmp(t,"0");}();
+    // D10B1: native obstruction handling is the player default. D10B is
+    // retained only for explicit developer comparisons.
+    static const bool enabled=[] {const char* t=std::getenv("DNTTK_TIGHT_CAMERA");return t && !std::strcmp(t,"1");}();
     return enabled;
 }
 static uint64_t recenter_seen,recenters;

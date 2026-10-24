@@ -1,5 +1,26 @@
 # Next-session handoff
 
+## 2026-10-24 - D20G investigation accepted and closed
+
+D20G is Done by explicit user instruction. 82 private restores across accepted
+D08T7 and pre-D08T7 D08T5 passed; the original slot-11 GPU halt remains
+unreproduced, with cause and regression origin unresolved. No fix is claimed.
+
+**If similar save/load GPU halts, wrong colours or scrambled geometry recur,
+consult Done job D20G and [note 213's recurrence checklist](213-d20g-slot11-load-halt.md#recurrence-checklist-for-future-done-job-reviews).**
+Capture live mod-memory aperture/Expansion 1 as well as RAM before quitting;
+the earlier RAM-only DMA walk was invalid after its aperture link. Retain load
+sequence, settings, binary hashes and host history. Mid-composition host render
+state is a diagnostic lead, not a proven cause. D20C remains relevant background.
+
+No gameplay/framework changes or rebuild. Current accepted executable remains
+`0a4f3a5a5837e867936095107c2ae6f5f20dc33e4007ab88113ae3708e117078`.
+Player files unchanged. User authorized documentation/commit/push closeout.
+D08T8 remains Todo; await the user's next selection.
+
+Launch: `python3 recomp/tools/local/run.py`; automatic gameplay capture.
+
+
 ## 2026-10-24 - D08T7 accepted and closed; D20G next after context clear
 
 User: mechanic is "absolutely solid" after several tests, then explicitly

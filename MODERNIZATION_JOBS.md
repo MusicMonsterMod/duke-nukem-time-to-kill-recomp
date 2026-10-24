@@ -1,6 +1,6 @@
 # Time to Kill — modernization jobs
 
-**Latest accepted job (2026-10-24): D08T7 lane regrab is Done. Next: D20G slot-11 reload investigation (Todo, deferred to fresh context). D08T8 side mantle remains Todo.**
+**Latest accepted job (2026-10-24): D20G reload-halt investigation is Done (not reproduced; cause unresolved). If a similar save/load GPU halt or corruption recurs, revisit D20G and [note 213](documentation/213-d20g-slot11-load-halt.md) before starting from scratch. D08T8 side mantle remains Todo.**
 
 **Latest accepted job (2026-10-24): D08T5 alley dumpster ladder limit is Done. Slot 7's X 7292 is the maximum push toward the ladder. [Note 210](documentation/210-d08t5-dumpster-limit.md).**
 
@@ -265,7 +265,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D20F | Statistics screen choices as a selectable list: CONTINUE and SAVE GAME highlighted with arrows / wheel, Enter chooses (no hidden V for SAVE) | Done (user-accepted 2026-10-21) | D20B |
 | D20D | Richer statistics screen (option B, part 2): level, difficulty, mission items, best time per level and difficulty (our own file) | Done (user-accepted 2026-10-21) | D20B, D08A5, D20F |
 | D20E | Statistics research: enemy total (kills X of Y), shots / accuracy, damage taken; show only once verified | Done (user-accepted 2026-10-22) | D20B |
-| D20G | Investigate UI slot 11 reload fatal GPU halt: regression assessment and fix decision | Todo | D20C |
+| D20G | Investigate UI slot 11 reload fatal GPU halt: regression assessment and fix decision; recurrence lessons in note 213 | Done (user-accepted 2026-10-24; unreproduced, revisit if similar symptoms recur) | D20C |
 | D21 | Accessibility and sound controls | Todo | D04, D19 |
 | D22 | Campaign fidelity and overlay coverage | Todo | D01 |
 | D22A | Portal transition loses Modernized controls and first person (slot 7) | Accepted | D05, D06, D11 |
@@ -8405,9 +8405,14 @@ Vanilla unchanged.
 
 ### D20G - UI slot 11 reload fatal GPU halt: regression assessment
 
-**Todo (2026-10-24, backlog only).** User explicitly deferred investigation until
-fresh context. Next selected work is this investigation, then return to the
-push/pull backlog (D08T8 still Todo). Do not start from this closeout.
+**Done (user-accepted 2026-10-24).** Investigation closed, not a claimed fix.
+User requested retaining the lessons for any similar recurrence. 41 private
+restores per build (32 diagnostic, eight menu plus setup), no fatal on accepted
+D08T7 or pre-D08T7 D08T5. Cause and regression origin remain unresolved. No
+behavioral fix justified; concrete packet/aperture diagnostic follow-up in
+[note 213](documentation/213-d20g-slot11-load-halt.md). If another savestate
+reload produces a GPU halt, bad colours or scrambled geometry, consult this
+Done job and its recurrence checklist before investigating anew. D08T8 remains Todo.
 
 At 08:46:44 BST, UI slot 11 (internal/file index 10) restored successfully, then
 halted on GPU GP0 opcode 0x1F, word 0x1F20161D. Same slot loaded earlier in the
@@ -17307,3 +17312,31 @@ or rebuild during closeout. D20G is a backlog-only regression/fix-decision
 investigation of the preserved slot-11 fatal GPU halt. No investigation started
 in closeout; next session works on D20G before returning to push/pull jobs.
 D08T8 remains Todo. D08T6's research remains recorded separately for review.
+
+
+## 2026-10-24 - D20G investigation ready for review
+
+Compared the hash-verified accepted D08T7 and preserved D08T5 executables using
+private intake copies. Each passed 32 debug loads at OpenGL 4x/120 preference
+and eight real-keyboard LOAD GAME loads plus setup at OpenGL 1x/auto. No FATAL;
+load generations and frame progress checked. The shorter routes do not reproduce
+the incident's full input history or cadence. All six incident player-source
+files remain unchanged. See [note 213](documentation/213-d20g-slot11-load-halt.md).
+
+The saved DMA is inactive; fatal occurs on a later list. Live mod aperture data
+was missing from the fatal capture, invalidating the earlier RAM-only chain walk
+after its first aperture link. Exact producer/regression origin remain unknown;
+mid-composition host render state is a hypothesis. No speculative fix, rebuild,
+Vanilla change, acceptance closeout, commit or push. D20G Needs review; next
+diagnostic is full aperture capture plus GP0 source/current DMA node and title
+render-state reconciliation at the first post-load DMA. D08T8 not started.
+
+
+## 2026-10-24 - D20G accepted and closed; retain recurrence lessons
+
+User explicitly requested locking in and closing the investigation, with a note
+so future scans of Done jobs recover its evidence and lessons if similar symptoms
+recur. D20G is Done as an investigation: 82 successful comparative restores,
+original fatal unreproduced, cause/regression origin unresolved, no fix claimed.
+Note 213, status and handoff link the recurrence checklist. No gameplay edits
+or rebuild; accepted D08T7 executable remains current. D08T8 remains Todo.

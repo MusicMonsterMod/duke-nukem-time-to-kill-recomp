@@ -715,7 +715,9 @@ static bool idle_fidget_eye() {
 }
 static bool use_interaction_eye() {
     const unsigned a=psx_mod_read_half(player+0x60);
-    return (a==118 || a==266 || a==277) &&
+    // D35J4: slot-9 crystal take/return uses 268/267 in the same native
+    // selector (0x80051608). Keep its action lock and ordinary-camera gates.
+    return (a==118 || a==266 || a==267 || a==268 || a==277) &&
         psx_mod_read_byte(player+0x22c)==0 && psx_mod_read_byte(player+0x22d)==0 &&
         (psx_mod_read_word(player+0x224)&0x40);
 }

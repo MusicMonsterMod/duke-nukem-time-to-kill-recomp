@@ -1,5 +1,7 @@
 # Time to Kill — modernization jobs
 
+**Latest accepted job (2026-10-25): D35J4 slot-9 crystal take/return perspective is Done. User: "lock it in and close it out!". [Note 236](documentation/236-d35j4-time-crystal-perspective.md). Other intake jobs remain Todo.**
+
 **Backlog intake (2026-10-25): Five user reports queued as Todo only. D35J4 (bug 5, slot-9 time crystal) is first for future work; no job is started. D08Q7, D08T9, D35N1 and D08Q8 record bugs 1-4. Implementation awaits a later instruction.**
 
 **Latest accepted job (2026-10-25): D35I first-person walls and fluid diagonal WASD is Done. User: "fully accepted! lock it in and close it out". [Note 232](documentation/232-d35i-wall-climbing.md).**
@@ -352,7 +354,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D35J1 | First-person idle fidgets without perspective drops | Done | D35J |
 | D35J2 | Preserve first person through held native inventory | Done | D35J |
 | D35J3 | First-person NPC interaction presentation | Done | D35J |
-| D35J4 | Slot-9 time crystal forces third person (bug 5, first queued) | Todo | D35J, D35J1, D35J2, D35J3, D35M |
+| D35J4 | Slot-9 time crystal forces third person (bug 5, first queued) | Done | D35J, D35J1, D35J2, D35J3, D35M |
 | D35K | Native scripted and special-camera event inventory | Todo | D35 |
 | D35L | First-person death and respawn presentation research | Todo | D35 |
 | D35M | First-person door opening and related use interactions | Done | D35A |
@@ -374,8 +376,18 @@ saves and are not immutable fixtures; future tests must use private copies.
 
 ### D35J4 - Slot-9 time crystal forces third person (bug 5)
 
-**Status:** Todo. **Dependencies:** D35J, D35J1-J3, D35M (Done).
-**Priority:** First of these five reports for future work; not started.
+**Status:** Done. **Dependencies:** D35J, D35J1-J3, D35M (Done).
+**Selected (2026-10-25):** User instructed "let's go with D35J4 straight away".
+Only D35J4 is selected; the other four reports remain backlog.
+
+**Accepted and closed (2026-10-25):** User instructed "lock it in and close it out!".
+
+**Evidence:** [Note 236](documentation/236-d35j4-time-crystal-perspective.md).
+Slot-9 crystal take/return poses 268/267 now use the existing first-person
+interaction policy. Build and four native suites pass; private 60/120 routes,
+third-person choices, pause/load and Vanilla action-load checks pass within
+the recorded limits. The delivered candidate is user-accepted; broader crystal
+and campaign coverage is not implied.
 
 **Report:** The time crystal in current slot 9 puts Duke into third person.
 The user requests the same first-person treatment as the accepted D35J/J1-J3
@@ -18864,3 +18876,35 @@ Slot 6 mirror, slot 12 jetpack clearance and the local Duke3D video reference
 are preserved in the entries. No reports were independently reproduced.
 Documentation-only intake with explicit commit/push authorization; no gameplay
 investigation, code changes, builds, launches or player-data changes.
+
+
+## 2026-10-25 - D35J4 crystal take/return candidate (Needs playtest)
+
+User selected D35J4 immediately after the backlog intake. Current slot 9 uses
+crystal-holder poses 268/267, unlike the earlier pose-266 item-placement route.
+Both reproduced unsupported-camera/blend 0 despite normal camera ownership.
+The use presentation predicate now includes those two poses under the existing
+USE INTERACTION VIEW preference, with native action gates and Vanilla intact.
+
+[Note 236](documentation/236-d35j4-time-crystal-perspective.md) records build,
+four native suites, private 60/120 routes, first/third choices, pause/load,
+Vanilla native-action completion and the initial load invalidation limit.
+User framing/comfort acceptance remains. Diagnostic sessions stopped; source
+save/card hashes and mtimes unchanged. No framework/generated-C/pin edits,
+player settings writes, implementation commit/push or acceptance closeout.
+Launch: `python3 recomp/tools/local/run.py`. No other backlog job started.
+
+
+## 2026-10-25 - D35J4 accepted and closed out
+
+User: "lock it in and close it out!". D35J4 is Done. Slot-9 crystal take/return
+poses 268/267 retain first person through the existing USE INTERACTION VIEW
+policy. Implementation, regression tests, manual and documentation are included
+in the authorized MusicMonsterMod commit/push. [Note 236](documentation/236-d35j4-time-crystal-perspective.md)
+retains the validation evidence and coverage limits.
+
+Accepted executable: `7da56adc98ba7b4bde4b92591a06cd35953da1a7b117450607363684264b5663`.
+No post-acceptance gameplay edits, rebuilds or launches. No framework edits or
+pin changes; the existing framework working-tree modifications are preserved.
+No player data changed. D08Q7, D08T9, D35N1 and D08Q8 remain Todo; no next job
+started. Launch: `python3 recomp/tools/local/run.py`.

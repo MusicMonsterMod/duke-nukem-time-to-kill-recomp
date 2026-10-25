@@ -1,5 +1,44 @@
 # Next-session handoff
 
+## 2026-10-25 - D35J4 accepted and closed
+
+User explicitly instructed "lock it in and close it out!". D35J4 is Done.
+Slot-9 crystal-holder take/return poses 268/267 now retain first person under
+USE INTERACTION VIEW. Native action/item handling, Third Person choices and
+Vanilla retain their behavior. [Note 236](236-d35j4-time-crystal-perspective.md)
+records the build, four native suites, private 60/120 routes, pause/load and
+Vanilla action-load evidence, including the initial load invalidation limit.
+
+Accepted executable: `7da56adc98ba7b4bde4b92591a06cd35953da1a7b117450607363684264b5663`.
+Implementation, regression tests, manual and documentation are included in the
+explicitly authorized MusicMonsterMod commit/push. No post-acceptance gameplay
+edits, rebuilds or launches. No framework edits/pin changes; existing framework
+working-tree modifications preserved. No player data changed. Acceptance does
+not establish additional underwater/crystal/campaign coverage.
+D08Q7, D08T9, D35N1 and D08Q8 remain Todo; no next job started.
+Launch: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-25 - D35J4 time-crystal candidate (Needs playtest)
+
+The user selected D35J4. Slot-9 crystal-holder take/return poses 268/267 now
+retain first person under USE INTERACTION VIEW. Native action and item handling
+remain unchanged; global/action Third Person and Vanilla retain their behavior.
+[Note 236](236-d35j4-time-crystal-perspective.md) records evidence and limits.
+
+Player build and controls/input/aim/near suites pass. Private 60/120 sequences,
+third-person comparisons, pause/load and Vanilla saved-action completion pass.
+The immediate load invalidation precedes stable first-person restoration;
+user framing/comfort and broader crystal variants remain for playtest.
+Candidate: `7da56adc98ba7b4bde4b92591a06cd35953da1a7b117450607363684264b5663`.
+Diagnostics stopped; player save/card hashes and mtimes unchanged. No framework
+or generated-C edits, player settings writes, implementation commit/push or
+acceptance closeout. The other four reports remain Todo, including the
+user-confirmed slot-8 dumpster repeat-push failure. Launch:
+`python3 recomp/tools/local/run.py`. Test slot 9 with global First Person
+and USE INTERACTION VIEW set to First Person.
+
+
 ## 2026-10-25 - Five new reports queued; D35J4 first
 
 Backlog-only intake authorized with commit and push. All five jobs are Todo:

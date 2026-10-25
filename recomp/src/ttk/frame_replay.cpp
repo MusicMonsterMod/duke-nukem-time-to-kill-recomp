@@ -739,7 +739,10 @@ int submit_job(Frame& base,const Frame& next,double alpha,bool late,double look_
         if(late) {if(apply_late(base.state,next.state,alpha,p,look_ms)) ++late_applied; else ++late_skipped;}
         std::memcpy(param_buffer,&p,sizeof p);
     }
-    len=append_render(base,param_buffer,len);
+    {
+        const uint32_t at=len;len=append_render(base,param_buffer,len);
+        if(len-at==render_state_size())render_state_blend_mask(param_buffer+at,next.render,interp_off ? 0.0 : interp_full ? 1.0 : alpha);
+    }
     len=append_xf(base,next,interp_off ? 0.0 : interp_full ? 1.0 : alpha,param_buffer,len);
     const int job=psx_mod_replay_submit(base.slot,param_buffer,len,base.serial);
     if(job>=0) ++submits;

@@ -1678,6 +1678,17 @@ saves the choice. Vanilla retains original behavior. The launcher also accepts
 `--night-vision modern|original`; this saves the preference. In `--settings`,
 choose **N Night vision**.
 
+### First-person Bio Mask mesh (D08A26)
+
+While the Bio Mask is active in Modernized first person, a low-poly respirator
+and ribbed hoses appear along the bottom of the view. Their brightness and tint
+follow the drawn weapon's native lighting; with the weapon holstered, they use
+Duke's current brightness. They follow View Bob
+(off/subtle/on/strong), stay beneath the HUD, and disappear when the mask is
+removed or the view changes to third person. This adds no protection or charge
+changes. Use **B** to toggle an owned, charged mask, or let automatic gas
+protection equip it. Vanilla keeps its original presentation.
+
 ### Automatic and instant Bio Mask (D08A24)
 
 **OPTIONS > ADVANCED > ITEMS > AUTO BIO MASK** defaults to **ON**. An owned,

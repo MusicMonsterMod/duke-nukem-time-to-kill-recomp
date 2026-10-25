@@ -37,7 +37,8 @@ static std::vector<HostCorner> host_corners;
 extern "C" {uint8_t* g_psx_ram=ram;uint32_t g_dirty_ram_code_gen=1;}
 extern "C" uint32_t psx_mod_alloc_guest_memory(uint32_t size,uint32_t){static uint32_t next=0x801d0000;const auto result=next;next+=size;assert(next<=0x80200000);return result;}
 // D17R1 host packet arena (GPU DMA aperture).
-extern "C" uint32_t psx_mod_alloc_gpu_dma_memory(uint32_t,uint32_t){return 0x80f00000;}
+extern "C" uint32_t psx_mod_alloc_gpu_dma_memory(uint32_t n,uint32_t align){static uint32_t next=0x80f00000;next=(next+align-1)&~(align-1);const auto p=next;next+=n;assert(next<=0x81000000);return p;}
+extern "C" int32_t psx_mod_widescreen_x_margin(void){return 85;}
 // GPU DMA aperture (0x80f00000, mod_memory.h), apart from main RAM as in the runtime.
 static uint8_t aperture[0x100000];
 static uint8_t& byte_at(uint32_t a){return (a&0xffffff)>=0xf00000?aperture[a&0xfffff]:ram[a&0x1fffff];}
@@ -545,6 +546,47 @@ static void whole_polygon_contracts() {
     psx_mod_write_word(0x80011acc,code);++g_dirty_ram_code_gen;
     std::puts("ttk-near-test whole-polygon contracts PASS");
 }
+static void biomask_packet_contracts() {
+    // Animation overrides and the mask must coexist in the same 1 MiB aperture.
+    assert(psx_mod_alloc_gpu_dma_memory(320*1024,16));
+    constexpr uint32_t ot=0x800d27a0,bitmap=0x800d26a0,weapon=0x801f0000,hud=0x801f0100;
+    std::vector<uint32_t> colors;
+    auto draw=[&](double bob,uint32_t light=0x808080){
+        colors.clear();
+        ttk::near_clip_load_frame_state({0,0,0,0});host_corners.clear();
+        psx_mod_write_word(bitmap,0xc0000000u);
+        psx_mod_write_word(ot,hud);psx_mod_write_word(ot+4,hud);psx_mod_write_word(hud,0x03000000);
+        psx_mod_write_word(ot+8,weapon);psx_mod_write_word(ot+12,weapon);psx_mod_write_word(weapon,0x03000000);
+        ttk::near_clip_biomask(bob,light);
+        assert(psx_mod_read_word(ot)==hud && psx_mod_read_word(hud)==0x03000000);
+        assert(psx_mod_read_word(ot+8)==weapon);
+        uint32_t node=psx_mod_read_word(weapon)&0xffffff;unsigned n=0;
+        while(node){
+            assert(++n<=2400);const uint32_t p=node|0x80000000u;
+            assert((psx_mod_read_word(p)>>24)==9);
+            assert((psx_mod_read_word(p+4)>>24)==0x34);
+            colors.push_back(psx_mod_read_word(p+4)&0xffffff);
+            assert((psx_mod_read_word(p+12)>>16)==0x7fff);
+            assert((psx_mod_read_word(p+24)>>16)==0x7e00);
+            node=psx_mod_read_word(p)&0xffffff;
+        }
+        assert(n>1000 && host_corners.size()==n*3);
+        for(const auto& c:host_corners){assert(c.z>0 && c.depth<0);assert(c.u>=0 && c.u<=255 && c.v>=0 && c.v<=127);}
+        return host_corners.front().y;
+    };
+    const auto resting=draw(0),moving=draw(20);
+    assert(std::abs((moving-resting)/65536.0-3.0)<.001);
+    assert(draw(0)==resting);
+    const auto neutral=colors;
+    for(uint32_t light:{0u,0x404040u,0x2080ffu,0xffffffu}) {
+        assert(draw(0,light)==resting);
+        for(size_t i=0;i<colors.size();++i)for(int k=0;k<3;++k)
+            assert(((colors[i]>>(8*k))&255)==std::min(255u,(((neutral[i]>>(8*k))&255)*((light>>(8*k))&255))>>7));
+    }
+    draw(0);assert(colors==neutral); // No tint survives the next draw/load.
+    std::puts("PASS: Bio Mask native-light modulation, dark/neutral/tinted/bright, preserves geometry");
+    std::puts("PASS: Bio Mask real mesh packets follow weapons, preserve HUD, carry external atlas and precise bob");
+}
 int main(int argc,char** argv) {
     ttk::NearGte g{};
     for(int i=0;i<3;++i) g.r[i][i]=4096;
@@ -596,5 +638,6 @@ int main(int argc,char** argv) {
     g.ofx=123*65536;g.ofy=42*65536;
     assert(std::abs(ttk::near_raster_depth(floor,g,123,142,1500)-2000.0/(1+100/256.0))<1e-9);
     if(argc==2) {packet_contracts(argv[1]);whole_polygon_contracts();}
+    biomask_packet_contracts();
     std::puts("ttk-near-test PASS");
 }

@@ -587,10 +587,24 @@ static uint32_t hand_matrix() {
 static void fade_restore(CPUState* cpu);
 static bool kick_leg_joint(CPUState* cpu);
 static void weapon_release() {weapon_live=false;weapon_viewmodel=false;fade_restore(nullptr);}
+// Refreshed at every Duke draw, including replay workers. The weapon draw
+// replaces this fallback with the native per-joint environment colour.
+static uint32_t biomask_light;
 static void weapon_draw_bounds(bool duke_entry,bool list_step_after_duke) {
+    if(duke_entry) {
+        const uint32_t b=psx_mod_read_byte(player+0x1b);
+        biomask_light=b|b<<8|b<<16;
+    }
+    const bool mask=list_step_after_duke && weapon_duke_draw && first_person_view_live() &&
+        fp_blend>=0.999 && gameplay_context() && player_identity_ready() &&
+        (psx_mod_read_half(player+0x35c)&2) && (int16_t)psx_mod_read_half(player+0x32)>0;
+    if(list_step_after_duke && (psx_mod_read_half(player+0x35c)&2) && !psx_mod_replay_active() && std::getenv("DNTTK_MASK_TRACE"))
+        std::fprintf(stderr,"mask-draw gate=%d duke=%d fp=%f orbit=%d game=%d ident=%d face=%u\n",mask,weapon_duke_draw,fp_blend,orbit_valid,gameplay_context(),player_identity_ready(),psx_mod_read_half(player+0x854));
     if(duke_entry) weapon_duke_draw=true;
     if(list_step_after_duke) weapon_duke_draw=false;
     if(duke_entry || list_step_after_duke) {weapon_release();near_clip_viewmodel_flush();}
+    if(mask && psx_mod_read_half(player+0x35e) && psx_mod_read_half(player+0x854)==2)
+        near_clip_biomask(bob_dip,biomask_light);
 }
 // Ready pose (default). At rest Duke carries a drawn weapon raised (pistol)
 // or across his body (shotgun), which from the eye shows the weapon's side or
@@ -898,6 +912,9 @@ static void first_person_weapon_joint(CPUState* cpu,uint32_t ra) {
 static void first_person_weapon_attached(CPUState* cpu,uint32_t address,uint32_t ra) {
     if(!weapon_live || !weapon_duke_draw || cpu->gpr[20]!=player || cpu->gpr[4]!=hand_matrix()) return;
     if(address==0x80033e40 && ra==0x8003531c) {
+        // Native actor lighting has run and close-camera weapon fade is already
+        // corrected. Sample before muzzle flashes/other joints change context.
+        biomask_light=psx_mod_read_word(render_context+0x54)&0xffffff;
         const double scale=slot_scale(weapon_view_slot());
         if(scale!=1) cpu->gpr[7]=(uint32_t)(int32_t)std::lround((int16_t)cpu->gpr[7]*scale);
         ++weapon_draws;

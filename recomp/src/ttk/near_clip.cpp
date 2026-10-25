@@ -38,6 +38,8 @@
 // start, +0x78 OT depth limit. Ordering table 0x800d27a0 (2048 head/tail
 // pairs) and its bitmap 0x800d26a0.
 #include "near_clip.h"
+#include "bio_mask_mesh.h"
+#include "bio_mask_atlas.h"
 #include "pgxp.h"
 #include "modern_controls.h"
 #include "pc_input.h"
@@ -160,6 +162,11 @@ int32_t last_zsf3;
 uint32_t arena_size;uint64_t packet_skips,mesh_fallbacks;
 // Frame accounting: a frame starts when the OT bitmap is still empty.
 uint32_t frame_first_cursor,frame_host_bytes,frame_used_peak,host_bytes_peak;
+uint32_t mask_arena,mask_bytes;
+uint64_t mask_draws,mask_triangles;
+// 1174 visible triangles * 40 bytes. Four regions leave room in the 1 MiB
+// DMA aperture for the 512 KiB world arena and 320 KiB animation overrides.
+constexpr uint32_t mask_frame_bytes=47*1024;
 struct HeldPacket { uint32_t prim,tag; double z; };
 std::vector<HeldPacket> held_packets;
 uint32_t held_frame;
@@ -192,8 +199,8 @@ void region_after_load() {
 }
 // A new frame's packets start a fresh region; an unused one is kept.
 void host_frame_reset() {
-    if(frame_host_bytes) host_region=(host_region+1)%host_regions;
-    frame_host_bytes=0;
+    if(frame_host_bytes || mask_bytes) host_region=(host_region+1)%host_regions;
+    frame_host_bytes=0;mask_bytes=0;
     region_mirror_store();
 }
 // D12 first-person weapon. Every polygon of the hand, weapon, flash and held
@@ -285,6 +292,7 @@ struct Poly {
     unsigned coplanar_rank=0;
 };
 struct Frame {
+    bool biomask=false;
     bool trace=false;uint64_t trace_call=0;uint32_t mesh=0,instance=0,caller=0;
     double coverage=1.0;
     NearGte g;bool object,viewmodel;uint32_t far_limit,zsf3,zsf4;
@@ -377,7 +385,8 @@ bool oversize(const Frame& f,const int* idx,unsigned corners) {
     return x1-x0>1023 || y1-y0>511;
 }
 // Bytes still available to host packets this frame.
-uint32_t budget(const Frame&) {
+uint32_t budget(const Frame& f) {
+    if(f.biomask)return mask_arena && mask_bytes<mask_frame_bytes ? mask_frame_bytes-mask_bytes:0;
     if(!host_arena()) return 0;
     return frame_host_bytes<host_frame_bytes?host_frame_bytes-frame_host_bytes:0;
 }
@@ -390,7 +399,7 @@ void screen(const Frame& f,const Vertex& v,double& x,double& y) {
 uint32_t packed_xy(const Frame& f,const Vertex& v,double cx,double cy) {
     if(v.original>=0) return f.verts[v.original].sxy;
     double x,y;screen(f,v,x,y);x+=v.ex;y+=v.ey;
-    const bool out=round_outward();
+    const bool out=!f.biomask && round_outward();
     const double rx=out&&x>=cx?std::ceil(x):std::floor(x),ry=out&&y>=cy?std::ceil(y):std::floor(y);
     const int32_t sx=clamp((int64_t)rx,-0x400,0x3ff),sy=clamp((int64_t)ry,-0x400,0x3ff);
     return (uint32_t)(uint16_t)sx | (uint32_t)(uint16_t)sy<<16;
@@ -427,7 +436,7 @@ void emit(Frame& f,const Poly& poly,const Vertex* v) {
     if(index<0) {trace_record(f,"far_reject",poly.source);return;}
     const uint32_t size=poly.textured?0x28:0x1c;
     if(budget(f)<size) {++packet_skips;trace_record(f,"packet_budget",poly.source);return;}
-    const uint32_t prim=host_arena()+host_region%host_regions*host_frame_bytes+frame_host_bytes;
+    const uint32_t prim=f.biomask ? mask_arena+host_region%host_regions*mask_frame_bytes+mask_bytes : host_arena()+host_region%host_regions*host_frame_bytes+frame_host_bytes;
     double cx=0,cy=0;
     for(int i=0;i<3;++i){double x,y;screen(f,v[i],x,y);cx+=x/3;cy+=y/3;}
     if(poly.textured) {
@@ -464,7 +473,7 @@ void emit(Frame& f,const Poly& poly,const Vertex* v) {
     // view depth so the GPU maps the texture with correct perspective instead
     // of the PS1's affine warp across a polygon beside the eye.
     double trace_raster[3][4];
-    if(precise() || f.coverage<1.0) {
+    if(precise() || f.biomask || f.coverage<1.0) {
         for(int i=0;i<3;++i) {
             const uint32_t addr=prim+(poly.textured?8+12*i:8+8*i),word=psx_mod_read_word(addr);
             int32_t x16=(int32_t)(int16_t)word*65536,y16=(int32_t)(int16_t)(word>>16)*65536;
@@ -498,7 +507,7 @@ void emit(Frame& f,const Poly& poly,const Vertex* v) {
         }
         x<<']';trace_record(f,"emit",poly.source,x.str());
     }
-    frame_host_bytes+=size;host_bytes_peak=std::max(host_bytes_peak,frame_host_bytes);++f.emitted;++f.stats->triangles;
+    if(f.biomask)mask_bytes+=size;else frame_host_bytes+=size;host_bytes_peak=std::max(host_bytes_peak,frame_host_bytes);++f.emitted;++f.stats->triangles;
 }
 Vertex mid(const Vertex& a,const Vertex& b,double t) {
     Vertex m{};
@@ -1398,6 +1407,7 @@ void near_clip_counters(uint64_t out[8]) {
 }
 void near_clip_prepare() {
     (void)guest_copy();(void)host_arena();
+    if(!mask_arena)mask_arena=psx_mod_alloc_gpu_dma_memory(mask_frame_bytes*host_regions,16);
     if(!empty_rect) {
         empty_rect=psx_mod_alloc_guest_memory(16,16);
         if(empty_rect) {
@@ -1409,7 +1419,7 @@ void near_clip_prepare() {
 NearClipFrameState near_clip_frame_state() {return {frame_first_cursor,frame_host_bytes,held_frame,host_region};}
 void near_clip_load_frame_state(const NearClipFrameState& s) {
     frame_first_cursor=s.first_cursor;frame_host_bytes=s.host_bytes;held_frame=s.held_frame;host_region=s.host_region%host_regions;
-    held_packets.clear();
+    held_packets.clear();mask_bytes=0;
 }
 
 void near_clip_viewmodel_flush() {
@@ -1437,6 +1447,39 @@ void near_clip_viewmodel_flush() {
     }
     psx_mod_write_word(slot+4,last.prim);
     viewmodel_packets+=held_packets.size();held_packets.clear();
+}
+// Original Blender geometry, emitted into the same ordered/replayed GPU stream as
+// the weapon. Separate arena keeps the mesh out of the world's packet budget.
+void near_clip_biomask(double dip,uint32_t light) {
+    if(!mask_arena)mask_arena=psx_mod_alloc_gpu_dma_memory(mask_frame_bytes*host_regions,16);
+    static Stats stats{};
+    if(!psx_mod_replay_active() && std::getenv("DNTTK_MASK_TRACE"))std::fprintf(stderr,"mask-arena=%08x region=%u bytes=%u frame=%u\n",mask_arena,host_region,mask_bytes,frame_first_cursor);
+    if(!mask_arena)return;
+    Frame f{};f.biomask=f.object=f.viewmodel=true;f.stats=&stats;f.g.h=256;
+    if(held_frame!=frame_first_cursor){held_packets.clear();held_frame=frame_first_cursor;}
+    const double scale=std::min(1.0,(512.0+2*psx_mod_widescreen_x_margin())/(512.0*4/3));
+    Poly poly{};poly.textured=true;poly.command=0x34000000u;poly.clut=0x7fff;poly.tpage=0x7e00;
+    for(const auto& tri:bio_mask_mesh) {
+        const auto& a=tri[0];const auto& b=tri[1];const auto& c=tri[2];
+        const double ux=b.x-a.x,uy=b.y-a.y,uz=b.z-a.z,vx=c.x-a.x,vy=c.y-a.y,vz=c.z-a.z;
+        if((uy*vz-uz*vy)*(-a.x)+(uz*vx-ux*vz)*(-8-a.y)+(ux*vy-uy*vx)*(1.59-a.z)<=0)continue;
+        Vertex v[3]{};
+        for(int i=0;i<3;++i){
+            const auto& q=tri[i];const double z=(8+q.y)*100;
+            // Preserve the reviewed framing across pixel aspect and 4:3/16:9.
+            v[i].p[0]=q.x*333.333333*scale;
+            v[i].p[1]=((1.59-q.z)*208.333333*scale+(1-scale)*120*z/256)+dip*.15*z/256;
+            v[i].p[2]=z;v[i].uv[0]=q.u;v[i].uv[1]=q.v;
+            // PS1 modulation: 128 is neutral, with integer truncation/saturation.
+            const unsigned base[3]={q.r,q.g,q.b};
+            for(int k=0;k<3;++k)v[i].rgb[k]=std::min(255u,(base[k]*((light>>(8*k))&255u))>>7);
+            v[i].original=-1;
+        }
+        emit(f,poly,v);
+    }
+    if(!psx_mod_replay_active() && std::getenv("DNTTK_MASK_TRACE"))std::fprintf(stderr,"mask-emitted=%u held=%zu light=%06x\n",f.emitted,held_packets.size(),light);
+    ++mask_draws;mask_triangles+=f.emitted;
+    near_clip_viewmodel_flush();
 }
 NearDepthPlane near_depth_plane(const double a[3],const double b[3],const double c[3]) {
     NearDepthPlane p{};
@@ -1492,15 +1535,15 @@ uint32_t near_dpcs(const NearGte& g,uint32_t rgbc,int16_t ir0) {
     return out;
 }
 const char* near_clip_debug_json() {
-    static char buffer[896];
+    static char buffer[1024];
     auto part=[](const Stats& s,char* out,size_t n){
         std::snprintf(out,n,"{\"seen\":%llu,\"taken\":%llu,\"polys\":%llu,\"culled\":%llu,\"triangles\":%llu,\"budget_hits\":%llu}",
             (unsigned long long)s.seen,(unsigned long long)s.taken,(unsigned long long)s.polys,(unsigned long long)s.culled,
             (unsigned long long)s.triangles,(unsigned long long)s.budget_hits);
     };
     char w[192],o[192];part(world_stats,w,sizeof w);part(object_stats,o,sizeof o);
-    std::snprintf(buffer,sizeof buffer,"{\"enabled\":%s,\"world\":%s,\"object\":%s,\"refused\":%llu,\"copy_overflows\":%llu,\"duke_skips\":%llu,\"fades_skipped\":%llu,\"fade_tests\":%llu,\"zsf3\":%d,\"arena_size\":%u,\"frame_used_peak\":%u,\"host_bytes_peak\":%u,\"packet_skips\":%llu,\"mesh_fallbacks\":%llu,\"whole_polygons\":%llu,\"subdivided_kept\":%llu,\"viewmodel\":{\"meshes\":%llu,\"packets\":%llu,\"discards\":%llu}}",
-        enabled()?"true":"false",w,o,(unsigned long long)refused,(unsigned long long)copy_overflows,(unsigned long long)duke_skips,(unsigned long long)fades_skipped,(unsigned long long)fade_tests,(int)last_zsf3,arena_size,frame_used_peak,host_bytes_peak,(unsigned long long)packet_skips,(unsigned long long)mesh_fallbacks,(unsigned long long)subdivision_whole,(unsigned long long)subdivision_kept,(unsigned long long)viewmodel_meshes,(unsigned long long)viewmodel_packets,(unsigned long long)viewmodel_discards);
+    std::snprintf(buffer,sizeof buffer,"{\"biomask_draws\":%llu,\"biomask_triangles\":%llu,\"enabled\":%s,\"world\":%s,\"object\":%s,\"refused\":%llu,\"copy_overflows\":%llu,\"duke_skips\":%llu,\"fades_skipped\":%llu,\"fade_tests\":%llu,\"zsf3\":%d,\"arena_size\":%u,\"frame_used_peak\":%u,\"host_bytes_peak\":%u,\"packet_skips\":%llu,\"mesh_fallbacks\":%llu,\"whole_polygons\":%llu,\"subdivided_kept\":%llu,\"viewmodel\":{\"meshes\":%llu,\"packets\":%llu,\"discards\":%llu}}",
+        (unsigned long long)mask_draws,(unsigned long long)mask_triangles,enabled()?"true":"false",w,o,(unsigned long long)refused,(unsigned long long)copy_overflows,(unsigned long long)duke_skips,(unsigned long long)fades_skipped,(unsigned long long)fade_tests,(int)last_zsf3,arena_size,frame_used_peak,host_bytes_peak,(unsigned long long)packet_skips,(unsigned long long)mesh_fallbacks,(unsigned long long)subdivision_whole,(unsigned long long)subdivision_kept,(unsigned long long)viewmodel_meshes,(unsigned long long)viewmodel_packets,(unsigned long long)viewmodel_discards);
     return buffer;
 }
 }
@@ -1509,3 +1552,5 @@ PSX_MOD_CONSTRUCTOR(register_ttk_near_clip) {
     for(uint32_t address:{0x80010000u,0x80011020u,0x8002ee50u,0x80026164u,0x800114ecu,0x8001160cu})
         psx_mod_register_function_entry_plugin("ttk.near.clip",address,ttk::hook);
 }
+
+extern "C" const uint16_t* ttk_biomask_texture(void) {return bio_mask_atlas;}

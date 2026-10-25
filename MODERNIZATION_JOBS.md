@@ -143,6 +143,8 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08A23 | Instant night vision with immediate firing and a settings toggle | Done | D08A, D19 |
 | D08A24 | Automatic Bio Mask on toxic-area entry with a settings toggle | Done | D08A, D19 |
 | D08A25 | Night vision on/off sound shaped to the Duke 3D reference | Done | D08A23 |
+| D08A26 | Bio Mask first-person visor / respirator overlay | Done | D08A24, D12 |
+| D08A27 | Toxic gas effect fills the widescreen viewport (slot 11) | Todo - next after D08A26 closeout | D08A26, D14 |
 | D08A22 | Switcher strips and mission card scale with the window like the native HUD (icons too small in small windows) | Done (user-accepted) | D08A1, D08A5, D24A |
 | D08G3 | `dnupgrade` cheat: upgrade all weapons (Laser Gatling etc.) | Accepted | D08G2 |
 | D08G4 | `dnstuff`, `dnitems`, `dninventory` also give 100% armor; running steroids stop and a full dose is held | Done (user-accepted) | D08G |
@@ -436,6 +438,72 @@ Acceptance:
 
 The chosen cue is integrated. Build/native tests, private 60/120 routes and host
 PCM checks pass; user accepted the in-game mix. See note 245 for limits.
+
+### D08A27 - Toxic gas fills the widescreen viewport
+
+**Status:** Todo. User-selected next job, to begin after D08A26 closeout.
+User reports that toxic gas remains confined to the original 4:3 area while
+playing widescreen. Use a private copy of UI slot 11 (file slot10) to reproduce.
+
+Acceptance:
+- Identify the native gas draw and extend its coverage to the active gameplay
+  viewport at 16:9 and wider/auto aspect ratios, without stretching the world.
+- Preserve native gas colour, opacity, animation and entry/exit timing; no change
+  to toxic damage, Bio Mask charge/protection, or non-gas screen effects.
+- Verify full coverage through camera movement, window resizing, first/third
+  person, mask on/off and 60/high-refresh replay. No seams or uncovered side bands.
+- Native 4:3, menus, cutscenes and Vanilla retain their existing presentation.
+- Record before/after evidence from slot 11. User play acceptance required.
+
+### D08A26 - Bio Mask first-person visor / respirator overlay
+
+**Status:** Done (2026-10-25). User accepted the integrated low-poly mesh and
+final native-lighting pass, then explicitly authorized commit, push and closeout.
+The real textured mesh follows active-mask state, view bob and weapon lighting.
+Implementation and evidence: [note 247](documentation/247-d08a26-bio-mask-mesh.md).
+
+Add a Modernized first-person overlay while Duke actually wears the Bio Mask.
+Preferred starting direction: low central respirator fitting and ribbed tubing
+along the bottom, inspired by the presentation in Duke 3D. A full helmet rim is
+optional, not required. User liked the first Photon silhouette and requested a
+more grungy, low-poly PS1/N64 appearance. Preserve sightline, weapons and HUD.
+D08A24 is accepted; reuse its actual native active state, not merely item
+ownership, inventory selection or gas presence. D08N remains cancelled: this
+adds no scuba item, underwater oxygen or protection changes. Vanilla unchanged.
+
+Acceptance:
+- Art direction reviewed before integration: original editable Blender mesh,
+  exact mirrored hose geometry, low-poly faceted shading and restrained
+  materials matching TTK. Review viewpoint renders and game-scale composition.
+  Retail Duke 3D pixels remain local references only.
+- Appears/disappears correctly on manual and automatic equip/removal, depletion,
+  goggles replacement, death, load/restart and first/third-person transitions.
+  Only the active first-person view receives the overlay; menus/cutscenes do not
+  retain a stale mask. Existing sounds, charge and protection remain unchanged.
+- Follows the established view-bob/motion settings and presentation clock with
+  restrained head-attached motion, no independent unsynchronised oscillator or
+  doubled camera bob. Verify bob off and available strengths, idle/walk/run,
+  crouch/jump/land, camera turning and action-specific perspective changes.
+- Verify smooth 60/high-refresh presentation, 4:3 and 16:9 viewport anchoring,
+  scaling without distortion, transparent edges with movement margin, weapon,
+  crosshair and HUD readability. Keep effects unobtrusive; user play acceptance
+  is required. Use private settings/save/card copies for later gameplay tests.
+
+Research: existing bob state is in recomp/src/ttk/first_person.inc;
+[note 246](documentation/246-d08a24-auto-bio-mask.md) documents native mask state.
+Local references: /home/spartacus/Documents/dukeextract/tiles_out/tile2581.png
+and research/Screenshot_2026-10-25_13-13-02.png. Half-sprite/mirroring is a
+possible art optimization, not a required renderer design.
+
+External candidate: https://github.com/saegiru/UltimateDoomVisor/blob/master/HIRES/Visor/169/A_DMG00.png
+Repository tree e3d911674c0efbc69e6699db19889b58bc862bf7 inspected on 2026-10-25:
+no LICENSE/COPYING file found. CREDITS.txt gives informal permission to modify
+and use the HUD, but credits WildWeasel, 2800fps, Lightsource and Yamil for
+various visor artwork without mapping this exact PNG to its author. Exact
+asset provenance/redistribution terms remain unresolved; do not ship it on
+that evidence alone. Credits: https://github.com/saegiru/UltimateDoomVisor/blob/master/CREDITS.txt
+Original Photon concept directory: /home/spartacus/.photon/artifacts/duke-biomask/.
+No external or retail asset is included in the concept.
 
 ### D08A24 - Automatic and instant Bio Mask
 
@@ -19499,3 +19567,95 @@ edited audio, manual and documentation closeout/commit/push are authorized.
 No post-acceptance gameplay changes, builds or launches. The unchanged runtime
 patch matches all 51 framework files against the pinned clean dependency.
 Prior test evidence and coverage limits remain in note 246. No next job started.
+
+## 2026-10-25 - D08A26 Bio Mask overlay backlog and art study
+
+User requested licensing investigation, a backlog job and a Photon concept.
+Added D08A26 as Todo with mask lifecycle, view-bob, perspective, aspect-ratio
+and provenance criteria. Inspected both local Duke 3D references and the Doom
+asset/credits. Informal reuse permission exists, exact image provenance remains
+unresolved. Created original editable Photon tubing art outside the repository;
+user liked the silhouette and requested grungy PS1/N64 styling. No gameplay edit,
+build, launch, player-data change, acceptance closeout, commit or push.
+
+Photon revision 2 adds coarse worn metal/rubber texture and a nearest-neighbour
+320x180 export, enlarged to 1280x720 for review. Files in the concept directory:
+biomask-tubing-grunge.photon, biomask-ps1-320.png, biomask-ps1-preview.png.
+Native save/reopen preserves all 401 layers; exported center is transparent.
+Original clean concept retained. This is an art study, not an integrated effect.
+
+## 2026-10-25 - D08A26 low-poly Blender model review
+
+User rejected the generated tubing, selected a real Blender mesh and requested
+real openly licensed textures with Photon processing. D08A26 is In progress;
+this bounded stage is model/viewpoint review before runtime integration.
+
+Local deliverables: research/d08a26-blender/biomask-lowpoly.blend and .glb,
+studio.png, front.png, viewpoint.png, game-scale.png and editable Photon atlas
+and mockup. Original generated concepts and research/test-tubing.psd preserved.
+Mesh: 2,400 evaluated triangles, eight-sided hoses, 16 ribs per side, exact
+mirrored hose geometry, flat shading, single-segment housing bevel, no subdivision.
+Photon prepared a 256x128 atlas from Poly Haven's CC0 Rubber Tiles (Amal Kumar)
+and Rusty Metal 02 (Rob Tuytel). Source URLs, hashes and processing are recorded
+in provenance.json; build_model.py and prepare_textures.py reproduce the work.
+No AI-generated pixels or retail artwork are used in the model/materials.
+
+Verification: reopened .blend, all flat faces, exact hose symmetry, packed atlas,
+2,400 evaluated triangles; .glb imports successfully with all 11 mesh objects.
+Studio/front/viewpoint and game-scale renders inspected. The game-scale image is
+a Photon composite over an existing capture with display aspect correction,
+not evidence of live rendering. GLB is an interchange asset, not an implemented
+game loader. Art acceptance, runtime conversion/rendering, mask lifecycle,
+bob/high-refresh and gameplay regression checks remain. No game code edits,
+build, launch, player-data changes, acceptance closeout, commit or push.
+
+
+## 2026-10-25 - D08A26 mesh integrated, Needs playtest
+
+User approved the low-poly Blender model and requested integration. The real
+mesh now follows the native active Bio Mask state in Modernized first person,
+with existing bob/replay timing, nearest CC0 texture atlas, and weapon/HUD ordering.
+Source Blender/Photon assets and reproducible exporters are included.
+
+Native controls/input/aiming tests and the mesh packet test pass. Private 60 FPS
+4:3 and 120-target 16:9 lifecycle routes cover equip, movement, perspectives,
+pause, goggles, depletion, death, fire, reload and gas save/load/exit. An initial
+DMA allocation conflict with animation overrides was found and fixed; the test
+now reserves both budgets. The 120-target offscreen run exercises replay but
+does not establish sustained 120 FPS. See note 247 for evidence and limits.
+
+No acceptance, commit or push. User playtest is the next step.
+
+
+## 2026-10-25 - D08A26 native lighting pass; D08A27 selected next
+
+User enthusiastically accepted the integrated mesh and requested one final pass
+to follow the weapon's rudimentary PS1 lighting. The mask now modulates its baked
+flat-face colours with the native weapon environment RGB at the attached weapon
+draw. Neutral 128 preserves the original art; darker/brighter/coloured values
+use integer PS1-style modulation. Holstered/no-weapon draws use Duke's current
+brightness, reset every draw so loads and replay cannot retain an old tint.
+
+Packet tests cover black, neutral, dim, coloured and saturated light with
+unchanged geometry/bob. Controls tests pass. Private slot-11 120-target testing
+shows dark tunnel lighting and green gas tint matching the weapon, including
+firing, holstering, exit and reload, with zero replay failures. Final lighting
+acceptance/closeout remains pending; no commit or push.
+
+Added D08A27 for toxic gas coverage across the full widescreen viewport, using
+slot 11. User selected it to begin immediately after D08A26 closeout; it has not
+been implemented in this lighting pass.
+
+
+## 2026-10-25 - D08A26 accepted and closed
+
+User: "awesome, commit and push!! lock it in and close us out". D08A26 is Done.
+The original low-poly Bio Mask mesh, view bob, lifecycle behavior and final
+native-lighting pass are accepted. Implementation, editable Blender/Photon
+assets, CC0 textures/provenance, exporters, tests, framework patch and
+documentation are included in the authorized MusicMonsterMod commit/push.
+
+Accepted executable: `c775837d26203c05f46d50503f6a657b7ae1b85e01bbb0ec062c1e388fe15e62`.
+No post-acceptance gameplay changes, builds or launches. Note 247 retains
+verification evidence and coverage limits. D08A27 remains the selected next
+job: widescreen gas coverage, tested with a private copy of UI slot 11.

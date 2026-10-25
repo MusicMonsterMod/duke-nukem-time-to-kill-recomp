@@ -1750,6 +1750,7 @@ static void hook_body(CPUState* cpu, uint32_t address) {
 // published frame and loaded in the worker process that redraws it (a worker
 // holds only a fork-time copy of this file's statics).
 struct RenderState {
+    double mask_bob;
     ActionPerspective perspective;
     uint32_t pole_visibility_object;
     double fp_blend; bool orbit_valid, eye_offset_valid, live_valid, lease_cam, crouch_weapon, swim_weapon, body_coverage, third_camera;
@@ -1789,7 +1790,7 @@ size_t render_state_size() {return sizeof(RenderState);}
 void render_state_save(void* out) {
     RenderState r{};
     r.perspective=fp_policy;r.pole_visibility_object=pole_visibility_object;
-    r.fp_blend=fp_blend; r.orbit_valid=orbit_valid; r.eye_offset_valid=eye_offset_valid; r.live_valid=live_valid;
+    r.mask_bob=bob_dip; r.fp_blend=fp_blend; r.orbit_valid=orbit_valid; r.eye_offset_valid=eye_offset_valid; r.live_valid=live_valid;
     r.lease_cam=last_lease_cam;
     r.body_coverage=psx_mod_present_replay_available()!=0;
     r.third_camera=third_person_camera_live();
@@ -1804,11 +1805,15 @@ void render_state_save(void* out) {
     r.kick_point=kick_point; r.leg_matrices=leg_matrices;
     std::memcpy(out,&r,sizeof r);
 }
+void render_state_blend_mask(void* out,const void* next,double alpha) {
+    RenderState a,b;std::memcpy(&a,out,sizeof a);std::memcpy(&b,next,sizeof b);
+    a.mask_bob+=(b.mask_bob-a.mask_bob)*std::clamp(alpha,0.0,1.0);std::memcpy(out,&a,sizeof a);
+}
 void render_state_load(const void* in) {
     RenderState r;
     std::memcpy(&r,in,sizeof r);
     fp_policy=r.perspective;pole_visibility_object=r.pole_visibility_object;
-    fp_blend=r.fp_blend; orbit_valid=r.orbit_valid; eye_offset_valid=r.eye_offset_valid; live_valid=r.live_valid;
+    bob_dip=r.mask_bob; fp_blend=r.fp_blend; orbit_valid=r.orbit_valid; eye_offset_valid=r.eye_offset_valid; live_valid=r.live_valid;
     std::memcpy(eye_offset,r.eye_offset,sizeof eye_offset); std::memcpy(live_q,r.live_q,sizeof live_q);
     std::memcpy(live_rel,r.live_rel,sizeof live_rel); std::memcpy(live_torso_q,r.live_torso_q,sizeof live_torso_q);
     std::memcpy(live_torso,r.live_torso,sizeof live_torso); kick=r.kick;

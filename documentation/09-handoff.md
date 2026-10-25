@@ -1,5 +1,49 @@
 # Next-session handoff
 
+## 2026-10-25 - D08A26 accepted and closed
+
+User explicitly authorized commit, push and closeout after accepting the mesh
+and native-lighting pass. D08A26 is Done: the first original custom mesh is
+integrated, with editable Blender/Photon assets and CC0 texture provenance.
+
+Accepted executable: `c775837d26203c05f46d50503f6a657b7ae1b85e01bbb0ec062c1e388fe15e62`.
+No post-acceptance gameplay changes, builds or launches.
+[Note 247](247-d08a26-bio-mask-mesh.md) records tests and coverage limits.
+D08A27 is the user-selected next job: fix the gas's 4:3 cutoff in widescreen,
+using a private copy of UI slot 11. This closeout does not implement that job.
+Launch: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-25 - D08A26 lighting revision; D08A27 next
+
+User accepted the mesh visually and requested native PS1 lighting before
+closeout. The mask now shares the weapon's environment RGB modulation, with
+Duke's current brightness as the no-weapon fallback. Packet/control tests and
+private slot-11 120-target lighting/fire/holster/gas/load checks pass. See
+[note 247](247-d08a26-bio-mask-mesh.md). Final lighting play acceptance pending.
+
+D08A27 is queued for the toxic gas's 4:3 cutoff in widescreen, with slot 11 as
+the test case. The user selected it to begin after D08A26 closeout. Do not lose
+this next-job instruction. No commit/push or closeout yet.
+
+
+## 2026-10-25 - D08A26 Bio Mask mesh candidate (Needs playtest)
+
+The user approved the Blender shape and requested game integration. Modernized
+first person now renders the real low-poly respirator with the active native
+mask, existing bob and replay timing. Vanilla emits no added mesh.
+Editable sources, CC0 texture provenance and exporters are included.
+
+Private lifecycle checks pass at 60 FPS/4:3 and 120-target/16:9; the latter
+verified replay correctness but did not sustain 120 presents/s offscreen.
+Native packet/control/input/aim tests pass. An animation/DMA allocation conflict
+was fixed before final checks. [Note 247](247-d08a26-bio-mask-mesh.md) records
+implementation and remaining visual/performance acceptance. No commit or push.
+
+Launch: `python3 recomp/tools/local/run.py`; use P for first person, B for the
+owned/charged mask, or enter gas with automatic Bio Mask enabled.
+
+
 ## 2026-10-25 - D08A24 accepted and closed
 
 User: "lock it in, close it out". D08A24 is Done. Automatic gas entry and exit,

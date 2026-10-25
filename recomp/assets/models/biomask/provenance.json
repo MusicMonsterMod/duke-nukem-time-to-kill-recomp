@@ -1,0 +1,28 @@
+{
+  "assets": [
+    {
+      "name": "Rubber Tiles",
+      "author": "Amal Kumar",
+      "source": "https://polyhaven.com/a/rubber_tiles",
+      "download": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/rubber_tiles/rubber_tiles_diff_1k.jpg",
+      "license": "CC0-1.0",
+      "file": "sources/rubber_tiles.jpg",
+      "processing": "Photon crop x35 y40 width180 height180 to exclude seams, box resize 128x128; atlas right half.",
+      "sha256": "07c66caf17f14b1eae8a60bfd11a3b00a88af0101d51aab370609a2f13bb8c04"
+    },
+    {
+      "name": "Rusty Metal 02",
+      "author": "Rob Tuytel",
+      "source": "https://polyhaven.com/a/rusty_metal_02",
+      "download": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/rusty_metal_02/rusty_metal_02_diff_1k.jpg",
+      "license": "CC0-1.0",
+      "file": "sources/rusty_metal_02.jpg",
+      "processing": "Photon desaturate, box resize 128x128; atlas left half. Blender matte steel tint.",
+      "sha256": "adaf094391518b6afe787a123942110aa88ef521c844f970b124420f5ed5d3d9"
+    }
+  ],
+  "license_url": "https://polyhaven.com/license",
+  "verified": "2026-10-25",
+  "model": "Original procedural low-poly mesh built locally in Blender. No AI-generated image pixels or retail art used.",
+  "tools": "Blender 4.0.2 for mesh and renders; Photon CLI for texture preparation and editable atlas."
+}

@@ -1,5 +1,56 @@
 # Current status - 2026-10-04
 
+## 2026-10-25 - D35K2 and overarching D35 accepted and closed
+
+User: "its perfect! lock it in" and "that now concludes in fact the overarching
+D35 job so close that out too". D35K2 is Done; D35K bounded research and D35
+parent are Done by explicit acceptance. The user may report further first-person
+drops as they encounter interactions. Keep D35 as their category; create focused
+child jobs using the existing evidence and fixes rather than reopening the whole
+audit or starting an unsolicited sweep. Preserve deliberate cinematics and the
+accepted third-person death behavior. D35N1 missing mirror voice remains Todo.
+
+Accepted executable `d819cd7ad757ff3f3adf04b1382393b2cbcc70d3e822f3e84754439e753d996a`.
+No new gameplay changes, build or launch during closeout. Explicit authorization
+covers committing/pushing the toilet implementation, tests, manual and research
+notes as MusicMonsterMod. Existing framework changes and pins are untouched.
+Evidence limits in [notes 238](238-d35k-interaction-inventory.md)/[239](239-d35k2-toilet-first-person.md) remain; acceptance is not all-campaign proof.
+
+Launch: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-25 - D35K2 toilet first-person candidate (Needs playtest)
+
+Pose 275 now uses the existing USE INTERACTION VIEW presentation rule with
+native action, mode/history and camera ownership guards intact. Build and four
+native suites pass; private 60/120 use routes retain first person and complete.
+Action view choice, pause/load and Vanilla saved-action completion pass.
+Fresh Vanilla activation from the supplied checkpoint remains unverified, as
+does fresh healing: its one-time effect was already consumed and stays so.
+[Note 239](239-d35k2-toilet-first-person.md) records evidence and limits.
+Candidate: `d819cd7ad757ff3f3adf04b1382393b2cbcc70d3e822f3e84754439e753d996a`.
+User framing/comfort playtest remains. No framework/generated/pin changes,
+commit or push. Broader D35K findings are not automatically implemented.
+Launch: `python3 recomp/tools/local/run.py`; load slot 5, global First Person,
+USE INTERACTION VIEW First Person, press E at the toilet.
+
+
+## 2026-10-25 - D35K interaction inventory ready for review
+
+Autonomous research from current slot 5's toilet confirms native pose 275
+loses first person at 60/120, with normal ownership and recovery. Shared
+interaction selector classes are mapped; direct alternate-camera entry calls
+resolve to nine trigger subtypes in LEVEL00/05/09. Their gameplay identity,
+control semantics and routes remain open. [Note 238](238-d35k-interaction-inventory.md).
+D35K is Needs review; proposed toilet fix D35K2 is Todo, not started.
+Slot-7 mirror 278 retains first person. Vanilla activation attempt did not
+trigger the action and does not establish Vanilla toilet coverage.
+No gameplay changes or build; accepted executable remains `4f8a04989350f79c087aef6e106a4f3b81b03828245692c294c40df316cbec69`.
+All 40 source save/card hashes and mtimes match; private diagnostics stopped.
+Existing framework changes/pins preserved. No commit/push or acceptance closeout.
+Launch: `python3 recomp/tools/local/run.py`.
+
+
 ## 2026-10-25 - D35K1 door perspective and kick accepted and closed
 
 User: "lock it in, close it out!". The delivered slot-5 first-person door

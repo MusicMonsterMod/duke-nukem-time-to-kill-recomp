@@ -1,5 +1,38 @@
 # D35 - First-person transition audit and modernization roadmap
 
+## Accepted D35 closeout and future reports - 2026-10-25
+
+D35 is Done by explicit user acceptance. D35K's bounded research and D35K2's
+toilet fix are accepted too. Historical planning/status statements below are
+superseded by the canonical job board. The user may report additional events
+that take Duke out of first person; keep D35 as the category and open a focused
+child job for each distinct confirmed mechanism. Do not restart the whole audit
+or perform an unsolicited campaign sweep. D35N1 missing mirror voice is separate
+from perspective coverage and remains Todo.
+
+For future reports:
+
+1. Record the current save/level and exact trigger. Slot numbers are reused;
+   copy the current checkpoint privately instead of assuming an old identity.
+2. Trace lower/upper pose, mode/history, action flags, normal camera owner,
+   pivots/back-pointer and script bit through entry, action and recovery.
+3. Compare against accepted door/NPC/lever/crystal/mirror/toilet support and
+   notes 233-239. Note 238 supplies selector classes and specific alternate
+   camera call sites. An unsupported pose with normal ownership differs from
+   a true scripted/foreign-camera event.
+4. Reuse existing per-action settings and presentation-only policy where
+   evidence supports it. Preserve native callbacks, effects, timing, weapon
+   restoration and input lockouts. Never bypass script/owner guards globally
+   or whitelist an unexplained pose range. Preserve intentional cinematics
+   and the user's accepted third-person death behavior.
+5. Validate private natural routes, settings choices, pause/load, 60/120 and
+   appropriate Vanilla comparisons. State what was actually observed; source
+   coverage and a saved-action completion do not prove every live route.
+
+The remaining unmapped events are evidence limits and useful future leads.
+Acceptance does not assert exhaustive campaign testing. No next job started.
+
+
 **D35K slot-5 finding (2026-10-25):** The reported door drop is native pose
 116 in the ordinary reciprocal camera, not an alternate scripted view. A
 bounded USE INTERACTION VIEW fix and visible right-leg kick are accepted as

@@ -719,7 +719,9 @@ static bool use_interaction_eye() {
     // selector (0x80051608). Keep its action lock and ordinary-camera gates.
     // D35K: slot-5 hinged door selects 116 at 0x800515e0. It is a
     // committed ordinary-camera use action, not a scripted camera override.
-    return (a==116 || a==118 || a==266 || a==267 || a==268 || a==277) &&
+    // D35K2: native toilet use selects 275 at 0x80051630. Presentation
+    // only; retain the committed action and its original one-time effect.
+    return (a==116 || a==118 || a==266 || a==267 || a==268 || a==275 || a==277) &&
         psx_mod_read_byte(player+0x22c)==0 && psx_mod_read_byte(player+0x22d)==0 &&
         (psx_mod_read_word(player+0x224)&0x40);
 }

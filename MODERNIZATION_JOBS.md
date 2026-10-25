@@ -1,5 +1,7 @@
 # Time to Kill — modernization jobs
 
+**Latest closeout (2026-10-25): D35K2 toilet use, D35K bounded research and overarching D35 are Done by user acceptance. Future first-person drops become focused D35 child jobs; no next job started. D35N1 missing mirror voice remains Todo.**
+
 **Latest accepted job (2026-10-25): D35J4 slot-9 crystal take/return perspective is Done. User: "lock it in and close it out!". [Note 236](documentation/236-d35j4-time-crystal-perspective.md). Other intake jobs remain Todo.**
 
 **Backlog intake (2026-10-25): Five user reports queued as Todo only. D35J4 (bug 5, slot-9 time crystal) is first for future work; no job is started. D08Q7, D08T9, D35N1 and D08Q8 record bugs 1-4. Implementation awaits a later instruction.**
@@ -339,7 +341,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D33 | Modernized as the default profile, `--vanilla` as the special flag (one launch) | Done (user-accepted 2026-10-20) | - |
 | D34 | Multiplayer investigation: modern split-screen, online play and self-hosting (research only; [note 167](documentation/167-d34-multiplayer-research.md)) | Done (research accepted 2026-10-20; follow-ups D34A-D34G proposed, not opened) | - |
 | D34B | Classic split-screen with two controllers: original controls and rules, both pads working, clean start / presentation / exit in a Modernized session | Todo | D34 |
-| D35 | Comprehensive first-person camera transition audit and modernization roadmap | Needs review | D11, D11E, D11F, D10B |
+| D35 | Comprehensive first-person camera transition audit and modernization roadmap | Done (user-accepted 2026-10-25) | D11, D11E, D11F, D10B |
 | D35A | Shared action-perspective policy and persistent Advanced Settings foundation | Done | D35 |
 | D35B | Swimming perspective option using accepted first-person swimming | Done | D35A, D11E |
 | D35C | Jetpack perspective option using accepted first-person flight | Done | D35A, D11F |
@@ -355,8 +357,9 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D35J2 | Preserve first person through held native inventory | Done | D35J |
 | D35J3 | First-person NPC interaction presentation | Done | D35J |
 | D35J4 | Slot-9 time crystal forces third person (bug 5, first queued) | Done | D35J, D35J1, D35J2, D35J3, D35M |
-| D35K | Native scripted and special-camera event inventory | Todo (slot-5 follow-up D35K1 Done) | D35 |
+| D35K | Native scripted and special-camera event inventory | Done (bounded research accepted 2026-10-25) | D35 |
 | D35K1 | Slot-5 hinged-door first person and visible right-leg kick | Done (user-accepted) | D35M |
+| D35K2 | Toilet first-person use presentation (current slot 5) | Done (user-accepted 2026-10-25) | D35M, D35K |
 | D35L | First-person death and respawn presentation research | Done (user-accepted; no action needed) | D35 |
 | D35M | First-person door opening and related use interactions | Done | D35A |
 | D35N | First-person mirror interactions and reflected-Duke proximity fade | Done | D35A |
@@ -462,7 +465,11 @@ both travel directions and supported jetpack schemes.
 
 ### D35 - Comprehensive first-person camera transition audit
 
-**Status:** Needs review. **Dependencies:** D11, D11E, D11F, D10B.
+**Status:** Done (user-accepted 2026-10-25). **Dependencies:** D11, D11E, D11F, D10B.
+
+**Closeout:** User accepts the first-person work and explicitly closes the overarching D35 job. D35K bounded research and D35K2 toilet use are accepted. D35 remains the category for future reported first-person drops: open a focused child job, reuse notes 222/233-239, and investigate the actual event before widening support. No autonomous campaign sweep or next job is started. Unplayed routes remain evidence limits, not a claim of exhaustive certification. D35N1 is a separate missing-voice report and remains Todo.
+
+Historical research scope follows; accepted child-job statuses above supersede the original planning language.
 
 Research, documentation and planning only. Trace every discovered direct and
 indirect perspective entry point across camera ownership, animation/state,
@@ -776,7 +783,7 @@ Other NPC variants require explicit evidence rather than numeric-range leases.
 
 ### D35K - Native scripted and special-camera event inventory
 
-**Status:** Todo (broader event inventory; accepted slot-5 fix recorded as D35K1). **Dependencies:** D35.
+**Status:** Done (bounded research accepted with D35 closeout, 2026-10-25). **Dependencies:** D35.
 
 **Selected scope (2026-10-25):** User supplied current UI slot 5, where opening a door returns Duke to third person, and authorized investigation and a fix. Investigate this event within D35K, reuse accepted use-action policy where supported, and record broader event inventory limits. D35 review does not prevent this bounded investigation.
 **Research:** [D35 central audit](documentation/222-d35-first-person-audit.md).
@@ -799,6 +806,8 @@ Other NPC variants require explicit evidence rather than numeric-range leases.
 
 **Regression risks:** Indirect overlays, transient object lifetime, two-player cameras, bypassed normal hook, misclassifying a cinematic as player camera.
 
+**Accepted research batch (2026-10-25):** [Note 238](documentation/238-d35k-interaction-inventory.md) confirms toilet pose 275 fallback at 60/120, inventories all shared selector classes, and resolves nine alternate-camera trigger subtypes in LEVEL00/05/09. Exact event naming and remaining natural routes are explicit coverage limits. D35K2 is now Done. Further work is driven by user reports in focused D35 child jobs; no exhaustive campaign pass is pending as a condition of this accepted closeout.
+
 ### D35K1 - Slot-5 hinged-door first person and visible right-leg kick
 
 **Status:** Done (user-accepted 2026-10-25). **Dependencies:** D35M.
@@ -813,6 +822,25 @@ out the right-leg polish: "lock it in, close it out!". Build, four native
 suites, 60/120 routes, Third Person comparisons, pause/load and Vanilla
 saved-action completion pass. [Note 237](documentation/237-d35k-slot5-door.md)
 retains evidence and limits. Broader D35K event mapping is not completed.
+
+### D35K2 - Toilet first-person use presentation
+
+**Status:** Done (user-accepted 2026-10-25). **Dependencies:** D35M, D35K.
+
+Current UI slot 5's type-80 toilet uses committed native pose 275 and falls
+back to third person with ordinary camera ownership, then recovers. Reproduced
+at 60/120; [note 238](documentation/238-d35k-interaction-inventory.md).
+
+**Accepted:** User: "its perfect! lock it in." [Note 239](documentation/239-d35k2-toilet-first-person.md). Pose 275 retains first person under USE INTERACTION VIEW; user accepts the delivered framing/comfort. Explicit closeout includes implementation and documentation commit/push.
+
+**Scope:** Add bounded presentation support under USE INTERACTION VIEW. Preserve native action lock, event timing, one-time toilet
+effect and weapon stow/redraw. Do not widen locomotion/fire permissions or
+script/ownership guards. Type 179 shares metadata class 8 but is unverified.
+
+**Acceptance:** Natural toilet use retains first person when selected; action
+and global Third Person choices work; native callback/effect and completion
+remain intact; pause/load, 60/120 and successful Vanilla activation comparisons
+are verified. Use only private copies. User playtest required.
 
 ### D35L - First-person death and respawn presentation research
 
@@ -18983,3 +19011,41 @@ Accepted executable: `4f8a04989350f79c087aef6e106a4f3b81b03828245692c294c40df316
 No post-acceptance gameplay edits, builds or launches. No framework/pin changes;
 existing framework modifications preserved. No player data changed in closeout.
 Launch: `python3 recomp/tools/local/run.py`. No next job started.
+
+## 2026-10-25 - D35K autonomous interaction inventory (Needs review)
+
+User authorized autonomous research starting with current slot 5's toilet.
+[Note 238](documentation/238-d35k-interaction-inventory.md) records confirmed
+pose-275 fallback at 60/120 and recovery, third-person completion, a supported
+slot-7 mirror, complete shared selector mapping and nine source-confirmed
+alternate-camera trigger subtypes across LEVEL00/05/09. Gameplay names/routes
+for the latter remain unresolved. Vanilla activation attempt did not trigger
+the toilet and is not counted as action coverage. D35K2 queued Todo only.
+No gameplay edits/builds; all 40 player source files retain hashes/mtimes;
+diagnostics stopped, existing framework edits preserved. No commit/push.
+
+## 2026-10-25 - D35K2 toilet first-person candidate (Needs playtest)
+
+User selected implementation of the confirmed toilet gap. Added pose 275 to
+USE INTERACTION VIEW with existing committed-action and safety gates. Build
+and four native suites pass; private 60/120 routes, action view choice,
+pause/load and Vanilla saved-action completion pass. Fresh Vanilla activation
+and unused-toilet healing remain unverified. [Note 239](documentation/239-d35k2-toilet-first-person.md).
+Player manual updated; user framing/comfort playtest remains. No framework,
+generated-code or pin changes; no commit/push. No other fix started.
+
+## 2026-10-25 - D35K2 and overarching D35 accepted and closed
+
+User: "its perfect! lock it in" and "that now concludes in fact the overarching
+D35 job so close that out too". D35K2 is Done; D35K bounded research and D35
+parent are Done by explicit acceptance. The user may report further first-person
+drops as they encounter interactions. Keep D35 as their category; create focused
+child jobs using the existing evidence and fixes rather than reopening the whole
+audit or starting an unsolicited sweep. Preserve deliberate cinematics and the
+accepted third-person death behavior. D35N1 missing mirror voice remains Todo.
+
+Accepted executable `d819cd7ad757ff3f3adf04b1382393b2cbcc70d3e822f3e84754439e753d996a`.
+No new gameplay changes, build or launch during closeout. Explicit authorization
+covers committing/pushing the toilet implementation, tests, manual and research
+notes as MusicMonsterMod. Existing framework changes and pins are untouched.
+Evidence limits in notes 238/239 remain; acceptance is not all-campaign proof.

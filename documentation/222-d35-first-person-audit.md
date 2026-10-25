@@ -1,5 +1,12 @@
 # D35 - First-person transition audit and modernization roadmap
 
+**D35K slot-5 finding (2026-10-25):** The reported door drop is native pose
+116 in the ordinary reciprocal camera, not an alternate scripted view. A
+bounded USE INTERACTION VIEW fix and visible right-leg kick are accepted as
+D35K1 Done; see [note 237](237-d35k-slot5-door.md).
+The broader scripted-event inventory remains open.
+
+
 **D35L closeout (2026-10-25):** The user accepts and prefers the existing
 third-person death/respawn presentation. D35L is Done with no action needed;
 its historical research/option proposal below is superseded. No new death

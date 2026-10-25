@@ -1,5 +1,54 @@
 # Current status - 2026-10-04
 
+## 2026-10-25 - D35K1 door perspective and kick accepted and closed
+
+User: "lock it in, close it out!". The delivered slot-5 first-person door
+opening and visible right-leg kick are accepted as D35K1 Done. The bounded
+fix retains native action timing/events, view choices and Vanilla behavior.
+D35K remains Todo for broader scripted-event research; no next job started.
+[Note 237](237-d35k-slot5-door.md) preserves validation and coverage limits.
+Accepted executable: `4f8a04989350f79c087aef6e106a4f3b81b03828245692c294c40df316cbec69`.
+Implementation, tests, manual and documentation are included in the authorized
+MusicMonsterMod commit/push. No post-acceptance gameplay changes, builds,
+launches, player-data changes or framework/pin edits. Existing framework
+working-tree modifications remain untouched.
+Launch: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-25 - D35K right-leg door-kick polish (Needs playtest)
+
+The user confirms the perspective fix works and requested a visible right-leg
+kick. The revised candidate reuses existing kick poses/meshes and thigh
+rendering on the right, driven by native pose-116 channel progress. It adds
+no attack damage or sound and retains native door events. [Note 237](237-d35k-slot5-door.md).
+Build and four native suites pass; private 60/120 captures, action/global
+Third Person, pause/load and Vanilla saved-action completion pass. Framing
+playtest remains. Diagnostics stopped; private saves/settings only. The older
+source manifest predates the user's latest slot-5 save; note 237 records that
+comparison limit. No framework/generated/pin changes, commit or push.
+Candidate: `4f8a04989350f79c087aef6e106a4f3b81b03828245692c294c40df316cbec69`.
+Launch: `python3 recomp/tools/local/run.py`; use the door with global First
+Person and USE INTERACTION VIEW First Person. Broader D35K inventory open.
+
+
+## 2026-10-25 - D35K slot-5 door candidate (Needs playtest)
+
+Current UI slot 5's hinged-door action uses pose 116, previously excluded from
+first-person use presentation despite normal camera ownership. The candidate
+adds it to USE INTERACTION VIEW with native action lockouts and all existing
+identity/death/script/ownership guards intact. [Note 237](237-d35k-slot5-door.md).
+
+Build and four native suites pass; private 60/120 routes, action/global Third
+Person, pause/load and Vanilla saved-action completion pass. User playtest is
+pending; the broader D35K scripted-event inventory remains open. D35 remains
+Needs review and D35L remains Done/no action needed.
+Candidate: `e8c065ed61fb9cb44d0205a933ce4a52d34aac7050f4ed8cfe39aa7070deccd7`.
+Diagnostics stopped, player saves/cards unchanged, private settings only.
+No framework/generated-C/pin changes, acceptance closeout, commit or push.
+Launch: `python3 recomp/tools/local/run.py`. Use slot 5 with global First Person
+and USE INTERACTION VIEW First Person; approach the door and press E.
+
+
 ## 2026-10-25 - D35L accepted as-is; no action needed
 
 The user explicitly prefers the existing third-person death presentation,

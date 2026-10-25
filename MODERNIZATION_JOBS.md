@@ -355,7 +355,8 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D35J2 | Preserve first person through held native inventory | Done | D35J |
 | D35J3 | First-person NPC interaction presentation | Done | D35J |
 | D35J4 | Slot-9 time crystal forces third person (bug 5, first queued) | Done | D35J, D35J1, D35J2, D35J3, D35M |
-| D35K | Native scripted and special-camera event inventory | Todo | D35 |
+| D35K | Native scripted and special-camera event inventory | Todo (slot-5 follow-up D35K1 Done) | D35 |
+| D35K1 | Slot-5 hinged-door first person and visible right-leg kick | Done (user-accepted) | D35M |
 | D35L | First-person death and respawn presentation research | Done (user-accepted; no action needed) | D35 |
 | D35M | First-person door opening and related use interactions | Done | D35A |
 | D35N | First-person mirror interactions and reflected-Duke proximity fade | Done | D35A |
@@ -775,8 +776,14 @@ Other NPC variants require explicit evidence rather than numeric-range leases.
 
 ### D35K - Native scripted and special-camera event inventory
 
-**Status:** Todo. **Dependencies:** D35.
+**Status:** Todo (broader event inventory; accepted slot-5 fix recorded as D35K1). **Dependencies:** D35.
+
+**Selected scope (2026-10-25):** User supplied current UI slot 5, where opening a door returns Duke to third person, and authorized investigation and a fix. Investigate this event within D35K, reuse accepted use-action policy where supported, and record broader event inventory limits. D35 review does not prevent this bounded investigation.
 **Research:** [D35 central audit](documentation/222-d35-first-person-audit.md).
+
+**Accepted follow-up (2026-10-25):** User: "lock it in, close it out!". The slot-5 perspective fix and visible right-leg kick are Done as D35K1. The broader scripted-event inventory remains Todo; no next job is started.
+
+**Slot-5 result (2026-10-25):** Reproduced native hinged-door pose 116 with normal camera ownership. Added it to the existing USE INTERACTION VIEW presentation-only policy; no script override. Player build, four native suites, private 60/120 routes, view-choice comparisons, pause/load and Vanilla action-load completion pass. User accepted the delivered result. [Note 237](documentation/237-d35k-slot5-door.md).
 
 **Current behavior:** Alternate camera dispatch and native entry/exit are confirmed; indirect overlay callback-to-event mapping remains incomplete.
 
@@ -791,6 +798,21 @@ Other NPC variants require explicit evidence rather than numeric-range leases.
 **Acceptance:** Catalog confirmed entry/exit addresses, callers, exact triggers and intended player control; distinguish cinematic exemptions from missing playable FP; every unresolved mapping remains named; no unsafe global script-bit override.
 
 **Regression risks:** Indirect overlays, transient object lifetime, two-player cameras, bypassed normal hook, misclassifying a cinematic as player camera.
+
+### D35K1 - Slot-5 hinged-door first person and visible right-leg kick
+
+**Status:** Done (user-accepted 2026-10-25). **Dependencies:** D35M.
+
+**Scope:** Bounded follow-up identified during selected D35K investigation.
+Pose 116 retains first person under USE INTERACTION VIEW and visibly kicks
+the door with Duke's right leg. Existing kick meshes/poses are reused with
+native channel timing; no added damage, sound or door callback changes.
+
+**Acceptance:** User confirms the perspective fix works and explicitly closes
+out the right-leg polish: "lock it in, close it out!". Build, four native
+suites, 60/120 routes, Third Person comparisons, pause/load and Vanilla
+saved-action completion pass. [Note 237](documentation/237-d35k-slot5-door.md)
+retains evidence and limits. Broader D35K event mapping is not completed.
 
 ### D35L - First-person death and respawn presentation research
 
@@ -18912,3 +18934,52 @@ no gameplay edits, builds, launches or new variant/recovery verification.
 Existing framework working-tree changes are preserved. No player data changed.
 D35K remains Todo; D35 remains Needs review. No next job started.
 Launch: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-25 - D35K slot-5 door candidate (Needs playtest)
+
+User selected the current slot-5 door transition as D35K work. The interaction
+uses native pose 116 with normal reciprocal camera ownership, mode/history
+0/0 and action bit 0x40; the unsupported presentation pose caused the drop.
+Added that pose to the existing USE INTERACTION VIEW policy without widening
+gameplay permission or scripted-camera gates. [Note 237](documentation/237-d35k-slot5-door.md)
+records native selector/callback mapping and bounded coverage.
+
+Player build and controls/input/aim/near suites pass. Private 60/120 door
+sequences retain first person; action/global Third Person, pause/load and
+Vanilla saved-action completion checks pass. User playtest remains, and the
+broader D35K event inventory is still open. Updated manual and regression tests.
+Candidate: `e8c065ed61fb9cb44d0205a933ce4a52d34aac7050f4ed8cfe39aa7070deccd7`.
+Diagnostics stopped; player save/card hashes and mtimes unchanged. No framework,
+generated-C or dependency-pin changes, player settings writes, commit or push.
+Launch: `python3 recomp/tools/local/run.py`; slot 5, global First Person and
+USE INTERACTION VIEW First Person, approach the door and press E.
+
+
+## 2026-10-25 - D35K visible right-leg door kick (Needs playtest)
+
+User confirms the camera fix works and requests seeing Duke kick the door.
+Reused existing right-leg keys, meshes and thigh/viewmodel treatment with
+right-side placement. Native pose-116 channel keys and ticks drive progress;
+no host timer or quick-kick attack/sound is started. Tests cover timing,
+right-side placement, original matrices, invalid frames and view/Vanilla gates.
+Build, four native suites, private 60/120 visuals, third-person comparisons,
+pause/load and Vanilla saved-action completion pass. Framing playtest remains.
+[Note 237](documentation/237-d35k-slot5-door.md) records source-manifest limits
+following the user's intervening slot-5 save. Diagnostics stopped; private
+save/settings paths only. No framework changes, generated edits, commit or push.
+Candidate: `4f8a04989350f79c087aef6e106a4f3b81b03828245692c294c40df316cbec69`.
+Launch: `python3 recomp/tools/local/run.py`; First Person and USE INTERACTION
+VIEW First Person, approach the door and press E. Broader D35K inventory open.
+
+
+## 2026-10-25 - D35K1 door perspective and right-leg kick accepted
+
+User: "lock it in, close it out!". Closed the delivered slot-5 door fix and
+polish as D35K1 Done. D35K remains Todo for its broader event inventory.
+Implementation, regression tests, manual and documentation are included in
+the authorized MusicMonsterMod commit/push. [Note 237](documentation/237-d35k-slot5-door.md).
+Accepted executable: `4f8a04989350f79c087aef6e106a4f3b81b03828245692c294c40df316cbec69`.
+No post-acceptance gameplay edits, builds or launches. No framework/pin changes;
+existing framework modifications preserved. No player data changed in closeout.
+Launch: `python3 recomp/tools/local/run.py`. No next job started.

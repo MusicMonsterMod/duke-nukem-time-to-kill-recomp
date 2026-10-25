@@ -376,7 +376,7 @@ static void slerp(const double* a,const double* b,double t,double* out) {
     n=std::sqrt(n);for(int i=0;i<4;++i) out[i]/=n;
 }
 // Pose at the current kick frame: two keys and the eased blend between them.
-static void kick_pose(unsigned frame,unsigned& from,unsigned& to,double& t) {
+static void kick_pose(double frame,unsigned& from,unsigned& to,double& t) {
     auto ease=[](double x){x=std::clamp(x,0.0,1.0);return x*x*(3-2*x);};
     if(frame<kick_chamber) {from=0;to=1;t=ease(frame/(double)kick_chamber);}
     else if(frame<kick_extend) {from=1;to=2;t=ease((frame-kick_chamber)/(double)(kick_extend-kick_chamber));}
@@ -404,7 +404,7 @@ static double kick_thigh_drop() {
     return value;
 }
 // A leg joint's level-frame rotation and root-relative position at a kick frame.
-static void leg_pose(unsigned leg,unsigned frame,double (&lh)[3][3],double* p) {
+static void leg_pose(unsigned leg,double frame,double (&lh)[3][3],double* p,bool door=false) {
     unsigned from,to;double t;
     kick_pose(frame,from,to,t);
     const LegKey& a=leg_keys[from][leg];const LegKey& b=leg_keys[to][leg];
@@ -414,7 +414,7 @@ static void leg_pose(unsigned leg,unsigned frame,double (&lh)[3][3],double* p) {
     // Tilt about the hip in the level frame, as the weapon tilt.
     const double* tilt=kick_tilt();
     if(tilt[0] || tilt[1] || tilt[2]) {
-        const double d=3.14159265358979/180,pt=-tilt[0]*d,y=tilt[1]*d,r=tilt[2]*d;
+        const double d=3.14159265358979/180,pt=-tilt[0]*d,y=(door?-tilt[1]:tilt[1])*d,r=tilt[2]*d;
         const double rx[3][3]={{1,0,0},{0,std::cos(pt),-std::sin(pt)},{0,std::sin(pt),std::cos(pt)}};
         const double ry[3][3]={{std::cos(y),0,std::sin(y)},{0,1,0},{-std::sin(y),0,std::cos(y)}};
         const double rz[3][3]={{std::cos(r),-std::sin(r),0},{std::sin(r),std::cos(r),0},{0,0,1}};
@@ -424,8 +424,31 @@ static void leg_pose(unsigned leg,unsigned frame,double (&lh)[3][3],double* p) {
         for(int i=0;i<3;++i) p[i]=hip[i]+m[i][0]*rel[0]+m[i][1]*rel[1]+m[i][2]*rel[2];
     }
 }
+// D35K: presentation only for the native door kick. Follow channel 0's
+// previous/current key and blend, so pause, load and redraw need no timer or
+// new persistent state. Native pose 116 has six keys: ready, ready, chamber,
+// strike (0x800 sound event), retract, rest. Never start the quick-kick attack.
+static bool door_kick_frame(double& frame) {
+    if(!input_modern_controls() || !fp_policy.effective || fp_policy.action!=PerspectiveAction::Use ||
+       psx_mod_read_half(player+0x60)!=116 || !use_interaction_eye() || !state(true,true)) return false;
+    const unsigned clip=psx_mod_read_half(0x800c2d64+8*116);
+    if(clip!=600) return false;
+    const uint32_t rec=psx_mod_read_word(0x800d8328+4*clip),first=rec&0xffff;
+    const unsigned previous=psx_mod_read_half(player+0x64),current=psx_mod_read_half(player+0x66);
+    if((rec>>16)!=6 || first==0xffff || previous<first || previous>=first+6 || current<first || current>=first+6) return false;
+    const uint32_t frames=psx_mod_read_word(0x800d8324);
+    if(!frames) return false;
+    const unsigned ticks=psx_mod_read_word(frames+8*current)>>16,left=psx_mod_read_half(player+0x62);
+    if(!ticks) return false;
+    const double t=std::clamp((double(ticks)-left)/ticks,0.0,1.0);
+    constexpr double keys[]={0,0,kick_chamber,kick_extend,kick_retract,kick_frames};
+    frame=keys[previous-first]+(keys[current-first]-keys[previous-first])*t;
+    return true;
+}
 static bool kick_leg_joint(CPUState* cpu) {
-    if(!kick_active || cpu->gpr[4]!=camera || cpu->gpr[20]!=player) return false;
+    double door_frame=0;
+    const bool door=door_kick_frame(door_frame);
+    if((!kick_active && !door) || cpu->gpr[4]!=camera || cpu->gpr[20]!=player) return false;
     const unsigned joint=cpu->gpr[23];
     const uint32_t mats=psx_mod_read_word(player+0x3c),desc=psx_mod_read_word(player+0x40);
     if(mats<0x80010000 || mats>0x801fff00 || desc!=duke_model() || !desc ||
@@ -435,9 +458,11 @@ static bool kick_leg_joint(CPUState* cpu) {
     if(!leg_matrices) leg_matrices=psx_mod_alloc_guest_memory(0x20*leg_joints,16);
     if(!leg_matrices) return false;
     const uint32_t out_m=leg_matrices+0x20*leg;
-    const unsigned frame=kick_frame();
+    const double frame=door?door_frame:kick_frame();
+    const double door_anchor[3]={0,80,160};
+    const double* anchor=door?door_anchor:kick_anchor();
     double p[3],lh[3][3];
-    leg_pose(leg,frame,lh,p);
+    leg_pose(leg,frame,lh,p,door);
     if(leg==0 && kick_thigh_enabled()) {
         // The thigh's origin (the hip) is nearer than the loop's near cull
         // (GTE H) from the eye, so the loop would skip the whole thigh. Draw
@@ -445,7 +470,7 @@ static bool kick_leg_joint(CPUState* cpu) {
         // turned 180 degrees about an axis across the thigh, so the same mesh
         // runs from the knee back toward the hip and off the bottom edge.
         double knee[3],kl[3][3];
-        leg_pose(1,frame,kl,knee);
+        leg_pose(1,frame,kl,knee,door);
         double d[3],u[3],n=0;
         for(int i=0;i<3;++i) d[i]=knee[i]-p[i];
         for(int i=0;i<3;++i) {u[i]=lh[0][i]*d[0]+lh[1][i]*d[1]+lh[2][i]*d[2];n+=u[i]*u[i];} // thigh axis, local
@@ -463,7 +488,7 @@ static bool kick_leg_joint(CPUState* cpu) {
             mat_mul(lh,flip,lh);
             for(int i=0;i<3;++i) p[i]=knee[i];
             // Screen lines to view units at this depth: y = lines * z / H (H 256).
-            const double depth=p[2]+kick_anchor()[2];
+            const double depth=p[2]+anchor[2];
             if(depth>0) p[1]+=kick_thigh_drop()*240*depth/256;
             ++kick_thigh_draws;
         }
@@ -476,7 +501,6 @@ static bool kick_leg_joint(CPUState* cpu) {
         psx_mod_write_half(out_m+2*(3*r+k),(uint16_t)(int16_t)std::clamp(std::lround(v*4096),-32768L,32767L));
     }
     psx_mod_write_half(out_m+0x12,0);
-    const double* anchor=kick_anchor();
     for(int i=0;i<3;++i) {
         double w=(int32_t)psx_mod_read_word(camera+0x14+4*i);
         for(int k=0;k<3;++k) w+=c[k][i]*(p[k]+anchor[k]);

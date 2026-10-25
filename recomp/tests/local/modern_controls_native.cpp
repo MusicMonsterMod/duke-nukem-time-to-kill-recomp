@@ -3209,8 +3209,8 @@ int main(int argc,char** argv) {
             {
                 const auto flags=psx_mod_read_word(p+0x224),actor=psx_mod_read_word(p);
                 const auto upper=psx_mod_read_half(p+0x74);
-                for(unsigned pose:{64u,65u,66u,67u,68u,69u,118u,266u,267u,268u,277u,63u}) {
-                    const bool use=pose==118 || pose==266 || pose==267 || pose==268 || pose==277;
+                for(unsigned pose:{64u,65u,66u,67u,68u,69u,116u,118u,266u,267u,268u,277u,63u}) {
+                    const bool use=pose==116 || pose==118 || pose==266 || pose==267 || pose==268 || pose==277;
                     const uint32_t bits=use?0x40u:pose==63?0x200u:0u;
                     psx_mod_write_half(p+0x60,pose);psx_mod_write_half(p+0x74,pose);
                     psx_mod_write_byte(p+0x22c,0);psx_mod_write_byte(p+0x22d,0);
@@ -3219,6 +3219,55 @@ int main(int argc,char** argv) {
                     assert(!ttk::movement_ready() && !ttk::locomotion_input_ready());
                     assert(psx_mod_read_half(p+0x60)==pose && psx_mod_read_word(p+0x224)==bits);
                     if(use)assert(std::strstr(ttk::controls_debug_json(),"\"action\":\"use\""));
+                    if(pose==116) {
+                        // Door kick is a right-leg viewmodel driven by native
+                        // animation progress, without quick-kick attacks/events.
+                        const uint32_t table=0x800d8328+4*600,frames=0x801b0000;
+                        const auto saved_rec=psx_mod_read_word(table),saved_frm=psx_mod_read_word(0x800d8324);
+                        std::vector<uint8_t> saved_frames(ram+(frames&0x1fffff),ram+(frames&0x1fffff)+6*8);
+                        std::vector<uint8_t> channel(ram+(p&0x1fffff)+0x62,ram+(p&0x1fffff)+0x68);
+                        std::vector<uint8_t> joints(ram+(mats&0x1fffff),ram+(mats&0x1fffff)+0x20*19);
+                        psx_mod_write_word(table,6u<<16);psx_mod_write_word(0x800d8324,frames);
+                        for(unsigned i=0;i<6;++i)psx_mod_write_word(frames+8*i,50u<<16);
+                        auto draw=[&](unsigned part) {
+                            call(0x800348d8,c,p,0x8003769c);
+                            CPUState cpu{};cpu.gpr[4]=c;cpu.gpr[20]=p;cpu.gpr[29]=0x801f0000;
+                            cpu.gpr[23]=psx_mod_read_byte(desc+0x24+part);
+                            cpu.gpr[5]=mats+0x20*cpu.gpr[23];cpu.gpr[31]=0x80034c6c;
+                            hooks().at(0x800292a0)(&cpu,0x800292a0);
+                            const bool changed=cpu.gpr[5]!=mats+0x20*cpu.gpr[23];
+                            std::array<int32_t,3> pos{};
+                            for(unsigned i=0;i<3;++i)pos[i]=psx_mod_read_word(cpu.gpr[5]+0x14+4*i);
+                            call(0x8001ca4c,0x800d0000,0,0x800376b4);
+                            return std::make_pair(changed,pos);
+                        };
+                        const auto attacks=kick_calls.size();
+                        for(unsigned key=0;key<6;++key) {
+                            psx_mod_write_half(p+0x64,key);psx_mod_write_half(p+0x66,key);psx_mod_write_half(p+0x62,0);
+                            for(unsigned part=5;part<=8;++part)assert(draw(part).first);
+                            assert(!draw(3).first); // other leg untouched
+                        }
+                        psx_mod_write_half(p+0x64,2);psx_mod_write_half(p+0x66,3);
+                        psx_mod_write_half(p+0x62,50);auto chamber=draw(7).second;
+                        psx_mod_write_half(p+0x62,0);auto strike=draw(7).second;
+                        assert(chamber!=strike);
+                        double right=0;
+                        for(unsigned i=0;i<3;++i)right+=(int16_t)psx_mod_read_half(c+2*i)/4096.0*(strike[i]-(int32_t)psx_mod_read_word(c+0x14+4*i));
+                        assert(right>0); // rises on the right, unlike the quick kick
+                        assert(draw(7).second==strike); // no host-frame timer
+                        psx_mod_write_half(p+0x66,6);assert(!draw(7).first); // malformed/outside clip
+                        psx_mod_write_half(p+0x66,3);
+                        setenv("DNTTK_USE_VIEW","legacy-third",1);frame();assert(!draw(7).first);
+                        unsetenv("DNTTK_USE_VIEW");frame();assert(draw(7).first);
+                        ttk::modern=false;frame();assert(!draw(7).first);
+                        ttk::modern=true;frame();assert(draw(7).first);
+                        assert(kick_calls.size()==attacks);
+                        assert(std::equal(joints.begin(),joints.end(),ram+(mats&0x1fffff)));
+                        psx_mod_write_word(table,saved_rec);psx_mod_write_word(0x800d8324,saved_frm);
+                        std::copy(saved_frames.begin(),saved_frames.end(),ram+(frames&0x1fffff));
+                        std::copy(channel.begin(),channel.end(),ram+(p&0x1fffff)+0x62);
+                        std::puts("PASS: D35K native-timed right-leg door presentation, no attack, immutable joints, view and Vanilla gates");
+                    }
                     ttk::input.active=false;frame();assert(metric("\"blend\":")==1);
                     ttk::input.active=true;
                     std::vector<uint8_t> snapshot(ttk::render_state_size());ttk::render_state_save(snapshot.data());

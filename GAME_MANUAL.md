@@ -1689,6 +1689,9 @@ removed or the view changes to third person. This adds no protection or charge
 changes. Use **B** to toggle an owned, charged mask, or let automatic gas
 protection equip it. Vanilla keeps its original presentation.
 
+Modernized toxic gas fills the active widescreen viewport, including 21:9 and
+auto resizing. Its native appearance and gas/Bio Mask behavior are preserved.
+
 ### Automatic and instant Bio Mask (D08A24)
 
 **OPTIONS > ADVANCED > ITEMS > AUTO BIO MASK** defaults to **ON**. An owned,

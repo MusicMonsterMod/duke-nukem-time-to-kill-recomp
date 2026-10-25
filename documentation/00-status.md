@@ -1,5 +1,20 @@
 # Current status - 2026-10-04
 
+## 2026-10-25 - D08A27 accepted and closed
+
+User accepted the full-width toxic gas fix and explicitly authorized closeout.
+D08A27 is Done. Modernized gas now follows the active widescreen viewport;
+native gas simulation, Bio Mask behavior, 4:3 and Vanilla remain unchanged.
+[Note 248](248-d08a27-widescreen-gas.md) records implementation, private slot-11
+captures, native tests, 60/120-target boundary routes and coverage limits.
+
+Accepted executable: `019d10de6a4977d6319f53811227121e8befc2a7b5057294b9ad8b13d65e741c`.
+No post-acceptance gameplay changes, builds or launches. The unchanged framework
+patch reconstructs all 52 modified/new files against the clean pin. Player data
+and dependency pins are untouched. No next job started.
+Launch: `python3 recomp/tools/local/run.py`.
+
+
 ## 2026-10-25 - D08A26 accepted and closed
 
 User explicitly authorized commit, push and closeout after accepting the mesh

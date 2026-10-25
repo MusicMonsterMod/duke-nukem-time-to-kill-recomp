@@ -144,7 +144,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08A24 | Automatic Bio Mask on toxic-area entry with a settings toggle | Done | D08A, D19 |
 | D08A25 | Night vision on/off sound shaped to the Duke 3D reference | Done | D08A23 |
 | D08A26 | Bio Mask first-person visor / respirator overlay | Done | D08A24, D12 |
-| D08A27 | Toxic gas effect fills the widescreen viewport (slot 11) | Todo - next after D08A26 closeout | D08A26, D14 |
+| D08A27 | Toxic gas effect fills the widescreen viewport (slot 11) | Done | D08A26, D14 |
 | D08A22 | Switcher strips and mission card scale with the window like the native HUD (icons too small in small windows) | Done (user-accepted) | D08A1, D08A5, D24A |
 | D08G3 | `dnupgrade` cheat: upgrade all weapons (Laser Gatling etc.) | Accepted | D08G2 |
 | D08G4 | `dnstuff`, `dnitems`, `dninventory` also give 100% armor; running steroids stop and a full dose is held | Done (user-accepted) | D08G |
@@ -441,7 +441,8 @@ PCM checks pass; user accepted the in-game mix. See note 245 for limits.
 
 ### D08A27 - Toxic gas fills the widescreen viewport
 
-**Status:** Todo. User-selected next job, to begin after D08A26 closeout.
+**Status:** Done (2026-10-25). User accepted the widescreen gas fix and explicitly
+authorized closeout. Implementation and evidence: [note 248](documentation/248-d08a27-widescreen-gas.md).
 User reports that toxic gas remains confined to the original 4:3 area while
 playing widescreen. Use a private copy of UI slot 11 (file slot10) to reproduce.
 
@@ -19659,3 +19660,49 @@ Accepted executable: `c775837d26203c05f46d50503f6a657b7ae1b85e01bbb0ec062c1e388f
 No post-acceptance gameplay changes, builds or launches. Note 247 retains
 verification evidence and coverage limits. D08A27 remains the selected next
 job: widescreen gas coverage, tested with a private copy of UI slot 11.
+
+
+## 2026-10-25 - D08A27 widescreen gas candidate (Needs playtest)
+
+Selected implementation only; no acceptance, documentation closeout, commit or
+push. `gas_widescreen.cpp` widens the completed native FT4 gas packet at
+0x8002bc18, caller 0x8002ffc0. Resident routine 0x8002fc38 and its sole gas caller
+0x800354cc are authenticated against the owned executable. Material 5, packet
+shape, exact original X bounds, Modernized, single player and live margin are
+required. The four X halves change from +/-256 to +/-(256+margin); every other
+packet byte, native vertical boundary, animation, blend and simulation stays
+untouched. No framework changes or generated-code edits. `DNTTK_GAS_WIDE=0`
+is a developer-only baseline comparison.
+
+Build, new `ttk-gas-test disc/SLUS_005.83` and existing sky tests pass. The new
+native test verifies full packet byte preservation except X, changing margins,
+idempotence, invalid packet/address rejection, unrelated callers/materials,
+altered resident code, split screen, Vanilla and native 4:3 exclusions.
+Private Xvfb/OpenGL routes show full-width coverage at 16:9, 21:9 and auto
+resizing between 4:3, 16:9 and 21:9, camera turning, first/third person, mask
+on/off, pause/resume and reload. Fixed 21:9 was checked at 60 FPS; 16:9 and auto
+at 120 target. Auto replay rendered 1017 captures with zero reported failures;
+its measured trailing mean present interval was about 18 ms, not sustained
+120 FPS. Native 4:3 and Vanilla load/present smoke checks pass.
+
+Local evidence: `recomp/analysis/d08a27/` (before-deep/after captures, auto120,
+wide60, native43, vanilla, crossing routes and packet/sky test outputs). Tests
+write only private cards/settings. The deep-pit route's attempted backward exit
+did not leave gas and is not exit evidence; separate shallow boundary crossings
+exercise actual head entry/exit and automatic mask removal during held fire.
+User visual/play acceptance and campaign cutscene coverage remain outstanding.
+Candidate SHA-256: `019d10de6a4977d6319f53811227121e8befc2a7b5057294b9ad8b13d65e741c`.
+Launch: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-25 - D08A27 accepted and closed
+
+User: "lock it in and close us out. perfect". The widescreen gas candidate is
+accepted; implementation and documentation commit/push are authorized as
+MusicMonsterMod. D08A27 is Done. No post-acceptance gameplay changes, builds or
+launches. Both 60 and 120-target shallow boundary routes passed repeated gas
+entry/exit while firing, with native automatic mask removal. Prior scope and
+performance limits remain recorded in [note 248](documentation/248-d08a27-widescreen-gas.md).
+The unchanged runtime patch reconstructs all 52 modified/new framework files
+against the pinned clean dependency. Player data and dependency pins are untouched.
+No next job started. Launch: `python3 recomp/tools/local/run.py`.

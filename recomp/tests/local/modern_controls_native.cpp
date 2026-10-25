@@ -1,7 +1,7 @@
 #include "action_perspective.h"
 #include "tight_camera.h"
-static unsigned night_vision_sounds;
-namespace ttk { void night_vision_sound() {++night_vision_sounds;} }
+static unsigned night_vision_sounds,bio_mask_sounds;
+namespace ttk { void night_vision_sound() {++night_vision_sounds;} void bio_mask_sound() {++bio_mask_sounds;} }
 static bool renderer_available=true;
 extern "C" int psx_mod_present_replay_available(void){return renderer_available;}
 #include <cstdint>
@@ -2138,6 +2138,56 @@ int main(int argc,char** argv) {
         assert(night_vision_sounds==sounds_before+6);
         request(ttk::item_use);assert(night_vision_sounds==sounds_before+7);
         request(ttk::item_use);assert(night_vision_sounds==sounds_before+8);
+        // D08A24: instant manual use and real damage-entry plugin. The
+        // native damage handler, not the adapter, remains the protection rule.
+        const uint32_t old_gas=psx_mod_read_word(p+0x88c);
+        psx_mod_write_word(0x801d2030,0x801d7000);
+        psx_mod_write_half(p+0x35c,1);psx_mod_write_half(p+0x35e,50);
+        psx_mod_write_word(p+0x88c,0);
+        const unsigned mask_sounds_before=bio_mask_sounds;
+        request(ttk::biomask);assert(bio_mask_sounds==mask_sounds_before+1);
+        assert(psx_mod_read_half(p+0x35c)==3 && psx_mod_read_half(p+0x854)==2);
+        assert(psx_mod_read_word(0x801d0090)==0x801d7000 && psx_mod_read_half(p+0x35e)==50);
+        assert(psx_mod_read_word(p+0x3b8)==equipment && psx_mod_read_half(p+0x74)==42);
+        request(ttk::item_use);assert(psx_mod_read_half(p+0x35c)==1 && psx_mod_read_half(p+0x854)==0);
+        auto gas_hit=[&](unsigned type=12,uint32_t victim=0x800d7198,uint32_t caller=0x80040ad0) {
+            CPUState cpu{};cpu.gpr[4]=victim;cpu.gpr[7]=type;cpu.gpr[29]=0x801fff00;cpu.gpr[31]=caller;
+            hooks().at(0x800a40a8)(&cpu,0x800a40a8);
+        };
+        gas_hit(1);gas_hit(12,p+0x1000);gas_hit();assert(psx_mod_read_half(p+0x35c)==1);
+        psx_mod_write_word(p+0x88c,2);gas_hit(12,p,0x80092a44);assert(psx_mod_read_half(p+0x35c)==1);gas_hit();
+        assert(psx_mod_read_half(p+0x35c)==3 && psx_mod_read_half(p+0x854)==2);
+        assert(psx_mod_read_word(p+0x3b8)==equipment && psx_mod_read_half(p+0x74)==42);
+        const unsigned auto_sounds=bio_mask_sounds;
+        gas_hit();assert(psx_mod_read_half(p+0x35c)==3 && bio_mask_sounds==auto_sounds); // no repeated cue
+        // Gas exit removes instantly after three clear native updates, with
+        // one sound, unchanged weapon/pose, and no removal on a brief boundary dip.
+        psx_mod_write_word(p+0x88c,0);request(ttk::item_next);request(ttk::item_next);
+        assert(psx_mod_read_half(p+0x35c)==3 && bio_mask_sounds==auto_sounds);
+        psx_mod_write_word(p+0x88c,2);gas_hit(); // exposure resets exit grace
+        psx_mod_write_word(p+0x88c,0);request(ttk::item_next);request(ttk::item_next);
+        assert(psx_mod_read_half(p+0x35c)==3);
+        request(ttk::item_next);assert(psx_mod_read_half(p+0x35c)==1 && psx_mod_read_half(p+0x854)==0);
+        assert(bio_mask_sounds==auto_sounds+1 && psx_mod_read_half(p+0x35e)==50);
+        assert(psx_mod_read_word(p+0x3b8)==equipment && psx_mod_read_half(p+0x74)==42);
+        request(ttk::item_next);assert(bio_mask_sounds==auto_sounds+1);
+        psx_mod_write_word(p+0x88c,2);gas_hit();assert(psx_mod_read_half(p+0x35c)==3);
+        request(ttk::biomask);gas_hit();assert(psx_mod_read_half(p+0x35c)==1); // manual off wins in gas
+        psx_mod_write_word(p+0x88c,0);request(ttk::item_next); // exit rearms
+        psx_mod_write_word(p+0x88c,2);gas_hit();assert(psx_mod_read_half(p+0x35c)==3);
+        request(ttk::goggles);gas_hit();assert(psx_mod_read_half(p+0x35c)==1 && psx_mod_read_half(p+0x854)==3);
+        psx_mod_write_word(p+0x88c,0);request(ttk::goggles);request(ttk::item_next);
+        psx_mod_write_word(p+0x88c,2);psx_mod_write_half(p+0x35e,0);gas_hit();assert(psx_mod_read_half(p+0x35c)==1);
+        psx_mod_write_half(p+0x35e,50);psx_mod_write_half(p+0x35c,0);gas_hit();assert(psx_mod_read_half(p+0x35c)==0);
+        psx_mod_write_half(p+0x35c,1);psx_mod_write_half(p+0x32,0);gas_hit();assert(psx_mod_read_half(p+0x35c)==1);
+        psx_mod_write_half(p+0x32,100);psx_mod_write_word(p+0x40,0);gas_hit();assert(psx_mod_read_half(p+0x35c)==1);
+        psx_mod_write_word(p+0x40,0x801d0000);psx_mod_write_half(p+0x360,0x8001);gas_hit();assert(psx_mod_read_half(p+0x35c)==1);
+        psx_mod_write_half(p+0x360,1);setenv("DNTTK_AUTO_BIO_MASK","off",1);gas_hit();request(ttk::biomask);assert(psx_mod_read_half(p+0x35c)==1);unsetenv("DNTTK_AUTO_BIO_MASK");
+        ttk::modern=false;gas_hit();assert(psx_mod_read_half(p+0x35c)==1);ttk::modern=true;
+        // Loading an unprotected gas save starts a new exposure check.
+        ++save_loads;gas_hit();assert(psx_mod_read_half(p+0x35c)==3);--save_loads; // restore fixture generation
+        psx_mod_write_word(p+0x88c,old_gas);
+        std::puts("PASS: D08A24 instant B/inventory, gas activation, manual suppression/re-entry, empty/dead/pending/invalid/Off/Vanilla guards");
         ttk::input.held[ttk::fire]=false;psx_mod_write_half(p+0x360,0);psx_mod_write_half(p+0x362,0);psx_mod_write_half(p+0x35c,0);psx_mod_write_half(p+0x35e,0);
         psx_mod_write_word(p+0x40,old_model);psx_mod_write_word(0x800ddb18,old_items);psx_mod_write_word(0x800ddb14,old_models);
         psx_mod_write_half(p+0x32,old_health);psx_mod_write_half(p+0x74,old_upper);psx_mod_write_half(p+0x854,old_face);

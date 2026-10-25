@@ -1,5 +1,66 @@
 # Next-session handoff
 
+## 2026-10-25 - D08A24 accepted and closed
+
+User: "lock it in, close it out". D08A24 is Done. Automatic gas entry and exit,
+instant manual use while firing, and the edited on/off gas cue are accepted.
+Implementation, tests, licensed asset/provenance, manual and documentation
+closeout/commit/push are authorized as MusicMonsterMod.
+
+Accepted executable: `bc3828d8fc5b2a2cfaf3d82edd92ebda1d382124f4f8a9fafcdbdaddaa1e48b4`.
+No post-acceptance gameplay changes, builds or launches. Runtime patch export
+is unchanged; all 51 files match the clean patched pinned dependency. Dependency
+pins and player data are untouched. [Note 246](246-d08a24-auto-bio-mask.md) retains
+verification evidence and coverage limits. No next job started.
+Launch: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-25 - D08A24 revision 2: automatic mask removal (Needs playtest)
+
+User requested automatic removal after leaving gas. AUTO BIO MASK now removes
+an active mask after three consecutive native updates without head exposure,
+playing the removal cue once and stopping charge drain. Entry remains instant;
+brief boundary dips reset the exit grace. Firing, weapon and camera stay live.
+Manual use in clean air remains available. Active gas saves stay protected;
+active clean-air saves resolve off after the grace with one removal cue.
+
+Build and native controls suite pass. Private slot-11 routes at 60 FPS third
+person and 120 FPS first person pass three repeated crossings during fire,
+exact cue counts, stopped charge drain, manual clean-air use and both load cases.
+All 40 player source save/card files retain this revision's initial hashes/mtimes.
+Diagnostics stopped. No framework, audio asset/mixer or settings-schema changes
+in this revision. No acceptance closeout, commit/push or next job.
+
+Candidate: `bc3828d8fc5b2a2cfaf3d82edd92ebda1d382124f4f8a9fafcdbdaddaa1e48b4`.
+[Note 246](246-d08a24-auto-bio-mask.md) contains evidence and remaining limits.
+Launch: `python3 recomp/tools/local/run.py`; slot 11, walk into and out of gas.
+
+
+## 2026-10-25 - D08A24 automatic/instant Bio Mask (Needs playtest)
+
+User selected UI slot 11, requested instant use while shooting, and supplied a
+licensed gas-decompression cue for activation/removal with editing authorized.
+AUTO BIO MASK ON (default) activates at native toxic-area head exposure before
+gas damage. B/Enter also toggle instantly while firing; OFF restores native
+manual behavior. The mask stays on outside gas, draining normally; manual-off
+in gas lasts until exit/re-entry. Loads reset that suppression, preserve native
+saved mask/charge, and do not play an activation cue for an active saved mask.
+
+The 0.55-second edited sound follows effects volume, with no queued repeats.
+Build, controls/input/aim/audio suites, 104 profile tests, private 60/120 FPS
+routes, live menu OFF/ON and host PCM checks pass. Final 120 FPS smoke confirms
+the strict gas-area caller guard and cue on automatic activation/manual removal.
+All 40 source save/card files retain hashes/mtimes. Private diagnostics stopped;
+no player-data, dependency pin or framework changes. Existing framework edits
+remain preserved. User control-feel and sound-mix acceptance remain.
+
+Candidate: `e68d5f45dd835ce4281284fb9e5aa06186cf699880a77e92fd2a4b3567bd93e7`.
+[Note 246](246-d08a24-auto-bio-mask.md) records implementation, licensed audio,
+evidence and limits. No acceptance closeout, commit/push or next job.
+Launch: `python3 recomp/tools/local/run.py`; load slot 11, walk into gas while
+firing, and try B/Enter. AUTO BIO MASK is under OPTIONS > ADVANCED > ITEMS.
+
+
 ## 2026-10-25 - D08A25 accepted and closed
 
 User: "its perfect! lock it in and close us out". D08A25 is Done. The chosen

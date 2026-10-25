@@ -1436,6 +1436,7 @@ static void hook_body(CPUState* cpu, uint32_t address) {
         if (cpu->gpr[4]==player && ra==0x80041c44) {
             god_mode_update(); // after this update's mode-10 fuel drain, before the HUD
             jet_post_update(cpu);
+            bio_mask_boundary(true);
             select_weapon(cpu);
             kick_update(cpu);
             if(facing_ready())face_view();
@@ -1901,7 +1902,7 @@ PSX_MOD_CONSTRUCTOR(register_ttk_controls) {
     // D08Z5: the slide's jump start (99/100 backwards) at the lower-body initializer.
     psx_mod_register_function_entry_plugin("ttk.wall.backflip",0x800493a4,[](CPUState* cpu,uint32_t){ttk::wall_backflip_jump(cpu);});
     // D08A13: Duke's damage handler; running steroids no longer shield the hit.
-    psx_mod_register_function_entry_plugin("ttk.modern.controls",0x800a40a8,[](CPUState* cpu,uint32_t){ttk::steroids_damage_entry(cpu);});
+    psx_mod_register_function_entry_plugin("ttk.modern.controls",0x800a40a8,[](CPUState* cpu,uint32_t){ttk::steroids_damage_entry(cpu);ttk::bio_mask_damage_entry(cpu);});
     // D08A12: the held-throwable handler; dynamite stays unlit until fire.
     psx_mod_register_function_entry_plugin("ttk.modern.controls",0x8004dea4,[](CPUState* cpu,uint32_t){ttk::dynamite_entry(cpu);});
     // D08A12: the sparks and the sizzle; only the unlit stick's calls (ra 0x8004e138 / 0x8004e154) go further.

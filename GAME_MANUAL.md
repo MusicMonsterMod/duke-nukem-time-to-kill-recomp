@@ -810,9 +810,9 @@ weapon. In Modernized a drawn dynamite stays unlit until you fire, so you can
 switch away from it (see Dynamite below); once lit, or with `--dynamite original`,
 it must finish its original throw/fuse before a requested weapon switch completes. A usable pipe-bomb remote remains accessible without spare ammo.
 **M** uses an owned portable medkit, **J** toggles the jetpack, **N** night vision,
-and **B** the Bio Mask through original use rules (TTK’s own gas mask — not scuba
-or boots). Wait for gadget equip/remove and
-weapon redraw to finish before another shortcut. **J** also switches the jetpack
+and **B** the Bio Mask (TTK's gas mask). Modern night vision and enabled Auto Bio
+Mask toggle instantly while firing; original gadget modes retain their equip
+and weapon-redraw animations. **J** also switches the jetpack
 off in mid-flight (a controlled fall follows). Underwater air still equips automatically.
 **[ / ]** cycle eligible gadgets; **Enter** uses the selected gadget. In Modernized, a gadget you pick up (jetpack, Bio Mask, goggles, medkit, steroids), or top up when it was not full, becomes the selected one at once, as in Duke 3D, so its HUD box shows and **Enter** use it; keys and mission items leave the selection alone. **, / .** browse the level's mission items (see Mission items below). **R takes steroids** (see Portable steroids below). In third person, **Q kicks only while standing still with Mighty Boot already selected on 1**
 (the original kick). Q never selects another weapon or presses fire. In first
@@ -1677,6 +1677,30 @@ a save do not play the cue. Original night vision and Vanilla retain their origi
 saves the choice. Vanilla retains original behavior. The launcher also accepts
 `--night-vision modern|original`; this saves the preference. In `--settings`,
 choose **N Night vision**.
+
+### Automatic and instant Bio Mask (D08A24)
+
+**OPTIONS > ADVANCED > ITEMS > AUTO BIO MASK** defaults to **ON**. An owned,
+charged mask activates instantly when native toxic gas reaches Duke's head,
+before gas damage. **B**, or **Enter** with the mask selected, also toggles it
+instantly. Movement, camera view and firing continue without an equip animation.
+Holding the key toggles once. The mask and goggles remain mutually exclusive.
+Your edited gas-decompression cue plays on activation and manual or automatic
+removal, following effects volume. Empty attempts and depletion are silent.
+
+The mask removes automatically after three consecutive native game updates
+outside gas exposure, stopping charge drain. This short exit grace prevents
+flicker at the boundary; entry protection is immediate. B can still switch it on
+manually in clean air. Removing it in gas, or replacing it with Modern goggles,
+suppresses automatic activation until Duke leaves and re-enters. Loading a save
+starts a fresh exposure check: an active mask in gas stays on silently; an active
+mask in clean air removes with the usual cue after the exit grace. No mask or no charge means no protection. The mask does
+not protect against bullets, falls, water or other non-gas hazards.
+
+**OFF** restores original manual Bio Mask behavior. Confirm applies and saves the
+choice immediately. Vanilla stays original. The launcher accepts
+`--auto-bio-mask on|off` (saves the preference); terminal `--settings` uses
+**M Auto Bio Mask**.
 
 ### Inventory feedback and crouch scope (2026-09-28)
 

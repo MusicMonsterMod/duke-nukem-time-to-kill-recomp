@@ -1,5 +1,9 @@
 // SLUS-00583 code SHA-256 guards; derived read-only from the owned executable.
 static const Guard guards[] = {
+    {0x8004e894, 184, "0736b11803466911a650e08998dce7ba16580ba96bf8b52e60bb08bead26ada5"}, // D08A24 native Bio Mask/gas contract
+    {0x800409e0, 276, "4dcc4e5ec9d01517a7b30367f135b1e4643d6f1cffe7dededd2acdadada9b03a"}, // D08A24 native Bio Mask/gas contract
+    {0x80018aec, 80, "a9b1a67f2c75119ad12217b4abe922dd7a036ea6c5dd710dd97d2ca418b35838"}, // D08A24 native Bio Mask/gas contract
+
     {0x8008acc8, 56, "398d8778b88560ab75a97f65db780f684d8a034dde560a5af4e2ca20b6fd89e0"}, // D08A25 effects slider scale and global volume address
     {0x8004e94c, 212, "655e6eed09f072c0bbb2216883023b873d2b41fb001329e51d899717ba30f64a"}, // D08A23 goggles endpoints and native charge lifecycle
     {0x800420bc, 332, "26fda3e6f59ab68e952635660300cb067cd2c884a1b736cad58080f2e67f4007"}, // D08A23 goggles endpoints and native charge lifecycle

@@ -1,0 +1,20 @@
+{
+  "source": "creatorshome-gas-decompression-329819.mp3",
+  "source_sha256": "291d211f40624d36210a7c6f8a6254ad5261f0e63ffdb747b8e9d3dc8da5d0d2",
+  "source_url": "https://pixabay.com/sound-effects/film-special-effects-gas-decompression-329819/",
+  "creator": "CreatorsHome",
+  "title": "Gas Decompression",
+  "license": "Pixabay Content License",
+  "license_url": "https://pixabay.com/service/license-summary/",
+  "license_checked": "2026-10-25",
+  "filter": "atrim=start=0:end=0.55,highpass=f=100,lowpass=f=7000",
+  "fade_in_seconds": 0.003,
+  "fade_out_seconds": 0.035,
+  "gain": 0.409329044945741,
+  "seconds": 0.55,
+  "sample_rate": 44100,
+  "rms_dbfs": -26.890220553169748,
+  "peak_dbfs": -6.0004777433190135,
+  "asset_sha256": "2da358e05774e5854bc1d2bf8d3badfb9d0f2b1a4b76f14f29e694c8e7f8c11c",
+  "use": "Modified Bio Mask equip/removal effect embedded as part of the game; not standalone stock audio."
+}

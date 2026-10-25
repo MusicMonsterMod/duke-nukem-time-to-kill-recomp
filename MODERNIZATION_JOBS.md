@@ -1,5 +1,7 @@
 # Time to Kill — modernization jobs
 
+**Latest accepted job (2026-10-25): D08A24 automatic/instant Bio Mask is Done. User: "lock it in, close it out". Automatic entry/exit, instant use while firing and on/off sound accepted; implementation and documentation closeout authorized. [Note 246](documentation/246-d08a24-auto-bio-mask.md). No next job started.**
+
 **Latest accepted job (2026-10-25): D08A25 night vision on/off sound is Done. User: "its perfect! lock it in and close us out". Implementation and documentation closeout authorized. [Note 245](documentation/245-d08a25-night-vision-sound.md). No next job started.**
 
 **Latest accepted job (2026-10-25): D08A23 instant night vision is Done. User: "lock it in, close it out!!". Implementation and documentation closeout authorized. [Note 244](documentation/244-d08a23-instant-night-vision.md). D08A24 remains Todo; no next job started.**
@@ -139,7 +141,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08A20 | Challenge item (type 633, "SURPRISE") shown in the top right of the HUD once found (user art delivered) | Done (user-accepted) | D08A16, D24A |
 | D08A21 | Re-export HUD item icons with 14x14 art inside the 16x16 canvas (medkit, steroids, power-up coins) | Done (user-accepted) | D08A4, D08A7, D08A16 |
 | D08A23 | Instant night vision with immediate firing and a settings toggle | Done | D08A, D19 |
-| D08A24 | Automatic Bio Mask on toxic-area entry with a settings toggle | Todo | D08A, D19 |
+| D08A24 | Automatic Bio Mask on toxic-area entry with a settings toggle | Done | D08A, D19 |
 | D08A25 | Night vision on/off sound shaped to the Duke 3D reference | Done | D08A23 |
 | D08A22 | Switcher strips and mission card scale with the window like the native HUD (icons too small in small windows) | Done (user-accepted) | D08A1, D08A5, D24A |
 | D08G3 | `dnupgrade` cheat: upgrade all weapons (Laser Gatling etc.) | Accepted | D08G2 |
@@ -435,23 +437,32 @@ Acceptance:
 The chosen cue is integrated. Build/native tests, private 60/120 routes and host
 PCM checks pass; user accepted the in-game mix. See note 245 for limits.
 
-### D08A24 - Automatic Bio Mask in toxic areas
+### D08A24 - Automatic and instant Bio Mask
 
-**Status:** Todo. Backlog research only; implementation not selected.
-With its independent persistent settings toggle enabled, an owned, charged Bio
-Mask activates automatically on entering a native toxic gas area in time to protect
-Duke. Disabled retains manual behavior. Preserve native charge/protection rules,
-empty-item behavior, manual B and inventory use, save/load and repeated boundaries.
-This is gas protection, not scuba, generic liquid protection or immunity to all
-hazards. Vanilla stays unchanged. Decide exit/deactivation and manual-off policy
-from native behavior when selected; avoid repeatedly restarting equip animations.
+**Status:** Done, user-accepted 2026-10-25. User: "lock it in, close it out".
+Implementation and documentation closeout authorized; private slot 11 tested.
+The user also requested instant manual use while shooting and supplied a licensed
+gas-decompression sound for on/off, with edits authorized.
 
-Initial source research: Bio Mask is item 2, bound to B, flags player+0x35c and
-charge +0x35e; it shares `use_item()` / `0x800402d0` with goggles. The current HUD
-already reads Bio Mask/goggles status (`gadget_hud.inc`). The authoritative gas
-exposure/damage predicate and activation timing still need native tracing; do not
-infer toxicity from water depth or a room number. Existing documentation explicitly
-limits Bio Mask to gas. No gadget code or settings changed during intake.
+AUTO BIO MASK ON (default) equips an owned, charged mask before native toxic-area
+head-exposure damage. B and inventory Enter toggle it instantly without changing
+weapon, animation or camera; firing continues. The independent persistent toggle
+is in OPTIONS > ADVANCED > ITEMS. OFF retains original manual behavior; Vanilla
+stays original. Native charge/protection/depletion rules remain.
+
+The mask removes after three consecutive native updates outside head exposure,
+with one removal cue and no further charge drain. Brief boundary dips reset the
+grace. Manual removal in gas, or replacement by Modern goggles, suppresses
+auto-use until exit/re-entry. Loads start a fresh exposure check: active gas saves
+stay protected; active clean-air saves remove after the grace. Charge is retained. No generic liquid,
+scuba or other-hazard protection is introduced.
+
+The edited 0.55-second gas cue plays on successful automatic/manual activation
+and manual/automatic removal, following effects volume. Empty attempts, held
+repeats, depletion and restoring active gas saves are silent. Build/native/profile tests and private
+60/120 FPS routes pass; user accepted control feel, sound mix and automatic exit.
+See [note 246](documentation/246-d08a24-auto-bio-mask.md). Commit/push and
+acceptance closeout authorized; no next job started.
 
 ### D35G1 - Slot-5 jump edge/corner screen artifact
 
@@ -19454,3 +19465,37 @@ Dependency pins and player data are untouched. Existing framework edits are
 preserved in the exported patch. [Note 245](documentation/245-d08a25-night-vision-sound.md)
 retains test evidence and coverage limits. D08A24 remains Todo; no next job
 started. Launch: `python3 recomp/tools/local/run.py`.
+
+## 2026-10-25 - D08A24 automatic/instant Bio Mask candidate (Needs playtest)
+
+User selected D08A24 with UI slot 11, requested instant use while shooting, and
+supplied CreatorsHome's licensed gas-decompression MP3 for activation/removal,
+authorizing appropriate edits. The candidate uses native head exposure and gas
+damage dispatch, instant native item/model endpoints, persistent AUTO BIO MASK
+ON/OFF and the edited 0.55-second cue. Native protection and charge remain.
+
+Build, controls/input/aim/audio suites and 104 profile tests pass. Private 60 FPS
+third-person and 120 FPS first-person routes cover held fire, B/Enter, repeated
+boundaries, manual-off suppression, save/load, depletion and face-item ownership.
+The live menu restores native manual behavior with OFF. PCM capture confirms the
+cue in the mix and effects-mute suppression. All 40 player source save/card files
+retain hashes/mtimes. Details and evidence limits: note 246. Player acceptance
+pending; no acceptance closeout, commit/push or next job.
+
+## 2026-10-25 - D08A24 revision 2 automatic gas exit (Needs playtest)
+
+User requested automatic mask removal after leaving gas. Three consecutive
+clear native player updates now remove it instantly, stop charge drain and play
+one cue. Renewed head exposure cancels that short grace; entry protection remains
+immediate. Native controls tests and private slot-11 routes at 60/120 FPS pass
+repeated crossings while firing, cue counts, charge stopping and dry/gas loads.
+Player files unchanged. Note 246 records the revised contract and candidate.
+No acceptance closeout, commit/push or next job.
+
+## 2026-10-25 - D08A24 accepted and closed
+
+User: "lock it in, close it out". D08A24 is Done. Implementation, tests, licensed
+edited audio, manual and documentation closeout/commit/push are authorized.
+No post-acceptance gameplay changes, builds or launches. The unchanged runtime
+patch matches all 51 framework files against the pinned clean dependency.
+Prior test evidence and coverage limits remain in note 246. No next job started.

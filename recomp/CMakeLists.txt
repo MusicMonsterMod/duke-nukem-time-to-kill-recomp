@@ -287,7 +287,12 @@ add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/night_vision_pcm.h"
         "${CMAKE_CURRENT_SOURCE_DIR}/assets/audio/night-vision-on.wav"
         "${CMAKE_CURRENT_BINARY_DIR}/night_vision_pcm.h"
     DEPENDS tools/local/embed_night_vision_audio.py assets/audio/night-vision-on.wav VERBATIM)
-add_custom_target(ttk-night-vision-asset DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/night_vision_pcm.h")
+add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/bio_mask_pcm.h"
+    COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/local/embed_night_vision_audio.py"
+        "${CMAKE_CURRENT_SOURCE_DIR}/assets/audio/bio-mask-toggle.wav"
+        "${CMAKE_CURRENT_BINARY_DIR}/bio_mask_pcm.h" bio_mask
+    DEPENDS tools/local/embed_night_vision_audio.py assets/audio/bio-mask-toggle.wav VERBATIM)
+add_custom_target(ttk-night-vision-asset DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/night_vision_pcm.h" "${CMAKE_CURRENT_BINARY_DIR}/bio_mask_pcm.h")
 target_sources(psx-runtime PRIVATE src/ttk/night_vision_audio.cpp)
 set_source_files_properties(src/ttk/night_vision_audio.cpp PROPERTIES INCLUDE_DIRECTORIES "${CMAKE_CURRENT_BINARY_DIR}")
 add_dependencies(psx-runtime ttk-night-vision-asset)

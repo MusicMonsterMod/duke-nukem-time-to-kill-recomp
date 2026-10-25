@@ -180,6 +180,95 @@ static void use_item(CPUState* cpu,unsigned item) {
         else input_notice(on?"NIGHT VISION ON":"NIGHT VISION OFF");
     }
 }
+// D08A24: native gas is damage type 12; the area query tests the
+// head joint in +0x88c. Only native item/model endpoints are changed.
+static bool bio_mask_suppressed, bio_mask_exposed;
+static unsigned bio_mask_clear_updates;
+static uint64_t bio_mask_loads;
+static bool bio_mask_auto() {
+    const char* v=ttk_live_env("DNTTK_AUTO_BIO_MASK");
+    return input_modernized() && (!v || std::strcmp(v,"off"));
+}
+static bool bio_mask_gas() {
+    const uint32_t model=psx_mod_read_word(player+0x40);
+    if(model<0x80010000 || model>0x801fffcb || (model&3))return false;
+    const unsigned joint=psx_mod_read_byte(model+0x34);
+    return joint<32 && (psx_mod_read_word(player+0x88c)&(1u<<joint));
+}
+static bool bio_mask_toggle(bool automatic=false) {
+    if(!bio_mask_auto() || !interaction_alive() || !gameplay_context() ||
+       psx_mod_read_byte(player+0x233)!=0 || (int16_t)psx_mod_read_half(player+0x32)<=0)return false;
+    const unsigned item=psx_mod_read_half(player+0x35c);
+    const bool on=!(item&2);
+    if(automatic && (!on || bio_mask_suppressed))return false;
+    if(!(item&1) || (on && (int16_t)psx_mod_read_half(player+0x35e)<=0))return false;
+    for(unsigned i=1;i<=5;++i)if(psx_mod_read_half(player+0x354+4*i)&0x8000)return false;
+    auto valid=[](uint32_t a,unsigned n) {return a>=0x80010000u && a<=0x80200000u-n && !(a&3);};
+    const uint32_t model=psx_mod_read_word(player+0x40);
+    if(!valid(model,0x35))return false;
+    const unsigned joint=40*psx_mod_read_byte(model+0x34);
+    const uint32_t target=model+joint+0x68;
+    if(!valid(target,4))return false;
+    const uint32_t table=psx_mod_read_word(on?0x800ddb18:0x800ddb14);
+    if(!valid(table,on?0x1034:8))return false;
+    const uint32_t base=on?table:psx_mod_read_word(table+4);
+    if(!valid(base,on?0x1034:joint+0x6c))return false;
+    const uint32_t mesh=psx_mod_read_word(base+(on?0x1030:joint+0x68));
+    if(!valid(mesh,4))return false;
+    if(on) {
+        psx_mod_write_half(player+0x360,psx_mod_read_half(player+0x360)&~2u);
+        psx_mod_write_word(player+0x224,psx_mod_read_word(player+0x224)&~0x80000u);
+    }
+    psx_mod_write_word(target,mesh);
+    psx_mod_write_half(player+0x854,on?2:0);
+    psx_mod_write_half(player+0x35c,item^2);
+    bio_mask_suppressed=!on && bio_mask_gas();
+    remember_item(2);inventory_feedback(false);
+    bio_mask_sound();
+    input_notice(on?"BIO MASK ON":"BIO MASK OFF");
+    return true;
+}
+// Only normal player-update calls count exit grace. A damage callback can
+// observe entry but must never count as a second dry update or remove a mask.
+static void bio_mask_boundary(bool update_exit=false) {
+    const uint64_t loads=psx_mod_savestate_loads();
+    if(loads!=bio_mask_loads) {
+        bio_mask_suppressed=false;bio_mask_clear_updates=0;
+        // A loaded active mask outside gas should settle off too; do not carry
+        // the previous timeline's exposure or pending exit into the loaded one.
+        bio_mask_exposed=(psx_mod_read_half(player+0x35c)&2) && psx_mod_read_half(player+0x854)==2;
+    }
+    bio_mask_loads=loads;
+    if(!bio_mask_auto()) {
+        bio_mask_suppressed=bio_mask_exposed=false;bio_mask_clear_updates=0;return;
+    }
+    if(!interaction_alive() || !gameplay_context() || psx_mod_read_byte(player+0x233)!=0 ||
+       (int16_t)psx_mod_read_half(player+0x32)<=0)return;
+    if(bio_mask_gas()) {bio_mask_exposed=true;bio_mask_clear_updates=0;return;}
+    bio_mask_suppressed=false;
+    if(!update_exit || !bio_mask_exposed)return;
+    if(!(psx_mod_read_half(player+0x35c)&2) || psx_mod_read_half(player+0x854)!=2) {
+        bio_mask_exposed=false;bio_mask_clear_updates=0;return;
+    }
+    // Three consecutive native updates outside head exposure prevent the
+    // boundary/head animation from chattering. Entry protection stays instant.
+    if(bio_mask_clear_updates<3)++bio_mask_clear_updates;
+    if(bio_mask_clear_updates==3 && bio_mask_toggle()) {
+        bio_mask_exposed=false;bio_mask_clear_updates=0;
+    }
+}
+static void bio_mask_damage_entry(CPUState* cpu) {
+    if(cpu->gpr[4]!=player)return;
+    if(std::getenv("DNTTK_BIO_MASK_TRACE"))
+        std::fprintf(stderr,"ttk-biomask damage type=%u amount=%u ra=%08x health=%u mask=%u head=%d\n",
+            cpu->gpr[7],cpu->gpr[6],cpu->gpr[31],psx_mod_read_half(player+0x32),
+            psx_mod_read_half(player+0x35c),bio_mask_gas()?1:0);
+    if(cpu->gpr[7]!=12 || cpu->gpr[31]!=0x80040ad0 || !bio_mask_auto() || !bio_mask_gas())return;
+    // The area call is already past its native head-exposure test. Other
+    // damage types, liquids and non-player actors never activate the mask.
+    bio_mask_boundary();
+    bio_mask_toggle(true);
+}
 // D08A23: reproduce only the native goggles effect/model endpoints
 // (8004e94c..8004ea20), never its hand equipment or animation writes.
 static bool night_vision_modern() {
@@ -209,9 +298,11 @@ static bool night_vision_toggle() {
     if(!valid(mesh,4))return false;
     const uint32_t flags=psx_mod_read_word(player+0x224);
     // Native face equipment is exclusive: goggles replace the Bio Mask.
-    // Its charge is preserved; no automatic gas behavior is introduced here.
-    if(on && psx_mod_read_half(player+0x854)==2)
+    // Preserve charge and respect this manual replacement until gas re-entry.
+    if(on && psx_mod_read_half(player+0x854)==2) {
         psx_mod_write_half(player+0x35c,psx_mod_read_half(player+0x35c)&~2u);
+        bio_mask_suppressed=bio_mask_gas();
+    }
     psx_mod_write_word(target,mesh);
     psx_mod_write_half(player+0x854,on?3:0);
     psx_mod_write_word(player+0x224,on?flags|0x80000u:flags&~0x80000u);
@@ -335,6 +426,10 @@ static void select_weapon(CPUState* cpu) {
         if(f.commands[n]==goggles || (f.commands[n]==item_use && selected_item==3 && !mission_enter)) {
             night_vision_toggle();break;
         }
+    if(bio_mask_auto())for(unsigned n=0;n<f.command_count && n<32;++n)
+        if(f.commands[n]==biomask || (f.commands[n]==item_use && selected_item==2 && !mission_enter)) {
+            bio_mask_toggle();break;
+        }
     // D08A4: R, or Enter / U on steroids, takes a stored dose in every live
     // gameplay state (it only sets the original effect bit and timer), the
     // way the bracket keys are taken.
@@ -392,6 +487,7 @@ static void select_weapon(CPUState* cpu) {
         } else {
             unsigned item=action==medkit?5:action==jetpack?1:action==biomask?2:action==goggles?3:
                 action==item_use?(mission_enter || selected_item==4?0:selected_item):0;
+            if(item==2 && bio_mask_auto())continue;
             if(item==3 && night_vision_modern())continue; // already handled without owning the weapon
             if(item) {use_item(cpu,item);break;} // one item activation per guest update
             // R (and Enter / U on steroids) were taken above, in every state.

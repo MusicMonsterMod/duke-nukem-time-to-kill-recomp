@@ -408,6 +408,8 @@ std::vector<Screen> make_screens() {
         {"JETPACK",Section::Controls,"jetpack","DNTTK_JETPACK",false,"EDUKE32: INSTANT J FLIGHT, 61 SECONDS OF FUEL",
          {{"MODERN","modern","\"modern\""},{"CLASSIC","classic","\"classic\""},{"EDUKE32","eduke32","\"eduke32\""}},0},
         heading("ITEMS"),
+        {"AUTO BIO MASK",Section::Controls,"auto_bio_mask","DNTTK_AUTO_BIO_MASK",true,"ON: AUTO GAS PROTECTION AND INSTANT USE WHILE FIRING",
+         {{"ON","on","\"on\""},{"OFF","off","\"off\""}},0},
         {"NIGHT VISION",Section::Controls,"night_vision","DNTTK_NIGHT_VISION",true,"MODERN: INSTANT ON/OFF WITHOUT INTERRUPTING FIRE",
          {{"MODERN","modern","\"modern\""},{"ORIGINAL","original","\"original\""}},0},
         {"DYNAMITE",Section::Controls,"dynamite","DNTTK_DYNAMITE",true,"MODERN: A DRAWN STICK STAYS UNLIT UNTIL YOU FIRE",

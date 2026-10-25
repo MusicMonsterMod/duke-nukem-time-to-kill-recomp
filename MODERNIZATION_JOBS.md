@@ -1,5 +1,7 @@
 # Time to Kill — modernization jobs
 
+**Backlog intake (2026-10-25): Five user reports queued as Todo only. D35J4 (bug 5, slot-9 time crystal) is first for future work; no job is started. D08Q7, D08T9, D35N1 and D08Q8 record bugs 1-4. Implementation awaits a later instruction.**
+
 **Latest accepted job (2026-10-25): D35I first-person walls and fluid diagonal WASD is Done. User: "fully accepted! lock it in and close it out". [Note 232](documentation/232-d35i-wall-climbing.md).**
 
 **Latest accepted job (2026-10-25): D35F1 chain visibility is Done. User: "totally accept. lock it in and close us out". [Note 231](documentation/231-d35f1-chain-visibility.md).**
@@ -169,6 +171,8 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08Q4 | Duke3D-style `dnkroz`: health to 100 and unlimited jetpack fuel | Accepted | D08G, D08Q |
 | D08Q5 | Weapon switching while flying the jetpack (number keys and wheel) | Done (user-accepted) | D08A, D08Q3 |
 | D08Q6 | Modern jetpack altitude creeps upward in level flight (hold height unless Space/Ctrl) | Accepted | D08Q, D08Q1 |
+| D08Q7 | Draw a holstered weapon with left click during jetpack flight (bug 1) | Todo | D08Q3, D08Q5 |
+| D08Q8 | Smooth jetpack clearance along rising floors and descending ceilings (slot 12, bug 4) | Todo | D08Q, D08S |
 | D08T | Pushable objects: modern grab/push/pull and climb (alley dumpster) | Done | D08 |
 | D08T1 | Separate push/pull from mantling: E always mantles, hold RMB to grab | Done | D08T, D04 |
 | D08T2 | Duke-symbol pushable blocks cannot be pushed with Modern controls (RMB grab, game-wide) | Accepted | D08T1, D22B |
@@ -180,6 +184,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08T6 | Push/pull ownership and lock-zone investigation (recent slots) | Done | D08T3, D08T4, D08T5 |
 | D08T7 | Regrab movable objects throughout their permitted travel lane | Done (user-accepted 2026-10-24) | D08T6 |
 | D08T8 | Apartment alley platform mantle stalls: W cannot climb, Space cannot drop | Done | D08V, D08X, D08T3 |
+| D08T9 | Level-5 dumpster may fail to push/pull a second time (bug 2) | Todo | D08T3, D08T7 |
 | D08T4 | Save slot 10 dumpster: the grab prompt shows but it will not move; find out whether it is meant to be fixed (Vanilla check) | Done (user-accepted 2026-10-20; fixed by design, no prompt there now) | D08T2 |
 | D08V | Sewer mantle/hang modern-control coverage (slot 12 area) | Done | D08, D08B |
 | D08W | Subway shallow-water sideways jumps (A/D + Space jumps forward) | Done | D08, D08C |
@@ -347,14 +352,97 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D35J1 | First-person idle fidgets without perspective drops | Done | D35J |
 | D35J2 | Preserve first person through held native inventory | Done | D35J |
 | D35J3 | First-person NPC interaction presentation | Done | D35J |
+| D35J4 | Slot-9 time crystal forces third person (bug 5, first queued) | Todo | D35J, D35J1, D35J2, D35J3, D35M |
 | D35K | Native scripted and special-camera event inventory | Todo | D35 |
 | D35L | First-person death and respawn presentation research | Todo | D35 |
 | D35M | First-person door opening and related use interactions | Done | D35A |
 | D35N | First-person mirror interactions and reflected-Duke proximity fade | Done | D35A |
+| D35N1 | Missing mirror voice line at slot 6 (base-game design oversight, bug 3) | Todo | D35N |
 | R01 | DisruptorRecomp architecture and modernization reference research | Done | - |
 
 Recommended opening sequence: **D01 → D02 → D03 → D04**, then **D05 / D06 → D07 → D07A → D08**. D13 is an early graphics option after profiles exist. D22 and D23 should accumulate evidence throughout development. First-person, HD asset packs and precision rendering are optional follow-up milestones, not blockers for a good modern third-person release.
 
+
+## User-reported follow-ups queued 2026-10-25
+
+All five entries are backlog only, not investigated or reproduced in this intake.
+The user explicitly requested no job work yet and authorized documentation,
+commit and push only. **D35J4 (bug 5) is first when work is later authorized.**
+Other reports have no requested execution order. Modernized is the target;
+Vanilla must remain unchanged in play. Slot numbers describe the user's current
+saves and are not immutable fixtures; future tests must use private copies.
+
+### D35J4 - Slot-9 time crystal forces third person (bug 5)
+
+**Status:** Todo. **Dependencies:** D35J, D35J1-J3, D35M (Done).
+**Priority:** First of these five reports for future work; not started.
+
+**Report:** The time crystal in current slot 9 puts Duke into third person.
+The user requests the same first-person treatment as the accepted D35J/J1-J3
+work. This is a new reported gap despite earlier bounded crystal-use coverage;
+retain that historical evidence without claiming this case is already fixed.
+
+**Acceptance:** Reproduce the reported time-crystal action on a private slot-9
+copy, identify its lifecycle, and preserve first person under the applicable
+USE INTERACTION VIEW policy. Retain the deliberate Third Person choice,
+native crystal events/progression, action restrictions and view recovery.
+Verify entry, completion, weapon return and prior idle/inventory/use cases.
+Reference: [note 233](documentation/233-d35j-transient-perspective-research.md)
+and [note 234](documentation/234-d35j-use-and-idle-first-person.md).
+
+### D08Q7 - Left click does not draw a holstered weapon in flight (bug 1)
+
+**Status:** Todo. **Dependencies:** D08Q3, D08Q5 (Done).
+
+**Report:** Start jetpacking with the weapon holstered; left click does not
+draw the weapon.
+
+**Acceptance:** Left click draws an available weapon during flight after
+holstered entry, with the expected fire behavior and no extra holster toggle.
+Verify flight entry/exit, aiming and weapon switching across supported jetpack
+schemes, without bypassing native weapon restrictions.
+
+### D08T9 - Level-5 dumpster may not push/pull a second time (bug 2)
+
+**Status:** Todo. **Dependencies:** D08T3, D08T7 (Done).
+
+**Report:** The level-5 dumpster may fail to pull/push a second time. This is
+a tentative report, not a confirmed regression. The user supplied current
+slot 8 and is about to test it personally; their result is pending.
+
+**Acceptance:** Reproduce first movement followed by release/regrab and a
+second push/pull on a private slot-8 copy. Establish intended
+travel limits and object behavior; restore repeat movement where permitted
+without moving fixed objects or bypassing genuine limits. Verify both
+movement directions and repeated release/regrab cycles.
+
+### D35N1 - Missing mirror voice line at slot 6 (bug 3)
+
+**Status:** Todo. **Dependencies:** D35N (Done).
+
+**Report:** Duke does not say the mirror voice line at current slot 6. The
+user identifies this as an original-game level-design oversight, rather than
+a recomp regression; that attribution has not been independently verified.
+
+**Acceptance:** Identify the intended mirror interaction and missing quote
+trigger, then restore the appropriate line in Modernized with correct timing
+and repeat behavior. Preserve mirror perspective/reflection behavior and
+other quotes. Keep the original Vanilla behavior.
+
+### D08Q8 - Jetpack clearance follows floor/ceiling smoothly (bug 4)
+
+**Status:** Todo. **Dependencies:** D08Q, D08S (Done).
+
+**Report:** In the tight space at current slot 12, jetpacking Duke treats a
+descending ceiling or rising floor like a brick wall. The desired behavior
+is smooth movement with the floor/ceiling, as in Duke3D. User reference:
+`jpacking-stairs.mp4` in `screencaps` (not inspected during backlog intake).
+
+**Acceptance:** Use a private slot-12 copy and the reference video to establish
+the intended clearance response, then allow smooth vertical adjustment along
+the rising floor/descending ceiling where Duke fits. Preserve solid-wall and
+insufficient-clearance collision, flight controls and fuel behavior; verify
+both travel directions and supported jetpack schemes.
 
 ## First-person action roadmap (D35 research)
 
@@ -18763,3 +18851,14 @@ is unchanged and applies to the clean pinned dependency. Source, tests,
 launcher/profile/menu changes and documentation are included in closeout.
 Damage/hazard variants and broader campaign coverage remain unverified. No
 next job started, retail assets staged, or player save/settings changes made.
+
+
+## 2026-10-25 - Five reports queued; time crystal first (backlog only)
+
+Recorded bugs 1-5 as D08Q7, D08T9, D35N1, D08Q8 and D35J4, respectively.
+All remain Todo. D35J4 is first for future implementation, pending a later
+instruction to start. The user supplied slot 8 for the level-5 dumpster and
+is testing it personally; results are pending. Slot 6 mirror, slot 12 jetpack clearance and the local Duke3D video
+reference are preserved in the entries. Reports remain unverified.
+Documentation-only intake with explicit commit/push authorization; no gameplay
+investigation, code changes, builds, launches or player-data changes.

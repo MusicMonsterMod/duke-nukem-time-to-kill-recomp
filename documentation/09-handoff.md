@@ -1,5 +1,22 @@
 # Next-session handoff
 
+## 2026-10-25 - Five new reports queued; D35J4 first
+
+Backlog-only intake authorized with commit and push. All five jobs are Todo:
+bug 1 D08Q7 (holstered weapon draw during jetpack flight), bug 2 D08T9
+(level-5 dumpster repeat push/pull), bug 3 D35N1 (slot-6 missing mirror quote),
+bug 4 D08Q8 (slot-12 jetpack floor/ceiling clearance), and bug 5 D35J4
+(slot-9 time-crystal perspective). See the [canonical backlog](../MODERNIZATION_JOBS.md#user-reported-follow-ups-queued-2026-10-25).
+
+**D35J4 is first when the user later authorizes work. Do not start any job yet.**
+The level-5 dumpster is in current slot 8; the user is testing it personally
+and their result is pending. The jetpack
+reference is `jpacking-stairs.mp4` in `screencaps`; no video or save inspected.
+These are user reports, not reproduced findings. The accepted D35J/M/N result
+remains the baseline, with a newly reported crystal gap awaiting investigation.
+No gameplay changes, build, launch or player-data changes in this intake.
+
+
 ## 2026-10-25 - D35J/J1-J3/M/N accepted and closed
 
 User explicitly accepted the combined candidate and authorized closeout:

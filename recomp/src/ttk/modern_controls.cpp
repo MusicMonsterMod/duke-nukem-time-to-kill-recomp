@@ -1436,6 +1436,8 @@ static void hook_body(CPUState* cpu, uint32_t address) {
         const bool direct=ra==0x8002920c && cpu->gpr[4]==camera && cpu->gpr[5]==camera+0x54;
         if (!smooth && !direct) return;
         view_matrix(cpu->gpr[4]);++orientations;
+    } else if (address==0x8004ac08) {
+        jet_clearance_step(cpu);
     } else if (address==0x80058120) {
         // Immediately after original heading update; before original aim/model work.
         if (cpu->gpr[4]==player && ra==0x80041c44) {
@@ -1880,7 +1882,7 @@ const char* controls_debug_json() {
 }
 PSX_MOD_CONSTRUCTOR(register_ttk_controls) {
     psx_mod_register_activation_plugin("ttk.widescreen",ttk::widescreen_activate);
-    for (uint32_t address: {0x80076330u,0x80081a48u,0x8002b9f4u,0x800493a4u,0x80054308u,0x8005a210u,0x80059db0u,0x80048410u,0x8004b644u,0x8003ebf4u,0x8002a7fcu,0x80058120u,0x80097a44u,0x80054218u,0x80053404u,0x80053500u,0x800539f8u,0x800780b4u,0x8003ade4u,0x8003aa48u,0x800348d8u,0x8001ca4cu,0x8002a038u,0x800b4d9cu,0x800b4d2cu,0x800292a0u,0x80033e40u,0x800341e4u,0x80033f5cu,0x80051cf0u,0x80051890u,0x8008ba30u,0x8001fc44u,0x8006276cu,0x80062b48u,0x8002ffecu,0x800455bcu,0x80055e80u,0x800411b8u})
+    for (uint32_t address: {0x8004ac08u,0x80076330u,0x80081a48u,0x8002b9f4u,0x800493a4u,0x80054308u,0x8005a210u,0x80059db0u,0x80048410u,0x8004b644u,0x8003ebf4u,0x8002a7fcu,0x80058120u,0x80097a44u,0x80054218u,0x80053404u,0x80053500u,0x800539f8u,0x800780b4u,0x8003ade4u,0x8003aa48u,0x800348d8u,0x8001ca4cu,0x8002a038u,0x800b4d9cu,0x800b4d2cu,0x800292a0u,0x80033e40u,0x800341e4u,0x80033f5cu,0x80051cf0u,0x80051890u,0x8008ba30u,0x8001fc44u,0x8006276cu,0x80062b48u,0x8002ffecu,0x800455bcu,0x80055e80u,0x800411b8u})
         psx_mod_register_function_entry_plugin("ttk.modern.controls",address,ttk::hook);
     // D08O2A: a shared matrix routine; its own hook keeps the per-joint cost to a few compares.
     psx_mod_register_function_entry_plugin("ttk.modern.controls",0x800b42ec,[](CPUState* cpu,uint32_t){ttk::swim_aim_arm(cpu);});

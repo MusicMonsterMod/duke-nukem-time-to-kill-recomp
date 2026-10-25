@@ -1031,7 +1031,14 @@ Duke's height stays where **Space** or **Ctrl** left it: flying, turning,
 looking up or down and hovering do not change it (D08Q6; there is no hover
 bob in Modern, and **Shift** does nothing in flight). Descent checks the surface
 beneath Duke: leaving a platform lets **Ctrl** continue down to lower ground,
-and releasing it holds the new height.
+and releasing it holds the new height. Flight adjusts vertically along rising
+floors, descending ceilings and small steps where Duke fits. Modern/EDuke32
+follow a contacted slope during ordinary WASD flight; holding **Space** or
+**Ctrl** is not required. Following ends when the surface ends. Holding **Space**
+at a ceiling or the outdoor height limit settles against the boundary instead
+of repeatedly bumping it. Walls and gaps with insufficient clearance still
+block travel. Classic shares the clearance handling while retaining its
+original thrust and landing behavior.
 Fuel drains while flying and while hovering (the original rule); when it runs
 out Duke falls the same way. The ground controls return the moment he lands.
 With view aiming enabled, aim with the mouse and fire the equipped weapon with

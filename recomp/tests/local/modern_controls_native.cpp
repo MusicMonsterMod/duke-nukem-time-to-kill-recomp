@@ -100,6 +100,9 @@ static unsigned overclock_renewals;extern "C" void psx_overclock_renew(void){++o
 // normal (jw_nx, 0, jw_nz) for its first `jw_hits` calls, then a clear path.
 static unsigned pole_draw_calls;
 static int wall_results[4]{};static std::vector<std::array<int,5>> wall_queries;
+static bool jet_geometry,jet_side_wall,jet_route_wall;
+static int jet_slope=0,jet_ceiling_slope=0;
+static int jet_floor=1000000,jet_ceiling=-1000000,jet_step_x=1000000,jet_step_floor=1000000,jet_step_ceiling=-1000000;
 static int jw_result,jw_hits,jw_sweeps;static int32_t jw_nx,jw_nz;
 extern "C" void psx_dispatch_call(CPUState* cpu,uint32_t address,uint32_t) {
     if(address==0x8007d65c) {
@@ -129,6 +132,20 @@ extern "C" void psx_dispatch_call(CPUState* cpu,uint32_t address,uint32_t) {
     }
     if(address==0x80095cb0) {cpu->pc=0;return;} // D08T3 room membership
     if(address==0x8007a98c) {
+        if(jet_geometry) {
+            const uint32_t p=0x800d7198;
+            const int x=(int32_t)psx_mod_read_word(p+4)+(int16_t)psx_mod_read_half(p+0xfc);
+            const int y=(int32_t)psx_mod_read_word(p+8)+(int16_t)psx_mod_read_half(p+0xfe);
+            const int foot=(int32_t)psx_mod_read_word(p+0x10)+(int16_t)psx_mod_read_half(p+0xfe);
+            const int floor=(x>=jet_step_x?jet_step_floor:jet_floor)+x*jet_slope/4;
+            const int ceiling=(x>=jet_step_x?jet_step_ceiling:jet_ceiling)+x*jet_ceiling_slope/4;
+            const int result=(jet_side_wall || (jet_route_wall && psx_mod_read_half(p+0xfc)))?1:y-352<ceiling?3:foot>=floor?2:0;
+            psx_mod_write_word(p+0x198,result==3?4096:result==2?uint32_t(-4096):0);
+            psx_mod_write_word(p+0x194,result==2?jet_slope*1024:result==3?-jet_ceiling_slope*1024:0);psx_mod_write_word(p+0x19c,jet_side_wall?4096:0);
+            psx_mod_write_word(p+0x184,x);psx_mod_write_word(p+0x188,result==3?ceiling:floor);
+            psx_mod_write_word(p+0x18c,psx_mod_read_word(p+12)); // query scratch must roll back
+            cpu->gpr[2]=result;cpu->pc=0;return;
+        }
         const bool hit=++jw_sweeps<=jw_hits;
         psx_mod_write_word(0x800d7198+0x194,uint32_t(jw_nx));psx_mod_write_word(0x800d7198+0x198,0);
         psx_mod_write_word(0x800d7198+0x19c,uint32_t(jw_nz));
@@ -396,9 +413,8 @@ int main(int argc,char** argv) {
         }
         // D08Q6 Modern flight model: the host writes the flight velocity
         // (+0x1f4..+0x1fc) before every update with the hover lock off;
-        // WASD eases to a camera-relative speed; while moving, a vertical
-        // step under 2 units alternates +-2 (8004ac08 drops horizontal motion
-        // on a 0 vertical root); the height is captured and held (floor cap);
+        // WASD eases to a camera-relative speed with zero vertical drift;
+        // D08Q8 resolves live clearance separately from the held altitude;
         // Space/Ctrl climb/descend; fed pads' thrust (read after the handler)
         // is cancelled next update; the flame flag is set after the handler;
         // fuel drains on the host only when no pads are fed.
@@ -419,11 +435,11 @@ int main(int argc,char** argv) {
             for(int axis=0;axis<3;++axis)assert(psx_mod_read_word(p+0x1e4+4*axis)==0);
             assert(bv(0)==0 && bv(1)==0 && bv(2)==0 && psx_mod_read_half(p+0x35a)==4990); // held; idle fuel -dt
             post();assert((psx_mod_read_word(p+0x224)&0x82000000u)==0x82000000u); // both native flame-render bits
-            // W: camera-relative (heading = view), eases in; +-2 vertical steps.
+            // W: camera-relative (heading = view), eases in with zero vertical drift.
             ttk::input.move_y=1;update();
             const double yaw=psx_mod_read_half(p+0x1c)*6.283185307179586/4096;
             assert(std::abs(bv(0))+std::abs(bv(2))>1000);
-            assert(bv(1)==205 || bv(1)==-205);
+            assert(bv(1)==0); // D08Q8 no artificial vertical nudge
             const int32_t first_vertical=bv(1);update();assert(bv(1)==-first_vertical);
             assert(psx_mod_read_half(p+0x35a)==4990); // fed pads: the original drains
             for(int i=0;i<60;++i)update();
@@ -436,36 +452,21 @@ int main(int argc,char** argv) {
             auto applied=[&]{psx_mod_write_half(p+0xfe,(uint16_t)(int16_t)((bv(1)*10)>>10));};
             ttk::input.move_y=0;for(int i=0;i<60;++i){update();applied();post();}
             assert(bv(0)==0 && bv(2)==0); // eased to a stop, no creep
-            // Held height: 20 units above it steers down; floor cap rides higher ground.
+            // Held height steers toward the target independently of cached floor data.
             psx_mod_write_half(p+0xfe,0);
             y(-10720,920);update();assert(bv(1)>60 && bv(1)<400); // steer down (plus any learned offset)
             y(-10600,800);update();assert(bv(1)<-400);
-            y(-10700,300);update();assert(bv(1)<-400); // 212 below the approach height
+            y(-10700,300);update();assert(bv(1)==0); // live clearance now owns contact, never a cached floor
             // Space climbs (eases), release re-captures once settled; Ctrl descends.
             y(-10700,900);ttk::input.held[ttk::jump]=true;update();assert(bv(1)<0);
             for(int i=0;i<30;++i)update();assert(std::abs(bv(1)+11800)<=300);
             ttk::input.held[ttk::jump]=false;y(-11000,1200);for(int i=0;i<40;++i)update();
             assert(std::abs(bv(1))<=120); // captured at -11000 (plus any learned offset)
             ttk::input.held[ttk::crouch]=true;for(int i=0;i<30;++i)update();assert(std::abs(bv(1)-6000)<=300);
-            // D11F follow-up: floor approach keeps the running jetpack in
-            // flight. Ctrl's positive step is bounded; release does not apply
-            // the old 512-unit automatic clearance rise.
-            y(-11000,64);psx_mod_write_half(p+0xfe,0);
-            jw_result=2;jw_hits=1000;jw_sweeps=0;
-            const auto query_scratch=psx_mod_read_word(p+0x194);
-            // The contact guard uses a -2-unit root to keep native horizontal
-            // collision active, plus the learned sub-unit root correction.
-            update();assert(bv(1)>=-350 && bv(1)<=120 && psx_mod_read_byte(p+0x22c)==10);
-            assert(jw_sweeps>0 && psx_mod_read_word(p+0x194)==query_scratch);
-            // Leaving the platform must allow descent despite stale +1c8.
-            jw_hits=0;update();assert(bv(1)>1000);
-            // Releasing Ctrl below the stale platform must hold the new
-            // height, not pull Duke back up toward that cached floor.
-            ttk::input.held[ttk::crouch]=false;
-            for(int i=0;i<40;++i)update();assert(std::abs(bv(1))<=120);
-            ttk::input.held[ttk::crouch]=true;
-            // A newly encountered platform is detected even with stale low floor.
-            y(-11000,5000);jw_hits=1000;update();assert(bv(1)>=-350 && bv(1)<=120);
+            // D08Q8: live geometry tests run the root-apply hook, not the
+            // pre-handler velocity setup. Cached floor cannot veto descent.
+            y(-11000,5000);psx_mod_write_half(p+0xfe,0);
+            update();assert(bv(1)>1000);
             post();assert((psx_mod_read_word(p+0x224)&0x82000000u)==0x82000000u);
             // The ordinary draw consumes 0x02000000 before the mirror draw.
             psx_mod_write_word(p+0x224,psx_mod_read_word(p+0x224)&~0x02000000u);
@@ -478,16 +479,133 @@ int main(int argc,char** argv) {
             assert(!(psx_mod_read_word(p+0x224)&0x02000000u));ttk::modern=true;
             ttk::input.held[ttk::crouch]=false;
             for(int i=0;i<40;++i)update();
-            assert(bv(1)>=-350 && bv(1)<=120 && psx_mod_read_byte(p+0x22c)==10);
+            assert(std::abs(bv(1))<=120 && psx_mod_read_byte(p+0x22c)==10);
             jw_hits=0;
             ttk::input.held[ttk::jump]=true;update();assert(bv(1)<0);
             ttk::input.held[ttk::jump]=false;
             psx_mod_write_half(0x800c3cc4,1);const uint16_t f0=psx_mod_read_half(p+0x35a);update();assert(psx_mod_read_half(p+0x35a)==f0); // original skip
             psx_mod_write_half(0x800c3cc4,0);
+            // An independent collision oracle models a room and stepped
+            // floor/ceiling. Test path safety and stable repeated contact.
+            const uint32_t old_layout=psx_mod_read_word(p+0x40),old_matrices=psx_mod_read_word(p+0x3c);
+            psx_mod_write_word(p+0x40,0x801d0000);psx_mod_write_word(p+0x3c,0x801d1000);
+            psx_mod_write_byte(0x801d0033,0);psx_mod_write_word(0x801d1018,12345);
+            jet_geometry=true;jet_floor=-10000;jet_ceiling=-12000;
+            auto root=[&](int dx,int dz) {
+                psx_mod_write_half(p+0xfc,dx);psx_mod_write_half(p+0x100,dz);
+                call(0x8004ac08,p,0,0x8004b570,0x801fff00);
+                assert(psx_mod_read_word(0x801d1018)==12345);
+            };
+            psx_mod_write_word(p+4,0);psx_mod_write_word(p+12,0);
+            y(-11300,1000);ttk::input.held[ttk::jump]=true;
+            for(int i=0;i<80;++i) {update();root(0,0);post();}
+            const int ceiling_y=(int32_t)psx_mod_read_word(p+8);
+            assert(ceiling_y>=-11616 && ceiling_y<=-11550);
+            for(int i=0;i<40;++i) {update();root(30,0);post();assert((int32_t)psx_mod_read_word(p+8)==ceiling_y);}
+            assert((int32_t)psx_mod_read_word(p+4)==1200);
+            ttk::input.held[ttk::jump]=false;ttk::input.held[ttk::crouch]=true;
+            for(int i=0;i<80;++i) {update();root(0,0);post();}
+            const int floor_y=(int32_t)psx_mod_read_word(p+8);
+            assert(floor_y<=-10625 && floor_y>=-10700);
+            for(int i=0;i<40;++i) {update();root(0,0);post();assert((int32_t)psx_mod_read_word(p+8)==floor_y);}
+            ttk::input.held[ttk::crouch]=false;update();root(0,0);post();
+            // Rising floor: approach a 256-unit stair without a teleport or
+            // crossing its face. Once clear, horizontal travel resumes.
+            psx_mod_write_word(p+4,0);jet_step_x=100;jet_step_floor=-10256;jet_step_ceiling=-12000;
+            int previous=(int32_t)psx_mod_read_word(p+8);
+            for(int i=0;i<14;++i) {update();root(30,0);post();
+                const int now=(int32_t)psx_mod_read_word(p+8);
+                assert(std::abs(now-previous)<=64);previous=now;
+                if((int32_t)psx_mod_read_word(p+4)>=100)assert(now+624<jet_step_floor);
+            }
+            assert((int32_t)psx_mod_read_word(p+4)>100);
+            // Descending ceiling: move down smoothly while travelling under
+            // it, without crossing the ceiling or losing horizontal control.
+            psx_mod_write_word(p+4,0);y(-11600,1000);
+            jet_step_floor=-10000;jet_step_ceiling=-11744;
+            previous=(int32_t)psx_mod_read_word(p+8);
+            for(int i=0;i<14;++i) {update();root(30,0);post();
+                const int now=(int32_t)psx_mod_read_word(p+8);
+                assert(std::abs(now-previous)<=64);previous=now;
+                if((int32_t)psx_mod_read_word(p+4)>=100)assert(now-384>=jet_step_ceiling);
+            }
+            assert((int32_t)psx_mod_read_word(p+4)>100);
+            // A continuous rising floor must make horizontal progress each
+            // update, including when the correction exceeds the height cap.
+            jet_step_x=1000000;jet_slope=-2;
+            psx_mod_write_word(p+4,0);y(-10660,1000);
+            for(int i=0;i<12;++i) {
+                const int old_x=(int32_t)psx_mod_read_word(p+4);
+                update();root(160,0);post();
+                assert((int32_t)psx_mod_read_word(p+4)>old_x);
+                assert((int32_t)psx_mod_read_word(p+8)+624<jet_floor+(int32_t)psx_mod_read_word(p+4)*jet_slope/4);
+            }
+            // No vertical buttons: sustained contact follows the slope on
+            // every update instead of alternating zero and correction steps.
+            for(int ceiling_case=0;ceiling_case<2;++ceiling_case) {
+                jet_slope=ceiling_case?0:-2;jet_ceiling_slope=ceiling_case?2:0;
+                jet_floor=ceiling_case?100000:-10000;jet_ceiling=ceiling_case?-12000:-100000;
+                psx_mod_write_word(p+4,0);y(ceiling_case?-11580:-10660,1000);
+                ttk::input.active=false;update();ttk::input.active=true;
+                psx_mod_write_word(p+0x1f8,0);
+                int settled_y=0;
+                for(int i=0;i<18;++i) {
+                    const int old_y=(int32_t)psx_mod_read_word(p+8);
+                    update();root(81,0);post();
+                    const int now=(int32_t)psx_mod_read_word(p+8);
+                    if(i==3)settled_y=now;
+                    if(i>3)assert((ceiling_case?1:-1)*(now-old_y)>=40 &&
+                                  (ceiling_case?1:-1)*(now-old_y)<=41);
+                }
+                // 14 updates at 40.5 units: no accumulated rounding drift.
+                assert((int32_t)psx_mod_read_word(p+8)-settled_y==(ceiling_case?567:-567));
+                // A blocked horizontal route must not keep its vertical
+                // tangent and climb the wall with no vertical button held.
+                const int wall_height=(int32_t)psx_mod_read_word(p+8);
+                jet_route_wall=true;update();root(81,0);post();
+                assert((int32_t)psx_mod_read_word(p+8)==wall_height);jet_route_wall=false;
+                // The surface ends: no invisible continuation across space.
+                jet_floor=100000;jet_ceiling=-100000;
+                const int edge_y=(int32_t)psx_mod_read_word(p+8);
+                update();root(80,0);post();assert((int32_t)psx_mod_read_word(p+8)==edge_y);
+                for(int i=0;i<4;++i) {update();root(80,0);post();assert((int32_t)psx_mod_read_word(p+8)==edge_y);}
+            }
+            jet_floor=-10000;jet_ceiling=-12000;
+            jet_slope=jet_ceiling_slope=0;jet_step_x=100;y(-11600,1000);
+            // Too little headroom: never step through the closed gap.
+            psx_mod_write_word(p+4,0);jet_step_ceiling=-10500;
+            for(int i=0;i<15;++i) {update();root(30,0);post();assert((int32_t)psx_mod_read_word(p+4)<100);}
+            // A zero-root takeoff at ground contact keeps the native rising
+            // departure. The larger steady-flight envelope must not land it.
+            jet_step_x=1000000;y(-10500,500);
+            ttk::input.active=false;update();ttk::input.active=true;
+            for(int axis=0;axis<3;++axis)psx_mod_write_word(p+0x1f4+4*axis,0);
+            update();root(0,0);assert((int16_t)psx_mod_read_half(p+0xfe)==-2);
+            ttk::input.held[ttk::jump]=true;update();applied();
+            const auto departure=psx_mod_read_half(p+0xfe);assert((int16_t)departure<0);
+            psx_mod_write_half(p+0xfe,20);root(0,0);assert((int16_t)psx_mod_read_half(p+0xfe)<0);
+            ttk::input.held[ttk::jump]=false;
+            // A side wall is tangent to ascent, not a ceiling. It must not
+            // pin takeoff; horizontal travel into the same wall still stops.
+            jet_side_wall=true;y(-11300,1000);ttk::input.held[ttk::jump]=true;
+            update();const auto wall_y=(int32_t)psx_mod_read_word(p+8);root(0,0);
+            assert((int32_t)psx_mod_read_word(p+8)<wall_y);
+            const auto wall_z=psx_mod_read_word(p+12);update();root(0,-30);
+            assert(psx_mod_read_word(p+12)==wall_z);
+            jet_side_wall=false;ttk::input.held[ttk::jump]=false;
+            // Vanilla and unrelated native callers retain all root fields.
+            psx_mod_write_half(p+0xfc,30);const auto before_x=psx_mod_read_word(p+4);
+            ttk::modern=false;root(30,0);ttk::modern=true;
+            assert(psx_mod_read_word(p+4)==before_x && psx_mod_read_half(p+0xfc)==30);
+            call(0x8004ac08,p,0,0x80055934,0x801fff00);assert(psx_mod_read_word(p+4)==before_x);
+            poke(0x3964c);root(30,0);assert(psx_mod_read_word(p+4)==before_x);poke(0x3964c);
+            jet_geometry=false;jet_step_x=1000000;
+            psx_mod_write_word(p+0x40,old_layout);psx_mod_write_word(p+0x3c,old_matrices);
+            std::puts("PASS: D08Q8 stable ceiling/floor, horizontal ceiling travel, bounded stair rise, narrow-gap refusal, query restoration and Vanilla/caller gates");
             for(int axis=0;axis<3;++axis){psx_mod_write_word(p+0x1f4+4*axis,0);psx_mod_write_word(p+0x1e4+4*axis,0);}
             psx_mod_write_word(p+0x224,saved_flags);psx_mod_write_half(p+0x35a,saved_fuel);
             psx_mod_write_half(0x800c3f94,saved_selected); // post() ran the flight shortcuts
-            std::puts("PASS: D08Q6 flight model: lock off, eased camera-relative speed, +-2 vertical step, thrust cancel, flame, stop without creep, hold/floor cap, Space/Ctrl, fuel");
+            std::puts("PASS: D08Q6/D08Q8 flight model: lock off, eased camera-relative speed, zero vertical drift, thrust cancel, flame, stop without creep, altitude hold, Space/Ctrl, fuel");
         }
         ttk::input.active=false;assert(!ttk::jetpack_input_ready());ttk::input.active=true;
         ttk::modern=false;assert(!ttk::jetpack_input_ready());ttk::modern=true;

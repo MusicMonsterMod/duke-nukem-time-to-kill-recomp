@@ -1,5 +1,40 @@
 # Current status - 2026-10-04
 
+## 2026-10-25 - D08Q8 accepted and closed
+
+User accepted the ordinary-flight surface following revision and explicitly
+authorized lock-in/closeout. D08Q8 is Done. Modern/EDuke32 follow confirmed
+floor/ceiling slopes without held Space/Ctrl, with edge release and blocked-wall
+handling. Classic retains native thrust/landing; Vanilla is unchanged.
+[Note 250](250-d08q8-flight-clearance.md) records tests, private routes and
+coverage limits.
+
+Accepted executable: `b259c3ed80956758203ddd2e7ef7d6c334e6cd4718d6aab971d152c2fb7c71cb`.
+No post-acceptance gameplay edits, builds or launches. Runtime patch re-export
+unchanged; all 52 authored framework files reconstruct against the pinned clean
+dependency. Player data and dependency pins untouched. No next job started.
+Launch: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-25 - D08Q8 ordinary-flight surface following (Needs playtest)
+
+User found that holding Space smoothed contact, while ordinary horizontal
+flight still juddered. Modern/EDuke32 now follow a contacted slope continuously
+without Space/Ctrl, revalidating the plane and route each update. Following
+releases at edges; blocked horizontal motion cannot carry its vertical tangent.
+Fractional height carry prevents rounding drift. Classic retains its native
+thrust and landing; Vanilla is unchanged.
+
+Native controls, input, aim and fuel tests pass. Private no-thrust slot-12
+routes cover Modern/third-person and EDuke32/first-person; outdoor, firing and
+flight save/load checks are recorded with build boundaries in
+[note 250](250-d08q8-flight-clearance.md). User feel acceptance remains pending.
+No commit/push closeout. Player data untouched.
+
+Candidate: `b259c3ed80956758203ddd2e7ef7d6c334e6cd4718d6aab971d152c2fb7c71cb`.
+Launch: `python3 recomp/tools/local/run.py`.
+
+
 ## 2026-10-25 - D08Q7 accepted and closed
 
 User accepted flight fire-to-draw and explicitly authorized lock-in/closeout.

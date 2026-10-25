@@ -23,39 +23,13 @@
 //     (face_view).
 //   • J while flying → original item toggle (select_weapon), the handler then
 //     cuts out to the 108 fall; the camera lease survives that fall.
-// D08Q6 Modern flight model (rewrite after the user found the layered version
-// "really broken"): the host owns Duke's flight velocity on all three axes.
-// Calibrated (analysis/d08q6-20261006 cal.py): with the hover lock off and no
-// pads, the handler moves Duke by bv * dt / 1024 per update (dt = 800d21fc,
-// ms) on x/z and ~1.1x that on y; gravity and drag do not show because bv is
-// rewritten before every update. Fed pads add their own thrust (W ~13-19
-// units/update, Space ~13-19 lift), so Modern feeds the original no direction
-// pads, no Square and no L1 in flight (input_pad); Duke keeps the hover pose.
-//   • WASD / Up / Down: camera-relative target speed, Space climbs, Ctrl descends;
-//     each axis eases to its target with a short time constant.
-//   • No vertical input: once the vertical speed has eased out, the height is
-//     captured and held (never below the original floor approach height,
-//     8003ef78, ~0x200 above the floor, so rooftops are ridden over).
-//   • Fuel drains by dt per update, as the original does while thrusting or
-//     hovering (s2), unless 800c3cc4 (the original's own skip).
-//   • 8004ac08 drops the horizontal root whenever the vertical root +0xfe is
-//     0 (8004ac28: beq -> 8004ad1c zeroes +0xfc/+0x100). The original flight
-//     always had a vertical component (bob, gravity); a held height does not,
-//     so WASD did nothing unless Space/Ctrl was held. While Duke moves
-//     horizontally, a vertical step under 2 units becomes an alternating
-//     +-2 (net 0). The original's thrust shifts the applied vertical root by
-//     a few units, so jet_post_update learns that offset from the root the
-//     handler actually applied (+0xfe) and the next update corrects for it.
-//   • The original keeps collision, landing (floor probe result 3 lands a
-//     descent), cut-outs, fuel-out, firing and weapon switching.
-// D08R Classic scheme (DNTTK_JETPACK=classic, Modernized only): the same
-// lease, mouse facing, WASD / Up / Down bridge to the original pads, J shortcut and
-// cut-out fall grace, with the original flight physics: Space lift, gravity,
-// fuel and the hover toggle (physical L1 = Shift).
-// Classic never writes anim/mode; Modern/EDuke32 startup below uses native
-// entry/exit state contracts. No scheme changes Vanilla. Flight host writes are the
-// hover lock bit (cleared), the ballistic and thrust velocities
-// (+0x1f4..+0x1fc, +0x1e4..+0x1ec), fuel (+0x35a) and the body heading.
+// Modern/EDuke32 own a smoothly eased velocity. Native pads retain flame,
+// lean, firing and fuel behavior; predicted native thrust is cancelled before
+// integration. D08Q8 resolves the integrated step with authenticated native
+// collision sweeps, including stable floor/ceiling clearance and small steps.
+// No alternating vertical nudge or cached-floor height correction is needed.
+// Classic retains its burst physics and landing; it shares clearance checks.
+// Vanilla never enters these adapters.
 
 // Speeds in bv units (bv * dt / 1024 = units per update). Measured from the
 // original (post-handler trace, Classic): horizontal flight reaches ~16000
@@ -73,12 +47,8 @@ static constexpr float k_jet_hold_gain = 6.f;
 static constexpr float k_jet_hold_max = 600.f;
 // Vertical speed (bv) under which a released climb/descent is captured.
 static constexpr float k_jet_capture_speed = 300.f;
-static constexpr int32_t k_jet_floor_clearance = 0x200;
-// Cover animated foot/flight-pose changes between the pre-state sweep and
-// native integration, including transitions across platform edges.
-static constexpr int32_t k_jet_touchdown_clearance = 160;
 static unsigned jet_hover_engages, jet_descents, jet_updates, jet_classic_updates, jet_hold_captures, jet_root_nudges;
-static bool jet_was_flying, jet_hold_valid, jet_flight_live, jet_nudge_down;
+static bool jet_was_flying, jet_hold_valid, jet_flight_live;
 static bool jet_air_height_hold;
 static int32_t jet_hold_y;
 static float jet_vel[3];
@@ -96,32 +66,8 @@ static bool jet_trace() {
     static const bool enabled=std::getenv("DNTTK_JET_TRACE")!=nullptr;
     return enabled;
 }
-// Held altitude, but never lower (larger Y) than the floor approach height
-// over the floor under Duke's feet.
-static int32_t jet_hold_target(int32_t y) {
-    // Air activation must not turn a low jump into an automatic floor-clearance
-    // climb. Native collision still owns the floor, walls and ceiling.
-    if(jet_air_height_hold)return jet_hold_y;
-    const int32_t floor=(int32_t)psx_mod_read_word(player+0x1c8),foot=(int32_t)psx_mod_read_word(player+0x10);
-    return std::min(jet_hold_y,y+(floor-foot)-k_jet_floor_clearance);
-}
-// The cached +0x1c8 is not a live floor query: it can retain the last
-// platform after Duke has left it. Ask the original flight collision sweep
-// about the next step instead, including object platforms. Roll back all
-// actor scratch/position writes, just as the isolated wall-jump sweep does.
-static bool jet_floor_contact(CPUState* cpu,float dx,float down,float dz) {
-    uint32_t saved[0x8a4/4];
-    for(unsigned i=0;i<0x8a4/4;++i)saved[i]=psx_mod_read_word(player+4*i);
-    psx_mod_write_word(player+4,saved[1]+(int32_t)std::lround(dx));
-    psx_mod_write_word(player+12,saved[3]+(int32_t)std::lround(dz));
-    psx_mod_write_half(player+0xfc,0);psx_mod_write_half(player+0x100,0);
-    psx_mod_write_half(player+0xfe,(uint16_t)std::clamp((int)std::ceil(down)+k_jet_touchdown_clearance,1,32767));
-    int32_t hit=-1;
-    const bool ok=original_call(cpu,0x8007a98c,0,&hit);
-    for(unsigned i=0;i<0x8a4/4;++i)
-        if(psx_mod_read_word(player+4*i)!=saved[i])psx_mod_write_word(player+4*i,saved[i]);
-    return ok && hit==2;
-}
+// Altitude is a player target; only a fresh collision may change it.
+static int32_t jet_hold_target(int32_t) {return jet_hold_y;}
 bool jetpack_input_ready() {
     if(!input_modernized() || !gameplay_context() || !independent_camera())return false;
     if(!input_snapshot(Context::Gameplay).active)return false;
@@ -353,20 +299,6 @@ static void jetpack_update(CPUState* cpu) {
     for(int axis=0;axis<3;++axis)bv[axis]=(int32_t)std::lround(jet_vel[axis]);
     const int32_t step_dt=(int32_t)dt;
     float vertical=jet_vel[1]*dt/1024.f; // planned vertical root, units
-    if(std::fabs(vertical)<2.f && std::hypot(jet_vel[0],jet_vel[2])*dt>=1024.f) {
-        vertical=jet_nudge_down ? 2.f : -2.f;
-        jet_nudge_down=!jet_nudge_down;
-        ++jet_root_nudges;
-    }
-    // Check every non-rising flight step, including release drift and loaded
-    // low hovers. A fresh sweep stops descent at platforms and releases it
-    // immediately when there is no longer a surface underneath.
-    if(!ascend && vertical>=0 && jet_floor_contact(cpu,jet_vel[0]*dt/1024.f,vertical,jet_vel[2]*dt/1024.f)) {
-        // Zero drops native horizontal motion; a tiny upward root also
-        // prevents its later animated-foot update from turning this into land.
-        vertical=-2;jet_vel[1]=0;jet_air_height_hold=true;
-        jet_hold_y=y;jet_hold_valid=!descend;
-    }
     jet_root_planned=vertical;
     bv[1]=(int32_t)std::lround((vertical-jet_root_bias)*1024.f/dt);
     for(int axis=0;axis<3;++axis) {
@@ -386,6 +318,199 @@ static void jetpack_update(CPUState* cpu) {
         (int32_t)psx_mod_read_word(player+4),y,(int32_t)psx_mod_read_word(player+12),psx_mod_read_half(player+0x1c),
         (int32_t)psx_mod_read_word(player+0x10),(int32_t)psx_mod_read_word(player+0x1c8),
         jet_vel[0],jet_vel[1],jet_vel[2],want_x,want_y,want_z,(int16_t)psx_mod_read_half(player+0x35a),ascend,descend,jet_hold_valid,jet_hold_y);
+}
+// D08Q8: resolve the integrated root before the native axis-separated apply.
+// The native sweep remains the collision oracle. Every trial restores actor
+// state; only a proven clear path is committed. A fixed flight envelope avoids
+// the animated feet changing the contact height on every thrust pose.
+struct JetSurface {
+    bool valid=false;
+    uint64_t epoch=0;
+    int x=0,y=0,z=0,kind=0,nx=0,ny=0,nz=0,px=0,py=0,pz=0;
+    double remainder=0;
+};
+static JetSurface jet_surface;
+static void jet_clearance_step(CPUState* cpu) {
+    if(cpu->gpr[4]!=player || cpu->gpr[31]!=0x8004b570 || guest_busy ||
+       !jetpack_input_ready())return;
+    const bool classic=jetpack_classic();
+    uint32_t saved[0x8a4/4];
+    for(unsigned i=0;i<0x8a4/4;++i)saved[i]=psx_mod_read_word(player+4*i);
+    auto restore=[&]{for(unsigned i=0;i<0x8a4/4;++i)
+        if(psx_mod_read_word(player+4*i)!=saved[i])psx_mod_write_word(player+4*i,saved[i]);};
+    const int32_t x=(int32_t)saved[1],y=(int32_t)saved[2],z=(int32_t)saved[3];
+    // 8003964c(player,15): the native sweep reads a cached world-space
+    // head point. Translate that point with each isolated trial as well.
+    const uint32_t layout=saved[0x40/4],matrices=saved[0x3c/4];
+    if(layout<0x80010000u || layout>=0x801ffff0u || matrices<0x80010000u || matrices>=0x801fe000u)return;
+    const unsigned head_index=psx_mod_read_byte(layout+0x24+15);
+    if(head_index>=64)return;
+    const uint32_t head=matrices+32*head_index+0x14;
+    const uint32_t head_saved[3]={psx_mod_read_word(head),psx_mod_read_word(head+4),psx_mod_read_word(head+8)};
+    const int dx=(int16_t)psx_mod_read_half(player+0xfc);
+    const int dz=(int16_t)psx_mod_read_half(player+0x100);
+    const int dy=classic ? (int16_t)psx_mod_read_half(player+0xfe) : (int)std::lround(jet_root_planned);
+    int hit=0,nx=0,ny=0,nz=0,px=0,py=0,pz=0;bool failed=false;
+    JetSurface contact_surface;
+    auto sweep=[&](int ox,int oy,int oz,int sx,int sy,int sz) {
+        restore();
+        psx_mod_write_word(player+4,x+ox);psx_mod_write_word(player+8,y+oy-32);
+        psx_mod_write_word(player+12,z+oz);
+        psx_mod_write_word(player+0x10,y+oy+624);
+        psx_mod_write_half(player+0xfc,(uint16_t)sx);
+        psx_mod_write_half(player+0xfe,(uint16_t)(sy?sy:1));
+        psx_mod_write_half(player+0x100,(uint16_t)sz);
+        psx_mod_write_word(head,x+ox);
+        psx_mod_write_word(head+4,y+oy-384);
+        psx_mod_write_word(head+8,z+oz);
+        int32_t result=-1;const bool ok=original_call(cpu,0x8007a98c,0,&result);
+        for(unsigned axis=0;axis<3;++axis)psx_mod_write_word(head+4*axis,head_saved[axis]);
+        hit=result;nx=(int32_t)psx_mod_read_word(player+0x194);ny=(int32_t)psx_mod_read_word(player+0x198);nz=(int32_t)psx_mod_read_word(player+0x19c);
+        px=(int32_t)psx_mod_read_word(player+0x184);py=(int32_t)psx_mod_read_word(player+0x188);pz=(int32_t)psx_mod_read_word(player+0x18c);
+        restore();if(!ok)failed=true;
+        // Native vertical apply accepts result 1: an adjacent vertical wall
+        // does not obstruct travel parallel to it. Keep that contract for
+        // vertical/stationary probes only; horizontal wall crossings still
+        // require a clear sweep.
+        return ok && (result==0 || (result==1 && ny==0 && !sx && !sz));
+    };
+    // Validate both the swept route and the complete destination envelope.
+    auto clear=[&](int ox,int oy,int oz,int sx,int sy,int sz) {
+        const bool path=sweep(ox,oy,oz,sx,sy,sz);
+        const bool separating=!sx && !sz && ((hit==3 && sy>0) || (hit==2 && sy<0));
+        return (path || separating) && sweep(ox+sx,oy+sy,oz+sz,0,0,0);
+    };
+    auto diagonal=[&](int sx,int sy,int sz) {
+        const int collision[]={hit,nx,ny,nz,px,py,pz};
+        if(clear(0,0,0,sx,sy,sz))return true;
+        // A failed alternate route must not replace the original contact
+        // plane with an unrelated side-wall result.
+        hit=collision[0];nx=collision[1];ny=collision[2];nz=collision[3];
+        px=collision[4];py=collision[5];pz=collision[6];return false;
+    };
+    // Plane intersection supplies the clearance target in one calculation.
+    // Keep the query count bounded: probe-heavy binary searches themselves
+    // consume guest work and stretch the game's animation timestep.
+    auto boundary=[&](int tx,int tz,int& target) {
+        if(std::abs(ny)<512 || (hit!=2 && hit!=3))return false;
+        const double surface=py-((double)nx*(x+tx-px)+(double)nz*(z+tz-pz))/ny;
+        const double radius=275.0*(saved[0xb0/4]&0xffffu)/4096.0;
+        const double reach=(tx || tz) ? radius*std::hypot((double)nx,(double)nz)/std::abs(ny) : 0.0;
+        target=(int)std::lround(surface+(hit==3?reach:-reach))+(hit==3 ? 416 : -656)-y;
+        if(jet_trace() && (tx || tz))std::fprintf(stderr,"ttk-jplane hit=%d p=%d,%d,%d n=%d,%d,%d radius=%.0f target=%d\n",hit,px,py,pz,nx,ny,nz,radius,target);
+        contact_surface={true,input_snapshot(Context::Gameplay).epoch,0,0,0,hit,nx,ny,nz,px,py,pz};
+        return std::abs(target)<32768;
+    };
+    // A freshly opened pack starts with a zero lift root and native feet
+    // still on the ground. Preserve the original upward-flight departure
+    // (the rising sweep shortens its foot envelope by 256) until airborne.
+    // Otherwise the zero-root native follow-up can immediately land it again.
+    if(!classic && !dx && !dz && dy==0 && !clear(0,0,0,0,0,0) && hit==2 && !failed) {
+        restore();psx_mod_write_half(player+0xfe,(uint16_t)-2);
+        jet_hold_y=y-2;jet_hold_valid=true;return;
+    }
+    int vy=dy,mx=dx,mz=dz;bool contact=false,following=false;
+    const auto& flight_input=input_snapshot(Context::Gameplay);
+    // Once touching a slope, carry its tangent into ordinary WASD flight.
+    // Waiting for another penetration produces alternating level travel and
+    // height corrections. Confirm the plane locally every update: never
+    // extrapolate a remembered surface across a ledge, save load or teleport.
+    if(!classic && (mx || mz) && !flight_input.held[jump] &&
+       !flight_input.held[crouch] && !jet_lift_active && jet_surface.valid &&
+       jet_surface.epoch==flight_input.epoch && jet_surface.x==x &&
+       jet_surface.y==y && jet_surface.z==z) {
+        const auto previous=jet_surface;
+        double exact=-((double)previous.nx*mx+(double)previous.nz*mz)/previous.ny+previous.remainder;
+        int tangent=(int)std::lround(exact);
+        int tx=mx,tz=mz;
+        if(std::abs(tangent)>48) {
+            tx=tx*48/std::abs(tangent);tz=tz*48/std::abs(tangent);
+            exact=-((double)previous.nx*tx+(double)previous.nz*tz)/previous.ny+previous.remainder;
+            tangent=(int)std::lround(exact);
+        }
+        sweep(tx,tangent,tz,0,previous.kind==3?-160:160,0);
+        const double plane_error=(double)previous.nx*(px-previous.px)+
+            (double)previous.ny*(py-previous.py)+(double)previous.nz*(pz-previous.pz);
+        if(!failed && hit==previous.kind && nx==previous.nx && ny==previous.ny && nz==previous.nz &&
+           std::abs(plane_error)<=8.0*std::abs(previous.ny)) {
+            vy=tangent;mx=tx;mz=tz;following=true;contact=true;contact_surface=previous;
+            // Retain sub-unit travel so rounding cannot slowly drift back
+            // into the plane and trigger another corrective jump.
+            contact_surface.remainder=exact-tangent;
+        }
+    }
+    jet_surface.valid=false;
+    if(vy && !following && !clear(0,0,0,0,vy,0)) {
+        if(jet_trace())std::fprintf(stderr,"ttk-jvertical hit=%d p=%d,%d,%d n=%d,%d,%d root=%d,%d\n",hit,px,py,pz,nx,ny,nz,y,vy);
+        if(hit==2 && (classic || dy<0)) {
+            restore();
+            // The native thrust can reverse Modern's integrated root during
+            // departure; use the requested rising root on this fallback too.
+            if(!classic)psx_mod_write_half(player+0xfe,(uint16_t)std::min(-2,dy));
+            return; // native takeoff / Classic landing
+        }
+        int target=0;
+        if(boundary(0,0,target)) {
+            vy=dy<0 ? std::clamp(target,dy,0) : std::clamp(target,0,dy);
+            if(vy && !clear(0,0,0,0,vy,0))vy=0;
+        } else vy=0;
+        contact=true;
+    }
+    // Follow the actual diagonal route, not a vertical-then-horizontal elbow.
+    // The elbow can intersect a slope even when the intended route fits.
+    if((mx || mz) && !clear(0,vy,0,mx,0,mz) && !diagonal(mx,vy,mz)) {
+        int target=0;const int normal_y=ny;
+        bool found=false,corrected=false;
+        if(boundary(mx,mz,target) && std::abs(target)<=384) {
+            const int next=std::clamp(target,-48,48);
+            // Scale the whole route before validating it. Testing the full
+            // horizontal step at a partial height creates stop/start flight.
+            int tx=mx,tz=mz;
+            if(std::abs(target)>48) {tx=tx*48/std::abs(target);tz=tz*48/std::abs(target);}
+            if((clear(0,0,0,0,next,0) && clear(0,next,0,tx,0,tz)) ||
+               clear(0,0,0,tx,next,tz)) {
+                vy=next;mx=tx;mz=tz;contact=true;found=true;corrected=true;
+            } else if(clear(0,0,0,0,next,0)) {
+                vy=next;contact=true;corrected=true;
+            }
+        } else {
+            // A vertical stair face has no height component in its normal.
+            // A bounded clear route above/below it permits a gradual step;
+            // both paths must fit, so full walls and narrow gaps stay solid.
+            const int direction=normal_y>512?1:-1;
+            for(int sign:{direction,-direction}) {
+                const int trial=sign*320;
+                if(clear(0,0,0,0,trial,0) && clear(0,trial,0,mx,0,mz)) {
+                    vy=sign*32;contact=true;corrected=true;
+                    found=clear(0,vy,0,mx,0,mz);
+                    if(!found)mx=mz=0;
+                    break;
+                }
+            }
+        }
+        if(!found) {
+            mx=mz=0;
+            // Tangent motion belongs to horizontal progress. A blocking wall
+            // must not turn ordinary WASD into an unrequested vertical climb.
+            if(following && !corrected) {vy=0;contact_surface.valid=false;}
+        }
+    }
+    if(failed) {restore();return;}
+    restore();
+    psx_mod_write_word(player+4,x+mx);psx_mod_write_word(player+8,y+vy);psx_mod_write_word(player+12,z+mz);
+    // Native apply now sees a stationary root. Horizontal travel no longer
+    // requires alternating vertical nudges, including at a flat ceiling.
+    for(unsigned axis=0;axis<3;++axis)psx_mod_write_half(player+0xfc+2*axis,0);
+    if(contact && !classic) {
+        if(contact_surface.valid) {
+            jet_surface=contact_surface;jet_surface.x=x+mx;jet_surface.y=y+vy;jet_surface.z=z+mz;
+        }
+        jet_vel[1]=0;jet_hold_y=y+vy;jet_hold_valid=true;jet_air_height_hold=true;
+        jet_lift_active=false;
+    }
+    jet_root_bias=0;
+    if(jet_trace())std::fprintf(stderr,"ttk-jclear xyz=%d,%d,%d root=%d,%d,%d applied=%d,%d,%d contact=%d follow=%d\n",
+        x,y,z,dx,dy,dz,mx,vy,mz,contact,following);
 }
 // After the mode-10 handler (0x80058120 hook): remember the original's thrust
 // for the next update's cancellation, and show the jetpack flame (drawn from
@@ -409,9 +534,7 @@ static void jet_post_update(CPUState* cpu) {
     }
     if(!jet_flight_live || !jetpack_flying_early() || !jetpack_input_ready() || jetpack_classic())return;
     for(int axis=0;axis<3;++axis)jet_thrust_prev[axis]=jet_pads_fed ? (int32_t)psx_mod_read_word(player+0x1e4+4*axis) : 0;
-    // +0xfe keeps this update's applied vertical root (8004ac08 restores it).
-    const float error=(float)(int16_t)psx_mod_read_half(player+0xfe)-jet_root_planned;
-    jet_root_bias=std::clamp(jet_root_bias+0.3f*error,-12.f,12.f);
+    jet_root_bias=0; // D08Q8 uses the exact planned root at the collision hook.
     psx_mod_write_word(player+0x224,psx_mod_read_word(player+0x224)|0x82000000u);
     if(jet_trace())std::fprintf(stderr,"ttk-jpost anim=%u fed=%d xyz=%d,%d,%d v=%d/%d/%d root=%d/%d/%d\n",psx_mod_read_half(player+0x60),jet_pads_fed,
         (int32_t)psx_mod_read_word(player+4),(int32_t)psx_mod_read_word(player+8),(int32_t)psx_mod_read_word(player+12),

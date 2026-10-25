@@ -1,6 +1,6 @@
 # Time to Kill — modernization jobs
 
-**Latest accepted job (2026-10-25): D08Q7 flight fire-to-draw is Done. User accepted and authorized lock-in/closeout. [Note 249](documentation/249-d08q7-flight-fire-draw.md). No next job started.**
+**Latest accepted job (2026-10-25): D08Q8 smooth jetpack surface following is Done. User accepted and authorized lock-in/closeout. [Note 250](documentation/250-d08q8-flight-clearance.md). No next job started.**
 
 **Latest accepted job (2026-10-25): D08A24 automatic/instant Bio Mask is Done. User: "lock it in, close it out". Automatic entry/exit, instant use while firing and on/off sound accepted; implementation and documentation closeout authorized. [Note 246](documentation/246-d08a24-auto-bio-mask.md). No next job started.**
 
@@ -195,7 +195,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08Q5 | Weapon switching while flying the jetpack (number keys and wheel) | Done (user-accepted) | D08A, D08Q3 |
 | D08Q6 | Modern jetpack altitude creeps upward in level flight (hold height unless Space/Ctrl) | Accepted | D08Q, D08Q1 |
 | D08Q7 | Draw a holstered weapon with left click during jetpack flight (bug 1) | Done | D08Q3, D08Q5 |
-| D08Q8 | Smooth jetpack clearance along rising floors and descending ceilings (slot 12, bug 4) | Todo | D08Q, D08S |
+| D08Q8 | Smooth jetpack clearance along rising floors, descending ceilings and maximum height (slot 12, bug 4) | Done | D08Q, D08S |
 | D08T | Pushable objects: modern grab/push/pull and climb (alley dumpster) | Done | D08 |
 | D08T1 | Separate push/pull from mantling: E always mantles, hold RMB to grab | Done | D08T, D04 |
 | D08T2 | Duke-symbol pushable blocks cannot be pushed with Modern controls (RMB grab, game-wide) | Accepted | D08T1, D22B |
@@ -651,7 +651,7 @@ other quotes. Keep the original Vanilla behavior.
 
 ### D08Q8 - Jetpack clearance follows floor/ceiling smoothly (bug 4)
 
-**Status:** Todo. **Dependencies:** D08Q, D08S (Done).
+**Status:** Done (user-accepted 2026-10-25). **Dependencies:** D08Q, D08S (Done).
 
 **Report:** In the tight space at current slot 12, jetpacking Duke treats a
 descending ceiling or rising floor like a brick wall. The desired behavior
@@ -662,7 +662,16 @@ is smooth movement with the floor/ceiling, as in Duke3D. User reference:
 the intended clearance response, then allow smooth vertical adjustment along
 the rising floor/descending ceiling where Duke fits. Preserve solid-wall and
 insufficient-clearance collision, flight controls and fuel behavior; verify
-both travel directions and supported jetpack schemes.
+both travel directions and supported jetpack schemes. Include the user's
+2026-10-25 follow-up: eliminate repeated head-contact judder at maximum
+flight height and apply stable contact behavior across flight situations.
+
+**Closeout:** User accepted ordinary-flight surface following and explicitly
+requested lock-in and closeout. Modern/EDuke32 follow confirmed floor/ceiling
+slopes without held Space/Ctrl, release at edges, and retain solid-wall and
+narrow-gap collision. Classic retains native thrust/landing; Vanilla is
+unchanged. [Note 250](documentation/250-d08q8-flight-clearance.md) records
+verification, revisions and bounded coverage. No next job started.
 
 ## First-person action roadmap (D35 research)
 
@@ -19733,3 +19742,32 @@ documentation closeout, commit and push authorized. Accepted candidate remains
 unchanged; no post-acceptance build or launch. Runtime patch re-export unchanged;
 52 files reconstruct against the pinned dependency. [Note 249](documentation/249-d08q7-flight-fire-draw.md).
 No next job started.
+
+## 2026-10-25 - D08Q8 flight clearance candidate (Needs playtest)
+
+Implemented stable native flight clearance for rising floors, descending
+ceilings, small steps and maximum height. Modern/EDuke32 contact holds no
+longer alternate vertical nudges or use stale floor heights. Classic retains
+its native thrust/landing and Vanilla bypasses the adapter. Private slot-12,
+outdoor ceiling and platform-to-street routes pass; user feel acceptance
+pending. [Note 250](documentation/250-d08q8-flight-clearance.md). No commit/push.
+
+D08Q8 follow-up: user reports intermittent judder. Reduced slope corrections to 48 units and stair
+corrections to 32 units and added a validated diagonal fallback while retaining
+the existing successful route. Native controls including continuous slope
+progress pass. Revised candidate remains Needs playtest; no commit/push.
+
+D08Q8 ordinary-flight revision: reproduced the user's no-Space zero/48-unit
+height pattern. Added locally revalidated surface-tangent following for
+Modern/EDuke32, fractional carry, edge release and blocked-wall cancellation.
+Continuous slope, rounding and edge/wall oracle checks pass, as do the full
+controls/input/aim/fuel suites. Private no-thrust slot-12 routes verify the
+intended behavior; user feel acceptance remains pending. No commit/push.
+
+## 2026-10-25 - D08Q8 accepted and closed
+
+User: "lock it in and close us out!!" D08Q8 is Done. Accepted implementation,
+regression tests, manual and evidence are included in the authorized closeout.
+No post-acceptance gameplay changes, rebuilds or launches. The unchanged
+runtime patch reconstructs all 52 authored framework files against the clean
+pin. Player data and dependency pins untouched. No next job started.

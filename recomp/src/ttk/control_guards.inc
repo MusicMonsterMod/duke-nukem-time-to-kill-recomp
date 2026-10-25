@@ -157,6 +157,10 @@ static const Guard guards[] = {
     {0x800780b4, 1236, "c71c5670b8757fe218865906b0664f2507b0168fa3bfbab72d74c67c7c846324"},
     {0x80028e1c, 908, "abc7e1fdca7d819abce83e931290333c74d4c28b43ea7f0ff523516619018d13"},
     {0x80066e34, 80, "ea2f10909814fb3257e9cea8479ee0c02356b664a5fe9cc00ef92ed384e1caac"},
+    // D08Q8: collision subqueries and cached head-point address contract.
+    {0x8003964c, 36, "95f9d9648bcf817dbfddb350e031744ce462eb66055f7d4ba9a4ee3b17f7f293"},
+    {0x8007991c, 1016, "d540e0b4e02698a376f6419cbc8cf78d9a94eeb444c1c39ee6fdc890e4382711"},
+    {0x80079d14, 568, "49f6b6df3d2447b50ba4ee49b5691e0c4e90e439685664de7de704032e853f5e"},
     // D08Q jetpack: mode-10 entry (Square + 358 bits + fuel), root apply with
     // the landing probe, and the flight handler (pads, hover lock, fuel).
     {0x8004aaf8, 272, "36c4e2f6c2f3832963f1a157fb61a2f1d3ce633dc06482f42f93724337811f1e"},

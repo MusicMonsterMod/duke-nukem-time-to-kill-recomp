@@ -1022,14 +1022,16 @@ vertical movement and holds the activation height, without the ground boost.
 **Space** climbs further. A quick J-off/J-on can restart flight while the pack is still
 closing. In the air the **mouse** turns Duke and the
 camera together (so do **Left** / **Right**), **W/A/S/D** (or **Up** / **Down**) fly relative to the camera at the
-original top speed with a short start and stop,
-releasing every key **hovers** perfectly still, **Ctrl** descends quickly (the same speed as diving
+walking or running pace with a short start and stop. **Shift** reverses the
+current walk/run choice, as on land (including **Caps Lock** run mode). Active
+steroids boost horizontal flight by the same proportion as land movement.
+Releasing every key **hovers** perfectly still, **Ctrl** descends quickly (the same speed as diving
 underwater) to a low hover at ground level. The sound and flames stay on;
 **Space** climbs again without restarting the pack, and
 **J** switches the pack off for a controlled fall with the camera still live.
 Duke's height stays where **Space** or **Ctrl** left it: flying, turning,
 looking up or down and hovering do not change it (D08Q6; there is no hover
-bob in Modern, and **Shift** does nothing in flight). Descent checks the surface
+bob in Modern). Descent checks the surface
 beneath Duke: leaving a platform lets **Ctrl** continue down to lower ground,
 and releasing it holds the new height. Flight adjusts vertically along rising
 floors, descending ceilings and small steps where Duke fits. Modern/EDuke32

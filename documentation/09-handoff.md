@@ -1,5 +1,40 @@
 # Next-session handoff
 
+## 2026-10-25 - D08Q9 accepted and closed
+
+User accepted jetpack walk/run and steroid pace and explicitly authorized
+lock-in/closeout. D08Q9 is Done. Modern/EDuke32 horizontal flight follows the
+shared ground pace and existing Shift/Caps Lock choice, with active steroids.
+Classic and Vanilla retain their behavior. [Note 251](251-d08q9-flight-pace.md)
+records native tests, private gameplay routes and measurement limits.
+
+Accepted executable: `9a81112c57148d928c00f8cfbd7aed33a88365640cc766395d45d1305c6beb04`.
+No post-acceptance gameplay edits, builds or launches. Runtime patch re-export
+unchanged; all 52 authored framework files reconstruct against the clean pin.
+Player data and dependency pins untouched. No next job started.
+Launch: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-25 - D08Q9 flight walk/run pace (Needs playtest)
+
+User requested a dedicated job and immediate implementation. Modern/EDuke32
+horizontal flight now uses the shared land walk/run target, the existing
+Shift/Caps Lock choice, and the native steroid speed proportion while active.
+Horizontal root resolution removes native thrust/animation timing error before
+collision. Classic keeps native burst physics; Vanilla bypasses the adapters.
+
+Build, native controls with supplied level fixtures, EDuke32 fuel/toggle,
+input and aim checks pass. Final private Modern/60/third-person and
+EDuke32/120/first-person routes pass flight reload, directional movement,
+steroids, live Shift release, hover, descent and J-off. Short-window travel
+measurements vary; user feel acceptance remains pending. See
+[note 251](251-d08q9-flight-pace.md). No framework edits or pin changes.
+
+Candidate: `9a81112c57148d928c00f8cfbd7aed33a88365640cc766395d45d1305c6beb04`.
+Player settings/cards/saves untouched; diagnostic processes stopped. No commit
+or push authorized. Launch: `python3 recomp/tools/local/run.py`.
+
+
 ## 2026-10-25 - D08Q8 accepted and closed
 
 User accepted the ordinary-flight surface following revision and explicitly

@@ -438,16 +438,34 @@ int main(int argc,char** argv) {
             // W: camera-relative (heading = view), eases in with zero vertical drift.
             ttk::input.move_y=1;update();
             const double yaw=psx_mod_read_half(p+0x1c)*6.283185307179586/4096;
-            assert(std::abs(bv(0))+std::abs(bv(2))>1000);
+            assert(std::abs(bv(0))+std::abs(bv(2))>200);
             assert(bv(1)==0); // D08Q8 no artificial vertical nudge
             const int32_t first_vertical=bv(1);update();assert(bv(1)==-first_vertical);
             assert(psx_mod_read_half(p+0x35a)==4990); // fed pads: the original drains
             for(int i=0;i<60;++i)update();
-            assert(std::abs(bv(0)-std::lround(16000*std::sin(yaw)))<=2 && std::abs(bv(2)-std::lround(16000*std::cos(yaw)))<=2);
+            assert(std::abs(bv(0)-std::lround(2030*std::sin(yaw)))<=2 && std::abs(bv(2)-std::lround(2030*std::cos(yaw)))<=2);
+            // D08Q9: live run choice, active/held/expired steroids, backwards
+            // and normalized diagonal flight all share the measured land pace.
+            auto pace=[&](bool run,unsigned flags,unsigned dose,float x,float z,double expected) {
+                ttk::running=run;psx_mod_write_half(p+0x364,flags);psx_mod_write_half(p+0x366,dose);
+                ttk::input.move_x=x;ttk::input.move_y=z;
+                for(int i=0;i<80;++i)update();
+                assert(std::abs(std::hypot((double)bv(0),(double)bv(2))-expected)<3);
+                assert(bv(1)==0);
+            };
+            pace(true,0,0,0,1,9520);
+            pace(true,1,9000,0,1,9520); // held is not active
+            pace(true,3,9000,0,1,13238.75);
+            pace(false,2,9000,0,1,2822.96875); // native pickup / dnhyper bit
+            pace(false,3,0,0,1,2030); // expired
+            pace(true,0,0,1,1,9520); // diagonal is not faster
+            pace(false,0,0,0,-1,2030);
+            assert(bv(0)*std::sin(yaw)+bv(2)*std::cos(yaw)<0);
+            pace(false,0,0,0,1,2030);
             // The handler's thrust (read after it) is cancelled next update.
             psx_mod_write_word(p+0x1e4,20);psx_mod_write_word(p+0x1e8,(uint32_t)-30);psx_mod_write_word(p+0x1ec,40);post();
             const int32_t x_before=bv(0);update();
-            assert(std::abs(bv(0)-(x_before-(20*10+10)))<=2);
+            assert(std::abs(bv(0)-(x_before-(20*10+20*10/2)))<=2);
             // Model the handler's applied vertical root as the plan (no thrust).
             auto applied=[&]{psx_mod_write_half(p+0xfe,(uint16_t)(int16_t)((bv(1)*10)>>10));};
             ttk::input.move_y=0;for(int i=0;i<60;++i){update();applied();post();}
@@ -496,6 +514,16 @@ int main(int argc,char** argv) {
                 call(0x8004ac08,p,0,0x8004b570,0x801fff00);
                 assert(psx_mod_read_word(0x801d1018)==12345);
             };
+            // Host horizontal pace must survive arbitrary native thrust roots
+            // and animation dt; collision still owns the resulting travel.
+            y(-11000,1000);ttk::input.move_y=1;
+            for(int i=0;i<80;++i)update();
+            const int px=(int32_t)psx_mod_read_word(p+4),pz=(int32_t)psx_mod_read_word(p+12);
+            psx_mod_write_half(p+0xba,17);root(500,500);
+            assert(std::abs(std::hypot((double)((int32_t)psx_mod_read_word(p+4)-px),
+                                      (double)((int32_t)psx_mod_read_word(p+12)-pz))-2030.0*10/1024)<1);
+            ttk::input.move_y=0;for(int i=0;i<80;++i)update();
+
             psx_mod_write_word(p+4,0);psx_mod_write_word(p+12,0);
             y(-11300,1000);ttk::input.held[ttk::jump]=true;
             for(int i=0;i<80;++i) {update();root(0,0);post();}

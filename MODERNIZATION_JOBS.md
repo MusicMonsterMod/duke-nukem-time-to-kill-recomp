@@ -1,5 +1,7 @@
 # Time to Kill — modernization jobs
 
+**Latest accepted job (2026-10-25): D08Q9 jetpack walk/run and steroid pace is Done. User authorized lock-in and closeout. [Note 251](documentation/251-d08q9-flight-pace.md). No next job started.**
+
 **Latest accepted job (2026-10-25): D08Q8 smooth jetpack surface following is Done. User accepted and authorized lock-in/closeout. [Note 250](documentation/250-d08q8-flight-clearance.md). No next job started.**
 
 **Latest accepted job (2026-10-25): D08A24 automatic/instant Bio Mask is Done. User: "lock it in, close it out". Automatic entry/exit, instant use while firing and on/off sound accepted; implementation and documentation closeout authorized. [Note 246](documentation/246-d08a24-auto-bio-mask.md). No next job started.**
@@ -196,6 +198,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08Q6 | Modern jetpack altitude creeps upward in level flight (hold height unless Space/Ctrl) | Accepted | D08Q, D08Q1 |
 | D08Q7 | Draw a holstered weapon with left click during jetpack flight (bug 1) | Done | D08Q3, D08Q5 |
 | D08Q8 | Smooth jetpack clearance along rising floors, descending ceilings and maximum height (slot 12, bug 4) | Done | D08Q, D08S |
+| D08Q9 | Jetpack horizontal pace follows walk/run and active steroids | Done | D08Q8, D08AA |
 | D08T | Pushable objects: modern grab/push/pull and climb (alley dumpster) | Done | D08 |
 | D08T1 | Separate push/pull from mantling: E always mantles, hold RMB to grab | Done | D08T, D04 |
 | D08T2 | Duke-symbol pushable blocks cannot be pushed with Modern controls (RMB grab, game-wide) | Accepted | D08T1, D22B |
@@ -19771,3 +19774,34 @@ regression tests, manual and evidence are included in the authorized closeout.
 No post-acceptance gameplay changes, rebuilds or launches. The unchanged
 runtime patch reconstructs all 52 authored framework files against the clean
 pin. Player data and dependency pins untouched. No next job started.
+
+## 2026-10-25 - D08Q9 jetpack walk/run pace
+
+User selected immediately on intake. Status: Done (user-accepted 2026-10-25).
+Modern and EDuke32 horizontal flight must match land walking/running according
+to the existing Shift/Caps Lock run choice, including the active steroid boost.
+Keep normalized diagonal movement, smooth speed transitions, vertical controls,
+height/clearance handling, fuel, firing and save/load behavior. Classic retains
+its deliberately native burst physics; Vanilla stays unchanged. Verify native
+contracts and private gameplay measurements, then request user feel acceptance.
+Dependencies: D08Q8, D08AA (Done). No commit or push authorized.
+
+## 2026-10-25 - D08Q9 flight pace candidate (Needs playtest)
+
+Implemented shared walk/run horizontal targets and active-steroid scaling for
+Modern/EDuke32, with native collision retained and animation/thrust speed error
+removed at root application. Build, native controls with supplied level fixtures,
+fuel/toggle, input and aim checks pass. Private 60-target Modern/third-person and
+120-target EDuke32/first-person routes cover directional flight, steroids,
+live Shift release, hover, flight reload, descent and J-off. Exact short-window
+measurements and limitations: [note 251](documentation/251-d08q9-flight-pace.md).
+Classic and Vanilla behavior retained. User feel acceptance pending; no commit
+or push. No next job started.
+
+## 2026-10-25 - D08Q9 accepted and closed
+
+User: "lock it in! close us out". D08Q9 is Done; implementation and
+documentation commit/push authorized. The tested candidate remains unchanged.
+Runtime patch re-export is unchanged and reconstructs all 52 authored files
+against the clean pinned framework. No post-acceptance gameplay edits, builds
+or launches. Player data and dependency pins untouched. See note 251.

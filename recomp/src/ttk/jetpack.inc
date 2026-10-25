@@ -35,7 +35,13 @@
 // original (post-handler trace, Classic): horizontal flight reaches ~16000
 // (still accelerating at walls; ~18000 seen), Square's climb caps at -11832.
 // Descent ~ the old Modern Ctrl rate (D08Q1, ~490 per 12 frames here).
-static constexpr float k_jet_speed = 16000.f;
+// D08Q9: horizontal flight uses the land pace. The native steroid timer
+// adds 0x640 to the 0x1000 animation rate at 800414c8; flight integration
+// uses the unscaled global dt, so apply that gain once to its target pace.
+static float jet_horizontal_pace() {
+    const bool boosted=(steroid_flags()&2) && (int16_t)psx_mod_read_half(player+0x366)>0;
+    return (float)modern_pace(input_running())*(boosted ? 5696.f/4096.f : 1.f);
+}
 static constexpr float k_jet_climb = 11800.f;
 static constexpr float k_jet_descend = 6000.f;
 // Ease time constants (dt units, ~ms): horizontal starts/stops over a few
@@ -243,8 +249,9 @@ static void jetpack_update(CPUState* cpu) {
     const float magnitude=std::hypot(forward,side);
     if(magnitude>1.f) {forward/=magnitude;side/=magnitude;}
     const float yaw=(float)psx_mod_read_half(player+0x1c)*tau/4096.f; // +Z = 0, +X = 1024
-    const float want_x=k_jet_speed*(forward*std::sin(yaw)+side*std::cos(yaw));
-    const float want_z=k_jet_speed*(forward*std::cos(yaw)-side*std::sin(yaw));
+    const float pace=jet_horizontal_pace();
+    const float want_x=pace*(forward*std::sin(yaw)+side*std::cos(yaw));
+    const float want_z=pace*(forward*std::cos(yaw)-side*std::sin(yaw));
     // Vertical (Y grows downward).
     const bool ascend=f.held[jump] && !f.held[crouch];
     const bool descend=f.held[crouch] && !f.held[jump];
@@ -291,7 +298,7 @@ static void jetpack_update(CPUState* cpu) {
     // Host-owned flight: the original's hover lock stays off. Moving or
     // climbing, input_pad feeds the original its own pads (flame, lean poses,
     // thrust state, fuel drain); its thrust v then lands on top of bv
-    // (8003ea58: bv += v*dt, root = (bv*dt + v*dt/2) >> 10), so write the
+    // (8003ea58: bv += v*dt, root = (bv*dt + v*dt*dt/2) >> 10), so write the
     // target minus the thrust predicted from the previous update.
     if(psx_mod_read_word(player+0x224)&0x08000000u)psx_mod_write_word(player+0x224,psx_mod_read_word(player+0x224)&~0x08000000u);
     jet_pads_fed=magnitude>0.f || ascend;
@@ -302,7 +309,10 @@ static void jetpack_update(CPUState* cpu) {
     jet_root_planned=vertical;
     bv[1]=(int32_t)std::lround((vertical-jet_root_bias)*1024.f/dt);
     for(int axis=0;axis<3;++axis) {
-        if(jet_pads_fed)bv[axis]-=jet_thrust_prev[axis]*step_dt+jet_thrust_prev[axis]/2;
+        // D08Q9: cancel the full horizontal half-acceleration term. The
+        // vertical path keeps its existing learned root-bias correction.
+        if(jet_pads_fed)bv[axis]-=jet_thrust_prev[axis]*step_dt+
+            jet_thrust_prev[axis]*(axis==1?1:step_dt)/2;
         psx_mod_write_word(player+0x1f4+4*axis,(uint32_t)bv[axis]);
         psx_mod_write_word(player+0x1e4+4*axis,0); // the handler sets this update's thrust
     }
@@ -334,6 +344,16 @@ static void jet_clearance_step(CPUState* cpu) {
     if(cpu->gpr[4]!=player || cpu->gpr[31]!=0x8004b570 || guest_busy ||
        !jetpack_input_ready())return;
     const bool classic=jetpack_classic();
+    // D08Q9: the native integrator uses animation dt and changing thrust,
+    // while the host pace uses global dt. Resolve horizontal travel from
+    // the eased host velocity here, before the same native collision sweeps.
+    // This also removes direction-dependent thrust prediction error at walk
+    // speed. Idle and Classic retain their native root.
+    if(!classic && jet_flight_live && (jet_vel[0]!=0.f || jet_vel[2]!=0.f)) {
+        const float dt=(float)std::clamp<uint32_t>(psx_mod_read_word(0x800d21fc),1u,60u);
+        psx_mod_write_half(player+0xfc,(int16_t)std::lround(jet_vel[0]*dt/1024.f));
+        psx_mod_write_half(player+0x100,(int16_t)std::lround(jet_vel[2]*dt/1024.f));
+    }
     uint32_t saved[0x8a4/4];
     for(unsigned i=0;i<0x8a4/4;++i)saved[i]=psx_mod_read_word(player+4*i);
     auto restore=[&]{for(unsigned i=0;i<0x8a4/4;++i)

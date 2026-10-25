@@ -1,5 +1,11 @@
 # D35 - First-person transition audit and modernization roadmap
 
+**D35L closeout (2026-10-25):** The user accepts and prefers the existing
+third-person death/respawn presentation. D35L is Done with no action needed;
+its historical research/option proposal below is superseded. No new death
+variant testing is implied. D35K remains Todo and this parent remains Needs review.
+
+
 2026-10-24. Research candidate, Needs review. No gameplay implementation.
 
 ## Scope and evidence

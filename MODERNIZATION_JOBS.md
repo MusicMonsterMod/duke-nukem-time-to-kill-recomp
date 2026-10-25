@@ -356,7 +356,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D35J3 | First-person NPC interaction presentation | Done | D35J |
 | D35J4 | Slot-9 time crystal forces third person (bug 5, first queued) | Done | D35J, D35J1, D35J2, D35J3, D35M |
 | D35K | Native scripted and special-camera event inventory | Todo | D35 |
-| D35L | First-person death and respawn presentation research | Todo | D35 |
+| D35L | First-person death and respawn presentation research | Done (user-accepted; no action needed) | D35 |
 | D35M | First-person door opening and related use interactions | Done | D35A |
 | D35N | First-person mirror interactions and reflected-Duke proximity fade | Done | D35A |
 | D35N1 | Missing mirror voice line at slot 6 (base-game design oversight, bug 3) | Todo | D35N |
@@ -794,22 +794,14 @@ Other NPC variants require explicit evidence rather than numeric-range leases.
 
 ### D35L - First-person death and respawn presentation research
 
-**Status:** Todo. **Dependencies:** D35.
+**Status:** Done (user-accepted 2026-10-25; no action needed). **Dependencies:** D35 (research prerequisite waived by the user's no-change decision).
 **Research:** [D35 central audit](documentation/222-d35-first-person-audit.md).
 
-**Current behavior:** Actor death flags revoke the modern view; original death presentation runs. Continue/restart/load reset host state and reacquire selected view, with bounded existing tests.
+**Accepted behavior:** Actor death flags revoke the modern view and the original third-person death presentation runs. Continue/restart/load reset host state and reacquire the selected view when eligible.
 
-**Desired result:** Research eye/death-body policy for normal death, drowning, burning/explosive variants and restore control on Continue. Deliver design and focused implementation follow-ups, not a death-input bypass.
+**User decision (2026-10-25):** "i like that this one goes into third person and absolutely no issue with how this works"; explicitly requested closing D35L with no action needed. Preserve the existing death and respawn presentation. The proposed first-person death research, DEATH VIEW option and implementation follow-ups are no longer requested.
 
-**Perspective/configuration:** Proposed DEATH VIEW: First-Person / Legacy Third-Person; decide supported variants and comfort before exposing the row.
-
-**Source references:** recomp/src/ttk/modern_controls.cpp:state/camera_world_reset; first_person.inc:head_restore/first_person_draw; pc_input.cpp:death menu; game_menu.cpp; documentation/61-d11-first-person.md.
-
-**Reproduction and tests:** Private natural deaths on land, water, airborne and attached action; Continue, Restart and Load; watch selected/effective view, actor allocation, hidden head flags, weapon state and first controllable frame.
-
-**Acceptance:** Design explicitly covers eye collapse/body visibility, severed/invalid model cases, death-menu usability and selected-view recovery; preserves death action lockouts and global third-person/Vanilla. Open implementation only after concrete requirements exist.
-
-**Regression risks:** Invalid/replaced actor data, dismemberment head lookup, nausea, hidden reflected body and granting movement after death.
+**Evidence and limits:** Closed on the user's acceptance of existing behavior, not a new agent test of every death variant or recovery route. No gameplay changes, build or launch required. D35 remains Needs review and D35K remains Todo; this decision closes D35L only.
 
 ### D35M - First-person door opening and related use interactions
 
@@ -18908,3 +18900,15 @@ No post-acceptance gameplay edits, rebuilds or launches. No framework edits or
 pin changes; the existing framework working-tree modifications are preserved.
 No player data changed. D08Q7, D08T9, D35N1 and D08Q8 remain Todo; no next job
 started. Launch: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-25 - D35L accepted as-is; no action needed
+
+User explicitly prefers the existing third-person death presentation, reports
+no issue with how death/respawn works, and requests closing D35L. Marked Done;
+the proposed death-view research and option are superseded by that decision.
+Updated status, handoff and the central audit. Documentation-only closeout;
+no gameplay edits, builds, launches or new variant/recovery verification.
+Existing framework working-tree changes are preserved. No player data changed.
+D35K remains Todo; D35 remains Needs review. No next job started.
+Launch: `python3 recomp/tools/local/run.py`.

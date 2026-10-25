@@ -1,5 +1,18 @@
 # Current status - 2026-10-04
 
+## 2026-10-25 - D35L accepted as-is; no action needed
+
+The user explicitly prefers the existing third-person death presentation,
+reports no issue with the behavior and requested closing D35L. D35L is Done
+(user-accepted; no action needed). Preserve existing death/respawn behavior;
+no first-person death option or additional research is requested.
+This is a documentation-only closeout, based on user acceptance rather than
+new agent verification of death variants or recovery routes. No code changes,
+builds, launches or player-data changes. Existing framework modifications
+remain untouched. D35K remains Todo and D35 remains Needs review.
+Launch: `python3 recomp/tools/local/run.py`.
+
+
 ## 2026-10-25 - D35J4 accepted and closed
 
 User explicitly instructed "lock it in and close it out!". D35J4 is Done.

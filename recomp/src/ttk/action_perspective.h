@@ -11,9 +11,9 @@ inline bool parse_action_view(const char* value, ActionView& out) {
     if(value && !std::strcmp(value,"legacy-third")) {out=ActionView::LegacyThird;return true;}
     return false;
 }
-enum class PerspectiveAction {None, Ground, Swimming, Jetpack, Push, Traversal, WaterExit, Committed, Fall, Ladder, Pole, Mantle, Overhead, Wall};
+enum class PerspectiveAction {None, Ground, Swimming, Jetpack, Push, Traversal, WaterExit, Committed, Fall, Ladder, Pole, Mantle, Overhead, Wall, Use, Mirror};
 inline const char* perspective_action(PerspectiveAction action) {
-    constexpr const char* names[]={"none","ground","swimming","jetpack","push","traversal","water-exit","committed","fall","ladder","pole","mantle","overhead","wall"};
+    constexpr const char* names[]={"none","ground","swimming","jetpack","push","traversal","water-exit","committed","fall","ladder","pole","mantle","overhead","wall","use","mirror"};
     return names[static_cast<unsigned>(action)];
 }
 enum class PerspectiveReason {Off, Active, Suspended, Push, Traversal, LegacyChoice,
@@ -26,6 +26,7 @@ inline const char* perspective_reason(PerspectiveReason reason) {
 }
 struct PerspectiveFacts {
     bool selected=false, active=false;
+    bool use=false, mirror=false;
     bool wall=false, overhead=false, mantle=false, pole=false, ladder=false, water_exit=false, push=false, traversal=false, committed=false, fall=false, swim=false, jet=false;
     PerspectiveReason denial=PerspectiveReason::Active;
 };
@@ -37,7 +38,7 @@ struct ActionPerspective {
 inline ActionPerspective resolve_perspective(const PerspectiveFacts& f, ActionView choice=ActionView::First) {
     ActionPerspective r{};r.selected=f.selected;
     if(f.denial!=PerspectiveReason::Active) {r.reason=f.denial;return r;}
-    r.action=f.water_exit?PerspectiveAction::WaterExit:f.push?PerspectiveAction::Push:
+    r.action=f.mirror?PerspectiveAction::Mirror:f.use?PerspectiveAction::Use:f.water_exit?PerspectiveAction::WaterExit:f.push?PerspectiveAction::Push:
         f.wall?PerspectiveAction::Wall:f.ladder?PerspectiveAction::Ladder:f.pole?PerspectiveAction::Pole:f.overhead?PerspectiveAction::Overhead:f.mantle?PerspectiveAction::Mantle:f.committed?PerspectiveAction::Committed:f.fall?PerspectiveAction::Fall:
         f.traversal?PerspectiveAction::Traversal:f.swim?PerspectiveAction::Swimming:
         f.jet?PerspectiveAction::Jetpack:PerspectiveAction::Ground;

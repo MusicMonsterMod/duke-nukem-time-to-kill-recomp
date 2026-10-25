@@ -212,6 +212,10 @@ static bool override_body_coverage=false,override_third_camera=false;
 // Nested uses of the generic list iterator cannot release this actor draw.
 // Only the verified outer object-list successor or another actor can end it.
 static bool third_body_drawing=false;
+// Draw-local ownership: reflected Duke is a separate pass, never the primary
+// first-person body/viewmodel. Reset at its verified list successor or entry
+// to another actor, and when a replay/world snapshot is installed.
+static bool mirror_duke_drawing=false;
 static unsigned override_kick_frame=0;
 // D12A first-person quick kick (kick.inc).
 static bool kick_request(bool queue=false);
@@ -245,6 +249,14 @@ static ActionView ladder_view() {
 static ActionView wall_view() {
     ActionView value=ActionView::First;
     parse_action_view(ttk_live_env("DNTTK_WALL_VIEW"),value);return value;
+}
+static ActionView use_view() {
+    ActionView value=ActionView::First;
+    parse_action_view(ttk_live_env("DNTTK_USE_VIEW"),value);return value;
+}
+static ActionView mirror_view() {
+    ActionView value=ActionView::First;
+    parse_action_view(ttk_live_env("DNTTK_MIRROR_VIEW"),value);return value;
 }
 static ActionView overhead_view() {
     ActionView choice=ActionView::First;
@@ -694,6 +706,24 @@ static bool climb_state_early() {
         (previous==0 || previous==3 || previous==6 || previous==7 || previous==8 || previous==9);
 }
 static bool first_person_wall();
+// D35J: native idle selection and the reproduced ordinary-camera actions.
+// These predicates describe presentation, never locomotion/aim permission.
+static bool idle_fidget_eye() {
+    const unsigned a=psx_mod_read_half(player+0x60);
+    return a>=64 && a<=69 && psx_mod_read_byte(player+0x22c)==0 &&
+        psx_mod_read_byte(player+0x22d)==0;
+}
+static bool use_interaction_eye() {
+    const unsigned a=psx_mod_read_half(player+0x60);
+    return (a==118 || a==266 || a==277) &&
+        psx_mod_read_byte(player+0x22c)==0 && psx_mod_read_byte(player+0x22d)==0 &&
+        (psx_mod_read_word(player+0x224)&0x40);
+}
+static bool mirror_interaction_eye() {
+    return psx_mod_read_half(player+0x60)==278 &&
+        psx_mod_read_byte(player+0x22c)==0 && psx_mod_read_byte(player+0x22d)==0 &&
+        (psx_mod_read_word(player+0x224)&0x40);
+}
 static bool first_person_ladder();
 static bool first_person_pole();
 static bool first_person_mantle();
@@ -750,6 +780,9 @@ static bool state(bool camera_only=false,bool presentation=false) {
         input_snapshot(Context::Gameplay).first_person && first_person_mantle();
     const bool wall_eye=presentation && camera_only && wall_view()==ActionView::First &&
         input_snapshot(Context::Gameplay).first_person && first_person_wall();
+    const bool transient_eye=presentation && camera_only && input_snapshot(Context::Gameplay).first_person &&
+        (idle_fidget_eye() || (use_view()==ActionView::First && use_interaction_eye()) ||
+         (mirror_view()==ActionView::First && mirror_interaction_eye()));
     const bool mantle=camera_only && (traversal_camera_early() || ladder_eye || pole_eye || mantle_eye || wall_eye);
     // D22B: also the landing poses themselves (an unleased landing frame left a
     // jump taken from it without camera continuity) and after a slide.
@@ -760,7 +793,7 @@ static bool state(bool camera_only=false,bool presentation=false) {
     if ((psx_mod_read_word(player)&0x20002) || !(land_gait_anim(animation) || original_step_anim(animation) || wade_land ||
         (camera_only && (animation==70 || animation==71 || animation==80 || animation==81 || landing_pose_anim(animation) ||
                          animation==175 || animation==176 || animation==177 || animation==181 ||
-                         (animation>=178 && animation<=184))) || preparing || flight || swimming || jet || eye_air || pushing || eye_kick || mantle || settle)) return false;
+                         (animation>=178 && animation<=184))) || preparing || flight || swimming || jet || eye_air || pushing || eye_kick || mantle || settle || transient_eye)) return false;
     // D11E: original swim weapon transitions briefly set 0x200 (observed
     // while holstering in 127). Keep the selected eye presentation through
     // that transient, without widening movement/aim/capture permissions or
@@ -769,7 +802,12 @@ static bool state(bool camera_only=false,bool presentation=false) {
     const bool swim_eye=presentation && camera_only && swimming && swimming_view()==ActionView::First &&
         input_snapshot(Context::Gameplay).first_person &&
         (mode==4 || mode==5) && animation>=122 && animation<=133;
-    const uint32_t inhibit=(shallow_land_water_early() || swim_eye)?0x20000000u:0x20000200u;
+    // Native held inventory suspends actions, not the selected eye view.
+    // Limit the exception to the observed standing land state. Script and
+    // death/ownership guards remain, and state(false/true,false) is unchanged.
+    const bool inventory_eye=presentation && camera_only && input_snapshot(Context::Gameplay).first_person &&
+        animation==63 && mode==0 && previous==0;
+    const uint32_t inhibit=(shallow_land_water_early() || swim_eye || inventory_eye)?0x20000000u:0x20000200u;
     return psx_mod_read_word(camera+0xa4)==player && psx_mod_read_word(player+0x7d4)==camera
         && !(psx_mod_read_word(player+0x224)&inhibit)
         && (swimming || wade_land || jet || eye_air || mantle || settle || ((flight || (preparing && animation==97)) ? ((psx_mod_read_byte(player+0x22c)==9 && (psx_mod_read_byte(player+0x22d)==9 || psx_mod_read_byte(player+0x22d)==0)) ||
@@ -1080,7 +1118,7 @@ static void camera_world_reset() {
     orbit_valid=false;look.reset();camera_frame=0;fp_frame=0;walking=false;
     fp_blend=0;PerspectiveFacts reset{};reset.selected=input_snapshot(Context::Gameplay).first_person;
     reset.denial=PerspectiveReason::WorldChange;fp_policy=resolve_perspective(reset);
-    head_flag=0;min_boom_written=false;fade_save.active=false;third_body_drawing=false;
+    head_flag=0;min_boom_written=false;fade_save.active=false;third_body_drawing=false;mirror_duke_drawing=false;
     eye_offset_valid=false;eye_rel_valid=false;bob_last_valid=false;bob_frame=0;
     jump_camera=false;flight_valid=false;takeoff_valid=false;
 }
@@ -1441,6 +1479,9 @@ static void hook_body(CPUState* cpu, uint32_t address) {
         widescreen_view_rect(ra);
         first_person_projection(cpu,ra);
     } else if (address==0x800348d8) {
+        if(mirror_duke_drawing)fade_restore(cpu);
+        mirror_duke_drawing=cpu->gpr[5]==player && ra==0x8003816c &&
+            input_modernized() && identity();
         // The main draw consumes the flame bit before the mirror pass
         // (0x8003816c). Re-arm native flames for each draw of the running pack.
         if(cpu->gpr[5]==player && jet_flight_live && jetpack_flying_early() &&
@@ -1460,6 +1501,9 @@ static void hook_body(CPUState* cpu, uint32_t address) {
             first_person_draw(duke_drawing && identity(),psx_mod_read_word(camera+0xa4)==player && lease_cam);
         }
     } else if (address==0x8001ca4c) {
+        if(ra==0x80038184 && mirror_duke_drawing) {
+            fade_restore(cpu);mirror_duke_drawing=false;
+        }
         // Next object-list step after Duke's draw returns: the head joint flag is cleared.
         duke_drawing=false;actor_drawing=false;
         if(ra==0x8007fe78) pickup_select_end(); // D08A9: after the pickup dispatcher
@@ -1761,7 +1805,7 @@ void render_state_load(const void* in) {
     kick_active=r.kick_active; override_kick_frame=r.kick_frame;
     kick_point=r.kick_point; leg_matrices=r.leg_matrices;
     // Draw-time transients start clean, as at the start of a live frame.
-    head_flag=0; third_body_drawing=false; duke_drawing=false; actor_drawing=false; weapon_duke_draw=false; weapon_viewmodel=false;
+    head_flag=0; third_body_drawing=false; mirror_duke_drawing=false; duke_drawing=false; actor_drawing=false; weapon_duke_draw=false; weapon_viewmodel=false;
     render_override=true; override_lease_cam=r.lease_cam;
     override_crouch_weapon=r.crouch_weapon;
     override_swim_weapon=r.swim_weapon;
@@ -1783,8 +1827,9 @@ static bool third_person_body_effect() {
 void third_person_mesh_begin(CPUState* cpu) {
     // The root sets the native fade AFTER its transform. Catch it at its
     // mesh too, before any pelvis polygons; subsequent joints use the same
-    // saved context. Power-up translucency belongs to the original game.
-    if(third_body_drawing && third_person_camera_live() && body_coverage_supported() &&
+    // saved context. Reflected Duke stays opaque at close range in Modernized;
+    // this never enables the primary-body dissolve. Power-up effects remain native.
+    if((mirror_duke_drawing || (third_body_drawing && third_person_camera_live() && body_coverage_supported())) &&
        !third_person_body_effect() && identity()) fade_clear(cpu);
 }
 double third_person_body_coverage() {

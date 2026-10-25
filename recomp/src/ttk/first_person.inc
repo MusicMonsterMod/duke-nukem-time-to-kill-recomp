@@ -162,6 +162,8 @@ static void first_person_update(const InputFrame& f,unsigned ticks,bool acquirin
     const unsigned animation=psx_mod_read_half(player+0x60);
     PerspectiveFacts facts{};
     facts.selected=f.first_person;facts.active=f.active;
+    facts.use=use_interaction_eye();
+    facts.mirror=mirror_interaction_eye();
     // Water exit takes ownership before the lingering water flag clears.
     facts.water_exit=mode==8 && (previous==4 || previous==5) && animation>=134 && animation<=142;
     facts.mantle=first_person_mantle();facts.overhead=first_person_overhead();
@@ -170,6 +172,10 @@ static void first_person_update(const InputFrame& f,unsigned ticks,bool acquirin
     facts.committed=committed_move_early();facts.fall=unowned_fall_early();
     facts.swim=first_person_swimming();facts.jet=mode==10 && jetpack_anim(animation);
     fp_policy=resolve_perspective(facts);
+    if(fp_policy.action==PerspectiveAction::Use)
+        fp_policy=resolve_perspective(facts,use_view());
+    if(fp_policy.action==PerspectiveAction::Mirror)
+        fp_policy=resolve_perspective(facts,mirror_view());
     // Only the resolved swimming owner gets this preference. Lingering water
     // flags must not apply it to a mantle, fall or another owning action.
     if(fp_policy.action==PerspectiveAction::Swimming)
@@ -271,8 +277,10 @@ static bool first_person_anchor(const double* forward,double* anchor) {
     const bool swimming=first_person_swimming() && !mantling;
     const bool jetting=jetpack_flying_early();
     const bool pushing=fp_policy.action==PerspectiveAction::Push && fp_policy.effective;
+    const bool using_object=(fp_policy.action==PerspectiveAction::Use || fp_policy.action==PerspectiveAction::Mirror) && fp_policy.effective;
+    const bool fidget=idle_fidget_eye();
     const bool climbing=(fp_policy.action==PerspectiveAction::Wall || fp_policy.action==PerspectiveAction::Ladder || fp_policy.action==PerspectiveAction::Pole) && fp_policy.effective;
-    const bool root_anchored=swimming || jetting || pushing || climbing || mantling;
+    const bool root_anchored=swimming || jetting || pushing || climbing || mantling || using_object || fidget;
     if(root_anchored) pivot_y=root[1];
     // Rebase the previous offset when switching between root and land pivot;
     // real body travel stays immediate, only the posture difference is eased.
@@ -297,7 +305,9 @@ static bool first_person_anchor(const double* forward,double* anchor) {
     // 200 units off its panel, so looking around cannot put the eye through it.
     // D35G: follow native root travel over the lip, without the animated
     // neck lean or a stale swimming plane pulling the eye into the ledge.
-    if(pushing || climbing || mantling) {target[0]=target[2]=0;target[1]=-294;}
+    // Idle gestures and committed use animations may lean or turn the neck
+    // sharply. Keep a comfortable upright eye while native arms/events run.
+    if(pushing || climbing || mantling || using_object || fidget) {target[0]=target[2]=0;target[1]=-294;}
     // D15: the slow centring drift was still feeding idle neck animation into
     // the camera after locomotion stopped. Hold within the existing dead band
     // while stationary; actual travel, posture changes beyond the band and
@@ -775,7 +785,7 @@ static bool interaction_arm;
 static void first_person_weapon_joint(CPUState* cpu,uint32_t ra) {
     interaction_arm=false;
     if(ra==0x80034c6c && weapon_duke_draw && fp_blend>=0.5 && orbit_valid &&
-       fp_policy.effective && (fp_policy.action==PerspectiveAction::Push || fp_policy.action==PerspectiveAction::Wall || fp_policy.action==PerspectiveAction::Ladder || fp_policy.action==PerspectiveAction::Pole || fp_policy.action==PerspectiveAction::Mantle || fp_policy.action==PerspectiveAction::Overhead || fp_policy.action==PerspectiveAction::WaterExit) &&
+       fp_policy.effective && (fp_policy.action==PerspectiveAction::Mirror || fp_policy.action==PerspectiveAction::Use || fp_policy.action==PerspectiveAction::Push || fp_policy.action==PerspectiveAction::Wall || fp_policy.action==PerspectiveAction::Ladder || fp_policy.action==PerspectiveAction::Pole || fp_policy.action==PerspectiveAction::Mantle || fp_policy.action==PerspectiveAction::Overhead || fp_policy.action==PerspectiveAction::WaterExit) &&
        cpu->gpr[4]==camera && cpu->gpr[20]==player) {
         const int part=duke_joint_part(duke_model(),cpu->gpr[23]);
         interaction_arm=part>=int(part_arm_first) && part<=0x0f;

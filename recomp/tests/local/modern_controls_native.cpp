@@ -2561,6 +2561,52 @@ int main(int argc,char** argv) {
             psx_mod_write_word(ctx+0x48,0);psx_mod_write_word(ctx+0x4c,0);
             std::puts("PASS: D10B1 native minimum/follow/fade retained, no body dissolve, replay gate off");
         }
+        // D35N: only reflected Duke loses the native close-distance fade.
+        // Primary body, other actors, powers and Vanilla retain their policy.
+        {
+            constexpr uint32_t ctx=0x800d67a8,mirror=0x801ffe58;
+            const auto oldflags=psx_mod_read_word(p),old224=psx_mod_read_word(p+0x224);
+            const auto bright=psx_mod_read_byte(p+0x1b);
+            const uint16_t effects[]={psx_mod_read_half(p+0x89c),psx_mod_read_half(p+0x89e),psx_mod_read_half(p+0x8a0)};
+            psx_mod_write_word(p,0);psx_mod_write_word(p+0x224,0);psx_mod_write_byte(p+0x1b,0x90);
+            for(int i=0;i<3;++i)psx_mod_write_half(p+0x89c+2*i,0);
+            auto native=[&] {psx_mod_write_word(ctx+0x48,0x02000000);psx_mod_write_word(ctx+0x4c,0x600000);psx_mod_write_word(ctx+0x54,0x3c223344);};
+            CPUState draw{};draw.gpr[29]=0x801f0000;
+            draw.gte_ctrl[13]=10;draw.gte_ctrl[14]=20;draw.gte_ctrl[15]=30;
+            call(0x800348d8,mirror,p,0x8003816c);native();ttk::third_person_mesh_begin(&draw);
+            assert(psx_mod_read_word(ctx+0x48)==0 && psx_mod_read_word(ctx+0x4c)==0);
+            assert(psx_mod_read_word(ctx+0x54)==0x3c909090 && draw.gte_ctrl[13]==0x900);
+            assert(!ttk::third_person_duke_drawing() && !ttk::first_person_duke_drawing());
+            call(0x8001ca4c,0,0,0x80012345); // nested list calls cannot end the reflection
+            assert(psx_mod_read_word(ctx+0x48)==0);
+            draw.gpr[31]=0x80038184;hooks().at(0x8001ca4c)(&draw,0x8001ca4c);
+            assert(psx_mod_read_word(ctx+0x48)==0x02000000 && psx_mod_read_word(ctx+0x54)==0x3c223344);
+            assert(draw.gte_ctrl[13]==10 && draw.gte_ctrl[14]==20 && draw.gte_ctrl[15]==30);
+            for(unsigned effect=0;effect<7;++effect) {
+                psx_mod_write_word(p,effect<3?(1u<<(effect==0?6:effect==1?13:14)):0);
+                psx_mod_write_word(p+0x224,effect==3?0x200000:0);
+                for(int i=0;i<3;++i)psx_mod_write_half(p+0x89c+2*i,effect==unsigned(i+4)?1:0);
+                call(0x800348d8,mirror,p,0x8003816c);native();ttk::third_person_mesh_begin(&draw);
+                assert(psx_mod_read_word(ctx+0x48)==0x02000000);
+                call(0x8001ca4c,0,0,0x80038184);
+            }
+            psx_mod_write_word(p,0);psx_mod_write_word(p+0x224,0);
+            for(int i=0;i<3;++i)psx_mod_write_half(p+0x89c+2*i,0);
+            for(unsigned route=0;route<3;++route) {
+                ttk::modern=route!=2;
+                call(0x800348d8,mirror,route==0?p+0x100:p,route==1?0x80012345:0x8003816c);
+                native();ttk::third_person_mesh_begin(&draw);assert(psx_mod_read_word(ctx+0x48)==0x02000000);
+            }
+            ttk::modern=true;
+            // Another actor clears the draw-local lease.
+            call(0x800348d8,mirror,p,0x8003816c);native();ttk::third_person_mesh_begin(&draw);
+            call(0x800348d8,mirror,p+0x100,0x8003816c);assert(psx_mod_read_word(ctx+0x48)==0x02000000);
+            native();ttk::third_person_mesh_begin(&draw);assert(psx_mod_read_word(ctx+0x48)==0x02000000);
+            psx_mod_write_word(p,oldflags);psx_mod_write_word(p+0x224,old224);psx_mod_write_byte(p+0x1b,bright);
+            for(int i=0;i<3;++i)psx_mod_write_half(p+0x89c+2*i,effects[i]);
+            psx_mod_write_word(ctx+0x48,0);psx_mod_write_word(ctx+0x4c,0);
+            std::puts("PASS: D35N reflected Duke fade, color/GTE restore, actor/pass isolation, powers and Vanilla");
+        }
         // D11 first-person: the eye follows the neck joint; the anchor sits half a
         // projection distance ahead of it. The original minimum boom is relaxed
         // only while the eye view blends in, and the head joint is flagged only
@@ -3157,6 +3203,71 @@ int main(int argc,char** argv) {
                 ttk::render_state_load(orbit.data());
                 assert(std::strstr(ttk::controls_debug_json(),"\"effective\":false,\"requested\":false"));
                 ttk::input.first_person=true;frame();
+            }
+            // D35J/M: presentation-only transient leases. Native state, action
+            // lockouts and ownership/death/script guards must survive them.
+            {
+                const auto flags=psx_mod_read_word(p+0x224),actor=psx_mod_read_word(p);
+                const auto upper=psx_mod_read_half(p+0x74);
+                for(unsigned pose:{64u,65u,66u,67u,68u,69u,118u,266u,277u,63u}) {
+                    const bool use=pose==118 || pose==266 || pose==277;
+                    const uint32_t bits=use?0x40u:pose==63?0x200u:0u;
+                    psx_mod_write_half(p+0x60,pose);psx_mod_write_half(p+0x74,pose);
+                    psx_mod_write_byte(p+0x22c,0);psx_mod_write_byte(p+0x22d,0);
+                    psx_mod_write_word(p+0x224,bits);++save_loads;frame();
+                    assert(metric("\"blend\":")==1);
+                    assert(!ttk::movement_ready() && !ttk::locomotion_input_ready());
+                    assert(psx_mod_read_half(p+0x60)==pose && psx_mod_read_word(p+0x224)==bits);
+                    if(use)assert(std::strstr(ttk::controls_debug_json(),"\"action\":\"use\""));
+                    ttk::input.active=false;frame();assert(metric("\"blend\":")==1);
+                    ttk::input.active=true;
+                    std::vector<uint8_t> snapshot(ttk::render_state_size());ttk::render_state_save(snapshot.data());
+                    ttk::input.first_person=false;++save_loads;frame();assert(metric("\"blend\":")==0);
+                    ttk::render_state_load(snapshot.data());assert(metric("\"blend\":")==1);
+                    ttk::input.first_person=true;
+                    for(uint32_t bad:{0x20000000u}) {
+                        psx_mod_write_word(p+0x224,bits|bad);frame();assert(metric("\"blend\":")==0);
+                    }
+                    psx_mod_write_word(p+0x224,bits);psx_mod_write_word(p,actor|2u);frame();assert(metric("\"blend\":")==0);
+                    psx_mod_write_word(p,actor);psx_mod_write_word(c+0xa4,0);frame();assert(metric("\"blend\":")==0);
+                    psx_mod_write_word(c+0xa4,p);frame();assert(metric("\"blend\":")==1);
+                    if(use) {
+                        setenv("DNTTK_USE_VIEW","legacy-third",1);frame();assert(metric("\"blend\":")==0);
+                        unsetenv("DNTTK_USE_VIEW");frame();assert(metric("\"blend\":")==1);
+                        psx_mod_write_word(p+0x224,0);frame();assert(metric("\"blend\":")==0);
+                    }
+                }
+                // Adjacent unknown/death poses are not granted a range lease.
+                for(unsigned pose:{62u,117u,267u,276u,279u}) {
+                    psx_mod_write_half(p+0x60,pose);psx_mod_write_word(p+0x224,0x40);
+                    frame();assert(metric("\"blend\":")==0);
+                }
+                psx_mod_write_word(p+0x224,flags);psx_mod_write_half(p+0x60,63);
+                psx_mod_write_half(p+0x74,upper);++save_loads;frame();assert(metric("\"blend\":")==1);
+                std::puts("PASS: D35J/M transient eye, action isolation, choice, pause, load, replay and safety guards");
+            }
+            // Mirror action has an independent preference and no gameplay lease.
+            {
+                const auto flags=psx_mod_read_word(p+0x224);
+                psx_mod_write_half(p+0x60,278);psx_mod_write_word(p+0x224,0x40);
+                for(const char* choice:{"first","legacy-third"}) {
+                    const bool eye=!std::strcmp(choice,"first");
+                    setenv("DNTTK_MIRROR_VIEW",choice,1);setenv("DNTTK_USE_VIEW",eye?"legacy-third":"first",1);
+                    ++save_loads;frame();assert(metric("\"blend\":")==int(eye));
+                    assert(!ttk::movement_ready() && !ttk::locomotion_input_ready());
+                    if(eye)assert(std::strstr(ttk::controls_debug_json(),"\"action\":\"mirror\""));
+                    ttk::input.active=false;frame();assert(metric("\"blend\":")==int(eye));ttk::input.active=true;
+                    std::vector<uint8_t> state(ttk::render_state_size());ttk::render_state_save(state.data());
+                    ttk::input.first_person=false;++save_loads;frame();assert(metric("\"blend\":")==0);
+                    ttk::render_state_load(state.data());assert(metric("\"blend\":")==int(eye));ttk::input.first_person=true;
+                }
+                unsetenv("DNTTK_MIRROR_VIEW");unsetenv("DNTTK_USE_VIEW");
+                for(uint32_t bits:{0u,0x20000040u}) {
+                    psx_mod_write_word(p+0x224,bits);frame();assert(metric("\"blend\":")==0);
+                }
+                psx_mod_write_word(p+0x224,flags);psx_mod_write_half(p+0x60,63);++save_loads;frame();
+                assert(metric("\"blend\":")==1);
+                std::puts("PASS: D35N independent mirror choice, mode/action lock, global view, pause/load/replay");
             }
             // D35D: authenticated push poses retain the eye without granting
             // locomotion. Choice/global view, load, pause and replay ownership.

@@ -1,5 +1,86 @@
 # Current status - 2026-10-04
 
+## 2026-10-25 - D35J/J1-J3/M/N accepted and closed
+
+User explicitly accepted the combined candidate and authorized closeout:
+"lock it all in and close us out". D35J bounded research and D35J1-J3, D35M
+and D35N are Done. Idle gestures and held inventory retain first person;
+USE INTERACTION VIEW covers the verified NPC, lever, key/door and crystal
+actions. Independent MIRROR VIEW covers mirror use; reflected Duke remains
+opaque up close in Modernized. Vanilla retains its existing behavior.
+
+Evidence: [note 233](233-d35j-transient-perspective-research.md),
+[note 234](234-d35j-use-and-idle-first-person.md),
+[note 235](235-d35n-mirror-interaction-and-opacity.md). Player build, four native
+suites, 100 profile tests, private 60/120 routes, live settings, pause/load and
+Vanilla action-load checks passed before acceptance. Closeout makes no further
+gameplay changes. Framework export matches the tracked patch and applies to
+the clean pinned dependency; its existing working-tree modifications remain
+intentional. No player saves/settings changed or next job started.
+
+Accepted executable SHA-256:
+`78687162fae6d941cf1beb9245d8687c7467c994214783a97cc5f127b2702d09`.
+Untested damage/hazard variants and broader campaign coverage are not implied
+accepted. Launch: `python3 recomp/tools/local/run.py`; Modernized is default,
+`--vanilla` remains a one-launch override. Future work requires a new selection.
+
+
+## 2026-10-25 - D35N mirror extension (Needs playtest)
+
+Slot 12 mirror use now stays in first person, with an independent MIRROR VIEW
+setting. Slot 7 reflected Duke stays opaque at close range in Modernized.
+Intentional effects and Vanilla retain their policy. Previous idle/use work
+remains included; the user reported it solid so far.
+[Note 235](235-d35n-mirror-interaction-and-opacity.md).
+
+Build, controls/input/aim/near suites and 100 profile tests pass. Private
+60/120 mirror routes, global third person, live menu, pause/save/load and
+Vanilla saved-action completion pass. Reflected head and arms remain visible.
+User framing/comfort and broader mirror variants await playtest.
+Candidate: `78687162fae6d941cf1beb9245d8687c7467c994214783a97cc5f127b2702d09`.
+Private sessions stopped; player source saves unchanged. No authored framework
+changes, player settings/card writes, acceptance closeout, commit or push.
+Launch: `python3 recomp/tools/local/run.py`. Test slot 12 with E and slot 7
+close to the mirror; global First Person is required for the eye-view action.
+
+
+## 2026-10-25 - D35J1-J3 / D35M candidate (Needs playtest)
+
+All reproduced idle/NPC/lever/key/crystal and held-inventory perspective gaps
+have a candidate fix. Idle/inventory retain the selected eye; USE INTERACTION
+VIEW independently chooses First Person (default) / Third Person for the
+verified use-action family. Native action permissions and events are retained.
+[Note 234](234-d35j-use-and-idle-first-person.md).
+
+Player build, controls/input/aim/near suites and 99 profile tests pass. Private
+60/120 routes, item consumption, weapon return, third-person choices, live
+menu, pause/load and Vanilla action-load checks pass. User comfort/framing
+and broader variant coverage remain; jobs are Needs playtest, not accepted.
+Candidate: `7c490764e5fd86316d1ef833e59467243a54489e31d72f6e3e0530cddea7d148`.
+No framework/generated-C/pin changes, player settings/card writes, acceptance
+closeout, commit or push. Private sessions stopped; source saves unchanged.
+Launch: `python3 recomp/tools/local/run.py`. P selects First Person; gameplay
+captures automatically. Test idle, slots 8-11 and held/released Scroll Lock.
+
+
+## 2026-10-25 - D35J research candidate (Needs review)
+
+Autonomous tests on private copies reproduced all five supplied cases:
+idle fidgets (64/65/66), slot 10 NPC (277), slot 11 lever (118), and slots
+8/9 key/crystal use (266). Held native inventory also drops first person
+through its 0x200 guard. Normal camera ownership and the selected preference
+persist; observed cases recover. One survivable RPG blast retained first
+person. Enemy-hit variants, knockdown, heavy-fall and water-hazard coverage
+remain unverified. [Note 233](233-d35j-transient-perspective-research.md).
+
+D35J1-J3 are Todo, not started; D35M owns the use-interaction implementation.
+No gameplay changes or build. Accepted D35I executable remains current:
+`6b2b0ec48fa56c3fbd3a0a5aefac23dcb111ea4c95d9e66010f989e5408a2d42`.
+Private sessions stopped; source save hashes/mtimes unchanged. No player
+settings/cards changed, acceptance closeout, commit or push.
+Launch: `python3 recomp/tools/local/run.py`.
+
+
 ## 2026-10-25 - D35I accepted and closed
 
 User: "fully accepted! lock it in and close it out". D35I is Done.

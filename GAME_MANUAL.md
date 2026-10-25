@@ -768,6 +768,24 @@ view; the existing eye and native hands are retained. The launcher also accepts
 The original game steers like a tank here (Up/Down along Duke's facing,
 Left/Right only turn him), and Vanilla keeps that.
 
+**Use interactions and idle gestures (Modernized).** With global VIEW set to
+FIRST PERSON, idle gestures and holding the holster button for the original
+inventory keep the eye view. Inventory still suspends movement until release.
+
+**USE INTERACTION VIEW** in OPTIONS > ADVANCED > ACTION PERSPECTIVE chooses
+FIRST PERSON (default) or THIRD PERSON for supported door/key, crystal,
+lever and NPC actions. CONFIRM applies and saves the choice. Duke keeps the
+action's normal timing and alignment, uses the item, and redraws his weapon
+when it finishes. Look down toward the interaction to see his animated hands.
+Global THIRD PERSON takes precedence. The launcher accepts `--use-view first`
+or `--use-view legacy-third`; either flag saves that preference.
+
+**MIRROR VIEW** on the same page independently chooses FIRST PERSON (default)
+or THIRD PERSON for mirror interactions. Global THIRD PERSON takes precedence.
+The launcher accepts `--mirror-view first` or `--mirror-view legacy-third`;
+either flag saves that preference. In Modernized, Duke's reflection stays
+opaque when close to a mirror. Intentional power-up effects still apply.
+
 Number keys now select familiar weapon groups when owned and usable:
 
 | Key | Weapon group (press again to cycle alternatives) |

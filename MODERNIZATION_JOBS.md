@@ -343,11 +343,14 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D35G | First-person mantles, ledge hangs and water climb-outs | Done | D35A, D35E, D08V, D08X, D08T8 |
 | D35H | First-person overhead and monkey-bar traversal | Done | D35A, D35G, D08J4 |
 | D35I | First-person climbing walls and fluid diagonal WASD | Done | D35A, D35E |
-| D35J | Damage and native inventory transient perspective gaps | Todo | D35 |
+| D35J | Damage and native inventory transient perspective gaps | Done | D35 |
+| D35J1 | First-person idle fidgets without perspective drops | Done | D35J |
+| D35J2 | Preserve first person through held native inventory | Done | D35J |
+| D35J3 | First-person NPC interaction presentation | Done | D35J |
 | D35K | Native scripted and special-camera event inventory | Todo | D35 |
 | D35L | First-person death and respawn presentation research | Todo | D35 |
-| D35M | First-person door opening and related use interactions | Todo | D35A |
-| D35N | First-person mirror interactions | Todo | D35A |
+| D35M | First-person door opening and related use interactions | Done | D35A |
+| D35N | First-person mirror interactions and reflected-Duke proximity fade | Done | D35A |
 | R01 | DisruptorRecomp architecture and modernization reference research | Done | - |
 
 Recommended opening sequence: **D01 → D02 → D03 → D04**, then **D05 / D06 → D07 → D07A → D08**. D13 is an early graphics option after profiles exist. D22 and D23 should accumulate evidence throughout development. First-person, HD asset packs and precision rendering are optional follow-up milestones, not blockers for a good modern third-person release.
@@ -587,8 +590,22 @@ coverage and any remaining limits, then present the result for user playtest.
 
 ### D35J - Damage and native inventory transient perspective gaps
 
-**Status:** Todo. **Dependencies:** D35.
+**Status:** Done. **Dependencies:** D35.
+
+**Accepted and closed (2026-10-25):** User explicitly requested "lock it all in and close us out" after delivery of the combined idle, inventory, use and mirror candidate. The bounded research result is accepted; enemy-hit variants, knockdown, heavy-fall and water-hazard behavior remain unverified, with no speculative damage fixes or broader acceptance.
 **Research:** [D35 central audit](documentation/222-d35-first-person-audit.md).
+
+**User-supplied reproduction leads (2026-10-25):** Idle animations may leave
+first person: load any state and stand still. Current player UI slot 10:
+interact with an NPC. Slot 11: Miner 69er using a lever. Slot 8: use a key.
+Slot 9: use a crystal. These are investigation leads, not independently
+reproduced causes. Use private copies of these current saves. Include idle
+animation coverage in the transient-view investigation; trace the interaction
+cases before assigning ownership. Lever/key/crystal use may belong to D35M,
+and NPC/scripted camera ownership may belong to D35K. Do not silently expand
+D35J into implementation of those jobs or presume a shared cause.
+
+**Research evidence (2026-10-25):** [Note 233](documentation/233-d35j-transient-perspective-research.md). All five supplied cases reproduced on private copies; held native inventory also reproduced. Idle 64/65/66, NPC 277, key/crystal 266 and lever 118 fail the supported-pose gate; native held inventory fails the separate 0x200 guard. Normal camera ownership and the selected first-person preference survive, and each observed case recovers. One survivable RPG blast retained first person; enemy-hit variants, knockdown, heavy-fall and water-hazard coverage remain unverified. The investigation itself made no gameplay changes. D35J1-J3 and D35M subsequently implemented the reproduced gaps.
 
 **Current behavior:** state rejects unknown lower poses/mode histories and +0x224 bit 0x200 outside documented water exceptions. Event-specific hit reactions are not comprehensively mapped.
 
@@ -603,6 +620,57 @@ coverage and any remaining limits, then present the result for user playtest.
 **Acceptance:** Research maps every reproduced event to reason and ownership with baseline evidence; identifies retained input restrictions and recovery; creates focused implementation child jobs only where necessary. No guessed damage animation IDs or unproven fixes.
 
 **Regression risks:** Granting input during committed hurt, suppressing damage/death logic, confusing equipment flag with script bit, overselling no-repro cases.
+
+### D35J1 - First-person idle fidgets without perspective drops
+
+**Implementation evidence (2026-10-25, before acceptance):** [Note 234](documentation/234-d35j-use-and-idle-first-person.md). First-person idle and held inventory retained; verified NPC, lever, key/door and crystal actions use the shared USE INTERACTION VIEW choice. Player build, four native suites and 99 profile tests pass. Private routes at 60/120, live setting, global third person, pause/load and a Vanilla action-load check pass. User subsequently accepted the delivered result and authorized closeout. Broader variant coverage is not claimed.
+
+**Status:** Done. **Dependencies:** D35J.
+
+**Accepted and closed (2026-10-25):** User explicitly requested "lock it all in and close us out" after delivery of the combined idle, inventory, use and mirror candidate. The delivered implementation is accepted. Scope and test limits remain recorded in [note 234](documentation/234-d35j-use-and-idle-first-person.md) and [note 235](documentation/235-d35n-mirror-interaction-and-opacity.md).
+**Evidence:** [Note 233](documentation/233-d35j-transient-perspective-research.md).
+
+Keep selected first person through native idle fidgets without widening the
+movement lease for unrelated states. Slot 10, holster, Caps Lock run mode,
+then stand still reproduces lower poses 64/65/66; 67-69 are source-backed
+selector candidates requiring coverage. Native idle selection, animation and
+movement cancellation must remain intact. Acceptance: comfortable eye/body
+presentation across verified variants, normal movement/weapon recovery,
+first/third-person and Vanilla regressions, including high-refresh replay.
+Investigate stationary Walk-bit timer reset separately before changing input.
+
+### D35J2 - Preserve first person through held native inventory
+
+**Implementation evidence (2026-10-25, before acceptance):** [Note 234](documentation/234-d35j-use-and-idle-first-person.md). First-person idle and held inventory retained; verified NPC, lever, key/door and crystal actions use the shared USE INTERACTION VIEW choice. Player build, four native suites and 99 profile tests pass. Private routes at 60/120, live setting, global third person, pause/load and a Vanilla action-load check pass. User subsequently accepted the delivered result and authorized closeout. Broader variant coverage is not claimed.
+
+**Status:** Done. **Dependencies:** D35J.
+
+**Accepted and closed (2026-10-25):** User explicitly requested "lock it all in and close us out" after delivery of the combined idle, inventory, use and mirror candidate. The delivered implementation is accepted. Scope and test limits remain recorded in [note 234](documentation/234-d35j-use-and-idle-first-person.md) and [note 235](documentation/235-d35n-mirror-interaction-and-opacity.md).
+**Evidence:** [Note 233](documentation/233-d35j-transient-perspective-research.md).
+
+Slot 10, hold Scroll Lock, then release: native +0x224 bit 0x200 drops the eye
+view while normal ownership and lower idle 63 remain. Keep presentation in
+the selected view without giving movement, fire or interaction permission
+through the inventory lock. Acceptance: native selection UI and hold/release
+semantics remain usable; taps still holster/draw; input recovers correctly;
+no redundant view toggle; verify pause/load, third person and Vanilla.
+
+### D35J3 - First-person NPC interaction presentation
+
+**Implementation evidence (2026-10-25, before acceptance):** [Note 234](documentation/234-d35j-use-and-idle-first-person.md). First-person idle and held inventory retained; verified NPC, lever, key/door and crystal actions use the shared USE INTERACTION VIEW choice. Player build, four native suites and 99 profile tests pass. Private routes at 60/120, live setting, global third person, pause/load and a Vanilla action-load check pass. User subsequently accepted the delivered result and authorized closeout. Broader variant coverage is not claimed.
+
+**Status:** Done. **Dependencies:** D35J.
+
+**Accepted and closed (2026-10-25):** User explicitly requested "lock it all in and close us out" after delivery of the combined idle, inventory, use and mirror candidate. The delivered implementation is accepted. Scope and test limits remain recorded in [note 234](documentation/234-d35j-use-and-idle-first-person.md) and [note 235](documentation/235-d35n-mirror-interaction-and-opacity.md).
+**Evidence:** [Note 233](documentation/233-d35j-transient-perspective-research.md).
+
+Slot 10 E reproduces native lower/upper 277, action bit 0x40 and ordinary
+camera ownership. Provide physically appropriate eye/hand presentation for
+this committed interaction without changing its callbacks, quotes, timing,
+alignment or weapon return. Acceptance: armed/holstered entry, repeated use,
+view recovery, first/third-person and Vanilla checks; retain native action
+restrictions and verify the desired action-view policy before exposing a row.
+Other NPC variants require explicit evidence rather than numeric-range leases.
 
 ### D35K - Native scripted and special-camera event inventory
 
@@ -644,8 +712,14 @@ coverage and any remaining limits, then present the result for user playtest.
 
 ### D35M - First-person door opening and related use interactions
 
-**Status:** Todo. **Dependencies:** D35A.
+**Implementation evidence (2026-10-25, before acceptance):** [Note 234](documentation/234-d35j-use-and-idle-first-person.md). First-person idle and held inventory retained; verified NPC, lever, key/door and crystal actions use the shared USE INTERACTION VIEW choice. Player build, four native suites and 99 profile tests pass. Private routes at 60/120, live setting, global third person, pause/load and a Vanilla action-load check pass. User subsequently accepted the delivered result and authorized closeout. Broader variant coverage is not claimed.
+
+**Status:** Done. **Dependencies:** D35A.
+
+**Accepted and closed (2026-10-25):** User explicitly requested "lock it all in and close us out" after delivery of the combined idle, inventory, use and mirror candidate. The delivered implementation is accepted. Scope and test limits remain recorded in [note 234](documentation/234-d35j-use-and-idle-first-person.md) and [note 235](documentation/235-d35n-mirror-interaction-and-opacity.md).
 **Research:** [D35 central audit](documentation/222-d35-first-person-audit.md).
+
+**D35J baseline evidence (2026-10-25):** [Note 233](documentation/233-d35j-transient-perspective-research.md) reproduces current slot 8 key/door use and slot 9 crystal use (lower 266), plus slot 11 Miner 69er lever use (lower 118). Item upper pose 47 retains first person; the full-body action drops it. All retain normal camera ownership and recover. The implemented presentation-only use path covers these verified selectors.
 
 **Current behavior:** User confirms door opening switches to third person (2026-10-24). E stow/action/redraw and native finder/callback routing are known; the exact door animation, script flag or owner causing this report is not yet traced.
 
@@ -663,10 +737,14 @@ coverage and any remaining limits, then present the result for user playtest.
 
 ### D35N - First-person mirror interactions
 
-**Status:** Todo. **Dependencies:** D35A.
+**Status:** Done. **Dependencies:** D35A.
+
+**Accepted and closed (2026-10-25):** User explicitly requested "lock it all in and close us out" after delivery of the combined idle, inventory, use and mirror candidate. The delivered implementation is accepted. Scope and test limits remain recorded in [note 234](documentation/234-d35j-use-and-idle-first-person.md) and [note 235](documentation/235-d35n-mirror-interaction-and-opacity.md).
 **Research:** [D35 central audit](documentation/222-d35-first-person-audit.md).
 
-**Current behavior:** User confirms mirror interactions switch to third person (2026-10-24). Reflection rendering and accepted jetpack mirror flames do not establish interaction support. Exact object callback and owner transition remain unresolved.
+**Scope added by user (2026-10-25):** Current UI slot 12 reproduces the mirror interaction. Current slot 7 reproduces unwanted translucency when Duke approaches a mirror. Both are explicitly part of the ongoing D35J/M candidate work. Keep reflected Duke opaque at close range while preserving intentional power-up effects and Vanilla. The user reported the previous idle/use fixes solid so far, then accepted the combined result and requested closeout.
+
+**Implementation evidence (2026-10-25, before acceptance):** [Note 235](documentation/235-d35n-mirror-interaction-and-opacity.md). Slot 12 uses pose 278 with normal camera ownership; the eligibility fallback caused the perspective switch. The candidate keeps this action in first person with an independent MIRROR VIEW preference. Slot 7 reflected Duke now bypasses only native proximity fading, retaining intentional effects and Vanilla. Build/native/profile tests and private 60/120 interaction/reflection routes pass; the user subsequently accepted the delivered framing. Broader mirror coverage is not claimed.
 
 **Desired result:** Reproduce the mirror interaction and identify whether it is an animation-owned interaction or native special view. Implement appropriate first-person eye/hands/interaction timing while retaining full reflected Duke and optional legacy presentation.
 
@@ -18625,3 +18703,63 @@ MusicMonsterMod closeout. Runtime patch re-export unchanged; all 51 changed/new
 files match the patch applied to the pinned clean framework index. No dependency
 pins changed. No post-acceptance gameplay edits, rebuilds or launches. Player
 data unchanged. No next job started.
+
+## 2026-10-25 - D35J autonomous research candidate (Needs review)
+
+User supplied idle and slots 8-11 and authorized autonomous private tests.
+All five reports reproduced, plus the native held-inventory gap. Native pose
+eligibility explains idle/NPC/key/crystal/lever drops; inventory bit 0x200 is
+separate. Selected view and normal camera ownership persist and recover.
+One survivable RPG blast retained first person; broader hurt/hazard variants
+remain unverified. [Note 233](documentation/233-d35j-transient-perspective-research.md).
+D35J1-J3 are Todo follow-ups, not started. D35M receives use-interaction evidence.
+No gameplay changes, build, acceptance closeout, commit or push. Private
+sessions stopped and source save hashes/mtimes preserved.
+
+## 2026-10-25 - D35J1-J3 / D35M implemented (Needs playtest)
+
+User authorized implementation of all reproduced D35J cases. Idle gestures
+and held native inventory keep first person; USE INTERACTION VIEW defaults to
+First Person for the verified NPC/lever/key/crystal native action family and
+retains the Third Person choice. Presentation-only eligibility changes retain
+native action restrictions, death/script/ownership checks and Vanilla.
+
+[Note 234](documentation/234-d35j-use-and-idle-first-person.md) records the
+implementation, player build, four native suites, 99 profile tests and private
+60/120 routes, consumption/recovery, menu, pause/load and Vanilla evidence.
+Candidate `7c490764e5fd86316d1ef833e59467243a54489e31d72f6e3e0530cddea7d148`.
+User playtest remains for framing, comfort and familiar routes. No framework
+or generated-C changes. Source save hashes/mtimes preserved; private sessions
+stopped. No acceptance closeout, commit, push or next job.
+
+
+## 2026-10-25 - D35N mirror extension (Needs playtest)
+
+User added slot 12 mirror interaction and slot 7 close-mirror translucency to
+the ongoing D35J/M work. Pose 278 now has a presentation-only first-person
+path and independent MIRROR VIEW preference. Reflected Duke bypasses native
+proximity fade in Modernized, with actor/pass cleanup and intentional effects
+preserved. [Note 235](documentation/235-d35n-mirror-interaction-and-opacity.md).
+
+Player build, controls/input/aim/near suites and 100 profile tests pass. Private
+60/120 routes verify repeated mirror use and close/far reflections; live menu
+confirmation, pause and saved-action reload pass. Earlier fixes were reported
+solid so far. Player acceptance remains; no closeout, commit or push.
+
+
+## 2026-10-25 - D35J/J1-J3/M/N accepted closeout
+
+User accepted the combined work and explicitly instructed "lock it all in and
+close us out". D35J's bounded research and D35J1-J3, D35M and D35N are Done.
+Idle and held inventory preserve first person; verified NPC/lever/key/crystal
+use has USE INTERACTION VIEW; mirrors have independent MIRROR VIEW and opaque
+close-range reflected Duke. Vanilla remains available and unchanged in play.
+
+Accepted player SHA-256:
+`78687162fae6d941cf1beb9245d8687c7467c994214783a97cc5f127b2702d09`.
+Prior build, native suites, 100 profile tests and private live evidence remain
+the validation basis; closeout changes documentation only. Framework export
+is unchanged and applies to the clean pinned dependency. Source, tests,
+launcher/profile/menu changes and documentation are included in closeout.
+Damage/hazard variants and broader campaign coverage remain unverified. No
+next job started, retail assets staged, or player save/settings changes made.

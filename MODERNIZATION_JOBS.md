@@ -1,5 +1,7 @@
 # Time to Kill — modernization jobs
 
+**Latest accepted job (2026-10-25): D08Q7 flight fire-to-draw is Done. User accepted and authorized lock-in/closeout. [Note 249](documentation/249-d08q7-flight-fire-draw.md). No next job started.**
+
 **Latest accepted job (2026-10-25): D08A24 automatic/instant Bio Mask is Done. User: "lock it in, close it out". Automatic entry/exit, instant use while firing and on/off sound accepted; implementation and documentation closeout authorized. [Note 246](documentation/246-d08a24-auto-bio-mask.md). No next job started.**
 
 **Latest accepted job (2026-10-25): D08A25 night vision on/off sound is Done. User: "its perfect! lock it in and close us out". Implementation and documentation closeout authorized. [Note 245](documentation/245-d08a25-night-vision-sound.md). No next job started.**
@@ -192,7 +194,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08Q4 | Duke3D-style `dnkroz`: health to 100 and unlimited jetpack fuel | Accepted | D08G, D08Q |
 | D08Q5 | Weapon switching while flying the jetpack (number keys and wheel) | Done (user-accepted) | D08A, D08Q3 |
 | D08Q6 | Modern jetpack altitude creeps upward in level flight (hold height unless Space/Ctrl) | Accepted | D08Q, D08Q1 |
-| D08Q7 | Draw a holstered weapon with left click during jetpack flight (bug 1) | Todo | D08Q3, D08Q5 |
+| D08Q7 | Draw a holstered weapon with left click during jetpack flight (bug 1) | Done | D08Q3, D08Q5 |
 | D08Q8 | Smooth jetpack clearance along rising floors and descending ceilings (slot 12, bug 4) | Todo | D08Q, D08S |
 | D08T | Pushable objects: modern grab/push/pull and climb (alley dumpster) | Done | D08 |
 | D08T1 | Separate push/pull from mantling: E always mantles, hold RMB to grab | Done | D08T, D04 |
@@ -597,7 +599,7 @@ and [note 234](documentation/234-d35j-use-and-idle-first-person.md).
 
 ### D08Q7 - Left click does not draw a holstered weapon in flight (bug 1)
 
-**Status:** Todo. **Dependencies:** D08Q3, D08Q5 (Done).
+**Status:** Done. **Dependencies:** D08Q3, D08Q5 (Done).
 
 **Report:** Start jetpacking with the weapon holstered; left click does not
 draw the weapon.
@@ -606,6 +608,11 @@ draw the weapon.
 holstered entry, with the expected fire behavior and no extra holster toggle.
 Verify flight entry/exit, aiming and weapon switching across supported jetpack
 schemes, without bypassing native weapon restrictions.
+
+**Accepted (2026-10-25):** Settled flight now uses the existing fire-to-draw
+Circle tap. Baseline reproduced; player build, controls/input/aim suites and
+private Modern/Classic/EDuke32 routes pass. User accepted gameplay and authorized closeout.
+[Note 249](documentation/249-d08q7-flight-fire-draw.md).
 
 ### D08T9 - Level-5 dumpster cannot be pushed again (bug 2)
 
@@ -19706,3 +19713,23 @@ performance limits remain recorded in [note 248](documentation/248-d08a27-widesc
 The unchanged runtime patch reconstructs all 52 modified/new framework files
 against the pinned clean dependency. Player data and dependency pins are untouched.
 No next job started. Launch: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-25 - D08Q7 flight fire-draw candidate (Needs playtest)
+
+Selected by user. The ground-only draw predicate now also accepts settled,
+authenticated jetpack flight through the existing native Circle tap. Baseline
+reproduced; native controls/input/aim suites and incremental player build pass.
+Private Modern 60/120-target, Classic 60 and EDuke32 120-target checks cover
+holstered takeoff, held fire, settled tap draw, aiming, switching, moving fire,
+pack off and landing. No framework changes or player-data writes.
+[Note 249](documentation/249-d08q7-flight-fire-draw.md) records evidence and
+exact player checks. Acceptance and closeout pending; no commit or push.
+
+## 2026-10-25 - D08Q7 accepted and closed
+
+User: "perfect. lock it in, close is out". D08Q7 is Done. Implementation and
+documentation closeout, commit and push authorized. Accepted candidate remains
+unchanged; no post-acceptance build or launch. Runtime patch re-export unchanged;
+52 files reconstruct against the pinned dependency. [Note 249](documentation/249-d08q7-flight-fire-draw.md).
+No next job started.

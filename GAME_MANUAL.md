@@ -506,7 +506,7 @@ reaching the next ladder, then use W to climb once attached. The automatic holst
 and redraw still apply; you do not need C for a transfer. Original collision and
 traversal rules determine whether a surface can be caught.
 If you deliberately holster with Scroll Lock, E leaves it holstered. In supported ground
-states, **left-click draws the selected weapon; keep holding to fire**. A quick
+states and settled jetpack flight, **left-click draws the selected weapon; keep holding to fire**. A quick
 click released during drawing leaves it drawn without firing a delayed shot.
 Boot retains its unarmed attack. Ordinary ground draw/holster animations run at
 1.5x; E-owned airborne stow and its final blend use a bounded 4x animation budget; original firing speed is unchanged. On supported ladders and ledges, **W/S** feed

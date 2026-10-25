@@ -1,5 +1,32 @@
 # Next-session handoff
 
+## 2026-10-25 - D08Q7 accepted and closed
+
+User accepted flight fire-to-draw and explicitly authorized lock-in/closeout.
+D08Q7 is Done. Held left click draws and fires; a settled short click draws
+without a delayed shot. [Note 249](249-d08q7-flight-fire-draw.md) records
+implementation, native tests, private three-scheme routes and coverage limits.
+
+Accepted executable: `f3d2f69f4d0e8272d96bd94a52849dcc4dde605905143fd15b605760d6a73de8`.
+No post-acceptance gameplay edits, builds or launches. Runtime patch re-export
+unchanged; all 52 modified/new files reconstruct against the pinned framework.
+Player data and dependency pins untouched. No next job started.
+Launch: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-25 - D08Q7 flight fire-draw candidate (Needs playtest)
+
+Left click now draws a settled holstered weapon during authenticated jetpack
+flight, using the existing single native Circle tap. Held fire then shoots;
+a released short click does not queue a shot. Native restrictions remain.
+Build and controls/input/aim suites pass; private Modern, Classic and EDuke32
+routes pass. [Note 249](249-d08q7-flight-fire-draw.md) records evidence and the
+player checklist. User acceptance pending; no commit/push closeout.
+
+Candidate: `f3d2f69f4d0e8272d96bd94a52849dcc4dde605905143fd15b605760d6a73de8`.
+Launch: `python3 recomp/tools/local/run.py`.
+
+
 ## 2026-10-25 - D08A27 accepted and closed
 
 User accepted the full-width toxic gas fix and explicitly authorized closeout.

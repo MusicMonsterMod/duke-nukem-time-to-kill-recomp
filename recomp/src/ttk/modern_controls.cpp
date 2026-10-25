@@ -951,9 +951,14 @@ bool hold_button_sampled() {
     return (psx_mod_read_word(history)&1)!=0;
 }
 bool fire_draw_ready() {
-    // Boot (selected ID zero) must retain its unarmed attack. Use the same
-    // settled ground gate as E restoration; no drawing on ladders or in menus.
-    return interaction_restore_ready() && psx_mod_read_byte(player+0x3ba)!=0;
+    // Flight uses the same native Circle draw as ground, only after its
+    // unarmed upper body has settled. Keep E restoration ground-only and
+    // reject flight equipment/action transitions just like weapon shortcuts.
+    // Boot (selected ID zero) retains its unarmed attack.
+    const bool flight=jetpack_input_ready() && psx_mod_read_byte(player+0x3b8)==0 &&
+        !(psx_mod_read_word(player+0x224)&0x2c5) &&
+        psx_mod_read_half(player+0x74)==psx_mod_read_half(player+0x60);
+    return (interaction_restore_ready() || flight) && psx_mod_read_byte(player+0x3ba)!=0;
 }
 bool interaction_holster_ready() {
     unsigned upper=psx_mod_read_half(player+0x74);

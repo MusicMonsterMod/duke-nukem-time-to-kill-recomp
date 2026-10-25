@@ -2242,6 +2242,31 @@ int main(int argc,char** argv) {
         psx_mod_write_byte(p+0x3b9,4);psx_mod_write_byte(p+0x3ba,4);
         ++ttk::input.sequence;call(0x8003ade4,c,p,0x80025ee8);
         assert(ttk::jetpack_input_ready() && !ttk::movement_ready());
+        // D08Q7: fire draws only a settled holstered flight weapon, never
+        // boot, transient equipment, an attack, inventory or foreign state.
+        psx_mod_write_word(p+0x224,0);psx_mod_write_byte(p+0x3b8,0);
+        for(unsigned anim=163;anim<=170;++anim) {
+            psx_mod_write_half(p+0x60,anim);psx_mod_write_half(p+0x74,anim);
+            assert(ttk::fire_draw_ready() && !ttk::interaction_restore_ready());
+        }
+        psx_mod_write_half(p+0x60,164);psx_mod_write_half(p+0x74,164);
+        psx_mod_write_byte(p+0x3ba,0);assert(!ttk::fire_draw_ready());psx_mod_write_byte(p+0x3ba,4);
+        for(unsigned flag : {1u,4u,0x40u,0x80u,0x200u}) {
+            psx_mod_write_word(p+0x224,flag);assert(!ttk::fire_draw_ready());
+        }
+        psx_mod_write_word(p+0x224,0);
+        for(unsigned equipment : {1u,2u,3u}) {
+            psx_mod_write_byte(p+0x3b8,equipment);assert(!ttk::fire_draw_ready());
+        }
+        psx_mod_write_byte(p+0x3b8,0);psx_mod_write_half(p+0x74,21);assert(!ttk::fire_draw_ready());
+        psx_mod_write_half(p+0x74,164);
+        ttk::input.active=false;assert(!ttk::fire_draw_ready());ttk::input.active=true;
+        ttk::modern=false;assert(!ttk::fire_draw_ready());ttk::modern=true;
+        psx_mod_write_word(p,2);assert(!ttk::fire_draw_ready());psx_mod_write_word(p,0);
+        psx_mod_write_word(c+0xa4,0);assert(!ttk::fire_draw_ready());psx_mod_write_word(c+0xa4,p);
+        poke(0x4ade0);assert(!ttk::fire_draw_ready());poke(0x4ade0);
+        psx_mod_write_byte(p+0x3b8,2);psx_mod_write_half(p+0x74,5);
+        std::puts("PASS: D08Q7 flight fire-draw and native transition/ownership/Vanilla guards");
         request(ttk::weapon_group_3);assert(psx_mod_read_byte(p+0x3ba)==5 && (psx_mod_read_word(p+0x224)&4));
         psx_mod_write_byte(p+0x3ba,4);request(ttk::weapon_next);assert(psx_mod_read_byte(p+0x3ba)==5);
         psx_mod_write_byte(p+0x3b9,5);psx_mod_write_byte(p+0x3ba,5);request(ttk::weapon_previous);

@@ -1,5 +1,7 @@
 #include "action_perspective.h"
 #include "tight_camera.h"
+static unsigned night_vision_sounds;
+namespace ttk { void night_vision_sound() {++night_vision_sounds;} }
 static bool renderer_available=true;
 extern "C" int psx_mod_present_replay_available(void){return renderer_available;}
 #include <cstdint>
@@ -2102,13 +2104,16 @@ int main(int argc,char** argv) {
         psx_mod_write_half(p+0x360,1);psx_mod_write_half(p+0x362,60);psx_mod_write_half(p+0x32,100);
         psx_mod_write_half(p+0x854,0);psx_mod_write_half(p+0x74,42);ttk::input.held[ttk::fire]=true;
         const uint32_t equipment=psx_mod_read_word(p+0x3b8);
+        const unsigned sounds_before=night_vision_sounds;
         request(ttk::goggles);
+        assert(night_vision_sounds==sounds_before+1);
         assert(psx_mod_read_half(p+0x360)==3 && psx_mod_read_half(p+0x854)==3);
         assert(psx_mod_read_word(p+0x224)==0x80000 && psx_mod_read_word(0x801d0090)==0x801d4000);
         assert(psx_mod_read_word(p+0x3b8)==equipment && psx_mod_read_half(p+0x74)==42 && psx_mod_read_half(p+0x362)==60);
         request(ttk::item_use);
         assert(psx_mod_read_half(p+0x360)==1 && psx_mod_read_half(p+0x854)==0 && psx_mod_read_word(0x801d0090)==0x801d6000);
         assert(psx_mod_read_word(p+0x224)==0 && psx_mod_read_word(p+0x3b8)==equipment);
+        assert(night_vision_sounds==sounds_before+2); // removal also plays A
         // A pending weapon switch and attack retain their exact bits and
         // selected equipment, including when N is handled in that snapshot.
         psx_mod_write_word(p+0x224,0x104);ttk::input.commands[0]=ttk::goggles;++ttk::input.command_serial;
@@ -2116,6 +2121,7 @@ int main(int argc,char** argv) {
         assert(psx_mod_read_word(p+0x224)==0x80104 && psx_mod_read_word(p+0x3b8)==equipment && psx_mod_read_half(p+0x74)==42);
         ++ttk::input.command_serial;call(0x80058120,p,0,0x80041c44);
         assert(psx_mod_read_word(p+0x224)==0x104 && psx_mod_read_word(p+0x3b8)==equipment);
+        assert(night_vision_sounds==sounds_before+4);
         // Empty, absent, dead, invalid model and native transition refuse.
         psx_mod_write_half(p+0x362,0);request(ttk::goggles);assert(psx_mod_read_half(p+0x360)==1);
         psx_mod_write_half(p+0x362,60);psx_mod_write_half(p+0x360,0);request(ttk::goggles);assert(psx_mod_read_half(p+0x360)==0);
@@ -2124,10 +2130,14 @@ int main(int argc,char** argv) {
         psx_mod_write_word(p+0x40,0x801d0000);psx_mod_write_half(p+0x360,0x8001);request(ttk::goggles);assert(psx_mod_read_half(p+0x360)==0x8001);
         psx_mod_write_half(p+0x360,1);setenv("DNTTK_NIGHT_VISION","original",1);request(ttk::goggles);assert(psx_mod_read_half(p+0x360)==1);unsetenv("DNTTK_NIGHT_VISION");
         ttk::modern=false;request(ttk::goggles);assert(psx_mod_read_half(p+0x360)==1);ttk::modern=true;
+        assert(night_vision_sounds==sounds_before+4);
         // Replacement follows TTK's one-face-item rule, preserving mask charge.
         psx_mod_write_half(p+0x854,2);psx_mod_write_half(p+0x35c,3);psx_mod_write_half(p+0x35e,50);
         request(ttk::goggles);assert(psx_mod_read_half(p+0x35c)==1 && psx_mod_read_half(p+0x35e)==50);
         request(ttk::goggles);
+        assert(night_vision_sounds==sounds_before+6);
+        request(ttk::item_use);assert(night_vision_sounds==sounds_before+7);
+        request(ttk::item_use);assert(night_vision_sounds==sounds_before+8);
         ttk::input.held[ttk::fire]=false;psx_mod_write_half(p+0x360,0);psx_mod_write_half(p+0x362,0);psx_mod_write_half(p+0x35c,0);psx_mod_write_half(p+0x35e,0);
         psx_mod_write_word(p+0x40,old_model);psx_mod_write_word(0x800ddb18,old_items);psx_mod_write_word(0x800ddb14,old_models);
         psx_mod_write_half(p+0x32,old_health);psx_mod_write_half(p+0x74,old_upper);psx_mod_write_half(p+0x854,old_face);

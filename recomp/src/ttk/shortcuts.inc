@@ -217,6 +217,7 @@ static bool night_vision_toggle() {
     psx_mod_write_word(player+0x224,on?flags|0x80000u:flags&~0x80000u);
     psx_mod_write_half(player+0x360,item^2);
     remember_item(3);inventory_feedback(false);
+    night_vision_sound();
     input_notice(on?"NIGHT VISION ON":"NIGHT VISION OFF");
     return true;
 }

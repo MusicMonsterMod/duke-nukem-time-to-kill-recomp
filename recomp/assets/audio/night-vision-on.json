@@ -1,0 +1,26 @@
+{
+  "source": "research/freesound_community-old-camera-flash-6800.mp3",
+  "source_sha256": "f0c16dafab74528cd033ab00bb1600ef55520a17a7d41303bc2ec373ecda8e7c",
+  "source_url": "https://pixabay.com/sound-effects/technology-old-camera-flash-6800/",
+  "license": "Pixabay Content License, as listed on source page checked 2026-10-25",
+  "reference": "research/screencaps/nv-sound.mp4 (analysis only; not mixed into outputs)",
+  "options": [
+    {
+      "file": "A-tight.wav",
+      "seconds": 0.24,
+      "pitch_ratio": 0.5,
+      "reversed_source_range_seconds": [
+        0.1,
+        1.4
+      ],
+      "tempo": 5.855855855855855,
+      "lowpass_hz": 6500,
+      "peak_dbfs": -7.02,
+      "rms_dbfs": -21.0
+    }
+  ],
+  "selected": "A-tight, selected by user 2026-10-25",
+  "conversion": "ffmpeg -i A-tight.wav -ar 44100 -ac 1 -c:a pcm_s16le night-vision-on.wav",
+  "asset_sha256": "461f539e90e95c8bf7fe2907829eb9b5d6aee69af81115870b4491b6795574f7",
+  "audition_sha256": "48a5a7e6c01ad3c3507987db81f7355468e9bfb909724a8907083bc440a56ab8"
+}

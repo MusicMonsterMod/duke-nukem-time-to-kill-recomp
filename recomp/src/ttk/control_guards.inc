@@ -1,5 +1,6 @@
 // SLUS-00583 code SHA-256 guards; derived read-only from the owned executable.
 static const Guard guards[] = {
+    {0x8008acc8, 56, "398d8778b88560ab75a97f65db780f684d8a034dde560a5af4e2ca20b6fd89e0"}, // D08A25 effects slider scale and global volume address
     {0x8004e94c, 212, "655e6eed09f072c0bbb2216883023b873d2b41fb001329e51d899717ba30f64a"}, // D08A23 goggles endpoints and native charge lifecycle
     {0x800420bc, 332, "26fda3e6f59ab68e952635660300cb067cd2c884a1b736cad58080f2e67f4007"}, // D08A23 goggles endpoints and native charge lifecycle
 

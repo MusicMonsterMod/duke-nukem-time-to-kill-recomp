@@ -280,3 +280,23 @@ if(TARGET SDL3::SDL3)
     target_compile_features(ttk-inventory-test PRIVATE cxx_std_17)
     target_link_libraries(ttk-inventory-test PRIVATE SDL3::SDL3)
 endif()
+
+# D08A25: embed the selected licensed cue; no working-directory file lookup.
+add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/night_vision_pcm.h"
+    COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/local/embed_night_vision_audio.py"
+        "${CMAKE_CURRENT_SOURCE_DIR}/assets/audio/night-vision-on.wav"
+        "${CMAKE_CURRENT_BINARY_DIR}/night_vision_pcm.h"
+    DEPENDS tools/local/embed_night_vision_audio.py assets/audio/night-vision-on.wav VERBATIM)
+add_custom_target(ttk-night-vision-asset DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/night_vision_pcm.h")
+target_sources(psx-runtime PRIVATE src/ttk/night_vision_audio.cpp)
+set_source_files_properties(src/ttk/night_vision_audio.cpp PROPERTIES INCLUDE_DIRECTORIES "${CMAKE_CURRENT_BINARY_DIR}")
+add_dependencies(psx-runtime ttk-night-vision-asset)
+if(TARGET SDL3::SDL3)
+add_executable(ttk-audio-test EXCLUDE_FROM_ALL tests/local/night_vision_audio_native.cpp src/ttk/night_vision_audio.cpp)
+target_include_directories(ttk-audio-test PRIVATE src/ttk "${CMAKE_CURRENT_BINARY_DIR}" ${PSXRECOMP_ROOT}/runtime/include)
+target_compile_features(ttk-audio-test PRIVATE cxx_std_17)
+target_compile_options(ttk-audio-test PRIVATE -UNDEBUG)
+target_compile_definitions(ttk-audio-test PRIVATE PSX_SDL3=1)
+target_link_libraries(ttk-audio-test PRIVATE SDL3::SDL3)
+add_dependencies(ttk-audio-test ttk-night-vision-asset)
+endif()

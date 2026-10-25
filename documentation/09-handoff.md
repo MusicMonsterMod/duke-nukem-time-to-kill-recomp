@@ -1,5 +1,91 @@
 # Next-session handoff
 
+## 2026-10-25 - D08A25 accepted and closed
+
+User: "its perfect! lock it in and close us out". D08A25 is Done. The chosen
+0.24-second A cue on both Modern night vision activation and manual removal
+is accepted. Implementation, licensed asset/provenance, tests, manual and
+documentation are authorized for commit and push as MusicMonsterMod.
+
+Accepted executable:
+`a92f2378eb3ed1f9502aee095c22632d463b2eb6be37caca5212a94cc2020313`.
+No post-acceptance gameplay changes, builds or launches. Runtime patch export
+is unchanged; all 51 files match the clean patched pinned dependency.
+Dependency pins and player data are untouched. Existing framework edits are
+preserved in the exported patch. [Note 245](245-d08a25-night-vision-sound.md)
+retains test evidence and coverage limits. D08A24 remains Todo; no next job
+started. Launch: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-25 - D08A25 removal cue revision (Needs playtest)
+
+User liked A in game and requested the same sound when taking goggles off,
+as in Duke 3D. Successful Modern N/Enter toggles now play A in both directions.
+Failed/empty activation, held-key repeats, depletion and load/pause remain silent.
+Original/Vanilla and the approved asset, gain and audio mixer are unchanged.
+
+Build and controls/audio native tests pass. A private 120 FPS first-person
+route verifies on/off through N and Enter, repeated toggles while firing,
+held-key suppression and no extra cue on pause or active save/load. Host PCM
+captures match A on activation (correlation 0.583) and removal (0.631); both
+are absent with effects muted (below 0.002). This is pipeline verification;
+the revised in-game listening check remains with the user.
+
+All 40 player source files retain hashes/mtimes; private session stopped.
+No new framework edits, asset edits, commit/push or acceptance closeout.
+Candidate: `a92f2378eb3ed1f9502aee095c22632d463b2eb6be37caca5212a94cc2020313`.
+Launch: `python3 recomp/tools/local/run.py`; press N on and off.
+
+
+## 2026-10-25 - D08A25 selected A integrated (Needs playtest)
+
+User selected A-tight, the 0.24-second night vision activation cue. The licensed
+asset is embedded and plays once after successful Modern N/Enter activation,
+including during fire, with native effects volume and host master volume.
+No cue on removal, failed/empty activation, depletion, pause or active save/load.
+Original/Vanilla remain unchanged. Framework seam mixes host PCM only, with
+load/mute cancellation and bounded rapid-toggle restart.
+
+Build, controls/input/aim/audio tests, private 60 FPS third-person and 120 FPS
+first-person routes pass. Host PCM captures verify A in the enabled mix and
+its absence when effects are muted. Original native equip/removal passes with
+zero new cue events; Vanilla exclusion is native-test coverage. All 40 player
+source files retain hashes/mtimes. Framework patch applies cleanly and matches
+all 51 changed files against the pinned dependency. Diagnostics stopped.
+
+[Note 245](245-d08a25-night-vision-sound.md) records the contracts,
+asset provenance, evidence and limits. User in-game listening/mix acceptance
+remains. No acceptance closeout, commit or push; no next job started.
+Candidate: `0db3051ee6370c402916f059cbc4dee4e7c8388894a964a5c4cb3fece596b48b`.
+Launch: `python3 recomp/tools/local/run.py`; N with NIGHT VISION MODERN.
+
+
+## 2026-10-25 - D08A25 night vision sound options
+
+User requested a new job and audio options first. D08A25 is In progress
+(audio options), dependent on completed D08A23. Gameplay integration awaits
+sound selection. Local auditions are in `research/d08a25-nightvision-audio/`:
+A-tight (0.24 s), B-balanced (0.32 s), C-fuller (0.42 s), and
+`ABC-comparison.wav` (each twice, A/B/C order). WAV masters are mono 48 kHz
+16-bit PCM; MP3 previews also exist. `make_options.py` reproduces the edits;
+`manifest.json` records source hash, provenance, processing and measured levels.
+
+The supplied Pixabay camera-flash recording is the only candidate audio source.
+Its rising tonal body is reversed, time-compressed and lowered in pitch, with
+a short source transient at the front and shaped decay/fades. The Duke 3D capture
+is reference only: the first isolated event is approximately 1.17-1.38 s with
+a falling tonal contour. Capture ambience limits exact pitch/envelope matching.
+All three files have -21 dBFS RMS, peaks below -6 dBFS, correct durations and
+zero-valued endpoint samples. Waveform/spectral verification completed; no
+claim of listening acceptance or in-game mix verification. User should audition
+and select/refine before implementation. Planned cue is successful Modern
+activation only, respecting effects volume and preserving Original/Vanilla.
+
+No gameplay source edits, build, launch, player-data changes, commit or push.
+Existing framework modifications preserved. Source/license URL and acceptance
+criteria are in the D08A25 backlog entry. This is preparation, not closeout.
+
+
 ## 2026-10-25 - D08A23 accepted and closed
 
 User: "lock it in, close it out!!". D08A23 is Done. Instant night vision with

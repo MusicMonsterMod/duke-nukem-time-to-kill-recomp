@@ -4,6 +4,7 @@
 // control_guards.inc (LEVEL00, LEVEL01). Original routines retain all integration,
 // collision responses and camera constraints. No final position writes.
 #include "modern_controls.h"
+#include "night_vision_audio.h"
 #include "anim_override.h"
 #include "weapon_aim.h"
 #include "aim_weapons.h"

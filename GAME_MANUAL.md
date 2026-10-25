@@ -1667,6 +1667,11 @@ and drain remain. Switching off preserves the remaining charge; depletion turns
 the goggles off automatically. Goggles replace the Bio Mask, as the original
 face-equipment system allows one of those items at a time.
 
+Modern night vision plays the same short electronic cue when the goggles turn
+on or are manually switched off. It follows the SOUND effects volume and host
+volume. Empty activation, battery depletion and restoring active goggles from
+a save do not play the cue. Original night vision and Vanilla retain their original audio.
+
 **OPTIONS > ADVANCED > ITEMS > NIGHT VISION** offers **MODERN** (default) and
 **ORIGINAL** (the original equip animation). Confirm applies it immediately and
 saves the choice. Vanilla retains original behavior. The launcher also accepts

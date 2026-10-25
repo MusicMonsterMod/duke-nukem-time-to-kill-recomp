@@ -1,5 +1,7 @@
 # Time to Kill — modernization jobs
 
+**Latest accepted job (2026-10-25): D35F1 chain visibility is Done. User: "totally accept. lock it in and close us out". [Note 231](documentation/231-d35f1-chain-visibility.md).**
+
 **Latest accepted job (2026-10-24): D35G first-person mantles, ledge hangs and water climb-outs is Done. User: "lock it in, close it out!". [Note 229](documentation/229-d35g-first-person-mantles.md).**
 
 **Latest accepted job (2026-10-24): D35F first-person chains/poles is Done. User: "so so good! let's lock it in and close it out!". [Note 228](documentation/228-d35f-first-person-poles.md).**
@@ -335,7 +337,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D35D | First-person push/pull and grab presentation | Done | D35A, D08T3, D08T7 |
 | D35E | First-person ladder climbing lifecycle | Done | D35A, D08J3, D08U, D08J1 |
 | D35F | First-person chain, pole and pole-class lamppost climbing | Done | D35A, D35E, D08J5 |
-| D35F1 | Chain disappears near the top while climbing (current UI slot 10) | Todo | D35F |
+| D35F1 | Chain disappears near the top while climbing (current UI slot 10) | Done | D35F |
 | D35G | First-person mantles, ledge hangs and water climb-outs | Done | D35A, D35E, D08V, D08X, D08T8 |
 | D35H | First-person overhead and monkey-bar traversal | Done | D35A, D35G, D08J4 |
 | D35I | First-person climbing walls | Todo | D35A, D35E |
@@ -499,7 +501,9 @@ animation or settings edits, commit or push are part of this research result.
 
 ### D35F1 - Chain disappears near the top while climbing
 
-**Status:** Todo. **Dependencies:** D35F.
+**Status:** Done. **Dependencies:** D35F.
+
+**Accepted:** [Note 231](documentation/231-d35f1-chain-visibility.md). The attached chain spans rooms; it now receives its own native draw when its owning room leaves the visible list. Both perspective choices, upper exit, descent, Ctrl drop and replay checked. User accepted and explicitly authorized closeout on 2026-10-25.
 
 **User report (2026-10-25):** Load current UI slot 10, climb up the chain,
 and the chain disappears as Duke gets closer to the top. The user requests
@@ -18545,3 +18549,39 @@ and verifies against the pinned clean framework index: all 51 changed/new
 files match. No post-acceptance gameplay edits, rebuilds or launches. Recorded
 coverage limits in [note 230](documentation/230-d35h-overhead-perspective.md)
 remain; acceptance does not establish additional slot-9 or campaign testing.
+
+
+## 2026-10-25 - D35F1 chain visibility candidate (Needs playtest)
+
+Selected explicitly by the user. Private current slot-10 copy reproduces the
+chain disappearing when its owning room 43 leaves the visible list while
+Duke climbs in room 44. Attachment and first-person policy remain valid.
+The candidate submits only the attached pole-family object through the native
+renderer when that room is absent, retains it through native exit poses and
+carries the presentation state into replay. World/room lists and traversal
+are unchanged. [Note 231](documentation/231-d35f1-chain-visibility.md).
+
+Player build and controls/input/aim/near suites pass. Private first-person
+and Third Person action routes cover upper approach and climb-off; first-person
+angle/descent and Ctrl drop checks pass. Primitive trace confirms the chain
+in live and all three replay workers with room 43 absent. Whole-campaign
+coverage and user acceptance remain outstanding.
+
+Candidate: `c604343e8378f0f8dcb438e892fa4e1082f3d94ad58cabbfba6085cc1303b306`.
+No player data, framework source, generated C or dependency pins changed.
+No acceptance closeout, commit or push. Launch: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-25 - D35F1 accepted and closeout authorized
+
+User: "totally accept. lock it in and close us out". D35F1 is Done.
+The accepted candidate preserves the attached chain across the owning room's
+visibility boundary, including exit continuity and replay. Evidence and limits
+remain in [note 231](documentation/231-d35f1-chain-visibility.md).
+
+Authored implementation, tests and documentation are included in the authorized
+MusicMonsterMod closeout. Runtime patch re-export unchanged; the patch reproduces
+all 51 changed/new files against the pinned clean framework index. No pins changed.
+No post-acceptance gameplay edits, rebuilds or launches; no player data touched.
+Accepted executable: `c604343e8378f0f8dcb438e892fa4e1082f3d94ad58cabbfba6085cc1303b306`.
+No next job started. Launch: `python3 recomp/tools/local/run.py`.

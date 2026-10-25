@@ -986,6 +986,7 @@ static void face_view() {
 #include "jetpack.inc"
 #include "first_person.inc"
 #include "kick.inc"
+#include "pole_visibility.inc"
 
 static void hook_body(CPUState* cpu, uint32_t address);
 // Frame diagnostics (DNTTK_FRAME_TRACE=1): wall time between player updates
@@ -1059,6 +1060,7 @@ static void hook(CPUState* cpu, uint32_t address) {
 // Discard old draw tokens without writing them into the newly loaded RAM;
 // first_person_draw reclaims any hidden flags stored in the save itself.
 static void camera_world_reset() {
+    pole_visibility_object=0;
     jet_lift_active=false;jet_air_height_hold=false;
     if(jetpack_eduke32()) {
         jet_fuel_pending=false;jet_fuel_frame=0;jet_fuel_fraction=0;jet_fuel_expected=-1;
@@ -1103,7 +1105,7 @@ static void hook_body(CPUState* cpu, uint32_t address) {
     const auto& f=input_snapshot(Context::Gameplay);
     uint32_t ra=cpu->gpr[31], sp=cpu->gpr[29];
     if (sp<0x80010100 || sp>0x801ffff0 || (sp&3)) {head_restore();return;}
-    if(address==0x8006276c || address==0x80062b48 || address==0x8002ffec) {draw_distance_apply(address,ra);return;}
+    if(address==0x8006276c || address==0x80062b48 || address==0x8002ffec) {draw_distance_apply(address,ra);if(address==0x8002ffec) pole_visibility_draw(cpu,ra);return;}
     if(address==0x80076330) {apartment_switch_query(cpu);return;}
     if(address==0x80081a48) {pickup_select_begin(cpu);steroids_pickup(cpu);apartment_pickup(cpu);return;}
     if(address==0x80051cf0) {push_obstacle_action(cpu,ra);return;}
@@ -1493,6 +1495,7 @@ static void hook_body(CPUState* cpu, uint32_t address) {
         if(!orbit_valid) first_person_release(independent_camera()?PerspectiveReason::Orbit:PerspectiveReason::Original);
         else {
             const unsigned ticks=fp_frame && f.sequence>fp_frame ? unsigned(std::min<uint64_t>(f.sequence-fp_frame,4)) : 1;
+            pole_visibility_update();
             first_person_update(f,ticks,acquiring);fp_frame=f.sequence;
         }
         if(f.active && gameplay_context() && shallow_land_water_early() && !f.held[original_aim])face_view();
@@ -1683,6 +1686,7 @@ static void hook_body(CPUState* cpu, uint32_t address) {
 // holds only a fork-time copy of this file's statics).
 struct RenderState {
     ActionPerspective perspective;
+    uint32_t pole_visibility_object;
     double fp_blend; bool orbit_valid, eye_offset_valid, live_valid, lease_cam, crouch_weapon, swim_weapon, body_coverage, third_camera;
     double eye_offset[3], live_q[4], live_rel[3], live_torso_q[4], live_torso[3], kick;
     FirePose fire_poses[32];
@@ -1719,7 +1723,7 @@ double late_fp_blend() {return fp_blend;}
 size_t render_state_size() {return sizeof(RenderState);}
 void render_state_save(void* out) {
     RenderState r{};
-    r.perspective=fp_policy;
+    r.perspective=fp_policy;r.pole_visibility_object=pole_visibility_object;
     r.fp_blend=fp_blend; r.orbit_valid=orbit_valid; r.eye_offset_valid=eye_offset_valid; r.live_valid=live_valid;
     r.lease_cam=last_lease_cam;
     r.body_coverage=psx_mod_present_replay_available()!=0;
@@ -1738,7 +1742,7 @@ void render_state_save(void* out) {
 void render_state_load(const void* in) {
     RenderState r;
     std::memcpy(&r,in,sizeof r);
-    fp_policy=r.perspective;
+    fp_policy=r.perspective;pole_visibility_object=r.pole_visibility_object;
     fp_blend=r.fp_blend; orbit_valid=r.orbit_valid; eye_offset_valid=r.eye_offset_valid; live_valid=r.live_valid;
     std::memcpy(eye_offset,r.eye_offset,sizeof eye_offset); std::memcpy(live_q,r.live_q,sizeof live_q);
     std::memcpy(live_rel,r.live_rel,sizeof live_rel); std::memcpy(live_torso_q,r.live_torso_q,sizeof live_torso_q);

@@ -1,5 +1,43 @@
 # Current status - 2026-10-04
 
+## 2026-10-25 - D35F1 accepted and closed
+
+User: "totally accept. lock it in and close us out". D35F1 is Done.
+The attached chain now stays visible when its owning lower room leaves the
+visible-room list, with native exit continuity and render replay support.
+[Note 231](231-d35f1-chain-visibility.md) records the cause, tests and limits.
+
+Accepted executable: `c604343e8378f0f8dcb438e892fa4e1082f3d94ad58cabbfba6085cc1303b306`.
+Authored implementation, tests and documentation included in authorized
+MusicMonsterMod closeout. Runtime patch re-export unchanged; all 51 changed/new
+files reproduce against the pinned clean framework index. No dependency pins
+changed. No post-acceptance gameplay edits, rebuilds or launches. Broader
+campaign and direct attachment-cleared exit-save limits remain explicit.
+No player data changed and no next job started.
+Launch: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-25 - D35F1 chain visibility candidate (Needs playtest)
+
+Current UI slot 10's chain spans rooms. It vanished when its owning room 43
+left the visible-room list during ascent in room 44. The candidate draws only
+the attached pole-family object through the native renderer when that room
+is absent, including native exit continuity and render replay. Movement,
+attachment, room membership and Vanilla are unchanged.
+[Note 231](231-d35f1-chain-visibility.md).
+
+Player build and native controls/input/aim/near suites pass. Private routes
+verify first-person upward/downward look, descent, Ctrl drop and upper exit;
+the Third Person action choice also completes the upper exit. Primitive trace
+confirms chain draws in the live process and all three replay workers while
+room 43 is absent. User slot-10 playtest and broader campaign coverage remain.
+
+Candidate: `c604343e8378f0f8dcb438e892fa4e1082f3d94ad58cabbfba6085cc1303b306`.
+Diagnostic sessions stopped. No player settings/saves/cards, framework source,
+generated C or pins changed. No acceptance closeout, commit or push.
+Launch: `python3 recomp/tools/local/run.py`. Gameplay captures automatically.
+
+
 ## 2026-10-25 - D35H accepted and closed; D35F1 queued
 
 User explicitly requested "lock in this work and close it out" after recording

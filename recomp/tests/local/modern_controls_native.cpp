@@ -96,8 +96,16 @@ static std::vector<std::array<uint32_t,4>> steroid_sounds;
 static unsigned overclock_renewals;extern "C" void psx_overclock_renew(void){++overclock_renewals;}
 // D08Z1: the isolated flight sweep 0x8007a98c reports `jw_result` with the
 // normal (jw_nx, 0, jw_nz) for its first `jw_hits` calls, then a clear path.
+static unsigned pole_draw_calls;
 static int jw_result,jw_hits,jw_sweeps;static int32_t jw_nx,jw_nz;
 extern "C" void psx_dispatch_call(CPUState* cpu,uint32_t address,uint32_t) {
+    if(address==0x80031d10) {
+        assert(cpu->gpr[4]==0x800d6eb0 && cpu->gpr[5]==0x801ea000 && cpu->gpr[6]==0x800d2210);
+        ++pole_draw_calls;
+        psx_mod_write_word(cpu->gpr[29]-4,0x12345678);
+        psx_mod_write_word(0x1f800000,0xabcdef01);
+        cpu->gte_ctrl[26]=99;cpu->gpr[16]=123;cpu->pc=0;return;
+    }
     if(address==0x8007d240) {
         const uint32_t p=0x800d7198;++ledge_probe_calls;
         assert(psx_mod_read_word(p+0x17c)==0 && psx_mod_read_word(p+0x174)==0);
@@ -3338,6 +3346,39 @@ int main(int argc,char** argv) {
                         assert(metric("\"blend\":")==int(eye));
                         assert(std::strstr(ttk::controls_debug_json(),"\"action\":\"pole\""));
                         assert(!ttk::movement_ready() && !ttk::locomotion_input_ready());
+                        if(pose==193) {
+                            const auto count=psx_mod_read_word(0x800d68a8),room=psx_mod_read_word(0x800d68b8);
+                            const auto kind=psx_mod_read_byte(object+0x14),owner_room=psx_mod_read_byte(object+0x2e);
+                            psx_mod_write_byte(object+0x14,1);psx_mod_write_byte(object+0x2e,43);
+                            psx_mod_write_word(0x800d68a8,1);psx_mod_write_word(0x800d68b8,44);
+                            CPUState draw{};draw.gpr[4]=c;draw.gpr[29]=0x801ff000;draw.gpr[31]=0x8002e6dc;draw.gte_ctrl[26]=256;
+                            const auto original=draw;const auto stack=psx_mod_read_word(0x801feefc);
+                            const auto scratch=psx_mod_read_word(0x1f800000),before=pole_draw_calls;
+                            auto invoke=[&]{hooks().at(0x8002ffec)(&draw,0x8002ffec);};
+                            invoke();assert(pole_draw_calls==before+1);
+                            assert(!std::memcmp(&draw,&original,sizeof draw));
+                            assert(psx_mod_read_word(0x801feefc)==stack && psx_mod_read_word(0x1f800000)==scratch);
+                            assert(psx_mod_read_word(p+0x17c)==object && psx_mod_read_byte(object+0x2e)==43);
+                            assert(psx_mod_read_word(0x800d68a8)==1 && psx_mod_read_word(0x800d68b8)==44);
+                            psx_mod_write_word(0x800d68b8,43);invoke();assert(pole_draw_calls==before+1);
+                            psx_mod_write_word(0x800d68b8,44);
+                            draw.gpr[31]++;invoke();assert(pole_draw_calls==before+1);draw.gpr[31]--;
+                            psx_mod_write_byte(object+0x14,3);invoke();assert(pole_draw_calls==before+1);psx_mod_write_byte(object+0x14,1);
+                            psx_mod_write_word(p+0x17c,0);invoke();assert(pole_draw_calls==before+1);psx_mod_write_word(p+0x17c,object);
+                            const auto op=psx_mod_read_word(0x80031d10);psx_mod_write_word(0x80031d10,op^1);
+                            invoke();assert(pole_draw_calls==before+1);psx_mod_write_word(0x80031d10,op);
+                            ttk::modern=false;invoke();assert(pole_draw_calls==before+1);ttk::modern=true;
+                            psx_mod_write_byte(p+0x22c,8);psx_mod_write_half(p+0x60,196);psx_mod_write_word(p+0x17c,0);
+                            frame();invoke();assert(pole_draw_calls==before+2);
+                            std::vector<uint8_t> exit_snapshot(ttk::render_state_size());ttk::render_state_save(exit_snapshot.data());
+                            psx_mod_write_byte(p+0x22c,0);psx_mod_write_half(p+0x60,63);frame();
+                            psx_mod_write_byte(p+0x22c,8);psx_mod_write_half(p+0x60,196);invoke();assert(pole_draw_calls==before+2);
+                            ttk::render_state_load(exit_snapshot.data());invoke();assert(pole_draw_calls==before+3);
+                            ++save_loads;frame();invoke();assert(pole_draw_calls==before+3);
+                            psx_mod_write_byte(p+0x22c,3);psx_mod_write_half(p+0x60,193);psx_mod_write_word(p+0x17c,object);frame();
+                            psx_mod_write_word(0x800d68a8,count);psx_mod_write_word(0x800d68b8,room);
+                            psx_mod_write_byte(object+0x14,kind);psx_mod_write_byte(object+0x2e,owner_room);
+                        }
                         if(eye) {
                             call(0x800348d8,c,p,0x8003769c);
                             CPUState joint{};joint.gpr[4]=c;joint.gpr[19]=c;joint.gpr[20]=p;joint.gpr[29]=0x801f0000;

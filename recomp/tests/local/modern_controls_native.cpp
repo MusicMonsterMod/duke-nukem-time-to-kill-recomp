@@ -3508,6 +3508,36 @@ int main(int argc,char** argv) {
                 ++save_loads;frame();assert(metric("\"blend\":")==1);
                 std::puts("PASS: D35G mantle/hang/shimmy/drop lifecycle, choices, pause, load and ground return");
             }
+            // D35G1: an armed edge step-up (134) still uses the pistol
+            // viewmodel. Hidden native arms must not be revived by the mantle
+            // near-cull bridge. Unarmed E-mantle arms keep their real matrices.
+            {
+                const auto equip=psx_mod_read_byte(p+0x3b8);
+                psx_mod_write_half(p+0x60,134);
+                psx_mod_write_byte(p+0x22c,8);psx_mod_write_byte(p+0x22d,8);
+                for(unsigned held:{0u,2u}) {
+                    psx_mod_write_byte(p+0x3b8,held);++save_loads;frame();
+                    assert(metric("\"blend\":")==1);
+                    for(unsigned part=0x0a;part<=0x0e;++part) {
+                        call(0x800348d8,c,p,0x8003769c);
+                        CPUState joint{};joint.gpr[4]=c;joint.gpr[20]=p;joint.gpr[29]=0x801f0000;
+                        joint.gpr[23]=psx_mod_read_byte(desc+0x24+part);
+                        const uint32_t native=mats+0x20*joint.gpr[23];
+                        joint.gpr[5]=native;joint.gpr[31]=0x80034c6c;
+                        hooks().at(0x800292a0)(&joint,0x800292a0);
+                        assert((joint.gpr[5]!=native)==bool(held));
+                        joint.gpr[31]=0x80034c8c;joint.gpr[16]=0;joint.gte_ctrl[26]=256;
+                        psx_mod_write_word(joint.gpr[29]+0x98,c);
+                        hooks().at(0x800b4d2c)(&joint,0x800b4d2c);
+                        assert(joint.gpr[16]==(held?0u:256u));
+                        assert(ttk::first_person_interaction_drawing()==!held);
+                        call(0x8001ca4c,0x800d0000,0,0x800376b4);
+                    }
+                }
+                psx_mod_write_byte(p+0x3b8,equip);psx_mod_write_half(p+0x60,63);
+                psx_mod_write_byte(p+0x22c,0);psx_mod_write_byte(p+0x22d,0);++save_loads;frame();
+                std::puts("PASS: D35G1 hidden armed step-up limbs stay culled; native mantle hands remain visible");
+            }
             // D35E: shared clips need a plain ladder, exits may already
             // own the landing. Presentation never grants locomotion/aim.
             {

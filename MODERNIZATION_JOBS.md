@@ -1,5 +1,7 @@
 # Time to Kill — modernization jobs
 
+**Latest accepted job (2026-10-25): D35G1 slot-5 jump edge artifact is Done. User authorized lock-in and closeout. D08A23 instant night vision and D08A24 automatic Bio Mask remain Todo with initial research. [Note 242](documentation/242-d35g1-jump-edge-artifact.md). No next job started.**
+
 **Latest accepted job (2026-10-25): D35K4 slot-5 wheel turn is Done. User authorized lock-in and closeout. [Note 241](documentation/241-d35k4-wheel-first-person.md). No next job started.**
 
 **Latest closeout (2026-10-25): D35K2 toilet use, D35K bounded research and overarching D35 are Done by user acceptance. Future first-person drops become focused D35 child jobs; no next job started. D35N1 missing mirror voice remains Todo.**
@@ -130,6 +132,8 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08A19 | Used mission items: switcher status USED and a green tick on the icon (user art delivered) | Done (user-accepted) | D08A18, D08A5 |
 | D08A20 | Challenge item (type 633, "SURPRISE") shown in the top right of the HUD once found (user art delivered) | Done (user-accepted) | D08A16, D24A |
 | D08A21 | Re-export HUD item icons with 14x14 art inside the 16x16 canvas (medkit, steroids, power-up coins) | Done (user-accepted) | D08A4, D08A7, D08A16 |
+| D08A23 | Instant night vision with immediate firing and a settings toggle | Todo | D08A, D19 |
+| D08A24 | Automatic Bio Mask on toxic-area entry with a settings toggle | Todo | D08A, D19 |
 | D08A22 | Switcher strips and mission card scale with the window like the native HUD (icons too small in small windows) | Done (user-accepted) | D08A1, D08A5, D24A |
 | D08G3 | `dnupgrade` cheat: upgrade all weapons (Laser Gatling etc.) | Accepted | D08G2 |
 | D08G4 | `dnstuff`, `dnitems`, `dninventory` also give 100% armor; running steroids stop and a full dose is held | Done (user-accepted) | D08G |
@@ -351,6 +355,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D35E | First-person ladder climbing lifecycle | Done | D35A, D08J3, D08U, D08J1 |
 | D35F | First-person chain, pole and pole-class lamppost climbing | Done | D35A, D35E, D08J5 |
 | D35F1 | Chain disappears near the top while climbing (current UI slot 10) | Done | D35F |
+| D35G1 | Slot-5 jump edge/corner screen artifact | Done | D35G, D08Z6 |
 | D35G | First-person mantles, ledge hangs and water climb-outs | Done | D35A, D35E, D08V, D08X, D08T8 |
 | D35H | First-person overhead and monkey-bar traversal | Done | D35A, D35G, D08J4 |
 | D35I | First-person climbing walls and fluid diagonal WASD | Done | D35A, D35E |
@@ -372,6 +377,69 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 
 Recommended opening sequence: **D01 → D02 → D03 → D04**, then **D05 / D06 → D07 → D07A → D08**. D13 is an early graphics option after profiles exist. D22 and D23 should accumulate evidence throughout development. First-person, HD asset packs and precision rendering are optional follow-up milestones, not blockers for a good modern third-person release.
 
+
+## 2026-10-25 - Gadget modernization and slot-5 jump artifact intake
+
+### D08A23 - Instant night vision
+
+**Status:** Todo. Backlog research only; implementation not selected.
+N must toggle night vision immediately, including while firing, with no holster,
+equip animation, shot delay or movement lock. Goggles can simply appear on Duke's
+face. Add a persistent independent settings toggle; disabled retains the original
+activation behavior. Modernized only; Vanilla unchanged. Cover N and selected-item
+activation, on/off, held fire, empty charge, depletion, save/load and both views.
+
+Initial source research: `input_bindings.def` maps goggles to N. In
+`shortcuts.inc`, goggles are item 3; `use_item()` requests native `0x800402d0`
+through inventory flags at player+0x360 (charge +0x362). `select_weapon()` rejects
+ordinary gadget input while fire/interact is held or the upper-body weapon is not
+idle. Bypassing the visible animation alone therefore cannot meet the request.
+Before implementation, trace the native toggle's effect/model and charge lifecycle;
+reuse its semantics without stealing weapon animation ownership. Verify resident
+code identity and all writes. Setting label/default to be settled when selected.
+
+### D08A24 - Automatic Bio Mask in toxic areas
+
+**Status:** Todo. Backlog research only; implementation not selected.
+With its independent persistent settings toggle enabled, an owned, charged Bio
+Mask activates automatically on entering a native toxic gas area in time to protect
+Duke. Disabled retains manual behavior. Preserve native charge/protection rules,
+empty-item behavior, manual B and inventory use, save/load and repeated boundaries.
+This is gas protection, not scuba, generic liquid protection or immunity to all
+hazards. Vanilla stays unchanged. Decide exit/deactivation and manual-off policy
+from native behavior when selected; avoid repeatedly restarting equip animations.
+
+Initial source research: Bio Mask is item 2, bound to B, flags player+0x35c and
+charge +0x35e; it shares `use_item()` / `0x800402d0` with goggles. The current HUD
+already reads Bio Mask/goggles status (`gadget_hud.inc`). The authoritative gas
+exposure/damage predicate and activation timing still need native tracing; do not
+infer toxicity from water depth or a room number. Existing documentation explicitly
+limits Bio Mask to gas. No gadget code or settings changed during intake.
+
+### D35G1 - Slot-5 jump edge/corner screen artifact
+
+**Status:** Done, user-accepted 2026-10-25. User: "lock it in and close it out!!".
+Implementation, tests, backlog research and documentation closeout authorized.
+Explicitly selected for immediate work, 2026-10-25.
+Report: after loading current slot 5, jumping into roughly the ledge edge/corner,
+rather than cleanly landing on top or holding E to mantle, puts an artifact on
+screen. Reference: local `research/screencaps/jump-artifact.mp4` (37.9 seconds).
+The video shows a brief broad skin-colored polygon across the first-person view
+on several edge contacts, alongside separate deliberate mantle sequences.
+Use a fresh private slot-5 copy; distinguish body/arm geometry, clipping, camera
+and replay causes before changing code. Acceptance: repeated edge/corner jumps
+without the artifact at 60/high refresh; preserve ordinary landings, E catches,
+first-person mantle hands, weapon presentation, global/action Third Person and
+Vanilla. The gadget jobs remain Todo. User acceptance and closeout are recorded above.
+
+**Candidate (2026-10-25):** Reproduced native armed step-up 134. Its hidden
+viewmodel arms were incorrectly admitted by the mantle near-cull bridge. Clear
+the interaction-arm flag when hiding those limbs. Regression fails before and
+passes after; player build and four native suites pass. Repeated 60/120 routes
+remove the skin-colored artifact; E-stowed native hands remain visible.
+[Evidence and limits](documentation/242-d35g1-jump-edge-artifact.md).
+User accepted the candidate and authorized closeout; no gameplay/settings change
+to either gadget.
 
 ## User-reported follow-ups queued 2026-10-25
 
@@ -19174,3 +19242,31 @@ Existing framework changes and dependency pins are untouched; no player data
 changed. Note 241 retains the limits: fresh Vanilla activation, successful wheel
 world activation and other variants were not verified by the diagnostic runs.
 Acceptance does not expand that coverage. Launch: `python3 recomp/tools/local/run.py`.
+
+
+### 2026-10-25 / D08A23, D08A24 / Todo; D35G1 / Needs playtest
+
+Scope and decisions: Added instant night vision and automatic gas-area Bio Mask
+as separate backlog jobs with independent settings toggles and initial native
+inventory research. Only the explicitly selected slot-5 jump artifact was
+implemented. Armed short step-up 134 exposed hidden native arms through the
+mantle near-cull bridge; hiding an arm now clears its interaction classification.
+Files or build identity: `first_person.inc`, controls regression; executable
+`58821f8d6191768dde25a04940386ace8d98b5caf0ca52a7ae860d6bad37094f`.
+Verification and evidence: Regression red before/green after, player build and
+controls/input/aim/near suites pass; repeated private 60/120 edge routes and
+E-assisted step-up. See [note 242](documentation/242-d35g1-jump-edge-artifact.md)
+for captures, coverage and limits. Original player data unchanged.
+Remaining limitations / next action: User playtest of the reported edge/corner
+jumps. Gadget jobs remain Todo. No acceptance closeout, commit or push.
+
+
+### 2026-10-25 / D35G1 / Done (user-accepted)
+
+User: "lock it in and close it out!!". D35G1 is accepted and closed. The authored
+rendering fix, regression test, backlog intake/research and documentation are
+included in the authorized MusicMonsterMod commit/push. D08A23 and D08A24 remain
+Todo; no next job is started. No post-acceptance gameplay changes, rebuilds or
+launches. Note 242 retains the diagnostic coverage and limitations; acceptance
+does not imply additional routes. Accepted executable remains
+`58821f8d6191768dde25a04940386ace8d98b5caf0ca52a7ae860d6bad37094f`.

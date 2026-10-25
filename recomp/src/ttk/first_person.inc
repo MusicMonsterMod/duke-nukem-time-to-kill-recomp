@@ -805,6 +805,11 @@ static void first_person_weapon_joint(CPUState* cpu,uint32_t ra) {
         for(int i=0;i<9;++i) psx_mod_write_half(hidden_matrix+2*i,i%4==0?4096:0);
         psx_mod_write_half(hidden_matrix+0x12,0);
         for(int i=0;i<3;++i) psx_mod_write_word(hidden_matrix+0x14+4*i,psx_mod_read_word(camera+0x14+4*i));
+        // D35G1: armed edge step-ups can enter Mantle without stowing the
+        // weapon. These limbs are hidden at the eye for the viewmodel, not
+        // native interaction hands. Do not let the traversal near-cull bridge
+        // force them back into the draw loop at this artificial transform.
+        interaction_arm=false;
         cpu->gpr[5]=hidden_matrix;++arm_hides;return;
     }
     live_valid=false;

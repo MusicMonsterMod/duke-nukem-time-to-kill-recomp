@@ -1,5 +1,42 @@
 # Current status - 2026-10-04
 
+## 2026-10-25 - D35G1 accepted and closed
+
+User: "lock it in and close it out!!". D35G1 is Done. Hidden viewmodel arms
+stay excluded from the mantle draw path during armed edge step-ups. The fix,
+regression test, backlog research and documentation are authorized for commit
+and push as MusicMonsterMod. D08A23 instant night vision and D08A24 automatic
+Bio Mask remain Todo. No next job is started; D35 remains closed.
+
+Accepted executable:
+`58821f8d6191768dde25a04940386ace8d98b5caf0ca52a7ae860d6bad37094f`.
+No post-acceptance gameplay changes, builds or launches. Existing framework
+changes, dependency pins and player data are untouched. [Note 242](242-d35g1-jump-edge-artifact.md)
+retains the verified routes and limits; acceptance does not expand that coverage.
+Launch: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-25 - D35G1 jump artifact candidate; gadget backlog research
+
+D08A23 (instant N night vision, immediate fire) and D08A24 (automatic Bio Mask
+on gas-area entry) are Todo with independent settings toggles and initial source
+research on the board. Neither gadget feature is implemented.
+
+D35G1 is Needs playtest. Native armed step-up 134 retained the pistol while the
+mantle near-cull bridge revived its hidden native arms, producing stretched
+skin-colored polygons. Hiding an arm now clears its interaction classification.
+Build and four native suites pass, including a regression that fails before the
+fix. Repeated private 60/120 routes remove the reproduced artifact; E-stowed
+native hands remain visible. [Note 242](242-d35g1-jump-edge-artifact.md) records
+routes, displayed-window captures and limits. User edge/corner playtest remains.
+
+Candidate `58821f8d6191768dde25a04940386ace8d98b5caf0ca52a7ae860d6bad37094f`.
+No framework/generated/pin changes, player-data writes, acceptance closeout,
+commit or push. D35 stays closed; only its focused child is under review.
+Launch `python3 recomp/tools/local/run.py`, load slot 5 and repeat the video
+route, ordinary landings and E mantles. F10 captures if needed.
+
+
 ## 2026-10-25 - D35K4 accepted and closed
 
 User: "lock it in and close it out". D35K4 is Done. Wheel pose 270 retains

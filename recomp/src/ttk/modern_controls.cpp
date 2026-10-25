@@ -721,7 +721,9 @@ static bool use_interaction_eye() {
     // committed ordinary-camera use action, not a scripted camera override.
     // D35K2: native toilet use selects 275 at 0x80051630. Presentation
     // only; retain the committed action and its original one-time effect.
-    return (a==116 || a==118 || a==266 || a==267 || a==268 || a==275 || a==277) &&
+    // D35K3: LEVEL09 statue (type 926) selects 279 at 0x800516d4.
+    // Preserve native alignment, callback/effects and weapon restoration.
+    return (a==116 || a==118 || a==266 || a==267 || a==268 || a==275 || a==277 || a==279) &&
         psx_mod_read_byte(player+0x22c)==0 && psx_mod_read_byte(player+0x22d)==0 &&
         (psx_mod_read_word(player+0x224)&0x40);
 }

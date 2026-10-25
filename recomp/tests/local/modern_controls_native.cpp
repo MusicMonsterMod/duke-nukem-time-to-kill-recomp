@@ -3209,8 +3209,8 @@ int main(int argc,char** argv) {
             {
                 const auto flags=psx_mod_read_word(p+0x224),actor=psx_mod_read_word(p);
                 const auto upper=psx_mod_read_half(p+0x74);
-                for(unsigned pose:{64u,65u,66u,67u,68u,69u,116u,118u,266u,267u,268u,275u,277u,63u}) {
-                    const bool use=pose==116 || pose==118 || pose==266 || pose==267 || pose==268 || pose==275 || pose==277;
+                for(unsigned pose:{64u,65u,66u,67u,68u,69u,116u,118u,266u,267u,268u,275u,277u,279u,63u}) {
+                    const bool use=pose==116 || pose==118 || pose==266 || pose==267 || pose==268 || pose==275 || pose==277 || pose==279;
                     const uint32_t bits=use?0x40u:pose==63?0x200u:0u;
                     psx_mod_write_half(p+0x60,pose);psx_mod_write_half(p+0x74,pose);
                     psx_mod_write_byte(p+0x22c,0);psx_mod_write_byte(p+0x22d,0);
@@ -3219,7 +3219,7 @@ int main(int argc,char** argv) {
                     assert(!ttk::movement_ready() && !ttk::locomotion_input_ready());
                     assert(psx_mod_read_half(p+0x60)==pose && psx_mod_read_word(p+0x224)==bits);
                     if(use)assert(std::strstr(ttk::controls_debug_json(),"\"action\":\"use\""));
-                    if(pose==275) {
+                    if(pose==275 || pose==279) {
                         for(unsigned offset:{0x22cu,0x22du}) {
                             psx_mod_write_byte(p+offset,1);frame();assert(metric("\"blend\":")==0);
                             psx_mod_write_byte(p+offset,0);frame();assert(metric("\"blend\":")==1);
@@ -3293,7 +3293,7 @@ int main(int argc,char** argv) {
                     }
                 }
                 // Adjacent unknown/death poses are not granted a range lease.
-                for(unsigned pose:{62u,117u,269u,276u,279u}) {
+                for(unsigned pose:{62u,117u,269u,270u,276u,280u}) {
                     psx_mod_write_half(p+0x60,pose);psx_mod_write_word(p+0x224,0x40);
                     frame();assert(metric("\"blend\":")==0);
                 }

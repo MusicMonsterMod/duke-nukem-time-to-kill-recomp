@@ -1,5 +1,49 @@
 # Next-session handoff
 
+## 2026-10-25 - D35K3 accepted and closed
+
+User: "lock it in and close it out". D35K3 is Done. The statue's native pose
+279 retains first person under USE INTERACTION VIEW, with native effects,
+action restrictions and camera safety guards preserved. D35/D35K remain Done;
+no further job is started.
+
+Accepted executable:
+`0e18a38e16e0a0a3a87afe62b44e559a87e7cad569c6a82267c4c1819439339f`.
+Implementation, tests, manual and documentation are included in the authorized
+MusicMonsterMod commit/push. No post-acceptance gameplay changes, builds or
+launches. Existing framework changes and dependency pins are untouched; no
+player data changed. [Note 240](240-d35k3-statue-first-person.md) retains the validation limits, including fresh
+Vanilla activation and other statue variants. Acceptance is not campaign-wide
+coverage. Launch: `python3 recomp/tools/local/run.py`.
+
+
+
+## 2026-10-25 - D35K3 statue candidate (Needs playtest)
+
+Current UI slot 5 is LEVEL09's type-926 winged statue. Its naturally selected
+pose 279 now follows USE INTERACTION VIEW under the existing native action,
+mode/history, script and camera ownership guards. Build and four native suites
+pass; private 60/120 routes retain first person, complete and set the native
+one-time effect flag. Action/global Third Person and pause/load checks pass.
+Vanilla saved-action completion passes; fresh Vanilla activation remains
+unverified. [Note 240](240-d35k3-statue-first-person.md) records evidence/limits.
+User framing/comfort acceptance remains. D35/D35K stay Done. No framework,
+generated-code or dependency-pin changes; no acceptance closeout, commit or push.
+Candidate `0e18a38e16e0a0a3a87afe62b44e559a87e7cad569c6a82267c4c1819439339f`.
+Launch: `python3 recomp/tools/local/run.py`; load slot 5, global First Person,
+USE INTERACTION VIEW First Person, approach the statue and press E.
+
+
+
+## 2026-10-25 - D35K3 statue interaction queued (Todo)
+
+User reports interacting with the statue in current UI slot 5 switches to third
+person. D35K3 records this as a focused backlog job; level, object and pose are
+not yet verified. Use a fresh private copy when selected, not the old slot-5
+door/toilet identity. Follow note 222's method and notes 238/239's interaction
+evidence. D35/D35K remain Done. No implementation, build, launch, commit or push.
+
+
 ## 2026-10-25 - D35K2 and overarching D35 accepted and closed
 
 User: "its perfect! lock it in" and "that now concludes in fact the overarching

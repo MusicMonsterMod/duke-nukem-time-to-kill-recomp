@@ -360,6 +360,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D35K | Native scripted and special-camera event inventory | Done (bounded research accepted 2026-10-25) | D35 |
 | D35K1 | Slot-5 hinged-door first person and visible right-leg kick | Done (user-accepted) | D35M |
 | D35K2 | Toilet first-person use presentation (current slot 5) | Done (user-accepted 2026-10-25) | D35M, D35K |
+| D35K3 | Statue interaction drops first person (current slot 5) | Done | D35K, D35M, D35K2 |
 | D35L | First-person death and respawn presentation research | Done (user-accepted; no action needed) | D35 |
 | D35M | First-person door opening and related use interactions | Done | D35A |
 | D35N | First-person mirror interactions and reflected-Duke proximity fade | Done | D35A |
@@ -841,6 +842,40 @@ script/ownership guards. Type 179 shares metadata class 8 but is unverified.
 and global Third Person choices work; native callback/effect and completion
 remain intact; pause/load, 60/120 and successful Vanilla activation comparisons
 are verified. Use only private copies. User playtest required.
+
+### D35K3 - Statue interaction drops first person
+
+**Status:** Done (user-accepted 2026-10-25). **Dependencies:** D35K, D35M, D35K2.
+
+**User report (2026-10-25):** "slot 5, stand up a new background job,
+interacting with the statue goes into 3rd person". Current UI slot 5 is the
+reproduction reference. Do not assume it is the earlier slot-5 door or toilet
+checkpoint. Statue identity, level, pose, trigger route and camera ownership
+remain unverified; this is a user report, not an agent reproduction.
+
+**Scope:** Investigate the statue interaction as a focused D35 follow-up.
+Use a private copy of the current save and ordinary interaction input. Trace
+lower/upper pose, mode/history, action flags, owner/pivots/back-pointer and
+script bit through entry and recovery. Reuse the accepted interaction policy
+if supported by evidence; preserve native alignment, timing, effects, callbacks,
+weapon restoration and action restrictions. No blanket pose-range or script
+bit override. D35/D35K stay Done; no wider audit is reopened.
+
+**References:** [D35 follow-up method](documentation/222-d35-first-person-audit.md),
+[interaction selector and camera inventory](documentation/238-d35k-interaction-inventory.md),
+[accepted toilet pattern](documentation/239-d35k2-toilet-first-person.md).
+Do not identify this statue with an unmapped selector class without tracing it.
+
+**Acceptance:** Naturally reproduced statue use preserves the selected first
+person under the appropriate existing action choice; action/global Third Person
+and Vanilla retain their intended behavior. Verify action completion/effects,
+recovery, pause/load, 60/120 and adjacent accepted interactions using private
+copies. Record limits and obtain user playtest acceptance.
+
+**Accepted:** Current slot 5 is LEVEL09 type-926 statue, native pose 279.
+The bounded USE INTERACTION VIEW fix and validation are recorded in
+[note 240](documentation/240-d35k3-statue-first-person.md). User instructed
+"lock it in and close it out". D35K3, D35 and D35K are Done.
 
 ### D35L - First-person death and respawn presentation research
 
@@ -19049,3 +19084,50 @@ No new gameplay changes, build or launch during closeout. Explicit authorization
 covers committing/pushing the toilet implementation, tests, manual and research
 notes as MusicMonsterMod. Existing framework changes and pins are untouched.
 Evidence limits in notes 238/239 remain; acceptance is not all-campaign proof.
+
+## 2026-10-25 - D35K3 statue report queued
+
+User reports current slot-5 statue use drops to third person and requests a new
+background job. D35K3 recorded as Todo with reproduction, investigation and
+acceptance scope. No agent reproduction or implementation yet. D35/D35K remain
+Done; future reported perspective gaps use focused children. No build/launch,
+player-data changes, commit or push.
+
+
+## 2026-10-25 - D35K3 statue candidate (Needs playtest)
+
+Selected D35K3. Fresh private slot 5 reproduces LEVEL09's type-926 statue
+pose 279 falling back despite normal ownership. Added pose 279 to the existing
+USE INTERACTION VIEW presentation policy, retaining action locks and safety
+guards; native interaction/effects are unchanged. See
+[note 240](documentation/240-d35k3-statue-first-person.md).
+
+Player build and controls/input/aim/near suites pass. Natural 60/120 actions
+stay first person, finish and set the one-time effect. Action/global Third
+Person, pause/load, Vanilla saved-action completion and adjacent 120-FPS
+mirror/toilet checks pass. Fresh Vanilla activation remains unverified;
+user framing/comfort acceptance is pending. D35/D35K remain Done.
+
+All 40 source save/card hashes and mtimes match; diagnostics stopped.
+No framework/generated-code/pin changes, player-settings writes, acceptance
+closeout, commit or push. Candidate:
+`0e18a38e16e0a0a3a87afe62b44e559a87e7cad569c6a82267c4c1819439339f`.
+Launch: `python3 recomp/tools/local/run.py`; slot 5, global First Person and
+USE INTERACTION VIEW First Person, walk to the statue and press E.
+
+
+## 2026-10-25 - D35K3 accepted and closed
+
+User: "lock it in and close it out". D35K3 is Done. The statue's native pose
+279 retains first person under USE INTERACTION VIEW, with native effects,
+action restrictions and camera safety guards preserved. D35/D35K remain Done;
+no further job is started.
+
+Accepted executable:
+`0e18a38e16e0a0a3a87afe62b44e559a87e7cad569c6a82267c4c1819439339f`.
+Implementation, tests, manual and documentation are included in the authorized
+MusicMonsterMod commit/push. No post-acceptance gameplay changes, builds or
+launches. Existing framework changes and dependency pins are untouched; no
+player data changed. Note 240 retains the validation limits, including fresh
+Vanilla activation and other statue variants. Acceptance is not campaign-wide
+coverage. Launch: `python3 recomp/tools/local/run.py`.

@@ -121,6 +121,17 @@ static bool first_person_pole() {
     if(!pole_object(object_type_flags(psx_mod_read_word(player+0x17c))))return false;
     return climb_state_early() && (a==147 || a==148 || a==154 || (a>=191 && a<=196));
 }
+// D35H: the D35G eye already covers overhead hangs. Split their setting
+// by the attached object's climbable flags; crates and bare ledges stay Mantle.
+// This predicate authorizes presentation only, never movement or attachment.
+static bool first_person_overhead() {
+    const unsigned a=psx_mod_read_half(player+0x60);
+    const unsigned mode=psx_mod_read_byte(player+0x22c),prev=psx_mod_read_byte(player+0x22d);
+    const bool overhead=(object_type_flags(psx_mod_read_word(player+0x17c))&object_climbable)==0x80u;
+    if(mode==9 && prev==7 && a==108)
+        return overhead || fp_policy.action==PerspectiveAction::Overhead;
+    return overhead && ((mode==7 && a>=149 && a<=151) || (mode==6 && (a==147 || a==148)));
+}
 // D35G: ledge ownership is distinct from the attached ladder/pole set.
 // Water exit owns its early 8/4 or 8/5 tick before swim flags clear.
 static bool first_person_mantle() {
@@ -143,7 +154,7 @@ static void first_person_update(const InputFrame& f,unsigned ticks,bool acquirin
     facts.selected=f.first_person;facts.active=f.active;
     // Water exit takes ownership before the lingering water flag clears.
     facts.water_exit=mode==8 && (previous==4 || previous==5) && animation>=134 && animation<=142;
-    facts.mantle=first_person_mantle();
+    facts.mantle=first_person_mantle();facts.overhead=first_person_overhead();
     facts.ladder=first_person_ladder();facts.pole=first_person_pole();
     facts.push=push_state_early();facts.traversal=traversal_camera_early();
     facts.committed=committed_move_early();facts.fall=unowned_fall_early();
@@ -163,6 +174,8 @@ static void first_person_update(const InputFrame& f,unsigned ticks,bool acquirin
         fp_policy=resolve_perspective(facts,pole_view());
     if(fp_policy.action==PerspectiveAction::Mantle || fp_policy.action==PerspectiveAction::WaterExit)
         fp_policy=resolve_perspective(facts,mantle_view());
+    if(fp_policy.action==PerspectiveAction::Overhead)
+        fp_policy=resolve_perspective(facts,overhead_view());
     const bool wanted=fp_policy.effective;
     // A newly authenticated world starts in the selected view. Never blend
     // from an unrelated old save/camera or flash a third-person load frame.
@@ -242,7 +255,7 @@ static bool first_person_anchor(const double* forward,double* anchor) {
     for(int i=0;i<3;++i) root[i]=(int32_t)psx_mod_read_word(player+4+4*i);
     const bool pivoted=psx_mod_read_word(camera+0x50)==player+0x7bc;
     pivot_y=pivoted ? (int32_t)psx_mod_read_word(player+0x7c0) : root[1];
-    const bool mantling=(fp_policy.action==PerspectiveAction::Mantle || fp_policy.action==PerspectiveAction::WaterExit) && fp_policy.effective;
+    const bool mantling=(fp_policy.action==PerspectiveAction::Mantle || fp_policy.action==PerspectiveAction::Overhead || fp_policy.action==PerspectiveAction::WaterExit) && fp_policy.effective;
     const bool swimming=first_person_swimming() && !mantling;
     const bool jetting=jetpack_flying_early();
     const bool pushing=fp_policy.action==PerspectiveAction::Push && fp_policy.effective;
@@ -750,7 +763,7 @@ static bool interaction_arm;
 static void first_person_weapon_joint(CPUState* cpu,uint32_t ra) {
     interaction_arm=false;
     if(ra==0x80034c6c && weapon_duke_draw && fp_blend>=0.5 && orbit_valid &&
-       fp_policy.effective && (fp_policy.action==PerspectiveAction::Push || fp_policy.action==PerspectiveAction::Ladder || fp_policy.action==PerspectiveAction::Pole || fp_policy.action==PerspectiveAction::Mantle || fp_policy.action==PerspectiveAction::WaterExit) &&
+       fp_policy.effective && (fp_policy.action==PerspectiveAction::Push || fp_policy.action==PerspectiveAction::Ladder || fp_policy.action==PerspectiveAction::Pole || fp_policy.action==PerspectiveAction::Mantle || fp_policy.action==PerspectiveAction::Overhead || fp_policy.action==PerspectiveAction::WaterExit) &&
        cpu->gpr[4]==camera && cpu->gpr[20]==player) {
         const int part=duke_joint_part(duke_model(),cpu->gpr[23]);
         interaction_arm=part>=int(part_arm_first) && part<=0x0f;
@@ -892,7 +905,7 @@ static void first_person_weapon_attached(CPUState* cpu,uint32_t address,uint32_t
 // mesh path uses the real transform and host world-depth packets.
 static void first_person_ladder_near(CPUState* cpu,uint32_t ra) {
     if(ra!=0x80034c8c || !interaction_arm || !weapon_duke_draw ||
-       (fp_policy.action!=PerspectiveAction::Ladder && fp_policy.action!=PerspectiveAction::Pole && fp_policy.action!=PerspectiveAction::Mantle && fp_policy.action!=PerspectiveAction::WaterExit) || !fp_policy.effective ||
+       (fp_policy.action!=PerspectiveAction::Ladder && fp_policy.action!=PerspectiveAction::Pole && fp_policy.action!=PerspectiveAction::Mantle && fp_policy.action!=PerspectiveAction::Overhead && fp_policy.action!=PerspectiveAction::WaterExit) || !fp_policy.effective ||
        !orbit_valid || fp_blend<0.5 || cpu->gpr[20]!=player)return;
     // The actor loop saves a0 (camera) at sp+0x98. s3 is its render context,
     // not the camera pointer (0x8003490c / 0x80034abc).

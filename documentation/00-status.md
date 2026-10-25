@@ -1,5 +1,45 @@
 # Current status - 2026-10-04
 
+## 2026-10-25 - D35H accepted and closed; D35F1 queued
+
+User explicitly requested "lock in this work and close it out" after recording
+a separate backlog job. D35H is Done: OVERHEAD VIEW independently chooses
+First Person / Third Person for monkey bars and ceiling hangs, retaining the
+existing eye/hands and movement. [Note 230](230-d35h-overhead-perspective.md).
+
+New Todo D35F1 records the user's current UI slot-10 chain disappearing as
+Duke climbs toward the top. Backlog only: do not start it until selected.
+No chain investigation, fixture capture or gameplay change was performed.
+
+Accepted executable: `3fd09af36c36682d3ca94da1bba1c4bad4229dbd5060c4de3f9410bd78b3a164`.
+Authored implementation, tests, manual and job records included in authorized
+MusicMonsterMod closeout. Runtime patch re-export unchanged; all 51 changed/new
+files reproduce against the pinned clean framework index. No post-acceptance
+gameplay edits, rebuilds or launches. Recorded slot-9/campaign coverage limits
+remain; no player data changed. Launch: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-25 - D35H overhead perspective candidate (Needs playtest)
+
+The user reports first-person monkey bars already working. Confirmed in code:
+D35G's mode-7 mantle eye/hands cover ceiling hangs. OVERHEAD VIEW now independently
+offers First Person (default) / Third Person in Advanced Action Perspective,
+using the existing eye/hands and unchanged D08J4 movement. Schema 47;
+`--overhead-view`. See [note 230](230-d35h-overhead-perspective.md).
+
+Player build, controls/input/aim/near suites and 97 profile tests pass. Private
+historical grate route covers both choices, all travel directions, object
+transfers, edge holds, mouse turning, saved hangs and Ctrl/Space drops. Live
+menu cancel/confirm and global P pass. The current slot-9 copy loads on the
+moat walkway; its route and user acceptance of the option remain unverified.
+
+Candidate: `3fd09af36c36682d3ca94da1bba1c4bad4229dbd5060c4de3f9410bd78b3a164`.
+All diagnostic sessions stopped. No player settings/saves/cards, framework
+source, generated C or pins changed. No acceptance closeout, commit or push.
+Launch: `python3 recomp/tools/local/run.py`. P selects First Person;
+OVERHEAD VIEW is in OPTIONS > ADVANCED > ACTION PERSPECTIVE. CONFIRM saves it.
+
+
 ## 2026-10-24 - D35G accepted and closed out
 
 User: "lock it in, close it out!". D35G is Done. MANTLE VIEW offers First

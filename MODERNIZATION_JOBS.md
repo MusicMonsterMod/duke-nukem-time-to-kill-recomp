@@ -335,8 +335,9 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D35D | First-person push/pull and grab presentation | Done | D35A, D08T3, D08T7 |
 | D35E | First-person ladder climbing lifecycle | Done | D35A, D08J3, D08U, D08J1 |
 | D35F | First-person chain, pole and pole-class lamppost climbing | Done | D35A, D35E, D08J5 |
+| D35F1 | Chain disappears near the top while climbing (current UI slot 10) | Todo | D35F |
 | D35G | First-person mantles, ledge hangs and water climb-outs | Done | D35A, D35E, D08V, D08X, D08T8 |
-| D35H | First-person overhead and monkey-bar traversal | Todo | D35A, D35G, D08J4 |
+| D35H | First-person overhead and monkey-bar traversal | Done | D35A, D35G, D08J4 |
 | D35I | First-person climbing walls | Todo | D35A, D35E |
 | D35J | Damage and native inventory transient perspective gaps | Todo | D35 |
 | D35K | Native scripted and special-camera event inventory | Todo | D35 |
@@ -496,6 +497,31 @@ animation or settings edits, commit or push are part of this research result.
 
 **Accepted evidence:** [Note 228](documentation/228-d35f-first-person-poles.md). Build, native suites and 95 profile tests pass. Two private chain types, top/airborne catch, circle/look, descent/exits/drop, save/load, menu and Third Person comparison checked. User accepted and explicitly authorized closeout. Separate solid-pole/lamppost and natural no-floor-bottom coverage are not claimed.
 
+### D35F1 - Chain disappears near the top while climbing
+
+**Status:** Todo. **Dependencies:** D35F.
+
+**User report (2026-10-25):** Load current UI slot 10, climb up the chain,
+and the chain disappears as Duke gets closer to the top. The user requests
+that this be fixed later. This entry is backlog only; no investigation,
+fixture capture, gameplay edit, build or launch is authorized by recording it.
+
+**Desired result:** Keep the chain visibly coherent as Duke approaches and
+reaches its top, without breaking first-person presentation or climbing.
+
+**Reproduction and investigation when selected:** Copy the then-current
+slot-10 save into an isolated test directory and verify its identity against
+the reported location. Trace where the disappearance starts while ascending;
+compare First Person / Third Person, looking up/down, descent and the top
+exit. Establish the cause from rendering/camera evidence before choosing a
+fix; no cause or specific culling failure has been established.
+
+**Acceptance:** The reported chain remains visible where it should be through
+upper-chain approach and exit; no new visibility-through-walls artifacts;
+chain movement, attachment, drop/exit and other traversal stay intact.
+Compare both action perspective choices and preserve Vanilla. Record verified
+coverage and any remaining limits, then present the result for user playtest.
+
 ### D35G - First-person mantles, ledge hangs and water climb-outs
 
 **Status:** Done, user-accepted 2026-10-24. **Dependencies:** D35A, D35E, D08V, D08X, D08T8.
@@ -517,10 +543,10 @@ animation or settings edits, commit or push are part of this research result.
 
 ### D35H - First-person overhead and monkey-bar traversal
 
-**Status:** Todo. **Dependencies:** D35A, D35G, D08J4.
+**Status:** Done (user-accepted 2026-10-25). **Dependencies:** D35A, D35G, D08J4.
 **Research:** [D35 central audit](documentation/222-d35-first-person-audit.md).
 
-**Current behavior:** Ceiling climbable type flags 0x80, mode 7 149..151 use traversal orbit despite accepted camera-relative movement.
+**Current behavior:** D35G already supplies first-person eye/hands for ceiling hangs. The accepted D35H implementation separates OVERHEAD VIEW from MANTLE VIEW by ceiling-object ownership, retaining existing presentation and movement. [Note 230](documentation/230-d35h-overhead-perspective.md).
 
 **Desired result:** Implement below-ceiling eye and reachable hand presentation through catch, turn, advance, transfer and drop, without converting body turns into camera roll/sway.
 
@@ -528,7 +554,7 @@ animation or settings edits, commit or push are part of this research result.
 
 **Source references:** recomp/src/ttk/ceiling_hang.inc:ceiling_hang_state/ceiling_hang_update; modern_controls.cpp:mantle_state_early; pc_input.cpp:ceiling_hang_ready bridge.
 
-**Reproduction and tests:** Private historical overhead slot-3 route after confirming fixture identity; diagonal travel, turn-in-place, mid-span hold, low ceiling, edge/drop and regrab; compare body trajectory under both settings.
+**Reproduction and tests:** User reports working monkey bars from current slot 9; its copied save loads at the moat walkway and the route remains unverified here. Private historical overhead slot-3 grate fixture verified; diagonal travel, turn-in-place, mid-span hold, low ceiling, edge/drop and regrab; compare body trajectory under both settings.
 
 **Acceptance:** FP eye clears ceiling and arms; no feedback loop between camera-relative movement and body heading; no mid-span accidental drop; legacy/Vanilla movement and handoffs preserved.
 
@@ -18485,3 +18511,37 @@ explicitly authorized MusicMonsterMod commit/push closeout. Runtime patch
 re-export is unchanged and reproduces all 51 changed/new files against the
 pinned clean framework index. No post-acceptance gameplay edits, rebuilds or
 launches. Coverage limits remain recorded in note 229; no next job started.
+
+## 2026-10-25 - D35H overhead perspective candidate (Needs playtest)
+
+The user reports first-person monkey bars already working. Confirmed in code:
+D35G's mode-7 mantle eye/hands cover ceiling hangs. OVERHEAD VIEW now independently
+offers First Person (default) / Third Person in Advanced Action Perspective,
+using the existing eye/hands and unchanged D08J4 movement. Schema 47;
+`--overhead-view`. See [note 230](documentation/230-d35h-overhead-perspective.md).
+
+Player build, controls/input/aim/near suites and 97 profile tests pass. Private
+historical grate route covers both choices, all travel directions, object
+transfers, edge holds, mouse turning, saved hangs and Ctrl/Space drops. Live
+menu cancel/confirm and global P pass. The current slot-9 copy loads on the
+moat walkway; its route and user acceptance of the option remain unverified.
+
+Candidate: `3fd09af36c36682d3ca94da1bba1c4bad4229dbd5060c4de3f9410bd78b3a164`.
+All diagnostic sessions stopped. No player settings/saves/cards, framework
+source, generated C or pins changed. No acceptance closeout, commit or push.
+Launch: `python3 recomp/tools/local/run.py`. P selects First Person;
+OVERHEAD VIEW is in OPTIONS > ADVANCED > ACTION PERSPECTIVE. CONFIRM saves it.
+
+## 2026-10-25 - D35H accepted and closed; D35F1 backlog only
+
+User: "i want one backlog job standing up now but do not work on it" for the
+slot-10 chain disappearing near the top, followed by "lock in this work and
+close it out. we'll do the chain work later". D35F1 added as Todo; no chain
+investigation or implementation started. D35H accepted as Done with explicit
+implementation/documentation/commit/push closeout authorization.
+
+The tested D35H executable is unchanged. Runtime patch re-export is unchanged
+and verifies against the pinned clean framework index: all 51 changed/new
+files match. No post-acceptance gameplay edits, rebuilds or launches. Recorded
+coverage limits in [note 230](documentation/230-d35h-overhead-perspective.md)
+remain; acceptance does not establish additional slot-9 or campaign testing.

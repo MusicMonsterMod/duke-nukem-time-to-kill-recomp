@@ -254,12 +254,12 @@ int main(int argc,char** argv) {
     const char* tight_env=std::getenv("DNTTK_TIGHT_CAMERA");
     const bool tight_enabled=tight_env && !std::strcmp(tight_env,"1");
     // D35G: water exits and ledges have eye paths; other traversal stays gated.
-    for(unsigned mask=0;mask<4096;++mask) {
+    for(unsigned mask=0;mask<8192;++mask) {
         ttk::PerspectiveFacts f{};
         f.selected=mask&1;f.active=mask&2;f.water_exit=mask&4;f.push=mask&8;
-        f.traversal=mask&16;f.committed=mask&32;f.fall=mask&64;f.swim=mask&128;f.jet=mask&256;f.ladder=mask&512;f.pole=mask&1024;f.mantle=mask&2048;
+        f.traversal=mask&16;f.committed=mask&32;f.fall=mask&64;f.swim=mask&128;f.jet=mask&256;f.ladder=mask&512;f.pole=mask&1024;f.mantle=mask&2048;f.overhead=mask&4096;
         const auto r=ttk::resolve_perspective(f);
-        const bool old=f.water_exit || f.mantle || f.push || f.ladder || f.pole || !f.traversal || f.committed || f.fall;
+        const bool old=f.overhead || f.water_exit || f.mantle || f.push || f.ladder || f.pole || !f.traversal || f.committed || f.fall;
         assert(r.capable==old && r.effective==(f.selected && old));
         const char* reason=!f.selected?"off":!old?"traversal":f.active?"active":"input-suspended";
         assert(!std::strcmp(ttk::perspective_reason(r.reason),reason));
@@ -275,7 +275,7 @@ int main(int argc,char** argv) {
     assert(!ttk::parse_action_view("third",choice) && choice==ttk::ActionView::LegacyThird);
     assert(!ttk::parse_action_view(nullptr,choice));
     assert(ttk::parse_action_view("first",choice) && choice==ttk::ActionView::First);
-    std::puts("PASS: D35G presentation policy covers all 4096 fact combinations; denials and enum validation");
+    std::puts("PASS: D35G presentation policy covers all 8192 fact combinations; denials and enum validation");
     setenv("DNTTK_DRAW_DISTANCE","extended",1);
     assert(argc>=3 && argc<=5);
     std::ifstream exe(argv[1],std::ios::binary);exe.seekg(2048);exe.read((char*)ram+0x10000,0xbb000);assert(exe.gcount()==0xbb000);
@@ -3192,6 +3192,42 @@ int main(int argc,char** argv) {
                 psx_mod_write_half(p+0x60,63);++save_loads;frame();
                 assert(metric("\"blend\":")==1);
                 std::puts("PASS: D35D push/pull/grab presentation, choice, pause, load, replay and movement isolation");
+            }
+            // D35H: overhead object ownership takes precedence over Mantle,
+            // without changing attachment/body state or movement permissions.
+            {
+                const uint32_t object=0x801ea000,table=0x801e8000;
+                const auto old_table=psx_mod_read_word(0x800d2660),old_owner=psx_mod_read_word(p+0x17c);
+                const auto equip=psx_mod_read_byte(p+0x3b8);psx_mod_write_byte(p+0x3b8,0);
+                const auto flags=psx_mod_read_word(table+28*759);
+                psx_mod_write_word(0x800d2660,table);psx_mod_write_half(object+0x2c,759);
+                psx_mod_write_word(p+0x17c,object);
+                for(unsigned kind:{0x101092u,0xc0u,0u}) {
+                    psx_mod_write_word(table+28*759,kind);
+                    for(unsigned pose:{149u,150u,151u}) {
+                        psx_mod_write_half(p+0x60,pose);
+                        psx_mod_write_byte(p+0x22c,7);psx_mod_write_byte(p+0x22d,7);
+                        for(const char* choice:{"first","legacy-third"}) {
+                            const bool eye=!std::strcmp(choice,"first");
+                            setenv("DNTTK_OVERHEAD_VIEW",choice,1);
+                            setenv("DNTTK_MANTLE_VIEW",eye?"legacy-third":"first",1);
+                            ++save_loads;frame();
+                            assert(metric("\"blend\":")==int(kind==0x101092u?eye:!eye));
+                            assert(std::strstr(ttk::controls_debug_json(),kind==0x101092u?"\"action\":\"overhead\"":"\"action\":\"mantle\""));
+                            assert(psx_mod_read_word(p+0x17c)==object && psx_mod_read_half(p+0x60)==pose);
+                            assert(!ttk::movement_ready() && !ttk::locomotion_input_ready());
+                            ttk::input.active=false;frame();assert(metric("\"blend\":")==int(kind==0x101092u?eye:!eye));
+                            ttk::input.active=true;ttk::input.first_person=false;++save_loads;frame();assert(metric("\"blend\":")==0);
+                            ttk::input.first_person=true;
+                        }
+                    }
+                }
+                unsetenv("DNTTK_OVERHEAD_VIEW");unsetenv("DNTTK_MANTLE_VIEW");
+                psx_mod_write_word(0x800d2660,old_table);psx_mod_write_word(p+0x17c,old_owner);
+                psx_mod_write_word(table+28*759,flags);psx_mod_write_byte(p+0x3b8,equip);
+                psx_mod_write_half(p+0x60,63);psx_mod_write_byte(p+0x22c,0);psx_mod_write_byte(p+0x22d,0);
+                ++save_loads;frame();assert(metric("\"blend\":")==1);
+                std::puts("PASS: D35H overhead versus ledge/crate ownership, independent choices, pause, load, global view and unchanged attachment");
             }
             // D35G: every native ledge lifecycle pose, independent choices,
             // save acquisition and paused presentation. No movement permission.

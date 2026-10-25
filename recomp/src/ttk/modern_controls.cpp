@@ -242,6 +242,11 @@ static ActionView ladder_view() {
     parse_action_view(ttk_live_env("DNTTK_LADDER_VIEW"),choice);
     return choice;
 }
+static ActionView overhead_view() {
+    ActionView choice=ActionView::First;
+    parse_action_view(ttk_live_env("DNTTK_OVERHEAD_VIEW"),choice);
+    return choice;
+}
 static ActionView mantle_view() {
     ActionView choice=ActionView::First;
     parse_action_view(ttk_live_env("DNTTK_MANTLE_VIEW"),choice);

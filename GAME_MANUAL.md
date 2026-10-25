@@ -751,6 +751,11 @@ like walking: W goes where the camera looks, A and D go left and right on
 screen, S comes back toward the camera, and the mouse camera stays free. Duke
 turns to face the way you steer and goes hand over hand. At the end of the
 ceiling he stops and keeps hanging. Press **Ctrl** or **Space** to let go.
+With global First Person selected, **OVERHEAD VIEW** in OPTIONS > ADVANCED >
+ACTION PERSPECTIVE chooses FIRST PERSON (default) or THIRD PERSON. CONFIRM
+applies and saves it. This is separate from MANTLE VIEW and changes only the
+view; the existing eye and native hands are retained. The launcher also accepts
+`--overhead-view first` or `--overhead-view legacy-third` (saved preferences).
 The original game steers like a tank here (Up/Down along Duke's facing,
 Left/Right only turn him), and Vanilla keeps that.
 

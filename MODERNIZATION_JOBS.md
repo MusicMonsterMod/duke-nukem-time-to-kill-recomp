@@ -1,5 +1,7 @@
 # Time to Kill — modernization jobs
 
+**Latest accepted job (2026-10-25): D08T9 level-5 dumpster repeat grab is Done. User: "perfect! lock it in and close it out". Implementation and documentation closeout authorized. [Note 243](documentation/243-d08t9-level5-dumpster.md). No next job started.**
+
 **Latest accepted job (2026-10-25): D35G1 slot-5 jump edge artifact is Done. User authorized lock-in and closeout. D08A23 instant night vision and D08A24 automatic Bio Mask remain Todo with initial research. [Note 242](documentation/242-d35g1-jump-edge-artifact.md). No next job started.**
 
 **Latest accepted job (2026-10-25): D35K4 slot-5 wheel turn is Done. User authorized lock-in and closeout. [Note 241](documentation/241-d35k4-wheel-first-person.md). No next job started.**
@@ -194,7 +196,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08T6 | Push/pull ownership and lock-zone investigation (recent slots) | Done | D08T3, D08T4, D08T5 |
 | D08T7 | Regrab movable objects throughout their permitted travel lane | Done (user-accepted 2026-10-24) | D08T6 |
 | D08T8 | Apartment alley platform mantle stalls: W cannot climb, Space cannot drop | Done | D08V, D08X, D08T3 |
-| D08T9 | Level-5 dumpster cannot be pushed again after first push (slot 8, bug 2) | Todo | D08T3, D08T7 |
+| D08T9 | Level-5 dumpster cannot be pushed again after first push (slot 8, bug 2) | Done | D08T3, D08T7 |
 | D08T4 | Save slot 10 dumpster: the grab prompt shows but it will not move; find out whether it is meant to be fixed (Vanilla check) | Done (user-accepted 2026-10-20; fixed by design, no prompt there now) | D08T2 |
 | D08V | Sewer mantle/hang modern-control coverage (slot 12 area) | Done | D08, D08B |
 | D08W | Subway shallow-water sideways jumps (A/D + Space jumps forward) | Done | D08, D08C |
@@ -492,18 +494,25 @@ schemes, without bypassing native weapon restrictions.
 
 ### D08T9 - Level-5 dumpster cannot be pushed again (bug 2)
 
-**Status:** Todo. **Dependencies:** D08T3, D08T7 (Done).
+**Status:** Done (user-accepted 2026-10-25). **Dependencies:** D08T3, D08T7 (Done).
 
 **User-confirmed report (2026-10-25):** In current slot 8, after pushing the
 level-5 dumpster once, it cannot be pushed again. The user confirmed this in
-their own test. Repeat pulling and the cause remain unverified; no agent
-reproduction or investigation has started.
+their own test. Investigation reproduced loss of grab permission after Duke
+crosses onto a floor tile with the original grab bit clear. Short regrabs work.
 
 **Acceptance:** Reproduce first movement followed by release/regrab and a
 second push/pull on a private slot-8 copy. Establish intended
 travel limits and object behavior; restore repeat movement where permitted
 without moving fixed objects or bypassing genuine limits. Verify both
 movement directions and repeated release/regrab cycles.
+
+**Candidate (2026-10-25):** Extend verified placement acquisition to this
+LEVEL05 Z lane. Repeated push/pull, release/regrab, private boundary save/load,
+60/120 FPS, both travel limits, pause/resume and fixed-scenery regression pass.
+Build and controls/input/aim native suites pass. User accepted the result and
+explicitly authorized lock-in and closeout.
+[Note 243](documentation/243-d08t9-level5-dumpster.md) records evidence and limits.
 
 ### D35N1 - Missing mirror voice line at slot 6 (bug 3)
 
@@ -19270,3 +19279,25 @@ Todo; no next job is started. No post-acceptance gameplay changes, rebuilds or
 launches. Note 242 retains the diagnostic coverage and limitations; acceptance
 does not imply additional routes. Accepted executable remains
 `58821f8d6191768dde25a04940386ace8d98b5caf0ca52a7ae860d6bad37094f`.
+
+## 2026-10-25 - D08T9 level-5 dumpster repeat grabs (Needs playtest)
+
+User selected D08T9. Private slot 8 reproduced loss of original floor grab
+permission after longer movement. Short cycles worked. Added the verified
+LEVEL05 Z lane to placement acquisition; original line-up and stationary
+support/collision checks still apply. Fixed scenery and Vanilla stay excluded.
+Build and controls/input/aim native tests pass. Private 60/120 FPS routes cover
+repeated push/pull and release/regrab, boundary save/load, both limits and
+pause/resume; alley and fixed-dumpster regressions pass. All 40 source
+save/card hashes and mtimes are unchanged. See [note 243](documentation/243-d08t9-level5-dumpster.md).
+User playtest pending. No framework/pin/generated changes, commit or push.
+
+## 2026-10-25 - D08T9 accepted and closed
+
+User: "perfect! lock it in and close it out". D08T9 is Done. The verified
+LEVEL05 dumpster retains repeat grab permission along its Z lane, with fixed
+scenery and movement limits preserved. Authored implementation, regression tests,
+manual and documentation are included in the authorized MusicMonsterMod
+commit/push. No post-acceptance gameplay changes, build or launch. Runtime
+patch export is unchanged; all 51 files match the patched clean pinned
+framework. No player data changed and no next job started.

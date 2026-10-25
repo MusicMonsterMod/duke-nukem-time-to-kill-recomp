@@ -652,6 +652,32 @@ int main(int argc,char** argv) {
                 acquire();assert(psx_mod_read_half(p+0x60)==121); // old beyond-limit save
                 psx_mod_write_half(p+0x60,63);psx_mod_write_word(object+12,13830);
                 assert(!ttk::push_contact_ready());refused();
+                // D08T9: a fresh LEVEL05 boundary load can acquire the Z lane,
+                // in either direction, without granting mobility to its scenery.
+                if(argc==5) {
+                    constexpr unsigned span=14148;
+                    std::vector<uint8_t> overlay(ram+0xca968,ram+0xca968+span);
+                    std::ifstream file(std::string(argv[4])+"/LEVEL05.OVR",std::ios::binary);
+                    file.read((char*)ram+0xca968,span);assert(file.gcount()==span);++g_dirty_ram_code_gen;
+                    psx_mod_write_word(object+4,uint32_t(-61959));psx_mod_write_word(object+12,uint32_t(-11454));
+                    psx_mod_write_half(object+0x1c,1023);
+                    assert(ttk::push_contact_ready());
+                    psx_mod_write_half(p+0x24,1024);refused(); // wrong axis
+                    psx_mod_write_half(p+0x24,0);
+                    hull_ray_hit=1;refused();hull_ray_hit=0;
+                    lookahead_drop=512;refused();lookahead_drop=0;
+                    lineup_ok=0;refused();lineup_ok=1;
+                    ttk::modern=false;refused();ttk::modern=true;
+                    acquire();assert(psx_mod_read_half(p+0x60)==121);
+                    psx_mod_write_half(p+0x60,63);psx_mod_write_half(p+0x24,2048);
+                    psx_mod_write_word(object+12,uint32_t(-14000));
+                    acquire();assert(psx_mod_read_half(p+0x60)==121);
+                    assert(psx_mod_read_byte(floor+4)==0xfe);
+                    psx_mod_write_half(p+0x60,63);psx_mod_write_word(object+4,uint32_t(-61958));
+                    assert(!ttk::push_contact_ready());refused();
+                    std::copy(overlay.begin(),overlay.end(),ram+0xca968);++g_dirty_ram_code_gen;
+                    std::puts("PASS: D08T9 Z-lane boundary/midpoint acquisition, both facings, axis/support/wall/profile/placement refusal");
+                }
                 for(unsigned i=0;i<0x8a4/4;++i)psx_mod_write_word(p+4*i,keep[i]);
                 std::puts("PASS: D08T7 fresh boundary acquisition, old save, line-up/support/wall/axis/state/profile refusal, unchanged floor");
             }
@@ -1354,6 +1380,12 @@ int main(int argc,char** argv) {
                 psx_mod_write_half(object+0x2c,924);psx_mod_write_word(object+8,5632);psx_mod_write_half(object+0x1c,3072);
                 for(int z:{33268,32244,30196}) {psx_mod_write_word(object+12,z);assert(ttk::push_contact_ready()==(level.number==6));}
                 psx_mod_write_word(object+12,30197);assert(!ttk::push_contact_ready());
+                psx_mod_write_half(object+0x2c,165);psx_mod_write_word(object+8,uint32_t(-9728));
+                psx_mod_write_word(object+4,uint32_t(-61959));psx_mod_write_half(object+0x1c,1023);
+                for(int z:{-15864,-14000,-11454}) {
+                    psx_mod_write_word(object+12,uint32_t(z));assert(ttk::push_contact_ready()==(level.number==5));
+                }
+                psx_mod_write_word(object+4,uint32_t(-61958));assert(!ttk::push_contact_ready());
                 psx_mod_write_word(0x800d2660,old_table);psx_mod_write_word(p+0x174,old_contact);psx_mod_write_word(p+0x48,old_floor);
             }
             previous_tag=tag;

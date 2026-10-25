@@ -1,5 +1,38 @@
 # Current status - 2026-10-04
 
+## 2026-10-25 - D08T9 accepted and closed
+
+User: "perfect! lock it in and close it out". D08T9 is Done. Repeat grabs
+on the verified LEVEL05 dumpster Z lane are accepted. Implementation, tests,
+manual and documentation closeout is authorized as MusicMonsterMod. No next
+job is started.
+
+Accepted executable:
+`5ea6c549eb2fc1d3cb4ed8c8f14af031927b4b67556dd16ccfc3d4a6212ba5cc`.
+No post-acceptance gameplay changes, builds or launches. Player data and
+framework pins are untouched. Runtime patch export is unchanged; all 51 files
+match the patched clean dependency. [Note 243](243-d08t9-level5-dumpster.md)
+retains coverage and limits. Launch: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-25 - D08T9 level-5 dumpster candidate (Needs playtest)
+
+Private current slot 8 reproduces loss of regrab after longer movement:
+Duke crosses onto a floor tile whose original grab permission is clear.
+The verified LEVEL05 movable dumpster now has Z-lane acquisition, retaining
+original line-up, support and collision checks. The separate fixed dumpster
+is unchanged. Build and controls/input/aim suites pass; private 60/120 FPS
+routes pass repeated push/pull, release/regrab, boundary save/load, both lane
+limits and pause/resume. Alley and fixed-scenery regressions pass. All 40
+player source files retain their hashes and mtimes.
+
+Candidate `5ea6c549eb2fc1d3cb4ed8c8f14af031927b4b67556dd16ccfc3d4a6212ba5cc`.
+User playtest remains: slot 8, push, release, reapproach, grab and try W/S.
+[Note 243](243-d08t9-level5-dumpster.md) records the exact coverage and limits.
+No framework/generated/pin changes, acceptance closeout, commit or push.
+Launch: `python3 recomp/tools/local/run.py`.
+
+
 ## 2026-10-25 - D35G1 accepted and closed
 
 User: "lock it in and close it out!!". D35G1 is Done. Hidden viewmodel arms

@@ -52,27 +52,29 @@ static bool push_floor_allows() {
     const uint32_t floor=psx_mod_read_word(player+0x48);
     return floor>=0x80010000u && floor<0x80200000u-4 && (psx_mod_read_byte(floor+4)&1);
 }
-// D08T7: authored mobility for the verified X travel lanes. Position along
+// D08T7/D08T9: authored mobility for verified travel lanes. Position along
 // the lane is deliberately not identity: a loaded boundary save must work on
 // its first grab. Overlay + type + lane/rotation distinguish fixed scenery,
 // including LEVEL05's otherwise identical dumpster. No floor bits are changed.
 // Keep this data separate from acquisition and collision for future placements.
-struct PushLane {uint32_t tag;unsigned type;int32_t y,z;unsigned yaw;};
+struct PushLane {uint32_t tag;unsigned type;int32_t y,cross;unsigned yaw;bool along_z=false;};
 static constexpr PushLane push_lanes[]={
     {3,165,-9728,13829,2048}, // LEVEL00 alley
     {9,924,5632,33268,3072}, // LEVEL06 symbol blocks, recent slots 9-11
     {9,924,5632,32244,3072},
     {9,924,5632,30196,3072},
+    {8,165,-9728,-61959,1023,true}, // LEVEL05 movable dumpster, Z travel
 };
-static bool push_lane_allows(uint32_t object) {
-    if(!input_modernized() || !object_type_flags(object) || !identity())return false;
+static const PushLane* push_lane(uint32_t object) {
+    if(!input_modernized() || !object_type_flags(object) || !identity())return nullptr;
     for(const auto& lane:push_lanes)
         if(identity_tag==lane.tag && psx_mod_read_half(object+0x2c)==lane.type &&
            int32_t(psx_mod_read_word(object+8))==lane.y &&
-           int32_t(psx_mod_read_word(object+12))==lane.z &&
-           (psx_mod_read_half(object+0x1c)&4095)==lane.yaw)return true;
-    return false;
+           int32_t(psx_mod_read_word(object+(lane.along_z?4:12)))==lane.cross &&
+           (psx_mod_read_half(object+0x1c)&4095)==lane.yaw)return &lane;
+    return nullptr;
 }
+static bool push_lane_allows(uint32_t object) {return push_lane(object)!=nullptr;}
 static void push_lane_acquire(CPUState* cpu);
 // Duke is touching a pushable object on normal ground (idle, gait or wall bump)
 // where the original grab can start.
@@ -255,9 +257,11 @@ static void push_lane_acquire(CPUState* cpu) {
     for(unsigned i=0;i<0x8a4/4;++i)saved[i]=psx_mod_read_word(player+4*i);
     int32_t lined=0;
     const bool aligned=original_call(cpu,0x8007ec4c,0x113,&lined) && (lined&0xffff);
-    // The extra acquisition permission belongs to these X lanes. The original
-    // line-up computes target facing at +0x24; it still rejects oblique grabs.
-    const bool along=((((psx_mod_read_half(player+0x24)+512)&4095)/1024)&1)!=0;
+    // The original line-up computes target facing at +0x24. Only the
+    // placement's travel axis gains permission; oblique grabs still fail.
+    const auto* lane=push_lane(object);
+    const bool facing_z=((((psx_mod_read_half(player+0x24)+512)&4095)/1024)&1)==0;
+    const bool along=lane && facing_z==lane->along_z;
     const bool clear=aligned && along && push_step_clear(cpu,object,0,0);
     if(!clear) {
         for(unsigned i=0;i<0x8a4/4;++i)psx_mod_write_word(player+4*i,saved[i]);

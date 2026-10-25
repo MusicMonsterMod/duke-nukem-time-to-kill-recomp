@@ -1577,8 +1577,9 @@ The first-level alley dumpster stops short of the ladder platform, at the
 position recorded in the reference slot 7, leaving room for the ladder approach.
 You can reverse while keeping your grip, or let go, walk back into contact and
 hold Grab again to pull it back. This also works after loading it at the limit.
-The alley dumpster and the three verified medieval symbol-block lanes retain
-this grab permission along their travel lane; face an end squarely. Collision,
+The alley dumpster, the movable level-5 dumpster and the three verified medieval
+symbol-block lanes retain this grab permission along their travel lane; face an
+end squarely. The separate fixed level-5 dumpster stays fixed. Collision,
 floor support and standing room still decide whether movement is safe.
 Older saves with the dumpster closer to the ladder keep their position and can
 retreat when a safe grip and supported path are available. Modern standing and crouched walks can leave the

@@ -1,5 +1,7 @@
 # Time to Kill — modernization jobs
 
+**Latest accepted job (2026-10-25): D35I first-person walls and fluid diagonal WASD is Done. User: "fully accepted! lock it in and close it out". [Note 232](documentation/232-d35i-wall-climbing.md).**
+
 **Latest accepted job (2026-10-25): D35F1 chain visibility is Done. User: "totally accept. lock it in and close us out". [Note 231](documentation/231-d35f1-chain-visibility.md).**
 
 **Latest accepted job (2026-10-24): D35G first-person mantles, ledge hangs and water climb-outs is Done. User: "lock it in, close it out!". [Note 229](documentation/229-d35g-first-person-mantles.md).**
@@ -340,7 +342,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D35F1 | Chain disappears near the top while climbing (current UI slot 10) | Done | D35F |
 | D35G | First-person mantles, ledge hangs and water climb-outs | Done | D35A, D35E, D08V, D08X, D08T8 |
 | D35H | First-person overhead and monkey-bar traversal | Done | D35A, D35G, D08J4 |
-| D35I | First-person climbing walls | Todo | D35A, D35E |
+| D35I | First-person climbing walls and fluid diagonal WASD | Done | D35A, D35E |
 | D35J | Damage and native inventory transient perspective gaps | Todo | D35 |
 | D35K | Native scripted and special-camera event inventory | Todo | D35 |
 | D35L | First-person death and respawn presentation research | Todo | D35 |
@@ -566,12 +568,12 @@ coverage and any remaining limits, then present the result for user playtest.
 
 ### D35I - First-person climbing walls
 
-**Status:** Todo. **Dependencies:** D35A, D35E.
+**Status:** Done (user-accepted 2026-10-25). **Dependencies:** D35A, D35E.
 **Research:** [D35 central audit](documentation/222-d35-first-person-audit.md).
 
 **Current behavior:** Mode-3 climb predicate covers wall animations 198..205, but historical free-camera testing did not include a climbing-wall route.
 
-**Desired result:** First identify a real wall fixture and transfer states; add panel-clear first-person climbing presentation using shared lifecycle support only where verified.
+**Desired result:** Verify the user-provided current UI slot-10 wall and transfer states; add panel-clear first-person climbing presentation. User selection 2026-10-25 also authorizes fluid Modernized WASD and diagonal wall climbing, retaining native attachment, boundary/transfer checks and Vanilla behavior.
 
 **Perspective/configuration:** WALL CLIMB VIEW: First-Person / Legacy Third-Person.
 
@@ -579,7 +581,7 @@ coverage and any remaining limits, then present the result for user playtest.
 
 **Reproduction and tests:** Locate native climbable-wall object and record flags/overlay; test vertical/lateral movement, top/bottom/side boundary, transfer/drop, armed approach and saved attachment.
 
-**Acceptance:** Actual wall route documented before implementation; continuous safe FP for supported lifecycle, independent mouse look and coherent hands; no change to native travel or ladder/pole behavior.
+**Acceptance:** Actual wall route documented before implementation; continuous safe FP for supported lifecycle, independent mouse look and coherent hands; fluid Modernized WASD with normalized diagonals and prompt stop/reversal; retain native wall boundaries, transfers and exits, with ladder/pole and Vanilla behavior unchanged.
 
 **Regression risks:** Unverified object mapping, side edges, assumed ladder equivalence and broad animation ranges.
 
@@ -18585,3 +18587,41 @@ all 51 changed/new files against the pinned clean framework index. No pins chang
 No post-acceptance gameplay edits, rebuilds or launches; no player data touched.
 Accepted executable: `c604343e8378f0f8dcb438e892fa4e1082f3d94ad58cabbfba6085cc1303b306`.
 No next job started. Launch: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-25 - D35I wall climbing candidate (Needs playtest)
+
+User selected D35I, supplied current UI slot 10 and requested fluid diagonal
+Modernized WASD too. The private fixture confirms wall types 756/757, native
+197 mount, 147/155 catch, 198-205 climbing and 206 top exit. WALL CLIMB VIEW
+now independently chooses First Person / Third Person (schema 48). Modern
+wall movement is continuous, normalized on diagonals and stops/reverses on
+input, using native per-axis clearance/attachment queries and native exits.
+
+Player build, controls/input/aim/near suites and 98 profile tests pass. Private
+routes cover mounting/catching, eight directions, panel transfers, boundaries,
+upper-left exit, bottom step-off, Space drop, saved attachment, pause/resume,
+both view choices and live menu persistence. Vanilla retains native movement
+and camera. Final lifecycle runs have 752/734 Wall-owned samples matching
+First Person/Third Person choices. User framing/feel acceptance and broader
+campaign coverage remain. [Note 232](documentation/232-d35i-wall-climbing.md).
+
+Candidate executable: `6b2b0ec48fa56c3fbd3a0a5aefac23dcb111ea4c95d9e66010f989e5408a2d42`.
+Diagnostic sessions stopped; player slot-10 hashes/mtimes unchanged. No player
+settings/cards changed, no framework edits or pin changes, and no hand-edited
+generated C. No acceptance closeout, commit or push. No next job started.
+
+
+## 2026-10-25 - D35I accepted and closeout authorized
+
+User: "fully accepted! lock it in and close it out". D35I is Done.
+The first-person wall lifecycle, separate WALL CLIMB VIEW and fluid Modern
+WASD/diagonal movement are accepted. [Note 232](documentation/232-d35i-wall-climbing.md)
+records implementation, tests and explicit coverage limits.
+
+Accepted executable: `6b2b0ec48fa56c3fbd3a0a5aefac23dcb111ea4c95d9e66010f989e5408a2d42`.
+Authored implementation, tests, manual and documentation included in authorized
+MusicMonsterMod closeout. Runtime patch re-export unchanged; all 51 changed/new
+files match the patch applied to the pinned clean framework index. No dependency
+pins changed. No post-acceptance gameplay edits, rebuilds or launches. Player
+data unchanged. No next job started.

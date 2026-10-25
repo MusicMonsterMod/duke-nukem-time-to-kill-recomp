@@ -97,8 +97,15 @@ static unsigned overclock_renewals;extern "C" void psx_overclock_renew(void){++o
 // D08Z1: the isolated flight sweep 0x8007a98c reports `jw_result` with the
 // normal (jw_nx, 0, jw_nz) for its first `jw_hits` calls, then a clear path.
 static unsigned pole_draw_calls;
+static int wall_results[4]{};static std::vector<std::array<int,5>> wall_queries;
 static int jw_result,jw_hits,jw_sweeps;static int32_t jw_nx,jw_nz;
 extern "C" void psx_dispatch_call(CPUState* cpu,uint32_t address,uint32_t) {
+    if(address==0x8007d65c) {
+        const uint32_t p=0x800d7198;const unsigned dir=cpu->gpr[5];assert(dir<4 && cpu->gpr[6]==0);
+        wall_queries.push_back({int(dir),int16_t(psx_mod_read_half(p+0xfc)),int16_t(psx_mod_read_half(p+0xfe)),int16_t(psx_mod_read_half(p+0x100)),int(psx_mod_read_word(0x801e4018))});
+        psx_mod_write_word(p+0x174,0x1234);psx_mod_write_word(p+0x1c8,42);
+        cpu->gpr[2]=wall_results[dir];cpu->pc=0;return;
+    }
     if(address==0x80031d10) {
         assert(cpu->gpr[4]==0x800d6eb0 && cpu->gpr[5]==0x801ea000 && cpu->gpr[6]==0x800d2210);
         ++pole_draw_calls;
@@ -262,12 +269,12 @@ int main(int argc,char** argv) {
     const char* tight_env=std::getenv("DNTTK_TIGHT_CAMERA");
     const bool tight_enabled=tight_env && !std::strcmp(tight_env,"1");
     // D35G: water exits and ledges have eye paths; other traversal stays gated.
-    for(unsigned mask=0;mask<8192;++mask) {
+    for(unsigned mask=0;mask<16384;++mask) {
         ttk::PerspectiveFacts f{};
         f.selected=mask&1;f.active=mask&2;f.water_exit=mask&4;f.push=mask&8;
-        f.traversal=mask&16;f.committed=mask&32;f.fall=mask&64;f.swim=mask&128;f.jet=mask&256;f.ladder=mask&512;f.pole=mask&1024;f.mantle=mask&2048;f.overhead=mask&4096;
+        f.traversal=mask&16;f.committed=mask&32;f.fall=mask&64;f.swim=mask&128;f.jet=mask&256;f.ladder=mask&512;f.pole=mask&1024;f.mantle=mask&2048;f.overhead=mask&4096;f.wall=mask&8192;
         const auto r=ttk::resolve_perspective(f);
-        const bool old=f.overhead || f.water_exit || f.mantle || f.push || f.ladder || f.pole || !f.traversal || f.committed || f.fall;
+        const bool old=f.wall || f.overhead || f.water_exit || f.mantle || f.push || f.ladder || f.pole || !f.traversal || f.committed || f.fall;
         assert(r.capable==old && r.effective==(f.selected && old));
         const char* reason=!f.selected?"off":!old?"traversal":f.active?"active":"input-suspended";
         assert(!std::strcmp(ttk::perspective_reason(r.reason),reason));
@@ -3237,6 +3244,76 @@ int main(int argc,char** argv) {
                 ++save_loads;frame();assert(metric("\"blend\":")==1);
                 std::puts("PASS: D35H overhead versus ledge/crate ownership, independent choices, pause, load, global view and unchanged attachment");
             }
+            // D35I: wall object ownership takes precedence over Mantle,
+            // without changing attachment/body state or movement permissions.
+            {
+                const uint32_t object=0x801ea000,table=0x801e8000;
+                const auto old_table=psx_mod_read_word(0x800d2660),old_owner=psx_mod_read_word(p+0x17c);
+                const auto equip=psx_mod_read_byte(p+0x3b8);psx_mod_write_byte(p+0x3b8,0);
+                const auto flags=psx_mod_read_word(table+28*759);
+                psx_mod_write_word(0x800d2660,table);psx_mod_write_half(object+0x2c,759);
+                psx_mod_write_word(p+0x17c,object);
+                for(unsigned kind:{0x108102u,0x200u,0x400u}) {
+                    psx_mod_write_word(table+28*759,kind);
+                    for(unsigned pose:{147u,148u,155u,198u,199u,200u,201u,202u,203u,204u,205u}) {
+                        psx_mod_write_half(p+0x60,pose);
+                        psx_mod_write_byte(p+0x22c,3);psx_mod_write_byte(p+0x22d,3);
+                        for(const char* choice:{"first","legacy-third"}) {
+                            const bool eye=!std::strcmp(choice,"first");
+                            setenv("DNTTK_WALL_VIEW",choice,1);
+                            setenv("DNTTK_LADDER_VIEW","legacy-third",1);setenv("DNTTK_POLE_VIEW","legacy-third",1);
+                            ++save_loads;frame();
+                            assert(metric("\"blend\":")==int(kind==0x108102u && eye));
+                            if(kind==0x108102u)assert(std::strstr(ttk::controls_debug_json(),"\"action\":\"wall\""));
+                            assert(psx_mod_read_word(p+0x17c)==object && psx_mod_read_half(p+0x60)==pose);
+                            assert(!ttk::movement_ready() && !ttk::locomotion_input_ready());
+                            ttk::input.active=false;frame();assert(metric("\"blend\":")==int(kind==0x108102u && eye));
+                            ttk::input.active=true;ttk::input.first_person=false;++save_loads;frame();assert(metric("\"blend\":")==0);
+                            ttk::input.first_person=true;
+                        }
+                    }
+                }
+                // Continuous axes use native probes, normalized diagonal speed,
+                // query-only shifted hand poses, rollback and no residual motion.
+                psx_mod_write_word(table+28*759,0x108102);
+                const auto model=psx_mod_read_word(p+0x40),mats=psx_mod_read_word(p+0x3c);
+                const auto up=psx_mod_read_half(p+0x74),yaw=psx_mod_read_half(p+0x1c);
+                const auto block=psx_mod_read_word(p+0x224),ticks=psx_mod_read_word(0x800d21fc);
+                uint32_t xyz[3];for(int k=0;k<3;++k)xyz[k]=psx_mod_read_word(p+4+4*k);
+                psx_mod_write_word(p+0x40,0x801e3000);psx_mod_write_byte(0x801e3000,2);
+                psx_mod_write_word(p+0x3c,0x801e4000);psx_mod_write_word(0x801e4018,100);
+                psx_mod_write_half(p+0x74,63);
+                psx_mod_write_half(p+0x1c,0);psx_mod_write_word(p+0x224,0);psx_mod_write_word(0x800d21fc,10);
+                ttk::input.move_x=ttk::input.move_y=1;
+                psx_mod_write_half(p+0x60,198);wall_queries.clear();
+                call(0x80043eb8,p,0,0x8004b60c,0x801ff000);
+                assert(wall_queries.size()==2 && wall_queries[0][0]==0 && wall_queries[1][0]==3);
+                assert(wall_queries[0][2]==-7 && wall_queries[1][1]==7 && wall_queries[1][4]==93);
+                assert(psx_mod_read_word(p+4)==xyz[0]+7 && psx_mod_read_word(p+8)==xyz[1]-7);
+                assert(psx_mod_read_word(0x801e4018)==100 && psx_mod_read_half(p+0xfc)==0 && psx_mod_read_half(p+0xfe)==0);
+                ttk::input.move_x=ttk::input.move_y=0;wall_queries.clear();
+                call(0x80043eb8,p,0,0x8004b60c,0x801ff000);
+                assert(wall_queries.empty() && psx_mod_read_word(p+4)==xyz[0]+7);
+                ttk::input.move_x=1;wall_results[3]=3;
+                const auto touch=psx_mod_read_word(p+0x174),floor=psx_mod_read_word(p+0x1c8);
+                call(0x80043eb8,p,0,0x8004b60c,0x801ff000);
+                assert(psx_mod_read_word(p+4)==xyz[0]+7 && psx_mod_read_word(p+0x174)==touch && psx_mod_read_word(p+0x1c8)==floor);
+                wall_results[3]=0;wall_queries.clear();ttk::modern=false;
+                call(0x80043eb8,p,0,0x8004b60c,0x801ff000);assert(wall_queries.empty());ttk::modern=true;
+                ttk::input.active=false;call(0x80043eb8,p,0,0x8004b60c,0x801ff000);assert(wall_queries.empty());ttk::input.active=true;
+                for(unsigned family:{0x200u,0x400u}) {
+                    psx_mod_write_word(table+28*759,family);call(0x80043eb8,p,0,0x8004b60c,0x801ff000);assert(wall_queries.empty());
+                }
+                ttk::input.move_x=0;psx_mod_write_word(p+0x40,model);psx_mod_write_word(p+0x3c,mats);
+                psx_mod_write_half(p+0x74,up);psx_mod_write_half(p+0x1c,yaw);psx_mod_write_word(p+0x224,block);psx_mod_write_word(0x800d21fc,ticks);
+                for(int k=0;k<3;++k)psx_mod_write_word(p+4+4*k,xyz[k]);
+                unsetenv("DNTTK_WALL_VIEW");unsetenv("DNTTK_LADDER_VIEW");unsetenv("DNTTK_POLE_VIEW");
+                psx_mod_write_word(0x800d2660,old_table);psx_mod_write_word(p+0x17c,old_owner);
+                psx_mod_write_word(table+28*759,flags);psx_mod_write_byte(p+0x3b8,equip);
+                psx_mod_write_half(p+0x60,63);psx_mod_write_byte(p+0x22c,0);psx_mod_write_byte(p+0x22d,0);
+                ++save_loads;frame();assert(metric("\"blend\":")==1);
+                std::puts("PASS: D35I wall versus ledge/crate ownership, independent choices, pause, load, global view and unchanged attachment");
+            }
             // D35G: every native ledge lifecycle pose, independent choices,
             // save acquisition and paused presentation. No movement permission.
             {
@@ -3306,7 +3383,7 @@ int main(int argc,char** argv) {
                     }
                     setenv("DNTTK_LADDER_VIEW","first",1);
                     for(unsigned other:{0u,0x100u,0x400u,0x600u}) {
-                        psx_mod_write_word(table+28*46,other);++save_loads;frame();assert(metric("\"blend\":")==int(other==0x400u && (pose==147 || pose==148)));
+                        psx_mod_write_word(table+28*46,other);++save_loads;frame();assert(metric("\"blend\":")==int((other==0x400u || other==0x100u) && (pose==147 || pose==148)));
                     }
                     psx_mod_write_word(table+28*46,0x200);
                 }
@@ -3402,7 +3479,7 @@ int main(int argc,char** argv) {
                     }
                     setenv("DNTTK_POLE_VIEW","first",1);
                     for(unsigned other:{0u,0x100u,0x200u,0x600u}) {
-                        psx_mod_write_word(table+28*46,other);++save_loads;frame();assert(metric("\"blend\":")==int(other==0x200u && (pose==147 || pose==148)));
+                        psx_mod_write_word(table+28*46,other);++save_loads;frame();assert(metric("\"blend\":")==int((other==0x200u || other==0x100u) && (pose==147 || pose==148)));
                     }
                     psx_mod_write_word(table+28*46,0x400);
                 }

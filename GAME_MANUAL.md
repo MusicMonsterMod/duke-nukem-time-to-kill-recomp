@@ -741,8 +741,17 @@ shimmying, pull-ups and water climb-outs. The eye follows Duke over the lip and
 his hands keep their native poses. E catches/climbs, W pulls up, A/D shimmy and
 Space or S drops from a settled ledge hang as before. CONFIRM applies and saves
 it; `--mantle-view first` or `--mantle-view legacy-third` also saves the choice.
-Climbing walls still step out to third person. Vanilla keeps the original
-climbing camera.
+**WALL CLIMB VIEW** offers FIRST PERSON (default) / THIRD PERSON for climbing
+walls, including catches, mounts and exits. CONFIRM applies and saves it;
+`--wall-view first` or `--wall-view legacy-third` also saves the choice.
+With Modern controls, **W/S** climb up/down and **A/D** move left/right along
+the wall. Hold two directions to climb diagonally, at the same overall speed.
+Releasing stops promptly; changing direction does not wait for a full stroke.
+Mouse look is independent of the climbing direction. **Space** lets go.
+The wall's edges, ceiling limits, panel transfers and exits still constrain
+travel. At slot 10's upper limit, move left along the wall to reach its exit.
+The movement works with either view choice. Vanilla keeps its original
+climbing movement and camera.
 
 **Climbable ceilings / monkey bars (Modernized, D08J4).**
 A jump with **E** held under a climbable ceiling (a grate or bars) makes Duke

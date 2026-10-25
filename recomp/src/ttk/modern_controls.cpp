@@ -242,6 +242,10 @@ static ActionView ladder_view() {
     parse_action_view(ttk_live_env("DNTTK_LADDER_VIEW"),choice);
     return choice;
 }
+static ActionView wall_view() {
+    ActionView value=ActionView::First;
+    parse_action_view(ttk_live_env("DNTTK_WALL_VIEW"),value);return value;
+}
 static ActionView overhead_view() {
     ActionView choice=ActionView::First;
     parse_action_view(ttk_live_env("DNTTK_OVERHEAD_VIEW"),choice);
@@ -689,6 +693,7 @@ static bool climb_state_early() {
     return mode==3 && ((animation>=147 && animation<=156) || (animation>=185 && animation<=211)) &&
         (previous==0 || previous==3 || previous==6 || previous==7 || previous==8 || previous==9);
 }
+static bool first_person_wall();
 static bool first_person_ladder();
 static bool first_person_pole();
 static bool first_person_mantle();
@@ -743,7 +748,9 @@ static bool state(bool camera_only=false,bool presentation=false) {
         input_snapshot(Context::Gameplay).first_person && first_person_pole();
     const bool mantle_eye=presentation && camera_only && mantle_view()==ActionView::First &&
         input_snapshot(Context::Gameplay).first_person && first_person_mantle();
-    const bool mantle=camera_only && (traversal_camera_early() || ladder_eye || pole_eye || mantle_eye);
+    const bool wall_eye=presentation && camera_only && wall_view()==ActionView::First &&
+        input_snapshot(Context::Gameplay).first_person && first_person_wall();
+    const bool mantle=camera_only && (traversal_camera_early() || ladder_eye || pole_eye || mantle_eye || wall_eye);
     // D22B: also the landing poses themselves (an unleased landing frame left a
     // jump taken from it without camera continuity) and after a slide.
     const bool settle=camera_only && (land_gait_anim(animation) || original_step_anim(animation) ||
@@ -961,6 +968,7 @@ static bool facing_ready() {
 #include "push.inc"
 #include "ladder_top.inc"
 #include "pole_climb.inc"
+#include "wall_climb.inc"
 #include "jump_walls.inc"
 #include "landing.inc"
 #include "wall_backflip.inc"
@@ -1060,6 +1068,7 @@ static void hook(CPUState* cpu, uint32_t address) {
 // Discard old draw tokens without writing them into the newly loaded RAM;
 // first_person_draw reclaims any hidden flags stored in the save itself.
 static void camera_world_reset() {
+    wall_last_direction=0;wall_epoch=0;
     pole_visibility_object=0;
     jet_lift_active=false;jet_air_height_hold=false;
     if(jetpack_eduke32()) {
@@ -1821,6 +1830,8 @@ PSX_MOD_CONSTRUCTOR(register_ttk_controls) {
     psx_mod_register_function_entry_plugin("ttk.modern.controls",0x800a979c,[](CPUState* cpu,uint32_t){ttk::steroids_damage_restore();if(cpu->gpr[31]==0x80049098u)ttk::kick_sphere_entry(cpu);});
     // D08A8: the composition's call after the status bar when 0x8001fc44 is skipped.
     psx_mod_register_function_entry_plugin("ttk.modern.controls",0x8002e850,[](CPUState* cpu,uint32_t){ttk::steroids_damage_restore();if(cpu->gpr[31]==0x800265d4u)ttk::steroids_hud_restore();});
+    // D35I: authenticated wall motion before the native climb dispatcher.
+    psx_mod_register_function_entry_plugin("ttk.wall.climb",0x80043eb8,[](CPUState* cpu,uint32_t){ttk::wall_climb_dispatch(cpu,cpu->gpr[31]);});
     // D08Z5: the slope jump's first airborne update, before D08Z1 sees the velocity.
     psx_mod_register_function_entry_plugin("ttk.wall.backflip",0x8003ebf4,[](CPUState* cpu,uint32_t){ttk::wall_backflip_climb(cpu);});
     // D08Z1: after ttk.modern.controls at the same entry, so the velocity is final.

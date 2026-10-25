@@ -52,6 +52,7 @@ def main(argv=None):
     p.add_argument('--push-view', choices=profiles.ACTION_VIEWS, help='save push perspective under global first person: first (default) or legacy-third; does not change push/pull movement')
     p.add_argument('--pole-view', choices=profiles.ACTION_VIEWS, help='save chain/pole perspective under global first person: first (default) or legacy-third; does not change climbing movement')
     p.add_argument('--mantle-view', choices=profiles.ACTION_VIEWS, help='save mantle/ledge perspective under global first person: first (default) or legacy-third; does not change traversal movement')
+    p.add_argument('--wall-view', choices=profiles.ACTION_VIEWS, help='save wall-climbing perspective: first (default) or legacy-third')
     p.add_argument('--overhead-view', choices=profiles.ACTION_VIEWS, help='save overhead/monkey-bar perspective under global first person: first (default) or legacy-third; does not change traversal movement')
     p.add_argument('--ladder-view', choices=profiles.ACTION_VIEWS, help='save ladder perspective under global first person: first (default) or legacy-third; does not change climbing movement')
     p.add_argument('--jetpack-view', choices=profiles.ACTION_VIEWS, help='save jetpack perspective under global first person: first (default) or legacy-third; does not change flight scheme')
@@ -101,7 +102,7 @@ def main(argv=None):
             profile = settings['profiles']['modernized']
             profile['bindings'] = pc_input.rebind(profile['bindings'], a.bind)
             changed = True
-        if a.overhead_view is not None or a.mantle_view is not None or a.pole_view is not None or a.ladder_view is not None or a.push_view is not None or a.jetpack_view is not None or a.swim_view is not None or a.steroids is not None or a.draw_distance is not None or a.geometry_precision is not None or a.texture_precision is not None or a.view_bob is not None or a.frame_rate is not None or a.jump is not None or a.jump_walls is not None or a.landing is not None or a.wall_backflip is not None or a.crouch is not None or a.dynamite is not None or a.swimming is not None or a.cpu_overclock is not None or a.cpu_timing is not None or a.widescreen is not None or a.camera_distance is not None or a.shoulder is not None or a.view is not None or a.jetpack is not None or a.aim_assist is not None or a.red_dot is not None or a.crosshair is not None or a.weapon_aim is not None or a.camera is not None or a.mouse_sensitivity is not None or a.invert_y is not None:
+        if a.wall_view is not None or a.overhead_view is not None or a.mantle_view is not None or a.pole_view is not None or a.ladder_view is not None or a.push_view is not None or a.jetpack_view is not None or a.swim_view is not None or a.steroids is not None or a.draw_distance is not None or a.geometry_precision is not None or a.texture_precision is not None or a.view_bob is not None or a.frame_rate is not None or a.jump is not None or a.jump_walls is not None or a.landing is not None or a.wall_backflip is not None or a.crouch is not None or a.dynamite is not None or a.swimming is not None or a.cpu_overclock is not None or a.cpu_timing is not None or a.widescreen is not None or a.camera_distance is not None or a.shoulder is not None or a.view is not None or a.jetpack is not None or a.aim_assist is not None or a.red_dot is not None or a.crosshair is not None or a.weapon_aim is not None or a.camera is not None or a.mouse_sensitivity is not None or a.invert_y is not None:
             controls = dict(settings['profiles']['modernized']['controls'])
             if a.aim_assist is not None: controls['aim_assist'] = a.aim_assist
             if a.jetpack is not None: controls['jetpack'] = a.jetpack
@@ -117,6 +118,7 @@ def main(argv=None):
             if a.swim_view is not None: controls['swim_view'] = a.swim_view
             if a.ladder_view is not None: controls['ladder_view'] = a.ladder_view
             if a.mantle_view is not None: controls['mantle_view'] = a.mantle_view
+            if a.wall_view is not None: controls['wall_view'] = a.wall_view
             if a.overhead_view is not None: controls['overhead_view'] = a.overhead_view
             if a.pole_view is not None: controls['pole_view'] = a.pole_view
             if a.push_view is not None: controls['push_view'] = a.push_view
@@ -234,6 +236,7 @@ def main(argv=None):
     env['DNTTK_SWIM_VIEW'] = controls['swim_view'] if modernized else 'legacy-third'
     env['DNTTK_LADDER_VIEW'] = controls['ladder_view'] if modernized else 'legacy-third'
     env['DNTTK_MANTLE_VIEW'] = controls['mantle_view'] if modernized else 'legacy-third'
+    env['DNTTK_WALL_VIEW'] = controls['wall_view'] if modernized else 'legacy-third'
     env['DNTTK_OVERHEAD_VIEW'] = controls['overhead_view'] if modernized else 'legacy-third'
     env['DNTTK_POLE_VIEW'] = controls['pole_view'] if modernized else 'legacy-third'
     env['DNTTK_PUSH_VIEW'] = controls['push_view'] if modernized else 'legacy-third'

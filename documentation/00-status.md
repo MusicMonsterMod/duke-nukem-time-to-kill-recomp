@@ -1,5 +1,43 @@
 # Current status - 2026-10-04
 
+## 2026-10-25 - D35I accepted and closed
+
+User: "fully accepted! lock it in and close it out". D35I is Done.
+First-person wall climbing, WALL CLIMB VIEW and fluid Modern WASD/diagonal
+movement are accepted. [Note 232](232-d35i-wall-climbing.md) records tests,
+implementation and the remaining campaign/other-wall coverage limits.
+
+Accepted executable: `6b2b0ec48fa56c3fbd3a0a5aefac23dcb111ea4c95d9e66010f989e5408a2d42`.
+Authored implementation, tests, manual and documentation included in authorized
+MusicMonsterMod closeout. Runtime patch re-export unchanged; all 51 changed/new
+files match against the pinned clean framework index. No dependency pins
+changed. No post-acceptance gameplay edits, rebuilds or launches. No player
+data changed and no next job started.
+Launch: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-25 - D35I wall climbing candidate (Needs playtest)
+
+WALL CLIMB VIEW independently offers First Person (default) / Third Person.
+Modern WASD now climbs walls fluidly, including normalized diagonals and prompt
+stop/reversal, retaining native boundary/transfer queries and exits. The
+user's slot-10 wall route is verified on a private copy; its top exit is left
+of the straight-up obstruction. [Note 232](232-d35i-wall-climbing.md).
+
+Player build, controls/input/aim/near suites and 98 profile tests pass. Private
+first/third-person routes cover catches, mounts, directions, panel transfers,
+upper/bottom exits, drop, saved attachment and pause/resume. Live menu and
+Vanilla checks pass. User framing and movement-feel playtest remains; this is
+not whole-campaign coverage.
+
+Candidate: `6b2b0ec48fa56c3fbd3a0a5aefac23dcb111ea4c95d9e66010f989e5408a2d42`.
+All diagnostic sessions stopped. Player slot-10 hashes/mtimes unchanged; no
+player settings/cards, framework source or pins changed. Generated hook added
+through the normal generator. No acceptance closeout, commit or push.
+Launch: `python3 recomp/tools/local/run.py`. P selects First Person; gameplay
+captures automatically. WALL CLIMB VIEW is under Advanced Action Perspective.
+
+
 ## 2026-10-25 - D35F1 accepted and closed
 
 User: "totally accept. lock it in and close us out". D35F1 is Done.

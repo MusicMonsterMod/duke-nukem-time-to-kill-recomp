@@ -1,5 +1,9 @@
 // SLUS-00583 code SHA-256 guards; derived read-only from the owned executable.
 static const Guard guards[] = {
+    {0x8007d65c, 1780, "6f1b5d370899b655e31796625ed140d74535454cc1d02e2a764ded87b5d86430"}, // D35I native wall movement queries
+    {0x8007cf28, 792, "a223e311f1cb7e062cacbc02e601cf7150d5d98510d13c0d2e13e81c76eb5d15"}, // D35I native wall movement queries
+    {0x8007d240, 1052, "a336e6b82e194e714e8aa815ef2feed73680c9fbf0590c80f0a5b816a90f5ec6"}, // D35I native wall movement queries
+
     {0x8002e6d4, 16, "d94e0d822df0c031155537cdb6686705409db4fb6b60adc81d608b799d6acefa"}, // D35F1 supplemental pole draw
     {0x80031d10, 1620, "8ed8575e0fd05c6291209498ae990fb0048fd0cfb15990e8cc7914cfa9fe96b2"}, // D35F1 supplemental pole draw
     {0x800b4d2c, 12, "4ecf2f5bbdb450de400e5eeafac260aaf27c3f5d36b3f67ef8ceb47855a2e800"}, // D35E native arm near-cull contract

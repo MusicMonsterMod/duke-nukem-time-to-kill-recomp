@@ -723,7 +723,9 @@ static bool use_interaction_eye() {
     // only; retain the committed action and its original one-time effect.
     // D35K3: LEVEL09 statue (type 926) selects 279 at 0x800516d4.
     // Preserve native alignment, callback/effects and weapon restoration.
-    return (a==116 || a==118 || a==266 || a==267 || a==268 || a==275 || a==277 || a==279) &&
+    // D35K4: class-7 wheel turn (type 206) uses native pose 270.
+    // Retain its committed action and normal-camera ownership requirements.
+    return (a==116 || a==118 || a==266 || a==267 || a==268 || a==270 || a==275 || a==277 || a==279) &&
         psx_mod_read_byte(player+0x22c)==0 && psx_mod_read_byte(player+0x22d)==0 &&
         (psx_mod_read_word(player+0x224)&0x40);
 }

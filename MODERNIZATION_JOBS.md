@@ -1,5 +1,7 @@
 # Time to Kill — modernization jobs
 
+**Latest accepted job (2026-10-25): D35K4 slot-5 wheel turn is Done. User authorized lock-in and closeout. [Note 241](documentation/241-d35k4-wheel-first-person.md). No next job started.**
+
 **Latest closeout (2026-10-25): D35K2 toilet use, D35K bounded research and overarching D35 are Done by user acceptance. Future first-person drops become focused D35 child jobs; no next job started. D35N1 missing mirror voice remains Todo.**
 
 **Latest accepted job (2026-10-25): D35J4 slot-9 crystal take/return perspective is Done. User: "lock it in and close it out!". [Note 236](documentation/236-d35j4-time-crystal-perspective.md). Other intake jobs remain Todo.**
@@ -361,6 +363,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D35K1 | Slot-5 hinged-door first person and visible right-leg kick | Done (user-accepted) | D35M |
 | D35K2 | Toilet first-person use presentation (current slot 5) | Done (user-accepted 2026-10-25) | D35M, D35K |
 | D35K3 | Statue interaction drops first person (current slot 5) | Done | D35K, D35M, D35K2 |
+| D35K4 | Wheel turn retains first person (current slot 5) | Done | D35M, D35K3 |
 | D35L | First-person death and respawn presentation research | Done (user-accepted; no action needed) | D35 |
 | D35M | First-person door opening and related use interactions | Done | D35A |
 | D35N | First-person mirror interactions and reflected-Duke proximity fade | Done | D35A |
@@ -19131,3 +19134,43 @@ launches. Existing framework changes and dependency pins are untouched; no
 player data changed. Note 240 retains the validation limits, including fresh
 Vanilla activation and other statue variants. Acceptance is not campaign-wide
 coverage. Launch: `python3 recomp/tools/local/run.py`.
+
+## 2026-10-25 - D35K4 wheel turn selected (In progress)
+
+User requested a new job and immediate implementation for the slot-5 wheel
+turn reverting to third person. Reproduce from a fresh private checkpoint copy,
+identify its native pose and camera ownership, then retain selected first person
+through the interaction using the existing action-view policy where applicable.
+Preserve wheel effects, completion, input restrictions, global/action Third
+Person and Vanilla. Verify 60/120, pause/load and adjacent interaction guards.
+User framing playtest is required before Done. D35/D35K remain closed.
+
+## 2026-10-25 - D35K4 wheel turn candidate (Needs playtest)
+
+Current slot 5 is LEVEL00's type-206 wheel, native pose 270. It now follows
+USE INTERACTION VIEW with committed-action and camera safety guards intact.
+Build and four native suites pass; private 60/120 routes retain first person
+and complete. Action/global Third Person, pause/load and Vanilla saved-action
+completion pass. The checkpoint exercises a restricted wheel attempt; successful
+world activation and fresh Vanilla activation remain unverified. All 40 player
+save/card hashes and mtimes are unchanged. User framing playtest remains.
+[Note 241](documentation/241-d35k4-wheel-first-person.md) records evidence.
+Candidate `fe660aaf2bd31c478c58d8bbf48b1989513adf9662c3644419d982a5c0375614`.
+No framework/generated/pin changes, acceptance closeout, commit or push.
+Launch `python3 recomp/tools/local/run.py`; slot 5, global and USE INTERACTION
+VIEW First Person, approach the wheel and press E. F10 captures if needed.
+
+## 2026-10-25 - D35K4 accepted and closed
+
+User: "lock it in and close it out". D35K4 is Done. Wheel pose 270 retains
+first person under USE INTERACTION VIEW with native action restrictions and
+camera safety guards preserved. D35/D35K remain closed; no next job is started.
+
+Accepted executable:
+`fe660aaf2bd31c478c58d8bbf48b1989513adf9662c3644419d982a5c0375614`.
+Implementation, tests, manual and documentation are authorized for commit/push
+as MusicMonsterMod. No post-acceptance gameplay changes, builds or launches.
+Existing framework changes and dependency pins are untouched; no player data
+changed. Note 241 retains the limits: fresh Vanilla activation, successful wheel
+world activation and other variants were not verified by the diagnostic runs.
+Acceptance does not expand that coverage. Launch: `python3 recomp/tools/local/run.py`.

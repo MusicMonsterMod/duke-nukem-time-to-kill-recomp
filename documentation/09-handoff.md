@@ -1,5 +1,38 @@
 # Next-session handoff
 
+## 2026-10-25 - D35K4 accepted and closed
+
+User: "lock it in and close it out". D35K4 is Done. Wheel pose 270 retains
+first person under USE INTERACTION VIEW with native action restrictions and
+camera safety guards preserved. D35/D35K remain closed; no next job is started.
+
+Accepted executable:
+`fe660aaf2bd31c478c58d8bbf48b1989513adf9662c3644419d982a5c0375614`.
+Implementation, tests, manual and documentation are authorized for commit/push
+as MusicMonsterMod. No post-acceptance gameplay changes, builds or launches.
+Existing framework changes and dependency pins are untouched; no player data
+changed. [Note 241](241-d35k4-wheel-first-person.md) retains the limits: fresh Vanilla activation, successful wheel
+world activation and other variants were not verified by the diagnostic runs.
+Acceptance does not expand that coverage. Launch: `python3 recomp/tools/local/run.py`.
+
+
+
+## 2026-10-25 - D35K4 wheel turn candidate (Needs playtest)
+
+Current slot 5 is LEVEL00's type-206 wheel, native pose 270. It now follows
+USE INTERACTION VIEW with committed-action and camera safety guards intact.
+Build and four native suites pass; private 60/120 routes retain first person
+and complete. Action/global Third Person, pause/load and Vanilla saved-action
+completion pass. The checkpoint exercises a restricted wheel attempt; successful
+world activation and fresh Vanilla activation remain unverified. All 40 player
+save/card hashes and mtimes are unchanged. User framing playtest remains.
+[Note 241](241-d35k4-wheel-first-person.md) records evidence.
+Candidate `fe660aaf2bd31c478c58d8bbf48b1989513adf9662c3644419d982a5c0375614`.
+No framework/generated/pin changes, acceptance closeout, commit or push.
+Launch `python3 recomp/tools/local/run.py`; slot 5, global and USE INTERACTION
+VIEW First Person, approach the wheel and press E. F10 captures if needed.
+
+
 ## 2026-10-25 - D35K3 accepted and closed
 
 User: "lock it in and close it out". D35K3 is Done. The statue's native pose

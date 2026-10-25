@@ -775,7 +775,7 @@ inventory keep the eye view. Inventory still suspends movement until release.
 **USE INTERACTION VIEW** in OPTIONS > ADVANCED > ACTION PERSPECTIVE chooses
 FIRST PERSON (default) or THIRD PERSON for supported door/key actions
 (including a visible right-leg kick for the supported hinged-door action), crystal
-(including taking and returning a crystal at a holder), toilet, statue, lever
+(including taking and returning a crystal at a holder), toilet, statue, wheel turn, lever
 and NPC actions.
 CONFIRM applies and saves the choice. Duke keeps the
 action's normal timing and alignment, uses the item, and redraws his weapon

@@ -180,6 +180,46 @@ static void use_item(CPUState* cpu,unsigned item) {
         else input_notice(on?"NIGHT VISION ON":"NIGHT VISION OFF");
     }
 }
+// D08A23: reproduce only the native goggles effect/model endpoints
+// (8004e94c..8004ea20), never its hand equipment or animation writes.
+static bool night_vision_modern() {
+    const char* v=ttk_live_env("DNTTK_NIGHT_VISION");
+    return input_modernized() && (!v || std::strcmp(v,"original"));
+}
+static bool night_vision_toggle() {
+    if(!night_vision_modern() || !interaction_alive() || !gameplay_context() ||
+       (int16_t)psx_mod_read_half(player+0x32)<=0) return false;
+    const unsigned item=psx_mod_read_half(player+0x360);
+    const bool on=!(item&2);
+    if(!(item&1) || (on && (int16_t)psx_mod_read_half(player+0x362)<=0))return false;
+    // Do not hijack an original gadget equip already in flight (e.g. a
+    // savestate or changing the preference midway through the original action).
+    for(unsigned i=1;i<=5;++i)if(psx_mod_read_half(player+0x354+4*i)&0x8000)return false;
+    auto valid=[](uint32_t a,unsigned n) {return a>=0x80010000u && a<=0x80200000u-n && !(a&3);};
+    const uint32_t model=psx_mod_read_word(player+0x40);
+    if(!valid(model,0x35))return false;
+    const unsigned joint=40*psx_mod_read_byte(model+0x34);
+    const uint32_t target=model+joint+0x68;
+    if(!valid(target,4))return false;
+    const uint32_t table=psx_mod_read_word(on?0x800ddb18:0x800ddb14);
+    if(!valid(table,on?0x10c8:8))return false;
+    const uint32_t base=on?table:psx_mod_read_word(table+4);
+    if(!valid(base,on?0x10c8:joint+0x6c))return false;
+    const uint32_t mesh=psx_mod_read_word(base+(on?0x10c4:joint+0x68));
+    if(!valid(mesh,4))return false;
+    const uint32_t flags=psx_mod_read_word(player+0x224);
+    // Native face equipment is exclusive: goggles replace the Bio Mask.
+    // Its charge is preserved; no automatic gas behavior is introduced here.
+    if(on && psx_mod_read_half(player+0x854)==2)
+        psx_mod_write_half(player+0x35c,psx_mod_read_half(player+0x35c)&~2u);
+    psx_mod_write_word(target,mesh);
+    psx_mod_write_half(player+0x854,on?3:0);
+    psx_mod_write_word(player+0x224,on?flags|0x80000u:flags&~0x80000u);
+    psx_mod_write_half(player+0x360,item^2);
+    remember_item(3);inventory_feedback(false);
+    input_notice(on?"NIGHT VISION ON":"NIGHT VISION OFF");
+    return true;
+}
 static unsigned swim_redraws; // D08O3
 static void select_weapon(CPUState* cpu) {
     const auto& f=input_snapshot(Context::Gameplay);
@@ -288,6 +328,12 @@ static void select_weapon(CPUState* cpu) {
             if(usable_item(next)){remember_item(next);break;}}
         inventory_feedback(true);
     }
+    // Toggle outside the fire/weapon-idle gates. Continue processing weapon
+    // commands in this same snapshot; never toggle again in the legacy loop.
+    if(night_vision_modern())for(unsigned n=0;n<f.command_count && n<32;++n)
+        if(f.commands[n]==goggles || (f.commands[n]==item_use && selected_item==3 && !mission_enter)) {
+            night_vision_toggle();break;
+        }
     // D08A4: R, or Enter / U on steroids, takes a stored dose in every live
     // gameplay state (it only sets the original effect bit and timer), the
     // way the bracket keys are taken.
@@ -345,6 +391,7 @@ static void select_weapon(CPUState* cpu) {
         } else {
             unsigned item=action==medkit?5:action==jetpack?1:action==biomask?2:action==goggles?3:
                 action==item_use?(mission_enter || selected_item==4?0:selected_item):0;
+            if(item==3 && night_vision_modern())continue; // already handled without owning the weapon
             if(item) {use_item(cpu,item);break;} // one item activation per guest update
             // R (and Enter / U on steroids) were taken above, in every state.
         }

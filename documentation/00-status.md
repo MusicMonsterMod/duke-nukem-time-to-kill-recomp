@@ -1,5 +1,42 @@
 # Current status - 2026-10-04
 
+## 2026-10-25 - D08A23 accepted and closed
+
+User: "lock it in, close it out!!". D08A23 is Done. Instant night vision with
+uninterrupted fire and the persistent MODERN / ORIGINAL setting is accepted.
+Implementation, tests, manual and documentation are authorized for commit and
+push as MusicMonsterMod. D08A24 remains Todo; no next job is started.
+
+Accepted executable:
+`ec32ea578286344faea16de7d073a80dc120ff4c0ca72f62f8d4b7c4afaf9ec6`.
+No post-acceptance gameplay changes, builds or launches. Player data and
+framework pins are untouched. Runtime patch export is unchanged; all 51 files
+match the patched clean dependency. [Note 244](244-d08a23-instant-night-vision.md)
+retains the verified coverage and limits. Launch: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-25 - D08A23 instant night vision candidate (Needs playtest)
+
+Modern night vision now toggles immediately with N or inventory Enter, including
+while firing, without holstering or taking weapon/movement animation ownership.
+TTK's effect and native battery drain/depletion remain. OPTIONS > ADVANCED >
+ITEMS > NIGHT VISION offers MODERN (default) / ORIGINAL, applied on CONFIRM;
+launcher schema 51, `--night-vision modern|original`, terminal settings N.
+Vanilla retains original behavior. D08A24 remains Todo.
+
+Build, controls/input/aim suites and all 102 profile tests pass. Private Xvfb
+60 FPS third-person and 120 FPS first-person routes cover held fire, repeated
+N and inventory Enter, held-key suppression, movement, depletion, active save/load
+and pause/resume. The live menu applies both choices; Original retains native
+holstering. Forty player save/card files retain their hashes and mtimes.
+User combat-feel/presentation playtest remains; this is not campaign-wide proof.
+[Note 244](244-d08a23-instant-night-vision.md) records native contracts and limits.
+
+Candidate: `ec32ea578286344faea16de7d073a80dc120ff4c0ca72f62f8d4b7c4afaf9ec6`.
+No framework/generated/pin changes, acceptance closeout, commit or push.
+Launch: `python3 recomp/tools/local/run.py`. Modern input captures automatically.
+
+
 ## 2026-10-25 - D08T9 accepted and closed
 
 User: "perfect! lock it in and close it out". D08T9 is Done. Repeat grabs

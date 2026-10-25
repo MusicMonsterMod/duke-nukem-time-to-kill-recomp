@@ -408,6 +408,8 @@ std::vector<Screen> make_screens() {
         {"JETPACK",Section::Controls,"jetpack","DNTTK_JETPACK",false,"EDUKE32: INSTANT J FLIGHT, 61 SECONDS OF FUEL",
          {{"MODERN","modern","\"modern\""},{"CLASSIC","classic","\"classic\""},{"EDUKE32","eduke32","\"eduke32\""}},0},
         heading("ITEMS"),
+        {"NIGHT VISION",Section::Controls,"night_vision","DNTTK_NIGHT_VISION",true,"MODERN: INSTANT ON/OFF WITHOUT INTERRUPTING FIRE",
+         {{"MODERN","modern","\"modern\""},{"ORIGINAL","original","\"original\""}},0},
         {"DYNAMITE",Section::Controls,"dynamite","DNTTK_DYNAMITE",true,"MODERN: A DRAWN STICK STAYS UNLIT UNTIL YOU FIRE",
          {{"MODERN","modern","\"modern\""},{"ORIGINAL","original","\"original\""}},0},
         {"STEROIDS",Section::Controls,"steroids","DNTTK_STEROIDS",false,"PORTABLE: A PICKUP IS STORED, R TAKES IT",

@@ -1,5 +1,8 @@
 // SLUS-00583 code SHA-256 guards; derived read-only from the owned executable.
 static const Guard guards[] = {
+    {0x8004e94c, 212, "655e6eed09f072c0bbb2216883023b873d2b41fb001329e51d899717ba30f64a"}, // D08A23 goggles endpoints and native charge lifecycle
+    {0x800420bc, 332, "26fda3e6f59ab68e952635660300cb067cd2c884a1b736cad58080f2e67f4007"}, // D08A23 goggles endpoints and native charge lifecycle
+
     {0x8007d65c, 1780, "6f1b5d370899b655e31796625ed140d74535454cc1d02e2a764ded87b5d86430"}, // D35I native wall movement queries
     {0x8007cf28, 792, "a223e311f1cb7e062cacbc02e601cf7150d5d98510d13c0d2e13e81c76eb5d15"}, // D35I native wall movement queries
     {0x8007d240, 1052, "a336e6b82e194e714e8aa815ef2feed73680c9fbf0590c80f0a5b816a90f5ec6"}, // D35I native wall movement queries

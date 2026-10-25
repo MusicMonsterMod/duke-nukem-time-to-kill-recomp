@@ -1657,6 +1657,22 @@ fonts lack (`! % ( ) & + "` and similar) use the game's own small 8x8 font. The
 original game text and Vanilla are unchanged. If the font pack is missing (no
 prepared disc), messages use the generic host font.
 
+### Instant night vision (D08A23)
+
+With Modern controls, **N** toggles night vision immediately, including while
+firing, moving or changing weapons. There is no goggles equip/removal animation,
+holster or added shot delay. **Enter** on the selected goggles does the same;
+holding either key toggles once. The original TTK visual effect, battery capacity
+and drain remain. Switching off preserves the remaining charge; depletion turns
+the goggles off automatically. Goggles replace the Bio Mask, as the original
+face-equipment system allows one of those items at a time.
+
+**OPTIONS > ADVANCED > ITEMS > NIGHT VISION** offers **MODERN** (default) and
+**ORIGINAL** (the original equip animation). Confirm applies it immediately and
+saves the choice. Vanilla retains original behavior. The launcher also accepts
+`--night-vision modern|original`; this saves the preference. In `--settings`,
+choose **N Night vision**.
+
 ### Inventory feedback and crouch scope (2026-09-28)
 
 In Modernized gameplay, **[ / ]** open the temporary gadget **switcher** (centered

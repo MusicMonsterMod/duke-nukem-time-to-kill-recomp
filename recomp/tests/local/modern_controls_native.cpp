@@ -2091,6 +2091,49 @@ int main(int argc,char** argv) {
     request(ttk::item_next);assert(psx_mod_read_half(0x800c3f94)==1); // active can be switched off
     psx_mod_write_half(p+0x358,0);
     {
+        // D08A23: real input dispatcher, busy weapon + held fire. Only the
+        // goggles endpoints may change; no holster, shot or pose request.
+        const uint32_t old_model=psx_mod_read_word(p+0x40),old_items=psx_mod_read_word(0x800ddb18),old_models=psx_mod_read_word(0x800ddb14);
+        const unsigned old_health=psx_mod_read_half(p+0x32),old_upper=psx_mod_read_half(p+0x74),old_face=psx_mod_read_half(p+0x854);
+        psx_mod_write_word(p+0x40,0x801d0000);psx_mod_write_byte(0x801d0034,1);
+        psx_mod_write_word(0x800ddb18,0x801d1000);psx_mod_write_word(0x801d20c4,0x801d4000);
+        psx_mod_write_word(0x800ddb14,0x801d3000);psx_mod_write_word(0x801d3004,0x801d5000);
+        psx_mod_write_word(0x801d5090,0x801d6000);psx_mod_write_word(0x801d0090,0x801d6000);
+        psx_mod_write_half(p+0x360,1);psx_mod_write_half(p+0x362,60);psx_mod_write_half(p+0x32,100);
+        psx_mod_write_half(p+0x854,0);psx_mod_write_half(p+0x74,42);ttk::input.held[ttk::fire]=true;
+        const uint32_t equipment=psx_mod_read_word(p+0x3b8);
+        request(ttk::goggles);
+        assert(psx_mod_read_half(p+0x360)==3 && psx_mod_read_half(p+0x854)==3);
+        assert(psx_mod_read_word(p+0x224)==0x80000 && psx_mod_read_word(0x801d0090)==0x801d4000);
+        assert(psx_mod_read_word(p+0x3b8)==equipment && psx_mod_read_half(p+0x74)==42 && psx_mod_read_half(p+0x362)==60);
+        request(ttk::item_use);
+        assert(psx_mod_read_half(p+0x360)==1 && psx_mod_read_half(p+0x854)==0 && psx_mod_read_word(0x801d0090)==0x801d6000);
+        assert(psx_mod_read_word(p+0x224)==0 && psx_mod_read_word(p+0x3b8)==equipment);
+        // A pending weapon switch and attack retain their exact bits and
+        // selected equipment, including when N is handled in that snapshot.
+        psx_mod_write_word(p+0x224,0x104);ttk::input.commands[0]=ttk::goggles;++ttk::input.command_serial;
+        call(0x80058120,p,0,0x80041c44);
+        assert(psx_mod_read_word(p+0x224)==0x80104 && psx_mod_read_word(p+0x3b8)==equipment && psx_mod_read_half(p+0x74)==42);
+        ++ttk::input.command_serial;call(0x80058120,p,0,0x80041c44);
+        assert(psx_mod_read_word(p+0x224)==0x104 && psx_mod_read_word(p+0x3b8)==equipment);
+        // Empty, absent, dead, invalid model and native transition refuse.
+        psx_mod_write_half(p+0x362,0);request(ttk::goggles);assert(psx_mod_read_half(p+0x360)==1);
+        psx_mod_write_half(p+0x362,60);psx_mod_write_half(p+0x360,0);request(ttk::goggles);assert(psx_mod_read_half(p+0x360)==0);
+        psx_mod_write_half(p+0x360,1);psx_mod_write_half(p+0x32,0);request(ttk::goggles);assert(psx_mod_read_half(p+0x360)==1);
+        psx_mod_write_half(p+0x32,100);psx_mod_write_word(p+0x40,0);request(ttk::goggles);assert(psx_mod_read_half(p+0x360)==1);
+        psx_mod_write_word(p+0x40,0x801d0000);psx_mod_write_half(p+0x360,0x8001);request(ttk::goggles);assert(psx_mod_read_half(p+0x360)==0x8001);
+        psx_mod_write_half(p+0x360,1);setenv("DNTTK_NIGHT_VISION","original",1);request(ttk::goggles);assert(psx_mod_read_half(p+0x360)==1);unsetenv("DNTTK_NIGHT_VISION");
+        ttk::modern=false;request(ttk::goggles);assert(psx_mod_read_half(p+0x360)==1);ttk::modern=true;
+        // Replacement follows TTK's one-face-item rule, preserving mask charge.
+        psx_mod_write_half(p+0x854,2);psx_mod_write_half(p+0x35c,3);psx_mod_write_half(p+0x35e,50);
+        request(ttk::goggles);assert(psx_mod_read_half(p+0x35c)==1 && psx_mod_read_half(p+0x35e)==50);
+        request(ttk::goggles);
+        ttk::input.held[ttk::fire]=false;psx_mod_write_half(p+0x360,0);psx_mod_write_half(p+0x362,0);psx_mod_write_half(p+0x35c,0);psx_mod_write_half(p+0x35e,0);
+        psx_mod_write_word(p+0x40,old_model);psx_mod_write_word(0x800ddb18,old_items);psx_mod_write_word(0x800ddb14,old_models);
+        psx_mod_write_half(p+0x32,old_health);psx_mod_write_half(p+0x74,old_upper);psx_mod_write_half(p+0x854,old_face);
+        std::puts("PASS: D08A23 instant N/U while firing, equipment preserved, charge/refusal/Original/Vanilla and face ownership");
+    }
+    {
         // D08A4: held steroids (bit 0 with an amount, the original's own owned
         // item) join the cycle after the medkit; R, and U on them, set the
         // running bit (the original menu's toggle) and play the pickup sound,

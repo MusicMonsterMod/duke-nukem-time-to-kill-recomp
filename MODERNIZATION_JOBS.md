@@ -1,5 +1,7 @@
 # Time to Kill — modernization jobs
 
+**Latest accepted job (2026-10-25): D08A23 instant night vision is Done. User: "lock it in, close it out!!". Implementation and documentation closeout authorized. [Note 244](documentation/244-d08a23-instant-night-vision.md). D08A24 remains Todo; no next job started.**
+
 **Latest accepted job (2026-10-25): D08T9 level-5 dumpster repeat grab is Done. User: "perfect! lock it in and close it out". Implementation and documentation closeout authorized. [Note 243](documentation/243-d08t9-level5-dumpster.md). No next job started.**
 
 **Latest accepted job (2026-10-25): D35G1 slot-5 jump edge artifact is Done. User authorized lock-in and closeout. D08A23 instant night vision and D08A24 automatic Bio Mask remain Todo with initial research. [Note 242](documentation/242-d35g1-jump-edge-artifact.md). No next job started.**
@@ -134,7 +136,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08A19 | Used mission items: switcher status USED and a green tick on the icon (user art delivered) | Done (user-accepted) | D08A18, D08A5 |
 | D08A20 | Challenge item (type 633, "SURPRISE") shown in the top right of the HUD once found (user art delivered) | Done (user-accepted) | D08A16, D24A |
 | D08A21 | Re-export HUD item icons with 14x14 art inside the 16x16 canvas (medkit, steroids, power-up coins) | Done (user-accepted) | D08A4, D08A7, D08A16 |
-| D08A23 | Instant night vision with immediate firing and a settings toggle | Todo | D08A, D19 |
+| D08A23 | Instant night vision with immediate firing and a settings toggle | Done | D08A, D19 |
 | D08A24 | Automatic Bio Mask on toxic-area entry with a settings toggle | Todo | D08A, D19 |
 | D08A22 | Switcher strips and mission card scale with the window like the native HUD (icons too small in small windows) | Done (user-accepted) | D08A1, D08A5, D24A |
 | D08G3 | `dnupgrade` cheat: upgrade all weapons (Laser Gatling etc.) | Accepted | D08G2 |
@@ -384,7 +386,7 @@ Recommended opening sequence: **D01 → D02 → D03 → D04**, then **D05 / D06 
 
 ### D08A23 - Instant night vision
 
-**Status:** Todo. Backlog research only; implementation not selected.
+**Status:** Done, user-accepted 2026-10-25 with explicit lock-in and closeout authorization. [Note 244](documentation/244-d08a23-instant-night-vision.md).
 N must toggle night vision immediately, including while firing, with no holster,
 equip animation, shot delay or movement lock. Goggles can simply appear on Duke's
 face. Add a persistent independent settings toggle; disabled retains the original
@@ -398,7 +400,7 @@ ordinary gadget input while fire/interact is held or the upper-body weapon is no
 idle. Bypassing the visible animation alone therefore cannot meet the request.
 Before implementation, trace the native toggle's effect/model and charge lifecycle;
 reuse its semantics without stealing weapon animation ownership. Verify resident
-code identity and all writes. Setting label/default to be settled when selected.
+code identity and all writes. Setting: NIGHT VISION MODERN / ORIGINAL, Modern by default; applied live on CONFIRM.
 
 ### D08A24 - Automatic Bio Mask in toxic areas
 
@@ -19301,3 +19303,39 @@ manual and documentation are included in the authorized MusicMonsterMod
 commit/push. No post-acceptance gameplay changes, build or launch. Runtime
 patch export is unchanged; all 51 files match the patched clean pinned
 framework. No player data changed and no next job started.
+
+
+## 2026-10-25 - D08A23 instant night vision candidate (Needs playtest)
+
+Modern night vision now toggles immediately with N or inventory Enter, including
+while firing, without holstering or taking weapon/movement animation ownership.
+TTK's effect and native battery drain/depletion remain. OPTIONS > ADVANCED >
+ITEMS > NIGHT VISION offers MODERN (default) / ORIGINAL, applied on CONFIRM;
+launcher schema 51, `--night-vision modern|original`, terminal settings N.
+Vanilla retains original behavior. D08A24 remains Todo.
+
+Build, controls/input/aim suites and all 102 profile tests pass. Private Xvfb
+60 FPS third-person and 120 FPS first-person routes cover held fire, repeated
+N and inventory Enter, held-key suppression, movement, depletion, active save/load
+and pause/resume. The live menu applies both choices; Original retains native
+holstering. Forty player save/card files retain their hashes and mtimes.
+User combat-feel/presentation playtest remains; this is not campaign-wide proof.
+[Note 244](documentation/244-d08a23-instant-night-vision.md) records native contracts and limits.
+
+Candidate: `ec32ea578286344faea16de7d073a80dc120ff4c0ca72f62f8d4b7c4afaf9ec6`.
+No framework/generated/pin changes, acceptance closeout, commit or push.
+Launch: `python3 recomp/tools/local/run.py`. Modern input captures automatically.
+
+## 2026-10-25 - D08A23 accepted and closed
+
+User: "lock it in, close it out!!". D08A23 is Done. Instant night vision with
+uninterrupted fire and the persistent MODERN / ORIGINAL setting is accepted.
+Implementation, tests, manual and documentation are authorized for commit and
+push as MusicMonsterMod. D08A24 remains Todo; no next job is started.
+
+Accepted executable:
+`ec32ea578286344faea16de7d073a80dc120ff4c0ca72f62f8d4b7c4afaf9ec6`.
+No post-acceptance gameplay changes, builds or launches. Player data and
+framework pins are untouched. Runtime patch export is unchanged; all 51 files
+match the patched clean dependency. [Note 244](documentation/244-d08a23-instant-night-vision.md)
+retains the verified coverage and limits. Launch: `python3 recomp/tools/local/run.py`.

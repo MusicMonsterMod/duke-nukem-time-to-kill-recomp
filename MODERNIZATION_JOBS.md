@@ -184,7 +184,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08T6 | Push/pull ownership and lock-zone investigation (recent slots) | Done | D08T3, D08T4, D08T5 |
 | D08T7 | Regrab movable objects throughout their permitted travel lane | Done (user-accepted 2026-10-24) | D08T6 |
 | D08T8 | Apartment alley platform mantle stalls: W cannot climb, Space cannot drop | Done | D08V, D08X, D08T3 |
-| D08T9 | Level-5 dumpster may fail to push/pull a second time (bug 2) | Todo | D08T3, D08T7 |
+| D08T9 | Level-5 dumpster cannot be pushed again after first push (slot 8, bug 2) | Todo | D08T3, D08T7 |
 | D08T4 | Save slot 10 dumpster: the grab prompt shows but it will not move; find out whether it is meant to be fixed (Vanilla check) | Done (user-accepted 2026-10-20; fixed by design, no prompt there now) | D08T2 |
 | D08V | Sewer mantle/hang modern-control coverage (slot 12 area) | Done | D08, D08B |
 | D08W | Subway shallow-water sideways jumps (A/D + Space jumps forward) | Done | D08, D08C |
@@ -402,13 +402,14 @@ holstered entry, with the expected fire behavior and no extra holster toggle.
 Verify flight entry/exit, aiming and weapon switching across supported jetpack
 schemes, without bypassing native weapon restrictions.
 
-### D08T9 - Level-5 dumpster may not push/pull a second time (bug 2)
+### D08T9 - Level-5 dumpster cannot be pushed again (bug 2)
 
 **Status:** Todo. **Dependencies:** D08T3, D08T7 (Done).
 
-**Report:** The level-5 dumpster may fail to pull/push a second time. This is
-a tentative report, not a confirmed regression. The user supplied current
-slot 8 and is about to test it personally; their result is pending.
+**User-confirmed report (2026-10-25):** In current slot 8, after pushing the
+level-5 dumpster once, it cannot be pushed again. The user confirmed this in
+their own test. Repeat pulling and the cause remain unverified; no agent
+reproduction or investigation has started.
 
 **Acceptance:** Reproduce first movement followed by release/regrab and a
 second push/pull on a private slot-8 copy. Establish intended
@@ -18858,7 +18859,8 @@ next job started, retail assets staged, or player save/settings changes made.
 Recorded bugs 1-5 as D08Q7, D08T9, D35N1, D08Q8 and D35J4, respectively.
 All remain Todo. D35J4 is first for future implementation, pending a later
 instruction to start. The user supplied slot 8 for the level-5 dumpster and
-is testing it personally; results are pending. Slot 6 mirror, slot 12 jetpack clearance and the local Duke3D video
-reference are preserved in the entries. Reports remain unverified.
+subsequently confirmed that it cannot be pushed again after the first push.
+Slot 6 mirror, slot 12 jetpack clearance and the local Duke3D video reference
+are preserved in the entries. No reports were independently reproduced.
 Documentation-only intake with explicit commit/push authorization; no gameplay
 investigation, code changes, builds, launches or player-data changes.

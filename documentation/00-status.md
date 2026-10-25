@@ -9,10 +9,10 @@ bug 4 D08Q8 (slot-12 jetpack floor/ceiling clearance), and bug 5 D35J4
 (slot-9 time-crystal perspective). See the [canonical backlog](../MODERNIZATION_JOBS.md#user-reported-follow-ups-queued-2026-10-25).
 
 **D35J4 is first when the user later authorizes work. Do not start any job yet.**
-The level-5 dumpster is in current slot 8; the user is testing it personally
-and their result is pending. The jetpack
+The user confirmed the slot-8 level-5 dumpster cannot be pushed again after
+the first push. Repeat pulling and the cause remain unverified. The jetpack
 reference is `jpacking-stairs.mp4` in `screencaps`; no video or save inspected.
-These are user reports, not reproduced findings. The accepted D35J/M/N result
+These are user reports, not agent-reproduced findings. The accepted D35J/M/N result
 remains the baseline, with a newly reported crystal gap awaiting investigation.
 No gameplay changes, build, launch or player-data changes in this intake.
 

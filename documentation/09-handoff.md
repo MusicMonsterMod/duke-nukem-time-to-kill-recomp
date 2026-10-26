@@ -1,5 +1,48 @@
 # Next-session handoff
 
+## 2026-10-26 - D23 accepted and closed
+
+User accepted the findings and explicitly authorized marking D23 complete
+and closing it out. D23 is Done. [Note 252](252-d23-performance-baseline.md),
+its chart/JSON and the authored audit/summarize tools preserve the bounded
+performance baseline and measurement limits. No new gameplay changes, builds
+or launches were needed for closeout.
+
+Accepted executable remains
+`9a81112c57148d928c00f8cfbd7aed33a88365640cc766395d45d1305c6beb04`.
+No framework edits for D23; existing local framework changes and dependency
+pins are preserved. Player files and private evidence remain local. D23C's
+D23 prerequisite is satisfied; D23C remains Todo and has not started.
+
+Launch: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-26 - D23 performance baseline ready for review
+
+D23 is Needs review. [Note 252](252-d23-performance-baseline.md) and its linked
+chart/JSON document two roughly 15-minute private offscreen audits, each with
+nine level loads and ten minutes of sustained gameplay. Modernized: 120.000
+presents/s, p99 8.960 ms; both profiles: 59.941 emulated fields/s, zero warmed
+output underruns, no hang, clean shutdown under 0.08 s. Loads: 5.98-8.08 s.
+
+The raw memory-growth threshold triggered follow-up: newly resident pages
+were predominantly fixed-size SIO/audio/other diagnostic histories, not an
+established unbounded leak. Dummy-audio overflow was absent in separate
+Pulse/PipeWire checks; post-routing steady windows were clean. SDL initially
+ignored PULSE_SINK, so the test stream was explicitly moved to the private
+sink. Sink removed and default output verified unchanged. See the note for
+exact attribution, desktop/YouTube conditions and measurement limitations.
+
+Accepted executable remains
+`9a81112c57148d928c00f8cfbd7aed33a88365640cc766395d45d1305c6beb04`.
+All 91 recorded player files unchanged. No game/framework edits, rebuild,
+commit or push. Repeat helpers: `tools/local/performance_audit.py` and
+`tools/local/summarize_performance_audit.py` under recomp. No next job started;
+D23C remains the separate targeted moat/Necro investigation after review.
+
+Launch: `python3 recomp/tools/local/run.py`.
+
+
 ## 2026-10-25 - D08Q9 accepted and closed
 
 User accepted jetpack walk/run and steroid pace and explicitly authorized

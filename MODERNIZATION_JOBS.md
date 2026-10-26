@@ -1,5 +1,7 @@
 # Time to Kill — modernization jobs
 
+**Latest accepted job (2026-10-26): D23 performance baseline is Done. User accepted the findings and authorized closeout. [Note 252](documentation/252-d23-performance-baseline.md) preserves the measurements and limits. Player build unchanged; D23C is ready for selection, not started.**
+
 **Latest accepted job (2026-10-25): D08Q9 jetpack walk/run and steroid pace is Done. User authorized lock-in and closeout. [Note 251](documentation/251-d08q9-flight-pace.md). No next job started.**
 
 **Latest accepted job (2026-10-25): D08Q8 smooth jetpack surface following is Done. User accepted and authorized lock-in/closeout. [Note 250](documentation/250-d08q8-flight-clearance.md). No next job started.**
@@ -329,7 +331,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D22B | Modern controls and first person in every level and transition (no classic fallback) | Accepted | D22A, D26A |
 | D22C | Level 11 starts with Legacy controls until F10 (control mode must persist) | Accepted | D22B |
 | D22D | Energy weapon (key 7) fires but has no effect on enemies | Done (user-accepted 2026-10-19) | D07C |
-| D23 | Performance budgets and long-session stability | Todo | D01 |
+| D23 | Performance budgets and long-session stability | Done (user-accepted 2026-10-26) | D01 |
 | D23A | Modernized frame-budget regression (guard identity cost) | Done | D08 |
 | D23B | Intro FMV stutter: stranded native movie shard | Done | D23 |
 | D23C | Medieval castle moat slowdown with Necros active (profile, do not optimise blind) | Todo | D23, D22B |
@@ -19805,3 +19807,42 @@ documentation commit/push authorized. The tested candidate remains unchanged.
 Runtime patch re-export is unchanged and reconstructs all 52 authored files
 against the clean pinned framework. No post-acceptance gameplay edits, builds
 or launches. Player data and dependency pins untouched. See note 251.
+
+
+## 2026-10-26 - D23 performance baseline (Needs review)
+
+User selected D23 to establish evidence and a solid report before the later
+D23C moat/Necro investigation; current play is reported smooth and solid.
+[Note 252](documentation/252-d23-performance-baseline.md), its chart and
+machine-readable summary record the budgets, conditions, results and limits.
+
+Two sequential offscreen real-GPU audits used fresh private cards and the
+accepted D08Q9 executable. Each completed nine console-driven loads and a
+ten-minute gameplay window. Both held 59.941 fields/s; Modernized held
+120.000 presents/s, p99 8.960 ms, with no adaptive reductions. Loads stayed
+below 8.08 s; both exited cleanly in under 0.08 s. No warmed-window underruns.
+
+Raw PSS slopes exceeded the investigation threshold. Page-residency attribution
+identified bounded SIO/audio history arrays, with additional bounded histories
+in a younger Modernized confirmation and only 160 KiB of other new writable
+pages over 60 s. Dummy-audio overflow did not recur in Pulse/PipeWire checks
+(180 s Modernized, 60 s Vanilla). Routing was corrected explicitly after SDL
+ignored PULSE_SINK; steady post-routing windows were clean. No audible-quality
+or physical-display certification is claimed. YouTube playback was reported
+during testing and contemporaneous host samples are retained.
+
+Authored repeat/summarize helpers are under recomp/tools/local; raw evidence
+stays in ignored analysis/d23-20261026. All 91 recorded player files and the
+accepted executable are unchanged. No gameplay/framework edits, rebuild,
+commit or push. D23 awaits user review; D23C remains Todo and unstarted.
+
+
+## 2026-10-26 - D23 accepted and closed
+
+User: "with these findings, we can mark this job as complete and close it out".
+D23 is Done by user acceptance of the bounded audit, its documented exceptions
+and scope. Closeout includes the report, chart, machine-readable evidence and
+authored audit/summarize helpers. No post-acceptance gameplay changes, builds
+or launches. Existing framework modifications and dependency pins are preserved;
+no framework edits were made for D23. D23C's D23 prerequisite is satisfied,
+but D23C remains Todo and no next job has started. See note 252.

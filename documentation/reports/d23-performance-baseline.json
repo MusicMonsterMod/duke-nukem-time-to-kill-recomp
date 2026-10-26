@@ -1,0 +1,1198 @@
+{
+  "date": "2026-10-26",
+  "status": "Done (user-accepted 2026-10-26)",
+  "scope": "One Linux workstation; offscreen real GPU; bounded routes, not campaign or multi-hour certification",
+  "executable_sha256": "9a81112c57148d928c00f8cfbd7aed33a88365640cc766395d45d1305c6beb04",
+  "runs": {
+    "modernized": {
+      "mode": "modernized",
+      "startup_to_gameplay_s": 28.564210176991764,
+      "shutdown_s": 0.07317131498712115,
+      "returncode": 0,
+      "forced_shutdown": false,
+      "transitions": [
+        {
+          "level_index": 0,
+          "seconds": 6.0602
+        },
+        {
+          "level_index": 6,
+          "seconds": 7.8945
+        },
+        {
+          "level_index": 9,
+          "seconds": 7.8824
+        },
+        {
+          "level_index": 21,
+          "seconds": 6.2819
+        },
+        {
+          "level_index": 0,
+          "seconds": 8.0728
+        },
+        {
+          "level_index": 6,
+          "seconds": 7.9134
+        },
+        {
+          "level_index": 9,
+          "seconds": 7.8283
+        },
+        {
+          "level_index": 21,
+          "seconds": 6.2554
+        },
+        {
+          "level_index": 0,
+          "seconds": 8.0752
+        }
+      ],
+      "windows": [
+        {
+          "name": "cycle0-level0",
+          "elapsed_s": 20.084,
+          "field_hz": 59.947,
+          "present_hz": 119.945,
+          "game_image_hz": 29.974,
+          "present_intervals": 2409,
+          "trace_coverage_s": 20.075,
+          "present_p50_ms": 8.328,
+          "present_p95_ms": 8.694,
+          "present_p99_ms": 8.917,
+          "present_max_ms": 9.823,
+          "worst_rolling_cadence": {
+            "p95_us": 8809.1,
+            "p99_us": 9553.4,
+            "max_us": 9932.5
+          },
+          "output_underruns": 0,
+          "overflow_drops": 1218,
+          "audio_fill_ms_min": 254.0,
+          "audio_fill_ms_max": 280.7,
+          "emu_sheds": 0,
+          "pace_divisors": [
+            1
+          ],
+          "pss_start_mib": 469.0576,
+          "pss_end_mib": 548.2676,
+          "pss_peak_mib": 548.2676,
+          "pss_after_60s_slope_mib_min": null,
+          "pressure_peak_avg10": {
+            "cpu": 0.0,
+            "io": 0.0,
+            "memory": 0.0
+          },
+          "all_samples_active": true,
+          "phase": {
+            "interp_share": 0.0581,
+            "native_share": 0.022,
+            "static_share": 0.7327,
+            "gpu_share": 0.1438,
+            "other_share": 0.0435,
+            "exc_share": 0.0535
+          }
+        },
+        {
+          "name": "cycle0-level21",
+          "elapsed_s": 20.068,
+          "field_hz": 59.996,
+          "present_hz": 120.091,
+          "game_image_hz": 20.929,
+          "present_intervals": 2410,
+          "trace_coverage_s": 20.083,
+          "present_p50_ms": 8.333,
+          "present_p95_ms": 8.665,
+          "present_p99_ms": 9.358,
+          "present_max_ms": 10.109,
+          "worst_rolling_cadence": {
+            "p95_us": 9646.5,
+            "p99_us": 10918.6,
+            "max_us": 13144.8
+          },
+          "output_underruns": 0,
+          "overflow_drops": 1804,
+          "audio_fill_ms_min": 243.7,
+          "audio_fill_ms_max": 274.0,
+          "emu_sheds": 0,
+          "pace_divisors": [
+            1
+          ],
+          "pss_start_mib": 675.0449,
+          "pss_end_mib": 684.7734,
+          "pss_peak_mib": 684.7734,
+          "pss_after_60s_slope_mib_min": null,
+          "pressure_peak_avg10": {
+            "cpu": 0.0,
+            "io": 0.0,
+            "memory": 0.0
+          },
+          "all_samples_active": true,
+          "phase": {
+            "interp_share": 0.0469,
+            "native_share": 0.0156,
+            "static_share": 0.5922,
+            "gpu_share": 0.303,
+            "other_share": 0.0423,
+            "exc_share": 0.0413
+          }
+        },
+        {
+          "name": "cycle0-level6",
+          "elapsed_s": 20.078,
+          "field_hz": 59.965,
+          "present_hz": 120.129,
+          "game_image_hz": 19.972,
+          "present_intervals": 2412,
+          "trace_coverage_s": 20.1,
+          "present_p50_ms": 8.333,
+          "present_p95_ms": 8.625,
+          "present_p99_ms": 8.8,
+          "present_max_ms": 9.21,
+          "worst_rolling_cadence": {
+            "p95_us": 9664.6,
+            "p99_us": 10491.3,
+            "max_us": 11051.2
+          },
+          "output_underruns": 0,
+          "overflow_drops": 1664,
+          "audio_fill_ms_min": 253.9,
+          "audio_fill_ms_max": 280.6,
+          "emu_sheds": 0,
+          "pace_divisors": [
+            1
+          ],
+          "pss_start_mib": 569.4053,
+          "pss_end_mib": 615.8311,
+          "pss_peak_mib": 615.8311,
+          "pss_after_60s_slope_mib_min": null,
+          "pressure_peak_avg10": {
+            "cpu": 0.0,
+            "io": 0.0,
+            "memory": 0.0
+          },
+          "all_samples_active": true,
+          "phase": {
+            "interp_share": 0.0544,
+            "native_share": 0.0207,
+            "static_share": 0.679,
+            "gpu_share": 0.2026,
+            "other_share": 0.0434,
+            "exc_share": 0.0553
+          }
+        },
+        {
+          "name": "cycle0-level9",
+          "elapsed_s": 20.07,
+          "field_hz": 59.939,
+          "present_hz": 119.928,
+          "game_image_hz": 26.058,
+          "present_intervals": 2407,
+          "trace_coverage_s": 20.059,
+          "present_p50_ms": 8.333,
+          "present_p95_ms": 8.609,
+          "present_p99_ms": 8.757,
+          "present_max_ms": 9.201,
+          "worst_rolling_cadence": {
+            "p95_us": 9110.7,
+            "p99_us": 10258.4,
+            "max_us": 12167.0
+          },
+          "output_underruns": 0,
+          "overflow_drops": 2256,
+          "audio_fill_ms_min": 244.1,
+          "audio_fill_ms_max": 280.8,
+          "emu_sheds": 0,
+          "pace_divisors": [
+            1
+          ],
+          "pss_start_mib": 644.8428,
+          "pss_end_mib": 661.0811,
+          "pss_peak_mib": 661.0811,
+          "pss_after_60s_slope_mib_min": null,
+          "pressure_peak_avg10": {
+            "cpu": 0.0,
+            "io": 0.0,
+            "memory": 0.0
+          },
+          "all_samples_active": true,
+          "phase": {
+            "interp_share": 0.0576,
+            "native_share": 0.0204,
+            "static_share": 0.6684,
+            "gpu_share": 0.2062,
+            "other_share": 0.0475,
+            "exc_share": 0.0575
+          }
+        },
+        {
+          "name": "cycle1-level0",
+          "elapsed_s": 20.073,
+          "field_hz": 59.932,
+          "present_hz": 120.063,
+          "game_image_hz": 29.941,
+          "present_intervals": 2410,
+          "trace_coverage_s": 20.083,
+          "present_p50_ms": 8.333,
+          "present_p95_ms": 8.591,
+          "present_p99_ms": 8.789,
+          "present_max_ms": 9.684,
+          "worst_rolling_cadence": {
+            "p95_us": 9231.6,
+            "p99_us": 9914.1,
+            "max_us": 10658.1
+          },
+          "output_underruns": 0,
+          "overflow_drops": 1076,
+          "audio_fill_ms_min": 254.1,
+          "audio_fill_ms_max": 280.6,
+          "emu_sheds": 0,
+          "pace_divisors": [
+            1
+          ],
+          "pss_start_mib": 693.9404,
+          "pss_end_mib": 698.5215,
+          "pss_peak_mib": 698.5215,
+          "pss_after_60s_slope_mib_min": null,
+          "pressure_peak_avg10": {
+            "cpu": 0.0,
+            "io": 0.0,
+            "memory": 0.0
+          },
+          "all_samples_active": true,
+          "phase": {
+            "interp_share": 0.0582,
+            "native_share": 0.0233,
+            "static_share": 0.7248,
+            "gpu_share": 0.1485,
+            "other_share": 0.0452,
+            "exc_share": 0.0549
+          }
+        },
+        {
+          "name": "cycle1-level21",
+          "elapsed_s": 20.083,
+          "field_hz": 59.903,
+          "present_hz": 119.955,
+          "game_image_hz": 24.2,
+          "present_intervals": 2409,
+          "trace_coverage_s": 20.076,
+          "present_p50_ms": 8.333,
+          "present_p95_ms": 8.723,
+          "present_p99_ms": 9.314,
+          "present_max_ms": 10.081,
+          "worst_rolling_cadence": {
+            "p95_us": 10142.7,
+            "p99_us": 11388.6,
+            "max_us": 12803.4
+          },
+          "output_underruns": 0,
+          "overflow_drops": 1581,
+          "audio_fill_ms_min": 160.7,
+          "audio_fill_ms_max": 280.8,
+          "emu_sheds": 0,
+          "pace_divisors": [
+            1
+          ],
+          "pss_start_mib": 708.5537,
+          "pss_end_mib": 708.8877,
+          "pss_peak_mib": 708.8877,
+          "pss_after_60s_slope_mib_min": null,
+          "pressure_peak_avg10": {
+            "cpu": 0.0,
+            "io": 0.0,
+            "memory": 0.0
+          },
+          "all_samples_active": true,
+          "phase": {
+            "interp_share": 0.0476,
+            "native_share": 0.0173,
+            "static_share": 0.5756,
+            "gpu_share": 0.3117,
+            "other_share": 0.0477,
+            "exc_share": 0.0432
+          }
+        },
+        {
+          "name": "cycle1-level6",
+          "elapsed_s": 20.079,
+          "field_hz": 59.913,
+          "present_hz": 119.926,
+          "game_image_hz": 19.971,
+          "present_intervals": 2408,
+          "trace_coverage_s": 20.067,
+          "present_p50_ms": 8.333,
+          "present_p95_ms": 8.615,
+          "present_p99_ms": 8.791,
+          "present_max_ms": 9.172,
+          "worst_rolling_cadence": {
+            "p95_us": 9092.5,
+            "p99_us": 10403.8,
+            "max_us": 12272.3
+          },
+          "output_underruns": 0,
+          "overflow_drops": 1672,
+          "audio_fill_ms_min": 207.1,
+          "audio_fill_ms_max": 277.1,
+          "emu_sheds": 0,
+          "pace_divisors": [
+            1
+          ],
+          "pss_start_mib": 703.127,
+          "pss_end_mib": 706.5996,
+          "pss_peak_mib": 706.5996,
+          "pss_after_60s_slope_mib_min": null,
+          "pressure_peak_avg10": {
+            "cpu": 0.0,
+            "io": 0.0,
+            "memory": 0.0
+          },
+          "all_samples_active": true,
+          "phase": {
+            "interp_share": 0.0501,
+            "native_share": 0.0246,
+            "static_share": 0.6772,
+            "gpu_share": 0.2062,
+            "other_share": 0.042,
+            "exc_share": 0.056
+          }
+        },
+        {
+          "name": "cycle1-level9",
+          "elapsed_s": 20.068,
+          "field_hz": 59.895,
+          "present_hz": 119.94,
+          "game_image_hz": 25.164,
+          "present_intervals": 2407,
+          "trace_coverage_s": 20.059,
+          "present_p50_ms": 8.333,
+          "present_p95_ms": 8.606,
+          "present_p99_ms": 8.832,
+          "present_max_ms": 9.992,
+          "worst_rolling_cadence": {
+            "p95_us": 9228.6,
+            "p99_us": 10410.2,
+            "max_us": 18481.5
+          },
+          "output_underruns": 0,
+          "overflow_drops": 1809,
+          "audio_fill_ms_min": 230.5,
+          "audio_fill_ms_max": 277.3,
+          "emu_sheds": 0,
+          "pace_divisors": [
+            1
+          ],
+          "pss_start_mib": 707.3926,
+          "pss_end_mib": 707.873,
+          "pss_peak_mib": 707.873,
+          "pss_after_60s_slope_mib_min": null,
+          "pressure_peak_avg10": {
+            "cpu": 0.0,
+            "io": 0.0,
+            "memory": 0.0
+          },
+          "all_samples_active": true,
+          "phase": {
+            "interp_share": 0.0579,
+            "native_share": 0.0205,
+            "static_share": 0.6622,
+            "gpu_share": 0.2088,
+            "other_share": 0.0506,
+            "exc_share": 0.0565
+          }
+        },
+        {
+          "name": "sustained",
+          "elapsed_s": 600.069,
+          "field_hz": 59.941,
+          "present_hz": 120.0,
+          "game_image_hz": 29.748,
+          "present_intervals": 72008,
+          "trace_coverage_s": 600.067,
+          "present_p50_ms": 8.332,
+          "present_p95_ms": 8.667,
+          "present_p99_ms": 8.96,
+          "present_max_ms": 13.801,
+          "worst_rolling_cadence": {
+            "p95_us": 9262.7,
+            "p99_us": 10029.7,
+            "max_us": 13844.1
+          },
+          "output_underruns": 0,
+          "overflow_drops": 40437,
+          "audio_fill_ms_min": 247.3,
+          "audio_fill_ms_max": 280.8,
+          "emu_sheds": 0,
+          "pace_divisors": [
+            1
+          ],
+          "pss_start_mib": 709.3623,
+          "pss_end_mib": 725.0645,
+          "pss_peak_mib": 725.0645,
+          "pss_after_60s_slope_mib_min": 1.5646,
+          "pressure_peak_avg10": {
+            "cpu": 0.41,
+            "io": 0.0,
+            "memory": 0.0
+          },
+          "all_samples_active": true,
+          "phase": {
+            "interp_share": 0.0609,
+            "native_share": 0.0229,
+            "static_share": 0.7299,
+            "gpu_share": 0.14,
+            "other_share": 0.0464,
+            "exc_share": 0.0489
+          }
+        }
+      ]
+    },
+    "vanilla": {
+      "mode": "vanilla",
+      "startup_to_gameplay_s": 31.485094890987966,
+      "shutdown_s": 0.06561240099836141,
+      "returncode": 0,
+      "forced_shutdown": false,
+      "transitions": [
+        {
+          "level_index": 0,
+          "seconds": 5.9806
+        },
+        {
+          "level_index": 6,
+          "seconds": 7.9329
+        },
+        {
+          "level_index": 9,
+          "seconds": 7.7861
+        },
+        {
+          "level_index": 21,
+          "seconds": 6.258
+        },
+        {
+          "level_index": 0,
+          "seconds": 7.9836
+        },
+        {
+          "level_index": 6,
+          "seconds": 7.7904
+        },
+        {
+          "level_index": 9,
+          "seconds": 7.7665
+        },
+        {
+          "level_index": 21,
+          "seconds": 6.2554
+        },
+        {
+          "level_index": 0,
+          "seconds": 8.0515
+        }
+      ],
+      "windows": [
+        {
+          "name": "cycle0-level0",
+          "elapsed_s": 20.033,
+          "field_hz": 59.95,
+          "present_hz": null,
+          "game_image_hz": null,
+          "present_intervals": 0,
+          "trace_coverage_s": 0,
+          "present_p50_ms": null,
+          "present_p95_ms": null,
+          "present_p99_ms": null,
+          "present_max_ms": null,
+          "worst_rolling_cadence": {
+            "p95_us": 0.0,
+            "p99_us": 0.0,
+            "max_us": 0.0
+          },
+          "output_underruns": 0,
+          "overflow_drops": 1804,
+          "audio_fill_ms_min": 257.4,
+          "audio_fill_ms_max": 277.3,
+          "emu_sheds": 0,
+          "pace_divisors": [
+            1
+          ],
+          "pss_start_mib": 274.1807,
+          "pss_end_mib": 307.8096,
+          "pss_peak_mib": 307.8096,
+          "pss_after_60s_slope_mib_min": null,
+          "pressure_peak_avg10": {
+            "cpu": 0.0,
+            "io": 0.0,
+            "memory": 0.0
+          },
+          "all_samples_active": true,
+          "phase": {
+            "interp_share": 0.0444,
+            "native_share": 0.0216,
+            "static_share": 0.8817,
+            "gpu_share": 0.0118,
+            "other_share": 0.0405,
+            "exc_share": 0.0333
+          }
+        },
+        {
+          "name": "cycle0-level21",
+          "elapsed_s": 20.049,
+          "field_hz": 59.953,
+          "present_hz": null,
+          "game_image_hz": null,
+          "present_intervals": 0,
+          "trace_coverage_s": 0,
+          "present_p50_ms": null,
+          "present_p95_ms": null,
+          "present_p99_ms": null,
+          "present_max_ms": null,
+          "worst_rolling_cadence": {
+            "p95_us": 0.0,
+            "p99_us": 0.0,
+            "max_us": 0.0
+          },
+          "output_underruns": 0,
+          "overflow_drops": 1810,
+          "audio_fill_ms_min": 263.9,
+          "audio_fill_ms_max": 280.6,
+          "emu_sheds": 0,
+          "pace_divisors": [
+            1
+          ],
+          "pss_start_mib": 375.0557,
+          "pss_end_mib": 380.4814,
+          "pss_peak_mib": 380.4814,
+          "pss_after_60s_slope_mib_min": null,
+          "pressure_peak_avg10": {
+            "cpu": 0.0,
+            "io": 0.0,
+            "memory": 0.0
+          },
+          "all_samples_active": true,
+          "phase": {
+            "interp_share": 0.0384,
+            "native_share": 0.0216,
+            "static_share": 0.8913,
+            "gpu_share": 0.0105,
+            "other_share": 0.0382,
+            "exc_share": 0.0308
+          }
+        },
+        {
+          "name": "cycle0-level6",
+          "elapsed_s": 20.05,
+          "field_hz": 59.951,
+          "present_hz": null,
+          "game_image_hz": null,
+          "present_intervals": 0,
+          "trace_coverage_s": 0,
+          "present_p50_ms": null,
+          "present_p95_ms": null,
+          "present_p99_ms": null,
+          "present_max_ms": null,
+          "worst_rolling_cadence": {
+            "p95_us": 0.0,
+            "p99_us": 0.0,
+            "max_us": 0.0
+          },
+          "output_underruns": 0,
+          "overflow_drops": 1811,
+          "audio_fill_ms_min": 260.7,
+          "audio_fill_ms_max": 277.4,
+          "emu_sheds": 0,
+          "pace_divisors": [
+            1
+          ],
+          "pss_start_mib": 327.2861,
+          "pss_end_mib": 344.5625,
+          "pss_peak_mib": 344.5625,
+          "pss_after_60s_slope_mib_min": null,
+          "pressure_peak_avg10": {
+            "cpu": 0.0,
+            "io": 0.0,
+            "memory": 0.0
+          },
+          "all_samples_active": true,
+          "phase": {
+            "interp_share": 0.0454,
+            "native_share": 0.0136,
+            "static_share": 0.8898,
+            "gpu_share": 0.0162,
+            "other_share": 0.035,
+            "exc_share": 0.0356
+          }
+        },
+        {
+          "name": "cycle0-level9",
+          "elapsed_s": 20.037,
+          "field_hz": 59.94,
+          "present_hz": null,
+          "game_image_hz": null,
+          "present_intervals": 0,
+          "trace_coverage_s": 0,
+          "present_p50_ms": null,
+          "present_p95_ms": null,
+          "present_p99_ms": null,
+          "present_max_ms": null,
+          "worst_rolling_cadence": {
+            "p95_us": 0.0,
+            "p99_us": 0.0,
+            "max_us": 0.0
+          },
+          "output_underruns": 0,
+          "overflow_drops": 1664,
+          "audio_fill_ms_min": 260.6,
+          "audio_fill_ms_max": 280.7,
+          "emu_sheds": 0,
+          "pace_divisors": [
+            1
+          ],
+          "pss_start_mib": 357.1064,
+          "pss_end_mib": 368.083,
+          "pss_peak_mib": 368.083,
+          "pss_after_60s_slope_mib_min": null,
+          "pressure_peak_avg10": {
+            "cpu": 0.0,
+            "io": 0.0,
+            "memory": 0.0
+          },
+          "all_samples_active": true,
+          "phase": {
+            "interp_share": 0.043,
+            "native_share": 0.0186,
+            "static_share": 0.8915,
+            "gpu_share": 0.0126,
+            "other_share": 0.0343,
+            "exc_share": 0.0344
+          }
+        },
+        {
+          "name": "cycle1-level0",
+          "elapsed_s": 20.044,
+          "field_hz": 59.917,
+          "present_hz": null,
+          "game_image_hz": null,
+          "present_intervals": 0,
+          "trace_coverage_s": 0,
+          "present_p50_ms": null,
+          "present_p95_ms": null,
+          "present_p99_ms": null,
+          "present_max_ms": null,
+          "worst_rolling_cadence": {
+            "p95_us": 0.0,
+            "p99_us": 0.0,
+            "max_us": 0.0
+          },
+          "output_underruns": 0,
+          "overflow_drops": 1524,
+          "audio_fill_ms_min": 257.4,
+          "audio_fill_ms_max": 280.7,
+          "emu_sheds": 0,
+          "pace_divisors": [
+            1
+          ],
+          "pss_start_mib": 385.2354,
+          "pss_end_mib": 391.9463,
+          "pss_peak_mib": 391.9463,
+          "pss_after_60s_slope_mib_min": null,
+          "pressure_peak_avg10": {
+            "cpu": 0.0,
+            "io": 0.0,
+            "memory": 0.0
+          },
+          "all_samples_active": true,
+          "phase": {
+            "interp_share": 0.0436,
+            "native_share": 0.0206,
+            "static_share": 0.8876,
+            "gpu_share": 0.0128,
+            "other_share": 0.0353,
+            "exc_share": 0.0331
+          }
+        },
+        {
+          "name": "cycle1-level21",
+          "elapsed_s": 20.042,
+          "field_hz": 59.925,
+          "present_hz": null,
+          "game_image_hz": null,
+          "present_intervals": 0,
+          "trace_coverage_s": 0,
+          "present_p50_ms": null,
+          "present_p95_ms": null,
+          "present_p99_ms": null,
+          "present_max_ms": null,
+          "worst_rolling_cadence": {
+            "p95_us": 0.0,
+            "p99_us": 0.0,
+            "max_us": 0.0
+          },
+          "output_underruns": 0,
+          "overflow_drops": 1810,
+          "audio_fill_ms_min": 260.6,
+          "audio_fill_ms_max": 280.5,
+          "emu_sheds": 0,
+          "pace_divisors": [
+            1
+          ],
+          "pss_start_mib": 400.1406,
+          "pss_end_mib": 400.4697,
+          "pss_peak_mib": 400.4697,
+          "pss_after_60s_slope_mib_min": null,
+          "pressure_peak_avg10": {
+            "cpu": 0.0,
+            "io": 0.0,
+            "memory": 0.0
+          },
+          "all_samples_active": true,
+          "phase": {
+            "interp_share": 0.0442,
+            "native_share": 0.0233,
+            "static_share": 0.8852,
+            "gpu_share": 0.0121,
+            "other_share": 0.0352,
+            "exc_share": 0.0325
+          }
+        },
+        {
+          "name": "cycle1-level6",
+          "elapsed_s": 20.039,
+          "field_hz": 59.933,
+          "present_hz": null,
+          "game_image_hz": null,
+          "present_intervals": 0,
+          "trace_coverage_s": 0,
+          "present_p50_ms": null,
+          "present_p95_ms": null,
+          "present_p99_ms": null,
+          "present_max_ms": null,
+          "worst_rolling_cadence": {
+            "p95_us": 0.0,
+            "p99_us": 0.0,
+            "max_us": 0.0
+          },
+          "output_underruns": 0,
+          "overflow_drops": 1665,
+          "audio_fill_ms_min": 260.7,
+          "audio_fill_ms_max": 280.6,
+          "emu_sheds": 0,
+          "pace_divisors": [
+            1
+          ],
+          "pss_start_mib": 395.8564,
+          "pss_end_mib": 398.9814,
+          "pss_peak_mib": 398.9814,
+          "pss_after_60s_slope_mib_min": null,
+          "pressure_peak_avg10": {
+            "cpu": 0.0,
+            "io": 0.0,
+            "memory": 0.0
+          },
+          "all_samples_active": true,
+          "phase": {
+            "interp_share": 0.045,
+            "native_share": 0.0143,
+            "static_share": 0.8924,
+            "gpu_share": 0.0138,
+            "other_share": 0.0345,
+            "exc_share": 0.0357
+          }
+        },
+        {
+          "name": "cycle1-level9",
+          "elapsed_s": 20.041,
+          "field_hz": 59.928,
+          "present_hz": null,
+          "game_image_hz": null,
+          "present_intervals": 0,
+          "trace_coverage_s": 0,
+          "present_p50_ms": null,
+          "present_p95_ms": null,
+          "present_p99_ms": null,
+          "present_max_ms": null,
+          "worst_rolling_cadence": {
+            "p95_us": 0.0,
+            "p99_us": 0.0,
+            "max_us": 0.0
+          },
+          "output_underruns": 0,
+          "overflow_drops": 1660,
+          "audio_fill_ms_min": 260.6,
+          "audio_fill_ms_max": 280.5,
+          "emu_sheds": 0,
+          "pace_divisors": [
+            1
+          ],
+          "pss_start_mib": 399.3994,
+          "pss_end_mib": 399.7617,
+          "pss_peak_mib": 399.7617,
+          "pss_after_60s_slope_mib_min": null,
+          "pressure_peak_avg10": {
+            "cpu": 0.0,
+            "io": 0.0,
+            "memory": 0.0
+          },
+          "all_samples_active": true,
+          "phase": {
+            "interp_share": 0.0433,
+            "native_share": 0.0189,
+            "static_share": 0.8921,
+            "gpu_share": 0.0107,
+            "other_share": 0.0351,
+            "exc_share": 0.0383
+          }
+        },
+        {
+          "name": "sustained",
+          "elapsed_s": 600.037,
+          "field_hz": 59.941,
+          "present_hz": null,
+          "game_image_hz": null,
+          "present_intervals": 0,
+          "trace_coverage_s": 0,
+          "present_p50_ms": null,
+          "present_p95_ms": null,
+          "present_p99_ms": null,
+          "present_max_ms": null,
+          "worst_rolling_cadence": {
+            "p95_us": 0.0,
+            "p99_us": 0.0,
+            "max_us": 0.0
+          },
+          "output_underruns": 0,
+          "overflow_drops": 45000,
+          "audio_fill_ms_min": 254.1,
+          "audio_fill_ms_max": 280.8,
+          "emu_sheds": 0,
+          "pace_divisors": [
+            1
+          ],
+          "pss_start_mib": 400.8896,
+          "pss_end_mib": 415.3398,
+          "pss_peak_mib": 415.3398,
+          "pss_after_60s_slope_mib_min": 1.4498,
+          "pressure_peak_avg10": {
+            "cpu": 0.0,
+            "io": 0.0,
+            "memory": 0.0
+          },
+          "all_samples_active": true,
+          "phase": {
+            "interp_share": 0.0476,
+            "native_share": 0.0252,
+            "static_share": 0.8765,
+            "gpu_share": 0.012,
+            "other_share": 0.0386,
+            "exc_share": 0.0356
+          }
+        }
+      ]
+    },
+    "pulse-modernized": {
+      "mode": "modernized",
+      "startup_to_gameplay_s": 29.074004781985423,
+      "shutdown_s": 0.06505879800533876,
+      "returncode": 0,
+      "forced_shutdown": false,
+      "transitions": [],
+      "windows": [
+        {
+          "name": "smoke",
+          "elapsed_s": 180.076,
+          "field_hz": 59.942,
+          "present_hz": 120.005,
+          "game_image_hz": 29.593,
+          "present_intervals": 21610,
+          "trace_coverage_s": 180.083,
+          "present_p50_ms": 8.33,
+          "present_p95_ms": 8.688,
+          "present_p99_ms": 9.07,
+          "present_max_ms": 11.863,
+          "worst_rolling_cadence": {
+            "p95_us": 9031.6,
+            "p99_us": 10273.7,
+            "max_us": 11840.9
+          },
+          "output_underruns": 0,
+          "overflow_drops": 0,
+          "audio_fill_ms_min": 144.2,
+          "audio_fill_ms_max": 193.6,
+          "emu_sheds": 0,
+          "pace_divisors": [
+            1
+          ],
+          "pss_start_mib": 414.1377,
+          "pss_end_mib": 609.5586,
+          "pss_peak_mib": 609.5586,
+          "pss_after_60s_slope_mib_min": 12.0638,
+          "pressure_peak_avg10": {
+            "cpu": 0.0,
+            "io": 6.3,
+            "memory": 0.0
+          },
+          "all_samples_active": true,
+          "phase": {
+            "interp_share": 0.0641,
+            "native_share": 0.0249,
+            "static_share": 0.7055,
+            "gpu_share": 0.157,
+            "other_share": 0.0486,
+            "exc_share": 0.0566
+          }
+        }
+      ]
+    },
+    "pulse-vanilla": {
+      "mode": "vanilla",
+      "startup_to_gameplay_s": 31.524019848002354,
+      "shutdown_s": 0.07470011798432097,
+      "returncode": 0,
+      "forced_shutdown": false,
+      "transitions": [],
+      "windows": [
+        {
+          "name": "smoke",
+          "elapsed_s": 60.045,
+          "field_hz": 59.938,
+          "present_hz": null,
+          "game_image_hz": null,
+          "present_intervals": 0,
+          "trace_coverage_s": 0,
+          "present_p50_ms": null,
+          "present_p95_ms": null,
+          "present_p99_ms": null,
+          "present_max_ms": null,
+          "worst_rolling_cadence": {
+            "p95_us": 0.0,
+            "p99_us": 0.0,
+            "max_us": 0.0
+          },
+          "output_underruns": 0,
+          "overflow_drops": 0,
+          "audio_fill_ms_min": 158.5,
+          "audio_fill_ms_max": 182.8,
+          "emu_sheds": 0,
+          "pace_divisors": [
+            1
+          ],
+          "pss_start_mib": 263.0596,
+          "pss_end_mib": 347.4482,
+          "pss_peak_mib": 347.4482,
+          "pss_after_60s_slope_mib_min": null,
+          "pressure_peak_avg10": {
+            "cpu": 0.36,
+            "io": 9.52,
+            "memory": 0.0
+          },
+          "all_samples_active": true,
+          "phase": {
+            "interp_share": 0.0499,
+            "native_share": 0.0259,
+            "static_share": 0.8719,
+            "gpu_share": 0.0138,
+            "other_share": 0.0384,
+            "exc_share": 0.0375
+          }
+        }
+      ]
+    }
+  },
+  "vanilla_native_presentation": {
+    "elapsed_ms": 60008,
+    "present_count": 1199,
+    "native_present_hz": 19.98066924410079,
+    "intervals": 1199,
+    "p50_ms": 50,
+    "p95_ms": 67,
+    "p99_ms": 67,
+    "max_ms": 68,
+    "gl_errors": 0
+  },
+  "memory_attribution": {
+    "vanilla": {
+      "seconds": 60.32639187099994,
+      "new_resident_kib": 1504,
+      "lost_resident_kib": 0,
+      "attribution": [
+        {
+          "address": "0xa86e480",
+          "symbol": "sio_trace_buf",
+          "capacity_bytes": 29360128,
+          "new_kib": 596
+        },
+        {
+          "address": "0x5e6e460",
+          "symbol": "sio_irq_buf",
+          "capacity_bytes": 41943040,
+          "new_kib": 568
+        },
+        {
+          "address": "0x34c1c200",
+          "symbol": "s_events",
+          "capacity_bytes": 16777216,
+          "new_kib": 340
+        }
+      ]
+    },
+    "modernized": {
+      "seconds": 60.15070251500583,
+      "new_resident_kib": 3312,
+      "lost_resident_kib": 0,
+      "attribution": [
+        {
+          "address": "0x11985ee0",
+          "symbol": "s_sio_pc_trace",
+          "capacity_bytes": 8388608,
+          "new_kib": 1264
+        },
+        {
+          "address": "0xa86e480",
+          "symbol": "sio_trace_buf",
+          "capacity_bytes": 29360128,
+          "new_kib": 592
+        },
+        {
+          "address": "0x5e6e460",
+          "symbol": "sio_irq_buf",
+          "capacity_bytes": 41943040,
+          "new_kib": 564
+        },
+        {
+          "address": "0x34c1c200",
+          "symbol": "s_events",
+          "capacity_bytes": 16777216,
+          "new_kib": 400
+        },
+        {
+          "address": "0x13be8e60",
+          "symbol": "g_dirty_ram_flow_log",
+          "capacity_bytes": 3145728,
+          "new_kib": 332
+        },
+        {
+          "address": "other",
+          "symbol": "heap/driver/other",
+          "capacity_bytes": 0,
+          "new_kib": 160
+        }
+      ]
+    }
+  },
+  "audio_note": "Pulse follow-ups were initially on the normal device, then manually routed to the private sink. Both whole measured windows and final post-routing 30-second windows had zero underrun/overflow increments. Private sink removed; default unchanged. Listening quality not assessed.",
+  "raw_evidence": {
+    "modernized/boot.json": {
+      "sha256": "ad62e9fee85d91429c193c76c0712199505b1f9e4339d5654d0194c00b678f1a",
+      "bytes": 13732
+    },
+    "modernized/cycle0-level0.json": {
+      "sha256": "27cf3b53e57373bf4fc4ae238c2b7b3d6f6f396931cce947a99cc39895c2f475",
+      "bytes": 724547
+    },
+    "modernized/cycle0-level21.json": {
+      "sha256": "2d3e3b6b543a98ed13519fd8faa276ba3d6f293eb5773036be13d9f10806b4ac",
+      "bytes": 733388
+    },
+    "modernized/cycle0-level6.json": {
+      "sha256": "717e8d37b9c7b0e21d2f4ffec63ac25342669d68a5843ec86fb3d58d532ddd83",
+      "bytes": 731871
+    },
+    "modernized/cycle0-level9.json": {
+      "sha256": "a19a3e8bc14821ee804d37287c24af06be40fc806384a128328fa166f776f351",
+      "bytes": 732101
+    },
+    "modernized/cycle1-level0.json": {
+      "sha256": "f051e92558aa4e46273cc73ff650b16a4baba4f9db5090ffeaa42e7ee4450016",
+      "bytes": 737055
+    },
+    "modernized/cycle1-level21.json": {
+      "sha256": "72766af720c0c7d0d16236cdf9c259f1a4a616011d14d3d6754688cfe552d14b",
+      "bytes": 733553
+    },
+    "modernized/cycle1-level6.json": {
+      "sha256": "b647c4c1869774b307f16031342fece75ea15de0556079b2165a9ed0736f4fed",
+      "bytes": 733162
+    },
+    "modernized/cycle1-level9.json": {
+      "sha256": "daf42c45e9253da9759b5a2dd63168662aec4b074720ca131b92ee7ace48fe42",
+      "bytes": 732732
+    },
+    "modernized/meta.json": {
+      "sha256": "564784dd075811c515b171e9782b4d90eb2c1fabd47a9bdf14ba2d70cf772ac1",
+      "bytes": 29288
+    },
+    "modernized/sustained.json": {
+      "sha256": "8fff49f9a47c524ac08d2d042e0363abd5e6d48a43ab7d7d894191b9d479b61c",
+      "bytes": 21256492
+    },
+    "vanilla/boot.json": {
+      "sha256": "d3ea497fa9e201ed6d6e10302eef24a042f55a70d11c7ce7ef59dbff67ff04a8",
+      "bytes": 3054
+    },
+    "vanilla/cycle0-level0.json": {
+      "sha256": "96337f1a08de3e4ec9d23ff2669c339eb567b4251ed68238b2097efdf57c9ae4",
+      "bytes": 212841
+    },
+    "vanilla/cycle0-level21.json": {
+      "sha256": "ec7b37e271dd6a0a9f42899e448a8505741b5bbd44cfa91acbbfdbc6e6472aeb",
+      "bytes": 213271
+    },
+    "vanilla/cycle0-level6.json": {
+      "sha256": "994c9edec8ac5a6c15c7ffcf225806f393cea73d667a6b7f98d9e2116c634599",
+      "bytes": 212985
+    },
+    "vanilla/cycle0-level9.json": {
+      "sha256": "a885d9de2b695282e90656096c01f38bfcb495d8f515d6907d3d74735070f282",
+      "bytes": 213141
+    },
+    "vanilla/cycle1-level0.json": {
+      "sha256": "886c24288efbf74a8c91989d43e49ad4dd7ed6ab3f308d6375cb42e3d4d10852",
+      "bytes": 213196
+    },
+    "vanilla/cycle1-level21.json": {
+      "sha256": "b6ebf2bda93e4781f736b7375589adf5201b4d540549e7a5aeab24056f11a174",
+      "bytes": 213448
+    },
+    "vanilla/cycle1-level6.json": {
+      "sha256": "0a74e4744a396fb2dc43a26b6f3117904e6fff8bd04d501b4030dcf137a587eb",
+      "bytes": 213108
+    },
+    "vanilla/cycle1-level9.json": {
+      "sha256": "7b142f2bd1df1772218f36eab5b1f2b43992a32a5921abf44a74695e994eb339",
+      "bytes": 213308
+    },
+    "vanilla/meta.json": {
+      "sha256": "b6c3f12f43716a25e740906d7ff1ddb0f074f71af25b5dedfe455f71c2097de3",
+      "bytes": 29084
+    },
+    "vanilla/sustained.json": {
+      "sha256": "f9cfd35c129baf276d792c28231f2d7ed91891d25878e9f20865f77430b143fc",
+      "bytes": 6155498
+    },
+    "pulse-modernized/boot.json": {
+      "sha256": "a14eea7615bf1c531053111d04cad9984ac310f206cc457c6099a1f7fb68c86b",
+      "bytes": 13731
+    },
+    "pulse-modernized/meta.json": {
+      "sha256": "ca6c7d085378f9e00e90695bfe3f19933443996c83ac83410126415a9932d267",
+      "bytes": 22242
+    },
+    "pulse-modernized/smoke.json": {
+      "sha256": "719d53093e67fcccf57c62f95d7bede5930f378762db399f6dbe2fe62d9a5f5c",
+      "bytes": 6323824
+    },
+    "pulse-vanilla/boot.json": {
+      "sha256": "7f83b74e69f7adf5866003f3d37a8841268328283500af9582092b23bd533ab4",
+      "bytes": 3056
+    },
+    "pulse-vanilla/meta.json": {
+      "sha256": "f97ec2775a78b4542ba90677c2aac916480d607447daa6cb517ecc7ebb35070d",
+      "bytes": 22223
+    },
+    "pulse-vanilla/smoke.json": {
+      "sha256": "3a9b76eaee8eb4264aeb5d0b1119d90c4f05c7636c473d290dd81279efa0cad5",
+      "bytes": 622325
+    }
+  }
+}

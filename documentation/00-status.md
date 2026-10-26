@@ -1,5 +1,37 @@
 # Current status - 2026-10-04
 
+## 2026-10-26 - D36I accepted and closed
+
+User confirms the arms are solid, native animation is unaffected and the result
+is complete and foundational, and explicitly requests lock-in/closeout. D36I
+is Done. Authored implementation, tests and documentation are authorized for
+commit/push as MusicMonsterMod. [Note 260](260-d36i-interaction-arm-continuity.md)
+records acceptance and preserves the bounded verification and coverage limits.
+Accepted executable: `e6e6922f51217d2383d56458b31dfd2784952a4c192b6d62cf54e6b9641565ea`.
+No gameplay changes, rebuild, game launch or player-file writes during closeout.
+Existing framework changes remain untouched. D36J-L remain unstarted; D37A/D19Q3
+retain their separate Needs playtest statuses. No next job started.
+Launch: `python3 recomp/tools/local/run.py` (Modernized default; `--vanilla`
+selects original play for one launch).
+
+
+## 2026-10-26 - D36I interaction arm candidate (Needs playtest)
+
+Push/Use native arms now bypass whole-joint origin rejection through the
+existing guarded clipping bridge. Real matrices, native contact motion, world
+occlusion and lighting are retained; D36H weapon/held-item ownership remains.
+Build, controls/input/aim/near suites and D37A save-recovery checks pass. Private
+slot-8 motion/depth evidence plus wheel/vending/item/ladder and save/load routes
+are recorded in [note 260](260-d36i-interaction-arm-continuity.md), including
+failed diagnostic attempts and bounded 60/120-setting coverage. No framework,
+allocation or replay/save format changes. User motion/contact review remains.
+D36J-L are unstarted; D37A/D19Q3 retain their separate Needs playtest statuses.
+No acceptance closeout, commit or push authorized.
+Candidate: `e6e6922f51217d2383d56458b31dfd2784952a4c192b6d62cf54e6b9641565ea`.
+Launch: `python3 recomp/tools/local/run.py`. Capture is automatic; P selects
+first person. Check slot 8 grab/push/reverse/release, then wheel and vending.
+
+
 ## 2026-10-26 - D36H accepted and closed
 
 User: "fully accept! lock it in and close it out!!!!!!". D36H is Done, including

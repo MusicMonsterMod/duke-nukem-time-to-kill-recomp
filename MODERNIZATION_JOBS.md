@@ -1,6 +1,6 @@
 # Time to Kill — modernization jobs
 
-**Latest accepted research (2026-10-26): D36 and D36A-F are Done. [Note 257](documentation/257-d36-first-person-presentation-audit.md) is the accepted first-person presentation audit and roadmap. D36G is Done (user-accepted); D36H is Done (user-accepted); implementation proposals D36I-L remain unstarted.**
+**Latest accepted research (2026-10-26): D36 and D36A-F are Done. [Note 257](documentation/257-d36-first-person-presentation-audit.md) is the accepted first-person presentation audit and roadmap. D36G is Done (user-accepted); D36H is Done (user-accepted); D36I is Done (user-accepted); implementation proposals D36J-L remain unstarted.**
 
 **Latest closeout (2026-10-26): D23D is Done. User could not reproduce the Level 9 slowdown and reports a problem-free playthrough. Closed on user playtest evidence; no build change or new profiling.**
 
@@ -411,6 +411,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D36F | Visual standards, traceability and prioritized implementation roadmap | Done (research accepted 2026-10-26) | D36B, D36C, D36D, D36E |
 | D36G | Shared limb presentation ownership (behavior-equivalent foundation) | Done (user-accepted 2026-10-26) | D36; D37A/D19Q3 candidate limits |
 | D36H | Connected combat and held-item arms | Done | D36G |
+| D36I | Native interaction arm continuity, slot 8 first | Done | D36G |
 | D37 | Temporary movement failure at 07:26 UK on 2026-10-26 (separate research) | Done | - |
 | D37A | Safe animation restoration across save allocation layouts | Needs playtest | D37 |
 | R01 | DisruptorRecomp architecture and modernization reference research | Done | - |
@@ -20522,3 +20523,38 @@ explicitly authorized for commit/push as MusicMonsterMod. Accepted executable:
 private motion/save-load evidence, the rejected intermediate candidate and
 coverage limits. No new gameplay edits, rebuild or launch during closeout.
 D36I-L remain unstarted; D37A/D19Q3 retain their separate Needs playtest statuses.
+
+
+## 2026-10-26 - D36I selected
+
+User selected D36I. Scope and acceptance follow note 257: diagnose slot-8
+push/pull arm depth and motion, admit eligible native arms through safe clipping
+with world occlusion, then check wheel/vending and equipment handoffs. Preserve
+native travel, collisions, callbacks, lighting, D36H weapon poses, ladder arms,
+view preferences and Vanilla. Use private save/card copies and 60/120 diagnostics.
+D36J-L remain unstarted. No commit/push or acceptance closeout authorized.
+
+
+## 2026-10-26 - D36I interaction arm candidate (Needs playtest)
+
+Push/Use native arms now enter the existing guarded joint-depth bridge and
+polygon clipper, retaining real world depth, lighting and native matrices.
+Slot-8 baseline depths/captures confirm the origin-cutoff mechanism; candidate
+checks show connected segments. Native movement/poses/callbacks remain unchanged.
+Build, controls/input/aim/near suites and D37A recovery checks pass. Private
+60/120-setting routes cover push/reverse/hold, look, equipment handoffs, wheel,
+vending, ladder and save/load with the limits in [note 260](documentation/260-d36i-interaction-arm-continuity.md).
+High-refresh motion uses guest-frame waits after fixed-delay trials failed to
+exercise the intended action reliably. It is not a sustained-120-FPS claim.
+User motion/contact review remains. D36J-L unstarted; D37A/D19Q3 unchanged.
+No acceptance closeout, commit or push authorized.
+
+
+## 2026-10-26 - D36I accepted and closed
+
+User confirms the arms are solid, native animation is unaffected and the result
+is complete and foundational, and explicitly requests lock-in/closeout. D36I
+is Done. Implementation, tests and documentation commit/push are authorized as
+MusicMonsterMod. [Note 260](documentation/260-d36i-interaction-arm-continuity.md)
+retains verification and coverage limits. No gameplay change, rebuild or launch
+during closeout; D36J-L unstarted, D37A/D19Q3 unchanged. No next job started.

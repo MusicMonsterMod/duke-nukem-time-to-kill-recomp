@@ -320,6 +320,10 @@ static void packet_contracts(const char* executable) {
     duke=true;
     object_case(0x80034dd0,100,false,false,0,100);
     interaction=true;object_case(0x80034dd0,100,true,false,0,100);
+    // D36I: admitted contact arms retain world depth/OT ordering. They must
+    // never acquire the weapon layer's negative depth or deferred slot 1.
+    assert(psx_mod_read_word(ot+8)==0);
+    for(const auto& v:host_corners) assert(v.depth>0 && v.z>=16);
     interaction=false;duke=false;
     object_case(0x80032288,100,true); // compact static prop beyond near radius
     object_case(0x80032288,100,true,true); // first mesh need not see an empty OT

@@ -1042,7 +1042,11 @@ static bool display_arm_matrix(uint32_t real,uint32_t desc,unsigned part) {
 }
 // 0x800292a0 entry from the joint loop (ra 0x80034c6c): the hand joint's transform.
 static bool interaction_depth_bridge(PerspectiveAction action) {
-    return action==PerspectiveAction::Wall || action==PerspectiveAction::Ladder ||
+    // Push/Use keep their native contact poses. Admit the complete arm chain
+    // to polygon clipping instead of losing whole segments at the joint origin.
+    // This changes loop admission only, never their world depth or lighting.
+    return action==PerspectiveAction::Push || action==PerspectiveAction::Use ||
+        action==PerspectiveAction::Wall || action==PerspectiveAction::Ladder ||
         action==PerspectiveAction::Pole || action==PerspectiveAction::Mantle ||
         action==PerspectiveAction::Overhead || action==PerspectiveAction::WaterExit;
 }
@@ -1136,7 +1140,7 @@ static void first_person_weapon_attached(CPUState* cpu,uint32_t address,uint32_t
 
 // D35E: the native joint loop skips an entire arm when its origin is
 // nearer than GTE H, before the polygon near clipper can see it. The ownership
-// contract admits native traversal arms and D36H display arms to that clipper.
+// contract admits native traversal/interaction arms and D36H display arms.
 // s0 is only the loop's saved joint depth; real transforms and projection remain
 // unchanged. Native arms keep world occlusion; display arms use viewmodel depth.
 static void first_person_ladder_near(CPUState* cpu,uint32_t ra) {

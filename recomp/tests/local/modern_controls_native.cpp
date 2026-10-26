@@ -3683,6 +3683,48 @@ int main(int argc,char** argv) {
                 assert(std::strstr(ttk::controls_debug_json(),"\"effective\":false,\"requested\":false"));
                 ttk::input.first_person=true;frame();
             }
+            // D36I: native contact arms cross the joint-origin cutoff as a
+            // connected chain, but retain matrices, world depth and lighting.
+            auto contact_arms=[&](bool eligible) {
+                const auto equip=psx_mod_read_byte(p+0x3b8);
+                psx_mod_write_byte(p+0x3b8,0);
+                const std::vector<uint8_t> before(ram+(mats&0x1fffff),ram+(mats&0x1fffff)+19*0x20);
+                for(unsigned part:{9u,10u,11u,12u,13u,14u,15u,16u}) {
+                    const bool arm=eligible && part>=10 && part<=15;
+                    call(0x800348d8,c,p,0x8003769c);
+                    CPUState joint{};joint.gpr[4]=c;joint.gpr[20]=p;joint.gpr[29]=0x801f0000;
+                    joint.gpr[23]=psx_mod_read_byte(desc+0x24+part);
+                    const auto matrix=mats+0x20*joint.gpr[23];
+                    joint.gpr[5]=matrix;joint.gpr[31]=0x80034c6c;
+                    hooks().at(0x800292a0)(&joint,0x800292a0);
+                    const auto limb=ttk::first_person_limb_presentation();
+                    assert(limb.bridge_joint_depth==arm && !limb.viewmodel());
+                    if(arm)assert(limb.interaction() && limb.parts==(1u<<part) &&
+                        limb.space==ttk::LimbSpace::NativeWorld && limb.light==ttk::LimbLight::Native);
+                    assert(joint.gpr[5]==matrix);
+                    joint.gpr[31]=0x80034c8c;joint.gte_ctrl[26]=256;
+                    psx_mod_write_word(joint.gpr[29]+0x98,c);
+                    for(int depth:{-120,0,80,255,256,400}) {
+                        joint.gpr[16]=depth;
+                        hooks().at(0x800b4d2c)(&joint,0x800b4d2c);
+                        assert((int32_t)joint.gpr[16]==(arm?std::max(depth,256):depth));
+                        assert(joint.gte_ctrl[26]==256 && joint.gpr[5]==matrix);
+                    }
+                    for(int bad=0;bad<3;++bad) {
+                        CPUState wrong=joint;wrong.gpr[16]=40;
+                        if(bad==0)wrong.gpr[20]=p+4;
+                        if(bad==1)wrong.gpr[31]+=4;
+                        if(bad==2)psx_mod_write_word(wrong.gpr[29]+0x98,c+4);
+                        hooks().at(0x800b4d2c)(&wrong,0x800b4d2c);assert(wrong.gpr[16]==40);
+                    }
+                    psx_mod_write_word(joint.gpr[29]+0x98,c);
+                    call(0x8001ca4c,0x800d0000,0,0x800376b4);
+                    joint.gpr[16]=40;hooks().at(0x800b4d2c)(&joint,0x800b4d2c);
+                    assert(joint.gpr[16]==40 && !ttk::first_person_interaction_drawing());
+                }
+                assert(std::equal(before.begin(),before.end(),ram+(mats&0x1fffff)));
+                psx_mod_write_byte(p+0x3b8,equip);
+            };
             // D35J/M: presentation-only transient leases. Native state, action
             // lockouts and ownership/death/script guards must survive them.
             {
@@ -3698,6 +3740,7 @@ int main(int argc,char** argv) {
                     assert(!ttk::movement_ready() && !ttk::locomotion_input_ready());
                     assert(psx_mod_read_half(p+0x60)==pose && psx_mod_read_word(p+0x224)==bits);
                     if(use)assert(std::strstr(ttk::controls_debug_json(),"\"action\":\"use\""));
+                    contact_arms(use);
                     if(pose==270 || pose==275 || pose==279) {
                         for(unsigned offset:{0x22cu,0x22du}) {
                             psx_mod_write_byte(p+offset,1);frame();assert(metric("\"blend\":")==0);
@@ -3766,7 +3809,7 @@ int main(int argc,char** argv) {
                     psx_mod_write_word(p,actor);psx_mod_write_word(c+0xa4,0);frame();assert(metric("\"blend\":")==0);
                     psx_mod_write_word(c+0xa4,p);frame();assert(metric("\"blend\":")==1);
                     if(use) {
-                        setenv("DNTTK_USE_VIEW","legacy-third",1);frame();assert(metric("\"blend\":")==0);
+                        setenv("DNTTK_USE_VIEW","legacy-third",1);frame();assert(metric("\"blend\":")==0);contact_arms(false);
                         unsetenv("DNTTK_USE_VIEW");frame();assert(metric("\"blend\":")==1);
                         psx_mod_write_word(p+0x224,0);frame();assert(metric("\"blend\":")==0);
                     }
@@ -3823,6 +3866,9 @@ int main(int argc,char** argv) {
                         assert(metric("\"blend\":")==int(eye));
                         assert(!ttk::movement_ready() && !ttk::locomotion_input_ready());
                         assert(std::strstr(ttk::controls_debug_json(),"\"action\":\"push\""));
+                        contact_arms(eye);
+                        ttk::modern=false;frame();contact_arms(false);
+                        ttk::modern=true;frame();
                         if(eye) {
                             for(int i=0;i<30;++i)frame();
                             for(unsigned part:{0x09u,0x0au,0x0bu,0x0cu,0x0du,0x0eu,0x0fu,0x10u}) {
@@ -3834,7 +3880,7 @@ int main(int argc,char** argv) {
                                 assert(ttk::first_person_interaction_drawing()==(part>=0x0a && part<=0x0f));
                                 assert(joint.gpr[5]==mats+0x20*joint.gpr[23]); // native hand matrices
                                 const auto limb=ttk::first_person_limb_presentation();
-                                assert(!limb.bridge_joint_depth && !limb.viewmodel());
+                                assert(limb.bridge_joint_depth==(part>=0x0a && part<=0x0f) && !limb.viewmodel());
                                 if(part>=0x0a && part<=0x0f) {
                                     assert(limb.parts==(1u<<part) && limb.space==ttk::LimbSpace::NativeWorld);
                                     assert(limb.light==ttk::LimbLight::Native && limb.depth==ttk::LimbDepth::WorldClip);

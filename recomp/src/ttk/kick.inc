@@ -165,7 +165,8 @@ static double kick_reach() {
     }();
     return value;
 }
-static bool kick_eye_ready() {return fp_blend>=0.5 && orbit_valid && fp_policy.capable && identity();}
+static bool kick_eye_ready() {return fp_blend>=0.5 && orbit_valid && fp_policy.capable &&
+    !(psx_mod_read_word(player)&0x20002u) && identity();}
 static void kick_cancel() {if(kick_active) ++kick_cancels;kick_active=false;kick_queued=false;}
 // Q in the eye view, a held attack with the Boot, or a converted original
 // request. One kick at a time; a Q during a kick queues the next one, so

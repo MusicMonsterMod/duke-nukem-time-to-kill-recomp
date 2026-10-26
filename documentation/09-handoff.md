@@ -1,5 +1,28 @@
 # Next-session handoff
 
+## 2026-10-26 - D35J5 accepted and closed
+
+D35J5 is Done. User: "awesome!!! lock it in and close us out". Frozen first-person
+blue vision is accepted; implementation, tests, manual and documentation
+commit/push explicitly authorized. [Note 275](275-d35j5-frozen-first-person.md)
+retains the tested 60/120 slot-11 route, renderer workaround and coverage limits.
+No new build, game launch, framework edits or next job during closeout.
+Launch `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-26 - D35J5 frozen first-person candidate
+
+Needs playtest. Slot 11 reflected shots now retain first person with blue vision;
+native frozen restrictions and thaw remain authoritative. Final build, native
+controls/aim/near suites, 36 profile tests and private 60/120 lifecycle checks pass.
+Modernized now uses the existing mixed ordered GL path at native rates too, to
+preserve frozen HUD icons. Its isolated-path root cause remains unresolved.
+Death/continue, water/gas and broad renderer regression coverage remain limited.
+[Note 275](275-d35j5-frozen-first-person.md) records evidence and limitations.
+Load UI slot 11, keep aim and shoot. No commit/push or acceptance closeout.
+Launch `python3 recomp/tools/local/run.py`.
+
+
 ## 2026-10-26 - D08A31 closed with no action required
 
 D08A31 is Done by explicit user direction: "close this one with no action

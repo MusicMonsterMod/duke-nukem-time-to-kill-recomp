@@ -20,6 +20,7 @@ const char* near_clip_debug_json();
 // into the nearest ordering-table slot, farthest first (see near_clip.cpp).
 void near_clip_viewmodel_flush();
 void near_clip_biomask(double dip,uint32_t light);
+void near_clip_frozen_tint();
 // D17A: the frame accounting the near clip carries from one renderer call to
 // the next (packet budget, held weapon packets). A render replay worker loads
 // the live frame's value so its redraws take the same decisions.

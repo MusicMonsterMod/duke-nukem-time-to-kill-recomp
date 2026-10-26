@@ -1500,6 +1500,73 @@ void near_clip_biomask(double dip,uint32_t light) {
     ++mask_draws;mask_triangles+=f.emitted;
     near_clip_viewmodel_flush();
 }
+// Recover the texture-page state immediately before slot 1's new tail.
+// Native packets and our clipped packets each carry one GP0 primitive. Search
+// nearest slots first, retaining the last page writer in each linked list.
+static bool frozen_previous_tpage(uint16_t& page) {
+    unsigned budget=16384;
+    for(unsigned index=viewmodel_slot;index<2048 && budget;++index) {
+        uint32_t q=psx_mod_read_word(ordering+index*8);
+        const uint32_t tail=psx_mod_read_word(ordering+index*8+4);
+        bool found=false;
+        while(q && budget) {
+            --budget;
+            const unsigned words=psx_mod_read_word(q)>>24;
+            const unsigned op=psx_mod_read_word(q+4)>>24;
+            if(op==0xe1 && words==1) {page=psx_mod_read_word(q+4)&0x1ff;found=true;}
+            else if(op>=0x20 && op<0x40 && (op&4)) {
+                const unsigned vertices=(op&8)?4:3;
+                const unsigned expected=1+2*vertices+((op&16)?vertices-1:0);
+                if(words!=expected)return false;
+                const auto tpage=psx_mod_read_word(q+((op&16)?24:20))>>16;
+                // External Bio Mask atlas deliberately does not latch GPU state.
+                if(!(op==0x34 && tpage==0x7e00 && (psx_mod_read_word(q+12)>>16)==0x7fff)) {
+                    page=tpage&0x1ff;found=true;
+                }
+            }
+            if(q==tail)break;
+            const auto next=psx_mod_read_word(q)&0xffffff;
+            if(!next || next==0xffffff)return false;
+            q=0x80000000u|next;
+        }
+        if(!budget)return false;
+        if(found)return true;
+    }
+    return false;
+}
+// D35J5: half-blend blue after weapons/mask, before HUD. Degenerate textured
+// triangles scope only GPUSTAT's page/blend bits; E1 would also overwrite
+// dither/texture-disable state. Restore the exact prior page for HUD sprites.
+void near_clip_frozen_tint() {
+    constexpr unsigned size=100;
+    uint16_t page=0;
+    if(!mask_arena || mask_bytes+size>mask_frame_bytes || !frozen_previous_tpage(page))return;
+    const int m=std::clamp(psx_mod_widescreen_x_margin(),0,512);
+    const uint32_t p=mask_arena+host_region%host_regions*mask_frame_bytes+mask_bytes;
+    const auto xy=[](int x,int y){return uint32_t(uint16_t(x))|(uint32_t(uint16_t(y))<<16);};
+    psx_mod_write_word(p,24u<<24);
+    unsigned cursor=4;
+    auto page_only=[&](uint16_t tpage) {
+        const uint32_t words[]={0x25000000u,xy(-512,-256),0,xy(-512,-256),uint32_t(tpage)<<16,xy(-512,-256),0};
+        for(auto word:words){psx_mod_write_word(p+cursor,word);cursor+=4;}
+    };
+    page_only(page&~0x60u);
+    // Two halves remain below the PS1 primitive width limit even at 32:9.
+    for(int half=0;half<2;++half) {
+        const int left=half?0:-256-m,right=half?256+m:0;
+        const uint32_t words[]={0x2a400808u,xy(left,-128),xy(right,-128),xy(left,128),xy(right,128)};
+        for(auto word:words){psx_mod_write_word(p+cursor,word);cursor+=4;}
+    }
+    page_only(page);
+    const uint32_t slot=ordering+viewmodel_slot*8;
+    const auto head=psx_mod_read_word(slot),tail=psx_mod_read_word(slot+4);
+    if(head)psx_mod_write_word(tail,(psx_mod_read_word(tail)&0xff000000u)|(p&0xffffffu));
+    else {
+        psx_mod_write_word(slot,p);
+        psx_mod_write_word(bitmap,psx_mod_read_word(bitmap)|(0x80000000u>>viewmodel_slot));
+    }
+    psx_mod_write_word(slot+4,p);mask_bytes+=size;
+}
 NearDepthPlane near_depth_plane(const double a[3],const double b[3],const double c[3]) {
     NearDepthPlane p{};
     double u[3],v[3];

@@ -259,8 +259,9 @@ def main(argv=None):
     # display deadlines; the guest keeps its original VBlank timing.
     env['DNTTK_FRAME_RATE'] = controls['frame_rate'] if modernized else '60'
     # D17B: ordered single-pass transparency batching, validated against the
-    # isolated path pixel-for-pixel. Keep Vanilla/native-rate defaults intact.
-    env.setdefault('PSX_GL_ORDERED_SEMI_BATCH', '1' if modernized and controls['frame_rate'] not in ('30', '60') else '0')
+    # isolated path pixel-for-pixel. D35J5 also needs the mixed path at native
+    # rates to preserve HUD icons over the frozen first-person scene.
+    env.setdefault('PSX_GL_ORDERED_SEMI_BATCH', '1' if modernized else '0')
     env.setdefault('DNTTK_VIEW_BOB', controls['view_bob'] if modernized else 'off')
     env['DNTTK_CAMERA_STATE_FILE'] = str(profiles.camera_state_path(a.settings_file.resolve())) if modernized else ''
     # D19: the in-game OPTIONS screens (Modernized) save confirmed settings here.

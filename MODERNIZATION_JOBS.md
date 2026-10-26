@@ -1,5 +1,7 @@
 # Time to Kill — modernization jobs
 
+**Latest closeout (2026-10-26): D35J5 is Done. User accepted frozen first-person blue vision and explicitly authorized lock-in/closeout. [Note 275](documentation/275-d35j5-frozen-first-person.md) retains verification limits. No next job started.**
+
 
 ### D08A31 - Number-key weapon selection while holding run
 
@@ -458,7 +460,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D35J2 | Preserve first person through held native inventory | Done | D35J |
 | D35J3 | First-person NPC interaction presentation | Done | D35J |
 | D35J4 | Slot-9 time crystal forces third person (bug 5, first queued) | Done | D35J, D35J1, D35J2, D35J3, D35M |
-| D35J5 | Preserve first person while frozen with blue vision | Todo | D35J, D36G |
+| D35J5 | Preserve first person while frozen with blue vision | Done | D35J, D36G |
 | D35K | Native scripted and special-camera event inventory | Done (bounded research accepted 2026-10-25) | D35 |
 | D35K1 | Slot-5 hinged-door first person and visible right-leg kick | Done (user-accepted) | D35M |
 | D35K2 | Toilet first-person use presentation (current slot 5) | Done (user-accepted 2026-10-25) | D35M, D35K |
@@ -20970,7 +20972,7 @@ Display-only running-arm correction implemented; build, native suites and privat
 
 ### D35J5 - First-person frozen effect with blue vision
 
-**Status: Todo. Dependencies: D35J, D36G (Done).** User reports freezing returns
+**Status: Done (user-accepted 2026-10-26). Dependencies: D35J, D36G (Done).** User reports freezing returns
 the view to third person. Requested result: remain first person with blue vision,
 using Duke 3D as the desired visual reference. Verify the real frozen-state flags,
 animations and thaw/death transitions before changing presentation eligibility.
@@ -20978,7 +20980,9 @@ Acceptance: blue frozen vision across the full viewport, no unwanted third-perso
 cut, clean restoration on thaw/death/continue/load and view changes; native frozen
 movement/fire restrictions, duration, damage and shattering remain authoritative.
 Preserve explicit third-person choice, Vanilla, HUD readability, water/gas/night
-vision effects and replay at 60/120. No live frozen reproduction yet; see note 269.
+vision effects and replay at 60/120. Slot-11 reproduction and candidate evidence:
+[note 275](documentation/275-d35j5-frozen-first-person.md). Natural death/continue
+and water/gas coverage remain open.
 
 ## 2026-10-26 - D08A29 candidate ready for playtest
 
@@ -21174,3 +21178,23 @@ replacement. Temporary source/test diagnostics removed and normal player
 rebuilt; investigation evidence remains local. Documentation committed/pushed
 under the authorized closeout. See note 274 for evidence and attribution limits.
 No next job started.
+
+
+## 2026-10-26 - D35J5 frozen first-person candidate
+
+Retained first-person frozen presentation with blue viewport tint and native
+input/damage/timer authority. Build, native controls/aim/near, profile tests and
+private slot-11 60/120 freeze/view/load/thaw checks pass. Modernized native-rate
+GL now uses the existing mixed ordered path to preserve frozen HUD icons;
+isolated-path cause and broader renderer regression coverage remain open.
+Needs playtest; natural death/continue and water/gas freeze unverified.
+See note 275. No acceptance closeout, commit/push or next job started.
+
+## 2026-10-26 - D35J5 accepted and closed
+
+D35J5 is Done. User: "awesome!!! lock it in and close us out". Frozen first-person
+blue vision is accepted; implementation, tests, manual and documentation
+commit/push explicitly authorized. [Note 275](documentation/275-d35j5-frozen-first-person.md)
+retains the tested 60/120 slot-11 route, renderer workaround and coverage limits.
+No new build, game launch, framework edits or next job during closeout.
+Launch `python3 recomp/tools/local/run.py`.

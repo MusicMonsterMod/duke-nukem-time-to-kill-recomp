@@ -908,6 +908,10 @@ a wall. A kick that hits nothing stays silent. Q displays Duke's plain left leg,
 kick uses his right leg. Kick
 reach, damage and timing are unchanged.
 
+When Duke is frozen in first person, the view stays at his eyes with a blue
+tint until he thaws. Movement, aiming and attacks remain locked while frozen.
+Switching explicitly to third person still works.
+
 First-person view stays active while swimming at the surface, diving and
 swimming underwater. The swimming eye stays steady through the stroke, with
 no walking bob; mouse look, movement and firing use the existing swim controls.

@@ -346,6 +346,14 @@ void camera_set_distance(double distance) {
     }
     camera_pref_changed=input_host_frame();
 }
+// Native damage 0x800a43c4 sets bit 0x20000 and +0x214=3000;
+// 0x8004157c drains that timer and clears freeze/ice shading on thaw.
+// Read-only presentation predicate, never an input or gameplay lease.
+static bool frozen_eye_state() {
+    return (psx_mod_read_word(player)&0x20002u)==0x20000u &&
+        (int32_t)psx_mod_read_word(player+0x214)>0 &&
+        (int16_t)psx_mod_read_half(player+0x32)>0;
+}
 static bool climb_state_early();
 static void orbit_begin(uint32_t sp) {
     const auto& f=input_snapshot(Context::Gameplay);
@@ -423,7 +431,12 @@ static void orbit_begin(uint32_t sp) {
         shoulder_offset+=(side-shoulder_offset)*blend;
     }
     auto delta=look.consume(f.epoch,f.total_x,f.total_y);
-    if(f.active && f.recenter_total>recenter_seen) recentering=true;
+    const bool frozen=frozen_eye_state();
+    if(frozen) {
+        delta={};recentering=false;key_hold=0;key_return=false;key_ms=-1;
+        turn_hold=0;turn_ms=-1;
+    }
+    if(f.active && !frozen && f.recenter_total>recenter_seen) recentering=true;
     recenter_seen=f.recenter_total;
     // Mouse movement always wins over a swing in progress.
     if(delta.x || delta.z) recentering=false;
@@ -435,7 +448,7 @@ static void orbit_begin(uint32_t sp) {
         if(std::abs(dy)<0.005 && std::abs(dp)<0.005) {yaw=wrap_yaw(heading);pitch=clamp_pitch(rest_pitch);recentering=false;}
         if(!recentering)++recenters;
     }
-    if(f.active) {key_look(f,delta.x || delta.z);key_turn(f);}
+    if(f.active && !frozen) {key_look(f,delta.x || delta.z);key_turn(f);}
     const char* inverted=ttk_live_env("DNTTK_MOUSE_INVERT_Y");
     yaw=wrap_yaw(yaw+delta.x*sensitivity());
     pitch=clamp_pitch(pitch+delta.z*sensitivity()*(inverted && !std::strcmp(inverted,"1")?-1:1));
@@ -801,7 +814,9 @@ static bool state(bool camera_only=false,bool presentation=false) {
         landing_pose_anim(animation) || (animation==105 && previous==10 && presentation &&
         input_snapshot(Context::Gameplay).first_person)) && mode==0 && (previous==8 || previous==9 || previous==2 ||
         (previous==10 && presentation && input_snapshot(Context::Gameplay).first_person));
-    if ((psx_mod_read_word(player)&0x20002) || !(land_gait_anim(animation) || original_step_anim(animation) || wade_land ||
+    const bool frozen_eye=presentation && camera_only &&
+        input_snapshot(Context::Gameplay).first_person && frozen_eye_state();
+    if ((psx_mod_read_word(player)&(frozen_eye?0x2u:0x20002u)) || !(land_gait_anim(animation) || original_step_anim(animation) || wade_land ||
         (camera_only && (animation==70 || animation==71 || animation==80 || animation==81 || landing_pose_anim(animation) ||
                          animation==175 || animation==176 || animation==177 || animation==181 ||
                          (animation>=178 && animation<=184))) || preparing || flight || swimming || jet || eye_air || pushing || eye_kick || mantle || settle || transient_eye)) return false;
@@ -1787,7 +1802,7 @@ bool late_view(double& out_yaw,double& out_pitch,double at_ms) {
     // Only while the modern camera owns the view (the live frame's lease at
     // Duke's draw) and follows Duke: a game-owned camera (new-game opening,
     // scripted views, climbs) must never get the mouse direction.
-    if(!input_modernized() || !orbit_valid || recentering || !independent_camera() || !last_lease_cam ||
+    if(!input_modernized() || !orbit_valid || recentering || !independent_camera() || !last_lease_cam || frozen_eye_state() ||
        psx_mod_read_word(camera+0xa4)!=player) return false;
     uint64_t live_epoch=0; double x=0,y=0;
     if(!input_live_look(live_epoch,x,y,at_ms) || !look.valid || look.epoch!=live_epoch) return false;

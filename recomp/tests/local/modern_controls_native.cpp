@@ -4105,6 +4105,44 @@ int main(int argc,char** argv) {
                 psx_mod_write_half(p+0x74,upper);++save_loads;frame();assert(metric("\"blend\":")==1);
                 std::puts("PASS: D35J/M transient eye, action isolation, choice, pause, load, replay and safety guards");
             }
+            // D35J5: a live freeze is presentation-only, read directly from
+            // native state. Thaw/death/load/choice cannot retain the exception.
+            {
+                const auto actor=psx_mod_read_word(p),bits=psx_mod_read_word(p+0x224);
+                const auto timer=psx_mod_read_word(p+0x214);
+                const auto health=psx_mod_read_half(p+0x32);
+                psx_mod_write_word(p,0x22000);psx_mod_write_word(p+0x214,3000);
+                psx_mod_write_half(p+0x32,100);psx_mod_write_word(p+0x224,0x100);
+                ++save_loads;frame();assert(metric("\"blend\":")==1);
+                assert(!ttk::movement_ready() && !ttk::locomotion_input_ready());
+                const double frozen_yaw=metric("\"yaw\":");
+                ttk::input.total_x+=100;frame();
+                assert(metric("\"yaw\":")==frozen_yaw);
+                assert(psx_mod_read_word(p)==0x22000 && psx_mod_read_word(p+0x214)==3000);
+                assert(psx_mod_read_word(p+0x224)==0x100 && psx_mod_read_half(p+0x32)==100);
+                std::vector<uint8_t> state(ttk::render_state_size());ttk::render_state_save(state.data());
+                ttk::input.first_person=false;++save_loads;frame();assert(metric("\"blend\":")==0);
+                ttk::input.first_person=true;ttk::render_state_load(state.data());
+                assert(metric("\"blend\":")==1);frame();
+                ttk::input.active=false;frame();assert(metric("\"blend\":")==1);ttk::input.active=true;
+                for(unsigned rejection=0;rejection<5;++rejection) {
+                    if(rejection==0)psx_mod_write_half(p+0x32,0);
+                    if(rejection==1)psx_mod_write_word(p,0x22002);
+                    if(rejection==2)psx_mod_write_word(p+0x214,0);
+                    if(rejection==3)psx_mod_write_word(p+0x224,0x20000100);
+                    if(rejection==4)psx_mod_write_word(c+0xa4,0);
+                    frame();assert(metric("\"blend\":")==0);
+                    psx_mod_write_half(p+0x32,100);psx_mod_write_word(p,0x22000);
+                    psx_mod_write_word(p+0x214,3000);psx_mod_write_word(p+0x224,0x100);
+                    psx_mod_write_word(c+0xa4,p);frame();assert(metric("\"blend\":")==1);
+                }
+                ttk::modern=false;frame();assert(!ttk::first_person_view_live());
+                ttk::modern=true;++save_loads;frame();assert(metric("\"blend\":")==1);
+                psx_mod_write_word(p,actor);psx_mod_write_word(p+0x224,bits);
+                psx_mod_write_word(p+0x214,timer);psx_mod_write_half(p+0x32,health);
+                frame();assert(metric("\"blend\":")==1);
+                std::puts("PASS: D35J5 frozen eye/input separation, native state, thaw/death/choice/load/replay/Vanilla guards");
+            }
             // Mirror action has an independent preference and no gameplay lease.
             {
                 const auto flags=psx_mod_read_word(p+0x224);

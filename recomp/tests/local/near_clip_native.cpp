@@ -41,7 +41,8 @@ extern "C" uint32_t psx_mod_alloc_guest_memory(uint32_t size,uint32_t){static ui
 // D17R1 host packet arena (GPU DMA aperture).
 static uint32_t dma_next=0x80f00000,dma_allocations;
 extern "C" uint32_t psx_mod_alloc_gpu_dma_memory(uint32_t n,uint32_t align){dma_next=(dma_next+align-1)&~(align-1);const auto p=dma_next;dma_next+=n;assert(dma_next<=0x81000000);++dma_allocations;return p;}
-extern "C" int32_t psx_mod_widescreen_x_margin(void){return 85;}
+static int32_t test_margin=85;
+extern "C" int32_t psx_mod_widescreen_x_margin(void){return test_margin;}
 // GPU DMA aperture (0x80f00000, mod_memory.h), apart from main RAM as in the runtime.
 static uint8_t aperture[0x100000];
 static uint8_t& byte_at(uint32_t a){return (a&0xffffff)>=0xf00000?aperture[a&0xfffff]:ram[a&0x1fffff];}
@@ -664,6 +665,31 @@ static void biomask_packet_contracts() {
     std::puts("PASS: Bio Mask native-light modulation, dark/neutral/tinted/bright, preserves geometry");
     std::puts("PASS: Bio Mask real mesh packets follow weapons, preserve HUD, carry external atlas and precise bob");
 }
+static void frozen_packet_contracts() {
+    constexpr uint32_t ot=0x800d27a0,bitmap=0x800d26a0,weapon=0x801f0000,hud=0x801f0100;
+    const auto allocations=dma_allocations;
+    for(int margin:{0,85,256,427})for(unsigned page:{0x19u,0x39u,0x59u,0x79u,0x19fu}) {
+        test_margin=margin;ttk::near_clip_load_frame_state({0,0,0,0});
+        for(unsigned i=0;i<2048*8;i+=4)psx_mod_write_word(ot+i,0);
+        psx_mod_write_word(bitmap,0xc0000000u);
+        psx_mod_write_word(ot,hud);psx_mod_write_word(ot+4,hud);psx_mod_write_word(hud,0x03000000);
+        psx_mod_write_word(ot+8,weapon);psx_mod_write_word(ot+12,weapon);
+        psx_mod_write_word(weapon,0x09000000);psx_mod_write_word(weapon+4,0x34808080);
+        psx_mod_write_word(weapon+24,page<<16);psx_mod_write_word(weapon+12,0);
+        ttk::near_clip_frozen_tint();
+        const auto p=psx_mod_read_word(ot+12);
+        assert(p!=weapon && psx_mod_read_word(p)==(24u<<24));
+        assert(psx_mod_read_word(p+20)==((page&~0x60u)<<16));
+        assert(psx_mod_read_word(p+88)==(page<<16));
+        assert(psx_mod_read_word(p+32)==0x2a400808u && psx_mod_read_word(p+52)==0x2a400808u);
+        assert(int16_t(psx_mod_read_word(p+36))==-256-margin);
+        assert(int16_t(psx_mod_read_word(p+60))==256+margin);
+        assert(psx_mod_read_word(ot)==hud && psx_mod_read_word(hud)==0x03000000);
+        assert((psx_mod_read_word(weapon)&0xffffff)==(p&0xffffff));
+    }
+    test_margin=85;assert(dma_allocations==allocations);
+    std::puts("PASS: D35J5 tint packet page restoration, all blend modes, widescreen and HUD ordering");
+}
 int main(int argc,char** argv) {
     // A load-first session must own its world and mask packet arenas before
     // savestate restore can import any unclaimed allocation tail. Animation
@@ -721,5 +747,6 @@ int main(int argc,char** argv) {
     assert(std::abs(ttk::near_raster_depth(floor,g,123,142,1500)-2000.0/(1+100/256.0))<1e-9);
     if(argc==2) {packet_contracts(argv[1]);whole_polygon_contracts();}
     biomask_packet_contracts();
+    frozen_packet_contracts();
     std::puts("ttk-near-test PASS");
 }

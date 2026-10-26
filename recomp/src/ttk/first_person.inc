@@ -622,11 +622,16 @@ static void weapon_draw_bounds(bool duke_entry,bool list_step_after_duke) {
         (psx_mod_read_half(player+0x35c)&2) && (int16_t)psx_mod_read_half(player+0x32)>0;
     if(list_step_after_duke && (psx_mod_read_half(player+0x35c)&2) && !psx_mod_replay_active() && std::getenv("DNTTK_MASK_TRACE"))
         std::fprintf(stderr,"mask-draw gate=%d duke=%d fp=%f orbit=%d game=%d ident=%d face=%u\n",mask,weapon_duke_draw,fp_blend,orbit_valid,gameplay_context(),player_identity_ready(),psx_mod_read_half(player+0x854));
+    const bool frozen=list_step_after_duke && weapon_duke_draw && first_person_view_live() &&
+        fp_policy.effective && fp_blend>=0.999 && frozen_eye_state() &&
+        player_identity_ready() && psx_mod_read_half(0x800bcbb0)==1 &&
+        !psx_mod_read_half(0x800d2540);
     if(duke_entry) weapon_duke_draw=true;
     if(list_step_after_duke) weapon_duke_draw=false;
     if(duke_entry || list_step_after_duke) {display_hand_done=false;weapon_release();near_clip_viewmodel_flush();}
     if(mask && psx_mod_read_half(player+0x35e) && psx_mod_read_half(player+0x854)==2)
         near_clip_biomask(bob_dip,biomask_light);
+    if(frozen)near_clip_frozen_tint();
 }
 // Ready pose (default). At rest Duke carries a drawn weapon raised (pistol)
 // or across his body (shotgun), which from the eye shows the weapon's side or

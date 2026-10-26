@@ -282,7 +282,7 @@ struct Vertex { double p[3],uv[2],rgb[3]; int original; double ex=0,ey=0; };
 // One polygon to draw here: attributes resolved as its renderer would.
 struct Poly {
     uint32_t source=0;
-    bool depth_only=false;int native_slot=-1;
+    bool depth_only=false,native_order=false;int native_slot=-1;
     unsigned count;int idx[4];uint32_t colors[4],uv[4],clut,tpage,command;bool textured;int bias;
     bool actor;
     // Shared source depth for world polygons and opaque compact props, or
@@ -419,7 +419,7 @@ uint32_t uv_word(const Vertex& v) {
 // Ordering-table slot: world 0x800117d0 (source maximum SZ >> 5), object 0x800104a8
 // (AVSZ3 >> 3 with the polygon's +-1 bias). -1 when past the depth limit.
 int slot_index(const Frame& f,const Poly& poly,const Vertex* v) {
-    if(poly.depth_only) return poly.native_slot;
+    if(poly.depth_only || poly.native_order) return poly.native_slot;
     uint32_t sz[3];
     for(int i=0;i<3;++i) sz[i]=(uint32_t)clamp(std::lround(poly.key_z>0?poly.key_z:v[i].p[2]),1,0xffff);
     if(!f.object) {
@@ -658,7 +658,13 @@ void draw(Frame& f,const Poly& poly) {
         warped|=std::abs(p.n[0]*v.p[0]+p.n[1]*v.p[1]+p.n[2]*v.p[2]-p.d)>1e-5;
     }
     static const bool warped_split=env_int("DNTTK_WARPED_QUADS",1,0,1)!=0;
-    if(warped && poly.count==4 && !poly.depth_only && precise() && warped_split) {
+    // D17Z: even a planar world quad can have non-affine UVs. The native
+    // renderer uses the 1-2 diagonal; clipping its perimeter and fanning
+    // from corner 0 instead changes the texture map (and changes it again
+    // at takeover). Preserve the native halves before clipping, including
+    // their attributes. Original textures retain their existing path.
+    const bool world_texture_split=!f.object && poly.textured && pgxp_mesh_textures();
+    if((world_texture_split || (warped && warped_split)) && poly.count==4 && !poly.depth_only && precise()) {
         --f.stats->polys; // each native half is counted by its recursive draw
         static const int triangles[2][3]={{0,1,2},{2,1,3}};
         for(const auto& indices:triangles) {
@@ -1242,7 +1248,17 @@ void object(CPUState* cpu) {
         if(!(bits&1) && !front_facing(f,p,flags,false)) {++object_stats.culled;trace_record(f,"backface",record);continue;}
         p.textured=textured;p.bias=((bits&8)?1:0)-((bits&4)?1:0);
         p.command=(textured?0x34000000u:0x30000000u)|((bits&0x10)<<21)|command_bits;
-        if(depth_only) {
+        // D17AA: a safely projected scenery face can enter host rendering
+        // before an intervening wall. Per-piece sorting and the foreground
+        // prop bias then expose it through the still-native wall. Keep its
+        // native AVSZ3/4 order while retaining host clipping and depth. Small
+        // props keep their accepted shared ordering; unsafe/near-eye faces,
+        // actors, translucent faces and Original textures keep their path.
+        p.native_order=static_candidate && !static_depth && subdivision_bypass() &&
+            !(p.command&0x02000000u) && !oversize(f,p.idx,p.count);
+        for(unsigned j=0;j<p.count && p.native_order;++j)
+            p.native_order=f.verts[p.idx[j]].safe && f.verts[p.idx[j]].sz>=f.g.h;
+        if(depth_only || p.native_order) {
             uint32_t sum=0;for(unsigned j=0;j<p.count;++j) sum+=f.verts[p.idx[j]].sz;
             const int32_t zsf=(int32_t)(p.count==4?f.zsf4:f.zsf3);
             const int32_t otz=clamp(((int64_t)zsf*sum)>>12,0,0xffff);

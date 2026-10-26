@@ -1,10 +1,13 @@
 # D19Q3 - Resume Modernized gameplay after every load
 
+Status: Done. User confirmed completion and requested board closeout on
+2026-10-26. Earlier candidate/playtest statements below are historical.
+
 Session closeout update (2026-10-26): user authorized commit and push of the current
 work. Needs playtest status remains; D19Q4 records the new UI-flash reports as
 backlog only. Earlier no-commit statements below describe the implementation turn.
 
-Date: 2026-10-26. Status: Needs playtest.
+Date: 2026-10-26. Status: Done (user-confirmed).
 
 The user reported that slot 9 still restored paused after D37A and explicitly
 requested that games never start paused. This supersedes D19Q2's previous policy

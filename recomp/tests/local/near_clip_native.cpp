@@ -185,6 +185,38 @@ static void packet_contracts(const char* executable) {
         observed_hook(&c,0x80011020);assert(host_vertices>=6);
         for(unsigned i=0;i<2048;++i) assert((psx_mod_read_word(ot+i*8)!=0)==(i==64));
     }
+    // D17Z: a flat wall with skewed UVs must retain the native texture
+    // interpolation across the 1-2 diagonal, including subdivision vertices.
+    // The alternative diagonal moves V by 4.5 texels at this quad's centre.
+    if(pgxp_mesh_textures()) for(int shift:{0,2048}) {
+        auto c=reset();c.gpr[31]=0x80037344;c.gte_ctrl[5]=shift;
+        word(mesh+0x14,4);word(mesh+0x18,0x50);
+        c.gte_ctrl[6]=uint32_t(-128);
+        const uint32_t packed[4]={0x0001003f,0x00010001,0x0001023f,0x00010201};
+        for(int i=0;i<4;++i) {word(mesh+0x1c+8*i,packed[i]);word(mesh+0x20+8*i,0x34808080);}
+        word(mesh+0x50,0x00010061);word(mesh+0x54,0x03020100);
+        word(mesh+0x58,0x02000000);word(mesh+0x5c,0xff);
+        word(0x80150000,0x407f);word(0x80150004,0x00104040);
+        word(0x80150008,0x6e40777e);
+        observed_hook(&c,0x80011020);assert(host_vertices>=6);
+        bool clipped=false;
+        for(const auto& v:host_corners) {
+            clipped|=v.x==480*65536;
+            // Before translation: x=-1024..1024, y=-128..128, z=1024.
+            const double x=(v.x/65536.0-shift/4.0+256.0)/512.0;
+            const double y=(v.y/65536.0+32.0)/64.0;
+            const double u=x+y<=1 ? 127-63*x-y : 126-62*x;
+            const double t=x+y<=1 ? 64+55*y : 73-9*x+46*y;
+            assert(std::abs(v.u-u)<0.01 && std::abs(v.v-t)<0.01);
+            assert(std::abs(v.depth-1024)<0.01);
+        }
+        assert(clipped==(shift!=0));
+        for(unsigned i=0;i<2048;++i) assert((psx_mod_read_word(ot+i*8)!=0)==(i==32));
+        // The Modernized-only hook cannot alter Vanilla's mesh or packets.
+        c=reset();modern=false;observed_hook(&c,0x80011020);
+        assert(c.gpr[4]==mesh && host_vertices==0);modern=true;
+        std::puts("D17Z planar world UV interpolation and source ordering PASS");
+    }
     // D17M: overhead horizontal world faces in the prop-depth band write depth,
     // preserving their maximum-SZ slot, corners and native quad diagonal.
     // No takeover outside the band, in Original textures, or in Vanilla.
@@ -355,6 +387,34 @@ static void packet_contracts(const char* executable) {
     object_case(0x80032288,400,false,false,0x600);
     object_case(0x80033778,400,false,false,0x200);
     live_eye=false;object_case(0x80032288,400,false,false,0x200);live_eye=true;
+    // D17AA: host pieces of a safe, opaque, noncompact scenery face must
+    // retain AVSZ3/4 source ordering. Otherwise the foreground prop bias can
+    // draw a block after an intervening native wall. Preserve native bias,
+    // far rejection, and the existing actor/translucent/compact exclusions.
+    for(bool quad:{false,true}) for(int bias:{-1,0,1}) for(int kind=0;kind<5;++kind) {
+        auto c=reset();c.gpr[31]=kind==1?0x800351f4:0x80032288;
+        const int extent=kind==3?100:512;
+        const int z0=kind==4?100:1800,z1=kind==4?300:kind==3?2000:2200;
+        const int xyz[4][3]={{-extent,-128,z0},{extent,-128,z1},
+                             {-extent,128,z0},{extent,128,z1}};
+        psx_mod_write_byte(mesh+6,quad?4:3);word(mesh+0x10,verts);word(mesh+0x14,list);
+        for(unsigned i=0;i<(quad?4u:3u);++i) {
+            word(verts+8*i,uint16_t(xyz[i][0])|uint32_t(uint16_t(xyz[i][1]))<<16);
+            word(verts+8*i+4,xyz[i][2]);
+        }
+        const unsigned bits=1u|(bias<0?4u:bias>0?8u:0u)|(kind==2?16u:0u);
+        word(list,quad?0x0001002c:0x00010024);word(list+4,quad?0x03020100:0x00020100);
+        word(list+8,0);word(list+12,(bits<<25)|31);word(list+16,0x1f1f1f00);word(list+20,0xff);
+        observed_hook(&c,0x80010000);assert(host_vertices>=3);
+        const bool eligible=kind==0 && pgxp_mesh_textures() &&
+            !(subdiv_env && std::string_view(subdiv_env)=="1");
+        if(eligible) {
+            const int sum=quad?2*(z0+z1):2*z0+z1;
+            const int source_slot=(((quad?256:341)*sum)>>12)/8+bias;
+            for(unsigned i=0;i<2048;++i) assert((psx_mod_read_word(ot+i*8)!=0)==(int(i)==source_slot));
+            assert(host_corners.front().depth>0); // still carries host depth
+        }
+    }
     // Two opaque faces of a compact prop stay in one ordering bucket so
     // host/native draw state cannot alternate for each face. Translucent
     // faces must keep their independent ordering.

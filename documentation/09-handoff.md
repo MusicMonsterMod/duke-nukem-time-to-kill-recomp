@@ -1,5 +1,53 @@
 # Next-session handoff
 
+## 2026-10-26 - D17Z and D17AA accepted and closed
+
+D17Z and D17AA are Done. The user accepted both fixes and explicitly requested
+lock-in and closeout. D19Q3 is Done per the earlier completion correction.
+Accepted executable: `9342a18490c3b9304371f3f2d2d3cabce077f000a13465f326b1392ebfa9eb32`.
+Native UV mapping and scenery ordering fixes, regression tests and documentation
+are included in the authorized commit/push. See [note 266](266-d17z-medieval-wall-textures.md)
+and [note 267](267-d17aa-wall-block-ordering.md) for diagnostics and limitations.
+The user accepted the gameplay result; the scripted push/pull attempt itself
+remains inconclusive. Earlier candidate/pending-closeout entries are historical.
+No next job started. Launch `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-26 - D17Z accepted; D17AA wall tear candidate
+
+User accepted D17Z as working perfectly; its closeout remains pending explicit
+instruction. D17AA was then created and implemented at the user's request.
+The updated slot-12 block side was sorting over a native wall during approach.
+Safe, opaque, noncompact scenery now retains native face ordering while keeping
+host clipping/depth. Private 60/120 approach, retreat and turn checks pass, as do
+native packet regressions, sky and repository checks. Original-texture packet
+output is unchanged. D17AA is Needs playtest; actual push/pull remains unverified.
+See [note 267](267-d17aa-wall-block-ordering.md). Candidate executable:
+`9342a18490c3b9304371f3f2d2d3cabce077f000a13465f326b1392ebfa9eb32`.
+Launch `python3 recomp/tools/local/run.py`, load slot 12 and step forward, then
+approach/retreat past the block. Player files preserved; no commit/push.
+The older candidate entries below are historical. D19Q3 remains Done.
+
+
+## 2026-10-26 - D17Z candidate ready for corridor review
+
+D17Z is Needs playtest. Corrected-texture world quads retain the native 1-2
+triangle split before near clipping, avoiding wall UV remapping at takeover.
+Build/native regression and private 60/120 corridor checks pass; Original-texture
+packet output and matching Original/Vanilla captures are unchanged. See
+[note 266](266-d17z-medieval-wall-textures.md) for evidence and coverage limits.
+Candidate: `0d8950aca24488efa223b7238f169762409180564e5c714fbb739d7b691093cd`.
+Launch `python3 recomp/tools/local/run.py`, load current slot 12 and walk/back/turn
+through the medieval corridor. Compare `research/screencaps/medieval-glitch-wall.mp4`.
+Player files preserved. No framework edits, commit/push or next job. D19Q3 is Done
+on the user's explicit completion correction below.
+
+## 2026-10-26 - D19Q3 completion correction
+
+D19Q3 is Done. User confirmed it was already completed and requested the board
+correction. Earlier Needs playtest entries are historical. No new validation
+or build; D17Z remains active. No commit/push requested.
+
 ## 2026-10-26 - D08A28 accepted; native mesh style foundation
 
 D08A28 is Done. User accepted revision 5 ("This is the one") and explicitly

@@ -1,6 +1,8 @@
 # Time to Kill — modernization jobs
 
-**New backlog intake (2026-10-26): D36H1 Gatling underside grip, D36H2 Buffalo grip-area flicker and D17Z slot-12 medieval corridor walls are Todo. Research/scoping only; no implementation selected or started. [Note 263](documentation/263-weapon-grips-and-medieval-wall-intake.md). Preserve `research/screencaps/medieval-glitch-wall.mp4` and remind the user to compare it when D17Z is fixed.**
+**Latest closeout (2026-10-26): D17Z and D17AA are Done. User accepted both fixes and explicitly authorized lock-in and closeout. D19Q3 is also Done by the user's completion correction. Accepted executable `9342a18490c3b9304371f3f2d2d3cabce077f000a13465f326b1392ebfa9eb32`. [Note 266](documentation/266-d17z-medieval-wall-textures.md), [note 267](documentation/267-d17aa-wall-block-ordering.md). No next job started.**
+
+**Earlier backlog intake (2026-10-26): D36H1 Gatling underside grip and D36H2 Buffalo grip-area flicker remain Todo. D17Z was subsequently implemented and accepted; see closeout above. [Note 263](documentation/263-weapon-grips-and-medieval-wall-intake.md). Preserve `research/screencaps/medieval-glitch-wall.mp4` and remind the user to compare it when D17Z is fixed.**
 
 **Latest accepted research (2026-10-26): D36 and D36A-F are Done. [Note 257](documentation/257-d36-first-person-presentation-audit.md) is the accepted first-person presentation audit and roadmap. D36G is Done (user-accepted); D36H is Done (user-accepted); D36I is Done (user-accepted); D36J is Done (user-accepted); D36K is Done (user-accepted); D36L remains unstarted.**
 
@@ -294,7 +296,8 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D17V | Modern view bob: steady Duke 3D-style tempo instead of a sped-up walk bob when running | Done (user-accepted) | D17C |
 | D17W | Overturned minecart (player UI slot 10, level 3) shows large white untextured triangles in first person | Done (user-accepted 2026-10-20) | D11B |
 | D17X | Small white triangles on the boat's wooden posts (UI slot 6, level 6) and the grave-dig soil corners (UI slot 7, level 1) in first person | Done (user-accepted 2026-10-22) | D17W |
-| D17Z | Slot-12 medieval corridor wall glitch | Todo | D11B, D17N, D17Q |
+| D17Z | Slot-12 medieval corridor wall glitch | Done | D11B, D17N, D17Q |
+| D17AA | Slot-12 wall tear exposes the pushable block after one step | Done | D17Z, D11B, D17M |
 | D17Y | Slot 8: fire-platform flicker and upper castle walls disappearing during a jump | Done | D17A, D11B, D14 |
 | D18 | FMV and audio presentation safeguards | Todo | D01, D02 |
 | D18A | Voice/music/gunfire crackle investigation | Done | D01, D02 |
@@ -313,7 +316,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D19Q | SAVE GAME screen to match LOAD GAME: choose a savestate slot from the menus, overwrite asks, success / failure shown | Done (user-accepted 2026-10-20) | D19K |
 | D19Q1 | SAVE GAME thumbnail shows the save screen (OVERWRITE THIS SAVE?) instead of play (player UI slot 1; cause: stale CPU VRAM, not first person) | Done (user-accepted 2026-10-20) | D19Q |
 | D19Q2 | Saves restore paused: investigate recurring pause/menu state on load and resume behavior | Done (user-accepted 2026-10-23) | D19Q, D20 |
-| D19Q3 | Every Modernized gameplay load resumes immediately | Needs playtest | D19Q2, D37A |
+| D19Q3 | Every Modernized gameplay load resumes immediately | Done (user-confirmed 2026-10-26) | D19Q2, D37A |
 | D19Q4 | Intermittent overwrite prompt and inventory selector flashes on load | Todo | D19Q3 |
 | D19S | Delete saves from LOAD GAME: Delete on a slot asks DELETE SAVED GAME: "<name>" (NO first) | Done (user-accepted 2026-10-21) | D19K, D19Q |
 | D19T | Real double quote marks (" and ") in the game's menu font: the text call draws `"` as a single quote | Done (user-accepted 2026-10-21) | D19S |
@@ -454,15 +457,26 @@ idle/fire/reload/settle, crouch/look, save/load and replay, with note 263 regres
 
 ### D17Z - Slot-12 medieval corridor wall glitch
 
-**Status: Todo. Depends on D11B/D17N/D17Q (accepted).** Reproduce by loading a
-private copy of current UI slot 12 and walking down the corridor. Research has
-reviewed the supplied recording and relevant source/history; no fresh live
-reproduction or root cause is claimed. Diagnose the affected wall primitives
-before changing rendering. Acceptance: matched before/after route recordings
-show stable walls while preserving accepted precision, clipping/occlusion,
-Original/Vanilla and frame/replay behavior; see note 263 for the diagnostic plan.
+**Status: Needs playtest. Depends on D11B/D17N/D17Q (accepted).** Candidate
+preserves the native triangle diagonal for Corrected-texture world quads before
+near clipping, preventing uneven wall UVs from remapping at takeover. Build,
+focused interpolation/clipping regression and private 60/120 corridor routes pass;
+Original/Vanilla comparison evidence and limits are in [note 266](documentation/266-d17z-medieval-wall-textures.md).
+Acceptance still requires the user's matched slot-12 corridor review.
 **When fixed, remind the user that `research/screencaps/medieval-glitch-wall.mp4`
 is there for comparison, both in the playtest handoff and closeout.**
+
+## D17AA - Slot-12 wall tear exposes the pushable block
+
+Status: In progress. User selected implementation immediately after backlog
+creation on 2026-10-26. Load a private copy of current UI slot 12, take one step
+forward and identify the wall tear exposing the pushable block. Reproduce and
+trace the wall/block primitives before selecting a fix. Preserve accepted D17Z
+texture continuity, world/prop occlusion, pushable-block gameplay, precision and
+clipping, first/third person, Original/Vanilla and 60/120 replay behavior.
+Acceptance: the wall remains opaque on the same step/retreat/turn route, without
+hiding legitimately visible block surfaces or introducing missing geometry;
+focused regression and matched before/after visual evidence required.
 
 ## First-person presentation quality audit intake - 2026-10-26
 
@@ -20353,7 +20367,7 @@ changed. D37A remains Needs playtest; no commit, push or next job.
 
 ### D19Q3 - Every Modernized gameplay load resumes immediately
 
-Status: Needs playtest. [Note 256](documentation/256-d19q3-always-resume.md). User reports slot 9 remains paused after D37A and explicitly
+Status: Done (user-confirmed 2026-10-26). [Note 256](documentation/256-d19q3-always-resume.md). User reports slot 9 remains paused after D37A and explicitly
 requests that games never start paused (2026-10-26). This supersedes D19Q2's
 intentional pause preservation in Modernized loads. Use the successful load
 generation, independent of sidecar and load route, to resume living gameplay
@@ -20795,3 +20809,51 @@ revision 5 retains plain five-sided tubes and pump-style dark material, with
 Buffalo-barrel graded steel on the housing. Notes 264/265 preserve evidence and
 exact production guidance. Implementation, restorable source, exporter changes,
 save-load allocation fix and tests are included. Other intake jobs remain Todo.
+
+## 2026-10-26 - D19Q3 completion correction
+
+User confirmed D19Q3 was already completed and explicitly requested it be
+closed off the list. Marked Done on user confirmation; no new test or build
+is claimed. D17Z remains the selected active job. No commit or push requested.
+
+## 2026-10-26 - D17Z wall texture continuity candidate
+
+Selected D17Z and reproduced the current slot-12 LEVEL09 corridor with private
+state. Planar wall quads have uneven UVs; host perimeter triangulation changed
+the native 1-2 diagonal, moving texture at near takeover. Corrected world quads
+now preserve the native halves before clipping. Build/native contracts and
+60/120 route evidence pass; Original-texture packet digests and Original/Vanilla
+matching captures are unchanged. [Note 266](documentation/266-d17z-medieval-wall-textures.md)
+records evidence and limits. Needs playtest; no commit/push or next job.
+Compare slot 12 against `research/screencaps/medieval-glitch-wall.mp4`.
+
+## 2026-10-26 - D17Z accepted; D17AA selected
+
+User reports D17Z works perfectly. Acceptance recorded; documentation/commit/push
+closeout not requested. User separately reports a wall tear exposing a pushable
+block after loading slot 12 and taking one step forward. Created D17AA and began
+its authorized investigation. Preserve D17Z and existing local changes.
+
+
+## 2026-10-26 - D17AA wall/block ordering candidate
+
+Reproduced the tear on a private copy of the updated slot 12. Safe, opaque,
+noncompact scenery now retains its native source ordering when taken over by
+host rendering. This prevents the block side being drawn over the intervening
+native wall. D17Z texture mapping remains in place. Native regression fails
+before the fix and passes after it; 60/120 approach/retreat/turn routes and prop
+regression captures pass. Original-texture packet output is unchanged.
+D17AA is Needs playtest; push/pull gameplay still needs user verification.
+See [note 267](documentation/267-d17aa-wall-block-ordering.md). No commit/push.
+
+
+## 2026-10-26 - D17Z and D17AA accepted and closed
+
+User accepted D17Z as working perfectly, then accepted D17AA with "perfect!!!!
+Lock it in and close us out". Both jobs are Done, with implementation, tests
+and documentation included in the authorized closeout. D19Q3's user-confirmed
+completion correction is included. Accepted executable:
+`9342a18490c3b9304371f3f2d2d3cabce077f000a13465f326b1392ebfa9eb32`.
+Prior candidate entries are historical. Automated push/pull was not established;
+user acceptance is recorded separately from the bounded diagnostic evidence.
+No next job started.

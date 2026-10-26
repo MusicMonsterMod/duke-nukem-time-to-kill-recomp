@@ -2,6 +2,8 @@
 
 This is the working engineering notebook for the local **SLUS-00583** recompilation project. It describes this workspace and the owned USA disc. Drop that dump in `game/` (created on first run). Europe/PAL is out of scope.
 
+For custom mesh and texture work: [accepted native mesh art style](265-native-mesh-art-style.md).
+
 ## Read first
 
 1. [Current status and acceptance boundaries](00-status.md)

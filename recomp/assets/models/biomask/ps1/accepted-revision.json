@@ -1,0 +1,15 @@
+{
+  "accepted": "2026-10-26",
+  "revision": 5,
+  "source_sha256": {
+    "build_model.py": "1f141d9d46fb692fa8841f60ddb77cef35275186ec541c16b9874672eefe4e52",
+    "paint_atlas.py": "28947920524d2bf8e34d375027964023fcc33b4a2e95db90b786e9d0ec4c4a76",
+    "biomask-lowpoly.blend": "ae84d219c458a8e4b6c63b7c15196d6cc02accdf57315d8cbb79277f1d0866d8",
+    "biomask-atlas.png": "fef1205764e5b3377deedd266c1d699cefa64e46653dfa18c74275f59bddd35d",
+    "mesh-stats.json": "a30803184a4b82655cc5386fff351fd882114bee5b4d9078c546670d025f1a87"
+  },
+  "runtime_sha256": {
+    "recomp/src/ttk/bio_mask_mesh.h": "ff3dc3ea52dc30df728931acb5277b9f0b69686d2ecf586e617a1886fca1b80c",
+    "recomp/src/ttk/bio_mask_atlas.h": "5457ab3de206a1b1dbb136a639534eba3a622e156173bb332231bbe2257ef27a"
+  }
+}

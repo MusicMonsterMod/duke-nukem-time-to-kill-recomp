@@ -1,0 +1,7 @@
+{
+  "model": "Original D08A26 procedural design adapted: five-sided constant-radius tubes, three bend spans, no geometric ridges. Accepted original retained in parent directory.",
+  "texture": "Original Blender-authored 48-colour pixel art. Housing and collars use stepped metallic highlights, recesses and wear; tubing uses measured neutral 8/16/24/33 pump-style tones in an original groove pattern. Effective regions remain 32x16 in the 256x128 atlas; no photographic or retail pixels. Six subtle tube flecks added within the same palette; central housing vertex tint darkened toward Buffalo barrel steel, with collars unchanged. Housing front and grille now use a cool narrow reflection with dark falloff inspired by the Buffalo barrel; tubing and secondary steel pixels are unchanged from revision 4.",
+  "references": "Flamethrower edge/recess metal treatment and Buffalo Rifle pump dark/highlight bands studied from owned assets; no extracted art included.",
+  "tools": "Blender 4.0.2, existing mesh and atlas exporters.",
+  "status": "Revision 5 accepted by user 2026-10-26; foundational native mesh style reference, D08A28 Done."
+}

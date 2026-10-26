@@ -1,4 +1,5 @@
 #include "limb_presentation.h"
+#include "bio_mask_mesh.h"
 #include <cstdlib>
 #include <string_view>
 static unsigned precision_timeline_invalidations;
@@ -38,7 +39,8 @@ static std::vector<HostCorner> host_corners;
 extern "C" {uint8_t* g_psx_ram=ram;uint32_t g_dirty_ram_code_gen=1;}
 extern "C" uint32_t psx_mod_alloc_guest_memory(uint32_t size,uint32_t){static uint32_t next=0x801d0000;const auto result=next;next+=size;assert(next<=0x80200000);return result;}
 // D17R1 host packet arena (GPU DMA aperture).
-extern "C" uint32_t psx_mod_alloc_gpu_dma_memory(uint32_t n,uint32_t align){static uint32_t next=0x80f00000;next=(next+align-1)&~(align-1);const auto p=next;next+=n;assert(next<=0x81000000);return p;}
+static uint32_t dma_next=0x80f00000,dma_allocations;
+extern "C" uint32_t psx_mod_alloc_gpu_dma_memory(uint32_t n,uint32_t align){dma_next=(dma_next+align-1)&~(align-1);const auto p=dma_next;dma_next+=n;assert(dma_next<=0x81000000);++dma_allocations;return p;}
 extern "C" int32_t psx_mod_widescreen_x_margin(void){return 85;}
 // GPU DMA aperture (0x80f00000, mod_memory.h), apart from main RAM as in the runtime.
 static uint8_t aperture[0x100000];
@@ -580,11 +582,16 @@ static void biomask_packet_contracts() {
             assert((psx_mod_read_word(p+24)>>16)==0x7e00);
             node=psx_mod_read_word(p)&0xffffff;
         }
-        assert(n>1000 && host_corners.size()==n*3);
+        // Art revisions can simplify geometry; reject an empty/mostly lost mesh
+        // without imposing the previous ribbed asset's polygon count.
+        constexpr auto source_triangles=sizeof(ttk::bio_mask_mesh)/sizeof(ttk::bio_mask_mesh[0]);
+        assert(n>=source_triangles/4 && n<=source_triangles && host_corners.size()==n*3);
         for(const auto& c:host_corners){assert(c.z>0 && c.depth<0);assert(c.u>=0 && c.u<=255 && c.v>=0 && c.v<=127);}
         return host_corners.front().y;
     };
+    const auto allocations_before_draw=dma_allocations;
     const auto resting=draw(0),moving=draw(20);
+    assert(dma_allocations==allocations_before_draw); // No late mask reservation after load.
     assert(std::abs((moving-resting)/65536.0-3.0)<.001);
     assert(draw(0)==resting);
     const auto neutral=colors;
@@ -598,6 +605,11 @@ static void biomask_packet_contracts() {
     std::puts("PASS: Bio Mask real mesh packets follow weapons, preserve HUD, carry external atlas and precise bob");
 }
 int main(int argc,char** argv) {
+    // A load-first session must own its world and mask packet arenas before
+    // savestate restore can import any unclaimed allocation tail. Animation
+    // gets the remaining 320 KiB below, without a duplicate mask allocation.
+    assert(dma_allocations==2);
+    assert(dma_next==0x80f00000u+(512u+188u)*1024u+16u);
     ttk::NearGte g{};
     for(int i=0;i<3;++i) g.r[i][i]=4096;
     g.h=256;g.fc[0]=16*200;g.fc[1]=0;g.fc[2]=16*50;

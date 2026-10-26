@@ -22,5 +22,6 @@ with tempfile.TemporaryDirectory(prefix='ttk-d37a-') as tmp:
     run([compiler,*flags,'-ffunction-sections','-fdata-sections','-c',entry['file'],'-o',tmp/'memory.o'])
     run([compiler,'-UNDEBUG','-I'+str(ROOT/'psxrecomp/runtime/include'),ROOT/'tests/local/modmem_snapshot_native.c',tmp/'memory.o','-Wl,--gc-sections','-o',tmp/'memory-test'])
     run([tmp/'memory-test'])
+    run([tmp/'memory-test','biomask'])
     run(['c++','-std=c++17','-UNDEBUG','-I'+str(ROOT/'src/ttk'),ROOT/'tests/local/anim_save_header_native.cpp','-o',tmp/'header-test'])
     run([tmp/'header-test'])

@@ -1,5 +1,99 @@
 # Current status - 2026-10-04
 
+## 2026-10-26 - D08A28 accepted; native mesh style foundation
+
+D08A28 is Done. User accepted revision 5 ("This is the one") and explicitly
+requested documentation and closeout. [Style guide 265](265-native-mesh-art-style.md)
+is the required starting point for future custom mesh art; [note 264](264-d08a28-biomask-ps1-authenticity.md)
+records the revision history and bounded validation. Accepted source:
+`recomp/assets/models/biomask/ps1/`; 184 triangles / 90 emitted, effective 32x16
+art regions, 48 source RGB colours, dark five-sided tubing and Buffalo-barrel
+steel gradients. Both exporters need explicit `--asset-dir` for this revision.
+Original high-detail source remains restorable. Current executable SHA256:
+`93cf0b9bbe3c88cd26ab3ec131ac5dd3923698feacef39a5c477bcf51a526c89`.
+Build/native and private Buffalo comparison checks pass; earlier lifecycle,
+lighting, save-load, software and Vanilla evidence retains its recorded limits.
+No other job started. D36H1/D36H2/D17Z remain Todo. For the eventual D17Z fix,
+remind the user of `research/screencaps/medieval-glitch-wall.mp4` for comparison.
+
+## 2026-10-26 - D08A28 dark pump tubing and painted steel
+
+User requested darker Buffalo-pump-style tubing and stronger Flamethrower-style
+metallic textures. Current texture pass uses the pump's four near-black greys,
+narrow painted groove highlights, stepped steel bands, dark recesses and scuffs.
+Exported geometry/UVs/face colours are byte-identical to the preceding five-sided
+plain-tube revision. Slot-3 allocation fix retained. Build/near suite, private
+120 load/warm/cross-level restoration, 60 weapon comparisons, native lighting
+and software smoke pass. [Note 264](264-d08a28-biomask-ps1-authenticity.md) has evidence.
+Candidate: `bf1f526dfe23c6feb5847dbab6313ee16b89a5a23eb24d1492195c8c746067cd`.
+Needs playtest. Original asset and player files preserved; diagnostic games stopped.
+No commit/push. Launch `python3 recomp/tools/local/run.py`; first person, B mask.
+
+## 2026-10-26 - D08A28 plain five-sided tube and texture revision
+
+User rejected the ribbed/flat-grey demake. Current candidate has plain pentagonal
+constant-radius tubes with no geometric ridges, Buffalo-grip-inspired painted
+bands, and Flamethrower-inspired metal edge/recess detail. 184 source / 90 emitted
+triangles; existing 256x128 runtime atlas, original coarse texture art. Slot-3
+startup-allocation fix retained. [Note 264](264-d08a28-biomask-ps1-authenticity.md)
+records the revised art and tests. Build/native/save recovery, private slot-3
+warm/cross-level reloads at 120, reference captures at 60, lighting and software/
+Vanilla smokes pass. Original source and player files preserved.
+Candidate: `f65e677e517829f5af253c71bc383eff4112e56a4734e1894f10e22cd68f3ad7`.
+Needs playtest; no commit/push. Launch `python3 recomp/tools/local/run.py`, P first
+person, B to equip a charged mask. D36H1/H2/D17Z remain Todo.
+
+## 2026-10-26 - D08A28 missing mask on slot-3 load fixed
+
+The user saw no mask. Reproduced with a private copy of current UI slot 3:
+active mask and valid draw gate, but late DMA allocation failed after the saved
+allocation tail had filled the aperture. Mask packets now reserve their existing
+buffer at startup before loads. Old animation layouts still use D37A recovery;
+GPU clearing and player saves remain unchanged. Native suites and new startup/
+snapshot regressions pass; private slot-3 and 120-setting warm/cross-level reloads
+show the revised mask with zero replay failures. [Note 264](264-d08a28-biomask-ps1-authenticity.md)
+records the missed coverage and correction. Candidate:
+`2c86ce64a4ddfa42a6d7fa7d45aedef342c105b9ccb0480ac07e84dc6cbe549e`.
+Needs playtest; no commit/push. Launch `python3 recomp/tools/local/run.py`, load
+slot 3, first person and B to equip. No save recreation needed.
+
+## 2026-10-26 - D08A28 PS1 biomask revision ready
+
+D08A28 is Needs playtest. The user selected implementation with "lets do it,
+lets go!". Separate Blender revision has 488 triangles (was 2400), five broad
+six-sided hose ribs, coarse original texture art and balanced UV density.
+Accepted model/atlas/generator remain intact, with rollback commands in the
+revision README. [Note 264](264-d08a28-biomask-ps1-authenticity.md) records original
+weapon measurements, comparisons and validation limits. Build, native suites,
+60/120 private lifecycle, gas lighting, software/Vanilla and save recovery pass.
+Candidate: `666587f7aef9cc24ffa9c404352e27dc2e0096dd1d602a4c0595b4cb08db31ce`.
+Player files preserved; diagnostic games stopped; existing framework untouched.
+Human artistic acceptance remains. No closeout, commit or push. D36H1/H2/D17Z
+remain Todo. Launch: `python3 recomp/tools/local/run.py`; P first person, B mask.
+
+## 2026-10-26 - Bio Mask PS1 authenticity job scoped
+
+D08A28 is Todo. [Note 264](264-d08a28-biomask-ps1-authenticity.md) records the
+user's full demake direction and initial asset/pipeline inspection: preserve the
+accepted model, study Energy/Flamethrower/Buffalo references, then simplify geometry
+and match apparent texel density through the existing Blender workflow. In-game
+comparisons and lighting/runtime regression evidence are required for acceptance.
+Implementation selection pending clarification. No model/texture/runtime edits,
+build, Blender run, game launch, commit or push. D36H1/H2/D17Z remain Todo.
+
+## 2026-10-26 - Three visual follow-ups researched, implementation unstarted
+
+D36H1 (Gatling underside support grip), D36H2 (Buffalo grip-area flicker) and
+D17Z (current slot-12 medieval corridor wall glitch) are Todo. User requested
+research and backlog creation only, explicitly no implementation. [Note 263](263-weapon-grips-and-medieval-wall-intake.md)
+records inspected source, accepted baselines, reviewed user-video samples,
+uncertainties and separate acceptance/regression plans. No new live reproduction
+or root-cause proof. No code changes, build, launch, player-file writes, commit
+or push; existing framework modifications preserved. D36L remains unselected.
+When D17Z is fixed, remind the user in the playtest handoff and closeout that
+`research/screencaps/medieval-glitch-wall.mp4` remains available for comparison.
+Reproduction route: private copy of current UI slot 12, walk down the corridor.
+
 ## 2026-10-26 - D36K accepted and closed
 
 User confirmed "fixed, lock it in, and close it out." D36K is Done. The

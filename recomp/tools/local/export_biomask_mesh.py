@@ -1,9 +1,13 @@
 """Run with blender -b --python to export the reviewed model for the title renderer."""
-import bpy, math
+import bpy, math, argparse, sys
 from pathlib import Path
 from mathutils import Vector
 ROOT=Path(__file__).resolve().parents[2]
-ASSET=ROOT/'assets/models/biomask'
+parser=argparse.ArgumentParser()
+parser.add_argument('--asset-dir',type=Path,default=ROOT/'assets/models/biomask')
+parser.add_argument('--output',type=Path,default=ROOT/'src/ttk/bio_mask_mesh.h')
+args=parser.parse_args(sys.argv[sys.argv.index('--')+1:] if '--' in sys.argv else [])
+ASSET=args.asset_dir
 bpy.ops.wm.open_mainfile(filepath=str(ASSET/'biomask-lowpoly.blend'))
 deps=bpy.context.evaluated_depsgraph_get();out=[]
 light=Vector((-.25,-.8,.6)).normalized()
@@ -25,7 +29,7 @@ for obj in bpy.context.scene.objects:
   out.append('{'+','.join(row)+'}')
  eo.to_mesh_clear()
 header='// Exported by tools/local/export_biomask_mesh.py from the original Blender model.\n#pragma once\n#include <cstdint>\nnamespace ttk {\nstruct BioMaskVertex {float x,y,z,u,v;uint8_t r,g,b;};\ninline constexpr BioMaskVertex bio_mask_mesh[][3]={\n'+',\n'.join(out)+'\n};\n}\n'
-(ROOT/'src/ttk/bio_mask_mesh.h').write_text(header)
+args.output.write_text(header)
 # Blender image pixels are linear floats in bottom-up rows. Use the packed sRGB image
 # via its byte conversion only for RGB export; the following standalone PNG read
 # step in the build workflow produces exact 1555 atlas texels.

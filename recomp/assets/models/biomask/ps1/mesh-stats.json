@@ -1,0 +1,21 @@
+{
+  "triangles": 184,
+  "hose_sides": 5,
+  "ribs_per_side": 0,
+  "hose_spans": 3,
+  "texture_size": [
+    256,
+    128
+  ],
+  "subdivision": false,
+  "flat_shaded": true,
+  "runtime_integrated": true,
+  "effective_housing_front": [
+    32,
+    16
+  ],
+  "effective_tube_strip": [
+    32,
+    16
+  ]
+}

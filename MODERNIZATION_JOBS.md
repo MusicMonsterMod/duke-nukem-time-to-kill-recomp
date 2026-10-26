@@ -1,5 +1,7 @@
 # Time to Kill — modernization jobs
 
+**New backlog intake (2026-10-26): D36H1 Gatling underside grip, D36H2 Buffalo grip-area flicker and D17Z slot-12 medieval corridor walls are Todo. Research/scoping only; no implementation selected or started. [Note 263](documentation/263-weapon-grips-and-medieval-wall-intake.md). Preserve `research/screencaps/medieval-glitch-wall.mp4` and remind the user to compare it when D17Z is fixed.**
+
 **Latest accepted research (2026-10-26): D36 and D36A-F are Done. [Note 257](documentation/257-d36-first-person-presentation-audit.md) is the accepted first-person presentation audit and roadmap. D36G is Done (user-accepted); D36H is Done (user-accepted); D36I is Done (user-accepted); D36J is Done (user-accepted); D36K is Done (user-accepted); D36L remains unstarted.**
 
 **Latest closeout (2026-10-26): D23D is Done. User could not reproduce the Level 9 slowdown and reports a problem-free playthrough. Closed on user playtest evidence; no build change or new profiling.**
@@ -158,6 +160,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08A25 | Night vision on/off sound shaped to the Duke 3D reference | Done | D08A23 |
 | D08A26 | Bio Mask first-person visor / respirator overlay | Done | D08A24, D12 |
 | D08A27 | Toxic gas effect fills the widescreen viewport (slot 11) | Done | D08A26, D14 |
+| D08A28 | Bio Mask PS1 authenticity: geometry, texel density and visual demake | Done | D08A26, D08A24; D36 ownership contract |
 | D08A22 | Switcher strips and mission card scale with the window like the native HUD (icons too small in small windows) | Done (user-accepted) | D08A1, D08A5, D24A |
 | D08G3 | `dnupgrade` cheat: upgrade all weapons (Laser Gatling etc.) | Accepted | D08G2 |
 | D08G4 | `dnstuff`, `dnitems`, `dninventory` also give 100% armor; running steroids stop and a full dose is held | Done (user-accepted) | D08G |
@@ -291,6 +294,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D17V | Modern view bob: steady Duke 3D-style tempo instead of a sped-up walk bob when running | Done (user-accepted) | D17C |
 | D17W | Overturned minecart (player UI slot 10, level 3) shows large white untextured triangles in first person | Done (user-accepted 2026-10-20) | D11B |
 | D17X | Small white triangles on the boat's wooden posts (UI slot 6, level 6) and the grave-dig soil corners (UI slot 7, level 1) in first person | Done (user-accepted 2026-10-22) | D17W |
+| D17Z | Slot-12 medieval corridor wall glitch | Todo | D11B, D17N, D17Q |
 | D17Y | Slot 8: fire-platform flicker and upper castle walls disappearing during a jump | Done | D17A, D11B, D14 |
 | D18 | FMV and audio presentation safeguards | Todo | D01, D02 |
 | D18A | Voice/music/gunfire crackle investigation | Done | D01, D02 |
@@ -411,6 +415,8 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D36F | Visual standards, traceability and prioritized implementation roadmap | Done (research accepted 2026-10-26) | D36B, D36C, D36D, D36E |
 | D36G | Shared limb presentation ownership (behavior-equivalent foundation) | Done (user-accepted 2026-10-26) | D36; D37A/D19Q3 candidate limits |
 | D36H | Connected combat and held-item arms | Done | D36G |
+| D36H1 | Gatling left-hand underside contact at first-person idle | Todo | D36G, D36H |
+| D36H2 | Buffalo Rifle grip-area flicker | Todo | D36G, D36H |
 | D36I | Native interaction arm continuity, slot 8 first | Done | D36G |
 | D36J | Coherent body and quick-kick leg presentation | Done (user-accepted 2026-10-26) | D36G, D36H |
 | D36K | Traversal and special-action visual coverage | Done | D36G, D36H, D36I, D36J |
@@ -420,6 +426,43 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 
 Recommended opening sequence: **D01 → D02 → D03 → D04**, then **D05 / D06 → D07 → D07A → D08**. D13 is an early graphics option after profiles exist. D22 and D23 should accumulate evidence throughout development. First-person, HD asset packs and precision rendering are optional follow-up milestones, not blockers for a good modern third-person release.
 
+
+## Weapon-grip and medieval-wall follow-ups - 2026-10-26
+
+Research and backlog creation authorized; implementation explicitly not started.
+[Note 263](documentation/263-weapon-grips-and-medieval-wall-intake.md) records source
+findings, video review, uncertainty, investigation routes and regression criteria.
+
+### D36H1 - Gatling left-hand underside contact
+
+**Status: Todo. Depends on D36G/D36H (Done).** Make the left hand visibly hold
+the bottom of the Gatling at first-person idle. Research finds existing support
+geometry using the native wrist relation, without a dedicated underside anchor;
+contact placement still needs live measurement. Preserve accepted weapon framing
+and connected arms. Acceptance: convincing underside contact for base/Laser
+Gatling at idle and across fire/return/switch, stance/look and replay transitions,
+with the note 263 ownership, gameplay and Vanilla regressions intact.
+
+### D36H2 - Buffalo Rifle grip-area flicker
+
+**Status: Todo. Depends on D36G/D36H (Done).** Identify and eliminate the small
+flickering section at Duke's grip. Exact triangle/hand/phase and cause remain
+unverified. Inspect shared display matrices, contact overlap, clipping/depth,
+textures and replay before choosing a fix. Preserve the accepted Buffalo
+raise/cock/return motion. Acceptance: stable identified grip patch through
+idle/fire/reload/settle, crouch/look, save/load and replay, with note 263 regressions.
+
+### D17Z - Slot-12 medieval corridor wall glitch
+
+**Status: Todo. Depends on D11B/D17N/D17Q (accepted).** Reproduce by loading a
+private copy of current UI slot 12 and walking down the corridor. Research has
+reviewed the supplied recording and relevant source/history; no fresh live
+reproduction or root cause is claimed. Diagnose the affected wall primitives
+before changing rendering. Acceptance: matched before/after route recordings
+show stable walls while preserving accepted precision, clipping/occlusion,
+Original/Vanilla and frame/replay behavior; see note 263 for the diagnostic plan.
+**When fixed, remind the user that `research/screencaps/medieval-glitch-wall.mp4`
+is there for comparison, both in the playtest handoff and closeout.**
 
 ## First-person presentation quality audit intake - 2026-10-26
 
@@ -766,6 +809,28 @@ Acceptance:
 
 The chosen cue is integrated. Build/native tests, private 60/120 routes and host
 PCM checks pass; user accepted the in-game mix. See note 245 for limits.
+
+### D08A28 - Bio Mask PS1 authenticity pass
+
+**Status: Done. Revision 5 accepted and closeout authorized 2026-10-26.**
+Deliberately demake the accepted original 3D mask to look native to 1998 TTK.
+[Note 264](documentation/264-d08a28-biomask-ps1-authenticity.md) preserves the full
+artistic scope, initial pipeline inspection, reference study, delivery and tests.
+Study Energy Weapon (keyboard 7 / record 10), Flamethrower and especially the
+Buffalo Rifle pump grip before revising geometry or textures. Match their angular
+construction and apparent pixel density; diagnose UV/projection/sampling causes
+of stretch instead of blindly reducing texture size or polygon count.
+Adapt the existing Blender pipeline, preserve a restorable accepted revision,
+simplify tubing/housing and texture detail while retaining design, framing,
+lighting, true 3D, gameplay and runtime behavior. No global weapon/filter changes.
+Acceptance requires matched in-game original/revision/reference comparisons,
+rollback evidence and lighting/lifecycle/performance checks. Numeric counts and
+Blender previews alone cannot establish artistic acceptance. Accepted revision 5: 184 triangles, plain five-sided tubes without geometric ribs,
+Buffalo-style painted grip bands and Flamethrower-style metal edge/recess detail. Build/native suites, private 60/120 lifecycle,
+lighting, software and Vanilla checks pass; original art is preserved. User
+accepted the final Buffalo-barrel steel gradients and requested foundational style
+documentation. See [note 265](documentation/265-native-mesh-art-style.md) for the
+reusable recipe and note 264 for evidence and limits.
 
 ### D08A27 - Toxic gas fills the widescreen viewport
 
@@ -20675,3 +20740,58 @@ in the authorized MusicMonsterMod commit/push. [Note 262](documentation/262-d36k
 retains evidence and coverage limits. No rebuild or game/player-file changes
 during closeout. D36L remains unselected; D19Q3 remains Needs playtest.
 No next job started.
+
+## 2026-10-26 - Three visual follow-ups researched and queued
+
+Added D36H1, D36H2 and D17Z as Todo at the user's explicit request for research
+and backlog setup only. Note 263 distinguishes source facts, accepted history,
+user reports and sampled video evidence; implementation and live reproduction
+remain unstarted. No code/build/player-file change, commit or push.
+
+## 2026-10-26 - Bio Mask authenticity backlog intake
+
+Added D08A28 as Todo with the user's PS1 visual-demake brief and initial source
+inspection in note 264. Existing accepted asset/export/runtime files untouched.
+Implementation selection pending clarification; no build, game launch or commit.
+
+## 2026-10-26 - D08A28 PS1 biomask revision ready for playtest
+
+Selected by "lets do it, lets go!". Separate Blender/texture revision lowers
+2400 to 488 triangles and 16 to five ribs per hose, with balanced UV density and
+original coarse art. Accepted files preserved; runtime behavior unchanged.
+Build/native suites, private reference comparisons, 60/120 lifecycle, lighting,
+software/Vanilla and save recovery pass. Note 264 records evidence and limits.
+Needs playtest for artistic acceptance. No commit/push or other job started.
+
+## 2026-10-26 - D08A28 slot-3 missing-mask follow-up
+
+Reproduced the user's no-mask report: active equipment, valid draw gate, failed
+late packet-buffer allocation after save import. Reserve the mask arena before
+any load; preserve D37A recovery and GPU packet clearing. New startup/snapshot
+regressions and native suites pass; slot-3 and warm/cross-level replay captures
+show the mesh. Note 264 has the corrected candidate and evidence. Needs playtest.
+
+## 2026-10-26 - D08A28 plain tubes and repainted metal
+
+User rejected geometric ribs and bland grey textures. Revised to constant-radius
+five-sided tubes with no modelled ridges; painted Buffalo-grip bands and readable
+Flamethrower-inspired metal details. Prior art superseded, slot-3 buffer fix kept.
+Build/native tests, save/replay and in-game reference/lighting checks pass; note
+264 preserves evidence. Needs playtest. No commit/push or next job started.
+
+## 2026-10-26 - D08A28 darker tubing and metallic texture refinement
+
+User requested further texture refinement. Tube art now matches the Buffalo
+pump's near-black four-tone palette; housing/collars gain Flamethrower-style
+painted metallic contrast, scuffs and recesses. Geometry is unchanged from the
+plain five-sided revision. Build/near tests, private save/replay, reference weapon,
+lighting and software checks pass. Note 264 records evidence. Needs playtest;
+no commit/push or next job started.
+
+## 2026-10-26 - D08A28 accepted and style foundation recorded
+
+User: "This is the one"; "Lock it in, close it out". D08A28 Done. Accepted
+revision 5 retains plain five-sided tubes and pump-style dark material, with
+Buffalo-barrel graded steel on the housing. Notes 264/265 preserve evidence and
+exact production guidance. Implementation, restorable source, exporter changes,
+save-load allocation fix and tests are included. Other intake jobs remain Todo.

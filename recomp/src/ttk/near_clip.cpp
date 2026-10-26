@@ -164,8 +164,10 @@ uint32_t arena_size;uint64_t packet_skips,mesh_fallbacks;
 uint32_t frame_first_cursor,frame_host_bytes,frame_used_peak,host_bytes_peak;
 uint32_t mask_arena,mask_bytes;
 uint64_t mask_draws,mask_triangles;
-// 1174 visible triangles * 40 bytes. Four regions leave room in the 1 MiB
-// DMA aperture for the 512 KiB world arena and 320 KiB animation overrides.
+// Keep the accepted 1174-triangle capacity for asset rollback. Four regions
+// coexist with the 512 KiB world arena and 320 KiB animation overrides.
+// Reserve before any savestate load: importing a saved allocation tail must
+// not fill the aperture while this process still has a null mask_arena.
 constexpr uint32_t mask_frame_bytes=47*1024;
 struct HeldPacket { uint32_t prim,tag; double z; };
 std::vector<HeldPacket> held_packets;
@@ -1550,6 +1552,7 @@ const char* near_clip_debug_json() {
 }
 PSX_MOD_CONSTRUCTOR(register_ttk_near_clip) {
     (void)ttk::host_arena();
+    ttk::mask_arena=psx_mod_alloc_gpu_dma_memory(ttk::mask_frame_bytes*ttk::host_regions,16);
     for(uint32_t address:{0x80010000u,0x80011020u,0x8002ee50u,0x80026164u,0x800114ecu,0x8001160cu})
         psx_mod_register_function_entry_plugin("ttk.near.clip",address,ttk::hook);
 }

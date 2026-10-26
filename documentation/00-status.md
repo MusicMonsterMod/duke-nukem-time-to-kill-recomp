@@ -1,5 +1,77 @@
 # Current status - 2026-10-04
 
+## 2026-10-26 - Session closeout; D19Q4 backlog only
+
+User authorized commit/push and session closeout. Added D19Q4 Todo for intermittent
+overwrite-confirmation text (wording paraphrased) and [ / ] inventory-selector
+flashes on loading. No investigation, implementation, build or launch for D19Q4.
+See MODERNIZATION_JOBS.md for the scoped future work. No shared cause established.
+D37A and D19Q3 changes/tests/reports are included in closeout; their Needs playtest
+statuses remain without asserting additional user acceptance. D37 research is Done.
+D36 research remains Todo. No next job started.
+Current build: `736c45ab5046f640a036e119a15d4401d312361d567445ed7e60776717e2fcbf`.
+
+
+## 2026-10-26 - D19Q3 automatic load resume (Needs playtest)
+
+User reports D37A looks good, then requests that loaded games never start paused.
+D19Q3 supersedes D19Q2's intentional Modernized pause preservation. Every applied
+paused gameplay load now runs the guarded resume path, without relying on sidecars
+or which loader was used. [Note 256](256-d19q3-always-resume.md).
+Real F9, F3 LOAD GAME, F7, movement and later Escape pause/resume pass in private
+Xvfb. Direct/repeated slot 9, metadata-free paused saves and running saves pass;
+statistics and Vanilla preservation pass. Manual updated; player files preserved.
+Current candidate: `736c45ab5046f640a036e119a15d4401d312361d567445ed7e60776717e2fcbf`.
+Includes D37A repair. Neither repair has acceptance closeout/commit/push authorization.
+Launch: `python3 recomp/tools/local/run.py`. No extra activation step.
+
+
+## 2026-10-26 - D37 closed; D37A repair ready for playtest
+
+User authorized research closeout and implementation of the linked repair. D37 is
+Done. D37A is Needs playtest: [note 255](255-d37a-animation-save-restore.md).
+Partial save restore now recovers verified animation metadata, restores native
+tables and rebuilds current overrides without undoing GPU packet clearing.
+Private warm/repeat/reverse-order/cross-level loads and first/third-person movement
+passed; crouch and first-person kick counters advance. Vanilla new-game movement,
+native recovery/GPU clearing regressions and 15 animation pipeline tests passed.
+Candidate: `b94b58e4be7cbeda84b60494d3a9e814c08b4160bfcea6feba0c9ea96040a738`.
+Framework patch exported/applied to clean pinned source and byte-compared.
+Player files preserved. No repair acceptance closeout, commit or push.
+Launch: `python3 recomp/tools/local/run.py`. Gameplay capture is automatic.
+
+
+## 2026-10-26 - D37 movement failure research (Needs review)
+
+[Note 254](254-d37-movement-failure.md) records a reproduced save-load animation
+memory failure: new-game -> UI slot 9 gives partial restore and clears the animation
+header while guest globals keep pointing at it. After resume, WASD cannot move
+horizontally but mouse yaw and frame counts advance. Original pre-restart logs
+show partial restores; restart logs show full restores and animation application.
+Historical atop/journal/backup checks do not support sustained host contention.
+Exact original live state was not captured. Research only, no fix implemented.
+Accepted binary unchanged; private test settings/cards and copied savestates only.
+No acceptance closeout, commit, push or next job.
+
+
+## 2026-10-26 - D36/D37 backlog intake only
+
+Registered D36 comprehensive first-person body/arms/interaction quality research,
+with D36A-F research tasks for the existing-system catalogue, weapon arms,
+body/quick kick, interactions, architecture alternatives and final roadmap.
+Preserved all user reproduction references and research/regression boundaries in
+MODERNIZATION_JOBS.md. D37 separately records the approximately 07:26 UK movement
+failure and requires historical log/host correlation without assuming a visual bug.
+
+All new jobs are Todo, not started. User permits in-game investigation while
+scoping; no launch or investigation was needed for this intake. No source/model/
+asset changes, build, player-file access or completed research claims. Existing
+accepted first-person jobs remain closed. Future report numbers will be allocated
+when research is selected, avoiding collisions. No implementation job is started
+or authorized by this intake; future fixes require the researched roadmap and
+explicit selection. No commit or push requested for this intake.
+
+
 ## 2026-10-26 - D23D accepted and closed
 
 User explicitly requested: "close out D23D", reporting that attempts to reproduce

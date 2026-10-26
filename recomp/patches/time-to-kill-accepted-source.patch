@@ -209,10 +209,10 @@ index e4e6f307..e44860cf 100644
  /* Right-side vertical volume bar (percent clamped 0..100). */
  void host_osd_show_volume(int percent, int duration_ms);
 diff --git a/runtime/include/mod_memory.h b/runtime/include/mod_memory.h
-index 7406c39a..47453987 100644
+index 7406c39a..4010755e 100644
 --- a/runtime/include/mod_memory.h
 +++ b/runtime/include/mod_memory.h
-@@ -44,6 +44,13 @@ static inline uint32_t psx_mod_gpu_dma_resolve_address_for(
+@@ -44,6 +44,20 @@ static inline uint32_t psx_mod_gpu_dma_resolve_address_for(
  uint32_t psx_mod_gpu_dma_memory_alloc(uint32_t size, uint32_t alignment);
  uint32_t psx_mod_gpu_dma_resolve_address(uint32_t address);
  
@@ -222,6 +222,13 @@ index 7406c39a..47453987 100644
 +int         psx_mod_memory_snapshot_read(const uint8_t *p, uint32_t len);
 +void        psx_mod_memory_snapshot_missing(void);
 +const char *psx_mod_memory_snapshot_outcome(void);
++
++/* Read a prefix of an exact allocation from the most recent valid loaded save,
++ * before incompatible DMA memory was cleared. Read-only host copy; does not map
++ * saved addresses or restore GPU packets. Missing/malformed loads invalidate it.
++ * The caller must validate its own format and relocate/rebuild its data. */
++int psx_mod_memory_saved_gpu_allocation(uint32_t address, uint32_t allocation_size,
++                                      void *dst, uint32_t bytes);
 +
  #ifdef __cplusplus
  }
@@ -6504,7 +6511,7 @@ index fe317583..45b22b73 100644
       * PSX_EXIT_HALT set, halt-and-serve here instead of shutting down so the
       * still-loaded overlays + full guest state are live-inspectable over TCP. */
 diff --git a/runtime/src/memory.c b/runtime/src/memory.c
-index 9d55ad16..8634dd5b 100644
+index 9d55ad16..0ac13ff2 100644
 --- a/runtime/src/memory.c
 +++ b/runtime/src/memory.c
 @@ -8,12 +8,14 @@
@@ -6522,7 +6529,7 @@ index 9d55ad16..8634dd5b 100644
  #include "mdec.h"
  #include "mod_memory.h"
  #include "sio.h"
-@@ -44,6 +46,30 @@ static uint32_t mod_memory_used;
+@@ -44,6 +46,53 @@ static uint32_t mod_memory_used;
  static uint8_t mod_gpu_dma_memory[PSX_MOD_GPU_DMA_APERTURE_SIZE];
  static uint32_t mod_gpu_dma_memory_used;
  
@@ -6535,6 +6542,29 @@ index 9d55ad16..8634dd5b 100644
 +typedef struct { uint32_t start, size; } ModAlloc;
 +typedef struct { ModAlloc rec[MOD_ALLOC_RECORDS]; uint32_t count; int overflow; } ModAllocs;
 +static ModAllocs mod_allocs, mod_gpu_dma_allocs;
++/* Latest save's immutable DMA image, for plugins with non-packet data in the
++ * aperture. Not live guest memory and never affected by render replay images. */
++static uint8_t saved_mod_gpu_dma_memory[PSX_MOD_GPU_DMA_APERTURE_SIZE];
++static ModAllocs saved_mod_gpu_dma_allocs;
++static uint32_t saved_mod_gpu_dma_used;
++
++int psx_mod_memory_saved_gpu_allocation(uint32_t address, uint32_t allocation_size,
++                                      void *dst, uint32_t bytes) {
++    uint32_t off;
++    if (!dst || !bytes || bytes > allocation_size ||
++        address < PSX_MOD_GPU_DMA_GUEST_BASE ||
++        address >= PSX_MOD_GPU_DMA_GUEST_BASE + PSX_MOD_GPU_DMA_APERTURE_SIZE ||
++        !psx_mod_gpu_dma_aperture_offset_for(address, allocation_size,
++                                            saved_mod_gpu_dma_used, &off)) return 0;
++    for (uint32_t i = 0; i < saved_mod_gpu_dma_allocs.count; ++i) {
++        const ModAlloc *r = &saved_mod_gpu_dma_allocs.rec[i];
++        if (r->start == off && r->size == allocation_size) {
++            memcpy(dst, saved_mod_gpu_dma_memory + off, bytes);
++            return 1;
++        }
++    }
++    return 0;
++}
 +static void mod_alloc_note(ModAllocs *a, uint32_t start, uint32_t size) {
 +    if (a->count < MOD_ALLOC_RECORDS) {
 +        a->rec[a->count].start = start;
@@ -6553,7 +6583,7 @@ index 9d55ad16..8634dd5b 100644
  /*
   * Trusted mods may opt into host-backed guest memory in Expansion 1. Before
   * the first allocation this entire region retains hardware open-bus behavior.
-@@ -57,9 +83,48 @@ uint32_t psx_mod_memory_alloc(uint32_t size, uint32_t alignment) {
+@@ -57,9 +106,48 @@ uint32_t psx_mod_memory_alloc(uint32_t size, uint32_t alignment) {
      if (start > MOD_MEMORY_SIZE || size > MOD_MEMORY_SIZE - start) return 0u;
      memset(mod_memory + start, 0, size);
      mod_memory_used = start + size;
@@ -6602,7 +6632,7 @@ index 9d55ad16..8634dd5b 100644
  static int mod_memory_offset(uint32_t phys, uint32_t width, uint32_t *offset) {
      uint32_t off;
      if (phys < MOD_MEMORY_BASE) return 0;
-@@ -80,9 +145,142 @@ uint32_t psx_mod_gpu_dma_memory_alloc(uint32_t size, uint32_t alignment) {
+@@ -80,9 +168,154 @@ uint32_t psx_mod_gpu_dma_memory_alloc(uint32_t size, uint32_t alignment) {
          return 0u;
      memset(mod_gpu_dma_memory + start, 0, size);
      mod_gpu_dma_memory_used = start + size;
@@ -6619,8 +6649,8 @@ index 9d55ad16..8634dd5b 100644
 + * restored. When this process's records are all a prefix of the saved ones,
 + * the saved watermark is adopted too (those ranges were allocated later in the
 + * saving process; nothing here owns them yet). A mismatch keeps this process's
-+ * own data from the first differing record on. The aperture holds only
-+ * primitive/OT arenas, so any of it not restored is filled with end-of-list
++ * own allocation layout from the first differing record on. Any aperture data
++ * not restored is filled with end-of-list
 + * packet headers (0x00FFFFFF): a stale ordering-table link from the loaded RAM
 + * then ends the list instead of walking another frame's packets, which could
 + * draw garbage or upload into VRAM (wrong textures and colours until the level
@@ -6730,6 +6760,16 @@ index 9d55ad16..8634dd5b 100644
 +        s_modmem_outcome = "malformed";
 +        return 1;
 +    }
++    /* Preserve an immutable source for format-aware recovery. Never install
++     * incompatible saved packet arenas in live guest memory. */
++    saved_mod_gpu_dma_used = dma.used;
++    saved_mod_gpu_dma_allocs.count = dma.count;
++    saved_mod_gpu_dma_allocs.overflow = dma.overflow;
++    for (uint32_t i = 0; i < dma.count; ++i) {
++        saved_mod_gpu_dma_allocs.rec[i].start = modmem_get32(dma.recs + 8u * i);
++        saved_mod_gpu_dma_allocs.rec[i].size = modmem_get32(dma.recs + 8u * i + 4u);
++    }
++    memcpy(saved_mod_gpu_dma_memory, dma.bytes, dma.used);
 +    exp1_ok = modmem_region_restore(&exp1, &mod_allocs, mod_memory, &mod_memory_used);
 +    dma_ok = modmem_region_restore(&dma, &mod_gpu_dma_allocs, mod_gpu_dma_memory, &mod_gpu_dma_memory_used);
 +    if (dma_ok < mod_gpu_dma_memory_used)
@@ -6738,6 +6778,8 @@ index 9d55ad16..8634dd5b 100644
 +    return 1;
 +}
 +void psx_mod_memory_snapshot_missing(void) {
++    saved_mod_gpu_dma_used = 0;
++    saved_mod_gpu_dma_allocs.count = 0;
 +    modmem_fill_end_of_list(0u, mod_gpu_dma_memory_used);
 +    s_modmem_outcome = "absent";
 +}
@@ -6745,7 +6787,7 @@ index 9d55ad16..8634dd5b 100644
  static int mod_gpu_dma_memory_offset(uint32_t phys, uint32_t width,
                                       uint32_t *offset) {
      return psx_mod_gpu_dma_aperture_offset_for(
-@@ -809,18 +1007,22 @@ uint32_t overlay_watch_pagegen_sum(uint32_t phys, uint32_t len) {
+@@ -809,18 +1042,22 @@ uint32_t overlay_watch_pagegen_sum(uint32_t phys, uint32_t len) {
   * fast path and run native code against restored bytes they were not validated
   * for — hang / freeze after the restored frame presents. */
  void dirty_ram_text_guard_resync_after_restore(void) {
@@ -6777,7 +6819,7 @@ index 9d55ad16..8634dd5b 100644
  }
  
  void overlay_watch_invalidate_after_ram_restore(void) {
-@@ -912,6 +1114,9 @@ uint64_t g_mmio_access_count = 0;
+@@ -912,6 +1149,9 @@ uint64_t g_mmio_access_count = 0;
   * ANY store is not a pure poll loop. CPU stores and in-flight DMA writes
   * both funnel through the psx_write_*_raw chokepoints. */
  uint64_t g_guest_store_count = 0;
@@ -6787,7 +6829,7 @@ index 9d55ad16..8634dd5b 100644
  
  /* ---- Card protocol trace: tracks I_MASK bit 7 transitions ---- */
  #define IMASK_TRACE_CAP 4096
-@@ -1175,6 +1380,7 @@ static uint32_t mmio_read32_impl(uint32_t addr) {
+@@ -1175,6 +1415,7 @@ static uint32_t mmio_read32_impl(uint32_t addr) {
   * single (side-effecting) read. Callers use mmio_read32; the body is _impl, so
   * the device read executes exactly once. */
  static uint32_t mmio_read32(uint32_t addr) {
@@ -6795,7 +6837,7 @@ index 9d55ad16..8634dd5b 100644
      psx_devices_mmio_sync();
      uint32_t v = mmio_read32_impl(addr);
      debug_server_trace_mmio_read(addr, v, 4);
-@@ -1182,6 +1388,7 @@ static uint32_t mmio_read32(uint32_t addr) {
+@@ -1182,6 +1423,7 @@ static uint32_t mmio_read32(uint32_t addr) {
  }
  
  static void mmio_write32(uint32_t addr, uint32_t val) {
@@ -6803,7 +6845,7 @@ index 9d55ad16..8634dd5b 100644
      psx_devices_mmio_sync();
      SHADOW_NOTE_MMIO();
      debug_server_trace_mmio_write(addr, val, 4);
-@@ -1292,6 +1499,7 @@ static uint16_t mmio_read16_impl(uint32_t addr) {
+@@ -1292,6 +1534,7 @@ static uint16_t mmio_read16_impl(uint32_t addr) {
  }
  
  static uint16_t mmio_read16(uint32_t addr) {
@@ -6811,7 +6853,7 @@ index 9d55ad16..8634dd5b 100644
      psx_devices_mmio_sync();
      uint16_t v = mmio_read16_impl(addr);
      debug_server_trace_mmio_read(addr, (uint32_t)v, 2);
-@@ -1299,6 +1507,7 @@ static uint16_t mmio_read16(uint32_t addr) {
+@@ -1299,6 +1542,7 @@ static uint16_t mmio_read16(uint32_t addr) {
  }
  
  static void mmio_write16(uint32_t addr, uint16_t val) {
@@ -6819,7 +6861,7 @@ index 9d55ad16..8634dd5b 100644
      psx_devices_mmio_sync();
      SHADOW_NOTE_MMIO();
      debug_server_trace_mmio_write(addr, (uint32_t)val, 2);
-@@ -1411,6 +1620,7 @@ static uint8_t mmio_read8_impl(uint32_t addr) {
+@@ -1411,6 +1655,7 @@ static uint8_t mmio_read8_impl(uint32_t addr) {
  }
  
  static uint8_t mmio_read8(uint32_t addr) {
@@ -6827,7 +6869,7 @@ index 9d55ad16..8634dd5b 100644
      psx_devices_mmio_sync();
      uint8_t v = mmio_read8_impl(addr);
      debug_server_trace_mmio_read(addr, (uint32_t)v, 1);
-@@ -1418,6 +1628,7 @@ static uint8_t mmio_read8(uint32_t addr) {
+@@ -1418,6 +1663,7 @@ static uint8_t mmio_read8(uint32_t addr) {
  }
  
  static void mmio_write8(uint32_t addr, uint8_t val) {
@@ -6835,7 +6877,7 @@ index 9d55ad16..8634dd5b 100644
      psx_devices_mmio_sync();
      SHADOW_NOTE_MMIO();
      debug_server_trace_mmio_write(addr, (uint32_t)val, 1);
-@@ -1649,7 +1860,9 @@ void psx_write_word(uint32_t addr, uint32_t val) {
+@@ -1649,7 +1895,9 @@ void psx_write_word(uint32_t addr, uint32_t val) {
      s_ls_op_active = 0;
  }
  static void psx_write_word_raw(uint32_t addr, uint32_t val) {
@@ -6845,7 +6887,7 @@ index 9d55ad16..8634dd5b 100644
      /* (pgxp) plain-store shadow invalidation retired: the PGXP engine
       * validates tracked words against the actual packet word on read, so an
       * overwritten word can never be believed (ENHANCEMENTS.md G1). */
-@@ -1851,7 +2064,9 @@ void psx_write_half(uint32_t addr, uint16_t val) {
+@@ -1851,7 +2099,9 @@ void psx_write_half(uint32_t addr, uint16_t val) {
      s_ls_op_active = 0;
  }
  static void psx_write_half_raw(uint32_t addr, uint16_t val) {
@@ -6855,7 +6897,7 @@ index 9d55ad16..8634dd5b 100644
      if (sr_ptr && (*sr_ptr & 0x10000u)) return;
  
          /* KSEG2 guard — see psx_read_word_raw. */
-@@ -2186,7 +2401,9 @@ void psx_write_byte(uint32_t addr, uint8_t val) {
+@@ -2186,7 +2436,9 @@ void psx_write_byte(uint32_t addr, uint8_t val) {
      s_ls_op_active = 0;
  }
  static void psx_write_byte_raw(uint32_t addr, uint8_t val) {

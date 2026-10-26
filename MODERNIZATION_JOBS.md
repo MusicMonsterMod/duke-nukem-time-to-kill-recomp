@@ -306,6 +306,8 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D19Q | SAVE GAME screen to match LOAD GAME: choose a savestate slot from the menus, overwrite asks, success / failure shown | Done (user-accepted 2026-10-20) | D19K |
 | D19Q1 | SAVE GAME thumbnail shows the save screen (OVERWRITE THIS SAVE?) instead of play (player UI slot 1; cause: stale CPU VRAM, not first person) | Done (user-accepted 2026-10-20) | D19Q |
 | D19Q2 | Saves restore paused: investigate recurring pause/menu state on load and resume behavior | Done (user-accepted 2026-10-23) | D19Q, D20 |
+| D19Q3 | Every Modernized gameplay load resumes immediately | Needs playtest | D19Q2, D37A |
+| D19Q4 | Intermittent overwrite prompt and inventory selector flashes on load | Todo | D19Q3 |
 | D19S | Delete saves from LOAD GAME: Delete on a slot asks DELETE SAVED GAME: "<name>" (NO first) | Done (user-accepted 2026-10-21) | D19K, D19Q |
 | D19T | Real double quote marks (" and ") in the game's menu font: the text call draws `"` as a single quote | Done (user-accepted 2026-10-21) | D19S |
 | D19T1 | DELETE SAVED GAME: shows the slot's name without quotes (cleaner; D19T quotes stay available) | Done (user-accepted 2026-10-21) | D19S, D19T |
@@ -395,9 +397,299 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D35M | First-person door opening and related use interactions | Done | D35A |
 | D35N | First-person mirror interactions and reflected-Duke proximity fade | Done | D35A |
 | D35N1 | Missing mirror voice line at slot 6 (base-game design oversight, bug 3) | Todo | D35N |
+| D36 | First-person body, arms and interaction presentation quality audit (research only) | Todo | D11, D12, D35, D08K, D08A26 |
+| D36A | Existing first-person systems and complete state catalogue | Todo | D11, D12, D35, D08K, D08A26 |
+| D36B | Every weapon/variant: missing arms and connected hand geometry audit | Todo | D36A |
+| D36C | Body/leg visibility and quick-kick depth, extra leg and mesh audit | Todo | D36A |
+| D36D | Interaction arms/poses audit, prioritizing slot-8 push/pull | Todo | D36A |
+| D36E | Reusable/dedicated geometry, animation and shared-presentation architecture | Todo | D36A; findings from D36B-D |
+| D36F | Visual standards, traceability and prioritized implementation roadmap | Todo | D36B, D36C, D36D, D36E |
+| D37 | Temporary movement failure at 07:26 UK on 2026-10-26 (separate research) | Done | - |
+| D37A | Safe animation restoration across save allocation layouts | Needs playtest | D37 |
 | R01 | DisruptorRecomp architecture and modernization reference research | Done | - |
 
 Recommended opening sequence: **D01 → D02 → D03 → D04**, then **D05 / D06 → D07 → D07A → D08**. D13 is an early graphics option after profiles exist. D22 and D23 should accumulate evidence throughout development. First-person, HD asset packs and precision rendering are optional follow-up milestones, not blockers for a good modern third-person release.
+
+
+## First-person presentation quality audit intake - 2026-10-26
+
+### D36 - First-person body, arms and interaction presentation quality audit
+
+**Status: Todo. Research and planning only; not started.** User requested the full
+scope below be stood up in the backlog, with no jobs begun. In-game investigation
+while scoping is permitted, but none was needed for intake. Reported symptoms are
+user observations, not verified root causes. D35 and its accepted children remain
+Done; this is presentation refinement, not a reversal of their accepted behavior.
+
+**Mission:** establish a cohesive, visually convincing, professional first-person
+experience across the entire game while retaining the original PlayStation style.
+Preserve successful first-person gameplay and interaction work. Research existing
+systems, identify actual causes, evaluate the smallest coherent architecture, and
+present independently implementable follow-ups for review before fixing anything.
+The player should not need to excuse floating hands, detached limbs, popping or
+inappropriate poses as implementation limitations.
+
+**Dependencies:** accepted D11/D12 and D35 presentation work, D08K animation work,
+and D08A26 custom first-person equipment. These are reference baselines to inspect,
+not jobs to reopen. D37 is separate; D36 must cross-reference its eventual findings
+without assuming a common cause or waiting to begin independent visual research.
+
+**Research task breakdown:** D36A-F below are Todo research tasks, not authorized
+implementation jobs. D36A establishes the inventory; D36B-E investigate domains;
+D36F consolidates evidence and proposes the implementation roadmap. Future coding,
+asset and animation jobs must follow the evidence, receive stable IDs and explicit
+selection, and must not be silently started as part of this audit.
+
+### D36A - Existing first-person systems and state catalogue
+
+**Status: Todo. Depends on accepted D11, D12, D35, D08K and D08A26 work.**
+
+Read relevant repository instructions, source and prior engineering notes before
+proposing changes. Catalogue camera/viewmodel rendering; weapons, hands and arms;
+body visibility and suppression; legs and locomotion; quick kick; ladders, chains,
+poles, walls, overhead traversal and mantles; swimming/underwater movement and
+jetpacking; push/pull; keycard, crystal, vending-machine, wheel and other object
+interactions; scripted activities, death/respawn and other transitions. Include
+first-/third-person user preferences and accepted fallback mechanisms.
+
+Trace model hierarchy, transforms and attachments, animation selection, geometry
+visibility, culling, clipping, projection/depth and lighting. Search the whole
+codebase for every first-person override/workaround and state transition, including
+activities not listed in the user's examples. Establish which behavior is accepted,
+intentional, incomplete or suspect; do not duplicate existing systems or undo prior
+work. Identify shared ownership and pose/visibility restoration paths.
+
+**Acceptance:** a source- and documentation-linked state catalogue covers all
+identified activities, entry/active/exit paths and overrides, with function names,
+verified animation identifiers and relevant model parts where available. Explicitly
+list coverage gaps instead of claiming comprehensive observation without evidence.
+
+### D36B - Weapon arms and hands: complete geometry audit
+
+**Status: Todo. Depends on D36A.**
+
+Reproduction reference: load the new Time to Kill level and use the existing
+`dnstuff` cheat. Verify the actual level and weapon identities during research;
+"new Time to Kill level" is the user's description, not a confirmed level ID.
+Inspect every weapon, alternate weapon sharing an inventory slot, and upgraded
+variant. Do not limit coverage to these reported examples:
+
+| Inventory slot | User observation | Research question |
+| --- | --- | --- |
+| 1 | Throwing axe and knife show hands/weapons but no forearms/arms | Missing source geometry, suppression, transforms, clipping or another cause? |
+| 4 | Gatling gun looks good but its hand lacks a connected arm | How should hand, arm and weapon join in the existing pose? |
+| 6 | Grenade-type weapons show hands but no arms | Can shared geometry/attachments serve all variants? |
+
+Distinguish original model composition from our first-person suppression,
+attachment/animation transforms, near-plane clipping and renderer limitations.
+Evaluate a unified arm solution against weapon-specific geometry, attachments and
+poses. Arms must connect plausibly wherever naturally visible, without adding
+geometry that obscures the weapon or creates an unnatural pose.
+
+**Acceptance:** a complete weapon/variant matrix records observed visibility,
+source evidence, confirmed causes or labelled hypotheses, viable solutions and
+trade-offs. Cover idle, fire/throw, switching, crouch, look extremes and relevant
+movement/interruption states. Preserve accepted weapon framing and mechanics.
+
+### D36C - Body/legs and quick-kick presentation audit
+
+**Status: Todo. Depends on D36A.**
+
+Investigate normal walk/run leg visibility while looking down: limbs reportedly
+appear/disappear unpredictably. Trace body-part rules, camera-relative clipping,
+near-plane intersections, transforms, culling, animation frames and locomotion
+transitions. Slot 12 ladder arms generally work; disappearing torso when looking
+straight down may be an intentional anti-obstruction choice, not a required fix.
+Evaluate retaining that behavior, body placement, mesh adjustments, selective
+visibility and restricted downward look. Camera restrictions are permissible only
+with justification and comparison to alternatives, not the default remedy.
+
+Preserve the successful Q quick kick and investigate three distinct observations:
+
+- Depth/overlap: with long weapons, especially Gatling, the foot appears closer
+  than the barrel. Inspect coordinate systems, projection, depth and animation
+  placement. Establish convincing relationships across weapon sizes rather than
+  indiscriminately pushing the foot behind every weapon.
+- Third leg: normal legs remain visible looking down while an additional kick leg
+  animates. Compare replacing/suppressing the corresponding normal leg with other
+  rendering approaches; restore normal visibility reliably afterward.
+- Mirrored equipment: the kick appears to mirror Duke's right leg, exposing an
+  incorrect holster arrangement. Verify the actual mesh/orientation; compare the
+  correct original leg, attachment/animation correction, mesh modification and a
+  dedicated first-person jeans-and-boot mesh without the holster.
+
+**Acceptance:** each observation has evidence and a recommended approach with
+alternatives. Test planning covers short/long weapons and variants, costumes,
+standing/crouching, walk/run, look extremes, kick start/impact/end/interruption and
+save/load restoration. Quick-kick timing, damage, hit detection and responsiveness
+must remain unchanged. No cause is considered confirmed merely from appearance.
+
+### D36D - Interaction arms, poses and attachment audit
+
+**Status: Todo. Depends on D36A. Slot 8 push/pull is a high-priority example.**
+
+Current user save-slot references (2026-10-26) are reproduction pointers, not proof
+of cause; verify actual loaded scene/state and use private copies for research.
+
+| Save slot | Interaction | Reported observation |
+| --- | --- | --- |
+| 11 | Keycard insertion | Floating hand; partial arm appears/disappears |
+| 10 | Vending machine | Arm appears abruptly cut off |
+| 9 | Crystal insertion | Only hand holding crystal is visible |
+| 8 | Dumpster push/pull | Detached arms move erratically |
+| 5 | Wheel turn | Hands lack properly connected arms |
+| 12 | Ladder | Arms generally work; downward body visibility needs review |
+
+For every interaction inspect animation, hierarchy, attachments, visibility and
+camera behavior. Determine whether existing third-person animation can be adapted
+reliably or a dedicated first-person pose/animation is preferable. Expand coverage
+to every relevant activity found by D36A: chains/poles, walls, overhead traversal,
+mantles, water climb-outs, swimming, flight, scripted uses and object manipulation.
+Audit limb/object/camera clipping, inappropriate poses, unexpected geometry,
+visibility changes, state-transition instability and pose restoration after use.
+
+Slot 8 requires particular attention to original turning/repositioning/body motion
+and whether those transforms explain the reported erratic arms. Evaluate a stable,
+plausible first-person pushing/pulling pose or animation. This is a proposed avenue
+to investigate, not a confirmed cause or selected implementation. Any future visual
+fix must preserve movement, collision and interaction mechanics.
+
+**Acceptance:** a per-interaction evidence matrix covers entry, sustained activity,
+exit, interruption, weapon switching, look extremes and saving/loading where valid.
+Record intentional suppression separately from defects. Preserve working animations,
+perspective preferences and accepted fallbacks; do not hide arms or force third
+person merely to avoid doing the presentation work.
+
+### D36E - Geometry, animation and shared-presentation architecture evaluation
+
+**Status: Todo. Depends on D36A; informed by D36B-D.**
+
+Evaluate the demonstrated Blender custom low-poly asset pipeline, Photon Studio
+asset creation/processing workflow, and runtime mesh manipulation. Review D08A26's
+first-person gas-mask geometry and environmental lighting as existing capability;
+verify reusable integration points rather than assuming assets alone solve poses.
+Original Duke geometry is an option, not an exclusive constraint.
+
+Compare reuse of original meshes; dedicated arms; interaction-specific poses;
+retargeted/reused animations; attachment corrections; selective mesh visibility;
+camera/clipping corrections; small original replacement assets; and shared arm/hand
+conventions. A hybrid of weapon-specific combat geometry and interaction poses may
+be best, but must follow the evidence. Evaluate a shared body-presentation layer
+for consistent ownership, transforms, lighting, visibility and restoration, versus
+extending existing systems. Prefer the smallest coherent architecture that meets
+the quality target; do not default to rewriting the renderer or animation system.
+
+**Acceptance:** alternatives and trade-offs are grounded in D36A-D evidence, with
+reuse opportunities, asset requirements, performance implications, integration
+boundaries and serialization risks explicitly identified. Separate architectural
+foundation work from asset creation, animation refinement and isolated corrections.
+
+### D36F - Visual standards, traceability and implementation roadmap
+
+**Status: Todo. Depends on D36B, D36C, D36D and D36E.**
+
+Use Duke Nukem: Zero Hour Overclocked's first-person presentation as a comparative
+quality reference where accessible; cite what was actually reviewed and disclose
+unavailable references. Do not assume its implementation or architecture transfers.
+
+Define observable quality standards: anatomically plausible connected limbs,
+consistent intentional visibility, stable weapons, convincing interactions, correct
+orientation, sensible camera-relative placement, no floating/detached parts or
+unexplained extra limbs, no distracting clipping/popping, consistent environmental
+lighting and PS1 style, smooth state transitions and responsive gameplay.
+
+Deliver a comprehensive technical audit in the existing numbered documentation
+structure. Allocate the next unused document number at research time; intake does
+not reserve a number or create an empty report masquerading as findings. Include
+state and weapon catalogues, defect root-cause analysis, geometry/animation option
+evaluation, source/function/model/animation references and prior documentation.
+
+Build a traceability matrix linking each observed defect to evidence/source,
+confirmed cause or hypothesis, proposed solution, future sub-job and test case.
+For every proposed implementation job provide:
+
+1. Problem and its visible/technical impact.
+2. Evidence: source, model, animation state and save-slot reproduction.
+3. Confirmed root cause or clearly labelled hypothesis/remaining investigation.
+4. Recommended technical solution.
+5. Viable alternatives and their trade-offs.
+6. Dependencies and prerequisites.
+7. Risks and possible regressions.
+8. Observable acceptance criteria.
+9. Specific tests: slots, weapons, interactions and state transitions.
+
+Prioritize by visual severity (including slot 8), architectural dependencies,
+complexity and regression risk. Consolidate shared causes where justified rather
+than prescribing isolated patches. The roadmap must be reviewable before any
+implementation starts. Cross-reference the separate D37 report without conflating
+movement failure with presentation defects.
+
+**Regression requirements for all proposed work:** preserve save compatibility,
+single-player behavior, weapon mechanics/switching, quick-kick damage/timing,
+interaction functionality, first-/third-person settings, camera/input response,
+rendering/lighting, accepted performance/refresh behavior and Vanilla gameplay.
+Explicitly identify changes that could affect serialized player/animation state.
+Recommend practical automated or reproducible visibility, animation-restoration
+and transition tests, including enter/leave, look up/down, weapon switching and
+save/load in relevant states. State limits where automated tests cannot certify
+visual quality; require appropriate captures and gameplay review.
+
+**D36 completion:** the full audit, standards, traceability matrix and dependency-
+aware roadmap are delivered for user review, with gaps and uncertainty explicit.
+Research must leave the accepted single-player build untouched. No gameplay,
+renderer architecture, player model, animation asset or save-format modifications;
+no silent third-person fallback replacement and no discarded working interaction
+animations. Research acceptance is not implementation or commit/push authorization.
+
+### D37A - Safe animation restoration across save allocation layouts
+
+**Status: Needs playtest. Implemented and tested; [note 255](documentation/255-d37a-animation-save-restore.md). User selected repair and closed D37 research on 2026-10-26.**
+
+Repair the new-game -> saved-game allocation mismatch that clears animation data
+while the guest still references it. Recover verified animation metadata from the
+loaded save without restoring incompatible GPU packet arenas. Support existing saves,
+repeat loads and both allocation orders. Preserve Vanilla and current GPU safety.
+
+Acceptance: focused native coverage for mismatched/absent/malformed saved metadata;
+private live reproduction with movement and animation progressing after warm loads;
+repeat and cross-level loads, first/third person, crouch and quick-kick checks;
+Vanilla regression. Export and validate framework patch against the pinned dependency.
+No player saves/cards modified. Present implementation for playtest/review; no automatic
+commit/push or repair closeout.
+
+### D37 - Temporary movement failure at 07:26 UK, 2026-10-26
+
+**Status: Done. Research accepted and closed by user instruction; repair selected as D37A. [Note 254](documentation/254-d37-movement-failure.md).**
+No prerequisite on D36. Prior control recovery and performance notes are references,
+not evidence of a shared cause. This is not a confirmed first-person rendering bug.
+
+User report: at approximately 07:26 local UK time on 26 October 2026, camera turning
+remained possible but movement became stuttered/broken, Duke's animation appeared
+stationary and normal gameplay was impossible. Closing/reopening restored normal
+behavior; reloading save slot 9 then worked. Preserve this time and sequence when
+correlating logs; verify timestamp/timezone conventions rather than assuming them.
+
+When selected, inspect available session logs and relevant system events around the
+reported time. Check backups/Timeshift/rsync, updates, CPU load, disk I/O pressure,
+memory/swap and historical host activity as well as game telemetry. Later idle
+readings cannot establish host conditions during the incident, and background
+activity alone does not establish causation. If historical logs are unavailable or
+insufficient, say so explicitly. Do not substitute fresh successful play for an
+explanation of the earlier failure.
+
+Trace relevant animation/movement/input ownership, first-person overrides and
+other candidate subsystems only as supported by evidence. Record log timestamps,
+code paths, reproducibility and competing hypotheses. Do not invent a cause or
+assume the visual defects are connected. Any reproduction must use isolated test
+settings and private save/card copies, preserving the accepted build and player
+files. No fixes are authorized by this research job.
+
+**Deliverable and acceptance:** a separate numbered research report using the next
+available documentation number at execution time, with chronology, available and
+missing evidence, source references, confirmed findings versus hypotheses,
+reproduction outcome/limits and recommended follow-up tests or a scoped fix job.
+An unresolved or unreproduced result is valid if stated honestly; report for user
+review before changing status to Done. Correlate with D36 only if supported.
 
 
 ## 2026-10-25 - Gadget modernization and slot-5 jump artifact intake
@@ -19898,3 +20190,98 @@ Reopen on a reproducible report and correlate host activity with gameplay teleme
 before optimizing. No next job started.
 
 Launch: `python3 recomp/tools/local/run.py`.
+
+## 2026-10-26 - D36/D37 backlog intake only
+
+Registered D36 comprehensive first-person body/arms/interaction quality research,
+with D36A-F research tasks for the existing-system catalogue, weapon arms,
+body/quick kick, interactions, architecture alternatives and final roadmap.
+Preserved all user reproduction references and research/regression boundaries in
+MODERNIZATION_JOBS.md. D37 separately records the approximately 07:26 UK movement
+failure and requires historical log/host correlation without assuming a visual bug.
+
+All new jobs are Todo, not started. User permits in-game investigation while
+scoping; no launch or investigation was needed for this intake. No source/model/
+asset changes, build, player-file access or completed research claims. Existing
+accepted first-person jobs remain closed. Future report numbers will be allocated
+when research is selected, avoiding collisions. No implementation job is started
+or authorized by this intake; future fixes require the researched roadmap and
+explicit selection. No commit or push requested for this intake.
+
+
+## 2026-10-26 - D37 movement failure research (Needs review)
+
+Historical logs show partial enhancement-memory restores before the 07:26:26
+restart, then full restores afterward. Private new-game -> UI slot 9 loads
+reproduce invalid animation tables, fixed horizontal position despite WASD, and
+live mouse yaw. Historical atop evidence does not support sustained host overload.
+See [note 254](documentation/254-d37-movement-failure.md) for chronology, mechanism,
+limits and proposed fix scope. Accepted executable unchanged; no gameplay edits,
+build, commit or push. Research awaits review; no fix job started.
+
+
+## 2026-10-26 - D37 closed; D37A repair ready for playtest
+
+User explicitly closed D37 research and selected its repair. D37A recovers verified
+animation metadata from the loaded save independently of cleared GPU packets,
+restores original tables and reapplies the current pack in this process's allocation.
+Private warm/repeat/reverse-order/cross-level loads, both views, crouch, first-person
+quick kick and Vanilla new-game checks passed. Native recovery/GPU clearing and
+metadata tests passed; animation pipeline 15 PASS. [Note 255](documentation/255-d37a-animation-save-restore.md).
+Framework patch exported and verified against the clean pin; no player saves/cards
+changed. D37A remains Needs playtest; no commit, push or next job.
+
+
+### D19Q3 - Every Modernized gameplay load resumes immediately
+
+Status: Needs playtest. [Note 256](documentation/256-d19q3-always-resume.md). User reports slot 9 remains paused after D37A and explicitly
+requests that games never start paused (2026-10-26). This supersedes D19Q2's
+intentional pause preservation in Modernized loads. Use the successful load
+generation, independent of sidecar and load route, to resume living gameplay
+through the existing guarded native sound/music and pause-reset path. Preserve
+normal later Escape pauses, death/statistics screens and Vanilla behavior.
+Test slot 9, repeat loads, LOAD GAME/quickload/F7-equivalent debug loads,
+metadata-free paused saves, already-running saves and ordinary pause/resume.
+No automatic acceptance closeout, commit or push.
+
+
+## 2026-10-26 - D19Q3 automatic load resume (Needs playtest)
+
+User superseded intentional pause preservation: Modernized gameplay loads should
+always resume. The successful-load generation now arms one normal guarded resume,
+independent of load route or metadata. Real Xvfb keyboard tests passed for F9,
+F3 LOAD GAME, F7, subsequent Escape pause/resume and movement. Direct slot 9,
+repeat loads, metadata-free paused saves and already-running saves pass. Statistics
+and Vanilla preservation checks pass. [Note 256](documentation/256-d19q3-always-resume.md).
+Manual updated. D37A remains included; no acceptance closeout, commit or push.
+
+
+### D19Q4 - Intermittent UI flashes on load
+
+**Status: Todo. Backlog intake only; explicitly not started.**
+
+User report, 2026-10-26: sometimes text resembling "overwrite the previous save"
+(user paraphrase, exact wording unconfirmed) briefly blinks on screen while loading.
+Sometimes the inventory selector operated with [ / ] also appears upon loading.
+Record these as two symptoms of load-time UI presentation; a shared cause is not
+established. No particular slot, load route, timing or reproduction frequency has
+yet been established. Do not assume a save was overwritten or inventory changed.
+
+When explicitly selected, reproduce using private settings/cards and save copies;
+compare LOAD GAME, quickload and F7, including paused/running and repeated loads.
+Trace menu confirmation rendering, input edges and inventory-overlay lifetime
+across the load boundary. Preserve D19Q3's immediate resume and D37A's animation
+recovery. Acceptance: neither unrelated overwrite text nor the inventory selector
+flashes on load; deliberate overwrite confirmations and [ / ] inventory selection
+still work, with ordinary pause/resume and Vanilla preserved.
+
+No investigation, source change, build or launch is authorized by this intake.
+
+## 2026-10-26 - Session closeout and D19Q4 backlog
+
+User requested backlog-only D19Q4 for intermittent overwrite-text and inventory
+selector flashes during loading, then explicitly authorized commit/push and session
+closeout. D19Q4 is Todo and was not investigated or implemented. Current D37A and
+D19Q3 implementation, tests and documentation are included in the closeout. Their
+Needs playtest statuses remain; session closeout does not assert additional gameplay
+acceptance. D36 research backlog remains unstarted. No next job selected.

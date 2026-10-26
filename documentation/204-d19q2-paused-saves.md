@@ -3,6 +3,11 @@
 Status: Done (user-accepted 2026-10-23). No confirmed pause-state regression
 and no gameplay changes.
 
+Current policy update (2026-10-26): the user explicitly requested that Modernized
+gameplay loads always resume. D19Q3 supersedes this report's intentional pause
+preservation policy; see [note 256](256-d19q3-always-resume.md). The evidence below
+is historical and does not describe the new behavior.
+
 ## Finding
 
 The reported UI slot 10 is a SAVE GAME save with `level 0` and `resume 1`

@@ -649,3 +649,13 @@ switch back with `-DTTK_FT_CALIBRATE=OFF`). See
 - `ttk_input` reports `binds` (the live binding codes in action order) and
   `controls.mouse_deg` (camera turn per mouse count, the value the camera
   uses). See [note 159](159-d19g-options-stage-2.md).
+
+
+## test_animation_save_restore.py
+
+D37A native regressions for exact saved-allocation recovery, GPU safety clearing
+and animation header validation. Run `python3 recomp/tools/local/test_animation_save_restore.py`
+from the workspace. Uses the configured `build-local` Ninja compilation database
+and compiler flags to compile actual `memory.c` into a temporary test executable;
+no player state, game launch or build outputs are written. Also compiles the
+standalone animation-header validation test. See [note 255](255-d37a-animation-save-restore.md).

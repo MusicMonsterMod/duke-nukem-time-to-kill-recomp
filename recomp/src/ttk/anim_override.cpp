@@ -20,16 +20,18 @@
 // to the executable. Without a pack nothing is allocated or touched.
 //
 // Savestates: the buffer lives in the GPU-DMA aperture, reserved at the first
-// application, after the near clip's startup arena, so saved allocation
-// records match a loading process's (or extend them, which adopts the saved
-// buffer). The header keeps the original pointers and ANM records, so a state
-// whose buffer does not survive restore is put back on the originals.
+// application. Allocation order can differ between saving and loading sessions.
+// The header keeps the original pointers and ANM records, so a state
+// whose buffer does not survive restore is put back on the originals using
+// validated metadata from the immutable saved allocation, not cleared live DMA.
 #include "cpu_state.h"
 #include "mod_plugins.h"
 #include "code_identity.h"
 #include "pc_input.h"
 #include "psx_sha256.h"
 #include "anim_override.h"
+#include "anim_save_header.h"
+#include "mod_memory.h"
 #if defined(PSX_SDL3)
 #include <SDL3/SDL.h>
 #else
@@ -62,6 +64,7 @@ std::vector<Entry> entries;
 bool loaded;
 uint32_t buffer;          // this process's buffer (0 until the first application)
 uint32_t loads_seen;
+bool invalid_saved_tables;
 unsigned applied,restored,adopted,refused;
 
 bool main_ram(uint32_t a) {return a>=0x80010000u && a<0x80200000u;}
@@ -183,6 +186,26 @@ void restore(uint32_t b) {
     psx_mod_write_word(rot_global,psx_mod_read_word(b+12));
     ++restored;
 }
+// Allocation order may differ between attract/new-game and load-first sessions.
+// The runtime deliberately clears incompatible DMA packets; recover only our
+// saved header and rebuild in this process's buffer, never resurrect packet data.
+bool restore_saved(uint32_t b,uint32_t frm,uint32_t rot) {
+    std::array<uint8_t,header_bytes> bytes{};
+    anim_save::Header h{};
+    if(!psx_mod_memory_saved_gpu_allocation(b,buffer_bytes,bytes.data(),bytes.size()) ||
+       !anim_save::decode(bytes.data(),bytes.size(),b,frm,rot,h)) return false;
+    for(uint32_t k=0;k<h.count;++k) {
+        const auto& r=h.records[k];
+        if(r.clip&0x8000) continue;
+        const uint32_t now=psx_mod_read_word(anm_table+4*r.clip);
+        rebase_channels(now&0xffff,now>>16,r.first,r.count);
+        psx_mod_write_word(anm_table+4*r.clip,r.first|uint32_t(r.count)<<16);
+    }
+    psx_mod_write_word(frm_global,h.frm);
+    psx_mod_write_word(rot_global,h.rot);
+    ++restored;
+    return true;
+}
 void copy_words(uint32_t dst,uint32_t src,uint32_t bytes) {for(uint32_t i=0;i<bytes;i+=4)psx_mod_write_word(dst+i,psx_mod_read_word(src+i));}
 void apply(uint32_t frm,uint32_t rot) {
     uint32_t frames,commands;
@@ -259,7 +282,9 @@ void hook(CPUState* cpu,uint32_t) {
     const uint32_t loads=psx_mod_savestate_loads();
     const bool after_load=loads!=loads_seen;
     loads_seen=loads;
+    if(after_load) invalid_saved_tables=false;
     if(main_ram(frm) && main_ram(rot)) {
+        invalid_saved_tables=false;
         if(!modern) return;
         static thread_local std::array<std::vector<uint32_t>,2> expected;
         if(!code_identity(guards,expected)) {++refused;return;}
@@ -269,14 +294,29 @@ void hook(CPUState* cpu,uint32_t) {
     // The globals point outside main RAM: our tables (this process's or a
     // loaded state's). Adopt a valid buffer, or put the originals back.
     const uint32_t b=header_of(frm);
-    if(!header_valid(b)) {
-        if(after_load) ++refused;
-        return; // not ours, or unrecoverable: leave the guest as it is
+    if(invalid_saved_tables) return;
+    if(after_load) {
+        static thread_local std::array<std::vector<uint32_t>,2> expected;
+        if(!code_identity(guards,expected)) {++refused;return;}
+        const bool valid=header_valid(b);
+        if(restore_saved(b,frm,rot)) {
+            // A full restore can adopt the saved allocation. With a mismatch,
+            // keep our own allocation (or allocate on apply); never claim b.
+            if(!buffer && valid) {buffer=b;++adopted;}
+            if(!valid) std::fprintf(stderr,"[TTK anim] Recovered saved animation metadata after DMA layout mismatch\n");
+            if(modern) apply(psx_mod_read_word(frm_global),psx_mod_read_word(rot_global));
+            return;
+        }
+        invalid_saved_tables=true;
+        ++refused;
+        std::fprintf(stderr,"[TTK anim] Cannot recover invalid saved animation metadata\n");
+        return; // never fall back to interpreting rejected metadata on later ticks
     }
+    if(!header_valid(b)) return;
     if(!buffer && b) {buffer=b;++adopted;}
     // A savestate can carry an older version of the host clips. Rebuild from
     // the current pack after restoring its original table references.
-    if(!modern || b!=buffer || after_load) {restore(b);if(modern && main_ram(psx_mod_read_word(frm_global))) apply(psx_mod_read_word(frm_global),psx_mod_read_word(rot_global));}
+    if(!modern || b!=buffer) {restore(b);if(modern && main_ram(psx_mod_read_word(frm_global))) apply(psx_mod_read_word(frm_global),psx_mod_read_word(rot_global));}
 }
 }
 }

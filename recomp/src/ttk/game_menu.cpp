@@ -543,8 +543,8 @@ int save_slot=-1;
 // thumbnail instead of the menu.
 uint32_t pause_thumb[SAVESTATE_THUMB_W*SAVESTATE_THUMB_H];
 bool pause_thumb_ok=false;
-// D19Q: LOAD GAME chose a save made on SAVE GAME (saved paused): when it is
-// restored, play resumes at once instead of the pause list coming back.
+// D19Q3: every successfully loaded paused gameplay save resumes once, regardless
+// of load route or old sidecar metadata. Later manual pauses are independent.
 bool resume_load=false, quiet_resume=false;
 bool thumb_from_load=false; // pause_thumb is the loaded slot's picture
 // D20: EDuke32's quick save and quick load. The slot last saved to or loaded
@@ -585,6 +585,8 @@ void savestate_check() {
     direct=Page::Options;direct_open=false;
     owned=false;page=Page::Options;screen=-1;pending_sub=pending_cursor=-1;
     pending_final=Final::None;resumed=false;
+    resume_load=psx_mod_read_half(game_mode)==1 && psx_mod_read_half(paused)!=0;
+    quiet_resume=false;
     pending_state=-1;handoff=Handoff::None;title_cmds.clear();title_enter=false;
     if(key_wait) {key_wait=false;input_capture_key(false);}
     loading=false;saving=false;thumb_hide();
@@ -937,7 +939,7 @@ void load_move(int dir) {
 void load_now() {
     if(savestate_request_load(cursor)) {
         loading=true;loading_from=psx_mod_savestate_loads();sound(0);
-        resume_load=savestate_slot_resumes(cursor);
+        // Resume policy is set from the successfully applied load generation.
         // A paused save that does not resume keeps its own picture for SAVE GAME.
         pause_thumb_ok=thumb_from_load=savestate_read_thumb(cursor,pause_thumb,SAVESTATE_THUMB_W,SAVESTATE_THUMB_H)!=0;
         return;
@@ -1298,8 +1300,7 @@ QuickResult game_menu_quick(Quick q) {
     const uint32_t from=psx_mod_savestate_loads();
     if(!savestate_request_load(quick_slot)) {input_notice("THIS SAVE COULD NOT BE LOADED");return QuickResult::Done;}
     quick_loading=true;quick_loading_from=from;
-    // As LOAD GAME: a SAVE GAME save (taken paused) resumes play at once.
-    resume_load=savestate_slot_resumes(quick_slot);
+    // Resume policy is set from the successfully applied load generation.
     pause_thumb_ok=thumb_from_load=savestate_read_thumb(quick_slot,pause_thumb,SAVESTATE_THUMB_W,SAVESTATE_THUMB_H)!=0;
     return QuickResult::Load;
 }
@@ -2367,6 +2368,17 @@ void game_menu_tick(CPUState* cpu) {
 // replaced by our lists before they draw. True when the tick is done.
 bool gameplay_tick(CPUState* cpu) {
     uint16_t sub=psx_mod_read_half(pause_screen);
+    if(resume_load) {
+        resume_load=false; // one load, one resume; never consume a later Escape pause
+        if(psx_mod_read_half(paused) && sub!=death_top && sub!=death_sub && !duke_dead()) {
+            // Includes original pause/options screens and metadata-free F7 saves.
+            // Run the normal resume finalizer, including sound/music and flags.
+            sub=ours_sub;
+            psx_mod_write_half(pause_screen,sub);
+            pending_final=Final::Resume;
+            quiet_resume=true;
+        }
+    }
     if(pending_final!=Final::None) {
         const Final f=pending_final;
         pending_final=Final::None;
@@ -2443,12 +2455,6 @@ bool gameplay_tick(CPUState* cpu) {
         owned=true;back_label="RESUME";
         if(!thumb_from_load) pause_thumb_ok=false; // an F7 load: no picture of its play
         thumb_from_load=false;
-        if(resume_load && sub==ours_sub) {
-            // D19Q: a SAVE GAME save chosen on LOAD GAME: play resumes now.
-            resume_load=false;pending_final=Final::Resume;quiet_resume=true;
-            return gameplay_tick(cpu);
-        }
-        resume_load=false;
         return true;
     }
     if(sub==death_sub) return true;

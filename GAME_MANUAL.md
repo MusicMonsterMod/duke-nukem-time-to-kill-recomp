@@ -909,7 +909,8 @@ again returns to third person. Console, pause, menus and focus loss retain the
 selected perspective and stop gameplay input. Returning to play captures input
 automatically without resetting the camera direction. Loading a save keeps your
 current view and control choices; the loaded world supplies the viewing direction.
-An explicitly paused debug save stays paused until you resume.
+In Modernized, gameplay saves resume immediately after loading, including saves
+made while paused and loads through F7. No extra Escape press is needed.
 
 Explicit LEGACY controls or ORIGINAL camera use the original camera; your
 first/third-person choice remains saved for when you return to MODERN with the
@@ -1233,8 +1234,8 @@ the same way on every menu screen:
   OVERWRITE THIS SAVE? with NO highlighted. The page then says SAVED TO SLOT
   NN, or THE GAME COULD NOT BE SAVED (the slot keeps what it had). The
   picture is the game as it was when you paused, not the menu. Loading such
-  a save from LOAD GAME puts you straight back into play; F7 loads of it
-  open the pause menu.
+  a save puts you straight back into play through LOAD GAME, quickload or F7,
+  including older saves without resume metadata.
 - **Death screen:** CONTINUE, LOAD GAME, RESTART LEVEL, QUIT TO MENU and
   QUIT GAME under the continues left (challenge stages: REPLAY LEVEL, GIVE UP
   and QUIT GAME). QUIT TO MENU asks QUIT TO MENU? and gives up through the

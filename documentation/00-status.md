@@ -1,5 +1,25 @@
 # Current status - 2026-10-04
 
+## 2026-10-26 - D19U/D19U1 HUD shortcut backlog only
+
+Added D19U Todo: live `-` hides status bars (existing OFF), `+` shows them (ON).
+Future child D19U1 Todo adds the intermediate borderless presentation: minus steps
+Full -> Borderless -> Hidden; plus reverses it. Borderless retains status contents
+while removing all borders. Both remain unstarted; no source edits/build/launch.
+User authorized commit/push of backlog updates, including pending D07G crosshair
+scaling documentation. D19Q4 and other backlog jobs remain unstarted.
+
+
+## 2026-10-26 - D07G crosshair scaling backlog only
+
+Added D07G Todo for the user's very small crosshair in windowed mode. Completed
+D08A22 (switcher/card scale from fitted game picture) is the primary prior-work
+reference; its art-specific scale factor is not assumed to fit the crosshair.
+See MODERNIZATION_JOBS.md for scope and acceptance. No source changes, build,
+launch or investigation of the crosshair. D19Q4 also remains unstarted.
+No commit/push requested for this new intake.
+
+
 ## 2026-10-26 - Session closeout; D19Q4 backlog only
 
 User authorized commit/push and session closeout. Added D19Q4 Todo for intermittent

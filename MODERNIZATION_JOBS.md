@@ -120,6 +120,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D07D | Red autoaim dot off by default in Modernized (crosshair only) | Done | D07B, D07C |
 | D07E | Shots on a stale movement lease fall back to the original auto-aim; `original` weapon aim keeps a stale aim vector | Done (user-accepted 2026-10-19) | D07C, D22D |
 | D07F | Airborne shots ignore the crosshair: jump and fire looking down, the blast lands ahead of Duke (RPG, shotgun) | Done (user-accepted 2026-10-20) | D07C, D08Z |
+| D07G | Readable crosshair scaling in windowed mode | Todo | D07B, D08A22 |
 | D08 | Modern traversal controls — accepted iteration | Done | D05, D06, D07 |
 | D08A | EDuke32-style weapon and item shortcuts | Done | D04, D08 |
 | D08A1 | Visible EDuke32-style inventory cycling | Done | D04, D19A |
@@ -311,6 +312,8 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D19S | Delete saves from LOAD GAME: Delete on a slot asks DELETE SAVED GAME: "<name>" (NO first) | Done (user-accepted 2026-10-21) | D19K, D19Q |
 | D19T | Real double quote marks (" and ") in the game's menu font: the text call draws `"` as a single quote | Done (user-accepted 2026-10-21) | D19S |
 | D19T1 | DELETE SAVED GAME: shows the slot's name without quotes (cleaner; D19T quotes stay available) | Done (user-accepted 2026-10-21) | D19S, D19T |
+| D19U | Live minus/plus status-bar controls | Todo | D04, D19N |
+| D19U1 | Borderless status bars and three-level HUD selection | Todo | D19U |
 | D19L | Menus stay up and responsive while demo scenes load behind the title menu (no blank spinner gap) | Done (user-accepted 2026-10-19 with D19O) | D19J, D19E |
 | D19M | QUIT GAME menu item that closes the whole program (pause list, death list, title main menu), with a YES / NO prompt | Done (user-accepted 2026-10-19; title item in D19J, accepted) | D19H |
 | D19O | Frontend redraws flash back to the previous menu image after a change (PRESS START -> main menu: 13 presents of PRESS START; also in the original menus) | Done (user-accepted 2026-10-19) | D19C, D19J |
@@ -1548,6 +1551,35 @@ Add continuous yaw/pitch, sensitivity and inversion with a usable pitch range. K
 Connect view direction to actual shots and projectiles. Account for muzzle offset, close walls, third-person parallax and the original auto-aim. Make auto-aim behavior explicit and configurable where appropriate. Cover the available weapon families rather than assuming every weapon uses the same path.
 
 **Acceptance:** the reticle describes the intended hit direction, actual impacts agree within documented weapon behavior, and shots do not pass through near cover because the camera sees around it. Log which weapons and aiming states were tested.
+
+### D07G - Readable crosshair scaling in windowed mode
+
+**Status: Todo. Backlog intake only; explicitly not started.**
+
+User report, 2026-10-26: the crosshair looks "really, really tiny" in windowed
+mode. Improve its scaling/readability across window sizes. Exact window size,
+renderer, aspect ratio and display scale were not supplied; no cause established.
+
+Reference completed **D08A22**, [switcher/card scaling](#d08a22---switcher-strips-and-mission-card-scale-with-the-window-like-the-native-hud):
+that repair scaled host UI from the fitted game picture instead of integer-floored
+window height, with fractional scale, nearest sampling and a minimum readable size.
+Its picture-height / 480 formula was specific to strip art authored at 2x; do not
+assume that exact factor suits the crosshair. Its OpenGL/Software and 4:3/16:9
+window-size matrix is useful prior evidence. Also consult D07B's crosshair display
+contract and D24A's later original TTK art work before changing the visual asset.
+
+When explicitly selected, inspect the current crosshair drawing/scaling path and
+compare it with D08A22. Define a readable size relative to the fitted game picture,
+including small windows, resizing, fullscreen and letterbox/pillarbox layouts.
+Preserve crisp artwork, accurate screen/aim centering, crosshair visibility settings,
+weapon aiming and Vanilla behavior. Do not merely enlarge every fullscreen size.
+
+Acceptance: the crosshair remains readily visible in small/windowed play, scales
+consistently without abrupt size jumps, stays centered within the game picture,
+and retains acceptable fullscreen proportions. Verify representative sizes and
+aspect ratios on supported renderer paths; user playtest decides readability.
+
+No source changes, investigation, build or launch for this job until selected.
 
 ### D07A — View-aligned Duke facing and weapon presentation
 
@@ -20285,3 +20317,76 @@ closeout. D19Q4 is Todo and was not investigated or implemented. Current D37A an
 D19Q3 implementation, tests and documentation are included in the closeout. Their
 Needs playtest statuses remain; session closeout does not assert additional gameplay
 acceptance. D36 research backlog remains unstarted. No next job selected.
+
+
+## 2026-10-26 - D07G crosshair scaling backlog only
+
+Added D07G Todo at user request: crosshair is very small in windowed mode. Linked
+completed D08A22's fitted-picture scaling work as the primary reference, with
+D07B/D24A context. Documentation intake only; no implementation or investigation
+of the current crosshair. No build, launch, commit or push requested for this intake.
+
+
+### D19U - Live minus/plus status-bar controls
+
+**Status: Todo. Backlog only; not started.**
+
+User request, 2026-10-26: Duke3D-style live HUD adjustment using `-` and `+`.
+Initial implementation: `-` hides the status bars, exactly equivalent to the current
+STATUS BARS OFF setting; `+` restores them, equivalent to STATUS BARS ON. Apply
+immediately during Modernized gameplay without opening a menu or restarting.
+This is status-bar visibility, not shrinking the rendered game viewport.
+
+When selected, integrate with the existing action/binding system and status-bar
+setting so menu and keyboard state agree. Inspect number-row minus/plus/equal and
+keypad handling and existing conflicts before finalizing bindings. Keep these
+shortcuts out of console/text entry, binding capture and menu navigation. Preserve
+crosshair, aiming and unrelated HUD behavior according to existing STATUS BARS
+semantics, rather than hiding additional elements arbitrarily. Vanilla unchanged.
+
+Acceptance for this initial job: live hide/show through `-`/`+`, identical to the
+existing OFF/ON behavior; repeat presses at either endpoint are harmless; menu
+state remains synchronized; pause/load/level transitions do not introduce a
+conflicting HUD state. Document implemented bindings and verify user playtest.
+D19U can complete independently of the later D19U1 borderless enhancement.
+
+### D19U1 - Borderless status bars and three-level HUD selection
+
+**Status: Todo. Future child of D19U; not started.**
+
+User request: add a clean borderless intermediate presentation that removes all
+status-bar borders while retaining their useful contents. Once implemented, the
+ordered HUD levels are:
+
+| Level | Presentation |
+| --- | --- |
+| Full | Current status bars with their borders |
+| Borderless | Status-bar contents retained, all their borders removed |
+| Hidden | Existing STATUS BARS OFF behavior |
+
+`-` moves Full -> Borderless -> Hidden. `+` reverses that sequence:
+Hidden -> Borderless -> Full. Clamp at the endpoints, without wrapping. Thus the
+first minus press from Full removes only the borders, and the second hides the
+bars. This adds an intermediate state to D19U's initial two-state behavior.
+
+When selected, inventory the native and modern status-bar components, distinguish
+borders from contents, and establish consistent borderless presentation. Keep
+values/icons readable and aligned at supported window sizes and aspect ratios;
+use D08A22's completed fitted-picture scaling work as a reference and coordinate
+with D07G where relevant. Preserve the existing Full and Hidden appearances.
+Expose/synchronize the three levels through the settings and binding behavior
+established by D19U, with coherent save/load and level-transition behavior.
+
+Acceptance: both directions step immediately through exactly these three levels;
+Borderless retains status information with no status-bar borders; Full and Hidden
+match existing behavior; no stale frames, accidental text-entry shortcuts or
+Vanilla changes. Visual review and gameplay acceptance required.
+
+No investigation, source changes, build or launch for either job until selected.
+
+## 2026-10-26 - D19U/D19U1 HUD shortcut backlog; documentation commit
+
+Added D19U Todo for immediate `-`/`+` STATUS BARS OFF/ON controls, plus future child
+D19U1 Todo for Full / Borderless / Hidden stepping. Both are backlog only. User
+explicitly authorized commit/push after intake; include the pending D07G crosshair
+scaling backlog documentation as well. No implementation, build or game launch.

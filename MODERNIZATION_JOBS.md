@@ -1,5 +1,7 @@
 # Time to Kill — modernization jobs
 
+**Latest closeout (2026-10-26): D36H1 is Done. User accepted the Gatling underside grip and explicitly authorized lock-in/closeout. D08A29 (wheel weapon changes while running), D36H3 (restrained two-handed running motion) and D35J5 (first-person frozen blue vision) are Todo, with bounded source investigation only. No next implementation started. [Note 268](documentation/268-d36h1-gatling-grip.md), [note 269](documentation/269-running-weapons-and-frozen-view-intake.md).**
+
 **Latest closeout (2026-10-26): D17Z and D17AA are Done. User accepted both fixes and explicitly authorized lock-in and closeout. D19Q3 is also Done by the user's completion correction. Accepted executable `9342a18490c3b9304371f3f2d2d3cabce077f000a13465f326b1392ebfa9eb32`. [Note 266](documentation/266-d17z-medieval-wall-textures.md), [note 267](documentation/267-d17aa-wall-block-ordering.md). No next job started.**
 
 **Earlier backlog intake (2026-10-26): D36H1 Gatling underside grip and D36H2 Buffalo grip-area flicker remain Todo. D17Z was subsequently implemented and accepted; see closeout above. [Note 263](documentation/263-weapon-grips-and-medieval-wall-intake.md). Preserve `research/screencaps/medieval-glitch-wall.mp4` and remind the user to compare it when D17Z is fixed.**
@@ -243,6 +245,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08J3 | Free camera while on ladders, poles and chains (investigation + usability testing) | Accepted | D06, D08J |
 | D08J5 | Climb down chains (and poles): reach the bottom and let go or step off (player UI slot 3) | Done | D08J2, D08J3 |
 | D08V1 | Modernized controls lost for the rest of the session after a missed chain jump; modern controls must never be lost | Done | D08V, D08J5 |
+| D08A29 | Scroll-wheel weapon changes while running | Todo | D08A, D08AA |
 | D09 | Modern controller support | Todo | D05, D06, D07 |
 | D10 | Third-person camera polish | Done | D08 |
 | D10A | Rapid mouse turning and Shift-running investigation | Done | D06, D07C, D08 |
@@ -400,6 +403,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D35J2 | Preserve first person through held native inventory | Done | D35J |
 | D35J3 | First-person NPC interaction presentation | Done | D35J |
 | D35J4 | Slot-9 time crystal forces third person (bug 5, first queued) | Done | D35J, D35J1, D35J2, D35J3, D35M |
+| D35J5 | Preserve first person while frozen with blue vision | Todo | D35J, D36G |
 | D35K | Native scripted and special-camera event inventory | Done (bounded research accepted 2026-10-25) | D35 |
 | D35K1 | Slot-5 hinged-door first person and visible right-leg kick | Done (user-accepted) | D35M |
 | D35K2 | Toilet first-person use presentation (current slot 5) | Done (user-accepted 2026-10-25) | D35M, D35K |
@@ -418,8 +422,9 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D36F | Visual standards, traceability and prioritized implementation roadmap | Done (research accepted 2026-10-26) | D36B, D36C, D36D, D36E |
 | D36G | Shared limb presentation ownership (behavior-equivalent foundation) | Done (user-accepted 2026-10-26) | D36; D37A/D19Q3 candidate limits |
 | D36H | Connected combat and held-item arms | Done | D36G |
-| D36H1 | Gatling left-hand underside contact at first-person idle | Todo | D36G, D36H |
+| D36H1 | Gatling left-hand underside contact at first-person idle | Done | D36G, D36H |
 | D36H2 | Buffalo Rifle grip-area flicker | Todo | D36G, D36H |
+| D36H3 | Realistic two-handed weapon/hand motion while running | Todo | D36G, D36H, D36H1 |
 | D36I | Native interaction arm continuity, slot 8 first | Done | D36G |
 | D36J | Coherent body and quick-kick leg presentation | Done (user-accepted 2026-10-26) | D36G, D36H |
 | D36K | Traversal and special-action visual coverage | Done | D36G, D36H, D36I, D36J |
@@ -438,7 +443,7 @@ findings, video review, uncertainty, investigation routes and regression criteri
 
 ### D36H1 - Gatling left-hand underside contact
 
-**Status: Todo. Depends on D36G/D36H (Done).** Make the left hand visibly hold
+**Status: Done (user-accepted 2026-10-26). Depends on D36G/D36H (Done).** Make the left hand visibly hold
 the bottom of the Gatling at first-person idle. Research finds existing support
 geometry using the native wrist relation, without a dedicated underside anchor;
 contact placement still needs live measurement. Preserve accepted weapon framing
@@ -20857,3 +20862,61 @@ completion correction is included. Accepted executable:
 Prior candidate entries are historical. Automated push/pull was not established;
 user acceptance is recorded separately from the bounded diagnostic evidence.
 No next job started.
+
+
+## 2026-10-26 - D36H1 Gatling underside grip candidate
+
+User selected D36H1, suggesting a small hand displacement. The display-only
+left chain now moves 12 camera units right and 12 up before endpoint solving.
+Private before/after idle captures show palm contact with the underside; weapon
+framing and the right-hand anchor remain fixed. Base and upgraded Gatling share
+the correction. Build, controls/aim/near suites and private 60/120 checks pass.
+Swimming, flight, switching, save/load and actual first/third toggling sampled;
+continuous motion and broader costume coverage remain visual acceptance limits.
+D36H1 is Needs playtest. See [note 268](documentation/268-d36h1-gatling-grip.md).
+No commit/push or other job started.
+
+
+## 2026-10-26 - D36H1 accepted; three follow-ups queued
+
+User: "lock it in and close it out, this current work is a winner". D36H1 is
+Done; implementation and documentation commit/push authorized. Accepted binary
+`8783c0b34f51f73255a0dcf5192dbff00ccd392ad0906009b1b86dd47ffe51a3`.
+Earlier candidate entries are historical. No new build or game launch.
+
+### D08A29 - Scroll-wheel weapon changes while running
+
+**Status: Todo. Dependencies: D08A, D08AA (complete).** User wants wheel weapon
+cycling without releasing run. Reproduce forward/back/strafe/diagonal running,
+Shift and RUN MODE, wheel both directions, base/upgraded and remote transitions.
+Investigate command consumption, movement eligibility and upper-body idle gates;
+wheel ingestion itself has no Shift gate. See note 269; cause not established.
+Acceptance: eligible owned weapons cycle while movement/run stays continuous,
+without lost notches, unintended firing or deferred surprise changes. Preserve
+number keys, firing/reload safety, Alt-wheel camera distance, menus, swim/flight,
+first/third view and Vanilla. No implementation started.
+
+### D36H3 - Realistic two-handed weapon/hand motion while running
+
+**Status: Todo. Dependencies: D36G, D36H, D36H1 (Done).** User reports excessive
+right-hand movement with shotgun (3), Gatling (4), Energy Weapon (7), Flamethrower
+(8) and Freezethrower (0). Make the running motion more restrained and plausible,
+with both hands coherently attached. First compare idle/walk/run/strafe and
+start/stop, using actual equipment records and upper-channel states. Follow the
+D36 audit and preserve accepted framing, D36H1 contact, camera bob, recoil,
+reload/fire timing, muzzle/aim, lighting, save/replay and Vanilla. Acceptance:
+user-approved natural motion for all five families and upgrades, no hand/weapon
+separation or start/stop pops at 60/120, crouch/swim/flight and switching intact.
+Source investigation only; no animation or presentation changes started.
+
+### D35J5 - First-person frozen effect with blue vision
+
+**Status: Todo. Dependencies: D35J, D36G (Done).** User reports freezing returns
+the view to third person. Requested result: remain first person with blue vision,
+using Duke 3D as the desired visual reference. Verify the real frozen-state flags,
+animations and thaw/death transitions before changing presentation eligibility.
+Acceptance: blue frozen vision across the full viewport, no unwanted third-person
+cut, clean restoration on thaw/death/continue/load and view changes; native frozen
+movement/fire restrictions, duration, damage and shattering remain authoritative.
+Preserve explicit third-person choice, Vanilla, HUD readability, water/gas/night
+vision effects and replay at 60/120. No live frozen reproduction yet; see note 269.

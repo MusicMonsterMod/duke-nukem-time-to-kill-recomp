@@ -877,7 +877,8 @@ when looking down during ordinary movement, with polygon clipping at the eye. Wi
 drawn you see Duke's own gloved hand and connected arm holding it at the lower
 right, always in front of walls, with the original muzzle flash and a small kick
 when firing. Two-handed weapons also show a connected support hand and arm;
-held mission items and the remote use a connected right arm. The Buffalo Rifle
+held mission items and the remote use a connected right arm. The Gatling support
+hand rests against its underside at idle, including the Laser Gatling. The Buffalo Rifle
 lifts with its hands for the cocking stroke, then returns to its ready grip.
 Each weapon is framed to point at the crosshair; the HUD stays on top.
 Upgraded weapons use the same first-person framing as their base versions,

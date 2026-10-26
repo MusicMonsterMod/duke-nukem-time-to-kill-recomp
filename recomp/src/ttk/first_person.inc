@@ -986,6 +986,16 @@ static bool display_arm_matrix(uint32_t real,uint32_t desc,unsigned part) {
         }
     }
     Mat3 rifle_wrist{};bool rifle_support=false;
+    // D36H1: bring the Gatling support palm onto the underside. Translate
+    // the whole left chain before solving its connected endpoints; the right
+    // hand, weapon anchor, wrist rotation and native bone lengths stay fixed.
+    // Camera-space units (Y down), shared by the base and Laser Gatling.
+    if(part<13 && weapon_view_slot()==7) {
+        for(int r=0;r<3;++r) {
+            const double shift=12*c[0][r]-12*c[1][r];
+            for(int n=0;n<3;++n)native[n][r]+=shift;
+        }
+    }
     if(part<13 && weapon_view_slot()==6) {
         Mat3 right,left,inverse,relative;double rp[3],lp[3],offset[3];
         if(rifle_ready_arm(1,right,rp) && rifle_ready_arm(2,left,lp)) {

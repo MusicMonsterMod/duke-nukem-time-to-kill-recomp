@@ -1,5 +1,32 @@
 # Current status - 2026-10-04
 
+## 2026-10-26 - D36H1 accepted and closed; new backlog
+
+D36H1 is Done. User accepted the grip and authorized lock-in/closeout, including
+implementation and documentation commit/push. Accepted binary:
+`8783c0b34f51f73255a0dcf5192dbff00ccd392ad0906009b1b86dd47ffe51a3`.
+[Note 268](268-d36h1-gatling-grip.md) preserves test evidence and coverage limits.
+New Todo jobs: D08A29 wheel weapon selection while running, D36H3 restrained
+running weapon/hand motion (keys 3/4/7/8/0), D35J5 frozen first-person blue vision.
+[Note 269](269-running-weapons-and-frozen-view-intake.md) records the authorized
+small source investigation; no live reproduction or implementation of these jobs.
+Earlier D36H1 candidate entries are historical. No new build or game launch.
+Launch `python3 recomp/tools/local/run.py`. No next implementation started.
+
+
+## 2026-10-26 - D36H1 Gatling underside grip candidate
+
+D36H1 is Needs playtest. A small display-only support-hand displacement closes
+the idle gap without moving the weapon/right hand. Build and native controls,
+aim and near suites pass; private 60/120 captures cover base/upgrade, crouch,
+look, firing/return, switch/load, flight and swimming. Actual view toggle checked
+in the swimming harness. See [note 268](268-d36h1-gatling-grip.md) for limits.
+Candidate: `8783c0b34f51f73255a0dcf5192dbff00ccd392ad0906009b1b86dd47ffe51a3`.
+Player files preserved; diagnostic runs stopped. No commit/push or next job.
+Launch `python3 recomp/tools/local/run.py`; first person, key 4, judge idle
+underside contact and fire/return. D36H2 remains Todo.
+
+
 ## 2026-10-26 - D17Z and D17AA accepted and closed
 
 D17Z and D17AA are Done. The user accepted both fixes and explicitly requested

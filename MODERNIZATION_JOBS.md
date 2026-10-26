@@ -1,5 +1,7 @@
 # Time to Kill — modernization jobs
 
+**Latest closeout (2026-10-26): D08A30 is Done. User accepted reversed weapon-wheel direction and explicitly authorized lock-in/closeout. Wheel up selects next; wheel down selects previous. No next job started.**
+
 **Latest closeout (2026-10-26): D08A29 is Done. User accepted running weapon selection and explicitly authorized lock-in/closeout. D08A30 (reverse weapon-wheel direction: up = next, down = previous) is Todo only. [Note 270](documentation/270-d08a29-running-weapon-selection.md). No next implementation started.**
 
 **Latest closeout (2026-10-26): D36H1 is Done. User accepted the Gatling underside grip and explicitly authorized lock-in/closeout. D08A29 (wheel weapon changes while running), D36H3 (restrained two-handed running motion) and D35J5 (first-person frozen blue vision) are Todo, with bounded source investigation only. No next implementation started. [Note 268](documentation/268-d36h1-gatling-grip.md), [note 269](documentation/269-running-weapons-and-frozen-view-intake.md).**
@@ -248,7 +250,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08J5 | Climb down chains (and poles): reach the bottom and let go or step off (player UI slot 3) | Done | D08J2, D08J3 |
 | D08V1 | Modernized controls lost for the rest of the session after a missed chain jump; modern controls must never be lost | Done | D08V, D08J5 |
 | D08A29 | Scroll-wheel weapon changes while running | Done (user-accepted) | D08A, D08AA |
-| D08A30 | Reverse weapon-wheel direction: up advances, down goes back | Todo | D08A29 |
+| D08A30 | Reverse weapon-wheel direction: up advances, down goes back | Done (user-accepted) | D08A29 |
 | D09 | Modern controller support | Todo | D05, D06, D07 |
 | D10 | Third-person camera polish | Done | D08 |
 | D10A | Rapid mouse turning and Shift-running investigation | Done | D06, D07C, D08 |
@@ -20947,9 +20949,9 @@ D08A30 is backlog only; no wheel-direction change was implemented.
 
 ### D08A30 - Reverse weapon-wheel direction
 
-**Status: Todo. Dependency: D08A29 (Done).** User requests the opposite of the
+**Status: Done (user-accepted). Dependency: D08A29 (Done).** User requests the opposite of the
 current weapon-wheel mapping: **wheel up advances to the next weapon; wheel
-down returns to the previous weapon**. This is a separate selected-later job.
+down returns to the previous weapon**. Selected and implemented 2026-10-26.
 Keep the weapon cycle's ordering and availability rules; reverse only the wheel's
 mapping to previous/next, not number-key groups or the last-weapon action.
 
@@ -20958,4 +20960,44 @@ including while running; multiple notches and fractional wheel accumulation
 follow the same direction. Preserve firing/reload/draw safety, Alt-wheel camera
 distance, menu and console scrolling, swimming/flight and Vanilla. Keep explicit
 previous/next keyboard actions unchanged. Update the manual and input tests when
-implemented. No code change, build or game launch for this backlog entry.
+implemented. Test evidence and user acceptance are recorded below.
+
+
+## 2026-10-26 - D08A30 wheel direction candidate (Needs playtest)
+
+Reversed only captured gameplay wheel-to-action mapping: up = next, down =
+previous. Keyboard previous/next, number keys, last weapon, cycle order,
+availability and unsafe-state rejection remain unchanged. Manual updated.
+No framework edits. Existing submodule modifications were preserved.
+
+Incremental player build and native input, controls (all level overlays) and
+aim suites pass. Input coverage includes both fractional directions, multiple
+notches, SDL flipped events, held Shift, keyboard previous/next, Alt-wheel,
+last weapon, queue expiry and menu isolation. Controls retain D08A29 running
+selection and attack/draw safety, swimming and Vanilla regressions.
+
+Private offscreen 120-setting live checks pass in both directions from Gatling:
+idle, first/third-person running and flight select 8 next / 5 previous;
+underwater selects 12 next / 5 previous, preserving the underwater availability
+filter. The initial swim assertion expected land weapon 8; actual 12 was correct,
+and the corrected swim-only check passed. Evidence: ignored
+`recomp/analysis/d08a30/{live120,swim120}/results.json` and `check.py`.
+These are bounded behavior checks, not full weapon/campaign or visual acceptance.
+Console scrolling was not live-retested; its handling is unchanged.
+Private profiles/cards only; diagnostic sessions stopped.
+
+Candidate SHA-256: `baab7c72704d40e84557544a2f34abd43153577b0f64670006de7b63c7865b84`.
+User playtest pending: scroll both ways while standing and running, including
+RUN MODE. No commit/push or next job started.
+Launch: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-26 - D08A30 accepted and closed
+
+User: "perfect. lock it in, close it out". D08A30 is Done on user acceptance.
+Implementation, input regressions, manual and evidence are included in the
+authorized commit/push. Earlier candidate entries retain their test coverage
+and limits; no new build or gameplay test was needed for closeout.
+Accepted executable: `baab7c72704d40e84557544a2f34abd43153577b0f64670006de7b63c7865b84`.
+No framework changes or next job started.
+Launch: `python3 recomp/tools/local/run.py`.

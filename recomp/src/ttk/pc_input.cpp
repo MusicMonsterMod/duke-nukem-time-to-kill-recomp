@@ -604,7 +604,7 @@ void input_event(const SDL_Event& e) {
         } else {
             wheel_fraction+=amount;
             int steps=std::clamp(int(wheel_fraction),-32,32);wheel_fraction-=steps;
-            for(int i=0;i<std::abs(steps);++i)command(steps>0?weapon_previous:weapon_next);
+            for(int i=0;i<std::abs(steps);++i)command(steps>0?weapon_next:weapon_previous);
         }
     } else if (e.type == SDL_MOUSEMOTION && captured && e.motion.windowID == SDL_GetWindowID(window)) {
         dx = std::clamp(dx + (float)e.motion.xrel, -32768.f, 32768.f);

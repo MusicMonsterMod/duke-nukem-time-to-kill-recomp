@@ -1,5 +1,31 @@
 # Next-session handoff
 
+## 2026-10-26 - D08A30 accepted and closed
+
+D08A30 is Done. User: "perfect. lock it in, close it out". Reversed weapon-wheel
+direction is accepted: up = next, down = previous. Implementation, input tests,
+manual and documentation commit/push explicitly authorized.
+Accepted executable: `baab7c72704d40e84557544a2f34abd43153577b0f64670006de7b63c7865b84`.
+The board's D08A30 work log preserves automated/live evidence and limits.
+Earlier candidate/backlog entries are history. No new build or game launch
+for closeout, no framework changes, and no next job started.
+Launch `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-26 - D08A30 wheel direction candidate
+
+D08A30 is Needs playtest. Captured gameplay wheel up now selects next and down
+selects previous. Keyboard actions, Alt-wheel and weapon safety are unchanged.
+Player build and native input/controls/aim suites pass; private offscreen
+120-setting checks cover both directions idle, running in both views, flying
+and swimming (including the underwater availability filter). See the D08A30
+work-log entry in MODERNIZATION_JOBS.md for evidence and limits.
+Candidate: `baab7c72704d40e84557544a2f34abd43153577b0f64670006de7b63c7865b84`.
+Player files preserved; runs stopped. No commit/push or next job started.
+Launch `python3 recomp/tools/local/run.py` and check both directions while
+standing and running, including RUN MODE. Earlier backlog entries are history.
+
+
 ## 2026-10-26 - D08A29 accepted and closed; D08A30 backlog
 
 D08A29 is Done. User accepted running weapon selection and explicitly authorized

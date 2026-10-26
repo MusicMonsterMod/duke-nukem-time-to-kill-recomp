@@ -808,8 +808,9 @@ Number keys now select familiar weapon groups when owned and usable:
 | 9 | Buffalo Rifle / Crossbow |
 | 0 | Freezer |
 
-Upgrades stay on the base weapon's key. **Wheel up/down** (or **semicolon/apostrophe**)
-selects previous/next usable weapon, including while running with a two-handed
+Upgrades stay on the base weapon's key. **Wheel up** selects the next usable
+weapon; **wheel down** selects the previous one. **Semicolon/apostrophe** still
+selects previous/next. These work while running with a two-handed
 weapon (Shift or RUN MODE). **X** restores the last successfully equipped weapon.
 Weapon changes require a safe ready state; inputs during firing, reload or
 an existing draw/stow transition are discarded rather than queued. In Modernized a drawn dynamite stays unlit until you fire, so you can

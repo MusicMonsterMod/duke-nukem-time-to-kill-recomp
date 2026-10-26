@@ -167,13 +167,26 @@ int main() {
     auto serial=tick().command_serial;CHECK(tick().command_serial==serial && tick().command_count==1);
     key(SDL_SCANCODE_2,true,true);CHECK(tick().command_count==1);ack();CHECK(tick().command_count==0);
     key(SDL_SCANCODE_2,false);
-    auto wheel=[](float y){SDL_Event e{};e.type=SDL_MOUSEWHEEL;e.wheel.windowID=SDL_GetWindowID(win);e.wheel.y=y;ttk::input_event(e);};
-    wheel(0.5f);CHECK(tick().command_count==0);wheel(0.5f);CHECK(tick().commands[0]==ttk::weapon_previous);ack();
-    wheel(-3);CHECK(tick().command_count==3);ack();
+    auto wheel=[](float y, bool flipped=false){SDL_Event e{};e.type=SDL_MOUSEWHEEL;e.wheel.windowID=SDL_GetWindowID(win);e.wheel.y=y;
+        e.wheel.direction=flipped?SDL_MOUSEWHEEL_FLIPPED:SDL_MOUSEWHEEL_NORMAL;ttk::input_event(e);};
+    // D08A30: up advances, down goes back, including fractional and multi-notch input.
+    wheel(0.5f);CHECK(tick().command_count==0);wheel(0.5f);CHECK(tick().commands[0]==ttk::weapon_next);ack();
+    wheel(-0.5f);CHECK(tick().command_count==0);wheel(-0.5f);CHECK(tick().commands[0]==ttk::weapon_previous);ack();
+    for(float y : {3.f,-3.f}) {
+        wheel(y);CHECK(tick().command_count==3);
+        for(int i=0;i<3;++i)CHECK(tick().commands[i]==(y>0?ttk::weapon_next:ttk::weapon_previous));
+        ack();
+    }
+    wheel(1,true);CHECK(tick().commands[0]==ttk::weapon_previous);ack();
+    wheel(-1,true);CHECK(tick().commands[0]==ttk::weapon_next);ack();
+    key(SDL_SCANCODE_LSHIFT,true);wheel(1);CHECK(tick().commands[0]==ttk::weapon_next);ack();
+    wheel(-1);CHECK(tick().commands[0]==ttk::weapon_previous);ack();key(SDL_SCANCODE_LSHIFT,false);
+    key(SDL_SCANCODE_SEMICOLON,true);CHECK(tick().commands[0]==ttk::weapon_previous);ack();key(SDL_SCANCODE_SEMICOLON,false);
+    key(SDL_SCANCODE_APOSTROPHE,true);CHECK(tick().commands[0]==ttk::weapon_next);ack();key(SDL_SCANCODE_APOSTROPHE,false);
     key(SDL_SCANCODE_LCTRL,true);CHECK(tick().active && tick().held[ttk::crouch]);
     CHECK((ttk::input_pad()&4096)!=0);key(SDL_SCANCODE_LCTRL,false);CHECK(!tick().held[ttk::crouch]);
     key(SDL_SCANCODE_LALT,true);wheel(2);CHECK(tick().command_count==0 && tick().distance_total==2);
-    key(SDL_SCANCODE_LALT,false);wheel(-1);CHECK(tick().commands[0]==ttk::weapon_next);ack();
+    key(SDL_SCANCODE_LALT,false);wheel(-1);CHECK(tick().commands[0]==ttk::weapon_previous);ack();
     key(SDL_SCANCODE_X,true);CHECK(tick().commands[0]==ttk::weapon_last && (ttk::input_pad()&16384)!=0);key(SDL_SCANCODE_X,false);ack();
     wheel(-99);CHECK(tick().command_count==32);ack();CHECK(tick().command_count==0);
     wheel(-1);for(int i=0;i<10;++i)tick();CHECK(tick().command_count==0); // expires if no guest consumer

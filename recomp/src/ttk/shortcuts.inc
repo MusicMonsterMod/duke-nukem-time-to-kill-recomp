@@ -359,7 +359,10 @@ static void select_weapon(CPUState* cpu) {
         (int32_t)psx_mod_read_word(player+0x254)>0;
     if(remote)current=12;
     unsigned upper=psx_mod_read_half(player+0x74);
-    bool weapon_idle=upper==5 || upper==20 || upper==29 || upper==35 || upper==39;
+    // D08A29: 18/19 are the two-handed run-ready loop, not an attack.
+    // Native 4ee84 accepts the same flag-4 switch here; 50344 alternates
+    // 18 <-> 19. Include them in both selection history and eligibility.
+    bool weapon_idle=upper==5 || upper==18 || upper==19 || upper==20 || upper==29 || upper==35 || upper==39;
     if(equipment==0 && psx_mod_read_byte(player+0x3ba)==0)current=0;
     // Original boot selection holsters and retains the previous drawn weapon byte.
     // Observe successful original equipment changes, including inventory selection.
@@ -450,7 +453,7 @@ static void select_weapon(CPUState* cpu) {
     const bool weapons_only=swim_select || jet_select;
     if(!(movement_ready() || weapons_only) || (equipment!=0 && equipment!=2 && !remote) || f.held[original_aim] ||
        f.held[fire] || f.held[interact] || (flags&0x2c5))return;
-    // Stable original upper-body idle loops. Draw, attack and charged-throw
+    // Stable original upper-body ready loops. Draw, attack and charged-throw
     // animations retain ownership (4e840 dispatch / 50344 completion tables).
     if((equipment==2 || remote) && !weapon_idle)return;
     unsigned cursor=equipped,requested=255;

@@ -1,5 +1,7 @@
 # Time to Kill — modernization jobs
 
+**Latest closeout (2026-10-26): D08A29 is Done. User accepted running weapon selection and explicitly authorized lock-in/closeout. D08A30 (reverse weapon-wheel direction: up = next, down = previous) is Todo only. [Note 270](documentation/270-d08a29-running-weapon-selection.md). No next implementation started.**
+
 **Latest closeout (2026-10-26): D36H1 is Done. User accepted the Gatling underside grip and explicitly authorized lock-in/closeout. D08A29 (wheel weapon changes while running), D36H3 (restrained two-handed running motion) and D35J5 (first-person frozen blue vision) are Todo, with bounded source investigation only. No next implementation started. [Note 268](documentation/268-d36h1-gatling-grip.md), [note 269](documentation/269-running-weapons-and-frozen-view-intake.md).**
 
 **Latest closeout (2026-10-26): D17Z and D17AA are Done. User accepted both fixes and explicitly authorized lock-in and closeout. D19Q3 is also Done by the user's completion correction. Accepted executable `9342a18490c3b9304371f3f2d2d3cabce077f000a13465f326b1392ebfa9eb32`. [Note 266](documentation/266-d17z-medieval-wall-textures.md), [note 267](documentation/267-d17aa-wall-block-ordering.md). No next job started.**
@@ -245,7 +247,8 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08J3 | Free camera while on ladders, poles and chains (investigation + usability testing) | Accepted | D06, D08J |
 | D08J5 | Climb down chains (and poles): reach the bottom and let go or step off (player UI slot 3) | Done | D08J2, D08J3 |
 | D08V1 | Modernized controls lost for the rest of the session after a missed chain jump; modern controls must never be lost | Done | D08V, D08J5 |
-| D08A29 | Scroll-wheel weapon changes while running | Todo | D08A, D08AA |
+| D08A29 | Scroll-wheel weapon changes while running | Done (user-accepted) | D08A, D08AA |
+| D08A30 | Reverse weapon-wheel direction: up advances, down goes back | Todo | D08A29 |
 | D09 | Modern controller support | Todo | D05, D06, D07 |
 | D10 | Third-person camera polish | Done | D08 |
 | D10A | Rapid mouse turning and Shift-running investigation | Done | D06, D07C, D08 |
@@ -20886,7 +20889,7 @@ Earlier candidate entries are historical. No new build or game launch.
 
 ### D08A29 - Scroll-wheel weapon changes while running
 
-**Status: Todo. Dependencies: D08A, D08AA (complete).** User wants wheel weapon
+**Status: Done (user-accepted 2026-10-26). Dependencies: D08A, D08AA (complete).** User wants wheel weapon
 cycling without releasing run. Reproduce forward/back/strafe/diagonal running,
 Shift and RUN MODE, wheel both directions, base/upgraded and remote transitions.
 Investigate command consumption, movement eligibility and upper-body idle gates;
@@ -20894,7 +20897,10 @@ wheel ingestion itself has no Shift gate. See note 269; cause not established.
 Acceptance: eligible owned weapons cycle while movement/run stays continuous,
 without lost notches, unintended firing or deferred surprise changes. Preserve
 number keys, firing/reload safety, Alt-wheel camera distance, menus, swim/flight,
-first/third view and Vanilla. No implementation started.
+first/third view and Vanilla. Candidate recognizes native run-ready upper loops
+18/19; build/native suites and bounded live checks pass. User accepted the
+result and authorized closeout. The scripted live remote switch-out limit
+remains recorded separately from user acceptance. See [note 270](documentation/270-d08a29-running-weapon-selection.md).
 
 ### D36H3 - Realistic two-handed weapon/hand motion while running
 
@@ -20920,3 +20926,36 @@ cut, clean restoration on thaw/death/continue/load and view changes; native froz
 movement/fire restrictions, duration, damage and shattering remain authoritative.
 Preserve explicit third-person choice, Vanilla, HUD readability, water/gas/night
 vision effects and replay at 60/120. No live frozen reproduction yet; see note 269.
+
+## 2026-10-26 - D08A29 candidate ready for playtest
+
+Two-handed run-ready upper loops 18/19 were missing from shortcut eligibility
+and equipped-weapon history. Added them using the original native switch path,
+with a guard for the verified handler. Build, controls/input/aim suites and
+bounded 60/120 live checks pass; existing unsafe-state gates remain. See
+[note 270](documentation/270-d08a29-running-weapon-selection.md) for evidence,
+wall-stop limitations and inconclusive live remote switch-out coverage.
+D08A29 is Needs playtest. No commit/push or next job started.
+
+## 2026-10-26 - D08A29 accepted and closed; D08A30 queued
+
+User: "otherwise this is solid work. lock it in and close it out".
+D08A29 is Done on user acceptance. Implementation, tests, manual and evidence
+are included in the authorized commit/push. No new build or gameplay test.
+The executable remains `01dfa5416a79dc5858c5665786216010b6abc4b2824f15085c88d592636a2233`.
+D08A30 is backlog only; no wheel-direction change was implemented.
+
+### D08A30 - Reverse weapon-wheel direction
+
+**Status: Todo. Dependency: D08A29 (Done).** User requests the opposite of the
+current weapon-wheel mapping: **wheel up advances to the next weapon; wheel
+down returns to the previous weapon**. This is a separate selected-later job.
+Keep the weapon cycle's ordering and availability rules; reverse only the wheel's
+mapping to previous/next, not number-key groups or the last-weapon action.
+
+Acceptance: captured Modernized gameplay uses up = next and down = previous,
+including while running; multiple notches and fractional wheel accumulation
+follow the same direction. Preserve firing/reload/draw safety, Alt-wheel camera
+distance, menu and console scrolling, swimming/flight and Vanilla. Keep explicit
+previous/next keyboard actions unchanged. Update the manual and input tests when
+implemented. No code change, build or game launch for this backlog entry.

@@ -1,5 +1,31 @@
 # Next-session handoff
 
+## 2026-10-26 - D08A29 accepted and closed; D08A30 backlog
+
+D08A29 is Done. User accepted running weapon selection and explicitly authorized
+lock-in/closeout, including implementation and documentation commit/push.
+Accepted executable:
+`01dfa5416a79dc5858c5665786216010b6abc4b2824f15085c88d592636a2233`.
+[Note 270](270-d08a29-running-weapon-selection.md) retains the test evidence and
+scripted wall-stop/remote coverage limits. Earlier candidate entries are history.
+D08A30 is Todo: wheel up selects next, wheel down selects previous. Backlog only;
+current wheel mapping remains unchanged, and no next implementation started.
+No new build or game launch during closeout. Launch `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-26 - D08A29 candidate ready for playtest
+
+Two-handed run-ready upper loops 18/19 were missing from shortcut eligibility
+and equipped-weapon history. Added them using the original native switch path,
+with a guard for the verified handler. Build, controls/input/aim suites and
+bounded 60/120 live checks pass; existing unsafe-state gates remain. See
+[note 270](270-d08a29-running-weapon-selection.md) for evidence,
+wall-stop limitations and inconclusive live remote switch-out coverage.
+D08A29 is Needs playtest. No commit/push or next job started.
+
+Launch `python3 recomp/tools/local/run.py`. Candidate binary
+`01dfa5416a79dc5858c5665786216010b6abc4b2824f15085c88d592636a2233`.
+
 ## 2026-10-26 - D36H1 accepted and closed; new backlog
 
 D36H1 is Done. User accepted the grip and authorized lock-in/closeout, including

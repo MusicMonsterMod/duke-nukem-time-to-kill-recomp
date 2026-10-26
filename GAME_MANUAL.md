@@ -809,8 +809,10 @@ Number keys now select familiar weapon groups when owned and usable:
 | 0 | Freezer |
 
 Upgrades stay on the base weapon's key. **Wheel up/down** (or **semicolon/apostrophe**)
-selects previous/next usable weapon; **X** restores the last successfully equipped
-weapon. In Modernized a drawn dynamite stays unlit until you fire, so you can
+selects previous/next usable weapon, including while running with a two-handed
+weapon (Shift or RUN MODE). **X** restores the last successfully equipped weapon.
+Weapon changes require a safe ready state; inputs during firing, reload or
+an existing draw/stow transition are discarded rather than queued. In Modernized a drawn dynamite stays unlit until you fire, so you can
 switch away from it (see Dynamite below); once lit, or with `--dynamite original`,
 it must finish its original throw/fuse before a requested weapon switch completes. A usable pipe-bomb remote remains accessible without spare ammo.
 **M** uses an owned portable medkit, **J** toggles the jetpack, **N** night vision,

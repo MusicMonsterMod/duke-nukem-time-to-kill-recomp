@@ -2223,6 +2223,35 @@ int main(int argc,char** argv) {
     request(ttk::weapon_group_2);assert(psx_mod_read_byte(p+0x3ba)==5); // charged throw refused
     psx_mod_write_half(p+0x74,5);ttk::input.held[ttk::fire]=true;
     request(ttk::weapon_group_2);assert(psx_mod_read_byte(p+0x3ba)==5);ttk::input.held[ttk::fire]=false;
+    // D08A29: each half of the two-handed running loop accepts a fresh
+    // wheel/number request, tracks the actual weapon, and keeps native gait.
+    psx_mod_write_half(p+0x2c6+28*4,20);
+    const unsigned running_weapons[][3]={{3,11,6},{5,7,4},{6,3,9},{7,8,5},
+        {9,6,10},{10,9,13},{11,0,3},{27,6,10},{28,8,5}};
+    for(unsigned upper:{18u,19u})for(const auto& row:running_weapons) {
+        const unsigned weapon=row[0];
+        psx_mod_write_half(p+0x60,upper==18?76:78);
+        psx_mod_write_half(p+0x74,upper);psx_mod_write_byte(p+0x3b8,2);
+        psx_mod_write_byte(p+0x3b9,weapon);psx_mod_write_byte(p+0x3ba,weapon);
+        request(ttk::weapon_next);
+        assert((psx_mod_read_word(p+0x224)&4) && psx_mod_read_byte(p+0x3ba)==row[1]);
+        assert(psx_mod_read_half(p+0x60)==(upper==18?76:78));
+        assert(psx_mod_read_half(p+0x74)==upper);
+        request(ttk::weapon_previous);assert((psx_mod_read_word(p+0x224)&4) && psx_mod_read_byte(p+0x3ba)==row[2]);
+        request(ttk::weapon_group_2);assert(psx_mod_read_byte(p+0x3ba)==4);
+        ttk::input.held[ttk::fire]=true;psx_mod_write_byte(p+0x3ba,weapon);
+        request(ttk::weapon_next);assert(!(psx_mod_read_word(p+0x224)&4));
+        ttk::input.held[ttk::fire]=false;
+        call(0x80058120,p,0,0x80041c44); // rejected notch is not deferred
+        assert(!(psx_mod_read_word(p+0x224)&4));
+    }
+    for(unsigned upper:{6u,7u,21u,22u,24u,27u,30u,31u,33u,40u,42u}) {
+        psx_mod_write_half(p+0x74,upper);psx_mod_write_byte(p+0x3ba,5);
+        request(ttk::weapon_next);assert(psx_mod_read_byte(p+0x3ba)==5 && !(psx_mod_read_word(p+0x224)&4));
+    }
+    psx_mod_write_half(p+0x60,63);psx_mod_write_half(p+0x74,5);
+    psx_mod_write_byte(p+0x3b9,5);
+    std::puts("PASS: D08A29 running weapon selection and attack/draw safety");
     // No medkit ownership means no request. An owned dose uses original item equipment.
     psx_mod_write_half(p+0x368,0);request(ttk::medkit);assert(!(psx_mod_read_word(p+0x224)&12));
     psx_mod_write_half(p+0x368,1);psx_mod_write_half(p+0x36a,100);

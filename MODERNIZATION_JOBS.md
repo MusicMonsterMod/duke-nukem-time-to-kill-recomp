@@ -1,6 +1,21 @@
 # Time to Kill — modernization jobs
 
 
+### D08A31 - Number-key weapon selection while holding run
+
+**Status: Done - closed with no action required (user-directed 2026-10-26). Dependencies: D08A29, D08A30 (Done).**
+Investigated Left Shift + W + 1/2 slowing Duke without selecting a weapon.
+Physical trace shows missing number events and unexpected Shift releases;
+3/4 arrive normally. User reports the same failure in EDuke. Right Shift
+and Caps Lock RUN MODE work, verified by user and trace. Keyboard/host input
+is implicated; the specific hardware cause is not conclusively established.
+User: "close this one with no action required and close us out".
+No gameplay/control changes. Temporary tracing and diagnostic test additions
+removed; normal player rebuilt. Documentation closeout and commit/push
+explicitly authorized. [Evidence and limits](documentation/274-d08a31-running-number-keys.md).
+Left Shift remains the intended run binding. No next job started.
+
+
 ### D36K1 - Connected unarmed jetpack arms
 
 **Status: Done (user-accepted 2026-10-26). Dependencies: D36G, D36K, D36H4 (Done).**
@@ -21147,4 +21162,15 @@ unarmed flight arm clipping is accepted; authored implementation, tests, manual
 and documentation are included in the authorized MusicMonsterMod commit/push.
 Note 273 preserves bounded verification and exclusions. No new build or game
 launch for closeout; existing framework modifications remain untouched.
+No next job started.
+
+
+## 2026-10-26 - D08A31 closed with no action required
+
+User directed closure after physical traces and the EDuke comparison isolated
+an external input-combination failure. No gameplay fix claimed or required.
+Right Shift and RUN MODE work; Right Shift is not an accepted ergonomic
+replacement. Temporary source/test diagnostics removed and normal player
+rebuilt; investigation evidence remains local. Documentation committed/pushed
+under the authorized closeout. See note 274 for evidence and attribution limits.
 No next job started.

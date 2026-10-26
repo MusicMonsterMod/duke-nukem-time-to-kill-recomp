@@ -1,5 +1,17 @@
 # Next-session handoff
 
+## 2026-10-26 - D08A31 closed with no action required
+
+D08A31 is Done by explicit user direction: "close this one with no action
+required and close us out". Physical Left Shift+W+1/2 input loses number
+presses and delivers unexpected Shift releases; the user reports the same
+failure in EDuke. Right Shift and RUN MODE work. Specific keyboard/host cause
+remains unconfirmed. [Note 274](274-d08a31-running-number-keys.md).
+Temporary tracing/test additions removed; normal player rebuilt. No gameplay,
+binding, Vanilla or framework changes. Documentation closeout and commit/push
+authorized. Diagnostic session stopped; no next job started.
+Launch `python3 recomp/tools/local/run.py`.
+
 
 ## 2026-10-26 - D36K1 accepted and closed
 

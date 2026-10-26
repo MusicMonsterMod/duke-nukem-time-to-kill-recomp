@@ -1219,9 +1219,29 @@ static void first_person_weapon_joint(CPUState* cpu,uint32_t ra) {
        cpu->gpr[4]==camera && cpu->gpr[20]==player) {
         const uint32_t desc=duke_model(),mats=psx_mod_read_word(player+0x3c);
         const int part=desc?duke_joint_part(desc,cpu->gpr[23]):-1;
-        if(((part>=1 && part<=8) || part==21) && mats>=0x80010000 && mats<=0x801ffd80 &&
-           cpu->gpr[5]==mats+0x20*cpu->gpr[23])
+        // D36H4: empty hands use the native locomotion skeleton. Give
+        // every arm segment the same clipping admission as its hand, retaining
+        // world occlusion and the original swing instead of a weapon grip.
+        const bool unarmed=psx_mod_read_byte(player+0x3b8)==0;
+        if(((part>=1 && part<=8) || part==21 ||
+            (unarmed && part>=10 && part<=15)) && mats>=0x80010000 && mats<=0x801ffd80 &&
+           cpu->gpr[5]==mats+0x20*cpu->gpr[23]) {
             limb_claim(cpu,LimbOwner::Body,part,true);
+            if(unarmed && part>=10 && part<=15 && hidden_matrix) {
+                // Lower both complete chains substantially in screen space.
+                // Reuse reserved draw scratch, leaving gameplay matrices and
+                // bone relationships intact. Camera row 1 is screen-down.
+                const uint32_t native=cpu->gpr[5];
+                for(unsigned i=0;i<0x20;i+=4)
+                    psx_mod_write_word(hidden_matrix+i,psx_mod_read_word(native+i));
+                for(unsigned i=0;i<3;++i) {
+                    const int32_t down=std::lround(120.0*(int16_t)psx_mod_read_half(camera+6+2*i)/4096.0);
+                    psx_mod_write_word(hidden_matrix+0x14+4*i,
+                        psx_mod_read_word(native+0x14+4*i)+down);
+                }
+                cpu->gpr[5]=hidden_matrix;
+            }
+        }
     }
     if(ra!=0x80034c6c || !weapon_duke_draw || fp_blend<0.5 || !orbit_valid || !weapon_view_enabled() || !weapon_held()) return;
     // Draw loop registers: s4 the actor, s7 the joint index.

@@ -1,6 +1,43 @@
 # Current status - 2026-10-04
 
 
+## 2026-10-26 - D36H4 accepted and closed
+
+D36H4 is Done. User: "lock it in and close it out!". Connected unarmed arms
+and the substantially lowered framing are accepted. Implementation, tests,
+manual and documentation commit/push authorized. [Note 272](272-d36h4-unarmed-running-arms.md)
+retains bounded verification and coverage limits; earlier candidate entries
+are historical. Accepted executable:
+`e975163dad5028dc629fae8bf43031c0901086c7d64143f623a8345261ff60e3`.
+No new build/game launch, framework edits or next job during closeout.
+Launch `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-26 - D36H4 lowered-arms revision
+
+User requested substantially lower unarmed arms. Both connected chains now
+render 120 camera-down units lower, preserving native gameplay matrices and
+swing. Build and controls suite pass; private 60/120 framing, Q, switching,
+crouch, load and actual view restoration checked. [Note 272](272-d36h4-unarmed-running-arms.md).
+Needs playtest for height. Candidate
+`e975163dad5028dc629fae8bf43031c0901086c7d64143f623a8345261ff60e3`.
+No acceptance closeout, commit or push. Launch `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-26 - D36H4 unarmed locomotion arms candidate
+
+Research completed and the selected fix implemented. Empty-handed arms now use
+native-body safe clipping, retaining their original swing and world depth.
+Build and controls/aim/near suites pass; private 60/120 captures reproduce the
+floating glove before and show connected arms after, with switching, Q, crouch,
+load and verified first/third restoration. [Note 272](272-d36h4-unarmed-running-arms.md)
+records evidence and limits. Needs playtest: key 1/Boot, run and look slightly
+down, then strafe/stop/kick/switch. No new setting required.
+Candidate `f400701023c3173a1581c213566406ff629b43f800d5ce381b036ed2a96ca937`.
+No framework change, acceptance closeout, commit or push.
+Launch `python3 recomp/tools/local/run.py`.
+
+
 ## 2026-10-26 - D36H3 accepted and closed
 
 D36H3 is Done. User: "lock it in, close it out!!!". Final running-arm motion and

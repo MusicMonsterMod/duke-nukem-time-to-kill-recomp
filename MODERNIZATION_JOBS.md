@@ -1,5 +1,20 @@
 # Time to Kill — modernization jobs
 
+### D36H4 - Connected unarmed locomotion arms
+
+**Status: Done (user-accepted 2026-10-26). Dependencies: D36G/H/I/J and D36H3 (Done).**
+Selected 2026-10-26: stand up, research, then immediately implement. User reports
+floating hands with slot 1 (Boot/unarmed) while running and looking slightly down.
+Research the actual equipment state, semantic arm transforms and pre-polygon
+culling before choosing the smallest presentation correction. Reuse accepted
+limb ownership and native arm geometry. Acceptance: connected visible hands and
+arms through idle/walk/run/strafe/start-stop and pitch sweeps; preserve weapon
+switching, Q, native motion/events, world occlusion, third person, Vanilla and
+60/120 replay/load restoration. User accepted the lowered revision and authorized
+implementation, tests and documentation commit/push. Research and bounded
+verification evidence: [note 272](documentation/272-d36h4-unarmed-running-arms.md).
+
+
 **Latest closeout (2026-10-26): D36H3 is Done. User accepted the final running-arm and support-grip presentation and explicitly authorized lock-in/closeout. [Note 271](documentation/271-d36h3-running-arm-motion.md). No next job started.**
 
 
@@ -21059,3 +21074,36 @@ implementation, regression tests, manual and documentation commit/push authorize
 Accepted executable `87994034abe221147568f74de42614cbb7221e07323bc88e8260fc3125ff0143`.
 Note 271 retains the sparse-clip lesson and all bounded test/visual evidence.
 No new build or game launch for closeout, no framework edits, no next job started.
+
+
+## 2026-10-26 - D36H4 unarmed arms candidate
+
+Created the selected job, completed its source/live research, then implemented
+the bounded correction as requested. Empty-handed locomotion arms now share
+the native-body safe clipping path, preserving their original swing and world
+depth. Downward running captures reproduce the floating glove before and show
+connected forearms after. Build and controls/aim/near suites pass; private
+60/120 routes cover running, strafe, walk/stop, crouch, Q, pistol/Boot switching,
+load and corrected first/third toggles. Note 272 records failed test attempts,
+coverage limits and evidence. Needs playtest for human motion approval.
+No framework edits, acceptance closeout, commit or push.
+
+
+## 2026-10-26 - D36H4 substantially lowered arms revision
+
+User requested a large downward adjustment. Both unarmed arm chains now move
+120 camera-down units in display scratch, keeping native swing and connected
+bones. Player build and controls suite pass; private 60/120 captures, switching,
+Q, crouch, load and asserted view restoration are recorded in note 272.
+Needs playtest for the revised height. No acceptance closeout, commit or push.
+
+
+## 2026-10-26 - D36H4 accepted and closed
+
+User: "lock it in and close it out!". D36H4 is Done. Connected unarmed arms and
+the substantial 120-unit downward presentation adjustment are accepted.
+Implementation, tests, manual and evidence documentation commit/push authorized.
+Accepted executable `e975163dad5028dc629fae8bf43031c0901086c7d64143f623a8345261ff60e3`.
+Note 272 retains the test evidence and coverage limits. Earlier candidate entries
+are historical. No new build or game launch during closeout, no framework edits,
+and no next job started.

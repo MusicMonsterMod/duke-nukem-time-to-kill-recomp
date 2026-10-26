@@ -3171,11 +3171,13 @@ int main(int argc,char** argv) {
                 }
                 int limb_status=0;assert(waitpid(limb_child,&limb_status,0)==limb_child && WIFEXITED(limb_status) && WEXITSTATUS(limb_status)==0);
                 std::puts("PASS: D36G display/hidden/native limb owners, actor boundaries, replay and load token retirement");
-                // Outside Duke's draw, holstered, or another actor: untouched.
+                // Outside Duke's draw or another actor: untouched. Empty hands
+                // use the lowered D36H4 body arm scratch inside the primary draw.
                 assert(hook(0x800292a0,c,hand,0x80034c6c,7).gpr[5]==hand);
                 call(0x800348d8,c,p,0x8003769c);psx_mod_write_byte(p+0x3b8,0);
-                assert(hook(0x800292a0,c,hand,0x80034c6c,7).gpr[5]==hand);
-                assert(hook(0x800292a0,c,mats+0x20*3,0x80034c6c,3).gpr[5]==mats+0x20*3);
+                assert(hook(0x800292a0,c,hand,0x80034c6c,7).gpr[5]!=hand);
+                assert(ttk::first_person_limb_presentation().owner==ttk::LimbOwner::Body);
+                assert(hook(0x800292a0,c,mats+0x20*3,0x80034c6c,3).gpr[5]!=mats+0x20*3);
                 psx_mod_write_byte(p+0x3b8,2);
                 {CPUState cpu{};cpu.gpr[4]=c;cpu.gpr[5]=hand;cpu.gpr[20]=0x800d8000;cpu.gpr[23]=7;cpu.gpr[31]=0x80034c6c;cpu.gpr[29]=0x801f0000;
                  hooks().at(0x800292a0)(&cpu,0x800292a0);assert(cpu.gpr[5]==hand);}
@@ -3622,6 +3624,45 @@ int main(int argc,char** argv) {
                 psx_mod_write_word(p,flags);psx_mod_write_word(context+0x48,command);psx_mod_write_word(context+0x4c,page);psx_mod_write_word(context+0x54,flat);
                 std::puts("PASS: D36J native lower-body clipping, semantic costume ownership, fade/effect restoration and draw-boundary guards");
             }
+            // D36H4: empty-handed locomotion retains native connected chains,
+            // including costumes with different joint ordering. Armed/held-item
+            // paths must not acquire world-body arm ownership.
+            {
+                const unsigned equipment=psx_mod_read_byte(p+0x3b8);
+                for(const auto* costume:{first_map,cowboy}) {
+                    layout(costume);
+                    const std::vector<uint8_t> original(ram+(mats&0x1fffff),ram+(mats&0x1fffff)+19*0x20);
+                    for(unsigned equip:{0u,1u,2u}) for(unsigned j=0;j<19;++j) {
+                        const int part=costume[j];if(part<10 || part>15)continue;
+                        psx_mod_write_byte(p+0x3b8,equip);
+                        call(0x800348d8,c,p,0x8003769c);
+                        CPUState cpu{};cpu.gpr[4]=c;cpu.gpr[5]=mats+0x20*j;
+                        cpu.gpr[20]=p;cpu.gpr[23]=j;cpu.gpr[29]=0x801f0000;cpu.gpr[31]=0x80034c6c;
+                        hooks().at(0x800292a0)(&cpu,0x800292a0);
+                        const auto limb=ttk::first_person_limb_presentation();
+                        assert((limb.owner==ttk::LimbOwner::Body)==(equip==0));
+                        if(equip==0) {
+                            assert(cpu.gpr[5]!=mats+0x20*j && limb.world_clip() && !limb.viewmodel());
+                            for(unsigned i=0;i<0x14;i+=4)
+                                assert(psx_mod_read_word(cpu.gpr[5]+i)==psx_mod_read_word(mats+0x20*j+i));
+                            for(unsigned i=0;i<3;++i) {
+                                const int32_t down=std::lround(120.0*(int16_t)psx_mod_read_half(c+6+2*i)/4096.0);
+                                assert(psx_mod_read_word(cpu.gpr[5]+0x14+4*i)==
+                                    psx_mod_read_word(mats+0x20*j+0x14+4*i)+down);
+                            }
+                            assert(limb.parts==(1u<<part) && limb.bridge_joint_depth);
+                            cpu.gpr[31]=0x80034c8c;cpu.gte_ctrl[26]=256;
+                            psx_mod_write_word(cpu.gpr[29]+0x98,c);cpu.gpr[16]=0;
+                            hooks().at(0x800b4d2c)(&cpu,0x800b4d2c);assert(cpu.gpr[16]==256);
+                        }
+                        call(0x8001ca4c,0x800d0000,0,0x800376b4);
+                        assert(ttk::first_person_limb_presentation().owner==ttk::LimbOwner::Native);
+                    }
+                    assert(std::equal(original.begin(),original.end(),ram+(mats&0x1fffff)));
+                }
+                layout(first_map);psx_mod_write_byte(p+0x3b8,equipment);
+                std::puts("PASS: D36H4 unarmed semantic arm continuity, world depth, held-equipment exclusion and native matrix preservation");
+            }
             // D12A quick kick: an original boot request (112..115, not yet
             // initialized) becomes the quick kick at the lower-body initializer;
             // its sphere runs along the view on each player update while the leg
@@ -3924,12 +3965,12 @@ int main(int argc,char** argv) {
             }
             // D36I: native contact arms cross the joint-origin cutoff as a
             // connected chain, but retain matrices, world depth and lighting.
-            auto contact_arms=[&](bool eligible) {
+            auto contact_arms=[&](bool eligible,bool unarmed_body=false) {
                 const auto equip=psx_mod_read_byte(p+0x3b8);
                 psx_mod_write_byte(p+0x3b8,0);
                 const std::vector<uint8_t> before(ram+(mats&0x1fffff),ram+(mats&0x1fffff)+19*0x20);
                 for(unsigned part:{9u,10u,11u,12u,13u,14u,15u,16u}) {
-                    const bool arm=eligible && part>=10 && part<=15;
+                    const bool arm=(eligible || unarmed_body) && part>=10 && part<=15;
                     call(0x800348d8,c,p,0x8003769c);
                     CPUState joint{};joint.gpr[4]=c;joint.gpr[20]=p;joint.gpr[29]=0x801f0000;
                     joint.gpr[23]=psx_mod_read_byte(desc+0x24+part);
@@ -3938,16 +3979,18 @@ int main(int argc,char** argv) {
                     hooks().at(0x800292a0)(&joint,0x800292a0);
                     const auto limb=ttk::first_person_limb_presentation();
                     assert(limb.bridge_joint_depth==arm && !limb.viewmodel());
-                    if(arm)assert(limb.interaction() && limb.parts==(1u<<part) &&
-                        limb.space==ttk::LimbSpace::NativeWorld && limb.light==ttk::LimbLight::Native);
-                    assert(joint.gpr[5]==matrix);
+                    if(arm)assert(limb.owner==(unarmed_body?ttk::LimbOwner::Body:ttk::LimbOwner::Interaction) &&
+                        limb.parts==(1u<<part) && limb.space==ttk::LimbSpace::NativeWorld &&
+                        limb.light==(unarmed_body?ttk::LimbLight::CorrectProximityFade:ttk::LimbLight::Native));
+                    assert((joint.gpr[5]!=matrix)==(unarmed_body && arm));
+                    const auto displayed=joint.gpr[5];
                     joint.gpr[31]=0x80034c8c;joint.gte_ctrl[26]=256;
                     psx_mod_write_word(joint.gpr[29]+0x98,c);
                     for(int depth:{-120,0,80,255,256,400}) {
                         joint.gpr[16]=depth;
                         hooks().at(0x800b4d2c)(&joint,0x800b4d2c);
                         assert((int32_t)joint.gpr[16]==(arm?std::max(depth,256):depth));
-                        assert(joint.gte_ctrl[26]==256 && joint.gpr[5]==matrix);
+                        assert(joint.gte_ctrl[26]==256 && joint.gpr[5]==displayed);
                     }
                     for(int bad=0;bad<3;++bad) {
                         CPUState wrong=joint;wrong.gpr[16]=40;
@@ -3979,7 +4022,7 @@ int main(int argc,char** argv) {
                     assert(!ttk::movement_ready() && !ttk::locomotion_input_ready());
                     assert(psx_mod_read_half(p+0x60)==pose && psx_mod_read_word(p+0x224)==bits);
                     if(use)assert(std::strstr(ttk::controls_debug_json(),"\"action\":\"use\""));
-                    contact_arms(use);
+                    contact_arms(use,!use);
                     if(pose==270 || pose==275 || pose==279) {
                         for(unsigned offset:{0x22cu,0x22du}) {
                             psx_mod_write_byte(p+offset,1);frame();assert(metric("\"blend\":")==0);

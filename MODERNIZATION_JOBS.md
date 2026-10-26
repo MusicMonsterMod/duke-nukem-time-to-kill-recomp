@@ -1,6 +1,6 @@
 # Time to Kill — modernization jobs
 
-**Latest accepted research (2026-10-26): D36 and D36A-F are Done. [Note 257](documentation/257-d36-first-person-presentation-audit.md) is the accepted first-person presentation audit and roadmap. Implementation proposals D36G-L remain unstarted.**
+**Latest accepted research (2026-10-26): D36 and D36A-F are Done. [Note 257](documentation/257-d36-first-person-presentation-audit.md) is the accepted first-person presentation audit and roadmap. D36G is Done (user-accepted); implementation proposals D36H-L remain unstarted.**
 
 **Latest closeout (2026-10-26): D23D is Done. User could not reproduce the Level 9 slowdown and reports a problem-free playthrough. Closed on user playtest evidence; no build change or new profiling.**
 
@@ -409,6 +409,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D36D | Interaction arms/poses audit, prioritizing slot-8 push/pull | Done (research accepted 2026-10-26) | D36A |
 | D36E | Reusable/dedicated geometry, animation and shared-presentation architecture | Done (research accepted 2026-10-26) | D36A; findings from D36B-D |
 | D36F | Visual standards, traceability and prioritized implementation roadmap | Done (research accepted 2026-10-26) | D36B, D36C, D36D, D36E |
+| D36G | Shared limb presentation ownership (behavior-equivalent foundation) | Done (user-accepted 2026-10-26) | D36; D37A/D19Q3 candidate limits |
 | D37 | Temporary movement failure at 07:26 UK on 2026-10-26 (separate research) | Done | - |
 | D37A | Safe animation restoration across save allocation layouts | Needs playtest | D37 |
 | R01 | DisruptorRecomp architecture and modernization reference research | Done | - |
@@ -20428,3 +20429,40 @@ regression contracts before choosing a fix; its gaps remain explicit.
 D36G-L remain report-only implementation proposals, neither selected nor started.
 No gameplay/assets/framework change, build or game launch during closeout.
 D37A/D19Q3 remain Needs playtest; their acceptance is not part of this instruction.
+
+
+## 2026-10-26 - D36G selected (In progress)
+
+User selected D36G. Promote the accepted note 257 proposal to implementation:
+a shared descriptor for semantic parts, pose owner, transform space, depth,
+lighting and draw-scope cleanup around the existing hooks. Preserve current
+weapon/item, kick and native interaction output, perspective semantics and
+allocation behavior. No D36H-L visual correction is included.
+Acceptance: equivalent hook outputs and captures; controls/input/aim/near tests;
+primary/reflected/other actors, both view choices, pause/load, restart and replay.
+D37A/D19Q3 remain Needs playtest. No commit/push or acceptance closeout authorized.
+
+
+## 2026-10-26 - D36G candidate ready for playtest
+
+Shared semantic limb ownership now connects hand/kick/interaction draw hooks and
+near clipping, with explicit transform/depth/light and scope cleanup. Existing
+visual policy remains; no new arm geometry or D36H-L correction. Actor boundaries
+and replay/load retirement have native regression coverage. Player build and
+controls/input/aim/near suites pass; animation save recovery checks pass. Private
+60/120 presentation runs preserve sampled push/pull, vending, ladder, weapon and
+kick behavior. Player files unchanged. Evidence and limits: [note 258](documentation/258-d36g-limb-ownership.md).
+Candidate `e2062e66f70eb0bbe20be9c8a7bb8bfbf9e5cf234107779d4e98dcd3c979f1d3`.
+Needs playtest; no acceptance closeout, commit, push or next job authorized.
+
+
+## 2026-10-26 - D36G accepted and closed
+
+User: "lock it in and close it out". D36G is Done by user acceptance; authored
+implementation, tests and documentation are authorized for commit/push as
+MusicMonsterMod. [Note 258](documentation/258-d36g-limb-ownership.md) preserves
+verification and remaining evidence limits. No additional build or gameplay test
+is claimed during closeout. Accepted executable:
+`e2062e66f70eb0bbe20be9c8a7bb8bfbf9e5cf234107779d4e98dcd3c979f1d3`.
+D36H-L remain unstarted; D37A/D19Q3 retain their separate Needs playtest statuses.
+No next job started. Existing framework modifications remain untouched.

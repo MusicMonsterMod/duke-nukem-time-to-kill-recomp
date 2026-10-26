@@ -470,7 +470,7 @@ static uint32_t weapon_matrix;
 static bool weapon_duke_draw, weapon_live;
 // From the hand joint's transform to the next joint's: the hand mesh and its
 // attached draws, which the near-clip object path draws on top (D12).
-static bool weapon_viewmodel;
+static LimbPresentation limb_draw;
 static uint64_t weapon_hands, weapon_draws, weapon_flashes, weapon_items;
 // Placement in the level view frame (x right, y down, z ahead). The pistol's
 // firing pose puts the hand at about (84, 120, 257) from the eye; that pose is
@@ -585,8 +585,17 @@ static uint32_t hand_matrix() {
     return hand<duke_joints ? mats+0x20*hand : 0;
 }
 static void fade_restore(CPUState* cpu);
+static void fade_clear(CPUState* cpu);
 static bool kick_leg_joint(CPUState* cpu);
-static void weapon_release() {weapon_live=false;weapon_viewmodel=false;fade_restore(nullptr);}
+// End a verified draw scope with restoration; world/replay replacement instead
+// discards ownership without restoring bytes into a different RAM image.
+static void limb_scope_end(CPUState* cpu) {fade_restore(cpu);limb_draw={};}
+static void limb_scope_forget() {limb_draw={};weapon_live=false;weapon_duke_draw=false;}
+static void limb_claim(CPUState* cpu,LimbOwner owner,int part,bool bridge=false) {
+    limb_draw=limb_presentation(owner,part,bridge);
+    if(limb_draw.light==LimbLight::CorrectProximityFade) fade_clear(cpu);
+}
+static void weapon_release() {weapon_live=false;limb_scope_end(nullptr);}
 // Refreshed at every Duke draw, including replay workers. The weapon draw
 // replaces this fallback with the native per-joint environment colour.
 static uint32_t biomask_light;
@@ -795,16 +804,26 @@ static void fade_restore(CPUState* cpu) {
     fade_save.active=false;
 }
 // 0x800292a0 entry from the joint loop (ra 0x80034c6c): the hand joint's transform.
-static bool interaction_arm;
+static bool interaction_depth_bridge(PerspectiveAction action) {
+    return action==PerspectiveAction::Wall || action==PerspectiveAction::Ladder ||
+        action==PerspectiveAction::Pole || action==PerspectiveAction::Mantle ||
+        action==PerspectiveAction::Overhead || action==PerspectiveAction::WaterExit;
+}
 static void first_person_weapon_joint(CPUState* cpu,uint32_t ra) {
-    interaction_arm=false;
+    // Attached weapon transforms retain their display domain; native arms
+    // have always relinquished admission on any intervening transform call.
+    if(ra==0x80034c6c) limb_scope_end(cpu);
+    else {
+        if(limb_draw.interaction()) limb_draw={};
+        limb_draw.bridge_joint_depth=false;
+    }
     if(ra==0x80034c6c && weapon_duke_draw && fp_blend>=0.5 && orbit_valid &&
        fp_policy.effective && (fp_policy.action==PerspectiveAction::Mirror || fp_policy.action==PerspectiveAction::Use || fp_policy.action==PerspectiveAction::Push || fp_policy.action==PerspectiveAction::Wall || fp_policy.action==PerspectiveAction::Ladder || fp_policy.action==PerspectiveAction::Pole || fp_policy.action==PerspectiveAction::Mantle || fp_policy.action==PerspectiveAction::Overhead || fp_policy.action==PerspectiveAction::WaterExit) &&
        cpu->gpr[4]==camera && cpu->gpr[20]==player) {
         const int part=duke_joint_part(duke_model(),cpu->gpr[23]);
-        interaction_arm=part>=int(part_arm_first) && part<=0x0f;
+        if(part>=int(part_arm_first) && part<=0x0f)
+            limb_claim(cpu,LimbOwner::Interaction,part,interaction_depth_bridge(fp_policy.action));
     }
-    if(ra==0x80034c6c) {weapon_viewmodel=false;fade_restore(cpu);}
     // D12A: the right leg while the first-person quick kick plays (kick.inc).
     if(ra==0x80034c6c && weapon_duke_draw && fp_blend>=0.5 && orbit_valid && kick_leg_joint(cpu)) return;
     if(ra!=0x80034c6c || !weapon_duke_draw || fp_blend<0.5 || !orbit_valid || !weapon_view_enabled() || !weapon_held()) return;
@@ -823,7 +842,7 @@ static void first_person_weapon_joint(CPUState* cpu,uint32_t ra) {
         // weapon. These limbs are hidden at the eye for the viewmodel, not
         // native interaction hands. Do not let the traversal near-cull bridge
         // force them back into the draw loop at this artificial transform.
-        interaction_arm=false;
+        limb_claim(cpu,LimbOwner::HiddenArm,part);
         cpu->gpr[5]=hidden_matrix;++arm_hides;return;
     }
     live_valid=false;
@@ -905,8 +924,10 @@ static void first_person_weapon_joint(CPUState* cpu,uint32_t ra) {
         const double w=(int32_t)psx_mod_read_word(camera+0x14+4*i)+c[0][i]*v[0]+c[1][i]*v[1]+c[2][i]*v[2];
         psx_mod_write_word(weapon_matrix+0x14+4*i,(uint32_t)(int32_t)std::lround(w));
     }
-    fade_clear(cpu);
-    cpu->gpr[5]=weapon_matrix;weapon_live=weapon_viewmodel=true;++weapon_hands;
+    const bool bridge=limb_draw.bridge_joint_depth;
+    limb_claim(cpu,LimbOwner::DisplayHand,0x0f);
+    limb_draw.bridge_joint_depth=bridge; // preserve armed traversal hand admission
+    cpu->gpr[5]=weapon_matrix;weapon_live=true;++weapon_hands;
 }
 // Attached draws for the hand joint: weapon mesh, muzzle flash, held item.
 static void first_person_weapon_attached(CPUState* cpu,uint32_t address,uint32_t ra) {
@@ -948,8 +969,8 @@ static void first_person_weapon_attached(CPUState* cpu,uint32_t address,uint32_t
 // or changing projection. s0 is the loop's saved joint depth; the remaining
 // mesh path uses the real transform and host world-depth packets.
 static void first_person_ladder_near(CPUState* cpu,uint32_t ra) {
-    if(ra!=0x80034c8c || !interaction_arm || !weapon_duke_draw ||
-       (fp_policy.action!=PerspectiveAction::Wall && fp_policy.action!=PerspectiveAction::Ladder && fp_policy.action!=PerspectiveAction::Pole && fp_policy.action!=PerspectiveAction::Mantle && fp_policy.action!=PerspectiveAction::Overhead && fp_policy.action!=PerspectiveAction::WaterExit) || !fp_policy.effective ||
+    if(ra!=0x80034c8c || !weapon_duke_draw ||
+       !limb_draw.bridge_joint_depth || !fp_policy.effective ||
        !orbit_valid || fp_blend<0.5 || cpu->gpr[20]!=player)return;
     // The actor loop saves a0 (camera) at sp+0x98. s3 is its render context,
     // not the camera pointer (0x8003490c / 0x80034abc).

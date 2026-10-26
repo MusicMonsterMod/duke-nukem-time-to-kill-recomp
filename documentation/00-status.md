@@ -1,5 +1,38 @@
 # Current status - 2026-10-04
 
+## 2026-10-26 - D36G accepted and closed
+
+User: "lock it in and close it out". D36G is Done by user acceptance.
+Implementation, regression tests and documentation closeout are authorized for
+commit/push as MusicMonsterMod. [Note 258](258-d36g-limb-ownership.md) records the
+shared limb ownership contract, passing checks and bounded capture evidence.
+Accepted executable: `e2062e66f70eb0bbe20be9c8a7bb8bfbf9e5cf234107779d4e98dcd3c979f1d3`.
+No new build, game launch or player-file writes during closeout. Existing framework
+modifications remain untouched. D36H-L remain unstarted; D37A/D19Q3 retain their
+separate Needs playtest statuses. User chooses the next job.
+Launch: `python3 recomp/tools/local/run.py` (automatic capture; P changes view).
+
+
+## 2026-10-26 - D36G shared limb ownership (Needs playtest)
+
+User selected D36G. A shared draw-local descriptor now names limb owner, semantic
+part, transform space, depth, lighting and cleanup around the existing hooks.
+Existing weapon/kick/native interaction visuals and traversal-only depth bridge
+are preserved. Interrupted actor/reflection boundaries and replay/load token
+retirement have native tests. No new guest allocations, save/replay fields,
+assets, preferences or framework edits. D36H-L remain unstarted.
+
+Build and controls/input/aim/near suites pass; D37A save recovery checks pass.
+Private 60/120 runs preserve sampled push/pull, vending, ladder, weapon and kick
+presentation. Native tests cover third-person/action choices, Vanilla and lifecycle;
+these are bounded checks, not whole-campaign visual certification. Player files
+are unchanged and private processes stopped. See [note 258](258-d36g-limb-ownership.md)
+for captures, evidence limits and the playtest checklist. D37A/D19Q3 remain Needs
+playtest. No acceptance closeout, commit or push authorized.
+Candidate `e2062e66f70eb0bbe20be9c8a7bb8bfbf9e5cf234107779d4e98dcd3c979f1d3`.
+Launch: `python3 recomp/tools/local/run.py` (automatic capture; P changes view).
+
+
 ## 2026-10-26 - D36 research accepted and closed
 
 User explicitly requested lock-in and closeout of the research, identifying it

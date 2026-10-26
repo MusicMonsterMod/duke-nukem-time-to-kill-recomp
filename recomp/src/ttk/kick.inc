@@ -506,8 +506,8 @@ static bool kick_leg_joint(CPUState* cpu) {
         for(int k=0;k<3;++k) w+=c[k][i]*(p[k]+anchor[k]);
         psx_mod_write_word(out_m+0x14+4*i,(uint32_t)(int32_t)std::lround(w));
     }
-    fade_clear(cpu);
-    cpu->gpr[5]=out_m;weapon_viewmodel=true;++kick_leg_draws;
+    limb_claim(cpu,LimbOwner::Kick,duke_joint_part(desc,joint));
+    cpu->gpr[5]=out_m;++kick_leg_draws;
     return true;
 }
 static const char* kick_debug_json() {

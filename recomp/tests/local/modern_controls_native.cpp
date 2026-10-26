@@ -3021,6 +3021,10 @@ int main(int argc,char** argv) {
                 call(0x800348d8,c,p,0x8003769c);
                 auto h=hook(0x800292a0,c,hand,0x80034c6c,7);
                 assert(h.gpr[5]!=hand && h.gpr[5]>=0x801e0000 && ttk::first_person_weapon_drawing());
+                const auto hand_owner=ttk::first_person_limb_presentation();
+                assert(hand_owner.owner==ttk::LimbOwner::DisplayHand && hand_owner.parts==(1u<<0x0f));
+                assert(hand_owner.space==ttk::LimbSpace::CameraRelative && hand_owner.depth==ttk::LimbDepth::Viewmodel);
+                assert(hand_owner.light==ttk::LimbLight::CorrectProximityFade && !hand_owner.bridge_joint_depth);
                 const uint32_t vm=h.gpr[5];
                 assert(hook(0x80033e40,hand,0,0x8003531c,7).gpr[4]==vm);          // weapon mesh
                 assert(hook(0x80033f5c,hand,4,0x80035250,7).gpr[4]==vm);          // held item
@@ -3032,11 +3036,50 @@ int main(int argc,char** argv) {
                 // Arm joints go to a matrix at the eye (culled by the loop); others untouched.
                 auto arm=hook(0x800292a0,c,mats+0x20*3,0x80034c6c,3);
                 assert(arm.gpr[5]!=mats+0x20*3 && !ttk::first_person_weapon_drawing());
+                assert(ttk::first_person_limb_presentation().owner==ttk::LimbOwner::HiddenArm);
+                assert(!ttk::first_person_limb_presentation().bridge_joint_depth);
                 for(int i=0;i<3;++i) assert(psx_mod_read_word(arm.gpr[5]+0x14+4*i)==psx_mod_read_word(c+0x14+4*i));
                 assert(hook(0x800292a0,c,mats+0x20*9,0x80034c6c,9).gpr[5]==mats+0x20*9);
                 assert(hook(0x800292a0,c,hand,0x80034c6c,7,0).gpr[5]!=hand);
                 call(0x8001ca4c,0x800d0000,0,0x800376b4);
                 assert(!ttk::first_person_weapon_drawing());
+                // D36G: interrupted primary draw cannot lend its overlay to a
+                // reflection or a foreign actor. Re-entry reconstructs ownership.
+                for(uint32_t actor:{p,0x800d8000u}) {
+                    call(0x800348d8,c,p,0x8003769c);
+                    hook(0x800292a0,c,hand,0x80034c6c,7);
+                    assert(ttk::first_person_weapon_drawing());
+                    call(0x800348d8,c,actor,actor==p?0x8003816c:0x8003769c);
+                    assert(ttk::first_person_limb_presentation().owner==ttk::LimbOwner::Native);
+                    assert(hook(0x800292a0,c,hand,0x80034c6c,7).gpr[5]==hand);
+                }
+                call(0x8001ca4c,0x800d0000,0,0x800376b4);
+                // A replay snapshot describes simulation state, never an active
+                // joint's draw token. Loading it must not write old scope bytes.
+                const pid_t limb_child=fork();assert(limb_child>=0);
+                if(limb_child==0) {
+                    call(0x800348d8,c,p,0x8003769c);
+                    hook(0x800292a0,c,hand,0x80034c6c,7);
+                    std::vector<uint8_t> limb_state(ttk::render_state_size());
+                    ttk::render_state_save(limb_state.data());
+                    const uint32_t context=0x800d67a8;
+                    psx_mod_write_word(context+0x48,0x12345678);
+                    ttk::render_state_load(limb_state.data());
+                    assert(ttk::first_person_limb_presentation().owner==ttk::LimbOwner::Native);
+                    assert(psx_mod_read_word(context+0x48)==0x12345678);
+                    psx_mod_write_word(context+0x48,0);
+                    call(0x800348d8,c,p,0x8003769c);
+                    hook(0x800292a0,c,hand,0x80034c6c,7);
+                    assert(ttk::first_person_weapon_drawing());
+                    ++save_loads;
+                    call(0x800292a0,c,hand,0x80034c6c);
+                    assert(ttk::first_person_limb_presentation().owner==ttk::LimbOwner::Native);
+                    for(unsigned i=0;i<40;++i)frame();
+                    call(0x8001ca4c,0x800d0000,0,0x800376b4);
+                    _exit(0);
+                }
+                int limb_status=0;assert(waitpid(limb_child,&limb_status,0)==limb_child && WIFEXITED(limb_status) && WEXITSTATUS(limb_status)==0);
+                std::puts("PASS: D36G display/hidden/native limb owners, actor boundaries, replay and load token retirement");
                 // Outside Duke's draw, holstered, or another actor: untouched.
                 assert(hook(0x800292a0,c,hand,0x80034c6c,7).gpr[5]==hand);
                 call(0x800348d8,c,p,0x8003769c);psx_mod_write_byte(p+0x3b8,0);
@@ -3292,6 +3335,8 @@ int main(int argc,char** argv) {
                 call(0x800348d8,c,p,0x8003769c);
                 auto leg=hook(0x800292a0,c,mats+0x20*16,0x80034c6c,16);
                 assert(leg.gpr[5]!=mats+0x20*16 && ttk::first_person_weapon_drawing());
+                assert(ttk::first_person_limb_presentation().owner==ttk::LimbOwner::Kick);
+                assert(ttk::first_person_limb_presentation().parts==(1u<<7));
                 // The thigh is drawn end for end from the knee (its hip origin
                 // is inside the loop's near cull).
                 {
@@ -3660,6 +3705,12 @@ int main(int argc,char** argv) {
                                 hooks().at(0x800292a0)(&joint,0x800292a0);
                                 assert(ttk::first_person_interaction_drawing()==(part>=0x0a && part<=0x0f));
                                 assert(joint.gpr[5]==mats+0x20*joint.gpr[23]); // native hand matrices
+                                const auto limb=ttk::first_person_limb_presentation();
+                                assert(!limb.bridge_joint_depth && !limb.viewmodel());
+                                if(part>=0x0a && part<=0x0f) {
+                                    assert(limb.parts==(1u<<part) && limb.space==ttk::LimbSpace::NativeWorld);
+                                    assert(limb.light==ttk::LimbLight::Native && limb.depth==ttk::LimbDepth::WorldClip);
+                                }
                                 call(0x8001ca4c,0x800d0000,0,0x800376b4);
                                 assert(!ttk::first_person_interaction_drawing());
                             }
@@ -3869,6 +3920,7 @@ int main(int argc,char** argv) {
                             joint.gpr[5]=mats+0x20*joint.gpr[23];joint.gpr[31]=0x80034c6c;
                             hooks().at(0x800292a0)(&joint,0x800292a0);
                             assert(ttk::first_person_interaction_drawing());
+                            assert(ttk::first_person_limb_presentation().bridge_joint_depth);
                             assert(joint.gpr[5]==mats+0x20*joint.gpr[23]);
                             joint.gpr[31]=0x80034c8c;joint.gpr[16]=40;joint.gte_ctrl[26]=256;
                             psx_mod_write_word(joint.gpr[29]+0x98,c);

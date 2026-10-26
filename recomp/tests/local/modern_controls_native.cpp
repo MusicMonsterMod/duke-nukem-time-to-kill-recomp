@@ -3394,6 +3394,65 @@ int main(int argc,char** argv) {
                 ttk::input.first_person=true;for(unsigned i=0;i<40;++i)frame();
                 std::puts("PASS: D12D upgraded first-person framing (base-equivalent pose/recoil/scale, held record preserved, third-person and Vanilla exclusion)");
             }
+            // D36J: world-space lower-body admission is semantic across
+            // costume orderings, with no native matrix edits or arm takeover.
+            {
+                for(const auto* costume:{first_map,cowboy}) {
+                    layout(costume);
+                    const std::vector<uint8_t> original(ram+(mats&0x1fffff),ram+(mats&0x1fffff)+19*0x20);
+                    for(unsigned j=0;j<19;++j) {
+                        call(0x800348d8,c,p,0x8003769c);
+                        CPUState cpu{};cpu.gpr[4]=c;cpu.gpr[5]=mats+0x20*j;
+                        cpu.gpr[20]=p;cpu.gpr[23]=j;cpu.gpr[29]=0x801f0000;cpu.gpr[31]=0x80034c6c;
+                        hooks().at(0x800292a0)(&cpu,0x800292a0);
+                        const int part=costume[j];const bool body=(part>=1 && part<=8)||part==21;
+                        const auto limb=ttk::first_person_limb_presentation();
+                        assert((limb.owner==ttk::LimbOwner::Body)==body);
+                        if(body) {
+                            assert(cpu.gpr[5]==mats+0x20*j && limb.world_clip() && !limb.viewmodel() && limb.bridge_joint_depth);
+                            assert(limb.parts==(1u<<part) && limb.light==ttk::LimbLight::CorrectProximityFade);
+                            cpu.gpr[31]=0x80034c8c;cpu.gte_ctrl[26]=256;psx_mod_write_word(cpu.gpr[29]+0x98,c);
+                            for(int z:{-100,0,255,256,400}) {
+                                cpu.gpr[16]=z;hooks().at(0x800b4d2c)(&cpu,0x800b4d2c);
+                                assert(int32_t(cpu.gpr[16])==std::max(z,256));
+                            }
+                            for(int bad=0;bad<3;++bad) {
+                                auto wrong=cpu;wrong.gpr[16]=0;
+                                if(bad==0)wrong.gpr[31]+=4;
+                                if(bad==1)wrong.gpr[20]+=4;
+                                if(bad==2)psx_mod_write_word(wrong.gpr[29]+0x98,c+4);
+                                hooks().at(0x800b4d2c)(&wrong,0x800b4d2c);assert(wrong.gpr[16]==0);
+                            }
+                            psx_mod_write_word(cpu.gpr[29]+0x98,c);
+                        }
+                        call(0x8001ca4c,0x800d0000,0,0x800376b4);
+                        assert(ttk::first_person_limb_presentation().owner==ttk::LimbOwner::Native);
+                    }
+                    assert(std::equal(original.begin(),original.end(),ram+(mats&0x1fffff)));
+                }
+                layout(first_map);
+                const uint32_t context=0x800d67a8,flags=psx_mod_read_word(p);
+                const uint32_t command=psx_mod_read_word(context+0x48),page=psx_mod_read_word(context+0x4c),flat=psx_mod_read_word(context+0x54);
+                for(uint32_t effect:{0u,0x40u,0x2000u,0x4000u}) {
+                    call(0x800348d8,c,p,0x8003769c);
+                    psx_mod_write_word(p,(flags&~0x6040u)|effect);
+                    psx_mod_write_word(context+0x48,0x2000000);psx_mod_write_word(context+0x4c,0x600000);psx_mod_write_word(context+0x54,0x12345678);
+                    CPUState cpu{};cpu.gpr[4]=c;cpu.gpr[5]=mats+0x20*14;cpu.gpr[20]=p;cpu.gpr[23]=14;cpu.gpr[31]=0x80034c6c;cpu.gpr[29]=0x801f0000;
+                    for(int i=13;i<=15;++i)cpu.gte_ctrl[i]=i*17;
+                    hooks().at(0x800292a0)(&cpu,0x800292a0);
+                    assert(psx_mod_read_word(context+0x48)==(effect?0x2000000u:0u));
+                    // An unrelated transform retires native-body admission and
+                    // restores the complete context/GTE, not just the token.
+                    cpu.gpr[31]=0x80012340;hooks().at(0x800292a0)(&cpu,0x800292a0);
+                    assert(ttk::first_person_limb_presentation().owner==ttk::LimbOwner::Native);
+                    assert(psx_mod_read_word(context+0x48)==0x2000000 && psx_mod_read_word(context+0x4c)==0x600000);
+                    assert(psx_mod_read_word(context+0x54)==0x12345678);
+                    for(int i=13;i<=15;++i)assert(cpu.gte_ctrl[i]==unsigned(i*17));
+                    call(0x8001ca4c,0x800d0000,0,0x800376b4);
+                }
+                psx_mod_write_word(p,flags);psx_mod_write_word(context+0x48,command);psx_mod_write_word(context+0x4c,page);psx_mod_write_word(context+0x54,flat);
+                std::puts("PASS: D36J native lower-body clipping, semantic costume ownership, fade/effect restoration and draw-boundary guards");
+            }
             // D12A quick kick: an original boot request (112..115, not yet
             // initialized) becomes the quick kick at the lower-body initializer;
             // its sphere runs along the view on each player update while the leg
@@ -3461,29 +3520,40 @@ int main(int argc,char** argv) {
                 }
                 // The leg is drawn in front of the eye during the kick.
                 call(0x800348d8,c,p,0x8003769c);
-                auto leg=hook(0x800292a0,c,mats+0x20*16,0x80034c6c,16);
-                assert(leg.gpr[5]!=mats+0x20*16 && ttk::first_person_weapon_drawing());
+                auto leg=hook(0x800292a0,c,mats+0x20*12,0x80034c6c,12);
+                assert(leg.gpr[5]!=mats+0x20*12 && ttk::first_person_weapon_drawing());
                 assert(ttk::first_person_limb_presentation().owner==ttk::LimbOwner::Kick);
-                assert(ttk::first_person_limb_presentation().parts==(1u<<7));
-                // The thigh is drawn end for end from the knee (its hip origin
-                // is inside the loop's near cull).
+                assert(ttk::first_person_limb_presentation().parts==(1u<<3));
+                // D36J: the thigh starts at the hip, not at a reversed/dropped
+                // knee. Its complete chain reaches polygon clipping below H.
                 {
-                    auto thigh=hook(0x800292a0,c,mats+0x20*14,0x80034c6c,14);
-                    assert(thigh.gpr[5]!=mats+0x20*14 && ttk::first_person_weapon_drawing());
-                    const uint32_t tm=thigh.gpr[5];int32_t thigh_origin[3];
-                    for(int i=0;i<3;++i)thigh_origin[i]=(int32_t)psx_mod_read_word(tm+0x14+4*i);
-                    auto knee=hook(0x800292a0,c,mats+0x20*15,0x80034c6c,15);
-                    // Same place as the knee, nudged down the screen (view y, camera row 1) only.
-                    double off[3],along[3]={0,0,0};
-                    for(int i=0;i<3;++i)off[i]=thigh_origin[i]-(int32_t)psx_mod_read_word(knee.gpr[5]+0x14+4*i);
-                    for(int r=0;r<3;++r)for(int i=0;i<3;++i)along[r]+=(int16_t)psx_mod_read_half(c+2*(3*r+i))/4096.0*off[i];
-                    assert(std::abs(along[0])<=2 && along[1]>10 && std::abs(along[2])<=2);
+                    auto thigh=hook(0x800292a0,c,mats+0x20*10,0x80034c6c,10);
+                    assert(thigh.gpr[5]!=mats+0x20*10);
+                    assert(ttk::first_person_limb_presentation().bridge_joint_depth);
+                    int32_t origin[3];
+                    for(int i=0;i<3;++i)origin[i]=int32_t(psx_mod_read_word(thigh.gpr[5]+0x14+4*i));
+                    thigh.gpr[31]=0x80034c8c;thigh.gte_ctrl[26]=256;
+                    psx_mod_write_word(thigh.gpr[29]+0x98,c);
+                    for(int z:{-100,0,100,255,256,400}) {
+                        thigh.gpr[16]=z;hooks().at(0x800b4d2c)(&thigh,0x800b4d2c);
+                        assert(int32_t(thigh.gpr[16])==std::max(z,256));
+                    }
+                    auto knee=hook(0x800292a0,c,mats+0x20*11,0x80034c6c,11);
+                    double distance=0;
+                    for(int i=0;i<3;++i)distance+=std::pow(double(origin[i])-int32_t(psx_mod_read_word(knee.gpr[5]+0x14+4*i)),2);
+                    assert(distance>200*200 && distance<250*250);
+                    // Q does not move the right leg or its holster.
+                    for(unsigned joint:{14u,15u,16u,17u,18u}) {
+                        auto native=hook(0x800292a0,c,mats+0x20*joint,0x80034c6c,joint);
+                        assert(native.gpr[5]==mats+0x20*joint);
+                        assert(ttk::first_person_limb_presentation().owner!=ttk::LimbOwner::Kick);
+                    }
                 }
-                assert(hook(0x800292a0,c,mats+0x20*12,0x80034c6c,12).gpr[5]==mats+0x20*12); // left leg
-                // D12B: the cowboy costume's right leg is joints 5..8; its joints
+                assert(hook(0x800292a0,c,mats+0x20*16,0x80034c6c,16).gpr[5]==mats+0x20*16); // right leg
+                // D12B: the cowboy costume's left leg is joints 1..4; its joints
                 // 14 and 15 (part 0x14, the neck) are left alone.
                 layout(cowboy);
-                for(unsigned j=5;j<=8;++j) assert(hook(0x800292a0,c,mats+0x20*j,0x80034c6c,j).gpr[5]!=mats+0x20*j);
+                for(unsigned j=1;j<=4;++j) assert(hook(0x800292a0,c,mats+0x20*j,0x80034c6c,j).gpr[5]!=mats+0x20*j);
                 for(unsigned j=14;j<=15;++j) assert(hook(0x800292a0,c,mats+0x20*j,0x80034c6c,j).gpr[5]==mats+0x20*j);
                 layout(first_map);
                 assert(!ttk::first_person_weapon_drawing());
@@ -3491,12 +3561,12 @@ int main(int argc,char** argv) {
                 call(0x8001ca4c,0x800d0000,0,0x800376b4);
                 for(unsigned i=0;i<12;++i){frame();update();}
                 const size_t hits=std::count_if(kick_calls.begin(),kick_calls.end(),[](const KickCall& x){return x.address==0x800a979c;});
-                assert(hits>=4 && hits<=13);                         // each update in frames 8..20
+                assert(hits==13);                         // each update in frames 8..20
                 kick_calls.clear();
                 for(unsigned i=0;i<10;++i){frame();update();}
                 assert(kick_calls.empty());                         // finished
                 call(0x800348d8,c,p,0x8003769c);
-                assert(hook(0x800292a0,c,mats+0x20*16,0x80034c6c,16).gpr[5]==mats+0x20*16);
+                assert(hook(0x800292a0,c,mats+0x20*12,0x80034c6c,12).gpr[5]==mats+0x20*12);
                 call(0x8001ca4c,0x800d0000,0,0x800376b4);
                 assert(std::equal(before.begin(),before.end(),ram+(mats&0x1fffff)));
                 // Boot selected: a held attack starts the kick (moving too).
@@ -5578,5 +5648,5 @@ int main(int argc,char** argv) {
     std::puts("PASS: camera constraints, duplicate look, capture and original-camera gates");
     std::puts("PASS: Vanilla, actor/caller/overlay/code/state guards; movement/probe alignment; independent facing");
     std::puts("PASS: D08T1 pushable masks (D08T4 floor gate, D08T2 types up to 1061, grab-only climb mask, E-only idle grab mask; caller/actor/flags/Vanilla/capture) and camera-only grab lease");
-    std::puts("PASS: D12A first-person quick kick (boot request conversion from the attack only (E suppressed) and its guards, lease, sound, view-aimed hit sphere at the crosshair surface within reach, held attack with Boot, right-leg viewmodel with reversed thigh, third person untouched); D12C kick impact (thud (one octave up, three times its volume) once at the first sphere contact or a reachable wall, silent otherwise; third-person sphere made by the host, original neutralized, once per kick; Vanilla and other callers untouched)");
+    std::puts("PASS: D12A first-person quick kick (boot request conversion from the attack only (E suppressed) and its guards, lease, sound, view-aimed hit sphere at the crosshair surface within reach, held attack with Boot, plain left-leg Q viewmodel; right-leg door presentation, third person untouched); D12C kick impact (thud (one octave up, three times its volume) once at the first sphere contact or a reachable wall, silent otherwise; third-person sphere made by the host, original neutralized, once per kick; Vanilla and other callers untouched)");
 }

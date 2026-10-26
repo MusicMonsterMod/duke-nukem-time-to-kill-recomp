@@ -1,5 +1,54 @@
 # Next-session handoff
 
+## 2026-10-26 - D36J accepted and closed
+
+User: "lock it in and close us out". D36J is Done. The accepted result uses
+Duke's actual plain left leg for Q, without a holster; door 116 retains its
+separate right-leg presentation. Native body clipping/fade corrections and
+unchanged kick gameplay are included. [Note 261](261-d36j-body-and-kick.md)
+preserves the revision history, verification and bounded coverage limits.
+Accepted executable: `1f4ee0da21ddc0e5659a17dfaad8d80b8ccf0a9b1cf86dd681e1fd061e11b6d2`.
+Implementation, tests and documentation commit/push are authorized as
+MusicMonsterMod. D37A is Done by separate full user playtest acceptance;
+D19Q3 remains Needs playtest. D36K/L remain unstarted. No next job started.
+No build, launch or player-file writes during closeout; existing framework
+changes remain untouched. Launch: `python3 recomp/tools/local/run.py`.
+
+## 2026-10-26 - D36J revision 2: plain left-leg Q (Needs playtest)
+
+User clarified that Q should use the plain left leg, without the right leg's
+holster. The prior candidate's right-leg choice is rejected and superseded.
+Q now uses actual costume-specific left-leg parts 1-4, retargeted to the
+existing display motion. Right leg/attachment stay native during Q; door 116
+keeps its separate right-leg presentation. Body clipping/fade and kick
+damage/timing are unchanged. Build and full controls suite pass; reviewed
+Boot/pistol/Gatling/RPG captures show the plain leg. Note 261 records revision
+evidence. User visual acceptance remains; no commit/push requested.
+Candidate: `1f4ee0da21ddc0e5659a17dfaad8d80b8ccf0a9b1cf86dd681e1fd061e11b6d2`.
+Launch: `python3 recomp/tools/local/run.py`; P first person, Q kick.
+
+## 2026-10-26 - D36J body/kick candidate (Needs playtest)
+
+Native locomotion legs now reach safe polygon clipping and retain world depth;
+the close-camera fade is corrected without removing intentional effects.
+The kick thigh retains natural orientation, with part 21 attached to its
+moving hip. Q damage/timing, door events, accepted guns, save layout and Vanilla
+remain unchanged. Build, controls/input/aim/near suites and D37A recovery pass.
+Private 60/120-setting captures, physical P switching, save/load and bounded
+cost/replay evidence are in [note 261](261-d36j-body-and-kick.md). User visual
+review and the named broader coverage remain. D36K/L are unstarted.
+D37A is Done on the user's full playtest acceptance; D19Q3 remains Needs playtest.
+Candidate: `9186ed9531217dcedaeb9da3c410290649609565d33650e0a250403602563a61`.
+No commit/push or D36J acceptance closeout requested. Player files preserved.
+Launch: `python3 recomp/tools/local/run.py`; P first person, Q kick.
+
+## 2026-10-26 - D37A fully accepted; D36J selected
+
+User confirms D37A was playtested and fully accepts it. D37A is Done; note 255
+preserves the existing verification and limits. D19Q3 remains Needs playtest.
+D36J body/quick-kick presentation is selected and In progress under note 257.
+D36K/L remain unstarted. No commit or push requested.
+
 ## 2026-10-26 - D36I accepted and closed
 
 User confirms the arms are solid, native animation is unaffected and the result

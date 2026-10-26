@@ -1,5 +1,13 @@
 # D37A - Animation recovery across save allocation layouts
 
+## Acceptance - 2026-10-26
+
+Done. User: "i have tested it and accept fully". The user requested the status
+correction during D36J selection. The implementation and bounded verification
+below remain unchanged; no new build or test is claimed for this correction.
+Earlier Needs playtest entries below are historical. D19Q3 is separate.
+No commit or push was requested.
+
 Session closeout update (2026-10-26): user authorized commit and push of the current
 work. Needs playtest status remains; D19Q4 records the new UI-flash reports as
 backlog only. Earlier no-commit statements below describe the implementation turn.

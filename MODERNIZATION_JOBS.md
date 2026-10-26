@@ -1,6 +1,6 @@
 # Time to Kill — modernization jobs
 
-**Latest accepted research (2026-10-26): D36 and D36A-F are Done. [Note 257](documentation/257-d36-first-person-presentation-audit.md) is the accepted first-person presentation audit and roadmap. D36G is Done (user-accepted); D36H is Done (user-accepted); D36I is Done (user-accepted); implementation proposals D36J-L remain unstarted.**
+**Latest accepted research (2026-10-26): D36 and D36A-F are Done. [Note 257](documentation/257-d36-first-person-presentation-audit.md) is the accepted first-person presentation audit and roadmap. D36G is Done (user-accepted); D36H is Done (user-accepted); D36I is Done (user-accepted); D36J is Done (user-accepted); implementation proposals D36K/L remain unstarted.**
 
 **Latest closeout (2026-10-26): D23D is Done. User could not reproduce the Level 9 slowdown and reports a problem-free playthrough. Closed on user playtest evidence; no build change or new profiling.**
 
@@ -412,8 +412,9 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D36G | Shared limb presentation ownership (behavior-equivalent foundation) | Done (user-accepted 2026-10-26) | D36; D37A/D19Q3 candidate limits |
 | D36H | Connected combat and held-item arms | Done | D36G |
 | D36I | Native interaction arm continuity, slot 8 first | Done | D36G |
+| D36J | Coherent body and quick-kick leg presentation | Done (user-accepted 2026-10-26) | D36G, D36H |
 | D37 | Temporary movement failure at 07:26 UK on 2026-10-26 (separate research) | Done | - |
-| D37A | Safe animation restoration across save allocation layouts | Needs playtest | D37 |
+| D37A | Safe animation restoration across save allocation layouts | Done (user-accepted 2026-10-26) | D37 |
 | R01 | DisruptorRecomp architecture and modernization reference research | Done | - |
 
 Recommended opening sequence: **D01 → D02 → D03 → D04**, then **D05 / D06 → D07 → D07A → D08**. D13 is an early graphics option after profiles exist. D22 and D23 should accumulate evidence throughout development. First-person, HD asset packs and precision rendering are optional follow-up milestones, not blockers for a good modern third-person release.
@@ -651,9 +652,22 @@ renderer architecture, player model, animation asset or save-format modification
 no silent third-person fallback replacement and no discarded working interaction
 animations. Research acceptance is not implementation or commit/push authorization.
 
+### D36J - Coherent body and quick-kick leg presentation
+
+**Status: Done (user-accepted 2026-10-26). Depends on D36G/D36H.**
+
+Implement the accepted [D36J audit contract](documentation/257-d36-first-person-presentation-audit.md#d36j---coherent-body-and-quick-kick-leg).
+Explicit lower-body polygon clipping and plain left-leg Q presentation
+(user correction), with separate right-leg door ownership; preserve weapon framing, Q hit/damage/timing, door 116,
+view choices, restoration, lighting, performance and Vanilla. Candidate evidence
+and limits: [note 261](documentation/261-d36j-body-and-kick.md). Build/native
+checks and private live routes pass within their documented bounds. User accepts
+the plain left-leg revision and authorizes closeout, commit and push. D36K/L
+are not selected.
+
 ### D37A - Safe animation restoration across save allocation layouts
 
-**Status: Needs playtest. Implemented and tested; [note 255](documentation/255-d37a-animation-save-restore.md). User selected repair and closed D37 research on 2026-10-26.**
+**Status: Done (user playtested and fully accepted 2026-10-26); [note 255](documentation/255-d37a-animation-save-restore.md). User selected repair and closed D37 research on 2026-10-26.**
 
 Repair the new-game -> saved-game allocation mismatch that clears animation data
 while the guest still references it. Recover verified animation metadata from the
@@ -20558,3 +20572,53 @@ is Done. Implementation, tests and documentation commit/push are authorized as
 MusicMonsterMod. [Note 260](documentation/260-d36i-interaction-arm-continuity.md)
 retains verification and coverage limits. No gameplay change, rebuild or launch
 during closeout; D36J-L unstarted, D37A/D19Q3 unchanged. No next job started.
+
+## 2026-10-26 - D37A accepted; D36J selected
+
+User confirms D37A was playtested and fully accepts it. D37A is Done; existing
+verification limits in note 255 remain. D19Q3 retains its separate Needs playtest
+status. No commit or push requested.
+
+D36J is selected and In progress: coherent lower-body visibility and right-leg
+quick-kick presentation under the accepted note 257 contract. Preserve Q damage,
+reach, timing, door 116 events, accepted weapon framing, saves and Vanilla.
+D36K/L remain unstarted.
+
+## 2026-10-26 - D36J body/kick candidate (Needs playtest)
+
+Natural thigh orientation replaces the flipped/knee-relocated workaround.
+Ordinary legs reach safe polygon clipping with world depth and proximity-fade
+correction; right-thigh attachment follows the kick using existing scratch.
+Native gameplay matrices, kick hits/timing, weapon framing, allocations, save
+format and Vanilla are unchanged. Build, controls/input/aim/near and D37A
+recovery checks pass. Private 60/120-setting evidence, corrected physical-view
+switching, save/load, measured bounded cost and remaining limits are in note 261.
+User visual review remains. D37A separately Done by full user playtest acceptance;
+D19Q3 still Needs playtest. No acceptance closeout, commit or push requested.
+
+## 2026-10-26 - D36J revision 2: plain left-leg Q (Needs playtest)
+
+User clarified that Q should use the plain left leg, without the right leg's
+holster. The prior candidate's right-leg choice is rejected and superseded.
+Q now uses actual costume-specific left-leg parts 1-4, retargeted to the
+existing display motion. Right leg/attachment stay native during Q; door 116
+keeps its separate right-leg presentation. Body clipping/fade and kick
+damage/timing are unchanged. Build and full controls suite pass; reviewed
+Boot/pistol/Gatling/RPG captures show the plain leg. Note 261 records revision
+evidence. User visual acceptance remains; no commit/push requested.
+Candidate: `1f4ee0da21ddc0e5659a17dfaad8d80b8ccf0a9b1cf86dd681e1fd061e11b6d2`.
+Launch: `python3 recomp/tools/local/run.py`; P first person, Q kick.
+
+## 2026-10-26 - D36J accepted and closed
+
+User: "lock it in and close us out". D36J is Done. The accepted result uses
+Duke's actual plain left leg for Q, without a holster; door 116 retains its
+separate right-leg presentation. Native body clipping/fade corrections and
+unchanged kick gameplay are included. [Note 261](documentation/261-d36j-body-and-kick.md)
+preserves the revision history, verification and bounded coverage limits.
+Accepted executable: `1f4ee0da21ddc0e5659a17dfaad8d80b8ccf0a9b1cf86dd681e1fd061e11b6d2`.
+Implementation, tests and documentation commit/push are authorized as
+MusicMonsterMod. D37A is Done by separate full user playtest acceptance;
+D19Q3 remains Needs playtest. D36K/L remain unstarted. No next job started.
+No build, launch or player-file writes during closeout; existing framework
+changes remain untouched. Launch: `python3 recomp/tools/local/run.py`.

@@ -15,9 +15,10 @@
 //   weapon stays drawn. An original request (Boot selected) is turned into it
 //   at the lower-body initializer 0x800493a4, before 112..115 is set up, by
 //   restarting idle 63 exactly as the original transition does.
-// - Duke's own right leg meshes (parts 5..8: hip, knee, ankle, toe; joints
-//   14..17 on the first map, 5..8 in the cowboy costume, D12B) are drawn in
-//   front of the eye with the current costume's meshes,
+// - Duke's plain left leg meshes (parts 1..4) supply the Q presentation.
+//   The native door kick retains right leg parts 5..8 (joints
+//   14..17 on the first map, 5..8 in the cowboy costume, D12B).
+//   The selected leg is drawn in front of the eye with the current costume,
 //   posed from the straight front kick 115 (chamber and extension, recorded in
 //   this build), and drawn on top like the D12 weapon.
 // - The same original sphere, with the same radius and damage, is placed along
@@ -50,9 +51,10 @@
 // another sound (diagnostics).
 static constexpr unsigned leg_joints=4;
 // Leg index (0 hip .. 3 toe) of one of Duke's joints, or -1.
-static int kick_leg_index(uint32_t desc,unsigned joint) {
+static int kick_leg_index(uint32_t desc,unsigned joint,bool door) {
     const int part=duke_joint_part(desc,joint);
-    return part>=(int)part_right_hip && part<(int)(part_right_hip+leg_joints) ? part-(int)part_right_hip : -1;
+    const int first=door?int(part_right_hip):1;
+    return part>=first && part<first+int(leg_joints) ? part-first : -1;
 }
 struct LegKey { double q[4]; double p[3]; };
 // Right leg world rotation (quaternion w,x,y,z) and position from the root, in
@@ -384,25 +386,6 @@ static void kick_pose(double frame,unsigned& from,unsigned& to,double& t) {
     else if(frame<kick_retract) {from=2;to=1;t=ease((frame-kick_hold)/(double)(kick_retract-kick_hold));}
     else {from=1;to=0;t=ease((frame-kick_retract)/(double)(kick_frames-kick_retract));}
 }
-// 0x800292a0 from the joint loop (ra 0x80034c6c) for a right-leg joint while
-// the kick plays: a private matrix placing that joint in front of the eye.
-// Developer switch: DNTTK_FP_KICK_THIGH=0 leaves the thigh to the loop's near cull.
-static bool kick_thigh_enabled() {
-    static const bool value=[]{const char* t=std::getenv("DNTTK_FP_KICK_THIGH");return !(t && t[0]=='0' && !t[1]);}();
-    return value;
-}
-// The thigh alone sits lower on screen by this fraction of the screen height
-// (240 lines), measured at its knee-end depth (user playtests 2026-09-30:
-// 10% first, 13% chosen).
-// Developer override: DNTTK_FP_KICK_THIGH_DROP=0..0.5.
-static double kick_thigh_drop() {
-    static const double value=[]{
-        const char* text=std::getenv("DNTTK_FP_KICK_THIGH_DROP");char* end=nullptr;
-        const double v=text?std::strtod(text,&end):-1;
-        return text && end && !*end && v>=0 && v<=0.5 ? v : 0.13;
-    }();
-    return value;
-}
 // A leg joint's level-frame rotation and root-relative position at a kick frame.
 static void leg_pose(unsigned leg,double frame,double (&lh)[3][3],double* p,bool door=false) {
     unsigned from,to;double t;
@@ -451,48 +434,61 @@ static bool kick_leg_joint(CPUState* cpu) {
     if((!kick_active && !door) || cpu->gpr[4]!=camera || cpu->gpr[20]!=player) return false;
     const unsigned joint=cpu->gpr[23];
     const uint32_t mats=psx_mod_read_word(player+0x3c),desc=psx_mod_read_word(player+0x40);
-    if(mats<0x80010000 || mats>0x801fff00 || desc!=duke_model() || !desc ||
+    if(mats<0x80010000 || mats>0x801ffd80 || desc!=duke_model() || !desc ||
        cpu->gpr[5]!=mats+0x20*joint) return false;
-    const int leg=kick_leg_index(desc,joint);
+    const int part=duke_joint_part(desc,joint);
+    // Part 21 follows the right thigh only for the native door kick.
+    // Q uses the plain left leg; the right leg and attachment stay native.
+    const bool attachment=door && part==21;
+    const int hip_joint=duke_part_joint(desc,part_right_hip);
+    const int leg=attachment?0:kick_leg_index(desc,joint,door);
     if(leg<0) return false;
+    if(attachment && hip_joint<0) return false;
     if(!leg_matrices) leg_matrices=psx_mod_alloc_guest_memory(0x20*leg_joints,16);
     if(!leg_matrices) return false;
+    // Each joint's polygons consume its matrix before the next transform.
+    // The attachment can reuse the hip scratch slot without a new allocation.
     const uint32_t out_m=leg_matrices+0x20*leg;
     const double frame=door?door_frame:kick_frame();
     const double door_anchor[3]={0,80,160};
     const double* anchor=door?door_anchor:kick_anchor();
     double p[3],lh[3][3];
     leg_pose(leg,frame,lh,p,door);
-    if(leg==0 && kick_thigh_enabled()) {
-        // The thigh's origin (the hip) is nearer than the loop's near cull
-        // (GTE H) from the eye, so the loop would skip the whole thigh. Draw
-        // it end for end instead: origin at the knee (which passes the cull),
-        // turned 180 degrees about an axis across the thigh, so the same mesh
-        // runs from the knee back toward the hip and off the bottom edge.
-        double knee[3],kl[3][3];
-        leg_pose(1,frame,kl,knee,door);
-        double d[3],u[3],n=0;
-        for(int i=0;i<3;++i) d[i]=knee[i]-p[i];
-        for(int i=0;i<3;++i) {u[i]=lh[0][i]*d[0]+lh[1][i]*d[1]+lh[2][i]*d[2];n+=u[i]*u[i];} // thigh axis, local
-        n=std::sqrt(n);
-        if(n>1) {
-            for(double& v:u) v/=n;
-            // Across the thigh: local x unless the thigh runs along it.
-            double a[3]={1,0,0};
-            if(std::abs(u[0])>0.9) {a[0]=0;a[1]=1;}
-            double w[3]={u[1]*a[2]-u[2]*a[1],u[2]*a[0]-u[0]*a[2],u[0]*a[1]-u[1]*a[0]},wn=0;
-            for(double v:w) wn+=v*v;
-            wn=std::sqrt(wn);for(double& v:w) v/=wn;
-            double flip[3][3];
-            for(int r=0;r<3;++r) for(int k=0;k<3;++k) flip[r][k]=2*w[r]*w[k]-(r==k);
-            mat_mul(lh,flip,lh);
-            for(int i=0;i<3;++i) p[i]=knee[i];
-            // Screen lines to view units at this depth: y = lines * z / H (H 256).
-            const double depth=p[2]+anchor[2];
-            if(depth>0) p[1]+=kick_thigh_drop()*240*depth/256;
-            ++kick_thigh_draws;
-        }
+    // Q uses the actual plain left-leg meshes, not a reflected right leg.
+    // Retarget the recorded kick onto their slightly different local offsets.
+    // Preserve the established camera anchor and animation phase. Door 116
+    // continues to use the right leg and its own native-timed presentation.
+    if(!door) for(int child=1;child<=leg;++child) {
+        const int left=duke_part_joint(desc,1+child),right=duke_part_joint(desc,part_right_hip+child);
+        if(left<0 || right<0) return false;
+        double parent[3][3],unused[3],delta[3];
+        leg_pose(child-1,frame,parent,unused);
+        for(int k=0;k<3;++k) delta[k]=
+            double(int32_t(psx_mod_read_word(desc+0x44+0x28*left+0x14+4*k)))-
+            int32_t(psx_mod_read_word(desc+0x44+0x28*right+0x14+4*k));
+        for(int r=0;r<3;++r) for(int k=0;k<3;++k) p[r]+=parent[r][k]*delta[k];
     }
+    if(attachment) {
+        const uint32_t hip=mats+0x20*hip_joint,accessory=mats+0x20*joint;
+        double h[3][3],a[3][3],relative[3][3],offset[3]={},delta[3];
+        for(int r=0;r<3;++r) {
+            delta[r]=double(int32_t(psx_mod_read_word(accessory+0x14+4*r)))-
+                int32_t(psx_mod_read_word(hip+0x14+4*r));
+            for(int k=0;k<3;++k) {
+                h[r][k]=int16_t(psx_mod_read_half(hip+2*(3*r+k)))/4096.0;
+                a[r][k]=int16_t(psx_mod_read_half(accessory+2*(3*r+k)))/4096.0;
+            }
+        }
+        for(int r=0;r<3;++r) {
+            for(int k=0;k<3;++k) offset[r]+=h[r][k]*delta[k];
+            for(int k=0;k<3;++k) relative[r][k]=h[r][0]*a[k][0]+h[r][1]*a[k][1]+h[r][2]*a[k][2];
+        }
+        for(int r=0;r<3;++r) for(int k=0;k<3;++k) p[r]+=lh[r][k]*offset[k];
+        mat_mul(lh,relative,lh);
+    }
+    // D36J: preserve native thigh orientation and its hip origin. The
+    // guarded depth bridge admits the mesh to proper polygon clipping.
+    if(leg==0 && !attachment) ++kick_thigh_draws;
     double c[3][3];
     for(int r=0;r<3;++r) for(int k=0;k<3;++k) c[r][k]=(int16_t)psx_mod_read_half(camera+2*(3*r+k))/4096.0;
     // Shown pitched with the view, like the weapon: stored lh^T C.
@@ -506,7 +502,7 @@ static bool kick_leg_joint(CPUState* cpu) {
         for(int k=0;k<3;++k) w+=c[k][i]*(p[k]+anchor[k]);
         psx_mod_write_word(out_m+0x14+4*i,(uint32_t)(int32_t)std::lround(w));
     }
-    limb_claim(cpu,LimbOwner::Kick,duke_joint_part(desc,joint));
+    limb_claim(cpu,LimbOwner::Kick,duke_joint_part(desc,joint),true);
     cpu->gpr[5]=out_m;++kick_leg_draws;
     return true;
 }

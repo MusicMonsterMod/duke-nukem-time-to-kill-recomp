@@ -868,7 +868,8 @@ python3 recomp/tools/local/run.py --camera-distance 3000 --shoulder right --show
 camera). The view moves to Duke's eyes with a wider field of view; the mouse
 looks, WASD moves relative to the view, and shots go to the crosshair (in the
 air too, when jumping or falling). Crouch
-lowers the view, and jumps keep it. Duke's head and body are hidden. With a weapon
+lowers the view, and jumps keep it. Duke's head is hidden; his legs can be seen
+when looking down during ordinary movement, with polygon clipping at the eye. With a weapon
 drawn you see Duke's own gloved hand and connected arm holding it at the lower
 right, always in front of walls, with the original muzzle flash and a small kick
 when firing. Two-handed weapons also show a connected support hand and arm;
@@ -887,11 +888,9 @@ it to chain kicks while running with any weapon. Kicks do not knock enemies
 back the way the original full kick sometimes does. In Modernized, a kick that
 connects (first or third person) lands with a solid thud (Duke's wall-bump
 thud, pitched up so it carries): once per kick, on an enemy, a breakable object or
-a wall. A kick that hits nothing stays silent. To compare the leg without its thigh for one launch:
-
-```sh
-DNTTK_FP_KICK_THIGH=0 python3 recomp/tools/local/run.py
-```
+a wall. A kick that hits nothing stays silent. Q displays Duke's plain left leg, without a holster. The separate hinged-door
+kick uses his right leg. Kick
+reach, damage and timing are unchanged.
 
 First-person view stays active while swimming at the surface, diving and
 swimming underwater. The swimming eye stays steady through the stroke, with

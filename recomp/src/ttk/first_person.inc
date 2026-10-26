@@ -1055,7 +1055,7 @@ static void first_person_weapon_joint(CPUState* cpu,uint32_t ra) {
     // have always relinquished admission on any intervening transform call.
     if(ra==0x80034c6c) limb_scope_end(cpu);
     else {
-        if(limb_draw.interaction()) limb_draw={};
+        if(limb_draw.world_clip()) limb_scope_end(cpu);
         limb_draw.bridge_joint_depth=false;
     }
     if(ra==0x80034c6c && weapon_duke_draw && fp_blend>=0.5 && orbit_valid &&
@@ -1067,6 +1067,19 @@ static void first_person_weapon_joint(CPUState* cpu,uint32_t ra) {
     }
     // D12A: the right leg while the first-person quick kick plays (kick.inc).
     if(ra==0x80034c6c && weapon_duke_draw && fp_blend>=0.5 && orbit_valid && kick_leg_joint(cpu)) return;
+    // D36J: ordinary locomotion legs retain the native pose and world depth.
+    // Admit polygons even when their joint origin crosses H. Traversal and
+    // interaction bodies keep their accepted policy (D36K owns that review).
+    if(ra==0x80034c6c && weapon_duke_draw && fp_blend>=0.5 && orbit_valid &&
+       fp_policy.effective && (fp_policy.action==PerspectiveAction::Ground ||
+       fp_policy.action==PerspectiveAction::Committed || fp_policy.action==PerspectiveAction::Fall) &&
+       cpu->gpr[4]==camera && cpu->gpr[20]==player) {
+        const uint32_t desc=duke_model(),mats=psx_mod_read_word(player+0x3c);
+        const int part=desc?duke_joint_part(desc,cpu->gpr[23]):-1;
+        if(((part>=1 && part<=8) || part==21) && mats>=0x80010000 && mats<=0x801ffd80 &&
+           cpu->gpr[5]==mats+0x20*cpu->gpr[23])
+            limb_claim(cpu,LimbOwner::Body,part,true);
+    }
     if(ra!=0x80034c6c || !weapon_duke_draw || fp_blend<0.5 || !orbit_valid || !weapon_view_enabled() || !weapon_held()) return;
     // Draw loop registers: s4 the actor, s7 the joint index.
     const uint32_t real=hand_matrix(),desc=psx_mod_read_word(player+0x40);
@@ -1140,9 +1153,10 @@ static void first_person_weapon_attached(CPUState* cpu,uint32_t address,uint32_t
 
 // D35E: the native joint loop skips an entire arm when its origin is
 // nearer than GTE H, before the polygon near clipper can see it. The ownership
-// contract admits native traversal/interaction arms and D36H display arms.
+// contract admits native traversal/interaction arms, D36H display arms and
+// D36J body/kick geometry. Eligibility stays with each semantic owner.
 // s0 is only the loop's saved joint depth; real transforms and projection remain
-// unchanged. Native arms keep world occlusion; display arms use viewmodel depth.
+// unchanged. Native limbs keep world occlusion; display limbs use viewmodel depth.
 static void first_person_ladder_near(CPUState* cpu,uint32_t ra) {
     if(ra!=0x80034c8c || !weapon_duke_draw ||
        !limb_draw.bridge_joint_depth || !fp_policy.effective ||

@@ -174,11 +174,21 @@ index 9f64b4ab..9e14fee6 100644
                                      int *history_frames,
                                      double *host_hz, double *target_hz,
 diff --git a/runtime/include/host_osd.h b/runtime/include/host_osd.h
-index e4e6f307..e44860cf 100644
+index e4e6f307..63b065a7 100644
 --- a/runtime/include/host_osd.h
 +++ b/runtime/include/host_osd.h
-@@ -18,9 +18,29 @@ extern "C" {
+@@ -16,11 +16,39 @@ extern "C" {
+  * when OSD is gated off.
+  */
  
++/* D07G: crosshair art uses fractional fitted-picture scaling, with a readable
++ * 2x floor. Round only the final extent, avoiding whole-scale resize jumps. */
++static inline int host_osd_crosshair_extent(int texels, float picture_height) {
++    float scale = picture_height / 480.f;
++    if (scale < 2.f) scale = 2.f;
++    return (int)(texels * scale + 0.5f);
++}
++
  /* Top-left text toast. duration_ms <= 0 uses 2000. */
  void host_osd_push(const char *msg, int duration_ms);
 +void host_osd_push_centered(const char *msg, int duration_ms);
@@ -1512,7 +1522,7 @@ index aaf69df7..95a839ee 100644
          gp0_ring = (GpuGp0RingEntry *)calloc(GP0_RING_CAP, sizeof(*gp0_ring));
          if (!gp0_ring) return;  /* OOM — capture disabled, no other effect */
 diff --git a/runtime/src/gpu_gl_renderer.c b/runtime/src/gpu_gl_renderer.c
-index d0ccc3d5..ee1e0930 100644
+index d0ccc3d5..884c9625 100644
 --- a/runtime/src/gpu_gl_renderer.c
 +++ b/runtime/src/gpu_gl_renderer.c
 @@ -1,3 +1,4 @@
@@ -3992,7 +4002,7 @@ index d0ccc3d5..ee1e0930 100644
              const uint32_t *px = NULL;
              int ow = 0, oh = 0;
              /* OSD authored for ~480-tall present; grow with drawable height. */
-@@ -3972,9 +5137,61 @@ static void gl_swap_with_osd(void) {
+@@ -3972,9 +5137,64 @@ static void gl_swap_with_osd(void) {
              if (ui < 1) ui = 1;
              if (ui > 8) ui = 8;
              margin = 8 * ui;
@@ -4000,8 +4010,11 @@ index d0ccc3d5..ee1e0930 100644
 -                gl_draw_osd_image(px, ow, oh, ow * ui, oh * ui,
 -                                  margin, margin, ww, wh);
 +            if (ttk_aim_crosshair_image(&px, &ow, &oh) && px) {
-+                int dw = ow * ui, dh = oh * ui;
-+                gl_draw_osd_image(px, ow, oh, dw, dh, (ww - dw) / 2, (wh - dh) / 2, ww, wh);
++                int lx, ly, lw, lh;
++                letterbox_rect(ww, wh, &lx, &ly, &lw, &lh);
++                const int dw = host_osd_crosshair_extent(ow, (float)lh);
++                const int dh = host_osd_crosshair_extent(oh, (float)lh);
++                gl_draw_osd_image(px, ow, oh, dw, dh, lx + (lw - dw) / 2, ly + (lh - dh) / 2, ww, wh);
 +            }
 +            {
 +                int cy = 0;
@@ -4057,7 +4070,7 @@ index d0ccc3d5..ee1e0930 100644
              if (host_osd_volume_image(&px, &ow, &oh) && px) {
                  const int dw = ow * ui, dh = oh * ui;
                  int vx = (ww > dw + margin) ? (ww - dw - margin) : margin;
-@@ -4012,6 +5229,7 @@ static void gl_swap_with_osd(void) {
+@@ -4012,6 +5232,7 @@ static void gl_swap_with_osd(void) {
                  uint8_t *rows = (uint8_t *)malloc((size_t)ww * wh * 3);
                  uint8_t *flip = rows ? (uint8_t *)malloc((size_t)ww * wh * 3) : NULL;
                  if (rows && flip) {
@@ -4065,7 +4078,7 @@ index d0ccc3d5..ee1e0930 100644
                      glPixelStorei(GL_PACK_ALIGNMENT, 1);
                      glReadPixels(0, 0, ww, wh, GL_RGB, GL_UNSIGNED_BYTE, rows);
                      for (int y = 0; y < wh; y++)
-@@ -4038,13 +5256,13 @@ static void present_target_quad(GLuint tex, int tex_w, int tex_h,
+@@ -4038,13 +5259,13 @@ static void present_target_quad(GLuint tex, int tex_w, int tex_h,
                                  int x, int y, int w, int h, int linear,
                                  int lx, int ly, int lw, int lh, int v_flip) {
      float u0, v0, u1, v1;
@@ -4081,7 +4094,7 @@ index d0ccc3d5..ee1e0930 100644
      p_glUniform1i(s_present_uTex, 0);
      /* The rasterized path already renders at the internal scale, so it has no
       * low-res source to reconstruct — keep the plain sample. */
-@@ -4068,10 +5286,10 @@ static void present_target_quad(GLuint tex, int tex_w, int tex_h,
+@@ -4068,10 +5289,10 @@ static void present_target_quad(GLuint tex, int tex_w, int tex_h,
          v1 = t;
      }
      p_glUniform4f(s_present_uUvRect, u0, v0, u1, v1);
@@ -4095,7 +4108,7 @@ index d0ccc3d5..ee1e0930 100644
  }
  
  /* Bezel art: a still image behind the frame, filling whatever the letterbox or
-@@ -4104,19 +5322,19 @@ int gl_renderer_has_bezel(void) { return s_bezel_tex != 0; }
+@@ -4104,19 +5325,19 @@ int gl_renderer_has_bezel(void) { return s_bezel_tex != 0; }
  static void present_bezel(int ww, int wh, int lx, int ly, int lw, int lh) {
      if (!s_bezel_tex || ww <= 0 || wh <= 0) return;
      if (lx <= 0 && ly <= 0 && lw >= ww && lh >= wh) return;
@@ -4122,7 +4135,7 @@ index d0ccc3d5..ee1e0930 100644
  }
  
  int gl_renderer_present_hold_last(void) {
-@@ -4131,8 +5349,8 @@ int gl_renderer_present_hold_last(void) {
+@@ -4131,8 +5352,8 @@ int gl_renderer_present_hold_last(void) {
       * the hold texture. Still present the host overlays: otherwise save-state
       * rejection/status messages are generated but remain invisible on GL. */
      if (s_hold_kind == HOLD_NONE || !s_hold_tex) {
@@ -4133,7 +4146,7 @@ index d0ccc3d5..ee1e0930 100644
          glClearColor(0.f, 0.f, 0.f, 1.f);
          glClear(GL_COLOR_BUFFER_BIT);
          latency_ring_mark(LAT_SWAP_BEGIN);
-@@ -4141,8 +5359,8 @@ int gl_renderer_present_hold_last(void) {
+@@ -4141,8 +5362,8 @@ int gl_renderer_present_hold_last(void) {
          s_probe_swap++;
          return 1;
      }
@@ -4144,7 +4157,7 @@ index d0ccc3d5..ee1e0930 100644
      glClearColor(0.f, 0.f, 0.f, 1.f);
      glClear(GL_COLOR_BUFFER_BIT);
      if (s_hold_kind == HOLD_DRAWABLE) {
-@@ -4204,7 +5422,8 @@ void gl_renderer_present_vram(int disp_x, int disp_y, int w, int h, int linear,
+@@ -4204,7 +5425,8 @@ void gl_renderer_present_vram(int disp_x, int disp_y, int w, int h, int linear,
          !present_dirty_test(disp_x, disp_y, disp_x + w - 1, disp_y + h - 1) &&
          !host_osd_needs_present() &&
          !psx_present_vsync_owns_cadence() &&
@@ -4154,7 +4167,7 @@ index d0ccc3d5..ee1e0930 100644
          s_probe_skip++;
          gl_perf_present_enter();
          gl_perf_present_exit(0);
-@@ -4221,12 +5440,22 @@ void gl_renderer_present_vram(int disp_x, int disp_y, int w, int h, int linear,
+@@ -4221,12 +5443,22 @@ void gl_renderer_present_vram(int disp_x, int disp_y, int w, int h, int linear,
       * display mode (e.g. 216/224-line menus) must fill the rect as before.
       * The FMV band fix lives in the depth24/CPU present paths only. */
  
@@ -4179,7 +4192,7 @@ index d0ccc3d5..ee1e0930 100644
      int interp_pair = interp_capture(s_hr_fbo, disp_x, disp_y, w, h,
                                       linear, force_4_3, GL_PRES_VRAM);
      if (interp_pair) {
-@@ -4270,7 +5499,11 @@ static void wide_blit_center(GLuint wide_fbo, int base_x, int disp_y, int disp_h
+@@ -4270,7 +5502,11 @@ static void wide_blit_center(GLuint wide_fbo, int base_x, int disp_y, int disp_h
      int native_w = g_wide_w - 2 * g_wide_off;
      if (native_w <= 0) return;
      int S = s_scale;
@@ -4192,7 +4205,7 @@ index d0ccc3d5..ee1e0930 100644
      /* Copy the canonical framebuffer column into the wide surface CENTRE over the
       * FULL VRAM height, not just the current display band [disp_y, disp_y+disp_h].
       * The wide surface holds BOTH vertical double-buffer bands (Ape flips
-@@ -4279,16 +5512,16 @@ static void wide_blit_center(GLuint wide_fbo, int base_x, int disp_y, int disp_h
+@@ -4279,16 +5515,16 @@ static void wide_blit_center(GLuint wide_fbo, int base_x, int disp_y, int disp_h
       * column makes the wide CENTRE bit-identical to what the full mirror would
       * have drawn there for every band, so nothing the present reads is ever left
       * black. The margins (x outside the centre) are untouched. */
@@ -4218,7 +4231,7 @@ index d0ccc3d5..ee1e0930 100644
  }
  
  /* GPU-direct native-wide present: blit the displayed buffer's wide FBO straight
-@@ -4315,7 +5548,8 @@ int gl_renderer_present_wide_fbo(int disp_x, int disp_y, int disp_h, int linear)
+@@ -4315,7 +5551,8 @@ int gl_renderer_present_wide_fbo(int disp_x, int disp_y, int disp_h, int linear)
          !present_dirty_test(0, disp_y, VRAM_W - 1, disp_y + disp_h - 1) &&
          !host_osd_needs_present() &&
          !psx_present_vsync_owns_cadence() &&
@@ -4228,7 +4241,7 @@ index d0ccc3d5..ee1e0930 100644
          s_probe_skip++;
          gl_perf_present_enter();
          gl_perf_present_exit(1);
-@@ -4327,12 +5561,23 @@ int gl_renderer_present_wide_fbo(int disp_x, int disp_y, int disp_h, int linear)
+@@ -4327,12 +5564,23 @@ int gl_renderer_present_wide_fbo(int disp_x, int disp_y, int disp_h, int linear)
      letterbox_rect(ww, wh, &lx, &ly, &lw, &lh);
      wide_blit_center(fbo, disp_x, disp_y, disp_h);   /* fast-path: authoritative centre */
  
@@ -4472,7 +4485,7 @@ index 5f66e0a9..470da031 100644
      return 0;
  }
 diff --git a/runtime/src/host_osd.c b/runtime/src/host_osd.c
-index 62c387d0..ced75e30 100644
+index 62c387d0..31a8cd9e 100644
 --- a/runtime/src/host_osd.c
 +++ b/runtime/src/host_osd.c
 @@ -11,19 +11,20 @@
@@ -4614,7 +4627,7 @@ index 62c387d0..ced75e30 100644
      int n = (int)strlen(msg);
      if (n > OSD_MAX_CHARS) n = OSD_MAX_CHARS;
      s_img_w = (OSD_PAD_X * 2 + n * OSD_GLYPH_W) * OSD_SCALE;
-@@ -276,7 +352,14 @@ static void sdl_blit_argb(SDL_Renderer *renderer, SDL_Texture **tex,
+@@ -276,9 +352,23 @@ static void sdl_blit_argb(SDL_Renderer *renderer, SDL_Texture **tex,
                                   SDL_TEXTUREACCESS_STREAMING, w, h);
          *tw = w;
          *th = h;
@@ -4629,8 +4642,17 @@ index 62c387d0..ced75e30 100644
 +        }
      }
      if (!*tex) return;
++    if (ttk_aim_crosshair_pixels(px)) {
++#if defined(PSX_SDL3)
++        SDL_SetTextureScaleMode(*tex, SDL_SCALEMODE_NEAREST);
++#else
++        SDL_SetTextureScaleMode(*tex, SDL_ScaleModeNearest);
++#endif
++    }
      void *locked = NULL;
-@@ -337,30 +420,232 @@ void host_osd_push(const char *msg, int duration_ms) {
+     int pitch = 0;
+ #if defined(PSX_SDL3)
+@@ -337,30 +427,232 @@ void host_osd_push(const char *msg, int duration_ms) {
      snprintf(s_msg, sizeof(s_msg), "%s", msg);
      s_expire_ms = SDL_GetTicks() + (Uint32)duration_ms;
      s_active = 1;
@@ -4693,10 +4715,10 @@ index 62c387d0..ced75e30 100644
 +    if (!line) line = "";
 +    snprintf(s_console_line, sizeof(s_console_line), "%s", line);
 +    s_console_dirty = 1;
-     s_needs_clear = 0;
- #endif
- }
- 
++    s_needs_clear = 0;
++#endif
++}
++
 +void host_osd_console_clear(void) {
 +#if !HOST_OSD_VISUAL
 +    return;
@@ -4724,10 +4746,10 @@ index 62c387d0..ced75e30 100644
 +    }
 +    s_console_scroll = 0; /* new output shows the newest lines */
 +    s_console_dirty = 1;
-+    s_needs_clear = 0;
-+#endif
-+}
-+
+     s_needs_clear = 0;
+ #endif
+ }
+ 
 +/* Scrollback (D24A follow-up): delta lines up (+) or down (-); a large value
 + * jumps to the oldest or newest line. Declared by main.cpp. */
 +void host_osd_console_scroll(int delta) {
@@ -4870,7 +4892,7 @@ index 62c387d0..ced75e30 100644
  void host_osd_show_volume(int percent, int duration_ms) {
  #if !HOST_OSD_VISUAL
      (void)percent;
-@@ -398,7 +683,7 @@ int host_osd_needs_present(void) {
+@@ -398,7 +690,7 @@ int host_osd_needs_present(void) {
  #if !HOST_OSD_VISUAL
      return 0;
  #else
@@ -4879,7 +4901,7 @@ index 62c387d0..ced75e30 100644
      return s_needs_clear;
  #endif
  }
-@@ -410,21 +695,14 @@ int host_osd_image(const uint32_t **pixels, int *w, int *h) {
+@@ -410,21 +702,14 @@ int host_osd_image(const uint32_t **pixels, int *w, int *h) {
      if (h) *h = 0;
      return 0;
  #else
@@ -4904,7 +4926,7 @@ index 62c387d0..ced75e30 100644
      if (pixels) *pixels = s_img;
      if (w) *w = s_img_w;
      if (h) *h = s_img_h;
-@@ -432,6 +710,60 @@ int host_osd_image(const uint32_t **pixels, int *w, int *h) {
+@@ -432,6 +717,60 @@ int host_osd_image(const uint32_t **pixels, int *w, int *h) {
  #endif
  }
  
@@ -4965,7 +4987,7 @@ index 62c387d0..ced75e30 100644
  int host_osd_volume_image(const uint32_t **pixels, int *w, int *h) {
  #if !HOST_OSD_VISUAL
      if (pixels) *pixels = NULL;
-@@ -457,14 +789,39 @@ void host_osd_present_done(void) {
+@@ -457,14 +796,63 @@ void host_osd_present_done(void) {
  #if !HOST_OSD_VISUAL
      return;
  #else
@@ -4983,12 +5005,36 @@ index 62c387d0..ced75e30 100644
 +    {
 +        const uint32_t *cx = NULL; int cw = 0, ch = 0;
 +        if (ttk_aim_crosshair_image(&cx, &cw, &ch) && cx) {
-+            int w = 640, h = 480; sdl_logical_size(renderer, &w, &h);
-+            int scale = h / 480; if (scale < 1) scale = 1;
-+            /* 1× EDuke CROSSHAIR tile (half of prior 2×), then present UI scale. */
-+            int dw = cw * scale, dh = ch * scale;
-+            sdl_blit_argb(renderer, &s_sdl_tex, &s_sdl_tw, &s_sdl_th, cx, cw, ch,
-+                          (w - dw) / 2, (h - dh) / 2, dw, dh);
++#if defined(PSX_SDL3)
++            /* Draw in output pixels, independent of internal render resolution. */
++            int old_w=0, old_h=0, w=0, h=0;
++            SDL_RendererLogicalPresentation mode=SDL_LOGICAL_PRESENTATION_DISABLED;
++            SDL_Rect view, clip; float sx=1, sy=1;
++            const bool clipped=SDL_RenderClipEnabled(renderer);
++            SDL_GetRenderLogicalPresentation(renderer,&old_w,&old_h,&mode);
++            SDL_GetRenderViewport(renderer,&view); SDL_GetRenderClipRect(renderer,&clip);
++            SDL_GetRenderScale(renderer,&sx,&sy); SDL_GetRenderOutputSize(renderer,&w,&h);
++            SDL_FRect fit={0,0,(float)w,(float)h};
++            if(mode==SDL_LOGICAL_PRESENTATION_DISABLED ||
++               !SDL_GetRenderLogicalPresentationRect(renderer,&fit) || fit.w<1 || fit.h<1)
++                fit=(SDL_FRect){0,0,(float)w,(float)h};
++            const int dw=host_osd_crosshair_extent(cw,fit.h);
++            const int dh=host_osd_crosshair_extent(ch,fit.h);
++            SDL_SetRenderLogicalPresentation(renderer,0,0,SDL_LOGICAL_PRESENTATION_DISABLED);
++            SDL_SetRenderViewport(renderer,NULL); SDL_SetRenderClipRect(renderer,NULL);
++            SDL_SetRenderScale(renderer,1,1);
++            sdl_blit_argb(renderer,&s_sdl_tex,&s_sdl_tw,&s_sdl_th,cx,cw,ch,
++                          (int)(fit.x+(fit.w-dw)/2), (int)(fit.y+(fit.h-dh)/2), dw,dh);
++            SDL_SetRenderLogicalPresentation(renderer,old_w,old_h,mode);
++            SDL_SetRenderScale(renderer,sx,sy); SDL_SetRenderViewport(renderer,&view);
++            SDL_SetRenderClipRect(renderer,clipped?&clip:NULL);
++#else
++            int w=640,h=480; sdl_logical_size(renderer,&w,&h);
++            const int dw=host_osd_crosshair_extent(cw,(float)h);
++            const int dh=host_osd_crosshair_extent(ch,(float)h);
++            sdl_blit_argb(renderer,&s_sdl_tex,&s_sdl_tw,&s_sdl_th,cx,cw,ch,
++                          (w-dw)/2,(h-dh)/2,dw,dh);
++#endif
 +        }
 +    }
 +    {
@@ -5006,7 +5052,7 @@ index 62c387d0..ced75e30 100644
  #if HOST_OSD_VISUAL
      {
          const uint32_t *px;
-@@ -477,9 +834,132 @@ void host_osd_draw_sdl(struct SDL_Renderer *renderer) {
+@@ -477,9 +865,132 @@ void host_osd_draw_sdl(struct SDL_Renderer *renderer) {
          if (ui < 1) ui = 1;
          if (ui > 8) ui = 8;
          margin = 8 * ui;
@@ -5056,7 +5102,8 @@ index 62c387d0..ced75e30 100644
 +                SDL_SetRenderViewport(renderer, &old_view); SDL_SetRenderClipRect(renderer, clipped?&old_clip:NULL);
 +            } else
 +#endif
-+            sdl_blit_argb(renderer, &s_sdl_tex, &s_sdl_tw, &s_sdl_th, px, w, h,
+             sdl_blit_argb(renderer, &s_sdl_tex, &s_sdl_tw, &s_sdl_th, px, w, h,
+-                          margin, margin, w * ui, h * ui);
 +                          margin, margin, w * tui, h * tui);
 +        }
 +        if (host_osd_image(&px, &w, &h) && px) {
@@ -5091,8 +5138,7 @@ index 62c387d0..ced75e30 100644
 +                SDL_SetRenderViewport(renderer, &old_view); SDL_SetRenderClipRect(renderer, clipped?&old_clip:NULL);
 +            } else
 +#endif
-             sdl_blit_argb(renderer, &s_sdl_tex, &s_sdl_tw, &s_sdl_th, px, w, h,
--                          margin, margin, w * ui, h * ui);
++            sdl_blit_argb(renderer, &s_sdl_tex, &s_sdl_tw, &s_sdl_th, px, w, h,
 +                          host_osd_text_centered() ? (lw-w*tui)/2 : margin, margin, w * tui, h * tui);
 +        }
 +        /* Inventory is a separate temporary surface; never replaces quotes.

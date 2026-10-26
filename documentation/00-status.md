@@ -1,5 +1,26 @@
 # Current status - 2026-10-04
 
+## 2026-10-26 - D07G accepted and closed
+
+D07G is Done. User: "perfect, lock it in and close it out". Windowed crosshair
+readability is accepted; implementation, manual and documentation commit/push
+explicitly authorized. [Note 276](276-d07g-crosshair-scaling.md) retains build,
+aim/UI tests, 36 measured capture checks and remaining platform coverage limits.
+No new build, game launch or next job during closeout.
+Launch `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-26 - D07G crosshair scaling candidate
+
+Needs playtest. Crosshair scaling now follows fitted game-picture height with
+a crisp 18-pixel minimum and fractional growth at larger sizes. OpenGL and
+SDL3/software window/aspect checks pass; aiming and visibility behavior retained.
+Build, native aim suite and 10 UI art tests pass. Framework patch exported and
+checked against the pinned dependency. [Note 276](276-d07g-crosshair-scaling.md).
+User should compare small windows, resizing and fullscreen, and I off/on.
+No acceptance closeout, commit or push. Launch `python3 recomp/tools/local/run.py`.
+
+
 ## 2026-10-26 - D35J5 accepted and closed
 
 D35J5 is Done. User: "awesome!!! lock it in and close us out". Frozen first-person

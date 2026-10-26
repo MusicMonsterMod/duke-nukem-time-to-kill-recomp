@@ -1767,7 +1767,9 @@ Depletion falls back to the first usable gadget. Menus and released capture hide
 the strip. Selector frame is locked at 50×60 with a −6px frame-only vertical
 nudge. Existing custom bindings still apply. The Modernized view crosshair is
 the project's own lime-green 9x9 crosshair (it replaced EDuke's CROSSHAIR tile
-2523), and the selector frame is the project's own metal frame. See
+2523). It stays at least 18 pixels wide in small windows and scales with the
+fitted game picture at larger sizes, with crisp edges. **I** still toggles it.
+The selector frame is the project's own metal frame. See
 [session findings](documentation/51-session-inventory-crosshair.md).
 
 **Mission items (D08A5).** **, / .** (comma and period, the < and > keys) open

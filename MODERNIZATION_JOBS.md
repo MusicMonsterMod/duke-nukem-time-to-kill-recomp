@@ -1,5 +1,7 @@
 # Time to Kill — modernization jobs
 
+**Latest closeout (2026-10-26): D07G is Done. User accepted crosshair readability and authorized lock-in/closeout. [Note 276](documentation/276-d07g-crosshair-scaling.md). No next job started.**
+
 **Latest closeout (2026-10-26): D35J5 is Done. User accepted frozen first-person blue vision and explicitly authorized lock-in/closeout. [Note 275](documentation/275-d35j5-frozen-first-person.md) retains verification limits. No next job started.**
 
 
@@ -184,7 +186,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D07D | Red autoaim dot off by default in Modernized (crosshair only) | Done | D07B, D07C |
 | D07E | Shots on a stale movement lease fall back to the original auto-aim; `original` weapon aim keeps a stale aim vector | Done (user-accepted 2026-10-19) | D07C, D22D |
 | D07F | Airborne shots ignore the crosshair: jump and fire looking down, the blast lands ahead of Duke (RPG, shotgun) | Done (user-accepted 2026-10-20) | D07C, D08Z |
-| D07G | Readable crosshair scaling in windowed mode | Todo | D07B, D08A22 |
+| D07G | Readable crosshair scaling in windowed mode | Done (user-accepted 2026-10-26) | D07B, D08A22 |
 | D08 | Modern traversal controls — accepted iteration | Done | D05, D06, D07 |
 | D08A | EDuke32-style weapon and item shortcuts | Done | D04, D08 |
 | D08A1 | Visible EDuke32-style inventory cycling | Done | D04, D19A |
@@ -1717,7 +1719,7 @@ Connect view direction to actual shots and projectiles. Account for muzzle offse
 
 ### D07G - Readable crosshair scaling in windowed mode
 
-**Status: Todo. Backlog intake only; explicitly not started.**
+**Status: Done (user-accepted 2026-10-26).**
 
 User report, 2026-10-26: the crosshair looks "really, really tiny" in windowed
 mode. Improve its scaling/readability across window sizes. Exact window size,
@@ -1742,7 +1744,9 @@ consistently without abrupt size jumps, stays centered within the game picture,
 and retains acceptable fullscreen proportions. Verify representative sizes and
 aspect ratios on supported renderer paths; user playtest decides readability.
 
-No source changes, investigation, build or launch for this job until selected.
+User accepted: "perfect, lock it in and close it out". Implementation and documentation
+commit/push authorized. [Note 276](documentation/276-d07g-crosshair-scaling.md) records
+the completed verification and remaining platform coverage limits.
 
 ### D07A — View-aligned Duke facing and weapon presentation
 
@@ -21198,3 +21202,23 @@ commit/push explicitly authorized. [Note 275](documentation/275-d35j5-frozen-fir
 retains the tested 60/120 slot-11 route, renderer workaround and coverage limits.
 No new build, game launch, framework edits or next job during closeout.
 Launch `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-26 - D07G crosshair scaling candidate
+
+D07G is Needs playtest. OpenGL and SDL3/software use fractional fitted-picture
+scaling with an 18-pixel minimum, nearest sampling and centered placement.
+Build, native aim suite, 10 UI art tests and the 32-case window/aspect/renderer
+capture matrix pass. User readability acceptance remains.
+[Note 276](documentation/276-d07g-crosshair-scaling.md) records evidence and limits.
+Framework patch exported and verified against the pinned clean dependency.
+No acceptance closeout, commit or push; no next job started.
+
+
+## 2026-10-26 - D07G accepted and closed
+
+D07G is Done. User: "perfect, lock it in and close it out". Windowed crosshair
+readability accepted; implementation, manual and documentation commit/push
+explicitly authorized. [Note 276](documentation/276-d07g-crosshair-scaling.md)
+retains the build, aim/UI tests, 36 measured capture checks and platform limits.
+No new build, game launch or next job during closeout.

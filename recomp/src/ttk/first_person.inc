@@ -44,7 +44,7 @@ static double eye_offset[3];
 static bool eye_offset_valid;
 static ActionPerspective fp_policy;
 static bool min_boom_written;
-static uint32_t head_flag;
+static uint32_t head_flag, backpack_flag;
 static uint64_t fp_updates, fp_fallbacks, head_hides, projections;
 static int last_projection;
 
@@ -74,9 +74,10 @@ static void min_boom_restore() {
     min_boom_written=false;
 }
 static void head_restore() {
-    if(!head_flag) return;
-    psx_mod_write_byte(head_flag,psx_mod_read_byte(head_flag)&~1u);
-    head_flag=0;
+    for(uint32_t* flag:{&head_flag,&backpack_flag}) {
+        if(*flag) psx_mod_write_byte(*flag,psx_mod_read_byte(*flag)&~1u);
+        *flag=0;
+    }
 }
 // 0x800b4d9c(H) entry from the render's per-frame load of camera[+0x42].
 static void first_person_projection(CPUState* cpu,uint32_t ra) {
@@ -443,6 +444,17 @@ static void first_person_draw(bool duke,bool eye) {
     if(!eye || fp_blend<0.5 || !orbit_valid) return;
     psx_mod_write_byte(record,psx_mod_read_byte(record)|1);
     head_flag=record;++head_hides;
+    // D36K: the pitched swim body carries the back-mounted pack through the
+    // eye. Hide only its semantic joint in this primary swimming draw. The
+    // native pose, attachment and third-person/reflection draws stay intact.
+    if(fp_policy.effective && fp_policy.action==PerspectiveAction::Swimming)
+        if(const uint32_t desc=duke_model()) {
+            const int joint=duke_part_joint(desc,part_backpack);
+            if(joint>=0) {
+                backpack_flag=desc+0x44+0x28*joint;
+                psx_mod_write_byte(backpack_flag,psx_mod_read_byte(backpack_flag)|1);
+            }
+        }
 }
 
 // D12 first-person weapon: Duke's own right hand joint and the original

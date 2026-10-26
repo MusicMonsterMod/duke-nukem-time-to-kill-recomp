@@ -1135,7 +1135,7 @@ static void camera_world_reset() {
     fp_blend=0;PerspectiveFacts reset{};reset.selected=input_snapshot(Context::Gameplay).first_person;
     reset.denial=PerspectiveReason::WorldChange;fp_policy=resolve_perspective(reset);
     limb_scope_forget();
-    head_flag=0;min_boom_written=false;fade_save.active=false;third_body_drawing=false;mirror_duke_drawing=false;
+    head_flag=backpack_flag=0;min_boom_written=false;fade_save.active=false;third_body_drawing=false;mirror_duke_drawing=false;
     eye_offset_valid=false;eye_rel_valid=false;bob_last_valid=false;bob_frame=0;
     jump_camera=false;flight_valid=false;takeoff_valid=false;
 }
@@ -1842,7 +1842,7 @@ void render_state_load(const void* in) {
     kick_active=r.kick_active; override_kick_frame=r.kick_frame;
     kick_point=r.kick_point; leg_matrices=r.leg_matrices;
     // Draw-time transients start clean, as at the start of a live frame.
-    head_flag=0; third_body_drawing=false; mirror_duke_drawing=false; duke_drawing=false; actor_drawing=false; limb_scope_forget();
+    head_flag=backpack_flag=0; third_body_drawing=false; mirror_duke_drawing=false; duke_drawing=false; actor_drawing=false; limb_scope_forget();
     render_override=true; override_lease_cam=r.lease_cam;
     override_crouch_weapon=r.crouch_weapon;
     override_swim_weapon=r.swim_weapon;

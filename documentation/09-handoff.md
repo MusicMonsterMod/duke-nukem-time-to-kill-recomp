@@ -1,5 +1,56 @@
 # Next-session handoff
 
+## 2026-10-26 - D36K accepted and closed
+
+User confirmed "fixed, lock it in, and close it out." D36K is Done. The
+traversal/special-action coverage and the slot 12 swimming backpack correction
+are accepted. Only the mapped backpack joint is hidden during the effective
+first-person swimming draw; native motion and third-person presentation remain.
+[Note 262](262-d36k-traversal-presentation-coverage.md) preserves the coverage,
+regression evidence and bounded limits. Accepted executable:
+`ba5f474f1af044de08ca9e71691d6e32eb766d4b86ae5dfc974814377f7de803`.
+Implementation, tests and documentation closeout, commit and push are authorized
+as MusicMonsterMod. Existing framework edits remain untouched. No rebuild,
+game launch or player-save/settings writes during closeout. D36L remains
+unselected; D19Q3 remains Needs playtest. No next job started.
+Launch: `python3 recomp/tools/local/run.py`.
+
+## 2026-10-26 - D36K swimming backpack correction ready
+
+D36K is Needs playtest for the user's slot 12 retest. The sole reported critique
+in `backpack.mp4` reproduced during submerged up/down movement with downward
+look. The candidate hides only the mapped backpack joint during the effective
+first-person swimming draw; third person, reflection, flight, movement and
+weapon presentation retain their existing behavior. [Note 262](262-d36k-traversal-presentation-coverage.md)
+records source ownership, the baseline/candidate comparison, native regressions,
+60/120-setting private runs, view switching and save/load. Build and tests pass;
+120 replay recorded zero failures. All 42 intake player-save/card/settings/patch
+files retain hashes/mtimes. Diagnostic games stopped; framework edits untouched.
+Candidate: `ba5f474f1af044de08ca9e71691d6e32eb766d4b86ae5dfc974814377f7de803`.
+No acceptance closeout, commit or push; D36L remains unselected.
+Launch: `python3 recomp/tools/local/run.py`; load slot 12, P first person,
+dive and move up/down while looking down.
+
+## 2026-10-26 - D36K coverage ready for visual review
+
+D36K is Needs playtest for human motion/appearance acceptance. The selected
+traversal/special-action coverage pass found no new demonstrated presentation
+defect requiring a gameplay change. Accepted D36J executable remains
+`1f4ee0da21ddc0e5659a17dfaad8d80b8ccf0a9b1cf86dd681e1fd061e11b6d2`.
+[Note 262](262-d36k-traversal-presentation-coverage.md) records natural 60/120
+routes, both action choices/global Third Person, 240-setting stress, Vanilla
+smokes, native use, swimming/water exit, flight, gas/gadgets and death/Continue.
+Failed short-tap, wrong-save and premature menu attempts are explicitly excluded;
+rare selector/script/costume cases remain named. Native controls/input/aim/near
+and D37A save-restoration tests pass. All 43 intake files retain hashes/mtimes;
+all diagnostic games stopped. Existing framework edits are untouched.
+No gameplay/asset/save-format/player-setting changes, player-binary rebuild,
+acceptance closeout, commit or push. D36L remains unselected; D19Q3 remains
+Needs playtest. No next job started.
+Launch: `python3 recomp/tools/local/run.py`; P changes view. Review traversal
+and special-action motion using the existing saved preferences.
+
+
 ## 2026-10-26 - D36J accepted and closed
 
 User: "lock it in and close us out". D36J is Done. The accepted result uses

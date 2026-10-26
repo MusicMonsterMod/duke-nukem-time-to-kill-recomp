@@ -9,7 +9,7 @@ static constexpr unsigned duke_joints=19;
 // (LEVEL01 and the other Old West levels) at joint 15, with a hip-height part
 // at joint 9. Joints are therefore always found by part, never by index.
 static constexpr unsigned part_right_hip=0x05, part_spine=0x09, part_arm_first=0x0a,
-    part_arm_last=0x0e, part_neck=0x10, part_left_shoulder=0x0a, part_right_shoulder=0x0d;
+    part_arm_last=0x0e, part_neck=0x10, part_left_shoulder=0x0a, part_right_shoulder=0x0d, part_backpack=0x14;
 static uint32_t duke_model() {
     const uint32_t desc=psx_mod_read_word(player+0x40);
     return desc>=0x80010000 && desc<=0x801fff00 && psx_mod_read_byte(desc)==duke_joints ? desc : 0;

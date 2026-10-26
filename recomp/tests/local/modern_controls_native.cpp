@@ -4364,6 +4364,31 @@ int main(int argc,char** argv) {
                             assert(psx_mod_read_word(p+0x20c)==water_flag && psx_mod_read_word(p+0x1f8)==velocity);
                             for(int i=0;i<3;++i)assert((int32_t)psx_mod_read_word(p+4+4*i)==root[i]);
                         }
+                        // D36K: semantic pack visibility follows the primary eye
+                        // draw across both costume orders and all swim modes.
+                        const uint32_t pack=desc+0x44+0x28*psx_mod_read_byte(desc+0x38);
+                        psx_mod_write_byte(pack,0x10);
+                        call(0x800348d8,c,p,0x8003769c);
+                        assert(psx_mod_read_byte(pack)==0x11);
+                        call(0x800348d8,c,p,0x80037718); // reflection restores
+                        assert(psx_mod_read_byte(pack)==0x10);
+                        call(0x800348d8,c,p,0x8003769c);
+                        call(0x8001ca4c,0x800d0000,0,0x800376b4);
+                        assert(psx_mod_read_byte(pack)==0x10);
+                        // A loaded stale flag is reclaimed in third person.
+                        ttk::input.first_person=false;++save_loads;frame();
+                        psx_mod_write_byte(pack,0x11);
+                        call(0x800348d8,c,p,0x8003769c);
+                        assert(psx_mod_read_byte(pack)==0x10);
+                        ttk::input.first_person=true;++save_loads;frame();
+                        // Bad mapping fails closed, without hiding another part.
+                        const uint8_t mapped=psx_mod_read_byte(desc+0x38);
+                        psx_mod_write_byte(desc+0x38,0xff);
+                        call(0x800348d8,c,p,0x8003769c);
+                        assert(psx_mod_read_byte(pack)==0x10);
+                        call(0x8001ca4c,0x800d0000,0,0x800376b4);
+                        psx_mod_write_byte(desc+0x38,mapped);
+                        psx_mod_write_byte(pack,0);
                         const auto flags=psx_mod_read_word(p+0x224);
                         psx_mod_write_word(p+0x224,flags|0x200);frame();assert(metric("\"blend\":")==((mode==4 || mode==5)?1:0) && !ttk::movement_ready());
                         psx_mod_write_word(p+0x224,flags|0x20000000);frame();assert(metric("\"blend\":")==0);
@@ -4398,7 +4423,14 @@ int main(int argc,char** argv) {
                         for(int i=0;i<40;++i)frame();assert(metric("\"blend\":")==1);
                         ttk::render_state_save(eye.data());
                         ttk::render_state_load(legacy.data());assert(metric("\"blend\":")==0);
+                        const uint32_t pack=desc+0x44+0x28*psx_mod_read_byte(desc+0x38);
+                        call(0x800348d8,c,p,0x8003769c);assert(!(psx_mod_read_byte(pack)&1));
                         ttk::render_state_load(eye.data());assert(metric("\"blend\":")==1);
+                        call(0x800348d8,c,p,0x8003769c);assert(psx_mod_read_byte(pack)&1);
+                        call(0x8001ca4c,0x800d0000,0,0x800376b4);
+                        ttk::modern=false;
+                        call(0x800348d8,c,p,0x8003769c);assert(!(psx_mod_read_byte(pack)&1));
+                        ttk::modern=true;
                         ttk::input.first_person=false;
                         for(const char* view:{"first","legacy-third"}) {
                             setenv("DNTTK_SWIM_VIEW",view,1);++save_loads;frame();
@@ -4433,6 +4465,10 @@ int main(int argc,char** argv) {
                 psx_mod_write_word(p+0x834,water);psx_mod_write_word(p+0x20c,flag);psx_mod_write_word(p+0x1c8,floor);
                 psx_mod_write_byte(p+0x22c,0);psx_mod_write_byte(p+0x22d,0);psx_mod_write_half(p+0x60,63);
                 ++save_loads;frame();
+                call(0x800348d8,c,p,0x8003769c);
+                assert(!(psx_mod_read_byte(desc+0x44+0x28*psx_mod_read_byte(desc+0x38))&1));
+                call(0x8001ca4c,0x800d0000,0,0x800376b4);
+                std::puts("PASS: D36K swim pack scope, costume maps, reflection, stale load, replay, action choice, Vanilla and land exit");
                 std::puts("PASS: D11E surface/underwater eye, two costume layouts, pose independence, suspended input/pause, loaded view, third-person switch and no water/velocity/position writes");
             }
 
@@ -4453,6 +4489,9 @@ int main(int argc,char** argv) {
                             psx_mod_write_half(p+0x60,animation);
                             ++save_loads;frame();
                             assert(metric("\"blend\":")==1 && !ttk::movement_ready());
+                            call(0x800348d8,c,p,0x8003769c);
+                            assert(!(psx_mod_read_byte(desc+0x44+0x28*psx_mod_read_byte(desc+0x38))&1));
+                            call(0x8001ca4c,0x800d0000,0,0x800376b4);
                             const auto velocity=psx_mod_read_word(p+0x1f8);
                             for(int pose:{-400,450}) {
                                 for(int i=0;i<3;++i)psx_mod_write_word(mats+0x20*head+0x14+4*i,root[i]+pose);

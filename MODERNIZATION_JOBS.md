@@ -1,6 +1,6 @@
 # Time to Kill — modernization jobs
 
-**Latest accepted research (2026-10-26): D36 and D36A-F are Done. [Note 257](documentation/257-d36-first-person-presentation-audit.md) is the accepted first-person presentation audit and roadmap. D36G is Done (user-accepted); D36H is Done (user-accepted); D36I is Done (user-accepted); D36J is Done (user-accepted); implementation proposals D36K/L remain unstarted.**
+**Latest accepted research (2026-10-26): D36 and D36A-F are Done. [Note 257](documentation/257-d36-first-person-presentation-audit.md) is the accepted first-person presentation audit and roadmap. D36G is Done (user-accepted); D36H is Done (user-accepted); D36I is Done (user-accepted); D36J is Done (user-accepted); D36K is Done (user-accepted); D36L remains unstarted.**
 
 **Latest closeout (2026-10-26): D23D is Done. User could not reproduce the Level 9 slowdown and reports a problem-free playthrough. Closed on user playtest evidence; no build change or new profiling.**
 
@@ -413,6 +413,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D36H | Connected combat and held-item arms | Done | D36G |
 | D36I | Native interaction arm continuity, slot 8 first | Done | D36G |
 | D36J | Coherent body and quick-kick leg presentation | Done (user-accepted 2026-10-26) | D36G, D36H |
+| D36K | Traversal and special-action visual coverage | Done | D36G, D36H, D36I, D36J |
 | D37 | Temporary movement failure at 07:26 UK on 2026-10-26 (separate research) | Done | - |
 | D37A | Safe animation restoration across save allocation layouts | Done (user-accepted 2026-10-26) | D37 |
 | R01 | DisruptorRecomp architecture and modernization reference research | Done | - |
@@ -20622,3 +20623,55 @@ MusicMonsterMod. D37A is Done by separate full user playtest acceptance;
 D19Q3 remains Needs playtest. D36K/L remain unstarted. No next job started.
 No build, launch or player-file writes during closeout; existing framework
 changes remain untouched. Launch: `python3 recomp/tools/local/run.py`.
+
+## 2026-10-26 - D36K selected
+
+User selected D36K. Promoted the accepted note-257 proposal to the board.
+Scope: natural-route entry/active/exit/interruption captures for traversal and
+special actions, preserving accepted action choices, native events and limb
+ownership. Only demonstrated visual defects warrant bounded corrections.
+D36L remains unselected; D19Q3 remains Needs playtest. No commit/push authorized.
+
+## 2026-10-26 - D36K coverage ready for visual review
+
+Natural-route traversal and special-action coverage is recorded in
+[note 262](documentation/262-d36k-traversal-presentation-coverage.md).
+D36K is Needs playtest for human motion/appearance acceptance. No new
+presentation defect justified a gameplay change; the accepted D36J player
+binary remains unchanged. Private 60/120 routes, action/global perspective
+choices, 240-setting stress, Vanilla smoke checks, swimming/water exit,
+gas/gadgets, native use, flight, death/Continue and restoration are bounded
+by the recorded successful states and explicit failed-attempt exclusions.
+Native controls/input/aim/near and animation-save tests pass. All 43 intake
+files retain hashes/mtimes; diagnostics stopped. Rare scripted/costume coverage
+limits remain named. D36L is unselected; D19Q3 remains Needs playtest.
+No acceptance closeout, commit or push is authorized. No next job started.
+
+## 2026-10-26 - D36K swimming backpack follow-up
+
+User identifies `research/screencaps/backpack.mp4` and current slot 12 as the
+remaining critique and authorizes proceeding. Investigate the back-mounted
+mesh entering first-person view during vertical swimming; preserve accepted
+swimming and the other presentation work. No closeout/commit/push requested.
+
+## 2026-10-26 - D36K swimming backpack candidate ready
+
+The reported slot 12 submerged backpack intrusion is reproduced and corrected
+with a temporary semantic-part hide in the primary first-person swimming draw.
+Third person retains the pack. Native motion, camera, guns, Q and flight stay
+unchanged. Build and native regressions pass; private 60/120-setting recordings,
+view switching, save/load and replay verify the bounded correction. All 42
+intake player-save/card/settings/patch files retain hashes/mtimes. See
+[note 262](documentation/262-d36k-traversal-presentation-coverage.md) for evidence
+and remaining limits. Needs playtest for user visual acceptance; no closeout,
+commit or push. D36L remains unselected.
+
+## 2026-10-26 - D36K accepted and closed
+
+User confirmed "fixed, lock it in, and close it out." D36K is Done: traversal
+and special-action coverage plus the swimming backpack correction are accepted.
+Implementation, regression tests, manual and evidence documentation are included
+in the authorized MusicMonsterMod commit/push. [Note 262](documentation/262-d36k-traversal-presentation-coverage.md)
+retains evidence and coverage limits. No rebuild or game/player-file changes
+during closeout. D36L remains unselected; D19Q3 remains Needs playtest.
+No next job started.

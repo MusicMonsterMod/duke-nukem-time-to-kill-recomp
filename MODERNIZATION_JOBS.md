@@ -1,5 +1,7 @@
 # Time to Kill — modernization jobs
 
+**Latest closeout (2026-10-26): D23D is Done. User could not reproduce the Level 9 slowdown and reports a problem-free playthrough. Closed on user playtest evidence; no build change or new profiling.**
+
 **Latest accepted job (2026-10-26): D23C moat slowdown recheck is Done. User approved closeout; original sustained slowdown no longer reproduced, brief water-entry cadence dip retained as an unresolved observation. No player-build change or next job started. [Note 253](documentation/253-d23c-moat-recheck.md).**
 
 **Latest accepted job (2026-10-26): D23 performance baseline is Done. User accepted the findings and authorized closeout. [Note 252](documentation/252-d23-performance-baseline.md) preserves the measurements and limits. Player build unchanged; D23C is ready for selection, not started.**
@@ -337,7 +339,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D23A | Modernized frame-budget regression (guard identity cost) | Done | D08 |
 | D23B | Intro FMV stutter: stranded native movie shard | Done | D23 |
 | D23C | Medieval castle moat slowdown with Necros active (profile, do not optimise blind) | Done | D23, D22B |
-| D23D | Minor slowdown around the strip-club-type area of Level 9 (low priority) | Todo | D23, D22B |
+| D23D | Minor slowdown around the strip-club-type area of Level 9 (low priority) | Done | D23, D22B |
 | D23E | Stutter with enemies on screen while walking (UI slots 9 and 10) | Accepted | D23, D22B |
 | D23F | Faster timing model: emulation-thread budget for 150% CPU at high refresh (big) | Accepted | D23E, D17 |
 | D23G | Finish the fast path: dispatch, overlays, interpreter, observers and redraw cost (all-in-one) | Todo | D23F |
@@ -10029,11 +10031,18 @@ shared and verified against the accepted baselines; the user confirms.
 
 ### D23D - Minor slowdown in Level 9's strip-club-type area (low priority)
 
-**Todo, low priority. User report, 2026-10-05.** Level 9 plays very well
-overall; looking closely, there is a small slowdown around the strip-club-type
-area. Extremely minor and not blocking. Level numbers in this report follow the D26A console (`level N`); D26D will
-confirm how they map to the game's own campaign numbering. Profile with the D23C
-method when performance polish is scheduled.
+**Done, user-accepted and closeout authorized 2026-10-26.** The user tried to
+reproduce the reported slowdown and encountered no problems during the playthrough.
+The original report is retired on that user evidence, as requested. Unlike D23C's
+retained brief water-entry observation, no residual issue was reported for D23D.
+No new automated profiling, gameplay changes, rebuild or launch was needed;
+the historical cause and attribution to any prior optimization remain unconfirmed.
+Reopen if a repeatable slowdown returns, checking contemporaneous host activity
+and gameplay telemetry before changing code.
+
+Historical report (2026-10-05): minor slowdown around Level 9's strip-club-type
+area, low priority and nonblocking. Level numbers follow the D26A console
+(`level N`); D26D will confirm their campaign mapping.
 
 ### D23E - Stutter with enemies on screen while walking (UI slots 9 and 10)
 
@@ -19871,3 +19880,21 @@ water-entry guest-image cadence dip remains documented; neither its cause nor
 the historical slowdown's exact resolution is established. No optimization,
 rebuild or additional game launch. Investigation documentation and measured
 summary closeout authorized. No next job started.
+
+## 2026-10-26 - D23D accepted and closed
+
+User explicitly requested: "close out D23D", reporting that attempts to reproduce
+it found "absolutely no problems with the playthrough". D23D is Done on user
+playtest evidence. The original Level 9 strip-club-area slowdown report is retired;
+no residual slowdown was reported. This does not establish its historical cause
+or prove attribution to an earlier optimization. D23C's brief moat water-entry
+observation remains separate and unchanged.
+
+Documentation-only closeout; no new automated profiling, gameplay/framework edits,
+build or game launch. Accepted executable remains
+`9a81112c57148d928c00f8cfbd7aed33a88365640cc766395d45d1305c6beb04`.
+Existing framework changes and dependency pins preserved; player files untouched.
+Reopen on a reproducible report and correlate host activity with gameplay telemetry
+before optimizing. No next job started.
+
+Launch: `python3 recomp/tools/local/run.py`.

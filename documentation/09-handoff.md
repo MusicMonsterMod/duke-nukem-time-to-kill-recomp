@@ -1,5 +1,24 @@
 # Next-session handoff
 
+## 2026-10-26 - D23D accepted and closed
+
+User explicitly requested: "close out D23D", reporting that attempts to reproduce
+it found "absolutely no problems with the playthrough". D23D is Done on user
+playtest evidence. The original Level 9 strip-club-area slowdown report is retired;
+no residual slowdown was reported. This does not establish its historical cause
+or prove attribution to an earlier optimization. D23C's brief moat water-entry
+observation remains separate and unchanged.
+
+Documentation-only closeout; no new automated profiling, gameplay/framework edits,
+build or game launch. Accepted executable remains
+`9a81112c57148d928c00f8cfbd7aed33a88365640cc766395d45d1305c6beb04`.
+Existing framework changes and dependency pins preserved; player files untouched.
+Reopen on a reproducible report and correlate host activity with gameplay telemetry
+before optimizing. No next job started.
+
+Launch: `python3 recomp/tools/local/run.py`.
+
+
 ## 2026-10-26 - D23C accepted and closed
 
 User approved closeout. D23C is Done: the original sustained moat/Necro slowdown

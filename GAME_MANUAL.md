@@ -889,7 +889,8 @@ Freezethrower retain their walking support grip while running; the Flamethrower
 and Energy Weapon keep their firing support grips at rest and in motion.
 With empty hands (Boot), visible hands stay connected to their native swinging
 arms while walking and running, including when looking down. The unarmed
-swing sits low in the view.
+swing sits low in the view. Empty-handed jetpack flight also keeps visible hands
+connected to their native arms, including when flying backwards.
 Each weapon is framed to point at the crosshair; the HUD stays on top.
 Upgraded weapons use the same first-person framing as their base versions,
 including the Incendiary RPG in Challenge Stage 4. Holstering or drawing makes it disappear or

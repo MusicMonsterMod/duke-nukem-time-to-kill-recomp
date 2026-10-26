@@ -1,5 +1,21 @@
 # Time to Kill — modernization jobs
 
+
+### D36K1 - Connected unarmed jetpack arms
+
+**Status: Done (user-accepted 2026-10-26). Dependencies: D36G, D36K, D36H4 (Done).**
+Selected 2026-10-26: investigate backward-flight floating hands, stand up this
+job, then implement. Source identifies the missing Jetpack arm clipping owner;
+private slot-8 flight reproduces equipment 0 and backward animation 166.
+Scope: admit native unarmed arm chains to safe world clipping during first-person
+flight, preserving native flight poses and existing grounded arm framing.
+Acceptance: connected visible arms backward/forward/strafe/hover and pitch;
+preserve armed display, fuel/motion, global/action third person, Vanilla,
+semantic costume mapping, draw cleanup, save/load and 60/120 replay.
+User accepted: "lock it in, close it out". Implementation, tests and documentation
+commit/push authorized. [Note 273](documentation/273-d36k1-jetpack-arms.md)
+records source/depth evidence, implementation and bounded verification.
+
 ### D36H4 - Connected unarmed locomotion arms
 
 **Status: Done (user-accepted 2026-10-26). Dependencies: D36G/H/I/J and D36H3 (Done).**
@@ -21107,3 +21123,28 @@ Accepted executable `e975163dad5028dc629fae8bf43031c0901086c7d64143f623a8345261f
 Note 272 retains the test evidence and coverage limits. Earlier candidate entries
 are historical. No new build or game launch during closeout, no framework edits,
 and no next job started.
+
+
+## 2026-10-26 - D36K1 backward-flight arm candidate
+
+User selected investigation, job registration and implementation. Missing Jetpack
+admission in the unarmed Body policy is source-confirmed; private backward pose
+166 traces put forearms below H while hands pass it. Extend safe world clipping
+to native unarmed flight arms, retaining native transforms and ground-only arm
+lowering. No flight leg, physics, weapon/item or framework change.
+Build and controls/aim/near suites pass. Private 60/120 checks cover flight
+movement, equipment switching, first/third restoration and save/load; deep-pitch
+120 captures show connected visible forearms. Three replay workers, zero worker
+or plugin failures. Full visual acceptance remains with the user: Needs playtest.
+See [note 273](documentation/273-d36k1-jetpack-arms.md) for limits and exclusions.
+No acceptance closeout, commit or push.
+
+
+## 2026-10-26 - D36K1 accepted and closed
+
+User: "lock it in, close it out". D36K1 is Done by user acceptance. Native
+unarmed flight arm clipping is accepted; authored implementation, tests, manual
+and documentation are included in the authorized MusicMonsterMod commit/push.
+Note 273 preserves bounded verification and exclusions. No new build or game
+launch for closeout; existing framework modifications remain untouched.
+No next job started.

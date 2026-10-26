@@ -1,6 +1,31 @@
 # Current status - 2026-10-04
 
 
+## 2026-10-26 - D36K1 accepted and closed
+
+D36K1 is Done. User: "lock it in, close it out". Unarmed jetpack arm continuity
+is accepted; implementation, tests, manual and documentation commit/push
+explicitly authorized. [Note 273](273-d36k1-jetpack-arms.md) retains verification
+limits; earlier candidate entries are historical. Accepted executable:
+`1af5089a7d377ae6480dadfd496a97724797f743e538259ca29b3cd18c430427`.
+No new build/game launch, framework edits or next job during closeout.
+Launch `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-26 - D36K1 unarmed jetpack arms candidate
+
+Needs playtest. Native flight arms now share safe world clipping, preventing
+whole-arm rejection while hands remain drawable. Native flight poses and ground
+arm lowering are preserved. Build and controls/aim/near suites pass; private
+60/120 movement, switching, view and save/load checks pass. Deep-pitch backward
+flight captures show connected forearms. [Note 273](273-d36k1-jetpack-arms.md)
+records evidence and limits. Candidate:
+`1af5089a7d377ae6480dadfd496a97724797f743e538259ca29b3cd18c430427`.
+No acceptance closeout, commit/push or framework change. Launch
+`python3 recomp/tools/local/run.py`; select Boot/empty hands and first person,
+fly backwards and sweep pitch. User visual acceptance remains.
+
+
 ## 2026-10-26 - D36H4 accepted and closed
 
 D36H4 is Done. User: "lock it in and close it out!". Connected unarmed arms

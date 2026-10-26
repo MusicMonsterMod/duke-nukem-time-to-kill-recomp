@@ -4704,6 +4704,31 @@ int main(int argc,char** argv) {
                             call(0x800348d8,c,p,0x8003769c);
                             assert(!(psx_mod_read_byte(desc+0x44+0x28*psx_mod_read_byte(desc+0x38))&1));
                             call(0x8001ca4c,0x800d0000,0,0x800376b4);
+                            // D36K1: flight admits only empty-handed arm chains,
+                            // never legs, and preserves native flight transforms.
+                            const auto equipment=psx_mod_read_byte(p+0x3b8);
+                            const std::vector<uint8_t> original(ram+(mats&0x1fffff),ram+(mats&0x1fffff)+19*0x20);
+                            for(unsigned equip:{0u,1u,2u}) for(unsigned j=0;j<19;++j) {
+                                psx_mod_write_byte(p+0x3b8,equip);
+                                call(0x800348d8,c,p,0x8003769c);
+                                CPUState cpu{};cpu.gpr[4]=c;cpu.gpr[5]=mats+0x20*j;
+                                cpu.gpr[20]=p;cpu.gpr[23]=j;cpu.gpr[29]=0x801f0000;cpu.gpr[31]=0x80034c6c;
+                                hooks().at(0x800292a0)(&cpu,0x800292a0);
+                                const auto limb=ttk::first_person_limb_presentation();
+                                const bool arm=equip==0 && parts[j]>=10 && parts[j]<=15;
+                                assert((limb.owner==ttk::LimbOwner::Body)==arm);
+                                if(arm) {
+                                    assert(cpu.gpr[5]==mats+0x20*j && limb.world_clip() && !limb.viewmodel());
+                                    assert(limb.bridge_joint_depth && limb.parts==(1u<<parts[j]));
+                                    cpu.gpr[31]=0x80034c8c;cpu.gte_ctrl[26]=256;cpu.gpr[16]=0;
+                                    psx_mod_write_word(cpu.gpr[29]+0x98,c);
+                                    hooks().at(0x800b4d2c)(&cpu,0x800b4d2c);assert(cpu.gpr[16]==256);
+                                }
+                                call(0x8001ca4c,0x800d0000,0,0x800376b4);
+                                assert(ttk::first_person_limb_presentation().owner==ttk::LimbOwner::Native);
+                            }
+                            assert(std::equal(original.begin(),original.end(),ram+(mats&0x1fffff)));
+                            psx_mod_write_byte(p+0x3b8,equipment);
                             const auto velocity=psx_mod_read_word(p+0x1f8);
                             for(int pose:{-400,450}) {
                                 for(int i=0;i<3;++i)psx_mod_write_word(mats+0x20*head+0x14+4*i,root[i]+pose);

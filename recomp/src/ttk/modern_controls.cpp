@@ -1767,7 +1767,7 @@ struct RenderState {
     double fp_blend; bool orbit_valid, eye_offset_valid, live_valid, lease_cam, crouch_weapon, swim_weapon, body_coverage, third_camera;
     double eye_offset[3], live_q[4], live_rel[3], live_torso_q[4], live_torso[3], kick;
     FirePose fire_poses[32];
-    RifleReload rifle_reload; unsigned weapon_slot;
+    RifleReload rifle_reload; RunArms run_arms; unsigned weapon_slot;
     uint32_t weapon_matrix, hidden_matrix;
     bool kick_active; unsigned kick_frame; uint32_t kick_point, leg_matrices;
 };
@@ -1808,7 +1808,7 @@ void render_state_save(void* out) {
     r.third_camera=third_person_camera_live();
     r.crouch_weapon=crouch_weapon_active();
     r.swim_weapon=swim_weapon_view_active();
-    r.rifle_reload=rifle_reload_pose();r.weapon_slot=weapon_view_slot();
+    r.rifle_reload=rifle_reload_pose();r.run_arms=running_arm_pose();r.weapon_slot=weapon_view_slot();
     std::memcpy(r.eye_offset,eye_offset,sizeof eye_offset); std::memcpy(r.live_q,live_q,sizeof live_q);
     std::memcpy(r.live_rel,live_rel,sizeof live_rel); std::memcpy(r.live_torso_q,live_torso_q,sizeof live_torso_q);
     std::memcpy(r.live_torso,live_torso,sizeof live_torso); r.kick=kick;
@@ -1822,6 +1822,10 @@ void render_state_blend_mask(void* out,const void* next,double alpha) {
     RenderState a,b;std::memcpy(&a,out,sizeof a);std::memcpy(&b,next,sizeof b);
     alpha=std::clamp(alpha,0.0,1.0);
     a.mask_bob+=(b.mask_bob-a.mask_bob)*alpha;
+    if(a.weapon_slot==b.weapon_slot) {
+        if(a.run_arms.weight==0 && b.run_arms.weight>0) {a.run_arms=b.run_arms;a.run_arms.weight=0;}
+        a.run_arms.weight+=(b.run_arms.weight-a.run_arms.weight)*alpha;
+    }
     if(a.weapon_slot==6 && b.weapon_slot==6) {
         a.rifle_reload.lift+=(b.rifle_reload.lift-a.rifle_reload.lift)*alpha;
         a.rifle_reload.pull+=(b.rifle_reload.pull-a.rifle_reload.pull)*alpha;
@@ -1847,6 +1851,7 @@ void render_state_load(const void* in) {
     override_crouch_weapon=r.crouch_weapon;
     override_swim_weapon=r.swim_weapon;
     override_rifle_reload=r.rifle_reload;
+    override_run_arms=r.run_arms;
     override_body_coverage=r.body_coverage;
     override_third_camera=r.third_camera;
     fade_save.active=false;

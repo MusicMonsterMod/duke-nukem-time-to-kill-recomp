@@ -1,5 +1,9 @@
 # Time to Kill — modernization jobs
 
+**Latest closeout (2026-10-26): D36H3 is Done. User accepted the final running-arm and support-grip presentation and explicitly authorized lock-in/closeout. [Note 271](documentation/271-d36h3-running-arm-motion.md). No next job started.**
+
+
+
 **Latest closeout (2026-10-26): D08A30 is Done. User accepted reversed weapon-wheel direction and explicitly authorized lock-in/closeout. Wheel up selects next; wheel down selects previous. No next job started.**
 
 **Latest closeout (2026-10-26): D08A29 is Done. User accepted running weapon selection and explicitly authorized lock-in/closeout. D08A30 (reverse weapon-wheel direction: up = next, down = previous) is Todo only. [Note 270](documentation/270-d08a29-running-weapon-selection.md). No next implementation started.**
@@ -429,7 +433,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D36H | Connected combat and held-item arms | Done | D36G |
 | D36H1 | Gatling left-hand underside contact at first-person idle | Done | D36G, D36H |
 | D36H2 | Buffalo Rifle grip-area flicker | Todo | D36G, D36H |
-| D36H3 | Realistic two-handed weapon/hand motion while running | Todo | D36G, D36H, D36H1 |
+| D36H3 | Realistic two-handed weapon/hand motion while running | Done (user-accepted) | D36G, D36H, D36H1 |
 | D36I | Native interaction arm continuity, slot 8 first | Done | D36G |
 | D36J | Coherent body and quick-kick leg presentation | Done (user-accepted 2026-10-26) | D36G, D36H |
 | D36K | Traversal and special-action visual coverage | Done | D36G, D36H, D36I, D36J |
@@ -20906,7 +20910,7 @@ remains recorded separately from user acceptance. See [note 270](documentation/2
 
 ### D36H3 - Realistic two-handed weapon/hand motion while running
 
-**Status: Todo. Dependencies: D36G, D36H, D36H1 (Done).** User reports excessive
+**Status: Done (user-accepted 2026-10-26). Dependencies: D36G, D36H, D36H1 (Done).** User reports excessive
 right-hand movement with shotgun (3), Gatling (4), Energy Weapon (7), Flamethrower
 (8) and Freezethrower (0). Make the running motion more restrained and plausible,
 with both hands coherently attached. First compare idle/walk/run/strafe and
@@ -20915,7 +20919,8 @@ D36 audit and preserve accepted framing, D36H1 contact, camera bob, recoil,
 reload/fire timing, muzzle/aim, lighting, save/replay and Vanilla. Acceptance:
 user-approved natural motion for all five families and upgrades, no hand/weapon
 separation or start/stop pops at 60/120, crouch/swim/flight and switching intact.
-Source investigation only; no animation or presentation changes started.
+Display-only running-arm correction implemented; build, native suites and private
+60/120 checks pass. Final revision accepted; lock-in and closeout authorized. [Note 271](documentation/271-d36h3-running-arm-motion.md).
 
 ### D35J5 - First-person frozen effect with blue vision
 
@@ -21001,3 +21006,56 @@ and limits; no new build or gameplay test was needed for closeout.
 Accepted executable: `baab7c72704d40e84557544a2f34abd43153577b0f64670006de7b63c7865b84`.
 No framework changes or next job started.
 Launch: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-26 - D36H3 running-arm candidate (Needs playtest)
+
+Selected by the user as a continuation of tonight's first-person quality work.
+Native run loops were twisting the connected arms around a steady display grip.
+The five selected weapon families now blend their display arm chains toward
+native ready references during the run contribution, preserving connected bones,
+the Gatling underside offset, weapon anchor and gameplay skeleton/events.
+Replay captures and interpolates that contribution. Build and controls/aim/near
+suites pass; private 60/120 captures cover base/upgrades and lifecycle checks.
+[Note 271](documentation/271-d36h3-running-arm-motion.md) records evidence,
+non-running wall samples, visual limits and the remaining user playtest.
+Candidate `4772a51eb00eab1adf1d40246c4dc4d37f1f2c5114b18cf5dcf64a4e05a2394a`.
+No framework changes, commit/push, acceptance closeout or next job started.
+
+
+## 2026-10-26 - D36H3 revision 2 support grips (Needs playtest)
+
+User likes shotgun 3 and Flamethrower 8 running motion; requests walking left-hand
+poses during running for 4/0, a small leftward move for 7, and 8's firing support
+position at rest. Fixed sparse ready-29 reference handling (omitted neutral right
+wrist had made the first pass fall back for 4/0). Their support hands now use the
+complete walking reference; right arms retain first-pass behavior. Energy's
+connected left chain moves slightly left. Flame's left chain uses native firing
+key 24/2 continuously, without changing weapon/right hand, recoil or events.
+Build and controls/aim/near tests pass, including sparse-reference and support
+invariance regressions. Private base-60 and upgraded-120 captures cover all five
+families, 24-present sequences for 4/0, firing, crouch, pitch, switching, load and
+flight. User acceptance remains pending. [Note 271](documentation/271-d36h3-running-arm-motion.md)
+records the correction to first-pass evidence and bounded coverage.
+Candidate `fe66b625acd263957cd2e24cf27a535ec0c019cc7a85879118bf9f6b5ee64faf`.
+No commit/push, closeout or next job.
+
+
+## 2026-10-26 - D36H3 revision 3 Energy support clearance
+
+User reports only Energy Weapon 7 remains; its support hand still clips inside
+and should match the firing position. Record 10 now shares the native firing-grip
+reference path, with the previous leftward clearance retained. Other weapon
+paths, right-hand/weapon anchors and gameplay events are unchanged. Build and
+owned-data controls regressions pass; private base/upgraded visual checks are
+recorded in note 271. Needs playtest; no commit/push or acceptance closeout.
+
+
+## 2026-10-26 - D36H3 accepted and closed
+
+User: "lock it in, close it out!!!". The final Energy support grip is accepted,
+completing D36H3 after the earlier weapon-by-weapon review. Job marked Done;
+implementation, regression tests, manual and documentation commit/push authorized.
+Accepted executable `87994034abe221147568f74de42614cbb7221e07323bc88e8260fc3125ff0143`.
+Note 271 retains the sparse-clip lesson and all bounded test/visual evidence.
+No new build or game launch for closeout, no framework edits, no next job started.

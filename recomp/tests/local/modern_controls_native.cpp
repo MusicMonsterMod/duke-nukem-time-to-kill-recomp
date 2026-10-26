@@ -3208,6 +3208,146 @@ int main(int argc,char** argv) {
                     assert(std::equal(before.begin(),before.end(),ram+(mats&0x1fffff)));
                     psx_mod_write_byte(p+0x3b9,4);
                 }
+                // D36H3: native run twist must be restrained at the draw boundary,
+                // with exact connected bones and an unchanged gameplay skeleton.
+                {
+                    const std::vector<uint8_t> saved_ram(ram,ram+sizeof ram);
+                    const uint32_t frm=0x801b0000,rot=0x801b2000;
+                    psx_mod_write_word(0x800d8324,frm);psx_mod_write_word(0x800d8320,rot);
+                    for(unsigned anim:{18u,19u,20u,29u})for(unsigned ch:{1u,2u}) {
+                        const unsigned clip=100+anim*2+ch,frame=anim*2+ch;
+                        psx_mod_write_half(0x800c2d64+8*anim+2*ch,clip);
+                        psx_mod_write_word(0x800d8328+4*clip,(1u<<16)|frame);
+                        psx_mod_write_word(frm+8*frame,100u<<16);
+                        psx_mod_write_word(frm+8*frame+4,((anim==29 && ch==1?2u:3u)<<16)|(ch==1?3:0));
+                    }
+                    for(unsigned part=10;part<=15;++part) {
+                        const unsigned j=psx_mod_read_byte(desc+0x24+part),n=(part-10)%3;
+                        const uint32_t rec=desc+0x44+0x28*j;
+                        psx_mod_write_byte(rec+2,3+n);
+                        for(unsigned k=0;k<3;++k) {
+                            psx_mod_write_word(rec+0x14+4*k,k==1?100:0);
+                            psx_mod_write_word(mats+32*j+0x14+4*k,k==1?100*n:0);
+                        }
+                        for(unsigned k=0;k<9;++k)psx_mod_write_half(mats+32*j+2*k,k%4==0?4096:0);
+                        psx_mod_write_word(rot+8*(part-10),0);
+                        psx_mod_write_word(rot+8*(part-10)+4,(part<<27)|(4095u<<14));
+                    }
+                    psx_mod_write_half(p+0x60,76);psx_mod_write_byte(p+0x22c,0);
+                    psx_mod_write_byte(p+0x3b8,2);psx_mod_write_byte(p+0x3b9,5);
+                    auto arms=[&](unsigned upper,unsigned prev,unsigned cur,unsigned left) {
+                        psx_mod_write_half(p+0x74,upper);psx_mod_write_half(p+0x78,prev);
+                        psx_mod_write_half(p+0x7a,cur);psx_mod_write_half(p+0x76,left);
+                        call(0x800348d8,c,p,0x8003769c);
+                        std::array<std::array<uint8_t,32>,6> out{};
+                        for(unsigned part=10;part<=15;++part) {
+                            const unsigned j=psx_mod_read_byte(desc+0x24+part);
+                            const auto result=hook(0x800292a0,c,mats+32*j,0x80034c6c,j);
+                            std::memcpy(out[part-10].data(),ram+(result.gpr[5]&0x1fffff),32);
+                        }
+                        call(0x8001ca4c,0x800d0000,0,0x800376b4);
+                        return out;
+                    };
+                    for(unsigned i=0;i<80;++i)arms(20,41,41,0); // settle earlier muzzle-flash recoil
+                    const auto rest=arms(20,41,41,0);
+                    const unsigned elbow=psx_mod_read_byte(desc+0x24+14);
+                    for(unsigned k:{0u,8u})psx_mod_write_half(mats+32*elbow+2*k,2896);
+                    psx_mod_write_half(mats+32*elbow+4,2896);psx_mod_write_half(mats+32*elbow+12,uint16_t(-2896));
+                    const std::vector<uint8_t> native(ram+(mats&0x1fffff),ram+(mats&0x1fffff)+19*32);
+                    const auto swung=arms(20,41,41,0),run=arms(18,37,37,0);
+                    auto distance=[](const auto& a,const auto& b) {
+                        double d=0;for(unsigned k=0;k<9;++k) {int16_t x,y;std::memcpy(&x,a[4].data()+2*k,2);std::memcpy(&y,b[4].data()+2*k,2);d+=double(x-y)*(x-y);}return d;
+                    };
+                    assert(distance(run,rest)<distance(swung,rest)/4);
+                    assert(run[5]==swung[5]); // right grip / weapon / muzzle unchanged
+                    assert(arms(18,41,37,100)==swung); // native transition begins at zero
+                    assert(arms(20,37,41,0)==swung); // and restores on its own last tick
+                    const auto middle=arms(18,41,37,50);
+                    assert(distance(middle,swung)>0 && distance(middle,run)>0);
+                    assert(arms(21,37,37,0)==swung); // firing never borrows run correction
+                    arms(18,37,37,0);
+                    std::vector<uint8_t> run_state(ttk::render_state_size()),idle_state(run_state.size());
+                    ttk::render_state_save(run_state.data());arms(20,41,41,0);ttk::render_state_save(idle_state.data());
+                    const pid_t run_child=fork();assert(run_child>=0);
+                    if(run_child==0) {
+                        ttk::render_state_load(run_state.data());assert(arms(20,41,41,0)==run);
+                        auto blend=run_state;ttk::render_state_blend_mask(blend.data(),idle_state.data(),.5);
+                        ttk::render_state_load(blend.data());const auto between=arms(20,41,41,0);
+                        assert(between!=run && between!=swung);
+                        ttk::render_state_load(idle_state.data());assert(arms(18,37,37,0)==swung);
+                        _exit(0);
+                    }
+                    int run_status=0;waitpid(run_child,&run_status,0);
+                    assert(WIFEXITED(run_status) && WEXITSTATUS(run_status)==0);
+                    for(unsigned slot:{5u,7u,9u,10u,11u,27u,28u}) {
+                        psx_mod_write_byte(p+0x3b9,slot);const auto result=arms(18,37,37,0);
+                        for(unsigned n:{0u,1u,3u,4u})for(unsigned k=0;k<3;++k) {
+                            int32_t start,end;int16_t axis;
+                            std::memcpy(&start,result[n].data()+20+4*k,4);
+                            std::memcpy(&end,result[n+1].data()+20+4*k,4);
+                            std::memcpy(&axis,result[n].data()+2*(3+k),2);
+                            assert(std::abs(start+100.0*axis/4096-end)<2);
+                        }
+                    }
+                    auto same_support=[](const auto& a,const auto& b) {
+                        for(unsigned n=0;n<3;++n) {
+                            for(unsigned k=0;k<9;++k) {
+                                int16_t x,y;std::memcpy(&x,a[n].data()+2*k,2);std::memcpy(&y,b[n].data()+2*k,2);
+                                if(std::abs(int(x)-int(y))>2)return false;
+                            }
+                            for(unsigned k=0;k<3;++k) {
+                                int32_t x,y;std::memcpy(&x,a[n].data()+20+4*k,4);std::memcpy(&y,b[n].data()+20+4*k,4);
+                                if(std::abs(x-y)>2)return false;
+                            }
+                        }
+                        return true;
+                    };
+                    // Retail 29 omits the neutral right wrist. Both 29
+                    // families must still use their complete walking support
+                    // grip, independent of the native run's left-hand swing.
+                    for(unsigned slot:{7u,11u,28u}) {
+                        psx_mod_write_byte(p+0x3b9,slot);
+                        const auto walking=arms(29,59,59,0);
+                        for(unsigned part=10;part<=12;++part) {
+                            const unsigned j=psx_mod_read_byte(desc+0x24+part);
+                            psx_mod_write_word(mats+32*j+20,70);
+                        }
+                        const auto running=arms(18,37,37,0);
+                        assert(same_support(walking,running));
+                        for(unsigned part=10;part<=12;++part) {
+                            const unsigned j=psx_mod_read_byte(desc+0x24+part);
+                            psx_mod_write_word(mats+32*j+20,0);
+                        }
+                    }
+                    // Flame/Energy support uses the same firing reference at rest,
+                    // while running and while firing, including upgraded 27.
+                    for(unsigned ch:{1u,2u}) {
+                        const unsigned first=ch==1?70:73,clip=200+ch;
+                        psx_mod_write_half(0x800c2d64+8*24+2*ch,clip);
+                        psx_mod_write_word(0x800d8328+4*clip,(3u<<16)|first);
+                        for(unsigned n=0;n<3;++n) {
+                            psx_mod_write_word(frm+8*(first+n),100u<<16);
+                            psx_mod_write_word(frm+8*(first+n)+4,(3u<<16)|(ch==1?3:0));
+                        }
+                    }
+                    for(unsigned slot:{9u,10u,27u}) {
+                        psx_mod_write_byte(p+0x3b9,slot);
+                        const auto rest=arms(20,41,41,0);
+                        for(unsigned part=10;part<=12;++part) {
+                            const unsigned j=psx_mod_read_byte(desc+0x24+part);
+                            psx_mod_write_word(mats+32*j+20,90);
+                        }
+                        const auto moving=arms(18,37,37,0),firing=arms(24,70,71,0);
+                        assert(same_support(rest,moving) && same_support(rest,firing));
+                        for(unsigned part=10;part<=12;++part) {
+                            const unsigned j=psx_mod_read_byte(desc+0x24+part);
+                            psx_mod_write_word(mats+32*j+20,0);
+                        }
+                    }
+                    assert(std::equal(native.begin(),native.end(),ram+(mats&0x1fffff)));
+                    std::copy(saved_ram.begin(),saved_ram.end(),ram);
+                    std::puts("PASS: D36H3 run twist restrained, native-clock transitions, firing exclusion, connected base/upgrade arms and untouched grip/gameplay matrices");
+                }
                 // D08K10: crouch display comes from the arm channel, never the
                 // hunch-adjusted world hand. A synthetic arm checks independence
                 // from that matrix and that animated channel motion still plays.

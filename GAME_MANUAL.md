@@ -883,6 +883,10 @@ when firing. Two-handed weapons also show a connected support hand and arm;
 held mission items and the remote use a connected right arm. The Gatling support
 hand rests against its underside at idle, including the Laser Gatling. The Buffalo Rifle
 lifts with its hands for the cocking stroke, then returns to its ready grip.
+The shotgun, Gatling, Energy Weapon, Flamethrower and Freezethrower use restrained
+first-person arm motion while running, including their upgrades. The Gatling and
+Freezethrower retain their walking support grip while running; the Flamethrower
+and Energy Weapon keep their firing support grips at rest and in motion.
 Each weapon is framed to point at the crosshair; the HUD stays on top.
 Upgraded weapons use the same first-person framing as their base versions,
 including the Incendiary RPG in Challenge Stage 4. Holstering or drawing makes it disappear or

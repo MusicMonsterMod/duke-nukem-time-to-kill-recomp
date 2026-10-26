@@ -1,5 +1,57 @@
 # Next-session handoff
 
+
+## 2026-10-26 - D36H3 accepted and closed
+
+D36H3 is Done. User: "lock it in, close it out!!!". Final running-arm motion and
+support grips are accepted; implementation, tests, manual and documentation
+commit/push explicitly authorized. Accepted executable:
+`87994034abe221147568f74de42614cbb7221e07323bc88e8260fc3125ff0143`.
+[Note 271](271-d36h3-running-arm-motion.md) retains automated/live evidence,
+the corrected sparse ready-clip handling and coverage limits. Earlier candidate
+entries are history. No new build or game launch for closeout, no framework
+changes and no next job started. Launch `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-26 - D36H3 revision 3 Energy support grip
+
+Needs playtest. User reports only Energy Weapon 7's left-hand placement remains.
+Its support now uses the firing grip during idle/run as well, retaining the
+leftward clearance. Other weapons and the right-hand/weapon anchors are unchanged.
+Build and the owned-data controls suite pass; [note 271](271-d36h3-running-arm-motion.md)
+records private visual evidence and limits.
+Candidate `87994034abe221147568f74de42614cbb7221e07323bc88e8260fc3125ff0143`.
+Launch `python3 recomp/tools/local/run.py`, select 7, and compare idle/run/fire.
+No acceptance closeout, commit/push or next job.
+
+
+## 2026-10-26 - D36H3 revision 2 support grips
+
+Needs playtest. User accepts shotgun 3's first-pass look. Gatling 4 and
+Freezethrower 0 now use walking left-hand grips while running, after fixing the
+sparse ready-29 reference that the first pass rejected. Energy Weapon 7's left
+chain moves slightly left; Flamethrower 8 keeps its firing support grip at rest
+and in motion. Weapon/right-hand anchors and native events remain unchanged.
+Player build and controls/aim/near suites pass; private 60/120 visual checks and
+4/0 replay sequences pass within the limits in [note 271](271-d36h3-running-arm-motion.md).
+Candidate `fe66b625acd263957cd2e24cf27a535ec0c019cc7a85879118bf9f6b5ee64faf`.
+Launch `python3 recomp/tools/local/run.py`; review 4/0 running grips, 7 clearance,
+and 8 idle/run/fire grip. No commit/push, acceptance closeout or next job.
+
+
+## 2026-10-26 - D36H3 running-arm candidate
+
+D36H3 is Needs playtest. The five reported two-handed families retain a small
+amount of native running motion while their display arms stay close to the ready
+grip. Weapon framing, camera bob, native gameplay/events and the accepted Gatling
+contact remain intact. Build and controls/aim/near native suites pass; private
+60/120 captures cover base/upgrades, replay and bounded lifecycle regressions.
+[Note 271](271-d36h3-running-arm-motion.md) preserves evidence and limits.
+Candidate `4772a51eb00eab1adf1d40246c4dc4d37f1f2c5114b18cf5dcf64a4e05a2394a`.
+User visual acceptance pending; no commit/push or next job started.
+Launch `python3 recomp/tools/local/run.py`, use first person, keys 3/4/7/8/0,
+and judge running/strafe/start-stop motion, then firing and switching.
+
 ## 2026-10-26 - D08A30 accepted and closed
 
 D08A30 is Done. User: "perfect. lock it in, close it out". Reversed weapon-wheel

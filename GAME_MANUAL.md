@@ -883,6 +883,8 @@ when firing. Two-handed weapons also show a connected support hand and arm;
 held mission items and the remote use a connected right arm. The Gatling support
 hand rests against its underside at idle, including the Laser Gatling. The Buffalo Rifle
 lifts with its hands for the cocking stroke, then returns to its ready grip.
+Its left support hand keeps a stable contact while turning, and its right
+wrist retains the ready alignment while running.
 The shotgun, Gatling, Energy Weapon, Flamethrower and Freezethrower use restrained
 first-person arm motion while running, including their upgrades. The Gatling and
 Freezethrower retain their walking support grip while running; the Flamethrower

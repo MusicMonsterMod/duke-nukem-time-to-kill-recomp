@@ -1,5 +1,41 @@
 # Next-session handoff
 
+## 2026-10-26 - D36H2 accepted and closed
+
+D36H2 is Done. User: "lock it in, close it out!!". Both Buffalo grip corrections
+are accepted; implementation, tests, manual and documentation commit/push
+explicitly authorized. [Note 277](277-d36h2-buffalo-grip.md) retains measured
+ordering evidence, 60/120 checks and coverage limits. Accepted executable:
+`360debe3975119f1f57a121f8173e5fd7ccbf58bf4c11df35d753e80703b987b`.
+No new build, launch, framework edits or next job during closeout.
+Launch `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-26 - D36H2 right-wrist running candidate
+
+Left-hand fix accepted. The selected running follow-up is Needs playtest.
+The forearm cuff immediately below the right glove rolled against the stock;
+record 6 now uses its ready right-chain relationship during native running.
+Right-hand/weapon anchor, left grip and reload stay unchanged. Build and
+controls/aim/near suites pass, including new cuff/transition/replay tests.
+Private 60 trace and 120 running/fire/load/view checks are in
+[note 277](277-d36h2-buffalo-grip.md), with coverage limits. Test running,
+turning, strafe and fire/reload with weapon 9. All private processes stopped.
+No acceptance closeout, commit or push. Launch `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-26 - D36H2 left-hand grip candidate
+
+Needs playtest. Left/right turning reproduced a glove/rifle painter-order
+reversal. A six-unit support-grip seating adjustment removes the measured
+reversal; accepted rifle lift/cock/return and right grip remain unchanged.
+Build and controls/aim/near suites pass; private 60/120 turning, reload and
+mid-reload save/load checks completed. [Note 277](277-d36h2-buffalo-grip.md)
+records bounded visual evidence and remaining coverage limits. Test weapon 9,
+turn left/right while watching the left glove, then fire/reload and crouch.
+No acceptance closeout, commit or push. Launch `python3 recomp/tools/local/run.py`.
+
+
 ## 2026-10-26 - D07G accepted and closed
 
 D07G is Done. User: "perfect, lock it in and close it out". Windowed crosshair

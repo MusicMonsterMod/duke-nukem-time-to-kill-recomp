@@ -3281,7 +3281,43 @@ int main(int argc,char** argv) {
                     }
                     int run_status=0;waitpid(run_child,&run_status,0);
                     assert(WIFEXITED(run_status) && WEXITSTATUS(run_status)==0);
-                    for(unsigned slot:{5u,7u,9u,10u,11u,27u,28u}) {
+                    // D36H2: Buffalo running must not roll its cuff through
+                    // the fixed trigger grip. Left-hand seating and the hand /
+                    // weapon anchor remain identical; attack/reload stay native.
+                    psx_mod_write_byte(p+0x3b9,6);
+                    const auto rifle_swung=arms(20,41,41,0),rifle_run=arms(18,37,37,0);
+                    assert(distance(rifle_swung,rifle_run)>0);
+                    for(unsigned n:{0u,1u,2u,5u})assert(rifle_swung[n]==rifle_run[n]);
+                    assert(arms(18,41,37,100)==rifle_swung);
+                    assert(arms(20,37,41,0)==rifle_swung);
+                    assert(arms(25,37,37,0)==rifle_swung);
+                    assert(arms(27,37,37,0)==rifle_swung);
+                    // A changing native elbow roll no longer changes the
+                    // displayed running cuff, without touching the native pose.
+                    psx_mod_write_half(mats+32*elbow,2048);
+                    assert(arms(18,37,37,0)==rifle_run);
+                    psx_mod_write_half(mats+32*elbow,2896);
+                    const unsigned ready_clip=psx_mod_read_half(0x800c2d64+8*20+2);
+                    const uint32_t ready_record=psx_mod_read_word(0x800d8328+4*ready_clip);
+                    psx_mod_write_word(0x800d8328+4*ready_clip,0);
+                    assert(arms(18,37,37,0)==rifle_swung); // incomplete reference falls back
+                    psx_mod_write_word(0x800d8328+4*ready_clip,ready_record);
+                    arms(18,37,37,0);ttk::render_state_save(run_state.data());
+                    arms(20,41,41,0);ttk::render_state_save(idle_state.data());
+                    const pid_t rifle_child=fork();assert(rifle_child>=0);
+                    if(rifle_child==0) {
+                        ttk::render_state_load(run_state.data());assert(arms(20,41,41,0)==rifle_run);
+                        auto blend=run_state;ttk::render_state_blend_mask(blend.data(),idle_state.data(),.5);
+                        ttk::render_state_load(blend.data());const auto between=arms(20,41,41,0);
+                        assert(between!=rifle_run && between!=rifle_swung);
+                        for(unsigned n:{0u,1u,2u,5u})assert(between[n]==rifle_run[n]);
+                        ttk::render_state_load(idle_state.data());assert(arms(18,37,37,0)==rifle_swung);
+                        _exit(0);
+                    }
+                    int rifle_status=0;waitpid(rifle_child,&rifle_status,0);
+                    assert(WIFEXITED(rifle_status) && WEXITSTATUS(rifle_status)==0);
+                    std::puts("PASS: D36H2 Buffalo running cuff stability, unchanged hands, native transitions, reload exclusion, fallback and replay restoration");
+                    for(unsigned slot:{5u,6u,7u,9u,10u,11u,27u,28u}) {
                         psx_mod_write_byte(p+0x3b9,slot);const auto result=arms(18,37,37,0);
                         for(unsigned n:{0u,1u,3u,4u})for(unsigned k=0;k<3;++k) {
                             int32_t start,end;int16_t axis;

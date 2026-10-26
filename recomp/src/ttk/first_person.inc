@@ -851,7 +851,7 @@ static RunArms running_arm_pose() {
     RunArms pose;
     const unsigned slot=weapon_view_slot(),upper=psx_mod_read_half(player+0x74);
     if(!input_modernized() || !weapon_ready_pose() ||
-       !(slot==5 || slot==7 || slot==9 || slot==10 || slot==11) ||
+       !(slot==5 || slot==6 || slot==7 || slot==9 || slot==10 || slot==11) ||
        !(upper==18 || upper==19 || upper==20 || upper==29) ||
        crouch_weapon_active() || swim_weapon_view_active() ||
        psx_mod_read_byte(player+0x22c)>1)return pose;
@@ -1067,6 +1067,10 @@ static bool display_arm_matrix(uint32_t real,uint32_t desc,unsigned part) {
     // Keep the accepted right-arm motion. These support hands use the full
     // walking grip during running, with the same native transition ramp.
     if(slot==7 || slot==11)arm_weight=part<13?std::min(1.0,arm_weight/.9):0;
+    // D36H2: the Buffalo's native run rolls the forearm cuff through the
+    // fixed trigger hand / stock. Keep its ready right-chain relationship
+    // during the run contribution; the left grip and reload remain separate.
+    if(slot==6)arm_weight=part>=13?std::min(1.0,arm_weight/.9):0;
     // User-selected Flamethrower / Energy contact: the middle firing key is
     // also the ready support grip. Only the left chain changes; events and
     // recoil remain live. Energy retains its additional housing clearance.
@@ -1131,7 +1135,12 @@ static bool display_arm_matrix(uint32_t real,uint32_t desc,unsigned part) {
             for(int r=0;r<3;++r) {
                 offset[r]=0;for(int k=0;k<3;++k)offset[r]+=inverse[r][k]*(lp[k]-rp[k]);
             }
-            offset[1]-=70*rifle_reload_pose().pull;
+            // D36H2: the glove's upper face and rifle fore-end otherwise
+            // differ by less than one depth unit. Camera/GTE rounding during
+            // yaw reverses their painter order. Seat the support grip six
+            // units farther along the rifle, retaining the native-clock pull
+            // and moving the connected chain with its wrist.
+            offset[1]+=6-70*rifle_reload_pose().pull;
             for(int r=0;r<3;++r) {
                 double wrist=int32_t(psx_mod_read_word(weapon_matrix+0x14+4*r));
                 for(int k=0;k<3;++k)wrist+=d[k][r]*offset[k]*slot_scale(6);

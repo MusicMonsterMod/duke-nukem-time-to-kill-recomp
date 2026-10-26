@@ -1,5 +1,7 @@
 # Time to Kill — modernization jobs
 
+**Latest closeout (2026-10-26): D36H2 is Done. User accepted both Buffalo grip fixes and explicitly authorized lock-in/closeout. [Note 277](documentation/277-d36h2-buffalo-grip.md). No next job started.**
+
 **Latest closeout (2026-10-26): D07G is Done. User accepted crosshair readability and authorized lock-in/closeout. [Note 276](documentation/276-d07g-crosshair-scaling.md). No next job started.**
 
 **Latest closeout (2026-10-26): D35J5 is Done. User accepted frozen first-person blue vision and explicitly authorized lock-in/closeout. [Note 275](documentation/275-d35j5-frozen-first-person.md) retains verification limits. No next job started.**
@@ -482,7 +484,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D36G | Shared limb presentation ownership (behavior-equivalent foundation) | Done (user-accepted 2026-10-26) | D36; D37A/D19Q3 candidate limits |
 | D36H | Connected combat and held-item arms | Done | D36G |
 | D36H1 | Gatling left-hand underside contact at first-person idle | Done | D36G, D36H |
-| D36H2 | Buffalo Rifle grip-area flicker | Todo | D36G, D36H |
+| D36H2 | Buffalo Rifle grip-area flicker | Done (user-accepted 2026-10-26) | D36G, D36H |
 | D36H3 | Realistic two-handed weapon/hand motion while running | Done (user-accepted) | D36G, D36H, D36H1 |
 | D36I | Native interaction arm continuity, slot 8 first | Done | D36G |
 | D36J | Coherent body and quick-kick leg presentation | Done (user-accepted 2026-10-26) | D36G, D36H |
@@ -512,12 +514,14 @@ with the note 263 ownership, gameplay and Vanilla regressions intact.
 
 ### D36H2 - Buffalo Rifle grip-area flicker
 
-**Status: Todo. Depends on D36G/D36H (Done).** Identify and eliminate the small
-flickering section at Duke's grip. Exact triangle/hand/phase and cause remain
-unverified. Inspect shared display matrices, contact overlap, clipping/depth,
-textures and replay before choosing a fix. Preserve the accepted Buffalo
-raise/cock/return motion. Acceptance: stable identified grip patch through
-idle/fire/reload/settle, crouch/look, save/load and replay, with note 263 regressions.
+**Status: Done (user-accepted 2026-10-26). Depends on D36G/D36H (Done).**
+User accepted the left-hand turning fix and right-wrist running follow-up, then
+explicitly authorized lock-in and closeout. The left grip has a small rifle-local
+seating correction; the right cuff retains its ready alignment during running.
+Accepted Buffalo lift/cock/return, weapon/right-hand anchor and native gameplay
+remain preserved. [Note 277](documentation/277-d36h2-buffalo-grip.md) records
+source diagnosis, measured ordering stability, tests and bounded visual coverage.
+
 
 ### D17Z - Slot-12 medieval corridor wall glitch
 
@@ -21222,3 +21226,31 @@ readability accepted; implementation, manual and documentation commit/push
 explicitly authorized. [Note 276](documentation/276-d07g-crosshair-scaling.md)
 retains the build, aim/UI tests, 36 measured capture checks and platform limits.
 No new build, game launch or next job during closeout.
+
+## 2026-10-26 - D36H2 left-hand grip candidate
+
+Needs playtest. User clarified the left hand itself while turning left/right.
+Traced overlapping glove/rifle faces swap average-depth order with camera
+rounding. Six-unit rifle-local support seating removes the measured reversal
+while preserving the accepted reload stroke. Build and controls/aim/near suites
+pass; private 60/120 captures and mid-reload save/load checked.
+[Note 277](documentation/277-d36h2-buffalo-grip.md) records evidence and limits.
+No acceptance closeout, commit or push.
+
+## 2026-10-26 - D36H2 right-wrist running candidate
+
+Left-hand fix accepted. User selected the small right-hand-base running flicker.
+Trace identifies rotating forearm cuff/stock order reversals; Buffalo now uses
+its ready right-chain relationship during the native run contribution. Right
+hand, left grip and reload remain unchanged. Build and controls/aim/near pass,
+including focused cuff/transition/replay regressions. Private 60 trace and 120
+running/fire/load/view coverage recorded in [note 277](documentation/277-d36h2-buffalo-grip.md).
+Needs playtest; no acceptance closeout, commit or push.
+
+## 2026-10-26 - D36H2 accepted and closed
+
+User: "lock it in, close it out!!". Both Buffalo grip corrections are accepted;
+implementation, regression tests, manual and documentation commit/push authorized.
+D36H2 is Done. [Note 277](documentation/277-d36h2-buffalo-grip.md) retains the
+measured evidence and coverage limits. No new build, launch or next job during
+closeout. Framework modifications predate this job and remain unchanged.

@@ -1,5 +1,67 @@
 # Next-session handoff
 
+## 2026-10-26 - D36H accepted and closed
+
+User: "fully accept! lock it in and close it out!!!!!!". D36H is Done, including
+connected combat/held-item arms and the final Buffalo Rifle cocking motion.
+Implementation, tests and documentation closeout are authorized for commit/push
+as MusicMonsterMod. [Note 259](259-d36h-connected-arms.md) records acceptance,
+passing controls/aim/clipping checks, private motion/save-load evidence and
+bounded coverage. Earlier candidate entries below are historical; the first
+Buffalo correction remains rejected and superseded.
+Accepted executable: `db2e95b17b2faff913f4ba2893bb9d1272c6dfa3fc4d2e8c7d007de286541517`.
+No gameplay changes, rebuild, game launch or player-file writes during closeout.
+D36I-L remain unstarted; D37A/D19Q3 retain their separate Needs playtest statuses.
+Launch: `python3 recomp/tools/local/run.py` (Modernized default; `--vanilla`
+selects the original profile for one launch).
+
+
+## 2026-10-26 - D36H Buffalo motion revision (Needs playtest)
+
+The user's `research/screencaps/buffalo.mp4` rejects the previous rifle follow-up:
+the gun rolls down while the support hand rises, with a reported vibrating
+settle. That earlier candidate is superseded, not visually accepted.
+The new display-only pose lifts the rifle and keeps the support hand beside it
+for a short cocking stroke, driven by native upper-27 clip timing. Rifle pose
+and recoil are interpolated in replay; the steady support grip no longer follows
+independent native wrist motion. Other weapon records and Vanilla retain their
+existing paths. Build and controls/aim/near tests pass. Private 60/120-setting
+motion recordings show the raised cycle and stable inspected settling frames;
+these are visual diagnostics, not a 120 FPS performance certification.
+[Note 259](259-d36h-connected-arms.md) records evidence and remaining limits.
+User visual review remains; no closeout, commit or push authorized.
+Candidate: `db2e95b17b2faff913f4ba2893bb9d1272c6dfa3fc4d2e8c7d007de286541517`.
+Launch: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-26 - D36H Buffalo Rifle reload correction (superseded after video review)
+
+User: arms are "99.9% perfect" except key 9's Buffalo Rifle stays fixed while
+its hand cocks/reloads. The rifle now follows native upper-27 right-arm motion
+around the accepted firing grip; idle and other weapons retain their policy.
+Build and controls/aim/near checks pass, plus private standing/crouched cycles
+and 120 Hz mid-reload save/load. [Note 259](259-d36h-connected-arms.md) records
+the source finding, implementation and limits. Retest key 9 firing/cocking.
+D36H remains Needs playtest; no closeout, commit or push authorized.
+Candidate: `4cd7269e8251f99bcfb2d1ceb8c5f4b2c0d46449d61add7edbc2708b3df5afac`.
+Launch: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-26 - D36H connected arms (Needs playtest)
+
+D36H candidate adds connected retail combat/held-item arms around the accepted
+weapon grip, with native per-weapon support grips for two-handed weapons. Native
+interaction arms remain under their existing owners. Build and controls/input/
+aim/near/save-recovery checks pass; private captures verify all base records,
+six campaign upgrades, held items, swimming/flight, view toggles and save/load
+with the limits in [note 259](259-d36h-connected-arms.md). No replacement asset,
+new guest allocation or framework edit. User visual grip/pose and continuous
+motion approval remains. D36I-L unstarted; D37A/D19Q3 remain Needs playtest.
+No acceptance closeout, commit or push authorized.
+Candidate: `9bffb4f704fbf22c02d0b203c6995c067f18f6e237b0fdd66462b9251f1da806`.
+Launch: `python3 recomp/tools/local/run.py` (automatic capture; P changes view).
+
+
 ## 2026-10-26 - D36G accepted and closed
 
 User: "lock it in and close it out". D36G is Done by user acceptance.

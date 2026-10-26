@@ -1,6 +1,6 @@
 # Time to Kill — modernization jobs
 
-**Latest accepted research (2026-10-26): D36 and D36A-F are Done. [Note 257](documentation/257-d36-first-person-presentation-audit.md) is the accepted first-person presentation audit and roadmap. D36G is Done (user-accepted); implementation proposals D36H-L remain unstarted.**
+**Latest accepted research (2026-10-26): D36 and D36A-F are Done. [Note 257](documentation/257-d36-first-person-presentation-audit.md) is the accepted first-person presentation audit and roadmap. D36G is Done (user-accepted); D36H is Done (user-accepted); implementation proposals D36I-L remain unstarted.**
 
 **Latest closeout (2026-10-26): D23D is Done. User could not reproduce the Level 9 slowdown and reports a problem-free playthrough. Closed on user playtest evidence; no build change or new profiling.**
 
@@ -410,6 +410,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D36E | Reusable/dedicated geometry, animation and shared-presentation architecture | Done (research accepted 2026-10-26) | D36A; findings from D36B-D |
 | D36F | Visual standards, traceability and prioritized implementation roadmap | Done (research accepted 2026-10-26) | D36B, D36C, D36D, D36E |
 | D36G | Shared limb presentation ownership (behavior-equivalent foundation) | Done (user-accepted 2026-10-26) | D36; D37A/D19Q3 candidate limits |
+| D36H | Connected combat and held-item arms | Done | D36G |
 | D37 | Temporary movement failure at 07:26 UK on 2026-10-26 (separate research) | Done | - |
 | D37A | Safe animation restoration across save allocation layouts | Needs playtest | D37 |
 | R01 | DisruptorRecomp architecture and modernization reference research | Done | - |
@@ -20466,3 +20467,58 @@ is claimed during closeout. Accepted executable:
 `e2062e66f70eb0bbe20be9c8a7bb8bfbf9e5cf234107779d4e98dcd3c979f1d3`.
 D36H-L remain unstarted; D37A/D19Q3 retain their separate Needs playtest statuses.
 No next job started. Existing framework modifications remain untouched.
+
+
+## 2026-10-26 - D36H selected
+
+User selected D36H. Promote the accepted note 257 proposal to implementation:
+preserve weapon/attachment transforms and native events while connecting retail
+arm segments in display space, including equipment-1 items and remote. Validate
+per-weapon grips and poses before completing replacement assets if any are needed.
+Scope and regression matrix remain note 257 D36H; D36I-L are not selected.
+D37A/D19Q3 remain Needs playtest. No commit/push or acceptance closeout authorized.
+
+
+## 2026-10-26 - D36H connected-arm candidate (Needs playtest)
+
+Connected retail display arms preserve the accepted weapon/attachment transform;
+native two-handed poses supply support grips, while one-handed/item states use
+the right chain. Bone endpoints, semantic costume mapping, ownership and source
+matrix preservation pass new native checks. Player build and controls/input/aim/
+near/save-recovery checks pass. Private 60/120, 4:3/16:9 weapon/item, swimming,
+flight, view-toggle and save/load samples are documented with limits in
+[note 259](documentation/259-d36h-connected-arms.md). User grip/pose and continuous
+motion acceptance remains. No new assets, allocations or framework edits.
+D36I-L unstarted; D37A/D19Q3 remain Needs playtest. No commit/push authorized.
+
+
+## 2026-10-26 - D36H Buffalo Rifle reload follow-up (Needs playtest)
+
+User reports the arms are 99.9% perfect except the Buffalo Rifle staying still
+during its cock/reload hand motion. Record 6 / upper 27 now carries the native
+reload delta around its accepted firing grip; idle and other guns stay fixed to
+their existing policy. Build, controls/aim/near checks and private standing,
+crouched and 120 Hz mid-reload save/load checks pass. Retest key 9 firing. See
+[note 259](documentation/259-d36h-connected-arms.md). No closeout/commit/push.
+
+## 2026-10-26 - D36H Buffalo video correction (Needs playtest)
+
+User video rejects the preceding native wrist-delta follow-up. Replace that
+rifle-only display motion with a raised cocking pose driven by native reload
+phase, a stable support grip and replay interpolation. Build and native controls,
+aim and near checks pass; private 60/120-setting continuous captures show the
+raised cycle and stable inspected settling frames. This does not accept the
+visual design or certify 120 FPS. Note 259 retains evidence and the superseded
+candidate history. No commit/push or acceptance closeout authorized.
+
+## 2026-10-26 - D36H accepted and closed
+
+User: "fully accept! lock it in and close it out!!!!!!". D36H is Done, including
+connected combat/held-item arms and the revised Buffalo Rifle cocking motion.
+Authored implementation, regression tests and documentation closeout are
+explicitly authorized for commit/push as MusicMonsterMod. Accepted executable:
+`db2e95b17b2faff913f4ba2893bb9d1272c6dfa3fc4d2e8c7d007de286541517`.
+[Note 259](documentation/259-d36h-connected-arms.md) retains passing checks,
+private motion/save-load evidence, the rejected intermediate candidate and
+coverage limits. No new gameplay edits, rebuild or launch during closeout.
+D36I-L remain unstarted; D37A/D19Q3 retain their separate Needs playtest statuses.

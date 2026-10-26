@@ -44,7 +44,13 @@ struct HookChain {
 };
 static auto& hooks() {static std::map<uint32_t,HookChain> value;return value;}
 static unsigned writes, code_writes;
-extern "C" uint32_t psx_mod_alloc_guest_memory(uint32_t,uint32_t){return 0x801e0000;}
+// Distinct aligned allocations, like the runtime. Aliasing every request hid
+// lifetime bugs when a weapon and its arm scratch coexist in one draw.
+extern "C" uint32_t psx_mod_alloc_guest_memory(uint32_t size,uint32_t align){
+    static uint32_t next=0x801e0000;
+    next=(next+align-1)&~(align-1);const uint32_t result=next;next+=size;
+    assert(next<0x801e1000);return result;
+}
 extern "C" uint32_t psx_mod_alloc_gpu_dma_memory(uint32_t,uint32_t){return 0;}
 extern "C" uint8_t psx_mod_read_byte(uint32_t a) {return ram[a&0x1fffff];}
 extern "C" uint16_t psx_mod_read_half(uint32_t a) {return psx_mod_read_byte(a)|(psx_mod_read_byte(a+1)<<8);}
@@ -2067,7 +2073,7 @@ int main(int argc,char** argv) {
     arm.gpr[4]=0x1f800060;arm.gpr[5]=p+0x124;arm.gpr[18]=p;
     psx_mod_write_half(c+14,-2048);psx_mod_write_word(p+0x124,12345);
     hooks().at(0x80097a44)(&arm,0x80097a44);
-    assert(arm.gpr[5]==0x801e0000 && (int32_t)psx_mod_read_word(arm.gpr[5]+4)==-2048);
+    assert(arm.gpr[5]>=0x801e0000 && arm.gpr[5]<0x801e1000 && (int32_t)psx_mod_read_word(arm.gpr[5]+4)==-2048);
     assert(psx_mod_read_word(p+0x124)==12345); // persistent aiming untouched
     arm.gpr[5]=p+0x124;arm.gpr[18]=p+0x8a4;writes=0;
     hooks().at(0x80097a44)(&arm,0x80097a44);assert(writes==0 && arm.gpr[5]==p+0x124);
@@ -3039,6 +3045,62 @@ int main(int argc,char** argv) {
                 assert(ttk::first_person_limb_presentation().owner==ttk::LimbOwner::HiddenArm);
                 assert(!ttk::first_person_limb_presentation().bridge_joint_depth);
                 for(int i=0;i<3;++i) assert(psx_mod_read_word(arm.gpr[5]+0x14+4*i)==psx_mod_read_word(c+0x14+4*i));
+                // D36H: anatomically connected endpoints, using semantic parts
+                // in both costume orders. Only draw scratch changes, never the
+                // native matrices used for gameplay and attachment events.
+                uint8_t arm_camera[18];std::memcpy(arm_camera,ram+(c&0x1fffff),18);
+                for(unsigned i=0;i<9;++i)psx_mod_write_half(c+2*i,i%4==0?4096:0);
+                for(const auto* costume:{first_map,cowboy}) for(unsigned slot:{1u,2u,3u,4u,5u,6u,7u,8u,9u,10u,11u,12u,13u,14u,27u,28u,29u,32u}) {
+                    layout(costume);
+                    std::vector<uint8_t> saved_mats(ram+(mats&0x1fffff),ram+(mats&0x1fffff)+19*0x20);
+                    for(unsigned part=10;part<=15;++part) {
+                        const unsigned j=psx_mod_read_byte(desc+0x24+part);
+                        const int n=(part-10)%3;
+                        for(int k=0;k<3;++k)psx_mod_write_word(mats+32*j+0x14+4*k,
+                            k==0?(part<13?-100:100):k==1?100*n:400);
+                    }
+                    std::vector<uint8_t> native(ram+(mats&0x1fffff),ram+(mats&0x1fffff)+19*0x20);
+                    psx_mod_write_byte(p+0x3b8,slot==32?1:2);psx_mod_write_byte(p+0x3b9,slot==32?6:slot);
+                    const bool support=slot==3 || (slot>=5 && slot<=11) || (slot>=27 && slot<=29);
+                    call(0x800348d8,c,p,0x8003769c);
+                    uint8_t display[6][32];
+                    // Also exercise right-first costume traversal: the hand's
+                    // recoil advance must not detach later left-arm draws.
+                    for(unsigned part:{13u,14u,15u,10u,11u,12u}) {
+                        const unsigned j=psx_mod_read_byte(desc+0x24+part);
+                        auto result=hook(0x800292a0,c,mats+32*j,0x80034c6c,j);
+                        assert(result.gpr[5]!=mats+32*j);
+                        std::memcpy(display[part-10],ram+(result.gpr[5]&0x1fffff),32);
+                        const auto owner=ttk::first_person_limb_presentation();
+                        const bool visible=part>=13 || support;
+                        assert(owner.owner==(part==15?ttk::LimbOwner::DisplayHand:visible?ttk::LimbOwner::DisplayArm:ttk::LimbOwner::HiddenArm));
+                        assert(owner.viewmodel()==visible && owner.parts==(1u<<part));
+                        if(part!=15 && visible) {
+                            result.gpr[31]=0x80034c8c;result.gpr[16]=0;result.gte_ctrl[26]=256;
+                            psx_mod_write_word(result.gpr[29]+0x98,c);
+                            hooks().at(0x800b4d2c)(&result,0x800b4d2c);
+                            assert(result.gpr[16]==256);
+                        }
+                    }
+                    auto word=[](const uint8_t* b){int32_t v;std::memcpy(&v,b,4);return v;};
+                    auto half=[](const uint8_t* b){int16_t v;std::memcpy(&v,b,2);return v;};
+                    for(unsigned i:{0u,1u,3u,4u})for(int k=0;k<3;++k) {
+                        if(i<3 && !support)continue;
+                        // Source child offset is (0,100,0). Stored rotations
+                        // are world-to-joint, so the child uses the transpose.
+                        const double endpoint=word(display[i]+0x14+4*k)+100.0*half(display[i]+2*(3+k))/4096;
+                        if(std::abs(endpoint-word(display[i+1]+0x14+4*k))>=2)std::fprintf(stderr,"D36H endpoint part=%u axis=%d end=%.3f next=%d\n",i+10,k,endpoint,word(display[i+1]+0x14+4*k));
+                        assert(std::abs(endpoint-word(display[i+1]+0x14+4*k))<2);
+                    }
+                    assert(std::equal(native.begin(),native.end(),ram+(mats&0x1fffff)));
+                    call(0x8001ca4c,0x800d0000,0,0x800376b4);
+                    assert(ttk::first_person_limb_presentation().owner==ttk::LimbOwner::Native);
+                    std::copy(saved_mats.begin(),saved_mats.end(),ram+(mats&0x1fffff));
+                }
+                std::memcpy(ram+(c&0x1fffff),arm_camera,18);
+                layout(first_map);psx_mod_write_byte(p+0x3b8,2);psx_mod_write_byte(p+0x3b9,4);
+                call(0x800348d8,c,p,0x8003769c);
+                std::puts("PASS: D36H connected arm endpoints, costume semantic mapping, depth admission and untouched gameplay matrices");
                 assert(hook(0x800292a0,c,mats+0x20*9,0x80034c6c,9).gpr[5]==mats+0x20*9);
                 assert(hook(0x800292a0,c,hand,0x80034c6c,7,0).gpr[5]!=hand);
                 call(0x8001ca4c,0x800d0000,0,0x800376b4);
@@ -3152,6 +3214,72 @@ int main(int argc,char** argv) {
                         call(0x8001ca4c,0x800d0000,0,0x800376b4);
                         return bytes;
                     };
+                    // D36H rifle follow-up: only record 6 / upper 27 releases
+                    // the seeded grip. Use native clip timing in every stance,
+                    // never a compensated world hand or a new animation clock.
+                    const unsigned rifle_clip=psx_mod_read_half(0x800c2d64+8*27+2);
+                    psx_mod_write_word(0x800d8328+4*rifle_clip,2u<<16);
+                    psx_mod_write_word(frm+8,100u<<16);psx_mod_write_word(frm+12,(3u<<16)|3u);
+                    for(unsigned j=13;j<=15;++j) {
+                        psx_mod_write_word(rot+24+8*(j-13),0);
+                        psx_mod_write_word(rot+28+8*(j-13),(j<<27)|(4095u<<14));
+                    }
+                    psx_mod_write_word(rot,1567);psx_mod_write_word(rot+4,(13u<<27)|(3784u<<14));
+                    psx_mod_write_byte(p+0x3b8,2);psx_mod_write_byte(p+0x3b9,6);
+                    psx_mod_write_half(p+0x74,20);for(unsigned i=0;i<40;++i)displayed();
+                    const auto rifle_ready=displayed();
+                    psx_mod_write_half(p+0x74,27);psx_mod_write_half(p+0x76,0);const auto rifle_reload=displayed();
+                    assert(rifle_reload!=rifle_ready);
+                    // Last native reload key returns to the accepted grip
+                    // (one fixed-point rounding unit is not a pose change).
+                    psx_mod_write_half(p+0x78,1);psx_mod_write_half(p+0x7a,1);
+                    const auto rifle_end=displayed();
+                    for(unsigned i=0;i<9;++i) {
+                        int16_t a,b;std::memcpy(&a,rifle_end.data()+2*i,2);std::memcpy(&b,rifle_ready.data()+2*i,2);
+                        assert(std::abs(int(a)-int(b))<=2);
+                    }
+                    for(unsigned i=0;i<3;++i) {
+                        int32_t a,b;std::memcpy(&a,rifle_end.data()+20+4*i,4);std::memcpy(&b,rifle_ready.data()+20+4*i,4);
+                        assert(std::abs(a-b)<=1);
+                    }
+                    psx_mod_write_half(p+0x78,0);psx_mod_write_half(p+0x7a,0);
+                    psx_mod_write_word(hand+0x14,psx_mod_read_word(hand+0x14)+600);
+                    assert(displayed()==rifle_reload);
+                    setenv("DNTTK_CROUCH","original",1);assert(displayed()==rifle_reload);
+                    psx_mod_write_half(p+0x60,63);assert(displayed()==rifle_reload);
+                    psx_mod_write_word(rot,2896);psx_mod_write_word(rot+4,(13u<<27)|(2896u<<14));
+                    assert(displayed()==rifle_reload); // wrist roll does not drive the eye pose
+                    psx_mod_write_half(p+0x76,90);assert(displayed()!=rifle_reload);
+                    psx_mod_write_half(p+0x76,0);
+                    std::vector<uint8_t> reload_state(ttk::render_state_size()),ready_state(reload_state.size());
+                    ttk::render_state_save(reload_state.data());
+                    psx_mod_write_half(p+0x74,20);assert(displayed()==rifle_ready);
+                    ttk::render_state_save(ready_state.data());
+                    const pid_t reload_child=fork();assert(reload_child>=0);
+                    if(reload_child==0) {
+                        // Worker draw uses the captured pose, not its older RAM
+                        // channel. In-between replay images cannot snap back.
+                        ttk::render_state_load(reload_state.data());assert(displayed()==rifle_reload);
+                        auto middle=reload_state;
+                        ttk::render_state_blend_mask(middle.data(),ready_state.data(),.5);
+                        ttk::render_state_load(middle.data());const auto halfway=displayed();
+                        assert(halfway!=rifle_reload && halfway!=rifle_ready);
+                        ttk::render_state_load(ready_state.data());assert(displayed()==rifle_ready);
+                        _exit(0);
+                    }
+                    int reload_status=0;waitpid(reload_child,&reload_status,0);
+                    assert(WIFEXITED(reload_status) && WEXITSTATUS(reload_status)==0);
+                    psx_mod_write_half(p+0x74,27);psx_mod_write_half(p+0x7a,0xffff);
+                    assert(displayed()==rifle_ready); // missing channel safely keeps the seed
+                    psx_mod_write_half(p+0x7a,0);
+                    for(unsigned slot:{4u,5u,7u,8u,9u,10u,11u,27u,28u,29u}) {
+                        psx_mod_write_byte(p+0x3b9,slot);const auto fixed=displayed();
+                        psx_mod_write_word(rot,0);psx_mod_write_word(rot+4,(13u<<27)|(4095u<<14));
+                        assert(displayed()==fixed);
+                        psx_mod_write_half(p+0x74,20);assert(displayed()==fixed);psx_mod_write_half(p+0x74,27);
+                    }
+                    unsetenv("DNTTK_CROUCH");psx_mod_write_half(p+0x60,178);psx_mod_write_half(p+0x74,39);psx_mod_write_half(p+0x76,100);
+                    std::puts("PASS: D36H Buffalo reload follows channel 27 timing, stance/world-hand independence, idle/other weapons unchanged, missing-data fallback");
                     for(unsigned slot:{1u,2u,3u,12u,13u,14u,32u}) {
                         psx_mod_write_byte(p+0x3b8,slot==32?1:2);
                         psx_mod_write_byte(p+0x3b9,slot==32?12:slot);
@@ -3429,7 +3557,7 @@ int main(int argc,char** argv) {
                 // the host with the same arguments; the original call is left a
                 // radius that touches nothing. One thud per kick animation.
                 {
-                    constexpr uint32_t foot=0x801e0000,ssp=0x801fe000;
+                    constexpr uint32_t foot=0x801e7000,ssp=0x801fe000;
                     psx_mod_write_word(foot,100);psx_mod_write_word(foot+4,-200);psx_mod_write_word(foot+8,300);
                     auto sphere=[&](uint32_t ra){
                         CPUState cpu{};cpu.gpr[4]=foot;cpu.gpr[5]=96;cpu.gpr[6]=10;cpu.gpr[7]=200;cpu.gpr[29]=ssp;cpu.gpr[31]=ra;

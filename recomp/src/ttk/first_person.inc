@@ -468,6 +468,7 @@ static uint32_t weapon_matrix;
 // after it (0x8001ca4c, ra 0x800376b4). duke_drawing is not usable here: the
 // draw's own callees reach 0x8001ca4c before the joint loop.
 static bool weapon_duke_draw, weapon_live;
+static bool display_hand_done;
 // From the hand joint's transform to the next joint's: the hand mesh and its
 // attached draws, which the near-clip object path draws on top (D12).
 static LimbPresentation limb_draw;
@@ -590,7 +591,7 @@ static bool kick_leg_joint(CPUState* cpu);
 // End a verified draw scope with restoration; world/replay replacement instead
 // discards ownership without restoring bytes into a different RAM image.
 static void limb_scope_end(CPUState* cpu) {fade_restore(cpu);limb_draw={};}
-static void limb_scope_forget() {limb_draw={};weapon_live=false;weapon_duke_draw=false;}
+static void limb_scope_forget() {limb_draw={};weapon_live=false;weapon_duke_draw=false;display_hand_done=false;}
 static void limb_claim(CPUState* cpu,LimbOwner owner,int part,bool bridge=false) {
     limb_draw=limb_presentation(owner,part,bridge);
     if(limb_draw.light==LimbLight::CorrectProximityFade) fade_clear(cpu);
@@ -611,7 +612,7 @@ static void weapon_draw_bounds(bool duke_entry,bool list_step_after_duke) {
         std::fprintf(stderr,"mask-draw gate=%d duke=%d fp=%f orbit=%d game=%d ident=%d face=%u\n",mask,weapon_duke_draw,fp_blend,orbit_valid,gameplay_context(),player_identity_ready(),psx_mod_read_half(player+0x854));
     if(duke_entry) weapon_duke_draw=true;
     if(list_step_after_duke) weapon_duke_draw=false;
-    if(duke_entry || list_step_after_duke) {weapon_release();near_clip_viewmodel_flush();}
+    if(duke_entry || list_step_after_duke) {display_hand_done=false;weapon_release();near_clip_viewmodel_flush();}
     if(mask && psx_mod_read_half(player+0x35e) && psx_mod_read_half(player+0x854)==2)
         near_clip_biomask(bob_dip,biomask_light);
 }
@@ -697,8 +698,8 @@ static unsigned weapon_view_slot() {
 // compensation. Rebuild the hand relative to the chest from the right arm's
 // own animation channel, bypassing crouch_walk_upper's joint-record edits.
 // This keeps draw/throw/reload motion, without per-weapon crouch offsets or
-// new pose seeds. Standing uses the original D12 display path; the seeded
-// guns never enter this path.
+// new pose seeds. Standing normally uses the original D12 display path;
+// D36H also uses this reconstruction for the Buffalo Rifle reload below.
 // Replay workers do not run the stance/animation updates. Their fork-time
 // crouch statics are stale, so use the eligibility published with this frame.
 static bool override_crouch_weapon, override_swim_weapon;
@@ -715,30 +716,79 @@ static bool swim_weapon_view_active() {
     if(render_override)return override_swim_weapon;
     return input_modernized() && first_person_swimming();
 }
-static bool animated_weapon_channel(double* q,double* pos) {
-    const unsigned slot=weapon_view_slot();
-    if((!crouch_weapon_active() && !swim_weapon_view_active()) ||
-       !(slot==1 || slot==2 || slot==3 || slot==12 || slot==13 || slot==14 || slot==32))return false;
-    const uint32_t desc=duke_model();
-    if(!desc)return false;
-    std::array<CrouchQuat,32> arm{};uint32_t mask=0;
-    if(!crouch_channel_pose(1,arm,mask) || (mask&0xe000u)!=0xe000u)return false;
-    Mat3 hand={{1,0,0},{0,1,0},{0,0,1}};
-    double rel[3]={};
-    for(unsigned part=13;part<=15;++part) {
+// Buffalo presentation follows the original reload clock, but uses a grip
+// designed for the eye camera. The retail wrist roll is a third-person pose.
+struct RifleReload { double lift=0,pull=0; };
+static RifleReload override_rifle_reload;
+static bool rifle_clip(unsigned channel,unsigned& first,unsigned& count) {
+    const unsigned clip=psx_mod_read_half(0x800c2d64+8*27+2*channel);
+    if(clip>=2048)return false;
+    const uint32_t r=psx_mod_read_word(0x800d8328+4*clip);
+    first=r&0xffff;count=r>>16;
+    return first!=0xffff && count>0 && count<=64 && first+count<=0xffff;
+}
+static RifleReload rifle_reload_pose() {
+    if(render_override)return override_rifle_reload;
+    if(weapon_view_slot()!=6 || psx_mod_read_half(player+0x74)!=27)return {};
+    unsigned first,count;if(!rifle_clip(1,first,count))return {};
+    const unsigned frame=psx_mod_read_half(player+0x7a);
+    if(frame<first || frame>=first+count)return {};
+    const uint32_t frm=psx_mod_read_word(0x800d8324);
+    double elapsed=0,total=0;
+    for(unsigned i=0;i<count;++i) {
+        const unsigned ticks=psx_mod_read_word(frm+8*(first+i))>>16;
+        if(i<frame-first)elapsed+=ticks;
+        if(i==frame-first)elapsed+=std::clamp(int(ticks)-int(psx_mod_read_half(player+0x76)),0,int(ticks));
+        total+=ticks;
+    }
+    if(total<=0)return {};
+    const double phase=elapsed/total;
+    // Raise, cock back/forward, then lower. Zero at both ends and zero slope
+    // at each authored key; no host timer or native event/clip modification.
+    constexpr double times[]={0,.22,.42,.59,.78,1};
+    constexpr double lifts[]={0,1,1,1,.65,0};
+    constexpr double pulls[]={0,0,1,0,0,0};
+    for(unsigned i=1;i<6;++i)if(phase<=times[i]) {
+        double t=(phase-times[i-1])/(times[i]-times[i-1]);t=t*t*(3-2*t);
+        return {lifts[i-1]+t*(lifts[i]-lifts[i-1]),pulls[i-1]+t*(pulls[i]-pulls[i-1])};
+    }
+    return {};
+}
+static bool display_arm_channel(const std::array<CrouchQuat,32>& arm,Mat3 hand,double* rel,unsigned shoulder=13) {
+    const uint32_t desc=duke_model();if(!desc)return false;
+    for(int r=0;r<3;++r){rel[r]=0;for(int k=0;k<3;++k)hand[r][k]=r==k?1:0;}
+    for(unsigned part=shoulder;part<shoulder+3;++part) {
         const int joint=duke_part_joint(desc,part);
         if(joint<0)return false;
         const uint32_t record=desc+0x44+0x28*joint;
-        if(psx_mod_read_byte(record+2)!=part-10)return false;
+        if(psx_mod_read_byte(record+2)!=part-shoulder+3)return false;
         double offset[3];
         for(int i=0;i<3;++i)offset[i]=int32_t(psx_mod_read_word(record+0x14+4*i));
         for(int i=0;i<3;++i)rel[i]+=hand[i][0]*offset[0]+hand[i][1]*offset[1]+hand[i][2]*offset[2];
-        // Game quaternions are x,y,z,w and build the transpose of the usual
-        // rotation matrix. Offsets are transformed by the parent, not child.
         const auto& a=arm[part];
         const double conventional[4]={a[3],-a[0],-a[1],-a[2]};
         Mat3 local;quat_mat(conventional,local);mat_mul(hand,local,hand);
     }
+    return true;
+}
+static bool rifle_ready_arm(unsigned channel,Mat3 hand,double* rel) {
+    unsigned first,count;if(!rifle_clip(channel,first,count))return false;
+    std::array<std::array<int32_t,4>,32> raw{};uint32_t mask=0;
+    const unsigned shoulder=channel==1?13:10,needed=7u<<shoulder;
+    if(!crouch_frame_quats(first+count-1,raw,mask) || (mask&needed)!=needed)return false;
+    std::array<CrouchQuat,32> arm{};
+    for(unsigned j=shoulder;j<shoulder+3;++j)
+        arm[j]=crouch_qnorm({double(raw[j][0]),double(raw[j][1]),double(raw[j][2]),double(raw[j][3])});
+    return display_arm_channel(arm,hand,rel,shoulder);
+}
+static bool animated_weapon_channel(double* q,double* pos) {
+    const unsigned slot=weapon_view_slot();
+    if((!crouch_weapon_active() && !swim_weapon_view_active()) ||
+       !(slot==1 || slot==2 || slot==3 || slot==12 || slot==13 || slot==14 || slot==32))return false;
+    std::array<CrouchQuat,32> arm{};uint32_t mask=0;
+    if(!crouch_channel_pose(1,arm,mask) || (mask&0xe000u)!=0xe000u)return false;
+    Mat3 hand;double rel[3];
+    if(!display_arm_channel(arm,hand,rel))return false;
     mat_quat(hand,q);std::memcpy(pos,rel,sizeof rel);
     return true;
 }
@@ -756,20 +806,23 @@ static bool display_pose(Mat3 lh,double* rel,bool& ready) {
     const bool channel_pose=animated_weapon_channel(q,pos);
     // Modernized view aiming (D07A) turns Duke's arms toward the view even at
     // rest, so a live pose blend would add the view pitch twice. The ready
-    // pose is the firing pose throughout; the flash adds its kick below.
+    // pose normally stays at the firing pose; the flash adds its kick below.
     if(p && weapon_ready_pose() && !channel_pose) {w=1;std::memcpy(q,p->q,sizeof q);std::memcpy(pos,p->rel,sizeof pos);}
     double tm[3][3],r[3][3];
     quat_mat(torso.torso_q,tm);quat_mat(q,r);
     mat_mul(tm,r,lh);
     for(int i=0;i<3;++i) rel[i]=torso.torso[i]+tm[i][0]*pos[0]+tm[i][1]*pos[1]+tm[i][2]*pos[2];
+    if(slot==6) {
+        const auto pose=rifle_reload_pose();
+        const double a=28.0*3.141592653589793/180*pose.lift;
+        const Mat3 raise={{1,0,0},{0,std::cos(a),-std::sin(a)},{0,std::sin(a),std::cos(a)}};
+        mat_mul(raise,lh,lh);rel[0]-=30*pose.lift;rel[1]-=150*pose.lift;rel[2]+=40*pose.lift;
+    }
     ready=w>0;
     return true;
 }
-// Arm joints (upper arms, forearms, left hand: parts 0x0a-0x0e at hierarchy
-// levels 3 to 5 under the spine) are hidden while the weapon
-// is drawn in front of the eye: the right hand has moved away from them, and
-// two-handed carries hold them across the view. Their transform call gets a
-// matrix at the eye, so the loop's own near cull (depth < H) skips the joint.
+// Shared draw scratch for display arm segments and hidden unused arms. Each
+// transform consumes it immediately; no allocation or saved skeleton is added.
 static uint32_t hidden_matrix;
 static uint64_t arm_hides;
 static bool weapon_held() {const unsigned s=psx_mod_read_byte(player+0x3b8);return s==1 || s==2;}
@@ -803,6 +856,190 @@ static void fade_restore(CPUState* cpu) {
     if(cpu) for(int i=0;i<3;++i) cpu->gte_ctrl[13+i]=(uint32_t)fade_save.bk[i];
     fade_save.active=false;
 }
+// Arms preview the same grip as the hand. Only the native right-hand draw
+// advances recoil/pose counters, preserving the original once-per-draw timing.
+static bool prepare_display_matrix(uint32_t real,uint32_t desc,bool advance=false) {
+    if(!advance && display_hand_done)return true;
+    live_valid=false;
+    if(!weapon_matrix) weapon_matrix=psx_mod_alloc_guest_memory(0x20,16);
+    if(!weapon_matrix) return false;
+    double c[3][3],h[3][3];
+    for(int r=0;r<3;++r) for(int k=0;k<3;++k) {
+        c[r][k]=(int16_t)psx_mod_read_half(camera+2*(3*r+k))/4096.0;
+        h[r][k]=(int16_t)psx_mod_read_half(real+2*(3*r+k))/4096.0;
+    }
+    // Level frame: the camera's right and forward axes without pitch (game Y down).
+    const double rl=std::hypot(c[0][0],c[0][2]),fl=std::hypot(c[2][0],c[2][2]);
+    if(rl<0.5 || fl<0.1) return false;
+    const double l[3][3]={{c[0][0]/rl,0,c[0][2]/rl},{0,1,0},{c[2][0]/fl,0,c[2][2]/fl}};
+    // Joint matrices are stored world-to-joint: the renderer transposes them
+    // (0x80010d60) before camera+0x20 times the result, and the flash offset
+    // is transpose(hand) times the muzzle vector. So a joint's world rotation
+    // is the transpose of its matrix (W = H^T below).
+    // Torso joint and the hand relative to it: Jw^T W = Jr H^T, Jw^T (t - Jt) = Jr (t - Jt).
+    const int torso_joint=duke_part_joint(desc,part_spine);
+    if(torso_joint<0) return false;
+    const uint32_t mats=psx_mod_read_word(player+0x3c),torso_m=mats+0x20*torso_joint;
+    double jr[3][3],jt[3],t[3],hw[3][3],jw[3][3];
+    for(int r=0;r<3;++r) for(int k2=0;k2<3;++k2) jr[r][k2]=(int16_t)psx_mod_read_half(torso_m+2*(3*r+k2))/4096.0;
+    for(int i=0;i<3;++i) {jt[i]=(int32_t)psx_mod_read_word(torso_m+0x14+4*i);t[i]=(int32_t)psx_mod_read_word(real+0x14+4*i);}
+    for(int r=0;r<3;++r) for(int k2=0;k2<3;++k2) {hw[r][k2]=h[k2][r];jw[r][k2]=jr[k2][r];}
+    double hr[3][3],lj[3][3];
+    mat_mul(jr,hw,hr);mat_quat(hr,live_q);
+    for(int r=0;r<3;++r) live_rel[r]=jr[r][0]*(t[0]-jt[0])+jr[r][1]*(t[1]-jt[1])+jr[r][2]*(t[2]-jt[2]);
+    // Torso pose in the level frame, for recording a firing pose.
+    mat_mul(l,jw,lj);mat_quat(lj,live_torso_q);
+    for(int r=0;r<3;++r) {
+        double d=0;for(int i=0;i<3;++i) d+=l[r][i]*(jt[i]-(int32_t)psx_mod_read_word(camera+0x14+4*i));
+        live_torso[r]=d;
+    }
+    live_valid=true;
+    double rel[3],v[3],lh[3][3];
+    bool ready=false;
+    if(!display_pose(lh,rel,ready)) {
+        // No torso reference yet: the live pose in the level frame.
+        mat_mul(l,hw,lh);
+        for(int r=0;r<3;++r) {double d=0;for(int i=0;i<3;++i) d+=l[r][i]*(t[i]-(int32_t)psx_mod_read_word(camera+0x14+4*i));rel[r]=d;}
+    }
+    if(advance)weapon_readies+=ready;
+    if(kick>0.01 && ready) {
+        // Muzzle up about the grip's level-frame x axis (game Y is down), and back.
+        const double a=-kick_angle*kick,cs=std::cos(a),sn=std::sin(a);
+        const double rx[3][3]={{1,0,0},{0,cs,-sn},{0,sn,cs}};
+        mat_mul(rx,lh,lh);rel[2]-=kick_back*kick;
+    }
+    if(advance)kick*=kick_decay;
+    {
+        // Per-weapon tilt: pitch about x (muzzle up is negative about x, game Y
+        // down), yaw about y, roll about z, all in the level frame.
+        const unsigned tslot=weapon_view_slot();
+        const double* tilt=tslot<32 ? slot_tilt(tslot) : weapon_slot_tilt[0];
+        if(tilt[0] || tilt[1] || tilt[2]) {
+            const double d=3.14159265358979/180,p=-tilt[0]*d,y=tilt[1]*d,r=tilt[2]*d;
+            const double rx[3][3]={{1,0,0},{0,std::cos(p),-std::sin(p)},{0,std::sin(p),std::cos(p)}};
+            const double ry[3][3]={{std::cos(y),0,std::sin(y)},{0,1,0},{-std::sin(y),0,std::cos(y)}};
+            const double rz[3][3]={{std::cos(r),-std::sin(r),0},{std::sin(r),std::cos(r),0},{0,0,1}};
+            double m[3][3];mat_mul(ry,rx,m);mat_mul(m,rz,m);mat_mul(m,lh,lh);
+        }
+    }
+    const double* anchor=weapon_anchor();const double k=weapon_motion();
+    const unsigned slot=weapon_view_slot();
+    const double* extra=slot<32 ? slot_offset(slot) : weapon_slot_offset[0];
+    for(int r=0;r<3;++r) v[r]=anchor[r]+k*(rel[r]-weapon_reference[r])+extra[r];
+    // The level-frame world rotation lh is shown pitched with the view: world
+    // rotation C^T lh, stored transposed as lh^T C. The render's C (x scaled)
+    // times its transpose gives lh; the flash offset follows the same rotation.
+    double out[3][3];
+    for(int r=0;r<3;++r) for(int k2=0;k2<3;++k2) out[r][k2]=lh[0][r]*c[0][k2]+lh[1][r]*c[1][k2]+lh[2][r]*c[2][k2];
+    for(int r=0;r<3;++r) for(int k2=0;k2<3;++k2)
+        psx_mod_write_half(weapon_matrix+2*(3*r+k2),(uint16_t)(int16_t)std::clamp(std::lround(out[r][k2]*4096),-32768L,32767L));
+    psx_mod_write_half(weapon_matrix+0x12,0);
+    for(int i=0;i<3;++i) {
+        const double w=(int32_t)psx_mod_read_word(camera+0x14+4*i)+c[0][i]*v[0]+c[1][i]*v[1]+c[2][i]*v[2];
+        psx_mod_write_word(weapon_matrix+0x14+4*i,(uint32_t)(int32_t)std::lround(w));
+    }
+    if(advance)display_hand_done=true;
+    return true;
+}
+// Retail arm meshes, posed from the accepted wrist toward an offscreen
+// shoulder. Each bone retains its native length; the display-only swing puts
+// its child endpoint exactly at the next joint. No skeleton or event edits.
+static bool display_arm_matrix(uint32_t real,uint32_t desc,unsigned part) {
+    const unsigned wrist_part=part<13?12:15;
+    const int wrist_joint=duke_part_joint(desc,wrist_part);
+    const int elbow_joint=duke_part_joint(desc,wrist_part-1);
+    const int shoulder_joint=duke_part_joint(desc,wrist_part-2);
+    if(wrist_joint<0 || elbow_joint<0 || shoulder_joint<0)return false;
+    const uint32_t mats=psx_mod_read_word(player+0x3c);
+    const uint32_t source[3]={mats+0x20*shoulder_joint,mats+0x20*elbow_joint,mats+0x20*wrist_joint};
+    Mat3 h,d,delta,c;
+    double native[3][3],target[3][3];
+    for(int r=0;r<3;++r)for(int k=0;k<3;++k) {
+        h[r][k]=(int16_t)psx_mod_read_half(real+2*(3*r+k))/4096.0;
+        d[r][k]=(int16_t)psx_mod_read_half(weapon_matrix+2*(3*r+k))/4096.0;
+        c[r][k]=(int16_t)psx_mod_read_half(camera+2*(3*r+k))/4096.0;
+    }
+    for(int r=0;r<3;++r)for(int k=0;k<3;++k)
+        delta[r][k]=d[0][r]*h[0][k]+d[1][r]*h[1][k]+d[2][r]*h[2][k];
+    for(int n=0;n<3;++n)for(int r=0;r<3;++r) {
+        native[n][r]=(int32_t)psx_mod_read_word(weapon_matrix+0x14+4*r);
+        for(int k=0;k<3;++k)native[n][r]+=delta[r][k]*((int32_t)psx_mod_read_word(source[n]+0x14+4*k)-(int32_t)psx_mod_read_word(real+0x14+4*k));
+    }
+    if(part<13) {
+        const double scale=slot_scale(weapon_view_slot());
+        for(int r=0;r<3;++r) {
+            const double grip=(int32_t)psx_mod_read_word(weapon_matrix+0x14+4*r);
+            const double shift=(native[2][r]-grip)*(scale-1);
+            for(int n=0;n<3;++n)native[n][r]+=shift;
+        }
+    }
+    Mat3 rifle_wrist{};bool rifle_support=false;
+    if(part<13 && weapon_view_slot()==6) {
+        Mat3 right,left,inverse,relative;double rp[3],lp[3],offset[3];
+        if(rifle_ready_arm(1,right,rp) && rifle_ready_arm(2,left,lp)) {
+            for(int r=0;r<3;++r)for(int k=0;k<3;++k)inverse[r][k]=right[k][r];
+            mat_mul(inverse,left,relative);
+            for(int r=0;r<3;++r) {
+                offset[r]=0;for(int k=0;k<3;++k)offset[r]+=inverse[r][k]*(lp[k]-rp[k]);
+            }
+            offset[1]-=70*rifle_reload_pose().pull;
+            for(int r=0;r<3;++r) {
+                double wrist=int32_t(psx_mod_read_word(weapon_matrix+0x14+4*r));
+                for(int k=0;k<3;++k)wrist+=d[k][r]*offset[k]*slot_scale(6);
+                const double shift=wrist-native[2][r];
+                for(int n=0;n<3;++n)native[n][r]+=shift;
+                for(int k=0;k<3;++k) {
+                    rifle_wrist[r][k]=0;
+                    for(int j=0;j<3;++j)rifle_wrist[r][k]+=relative[j][r]*d[j][k];
+                }
+            }
+            rifle_support=true;
+        }
+    }
+    std::memcpy(target[2],native[2],sizeof target[2]);
+    const double side=part<13?-1:1;
+    for(int n=1;n>=0;--n) {
+        double length=0;for(int r=0;r<3;++r)length+=std::pow(native[n+1][r]-native[n][r],2);
+        length=std::sqrt(length);
+        if(length<1 || length>1024)return false;
+        // Camera-space direction from child to parent, with Y down. Elbows
+        // continue below the wrist; shoulders continue below the screen.
+        const double dir[3]={side*(n?0.35:0.2),n?0.85:0.9,n?-0.4:-0.38};
+        const double norm=std::sqrt(dir[0]*dir[0]+dir[1]*dir[1]+dir[2]*dir[2]);
+        for(int r=0;r<3;++r)target[n][r]=target[n+1][r]+length*(c[0][r]*dir[0]+c[1][r]*dir[1]+c[2][r]*dir[2])/norm;
+    }
+    const unsigned n=part-(wrist_part-2);
+    Mat3 swing={{1,0,0},{0,1,0},{0,0,1}};
+    if(n<2) {
+        double a[3],b[3],an=0,bn=0;
+        for(int r=0;r<3;++r) {a[r]=native[n+1][r]-native[n][r];b[r]=target[n+1][r]-target[n][r];an+=a[r]*a[r];bn+=b[r]*b[r];}
+        for(int r=0;r<3;++r){a[r]/=std::sqrt(an);b[r]/=std::sqrt(bn);}
+        const double dot=std::clamp(a[0]*b[0]+a[1]*b[1]+a[2]*b[2],-1.0,1.0);
+        if(dot<-.9999) {
+            double axis[3]={0,-a[2],a[1]};
+            if(std::abs(a[0])>.9){axis[0]=-a[1];axis[1]=a[0];axis[2]=0;}
+            const double len=std::sqrt(axis[0]*axis[0]+axis[1]*axis[1]+axis[2]*axis[2]);
+            for(double& v:axis)v/=len;
+            for(int r=0;r<3;++r)for(int k=0;k<3;++k)swing[r][k]=2*axis[r]*axis[k]-(r==k?1:0);
+        } else {
+            const double v[3]={a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]};
+            const Mat3 cross={{0,-v[2],v[1]},{v[2],0,-v[0]},{-v[1],v[0],0}};
+            Mat3 square;mat_mul(cross,cross,square);
+            for(int r=0;r<3;++r)for(int k=0;k<3;++k)swing[r][k]+=cross[r][k]+square[r][k]/(1+dot);
+        }
+    }
+    Mat3 transform,j,out;mat_mul(swing,delta,transform);
+    for(int r=0;r<3;++r)for(int k=0;k<3;++k)j[r][k]=(int16_t)psx_mod_read_half(source[n]+2*(3*r+k))/4096.0;
+    for(int r=0;r<3;++r)for(int k=0;k<3;++k)out[r][k]=j[r][0]*transform[k][0]+j[r][1]*transform[k][1]+j[r][2]*transform[k][2];
+    if(rifle_support && n==2)std::memcpy(out,rifle_wrist,sizeof out);
+    if(!hidden_matrix)hidden_matrix=psx_mod_alloc_guest_memory(0x20,16);
+    if(!hidden_matrix)return false;
+    for(int r=0;r<3;++r)for(int k=0;k<3;++k)
+        psx_mod_write_half(hidden_matrix+2*(3*r+k),(uint16_t)(int16_t)std::clamp(std::lround(out[r][k]*4096),-32768L,32767L));
+    psx_mod_write_half(hidden_matrix+0x12,0);
+    for(int r=0;r<3;++r)psx_mod_write_word(hidden_matrix+0x14+4*r,(uint32_t)(int32_t)std::lround(target[n][r]));
+    return true;
+}
 // 0x800292a0 entry from the joint loop (ra 0x80034c6c): the hand joint's transform.
 static bool interaction_depth_bridge(PerspectiveAction action) {
     return action==PerspectiveAction::Wall || action==PerspectiveAction::Ladder ||
@@ -833,6 +1070,17 @@ static void first_person_weapon_joint(CPUState* cpu,uint32_t ra) {
     const unsigned joint=cpu->gpr[23];
     const int part=duke_joint_part(desc,joint);
     if(part>=(int)part_arm_first && part<=(int)part_arm_last && cpu->gpr[5]==psx_mod_read_word(player+0x3c)+0x20*joint) {
+        const unsigned slot=weapon_view_slot();
+        // Support grips come from this weapon's native two-handed pose, with
+        // its display scale applied about the unchanged right-hand anchor.
+        const bool support=slot==3 || (slot>=5 && slot<=11);
+        // Developer A/B diagnostics only, never a player preference.
+        static const bool arms=[] {const char* t=std::getenv("DNTTK_FP_ARMS");return !(t && !std::strcmp(t,"0"));}();
+        if(arms && (part>=13 || support) && prepare_display_matrix(real,desc) &&
+           display_arm_matrix(real,desc,part)) {
+            limb_claim(cpu,LimbOwner::DisplayArm,part,true);
+            cpu->gpr[5]=hidden_matrix;return;
+        }
         if(!hidden_matrix) hidden_matrix=psx_mod_alloc_guest_memory(0x20,16);
         if(!hidden_matrix) return;
         for(int i=0;i<9;++i) psx_mod_write_half(hidden_matrix+2*i,i%4==0?4096:0);
@@ -845,85 +1093,8 @@ static void first_person_weapon_joint(CPUState* cpu,uint32_t ra) {
         limb_claim(cpu,LimbOwner::HiddenArm,part);
         cpu->gpr[5]=hidden_matrix;++arm_hides;return;
     }
-    live_valid=false;
     if(cpu->gpr[5]!=real || joint!=psx_mod_read_byte(desc+hand_record_byte)) return;
-    if(!weapon_matrix) weapon_matrix=psx_mod_alloc_guest_memory(0x20,16);
-    if(!weapon_matrix) return;
-    double c[3][3],h[3][3];
-    for(int r=0;r<3;++r) for(int k=0;k<3;++k) {
-        c[r][k]=(int16_t)psx_mod_read_half(camera+2*(3*r+k))/4096.0;
-        h[r][k]=(int16_t)psx_mod_read_half(real+2*(3*r+k))/4096.0;
-    }
-    // Level frame: the camera's right and forward axes without pitch (game Y down).
-    const double rl=std::hypot(c[0][0],c[0][2]),fl=std::hypot(c[2][0],c[2][2]);
-    if(rl<0.5 || fl<0.1) return;
-    const double l[3][3]={{c[0][0]/rl,0,c[0][2]/rl},{0,1,0},{c[2][0]/fl,0,c[2][2]/fl}};
-    // Joint matrices are stored world-to-joint: the renderer transposes them
-    // (0x80010d60) before camera+0x20 times the result, and the flash offset
-    // is transpose(hand) times the muzzle vector. So a joint's world rotation
-    // is the transpose of its matrix (W = H^T below).
-    // Torso joint and the hand relative to it: Jw^T W = Jr H^T, Jw^T (t - Jt) = Jr (t - Jt).
-    const int torso_joint=duke_part_joint(desc,part_spine);
-    if(torso_joint<0) return;
-    const uint32_t mats=psx_mod_read_word(player+0x3c),torso_m=mats+0x20*torso_joint;
-    double jr[3][3],jt[3],t[3],hw[3][3],jw[3][3];
-    for(int r=0;r<3;++r) for(int k2=0;k2<3;++k2) jr[r][k2]=(int16_t)psx_mod_read_half(torso_m+2*(3*r+k2))/4096.0;
-    for(int i=0;i<3;++i) {jt[i]=(int32_t)psx_mod_read_word(torso_m+0x14+4*i);t[i]=(int32_t)psx_mod_read_word(real+0x14+4*i);}
-    for(int r=0;r<3;++r) for(int k2=0;k2<3;++k2) {hw[r][k2]=h[k2][r];jw[r][k2]=jr[k2][r];}
-    double hr[3][3],lj[3][3];
-    mat_mul(jr,hw,hr);mat_quat(hr,live_q);
-    for(int r=0;r<3;++r) live_rel[r]=jr[r][0]*(t[0]-jt[0])+jr[r][1]*(t[1]-jt[1])+jr[r][2]*(t[2]-jt[2]);
-    // Torso pose in the level frame, for recording a firing pose.
-    mat_mul(l,jw,lj);mat_quat(lj,live_torso_q);
-    for(int r=0;r<3;++r) {
-        double d=0;for(int i=0;i<3;++i) d+=l[r][i]*(jt[i]-(int32_t)psx_mod_read_word(camera+0x14+4*i));
-        live_torso[r]=d;
-    }
-    live_valid=true;
-    double rel[3],v[3],lh[3][3];
-    bool ready=false;
-    if(!display_pose(lh,rel,ready)) {
-        // No torso reference yet: the live pose in the level frame.
-        mat_mul(l,hw,lh);
-        for(int r=0;r<3;++r) {double d=0;for(int i=0;i<3;++i) d+=l[r][i]*(t[i]-(int32_t)psx_mod_read_word(camera+0x14+4*i));rel[r]=d;}
-    }
-    weapon_readies+=ready;
-    if(kick>0.01 && ready) {
-        // Muzzle up about the grip's level-frame x axis (game Y is down), and back.
-        const double a=-kick_angle*kick,cs=std::cos(a),sn=std::sin(a);
-        const double rx[3][3]={{1,0,0},{0,cs,-sn},{0,sn,cs}};
-        mat_mul(rx,lh,lh);rel[2]-=kick_back*kick;
-    }
-    kick*=kick_decay;
-    {
-        // Per-weapon tilt: pitch about x (muzzle up is negative about x, game Y
-        // down), yaw about y, roll about z, all in the level frame.
-        const unsigned tslot=weapon_view_slot();
-        const double* tilt=tslot<32 ? slot_tilt(tslot) : weapon_slot_tilt[0];
-        if(tilt[0] || tilt[1] || tilt[2]) {
-            const double d=3.14159265358979/180,p=-tilt[0]*d,y=tilt[1]*d,r=tilt[2]*d;
-            const double rx[3][3]={{1,0,0},{0,std::cos(p),-std::sin(p)},{0,std::sin(p),std::cos(p)}};
-            const double ry[3][3]={{std::cos(y),0,std::sin(y)},{0,1,0},{-std::sin(y),0,std::cos(y)}};
-            const double rz[3][3]={{std::cos(r),-std::sin(r),0},{std::sin(r),std::cos(r),0},{0,0,1}};
-            double m[3][3];mat_mul(ry,rx,m);mat_mul(m,rz,m);mat_mul(m,lh,lh);
-        }
-    }
-    const double* anchor=weapon_anchor();const double k=weapon_motion();
-    const unsigned slot=weapon_view_slot();
-    const double* extra=slot<32 ? slot_offset(slot) : weapon_slot_offset[0];
-    for(int r=0;r<3;++r) v[r]=anchor[r]+k*(rel[r]-weapon_reference[r])+extra[r];
-    // The level-frame world rotation lh is shown pitched with the view: world
-    // rotation C^T lh, stored transposed as lh^T C. The render's C (x scaled)
-    // times its transpose gives lh; the flash offset follows the same rotation.
-    double out[3][3];
-    for(int r=0;r<3;++r) for(int k2=0;k2<3;++k2) out[r][k2]=lh[0][r]*c[0][k2]+lh[1][r]*c[1][k2]+lh[2][r]*c[2][k2];
-    for(int r=0;r<3;++r) for(int k2=0;k2<3;++k2)
-        psx_mod_write_half(weapon_matrix+2*(3*r+k2),(uint16_t)(int16_t)std::clamp(std::lround(out[r][k2]*4096),-32768L,32767L));
-    psx_mod_write_half(weapon_matrix+0x12,0);
-    for(int i=0;i<3;++i) {
-        const double w=(int32_t)psx_mod_read_word(camera+0x14+4*i)+c[0][i]*v[0]+c[1][i]*v[1]+c[2][i]*v[2];
-        psx_mod_write_word(weapon_matrix+0x14+4*i,(uint32_t)(int32_t)std::lround(w));
-    }
+    if(!prepare_display_matrix(real,desc,true))return;
     const bool bridge=limb_draw.bridge_joint_depth;
     limb_claim(cpu,LimbOwner::DisplayHand,0x0f);
     limb_draw.bridge_joint_depth=bridge; // preserve armed traversal hand admission
@@ -964,10 +1135,10 @@ static void first_person_weapon_attached(CPUState* cpu,uint32_t address,uint32_t
 }
 
 // D35E: the native joint loop skips an entire arm when its origin is
-// nearer than GTE H, before the polygon near clipper can see it. Only for
-// ladder/pole/ledge arms, let the loop reach that clipper without moving the matrices
-// or changing projection. s0 is the loop's saved joint depth; the remaining
-// mesh path uses the real transform and host world-depth packets.
+// nearer than GTE H, before the polygon near clipper can see it. The ownership
+// contract admits native traversal arms and D36H display arms to that clipper.
+// s0 is only the loop's saved joint depth; real transforms and projection remain
+// unchanged. Native arms keep world occlusion; display arms use viewmodel depth.
 static void first_person_ladder_near(CPUState* cpu,uint32_t ra) {
     if(ra!=0x80034c8c || !weapon_duke_draw ||
        !limb_draw.bridge_joint_depth || !fp_policy.effective ||

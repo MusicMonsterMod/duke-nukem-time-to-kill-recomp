@@ -1,5 +1,47 @@
 # Next-session handoff
 
+## 2026-10-26 - D36 research accepted and closed
+
+User explicitly requested lock-in and closeout of the research, identifying it
+as integral to future jobs. D36 and D36A-F are Done. The accepted
+[note 257](257-d36-first-person-presentation-audit.md) is the reference for future
+first-person body/arms, interactions, clipping, kick and presentation-restoration
+work. Read its source catalogue, evidence labels, traceability matrix and
+regression contracts before implementing related changes. Existing uncertainty
+and coverage limits remain; acceptance does not turn hypotheses into findings.
+
+D36G-L remain report-only implementation proposals, not selected or started.
+Suggested order remains shared ownership, slot-8 interaction continuity,
+combat/item arms, body/kick and remaining visual coverage. User chooses the next
+job. D37A/D19Q3 remain Needs playtest; player build is unchanged at
+`736c45ab5046f640a036e119a15d4401d312361d567445ed7e60776717e2fcbf`.
+Documentation commit/push closeout is authorized as MusicMonsterMod. No gameplay,
+asset or framework edits, build, launch or player-file writes during closeout.
+Launch: `python3 recomp/tools/local/run.py`.
+
+## 2026-10-26 - D36 presentation audit ready for review
+
+D36 and D36A-F are Needs review. [Note 257](257-d36-first-person-presentation-audit.md)
+contains the state/source catalogue, geometry and weapon matrices, current private
+interaction evidence, body/kick diagnosis, architecture options, traceability and
+proposed D36G-L implementation scopes. Those IDs are report-only proposals, not
+selected or started jobs. Suggested order: shared ownership contract, slot-8
+interaction continuity, combat/item arms, body/kick, remaining visual coverage.
+
+Source confirms hidden combat/item arm parts, traversal-only joint-depth bridging
+and an end-for-end kick-thigh workaround. Current captures and per-part depth
+samples support the slot-8 and walking-leg culling diagnosis. A literal third leg,
+every costume/interaction and all interruption/high-refresh combinations are not
+certified. All base weapon identities and six campaign upgrade flags were checked;
+Crossbow's new check is idle only. Prior functional acceptance is preserved.
+
+No gameplay/assets/framework changes or build. All private diagnostic processes
+stopped; player saves/cards/settings and executable hashes/mtimes match intake.
+Current build remains `736c45ab5046f640a036e119a15d4401d312361d567445ed7e60776717e2fcbf`.
+D37A/D19Q3 remain Needs playtest. No research acceptance, closeout, commit or push
+is implied. Review the audit before selecting implementation work.
+Launch: `python3 recomp/tools/local/run.py` (Modernized default, automatic capture).
+
 ## 2026-10-26 - D19U/D19U1 HUD shortcut backlog only
 
 Added D19U Todo: live `-` hides status bars (existing OFF), `+` shows them (ON).

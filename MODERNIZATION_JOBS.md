@@ -1,5 +1,7 @@
 # Time to Kill — modernization jobs
 
+**Latest accepted research (2026-10-26): D36 and D36A-F are Done. [Note 257](documentation/257-d36-first-person-presentation-audit.md) is the accepted first-person presentation audit and roadmap. Implementation proposals D36G-L remain unstarted.**
+
 **Latest closeout (2026-10-26): D23D is Done. User could not reproduce the Level 9 slowdown and reports a problem-free playthrough. Closed on user playtest evidence; no build change or new profiling.**
 
 **Latest accepted job (2026-10-26): D23C moat slowdown recheck is Done. User approved closeout; original sustained slowdown no longer reproduced, brief water-entry cadence dip retained as an unresolved observation. No player-build change or next job started. [Note 253](documentation/253-d23c-moat-recheck.md).**
@@ -400,13 +402,13 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D35M | First-person door opening and related use interactions | Done | D35A |
 | D35N | First-person mirror interactions and reflected-Duke proximity fade | Done | D35A |
 | D35N1 | Missing mirror voice line at slot 6 (base-game design oversight, bug 3) | Todo | D35N |
-| D36 | First-person body, arms and interaction presentation quality audit (research only) | Todo | D11, D12, D35, D08K, D08A26 |
-| D36A | Existing first-person systems and complete state catalogue | Todo | D11, D12, D35, D08K, D08A26 |
-| D36B | Every weapon/variant: missing arms and connected hand geometry audit | Todo | D36A |
-| D36C | Body/leg visibility and quick-kick depth, extra leg and mesh audit | Todo | D36A |
-| D36D | Interaction arms/poses audit, prioritizing slot-8 push/pull | Todo | D36A |
-| D36E | Reusable/dedicated geometry, animation and shared-presentation architecture | Todo | D36A; findings from D36B-D |
-| D36F | Visual standards, traceability and prioritized implementation roadmap | Todo | D36B, D36C, D36D, D36E |
+| D36 | First-person body, arms and interaction presentation quality audit (research only) | Done (research accepted 2026-10-26) | D11, D12, D35, D08K, D08A26 |
+| D36A | Existing first-person systems and complete state catalogue | Done (research accepted 2026-10-26) | D11, D12, D35, D08K, D08A26 |
+| D36B | Every weapon/variant: missing arms and connected hand geometry audit | Done (research accepted 2026-10-26) | D36A |
+| D36C | Body/leg visibility and quick-kick depth, extra leg and mesh audit | Done (research accepted 2026-10-26) | D36A |
+| D36D | Interaction arms/poses audit, prioritizing slot-8 push/pull | Done (research accepted 2026-10-26) | D36A |
+| D36E | Reusable/dedicated geometry, animation and shared-presentation architecture | Done (research accepted 2026-10-26) | D36A; findings from D36B-D |
+| D36F | Visual standards, traceability and prioritized implementation roadmap | Done (research accepted 2026-10-26) | D36B, D36C, D36D, D36E |
 | D37 | Temporary movement failure at 07:26 UK on 2026-10-26 (separate research) | Done | - |
 | D37A | Safe animation restoration across save allocation layouts | Needs playtest | D37 |
 | R01 | DisruptorRecomp architecture and modernization reference research | Done | - |
@@ -418,10 +420,12 @@ Recommended opening sequence: **D01 → D02 → D03 → D04**, then **D05 / D06 
 
 ### D36 - First-person body, arms and interaction presentation quality audit
 
-**Status: Todo. Research and planning only; not started.** User requested the full
-scope below be stood up in the backlog, with no jobs begun. In-game investigation
-while scoping is permitted, but none was needed for intake. Reported symptoms are
-user observations, not verified root causes. D35 and its accepted children remain
+**Status: Done (research accepted 2026-10-26).** User explicitly requested
+"lock this research job in, and close it out". D36A-F and the roadmap in
+[note 257](documentation/257-d36-first-person-presentation-audit.md) are accepted
+as the reference for subsequent first-person presentation work. Source findings,
+private observations, hypotheses and coverage gaps retain their evidence labels.
+Acceptance does not establish every reported cause or authorize implementation. D35 and its accepted children remain
 Done; this is presentation refinement, not a reversal of their accepted behavior.
 
 **Mission:** establish a cohesive, visually convincing, professional first-person
@@ -437,15 +441,15 @@ and D08A26 custom first-person equipment. These are reference baselines to inspe
 not jobs to reopen. D37 is separate; D36 must cross-reference its eventual findings
 without assuming a common cause or waiting to begin independent visual research.
 
-**Research task breakdown:** D36A-F below are Todo research tasks, not authorized
-implementation jobs. D36A establishes the inventory; D36B-E investigate domains;
+**Research task breakdown:** D36A-F below are accepted research deliverables,
+not authorized implementation jobs. D36A establishes the inventory; D36B-E investigate domains;
 D36F consolidates evidence and proposes the implementation roadmap. Future coding,
 asset and animation jobs must follow the evidence, receive stable IDs and explicit
 selection, and must not be silently started as part of this audit.
 
 ### D36A - Existing first-person systems and state catalogue
 
-**Status: Todo. Depends on accepted D11, D12, D35, D08K and D08A26 work.**
+**Status: Done (research accepted 2026-10-26). Catalogue in [note 257](documentation/257-d36-first-person-presentation-audit.md). Depends on accepted D11, D12, D35, D08K and D08A26 work.**
 
 Read relevant repository instructions, source and prior engineering notes before
 proposing changes. Catalogue camera/viewmodel rendering; weapons, hands and arms;
@@ -469,7 +473,7 @@ list coverage gaps instead of claiming comprehensive observation without evidenc
 
 ### D36B - Weapon arms and hands: complete geometry audit
 
-**Status: Todo. Depends on D36A.**
+**Status: Done (research accepted 2026-10-26), [note 257](documentation/257-d36-first-person-presentation-audit.md). Depends on D36A.**
 
 Reproduction reference: load the new Time to Kill level and use the existing
 `dnstuff` cheat. Verify the actual level and weapon identities during research;
@@ -496,7 +500,7 @@ movement/interruption states. Preserve accepted weapon framing and mechanics.
 
 ### D36C - Body/legs and quick-kick presentation audit
 
-**Status: Todo. Depends on D36A.**
+**Status: Done (research accepted 2026-10-26), [note 257](documentation/257-d36-first-person-presentation-audit.md). Depends on D36A.**
 
 Investigate normal walk/run leg visibility while looking down: limbs reportedly
 appear/disappear unpredictably. Trace body-part rules, camera-relative clipping,
@@ -529,7 +533,7 @@ must remain unchanged. No cause is considered confirmed merely from appearance.
 
 ### D36D - Interaction arms, poses and attachment audit
 
-**Status: Todo. Depends on D36A. Slot 8 push/pull is a high-priority example.**
+**Status: Done (research accepted 2026-10-26), [note 257](documentation/257-d36-first-person-presentation-audit.md). Depends on D36A. Slot 8 push/pull is a high-priority example.**
 
 Current user save-slot references (2026-10-26) are reproduction pointers, not proof
 of cause; verify actual loaded scene/state and use private copies for research.
@@ -565,7 +569,7 @@ person merely to avoid doing the presentation work.
 
 ### D36E - Geometry, animation and shared-presentation architecture evaluation
 
-**Status: Todo. Depends on D36A; informed by D36B-D.**
+**Status: Done (research accepted 2026-10-26), [note 257](documentation/257-d36-first-person-presentation-audit.md). Depends on D36A; informed by D36B-D.**
 
 Evaluate the demonstrated Blender custom low-poly asset pipeline, Photon Studio
 asset creation/processing workflow, and runtime mesh manipulation. Review D08A26's
@@ -589,7 +593,7 @@ foundation work from asset creation, animation refinement and isolated correctio
 
 ### D36F - Visual standards, traceability and implementation roadmap
 
-**Status: Todo. Depends on D36B, D36C, D36D and D36E.**
+**Status: Done (research accepted 2026-10-26), [note 257](documentation/257-d36-first-person-presentation-audit.md). Depends on D36B, D36C, D36D and D36E.**
 
 Use Duke Nukem: Zero Hour Overclocked's first-person presentation as a comparative
 quality reference where accessible; cite what was actually reviewed and disclose
@@ -20390,3 +20394,37 @@ Added D19U Todo for immediate `-`/`+` STATUS BARS OFF/ON controls, plus future c
 D19U1 Todo for Full / Borderless / Hidden stepping. Both are backlog only. User
 explicitly authorized commit/push after intake; include the pending D07G crosshair
 scaling backlog documentation as well. No implementation, build or game launch.
+
+## 2026-10-26 - D36 first-person presentation audit (Needs review)
+
+User selected the overall D36 research, beginning with D36A. Delivered
+[note 257](documentation/257-d36-first-person-presentation-audit.md): source/state
+catalogue, ten-group arm geometry census, weapon/variant and interaction matrices,
+body/kick diagnosis, architecture comparison, standards, defect traceability and
+six proposed implementation scopes (D36G-L, report-only proposals, not started).
+
+Confirmed source mechanisms: isolated weapon/item hand with five hidden arm parts;
+Push/Use/Mirror excluded from the traversal joint-depth bridge; native body joint
+culling; end-for-end kick thigh workaround. Private current slots 5/8/9/10/11/12,
+all base weapon identities, six campaign upgrade flags, slot-8 hold/push/pull/
+release and downward gait/kick captures provide bounded supporting evidence.
+Third-leg interpretation, unvisited interactions/costumes and many interruption/
+high-refresh combinations remain explicit gaps. No blanket campaign certification.
+
+D36 and D36A-F are Needs review, not Done. Current player executable, settings and
+save/card hashes/mtimes are unchanged. Diagnostic runs stopped. No gameplay/assets/
+framework edits, build, commit, push or implementation job started. D37A/D19Q3
+remain Needs playtest. Research acceptance and closeout await explicit instruction.
+
+## 2026-10-26 - D36 research accepted and closed
+
+User: "ok, lock this research job in, and close it out. i think it's gonna be
+integral to working on the rest of the jobs". D36 and D36A-F are Done by research
+acceptance. Documentation commit/push closeout is authorized. Note 257 is the
+accepted reference for future first-person body, weapon/item arms, interaction,
+clipping, kick and presentation-restoration work. Consult its evidence and
+regression contracts before choosing a fix; its gaps remain explicit.
+
+D36G-L remain report-only implementation proposals, neither selected nor started.
+No gameplay/assets/framework change, build or game launch during closeout.
+D37A/D19Q3 remain Needs playtest; their acceptance is not part of this instruction.

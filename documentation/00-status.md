@@ -1,5 +1,32 @@
 # Current status - 2026-10-04
 
+## 2026-10-26 - D23C accepted and closed
+
+User approved closeout. D23C is Done: the original sustained moat/Necro slowdown
+no longer reproduces in current user playtest and the bounded private recheck.
+The brief water-entry game-image cadence dip remains recorded, cause unresolved.
+[Note 253](253-d23c-moat-recheck.md) and its measurement summary preserve the
+acceptance limits. No optimization, rebuild or post-acceptance launch.
+Accepted executable remains
+`9a81112c57148d928c00f8cfbd7aed33a88365640cc766395d45d1305c6beb04`.
+Documentation/evidence closeout authorized. Existing framework edits and pins
+preserved; player files untouched. No next job started.
+
+Launch: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-26 - D23C moat recheck ready for review
+
+The user no longer meaningfully reproduces the old slowdown. Three private
+slot-2 water routes and a fresh level-6 check hold approximately 120 presents/s
+and normal emulation speed. A brief underlying game-image cadence dip remains
+near water entry (about 20 to 15-16/s, then recovers), with no identified cause.
+No sustained slowdown or host contention observed. Recommend retiring the original
+report on acceptance; D23C is Needs review, not closed. [Note 253](253-d23c-moat-recheck.md).
+No gameplay/framework edits or rebuild; accepted executable unchanged. Player
+files preserved, diagnostics stopped. No commit/push or next job started.
+
+
 ## 2026-10-26 - D23 accepted and closed
 
 User accepted the findings and explicitly authorized marking D23 complete

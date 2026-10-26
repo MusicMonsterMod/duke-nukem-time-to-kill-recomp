@@ -1,5 +1,7 @@
 # Time to Kill — modernization jobs
 
+**Latest accepted job (2026-10-26): D23C moat slowdown recheck is Done. User approved closeout; original sustained slowdown no longer reproduced, brief water-entry cadence dip retained as an unresolved observation. No player-build change or next job started. [Note 253](documentation/253-d23c-moat-recheck.md).**
+
 **Latest accepted job (2026-10-26): D23 performance baseline is Done. User accepted the findings and authorized closeout. [Note 252](documentation/252-d23-performance-baseline.md) preserves the measurements and limits. Player build unchanged; D23C is ready for selection, not started.**
 
 **Latest accepted job (2026-10-25): D08Q9 jetpack walk/run and steroid pace is Done. User authorized lock-in and closeout. [Note 251](documentation/251-d08q9-flight-pace.md). No next job started.**
@@ -334,7 +336,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D23 | Performance budgets and long-session stability | Done (user-accepted 2026-10-26) | D01 |
 | D23A | Modernized frame-budget regression (guard identity cost) | Done | D08 |
 | D23B | Intro FMV stutter: stranded native movie shard | Done | D23 |
-| D23C | Medieval castle moat slowdown with Necros active (profile, do not optimise blind) | Todo | D23, D22B |
+| D23C | Medieval castle moat slowdown with Necros active (profile, do not optimise blind) | Done | D23, D22B |
 | D23D | Minor slowdown around the strip-club-type area of Level 9 (low priority) | Todo | D23, D22B |
 | D23E | Stutter with enemies on screen while walking (UI slots 9 and 10) | Accepted | D23, D22B |
 | D23F | Faster timing model: emulation-thread budget for 150% CPU at high refresh (big) | Accepted | D23E, D17 |
@@ -10007,7 +10009,9 @@ build/launch or reported in the session log.
 
 ### D23C - Medieval castle moat slowdown with Necros (performance polish)
 
-**Todo, later. User report, 2026-10-05 (D22B game-wide playtest).** In the
+**Done (user-accepted), 2026-10-26.** User approved closeout. Current user playtest and bounded measurements do not reproduce the original sustained slowdown. The brief water-entry game-image cadence dip remains recorded with its cause unresolved; no optimization made. See [note 253](documentation/253-d23c-moat-recheck.md).
+
+**Original user report, 2026-10-05 (D22B game-wide playtest).** In the
 medieval castle/moat level (reported as Level 6), the initial section slows
 down, particularly while the Necros around the moat are active. Gameplay is
 not broken and stays completely playable, but the quality drop is perceptible
@@ -19846,3 +19850,24 @@ authored audit/summarize helpers. No post-acceptance gameplay changes, builds
 or launches. Existing framework modifications and dependency pins are preserved;
 no framework edits were made for D23. D23C's D23 prerequisite is satisfied,
 but D23C remains Todo and no next job has started. See note 252.
+
+
+## 2026-10-26 - D23C moat recheck (Needs review)
+
+User reports the old slowdown is almost impossible to reproduce, with only a
+tiny slot-2 water-entry drop. Three private repeats and a fresh level-6 route
+held approximately 120 presents/s and normal emulation speed. A brief guest-image
+cadence dip to 15-16/s is reproducible near water entry; its cause is unresolved.
+No host contention or sustained slowdown observed. Recommend retiring the original
+report on user acceptance; no code change, build, commit or push. [Note 253](documentation/253-d23c-moat-recheck.md)
+records evidence and limits. Player files unchanged; no next job started.
+
+
+## 2026-10-26 - D23C accepted and closed
+
+User: "I'm happy to close it out". D23C is Done by acceptance of the bounded
+recheck and retirement of the original sustained-slowdown report. The brief
+water-entry guest-image cadence dip remains documented; neither its cause nor
+the historical slowdown's exact resolution is established. No optimization,
+rebuild or additional game launch. Investigation documentation and measured
+summary closeout authorized. No next job started.

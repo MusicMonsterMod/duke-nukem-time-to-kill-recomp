@@ -1,0 +1,602 @@
+{
+  "meta": {
+    "exe_sha256": "9a81112c57148d928c00f8cfbd7aed33a88365640cc766395d45d1305c6beb04",
+    "shutdown_s": 0.06742463799309917,
+    "returncode": 0,
+    "transitions": [
+      {
+        "level": 6,
+        "seconds": 5.902231773012318,
+        "reply": {
+          "id": 1,
+          "ok": true,
+          "reply": "> level 6\nTravelling to 6 FAMILY JEWELS...\n"
+        },
+        "state": {
+          "mode": 1,
+          "phase": 2,
+          "level": 6,
+          "end": 1,
+          "pause": 0,
+          "hp": 10000,
+          "xyz": [
+            5135,
+            5640,
+            557
+          ]
+        }
+      }
+    ]
+  },
+  "windows": [
+    {
+      "name": "level6-forward",
+      "elapsed_s": 30.069,
+      "field_hz": 59.929,
+      "present_hz": 120.023,
+      "game_image_hz": 28.069,
+      "present_intervals": 3609,
+      "trace_coverage_s": 30.075,
+      "present_p50_ms": 8.333,
+      "present_p95_ms": 8.509,
+      "present_p99_ms": 8.734,
+      "present_max_ms": 9.454,
+      "worst_rolling_cadence": {
+        "p95_us": 9122.5,
+        "p99_us": 10332.8,
+        "max_us": 11675.9
+      },
+      "output_underruns": 0,
+      "overflow_drops": 3081,
+      "audio_fill_ms_min": 254.0,
+      "audio_fill_ms_max": 280.8,
+      "emu_sheds": 0,
+      "pace_divisors": [
+        1
+      ],
+      "pss_start_mib": 694.8584,
+      "pss_end_mib": 717.9238,
+      "pss_peak_mib": 717.9238,
+      "pss_after_60s_slope_mib_min": null,
+      "pressure_peak_avg10": {
+        "cpu": 0.0,
+        "io": 0.0,
+        "memory": 0.0
+      },
+      "background_activity": [],
+      "state_start": {
+        "mode": 1,
+        "phase": 2,
+        "level": 6,
+        "end": 1,
+        "pause": 0,
+        "hp": 10000,
+        "xyz": [
+          4617,
+          5632,
+          420
+        ]
+      },
+      "state_end": {
+        "mode": 1,
+        "phase": 2,
+        "level": 6,
+        "end": 1,
+        "pause": 0,
+        "hp": 10000,
+        "xyz": [
+          4409,
+          10256,
+          8610
+        ]
+      },
+      "all_samples_active": true,
+      "phase": {
+        "interp_share": 0.0403,
+        "native_share": 0.0167,
+        "static_share": 0.8227,
+        "gpu_share": 0.1203,
+        "other_share": 0.0,
+        "exc_share": 0.0543
+      }
+    },
+    {
+      "name": "level6-view-movement",
+      "elapsed_s": 45.072,
+      "field_hz": 59.949,
+      "present_hz": 120.053,
+      "game_image_hz": 19.99,
+      "present_intervals": 5411,
+      "trace_coverage_s": 45.092,
+      "present_p50_ms": 8.333,
+      "present_p95_ms": 8.576,
+      "present_p99_ms": 8.762,
+      "present_max_ms": 9.324,
+      "worst_rolling_cadence": {
+        "p95_us": 9563.1,
+        "p99_us": 10740.9,
+        "max_us": 12284.7
+      },
+      "output_underruns": 0,
+      "overflow_drops": 4031,
+      "audio_fill_ms_min": 244.0,
+      "audio_fill_ms_max": 280.7,
+      "emu_sheds": 0,
+      "pace_divisors": [
+        1
+      ],
+      "pss_start_mib": 613.9531,
+      "pss_end_mib": 687.8457,
+      "pss_peak_mib": 687.8457,
+      "pss_after_60s_slope_mib_min": null,
+      "pressure_peak_avg10": {
+        "cpu": 0.0,
+        "io": 0.0,
+        "memory": 0.0
+      },
+      "background_activity": [],
+      "state_start": {
+        "mode": 1,
+        "phase": 2,
+        "level": 6,
+        "end": 1,
+        "pause": 0,
+        "hp": 10000,
+        "xyz": [
+          5135,
+          5635,
+          557
+        ]
+      },
+      "state_end": {
+        "mode": 1,
+        "phase": 2,
+        "level": 6,
+        "end": 1,
+        "pause": 0,
+        "hp": 10000,
+        "xyz": [
+          4795,
+          5642,
+          420
+        ]
+      },
+      "all_samples_active": true,
+      "phase": {
+        "interp_share": 0.0418,
+        "native_share": 0.0197,
+        "static_share": 0.733,
+        "gpu_share": 0.2055,
+        "other_share": 0.0,
+        "exc_share": 0.0568
+      }
+    },
+    {
+      "name": "slot2-0-idle",
+      "elapsed_s": 10.074,
+      "field_hz": 59.854,
+      "present_hz": 120.006,
+      "game_image_hz": 19.951,
+      "present_intervals": 1209,
+      "trace_coverage_s": 10.075,
+      "present_p50_ms": 8.333,
+      "present_p95_ms": 8.638,
+      "present_p99_ms": 8.82,
+      "present_max_ms": 9.192,
+      "worst_rolling_cadence": {
+        "p95_us": 10027.2,
+        "p99_us": 11325.1,
+        "max_us": 15753.1
+      },
+      "output_underruns": 0,
+      "overflow_drops": 0,
+      "audio_fill_ms_min": 206.8,
+      "audio_fill_ms_max": 266.0,
+      "emu_sheds": 0,
+      "pace_divisors": [
+        1
+      ],
+      "pss_start_mib": 494.3447,
+      "pss_end_mib": 520.5352,
+      "pss_peak_mib": 520.5352,
+      "pss_after_60s_slope_mib_min": null,
+      "pressure_peak_avg10": {
+        "cpu": 0.0,
+        "io": 0.0,
+        "memory": 0.0
+      },
+      "background_activity": [],
+      "state_start": {
+        "mode": 1,
+        "phase": 2,
+        "level": 6,
+        "end": 1,
+        "pause": 0,
+        "hp": 15000,
+        "xyz": [
+          -23332,
+          7679,
+          8185
+        ]
+      },
+      "state_end": {
+        "mode": 1,
+        "phase": 2,
+        "level": 6,
+        "end": 1,
+        "pause": 0,
+        "hp": 15000,
+        "xyz": [
+          -23332,
+          7689,
+          8185
+        ]
+      },
+      "all_samples_active": true,
+      "phase": {
+        "interp_share": 0.042,
+        "native_share": 0.006,
+        "static_share": 0.672,
+        "gpu_share": 0.2799,
+        "other_share": 0.0,
+        "exc_share": 0.066
+      }
+    },
+    {
+      "name": "slot2-0-water",
+      "elapsed_s": 20.073,
+      "field_hz": 59.932,
+      "present_hz": 120.013,
+      "game_image_hz": 19.429,
+      "present_intervals": 2409,
+      "trace_coverage_s": 20.075,
+      "present_p50_ms": 8.333,
+      "present_p95_ms": 8.619,
+      "present_p99_ms": 8.784,
+      "present_max_ms": 9.104,
+      "worst_rolling_cadence": {
+        "p95_us": 9198.9,
+        "p99_us": 11210.6,
+        "max_us": 13757.9
+      },
+      "output_underruns": 0,
+      "overflow_drops": 1953,
+      "audio_fill_ms_min": 247.3,
+      "audio_fill_ms_max": 280.6,
+      "emu_sheds": 0,
+      "pace_divisors": [
+        1
+      ],
+      "pss_start_mib": 532.6504,
+      "pss_end_mib": 555.7354,
+      "pss_peak_mib": 555.7354,
+      "pss_after_60s_slope_mib_min": null,
+      "pressure_peak_avg10": {
+        "cpu": 0.0,
+        "io": 0.0,
+        "memory": 0.0
+      },
+      "background_activity": [],
+      "state_start": {
+        "mode": 1,
+        "phase": 2,
+        "level": 6,
+        "end": 1,
+        "pause": 0,
+        "hp": 15000,
+        "xyz": [
+          -23332,
+          7682,
+          8185
+        ]
+      },
+      "state_end": {
+        "mode": 1,
+        "phase": 2,
+        "level": 6,
+        "end": 1,
+        "pause": 0,
+        "hp": 15000,
+        "xyz": [
+          -8385,
+          9261,
+          6728
+        ]
+      },
+      "all_samples_active": true,
+      "phase": {
+        "interp_share": 0.0401,
+        "native_share": 0.0086,
+        "static_share": 0.6834,
+        "gpu_share": 0.2679,
+        "other_share": 0.0,
+        "exc_share": 0.0576
+      }
+    },
+    {
+      "name": "slot2-1-idle",
+      "elapsed_s": 10.059,
+      "field_hz": 59.846,
+      "present_hz": 119.891,
+      "game_image_hz": 19.982,
+      "present_intervals": 1206,
+      "trace_coverage_s": 10.05,
+      "present_p50_ms": 8.333,
+      "present_p95_ms": 8.651,
+      "present_p99_ms": 8.793,
+      "present_max_ms": 9.053,
+      "worst_rolling_cadence": {
+        "p95_us": 9260.8,
+        "p99_us": 11274.7,
+        "max_us": 12876.4
+      },
+      "output_underruns": 0,
+      "overflow_drops": 0,
+      "audio_fill_ms_min": 220.0,
+      "audio_fill_ms_max": 256.0,
+      "emu_sheds": 0,
+      "pace_divisors": [
+        1
+      ],
+      "pss_start_mib": 567.7393,
+      "pss_end_mib": 572.5713,
+      "pss_peak_mib": 572.5713,
+      "pss_after_60s_slope_mib_min": null,
+      "pressure_peak_avg10": {
+        "cpu": 0.0,
+        "io": 0.0,
+        "memory": 0.0
+      },
+      "background_activity": [],
+      "state_start": {
+        "mode": 1,
+        "phase": 2,
+        "level": 6,
+        "end": 1,
+        "pause": 0,
+        "hp": 15000,
+        "xyz": [
+          -23332,
+          7679,
+          8185
+        ]
+      },
+      "state_end": {
+        "mode": 1,
+        "phase": 2,
+        "level": 6,
+        "end": 1,
+        "pause": 0,
+        "hp": 15000,
+        "xyz": [
+          -23332,
+          7690,
+          8185
+        ]
+      },
+      "all_samples_active": true,
+      "phase": {
+        "interp_share": 0.0358,
+        "native_share": 0.0059,
+        "static_share": 0.6883,
+        "gpu_share": 0.2699,
+        "other_share": 0.0,
+        "exc_share": 0.0596
+      }
+    },
+    {
+      "name": "slot2-1-water",
+      "elapsed_s": 20.075,
+      "field_hz": 59.925,
+      "present_hz": 120.0,
+      "game_image_hz": 19.377,
+      "present_intervals": 2409,
+      "trace_coverage_s": 20.075,
+      "present_p50_ms": 8.333,
+      "present_p95_ms": 8.632,
+      "present_p99_ms": 8.792,
+      "present_max_ms": 9.16,
+      "worst_rolling_cadence": {
+        "p95_us": 9018.6,
+        "p99_us": 11347.7,
+        "max_us": 13085.7
+      },
+      "output_underruns": 0,
+      "overflow_drops": 1292,
+      "audio_fill_ms_min": 245.5,
+      "audio_fill_ms_max": 277.3,
+      "emu_sheds": 0,
+      "pace_divisors": [
+        1
+      ],
+      "pss_start_mib": 579.498,
+      "pss_end_mib": 593.8418,
+      "pss_peak_mib": 593.8418,
+      "pss_after_60s_slope_mib_min": null,
+      "pressure_peak_avg10": {
+        "cpu": 0.0,
+        "io": 0.0,
+        "memory": 0.0
+      },
+      "background_activity": [],
+      "state_start": {
+        "mode": 1,
+        "phase": 2,
+        "level": 6,
+        "end": 1,
+        "pause": 0,
+        "hp": 15000,
+        "xyz": [
+          -23332,
+          7683,
+          8185
+        ]
+      },
+      "state_end": {
+        "mode": 1,
+        "phase": 2,
+        "level": 6,
+        "end": 1,
+        "pause": 0,
+        "hp": 15000,
+        "xyz": [
+          -8448,
+          9316,
+          6737
+        ]
+      },
+      "all_samples_active": true,
+      "phase": {
+        "interp_share": 0.0383,
+        "native_share": 0.0071,
+        "static_share": 0.6919,
+        "gpu_share": 0.2626,
+        "other_share": 0.0,
+        "exc_share": 0.059
+      }
+    },
+    {
+      "name": "slot2-2-idle",
+      "elapsed_s": 10.065,
+      "field_hz": 59.913,
+      "present_hz": 119.925,
+      "game_image_hz": 19.971,
+      "present_intervals": 1207,
+      "trace_coverage_s": 10.058,
+      "present_p50_ms": 8.333,
+      "present_p95_ms": 8.655,
+      "present_p99_ms": 8.804,
+      "present_max_ms": 9.16,
+      "worst_rolling_cadence": {
+        "p95_us": 10036.0,
+        "p99_us": 11148.4,
+        "max_us": 12824.1
+      },
+      "output_underruns": 0,
+      "overflow_drops": 0,
+      "audio_fill_ms_min": 222.6,
+      "audio_fill_ms_max": 255.6,
+      "emu_sheds": 0,
+      "pace_divisors": [
+        1
+      ],
+      "pss_start_mib": 602.6123,
+      "pss_end_mib": 606.7012,
+      "pss_peak_mib": 606.7012,
+      "pss_after_60s_slope_mib_min": null,
+      "pressure_peak_avg10": {
+        "cpu": 0.0,
+        "io": 0.0,
+        "memory": 0.0
+      },
+      "background_activity": [],
+      "state_start": {
+        "mode": 1,
+        "phase": 2,
+        "level": 6,
+        "end": 1,
+        "pause": 0,
+        "hp": 15000,
+        "xyz": [
+          -23332,
+          7679,
+          8185
+        ]
+      },
+      "state_end": {
+        "mode": 1,
+        "phase": 2,
+        "level": 6,
+        "end": 1,
+        "pause": 0,
+        "hp": 15000,
+        "xyz": [
+          -23332,
+          7690,
+          8185
+        ]
+      },
+      "all_samples_active": true,
+      "phase": {
+        "interp_share": 0.0344,
+        "native_share": 0.0057,
+        "static_share": 0.6848,
+        "gpu_share": 0.275,
+        "other_share": 0.0,
+        "exc_share": 0.0654
+      }
+    },
+    {
+      "name": "slot2-2-water",
+      "elapsed_s": 20.075,
+      "field_hz": 59.976,
+      "present_hz": 120.101,
+      "game_image_hz": 19.378,
+      "present_intervals": 2411,
+      "trace_coverage_s": 20.091,
+      "present_p50_ms": 8.333,
+      "present_p95_ms": 8.621,
+      "present_p99_ms": 8.806,
+      "present_max_ms": 11.251,
+      "worst_rolling_cadence": {
+        "p95_us": 9858.1,
+        "p99_us": 11266.7,
+        "max_us": 14576.4
+      },
+      "output_underruns": 0,
+      "overflow_drops": 1271,
+      "audio_fill_ms_min": 244.9,
+      "audio_fill_ms_max": 277.4,
+      "emu_sheds": 0,
+      "pace_divisors": [
+        1
+      ],
+      "pss_start_mib": 612.4893,
+      "pss_end_mib": 615.3105,
+      "pss_peak_mib": 615.3105,
+      "pss_after_60s_slope_mib_min": null,
+      "pressure_peak_avg10": {
+        "cpu": 0.0,
+        "io": 0.0,
+        "memory": 0.0
+      },
+      "background_activity": [],
+      "state_start": {
+        "mode": 1,
+        "phase": 2,
+        "level": 6,
+        "end": 1,
+        "pause": 0,
+        "hp": 15000,
+        "xyz": [
+          -23332,
+          7682,
+          8185
+        ]
+      },
+      "state_end": {
+        "mode": 1,
+        "phase": 2,
+        "level": 6,
+        "end": 1,
+        "pause": 0,
+        "hp": 15000,
+        "xyz": [
+          -8448,
+          9316,
+          6737
+        ]
+      },
+      "all_samples_active": true,
+      "phase": {
+        "interp_share": 0.0415,
+        "native_share": 0.0086,
+        "static_share": 0.68,
+        "gpu_share": 0.2699,
+        "other_share": 0.0,
+        "exc_share": 0.0636
+      }
+    }
+  ],
+  "player_files_unchanged": true
+}

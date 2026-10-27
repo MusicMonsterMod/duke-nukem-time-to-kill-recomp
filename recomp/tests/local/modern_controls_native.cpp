@@ -259,7 +259,8 @@ static Cheat pending_cheat=Cheat::None;
 Cheat input_take_cheat(){auto c=pending_cheat;pending_cheat=Cheat::None;return c;}
 void input_notice(const char*){}
 void input_request_interaction(){}
-void inventory_update(unsigned,const uint16_t*,const int16_t*,const uint16_t*,bool){}
+unsigned inventory_announcements;
+void inventory_update(unsigned,const uint16_t*,const int16_t*,const uint16_t*,bool announce){inventory_announcements+=announce;}
 void mission_update(unsigned,const uint16_t*){}
 bool mission_open;bool mission_visible(){return mission_open;}void mission_close(){mission_open=false;}int mission_browsed_item(){return -1;}
 static bool modern;
@@ -2264,6 +2265,19 @@ int main(int argc,char** argv) {
     for(unsigned id:{1u,2u,3u,5u,1u}) {request(ttk::item_next);assert(psx_mod_read_half(0x800c3f94)==id);}
     request(ttk::item_previous);assert(psx_mod_read_half(0x800c3f94)==5);
     assert(!std::memcmp(items_before,ram+(p&0x1fffff)+0x354,24));
+    // D19Q4: restore another selected gadget with a stale bracket command.
+    // Preserve the restored selection, announce nothing, then accept a fresh key.
+    const unsigned announcements=ttk::inventory_announcements;
+    psx_mod_write_half(0x800c3f94,2);++save_loads;
+    ++ttk::input.command_serial;ttk::input.commands[0]=ttk::item_next;
+    call(0x80058120,p,0,0x80041c44);
+    assert(psx_mod_read_half(0x800c3f94)==2 && ttk::inventory_announcements==announcements);
+    call(0x80058120,p,0,0x80041c44);
+    assert(ttk::inventory_announcements==announcements);
+    call(0x8003ade4,c,p,0x80025ee8); // normal post-load camera update renews the gameplay lease
+    request(ttk::item_next);
+    assert(psx_mod_read_half(0x800c3f94)==3 && ttk::inventory_announcements==announcements+1);
+    std::puts("PASS: D19Q4 restored selection is silent, old command discarded, new bracket works");
     psx_mod_write_half(0x800c3f94,3);request(ttk::item_previous);assert(psx_mod_read_half(0x800c3f94)==2);
     psx_mod_write_half(p+0x35e,0);request(ttk::item_next);assert(psx_mod_read_half(0x800c3f94)==1); // depletion first falls back to medkit, then cycles
     for(unsigned id:{1u,2u,3u})psx_mod_write_half(p+0x354+4*id,0);

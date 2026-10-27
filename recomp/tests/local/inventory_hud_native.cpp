@@ -12,6 +12,8 @@ bool input_modernized(){return modern;}
 const InputFrame& input_snapshot(Context){return input;}
 }
 static bool menu;
+static uint32_t loads;
+extern "C" uint32_t psx_mod_savestate_loads(){return loads;}
 extern "C" uint16_t psx_mod_read_half(uint32_t a){return a==0x800bcbb0?1:menu;}
 int main(int argc,char**argv) {
     assert(argc>=3);setenv("DNTTK_FONT_PACK",argv[1],1); // unused by strip now, kept for link
@@ -37,6 +39,11 @@ int main(int argc,char**argv) {
             assert(opaque>100 && transparent);
         }
     }
+    // A successful restore hides the old overlay even before the next update;
+    // restored selection announcements stay silent, deliberate browsing works.
+    ++loads;assert(!visible());
+    ttk::inventory_update(2,flags,amount,capacities,true);assert(!visible());
+    ttk::inventory_update(3,flags,amount,capacities,true);assert(visible());
     menu=true;assert(!visible());menu=false;
     ttk::input.active=false;assert(!visible());ttk::input.active=true;
     ++ttk::input.epoch;assert(!visible());--ttk::input.epoch;
@@ -83,6 +90,12 @@ int main(int argc,char**argv) {
     // Reopening shows the item last browsed; closing (Enter / U) hides both surfaces.
     ttk::mission_browse_press(1);ttk::mission_update(6,mission);assert(ttk::mission_visible());
     ttk::mission_close();assert(!ttk::mission_visible() && !ttk_mission_card_image(&card,&cw,&ch,624));
+    // Restores also discard a mission overlay and pre-load browse presses.
+    ttk::mission_browse_press(1);ttk::mission_update(6,mission);assert(ttk::mission_visible());
+    ttk::mission_browse_press(1);++loads;assert(!ttk::mission_visible());
+    ttk::inventory_update(2,flags,amount,capacities,false);ttk::mission_update(6,mission);
+    assert(!ttk::mission_visible());
+    ttk::mission_browse_press(1);ttk::mission_update(6,mission);assert(ttk::mission_visible());
     // Levels without mission items: Comma/Period do nothing.
     ttk::mission_update(8,mission);
     ttk::mission_browse_press(1);ttk::mission_update(8,mission);assert(!ttk::mission_visible() && !ttk_mission_card_image(&card,&cw,&ch,624));

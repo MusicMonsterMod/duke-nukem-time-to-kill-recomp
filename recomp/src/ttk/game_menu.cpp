@@ -2786,10 +2786,28 @@ void card_unpack_done(CPUState* cpu) {
     card_capture();enforce_modern_settings();++card_loads;
 }
 
+// D19Q4: saved VRAM can contain the overwrite dialog. Keep the previous
+// window image until a complete unpaused gameplay composition has flipped.
+// The next composition's different buffer index proves that flip completed.
+struct LoadUi {
+    bool holding=false, composed=false;
+    uint32_t buffer=0;
+    uint64_t deadline=0;
+} load_ui;
+static bool load_ui_trace() {return std::getenv("DNTTK_LOAD_UI_TRACE")!=nullptr;}
+
 void game_menu_frame(CPUState* cpu) {
     if(!enabled() || psx_mod_replay_active() || g_precise_mode || g_ls_mode || g_psx_call_bail) return;
     {std::lock_guard<std::recursive_mutex> lock(mutex);savestate_check();quick_poll();}
     if(authentic()) enforce_modern_settings();
+    if(load_ui.holding && cpu->gpr[31]==0x800268f4 &&
+       psx_mod_read_half(game_mode)==1 && !psx_mod_read_half(paused)) {
+        const uint32_t buffer=psx_mod_read_word(image_counter);
+        if(load_ui.composed && buffer!=load_ui.buffer) {
+            load_ui.holding=false;
+            if(load_ui_trace()) std::fprintf(stderr,"[TTK load UI] fresh gameplay frame ready\n");
+        } else {load_ui.composed=true;load_ui.buffer=buffer;}
+    }
     if(resumed) {
         // After our resume (or continue, restart, quit) the screen value goes
         // back to the original's 0, in whatever mode the game is in now.
@@ -2812,6 +2830,29 @@ void game_menu_frame(CPUState* cpu) {
     draw_page(cpu,c);
 }
 } // namespace ttk
+
+// Called synchronously after successful restore, before any restored present.
+extern "C" void ttk_load_ui_restored() {
+    using namespace ttk;
+    load_ui={};
+    if(!enabled() || !authentic()) return;
+    std::lock_guard<std::recursive_mutex> lock(mutex);
+    savestate_check();
+    const uint16_t sub=psx_mod_read_half(pause_screen);
+    if(psx_mod_read_half(game_mode)!=1 || duke_dead() || sub==death_top || sub==death_sub) return;
+    load_ui.holding=true;load_ui.deadline=SDL_GetTicks()+1000;
+    if(load_ui_trace()) std::fprintf(stderr,"[TTK load UI] waiting for fresh gameplay frame\n");
+}
+extern "C" int ttk_load_ui_present_ready() {
+    using namespace ttk;
+    if(!load_ui.holding) return 1;
+    if(psx_mod_read_half(game_mode)!=1 || duke_dead()) {load_ui.holding=false;return 1;}
+    if(SDL_GetTicks()>=load_ui.deadline) {
+        load_ui.holding=false;
+        std::fprintf(stderr,"[TTK load UI] fresh-frame wait timed out\n");
+    }
+    return !load_ui.holding;
+}
 
 extern "C" const char* ttk_game_menu_json() {
     using namespace ttk;

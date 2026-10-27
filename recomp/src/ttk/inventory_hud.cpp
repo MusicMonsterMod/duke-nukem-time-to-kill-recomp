@@ -14,6 +14,7 @@ constexpr int capacity=1024, max_height=160;
 uint32_t pixels[capacity*max_height];
 uint16_t flags[6],charge_capacity[6];int16_t amount[6];unsigned selected;
 uint64_t epoch,sequence,expires;
+uint32_t inventory_loads;
 constexpr unsigned order[]={5,4,1,2,3}; // D08A4: steroids after the medkit, as in EDuke32
 struct Sprite {int w,h;std::vector<uint32_t> rgba;};
 Sprite icons[6], cursor, digits[10], percent_glyph;
@@ -283,7 +284,7 @@ namespace {
 // Shared gates: Modernized, captured live gameplay, no menu or pause.
 bool overlay_ready() {
     const auto& f=ttk::input_snapshot(ttk::Context::Gameplay);
-    return ttk::input_modernized() && f.active && epoch==f.epoch && f.sequence>=sequence &&
+    return inventory_loads==psx_mod_savestate_loads() && ttk::input_modernized() && f.active && epoch==f.epoch && f.sequence>=sequence &&
         f.sequence-sequence<=4 &&
         psx_mod_read_half(0x800bcbb0)==1 && !psx_mod_read_half(0x800be568) && !psx_mod_read_half(0x800d2540);
 }
@@ -296,6 +297,12 @@ void mission_close() {mission_expires=0;}
 int mission_browsed_item() {return mission_visible() && browse<slot_count?int(slots[browse]->item):-1;}
 void inventory_update(unsigned item,const uint16_t* f,const int16_t* a,const uint16_t* capacity_values,bool announce) {
     const auto& input=input_snapshot(Context::Gameplay);
+    const uint32_t loads=psx_mod_savestate_loads();
+    if(loads!=inventory_loads) {
+        inventory_loads=loads;expires=mission_expires=0;
+        browse_presses=0;browse_steps=0;browse=0;
+        announce=false; // Restored contents are not a new selection/pickup.
+    }
     if(epoch!=input.epoch)expires=mission_expires=0;
     epoch=input.epoch;sequence=input.sequence;selected=item;
     std::memcpy(charge_capacity,capacity_values,sizeof charge_capacity);

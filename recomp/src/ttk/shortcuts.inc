@@ -334,6 +334,13 @@ static void select_weapon(CPUState* cpu) {
         psx_mod_write_half(player+0x358,jet&~0x8000u);
     pickup_select_apply(); // D08A9: a pickup that waited for an activation
     unsigned menu_item=psx_mod_read_half(0x800c3f94);
+    static uint32_t selection_loads=0;
+    const uint32_t loads=psx_mod_savestate_loads();
+    const bool restored=loads!=selection_loads;
+    if(restored) {
+        selection_loads=loads;selected_item=menu_item;
+        command_seen=f.command_serial; // No queued command from the old world.
+    }
     bool changed=false;
     steroids_poll();
     if(menu_item!=selected_item && usable_item(menu_item)) {selected_item=menu_item;changed=true;}
@@ -352,7 +359,7 @@ static void select_weapon(CPUState* cpu) {
         for(unsigned i:{5u,4u,1u,2u,3u})if(usable_item(i)){replacement=i;break;}
         if(selected_item!=replacement){remember_item(replacement);changed=true;}
     }
-    inventory_feedback(changed);
+    inventory_feedback(changed && !restored);
     unsigned equipment=psx_mod_read_byte(player+0x3b8),flags=psx_mod_read_word(player+0x224);
     unsigned actual=psx_mod_read_byte(player+0x3b9),current=base_weapon(actual);
     bool remote=equipment==1 && actual==0 && psx_mod_read_byte(player+0x3ba)==12 &&

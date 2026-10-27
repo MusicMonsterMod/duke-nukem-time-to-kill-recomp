@@ -392,7 +392,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D19Q1 | SAVE GAME thumbnail shows the save screen (OVERWRITE THIS SAVE?) instead of play (player UI slot 1; cause: stale CPU VRAM, not first person) | Done (user-accepted 2026-10-20) | D19Q |
 | D19Q2 | Saves restore paused: investigate recurring pause/menu state on load and resume behavior | Done (user-accepted 2026-10-23) | D19Q, D20 |
 | D19Q3 | Every Modernized gameplay load resumes immediately | Done (user-confirmed 2026-10-26) | D19Q2, D37A |
-| D19Q4 | Intermittent overwrite prompt and inventory selector flashes on load | Todo | D19Q3 |
+| D19Q4 | Intermittent overwrite prompt and inventory selector flashes on load | Done (user-accepted 2026-10-27) | D19Q3 |
 | D19S | Delete saves from LOAD GAME: Delete on a slot asks DELETE SAVED GAME: "<name>" (NO first) | Done (user-accepted 2026-10-21) | D19K, D19Q |
 | D19T | Real double quote marks (" and ") in the game's menu font: the text call draws `"` as a single quote | Done (user-accepted 2026-10-21) | D19S |
 | D19T1 | DELETE SAVED GAME: shows the slot's name without quotes (cleaner; D19T quotes stay available) | Done (user-accepted 2026-10-21) | D19S, D19T |
@@ -20530,7 +20530,12 @@ Manual updated. D37A remains included; no acceptance closeout, commit or push.
 
 ### D19Q4 - Intermittent UI flashes on load
 
-**Status: Todo. Backlog intake only; explicitly not started.**
+**Status: Done (user-accepted 2026-10-27).**
+
+Both symptoms reproduced and fixed in the candidate. Private 60/120 FPS load-route
+checks, inventory/controls and D37A regressions pass. [Note 279](documentation/279-d19q4-load-ui-flashes.md)
+records causes, evidence and limits. User accepted and authorized closeout, commit
+and push: "lock it in and close it out".
 
 User report, 2026-10-26: sometimes text resembling "overwrite the previous save"
 (user paraphrase, exact wording unconfirmed) briefly blinks on screen while loading.
@@ -20547,7 +20552,8 @@ recovery. Acceptance: neither unrelated overwrite text nor the inventory selecto
 flashes on load; deliberate overwrite confirmations and [ / ] inventory selection
 still work, with ordinary pause/resume and Vanilla preserved.
 
-No investigation, source change, build or launch is authorized by this intake.
+The original intake did not authorize implementation. User selected D19Q4 on
+2026-10-27; candidate work is recorded above.
 
 ## 2026-10-26 - Session closeout and D19Q4 backlog
 
@@ -21403,3 +21409,23 @@ and agent guidance plus CI checks prevent future literal personal home paths.
 The installed Codex skill is updated locally outside this Git repository;
 AGENTS.md supplies the tracked Codex-facing privacy rule. No gameplay changes
 or new framework edits. Existing submodule working changes remain untouched.
+
+
+## 2026-10-27 - D19Q4 load UI candidate (Needs playtest)
+
+Reproduced saved overwrite-dialog VRAM and restored-selection announcements as
+separate causes. Added a fresh-gameplay-frame presentation gate and load-generation
+inventory cleanup. Private 60/120 real-keyboard LOAD GAME/F9/F7, repeated/paused
+loads, movement and ordinary pause/resume pass; deliberate prompts/browsing remain.
+Inventory/controls and D37A tests pass; Vanilla pause and statistics preserved.
+Framework patch exported and clean-pin verified. Note 279 records limits, including
+60 FPS recording of the 120 FPS run and no new live death-route test. User playtest
+pending; no acceptance closeout, commit, push or next job.
+
+
+## 2026-10-27 - D19Q4 accepted and closed
+
+User: "lock it in and close it out". D19Q4 is Done. Implementation, native
+regression tests, framework patch, manual and documentation commit/push authorized.
+The tested candidate and note 279 verification limits are unchanged. No new build,
+game launch or next job during closeout.

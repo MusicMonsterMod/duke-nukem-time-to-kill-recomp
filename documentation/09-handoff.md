@@ -1,5 +1,30 @@
 # Next-session handoff
 
+## 2026-10-27 - D19Q4 accepted and closed
+
+D19Q4 is Done. User: "lock it in and close it out". Implementation, tests,
+framework patch, manual and documentation commit/push authorized. Saved overwrite
+text and restored-inventory flashes are fixed in the accepted candidate.
+[Note 279](279-d19q4-load-ui-flashes.md) retains the 60/120 load-route evidence,
+regression results and verification limits. Earlier candidate entries below are
+historical. No new build, game launch or next job during closeout.
+Launch from the workspace root: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-27 - D19Q4 load UI candidate
+
+D19Q4 is Needs playtest. Reproduced two separate causes: saved overwrite-dialog
+VRAM presented during auto-resume, and inventory restoration announced as a new
+selection. Candidate waits for a fresh gameplay frame and clears old inventory
+feedback across successful loads. Private 60/120 LOAD GAME/F9/F7, paused/repeated
+loads, movement and later pause/resume pass; deliberate confirmations and bracket
+browsing remain. Native inventory/controls and D37A checks pass; Vanilla pause and
+statistics preserved. Framework patch exported and clean-pin verified.
+[Note 279](279-d19q4-load-ui-flashes.md) records evidence and limits.
+Awaiting user acceptance. No closeout, commit or push. Launch from workspace root:
+`python3 recomp/tools/local/run.py`.
+
+
 ## 2026-10-27 - PRIV01 privacy cleanup accepted
 
 PRIV01 is Done. User accepted the cleanup and explicitly authorized closeout,

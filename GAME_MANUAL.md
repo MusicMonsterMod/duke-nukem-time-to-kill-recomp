@@ -935,6 +935,8 @@ automatically without resetting the camera direction. Loading a save keeps your
 current view and control choices; the loaded world supplies the viewing direction.
 In Modernized, gameplay saves resume immediately after loading, including saves
 made while paused and loads through F7. No extra Escape press is needed.
+Loading restores inventory silently and waits for fresh gameplay instead of
+briefly showing menu text stored in the save.
 
 Explicit LEGACY controls or ORIGINAL camera use the original camera; your
 first/third-person choice remains saved for when you return to MODERN with the

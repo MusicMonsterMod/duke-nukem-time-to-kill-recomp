@@ -569,3 +569,14 @@ follow-up job.
 `recomp/psxrecomp/lib/retcomm-rbengine/README.md`; notes 18, 76, 101, 102,
 105, 117, 127, 147, 150. Disassembly of `0x80026164`-`0x80026c40` from the
 owned executable.
+
+## Follow-up opened, 2026-10-27
+
+D09A's keyboard/gamepad seats are user-accepted. The user explicitly requests
+the next local two-player modernization job, so D34C is now open as Todo in
+`MODERNIZATION_JOBS.md`; its current scope and acceptance criteria live there.
+D09 and D09A plus the retained D34B implementation are its prerequisites.
+The proposed D19F1 dependency above is narrowed: complete live prompt icons
+remain D19F1, while clear existing textual seat labels permit D34C controls work.
+No D34C implementation starts with this backlog update. Other unselected
+research proposals remain proposals; online/LAN stays separate.

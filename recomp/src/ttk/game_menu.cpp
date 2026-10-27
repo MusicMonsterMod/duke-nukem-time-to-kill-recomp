@@ -351,6 +351,9 @@ std::vector<Screen> make_screens() {
          "HOW FAR THE CAMERA TURNS FOR EACH MOUSE MOVE",{},12,true,1,200,1,0.01},
         {"INVERT MOUSE",Section::Controls,"invert_y","DNTTK_MOUSE_INVERT_Y",true,
          "MOVING THE MOUSE UP LOOKS DOWN",{{"OFF","0","false"},{"ON","1","true"}},0},
+        {"TWO PLAYER INPUT",Section::Controls,"split_devices","DNTTK_SPLIT_DEVICES",true,
+         "KEYBOARD = PLAYER 1. FIRST GAMEPAD = PLAYER 2",
+         {{"TWO PADS","two-pads","\"two-pads\""},{"KEYS AND PAD","keyboard-pad","\"keyboard-pad\""}},0},
         {"PAD LOOK",Section::Controls,"controller_speed","DNTTK_CONTROLLER_SPEED",true,
          "RIGHT STICK TURN SPEED IN DEGREES PER SECOND",{},180,true,30,360,15},
         {"DEADZONE",Section::Controls,"controller_deadzone","DNTTK_CONTROLLER_DEADZONE",true,
@@ -1900,7 +1903,7 @@ void draw_character(Guest& g,const Geometry& geo) {
     }
     const int y=prompt_y(geo);
     const unsigned connected=input_controller_connections();
-    const char* hint=connected!=3 ? "CONNECT TWO CONTROLLERS" : locks!=3 ? "CONFIRM ON EACH CONTROLLER" : "BOTH READY - CONFIRM TO START";
+    const char* hint=input_split_keyboard() ? (!(connected&1) ? "P1 KEYBOARD - CONNECT P2 GAMEPAD" : locks!=3 ? "P1 KEYBOARD - P2 FIRST GAMEPAD" : "BOTH READY - CONFIRM TO START") : connected!=3 ? "CONNECT TWO CONTROLLERS" : locks!=3 ? "CONFIRM ON EACH CONTROLLER" : "BOTH READY - CONFIRM TO START";
     g.say(hint,0,y-15,font_small|centre);
     if(locks!=3) {g.prompt_id(icon_change,-(geo.w/4),y,text_change);g.prompt_id(icon_cross,0,y,text_confirm);}
     else g.prompt_id(icon_cross,geo.x0+geo.w/3,y,text_start);

@@ -43,6 +43,8 @@ void input_frame();
 void input_controller_sample(SDL_GameController* pad, SDL_GameController* second=nullptr);
 unsigned input_controller_connections();
 bool input_controller_owns_gameplay();
+// Host preference, active only in the two-player frontend/match/results.
+bool input_split_keyboard();
 // Host frame counter advanced by input_frame() (main loop, once per presented
 // frame). Identity verdicts are memoised per value of this.
 uint64_t input_host_frame();

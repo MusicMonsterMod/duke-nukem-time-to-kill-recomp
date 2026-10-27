@@ -1,5 +1,39 @@
 # Next-session handoff
 
+## 2026-10-27 - D09A accepted and closed; D34C opened
+
+User reports the controller/keyboard arrangement "100% works" and two-player
+works as a foundational first step, then explicitly requests the next
+modernization job and lock-in/closeout. D09A is Done by user acceptance.
+Implementation, tests, framework patch, manual and documentation commit/push are
+authorized as MusicMonsterMod. This does not claim new automated or exhaustive
+two-physical-pad tests, or diagnose the historical character-selection report.
+
+D34C is now Todo: independent per-player movement/camera/aim, applicable modern
+actions and per-viewport presentation for local split-screen, preserving the
+classic option and original match rules. It is the next multiplayer job, not
+started. Online/LAN and first-person presentation overhaul remain separate.
+Existing bounded evidence is retained in [note 290](290-d09a-keyboard-gamepad-seats.md).
+No gameplay edits, rebuild or launch during closeout; player settings/cards
+remain untouched. Launch: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-27 - D09A keyboard/gamepad seats (Needs playtest)
+
+Explicit KEYS AND PAD preference routes keyboard to P1 and the first gamepad
+to P2 throughout character selection and original split-screen play. Two-pad
+routing remains selectable. Mixed-mode hotplug preserves the unused pad's
+assignment instead of promoting it; bound keyboard/mouse actions work without
+single-player mouse capture. Schema 56 retains existing preferences.
+
+Build, native input/controls/aim and 106 profile tests pass. Private SDL/X11
+selection, separate movement/actions, pause/resume, match save/load, unplug/
+reconnect and results/exit routes pass within [note 290](290-d09a-keyboard-gamepad-seats.md)'s
+limits. Two-pad and campaign regressions pass. Physical-controller and display
+acceptance remain. Framework patch exported and clean-pin verified; player
+settings/cards untouched. No acceptance, commit or push performed.
+
+
 ## 2026-10-27 - D09 accepted and closed; D09A queued
 
 User: "controller is working solidly" and "lock it in, close it out".

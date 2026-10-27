@@ -344,7 +344,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08A29 | Scroll-wheel weapon changes while running | Done (user-accepted) | D08A, D08AA |
 | D08A30 | Reverse weapon-wheel direction: up advances, down goes back | Done (user-accepted) | D08A29 |
 | D09 | Modern controller support | Done (user-accepted 2026-10-27) | D05, D06, D07 |
-| D09A | Separate keyboard and gamepad seats for local two-player | Todo (background backlog) | D09, D34B implementation |
+| D09A | Separate keyboard and gamepad seats for local two-player | Done (user-accepted 2026-10-27) | D09, D34B implementation |
 | D10 | Third-person camera polish | Done | D08 |
 | D10E | Optional held middle-mouse third-person free look (issue #1 inspiration) | Done (user-accepted 2026-10-27) | D04, D06, D07, D10 |
 | D10A | Rapid mouse turning and Shift-running investigation | Done | D06, D07C, D08 |
@@ -485,8 +485,9 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D31 | Eye-catching README: own-capture hero banner, in-engine icon, screenshots, social preview and credits (design locked, concept 7) | Todo | - |
 | D32 | Game icon: replace the framework psxrecomp.ico/.png/.svg with the D31 in-engine icon (exe, window, taskbar, launcher) | Todo | D31 design |
 | D33 | Modernized as the default profile, `--vanilla` as the special flag (one launch) | Done (user-accepted 2026-10-20) | - |
-| D34 | Multiplayer investigation: modern split-screen, online play and self-hosting (research only; [note 167](documentation/167-d34-multiplayer-research.md)) | Done (research accepted 2026-10-20; follow-ups D34A-D34G proposed, not opened) | - |
+| D34 | Multiplayer investigation: modern split-screen, online play and self-hosting (research only; [note 167](documentation/167-d34-multiplayer-research.md)) | Done (research accepted 2026-10-20; D34B retained; D34C opened; other follow-ups proposed) | - |
 | D34B | Classic split-screen with two controllers: original controls and rules, both pads working, clean start / presentation / exit in a Modernized session | Closed for now; acceptance deferred to D09 | D34 |
+| D34C | Modern local split-screen: independent controls, cameras and aiming for both players; per-viewport presentation | Todo (next multiplayer job; opened 2026-10-27) | D09, D09A, D34B implementation |
 | D35 | Comprehensive first-person camera transition audit and modernization roadmap | Done (user-accepted 2026-10-25) | D11, D11E, D11F, D10B |
 | D35A | Shared action-perspective policy and persistent Advanced Settings foundation | Done | D35 |
 | D35B | Swimming perspective option using accepted first-person swimming | Done | D35A, D11E |
@@ -7078,7 +7079,7 @@ virtual SDL results do not establish hardware acceptance. See
 
 ### D09A - Separate keyboard and gamepad seats for local two-player
 
-**Status: Todo (background backlog, requested 2026-10-27). Dependencies: D09
+**Status: Done (user-accepted 2026-10-27). Dependencies: D09
 (Done), D34B implementation (retained; physical two-pad acceptance remains bounded).**
 Register keyboard and gamepad as independent player controllers for local
 split-screen: one player uses the keyboard, the other a physical gamepad.
@@ -7094,7 +7095,12 @@ keyboard/mouse/gamepad use, existing two-gamepad play and Vanilla. Keep original
 split-screen gameplay rules; modern per-player cameras and networking are not
 part of this job. Record hardware, routing and real-display test evidence.
 
-Queued only. No implementation, build or launch for D09A during D09 closeout.
+Implementation and bounded evidence: [note 290](documentation/290-d09a-keyboard-gamepad-seats.md).
+OPTIONS > CONTROLS > TWO PLAYER INPUT selects KEYS AND PAD. User confirms the
+controller/keyboard arrangement "100% works" and two-player works as a
+foundational first step. D09A is accepted; modern gameplay/presentation is D34C.
+This is user-reported acceptance, not newly observed exhaustive hardware tests.
+User explicitly authorizes implementation/documentation commit and push closeout.
 
 ### D10 — Third-person camera polish
 
@@ -12019,6 +12025,59 @@ closeout. Retain the existing implementation; carry physical-controller
 selection, full-match and real-display acceptance into D09. Cause undiagnosed;
 no claim of full acceptance. Existing authored implementation/tests and docs
 are authorized for commit/push as MusicMonsterMod. No next job started.
+
+
+### D34C - Modern local split-screen controls and presentation
+
+**Status: Todo (opened at user request 2026-10-27; not started).** Dependencies:
+D09 and D09A (Done), retained D34B implementation. This opens the existing D34C
+proposal from [note 167](documentation/167-d34-multiplayer-research.md), using
+accepted D09A as the input-seat foundation. User confirms the current mode works
+but is fundamental; the next step is modernization, not another seat-routing job.
+
+**Scope and implementation order:**
+
+1. Audit current single-player ownership in input/actions, movement, cameras,
+   weapon aiming, traversal, HUD and replay. Reverify arena identity and active
+   player/camera addresses against the owned executable and runtime. Old research
+   assumptions are a starting point, not proof that current hooks cover arenas.
+2. Give each player independent movement, camera and weapon-aim state. Keyboard/
+   mouse P1 uses camera-relative movement and mouse look; gamepad P2 uses left
+   stick movement and right stick look/aim. Support two gamepads with the same
+   per-player independence. Start with third person, including camera collision
+   and recenter; do not call keyboard remapping alone modern controls. Scope
+   first-person presentation separately after the third-person foundation works.
+3. Extend applicable Modernized actions to both actors without sharing toggles,
+   weapon selection, aim targets, camera settings or traversal leases. Keep
+   original match scoring, arena rules, spawning, damage and time/kill limits.
+   Retain an explicit classic local mode and unchanged Vanilla/single-player play.
+4. Modernize presentation per viewport: independent camera/render history,
+   correctly owned HUD/reticle and aspect handling, clean loading/pause/results
+   transitions, and both horizontal and vertical layouts. Target 120 Hz player
+   presentation using measured frame budgets; report simulation cadence and each
+   viewport's actual updates separately. A 60 Hz fallback must be explicit and
+   measured, not presented as 120 Hz acceptance.
+5. Preserve clear seat assignment/confirmation, device-loss handling, mouse
+   capture/focus behavior, save/load, rematch and exit. Existing textual device
+   labels can support this job; full live prompt-icon switching stays in D19F1
+   and is not a prerequisite for the control implementation.
+
+**Acceptance:** both players simultaneously move, look and fire independently;
+one player's camera/actions never steer the other. Verify keyboard/mouse plus
+physical gamepad and two physical gamepads, including disconnect/reconnect and
+focus changes. Play complete matches through kills, death/respawn, results,
+rematch and exit; test private save/load and both split orientations. Cover all
+six original arenas for hook eligibility and basic play, with representative
+collision/traversal/aim routes. Capture full-display evidence and measure both
+viewports at 60/120 presentation, including busy combat, with no frozen loading
+image or presentation-induced flicker. Regress accepted campaign controls,
+classic split-screen and Vanilla. Record unsupported cases and performance
+limits explicitly; require user acceptance before Done.
+
+**Out of scope:** online/LAN play, servers, more than two players, new arenas,
+new match rules and a first-person body/weapon art overhaul. Those remain separate
+jobs. No gameplay edits, build or game launch authorized merely by opening this
+entry; implement only after the user selects D34C.
 
 ## Working rules and evidence
 
@@ -22076,3 +22135,35 @@ player controllers, with independent character confirmation and gameplay input.
 It is scoped on the board and not started. Player settings/cards remain untouched.
 
 Launch from the workspace root: `python3 recomp/tools/local/run.py`.
+
+## 2026-10-27 - D09A keyboard/gamepad seats (Needs playtest)
+
+Explicit KEYS AND PAD preference routes keyboard to P1 and the first gamepad
+to P2 throughout character selection and original split-screen play. Two-pad
+routing remains selectable. Mixed-mode hotplug preserves the unused pad's
+assignment instead of promoting it; bound keyboard/mouse actions work without
+single-player mouse capture. Schema 56 retains existing preferences.
+
+Build, native input/controls/aim and 106 profile tests pass. Private SDL/X11
+selection, separate movement/actions, pause/resume, match save/load, unplug/
+reconnect and results/exit routes pass within [note 290](documentation/290-d09a-keyboard-gamepad-seats.md)'s
+limits. Two-pad and campaign regressions pass. Physical-controller and display
+acceptance remain. Framework patch exported and clean-pin verified; player
+settings/cards untouched. No acceptance, commit or push performed.
+
+## 2026-10-27 - D09A accepted and closed; D34C opened
+
+User reports the controller/keyboard arrangement "100% works" and two-player
+works as a foundational first step, then explicitly requests the next
+modernization job and lock-in/closeout. D09A is Done by user acceptance.
+Implementation, tests, framework patch, manual and documentation commit/push are
+authorized as MusicMonsterMod. This does not claim new automated or exhaustive
+two-physical-pad tests, or diagnose the historical character-selection report.
+
+D34C is now Todo: independent per-player movement/camera/aim, applicable modern
+actions and per-viewport presentation for local split-screen, preserving the
+classic option and original match rules. It is the next multiplayer job, not
+started. Online/LAN and first-person presentation overhaul remain separate.
+Existing bounded evidence is retained in [note 290](documentation/290-d09a-keyboard-gamepad-seats.md).
+No gameplay edits, rebuild or launch during closeout; player settings/cards
+remain untouched. Launch: `python3 recomp/tools/local/run.py`.

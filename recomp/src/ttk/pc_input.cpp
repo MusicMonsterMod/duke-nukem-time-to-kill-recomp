@@ -615,6 +615,13 @@ void input_event(const SDL_Event& e) {
         if (e.button.windowID != SDL_GetWindowID(window)) return;
         if(e.type==SDL_MOUSEBUTTONDOWN)cheat_typing.reset();
         if(e.type==SDL_MOUSEBUTTONDOWN && e.button.button<6 && quick_press(-int(e.button.button),(int)SDL_GetModState())) return;
+        // Classic split-screen has no mouse-look capture, but its keyboard
+        // seat still owns bound mouse buttons. Do not run campaign commands.
+        if(input_split_keyboard() && !captured && e.button.button<6) {
+            mouse[e.button.button]=e.type==SDL_MOUSEBUTTONDOWN;
+            device=Device::Mouse;
+            return;
+        }
         if (captured && e.button.button < 6) {
             if(e.type==SDL_MOUSEBUTTONDOWN && !mouse[e.button.button] && binds[jump]==-int(e.button.button)) crouch_jump_press();
             if(e.type==SDL_MOUSEBUTTONUP && binds[jump]==-int(e.button.button)) crouch_jump_consumed=false;
@@ -686,23 +693,22 @@ static void test_controllers() {
 #if defined(PSX_SDL3)
     static const char* path=std::getenv("DNTTK_TEST_CONTROLLERS");
     static SDL_Joystick* pads[2]={};
-    static bool attached=false;
-    if(!path || !*path) return;
-    if(!attached && SDL_WasInit(SDL_INIT_GAMEPAD)) {
-        attached=true;
-        for(int i=0;i<2;++i) {
-            SDL_VirtualJoystickDesc d{};SDL_INIT_INTERFACE(&d);
-            d.type=SDL_JOYSTICK_TYPE_GAMEPAD;d.nbuttons=SDL_GAMEPAD_BUTTON_COUNT;
-            d.naxes=6;d.axis_mask=63;
-            d.button_mask=(1u<<SDL_GAMEPAD_BUTTON_COUNT)-1u;
-            d.name=i ? "TTK diagnostic pad 2" : "TTK diagnostic pad 1";
-            const SDL_JoystickID id=SDL_AttachVirtualJoystick(&d);
-            pads[i]=SDL_OpenJoystick(id);
-        }
-    }
+    if(!path || !*path || !SDL_WasInit(SDL_INIT_GAMEPAD)) return;
     unsigned masks[2]={};int axes[12]={0,0,0,0,-32768,-32768,0,0,0,0,-32768,-32768};
     if(FILE* f=std::fopen(path,"r")) {if(std::fscanf(f,"%u %u",&masks[0],&masks[1])!=2)masks[0]=masks[1]=0;
         for(int& axis:axes) {int value;if(std::fscanf(f,"%d",&value)==1)axis=value;}std::fclose(f);}
+    // UINT32_MAX means unplug this diagnostic device, including while held.
+    for(int i=0;i<2;++i) {
+        if(masks[i]==UINT32_MAX) {
+            if(pads[i]) {const auto id=SDL_GetJoystickID(pads[i]);SDL_CloseJoystick(pads[i]);pads[i]=nullptr;SDL_DetachVirtualJoystick(id);}
+        } else if(!pads[i]) {
+            SDL_VirtualJoystickDesc d{};SDL_INIT_INTERFACE(&d);
+            d.type=SDL_JOYSTICK_TYPE_GAMEPAD;d.nbuttons=SDL_GAMEPAD_BUTTON_COUNT;
+            d.naxes=6;d.axis_mask=63;d.button_mask=(1u<<SDL_GAMEPAD_BUTTON_COUNT)-1u;
+            d.name=i ? "TTK diagnostic pad 2" : "TTK diagnostic pad 1";
+            pads[i]=SDL_OpenJoystick(SDL_AttachVirtualJoystick(&d));
+        }
+    }
     for(int i=0;i<2;++i) if(pads[i]) for(int b=0;b<SDL_GAMEPAD_BUTTON_COUNT;++b)
         SDL_SetJoystickVirtualButton(pads[i],b,(masks[i]&(1u<<b))!=0);
     for(int i=0;i<2;++i) if(pads[i]) for(int a=0;a<6;++a)
@@ -723,6 +729,11 @@ void input_controller_sample(SDL_GameController* pad, SDL_GameController* second
     for(int b=0;b<SDL_CONTROLLER_BUTTON_MAX;++b)
         if(SDL_GameControllerGetButton(pad,(SDL_GameControllerButton)b))controller_buttons|=1u<<b;
     for(int a=0;a<6;++a)controller_axes[a]=SDL_GameControllerGetAxis(pad,(SDL_GameControllerAxis)a);
+}
+bool input_split_keyboard() {
+    const char* choice=ttk_live_env("DNTTK_SPLIT_DEVICES");
+    return modern && choice && !std::strcmp(choice,"keyboard-pad") &&
+        (psx_mod_read_half(0x800bcbb0)==0 ? psx_mod_read_half(0x800bdea4)==2 : psx_mod_read_word(0x800c27bc)==2);
 }
 bool input_controller_owns_gameplay() {
     return input_modern_controls() && psx_mod_read_half(0x800bcbb0)==1 &&
@@ -1324,7 +1335,7 @@ uint16_t input_pad() {
     for (int i = 0; i < 9; ++i) if (!(captured && ((input_modern_controls() && (fixed[i]==SDL_SCANCODE_UP || fixed[i]==SDL_SCANCODE_DOWN)) || fixed[i]==SDL_SCANCODE_LEFT || fixed[i]==SDL_SCANCODE_RIGHT || fixed[i]==SDL_SCANCODE_X || fixed[i]==SDL_SCANCODE_Z || fixed[i]==SDL_SCANCODE_C || fixed[i]==SDL_SCANCODE_RSHIFT || fixed[i]==SDL_SCANCODE_V)) && keys[fixed[i]]) value &= ~bits[i];
     // Legacy is an explicit host preference, never a consequence of capture
     // or lease loss. Keep the Modernized menus and saved bindings available.
-    if(captured && !input_modern_controls()) {
+    if((captured && !input_modern_controls()) || (input_split_keyboard() && running)) {
         for(int i=0;i<action_count;++i) if(action_down(i)) value &= ~pads[i];
         if(crouch_down()) value &= ~4096;
         if(action_down(grab) || action_down(grab_alt)) value &= ~2048;

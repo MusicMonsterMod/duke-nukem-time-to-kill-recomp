@@ -97,7 +97,22 @@ int main() {
     guest[0x800c27bc]=2;
     CHECK(!tick().active && !SDL_GetWindowRelativeMouseMode(win));
     CHECK(!ttk::input_modern_controls());
+    SDL_setenv_unsafe("DNTTK_SPLIT_DEVICES","keyboard-pad",1);
+    CHECK(ttk::input_split_keyboard());
+    key(SDL_SCANCODE_W,true);key(SDL_SCANCODE_SPACE,true);
+    CHECK((ttk::input_pad()&(16|32768))==0);
+    key(SDL_SCANCODE_W,false);key(SDL_SCANCODE_SPACE,false);
+    SDL_Event split_mouse{};split_mouse.type=SDL_MOUSEBUTTONDOWN;
+    split_mouse.button.windowID=SDL_GetWindowID(win);split_mouse.button.button=1;
+    ttk::input_event(split_mouse);CHECK(!(ttk::input_pad()&16384));
+    split_mouse.type=SDL_MOUSEBUTTONUP;ttk::input_event(split_mouse);CHECK(ttk::input_pad()&16384);
+    CHECK((ttk::input_pad()&(16|32768))==(16|32768));
+    focus(false);key(SDL_SCANCODE_W,true);CHECK(ttk::input_pad()==0xffff);
+    focus(true);key(SDL_SCANCODE_W,false);
     guest[0x800bcbb0]=0;CHECK(ttk::input_modern_controls());
+    guest[0x800bdea4]=1;CHECK(!ttk::input_split_keyboard());
+    guest[0x800bdea4]=2;CHECK(ttk::input_split_keyboard());
+    SDL_unsetenv_unsafe("DNTTK_SPLIT_DEVICES");CHECK(!ttk::input_split_keyboard());
     guest[0x800bcbb0]=1;guest[0x800c27bc]=1;
     capture_fixture();CHECK(tick().active && ttk::input_modern_controls());
     // D09: actual SDL gamepad sampling, radial deadzone, independent actions,

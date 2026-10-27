@@ -1553,6 +1553,21 @@ local player seats is queued as D09A.
 
 ## Classic two-player split screen
 
+For **keyboard P1 and gamepad P2**, first open **OPTIONS > CONTROLS**, set
+**TWO PLAYER INPUT** to **KEYS AND PAD**, and confirm. This saves the preference.
+Choose TWO PLAYER. Keyboard arrows and Enter select/confirm P1; the first
+assigned gamepad selects/confirms P2. Confirm again when both are ready.
+
+P1 uses W/S to move, A/D to turn, Space to jump, Ctrl to crouch, Shift to walk,
+X or left mouse to fire/action, C or Scroll Lock to draw/holster, E to act,
+and Alt or right mouse for original precision aim. Hold C with left/right to
+cycle weapons. Escape pauses and Enter resumes. Bound actions follow your
+keyboard preferences; arrow keys and the fixed X/C controls also work.
+P2 retains the original pad controls. Split screen has original turning and
+camera rules, without mouse look. Unplugging the pad leaves P2 neutral until
+reconnected. **TWO PADS** restores the existing two-controller setup below.
+
+
 Connect two SDL-recognised controllers, launch normally, and choose **TWO
 PLAYER**. The first available controller drives player 1 and the next drives
 player 2. In menus, use D-pad/left stick to choose, Cross/A to confirm and
@@ -1572,10 +1587,13 @@ MAIN MENU from pause shows the results, then Quit returns directly to the main
 menu. Existing one-player savestates remain loadable; no save conversion is
 required.
 
-Known limitation (2026-10-27): the user reports being stuck at Red Duke / Blue
-Duke character selection. D34B is closed for now with physical-controller and
-real-display verification deferred to the controller job D09. The route above
-has been exercised with virtual SDL pads; hardware acceptance is unresolved.
+Accepted foundation (2026-10-27): the user confirms keyboard/gamepad routing
+and local two-player work. This mode retains the original movement, camera and
+viewport cadence. D34C is the queued modernization follow-up for independent
+per-player controls, cameras, aiming and smoother viewport presentation; those
+features are not implemented yet. The earlier character-selection report's
+cause remains undiagnosed; acceptance does not imply exhaustive two-pad or
+all-arena testing.
 
 ## Vanilla default controls
 

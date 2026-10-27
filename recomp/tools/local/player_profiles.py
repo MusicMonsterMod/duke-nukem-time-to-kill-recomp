@@ -110,7 +110,7 @@ DEFAULT_CONTROLS = {'scheme': 'modern', 'camera': 'independent', 'mouse_sensitiv
 # display is how the game opens (the runtime reports the last state at exit);
 # fullscreen_mode is what F11 enters from a window.
 SOUND_DEFAULTS = dict(sound_master=-1, sound_effects=-1, sound_music=-1, sound_speech=-1, sound_mode=-1)
-CONTROLLER_DEFAULTS = dict(controller_speed=180, controller_deadzone=20, controller_invert_y=False)
+CONTROLLER_DEFAULTS = dict(controller_speed=180, controller_deadzone=20, controller_invert_y=False, split_devices="two-pads")
 DEFAULT_CONTROLS.update(SOUND_DEFAULTS)
 DEFAULT_CONTROLS.update(CONTROLLER_DEFAULTS)
 
@@ -144,6 +144,8 @@ def validate_controls(value):
         type(value['controller_deadzone']) is not int or not 5 <= value['controller_deadzone'] <= 50 or
         type(value['controller_invert_y']) is not bool):
         raise ValueError('Controller speed 30..360, deadzone 5..50 percent, inversion boolean.')
+    if not valid_enum(value['split_devices'], ('two-pads', 'keyboard-pad')):
+        raise ValueError('Split devices must be two-pads or keyboard-pad.')
     sensitivity = value['mouse_sensitivity']
     if (value['weapon_aim'] not in AIM_MODES or value['scheme'] not in ('modern', 'legacy') or value['camera'] not in CAMERAS or value['aim_assist'] not in ('off','original-lock') or value['jetpack'] not in JETPACK_SCHEMES or type(value['red_dot']) is not bool or type(value['crosshair']) is not bool or type(value['invert_y']) is not bool or
         type(sensitivity) not in (int, float) or not math.isfinite(sensitivity) or
@@ -332,7 +334,7 @@ VANILLA_NOTICE = ('Modernized is now the default profile; your Vanilla settings 
 
 
 def defaults():
-    return {'version': 55, 'active': 'modernized',
+    return {'version': 56, 'active': 'modernized',
             'profiles': {mode: default_profile(mode) for mode in MODES}}
 
 
@@ -378,7 +380,7 @@ def load(path):
         notices.append('Unreadable profile settings; restored Modernized defaults.')
     else:
         version = data.get('version')
-        if type(version) is int and version > 55:
+        if type(version) is int and version > 56:
             raise ValueError(f'Profile settings version {version} is newer than this launcher; file left unchanged.')
         if type(version) is int and version == 0:
             mode = data.get('mode', 'modernized')
@@ -387,8 +389,8 @@ def load(path):
                 if renderer in RENDERERS:
                     result['profiles'][mode]['presentation']['renderer'] = renderer
             changed = True
-            notices.append('Migrated version 0 profile settings to version 55.')
-        elif type(version) is int and version in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55):
+            notices.append('Migrated version 0 profile settings to version 56.')
+        elif type(version) is int and version in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56):
             if data.get('active') == 'vanilla':
                 notices.append(VANILLA_NOTICE)
             profiles = data.get('profiles', {})
@@ -410,7 +412,7 @@ def load(path):
                         notices.append(f'{mode}: {exc} Restored presentation defaults.')
                 if isinstance(profile, dict) and isinstance(profile.get('controls'), dict):
                     try:
-                        result['profiles'][mode]['controls'] = validate_controls({**(CONTROLLER_DEFAULTS if version < 55 else {}), **(SOUND_DEFAULTS if version < 53 else {}), **({k:v for k,v in DEFAULT_CONTROLS.items() if k in ('crosshair','red_dot','aim_assist')} if version < 5 else {}), **({'weapon_aim':'view'} if version < 4 else {}), **({'jetpack':'modern'} if version < 11 else {}), **({'camera_distance':0,'shoulder':'center'} if version < 12 else {}), **({'view':'third'} if version < 13 else {}), **({'widescreen':'16:9'} if version < 18 else {}), **({'cpu_overclock':150} if version < 19 else {}), **({'jump':'assisted'} if version < 20 else {}), **({'frame_rate':'60'} if version < 21 else {}), **({'view_bob':'on'} if version < 22 else {}), **({'geometry_precision':'original','texture_precision':'original'} if version < 23 else {}), **({'draw_distance':'extended'} if version < 24 else {}), **({'cpu_timing':'fast'} if version < 25 else {}), **({'steroids':'portable'} if version < 29 else {}), **({'jump_walls':'slide'} if version < 30 else {}), **({'landing':'modern'} if version < 31 else {}), **({'dynamite':'modern'} if version < 32 else {}), **({'swimming':'modern'} if version < 33 else {}), **({'wall_backflip':'modern'} if version < 37 else {}), **({'crouch':'modern'} if version < 39 else {}), **({'scheme':'modern'} if version < 40 else {}), **({'swim_view':'first'} if version < 41 else {}), **({'jetpack_view':'first'} if version < 42 else {}), **({'push_view':'first'} if version < 43 else {}), **({'ladder_view':'first'} if version < 44 else {}), **({'pole_view':'first'} if version < 45 else {}), **({'mantle_view':'first'} if version < 46 else {}), **({'overhead_view':'first'} if version < 47 else {}), **({'wall_view':'first'} if version < 48 else {}), **({'use_view':'first'} if version < 49 else {}), **({'mirror_view':'first'} if version < 50 else {}), **({'night_vision':'modern'} if version < 51 else {}), **({'auto_bio_mask':'on'} if version < 52 else {}), **profile['controls']})
+                        result['profiles'][mode]['controls'] = validate_controls({**({"split_devices":"two-pads"} if version < 56 else {}), **(CONTROLLER_DEFAULTS if version < 55 else {}), **(SOUND_DEFAULTS if version < 53 else {}), **({k:v for k,v in DEFAULT_CONTROLS.items() if k in ('crosshair','red_dot','aim_assist')} if version < 5 else {}), **({'weapon_aim':'view'} if version < 4 else {}), **({'jetpack':'modern'} if version < 11 else {}), **({'camera_distance':0,'shoulder':'center'} if version < 12 else {}), **({'view':'third'} if version < 13 else {}), **({'widescreen':'16:9'} if version < 18 else {}), **({'cpu_overclock':150} if version < 19 else {}), **({'jump':'assisted'} if version < 20 else {}), **({'frame_rate':'60'} if version < 21 else {}), **({'view_bob':'on'} if version < 22 else {}), **({'geometry_precision':'original','texture_precision':'original'} if version < 23 else {}), **({'draw_distance':'extended'} if version < 24 else {}), **({'cpu_timing':'fast'} if version < 25 else {}), **({'steroids':'portable'} if version < 29 else {}), **({'jump_walls':'slide'} if version < 30 else {}), **({'landing':'modern'} if version < 31 else {}), **({'dynamite':'modern'} if version < 32 else {}), **({'swimming':'modern'} if version < 33 else {}), **({'wall_backflip':'modern'} if version < 37 else {}), **({'crouch':'modern'} if version < 39 else {}), **({'scheme':'modern'} if version < 40 else {}), **({'swim_view':'first'} if version < 41 else {}), **({'jetpack_view':'first'} if version < 42 else {}), **({'push_view':'first'} if version < 43 else {}), **({'ladder_view':'first'} if version < 44 else {}), **({'pole_view':'first'} if version < 45 else {}), **({'mantle_view':'first'} if version < 46 else {}), **({'overhead_view':'first'} if version < 47 else {}), **({'wall_view':'first'} if version < 48 else {}), **({'use_view':'first'} if version < 49 else {}), **({'mirror_view':'first'} if version < 50 else {}), **({'night_vision':'modern'} if version < 51 else {}), **({'auto_bio_mask':'on'} if version < 52 else {}), **profile['controls']})
                     except ValueError as exc:
                         notices.append(f'{mode}: {exc} Restored camera defaults.')
                 # Schema 28 (D08A5): Comma/Period move from original strafe to the mission
@@ -461,8 +463,8 @@ def load(path):
                         profile['bindings']['item_use'] = 'Unbound'
             changed = result != data
             if changed and result != {**data, 'active': 'modernized'}:
-                notices.append(f'Migrated version {version} profile settings to version 55; retained preferences and added control and presentation defaults.'
-                               if version < 55 else
+                notices.append(f'Migrated version {version} profile settings to version 56; retained preferences and added control and presentation defaults.'
+                               if version < 56 else
                                'Invalid or unsupported profile fields were reset; valid preferences were retained.')
         else:
             changed = True

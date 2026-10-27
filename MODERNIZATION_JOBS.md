@@ -402,7 +402,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D17Y | Slot 8: fire-platform flicker and upper castle walls disappearing during a jump | Done | D17A, D11B, D14 |
 | D18 | FMV and audio presentation safeguards | Done (research accepted 2026-10-27) | D01, D02 |
 | D18A | Voice/music/gunfire crackle investigation | Done | D01, D02 |
-| D18B | Concurrent voice with music (no music mute) | Todo | D18, D21 |
+| D18B | Concurrent voice with music (no music mute) | Done (user-accepted 2026-10-27) | D18, D21 |
 | D18C | Load-sensitive crackle at construction signs and train ledge | Todo | D17B, D18A |
 | D18D | Music silent after death and Continue until Duke's next voice line | Done (user-accepted 2026-10-21) | D01 |
 | D18E | Challenge stages 21-26 have no music: reuse fitting in-game tracks (user mapping) | Todo | D22B, D26A |
@@ -8814,7 +8814,14 @@ sync/latency regression. Dummy audio is insufficient. See [current brief](docume
 
 ### D18B — Concurrent voice with music (no music mute)
 
-**Todo from 2026-09-27 playtest.** Voice clips currently cut out music. Allow voice
+**Done (user-accepted 2026-10-27; closeout, commit and push authorized).**
+Independent Modernized music now
+continues through native speech, using the existing SOUND controls.
+[Note 287](documentation/287-d18b-concurrent-music.md) records implementation,
+PCM/counter evidence and restoration/coverage limits. User accepted playback
+and explicitly requested lock-in and closeout.
+
+Original request: voice clips cut out music. Allow voice
 and music to play together at sensible relative levels, as a precursor to D21
 channel volume controls. Investigate original XA/SPU ducking versus host mixer
 policy before changing behavior. Do not hide D18A starvation by muting sources.
@@ -21950,3 +21957,36 @@ reference study, exact parameters, reproduction, tests and limits. Natural vent
 traversal is still unverified; user acceptance does not imply new test evidence.
 Implementation, tests and documentation commit/push authorized as MusicMonsterMod.
 No next job started.
+
+
+## 2026-10-27 - D18B concurrent music candidate
+
+User selected D18B. Native source confirms one XA stream is switched between
+music and speech. Added a guarded independent music cursor/decoder using the
+owned mounted disc, retaining native voice requests, callbacks and CD timing.
+Native MUSIC/SPEECH/master and stereo/mono controls remain the owners; live
+speech gain is isolated from the original MUSIC preview setter. Added linked
+peak protection with no extra buffering. Vanilla retains native playback.
+
+Player build, new music/XA native suites and existing gadget PCM tests pass.
+Private real-output 60 Hz lifecycle/capture checks and NVIDIA offscreen 120 Hz
+repeated-voice checks report zero output underruns. Software-rendered 120 Hz
+runs underrun with both the candidate and original audio paths; this does not
+close D18C. Vanilla and intro/quit smoke checks pass within note 287's stated
+revision and route limits. Framework export and clean-pin verification recorded
+there. Player settings/cards unchanged.
+
+Needs playtest: listening/balance, natural campaign triggers, death/Continue and
+broader track transitions. Loads use the native saved sector, not a serialized
+sample-exact host music cursor. No commit/push or next job started.
+
+
+## 2026-10-27 - D18B accepted and closed
+
+User: "perfect!!!! lock it in and close it out. absolutely beautiful".
+D18B is Done. User acceptance supplies listening/playback approval; the bounded
+route evidence and native-sector save restoration limit remain in note 287.
+Implementation, tests, manual and documentation commit/push are authorized as
+MusicMonsterMod. The accepted player build is unchanged during closeout.
+Repository/privacy checks and clean-pin framework patch verification are the
+closeout checks. D18C remains a separate open job; no next job started.

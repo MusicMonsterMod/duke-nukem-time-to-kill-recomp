@@ -303,7 +303,7 @@ add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/bio_mask_pcm.h"
         "${CMAKE_CURRENT_BINARY_DIR}/bio_mask_pcm.h" bio_mask
     DEPENDS tools/local/embed_night_vision_audio.py assets/audio/bio-mask-toggle.wav VERBATIM)
 add_custom_target(ttk-night-vision-asset DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/night_vision_pcm.h" "${CMAKE_CURRENT_BINARY_DIR}/bio_mask_pcm.h")
-target_sources(psx-runtime PRIVATE src/ttk/night_vision_audio.cpp)
+target_sources(psx-runtime PRIVATE src/ttk/night_vision_audio.cpp src/ttk/concurrent_music.cpp)
 set_source_files_properties(src/ttk/night_vision_audio.cpp PROPERTIES INCLUDE_DIRECTORIES "${CMAKE_CURRENT_BINARY_DIR}")
 add_dependencies(psx-runtime ttk-night-vision-asset)
 if(TARGET SDL3::SDL3)
@@ -315,3 +315,18 @@ target_compile_definitions(ttk-audio-test PRIVATE PSX_SDL3=1)
 target_link_libraries(ttk-audio-test PRIVATE SDL3::SDL3)
 add_dependencies(ttk-audio-test ttk-night-vision-asset)
 endif()
+
+if(TARGET SDL3::SDL3)
+add_executable(ttk-music-test EXCLUDE_FROM_ALL tests/local/concurrent_music_native.cpp
+    src/ttk/concurrent_music.cpp ${PSXRECOMP_ROOT}/runtime/src/psx_sha256.c)
+target_include_directories(ttk-music-test PRIVATE src/ttk ${PSXRECOMP_ROOT}/runtime/include)
+target_compile_features(ttk-music-test PRIVATE cxx_std_17)
+target_compile_options(ttk-music-test PRIVATE -UNDEBUG)
+target_compile_definitions(ttk-music-test PRIVATE PSX_SDL3=1)
+target_link_libraries(ttk-music-test PRIVATE SDL3::SDL3)
+endif()
+
+add_executable(ttk-xa-test EXCLUDE_FROM_ALL tests/local/concurrent_xa_native.c)
+target_include_directories(ttk-xa-test PRIVATE ${PSXRECOMP_ROOT}/runtime/include)
+target_compile_options(ttk-xa-test PRIVATE -UNDEBUG -ffunction-sections -fdata-sections)
+target_link_options(ttk-xa-test PRIVATE -Wl,--gc-sections)

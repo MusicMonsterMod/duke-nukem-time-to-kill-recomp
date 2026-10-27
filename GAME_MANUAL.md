@@ -1365,6 +1365,8 @@ the original's style:
   applies and saves the page, CANCEL discards edits, and DEFAULTS resets the
   draft to full volume and stereo. Confirmed settings survive game loads.
   MASTER uses the existing host volume, including its numpad shortcuts.
+  Modernized keeps level music playing under speech, with independent MUSIC
+  and SPEECH levels. Vanilla retains the original alternating playback.
 - **CONTROLS**: mouse sensitivity (slider), invert mouse and **KEY
   BINDINGS** (below).
 - **DISPLAY**: window (windowed / borderless / exclusive), resolution,

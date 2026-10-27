@@ -1,5 +1,42 @@
 # Next-session handoff
 
+## 2026-10-27 - D18B accepted and closed
+
+User: "perfect!!!! lock it in and close it out. absolutely beautiful".
+D18B is Done. Continuous Modernized music under speech and its listening
+presentation are accepted. Implementation, tests, manual and documentation
+commit/push are explicitly authorized as MusicMonsterMod.
+
+Accepted executable remains unchanged: music/XA/gadget native tests and
+private 60 Hz lifecycle and hardware-backed 120 Hz overlap evidence pass within
+[Note 287](287-d18b-concurrent-music.md)'s stated limits. Preserve native-sector
+rather than sample-exact music restoration on load, and the distinction between
+software-renderer starvation and the clean hardware-backed run. D18C remains
+open. Closeout verifies repository/privacy hygiene and the exported framework
+patch against its clean pin. No next job started.
+
+Launch from the workspace root: `python3 recomp/tools/local/run.py`.
+
+## 2026-10-27 - D18B concurrent music ready for playtest
+
+Modernized level music now continues underneath native speech. The independent
+stream reuses the runtime XA decoder and owned mounted disc, respects existing
+SOUND gains/mono mode, pauses with gameplay and resets ownership on loads or
+track changes. Native speech timing and Vanilla playback remain in place.
+A linked stereo peak guard adds no output buffering.
+
+Build and music/XA/gadget native suites pass. Private 60 Hz lifecycle captures
+and the final NVIDIA offscreen 120 Hz voice route have zero output underruns.
+Software 120 Hz also underruns with the original audio path; D18C remains open.
+Listening, balance and broad campaign/death/Continue acceptance remain pending.
+Loads reconstruct from the native saved music sector rather than preserving a
+sample-exact independent cursor. [Note 287](287-d18b-concurrent-music.md) records
+implementation, comparisons, source/fixture evidence and remaining limits.
+
+D18B Needs playtest. Player settings/cards untouched. No commit/push authorized
+or performed; no next job started. Launch from the workspace root:
+`python3 recomp/tools/local/run.py`.
+
 ## 2026-10-27 - D08K13/D08K14 accepted and closed
 
 User explicitly accepts revision 2 ("this work is perfect") and requests lock-in,

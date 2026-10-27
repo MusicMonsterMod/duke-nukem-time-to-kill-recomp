@@ -498,6 +498,8 @@ bool title_page(Page p) {return p==Page::Main || p==Page::Difficulty || p==Page:
 // in the order the keys came (a page change and the next key in one tick).
 enum class Cmd {Up, Down, Left, Right, Confirm, Back};
 std::vector<Cmd> title_cmds;
+std::vector<Cmd> second_character_cmds;
+bool split_return_main=false;
 bool title_activity=false;    // a key this tick: the main menu's idle time starts again
 bool title_enter=false;       // the main menu opens: state 6's idle time and level reset
 // A frontend state for the next tick's entry (PRESS START 4, or a handoff): the image of this tick still shows our page, as the original
@@ -604,7 +606,7 @@ void savestate_check() {
     pending_final=Final::None;resumed=false;
     resume_load=psx_mod_read_half(game_mode)==1 && psx_mod_read_half(paused)!=0;
     quiet_resume=false;
-    pending_state=-1;handoff=Handoff::None;title_cmds.clear();title_enter=false;
+    pending_state=-1;handoff=Handoff::None;title_cmds.clear();second_character_cmds.clear();split_return_main=false;title_enter=false;
     if(key_wait) {key_wait=false;input_capture_key(false);}
     loading=false;saving=false;thumb_hide();
     // D20B: a state loaded on the statistics screen opens it with its prompts.
@@ -1345,6 +1347,31 @@ QuickResult game_menu_quick(Quick q) {
     return QuickResult::Load;
 }
 
+// Sampled once per runtime pad poll. Keyboard events retain their existing path.
+bool game_menu_controller(unsigned seat,uint16_t buttons) {
+    static uint16_t previous[2]={0xffff,0xffff};
+    if(seat>=2) return false;
+    const uint16_t pressed=previous[seat]&~buttons;
+    previous[seat]=buttons;
+    if(!enabled()) return false;
+    std::lock_guard<std::recursive_mutex> lock(mutex);
+    // Idle controller polls must not clear the keyboard's held-key repeat.
+    if(!pressed) return owned;
+    if(owned && page==Page::Character && seat==1) {
+        if(pressed&0x80) second_character_cmds.push_back(Cmd::Left);
+        if(pressed&0x20) second_character_cmds.push_back(Cmd::Right);
+        if(pressed&(0x4000|8)) second_character_cmds.push_back(Cmd::Confirm);
+        else if(pressed&0x1000) second_character_cmds.push_back(Cmd::Back);
+        return true;
+    }
+    MenuKeys k;
+    k.up_taps=!!(pressed&0x10);k.down_taps=!!(pressed&0x40);
+    k.left_taps=!!(pressed&0x80);k.right_taps=!!(pressed&0x20);
+    k.confirm_taps=!!(pressed&(0x4000|8));k.back_taps=!!(pressed&0x1000);
+    k.square_taps=!!(pressed&0x8000);
+    return game_menu_input(k);
+}
+
 uint64_t drops=0; int drop_why=0; uint16_t drop_state=0, drop_sub=0;   // diagnostic
 bool game_menu_input(const MenuKeys& keys) {
     if(!enabled()) return false;
@@ -1381,6 +1408,9 @@ bool game_menu_input(const MenuKeys& keys) {
     }
     // D20B: the statistics screen has no menu context of its own.
     const bool stats=psx_mod_read_half(game_mode)==2;
+    // The native multiplayer results screen labels Triangle as QUIT.
+    // Return to MAIN MENU after that choice, not the setup-page stack.
+    if(stats && psx_mod_read_word(players)==2 && k.back_taps) split_return_main=true;
     const MenuContext* c=stats ? nullptr : current_context();
     if(stats ? !(owned && stats_open) : (!owned || !c || !our_screen(c,psx_mod_read_half(c->sub)))) {
         if(rep_up.held || rep_down.held || rep_left.held || rep_right.held || k.up || k.down) {
@@ -2204,6 +2234,7 @@ void enter_two() {
     }
 }
 void enter_character() {
+    second_character_cmds.clear();
     page=Page::Character;
     if(psx_mod_read_word(char_fresh)) {
         for(uint32_t p=0;p<2;++p) psx_mod_write_word(char_choice+4*p,(uint32_t)(int32_t)half(char_saved+2*p));
@@ -2220,7 +2251,7 @@ void step_level(int dir) {
     psx_mod_write_half(level_choice,(uint16_t)v);
 }
 // One key on a title page: the original handler's response. Returns the sound.
-int title_command(Cmd cmd) {
+int title_command(Cmd cmd, unsigned seat=0) {
     switch(page) {
     case Page::Main: {
         const int n=(int)list.size();
@@ -2290,10 +2321,9 @@ int title_command(Cmd cmd) {
         return -1;
     }
     case Page::Character: {
-        // One keyboard for both players: player 1 chooses and confirms, then
-        // player 2 (the original reads each player's own pad).
+        // D34B: each seat owns only its own character, as on the console.
         const uint32_t locks=psx_mod_read_word(char_locks);
-        const int row=!(locks&1) ? 0 : !(locks&2) ? 1 : -1;
+        const int row=(locks&(1u<<seat)) ? -1 : (int)seat;
         switch(cmd) {
         case Cmd::Left: case Cmd::Right: {
             if(row<0) return -1;
@@ -2303,10 +2333,10 @@ int title_command(Cmd cmd) {
         }
         case Cmd::Confirm:
             if(row>=0) {psx_mod_write_word(char_locks,locks|(1u<<row));return 1;}
-            pending_state=state_character;handoff=Handoff::Pending;return -1; // its handler sounds
+            if(locks==3) {pending_state=state_character;handoff=Handoff::Pending;}
+            return -1; // its handler sounds
         case Cmd::Back:
-            if(locks&2) {psx_mod_write_word(char_locks,locks&~2u);return 4;}
-            if(locks&1) {psx_mod_write_word(char_locks,locks&~1u);return 4;}
+            if(locks&(1u<<seat)) {psx_mod_write_word(char_locks,locks&~(1u<<seat));return 4;}
             psx_mod_write_word(char_fresh,1);enter_two();return 0;
         default: return -1;
         }
@@ -2440,7 +2470,7 @@ bool gameplay_tick(CPUState* cpu) {
                 switch(f) {
                 case Final::Resume: psx_mod_write_half(pause_reset,1);break;
                 case Final::PauseRestart: psx_mod_write_half(pause_reset,1);psx_mod_write_half(pause_screen,restart_code);break;
-                case Final::PauseMainMenu: psx_mod_write_half(pause_reset,1);psx_mod_write_half(pause_screen,main_menu_code);break;
+                case Final::PauseMainMenu: split_return_main=psx_mod_read_word(players)==2;psx_mod_write_half(pause_reset,1);psx_mod_write_half(pause_screen,main_menu_code);break;
                 case Final::DeathContinue:
                     if(challenge()) {psx_mod_write_byte(continues,(uint8_t)(psx_mod_read_byte(continues)-1));g.call(fn_event,event_replay,0,0,0);}
                     else psx_mod_write_byte(continue_request,2);
@@ -2550,6 +2580,12 @@ bool title_tick(CPUState* cpu,const MenuContext* c) {
             }
         }
         title_cmds.clear();
+        for(Cmd cmd:second_character_cmds) {
+            if(page!=Page::Character || pending_state>=0) break;
+            const int s=title_command(cmd,1);
+            if(s>=0) g.call(fn_sound,(uint32_t)s,0,0,0);
+        }
+        second_character_cmds.clear();
         if(title_enter) {
             // State 6: the idle time starts again and the level choice resets.
             psx_mod_write_half(fe_timer,idle_fields);psx_mod_write_half(level_choice,0);
@@ -2605,7 +2641,9 @@ void title_entry(CPUState* cpu) {
     if(state==state_card && (int16_t)psx_mod_read_half(card_status)<-1) {psx_mod_write_half(card_status,0xffff);++card_skips;}
     else if(state==state_save_file && (int16_t)psx_mod_read_half(card_wait)<0) {psx_mod_write_half(card_wait,0);++card_skips;}
     else if(state==state_card_message) {psx_mod_write_half(fe_state,state_start);++card_skips;return;}
-    if(state==6 || state==7) {
+    if(split_return_main && state>=6 && state<=state_character) {
+        split_return_main=false;enter_main();
+    } else if(state==6 || state==7) {
         enter_main();
     } else if(state==state_difficulty || state==state_character) {
         // A savestate saved on the original's pages: ours.

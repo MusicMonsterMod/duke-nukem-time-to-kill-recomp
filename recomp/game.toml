@@ -4,7 +4,7 @@
 [game]
 name = "Duke Nukem: Time to Kill"
 id = "SLUS-00583"
-players = 1
+players = 2
 exe = "disc/SLUS_005.83"
 disc = ""
 load_address = "0x80010000"
@@ -44,6 +44,8 @@ aspect_ratio = "4:3"
 
 [controller]
 default_mode = "digital"
+p1_device = "auto"
+p2_device = "auto"
 
 # Online mount gate: digests + track count + optional TOC fingerprint
 # (see docs/NETPLAY.md).

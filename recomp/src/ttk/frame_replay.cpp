@@ -1393,6 +1393,12 @@ int timeline_provider(const PSXModPresentInfo* info) {
 }
 int provider(const PSXModPresentInfo* info,void*) {
     if(!interp_replay || !input_modernized() || !info) return 0;
+    // D34B: native split screen retains alternate viewports in live VRAM.
+    // Never display a stale single-view/loading replay over the running match.
+    static bool split_screen=false;
+    const bool split=psx_mod_read_word(0x800c27bc)==2 && psx_mod_read_half(game_mode)!=0;
+    if(split!=split_screen) {reset_timeline();frontend_field=loading_field=0;split_screen=split;}
+    if(split) return 0;
     if(info->due) pace_minute();
     if(info->present_hz>0.0) seen_hz=info->present_hz;
     seen_last_flip=info->last_flip; seen_frequency=info->frequency;

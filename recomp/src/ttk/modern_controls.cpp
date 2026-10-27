@@ -1160,7 +1160,7 @@ bool frame_trace_on() {static const bool on=std::getenv("DNTTK_FRAME_TRACE")!=nu
 void frame_trace_account(uint32_t address,long us) {frame_us+=us;frame_per[address]+=us;}
 static void hook(CPUState* cpu, uint32_t address) {
     const bool update=address==0x8005a210 && cpu->gpr[4]==player;
-    if(update && input_modernized()) {overclock_lease();ttk_fast_timing_renew();}
+    if(update && input_modernized() && psx_mod_read_word(0x800c27bc)==1) {overclock_lease();ttk_fast_timing_renew();}
     const bool trace=frame_trace_on();
     if(!trace) {hook_body(cpu,address);grounded_water_query(cpu,address);return;}
     using clk=std::chrono::steady_clock;

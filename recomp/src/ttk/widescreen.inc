@@ -30,7 +30,7 @@ static void widescreen_activate() {
 // portal walk, so everything in the revealed columns is drawn; the next frame's
 // rewrite restores it. DNTTK_WS_RECT=0 (developer) keeps the 4:3 rectangle.
 static void widescreen_view_rect(uint32_t ra) {
-    if(ra!=0x8002e4d0) return;
+    if(ra!=0x8002e4d0 || psx_mod_read_word(0x800c27bc)>=2) return;
     static const bool off=[]{const char* t=std::getenv("DNTTK_WS_RECT");return t && !std::strcmp(t,"0");}();
     if(off) return;
     const int32_t m=psx_mod_widescreen_x_margin();
@@ -46,7 +46,7 @@ static void widescreen_view_rect(uint32_t ra) {
 // renderer drops (a corner at or behind the eye) or tears. The D11B
 // conservative near clip draws exactly those polygons; run it whenever the
 // widescreen margins are live. DNTTK_WS_NEAR=0 (developer) keeps the original.
-static bool widescreen_active() {return psx_mod_widescreen_x_margin()>0;}
+static bool widescreen_active() {return psx_mod_read_word(0x800c27bc)<2 && psx_mod_widescreen_x_margin()>0;}
 bool widescreen_near_clip_live() {
     static const bool off=[]{const char* t=std::getenv("DNTTK_WS_NEAR");return t && !std::strcmp(t,"0");}();
     return !off && input_modernized() && widescreen_active();

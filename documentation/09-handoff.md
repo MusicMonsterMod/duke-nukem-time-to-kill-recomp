@@ -1,5 +1,43 @@
 # Next-session handoff
 
+## 2026-10-27 - D34B closed for now; controller acceptance deferred
+
+User reports being stuck at Red Duke / Blue Duke character selection and
+explicitly requests no code changes: "lock it in and close it out for now".
+D34B is Closed for now, with physical-controller and real-display acceptance
+deferred to D09. This is authorization to retain and commit/push the existing
+implementation, not a successful physical-controller playtest. The cause of
+the reported selection blocker has not been diagnosed.
+
+Prior virtual SDL and native test evidence remains valid within
+[Note 288](288-d34b-classic-split-screen.md)'s limits. No code changes, build or
+game launch during this closeout. D09 now records the selection blocker and
+required two-pad match regression; it remains Todo and has not been started.
+Implementation, tests, framework patch and documentation are included in the
+authorized MusicMonsterMod closeout. No player settings or cards changed.
+
+Launch from the workspace root: `python3 recomp/tools/local/run.py`.
+
+## 2026-10-27 - D34B classic split screen ready for playtest
+
+D34B Needs playtest. Two independent controller seats and character selection,
+native 4:3 split presentation, original match controls, and results Quit to MAIN
+MENU are implemented. Old one-seat snapshots remain readable without migration.
+Modernized stays the default; Vanilla remains available.
+
+Build and SIO compatibility/input/controls/aim tests pass. Private SDL virtual
+pads exercised both orientations, separate movement, kill/respawn, pause from
+either pad, match save/load and a natural five-minute match through results.
+Private campaign Modernized and Vanilla save-load/movement checks pass, including
+Modernized pause/resume mouse capture. Physical-controller and real-display
+acceptance remain; native alternating viewport cadence is intentional.
+[Note 288](288-d34b-classic-split-screen.md) records evidence and bounded claims.
+
+Framework patch exported and verified against its clean pin. Player settings
+and cards untouched. No acceptance, commit or push performed. Connect two
+controllers, choose TWO PLAYER, confirm each character on its own pad, then
+confirm again to start. Launch: `python3 recomp/tools/local/run.py`.
+
 ## 2026-10-27 - D18B accepted and closed
 
 User: "perfect!!!! lock it in and close it out. absolutely beautiful".

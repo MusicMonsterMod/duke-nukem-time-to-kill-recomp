@@ -23,6 +23,7 @@ extern "C" void ttk_aim_toggle_crosshair(void) {
 #include <map>
 static std::map<uint32_t,uint16_t> guest{{0x800bcbb0u,1}};
 extern "C" uint16_t psx_mod_read_half(uint32_t address) {auto it=guest.find(address);return it==guest.end()?0:it->second;}
+extern "C" uint32_t psx_mod_read_word(uint32_t address) {return psx_mod_read_half(address) | ((uint32_t)psx_mod_read_half(address+2)<<16);}
 extern "C" uint64_t s_frame_count=0;
 static SDL_Window* win;
 static bool inventory_visible;
@@ -91,6 +92,14 @@ int main() {
     CHECK(tick().move_y == 0); // menu context never leaks movement
     capture_fixture();
     CHECK(SDL_GetWindowRelativeMouseMode(win));
+    // D34B: entering a native two-player match releases modern capture;
+    // returning to single player recovers the saved Modern scheme unaided.
+    guest[0x800c27bc]=2;
+    CHECK(!tick().active && !SDL_GetWindowRelativeMouseMode(win));
+    CHECK(!ttk::input_modern_controls());
+    guest[0x800bcbb0]=0;CHECK(ttk::input_modern_controls());
+    guest[0x800bcbb0]=1;guest[0x800c27bc]=1;
+    capture_fixture();CHECK(tick().active && ttk::input_modern_controls());
     // D10E: SDL's middle button is Mouse3, host-only, rebindable and held.
     CHECK(ttk::input_binding_code(ttk::camera_free_look)==-2);
     SDL_Event inspect{};inspect.type=SDL_MOUSEBUTTONDOWN;inspect.button.windowID=SDL_GetWindowID(win);inspect.button.button=2;

@@ -319,6 +319,7 @@ void input_init(SDL_Window* w) {
 }
 bool input_modernized() { return modern; }
 bool input_modern_controls() {
+    if(psx_mod_read_word(0x800c27bc)==2 && psx_mod_read_half(0x800bcbb0)!=0) return false;
     const char* scheme=ttk_live_env("DNTTK_CONTROL_SCHEME");
     return modern && (!scheme || std::strcmp(scheme,"legacy"));
 }
@@ -663,7 +664,38 @@ void input_event(const SDL_Event& e) {
 uint64_t input_host_frame() { return sequence; }
 static std::atomic<bool> interaction_request{false};
 void input_request_interaction() {interaction_request.store(true);}
+// D34B diagnostic only: exercise real SDL routing/hotplug with two independent
+// virtual pads. The file contains two decimal SDL button masks. Never enabled
+// by player profiles; no guest RAM injection or player-save access.
+static void test_controllers() {
+#if defined(PSX_SDL3)
+    static const char* path=std::getenv("DNTTK_TEST_CONTROLLERS");
+    static SDL_Joystick* pads[2]={};
+    static bool attached=false;
+    if(!path || !*path) return;
+    if(!attached && SDL_WasInit(SDL_INIT_GAMEPAD)) {
+        attached=true;
+        for(int i=0;i<2;++i) {
+            SDL_VirtualJoystickDesc d{};SDL_INIT_INTERFACE(&d);
+            d.type=SDL_JOYSTICK_TYPE_GAMEPAD;d.nbuttons=SDL_GAMEPAD_BUTTON_COUNT;
+            d.button_mask=(1u<<SDL_GAMEPAD_BUTTON_COUNT)-1u;
+            d.name=i ? "TTK diagnostic pad 2" : "TTK diagnostic pad 1";
+            const SDL_JoystickID id=SDL_AttachVirtualJoystick(&d);
+            pads[i]=SDL_OpenJoystick(id);
+        }
+    }
+    unsigned masks[2]={};
+    if(FILE* f=std::fopen(path,"r")) {if(std::fscanf(f,"%u %u",&masks[0],&masks[1])!=2)masks[0]=masks[1]=0;std::fclose(f);}
+    for(int i=0;i<2;++i) if(pads[i]) for(int b=0;b<SDL_GAMEPAD_BUTTON_COUNT;++b)
+        SDL_SetJoystickVirtualButton(pads[i],b,(masks[i]&(1u<<b))!=0);
+#endif
+}
 void input_frame() {
+    test_controllers();
+    if(modern && psx_mod_read_word(0x800c27bc)==2 && psx_mod_read_half(0x800bcbb0)!=0) {
+        if(captured) input_release_for_menu();
+        capture_offer=false;
+    }
     // Keep an intentional toggle across pause/focus changes, but never carry it
     // into death, a different actor/control scheme, swimming, flight or climbing.
     if(crouch_latched && !crouch_toggle_context()) crouch_latched=false;

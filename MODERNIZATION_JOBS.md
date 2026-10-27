@@ -485,7 +485,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D32 | Game icon: replace the framework psxrecomp.ico/.png/.svg with the D31 in-engine icon (exe, window, taskbar, launcher) | Todo | D31 design |
 | D33 | Modernized as the default profile, `--vanilla` as the special flag (one launch) | Done (user-accepted 2026-10-20) | - |
 | D34 | Multiplayer investigation: modern split-screen, online play and self-hosting (research only; [note 167](documentation/167-d34-multiplayer-research.md)) | Done (research accepted 2026-10-20; follow-ups D34A-D34G proposed, not opened) | - |
-| D34B | Classic split-screen with two controllers: original controls and rules, both pads working, clean start / presentation / exit in a Modernized session | Todo | D34 |
+| D34B | Classic split-screen with two controllers: original controls and rules, both pads working, clean start / presentation / exit in a Modernized session | Closed for now; acceptance deferred to D09 | D34 |
 | D35 | Comprehensive first-person camera transition audit and modernization roadmap | Done (user-accepted 2026-10-25) | D11, D11E, D11F, D10B |
 | D35A | Shared action-perspective policy and persistent Advanced Settings foundation | Done | D35 |
 | D35B | Swimming perspective option using accepted first-person swimming | Done | D35A, D11E |
@@ -7063,6 +7063,15 @@ feel.
 
 Provide left-stick movement, right-stick look, configurable sensitivity/inversion, dead zones and sensible action bindings using the modern action layer. Support switching input devices and disconnect/reconnect.
 
+**D34B carryover (2026-10-27):** user reports being stuck at Red Duke /
+Blue Duke character selection. D34B was closed for now at their request with
+no further code changes, not accepted as a working physical-controller route.
+Diagnose two physical pads and per-seat menu/character confirmation, then repeat
+the complete split-screen match and real-display checks from D34B. Existing
+virtual SDL results do not establish hardware acceptance. See
+[note 288](documentation/288-d34b-classic-split-screen.md). D09 remains Todo;
+this closeout does not start controller work.
+
 **Acceptance:** stick movement is predictable, no drift at rest on the tested controller, menus and gameplay agree on bindings, and disconnects do not leave held actions. Record tested hardware and limitations.
 
 ### D10 — Third-person camera polish
@@ -11930,7 +11939,7 @@ for local play only.
 
 ### D34B - Classic split-screen with two controllers
 
-**Todo.** Opened 2026-10-20 at the user's request: "fix the split screen
+**Closed for now (user request 2026-10-27; physical-controller acceptance deferred to D09).** Opened 2026-10-20 at the user's request: "fix the split screen
 multiplayer so it can work just oldskool with 2 controllers and thats it,
 nothing particularly fancy there yet". The local, no-frills first step of
 [note 167](documentation/167-d34-multiplayer-research.md) phase B1. Modern
@@ -11970,6 +11979,24 @@ frozen loading image and no flicker from our presentation. Single-player
 Modernized and Vanilla unchanged (regression checks as for other jobs);
 existing savestates still load, or the user approved the change. The user
 playtests on the real display.
+
+**Work log (2026-10-27, Needs playtest).** Two independent SDL pad seats and
+character choices, native 4:3 split presentation, single-player replay/capture
+isolation, and results Quit to main menu implemented. Old one-seat SIO snapshots
+load without migration; missing P2 starts neutral. Build, SIO compatibility,
+input, controls and aim tests pass. Private virtual SDL routes cover both split
+orientations, movement isolation, kill/respawn, pause from either pad, save/load
+and a natural five-minute match. Campaign Modernized/Vanilla smoke checks pass.
+Physical controllers and real-display acceptance remain; no pre-change visual
+A/B or broad arena coverage claimed. See [note 288](documentation/288-d34b-classic-split-screen.md).
+No commit/push or acceptance closeout performed.
+
+**Work log (2026-10-27, Closed for now at user request).** User reports stuck
+Red Duke / Blue Duke selection and explicitly requests no code changes and
+closeout. Retain the existing implementation; carry physical-controller
+selection, full-match and real-display acceptance into D09. Cause undiagnosed;
+no claim of full acceptance. Existing authored implementation/tests and docs
+are authorized for commit/push as MusicMonsterMod. No next job started.
 
 ## Working rules and evidence
 

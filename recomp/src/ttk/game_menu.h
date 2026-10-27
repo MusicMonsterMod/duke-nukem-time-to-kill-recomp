@@ -14,6 +14,8 @@ struct MenuKeys {bool up=false,down=false,left=false,right=false,confirm=false,b
 // From input_pad(): true while one of our screens owns the keys (the pad
 // then reads as nothing pressed). wheel: notches (+ up) taken by the menu.
 bool game_menu_input(const MenuKeys& keys);
+// D34B: independent digital controller menu input, active-low PS1 bits.
+bool game_menu_controller(unsigned seat, uint16_t buttons);
 // From the frontend's composition (0x80026164) and logo (0x80025554) entry
 // hooks on live frames, before the D17 capture: draw at most once per image.
 void game_menu_frame(CPUState* cpu);

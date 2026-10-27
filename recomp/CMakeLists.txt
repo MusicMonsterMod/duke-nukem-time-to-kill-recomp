@@ -35,7 +35,7 @@ psxrecomp_add_game_runtime(psx-runtime
     WINDOW_TITLE "Duke Nukem: Time to Kill Recompiled"
     EXE_NAME "Duke_Nukem__Time_to_Kill_Recompiled"
     DEFAULT_GAME_CONFIG_PATH "game.toml"
-    MAX_PLAYERS 1
+    MAX_PLAYERS 2
     APP_ICON "${CMAKE_CURRENT_SOURCE_DIR}/assets/psxrecomp.ico"
     GEN_MARKER "generated/SLUS_005.83_dispatch.c"
     GEN_FULL_GLOB "generated/SLUS_005.83_full_*.c"
@@ -45,6 +45,8 @@ psxrecomp_add_game_runtime(psx-runtime
 # D15: retain projection provenance through resident mesh drawing/subdivision.
 # Compile authored build definitions, never edit generated C or change save ABI.
 # D23F developer calibration build: measure the accurate model instead.
+set_property(SOURCE "${PSXRECOMP_ROOT}/runtime/src/gpu.c" APPEND PROPERTY COMPILE_DEFINITIONS PSX_GAME_TTK=1)
+
 option(TTK_FT_CALIBRATE "D23F: build the accurate-model timing calibration (developer only)" OFF)
 if(TTK_FT_CALIBRATE)
     set(_ttk_timing_header fast_timing_calibrate.h)

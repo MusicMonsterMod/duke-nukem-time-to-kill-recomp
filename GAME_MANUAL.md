@@ -1256,9 +1256,10 @@ the same way on every menu screen:
   choose (hold to repeat), Enter confirms. ONE PLAYER opens CHOOSE DIFFICULTY
   LEVEL (Enter starts the game, Escape returns). TWO PLAYER opens TWO PLAYER
   OPTIONS (Left/Right change level, time, kills and split), then CHOOSE
-  CHARACTER: one keyboard chooses for both players, player 1 first
-  (Left/Right, Enter), then player 2, then Enter on START. Escape takes back
-  the last confirmed character, or goes back a page. LOAD GAME lists your
+  CHARACTER: each controller chooses and confirms its own character. Once
+  both are confirmed, either controller confirms START. Triangle cancels that
+  controller's choice or goes back a page. Keyboard menu input belongs to
+  player 1. LOAD GAME lists your
   savestates (below). QUIT GAME asks QUIT GAME? (NO highlighted) and
   closes the program. Left alone on the main menu, the game goes back to
   PRESS START after about five minutes, as the original does.
@@ -1511,6 +1512,31 @@ The labels use US physical key positions. Mouse1/2/3 mean left/right/middle;
 Mouse4/5 are side buttons. To swap occupied inputs, enter both assignments at
 once. Restoring the Modernized profile restores its bindings, camera preferences and renderer.
 Keep custom runtime host shortcuts separate from these action bindings.
+
+## Classic two-player split screen
+
+Connect two SDL-recognised controllers, launch normally, and choose **TWO
+PLAYER**. The first available controller drives player 1 and the next drives
+player 2. In menus, use D-pad/left stick to choose, Cross/A to confirm and
+Triangle/Y to go back. Each controller chooses its own character; confirm again
+once both choices are locked to start.
+
+Matches use the original turning, weapon and movement controls shown in the
+controller columns below. Circle/B draws or holsters the weapon; Cross/A fires
+when drawn. Start/Menu on either controller pauses. Both vertical and horizontal
+split use the original 4:3 picture and native viewport update cadence. Your
+single-player Modernized camera, widescreen and frame-rate preferences remain
+saved and resume in single-player play.
+
+The results screen offers Cross/A to replay and Triangle/Y to quit. Choosing
+MAIN MENU from pause shows the results, then Quit returns directly to the main
+menu. Existing one-player savestates remain loadable; no save conversion is
+required.
+
+Known limitation (2026-10-27): the user reports being stuck at Red Duke / Blue
+Duke character selection. D34B is closed for now with physical-controller and
+real-display verification deferred to the controller job D09. The route above
+has been exercised with virtual SDL pads; hardware acceptance is unresolved.
 
 ## Vanilla default controls
 

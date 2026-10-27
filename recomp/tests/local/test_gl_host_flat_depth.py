@@ -24,23 +24,26 @@ enum { GL_TRIANGLES=1, GL_LINES, GL_BLEND, GL_DEPTH_TEST, GL_LEQUAL,
 static int s_pc_valid, s_hz_valid, s_mask_set, s_scale=4;
 static float s_pc_x[3]={1.25f,2.5f,3.75f}, s_pc_y[3]={4,5,6};
 static float s_hz[3]={.2f,.4f,.6f};
+static float s_host_coverage=.5f;
 static uint64_t s_hz_tris;
 static int s_wide_fast, g_wide_cur, s_wide_suppress, s_ws_ablate;
 static int g_ws_bd_stretch_on, s_bd_gate;
 static int s_geo_prog, s_geo_vao, s_geo_vbo, s_geo_uXoff, s_geo_uXhalf;
 static int s_geo_uXscale, s_geo_uXcenter;
 static int depth_enabled, draws, uploaded_n, expected_depth, wide_active;
-static float uploaded[8190*7];
+enum { TEST_GEOV=8 };
+static float uploaded[8190*TEST_GEOV];
 static void gs_enable(int cap){if(cap==GL_DEPTH_TEST) depth_enabled=1;}
 static void gs_disable(int cap){if(cap==GL_DEPTH_TEST) depth_enabled=0;}
 static void p_glBufferData(int a,ptrdiff_t bytes,const void *p,int b){
-    (void)a;(void)b;assert(bytes% (7*sizeof(float))==0);
-    uploaded_n=bytes/(7*sizeof(float));memcpy(uploaded,p,bytes);
+    (void)a;(void)b;assert(bytes% (TEST_GEOV*sizeof(float))==0);
+    assert(bytes<=sizeof(uploaded));
+    uploaded_n=bytes/(TEST_GEOV*sizeof(float));memcpy(uploaded,p,bytes);
 }
 static void glDrawArrays(int mode,int first,int n){
     assert(first==0 && n==uploaded_n);assert(depth_enabled==expected_depth);
     for(int i=0;i<n;i++) {
-        float z=uploaded[i*7+6];
+        float z=uploaded[i*TEST_GEOV+6];
         if(expected_depth) assert(z==s_hz[i%3]); else assert(z<0);
     }
     draws++;
@@ -71,6 +74,7 @@ static void glDrawArrays(int mode,int first,int n){
 '''
 MAIN = r'''
 int main(void){
+    assert(GEOV==TEST_GEOV);
     const int x[3]={1,2,3},y[3]={4,5,6};const uint16_t c[3]={31,992,31744};
     int enabled=!(getenv("PSX_HOST_FLAT_DEPTH") && getenv("PSX_HOST_FLAT_DEPTH")[0]=='0');
     for(int wide=0;wide<2;wide++){
@@ -85,13 +89,18 @@ int main(void){
         gpu_geometry(GL_TRIANGLES,x,y,c,3,-1);
         if(enabled){assert(s_fb_n==3);assert(!depth_enabled);}
         expected_depth=0;flush_flat_batch();assert(!depth_enabled);
+        // With depth disabled, the six precise vertices share this batch.
+        for(int i=0;i<uploaded_n;i++)
+            assert(uploaded[i*TEST_GEOV+7]==(i<uploaded_n-3?s_host_coverage:1.0f));
         // Negative weapon depth is passed as s_hz_valid=0, even with precise XY.
         s_pc_valid=1;s_hz_valid=0;
         gpu_geometry(GL_TRIANGLES,x,y,c,3,-1);flush_flat_batch();
+        for(int i=0;i<uploaded_n;i++) assert(uploaded[i*TEST_GEOV+7]==s_host_coverage);
         // Semi-transparent host effects must keep their original ordering.
         s_hz_valid=1;
         gpu_geometry(GL_TRIANGLES,x,y,c,3,0);flush_flat_batch();
         gpu_geometry(GL_LINES,x,y,c,2,-1);assert(!depth_enabled);
+        for(int i=0;i<uploaded_n;i++) assert(uploaded[i*TEST_GEOV+7]==1.0f);
         // Host state must not change the colors or subpixel coordinates.
         expected_depth=enabled;
         gpu_geometry(GL_TRIANGLES,x,y,c,3,-1);flush_flat_batch();

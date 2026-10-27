@@ -2697,8 +2697,30 @@ int main(int argc,char** argv) {
                     const double distance=std::hypot(double(int32_t(psx_mod_read_word(p+4))-x),
                                                      double(int32_t(psx_mod_read_word(p+12))-z));
                     assert(std::abs(distance-(ttk::running?97.6171875:20.8154296875))<1.0);
+                    // D08K14 selects separate run frames and returns to the
+                    // accepted walk frames when speed is released.
+                    const unsigned clip=ttk::running?21:1;
+                    const unsigned pose_frame=psx_mod_read_half(p+0x66);
+                    assert(pose_frame>=10000+clip*10+1 && pose_frame<=10000+clip*10+2);
                     assert(psx_mod_read_half(p+0x60)==178 && ttk::crouch_walk_input_ready());
                 }
+                // D08K13: neutral retail input must not expire into crouch
+                // fidget 179 and expose a direction to the roll selector.
+                // Model its countdown across sustained/reversing movement,
+                // both paces and a blocked path. Native gameplay covers the
+                // actual selector; this fixture checks the ownership contract.
+                for(int tick=0;tick<1200;++tick) {
+                    ttk::running=(tick/120)%2;
+                    ttk::input.move_x=0;
+                    ttk::input.move_y=(tick/60)%2 ? -1 : 1;
+                    hull_ray_hit=tick>=600 ? 1 : 0;
+                    const unsigned timer=psx_mod_read_half(p+0x240);
+                    psx_mod_write_half(p+0x240,timer>30?timer-30:0);
+                    call(0x8005a210,p,0x800c2754,0x80041b34,0x801ff000);
+                    assert(psx_mod_read_half(p+0x240)>30);
+                    assert(psx_mod_read_half(p+0x60)==178 && ttk::crouch_walk_input_ready());
+                }
+                hull_ray_hit=0;ttk::input.move_y=1;
                 // Released Ctrl cannot stand under a low ceiling; run remains
                 // available until the existing stand-up owner finds headroom.
                 ttk::input.held[ttk::crouch]=false;ttk::running=true;

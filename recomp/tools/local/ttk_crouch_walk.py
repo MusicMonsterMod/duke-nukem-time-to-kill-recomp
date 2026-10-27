@@ -288,6 +288,11 @@ MOCAP = Path(__file__).resolve().parents[2] / 'assets/anim/crouch-walk-mocap.jso
 CYCLE = 640.0
 # Strafes: quicker, smaller side steps (a 640 sideways stride reads as a split).
 STRAFE_CYCLE = 380.0
+RUN_CYCLE = 1600.0
+RUN_STRAFE_CYCLE = 1350.0
+RUN_STANCE = 0.40
+RUN_LIFT = 100.0
+REFERENCE_OVERRIDES = {}
 STRAFE_FORWARD = 0.3
 TACTICAL = dict(hip_ratio=0.56, width=1.5, toe_out=6.0, pelvis_pitch=12.0, yaw_swing=1.0, roll_swing=1.0,
                 chest_pitch=62.0, chest_counter=0.6, head_pitch=5.0,
@@ -381,7 +386,7 @@ class Arm(Leg):
         return hinge((lo + hi) / 2)
 
 
-def mocap_frames(group, direction, params=None):
+def captured_frames(group, direction, params=None):
     """Legs frames (channel 0: root height command, pelvis, legs) for a
     direction ('forward', 'backward', 'strafe_pos_x', 'strafe_neg_x', 'idle');
     each frame also carries 'upper': ROT id -> Q12 quaternion for the chest,
@@ -474,6 +479,151 @@ def mocap_frames(group, direction, params=None):
     return out[:2] if idle else out
 
 
+def reference_foot(phase, cycle, stance, lift):
+    """Contact, planted travel, toe-off and tucked recovery in travel space.
+
+    The recovery's endpoint tangents match the backwards planted-foot velocity.
+    Unlike a sinusoidal leg oscillation, time spent in stance is explicit.
+    """
+    phase %= 1.0
+    step = cycle * stance
+    if phase < stance:
+        u = phase / stance
+        along = step * 0.5 - cycle * phase
+        # Settle the toe after heel contact, then roll over it near toe-off.
+        pitch = -7.0 * (1.0 - min(u / .16, 1.0)) ** 2
+        push = max(0.0, (u - .76) / .24)
+        pitch += 26.0 * push * push * (3.0 - 2.0 * push)
+        return along, 0.0, pitch
+    u = (phase - stance) / (1.0 - stance)
+    blend = u * u * (3.0 - 2.0 * u)
+    tangent = -cycle * (1.0 - stance)
+    along = -step * .5 + step * blend + tangent * (2*u*u*u - 3*u*u + u)
+    # Heel recovers early, then the knee brings the foot forward and lowers it.
+    peak = .38
+    v = u / peak if u < peak else (1.0-u) / (1.0-peak)
+    height = lift * v*v*(3.0-2.0*v)
+    pitch = 26.0 * (1.0-blend) - 7.0 * blend
+    return along, height, pitch
+
+
+def mocap_frames(group, direction, params=None, running=False):
+    """D08K14 revision 2, MGS-reference contact and whole-body timing.
+
+    Retains the existing pipeline/format, not the old capture's independent
+    pelvis oscillation. Reference timing is documented in note 286. No MGS
+    asset or inferred bone data is used. Idle remains the original kneel.
+    """
+    if direction == 'idle':
+        return captured_frames(group, direction, params)
+    p = dict(hip_ratio=.58 if running else .49, pelvis_pitch=10 if running else 8,
+             chest_pitch=64 if running else 66, width=1.6, hand_in=-12.0,
+             hand_down=160 if running else 204, hand_forward=25 if running else 10,
+             arm_swing=82 if running else 25, head_pitch=4.0, toe_out=5.0,
+             yaw_swing=1.0, roll_swing=1.0, chest_counter=.65)
+    p.update(REFERENCE_OVERRIDES)
+    p.update(params or {})
+    n = 48
+    sideways = direction.startswith('strafe')
+    cycle = (RUN_STRAFE_CYCLE if sideways else RUN_CYCLE) if running else (STRAFE_CYCLE if sideways else CYCLE)
+    stance = RUN_STANCE if running else .66
+    lift = RUN_LIFT if running else 32.0
+    h = group.hierarchies[t.DUKE_HIERARCHY]
+    joints = h['joints']
+    idle_q, idle_roots = group.animation_quats(IDLE, 0)
+    idle_pose = t.pose(h, idle_q, root_position=t.root_position(h, idle_roots))
+    legs = [Leg(group, r) for r in LEGS]
+    arms = [Arm(group, r) for r in ARMS]
+    soles = []
+    for leg in legs:
+        ankle_vertices = np.array(group.model(joints[leg.records[2]]['model'])['vertices'],float)
+        toe_vertices = np.array(group.model(joints[leg.records[3]]['model'])['vertices'],float)
+        toe_vertices = toe_vertices @ t.quat_matrix(idle_q.get(leg.rot[3],(0,0,0,4095))).T + leg.toe
+        vertices = np.concatenate((ankle_vertices,toe_vertices))
+        front = vertices[vertices[:,2] >= vertices[:,2].max()-1]
+        pivot = front[np.argmax(front[:,1])].copy()
+        soles.append((vertices,pivot))
+    leg_len = float(np.linalg.norm(legs[0].thigh) + np.linalg.norm(legs[0].shin))
+    base_height = ANKLE_HEIGHT + p['hip_ratio']*leg_len + joints[LEGS[0][0]]['offset'][1]
+    out = []
+    for k in range(n):
+        phase = k/n
+        gait_phase = (-phase) % 1.0 if direction == 'backward' else phase
+        angle = 2*math.pi*gait_phase
+        # Weight sinks just after each contact, rises through the supported
+        # middle of the step. Pelvis and shoulder turns share foot timing.
+        if running:
+            step_phase = (2*gait_phase) % 1.0
+            def pulse(center, width):
+                distance = (step_phase-center+.5) % 1.0-.5
+                return math.exp(-(distance/width)**2)
+            # Absorb after landing; rise through push-off and reach the
+            # small apex inside the airborne interval, not before toe-off.
+            height = base_height - 10*pulse(.12,.18) + 12*pulse(.88,.16)
+        else:
+            height = base_height - 6*math.cos(2*angle-.24*math.pi)
+        lateral_yaw = (30.0 if direction=='strafe_pos_x' else -30.0) if sideways else 0.0
+        yaw = (5 if running else 3)*p['yaw_swing']*math.cos(angle)
+        roll = (2.4 if running else 3.0)*p['roll_swing']*math.sin(angle)
+        pelvis_m = rot_y(lateral_yaw+yaw) @ rot_z(roll) @ rot_x(p['pelvis_pitch'])
+        pelvis_t = np.array([0., -height, 0.])
+        cmds = [dict(joint=0, root=[0, round(height), 0], flags=2), dict(joint=0, q=game_q(pelvis_m), flags=0)]
+        for i, leg in enumerate(legs):
+            foot_phase = (gait_phase+i*.5) % 1.0
+            along, raised, pitch = reference_foot(foot_phase, cycle, stance, lift)
+            side = -1 if leg.hip_offset[0] < 0 else 1
+            toe_out = rot_y(lateral_yaw+side*p['toe_out'])
+            neutral_foot = toe_out @ idle_pose[leg.records[2]][0]
+            foot_world = rot_x(pitch) @ neutral_foot
+            # Roll about the toe during late support, rather than skate it.
+            sole_vertices, toe_pivot = soles[i]
+            toe_delta = foot_world @ toe_pivot - neutral_foot @ toe_pivot
+            planted = foot_phase < stance and pitch > 0
+            forward = along + (10.0 if not running else -10.0)
+            lateral = leg.hip_offset[0]*p['width']
+            z = forward
+            if sideways:
+                lateral += along*(1 if direction=='strafe_pos_x' else -1)
+                # Separate passing feet fore/aft so the ankles do not collide.
+                z = side*35.0
+            if planted:
+                z -= toe_delta[2]
+            target = np.array([lateral, -(ANKLE_HEIGHT+raised), z])
+            # The toe bone is behind the boot tip. Constrain the actual sole
+            # vertices, or toe-off can bury the long retail boot in the floor.
+            sole_y = float((sole_vertices @ foot_world.T)[:,1].max())
+            target[1] = -max(ANKLE_HEIGHT, sole_y+2.0)-raised
+            hip, knee, ankle, _ = leg.solve(pelvis_m, pelvis_t, target, foot_world,
+                                            toe_out @ np.array([0.,0.,1.]))
+            for j, m in zip(leg.rot[:3], (hip,knee,ankle)):
+                cmds.append(dict(joint=j,q=game_q(m),flags=0))
+            q = idle_q.get(leg.rot[3])
+            if q is not None:
+                cmds.append(dict(joint=leg.rot[3],q=list(q),flags=0))
+        chest_pitch = p['chest_pitch'] + 1.5*math.sin(2*angle-.3)
+        chest_m = rot_y(lateral_yaw*.25-yaw*p['chest_counter']) @ rot_z(-roll*.4) @ rot_x(chest_pitch)
+        head_m = rot_y(-yaw*.15) @ rot_x(p['head_pitch'])
+        upper = {9:game_q(pelvis_m.T@chest_m),16:game_q(chest_m.T@head_m)}
+        chest_t = pelvis_m @ np.array(joints[1]['offset'],float) + pelvis_t
+        for a, arm in enumerate(arms):
+            side = -1 if a==0 else 1
+            shoulder = chest_m @ arm.hip_offset + chest_t
+            # Arm opposite the stepping leg; hands below the elbows, outside
+            # the knees. Elbow bend increases for the run, never a raised fist.
+            swing = -math.cos(angle + a*math.pi + .2)
+            down = p['hand_down'] - (16 if running else 5)*swing
+            reach = p['hand_forward'] + p['arm_swing']*swing
+            target = shoulder + np.array([-side*p['hand_in'], down, reach])
+            shoulder_q, elbow_q, _, _ = arm.solve(chest_m,chest_t,target,np.eye(3),
+                                                   np.array([side*.25,.9,-.45]))
+            # Neutral local wrist follows the forearm. The old world-locked
+            # -70 degree fist orientation caused the "sneaky" hands.
+            wrist = rot_x(-4.0 + 3.0*math.sin(angle+a*math.pi))
+            upper.update({arm.rot[0]:game_q(shoulder_q),arm.rot[1]:game_q(elbow_q),arm.rot[2]:game_q(wrist)})
+        out.append(dict(events=0,ticks=HOST_TICKS,commands=cmds,upper=upper))
+    return out
+
+
 def pose_top(group, frames):
     """Highest vertex over the floor of the full pose (legs and upper body)."""
     h = group.hierarchies[t.DUKE_HIERARCHY]
@@ -495,13 +645,14 @@ def pose_top(group, frames):
 # head and arm joints (D08K6), read by the host only.
 HOST_CLIPS = {1: 'forward', 2: 'backward', 3: 'strafe_pos_x', 4: 'strafe_neg_x', 5: 'idle'}
 UPPER_CLIPS = {cid + 10: name for cid, name in HOST_CLIPS.items()}
+RUN_CLIPS = {21: 'forward', 22: 'backward', 23: 'strafe_pos_x', 24: 'strafe_neg_x'}
 HOST_TICKS = 30000
 # Procedural fallback (no motion asset): the D08K4 revision 2 gait. The host
 # mirrors PELVIS/BOB and the cycle travel STEP / STANCE (crouch_walk.inc).
 PELVIS, BOB, LEAN, STEP, STANCE, LIFT, WIDTH, FRAMES = 300.0, 10.0, 25.0, 240.0, 0.55, 45.0, 0.95, 12
 
 
-def host_clip(group, direction, upper=False):
+def host_clip(group, direction, upper=False, running=False):
     if direction == 'idle':
         # D08K8: hold the disc's one-knee pose in the same host frame format
         # as the walk. Upper and lower joints remain separate channel sets.
@@ -514,12 +665,12 @@ def host_clip(group, direction, upper=False):
             commands.insert(0, dict(joint=0, root=[0, 282, 0], flags=2))
         return host_frames([dict(events=0, ticks=HOST_TICKS, commands=commands)] * 2, keep_root=True)
     if MOCAP.exists():
-        frames = mocap_frames(group, direction)
+        frames = mocap_frames(group, direction, running=running)
         if upper:
             frames = [dict(events=0, ticks=HOST_TICKS, commands=[dict(joint=j, q=q, flags=0) for j, q in f['upper'].items()])
                       for f in frames]
         return host_frames(frames, keep_root=True)
-    if upper:
+    if upper or running:
         return None
     if direction == 'idle':   # the crouch held still: both feet planted under the hips
         frames = build(group, 'forward', PELVIS, frames=2, stance=STANCE, step=0.0, lift=0.0, stance_width=WIDTH, bob=0.0, lean=LEAN)
@@ -546,6 +697,12 @@ def write_host_pack(group, path):
         frames = host_clip(group, name, upper=True)
         if frames:
             entries.append(dict(group=0xffff, clip=cid, source_sha256='00' * 32, frames=frames))
+    for cid, name in RUN_CLIPS.items():
+        for upper in (False, True):
+            frames = host_clip(group, name, upper=upper, running=True)
+            if frames:
+                entries.append(dict(group=0xffff, clip=cid + (10 if upper else 0),
+                                    source_sha256='00' * 32, frames=frames))
     # Padding after the last clip: the original stepper (0x80059db0) loops a
     # channel within the animation's own clip, so if it ever advanced a
     # host-driven channel it would walk on past the extra clips; with a weapon
@@ -576,6 +733,7 @@ def main():
         if key not in TACTICAL:
             p.error(f'unknown parameter {key}; one of {", ".join(TACTICAL)}')
         TACTICAL[key] = float(value)
+        REFERENCE_OVERRIDES[key] = float(value)
     group = t.Group(a.group)
     if a.host_pack:
         a.output.parent.mkdir(parents=True, exist_ok=True)

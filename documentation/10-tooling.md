@@ -659,3 +659,25 @@ from the workspace. Uses the configured `build-local` Ninja compilation database
 and compiler flags to compile actual `memory.c` into a temporary test executable;
 no player state, game launch or build outputs are written. Also compiles the
 standalone animation-header validation test. See [note 255](255-d37a-animation-save-restore.md).
+
+
+## Accepted crouch animation preview (D08K14)
+
+`recomp/tools/local/preview_crouch_run.py OUTPUT` renders four directions at two
+paces from the accepted generator in `ttk_crouch_walk.py`, three camera views
+and 48 poses per clip. Use the prepared owned disc and existing animation-tool
+dependencies. Default accepted output is a caller-supplied directory:
+
+```sh
+python3 recomp/tools/local/preview_crouch_run.py recomp/analysis/d08k14/revision2/preview
+```
+
+Add `--html-only` to refresh the page without rendering or changing existing
+pose sheets. The page uses relative links to both local MGS videos and note 286,
+shows nominal 30-update/s timing, and supports pause/scrub, playback rate,
+matched cycle timing, direction and camera selection. Ground ticks represent
+forward/backward travel in the side view. It does not simulate collision or
+in-game pose blending. Output contains retail-derived textures and stays under
+ignored `recomp/analysis/`; only the generator is tracked. The accepted asset,
+parameters, pack ownership and verification are described in
+[note 286](286-d08k13-d08k14-crouch-movement.md).

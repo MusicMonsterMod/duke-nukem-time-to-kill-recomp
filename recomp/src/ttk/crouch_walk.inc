@@ -10,7 +10,7 @@
 //   probe (crouch hull, walls, objects, edges, steps) at the Modernized
 //   walking/running pace selected by the configured speed action;
 // - channel 0 (player+0x60) keeps animation 178 but plays the crouch-walk clips
-//   (ttk-anim.pack extra clips 1-4: forward, backward, +x and -x strafe, solved
+//   (ttk-anim.pack clips 1-4 walk, 21-24 run: forward/backward/+x/-x, solved
 //   by ttk_crouch_walk.py): the host sets its previous/current frames and the
 //   ticks left each update from a gait phase that advances with the distance
 //   moved, so the planted feet match the travel at any speed. The clips' long
@@ -19,15 +19,16 @@
 //   a padding clip follows them in the pack);
 // - held still, extra clip 5 holds the original one-knee kneel. Clip changes
 //   blend from the last displayed pose, including interrupted transitions;
-// - the pelvis follows the clip's height (300 + 10 cos(4 pi phase) over the
-//   feet), eased from the kneel's 282 on entry.
+// - the pelvis follows the clip's contact-timed height, eased from the
+//   kneel's 282 on entry.
 // The arms and torso (channels 1-3) stay with the original: crouch idle, aim,
 // fire. Release stands up through crouch.inc where the headroom allows;
 // until then the crouch walk keeps the directions (D08K7).
-// Clip design (ttk_crouch_walk.py): a captured crouch walk retargeted onto
-// Duke (assets/anim/crouch-walk-mocap.json, CC-BY 4.0), pelvis about 300 with
-// the capture's bob (carried per frame) and torso lean, 640 units a cycle.
-static constexpr double crouch_walk_cycle=640.0, crouch_strafe_cycle=380.0;   // ttk_crouch_walk.py CYCLE, STRAFE_CYCLE
+// D08K14 clip design (ttk_crouch_walk.py): reference-informed leg IK and
+// whole-body poses on Duke's rig. The prior captured walk remains available
+// in the authoring tool. Run uses longer strides and short flight intervals.
+static constexpr double crouch_walk_cycle=640.0, crouch_strafe_cycle=380.0;
+static constexpr double crouch_run_cycle=1600.0, crouch_run_strafe_cycle=1350.0;   // ttk_crouch_walk.py CYCLE, STRAFE_CYCLE
 static constexpr double crouch_walk_pelvis=300.0, crouch_walk_bob=10.0, crouch_kneel_pelvis=282.0;
 static constexpr unsigned crouch_walk_ticks=30000, crouch_walk_ramp=6, crouch_idle_clip=5;
 // D08K12: share standing locomotion's configured speed modifier / RUN MODE.
@@ -173,12 +174,24 @@ static void crouch_walk_update(CPUState* cpu,bool landed=false) {
         crouch_walk_release();
         return;
     }
+    // D08K13: 0x80053038 treats the neutral guest pad as inactivity and
+    // expires player+0x240 into crouch fidget 179 (0x8005323c). That loses
+    // our 178 ownership and exposes held movement to the retail roll path.
+    // Keep the native activity timeout refreshed while this stance is ours,
+    // including blocked movement and a released crouch awaiting headroom.
+    // Standing, Original crouch, swimming and fall handoff keep their owner.
+    psx_mod_write_half(player+0x240,3000);
     const bool moving=f.move_x || f.move_y;
     // Clip: the one-knee idle while still, otherwise the dominant input axis
     // (Duke faces the view: +x is his right).
-    const unsigned clip=!moving ? crouch_idle_clip :
+    const unsigned direction=!moving ? crouch_idle_clip :
         std::fabs(f.move_y)>=std::fabs(f.move_x) ? (f.move_y>0?1u:2u) : (f.move_x>0?3u:4u);
     uint32_t first,count;
+    // Old packs keep working. Run clips have separate matching upper poses;
+    // retain phase across walk/run and blend from the displayed pose below.
+    const bool running=moving && input_running(false) &&
+        crouch_walk_frames(direction+20,first,count);
+    const unsigned clip=direction+(running?20:0);
     if(!crouch_walk_frames(clip,first,count))return;
     if(clip!=crouch_walk_clip) {
         if(!crouch_walk_clip) {crouch_walk_phase=0;if(!landed)crouch_walk_height=crouch_kneel_pelvis;++crouch_walk_starts;}
@@ -233,7 +246,8 @@ static void crouch_walk_update(CPUState* cpu,bool landed=false) {
             moved=std::hypot(double(mx),double(mz));
             ++hull_moves;
         } else ++crouch_walk_blocked;
-        crouch_walk_phase=std::fmod(crouch_walk_phase+moved/(clip>=3?crouch_strafe_cycle:crouch_walk_cycle),1.0);
+        crouch_walk_phase=std::fmod(crouch_walk_phase+moved/(running ? (direction>=3?crouch_run_strafe_cycle:crouch_run_cycle) :
+                                                       (direction>=3?crouch_strafe_cycle:crouch_walk_cycle)),1.0);
     }
     // Channel 0: a blend into the new clip first, then the gait (or the idle).
     const double idx=crouch_walk_phase*count;
@@ -347,7 +361,7 @@ static void crouch_record_write(uint32_t r,const CrouchQuat& q) {
 }
 // The upper clip frame matching a legs clip frame (0 = none: an original frame).
 static uint32_t crouch_upper_frame(uint32_t legs_frame) {
-    for(unsigned c=1;c<=crouch_idle_clip;++c) {
+    for(unsigned c:{1u,2u,3u,4u,5u,21u,22u,23u,24u}) {
         uint32_t f,n,uf,un;
         if(!ttk::anim_extra_clip(c,f,n) || legs_frame<f || legs_frame>=f+n)continue;
         return ttk::anim_extra_clip(c+10,uf,un) && un==n ? uf+(legs_frame-f) : 0;

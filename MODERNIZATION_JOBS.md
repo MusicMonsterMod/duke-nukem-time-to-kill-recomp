@@ -279,6 +279,8 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08K10 | First-person crouched weapon and arm alignment: knife, axe, dynamite, Holy Hand Grenade and crossbow match their standing view when crouched (standing is the baseline) | Done (user-accepted 2026-10-22) | D12, D08K6, D08K8 |
 | D08K11 | Enable Modern Crouching and Crouch-Walking in Shallow Water (slot 10 flooded subway; crouch behaviour refinement) | Done | D08K2, D08K4, D08K7, D08K8, D08AA, D08AB |
 | D08K12 | Crouch running with the configured run action | Done (user-accepted) | D08K, D08K11, D08L1, D21 |
+| D08K13 | Sustained backwards crouch movement enters a legacy roll | Done | D08K12, D21A |
+| D08K14 | MGS-based crouch walk/run quality, hand posture and HTML preview | Done (revision 2 accepted) | D08K13, D08K6 |
 | D08L | Inertial platform edge run-off | Done | D08 |
 | D08L1 | Modern locomotion - allow walking and crouch-walking off ledges | Done (user-accepted 2026-10-23) | D08L, D08K, D08T3 |
 | D08M | Modern underwater swimming controls (foundation) | Done | D08 |
@@ -21838,4 +21840,113 @@ standing clearance. Space cancellation remains unchanged.
 Player build, native input/controls/aim suites and private 60/120 real-SDL
 routes passed. User acceptance supplies final gameplay approval while notes
 284/285 retain the natural-vent, live-ledge and bounded-test evidence limits.
+No next job started.
+
+
+### D08K13 - Sustained backwards crouch movement enters a legacy roll
+
+**Status: Done, user accepted and closed (2026-10-27). Priority 1.**
+
+User reports continuous backwards crouch running enters the legacy roll after
+about 3-5 seconds in both first and third person. Reproduce and trace the
+ownership/input transition before fixing it. While the crouch action remains
+active, supported crouch walking/running in every direction must remain Modern.
+Preserve collision, clearance, blocked standing and ledge handoff, configured
+controls, Ctrl/C takeover and Original/Vanilla behavior.
+
+Acceptance: sustained backwards crouch running beyond 5 seconds in both views;
+repeated forward/backward changes with and without run using both momentary and
+toggled crouch; regression checks for low clearance, collision and ledges.
+Distinguish actual gameplay evidence from native fixtures and user reports.
+Findings and test matrix: [note 286](documentation/286-d08k13-d08k14-crouch-movement.md).
+
+### D08K14 - MGS-based crouch walk/run quality, hand posture and HTML preview
+
+**Status: Done, revision 2 accepted and closed (2026-10-27). Priority 2.**
+User accepts the animation and requests lock-in/closeout. Natural-vent coverage
+remains an explicit evidence limit. D08K13 sustained-input checks pass in both
+views. The accepted HTML artifact and detailed record are in note 286.
+
+Study both local references `research/screencaps/mgs-crouch-run.mp4` and
+`research/screencaps/mgs-crouch-walk.mp4` in motion and across their gait cycles
+before authoring. Use the existing animation pipeline and Duke's skeleton to
+create a separate low run gait with purposeful longer strides and suitable foot
+placement at actual crouch-run speed. Revision 2 explicitly permits improving
+the walk and hand posture too; keep current travel speeds. Do not merely
+accelerate walk frames for running. Blend smoothly on run press/release and
+retain the vent-compatible silhouette. Additional user references may inform it.
+
+Acceptance: provide a local HTML animation preview comparable to the existing
+artifact; inspect in-game at actual speed, including vents, both travel
+orientations and walk/run transitions. Check foot sliding, clipping and abrupt
+pose changes; report skeleton, speed or clearance limits needing a design
+decision. D08K13 takes precedence. Findings and preview/test evidence belong in
+[note 286](documentation/286-d08k13-d08k14-crouch-movement.md).
+
+## 2026-10-27 - D08K13/D08K14 selected and scoped
+
+Registered separate jobs before implementation at the user's request. D08K13
+is the active bug investigation; D08K14 follows it. Initial source inspection
+and reference contact sheets only; no gameplay edits, build or live test yet.
+No acceptance, closeout, commit or push authorized.
+
+
+## 2026-10-27 - D08K13/D08K14 candidates ready for review
+
+D08K13 reproduces native crouch fidget 179 dropping Modern ownership and exposing
+held movement to roll 181. Refresh the native idle activity timeout inside the
+Modern crouch owner. D08K14 adds separate 32-pose run clips (forward/backward and
+strafes), longer planted-foot travel, boot recovery and upper-body counter-swing;
+existing displayed-pose blending handles pace changes. Accepted walk/idle clips
+compare equal to HEAD's generator for every direction and upper/lower channel.
+
+Player build, native input/controls and 16 animation tests pass. Private real-SDL
+60 third-person/default and 120 first-person/rebound runs pass sustained backwards
+input beyond five seconds and repeated forward/backward walk/run changes with
+both crouch controls, before and after run-clip integration. Geometry fixtures
+cover clearance, blocked standing and ledges; they are not natural vent evidence.
+Local textured HTML: `recomp/analysis/d08k14/preview/index.html`.
+Both jobs remain Needs playtest, with natural-vent route, human gait review and
+broader weapon/terrain combinations outstanding. Findings and limits:
+[note 286](documentation/286-d08k13-d08k14-crouch-movement.md).
+No acceptance, documentation closeout, commit or push. Existing framework edits
+and player saves/settings are preserved.
+
+
+## 2026-10-27 - D08K14 revision 2 selected
+
+User rejected the first run candidate as still excessively fast and found the
+arms unnatural in both gaits. Explicitly authorizes improving the walk gait and
+hand posture as well as the run, with a deeper study of both MGS videos and
+quality as the priority. D08K14 returns to In progress. Preserve D08K13's separate
+roll fix. Record measured reference timing, posture, rejected approaches and
+speed/stride tradeoffs in note 286 before presenting a revised preview.
+
+
+## 2026-10-27 - D08K14 revision 2 candidate
+
+User keeps current travel speed and accepts some exaggeration while pursuing
+realistic animation. Dense MGS frame study and image-space cadence measurements
+inform 48-pose walk/run clips: opposing arms, lower hands, forearm-following
+wrists, contact compression, toe-off and actual boot-sole clearance. Run cycle
+extends to 1600 units (1350 strafe) with short flight intervals. Travel speed,
+stationary kneel and collision ownership remain unchanged. Both real SDL view
+runs pass sustained backwards input and repeated direction/run switches with
+both crouch controls; all 16 animation tests plus native controls/input/aim pass.
+HTML preview and evidence are under `recomp/analysis/d08k14/revision2/`.
+Natural-vent verification and user visual acceptance remain open. No commit or
+push. Detailed decisions, evidence and limitations: note 286.
+
+
+## 2026-10-27 - D08K13/D08K14 accepted and closed
+
+User explicitly requested "lock it in and close it out", called the result
+"perfect", and requested the HTML artifact update and extensive documentation.
+Both jobs are Done on this acceptance. Revision 2 is the baseline; retain current
+travel speed, distinct low walk/run poses and hand posture. The accepted HTML
+now records the decision and links the full engineering record. Note 286,
+status/handoff, manual, documentation index and tooling guide document the fix,
+reference study, exact parameters, reproduction, tests and limits. Natural vent
+traversal is still unverified; user acceptance does not imply new test evidence.
+Implementation, tests and documentation commit/push authorized as MusicMonsterMod.
 No next job started.

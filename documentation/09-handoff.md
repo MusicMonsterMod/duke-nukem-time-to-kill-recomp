@@ -1,5 +1,34 @@
 # Next-session handoff
 
+## 2026-10-27 - D08K13/D08K14 accepted and closed
+
+User explicitly accepts revision 2 ("this work is perfect") and requests lock-in,
+closeout, the updated HTML artifact and extensive documentation. Both jobs are
+Done. Implementation, tests, manual and documentation commit/push are authorized
+as MusicMonsterMod. Preserve this accepted gait and current travel speeds.
+
+D08K13 refreshes the native inactivity timeout while Modern crouch owns movement,
+preventing sustained backwards input from escaping through fidget 179 into roll
+181. D08K14 supplies distinct 48-pose walk/run clips: lower hands, relaxed wrists,
+opposing arms, contact compression, toe-off and full-boot floor clearance. Run
+uses longer strides and brief flight; walk/run changes retain phase and blend
+from the displayed pose. Stationary kneel, collision/clearance/ledge ownership,
+Original and Vanilla behavior remain unchanged.
+
+Build, 16 animation tests and native controls/input/aim suites passed. Real SDL
+third-person/default and first-person/rebound routes passed both crouch controls,
+at least nine seconds sustained backwards run per control and repeated
+forward/backward/run changes. User acceptance closes visual review; natural
+vent traversal and broad terrain/armed clipping coverage remain unverified.
+
+Accepted local artifact: `recomp/analysis/d08k14/revision2/preview/index.html`.
+Tracked regeneration tool: `recomp/tools/local/preview_crouch_run.py`.
+[Note 286](286-d08k13-d08k14-crouch-movement.md) records the root cause, MGS frame
+study, rejected first candidate, user speed decision, exact accepted parameters,
+implementation map, evidence, limitations and reproduction commands. No next job
+started. Launch: `python3 recomp/tools/local/run.py` from the workspace root.
+
+
 ## 2026-10-27 - D08K12 and D21A accepted and closed
 
 User confirmed crouch running works, accepted Ctrl takeover and explicitly

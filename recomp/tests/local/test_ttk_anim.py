@@ -117,7 +117,7 @@ class OwnedDisc(unittest.TestCase):
         mc = json.loads(cw.MOCAP.read_text())
         self.assertIn('CC-BY-4.0', mc['license'])
         h = self.g.hierarchies[t.DUKE_HIERARCHY]
-        frames = cw.mocap_frames(self.g, 'forward')
+        frames = cw.captured_frames(self.g, 'forward')
         n = len(frames)
         heights = [next(c['root'][1] for c in f['commands'] if 'root' in c) for f in frames]
         for f in frames:
@@ -138,7 +138,59 @@ class OwnedDisc(unittest.TestCase):
             path = Path(tmp) / 'anim.pack'
             cw.write_host_pack(self.g, path)
             data = path.read_bytes()
-        self.assertEqual(struct.unpack_from('<I', data, 8)[0], 11)  # 4 walks, idle, their 5 upper clips, padding
+        self.assertEqual(struct.unpack_from('<I', data, 8)[0], 19)  # walk/idle, run, matching upper clips, padding
+
+    def test_reference_gait_contact_and_clearance(self):
+        import ttk_crouch_walk as cw
+        import numpy as np
+        h = self.g.hierarchies[t.DUKE_HIERARCHY]
+        for running in (False, True):
+            for direction, ((dx, dz), _) in cw.DIRECTIONS.items():
+                frames = cw.mocap_frames(self.g, direction, running=running)
+                self.assertLess(cw.pose_top(self.g, frames), 0x2c0)
+                n = len(frames)
+                cycle = (cw.RUN_STRAFE_CYCLE if dx else cw.RUN_CYCLE) if running else (cw.STRAFE_CYCLE if dx else cw.CYCLE)
+                stance = cw.RUN_STANCE if running else .66
+                samples = []
+                idle_q,_ = self.g.animation_quats(63,0)
+                for k, f in enumerate(frames):
+                    q = t.joint_quats_for_frame(f)
+                    q.update(f['upper'])
+                    for cmd in f['commands']:
+                        t.encode_command(cmd)
+                    for j, quat in f['upper'].items():
+                        t.encode_command(dict(joint=j, q=quat, flags=0))
+                    samples.append(t.pose(h, q, root_position=(dx*k*cycle/n, -f['commands'][0]['root'][1], dz*k*cycle/n)))
+                    for record in (12,13,16,17):
+                        matrix,position = samples[-1][record]
+                        vertices=np.array(self.g.model(h['joints'][record]['model'])['vertices'])@matrix.T+position
+                        self.assertLess(float(vertices[:,1].max()),1.0,(direction,running,k,'boot below floor'))
+                for leg, ankle in enumerate((12,16)):
+                    flat_count = toe_count = 0
+                    for k in range(n-1):
+                        phase = [((-i/n if direction=='backward' else i/n)+leg*.5)%1 for i in (k,k+1)]
+                        # Height alone cannot identify contact: the newly
+                        # authored recovery approaches the ground before landing.
+                        if all(.18*stance < x < .74*stance for x in phase):
+                            a,b = samples[k][ankle][1],samples[k+1][ankle][1]
+                            self.assertLess(float(np.linalg.norm(b-a)),3.0,(direction,running,k,'flat'))
+                            flat_count += 1
+                        if all(.82*stance < x < stance for x in phase):
+                            def toe(i):
+                                m,p = samples[i][ankle]
+                                j=h['joints'][ankle+1]
+                                vertices=np.array(self.g.model(j['model'])['vertices'])@t.quat_matrix(idle_q.get(j['rot_id'],(0,0,0,4095))).T+np.array(j['offset'])
+                                front=vertices[vertices[:,2]>=vertices[:,2].max()-1]
+                                pivot=front[np.argmax(front[:,1])]
+                                return p + m @ pivot
+                            a,b = toe(k),toe(k+1)
+                            # The rotated boot transfers vertical support between sole
+                            # corners. Its toe must not slide across the floor; all
+                            # sole vertices are checked above for floor clearance.
+                            self.assertLess(float(np.linalg.norm((b-a)[[0,2]])),3.0,(direction,running,k,'toe-off'))
+                            toe_count += 1
+                    self.assertGreater(flat_count,6)
+                    self.assertGreater(toe_count,1)
 
     def test_tactical_crouch_posture(self):
         # D08K6: not "sitting": hip joints well above knee height, feet near

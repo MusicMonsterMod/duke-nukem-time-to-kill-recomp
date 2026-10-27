@@ -1847,7 +1847,7 @@ gadget, there is no box. Vanilla is unchanged.
 Typed cheats stay silent until a completed result appears, horizontally centered
 at the top of the screen. Partial, invalid and cancelled entries display nothing.
 
-### Crouch walking (Modernized, prototype)
+### Crouch walking and running (Modernized)
 
 With **CROUCH: MODERN** (the default; OPTIONS > ADVANCED > MOVEMENT, or
 `run.py --crouch modern|original`), **hold Left Ctrl** or **tap C** to crouch,
@@ -1855,7 +1855,10 @@ then use **W/A/S/D** to move low in any direction. **Hold Left Shift** to move
 at running pace while staying crouched; release it to return to crouch-walk pace.
 These follow your configured crouch and speed bindings. Caps Lock RUN MODE works
 as it does while standing: Shift temporarily selects the opposite pace.
-The existing crouch gait follows distance, so its steps quicken at running pace.
+Walking and running use separate low animations. Running uses longer strides,
+a stronger arm swing and brief airborne recovery; pressing or releasing the
+speed modifier blends between the gaits. Both follow actual movement distance.
+Sustained backwards movement stays in Modern crouch while the stance is active.
 Duke keeps facing where you look, so you can strafe and back up while aiming
 and firing as usual;
 held still he holds the original one-knee kneel, blending into the crouch walk
@@ -1879,6 +1882,10 @@ walking on the bottom, with either SWIMMING setting. Hold Ctrl to kneel or
 crouch walk; release to stand when there is room. Surface swimming and
 underwater swimming keep their usual controls, including Ctrl to dive.
 The gait is built from your disc when the game is built (no extra files to fetch).
-Known prototype limits: no footstep sounds while crouch walking, and diagonals use
-the nearest of the four directions' animations. The crouch-walk motion is a captured
-animation by abdlilah ben (CC BY 4.0, see README Credits), retargeted onto Duke.
+Known limits: no footstep sounds while crouch walking, and diagonals use
+the nearest of the four directions' animations. The accepted walk/run poses
+were authored on Duke's skeleton after study of the supplied MGS references.
+The earlier captured walk by abdlilah ben (CC BY 4.0, see README Credits) remains
+in the authoring pipeline for comparison. Duke's retail fingers remain closed.
+See [the accepted movement record](documentation/286-d08k13-d08k14-crouch-movement.md)
+for the local animation preview and verification limits.

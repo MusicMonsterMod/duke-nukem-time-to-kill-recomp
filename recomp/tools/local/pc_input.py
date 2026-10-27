@@ -9,7 +9,7 @@ DEFAULTS = {name: token for name, token, _, _ in ROWS}
 # key) is bindable as a held action; Alt + wheel still sets camera distance.
 # Fixed menu controls stay available even after every action is rebound.
 TOKENS = {chr(65+i): 4+i for i in range(26) if chr(65+i) not in 'CF'}
-TOKENS['C'] = 6  # Only holster may share the fixed original Circle key.
+TOKENS['C'] = 6  # Holster and held crouch may share the uncaptured original Circle key.
 TOKENS.update({str(i): 29+i for i in range(1, 10)})
 TOKENS.update({'LCtrl':224, 'LBracket':47, 'RBracket':48, 'Semicolon':51, 'Apostrophe':52, 'Comma': 54, 'Period': 55, '0': 39, 'Space': 44, 'LShift': 225, 'ScrollLock': 71, 'Unbound': 0, 'Mouse1': -1,
                'Mouse2': -3, 'Mouse3': -2, 'Mouse4': -4, 'Mouse5': -5, 'Alt': 226,
@@ -25,8 +25,8 @@ def validate(bindings):
     for action, token in bindings.items():
         if not isinstance(token, str) or token not in TOKENS:
             raise ValueError(f'{action}: unsupported or reserved input {token!r}.')
-        if token == 'C' and action != 'holster':
-            raise ValueError('C is reserved for holster.')
+        if token == 'C' and action not in ('holster', 'crouch', 'crouch_alt'):
+            raise ValueError('C may be bound to holster or held crouch.')
         if token != 'Unbound' and token in used:
             raise ValueError(f'{token} conflicts: {used[token]} and {action}; bindings unchanged.')
         if token != 'Unbound':
@@ -49,7 +49,8 @@ def wire(bindings):
     return '1:' + ','.join(str(TOKENS[bindings[name]]) for name in DEFAULTS)
 
 
-NOTES = {'walk': ' (speed modifier; Caps Lock toggles autorun)',
+NOTES = {'crouch_alt': ' (Held Crouch: press to toggle crouch; Ctrl stays momentary)',
+         'walk': ' (speed modifier; Caps Lock toggles autorun)',
          'grab': ' (hold to grab and push/pull; precision aim with original weapon aiming or camera)',
          'grab_alt': ' (second hold-to-grab input; the only grab with original weapon aiming or camera)',
          'original_aim': ' (original precision aim; unbound by default in Modernized)'}
@@ -107,6 +108,8 @@ def add_missing_actions(bindings):
             if result.get(strafe) == key:
                 result[strafe] = 'Unbound'
             result[browse] = key if key not in result.values() else 'Unbound'
+    if 'crouch_alt' not in result:
+        result['crouch_alt'] = 'C' if 'C' not in result.values() else 'Unbound'
     for action, token in DEFAULTS.items():
         if action not in result:
             free = next((key for key in [token, *(k for k in TOKENS if k not in DEFAULTS.values()), *TOKENS] if key not in result.values() and key != 'C'), None)

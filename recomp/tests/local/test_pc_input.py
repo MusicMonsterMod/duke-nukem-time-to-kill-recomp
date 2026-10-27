@@ -14,10 +14,10 @@ import player_profiles as profiles
 
 class InputBindingsTest(unittest.TestCase):
     def test_defaults_wire_and_separate_movement(self):
-        self.assertEqual(len(pc_input.validate(pc_input.DEFAULTS)), 51)
+        self.assertEqual(len(pc_input.validate(pc_input.DEFAULTS)), 52)
         self.assertTrue(pc_input.wire(pc_input.DEFAULTS).startswith('1:26,22,4,7,'))
         # D08A5: Comma/Period browse the mission inventory; original strafe is unbound.
-        self.assertTrue(pc_input.wire(pc_input.DEFAULTS).endswith(',54,55,75,78,74,77,80,79,63,66'))  # D10C look keys, D10D turn keys, D20 quick keys last
+        self.assertTrue(pc_input.wire(pc_input.DEFAULTS).endswith(',54,55,75,78,74,77,80,79,63,66,6'))  # D10C look keys, D10D turn keys, D20 quick keys last
         self.assertEqual((pc_input.DEFAULTS['original_strafe_left'], pc_input.DEFAULTS['original_strafe_right']),
                          ('Unbound', 'Unbound'))
         old = {k: v for k, v in pc_input.DEFAULTS.items() if not k.startswith('mission_')}
@@ -31,6 +31,17 @@ class InputBindingsTest(unittest.TestCase):
         self.assertEqual((new['quick_kick'], new['original_strafe_left'], new['mission_previous'], new['mission_next']),
                          ('Comma', 'Q', 'Unbound', 'Period'))
         self.assertTrue(all(int(pad) == 0 for name, _, _, pad in pc_input.ROWS if name.startswith('move_')))
+
+    def test_crouch_secondary_migration(self):
+        old = dict(pc_input.DEFAULTS)
+        del old['crouch_alt']
+        self.assertEqual(pc_input.add_missing_actions(old)['crouch_alt'], 'C')
+        old['holster'] = 'C'
+        migrated = pc_input.add_missing_actions(old)
+        self.assertEqual(migrated['holster'], 'C')
+        self.assertEqual(migrated['crouch_alt'], 'Unbound')
+        swapped = pc_input.rebind(pc_input.DEFAULTS, ['crouch_alt=Unbound', 'crouch=C'])
+        self.assertEqual(swapped['crouch'], 'C')
 
     def test_grab_defaults_and_migration(self):
         # D08T1: Mouse2 moves from precision aim to Grab; Alt is the second Grab.
@@ -164,3 +175,38 @@ class MenuKeyNamesTest(unittest.TestCase):
             self.assertEqual(menu.get(code), token, code)
         for code, token in named.items():
             self.assertEqual(pc_input.TOKENS.get(token), code, token)
+
+class D21ProfileTest(unittest.TestCase):
+    def test_schema52_preserves_custom_bindings_and_adds_sound(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / 'profile.json'
+            old = profiles.defaults()
+            old['version'] = 52
+            for p in old['profiles'].values():
+                p['bindings'].pop('crouch_alt')
+                p['bindings']['holster'] = 'C'
+                p['bindings']['crouch'] = 'G'
+                for k in profiles.SOUND_DEFAULTS:
+                    p['controls'].pop(k)
+            profiles.save(path, old)
+            loaded, _ = profiles.load(path)
+            p = loaded['profiles']['modernized']
+            self.assertEqual((p['bindings']['holster'], p['bindings']['crouch'], p['bindings']['crouch_alt']), ('C','G','Unbound'))
+            self.assertEqual({k:p['controls'][k] for k in profiles.SOUND_DEFAULTS}, profiles.SOUND_DEFAULTS)
+
+    def test_sound_sidefile_roundtrip_and_invalid_atomicity(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / 'profile.json'
+            settings = profiles.defaults()
+            values = dict(sound_master=0, sound_effects=50, sound_music=100, sound_speech=25, sound_mode=1)
+            data = dict(version=1, active='modernized', controls=values, presentation={})
+            profiles.menu_settings_path(path).write_text(json.dumps(data))
+            self.assertTrue(profiles.absorb_menu_settings(path, settings))
+            profiles.save(path, settings)
+            loaded, _ = profiles.load(path)
+            self.assertEqual({k:loaded['profiles']['modernized']['controls'][k] for k in values}, values)
+            before = copy.deepcopy(loaded)
+            data['controls']['sound_master'] = 101
+            profiles.menu_settings_path(path).write_text(json.dumps(data))
+            self.assertFalse(profiles.absorb_menu_settings(path, loaded))
+            self.assertEqual(loaded, before)

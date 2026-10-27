@@ -240,6 +240,10 @@ def main(argv=None):
     env['DNTTK_LANDING'] = controls['landing'] if modernized else 'original'
     env['DNTTK_WALL_BACKFLIP'] = controls['wall_backflip'] if modernized else 'original'
     env['DNTTK_CROUCH'] = controls['crouch'] if modernized else 'original'
+    for key in profiles.SOUND_DEFAULTS:
+        env.pop('DNTTK_' + key.upper(), None)
+        if modernized and controls[key] >= 0:
+            env['DNTTK_' + key.upper()] = str(controls[key])
     env['DNTTK_AUTO_BIO_MASK'] = controls['auto_bio_mask'] if modernized else 'off'
     env['DNTTK_NIGHT_VISION'] = controls['night_vision'] if modernized else 'original'
     env['DNTTK_DYNAMITE'] = controls['dynamite'] if modernized else 'original'

@@ -61,6 +61,7 @@
 // the pad, and its text is hidden); CONFIRM hands it the result its own Cross
 // gives (documentation/179-d20b-statistics-screen.md).
 #include "game_menu.h"
+#include "host_osd.h"
 #include "live_env.h"
 #include "cpu_state.h"
 #include "mod_plugins.h"
@@ -93,6 +94,9 @@ namespace {
 struct Guard {uint32_t address,size;const char* digest;};
 // Read-only digests of the owned executable's bytes (tests/local/test_game_menu.py).
 const Guard guards[]={
+    {0x8008aa08u,0x640u,"7f6f1b1c43aa6c6f2ee5782a93f3b9ff790f876fefbbacc62315214eb952c0fc"}, // D21 native sound owner
+    {0x8006acecu,0x5cu,"6df12d3b8a18e4bba04622510963bdb9a584f7e067a74b5991a37cf85a03cb39"}, // D21 native sound owner
+
     {0x80013200u,0x30u,"c8df06f70c493d55ff7bd25b49dd202cd611692bb6a445213eed75d5dcf75dd6"},        // frontend sub-screen handler table
     {0x80023228u,0xd8u,"f977b9b9f9075bc46ea87de071e8a37912fb9a2205bb521978ee07e7e9d1dec7"},  // state 12 entry and sub-screen dispatch
     {0x80083c40u,0x170u,"7ff2ef0497a53afcf63c77b1ccb414f0f56a439844ec59d150d605b6ff480841"},    // slider init
@@ -299,7 +303,7 @@ enum Icon {icon_triangle=4, icon_cross=6, icon_square=7, icon_change=11, icon_se
 struct Choice {const char* label;const char* env;const char* json;};
 // D19N: Game rows are the original GAME SETTINGS' own values in guest memory
 // (saved on the memory card as before), never in the profile.
-enum class Section {Controls, Presentation, Game};
+enum class Section {Controls, Presentation, Game, Sound};
 struct Row {
     const char* label; Section section; const char* key; const char* env; bool live; const char* desc;
     std::vector<Choice> choices; int def; // a pick
@@ -321,8 +325,8 @@ Row view_row(const char* label,const char* key,const char* env,const char* help,
                std::vector<Choice>{{"THIRD PERSON","third","\"third\""},
                                    {"FIRST PERSON","first","\"first\""}},0};
 }
-// D19N (user-approved layout A, 2026-10-20): OPTIONS is SOUND (the original
-// screen), CONTROLS, DISPLAY and GAMEPLAY with the everyday rows, and ADVANCED
+// D19N (user-approved layout A, 2026-10-20): OPTIONS is SOUND (D21 now
+// owns its page), CONTROLS, DISPLAY and GAMEPLAY with the everyday rows, and ADVANCED
 // with every original / modern switch under section headings. The original
 // CONTROLLER (pad layout) is not offered: Modernized play needs the default
 // layout (enforce_modern_settings). GAME SETTINGS' rows moved: GORE and STATUS
@@ -330,7 +334,15 @@ Row view_row(const char* label,const char* key,const char* env,const char* help,
 // game) and GAME SPEED to ADVANCED > ORIGINAL GAME, with the RED DOT that
 // AUTO AIM drives (user review, 2026-10-20). Contract: documentation/166-d19n-options-layout.md.
 std::vector<Screen> make_screens() {
-    std::vector<Screen> s(4);
+    std::vector<Screen> s(5);
+    s[4]={"SOUND",{
+        {"MASTER",Section::Sound,"sound_master","DNTTK_SOUND_MASTER",true,"VOLUME OF ALL GAME AUDIO",{},100,true,0,100,5},
+        {"SOUND EFFECTS",Section::Sound,"sound_effects","DNTTK_SOUND_EFFECTS",true,"WEAPONS, WORLD SOUNDS AND GADGET CUES",{},100,true,0,100,5},
+        {"MUSIC",Section::Sound,"sound_music","DNTTK_SOUND_MUSIC",true,"THE ORIGINAL GAME MUSIC VOLUME",{},100,true,0,100,5},
+        {"SPEECH",Section::Sound,"sound_speech","DNTTK_SOUND_SPEECH",true,"THE ORIGINAL GAME SPEECH VOLUME",{},100,true,0,100,5},
+        {"MODE",Section::Sound,"sound_mode","DNTTK_SOUND_MODE",true,"STEREO OR MONO SOUND",
+         {{"STEREO","0","0"},{"MONO","1","1"}},0},
+    }};
     s[0]={"CONTROLS",{
         {"CONTROL SCHEME",Section::Controls,"scheme","DNTTK_CONTROL_SCHEME",true,
          "MODERN: MOUSE LOOK AND STRAFE. LEGACY: TURN WITH A/D",
@@ -449,7 +461,7 @@ std::vector<Screen> make_screens() {
 
 struct Item {const char* label;int guest_sub;int screen;};
 // OPTIONS: the original SOUND (its handler's own return value), then ours.
-const Item options_items[]={{"SOUND",7,-1},{"CONTROLS",-1,0},{"DISPLAY",-1,1},{"GAMEPLAY",-1,2},{"ADVANCED",-1,3}};
+const Item options_items[]={{"SOUND",-1,4},{"CONTROLS",-1,0},{"DISPLAY",-1,1},{"GAMEPLAY",-1,2},{"ADVANCED",-1,3}};
 constexpr int option_count=5;
 
 // Recursive: a pad read inside one of our guest calls comes back into
@@ -466,6 +478,8 @@ int cursor=0, top=0;      // selection and first visible row
 bool owned=false;         // sub-screen 8 (or 9) is ours
 // Actions for the next live frame (guest writes and sounds happen there).
 int pending_sub=-1, pending_cursor=-1, pending_sound=-1;
+int sound_want[5]={-1,-1,-1,-1,-1};
+bool sound_master_pending=false;
 int pending_speed=-1;     // D19N: GAME SPEED for 0x80089920 at the next tick
 
 // D19H: the pause menu and death screen as lists. Page::Options is D19's
@@ -526,7 +540,10 @@ bool card_unpaced=false; // D19R: an unpaced window requested
 // machine: at a high frame rate a title screen with a slider in view showed
 // nothing at all.
 constexpr uint32_t sliders=0x800dd290u;
-constexpr int slider_slots=3, slider_size=0x40;
+constexpr int slider_slots=4, slider_size=0x40;
+// D21: fourth slider has its own DMA-addressable object, allocated before
+// replay starts. Never alias another slider packet in a deferred frame.
+uint32_t sound_slider=0;
 
 // D19J: a savestate load drops what the menu knew of the guest before it; the
 // screens reopen from the loaded state (our screens: OPTIONS, the lists, the
@@ -617,6 +634,7 @@ const char* presentation_value(const char* key) {
 }
 void init() {
     screens=make_screens();
+    sound_slider=psx_mod_alloc_gpu_dma_memory(slider_size,16);
     for(auto& s:screens) {
         Values v;
         for(size_t i=0;i<s.rows.size();++i) {
@@ -631,6 +649,11 @@ void init() {
         committed.push_back(v);
     }
     draft=committed;
+    for(int i=0;i<5;++i) {
+        const char* v=std::getenv(screens[4].rows[i].env);
+        if(v && *v) sound_want[i]=std::clamp(std::atoi(v),0,i==4?1:100);
+    }
+    sound_master_pending=sound_want[0]>=0;
 }
 void ensure_init() {std::call_once(init_once,init);}
 
@@ -692,9 +715,12 @@ void write_settings() {
         const Row& r=screens[s].rows[i];const int v=committed[s][i];
         if(r.link || r.heading || r.section==Section::Game) continue;
         char value[64];
-        if(r.slider) std::snprintf(value,sizeof value,"%.2f",v*r.scale);
+        if(r.section==Section::Sound) {
+            const int wanted=i==0 && sound_want[0]>=0 && !sound_master_pending ? host_volume_get() : sound_want[i];
+            std::snprintf(value,sizeof value,"%d",wanted);
+        } else if(r.slider) std::snprintf(value,sizeof value,"%.2f",v*r.scale);
         else std::snprintf(value,sizeof value,"%s",r.choices[v].json);
-        std::string& out=r.section==Section::Controls ? controls : presentation;
+        std::string& out=(r.section==Section::Controls || r.section==Section::Sound) ? controls : presentation;
         out+=std::string(out.empty()?"":",")+"\""+r.key+"\":"+value;
     }
     // D19G: the bindings in the profile's terms (run.py validates them).
@@ -802,7 +828,7 @@ void open_list(Page p,Act highlight) {
 struct KeyRow {const char* label;int action;const char* fixed=nullptr;const char* hint=nullptr;};
 const KeyRow key_rows[]={
     {"MOVEMENT",-1},{"MOVE FORWARD",move_forward},{"MOVE BACK",move_back},{"STRAFE LEFT",move_left},{"STRAFE RIGHT",move_right},
-    {"JUMP",jump},{"CROUCH",crouch},{"WALK / RUN",walk},{"USE / MANTLE",interact},
+    {"JUMP",jump},{"CROUCH",crouch},{"HELD CROUCH",crouch_alt,nullptr,"PRESS TO KEEP CROUCHING. PRESS AGAIN TO STAND"},{"WALK / RUN",walk},{"USE / MANTLE",interact},
     {"GRAB",grab,nullptr,"HOLD TO GRAB, PUSH AND PULL"},{"GRAB 2",grab_alt,nullptr,"A SECOND GRAB KEY"},
     // The weapon keys select a group; each is named after its first weapon.
     {"WEAPONS",-1},{"FIRE",fire},{"QUICK KICK",quick_kick},{"HOLSTER",holster},{"PREVIOUS WEAPON",weapon_previous},
@@ -1138,6 +1164,13 @@ void apply_live(const Row& r,int v) {
     if(r.slider) {char t[32];std::snprintf(t,sizeof t,"%.2f",v*r.scale);value=intern(t);}
     else value=r.choices[v].env;
     const std::string key=r.key;
+    if(r.section==Section::Sound) {
+        for(int i=0;i<5;++i) if(key==screens[4].rows[i].key) {
+            sound_want[i]=v;
+            if(i==0) sound_master_pending=true;
+        }
+        return;
+    }
     if(r.section==Section::Game) {
         // D19N: the original's own values, as its GAME SETTINGS CONFIRM leaves them.
         const uint16_t w=psx_mod_read_half(settings_word);
@@ -1162,6 +1195,12 @@ void apply_live(const Row& r,int v) {
 // P, H and Alt + wheel change view, shoulder and distance in game: the
 // MODERNIZED screen opens on what is live now.
 void refresh_from_game(int s) {
+    if(s==4) {
+        committed[s][0]=host_volume_get();
+        for(int i=1;i<4;++i) committed[s][i]=std::clamp<int>((psx_mod_read_word(0x800c39dcu+4*i)*100u+8191u)/16383u,0,100);
+        committed[s][4]=psx_mod_read_word(0x800c39ec)&1;
+        return;
+    }
     auto set=[&](const char* key,const char* value) {
         const int i=row_of(s,key);
         if(i>=0) committed[s][i]=choice_from_env(screens[s].rows[i],value);
@@ -1194,10 +1233,10 @@ void open_screen(int s) {
 }
 void leave_screen(bool keep) {
     const int s=screen;
-    if(keep && draft[s]!=committed[s]) {
+    if(keep && (draft[s]!=committed[s] || s==4)) {
         for(size_t i=0;i<screens[s].rows.size();++i) {
             const Row& r=screens[s].rows[i];
-            if(draft[s][i]!=committed[s][i] && !r.link && !r.heading && row_live(r)) apply_live(r,draft[s][i]);
+            if((draft[s][i]!=committed[s][i] || s==4) && !r.link && !r.heading && row_live(r)) apply_live(r,draft[s][i]);
         }
         committed[s]=draft[s];
         write_settings();
@@ -1600,7 +1639,9 @@ void draw_settings(Guest& g,const Geometry& geo) {
             continue;
         }
         if(r.slider && slot<slider_slots) {
-            const uint32_t obj=sliders+slider_size*slot++;
+            const uint32_t obj=slot==3 ? sound_slider : sliders+slider_size*slot;
+            ++slot;
+            if(!obj) continue;
             g.say(r.label,geo.x0+geo.w/3,y,font_small|right|hi);
             g.call(fn_slider_init,obj,0,(uint32_t)(y+5),(uint32_t)r.lo,(uint32_t)r.hi,(uint32_t)v[i],(uint32_t)r.step);
             g.call(fn_slider_draw,obj,hi,0,0);
@@ -2796,10 +2837,37 @@ struct LoadUi {
 } load_ui;
 static bool load_ui_trace() {return std::getenv("DNTTK_LOAD_UI_TRACE")!=nullptr;}
 
+void apply_sound(CPUState* cpu) {
+    ensure_init();
+    if(sound_master_pending) {host_volume_set(sound_want[0]);sound_master_pending=false;}
+    else if(sound_want[0]>=0 && sound_want[0]!=host_volume_get()) {
+        // Numpad volume and the runtime UI share this owner. Persist their
+        // changes too, so our launch preference never undoes them next time.
+        sound_want[0]=host_volume_get();
+        committed[4][0]=sound_want[0];
+        write_settings();
+    }
+    bool stream_changed=false;
+    for(int i=1;i<5;++i) if(sound_want[i]>=0) {
+        const uint32_t address=0x800c39dcu+4*i;
+        const uint32_t wanted=i==4 ? sound_want[i] : sound_want[i]*16383/100;
+        if(psx_mod_read_word(address)!=wanted) {
+            psx_mod_write_word(address,wanted);
+            if(i==2)stream_changed=true;
+        }
+    }
+    if(stream_changed) {
+        Guest g(cpu);
+        // Match the native MUSIC slider preview setter. SPEECH changes its
+        // stored gain for the native voice owner, as on the original screen.
+        g.call(0x8006acec,psx_mod_read_word(0x800c39e4),0,0,0);
+    }
+}
+
 void game_menu_frame(CPUState* cpu) {
     if(!enabled() || psx_mod_replay_active() || g_precise_mode || g_ls_mode || g_psx_call_bail) return;
     {std::lock_guard<std::recursive_mutex> lock(mutex);savestate_check();quick_poll();}
-    if(authentic()) enforce_modern_settings();
+    if(authentic()) {enforce_modern_settings();apply_sound(cpu);}
     if(load_ui.holding && cpu->gpr[31]==0x800268f4 &&
        psx_mod_read_half(game_mode)==1 && !psx_mod_read_half(paused)) {
         const uint32_t buffer=psx_mod_read_word(image_counter);

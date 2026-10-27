@@ -31,6 +31,7 @@ bool hold_button_sampled(){return false;}
 bool inventory_visible(){return ::inventory_visible;}
 unsigned mission_presses;int mission_steps;void mission_browse_press(int d){++mission_presses;mission_steps+=d;}}
 static bool crouch_walk; // D08K4
+static bool d21_swimming,d21_underwater;
 static bool ready, holstered, flight, traversal, preparing, shortfall, switching, jet, jet_classic, edge_queued;
 static const char* refusal="state";
 static bool alive=true,view_aim;
@@ -183,6 +184,64 @@ int main() {
     wheel(-1);CHECK(tick().commands[0]==ttk::weapon_previous);ack();key(SDL_SCANCODE_LSHIFT,false);
     key(SDL_SCANCODE_SEMICOLON,true);CHECK(tick().commands[0]==ttk::weapon_previous);ack();key(SDL_SCANCODE_SEMICOLON,false);
     key(SDL_SCANCODE_APOSTROPHE,true);CHECK(tick().commands[0]==ttk::weapon_next);ack();key(SDL_SCANCODE_APOSTROPHE,false);
+    const bool d21_ready_before=ready;ready=true;ttk::input_state_loaded();
+    CHECK(ttk::input_code_bindable(SDL_SCANCODE_C,ttk::crouch_alt));
+    key(SDL_SCANCODE_C,true);CHECK(tick().held[ttk::crouch]);
+    key(SDL_SCANCODE_C,false);CHECK(tick().held[ttk::crouch]); // release keeps stance
+    key(SDL_SCANCODE_C,true,true);CHECK(tick().held[ttk::crouch]); // repeats do not toggle
+    key(SDL_SCANCODE_C,true);CHECK(!tick().held[ttk::crouch]);key(SDL_SCANCODE_C,false);
+    key(SDL_SCANCODE_LCTRL,true);CHECK(tick().held[ttk::crouch]);
+    key(SDL_SCANCODE_C,true);key(SDL_SCANCODE_C,false);CHECK(tick().held[ttk::crouch]);
+    key(SDL_SCANCODE_C,true);key(SDL_SCANCODE_C,false);CHECK(tick().held[ttk::crouch]); // Ctrl still held
+    key(SDL_SCANCODE_LCTRL,false);CHECK(!tick().held[ttk::crouch]);
+    key(SDL_SCANCODE_C,true);key(SDL_SCANCODE_C,false);CHECK(tick().held[ttk::crouch]);
+    key(SDL_SCANCODE_LCTRL,true);CHECK(!tick().held[ttk::crouch]);
+    for(int i=0;i<5;++i)CHECK(!tick().held[ttk::crouch]);
+    key(SDL_SCANCODE_LCTRL,true,true);CHECK(!tick().held[ttk::crouch]);
+    key(SDL_SCANCODE_LCTRL,false);CHECK(!tick().held[ttk::crouch]);
+    key(SDL_SCANCODE_LCTRL,true);CHECK(tick().held[ttk::crouch]);
+    key(SDL_SCANCODE_LCTRL,false);CHECK(!tick().held[ttk::crouch]);
+    key(SDL_SCANCODE_C,true);key(SDL_SCANCODE_C,false);CHECK(tick().held[ttk::crouch]);
+    key(SDL_SCANCODE_SPACE,true);CHECK(!tick().held[ttk::crouch] && !tick().held[ttk::jump]);
+    for(int i=0;i<12;++i) {CHECK(!tick().held[ttk::jump]);CHECK(!ttk::input_jump_pending());CHECK(ttk::input_pad()&32768);}
+    key(SDL_SCANCODE_SPACE,true,true);CHECK(!tick().held[ttk::jump]);
+    key(SDL_SCANCODE_SPACE,false);CHECK(!tick().held[ttk::jump]);
+    key(SDL_SCANCODE_SPACE,true);CHECK(tick().held[ttk::jump] && ttk::input_jump_pending());
+    key(SDL_SCANCODE_SPACE,false);ttk::input_state_loaded();
+    key(SDL_SCANCODE_C,true);key(SDL_SCANCODE_C,false);CHECK(tick().held[ttk::crouch]);
+    ttk::input_release();CHECK(!tick().active);capture_fixture();CHECK(tick().held[ttk::crouch]);
+    ttk::input_state_loaded();CHECK(!tick().held[ttk::crouch]);
+    key(SDL_SCANCODE_C,true);key(SDL_SCANCODE_C,false);CHECK(tick().held[ttk::crouch]);
+    alive=false;CHECK(!tick().held[ttk::crouch]);alive=true;CHECK(!tick().held[ttk::crouch]);
+    key(SDL_SCANCODE_C,true);key(SDL_SCANCODE_C,false);CHECK(tick().held[ttk::crouch]);
+    jet=true;CHECK(!tick().held[ttk::crouch]);jet=false;CHECK(!tick().held[ttk::crouch]);
+    for(bool* state : {&d21_swimming,&d21_underwater,&traversal,&trav_camera}) {
+        key(SDL_SCANCODE_C,true);key(SDL_SCANCODE_C,false);CHECK(tick().held[ttk::crouch]);
+        *state=true;CHECK(!tick().held[ttk::crouch]);*state=false;CHECK(!tick().held[ttk::crouch]);
+    }
+    int d21_codes[ttk::action_count];
+    for(int i=0;i<ttk::action_count;++i)d21_codes[i]=ttk::input_binding_code(ttk::Action(i));
+    d21_codes[ttk::crouch_alt]=SDL_SCANCODE_G;ttk::input_set_binding_codes(d21_codes);
+    key(SDL_SCANCODE_C,true);CHECK(!tick().held[ttk::crouch]);key(SDL_SCANCODE_C,false);
+    key(SDL_SCANCODE_G,true);key(SDL_SCANCODE_G,false);CHECK(tick().held[ttk::crouch]);
+    d21_codes[ttk::crouch_alt]=0;ttk::input_set_binding_codes(d21_codes);CHECK(!tick().held[ttk::crouch]);
+    key(SDL_SCANCODE_G,true);CHECK(!tick().held[ttk::crouch]);key(SDL_SCANCODE_G,false);
+    d21_codes[ttk::crouch_alt]=-2;ttk::input_set_binding_codes(d21_codes);
+    SDL_Event d21_mouse{};d21_mouse.button.windowID=SDL_GetWindowID(win);d21_mouse.button.button=2;
+    d21_mouse.type=SDL_MOUSEBUTTONDOWN;ttk::input_event(d21_mouse);CHECK(tick().held[ttk::crouch]);
+    d21_mouse.type=SDL_MOUSEBUTTONUP;ttk::input_event(d21_mouse);CHECK(tick().held[ttk::crouch]);
+    d21_mouse.type=SDL_MOUSEBUTTONDOWN;ttk::input_event(d21_mouse);CHECK(!tick().held[ttk::crouch]);
+    d21_mouse.type=SDL_MOUSEBUTTONUP;ttk::input_event(d21_mouse);
+    d21_codes[ttk::crouch_alt]=SDL_SCANCODE_C;ttk::input_set_binding_codes(d21_codes);
+    d21_codes[ttk::crouch]=-4;ttk::input_set_binding_codes(d21_codes);
+    key(SDL_SCANCODE_C,true);key(SDL_SCANCODE_C,false);CHECK(tick().held[ttk::crouch]);
+    d21_mouse.button.button=4;d21_mouse.type=SDL_MOUSEBUTTONDOWN;ttk::input_event(d21_mouse);
+    CHECK(!tick().held[ttk::crouch]);CHECK(!tick().held[ttk::crouch]);
+    d21_mouse.type=SDL_MOUSEBUTTONUP;ttk::input_event(d21_mouse);CHECK(!tick().held[ttk::crouch]);
+    d21_mouse.type=SDL_MOUSEBUTTONDOWN;ttk::input_event(d21_mouse);CHECK(tick().held[ttk::crouch]);
+    d21_mouse.type=SDL_MOUSEBUTTONUP;ttk::input_event(d21_mouse);CHECK(!tick().held[ttk::crouch]);
+    d21_codes[ttk::crouch]=SDL_SCANCODE_LCTRL;ttk::input_set_binding_codes(d21_codes);
+    ready=d21_ready_before;
     key(SDL_SCANCODE_LCTRL,true);CHECK(tick().active && tick().held[ttk::crouch]);
     CHECK((ttk::input_pad()&4096)!=0);key(SDL_SCANCODE_LCTRL,false);CHECK(!tick().held[ttk::crouch]);
     key(SDL_SCANCODE_LALT,true);wheel(2);CHECK(tick().command_count==0 && tick().distance_total==2);
@@ -361,7 +420,7 @@ int main() {
     key(SDL_SCANCODE_RETURN,true);
     CHECK(!tick().active && !(ttk::input_pad()&8));key(SDL_SCANCODE_RETURN,false);
     // A saved custom speed binding keeps working; no action/schema migration.
-    SDL_setenv_unsafe("DNTTK_INPUT_BINDINGS", "1:26,22,4,7,-1,44,11,25,21,0,0,0,12,8,0,0,0,-3,226,51,52,27,16,225,13,17,5,47,48,24,20,30,31,32,33,34,35,36,37,38,39,54,55,75,78,74,77,80,79,63,66", 1);
+    SDL_setenv_unsafe("DNTTK_INPUT_BINDINGS", "1:26,22,4,7,-1,44,11,25,21,0,0,0,12,8,0,0,0,-3,226,51,52,27,16,225,13,17,5,47,48,24,20,30,31,32,33,34,35,36,37,38,39,54,55,75,78,74,77,80,79,63,66,6", 1);
     ttk::input_init(win);focus(true);capture_fixture();ready=true;
     CHECK((ttk::input_pad() & 1024) == 0); // launch resets autorun off
     key(SDL_SCANCODE_R,true);CHECK((ttk::input_pad() & 1024) != 0);
@@ -761,7 +820,7 @@ int main() {
     leap_on=false;tick();CHECK((ttk::input_pad()&16384)!=0);
     holstered=false;
     // Rebinding fire preserves draw behavior; the old mouse binding is inactive.
-    ttk::input_release();SDL_setenv_unsafe("DNTTK_INPUT_BINDINGS", "1:26,22,4,7,10,44,11,25,21,0,0,0,12,8,0,0,0,-3,226,51,52,27,16,225,13,17,5,47,48,24,20,30,31,32,33,34,35,36,37,38,39,54,55,75,78,74,77,80,79,63,66",1);
+    ttk::input_release();SDL_setenv_unsafe("DNTTK_INPUT_BINDINGS", "1:26,22,4,7,10,44,11,25,21,0,0,0,12,8,0,0,0,-3,226,51,52,27,16,225,13,17,5,47,48,24,20,30,31,32,33,34,35,36,37,38,39,54,55,75,78,74,77,80,79,63,66,6",1);
     ttk::input_init(win);focus(true);capture_fixture();ready=true;flight=false;holstered=true;
     mousefire(true);tick();CHECK((ttk::input_pad()&(8192|16384))==(8192|16384));mousefire(false);
     key(SDL_SCANCODE_G,true);tick();CHECK((ttk::input_pad()&8192)==0 && (ttk::input_pad()&16384)!=0);
@@ -855,6 +914,6 @@ int main() {
 namespace ttk { bool directional_takeoff_ready(){return preparing;} bool edge_jump_queued(){return edge_queued;}
 bool short_fall_input_ready() { return shortfall && flight; } bool fire_draw_ready() { return ready && holstered; } bool airborne_input_ready() { return flight; } bool interaction_alive() { return alive; } bool interaction_restore_ready() { return ready && holstered; } bool interaction_swim_restore_ready() { return false; } bool view_aim_input_ready(){return view_aim;}
 bool weapon_drawn() { return !holstered; } bool weapon_holstered() { return holstered; } bool player_identity_ready() { return true; }
-bool crouch_walk_input_ready() { return crouch_walk; } bool movement_ready() { return ready; } bool locomotion_input_ready() { return flight; } bool traversal_input_ready() { return traversal; } bool traversal_camera_ready() { return trav_camera; } bool committed_camera_ready() { return roll_camera; } bool swim_input_ready() { return false; } bool wade_full_speed_ready() { return false; } bool swim_host_owns_jump() { return false; } void swim_strafe_pads(uint16_t& left,uint16_t& right) { left=0x100; right=0x200; } bool swim_thrust_input_ready() { return false; } bool jetpack_input_ready() { return jet; } bool jetpack_classic_input_ready() { return jet && jet_classic; } bool interaction_holster_ready() { return (ready || flight) && !holstered && !switching; } bool interaction_ready() { return (ready || flight || traversal) && holstered && !switching; } bool push_grab_ready() { return push_grab; } bool push_contact_ready() { return push_contact; } bool push_idle_ready() { return push_idle; } uint16_t push_pad(float,float y) { return !push_grab?0:y>0?16:y<0?64:0; } const char* controls_debug_json() { return "{}"; } const char* lease_refusal_reason() { return refusal; }
+bool crouch_walk_input_ready() { return crouch_walk; } bool movement_ready() { return ready; } bool locomotion_input_ready() { return flight; } bool traversal_input_ready() { return traversal; } bool traversal_camera_ready() { return trav_camera; } bool committed_camera_ready() { return roll_camera; } bool swim_input_ready() { return d21_swimming; } bool wade_full_speed_ready() { return false; } bool swim_host_owns_jump() { return false; } void swim_strafe_pads(uint16_t& left,uint16_t& right) { left=0x100; right=0x200; } bool swim_thrust_input_ready() { return d21_underwater; } bool jetpack_input_ready() { return jet; } bool jetpack_classic_input_ready() { return jet && jet_classic; } bool interaction_holster_ready() { return (ready || flight) && !holstered && !switching; } bool interaction_ready() { return (ready || flight || traversal) && holstered && !switching; } bool push_grab_ready() { return push_grab; } bool push_contact_ready() { return push_contact; } bool push_idle_ready() { return push_idle; } uint16_t push_pad(float,float y) { return !push_grab?0:y>0?16:y<0?64:0; } const char* controls_debug_json() { return "{}"; } const char* lease_refusal_reason() { return refusal; }
 bool ladder_top_available() { return ladder_top; } void ladder_top_request() { ++ladder_requests; } bool ladder_descent_ready() { return ladder_on && traversal; } int ladder_bottom_hang() { return traversal ? ladder_hang : 0; } bool ladder_end_below() { return traversal && ladder_end; } bool ladder_mount_finishing() { return false; } bool ladder_exit_ready() { return ladder_exit && traversal; } bool object_hang_release_ready() { return false; } bool ledge_hang_ready() { return ledge_hang && traversal; } bool pole_sidestep_ready() { return pole && traversal; } bool pole_view_from_front(bool held) { static bool front; if(!held) front=pole_front; return front; } bool pole_let_go_ready() { return pole_end && pole && traversal; } bool ceiling_hang_ready() { return ceiling && traversal; } bool ceiling_hang_advance() { return ceiling_adv && ceiling && traversal; } bool ceiling_hang_drop() { return ceiling_let_go && ceiling && traversal; }
 bool ladder_leap_ready() { return ladder_leap; } bool ladder_leap_active() { return leap_on; } void ladder_leap_note() { ++ladder_leaps; } }

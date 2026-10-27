@@ -470,7 +470,7 @@ mouse movement orbits the third-person camera. With view weapon aiming enabled,
 Duke turns to face the view horizontally when holstered or using a supported weapon.
 
 While captured, use **left mouse** to fire/action, **Space** to jump, **Scroll Lock** (tap) to
-draw/holster, **hold Left Ctrl** to crouch (with W/A/S/D: crouch walk, see Crouch walking) and release to stand (when overhead clearance permits), **Left Shift** as the speed modifier,
+draw/holster, **hold Left Ctrl** to crouch and release to stand, or **tap C** to stay crouched and tap it again to stand (with W/A/S/D: crouch walk; standing requires overhead clearance), **Left Shift** as the speed modifier,
 **hold right mouse** (or **Alt**) to grab a pushable object, **comma/period** to browse the mission items (see Mission items below; the original sidesteps are unbound, A/D strafe),
 and **I** for inventory. **E is interaction-only and never fires.** If necessary,
 a tap automatically requests holstering and then interacts once that animation
@@ -1325,13 +1325,31 @@ the same way on every menu screen:
   The F7 savestate menu and the console keep their own keys.
 - Vanilla keeps the original keyboard layout.
 
+**KEY BINDINGS > HELD CROUCH** (C by default) toggles the crouch stance:
+press once to stay crouched after releasing the key, then press again to stand
+when there is room. **CROUCH** (Left Ctrl) remains momentary: hold to crouch,
+release to stand. Pressing Ctrl while C has crouch toggled on cancels the
+toggle and stands Duke up when there is room. That Ctrl hold is consumed;
+release and press Ctrl again for normal momentary crouch. **Space** also cancels
+C's crouch toggle and stands Duke up without jumping. Release Space and press
+again to jump; this follows the configured JUMP binding.
+
+HELD CROUCH remains set across pause/focus changes. Loading, death, rebinding,
+switching away from Modern controls or entering swimming, jetpack or unsupported
+traversal clears it. C does not toggle underwater/jetpack descent; Ctrl retains
+its existing dive/descent action. A custom C mapping is preserved during profile
+migration; HELD CROUCH then starts unbound.
+
 #### In-game OPTIONS (Modernized)
 
 OPTIONS, on the title menu and in the pause menu, lists five screens, all in
 the original's style:
 
-- **SOUND**: the original screen (sound effects, music and speech volume,
-  stereo / mono).
+- **SOUND**: MASTER, SOUND EFFECTS, MUSIC and SPEECH volume sliders, plus
+  stereo / mono MODE. Left/Right changes the highlighted value; CONFIRM
+  applies and saves the page, CANCEL discards edits, and DEFAULTS resets the
+  draft to full volume and stereo. Confirmed settings survive game loads.
+  MASTER uses the existing host volume, including its numpad shortcuts.
 - **CONTROLS**: mouse sensitivity (slider), invert mouse and **KEY
   BINDINGS** (below).
 - **DISPLAY**: window (windowed / borderless / exclusive), resolution,

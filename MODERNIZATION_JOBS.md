@@ -397,7 +397,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D17Z | Slot-12 medieval corridor wall glitch | Done | D11B, D17N, D17Q |
 | D17AA | Slot-12 wall tear exposes the pushable block after one step | Done | D17Z, D11B, D17M |
 | D17Y | Slot 8: fire-platform flicker and upper castle walls disappearing during a jump | Done | D17A, D11B, D14 |
-| D18 | FMV and audio presentation safeguards | Needs playtest | D01, D02 |
+| D18 | FMV and audio presentation safeguards | Done (research accepted 2026-10-27) | D01, D02 |
 | D18A | Voice/music/gunfire crackle investigation | Done | D01, D02 |
 | D18B | Concurrent voice with music (no music mute) | Todo | D18, D21 |
 | D18C | Load-sensitive crackle at construction signs and train ledge | Todo | D17B, D18A |
@@ -442,7 +442,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D20D | Richer statistics screen (option B, part 2): level, difficulty, mission items, best time per level and difficulty (our own file) | Done (user-accepted 2026-10-21) | D20B, D08A5, D20F |
 | D20E | Statistics research: enemy total (kills X of Y), shots / accuracy, damage taken; show only once verified | Done (user-accepted 2026-10-22) | D20B |
 | D20G | Investigate UI slot 11 reload fatal GPU halt: regression assessment and fix decision; recurrence lessons in note 213 | Done (user-accepted 2026-10-24; unreproduced, revisit if similar symptoms recur) | D20C |
-| D21 | Accessibility and sound controls | Todo | D04, D19 |
+| D21 | Reworked SOUND menu and configurable C held crouch | Done (user-accepted 2026-10-27) | D04, D19 |
 | D22 | Campaign fidelity and overlay coverage | Todo | D01 |
 | D22A | Portal transition loses Modernized controls and first person (slot 7) | Accepted | D05, D06, D11 |
 | D22B | Modern controls and first person in every level and transition (no classic fallback) | Accepted | D22A, D26A |
@@ -8782,7 +8782,7 @@ Use a systemic fix supported by evidence, and obtain user playtest acceptance.
 
 ### D18 - FMV and audio presentation safeguards
 
-**Status: Needs playtest (2026-10-27 reliability pass).** All eight native-table clips covered, including guarded private fixtures for optional/ending clips. Skip, cadence, seek/read and clean debug-quit evidence recorded. Listening/sync, real desktop fullscreen/window-close and natural campaign ending routes remain open. No decoder/gameplay changes justified by this pass. [Note 281](documentation/281-d18-fmv-reliability.md) contains the matrix, diagnostic tool and limitations.
+**Status: Done (research accepted by user 2026-10-27).** The user confirmed this was a completed research job. The following verification limits remain evidence limits, not outstanding D18 acceptance gates. All eight native-table clips covered, including guarded private fixtures for optional/ending clips. Skip, cadence, seek/read and clean debug-quit evidence recorded. Listening/sync, real desktop fullscreen/window-close and natural campaign ending routes remain open. No decoder/gameplay changes justified by this pass. [Note 281](documentation/281-d18-fmv-reliability.md) contains the matrix, diagnostic tool and limitations.
 
 Expand coverage beyond the opening movie: playback, skipping, transitions and return to gameplay. Preserve native movie cadence and audio synchronization through display/profile changes. Optional scaling must not invent a higher source frame rate or regress the fixed streaming path.
 
@@ -10462,15 +10462,27 @@ self-damage but not flyers (note 183). Python 164 OK, `ttk-input-test`,
 Limits: no level was fully cleared (X = Y not seen in play); dancers are part
 of Y as the game counts them; levels ended with `endlevel`.
 
-### D21 — Accessibility and sound controls
+### D21 - Reworked SOUND menu and configurable C held crouch
 
-Implement feasible music/effects/voice controls after verifying the game's mixing paths; provide readable UI sizing, reduced camera motion and toggle/hold options where useful. Investigate subtitles against available dialogue assets rather than assuming a complete transcript exists.
+**Status: Done (user-accepted and closeout authorized 2026-10-27).**
+Rework SOUND in the existing TTK menu style: MASTER, SOUND EFFECTS, MUSIC,
+SPEECH and stereo/mono MODE. Reuse existing audio owners and confirmed-settings
+persistence. C is HELD CROUCH: press to keep crouching, press again to stand.
+Ctrl or Space cancels the toggle without immediately crouching or jumping;
+release and press again for the normal action. It is configurable in KEY
+BINDINGS; Left Ctrl remains momentary. Custom mappings
+are preserved. This supersedes the initial mistaken secondary-hold implementation.
 
-**2026-09-27 backlog emphasis:** mirror EDuke32-style **master / music / sound-effect**
-channel volumes in the future menu system once D18B concurrent voice+music policy
-exists. Coordinate with D19; do not invent a second mixer without measured paths.
+User explicitly rejected the accessibility panel. No new accessibility screen,
+view-bob relocation, text sizing or subtitle work in this job. The user later
+clarified that the requested C binding is a crouch toggle.
+Concurrent voice/music remains D18B, not a prerequisite for this menu redesign.
+[Note 282](documentation/282-d21-accessibility-sound-design.md) records the current
+scope, source findings, preview and verification requirements.
 
-**Acceptance:** exposed controls affect the intended channels/actions and persist; text remains legible at supported sizes. List subtitle coverage and any missing source material explicitly. Additional transcription can become a separately scoped job.
+**Acceptance:** correct channel/action behavior, confirm/cancel and persistence;
+original-style title/pause menu at 60/120; configurable held C crouch with safe
+migration and overlapping inputs; existing options and Vanilla preserved.
 
 ### D22 — Campaign fidelity and overlay coverage
 
@@ -21629,3 +21641,76 @@ Closeout verification: four FMV poll/DMA math tests, runner syntax and CLI help
 pass. Framework export is unchanged and applies cleanly to the pinned dependency.
 No new build or game launch; player saves/cards remain untouched.
 Launch from the workspace root: `python3 recomp/tools/local/run.py`.
+
+## 2026-10-27 - D18 research accepted; D21 selected
+
+User explicitly corrected D18 to Done as completed research. Note 281 retains
+listening, desktop and natural-ending evidence limits without a pending D18
+playtest gate. D21 selected; existing settings and audio owners inspected,
+initial design recorded in note 282 and an interactive preview prepared.
+No gameplay changes, build, launch, commit or push.
+
+## 2026-10-27 - D21 narrowed to SOUND and C held crouch
+
+User rejected the accessibility panel and selected only the reworked SOUND
+menu plus configurable C held crouch. Updated note 282 and the interactive
+preview, retaining the previous standalone link. No gameplay changes or build.
+
+## 2026-10-27 - D21 SOUND and secondary crouch candidate
+
+Reworked SOUND with Master/effects/music/speech/mode, confirm/cancel/defaults
+and schema-53 persistence. C is configurable as CROUCH 2 alongside Left Ctrl;
+custom mappings preserved. Build, 118 Python tests, native input regression,
+private pause 60/120, title 120, gain/persistence/load and real SDL C/Ctrl checks
+pass. Note 282 records evidence and listening/coverage limits. Needs playtest;
+no acceptance closeout, commit or push.
+
+## 2026-10-27 - D21 C toggle correction
+
+Audio accepted by the user. HELD CROUCH now means press C to remain crouched,
+press again to stand; Ctrl stays momentary. Initial duplicate held-key behavior
+is superseded. Binding IDs and custom mappings preserved. Build, native input
+suite, fourteen Python tests and private real-SDL tap/release, second press,
+Ctrl, overlap, pause and load checks pass. Note 282 has lifecycle boundaries.
+Needs playtest for the correction; no closeout, commit or push.
+
+## 2026-10-27 - D21 Ctrl cancels HELD CROUCH
+
+At the user's request, pressing Ctrl while C has crouch latched now clears
+that latch and stands Duke up when there is room. The cancelling hold stays
+consumed until release; the next Ctrl press works as momentary crouch again.
+This follows the configurable CROUCH binding, including mouse bindings.
+Player build, native SDL input suite, fourteen Python tests and private real-SDL
+gameplay checks pass, including remaining upright while Ctrl stays down and
+normal crouch on the next press. SOUND remains user-accepted and unchanged.
+The new cancellation is ready for user playtest; no closeout, commit or push.
+Launch: `python3 recomp/tools/local/run.py` from the workspace root.
+
+## 2026-10-27 - D21 Space exits HELD CROUCH
+
+Space now cancels C's crouch toggle and stands Duke up where there is room,
+without jumping. The cancelling jump hold is consumed until release; a fresh
+press jumps normally. This follows the configurable JUMP binding. Ctrl's
+previous cancellation remains intact. SOUND is unchanged.
+
+Player build, native SDL regression and fourteen Python input/profile tests
+pass. Private real-SDL gameplay verifies standing idle throughout the consumed
+Space hold and jumping on the next press, alongside C/Ctrl/pause/load regression.
+Ready for user playtest; no closeout, commit or push.
+Launch: `python3 recomp/tools/local/run.py` from the workspace root.
+
+## 2026-10-27 - D21 accepted and closed
+
+User accepted the completed SOUND menu and HELD CROUCH behavior and explicitly
+authorized closeout. D21 is Done. SOUND provides Master, Sound Effects, Music,
+Speech and stereo/mono mode with confirm/cancel/defaults and persistence.
+C toggles crouch; Ctrl or Space cancels it and stands Duke up where there is
+room. The cancelling hold is consumed; fresh Ctrl crouches and fresh Space
+jumps. Both actions remain configurable. No accessibility panel was added;
+VIEW BOB remains in GAMEPLAY and Vanilla keeps its existing play behavior.
+
+Build, native SDL regression, 118 Python input/profile tests and private live
+menu/input checks passed. User acceptance supplies the final playtest decision.
+Note 282 retains the test evidence and historical iterations. D18 remains Done
+as accepted research; its separate implementation jobs are unchanged.
+Launch: `python3 recomp/tools/local/run.py` from the workspace root.

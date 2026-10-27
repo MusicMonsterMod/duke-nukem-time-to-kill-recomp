@@ -1,5 +1,98 @@
 # Next-session handoff
 
+## 2026-10-27 - D21 accepted and closed
+
+User accepted the completed SOUND menu and HELD CROUCH behavior and explicitly
+authorized closeout. D21 is Done. SOUND provides Master, Sound Effects, Music,
+Speech and stereo/mono mode with confirm/cancel/defaults and persistence.
+C toggles crouch; Ctrl or Space cancels it and stands Duke up where there is
+room. The cancelling hold is consumed; fresh Ctrl crouches and fresh Space
+jumps. Both actions remain configurable. No accessibility panel was added;
+VIEW BOB remains in GAMEPLAY and Vanilla keeps its existing play behavior.
+
+Build, native SDL regression, 118 Python input/profile tests and private live
+menu/input checks passed. User acceptance supplies the final playtest decision.
+Note 282 retains the test evidence and historical iterations. D18 remains Done
+as accepted research; its separate implementation jobs are unchanged.
+Launch: `python3 recomp/tools/local/run.py` from the workspace root.
+
+
+## 2026-10-27 - D21 Space exits HELD CROUCH
+
+Space now cancels C's crouch toggle and stands Duke up where there is room,
+without jumping. The cancelling jump hold is consumed until release; a fresh
+press jumps normally. This follows the configurable JUMP binding. Ctrl's
+previous cancellation remains intact. SOUND is unchanged.
+
+Player build, native SDL regression and fourteen Python input/profile tests
+pass. Private real-SDL gameplay verifies standing idle throughout the consumed
+Space hold and jumping on the next press, alongside C/Ctrl/pause/load regression.
+Ready for user playtest; no closeout, commit or push.
+Launch: `python3 recomp/tools/local/run.py` from the workspace root.
+
+
+## 2026-10-27 - D21 Ctrl cancels HELD CROUCH
+
+At the user's request, pressing Ctrl while C has crouch latched now clears
+that latch and stands Duke up when there is room. The cancelling hold stays
+consumed until release; the next Ctrl press works as momentary crouch again.
+This follows the configurable CROUCH binding, including mouse bindings.
+Player build, native SDL input suite, fourteen Python tests and private real-SDL
+gameplay checks pass, including remaining upright while Ctrl stays down and
+normal crouch on the next press. SOUND remains user-accepted and unchanged.
+The new cancellation is ready for user playtest; no closeout, commit or push.
+Launch: `python3 recomp/tools/local/run.py` from the workspace root.
+
+
+## 2026-10-27 - D21 HELD CROUCH corrected to toggle
+
+User accepted SOUND, then clarified that C should keep crouch after release.
+C now toggles the stance; Ctrl remains momentary. HELD CROUCH remains the label,
+with explicit toggle help. Pause preserves the toggle; load/death/rebinding and
+swim/jetpack/unsupported traversal clear it. Sound code unchanged.
+
+Build, native SDL input regression, fourteen Python input/profile tests and
+private real-SDL gameplay checks pass. Note 282 records the corrected candidate
+and boundaries. C correction Needs playtest; no closeout, commit or push.
+Launch: `python3 recomp/tools/local/run.py` from the workspace root.
+
+
+## 2026-10-27 - D21 candidate ready for playtest
+
+SOUND is recomp-owned in the accepted menu style: Master, Sound Effects, Music,
+Speech and Mode. Confirm applies/saves, Cancel discards, Defaults resets draft.
+C is the configurable CROUCH 2 held input alongside Ctrl. No accessibility
+panel or other proposed accessibility features were added.
+
+Build, 118 Python tests, native SDL input suite, pause 60/120 and title 120
+captures, native gain/persistence/load checks and private real SDL crouch checks
+pass. Actual listening and broader audio-transition coverage remain open.
+D21 is Needs playtest; note 282 has details and the candidate fingerprint.
+No player saves/cards touched, framework changes or commit/push.
+Launch from workspace root: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-27 - D21 scope correction
+
+D21 now covers only the reworked SOUND menu and configurable C held crouch.
+The accessibility panel proposal is withdrawn; VIEW BOB stays in GAMEPLAY.
+No crouch toggle, text sizing or subtitle work. Sound-only preview revised
+at the same standalone link. Note 282 records source findings, including
+C binding restrictions and four-slider replay storage considerations.
+Design/source investigation only; no gameplay changes, build, commit or push.
+
+
+## 2026-10-27 - D18 complete; D21 design kickoff
+
+D18 is Done by explicit user acceptance of its completed research scope.
+Note 281 retains unverified listening/sync, desktop/window-close and natural
+ending routes as evidence limits; these no longer block D18 completion.
+D21 is In progress: initial accessibility/sound research and interactive
+preview requested. Note 282 records existing controls, proposed scope and
+the D18B dependency loop. No gameplay changes, build or launch. No commit
+or push authorized in this session. Existing framework changes preserved.
+
+
 ## 2026-10-27 - D18 reliability session closeout authorized
 
 User requested "lock us in and close us out" after the previous session clear.

@@ -66,3 +66,6 @@ TTK_ACTION(turn_right, Right, 79, 0)
 // D20: EDuke32's Quick_Save / Quick_Load, on a press (host only, never queued).
 TTK_ACTION(quick_save, F6, 63, 0)
 TTK_ACTION(quick_load, F9, 66, 0)
+
+// D21: HELD CROUCH toggles the stance; append to preserve stable action IDs.
+TTK_ACTION(crouch_alt, C, 6, 0)

@@ -139,6 +139,8 @@ static void command(int action) {
     if(action>=weapon_previous && action<=weapon_last || action>=weapon_group_1 && action<=weapon_group_0)cancel_restore();
 }
 static InputFrame frame, empty;
+// HELD CROUCH is a press-to-toggle stance, distinct from the momentary key.
+static bool crouch_latched, crouch_cancel_held, crouch_jump_consumed;
 static double total_x, total_y;
 // D17B: consumed mouse motion with its event time (presenter clock, ms), so a
 // late camera can take the look as it was at a fixed time before each
@@ -236,6 +238,7 @@ static bool capture_now() {
 // A savestate load replaced the guest state: host requests that described
 // the old state (stow, weapon restore, push, queued jumps) must not act on it.
 void input_state_loaded() {
+    crouch_latched=false;crouch_cancel_held=false;crouch_jump_consumed=false;
     interaction_pending=false;interaction_pulse=0;interaction_started=false;holster_pulse=0;swim_redraw=0;
     airborne_interact=false;cancel_restore();push_reset();jump_deadline=0;jump_pressed_at=0;
 }
@@ -274,7 +277,7 @@ static bool allowed(int code) {
         || code == 61 || code == 62 || code == 63 || code == 66 || code == 69;
 }
 void input_init(SDL_Window* w) {
-    window = w;inventory_enter_down=false;
+    window = w;inventory_enter_down=false;crouch_latched=false;crouch_cancel_held=false;crouch_jump_consumed=false;
     cancel_restore();
     autorun = false;
     initial_capture = !std::getenv("DNTTK_AUTO_CAPTURE") || std::strcmp(std::getenv("DNTTK_AUTO_CAPTURE"),"0");
@@ -303,7 +306,7 @@ void input_init(SDL_Window* w) {
             char* end;
             long value = std::strtol(cursor, &end, 10);
             valid = end != cursor && value >= -5 && value <= 226 && allowed((int)value)
-                && (value != 6 || i == holster)
+                && (value != 6 || i == holster || i == crouch || i == crouch_alt)
                 && *end == (i + 1 == action_count ? '\0' : ',');
             for (int j = 0; j < i; ++j) if (parsed[j] == value && value != 0) valid = false;
             parsed[i] = (int)value;
@@ -330,11 +333,13 @@ int input_default_code(Action action) {
     return action>=0 && action<action_count ? defaults[action] : 0;
 }
 bool input_code_bindable(int code, Action action) {
-    return allowed(code) && (code != SDL_SCANCODE_C || action == holster);
+    return allowed(code) && (code != SDL_SCANCODE_C || action == holster || action == crouch || action == crouch_alt);
 }
 // Bindings change in the menu, which owns the keys meanwhile; held keys are
 // read through binds[] on the next gameplay frame.
 void input_set_binding_codes(const int* codes) {
+    if(codes[jump]!=binds[jump]) crouch_jump_consumed=false;
+    if(codes[crouch]!=binds[crouch] || codes[crouch_alt]!=binds[crouch_alt]) {crouch_latched=false;crouch_cancel_held=false;crouch_jump_consumed=false;}
     for (int i = 0; i < action_count; ++i) binds[i] = codes[i];
 }
 void input_capture_key(bool on) {captured_key.store(no_key);key_capture.store(on);}
@@ -356,8 +361,39 @@ const char* input_binding_name(Action action) {
 // Either Alt / either Shift satisfies a left-modifier binding.
 static bool down(int code) { return code < 0 ? mouse[-code] : code==SDL_SCANCODE_LALT ? keys[code] || keys[SDL_SCANCODE_RALT] :
     code==SDL_SCANCODE_LSHIFT ? keys[code] || keys[SDL_SCANCODE_RSHIFT] : keys[code]; }
-// D08T1: with legacy (original) weapon aiming or the original camera the
-// primary Grab input keeps its old precision-aim role; Grab (second) grabs.
+// Ctrl remains momentary. The separate C action keeps a stance until toggled.
+static bool crouch_down() {
+    return (!crouch_cancel_held && binds[crouch] && down(binds[crouch])) || crouch_latched;
+}
+static bool jump_down() { return !crouch_jump_consumed && down(binds[jump]); }
+static void crouch_jump_press() {
+    if(!crouch_latched) return;
+    crouch_latched=false;
+    crouch_jump_consumed=true;
+    crouch_cancel_held=binds[crouch] && down(binds[crouch]);
+    jump_deadline=jump_pressed_at=0;
+}
+static bool crouch_binding_event(int code) {
+    return code==binds[crouch] ||
+        (binds[crouch]==SDL_SCANCODE_LSHIFT && code==SDL_SCANCODE_RSHIFT) ||
+        (binds[crouch]==SDL_SCANCODE_LALT && code==SDL_SCANCODE_RALT);
+}
+static void momentary_crouch_press() {
+    // A press cancels the latched stance instead of immediately crouching again.
+    // Consume this whole hold; a fresh press after release is momentary as usual.
+    if(crouch_latched) {crouch_latched=false;crouch_cancel_held=true;}
+}
+static bool crouch_toggle_context() {
+    return input_modern_controls() && interaction_alive() &&
+        !swim_input_ready() && !swim_thrust_input_ready() && !jetpack_input_ready() &&
+        !traversal_input_ready() && !traversal_camera_ready();
+}
+static void toggle_crouch() {
+    if(crouch_latched) {crouch_latched=false;return;}
+    if(crouch_toggle_context() && (movement_ready() || locomotion_input_ready() ||
+       crouch_walk_input_ready() || airborne_input_ready())) crouch_latched=true;
+}
+// D08T1: primary Grab also provides original precision aim when selected.
 static bool legacy_aim() {
     const char* mode=ttk_live_env("DNTTK_WEAPON_AIM");
     return !independent_camera() || !mode || std::strcmp(mode,"view");
@@ -519,6 +555,9 @@ void input_event(const SDL_Event& e) {
             input_notice(autorun ? "RUN MODE ON" : "RUN MODE OFF");
             std::fprintf(stderr, "[TTK input] Autorun %s\n", autorun ? "on" : "off");
         }
+        if(pressed && captured && code==binds[jump]) crouch_jump_press();
+        if(pressed && captured && crouch_binding_event(code)) momentary_crouch_press();
+        if(pressed && captured && code==binds[crouch_alt]) toggle_crouch();
         // Inventory sits before weapon_previous in Action order, so it is not in the
         // edge-command loop below. I toggles the crosshair; RShift still opens Select.
         if(pressed && captured && code==binds[inventory] &&
@@ -533,9 +572,11 @@ void input_event(const SDL_Event& e) {
             if(code==binds[i])camera_action(i);
         if(code==SDL_SCANCODE_LALT || code==SDL_SCANCODE_RALT)wheel_fraction=0;
         if (code >= 0 && code < 512) keys[code] = pressed;
+        if(!pressed && crouch_binding_event(code) && !down(binds[crouch])) crouch_cancel_held=false;
+        if(!pressed && code==binds[jump]) crouch_jump_consumed=false;
         if (pressed) device = Device::Keyboard;
         // Space is always jump; while Duke holds an object it is ignored.
-        if(pressed && captured && code==binds[jump] && !push_latched) {
+        if(pressed && captured && code==binds[jump] && !push_latched && !crouch_jump_consumed) {
             jump_deadline=sequence+8;jump_pressed_at=sequence;
             // Armed run-jumps often press E during flight. If E is already held
             // at takeoff, keep/refresh the stow lease so the weapon clears early.
@@ -559,7 +600,12 @@ void input_event(const SDL_Event& e) {
         if(e.type==SDL_MOUSEBUTTONDOWN)cheat_typing.reset();
         if(e.type==SDL_MOUSEBUTTONDOWN && e.button.button<6 && quick_press(-int(e.button.button),(int)SDL_GetModState())) return;
         if (captured && e.button.button < 6) {
+            if(e.type==SDL_MOUSEBUTTONDOWN && !mouse[e.button.button] && binds[jump]==-int(e.button.button)) crouch_jump_press();
+            if(e.type==SDL_MOUSEBUTTONUP && binds[jump]==-int(e.button.button)) crouch_jump_consumed=false;
+            if(e.type==SDL_MOUSEBUTTONDOWN && !mouse[e.button.button] && binds[crouch]==-int(e.button.button)) momentary_crouch_press();
+            if(e.type==SDL_MOUSEBUTTONDOWN && !mouse[e.button.button] && binds[crouch_alt]==-int(e.button.button)) toggle_crouch();
             mouse[e.button.button] = e.type == SDL_MOUSEBUTTONDOWN;
+            if(e.type==SDL_MOUSEBUTTONUP && binds[crouch]==-int(e.button.button)) crouch_cancel_held=false;
             if(e.type==SDL_MOUSEBUTTONDOWN && binds[inventory]==-int(e.button.button)) {
                 ttk_aim_toggle_crosshair();
                 input_notice(ttk_aim_crosshair_enabled()?"CROSSHAIR ON":"CROSSHAIR OFF");
@@ -569,7 +615,7 @@ void input_event(const SDL_Event& e) {
             if(e.type==SDL_MOUSEBUTTONDOWN)for(int i:{camera_recenter,camera_shoulder,camera_view,look_up,look_down})
                 if(binds[i]==-int(e.button.button))camera_action(i);
             device = Device::Mouse;
-            if(e.type==SDL_MOUSEBUTTONDOWN && binds[jump]==-int(e.button.button) && !push_latched) {
+            if(e.type==SDL_MOUSEBUTTONDOWN && binds[jump]==-int(e.button.button) && !push_latched && !crouch_jump_consumed) {
                 jump_deadline=sequence+8;
                 if(down(binds[interact]) || interaction_pending) {
                     interaction_pending=true;interaction_deadline=sequence+120;
@@ -618,6 +664,9 @@ uint64_t input_host_frame() { return sequence; }
 static std::atomic<bool> interaction_request{false};
 void input_request_interaction() {interaction_request.store(true);}
 void input_frame() {
+    // Keep an intentional toggle across pause/focus changes, but never carry it
+    // into death, a different actor/control scheme, swimming, flight or climbing.
+    if(crouch_latched && !crouch_toggle_context()) crouch_latched=false;
     // D08A18: Enter on a mission item at its lock: the same pending interaction an E press starts.
     if(interaction_request.exchange(false) && modern && focused && captured && !push_latched && !push_request) {
         interaction_pending=true;interaction_deadline=sequence+120;interaction_pulse=0;interaction_started=false;holster_pulse=0;
@@ -858,6 +907,8 @@ void input_frame() {
             SDL_PushEvent(&e);
         }
     }
+    if(crouch_cancel_held && focused && captured && !down(binds[crouch])) crouch_cancel_held=false;
+    if(crouch_jump_consumed && focused && captured && !down(binds[jump])) crouch_jump_consumed=false;
     frame = {};
     frame.sequence = ++sequence; frame.epoch = epoch;
     // Player intent survives menus, console, focus loss and explicit Legacy.
@@ -870,6 +921,8 @@ void input_frame() {
         total_x += dx; total_y += dy;
         frame.total_x = total_x; frame.total_y = total_y;
         for (int i = 0; i < action_count; ++i) frame.held[i] = down(binds[i]);
+        frame.held[jump]=jump_down();
+        frame.held[crouch]=crouch_down();frame.held[crouch_alt]=false;
         frame.held[original_aim]=aim_down();frame.held[grab]=grab_down();frame.held[grab_alt]=false;
         frame.move_x = float(frame.held[move_right]) - float(frame.held[move_left]);
         frame.move_y = float(frame.held[move_forward]) - float(frame.held[move_back]);
@@ -1133,7 +1186,7 @@ uint16_t input_pad() {
     // or lease loss. Keep the Modernized menus and saved bindings available.
     if(captured && !input_modern_controls()) {
         for(int i=0;i<action_count;++i) if(down(binds[i])) value &= ~pads[i];
-        if(down(binds[crouch])) value &= ~4096;
+        if(crouch_down()) value &= ~4096;
         if(down(binds[grab]) || down(binds[grab_alt])) value &= ~2048;
         if(down(binds[interact])) value &= ~16384;
         if(down(binds[inventory])) value &= ~1;
@@ -1169,7 +1222,7 @@ uint16_t input_pad() {
     if (captured) for (int i = 0; i < action_count; ++i)
         if (!(locomotion && i == walk) && !(jet && i == walk && !jetpack_classic_input_ready()) &&
             !(i==original_aim && view_aim_input_ready()) &&
-            !(i==jump && (swim_host_owns_jump() || push_owned)) && down(binds[i])) value &= ~pads[i];
+            !(i==jump && (swim_host_owns_jump() || push_owned || crouch_jump_consumed)) && down(binds[i])) value &= ~pads[i];
     // Legacy aiming: the primary Grab input is original precision aim (R1).
     if (captured && aim_down() && !view_aim_input_ready()) value &= ~pads[original_aim];
     // The original ignores the ladder let-go while Cross is held, so a held E
@@ -1201,15 +1254,15 @@ uint16_t input_pad() {
         if(down(binds[move_right]) && !down(binds[move_left])) value &= pole?~128:~32;
         // D08J5: Ctrl lets go of a pole or chain, as under a ceiling; so does S
         // resting at its end with nothing to step onto (original Square).
-        if(pole_sidestep_ready() && (down(binds[crouch]) || (descending && pole_let_go_ready()))) {
+        if(pole_sidestep_ready() && (crouch_down() || (descending && pole_let_go_ready()))) {
             value &= ~pads[jump];value |= 64;ladder_let_go=true;
         }
     }
     // D08T8: consume the drop press through the original release animation.
     // Otherwise held Space jumps again on the dumpster, and held W/E catches
     // the same ledge immediately. Fresh presses after release work normally.
-    if(!captured || (!down(binds[jump]) && !down(binds[interact]) && !traversal_input_ready()))ledge_dropping=false;
-    if(captured && ledge_hang_ready() && down(binds[jump]))ledge_dropping=true;
+    if(!captured || (!jump_down() && !down(binds[interact]) && !traversal_input_ready()))ledge_dropping=false;
+    if(captured && ledge_hang_ready() && jump_down())ledge_dropping=true;
     if(ledge_dropping) {
         jump_deadline=jump_pressed_at=0;airborne_interact=false;
         interaction_pending=false;interaction_pulse=0;interaction_started=false;holster_pulse=0;
@@ -1269,14 +1322,14 @@ uint16_t input_pad() {
         if(!jetpack_classic_input_ready()) {
             value |= pads[walk];
             // Space and Ctrl together hold height on the host: no lift.
-            if(down(binds[crouch])) value |= pads[jump];
+            if(crouch_down()) value |= pads[jump];
         }
     }
     // Underwater (original state 5): Square is thrust along body yaw/pitch,
     // which swim.inc steers from WASD / Space / Ctrl. D-pad would pitch.
     if(captured && swim_thrust_input_ready() &&
        (down(binds[move_forward]) || down(binds[move_back]) || down(binds[move_left]) ||
-        down(binds[move_right]) || down(binds[jump]) || down(binds[crouch]))) value &= ~0x8000u;
+        down(binds[move_right]) || jump_down() || crouch_down())) value &= ~0x8000u;
     // E can never put armed Cross on SIO. The original Circle sequence owns
     // holstering; a short queued pulse makes a tap interact after it completes.
     // Host Circle requests (E stow, weapon restore, fire draw, push stow) are

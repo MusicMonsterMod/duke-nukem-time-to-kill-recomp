@@ -125,6 +125,25 @@ static bool tight_camera_enabled() {
     return enabled;
 }
 static uint64_t recenter_seen,recenters;
+// D10E: yaw/pitch remain the gameplay heading; only the camera solver and
+// presenter receive these inspection offsets. No player/animation state writes.
+struct FreeLook {
+    bool active=false,held=false;
+    double x=0,y=0,ms=0,eye[3]{};
+};
+static FreeLook free_look;
+static bool free_look_cancelled;
+bool free_look_active() {return free_look.active;}
+static double inspection_yaw() {return wrap_yaw(yaw+free_look.x);}
+static double inspection_pitch() {return clamp_pitch(pitch+free_look.y);}
+bool free_look_aim(double* eye,double* forward) {
+    if(!free_look.active)return false;
+    for(int i=0;i<3;++i)eye[i]=(int32_t)psx_mod_read_word(player+4+4*i)+free_look.eye[i];
+    forward[0]=std::sin(yaw)*std::cos(pitch)*4096;
+    forward[1]=std::sin(pitch)*4096;
+    forward[2]=std::cos(yaw)*std::cos(pitch)*4096;
+    return true;
+}
 // D10C Duke 3D look keys. Look Up / Down turn the pitch while held and ease
 // it back to the rest pitch on release; Lock Look Up / Down turn it and leave
 // it. Timed on the presenter clock, so late_view draws the same pitch between
@@ -358,13 +377,14 @@ static bool climb_state_early();
 static void orbit_begin(uint32_t sp) {
     const auto& f=input_snapshot(Context::Gameplay);
     double target[3];
-    if (!independent_camera() || !pivot(target)) {orbit_valid=false;look.reset();return;}
+    if (!independent_camera() || !pivot(target)) {free_look={};orbit_valid=false;look.reset();return;}
     // A slow original game update is not a camera ownership transition.
     // The dancers legitimately take five guest fields; the old four-field
     // timeout reseeded from an older camera and discarded accumulated mouse
     // motion. Loads and an explicit camera ownership release already
     // invalidate orbit_valid. Preserve the look across variable game cadence.
     if (!orbit_valid) {
+        free_look={};
         if(std::getenv("DNTTK_CAMERA_RESEED_TRACE"))
             std::fprintf(stderr,"[camera reseed] gap=%llu valid=%d epoch=%llu/%llu yaw=%.6f field=%llu\n",
                 (unsigned long long)(f.sequence-camera_frame),orbit_valid?1:0,
@@ -399,6 +419,7 @@ static void orbit_begin(uint32_t sp) {
     // Loads and unauthenticated/scripted camera transitions invalidate the
     // orbit separately. A console/menu/focus boundary only stops input.
     if(camera_epoch!=f.epoch || !f.active) {
+        free_look={};
         look.reset();recentering=false;key_hold=0;key_return=false;key_ms=-1;
         turn_hold=0;turn_ms=-1;
     }
@@ -436,7 +457,38 @@ static void orbit_begin(uint32_t sp) {
         delta={};recentering=false;key_hold=0;key_return=false;key_ms=-1;
         turn_hold=0;turn_ms=-1;
     }
-    if(f.active && !frozen && f.recenter_total>recenter_seen) recentering=true;
+    // Bounded to ordinary grounded locomotion. Attached traversal, flight,
+    // swimming, first person and ownership boundaries discard inspection.
+    const bool inspect_ok=f.active && !f.first_person && fp_blend==0 && !frozen &&
+        locomotion_input_ready() && psx_mod_read_byte(player+0x22c)==0 &&
+        !f.held[original_aim] && camera_epoch==f.epoch;
+    if(!inspect_ok) free_look={};
+    if(!inspect_ok || !f.held[camera_free_look])free_look_cancelled=false;
+    if(free_look.active && f.recenter_total>recenter_seen)free_look_cancelled=true;
+    if(inspect_ok && !free_look_cancelled && f.held[camera_free_look] && !free_look.active) {
+        free_look.active=true;
+        for(int i=0;i<3;++i)free_look.eye[i]=(int32_t)psx_mod_read_word(camera+0x14+4*i)-(int32_t)psx_mod_read_word(player+4+4*i);
+    }
+    if(free_look.active) {
+        free_look.held=f.held[camera_free_look] && !free_look_cancelled;
+        recentering=false;
+        if(free_look.held) {
+            key_hold=0;key_return=false;key_ms=-1;turn_hold=0;turn_ms=-1;
+            const char* inv=ttk_live_env("DNTTK_MOUSE_INVERT_Y");
+            free_look.x=wrap_yaw(free_look.x+delta.x*sensitivity());
+            free_look.y=clamp_pitch(pitch+free_look.y+delta.z*sensitivity()*(inv && !std::strcmp(inv,"1")?-1:1))-pitch;
+            delta={};
+        } else {
+            // Release restores steering immediately. Only the residual visual
+            // offset decays; new mouse input must never replenish that offset
+            // or postpone the return while the player is trying to steer.
+            const double decay=std::exp(-12.0*ticks/60.0);
+            free_look.x*=decay;free_look.y*=decay;
+            if(std::abs(free_look.x)<0.001 && std::abs(free_look.y)<0.001)free_look={};
+        }
+        free_look.ms=input_clock_ms();
+    }
+    if(!free_look.active && f.active && !frozen && f.recenter_total>recenter_seen) recentering=true;
     recenter_seen=f.recenter_total;
     // Mouse movement always wins over a swing in progress.
     if(delta.x || delta.z) recentering=false;
@@ -448,7 +500,7 @@ static void orbit_begin(uint32_t sp) {
         if(std::abs(dy)<0.005 && std::abs(dp)<0.005) {yaw=wrap_yaw(heading);pitch=clamp_pitch(rest_pitch);recentering=false;}
         if(!recentering)++recenters;
     }
-    if(f.active && !frozen) {key_look(f,delta.x || delta.z);key_turn(f);}
+    if(f.active && !frozen && !free_look.held) {key_look(f,delta.x || delta.z);key_turn(f);}
     const char* inverted=ttk_live_env("DNTTK_MOUSE_INVERT_Y");
     yaw=wrap_yaw(yaw+delta.x*sensitivity());
     pitch=clamp_pitch(pitch+delta.z*sensitivity()*(inverted && !std::strcmp(inverted,"1")?-1:1));
@@ -459,13 +511,13 @@ static void orbit_begin(uint32_t sp) {
     orbit_sp=sp;
 }
 static void view_matrix(uint32_t destination) {
-    double sy=std::sin(yaw),cy=std::cos(yaw),sp=std::sin(pitch),cp=std::cos(pitch);
+    double sy=std::sin(inspection_yaw()),cy=std::cos(inspection_yaw()),sp=std::sin(inspection_pitch()),cp=std::cos(inspection_pitch());
     double matrix[]={cy,0,-sy,-sy*sp,cp,-cy*sp,sy*cp,sp,cy*cp};
     for(int i=0;i<9;++i) psx_mod_write_half(destination+2*i,(int16_t)std::lround(matrix[i]*4096));
 }
 static void orbit_constraint(uint32_t delta) {
     double target[3]; if (!pivot(target)) {orbit_valid=false;return;}
-    double sy=std::sin(yaw),cy=std::cos(yaw),sp=std::sin(pitch),cp=std::cos(pitch);
+    double sy=std::sin(inspection_yaw()),cy=std::cos(inspection_yaw()),sp=std::sin(inspection_pitch()),cp=std::cos(inspection_pitch());
     double forward[]={sy*cp,sp,cy*cp};
     // World-to-view rows: right, down, forward. Set before all original
     // constraint queries, final camera position, room and height calculations.
@@ -998,6 +1050,7 @@ bool interaction_ready() {
         !(psx_mod_read_word(0x800c2824+4*upper)&8);
 }
 static double view_yaw() {
+    if(free_look.active)return yaw;
     return std::atan2((int16_t)psx_mod_read_half(camera+12),
                       (int16_t)psx_mod_read_half(camera+16));
 }
@@ -1137,6 +1190,7 @@ static void hook(CPUState* cpu, uint32_t address) {
 // Discard old draw tokens without writing them into the newly loaded RAM;
 // first_person_draw reclaims any hidden flags stored in the save itself.
 static void camera_world_reset() {
+    free_look={};free_look_cancelled=false;
     wall_last_direction=0;wall_epoch=0;
     pole_visibility_object=0;
     jet_lift_active=false;jet_air_height_hold=false;
@@ -1474,6 +1528,10 @@ static void hook_body(CPUState* cpu, uint32_t address) {
         if (!presentation_vector) return;
         int32_t dir[3];
         for(int i=0;i<3;++i) dir[i]=(int32_t)(int16_t)psx_mod_read_half(camera+12+2*i);
+        if(free_look.active) {
+            double eye[3],forward[3];free_look_aim(eye,forward);
+            for(int i=0;i<3;++i)dir[i]=(int32_t)std::lround(forward[i]);
+        }
         // D08K6: the chest (depth 2, 0x1f800040) stays hunched when firing crouched.
         if(cpu->gpr[4]==0x1f800040) crouch_fire_direction(dir);
         for(int i=0;i<3;++i) psx_mod_write_word(presentation_vector+4*i,dir[i]);
@@ -1491,7 +1549,7 @@ static void hook_body(CPUState* cpu, uint32_t address) {
                 double target[3];
                 if(pivot(target)) {
                     double current=0;
-                    const double forward[]={std::sin(yaw)*std::cos(pitch),std::sin(pitch),std::cos(yaw)*std::cos(pitch)};
+                    const double forward[]={std::sin(inspection_yaw())*std::cos(inspection_pitch()),std::sin(inspection_pitch()),std::cos(inspection_yaw())*std::cos(inspection_pitch())};
                     for(int i=0;i<3;++i) current+=(target[i]-(int32_t)psx_mod_read_word(sp+0x28+4*i))*forward[i];
                     tight_distance=std::max(0.0,current-(int32_t)psx_mod_read_word(sp+0x20));
                     tight_compressed=tight_distance<radius-96;
@@ -1576,7 +1634,7 @@ static void hook_body(CPUState* cpu, uint32_t address) {
                 psx_mod_read_half(0x800bcbb0)!=1 || psx_mod_read_half(0x800d2540)?PerspectiveReason::Frontend:
                 psx_mod_read_word(camera+0xa4)!=player?PerspectiveReason::Scripted:PerspectiveReason::Unsupported;
             lease_refuse_trace(perspective_reason(reason),ident);
-            distance_seen=f.distance_total;distance_epoch=f.epoch;camera_frame=0;walking=false;orbit_valid=false;look.reset();
+            free_look={};distance_seen=f.distance_total;distance_epoch=f.epoch;camera_frame=0;walking=false;orbit_valid=false;look.reset();
             first_person_release(reason);return;
         }
         if (flight_epoch!=f.epoch || (psx_mod_read_half(player+0x60)!=98 && psx_mod_read_half(player+0x60)!=103 && psx_mod_read_half(player+0x60)!=104 && psx_mod_read_half(player+0x60)!=105 && psx_mod_read_half(player+0x60)!=109 && !(short_fall && psx_mod_read_half(player+0x60)==108))) flight_valid=false;
@@ -1776,6 +1834,7 @@ static void hook_body(CPUState* cpu, uint32_t address) {
 // published frame and loaded in the worker process that redraws it (a worker
 // holds only a fork-time copy of this file's statics).
 struct RenderState {
+    FreeLook inspection;
     double mask_bob;
     ActionPerspective perspective;
     uint32_t pole_visibility_object;
@@ -1809,6 +1868,12 @@ bool late_view(double& out_yaw,double& out_pitch,double at_ms) {
     const char* inverted=ttk_live_env("DNTTK_MOUSE_INVERT_Y");
     out_yaw=wrap_yaw(turn_yaw_at(at_ms<0?input_clock_ms():at_ms)+(x-look.x)*sensitivity());
     out_pitch=clamp_pitch(key_pitch_at(at_ms<0?input_clock_ms():at_ms)+(y-look.y)*sensitivity()*(inverted && !std::strcmp(inverted,"1")?-1:1));
+    if(free_look.active) {
+        const double dt=std::clamp(((at_ms<0?input_clock_ms():at_ms)-free_look.ms)/1000.0,0.0,0.1);
+        const double decay=free_look.held?1:std::exp(-12.0*dt);
+        out_yaw=wrap_yaw(out_yaw+free_look.x*decay);
+        out_pitch=clamp_pitch(out_pitch+free_look.y*decay);
+    }
     return true;
 }
 bool late_pivot(double* xyz) {return pivot(xyz);}
@@ -1816,6 +1881,7 @@ double late_fp_blend() {return fp_blend;}
 size_t render_state_size() {return sizeof(RenderState);}
 void render_state_save(void* out) {
     RenderState r{};
+    r.inspection=free_look;
     r.perspective=fp_policy;r.pole_visibility_object=pole_visibility_object;
     r.mask_bob=bob_dip; r.fp_blend=fp_blend; r.orbit_valid=orbit_valid; r.eye_offset_valid=eye_offset_valid; r.live_valid=live_valid;
     r.lease_cam=last_lease_cam;
@@ -1851,6 +1917,7 @@ void render_state_blend_mask(void* out,const void* next,double alpha) {
 void render_state_load(const void* in) {
     RenderState r;
     std::memcpy(&r,in,sizeof r);
+    free_look=r.inspection;
     fp_policy=r.perspective;pole_visibility_object=r.pole_visibility_object;
     bob_dip=r.mask_bob; fp_blend=r.fp_blend; orbit_valid=r.orbit_valid; eye_offset_valid=r.eye_offset_valid; live_valid=r.live_valid;
     std::memcpy(eye_offset,r.eye_offset,sizeof eye_offset); std::memcpy(live_q,r.live_q,sizeof live_q);
@@ -1909,7 +1976,8 @@ bool first_person_interaction_drawing() {return first_person_limb_presentation()
 bool first_person_weapon_drawing() {return first_person_limb_presentation().viewmodel();}
 const char* controls_debug_json() {
     static char buffer[8192];
-    std::snprintf(buffer,sizeof buffer,"{\"tight_camera\":{\"live\":%s,\"safe_boom\":%.2f,\"compressed\":%s,\"coverage\":%.4f},\"mouse_deg\":%.4f,\"edge_jumps\":%u,\"step_drops\":%u,\"run_offs\":%u,\"delayed_jumps\":%u,\"standing_takeoffs\":%u,\"swim_mantles\":%u,\"wade_jumps\":%u,\"swim_dives\":%u,\"swim_dive_stops\":%u,\"swim_paces\":%u,\"swimming\":\"%s\",\"swim_fire_masks\":%u,\"swim_fire_restores\":%u,\"swim_aims\":%u,\"swim_aim_restores\":%u,\"swim_arm_aims\":%u,\"swim_redraws\":%u,\"ledge_assists\":%u,\"jet_updates\":%u,\"jet_hovers\":%u,\"jet_descents\":%u,\"jet_hold_captures\":%u,\"jet_root_nudges\":%u,\"jet\":%s,\"jet_scheme\":\"%s\",\"jet_classic\":%s,\"jet_classic_updates\":%u,\"push_masks\":%u,\"push_idle_masks\":%u,\"push_grab\":%s,\"ledge_reach_arms\":%u,\"air_mantles\":%u,\"hang_releases\":%u,\"lift_catches\":%u,\"turn_catches\":%u,\"drop_mantles\":%u,\"last_drop_rel\":%d,\"step_ups\":%u,\"mantle_upper_handoffs\":%u,\"mantle_upper_restores\":%u,\"last_step_rel\":%d,\"edge_postpones\":%u,\"jump_style\":\"%s\",\"air_steers\":%u,\"coyote_jumps\":%u,\"quick_takeoffs\":%u,\"air_cap\":%.0f,\"hang_settles\":%u,\"ceiling\":{\"ready\":%s,\"updates\":%u,\"turns\":%u,\"advances\":%u,\"drops\":%u},\"ladder_top\":{\"available\":%s,\"active\":%s,\"starts\":%u,\"mounts\":%u,\"aborts\":%u,\"leaps\":%u,\"leap_nudges\":%u,\"end_probes\":%u,\"end_hits\":%u,\"end_stops\":%u,\"mount_finishes\":%u,\"actor_exits\":%u,\"actor_exit_checks\":%u},\"pole\":{\"mount_starts\":%u,\"mounts\":%u,\"mount_aborts\":%u,\"floor_rejects\":%u,\"stall_drops\":%u,\"mounting\":%s},\"identity_calls\":%llu,\"identity_checks\":%llu,\"identity_us\":%llu,\"selections\":%llu,\"jumps\":%llu,\"speed_changes\":%llu,\"moves\":%llu,\"probes\":%llu,\"cameras\":%llu,\"frame_window\":%u,\"refusals\":%llu,\"ready\":%s,\"swim\":%s,\"looks\":%llu,\"orbits\":%llu,\"yaw\":%.6f,\"pitch\":%.6f,\"radius\":%.3f,\"preferred_radius\":%.3f,\"shoulder_offset\":%.3f,\"recentering\":%s,\"recenters\":%llu,\"rest_pitch\":%.6f,\"key_look\":{\"hold\":%d,\"lock\":%s,\"returning\":%s,\"looks\":%llu,\"returns\":%llu,\"taps\":%llu},\"key_turn\":{\"hold\":%d,\"running\":%s,\"turns\":%llu},\"selected_item\":%u,\"last_weapon\":%u,\"crouch_entries\":%u,\"crouch_exits\":%u,\"crouch_blocked\":%u,\"facings\":%llu,\"arms\":%llu,\"orientations\":%llu,\"fp\":{\"action\":\"%s\",\"effective\":%s,\"requested\":%s,\"supported\":%s,\"blend\":%.3f,\"reason\":\"%s\",\"updates\":%llu,\"fallbacks\":%llu,\"follows\":%llu,\"head_hides\":%llu,\"head_reclaims\":%llu,\"head_flag\":%u,\"min_boom\":%u,\"projection\":%d,\"projections\":%llu,\"near\":%s,\"weapon\":{\"enabled\":%s,\"hands\":%llu,\"draws\":%llu,\"flashes\":%llu,\"items\":%llu,\"readies\":%llu,\"pose\":\"%s\",\"recorded\":%llu,\"arm_hides\":%llu,\"fade_clears\":%llu,\"matrix\":%u},\"kick\":%s},\"aim\":%s,\"draw_distance\":%s,\"steroids\":%s,\"steroid_beat\":%s,\"pickup_select\":%s,\"run_click\":%s,\"powerups\":%s,\"jump_walls\":%s,\"landing\":%s,\"wall_backflip\":%s,\"dynamite\":%s}",
+    std::snprintf(buffer,sizeof buffer,"{\"free_look\":{\"active\":%s,\"held\":%s,\"offset_yaw\":%.6f,\"offset_pitch\":%.6f},\"tight_camera\":{\"live\":%s,\"safe_boom\":%.2f,\"compressed\":%s,\"coverage\":%.4f},\"mouse_deg\":%.4f,\"edge_jumps\":%u,\"step_drops\":%u,\"run_offs\":%u,\"delayed_jumps\":%u,\"standing_takeoffs\":%u,\"swim_mantles\":%u,\"wade_jumps\":%u,\"swim_dives\":%u,\"swim_dive_stops\":%u,\"swim_paces\":%u,\"swimming\":\"%s\",\"swim_fire_masks\":%u,\"swim_fire_restores\":%u,\"swim_aims\":%u,\"swim_aim_restores\":%u,\"swim_arm_aims\":%u,\"swim_redraws\":%u,\"ledge_assists\":%u,\"jet_updates\":%u,\"jet_hovers\":%u,\"jet_descents\":%u,\"jet_hold_captures\":%u,\"jet_root_nudges\":%u,\"jet\":%s,\"jet_scheme\":\"%s\",\"jet_classic\":%s,\"jet_classic_updates\":%u,\"push_masks\":%u,\"push_idle_masks\":%u,\"push_grab\":%s,\"ledge_reach_arms\":%u,\"air_mantles\":%u,\"hang_releases\":%u,\"lift_catches\":%u,\"turn_catches\":%u,\"drop_mantles\":%u,\"last_drop_rel\":%d,\"step_ups\":%u,\"mantle_upper_handoffs\":%u,\"mantle_upper_restores\":%u,\"last_step_rel\":%d,\"edge_postpones\":%u,\"jump_style\":\"%s\",\"air_steers\":%u,\"coyote_jumps\":%u,\"quick_takeoffs\":%u,\"air_cap\":%.0f,\"hang_settles\":%u,\"ceiling\":{\"ready\":%s,\"updates\":%u,\"turns\":%u,\"advances\":%u,\"drops\":%u},\"ladder_top\":{\"available\":%s,\"active\":%s,\"starts\":%u,\"mounts\":%u,\"aborts\":%u,\"leaps\":%u,\"leap_nudges\":%u,\"end_probes\":%u,\"end_hits\":%u,\"end_stops\":%u,\"mount_finishes\":%u,\"actor_exits\":%u,\"actor_exit_checks\":%u},\"pole\":{\"mount_starts\":%u,\"mounts\":%u,\"mount_aborts\":%u,\"floor_rejects\":%u,\"stall_drops\":%u,\"mounting\":%s},\"identity_calls\":%llu,\"identity_checks\":%llu,\"identity_us\":%llu,\"selections\":%llu,\"jumps\":%llu,\"speed_changes\":%llu,\"moves\":%llu,\"probes\":%llu,\"cameras\":%llu,\"frame_window\":%u,\"refusals\":%llu,\"ready\":%s,\"swim\":%s,\"looks\":%llu,\"orbits\":%llu,\"yaw\":%.6f,\"pitch\":%.6f,\"radius\":%.3f,\"preferred_radius\":%.3f,\"shoulder_offset\":%.3f,\"recentering\":%s,\"recenters\":%llu,\"rest_pitch\":%.6f,\"key_look\":{\"hold\":%d,\"lock\":%s,\"returning\":%s,\"looks\":%llu,\"returns\":%llu,\"taps\":%llu},\"key_turn\":{\"hold\":%d,\"running\":%s,\"turns\":%llu},\"selected_item\":%u,\"last_weapon\":%u,\"crouch_entries\":%u,\"crouch_exits\":%u,\"crouch_blocked\":%u,\"facings\":%llu,\"arms\":%llu,\"orientations\":%llu,\"fp\":{\"action\":\"%s\",\"effective\":%s,\"requested\":%s,\"supported\":%s,\"blend\":%.3f,\"reason\":\"%s\",\"updates\":%llu,\"fallbacks\":%llu,\"follows\":%llu,\"head_hides\":%llu,\"head_reclaims\":%llu,\"head_flag\":%u,\"min_boom\":%u,\"projection\":%d,\"projections\":%llu,\"near\":%s,\"weapon\":{\"enabled\":%s,\"hands\":%llu,\"draws\":%llu,\"flashes\":%llu,\"items\":%llu,\"readies\":%llu,\"pose\":\"%s\",\"recorded\":%llu,\"arm_hides\":%llu,\"fade_clears\":%llu,\"matrix\":%u},\"kick\":%s},\"aim\":%s,\"draw_distance\":%s,\"steroids\":%s,\"steroid_beat\":%s,\"pickup_select\":%s,\"run_click\":%s,\"powerups\":%s,\"jump_walls\":%s,\"landing\":%s,\"wall_backflip\":%s,\"dynamite\":%s}",
+        free_look.active?"true":"false",free_look.held?"true":"false",free_look.x,free_look.y,
         third_person_camera_live()?"true":"false",tight_distance,tight_compressed?"true":"false",third_person_body_coverage(),sensitivity()*360/tau,
         edge_jumps,step_drops,run_offs,delayed_jumps,standing_takeoffs,swim_mantles,wade_jumps,swim_dives,swim_dive_stops,swim_paces,swimming_modern()?"modern":"original",swim_fire_masks,swim_fire_restores,swim_aims,swim_aim_restores,swim_arm_aims,swim_redraws,ledge_assists,jet_updates,jet_hover_engages,jet_descents,jet_hold_captures,jet_root_nudges,jetpack_input_ready()?"true":"false",jetpack_classic()?"classic":jetpack_eduke32()?"eduke32":"modern",jetpack_classic_input_ready()?"true":"false",jet_classic_updates,push_masks,push_idle_masks,push_grab_ready()?"true":"false",ledge_reach_arms,air_mantles,hang_releases,lift_catches,turn_catches,drop_mantles,last_drop_rel,step_ups,mantle_upper_handoffs,mantle_upper_restores,last_step_rel,edge_postpones,manual_jump()?"manual":"assisted",air_steers,coyote_jumps,quick_takeoffs,air_cap,hang_settles,ceiling_hang_ready()?"true":"false",ceiling_updates,ceiling_turns,ceiling_advances,ceiling_drops,ladder_top_available()?"true":"false",mount.active?"true":"false",ladder_mount_starts,ladder_mounts,ladder_mount_aborts,ladder_leaps,ladder_leap_nudges,ladder_end_probes,ladder_end_hits,ladder_end_stops,ladder_mount_finishes,ladder_actor_exits,ladder_actor_checks,pole_mount_starts,pole_mounts,pole_mount_aborts,pole_floor_rejects,pole_stall_drops,pole_mount.active?"true":"false",(unsigned long long)identity_calls,(unsigned long long)identity_checks,(unsigned long long)(identity_ns/1000),(unsigned long long)selections,(unsigned long long)jumps,(unsigned long long)speed_changes,(unsigned long long)moves,(unsigned long long)probes,(unsigned long long)cameras,frame_window,
         (unsigned long long)refusals,lease_ready()?"true":"false",swim_lease_ready()?"true":"false",(unsigned long long)looks,(unsigned long long)orbits,yaw,pitch,radius,preferred_radius,shoulder_offset,recentering?"true":"false",(unsigned long long)recenters,rest_pitch,key_hold,key_lock?"true":"false",key_return?"true":"false",(unsigned long long)key_looks,(unsigned long long)key_returns,(unsigned long long)key_taps,turn_hold,turn_running?"true":"false",(unsigned long long)key_turns,selected_item,last_equipped,crouch_entries,crouch_exits,crouch_blocked,(unsigned long long)facings,(unsigned long long)arms,(unsigned long long)orientations,

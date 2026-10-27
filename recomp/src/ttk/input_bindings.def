@@ -69,3 +69,6 @@ TTK_ACTION(quick_load, F9, 66, 0)
 
 // D21: HELD CROUCH toggles the stance; append to preserve stable action IDs.
 TTK_ACTION(crouch_alt, C, 6, 0)
+
+// D10E: optional inspection orbit; appended to preserve existing action IDs.
+TTK_ACTION(camera_free_look, Mouse3, -2, 0)

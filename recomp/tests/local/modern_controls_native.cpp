@@ -2704,6 +2704,66 @@ int main(int argc,char** argv) {
         psx_mod_write_word(p+4,saved_x);psx_mod_write_word(p+12,saved_z);
         std::puts("PASS: D08L1 crouch walk-off uses original fall; departure clearance, wall ray, tall step and missing-floor refusals");
     }
+    // D10E: inspection rotates the view alone, then returns to the retained
+    // gameplay heading; its virtual shot eye translates with the player.
+    {
+        const auto saved=ttk::input;
+        auto frame=[&](){++ttk::input.sequence;ttk::clock_ms+=1000.0/60;call(0x8003ade4,c,p,0x80025ee8);};
+        ttk::input.first_person=false;frame();frame();
+        const double base=metric("\"yaw\":");
+        ttk::input.held[ttk::camera_free_look]=true;frame();
+        assert(ttk::free_look_active());
+        ttk::input.total_x+=1000;ttk::input.total_y+=100;frame();
+        assert(std::abs(metric("\"offset_yaw\":"))>0.1);
+        assert(std::abs(metric("\"yaw\":")-base)<1e-6);
+        double eye[3],forward[3],moved[3],forward2[3];
+        assert(ttk::free_look_aim(eye,forward));
+        assert(std::abs(std::atan2(forward[0],forward[2])-base)<1e-6);
+        const auto px=psx_mod_read_word(p+4);psx_mod_write_word(p+4,px+256);
+        assert(ttk::free_look_aim(moved,forward2));assert(moved[0]==eye[0]+256);
+        for(int k=0;k<3;++k)assert(forward[k]==forward2[k]);
+        psx_mod_write_word(p+4,px);
+        call(0x80058120,p,0,0x80041c44);
+        const auto heading=psx_mod_read_half(p+0x1c);
+        for(int n=0;n<10;++n){ttk::input.total_x+=100;frame();call(0x80058120,p,0,0x80041c44);assert(psx_mod_read_half(p+0x1c)==heading);}
+        ttk::input.held[ttk::camera_free_look]=false;
+        double last=std::abs(metric("\"offset_yaw\":"));
+        for(int n=0;n<60;++n){frame();const double next=std::abs(metric("\"offset_yaw\":"));assert(next<=last+1e-6);last=next;}
+        assert(!ttk::free_look_active());assert(std::abs(metric("\"yaw\":")-base)<1e-6);
+        // D10E release regression: continuous steering previously replenished
+        // the return offset forever, leaving gameplay yaw and Duke frozen.
+        // Every release must steer on its first update and finish returning
+        // even when the mouse never stops (also repeat during a return).
+        for(int cycle=0;cycle<3;++cycle) {
+            ttk::input.held[ttk::camera_free_look]=true;frame();
+            ttk::input.total_x+=200;frame();
+            const double start=metric("\"yaw\":");
+            const double start_pitch=metric("\"pitch\":");
+            ttk::input.held[ttk::camera_free_look]=false;
+            const double step=metric("\"mouse_deg\":")*ttk::tau/360;
+            ttk::input.total_x+=2;ttk::input.total_y-=1;frame();
+            assert(std::abs(ttk::wrap_yaw(metric("\"yaw\":")-start)-2*step)<2e-6);
+            assert(std::abs(metric("\"pitch\":")-ttk::clamp_pitch(start_pitch+step))<2e-6); // inverted Y fixture
+            call(0x80058120,p,0,0x80041c44);
+            assert(psx_mod_read_half(p+0x1c)==(int(std::lround(metric("\"yaw\":")*4096/ttk::tau))&4095));
+            double offset=std::abs(metric("\"offset_yaw\":"));
+            for(int n=0;n<60;++n) {
+                ttk::input.total_x+=2;frame();
+                const double next=std::abs(metric("\"offset_yaw\":"));
+                assert(next<=offset+1e-6);offset=next;
+            }
+            assert(!ttk::free_look_active());
+        }
+        // Repress while returning must retain the same gameplay anchor.
+        ttk::input.held[ttk::camera_free_look]=true;frame();ttk::input.total_x+=500;frame();
+        ttk::input.held[ttk::camera_free_look]=false;frame();
+        ttk::input.held[ttk::camera_free_look]=true;frame();assert(ttk::free_look_active());
+        ttk::input.first_person=true;frame();assert(!ttk::free_look_active());
+        ttk::input.first_person=false;frame();frame();
+        ttk::input.held[ttk::camera_free_look]=false;ttk::input.active=false;frame();assert(!ttk::free_look_active());
+        ttk::input=saved;frame();
+        std::puts("PASS: D10E separate inspection yaw, fixed facing/shot direction, translated aim eye, smooth release, immediate continuous steering recovery, repress and view/input boundaries");
+    }
     // D10 recenter: V swings yaw behind Duke's heading and pitch to the first
     // (original) follow pitch; mouse motion cancels a swing. Shoulder offsets
     // only the requested eye along the view's right row before the original solve.

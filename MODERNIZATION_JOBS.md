@@ -278,6 +278,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08K9 | Crouch held through a jump: crouch at once on landing, no recovery pause or stand/run frame in between (slot 4) | Done (user-accepted 2026-10-22) | D08K4, D08Z3, D08K8 |
 | D08K10 | First-person crouched weapon and arm alignment: knife, axe, dynamite, Holy Hand Grenade and crossbow match their standing view when crouched (standing is the baseline) | Done (user-accepted 2026-10-22) | D12, D08K6, D08K8 |
 | D08K11 | Enable Modern Crouching and Crouch-Walking in Shallow Water (slot 10 flooded subway; crouch behaviour refinement) | Done | D08K2, D08K4, D08K7, D08K8, D08AA, D08AB |
+| D08K12 | Crouch running with the configured run action | Todo | D08K, D08K11, D08L1, D21; after D18B/C/E/F |
 | D08L | Inertial platform edge run-off | Done | D08 |
 | D08L1 | Modern locomotion - allow walking and crouch-walking off ledges | Done (user-accepted 2026-10-23) | D08L, D08K, D08T3 |
 | D08M | Modern underwater swimming controls (foundation) | Done | D08 |
@@ -342,7 +343,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08A30 | Reverse weapon-wheel direction: up advances, down goes back | Done (user-accepted) | D08A29 |
 | D09 | Modern controller support | Todo | D05, D06, D07 |
 | D10 | Third-person camera polish | Done | D08 |
-| D10E | Optional held middle-mouse third-person free look (issue #1 inspiration) | Todo | D04, D06, D07, D10 |
+| D10E | Optional held middle-mouse third-person free look (issue #1 inspiration) | Done (user-accepted 2026-10-27) | D04, D06, D07, D10 |
 | D10A | Rapid mouse turning and Shift-running investigation | Done | D06, D07C, D08 |
 | D10B | Tight-space third-person camera: translucent Duke and see-through doors | Superseded by D10B1 | D10, D11B |
 | D10B1 | Roll back D10B behavior; restore native third-person obstruction handling | Done | D10B |
@@ -7082,7 +7083,8 @@ See [the control plan](documentation/32-eduke32-weapon-item-plan.md).
 
 ### D10E - Optional held middle-mouse third-person free look
 
-**Status: Todo. Backlog only; not selected for implementation. Dependencies: D04, D06, D07, D10 (accepted/Done).**
+**Status: Done (user-accepted; closeout, commit and push authorized 2026-10-27). Dependencies: D04, D06, D07, D10 (accepted/Done).**
+Candidate and bounded verification: [note 283](documentation/283-d10e-free-look.md).
 Requested 2026-10-27. Inspired by @vakho10's
 [GTA San Andreas-style camera suggestion, issue #1](https://github.com/MusicMonsterMod/duke-nukem-time-to-kill-recomp/issues/1).
 Credit that input while keeping this narrower request distinct: hold middle
@@ -7112,8 +7114,8 @@ Acceptance: optional hold-to-orbit works at idle and through walk/run/strafe;
 no camera-induced body turn while held; smooth enter/release including large
 orbits; movement, aim, firing and their combination remain coherent. Test
 repeated presses, 60/120 presentation, first-person/unheld/Vanilla regression,
-and explicitly document unsupported states or design decisions. No code/build
-or gameplay test performed for this backlog intake.
+and explicitly document unsupported states or design decisions. The original intake was backlog-only; the selected candidate and current test
+evidence are in note 283.
 
 ### D10A — Rapid mouse turning and Shift-running investigation
 
@@ -21714,3 +21716,68 @@ menu/input checks passed. User acceptance supplies the final playtest decision.
 Note 282 retains the test evidence and historical iterations. D18 remains Done
 as accepted research; its separate implementation jobs are unchanged.
 Launch: `python3 recomp/tools/local/run.py` from the workspace root.
+
+
+### D08K12 - Crouch running
+
+**Status: Todo. Backlog only; not selected.** Requested 2026-10-27. Schedule
+after D18 and its follow-up work (D18 is accepted research; D18B, D18C,
+D18E and D18F remain open). Implementation prerequisites: D08K, D08K11,
+D08L1 and D21, all accepted.
+
+Add Duke Nukem 3D / EDuke32-inspired crouch running: while crouched and
+moving, holding the configured run action increases speed to the equivalent
+of running speed while preserving crouch. Releasing run restores normal
+crouch-walk speed. Support momentary Ctrl crouch and C's crouch toggle,
+following configured actions and custom bindings instead of fixed keys.
+
+Inspect current movement and crouch ownership before changing code. Preserve
+crouch collision, low-space clearance, existing animations and behavior as
+far as practical, including walking off ledges. Never stand Duke merely to
+apply running speed. Report animation or speed limitations needing a design
+decision.
+
+Acceptance: test both crouch controls with and without run, custom bindings,
+vent traversal, release of run, blocked standing under insufficient clearance,
+and crouched ledge walk-offs. Preserve normal standing locomotion, C toggle
+cancellation rules, save/load, first/third person and Vanilla. No implementation,
+build or gameplay test is authorized by this backlog intake.
+
+## 2026-10-27 - D10E selected; D08K12 backlog intake
+
+D10E selected for implementation. D08K12 crouch running queued at the user's
+request after D18's remaining follow-ups; it does not interrupt D10E or authorize
+crouch-run implementation.
+
+
+## 2026-10-27 - D10E free-look candidate
+
+Rebindable held middle-mouse inspection keeps movement, body facing and aim
+aligned with the pre-orbit view. Release/V eases back; inspection hides the
+crosshair. Native collision and shoulder/distance owners remain. Schema 54
+preserves custom middle-button bindings. Player build, native controls/input/aim
+and 120 Python tests pass; private 60/120 gameplay verifies the bounded route
+in [note 283](documentation/283-d10e-free-look.md). Needs playtest; no acceptance
+or commit/push. D08K12 remains Todo after D18 follow-ups, with no implementation.
+
+
+## 2026-10-27 - D10E mouse steering recovery
+
+Confirmed and corrected the user's release-steering regression: continuous
+mouse input fed the returning inspection offset, indefinitely withholding body
+steering. Release now restores gameplay steering immediately while the camera
+offset decays independently. Private 60/120 repeated-release tests verify recovery
+while mouse motion continues; native regression added. See note 283. D10E remains
+Needs playtest; no acceptance, commit or push. D08K12 stays backlog-only.
+
+
+## 2026-10-27 - D10E accepted and closed
+
+User accepted the corrected free-look candidate: "lock it in and close us out!!".
+D10E is Done. Release restores mouse steering immediately while the residual
+camera offset eases back; continued motion cannot strand the return. Player build,
+native controls/input/aim suites, 120 Python input/profile tests and private
+60/120 gameplay checks are recorded in note 283, including the final release
+regression and its bounded evidence. Authored implementation, tests, manual and
+documentation commit/push are explicitly authorized as MusicMonsterMod.
+D08K12 crouch running remains Todo after D18 follow-ups. No next job started.

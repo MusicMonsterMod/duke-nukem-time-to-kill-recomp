@@ -90,6 +90,18 @@ int main() {
     CHECK(tick().move_y == 0); // menu context never leaks movement
     capture_fixture();
     CHECK(SDL_GetWindowRelativeMouseMode(win));
+    // D10E: SDL's middle button is Mouse3, host-only, rebindable and held.
+    CHECK(ttk::input_binding_code(ttk::camera_free_look)==-2);
+    SDL_Event inspect{};inspect.type=SDL_MOUSEBUTTONDOWN;inspect.button.windowID=SDL_GetWindowID(win);inspect.button.button=2;
+    ttk::input_event(inspect);CHECK(tick().held[ttk::camera_free_look]);CHECK(ttk::input_pad()==0xffff);
+    inspect.type=SDL_MOUSEBUTTONUP;ttk::input_event(inspect);CHECK(!tick().held[ttk::camera_free_look]);
+    {
+        int original[ttk::action_count],custom[ttk::action_count];
+        for(int i=0;i<ttk::action_count;++i)original[i]=custom[i]=ttk::input_binding_code(ttk::Action(i));
+        custom[ttk::camera_free_look]=SDL_SCANCODE_G;ttk::input_set_binding_codes(custom);
+        key(SDL_SCANCODE_G,true);CHECK(tick().held[ttk::camera_free_look]);
+        key(SDL_SCANCODE_G,false);CHECK(!tick().held[ttk::camera_free_look]);ttk::input_set_binding_codes(original);
+    }
     SDL_Event aim{};aim.type=SDL_MOUSEBUTTONDOWN;aim.button.windowID=SDL_GetWindowID(win);aim.button.button=3;
     ttk::input_event(aim);view_aim=true;
     CHECK(!tick().held[ttk::original_aim] && (ttk::input_pad()&2048));
@@ -420,7 +432,7 @@ int main() {
     key(SDL_SCANCODE_RETURN,true);
     CHECK(!tick().active && !(ttk::input_pad()&8));key(SDL_SCANCODE_RETURN,false);
     // A saved custom speed binding keeps working; no action/schema migration.
-    SDL_setenv_unsafe("DNTTK_INPUT_BINDINGS", "1:26,22,4,7,-1,44,11,25,21,0,0,0,12,8,0,0,0,-3,226,51,52,27,16,225,13,17,5,47,48,24,20,30,31,32,33,34,35,36,37,38,39,54,55,75,78,74,77,80,79,63,66,6", 1);
+    SDL_setenv_unsafe("DNTTK_INPUT_BINDINGS", "1:26,22,4,7,-1,44,11,25,21,0,0,0,12,8,0,0,0,-3,226,51,52,27,16,225,13,17,5,47,48,24,20,30,31,32,33,34,35,36,37,38,39,54,55,75,78,74,77,80,79,63,66,6,-2", 1);
     ttk::input_init(win);focus(true);capture_fixture();ready=true;
     CHECK((ttk::input_pad() & 1024) == 0); // launch resets autorun off
     key(SDL_SCANCODE_R,true);CHECK((ttk::input_pad() & 1024) != 0);
@@ -820,7 +832,7 @@ int main() {
     leap_on=false;tick();CHECK((ttk::input_pad()&16384)!=0);
     holstered=false;
     // Rebinding fire preserves draw behavior; the old mouse binding is inactive.
-    ttk::input_release();SDL_setenv_unsafe("DNTTK_INPUT_BINDINGS", "1:26,22,4,7,10,44,11,25,21,0,0,0,12,8,0,0,0,-3,226,51,52,27,16,225,13,17,5,47,48,24,20,30,31,32,33,34,35,36,37,38,39,54,55,75,78,74,77,80,79,63,66,6",1);
+    ttk::input_release();SDL_setenv_unsafe("DNTTK_INPUT_BINDINGS", "1:26,22,4,7,10,44,11,25,21,0,0,0,12,8,0,0,0,-3,226,51,52,27,16,225,13,17,5,47,48,24,20,30,31,32,33,34,35,36,37,38,39,54,55,75,78,74,77,80,79,63,66,6,-2",1);
     ttk::input_init(win);focus(true);capture_fixture();ready=true;flight=false;holstered=true;
     mousefire(true);tick();CHECK((ttk::input_pad()&(8192|16384))==(8192|16384));mousefire(false);
     key(SDL_SCANCODE_G,true);tick();CHECK((ttk::input_pad()&8192)==0 && (ttk::input_pad()&16384)!=0);

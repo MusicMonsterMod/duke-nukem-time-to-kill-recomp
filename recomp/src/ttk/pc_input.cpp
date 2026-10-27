@@ -824,7 +824,7 @@ void input_frame() {
             {"pgup",SDL_SCANCODE_PAGEUP},{"pgdn",SDL_SCANCODE_PAGEDOWN},{"home",SDL_SCANCODE_HOME},{"end",SDL_SCANCODE_END},{"delete",SDL_SCANCODE_DELETE}};
         bool was[sizeof named/sizeof named[0]];
         for(size_t i=0;i<sizeof named/sizeof named[0];++i){was[i]=keys[named[i].code];keys[named[i].code]=false;}
-        mouse[1]=false;
+        mouse[1]=false;mouse[2]=false;
         if(FILE* f=std::fopen(test_input,"r")) {
             char word[64];
             while(std::fscanf(f,"%63s",word)==1) {
@@ -861,6 +861,7 @@ void input_frame() {
                 // D19G: "play" is captured gameplay for this frame (menus run uncaptured).
                 else if(!std::strcmp(word,"play")) captured=true;
                 else if(!std::strcmp(word,"mouse1")) mouse[1]=true;
+                else if(!std::strcmp(word,"mouse3")) mouse[2]=true;
                 else if(!std::strncmp(word,"dx=",3)) dx+=std::atof(word+3);
                 else if(!std::strncmp(word,"dy=",3)) dy+=std::atof(word+3);
                 else for(const auto& n:named) if(!std::strcmp(word,n.name)) keys[n.code]=true;

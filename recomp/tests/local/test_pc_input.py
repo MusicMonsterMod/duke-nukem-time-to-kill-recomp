@@ -14,10 +14,10 @@ import player_profiles as profiles
 
 class InputBindingsTest(unittest.TestCase):
     def test_defaults_wire_and_separate_movement(self):
-        self.assertEqual(len(pc_input.validate(pc_input.DEFAULTS)), 52)
+        self.assertEqual(len(pc_input.validate(pc_input.DEFAULTS)), 53)
         self.assertTrue(pc_input.wire(pc_input.DEFAULTS).startswith('1:26,22,4,7,'))
         # D08A5: Comma/Period browse the mission inventory; original strafe is unbound.
-        self.assertTrue(pc_input.wire(pc_input.DEFAULTS).endswith(',54,55,75,78,74,77,80,79,63,66,6'))  # D10C look keys, D10D turn keys, D20 quick keys last
+        self.assertTrue(pc_input.wire(pc_input.DEFAULTS).endswith(',54,55,75,78,74,77,80,79,63,66,6,-2'))  # D10C look keys, D10D turn keys, D20 quick keys last
         self.assertEqual((pc_input.DEFAULTS['original_strafe_left'], pc_input.DEFAULTS['original_strafe_right']),
                          ('Unbound', 'Unbound'))
         old = {k: v for k, v in pc_input.DEFAULTS.items() if not k.startswith('mission_')}
@@ -31,6 +31,15 @@ class InputBindingsTest(unittest.TestCase):
         self.assertEqual((new['quick_kick'], new['original_strafe_left'], new['mission_previous'], new['mission_next']),
                          ('Comma', 'Q', 'Unbound', 'Period'))
         self.assertTrue(all(int(pad) == 0 for name, _, _, pad in pc_input.ROWS if name.startswith('move_')))
+
+    def test_free_look_migration_preserves_custom_middle_button(self):
+        old = dict(pc_input.DEFAULTS)
+        del old['camera_free_look']
+        self.assertEqual(pc_input.add_missing_actions(old)['camera_free_look'], 'Mouse3')
+        old['fire'] = 'Mouse3'
+        migrated = pc_input.add_missing_actions(old)
+        self.assertEqual(migrated['fire'], 'Mouse3')
+        self.assertEqual(migrated['camera_free_look'], 'Unbound')
 
     def test_crouch_secondary_migration(self):
         old = dict(pc_input.DEFAULTS)
@@ -47,7 +56,7 @@ class InputBindingsTest(unittest.TestCase):
         # D08T1: Mouse2 moves from precision aim to Grab; Alt is the second Grab.
         self.assertEqual((pc_input.DEFAULTS['grab'], pc_input.DEFAULTS['grab_alt'], pc_input.DEFAULTS['original_aim']),
                          ('Mouse2', 'Alt', 'Unbound'))
-        old = {k: v for k, v in pc_input.DEFAULTS.items() if k not in ('grab', 'grab_alt')}
+        old = {k: v for k, v in pc_input.DEFAULTS.items() if k not in ('grab', 'grab_alt', 'camera_free_look')}
         old['original_aim'] = 'Mouse2'
         migrated = pc_input.migrate_grab(old)
         self.assertEqual((migrated['grab'], migrated['grab_alt'], migrated['original_aim']), ('Mouse2', 'Alt', 'Unbound'))
@@ -177,6 +186,21 @@ class MenuKeyNamesTest(unittest.TestCase):
             self.assertEqual(pc_input.TOKENS.get(token), code, token)
 
 class D21ProfileTest(unittest.TestCase):
+    def test_schema53_adds_free_look_without_stealing_middle_mouse(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / 'profile.json'
+            old = profiles.defaults()
+            old['version'] = 53
+            for profile in old['profiles'].values():
+                del profile['bindings']['camera_free_look']
+                profile['bindings']['fire'] = 'Mouse3'
+            profiles.save(path, old)
+            loaded, _ = profiles.load(path)
+            self.assertEqual(loaded['version'], 54)
+            for profile in loaded['profiles'].values():
+                self.assertEqual(profile['bindings']['fire'], 'Mouse3')
+                self.assertEqual(profile['bindings']['camera_free_look'], 'Unbound')
+
     def test_schema52_preserves_custom_bindings_and_adds_sound(self):
         with tempfile.TemporaryDirectory() as d:
             path = Path(d) / 'profile.json'

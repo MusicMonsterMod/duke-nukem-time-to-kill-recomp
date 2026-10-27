@@ -326,7 +326,7 @@ VANILLA_NOTICE = ('Modernized is now the default profile; your Vanilla settings 
 
 
 def defaults():
-    return {'version': 53, 'active': 'modernized',
+    return {'version': 54, 'active': 'modernized',
             'profiles': {mode: default_profile(mode) for mode in MODES}}
 
 
@@ -372,7 +372,7 @@ def load(path):
         notices.append('Unreadable profile settings; restored Modernized defaults.')
     else:
         version = data.get('version')
-        if type(version) is int and version > 53:
+        if type(version) is int and version > 54:
             raise ValueError(f'Profile settings version {version} is newer than this launcher; file left unchanged.')
         if type(version) is int and version == 0:
             mode = data.get('mode', 'modernized')
@@ -381,8 +381,8 @@ def load(path):
                 if renderer in RENDERERS:
                     result['profiles'][mode]['presentation']['renderer'] = renderer
             changed = True
-            notices.append('Migrated version 0 profile settings to version 53.')
-        elif type(version) is int and version in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53):
+            notices.append('Migrated version 0 profile settings to version 54.')
+        elif type(version) is int and version in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54):
             if data.get('active') == 'vanilla':
                 notices.append(VANILLA_NOTICE)
             profiles = data.get('profiles', {})
@@ -415,7 +415,7 @@ def load(path):
                 # Schema 38 (D20): QUICK SAVE / QUICK LOAD take F6 / F9.
                 if isinstance(profile, dict) and 'bindings' in profile:
                     try:
-                        result['profiles'][mode]['bindings'] = dict(pc_input.migrate_bindings(profile['bindings']) if version < 8 else pc_input.migrate_grab(profile['bindings']) if version < 53 else pc_input.validate(profile['bindings']))
+                        result['profiles'][mode]['bindings'] = dict(pc_input.migrate_bindings(profile['bindings']) if version < 8 else pc_input.migrate_grab(profile['bindings']) if version < 53 else pc_input.add_missing_actions(profile['bindings']) if version < 54 else pc_input.validate(profile['bindings']))
                     except ValueError as exc:
                         notices.append(f'{mode}: {exc} Restored action defaults.')
             if version < 6:
@@ -455,8 +455,8 @@ def load(path):
                         profile['bindings']['item_use'] = 'Unbound'
             changed = result != data
             if changed and result != {**data, 'active': 'modernized'}:
-                notices.append(f'Migrated version {version} profile settings to version 53; retained preferences and added control and presentation defaults.'
-                               if version < 53 else
+                notices.append(f'Migrated version {version} profile settings to version 54; retained preferences and added control and presentation defaults.'
+                               if version < 54 else
                                'Invalid or unsupported profile fields were reset; valid preferences were retained.')
         else:
             changed = True

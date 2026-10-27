@@ -280,6 +280,7 @@ static void aim_hook_body(CPUState* cpu,uint32_t address) {
     double eye[3],forward[3],target[3],muzzle[3],body[3],safe[3],ray_start[3];
     read_vector(camera+0x14,eye);read_vector(continuous?player+0x80c:player+0xbc,muzzle);
     for(int i=0;i<3;++i)forward[i]=(int16_t)psx_mod_read_half(camera+12+2*i);
+    free_look_aim(eye,forward);
     bool ok=normal(forward);int kind=0;
     for(int i=0;i<3;++i)target[i]=eye[i]+forward[i]*16384;
     read_vector(player+4,body);body[1]=muzzle[1];
@@ -360,7 +361,7 @@ extern "C" void ttk_aim_toggle_crosshair(void) {
     crosshair_forced=ttk_aim_crosshair_enabled()?0:1;
 }
 extern "C" int ttk_aim_reticle() {
-    return ttk_aim_crosshair_enabled() && !g_precise_mode && !g_ls_mode && !g_psx_call_bail &&
+    return !ttk::free_look_active() && ttk_aim_crosshair_enabled() && !g_precise_mode && !g_ls_mode && !g_psx_call_bail &&
         ttk::view_mode() && !ttk::input_snapshot(ttk::Context::Gameplay).held[ttk::original_aim] &&
         (ttk::shot_ready() || ttk::locomotion_input_ready()) && (psx_mod_read_byte(ttk::player+0x3b8)==2) &&
         ttk::supported(psx_mod_read_byte(ttk::player+0x3b9)) && ttk::identity();

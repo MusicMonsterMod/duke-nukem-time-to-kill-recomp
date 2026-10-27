@@ -469,6 +469,21 @@ In supported first-level standing/walking states,
 mouse movement orbits the third-person camera. With view weapon aiming enabled,
 Duke turns to face the view horizontally when holstered or using a supported weapon.
 
+In Modernized third person, hold **middle mouse** and move the mouse to inspect
+Duke and his surroundings. Walking, running, strafing and firing keep the heading
+and aim you had before the inspection. The crosshair hides until the camera
+returns. Release middle mouse to ease back; **V** also returns the camera (release
+middle mouse before starting another orbit). Releasing immediately restores mouse
+steering while the camera eases back. Shoulder and distance controls
+remain available. **OPTIONS > KEY BINDINGS > CAMERA > FREE LOOK** can rebind or
+unbind this action. An existing custom middle-button binding is preserved, with
+Free Look initially unbound in that case.
+
+Free Look is limited to supported ground locomotion. First person, swimming,
+jetpack flight, attached traversal and scripted cameras retain their existing
+controls. Entering an unsupported state, changing view, loading or releasing
+capture clears the inspection. Vanilla is unchanged.
+
 While captured, use **left mouse** to fire/action, **Space** to jump, **Scroll Lock** (tap) to
 draw/holster, **hold Left Ctrl** to crouch and release to stand, or **tap C** to stay crouched and tap it again to stand (with W/A/S/D: crouch walk; standing requires overhead clearance), **Left Shift** as the speed modifier,
 **hold right mouse** (or **Alt**) to grab a pushable object, **comma/period** to browse the mission items (see Mission items below; the original sidesteps are unbound, A/D strafe),

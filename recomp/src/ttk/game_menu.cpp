@@ -843,6 +843,7 @@ const KeyRow key_rows[]={
     {"MEDKIT",medkit},{"STEROIDS",steroids},{"JETPACK",jetpack},{"GOGGLES",goggles},{"BIO MASK",biomask},
     {"PREVIOUS MISSION ITEM",mission_previous},{"NEXT MISSION ITEM",mission_next},
     {"CAMERA",-1},{"FIRST / THIRD PERSON",camera_view},{"SHOULDER",camera_shoulder},{"RECENTER CAMERA",camera_recenter},
+    {"FREE LOOK",camera_free_look,nullptr,"HOLD TO ORBIT. MOVEMENT AND AIM KEEP THEIR HEADING"},
     {"LOOK UP",look_up,nullptr,"HOLD, EASES BACK ON RELEASE"},{"LOOK DOWN",look_down,nullptr,"HOLD, EASES BACK ON RELEASE"},
     {"LOCK LOOK UP",lock_look_up,nullptr,"HOLD, STAYS UNTIL A LOOK KEY"},{"LOCK LOOK DOWN",lock_look_down,nullptr,"HOLD, STAYS UNTIL A LOOK KEY"},
     {"TURN LEFT",turn_left,nullptr,"HOLD, SPEEDS UP, FASTER RUNNING"},{"TURN RIGHT",turn_right,nullptr,"HOLD, SPEEDS UP, FASTER RUNNING"},

@@ -110,6 +110,8 @@ def add_missing_actions(bindings):
             result[browse] = key if key not in result.values() else 'Unbound'
     if 'crouch_alt' not in result:
         result['crouch_alt'] = 'C' if 'C' not in result.values() else 'Unbound'
+    if 'camera_free_look' not in result:
+        result['camera_free_look'] = 'Mouse3' if 'Mouse3' not in result.values() else 'Unbound'
     for action, token in DEFAULTS.items():
         if action not in result:
             free = next((key for key in [token, *(k for k in TOKENS if k not in DEFAULTS.values()), *TOKENS] if key not in result.values() and key != 'C'), None)

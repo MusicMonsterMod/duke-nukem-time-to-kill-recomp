@@ -1,5 +1,53 @@
 # Current status - 2026-10-04
 
+## 2026-10-27 - D10E accepted and closed
+
+User accepted the final free-look and release-steering behavior and explicitly
+authorized lock-in/closeout. D10E is Done. Hold middle mouse in third person to
+inspect without changing movement/aim heading; release restores mouse steering
+immediately while the visual offset eases back. FREE LOOK is rebindable and
+existing custom middle-button bindings are preserved.
+
+Player build, native controls/input/aim suites, 120 Python input/profile tests
+and private 60/120 routes passed, including repeated release while continuously
+moving the mouse. [Note 283](283-d10e-free-look.md) retains evidence and limits.
+Implementation, tests and documentation commit/push authorized as MusicMonsterMod.
+D08K12 crouch running remains Todo after D18 follow-ups. No next job started.
+
+Launch: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-27 - D10E release steering correction
+
+User reported intermittent loss of mouse steering after free look. Reproduced:
+continuous mouse input replenished the return offset indefinitely while gameplay
+yaw stayed fixed. Release now restores steering immediately and decays only the
+remaining visual offset. Private 60/120 runs pass three repeated releases with
+continuous mouse motion; a native regression checks first-update steering and
+return completion. [Note 283](283-d10e-free-look.md) records the cause and evidence.
+Rebuilt candidate remains Needs playtest; no commit/push.
+
+Launch: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-27 - D10E free-look candidate; D08K12 queued
+
+D10E is Needs playtest. Hold middle mouse in third person to inspect while
+movement, facing and fire retain their pre-orbit direction; release/V eases back.
+Crosshair hides during inspection. FREE LOOK is rebindable; schema 54 preserves
+custom middle-button bindings. Ground locomotion only; other camera owners clear
+inspection. Build, native controls/input/aim suites and 120 Python tests pass;
+private 60/120 gameplay evidence and limits are in [note 283](283-d10e-free-look.md).
+Human motion/feel acceptance remains open. No framework edits, commit or push.
+
+D08K12 crouch running is Todo after D18's remaining follow-ups. Support both
+Ctrl and C via configured run/crouch actions, preserve crouch clearance/animations
+and ledge walk-offs, and test vent traversal and blocked standing when selected.
+No crouch-run implementation started.
+
+Launch from the workspace root: `python3 recomp/tools/local/run.py`.
+
+
 ## 2026-10-27 - D21 accepted and closed
 
 User accepted the completed SOUND menu and HELD CROUCH behavior and explicitly

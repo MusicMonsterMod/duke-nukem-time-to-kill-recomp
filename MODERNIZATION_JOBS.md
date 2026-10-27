@@ -1,5 +1,27 @@
 # Time to Kill — modernization jobs
 
+### D17AB - Slot-5 mirror sky leak, HUD loss and palette corruption
+
+**Status: Done (user-accepted; closeout, commit and push authorized 2026-10-27).**
+User reports outside clouds rotating overhead while indoors facing the mirror;
+walking/jumping close with pistol (key 2) briefly hides HUD elements. After
+DNSTUFF, selecting freeze thrower (key 0), firing toward the mirror and repeatedly
+jumping/firing can cause severe multicolored rendering and a persistent shifted
+world palette. These are user reports until independently reproduced.
+Scope: reproduce current UI slot 5 using private save/card/settings copies;
+trace mirror render/clipping, ordering, framebuffer/CLUT writes and high-refresh
+replay; implement a bounded correction supported by evidence.
+Acceptance: indoor mirror approach has correct sky occlusion, stable HUD and no
+palette corruption through pistol and freeze-shot jumps, repeated approaches,
+load/reload and 60/120 presentation. Preserve reflected geometry/opacity,
+intentional freeze effects, outdoor sky, first/third views and Vanilla behavior.
+User accepted the delivered mirror fixes: "lock it in and close us out!".
+Implementation, regression tests and documentation commit/push are authorized.
+[Note 280](documentation/280-d17ab-mirror-rendering.md) retains the cause,
+old/fixed comparison and bounded verification. Existing framework changes are
+unchanged; no new sky suppression or gameplay controls.
+
+
 ### PRIV01 - Remove local usernames from repository content
 
 **Status: Done (user-accepted; closeout, commit and push authorized 2026-10-27).**
@@ -21429,3 +21451,37 @@ User: "lock it in and close it out". D19Q4 is Done. Implementation, native
 regression tests, framework patch, manual and documentation commit/push authorized.
 The tested candidate and note 279 verification limits are unchanged. No new build,
 game launch or next job during closeout.
+
+
+## 2026-10-27 - D17AB mirror corruption candidate; investigation remains open
+
+Registered and began the selected mirror job. Reproduced multicolored rendering;
+found an empty-OT fallback rotating the host arena while first-person packets
+were still deferred. Guarded that reset. New regression fails before/passes after;
+player build and Original/Corrected near suites pass. Private 60/120 captures and
+verified freezer-11 120 stress/reload no longer show the reproduced corruption.
+Circling-cloud cause and exhaustive HUD transitions remain unverified: In progress.
+[Note 280](documentation/280-d17ab-mirror-rendering.md) records evidence and limits.
+No framework edits, acceptance closeout, commit or push.
+
+
+## 2026-10-27 - D17AB cloud follow-up (Needs playtest)
+
+Old/fixed/sky-off comparison reproduces the overhead sky triangles and connects
+them to the same deferred-packet arena bug. Old native trace has 14 rapid
+weapon-to-sky packet-address reuses; fixed trace has zero while sky still emits.
+Existing guard covers the cloud symptom too; no additional sky-source changes.
+Sky suite passes; 4x mirror 60/120 and bounded outdoor 120 samples pass.
+Candidate executable unchanged. [Note 280](documentation/280-d17ab-mirror-rendering.md)
+records evidence and limits. Await user playtest; no acceptance closeout,
+commit or push. Launch: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-27 - D17AB accepted and closed
+
+User: "lock it in and close us out!". D17AB is Done. Deferred first-person
+packet lifetime correction and the linked mirror cloud/HUD/palette fixes are
+accepted. Implementation, six-mesh regression and evidence documentation are
+included in the authorized MusicMonsterMod commit/push. Note 280 retains the
+bounded 60/120 evidence and limitations. No new build, game launch, framework
+edits or next job during closeout. Launch: `python3 recomp/tools/local/run.py`.

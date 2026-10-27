@@ -30,7 +30,7 @@ extern "C" int pgxp_mesh_vertex(uint32_t addr,uint32_t,int32_t* x,int32_t* y,uin
 #include <vector>
 static uint8_t ram[0x200000];
 static PSXModFunctionEntryCallback near_hook;
-static bool live_eye=false,modern=true,live_third=false,duke=false,interaction=false;
+static bool live_eye=false,modern=true,live_third=false,duke=false,interaction=false,test_viewmodel=false;
 static double body_coverage=1;
 static float observed_coverage=1;
 static unsigned host_vertices;
@@ -60,7 +60,7 @@ extern "C" int psx_mod_replay_active(void){return 0;}
 extern "C" uint32_t psx_mod_savestate_loads(void){return 0;}
 namespace ttk {bool frame_trace_on(){return false;} void frame_trace_account(uint32_t,long){}}
 static bool lower_body=false;
-namespace ttk {void third_person_mesh_begin(CPUState*){} bool input_modernized(){return modern;} bool first_person_view_live(){return live_eye;} bool third_person_camera_live(){return modern && live_third;} double third_person_body_coverage(){return body_coverage;} bool widescreen_near_clip_live(){return false;} bool third_person_duke_drawing(){return duke;} bool first_person_duke_drawing(){return duke;} bool first_person_actor_drawing(){return duke;} LimbPresentation first_person_limb_presentation(){return lower_body?limb_presentation(LimbOwner::Body,5,true):interaction?limb_presentation(LimbOwner::Interaction,0x0f):LimbPresentation{};} bool first_person_interaction_drawing(){return interaction;} bool first_person_weapon_drawing(){return false;} uint64_t input_host_frame(){return 0;}}
+namespace ttk {void third_person_mesh_begin(CPUState*){} bool input_modernized(){return modern;} bool first_person_view_live(){return live_eye;} bool third_person_camera_live(){return modern && live_third;} double third_person_body_coverage(){return body_coverage;} bool widescreen_near_clip_live(){return false;} bool third_person_duke_drawing(){return duke;} bool first_person_duke_drawing(){return duke;} bool first_person_actor_drawing(){return duke;} LimbPresentation first_person_limb_presentation(){return test_viewmodel?limb_presentation(LimbOwner::DisplayHand,0x0f):lower_body?limb_presentation(LimbOwner::Body,5,true):interaction?limb_presentation(LimbOwner::Interaction,0x0f):LimbPresentation{};} bool first_person_interaction_drawing(){return interaction;} bool first_person_weapon_drawing(){return false;} uint64_t input_host_frame(){return 0;}}
 static int16_t sx(uint32_t p){return (int16_t)p;} static int16_t sy(uint32_t p){return (int16_t)(p>>16);}
 // A whole-hook observation oracle: compare this digest across separate runs
 // with the diagnostic gate disabled/enabled. Covers all fixture RAM and CPU
@@ -324,6 +324,46 @@ static void packet_contracts(const char* executable) {
             assert(ttk::near_clip_frame_state().host_bytes==frame.host_bytes);
         }
     };
+    // D17AB: a mirror can leave the native OT empty while each arm/weapon
+    // mesh queues host packets. More than four meshes must not wrap the arena
+    // and overwrite the first mesh before the draw-boundary flush.
+    {
+        live_eye=true;test_viewmodel=true;
+        ttk::near_clip_load_frame_state({0,0,0,0});
+        unsigned region=0,used=0;
+        std::vector<uint8_t> retained;
+        uint32_t retained_base=0;
+        for(unsigned i=0;i<6;++i) {
+            object_case(0x80034dd0,100+i,true,false,0,500);
+            const auto state=ttk::near_clip_frame_state();
+            if(!i) {
+                region=state.host_region;
+                retained_base=0x80f00000+region*128*1024;
+                for(unsigned j=0;j<state.host_bytes;++j) retained.push_back(psx_mod_read_byte(retained_base+j));
+            }
+            assert(state.host_region==region && state.host_bytes>used);
+            for(unsigned j=0;j<retained.size();++j) assert(psx_mod_read_byte(retained_base+j)==retained[j]);
+            assert(psx_mod_read_word(bm)==0 && psx_mod_read_word(ot+8)==0);
+            used=state.host_bytes;
+        }
+        // Native HUD arrives before the deferred weapon flush.
+        word(bm,0x80000000u);word(ot,0x801f0000);word(ot+4,0x801f0000);
+        word(0x801f0000,0x03000000u);
+        ttk::near_clip_viewmodel_flush();
+        assert(psx_mod_read_word(ot)==0x801f0000 && psx_mod_read_word(ot+8));
+        unsigned packets=0;uint32_t node=psx_mod_read_word(ot+8);
+        while(node) {
+            assert(++packets<10000);
+            assert((node&0xffffff)>=((retained_base)&0xffffff));
+            assert((node&0xffffff)<((retained_base+used)&0xffffff));
+            assert((psx_mod_read_word(node)>>24)==9);
+            node=psx_mod_read_word(node)&0xffffff;
+            if(node)node|=0x80000000u;
+        }
+        assert(packets>=6);
+        test_viewmodel=false;ttk::near_clip_load_frame_state({0,0,0,0});
+        std::puts("PASS: D17AB pending viewmodel packets survive empty OT across six meshes");
+    }
     // D10B: body coverage travels with real emitted packets; a fully opaque
     // body remains native. Doors use only the authenticated occluder caller.
     live_eye=false;live_third=true;duke=true;body_coverage=0.375;

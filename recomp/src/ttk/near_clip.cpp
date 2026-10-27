@@ -1396,7 +1396,9 @@ void near_hook_body(CPUState* cpu,uint32_t address) {
         const uint32_t cursor=psx_mod_read_word(context),start=psx_mod_read_word(context+4),end=psx_mod_read_word(context+8);
         bool empty=true;
         for(uint32_t i=0;i<0x100 && empty;i+=4) empty=!psx_mod_read_word(bitmap+i);
-        if(empty) {region_after_load();frame_first_cursor=cursor;host_frame_reset();}
+        // An empty guest OT can coexist with queued first-person packets.
+        // Rotating here overwrites their arena before the later flush links them.
+        if(empty && held_packets.empty()) {region_after_load();frame_first_cursor=cursor;host_frame_reset();}
         if(end>start && cursor>=start && cursor<end && frame_first_cursor>=start && frame_first_cursor<end) {
             arena_size=end-start;
             const uint32_t used=cursor>=frame_first_cursor?cursor-frame_first_cursor:arena_size-(frame_first_cursor-cursor);

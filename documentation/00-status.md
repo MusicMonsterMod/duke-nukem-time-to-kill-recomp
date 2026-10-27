@@ -1,5 +1,38 @@
 # Current status - 2026-10-04
 
+## 2026-10-27 - D17AB accepted and closed
+
+D17AB is Done. User: "lock it in and close us out!". Mirror cloud/HUD/palette
+fixes accepted; implementation, tests and documentation commit/push authorized.
+[Note 280](280-d17ab-mirror-rendering.md) retains packet-lifetime diagnosis,
+old/fixed comparisons, 60/120 evidence and verification limits. Earlier candidate
+entries are historical. No new build, game launch, framework edits or next job
+during closeout. Launch: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-27 - D17AB clouds traced; Needs playtest
+
+Pre-fix/sky-off/fixed comparisons identify overhead sky triangles as another
+manifestation of premature deferred-packet arena reuse. Fixed trace has zero
+rapid weapon-to-sky address reuses (old: 14), with normal sky emission retained.
+Mirror 4x 60/120, sky suite and bounded outdoor 120 checks pass. Existing candidate
+unchanged; no new sky-source or framework edits. Earlier open-cloud entries are
+historical. [Note 280](280-d17ab-mirror-rendering.md) records evidence and limits.
+User playtest pending; no acceptance closeout, commit or push.
+Launch from workspace root: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-27 - D17AB mirror investigation and corruption candidate
+
+In progress. New selected job covers slot-5 indoor sky/clouds, close-range HUD
+loss and freezer jump/fire palette corruption. A pending-viewmodel packet arena
+reset defect is reproduced and guarded; build, old-fail/new-pass regression and
+Original/Corrected near suites pass. Private 60/120 candidate captures and verified
+120 freezer stress/reload avoid the reproduced corruption. Cloud cause and full
+HUD-transition acceptance remain open. [Note 280](280-d17ab-mirror-rendering.md).
+No acceptance closeout, commit or push. Launch: `python3 recomp/tools/local/run.py`.
+
+
 ## 2026-10-27 - D19Q4 accepted and closed
 
 D19Q4 is Done. User: "lock it in and close it out". Implementation, tests,

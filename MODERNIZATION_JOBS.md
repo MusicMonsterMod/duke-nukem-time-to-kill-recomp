@@ -330,7 +330,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D13 | Higher internal resolution and display scaling | Done | D02 |
 | D14 | Widescreen, FOV and visibility | Done | D03, D13 |
 | D15 | Optional geometry and texture precision | Accepted | D13 |
-| D16 | Texture filtering and game-specific HD assets | Todo | D13 |
+| D16 | Texture manipulation and replacement foundation | Done (bounded foundation accepted 2026-10-27) | D13 |
 | D16A | HRP assets and first-person weapon research (later) | Cancelled (original assets preferred) | - |
 | D17 | High refresh rate rendering without faster simulation (Match Display, 30-240, Unlimited) | Done (user-accepted) | D01, D13 |
 | D17A | High-refresh texture/geometry instability: popping, flicker, black areas | Accepted | D17, D11B, D14 |
@@ -7576,11 +7576,69 @@ Investigate renderer support for reducing vertex jitter and perspective distorti
 
 **Acceptance:** captures show actual improvements and any remaining artifacts; toggles restore original presentation; collision, visibility and game timing remain unaffected. Unsupported renderer features are documented rather than simulated by ineffective settings.
 
-### D16 — Texture filtering and game-specific HD assets
+### D16 - Texture manipulation and replacement foundation
 
-Offer tested nearest/filtered presentation and investigate a narrowly scoped replacement-texture path. Preserve palette changes, animation, transparency and texture-page reuse. Establish a small verified asset sample before attempting a large upscale pass.
+**Status: Done (bounded foundation accepted 2026-10-27). Dependency: D13 (Done).**
+Real 40x40/160x160 Photon-to-game panel replacement is implemented. Exact source
+and palette gating, original fallback and private 60/120 save/load checks pass.
+[Note 278](documentation/278-d16-texture-foundation.md) records the artifact,
+source provenance, tests and explicit limits. The user accepted the visible club
+example and explicitly deferred broader scripting/modding/texture authoring.
+Commit and push authorized. This acceptance does not claim whole-game coverage.
 
-**Acceptance:** the sample replaces the intended textures only, handles their variants, has a fallback to disc assets and records asset provenance. Filtering, higher resolution and replacement textures are separate settings. A full HD pack is a later asset-production job scoped from this investigation.
+Establish control over the game's texture path so original textures can be
+identified, inspected, manipulated and replaced deliberately. HD textures and
+user-created replacements are possible future uses; this job builds the technical
+foundation and proves it with a controlled small-scale example. It does not build
+a modding pipeline or produce a full texture pack.
+
+**Scope:**
+
+1. Map the texture lifecycle from disc/source assets through decoding, palettes,
+   uploads, VRAM/texture-page reuse and renderer sampling. Identify where a
+   replacement can be applied safely. Catalogue world, actor/weapon, sprite/UI
+   and dynamic texture paths, with explicit coverage and unsupported cases;
+   one successful world texture must not imply universal support.
+2. Establish reliable texture identity and inspection/export for a small sample.
+   Account for level/overlay changes, shared pages, subregions and palette variants;
+   a transient VRAM address alone must not accidentally replace unrelated art.
+3. Implement a bounded replacement path supporting deliberate texture edits and
+   a higher-resolution sample while preserving intended UV mapping and native
+   behavior. Determine the required handling of palettes, animation, transparency,
+   semi-transparency, wrapping and texture updates from evidence. Keep original
+   disc assets intact and provide a deterministic original-texture fallback.
+4. Use Photon for the controlled authoring example: retain an editable source,
+   export the runtime image, load it in game and revise it through the same path.
+   Keep the runtime image interface independent of Photon. Read the accepted art
+   guide before material/art work and validate appearance in game.
+5. Document the integration points, supported image inputs, identity rules,
+   limitations and reproducible local workflow so later texture work can build on
+   this foundation without repeating the investigation. Texture filtering,
+   internal render resolution and replacement resolution remain separate concerns.
+
+**Acceptance:**
+
+- A small, named sample completes the inspect/export -> Photon edit -> runtime
+  replacement -> in-game verification loop, including a higher-resolution variant.
+  Choose sample assets after researching the real texture paths.
+- Evidence shows only the intended textures change, with exact source/palette
+  gating, original fallback and save/load restoration checks. Per the user
+  acceptance on 2026-10-27, natural transitions and broader animated/cutout
+  specimens are deferred coverage for future expansion, not blockers to this
+  bounded foundation. Record those untested paths explicitly.
+- Disabling replacements, or encountering missing/invalid replacement data, restores
+  original textures predictably. Vanilla retains original behavior. Verify relevant
+  renderer paths and bounded memory/performance cost, with limitations stated.
+- The result establishes reusable texture handling rather than a hard-coded visual
+  swap for one scene. Document what is needed to extend coverage to other classes.
+- Record sample provenance. Extracted retail textures and derived local authoring
+  references remain local under repository asset rules.
+
+**Outside this job:** user-facing mod tools, pack manifests/installers, mod discovery,
+priority/conflict systems, distribution, a full HD pack, model replacement and
+reviving cancelled D16A HRP work. Further asset production and modding infrastructure
+require separately selected work. Filtering options can be evaluated during the
+investigation, but are not the purpose or proof of this foundation.
 
 ### D16A — HRP assets and first-person weapon research (later)
 
@@ -21254,3 +21312,50 @@ implementation, regression tests, manual and documentation commit/push authorize
 D36H2 is Done. [Note 277](documentation/277-d36h2-buffalo-grip.md) retains the
 measured evidence and coverage limits. No new build, launch or next job during
 closeout. Framework modifications predate this job and remain unchanged.
+
+## 2026-10-27 - D16 texture foundation scope revised
+
+User requested ownership of texture manipulation/replacement with a controlled
+small example, then clarified that a modding pipeline is premature. D16 remains
+Todo: investigate the complete texture path, implement reusable replacement
+foundations and prove an editable Photon-to-game sample. HD assets and user mods
+are future applications, not current deliverables. No implementation, build or
+launch; no commit/push.
+
+## 2026-10-27 - D16 selected; visual explainer requested
+
+User selected D16, then requested a visual artifact to make the work concrete.
+Initial source inspection finds the pinned framework's `hd_texture_pack.h` and
+`hd_texture_pack.cpp`: hash/palette matching, upload residency, PNG decoding and
+tracking serialization APIs. No calls were found in the active GPU renderer or
+main path during this initial inspection; API availability is not game support.
+Interactive conceptual visual lives locally at
+`recomp/analysis/d16-texture-foundation/texture-foundation.html`. Its tiles are
+illustrative, not retail textures or in-game captures. D16 remains In progress;
+no gameplay changes, build, launch, commit or push in this step.
+
+## 2026-10-27 - D16 first real texture specimen and visual artifact
+
+Needs playtest for the bounded first implementation. The club panel's source
+words and CLUT match DB00A.RAW exactly. Photon source has 13 editable layers;
+40x40 and 160x160 exports render on the same surfaces with native lighting.
+One explicit local specimen uses exact source/CLUT identity, cached with VRAM
+mutation/restore invalidation; original cutout/STP semantics retained. Missing
+files and palette mismatch fall back; Vanilla and software retain original art.
+201 tests pass (2 skipped), build and additional runtime checks pass. Framework
+patch exported and verified against the pin. Private 60/120 lifecycle, local
+idle cadence and interactive before/after evidence are in [note 278](documentation/278-d16-texture-foundation.md).
+One region only; wrapping, authored alpha, broader asset/transition coverage and
+software replacement remain outside the demonstrated result. No acceptance
+closeout, commit or push. Launch: `python3 recomp/tools/local/run.py`; sample
+activation is optional and documented in note 278.
+
+## 2026-10-27 - D16 bounded foundation accepted
+
+The user reviewed the club replacement artifact, confirmed the example is
+perfect for the intended foundation, and accepted all D16 work. D16 is Done at
+that bounded scope. Capture -> Photon edit -> compile -> in-game replacement
+is established at original and higher resolution. Scripting/modding, additional
+materials and broader coverage are deferred until separately selected. Optional
+palette-constrained authoring is a future feature; current replacement RGB is
+not quantized to the native CLUT. Commit and push explicitly authorized.

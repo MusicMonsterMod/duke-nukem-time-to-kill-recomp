@@ -1,5 +1,45 @@
 # Current status - 2026-10-04
 
+## 2026-10-27 - D16 bounded texture foundation accepted
+
+The user accepted the visible club replacement and all D16 work, then explicitly
+authorized commit and push. D16 is Done at the demonstrated foundation scope:
+capture/export -> editable Photon art -> compile -> original/HD replacement.
+Existing fallback, identity and save/load evidence stands; no broader campaign
+coverage is claimed. Scripting/modding, new material assignment, animated/cutout
+coverage and optional palette-constrained exports are future work, not remaining
+acceptance requirements. Replacement RGB is not quantized to the original CLUT;
+native cutout/blend classification and lighting remain in charge.
+[Note 278](278-d16-texture-foundation.md) records the workflow and limitations.
+Retail-derived artwork, captures and private saves remain local.
+
+
+## 2026-10-27 - D16 real texture specimen ready for review
+
+D16 is Needs playtest for its bounded first candidate. Exact DB00A.RAW source
+and palette were captured, edited in Photon and replaced in game at 40x40 and
+160x160. Interactive evidence: `recomp/analysis/d16-texture-foundation/texture-proof.html`.
+Editable source and all retail-derived evidence stay local. [Note 278](278-d16-texture-foundation.md)
+records commands, identity/invalidation rules, tests and coverage limits.
+Build, 201 tests (2 skipped), runtime checks and clean-pin patch verification
+pass. Private 60/120 checks cover the sample, palette/missing-file fallback and
+save/load restoration. One-region RGB-only OpenGL foundation; broader coverage
+and user visual acceptance remain. No acceptance closeout, commit or push.
+Normal launch: `python3 recomp/tools/local/run.py`; original textures unless
+the one-launch `DNTTK_TEXTURE_SAMPLE` variable is supplied (see note 278).
+
+
+## 2026-10-27 - D16 scope revised; not started
+
+D16 remains Todo, now "Texture manipulation and replacement foundation". User
+wants the technical door opened for texture edits/replacements, demonstrated by
+a controlled small Photon-authored example. Research texture identity/lifecycle
+and preserve native palette, animation, transparency and reuse behavior. A
+modding pipeline, full HD pack and user-facing mod tools are outside this job.
+See the canonical D16 acceptance criteria in `MODERNIZATION_JOBS.md`. This was
+backlog scoping only; no implementation, build, launch, commit or push.
+
+
 ## 2026-10-26 - D36H2 accepted and closed
 
 D36H2 is Done. User: "lock it in, close it out!!". Both Buffalo grip corrections

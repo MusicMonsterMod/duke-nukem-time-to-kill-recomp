@@ -342,6 +342,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08A30 | Reverse weapon-wheel direction: up advances, down goes back | Done (user-accepted) | D08A29 |
 | D09 | Modern controller support | Todo | D05, D06, D07 |
 | D10 | Third-person camera polish | Done | D08 |
+| D10E | Optional held middle-mouse third-person free look (issue #1 inspiration) | Todo | D04, D06, D07, D10 |
 | D10A | Rapid mouse turning and Shift-running investigation | Done | D06, D07C, D08 |
 | D10B | Tight-space third-person camera: translucent Duke and see-through doors | Superseded by D10B1 | D10, D11B |
 | D10B1 | Roll back D10B behavior; restore native third-person obstruction handling | Done | D10B |
@@ -396,12 +397,13 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D17Z | Slot-12 medieval corridor wall glitch | Done | D11B, D17N, D17Q |
 | D17AA | Slot-12 wall tear exposes the pushable block after one step | Done | D17Z, D11B, D17M |
 | D17Y | Slot 8: fire-platform flicker and upper castle walls disappearing during a jump | Done | D17A, D11B, D14 |
-| D18 | FMV and audio presentation safeguards | Todo | D01, D02 |
+| D18 | FMV and audio presentation safeguards | Needs playtest | D01, D02 |
 | D18A | Voice/music/gunfire crackle investigation | Done | D01, D02 |
 | D18B | Concurrent voice with music (no music mute) | Todo | D18, D21 |
 | D18C | Load-sensitive crackle at construction signs and train ledge | Todo | D17B, D18A |
 | D18D | Music silent after death and Continue until Duke's next voice line | Done (user-accepted 2026-10-21) | D01 |
 | D18E | Challenge stages 21-26 have no music: reuse fitting in-game tracks (user mapping) | Todo | D22B, D26A |
+| D18F | Recomp-owned FMV playback and replacement/mod foundation | Todo | D18 |
 | D19 | Modern in-game menus, settings and input prompts (replicates the original TTK menu; mockup approved 2026-10-18) | Done (user-accepted 2026-10-18; follow-ups D19G, D19F, D19F1) | D02, D04, D13 |
 | D19G | In-game OPTIONS stage 2: key bindings in PC CONTROLS; display and camera options applied live | Done (user-accepted 2026-10-20) | D19 |
 | D19G1 | FRAME RATE changes live after a 60 launch too (today NEXT LAUNCH: no replay presentation at 60) | Done (user-accepted 2026-10-20) | D19G, D17 |
@@ -7078,6 +7080,41 @@ See [the control plan](documentation/32-eduke32-weapon-item-plan.md).
 
 **Acceptance:** doors, corners, tight rooms and vertical traversal do not leave the camera inside geometry or hide necessary action; smoothing does not introduce excessive aiming delay. Record representative playtest locations.
 
+### D10E - Optional held middle-mouse third-person free look
+
+**Status: Todo. Backlog only; not selected for implementation. Dependencies: D04, D06, D07, D10 (accepted/Done).**
+Requested 2026-10-27. Inspired by @vakho10's
+[GTA San Andreas-style camera suggestion, issue #1](https://github.com/MusicMonsterMod/duke-nukem-time-to-kill-recomp/issues/1).
+Credit that input while keeping this narrower request distinct: hold middle
+mouse to inspect Duke/environment in third person; orbit must not turn Duke
+with the camera. Release must smoothly restore existing third-person control
+without a camera snap or an unwanted sudden body turn. Preserve ordinary
+unheld behavior, first person and Vanilla. This does not select the issue's
+separate head tracking, right-click aim or replacement control scheme.
+
+Initial source inspection: `recomp/src/ttk/pc_input.cpp` stores mouse buttons
+and accumulated look deltas; `input_bindings.def` has no default middle-button
+action (Mouse3 maps to SDL button 2). `modern_controls.cpp` owns orbit/recenter,
+uses camera yaw for movement, and calls `face_view()` through multiple state
+paths. `weapon_aim.cpp` reads the camera forward vector for shots. Simply
+suppressing one facing call would leave movement/aim coupled to the inspection
+camera. Investigate a separate inspection orbit and retained gameplay heading,
+with one explicit entry/exit owner; this is a proposal, not implemented behavior.
+
+When selected, inspect current code again and decide held movement and firing
+policy together: retain pre-look movement/aim heading, cancel free look on fire,
+or another coherent policy. Report the choice and any limitation; do not silently
+fire behind Duke or make release rotate him. Check custom middle-button binding
+conflicts, camera collision, shoulder/recenter, view switches, capture loss,
+pause/load and special-action camera ownership.
+
+Acceptance: optional hold-to-orbit works at idle and through walk/run/strafe;
+no camera-induced body turn while held; smooth enter/release including large
+orbits; movement, aim, firing and their combination remain coherent. Test
+repeated presses, 60/120 presentation, first-person/unheld/Vanilla regression,
+and explicitly document unsupported states or design decisions. No code/build
+or gameplay test performed for this backlog intake.
+
 ### D10A — Rapid mouse turning and Shift-running investigation
 
 **Done — bounded user acceptance (2026-09-27).** Player no longer encounters the
@@ -8743,7 +8780,9 @@ Use a systemic fix supported by evidence, and obtain user playtest acceptance.
 
 **Dependencies:** D17A, D11B, D14 (completed/accepted).
 
-### D18 — FMV and audio presentation safeguards
+### D18 - FMV and audio presentation safeguards
+
+**Status: Needs playtest (2026-10-27 reliability pass).** All eight native-table clips covered, including guarded private fixtures for optional/ending clips. Skip, cadence, seek/read and clean debug-quit evidence recorded. Listening/sync, real desktop fullscreen/window-close and natural campaign ending routes remain open. No decoder/gameplay changes justified by this pass. [Note 281](documentation/281-d18-fmv-reliability.md) contains the matrix, diagnostic tool and limitations.
 
 Expand coverage beyond the opening movie: playback, skipping, transitions and return to gameplay. Preserve native movie cadence and audio synchronization through display/profile changes. Optional scaling must not invent a higher source frame rate or regress the fixed streaming path.
 
@@ -8862,6 +8901,67 @@ levels pick music); with the chosen option each challenge stage plays the
 mapped track from level start, through death/Continue and restart, without
 breaking voice lines or the stage timer; stage 5 keeps its own music; Vanilla
 keeps the original; the user confirms.
+
+### D18F - Recomp-owned FMV playback and replacement/mod foundation
+
+**Status: Todo. Backlog only; not selected for implementation. Dependency: D18
+reliability evidence and outstanding playback acceptance. Requested 2026-10-27.**
+
+Give the recomp ownership of FMV playback, following the project's existing
+custom texture, model and sprite asset paths. Preserve the original movies as
+the default while gaining explicit control of timing, presentation and audio.
+Build a foundation for future enhancements, replacements and mod support;
+this request does not select remastering or replacement content now.
+
+Start from [D18 findings, note 281](documentation/281-d18-fmv-reliability.md):
+eight native table entries, original movie counts and sector selections,
+startup/optional/ending routes, XA audio, seek/teardown behavior and measured
+cadence. The fixture coverage does not prove natural campaign lifecycle or
+listening/sync acceptance. Carry those gaps and the unresolved offscreen audio
+starvation forward; they are not evidence that a new player already works.
+
+When selected, inspect the current asset override conventions and movie entry,
+completion, skip and audio ownership points. Design a host playback boundary
+that leaves game progression and eligibility gates intact, while the recomp
+owns media resolution, decoding/scheduling, presentation and audio delivery.
+Decide whether to reuse existing decoding components or add a backend based on
+measured fidelity and integration cost. Do not preselect a codec or renderer
+without that inspection.
+
+Planned scope:
+
+- Resolve movies by stable game-facing identity, with owned original assets as
+  the default and an optional external override path. Document format/version,
+  asset lookup/precedence, metadata and missing/invalid replacement behavior.
+  Keep original disc/media untouched; do not distribute extracted retail assets.
+- Use explicit timestamps and a documented clock/audio synchronization policy.
+  Preserve original playback speed, source cadence, aspect ratio and audio;
+  60/120 presentation must not accelerate the movie or invent source frames.
+  Keep enhanced scaling, interpolation and replacement audio opt-in future work.
+- Define start, skip, completion and cancellation contracts, buffer/decoder
+  cleanup and audio ownership transfer. Prevent overlapping original/host movie
+  audio, stale playback after skip, repeated speech-bank reads, or lost gameplay
+  music when control returns. Coordinate channel controls with D21 without
+  silently including that separate job.
+- Support display resize/fullscreen and clean exit during playback. Specify
+  focus-loss/pause and device-change behavior, with useful playback diagnostics.
+- Preserve Vanilla's existing playback path and provide a documented fallback
+  for Modernized if a replacement is absent, invalid or fails. Decide failure
+  timing and recovery explicitly so fallback cannot double-play audio or leave
+  game state waiting forever.
+
+**Acceptance:** the original eight-clip matrix passes on the owned assets with
+verified visual/audio fidelity, duration/cadence and listening/sync; startup,
+optional and natural ending/credits routes preserve their game gates and return
+states. Early/late skips, repeated playback, resize/fullscreen and quitting are
+safe at 60/120 presentation. Gameplay speech/music handoff remains correct;
+Vanilla is unchanged. A small non-retail test replacement demonstrates the
+lookup, metadata/timing and fallback contract without committing retail media.
+Document the authoring interface, supported formats, limitations and extension
+points for future mod/replacement work. Record hardware-backed results and
+remaining platform gaps; private fixtures alone do not close acceptance.
+
+No implementation, build or game launch authorized by this backlog intake.
 
 ### D19 — Modern in-game menus, settings and input prompts
 
@@ -21485,3 +21585,47 @@ accepted. Implementation, six-mesh regression and evidence documentation are
 included in the authorized MusicMonsterMod commit/push. Note 280 retains the
 bounded 60/120 evidence and limitations. No new build, game launch, framework
 edits or next job during closeout. Launch: `python3 recomp/tools/local/run.py`.
+
+## 2026-10-27 - D10E backlog intake; D18 selected
+
+D10E records the requested optional held middle-mouse orbit and credits
+@vakho10 issue #1 as inspiration. Input/camera/movement/aiming owners inspected;
+implementation and its gameplay tests deferred until selected. D18 selected
+for movie/audio reliability investigation with private settings/cards and
+explicit measured-versus-listening evidence. No commit/push authorized.
+
+## 2026-10-27 - D18 reliability pass delivered for playtest
+
+D18 is Needs playtest. Note 281 records disc/native-route inspection, all eight
+native-table movie clips, guarded private fixtures, 60/120 cadence, skips,
+seek/read checks and clean debug quits in both profiles. Added
+`recomp/tools/local/fmv_reliability.py` for repeatable private diagnostics.
+Both profiles reached fresh gameplay and resumed music without repeated
+voice-bank streaming on the observed route. Modernized Xvfb gameplay accumulated
+output underruns; Vanilla's measured route did not. Cause/desktop reproducibility
+is unverified. Listening/sync, real fullscreen/window-close and natural ending
+routes remain open. Existing four poll/DMA math tests and repository check pass;
+player binary unchanged. No gameplay/framework edits, player-save access,
+commit, push or next job. D10E remains Todo with issue #1 contributor credit.
+
+## 2026-10-27 - D18F recomp-owned FMV foundation queued
+
+User requested a future ownership layer for movie timing, presentation and
+audio, analogous to custom texture/model/sprite paths. Added D18F as Todo,
+grounded in note 281 with original-media preservation, optional replacement
+resolution, lifecycle/audio contracts and fidelity/regression acceptance.
+Enhancement assets and implementation are deferred. D18 remains Needs playtest;
+this intake does not close its open checks. No code changes, build or launch.
+
+## 2026-10-27 - D18 reliability session closeout authorized
+
+User requested "lock us in and close us out" after the previous session clear.
+The delivered D18 investigation, diagnostic runner and D10E/D18F backlog intake
+are locked in for commit/push as MusicMonsterMod. D18 remains Needs playtest:
+listening/sync, real desktop display/window-close and natural ending routes
+remain unverified. D10E and D18F remain Todo; no next implementation started.
+Note 281 preserves the measured results and unresolved offscreen starvation.
+Closeout verification: four FMV poll/DMA math tests, runner syntax and CLI help
+pass. Framework export is unchanged and applies cleanly to the pinned dependency.
+No new build or game launch; player saves/cards remain untouched.
+Launch from the workspace root: `python3 recomp/tools/local/run.py`.

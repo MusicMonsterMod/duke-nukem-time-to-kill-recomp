@@ -1,5 +1,40 @@
 # Next-session handoff
 
+## 2026-10-27 - D18 reliability session closeout authorized
+
+User requested "lock us in and close us out" after the previous session clear.
+The delivered D18 investigation, diagnostic runner and D10E/D18F backlog intake
+are locked in for commit/push as MusicMonsterMod. D18 remains Needs playtest:
+listening/sync, real desktop display/window-close and natural ending routes
+remain unverified. D10E and D18F remain Todo; no next implementation started.
+Note 281 preserves the measured results and unresolved offscreen starvation.
+Closeout verification: four FMV poll/DMA math tests, runner syntax and CLI help
+pass. Framework export is unchanged and applies cleanly to the pinned dependency.
+No new build or game launch; player saves/cards remain untouched.
+Launch from the workspace root: `python3 recomp/tools/local/run.py`.
+
+## 2026-10-27 - D18F recomp-owned FMV playback queued
+
+D18F is Todo, backlog only: preserve original movies while giving the recomp
+ownership of timing, presentation and audio, with an optional replacement/mod
+asset interface. Scope and acceptance are on the job board, grounded in note
+281. No implementation started; D18's outstanding playtest checks remain open.
+
+
+## 2026-10-27 - D18 reliability findings ready for playtest; D10E queued
+
+D10E is Todo only: optional held middle-mouse third-person free look, inspired
+by @vakho10's GitHub issue #1. Input/camera/movement/aiming ownership inspected;
+no camera implementation started. D18 is Needs playtest.
+[Note 281](281-d18-fmv-reliability.md) records all eight native-table clips,
+private playback/skip/quit routes, cadence, seek/read and audio counters.
+Listening/sync, real desktop fullscreen/window-close and natural ending routes
+remain open. Both profiles reached fresh gameplay and resumed music; Modernized
+offscreen gameplay showed output starvation, documented without a desktop
+regression/cause claim. No gameplay or decoder changes; diagnostic runner added.
+No player saves/cards touched; no commit/push authorized.
+
+
 ## 2026-10-27 - D17AB accepted and closed
 
 D17AB is Done. User: "lock it in and close us out!". Mirror cloud/HUD/palette

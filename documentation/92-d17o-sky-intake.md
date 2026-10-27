@@ -295,7 +295,7 @@ local investigation routes; their imports reuse the existing D17 harness.
 For the player, ordinary launch keeps saved preferences:
 
 ```sh
-python3 /home/spartacus/CODE/duke-nukem-time-to-kill-recomp/recomp/tools/local/run.py
+python3 recomp/tools/local/run.py
 ```
 
 Load UI slot 10, look up and slowly turn in both directions, then vary pitch

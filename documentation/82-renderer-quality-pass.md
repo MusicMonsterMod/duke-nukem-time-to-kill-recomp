@@ -202,7 +202,7 @@ Executable SHA-256:
 Launch the candidate using the player's saved preferences:
 
 ```sh
-python3 /home/spartacus/CODE/duke-nukem-time-to-kill-recomp/recomp/tools/local/run.py
+python3 recomp/tools/local/run.py
 ```
 
 Use F10 to capture the mouse if necessary. Playtest fixed/Match Display as well

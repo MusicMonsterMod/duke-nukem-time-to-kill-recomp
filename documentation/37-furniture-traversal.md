@@ -84,7 +84,7 @@ Walk off without Shift or another jump. Repeat with Shift held and check for a s
 landing. Release movement during a drop, and repeat the entry/exit checks on the couch.
 Check an ordinary wall still blocks movement. The pipe-bomb shortcut remains open.
 
-Launch: `python3 /home/spartacus/Desktop/dn-ttk/recomp/tools/local/run.py`.
+Launch: `python3 recomp/tools/local/run.py`.
 Gameplay captures automatically; F10 toggles capture.
 
 ## Subsequent human feedback — 2026-09-27

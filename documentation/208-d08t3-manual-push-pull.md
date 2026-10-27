@@ -167,7 +167,7 @@ interaction view. These are evidence limits, not unaccepted Free Push work.
 Launch with the player's saved preferences:
 
 ```sh
-python3 /home/spartacus/CODE/duke-nukem-time-to-kill-recomp/recomp/tools/local/run.py
+python3 recomp/tools/local/run.py
 ```
 
 Capture is automatic. No F10 activation step is required.

@@ -68,7 +68,7 @@ and back. No preference change is required. Human motion/appearance acceptance
 remains pending. No acceptance closeout, commit or push authorized.
 
 ```sh
-python3 /home/spartacus/CODE/duke-nukem-time-to-kill-recomp/recomp/tools/local/run.py
+python3 recomp/tools/local/run.py
 ```
 
 

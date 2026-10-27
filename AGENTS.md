@@ -34,3 +34,14 @@ Original media under `game/`, research, generated game code, builds, captures, p
 ## Writing
 
 Use ASCII hyphen-minus `-` only. Do not use Unicode em dashes (U+2014) or en dashes (U+2013).
+
+## Private paths
+
+Never write the local account name or an expanded personal home directory into
+tracked documentation, Markdown, reports, logs, asset metadata or examples.
+Use repository-relative paths for workspace files, `~/` for home-relative
+references, and `$HOME` in shell commands. Redact copied diagnostic output before
+saving it. For other machines use `<redacted>` as the username placeholder.
+Run `python3 scripts/ci/check_repo.py` before an authorized commit; fix privacy
+failures without recording the offending username in the fix or its notes.
+Give launch commands from the workspace root: `python3 recomp/tools/local/run.py`.

@@ -1,5 +1,17 @@
 # Current status - 2026-10-04
 
+## 2026-10-27 - PRIV01 privacy cleanup accepted
+
+PRIV01 is Done. User accepted the cleanup and explicitly authorized closeout,
+commit and push. Removed 311 username occurrences from 85 tracked files,
+including Markdown, JSON reports and two Blender assets. Updated AGENTS.md,
+Claude and Cursor guidance plus the locally installed Codex continue skill.
+CI now rejects literal personal home paths in tracked text and binary content.
+Tracked byte scan, repository hygiene, JSON validation and Blender loading
+passed; no gameplay changes or build required. Existing Git history is retained
+by user decision. Existing submodule working changes remain untouched.
+
+
 ## 2026-10-27 - D16 bounded texture foundation accepted
 
 The user accepted the visible club replacement and all D16 work, then explicitly
@@ -6596,5 +6608,5 @@ Previous binary `79a3fd5b4cd7eb535d472089e680982516100fc65b1a00c3a5dd546b85ea527
 (D08P acceptance).
 
 ```sh
-python3 /home/spartacus/CODE/duke-nukem-time-to-kill-recomp/recomp/tools/local/run.py
+python3 recomp/tools/local/run.py
 ```

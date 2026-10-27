@@ -7,7 +7,7 @@
 Binary SHA256 `f0c5ad2ab9a52e6d26353630916f3ba5272c7c964b3907f77230b8475da5c890`.
 
 ```sh
-python3 /home/spartacus/Desktop/dn-ttk/recomp/tools/local/run.py
+python3 recomp/tools/local/run.py
 ```
 
 No commits this session. Profile settings migrate to **version 9**.

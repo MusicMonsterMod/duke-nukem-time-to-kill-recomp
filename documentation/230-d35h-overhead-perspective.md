@@ -75,7 +75,7 @@ route remain outside the recorded coverage. User accepted the new option; this d
 coverage beyond the evidence recorded above. No framework source, generated C or submodule pins changed.
 
 ```sh
-python3 /home/spartacus/CODE/duke-nukem-time-to-kill-recomp/recomp/tools/local/run.py
+python3 recomp/tools/local/run.py
 ```
 
 P selects global First Person. Try OVERHEAD VIEW both ways and CONFIRM on the

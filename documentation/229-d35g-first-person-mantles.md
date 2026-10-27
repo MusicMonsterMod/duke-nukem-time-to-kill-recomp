@@ -97,7 +97,7 @@ Frame-rate settings are not cadence benchmarks; dummy audio is not an audible
 sound test.
 
 ```sh
-python3 /home/spartacus/CODE/duke-nukem-time-to-kill-recomp/recomp/tools/local/run.py
+python3 recomp/tools/local/run.py
 ```
 
 P selects global First Person. MANTLE VIEW defaults to First Person; try both

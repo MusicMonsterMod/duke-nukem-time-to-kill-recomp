@@ -56,7 +56,7 @@ that the current player implements these switches.
 ## Local EDuke32 configuration inspected during D07 continuation
 
 The desktop launcher resolves to
-`/home/spartacus/Games/build-eduke32-vanilla/eduke32.exe` through the existing
+`~/Games/build-eduke32-vanilla/eduke32.exe` through the existing
 Bottles container. Read-only inspection of its `settings.cfg` confirms E Open,
 WASD movement, LShift/RShift Run, CapLck AutoRun, and 1–9/0 Weapon_1..Weapon_10.
 Its mouse wheel bindings are previous/next weapon. This is evidence of this local

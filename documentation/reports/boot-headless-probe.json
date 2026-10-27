@@ -119,7 +119,7 @@
   "screenshot_file": {
     "id": 4,
     "ok": true,
-    "path": "/home/spartacus/Desktop/dn-ttk/recomp/analysis/local-smoke/headless.png",
+    "path": "recomp/analysis/local-smoke/headless.png",
     "width": 320,
     "height": 480
   }

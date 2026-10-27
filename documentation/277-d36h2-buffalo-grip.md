@@ -79,7 +79,7 @@ watching the left glove at the rifle contact, then fire/reload and crouch.
 The existing cocking motion should retain its accepted feel.
 
 ```sh
-python3 /home/spartacus/CODE/duke-nukem-time-to-kill-recomp/recomp/tools/local/run.py
+python3 recomp/tools/local/run.py
 ```
 
 Saved preferences are used; no additional activation step is required.

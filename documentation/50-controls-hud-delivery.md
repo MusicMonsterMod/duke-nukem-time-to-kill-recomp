@@ -7,7 +7,7 @@
 SHA256 `57c2b097dd98e28473fc644a20d9d3a2730deb32ecbca0db1d0465e8564646ea`.
 
 ```sh
-python3 /home/spartacus/Desktop/dn-ttk/recomp/tools/local/run.py
+python3 recomp/tools/local/run.py
 ```
 
 Keep `ttk-inv-digits.pack` beside the executable (CMake copies it into `build-local/`).

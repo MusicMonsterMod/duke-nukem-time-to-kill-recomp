@@ -75,7 +75,7 @@ Load slot 9 normally. It should be immediately playable, with no Escape press to
 unpause it. Try F7 or quickload too, then confirm Escape still pauses when wanted.
 
 ```sh
-python3 /home/spartacus/CODE/duke-nukem-time-to-kill-recomp/recomp/tools/local/run.py
+python3 recomp/tools/local/run.py
 ```
 
 D19Q3 awaits user playtest. No acceptance closeout, commit or push performed.

@@ -138,7 +138,7 @@ No further job was started.
 Launch with the player's saved preferences:
 
 ```sh
-python3 /home/spartacus/CODE/duke-nukem-time-to-kill-recomp/recomp/tools/local/run.py
+python3 recomp/tools/local/run.py
 ```
 
 Automatic capture remains in effect; F10 is not needed.

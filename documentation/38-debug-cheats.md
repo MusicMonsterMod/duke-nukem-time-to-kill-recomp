@@ -134,7 +134,7 @@ The user's latest report confirms natural pipe-bomb collection after opening the
 bed and no early pickup on that attempt; no pickup fix is claimed. Close-contact
 bed entry, the residual running-drop slowdown and switch targeting stay open.
 
-Launch: `python3 /home/spartacus/Desktop/dn-ttk/recomp/tools/local/run.py`.
+Launch: `python3 recomp/tools/local/run.py`.
 Modernized captures automatically; F10 toggles capture.
 
 ## User acceptance and requested presentation follow-up

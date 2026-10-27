@@ -159,7 +159,7 @@ original media, and launched no game or new job.
 Launch the accepted build with saved preferences:
 
 ```sh
-python3 /home/spartacus/Desktop/dn-ttk/recomp/tools/local/run.py
+python3 recomp/tools/local/run.py
 ```
 
 Modernized captures supported gameplay automatically; F10 toggles capture.

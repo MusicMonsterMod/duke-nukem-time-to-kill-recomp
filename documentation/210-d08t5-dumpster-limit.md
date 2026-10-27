@@ -79,5 +79,5 @@ pinned framework: all 51 changed/new files match the live dependency.
 No player save writes or next job started.
 
 ```sh
-python3 /home/spartacus/CODE/duke-nukem-time-to-kill-recomp/recomp/tools/local/run.py
+python3 recomp/tools/local/run.py
 ```

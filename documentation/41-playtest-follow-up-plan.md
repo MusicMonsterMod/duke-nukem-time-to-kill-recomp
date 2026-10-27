@@ -152,7 +152,7 @@ $continue-duke-recomp
 
 Read MODERNIZATION_JOBS.md, documentation/00-status.md,
 documentation/09-handoff.md and documentation/41-playtest-follow-up-plan.md
-in /home/spartacus/Desktop/dn-ttk.
+in ..
 
 Work autonomously in this order: D08G2, D08I, D08J, D08K, D08A1.
 These jobs are selected; do not ask me to choose again. D19B is backlog only
@@ -174,5 +174,5 @@ the launch command. Do not start the deferred menu redesign.
 ```
 
 Current launch (unchanged):
-`python3 /home/spartacus/Desktop/dn-ttk/recomp/tools/local/run.py`.
+`python3 recomp/tools/local/run.py`.
 Modernized captures automatically; F10 toggles capture.

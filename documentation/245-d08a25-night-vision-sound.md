@@ -86,7 +86,7 @@ The user accepted A's loudness and timing, including the removal revision.
 Closeout is authorized; the diagnostic coverage limits above remain.
 
 ```sh
-python3 /home/spartacus/CODE/duke-nukem-time-to-kill-recomp/recomp/tools/local/run.py
+python3 recomp/tools/local/run.py
 ```
 
 Modern input captures automatically. NIGHT VISION should be MODERN (default).

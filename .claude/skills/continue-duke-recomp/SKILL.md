@@ -12,7 +12,7 @@ Selection passed with this invocation: `$ARGUMENTS`
 
 ## Locate the project
 
-Use the current workspace when it contains `MODERNIZATION_JOBS.md` and the Time to Kill `recomp/` checkout (normally `/home/spartacus/CODE/duke-nukem-time-to-kill-recomp`). Otherwise use the legacy `/home/spartacus/Desktop/dn-ttk`. If neither is available, ask for the project location; do not create a replacement project or obtain another disc.
+Use the current workspace when it contains `MODERNIZATION_JOBS.md` and the Time to Kill `recomp/` checkout. Otherwise check `~/CODE/duke-nukem-time-to-kill-recomp` and the legacy `~/Desktop/dn-ttk`, expanding `~` locally only. If neither is available, ask for the project location; do not create a replacement project or obtain another disc.
 
 Follow `AGENTS.md` in the workspace root. It overrides anything here that conflicts.
 
@@ -57,10 +57,10 @@ Finish with what changed, what was verified and what remains. Do not automatical
 After working on a selected job, always include a copy-pasteable command to launch the current player build, including when the job is Needs playtest:
 
 ```
-python3 /home/spartacus/CODE/duke-nukem-time-to-kill-recomp/recomp/tools/local/run.py
+python3 recomp/tools/local/run.py
 ```
 
-Adjust the absolute path if the workspace differs. It uses the player's saved settings. If testing the job requires different mode or control options, include the verified launcher flags and explain that they update saved preferences. Mention any essential activation step, such as F10 capture for Modernized controls. Providing the command does not authorize launching the game; the user can run it themselves with `! <command>` or in their own terminal.
+Run this from the workspace root. It uses the player's saved settings. If testing the job requires different mode or control options, include the verified launcher flags and explain that they update saved preferences. Mention any essential activation step, such as F10 capture for Modernized controls. Providing the command does not authorize launching the game; the user can run it themselves with `! <command>` or in their own terminal.
 
 When you have finished working on a selected job (including Needs playtest or Blocked), play a chime as the very last step, just before the final summary, so the user knows you are done while looking away (user request, 2026-10-07):
 
@@ -69,3 +69,14 @@ paplay /usr/share/sounds/freedesktop/stereo/complete.oga || canberra-gtk-play -i
 ```
 
 Play it once per finished job, not for job listings or intermediate steps. A failed chime never blocks the summary.
+
+## Private paths
+
+Never write the local account name or an expanded personal home directory into
+tracked documentation, Markdown, reports, logs, asset metadata or examples.
+Use repository-relative paths for workspace files, `~/` for home-relative
+references, and `$HOME` in shell commands. Redact copied diagnostic output before
+saving it. For other machines use `<redacted>` as the username placeholder.
+Run `python3 scripts/ci/check_repo.py` before an authorized commit; fix privacy
+failures without recording the offending username in the fix or its notes.
+Give launch commands from the workspace root: `python3 recomp/tools/local/run.py`.

@@ -106,7 +106,7 @@ implementation, tests and documentation commit/push as MusicMonsterMod.
 Launch with the player's normal saved settings:
 
 ```sh
-python3 /home/spartacus/CODE/duke-nukem-time-to-kill-recomp/recomp/tools/local/run.py
+python3 recomp/tools/local/run.py
 ```
 
 Gameplay capture is automatic. P selects first person; PUSH/PULL VIEW and USE

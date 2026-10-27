@@ -516,7 +516,7 @@ proposal starts until explicitly selected. No player-facing behavior changed,
 so the game manual does not need an update. Launch the unchanged current build:
 
 ```sh
-python3 /home/spartacus/CODE/duke-nukem-time-to-kill-recomp/recomp/tools/local/run.py
+python3 recomp/tools/local/run.py
 ```
 
 Modernized is the default; P selects first person if needed. Gameplay capture is

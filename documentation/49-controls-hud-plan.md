@@ -73,5 +73,5 @@ Current player binary from iteration 48:
 `42eeaf3dc31a7f7a94ae9201e0c47f32cb23c1680edcfca994acb5cb20eccbab`.
 
 ```sh
-python3 /home/spartacus/Desktop/dn-ttk/recomp/tools/local/run.py
+python3 recomp/tools/local/run.py
 ```

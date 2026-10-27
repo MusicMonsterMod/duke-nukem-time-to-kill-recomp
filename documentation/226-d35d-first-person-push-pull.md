@@ -92,7 +92,7 @@ not certified. Mantles retain their existing third-person policy under D35G.
 This candidate does not finish any other perspective job.
 
 ```sh
-python3 /home/spartacus/CODE/duke-nukem-time-to-kill-recomp/recomp/tools/local/run.py
+python3 recomp/tools/local/run.py
 ```
 
 Use P for global First Person if needed. PUSH/PULL VIEW defaults to First Person.

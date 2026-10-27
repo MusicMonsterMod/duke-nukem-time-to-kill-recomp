@@ -1,15 +1,26 @@
 #!/usr/bin/env python3
-"""Fail CI if this GitHub tree contains retail media, dumps, or invalid JSON."""
+"""Reject retail media, personal home paths, oversized files and invalid JSON."""
 
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 MAX_BYTES = 2 * 1024 * 1024
+
+# Scan bytes so embedded paths in binary assets are covered too. Placeholder
+# forms such as ~/ and /home/<redacted>/ do not contain literal account names.
+PERSONAL_HOME = re.compile(
+    rb"/(?:home|Users)/[A-Za-z0-9_.-]+|(?i:[A-Za-z]:[\\/]+Users[\\/]+[A-Za-z0-9_.-]+)",
+)
+
+
+def has_personal_home(data: bytes) -> bool:
+    return PERSONAL_HOME.search(data) is not None
 
 FORBIDDEN_SUFFIXES = {
     ".img",
@@ -128,6 +139,8 @@ def main() -> int:
         if not path.is_file():
             continue
         size = path.stat().st_size
+        if has_personal_home(path.read_bytes()):
+            errors.append(f"personal home path in {relative}; use a relative path or redact the account")
         if size > MAX_BYTES:
             errors.append(f"oversized blob ({size} bytes): {relative}")
         if suffix == ".json":

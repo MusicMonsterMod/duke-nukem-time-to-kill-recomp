@@ -104,7 +104,7 @@ previous host Pole provenance; normal fall/landing reacquires the view.
 
 
 ```sh
-python3 /home/spartacus/CODE/duke-nukem-time-to-kill-recomp/recomp/tools/local/run.py
+python3 recomp/tools/local/run.py
 ```
 
 Use P for global First Person if needed. CHAIN/POLE VIEW defaults to First

@@ -128,7 +128,7 @@ acceptance closeout is authorized by this implementation request.
 Launch using saved preferences, then press P if needed:
 
 ```sh
-python3 /home/spartacus/CODE/duke-nukem-time-to-kill-recomp/recomp/tools/local/run.py
+python3 recomp/tools/local/run.py
 ```
 
 Capture is automatic. J starts/stops Modern and EDuke32; Space ascends and

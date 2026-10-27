@@ -226,7 +226,7 @@ remains unselected. D19Q3 remains separately Needs playtest.
 Use the existing saved preferences and accepted player build:
 
 ```sh
-python3 /home/spartacus/CODE/duke-nukem-time-to-kill-recomp/recomp/tools/local/run.py
+python3 recomp/tools/local/run.py
 ```
 
 Capture is automatic; P changes first/third person. Review ladder, chain,

@@ -20,7 +20,7 @@ This checkpoint changed documentation only: no runtime edit/build/test/game inpu
 The player may have an active game; do not interfere. Previous delivery hashes and
 verification below remain historical evidence, not tests of these new reports.
 Current inventory activation is still U; requested Enter behavior is pending.
-Launch: `python3 /home/spartacus/Desktop/dn-ttk/recomp/tools/local/run.py`.
+Launch: `python3 recomp/tools/local/run.py`.
 Modernized auto-captures; F10 toggles capture. Continue maintaining precise checkpoints.
 
 
@@ -51,7 +51,7 @@ original media/assets and unrelated local source work preserved. No commits made
 Test quick run-start/late furniture-edge jumps; armed E first/second ladder and
 weapon-switch timing; brackets/U/I selection; silent cheats and centered results.
 Recheck accepted aiming/furniture feel. Crouch+direction still rolls.
-Launch: `python3 /home/spartacus/Desktop/dn-ttk/recomp/tools/local/run.py`.
+Launch: `python3 recomp/tools/local/run.py`.
 Modernized captures automatically; F10 toggles capture. Broader campaign/era/weapon
 coverage remains unclaimed. Historical checkpoints below are superseded.
 
@@ -186,7 +186,7 @@ Check processes before acting; these identifiers can become stale.
 When finished: update board/status/handoff/manual and focused evidence truthfully;
 Needs playtest for human acceptance, concrete blocker if crouch cannot be safe.
 Always finish with player test instructions and
-`python3 /home/spartacus/Desktop/dn-ttk/recomp/tools/local/run.py`.
+`python3 recomp/tools/local/run.py`.
 
 ## Update: run candidate and edge baseline
 

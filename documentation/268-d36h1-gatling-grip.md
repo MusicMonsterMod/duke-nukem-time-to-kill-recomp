@@ -58,7 +58,7 @@ Launch with saved preferences, select first person with P if needed, then key 4.
 Judge the underside contact at idle and after firing, crouching and switching.
 
 ```sh
-python3 /home/spartacus/CODE/duke-nukem-time-to-kill-recomp/recomp/tools/local/run.py
+python3 recomp/tools/local/run.py
 ```
 
 

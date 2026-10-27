@@ -93,7 +93,7 @@ routes (no Pulse sink required).
 Launch:
 
 ```sh
-python3 /home/spartacus/Desktop/dn-ttk/recomp/tools/local/run.py
+python3 recomp/tools/local/run.py
 ```
 
 Modernized captures automatically; F10 toggles capture.

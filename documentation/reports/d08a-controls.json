@@ -110,5 +110,5 @@
     "player_cards": "not used",
     "preexisting_local_changes": "preserved"
   },
-  "player_launch": "python3 /home/spartacus/Desktop/dn-ttk/recomp/tools/local/run.py"
+  "player_launch": "python3 recomp/tools/local/run.py"
 }

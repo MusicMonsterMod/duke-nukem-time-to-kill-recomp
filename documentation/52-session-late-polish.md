@@ -9,7 +9,7 @@ Binary SHA256 `2afe9956c6c06120cf840db2263ce7619e32827dd158c26dba14c25ee3362c78`
 Font pack SHA256 `a1ee7ba8de2b8fc4a682f7084e7ff9d5e1c71b269d0beb8d161c81dc85749511`.
 
 ```sh
-python3 /home/spartacus/Desktop/dn-ttk/recomp/tools/local/run.py
+python3 recomp/tools/local/run.py
 ```
 
 Assets beside the executable: `ttk-inv-icons.pack`, `ttk-inv-digits.pack`,

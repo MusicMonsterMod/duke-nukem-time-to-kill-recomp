@@ -88,7 +88,7 @@ This bounded check is not full campaign, costume or interruption certification.
 D36H-L remain unstarted. No next job is selected automatically.
 
 ```sh
-python3 /home/spartacus/CODE/duke-nukem-time-to-kill-recomp/recomp/tools/local/run.py
+python3 recomp/tools/local/run.py
 ```
 
 Modernized is default, gameplay capture is automatic, and P toggles first/third

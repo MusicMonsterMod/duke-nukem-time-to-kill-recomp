@@ -106,7 +106,7 @@ host Ladder provenance; ordinary fall/landing reacquires the selected view.
 Poles, chains, climbing walls and ledge mantles remain separate D35 jobs.
 
 ```sh
-python3 /home/spartacus/CODE/duke-nukem-time-to-kill-recomp/recomp/tools/local/run.py
+python3 recomp/tools/local/run.py
 ```
 
 Use P for global First Person if needed. LADDER VIEW defaults to First Person.

@@ -91,5 +91,5 @@ normal jetpack pickup when convenient. The user has now accepted D08Q2; this
 route remains useful for regression checks.
 
 ```sh
-python3 /home/spartacus/CODE/duke-nukem-time-to-kill-recomp/recomp/tools/local/run.py
+python3 recomp/tools/local/run.py
 ```

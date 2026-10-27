@@ -384,4 +384,4 @@ abort/ballistic`, per-tick `ttk-swim`).
 - [x] Shallow and deep regressions above
 - [x] Vanilla unchanged
 
-Launch: `python3 /home/spartacus/Desktop/dn-ttk/recomp/tools/local/run.py`
+Launch: `python3 recomp/tools/local/run.py`

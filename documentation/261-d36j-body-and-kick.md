@@ -117,7 +117,7 @@ software renderer, 4:3 and 180/240/Unlimited stress are not newly certified.
 The combined acceptance pack remains D36L, and traversal/body coverage D36K.
 
 ```sh
-python3 /home/spartacus/CODE/duke-nukem-time-to-kill-recomp/recomp/tools/local/run.py
+python3 recomp/tools/local/run.py
 ```
 
 Gameplay capture is automatic. P selects first person; Q quick-kicks. Existing

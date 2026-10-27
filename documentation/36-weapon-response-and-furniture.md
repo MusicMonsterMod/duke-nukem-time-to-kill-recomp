@@ -76,5 +76,5 @@ A rebind test initially used a nonexistent environment key; the actual serialize
 binding payload passes. Neither test-harness error was a product failure.
 
 Recorded player settings/card/state hashes are unchanged; all sessions exited.
-Launch: `python3 /home/spartacus/Desktop/dn-ttk/recomp/tools/local/run.py`.
+Launch: `python3 recomp/tools/local/run.py`.
 Modernized captures automatically; F10 toggles capture.

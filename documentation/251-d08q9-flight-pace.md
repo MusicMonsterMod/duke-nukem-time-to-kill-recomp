@@ -82,7 +82,7 @@ release-to-hover, Space/Ctrl and the accepted floor/ceiling following route.
 Caps Lock reverses Shift as it does on the ground. No new setting is required.
 
 ```sh
-python3 /home/spartacus/CODE/duke-nukem-time-to-kill-recomp/recomp/tools/local/run.py
+python3 recomp/tools/local/run.py
 ```
 
 ## Acceptance and closeout - 2026-10-25

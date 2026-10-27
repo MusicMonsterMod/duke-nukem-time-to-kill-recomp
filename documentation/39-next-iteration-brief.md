@@ -142,7 +142,7 @@ Archive SHA256:
 ```text
 $continue-duke-recomp
 Read MODERNIZATION_JOBS.md, documentation/00-status.md, documentation/09-handoff.md
-and documentation/39-next-iteration-brief.md in /home/spartacus/Desktop/dn-ttk.
+and documentation/39-next-iteration-brief.md in ..
 Implement D08G1, D07C, D08H and D19A in that order, autonomously to a high standard.
 The cheats work; match the original Duke3D confirmation wording. Use Duke3D as the
 Modernized aiming baseline: unify actual shot direction, crosshair and Duke/body/gun
@@ -159,5 +159,5 @@ choose these jobs again. Finish with what to test and the current launch command
 ```
 
 Current launch (unchanged):
-`python3 /home/spartacus/Desktop/dn-ttk/recomp/tools/local/run.py`.
+`python3 recomp/tools/local/run.py`.
 Modernized captures automatically; F10 toggles capture.

@@ -509,7 +509,7 @@ behavior or claim that any proposed experiment improves TTK before it is tested.
 Current player launch, when desired:
 
 ```sh
-python3 /home/spartacus/CODE/duke-nukem-time-to-kill-recomp/recomp/tools/local/run.py
+python3 recomp/tools/local/run.py
 ```
 
 ## Pinned source index

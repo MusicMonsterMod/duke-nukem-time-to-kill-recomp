@@ -230,5 +230,5 @@ exterior ladders (including during weapon switching), bracket cycling/U and I-me
 selection, and silent typed cheats with centered results. Recheck accepted aiming
 and furniture feel. Crouch+direction still rolls; there is no low-walk prototype.
 Launch with saved preferences:
-`python3 /home/spartacus/Desktop/dn-ttk/recomp/tools/local/run.py`.
+`python3 recomp/tools/local/run.py`.
 Modernized captures automatically; F10 toggles capture.

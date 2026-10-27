@@ -174,7 +174,7 @@ Use first person and keys 3, 4, 7, 8 and 0. Run, strafe and stop; check the wris
 then fire and switch weapons while moving. Include upgrades and RUN MODE.
 
 ```sh
-python3 /home/spartacus/CODE/duke-nukem-time-to-kill-recomp/recomp/tools/local/run.py
+python3 recomp/tools/local/run.py
 ```
 
 The launcher uses saved preferences. No additional activation or option is needed.

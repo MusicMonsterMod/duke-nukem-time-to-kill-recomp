@@ -1,5 +1,16 @@
 # Time to Kill — modernization jobs
 
+### PRIV01 - Remove local usernames from repository content
+
+**Status: Done (user-accepted; closeout, commit and push authorized 2026-10-27).**
+Scope: scrub personal home paths from all tracked content, including reports
+and embedded asset metadata; update Codex, Claude and Cursor guidance; enforce
+portable paths in repository hygiene checks. Acceptance: no local username
+matches in tracked working-tree bytes, valid reports/assets, and a passing
+privacy guard. User chose to retain existing Git history after reviewing the
+limited privacy risk of a local username; no history rewrite is requested.
+
+
 **Latest closeout (2026-10-26): D36H2 is Done. User accepted both Buffalo grip fixes and explicitly authorized lock-in/closeout. [Note 277](documentation/277-d36h2-buffalo-grip.md). No next job started.**
 
 **Latest closeout (2026-10-26): D07G is Done. User accepted crosshair readability and authorized lock-in/closeout. [Note 276](documentation/276-d07g-crosshair-scaling.md). No next job started.**
@@ -967,7 +978,7 @@ Acceptance:
 
 Research: existing bob state is in recomp/src/ttk/first_person.inc;
 [note 246](documentation/246-d08a24-auto-bio-mask.md) documents native mask state.
-Local references: /home/spartacus/Documents/dukeextract/tiles_out/tile2581.png
+Local references: ~/Documents/dukeextract/tiles_out/tile2581.png
 and research/Screenshot_2026-10-25_13-13-02.png. Half-sprite/mirroring is a
 possible art optimization, not a required renderer design.
 
@@ -978,7 +989,7 @@ and use the HUD, but credits WildWeasel, 2800fps, Lightsource and Yamil for
 various visor artwork without mapping this exact PNG to its author. Exact
 asset provenance/redistribution terms remain unresolved; do not ship it on
 that evidence alone. Credits: https://github.com/saegiru/UltimateDoomVisor/blob/master/CREDITS.txt
-Original Photon concept directory: /home/spartacus/.photon/artifacts/duke-biomask/.
+Original Photon concept directory: ~/.photon/artifacts/duke-biomask/.
 No external or retail asset is included in the concept.
 
 ### D08A24 - Automatic and instant Bio Mask
@@ -12433,7 +12444,7 @@ inventory or D10 terrain criterion. No other job selected. Delivery binary:
 Final D08C verification: the same delivery binary completed the 14-checkpoint
 isolated Vanilla route, exit 0; original jump and inventory captures reviewed.
 All private test sessions exited. Source/report/binary identities agree.
-Launch: `python3 /home/spartacus/Desktop/dn-ttk/recomp/tools/local/run.py`.
+Launch: `python3 recomp/tools/local/run.py`.
 
 ### 2026-09-27 — D08C input-order follow-up
 
@@ -12482,7 +12493,7 @@ This turn changed documentation only: no source, build, settings, cards, origina
 media or running game changed; no new gameplay session or unrelated job started.
 
 Accepted build: `92b6cac55a2e83f4f7c9e555a649d382a431b041d4378ed2cc228fc98f1724f5`.
-Launch: `python3 /home/spartacus/Desktop/dn-ttk/recomp/tools/local/run.py`.
+Launch: `python3 recomp/tools/local/run.py`.
 
 ### 2026-09-27 — Requested D07A/D07B/D08/D08A status refresh
 
@@ -21359,3 +21370,36 @@ is established at original and higher resolution. Scripting/modding, additional
 materials and broader coverage are deferred until separately selected. Optional
 palette-constrained authoring is a future feature; current replacement RGB is
 not quantized to the native CLUT. Commit and push explicitly authorized.
+
+## 2026-10-27 - PRIV01 privacy cleanup ready for review
+
+Removed 311 local-username occurrences across 85 tracked files, including
+Markdown, JSON reports and fixed-size path fields in two Blender assets.
+Workspace paths are repository-relative; external home paths use `~/`.
+Codex's installed continue skill, Claude's tracked continue skill, Cursor rules
+and AGENTS.md now require redaction before saving or committing documentation.
+The existing CI hygiene checker also rejects literal Linux/macOS/Windows home
+paths in tracked text and binary files without echoing the account name.
+
+Verification: zero local-username matches across tracked working-tree bytes;
+681 tracked entries checked and 93 JSON reports valid; five leak fixtures
+rejected and five portable/non-path fixtures accepted. Both Blender assets open
+successfully; only three fixed-size path fields per asset changed, with all
+other bytes and offsets preserved. Codex skill validation passes; Claude YAML
+validates with its existing Claude-specific `argument-hint` retained (the Codex
+validator does not support that field). No gameplay build or playtest needed.
+
+Awaiting review and explicit closeout/commit/push instruction. Old Git history
+still contains prior paths; removing those needs separately authorized history
+rewriting and remote coordination. Local ignored artifacts and upstream
+submodule working changes were not modified. No commit or push performed.
+
+## 2026-10-27 - PRIV01 accepted and closed
+
+User accepted the cleanup and explicitly instructed commit and push. PRIV01 is
+Done. Retain existing Git history by user decision; the local username alone
+does not justify a disruptive rewrite. Current tracked content is sanitized,
+and agent guidance plus CI checks prevent future literal personal home paths.
+The installed Codex skill is updated locally outside this Git repository;
+AGENTS.md supplies the tracked Codex-facing privacy rule. No gameplay changes
+or new framework edits. Existing submodule working changes remain untouched.

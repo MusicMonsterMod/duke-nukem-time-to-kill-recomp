@@ -91,5 +91,5 @@ third person in flight and returns on landing. F10 captures Modernized input
 if needed. Full campaign/overlay coverage remains separate work.
 
 ```sh
-python3 /home/spartacus/CODE/duke-nukem-time-to-kill-recomp/recomp/tools/local/run.py
+python3 recomp/tools/local/run.py
 ```

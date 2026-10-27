@@ -120,7 +120,7 @@ only; no rendering investigation or implementation was performed.
 Launch with saved preferences:
 
 ```sh
-python3 /home/spartacus/CODE/duke-nukem-time-to-kill-recomp/recomp/tools/local/run.py
+python3 recomp/tools/local/run.py
 ```
 
 No F10 activation or recovery step is needed. The user explicitly authorized

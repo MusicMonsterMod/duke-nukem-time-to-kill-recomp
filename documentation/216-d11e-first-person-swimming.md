@@ -160,7 +160,7 @@ normal termination rather than the D20G GP0 halt.
 Launch with saved player settings, then press P if needed for first person:
 
 ```sh
-python3 /home/spartacus/CODE/duke-nukem-time-to-kill-recomp/recomp/tools/local/run.py
+python3 recomp/tools/local/run.py
 ```
 
 Automatic capture remains in effect. Space ascends, Ctrl dives, E climbs out.

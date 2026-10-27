@@ -8,7 +8,7 @@ crosshair. Session complete; safe to clear.
 SHA256 `f09b657e31ded01e987d4b39695d469c452bdda621f6f6aa68dd01ebf8edec97`.
 
 ```sh
-python3 /home/spartacus/Desktop/dn-ttk/recomp/tools/local/run.py
+python3 recomp/tools/local/run.py
 ```
 
 Assets beside the executable: `ttk-inv-icons.pack`, `ttk-inv-digits.pack`,

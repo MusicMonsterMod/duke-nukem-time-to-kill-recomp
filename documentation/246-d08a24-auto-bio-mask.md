@@ -130,7 +130,7 @@ The diagnostic route is one campaign location and costume, not a full campaign
 playtest or audio listening assessment.
 
 ```sh
-python3 /home/spartacus/CODE/duke-nukem-time-to-kill-recomp/recomp/tools/local/run.py
+python3 recomp/tools/local/run.py
 ```
 
 ## Revision 2 - automatic gas exit (2026-10-25)

@@ -57,7 +57,7 @@
     "fmv_state": {
       "id": 1,
       "ok": true,
-      "config_path": "/home/spartacus/Desktop/dn-ttk/recomp/game.local.toml",
+      "config_path": "recomp/game.local.toml",
       "auto_skip_fmv": 0,
       "fmv_skip_no_xa_hold": 4,
       "fmv_skip_total_table": "0x00000000",
@@ -138,7 +138,7 @@
     "fmv_state": {
       "id": 1,
       "ok": true,
-      "config_path": "/home/spartacus/Desktop/dn-ttk/recomp/game.local.toml",
+      "config_path": "recomp/game.local.toml",
       "auto_skip_fmv": 0,
       "fmv_skip_no_xa_hold": 4,
       "fmv_skip_total_table": "0x00000000",
@@ -219,7 +219,7 @@
     "fmv_state": {
       "id": 1,
       "ok": true,
-      "config_path": "/home/spartacus/Desktop/dn-ttk/recomp/game.local.toml",
+      "config_path": "recomp/game.local.toml",
       "auto_skip_fmv": 0,
       "fmv_skip_no_xa_hold": 4,
       "fmv_skip_total_table": "0x00000000",
@@ -300,7 +300,7 @@
     "fmv_state": {
       "id": 1,
       "ok": true,
-      "config_path": "/home/spartacus/Desktop/dn-ttk/recomp/game.local.toml",
+      "config_path": "recomp/game.local.toml",
       "auto_skip_fmv": 0,
       "fmv_skip_no_xa_hold": 4,
       "fmv_skip_total_table": "0x00000000",
@@ -381,7 +381,7 @@
     "fmv_state": {
       "id": 1,
       "ok": true,
-      "config_path": "/home/spartacus/Desktop/dn-ttk/recomp/game.local.toml",
+      "config_path": "recomp/game.local.toml",
       "auto_skip_fmv": 0,
       "fmv_skip_no_xa_hold": 4,
       "fmv_skip_total_table": "0x00000000",
@@ -462,7 +462,7 @@
     "fmv_state": {
       "id": 1,
       "ok": true,
-      "config_path": "/home/spartacus/Desktop/dn-ttk/recomp/game.local.toml",
+      "config_path": "recomp/game.local.toml",
       "auto_skip_fmv": 0,
       "fmv_skip_no_xa_hold": 4,
       "fmv_skip_total_table": "0x00000000",
@@ -543,7 +543,7 @@
     "fmv_state": {
       "id": 1,
       "ok": true,
-      "config_path": "/home/spartacus/Desktop/dn-ttk/recomp/game.local.toml",
+      "config_path": "recomp/game.local.toml",
       "auto_skip_fmv": 0,
       "fmv_skip_no_xa_hold": 4,
       "fmv_skip_total_table": "0x00000000",
@@ -624,7 +624,7 @@
     "fmv_state": {
       "id": 1,
       "ok": true,
-      "config_path": "/home/spartacus/Desktop/dn-ttk/recomp/game.local.toml",
+      "config_path": "recomp/game.local.toml",
       "auto_skip_fmv": 0,
       "fmv_skip_no_xa_hold": 4,
       "fmv_skip_total_table": "0x00000000",
@@ -705,7 +705,7 @@
     "fmv_state": {
       "id": 1,
       "ok": true,
-      "config_path": "/home/spartacus/Desktop/dn-ttk/recomp/game.local.toml",
+      "config_path": "recomp/game.local.toml",
       "auto_skip_fmv": 0,
       "fmv_skip_no_xa_hold": 4,
       "fmv_skip_total_table": "0x00000000",
@@ -786,7 +786,7 @@
     "fmv_state": {
       "id": 1,
       "ok": true,
-      "config_path": "/home/spartacus/Desktop/dn-ttk/recomp/game.local.toml",
+      "config_path": "recomp/game.local.toml",
       "auto_skip_fmv": 0,
       "fmv_skip_no_xa_hold": 4,
       "fmv_skip_total_table": "0x00000000",
@@ -867,7 +867,7 @@
     "fmv_state": {
       "id": 1,
       "ok": true,
-      "config_path": "/home/spartacus/Desktop/dn-ttk/recomp/game.local.toml",
+      "config_path": "recomp/game.local.toml",
       "auto_skip_fmv": 0,
       "fmv_skip_no_xa_hold": 4,
       "fmv_skip_total_table": "0x00000000",
@@ -948,7 +948,7 @@
     "fmv_state": {
       "id": 1,
       "ok": true,
-      "config_path": "/home/spartacus/Desktop/dn-ttk/recomp/game.local.toml",
+      "config_path": "recomp/game.local.toml",
       "auto_skip_fmv": 0,
       "fmv_skip_no_xa_hold": 4,
       "fmv_skip_total_table": "0x00000000",

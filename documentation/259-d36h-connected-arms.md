@@ -110,7 +110,7 @@ any shoulder cap or abrupt arm movement appears. Native interaction defects
 covered by D36I remain separate.
 
 ```sh
-python3 /home/spartacus/CODE/duke-nukem-time-to-kill-recomp/recomp/tools/local/run.py
+python3 recomp/tools/local/run.py
 ```
 
 Modernized is default; `--vanilla` remains a one-launch original profile.

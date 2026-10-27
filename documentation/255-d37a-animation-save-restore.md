@@ -114,7 +114,7 @@ Visual feel and broader campaign acceptance remain for the user.
 Launch with existing player preferences:
 
 ```sh
-python3 /home/spartacus/CODE/duke-nukem-time-to-kill-recomp/recomp/tools/local/run.py
+python3 recomp/tools/local/run.py
 ```
 
 Modernized gameplay capture is automatic; F10 is not an activation step.

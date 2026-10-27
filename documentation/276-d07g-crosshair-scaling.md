@@ -60,7 +60,7 @@ Accepted and closed; no new build or game launch during closeout. No next job
 started. Launch with the player's settings:
 
 ```sh
-python3 /home/spartacus/CODE/duke-nukem-time-to-kill-recomp/recomp/tools/local/run.py
+python3 recomp/tools/local/run.py
 ```
 
 Compare a small window with fullscreen (F11), resize through intermediate sizes,

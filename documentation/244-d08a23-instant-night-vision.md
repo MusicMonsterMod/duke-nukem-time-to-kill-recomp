@@ -94,5 +94,5 @@ moving, and Enter with the goggles selected, in either camera. Original behavior
 is available through the setting above. Modern input captures automatically.
 
 ```sh
-python3 /home/spartacus/CODE/duke-nukem-time-to-kill-recomp/recomp/tools/local/run.py
+python3 recomp/tools/local/run.py
 ```

@@ -106,7 +106,7 @@ press Space while continuing to hold Shift + W. Check forward carry and
 steering after clearing the lip. P switches camera views. Capture is automatic.
 
 ```sh
-python3 /home/spartacus/CODE/duke-nukem-time-to-kill-recomp/recomp/tools/local/run.py
+python3 recomp/tools/local/run.py
 ```
 
 The implementation turn did not authorize commit/push; the later acceptance

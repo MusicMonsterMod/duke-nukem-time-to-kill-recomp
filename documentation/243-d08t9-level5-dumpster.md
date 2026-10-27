@@ -87,5 +87,5 @@ Load slot 8. Hold RMB (or Alt), push with W, release, walk back into contact,
 then grab again and try both W and S. Repeat near the ends of the travel lane.
 
 ```sh
-python3 /home/spartacus/CODE/duke-nukem-time-to-kill-recomp/recomp/tools/local/run.py
+python3 recomp/tools/local/run.py
 ```

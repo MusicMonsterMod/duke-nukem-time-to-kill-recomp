@@ -93,7 +93,7 @@ changed. No post-acceptance gameplay edits, builds or launches; no player data
 touched and no next job started.
 
 ```sh
-python3 /home/spartacus/CODE/duke-nukem-time-to-kill-recomp/recomp/tools/local/run.py
+python3 recomp/tools/local/run.py
 ```
 
 Gameplay captures automatically. P selects global First Person if needed;

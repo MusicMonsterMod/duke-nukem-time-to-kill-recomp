@@ -81,7 +81,7 @@ unsupported-save rescue, all-object free movement or mantle fix is claimed.
 Launch with saved player preferences (automatic capture):
 
 ```sh
-python3 /home/spartacus/CODE/duke-nukem-time-to-kill-recomp/recomp/tools/local/run.py
+python3 recomp/tools/local/run.py
 ```
 
 ## Acceptance and separate investigation

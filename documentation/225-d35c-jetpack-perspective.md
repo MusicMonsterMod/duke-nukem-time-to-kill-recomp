@@ -79,7 +79,7 @@ campaign, weapon and costume coverage remain unverified in this job. Configured 
 are functional coverage, not monitor-cadence or performance certification.
 
 ```sh
-python3 /home/spartacus/CODE/duke-nukem-time-to-kill-recomp/recomp/tools/local/run.py
+python3 recomp/tools/local/run.py
 ```
 
 Select global First Person with P if needed. Set JETPACK VIEW in OPTIONS >

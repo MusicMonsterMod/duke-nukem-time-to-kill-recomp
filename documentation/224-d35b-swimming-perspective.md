@@ -84,7 +84,7 @@ renderer coverage remains bounded by D11E's accepted evidence.
 Launch with the player's saved settings:
 
 ```sh
-python3 /home/spartacus/CODE/duke-nukem-time-to-kill-recomp/recomp/tools/local/run.py
+python3 recomp/tools/local/run.py
 ```
 
 Select first person (P by default), then try both SWIMMING VIEW choices in

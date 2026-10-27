@@ -253,7 +253,7 @@
     "scope_limit": "Input ordering during original takeoff preparation; no claim of human verification of every diagonal, terrain, map or combined traversal case; no midair steering added",
     "remaining_coverage_job": "D08B"
   },
-  "launch": "python3 /home/spartacus/Desktop/dn-ttk/recomp/tools/local/run.py",
+  "launch": "python3 recomp/tools/local/run.py",
   "vanilla": {
     "report": "recomp/analysis/vanilla-regression/d08c-order-vanilla-01/report.json",
     "exit_code": 0,

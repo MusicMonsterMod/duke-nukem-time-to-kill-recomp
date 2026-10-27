@@ -115,6 +115,6 @@ claim visibility of remaining quota. Current stop point: documentation complete;
 all four follow-ups selected, no reproduction/source diagnosis or fixes begun.
 
 Launch current build with saved preferences:
-`python3 /home/spartacus/Desktop/dn-ttk/recomp/tools/local/run.py`
+`python3 recomp/tools/local/run.py`
 Modernized captures automatically; F10 toggles capture. Current build still uses
 U for highlighted inventory activation; contextual Enter is pending implementation.

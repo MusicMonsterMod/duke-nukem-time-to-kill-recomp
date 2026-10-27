@@ -96,7 +96,7 @@ Run the current player build, load slot 5 and repeat the edge/corner jumps from
 the video, plus clean landings and deliberate E mantles. F10 captures if needed.
 
 ```sh
-python3 /home/spartacus/CODE/duke-nukem-time-to-kill-recomp/recomp/tools/local/run.py
+python3 recomp/tools/local/run.py
 ```
 
 D08A23 instant night vision and D08A24 automatic Bio Mask remain Todo. Their

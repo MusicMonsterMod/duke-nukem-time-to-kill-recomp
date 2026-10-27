@@ -117,7 +117,7 @@ arm swing and wrist continuity. No new setting is required. Needs playtest;
 no acceptance closeout, commit or push.
 
 ```sh
-python3 /home/spartacus/CODE/duke-nukem-time-to-kill-recomp/recomp/tools/local/run.py
+python3 recomp/tools/local/run.py
 ```
 
 

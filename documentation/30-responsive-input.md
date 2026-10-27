@@ -26,7 +26,7 @@ interactions/redraw do not gain extra delay. The equipment check is evaluated on
 every pad composition: E cannot send armed Cross even if equipment changes during
 the window. Existing temporary-holster ownership and manual C semantics remain.
 
-Local reference: `/home/spartacus/Games/build-eduke32-vanilla/settings.cfg`
+Local reference: `~/Games/build-eduke32-vanilla/settings.cfg`
 confirms E=Open, Space=Jump, LShift=Run, Caps Lock=AutoRun, WASD forward/back/strafe.
 Its other bindings are not copied over the user's explicit C holster preference.
 The nearby Duke-RT source is a different engine and was not treated as TTK's

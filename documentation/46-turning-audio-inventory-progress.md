@@ -37,7 +37,7 @@ a real repair; this build does not claim to fix it.
 Launch with the saved profile:
 
 ```sh
-python3 /home/spartacus/Desktop/dn-ttk/recomp/tools/local/run.py
+python3 recomp/tools/local/run.py
 ```
 
 ## Final verification and cleanup

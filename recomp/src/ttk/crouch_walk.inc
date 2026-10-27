@@ -8,7 +8,7 @@
 //   crouch_walk_input_ready()), so its crouch handler never starts a roll;
 // - Duke faces the view, and moves camera-relative through the D08K2 crouch
 //   probe (crouch hull, walls, objects, edges, steps) at the Modernized
-//   walking pace;
+//   walking/running pace selected by the configured speed action;
 // - channel 0 (player+0x60) keeps animation 178 but plays the crouch-walk clips
 //   (ttk-anim.pack extra clips 1-4: forward, backward, +x and -x strafe, solved
 //   by ttk_crouch_walk.py): the host sets its previous/current frames and the
@@ -30,9 +30,10 @@
 static constexpr double crouch_walk_cycle=640.0, crouch_strafe_cycle=380.0;   // ttk_crouch_walk.py CYCLE, STRAFE_CYCLE
 static constexpr double crouch_walk_pelvis=300.0, crouch_walk_bob=10.0, crouch_kneel_pelvis=282.0;
 static constexpr unsigned crouch_walk_ticks=30000, crouch_walk_ramp=6, crouch_idle_clip=5;
-// The crouch moves at the Modernized walking pace (user, 2026-10-22: "locked to
-// the same speed as walking").
-static double crouch_walk_step() {return modern_pace_step(false);}
+// D08K12: share standing locomotion's configured speed modifier / RUN MODE.
+// Only travel changes: the crouch hull and distance-driven gait keep ownership.
+// Original swimming's forced shallow-water run must not override this stance.
+static double crouch_walk_step() {return modern_pace_step(input_running(false));}
 static std::atomic<bool> crouch_walk_owning{false};
 // Host state: which extra clip channel 0 shows (0 = none: the original's own
 // kneel), the gait phase and the remaining pose transition.

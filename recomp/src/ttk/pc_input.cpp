@@ -379,9 +379,9 @@ static bool crouch_binding_event(int code) {
         (binds[crouch]==SDL_SCANCODE_LALT && code==SDL_SCANCODE_RALT);
 }
 static void momentary_crouch_press() {
-    // A press cancels the latched stance instead of immediately crouching again.
-    // Consume this whole hold; a fresh press after release is momentary as usual.
-    if(crouch_latched) {crouch_latched=false;crouch_cancel_held=true;}
+    // Take over a latched stance without standing: this physical hold now
+    // owns crouch, and releasing it requests standing through normal clearance.
+    if(crouch_latched) {crouch_latched=false;crouch_cancel_held=false;}
 }
 static bool crouch_toggle_context() {
     return input_modern_controls() && interaction_alive() &&
@@ -417,8 +417,8 @@ static const char* grab_label() {
 }
 // D08AA: Shift (or Caps Lock) decides walk/run in water as on land; shallow
 // water no longer forces the run (D08AB: unless SWIMMING is original).
-bool input_running() {
-    if(wade_full_speed_ready())return true;
+bool input_running(bool allow_wade_override) {
+    if(allow_wade_override && wade_full_speed_ready())return true;
     return autorun != down(binds[walk]);
 }
 bool input_auto_stow_pending() {

@@ -79,7 +79,8 @@ int input_shoulder();
 void input_set_view(bool first);
 void input_set_shoulder(int side);
 const char* input_binding_name(Action action);
-bool input_running();
+// Crouch passes false to follow the speed binding/RUN MODE in Original water too.
+bool input_running(bool allow_wade_override=true);
 // Consume one bounded jump press after the controls hook verifies grounded ownership.
 bool input_take_jump();
 /* D08O3: one pending E redraw in water, taken by the weapon request path. */

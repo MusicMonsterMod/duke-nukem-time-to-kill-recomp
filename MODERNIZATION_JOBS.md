@@ -278,7 +278,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08K9 | Crouch held through a jump: crouch at once on landing, no recovery pause or stand/run frame in between (slot 4) | Done (user-accepted 2026-10-22) | D08K4, D08Z3, D08K8 |
 | D08K10 | First-person crouched weapon and arm alignment: knife, axe, dynamite, Holy Hand Grenade and crossbow match their standing view when crouched (standing is the baseline) | Done (user-accepted 2026-10-22) | D12, D08K6, D08K8 |
 | D08K11 | Enable Modern Crouching and Crouch-Walking in Shallow Water (slot 10 flooded subway; crouch behaviour refinement) | Done | D08K2, D08K4, D08K7, D08K8, D08AA, D08AB |
-| D08K12 | Crouch running with the configured run action | Todo | D08K, D08K11, D08L1, D21; after D18B/C/E/F |
+| D08K12 | Crouch running with the configured run action | Done (user-accepted) | D08K, D08K11, D08L1, D21 |
 | D08L | Inertial platform edge run-off | Done | D08 |
 | D08L1 | Modern locomotion - allow walking and crouch-walking off ledges | Done (user-accepted 2026-10-23) | D08L, D08K, D08T3 |
 | D08M | Modern underwater swimming controls (foundation) | Done | D08 |
@@ -443,6 +443,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D20D | Richer statistics screen (option B, part 2): level, difficulty, mission items, best time per level and difficulty (our own file) | Done (user-accepted 2026-10-21) | D20B, D08A5, D20F |
 | D20E | Statistics research: enemy total (kills X of Y), shots / accuracy, damage taken; show only once verified | Done (user-accepted 2026-10-22) | D20B |
 | D20G | Investigate UI slot 11 reload fatal GPU halt: regression assessment and fix decision; recurrence lessons in note 213 | Done (user-accepted 2026-10-24; unreproduced, revisit if similar symptoms recur) | D20C |
+| D21A | Momentary crouch takes over C toggle until release | Done (user-accepted) | D21 |
 | D21 | Reworked SOUND menu and configurable C held crouch | Done (user-accepted 2026-10-27) | D04, D19 |
 | D22 | Campaign fidelity and overlay coverage | Todo | D01 |
 | D22A | Portal transition loses Modernized controls and first person (slot 7) | Accepted | D05, D06, D11 |
@@ -21720,10 +21721,10 @@ Launch: `python3 recomp/tools/local/run.py` from the workspace root.
 
 ### D08K12 - Crouch running
 
-**Status: Todo. Backlog only; not selected.** Requested 2026-10-27. Schedule
-after D18 and its follow-up work (D18 is accepted research; D18B, D18C,
-D18E and D18F remain open). Implementation prerequisites: D08K, D08K11,
-D08L1 and D21, all accepted.
+**Status: Done (user-accepted; closeout authorized 2026-10-27).** User selected D08K12 ahead
+of the previously planned audio follow-ups. D18B/C/E/F are scheduling
+preferences, not implementation dependencies. Implementation prerequisites:
+D08K, D08K11, D08L1 and D21, all accepted.
 
 Add Duke Nukem 3D / EDuke32-inspired crouch running: while crouched and
 moving, holding the configured run action increases speed to the equivalent
@@ -21781,3 +21782,60 @@ native controls/input/aim suites, 120 Python input/profile tests and private
 regression and its bounded evidence. Authored implementation, tests, manual and
 documentation commit/push are explicitly authorized as MusicMonsterMod.
 D08K12 crouch running remains Todo after D18 follow-ups. No next job started.
+
+
+## 2026-10-27 - D08K12 crouch-running candidate
+
+User selected D08K12 ahead of the planned audio follow-ups; all implementation
+prerequisites are accepted. Crouch now follows the configured speed modifier and
+RUN MODE at shared walk/run pace, for both held and toggled crouch. Original
+swimming's forced shallow-water run does not override crouch speed selection.
+Existing crouch collision, stand-up clearance, distance-driven gait and ledge
+fall ownership remain in place. No framework or generated-code changes.
+
+Player build and native controls/input/aim suites pass. Private real-SDL tests
+at 60 third person and 120 first person verify both crouch modes, speed release,
+custom bindings, crouched save/load and toggle cancellation. Native tests cover
+low clearance, blocked standing and walk/run ledge handoff/refusals. Natural
+vent traversal, live ledge departures and faster-gait feel remain for player
+review. D08K12 is Needs playtest; no acceptance, commit or push.
+[Note 284](documentation/284-d08k12-crouch-running.md) records evidence and limits.
+
+
+### D21A - Momentary crouch takes over the C toggle
+
+**Status: Done (user-accepted; closeout authorized 2026-10-27). Dependency: D21 (Done).**
+User confirms D08K12 works, then requests this focused D21 correction: while
+C-toggle crouch is active, pressing the configured momentary crouch action
+clears the toggle but keeps Duke crouched for the entire hold. Release requests
+standing through existing clearance checks. Preserve Space cancellation,
+ordinary momentary crouch, repeated input, custom keyboard/mouse bindings,
+save/load behavior and D08K12 crouch running. Acceptance: no standing on Ctrl
+press/hold; stand on release where there is room; low clearance stays safe.
+User accepted the correction and authorized closeout, commit and push.
+
+
+## 2026-10-27 - D21A Ctrl takeover ready for playtest
+
+Ctrl now takes over C-toggle crouch without standing on press: remain crouched
+through the hold, then request standing on release. Configured keyboard/mouse
+bindings share the behavior. Space cancellation remains unchanged. Player build,
+native input/controls suites and private real-SDL 60/default and 120/rebound
+routes pass, including crouch running during takeover, pause/load and fresh jump.
+[Note 285](documentation/285-d21a-crouch-takeover.md). D08K12 is user-verified;
+D21A remains Needs playtest. No closeout, commit or push authorized.
+
+
+## 2026-10-27 - D08K12 and D21A accepted and closed
+
+User confirmed crouch running works, accepted Ctrl takeover and explicitly
+requested: "perfect! lock it in, close it out". Both jobs are Done.
+Implementation, tests, manual and documentation commit/push are authorized as
+MusicMonsterMod. Run while crouched uses configured pace controls; pressing
+Ctrl during C-toggle crouch keeps Duke low until Ctrl release, subject to
+standing clearance. Space cancellation remains unchanged.
+
+Player build, native input/controls/aim suites and private 60/120 real-SDL
+routes passed. User acceptance supplies final gameplay approval while notes
+284/285 retain the natural-vent, live-ledge and bounded-test evidence limits.
+No next job started.

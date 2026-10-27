@@ -1,5 +1,54 @@
 # Next-session handoff
 
+## 2026-10-27 - D08K12 and D21A accepted and closed
+
+User confirmed crouch running works, accepted Ctrl takeover and explicitly
+requested: "perfect! lock it in, close it out". Both jobs are Done.
+Implementation, tests, manual and documentation commit/push are authorized as
+MusicMonsterMod. Run while crouched uses configured pace controls; pressing
+Ctrl during C-toggle crouch keeps Duke low until Ctrl release, subject to
+standing clearance. Space cancellation remains unchanged.
+
+Player build, native input/controls/aim suites and private 60/120 real-SDL
+routes passed. User acceptance supplies final gameplay approval while notes
+284/285 retain the natural-vent, live-ledge and bounded-test evidence limits.
+No next job started.
+
+Launch: `python3 recomp/tools/local/run.py` from the workspace root.
+
+
+## 2026-10-27 - D21A Ctrl takeover ready for playtest
+
+User confirms D08K12 works. D21A adjusts the previous Ctrl cancellation:
+pressing Ctrl during C-toggle crouch transfers to momentary crouch, keeping Duke
+low until Ctrl release. Standing still requires clearance. Space retains its
+stand-without-jumping cancellation. Custom keyboard and mouse bindings work.
+
+Build and native input/controls suites pass. Private real-SDL 60/default and
+120/rebound tests pass for takeover/hold/release, crouch running, pause/load and
+Space/fresh-jump behavior. [Note 285](285-d21a-crouch-takeover.md) retains limits.
+D21A Needs playtest; D08K12 user-verified. No closeout, commit or push authorized.
+Launch: `python3 recomp/tools/local/run.py` from the workspace root.
+
+
+## 2026-10-27 - D08K12 crouch running ready for playtest
+
+D08K12 is Needs playtest. Hold the configured speed modifier while using Ctrl
+crouch or C toggle to move at shared running pace; release restores walking pace
+with RUN MODE off. RUN MODE inversion follows standing controls. The existing
+crouch gait advances with distance; no new animation or geometry is introduced.
+Original swimming's forced shallow-water run is excluded from crouch selection.
+
+Build and native controls/input/aim suites pass. Private real-SDL 60 third-person
+and 120 first-person tests pass for held/toggled crouch, release, custom bindings,
+save/load and cancellation. Low clearance, blocked standing and ledge handoff
+are native-fixture verified; natural vents and live ledge departures still need
+player review, along with faster-gait feel. [Note 284](284-d08k12-crouch-running.md).
+Player settings/cards untouched. No closeout, commit or push authorized.
+
+Launch: `python3 recomp/tools/local/run.py` from the workspace root.
+
+
 ## 2026-10-27 - D10E accepted and closed
 
 User accepted the final free-look and release-steering behavior and explicitly

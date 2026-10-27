@@ -1343,9 +1343,9 @@ the same way on every menu screen:
 **KEY BINDINGS > HELD CROUCH** (C by default) toggles the crouch stance:
 press once to stay crouched after releasing the key, then press again to stand
 when there is room. **CROUCH** (Left Ctrl) remains momentary: hold to crouch,
-release to stand. Pressing Ctrl while C has crouch toggled on cancels the
-toggle and stands Duke up when there is room. That Ctrl hold is consumed;
-release and press Ctrl again for normal momentary crouch. **Space** also cancels
+release to stand. Pressing Ctrl while C has crouch toggled on takes over the
+stance: the toggle clears, Duke stays crouched while Ctrl is held, and releasing
+Ctrl stands him up when there is room. **Space** cancels
 C's crouch toggle and stands Duke up without jumping. Release Space and press
 again to jump; this follows the configured JUMP binding.
 
@@ -1850,9 +1850,14 @@ at the top of the screen. Partial, invalid and cancelled entries display nothing
 ### Crouch walking (Modernized, prototype)
 
 With **CROUCH: MODERN** (the default; OPTIONS > ADVANCED > MOVEMENT, or
-`run.py --crouch modern|original`), **hold Left Ctrl** and use **W/A/S/D** to walk
-low in any direction at the walking pace, hunched like Duke 3D's crouch. Duke keeps
-facing where you look, so you can strafe and back up while aiming and firing as usual;
+`run.py --crouch modern|original`), **hold Left Ctrl** or **tap C** to crouch,
+then use **W/A/S/D** to move low in any direction. **Hold Left Shift** to move
+at running pace while staying crouched; release it to return to crouch-walk pace.
+These follow your configured crouch and speed bindings. Caps Lock RUN MODE works
+as it does while standing: Shift temporarily selects the opposite pace.
+The existing crouch gait follows distance, so its steps quicken at running pace.
+Duke keeps facing where you look, so you can strafe and back up while aiming
+and firing as usual;
 held still he holds the original one-knee kneel, blending into the crouch walk
 when you move and back to the kneel when you stop. He stops at walls and blocking
 objects, and stands up when you release Ctrl where there is room. Standing walks and Modern crouch walks can leave ledges without jumping:

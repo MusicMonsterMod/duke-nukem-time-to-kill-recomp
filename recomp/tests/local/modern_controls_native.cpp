@@ -274,7 +274,7 @@ static unsigned capture_offers;
 void input_offer_gameplay_capture() {++capture_offers;}
 void input_ack_commands(uint64_t) {}
 bool input_wants_initial_capture() {return want_capture;}
-bool input_running(){return running;}
+bool input_running(bool){return running;}
 static bool grab_owns;
 bool input_push_grab_owns_cross(){return grab_owns;}
 static bool reach_held;
@@ -2663,7 +2663,9 @@ int main(int argc,char** argv) {
     {
         const auto saved=ttk::input;
         const uint32_t saved_x=psx_mod_read_word(p+4),saved_z=psx_mod_read_word(p+12);
-        for(int reject=0;reject<6;++reject) {
+        const bool saved_running=ttk::running;
+        for(bool running:{false,true}) for(int reject=0;reject<6;++reject) {
+            ttk::running=running;
             ttk::input=saved;ttk::input.active=true;ttk::input.move_x=0;ttk::input.move_y=1;
             ttk::input.held[ttk::crouch]=false;ttk::input.held[ttk::interact]=false;
             ttk::input.held[ttk::original_aim]=false;
@@ -2683,6 +2685,27 @@ int main(int argc,char** argv) {
             if(reject==5){assert(ttk::crouch_walk_input_ready());ttk::input.held[ttk::crouch]=true;}
             ttk::input.move_y=1;
             psx_mod_write_half(p+0x60,178);
+            // D08K12: the actual mover retains crouch in vent-sized clearance,
+            // switches pace immediately, and never exceeds that pace diagonally.
+            if(reject==0) {
+                clearance_result=0x2e0;
+                for(int phase=0;phase<4;++phase) {
+                    ttk::running=phase==1 || phase==2;
+                    ttk::input.move_x=phase==2?1:0;
+                    const int32_t x=int32_t(psx_mod_read_word(p+4)),z=int32_t(psx_mod_read_word(p+12));
+                    call(0x8005a210,p,0x800c2754,0x80041b34,0x801ff000);
+                    const double distance=std::hypot(double(int32_t(psx_mod_read_word(p+4))-x),
+                                                     double(int32_t(psx_mod_read_word(p+12))-z));
+                    assert(std::abs(distance-(ttk::running?97.6171875:20.8154296875))<1.0);
+                    assert(psx_mod_read_half(p+0x60)==178 && ttk::crouch_walk_input_ready());
+                }
+                // Released Ctrl cannot stand under a low ceiling; run remains
+                // available until the existing stand-up owner finds headroom.
+                ttk::input.held[ttk::crouch]=false;ttk::running=true;
+                call(0x8005a210,p,0x800c2754,0x80041b34,0x801ff000);
+                assert(psx_mod_read_half(p+0x60)==178 && ttk::crouch_walk_input_ready());
+                ttk::input.held[ttk::crouch]=true;ttk::running=running;
+            }
             lookahead_drop=1024;clearance_result=1024+0x2e0;hull_ray_y.clear();
             if(reject==1)clearance_result=1024+0x2b0; // room below fits, departure does not
             if(reject==2)hull_ray_hit=1;
@@ -2698,11 +2721,12 @@ int main(int argc,char** argv) {
                 assert(hull_ray_y.size()==2 && hull_ray_y[0]==hull_ray_y[1]);
             }
         }
+        ttk::running=saved_running;
         landing_clips=false;hull_ray_hit=0;lookahead_drop=-100000;clearance_result=2048;
         ttk::input=saved;psx_mod_write_half(p+0x60,63);psx_mod_write_byte(p+0x22c,0);
         psx_mod_write_half(p+0xba,0);
         psx_mod_write_word(p+4,saved_x);psx_mod_write_word(p+12,saved_z);
-        std::puts("PASS: D08L1 crouch walk-off uses original fall; departure clearance, wall ray, tall step and missing-floor refusals");
+        std::puts("PASS: D08K12 walk/run/release/diagonal crouch pace and blocked standing; D08L1 walk/run ledge falls and collision refusals");
     }
     // D10E: inspection rotates the view alone, then returns to the retained
     // gameplay heading; its virtual shot eye translates with the player.

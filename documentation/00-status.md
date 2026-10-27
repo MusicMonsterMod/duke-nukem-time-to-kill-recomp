@@ -1,5 +1,41 @@
 # Current status - 2026-10-04
 
+## 2026-10-27 - D09 accepted and closed; D09A queued
+
+User: "controller is working solidly" and "lock it in, close it out".
+D09 is Done by user acceptance. Implementation, regression tests, framework
+patch, manual and documentation commit/push are explicitly authorized as
+MusicMonsterMod. Existing build and bounded verification evidence remain in
+[note 289](289-d09-modern-controller.md); no gameplay change or
+new build is needed for closeout. User acceptance is not a newly observed
+physical two-pad match or a diagnosis of the earlier character-selection report.
+
+D09A is Todo in the background backlog: keyboard and gamepad as separate local
+player controllers, with independent character confirmation and gameplay input.
+It is scoped on the board and not started. Player settings/cards remain untouched.
+
+Launch from the workspace root: `python3 recomp/tools/local/run.py`.
+
+## 2026-10-27 - D09 modern controller candidate (Needs playtest)
+
+D09 was selected and implemented as a bounded Modernized campaign candidate.
+Left stick moves relative to the camera; right stick looks/aims independently.
+Fixed pad actions use the existing gameplay layer alongside keyboard/mouse.
+OPTIONS > CONTROLS adds saved look speed, radial deadzone and inversion.
+A release gate prevents held menu confirmation from becoming a gameplay jump.
+Classic split screen and Vanilla retain their original pad controls.
+
+Build, native SDL input/controls/aim and profile tests pass. Private 60/120
+campaign routes and two-seat selection/movement/pause/results routes pass
+within [note 289](289-d09-modern-controller.md)'s limits. One PS3
+controller is recognized with neutral readings inside the default deadzone;
+physical movement, reconnect, two-pad match and display acceptance remain.
+The historical Red Duke / Blue Duke blocker is not diagnosed. Character
+selection now explains the two-controller confirmation requirement.
+
+No player settings/cards changed. No commit/push or next job started.
+Launch: `python3 recomp/tools/local/run.py`.
+
 ## 2026-10-27 - D34B closed for now; controller acceptance deferred
 
 User reports being stuck at Red Duke / Blue Duke character selection and

@@ -100,6 +100,42 @@ int main() {
     guest[0x800bcbb0]=0;CHECK(ttk::input_modern_controls());
     guest[0x800bcbb0]=1;guest[0x800c27bc]=1;
     capture_fixture();CHECK(tick().active && ttk::input_modern_controls());
+    // D09: actual SDL gamepad sampling, radial deadzone, independent actions,
+    // time-based look, focus loss, disconnect and original-mode exclusion.
+    CHECK(SDL_InitSubSystem(SDL_INIT_GAMEPAD)==0);
+    SDL_VirtualJoystickDesc desc{};SDL_INIT_INTERFACE(&desc);
+    desc.type=SDL_JOYSTICK_TYPE_GAMEPAD;desc.naxes=6;desc.nbuttons=SDL_GAMEPAD_BUTTON_COUNT;
+    desc.axis_mask=63;desc.button_mask=(1u<<SDL_GAMEPAD_BUTTON_COUNT)-1;
+    desc.name="TTK controller regression";
+    const auto id=SDL_AttachVirtualJoystick(&desc);CHECK(id);
+    auto* joystick=SDL_OpenJoystick(id);auto* pad=SDL_OpenGamepad(id);CHECK(joystick && pad);
+    SDL_SetJoystickVirtualAxis(joystick,4,-32768);SDL_SetJoystickVirtualAxis(joystick,5,-32768);
+    auto sample=[&](){SDL_UpdateJoysticks();ttk::input_controller_sample(pad);return tick();};
+    SDL_SetJoystickVirtualAxis(joystick,0,3000);CHECK(sample().move_x==0 && !sample().held[ttk::fire]);
+    SDL_SetJoystickVirtualAxis(joystick,0,20000);auto cf=sample();
+    CHECK(cf.move_x>0.4f && cf.move_x<0.7f && cf.move_y==0 && cf.device==ttk::Device::Controller);
+    SDL_SetJoystickVirtualAxis(joystick,1,-32768);cf=sample();CHECK(cf.move_x>0 && cf.move_y>0 && std::hypot(cf.move_x,cf.move_y)<=1.001f);
+    SDL_SetJoystickVirtualAxis(joystick,2,32767);sample();SDL_Delay(20);cf=sample();CHECK(cf.look_x>0 && cf.look_y==0);
+    SDL_SetJoystickVirtualAxis(joystick,2,0);SDL_SetJoystickVirtualAxis(joystick,3,24000);
+    SDL_Delay(10);CHECK(sample().look_y>0);
+    SDL_setenv_unsafe("DNTTK_CONTROLLER_INVERT_Y","1",1);SDL_Delay(10);CHECK(sample().look_y<0);
+    SDL_setenv_unsafe("DNTTK_MOUSE_INVERT_Y","1",1);SDL_Delay(10);CHECK(sample().look_y>0);
+    SDL_unsetenv_unsafe("DNTTK_CONTROLLER_INVERT_Y");SDL_unsetenv_unsafe("DNTTK_MOUSE_INVERT_Y");
+    SDL_SetJoystickVirtualAxis(joystick,3,0);
+    SDL_SetJoystickVirtualAxis(joystick,2,0);SDL_SetJoystickVirtualAxis(joystick,0,0);SDL_SetJoystickVirtualAxis(joystick,1,0);
+    SDL_SetJoystickVirtualAxis(joystick,5,32767);cf=sample();CHECK(cf.held[ttk::fire]);
+    SDL_SetJoystickVirtualButton(joystick,SDL_GAMEPAD_BUTTON_SOUTH,true);cf=sample();CHECK(cf.held[ttk::jump] && ttk::input_jump_pending());
+    SDL_SetJoystickVirtualButton(joystick,SDL_GAMEPAD_BUTTON_SOUTH,false);sample();
+    SDL_SetJoystickVirtualButton(joystick,SDL_GAMEPAD_BUTTON_LEFT_SHOULDER,true);cf=sample();
+    CHECK(cf.command_count && cf.commands[cf.command_count-1]==ttk::weapon_previous);
+    ttk::input_ack_commands(cf.command_serial);cf=sample();CHECK(cf.command_count==0); // no held-button repeats
+    focus(false);cf=sample();CHECK(!cf.active && ttk::input_pad()==0xffff);
+    focus(true);capture_fixture();CHECK(!sample().held[ttk::fire]); // held through recapture needs release
+    SDL_SetJoystickVirtualAxis(joystick,5,-32768);sample();
+    SDL_SetJoystickVirtualAxis(joystick,5,32767);CHECK(sample().held[ttk::fire]);
+    SDL_DetachVirtualJoystick(id);SDL_UpdateJoysticks();ttk::input_controller_sample(pad);cf=tick();CHECK(!cf.held[ttk::fire] && !cf.held[ttk::jump] && !ttk::input_jump_pending());
+    SDL_CloseGamepad(pad);SDL_CloseJoystick(joystick);
+    ttk::input_release();ttk::input_state_loaded();capture_fixture();
     // D10E: SDL's middle button is Mouse3, host-only, rebindable and held.
     CHECK(ttk::input_binding_code(ttk::camera_free_look)==-2);
     SDL_Event inspect{};inspect.type=SDL_MOUSEBUTTONDOWN;inspect.button.windowID=SDL_GetWindowID(win);inspect.button.button=2;

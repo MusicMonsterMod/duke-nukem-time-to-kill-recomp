@@ -343,7 +343,8 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08V1 | Modernized controls lost for the rest of the session after a missed chain jump; modern controls must never be lost | Done | D08V, D08J5 |
 | D08A29 | Scroll-wheel weapon changes while running | Done (user-accepted) | D08A, D08AA |
 | D08A30 | Reverse weapon-wheel direction: up advances, down goes back | Done (user-accepted) | D08A29 |
-| D09 | Modern controller support | Todo | D05, D06, D07 |
+| D09 | Modern controller support | Done (user-accepted 2026-10-27) | D05, D06, D07 |
+| D09A | Separate keyboard and gamepad seats for local two-player | Todo (background backlog) | D09, D34B implementation |
 | D10 | Third-person camera polish | Done | D08 |
 | D10E | Optional held middle-mouse third-person free look (issue #1 inspiration) | Done (user-accepted 2026-10-27) | D04, D06, D07, D10 |
 | D10A | Rapid mouse turning and Shift-running investigation | Done | D06, D07C, D08 |
@@ -7061,6 +7062,8 @@ feel.
 
 ### D09 — Modern controller support
 
+**Status: Done (user-accepted 2026-10-27).** User reports "controller is working solidly" and explicitly authorizes lock-in and closeout. Implementation, tests and documentation commit/push authorized. [Note 289](documentation/289-d09-modern-controller.md) retains bounded test evidence; this acceptance does not establish a diagnosis of the historical two-pad selection report.
+
 Provide left-stick movement, right-stick look, configurable sensitivity/inversion, dead zones and sensible action bindings using the modern action layer. Support switching input devices and disconnect/reconnect.
 
 **D34B carryover (2026-10-27):** user reports being stuck at Red Duke /
@@ -7069,10 +7072,29 @@ no further code changes, not accepted as a working physical-controller route.
 Diagnose two physical pads and per-seat menu/character confirmation, then repeat
 the complete split-screen match and real-display checks from D34B. Existing
 virtual SDL results do not establish hardware acceptance. See
-[note 288](documentation/288-d34b-classic-split-screen.md). D09 remains Todo;
-this closeout does not start controller work.
+[note 288](documentation/288-d34b-classic-split-screen.md). D09 remained Todo at that closeout; the user subsequently selected it.
 
 **Acceptance:** stick movement is predictable, no drift at rest on the tested controller, menus and gameplay agree on bindings, and disconnects do not leave held actions. Record tested hardware and limitations.
+
+### D09A - Separate keyboard and gamepad seats for local two-player
+
+**Status: Todo (background backlog, requested 2026-10-27). Dependencies: D09
+(Done), D34B implementation (retained; physical two-pad acceptance remains bounded).**
+Register keyboard and gamepad as independent player controllers for local
+split-screen: one player uses the keyboard, the other a physical gamepad.
+Investigate existing seat assignment and keyboard merge before implementation.
+Provide clear assignment/confirmation so keyboard input can select and confirm
+one character while the gamepad independently controls the other.
+
+Acceptance: both seats can select, confirm and start a match; keyboard movement,
+fire and actions affect only its assigned player, and gamepad input only the
+other. Verify pause/resume, results/exit, save/load and pad disconnect/reconnect
+without cross-talk or stuck actions. Preserve accepted single-player mixed
+keyboard/mouse/gamepad use, existing two-gamepad play and Vanilla. Keep original
+split-screen gameplay rules; modern per-player cameras and networking are not
+part of this job. Record hardware, routing and real-display test evidence.
+
+Queued only. No implementation, build or launch for D09A during D09 closeout.
 
 ### D10 — Third-person camera polish
 
@@ -22017,3 +22039,40 @@ Implementation, tests, manual and documentation commit/push are authorized as
 MusicMonsterMod. The accepted player build is unchanged during closeout.
 Repository/privacy checks and clean-pin framework patch verification are the
 closeout checks. D18C remains a separate open job; no next job started.
+
+
+## 2026-10-27 - D09 modern controller candidate (Needs playtest)
+
+D09 was selected and implemented as a bounded Modernized campaign candidate.
+Left stick moves relative to the camera; right stick looks/aims independently.
+Fixed pad actions use the existing gameplay layer alongside keyboard/mouse.
+OPTIONS > CONTROLS adds saved look speed, radial deadzone and inversion.
+A release gate prevents held menu confirmation from becoming a gameplay jump.
+Classic split screen and Vanilla retain their original pad controls.
+
+Build, native SDL input/controls/aim and profile tests pass. Private 60/120
+campaign routes and two-seat selection/movement/pause/results routes pass
+within [note 289](documentation/289-d09-modern-controller.md)'s limits. One PS3
+controller is recognized with neutral readings inside the default deadzone;
+physical movement, reconnect, two-pad match and display acceptance remain.
+The historical Red Duke / Blue Duke blocker is not diagnosed. Character
+selection now explains the two-controller confirmation requirement.
+
+No player settings/cards changed. No commit/push or next job started.
+Launch: `python3 recomp/tools/local/run.py`.
+
+## 2026-10-27 - D09 accepted and closed; D09A queued
+
+User: "controller is working solidly" and "lock it in, close it out".
+D09 is Done by user acceptance. Implementation, regression tests, framework
+patch, manual and documentation commit/push are explicitly authorized as
+MusicMonsterMod. Existing build and bounded verification evidence remain in
+[note 289](documentation/289-d09-modern-controller.md); no gameplay change or
+new build is needed for closeout. User acceptance is not a newly observed
+physical two-pad match or a diagnosis of the earlier character-selection report.
+
+D09A is Todo in the background backlog: keyboard and gamepad as separate local
+player controllers, with independent character confirmation and gameplay input.
+It is scoped on the board and not started. Player settings/cards remain untouched.
+
+Launch from the workspace root: `python3 recomp/tools/local/run.py`.

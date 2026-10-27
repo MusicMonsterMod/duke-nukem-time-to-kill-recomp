@@ -11,7 +11,7 @@ enum Action {
     action_count
 };
 enum class Context { Menu, Gameplay };
-enum class Device { None, Keyboard, Mouse };
+enum class Device { None, Keyboard, Mouse, Controller };
 struct InputFrame {
     uint64_t sequence = 0, epoch = 0;
     double total_x = 0, total_y = 0;
@@ -39,6 +39,10 @@ void input_init(SDL_Window* window);
 // Called on the runtime event-pump thread, never from an SDL event watch.
 void input_event(const SDL_Event& event);
 void input_frame();
+// Assigned seat 1 only; SDL sampling stays on the runtime input thread.
+void input_controller_sample(SDL_GameController* pad, SDL_GameController* second=nullptr);
+unsigned input_controller_connections();
+bool input_controller_owns_gameplay();
 // Host frame counter advanced by input_frame() (main loop, once per presented
 // frame). Identity verdicts are memoised per value of this.
 uint64_t input_host_frame();

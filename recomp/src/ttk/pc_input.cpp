@@ -91,6 +91,15 @@ static void push_reset() {push_request=push_latched=false;push_holster_pulse=0;p
 static void push_let_go() {push_latched=push_request=false;push_released=push_letting_go=true;}
 static bool keys[512], mouse[6];
 static float dx, dy;
+static bool controller_held[action_count];
+static uint32_t controller_buttons, controller_previous, controller_blocked;
+static unsigned controller_trigger_blocked;
+static int16_t controller_axes[6];
+static bool controller_connected;
+static std::atomic<unsigned> controller_connections{0};
+static double controller_at;
+static float controller_x, controller_y;
+static bool action_down(int action);
 static double wheel_fraction, distance_total;
 // D10 camera: recenter presses are counted per epoch (clear() resets them);
 // the shoulder side survives capture changes and starts from the profile.
@@ -176,6 +185,9 @@ static std::atomic<bool> key_capture{false};
 static std::atomic<int> captured_key{0};
 static constexpr int no_key=0x7fffffff;
 static void clear() {
+    controller_blocked|=controller_buttons;
+    controller_trigger_blocked|=(controller_axes[4]>8192?1u:0u)|(controller_axes[5]>8192?2u:0u);
+    std::fill(controller_held,controller_held+action_count,false);controller_x=controller_y=0;controller_at=0;
     cheat_typing.reset();cheat_pending=Cheat::None;menu_select_deadline=0;
     std::memset(keys, 0, sizeof keys);
     std::memset(mouse, 0, sizeof mouse);
@@ -362,16 +374,19 @@ const char* input_binding_name(Action action) {
 // Either Alt / either Shift satisfies a left-modifier binding.
 static bool down(int code) { return code < 0 ? mouse[-code] : code==SDL_SCANCODE_LALT ? keys[code] || keys[SDL_SCANCODE_RALT] :
     code==SDL_SCANCODE_LSHIFT ? keys[code] || keys[SDL_SCANCODE_RSHIFT] : keys[code]; }
+static bool action_down(int action) {
+    return (binds[action] && down(binds[action])) || controller_held[action];
+}
 // Ctrl remains momentary. The separate C action keeps a stance until toggled.
 static bool crouch_down() {
-    return (!crouch_cancel_held && binds[crouch] && down(binds[crouch])) || crouch_latched;
+    return (!crouch_cancel_held && action_down(crouch)) || crouch_latched;
 }
-static bool jump_down() { return !crouch_jump_consumed && down(binds[jump]); }
+static bool jump_down() { return !crouch_jump_consumed && action_down(jump); }
 static void crouch_jump_press() {
     if(!crouch_latched) return;
     crouch_latched=false;
     crouch_jump_consumed=true;
-    crouch_cancel_held=binds[crouch] && down(binds[crouch]);
+    crouch_cancel_held=binds[crouch] && action_down(crouch);
     jump_deadline=jump_pressed_at=0;
 }
 static bool crouch_binding_event(int code) {
@@ -400,10 +415,10 @@ static bool legacy_aim() {
     return !independent_camera() || !mode || std::strcmp(mode,"view");
 }
 static bool grab_down() {
-    return (binds[grab] && !legacy_aim() && down(binds[grab])) || (binds[grab_alt] && down(binds[grab_alt]));
+    return (!legacy_aim() && action_down(grab)) || action_down(grab_alt);
 }
 static bool aim_down() {
-    return (binds[original_aim] && down(binds[original_aim])) || (binds[grab] && legacy_aim() && down(binds[grab]));
+    return (binds[original_aim] && action_down(original_aim)) || (binds[grab] && legacy_aim() && action_down(grab));
 }
 // The live input that grabs, for prompts: RMB, ALT, or the bound key's name.
 static const char* grab_label() {
@@ -420,7 +435,7 @@ static const char* grab_label() {
 // water no longer forces the run (D08AB: unless SWIMMING is original).
 bool input_running(bool allow_wade_override) {
     if(allow_wade_override && wade_full_speed_ready())return true;
-    return autorun != down(binds[walk]);
+    return autorun != action_down(walk);
 }
 bool input_auto_stow_pending() {
     return modern && focused && captured && (interaction_pending || airborne_interact) && interaction_started && restore_owned && sequence<=interaction_deadline;
@@ -429,7 +444,7 @@ bool input_auto_stow_pending() {
 // started is live) during a jump: the host may arm the original reach early.
 bool input_airborne_reach_held() {
     return modern && focused && captured && !push_latched && !push_request &&
-        !ledge_dropping && (down(binds[interact]) || airborne_interact || interaction_pending || ladder_leap_active());
+        !ledge_dropping && (action_down(interact) || airborne_interact || interaction_pending || ladder_leap_active());
 }
 bool input_jump_pending() {
     return modern && focused && captured && jump_deadline && sequence<=jump_deadline;
@@ -573,7 +588,7 @@ void input_event(const SDL_Event& e) {
             if(code==binds[i])camera_action(i);
         if(code==SDL_SCANCODE_LALT || code==SDL_SCANCODE_RALT)wheel_fraction=0;
         if (code >= 0 && code < 512) keys[code] = pressed;
-        if(!pressed && crouch_binding_event(code) && !down(binds[crouch])) crouch_cancel_held=false;
+        if(!pressed && crouch_binding_event(code) && !action_down(crouch)) crouch_cancel_held=false;
         if(!pressed && code==binds[jump]) crouch_jump_consumed=false;
         if (pressed) device = Device::Keyboard;
         // Space is always jump; while Duke holds an object it is ignored.
@@ -581,7 +596,7 @@ void input_event(const SDL_Event& e) {
             jump_deadline=sequence+8;jump_pressed_at=sequence;
             // Armed run-jumps often press E during flight. If E is already held
             // at takeoff, keep/refresh the stow lease so the weapon clears early.
-            if(down(binds[interact]) || interaction_pending) {
+            if(action_down(interact) || interaction_pending) {
                 interaction_pending=true;interaction_deadline=sequence+120;
             }
         }
@@ -618,7 +633,7 @@ void input_event(const SDL_Event& e) {
             device = Device::Mouse;
             if(e.type==SDL_MOUSEBUTTONDOWN && binds[jump]==-int(e.button.button) && !push_latched && !crouch_jump_consumed) {
                 jump_deadline=sequence+8;
-                if(down(binds[interact]) || interaction_pending) {
+                if(action_down(interact) || interaction_pending) {
                     interaction_pending=true;interaction_deadline=sequence+120;
                 }
             }
@@ -678,17 +693,104 @@ static void test_controllers() {
         for(int i=0;i<2;++i) {
             SDL_VirtualJoystickDesc d{};SDL_INIT_INTERFACE(&d);
             d.type=SDL_JOYSTICK_TYPE_GAMEPAD;d.nbuttons=SDL_GAMEPAD_BUTTON_COUNT;
+            d.naxes=6;d.axis_mask=63;
             d.button_mask=(1u<<SDL_GAMEPAD_BUTTON_COUNT)-1u;
             d.name=i ? "TTK diagnostic pad 2" : "TTK diagnostic pad 1";
             const SDL_JoystickID id=SDL_AttachVirtualJoystick(&d);
             pads[i]=SDL_OpenJoystick(id);
         }
     }
-    unsigned masks[2]={};
-    if(FILE* f=std::fopen(path,"r")) {if(std::fscanf(f,"%u %u",&masks[0],&masks[1])!=2)masks[0]=masks[1]=0;std::fclose(f);}
+    unsigned masks[2]={};int axes[12]={0,0,0,0,-32768,-32768,0,0,0,0,-32768,-32768};
+    if(FILE* f=std::fopen(path,"r")) {if(std::fscanf(f,"%u %u",&masks[0],&masks[1])!=2)masks[0]=masks[1]=0;
+        for(int& axis:axes) {int value;if(std::fscanf(f,"%d",&value)==1)axis=value;}std::fclose(f);}
     for(int i=0;i<2;++i) if(pads[i]) for(int b=0;b<SDL_GAMEPAD_BUTTON_COUNT;++b)
         SDL_SetJoystickVirtualButton(pads[i],b,(masks[i]&(1u<<b))!=0);
+    for(int i=0;i<2;++i) if(pads[i]) for(int a=0;a<6;++a)
+        SDL_SetJoystickVirtualAxis(pads[i],a,(Sint16)std::clamp(axes[i*6+a],-32768,32767));
 #endif
+}
+// D09: native stick/action input, independent of keyboard bindings.
+unsigned input_controller_connections() {return controller_connections.load();}
+void input_controller_sample(SDL_GameController* pad, SDL_GameController* second) {
+    const bool connected=pad && SDL_GameControllerGetAttached(pad);
+    controller_connections.store((connected?1u:0u)|(second && SDL_GameControllerGetAttached(second)?2u:0u));
+    if(controller_connected && !connected && device==Device::Controller) {
+        input_release();input_state_loaded();initial_capture=true;
+    }
+    controller_connected=connected;controller_buttons=0;
+    std::fill(controller_axes,controller_axes+6,0);
+    if(!connected) {controller_previous=0;return;}
+    for(int b=0;b<SDL_CONTROLLER_BUTTON_MAX;++b)
+        if(SDL_GameControllerGetButton(pad,(SDL_GameControllerButton)b))controller_buttons|=1u<<b;
+    for(int a=0;a<6;++a)controller_axes[a]=SDL_GameControllerGetAxis(pad,(SDL_GameControllerAxis)a);
+}
+bool input_controller_owns_gameplay() {
+    return input_modern_controls() && psx_mod_read_half(0x800bcbb0)==1 &&
+        psx_mod_read_word(0x800c27bc)!=2 && !psx_mod_read_half(0x800be568) &&
+        !psx_mod_read_half(0x800d2540);
+}
+static double controller_setting(const char* key,double fallback,double lo,double hi) {
+    const char* s=ttk_live_env(key);char* end=nullptr;
+    const double v=s?std::strtod(s,&end):fallback;
+    return !std::isfinite(v) || v<lo || v>hi || (s && (end==s || *end)) ? fallback : v;
+}
+static void controller_stick(int x,int y,float& ox,float& oy,double deadzone) {
+    const double nx=x/32768.0,ny=y/32768.0,length=std::hypot(nx,ny);
+    const double scale=length>deadzone ? std::min(1.0,(length-deadzone)/(1-deadzone))/length : 0;
+    ox=float(nx*scale);oy=float(ny*scale);
+}
+static void controller_frame() {
+    const double now=input_clock_ms();
+    const double dt=controller_at?std::clamp((now-controller_at)/1000.0,0.0,0.05):0;
+    controller_at=now;
+    std::fill(controller_held,controller_held+action_count,false);controller_x=controller_y=0;
+    controller_blocked&=controller_buttons;
+    controller_trigger_blocked&=(controller_axes[4]>8192?1u:0u)|(controller_axes[5]>8192?2u:0u);
+    const uint32_t buttons=controller_buttons&~controller_blocked;
+    const uint32_t pressed=buttons&~controller_previous;
+    controller_previous=buttons;
+    if(!controller_connected || !focused || !captured || !input_controller_owns_gameplay())return;
+    auto button=[&](int b){return (buttons&(1u<<b))!=0;};
+    auto edge=[&](int b){return (pressed&(1u<<b))!=0;};
+    const double dz=controller_setting("DNTTK_CONTROLLER_DEADZONE",20,5,50)/100;
+    controller_stick(controller_axes[0],controller_axes[1],controller_x,controller_y,dz);
+    controller_y=-controller_y;
+    float lx=0,ly=0;controller_stick(controller_axes[2],controller_axes[3],lx,ly,dz);
+    controller_held[move_left]=controller_x<0;controller_held[move_right]=controller_x>0;
+    controller_held[move_forward]=controller_y>0;controller_held[move_back]=controller_y<0;
+    controller_held[fire]=!(controller_trigger_blocked&2) && controller_axes[5]>8192;
+    controller_held[grab]=!(controller_trigger_blocked&1) && controller_axes[4]>8192;
+    controller_held[jump]=button(SDL_CONTROLLER_BUTTON_A);
+    controller_held[crouch]=button(SDL_CONTROLLER_BUTTON_B);
+    controller_held[interact]=button(SDL_CONTROLLER_BUTTON_X);
+    controller_held[holster]=button(SDL_CONTROLLER_BUTTON_Y);
+    controller_held[walk]=button(SDL_CONTROLLER_BUTTON_LEFTSTICK);
+    if(edge(SDL_CONTROLLER_BUTTON_A)) {
+        crouch_jump_press();
+        if(!push_latched && !crouch_jump_consumed){jump_deadline=sequence+8;jump_pressed_at=sequence;}
+    }
+    if(edge(SDL_CONTROLLER_BUTTON_B))momentary_crouch_press();
+    if(edge(SDL_CONTROLLER_BUTTON_X)) {
+        if(push_latched || push_request)push_let_go();
+        interaction_pending=true;interaction_deadline=sequence+120;interaction_pulse=0;interaction_started=false;holster_pulse=0;
+    }
+    if(edge(SDL_CONTROLLER_BUTTON_Y)) {cancel_restore();airborne_interact=false;interaction_pending=false;interaction_pulse=holster_pulse=swim_redraw=0;}
+    for(const auto pair : {std::pair<int,int>{SDL_CONTROLLER_BUTTON_LEFTSHOULDER,weapon_previous},
+        {SDL_CONTROLLER_BUTTON_RIGHTSHOULDER,weapon_next},{SDL_CONTROLLER_BUTTON_RIGHTSTICK,quick_kick},
+        {SDL_CONTROLLER_BUTTON_DPAD_LEFT,item_previous},{SDL_CONTROLLER_BUTTON_DPAD_RIGHT,item_next},
+        {SDL_CONTROLLER_BUTTON_DPAD_UP,item_use},{SDL_CONTROLLER_BUTTON_DPAD_DOWN,jetpack}})
+        if(edge(pair.first))command(pair.second);
+    if(edge(SDL_CONTROLLER_BUTTON_BACK))camera_action(camera_view);
+    // Convert angular velocity into the common camera accumulator. Cancel the
+    // mouse-specific scale/inversion so pad preferences remain independent.
+    const double speed=controller_setting("DNTTK_CONTROLLER_SPEED",180,30,360);
+    const double mouse_scale=controller_setting("DNTTK_MOUSE_SENSITIVITY",0.12,0.01,2);
+    const bool mouse_inv=controller_setting("DNTTK_MOUSE_INVERT_Y",0,0,1)!=0;
+    const bool pad_inv=controller_setting("DNTTK_CONTROLLER_INVERT_Y",0,0,1)!=0;
+    const double x=lx*speed*dt/mouse_scale,y=ly*speed*dt/mouse_scale*(mouse_inv!=pad_inv?-1:1);
+    dx+=float(x);dy+=float(y);
+    if(x || y) {look_cx+=x;look_cy+=y;look_ring[look_n++%512]={now,look_cx,look_cy};}
+    if(controller_x || controller_y || lx || ly || pressed || controller_axes[4]>8192 || controller_axes[5]>8192)device=Device::Controller;
 }
 void input_frame() {
     test_controllers();
@@ -723,6 +825,7 @@ void input_frame() {
         capture_offer.store(false);
         if(capture_now()) {std::fprintf(stderr,"[TTK input] Gameplay captured automatically\n");}
     }
+    controller_frame();
     if(!(modern && focused && captured)) {push_reset();push_released=push_letting_go=false;}
     else {
         const bool grabbed=push_grab_ready();
@@ -775,7 +878,7 @@ void input_frame() {
         }
         ladder_top_seen=ladder_top;
     }
-    if(interaction_pending && (sequence>interaction_deadline || down(binds[fire])))interaction_pending=false;
+    if(interaction_pending && (sequence>interaction_deadline || action_down(fire)))interaction_pending=false;
     if(interaction_pending && !interaction_started && interaction_holster_ready()) {
         // Shorter Circle pulse once jumping/airborne so stow begins inside the
         // ladder contact window; grounded approach keeps a slightly longer tap.
@@ -784,16 +887,16 @@ void input_frame() {
     }
     // D08J1: E held (or just pressed) heading at a ladder that hangs out of
     // reach: press the original jump once, as Space would; the E reach catches.
-    if(!down(binds[interact]) && !interaction_pending)ladder_leap_used=false;
+    if(!action_down(interact) && !interaction_pending)ladder_leap_used=false;
     else if(captured && focused && !ladder_leap_used && !push_latched && !push_request &&
             !input_jump_pending() && ladder_leap_ready()) {
         ladder_leap_used=true;ladder_leap_note();
         jump_deadline=sequence+8;jump_pressed_at=sequence;
         interaction_pending=true;interaction_deadline=sequence+120;
     }
-    if(airborne_interact && (!airborne_input_ready() || down(binds[fire])))airborne_interact=false;
+    if(airborne_interact && (!airborne_input_ready() || action_down(fire)))airborne_interact=false;
     if(airborne_input_ready() && interaction_ready() &&
-       (down(binds[interact]) || (interaction_pulse && sequence<=interaction_pulse)))airborne_interact=true;
+       (action_down(interact) || (interaction_pulse && sequence<=interaction_pulse)))airborne_interact=true;
     // D08U: E at the top of a ladder climbs down onto it (after any E stow).
     if(interaction_pending && interaction_ready() && ladder_top_available()) {
         ladder_top_request();interaction_pending=false;interaction_pulse=0;airborne_interact=false;
@@ -808,7 +911,7 @@ void input_frame() {
             // One short original draw request, never a held/repeated toggle.
             if(sequence>restore_pulse)cancel_restore();
         } else if(!interaction_pending && !push_request && !push_latched && sequence>interaction_pulse &&
-                  !down(binds[interact]) && (interaction_restore_ready() || interaction_swim_restore_ready())) {
+                  !action_down(interact) && (interaction_restore_ready() || interaction_swim_restore_ready())) {
             if(!restore_settle)restore_settle=sequence;
             // D08O3: in water the draw is the original weapon request instead.
             if(sequence-restore_settle>=6 && interaction_swim_restore_ready()) {swim_redraw=sequence+30;cancel_restore();}
@@ -940,8 +1043,8 @@ void input_frame() {
             SDL_PushEvent(&e);
         }
     }
-    if(crouch_cancel_held && focused && captured && !down(binds[crouch])) crouch_cancel_held=false;
-    if(crouch_jump_consumed && focused && captured && !down(binds[jump])) crouch_jump_consumed=false;
+    if(crouch_cancel_held && focused && captured && !action_down(crouch)) crouch_cancel_held=false;
+    if(crouch_jump_consumed && focused && captured && !action_down(jump)) crouch_jump_consumed=false;
     frame = {};
     frame.sequence = ++sequence; frame.epoch = epoch;
     // Player intent survives menus, console, focus loss and explicit Legacy.
@@ -953,12 +1056,16 @@ void input_frame() {
         frame.recenter_total=recenter_total;frame.look_press_total=look_press_total;frame.shoulder=shoulder;frame.first_person=first_person;
         total_x += dx; total_y += dy;
         frame.total_x = total_x; frame.total_y = total_y;
-        for (int i = 0; i < action_count; ++i) frame.held[i] = down(binds[i]);
+        for (int i = 0; i < action_count; ++i) frame.held[i] = action_down(i);
         frame.held[jump]=jump_down();
         frame.held[crouch]=crouch_down();frame.held[crouch_alt]=false;
         frame.held[original_aim]=aim_down();frame.held[grab]=grab_down();frame.held[grab_alt]=false;
         frame.move_x = float(frame.held[move_right]) - float(frame.held[move_left]);
         frame.move_y = float(frame.held[move_forward]) - float(frame.held[move_back]);
+        const float keyboard_x=float(binds[move_right] && down(binds[move_right]))-float(binds[move_left] && down(binds[move_left]));
+        const float keyboard_y=float(binds[move_forward] && down(binds[move_forward]))-float(binds[move_back] && down(binds[move_back]));
+        frame.move_x=std::clamp(keyboard_x+controller_x,-1.f,1.f);
+        frame.move_y=std::clamp(keyboard_y+controller_y,-1.f,1.f);
         float magnitude = std::hypot(frame.move_x, frame.move_y);
         if (magnitude > 1) { frame.move_x /= magnitude; frame.move_y /= magnitude; }
         frame.arrow_y = float(keys[SDL_SCANCODE_UP]) - float(keys[SDL_SCANCODE_DOWN]);
@@ -1218,15 +1325,15 @@ uint16_t input_pad() {
     // Legacy is an explicit host preference, never a consequence of capture
     // or lease loss. Keep the Modernized menus and saved bindings available.
     if(captured && !input_modern_controls()) {
-        for(int i=0;i<action_count;++i) if(down(binds[i])) value &= ~pads[i];
+        for(int i=0;i<action_count;++i) if(action_down(i)) value &= ~pads[i];
         if(crouch_down()) value &= ~4096;
-        if(down(binds[grab]) || down(binds[grab_alt])) value &= ~2048;
-        if(down(binds[interact])) value &= ~16384;
-        if(down(binds[inventory])) value &= ~1;
-        if(down(binds[move_forward])) value &= ~16;
-        if(down(binds[move_back])) value &= ~64;
-        if(down(binds[move_left]) || down(binds[turn_left])) value &= ~128;
-        if(down(binds[move_right]) || down(binds[turn_right])) value &= ~32;
+        if(action_down(grab) || action_down(grab_alt)) value &= ~2048;
+        if(action_down(interact)) value &= ~16384;
+        if(action_down(inventory)) value &= ~1;
+        if(action_down(move_forward)) value &= ~16;
+        if(action_down(move_back)) value &= ~64;
+        if(action_down(move_left) || action_down(turn_left)) value &= ~128;
+        if(action_down(move_right) || action_down(turn_right)) value &= ~32;
         last_pad=value;return value;
     }
     // Retain a brief tap across host polling and a short original transition.
@@ -1255,7 +1362,7 @@ uint16_t input_pad() {
     if (captured) for (int i = 0; i < action_count; ++i)
         if (!(locomotion && i == walk) && !(jet && i == walk && !jetpack_classic_input_ready()) &&
             !(i==original_aim && view_aim_input_ready()) &&
-            !(i==jump && (swim_host_owns_jump() || push_owned || crouch_jump_consumed)) && down(binds[i])) value &= ~pads[i];
+            !(i==jump && (swim_host_owns_jump() || push_owned || crouch_jump_consumed)) && action_down(i)) value &= ~pads[i];
     // Legacy aiming: the primary Grab input is original precision aim (R1).
     if (captured && aim_down() && !view_aim_input_ready()) value &= ~pads[original_aim];
     // The original ignores the ladder let-go while Cross is held, so a held E
@@ -1263,13 +1370,13 @@ uint16_t input_pad() {
     bool ladder_let_go=false;
     if(captured && traversal_input_ready() && !ladder_exit_ready()) {
         const bool mount_finishing=ladder_mount_finishing();
-        if(down(binds[move_forward]) && !down(binds[move_back]) && !mount_finishing) value &= ~16;
+        if(action_down(move_forward) && !action_down(move_back) && !mount_finishing) value &= ~16;
         // D08U1: S at a ladder that ends above the floor lets go from the
         // bottom-rung hang (original Square) instead of Down, which only
         // flips the hang poses; W still climbs back up.
         // At the last rung of such a ladder, S lets go from the climbing pose
         // (the original's own probe decides), so Duke never swings into it.
-        const bool descending=down(binds[move_back]) && !down(binds[move_forward]) && !mount_finishing;
+        const bool descending=action_down(move_back) && !action_down(move_forward) && !mount_finishing;
         const bool end_drop=descending && ladder_end_below();
         const int bottom_hang=descending && !end_drop ? ladder_bottom_hang() : 0;
         if(descending && !bottom_hang && !end_drop) value &= ~64;
@@ -1282,9 +1389,9 @@ uint16_t input_pad() {
         if(object_hang_release_ready()) value &= ~pads[jump];
         // D08J3: unswapped again when the camera looks at Duke's front.
         const bool pole=pole_sidestep_ready() &&
-            !pole_view_from_front(down(binds[move_left]) || down(binds[move_right]));
-        if(down(binds[move_left]) && !down(binds[move_right])) value &= pole?~32:~128;
-        if(down(binds[move_right]) && !down(binds[move_left])) value &= pole?~128:~32;
+            !pole_view_from_front(action_down(move_left) || action_down(move_right));
+        if(action_down(move_left) && !action_down(move_right)) value &= pole?~32:~128;
+        if(action_down(move_right) && !action_down(move_left)) value &= pole?~128:~32;
         // D08J5: Ctrl lets go of a pole or chain, as under a ceiling; so does S
         // resting at its end with nothing to step onto (original Square).
         if(pole_sidestep_ready() && (crouch_down() || (descending && pole_let_go_ready()))) {
@@ -1294,7 +1401,7 @@ uint16_t input_pad() {
     // D08T8: consume the drop press through the original release animation.
     // Otherwise held Space jumps again on the dumpster, and held W/E catches
     // the same ledge immediately. Fresh presses after release work normally.
-    if(!captured || (!jump_down() && !down(binds[interact]) && !traversal_input_ready()))ledge_dropping=false;
+    if(!captured || (!jump_down() && !action_down(interact) && !traversal_input_ready()))ledge_dropping=false;
     if(captured && ledge_hang_ready() && jump_down())ledge_dropping=true;
     if(ledge_dropping) {
         jump_deadline=jump_pressed_at=0;airborne_interact=false;
@@ -1315,10 +1422,10 @@ uint16_t input_pad() {
     if(traversal_camera && !traversal_input_ready() && !committed_camera_ready()) {
         uint16_t strafe_left=0,strafe_right=0;
         swim_strafe_pads(strafe_left,strafe_right);
-        if(down(binds[move_forward]) && !down(binds[move_back])) value &= ~16;
-        if(down(binds[move_back]) && !down(binds[move_forward])) value &= ~64;
-        if(down(binds[move_left]) && !down(binds[move_right])) value &= ~strafe_left;
-        if(down(binds[move_right]) && !down(binds[move_left])) value &= ~strafe_right;
+        if(action_down(move_forward) && !action_down(move_back)) value &= ~16;
+        if(action_down(move_back) && !action_down(move_forward)) value &= ~64;
+        if(action_down(move_left) && !action_down(move_right)) value &= ~strafe_left;
+        if(action_down(move_right) && !action_down(move_left)) value &= ~strafe_right;
     }
     // Free swim: W/S → D-pad Up/Down for 8005201c; A/D → the layout's strafe
     // buttons (L2/R2 by default). D-pad Left/Right would turn (anims 71/70).
@@ -1327,10 +1434,10 @@ uint16_t input_pad() {
     if(captured && swim_input_ready()) {
         uint16_t strafe_left=0,strafe_right=0;
         swim_strafe_pads(strafe_left,strafe_right);
-        if(down(binds[move_forward]) && !down(binds[move_back])) value &= ~16;
-        if(down(binds[move_back]) && !down(binds[move_forward])) value &= ~64;
-        if(down(binds[move_left]) && !down(binds[move_right])) value &= ~strafe_left;
-        if(down(binds[move_right]) && !down(binds[move_left])) value &= ~strafe_right;
+        if(action_down(move_forward) && !action_down(move_back)) value &= ~16;
+        if(action_down(move_back) && !action_down(move_forward)) value &= ~64;
+        if(action_down(move_left) && !action_down(move_right)) value &= ~strafe_left;
+        if(action_down(move_right) && !action_down(move_left)) value &= ~strafe_right;
     }
     // D08Q jetpack flight (original mode 10): the body faces the camera, so
     // original Up/Down thrust and the layout's strafe pads are camera-relative;
@@ -1344,10 +1451,10 @@ uint16_t input_pad() {
         uint16_t strafe_left=0,strafe_right=0;
         swim_strafe_pads(strafe_left,strafe_right);
         value |= 16|32|64|128;
-        const bool forward=down(binds[move_forward]) || keys[SDL_SCANCODE_UP];
-        const bool back=down(binds[move_back]) || keys[SDL_SCANCODE_DOWN];
-        const bool left=down(binds[move_left]);
-        const bool right=down(binds[move_right]);
+        const bool forward=action_down(move_forward) || keys[SDL_SCANCODE_UP];
+        const bool back=action_down(move_back) || keys[SDL_SCANCODE_DOWN];
+        const bool left=action_down(move_left);
+        const bool right=action_down(move_right);
         if(forward && !back) value &= ~16;
         if(back && !forward) value &= ~64;
         if(left && !right) value &= ~strafe_left;
@@ -1361,36 +1468,36 @@ uint16_t input_pad() {
     // Underwater (original state 5): Square is thrust along body yaw/pitch,
     // which swim.inc steers from WASD / Space / Ctrl. D-pad would pitch.
     if(captured && swim_thrust_input_ready() &&
-       (down(binds[move_forward]) || down(binds[move_back]) || down(binds[move_left]) ||
-        down(binds[move_right]) || jump_down() || crouch_down())) value &= ~0x8000u;
+       (action_down(move_forward) || action_down(move_back) || action_down(move_left) ||
+        action_down(move_right) || jump_down() || crouch_down())) value &= ~0x8000u;
     // E can never put armed Cross on SIO. The original Circle sequence owns
     // holstering; a short queued pulse makes a tap interact after it completes.
     // Host Circle requests (E stow, weapon restore, fire draw, push stow) are
     // taps: see circle_tap below.
     bool circle_request=captured && interaction_pending && holster_pulse && sequence<=holster_pulse && interaction_holster_ready();
     // After a grab ends, E's Cross waits until the original has let go.
-    if(captured && !push_owned && !(push_letting_go && push_grab_ready()) && (down(binds[interact]) || airborne_interact || ladder_leap_active() || (interaction_pulse && sequence<=interaction_pulse)) && interaction_ready() && !ladder_let_go) value &= ~16384;
+    if(captured && !push_owned && !(push_letting_go && push_grab_ready()) && (action_down(interact) || airborne_interact || ladder_leap_active() || (interaction_pulse && sequence<=interaction_pulse)) && interaction_ready() && !ladder_let_go) value &= ~16384;
     if(captured && restore_owned && restore_pulse && sequence<=restore_pulse &&
-       !down(binds[interact]) && interaction_restore_ready())circle_request=true;
+       !action_down(interact) && interaction_restore_ready())circle_request=true;
     // Bound fire draws a settled holstered weapon through original Circle.
     // Suppress unarmed Cross for this request so it cannot activate an object.
     // Once drawing starts the readiness gate closes; held fire then reaches the
     // original weapon handler. No shot is buffered after release or focus loss.
-    if(captured && down(binds[fire]) && !down(binds[holster]) &&
-       !down(binds[interact]) && fire_draw_ready()) {
+    if(captured && action_down(fire) && !action_down(holster) &&
+       !action_down(interact) && fire_draw_ready()) {
         value |= 16384;
         circle_request=true;
     }
     // Keep the persisted action ID/binding. In supported Modernized locomotion
     // it is the speed modifier: default walk, Shift run, Caps Lock reverses it.
     if (locomotion && !short_fall_input_ready() && !wade_full_speed_ready() &&
-        !(autorun != down(binds[walk]))) value &= ~pads[walk];
+        !(autorun != action_down(walk))) value &= ~pads[walk];
     // Camera-relative ground locomotion injects Forward for any WASD so the
     // original gait runs; free swim must keep distinct D-pad bits (A/D/S).
     if(captured && directional_takeoff_ready())value &= ~16;
     if (captured && !swim_input_ready() && !push_owned && !push_releasing &&
-        (down(binds[move_forward]) != down(binds[move_back]) ||
-         down(binds[move_right]) != down(binds[move_left])) && locomotion) value &= ~16;
+        (action_down(move_forward) != action_down(move_back) ||
+         action_down(move_right) != action_down(move_left)) && locomotion) value &= ~16;
     // D08K4: crouched with Modern crouch, the host walks Duke; any direction
     // reaching the original crouch handler would start a roll.
     if(captured && crouch_walk_input_ready()) value |= 16|32|64|128;

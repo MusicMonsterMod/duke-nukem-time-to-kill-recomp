@@ -351,6 +351,12 @@ std::vector<Screen> make_screens() {
          "HOW FAR THE CAMERA TURNS FOR EACH MOUSE MOVE",{},12,true,1,200,1,0.01},
         {"INVERT MOUSE",Section::Controls,"invert_y","DNTTK_MOUSE_INVERT_Y",true,
          "MOVING THE MOUSE UP LOOKS DOWN",{{"OFF","0","false"},{"ON","1","true"}},0},
+        {"PAD LOOK",Section::Controls,"controller_speed","DNTTK_CONTROLLER_SPEED",true,
+         "RIGHT STICK TURN SPEED IN DEGREES PER SECOND",{},180,true,30,360,15},
+        {"DEADZONE",Section::Controls,"controller_deadzone","DNTTK_CONTROLLER_DEADZONE",true,
+         "STICK CENTRE DEADZONE IN PERCENT",{},20,true,5,50,5},
+        {"INVERT CONTROLLER",Section::Controls,"controller_invert_y","DNTTK_CONTROLLER_INVERT_Y",true,
+         "MOVING THE RIGHT STICK UP LOOKS DOWN",{{"OFF","0","false"},{"ON","1","true"}},0},
         {"KEY BINDINGS",Section::Controls,nullptr,nullptr,true,"THE KEY OR MOUSE BUTTON FOR EACH ACTION. CONFIRM OPENS THE LIST",
          {{">",">",">"}},0,false,0,0,1,1,true},
     }};
@@ -720,7 +726,8 @@ void write_settings() {
         if(r.section==Section::Sound) {
             const int wanted=i==0 && sound_want[0]>=0 && !sound_master_pending ? host_volume_get() : sound_want[i];
             std::snprintf(value,sizeof value,"%d",wanted);
-        } else if(r.slider) std::snprintf(value,sizeof value,"%.2f",v*r.scale);
+        } else if(r.slider && r.scale==1) std::snprintf(value,sizeof value,"%d",v);
+        else if(r.slider) std::snprintf(value,sizeof value,"%.2f",v*r.scale);
         else std::snprintf(value,sizeof value,"%s",r.choices[v].json);
         std::string& out=(r.section==Section::Controls || r.section==Section::Sound) ? controls : presentation;
         out+=std::string(out.empty()?"":",")+"\""+r.key+"\":"+value;
@@ -1673,7 +1680,8 @@ void draw_settings(Guest& g,const Geometry& geo) {
             const uint32_t obj=slot==3 ? sound_slider : sliders+slider_size*slot;
             ++slot;
             if(!obj) continue;
-            g.say(r.label,geo.x0+geo.w/3,y,font_small|right|hi);
+            const char* label=tight && r.key && !std::strcmp(r.key,"mouse_sensitivity") ? "MOUSE LOOK" : r.label;
+            g.say(label,geo.x0+geo.w/3,y,font_small|right|hi);
             g.call(fn_slider_init,obj,0,(uint32_t)(y+5),(uint32_t)r.lo,(uint32_t)r.hi,(uint32_t)v[i],(uint32_t)r.step);
             g.call(fn_slider_draw,obj,hi,0,0);
         } else if(r.slider) {
@@ -1891,6 +1899,9 @@ void draw_character(Guest& g,const Geometry& geo) {
         g.say_id((int)psx_mod_read_word(char_ids+4*(sel<6 ? sel : 0)),0,row,font_menu|(locks&(1u<<p) ? 0 : blue));
     }
     const int y=prompt_y(geo);
+    const unsigned connected=input_controller_connections();
+    const char* hint=connected!=3 ? "CONNECT TWO CONTROLLERS" : locks!=3 ? "CONFIRM ON EACH CONTROLLER" : "BOTH READY - CONFIRM TO START";
+    g.say(hint,0,y-15,font_small|centre);
     if(locks!=3) {g.prompt_id(icon_change,-(geo.w/4),y,text_change);g.prompt_id(icon_cross,0,y,text_confirm);}
     else g.prompt_id(icon_cross,geo.x0+geo.w/3,y,text_start);
     g.prompt_id(icon_triangle,geo.w/4,y,text_cancel);

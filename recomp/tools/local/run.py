@@ -214,6 +214,9 @@ def main(argv=None):
     env['DNTTK_CROSSHAIR'] = '1' if controls['crosshair'] else '0'
     env['DNTTK_WEAPON_AIM'] = controls['weapon_aim'] if settings['active'] == 'modernized' else 'original'
     env['DNTTK_CAMERA_MODE'] = controls['camera'] if settings['active'] == 'modernized' else 'original'
+    env['DNTTK_CONTROLLER_SPEED'] = str(controls['controller_speed'])
+    env['DNTTK_CONTROLLER_DEADZONE'] = str(controls['controller_deadzone'])
+    env['DNTTK_CONTROLLER_INVERT_Y'] = '1' if controls['controller_invert_y'] else '0'
     env['DNTTK_MOUSE_SENSITIVITY'] = str(controls['mouse_sensitivity'])
     env['DNTTK_MOUSE_INVERT_Y'] = '1' if controls['invert_y'] else '0'
     env['DNTTK_JETPACK'] = controls['jetpack'] if settings['active'] == 'modernized' else 'modern'

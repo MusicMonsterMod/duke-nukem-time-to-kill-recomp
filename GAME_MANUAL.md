@@ -1513,13 +1513,52 @@ Mouse4/5 are side buttons. To swap occupied inputs, enter both assignments at
 once. Restoring the Modernized profile restores its bindings, camera preferences and renderer.
 Keep custom runtime host shortcuts separate from these action bindings.
 
+## Modern single-player controller controls
+
+The first assigned SDL controller drives Modernized campaign
+movement and the independent camera. Keyboard and mouse remain usable alongside
+it. Gameplay capture happens automatically; Start opens pause.
+
+| Control (PlayStation / Xbox) | Action |
+| --- | --- |
+| Left stick | Move relative to the camera |
+| Right stick | Look and aim |
+| L3 / left-stick click, held | Run (walk while RUN MODE is on) |
+| R2 / RT | Fire; draw a holstered weapon |
+| L2 / LT, held | Grab and manipulate; precision aim with Original aiming |
+| Cross / A | Jump; ascend in water or flight |
+| Circle / B, held | Crouch; descend in water or flight |
+| Square / X | Interact, mantle or climb |
+| Triangle / Y | Draw or holster |
+| L1 / LB and R1 / RB | Previous and next weapon |
+| R3 / right-stick click | Quick kick |
+| D-pad left / right | Previous / next gadget |
+| D-pad up | Use selected gadget |
+| D-pad down | Toggle jetpack |
+| Select / Back | First-/third-person view |
+| Start / Menu | Pause |
+
+**OPTIONS > CONTROLS** offers controller look speed (30-360 degrees/second),
+radial stick deadzone (5-50 percent) and independent vertical inversion. Defaults
+are 180 degrees/second, 20 percent and inversion off. Confirm changes to save.
+Controller action mappings are fixed; KEY BINDINGS edits
+keyboard/mouse actions. Stick direction is analog; walking/running retain the
+accepted game speeds. Buttons/triggers held through a menu or focus transition
+must be released before they can act again.
+
+Vanilla and classic split-screen retain their original controller controls.
+Controller behavior was user-accepted on 2026-10-27. The separate physical
+two-pad selection report remains undiagnosed; keyboard/gamepad as separate
+local player seats is queued as D09A.
+
 ## Classic two-player split screen
 
 Connect two SDL-recognised controllers, launch normally, and choose **TWO
 PLAYER**. The first available controller drives player 1 and the next drives
 player 2. In menus, use D-pad/left stick to choose, Cross/A to confirm and
 Triangle/Y to go back. Each controller chooses its own character; confirm again
-once both choices are locked to start.
+once both choices are locked to start. The screen now states whether two
+controllers are connected and reminds each player to confirm.
 
 Matches use the original turning, weapon and movement controls shown in the
 controller columns below. Circle/B draws or holsters the weapon; Cross/A fires

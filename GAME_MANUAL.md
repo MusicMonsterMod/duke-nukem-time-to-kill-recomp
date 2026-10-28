@@ -2008,8 +2008,17 @@ for the local animation preview and verification limits.
 
 Ordinary Modernized launches use the accepted no-body direction. Arms, weapons,
 held items and temporary Q/door-kick legs remain; third person, reflected Duke
-and Vanilla retain their existing presentation. This integration does not
-resolve the exposed shoulder/upper-arm concern tracked by D36H5.
+and Vanilla retain their existing presentation.
+
+D36H5 gives climbing, mantling and interaction gestures a dedicated first-person
+arm pose. Hands stay at their original contact points while shoulders and
+elbows are posed for the eye view, so shoulder ends continue out of frame.
+The accepted traversal rig now also covers push/pull, use gestures and mirror
+grooming, including toilets, vending machines, wheels, levers, cards, crystals
+and statues. Weapon grips and controls stay the same. This presentation is
+user-accepted; see [coverage, limits and the future-report guide](documentation/306-d36h5-interaction-arm-coverage.md).
+If an arm looks wrong elsewhere, report the activity or current save slot.
+The guide records how to reproduce, diagnose and extend the accepted solution.
 
 For a one-launch developer comparison with the earlier visible-body policy:
 

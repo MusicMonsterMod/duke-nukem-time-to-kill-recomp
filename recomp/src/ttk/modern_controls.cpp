@@ -12,6 +12,7 @@
 #include "inventory_hud.h"
 #include "control_math.h"
 #include "first_person_fov.h"
+#include "contact_arm_ik.h"
 #include "cpu_state.h"
 #include "mod_plugins.h"
 #include "live_env.h"

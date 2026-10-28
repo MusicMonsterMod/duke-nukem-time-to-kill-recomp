@@ -1321,13 +1321,91 @@ static void first_person_torso_matrix(CPUState* cpu,uint32_t desc,uint32_t mats)
 }
 // 0x800292a0 entry from the joint loop (ra 0x80034c6c): the hand joint's transform.
 static bool interaction_depth_bridge(PerspectiveAction action) {
-    // Push/Use/Mirror keep their native poses. Admit the complete arm chain
-    // to polygon clipping instead of losing whole segments at the joint origin.
+    // All contact owners admit the complete arm chain to polygon clipping
+    // instead of losing whole segments at the joint origin.
     // This changes loop admission only, never their world depth or lighting.
     return action==PerspectiveAction::Push || action==PerspectiveAction::Use ||
         action==PerspectiveAction::Mirror || action==PerspectiveAction::Wall || action==PerspectiveAction::Ladder ||
         action==PerspectiveAction::Pole || action==PerspectiveAction::Mantle ||
         action==PerspectiveAction::Overhead || action==PerspectiveAction::WaterExit;
+}
+// D36H5: a separate first-person contact rig. Hands retain their native world
+// matrices; shoulders belong to the eye rig, with elbows solved between them.
+// Geometry still uses world depth/lighting, never the weapon overlay. Native
+// skeleton, climbing motion, callbacks and saved/replayed simulation stay intact.
+static void first_person_contact_arm(CPUState* cpu,uint32_t desc,int part) {
+    // Every authenticated contact owner uses the same rig, including Push,
+    // Use and Mirror. The perspective resolver owns action eligibility; do
+    // not duplicate a traversal-only subset or whitelist animation numbers.
+    if(!interaction_depth_bridge(fp_policy.action))return;
+    if(!input_modern_controls() || psx_mod_read_byte(player+0x3b8)!=0 ||
+       part<10 || part>14 || part==12)return;
+    const char* mode=std::getenv("DNTTK_FP_CONTACT_ARMS");
+    if(mode && !std::strcmp(mode,"native"))return;
+    const uint32_t mats=psx_mod_read_word(player+0x3c);
+    if(mats<0x80010000 || mats>0x801ffd80)return;
+    const int first=part<13?10:13,index=part-first;
+    uint32_t source[3];
+    using contact_arm::Vec;
+    Vec native[3];
+    for(int n=0;n<3;++n) {
+        const int joint=duke_part_joint(desc,first+n);if(joint<0)return;
+        source[n]=mats+32*joint;
+        native[n]={double(int32_t(psx_mod_read_word(source[n]+20))),
+                   double(int32_t(psx_mod_read_word(source[n]+24))),
+                   double(int32_t(psx_mod_read_word(source[n]+28)))};
+    }
+    if(cpu->gpr[5]!=source[index])return;
+    const Vec eye={double(int32_t(psx_mod_read_word(camera+20))),
+                   double(int32_t(psx_mod_read_word(camera+24))),
+                   double(int32_t(psx_mod_read_word(camera+28)))};
+    Vec axes[3];
+    for(int r=0;r<3;++r)axes[r]={int16_t(psx_mod_read_half(camera+6*r))/4096.0,
+        int16_t(psx_mod_read_half(camera+6*r+2))/4096.0,int16_t(psx_mod_read_half(camera+6*r+4))/4096.0};
+    // Follow the native side continuously through free look, rather than
+    // swapping left/right or imposing an angle cutoff. Put the root behind
+    // the eye with room for the upper-arm mesh's shoulder surface.
+    const double lateral=std::clamp(2*(native[0]-eye).dot(axes[0]),-220.0,220.0);
+    const Vec shoulder=eye+axes[0]*lateral+axes[1]*150-axes[2]*64;
+    contact_arm::Pose pose;
+    // Author the elbow toward the lower/outside/back of the eye rig. Using
+    // the world elbow as the pole lets it bulge into view when free look
+    // carries both the shoulder and contact hand behind the camera.
+    if(!contact_arm::solve(shoulder,native[2],native[1],axes[0]*(lateral/110)+axes[1]-axes[2],
+        (native[1]-native[0]).length(),(native[2]-native[1]).length(),pose))return;
+    const Vec target[3]={pose.shoulder,pose.elbow,pose.hand};
+    Vec a=native[index+1]-native[index],b=target[index+1]-target[index];
+    const double scale=b.length()/a.length();
+    a=a*(1/a.length());b=b*(1/b.length());
+    const double av[3]={a.x,a.y,a.z},bv[3]={b.x,b.y,b.z};
+    const double dot=std::clamp(a.dot(b),-1.0,1.0);
+    Mat3 swing={{1,0,0},{0,1,0},{0,0,1}};
+    if(dot<-.9999) {
+        Vec axis=std::abs(a.x)<.9?Vec{0,-a.z,a.y}:Vec{-a.y,a.x,0};
+        axis=axis*(1/axis.length());const double v[3]={axis.x,axis.y,axis.z};
+        for(int r=0;r<3;++r)for(int k=0;k<3;++k)swing[r][k]=2*v[r]*v[k]-(r==k?1:0);
+    } else {
+        const double v[3]={av[1]*bv[2]-av[2]*bv[1],av[2]*bv[0]-av[0]*bv[2],av[0]*bv[1]-av[1]*bv[0]};
+        const Mat3 cross={{0,-v[2],v[1]},{v[2],0,-v[0]},{-v[1],v[0],0}};
+        Mat3 square;mat_mul(cross,cross,square);
+        for(int r=0;r<3;++r)for(int k=0;k<3;++k)swing[r][k]+=cross[r][k]+square[r][k]/(1+dot);
+    }
+    // Replay reserves this scratch before forking; 60 Hz without replay may
+    // enter directly from a climbing save before any weapon has allocated it.
+    if(!hidden_matrix)hidden_matrix=psx_mod_alloc_guest_memory(0x20,16);
+    if(!hidden_matrix)return;
+    for(int r=0;r<3;++r) {
+        double row[3]={};
+        for(int k=0;k<3;++k)for(int j=0;j<3;++j)
+            row[k]+=int16_t(psx_mod_read_half(source[index]+2*(3*r+j)))/4096.0*swing[k][j];
+        const double along=row[0]*bv[0]+row[1]*bv[1]+row[2]*bv[2];
+        for(int k=0;k<3;++k)psx_mod_write_half(hidden_matrix+2*(3*r+k),
+            uint16_t(int16_t(std::clamp(std::lround(4096*(row[k]+(scale-1)*along*bv[k])),-32768L,32767L))));
+    }
+    psx_mod_write_half(hidden_matrix+18,0);
+    const double origin[3]={target[index].x,target[index].y,target[index].z};
+    for(int k=0;k<3;++k)psx_mod_write_word(hidden_matrix+20+4*k,uint32_t(int32_t(std::lround(origin[k]))));
+    cpu->gpr[5]=hidden_matrix;
 }
 static void first_person_weapon_joint(CPUState* cpu,uint32_t ra) {
     if(ra==0x80034c6c && joint_light_save.active) {
@@ -1344,11 +1422,13 @@ static void first_person_weapon_joint(CPUState* cpu,uint32_t ra) {
         limb_draw.bridge_joint_depth=false;
     }
     if(ra==0x80034c6c && weapon_duke_draw && fp_blend>=0.5 && orbit_valid &&
-       fp_policy.effective && (fp_policy.action==PerspectiveAction::Mirror || fp_policy.action==PerspectiveAction::Use || fp_policy.action==PerspectiveAction::Push || fp_policy.action==PerspectiveAction::Wall || fp_policy.action==PerspectiveAction::Ladder || fp_policy.action==PerspectiveAction::Pole || fp_policy.action==PerspectiveAction::Mantle || fp_policy.action==PerspectiveAction::Overhead || fp_policy.action==PerspectiveAction::WaterExit) &&
+       fp_policy.effective && interaction_depth_bridge(fp_policy.action) &&
        cpu->gpr[4]==camera && cpu->gpr[20]==player) {
         const int part=duke_joint_part(duke_model(),cpu->gpr[23]);
-        if(part>=int(part_arm_first) && part<=0x0f)
+        if(part>=int(part_arm_first) && part<=0x0f) {
             limb_claim(cpu,LimbOwner::Interaction,part,interaction_depth_bridge(fp_policy.action));
+            first_person_contact_arm(cpu,duke_model(),part);
+        }
     }
     // D12A: the right leg while the first-person quick kick plays (kick.inc).
     if(ra==0x80034c6c && weapon_duke_draw && fp_blend>=0.5 && orbit_valid && kick_leg_joint(cpu)) return;

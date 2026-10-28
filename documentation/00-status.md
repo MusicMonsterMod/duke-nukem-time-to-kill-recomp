@@ -1,5 +1,47 @@
 # Current status - 2026-10-04
 
+## 2026-10-28 - D36H5 accepted and closed
+
+User accepted traversal and expanded interaction arms, then explicitly requested
+lock-in/closeout and a reusable guide for future arm reports. D36H5 is Done for
+the accepted contact-arm scope. Implementation/tests and documentation are
+included in the authorized MusicMonsterMod commit/push. No post-acceptance
+gameplay edits, rebuild or launch. Repository closeout checks pass.
+
+Start future arm reports at [note 306's repair guide](306-d36h5-interaction-arm-coverage.md#how-to-handle-a-future-arm-report),
+then the design/experiments in [note 305](305-d36h5-contact-arm-rig.md).
+Current slot identities must be rediscovered; preserve failing private saves.
+Unrun broad coverage transfers to D36H6 (Todo), including the isolated overhead
+restoration observation, which remains unexplained despite successful repeats.
+D36J3 remains Todo. No next implementation job selected.
+Launch: `python3 recomp/tools/local/run.py`.
+
+## 2026-10-28 - D36H5 interaction coverage expansion (Needs playtest)
+
+User accepted the traversal arm rig and explicitly selected full interaction
+coverage, highlighting current slots 6/7. All nine authenticated contact owners
+now share the accepted rig, adding Push, Use and Mirror. Native hands remain
+world targets, with eye-relative shoulders and solved elbows. Equipment and
+reflection ownership remain separate. See [note 306](306-d36h5-interaction-arm-coverage.md)
+for the route ledger, evidence, isolated overhead save/load halt and unresolved
+campaign variants. Native suites, twelve restoration cycles and a full repeat
+pass; the isolated halt is not explained. The broader
+D36H5 weapon/item/effect review remains open; no commit/push closeout authorized.
+Launch: `python3 recomp/tools/local/run.py`.
+
+## 2026-10-28 - D36H5 traversal contact-arm candidate (Needs playtest)
+
+User prioritized exposed shoulder interiors during mantle/ladder/chain/pole work
+and allowed a substantial first-person rework. The candidate uses a dedicated
+two-bone contact rig: native hands remain fixed, with virtual shoulders and an
+authored elbow bend. World depth, gameplay matrices and weapon owners remain.
+Build and native suites pass; private 60/120 ladder/pole/mantle motion and ladder
+FOV/aspect comparisons are recorded in [note 305](305-d36h5-contact-arm-rig.md).
+Human review of proportions, contact and transitions remains, alongside the
+broader board coverage gaps. All 41 player files preserve hashes/mtimes.
+No framework edit, acceptance closeout, commit or push. D36J3 remains unstarted.
+Launch: `python3 recomp/tools/local/run.py`.
+
 ## 2026-10-28 - D36J2 accepted and closed
 
 User accepted the default no-body integration and explicitly authorized lock-in

@@ -20,6 +20,7 @@ extern "C" void gte_nclip_culling_stats(uint64_t* checks,uint64_t* flips) {*chec
 #include "level_select.h"
 #include "control_math.h"
 #include "first_person_fov.h"
+#include "contact_arm_ik.h"
 #include "pc_input.h"
 #include "cpu_state.h"
 #include "mod_plugins.h"
@@ -293,6 +294,27 @@ static void call(uint32_t address,uint32_t a0,uint32_t a1,uint32_t ra,uint32_t s
     hooks().at(address)(&cpu,address);
 }
 int main(int argc,char** argv) {
+    {
+        using namespace ttk::contact_arm;
+        Pose pose{};
+        // Reachable, stretched, almost folded and straight-source targets.
+        // The target stays exact and every generated coordinate stays finite.
+        for(double reach:{1.0,50.0,150.0,240.0,400.0,700.0})
+            for(Vec elbow:{Vec{0,100,0},Vec{0,0,100}}) {
+                assert(solve({0,0,0},{0,0,reach},elbow,{0,1,0},135,128,pose));
+                assert((pose.hand-Vec{0,0,reach}).length()==0);
+                assert(std::isfinite(pose.elbow.x+pose.elbow.y+pose.elbow.z));
+                assert(std::abs((pose.elbow-pose.shoulder).length()-135*pose.upper_scale)<1e-8);
+                assert(std::abs((pose.hand-pose.elbow).length()-128*pose.lower_scale)<1e-8);
+                if(reach>=7 && reach<250) {
+                    assert(std::abs(pose.upper_scale-1)<1e-8);
+                    assert(std::abs(pose.lower_scale-1)<1e-8);
+                }
+            }
+        assert(!solve({},{},{},{0,1,0},135,128,pose));
+        assert(!solve({},{0,0,100},{},{0,1,0},0,128,pose));
+        std::puts("PASS: D36H5 contact IK reachable, extended, folded and singular-source targets");
+    }
     const char* tight_env=std::getenv("DNTTK_TIGHT_CAMERA");
     const bool tight_enabled=tight_env && !std::strcmp(tight_env,"1");
     // D35G: water exits and ledges have eye paths; other traversal stays gated.
@@ -4365,6 +4387,70 @@ int main(int argc,char** argv) {
                 assert(std::equal(before.begin(),before.end(),ram+(mats&0x1fffff)));
                 psx_mod_write_byte(p+0x3b8,equip);
             };
+            // D36H5: exercise the actual draw hook, not only IK arithmetic.
+            // The fixture's local child offset is (0,100,0). Both costume maps
+            // must meet at the elbow/wrist while all native matrices stay exact.
+            auto contact_rig=[&](bool enabled) {
+                auto hook=[&](uint32_t address,uint32_t cam,uint32_t matrix,uint32_t caller,unsigned j) {
+                    CPUState cpu{};cpu.gpr[4]=cam;cpu.gpr[5]=matrix;cpu.gpr[20]=p;
+                    cpu.gpr[23]=j;cpu.gpr[29]=0x801f0000;cpu.gpr[31]=caller;
+                    hooks().at(address)(&cpu,address);return cpu;
+                };
+                const std::vector<uint8_t> old_desc(ram+(desc&0x1fffff),ram+(desc&0x1fffff)+0x400);
+                const std::vector<uint8_t> old_mats(ram+(mats&0x1fffff),ram+(mats&0x1fffff)+19*32);
+                uint8_t old_camera[32];std::memcpy(old_camera,ram+(c&0x1fffff),32);
+                const auto held=psx_mod_read_byte(p+0x3b8);psx_mod_write_byte(p+0x3b8,0);
+                for(const auto* costume:{first_map,cowboy})for(unsigned distance:{100u,300u,550u}) {
+                    layout(costume);
+                    for(unsigned i=0;i<9;++i)psx_mod_write_half(c+2*i,i%4==0?4096:0);
+                    for(unsigned i=0;i<3;++i)psx_mod_write_word(c+20+4*i,0);
+                    for(unsigned part=10;part<=15;++part) {
+                        const unsigned j=psx_mod_read_byte(desc+0x24+part),n=(part-10)%3;
+                        for(unsigned i=0;i<9;++i)psx_mod_write_half(mats+32*j+2*i,i%4==0?4096:0);
+                        psx_mod_write_word(mats+32*j+20,part<13?-100:100);
+                        psx_mod_write_word(mats+32*j+24,n*100);
+                        psx_mod_write_word(mats+32*j+28,distance);
+                    }
+                    const std::vector<uint8_t> native(ram+(mats&0x1fffff),ram+(mats&0x1fffff)+19*32);
+                    for(bool comparison:{false,true}) {
+                        if(comparison)setenv("DNTTK_FP_CONTACT_ARMS","native",1);
+                        else unsetenv("DNTTK_FP_CONTACT_ARMS");
+                        call(0x800348d8,c,p,0x8003769c);
+                        uint8_t output[6][32];
+                        for(unsigned part:{13u,14u,15u,10u,11u,12u}) {
+                            const unsigned j=psx_mod_read_byte(desc+0x24+part);
+                            auto result=hook(0x800292a0,c,mats+32*j,0x80034c6c,j);
+                            const bool solved=enabled && !comparison && part!=12 && part!=15;
+                            assert((result.gpr[5]!=mats+32*j)==solved);
+                            std::memcpy(output[part-10],ram+(result.gpr[5]&0x1fffff),32);
+                            if(enabled) {
+                                const auto owner=ttk::first_person_limb_presentation();
+                                assert(owner.owner==ttk::LimbOwner::Interaction && owner.world_clip() && !owner.viewmodel());
+                            }
+                        }
+                        auto word=[](const uint8_t* b){int32_t v;std::memcpy(&v,b,4);return v;};
+                        auto half=[](const uint8_t* b){int16_t v;std::memcpy(&v,b,2);return v;};
+                        for(unsigned i:{0u,1u,3u,4u})for(unsigned k=0;k<3;++k) {
+                            const double end=word(output[i]+20+4*k)+100.0*half(output[i]+6+2*k)/4096;
+                            assert(std::abs(end-word(output[i+1]+20+4*k))<2);
+                        }
+                        if(enabled && !comparison)for(unsigned i:{0u,3u})assert(word(output[i]+28)==-64);
+                        assert(std::equal(native.begin(),native.end(),ram+(mats&0x1fffff)));
+                        call(0x8001ca4c,0x800d0000,0,0x800376b4);
+                    }
+                    unsetenv("DNTTK_FP_CONTACT_ARMS");
+                    // Reflected actor submission must retain the world rig.
+                    call(0x800348d8,c,p,0x8003816c);
+                    for(unsigned part=10;part<=15;++part) {
+                        const unsigned j=psx_mod_read_byte(desc+0x24+part);
+                        assert(hook(0x800292a0,c,mats+32*j,0x80034c6c,j).gpr[5]==mats+32*j);
+                    }
+                    call(0x8001ca4c,0x800d0000,0,0x800376b4);
+                }
+                std::copy(old_desc.begin(),old_desc.end(),ram+(desc&0x1fffff));
+                std::copy(old_mats.begin(),old_mats.end(),ram+(mats&0x1fffff));
+                std::memcpy(ram+(c&0x1fffff),old_camera,32);psx_mod_write_byte(p+0x3b8,held);
+            };
             // D35J/M: presentation-only transient leases. Native state, action
             // lockouts and ownership/death/script guards must survive them.
             {
@@ -4381,6 +4467,7 @@ int main(int argc,char** argv) {
                     assert(psx_mod_read_half(p+0x60)==pose && psx_mod_read_word(p+0x224)==bits);
                     if(use)assert(std::strstr(ttk::controls_debug_json(),"\"action\":\"use\""));
                     contact_arms(use,!use);
+                    if(use)contact_rig(true);
                     if(pose==270 || pose==275 || pose==279) {
                         for(unsigned offset:{0x22cu,0x22du}) {
                             psx_mod_write_byte(p+offset,1);frame();assert(metric("\"blend\":")==0);
@@ -4517,6 +4604,7 @@ int main(int argc,char** argv) {
                     // D36I1: mirror grooming uses the native contact-arm chain,
                     // including origins behind the eye. Reflections never own it.
                     contact_arms(true);
+                    contact_rig(true);
                     const auto equip=psx_mod_read_byte(p+0x3b8);
                     psx_mod_write_byte(p+0x3b8,0);
                     for(unsigned part=0;part<=21;++part) {
@@ -4571,6 +4659,7 @@ int main(int argc,char** argv) {
                         assert(!ttk::movement_ready() && !ttk::locomotion_input_ready());
                         assert(std::strstr(ttk::controls_debug_json(),"\"action\":\"push\""));
                         contact_arms(eye);
+                        contact_rig(eye);
                         ttk::modern=false;frame();contact_arms(false);
                         ttk::modern=true;frame();
                         if(eye) {
@@ -4630,6 +4719,7 @@ int main(int argc,char** argv) {
                             ++save_loads;frame();
                             assert(metric("\"blend\":")==int(kind==0x101092u?eye:!eye));
                             assert(std::strstr(ttk::controls_debug_json(),kind==0x101092u?"\"action\":\"overhead\"":"\"action\":\"mantle\""));
+                            contact_rig(kind==0x101092u?eye:!eye);
                             assert(psx_mod_read_word(p+0x17c)==object && psx_mod_read_half(p+0x60)==pose);
                             assert(!ttk::movement_ready() && !ttk::locomotion_input_ready());
                             ttk::input.active=false;frame();assert(metric("\"blend\":")==int(kind==0x101092u?eye:!eye));
@@ -4666,6 +4756,7 @@ int main(int argc,char** argv) {
                             ++save_loads;frame();
                             assert(metric("\"blend\":")==int(kind==0x108102u && eye));
                             if(kind==0x108102u)assert(std::strstr(ttk::controls_debug_json(),"\"action\":\"wall\""));
+                            contact_rig(kind==0x108102u && eye);
                             assert(psx_mod_read_word(p+0x17c)==object && psx_mod_read_half(p+0x60)==pose);
                             assert(!ttk::movement_ready() && !ttk::locomotion_input_ready());
                             ttk::input.active=false;frame();assert(metric("\"blend\":")==int(kind==0x108102u && eye));
@@ -4731,6 +4822,7 @@ int main(int argc,char** argv) {
                             const bool eye=!std::strcmp(choice,"first");
                             assert(metric("\"blend\":")==int(eye));
                             if(eye || (mode!=0 && mode!=9))assert(std::strstr(ttk::controls_debug_json(),"\"action\":\"mantle\""));
+                        contact_rig(eye);
                             assert(!ttk::movement_ready() && !ttk::locomotion_input_ready());
                             ttk::input.active=false;frame();assert(metric("\"blend\":")==int(eye));ttk::input.active=true;
                             ttk::input.first_person=false;++save_loads;frame();assert(metric("\"blend\":")==0);
@@ -4790,6 +4882,7 @@ int main(int argc,char** argv) {
                         const bool eye=!std::strcmp(choice,"first");
                         assert(metric("\"blend\":")==int(eye));
                         assert(std::strstr(ttk::controls_debug_json(),"\"action\":\"ladder\""));
+                        contact_rig(eye);
                         assert(!ttk::movement_ready() && !ttk::locomotion_input_ready());
                         if(eye) {
                             call(0x800348d8,c,p,0x8003769c);
@@ -4854,6 +4947,7 @@ int main(int argc,char** argv) {
                         const bool eye=!std::strcmp(choice,"first");
                         assert(metric("\"blend\":")==int(eye));
                         assert(std::strstr(ttk::controls_debug_json(),"\"action\":\"pole\""));
+                            contact_rig(eye);
                         assert(!ttk::movement_ready() && !ttk::locomotion_input_ready());
                         if(pose==193) {
                             const auto count=psx_mod_read_word(0x800d68a8),room=psx_mod_read_word(0x800d68b8);
@@ -5087,6 +5181,7 @@ int main(int argc,char** argv) {
                     psx_mod_write_byte(p+0x22c,8);psx_mod_write_byte(p+0x22d,previous);psx_mod_write_half(p+0x60,134);
                     ++save_loads;frame();assert(metric("\"blend\":")==1);
                     assert(std::strstr(ttk::controls_debug_json(),"\"action\":\"water-exit\""));
+                    contact_rig(true);
                     // P during fallback is authoritative after exit and world reset.
                     ttk::input.first_person=false;frame();
                     psx_mod_write_byte(p+0x22c,4);psx_mod_write_byte(p+0x22d,4);psx_mod_write_half(p+0x60,171);

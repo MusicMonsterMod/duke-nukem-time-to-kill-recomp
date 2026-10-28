@@ -28,7 +28,7 @@ routes pass; user accepted the integration. Named coverage limits remain.
 
 ### D36H5 - No-body arms and weapons polish, exposed shoulders first
 
-**Status: Todo. Dependency: D36J2. Related: D36G/H/H1-H4/I/K, D14B.**
+**Status: Done (accepted contact-arm scope; closeout authorized 2026-10-28). Dependency: D36J2 (Done). Related: D36G/H/H1-H4/I/K, D14B.**
 
 User's highest concern: camera shots that expose Duke's disembodied shoulders or
 upper-arm ends. No solution is assumed. Begin with a reproducible shot/motion
@@ -42,7 +42,8 @@ unwanted body or globally hiding useful arms. Read accepted notes 257 and 265
 before presentation or mesh/material work. Preserve accepted weapon grips,
 silhouettes, aim and native interaction contacts.
 
-Acceptance: no unexplained shoulder/upper-arm cut ends in the verified shots;
+Original broad acceptance matrix (unrun portions carried to D36H6): no
+unexplained shoulder/upper-arm cut ends in the verified shots;
 connected readable arm chains, stable support-hand contact and controlled elbows
 through idle, walk/run, crouch/jump, kick overlap, draw/holster/switch, fire/reload/
 throw and equipment-to-interaction handoffs. Cover all base weapon records,
@@ -51,6 +52,40 @@ lighting/effects, near-world clipping and 60/120 replay. Retain labelled before/
 after stills and continuous motion, rejected experiments and explicit untested
 routes. Native gameplay, third person, reflections and Vanilla stay unchanged.
 Human visual acceptance is required; screenshots alone do not certify motion.
+
+2026-10-28: user accepted the dedicated traversal contact rig and selected
+expansion to all interactions, highlighting current slots 6 and 7. The shared
+rig now covers all nine established contact owners, adding Push/Use/Mirror to
+Ladder/Pole/Wall/Overhead/Mantle/WaterExit. Native hand contacts and world depth
+remain authoritative. Native-hook tests cover the added actions and both
+costume maps; private natural routes verify use gestures and traversal.
+See [note 305](documentation/305-d36h5-contact-arm-rig.md) for the accepted design
+and [note 306](documentation/306-d36h5-interaction-arm-coverage.md) for expanded
+coverage and the future-report repair guide. The user accepted the expanded
+contact-arm result and explicitly authorized closeout. Broader unverified
+weapon/item/effect/campaign coverage transfers to D36H6.
+
+
+### D36H6 - Remaining first-person arm coverage and reported exceptions
+
+**Status: Todo (not selected). Dependency: D36H5 (Done).**
+
+Retain the unrun portions of D36H5's original broad matrix: all weapon records
+and upgrades, held items, empty-hand locomotion, swim/flight and lighting/effect
+variants. Investigate rare interaction selectors/callbacks and scripted camera
+variants only after establishing their actual natural routes and owners.
+The accepted contact rig is the baseline, not a reason to rewrite unrelated
+presentation domains. A future user report can identify an activity or current
+slot; begin with the repair guide in [note 306](documentation/306-d36h5-interaction-arm-coverage.md).
+
+Preserve the isolated overhead 120-Hz save/load halt as an unresolved
+observation. If it recurs, retain the failing private save and compare that
+exact state before assigning a cause. Twelve restoration cycles and a full
+route repeat passed; neither a fixed bug nor an arm regression was established.
+Acceptance for any selected slice requires labelled natural-route evidence,
+appropriate ownership/native regressions and user visual review. No work starts
+merely because this follow-up is registered.
+
 
 ### D36J3 - No-body quick-kick motion and weapon-overlap polish
 
@@ -23184,3 +23219,60 @@ MusicMonsterMod commit/push. Existing framework changes remain preserved by the
 accepted patch; no new build, launch or player-file write during closeout.
 D36H5 and D36J3 remain Todo; no next job selected.
 Launch: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-28 - D36H5 traversal contact-arm candidate
+
+Selected D36H5. User clarified mantle, ladder and chain/pole shoulder interiors
+as the priority, and explicitly permitted substantial rework for professional
+presentation. Reproduced the native upper-arm end in an archived ladder state;
+implemented a dedicated two-bone contact rig over the retail surfaces. Hands
+retain their native matrices; virtual shoulders and an authored elbow pole
+replace traversal upper-arm/forearm display poses. World depth and native
+movement/callbacks stay authoritative. No FOV restriction or body restoration.
+
+Player build, controls/input/aim/near and animation-save checks pass. New hook
+checks cover endpoints, both costume maps, contact distances, all six traversal
+owners and isolation. Private ladder/pole/mantle motion runs at 60/120, ladder
+FOV/aspect sweeps, load/return and replay checks retain explicit limits in
+[note 305](documentation/305-d36h5-contact-arm-rig.md). Failed harness starts and
+rejected pose experiments are excluded from passing evidence. All 41 player
+files preserve hashes/mtimes. D36H5 is Needs playtest; full board coverage and
+human artistic acceptance remain. No framework edit, commit/push or closeout.
+Launch: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-28 - D36H5 shared interaction-arm expansion
+
+User accepted the traversal rig and selected full interaction coverage. The
+same contact rig now serves all nine established interaction/traversal owners;
+Push, Use and Mirror no longer bypass it. The draw hook and rig share one
+eligibility predicate. Native hands, world depth, equipment owners and gameplay
+matrices remain unchanged. Native-hook coverage extends to all committed-use
+poses, mirror grooming and grab/push/pull in both costume mappings.
+
+Private natural routes cover current slots 6/7 (toilet/vending), wheel, lever,
+keycard, crystal take/return, door, statue, mirror and sustained push/pull at
+60/120, plus wall/overhead/water-exit regression routes. Native suites and save
+recovery tests pass; player files remain unchanged. One isolated overhead
+120-Hz diagnostic save/load renderer halt remains recorded alongside successful
+native comparison and twelve subsequent rig restoration cycles. No cause is
+claimed. See [note 306](documentation/306-d36h5-interaction-arm-coverage.md).
+
+Expanded interactions need visual review. Whole-job weapon/item/effect and rare
+campaign callback coverage remain open. No commit/push closeout authorized.
+
+
+## 2026-10-28 - D36H5 accepted and closed
+
+User accepted the expanded interaction arms and explicitly authorized lock-in
+and closeout. D36H5 is Done for the delivered contact-arm rig and established
+interaction coverage. Implementation, native tests, manual and notes 305/306
+are included in the MusicMonsterMod commit/push. The future-report guide in
+note 306 records diagnosis, source entry points, native comparison, invariants,
+regression checks and evidence preservation. AGENTS.md links the guide.
+
+Unrun parts of the original broad matrix transfer explicitly to D36H6 (Todo),
+including the unresolved isolated restoration observation. Acceptance does not
+claim exhaustive campaign coverage. D36J3 remains Todo; no next job selected.
+No post-acceptance gameplay edits, rebuild or launch.

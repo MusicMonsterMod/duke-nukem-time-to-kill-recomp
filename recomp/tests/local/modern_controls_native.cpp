@@ -294,6 +294,7 @@ static void call(uint32_t address,uint32_t a0,uint32_t a1,uint32_t ra,uint32_t s
     hooks().at(address)(&cpu,address);
 }
 int main(int argc,char** argv) {
+    setenv("DNTTK_FP_LEGS","off",1); // retain explicit no-body regression coverage
     {
         using namespace ttk::contact_arm;
         Pose pose{};
@@ -311,6 +312,20 @@ int main(int argc,char** argv) {
                     assert(std::abs(pose.lower_scale-1)<1e-8);
                 }
             }
+        for(Vec hand:{Vec{20,150,50},Vec{0,0,300},Vec{90,5,424},Vec{-60,-163,32},Vec{0,-600,400}}) {
+            const Vec anchor={200,150,-64};
+            const Vec adjusted=reachable_shoulder(anchor,hand,135,128);
+            const double old_distance=(hand-anchor).length();
+            assert((adjusted-anchor).length()<=96.000001);
+            assert(adjusted.y-.8*adjusted.z>=95.999999);
+            assert((hand-adjusted).length()<=old_distance+1e-8);
+            if(old_distance<=.98*263)assert((adjusted-anchor).length()<1e-8);
+            else assert((hand-adjusted).length()<old_distance);
+            Pose fixed{};assert(solve(anchor,hand,{0,100,0},{0,1,-1},135,128,fixed));
+            assert(solve(adjusted,hand,{0,100,0},{0,1,-1},135,128,pose));
+            assert((pose.hand-hand).length()==0);
+            assert(pose.upper_scale<=fixed.upper_scale+1e-8 && pose.lower_scale<=fixed.lower_scale+1e-8);
+        }
         assert(!solve({},{},{},{0,1,0},135,128,pose));
         assert(!solve({},{0,0,100},{},{0,1,0},0,128,pose));
         std::puts("PASS: D36H5 contact IK reachable, extended, folded and singular-source targets");
@@ -3826,6 +3841,83 @@ int main(int argc,char** argv) {
                 ttk::input.first_person=true;for(unsigned i=0;i<40;++i)frame();
                 std::puts("PASS: D12D upgraded first-person framing (base-equivalent pose/recoil/scale, held record preserved, third-person and Vanilla exclusion)");
             }
+            // D36J5: ordinary legs share display FOV, never the torso, and
+            // retain native poses/world depth in both costume layouts.
+            for(const auto* costume:{first_map,cowboy}) {
+                layout(costume);
+                const uint32_t oldeye[3]={psx_mod_read_word(c+20),psx_mod_read_word(c+24),psx_mod_read_word(c+28)};
+                for(int k=0;k<3;++k)psx_mod_write_word(c+20+4*k,psx_mod_read_word(mats+20+4*k)+(k==1?-294:0));
+                const std::vector<uint8_t> original(ram+(mats&0x1fffff),ram+(mats&0x1fffff)+19*32);
+                for(const char* option:{(const char*)nullptr,"on","off"}) {
+                    if(option)setenv("DNTTK_FP_LEGS",option,1);else unsetenv("DNTTK_FP_LEGS");
+                    for(unsigned h:{277u,256u,191u,160u}) for(unsigned j=0;j<19;++j) {
+                        const int part=costume[j];
+                        if(!((part>=0 && part<=9) || part==20 || part==21))continue;
+                        call(0x800348d8,c,p,0x8003769c);
+                        CPUState draw{};draw.gpr[4]=c;draw.gpr[5]=mats+32*j;
+                        draw.gpr[20]=p;draw.gpr[23]=j;draw.gpr[29]=0x801f0000;draw.gpr[31]=0x80034c6c;draw.gte_ctrl[26]=h;
+                        hooks().at(0x800292a0)(&draw,0x800292a0);
+                        const auto limb=ttk::first_person_limb_presentation();
+                        const bool visible=(!option || std::strcmp(option,"off")) && ((part>=1 && part<=8) || part==21);
+                        assert(limb.owner==(visible?ttk::LimbOwner::Legs:ttk::LimbOwner::HiddenBody));
+                        assert(limb.fixed_projection()==visible && limb.world_clip()==visible && !limb.viewmodel());
+                        assert(draw.gte_ctrl[26]==h);
+                        if(visible) {
+                            const auto native=mats+32*j;
+                            assert(draw.gpr[5]!=native);
+                            for(unsigned k=0;k<20;++k)assert(psx_mod_read_byte(draw.gpr[5]+k)==psx_mod_read_byte(native+k));
+                            assert(psx_mod_read_word(draw.gpr[5]+24)==psx_mod_read_word(native+24));
+                            const double x=int16_t(psx_mod_read_half(c+12)),z=int16_t(psx_mod_read_half(c+16));
+                            const double length=std::hypot(x,z);
+                            assert(int32_t(psx_mod_read_word(draw.gpr[5]+20)-psx_mod_read_word(native+20))==-std::lround(48*x/length));
+                            assert(int32_t(psx_mod_read_word(draw.gpr[5]+28)-psx_mod_read_word(native+28))==-std::lround(48*z/length));
+                        } else assert(draw.gpr[5]==c);
+                        call(0x8001ca4c,0x800d0000,0,0x800376b4);
+                        assert(ttk::first_person_limb_presentation().owner==ttk::LimbOwner::Native);
+                    }
+                }
+                assert(std::equal(original.begin(),original.end(),ram+(mats&0x1fffff)));
+                for(int k=0;k<3;++k)psx_mod_write_word(c+20+4*k,oldeye[k]);
+            }
+            layout(first_map);setenv("DNTTK_FP_LEGS","off",1);
+            std::puts("PASS: D36J5 default/on/off legs, hidden torso, costume mappings, native matrices and draw-scope cleanup");
+            // D36J5: low/forward crouch eyes remain inside the actual leaned
+            // body, while displaced cameras and upright poses still reject.
+            {
+                const auto pose=psx_mod_read_half(p+0x60);
+                const auto mode=psx_mod_read_byte(p+0x22c),history=psx_mod_read_byte(p+0x22d);
+                const std::vector<uint8_t> saved(ram+(mats&0x1fffff),ram+(mats&0x1fffff)+19*32);
+                uint8_t old_camera[32];std::memcpy(old_camera,ram+(c&0x1fffff),32);
+                setenv("DNTTK_FP_LEGS","on",1);
+                psx_mod_write_byte(p+0x22c,0);psx_mod_write_byte(p+0x22d,0);
+                for(const auto* costume:{first_map,cowboy}) {
+                    layout(costume);
+                    const auto neck=mats+32*psx_mod_read_byte(desc+0x34)+20;
+                    for(int k=0;k<3;++k)psx_mod_write_word(neck+4*k,psx_mod_read_word(mats+20+4*k)+(k==0?140:k==1?-80:0));
+                    const std::vector<uint8_t> before(ram+(mats&0x1fffff),ram+(mats&0x1fffff)+19*32);
+                    for(unsigned anim:{63u,176u,178u})for(unsigned h:{160u,256u})
+                    for(const auto delta:{std::array<int,3>{0,-100,0},{140,-150,0},{70,-110,80},{140,-150,97},{237,-150,0},{0,-63,0},{0,-353,0}}) {
+                        psx_mod_write_half(p+0x60,anim);
+                        for(int k=0;k<3;++k)psx_mod_write_word(c+20+4*k,psx_mod_read_word(mats+20+4*k)+delta[k]);
+                        const bool inside=anim!=63 && delta[2]!=97 && delta[0]!=237 && delta[1]!=-63 && delta[1]!=-353;
+                        for(unsigned part:{0u,1u,5u,9u,20u,21u}) {
+                            call(0x800348d8,c,p,0x8003769c);
+                            CPUState draw{};draw.gpr[4]=c;draw.gpr[20]=p;draw.gpr[23]=psx_mod_read_byte(desc+0x24+part);
+                            draw.gpr[5]=mats+32*draw.gpr[23];draw.gpr[29]=0x801f0000;draw.gpr[31]=0x80034c6c;draw.gte_ctrl[26]=h;
+                            hooks().at(0x800292a0)(&draw,0x800292a0);
+                            const bool leg=inside && (part==1 || part==5 || part==21);
+                            assert(ttk::first_person_limb_presentation().owner==(leg?ttk::LimbOwner::Legs:ttk::LimbOwner::HiddenBody));
+                            call(0x8001ca4c,0x800d0000,0,0x800376b4);
+                        }
+                    }
+                    assert(std::equal(before.begin(),before.end(),ram+(mats&0x1fffff)));
+                    std::copy(saved.begin(),saved.end(),ram+(mats&0x1fffff));
+                }
+                std::memcpy(ram+(c&0x1fffff),old_camera,32);layout(first_map);
+                psx_mod_write_half(p+0x60,pose);psx_mod_write_byte(p+0x22c,mode);psx_mod_write_byte(p+0x22d,history);
+                setenv("DNTTK_FP_LEGS","off",1);
+                std::puts("PASS: D36J5 crouch low-eye/lean admission, displaced-camera rejection, torso hiding and native-matrix preservation");
+            }
             setenv("DNTTK_FP_BODY","visible",1); // diagnostic body comparison
             // D36J: world-space lower-body admission is semantic across
             // costume orderings, with no native matrix edits or arm takeover.
@@ -4394,6 +4486,33 @@ int main(int argc,char** argv) {
             }
             // D36I: native contact arms cross the joint-origin cutoff as a
             // connected chain, but retain matrices, world depth and lighting.
+            // D36J5: shared leg admission for all authenticated action eyes.
+            auto action_legs=[&]() {
+                const std::vector<uint8_t> original(ram+(mats&0x1fffff),ram+(mats&0x1fffff)+19*32);
+                for(bool on:{false,true}) for(unsigned h:{160u,256u}) for(unsigned part:{0u,1u,2u,3u,4u,5u,6u,7u,8u,9u,20u,21u}) {
+                    setenv("DNTTK_FP_LEGS",on?"on":"off",1);
+                    call(0x800348d8,c,p,0x8003769c);
+                    CPUState draw{};draw.gpr[4]=c;draw.gpr[20]=p;draw.gpr[23]=psx_mod_read_byte(desc+0x24+part);
+                    const uint32_t native=mats+32*draw.gpr[23];draw.gpr[5]=native;
+                    draw.gpr[29]=0x801f0000;draw.gpr[31]=0x80034c6c;draw.gte_ctrl[26]=h;
+                    hooks().at(0x800292a0)(&draw,0x800292a0);
+                    const auto owner=ttk::first_person_limb_presentation();
+                    // The native door attachment remains under its kick owner.
+                    if(owner.owner!=ttk::LimbOwner::Kick) {
+                        const bool leg=on && ((part>=1 && part<=8) || part==21);
+                        assert(owner.owner==(leg?ttk::LimbOwner::Legs:ttk::LimbOwner::HiddenBody));
+                        assert(owner.fixed_projection()==leg && owner.world_clip()==leg && !owner.viewmodel());
+                        if(leg) {
+                            for(unsigned k=0;k<20;++k)assert(psx_mod_read_byte(draw.gpr[5]+k)==psx_mod_read_byte(native+k));
+                            assert(psx_mod_read_word(draw.gpr[5]+24)==psx_mod_read_word(native+24));
+                        } else assert(draw.gpr[5]==c);
+                    }
+                    assert(draw.gte_ctrl[26]==h);
+                    call(0x8001ca4c,0x800d0000,0,0x800376b4);
+                }
+                assert(std::equal(original.begin(),original.end(),ram+(mats&0x1fffff)));
+                setenv("DNTTK_FP_LEGS","off",1);
+            };
             auto contact_arms=[&](bool eligible,bool unarmed_body=false) {
                 const auto equip=psx_mod_read_byte(p+0x3b8);
                 psx_mod_write_byte(p+0x3b8,0);
@@ -4485,6 +4604,7 @@ int main(int argc,char** argv) {
                         psx_mod_write_word(mats+32*j+24,n*100);
                         psx_mod_write_word(mats+32*j+28,distance);
                     }
+                    if(enabled)action_legs();
                     const std::vector<uint8_t> native(ram+(mats&0x1fffff),ram+(mats&0x1fffff)+19*32);
                     for(bool comparison:{false,true}) {
                         if(comparison)setenv("DNTTK_FP_CONTACT_ARMS","native",1);
@@ -4508,7 +4628,15 @@ int main(int argc,char** argv) {
                             const double end=word(output[i]+20+4*k)+100.0*half(output[i]+6+2*k)/4096;
                             assert(std::abs(end-word(output[i+1]+20+4*k))<2);
                         }
-                        if(enabled && !comparison)for(unsigned i:{0u,3u})assert(word(output[i]+28)==-64);
+                        if(enabled && !comparison)for(unsigned i:{0u,3u}) {
+                            const double x=word(output[i]+20),y=word(output[i]+24),z=word(output[i]+28);
+                            const double anchor=i==0?-200:200;
+                            assert(y-.8*z>=94.5);
+                            assert(std::sqrt((x-anchor)*(x-anchor)+(y-150)*(y-150)+(z+64)*(z+64))<=97);
+                            const double old_distance=std::sqrt(10000+2500+(distance+64.0)*(distance+64.0));
+                            const double dx=word(output[i+2]+20)-x,dy=word(output[i+2]+24)-y,dz=word(output[i+2]+28)-z;
+                            assert(std::sqrt(dx*dx+dy*dy+dz*dz)<old_distance-1);
+                        }
                         assert(std::equal(native.begin(),native.end(),ram+(mats&0x1fffff)));
                         call(0x8001ca4c,0x800d0000,0,0x800376b4);
                     }
@@ -4959,6 +5087,49 @@ int main(int argc,char** argv) {
                         assert(std::strstr(ttk::controls_debug_json(),"\"action\":\"ladder\""));
                         contact_rig(eye);
                         assert(!ttk::movement_ready() && !ttk::locomotion_input_ready());
+                        if(eye && pose==207) {
+                            const std::vector<uint8_t> saved(ram+(mats&0x1fffff),ram+(mats&0x1fffff)+19*32);
+                            uint8_t old_camera[32];std::memcpy(old_camera,ram+(c&0x1fffff),32);
+                            setenv("DNTTK_FP_LEGS","on",1);
+                            for(const auto* costume:{first_map,cowboy})for(bool down:{false,true}) {
+                                layout(costume);
+                                const int16_t basis[9]={4096,0,0,0,int16_t(down?2048:4096),int16_t(down?-3547:0),0,int16_t(down?3547:0),int16_t(down?2048:4096)};
+                                for(int k=0;k<9;++k)psx_mod_write_half(c+2*k,uint16_t(basis[k]));
+                                for(int k=0;k<3;++k)psx_mod_write_word(c+20+4*k,0);
+                                for(unsigned part:{1u,5u}) {
+                                    const auto matrix=mats+32*psx_mod_read_byte(desc+0x24+part);
+                                    psx_mod_write_word(matrix+20,part==1?36:-30);
+                                    psx_mod_write_word(matrix+24,420);psx_mod_write_word(matrix+28,93);
+                                }
+                                const std::vector<uint8_t> original(ram+(mats&0x1fffff),ram+(mats&0x1fffff)+19*32);
+                                int shared=0;
+                                for(unsigned h:{160u,256u})for(unsigned part:{1u,2u,3u,4u,5u,6u,7u,8u,21u}) {
+                                    call(0x800348d8,c,p,0x8003769c);
+                                    CPUState draw{};draw.gpr[4]=c;draw.gpr[20]=p;draw.gpr[23]=psx_mod_read_byte(desc+0x24+part);
+                                    const auto native=mats+32*draw.gpr[23];draw.gpr[5]=native;
+                                    draw.gpr[29]=0x801f0000;draw.gpr[31]=0x80034c6c;draw.gte_ctrl[26]=h;
+                                    hooks().at(0x800292a0)(&draw,0x800292a0);
+                                    assert(ttk::first_person_limb_presentation().owner==ttk::LimbOwner::Legs);
+                                    for(int k=0;k<28;++k)assert(psx_mod_read_byte(draw.gpr[5]+k)==psx_mod_read_byte(native+k));
+                                    const int shift=int32_t(psx_mod_read_word(native+28)-psx_mod_read_word(draw.gpr[5]+28));
+                                    if(!shared)shared=shift;else assert(shift==shared);
+                                    assert(down?(shift>48 && shift<=192):shift==48);
+                                    if(down && (part==1 || part==5)) {
+                                        const double y=int32_t(psx_mod_read_word(draw.gpr[5]+24)),z=int32_t(psx_mod_read_word(draw.gpr[5]+28));
+                                        const double cy=(2048*y-3547*z)/4096,cz=(3547*y+2048*z)/4096;
+                                        assert(cy-.5*cz>=47);
+                                    }
+                                    assert(draw.gte_ctrl[26]==h);
+                                    call(0x8001ca4c,0x800d0000,0,0x800376b4);
+                                }
+                                assert(std::equal(original.begin(),original.end(),ram+(mats&0x1fffff)));
+                                std::copy(saved.begin(),saved.end(),ram+(mats&0x1fffff));
+                            }
+                            layout(first_map);std::memcpy(ram+(c&0x1fffff),old_camera,32);
+                            setenv("DNTTK_FP_LEGS","off",1);
+                            std::puts("PASS: D36J5 ladder-end hip clearance, rigid whole-leg/attachment translation, fixed-FOV invariance and native skeleton preservation");
+                        }
+
                         if(eye) {
                             call(0x800348d8,c,p,0x8003769c);
                             CPUState joint{};joint.gpr[4]=c;joint.gpr[19]=c;joint.gpr[20]=p;joint.gpr[29]=0x801f0000;
@@ -5167,6 +5338,7 @@ int main(int argc,char** argv) {
                             assert(psx_mod_read_word(p+0x20c)==water_flag && psx_mod_read_word(p+0x1f8)==velocity);
                             for(int i=0;i<3;++i)assert((int32_t)psx_mod_read_word(p+4+4*i)==root[i]);
                         }
+                        action_legs();
                         // D36K: semantic pack visibility follows the primary eye
                         // draw across both costume orders and all swim modes.
                         const uint32_t pack=desc+0x44+0x28*psx_mod_read_byte(desc+0x38);
@@ -5357,6 +5529,7 @@ int main(int argc,char** argv) {
                         ttk::render_state_save(first.data());
                         ttk::render_state_load(third.data());assert(metric("\"blend\":")==0);
                         ttk::render_state_load(first.data());assert(metric("\"blend\":")==1);
+                        action_legs();
                         for(int i=0;i<3;++i)assert((int32_t)psx_mod_read_word(p+4+4*i)==root[i]);
                         assert(psx_mod_read_word(p+0x1f8)==velocity && psx_mod_read_half(p+0x35a)==fuel);
                         assert(psx_mod_read_half(p+0x358)==3 && !ttk::movement_ready());

@@ -1,5 +1,51 @@
 # Current status - 2026-10-04
 
+## 2026-10-28 - D36H7 proportional contact arms (Done, user-accepted)
+
+Contact shoulders now accommodate up to 96 units of excess reach before bone
+extension, constrained below the picture. Hands stay at native contacts;
+reachable poses, gameplay, combat arms and legs retain their existing policies.
+Build, native suites and animation-save checks pass. Private ladder comparisons,
+interaction samples and explicit residual-stretch limits are in
+[note 312](312-d36h7-proportional-contact-arms.md). User visual acceptance and closeout authorized 2026-10-28.
+No framework edit. Launch: `python3 recomp/tools/local/run.py`.
+
+
+
+## 2026-10-28 - D36J5 first-person legs (Done, user-accepted)
+
+Revision 5 fixes the current slot-7 ladder-end hang's exposed hip ends. Ladder
+poses add bounded backward leg translation only when their projected hip roots
+need clearance. Matched downward captures, build/native checks and private
+hang/exit/load evidence are in note 311. Other owners retain prior framing.
+
+
+Revision 4 corrects crouch-running leg loss: low/forward crouch eyes now use
+an animated pelvis-to-neck safety footprint. Standing limits, torso hiding,
+leg framing and native gait remain unchanged. Build/native checks and private
+crouch movement captures are recorded in note 311; user accepted.
+
+
+Revision 3 extends legs to every supported action eye: climbing/traversal,
+interactions, swimming and flight. The torso remains hidden, the Advanced
+On/Off choice applies throughout, and the accepted camera guards remain.
+Note 311 now contains the complete documented policy inventory and separates
+native coverage, current runtime routes and remaining campaign limits.
+
+
+Revision 2 moves ordinary legs 48 units backward in the draw pose to conceal
+open hip ends when running at maximum downward look. Native skeleton, fixed
+projection, kicks and saved toggle are preserved; see note 311.
+
+Ordinary locomotion legs return without torso/pelvis, using fixed H=256 display
+projection with native poses and world depth. Advanced > First-person Legs
+is On by default; Confirm/Cancel/Defaults and schema-59 persistence are wired.
+Build, native controls/input/aim/near suites and 109 profile tests pass. Private
+menu and FOV/movement samples, failed harness attempts and limits are in
+[note 311](311-d36j5-first-person-legs.md). Player files remain unchanged.
+User accepted all revisions and authorized documentation/commit/push closeout
+on 2026-10-28. No framework edit; D19X/D19Y pending changes preserved. Launch: `python3 recomp/tools/local/run.py`.
+
 ## 2026-10-28 - D36J4 accepted and closed
 
 User: "lock it in, close it out". D36J4 is Done: the native door-kick right leg

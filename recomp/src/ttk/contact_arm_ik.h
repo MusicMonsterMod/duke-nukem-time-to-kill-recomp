@@ -14,6 +14,25 @@ struct Vec {
 };
 struct Pose { Vec shoulder, elbow, hand; double upper_scale, lower_scale; };
 
+// D36H7: camera-space shoulder accommodation before stretching the bones.
+// Move only the excess reach, up to 96 units, and keep the shoulder below a
+// conservative screen-bottom plane (Y down). Slope .8 covers H=160 at the
+// supported widest vertical view; 96 units leave room for the shoulder mesh.
+// This is continuous and stateless: no phase/FOV switch or replay history.
+inline Vec reachable_shoulder(Vec anchor, Vec hand, double upper, double lower) {
+    if(!std::isfinite(upper) || !std::isfinite(lower) || upper<1 || lower<1 ||
+       upper>1024 || lower>1024)return anchor;
+    const Vec reach=hand-anchor;
+    const double distance=reach.length();
+    if(!std::isfinite(distance) || distance<1)return anchor;
+    const Vec direction=reach*(1/distance);
+    double travel=std::clamp(distance-.98*(upper+lower),0.0,96.0);
+    const double approach=.8*direction.z-direction.y;
+    if(approach>0)
+        travel=std::min(travel,std::max(0.0,(anchor.y-.8*anchor.z-96)/approach));
+    return anchor+direction*travel;
+}
+
 // Contact is authoritative. Solve a display-only chain from a virtual shoulder,
 // retaining native bone lengths whenever reachable. Unreachable targets extend
 // both segments proportionally rather than pulling a hand off its contact.

@@ -1,5 +1,26 @@
 # Time to Kill — modernization jobs
 
+### D36H7 - Proportional contact arms with shoulder reach
+
+**Status: Done (user-accepted; closeout authorized 2026-10-28).** Selected 2026-10-28. Reduce excessive interaction and
+traversal arm extension by allowing bounded virtual-shoulder travel toward
+native hand contacts. Preserve hands, connected elbows, native gameplay,
+world depth, hidden shoulder ends, accepted combat arms, legs and camera policy.
+Verify both costume mappings, all nine contact owners, look/FOV extremes and
+private gameplay/replay samples. User visual acceptance received 2026-10-28.
+Evidence: [note 312](documentation/312-d36h7-proportional-contact-arms.md).
+
+
+### D36J5 - Optional first-person legs with fixed display FOV
+
+**Status: Done (user-accepted; closeout authorized 2026-10-28).** Selected 2026-10-28. Restore ordinary legs without
+torso, sharing the fixed H=256 projection used by weapons and kicks while
+retaining native animation and safe world clipping. Advanced > First-person
+Legs defaults On, applies on Confirm and persists. Off retains kicks/arms.
+Verify FOV stability, costume part mapping, view/action isolation, settings
+round trips and unchanged native skeleton. User visual acceptance received 2026-10-28.
+Evidence: [note 311](documentation/311-d36j5-first-person-legs.md).
+
 ### D36J4 - Door-kick fixed display FOV
 
 **Status: Done (user-accepted; closeout authorized 2026-10-28). Dependencies: D36J3 (Done).**
@@ -23424,4 +23445,87 @@ regressions, manual and note 310 are included in the authorized MusicMonsterMod
 commit/push. Prior verification and explicit coverage limits stand; no new
 build or gameplay change. Pending D19X/D19Y work remains separate and uncommitted.
 Existing framework patch verified against the clean pin; repository checks pass.
+No next job selected.
+
+
+## 2026-10-28 - D36J5 optional first-person legs candidate
+
+Restored ordinary locomotion legs without pelvis/torso through a dedicated
+world-depth owner using the weapons/kicks fixed H=256 projection. Advanced
+First-person Legs defaults On and persists through schema 59. Existing kick,
+contact, action and Vanilla owners retain their policies. Build, native suites,
+109 profile tests and repository checks pass. Private menu and downward/FOV/
+movement samples are recorded in note 311 with excluded attempts and limits.
+All player files preserved. Needs playtest; no acceptance, commit or push.
+
+
+## 2026-10-28 - D36J5 revision 2: legs moved behind the eye
+
+User reports exposed hip ends while running at maximum downward pitch.
+A shared 48-unit horizontal backward draw offset moves the ordinary leg rig
+without scaling or changing native animation/gameplay matrices. Kick owners,
+torso hiding and Advanced toggle remain intact. Build and native controls/near
+checks pass; private running comparisons and the rejected larger offset are
+recorded in note 311. Needs playtest; no commit or push.
+
+
+## 2026-10-28 - D36J5 revision 3: all supported action legs
+
+User selected legs for climbing, toilet use and every documented context.
+The shared leg owner now follows all authenticated first-person actions rather
+than a locomotion-only allowlist. The upright eye guard remains for locomotion;
+action eyes retain their own authenticated camera policy. Torso stays hidden;
+fixed FOV, backward framing, native animation and the saved toggle remain.
+Note 311 records the full activity inventory sourced from notes 257/238/305/306/
+307. Expanded native hook tests cover all nine contact owners, swimming and
+jetpack with On/Off, costumes and all leg parts; build and native suites pass.
+Private runtime route results and exclusions are in note 311. Needs playtest;
+no commit/push closeout or new camera eligibility.
+
+
+## 2026-10-28 - D36H7 proportional contact-arm candidate
+
+User selected the discussed shoulder-reach approach to occasional stretched
+arms. A bounded 96-unit shoulder accommodation reduces extension before the
+existing IK solve, preserving native hands, connected chains and world depth.
+A conservative below-picture plane limits shoulder exposure. Natural reachable
+poses stay unchanged; extreme contacts retain proportional extension. All nine
+contact owners share it; combat arms and leg work stay separate. Build, native
+controls/input/aim/near and animation-save checks pass. Private ladder A/B and
+interaction/motion results plus recorded-pose calculations are in note 312.
+Needs playtest. No framework changes, commit or push; earlier pending work kept.
+
+
+## 2026-10-28 - D36J5 revision 4: crouch legs visibility
+
+User reports legs lost during crouch running. Private captures identify the
+upright body guard rejecting the legitimate low/forward crouch eye. Grounded
+crouch legs now use the animated pelvis-to-neck footprint and a lower height
+bound, retaining displaced-camera rejection, torso hiding and native gameplay.
+Build, full native controls/near tests and private default/90 crouch movement
+captures pass within note 311's limits. Player files unchanged. Needs playtest;
+no commit/push, and D36H7 arm candidate remains preserved.
+
+
+## 2026-10-28 - D36J5 revision 5: ladder-end hip clearance
+
+Current slot 7 reproduces exposed hip ends in Ladder pose 207 at maximum down
+look. A shared, bounded backward leg translation now keeps both hip roots
+below the fixed display picture only when ladder poses need extra clearance.
+Matched default/90 captures remove the exposed ends; native and private 120
+hang/exit/load checks pass. Normal ladder sample keeps its prior framing;
+crouch, other action legs and D36H7 arms remain unchanged. Note 311 retains
+specific evidence and limits. Needs playtest, no commit/push closeout.
+
+
+## 2026-10-28 - D36J5 and D36H7 accepted closeout
+
+User accepted the result and authorized closeout on 2026-10-28: "great work. lock it in and close us out". D36J5 and D36H7 are Done. Recorded verification and campaign limits remain unchanged; D19X/D19Y remains pending separately.
+Includes all five leg revisions, supported action coverage, crouch-running
+visibility and slot-7 ladder-end clearance, plus proportional contact arms.
+Prior player build, native suites, private runtime and save/load evidence
+stand. All 106 profile tests pass against the staged tree independently of
+the pending camera sliders. Schema 59 reserves the intervening local schema
+58 while adding only the legs preference in this commit. Framework export
+is unchanged and applies cleanly to the pinned dependency; repository checks pass.
 No next job selected.

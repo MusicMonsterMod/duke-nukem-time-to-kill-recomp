@@ -4,7 +4,7 @@
 namespace ttk {
 // D36G: render ownership only. These semantic part IDs are not costume joint
 // indices. Eligibility and animation remain with the existing guarded hooks.
-enum class LimbOwner : uint8_t { Native, Interaction, HiddenArm, DisplayHand, DisplayArm, Kick, Body, HiddenBody };
+enum class LimbOwner : uint8_t { Native, Interaction, HiddenArm, DisplayHand, DisplayArm, Kick, Body, Legs, HiddenBody };
 enum class LimbSpace : uint8_t { NativeWorld, AtEye, CameraRelative };
 enum class LimbDepth : uint8_t { Native, WorldClip, Viewmodel };
 enum class LimbLight : uint8_t { Native, CorrectProximityFade };
@@ -22,10 +22,11 @@ struct LimbPresentation {
     bool world_clip() const { return depth==LimbDepth::WorldClip; }
     // D14B/D36J4: all camera-relative display owners share H=256,
     // including Q and the native-timed door leg with its thigh attachment.
-    // Native world-contact limbs and body retain world projection.
+    // Ordinary legs share display projection while retaining world depth.
+    // Contact arms and diagnostic body retain world projection.
     bool fixed_projection() const {
         return owner==LimbOwner::DisplayHand || owner==LimbOwner::DisplayArm ||
-            owner==LimbOwner::Kick;
+            owner==LimbOwner::Kick || owner==LimbOwner::Legs;
     }
 };
 constexpr uint32_t limb_part(int part) { return part>=0 && part<32 ? 1u<<part : 0; }
@@ -34,6 +35,7 @@ constexpr LimbPresentation limb_presentation(LimbOwner owner,int part,bool bridg
     case LimbOwner::Interaction:
         return {owner,limb_part(part),LimbSpace::NativeWorld,LimbDepth::WorldClip,
                 LimbLight::Native,LimbCleanup::NextJointOrDrawBoundary,bridge};
+    case LimbOwner::Legs:
     case LimbOwner::Body:
         return {owner,limb_part(part),LimbSpace::NativeWorld,LimbDepth::WorldClip,
                 LimbLight::CorrectProximityFade,LimbCleanup::NextJointOrDrawBoundary,bridge};

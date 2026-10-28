@@ -1262,32 +1262,106 @@ static bool display_arm_matrix(uint32_t real,uint32_t desc,unsigned part) {
 // up and sideways at a corner. A headless world skeleton is not a valid external
 // representation. Admit it only inside a conservative eye-over-pelvis envelope.
 // Evaluate actual draw matrices, also in replay; no cached camera-valid latch.
-static bool first_person_body_eye_inside(uint32_t desc,uint32_t mats) {
+static bool first_person_body_eye_inside(uint32_t desc,uint32_t mats,bool crouched_legs=false) {
     const int root=duke_part_joint(desc,0);
     if(root<0)return false;
     const uint32_t base=mats+0x20*root+0x14;
-    const double dx=double((int32_t)psx_mod_read_word(camera+0x14))-(int32_t)psx_mod_read_word(base);
-    const double dz=double((int32_t)psx_mod_read_word(camera+0x1c))-(int32_t)psx_mod_read_word(base+8);
+    double dx=double((int32_t)psx_mod_read_word(camera+0x14))-(int32_t)psx_mod_read_word(base);
+    double dz=double((int32_t)psx_mod_read_word(camera+0x1c))-(int32_t)psx_mod_read_word(base+8);
     const double height=double((int32_t)psx_mod_read_word(base+4))-(int32_t)psx_mod_read_word(camera+0x18);
-    return dx*dx+dz*dz<=96.0*96.0 && height>=128 && height<=352;
+    double minimum_height=128;
+    if(crouched_legs) {
+        const int neck=duke_part_joint(desc,part_neck);
+        if(neck>=0) {
+            const uint32_t head=mats+0x20*neck+0x14;
+            const double nx=double((int32_t)psx_mod_read_word(head))-(int32_t)psx_mod_read_word(base);
+            const double nz=double((int32_t)psx_mod_read_word(head+8))-(int32_t)psx_mod_read_word(base+8);
+            const double rise=double((int32_t)psx_mod_read_word(base+4))-(int32_t)psx_mod_read_word(head+4);
+            const double lean=nx*nx+nz*nz;
+            // The crouch gait leans the neck forward while its low eye can
+            // lag between neck and pelvis. Admit that swept body footprint,
+            // not a globally larger circle or an unconditional crouch bypass.
+            // Evaluate draw matrices so replay/save entry needs no new state.
+            if(lean<=192.0*192.0 && rise>=0 && rise<=256) {
+                const double t=lean>0 ? std::clamp((dx*nx+dz*nz)/lean,0.0,1.0) : 0;
+                dx-=t*nx;dz-=t*nz;
+                minimum_height=64;
+            }
+        }
+    }
+    return dx*dx+dz*dz<=96.0*96.0 && height>=minimum_height && height<=352;
 }
 static bool first_person_hide_body_joint(CPUState* cpu,uint32_t desc,uint32_t mats,int part) {
     const bool native_body=(part>=0 && part<=9) || part==20 || part==21;
     const bool empty_arms=psx_mod_read_byte(player+0x3b8)==0 &&
         (fp_policy.action==PerspectiveAction::Ground || fp_policy.action==PerspectiveAction::Committed ||
          fp_policy.action==PerspectiveAction::Fall) && part>=10 && part<=15;
-    // D36J2: Modernized first person hides ordinary body by default.
+    // D36J5: only ordinary legs return by default; torso/root stay hidden.
     // Explicit "visible" retains the diagnostic comparison, including D14E1.
     // Kick/door owners run first; arms keep their existing policies.
     const char* body=std::getenv("DNTTK_FP_BODY");
-    const bool hide_native=native_body && input_modern_controls() && (!body || std::strcmp(body,"visible"));
-    if(!hide_native && ((!native_body && !empty_arms) || first_person_body_eye_inside(desc,mats)))return false;
+    const char* legs=ttk_live_env("DNTTK_FP_LEGS");
+    const bool leg_part=(part>=1 && part<=8) || part==21;
+    const bool ground=fp_policy.action==PerspectiveAction::Ground ||
+        fp_policy.action==PerspectiveAction::Committed || fp_policy.action==PerspectiveAction::Fall;
+    const bool show_legs=leg_part && (!legs || std::strcmp(legs,"off")) &&
+        (!body || !*body);
+    const bool hide_native=native_body && input_modern_controls() &&
+        (!body || std::strcmp(body,"visible")) && !show_legs;
+    // The upright eye-over-pelvis envelope is only a locomotion safety rule.
+    // Authenticated action eyes (climb, use, swimming, flight) intentionally
+    // leave that envelope. Their existing perspective owner remains the gate.
+    if(show_legs && !ground)return false;
+    const unsigned animation=psx_mod_read_half(player+0x60);
+    const bool crouched_legs=show_legs && (animation==176 || animation==178) &&
+        psx_mod_read_byte(player+0x22c)<=1 && psx_mod_read_byte(player+0x22d)<=1;
+    if(!hide_native && ((!native_body && !empty_arms) || first_person_body_eye_inside(desc,mats,crouched_legs)))return false;
     // The camera itself is a valid matrix whose origin is exactly at the eye.
     // Native whole-joint rejection therefore sees depth zero. No scratch
     // allocation can fail open; do not grant the polygon-depth bridge.
     limb_claim(cpu,LimbOwner::HiddenBody,part);
     cpu->gpr[5]=camera;
     return true;
+}
+// D36J5: move the complete ordinary leg rig behind the eye's horizontal
+// heading. At maximum downward pitch the running thighs otherwise expose
+// their open hip ends. One rigid translation preserves the gait, proportions,
+// foot height and thigh attachment; gameplay and kick matrices stay native.
+static void first_person_legs_matrix(CPUState* cpu,uint32_t desc,uint32_t mats) {
+    const double x=int16_t(psx_mod_read_half(camera+12));
+    const double z=int16_t(psx_mod_read_half(camera+16));
+    const double length=std::hypot(x,z);
+    if(length<1)return;
+    double setback=48;
+    if(fp_policy.action==PerspectiveAction::Ladder) {
+        // Ladder-end hangs swing both open thigh roots into the eye view.
+        // Move the entire rig only as far as needed to put both roots below
+        // the fixed H=256 picture, with room for their mesh cross-sections.
+        // Both chains and the attachment share this draw-only translation.
+        const double down=-(x*int16_t(psx_mod_read_half(camera+6))+z*int16_t(psx_mod_read_half(camera+10)))/(4096*length);
+        const double depth=-length/4096;
+        const double gain=down-.5*depth;
+        if(gain>.001)for(unsigned part:{1u,5u}) {
+            const int joint=duke_part_joint(desc,part);
+            if(joint<0)continue;
+            double y=0,zcam=0;
+            for(unsigned k=0;k<3;++k) {
+                const double delta=double(int32_t(psx_mod_read_word(mats+32*joint+20+4*k)))-int32_t(psx_mod_read_word(camera+20+4*k));
+                y+=delta*int16_t(psx_mod_read_half(camera+6+2*k))/4096;
+                zcam+=delta*int16_t(psx_mod_read_half(camera+12+2*k))/4096;
+            }
+            setback=std::max(setback,(48-(y-.5*zcam))/gain);
+        }
+        setback=std::min(setback,192.0);
+    }
+    if(!hidden_matrix)hidden_matrix=psx_mod_alloc_guest_memory(0x20,16);
+    if(!hidden_matrix)return;
+    const uint32_t native=cpu->gpr[5];
+    for(unsigned i=0;i<0x20;i+=4)
+        psx_mod_write_word(hidden_matrix+i,psx_mod_read_word(native+i));
+    psx_mod_write_word(hidden_matrix+20,psx_mod_read_word(native+20)-int32_t(std::lround(setback*x/length)));
+    psx_mod_write_word(hidden_matrix+28,psx_mod_read_word(native+28)-int32_t(std::lround(setback*z/length)));
+    cpu->gpr[5]=hidden_matrix;
 }
 // D14E: a first-person presentation of the native torso, hinged at its
 // existing waist. The retail chest crowds the eye when admitted unchanged,
@@ -1366,13 +1440,20 @@ static void first_person_contact_arm(CPUState* cpu,uint32_t desc,int part) {
     // swapping left/right or imposing an angle cutoff. Put the root behind
     // the eye with room for the upper-arm mesh's shoulder surface.
     const double lateral=std::clamp(2*(native[0]-eye).dot(axes[0]),-220.0,220.0);
-    const Vec shoulder=eye+axes[0]*lateral+axes[1]*150-axes[2]*64;
+    const double upper=(native[1]-native[0]).length(),lower=(native[2]-native[1]).length();
+    const Vec hand_delta=native[2]-eye;
+    const Vec hand_local={hand_delta.dot(axes[0]),hand_delta.dot(axes[1]),hand_delta.dot(axes[2])};
+    const Vec anchor={lateral,150,-64};
+    // Keep the accepted fixed shoulder available for a one-launch A/B test.
+    const Vec local=mode && !std::strcmp(mode,"fixed") ? anchor :
+        contact_arm::reachable_shoulder(anchor,hand_local,upper,lower);
+    const Vec shoulder=eye+axes[0]*local.x+axes[1]*local.y+axes[2]*local.z;
     contact_arm::Pose pose;
     // Author the elbow toward the lower/outside/back of the eye rig. Using
     // the world elbow as the pole lets it bulge into view when free look
     // carries both the shoulder and contact hand behind the camera.
     if(!contact_arm::solve(shoulder,native[2],native[1],axes[0]*(lateral/110)+axes[1]-axes[2],
-        (native[1]-native[0]).length(),(native[2]-native[1]).length(),pose))return;
+        upper,lower,pose))return;
     const Vec target[3]={pose.shoulder,pose.elbow,pose.hand};
     Vec a=native[index+1]-native[index],b=target[index+1]-target[index];
     const double scale=b.length()/a.length();
@@ -1440,8 +1521,18 @@ static void first_person_weapon_joint(CPUState* cpu,uint32_t ra) {
         const int part=desc?duke_joint_part(desc,cpu->gpr[23]):-1;
         if(part>=0 && mats>=0x80010000 && mats<=0x801ffd80 &&
            cpu->gpr[5]==mats+0x20*cpu->gpr[23] && first_person_hide_body_joint(cpu,desc,mats,part))return;
+        // Every authenticated first-person action shares the ordinary leg
+        // policy. Kick/door chains above already claimed their own parts.
+        const char* body=std::getenv("DNTTK_FP_BODY");
+        if(((part>=1 && part<=8) || part==21) && (!body || !*body) &&
+           mats>=0x80010000 && mats<=0x801ffd80 && cpu->gpr[5]==mats+0x20*cpu->gpr[23]) {
+            limb_claim(cpu,LimbOwner::Legs,part,true);
+            first_person_legs_matrix(cpu,desc,mats);
+            return;
+        }
     }
-    // D36J/D14E: locomotion pelvis, torso and legs share safe world clipping.
+    // D36J5: ordinary legs retain safe world clipping and native poses.
+    // Diagnostic visible-body mode also admits pelvis and fitted torso.
     // Legs/pelvis retain native poses; only the chest gets a draw-local fit.
     // Admit polygons even when their joint origin crosses H. Traversal and
     // interaction bodies keep their accepted policy (D36K owns that review).

@@ -334,12 +334,12 @@ static void packet_contracts(const char* executable) {
     {
         live_eye=true;test_viewmodel=true;
         for(auto owner:{ttk::LimbOwner::DisplayHand,ttk::LimbOwner::DisplayArm,
-                       ttk::LimbOwner::Interaction,ttk::LimbOwner::Body,ttk::LimbOwner::Kick}) {
+                       ttk::LimbOwner::Interaction,ttk::LimbOwner::Body,ttk::LimbOwner::Kick,ttk::LimbOwner::Legs}) {
             test_owner=owner;
             for(int part:{1,2,3,4,5,6,7,8,21}) for(int margin:{0,85,192}) {
                 test_part=part;test_margin=margin;
                 const bool fixed=owner==ttk::LimbOwner::DisplayHand || owner==ttk::LimbOwner::DisplayArm ||
-                    owner==ttk::LimbOwner::Kick;
+                    owner==ttk::LimbOwner::Kick || owner==ttk::LimbOwner::Legs;
                 object_case(0x80034dd0,100,true,false,0,500);
                 const auto baseline=host_corners;assert(!baseline.empty());
                 for(int h:{160,177,191,209,256,277}) {

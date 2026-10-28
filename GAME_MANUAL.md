@@ -1379,7 +1379,7 @@ the original's style:
   widescreen and frame rate.
 - **GAMEPLAY**: view, shoulder, camera distance, crosshair, gore, status bars
   and view bob.
-- **ADVANCED**: one list under headings. CAMERA AND AIM: camera, weapon aim.
+- **ADVANCED**: one list under headings. CAMERA AND AIM: camera, weapon aim, first-person legs.
   MOVEMENT: jump, jump walls, wall backflip, crouch, swimming, jetpack.
   ITEMS: dynamite, steroids. GRAPHICS: renderer, filter, draw distance,
   geometry, textures.
@@ -1469,11 +1469,15 @@ including view switches and save loads, but are not saved to player settings.
 Weapon/held-item display, their connected arms, Q and the door-kick leg retain
 their original size and framing as world FOV changes. Contact arms follow the
 world view, with environment lighting preserved.
-Modernized first person hides the ordinary torso and legs by default, retaining
-arms, weapons/items, the temporary Q leg and the separate native door kick.
+Modernized first person shows ordinary legs by default while keeping the torso
+hidden. OPTIONS > ADVANCED > CAMERA AND AIM > FIRST-PERSON LEGS switches
+them On or Off. Confirm applies and saves the choice; Defaults restores On.
+Arms, weapons/items, Q and native door kicks remain available with either choice.
 Third person and reflections retain the complete Duke. The displaced-eye safety
 guard still protects native empty-handed arms when an obstruction moves the eye
-outside Duke. No body preference is saved.
+outside Duke. The same guard protects locomotion legs; climbing, swimming and
+interaction legs use their existing action-camera ownership. Legs keep native
+animation and world clipping, with the fixed display FOV used by weapons/kicks.
 The sky backdrop adapts to world FOV and aspect ratio to maintain side coverage.
 Third person keeps its own projection.
 The saved Gameplay slider is the separate
@@ -2007,15 +2011,19 @@ in the authoring pipeline for comparison. Duke's retail fingers remain closed.
 See [the accepted movement record](documentation/286-d08k13-d08k14-crouch-movement.md)
 for the local animation preview and verification limits.
 
-## First-person body presentation (D36J2)
+## First-person body presentation (D36J5)
 
-Ordinary Modernized launches use the accepted no-body direction. Arms, weapons,
-held items and temporary Q/door-kick legs remain; third person, reflected Duke
-and Vanilla retain their existing presentation.
+Modernized first person shows legs during movement, jumps, climbing, swimming,
+jetpack flight and interactions such as toilet use, without the torso. FIRST-PERSON LEGS in OPTIONS > ADVANCED defaults On. Off
+restores the no-body view while keeping arms, weapons, held items and Q/door
+kicks. Third person, reflected Duke and Vanilla retain their existing presentation.
 
 D36H5 gives climbing, mantling and interaction gestures a dedicated first-person
 arm pose. Hands stay at their original contact points while shoulders and
 elbows are posed for the eye view, so shoulder ends continue out of frame.
+D36H7 lets the hidden shoulder move modestly toward distant
+contacts to reduce arm stretching. Hands stay on their targets; very distant
+contacts can still require some extension.
 The accepted traversal rig now also covers push/pull, use gestures and mirror
 grooming, including toilets, vending machines, wheels, levers, cards, crystals
 and statues. Weapon grips and controls stay the same. This presentation is
@@ -2029,9 +2037,10 @@ For a one-launch developer comparison with the earlier visible-body policy:
 DNTTK_FP_BODY=visible python3 recomp/tools/local/run.py
 ```
 
-Only the exact value `visible` selects this comparison. Omitted, empty, `hidden`
-or unrecognized values use no-body. The comparison retains the displaced-eye
-safety guard and does not save a setting. Normal launch:
+Only the exact value `visible` selects this full-body diagnostic comparison.
+Omitted or empty uses the saved legs preference; `hidden` or unrecognized
+nonempty values hide ordinary body parts. The comparison retains the
+displaced-eye safety guard and does not save a setting. Normal launch:
 
 ```sh
 python3 recomp/tools/local/run.py

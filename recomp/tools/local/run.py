@@ -270,6 +270,7 @@ def main(argv=None):
     # isolated path pixel-for-pixel. D35J5 also needs the mixed path at native
     # rates to preserve HUD icons over the frozen first-person scene.
     env.setdefault('PSX_GL_ORDERED_SEMI_BATCH', '1' if modernized else '0')
+    env.setdefault('DNTTK_FP_LEGS', controls['first_person_legs'] if modernized else 'off')
     env.setdefault('DNTTK_VIEW_BOB', controls['view_bob'] if modernized else 'off')
     env['DNTTK_CAMERA_STATE_FILE'] = str(profiles.camera_state_path(a.settings_file.resolve())) if modernized else ''
     # D19: the in-game OPTIONS screens (Modernized) save confirmed settings here.

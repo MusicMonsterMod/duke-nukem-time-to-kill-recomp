@@ -1,5 +1,32 @@
 # Current status - 2026-10-04
 
+## 2026-10-28 - D14B accepted and closed; D14C backlog only
+
+User confirms the arms are solid and accepts D14B, authorizing implementation,
+tests, manual and documentation commit/push closeout as MusicMonsterMod.
+D14B is Done; prior build/native-suite and bounded visual evidence stands with
+its limits in [note 297](297-d14b-weapon-projection.md).
+
+D14C is Todo: investigate first-person leg presentation across world FOV, starting
+with a controlled 60/default/90 comparison when selected. Brief source and
+existing-image review confirms body/kick retain world H, but does not establish
+the cause of the user's uncertain leg-view report. No new game run, build or
+leg implementation. No next job is selected. Launch:
+`python3 recomp/tools/local/run.py`.
+
+## 2026-10-28 - D14B weapon projection candidate (Needs playtest)
+
+World FOV was shrinking and recentering the accepted weapon/arm display. The
+object renderer now uses local H=256 for semantic DisplayHand/DisplayArm meshes,
+including attached weapons, items and muzzle flashes. Native body, kick and
+contact limbs retain world projection. No per-weapon retuning, gameplay-matrix,
+asset, framework or save-format change. Build and native controls/input/aim/near
+tests pass. Private base/alternate/upgraded weapon, aspect, replay and interaction
+samples are documented with their limits in [note 297](297-d14b-weapon-projection.md).
+Player files remain unchanged. D14B needs visual acceptance; no commit/push or
+closeout is authorized. D19X remains separate. Launch:
+`python3 recomp/tools/local/run.py`; compare `fov default` and `fov 90`.
+
 ## 2026-10-28 - D14A accepted; commit/push closeout
 
 User confirms the first-person FOV playtest passes and accepts D14A. The board

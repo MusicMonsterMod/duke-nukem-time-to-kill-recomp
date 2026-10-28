@@ -1462,7 +1462,10 @@ shows more horizontally at the same setting. `fov` reports the effective,
 integer-projection-quantized angle. `fov default` restores the exact original
 first-person projection (nominal 64 degrees). Changes last for this session,
 including view switches and save loads, but are not saved to player settings.
-Third person keeps its own projection. The saved Gameplay slider is the separate
+Weapon/held-item display and their connected arms retain their original
+size and framing as world FOV changes. Native body and contact arms still
+follow the world view. Third person keeps its own projection.
+The saved Gameplay slider is the separate
 D19X job. For a single launch, `DNTTK_FP_FOV=75 python3 recomp/tools/local/run.py`
 sets the same developer control; an invalid launch value falls back to default.
 

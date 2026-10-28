@@ -1121,6 +1121,13 @@ void object(CPUState* cpu) {
     const uint32_t vertices=psx_mod_read_word(mesh+0x10),list=psx_mod_read_word(mesh+0x14);
     if(!count || vertices<0x80010000 || vertices>0x801ffff0 || list<0x80010000 || (list>0x801ffff0 && list!=missing_texture_copy+0x20)) return;
     Frame f{};if(!begin(f,cpu,true)) return;
+    // Keep the accepted display geometry, pose, UVs and depth. Changing only
+    // this mesh's projection restores its original apparent size and position
+    // at every world FOV. The shared GTE and gameplay matrices are untouched;
+    // attached weapons/items/flashes inherit the verified hand owner, while
+    // native contact arms and body keep the projection read above. Each replay
+    // draw reconstructs ownership, so no additional snapshot state is needed.
+    if(limb.fixed_projection()) f.g.h=256;
     trace_begin(f,cpu);
     f.viewmodel=viewmodel;f.coverage=coverage;
     if(viewmodel && held_frame!=frame_first_cursor) {held_packets.clear();held_frame=frame_first_cursor;}

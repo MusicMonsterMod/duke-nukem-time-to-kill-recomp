@@ -1,10 +1,49 @@
 # Time to Kill — modernization jobs
 
+## 2026-10-28 - D14C leg presentation across FOV (backlog intake only)
+
+### D14C - Investigate first-person leg presentation across world FOV
+
+**Status: Todo. Backlog only; not selected or started. Dependencies: D14A, D14B (Done). Related: D36J/K, D12A/B, D08K.**
+
+User accepts D14B's arms but reports an uncertain view alteration involving
+Duke's legs. Investigate before choosing any correction. First compare FOV 60,
+original/default and 90 from the same private save, position, camera pitch,
+stance, lighting and animation phase. Identify ordinary body/legs separately
+from Q quick kick and native door kick; do not assume the report concerns a
+specific one of those paths or that all should use the weapon projection.
+
+Bounded intake research: source inspection confirms Body and Kick are excluded
+from D14B's fixed projection. Ordinary legs retain native poses/world depth;
+quick kick has separate camera-relative presentation and viewmodel depth but
+still uses world H. Existing D14B default/90 downward-look captures show changed
+leg presentation, but differing animation/lighting states prevent a controlled
+diagnosis. No new FOV 60/90 comparison or game launch was performed. This is a
+source finding and limited existing-image observation, not a confirmed cause.
+
+When selected, read the accepted D36 audit and D36J implementation first.
+Trace projection, eye/body relationship, near-plane and joint admission, depth,
+proximity fade, pose and replay ownership. Distinguish expected perspective
+changes from unwanted deformation, popping, overlap or apparent camera movement.
+Recommend an evidence-backed correction only if needed, preserving natural
+world-space body contact and the accepted D14B weapon/arm presentation. Avoid
+blanket fixed-FOV legs or camera changes without demonstrating their necessity.
+
+Acceptance: report the actual cause or explicitly unresolved hypotheses with
+matched 60/default/90 evidence. Verify any selected correction standing,
+crouched, walking/running, jumping/landing, looking down and through pitch
+changes, plus Q and door kick where relevant. Cover supported aspects, 60/120
+replay, costume mappings, view/load transitions, nearby floors/walls, lighting
+and occlusion. Preserve kick reach/damage/timing, gameplay matrices, third
+person and Vanilla. Separate observed results from user visual acceptance.
+No implementation, build, new art or further research is authorized by this
+intake. The user chooses when to start D14C.
+
 ## 2026-10-28 - D14B weapon/arms FOV follow-up (backlog intake closed)
 
 ### D14B - Decouple first-person weapon presentation from world FOV
 
-**Status: Todo. Backlog only; not selected or started. Dependency: D14A foundation. Related: D12, D36G/H/I/J/K, D19X.**
+**Status: Done (user-accepted; closeout authorized 2026-10-28). Dependency: D14A foundation. Related: D12, D36G/H/I/J/K, D19X.**
 
 User reports that adjustable world FOV looks excellent, but increasing it makes
 first-person weapons and arms too small and incorrectly positioned. Reproduction:
@@ -47,8 +86,17 @@ necessary per-weapon exceptions with evidence.
 A future standalone HTML comparison artifact may help the user approve the
 weapon presentation. Create it only when requested; no artifact is requested by
 this intake. Use plain locally opened HTML, like the ttk-fonts document, without
-a web server. No weapon design, code, build or gameplay testing is part of this
-backlog-only closeout. The intake is complete; D14B remains Todo.
+a web server. The original backlog intake authorized no weapon design, code, build or
+playtesting. The user subsequently selected D14B on 2026-10-28.
+
+Accepted result: DisplayHand/DisplayArm meshes and attached equipment use local H=256,
+while the world keeps the selected FOV. Original framing, grips, UV/depth and
+lighting are preserved without per-weapon retuning or gameplay-matrix changes.
+Build, native controls/input/aim/near suites and private multi-weapon/aspect,
+interaction and replay samples pass within the limits in
+[note 297](documentation/297-d14b-weapon-projection.md). User confirms the arms
+are solid and accepts D14B, with documentation/implementation commit and push
+closeout authorized. D14C separately records the leg-view concern; it is Todo.
 
 
 ## 2026-10-28 - Full mouse menu support and cursor backlog intake only
@@ -717,7 +765,8 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D13 | Higher internal resolution and display scaling | Done | D02 |
 | D14 | Widescreen, FOV and visibility | Done | D03, D13 |
 | D14A | Configurable first-person FOV foundation | Done (user-accepted 2026-10-28) | D11, D14 |
-| D14B | Decouple first-person weapon/arms presentation from world FOV | Todo (backlog only) | D14A foundation |
+| D14B | Decouple first-person weapon/arms presentation from world FOV | Done (user-accepted 2026-10-28) | D14A foundation |
+| D14C | Investigate first-person leg presentation across world FOV | Todo (backlog only) | D14A, D14B |
 | D15 | Optional geometry and texture precision | Accepted | D13 |
 | D16 | Texture manipulation and replacement foundation | Done (bounded foundation accepted 2026-10-27) | D13 |
 | D16A | HRP assets and first-person weapon research (later) | Cancelled (original assets preferred) | - |
@@ -22710,3 +22759,29 @@ matching all 55 modified/new framework files. Repository/privacy checks pass.
 User reports a separate background continuation; this closeout does not start
 or change that job. Existing evidence limits in note 296 remain documented.
 Launch: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-28 - D14B weapon projection candidate (Needs playtest)
+
+User selected careful geometry/projection research and implementation. Confirmed
+that H=160 shrank accepted H=256 display geometry to 62.5% and pulled it toward
+the projection centre. The object renderer now selects H=256 locally for semantic
+display-hand/arm owners, including attached weapons/items/flashes. Native body,
+kick and contact arms retain world projection; no per-weapon offsets or gameplay
+matrices change. Build and native controls/input/aim/near tests pass. Private
+base/alternate/upgraded weapon sweeps, 4:3/16:9/21:9, 60/120-setting replay and
+D36 interaction samples are recorded with failed-harness exclusions and visual
+coverage limits in [note 297](documentation/297-d14b-weapon-projection.md).
+Player files are unchanged. Needs user visual acceptance; no commit/push or
+closeout. Launch: `python3 recomp/tools/local/run.py`, then compare
+`fov default` and `fov 90` while cycling and firing weapons.
+
+
+## 2026-10-28 - D14B accepted and closed; D14C queued
+
+User: "arms is now really solid. great work." D14B is Done. The user explicitly
+authorized lock-in and closeout after a backlog-only leg investigation intake.
+D14C is Todo, not selected: brief source/existing-capture review only, with no
+new launch, build or gameplay changes. Prior D14B automated/visual evidence
+stands with its recorded limits. Implementation, tests, manual and documentation
+commit/push are authorized as MusicMonsterMod. No next job started.

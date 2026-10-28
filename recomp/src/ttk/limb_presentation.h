@@ -20,6 +20,12 @@ struct LimbPresentation {
     bool viewmodel() const { return depth==LimbDepth::Viewmodel; }
     bool interaction() const { return owner==LimbOwner::Interaction; }
     bool world_clip() const { return depth==LimbDepth::WorldClip; }
+    // D14B: only camera-relative hands/arms and their attached equipment use
+    // the accepted H=256 presentation. Native contact limbs, body and kick
+    // retain the world projection, even when they share a depth layer.
+    bool fixed_projection() const {
+        return owner==LimbOwner::DisplayHand || owner==LimbOwner::DisplayArm;
+    }
 };
 constexpr uint32_t limb_part(int part) { return part>=0 && part<32 ? 1u<<part : 0; }
 constexpr LimbPresentation limb_presentation(LimbOwner owner,int part,bool bridge=false) {

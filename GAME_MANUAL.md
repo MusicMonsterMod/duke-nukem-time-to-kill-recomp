@@ -1464,14 +1464,13 @@ integer-projection-quantized angle. `fov default` restores the exact original
 first-person projection (nominal 64 degrees). Changes last for this session,
 including view switches and save loads, but are not saved to player settings.
 Weapon/held-item display and their connected arms retain their original
-size and framing as world FOV changes. Native body and contact arms still
+size and framing as world FOV changes. Contact arms and the temporary kick leg
 follow the world view, with environment lighting preserved as FOV changes.
-During ordinary first-person movement, Duke's vest and belt connect the visible
-legs to his body. The chest adjusts for standing and crouched viewing clearance;
-weapon framing stays consistent as world FOV changes.
-If an obstruction pushes the first-person camera outside Duke, his world body
-is temporarily hidden to prevent an exposed headless torso. The normal body
-view returns when the camera is safely over him again.
+Modernized first person hides the ordinary torso and legs by default, retaining
+arms, weapons/items, the temporary Q leg and the separate native door kick.
+Third person and reflections retain the complete Duke. The displaced-eye safety
+guard still protects native empty-handed arms when an obstruction moves the eye
+outside Duke. No body preference is saved.
 The sky backdrop adapts to world FOV and aspect ratio to maintain side coverage.
 Third person keeps its own projection.
 The saved Gameplay slider is the separate
@@ -2005,17 +2004,23 @@ in the authoring pipeline for comparison. Duke's retail fingers remain closed.
 See [the accepted movement record](documentation/286-d08k13-d08k14-crouch-movement.md)
 for the local animation preview and verification limits.
 
-## Optional no-body presentation (D36J1, accepted prototype)
+## First-person body presentation (D36J2)
 
-From the workspace root, enable the experimental first-person presentation for
-one launch:
+Ordinary Modernized launches use the accepted no-body direction. Arms, weapons,
+held items and temporary Q/door-kick legs remain; third person, reflected Duke
+and Vanilla retain their existing presentation. This integration does not
+resolve the exposed shoulder/upper-arm concern tracked by D36H5.
+
+For a one-launch developer comparison with the earlier visible-body policy:
 
 ```sh
-DNTTK_FP_BODY=hidden python3 recomp/tools/local/run.py
+DNTTK_FP_BODY=visible python3 recomp/tools/local/run.py
 ```
 
-Ordinary torso/legs are hidden; arms, weapons and the temporary quick-kick/door
-leg remain. Kick behavior and third-person presentation are unchanged. The
-ordinary launch retains the accepted visible body. No body preference is saved.
-Compare console `fov 60`, `fov 80` and `fov 90` while looking down and using Q,
-including during jumps. The prototype is accepted; making it the normal Modernized default is queued as D36J2.
+Only the exact value `visible` selects this comparison. Omitted, empty, `hidden`
+or unrecognized values use no-body. The comparison retains the displaced-eye
+safety guard and does not save a setting. Normal launch:
+
+```sh
+python3 recomp/tools/local/run.py
+```

@@ -4,7 +4,7 @@
 
 ### D36J2 - Integrate no-body as the Modernized first-person default
 
-**Status: Todo. Dependency: D36J1 (Done, accepted prototype).**
+**Status: Done (user-accepted; closeout authorized 2026-10-28). Dependency: D36J1 (Done, accepted prototype).**
 
 Promote the accepted no-body direction into ordinary Modernized first-person
 launches without requiring the experimental environment flag. Decide and document
@@ -20,6 +20,11 @@ attack timing/damage/sound, save compatibility and D14E1 unsafe-eye protection.
 Record actual action/equipment states and visual coverage limits. Update manual,
 artifact and tests appropriate to the final integration. Broad shoulder/arm
 redesign belongs to D36H5; integration must not claim that concern resolved.
+
+Accepted implementation and evidence: [D36J2 integration note](documentation/304-d36j2-no-body-default.md).
+Ordinary launches use no-body; exact `DNTTK_FP_BODY=visible` is a one-launch
+diagnostic comparison. Build/native suites and bounded live action/restoration
+routes pass; user accepted the integration. Named coverage limits remain.
 
 ### D36H5 - No-body arms and weapons polish, exposed shoulders first
 
@@ -67,8 +72,8 @@ view/load/replay restoration and Vanilla. Retain motion/stills, source diagnosis
 measured cost if changed, and explicit limits. If unchanged Q passes review,
 document that finding rather than introduce unnecessary animation changes.
 
-These three jobs are registered only. None is selected or started by this
-closeout. D36J2 is the recommended next selection; D36H5 owns the priority
+At the D36J1 closeout these three jobs were registered only. D36J2 was
+subsequently selected; its current status is above. D36H5 owns the priority
 shoulder concern. Original D36J1 research questions that remain useful transfer
 to these scopes; unrun pose experiments are not claimed completed.
 
@@ -23152,3 +23157,30 @@ D36J3 kick polish are Todo. No new implementation job started. Prior test and
 private-run evidence stands with note 303's limits; unrun broad research is not
 claimed complete. Commit authored source/tests/docs as MusicMonsterMod; existing
 framework worktree changes remain outside this closeout.
+
+
+## 2026-10-28 - D36J2 default integration candidate
+
+D36J2 selected and implemented; Needs playtest. Default Modernized first person
+now uses the accepted no-body policy; exact `DNTTK_FP_BODY=visible` retains a
+diagnostic comparison with D14E1 safety. No saved setting, pose/gameplay/save-format
+change or framework edit. Extended native suites pass; private captures cover
+FOV/aspects, Q, mirror, door, traversal, swim/flight and restoration. Actual states
+and limits are recorded in [note 304](documentation/304-d36j2-no-body-default.md).
+Manual and standalone artifact updated for candidate review, not acceptance
+closeout. D36H5 shoulder polish and D36J3 kick review remain unstarted.
+No commit/push authorized. Launch: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-28 - D36J2 accepted and closed
+
+User accepted D36J2 and explicitly requested lock-in and closeout. D36J2 is Done.
+Ordinary Modernized first person uses no-body; the diagnostic visible comparison
+remains one-launch only. Prior build, native-suite and private runtime evidence
+stand with note 304's explicit limits. Acceptance does not imply exhaustive
+campaign/action coverage or resolution of D36H5 shoulders and D36J3 kick polish.
+Implementation, tests, manual and documentation are included in the authorized
+MusicMonsterMod commit/push. Existing framework changes remain preserved by the
+accepted patch; no new build, launch or player-file write during closeout.
+D36H5 and D36J3 remain Todo; no next job selected.
+Launch: `python3 recomp/tools/local/run.py`.

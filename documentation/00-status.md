@@ -1,5 +1,30 @@
 # Current status - 2026-10-04
 
+## 2026-10-28 - D36J2 accepted and closed
+
+User accepted the default no-body integration and explicitly authorized lock-in
+and closeout. D36J2 is Done. Ordinary Modernized first person hides the body;
+arms/items and temporary Q/door legs remain. The exact `DNTTK_FP_BODY=visible`
+override is diagnostic and one-launch only. Prior build/native/runtime results
+stand with the limits in [note 304](304-d36j2-no-body-default.md).
+D36H5 shoulder polish and D36J3 kick review remain Todo; no next job selected.
+Authored implementation/tests/manual/docs are authorized for MusicMonsterMod
+commit/push. No rebuild, game launch or player-file write during closeout.
+Launch: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-28 - D36J2 default integration (Needs playtest)
+
+Ordinary Modernized first-person launches now use the accepted no-body policy.
+Exact `DNTTK_FP_BODY=visible` retains the one-launch diagnostic comparison;
+no saved preference. Arms/items/Q/door owners and D14E1 safety remain. Build and
+controls/input/aim/near suites pass; private FOV/aspect, action and restoration
+runs are recorded with actual states and visual limits in
+[note 304](304-d36j2-no-body-default.md). Human acceptance remains. D36H5 shoulder
+polish and D36J3 kick review are unstarted. No framework edit, commit/push or
+acceptance closeout. Launch: `python3 recomp/tools/local/run.py`.
+
+
 ## 2026-10-28 - D36J1 accepted; three follow-ups queued
 
 User playtested and accepted the no-body prototype/direction, then explicitly

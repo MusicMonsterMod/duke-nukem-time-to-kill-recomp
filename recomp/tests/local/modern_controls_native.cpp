@@ -3760,6 +3760,7 @@ int main(int argc,char** argv) {
                 ttk::input.first_person=true;for(unsigned i=0;i<40;++i)frame();
                 std::puts("PASS: D12D upgraded first-person framing (base-equivalent pose/recoil/scale, held record preserved, third-person and Vanilla exclusion)");
             }
+            setenv("DNTTK_FP_BODY","visible",1); // diagnostic body comparison
             // D36J: world-space lower-body admission is semantic across
             // costume orderings, with no native matrix edits or arm takeover.
             {
@@ -3916,8 +3917,8 @@ int main(int argc,char** argv) {
                                           {0,-294,97}, {0,-294,-97}, {0,-353,0}, {0,-127,0}, {52,-464,-184}}) {
                         const bool safe=delta[0]==0 && delta[2]==0 && (delta[1]==-294 || delta[1]==-224);
                         for(int k=0;k<3;++k)psx_mod_write_word(c+0x14+4*k,psx_mod_read_word(mats+0x14+4*k)+delta[k]);
-                        for(const char* body:{"visible","hidden","invalid"}) for(unsigned h:{277u,256u,191u,160u,128u}) for(unsigned equipment:{0u,2u}) {
-                            setenv("DNTTK_FP_BODY",body,1);
+                        for(const char* body:{(const char*)nullptr,"visible","hidden","invalid",""}) for(unsigned h:{277u,256u,191u,160u,128u}) for(unsigned equipment:{0u,2u}) {
+                            if(body)setenv("DNTTK_FP_BODY",body,1);else unsetenv("DNTTK_FP_BODY");
                             psx_mod_write_byte(p+0x3b8,equipment);
                             for(unsigned part:{0u,1u,5u,9u,20u,21u,10u,15u}) {
                                 call(0x800348d8,c,p,0x8003769c);
@@ -3925,7 +3926,7 @@ int main(int argc,char** argv) {
                                 const uint32_t native=mats+32*draw.gpr[23];draw.gpr[5]=native;
                                 draw.gpr[29]=0x801f0000;draw.gpr[31]=0x80034c6c;draw.gte_ctrl[26]=h;
                                 hooks().at(0x800292a0)(&draw,0x800292a0);
-                                const bool hidden=(!std::strcmp(body,"hidden") && (part<=9 || part>=20)) ||
+                                const bool hidden=((!body || std::strcmp(body,"visible")) && (part<=9 || part>=20)) ||
                                     (!safe && (part<=9 || part>=20 || equipment==0));
                                 const auto owner=ttk::first_person_limb_presentation();
                                 assert((owner.owner==ttk::LimbOwner::HiddenBody)==hidden);
@@ -3944,7 +3945,7 @@ int main(int argc,char** argv) {
                 unsetenv("DNTTK_FP_BODY");
                 for(int k=0;k<3;++k)psx_mod_write_word(c+0x14+4*k,eye[k]);
                 psx_mod_write_byte(p+0x3b8,equip);layout(first_map);
-                std::puts("PASS: D36J1 opt-in no-body and D14E1 displaced-eye body rejection across costumes, FOVs, armed/unarmed draws and immediate scope restoration");
+                std::puts("PASS: D36J2 default/explicit/invalid no-body and D14E1 displaced-eye body rejection across costumes, FOVs, armed/unarmed draws and immediate scope restoration");
             }
             // D36H4: empty-handed locomotion retains native connected chains,
             // including costumes with different joint ordering. Armed/held-item
@@ -4051,14 +4052,15 @@ int main(int argc,char** argv) {
                     ttk::segment_hit=false;
                 }
                 // The leg is drawn in front of the eye during the kick.
+                setenv("DNTTK_FP_BODY","visible",1);
                 call(0x800348d8,c,p,0x8003769c);
                 auto leg=hook(0x800292a0,c,mats+0x20*12,0x80034c6c,12);
                 assert(leg.gpr[5]!=mats+0x20*12 && ttk::first_person_weapon_drawing());
                 assert(ttk::first_person_limb_presentation().owner==ttk::LimbOwner::Kick);
                 assert(ttk::first_person_limb_presentation().parts==(1u<<3));
-                // D36J1: hiding the ordinary body must not consume active Q.
+                // D36J2: default no-body must not consume active Q.
                 const std::vector<uint8_t> shown(ram+(leg.gpr[5]&0x1fffff),ram+(leg.gpr[5]&0x1fffff)+32);
-                setenv("DNTTK_FP_BODY","hidden",1);
+                unsetenv("DNTTK_FP_BODY");
                 auto no_body_leg=hook(0x800292a0,c,mats+0x20*12,0x80034c6c,12);
                 assert(ttk::first_person_limb_presentation().owner==ttk::LimbOwner::Kick);
                 assert(std::equal(shown.begin(),shown.end(),ram+(no_body_leg.gpr[5]&0x1fffff)));
@@ -4083,19 +4085,19 @@ int main(int argc,char** argv) {
                     double distance=0;
                     for(int i=0;i<3;++i)distance+=std::pow(double(origin[i])-int32_t(psx_mod_read_word(knee.gpr[5]+0x14+4*i)),2);
                     assert(distance>200*200 && distance<250*250);
-                    // Q does not move the right leg or its holster.
+                    // Default no-body suppresses the opposite leg/holster without moving native matrices.
                     for(unsigned joint:{14u,15u,16u,17u,18u}) {
                         auto native=hook(0x800292a0,c,mats+0x20*joint,0x80034c6c,joint);
-                        assert(native.gpr[5]==mats+0x20*joint);
+                        assert(native.gpr[5]==c);
                         assert(ttk::first_person_limb_presentation().owner!=ttk::LimbOwner::Kick);
                     }
                 }
-                assert(hook(0x800292a0,c,mats+0x20*16,0x80034c6c,16).gpr[5]==mats+0x20*16); // right leg
+                assert(hook(0x800292a0,c,mats+0x20*16,0x80034c6c,16).gpr[5]==c); // hidden right leg
                 // D12B: the cowboy costume's left leg is joints 1..4; its joints
-                // 14 and 15 (part 0x14, the neck) are left alone.
+                // 14 (neck) is suppressed here; 15 (head) retains its separate hide owner.
                 layout(cowboy);
                 for(unsigned j=1;j<=4;++j) assert(hook(0x800292a0,c,mats+0x20*j,0x80034c6c,j).gpr[5]!=mats+0x20*j);
-                for(unsigned j=14;j<=15;++j) assert(hook(0x800292a0,c,mats+0x20*j,0x80034c6c,j).gpr[5]==mats+0x20*j);
+                for(unsigned j=14;j<=15;++j) assert(hook(0x800292a0,c,mats+0x20*j,0x80034c6c,j).gpr[5]==(j==14?c:mats+0x20*j));
                 layout(first_map);
                 assert(!ttk::first_person_weapon_drawing());
                 assert(hook(0x800292a0,c,mats+0x20*9,0x80034c6c,9).gpr[5]==mats+0x20*9);
@@ -4107,7 +4109,7 @@ int main(int argc,char** argv) {
                 for(unsigned i=0;i<10;++i){frame();update();}
                 assert(kick_calls.empty());                         // finished
                 call(0x800348d8,c,p,0x8003769c);
-                assert(hook(0x800292a0,c,mats+0x20*12,0x80034c6c,12).gpr[5]==mats+0x20*12);
+                assert(hook(0x800292a0,c,mats+0x20*12,0x80034c6c,12).gpr[5]==c);
                 call(0x8001ca4c,0x800d0000,0,0x800376b4);
                 assert(std::equal(before.begin(),before.end(),ram+(mats&0x1fffff)));
                 // Boot selected: a held attack starts the kick (moving too).
@@ -4300,7 +4302,7 @@ int main(int argc,char** argv) {
                 const auto equip=psx_mod_read_byte(p+0x3b8);
                 psx_mod_write_byte(p+0x3b8,0);
                 const std::vector<uint8_t> before(ram+(mats&0x1fffff),ram+(mats&0x1fffff)+19*0x20);
-                for(unsigned part:{9u,10u,11u,12u,13u,14u,15u,16u}) {
+                for(unsigned part:{0u,9u,10u,11u,12u,13u,14u,15u,16u,20u,21u}) {
                     const bool arm=(eligible || unarmed_body) && part>=10 && part<=15;
                     call(0x800348d8,c,p,0x8003769c);
                     CPUState joint{};joint.gpr[4]=c;joint.gpr[20]=p;joint.gpr[29]=0x801f0000;
@@ -4309,19 +4311,20 @@ int main(int argc,char** argv) {
                     joint.gpr[5]=matrix;joint.gpr[31]=0x80034c6c;
                     hooks().at(0x800292a0)(&joint,0x800292a0);
                     const auto limb=ttk::first_person_limb_presentation();
-                    const bool torso=unarmed_body && part==9;
-                    assert(limb.bridge_joint_depth==(arm || torso) && !limb.viewmodel());
+                    const bool hidden=ttk::modern && ttk::first_person_view_live() && (part<=9 || part>=20);
+                    assert((limb.owner==ttk::LimbOwner::HiddenBody)==hidden);
+                    assert(limb.bridge_joint_depth==arm && !limb.viewmodel());
                     if(arm)assert(limb.owner==(unarmed_body?ttk::LimbOwner::Body:ttk::LimbOwner::Interaction) &&
                         limb.parts==(1u<<part) && limb.space==ttk::LimbSpace::NativeWorld &&
                         limb.light==(unarmed_body?ttk::LimbLight::CorrectProximityFade:ttk::LimbLight::Native));
-                    assert((joint.gpr[5]!=matrix)==(unarmed_body && (arm || torso)));
+                    assert((joint.gpr[5]!=matrix)==(hidden || (unarmed_body && arm)));
                     const auto displayed=joint.gpr[5];
                     joint.gpr[31]=0x80034c8c;joint.gte_ctrl[26]=256;
                     psx_mod_write_word(joint.gpr[29]+0x98,c);
                     for(int depth:{-120,0,80,255,256,400}) {
                         joint.gpr[16]=depth;
                         hooks().at(0x800b4d2c)(&joint,0x800b4d2c);
-                        assert((int32_t)joint.gpr[16]==((arm || torso)?std::max(depth,256):depth));
+                        assert((int32_t)joint.gpr[16]==(arm?std::max(depth,256):depth));
                         assert(joint.gte_ctrl[26]==256 && joint.gpr[5]==displayed);
                     }
                     for(int bad=0;bad<3;++bad) {
@@ -4400,7 +4403,7 @@ int main(int argc,char** argv) {
                             cpu.gpr[23]=psx_mod_read_byte(desc+0x24+part);
                             cpu.gpr[5]=mats+0x20*cpu.gpr[23];cpu.gpr[31]=0x80034c6c;
                             hooks().at(0x800292a0)(&cpu,0x800292a0);
-                            const bool changed=cpu.gpr[5]!=mats+0x20*cpu.gpr[23];
+                            const bool changed=ttk::first_person_limb_presentation().owner==ttk::LimbOwner::Kick;
                             std::array<int32_t,3> pos{};
                             for(unsigned i=0;i<3;++i)pos[i]=psx_mod_read_word(cpu.gpr[5]+0x14+4*i);
                             call(0x8001ca4c,0x800d0000,0,0x800376b4);
@@ -4420,8 +4423,8 @@ int main(int argc,char** argv) {
                         for(unsigned i=0;i<3;++i)right+=(int16_t)psx_mod_read_half(c+2*i)/4096.0*(strike[i]-(int32_t)psx_mod_read_word(c+0x14+4*i));
                         assert(right>0); // rises on the right, unlike the quick kick
                         assert(draw(7).second==strike); // no host-frame timer
-                        setenv("DNTTK_FP_BODY","hidden",1);
-                        assert(draw(7).second==strike); // no-body retains native door presentation
+                        setenv("DNTTK_FP_BODY","visible",1);
+                        assert(draw(7).second==strike); // diagnostic body retains the same door presentation
                         unsetenv("DNTTK_FP_BODY");
                         psx_mod_write_half(p+0x66,6);assert(!draw(7).first); // malformed/outside clip
                         psx_mod_write_half(p+0x66,3);
@@ -4516,7 +4519,7 @@ int main(int argc,char** argv) {
                     contact_arms(true);
                     const auto equip=psx_mod_read_byte(p+0x3b8);
                     psx_mod_write_byte(p+0x3b8,0);
-                    for(unsigned part=10;part<=15;++part) {
+                    for(unsigned part=0;part<=21;++part) {
                         constexpr uint32_t reflected=0x801ffe58;
                         call(0x800348d8,reflected,p,0x8003816c);
                         CPUState joint{};joint.gpr[4]=reflected;joint.gpr[20]=p;
@@ -4579,7 +4582,7 @@ int main(int argc,char** argv) {
                                 joint.gpr[5]=mats+0x20*joint.gpr[23];joint.gpr[31]=0x80034c6c;
                                 hooks().at(0x800292a0)(&joint,0x800292a0);
                                 assert(ttk::first_person_interaction_drawing()==(part>=0x0a && part<=0x0f));
-                                assert(joint.gpr[5]==mats+0x20*joint.gpr[23]); // native hand matrices
+                                assert(joint.gpr[5]==(part==9?c:mats+0x20*joint.gpr[23])); // hidden torso, native contact arms
                                 const auto limb=ttk::first_person_limb_presentation();
                                 assert(limb.bridge_joint_depth==(part>=0x0a && part<=0x0f) && !limb.viewmodel());
                                 if(part>=0x0a && part<=0x0f) {

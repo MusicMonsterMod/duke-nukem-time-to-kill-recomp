@@ -100,4 +100,5 @@ Statistics research (D20E): kills, the enemy total for X OF Y, shots and hits: [
 
 - [Accepted crouch movement and MGS-based walk/run study](286-d08k13-d08k14-crouch-movement.md): D08K13 timeout/legacy-roll fix; D08K14 accepted revision 2, reference timing, hand posture, boot contact, exact gait parameters, HTML preview reproduction and test limits.
 
+- [D36J2 no-body default integration](304-d36j2-no-body-default.md).
 - [D36J1 quick-kick investigation](303-d36j1-quick-kick-research.md) - [standalone artifact](artifacts/quick-kick-realism.html).

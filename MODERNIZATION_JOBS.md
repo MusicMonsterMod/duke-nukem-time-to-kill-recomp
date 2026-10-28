@@ -1,5 +1,88 @@
 # Time to Kill — modernization jobs
 
+## 2026-10-28 - Five backlog requests (intake only)
+
+User explicitly requested no work on these jobs now, allowing only minor
+research within five minutes overall. All five are Todo, not selected.
+Subsequent permission to launch for research does not select implementation.
+
+### D19V - Remove redundant Advanced Settings view toggles
+
+**Status: Todo. Backlog only; not started.**
+Remove the user's "Use interaction" and "Mirror" options from Advanced Settings.
+First trace each setting's consumers and defaults. Preserve intended default
+play and underlying interaction/rendering functionality; remove obsolete UI
+descriptions and gracefully normalize or migrate existing saved configurations.
+Read the accepted D36 audit before changing action perspective ownership.
+Acceptance: options/descriptions removed, fresh and existing configurations
+behave correctly, interactions/mirrors and accepted first-person behavior remain
+intact, Vanilla unchanged.
+Brief source observation only: `recomp/src/ttk/game_menu.cpp` defines these as
+USE INTERACTION VIEW (`use_view`) and MIRROR VIEW (`mirror_view`) under ACTION
+PERSPECTIVE. They are view selectors; this does not establish all consumers or
+migration requirements. Do not mistake MIRROR VIEW for a rendering enable switch.
+
+### D09B - Restore classic gamepad auto-aim and red dot
+
+**Status: Todo. Backlog only; not started. Related: D09/D09A, D07D/E.**
+User reports Legacy controls with AUTO AIM ON and RED DOT ON do not restore the
+original behavior. Investigate auto-aim and the classic red dot separately:
+trace saved settings, live values and original gameplay/marker systems, and
+identify any input, aim or rendering overrides. Establish original behavior
+from evidence; neither a modern aim-assist substitute nor the modern crosshair
+is an assumed equivalent.
+First report each feature's blocker, whether direct restoration is feasible,
+and limitations/alternatives. Then implement supported restoration where
+practical, scoped to relevant control/aim modes. Preserve accepted modern mouse
+aiming, first-person behavior and Vanilla. Prefer original systems.
+Acceptance requires an actual gamepad in Legacy controls: test auto-aim and
+red dot independently and together, including acquiring/changing targets and
+firing; demonstrate observable settings effects and correct disabling. Record
+physical-device evidence separately from injected input or source inspection.
+Brief source observation only: `game_menu.cpp` maps AUTO AIM to `aim_assist`,
+uses `original-lock` to enforce the original auto-aim bit, and reports RED DOT
+as needing AUTO AIM ON. This is an investigation entry point, not a diagnosed
+cause or proof of functioning gameplay. Revisit D07D's marker suppression.
+
+### D19W - Separate keyboard and gamepad bindings pages
+
+**Status: Todo. Backlog only; not started. Related: D19G, D09/D09A.**
+Rename KEY BINDINGS to KEYBOARD KEY BINDINGS and add a GAMEPAD KEY BINDINGS
+category beside it. Place both categories immediately below CONTROL SCHEME
+and before MOUSE LOOK on the Controls page. Provide gamepad binding controls
+consistent with the existing keyboard page; inspect existing input mapping,
+conflicts, persistence and defaults before implementation.
+Acceptance: requested order/names, usable pad navigation and rebinding, settings
+persist/reload, keyboard bindings preserved, relevant Legacy/Modern and device
+assignment behavior verified. Resolve any unsupported bindings explicitly.
+
+### D17AC - Slot-11 phone disappears on approach
+
+**Status: Todo. Backlog only; not started. Related: D17L.**
+User reports the phone disappears as the player approaches it in current UI
+slot 11. Verify current save identity with private copies, then reproduce
+approach/retreat and inspect object visibility, near clipping, culling,
+depth/order and contact with adjacent surfaces. A culling fault or touching
+sprite is a hypothesis, not an established cause.
+Acceptance: identify the responsible path, implement a bounded correction and
+verify stable phone visibility while preserving legitimate occlusion and nearby
+props in relevant views and refresh rates. D17L's historical slot-11 tabletop
+repair is related evidence, not proof this report has the same cause.
+
+### D17AD - Tile loading background across widescreen resolutions
+
+**Status: Todo. Backlog only; not started. Related: D17U.**
+User reports the background behind the giant spinning nuke loading symbol,
+including menu transitions, remains 4:3 with black side bars. Inspect supplied
+`screencaps/loading-4-3.png` (resolve its actual local location when selected).
+Extend/tile the background without stretching its artwork, adapting to the
+active resolution/aspect ratio. Preserve spinner geometry, animation timing,
+menu/loading composition and Vanilla.
+Acceptance: seamless non-stretched coverage at 4:3, 16:9, 16:10, ultrawide and
+window resize/custom resolutions; no uncovered side bars, seams or regression
+to the accepted smooth loading spinner. Screenshot not inspected at intake.
+
+
 ### D17AB - Slot-5 mirror sky leak, HUD loss and palette corruption
 
 **Status: Done (user-accepted; closeout, commit and push authorized 2026-10-27).**

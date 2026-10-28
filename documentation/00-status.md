@@ -1,5 +1,18 @@
 # Current status - 2026-10-04
 
+## 2026-10-28 - Five requests queued only
+
+D19V (remove redundant action-view settings), D09B (classic gamepad auto-aim
+and red dot), D19W (keyboard/gamepad bindings pages), D17AC (slot-11 phone)
+and D17AD (widescreen loading background) are Todo in MODERNIZATION_JOBS.md.
+User explicitly said not to work on them now and limited minor research to
+five minutes overall. Source-only intake; no diagnosis, implementation, build,
+launch or gameplay verification. Later research-launch permission was unused.
+D09B requires a findings report before restoration and actual-gamepad Legacy
+verification. No job selected. User subsequently authorized committing and
+pushing this backlog intake; implementation remains unstarted.
+
+
 ## 2026-10-28 - Two-player baseline accepted; D34C closed for now
 
 User: "lock it in, close us out. two player now works and is fundamentally

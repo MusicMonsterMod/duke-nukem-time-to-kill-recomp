@@ -1,5 +1,31 @@
 # Time to Kill — modernization jobs
 
+## 2026-10-28 - D14D adaptive sky coverage across FOV
+
+### D14D - Correct sky artifacts at wider first-person FOV
+
+**Status: Done (user-accepted; closeout authorized 2026-10-28). Dependencies: D14A, D17O, D17R/R1/R2 (Done).**
+
+User selected immediate investigation and implementation. Report: current UI
+slots 2, 5 and 6 show sky artifacts, especially at the left/right at FOV 80/90.
+Compare private copies at default/60/80/90 and trace the earlier widescreen
+coverage, native sky layers, clipping and replay paths. Prefer coverage driven
+by the actual view projection and aspect over restricting the accepted FOV.
+Keep original art, gradients, cloud motion, world visibility and Vanilla intact.
+
+Acceptance: matched reported-scene captures and yaw/pitch motion at 4:3, 16:9
+and ultrawide; preserve default FOV and third person, load/view transitions,
+60/120 replay, prior sky fixes and packet-budget behavior. Add focused native
+regressions for the proven cause. Distinguish sampled verification from user
+visual acceptance. User confirms all working and authorizes lock-in and
+closeout on 2026-10-28.
+
+Accepted result: the partial sky backdrop now adapts to actual render H as well as
+aspect. Matched side seams are removed; build, sky/near tests and bounded
+private 4:3/16:9/21:9 and replay sweeps pass. User playtest is accepted.
+See [note 300](documentation/300-d14d-adaptive-sky-fov.md) for evidence and limits.
+
+
 
 ## 2026-10-28 - D36I1 mirror interaction arm continuity
 
@@ -22864,3 +22890,23 @@ private 60/120, FOV, repeat-use and save/load evidence stand with the limits in
 [note 299](documentation/299-d36i1-mirror-arms.md). No new game run or rebuild
 was needed for closeout. No next job started.
 Launch: `python3 recomp/tools/local/run.py`.
+
+
+### 2026-10-28 / D14D adaptive sky FOV candidate (Needs playtest)
+
+User requested this new job and immediate implementation. Reproduced side seams
+in current slots 5/6 at 90: the D17R backdrop only accounted for aspect, while
+cloud layers extended beyond it at reduced projection H. It now expands using
+actual render H, including replay, and works at 4:3 too. Default/narrower views,
+cloud art/motion and Vanilla keep prior behavior. Build, sky/near tests and
+private reported-scene/aspect/replay samples pass within note 300's limits.
+Player files unchanged. Await user playtest; no commit/push or closeout.
+
+
+### 2026-10-28 / D14D accepted and closed
+
+User confirms "all working" and explicitly requests lock-in and closeout.
+D14D is Done. The adaptive sky backdrop implementation, native regression tests
+and documentation are authorized for commit/push as MusicMonsterMod. Prior
+build and private verification evidence stands with the limits in note 300.
+No next job started.

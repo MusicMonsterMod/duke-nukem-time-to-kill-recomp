@@ -17,7 +17,8 @@
 // axis: its screen edges move out by that factor and its vertical gradient is
 // unchanged). The routine, its timer, textures, the
 // D17O camera-relative matrices and 4:3 (m=0, Vanilla) are untouched.
-// DNTTK_SKY_WIDE=0 (developer) keeps the 4:3 sky.
+// D14D additionally expands local X by 256/H when Modernized H<256.
+// DNTTK_SKY_WIDE=0 (developer) keeps the original sky geometry.
 #include "cpu_state.h"
 #include "mod_plugins.h"
 #include "pc_input.h"
@@ -66,11 +67,11 @@ void sky_background(CPUState* cpu) {
 
 int32_t margin() {
     static const bool off=[]{const char* t=std::getenv("DNTTK_SKY_WIDE");return t && !std::strcmp(t,"0");}();
-    if(off) return 0;
+    if(off) return -1;
     const int32_t m=psx_mod_widescreen_x_margin();
-    if(m<=0 || m>512 || psx_mod_read_word(players)>=2) return 0;
+    if(m<0 || m>512 || psx_mod_read_word(players)>=2) return -1;
     static SkyRenderIdentity identity;
-    return identity.valid(input_host_frame(),g_dirty_ram_code_gen,g_psx_ram) ? m : 0;
+    return identity.valid(input_host_frame(),g_dirty_ram_code_gen,g_psx_ram) ? m : -1;
 }
 
 // Two x halves of one rectangle, widened only when they are the exact 4:3 pair.
@@ -85,7 +86,7 @@ void hook(CPUState* cpu,uint32_t address) {
     const uint32_t ra=cpu->gpr[31];
     if(address==0x8002bc18u) {
         if(ra!=0x80038bb4u) return;
-        const int32_t m=margin();if(!m) return;
+        const int32_t m=margin();if(m<=0) return;
         // F4 packet: x0 +8, x1 +0xc, x2 +0x10, x3 +0x14 (left, right, left, right).
         const uint32_t p=cpu->gpr[5];
         if(p<0x80010000u || p>0x801fffe8u) return;
@@ -93,7 +94,14 @@ void hook(CPUState* cpu,uint32_t address) {
         widen(p+0x10,p+0x14,m);
     } else if(address==0x800292a0u) {
         if(ra!=0x80038c68u || cpu->gpr[4]!=camera) return;
-        const int32_t m=margin();if(!m) return;
+        const int32_t m=margin();if(m<0) return;
+        // D14D: the partial backdrop must cover the actual render frustum,
+        // including replay's captured H. Preserve the accepted H>=256 geometry;
+        // wider FOV needs the inverse projection scale even in a 4:3 viewport.
+        // Only local X changes: horizon elevation, gradient and cloud bands stay.
+        const int32_t h=(uint16_t)cpu->gte_ctrl[26];
+        const int32_t denominator=input_modernized() && h>=128 && h<256 ? h : 256;
+        if(!m && denominator==256) return;
         // Guest-stack MATRIX. The trace showed the model's forward axis in its
         // row 2 (the camera's look direction), so local X is row 0: m00 +0,
         // m01 +2, m02 +4. Scaling a column instead skews it off the view's yaw.
@@ -101,13 +109,13 @@ void hook(CPUState* cpu,uint32_t address) {
         if(mat<0x80010000u || mat>0x801fffe0u) return;
         for(uint32_t o:{0u,2u,4u}) {
             const int32_t v=(int16_t)psx_mod_read_half(mat+o);
-            const int32_t s=(v*(256+m)+(v<0?-255:255))/256;  // round away from zero
+            const int32_t s=(v*(256+m)+(v<0?1-denominator:denominator-1))/denominator;  // round away from zero
             psx_mod_write_half(mat+o,(uint16_t)(int16_t)(s<-32768?-32768:s>32767?32767:s));
         }
     } else if(address==0x80010000u) {
         if(cpu->gpr[6]!=context) return;
         if(ra!=0x80038c94u && ra!=0x80038cf0u && ra!=0x80038da8u && ra!=0x80038e44u) return;
-        const int32_t m=margin();if(!m) return;
+        const int32_t m=margin();if(m<=0) return;
         widen(context+0x18,context+0x1a,m);
     }
 }

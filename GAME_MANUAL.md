@@ -1466,6 +1466,7 @@ including view switches and save loads, but are not saved to player settings.
 Weapon/held-item display and their connected arms retain their original
 size and framing as world FOV changes. Native body and contact arms still
 follow the world view, with environment lighting preserved as FOV changes.
+The sky backdrop adapts to world FOV and aspect ratio to maintain side coverage.
 Third person keeps its own projection.
 The saved Gameplay slider is the separate
 D19X job. For a single launch, `DNTTK_FP_FOV=75 python3 recomp/tools/local/run.py`

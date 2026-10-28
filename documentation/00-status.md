@@ -1,5 +1,27 @@
 # Current status - 2026-10-04
 
+## 2026-10-28 - D14D accepted and closed
+
+User confirms the adaptive sky FOV fix is all working and explicitly requests
+lock-in and closeout. D14D is Done. The backdrop adapts to actual projection
+and aspect, preserving default geometry, sky art/motion and Vanilla behavior.
+Prior build, sky/near tests and private aspect/replay evidence stand with their
+limits in [note 300](300-d14d-adaptive-sky-fov.md). Implementation, tests and
+documentation commit/push are authorized as MusicMonsterMod. No next job started.
+Launch: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-28 - D14D adaptive sky FOV candidate (Needs playtest)
+
+The reported side seams are reproduced as insufficient partial-backdrop coverage
+at wider world FOV. The backdrop now scales with actual render H and aspect,
+including replay and 4:3. Build, sky/near suites and private slots 2/5/6 samples
+pass within [note 300](300-d14d-adaptive-sky-fov.md)'s limits. Default geometry,
+cloud motion/art and Vanilla retain prior paths. Player files are unchanged.
+User visual acceptance remains; no acceptance closeout, commit or push authorized.
+Launch: `python3 recomp/tools/local/run.py`; compare `fov 80` and `fov 90`.
+
+
 ## 2026-10-28 - D36I1 accepted and closed
 
 User accepted the slot-5 mirror grooming arm correction and explicitly requested

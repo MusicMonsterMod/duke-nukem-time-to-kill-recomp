@@ -15,6 +15,7 @@ static uint8_t ram[0x200000];
 static std::map<uint32_t,PSXModFunctionEntryCallback> hooks;
 static int32_t margin=0;
 static bool modern=true;
+static uint16_t projection=256;
 extern "C" {uint8_t* g_psx_ram=ram;uint32_t g_dirty_ram_code_gen=1;}
 extern "C" uint8_t psx_mod_read_byte(uint32_t a){return ram[a&0x1fffff];}
 extern "C" uint16_t psx_mod_read_half(uint32_t a){return psx_mod_read_byte(a)|(psx_mod_read_byte(a+1)<<8);}
@@ -28,7 +29,7 @@ namespace ttk {uint64_t input_host_frame(){static uint64_t f=0;return ++f;} bool
 static int16_t h(uint32_t a){return (int16_t)psx_mod_read_half(a);}
 static void sh(uint32_t a,int v){psx_mod_write_half(a,(uint16_t)(int16_t)v);}
 static void call(uint32_t address,uint32_t ra,uint32_t a0,uint32_t a1,uint32_t a2=0) {
-    CPUState cpu{};cpu.gpr[31]=ra;cpu.gpr[4]=a0;cpu.gpr[5]=a1;cpu.gpr[6]=a2;
+    CPUState cpu{};cpu.gte_ctrl[26]=projection;cpu.gpr[31]=ra;cpu.gpr[4]=a0;cpu.gpr[5]=a1;cpu.gpr[6]=a2;
     hooks.at(address)(&cpu,address);
 }
 constexpr uint32_t packet=0x80100000u,matrix=0x801ffe00u,context=0x800d67a8u,camera=0x800d6eb0u;
@@ -87,6 +88,21 @@ int main(int argc,char** argv) {
     margin=192;reset();run_all();
     assert(h(packet+8)==-448 && h(context+0x1a)==448 && h(matrix)==6208);
 
+    // D14D: actual H, including a replay frame's projection, expands only
+    // the partial backdrop. Screen-space fill/clip bounds do not depend on H.
+    for(int m:{0,85,192}) for(int hp:{160,191,256,277,386}) {
+        margin=m;projection=hp;reset();run_all();
+        const int d=hp<256?hp:256;
+        assert(h(matrix)==(3547*(256+m)+d-1)/d);
+        assert(h(matrix+4)==(-2048*(256+m)+1-d)/d);
+        assert(h(matrix+8)==4096 && h(matrix+12)==2048 && h(matrix+16)==3547);
+        assert(h(packet+8)==-256-m && h(context+0x1a)==256+m);
+    }
+    // Invalid H and Vanilla retain the accepted aspect-only correction.
+    margin=0;projection=0;reset();run_all();assert(untouched());
+    projection=160;modern=false;reset();run_all();assert(untouched());modern=true;
+    projection=256;
+
     // Other callers, cameras and contexts are left alone.
     margin=85;reset();
     call(0x8002bc18u,0x80033db0u,0x7ff,packet);
@@ -106,6 +122,16 @@ int main(int argc,char** argv) {
     reset();run_all();assert(untouched());
     psx_mod_write_word(0x80038b08u,word);++g_dirty_ram_code_gen;
     reset();run_all();assert(h(packet+8)==-341);
+
+    // The new 4:3 FOV path must retain identity and split-screen guards.
+    margin=0;projection=160;
+    psx_mod_write_word(0x800c27bcu,2);reset();run_all();assert(untouched());
+    psx_mod_write_word(0x800c27bcu,1);
+    psx_mod_write_word(0x80038b08u,word^1);++g_dirty_ram_code_gen;
+    reset();run_all();assert(untouched());
+    psx_mod_write_word(0x80038b08u,word);++g_dirty_ram_code_gen;
+    reset();run_all();assert(h(matrix)==5676);
+    projection=256;
 
     // D17R2: sky omitted by the portal walk, with a loaded backdrop. Only
     // the eventual sky return changes; far limits and room data stay intact.

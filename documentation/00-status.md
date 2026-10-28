@@ -1,5 +1,49 @@
 # Current status - 2026-10-04
 
+## 2026-10-28 - D36J1 accepted; three follow-ups queued
+
+User playtested and accepted the no-body prototype/direction, then explicitly
+authorized backlog splitting and commit/push. D36J1 is Done for the bounded
+prototype and evidence in [note 303](303-d36j1-quick-kick-research.md).
+D36J2 (default integration), D36H5 (arms/weapon polish, exposed shoulders first)
+and D36J3 (kick motion/overlap review) are Todo in the canonical job board.
+The user's main concern is shots exposing disembodied shoulders/upper-arm ends;
+D36H5 must investigate the actual geometry/owner before choosing a remedy.
+No follow-up job is started. Broader original research is transferred, not
+represented as fully executed. Existing build/native/runtime evidence and
+limits stand; no new build or launch needed for closeout. Commit/push authored
+implementation, tests and docs as MusicMonsterMod; preserve framework edits.
+Current no-body launch: `DNTTK_FP_BODY=hidden python3 recomp/tools/local/run.py`.
+Normal baseline: `python3 recomp/tools/local/run.py`. D36J2 removes the flag need.
+
+
+## 2026-10-28 - D36J1 no-body prototype (Needs playtest)
+
+User selected an opt-in no-body experiment. It hides ordinary first-person body
+while retaining arms/equipment and unchanged Q/door presentation. Matched
+60/80/90 images support the reported visibility contribution. Build/native
+suites and bounded private jump/Q, aspect, equipment, view/load and replay
+checks pass; [note 303](303-d36j1-quick-kick-research.md) and the
+[artifact](artifacts/quick-kick-realism.html) retain evidence and limits.
+No permanent body-policy decision, research closeout, commit or push. All 41
+player save/card/settings files preserved. Broader research remains open.
+Prototype: `DNTTK_FP_BODY=hidden python3 recomp/tools/local/run.py`.
+Accepted body baseline: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-28 - D36J1 investigation stood up
+
+User requested quick-kick realism research at FOV 80/90, especially downward and
+airborne views. D36J1 is In progress for research setup; experiments are pending.
+[Note 303](303-d36j1-quick-kick-research.md) and the
+[standalone artifact](artifacts/quick-kick-realism.html) define the evidence ledger,
+initial source references and controlled experiment/acceptance matrix.
+Camera-relative Q versus world-body attachment is a hypothesis, not a reproduced
+cause. Preserve accepted left-leg Q, separate right-leg door kick and D14E/E1.
+No gameplay change, build, launch, player-file write, commit or push. Next research
+step: establish a private matched baseline before testing offsets/pose blending.
+
+
 ## 2026-10-28 - D14E1 accepted and closed
 
 User accepted the corner body guard and explicitly requested lock-in and

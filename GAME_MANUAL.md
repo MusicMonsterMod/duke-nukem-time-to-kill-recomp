@@ -2004,3 +2004,18 @@ The earlier captured walk by abdlilah ben (CC BY 4.0, see README Credits) remain
 in the authoring pipeline for comparison. Duke's retail fingers remain closed.
 See [the accepted movement record](documentation/286-d08k13-d08k14-crouch-movement.md)
 for the local animation preview and verification limits.
+
+## Optional no-body presentation (D36J1, accepted prototype)
+
+From the workspace root, enable the experimental first-person presentation for
+one launch:
+
+```sh
+DNTTK_FP_BODY=hidden python3 recomp/tools/local/run.py
+```
+
+Ordinary torso/legs are hidden; arms, weapons and the temporary quick-kick/door
+leg remain. Kick behavior and third-person presentation are unchanged. The
+ordinary launch retains the accepted visible body. No body preference is saved.
+Compare console `fov 60`, `fov 80` and `fov 90` while looking down and using Q,
+including during jumps. The prototype is accepted; making it the normal Modernized default is queued as D36J2.

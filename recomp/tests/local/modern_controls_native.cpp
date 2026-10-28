@@ -3916,7 +3916,8 @@ int main(int argc,char** argv) {
                                           {0,-294,97}, {0,-294,-97}, {0,-353,0}, {0,-127,0}, {52,-464,-184}}) {
                         const bool safe=delta[0]==0 && delta[2]==0 && (delta[1]==-294 || delta[1]==-224);
                         for(int k=0;k<3;++k)psx_mod_write_word(c+0x14+4*k,psx_mod_read_word(mats+0x14+4*k)+delta[k]);
-                        for(unsigned h:{277u,256u,191u,160u,128u}) for(unsigned equipment:{0u,2u}) {
+                        for(const char* body:{"visible","hidden","invalid"}) for(unsigned h:{277u,256u,191u,160u,128u}) for(unsigned equipment:{0u,2u}) {
+                            setenv("DNTTK_FP_BODY",body,1);
                             psx_mod_write_byte(p+0x3b8,equipment);
                             for(unsigned part:{0u,1u,5u,9u,20u,21u,10u,15u}) {
                                 call(0x800348d8,c,p,0x8003769c);
@@ -3924,7 +3925,8 @@ int main(int argc,char** argv) {
                                 const uint32_t native=mats+32*draw.gpr[23];draw.gpr[5]=native;
                                 draw.gpr[29]=0x801f0000;draw.gpr[31]=0x80034c6c;draw.gte_ctrl[26]=h;
                                 hooks().at(0x800292a0)(&draw,0x800292a0);
-                                const bool hidden=!safe && (part<=9 || part>=20 || equipment==0);
+                                const bool hidden=(!std::strcmp(body,"hidden") && (part<=9 || part>=20)) ||
+                                    (!safe && (part<=9 || part>=20 || equipment==0));
                                 const auto owner=ttk::first_person_limb_presentation();
                                 assert((owner.owner==ttk::LimbOwner::HiddenBody)==hidden);
                                 if(hidden) {
@@ -3939,9 +3941,10 @@ int main(int argc,char** argv) {
                     }
                     assert(std::equal(original.begin(),original.end(),ram+(mats&0x1fffff)));
                 }
+                unsetenv("DNTTK_FP_BODY");
                 for(int k=0;k<3;++k)psx_mod_write_word(c+0x14+4*k,eye[k]);
                 psx_mod_write_byte(p+0x3b8,equip);layout(first_map);
-                std::puts("PASS: D14E1 displaced-eye body rejection across costumes, FOVs, armed/unarmed draws and immediate scope restoration");
+                std::puts("PASS: D36J1 opt-in no-body and D14E1 displaced-eye body rejection across costumes, FOVs, armed/unarmed draws and immediate scope restoration");
             }
             // D36H4: empty-handed locomotion retains native connected chains,
             // including costumes with different joint ordering. Armed/held-item
@@ -4053,6 +4056,15 @@ int main(int argc,char** argv) {
                 assert(leg.gpr[5]!=mats+0x20*12 && ttk::first_person_weapon_drawing());
                 assert(ttk::first_person_limb_presentation().owner==ttk::LimbOwner::Kick);
                 assert(ttk::first_person_limb_presentation().parts==(1u<<3));
+                // D36J1: hiding the ordinary body must not consume active Q.
+                const std::vector<uint8_t> shown(ram+(leg.gpr[5]&0x1fffff),ram+(leg.gpr[5]&0x1fffff)+32);
+                setenv("DNTTK_FP_BODY","hidden",1);
+                auto no_body_leg=hook(0x800292a0,c,mats+0x20*12,0x80034c6c,12);
+                assert(ttk::first_person_limb_presentation().owner==ttk::LimbOwner::Kick);
+                assert(std::equal(shown.begin(),shown.end(),ram+(no_body_leg.gpr[5]&0x1fffff)));
+                auto no_body_other=hook(0x800292a0,c,mats+0x20*16,0x80034c6c,16);
+                assert(no_body_other.gpr[5]==c && ttk::first_person_limb_presentation().owner==ttk::LimbOwner::HiddenBody);
+                unsetenv("DNTTK_FP_BODY");
                 // D36J: the thigh starts at the hip, not at a reversed/dropped
                 // knee. Its complete chain reaches polygon clipping below H.
                 {
@@ -4408,6 +4420,9 @@ int main(int argc,char** argv) {
                         for(unsigned i=0;i<3;++i)right+=(int16_t)psx_mod_read_half(c+2*i)/4096.0*(strike[i]-(int32_t)psx_mod_read_word(c+0x14+4*i));
                         assert(right>0); // rises on the right, unlike the quick kick
                         assert(draw(7).second==strike); // no host-frame timer
+                        setenv("DNTTK_FP_BODY","hidden",1);
+                        assert(draw(7).second==strike); // no-body retains native door presentation
+                        unsetenv("DNTTK_FP_BODY");
                         psx_mod_write_half(p+0x66,6);assert(!draw(7).first); // malformed/outside clip
                         psx_mod_write_half(p+0x66,3);
                         setenv("DNTTK_USE_VIEW","legacy-third",1);frame();assert(draw(7).first);

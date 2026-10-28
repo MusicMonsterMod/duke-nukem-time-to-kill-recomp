@@ -1,5 +1,120 @@
 # Time to Kill — modernization jobs
 
+## 2026-10-28 - No-body presentation follow-up jobs
+
+### D36J2 - Integrate no-body as the Modernized first-person default
+
+**Status: Todo. Dependency: D36J1 (Done, accepted prototype).**
+
+Promote the accepted no-body direction into ordinary Modernized first-person
+launches without requiring the experimental environment flag. Decide and document
+any retained diagnostic body comparison route; do not add a player setting
+without a concrete need. Preserve arms, weapons/items, temporary Q and native
+door-kick presentation, complete third-person/reflected Duke and Vanilla.
+
+Acceptance: normal launcher uses no-body first person; verify mirror reflection,
+door kick, swim, jetpack, ladder/pole/wall/overhead/mantle/water-exit, held items,
+view changes, pause/load/restart and kick cancellation. Check default/60/80/90,
+supported aspects and 60/120 replay. Retain gameplay matrices, collision, aim,
+attack timing/damage/sound, save compatibility and D14E1 unsafe-eye protection.
+Record actual action/equipment states and visual coverage limits. Update manual,
+artifact and tests appropriate to the final integration. Broad shoulder/arm
+redesign belongs to D36H5; integration must not claim that concern resolved.
+
+### D36H5 - No-body arms and weapons polish, exposed shoulders first
+
+**Status: Todo. Dependency: D36J2. Related: D36G/H/H1-H4/I/K, D14B.**
+
+User's highest concern: camera shots that expose Duke's disembodied shoulders or
+upper-arm ends. No solution is assumed. Begin with a reproducible shot/motion
+inventory across look extremes, FOV, weapon poses and camera displacement; name
+the actual part and owner producing each exposed end before changing geometry.
+
+Compare bounded remedies such as pose/framing adjustments, limited geometry
+coverage and authored first-person arms only where evidence justifies them.
+Do not conceal defects by narrowing FOV, restricting free look, restoring an
+unwanted body or globally hiding useful arms. Read accepted notes 257 and 265
+before presentation or mesh/material work. Preserve accepted weapon grips,
+silhouettes, aim and native interaction contacts.
+
+Acceptance: no unexplained shoulder/upper-arm cut ends in the verified shots;
+connected readable arm chains, stable support-hand contact and controlled elbows
+through idle, walk/run, crouch/jump, kick overlap, draw/holster/switch, fire/reload/
+throw and equipment-to-interaction handoffs. Cover all base weapon records,
+upgrades, empty hands and held mission items; include default/60/80/90, aspects,
+lighting/effects, near-world clipping and 60/120 replay. Retain labelled before/
+after stills and continuous motion, rejected experiments and explicit untested
+routes. Native gameplay, third person, reflections and Vanilla stay unchanged.
+Human visual acceptance is required; screenshots alone do not certify motion.
+
+### D36J3 - No-body quick-kick motion and weapon-overlap polish
+
+**Status: Todo. Dependency: D36J2. Coordinate with D36H5.**
+
+Review the accepted Q under no-body presentation before deciding whether further
+changes are useful. Preserve the actual plain left leg and separate native
+right-leg door kick. Inspect chamber/extension/recovery, held/repeated Q,
+cancellation and downward airborne views with short and bulky weapons. The
+current visibility-only result is the baseline; no pose rewrite is presumed.
+
+Acceptance: readable leg entry, strike and recovery without exposed cut ends,
+objectionable thigh framing, sudden popping or confusing weapon overlap in the
+verified matrix. Compare default/60/80/90, level/down/up and continuous pitch,
+stand/walk/run/crouch, jump ascent/apex/descent/landing, costumes and supported
+aspects. Keep exact hit reach/damage/callbacks, attack/impact timing, sound,
+weapon framing, camera freedom and native gameplay joints. Check door action,
+view/load/replay restoration and Vanilla. Retain motion/stills, source diagnosis,
+measured cost if changed, and explicit limits. If unchanged Q passes review,
+document that finding rather than introduce unnecessary animation changes.
+
+These three jobs are registered only. None is selected or started by this
+closeout. D36J2 is the recommended next selection; D36H5 owns the priority
+shoulder concern. Original D36J1 research questions that remain useful transfer
+to these scopes; unrun pose experiments are not claimed completed.
+
+
+## 2026-10-28 - D36J1 quick-kick realism and refinement
+
+### D36J1 - Full-body first-person quick-kick investigation
+
+**Status: Done (no-body prototype user-accepted; closeout authorized 2026-10-28). Dependencies: D36G/J, D14A-E/E1 (Done). Related: D12A-C, D36K/L.**
+
+User requests a new deep investigation and evidence artifact before choosing a
+refinement. At FOV 80/90, downward Q appears to originate near Duke's shoulder;
+jump + Q exposes torso and appears to originate above the belt. These are user
+reports, not newly reproduced results. Preserve accepted plain left-leg Q and
+separate native right-leg door kick. D36J acceptance remains historical.
+
+Initial deliverable: stand up the job and standalone investigation artifact.
+Research scope: trace camera/pelvis/leg ownership, projection, depth and pose;
+review published modern FPS/full-body first-person practice with named examples
+and source limits; capture matched baseline and controlled experiments for fixed
+repositioning, hip-relative angling, pitch/phase blending and airborne clearance.
+Evaluate the user's low/downward versus high-kick proposal without assuming a
+pitch-only rule or mesh replacement is the answer.
+
+Acceptance: artifact contains reproducible screenshots and motion sequences,
+source-backed diagnosis, experiment results including rejected alternatives,
+recommended solution with tradeoffs, regression evidence and explicit gaps.
+Cover default/60/80/90, down/level/up sweeps, stand/walk/run/crouch, jump ascent/
+apex/descent/landing, kick start/extension/retraction/repeat/cancel, short/long
+weapons and costume mapping. Sample 4:3/16:9/21:9, 60/120 replay, near walls,
+D14E1 corner guard, lighting, view/load transitions and door kick. Preserve Q
+hit reach/damage/timing/sound, native matrices, weapon framing, free look,
+reflections, third person and Vanilla. Record all untested combinations.
+
+User subsequently selected a no-body prototype: hide ordinary first-person
+body while preserving arms, weapons and temporary Q/door legs. Compare unchanged
+kick geometry at FOV 60/80/90 before proposing pose changes. This is an opt-in
+prototype. User playtested and accepted the no-body direction. Closeout covers
+this bounded prototype and its evidence; default integration and remaining
+polish/research are split into D36J2, D36H5 and D36J3 above. The original broad
+research matrix below is historical scope, not a claim of exhaustive completion.
+Use private test state; captures and retail-derived assets remain local.
+[Investigation contract](documentation/303-d36j1-quick-kick-research.md) and
+[standalone artifact](documentation/artifacts/quick-kick-realism.html).
+
+
 ## 2026-10-28 - D14E1 corner body exposure
 
 **Status: Done (user-accepted; closeout authorized 2026-10-28). Dependency: D14E (Done).**
@@ -23008,3 +23123,32 @@ Prior build/native-suite and private corner/recovery/FOV/aspect/replay evidence
 stand with the limits in [note 302](documentation/302-d14e1-corner-body-guard.md).
 No new gameplay change, rebuild, game launch or next job during closeout.
 Launch: `python3 recomp/tools/local/run.py`.
+
+## 2026-10-28 - D36J1 research setup work log
+
+Registered the selected quick-kick investigation and created note 303 plus the
+standalone evidence artifact. Initial source review and public production
+references are distinguished from pending experiments. Historical D14E image
+is contextual only. No gameplay implementation, build, launch or closeout.
+
+## 2026-10-28 - D36J1 no-body prototype (Needs playtest)
+
+User selected no-body and suggested wider FOV reveals the attachment conflict.
+Implemented opt-in `DNTTK_FP_BODY=hidden` ordinary body suppression, preserving
+arms/equipment and the unchanged Q/door kick. Matched 60/80/90 captures support
+a visibility contribution. Build/native suites and bounded private natural
+jump/Q, aspect, equipment, view/load and replay checks pass. Note 303 and the
+artifact retain comparisons, recording, failed-trial exclusions and limits.
+No permanent policy acceptance, commit/push or research closeout. Player files
+unchanged. Prototype: `DNTTK_FP_BODY=hidden python3 recomp/tools/local/run.py`.
+
+## 2026-10-28 - D36J1 accepted and follow-ups registered
+
+User playtested the no-body prototype, reported that it fixes most problems and
+looks great, then explicitly requested three backlog jobs plus commit/push.
+D36J1 is Done for the accepted bounded prototype. D36J2 default integration,
+D36H5 arms/weapon polish (exposed/disembodied shoulders the main concern), and
+D36J3 kick polish are Todo. No new implementation job started. Prior test and
+private-run evidence stands with note 303's limits; unrun broad research is not
+claimed complete. Commit authored source/tests/docs as MusicMonsterMod; existing
+framework worktree changes remain outside this closeout.

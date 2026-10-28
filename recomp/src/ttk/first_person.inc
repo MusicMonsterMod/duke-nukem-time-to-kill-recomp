@@ -1276,7 +1276,11 @@ static bool first_person_hide_body_joint(CPUState* cpu,uint32_t desc,uint32_t ma
     const bool empty_arms=psx_mod_read_byte(player+0x3b8)==0 &&
         (fp_policy.action==PerspectiveAction::Ground || fp_policy.action==PerspectiveAction::Committed ||
          fp_policy.action==PerspectiveAction::Fall) && part>=10 && part<=15;
-    if((!native_body && !empty_arms) || first_person_body_eye_inside(desc,mats))return false;
+    // D36J1 opt-in visibility prototype. Kick/door owners run before this
+    // branch; arms keep their existing policies. No model or gameplay edits.
+    const char* body=std::getenv("DNTTK_FP_BODY");
+    const bool hide_native=native_body && input_modern_controls() && body && !std::strcmp(body,"hidden");
+    if(!hide_native && ((!native_body && !empty_arms) || first_person_body_eye_inside(desc,mats)))return false;
     // The camera itself is a valid matrix whose origin is exactly at the eye.
     // Native whole-joint rejection therefore sees depth zero. No scratch
     // allocation can fail open; do not grant the polygon-depth bridge.

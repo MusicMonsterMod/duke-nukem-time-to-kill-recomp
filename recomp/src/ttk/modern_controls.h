@@ -128,6 +128,7 @@ bool third_person_camera_live();
 bool third_person_duke_drawing();
 double third_person_body_coverage();
 void third_person_mesh_begin(CPUState* cpu);
+void first_person_mesh_begin(CPUState* cpu);
 // D11B: Duke's own actor draw is in progress (object meshes belong to him).
 bool first_person_duke_drawing();
 // D11B: any actor draw (0x800348d8) is in progress, until the next list step.

@@ -1258,6 +1258,36 @@ static bool display_arm_matrix(uint32_t real,uint32_t desc,unsigned part) {
     for(int r=0;r<3;++r)psx_mod_write_word(hidden_matrix+0x14+4*r,(uint32_t)(int32_t)std::lround(target[n][r]));
     return true;
 }
+// D14E: a first-person presentation of the native torso, hinged at its
+// existing waist. The retail chest crowds the eye when admitted unchanged,
+// especially crouched. Keep the pelvis heading, remove upper-channel pitch,
+// and recline the chest as eye-to-waist clearance decreases. No FOV-dependent
+// scaling, camera movement, gameplay skeleton edits or new replay state.
+// Reuse the pre-reserved arm scratch: each joint consumes it before the next.
+static void first_person_torso_matrix(CPUState* cpu,uint32_t desc,uint32_t mats) {
+    const int root_joint=duke_part_joint(desc,0);
+    if(!hidden_matrix || root_joint<0)return;
+    const uint32_t native=cpu->gpr[5],root=mats+0x20*root_joint;
+    const double fx=(int16_t)psx_mod_read_half(root+12),fz=(int16_t)psx_mod_read_half(root+16);
+    const double length=std::hypot(fx,fz);
+    if(length<2048)return; // an unsupported inverted root keeps its native pose
+    const double forward[3]={fx/length,0,fz/length};
+    const double right[3]={forward[2],0,-forward[0]};
+    const double height=double((int32_t)psx_mod_read_word(native+0x18))-
+                        double((int32_t)psx_mod_read_word(camera+0x18));
+    const double clearance=std::clamp((282.0-height)/70.0,0.0,1.0);
+    const double angle=(35.0+25.0*clearance)*3.14159265358979323846/180.0;
+    const double cs=std::cos(angle),sn=std::sin(angle);
+    for(unsigned i=0;i<0x20;i+=4)
+        psx_mod_write_word(hidden_matrix+i,psx_mod_read_word(native+i));
+    for(unsigned i=0;i<3;++i) {
+        const double up=i==1?1.0:0.0;
+        psx_mod_write_half(hidden_matrix+2*i,(uint16_t)(int16_t)std::lround(4096*right[i]));
+        psx_mod_write_half(hidden_matrix+6+2*i,(uint16_t)(int16_t)std::lround(4096*(cs*up+sn*forward[i])));
+        psx_mod_write_half(hidden_matrix+12+2*i,(uint16_t)(int16_t)std::lround(4096*(-sn*up+cs*forward[i])));
+    }
+    cpu->gpr[5]=hidden_matrix;
+}
 // 0x800292a0 entry from the joint loop (ra 0x80034c6c): the hand joint's transform.
 static bool interaction_depth_bridge(PerspectiveAction action) {
     // Push/Use/Mirror keep their native poses. Admit the complete arm chain
@@ -1291,7 +1321,8 @@ static void first_person_weapon_joint(CPUState* cpu,uint32_t ra) {
     }
     // D12A: the right leg while the first-person quick kick plays (kick.inc).
     if(ra==0x80034c6c && weapon_duke_draw && fp_blend>=0.5 && orbit_valid && kick_leg_joint(cpu)) return;
-    // D36J: ordinary locomotion legs retain the native pose and world depth.
+    // D36J/D14E: locomotion pelvis, torso and legs share safe world clipping.
+    // Legs/pelvis retain native poses; only the chest gets a draw-local fit.
     // Admit polygons even when their joint origin crosses H. Traversal and
     // interaction bodies keep their accepted policy (D36K owns that review).
     if(ra==0x80034c6c && weapon_duke_draw && fp_blend>=0.5 && orbit_valid &&
@@ -1308,10 +1339,11 @@ static void first_person_weapon_joint(CPUState* cpu,uint32_t ra) {
         // D36K1: flight arms use native world poses and safe clipping too.
         // Keep flight legs and the grounded-only lowering outside this policy.
         const bool flying=fp_policy.action==PerspectiveAction::Jetpack;
-        if(((!flying && ((part>=1 && part<=8) || part==21)) ||
+        if(((!flying && ((part>=0 && part<=int(part_spine)) || part==21)) ||
             (unarmed && part>=10 && part<=15)) && mats>=0x80010000 && mats<=0x801ffd80 &&
            cpu->gpr[5]==mats+0x20*cpu->gpr[23]) {
             limb_claim(cpu,LimbOwner::Body,part,true);
+            if(part==int(part_spine)) first_person_torso_matrix(cpu,desc,mats);
             if(!flying && unarmed && part>=10 && part<=15 && hidden_matrix) {
                 // Lower both complete chains substantially in screen space.
                 // Reuse reserved draw scratch, leaving gameplay matrices and

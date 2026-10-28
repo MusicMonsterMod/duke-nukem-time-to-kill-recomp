@@ -1,5 +1,35 @@
 # Next-session handoff
 
+## 2026-10-28 - D14E accepted and closed
+
+User accepts D14E and explicitly requests lock-in and closeout. D14E is Done:
+connected first-person locomotion body, clearance-based torso pose and scoped
+pelvis lighting correction. Implementation, tests, manual and documentation
+commit/push are authorized as MusicMonsterMod. Prior build/native-suite and
+bounded runtime evidence stand with their limits in
+[note 301](301-d14e-first-person-body.md). Default FOV and supported range remain
+unchanged. No new gameplay change, rebuild, game launch or next job during
+closeout. Player saves/settings remain untouched.
+Launch: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-28 - D14E connected first-person body candidate
+
+D14E is Needs playtest. Researched studio first-person practices and iterated
+native torso admission, waist pose and crouch clearance in game. The candidate
+connects vest/belt/legs during ordinary movement without changing weapon framing,
+world depth, the gameplay skeleton or Vanilla. Newly admitted pelvis geometry
+also receives the guarded late-fade correction.
+
+Build/native suites, FOV/aspect screenshots, movement recording and bounded
+120-setting replay checks pass. [Note 301](301-d14e-first-person-body.md) records
+iterations, verified routes, failed selection exclusions and remaining limits.
+Human visual acceptance, full action/costume coverage and FOV above 90 are not
+claimed. Player files unchanged; no framework edits, commit/push or closeout.
+Launch: `python3 recomp/tools/local/run.py`; compare `fov 80` and `fov 90` looking
+down during movement, crouch, jump and Q.
+
+
 ## 2026-10-28 - D14D accepted and closed
 
 User confirms the adaptive sky FOV fix is all working and explicitly requests

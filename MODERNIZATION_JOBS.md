@@ -1,5 +1,32 @@
 # Time to Kill — modernization jobs
 
+
+## 2026-10-28 - D14E connected first-person body across FOV
+
+**Status: Done (user-accepted; closeout authorized 2026-10-28). Dependencies: D14A-C, D36G-K (Done).**
+
+User selected research, backlog registration and immediate implementation.
+Investigate the missing torso/hip connection at wide FOV and establish a coherent
+first-person body using the accepted D36 presentation ownership contract.
+Research published studio practice, compare native geometry/clipping and iterate
+in-game captures before choosing pose or asset changes. Preserve accepted weapon
+framing, camera freedom, native gameplay, reflections, third person and Vanilla.
+
+Acceptance: connected readable torso/hips/legs during standing, walk/run, crouch,
+jump and kick at 60/default/80/90, with aspect and 60/120 replay checks. Inspect
+near-world occlusion, costume mappings, lighting, view/load boundaries and action
+handoffs. Higher future FOV is a design consideration, not a range/default change
+or an untested guarantee. Record bounded evidence and outstanding visual review;
+User acceptance and implementation/documentation commit/push closeout were
+explicitly authorized on 2026-10-28.
+
+Accepted result: semantic pelvis/torso clipping, a waist-anchored torso fit based on
+actual eye clearance, and guarded root-mesh lighting correction. Native skeleton,
+weapon framing and world depth remain intact. Build/native suites and private
+FOV/aspect/movement/replay checks pass within the limits in
+[note 301](documentation/301-d14e-first-person-body.md). User visual acceptance is recorded;
+all-costume/action coverage and future FOV expansion remain distinct.
+
 ## 2026-10-28 - D14D adaptive sky coverage across FOV
 
 ### D14D - Correct sky artifacts at wider first-person FOV
@@ -22910,3 +22937,30 @@ D14D is Done. The adaptive sky backdrop implementation, native regression tests
 and documentation are authorized for commit/push as MusicMonsterMod. Prior
 build and private verification evidence stands with the limits in note 300.
 No next job started.
+
+
+## 2026-10-28 - D14E first-person body candidate (Needs playtest)
+
+Selected research and implementation for the wide-FOV disembodied-leg report.
+Compared published studio techniques, reproduced the missing torso, rejected
+unchanged torso admission and fixed lean after in-game screenshots, then fitted
+the native torso around its waist using current eye clearance. Pelvis/torso now
+share safe world clipping with the legs; a late root-fade correction preserves
+environment lighting. Weapon framing, native gameplay skeleton and Vanilla stay.
+
+Build, controls/input/aim/near suites and private 60/default/80/90, aspect,
+movement/equipment and 120-setting replay checks pass within
+[note 301](documentation/301-d14e-first-person-body.md)'s explicit limits.
+Player files unchanged. Needs human visual playtest, not release certification.
+No commit/push or acceptance closeout. Launch: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-28 - D14E accepted and closed
+
+User: "acepted - lock it in and close it out". D14E is Done. The first-person
+locomotion body and scoped pelvis lighting correction are accepted; implementation,
+tests, manual and documentation commit/push closeout are authorized as
+MusicMonsterMod. Prior build, native suites and bounded capture/replay evidence
+remain in [note 301](documentation/301-d14e-first-person-body.md), with their
+recorded limits. No default/range change, new game launch or next job during
+closeout. Launch: `python3 recomp/tools/local/run.py`.

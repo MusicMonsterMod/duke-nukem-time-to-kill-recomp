@@ -1466,6 +1466,9 @@ including view switches and save loads, but are not saved to player settings.
 Weapon/held-item display and their connected arms retain their original
 size and framing as world FOV changes. Native body and contact arms still
 follow the world view, with environment lighting preserved as FOV changes.
+During ordinary first-person movement, Duke's vest and belt connect the visible
+legs to his body. The chest adjusts for standing and crouched viewing clearance;
+weapon framing stays consistent as world FOV changes.
 The sky backdrop adapts to world FOV and aspect ratio to maintain side coverage.
 Third person keeps its own projection.
 The saved Gameplay slider is the separate

@@ -3769,11 +3769,14 @@ int main(int argc,char** argv) {
                         CPUState cpu{};cpu.gpr[4]=c;cpu.gpr[5]=mats+0x20*j;
                         cpu.gpr[20]=p;cpu.gpr[23]=j;cpu.gpr[29]=0x801f0000;cpu.gpr[31]=0x80034c6c;
                         hooks().at(0x800292a0)(&cpu,0x800292a0);
-                        const int part=costume[j];const bool body=(part>=1 && part<=8)||part==21;
+                        const int part=costume[j];const bool body=(part>=0 && part<=9)||part==21;
                         const auto limb=ttk::first_person_limb_presentation();
                         assert((limb.owner==ttk::LimbOwner::Body)==body);
                         if(body) {
-                            assert(cpu.gpr[5]==mats+0x20*j && limb.world_clip() && !limb.viewmodel() && limb.bridge_joint_depth);
+                            assert((cpu.gpr[5]!=mats+0x20*j)==(part==9));
+                            assert(limb.world_clip() && !limb.viewmodel() && !limb.fixed_projection() && limb.bridge_joint_depth);
+                            for(int axis=0;axis<3;++axis)
+                                assert(psx_mod_read_word(cpu.gpr[5]+0x14+4*axis)==psx_mod_read_word(mats+0x20*j+0x14+4*axis));
                             assert(limb.parts==(1u<<part) && limb.light==ttk::LimbLight::CorrectProximityFade);
                             cpu.gpr[31]=0x80034c8c;cpu.gte_ctrl[26]=256;psx_mod_write_word(cpu.gpr[29]+0x98,c);
                             for(int z:{-100,0,255,256,400}) {
@@ -3820,16 +3823,77 @@ int main(int argc,char** argv) {
                     assert(psx_mod_read_word(context+0x48)==0x2000000 && psx_mod_read_word(context+0x4c)==0x600000);
                     assert(psx_mod_read_word(context+0x54)==0x12345678);
                     for(int i=13;i<=15;++i)assert(cpu.gte_ctrl[i]==unsigned(i*17));
-                    // Return to the same actor loop at an unowned torso joint.
+                    // Return to the same actor loop at an unowned head joint.
                     // Its original brightness is restored before classification.
                     cpu.gpr[18]=effect?24u:psx_mod_read_byte(p+0x1b);
-                    cpu.gpr[23]=1;cpu.gpr[5]=mats+0x20;cpu.gpr[31]=0x80034c6c;
+                    cpu.gpr[23]=9;cpu.gpr[5]=mats+0x20*9;cpu.gpr[31]=0x80034c6c;
                     hooks().at(0x800292a0)(&cpu,0x800292a0);
                     assert(cpu.gpr[18]==24);
                     call(0x8001ca4c,0x800d0000,0,0x800376b4);
                 }
                 psx_mod_write_word(p,flags);psx_mod_write_word(context+0x48,command);psx_mod_write_word(context+0x4c,page);psx_mod_write_word(context+0x54,flat);
                 std::puts("PASS: D36J native lower-body clipping, semantic costume ownership, fade/effect restoration and draw-boundary guards");
+            }
+            // D14E: torso fit follows eye clearance, not world projection;
+            // replay draws derive it anew and the waist/gameplay skeleton stay put.
+            {
+                const uint32_t eye_y=psx_mod_read_word(c+0x18),ctx=0x800d67a8;
+                for(const auto* costume:{first_map,cowboy}) {
+                    layout(costume);
+                    const unsigned spine=psx_mod_read_byte(desc+0x24+9);
+                    const uint32_t native=mats+32*spine;
+                    const std::vector<uint8_t> original(ram+(mats&0x1fffff),ram+(mats&0x1fffff)+19*32);
+                    int previous=5000;
+                    for(int height:{320,282,247,212,180}) {
+                        psx_mod_write_word(c+0x18,psx_mod_read_word(native+0x18)-height);
+                        std::vector<uint8_t> reference;
+                        for(unsigned h:{277u,256u,191u,160u,128u}) {
+                            call(0x800348d8,c,p,0x8003769c);
+                            CPUState draw{};draw.gpr[4]=c;draw.gpr[5]=native;draw.gpr[20]=p;
+                            draw.gpr[23]=spine;draw.gpr[29]=0x801f0000;draw.gpr[31]=0x80034c6c;draw.gte_ctrl[26]=h;
+                            hooks().at(0x800292a0)(&draw,0x800292a0);
+                            assert(draw.gpr[5]!=native && draw.gte_ctrl[26]==h);
+                            const auto posed=draw.gpr[5];
+                            for(unsigned k=0;k<3;++k)assert(psx_mod_read_word(posed+20+4*k)==psx_mod_read_word(native+20+4*k));
+                            const int yy=(int16_t)psx_mod_read_half(posed+8);
+                            if(h==277) {assert(yy<=previous);previous=yy;}
+                            const std::vector<uint8_t> matrix(ram+(posed&0x1fffff),ram+(posed&0x1fffff)+32);
+                            if(reference.empty())reference=matrix;else assert(reference==matrix);
+                            call(0x8001ca4c,0x800d0000,0,0x800376b4);
+                        }
+                    }
+                    assert(std::equal(original.begin(),original.end(),ram+(mats&0x1fffff)));
+                }
+                layout(first_map);psx_mod_write_word(c+0x18,eye_y);
+                const uint32_t saved_mesh=psx_mod_read_word(desc+0x68),flags=psx_mod_read_word(p);
+                const uint32_t cmd=psx_mod_read_word(ctx+0x48),page=psx_mod_read_word(ctx+0x4c),flat=psx_mod_read_word(ctx+0x54);
+                psx_mod_write_word(desc+0x68,0x80110000);
+                for(unsigned effect:{0u,0x40u,0x2000u,0x4000u})for(int bad=0;bad<5;++bad) {
+                    call(0x800348d8,c,p,0x8003769c);
+                    psx_mod_write_word(p,(flags&~0x6040u)|effect);
+                    psx_mod_write_word(ctx+0x48,0);psx_mod_write_word(ctx+0x4c,0);
+                    CPUState draw{};draw.gpr[4]=c;draw.gpr[5]=mats;draw.gpr[20]=p;draw.gpr[23]=0;
+                    draw.gpr[29]=0x801f0000;draw.gpr[31]=0x80034c6c;
+                    hooks().at(0x800292a0)(&draw,0x800292a0);
+                    // Reproduce fade installed AFTER the root transform.
+                    psx_mod_write_word(ctx+0x48,0x2000000);psx_mod_write_word(ctx+0x4c,0x600000);psx_mod_write_word(ctx+0x54,0x222222);
+                    for(int k=13;k<16;++k)draw.gte_ctrl[k]=544;
+                    draw.gpr[4]=0x80110000;draw.gpr[31]=0x800351f4;psx_mod_write_word(draw.gpr[29]+0x98,c);
+                    if(bad==1)draw.gpr[31]+=4;
+                    if(bad==2)draw.gpr[20]+=4;
+                    if(bad==3)draw.gpr[4]+=4;
+                    if(bad==4)psx_mod_write_word(draw.gpr[29]+0x98,c+4);
+                    ttk::first_person_mesh_begin(&draw);
+                    const bool correct=!effect && !bad;
+                    assert(psx_mod_read_word(ctx+0x48)==(correct?0u:0x2000000u));
+                    assert(draw.gte_ctrl[13]==(correct?(psx_mod_read_byte(p+0x1b)<<4):544u));
+                    draw.gpr[31]=0x80012340;hooks().at(0x800292a0)(&draw,0x800292a0);
+                    assert(psx_mod_read_word(ctx+0x48)==0x2000000 && draw.gte_ctrl[13]==544);
+                    call(0x8001ca4c,0x800d0000,0,0x800376b4);
+                }
+                psx_mod_write_word(desc+0x68,saved_mesh);psx_mod_write_word(p,flags);
+                psx_mod_write_word(ctx+0x48,cmd);psx_mod_write_word(ctx+0x4c,page);psx_mod_write_word(ctx+0x54,flat);
+                std::puts("PASS: D14E waist continuity, clearance fit, FOV-independent matrices, untouched native skeleton and guarded root fade restoration");
             }
             // D36H4: empty-handed locomotion retains native connected chains,
             // including costumes with different joint ordering. Armed/held-item
@@ -4185,18 +4249,19 @@ int main(int argc,char** argv) {
                     joint.gpr[5]=matrix;joint.gpr[31]=0x80034c6c;
                     hooks().at(0x800292a0)(&joint,0x800292a0);
                     const auto limb=ttk::first_person_limb_presentation();
-                    assert(limb.bridge_joint_depth==arm && !limb.viewmodel());
+                    const bool torso=unarmed_body && part==9;
+                    assert(limb.bridge_joint_depth==(arm || torso) && !limb.viewmodel());
                     if(arm)assert(limb.owner==(unarmed_body?ttk::LimbOwner::Body:ttk::LimbOwner::Interaction) &&
                         limb.parts==(1u<<part) && limb.space==ttk::LimbSpace::NativeWorld &&
                         limb.light==(unarmed_body?ttk::LimbLight::CorrectProximityFade:ttk::LimbLight::Native));
-                    assert((joint.gpr[5]!=matrix)==(unarmed_body && arm));
+                    assert((joint.gpr[5]!=matrix)==(unarmed_body && (arm || torso)));
                     const auto displayed=joint.gpr[5];
                     joint.gpr[31]=0x80034c8c;joint.gte_ctrl[26]=256;
                     psx_mod_write_word(joint.gpr[29]+0x98,c);
                     for(int depth:{-120,0,80,255,256,400}) {
                         joint.gpr[16]=depth;
                         hooks().at(0x800b4d2c)(&joint,0x800b4d2c);
-                        assert((int32_t)joint.gpr[16]==(arm?std::max(depth,256):depth));
+                        assert((int32_t)joint.gpr[16]==((arm || torso)?std::max(depth,256):depth));
                         assert(joint.gte_ctrl[26]==256 && joint.gpr[5]==displayed);
                     }
                     for(int bad=0;bad<3;++bad) {

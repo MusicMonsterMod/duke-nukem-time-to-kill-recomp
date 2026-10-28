@@ -1952,6 +1952,20 @@ void third_person_mesh_begin(CPUState* cpu) {
     if((mirror_duke_drawing || (third_body_drawing && third_person_camera_live() && body_coverage_supported())) &&
        !third_person_body_effect() && identity()) fade_clear(cpu);
 }
+void first_person_mesh_begin(CPUState* cpu) {
+    // D14E: pelvis/root proximity fade is installed after the joint hook.
+    // Correct it at mesh submission, using the same scoped restoration as the
+    // other body parts. Actor effects and the native shader's tint stay native.
+    const uint32_t desc=duke_model(),sp=cpu->gpr[29];
+    if(!weapon_duke_draw || !first_person_view_live() || !fp_policy.effective ||
+       limb_draw.owner!=LimbOwner::Body || limb_draw.parts!=limb_part(0) ||
+       cpu->gpr[31]!=0x800351f4 || cpu->gpr[20]!=player || !desc ||
+       duke_joint_part(desc,cpu->gpr[23])!=0 ||
+       cpu->gpr[4]!=psx_mod_read_word(desc+0x44+0x28*cpu->gpr[23]+0x24) ||
+       sp<0x80010000 || sp>0x801fff60 || (sp&3) || psx_mod_read_word(sp+0x98)!=camera ||
+       third_person_body_effect() || !identity()) return;
+    fade_clear(cpu);
+}
 double third_person_body_coverage() {
     if(!third_person_camera_live() || !body_coverage_supported() || third_person_body_effect()) return 1.0;
     double d[3];

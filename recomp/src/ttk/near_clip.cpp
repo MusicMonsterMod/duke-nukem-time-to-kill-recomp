@@ -1440,7 +1440,7 @@ void near_hook_body(CPUState* cpu,uint32_t address) {
     if(!mesh || cpu->gpr[5]!=ordering || cpu->gpr[6]!=context || cpu->gpr[7]!=bitmap) return;
     if(mesh<0x80010000 || mesh>0x801f0000 || (mesh&3)) return;
     if(!identity()) {++refused;return;}
-    if(object_filter) {third_person_mesh_begin(cpu);filter_missing_animation(cpu);}
+    if(object_filter) {third_person_mesh_begin(cpu);first_person_mesh_begin(cpu);filter_missing_animation(cpu);}
     if(!clip_live || !enabled()) return;
     if(address==0x80011020 && (renderers()&1)) world(cpu);
     else if(address==0x80010000 && (renderers()&2)) object(cpu);

@@ -456,6 +456,58 @@ static void packet_contracts(const char* executable) {
             assert(host_corners.front().depth>0); // still carries host depth
         }
     }
+    // D17AC: the retail phone back sits inside its mounting wall. Its
+    // allowance changes depth only, never packet XY, UV, perspective or OT.
+    // Foreign shapes/callers, other panels, transparency, back-side viewing,
+    // actors and Vanilla must not acquire the larger contact allowance.
+    {
+        const int xyz[10][3]={{-105,0,-136},{105,0,-136},{-105,0,136},{105,0,136},
+            {-105,-395,-136},{105,-395,-136},{-105,-395,136},{105,-395,136},
+            {105,-321,-136},{105,-321,136}};
+        std::vector<HostCorner> reference;
+        unsigned reference_slot=0;
+        for(int kind=0;kind<9;++kind) {
+            auto c=reset();c.gpr[31]=kind==2?0x800351f4:0x80032288;
+            c.gte_ctrl[0]=0;c.gte_ctrl[1]=kind==5?uint16_t(-4096):4096;
+            c.gte_ctrl[3]=kind==5?4096:uint16_t(-4096);c.gte_ctrl[4]=0;
+            c.gte_ctrl[7]=1500;
+            psx_mod_write_byte(mesh+6,10);word(mesh+0x10,verts);word(mesh+0x14,list);
+            for(int i=0;i<10;++i) {
+                word(verts+i*8,uint16_t(xyz[i][0]+(kind==1 && i==8))|uint32_t(uint16_t(xyz[i][1]))<<16);
+                word(verts+i*8+4,uint16_t(xyz[i][2]));
+            }
+            word(list,0x0001002c);word(list+4,kind==3?0x09080705:0x06020400);
+            word(list+8,0);word(list+12,(kind==4?0x22000000:0x02000000)|31);
+            word(list+16,0x1f1f1f00);word(list+20,0xff);
+            if(kind==6) word(ctx+0x48,0x02000000);
+            if(kind==7) {duke=true;interaction=true;}
+            if(kind==8) {modern=false;live_eye=false;}
+            observed_hook(&c,0x80010000);
+            duke=false;interaction=false;modern=true;live_eye=true;
+            if(kind==8) {assert(host_corners.empty());continue;}
+            assert(host_corners.size()==6);
+            const char* phone_env=std::getenv("DNTTK_PHONE_BACK_DEPTH");
+            const bool enabled=!(phone_env && std::string_view(phone_env)=="0");
+            for(const auto& v:host_corners) {
+                const float offset=kind==0 && enabled?16.0f:kind==7?0.0f:2.0f;
+                assert(std::abs(v.depth-(v.z-offset))<0.02f);
+                if(kind==0 && enabled) {
+                    assert(v.depth<1595); // rear panel survives mounting wall
+                    assert(v.depth>1580); // nearer occluder still wins
+                }
+            }
+            unsigned slot=0;for(unsigned i=0;i<2048;++i) if(psx_mod_read_word(ot+i*8)) slot=i;
+            if(kind==0) {reference=host_corners;reference_slot=slot;}
+            if(kind==1) {
+                assert(slot==reference_slot);
+                for(unsigned i=0;i<6;++i) {
+                    const auto& a=reference[i];const auto& b=host_corners[i];
+                    assert(a.word==b.word && a.x==b.x && a.y==b.y && a.z==b.z && a.u==b.u && a.v==b.v);
+                }
+            }
+        }
+        std::puts("D17AC phone panel: bounded depth, unchanged raster/UV/order and exclusion guards PASS");
+    }
     // Two opaque faces of a compact prop stay in one ordering bucket so
     // host/native draw state cannot alternate for each face. Translucent
     // faces must keep their independent ordering.

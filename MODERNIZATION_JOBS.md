@@ -58,7 +58,7 @@ assignment behavior verified. Resolve any unsupported bindings explicitly.
 
 ### D17AC - Slot-11 phone disappears on approach
 
-**Status: Todo. Backlog only; not started. Related: D17L.**
+**Status: Done (user-accepted; closeout authorized 2026-10-28). Related: D17L.**
 User reports the phone disappears as the player approaches it in current UI
 slot 11. Verify current save identity with private copies, then reproduce
 approach/retreat and inspect object visibility, near clipping, culling,
@@ -68,6 +68,14 @@ Acceptance: identify the responsible path, implement a bounded correction and
 verify stable phone visibility while preserving legitimate occlusion and nearby
 props in relevant views and refresh rates. D17L's historical slot-11 tabletop
 repair is related evidence, not proof this report has the same cause.
+
+Accepted fix: the phone rear panel is embedded roughly 10-11 units in its wall.
+A shape-verified, opaque-panel-only 16-unit depth allowance preserves its
+visibility without changing raster geometry or gameplay. Build, native packet
+contracts, 60/120 private routes and replay restoration checks pass within
+[note 292](documentation/292-d17ac-phone-wall-depth.md)'s limits. User accepted
+the fix and explicitly authorized implementation, tests and documentation
+commit/push closeout on 2026-10-28.
 
 ### D17AD - Tile loading background across widescreen resolutions
 
@@ -22284,3 +22292,22 @@ agent-observed physical-device, all-arena or performance tests.
 Existing build and bounded verification remain in [note 291](documentation/291-d34c-local-multiplayer-foundation.md).
 No gameplay changes, rebuild or launch for this closeout. Player settings,
 saves and cards remain untouched. Launch: `python3 recomp/tools/local/run.py`.
+
+## 2026-10-28 - D17AC phone visibility candidate
+
+Selected D17AC and reproduced the current slot-11 phone disappearing on approach.
+Trace and plane evidence identify an embedded rear panel losing to the wall's
+host depth test. Added a bounded, shape-verified rear-panel depth allowance.
+Player build, owned-EXE near contracts in all precision combinations and trace
+tests pass; private first/third-person, 60/120 and original-precision captures
+retain the phone. Separate replay restoration: 542 checks, zero mismatches.
+Vanilla exclusion smoke and all 41 player-file hash/mtime checks pass.
+Needs playtest; no acceptance, commit or push. [Note 292](documentation/292-d17ac-phone-wall-depth.md).
+
+## 2026-10-28 - D17AC accepted and closed
+
+User: "wonderful. lock it in and close it out". D17AC is Done by user
+acceptance. Implementation, tests and documentation commit/push are explicitly
+authorized as MusicMonsterMod. Existing bounded verification and limitations
+remain in [note 292](documentation/292-d17ac-phone-wall-depth.md); closeout adds
+no new gameplay claim or build change. No next job started.

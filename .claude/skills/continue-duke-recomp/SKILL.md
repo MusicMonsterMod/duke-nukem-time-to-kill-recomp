@@ -60,7 +60,7 @@ After working on a selected job, always include a copy-pasteable command to laun
 python3 recomp/tools/local/run.py
 ```
 
-Run this from the workspace root. It uses the player's saved settings. If testing the job requires different mode or control options, include the verified launcher flags and explain that they update saved preferences. Mention any essential activation step, such as F10 capture for Modernized controls. Providing the command does not authorize launching the game; the user can run it themselves with `! <command>` or in their own terminal.
+Run this from the workspace root. It uses the player's saved settings. If testing the job requires different mode or control options, include the verified launcher flags and explain that they update saved preferences. Mouse capture is automatic during gameplay and after resuming or loading a save. F10 has no action; do not include an F10 activation or capture reminder. Use the current GAME_MANUAL.md for control instructions rather than historical handoff notes. Providing the command does not authorize launching the game; the user can run it themselves with `! <command>` or in their own terminal.
 
 When you have finished working on a selected job (including Needs playtest or Blocked), play a chime as the very last step, just before the final summary, so the user knows you are done while looking away (user request, 2026-10-07):
 

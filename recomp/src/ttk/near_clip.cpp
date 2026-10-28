@@ -282,6 +282,7 @@ struct Vertex { double p[3],uv[2],rgb[3]; int original; double ex=0,ey=0; };
 // One polygon to draw here: attributes resolved as its renderer would.
 struct Poly {
     uint32_t source=0;
+    bool phone_back=false;
     bool depth_only=false,native_order=false;int native_slot=-1;
     unsigned count;int idx[4];uint32_t colors[4],uv[4],clut,tpage,command;bool textured;int bias;
     bool actor;
@@ -696,9 +697,15 @@ void draw(Frame& f,const Poly& poly) {
     // matching their existing foreground OT priority, within two game units
     // along the surface normal. Never give actors or weapons this tolerance.
     static const int contact=env_int("DNTTK_PROP_CONTACT",2,0,2);
-    if(f.object && !poly.actor && !f.viewmodel && contact) {
+    static const bool phone_depth=env_int("DNTTK_PHONE_BACK_DEPTH",1,0,1)!=0;
+    // D17AC: the retail payphone's textured back is embedded about 10-11
+    // world units in its mounting wall. Preserve its raster/UV geometry and
+    // native ordering, but allow that verified panel 16 units of contact
+    // depth from the open side only. It still loses to nearer occluders.
+    const int allowance=poly.phone_back && phone_depth && local.depth_plane.d>0 ? 16:contact;
+    if(f.object && !poly.actor && !f.viewmodel && allowance) {
         auto& p=local.depth_plane;
-        p.d-=std::copysign(std::min((double)contact,std::abs(p.d)*0.5),p.d);
+        p.d-=std::copysign(std::min((double)allowance,std::abs(p.d)*0.5),p.d);
     }
     // D17W: push a face the original paints over slightly behind its plane
     // (about 0.8 units at 3400), so the depth test keeps the original's winner.
@@ -1087,6 +1094,19 @@ void rank_coplanar(const Frame& f,std::vector<Poly>& polys) {
     }
     std::stable_sort(polys.begin(),polys.end(),[](const Poly& a,const Poly& b) {return a.coplanar_rank<b.coplanar_rank;});
 }
+// D17AC: authenticate the retail payphone shape, not a scene address, slot,
+// texture page or a type-table index that another level can reuse. Modified
+// models fail closed. Only its opaque FT4 rear panel gets the allowance.
+bool phone_mesh(uint32_t vertices,unsigned count) {
+    if(count!=10) return false;
+    static constexpr int16_t xyz[10][3]={
+        {-105,0,-136},{105,0,-136},{-105,0,136},{105,0,136},
+        {-105,-395,-136},{105,-395,-136},{-105,-395,136},{105,-395,136},
+        {105,-321,-136},{105,-321,136}};
+    for(unsigned i=0;i<10;++i) for(unsigned k=0;k<3;++k)
+        if((int16_t)psx_mod_read_half(vertices+8*i+2*k)!=xyz[i][k]) return false;
+    return true;
+}
 // 0x80010000 entry, same register contract as the world renderer.
 void object(CPUState* cpu) {
     const uint32_t mesh=cpu->gpr[4];
@@ -1114,6 +1134,7 @@ void object(CPUState* cpu) {
     // articulated dancers and actors not covered by actor_drawing.
     const bool static_candidate=precise() && !conservative() && !actor && !viewmodel &&
         prop_depth && cpu->gpr[31]==0x80032288;
+    const bool phone=static_candidate && phone_mesh(vertices,count);
     int lo[3]={32767,32767,32767},hi[3]={-32768,-32768,-32768};
     bool any=viewmodel || body;
     for(unsigned i=0;i<count;++i) {
@@ -1248,6 +1269,8 @@ void object(CPUState* cpu) {
         if(!(bits&1) && !front_facing(f,p,flags,false)) {++object_stats.culled;trace_record(f,"backface",record);continue;}
         p.textured=textured;p.bias=((bits&8)?1:0)-((bits&4)?1:0);
         p.command=(textured?0x34000000u:0x30000000u)|((bits&0x10)<<21)|command_bits;
+        p.phone_back=phone && type==0x2c && word==0x06020400u &&
+            !(p.command&0x02000000u);
         // D17AA: a safely projected scenery face can enter host rendering
         // before an intervening wall. Per-piece sorting and the foreground
         // prop bias then expose it through the still-native wall. Keep its

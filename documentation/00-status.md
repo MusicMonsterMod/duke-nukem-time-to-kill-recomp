@@ -1,5 +1,24 @@
 # Current status - 2026-10-04
 
+## 2026-10-28 - D17AC phone visibility accepted and closed
+
+The current slot-11 phone rear panel sits roughly 10-11 units inside its wall.
+It remains submitted but loses visibility when the wall enters host depth
+testing. A shape-verified 16-unit allowance applies only to the opaque phone
+rear panel from its open side; raster geometry and gameplay stay unchanged.
+
+Build, near packet contracts in all precision combinations and trace tests pass.
+Private 60/120 approaches, third person and original precision retain the phone;
+542 separate replay restoration checks have zero mismatches. Vanilla smoke and
+41 player-file hash/mtime checks pass. Diagnostic games are closed.
+[Note 292](292-d17ac-phone-wall-depth.md) records evidence and limits.
+User accepted: "wonderful. lock it in and close it out". D17AC is Done;
+implementation, tests and documentation commit/push are authorized as
+MusicMonsterMod. No new gameplay changes or next job started during closeout.
+Launch from the workspace root:
+`python3 recomp/tools/local/run.py`, then F7 UI slot 11 and approach/retreat.
+
+
 ## 2026-10-28 - Five requests queued only
 
 D19V (remove redundant action-view settings), D09B (classic gamepad auto-aim

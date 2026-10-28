@@ -1,5 +1,56 @@
 # Time to Kill — modernization jobs
 
+## 2026-10-28 - D14B weapon/arms FOV follow-up (backlog intake closed)
+
+### D14B - Decouple first-person weapon presentation from world FOV
+
+**Status: Todo. Backlog only; not selected or started. Dependency: D14A foundation. Related: D12, D36G/H/I/J/K, D19X.**
+
+User reports that adjustable world FOV looks excellent, but increasing it makes
+first-person weapons and arms too small and incorrectly positioned. Reproduction:
+load player UI slot 4, use `dnmonsters` and `dnstuff`, set `fov 90`, and cycle
+through weapons. This is user-reported evidence; the intake did not launch the
+game or independently reproduce it. When selected, identify the saved scene and
+use private save/card copies; slot numbers alone are not stable scene identities.
+
+Investigate how world FOV affects weapon and arm geometry. Establish whether
+projection alone explains the size/placement change or whether existing placement
+calculations also contribute. Read the accepted D36 presentation audit and the
+D14A implementation/evidence before choosing an approach. Use the accepted
+presentation at original world FOV (H=256, nominal 64 degrees at 4:3) as the baseline.
+
+Implement a separate first-person weapon/arms projection, or an equivalent
+renderer-appropriate correction, preserving their intended apparent size and
+screen placement as world FOV changes. Identify geometry by reliable semantic
+ownership, including weapon attachments and muzzle flashes across costumes and
+shared-skeleton paths. Resolve held-item and interaction-arm boundaries explicitly;
+preserve native world-space contact and occlusion where appropriate. Avoid
+per-weapon placement adjustments unless investigation demonstrates their necessity.
+
+Preserve Duke's natural world-space body/legs, third-person rendering, animation
+events, environmental lighting and intentional effects. Preserve crosshair
+alignment/targeting, projectile trajectories, hit behavior, nearby-wall clipping,
+and the accepted world-FOV improvement. Keep Modernized scope and Vanilla intact.
+Carry any presentation state correctly through high-refresh replay, load and
+view transitions; do not alter gameplay matrices merely to reframe the viewmodel.
+
+Acceptance: verify every weapon slot, including alternate/upgraded variants,
+across the supported world-FOV range (currently 60-90, plus original/default).
+Compare matched captures of apparent size and placement to the original-FOV
+baseline. Cover idle, fire/recovery/reload where applicable, muzzle flashes,
+switching, look up/down, standing/crouching and nearby walls, relevant aspect
+ratios, first/third-person transitions and 60/120 replay. Include native body/leg
+and lighting/occlusion regressions and distinguish observed results from user
+acceptance. Report shared-skeleton or render-pipeline limitations and any
+necessary per-weapon exceptions with evidence.
+
+A future standalone HTML comparison artifact may help the user approve the
+weapon presentation. Create it only when requested; no artifact is requested by
+this intake. Use plain locally opened HTML, like the ttk-fonts document, without
+a web server. No weapon design, code, build or gameplay testing is part of this
+backlog-only closeout. The intake is complete; D14B remains Todo.
+
+
 ## 2026-10-28 - Full mouse menu support and cursor backlog intake only
 
 User requests proper pointer-driven UI, beyond the working scrollwheel, plus a
@@ -657,6 +708,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D13 | Higher internal resolution and display scaling | Done | D02 |
 | D14 | Widescreen, FOV and visibility | Done | D03, D13 |
 | D14A | Configurable first-person FOV foundation | Todo (backlog only) | D11, D14 |
+| D14B | Decouple first-person weapon/arms presentation from world FOV | Todo (backlog only) | D14A foundation |
 | D15 | Optional geometry and texture precision | Accepted | D13 |
 | D16 | Texture manipulation and replacement foundation | Done (bounded foundation accepted 2026-10-27) | D13 |
 | D16A | HRP assets and first-person weapon research (later) | Cancelled (original assets preferred) | - |
@@ -22610,3 +22662,12 @@ User acceptance is separate from native tests and the unsuccessful automated
 Advanced-menu capture attempts in [note 295](documentation/295-d19v-action-view-cleanup.md).
 No further implementation, rebuild, game launch or next job during closeout.
 Launch: `python3 recomp/tools/local/run.py`.
+
+## 2026-10-28 - D14B backlog-only intake closeout
+
+Recorded the user's slot-4 weapon/arms FOV report, investigation and acceptance
+scope under D14B (Todo). Updated the local continuation skill with the preference
+for standalone HTML files opened directly, without a web server. No artifact,
+implementation, build or game launch was undertaken. This closes the authorized
+intake only; D14B implementation is not selected. Existing D14A candidate edits
+remain separate from this documentation commit.

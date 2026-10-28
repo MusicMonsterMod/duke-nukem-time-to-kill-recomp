@@ -1,5 +1,22 @@
 # Current status - 2026-10-04
 
+## 2026-10-28 - D14B backlog intake closed; implementation unselected
+
+Added D14B to the canonical job board: decouple first-person weapon/arms size
+and placement from world FOV, using accepted original-FOV presentation as the
+baseline. User reproduction: UI slot 4, `dnmonsters`, `dnstuff`, `fov 90`, cycle
+weapons. The user praises world FOV and reports undersized/misplaced weapons;
+this intake adds no independent gameplay evidence or implementation.
+
+D14B is Todo. Scope includes projection versus placement diagnosis, reliable
+geometry ownership, all weapon slots and effects, native body/legs, lighting,
+aim/projectile behavior, walls and replay regressions. A future approval artifact
+may be useful but is not requested now. The local continuation skill now records
+plain locally opened HTML, like ttk-fonts, without a web server when HTML is
+requested. Backlog documentation commit/push closeout is authorized; existing
+D14A candidate changes remain separate and its evidence/status are unchanged.
+
+
 ## 2026-10-28 - D19V accepted and closed (Done)
 
 User accepted: "perfectly done, lock it in and close it out". The redundant

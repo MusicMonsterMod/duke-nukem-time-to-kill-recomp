@@ -1,5 +1,27 @@
 # Current status - 2026-10-04
 
+## 2026-10-28 - D14E1 accepted and closed
+
+User accepted the corner body guard and explicitly requested lock-in and
+closeout. D14E1 is Done. Implementation, regression tests, manual and documentation
+commit/push are authorized as MusicMonsterMod. Prior build/native-suite and
+bounded runtime evidence stand with the limits in
+[note 302](302-d14e1-corner-body-guard.md). No further gameplay change, rebuild,
+game launch or next job during closeout. Player saves/settings remain untouched.
+Launch: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-28 - D14E1 corner body guard (Needs playtest)
+
+Slot 7 reproduces an obstruction camera outside Duke exposing his incomplete
+first-person body. A draw-time eye/pelvis check now suppresses unsafe world-body
+geometry, while preserving weapons, camera-relative kick and normal downward
+body recovery. Build/native suites and bounded private FOV/aspect/replay checks
+pass. [Note 302](302-d14e1-corner-body-guard.md) records evidence and limits.
+Player files unchanged; no framework edits, commit/push or closeout.
+Launch: `python3 recomp/tools/local/run.py`; load slot 7 and back out/re-enter.
+
+
 ## 2026-10-28 - D14E accepted and closed
 
 User accepts D14E and explicitly requests lock-in and closeout. D14E is Done:

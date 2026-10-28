@@ -3205,6 +3205,8 @@ int main(int argc,char** argv) {
                 };
                 psx_mod_write_byte(desc+0x33,7);
                 for(unsigned j=0;j<19;++j) for(int i=0;i<9;++i) psx_mod_write_half(mats+0x20*j+2*i,i%4==0?4096:0);
+                // Synthetic skeletons need an actual pelvis beneath the eye.
+                for(int i=0;i<3;++i)psx_mod_write_word(mats+0x14+4*i,psx_mod_read_word(c+0x14+4*i)+(i==1?294:0));
                 for(int i=0;i<3;++i) psx_mod_write_word(mats+0x20*7+0x14+4*i,neck[i]+(i==2?250:120));
                 const uint8_t saved_state=psx_mod_read_byte(p+0x3b8),saved_slot=psx_mod_read_byte(p+0x3b9);
                 psx_mod_write_byte(p+0x3b8,2);psx_mod_write_byte(p+0x3b9,4);
@@ -3838,10 +3840,15 @@ int main(int argc,char** argv) {
             // replay draws derive it anew and the waist/gameplay skeleton stay put.
             {
                 const uint32_t eye_y=psx_mod_read_word(c+0x18),ctx=0x800d67a8;
+                const uint32_t eye_x=psx_mod_read_word(c+20),eye_z=psx_mod_read_word(c+28);
+                const uint32_t pelvis[3]={psx_mod_read_word(mats+20),psx_mod_read_word(mats+24),psx_mod_read_word(mats+28)};
                 for(const auto* costume:{first_map,cowboy}) {
                     layout(costume);
                     const unsigned spine=psx_mod_read_byte(desc+0x24+9);
                     const uint32_t native=mats+32*spine;
+                    psx_mod_write_word(c+20,psx_mod_read_word(native+20));psx_mod_write_word(c+28,psx_mod_read_word(native+28));
+                    // Position the synthetic pelvis under this synthetic waist.
+                    for(int k=0;k<3;++k)psx_mod_write_word(mats+20+4*k,psx_mod_read_word(native+20+4*k));
                     const std::vector<uint8_t> original(ram+(mats&0x1fffff),ram+(mats&0x1fffff)+19*32);
                     int previous=5000;
                     for(int height:{320,282,247,212,180}) {
@@ -3864,7 +3871,8 @@ int main(int argc,char** argv) {
                     }
                     assert(std::equal(original.begin(),original.end(),ram+(mats&0x1fffff)));
                 }
-                layout(first_map);psx_mod_write_word(c+0x18,eye_y);
+                for(int k=0;k<3;++k)psx_mod_write_word(mats+20+4*k,pelvis[k]);
+                layout(first_map);psx_mod_write_word(c+0x18,eye_y);psx_mod_write_word(c+20,eye_x);psx_mod_write_word(c+28,eye_z);
                 const uint32_t saved_mesh=psx_mod_read_word(desc+0x68),flags=psx_mod_read_word(p);
                 const uint32_t cmd=psx_mod_read_word(ctx+0x48),page=psx_mod_read_word(ctx+0x4c),flat=psx_mod_read_word(ctx+0x54);
                 psx_mod_write_word(desc+0x68,0x80110000);
@@ -3894,6 +3902,46 @@ int main(int argc,char** argv) {
                 psx_mod_write_word(desc+0x68,saved_mesh);psx_mod_write_word(p,flags);
                 psx_mod_write_word(ctx+0x48,cmd);psx_mod_write_word(ctx+0x4c,page);psx_mod_write_word(ctx+0x54,flat);
                 std::puts("PASS: D14E waist continuity, clearance fit, FOV-independent matrices, untouched native skeleton and guarded root fade restoration");
+            }
+            // D14E1: a displaced eye must never expose the incomplete world
+            // body. The suppression is FOV-independent, allocation-free and
+            // relinquished immediately on recovery or a draw boundary.
+            {
+                const uint32_t eye[3]={psx_mod_read_word(c+0x14),psx_mod_read_word(c+0x18),psx_mod_read_word(c+0x1c)};
+                const auto equip=psx_mod_read_byte(p+0x3b8);
+                for(const auto* costume:{first_map,cowboy}) {
+                    layout(costume);
+                    const std::vector<uint8_t> original(ram+(mats&0x1fffff),ram+(mats&0x1fffff)+19*32);
+                    for(const auto delta: {std::array<int,3>{0,-294,0}, {0,-224,0}, {97,-294,0}, {-97,-294,0},
+                                          {0,-294,97}, {0,-294,-97}, {0,-353,0}, {0,-127,0}, {52,-464,-184}}) {
+                        const bool safe=delta[0]==0 && delta[2]==0 && (delta[1]==-294 || delta[1]==-224);
+                        for(int k=0;k<3;++k)psx_mod_write_word(c+0x14+4*k,psx_mod_read_word(mats+0x14+4*k)+delta[k]);
+                        for(unsigned h:{277u,256u,191u,160u,128u}) for(unsigned equipment:{0u,2u}) {
+                            psx_mod_write_byte(p+0x3b8,equipment);
+                            for(unsigned part:{0u,1u,5u,9u,20u,21u,10u,15u}) {
+                                call(0x800348d8,c,p,0x8003769c);
+                                CPUState draw{};draw.gpr[4]=c;draw.gpr[20]=p;draw.gpr[23]=psx_mod_read_byte(desc+0x24+part);
+                                const uint32_t native=mats+32*draw.gpr[23];draw.gpr[5]=native;
+                                draw.gpr[29]=0x801f0000;draw.gpr[31]=0x80034c6c;draw.gte_ctrl[26]=h;
+                                hooks().at(0x800292a0)(&draw,0x800292a0);
+                                const bool hidden=!safe && (part<=9 || part>=20 || equipment==0);
+                                const auto owner=ttk::first_person_limb_presentation();
+                                assert((owner.owner==ttk::LimbOwner::HiddenBody)==hidden);
+                                if(hidden) {
+                                    assert(draw.gpr[5]==c && !owner.bridge_joint_depth && !owner.world_clip() && !owner.viewmodel());
+                                    draw.gpr[16]=0;draw.gpr[31]=0x80034c8c;psx_mod_write_word(draw.gpr[29]+0x98,c);
+                                    hooks().at(0x800b4d2c)(&draw,0x800b4d2c);assert(draw.gpr[16]==0 && draw.gte_ctrl[26]==h);
+                                }
+                                call(0x8001ca4c,0x800d0000,0,0x800376b4);
+                                assert(ttk::first_person_limb_presentation().owner==ttk::LimbOwner::Native);
+                            }
+                        }
+                    }
+                    assert(std::equal(original.begin(),original.end(),ram+(mats&0x1fffff)));
+                }
+                for(int k=0;k<3;++k)psx_mod_write_word(c+0x14+4*k,eye[k]);
+                psx_mod_write_byte(p+0x3b8,equip);layout(first_map);
+                std::puts("PASS: D14E1 displaced-eye body rejection across costumes, FOVs, armed/unarmed draws and immediate scope restoration");
             }
             // D36H4: empty-handed locomotion retains native connected chains,
             // including costumes with different joint ordering. Armed/held-item

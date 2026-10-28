@@ -1258,6 +1258,32 @@ static bool display_arm_matrix(uint32_t real,uint32_t desc,unsigned part) {
     for(int r=0;r<3;++r)psx_mod_write_word(hidden_matrix+0x14+4*r,(uint32_t)(int32_t)std::lround(target[n][r]));
     return true;
 }
+// D14E1: the collision solver can move the eye outside the actor, especially
+// up and sideways at a corner. A headless world skeleton is not a valid external
+// representation. Admit it only inside a conservative eye-over-pelvis envelope.
+// Evaluate actual draw matrices, also in replay; no cached camera-valid latch.
+static bool first_person_body_eye_inside(uint32_t desc,uint32_t mats) {
+    const int root=duke_part_joint(desc,0);
+    if(root<0)return false;
+    const uint32_t base=mats+0x20*root+0x14;
+    const double dx=double((int32_t)psx_mod_read_word(camera+0x14))-(int32_t)psx_mod_read_word(base);
+    const double dz=double((int32_t)psx_mod_read_word(camera+0x1c))-(int32_t)psx_mod_read_word(base+8);
+    const double height=double((int32_t)psx_mod_read_word(base+4))-(int32_t)psx_mod_read_word(camera+0x18);
+    return dx*dx+dz*dz<=96.0*96.0 && height>=128 && height<=352;
+}
+static bool first_person_hide_body_joint(CPUState* cpu,uint32_t desc,uint32_t mats,int part) {
+    const bool native_body=(part>=0 && part<=9) || part==20 || part==21;
+    const bool empty_arms=psx_mod_read_byte(player+0x3b8)==0 &&
+        (fp_policy.action==PerspectiveAction::Ground || fp_policy.action==PerspectiveAction::Committed ||
+         fp_policy.action==PerspectiveAction::Fall) && part>=10 && part<=15;
+    if((!native_body && !empty_arms) || first_person_body_eye_inside(desc,mats))return false;
+    // The camera itself is a valid matrix whose origin is exactly at the eye.
+    // Native whole-joint rejection therefore sees depth zero. No scratch
+    // allocation can fail open; do not grant the polygon-depth bridge.
+    limb_claim(cpu,LimbOwner::HiddenBody,part);
+    cpu->gpr[5]=camera;
+    return true;
+}
 // D14E: a first-person presentation of the native torso, hinged at its
 // existing waist. The retail chest crowds the eye when admitted unchanged,
 // especially crouched. Keep the pelvis heading, remove upper-channel pitch,
@@ -1321,6 +1347,15 @@ static void first_person_weapon_joint(CPUState* cpu,uint32_t ra) {
     }
     // D12A: the right leg while the first-person quick kick plays (kick.inc).
     if(ra==0x80034c6c && weapon_duke_draw && fp_blend>=0.5 && orbit_valid && kick_leg_joint(cpu)) return;
+    // Camera-relative Q/door legs above retain their own complete presentation.
+    // Reject unsafe world body before any body-depth bridge or torso fitting.
+    if(ra==0x80034c6c && weapon_duke_draw && fp_blend>=0.5 && orbit_valid && fp_policy.effective &&
+       cpu->gpr[4]==camera && cpu->gpr[20]==player) {
+        const uint32_t desc=duke_model(),mats=psx_mod_read_word(player+0x3c);
+        const int part=desc?duke_joint_part(desc,cpu->gpr[23]):-1;
+        if(part>=0 && mats>=0x80010000 && mats<=0x801ffd80 &&
+           cpu->gpr[5]==mats+0x20*cpu->gpr[23] && first_person_hide_body_joint(cpu,desc,mats,part))return;
+    }
     // D36J/D14E: locomotion pelvis, torso and legs share safe world clipping.
     // Legs/pelvis retain native poses; only the chest gets a draw-local fit.
     // Admit polygons even when their joint origin crosses H. Traversal and

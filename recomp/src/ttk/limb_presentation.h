@@ -4,7 +4,7 @@
 namespace ttk {
 // D36G: render ownership only. These semantic part IDs are not costume joint
 // indices. Eligibility and animation remain with the existing guarded hooks.
-enum class LimbOwner : uint8_t { Native, Interaction, HiddenArm, DisplayHand, DisplayArm, Kick, Body };
+enum class LimbOwner : uint8_t { Native, Interaction, HiddenArm, DisplayHand, DisplayArm, Kick, Body, HiddenBody };
 enum class LimbSpace : uint8_t { NativeWorld, AtEye, CameraRelative };
 enum class LimbDepth : uint8_t { Native, WorldClip, Viewmodel };
 enum class LimbLight : uint8_t { Native, CorrectProximityFade };
@@ -36,6 +36,7 @@ constexpr LimbPresentation limb_presentation(LimbOwner owner,int part,bool bridg
     case LimbOwner::Body:
         return {owner,limb_part(part),LimbSpace::NativeWorld,LimbDepth::WorldClip,
                 LimbLight::CorrectProximityFade,LimbCleanup::NextJointOrDrawBoundary,bridge};
+    case LimbOwner::HiddenBody:
     case LimbOwner::HiddenArm:
         return {owner,limb_part(part),LimbSpace::AtEye,LimbDepth::Native,
                 LimbLight::Native,LimbCleanup::NextJointOrDrawBoundary,false};

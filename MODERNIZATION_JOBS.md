@@ -1,5 +1,23 @@
 # Time to Kill — modernization jobs
 
+## 2026-10-28 - D14E1 corner body exposure
+
+**Status: Done (user-accepted; closeout authorized 2026-10-28). Dependency: D14E (Done).**
+
+User selected immediate correction: current slot 7, after walking into a corner,
+exposes a headless/armless torso. Reproduce privately and establish a draw-time
+safety rule preventing an externally visible incomplete first-person body.
+Preserve the accepted ordinary downward body view, camera collision, weapons,
+reflections, third person and Vanilla. Test saved corner, entry/exit, yaw/pitch,
+FOV range, crouch and replay/load transitions. User acceptance and implementation/
+documentation commit/push closeout authorized on 2026-10-28.
+
+Accepted result: draw-time displaced-eye rejection of the incomplete world body,
+with weapon/kick ownership and normal downward body retained. Build/native
+suites and private corner/aspect/replay checks pass within
+[note 302](documentation/302-d14e1-corner-body-guard.md)'s limits.
+
+
 
 ## 2026-10-28 - D14E connected first-person body across FOV
 
@@ -22964,3 +22982,29 @@ MusicMonsterMod. Prior build, native suites and bounded capture/replay evidence
 remain in [note 301](documentation/301-d14e-first-person-body.md), with their
 recorded limits. No default/range change, new game launch or next job during
 closeout. Launch: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-28 - D14E1 corner body guard candidate
+
+Reproduced slot 7: the collision camera resolves above/beside Duke and exposes
+his incomplete first-person body. Added a draw-time eye/pelvis safety volume;
+unsafe native body and empty locomotion arms are rejected before polygon
+admission, without moving the camera or gameplay skeleton. Camera-relative
+weapons/kick retain their owners. No allocation or replay latch is added.
+
+Build, controls/input/aim/near suites and private reported-scene, recovery,
+60/default/80/90, aspect, save/view and replay checks pass within
+[note 302](documentation/302-d14e1-corner-body-guard.md)'s limits.
+Needs user playtest. Player files unchanged; no commit/push or closeout.
+Launch: `python3 recomp/tools/local/run.py`; load slot 7.
+
+
+## 2026-10-28 - D14E1 accepted and closed
+
+User: "lock it in and close it out". D14E1 is Done. The displaced-eye guard
+preventing the reported exposed first-person body is accepted. Implementation,
+tests, manual and documentation commit/push are authorized as MusicMonsterMod.
+Prior build/native-suite and private corner/recovery/FOV/aspect/replay evidence
+stand with the limits in [note 302](documentation/302-d14e1-corner-body-guard.md).
+No new gameplay change, rebuild, game launch or next job during closeout.
+Launch: `python3 recomp/tools/local/run.py`.

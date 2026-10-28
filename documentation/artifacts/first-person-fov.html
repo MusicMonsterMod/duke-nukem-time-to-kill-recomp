@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TTK - First-person FOV backlog</title>
+<style>
+:root{--bg:#121214;--panel:#1b1b1f;--panel2:#232329;--line:#33333b;--text:#e6e4df;--muted:#aaa79f;--accent:#f0a020;--ok:#6cc070}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.6 system-ui,-apple-system,"Segoe UI",sans-serif}main{max-width:1180px;margin:auto;padding:28px 20px 70px}h1{font-size:32px;line-height:1.2;margin:12px 0}h2{font-size:21px;margin:36px 0 12px;border-bottom:1px solid var(--line);padding-bottom:8px}h3{font-size:17px;margin:0 0 6px}p,li{color:var(--muted)}strong{color:var(--text)}a{color:var(--accent)}code{background:var(--panel2);padding:2px 5px;border-radius:4px;font-size:13px;overflow-wrap:anywhere}.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px;margin:12px 0}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.grid .card{margin:0}.tag{display:inline-block;color:var(--accent);font-size:12px;letter-spacing:1px;text-transform:uppercase}.lead{font-size:18px;max-width:85ch}.note{font-size:13px}.stage{background:linear-gradient(135deg,#2b2018,#3a2a1d 50%,#1f1a16);border-radius:8px;padding:20px}.steps{display:flex;flex-wrap:wrap;gap:12px;align-items:center}.steps b{background:var(--panel2);padding:10px 14px;border-radius:6px}.table{overflow:auto}table{border-collapse:collapse;width:100%;min-width:580px}th,td{text-align:left;vertical-align:top;border-bottom:1px solid var(--line);padding:12px}th{color:var(--accent);font-size:13px}td{color:var(--muted)}td:first-child{color:var(--text);width:23%}.menu{font-family:ui-monospace,monospace;max-width:600px;margin:12px auto}.menu div{display:flex;justify-content:space-between;gap:20px;padding:12px;border-bottom:1px solid #58402a}.menu .selected{color:var(--accent);background:#382819}.menu small{color:var(--muted)}nav{display:flex;flex-wrap:wrap;gap:18px;margin:24px 0}summary{cursor:pointer;color:var(--accent)}footer{margin-top:40px;color:var(--muted);font-size:13px}@media(max-width:700px){.grid{grid-template-columns:1fr}h1{font-size:27px}.menu div{flex-wrap:wrap}}
+</style>
+</head>
+<body><main>
+<span class="tag">Time to Kill / Planning desk / 28 October 2026</span>
+<h1>First-person field of view</h1>
+<p class="lead">Two backlog jobs: establish a reliable camera control, then expose it in Gameplay settings. Keep today's view as the default.</p>
+<div class="card"><strong>Backlog only. Neither job has started.</strong><p>Minimal source inspection only. No game code changed, no build or game launch, and no new gameplay measurements. This page follows the font picker's charcoal panels, amber accents and warm preview stage. It contains no retail artwork.</p></div>
+<nav aria-label="Page sections"><a href="#jobs">The two jobs</a><a href="#landscape">What exists</a><a href="#degrees">Degrees and aspect</a><a href="#menu">Menu placement</a><a href="#validation">Validation</a><a href="#sources">Source map</a></nav>
+<h2 id="jobs">1. The two jobs</h2>
+<div class="grid">
+<section class="card"><span class="tag">D14A / Todo</span><h3>Projection foundation</h3><p>Measure the current view, choose a degree convention, and implement configurable first-person projection. Provide a developer control and test a practical range before recommending safe limits.</p><p><strong>Deliverable:</strong> validated projection behavior, preserved baseline, documented limits and a configuration contract for the menu.</p></section>
+<section class="card"><span class="tag">D19X / Todo / Depends on D14A</span><h3>Gameplay slider</h3><p>Place <strong>First-person FOV</strong> directly below <strong>View</strong>. Use the established degree convention and range, support all three input methods, save the value, and restore it through Defaults.</p><p><strong>Deliverable:</strong> a menu control that survives restart and behaves correctly when switching views.</p></section>
+</div>
+<div class="card steps" aria-label="Job sequence"><b>Measure baseline</b><span aria-hidden="true">&gt;</span><b>Implement + validate D14A</b><span aria-hidden="true">&gt;</span><b>Add D19X slider</b></div>
+<h2 id="landscape">2. What already exists</h2>
+<div class="table"><table><thead><tr><th>Area</th><th>Source finding</th><th>What remains open</th></tr></thead><tbody>
+<tr><td>First-person projection</td><code>first_person_projection()</code> substitutes GTE projection distance H at a guarded renderer call. The default eye value is <strong>256</strong>.</td><td>Establish the actual on-screen angle, audit scope and transitions, and preserve the default exactly.</td></tr>
+<tr><td>Developer tuning</td><td><code>DNTTK_FP_PROJECTION</code> accepts integer values 160..386. It is cached on first use and is not a saved preference.</td><td>This is groundwork, not a supported degree-based setting. The accepted numeric interval is not a proven safe FOV range.</td></tr>
+<tr><td>Widescreen</td><td>The existing path keeps projection unchanged, adds rendered columns, and widens the portal root rectangle. Modes include 4:3/off, 16:9, 16:10, 21:9 and auto.</td><td>Verify how a new FOV value interacts with portal visibility, aspect changes and edge geometry.</td></tr>
+<tr><td>Settings</td><td>Gameplay starts with View, then Shoulder and Camera Distance. The menu has existing slider rows elsewhere.</td><td>Add the new row only after D14A establishes units, default, range and runtime application.</td></tr>
+<tr><td>First-person presentation</td><td>The accepted D36 audit separates camera-relative combat presentation, native interaction limbs and quick kick.</td><td>Test each owner. A projection change is not permission to redesign arms or use FOV to conceal local seams.</td></tr>
+</tbody></table></div>
+<p class="note">Evidence level: source inspection. Earlier D14 acceptance covers its widescreen work; the word FOV in that historical job title does not certify a configurable FOV feature.</p>
+<h2 id="degrees">3. What does a degree value mean?</h2>
+<div class="grid"><section class="card"><h3>Horizontal or vertical?</h3><p>Horizontal FOV measures the angle across the picture. Vertical FOV measures the angle from top to bottom. With the same vertical angle, a wider screen shows more horizontally.</p><p>For an ideal rectilinear camera with displayed aspect ratio <code>a</code>:</p><p><code>h = 2 atan(a tan(v / 2))</code></p><p class="note">Angles must use consistent units during calculation. This relationship explains the choice; it does not measure TTK's current camera.</p></section>
+<section class="card"><h3>Why no default degree number yet?</h3><p>The source comment describes H=256 as roughly 64 degrees wide, using a 160-unit half-width. The widescreen code also describes a 512x240 guest screen. Guest coordinates, pixel aspect and presentation scaling must be reconciled before declaring the player's displayed angle.</p><p><strong>D14A must measure and document the convention.</strong> Options include vertical degrees, actual horizontal degrees, or horizontal degrees referenced to 4:3. No convention or slider limits are approved by this intake.</p></section></div>
+<div class="stage"><strong>A real projection change</strong><p>A wider FOV reveals more of the scene and makes a fixed object occupy less of the frame. Stretching the finished picture changes proportions without revealing the missing scene. D14A must demonstrate the former and preserve correct aspect.</p><p class="note">The existing H override changes a projection input. Its presence alone does not prove correct culling, aim alignment or first-person presentation at every value.</p></div>
+<h2 id="menu">4. Where the setting will go</h2>
+<div class="stage"><span class="tag">Placement sketch / Not a working control</span><div class="menu" aria-label="Proposed Gameplay menu order"><div><strong>GAMEPLAY</strong></div><div><span>VIEW</span><span>FIRST PERSON</span></div><div class="selected"><span>FIRST-PERSON FOV</span><span>[ slider ] &nbsp; --&deg;</span></div><div><span>SHOULDER</span><span>CENTER</span></div><div><span>CAMERA DISTANCE</span><span>ORIGINAL</span></div><div><small>Remaining Gameplay settings continue below</small></div></div><p class="note">System-font layout sketch only. The real menu should use its established font, slider graphics and input behavior. The dash value deliberately avoids inventing a default.</p></div>
+<div class="grid"><section class="card"><h3>Player behavior</h3><ul><li>Adjust using keyboard, gamepad or mouse.</li><li>Apply live where practical; explain any limitation.</li><li>Save the value and restore it after restarting.</li><li>Defaults restores today's view.</li><li>Third person retains its own unchanged projection.</li></ul></section><section class="card"><h3>D14A's handoff to the menu</h3><ul><li>Chosen units and aspect-ratio policy.</li><li>Exact baseline mapping, min/max and step.</li><li>Setting key and runtime setter/getter interface.</li><li>Input validation, fallback and old-settings migration.</li><li>Live-update and render-worker synchronization needs.</li></ul><p class="note">Interface names and ranges remain undecided.</p></section></div>
+<h2 id="validation">5. What must be checked before calling it safe</h2>
+<div class="table"><table><thead><tr><th>Check</th><th>Required evidence when selected</th></tr></thead><tbody>
+<tr><td>Baseline and scope</td><td>Compare the default with today's view. Verify first/third transitions, scripted cameras, menus, FMVs and Vanilla remain correct.</td></tr>
+<tr><td>Aiming</td><td>Crosshair and native marker alignment, hit/projectile direction, close and distant targets, representative weapons and control schemes.</td></tr>
+<tr><td>Visibility and clipping</td><td>Indoor portals, outdoor edges, nearby walls and floors, props and actors at frame edges; no new popping, holes or invalid occlusion.</td></tr>
+<tr><td>Weapons and body</td><td>Combat weapons, held items, arms, holstered interactions and quick kick; include crouch, swimming and traversal under D36's ownership rules.</td></tr>
+<tr><td>Aspect and refresh</td><td>4:3, 16:9, 16:10, 21:9 and auto/window changes; representative normal and high-refresh replay behavior.</td></tr>
+<tr><td>Range and settings</td><td>Sample a practical range and both proposed limits. Record failures and derive safe limits. Then verify menu inputs, Defaults, full restart persistence and view switching.</td></tr>
+</tbody></table></div>
+<p><strong>No range recommendation yet.</strong> Source inspection cannot establish a safe slider range. Observed gameplay, automated checks, user reports and hypotheses must remain distinct in the eventual evidence.</p>
+<h2 id="sources">6. Source map for the eventual work</h2>
+<div class="card"><ul>
+<li><a href="../../MODERNIZATION_JOBS.md">Canonical job board</a>: D14A and D19X; both Todo.</li>
+<li><a href="../../recomp/src/ttk/first_person.inc">first_person.inc</a>: <code>eye_projection</code>, <code>first_person_projection</code>.</li>
+<li><a href="../../recomp/src/ttk/widescreen.inc">widescreen.inc</a>: aspect activation, portal rectangle and HUD scope.</li>
+<li><a href="../../recomp/src/ttk/near_clip.cpp">near_clip.cpp</a>: projection-sensitive clipping and viewmodel handling.</li>
+<li><a href="../../recomp/src/ttk/game_menu.cpp">game_menu.cpp</a>: Gameplay ordering and existing slider machinery.</li>
+<li><a href="../../recomp/tools/local/player_profiles.py">player_profiles.py</a> and <a href="../../recomp/tools/local/run.py">run.py</a>: configuration integration points for future inspection.</li>
+<li><a href="../257-d36-first-person-presentation-audit.md">Accepted D36 presentation audit</a>: ownership, evidence labels and regression requirements. D36G-L remain unselected.</li>
+<li><a href="../../recomp/analysis/d24a-fonts/ttk-font-picker.html">Local TTK font picker</a>: visual style reference; available only where that local artifact exists.</li>
+</ul></div>
+<footer>Planning snapshot dated 2026-10-28. The job board is authoritative. This artifact does not change game settings or start either job.</footer>
+</main></body></html>

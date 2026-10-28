@@ -1,5 +1,176 @@
 # Time to Kill — modernization jobs
 
+## 2026-10-28 - Full mouse menu support and cursor backlog intake only
+
+User requests proper pointer-driven UI, beyond the working scrollwheel, plus a
+top-left Back icon and a game-specific cursor. All four entries below are Todo;
+none is selected. Only brief read-only source inspection was authorized and
+performed. No input implementation, icon/cursor design, build or playtest.
+
+### D19Z - Full mouse support for the menu UI
+
+**Status: Todo. Backlog only; not started. Dependencies: D19. Related: D19B, D19F/F1, D19W/X/Y.**
+Implement genuine pointer navigation in Modernized menus: hover feedback,
+clicking the intended row/control, choosing options, clicking and dragging
+sliders, scrolling lists and operating visible actions and confirmation dialogs.
+Retain the working wheel, keyboard and gamepad navigation; avoid stale pointer
+position overriding deliberate keyboard/gamepad selection. Cover title, pause,
+settings and bindings, save/load, death, statistics and their reachable submenus;
+inventory the actual screens when selected and explicitly resolve any exception.
+Expose mouse-operable equivalents for necessary keyboard-only actions such as
+Defaults and save deletion, preserving existing confirmation semantics. Binding
+capture must not accidentally bind the click that opened it, and must offer a
+mouse-operable cancel route. Do not require keyboard shortcuts to finish normal
+menu navigation and settings use.
+
+Inspect pointer coordinates against the actual presented menu rectangle,
+letterboxing, scaling, window size and DPI. Own pointer presses/releases across
+screen changes so clicks do not activate a newly opened screen or leak into
+shooting on resume. Preserve focus handling and automatic gameplay mouse capture.
+D19B remains the separate responsiveness job; D19F/F1 remain prompt-art/device
+jobs, not substitutes for pointer hit testing.
+
+Acceptance: complete mouse-only menu routes with accurate hover/click targets,
+option changes, slider dragging, scrollable lists and confirmations; keyboard
+and pad coexist correctly; windowed/fullscreen, aspect/DPI scaling and focus
+transitions work; no click-through or gameplay input leakage; Vanilla unchanged.
+Full feature closeout includes D19Z1 and D19Z3. Core pointer work can be verified
+with a temporary standard cursor while custom art is pending.
+
+Minimal source evidence: `game_menu.h`'s `MenuKeys` and
+`pc_input.cpp:menu_owns_keys` carry directional/confirm/back actions and wheel
+input; `game_menu.cpp:game_menu_input` maps wheel steps to list movement. These
+inspected interfaces do not carry absolute pointer coordinates or hover/drag
+state. This is source evidence, not an exhaustive runtime UI audit or a claim
+that the framework cannot support a pointer.
+
+### D19Z1 - Design and implement the top-left menu Back control
+
+**Status: Todo. Backlog only; not started. Depends on: D19Z core pointer support. Related: D19F.**
+Design a Back icon matching the established TTK menu art and place a clickable
+control at the top left of the presented menu area, with suitable padding and
+hit-target size. Use it consistently wherever Back/Cancel is valid so the user
+can navigate entirely with the mouse. Define root-menu and pause-root behavior
+explicitly; do not invent a parent or turn Back into an unexpected quit action.
+Reuse the existing context-sensitive back/cancel semantics, including draft
+settings and dialogs. Provide clear hover/pressed feedback and readable scaling.
+
+Acceptance: approved icon appearance, correct top-left placement across menu
+layouts/aspects, reliable target and feedback, mouse-only return/cancel routes,
+correct root behavior, and no bypass of confirmations or changed save/apply
+semantics. Record original-art or disc-derived provenance before integration.
+
+### D19Z2 - Design a Time to Kill mouse cursor
+
+**Status: Todo. Backlog only; not started. Related: D19Z, D19Z1, D19F.**
+Create a cursor design consistent with the game's established menu fonts, art
+and palette. Present candidates and a recommended design over representative
+light, dark and busy menu backgrounds at native and scaled sizes. Define the
+precise click hotspot, dimensions, transparency, outline/contrast and scaling
+rules; specify any additional pointer states only where useful. Keep the tip
+unambiguous and the pointer readable without obscuring small controls.
+
+Acceptance: user-approved design and preview evidence, editable source and
+export assets, documented hotspot/scaling/state specification and provenance.
+Original project art may be tracked; retail-derived pixels must follow the
+existing owned-disc extraction rules. This design job does not install a cursor
+or change runtime input. No art creation is authorized by this intake.
+
+### D19Z3 - Implement the approved custom menu cursor
+
+**Status: Todo. Backlog only; not started. Dependencies: D19Z2, D19Z core pointer support.**
+Integrate the approved cursor using the appropriate existing host/UI path after
+inspecting its capabilities. Apply the specified hotspot, scaling and any
+approved states. Show the pointer when menus accept mouse input, avoid duplicate
+OS/game cursors, and hide/release or capture it appropriately on gameplay,
+focus and window transitions. Define mixed-input visibility behavior without
+flicker or interference with keyboard/gamepad navigation. Keep cursor position
+and hit testing aligned through window resizing, DPI and aspect changes.
+
+Acceptance: approved art rendered clearly, hotspot matches activation position,
+consistent movement and visibility across supported menus, windowed/fullscreen
+and scaling checks, correct focus/resume behavior, no duplicate cursor or leaked
+clicks, and Vanilla unchanged. Validate with D19Z1's Back target and D19Z's
+sliders/lists; record platform coverage and any unverified cases.
+
+## 2026-10-28 - Third-person Camera Distance slider intake only
+
+### D19Y - Convert third-person Camera Distance to a slider
+
+**Status: Todo. Backlog only; not selected or started. Dependencies: D19G, D19N. Related: D06, D14A, D19X.**
+Convert Gameplay's existing "Camera Distance" choice control into a slider,
+matching the existing menu style. Make its third-person scope clear in the
+label or description. This controls camera distance, not first-person FOV;
+it does not depend on implementing D14A or D19X.
+
+When selected, inspect the existing distance preference, Original behavior and
+Alt + mouse-wheel adjustment before choosing slider units, limits and step.
+Preserve the current default and existing saved distances, including the
+meaning of Original; do not assume that Original means a literal zero-distance
+camera. Support keyboard, gamepad and mouse adjustment, apply live where
+practical, persist the setting and include it in Gameplay's Defaults action.
+
+Acceptance: usable slider with clear third-person scope; safe range and step;
+correct live adjustment, existing shortcut synchronization, Defaults and restart
+persistence; existing settings migrate without losing intended distance.
+Verify first/third-person switching retains the distance preference without
+changing first-person projection or eye placement. Preserve camera obstruction
+handling, scripted camera ownership and Vanilla. No implementation authorized
+by this intake.
+
+## 2026-10-28 - First-person FOV backlog intake only
+
+User requested these two jobs be added to the backlog, with minimal read-only
+research and an HTML overview only. Neither job is selected or started.
+[HTML overview](documentation/artifacts/first-person-fov.html) records source
+findings, open decisions and the validation plan. D14's accepted widescreen
+work does not establish adjustable, degree-based first-person FOV support.
+
+### D14A - Implement first-person field-of-view control
+
+**Status: Todo. Backlog only; not started. Dependencies: D11, D14. Related: D11B, D12, D36.**
+Investigate camera projection and widescreen support before adding a menu
+setting. Establish the current first-person FOV and the horizontal/vertical
+degree convention; implement a configurable value that changes real projection,
+not image stretching. Preserve the current view exactly as the default. Scope
+to first-person gameplay, leaving third-person cameras, scripted shots, menus,
+FMVs and Vanilla unchanged.
+
+Provide a temporary developer control. Verify aiming alignment, visibility and
+portal/object culling, near clipping, widescreen behavior, first-person weapons,
+held items and arms across a practical range. Include view transitions and
+high-refresh replay. Read the accepted D36 audit and preserve its ownership
+boundaries and regression requirements; D36G-L remain separately unselected.
+Recommend safe slider limits from actual results. Document limitations and the
+configuration interface for D19X, including units, default, limits, validation,
+live application, and persistence integration points.
+
+Acceptance: measured baseline and declared degree convention; observable real
+projection changes; current default preserved; unaffected camera/presentation
+modes verified; practical-range evidence for aim, culling, clipping, widescreen
+and first-person presentation; safe range and menu-facing contract documented.
+
+Minimal source finding only: `first_person.inc` already defaults to GTE H=256
+and accepts cached developer-only `DNTTK_FP_PROJECTION=160..386`. This is neither
+a saved degree setting nor evidence that its entire range is safe. The source
+comment's approximate 64-degree width is not a measured display convention.
+
+### D19X - First-person FOV slider in Gameplay settings
+
+**Status: Todo. Backlog only; not started. Dependencies: D14A, D19G, D19N.**
+After D14A is complete, add "First-person FOV" directly beneath "View" in
+Gameplay settings, matching the existing menu style. Display degrees using
+D14A's established convention and validated range. Support keyboard, gamepad
+and mouse adjustment; apply live where practical, persist the value, and include
+it in the screen's Defaults action. Preserve the existing view as the default.
+
+Acceptance: correct placement/style and degree display; all three input methods;
+live behavior and any limitations documented; Defaults restores the original
+view; setting survives a full restart; switching first/third person preserves
+the value while leaving third-person projection unchanged. Test migration of
+existing settings and invalid values using D14A's configuration contract.
+
+
 ## 2026-10-28 - Five backlog requests (intake only)
 
 User explicitly requested no work on these jobs now, allowing only minor
@@ -485,6 +656,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D11G | New level can start in third person although first person is selected (player UI slot 11 -> next level); left click restores it | Cancelled (cannot reproduce, 2026-10-21; reopen if seen again) | D11, D22B |
 | D13 | Higher internal resolution and display scaling | Done | D02 |
 | D14 | Widescreen, FOV and visibility | Done | D03, D13 |
+| D14A | Configurable first-person FOV foundation | Todo (backlog only) | D11, D14 |
 | D15 | Optional geometry and texture precision | Accepted | D13 |
 | D16 | Texture manipulation and replacement foundation | Done (bounded foundation accepted 2026-10-27) | D13 |
 | D16A | HRP assets and first-person weapon research (later) | Cancelled (original assets preferred) | - |
@@ -542,6 +714,12 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D19S | Delete saves from LOAD GAME: Delete on a slot asks DELETE SAVED GAME: "<name>" (NO first) | Done (user-accepted 2026-10-21) | D19K, D19Q |
 | D19T | Real double quote marks (" and ") in the game's menu font: the text call draws `"` as a single quote | Done (user-accepted 2026-10-21) | D19S |
 | D19T1 | DELETE SAVED GAME: shows the slot's name without quotes (cleaner; D19T quotes stay available) | Done (user-accepted 2026-10-21) | D19S, D19T |
+| D19X | First-person FOV slider beneath View in Gameplay | Todo (backlog only) | D14A, D19G, D19N |
+| D19Y | Third-person Camera Distance slider in Gameplay | Todo (backlog only) | D19G, D19N |
+| D19Z | Full mouse support for menu UI | Todo (backlog only) | D19; closeout includes D19Z1/Z3 |
+| D19Z1 | Top-left menu Back icon and control | Todo (backlog only) | D19Z core pointer support |
+| D19Z2 | Design a Time to Kill mouse cursor | Todo (backlog only) | - |
+| D19Z3 | Implement the approved custom menu cursor | Todo (backlog only) | D19Z2, D19Z core pointer support |
 | D19U | Live minus/plus status-bar controls | Todo | D04, D19N |
 | D19U1 | Borderless status bars and three-level HUD selection | Todo | D19U |
 | D19L | Menus stay up and responsive while demo scenes load behind the title menu (no blank spinner gap) | Done (user-accepted 2026-10-19 with D19O) | D19J, D19E |

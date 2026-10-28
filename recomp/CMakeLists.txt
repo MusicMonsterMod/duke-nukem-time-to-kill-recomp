@@ -135,7 +135,7 @@ add_custom_target(ttk-math-shard ALL
 add_dependencies(ttk-math-shard psx-runtime)
 
 # D04 PC action input; framework seams are retained in patches/.
-target_sources(psx-runtime PRIVATE src/ttk/pc_input.cpp src/ttk/modern_controls.cpp src/ttk/weapon_aim.cpp src/ttk/near_clip.cpp src/ttk/sky_widescreen.cpp src/ttk/gas_widescreen.cpp src/ttk/frame_replay.cpp src/ttk/frontend_input.cpp src/ttk/level_select.cpp src/ttk/game_menu.cpp src/ttk/live_env.cpp src/ttk/anim_override.cpp)
+target_sources(psx-runtime PRIVATE src/ttk/pc_input.cpp src/ttk/modern_controls.cpp src/ttk/weapon_aim.cpp src/ttk/near_clip.cpp src/ttk/sky_widescreen.cpp src/ttk/gas_widescreen.cpp src/ttk/frame_replay.cpp src/ttk/frontend_input.cpp src/ttk/level_select.cpp src/ttk/game_menu.cpp src/ttk/live_env.cpp src/ttk/anim_override.cpp src/ttk/loading_widescreen.cpp)
 target_include_directories(psx-runtime PRIVATE src/ttk)
 
 # Explicit opt-in native input checks use the same SDL backend as the player.
@@ -332,3 +332,13 @@ add_executable(ttk-xa-test EXCLUDE_FROM_ALL tests/local/concurrent_xa_native.c)
 target_include_directories(ttk-xa-test PRIVATE ${PSXRECOMP_ROOT}/runtime/include)
 target_compile_options(ttk-xa-test PRIVATE -UNDEBUG -ffunction-sections -fdata-sections)
 target_link_options(ttk-xa-test PRIVATE -Wl,--gc-sections)
+
+if(TARGET SDL3::SDL3)
+    add_executable(ttk-loading-test EXCLUDE_FROM_ALL tests/local/loading_widescreen_native.cpp src/ttk/loading_widescreen.cpp
+        ${PSXRECOMP_ROOT}/runtime/src/psx_sha256.c)
+    target_include_directories(ttk-loading-test PRIVATE src/ttk ${PSXRECOMP_ROOT}/runtime/include)
+    target_compile_options(ttk-loading-test PRIVATE -UNDEBUG)
+    target_compile_features(ttk-loading-test PRIVATE cxx_std_17)
+    target_compile_definitions(ttk-loading-test PRIVATE PSX_SDL3=1)
+    target_link_libraries(ttk-loading-test PRIVATE SDL3::SDL3)
+endif()

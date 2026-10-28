@@ -1,5 +1,20 @@
 # Next-session handoff
 
+## 2026-10-28 - D17AD loading background accepted and closed
+
+The native tiled loading backdrop now fills widescreen margins with translated
+copies of its original artwork. The centre image, texture scale and spinner
+remain unchanged. Adaptive 4:3 retains clipped side tiles for window growth
+during a held loading frame. Build/native packet and save-recovery checks pass;
+private fixed-aspect and resize captures are recorded in
+[note 293](293-d17ad-loading-background.md), with verification limits.
+User accepted: "great work! lock it in and close us out". D17AD is Done.
+Implementation, tests, manual and documentation commit/push are authorized as
+MusicMonsterMod. Existing verification limits remain; no new gameplay changes,
+rebuild, launch or next job during closeout.
+Launch from the workspace root: `python3 recomp/tools/local/run.py`.
+
+
 ## 2026-10-28 - D17AC phone visibility accepted and closed
 
 The current slot-11 phone rear panel sits roughly 10-11 units inside its wall.

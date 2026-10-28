@@ -110,8 +110,10 @@ internal resolution.
 Modernized opens in **16:9 widescreen** by default. You see more of the world
 at the left and right; nothing is stretched, and the middle of the picture is
 exactly what the original showed. The health and ammo boxes move to the screen
-corners. Movies, the title screen and the main menus stay 4:3 with black bars
-at the sides. Aiming and the crosshair are unchanged. Unlike an emulator's
+corners. Movies stay 4:3 with black bars at the sides. Loading backgrounds,
+including those behind menus, repeat their artwork to fill the widescreen
+picture; the spinning logo and menu text keep their original shape. Aiming
+and the crosshair are unchanged. Unlike an emulator's
 widescreen hack, text, the HUD and menus keep their original shape instead of
 being stretched sideways.
 

@@ -79,7 +79,7 @@ commit/push closeout on 2026-10-28.
 
 ### D17AD - Tile loading background across widescreen resolutions
 
-**Status: Todo. Backlog only; not started. Related: D17U.**
+**Status: Done (user-accepted; closeout authorized 2026-10-28). Related: D17U.**
 User reports the background behind the giant spinning nuke loading symbol,
 including menu transitions, remains 4:3 with black side bars. Inspect supplied
 `screencaps/loading-4-3.png` (resolve its actual local location when selected).
@@ -88,7 +88,15 @@ active resolution/aspect ratio. Preserve spinner geometry, animation timing,
 menu/loading composition and Vanilla.
 Acceptance: seamless non-stretched coverage at 4:3, 16:9, 16:10, ultrawide and
 window resize/custom resolutions; no uncovered side bars, seams or regression
-to the accepted smooth loading spinner. Screenshot not inspected at intake.
+to the accepted smooth loading spinner. Screenshot inspected during implementation.
+
+Accepted fix: guarded copies of the original tiled backdrop cover both wide
+margins without stretching the art or changing the spinner. Adaptive 4:3
+retains clipped copies for subsequent window growth. Build/native contracts,
+fixed-aspect captures and save-recovery checks pass within
+[note 293](documentation/293-d17ad-loading-background.md)'s limits.
+User accepted: "great work! lock it in and close us out". Implementation,
+tests and documentation commit/push are authorized. No next job started.
 
 
 ### D17AB - Slot-5 mirror sky leak, HUD loss and palette corruption
@@ -22311,3 +22319,25 @@ acceptance. Implementation, tests and documentation commit/push are explicitly
 authorized as MusicMonsterMod. Existing bounded verification and limitations
 remain in [note 292](documentation/292-d17ac-phone-wall-depth.md); closeout adds
 no new gameplay claim or build change. No next job started.
+
+
+## 2026-10-28 - D17AD tiled loading background candidate
+
+Selected D17AD. The native loading backdrop keeps its original centre and
+material, with translated side copies in the same texture-window chain.
+The spinner/replay timing is unchanged. Adaptive 4:3 frames retain clipped
+side copies to support growth during held loading images. Native packet and
+save-allocation regressions pass; private captures cover fixed aspect ratios,
+60/120 presentation and adaptive resizing. Evidence and limitations are in
+[note 293](documentation/293-d17ad-loading-background.md). Needs playtest,
+not accepted or closed out. No commit/push or next job started.
+
+
+## 2026-10-28 - D17AD accepted and closed
+
+User: "great work! lock it in and close us out". D17AD is Done by user
+acceptance. Implementation, native regression test, manual and documentation
+commit/push are explicitly authorized as MusicMonsterMod. Existing bounded
+verification and the unobserved title/demo loading-composition limit remain
+recorded in [note 293](documentation/293-d17ad-loading-background.md).
+No new gameplay changes, rebuild, launch or next job during closeout.

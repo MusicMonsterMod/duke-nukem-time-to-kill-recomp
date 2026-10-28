@@ -24,7 +24,7 @@ migration requirements. Do not mistake MIRROR VIEW for a rendering enable switch
 
 ### D09B - Restore classic gamepad auto-aim and red dot
 
-**Status: Todo. Backlog only; not started. Related: D09/D09A, D07D/E.**
+**Status: Done (2026-10-28). Related: D09/D09A, D07D/E.**
 User reports Legacy controls with AUTO AIM ON and RED DOT ON do not restore the
 original behavior. Investigate auto-aim and the classic red dot separately:
 trace saved settings, live values and original gameplay/marker systems, and
@@ -39,10 +39,22 @@ Acceptance requires an actual gamepad in Legacy controls: test auto-aim and
 red dot independently and together, including acquiring/changing targets and
 firing; demonstrate observable settings effects and correct disabling. Record
 physical-device evidence separately from injected input or source inspection.
-Brief source observation only: `game_menu.cpp` maps AUTO AIM to `aim_assist`,
-uses `original-lock` to enforce the original auto-aim bit, and reports RED DOT
-as needing AUTO AIM ON. This is an investigation entry point, not a diagnosed
-cause or proof of functioning gameplay. Revisit D07D's marker suppression.
+Accepted result: scheme transitions apply Legacy auto-aim/red-dot ON and
+crosshair OFF, or the reverse for Modern; manual overrides remain available.
+RED DOT ON suppresses the modern crosshair. Render workers refresh on confirmed
+scheme/marker changes, fixing the stale red dot after switching to Modern.
+The user confirms "all working" and authorizes closeout. This is user-reported
+playtest acceptance; automated evidence remains separately labeled in
+[note 294](documentation/294-d09b-classic-aim.md).
+
+Candidate findings: private single-player Legacy tests reproduce native auto-aim
+and the original red marker. All four preference combinations act independently.
+The menu incorrectly claimed RED DOT needed AUTO AIM ON; that dependency and
+its description are corrected. User now reports auto-aim works and identifies
+UI slot 4 for the missing dot. RED DOT ON now suppresses the modern crosshair
+without changing aim assistance; RED DOT OFF restores its prior preference. No gameplay restoration is justified by these
+results. The reported failing context and physical-controller acceptance remain
+open; this is not a diagnosis of the user's report. [Note 294](documentation/294-d09b-classic-aim.md).
 
 ### D19W - Separate keyboard and gamepad bindings pages
 
@@ -22341,3 +22353,52 @@ commit/push are explicitly authorized as MusicMonsterMod. Existing bounded
 verification and the unobserved title/demo loading-composition limit remain
 recorded in [note 293](documentation/293-d17ad-loading-background.md).
 No new gameplay changes, rebuild, launch or next job during closeout.
+
+## 2026-10-28 - D09B investigation and menu correction (Needs playtest)
+
+Selected D09B. Traced preferences, native acquisition and marker rendering;
+private Legacy single-player firing matrix confirms independent auto-aim and
+red-dot switches. Removed the false RED DOT / AUTO AIM UI dependency and
+clarified its native pose-dependent behavior. Player build, 106 profile tests,
+menu screenshot and whitespace checks pass. No shot, input, renderer or framework
+changes. Physical gamepad acceptance and the reported failure remain unresolved.
+See [note 294](documentation/294-d09b-classic-aim.md). No commit/push or closeout.
+
+## 2026-10-28 - D09B slot-4 follow-up and exclusive markers
+
+User confirms auto-aim appears to work and reports the absent red dot in UI
+slot 4. The current slot was copied privately; source hashes/mtimes are unchanged.
+Native and composed captures show the small red dot while firing, absent at idle.
+Implemented the requested marker priority: RED DOT ON suppresses the modern
+crosshair and its hotkey; OFF restores the retained crosshair preference.
+Menu descriptions explain the priority. Build and native aiming regressions
+pass; a real-menu switch restores the modern crosshair live. No shot or
+acquisition changes, no framework changes, no commit/push. Needs playtest.
+
+## 2026-10-28 - D09B control-scheme aim presets (Needs playtest)
+
+User confirms prior marker behavior working and requests automatic scheme
+presets. Confirming a changed Legacy scheme sets auto-aim/red dot on and modern
+crosshair off. Modern sets the reverse. Individual settings remain editable;
+cancel and unchanged scheme confirmation preserve them. Existing profiles are
+not reset on launch. Build/native aiming checks and private live-menu switch,
+cancel, repeat and manual-override checks pass. See note 294. No commit/push.
+
+## 2026-10-28 - D09B live-switch marker fix (Needs playtest)
+
+Reproduced the slot-4 red dot remaining visible after Legacy-to-Modern at
+120 Hz. Forked render workers retained the previous live setting. Confirmed
+scheme/red-dot changes now refresh workers after applying the complete preset.
+Build/native aiming tests pass; composed before/after firing captures confirm
+the Modern crosshair remains and the unwanted dot disappears. Private save
+copies only. See [note 294](documentation/294-d09b-classic-aim.md). No commit/push.
+
+## 2026-10-28 - D09B accepted and closed (Done)
+
+The user confirms "all working" and explicitly authorizes closeout. D09B is
+Done: scheme-based aim/marker presets, exclusive native/modern markers and the
+live-switch render-worker fix are accepted. Manual overrides remain available;
+Vanilla is unchanged. Build, native aiming tests and private slot-4 before/after
+captures passed; user playtest acceptance is distinct from injected diagnostics.
+See [note 294](documentation/294-d09b-classic-aim.md). No further D09B work remains.
+Launch: `python3 recomp/tools/local/run.py`.

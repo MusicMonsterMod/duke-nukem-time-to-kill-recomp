@@ -82,6 +82,18 @@ int main(int argc,char**argv) {
     assert(psx_mod_read_word(sp+0x40)==42); // retract from near cover, never teleport forward
     psx_mod_write_byte(p+0x3b8,2);psx_mod_write_byte(p+0x3b9,4);
     psx_mod_write_word(p+0x224,0);assert(ttk_aim_reticle()); // walking is still armed
+    // Native marker selection suppresses the modern reticle, including the
+    // hotkey, without destroying either saved crosshair preference.
+    setenv("DNTTK_RED_DOT","1",1);
+    assert(!ttk_aim_crosshair_enabled() && !ttk_aim_reticle());
+    ttk_aim_toggle_crosshair();assert(!ttk_aim_reticle());
+    setenv("DNTTK_RED_DOT","0",1);assert(ttk_aim_reticle());
+    setenv("DNTTK_CROSSHAIR","0",1);setenv("DNTTK_RED_DOT","1",1);
+    ttk_aim_toggle_crosshair();
+    setenv("DNTTK_RED_DOT","0",1);assert(!ttk_aim_crosshair_enabled());
+    setenv("DNTTK_CROSSHAIR","1",1);
+    ttk_aim_toggle_crosshair();assert(!ttk_aim_crosshair_enabled());
+    ttk_aim_reset_crosshair_override();assert(ttk_aim_crosshair_enabled());
     ttk::f.held[ttk::original_aim]=true;assert(!ttk_aim_reticle());ttk::f.held[ttk::original_aim]=false;
     psx_mod_write_byte(p+0x3b8,0);assert(!ttk_aim_reticle());
     psx_mod_write_byte(p+0x3b8,1);assert(!ttk_aim_reticle()); // held inventory object

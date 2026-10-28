@@ -68,6 +68,7 @@
 #include "code_identity.h"
 #include "pc_input.h"
 #include "modern_controls.h"
+#include "weapon_aim.h"
 #include "psx_sdl.h"
 #include "savestate.h"
 #include "savestate_slots.h"
@@ -345,7 +346,7 @@ std::vector<Screen> make_screens() {
     }};
     s[0]={"CONTROLS",{
         {"CONTROL SCHEME",Section::Controls,"scheme","DNTTK_CONTROL_SCHEME",true,
-         "MODERN: MOUSE LOOK AND STRAFE. LEGACY: TURN WITH A/D",
+         "ALSO SETS AIM AND MARKER DEFAULTS. TWEAK AFTERWARD",
          {{"MODERN","modern","\"modern\""},{"LEGACY","legacy","\"legacy\""}},0},
         {"MOUSE SENSITIVITY",Section::Controls,"mouse_sensitivity","DNTTK_MOUSE_SENSITIVITY",true,
          "HOW FAR THE CAMERA TURNS FOR EACH MOUSE MOVE",{},12,true,1,200,1,0.01},
@@ -455,10 +456,10 @@ std::vector<Screen> make_screens() {
          {{"FAST","fast","\"fast\""},{"ACCURATE","accurate","\"accurate\""}},0},
         heading("ORIGINAL GAME"),
         // AUTO AIM is the profile's aim assist: ON also turns the original's
-        // auto aim on in the game, which the assist and the red dot need.
+        // auto aim on in the game. The native red dot also draws without a lock.
         {"AUTO AIM",Section::Controls,"aim_assist","DNTTK_AIM_ASSIST",true,"ON: THE ORIGINAL TARGET LOCK HELPS YOUR AIM",
          {{"OFF","off","\"off\""},{"ON","original-lock","\"original-lock\""}},0},
-        {"RED DOT",Section::Controls,"red_dot","DNTTK_RED_DOT",true,"THE ORIGINAL TARGET MARKER",
+        {"RED DOT",Section::Controls,"red_dot","DNTTK_RED_DOT",true,"ORIGINAL AIM MARKER. HIDES THE MODERN CROSSHAIR",
          {{"OFF","0","false"},{"ON","1","true"}},0},
         // 0x80089920 sets Duke's (0x800c3c80) and the enemies' (0x800c3d14)
         // animation rate from it; 50 is the original's default.
@@ -1195,7 +1196,8 @@ void apply_live(const Row& r,int v) {
     if(key=="frame_rate" && !frame_rate_set(value)) return;
     // Until a change ttk_live_env() is plain getenv (an unset variable stays unset).
     if(r.env) ttk_live_env_set(r.env,value);
-    if(key=="view") input_set_view(!std::strcmp(value,"first"));
+    if(key=="crosshair") ttk_aim_reset_crosshair_override();
+    else if(key=="view") input_set_view(!std::strcmp(value,"first"));
     else if(key=="shoulder") input_set_shoulder(!std::strcmp(value,"right") ? 1 : !std::strcmp(value,"left") ? -1 : 0);
     else if(key=="camera_distance") camera_set_distance(std::atof(value));
     else if(key=="display") psx_mod_request_fullscreen_mode(!std::strcmp(value,"exclusive") ? 2 : !std::strcmp(value,"borderless") ? 1 : 0);
@@ -1244,14 +1246,37 @@ void open_screen(int s) {
     refresh_from_game(s);
     screen=s;cursor=first_row(screens[s]);top=0;draft[s]=committed[s];sound(0);
 }
+// Apply once on a confirmed scheme transition, never on load or every frame:
+// subsequent manual aiming choices belong to the player.
+void scheme_aim_defaults(bool legacy) {
+    for(size_t s=0;s<screens.size();++s) for(size_t i=0;i<screens[s].rows.size();++i) {
+        Row& r=screens[s].rows[i];
+        if(!r.key)continue;
+        const std::string key=r.key;
+        const char* value=key=="aim_assist" ? (legacy?"original-lock":"off") :
+            key=="red_dot" ? (legacy?"1":"0") : key=="crosshair" ? (legacy?"0":"1") : nullptr;
+        if(!value)continue;
+        const int v=choice_from_env(r,value);
+        committed[s][i]=draft[s][i]=v;
+        apply_live(r,v);
+    }
+}
 void leave_screen(bool keep) {
     const int s=screen;
+    const int scheme=row_of(s,"scheme");
+    const bool scheme_changed=scheme>=0 && draft[s][scheme]!=committed[s][scheme];
+    const int red_dot=row_of(s,"red_dot");
+    const bool marker_changed=red_dot>=0 && draft[s][red_dot]!=committed[s][red_dot];
     if(keep && (draft[s]!=committed[s] || s==4)) {
         for(size_t i=0;i<screens[s].rows.size();++i) {
             const Row& r=screens[s].rows[i];
             if((draft[s][i]!=committed[s][i] || s==4) && !r.link && !r.heading && row_live(r)) apply_live(r,draft[s][i]);
         }
         committed[s]=draft[s];
+        if(scheme_changed) scheme_aim_defaults(!std::strcmp(screens[s].rows[scheme].choices[committed[s][scheme]].env,"legacy"));
+        // Replay workers are forked processes: inherit the completed preset,
+        // including live marker visibility, before rendering resumed gameplay.
+        if(scheme_changed || marker_changed) psx_mod_replay_workers_refresh();
         write_settings();
     }
     draft[s]=committed[s];
@@ -1648,8 +1673,8 @@ const char* needs(const Row& r) {
     const std::string k=r.key;
     auto is=[](const char* key,const char* v) {return !std::strcmp(value_of(key),v);};
     if((k=="shoulder" || k=="camera_distance" || k=="weapon_aim") && is("camera","original")) return "NEEDS CAMERA INDEPENDENT, IN ADVANCED";
+    if(k=="crosshair" && is("red_dot","1")) return "RED DOT ON HIDES THE MODERN CROSSHAIR";
     if(k=="crosshair" && is("weapon_aim","original")) return "NEEDS WEAPON AIM VIEW, IN ADVANCED";
-    if(k=="red_dot" && is("aim_assist","off")) return "NEEDS AUTO AIM ON";
     if((k=="internal_scale" || k=="geometry_precision" || k=="texture_precision") && is("renderer","software")) return "NEEDS RENDERER OPENGL, IN ADVANCED";
     return nullptr;
 }

@@ -70,6 +70,12 @@ session log in `recomp/build-local/logs/`.
 recapture. In **OPTIONS > CONTROLS > CONTROL SCHEME**, choose **MODERN**
 (default) or explicitly choose **LEGACY** and CONFIRM. The choice applies
 immediately and survives relaunches; loading a save cannot change it.
+Changing to **LEGACY** also sets **AUTO AIM ON**, **RED DOT ON** and
+**CROSSHAIR OFF**. Changing back to **MODERN** sets **AUTO AIM OFF**,
+**RED DOT OFF** and **CROSSHAIR ON**. These are starting presets: you can
+adjust the individual settings afterward. Manual adjustments survive restarts
+and save loads; they reset only when you confirm a different control scheme.
+Cancelling the Controls page changes none of them.
 
 Legacy uses original turning and aiming with the configured action bindings:
 W/S forward/back, A/D or Left/Right turn, Space jumps, left mouse fires/actions,
@@ -1206,8 +1212,9 @@ python3 recomp/tools/local/run.py --weapon-aim original --red-dot on --show-sett
 ```
 
 `--aim-assist original-lock` is **AUTO AIM ON** in OPTIONS > ADVANCED; it also
-turns the original game's auto aim on, which original weapon aiming and the
-red dot use. Modernized plays with it off by default, so add
+turns the original game's auto aim on. The red dot can also show the native
+aim point without a target lock. Modernized plays with auto aim off by default,
+so add
 `--aim-assist original-lock` to the last command for the original auto aim.
 
 These commands save preferences without launching. Old profiles are backed up
@@ -1386,8 +1393,14 @@ the original's style:
 **Auto aim** (off by default) lets the original game's target lock help your
 aim: with view aiming it nudges a shot onto the enemy the game has locked
 when that enemy is near the crosshair, and with original weapon aiming it is
-the original auto aim. The red dot, just below it, is that lock's marker, so
-it needs auto aim on. **Gore**, **status bars** and **game speed** are the
+the original auto aim. The red dot, just below it, shows the native aim
+point during supported aiming/firing poses. It works with auto aim off too;
+it is not a permanently visible crosshair. **RED DOT ON hides the modern
+crosshair**, including its hotkey, to avoid two markers. Turning RED DOT OFF
+restores the previous crosshair preference. Auto aim remains independent.
+In Legacy, draw the weapon with
+Circle/B, then fire with Cross/A. **Gore**, **status bars** and **game speed**
+are the
 original GAME SETTINGS' own options and are kept on the memory card as
 before. Game speed is how fast Duke and the enemies move (50 is the
 original's default); it is not the frame rate. Status bars off hides the

@@ -352,12 +352,21 @@ const char* aim_debug_json() {
 }
 }
 static int crosshair_forced=-1; // -1 follow env; 0/1 override (I key, EDuke-style)
+// D09B: the selected native marker owns the display even between its poses.
+// Keep the crosshair preference so switching RED DOT off restores it.
+static bool native_marker_selected() {
+    const char* visible=ttk_live_env("DNTTK_RED_DOT");
+    return ttk::input_modernized() && visible && !std::strcmp(visible,"1");
+}
 extern "C" int ttk_aim_crosshair_enabled(void) {
+    if(native_marker_selected())return 0;
     if(crosshair_forced>=0)return crosshair_forced;
     const char* visible=ttk_live_env("DNTTK_CROSSHAIR");
     return !visible || std::strcmp(visible,"0");
 }
+extern "C" void ttk_aim_reset_crosshair_override(void) {crosshair_forced=-1;}
 extern "C" void ttk_aim_toggle_crosshair(void) {
+    if(native_marker_selected())return;
     crosshair_forced=ttk_aim_crosshair_enabled()?0:1;
 }
 extern "C" int ttk_aim_reticle() {

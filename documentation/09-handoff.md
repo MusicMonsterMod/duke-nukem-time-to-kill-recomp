@@ -1,5 +1,60 @@
 # Next-session handoff
 
+## 2026-10-28 - D09B accepted and closed (Done)
+
+The user confirms "all working" and explicitly authorizes closeout. D09B is
+Done: scheme-based aim/marker presets, exclusive native/modern markers and the
+live-switch render-worker fix are accepted. Manual overrides remain available;
+Vanilla is unchanged. Build, native aiming tests and private slot-4 before/after
+captures passed; user playtest acceptance is distinct from injected diagnostics.
+See [note 294](294-d09b-classic-aim.md). No further D09B work remains.
+Launch: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-28 - D09B live-switch marker fix (Needs playtest)
+
+Reproduced the slot-4 red dot remaining visible after Legacy-to-Modern at
+120 Hz. Forked render workers retained the previous live setting. Confirmed
+scheme/red-dot changes now refresh workers after applying the complete preset.
+Build/native aiming tests pass; composed before/after firing captures confirm
+the Modern crosshair remains and the unwanted dot disappears. Private save
+copies only. See [note 294](294-d09b-classic-aim.md). No commit/push.
+
+
+## 2026-10-28 - D09B scheme presets (Needs playtest)
+
+Prior marker behavior is user-confirmed working. Changing and confirming the
+control scheme now applies aim/marker defaults: Legacy = auto-aim/red dot on,
+crosshair off; Modern = the reverse. Manual adjustments remain available and
+survive unchanged confirmation, save loads and restart. Cancel changes nothing.
+Build/native aiming tests, private real-menu transitions, persisted overrides
+and menu visual inspection pass. [Note 294](294-d09b-classic-aim.md) records
+scope and evidence. No commit/push. Launch: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-28 - D09B slot-4 follow-up (Needs playtest)
+
+User reports auto-aim works; missing red dot is single-player UI slot 4.
+The private copy shows the native red dot during firing in composed output.
+RED DOT ON now suppresses the modern crosshair and its hotkey; OFF restores
+its previous preference. Build and native aiming tests pass, with a live-menu
+restoration check. The reported disappearance is not diagnosed; physical-pad
+acceptance remains. [Note 294](294-d09b-classic-aim.md). No commit/push.
+Launch: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-28 - D09B investigation and menu correction (Needs playtest)
+
+Private single-player Legacy firing confirms native auto-aim and red-dot
+operation, independently across all four preference combinations. The menu's
+false RED DOT dependency on AUTO AIM was removed and its description clarified.
+Player build, 106 profile tests and revised-menu visual inspection pass.
+No gameplay or framework changes; physical-controller acceptance and the user's
+specific failure remain unresolved. [Note 294](294-d09b-classic-aim.md) retains
+fixture injections, evidence and limits. No commit/push or closeout authorized.
+Launch: `python3 recomp/tools/local/run.py`.
+
+
 ## 2026-10-28 - D17AD loading background accepted and closed
 
 The native tiled loading backdrop now fills widescreen margins with translated

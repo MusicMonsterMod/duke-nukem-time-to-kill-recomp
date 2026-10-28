@@ -3802,16 +3802,30 @@ int main(int argc,char** argv) {
                     psx_mod_write_word(p,(flags&~0x6040u)|effect);
                     psx_mod_write_word(context+0x48,0x2000000);psx_mod_write_word(context+0x4c,0x600000);psx_mod_write_word(context+0x54,0x12345678);
                     CPUState cpu{};cpu.gpr[4]=c;cpu.gpr[5]=mats+0x20*14;cpu.gpr[20]=p;cpu.gpr[23]=14;cpu.gpr[31]=0x80034c6c;cpu.gpr[29]=0x801f0000;
+                    psx_mod_write_word(cpu.gpr[29]+0x98,c);
+                    cpu.gpr[18]=24; // native root proximity brightness at wide FOV
                     for(int i=13;i<=15;++i)cpu.gte_ctrl[i]=i*17;
                     hooks().at(0x800292a0)(&cpu,0x800292a0);
                     assert(psx_mod_read_word(context+0x48)==(effect?0x2000000u:0u));
+                    // The native per-joint shader runs AFTER the transform hook.
+                    // It must consume environment brightness, including when it
+                    // adds a joint tint, rather than overwrite our correction.
+                    assert(cpu.gpr[18]==(effect?24u:psx_mod_read_byte(p+0x1b)));
                     // An unrelated transform retires native-body admission and
                     // restores the complete context/GTE, not just the token.
+                    cpu.gpr[18]=0x12345678; // another callee's s2 is not ours
                     cpu.gpr[31]=0x80012340;hooks().at(0x800292a0)(&cpu,0x800292a0);
+                    assert(cpu.gpr[18]==0x12345678);
                     assert(ttk::first_person_limb_presentation().owner==ttk::LimbOwner::Native);
                     assert(psx_mod_read_word(context+0x48)==0x2000000 && psx_mod_read_word(context+0x4c)==0x600000);
                     assert(psx_mod_read_word(context+0x54)==0x12345678);
                     for(int i=13;i<=15;++i)assert(cpu.gte_ctrl[i]==unsigned(i*17));
+                    // Return to the same actor loop at an unowned torso joint.
+                    // Its original brightness is restored before classification.
+                    cpu.gpr[18]=effect?24u:psx_mod_read_byte(p+0x1b);
+                    cpu.gpr[23]=1;cpu.gpr[5]=mats+0x20;cpu.gpr[31]=0x80034c6c;
+                    hooks().at(0x800292a0)(&cpu,0x800292a0);
+                    assert(cpu.gpr[18]==24);
                     call(0x8001ca4c,0x800d0000,0,0x800376b4);
                 }
                 psx_mod_write_word(p,flags);psx_mod_write_word(context+0x48,command);psx_mod_write_word(context+0x4c,page);psx_mod_write_word(context+0x54,flat);

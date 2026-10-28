@@ -524,6 +524,11 @@ static bool display_hand_done;
 // From the hand joint's transform to the next joint's: the hand mesh and its
 // attached draws, which the near-clip object path draws on top (D12).
 static LimbPresentation limb_draw;
+// Native actor-loop brightness (s2) is reused after the transform hook by
+// 0x8003505c, including per-joint tint paths. Restore only at the next joint
+// in this same actor stack frame, never in an attached mesh's register frame.
+struct JointLightSave { bool active=false; uint32_t sp=0,brightness=0; };
+static JointLightSave joint_light_save;
 static uint64_t weapon_hands, weapon_draws, weapon_flashes, weapon_items;
 // Placement in the level view frame (x right, y down, z ahead). The pistol's
 // firing pose puts the hand at about (84, 120, 257) from the eye; that pose is
@@ -643,7 +648,7 @@ static bool kick_leg_joint(CPUState* cpu);
 // End a verified draw scope with restoration; world/replay replacement instead
 // discards ownership without restoring bytes into a different RAM image.
 static void limb_scope_end(CPUState* cpu) {fade_restore(cpu);limb_draw={};}
-static void limb_scope_forget() {limb_draw={};weapon_live=false;weapon_duke_draw=false;display_hand_done=false;}
+static void limb_scope_forget() {limb_draw={};joint_light_save={};weapon_live=false;weapon_duke_draw=false;display_hand_done=false;}
 static void limb_claim(CPUState* cpu,LimbOwner owner,int part,bool bridge=false) {
     limb_draw=limb_presentation(owner,part,bridge);
     // D14A: widening past H=256 admits the native root through its H cutoff.
@@ -661,6 +666,7 @@ static void weapon_release() {weapon_live=false;limb_scope_end(nullptr);}
 // replaces this fallback with the native per-joint environment colour.
 static uint32_t biomask_light;
 static void weapon_draw_bounds(bool duke_entry,bool list_step_after_duke) {
+    joint_light_save={}; // the native actor epilogue restores its caller's s2
     if(duke_entry) {
         const uint32_t b=psx_mod_read_byte(player+0x1b);
         biomask_light=b|b<<8|b<<16;
@@ -983,6 +989,13 @@ static void fade_clear(CPUState* cpu) {
     if(command!=0x2000000 || tpage!=0x600000 || (psx_mod_read_word(player)&0x6040)) return;
     fade_save={true,command,tpage,psx_mod_read_word(render_context+0x54),{(int32_t)cpu->gte_ctrl[13],(int32_t)cpu->gte_ctrl[14],(int32_t)cpu->gte_ctrl[15]}};
     const uint32_t b=psx_mod_read_byte(player+0x1b);
+    const uint32_t sp=cpu->gpr[29];
+    if(cpu->gpr[31]==0x80034c6c && weapon_duke_draw && cpu->gpr[20]==player &&
+       cpu->gpr[4]==camera && sp>=0x80010000 && sp<=0x801fff60 && !(sp&3) &&
+       psx_mod_read_word(sp+0x98)==camera) {
+        joint_light_save={true,sp,cpu->gpr[18]};
+        cpu->gpr[18]=b;
+    }
     psx_mod_write_word(render_context+0x48,0);psx_mod_write_word(render_context+0x4c,0);
     psx_mod_write_word(render_context+0x54,(fade_save.flat&0xff000000u)|b|b<<8|b<<16);
     for(int i=13;i<=15;++i) cpu->gte_ctrl[i]=(b<<4)&0xff0;
@@ -1256,6 +1269,12 @@ static bool interaction_depth_bridge(PerspectiveAction action) {
         action==PerspectiveAction::Overhead || action==PerspectiveAction::WaterExit;
 }
 static void first_person_weapon_joint(CPUState* cpu,uint32_t ra) {
+    if(ra==0x80034c6c && joint_light_save.active) {
+        if(weapon_duke_draw && cpu->gpr[20]==player && cpu->gpr[4]==camera &&
+           cpu->gpr[29]==joint_light_save.sp && psx_mod_read_word(cpu->gpr[29]+0x98)==camera)
+            cpu->gpr[18]=joint_light_save.brightness;
+        joint_light_save={};
+    }
     // Attached weapon transforms retain their display domain; native arms
     // have always relinquished admission on any intervening transform call.
     if(ra==0x80034c6c) limb_scope_end(cpu);

@@ -4,7 +4,7 @@
 
 ### D14C - Investigate first-person leg presentation across world FOV
 
-**Status: Todo. Backlog only; not selected or started. Dependencies: D14A, D14B (Done). Related: D36J/K, D12A/B, D08K.**
+**Status: Done (user-accepted; closeout authorized 2026-10-28). Dependencies: D14A, D14B (Done). Related: D36J/K, D12A/B, D08K.**
 
 User accepts D14B's arms but reports an uncertain view alteration involving
 Duke's legs. Investigate before choosing any correction. First compare FOV 60,
@@ -36,8 +36,14 @@ changes, plus Q and door kick where relevant. Cover supported aspects, 60/120
 replay, costume mappings, view/load transitions, nearby floors/walls, lighting
 and occlusion. Preserve kick reach/damage/timing, gameplay matrices, third
 person and Vanilla. Separate observed results from user visual acceptance.
-No implementation, build, new art or further research is authorized by this
-intake. The user chooses when to start D14C.
+The intake authorized no implementation, build, new art or further research.
+The user selected D14C on 2026-10-28. Matched geometry traces establish expected
+world-projection framing; native per-joint shading was reapplying faded brightness
+at wide FOV. The candidate corrects that register within the verified limb draw,
+preserving projection, camera, pose and gameplay. Build/native suites and bounded
+private visual/replay checks pass. See [note 298](documentation/298-d14c-leg-fov.md)
+for evidence and limits. The user accepted the result and authorized lock-in
+and commit/push closeout on 2026-10-28.
 
 ## 2026-10-28 - D14B weapon/arms FOV follow-up (backlog intake closed)
 
@@ -766,7 +772,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D14 | Widescreen, FOV and visibility | Done | D03, D13 |
 | D14A | Configurable first-person FOV foundation | Done (user-accepted 2026-10-28) | D11, D14 |
 | D14B | Decouple first-person weapon/arms presentation from world FOV | Done (user-accepted 2026-10-28) | D14A foundation |
-| D14C | Investigate first-person leg presentation across world FOV | Todo (backlog only) | D14A, D14B |
+| D14C | Investigate first-person leg presentation across world FOV | Done (user-accepted 2026-10-28) | D14A, D14B |
 | D15 | Optional geometry and texture precision | Accepted | D13 |
 | D16 | Texture manipulation and replacement foundation | Done (bounded foundation accepted 2026-10-27) | D13 |
 | D16A | HRP assets and first-person weapon research (later) | Cancelled (original assets preferred) | - |
@@ -22785,3 +22791,25 @@ D14C is Todo, not selected: brief source/existing-capture review only, with no
 new launch, build or gameplay changes. Prior D14B automated/visual evidence
 stands with its recorded limits. Implementation, tests, manual and documentation
 commit/push are authorized as MusicMonsterMod. No next job started.
+
+
+## 2026-10-28 - D14C leg FOV investigation and lighting candidate
+
+Matched 60/default/90 thigh vertices confirm ordinary perspective scaling, with
+no camera relocation or mesh deformation in that sample. Found and corrected
+native close-camera brightness being reapplied after the existing fade correction.
+The scoped native-register change preserves world-space legs and accepted Q/door
+geometry. Build, controls/input/aim/near suites and private motion, save/view,
+door and replay checks pass within [note 298](documentation/298-d14c-leg-fov.md).
+D14C Needs playtest; no user acceptance, commit/push or next job.
+
+
+## 2026-10-28 - D14C accepted and closed
+
+User: "lock it in and close it out!!" D14C is Done. The user accepts the leg-FOV
+investigation and scoped lighting correction, authorizing implementation, tests,
+manual and documentation commit/push as MusicMonsterMod. Prior build, native-suite
+and private runtime evidence stands with the limits in
+[note 298](documentation/298-d14c-leg-fov.md). Acceptance does not expand the
+recorded coverage or establish every detail of the original uncertain report.
+No additional gameplay change, rebuild, launch or next job during closeout.

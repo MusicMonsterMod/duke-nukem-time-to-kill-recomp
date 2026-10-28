@@ -1,5 +1,30 @@
 # Current status - 2026-10-04
 
+## 2026-10-28 - D14C accepted and closed
+
+User accepted D14C and explicitly requested lock-in and closeout. D14C is Done:
+expected world-FOV leg framing is retained, and native per-joint shading no
+longer reapplies faded brightness after the limb correction. Prior build,
+controls/input/aim/near suites and private visual/replay evidence stand with
+the limits in [note 298](298-d14c-leg-fov.md). Implementation, tests, manual and
+documentation commit/push are authorized as MusicMonsterMod. No next job started.
+Launch: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-28 - D14C leg FOV lighting candidate (Needs playtest)
+
+Matched geometry traces confirm expected world-FOV leg framing without changing
+camera/pose. Wide FOV also exposed a native lighting defect: per-joint shading
+reused faded brightness after the existing limb fade correction. The candidate
+scopes the native brightness register through that joint, restoring it before
+unowned geometry. World projection/depth, Q/door mechanics and D14B framing stay.
+Build and controls/input/aim/near suites pass, with private visual, movement,
+load/view and 120-setting replay evidence in [note 298](298-d14c-leg-fov.md).
+User visual acceptance remains; no commit/push or next job is authorized.
+Launch `python3 recomp/tools/local/run.py`; compare `fov 60`, `fov default`
+and `fov 90` while looking down and moving. Player files are unchanged.
+
+
 ## 2026-10-28 - D14B accepted and closed; D14C backlog only
 
 User confirms the arms are solid and accepts D14B, authorizing implementation,

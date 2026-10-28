@@ -1,5 +1,21 @@
 # Next-session handoff
 
+## 2026-10-28 - D35I1 wall-top descent (Done, user-accepted)
+
+User accepted the slot-7 wall-top entry and authorized closeout: "lock it in,
+close it out". Reachable thin climbing-wall panels now offer E TO CLIMB DOWN.
+E stows the weapon and enters the native wall catch; S descends, retaining
+lateral contact and existing wall movement, camera and exit rules. Vanilla
+and ladder/pole behavior are preserved.
+
+Player build and controls/input/aim/near suites pass. Private 60/120-setting
+routes cover descent/panel transfer, reload, release, out-of-reach refusal
+and native top exit. Player files remain unchanged. Evidence and bounded
+coverage: [note 313](313-d35i1-wall-top-descent.md).
+No framework edits or next job. Unrelated D19X/D19Y work remains separate.
+Launch: `python3 recomp/tools/local/run.py`.
+
+
 ## 2026-10-28 - D36H7 proportional contact arms (Done, user-accepted)
 
 Contact shoulders now accommodate up to 96 units of excess reach before bone

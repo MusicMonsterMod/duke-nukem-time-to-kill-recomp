@@ -706,6 +706,13 @@ other E climbs. Walking or running off the edge without E still drops or jumps
 as before, and E away from a ladder top does its normal job. Vanilla has no top
 mount, so there the only way down is to jump.
 
+**Climbing down a wall from the top (Modernized, D35I1).**
+At a reachable climbing-wall edge, `E TO CLIMB DOWN` offers a way back down.
+Press **E** to stow your weapon and lower onto the wall, then hold **S** to
+descend. **W/S** climb up/down, **A/D** move sideways, and **Space** releases.
+Your sideways position is retained when mounting. The camera remains free;
+after climbing back onto the platform, movement follows the view again.
+
 **Grabbing a ladder that hangs high on a wall (Modernized, D08J1).**
 Some ladders start well above the floor, out of reach from the ground (about
 Duke's height up).

@@ -1,5 +1,26 @@
 # Time to Kill — modernization jobs
 
+### D35I1 - Climb down from a climbing-wall top (slot 7)
+
+**Status: Done (user-accepted; closeout authorized 2026-10-28).** Selected 2026-10-28. User reports no climb-down
+prompt while standing above the climbing wall reached in current UI slot 7.
+Investigate the actual saved location and native attachment/entry rules using
+private copies; provide a bounded Modernized climb-down entry and prompt.
+Preserve existing wall movement, exits, ladders, poles, camera policy and Vanilla.
+Acceptance: reproduce the missing prompt, verify deliberate entry and downward
+travel plus cancellation/reload and unrelated-edge rejection; run relevant
+native regressions and obtain user gameplay acceptance. The report that this
+may be the only such location remains unverified.
+
+Work log: private slot-7 reproduction confirmed the missing wall-family entry.
+Accepted implementation adds E prompt and native 155-to-198 wall attachment, preserving lateral
+position. Player build, controls/input/aim/near suites and private 60/120-setting
+descent/reload/release probes pass. Existing local camera/settings changes retained.
+Evidence and limitations: [note 313](documentation/313-d35i1-wall-top-descent.md).
+User: "lock it in, close it out". Implementation, documentation, commit and push
+closeout authorized. No next job selected.
+
+
 ### D36H7 - Proportional contact arms with shoulder reach
 
 **Status: Done (user-accepted; closeout authorized 2026-10-28).** Selected 2026-10-28. Reduce excessive interaction and

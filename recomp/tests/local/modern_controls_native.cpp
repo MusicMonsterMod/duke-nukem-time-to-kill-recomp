@@ -990,6 +990,33 @@ int main(int argc,char** argv) {
         psx_mod_write_half(p+0x60,63);psx_mod_write_byte(p+0x22c,0);psx_mod_write_byte(p+0x22d,0);place(-3798,-5625,76329);
         ttk::modern=false;ttk::ladder_top_request();update();assert(psx_mod_read_half(p+0x60)==63);ttk::modern=true;
         ttk::input.sequence+=25;camera();update();assert(psx_mod_read_half(p+0x60)==63); // a stale request expires
+        // D35I1: current slot-7 wall top. Keep the lateral contact, use the
+        // native wall transfer, and finish an early native transition's blend.
+        const uint32_t wall_saved_water=psx_mod_read_word(p+0x834);
+        psx_mod_write_word(p+0x834,0x40000000u);
+        psx_mod_write_word(table+28*308,0x108102);
+        psx_mod_write_half(object+0x1c,0);
+        psx_mod_write_word(object+4,uint32_t(-36352));psx_mod_write_word(object+8,2563);psx_mod_write_word(object+12,34816);
+        const int16_t wall_panel[]={-512,-511,0,512,512,512,0,724};
+        for(int i=0;i<8;++i)psx_mod_write_half(box+2*i,uint16_t(wall_panel[i]));
+        place(-36810,1546,35297);camera();assert(ttk::ladder_top_available());
+        place(-36850,1546,35297);assert(!ttk::ladder_top_available()); // outside hand margin
+        place(-36810,1546,35400);assert(!ttk::ladder_top_available()); // too far from lip
+        place(-36810,2100,35297);assert(!ttk::ladder_top_available()); // below top
+        place(-36810,1546,35297);
+        psx_mod_write_word(table+28*308,0x108002);assert(!ttk::ladder_top_available()); // ordinary wall
+        psx_mod_write_word(table+28*308,0x108102);
+        ttk::modern=false;ttk::ladder_top_request();update();assert(psx_mod_read_half(p+0x60)==63);ttk::modern=true;
+        camera();ttk::ladder_top_request();update();
+        assert(psx_mod_read_half(p+0x60)==155 && psx_mod_read_word(p+0x17c)==object);
+        for(int i=0;i<3;++i){camera();update();}
+        psx_mod_write_half(p+0x60,198);
+        for(int i=0;i<12;++i){camera();update();}
+        assert(s32(p+4)==-36810 && s32(p+8)==2372 && s32(p+12)==34616);
+        assert(psx_mod_read_half(p+0x1c)==0 && psx_mod_read_half(p+0x60)==198);
+        psx_mod_write_half(p+0x60,63);psx_mod_write_byte(p+0x22c,0);psx_mod_write_byte(p+0x22d,0);
+        psx_mod_write_word(p+0x834,wall_saved_water);
+        std::puts("PASS: D35I1 wall-top geometry/family/profile gates, native 155 entry, lateral contact and early 198 handoff");
         psx_mod_write_word(p+0x220,0);psx_mod_write_word(p+0x17c,0);psx_mod_write_word(0x800d2660,saved_table);
         place(0,0,0);psx_mod_write_half(p+0x1c,0);psx_mod_write_half(p+0x24,0);
         ttk::input.sequence=saved_sequence;call(0x8003ade4,c,p,0x80025ee8);assert(ttk::movement_ready());

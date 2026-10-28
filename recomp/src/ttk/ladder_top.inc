@@ -20,6 +20,11 @@
 // face it; then the original 186 takes over. S on a plain ladder also holds
 // Cross, so Duke climbs all the way down and steps off instead of stopping at
 // the lowest rung. E-owned stow and redraw follow the D08J rules.
+// D35I1 extends the same deliberate E entry to thin wall-family panels.
+// Slot 7's platform is 481 units behind the panel, with the top 506 below
+// the feet. Use the native wall catch 155 -> 198 (80047600..80047624),
+// preserving lateral contact; only wall reach grows to 560. Native wall
+// queries own subsequent movement, panel transfers and exits.
 static constexpr uint32_t object_ladder=0x200u;
 static constexpr unsigned ladder_mount_default_updates=12;
 // Diagnostics only: DNTTK_LADDER_MOUNT_UPDATES lengthens the blend so that
@@ -30,9 +35,10 @@ static unsigned ladder_mount_updates() {
     return n;
 }
 static unsigned ladder_mount_finishes;
-struct LadderTop { uint32_t object; double x,y,z; int yaw; };
+struct LadderTop { uint32_t object; double x,y,z; int yaw; bool wall=false; };
 static struct {
     bool active;
+    bool wall;
     uint32_t object;
     double sx,sy,sz,ax,ay,az;
     int syaw,ayaw;
@@ -63,7 +69,7 @@ static bool ladder_box(uint32_t object,int16_t* box) {
     for(int i=0;i<8;++i)box[i]=(int16_t)psx_mod_read_half(base+2*i);
     return true;
 }
-// A plain ladder in Duke's cell list (the list 0x80077f28 walks) whose top is
+// A ladder or wall panel in Duke's cell list (0x80077f28) whose top is
 // just below the floor he stands on, within reach of its panel.
 static bool ladder_top_find(LadderTop& out) {
     const double px=(int32_t)psx_mod_read_word(player+4),py=(int32_t)psx_mod_read_word(player+8),
@@ -73,7 +79,9 @@ static bool ladder_top_find(LadderTop& out) {
         if(node<0x80010000u || node>=0x80200000u || (node&3))return false;
         const uint32_t object=psx_mod_read_word(node+8);
         node=psx_mod_read_word(node+4);
-        if(!plain_ladder(object_type_flags(object)))continue;
+        const uint32_t flags=object_type_flags(object);
+        const bool wall=(flags&0x700u)==0x100u;
+        if(!plain_ladder(flags) && !wall)continue;
         int16_t b[8];
         if(!ladder_box(object,b))continue;
         const double half=(b[4]-b[0])/2.0;
@@ -88,11 +96,15 @@ static bool ladder_top_find(LadderTop& out) {
         const double rx=px-cx,rz=pz-cz;
         const double normal=rx*nx+rz*nz,lateral=rx*tx+rz*tz,above=top-py;
         if(above<300 || above>800 || std::abs(lateral)>half+120 ||
-           std::abs(normal)<40 || std::abs(normal)>420)continue;
+           std::abs(normal)<40 || std::abs(normal)>(wall?560:420))continue;
+        // Wall entry stays inside this panel and keeps the lateral position.
+        // Adjacent tiles are separate attachments, not ladder centre lines.
+        if(wall && std::abs(lateral)>half-40)continue;
         // Climb on the far face, facing the panel (toward the platform).
         const double side=normal>0?-1:1;
-        out.object=object;
-        out.x=cx+side*200*nx;out.z=cz+side*200*nz;out.y=top+320;
+        out.object=object;out.wall=wall;
+        out.x=cx+side*200*nx+(wall?lateral*tx:0);
+        out.z=cz+side*200*nz+(wall?lateral*tz:0);out.y=top+320;
         out.yaw=int(std::lround(std::atan2(-side*nx,-side*nz)*4096/tau))&4095;
         return true;
     }
@@ -110,7 +122,7 @@ static bool ladder_top_ground_ready() {
 void ladder_top_request() {ladder_request_frame=input_host_frame();}
 // Camera-only lease widening while the host blends the mount.
 static bool ladder_mount_early() {
-    return mount.active && psx_mod_read_half(player+0x60)==156 && psx_mod_read_byte(player+0x22c)==3 &&
+    return mount.active && psx_mod_read_half(player+0x60)==(mount.wall?155:156) && psx_mod_read_byte(player+0x22c)==3 &&
         psx_mod_read_word(player+0x17c)==mount.object;
 }
 // Duke is on a plain ladder (mount transfer, climb, exit or bottom step-off).
@@ -335,7 +347,7 @@ static void ladder_top_update(CPUState* cpu) {
     if(mount.active) {
         const unsigned animation=psx_mod_read_half(player+0x60);
         const bool attached=psx_mod_read_byte(player+0x22c)==3 && psx_mod_read_word(player+0x17c)==mount.object &&
-            animation>=186 && animation<=189;
+            (mount.wall?(animation>=198 && animation<=205):(animation>=186 && animation<=189));
         const bool unfinished=mount.ticks<ladder_mount_updates();
         if((psx_mod_read_word(player)&0x20002) || !gameplay_context() || !identity() ||
            (!ladder_mount_early() && !(attached && unfinished))) {
@@ -350,7 +362,7 @@ static void ladder_top_update(CPUState* cpu) {
         // then left above the climbing line, where S plays the step poses in
         // place. Finish the blend while he rests (186/187); a step that has
         // already started (188/189) gets the rest at once.
-        if(animation==188 || animation==189) {
+        if((!mount.wall && (animation==188 || animation==189)) || (mount.wall && animation>=200 && animation<=205)) {
             ladder_mount_write(1);mount.active=false;++ladder_mounts;++ladder_mount_finishes;return;
         }
         ++mount.ticks;
@@ -364,7 +376,7 @@ static void ladder_top_update(CPUState* cpu) {
     LadderTop target;
     if(!ladder_top_ground_ready() || psx_mod_read_byte(player+0x3b8)!=0)return;
     if(!ladder_top_find(target)) {pole_mount_start();return;}
-    mount.active=true;mount.object=target.object;mount.ticks=0;
+    mount.active=true;mount.wall=target.wall;mount.object=target.object;mount.ticks=0;
     mount.sx=(int32_t)psx_mod_read_word(player+4);mount.sy=(int32_t)psx_mod_read_word(player+8);
     mount.sz=(int32_t)psx_mod_read_word(player+12);mount.syaw=psx_mod_read_half(player+0x1c)&4095;
     mount.ax=target.x;mount.ay=target.y;mount.az=target.z;mount.ayaw=target.yaw;
@@ -372,7 +384,7 @@ static void ladder_top_update(CPUState* cpu) {
     psx_mod_write_word(player+0x17c,target.object);psx_mod_write_half(player+0x180,0);
     psx_mod_write_word(player+0x1c4,0);
     psx_mod_write_byte(player+0x22c,3);psx_mod_write_byte(player+0x22d,3);
-    psx_mod_write_half(player+0x60,156);psx_mod_write_half(player+0x68,0);psx_mod_write_half(player+0x6a,0);
+    psx_mod_write_half(player+0x60,target.wall?155:156);psx_mod_write_half(player+0x68,0);psx_mod_write_half(player+0x6a,0);
     ladder_mount_write(0);
     ++ladder_mount_starts;
     if(std::getenv("DNTTK_TRAVERSAL_TRACE"))

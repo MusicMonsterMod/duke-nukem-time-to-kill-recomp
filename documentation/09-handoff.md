@@ -1,5 +1,42 @@
 # Next-session handoff
 
+## 2026-10-28 - D36H6 accepted and closed
+
+User accepted the significant quality improvement, superb weapons, and brief
+costume testing with handheld items and interactions, then explicitly requested
+lock-in and closeout. D36H6 is Done for the delivered cold unarmed-load repair
+and coverage pass. Authored implementation, native regression and documentation
+are included in the authorized MusicMonsterMod commit/push.
+
+Existing build/native/runtime results and the limits in [note 307](307-d36h6-arm-coverage.md)
+stand. Brief costume testing is user evidence, not exhaustive all-costume,
+effect or scripted-event coverage. The isolated overhead restoration observation
+remains unexplained. Future reports use [note 306](306-d36h5-interaction-arm-coverage.md)
+and preserve failing private saves. No post-acceptance gameplay edit, rebuild
+or launch. D36J3 remains Todo; no next job selected.
+
+Launch: `python3 recomp/tools/local/run.py`.
+
+## 2026-10-28 - D36H6 cold unarmed load repair and coverage pass
+
+D36H6 was selected and is Needs playtest for a bounded repair. Fresh 60-Hz
+unarmed loads could expose upper-arm ends because the accepted lowering path
+waited for scratch allocated by a weapon draw or replay. It now allocates the
+same scratch on first use. The cold-hook regression fails against
+the unfixed source; both costume maps pass with the repair; player build and controls/input/
+aim/near/animation-save suites pass.
+
+Private coverage includes all fourteen base weapon records, six upgrade flags,
+direct challenge records 27/28/29, card/crystal equipment handoffs, holstered
+ground/flight, and two swimming routes at 60/120 with view/save restoration.
+Fresh-load before/after images and evidence limits are in [note 307](307-d36h6-arm-coverage.md).
+All 41 player save/card/profile files retain hashes and mtimes. Rare callbacks,
+all-costume/effect combinations and the isolated overhead halt remain open;
+this repair is not claimed to resolve that halt. User visual acceptance is
+pending. No framework edit, commit or push.
+
+Launch: `python3 recomp/tools/local/run.py`.
+
 ## 2026-10-28 - D36H5 accepted and closed
 
 User accepted traversal and expanded interaction arms, then explicitly requested

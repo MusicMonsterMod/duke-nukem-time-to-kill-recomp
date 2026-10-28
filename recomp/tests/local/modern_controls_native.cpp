@@ -3217,6 +3217,50 @@ int main(int argc,char** argv) {
                 layout(first_map);
                 for(unsigned i=0;i<40;++i)frame();
             }
+            // D36H6: a 60-Hz direct unarmed load has never drawn a weapon or
+            // reserved replay scratch. Exercise that first draw in fresh children
+            // before the weapon tests below can accidentally warm the allocation.
+            for(const auto* costume:{first_map,cowboy}) {
+                const pid_t child=fork();assert(child>=0);
+                if(!child) {
+                    layout(costume);psx_mod_write_byte(p+0x3b8,0);
+                    for(unsigned j=0;j<19;++j) {
+                        for(unsigned k=0;k<9;++k)
+                            psx_mod_write_half(mats+32*j+2*k,k%4==0?4096:0);
+                        for(unsigned k=0;k<3;++k)
+                            psx_mod_write_word(mats+32*j+20+4*k,root[k]);
+                    }
+                    // Keep the synthetic pelvis beneath the actual eye so the
+                    // displaced-eye safety guard does not own this arm draw.
+                    for(unsigned k=0;k<3;++k)
+                        psx_mod_write_word(mats+20+4*k,psx_mod_read_word(c+20+4*k)+(k==1?294:0));
+                    const std::vector<uint8_t> original(ram+(mats&0x1fffff),ram+(mats&0x1fffff)+19*32);
+                    uint32_t scratch=0;
+                    for(unsigned j=0;j<19;++j) {
+                        if(costume[j]<10 || costume[j]>15)continue;
+                        call(0x800348d8,c,p,0x8003769c);
+                        CPUState cpu{};cpu.gpr[4]=c;cpu.gpr[5]=mats+32*j;
+                        cpu.gpr[20]=p;cpu.gpr[23]=j;cpu.gpr[29]=0x801f0000;cpu.gpr[31]=0x80034c6c;
+                        hooks().at(0x800292a0)(&cpu,0x800292a0);
+                        assert(ttk::first_person_limb_presentation().owner==ttk::LimbOwner::Body);
+                        assert(cpu.gpr[5]!=mats+32*j);
+                        if(scratch)assert(cpu.gpr[5]==scratch);
+                        scratch=cpu.gpr[5];
+                        for(unsigned k=0;k<0x14;k+=4)
+                            assert(psx_mod_read_word(scratch+k)==psx_mod_read_word(mats+32*j+k));
+                        for(unsigned k=0;k<3;++k) {
+                            const int32_t down=std::lround(120.0*int16_t(psx_mod_read_half(c+6+2*k))/4096.0);
+                            assert(psx_mod_read_word(scratch+20+4*k)==uint32_t(root[k]+down));
+                        }
+                        call(0x8001ca4c,0x800d0000,0,0x800376b4);
+                    }
+                    assert(std::equal(original.begin(),original.end(),ram+(mats&0x1fffff)));
+                    _exit(0);
+                }
+                int status=0;waitpid(child,&status,0);
+                assert(WIFEXITED(status) && WEXITSTATUS(status)==0);
+            }
+            std::puts("PASS: D36H6 cold unarmed arm lowering, both costume orders, shared scratch and native matrix preservation");
             // D12 first-person weapon: only the draw loop's hand transform and its
             // attached draws get the private matrix; arm joints get one at the eye;
             // Duke's joint matrices are never written.

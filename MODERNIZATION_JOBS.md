@@ -68,7 +68,7 @@ weapon/item/effect/campaign coverage transfers to D36H6.
 
 ### D36H6 - Remaining first-person arm coverage and reported exceptions
 
-**Status: Todo (not selected). Dependency: D36H5 (Done).**
+**Status: Done (user-accepted; closeout authorized 2026-10-28). Dependency: D36H5 (Done).**
 
 Retain the unrun portions of D36H5's original broad matrix: all weapon records
 and upgrades, held items, empty-hand locomotion, swim/flight and lighting/effect
@@ -85,6 +85,19 @@ route repeat passed; neither a fixed bug nor an arm regression was established.
 Acceptance for any selected slice requires labelled natural-route evidence,
 appropriate ownership/native regressions and user visual review. No work starts
 merely because this follow-up is registered.
+
+2026-10-28: selected by the user. A fresh 60-Hz unarmed load omitted the accepted
+arm lowering until a weapon draw allocated scratch, exposing upper-arm ends.
+The accepted repair allocates that existing scratch at the first eligible arm draw.
+The new cold-start actual-hook regression fails before and passes after the
+repair, across both costume maps. Player build and controls/input/aim/near/save
+suites pass. Private base/upgrade, held-item, empty-hand/flight and swim routes
+are recorded in [note 307](documentation/307-d36h6-arm-coverage.md), with fresh
+60/120 restoration comparisons. User accepts significantly improved quality,
+superb weapons, and brief costume/held-item/interaction testing, and explicitly
+authorizes lock-in and closeout. D36H6 is Done for this accepted repair and
+coverage pass. Unrun combinations and the isolated overhead halt remain recorded
+limitations, not claims of exhaustive verification. No next job selected.
 
 
 ### D36J3 - No-body quick-kick motion and weapon-overlap polish
@@ -23276,3 +23289,37 @@ Unrun parts of the original broad matrix transfer explicitly to D36H6 (Todo),
 including the unresolved isolated restoration observation. Acceptance does not
 claim exhaustive campaign coverage. D36J3 remains Todo; no next job selected.
 No post-acceptance gameplay edits, rebuild or launch.
+
+
+## 2026-10-28 - D36H6 coverage and cold unarmed-load candidate
+
+User selected D36H6. The private coverage survey found a session-history bug:
+empty-hand ground arms lacked their accepted 120-unit lowering after a fresh
+60-Hz load until a weapon draw allocated scratch. Added on-demand allocation
+in that existing presentation owner, preserving the accepted pose and native
+matrices. The new cold-draw regression fails before and passes after the fix
+for both costume maps. Player build, controls/input/aim/near and animation-save
+checks pass. Fresh/warm 60/120 comparisons confirm the repair in game.
+
+All fourteen base records, six upgrade flags, direct challenge records 27/28/29,
+card/crystal equipment-to-contact handoffs, ground/flight empty hands and two
+60/120 swimming/view/save routes have bounded recorded coverage. See
+[307](documentation/307-d36h6-arm-coverage.md) for actual states, excluded attempts,
+visual limits and remaining natural-route work. Player files remain unchanged.
+D36H6 is Needs playtest for this slice; no exhaustive campaign/effect acceptance,
+no explanation of the old overhead halt, no framework edit, commit or push.
+
+
+## 2026-10-28 - D36H6 accepted and closed
+
+User: "lock it in, close it out". Testing reports significantly improved quality,
+superb weapons, and superb brief costume testing with handheld items and
+interactions. D36H6 is Done for the delivered repair and coverage pass. This is
+user visual acceptance, with the extent of costume testing retained as brief.
+
+Authored implementation, native regression and documentation are included in
+the authorized MusicMonsterMod commit/push. Existing build/native/runtime
+verification stands; no post-acceptance gameplay edits, rebuild or launch.
+Note 307 retains unrun all-costume/effect/script combinations and the unexplained
+overhead restoration observation. These are coverage limits, not a claim that
+the old halt is fixed. D36J3 remains Todo; no next job selected.

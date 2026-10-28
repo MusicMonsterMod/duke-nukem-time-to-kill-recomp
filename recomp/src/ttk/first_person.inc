@@ -1464,7 +1464,12 @@ static void first_person_weapon_joint(CPUState* cpu,uint32_t ra) {
            cpu->gpr[5]==mats+0x20*cpu->gpr[23]) {
             limb_claim(cpu,LimbOwner::Body,part,true);
             if(part==int(part_spine)) first_person_torso_matrix(cpu,desc,mats);
-            if(!flying && unarmed && part>=10 && part<=15 && hidden_matrix) {
+            if(!flying && unarmed && part>=10 && part<=15) {
+                // D36H6: direct unarmed loads at 60 Hz can precede both a
+                // weapon draw and replay reservation. Apply the same framing
+                // from the first arm, independent of earlier equipment use.
+                if(!hidden_matrix)hidden_matrix=psx_mod_alloc_guest_memory(0x20,16);
+                if(!hidden_matrix)return;
                 // Lower both complete chains substantially in screen space.
                 // Reuse reserved draw scratch, leaving gameplay matrices and
                 // bone relationships intact. Camera row 1 is screen-down.

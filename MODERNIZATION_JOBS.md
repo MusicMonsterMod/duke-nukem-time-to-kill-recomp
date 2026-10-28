@@ -1,5 +1,19 @@
 # Time to Kill — modernization jobs
 
+### D36J4 - Door-kick fixed display FOV
+
+**Status: Done (user-accepted; closeout authorized 2026-10-28). Dependencies: D36J3 (Done).**
+User reports the door-opening right leg stretches at wide FOV in current slot 10.
+Route this camera-relative leg and its thigh attachment through the weapons/Q
+fixed projection. Preserve native door timing/events, gameplay matrices, Q,
+contact arms, third person, reflections and Vanilla. Reproduce using private
+copies of current slot 10; compare FOV 60/default/80/90 and 60/120 replay.
+Acceptance requires packet-level projection invariance, native guard regressions,
+real door entry/action/recovery observation and user visual review.
+Evidence and work log: [note 310](documentation/310-d36j4-door-kick-fov.md).
+
+
+
 ## 2026-10-28 - No-body presentation follow-up jobs
 
 ### D36J2 - Integrate no-body as the Modernized first-person default
@@ -23384,4 +23398,30 @@ engineering/status documentation are included in the authorized MusicMonsterMod
 commit/push. Existing verification and note 308's explicit limits stand; no
 post-acceptance gameplay change, rebuild or launch. Framework patch is exported
 and verified against the pinned clean source; repository/privacy checks pass.
+No next job selected.
+
+
+## 2026-10-28 - D36J4 door-kick fixed FOV candidate
+
+User selected current slot 10's wide-FOV door leg and requested a job/log.
+Registered D36J4. The shared fixed-projection policy now admits the complete
+Kick owner, including native right-leg parts 5-8 and attachment 21. Door timing,
+events, gameplay matrices and existing Q presentation remain unchanged.
+The packet regression fails on the baseline and passes with the fix; player
+build and controls/input/aim/near suites pass. Private current slot-10 entry,
+opening and recovery pass at FOV 60/default/80/90, at 60/16:9 and 120/21:9.
+Replay has zero failures; all 41 player files are preserved. Failed attempts,
+evidence and limits are in [note 310](documentation/310-d36j4-door-kick-fov.md).
+Needs playtest for user appearance acceptance. Pending D19X/D19Y work preserved;
+no framework edits, commit or push. No other body-rendering job started.
+
+
+## 2026-10-28 - D36J4 accepted and closed
+
+User: "lock it in, close it out". D36J4 is Done. The door-kick right leg and
+thigh attachment share the fixed weapons/Q projection. Authored implementation,
+regressions, manual and note 310 are included in the authorized MusicMonsterMod
+commit/push. Prior verification and explicit coverage limits stand; no new
+build or gameplay change. Pending D19X/D19Y work remains separate and uncommitted.
+Existing framework patch verified against the clean pin; repository checks pass.
 No next job selected.

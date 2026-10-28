@@ -329,7 +329,7 @@ static void packet_contracts(const char* executable) {
         }
     };
     // D14B: exercise real emitted mesh packets, including UV/depth metadata.
-    // Display owners and Q are independent of world H; world/contact/door
+    // Display owners, Q and door legs are independent of world H; world/contact
     // owners still respond to it. No shared GTE register is changed by projection.
     {
         live_eye=true;test_viewmodel=true;
@@ -339,7 +339,7 @@ static void packet_contracts(const char* executable) {
             for(int part:{1,2,3,4,5,6,7,8,21}) for(int margin:{0,85,192}) {
                 test_part=part;test_margin=margin;
                 const bool fixed=owner==ttk::LimbOwner::DisplayHand || owner==ttk::LimbOwner::DisplayArm ||
-                    (owner==ttk::LimbOwner::Kick && part>=1 && part<=4);
+                    owner==ttk::LimbOwner::Kick;
                 object_case(0x80034dd0,100,true,false,0,500);
                 const auto baseline=host_corners;assert(!baseline.empty());
                 for(int h:{160,177,191,209,256,277}) {
@@ -358,7 +358,7 @@ static void packet_contracts(const char* executable) {
         }
         test_part=0x0f;test_owner=ttk::LimbOwner::DisplayHand;test_viewmodel=false;test_margin=85;
         ttk::near_clip_load_frame_state({0,0,0,0});
-        std::puts("PASS: D14B/D36J3 fixed display/Q projection, world/contact/door exclusion, UV/depth and GTE preservation at three aspects");
+        std::puts("PASS: D14B/D36J4 fixed display/Q/door projection, world/contact exclusion, UV/depth and GTE preservation at three aspects");
     }
     // D17AB: a mirror can leave the native OT empty while each arm/weapon
     // mesh queues host packets. More than four meshes must not wrap the arena

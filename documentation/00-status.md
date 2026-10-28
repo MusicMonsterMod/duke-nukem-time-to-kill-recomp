@@ -1,5 +1,36 @@
 # Current status - 2026-10-04
 
+## 2026-10-28 - D36J4 accepted and closed
+
+User: "lock it in, close it out". D36J4 is Done: the native door-kick right leg
+and thigh attachment now share the fixed weapons/Q display projection.
+Implementation, regressions, manual and [note 310](310-d36j4-door-kick-fov.md)
+are included in the authorized MusicMonsterMod commit/push. Existing native
+suite and private slot-10 FOV/replay evidence stands with its explicit limits.
+No post-acceptance gameplay change, rebuild or launch. Pending D19X/D19Y
+camera-slider work is preserved separately, outside this commit. Existing
+framework patch checked against the clean pin; repository/privacy checks pass.
+No next job selected.
+
+Launch: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-28 - D36J4 door-kick fixed FOV (Needs playtest)
+
+The current slot-10 hinged-door right leg and thigh attachment now share the
+weapons/Q fixed display projection. Native door timing/events and gameplay
+matrices stay unchanged. Build and controls/input/aim/near tests pass, including
+a baseline-failing emitted-packet FOV regression. Private door entry/opening/
+recovery passes at FOV 60/default/80/90, at 60/16:9 and 120/21:9; 2193 replay
+worker jobs complete without failures. All 41 player files are preserved.
+
+[Note 310](310-d36j4-door-kick-fov.md) records implementation, failed attempts,
+visual evidence and coverage limits. User visual acceptance remains pending.
+D19X/D19Y changes are preserved independently. No framework edit, commit or push.
+Launch: `python3 recomp/tools/local/run.py`.
+
+
+
 ## 2026-10-28 - D36J3 accepted and closed
 
 User accepted revision 3: "thats it! lock it in and close it out". D36J3 is Done.

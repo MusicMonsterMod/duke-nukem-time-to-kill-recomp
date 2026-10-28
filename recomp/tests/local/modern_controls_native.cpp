@@ -4565,6 +4565,7 @@ int main(int argc,char** argv) {
                             cpu.gpr[5]=mats+0x20*cpu.gpr[23];cpu.gpr[31]=0x80034c6c;
                             hooks().at(0x800292a0)(&cpu,0x800292a0);
                             const bool changed=ttk::first_person_limb_presentation().owner==ttk::LimbOwner::Kick;
+                            if(changed) assert(ttk::first_person_limb_presentation().fixed_projection());
                             std::array<int32_t,3> pos{};
                             for(unsigned i=0;i<3;++i)pos[i]=psx_mod_read_word(cpu.gpr[5]+0x14+4*i);
                             call(0x8001ca4c,0x800d0000,0,0x800376b4);
@@ -4573,7 +4574,7 @@ int main(int argc,char** argv) {
                         const auto attacks=kick_calls.size();
                         for(unsigned key=0;key<6;++key) {
                             psx_mod_write_half(p+0x64,key);psx_mod_write_half(p+0x66,key);psx_mod_write_half(p+0x62,0);
-                            for(unsigned part=5;part<=8;++part)assert(draw(part).first);
+                            for(unsigned part:{5u,6u,7u,8u,21u})assert(draw(part).first);
                             assert(!draw(3).first); // other leg untouched
                         }
                         psx_mod_write_half(p+0x64,2);psx_mod_write_half(p+0x66,3);

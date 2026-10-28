@@ -19,6 +19,7 @@ extern "C" void gte_nclip_culling_stats(uint64_t* checks,uint64_t* flips) {*chec
 #include "modern_controls.h"
 #include "level_select.h"
 #include "control_math.h"
+#include "first_person_fov.h"
 #include "pc_input.h"
 #include "cpu_state.h"
 #include "mod_plugins.h"
@@ -3109,6 +3110,42 @@ int main(int argc,char** argv) {
                 CPUState cpu{};cpu.gpr[4]=386;cpu.gpr[31]=0x8002e4d0;cpu.gpr[29]=0x801f0000;
                 hooks().at(0x800b4d9c)(&cpu,0x800b4d9c);assert(cpu.gpr[4]==256);
                 cpu.gpr[4]=386;cpu.gpr[31]=0x800255dc;hooks().at(0x800b4d9c)(&cpu,0x800b4d9c);assert(cpu.gpr[4]==386);
+                // D14A: degree conversion, strict validation and real guarded H.
+                assert(ttk::fp_fov_projection(64)==256);
+                assert(std::abs(ttk::fp_fov_degrees(256)-64.010766)<.00001);
+                double parsed=0;
+                for(const char* bad:{"", "nan", "inf", "90x", "59.9", "90.1"})
+                    assert(!ttk::fp_fov_parse(bad,parsed));
+                assert(ttk::fp_fov_parse("75",parsed) && parsed==75);
+                for(double degrees:{60.0,75.0,90.0}) {
+                    assert(ttk::first_person_set_fov(degrees));
+                    cpu.gpr[4]=386;cpu.gpr[31]=0x8002e4d0;
+                    hooks().at(0x800b4d9c)(&cpu,0x800b4d9c);
+                    assert(cpu.gpr[4]==unsigned(ttk::fp_fov_projection(degrees)));
+                    assert(psx_mod_read_half(c+0x42)==386);
+                    cpu.gpr[4]=386;cpu.gpr[31]=0x800255dc;
+                    hooks().at(0x800b4d9c)(&cpu,0x800b4d9c);assert(cpu.gpr[4]==386);
+                }
+                assert(!ttk::first_person_set_fov(NAN) && !ttk::first_person_set_fov(91));
+                assert(std::abs(ttk::first_person_fov_setting()-90)<.0001);
+                ttk::modern=false;cpu.gpr[4]=386;cpu.gpr[31]=0x8002e4d0;
+                hooks().at(0x800b4d9c)(&cpu,0x800b4d9c);assert(cpu.gpr[4]==386);ttk::modern=true;
+                // Worker snapshot must retain 90 even after live selection is 60.
+                const pid_t child=fork();assert(child>=0);
+                if(!child) {
+                    std::vector<unsigned char> snapshot(ttk::render_state_size());
+                    ttk::render_state_save(snapshot.data());
+                    ttk::first_person_set_fov(60);ttk::render_state_load(snapshot.data());
+                    cpu.gpr[4]=386;cpu.gpr[31]=0x8002e4d0;
+                    hooks().at(0x800b4d9c)(&cpu,0x800b4d9c);assert(cpu.gpr[4]==160);
+                    _exit(0);
+                }
+                int status=0;waitpid(child,&status,0);assert(WIFEXITED(status) && WEXITSTATUS(status)==0);
+                ttk::input.first_person=false;for(unsigned i=0;i<40;++i)frame();
+                cpu.gpr[4]=386;cpu.gpr[31]=0x8002e4d0;
+                hooks().at(0x800b4d9c)(&cpu,0x800b4d9c);assert(cpu.gpr[4]==386);
+                ttk::first_person_set_fov(64);ttk::input.first_person=true;for(unsigned i=0;i<40;++i)frame();
+                std::puts("PASS: D14A FOV degrees, invalid values, exact default, scoped projection and replay snapshot");
             }
             double forward[3],anchor[3];
             for(int i=0;i<3;++i) {
@@ -4159,6 +4196,29 @@ int main(int argc,char** argv) {
                     call(0x8001ca4c,0x800d0000,0,0x800376b4);
                     joint.gpr[16]=40;hooks().at(0x800b4d2c)(&joint,0x800b4d2c);
                     assert(joint.gpr[16]==40 && !ttk::first_person_interaction_drawing());
+                    // D14A: wide projection can expose the root's native fade.
+                    // Contact limbs keep world depth and environment light; only
+                    // the exact proximity effect is scoped out, never power-ups.
+                    if(eligible && !unarmed_body && part==15) {
+                        const uint32_t ctx=0x800d67a8,flags=psx_mod_read_word(p);
+                        const uint32_t cmd=psx_mod_read_word(ctx+0x48),page=psx_mod_read_word(ctx+0x4c),flat=psx_mod_read_word(ctx+0x54);
+                        for(unsigned h:{256u,209u,160u})for(unsigned effect:{0u,0x40u,0x2000u,0x4000u}) {
+                            call(0x800348d8,c,p,0x8003769c);
+                            psx_mod_write_word(p,(flags&~0x6040u)|effect);
+                            psx_mod_write_word(ctx+0x48,0x2000000);psx_mod_write_word(ctx+0x4c,0x600000);psx_mod_write_word(ctx+0x54,0x12345678);
+                            joint.gte_ctrl[26]=h;for(int k=13;k<16;++k)joint.gte_ctrl[k]=321;
+                            joint.gpr[4]=c;joint.gpr[5]=matrix;joint.gpr[31]=0x80034c6c;
+                            hooks().at(0x800292a0)(&joint,0x800292a0);
+                            assert(psx_mod_read_word(ctx+0x48)==(h<256 && !effect?0u:0x2000000u));
+                            const auto owner=ttk::first_person_limb_presentation();
+                            assert(owner.owner==ttk::LimbOwner::Interaction && owner.world_clip() && !owner.viewmodel());
+                            assert(joint.gpr[5]==matrix && joint.gte_ctrl[26]==h);
+                            joint.gpr[31]=0x80012340;hooks().at(0x800292a0)(&joint,0x800292a0);
+                            assert(psx_mod_read_word(ctx+0x48)==0x2000000 && psx_mod_read_word(ctx+0x4c)==0x600000);
+                            assert(psx_mod_read_word(ctx+0x54)==0x12345678 && joint.gte_ctrl[13]==321);
+                        }
+                        psx_mod_write_word(p,flags);psx_mod_write_word(ctx+0x48,cmd);psx_mod_write_word(ctx+0x4c,page);psx_mod_write_word(ctx+0x54,flat);
+                    }
                 }
                 assert(std::equal(before.begin(),before.end(),ram+(mats&0x1fffff)));
                 psx_mod_write_byte(p+0x3b8,equip);

@@ -1455,6 +1455,17 @@ output scrolls back to the bottom. **Up / Down** recall the commands you typed
 (newest first; Down past the newest clears the line), and `history` lists them. Holding Backspace or a character key repeats it, like a desktop text field. While scrolled up, `-- MORE BELOW: PGDN / END --`
 shows above the prompt.
 
+**First-person FOV (developer testing, D14A).** In Modernized, open the
+backtick console and enter `fov 75` to try a wider first-person view. The
+candidate range is `60` to `90`, in horizontal degrees at 4:3; widescreen
+shows more horizontally at the same setting. `fov` reports the effective,
+integer-projection-quantized angle. `fov default` restores the exact original
+first-person projection (nominal 64 degrees). Changes last for this session,
+including view switches and save loads, but are not saved to player settings.
+Third person keeps its own projection. The saved Gameplay slider is the separate
+D19X job. For a single launch, `DNTTK_FP_FOV=75 python3 recomp/tools/local/run.py`
+sets the same developer control; an invalid launch value falls back to default.
+
 **Debug level select (testing).** In a one-player game, open the console and
 type `levels` to list the levels the original level-select cheat offers, with
 the game's own names: 0 TIME TO KILL, 1-3 and 5-12 (the campaign), 21-26 (the

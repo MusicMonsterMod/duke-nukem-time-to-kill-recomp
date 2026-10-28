@@ -30,15 +30,58 @@ static constexpr uint32_t min_boom_word=0x800c3c48, min_boom_original=768;
 // Eye above the neck pivot, in game units. It stays over the neck (not ahead
 // of it) to keep the most room between the eye and a wall Duke touches.
 static constexpr double eye_height=96;
-static constexpr int default_eye_projection=256;
-// Developer tuning only (not a saved preference): DNTTK_FP_PROJECTION=160..386.
-static int eye_projection() {
+// D14A developer control. The event-pump thread may change this while the
+// emulation thread runs. Replay consumes the projection captured with its frame,
+// never a worker's fork-time environment or a later live setting.
+static std::atomic<int> fp_fov_override{0};
+static int override_eye_projection=256;
+static int launch_eye_projection() {
     static const int value=[]{
-        const char* text=std::getenv("DNTTK_FP_PROJECTION");
+        const char* text=std::getenv("DNTTK_FP_FOV");
+        double degrees=fp_fov_default;
+        if(text) {fp_fov_parse(text,degrees);return fp_fov_projection(degrees);}
+        // Preserve the older raw-H diagnostic only when no degree control was
+        // supplied. This historical interval is not the supported slider range.
+        text=std::getenv("DNTTK_FP_PROJECTION");
         char* end=nullptr;const long v=text?std::strtol(text,&end,10):0;
-        return text && end && !*end && v>=160 && v<=386 ? (int)v : default_eye_projection;
+        return text && end!=text && end && !*end && v>=160 && v<=386 ? int(v) : 256;
     }();
     return value;
+}
+static int eye_projection() {
+    if(render_override)return override_eye_projection;
+    const int value=fp_fov_override.load();
+    return value?value:launch_eye_projection();
+}
+bool first_person_set_fov(double degrees) {
+    if(!fp_fov_valid(degrees))return false;
+    fp_fov_override.store(fp_fov_projection(degrees));return true;
+}
+double first_person_fov_setting() {
+    const int value=fp_fov_override.load();
+    return fp_fov_degrees(value?value:launch_eye_projection());
+}
+bool fov_console_command(const char* line,void (*say)(const char*),bool& close) {
+    if(std::strcmp(line,"fov") && std::strncmp(line,"fov ",4))return false;
+    close=false;
+    if(!input_modernized()) {say("First-person FOV: Modernized profile only");return true;}
+    if(line[3]) {
+        const char* value=line+4;double degrees=fp_fov_default;
+        if(std::strcmp(value,"default") && !fp_fov_parse(value,degrees)) {
+            say("Usage: fov [60..90|default] (horizontal degrees at 4:3; session only)");return true;
+        }
+        first_person_set_fov(degrees);close=true;
+    }
+    char text[160];std::snprintf(text,sizeof text,
+        "First-person FOV %.2f degrees (4:3 horizontal; session only). Default 64; range 60-90.",first_person_fov_setting());
+    say(text);return true;
+}
+static const char* first_person_fov_debug_json() {
+    static char text[256];const int h=eye_projection();
+    const int margin=std::max(0,psx_mod_widescreen_x_margin());
+    std::snprintf(text,sizeof text,"{\"horizontal_43\":%.6f,\"vertical\":%.6f,\"horizontal_wide\":%.6f,\"target_h\":%d,\"margin\":%d}",
+        fp_fov_degrees(h),fp_fov_degrees(h,120),fp_fov_degrees(h,(256.0+margin)/1.6),h,margin);
+    return text;
 }
 static double eye_offset[3];
 static bool eye_offset_valid;
@@ -603,6 +646,14 @@ static void limb_scope_end(CPUState* cpu) {fade_restore(cpu);limb_draw={};}
 static void limb_scope_forget() {limb_draw={};weapon_live=false;weapon_duke_draw=false;display_hand_done=false;}
 static void limb_claim(CPUState* cpu,LimbOwner owner,int part,bool bridge=false) {
     limb_draw=limb_presentation(owner,part,bridge);
+    // D14A: widening past H=256 admits the native root through its H cutoff.
+    // Its draw then enables close-camera subtractive fade (0x80034e18), making
+    // otherwise correctly clipped contact arms vanish. Correct only that fade
+    // in the existing per-joint scope, using Duke's environment brightness and
+    // preserving intentional translucent effects. Native pose/world depth stay.
+    const unsigned h=cpu->gte_ctrl[26]&0xffff;
+    if(owner==LimbOwner::Interaction && h>=160 && h<256)
+        limb_draw.light=LimbLight::CorrectProximityFade;
     if(limb_draw.light==LimbLight::CorrectProximityFade) fade_clear(cpu);
 }
 static void weapon_release() {weapon_live=false;limb_scope_end(nullptr);}

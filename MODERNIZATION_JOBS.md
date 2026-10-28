@@ -179,7 +179,7 @@ work does not establish adjustable, degree-based first-person FOV support.
 
 ### D14A - Implement first-person field-of-view control
 
-**Status: Todo. Backlog only; not started. Dependencies: D11, D14. Related: D11B, D12, D36.**
+**Status: Done (user-accepted 2026-10-28). Dependencies: D11, D14. Related: D11B, D12, D36.**
 Investigate camera projection and widescreen support before adding a menu
 setting. Establish the current first-person FOV and the horizontal/vertical
 degree convention; implement a configurable value that changes real projection,
@@ -201,10 +201,19 @@ projection changes; current default preserved; unaffected camera/presentation
 modes verified; practical-range evidence for aim, culling, clipping, widescreen
 and first-person presentation; safe range and menu-facing contract documented.
 
-Minimal source finding only: `first_person.inc` already defaults to GTE H=256
+Intake source finding: `first_person.inc` defaults to GTE H=256
 and accepts cached developer-only `DNTTK_FP_PROJECTION=160..386`. This is neither
 a saved degree setting nor evidence that its entire range is safe. The source
 comment's approximate 64-degree width is not a measured display convention.
+
+Candidate: session-only `fov [60..90|default]` console control and
+`DNTTK_FP_FOV` launch override, horizontal degrees at 4:3. Nominal default 64
+preserves H=256 exactly. Replay snapshots carry projection; a scoped correction
+prevents native interaction limbs disappearing under the wide-FOV proximity fade.
+Build/native controls/input/aim/near suites pass. Private 4:3/16:9/21:9 captures,
+60/120-setting replay and D36 held-item/interaction checks are documented in
+[note 296](documentation/296-d14a-first-person-fov.md), including failed harness
+attempts and remaining visual/campaign coverage. D19X remains unselected.
 
 ### D19X - First-person FOV slider in Gameplay settings
 
@@ -707,7 +716,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D11G | New level can start in third person although first person is selected (player UI slot 11 -> next level); left click restores it | Cancelled (cannot reproduce, 2026-10-21; reopen if seen again) | D11, D22B |
 | D13 | Higher internal resolution and display scaling | Done | D02 |
 | D14 | Widescreen, FOV and visibility | Done | D03, D13 |
-| D14A | Configurable first-person FOV foundation | Todo (backlog only) | D11, D14 |
+| D14A | Configurable first-person FOV foundation | Done (user-accepted 2026-10-28) | D11, D14 |
 | D14B | Decouple first-person weapon/arms presentation from world FOV | Todo (backlog only) | D14A foundation |
 | D15 | Optional geometry and texture precision | Accepted | D13 |
 | D16 | Texture manipulation and replacement foundation | Done (bounded foundation accepted 2026-10-27) | D13 |
@@ -22663,6 +22672,24 @@ Advanced-menu capture attempts in [note 295](documentation/295-d19v-action-view-
 No further implementation, rebuild, game launch or next job during closeout.
 Launch: `python3 recomp/tools/local/run.py`.
 
+## 2026-10-28 - D14A first-person FOV candidate (Needs playtest)
+
+Implemented degree-based session control with exact default projection,
+strict validation and render-snapshot synchronization. Measured the nominal
+4:3 convention from native dimensions and GTE matrices; documented the D19X
+interface, quantization and 60-90 candidate range. Wide-FOV testing exposed
+native root proximity fade on interaction arms; corrected only that fade in
+existing limb scopes, retaining world depth and intentional effects.
+
+Player build and native controls/input/aim/near suites pass. Private captures
+cover multiple aspects, 60/120 settings, identified weapons, card/crystal use,
+wheel, vending and ladder, plus real-key view transitions. Evidence and limits
+are in [note 296](documentation/296-d14a-first-person-fov.md). Player files remain
+unchanged. User visual acceptance and broader routes remain; no commit/push,
+documentation closeout or next job is authorized by this candidate handoff.
+Launch: `python3 recomp/tools/local/run.py`; backtick console `fov 75`,
+`fov 90`, or `fov default`. Session-only; no saved menu slider yet.
+
 ## 2026-10-28 - D14B backlog-only intake closeout
 
 Recorded the user's slot-4 weapon/arms FOV report, investigation and acceptance
@@ -22671,3 +22698,15 @@ for standalone HTML files opened directly, without a web server. No artifact,
 implementation, build or game launch was undertaken. This closes the authorized
 intake only; D14B implementation is not selected. Existing D14A candidate edits
 remain separate from this documentation commit.
+
+## 2026-10-28 - D14A accepted and commit/push closeout authorized
+
+User confirms the first-person FOV playtest passes and accepts the work.
+D14A is Done. The session-only control and original default are accepted;
+D14B weapon/arms presentation and D19X saved slider remain separate jobs.
+Native controls (all-level fixtures), input, aim and near-clip suites pass again.
+The exported framework patch is unchanged and applies to the pinned clean source,
+matching all 55 modified/new framework files. Repository/privacy checks pass.
+User reports a separate background continuation; this closeout does not start
+or change that job. Existing evidence limits in note 296 remain documented.
+Launch: `python3 recomp/tools/local/run.py`.

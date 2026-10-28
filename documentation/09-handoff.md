@@ -1,5 +1,18 @@
 # Next-session handoff
 
+## 2026-10-28 - D14A accepted; commit/push closeout
+
+User confirms the first-person FOV playtest passes and accepts D14A. The board
+now marks it Done. Session-only `fov [60..90|default]` is accepted; D14B weapon
+presentation and D19X saved slider remain separate follow-ups. No new job is
+started here; the user reports a separate background continuation.
+
+Native controls with all-level fixtures, input, aim and near-clip tests pass.
+Framework export is unchanged; clean pinned-source application and byte checks
+pass for all 55 modified/new files. Repository/privacy checks pass. Historical
+candidate evidence and broader coverage limits remain in [note 296](296-d14a-first-person-fov.md).
+Commit and push are explicitly authorized. Launch: `python3 recomp/tools/local/run.py`.
+
 ## 2026-10-28 - D14B backlog intake closed; implementation unselected
 
 Added D14B to the canonical job board: decouple first-person weapon/arms size
@@ -15,6 +28,22 @@ may be useful but is not requested now. The local continuation skill now records
 plain locally opened HTML, like ttk-fonts, without a web server when HTML is
 requested. Backlog documentation commit/push closeout is authorized; existing
 D14A candidate changes remain separate and its evidence/status are unchanged.
+
+
+## 2026-10-28 - D14A first-person FOV candidate (Needs playtest)
+
+Session-only `fov [60..90|default]` and `DNTTK_FP_FOV` change real first-person
+projection in horizontal degrees at 4:3. Default 64 preserves H=256 exactly;
+third person retains its original projection. Replay snapshots carry the value.
+A scoped correction prevents the native close-camera fade from hiding contact
+arms at wider FOVs; native pose/world depth and intentional effects remain.
+
+Build/native controls/input/aim/near suites pass. Private aspect/projection,
+view-transition, replay and D36 interaction evidence, plus remaining playtest
+limits, are in [note 296](296-d14a-first-person-fov.md). Player saves/settings
+remain unchanged. D19X is unselected; no persistence/menu slider, commit/push or
+closeout. Launch `python3 recomp/tools/local/run.py`, then use the backtick
+console: `fov 75` / `fov 90`; `fov default` restores the exact baseline.
 
 
 ## 2026-10-28 - D19V accepted and closed (Done)

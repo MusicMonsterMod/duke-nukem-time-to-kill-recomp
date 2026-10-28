@@ -1,5 +1,27 @@
 # Time to Kill — modernization jobs
 
+
+## 2026-10-28 - D36I1 mirror interaction arm continuity
+
+### D36I1 - Slot-5 hair-adjustment hands popping in first person
+
+**Status: Done (user-accepted; closeout authorized 2026-10-28). Dependencies: D36G/I (Done). Related: D35N, D17AB, D14A-C.**
+
+User selected immediate implementation: current UI slot 5 faces a mirror;
+interacting shows Duke adjusting his hair in the reflection while the primary
+first-person hands pop in and out. Register and investigate this bounded polish
+job using private save/card/settings copies and the accepted D36 audit.
+
+Scope: diagnose native Mirror arm admission and clipping; correct abrupt
+whole-part disappearance while preserving native animation, reflection, world
+occlusion, interaction timing, weapon return, third person and Vanilla. No new
+arm assets or unrelated presentation redesign. Acceptance: compare slot-5
+entry/active/exit and repeat use; verify all six arm parts, reflected versus
+primary ownership, look/FOV changes, load/view transitions and 60/120 replay.
+Keep evidence limits and user visual acceptance separate. The user accepted
+the candidate and authorized lock-in and closeout on 2026-10-28.
+[Note 299](documentation/299-d36i1-mirror-arms.md) records verification and limits.
+
 ## 2026-10-28 - D14C leg presentation across FOV (backlog intake only)
 
 ### D14C - Investigate first-person leg presentation across world FOV
@@ -940,6 +962,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D36H2 | Buffalo Rifle grip-area flicker | Done (user-accepted 2026-10-26) | D36G, D36H |
 | D36H3 | Realistic two-handed weapon/hand motion while running | Done (user-accepted) | D36G, D36H, D36H1 |
 | D36I | Native interaction arm continuity, slot 8 first | Done | D36G |
+| D36I1 | Slot-5 mirror grooming arm continuity | Done | D36G/I |
 | D36J | Coherent body and quick-kick leg presentation | Done (user-accepted 2026-10-26) | D36G, D36H |
 | D36K | Traversal and special-action visual coverage | Done | D36G, D36H, D36I, D36J |
 | D37 | Temporary movement failure at 07:26 UK on 2026-10-26 (separate research) | Done | - |
@@ -22813,3 +22836,31 @@ and private runtime evidence stands with the limits in
 [note 298](documentation/298-d14c-leg-fov.md). Acceptance does not expand the
 recorded coverage or establish every detail of the original uncertain report.
 No additional gameplay change, rebuild, launch or next job during closeout.
+
+
+## 2026-10-28 - D36I1 mirror arm candidate (Needs playtest)
+
+User selected backlog registration and immediate implementation. Mirror alone
+was excluded from the existing native interaction joint-depth bridge. Admit its
+six semantic arm parts to safe polygon clipping while retaining native poses,
+world depth, reflection ownership and interaction timing. No framework changes.
+
+Build and controls/input/aim/near suites pass. New mirror admission regression
+fails on the old code and passes with the fix, including reflected draws, third
+person and Vanilla exclusions. Private slot-5 captures at 60/120 cover grooming,
+FOV 60/default/90, up/down look, repeat use and mid-action save/load. Three replay
+workers report zero failures. Player file hashes/mtimes are unchanged.
+[Note 299](documentation/299-d36i1-mirror-arms.md) records evidence and limits.
+User motion/framing acceptance remains. No commit/push or closeout authorized.
+Launch: `python3 recomp/tools/local/run.py`; load slot 5 and interact with E.
+
+
+## 2026-10-28 - D36I1 accepted and closed
+
+User: "lock it in and close us out". D36I1 is Done. The mirror arm clipping
+correction is accepted; implementation, regression tests and documentation
+commit/push are authorized as MusicMonsterMod. Prior build/native-suite and
+private 60/120, FOV, repeat-use and save/load evidence stand with the limits in
+[note 299](documentation/299-d36i1-mirror-arms.md). No new game run or rebuild
+was needed for closeout. No next job started.
+Launch: `python3 recomp/tools/local/run.py`.

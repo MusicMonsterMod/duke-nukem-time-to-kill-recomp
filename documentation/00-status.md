@@ -1,5 +1,17 @@
 # Current status - 2026-10-04
 
+## 2026-10-28 - D36I1 accepted and closed
+
+User accepted the slot-5 mirror grooming arm correction and explicitly requested
+lock-in and closeout. D36I1 is Done. Mirror arms now reach safe polygon clipping
+without whole-joint cutoff popping, retaining native animation, world depth and
+reflection ownership. Prior build, controls/input/aim/near suites and private
+60/120, FOV, repeat-use and mid-action save/load checks stand with their limits in
+[note 299](299-d36i1-mirror-arms.md). Implementation, tests and documentation
+commit/push are authorized as MusicMonsterMod. No next job started.
+Launch: `python3 recomp/tools/local/run.py`.
+
+
 ## 2026-10-28 - D14C accepted and closed
 
 User accepted D14C and explicitly requested lock-in and closeout. D14C is Done:

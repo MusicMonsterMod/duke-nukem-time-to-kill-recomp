@@ -4383,6 +4383,29 @@ int main(int argc,char** argv) {
                     ++save_loads;frame();assert(metric("\"blend\":")==int(eye));
                     assert(!ttk::movement_ready() && !ttk::locomotion_input_ready());
                     if(eye)assert(std::strstr(ttk::controls_debug_json(),"\"action\":\"mirror\""));
+                    // D36I1: mirror grooming uses the native contact-arm chain,
+                    // including origins behind the eye. Reflections never own it.
+                    contact_arms(true);
+                    const auto equip=psx_mod_read_byte(p+0x3b8);
+                    psx_mod_write_byte(p+0x3b8,0);
+                    for(unsigned part=10;part<=15;++part) {
+                        constexpr uint32_t reflected=0x801ffe58;
+                        call(0x800348d8,reflected,p,0x8003816c);
+                        CPUState joint{};joint.gpr[4]=reflected;joint.gpr[20]=p;
+                        joint.gpr[23]=psx_mod_read_byte(desc+0x24+part);
+                        joint.gpr[5]=mats+0x20*joint.gpr[23];joint.gpr[31]=0x80034c6c;
+                        hooks().at(0x800292a0)(&joint,0x800292a0);
+                        assert(!ttk::first_person_limb_presentation().bridge_joint_depth);
+                        assert(!ttk::first_person_interaction_drawing());
+                        assert(joint.gpr[5]==mats+0x20*joint.gpr[23]);
+                        call(0x8001ca4c,0x800d0000,0,0x800376b4);
+                    }
+                    psx_mod_write_byte(p+0x3b8,equip);
+                    ttk::input.first_person=false;++save_loads;frame();contact_arms(false);
+                    ttk::input.first_person=true;++save_loads;frame();
+                    ttk::modern=false;frame();contact_arms(false);
+                    ttk::modern=true;++save_loads;frame();
+
                     ttk::input.active=false;frame();assert(metric("\"blend\":")==int(eye));ttk::input.active=true;
                     std::vector<uint8_t> state(ttk::render_state_size());ttk::render_state_save(state.data());
                     ttk::input.first_person=false;++save_loads;frame();assert(metric("\"blend\":")==0);

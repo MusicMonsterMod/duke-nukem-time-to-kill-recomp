@@ -806,7 +806,8 @@ uses the item, and redraws his weapon when it finishes. In first person, look
 down toward the interaction to see his animated hands.
 
 In Modernized, Duke's reflection stays opaque when close to a mirror.
-Intentional power-up effects still apply.
+First-person grooming hands and forearms clip continuously at the camera while
+keeping the original animation. Intentional power-up effects still apply.
 
 Number keys now select familiar weapon groups when owned and usable:
 

@@ -39,9 +39,22 @@ void input_init(SDL_Window* window);
 // Called on the runtime event-pump thread, never from an SDL event watch.
 void input_event(const SDL_Event& event);
 void input_frame();
-// Assigned seat 1 only; SDL sampling stays on the runtime input thread.
+// Sample both assigned devices on the runtime input thread. Campaign input
+// continues to consume assignment 1; these samples do not change guest routing.
 void input_controller_sample(SDL_GameController* pad, SDL_GameController* second=nullptr);
 unsigned input_controller_connections();
+// D34C foundation: raw assigned devices, never merged with keyboard or the
+// campaign action machine. Indices are host assignments, not guest seats.
+struct ControllerSample {
+    bool connected=false;
+    uint32_t buttons=0;
+    int16_t axes[6]{};
+    uint64_t generation=0; // changes when the assigned physical device changes
+};
+// Raw observations (including unfocused buttons), not gameplay permission.
+// Input-thread only; reference remains valid until the next sampling call.
+const ControllerSample& input_controller_sample_at(unsigned host);
+
 bool input_controller_owns_gameplay();
 // Host preference, active only in the two-player frontend/match/results.
 bool input_split_keyboard();

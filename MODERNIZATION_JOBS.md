@@ -487,7 +487,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D33 | Modernized as the default profile, `--vanilla` as the special flag (one launch) | Done (user-accepted 2026-10-20) | - |
 | D34 | Multiplayer investigation: modern split-screen, online play and self-hosting (research only; [note 167](documentation/167-d34-multiplayer-research.md)) | Done (research accepted 2026-10-20; D34B retained; D34C opened; other follow-ups proposed) | - |
 | D34B | Classic split-screen with two controllers: original controls and rules, both pads working, clean start / presentation / exit in a Modernized session | Closed for now; acceptance deferred to D09 | D34 |
-| D34C | Modern local split-screen: independent controls, cameras and aiming for both players; per-viewport presentation | Todo (next multiplayer job; opened 2026-10-27) | D09, D09A, D34B implementation |
+| D34C | Modern local split-screen: independent controls, cameras and aiming for both players; per-viewport presentation | Closed for now (foundation accepted 2026-10-28; modernization deferred) | D09, D09A, D34B implementation |
 | D35 | Comprehensive first-person camera transition audit and modernization roadmap | Done (user-accepted 2026-10-25) | D11, D11E, D11F, D10B |
 | D35A | Shared action-perspective policy and persistent Advanced Settings foundation | Done | D35 |
 | D35B | Swimming perspective option using accepted first-person swimming | Done | D35A, D11E |
@@ -12029,7 +12029,10 @@ are authorized for commit/push as MusicMonsterMod. No next job started.
 
 ### D34C - Modern local split-screen controls and presentation
 
-**Status: Todo (opened at user request 2026-10-27; not started).** Dependencies:
+**Status: Closed for now (2026-10-28).** Current original-style two-player
+baseline and ownership foundation accepted; modern gameplay/presentation below
+remain deferred, not Done. See [note 291](documentation/291-d34c-local-multiplayer-foundation.md).
+Dependencies:
 D09 and D09A (Done), retained D34B implementation. This opens the existing D34C
 proposal from [note 167](documentation/167-d34-multiplayer-research.md), using
 accepted D09A as the input-seat foundation. User confirms the current mode works
@@ -22167,3 +22170,34 @@ started. Online/LAN and first-person presentation overhaul remain separate.
 Existing bounded evidence is retained in [note 290](documentation/290-d09a-keyboard-gamepad-seats.md).
 No gameplay edits, rebuild or launch during closeout; player settings/cards
 remain untouched. Launch: `python3 recomp/tools/local/run.py`.
+
+## 2026-10-27 - D34C selected; initial ownership foundation (In progress)
+
+D34C is selected. Independent two-assignment SDL samples and device generations
+are implemented and tested. A separate owned-disc manifest verifies all six
+arena BASEOVR overlays; campaign guards stay unchanged. The player build,
+native input suite and eight overlay tests pass. [Note 291](documentation/291-d34c-local-multiplayer-foundation.md)
+records static ownership evidence, the bounded private results-state inspection,
+and remaining work. No modern split-screen gameplay candidate is ready yet:
+per-player actions, movement, cameras, aiming and presentation remain. No
+physical-device or performance acceptance claimed. No commit/push or player
+settings/card changes. Launch: `python3 recomp/tools/local/run.py`.
+
+## 2026-10-28 - Two-player baseline accepted; D34C closed for now
+
+User: "lock it in, close us out. two player now works and is fundamentally
+how it plays off the disk". The current original-style two-player baseline
+and D34C ownership foundation are accepted for retention. This explicitly
+authorizes implementation, tests and documentation commit/push closeout as
+MusicMonsterMod.
+
+D34C is Closed for now: foundation accepted, modern gameplay and presentation
+deferred. Independent modern per-player movement/camera/aim, action contexts,
+viewport replay and 60/120 Hz acceptance remain unfinished. Its existing scope
+and acceptance matrix are retained for a future explicit selection; they are
+not marked Done by this baseline acceptance. The user's report does not add
+agent-observed physical-device, all-arena or performance tests.
+
+Existing build and bounded verification remain in [note 291](documentation/291-d34c-local-multiplayer-foundation.md).
+No gameplay changes, rebuild or launch for this closeout. Player settings,
+saves and cards remain untouched. Launch: `python3 recomp/tools/local/run.py`.

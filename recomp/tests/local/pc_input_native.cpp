@@ -148,6 +148,42 @@ int main() {
     focus(true);capture_fixture();CHECK(!sample().held[ttk::fire]); // held through recapture needs release
     SDL_SetJoystickVirtualAxis(joystick,5,-32768);sample();
     SDL_SetJoystickVirtualAxis(joystick,5,32767);CHECK(sample().held[ttk::fire]);
+    // D34C: sample both actual SDL assignments without merging either seat.
+    const auto id2=SDL_AttachVirtualJoystick(&desc);CHECK(id2);
+    auto* joystick2=SDL_OpenJoystick(id2);auto* pad2=SDL_OpenGamepad(id2);
+    CHECK(joystick2 && pad2);
+    SDL_SetJoystickVirtualAxis(joystick2,0,-24000);
+    SDL_SetJoystickVirtualAxis(joystick2,2,16000);
+    SDL_SetJoystickVirtualButton(joystick2,SDL_GAMEPAD_BUTTON_EAST,true);
+    SDL_UpdateJoysticks();ttk::input_controller_sample(pad,pad2);
+    const auto first=ttk::input_controller_sample_at(0);
+    const auto second=ttk::input_controller_sample_at(1);
+    CHECK(first.connected && second.connected && ttk::input_controller_connections()==3);
+    CHECK(first.axes[0]==0 && first.axes[2]==0);
+    CHECK(second.axes[0]==-24000 && second.axes[2]==16000);
+    CHECK(!(first.buttons&(1u<<SDL_GAMEPAD_BUTTON_EAST)));
+    CHECK(second.buttons&(1u<<SDL_GAMEPAD_BUTTON_EAST));
+    CHECK(!ttk::input_controller_sample_at(2).connected);
+    CHECK(!ttk::input_controller_sample_at(999).buttons);
+    SDL_UpdateJoysticks();ttk::input_controller_sample(pad,pad2);
+    CHECK(ttk::input_controller_sample_at(1).generation==second.generation);
+    // Removing P1 must not promote P2; its held input and generation persist.
+    ttk::input_controller_sample(nullptr,pad2);
+    CHECK(!ttk::input_controller_sample_at(0).connected);
+    CHECK(ttk::input_controller_sample_at(0).buttons==0);
+    CHECK(ttk::input_controller_sample_at(0).axes[5]==0);
+    CHECK(ttk::input_controller_sample_at(0).generation>first.generation);
+    CHECK(ttk::input_controller_sample_at(1).generation==second.generation);
+    CHECK(ttk::input_controller_sample_at(1).axes[0]==-24000);
+    ttk::input_controller_sample(pad,pad2);
+    CHECK(ttk::input_controller_sample_at(0).generation>first.generation);
+    SDL_DetachVirtualJoystick(id2);SDL_UpdateJoysticks();
+    ttk::input_controller_sample(pad,pad2);
+    CHECK(!ttk::input_controller_sample_at(1).connected);
+    CHECK(!ttk::input_controller_sample_at(1).buttons);
+    CHECK(ttk::input_controller_sample_at(1).axes[0]==0);
+    CHECK(ttk::input_controller_sample_at(1).generation>second.generation);
+    SDL_CloseGamepad(pad2);SDL_CloseJoystick(joystick2);
     SDL_DetachVirtualJoystick(id);SDL_UpdateJoysticks();ttk::input_controller_sample(pad);cf=tick();CHECK(!cf.held[ttk::fire] && !cf.held[ttk::jump] && !ttk::input_jump_pending());
     SDL_CloseGamepad(pad);SDL_CloseJoystick(joystick);
     ttk::input_release();ttk::input_state_loaded();capture_fixture();

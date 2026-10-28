@@ -717,19 +717,39 @@ static void test_controllers() {
 }
 // D09: native stick/action input, independent of keyboard bindings.
 unsigned input_controller_connections() {return controller_connections.load();}
+static ControllerSample controller_samples[2];
+static SDL_JoystickID controller_ids[2]{};
+const ControllerSample& input_controller_sample_at(unsigned host) {
+    static const ControllerSample neutral{};
+    return host<2 ? controller_samples[host] : neutral;
+}
 void input_controller_sample(SDL_GameController* pad, SDL_GameController* second) {
-    const bool connected=pad && SDL_GameControllerGetAttached(pad);
-    controller_connections.store((connected?1u:0u)|(second && SDL_GameControllerGetAttached(second)?2u:0u));
-    if(controller_connected && !connected && device==Device::Controller) {
+    SDL_GameController* handles[]={pad,second};
+    unsigned connections=0;
+    for(unsigned seat=0;seat<2;++seat) {
+        auto& sample=controller_samples[seat];
+        auto* handle=handles[seat];
+        const bool attached=handle && SDL_GameControllerGetAttached(handle);
+        const auto id=attached ? SDL_GetJoystickID(SDL_GameControllerGetJoystick(handle)) : 0;
+        const uint64_t generation=sample.generation+(sample.connected!=attached || id!=controller_ids[seat]);
+        controller_ids[seat]=id;
+        sample={};sample.connected=attached;sample.generation=generation;
+        if(!attached)continue;
+        connections|=1u<<seat;
+        for(int b=0;b<SDL_CONTROLLER_BUTTON_MAX;++b)
+            if(SDL_GameControllerGetButton(handle,(SDL_GameControllerButton)b))sample.buttons|=1u<<b;
+        for(int a=0;a<6;++a)sample.axes[a]=SDL_GameControllerGetAxis(handle,(SDL_GameControllerAxis)a);
+    }
+    const auto& sample=controller_samples[0];
+    controller_connections.store(connections);
+    if(controller_connected && !sample.connected && device==Device::Controller) {
         input_release();input_state_loaded();initial_capture=true;
     }
-    controller_connected=connected;controller_buttons=0;
-    std::fill(controller_axes,controller_axes+6,0);
-    if(!connected) {controller_previous=0;return;}
-    for(int b=0;b<SDL_CONTROLLER_BUTTON_MAX;++b)
-        if(SDL_GameControllerGetButton(pad,(SDL_GameControllerButton)b))controller_buttons|=1u<<b;
-    for(int a=0;a<6;++a)controller_axes[a]=SDL_GameControllerGetAxis(pad,(SDL_GameControllerAxis)a);
+    controller_connected=sample.connected;controller_buttons=sample.buttons;
+    std::copy(sample.axes,sample.axes+6,controller_axes);
+    if(!sample.connected)controller_previous=0;
 }
+
 bool input_split_keyboard() {
     const char* choice=ttk_live_env("DNTTK_SPLIT_DEVICES");
     return modern && choice && !std::strcmp(choice,"keyboard-pad") &&

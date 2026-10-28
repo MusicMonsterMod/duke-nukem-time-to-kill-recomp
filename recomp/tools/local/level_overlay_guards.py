@@ -15,6 +15,7 @@ the code, a write followed by unwritten bytes). It prints the C++ table for
 src/ttk/control_guards.inc, or with --check compares that file.
 
   python3 recomp/tools/local/level_overlay_guards.py [--disc BIN] [--check]
+  python3 recomp/tools/local/level_overlay_guards.py --arenas [--check]
 """
 import argparse
 import hashlib
@@ -92,6 +93,35 @@ def level_guard(number, data):
                 body=body, scratch=len(data) - body, digest=hashlib.sha256(data[:body]).hexdigest())
 
 
+def arena_guards(disc):
+    """Arenas share BASEOVR, not the campaign LEVELxx tag namespace.
+
+    Keep their guards separate: merely authenticating an arena must never
+    enable the campaign's single-player leases.
+    """
+    found = {}
+    for entry in disc.files():
+        match = re.fullmatch(r'/D[0-3]/DB(1[5-9]|20)/BASEOVR\.OVR;1', entry['path'])
+        if not match:
+            continue
+        number = int(match[1])
+        if number in found:
+            raise ValueError(f'duplicate arena overlay {number}')
+        row = level_guard(number, disc.read(entry['lba'], entry['size']))
+        row['path'] = entry['path'].split(';')[0]
+        found[number] = row
+    if set(found) != set(range(15, 21)):
+        raise ValueError(f'missing arena overlays: {sorted(set(range(15, 21)) - set(found))}')
+    return [found[number] for number in range(15, 21)]
+
+
+def arena_table(rows):
+    return '\n'.join(
+        f'    // {r["path"]}: tag {r["tag"]:#x}, {r["size"]} bytes, {r["scratch"]} scratch bytes.\n'
+        f'    {{{r["level"]}, {r["tag"]:#x}, 0x800ca968, {r["body"]}, "{r["digest"]}"}},'
+        for r in rows)
+
+
 def guards(disc):
     found = {}
     for e in disc.files():
@@ -125,8 +155,24 @@ def table(rows):
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split('\n\n')[0])
     ap.add_argument('--disc', default=str(ROOT / 'disc/time-to-kill.bin'))
+    ap.add_argument('--arenas', action='store_true', help='derive separate multiplayer BASEOVR guards')
     ap.add_argument('--check', action='store_true', help='compare src/ttk/control_guards.inc')
     args = ap.parse_args()
+    if args.arenas:
+        disc = Disc(args.disc)
+        try:
+            rendered = arena_table(arena_guards(disc))
+        finally:
+            disc.close()
+        if args.check:
+            text = (ROOT / 'src/ttk/split_arena_guards.inc').read_text()
+            body = text.partition('split_arena_guards[] = {\n')[2].partition('};')[0]
+            if body != rendered + '\n':
+                raise SystemExit('split_arena_guards.inc differs from the owned disc')
+            print('split_arena_guards match all six owned arenas')
+        else:
+            print(rendered)
+        return
     rows = guards(Disc(args.disc))
     if not args.check:
         for r in rows:

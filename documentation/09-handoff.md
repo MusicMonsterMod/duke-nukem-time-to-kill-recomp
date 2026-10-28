@@ -1,5 +1,38 @@
 # Next-session handoff
 
+## 2026-10-28 - Two-player baseline accepted; D34C closed for now
+
+User: "lock it in, close us out. two player now works and is fundamentally
+how it plays off the disk". The current original-style two-player baseline
+and D34C ownership foundation are accepted for retention. This explicitly
+authorizes implementation, tests and documentation commit/push closeout as
+MusicMonsterMod.
+
+D34C is Closed for now: foundation accepted, modern gameplay and presentation
+deferred. Independent modern per-player movement/camera/aim, action contexts,
+viewport replay and 60/120 Hz acceptance remain unfinished. Its existing scope
+and acceptance matrix are retained for a future explicit selection; they are
+not marked Done by this baseline acceptance. The user's report does not add
+agent-observed physical-device, all-arena or performance tests.
+
+Existing build and bounded verification remain in [note 291](291-d34c-local-multiplayer-foundation.md).
+No gameplay changes, rebuild or launch for this closeout. Player settings,
+saves and cards remain untouched. Launch: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-27 - D34C selected; initial ownership foundation (In progress)
+
+D34C is selected. Independent two-assignment SDL samples and device generations
+are implemented and tested. A separate owned-disc manifest verifies all six
+arena BASEOVR overlays; campaign guards stay unchanged. The player build,
+native input suite and eight overlay tests pass. [Note 291](291-d34c-local-multiplayer-foundation.md)
+records static ownership evidence, the bounded private results-state inspection,
+and remaining work. No modern split-screen gameplay candidate is ready yet:
+per-player actions, movement, cameras, aiming and presentation remain. No
+physical-device or performance acceptance claimed. No commit/push or player
+settings/card changes. Launch: `python3 recomp/tools/local/run.py`.
+
+
 ## 2026-10-27 - D09A accepted and closed; D34C opened
 
 User reports the controller/keyboard arrangement "100% works" and two-player

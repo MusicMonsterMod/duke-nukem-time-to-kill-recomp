@@ -235,6 +235,11 @@ def main(argv=None):
         print('Mesh precision requires OpenGL; this software-renderer session uses Original.', file=sys.stderr)
     # D17P: render-only view limits; Vanilla keeps the original.
     env['DNTTK_DRAW_DISTANCE'] = controls['draw_distance'] if modernized else 'original'
+    # Explicit developer overrides remain session-only; ordinary launches use the profile.
+    if modernized:
+        env.setdefault('DNTTK_FP_FOV', str(controls['first_person_fov']))
+    else:
+        env['DNTTK_FP_FOV'] = '64'
     env['DNTTK_CAMERA_DISTANCE'] = str(controls['camera_distance'] if modernized else 0)
     env['DNTTK_CAMERA_SHOULDER'] = controls['shoulder'] if modernized else 'center'
     env['DNTTK_CAMERA_VIEW'] = controls['view'] if modernized else 'third'
@@ -270,6 +275,7 @@ def main(argv=None):
     # isolated path pixel-for-pixel. D35J5 also needs the mixed path at native
     # rates to preserve HUD icons over the frozen first-person scene.
     env.setdefault('PSX_GL_ORDERED_SEMI_BATCH', '1' if modernized else '0')
+    env.setdefault('DNTTK_STATUS_BARS', controls['status_bars'] if modernized else 'native')
     env.setdefault('DNTTK_FP_LEGS', controls['first_person_legs'] if modernized else 'off')
     env.setdefault('DNTTK_VIEW_BOB', controls['view_bob'] if modernized else 'off')
     env['DNTTK_CAMERA_STATE_FILE'] = str(profiles.camera_state_path(a.settings_file.resolve())) if modernized else ''

@@ -538,7 +538,7 @@ int main() {
     key(SDL_SCANCODE_RETURN,true);
     CHECK(!tick().active && !(ttk::input_pad()&8));key(SDL_SCANCODE_RETURN,false);
     // A saved custom speed binding keeps working; no action/schema migration.
-    SDL_setenv_unsafe("DNTTK_INPUT_BINDINGS", "1:26,22,4,7,-1,44,11,25,21,0,0,0,12,8,0,0,0,-3,226,51,52,27,16,225,13,17,5,47,48,24,20,30,31,32,33,34,35,36,37,38,39,54,55,75,78,74,77,80,79,63,66,6,-2", 1);
+    SDL_setenv_unsafe("DNTTK_INPUT_BINDINGS", "1:26,22,4,7,-1,44,11,25,21,0,0,0,12,8,0,0,0,-3,226,51,52,27,16,225,13,17,5,47,48,24,20,30,31,32,33,34,35,36,37,38,39,54,55,75,78,74,77,80,79,63,66,6,-2,45,46", 1);
     ttk::input_init(win);focus(true);capture_fixture();ready=true;
     CHECK((ttk::input_pad() & 1024) == 0); // launch resets autorun off
     key(SDL_SCANCODE_R,true);CHECK((ttk::input_pad() & 1024) != 0);
@@ -938,7 +938,7 @@ int main() {
     leap_on=false;tick();CHECK((ttk::input_pad()&16384)!=0);
     holstered=false;
     // Rebinding fire preserves draw behavior; the old mouse binding is inactive.
-    ttk::input_release();SDL_setenv_unsafe("DNTTK_INPUT_BINDINGS", "1:26,22,4,7,10,44,11,25,21,0,0,0,12,8,0,0,0,-3,226,51,52,27,16,225,13,17,5,47,48,24,20,30,31,32,33,34,35,36,37,38,39,54,55,75,78,74,77,80,79,63,66,6,-2",1);
+    ttk::input_release();SDL_setenv_unsafe("DNTTK_INPUT_BINDINGS", "1:26,22,4,7,10,44,11,25,21,0,0,0,12,8,0,0,0,-3,226,51,52,27,16,225,13,17,5,47,48,24,20,30,31,32,33,34,35,36,37,38,39,54,55,75,78,74,77,80,79,63,66,6,-2,45,46",1);
     ttk::input_init(win);focus(true);capture_fixture();ready=true;flight=false;holstered=true;
     mousefire(true);tick();CHECK((ttk::input_pad()&(8192|16384))==(8192|16384));mousefire(false);
     key(SDL_SCANCODE_G,true);tick();CHECK((ttk::input_pad()&8192)==0 && (ttk::input_pad()&16384)!=0);
@@ -1020,6 +1020,29 @@ int main() {
     CHECK(quick_calls==6 && !SDL_GetWindowRelativeMouseMode(win));
     ttk::input_set_quick_handler(nullptr);
     CHECK(ttk::input_quick(ttk::Quick::Save)==ttk::QuickResult::Ignored && quick_calls==6);
+    capture_fixture();
+    key(SDL_SCANCODE_MINUS,true);key(SDL_SCANCODE_MINUS,false);
+    key(SDL_SCANCODE_EQUALS,true);key(SDL_SCANCODE_EQUALS,false);
+    CHECK(ttk::input_take_hud_step()==-1);CHECK(ttk::input_take_hud_step()==1);
+    CHECK(ttk::input_take_hud_step()==0);
+    ttk::input_release();key(SDL_SCANCODE_MINUS,true);key(SDL_SCANCODE_MINUS,false);
+    CHECK(ttk::input_take_hud_step()==0);
+    capture_fixture();ttk::input_capture_key(true);
+    key(SDL_SCANCODE_EQUALS,true);key(SDL_SCANCODE_EQUALS,false);
+    CHECK(ttk::input_take_hud_step()==0);CHECK(ttk::input_take_captured_key()==SDL_SCANCODE_EQUALS);
+    ttk::input_capture_key(false);
+    ttk::input_release();capture_fixture();
+    key(SDL_SCANCODE_MINUS,true);key(SDL_SCANCODE_MINUS,true,true);key(SDL_SCANCODE_MINUS,false);
+    CHECK(ttk::input_take_hud_step()==-1 && ttk::input_take_hud_step()==0);
+    int hud_codes[ttk::action_count];
+    for(int i=0;i<ttk::action_count;++i)hud_codes[i]=ttk::input_binding_code(ttk::Action(i));
+    hud_codes[ttk::hud_less]=SDL_SCANCODE_KP_MINUS;hud_codes[ttk::hud_more]=SDL_SCANCODE_KP_PLUS;
+    ttk::input_set_binding_codes(hud_codes);
+    key(SDL_SCANCODE_MINUS,true);key(SDL_SCANCODE_MINUS,false);CHECK(ttk::input_take_hud_step()==0);
+    key(SDL_SCANCODE_KP_MINUS,true);key(SDL_SCANCODE_KP_MINUS,false);
+    key(SDL_SCANCODE_KP_PLUS,true);key(SDL_SCANCODE_KP_PLUS,false);
+    CHECK(ttk::input_take_hud_step()==-1 && ttk::input_take_hud_step()==1 && ttk::input_take_hud_step()==0);
+    key(SDL_SCANCODE_KP_MINUS,true);ttk::input_state_loaded();CHECK(ttk::input_take_hud_step()==0);
     ttk::input_release();SDL_setenv_unsafe("DNTTK_INPUT_MODE", "vanilla", 1);
     ttk::input_init(win);focus(true);capture_fixture();
     key(SDL_SCANCODE_CAPSLOCK,true);key(SDL_SCANCODE_R,true);

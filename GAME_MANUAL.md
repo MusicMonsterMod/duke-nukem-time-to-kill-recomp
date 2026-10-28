@@ -852,6 +852,11 @@ person Q is a quick kick with any weapon (see below).
 Distance is clamped and smoothed, retains wall collision, and remembers your
 preference despite wall compression. It is now **saved in the Modernized profile**
 and restored on the next launch. It does not change FOV or switch weapons.
+You can also use **Options > Gameplay > Camera Distance**. This third-person
+slider offers **Original** (the native follow distance) or 768-6144 game units,
+with 128-unit adjustments. Existing custom distances are retained. Left/right
+or the mouse wheel adjusts the selected slider; Confirm applies and saves it,
+and Cancel discards edits. Gameplay Defaults restores Original.
 
 **V** recenters the camera: it swings smoothly back to the original follow angle
 behind Duke. Moving the mouse cancels the swing. On foot Duke already turns with
@@ -1402,12 +1407,20 @@ it is not a permanently visible crosshair. **RED DOT ON hides the modern
 crosshair**, including its hotkey, to avoid two markers. Turning RED DOT OFF
 restores the previous crosshair preference. Auto aim remains independent.
 In Legacy, draw the weapon with
-Circle/B, then fire with Cross/A. **Gore**, **status bars** and **game speed**
-are the
-original GAME SETTINGS' own options and are kept on the memory card as
-before. Game speed is how fast Duke and the enemies move (50 is the
-original's default); it is not the frame rate. Status bars off hides the
-health and ammo boxes and every item and power-up box with them.
+Circle/B, then fire with Cross/A. **Gore** and **game speed** remain the original GAME SETTINGS options,
+kept on the memory card as before. Game speed is how fast Duke and the enemies move (50 is the
+original's default); it is not the frame rate. **Status bars** now offers **Full**, **Borderless** and **Hidden** in
+Options > Gameplay. During Modernized gameplay, **-** steps Full -> Borderless
+-> Hidden, and **= / +** steps back. Each press moves one level and stops at
+an endpoint. Borderless retains the icons and numbers, removing their frames;
+Hidden retains the previous Off behavior. Crosshair and inventory browsing are
+independent. The choice applies immediately and persists across saves, levels
+and restarts. Menu changes still require Confirm; Cancel and Defaults work as
+usual. These shortcuts do not act in menus, binding capture or the console.
+
+**LESS HUD** and **MORE HUD** can be rebound in Key Bindings, including to
+keypad minus/plus or mouse buttons. The defaults use the number-row keys;
+Shift is optional for plus. Vanilla keeps its original status-bar behavior.
 
 The original CONTROLLER screen (PlayStation button layout) is not offered in
 Modernized, and Modernized always plays on the default layout, because the
@@ -1466,13 +1479,17 @@ output scrolls back to the bottom. **Up / Down** recall the commands you typed
 (newest first; Down past the newest clears the line), and `history` lists them. Holding Backspace or a character key repeats it, like a desktop text field. While scrolled up, `-- MORE BELOW: PGDN / END --`
 shows above the prompt.
 
-**First-person FOV (developer testing, D14A).** In Modernized, open the
-backtick console and enter `fov 75` to try a wider first-person view. The
-candidate range is `60` to `90`, in horizontal degrees at 4:3; widescreen
-shows more horizontally at the same setting. `fov` reports the effective,
-integer-projection-quantized angle. `fov default` restores the exact original
-first-person projection (nominal 64 degrees). Changes last for this session,
-including view switches and save loads, but are not saved to player settings.
+**First-person FOV.** In Modernized, **Options > Gameplay > First-person FOV**
+is directly after View Bob. The slider ranges from **60 to 90**, in one-degree
+steps, measured horizontally at 4:3; widescreen
+shows more horizontally at the same setting. Select the row with Up/Down,
+then adjust with Left/Right, the controller D-pad, or the mouse wheel.
+Confirm applies the change for resumed gameplay and saves it across restarts;
+Cancel discards edits. Gameplay Defaults restores **64**, the exact original
+projection. View changes and save loads retain the preference.
+The backtick console's `fov 75` remains a session-only diagnostic override;
+`fov` reports the effective, integer-projection-quantized angle, and
+`fov default` restores the original projection for that session.
 Weapon/held-item display, their connected arms, Q and the door-kick leg retain
 their original size and framing as world FOV changes. Contact arms follow the
 world view, with environment lighting preserved.
@@ -1487,8 +1504,7 @@ interaction legs use their existing action-camera ownership. Legs keep native
 animation and world clipping, with the fixed display FOV used by weapons/kicks.
 The sky backdrop adapts to world FOV and aspect ratio to maintain side coverage.
 Third person keeps its own projection.
-The saved Gameplay slider is the separate
-D19X job. For a single launch, `DNTTK_FP_FOV=75 python3 recomp/tools/local/run.py`
+For a single launch, `DNTTK_FP_FOV=75 python3 recomp/tools/local/run.py`
 sets the same developer control; an invalid launch value falls back to default.
 
 **Debug level select (testing).** In a one-player game, open the console and

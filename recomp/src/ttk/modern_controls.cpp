@@ -1558,6 +1558,7 @@ static void hook_body(CPUState* cpu, uint32_t address) {
     } else if (address==0x8008ba30) {
         widescreen_hud_begin(ra);
         gadget_hud(cpu);
+        hud_border_begin();
     } else if (address==0x8001fc44) {
         widescreen_hud_restore();
     } else if (address==0x800b4d9c) {
@@ -1828,6 +1829,7 @@ static void hook_body(CPUState* cpu, uint32_t address) {
 // holds only a fork-time copy of this file's statics).
 struct RenderState {
     int eye_projection;
+    bool hud_borderless;
     FreeLook inspection;
     double mask_bob;
     ActionPerspective perspective;
@@ -1876,6 +1878,7 @@ size_t render_state_size() {return sizeof(RenderState);}
 void render_state_save(void* out) {
     RenderState r{};
     r.eye_projection=eye_projection();
+    r.hud_borderless=hud_borderless();
     r.inspection=free_look;
     r.perspective=fp_policy;r.pole_visibility_object=pole_visibility_object;
     r.mask_bob=bob_dip; r.fp_blend=fp_blend; r.orbit_valid=orbit_valid; r.eye_offset_valid=eye_offset_valid; r.live_valid=live_valid;
@@ -1913,6 +1916,8 @@ void render_state_load(const void* in) {
     RenderState r;
     std::memcpy(&r,in,sizeof r);
     override_eye_projection=r.eye_projection;
+    override_hud_borderless=r.hud_borderless;
+    hud_applied=hud_border_applied=false;
     free_look=r.inspection;
     fp_policy=r.perspective;pole_visibility_object=r.pole_visibility_object;
     bob_dip=r.mask_bob; fp_blend=r.fp_blend; orbit_valid=r.orbit_valid; eye_offset_valid=r.eye_offset_valid; live_valid=r.live_valid;
@@ -2013,7 +2018,7 @@ PSX_MOD_CONSTRUCTOR(register_ttk_controls) {
     // D12C: the damage sphere; only the original kick's call (ra 0x80049098) goes further.
     psx_mod_register_function_entry_plugin("ttk.modern.controls",0x800a979c,[](CPUState* cpu,uint32_t){ttk::steroids_damage_restore();if(cpu->gpr[31]==0x80049098u)ttk::kick_sphere_entry(cpu);});
     // D08A8: the composition's call after the status bar when 0x8001fc44 is skipped.
-    psx_mod_register_function_entry_plugin("ttk.modern.controls",0x8002e850,[](CPUState* cpu,uint32_t){ttk::steroids_damage_restore();if(cpu->gpr[31]==0x800265d4u)ttk::steroids_hud_restore();});
+    psx_mod_register_function_entry_plugin("ttk.modern.controls",0x8002e850,[](CPUState* cpu,uint32_t){ttk::steroids_damage_restore();if(cpu->gpr[31]==0x800265d4u){ttk::steroids_hud_restore();ttk::widescreen_hud_restore();}});
     // D35I: authenticated wall motion before the native climb dispatcher.
     psx_mod_register_function_entry_plugin("ttk.wall.climb",0x80043eb8,[](CPUState* cpu,uint32_t){ttk::wall_climb_dispatch(cpu,cpu->gpr[31]);});
     // D08Z5: the slope jump's first airborne update, before D08Z1 sees the velocity.

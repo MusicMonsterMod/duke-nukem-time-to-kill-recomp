@@ -211,7 +211,7 @@ static bool hud_box_draw(CPUState* source,uint32_t icon,const GadgetArt* art,int
     const uint32_t own_record=top-0x40;
     if(art) art_record_write(own_record,*art);
     call(0x8008b678,art?own_record:icon,(uint32_t)(x+(bare?0:1)),(uint32_t)y,0);
-    if(!bare) {
+    if(!bare && !hud_borderless()) {
         if(cell_only) {
             // Disc box 0x800c44a4 is 46 wide; crop to the icon cell (DIV 18 + 1).
             const uint32_t box_record=top-0x50;

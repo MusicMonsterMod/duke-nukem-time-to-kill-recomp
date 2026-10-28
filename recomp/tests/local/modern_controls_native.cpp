@@ -1,4 +1,5 @@
 #include "action_perspective.h"
+#include "live_env.h"
 #include "tight_camera.h"
 static unsigned night_vision_sounds,bio_mask_sounds;
 namespace ttk { void night_vision_sound() {++night_vision_sounds;} void bio_mask_sound() {++bio_mask_sounds;} }
@@ -1484,6 +1485,31 @@ int main(int argc,char** argv) {
         call(0x8008ba30,0,0,0x80026590);assert(hx(0)==-438 && hx(2)==361);call(0x8001fc44,2,0,0x800265ac);assert(hud_intact());
         assert(ttk::widescreen_near_clip_live());ttk::modern=false;assert(!ttk::widescreen_near_clip_live());ttk::modern=true;
         ws_margin=0;assert(!ttk::widescreen_near_clip_live());set_rect();
+        // D19U1: exact native border record only, scoped through HUD composition.
+        constexpr uint32_t box=0x800c44a4;
+        const uint32_t original_box=psx_mod_read_word(box);
+        psx_mod_write_word(box,0x102e3a3f);
+        ttk_live_env_set("DNTTK_STATUS_BARS","borderless");
+        call(0x8008ba30,0,0,0x80026590);assert(psx_mod_read_word(box)==0x10003a3f);
+        call(0x8001fc44,2,0,0x800265ac);assert(psx_mod_read_word(box)==0x102e3a3f);
+        call(0x8008ba30,0,0,0x80026590);assert(psx_mod_read_word(box)==0x10003a3f);
+        call(0x8002e850,0,0,0x800265d4);assert(psx_mod_read_word(box)==0x102e3a3f);
+        call(0x8008ba30,0,0,0x80099999);assert(psx_mod_read_word(box)==0x102e3a3f);
+        ttk::modern=false;call(0x8008ba30,0,0,0x80026590);assert(psx_mod_read_word(box)==0x102e3a3f);ttk::modern=true;
+        psx_mod_write_word(box,0x112e3a3f);call(0x8008ba30,0,0,0x80026590);assert(psx_mod_read_word(box)==0x112e3a3f);
+        call(0x8001fc44,2,0,0x800265ac);
+        psx_mod_write_word(box,0x102e3a3f);
+        std::vector<uint8_t> hud_state(ttk::render_state_size());ttk::render_state_save(hud_state.data());
+        const pid_t hud_child=fork();assert(hud_child>=0);
+        if(hud_child==0) {
+            ttk_live_env_set("DNTTK_STATUS_BARS","full");
+            ttk::render_state_load(hud_state.data());
+            call(0x8008ba30,0,0,0x80026590);assert(psx_mod_read_word(box)==0x10003a3f);
+            call(0x8001fc44,2,0,0x800265ac);assert(psx_mod_read_word(box)==0x102e3a3f);
+            _exit(0);
+        }
+        int hud_status=0;assert(waitpid(hud_child,&hud_status,0)==hud_child && WIFEXITED(hud_status) && WEXITSTATUS(hud_status)==0);
+        psx_mod_write_word(box,original_box);ttk_live_env_set("DNTTK_STATUS_BARS","full");
         std::puts("PASS: D14 view rectangle and HUD corners (margin-sized, render/status-bar callers only, restored, 4:3/Vanilla/split screen untouched)");
     }
     // D23A identity memo: the verdict is reused within one host frame and

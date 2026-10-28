@@ -13,7 +13,7 @@ TOKENS['C'] = 6  # Holster and held crouch may share the uncaptured original Cir
 TOKENS.update({str(i): 29+i for i in range(1, 10)})
 TOKENS.update({'LCtrl':224, 'LBracket':47, 'RBracket':48, 'Semicolon':51, 'Apostrophe':52, 'Comma': 54, 'Period': 55, '0': 39, 'Space': 44, 'LShift': 225, 'ScrollLock': 71, 'Unbound': 0, 'Mouse1': -1,
                'Mouse2': -3, 'Mouse3': -2, 'Mouse4': -4, 'Mouse5': -5, 'Alt': 226,
-               'Home': 74, 'PageUp': 75, 'End': 77, 'PageDown': 78, 'Right': 79, 'Left': 80,
+               'Minus': 45, 'Equals': 46, 'KPMinus': 86, 'KPPlus': 87, 'Home': 74, 'PageUp': 75, 'End': 77, 'PageDown': 78, 'Right': 79, 'Left': 80,
                # D20: the function keys the game leaves free (F2 / F3 are SAVE / LOAD GAME).
                'F4': 61, 'F5': 62, 'F6': 63, 'F9': 66, 'F12': 69})
 
@@ -112,6 +112,9 @@ def add_missing_actions(bindings):
         result['crouch_alt'] = 'C' if 'C' not in result.values() else 'Unbound'
     if 'camera_free_look' not in result:
         result['camera_free_look'] = 'Mouse3' if 'Mouse3' not in result.values() else 'Unbound'
+    for action in ('hud_less', 'hud_more'):
+        if action not in result:
+            result[action] = DEFAULTS[action] if DEFAULTS[action] not in result.values() else 'Unbound'
     for action, token in DEFAULTS.items():
         if action not in result:
             free = next((key for key in [token, *(k for k in TOKENS if k not in DEFAULTS.values()), *TOKENS] if key not in result.values() and key != 'C'), None)

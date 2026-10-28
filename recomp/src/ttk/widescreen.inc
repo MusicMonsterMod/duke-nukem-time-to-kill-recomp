@@ -66,7 +66,26 @@ static constexpr uint32_t hud_layout=0x800dd778;
 static constexpr unsigned hud_pairs=16;
 static uint32_t hud_saved[hud_pairs];
 static bool hud_applied=false;
+static bool hud_border_applied=false, override_hud_borderless=false;
+static bool hud_borderless() {
+    if(render_override) return override_hud_borderless;
+    const char* mode=ttk_live_env("DNTTK_STATUS_BARS");
+    return input_modernized() && mode && !std::strcmp(mode,"borderless");
+}
+static void hud_border_begin() {
+    // All seven native box callers use this record, separately from icons and
+    // digits. A zero width emits a degenerate quad. Never alter atlas pixels.
+    // Own gadget/challenge boxes have already drawn using their original size.
+    if(!hud_applied || !hud_borderless() || !identity() ||
+       psx_mod_read_word(0x800c44a4)!=0x102e3a3fu) return;
+    psx_mod_write_byte(0x800c44a6,0);hud_border_applied=true;
+}
 static void widescreen_hud_restore() {
+    if(hud_border_applied) {
+        // Do not overwrite a different record installed by a restored state.
+        if(psx_mod_read_word(0x800c44a4)==0x10003a3fu) psx_mod_write_byte(0x800c44a6,46);
+        hud_border_applied=false;
+    }
     if(!hud_applied) return;
     for(unsigned i=0;i<hud_pairs;++i) psx_mod_write_word(hud_layout+4*i,hud_saved[i]);
     hud_applied=false;

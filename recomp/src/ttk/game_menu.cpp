@@ -61,6 +61,7 @@
 // the pad, and its text is hidden); CONFIRM hands it the result its own Cross
 // gives (documentation/179-d20b-statistics-screen.md).
 #include "game_menu.h"
+#include <cmath>
 #include "host_osd.h"
 #include "live_env.h"
 #include "cpu_state.h"
@@ -379,15 +380,16 @@ std::vector<Screen> make_screens() {
         view_row("VIEW","view","DNTTK_CAMERA_VIEW","THE FIRST / THIRD PERSON KEY SWITCHES IN GAME"),
         {"SHOULDER",Section::Controls,"shoulder","DNTTK_CAMERA_SHOULDER",true,"THE SHOULDER KEY CYCLES IN GAME",
          {{"CENTER","center","\"center\""},{"RIGHT","right","\"right\""},{"LEFT","left","\"left\""}},0},
-        {"CAMERA DISTANCE",Section::Controls,"camera_distance","DNTTK_CAMERA_DISTANCE",true,"ALT AND THE MOUSE WHEEL ALSO SET IT IN GAME",
-         {{"ORIGINAL","0","0"},{"1024","1024","1024"},{"1536","1536","1536"},{"2048","2048","2048"},
-          {"3072","3072","3072"},{"4096","4096","4096"},{"6144","6144","6144"}},0},
         {"CROSSHAIR",Section::Controls,"crosshair","DNTTK_CROSSHAIR",true,"SHOWS OR HIDES THE CROSSHAIR",
          {on_off[0],on_off[1]},0},
         {"GORE",Section::Game,"gore",nullptr,true,"HOW MUCH BLOOD",{{"NONE","0","0"},{"SOME","1","1"},{"LOTS","2","2"}},2},
-        {"STATUS BARS",Section::Game,"status_bars",nullptr,true,"HEALTH, ARMOR, AMMO AND ITEM BOXES",{{"ON","1","1"},{"OFF","0","0"}},0},
+        {"STATUS BARS",Section::Controls,"status_bars","DNTTK_STATUS_BARS",true,"FULL, BORDERLESS OR HIDDEN. MINUS / PLUS CHANGE LIVE",{{"FULL","full","\"full\""},{"BORDERLESS","borderless","\"borderless\""},{"HIDDEN","hidden","\"hidden\""}},0},
         {"VIEW BOB",Section::Controls,"view_bob","DNTTK_VIEW_BOB",true,"FIRST PERSON HEAD BOB WHILE WALKING",
          {{"OFF","off","\"off\""},{"SUBTLE","subtle","\"subtle\""},{"ON","on","\"on\""},{"STRONG","strong","\"strong\""}},2},
+        {"FIRST-PERSON FOV",Section::Controls,"first_person_fov","DNTTK_FP_FOV",true,
+         "HORIZONTAL DEGREES AT 4:3. MOUSE WHEEL ADJUSTS. CONFIRM TO APPLY",{},64,true,60,90,1},
+        {"CAMERA DISTANCE",Section::Controls,"camera_distance","DNTTK_CAMERA_DISTANCE",true,
+         "THIRD PERSON. MOUSE WHEEL ADJUSTS. ALT AND WHEEL ALSO SET IT IN GAME",{},0,true,0,6144,128},
     }};
     s[3]={"ADVANCED",{
         heading("CAMERA AND AIM"),
@@ -653,7 +655,12 @@ void init() {
             const char* env=r.link ? nullptr : r.section==Section::Presentation ? presentation_value(r.key) : r.env ? std::getenv(r.env) : nullptr;
             if(r.slider) {
                 int value=r.def;
-                if(env) {const double d=std::strtod(env,nullptr)/r.scale;value=std::clamp((int)(d+0.5),r.lo,r.hi);}
+                if(env) {
+                    char* end=nullptr;const double d=std::strtod(env,&end)/r.scale;
+                    if(end!=env && !*end && std::isfinite(d) && d>=r.lo && d<=r.hi)
+                        value=(int)std::round(d);
+                    if(!std::strcmp(r.key,"camera_distance") && value>0 && value<768)value=0;
+                }
                 v.push_back(value);
             } else v.push_back(choice_from_env(r,env));
         }
@@ -689,6 +696,7 @@ struct KeyName {int code;const char* token;const char* shown;};
 // not a plain letter or digit, and how the menu shows them (menu font: capitals,
 // digits and a little punctuation, so no brackets).
 const KeyName key_names[]={
+    {45,"Minus","MINUS"},{46,"Equals","PLUS / EQUALS"},{86,"KPMinus","KEYPAD MINUS"},{87,"KPPlus","KEYPAD PLUS"},
     {0,"Unbound","NONE"},{44,"Space","SPACE"},{224,"LCtrl","LEFT CTRL"},{225,"LShift","SHIFT"},{226,"Alt","ALT"},
     {71,"ScrollLock","SCROLL LOCK"},{47,"LBracket","["},{48,"RBracket","]"},
     {74,"Home","HOME"},{75,"PageUp","PAGE UP"},{77,"End","END"},{78,"PageDown","PAGE DOWN"},
@@ -771,7 +779,10 @@ int rows_visible(const Screen& s) {return compact(s) ? 9 : (int)s.rows.size();}
 // above (as KEY BINDINGS scrolls).
 // In the compact layout a slider takes two row places: its disc is taller
 // than the 14 between rows and overlapped the row above.
-int row_units(const Screen& s,int i) {return compact(s) && s.rows[i].slider ? 2 : 1;}
+int row_units(const Screen& s,int i) {
+    if(!compact(s) || !s.rows[i].slider)return 1;
+    return !std::strcmp(s.title,"GAMEPLAY") ? 3 : 2;
+}
 int units_between(const Screen& s,int from,int to) {int u=0;for(int i=from;i<=to;++i) u+=row_units(s,i);return u;}
 void settings_scroll(const Screen& s) {
     const int vis=rows_visible(s);
@@ -855,6 +866,8 @@ const KeyRow key_rows[]={
     {"MEDKIT",medkit},{"STEROIDS",steroids},{"JETPACK",jetpack},{"GOGGLES",goggles},{"BIO MASK",biomask},
     {"PREVIOUS MISSION ITEM",mission_previous},{"NEXT MISSION ITEM",mission_next},
     {"CAMERA",-1},{"FIRST / THIRD PERSON",camera_view},{"SHOULDER",camera_shoulder},{"RECENTER CAMERA",camera_recenter},
+    {"LESS HUD",hud_less,nullptr,"FULL TO BORDERLESS TO HIDDEN"},
+    {"MORE HUD",hud_more,nullptr,"HIDDEN TO BORDERLESS TO FULL"},
     {"FREE LOOK",camera_free_look,nullptr,"HOLD TO ORBIT. MOVEMENT AND AIM KEEP THEIR HEADING"},
     {"LOOK UP",look_up,nullptr,"HOLD, EASES BACK ON RELEASE"},{"LOOK DOWN",look_down,nullptr,"HOLD, EASES BACK ON RELEASE"},
     {"LOCK LOOK UP",lock_look_up,nullptr,"HOLD, STAYS UNTIL A LOOK KEY"},{"LOCK LOOK DOWN",lock_look_down,nullptr,"HOLD, STAYS UNTIL A LOOK KEY"},
@@ -1155,7 +1168,10 @@ void change(int dir,uint64_t held_ms) {
     Row& r=screens[screen].rows[cursor];
     int& v=draft[screen][cursor];
     const int before=v;
-    if(r.slider) v=std::clamp(v+dir*r.step*(held_ms>1200?5:1),r.lo,r.hi);
+    if(r.slider) {
+        v=std::clamp(v+dir*r.step*(held_ms>1200?5:1),r.lo,r.hi);
+        if(!std::strcmp(r.key,"camera_distance") && v>0 && v<768)v=dir>0?768:0;
+    }
     else {const int n=(int)r.choices.size();v=(v+dir+n)%n;}
     if(v!=before) sound(1);
 }
@@ -1188,16 +1204,20 @@ void apply_live(const Row& r,int v) {
         // D19N: the original's own values, as its GAME SETTINGS CONFIRM leaves them.
         const uint16_t w=psx_mod_read_half(settings_word);
         if(key=="gore") psx_mod_write_half(settings_word,(uint16_t)((w&~gore_bits)|((v&3)<<1)));
-        else if(key=="status_bars") psx_mod_write_half(settings_word,(uint16_t)(r.choices[v].env[0]=='1' ? w|status_bars_bit : w&~status_bars_bit));
         else if(key=="game_speed") {psx_mod_write_half(game_speed,(uint16_t)v);pending_speed=v;}
         return;
     }
     if(key=="frame_rate" && !frame_rate_set(value)) return;
     // Until a change ttk_live_env() is plain getenv (an unset variable stays unset).
     if(r.env) ttk_live_env_set(r.env,value);
-    if(key=="crosshair") ttk_aim_reset_crosshair_override();
+    if(key=="status_bars") {
+        const uint16_t w=psx_mod_read_half(settings_word);
+        psx_mod_write_half(settings_word,!std::strcmp(value,"hidden") ? w&~status_bars_bit : w|status_bars_bit);
+    }
+    else if(key=="crosshair") ttk_aim_reset_crosshair_override();
     else if(key=="view") input_set_view(!std::strcmp(value,"first"));
     else if(key=="shoulder") input_set_shoulder(!std::strcmp(value,"right") ? 1 : !std::strcmp(value,"left") ? -1 : 0);
+    else if(key=="first_person_fov") first_person_set_fov(std::atof(value));
     else if(key=="camera_distance") camera_set_distance(std::atof(value));
     else if(key=="display") psx_mod_request_fullscreen_mode(!std::strcmp(value,"exclusive") ? 2 : !std::strcmp(value,"borderless") ? 1 : 0);
     else if(key=="widescreen") {
@@ -1227,19 +1247,14 @@ void refresh_from_game(int s) {
         if(r.section!=Section::Game) continue;
         const std::string key=r.key;
         if(key=="gore") committed[s][i]=std::min((w&gore_bits)>>1,2);
-        else if(key=="status_bars") committed[s][i]=(w&status_bars_bit) ? 0 : 1;
         else if(key=="game_speed") committed[s][i]=std::clamp<int>(psx_mod_read_half(game_speed),r.lo,r.hi);
     }
+    set("status_bars",ttk_live_env("DNTTK_STATUS_BARS"));
     set("view",input_first_person() ? "first" : "third");
     const int side=input_shoulder();
     set("shoulder",side>0 ? "right" : side<0 ? "left" : "center");
-    char d[32];std::snprintf(d,sizeof d,"%.0f",camera_distance_setting());
-    if(row_of(s,"camera_distance")>=0) {
-        Row& r=screens[s].rows[row_of(s,"camera_distance")];
-        const char* match=nullptr;
-        for(const Choice& c:r.choices) if(!std::strcmp(c.env,d)) match=c.env;
-        set("camera_distance",match ? match : intern(d));
-    }
+    const int distance_row=row_of(s,"camera_distance");
+    if(distance_row>=0) committed[s][distance_row]=(int)std::round(camera_distance_setting());
 }
 void open_screen(int s) {
     refresh_from_game(s);
@@ -1468,8 +1483,9 @@ bool game_menu_input(const MenuKeys& keys) {
     for(int n=repeat(rep_down,k.down,k.down_taps,now);n>0;--n) move(1);
     for(int n=repeat(rep_left,k.left,k.left_taps,now);n>0;--n) change(-1,now-rep_left.since);
     for(int n=repeat(rep_right,k.right,k.right_taps,now);n>0;--n) change(1,now-rep_right.since);
-    for(int w=k.wheel;w>0;--w) move(-1);
-    for(int w=k.wheel;w<0;++w) move(1);
+    const bool camera_slider=page==Page::Options && screen==2 && screens[screen].rows[cursor].slider;
+    for(int w=k.wheel;w>0;--w) {if(camera_slider)change(1,0);else move(-1);}
+    for(int w=k.wheel;w<0;++w) {if(camera_slider)change(-1,0);else move(1);}
     if(k.confirm_taps) confirm();
     else if(k.back_taps) back(stats ? 2 : c->mode);
     else if(k.square_taps) defaults();
@@ -1695,7 +1711,7 @@ void draw_settings(Guest& g,const Geometry& geo) {
         const Row& r=s.rows[i];
         const uint32_t hi=i==cursor?blue:0;
         if(r.heading) {g.say_clut(r.label,0,y,font_small|centre,clut_amber);continue;}
-        if(needs(r)) {
+        if(needs(r) && !r.slider) {
             // D19N: a row with no effect now: dimmed (its label blue under the cursor).
             const std::string label=std::string(r.label)+":";
             if(hi) g.say(label.c_str(),-10,y,font_small|right|hi);
@@ -1708,9 +1724,17 @@ void draw_settings(Guest& g,const Geometry& geo) {
             ++slot;
             if(!obj) continue;
             const char* label=tight && r.key && !std::strcmp(r.key,"mouse_sensitivity") ? "MOUSE LOOK" : r.label;
-            g.say(label,geo.x0+geo.w/3,y,font_small|right|hi);
-            g.call(fn_slider_init,obj,0,(uint32_t)(y+5),(uint32_t)r.lo,(uint32_t)r.hi,(uint32_t)v[i],(uint32_t)r.step);
+            if(screen==2) g.say(label,geo.x0+16,y-14,font_small|hi);
+            else g.say(label,geo.x0+geo.w/3,y,font_small|right|hi);
+            g.call(fn_slider_init,obj,0,(uint32_t)(y+(screen==2?10:5)),(uint32_t)r.lo,(uint32_t)r.hi,(uint32_t)v[i],(uint32_t)r.step);
             g.call(fn_slider_draw,obj,hi,0,0);
+            if(screen==2) {
+                char value[32];
+                if(!std::strcmp(r.key,"first_person_fov"))std::snprintf(value,sizeof value,"%d DEG",v[i]);
+                else if(v[i]==0)std::snprintf(value,sizeof value,"ORIGINAL");
+                else std::snprintf(value,sizeof value,"%d",v[i]);
+                g.say(value,geo.w/2-16,y-14,font_small|right|hi);
+            }
         } else if(r.slider) {
             char value[16];std::snprintf(value,sizeof value,"%.2f",v[i]*r.scale);
             g.say((std::string(r.label)+":").c_str(),-10,y,font_small|right|hi);
@@ -2867,12 +2891,13 @@ void stats_flip(CPUState* cpu) {
 // what Vanilla (or the card) had: the card's pack gets those values back for
 // the save (the next frame restores ours), and a card load updates them.
 namespace {
-struct CardCopy {bool known=false;uint8_t layouts[2*layout_size];bool auto_aim=true;};
+struct CardCopy {bool known=false;uint8_t layouts[2*layout_size];bool auto_aim=true;bool status_bars=true;};
 CardCopy card;
 uint64_t enforced=0, card_packs=0, card_loads=0;
 void card_capture() {
     for(uint32_t i=0;i<2*layout_size;++i) card.layouts[i]=psx_mod_read_byte(pad_layouts+i);
     card.auto_aim=psx_mod_read_half(settings_word)&auto_aim_bit;
+    card.status_bars=psx_mod_read_half(settings_word)&status_bars_bit;
     card.known=true;
 }
 bool want_auto_aim() {const char* v=ttk_live_env("DNTTK_AIM_ASSIST");return v && !std::strcmp(v,"original-lock");}
@@ -2888,7 +2913,9 @@ void enforce_modern_settings() {
     }
     const uint16_t w=psx_mod_read_half(settings_word);
     const uint16_t aim=want_auto_aim() ? (uint16_t)(w|auto_aim_bit) : (uint16_t)(w&~auto_aim_bit);
-    if(aim!=w) {psx_mod_write_half(settings_word,aim);wrote=true;}
+    const char* bars=ttk_live_env("DNTTK_STATUS_BARS");
+    const uint16_t wanted=bars && !std::strcmp(bars,"hidden") ? aim&~status_bars_bit : aim|status_bars_bit;
+    if(wanted!=w) {psx_mod_write_half(settings_word,wanted);wrote=true;}
     if(wrote) ++enforced;
 }
 } // namespace
@@ -2896,7 +2923,8 @@ void card_pack_entry() {
     if(!modern_settings_ready() || !card.known) return;
     for(uint32_t i=0;i<2*layout_size;++i) psx_mod_write_byte(pad_layouts+i,card.layouts[i]);
     const uint16_t w=psx_mod_read_half(settings_word);
-    psx_mod_write_half(settings_word,(uint16_t)(card.auto_aim ? w|auto_aim_bit : w&~auto_aim_bit));
+    const uint16_t aim=card.auto_aim ? w|auto_aim_bit : w&~auto_aim_bit;
+    psx_mod_write_half(settings_word,(uint16_t)(card.status_bars ? aim|status_bars_bit : aim&~status_bars_bit));
     ++card_packs;
 }
 void card_unpack_done(CPUState* cpu) {
@@ -2944,7 +2972,24 @@ void apply_sound(CPUState* cpu) {
 void game_menu_frame(CPUState* cpu) {
     if(!enabled() || psx_mod_replay_active() || g_precise_mode || g_ls_mode || g_psx_call_bail) return;
     {std::lock_guard<std::recursive_mutex> lock(mutex);savestate_check();quick_poll();}
-    if(authentic()) {enforce_modern_settings();apply_sound(cpu);}
+    if(authentic()) {
+        enforce_modern_settings();apply_sound(cpu);
+        while(const int step=input_take_hud_step()) {
+            if(psx_mod_read_half(game_mode)!=1 || psx_mod_read_half(paused)) continue;
+            std::lock_guard<std::recursive_mutex> lock(mutex);
+            ensure_init();
+            for(size_t s=0;s<screens.size();++s) {
+                const int i=row_of((int)s,"status_bars");
+                if(i<0) continue;
+                Row& r=screens[s].rows[i];
+                const int before=choice_from_env(r,ttk_live_env("DNTTK_STATUS_BARS"));
+                const int next=std::clamp(before-step,0,2);
+                if(next==before) continue;
+                committed[s][i]=draft[s][i]=next;
+                apply_live(r,next);write_settings();
+            }
+        }
+    }
     if(load_ui.holding && cpu->gpr[31]==0x800268f4 &&
        psx_mod_read_half(game_mode)==1 && !psx_mod_read_half(paused)) {
         const uint32_t buffer=psx_mod_read_word(image_counter);

@@ -13,11 +13,21 @@ import player_profiles as profiles
 
 
 class InputBindingsTest(unittest.TestCase):
+    def test_hud_binding_migration_and_keypad(self):
+        old = {k: v for k, v in pc_input.DEFAULTS.items() if k not in ('hud_less', 'hud_more')}
+        old['camera_recenter'] = 'Minus'
+        migrated = pc_input.add_missing_actions(old)
+        self.assertEqual(migrated['camera_recenter'], 'Minus')
+        self.assertEqual(migrated['hud_less'], 'Unbound')
+        self.assertEqual(migrated['hud_more'], 'Equals')
+        rebound = pc_input.rebind(migrated, ['hud_less=KPMinus', 'hud_more=KPPlus'])
+        self.assertTrue(pc_input.wire(rebound).endswith(',86,87'))
+
     def test_defaults_wire_and_separate_movement(self):
-        self.assertEqual(len(pc_input.validate(pc_input.DEFAULTS)), 53)
+        self.assertEqual(len(pc_input.validate(pc_input.DEFAULTS)), 55)
         self.assertTrue(pc_input.wire(pc_input.DEFAULTS).startswith('1:26,22,4,7,'))
         # D08A5: Comma/Period browse the mission inventory; original strafe is unbound.
-        self.assertTrue(pc_input.wire(pc_input.DEFAULTS).endswith(',54,55,75,78,74,77,80,79,63,66,6,-2'))  # D10C look keys, D10D turn keys, D20 quick keys last
+        self.assertTrue(pc_input.wire(pc_input.DEFAULTS).endswith(',54,55,75,78,74,77,80,79,63,66,6,-2,45,46'))  # D10C look keys, D10D turn keys, D20 quick keys last
         self.assertEqual((pc_input.DEFAULTS['original_strafe_left'], pc_input.DEFAULTS['original_strafe_right']),
                          ('Unbound', 'Unbound'))
         old = {k: v for k, v in pc_input.DEFAULTS.items() if not k.startswith('mission_')}
@@ -196,7 +206,7 @@ class D21ProfileTest(unittest.TestCase):
                 profile['bindings']['fire'] = 'Mouse3'
             profiles.save(path, old)
             loaded, _ = profiles.load(path)
-            self.assertEqual(loaded['version'], 54)
+            self.assertEqual(loaded['version'], 60)
             for profile in loaded['profiles'].values():
                 self.assertEqual(profile['bindings']['fire'], 'Mouse3')
                 self.assertEqual(profile['bindings']['camera_free_look'], 'Unbound')

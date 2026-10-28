@@ -26,6 +26,20 @@ Cheat input_take_cheat() {
     auto result=cheat_pending;cheat_pending=Cheat::None;
     return result;
 }
+// Two bits per press, oldest at the high end. No lock or allocation is
+// inherited by forked replay workers; enqueue/dequeue preserve press order.
+static std::atomic<uint64_t> hud_steps{0};
+int input_take_hud_step() {
+    uint64_t pending=hud_steps.load();
+    while(pending) {
+        unsigned shift=0;
+        for(uint64_t rest=pending;rest>>2;rest>>=2) shift+=2;
+        const int step=(pending>>shift)==1 ? -1 : 1;
+        const uint64_t remaining=pending&~(uint64_t(3)<<shift);
+        if(hud_steps.compare_exchange_weak(pending,remaining)) return step;
+    }
+    return 0;
+}
 static bool modern, captured, focused, autorun;
 // Keep ownership through clear()/focus/strip expiry until the physical release.
 static bool inventory_enter_down;
@@ -184,7 +198,15 @@ static const uint16_t pads[action_count] = {
 static std::atomic<bool> key_capture{false};
 static std::atomic<int> captured_key{0};
 static constexpr int no_key=0x7fffffff;
+static void hud_press(int code) {
+    const int step=code==binds[hud_less] ? -1 : code==binds[hud_more] ? 1 : 0;
+    if(!step) return;
+    uint64_t pending=hud_steps.load();
+    while(!(pending>>62))
+        if(hud_steps.compare_exchange_weak(pending,(pending<<2)|(step<0?1u:2u))) break;
+}
 static void clear() {
+    hud_steps.store(0);
     controller_blocked|=controller_buttons;
     controller_trigger_blocked|=(controller_axes[4]>8192?1u:0u)|(controller_axes[5]>8192?2u:0u);
     std::fill(controller_held,controller_held+action_count,false);controller_x=controller_y=0;controller_at=0;
@@ -250,6 +272,7 @@ static bool capture_now() {
 // A savestate load replaced the guest state: host requests that described
 // the old state (stow, weapon restore, push, queued jumps) must not act on it.
 void input_state_loaded() {
+    hud_steps.store(0);
     crouch_latched=false;crouch_cancel_held=false;crouch_jump_consumed=false;
     interaction_pending=false;interaction_pulse=0;interaction_started=false;holster_pulse=0;swim_redraw=0;
     airborne_interact=false;cancel_restore();push_reset();jump_deadline=0;jump_pressed_at=0;
@@ -282,7 +305,7 @@ void input_pad_context(uint16_t pad) {
 bool input_wants_initial_capture() { return initial_capture && modern && !captured; }
 void input_offer_gameplay_capture() { capture_offer_at.store(sequence); capture_offer.store(true); }
 static bool allowed(int code) {
-    return code == 0
+    return code == 0 || code == 45 || code == 46 || code == 86 || code == 87
         || (code >= 4 && code <= 39 && code != 9)
         || code == 71 || code == 224 || code == 226 || code == 47 || code == 48 || code == 51 || code == 52 || code == 44 || code == 54 || code == 55 || code == 225 || code == 74 || code == 75 || code == 77 || code == 78 || code == 79 || code == 80 || (code >= -5 && code <= -1)
         // D20: F4, F5, F6, F9 and F12 (F2 / F3 are SAVE / LOAD GAME; the rest are the framework's).
@@ -571,6 +594,7 @@ void input_event(const SDL_Event& e) {
             input_notice(autorun ? "RUN MODE ON" : "RUN MODE OFF");
             std::fprintf(stderr, "[TTK input] Autorun %s\n", autorun ? "on" : "off");
         }
+        if(pressed && captured && !(mods&(KMOD_CTRL|KMOD_ALT|KMOD_GUI))) hud_press(code);
         if(pressed && captured && code==binds[jump]) crouch_jump_press();
         if(pressed && captured && crouch_binding_event(code)) momentary_crouch_press();
         if(pressed && captured && code==binds[crouch_alt]) toggle_crouch();
@@ -633,6 +657,7 @@ void input_event(const SDL_Event& e) {
                 ttk_aim_toggle_crosshair();
                 input_notice(ttk_aim_crosshair_enabled()?"CROSSHAIR ON":"CROSSHAIR OFF");
             }
+            if(e.type==SDL_MOUSEBUTTONDOWN) hud_press(-int(e.button.button));
             if(e.type==SDL_MOUSEBUTTONDOWN)for(int i=weapon_previous;i<=mission_next;++i)
                 if(binds[i]==-int(e.button.button))command(i);
             if(e.type==SDL_MOUSEBUTTONDOWN)for(int i:{camera_recenter,camera_shoulder,camera_view,look_up,look_down})

@@ -72,3 +72,7 @@ TTK_ACTION(crouch_alt, C, 6, 0)
 
 // D10E: optional inspection orbit; appended to preserve existing action IDs.
 TTK_ACTION(camera_free_look, Mouse3, -2, 0)
+
+// D19U: live HUD steps, appended to preserve existing action IDs.
+TTK_ACTION(hud_less, Minus, 45, 0)
+TTK_ACTION(hud_more, Equals, 46, 0)

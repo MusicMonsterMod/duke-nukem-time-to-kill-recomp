@@ -1,5 +1,37 @@
 # Current status - 2026-10-04
 
+
+## 2026-10-28 - HUD levels and camera sliders accepted and closed
+
+User: "lock it in, close it out!" D19U/D19U1 are Done; D19X/D19Y were already
+accepted. The shared implementation, regressions, manual and notes 309/314
+are included in the authorized MusicMonsterMod commit/push closeout.
+Existing build/native/Python and private runtime evidence stands. No gameplay
+changes, rebuild or launch after acceptance. Intermediate reload stalls remain
+recorded in note 314 with their exact cause unproven; final routes passed.
+Repository/privacy and staged whitespace checks pass. Framework export is
+unchanged and matches all 55 changed/new files after applying it to the clean
+pinned dependency. No next job selected.
+Launch: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-28 - D19U/D19U1 HUD levels (Needs playtest)
+
+D19X and D19Y are complete and user-accepted. Acceptance was requested;
+commit/push closeout was not. Existing slider implementation is preserved.
+
+D19U and then D19U1 were selected and implemented. Minus steps Full ->
+Borderless -> Hidden; Equals/Plus reverses, clamped at the endpoints. Gameplay
+settings, rebindable actions and schema-60 persistence agree. Borderless
+retains icons/values and removes frame art, including in high-refresh replay.
+Native suites, migration and private menu/load/restart checks pass. Player
+files unchanged. See [note 314](314-d19u-hud-levels.md) for scope, rejected
+attempts, intermediate reload stalls and final passing coverage. The stalls'
+exact cause is not established; preserve their private states and logs.
+
+User visual/gameplay acceptance remains pending. No framework edit, commit
+or push. Launch: `python3 recomp/tools/local/run.py`.
+
 ## 2026-10-28 - D35I1 wall-top descent (Done, user-accepted)
 
 User accepted the slot-7 wall-top entry and authorized closeout: "lock it in,
@@ -92,6 +124,22 @@ D19X/D19Y changes are preserved independently. No framework edit, commit or push
 Launch: `python3 recomp/tools/local/run.py`.
 
 
+## 2026-10-28 - D19X/D19Y camera sliders (Needs playtest)
+
+User selected both jobs together. Gameplay now offers First-person FOV directly
+after View Bob (60-90 degrees, default 64) and a Camera Distance slider (Original
+or 768-6144). Keyboard/controller and selected-row wheel adjustment, confirmed
+live application, Cancel, Defaults, saved custom distances and restart
+persistence are implemented. Schema 58 adds the FOV preference safely.
+
+Build, native controls/input suites and profile/launcher tests pass. Private
+60/120-setting checks cover real menu input, virtual gamepad input, endpoints,
+view changes, Alt-wheel synchronization, Defaults and restart. All 41 player
+files are unchanged. [Note 309](309-d19xy-camera-sliders.md) records evidence,
+excluded attempts and limits. User review remains pending; neither job is Done.
+No framework edits, commit or push. No next job selected.
+
+Launch: `python3 recomp/tools/local/run.py`.
 
 ## 2026-10-28 - D36J3 accepted and closed
 

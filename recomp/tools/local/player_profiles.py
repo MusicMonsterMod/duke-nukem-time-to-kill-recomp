@@ -106,7 +106,7 @@ DRAW_DISTANCES = ('original', 'extended')
 STEROIDS_MODES = ('portable', 'original')
 # Alt-wheel boom range in game units; 0 keeps the original follow distance.
 CAMERA_DISTANCE_RANGE = (768, 6144)
-DEFAULT_CONTROLS = {'scheme': 'modern', 'camera': 'independent', 'mouse_sensitivity': 0.12, 'invert_y': False, 'weapon_aim': 'view', 'crosshair': True, 'red_dot': False, 'aim_assist': 'off', 'jetpack': 'modern', 'camera_distance': 0, 'first_person_legs': 'on', 'shoulder': 'center', 'view': 'third', 'widescreen': '16:9', 'cpu_overclock': 150, 'cpu_timing': 'fast', 'jump': 'assisted', 'frame_rate': 'auto', 'view_bob': 'on', 'geometry_precision': 'original', 'texture_precision': 'original', 'draw_distance': 'extended', 'steroids': 'portable', 'jump_walls': 'slide', 'landing': 'modern', 'dynamite': 'modern', 'auto_bio_mask': 'on', 'night_vision': 'modern', 'swimming': 'modern', 'swim_view': 'first', 'jetpack_view': 'first', 'push_view': 'first', 'ladder_view': 'first', 'pole_view': 'first', 'mantle_view': 'first', 'overhead_view': 'first', 'wall_view': 'first', 'wall_backflip': 'modern', 'crouch': 'modern'}
+DEFAULT_CONTROLS = {'status_bars': 'full', 'scheme': 'modern', 'camera': 'independent', 'mouse_sensitivity': 0.12, 'invert_y': False, 'weapon_aim': 'view', 'crosshair': True, 'red_dot': False, 'aim_assist': 'off', 'jetpack': 'modern', 'camera_distance': 0, 'first_person_legs': 'on', 'first_person_fov': 64, 'shoulder': 'center', 'view': 'third', 'widescreen': '16:9', 'cpu_overclock': 150, 'cpu_timing': 'fast', 'jump': 'assisted', 'frame_rate': 'auto', 'view_bob': 'on', 'geometry_precision': 'original', 'texture_precision': 'original', 'draw_distance': 'extended', 'steroids': 'portable', 'jump_walls': 'slide', 'landing': 'modern', 'dynamite': 'modern', 'auto_bio_mask': 'on', 'night_vision': 'modern', 'swimming': 'modern', 'swim_view': 'first', 'jetpack_view': 'first', 'push_view': 'first', 'ladder_view': 'first', 'pole_view': 'first', 'mantle_view': 'first', 'overhead_view': 'first', 'wall_view': 'first', 'wall_backflip': 'modern', 'crouch': 'modern'}
 # display is how the game opens (the runtime reports the last state at exit);
 # fullscreen_mode is what F11 enters from a window.
 SOUND_DEFAULTS = dict(sound_master=-1, sound_effects=-1, sound_music=-1, sound_speech=-1, sound_mode=-1)
@@ -130,7 +130,12 @@ def validate_controls(value):
     if isinstance(value, dict):
         value = {k: v for k, v in value.items() if k not in ('use_view', 'mirror_view')}
     if isinstance(value, dict):
-        value = {**value, 'first_person_legs': value.get('first_person_legs') if valid_enum(value.get('first_person_legs'), ('on', 'off')) else 'on'}
+        # D19X: recover this additive field without losing other preferences.
+        fov = value.get('first_person_fov', 64)
+        if type(fov) not in (int, float) or not math.isfinite(fov) or not 60 <= fov <= 90:
+            fov = 64
+        value = {**value, 'status_bars': value.get('status_bars') if valid_enum(value.get('status_bars'), ('full', 'borderless', 'hidden')) else 'full', 'first_person_fov': round(fov),
+                 'first_person_legs': value.get('first_person_legs') if valid_enum(value.get('first_person_legs'), ('on', 'off')) else 'on'}
     if not isinstance(value, dict) or set(value) != set(DEFAULT_CONTROLS):
         raise ValueError('Invalid camera preferences.')
     validate_action_view(value['swim_view'])
@@ -320,7 +325,12 @@ def absorb_menu_settings(settings_path, settings):
         controls = validate_controls({**profile['controls'], **data['controls']})
         presentation = validate_presentation({**profile['presentation'], **data['presentation']})
         # Files from before D19G carry no bindings: the profile's stay.
-        bindings = pc_input.validate(dict(data['bindings'])) if 'bindings' in data else profile['bindings']
+        bindings = dict(data['bindings']) if 'bindings' in data else profile['bindings']
+        # Preserve a pending schema-59 menu confirmation when adding HUD keys.
+        if set(bindings) == set(pc_input.DEFAULTS) - {'hud_less', 'hud_more'}:
+            bindings = pc_input.add_missing_actions(bindings)
+        else:
+            bindings = pc_input.validate(bindings)
     except (ValueError, TypeError, KeyError, AttributeError, UnicodeError):
         controls = None
     state.unlink(missing_ok=True)
@@ -338,7 +348,7 @@ VANILLA_NOTICE = ('Modernized is now the default profile; your Vanilla settings 
 
 
 def defaults():
-    return {'version': 59, 'active': 'modernized',
+    return {'version': 60, 'active': 'modernized',
             'profiles': {mode: default_profile(mode) for mode in MODES}}
 
 
@@ -384,7 +394,7 @@ def load(path):
         notices.append('Unreadable profile settings; restored Modernized defaults.')
     else:
         version = data.get('version')
-        if type(version) is int and version > 59:
+        if type(version) is int and version > 60:
             raise ValueError(f'Profile settings version {version} is newer than this launcher; file left unchanged.')
         if type(version) is int and version == 0:
             mode = data.get('mode', 'modernized')
@@ -393,8 +403,8 @@ def load(path):
                 if renderer in RENDERERS:
                     result['profiles'][mode]['presentation']['renderer'] = renderer
             changed = True
-            notices.append('Migrated version 0 profile settings to version 59.')
-        elif type(version) is int and version in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59):
+            notices.append('Migrated version 0 profile settings to version 60.')
+        elif type(version) is int and version in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60):
             if data.get('active') == 'vanilla':
                 notices.append(VANILLA_NOTICE)
             profiles = data.get('profiles', {})
@@ -427,7 +437,7 @@ def load(path):
                 # Schema 38 (D20): QUICK SAVE / QUICK LOAD take F6 / F9.
                 if isinstance(profile, dict) and 'bindings' in profile:
                     try:
-                        result['profiles'][mode]['bindings'] = dict(pc_input.migrate_bindings(profile['bindings']) if version < 8 else pc_input.migrate_grab(profile['bindings']) if version < 53 else pc_input.add_missing_actions(profile['bindings']) if version < 54 else pc_input.validate(profile['bindings']))
+                        result['profiles'][mode]['bindings'] = dict(pc_input.migrate_bindings(profile['bindings']) if version < 8 else pc_input.migrate_grab(profile['bindings']) if version < 53 else pc_input.add_missing_actions(profile['bindings']) if version < 60 else pc_input.validate(profile['bindings']))
                     except ValueError as exc:
                         notices.append(f'{mode}: {exc} Restored action defaults.')
             if version < 6:
@@ -467,8 +477,8 @@ def load(path):
                         profile['bindings']['item_use'] = 'Unbound'
             changed = result != data
             if changed and result != {**data, 'active': 'modernized'}:
-                notices.append(f'Migrated version {version} profile settings to version 59; retained preferences and added control and presentation defaults.'
-                               if version < 59 else
+                notices.append(f'Migrated version {version} profile settings to version 60; retained preferences and added control and presentation defaults.'
+                               if version < 60 else
                                'Invalid or unsupported profile fields were reset; valid preferences were retained.')
         else:
             changed = True

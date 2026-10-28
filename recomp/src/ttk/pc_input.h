@@ -35,6 +35,8 @@ struct InputFrame {
     float arrow_y = 0;
     Device device = Device::None;
 };
+// Ordered, bounded HUD key edges consumed on the game thread.
+int input_take_hud_step();
 void input_init(SDL_Window* window);
 // Called on the runtime event-pump thread, never from an SDL event watch.
 void input_event(const SDL_Event& event);

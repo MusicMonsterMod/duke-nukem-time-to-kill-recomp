@@ -1,5 +1,6 @@
 # Time to Kill — modernization jobs
 
+
 ### D35I1 - Climb down from a climbing-wall top (slot 7)
 
 **Status: Done (user-accepted; closeout authorized 2026-10-28).** Selected 2026-10-28. User reports no climb-down
@@ -19,7 +20,6 @@ descent/reload/release probes pass. Existing local camera/settings changes retai
 Evidence and limitations: [note 313](documentation/313-d35i1-wall-top-descent.md).
 User: "lock it in, close it out". Implementation, documentation, commit and push
 closeout authorized. No next job selected.
-
 
 ### D36H7 - Proportional contact arms with shoulder reach
 
@@ -53,7 +53,6 @@ copies of current slot 10; compare FOV 60/default/80/90 and 60/120 replay.
 Acceptance requires packet-level projection invariance, native guard regressions,
 real door entry/action/recovery observation and user visual review.
 Evidence and work log: [note 310](documentation/310-d36j4-door-kick-fov.md).
-
 
 
 ## 2026-10-28 - No-body presentation follow-up jobs
@@ -531,7 +530,7 @@ sliders/lists; record platform coverage and any unverified cases.
 
 ### D19Y - Convert third-person Camera Distance to a slider
 
-**Status: Todo. Backlog only; not selected or started. Dependencies: D19G, D19N. Related: D06, D14A, D19X.**
+**Status: Done (user-accepted; closeout authorized 2026-10-28). Dependencies: D19G, D19N. Related: D06, D14A, D19X.**
 Convert Gameplay's existing "Camera Distance" choice control into a slider,
 matching the existing menu style. Make its third-person scope clear in the
 label or description. This controls camera distance, not first-person FOV;
@@ -600,8 +599,8 @@ attempts and remaining visual/campaign coverage. D19X remains unselected.
 
 ### D19X - First-person FOV slider in Gameplay settings
 
-**Status: Todo. Backlog only; not started. Dependencies: D14A, D19G, D19N.**
-After D14A is complete, add "First-person FOV" directly beneath "View" in
+**Status: Done (user-accepted; closeout authorized 2026-10-28). Dependencies: D14A, D19G, D19N.**
+After D14A is complete, add "First-person FOV" directly after "View Bob" in
 Gameplay settings, matching the existing menu style. Display degrees using
 D14A's established convention and validated range. Support keyboard, gamepad
 and mouse adjustment; apply live where practical, persist the value, and include
@@ -1159,14 +1158,14 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D19S | Delete saves from LOAD GAME: Delete on a slot asks DELETE SAVED GAME: "<name>" (NO first) | Done (user-accepted 2026-10-21) | D19K, D19Q |
 | D19T | Real double quote marks (" and ") in the game's menu font: the text call draws `"` as a single quote | Done (user-accepted 2026-10-21) | D19S |
 | D19T1 | DELETE SAVED GAME: shows the slot's name without quotes (cleaner; D19T quotes stay available) | Done (user-accepted 2026-10-21) | D19S, D19T |
-| D19X | First-person FOV slider beneath View in Gameplay | Todo (backlog only) | D14A, D19G, D19N |
-| D19Y | Third-person Camera Distance slider in Gameplay | Todo (backlog only) | D19G, D19N |
+| D19X | First-person FOV slider after View Bob in Gameplay | Done (user-accepted) | D14A, D19G, D19N |
+| D19Y | Third-person Camera Distance slider in Gameplay | Done (user-accepted) | D19G, D19N |
 | D19Z | Full mouse support for menu UI | Todo (backlog only) | D19; closeout includes D19Z1/Z3 |
 | D19Z1 | Top-left menu Back icon and control | Todo (backlog only) | D19Z core pointer support |
 | D19Z2 | Design a Time to Kill mouse cursor | Todo (backlog only) | - |
 | D19Z3 | Implement the approved custom menu cursor | Todo (backlog only) | D19Z2, D19Z core pointer support |
-| D19U | Live minus/plus status-bar controls | Todo | D04, D19N |
-| D19U1 | Borderless status bars and three-level HUD selection | Todo | D19U |
+| D19U | Live minus/plus status-bar controls | Done (user-accepted) | D04, D19N |
+| D19U1 | Borderless status bars and three-level HUD selection | Done (user-accepted) | D19U |
 | D19L | Menus stay up and responsive while demo scenes load behind the title menu (no blank spinner gap) | Done (user-accepted 2026-10-19 with D19O) | D19J, D19E |
 | D19M | QUIT GAME menu item that closes the whole program (pause list, death list, title main menu), with a YES / NO prompt | Done (user-accepted 2026-10-19; title item in D19J, accepted) | D19H |
 | D19O | Frontend redraws flash back to the previous menu image after a change (PRESS START -> main menu: 13 presents of PRESS START; also in the original menus) | Done (user-accepted 2026-10-19) | D19C, D19J |
@@ -21574,7 +21573,7 @@ of the current crosshair. No build, launch, commit or push requested for this in
 
 ### D19U - Live minus/plus status-bar controls
 
-**Status: Todo. Backlog only; not started.**
+**Status: Done (user-accepted; closeout authorized 2026-10-28).**
 
 User request, 2026-10-26: Duke3D-style live HUD adjustment using `-` and `+`.
 Initial implementation: `-` hides the status bars, exactly equivalent to the current
@@ -21597,7 +21596,7 @@ D19U can complete independently of the later D19U1 borderless enhancement.
 
 ### D19U1 - Borderless status bars and three-level HUD selection
 
-**Status: Todo. Future child of D19U; not started.**
+**Status: Done (user-accepted; closeout authorized 2026-10-28, following D19U foundation).**
 
 User request: add a clean borderless intermediate presentation that removes all
 status-bar borders while retaining their useful contents. Once implemented, the
@@ -23443,6 +23442,21 @@ and verified against the pinned clean source; repository/privacy checks pass.
 No next job selected.
 
 
+## 2026-10-28 - D19X/D19Y Gameplay camera sliders candidate
+
+User selected both jobs together. First-person FOV now has a saved 60-90 degree
+slider directly after View Bob; default 64 retains the original projection.
+Camera Distance is a slider preserving Original and arbitrary saved distances.
+Keyboard, controller and selected-row wheel adjustment use the existing draft,
+Confirm/Cancel and Defaults flow. Profile schema 58 preserves old preferences.
+
+Player build, native controls/input suites, profile/launcher regressions and
+private 60/120-setting menu/restart/view/Alt-wheel checks pass. Original files
+are preserved. [Note 309](documentation/309-d19xy-camera-sliders.md) records
+implementation, evidence, excluded harness attempts and remaining limits.
+Both jobs are Needs playtest. No framework edit, commit or push.
+
+
 ## 2026-10-28 - D36J4 door-kick fixed FOV candidate
 
 User selected current slot 10's wide-FOV door leg and requested a job/log.
@@ -23550,3 +23564,34 @@ the pending camera sliders. Schema 59 reserves the intervening local schema
 58 while adding only the legs preference in this commit. Framework export
 is unchanged and applies cleanly to the pinned dependency; repository checks pass.
 No next job selected.
+
+
+## 2026-10-28 - Camera sliders accepted; HUD shortcuts selected
+
+User confirms D19X and D19Y complete and accepted. Commit/push closeout was
+not requested. D19U selected next, followed by D19U1; existing slider changes
+are preserved.
+
+
+## 2026-10-28 - D19U/D19U1 HUD levels ready for playtest
+
+D19U two-state hide/show was implemented and verified first. D19U1 adds the
+Borderless intermediate level: Minus steps Full -> Borderless -> Hidden,
+Equals/Plus reverses, with endpoint clamping. Menu, saved preference and
+rebindings agree. Captured HUD mode reaches replay workers; native frame
+art is suppressed separately from icons/digits. Build, native suites and
+private menu/reload/restart/aspect routes pass with the limitations and
+intermediate failed attempts in [note 314](documentation/314-d19u-hud-levels.md).
+Both jobs remain Needs playtest for user visual/gameplay acceptance.
+Player files unchanged. No framework edits, commit or push.
+
+
+## 2026-10-28 - D19U/D19U1 accepted and closed
+
+User: "lock it in, close it out!" D19U and D19U1 are Done. The accepted
+Full / Borderless / Hidden HUD, live rebindable shortcuts, saved settings,
+implementation and regressions are included in this authorized closeout with
+the already-accepted D19X/D19Y camera sliders. Existing native, Python and
+private runtime evidence stands; no post-acceptance gameplay change or launch.
+Note 314 retains the intermediate reload stalls and their unproven cause.
+Commit/push as MusicMonsterMod authorized. No next job selected.

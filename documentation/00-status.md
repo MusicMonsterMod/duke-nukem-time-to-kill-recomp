@@ -1,5 +1,29 @@
 # Current status - 2026-10-04
 
+## 2026-10-28 - D19V accepted and closed (Done)
+
+User accepted: "perfectly done, lock it in and close it out". The redundant
+Use Interaction/Mirror view settings are removed; supported actions follow
+global VIEW. Schema 57 migrates old overrides without resetting other valid
+preferences. Implementation, tests, manual and documentation commit/push are
+authorized as MusicMonsterMod. Prior build and regression results stand;
+[note 295](295-d19v-action-view-cleanup.md) preserves automated verification
+limits separately from user acceptance. No next job started.
+Launch: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-28 - D19V action-view cleanup (Needs playtest)
+
+USE INTERACTION VIEW and MIRROR VIEW are removed from Advanced. Supported use
+and mirror actions follow global VIEW, retaining native action/presentation
+ownership. Schema 57 removes old overrides, including stale menu sidecar values,
+without resetting other valid settings. Hidden old launcher flags are no-ops.
+Build, 105 profile tests and native controls/input/aim/near suites pass.
+[note 295](295-d19v-action-view-cleanup.md) records private runtime evidence and
+remaining user visual acceptance. No commit/push closeout or next job.
+Launch: `python3 recomp/tools/local/run.py`.
+
+
 ## 2026-10-28 - D09B accepted and closed (Done)
 
 The user confirms "all working" and explicitly authorizes closeout. D09B is

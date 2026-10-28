@@ -270,14 +270,6 @@ static ActionView wall_view() {
     ActionView value=ActionView::First;
     parse_action_view(ttk_live_env("DNTTK_WALL_VIEW"),value);return value;
 }
-static ActionView use_view() {
-    ActionView value=ActionView::First;
-    parse_action_view(ttk_live_env("DNTTK_USE_VIEW"),value);return value;
-}
-static ActionView mirror_view() {
-    ActionView value=ActionView::First;
-    parse_action_view(ttk_live_env("DNTTK_MIRROR_VIEW"),value);return value;
-}
 static ActionView overhead_view() {
     ActionView choice=ActionView::First;
     parse_action_view(ttk_live_env("DNTTK_OVERHEAD_VIEW"),choice);
@@ -857,8 +849,7 @@ static bool state(bool camera_only=false,bool presentation=false) {
     const bool wall_eye=presentation && camera_only && wall_view()==ActionView::First &&
         input_snapshot(Context::Gameplay).first_person && first_person_wall();
     const bool transient_eye=presentation && camera_only && input_snapshot(Context::Gameplay).first_person &&
-        (idle_fidget_eye() || (use_view()==ActionView::First && use_interaction_eye()) ||
-         (mirror_view()==ActionView::First && mirror_interaction_eye()));
+        (idle_fidget_eye() || use_interaction_eye() || mirror_interaction_eye());
     const bool mantle=camera_only && (traversal_camera_early() || ladder_eye || pole_eye || mantle_eye || wall_eye);
     // D22B: also the landing poses themselves (an unleased landing frame left a
     // jump taken from it without camera continuity) and after a slide.

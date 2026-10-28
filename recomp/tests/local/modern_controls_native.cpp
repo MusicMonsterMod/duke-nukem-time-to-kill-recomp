@@ -4223,7 +4223,7 @@ int main(int argc,char** argv) {
                         assert(draw(7).second==strike); // no host-frame timer
                         psx_mod_write_half(p+0x66,6);assert(!draw(7).first); // malformed/outside clip
                         psx_mod_write_half(p+0x66,3);
-                        setenv("DNTTK_USE_VIEW","legacy-third",1);frame();assert(!draw(7).first);
+                        setenv("DNTTK_USE_VIEW","legacy-third",1);frame();assert(draw(7).first);
                         unsetenv("DNTTK_USE_VIEW");frame();assert(draw(7).first);
                         ttk::modern=false;frame();assert(!draw(7).first);
                         ttk::modern=true;frame();assert(draw(7).first);
@@ -4247,7 +4247,7 @@ int main(int argc,char** argv) {
                     psx_mod_write_word(p,actor);psx_mod_write_word(c+0xa4,0);frame();assert(metric("\"blend\":")==0);
                     psx_mod_write_word(c+0xa4,p);frame();assert(metric("\"blend\":")==1);
                     if(use) {
-                        setenv("DNTTK_USE_VIEW","legacy-third",1);frame();assert(metric("\"blend\":")==0);contact_arms(false);
+                        setenv("DNTTK_USE_VIEW","legacy-third",1);frame();assert(metric("\"blend\":")==1);contact_arms(true);
                         unsetenv("DNTTK_USE_VIEW");frame();assert(metric("\"blend\":")==1);
                         psx_mod_write_word(p+0x224,0);frame();assert(metric("\"blend\":")==0);
                     }
@@ -4299,12 +4299,12 @@ int main(int argc,char** argv) {
                 frame();assert(metric("\"blend\":")==1);
                 std::puts("PASS: D35J5 frozen eye/input separation, native state, thaw/death/choice/load/replay/Vanilla guards");
             }
-            // Mirror action has an independent preference and no gameplay lease.
+            // D19V: retired mirror/use overrides cannot defeat the global view.
             {
                 const auto flags=psx_mod_read_word(p+0x224);
                 psx_mod_write_half(p+0x60,278);psx_mod_write_word(p+0x224,0x40);
                 for(const char* choice:{"first","legacy-third"}) {
-                    const bool eye=!std::strcmp(choice,"first");
+                    const bool eye=true; // both retired values retain first person
                     setenv("DNTTK_MIRROR_VIEW",choice,1);setenv("DNTTK_USE_VIEW",eye?"legacy-third":"first",1);
                     ++save_loads;frame();assert(metric("\"blend\":")==int(eye));
                     assert(!ttk::movement_ready() && !ttk::locomotion_input_ready());
@@ -4320,7 +4320,7 @@ int main(int argc,char** argv) {
                 }
                 psx_mod_write_word(p+0x224,flags);psx_mod_write_half(p+0x60,63);++save_loads;frame();
                 assert(metric("\"blend\":")==1);
-                std::puts("PASS: D35N independent mirror choice, mode/action lock, global view, pause/load/replay");
+                std::puts("PASS: D19V mirror follows global view, ignores retired overrides, pause/load/replay");
             }
             // D35D: authenticated push poses retain the eye without granting
             // locomotion. Choice/global view, load, pause and replay ownership.

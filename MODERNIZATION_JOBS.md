@@ -8,7 +8,7 @@ Subsequent permission to launch for research does not select implementation.
 
 ### D19V - Remove redundant Advanced Settings view toggles
 
-**Status: Todo. Backlog only; not started.**
+**Status: Done (user-accepted; closeout authorized 2026-10-28).**
 Remove the user's "Use interaction" and "Mirror" options from Advanced Settings.
 First trace each setting's consumers and defaults. Preserve intended default
 play and underlying interaction/rendering functionality; remove obsolete UI
@@ -17,10 +17,17 @@ Read the accepted D36 audit before changing action perspective ownership.
 Acceptance: options/descriptions removed, fresh and existing configurations
 behave correctly, interactions/mirrors and accepted first-person behavior remain
 intact, Vanilla unchanged.
-Brief source observation only: `recomp/src/ttk/game_menu.cpp` defines these as
+Historical intake observation: `recomp/src/ttk/game_menu.cpp` defined these as
 USE INTERACTION VIEW (`use_view`) and MIRROR VIEW (`mirror_view`) under ACTION
 PERSPECTIVE. They are view selectors; this does not establish all consumers or
 migration requirements. Do not mistake MIRROR VIEW for a rendering enable switch.
+Accepted result removes both rows and makes Use/Mirror follow global VIEW. Schema 57
+removes old overrides without resetting other valid preferences. Player build,
+105 profile tests and native controls/input/aim/near suites pass. User accepted:
+"perfectly done, lock it in and close it out". Implementation, tests and
+documentation commit/push closeout authorized.
+[note 295](documentation/295-d19v-action-view-cleanup.md) preserves evidence
+limits separately from user acceptance.
 
 ### D09B - Restore classic gamepad auto-aim and red dot
 
@@ -22401,4 +22408,27 @@ live-switch render-worker fix are accepted. Manual overrides remain available;
 Vanilla is unchanged. Build, native aiming tests and private slot-4 before/after
 captures passed; user playtest acceptance is distinct from injected diagnostics.
 See [note 294](documentation/294-d09b-classic-aim.md). No further D09B work remains.
+Launch: `python3 recomp/tools/local/run.py`.
+
+## 2026-10-28 - D19V redundant action-view controls (Needs playtest)
+
+Selected D19V only. Removed USE INTERACTION VIEW and MIRROR VIEW from Advanced;
+Use and Mirror now follow global VIEW through the existing action policy.
+Profile schema 57 discards obsolete values and stale sidecar keys while
+preserving unrelated preferences. Launcher descriptions are removed; old flags
+are hidden compatibility no-ops. No changes to native events, arm geometry,
+reflection rendering, framework source or Vanilla gates.
+
+Player build, 105 profile tests and native controls/input/aim/near suites pass.
+Private runtime evidence and remaining visual acceptance are recorded in
+[note 295](documentation/295-d19v-action-view-cleanup.md). Player files remain
+unchanged. No commit/push or next job. Launch: `python3 recomp/tools/local/run.py`.
+
+## 2026-10-28 - D19V accepted and closed (Done)
+
+User: "perfectly done, lock it in and close it out". D19V is Done; implementation,
+tests, manual and documentation commit/push closeout are explicitly authorized.
+User acceptance is separate from native tests and the unsuccessful automated
+Advanced-menu capture attempts in [note 295](documentation/295-d19v-action-view-cleanup.md).
+No further implementation, rebuild, game launch or next job during closeout.
 Launch: `python3 recomp/tools/local/run.py`.

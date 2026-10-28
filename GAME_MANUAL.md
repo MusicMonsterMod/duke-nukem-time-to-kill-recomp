@@ -799,22 +799,14 @@ Left/Right only turn him), and Vanilla keeps that.
 FIRST PERSON, idle gestures and holding the holster button for the original
 inventory keep the eye view. Inventory still suspends movement until release.
 
-**USE INTERACTION VIEW** in OPTIONS > ADVANCED > ACTION PERSPECTIVE chooses
-FIRST PERSON (default) or THIRD PERSON for supported door/key actions
-(including a visible right-leg kick for the supported hinged-door action), crystal
-(including taking and returning a crystal at a holder), toilet, statue, wheel turn, lever
-and NPC actions.
-CONFIRM applies and saves the choice. Duke keeps the
-action's normal timing and alignment, uses the item, and redraws his weapon
-when it finishes. Look down toward the interaction to see his animated hands.
-Global THIRD PERSON takes precedence. The launcher accepts `--use-view first`
-or `--use-view legacy-third`; either flag saves that preference.
+Supported door/key actions (including the hinged-door right-leg kick), crystal
+pickup/return, toilet, statue, wheel, lever, NPC and mirror interactions follow
+the global VIEW selection. Duke keeps the action's normal timing and alignment,
+uses the item, and redraws his weapon when it finishes. In first person, look
+down toward the interaction to see his animated hands.
 
-**MIRROR VIEW** on the same page independently chooses FIRST PERSON (default)
-or THIRD PERSON for mirror interactions. Global THIRD PERSON takes precedence.
-The launcher accepts `--mirror-view first` or `--mirror-view legacy-third`;
-either flag saves that preference. In Modernized, Duke's reflection stays
-opaque when close to a mirror. Intentional power-up effects still apply.
+In Modernized, Duke's reflection stays opaque when close to a mirror.
+Intentional power-up effects still apply.
 
 Number keys now select familiar weapon groups when owned and usable:
 

@@ -32,6 +32,7 @@ static uint8_t ram[0x200000];
 static PSXModFunctionEntryCallback near_hook;
 static bool live_eye=false,modern=true,live_third=false,duke=false,interaction=false,test_viewmodel=false;
 static ttk::LimbOwner test_owner=ttk::LimbOwner::DisplayHand;
+static int test_part=0x0f;
 static double body_coverage=1;
 static float observed_coverage=1;
 static unsigned host_vertices;
@@ -61,7 +62,7 @@ extern "C" int psx_mod_replay_active(void){return 0;}
 extern "C" uint32_t psx_mod_savestate_loads(void){return 0;}
 namespace ttk {bool frame_trace_on(){return false;} void frame_trace_account(uint32_t,long){}}
 static bool lower_body=false;
-namespace ttk {void first_person_mesh_begin(CPUState*){} void third_person_mesh_begin(CPUState*){} bool input_modernized(){return modern;} bool first_person_view_live(){return live_eye;} bool third_person_camera_live(){return modern && live_third;} double third_person_body_coverage(){return body_coverage;} bool widescreen_near_clip_live(){return false;} bool third_person_duke_drawing(){return duke;} bool first_person_duke_drawing(){return duke;} bool first_person_actor_drawing(){return duke;} LimbPresentation first_person_limb_presentation(){return test_viewmodel?limb_presentation(test_owner,0x0f):lower_body?limb_presentation(LimbOwner::Body,5,true):interaction?limb_presentation(LimbOwner::Interaction,0x0f):LimbPresentation{};} bool first_person_interaction_drawing(){return interaction;} bool first_person_weapon_drawing(){return false;} uint64_t input_host_frame(){return 0;}}
+namespace ttk {void first_person_mesh_begin(CPUState*){} void third_person_mesh_begin(CPUState*){} bool input_modernized(){return modern;} bool first_person_view_live(){return live_eye;} bool third_person_camera_live(){return modern && live_third;} double third_person_body_coverage(){return body_coverage;} bool widescreen_near_clip_live(){return false;} bool third_person_duke_drawing(){return duke;} bool first_person_duke_drawing(){return duke;} bool first_person_actor_drawing(){return duke;} LimbPresentation first_person_limb_presentation(){return test_viewmodel?limb_presentation(test_owner,test_part):lower_body?limb_presentation(LimbOwner::Body,5,true):interaction?limb_presentation(LimbOwner::Interaction,0x0f):LimbPresentation{};} bool first_person_interaction_drawing(){return interaction;} bool first_person_weapon_drawing(){return false;} uint64_t input_host_frame(){return 0;}}
 static int16_t sx(uint32_t p){return (int16_t)p;} static int16_t sy(uint32_t p){return (int16_t)(p>>16);}
 // A whole-hook observation oracle: compare this digest across separate runs
 // with the diagnostic gate disabled/enabled. Covers all fixture RAM and CPU
@@ -328,18 +329,20 @@ static void packet_contracts(const char* executable) {
         }
     };
     // D14B: exercise real emitted mesh packets, including UV/depth metadata.
-    // Display owners are independent of world H; world/contact/kick owners
-    // still respond to it. No shared GTE register is changed by projection.
+    // Display owners and Q are independent of world H; world/contact/door
+    // owners still respond to it. No shared GTE register is changed by projection.
     {
         live_eye=true;test_viewmodel=true;
         for(auto owner:{ttk::LimbOwner::DisplayHand,ttk::LimbOwner::DisplayArm,
                        ttk::LimbOwner::Interaction,ttk::LimbOwner::Body,ttk::LimbOwner::Kick}) {
             test_owner=owner;
-            for(int margin:{0,85,192}) {
-                test_margin=margin;
+            for(int part:{1,2,3,4,5,6,7,8,21}) for(int margin:{0,85,192}) {
+                test_part=part;test_margin=margin;
+                const bool fixed=owner==ttk::LimbOwner::DisplayHand || owner==ttk::LimbOwner::DisplayArm ||
+                    (owner==ttk::LimbOwner::Kick && part>=1 && part<=4);
                 object_case(0x80034dd0,100,true,false,0,500);
                 const auto baseline=host_corners;assert(!baseline.empty());
-                for(int h:{160,177,209,256,277}) {
+                for(int h:{160,177,191,209,256,277}) {
                     object_case(0x80034dd0,100,true,false,0,500,false,h);
                     assert(host_corners.size()==baseline.size());
                     bool moved=false;
@@ -347,17 +350,15 @@ static void packet_contracts(const char* executable) {
                         const auto& a=baseline[i];const auto& b=host_corners[i];
                         assert(a.z==b.z && a.u==b.u && a.v==b.v && a.depth==b.depth);
                         moved|=a.x!=b.x || a.y!=b.y;
-                        if(owner==ttk::LimbOwner::DisplayHand || owner==ttk::LimbOwner::DisplayArm)
-                            assert(a.word==b.word && a.x==b.x && a.y==b.y);
+                        if(fixed) assert(a.word==b.word && a.x==b.x && a.y==b.y);
                     }
-                    if(owner!=ttk::LimbOwner::DisplayHand && owner!=ttk::LimbOwner::DisplayArm)
-                        assert(moved==(h!=256));
+                    if(!fixed) assert(moved==(h!=256));
                 }
             }
         }
-        test_owner=ttk::LimbOwner::DisplayHand;test_viewmodel=false;test_margin=85;
+        test_part=0x0f;test_owner=ttk::LimbOwner::DisplayHand;test_viewmodel=false;test_margin=85;
         ttk::near_clip_load_frame_state({0,0,0,0});
-        std::puts("PASS: D14B fixed display projection, world/contact/kick exclusion, UV/depth and GTE preservation at three aspects");
+        std::puts("PASS: D14B/D36J3 fixed display/Q projection, world/contact/door exclusion, UV/depth and GTE preservation at three aspects");
     }
     // D17AB: a mirror can leave the native OT empty while each arm/weapon
     // mesh queues host packets. More than four meshes must not wrap the arena

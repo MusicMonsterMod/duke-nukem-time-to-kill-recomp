@@ -102,7 +102,7 @@ limitations, not claims of exhaustive verification. No next job selected.
 
 ### D36J3 - No-body quick-kick motion and weapon-overlap polish
 
-**Status: Todo. Dependency: D36J2. Coordinate with D36H5.**
+**Status: Done (revision 3 user-accepted; closeout authorized 2026-10-28). Dependency: D36J2 (Done). Coordinate with D36H5 (Done).**
 
 Review the accepted Q under no-body presentation before deciding whether further
 changes are useful. Preserve the actual plain left leg and separate native
@@ -119,6 +119,18 @@ weapon framing, camera freedom and native gameplay joints. Check door action,
 view/load/replay restoration and Vanilla. Retain motion/stills, source diagnosis,
 measured cost if changed, and explicit limits. If unchanged Q passes review,
 document that finding rather than introduce unnecessary animation changes.
+
+2026-10-28: user accepted revision 3 ("thats it! lock it in and close it out").
+Q uses the same fixed H=256 presentation as weapons, keeping its size/framing
+stable across world FOV 60/75/80/90. Entry/recovery easing remains; the rejected
+adaptive hip translation is removed. Native door projection, weapon framing,
+gameplay matrices, hit reach/damage/timing and sound remain unchanged.
+Build, controls/input/aim/near suites, exact mesh-packet projection regressions
+and bounded private motion/replay checks pass. [Note 308](documentation/308-d36j3-quick-kick-transitions.md)
+records the accepted result, rejected revision and evidence limits. Closeout
+includes authored implementation, tests, manual and documentation as
+MusicMonsterMod. Remaining unrun combinations are not claimed certified.
+No next job selected.
 
 At the D36J1 closeout these three jobs were registered only. D36J2 was
 subsequently selected; its current status is above. D36H5 owns the priority
@@ -23323,3 +23335,53 @@ verification stands; no post-acceptance gameplay edits, rebuild or launch.
 Note 307 retains unrun all-costume/effect/script combinations and the unexplained
 overhead restoration observation. These are coverage limits, not a claim that
 the old halt is fixed. D36J3 remains Todo; no next job selected.
+
+
+## 2026-10-28 - D36J3 quick-kick transition candidate
+
+User selected D36J3. Matched phase-0 captures exposed the resting thigh at FOV
+90 against no-body idle. The draw-only repair lowers the complete Q chain at
+entry/recovery, leaving frames 7-21 and native door presentation unchanged.
+Actual-hook regression fails before and passes after; build and controls/input/
+aim/near suites pass. Private 60/120, FOV/aspect, short/bulky weapons, movement,
+cowboy, native door and real-key pause/view checks are in note 308, with failed
+synthetic-input attempts and explicit coverage limits. Bounded capped timing
+is unchanged at 16.683 ms average; this is not an uncapped performance claim.
+All player files preserved. D36J3 is Needs playtest. No framework edit, commit
+or push; acceptance and closeout remain for the user.
+
+
+## 2026-10-28 - D36J3 revision 2, wide-FOV hip exposure
+
+User reports the detached hip at full extension at FOV 90 and requests the leg
+retract as FOV increases. Matched phase-13 captures reproduce it. A shared
+camera-plane translation keeps the animated hip at its default screen anchor
+for wider projections while leaving limb proportions/depth and gameplay intact.
+Default/narrow views and native door framing are unchanged. Extended native FOV
+regressions, player build and controls/input/aim/near suites pass; private 60/120,
+FOV/aspect and cowboy evidence is in note 308. Synthetic-menu final assertions
+remain excluded; earlier real-key lifecycle checks are not claimed newly run.
+D36J3 remains Needs playtest. No player-file changes, framework edits or commit/push.
+
+
+## 2026-10-28 - D36J3 revision 3, weapon-style fixed Q projection
+
+User rejects adaptive retraction and requests identical Q presentation across
+FOV, like weapons. Removed the revision-2 translation. Q's semantic left-leg
+parts now use the existing fixed H=256 display projection; door parts remain
+world-projected. Pose and emitted-packet invariance regressions, player build
+and controls/input/aim/near suites pass. Matched chamber/extension captures at
+60/75/80/90 and bounded motion/ultrawide/replay checks are in note 308. All player
+files preserved. Needs playtest; no framework change, commit or push.
+
+
+## 2026-10-28 - D36J3 revision 3 accepted and closed
+
+User: "thats it! lock it in and close it out". D36J3 is Done for the accepted
+fixed-projection Q presentation and entry/recovery easing. The adaptive
+revision remains rejected. Authored implementation, regressions, manual and
+engineering/status documentation are included in the authorized MusicMonsterMod
+commit/push. Existing verification and note 308's explicit limits stand; no
+post-acceptance gameplay change, rebuild or launch. Framework patch is exported
+and verified against the pinned clean source; repository/privacy checks pass.
+No next job selected.

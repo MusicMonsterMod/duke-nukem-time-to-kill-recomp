@@ -922,9 +922,11 @@ it to chain kicks while running with any weapon. Kicks do not knock enemies
 back the way the original full kick sometimes does. In Modernized, a kick that
 connects (first or third person) lands with a solid thud (Duke's wall-bump
 thud, pitched up so it carries): once per kick, on an enemy, a breakable object or
-a wall. A kick that hits nothing stays silent. Q displays Duke's plain left leg, without a holster. The separate hinged-door
-kick uses his right leg. Kick
-reach, damage and timing are unchanged.
+a wall. A kick that hits nothing stays silent. Q displays Duke's plain left leg,
+without a holster. Its entry and recovery ease below the screen edge. Like the
+weapon view, Q keeps the same screen size and framing at every world FOV. The
+separate hinged-door kick uses his right leg. Kick reach, damage and timing
+are unchanged.
 
 When Duke is frozen in first person, the view stays at his eyes with a blue
 tint until he thaws. Movement, aiming and attacks remain locked while frozen.
@@ -1463,9 +1465,9 @@ shows more horizontally at the same setting. `fov` reports the effective,
 integer-projection-quantized angle. `fov default` restores the exact original
 first-person projection (nominal 64 degrees). Changes last for this session,
 including view switches and save loads, but are not saved to player settings.
-Weapon/held-item display and their connected arms retain their original
-size and framing as world FOV changes. Contact arms and the temporary kick leg
-follow the world view, with environment lighting preserved as FOV changes.
+Weapon/held-item display, their connected arms and the Q quick-kick leg retain
+their original size and framing as world FOV changes. Contact arms and the native
+door-kick leg follow the world view, with environment lighting preserved.
 Modernized first person hides the ordinary torso and legs by default, retaining
 arms, weapons/items, the temporary Q leg and the separate native door kick.
 Third person and reflections retain the complete Duke. The displaced-eye safety

@@ -4088,6 +4088,36 @@ int main(int argc,char** argv) {
                 call(0x800493a4,p,0,0x8005a490,0x801fff00);
                 ttk::input.held[ttk::fire]=false;
                 assert(psx_mod_read_half(p+0x60)==63 && psx_mod_read_half(p+0x68)==0 && metric("\"converts\":")==converts+1);
+                // D36J3: the no-body leg must enter/leave below the viewport,
+                // rather than reveal its resting thigh on the first/last frame.
+                // Exercise actual draw hooks, both costume maps, default strike
+                // framing at every world FOV. Sampling must not run hit updates.
+                {
+                    const auto sequence=ttk::input.sequence;
+                    for(const auto& map:{first_map,cowboy}) {
+                        layout(map);
+                        for(double fov:{60.,64.,75.,80.,90.}) for(unsigned phase:{0u,13u,26u}) {
+                            assert(ttk::first_person_set_fov(fov));
+                            ttk::input.sequence=sequence+phase;
+                            call(0x800348d8,c,p,0x8003769c);
+                            const unsigned joint=map==first_map?10u:1u;
+                            auto hip=hook(0x800292a0,c,mats+0x20*joint,0x80034c6c,joint);
+                            assert(ttk::first_person_limb_presentation().owner==ttk::LimbOwner::Kick);
+                            assert(ttk::first_person_limb_presentation().fixed_projection());
+                            double view[3]={};
+                            for(int r=0;r<3;++r) for(int k=0;k<3;++k)
+                                view[r]+=int16_t(psx_mod_read_half(c+2*(3*r+k)))/4096.0*
+                                    (double(int32_t(psx_mod_read_word(hip.gpr[5]+0x14+4*k)))-int32_t(psx_mod_read_word(c+0x14+4*k)));
+                            if(phase==13) {
+                                assert(std::abs(view[0]+140.8)<2 && std::abs(view[1]-127)<2 && std::abs(view[2]-141.6)<2);
+                            } else assert(view[1]>view[2]+80); // hip clearance; full retail mesh checked in game
+                            call(0x8001ca4c,0x800d0000,0,0x800376b4);
+                        }
+                    }
+                    ttk::input.sequence=sequence;layout(first_map);ttk::first_person_set_fov(64);
+                    assert(std::equal(before.begin(),before.end(),ram+(mats&0x1fffff)));
+                    std::puts("PASS: D36J3 Q entry/recovery, FOV-independent pose and native matrices across costume maps");
+                }
                 kick_calls.clear();
                 for(unsigned i=0;i<6;++i){frame();update();}
                 assert(kick_calls.empty());                         // chamber: no sound or hit yet

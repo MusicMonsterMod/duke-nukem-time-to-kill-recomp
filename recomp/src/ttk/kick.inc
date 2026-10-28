@@ -455,6 +455,19 @@ static bool kick_leg_joint(CPUState* cpu) {
     const double* anchor=door?door_anchor:kick_anchor();
     double p[3],lh[3][3];
     leg_pose(leg,frame,lh,p,door);
+    // D36J3: no-body idle has no resting leg. At wide FOV the recorded
+    // rest pose is already visible, so admitting/removing it pops the thigh
+    // at the screen edge. Ease the complete Q chain up from below the view
+    // during chambering and back down after retraction (160 camera-down units).
+    // Default-FOV strike/hold and all
+    // native door poses retain their accepted framing. This is draw-only;
+    // the hit point, native skeleton and attack clock do not consume it.
+    if(!door) {
+        const double edge=frame<kick_chamber ? 1-frame/kick_chamber :
+            frame>kick_retract ? (frame-kick_retract)/(kick_frames-kick_retract) : 0;
+        const double t=std::clamp(edge,0.0,1.0);
+        p[1]+=160*t*t*(3-2*t);
+    }
     // Q uses the actual plain left-leg meshes, not a reflected right leg.
     // Retarget the recorded kick onto their slightly different local offsets.
     // Preserve the established camera anchor and animation phase. Door 116

@@ -1,5 +1,66 @@
 # Next-session handoff
 
+## 2026-10-28 - D36J3 accepted and closed
+
+User accepted revision 3: "thats it! lock it in and close it out". D36J3 is Done.
+Q now shares the weapons' fixed display projection across world FOV, with the
+entry/recovery easing retained. The rejected adaptive translation is removed.
+Native door projection and gameplay remain unchanged.
+
+[Note 308](308-d36j3-quick-kick-transitions.md) retains build/native/runtime
+results, rejected experiments and coverage limits. Authored implementation,
+tests, manual and documentation are included in the authorized MusicMonsterMod
+commit/push. No post-acceptance gameplay change, rebuild or launch. The existing
+framework patch is exported and checked against the clean pin; repository
+privacy checks pass. No next job selected.
+
+Launch: `python3 recomp/tools/local/run.py`.
+
+## 2026-10-28 - D36J3 revision 3: fixed Q presentation (Needs playtest)
+
+User rejected adaptive FOV retraction and requested the weapons' stable view.
+Q now uses their existing fixed H=256 projection; the revision-2 translation is
+removed. Its pose/size/framing match across world FOV 60/75/80/90. Native door
+parts retain world projection. Entry/recovery easing and gameplay stay intact.
+Build and controls/input/aim/near suites pass, including exact emitted-packet
+invariance and both costume maps. Matched poses, bounded 120 replay/movement,
+view/load recovery and ultrawide checks are recorded in
+[note 308](308-d36j3-quick-kick-transitions.md). User visual acceptance remains
+pending. Player files preserved; no framework edit, commit or push.
+
+Launch: `python3 recomp/tools/local/run.py`.
+
+## 2026-10-28 - D36J3 revision 2: wide-FOV kick framing (Needs playtest)
+
+User identified the exposed hip at full Q extension at FOV 90. Matched captures
+confirm it. The leg now retracts toward its default hip screen anchor as FOV
+widens, using one shared translation with unchanged depth, proportions and hit
+behavior. Default/narrow FOV and native door presentation remain unchanged.
+Build and controls/input/aim/near suites pass, including the expanded FOV test.
+[Note 308](308-d36j3-quick-kick-transitions.md) records current FOV/aspect/cowboy/
+replay evidence, earlier lifecycle evidence and excluded synthetic-menu failures.
+All player files preserved. User visual acceptance pending; no commit or push.
+
+Launch: `python3 recomp/tools/local/run.py`.
+
+## 2026-10-28 - D36J3 quick-kick transition candidate (Needs playtest)
+
+User selected D36J3. The no-body Q rest pose exposed a thigh patch at the screen
+edge at wide FOV. A shared draw-only lowering now eases the complete left leg
+into/out of view while retaining the accepted strike pose and weapon framing.
+Native right-leg door presentation, hit timing/damage/sound and gameplay matrices
+are unchanged. The new regression fails on the baseline and passes on the fix;
+player build and controls/input/aim/near suites pass.
+
+[Note 308](308-d36j3-quick-kick-transitions.md) records matched frames, motion,
+FOV/aspect, 60/120 replay, cowboy, door, real-key pause/view and Vanilla exclusion
+checks, bounded timing and remaining visual limits. Synthetic-input menu/door
+attempts that failed are excluded; ordinary keyboard reruns pass. All 41 player
+save/card/profile files retain hashes and mtimes; diagnostic processes exited.
+User visual acceptance is pending. No framework edit, commit or push.
+
+Launch from workspace root: `python3 recomp/tools/local/run.py`.
+
 ## 2026-10-28 - D36H6 accepted and closed
 
 User accepted the significant quality improvement, superb weapons, and brief

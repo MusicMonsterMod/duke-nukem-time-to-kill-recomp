@@ -1400,6 +1400,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D19X | First-person FOV slider after View Bob in Gameplay | Done (user-accepted) | D14A, D19G, D19N |
 | D19Y | Third-person Camera Distance slider in Gameplay | Done (user-accepted) | D19G, D19N |
 | D19AA | Remove the Tab fast-forward key (Tab reserved for a future game action) | Done | - |
+| D19AB | FIRST-PERSON FOV and CAMERA DISTANCE moved to OPTIONS > DISPLAY after FRAME RATE (as in EDuke32) | Done | D19X, D19Y, D19N |
 | D19Z | Full mouse support for menu UI | Todo (backlog only) | D19; closeout includes D19Z1/Z3 |
 | D19Z1 | Top-left menu Back icon and control | Todo (backlog only) | D19Z core pointer support |
 | D19Z2 | Design a Time to Kill mouse cursor | Todo (backlog only) | - |
@@ -24133,3 +24134,24 @@ closeout; it was implemented as requested and checked by build/load, not by a
 separate in-play test. D17AM1 was already Done. Commit/push authorized as
 MusicMonsterMod. Next: D17AM3 (sweep, Modernized default, removal of
 superseded special cases), then D17AM4. D17AF (slot 10 water) remains open.
+
+## 2026-10-29 - D19AB view sliders on DISPLAY (Needs playtest)
+
+User request: move FIRST-PERSON FOV and CAMERA DISTANCE to the DISPLAY tab,
+after FRAME RATE, in line with EDuke32. `game_menu.cpp`: both rows moved from
+GAMEPLAY to the end of DISPLAY; their slider layout (label above the bar,
+value at the right, three row places, mouse wheel adjusts) is now keyed on the
+two rows instead of the GAMEPLAY screen, so it follows them. Settings keys,
+apply-on-confirm, Defaults and persistence unchanged. Probe
+`recomp/analysis/d19ab/check.py` (Xvfb, real key, pad and wheel input, private
+card copy): DISPLAY shows WINDOW, RESOLUTION, WIDESCREEN, FRAME RATE,
+FIRST-PERSON FOV, CAMERA DISTANCE; FOV 90 -> 95 by key, pad and wheel and
+distance 2345 -> 2473 confirmed, saved and applied after resume; Defaults
+draft cancelled without saving; GAMEPLAY lists VIEW, SHOULDER, CROSSHAIR,
+GORE, STATUS BARS, VIEW BOB. Player files unchanged. Manual and the D19N
+layout note updated. No commit or push.
+
+## 2026-10-29 - D19AB closed
+
+User: "commit". D19AB closed and committed/pushed as MusicMonsterMod on that
+instruction; verified by the D19AB menu probe, not yet by a live playtest.

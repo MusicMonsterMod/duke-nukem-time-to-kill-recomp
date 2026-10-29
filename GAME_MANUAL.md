@@ -862,11 +862,11 @@ person Q is a quick kick with any weapon (see below).
 Distance is clamped and smoothed, retains wall collision, and remembers your
 preference despite wall compression. It is now **saved in the Modernized profile**
 and restored on the next launch. It does not change FOV or switch weapons.
-You can also use **Options > Gameplay > Camera Distance**. This third-person
+You can also use **Options > Display > Camera Distance** (after First-person FOV). This third-person
 slider offers **Original** (the native follow distance) or 768-6144 game units,
 with 128-unit adjustments. Existing custom distances are retained. Left/right
 or the mouse wheel adjusts the selected slider; Confirm applies and saves it,
-and Cancel discards edits. Gameplay Defaults restores Original.
+and Cancel discards edits. Display Defaults restores Original.
 
 **V** recenters the camera: it swings smoothly back to the original follow angle
 behind Duke. Moving the mouse cancels the swing. On foot Duke already turns with
@@ -1489,13 +1489,13 @@ output scrolls back to the bottom. **Up / Down** recall the commands you typed
 (newest first; Down past the newest clears the line), and `history` lists them. Holding Backspace or a character key repeats it, like a desktop text field. While scrolled up, `-- MORE BELOW: PGDN / END --`
 shows above the prompt.
 
-**First-person FOV.** In Modernized, **Options > Gameplay > First-person FOV**
-is directly after View Bob. The slider ranges from **60 to 120**, in one-degree
+**First-person FOV.** In Modernized, **Options > Display > First-person FOV**
+is directly after Frame Rate, followed by Camera Distance (as in EDuke32's display menu). The slider ranges from **60 to 120**, in one-degree
 steps, measured horizontally at 4:3; widescreen
 shows more horizontally at the same setting. Select the row with Up/Down,
 then adjust with Left/Right, the controller D-pad, or the mouse wheel.
 Confirm applies the change for resumed gameplay and saves it across restarts;
-Cancel discards edits. Fresh or unset configurations and Gameplay Defaults use **90**. Explicitly saved
+Cancel discards edits. Fresh or unset configurations and Display Defaults use **90**. Explicitly saved
 preferences are preserved, including the previous default of 64. View changes
 and save loads retain the preference.
 The backtick console's `fov 75` remains a session-only diagnostic override;

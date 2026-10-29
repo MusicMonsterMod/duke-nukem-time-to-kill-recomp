@@ -375,6 +375,11 @@ std::vector<Screen> make_screens() {
         {"FRAME RATE",Section::Controls,"frame_rate","DNTTK_FRAME_RATE",true,"AUTO CHOOSES UP TO 120 FPS. GAME SPEED NEVER CHANGES",
          {{"AUTO","auto","\"auto\""},{"DISPLAY","display","\"display\""},{"30","30","\"30\""},{"60","60","\"60\""},{"120","120","\"120\""},{"144","144","\"144\""},
           {"165","165","\"165\""},{"180","180","\"180\""},{"240","240","\"240\""},{"UNLIMITED","unlimited","\"unlimited\""}},0},
+        // D19AB: view settings follow FRAME RATE here, as in EDuke32's display menu.
+        {"FIRST-PERSON FOV",Section::Controls,"first_person_fov","DNTTK_FP_FOV",true,
+         "HORIZONTAL DEGREES AT 4:3. MOUSE WHEEL ADJUSTS. CONFIRM TO APPLY",{},90,true,60,120,1},
+        {"CAMERA DISTANCE",Section::Controls,"camera_distance","DNTTK_CAMERA_DISTANCE",true,
+         "THIRD PERSON. MOUSE WHEEL ADJUSTS. ALT AND WHEEL ALSO SET IT IN GAME",{},0,true,0,6144,128},
     }};
     s[2]={"GAMEPLAY",{
         view_row("VIEW","view","DNTTK_CAMERA_VIEW","THE FIRST / THIRD PERSON KEY SWITCHES IN GAME"),
@@ -386,10 +391,6 @@ std::vector<Screen> make_screens() {
         {"STATUS BARS",Section::Controls,"status_bars","DNTTK_STATUS_BARS",true,"FULL, BORDERLESS OR HIDDEN. MINUS / PLUS CHANGE LIVE",{{"FULL","full","\"full\""},{"BORDERLESS","borderless","\"borderless\""},{"HIDDEN","hidden","\"hidden\""}},0},
         {"VIEW BOB",Section::Controls,"view_bob","DNTTK_VIEW_BOB",true,"FIRST PERSON HEAD BOB WHILE WALKING",
          {{"OFF","off","\"off\""},{"SUBTLE","subtle","\"subtle\""},{"ON","on","\"on\""},{"STRONG","strong","\"strong\""}},2},
-        {"FIRST-PERSON FOV",Section::Controls,"first_person_fov","DNTTK_FP_FOV",true,
-         "HORIZONTAL DEGREES AT 4:3. MOUSE WHEEL ADJUSTS. CONFIRM TO APPLY",{},90,true,60,120,1},
-        {"CAMERA DISTANCE",Section::Controls,"camera_distance","DNTTK_CAMERA_DISTANCE",true,
-         "THIRD PERSON. MOUSE WHEEL ADJUSTS. ALT AND WHEEL ALSO SET IT IN GAME",{},0,true,0,6144,128},
     }};
     s[3]={"ADVANCED",{
         heading("CAMERA AND AIM"),
@@ -774,6 +775,11 @@ int repeat(Repeat& r,bool held,int taps,uint64_t now) {
 }
 // More than five rows: the compact layout (14 apart), nine at a time.
 bool compact(const Screen& s) {return s.rows.size()>5;}
+// The view sliders (D19X/D19Y, on DISPLAY since D19AB): label above the bar,
+// value at the right, three row places, and the mouse wheel adjusts them.
+bool view_slider(const Row& r) {
+    return r.slider && r.key && (!std::strcmp(r.key,"first_person_fov") || !std::strcmp(r.key,"camera_distance"));
+}
 int rows_visible(const Screen& s) {return compact(s) ? 9 : (int)s.rows.size();}
 // D19N: the cursor's row visible, with its section heading when that is just
 // above (as KEY BINDINGS scrolls).
@@ -781,7 +787,7 @@ int rows_visible(const Screen& s) {return compact(s) ? 9 : (int)s.rows.size();}
 // than the 14 between rows and overlapped the row above.
 int row_units(const Screen& s,int i) {
     if(!compact(s) || !s.rows[i].slider)return 1;
-    return !std::strcmp(s.title,"GAMEPLAY") ? 3 : 2;
+    return view_slider(s.rows[i]) ? 3 : 2;
 }
 int units_between(const Screen& s,int from,int to) {int u=0;for(int i=from;i<=to;++i) u+=row_units(s,i);return u;}
 void settings_scroll(const Screen& s) {
@@ -1483,7 +1489,7 @@ bool game_menu_input(const MenuKeys& keys) {
     for(int n=repeat(rep_down,k.down,k.down_taps,now);n>0;--n) move(1);
     for(int n=repeat(rep_left,k.left,k.left_taps,now);n>0;--n) change(-1,now-rep_left.since);
     for(int n=repeat(rep_right,k.right,k.right_taps,now);n>0;--n) change(1,now-rep_right.since);
-    const bool camera_slider=page==Page::Options && screen==2 && screens[screen].rows[cursor].slider;
+    const bool camera_slider=page==Page::Options && view_slider(screens[screen].rows[cursor]);
     for(int w=k.wheel;w>0;--w) {if(camera_slider)change(1,0);else move(-1);}
     for(int w=k.wheel;w<0;++w) {if(camera_slider)change(-1,0);else move(1);}
     if(k.confirm_taps) confirm();
@@ -1724,11 +1730,11 @@ void draw_settings(Guest& g,const Geometry& geo) {
             ++slot;
             if(!obj) continue;
             const char* label=tight && r.key && !std::strcmp(r.key,"mouse_sensitivity") ? "MOUSE LOOK" : r.label;
-            if(screen==2) g.say(label,geo.x0+16,y-14,font_small|hi);
+            if(view_slider(r)) g.say(label,geo.x0+16,y-14,font_small|hi);
             else g.say(label,geo.x0+geo.w/3,y,font_small|right|hi);
-            g.call(fn_slider_init,obj,0,(uint32_t)(y+(screen==2?10:5)),(uint32_t)r.lo,(uint32_t)r.hi,(uint32_t)v[i],(uint32_t)r.step);
+            g.call(fn_slider_init,obj,0,(uint32_t)(y+(view_slider(r)?10:5)),(uint32_t)r.lo,(uint32_t)r.hi,(uint32_t)v[i],(uint32_t)r.step);
             g.call(fn_slider_draw,obj,hi,0,0);
-            if(screen==2) {
+            if(view_slider(r)) {
                 char value[32];
                 if(!std::strcmp(r.key,"first_person_fov"))std::snprintf(value,sizeof value,"%d DEG",v[i]);
                 else if(v[i]==0)std::snprintf(value,sizeof value,"ORIGINAL");

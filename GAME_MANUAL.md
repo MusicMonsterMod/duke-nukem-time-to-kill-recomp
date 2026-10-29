@@ -226,6 +226,15 @@ Other isolated visual reports remain separate follow-ups.
 The original PS1 character during movement is preserved; Vanilla keeps the
 original presentation.
 
+Since D17AM3 Modernized draws every wall, floor, prop and
+character itself at every distance, with the game's own colours, textures and
+drawing order plus a depth test, so distant scenery no longer overlaps in the
+wrong order and nothing changes look at the distance where the old near and
+far drawing paths met. The sky, water, effects, weapon, HUD and menus keep
+their accepted handling. Wading through flooded areas, the water around Duke
+is now drawn instead of vanishing. A cause of extreme colour corruption (and
+a rare stop) just after loading a savestate is fixed (D20H).
+
 ### Geometry and texture precision (Modernized, OpenGL)
 
 D15's player-accepted options independently reduce geometry jitter and texture

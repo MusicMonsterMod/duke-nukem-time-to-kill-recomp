@@ -1,5 +1,28 @@
 # Next-session handoff
 
+## 2026-10-29 - D17AM closed; next renderer follow-ups
+
+User playtest positive; D17AM3/AM4, D17AF and D17AH Done. New Todo jobs:
+D17AN (slot 12 water through bridge deck), D17AO (slot 11 ceiling hole showing
+sky), D17AP (slot 9 grave soil flashing, read D17X), D35N2 (slot 8 mirror line,
+with D35N1). Private copies of the new saves:
+`recomp/analysis/d17am3/playtest-fixture`. D20H, D17AI, D17AK still need a check.
+
+## 2026-10-29 - D17AM3/AM4 (history)
+
+Unified geometry is the Modernized default (`DNTTK_UNIFIED_GEOMETRY=0` is the
+developer fallback). Removed: platform/compact/pickup/top/ladder depth, the
+D17AA rule, conservative/non-precise modes, `DNTTK_NEAR_TAKEOVER`,
+`DNTTK_UNIFIED_OWNERS`. New: far meshes (nearest vertex >= 4096) leave 48 KB
+for nearer ones (`DNTTK_UNIFIED_FAR_RESERVE_KB`, `measure.near_fallbacks`);
+D20H fix (`region_after_load` at every hook: the rest of a loaded frame goes
+to the next host region); D17AF fix (water near-flag clearing at 0x800b4d2c,
+skipped tiles depth-tested 32 units back; `near.water` counters). Run
+`ttk-near-test` unset and with `=0`, Corrected and Original. Sweep harness:
+`recomp/analysis/d17am3/` (frozen executables `build-local/*.am3-head`,
+`*.am3-cand2`; `run_exe.py` launches them). Needs the user's playtest of
+D17AM3/AM4 and D17AF/AH/AI/AK, D20H. No commit or push. Note 326.
+
 ## 2026-10-29 - D17AM2 closed; next D17AM3
 
 D17AM2 (unified geometry behind `DNTTK_UNIFIED_GEOMETRY=1`, note 325) and

@@ -1,5 +1,20 @@
 # Current status - 2026-10-04
 
+## 2026-10-29 - D17AM3/AM4 closed after playtest; follow-ups registered
+
+User: graphically much more stable; slot 10 water and slot 8 sky confirmed.
+New jobs D17AN, D17AO, D17AP, D35N2. Committed and pushed on instruction.
+
+## 2026-10-29 - D17AM3/AM4: unified geometry is the Modernized default
+
+Unified geometry swept on all 12 private slots and the 21 level-select
+levels (FOV 64/90/120, 60/120 FPS, 16:9/4:3, first/third person, Bio Mask)
+and made the Modernized default; superseded special cases removed; far
+meshes now overflow before near ones. Re-triage: D17AF (slot 10 water
+around Duke) and D20H (colour corruption/halt after a mid-frame savestate
+load) causes found and fixed; D17AH holds; D17AI not reproduced. Vanilla
+unchanged. No commit. See note 326.
+
 ## 2026-10-29 - D17AM2 accepted; Tab fast-forward removed
 
 Unified geometry (developer switch) accepted after a live playtest; the slot 12

@@ -59,7 +59,8 @@ extern "C" int psx_mod_gpu_host_vertex_depth(uint32_t,uint32_t w,int32_t x,int32
 extern "C" int psx_mod_gpu_host_vertex_coverage(uint32_t a,uint32_t w,int32_t x,int32_t y,float z,float u,float v,float d,float coverage){observed_coverage=coverage;return psx_mod_gpu_host_vertex_depth(a,w,x,y,z,u,v,d);}
 
 extern "C" int psx_mod_replay_active(void){return 0;}
-extern "C" uint32_t psx_mod_savestate_loads(void){return 0;}
+static uint32_t test_loads=0;
+extern "C" uint32_t psx_mod_savestate_loads(void){return test_loads;}
 namespace ttk {bool frame_trace_on(){return false;} void frame_trace_account(uint32_t,long){}}
 static bool lower_body=false;
 namespace ttk {void first_person_mesh_begin(CPUState*){} void third_person_mesh_begin(CPUState*){} bool input_modernized(){return modern;} bool first_person_view_live(){return live_eye;} bool third_person_camera_live(){return modern && live_third;} double third_person_body_coverage(){return body_coverage;} bool widescreen_near_clip_live(){return false;} bool third_person_duke_drawing(){return duke;} bool first_person_duke_drawing(){return duke;} bool first_person_actor_drawing(){return duke;} LimbPresentation first_person_limb_presentation(){return test_viewmodel?limb_presentation(test_owner,test_part):lower_body?limb_presentation(LimbOwner::Body,5,true):interaction?limb_presentation(LimbOwner::Interaction,0x0f):LimbPresentation{};} bool first_person_interaction_drawing(){return interaction;} bool first_person_weapon_drawing(){return false;} uint64_t input_host_frame(){return 0;}}
@@ -159,9 +160,10 @@ static void packet_contracts(const char* executable) {
         std::puts("D17Y missing animation: filtered copy, valid zero descriptor, Vanilla and malformed-list guards PASS");
     }
     live_eye=true;
-    // D17AM2 unified geometry (run with DNTTK_UNIFIED_GEOMETRY=1; the
-    // contracts below describe the current renderer and are skipped).
-    if(std::getenv("DNTTK_UNIFIED_GEOMETRY") && std::string_view(std::getenv("DNTTK_UNIFIED_GEOMETRY"))=="1") {
+    // D17AM unified geometry, the Modernized default since D17AM3. The
+    // contracts after this block describe the earlier near-boundary rules
+    // (downgraded meshes, the sky); run them with DNTTK_UNIFIED_GEOMETRY=0.
+    if(!(std::getenv("DNTTK_UNIFIED_GEOMETRY") && std::string_view(std::getenv("DNTTK_UNIFIED_GEOMETRY"))=="0")) {
         auto head=[&](unsigned slot){return psx_mod_read_word(ot+slot*8);};
         // Close any scene-depth mesh left pending by the contracts above.
         {CPUState close{};observed_hook(&close,0x8001fba0);}
@@ -252,6 +254,39 @@ static void packet_contracts(const char* executable) {
             unsigned slot=0;for(unsigned i=0;i<2048;++i) if(head(i)) slot=i;
             assert((psx_mod_read_word(head(slot)+4)>>24)==0x2c+0x10);
         }
+        // D20H: a state saved part way through a frame resumes it. Its OT
+        // links into packets restored in the mirrored region; this process's
+        // cursor (region and offset) is unrelated. The rest of the loaded
+        // frame must go to the next region from its start, never over them.
+        {
+            auto quad=[&] {
+                auto c=reset();c.gpr[31]=0x80037344;word(ctx+0x70,0xffff);
+                word(mesh+0x14,4);word(mesh+0x18,0x50);
+                const uint32_t packed[4]={0x0004013f,0x00040101,0x0004053f,0x00040501};
+                for(int i=0;i<4;++i) {word(mesh+0x1c+8*i,packed[i]);word(mesh+0x20+8*i,0x34808080);}
+                word(mesh+0x50,0x00010061);word(mesh+0x54,0x03020100);word(mesh+0x58,0x02000000);word(mesh+0x5c,0xff);
+                return c;
+            };
+            constexpr uint32_t arena=0x80f00000,region=0x20000,mirror=arena+4*region;
+            auto c=quad();
+            CPUState b{};b.gpr[31]=0x800268f4;b.gpr[4]=mesh;b.gpr[5]=ot;b.gpr[6]=ctx;b.gpr[7]=bm;
+            observed_hook(&b,0x80026164);
+            observed_hook(&c,0x80011020);
+            const uint32_t saved=head(128),r=psx_mod_read_word(mirror);
+            assert(saved>=arena+r*region && saved<arena+(r+1)*region);
+            uint32_t copy[13];for(int i=0;i<13;++i) copy[i]=psx_mod_read_word(saved+4*i);
+            // The process carries on elsewhere in the same region...
+            auto state=ttk::near_clip_frame_state();state.host_bytes=0;state.host_region=r;ttk::near_clip_load_frame_state(state);
+            // ...and a state saved mid-frame in region r is loaded.
+            ++test_loads;
+            auto d=quad();word(ot+128*8,saved);word(ot+128*8+4,saved);word(bm+16,0x00800000);
+            observed_hook(&d,0x80011020);
+            const uint32_t next=head(128),want=(r+1)%4;
+            assert(next!=saved && next>=arena+want*region && next<arena+(want+1)*region);
+            assert(next==arena+want*region && psx_mod_read_word(mirror)==want);
+            for(int i=1;i<13;++i) assert(psx_mod_read_word(saved+4*i)==copy[i]);
+        }
+        std::puts("D20H mid-frame load: the rest of a loaded frame goes to the next region, restored packets intact PASS");
         std::puts("D17AM2 unified geometry: one GT4 per unclipped quad, native slots, far silhouettes, clip-rectangle cull, painter-only translucency, Vanilla guard PASS");
         return;
     }
@@ -323,7 +358,9 @@ static void packet_contracts(const char* executable) {
     // D17Z: a flat wall with skewed UVs must retain the native texture
     // interpolation across the 1-2 diagonal, including subdivision vertices.
     // The alternative diagonal moves V by 4.5 texels at this quad's centre.
-    if(pgxp_mesh_textures()) for(int shift:{0,2048}) {
+    // The far corner crosses the angular guard band (x/z 3.0: 768 pixels at
+    // H 256) only when shifted; D17AE replaced the 480-pixel band.
+    if(pgxp_mesh_textures()) for(int shift:{0,2560}) {
         auto c=reset();c.gpr[31]=0x80037344;c.gte_ctrl[5]=shift;
         word(mesh+0x14,4);word(mesh+0x18,0x50);
         c.gte_ctrl[6]=uint32_t(-128);
@@ -336,7 +373,7 @@ static void packet_contracts(const char* executable) {
         observed_hook(&c,0x80011020);assert(host_vertices>=6);
         bool clipped=false;
         for(const auto& v:host_corners) {
-            clipped|=v.x==480*65536;
+            clipped|=v.x==768*65536;
             // Before translation: x=-1024..1024, y=-128..128, z=1024.
             const double x=(v.x/65536.0-shift/4.0+256.0)/512.0;
             const double y=(v.y/65536.0+32.0)/64.0;
@@ -352,59 +389,7 @@ static void packet_contracts(const char* executable) {
         assert(c.gpr[4]==mesh && host_vertices==0);modern=true;
         std::puts("D17Z planar world UV interpolation and source ordering PASS");
     }
-    // D17M: overhead horizontal world faces in the prop-depth band write depth,
-    // preserving their maximum-SZ slot, corners and native quad diagonal.
-    // No takeover outside the band, in Original textures, or in Vanilla.
-    const char* bridge_env=std::getenv("DNTTK_PLATFORM_DEPTH");
-    const char* subdiv_env=std::getenv("DNTTK_WORLD_SUBDIVISION");
-    const bool bridge=pgxp_mesh_textures() && !(bridge_env && std::string_view(bridge_env)=="0") &&
-        !(subdiv_env && std::string_view(subdiv_env)=="1");
-    auto world_bridge=[&](bool quad,int shift,uint32_t ra,int far_limit,bool exhausted,bool expect,int kind=0) {
-        auto c=reset();c.gpr[31]=ra;c.gte_ctrl[7]=shift;c.gte_ctrl[6]=-512;
-        if(kind==1) c.gte_ctrl[6]=256; // floor below the eye
-        word(mesh+0x14,8);word(mesh+0x18,0x80);
-        uint32_t packed[4]={0x0002013f,0x00020101,0x0003013f,0x00030101};
-        if(kind>=4) for(auto& v:packed) v=(v&~0xff00u)|uint32_t(kind==5?3:2)<<8;
-        for(int i=0;i<4;++i) {word(mesh+0x1c+8*i,packed[i]);word(mesh+0x20+8*i,0x34808080);}
-        for(int i=0;i<4;++i) {word(mesh+0x1c+8*(i+4),packed[i]&~0xff00u);word(mesh+0x20+8*(i+4),0x34808080);}
-        if(kind==6) word(mesh+0x1c+8*6,(packed[2]&~0xff00u)|0x100); // upper corners at mixed heights
-        if(kind==3) word(mesh+0x1c+8*6,(packed[2]&~0xff00u)+1); // missing upper corner
-        if(kind==2) word(mesh+0x1c+16,packed[2]+0x100); // sloped/nonplanar
-        word(mesh+0x80,quad?0x00010061:0x00010060);word(mesh+0x84,quad?0x03020100:0x00020100);
-        word(mesh+0x88,0x02000000);word(mesh+0x8c,0xff);word(ctx+0x78,far_limit);
-        if(exhausted) {word(bm,1);auto state=ttk::near_clip_frame_state();state.host_bytes=0xffffffffu;ttk::near_clip_load_frame_state(state);}
-        observed_hook(&c,0x80011020);
-        assert((host_vertices!=0)==expect);
-        if(expect) {
-            assert(host_vertices==(quad?6u:3u));
-            for(unsigned i=0;i<2048;++i) assert((psx_mod_read_word(ot+i*8)!=0)==(i==96));
-            const int index[6]={0,1,2,2,1,3};
-            ttk::NearGte g{};for(int i=0;i<3;++i)g.r[i][i]=4096;g.h=256;g.tr[1]=-512;
-            const float uv[4][2]={{0,0},{31,0},{0,31},{31,31}};
-            for(unsigned i=0;i<host_vertices;++i) {
-                const auto& v=host_corners[i];const int j=index[i];const uint32_t w=packed[j];
-                const auto projected=ttk::near_project(g,(int16_t)((w&255)<<10),(int16_t)(((w&0xff00)<<15)>>16),(int16_t)(((w>>16)&255)<<10));
-                assert(v.word==projected.sxy && v.z==projected.sz && v.depth>0);
-                assert(v.u==uv[j][0] && v.v==uv[j][1]);
-            }
-        }
-    };
-    for(bool quad:{false,true}) {
-        world_bridge(quad,0,0x80062db8,0xffff,false,bridge);
-        world_bridge(quad,6144,0x80062db8,0xffff,false,false);
-        world_bridge(quad,0,0x80032288,0xffff,false,false);
-        world_bridge(quad,0,0x80062db8,768,false,false);
-        world_bridge(quad,0,0x80062db8,0xffff,true,false);
-        world_bridge(quad,0,0x80062db8,0xffff,false,false,1);
-        world_bridge(quad,0,0x80062db8,0xffff,false,false,2);
-        world_bridge(quad,0,0x80062db8,0xffff,false,false,3);
-        world_bridge(quad,0,0x80062db8,0xffff,false,bridge,4);
-        world_bridge(quad,0,0x80062db8,0xffff,false,false,5);
-        world_bridge(quad,0,0x80062db8,0xffff,false,false,6);
-        live_eye=false;world_bridge(quad,0,0x80062db8,0xffff,false,false);live_eye=true;
-    }
-    // Searching farther for platforms must not extend the old takeover
-    // boundary for unrelated wide world faces.
+    // Wide world faces beyond the near boundary stay on the original path.
     cpu=reset();cpu.gpr[31]=0x80062db8;
     word(mesh+0x14,3);word(mesh+0x18,0x40);
     word(mesh+0x1c,0x00040038);word(mesh+0x20,0x34808080);
@@ -441,12 +426,6 @@ static void packet_contracts(const char* executable) {
         assert(std::memcmp(c.gte_ctrl,gte_before.gte_ctrl,sizeof c.gte_ctrl)==0);
         assert((c.gpr[4]!=mesh)==expect_taken);
         assert((host_vertices>0)==expect_taken);
-        if(pickup_flags==0x200 && expect_taken) {
-            assert(host_vertices==3); // no subdivision or compact regrouping
-            const unsigned slot=unsigned((int64_t(341)*3*z)>>12)>>3;
-            for(unsigned i=0;i<2048;++i) assert((psx_mod_read_word(ot+i*8)!=0)==(i==slot));
-            for(const auto& v:host_corners) assert(v.z==z && v.depth>0);
-        }
         if(occupied_ot) {
             const auto frame=ttk::near_clip_frame_state();
             assert(frame.host_bytes>0);
@@ -609,57 +588,16 @@ static void packet_contracts(const char* executable) {
     assert(psx_mod_read_word(ot+8)==0);
     for(const auto& v:host_corners) assert(v.depth>0 && v.z>=16);
     lower_body=false;duke=false;
-    object_case(0x80032288,100,true); // compact static prop beyond near radius
-    object_case(0x80032288,100,true,true); // first mesh need not see an empty OT
-    object_case(0x80032288,128,true); // inclusive 256-unit extent
-    object_case(0x80032288,129,false); // larger scenery stays original
+    // D17AM3: compact props, pickups, ladders and box tops no longer get
+    // special distant depth (scene depth covers what this path leaves native).
+    object_case(0x80032288,100,false); // compact static prop beyond the boundary
+    object_case(0x80032288,100,true,true,0,2000); // first mesh need not see an empty OT
+    object_case(0x80032288,100,true,false,0,2000); // static prop inside the boundary
     object_case(0x80033778,100,false); // dancer's articulated mesh
     object_case(0x800351f4,100,false); // actor joint
     object_case(0x80032288,400,false); // distant large scenery stays original
-    object_case(0x80032288,160,bridge,false,0x20000000); // compact walk-over pickup
-    object_case(0x80032288,161,false,false,0x20000000); // bounded at 320 units
-    object_case(0x80032288,160,false,false,0x10000000); // a different type flag
-    object_case(0x80033778,160,false,false,0x20000000); // foreign caller
-    live_eye=false;object_case(0x80032288,160,false,false,0x20000000);live_eye=true;
-    // D17M1: distant tall ladder panels retain their source ordering but
-    // participate in platform depth. Other climb types/callers stay native.
-    const bool ladder_bridge=bridge && (!std::getenv("DNTTK_LADDER_DEPTH") || std::string_view(std::getenv("DNTTK_LADDER_DEPTH"))!="0");
-    object_case(0x80032288,400,ladder_bridge,false,0x200);
-    object_case(0x80032288,400,false,false,0x200,8192);
-    object_case(0x80032288,400,ladder_bridge,false,0x200,8191);
-    object_case(0x80032288,400,false,false,0x200,5000,true);
-    object_case(0x80032288,400,false,false,0x100);
-    object_case(0x80032288,400,false,false,0x600);
-    object_case(0x80033778,400,false,false,0x200);
-    live_eye=false;object_case(0x80032288,400,false,false,0x200);live_eye=true;
-    // D17AA: host pieces of a safe, opaque, noncompact scenery face must
-    // retain AVSZ3/4 source ordering. Otherwise the foreground prop bias can
-    // draw a block after an intervening native wall. Preserve native bias,
-    // far rejection, and the existing actor/translucent/compact exclusions.
-    for(bool quad:{false,true}) for(int bias:{-1,0,1}) for(int kind=0;kind<5;++kind) {
-        auto c=reset();c.gpr[31]=kind==1?0x800351f4:0x80032288;
-        const int extent=kind==3?100:512;
-        const int z0=kind==4?100:1800,z1=kind==4?300:kind==3?2000:2200;
-        const int xyz[4][3]={{-extent,-128,z0},{extent,-128,z1},
-                             {-extent,128,z0},{extent,128,z1}};
-        psx_mod_write_byte(mesh+6,quad?4:3);word(mesh+0x10,verts);word(mesh+0x14,list);
-        for(unsigned i=0;i<(quad?4u:3u);++i) {
-            word(verts+8*i,uint16_t(xyz[i][0])|uint32_t(uint16_t(xyz[i][1]))<<16);
-            word(verts+8*i+4,xyz[i][2]);
-        }
-        const unsigned bits=1u|(bias<0?4u:bias>0?8u:0u)|(kind==2?16u:0u);
-        word(list,quad?0x0001002c:0x00010024);word(list+4,quad?0x03020100:0x00020100);
-        word(list+8,0);word(list+12,(bits<<25)|31);word(list+16,0x1f1f1f00);word(list+20,0xff);
-        observed_hook(&c,0x80010000);assert(host_vertices>=3);
-        const bool eligible=kind==0 && pgxp_mesh_textures() &&
-            !(subdiv_env && std::string_view(subdiv_env)=="1");
-        if(eligible) {
-            const int sum=quad?2*(z0+z1):2*z0+z1;
-            const int source_slot=(((quad?256:341)*sum)>>12)/8+bias;
-            for(unsigned i=0;i<2048;++i) assert((psx_mod_read_word(ot+i*8)!=0)==(int(i)==source_slot));
-            assert(host_corners.front().depth>0); // still carries host depth
-        }
-    }
+    object_case(0x80032288,160,false,false,0x20000000); // walk-over pickup
+    object_case(0x80032288,400,false,false,0x200); // ladder
     // D17AC: the retail phone back sits inside its mounting wall. Its
     // allowance changes depth only, never packet XY, UV, perspective or OT.
     // Foreign shapes/callers, other panels, transparency, back-side viewing,
@@ -760,33 +698,14 @@ static void packet_contracts(const char* executable) {
         modern=true;
         std::puts("D17AL scene-depth prop contact: native phone back 16, other prop faces 2, shape/Vanilla guards PASS");
     }
-    // Two opaque faces of a compact prop stay in one ordering bucket so
-    // host/native draw state cannot alternate for each face. Translucent
-    // faces must keep their independent ordering.
-    for(bool semi:{false,true}) {
-        auto c=reset();c.gpr[31]=0x80032288;
-        psx_mod_write_byte(mesh+6,6);word(mesh+0x10,verts);word(mesh+0x14,list);
-        for(int face=0;face<2;++face) {
-            const uint32_t v=verts+face*24;
-            word(v,(uint16_t)-100|uint32_t(uint16_t(-100))<<16);word(v+4,5000+face*200);
-            word(v+8,100|uint32_t(uint16_t(-100))<<16);word(v+12,5000+face*200);
-            word(v+16,100u<<16);word(v+20,5000+face*200);
-            const uint32_t record=list+4+face*16;
-            word(record,face?0x00050403:0x00020100);word(record+4,0);
-            word(record+8,(semi?0x22000000:0x02000000)|0x1f);word(record+12,0x1f00);
-        }
-        word(list,0x00020024);word(list+36,0xff);
-        observed_hook(&c,0x80010000);assert(host_vertices==6);
-        unsigned buckets=0;for(unsigned i=0;i<2048;++i)buckets+=psx_mod_read_word(ot+i*8)!=0;
-        assert(buckets==(semi?2u:1u));
-    }
     // D17X: a warped quad meeting a floor must retain the PS1 1-2
+    // (inside the prop near boundary; D17AM3 retired distant compact depth)
     // diagonal and a valid plane for each half, including per-corner UVs.
     {
         auto c=reset();c.gpr[31]=0x80032288;
         psx_mod_write_byte(mesh+6,4);word(mesh+0x10,verts);word(mesh+0x14,list);
-        const int xyz[4][3]={{-100,-100,5000},{100,-100,5000},
-                             {-100,100,5000},{100,100,5050}};
+        const int xyz[4][3]={{-100,-100,2500},{100,-100,2500},
+                             {-100,100,2500},{100,100,2550}};
         for(int i=0;i<4;++i) {
             word(verts+i*8,uint16_t(xyz[i][0])|uint32_t(uint16_t(xyz[i][1]))<<16);
             word(verts+i*8+4,xyz[i][2]);
@@ -802,7 +721,7 @@ static void packet_contracts(const char* executable) {
             const int source=order[native][i];const auto& v=host_corners[i];
             assert(v.z==xyz[source][2]);
             assert(v.u==(source%2?31:0) && v.v==(source>=2?31:0));
-            if(native && i<3) assert(std::abs(v.depth-4998.0f)<0.01f);
+            if(native && i<3) assert(std::abs(v.depth-2498.0f)<0.01f);
         }
     }
     // D17W: a textured face and a flat face on the same corners (the level 3
@@ -811,9 +730,9 @@ static void packet_contracts(const char* executable) {
     for(bool textured_first:{true,false}) {
         auto c=reset();c.gpr[31]=0x80032288;
         psx_mod_write_byte(mesh+6,3);word(mesh+0x10,verts);word(mesh+0x14,list);
-        word(verts,(uint16_t)-100|uint32_t(uint16_t(-100))<<16);word(verts+4,5000);
-        word(verts+8,100|uint32_t(uint16_t(-100))<<16);word(verts+12,5000);
-        word(verts+16,100u<<16);word(verts+20,5000);word(verts+24,0x00405060);
+        word(verts,(uint16_t)-100|uint32_t(uint16_t(-100))<<16);word(verts+4,2500);
+        word(verts+8,100|uint32_t(uint16_t(-100))<<16);word(verts+12,2500);
+        word(verts+16,100u<<16);word(verts+20,2500);word(verts+24,0x00405060);
         uint32_t at=list;
         for(int face=0;face<2;++face) {
             // One group per face: FT3 (16-byte record) or F3 (8 bytes, palette 0).
@@ -839,71 +758,13 @@ static void packet_contracts(const char* executable) {
         assert(slots==1);
         assert((psx_mod_read_word(head+4)>>24)==(textured_first?0x30u:0x34u));
     }
-    // D17L: distant opaque static top faces retain native integer vertices,
-    // affine UVs, quad topology and AVSZ4 ordering while gaining host depth.
-    // Vertical, sloped, lower, translucent and foreign-caller faces stay native.
-    auto top_case=[&](int kind,uint32_t caller,bool expected,int bias=0) {
-        auto c=reset();c.gpr[31]=caller;c.gpr[18]=0x80190000;
-        psx_mod_write_byte(mesh+6,8);word(mesh+0x10,verts);word(mesh+0x14,list);
-        const int16_t xyz[8][3]={{-400,-100,4600},{400,-100,4600},
-            {-400,-100,5400},{400,-100,5400},{-400,200,4600},
-            {400,200,4600},{-400,200,5400},{400,200,5400}};
-        for(int i=0;i<8;++i) {
-            int y=xyz[i][1];
-            if(kind==1 && i==2) y=0; // sloped/nonplanar
-            if(kind==2 && i==4) y=-200; // surface is not mesh top
-            word(verts+8*i,(uint16_t)xyz[i][0]|uint32_t(uint16_t(y))<<16);
-            word(verts+8*i+4,(uint16_t)xyz[i][2]);
-        }
-        // Double sided, ordinary modulated FT4. A bias in either direction
-        // must remain exactly native, without the enhanced -4 prop bias.
-        const uint32_t bits=(kind>=10?0u:1u)|(kind==3?16u:0u)|(bias>0?8u:bias<0?4u:0u);
-        word(list,0x0001002c);word(list+4,0x03020100);
-        word(list+8,0);word(list+12,(bits<<25)|0x001f);
-        word(list+16,0x1f1f1f00);word(list+20,0xff);
-        if(kind==4) word(ctx+0x48,0x02000000); // context fade/semitransparency
-        if(kind==5) word(ctx+0x78,1); // original far-depth rejection
-        if(kind==6) c.gte_ctrl[30]=128; // use AVSZ4 scale, not an average guess
-        if(kind==10) word(ctx+0x50,0x400); // mirrored native NCLIP
-        if(kind==12) c.gte_ctrl[26]=64; // screen-snapped zero area
-        if(kind==8) word(verts+7*8,psx_mod_read_word(verts+6*8)); // duplicate corner
-        if(kind==9) psx_mod_write_byte(mesh+6,7); // incomplete box
-        if(kind==7) { // whole-mesh budget fallback: this frame's host arena is spent
-            word(bm,1);auto state=ttk::near_clip_frame_state();
-            state.host_bytes=0xffffffffu;ttk::near_clip_load_frame_state(state);
-        }
-        if(kind==13) word(ctx+8,0x80161000); // D17R1: a full game ring no longer matters
-        observed_hook(&c,0x80010000);
-        assert((host_vertices!=0)==expected);
-        if(expected) {
-            assert(host_vertices==6);
-            const int expected_slot=(kind==6?78:156)+bias;
-            for(int i=0;i<2048;++i) assert((psx_mod_read_word(ot+i*8)!=0)==(i==expected_slot));
-            const int index[6]={0,1,2,2,1,3};
-            ttk::NearGte g{};for(int i=0;i<3;++i)g.r[i][i]=4096;g.h=256;
-            const float uv[4][2]={{0,0},{31,0},{0,31},{31,31}};
-            for(int i=0;i<6;++i) {
-                const auto& v=host_corners[i];const int j=index[i];
-                assert(v.word==ttk::near_project(g,xyz[j][0],xyz[j][1],xyz[j][2]).sxy);
-                const auto projected=ttk::near_project(g,xyz[j][0],xyz[j][1],xyz[j][2]);
-                assert(v.z==(pgxp_mesh_textures()?float(xyz[j][2]):1.0f) && v.depth>0);
-                assert(v.x==(pgxp_mesh_geometry()?projected.x16:(int32_t)(int16_t)v.word*65536));
-                assert(v.y==(pgxp_mesh_geometry()?projected.y16:(int32_t)(int16_t)(v.word>>16)*65536));
-                assert(v.u==uv[j][0] && v.v==uv[j][1]);
-            }
-        } else if(kind!=5 && kind!=10 && kind!=12) assert(c.gpr[4]==mesh);
-    };
-    for(int bias:{-1,0,1}) top_case(0,0x80032288,true,bias);
-    for(int kind:{1,2,3,4,5,7,8,9,10,12}) top_case(kind,0x80032288,false);
-    top_case(6,0x80032288,true);top_case(11,0x80032288,true);top_case(13,0x80032288,true);
-    top_case(0,0x80033778,false);top_case(0,0x800351f4,false);
-    live_eye=false;top_case(0,0x80032288,false);live_eye=true;
     live_eye=false;object_case(0x80032288,100,false); // Vanilla/original view
     live_eye=true;
     // Changed caller instruction must invalidate permission, even with the
     // expected return address and a previously authenticated code image.
+    object_case(0x80032288,100,true,false,0,2000);
     word(0x80032280,psx_mod_read_word(0x80032280)^1);++g_dirty_ram_code_gen;
-    object_case(0x80032288,100,false);
+    object_case(0x80032288,100,false,false,0,2000);
     // D17AF: water tile near clip - takeover with painter depth, grid mismatch
     // and safe pass-through. Requires game code for identity(); guard rejections
     // are in water_clip_contracts(). Restore the code region XOR'd by the
@@ -959,8 +820,59 @@ static void packet_contracts(const char* executable) {
         word(wpkt,9u<<24);
         host_corners.clear();observed_hook(&wc,0x8002bc18);
         assert(host_corners.empty()); // safe, not oversized -> pass-through
+        // D17AM4: the original flags a grid vertex 0x10 when its SZ is under
+        // H/2 and skips any tile with such a corner. After each vertex is
+        // stored (0x800b4d2c from 0x8002f508/5b0/65c) the stored near flags
+        // of the current row, and the whole previous row (sp+0x60), are
+        // cleared; other flags stay. Rows hold (x1-x0)/1024+1 vertices.
+        {
+            constexpr uint32_t cur=0x80165400,prev=0x80165300;
+            half(wrgn+8,4096);word(wstk+0x60,prev); // five vertices per row
+            auto rows=[&] {
+                for(unsigned i=0;i<6;++i) {
+                    word(prev+16*i+8,i==2?0x20u:0x13u);
+                    word(cur+16*i+8,i==1?0x01u:0x1cu);
+                }
+            };
+            auto flags_hook=[&](uint32_t ra,unsigned triple) {
+                auto h=reset();h.gpr[31]=ra;h.gpr[29]=wstk;h.gpr[21]=wrgn;h.gpr[30]=cur;h.gpr[18]=cur+16*triple;
+                observed_hook(&h,0x800b4d2c);
+            };
+            rows();flags_hook(0x8002f5b0,3); // vertex 4 being flagged: 0..3 stored
+            for(unsigned i=0;i<6;++i) {
+                assert(psx_mod_read_word(prev+16*i+8)==(i==2?0x20u:i<5?0u:0x13u));
+                assert(psx_mod_read_word(cur+16*i+8)==(i==1?0x01u:i<4?0u:0x1cu));
+            }
+            rows();flags_hook(0x8002f50c,3); // another caller
+            assert(psx_mod_read_word(prev+8)==0x13u && psx_mod_read_word(cur+8)==0x1cu);
+            rows();modern=false;flags_hook(0x8002f5b0,3);modern=true;
+            assert(psx_mod_read_word(prev+8)==0x13u && psx_mod_read_word(cur+8)==0x1cu);
+            half(wrgn+8,0);word(wstk+0x60,0);
+        }
+        // A tile the original would skip (near corners behind the eye, SZ 0)
+        // is clipped here with depth at its surface pushed 32 units back,
+        // not painter order from its far too near slot; on a grid mismatch
+        // its saturated native packet is dropped, never drawn.
+        {
+            half(wstk+0x58,600u); // far z=600, near z=-424 (behind the eye)
+            const ttk::NearProjected q[4]={ttk::near_project(g,0,100,-424),ttk::near_project(g,1024,100,-424),
+                ttk::near_project(g,0,100,600),ttk::near_project(g,1024,100,600)};
+            assert(q[0].sz==0 && q[1].sz==0 && q[2].safe);
+            const uint32_t rec[4]={wrw0,wrw0+16,wrw1,wrw1+16};
+            for(int i=0;i<4;++i) {word(rec[i],q[i].sxy);word(rec[i]+4,q[i].sz);}
+            word(wpkt,9u<<24);host_corners.clear();observed_hook(&wc,0x8002bc18);
+            assert(!host_corners.empty() && (psx_mod_read_word(wpkt)>>24)==0);
+            // Plane y=100 (100 units below the eye): depth scales by 132/100
+            // (exactly with Corrected geometry; snapped corners move it a little).
+            for(const auto& v:host_corners) assert(v.depth>0 && v.depth>v.z*1.2f &&
+                (!pgxp_mesh_geometry() || std::abs(v.depth-v.z*1.32f)<v.z*0.01f));
+            word(wpkt,9u<<24);word(rec[3],q[3].sxy^1);host_corners.clear();observed_hook(&wc,0x8002bc18);
+            assert(host_corners.empty() && (psx_mod_read_word(wpkt)>>24)==0);
+            word(wpkt,9u<<24);modern=false;host_corners.clear();observed_hook(&wc,0x8002bc18);
+            assert(host_corners.empty() && (psx_mod_read_word(wpkt)>>24)==9);modern=true;
+        }
         unsetenv("DNTTK_WATER_CLIP");
-        std::puts("D17AF water_clip: painter depth takeover, grid mismatch, safe pass-through PASS");
+        std::puts("D17AF/D17AM4 water_clip: painter depth takeover, grid mismatch, safe pass-through, near-flag clearing, skipped tiles depth-tested or dropped PASS");
     }
     live_eye=false;
     std::printf("packet_digest=%016llx\n",(unsigned long long)packet_digest);
@@ -974,8 +886,6 @@ static void whole_polygon_contracts() {
     constexpr uint32_t near_bit=1u<<21;
     const char* keep=std::getenv("DNTTK_WORLD_SUBDIVISION");
     const bool corrected=pgxp_mesh_textures() && !(keep && std::string_view(keep)=="1");
-    // packet_contracts leaves a caller instruction altered; restore it.
-    psx_mod_write_word(0x80032280,psx_mod_read_word(0x80032280)^1);++g_dirty_ram_code_gen;
     auto setup=[&](bool quad,int16_t width) {
         CPUState c{};c.gpr[6]=ctx;c.gpr[14]=buffer;c.gpr[16]=record;
         c.gpr[31]=quad?0x80011ab4:0x80011894;

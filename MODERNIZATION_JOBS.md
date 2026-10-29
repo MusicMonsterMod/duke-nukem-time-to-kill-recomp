@@ -38,7 +38,7 @@ unchanged; 120-FPS replay 0 misses; near contracts pass. Developer switch
 
 ### D17AM - Unified host geometry path (parent)
 
-**Status: Todo (next). Related: D17A, D17AE, D17AK, D11B.**
+**Status: Done (D17AM1-AM4 done; user playtest 2026-10-29). Related: D17A, D17AE, D17AK, D11B.**
 Goal: every world and prop polygon is drawn by the host at every distance,
 with depth, perspective texturing and the original's clipping/colour/UV
 rules, retiring the 1536/3072 handover and the per-case depth rules that
@@ -67,7 +67,7 @@ first-person, Bio Mask, sky and water layers unchanged.
 
 #### D17AM3 - Regression sweep and default switch
 
-**Status: Todo (next; D17AM2 Done).** All private fixtures and level-select levels:
+**Status: Done (user playtest 2026-10-29, commit authorized; [note 326](documentation/326-d17am3-am4-unified-default.md)).** All private fixtures and level-select levels:
 static, walk and turn routes at FOV 64/90/120, 60 and 120 FPS, 16:9 and 4:3;
 embedded props, decals, blood, coplanar floors, ladders/platforms, pickups,
 actors. Performance within D23 budgets. Then make it the Modernized default
@@ -75,9 +75,34 @@ and remove superseded special cases. Vanilla unchanged.
 
 #### D17AM4 - Re-triage the remaining renderer batch
 
-**Status: Todo (after D17AM3).** Re-test D17AF (water), D17AH (sky), D17AI
+**Status: Done (user playtest 2026-10-29, commit authorized; [note 326](documentation/326-d17am3-am4-unified-default.md); follow-ups D17AN-D17AP).** Re-test D17AF (water), D17AH (sky), D17AI
 (slot-12 wall near cube, old fixture copy), D20H and D17AK against the unified
 path; close what it fixes and keep only genuine effect/sky/water bugs.
+
+### D17AN - Slot-12 water showing through the bridge deck
+
+**Status: Todo (reported in the D17AM3/AM4 playtest, 2026-10-29). Related: D17AF, D17AM.**
+User (Family Jewels, new UI slot 12, 22:23): the water texture clips through
+the ground texture of the bridge, especially at the start of the bridge.
+Private copy: `recomp/analysis/d17am3/playtest-fixture` (hashes in
+`playtest-originals.sha256`). Check the D17AM4 near-tile water depth and the
+native water painter order against the deck; Vanilla unchanged.
+
+### D17AO - Slot-11 ceiling hole showing the sky
+
+**Status: Todo (reported in the D17AM3/AM4 playtest, 2026-10-29). Related: D17AM, D17AH.**
+User (Family Jewels, new UI slot 11, 22:21): a hole in the ceiling of this
+area shows the sky, most visibly when jumping; never seen before. Compare
+with `DNTTK_UNIFIED_GEOMETRY=0` and the original renderer (clip-rectangle
+cull, far silhouettes, downgrades) before changing anything. Same private copy.
+
+### D17AP - Slot-9 grave-dig soil corners flashing again
+
+**Status: Todo (reported in the D17AM3/AM4 playtest, 2026-10-29). Related: D17X, D17AM.**
+User (Old West, new UI slot 9): the corners of the dug grave's dirt flash when
+panning, as in D17X (accepted 2026-10-22), now with unified geometry. Read
+D17X first; likely coplanar or contact depth between the soil and the ground.
+Same private copy.
 
 ## 2026-10-29 - 90 FOV baseline and renderer investigations
 
@@ -135,7 +160,12 @@ See `documentation/322-d17ae-ceiling-investigation.md`.
 
 ### D17AF - Latest slot-10 ground water disappears
 
-**Status: Needs playtest (selected 2026-10-29). Related: D14F, D17AK.**
+**Status: Done (user-confirmed 2026-10-29: "the water isn't disappearing underfoot that problem is solved"; [note 326](documentation/326-d17am3-am4-unified-default.md)). Related: D14F, D17AK.**
+D17AM4 (new slot 10 save, 2026-10-29 19:38): the native water builder skips
+every tile with a corner nearer than H/2 (0x8002f70c), so the tiles around
+Duke never reached the clip hook. Near flags are now cleared while the eye
+view is live and those tiles are clipped, depth-tested 32 units back (keeps
+the channel walkway's grating over the water, as the original paints it).
 Preserve latest resaved UI slot 10 without distracting blood. Slow backward/forward movement; distinguish visibility, clipping, depth, transparency and texture state. Correct water/surrounding surface relationships throughout.
 
 Cause: GTE corner saturation on close water tiles; native water FT4 builder at
@@ -148,7 +178,14 @@ after validation. Note 321: [documentation/321-d17af-water-clip.md](documentatio
 
 ### D20H - Slot-5 intermittent extreme colour corruption on load
 
-**Status: In progress (selected 2026-10-29). Related: D20C, D37A.**
+**Status: Needs playtest (cause found and fixed in D17AM4, [note 326](documentation/326-d17am3-am4-unified-default.md)). Related: D20C, D37A.**
+D17AM4: reproduced on a private level-2 pose pair (load mid-frame state,
+captures, load another): corrupted colours, then a GP0 0x1F halt. A load
+resumes the saved frame, whose OT links into the mirrored host packet
+region, but the near path kept this process's cursor until the next frame
+boundary and could overwrite those packets. Now re-synchronised at every
+hook: the rest of a loaded frame goes to the next region. HEAD unified 3
+corrupted captures and 1 halt in 27 cycles; fixed 0 in 50.
 Private current UI slot 5, repeated loads and screencaps/crazy-colors.png. Record attempts/outcomes and transient versus persistent corruption; inspect restore/resource/state lifecycle independently until a shared cause is proven.
 
 Reproduction/fixture: pending inventory. Cause: unconfirmed. Changes: none at
@@ -167,7 +204,9 @@ are gone at FOV 64, 90 and 120, 60 and 120 FPS. Turn sweeps across slots
 
 ### D17AH - Slot-8 sky glitching and popping
 
-**Status: In progress (selected 2026-10-29). Related: D14D, D17AK.**
+**Status: Done (user-confirmed 2026-10-29: "the very best" the sky has looked; [note 326](documentation/326-d17am3-am4-unified-default.md)). Related: D14D, D17AK.**
+The painter-order sky candidate (note 319) holds under unified geometry:
+slot 8 clouds continuous while turning at FOV 90/120, 120 FPS. No change.
 Private current UI slot 8; move/rotate. Inspect previous sky fixes and assumptions first. Stable sky plus representative other sky variants and regression checks.
 
 Reproduction/fixture: pending inventory. Cause: unconfirmed. Changes: none at
@@ -176,7 +215,10 @@ and appropriate visual/regression evidence; preserve player originals.
 
 ### D17AI - Slot-12 wall near pushable cube disappears
 
-**Status: In progress (selected 2026-10-29). Related: D17Z, D17AA, D17AK.**
+**Status: Needs playtest (not reproduced in D17AM4, [note 326](documentation/326-d17am3-am4-unified-default.md)). Related: D17Z, D17AA, D17AK.**
+Old slot-12 fixture copy: forward, backward and turning routes past the
+cube at FOV 90/120 show the wall intact in both renderers. Needs the
+user's check before closing.
 Private current UI slot 12; backward/forward movement. Stable wall with correct cube and surrounding depth/visibility.
 
 Reproduction/fixture: pending inventory. Cause: unconfirmed. Changes: none at
@@ -185,7 +227,10 @@ and appropriate visual/regression evidence; preserve player originals.
 
 ### D17AK - Shared renderer investigation and FOV quality sweep
 
-**Status: In progress (selected 2026-10-29). Related: D14A, D14B, D14D.**
+**Status: Needs playtest (D17AM3 sweep is its evidence, [note 326](documentation/326-d17am3-am4-unified-default.md)). Related: D14A, D14B, D14D.**
+D17AM3/AM4: all 12 slots and 21 level-select levels at FOV 64/90/120, 60/120
+FPS, 16:9/4:3, first/third person, Bio Mask. Shared causes found: D20H
+(host packet region after mid-frame loads) and the D17AF water rejection.
 Cycle available private saves; capture and trace seams/missing surfaces/popping. Establish shared causes from evidence only, coordinate shared renderer edits, prefer principled minimal corrections. Replacement renderer is outside scope.
 
 Reproduction/fixture: pending inventory. Cause: unconfirmed. Changes: none at
@@ -1162,19 +1207,22 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | ID | Job | Status | Depends on |
 | --- | --- | --- | --- |
 | D17AL | Embedded prop contact depth (slot-12 payphone regression) | Done | D17AE |
-| D17AM | Unified host geometry path (parent) | Todo | D17AL, D17AM1-AM4 |
+| D17AM | Unified host geometry path (parent) | Done | D17AL, D17AM1-AM4 |
 | D17AM1 | Unified geometry: inventory and rule design (report first) | Done | D17AL |
 | D17AM2 | Unified geometry: implementation behind a developer switch | Done | D17AM1 approval |
-| D17AM3 | Unified geometry: regression sweep and default switch | Todo | D17AM2 |
-| D17AM4 | Re-triage D17AF/AH/AI/AK and D20H against the unified path | Todo | D17AM3 |
+| D17AM3 | Unified geometry: regression sweep and default switch | Done | D17AM2 |
+| D17AM4 | Re-triage D17AF/AH/AI/AK and D20H against the unified path | Done | D17AM3 |
+| D17AN | Slot-12 water showing through the bridge deck (level 6) | Todo | D17AM |
+| D17AO | Slot-11 ceiling hole showing the sky (level 6) | Todo | D17AM |
+| D17AP | Slot-9 grave-dig soil corners flashing again (D17X recurrence) | Todo | D17X, D17AM |
 | D14F | 90-default / 120-maximum world FOV | In progress | Selected batch; see intake above |
 | D17AE | Slot-11 sign post through door header | Done (user-confirmed 2026-10-29) | Scene depth for native world/scenery packets; replay precedence fix; world backface cull restored |
-| D17AF | Latest slot-10 ground water visibility | In progress | Selected batch; see intake above |
-| D20H | Slot-5 intermittent colour corruption on load | In progress | Selected batch; see intake above |
+| D17AF | Latest slot-10 ground water visibility | Done | Selected batch; see intake above |
+| D20H | Slot-5 intermittent colour corruption on load | Needs playtest | Selected batch; see intake above |
 | D17AG | Slot-6 wooden panelling holes | Needs playtest | Fixed by D17AE scene depth |
-| D17AH | Slot-8 sky glitching and popping | In progress | Selected batch; see intake above |
-| D17AI | Slot-12 wall near pushable cube | In progress | Selected batch; see intake above |
-| D17AK | Shared renderer FOV quality sweep | In progress | Selected batch; see intake above |
+| D17AH | Slot-8 sky glitching and popping | Done | Selected batch; see intake above |
+| D17AI | Slot-12 wall near pushable cube | Needs playtest | Selected batch; see intake above |
+| D17AK | Shared renderer FOV quality sweep | Needs playtest | Selected batch; see intake above |
 | D01 | Establish the Vanilla regression route | Done | — |
 | D02 | Persistent Vanilla / Modernized profiles | Done | D01 |
 | D03 | Player, camera and aiming state research | Done | D01 |
@@ -1496,6 +1544,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D35M | First-person door opening and related use interactions | Done | D35A |
 | D35N | First-person mirror interactions and reflected-Duke proximity fade | Done | D35A |
 | D35N1 | Missing mirror voice line at slot 6 (base-game design oversight, bug 3) | Todo | D35N |
+| D35N2 | Missing mirror voice line at new slot 8 (Old West; do with D35N1) | Todo | D35N |
 | D36 | First-person body, arms and interaction presentation quality audit (research only) | Done (research accepted 2026-10-26) | D11, D12, D35, D08K, D08A26 |
 | D36A | Existing first-person systems and complete state catalogue | Done (research accepted 2026-10-26) | D11, D12, D35, D08K, D08A26 |
 | D36B | Every weapon/variant: missing arms and connected hand geometry audit | Done (research accepted 2026-10-26) | D36A |
@@ -2144,6 +2193,18 @@ a recomp regression; that attribution has not been independently verified.
 trigger, then restore the appropriate line in Modernized with correct timing
 and repeat behavior. Preserve mirror perspective/reflection behavior and
 other quotes. Keep the original Vanilla behavior.
+
+### D35N2 - Missing mirror voice line at new slot 8
+
+**Status:** Todo (reported 2026-10-29). **Dependencies:** D35N (Done); do with D35N1.
+
+**Report:** In the Old West (user's new UI slot 8, 22:33), pressing E at a
+mirror does not make Duke say his usual mirror line. The user recalls a
+similar case where a table or other object was in the way of the mirror.
+Private copy: `recomp/analysis/d17am3/playtest-fixture`.
+
+**Acceptance:** As D35N1: find the interaction and quote trigger, restore the
+line in Modernized with correct timing and repeats, keep Vanilla.
 
 ### D08Q8 - Jetpack clearance follows floor/ceiling smoothly (bug 4)
 
@@ -24155,3 +24216,44 @@ layout note updated. No commit or push.
 
 User: "commit". D19AB closed and committed/pushed as MusicMonsterMod on that
 instruction; verified by the D19AB menu probe, not yet by a live playtest.
+
+## 2026-10-29 - D17AM3/AM4 unified default, sweep and re-triage (Needs playtest)
+
+Selected D17AM3 then D17AM4, worked through autonomously as instructed.
+Unified geometry is now the Modernized default (`DNTTK_UNIFIED_GEOMETRY=0`
+is the developer fallback); superseded special cases removed (platform,
+compact/pickup, box-top and ladder depth, the D17AA rule, conservative and
+non-precise modes, the D17AM1/AM2 measurement switches). Sweep: all 12
+private slots and 21 level-select levels, four pose states each, HEAD earlier
+renderer vs HEAD unified vs final build, FOV 64/90/120, 60/120 FPS, 16:9/4:3,
+first/third person, Bio Mask; 1438-1444 image pairs per comparison plus
+unified route counters. Found and fixed: level 28 exceeded the budget and
+near meshes fell back whole (distant meshes now overflow first: 0 near
+fallbacks on every scene); D20H (a mid-frame savestate load let new host
+packets overwrite the loaded frame's: corruption and a GP0 0x1F halt,
+reproduced on HEAD, 0 in 50 cycles fixed); D17AF (the native water builder
+skips tiles with a corner nearer than H/2, the tiles around Duke in slot
+10). D17AH holds under unified; D17AI not reproduced on the old slot 12
+fixture. Performance at FOV 120/120 FPS uncontended: at least as fast as the
+earlier renderer (canal, Western street, level 28), 0 misses. `ttk-near-test`
+(unset and `=0`, Corrected and Original) and seven other native suites pass;
+two stale D17Z/D17N contracts repaired. Player files hash-checked unchanged
+on every run. Player build SHA-256
+`966bd39f9377148a4ab58efa5d52818fef5056ff7dd48cd40ad680b63b07c45e`. No
+framework edits, commit or push. [Note 326](documentation/326-d17am3-am4-unified-default.md).
+
+## 2026-10-29 - D17AM3/AM4 user playtest; closed; follow-ups registered
+
+User playtest (speech to text, paraphrased): overall "much more stable,
+graphically much much more stable"; Family Jewels played through; slot 10
+water "isn't disappearing underfoot, that problem is solved" (D17AF Done);
+slot 8 sky "the very best the sky has ever looked" with the distant mountains
+visible (D17AH Done); slot 3 Bio Mask "perfect"; Roman level 11 played "for
+ages" with nothing wrong. Reported, registered as new jobs: D17AN (slot 12
+water through the bridge deck), D17AO (slot 11 ceiling hole showing the
+sky), D17AP (slot 9 grave soil corners flashing, D17X recurrence), D35N2
+(slot 8 mirror line, with D35N1). User instruction: register the backlog
+jobs, commit and push. D17AM3/AM4 and parent D17AM Done; D20H, D17AI and
+D17AK stay Needs playtest (not specifically tested). New saves (UI 8, 9, 11,
+12) copied privately to `recomp/analysis/d17am3/playtest-fixture`; player
+files untouched.

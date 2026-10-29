@@ -1,5 +1,7 @@
 // SLUS-00583 code SHA-256 guards; derived read-only from the owned executable.
 static const Guard guards[] = {
+    {0x80051544, 608, "98f7733839a24afde3b977dfca0fa25e9ac84218242acfffc7442fbcc541e6f4"}, // D38 native committed-use selector
+
     {0x8004157c, 148, "0d354e8f37ce3e12e2565f0e540de57cfbdba916d6248c1a55522879230ff05c"}, // D35J5 native freeze timer and thaw flags
     {0x8004e894, 184, "0736b11803466911a650e08998dce7ba16580ba96bf8b52e60bb08bead26ada5"}, // D08A24 native Bio Mask/gas contract
     {0x800409e0, 276, "4dcc4e5ec9d01517a7b30367f135b1e4643d6f1cffe7dededd2acdadada9b03a"}, // D08A24 native Bio Mask/gas contract

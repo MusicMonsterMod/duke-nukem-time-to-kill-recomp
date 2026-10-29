@@ -1,6 +1,18 @@
 # Time to Kill — modernization jobs
 
 
+### D38 - Play the piano with E
+
+**Status: Done (user-accepted; closeout authorized 2026-10-29).** Selected 2026-10-29; revised to the user's
+`research/music/pianobag.wav` and a piano-centred audible radius. Finish
+loudness, dynamics and decay while preserving the supplied performance. On successful Modernized piano use,
+play the performance while preserving the native animation. Authenticate the
+current slot-5 object and interaction; prevent repeated/overlapping starts,
+respect effects volume and world/load boundaries, and preserve Vanilla.
+Acceptance: private slot-5 interaction/repeat/load checks, unrelated-use and
+Vanilla isolation, audio mix regressions, finished render and user playtest.
+
+
 ### D08T10 - Slot-5 box repeat grab after pulling
 
 **Status: Done (user-accepted; closeout authorized 2026-10-29). Dependencies: D08T3, D08T7, D08T9 (Done).** Selected
@@ -23657,4 +23669,122 @@ assumption; the 120-FPS first-person limit/retreat route passed. No gameplay
 change, rebuild or launch after acceptance. Player files remain untouched.
 Framework export is unchanged; all 55 changed/new files match after applying
 the patch to the clean pinned dependency. No next job selected.
+Launch: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-29 - D38 piano interaction candidate
+
+Current private slot 5 confirms a piano at (11589,-540,-7166), type 102,
+actor kind 16, in authenticated overlay tag 4 (LEVEL01). Native class-2 use
+selects animation 277 and initializes it through 800493a4 from 8005a3a0,
+with track zero, stowed equipment and committed-use bit 0x40. The new hook
+observes that accepted start; it does not alter animation, alignment, native
+callbacks, equipment, contact-arm presentation or guest RAM. The selector
+has an owned-executable digest guard. Other types/callers/states and Vanilla
+do not receive the cue. This scope authenticates this piano family in LEVEL01,
+not an unverified all-campaign piano inventory.
+
+Rendered the user's `research/music/pianobag.mid` using the supplied `gm.sf2`
+(`gm2.sf2` was not present). The MIDI's honky-tonk program, timing, pitches and
+velocities are retained. FluidSynth renders with reverb and without chorus;
+mono conversion, a 40-Hz high-pass, quiet-tail trim, short edge fades and
+constant normalization preserve the performance's dynamics. The resulting
+`recomp/assets/audio/piano.wav` is 6.359 seconds, mono 44.1-kHz signed 16-bit
+PCM, peak -6.00 dBFS and RMS -22.38 dBFS. The -6 dBFS ceiling constrains the
+-21 dBFS RMS target, as for Bio Mask. Source/render hashes and measurements
+are in `piano.json`; `prepare_piano_audio.py` reproduces the processing.
+The MIDI and soundfont remain local and are not build inputs.
+
+The build embeds the WAV. Its separate bounded voice coexists with goggles
+and Bio Mask, follows live effects and host master volume, and cancels on
+pause/load/world reset. Repeated successful uses cannot stack or restart an
+active tune. A held-E probe exposed native repeated use restarting a finished
+tune; the final simulation-only hold guard requires release before replay.
+The performance finishes independently of the shorter native gesture.
+
+Verification: final player build and controls/audio suites pass; unchanged
+input/aim suites passed during implementation. Actual-hook tests cover native
+identity/caller/actor/phase/object/equipment/mode/pause/Vanilla refusal, held
+use and zero guest writes. Audio tests cover exact full PCM/chunk boundaries,
+repeat suppression, separate gadget mixing, gain/mute and cancellation.
+Private real-key routes at 60 third person and 120 first person passed tap,
+repeat, pause/resume, reload and walking-away refusal before the held-key fix;
+the final 120 first-person route passes a long E hold and loading a private
+save made during use, with only one sound start. The final native-control
+Vanilla route reaches animation 277 with zero custom starts. Initial Vanilla
+automation incorrectly required Modern input capture and is excluded.
+
+Captured normal host mix peaks at -6.76 dBFS; an isolated final host capture
+peaks at -5.64 dBFS after the output resampler. Neither contains clipped
+samples. These are technical audio checks, not human listening acceptance.
+The render's tone, musical balance and game feel await the user's playtest.
+Private evidence, failed harness attempts and captures remain under
+`recomp/analysis/d08p/`. All 40 player save/card files retain intake hashes
+and mtimes. Repository/privacy and whitespace checks pass. No framework or
+generated-code edits, commit, push or documentation closeout.
+
+Load slot 5 and tap E at the piano. Launch from the workspace root:
+`python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-29 - D38 revision 2: supplied WAV and proximity
+
+Replaced the MIDI/soundfont render with the user's `research/music/pianobag.wav`.
+The source remains untouched. Float processing preserves the supplied timbre
+and timing; mono conversion, 40-Hz high-pass, quiet-tail handling, 2 ms/100 ms
+fades and constant normalization produce 266131 frames at 44100 Hz. Peak is
+-6.00 dBFS; RMS -23.61 dBFS. The peak ceiling limits the -21 dBFS RMS target.
+Final WAV size is 532306 bytes versus the source's 1064568 bytes, without
+lossy compression. The build embeds the replacement; the reproduction script
+now takes an input WAV and output WAV. Metadata records its source hash.
+
+The user's `research/screencaps/mapster-sounds.png` illustrates the requested
+source/radius principle. Read-only native-code inspection confirms TTK sound
+creation at 8006b270 carries a source position, copying it into the sound
+record or retaining the supplied position pointer. The custom host PCM voice
+now has its own fixed source copied from the authenticated piano on use.
+It measures three-dimensional distance to Duke's root, independent of camera
+view/boom: full gain through 768 world units, smoothstep fade to zero at 4096.
+A 20 ms gain slew smooths discrete motion. Playback continues silently out of
+range; returning during the performance reveals its current position, never
+a queued/restarted tune. Repeated use cannot relocate the source. This is
+distance attenuation, not wall/door occlusion or directional stereo panning.
+Native animation, other sounds, effects/master sliders and Vanilla remain intact.
+
+Player build, actual-hook controls suite and expanded PCM/audio suite pass.
+Tests cover XYZ distance at full/half/zero gain, range boundaries, smoothing,
+silent sample progression and retrigger/source retention, alongside existing
+load/pause/reset/mute/Vanilla/gadget-isolation checks. Private third-person
+60-setting walking reduces gain from 1 to 0.1316. A first-person 120-setting
+walk also attenuated to 0.1799 but missed the harness's unnecessarily strict
+0.15 travel threshold; it is retained as a failed assertion, not a product
+failure or a passing run. The subsequent first-person return route verifies
+attenuation and recovery at the keyboard. Exact out-of-radius silence is native
+test coverage; the natural routes do not claim to have left the 4096 radius
+before this six-second performance finished.
+
+The replacement WAV and captured third-person host output have zero clipped
+samples (host peak -6.81 dBFS). Listening quality and radius preference still
+need user acceptance. Evidence: `recomp/analysis/d08p/r2/` plus `r2-*.log` in
+its parent. All 40 current player save/card hashes and mtimes are preserved.
+No framework edits, commit, push or documentation closeout. Launch:
+`python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-29 - D38 accepted and closed
+
+User: "lock it in, close it out". D38 revision 2 is accepted: the supplied
+WAV performance, native piano use and distance falloff. Implementation, audio
+asset/provenance, regressions and documentation are authorized for commit/push
+as MusicMonsterMod. README credits now identify MusicMonsterMod for the piano
+performance and Bio Mask mesh, CreatorsHome for the Bio Mask audio source,
+and MichelleGrobler / freesound_community for the night-vision audio source.
+Existing source/license attribution is retained; MusicMonsterMod is not
+credited as the creator of those two sound-effect sources.
+
+Prior build, tests and private runtime evidence stand with their stated limits;
+no post-acceptance gameplay change, rebuild or launch. See
+[note 315](documentation/315-d38-playable-piano.md). Framework patch export
+and clean-pin verification, repository/privacy and staged whitespace checks
+complete the closeout. No next job selected.
 Launch: `python3 recomp/tools/local/run.py`.

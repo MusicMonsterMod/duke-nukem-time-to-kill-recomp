@@ -102,3 +102,5 @@ Statistics research (D20E): kills, the enemy total for X OF Y, shots and hits: [
 
 - [D36J2 no-body default integration](304-d36j2-no-body-default.md).
 - [D36J1 quick-kick investigation](303-d36j1-quick-kick-research.md) - [standalone artifact](artifacts/quick-kick-realism.html).
+
+- [D38 accepted playable piano and distance falloff](315-d38-playable-piano.md).

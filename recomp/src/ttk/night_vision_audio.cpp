@@ -1,4 +1,5 @@
 #include "night_vision_audio.h"
+#include "piano_audio.h"
 #include "night_vision_pcm.h"
 #include "bio_mask_pcm.h"
 #include "modern_controls.h"
@@ -41,11 +42,12 @@ void bio_mask_sound() {
                      samples,psx_mod_read_word(0x800c39e0));
 }
 }
-extern "C" void ttk_audio_reset() {cursor=samples;}
+extern "C" void ttk_audio_reset() {cursor=samples;ttk::piano_audio_reset();}
 extern "C" void ttk_audio_mix(int16_t* stereo,int frames) {
+    ttk::piano_audio_mix(stereo,frames);
     if(cursor==samples || !stereo || frames<=0)return;
     if(!enabled(mask_cue) || loads!=psx_mod_savestate_loads() || !ttk::replay_gameplay_context()) {
-        ttk_audio_reset();return;
+        cursor=samples;return;
     }
     // SLUS-00583 SOUND effects slider: 8008acc8..8008acfc stores
     // floor(percent*0x3fff/100) at 800c39e0. Native SFX also gate on it.

@@ -1,8 +1,8 @@
 #include "action_perspective.h"
 #include "live_env.h"
 #include "tight_camera.h"
-static unsigned night_vision_sounds,bio_mask_sounds;
-namespace ttk { void night_vision_sound() {++night_vision_sounds;} void bio_mask_sound() {++bio_mask_sounds;} }
+static unsigned night_vision_sounds,bio_mask_sounds,piano_sounds;
+namespace ttk { void piano_sound(int,int,int) {++piano_sounds;} void piano_audio_reset() {} void night_vision_sound() {++night_vision_sounds;} void bio_mask_sound() {++bio_mask_sounds;} }
 static bool renderer_available=true;
 extern "C" int psx_mod_present_replay_available(void){return renderer_available;}
 #include <cstdint>
@@ -1578,6 +1578,49 @@ int main(int argc,char** argv) {
         std::ifstream level01(argv[3],std::ios::binary);
         level01.read((char*)ram+0xca968,12196);assert(level01.gcount()==12196);++g_dirty_ram_code_gen;
         assert(psx_mod_read_word(0x800ca968)==4);
+        // D38: observe only the native piano animation initialization. No
+        // guest writes, and unrelated class-2 vending/NPC uses stay silent.
+        {
+            std::vector<uint8_t> saved(ram+(p&0x1fffff),ram+(p&0x1fffff)+0x8a4);
+            constexpr uint32_t piano=0x801f8000;
+            std::array<uint8_t,128> object{};
+            std::copy_n(ram+(piano&0x1fffff),128,object.begin());
+            for(int reject=0;reject<14;++reject) {
+                psx_mod_write_half(p+0x60,277);psx_mod_write_half(p+0x68,0);
+                psx_mod_write_byte(p+0x22c,0);psx_mod_write_byte(p+0x22d,0);
+                psx_mod_write_byte(p+0x3b8,0);psx_mod_write_word(p+0x224,0x40);
+                psx_mod_write_word(p+0x290,piano);
+                psx_mod_write_half(piano+0x2c,102);psx_mod_write_byte(piano+0x19,16);
+                uint32_t actor=p,caller=0x8005a3a0;
+                if(reject==1)actor=piano;
+                if(reject==2)caller=0x8005a490;
+                if(reject==3)psx_mod_write_half(p+0x60,275);
+                if(reject==4)psx_mod_write_half(p+0x68,1);
+                if(reject==5)psx_mod_write_word(p+0x224,0);
+                if(reject==6)psx_mod_write_word(p+0x290,0);
+                if(reject==7)psx_mod_write_half(piano+0x2c,103);
+                if(reject==8)psx_mod_write_byte(piano+0x19,15);
+                if(reject==9)ttk::modern=false;
+                if(reject==10)psx_mod_write_byte(p+0x3b8,2);
+                if(reject==11)psx_mod_write_byte(p+0x22c,3);
+                if(reject==12)psx_mod_write_byte(p+0x22d,3);
+                if(reject==13)psx_mod_write_half(0x800be568,1);
+                const auto before=piano_sounds;writes=0;
+                call(0x800493a4,actor,0,caller);
+                assert(writes==0 && piano_sounds==before+(reject==0));
+                if(reject==0) {
+                    ttk::input.held[ttk::interact]=true;
+                    call(0x800493a4,actor,0,caller);assert(piano_sounds==before+2);
+                    call(0x800493a4,actor,0,caller);assert(piano_sounds==before+2);
+                    ttk::input.held[ttk::interact]=false;
+                    call(0x800493a4,actor,0,caller);assert(piano_sounds==before+3);
+                }
+                ttk::modern=true;psx_mod_write_half(0x800be568,0);
+            }
+            std::copy(saved.begin(),saved.end(),ram+(p&0x1fffff));
+            std::copy(object.begin(),object.end(),ram+(piano&0x1fffff));++g_dirty_ram_code_gen;
+            std::puts("PASS: D38 piano native-use hook, actor/caller/pose/phase/object/equipment/mode/pause/Vanilla refusal; no guest writes");
+        }
         const unsigned patches=code_writes;
         call(0x8003ade4,c,p,0x80025ee8);assert(ttk::movement_ready() && code_writes==patches);
         psx_mod_write_word(0x800cd8fc,0x000075a3);psx_mod_write_word(0x800cd908,0x12345678);

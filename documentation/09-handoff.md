@@ -1,5 +1,21 @@
 # Next-session handoff
 
+## 2026-10-29 - D38 playable piano accepted and closed
+
+User authorized lock-in and closeout of revision 2: MusicMonsterMod's supplied
+piano WAV plays on native E use, with smooth distance falloff anchored at the
+piano. Native animation, effects/master volume and Vanilla are preserved.
+Build, controls/audio suites and private 60/120-setting routes pass within
+[note 315](315-d38-playable-piano.md)'s limits. All 40 player files were preserved.
+
+README credits MusicMonsterMod for the piano performance and Bio Mask mesh;
+CreatorsHome for the Bio Mask audio source; and MichelleGrobler, distributed
+through freesound_community, for the night-vision source. Source/license notes
+remain linked. No post-acceptance gameplay edits, rebuild or launch.
+Implementation and documentation commit/push authorized as MusicMonsterMod.
+No next job selected. Launch: `python3 recomp/tools/local/run.py`.
+
+
 
 ## 2026-10-29 - D08T10 slot-5 box repeat grab accepted and closed
 

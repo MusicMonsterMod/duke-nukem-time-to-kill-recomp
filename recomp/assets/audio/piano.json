@@ -1,0 +1,16 @@
+{
+  "frames": 266131,
+  "rate": 44100,
+  "channels": 1,
+  "duration_seconds": 6.034716553287982,
+  "gain_db": 7.0322491382820305,
+  "peak_dbfs": -6.0004777433190135,
+  "rms_dbfs": -23.60858613303207,
+  "source_sha256": "2a07503ce52a144a3dc752aa11df3529a1b04d667f1313b12e022112c6761960",
+  "source_name": "pianobag.wav",
+  "source_bytes": 1064568,
+  "source": "User-performed pianobag.wav; supplied soundfont rendering preserved",
+  "processing": "mono 44100 Hz, 40 Hz high-pass, -60 dBFS tail trim plus 250 ms, 2 ms/100 ms fades, -21 dBFS RMS target with -6 dBFS peak ceiling",
+  "wav_sha256": "c108ffedb255090e9f917c4f877ee388d25dcccd46e6429fa97cd602c8c8ccc1",
+  "performer": "MusicMonsterMod"
+}

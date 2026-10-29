@@ -1,4 +1,6 @@
-# Night vision activation cue
+# Audio credits and asset provenance
+
+## Night vision activation cue
 
 `night-vision-on.wav` is the user-selected D08A25 option A, 0.24 seconds,
 mono 44.1 kHz 16-bit PCM. It is a modified camera-flash recording, not audio
@@ -47,3 +49,27 @@ script; it needs neither FFmpeg nor the original recording. No retail sound is
 included. Successful activation and removal (automatic or manual) play
 one cue; depletion, failed use, pause, restoring an active mask in gas, and held repeats do not. Restoring an
 active mask in clean air removes it after the exit grace, with a removal cue.
+
+## Playable piano
+
+Piano performance and supplied recording: **MusicMonsterMod**. The short
+performance interpolates the Duke 3D theme; this credit identifies the performer,
+not authorship of the underlying theme. The accepted source is the user's
+`research/music/pianobag.wav`, replacing the initial MIDI/soundfont render.
+
+`piano.wav` preserves that recording's timbre, pitch, timing and dynamics.
+Processing converts to mono 44.1 kHz, applies a 40-Hz high-pass, quiet-tail
+handling and 2 ms/100 ms edge fades, then normalizes toward -21 dBFS RMS
+subject to a -6 dBFS peak ceiling. Final duration is 6.035 seconds, peak
+-6.00 dBFS and RMS -23.61 dBFS. The 532306-byte asset is about half the
+1064568-byte source size without lossy compression. `piano.json` records
+source/output hashes and measurements. Reproduce from the local source with:
+
+```sh
+python3 recomp/tools/local/prepare_piano_audio.py research/music/pianobag.wav recomp/assets/audio/piano.wav
+```
+
+The ordinary build embeds the finished WAV; it needs neither the original
+recording, a MIDI renderer nor a soundfont. Playback starts on successful
+Modernized piano use, follows effects/master volume, and fades with distance
+from the piano. See [D38](../../../documentation/315-d38-playable-piano.md).

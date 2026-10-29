@@ -5,6 +5,7 @@
 // collision responses and camera constraints. No final position writes.
 #include "modern_controls.h"
 #include "night_vision_audio.h"
+#include "piano_audio.h"
 #include "anim_override.h"
 #include "weapon_aim.h"
 #include "aim_weapons.h"
@@ -1182,7 +1183,10 @@ static void hook(CPUState* cpu, uint32_t address) {
 // may resume midway through drawing, before the next normal-camera callback.
 // Discard old draw tokens without writing them into the newly loaded RAM;
 // first_person_draw reclaims any hidden flags stored in the save itself.
+static bool piano_use_held;
 static void camera_world_reset() {
+    piano_audio_reset();
+    piano_use_held=input_snapshot(Context::Gameplay).held[interact];
     free_look={};free_look_cancelled=false;
     wall_last_direction=0;wall_epoch=0;
     pole_visibility_object=0;
@@ -1229,6 +1233,8 @@ static void hook_body(CPUState* cpu, uint32_t address) {
     steroids_death_clear(); // D08A14
     dynamite_track(); // D08A12
     const auto& f=input_snapshot(Context::Gameplay);
+    if((address==0x8005a210 || address==0x800493a4) && cpu->gpr[4]==player && !f.held[interact])
+        piano_use_held=false;
     uint32_t ra=cpu->gpr[31], sp=cpu->gpr[29];
     if (sp<0x80010100 || sp>0x801ffff0 || (sp&3)) {head_restore();return;}
     if(address==0x8006276c || address==0x80062b48 || address==0x8002ffec) {draw_distance_apply(address,ra);if(address==0x8002ffec) pole_visibility_draw(cpu,ra);return;}
@@ -1258,6 +1264,22 @@ static void hook_body(CPUState* cpu, uint32_t address) {
         return;
     }
     if (address==0x800493a4) {
+        // D38: native use selector 800515d0 selects pose 277 for class 2.
+        // Current LEVEL01 piano is type 102, actor kind 16. The initializer
+        // is reached only after native contact/alignment and committed use.
+        // Observe it without changing animation, callback, or equipment state.
+        const uint32_t piano=psx_mod_read_word(player+0x290);
+        if(cpu->gpr[4]==player && ra==0x8005a3a0 &&
+           psx_mod_read_half(player+0x60)==277 && psx_mod_read_half(player+0x68)==0 &&
+           psx_mod_read_byte(player+0x22c)==0 && psx_mod_read_byte(player+0x22d)==0 &&
+           psx_mod_read_byte(player+0x3b8)==0 && (psx_mod_read_word(player+0x224)&0x40) &&
+           piano>=0x800e0000 && piano<=0x801fff80 && !(piano&3) &&
+           psx_mod_read_half(piano+0x2c)==102 && psx_mod_read_byte(piano+0x19)==16 &&
+           player_identity_ready() && identity_tag==4 && !piano_use_held) {
+            piano_use_held=f.held[interact];
+            piano_sound(int32_t(psx_mod_read_word(piano+4)),
+                        int32_t(psx_mod_read_word(piano+8)),int32_t(psx_mod_read_word(piano+12)));
+        }
         if(std::getenv("DNTTK_TRAVERSAL_TRACE") && cpu->gpr[4]==player && psx_mod_read_half(player+0x60)==96)
             std::fprintf(stderr,"ttk-standing ra=%08x track=%u active=%d dir=%.2f/%.2f frame=%llu/%llu epoch=%llu/%llu state=%u/%u flags=%08x player=%08x identity=%d aim=%d crouch=%d\n",ra,psx_mod_read_half(player+0x68),f.active,f.move_x,f.move_y,(unsigned long long)f.sequence,(unsigned long long)camera_frame,(unsigned long long)f.epoch,(unsigned long long)camera_epoch,psx_mod_read_byte(player+0x22c),psx_mod_read_byte(player+0x22d),psx_mod_read_word(player+0x224),psx_mod_read_word(player),player_identity_ready(),f.held[original_aim],f.held[crouch]);
         if(cpu->gpr[4]==player && (ra==0x8005a3a0 || ra==0x8005a4d0 || ra==0x8005a490 || ra==0x8005a520 || ra==0x8005a548))

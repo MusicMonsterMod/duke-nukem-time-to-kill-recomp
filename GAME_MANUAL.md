@@ -501,6 +501,15 @@ finishes. Keep E held for continuous action while climbing. Your weapon is
 automatically drawn again after the interaction ends and normal movement returns.
 This temporary holster request survives pause and inventory. Supported ladder/ledge
 states recapture automatically after pause.
+**Playable piano (Modernized).** Tap **E** at the saloon piano to play
+MusicMonsterMod's piano performance. Duke keeps his native interaction animation.
+The sound comes from the piano: it fades as you walk away and becomes silent
+outside its audible radius. Returning while it is still playing reveals the
+current part of the tune. Holding E or pressing repeatedly will not layer or
+restart an active performance. Pause/load stops it. Effects and master volume
+apply; Vanilla retains its original behavior. Distance falloff does not model
+walls or closed doors.
+
 Short jump taps are buffered for about 130 ms in supported grounded movement.
 Running jumps respond to your takeoff request instead of waiting for an edge. A fresh
 run-start jump no longer waits for the first stride to finish. A six-input-frame

@@ -13,7 +13,7 @@ bool beat_console_command(const char* line, void (*say)(const char*), bool& clos
 // D08K2 (debug): "crouchwalk <fwd> [side] [hull]", "crouchgo <dx> <dz> [hull]" (world units),
 // "crouchwalk off" and "crouchscan [radius] [grid]".
 bool crouch_console_command(const char* line, void (*say)(const char*), bool& close);
-// D14A: "fov [60..90|default]", session-only first-person projection.
+// D14A: "fov [60..120|default]", session-only first-person projection.
 bool fov_console_command(const char* line, void (*say)(const char*), bool& close);
 // D24B: the game's own name for level n (from guest RAM, "" when unavailable).
 bool level_title(unsigned n, char* out, unsigned cap);

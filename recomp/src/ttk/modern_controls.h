@@ -143,7 +143,7 @@ bool widescreen_near_clip_live();
 // Last modern camera-lease refusal: "context", "identity", "state" or "" (none yet).
 const char* lease_refusal_reason();
 // D19G: CAMERA DISTANCE from the in-game menu (0 = original boom).
-// D14A: session-only horizontal FOV at 4:3, 60..90 degrees. Invalid setters
+// D14A: session-only horizontal FOV at 4:3, 60..120 degrees. Invalid setters
 // return false without changing state. Getter reports integer-H quantized degrees.
 // Call setter from menu confirmation in D19X; serialize the requested degrees
 // there, default 64 (exact H=256), and load before first gameplay frame.

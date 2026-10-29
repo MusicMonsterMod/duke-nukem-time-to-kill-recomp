@@ -1073,10 +1073,13 @@ int worker_draw(CPUState* source,const void* params,uint32_t len) {
     static const bool log=std::getenv("DNTTK_REPLAY_LOG")!=nullptr;
     if(log) {
         uint64_t nc1[8]; near_clip_counters(nc1);
+        uint64_t wc[4]; near_clip_water_counters(wc);
         std::fprintf(stderr,"[replay near] alpha=%.3f wtaken=%llu wtri=%llu otaken=%llu otri=%llu fallback=%llu budget=%llu overflow=%llu refused=%llu first=%08x\n",
             p.alpha,(unsigned long long)(nc1[0]-nc0[0]),(unsigned long long)(nc1[1]-nc0[1]),(unsigned long long)(nc1[2]-nc0[2]),
             (unsigned long long)(nc1[3]-nc0[3]),(unsigned long long)(nc1[4]-nc0[4]),(unsigned long long)(nc1[5]-nc0[5]),
             (unsigned long long)(nc1[6]-nc0[6]),(unsigned long long)(nc1[7]-nc0[7]),p.near.first_cursor);
+        std::fprintf(stderr,"[replay water] wseen=%llu wtaken=%llu wguard=%llu wgrid=%llu\n",
+            (unsigned long long)wc[0],(unsigned long long)wc[1],(unsigned long long)wc[2],(unsigned long long)wc[3]);
         std::fprintf(stderr,"[replay job] alpha=%.3f flags=%u req_pos=%d,%d,%d req_vt=%d,%d,%d rot0=%d,%d,%d after_pos=%d,%d,%d after_vt=%d,%d,%d after_rot0=%d,%d,%d mats=%u xf=%u ok=%d\n",
             p.alpha,p.flags,p.camera.pos[0],p.camera.pos[1],p.camera.pos[2],p.camera.view_t[0],p.camera.view_t[1],p.camera.view_t[2],
             p.camera.rot[0],p.camera.rot[1],p.camera.rot[2],

@@ -1489,16 +1489,17 @@ output scrolls back to the bottom. **Up / Down** recall the commands you typed
 shows above the prompt.
 
 **First-person FOV.** In Modernized, **Options > Gameplay > First-person FOV**
-is directly after View Bob. The slider ranges from **60 to 90**, in one-degree
+is directly after View Bob. The slider ranges from **60 to 120**, in one-degree
 steps, measured horizontally at 4:3; widescreen
 shows more horizontally at the same setting. Select the row with Up/Down,
 then adjust with Left/Right, the controller D-pad, or the mouse wheel.
 Confirm applies the change for resumed gameplay and saves it across restarts;
-Cancel discards edits. Gameplay Defaults restores **64**, the exact original
-projection. View changes and save loads retain the preference.
+Cancel discards edits. Fresh or unset configurations and Gameplay Defaults use **90**. Explicitly saved
+preferences are preserved, including the previous default of 64. View changes
+and save loads retain the preference.
 The backtick console's `fov 75` remains a session-only diagnostic override;
 `fov` reports the effective, integer-projection-quantized angle, and
-`fov default` restores the original projection for that session.
+`fov default` selects 90 for that session; `fov 64` selects the previous default.
 Weapon/held-item display, their connected arms, Q and the door-kick leg retain
 their original size and framing as world FOV changes. Contact arms follow the
 world view, with environment lighting preserved.

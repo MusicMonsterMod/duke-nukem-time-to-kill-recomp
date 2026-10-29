@@ -23,6 +23,7 @@
 #include "mod_plugins.h"
 #include "pc_input.h"
 #include "sky_render.h"
+#include "first_person_fov.h"
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
@@ -100,7 +101,7 @@ void hook(CPUState* cpu,uint32_t address) {
         // wider FOV needs the inverse projection scale even in a 4:3 viewport.
         // Only local X changes: horizon elevation, gradient and cloud bands stay.
         const int32_t h=(uint16_t)cpu->gte_ctrl[26];
-        const int32_t denominator=input_modernized() && h>=128 && h<256 ? h : 256;
+        const int32_t denominator=input_modernized() && h>=fp_fov_projection(fp_fov_max) && h<256 ? h : 256;
         if(!m && denominator==256) return;
         // Guest-stack MATRIX. The trace showed the model's forward axis in its
         // row 2 (the camera's look direction), so local X is row 0: m00 +0,

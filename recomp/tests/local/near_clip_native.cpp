@@ -188,6 +188,42 @@ static void packet_contracts(const char* executable) {
         observed_hook(&c,0x80011020);assert(host_vertices>=6);
         for(unsigned i=0;i<2048;++i) assert((psx_mod_read_word(ot+i*8)!=0)==(i==64));
     }
+    // D17AE/D17AK scene depth: a native-kept world quad's own packet, written
+    // to the game's ring by the original renderer, gets each corner's view
+    // depth at the drawing-chain close. Translucent packets and Vanilla keep
+    // painter order; the packet and ordering table are not modified.
+    for(bool modernized:{true,false}) {
+        modern=modernized;
+        auto c=reset();c.gpr[31]=0x80037344;
+        word(mesh+0x14,4);word(mesh+0x18,0x50);
+        const uint32_t packed[4]={0x0004013f,0x00040101,0x00043f3f,0x00043f01};
+        for(int i=0;i<4;++i) {word(mesh+0x1c+8*i,packed[i]);word(mesh+0x20+8*i,0x34808080);}
+        word(mesh+0x50,0x00010061);word(mesh+0x54,0x03020100);
+        word(mesh+0x58,0x02000000);word(mesh+0x5c,0xff);
+        observed_hook(&c,0x80011020);
+        assert(c.gpr[4]==mesh && host_vertices==0);
+        ttk::NearGte g{};for(int i=0;i<3;++i) g.r[i][i]=4096;g.h=256;
+        uint32_t xy[4];
+        for(int i=0;i<4;++i) {
+            const auto p=ttk::near_project(g,(int16_t)((packed[i]&0xff)<<10),(int16_t)((packed[i]&0xff00)>>1),(int16_t)(((packed[i]>>16)&0xff)<<10));
+            assert(p.safe && p.sz==4096);xy[i]=p.sxy;
+        }
+        constexpr uint32_t ring=0x80160000;
+        for(uint32_t at:{ring,ring+0x34}) {
+            word(at,0x0c000000);word(at+4,(at==ring?0x3c:0x3e)<<24|0x808080);
+            for(int i=0;i<4;++i) {if(i) word(at+4+12*i,0x808080);word(at+8+12*i,xy[i]);word(at+12+12*i,0);}
+        }
+        word(ctx,ring+0x68);
+        CPUState close{};observed_hook(&close,0x8001fba0);
+        if(!modernized) {assert(host_vertices==0);continue;}
+        assert(host_vertices==4);
+        for(int i=0;i<4;++i) assert(host_corners[i].word==xy[i] && host_corners[i].depth==4096.0f && host_corners[i].u<0);
+        for(unsigned i=0;i<2048;++i) assert(psx_mod_read_word(ot+i*8)==0);
+        // A second close without new packets adds nothing.
+        observed_hook(&close,0x8001fba0);assert(host_vertices==4);
+    }
+    modern=true;
+    std::puts("D17AE scene depth: native world packet corners carry view depth; translucent and Vanilla keep painter order PASS");
     // D17Z: a flat wall with skewed UVs must retain the native texture
     // interpolation across the 1-2 diagonal, including subdivision vertices.
     // The alternative diagonal moves V by 4.5 texels at this quad's centre.
@@ -328,6 +364,42 @@ static void packet_contracts(const char* executable) {
             assert(ttk::near_clip_frame_state().host_bytes==frame.host_bytes);
         }
     };
+    // D17AH: sky layers retain native painter composition while keeping
+    // perspective UV/depth metadata. Adjacent callers and changed sky code
+    // must remain ordinary depth-tested geometry; Vanilla never takes over.
+    {
+        live_eye=true;
+        const char* old_painter=std::getenv("DNTTK_SKY_PAINTER");
+        const std::string saved_painter=old_painter?old_painter:"";
+        setenv("DNTTK_SKY_PAINTER","1",1);
+        for(int hp:{256,160,92}) for(uint32_t ra:{0x80038c94u,0x80038cf0u,0x80038da8u,0x80038e44u}) {
+            for(bool semi:{false,true}) {
+                object_case(ra,100,true,false,0,500,semi,hp);
+                assert(psx_mod_read_word(ot+8)==0); // not the deferred weapon layer
+                const auto painter=host_corners;
+                for(const auto& v:painter) assert(v.z>0 && v.depth<0);
+                setenv("DNTTK_SKY_PAINTER","0",1);
+                object_case(ra,100,true,false,0,500,semi,hp);
+                assert(host_corners.size()==painter.size());
+                for(size_t j=0;j<painter.size();++j) {
+                    const auto& a=painter[j];const auto& b=host_corners[j];
+                    assert(a.word==b.word && a.x==b.x && a.y==b.y);
+                    assert(a.z==b.z && a.u==b.u && a.v==b.v && b.depth>0);
+                }
+                setenv("DNTTK_SKY_PAINTER","1",1);
+            }
+            object_case(ra+4,100,true,false,0,500,false,hp);
+            for(const auto& v:host_corners) assert(v.depth>0);
+        }
+        const uint32_t original=psx_mod_read_word(0x80038d74);
+        psx_mod_write_word(0x80038d74,original^1);++g_dirty_ram_code_gen;
+        object_case(0x80038c94,100,true,false,0,500);
+        for(const auto& v:host_corners) assert(v.depth>0);
+        psx_mod_write_word(0x80038d74,original);++g_dirty_ram_code_gen;
+        modern=false;live_eye=false;object_case(0x80038c94,100,false,false,0,500);modern=true;live_eye=true;
+        if(old_painter)setenv("DNTTK_SKY_PAINTER",saved_painter.c_str(),1);else unsetenv("DNTTK_SKY_PAINTER");
+        std::puts("PASS: D17AH sky painter depth, unchanged geometry/UVs, caller/identity/Vanilla guards");
+    }
     // D14B: exercise real emitted mesh packets, including UV/depth metadata.
     // Display owners, Q and door legs are independent of world H; world/contact
     // owners still respond to it. No shared GTE register is changed by projection.
@@ -688,6 +760,64 @@ static void packet_contracts(const char* executable) {
     // expected return address and a previously authenticated code image.
     word(0x80032280,psx_mod_read_word(0x80032280)^1);++g_dirty_ram_code_gen;
     object_case(0x80032288,100,false);
+    // D17AF: water tile near clip - takeover with painter depth, grid mismatch
+    // and safe pass-through. Requires game code for identity(); guard rejections
+    // are in water_clip_contracts(). Restore the code region XOR'd by the
+    // preceding identity-failure test so identity() and water_render_identity()
+    // pass for the water hook.
+    word(0x80032280,psx_mod_read_word(0x80032280)^1);++g_dirty_ram_code_gen;
+    {
+        setenv("DNTTK_WATER_CLIP","1",1);
+        constexpr uint32_t wpkt=0x80165000,wrgn=0x80165080,wstk=0x80165100;
+        constexpr uint32_t wrw0=0x80165200,wrw1=0x80165220;
+        auto half=[](uint32_t a,uint16_t v){psx_mod_write_byte(a,v&0xff);psx_mod_write_byte(a+1,v>>8);};
+        // FT4 opaque packet: size byte=9 (10 words), command 0x2c.
+        word(wpkt,9u<<24);word(wpkt+4,0x2c808080u);
+        for(int i=0;i<4;++i)word(wpkt+12+i*8,0x40404040u); // UV words
+        half(wpkt+14,0x0100u);half(wpkt+22,0x0019u); // CLUT, tpage
+        // Region X/Y base and stack link; zero the water Y-offset field in RAM.
+        word(0x800c3cd8u,0);
+        half(wrgn,0);half(wrgn+2,100);          // X_base=0, Y_base=100
+        word(wstk+0x90,wrgn-8);half(wstk+0x58,1200u); // near z=176, far z=1200
+        // Compute expected SXY/SZ for four corners via near_project with H=256.
+        // Corner (x, y, z): 0=(0,100,176) 1=(1024,100,176) 2=(0,100,1200) 3=(1024,100,1200).
+        // Corner 1 saturates on X (unsafe); corner 3 is safe.
+        ttk::NearGte g{};for(int i=0;i<3;++i)g.r[i][i]=4096;g.h=256;
+        auto v0=ttk::near_project(g,0,100,176),v1=ttk::near_project(g,1024,100,176);
+        auto v2=ttk::near_project(g,0,100,1200),v3=ttk::near_project(g,1024,100,1200);
+        assert(!v1.safe && v2.safe && v3.safe); // confirm saturation
+        word(wrw0+ 0,v0.sxy);word(wrw0+ 4,v0.sz); // records[0]: row0
+        word(wrw0+16,v1.sxy);word(wrw0+20,v1.sz); // records[1]: row0+16
+        word(wrw1+ 0,v2.sxy);word(wrw1+ 4,v2.sz); // records[2]: row1
+        word(wrw1+16,v3.sxy);word(wrw1+20,v3.sz); // records[3]: row1+16
+        auto wc=reset();
+        wc.gpr[31]=0x8002fbb4u;wc.gpr[5]=wpkt;wc.gpr[21]=wrgn;
+        wc.gpr[29]=wstk;wc.gpr[17]=wrw0;wc.gpr[18]=wrw1;wc.gpr[20]=0;wc.gpr[4]=500;
+        observed_hook(&wc,0x8002bc18);
+        assert(!host_corners.empty()); // takeover: corner 1 unsafe
+        for(const auto& v:host_corners) assert(v.depth<0); // painter depth
+        assert((psx_mod_read_word(wpkt)>>24)==0); // native packet link zeroed
+        // Grid mismatch: corrupt one record SXY -> grid_reject, no host corners.
+        word(wpkt,9u<<24); // restore packet header for repeated call
+        word(wrw0,v0.sxy^1);
+        host_corners.clear();observed_hook(&wc,0x8002bc18);
+        assert(host_corners.empty());
+        word(wrw0,v0.sxy); // restore
+        // Safe pass-through: far tile at z=3100 (near 2076), small screen span.
+        half(wstk+0x58,3100u);
+        auto u0=ttk::near_project(g,0,100,2076),u1=ttk::near_project(g,1024,100,2076);
+        auto u2=ttk::near_project(g,0,100,3100),u3=ttk::near_project(g,1024,100,3100);
+        assert(u0.safe && u1.safe && u2.safe && u3.safe);
+        word(wrw0+ 0,u0.sxy);word(wrw0+ 4,u0.sz);
+        word(wrw0+16,u1.sxy);word(wrw0+20,u1.sz);
+        word(wrw1+ 0,u2.sxy);word(wrw1+ 4,u2.sz);
+        word(wrw1+16,u3.sxy);word(wrw1+20,u3.sz);
+        word(wpkt,9u<<24);
+        host_corners.clear();observed_hook(&wc,0x8002bc18);
+        assert(host_corners.empty()); // safe, not oversized -> pass-through
+        unsetenv("DNTTK_WATER_CLIP");
+        std::puts("D17AF water_clip: painter depth takeover, grid mismatch, safe pass-through PASS");
+    }
     live_eye=false;
     std::printf("packet_digest=%016llx\n",(unsigned long long)packet_digest);
     std::puts("ttk-near-test owned packet contracts PASS");
@@ -793,6 +923,42 @@ static void biomask_packet_contracts() {
     std::puts("PASS: Bio Mask native-light modulation, dark/neutral/tinted/bright, preserves geometry");
     std::puts("PASS: Bio Mask real mesh packets follow weapons, preserve HUD, carry external atlas and precise bob");
 }
+static void water_clip_contracts() {
+    // D17AF: guard rejections verified without the game executable.
+    constexpr uint32_t wpkt=0x80170000,wrgn=0x80170080,wstk=0x80170100;
+    constexpr uint32_t wrw0=0x80170200,wrw1=0x80170220;
+    psx_mod_write_word(wpkt,9u<<24);psx_mod_write_word(wpkt+4,0x2c808080u);
+    for(int i=0;i<4;++i)psx_mod_write_word(wpkt+12+i*8,0x40404040u);
+    psx_mod_write_byte(wpkt+14,0x00);psx_mod_write_byte(wpkt+15,0x01); // CLUT
+    psx_mod_write_byte(wpkt+22,0x19);psx_mod_write_byte(wpkt+23,0x00); // tpage
+    psx_mod_write_byte(wrgn,0);psx_mod_write_byte(wrgn+1,0);
+    psx_mod_write_byte(wrgn+2,100);psx_mod_write_byte(wrgn+3,0);
+    psx_mod_write_word(wstk+0x90,wrgn-8);
+    psx_mod_write_byte(wstk+0x58,0xb0);psx_mod_write_byte(wstk+0x59,0x04); // z=1200
+    CPUState c{};
+    c.gte_ctrl[0]=c.gte_ctrl[2]=c.gte_ctrl[4]=4096;
+    c.gte_ctrl[26]=256;c.gte_ctrl[29]=341;c.gte_ctrl[30]=256;
+    c.gpr[5]=wpkt;c.gpr[21]=wrgn;c.gpr[29]=wstk;
+    c.gpr[17]=wrw0;c.gpr[18]=wrw1;c.gpr[20]=0;c.gpr[4]=0;
+    // Wrong RA: water_clip checks gpr[31]==0x8002fbb4u before water_seen.
+    c.gpr[31]=0x8002fbb0u;host_corners.clear();
+    observed_hook(&c,0x8002bc18);assert(host_corners.empty());
+    c.gpr[31]=0x8002fbb4u;
+    // DNTTK_WATER_CLIP=0 (explicitly disabled) -> guard reject.
+    const char* old_wc=std::getenv("DNTTK_WATER_CLIP");
+    const std::string saved_wc=old_wc?old_wc:"";
+    setenv("DNTTK_WATER_CLIP","0",1);
+    host_corners.clear();observed_hook(&c,0x8002bc18);assert(host_corners.empty());
+    setenv("DNTTK_WATER_CLIP","1",1);
+    // !modern -> guard reject.
+    modern=false;host_corners.clear();observed_hook(&c,0x8002bc18);
+    assert(host_corners.empty());modern=true;
+    // !live_eye (widescreen_near_clip_live is always false in test) -> reject.
+    live_eye=false;host_corners.clear();observed_hook(&c,0x8002bc18);
+    assert(host_corners.empty());live_eye=true;
+    if(old_wc)setenv("DNTTK_WATER_CLIP",saved_wc.c_str(),1);else unsetenv("DNTTK_WATER_CLIP");
+    std::puts("PASS: D17AF water_clip RA mismatch, DNTTK_WATER_CLIP=0, !modern, !live_eye guards reject");
+}
 static void frozen_packet_contracts() {
     constexpr uint32_t ot=0x800d27a0,bitmap=0x800d26a0,weapon=0x801f0000,hud=0x801f0100;
     const auto allocations=dma_allocations;
@@ -876,5 +1042,6 @@ int main(int argc,char** argv) {
     if(argc==2) {packet_contracts(argv[1]);whole_polygon_contracts();}
     biomask_packet_contracts();
     frozen_packet_contracts();
+    water_clip_contracts();
     std::puts("ttk-near-test PASS");
 }

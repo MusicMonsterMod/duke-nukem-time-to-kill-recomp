@@ -18,7 +18,7 @@
 // - The world renderer flags vertices nearer than GTE H/2 (0x8002f1e0), and
 //   a wall Duke faces at the original H (386) drops out to black. The render
 //   loads GTE H from camera[+0x42] each frame via 0x800b4d9c (from 0x8002e4c8);
-//   the eye view passes a shorter one there (256, about 64 degrees wide) and
+//   the eye view passes its selected FOV projection there and
 //   never writes camera[+0x42]. Walls met at a steep angle can still lose the
 //   polygons that reach beside or behind the eye: the renderer rejects them
 //   rather than clipping, and moving the eye does not avoid it.
@@ -34,7 +34,7 @@ static constexpr double eye_height=96;
 // emulation thread runs. Replay consumes the projection captured with its frame,
 // never a worker's fork-time environment or a later live setting.
 static std::atomic<int> fp_fov_override{0};
-static int override_eye_projection=256;
+static int override_eye_projection=fp_fov_projection(fp_fov_default);
 static int launch_eye_projection() {
     static const int value=[]{
         const char* text=std::getenv("DNTTK_FP_FOV");
@@ -44,7 +44,7 @@ static int launch_eye_projection() {
         // supplied. This historical interval is not the supported slider range.
         text=std::getenv("DNTTK_FP_PROJECTION");
         char* end=nullptr;const long v=text?std::strtol(text,&end,10):0;
-        return text && end!=text && end && !*end && v>=160 && v<=386 ? int(v) : 256;
+        return text && end!=text && end && !*end && v>=160 && v<=386 ? int(v) : fp_fov_projection(fp_fov_default);
     }();
     return value;
 }
@@ -68,12 +68,12 @@ bool fov_console_command(const char* line,void (*say)(const char*),bool& close) 
     if(line[3]) {
         const char* value=line+4;double degrees=fp_fov_default;
         if(std::strcmp(value,"default") && !fp_fov_parse(value,degrees)) {
-            say("Usage: fov [60..90|default] (horizontal degrees at 4:3; session only)");return true;
+            say("Usage: fov [60..120|default] (horizontal degrees at 4:3; session only)");return true;
         }
         first_person_set_fov(degrees);close=true;
     }
     char text[160];std::snprintf(text,sizeof text,
-        "First-person FOV %.2f degrees (4:3 horizontal; session only). Default 64; range 60-90.",first_person_fov_setting());
+        "First-person FOV %.2f degrees (4:3 horizontal; session only). Default 90; range 60-120.",first_person_fov_setting());
     say(text);return true;
 }
 static const char* first_person_fov_debug_json() {
@@ -656,8 +656,9 @@ static void limb_claim(CPUState* cpu,LimbOwner owner,int part,bool bridge=false)
     // otherwise correctly clipped contact arms vanish. Correct only that fade
     // in the existing per-joint scope, using Duke's environment brightness and
     // preserving intentional translucent effects. Native pose/world depth stay.
+    // D14F: derive the lower H bound from the supported world-FOV maximum.
     const unsigned h=cpu->gte_ctrl[26]&0xffff;
-    if(owner==LimbOwner::Interaction && h>=160 && h<256)
+    if(owner==LimbOwner::Interaction && h>=unsigned(fp_fov_projection(fp_fov_max)) && h<256)
         limb_draw.light=LimbLight::CorrectProximityFade;
     if(limb_draw.light==LimbLight::CorrectProximityFade) fade_clear(cpu);
 }

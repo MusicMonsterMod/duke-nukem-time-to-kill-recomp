@@ -6,7 +6,7 @@ namespace ttk {
 // D14A: horizontal degrees at 4:3. The 512x240 native image has an
 // approximately 1.6x horizontal camera-matrix scale: half-width is 160
 // in square-pixel camera units, half-height 120. Widescreen adds columns.
-constexpr double fp_fov_default=64.0, fp_fov_min=60.0, fp_fov_max=90.0;
+constexpr double fp_fov_default=90.0, fp_fov_min=60.0, fp_fov_max=120.0;
 inline bool fp_fov_valid(double degrees) {
     return std::isfinite(degrees) && degrees>=fp_fov_min && degrees<=fp_fov_max;
 }

@@ -1,5 +1,52 @@
 # Next-session handoff
 
+## 2026-10-29 - Next: D17AL, then the unified geometry path (D17AM)
+
+User confirmed the D17AE slot-11 fix in play and authorized commit/push of
+the day's work. The agreed renderer plan is on the job board, in order:
+
+1. D17AL - payphone regression from D17AE scene depth (user slot 12): give
+   scene-depth prop packets the same contact rules as host prop pieces.
+2. D17AM1 - inventory every handover threshold/special case and design one
+   rule set; measure full-takeover cost. Report for approval first.
+3. D17AM2 - implement behind a developer switch.
+4. D17AM3 - full regression sweep, then make it the Modernized default.
+5. D17AM4 - re-triage D17AF/AH/AI/AK and D20H against it.
+
+D17AG is fixed by the same change and awaits a user pan playtest. Other
+selected batch jobs (D14F, D17AF, D17AH, D17AI, D17AK, D20H) remain in
+progress as recorded; their current code was committed as work in progress.
+Resume with `/continue-duke-recomp D17AL`.
+
+## 2026-10-29 - D17AE/D17AG scene depth (D17AE user-confirmed)
+
+User clarified the slot-11 fault: the outdoor sign post shows through the
+door header. GP0 and primitive traces show the header (world mesh
+`0x8018e1d4`, farthest-corner slot 105) painted before the post (prop mesh
+`0x8012fc6c`, average slot ~103): native painter order, independent of near
+clipping. Added scene depth in `near_clip.cpp` (`DNTTK_SCENE_DEPTH`) and a
+replay-recorder precedence fix in the framework (`render_replay.c`, patch
+exported and verified). Reverted the earlier world backface-cull removal
+(retail `0x80011020` does NCLIP); kept the FOV-independent guard band.
+The same change fixes the D17AG canopy holes. Evidence, routes and limits in
+[note 322](322-d17ae-ceiling-investigation.md). No commit/push.
+Launch: `python3 recomp/tools/local/run.py`.
+
+## 2026-10-29 - FOV batch progress: D17AF water clip implemented
+
+D17AF implementation complete; contract tests pass. `water_clip.inc` hooks the
+native water FT4 builder at `0x8002bc18` (RA `0x8002fbb4`). Reconstructs tile
+corners from register state, cross-checks against grid records, and emits clipped
+host packets in the native OT slot using painter depth. Opt-in: `DNTTK_WATER_CLIP=1`.
+Gameplay playtest in slot-10 remains. Note: [321-d17af-water-clip.md](321-d17af-water-clip.md).
+
+D14F, D17AE/AG/AH/AI, D20H and D17AK remain in progress per their individual
+notes (316-322). D17AH sky candidate tested and passing; D17AG panelling root
+cause confirmed (native painter-order). No commit/push or acceptance implied for
+any batch job. [note 316](316-fov-renderer-quality.md). Do not infer shared
+causes from FOV alone.
+
+
 ## 2026-10-29 - D38 playable piano accepted and closed
 
 User authorized lock-in and closeout of revision 2: MusicMonsterMod's supplied

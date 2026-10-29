@@ -33,4 +33,6 @@ void near_clip_load_frame_state(const NearClipFrameState& s);
 // Diagnostic counters (world taken, world triangles, object taken, object
 // triangles, mesh fallbacks, budget hits, copy overflows, refused).
 void near_clip_counters(uint64_t out[8]);
+// Water clip diagnostic counters (seen, taken, guard_reject, grid_reject).
+void near_clip_water_counters(uint64_t out[4]);
 }

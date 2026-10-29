@@ -90,7 +90,7 @@ int main(int argc,char** argv) {
 
     // D14D: actual H, including a replay frame's projection, expands only
     // the partial backdrop. Screen-space fill/clip bounds do not depend on H.
-    for(int m:{0,85,192}) for(int hp:{160,191,256,277,386}) {
+    for(int m:{0,85,192}) for(int hp:{92,112,127,128,160,191,256,277,386}) {
         margin=m;projection=hp;reset();run_all();
         const int d=hp<256?hp:256;
         assert(h(matrix)==(3547*(256+m)+d-1)/d);
@@ -100,6 +100,7 @@ int main(int argc,char** argv) {
     }
     // Invalid H and Vanilla retain the accepted aspect-only correction.
     margin=0;projection=0;reset();run_all();assert(untouched());
+    projection=91;reset();run_all();assert(untouched());
     projection=160;modern=false;reset();run_all();assert(untouched());modern=true;
     projection=256;
 

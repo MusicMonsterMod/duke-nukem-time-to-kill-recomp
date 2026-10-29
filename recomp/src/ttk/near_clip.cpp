@@ -38,6 +38,7 @@
 // start, +0x78 OT depth limit. Ordering table 0x800d27a0 (2048 head/tail
 // pairs) and its bitmap 0x800d26a0.
 #include "near_clip.h"
+#include "sky_render.h"
 #include "bio_mask_mesh.h"
 #include "bio_mask_atlas.h"
 #include "pgxp.h"
@@ -77,9 +78,13 @@ const Guard near_guards[]={
 constexpr uint32_t context=0x800d67a8, ordering=0x800d27a0, bitmap=0x800d26a0;
 constexpr uint32_t color_table=0x800c37e4;
 constexpr uint32_t copy_size=0x10000;
-// Guard band (pixels from the projection centre) and near plane. A triangle
-// inside it stays within the GPU's 1023x511 primitive limit.
-constexpr double guard_x=480, guard_y=240, near_z=16;
+// Guard band (angular ratio vx/vz or vy/vz) and near plane. Expressed as a
+// ratio so the threshold is independent of the GTE H register (FOV). The
+// values 3.0 and 1.5 are guard_x/h_native = 480/160 and guard_y/h_native =
+// 240/160, preserving the native-FOV guard exactly while widening it for
+// larger H values (wider FOV). A triangle inside stays within the GPU's
+// 1023x511 primitive limit at any FOV.
+constexpr double guard_xr=3.0, guard_yr=1.5, near_z=16;
 constexpr double split_pixels=96;
 // Pieces sort by their average depth, like the object renderer's AVSZ3.
 // Pieces that span a large depth range are cut further so two surfaces a
@@ -298,7 +303,7 @@ struct Frame {
     bool biomask=false;
     bool trace=false;uint64_t trace_call=0;uint32_t mesh=0,instance=0,caller=0;
     double coverage=1.0;
-    NearGte g;bool object,viewmodel;uint32_t far_limit,zsf3,zsf4;
+    NearGte g;bool object,viewmodel;bool sky=false;uint32_t far_limit,zsf3,zsf4;
     std::vector<NearProjected> verts;unsigned emitted;Stats* stats;
 };
 
@@ -497,8 +502,8 @@ void emit(Frame& f,const Poly& poly,const Vertex* v) {
             // triangles. Keep texture perspective and visible PS1 snapping.
             static const bool depth_fix=env_int("DNTTK_PLANE_DEPTH",1,0,1)!=0;
             const double depth=depth_fix ? near_raster_depth(poly.depth_plane,f.g,x16/65536.0,y16/65536.0,v[i].p[2]) : v[i].p[2];
-            if(f.trace) {trace_raster[i][0]=x16/65536.0;trace_raster[i][1]=y16/65536.0;trace_raster[i][2]=v[i].p[2];trace_raster[i][3]=f.viewmodel?-v[i].p[2]:depth;}
-            psx_mod_gpu_host_vertex_coverage(addr,word,x16,y16,poly.depth_only && !pgxp_mesh_textures()?1.0f:(float)v[i].p[2],poly.textured?(float)std::clamp(v[i].uv[0],0.0,255.0):-1.0f,poly.textured?(float)std::clamp(v[i].uv[1],0.0,255.0):-1.0f,(float)(f.viewmodel?-v[i].p[2]:depth), (float)f.coverage);
+            if(f.trace) {trace_raster[i][0]=x16/65536.0;trace_raster[i][1]=y16/65536.0;trace_raster[i][2]=v[i].p[2];trace_raster[i][3]=(f.viewmodel || f.sky)?-v[i].p[2]:depth;}
+            psx_mod_gpu_host_vertex_coverage(addr,word,x16,y16,poly.depth_only && !pgxp_mesh_textures()?1.0f:(float)v[i].p[2],poly.textured?(float)std::clamp(v[i].uv[0],0.0,255.0):-1.0f,poly.textured?(float)std::clamp(v[i].uv[1],0.0,255.0):-1.0f,(float)((f.viewmodel || f.sky)?-v[i].p[2]:depth), (float)f.coverage);
         }
         ++precise_triangles;
     }
@@ -572,13 +577,14 @@ Vertex edge_cut(const Vertex& a,const Vertex& b,double da,double db) {
     return mid(a,b,da/(da-db));
 }
 // Inside when >= 0: near plane and the four guard-band planes.
-double plane(const Vertex& v,int k,double h) {
+// Guard planes use angular ratios (independent of h/FOV); see guard_xr/guard_yr.
+double plane(const Vertex& v,int k,double /*h*/) {
     switch(k) {
         case 0: return v.p[2]-near_z;
-        case 1: return guard_x*v.p[2]-h*v.p[0];
-        case 2: return guard_x*v.p[2]+h*v.p[0];
-        case 3: return guard_y*v.p[2]-h*v.p[1];
-        default: return guard_y*v.p[2]+h*v.p[1];
+        case 1: return guard_xr*v.p[2]-v.p[0];
+        case 2: return guard_xr*v.p[2]+v.p[0];
+        case 3: return guard_yr*v.p[2]-v.p[1];
+        default: return guard_yr*v.p[2]+v.p[1];
     }
 }
 double det(const double* a,const double* b,const double* c) {
@@ -766,6 +772,73 @@ bool front_facing(const Frame& f,const Poly& poly,uint32_t flags,bool second_tri
     // World quads with 0x400 clear also accept a front-facing (v3,v1,v2).
     return second_triangle && poly.count==4 && !(flags&0x400) && -det(f.verts[poly.idx[3]].view,v1,v2)>0;
 }
+// D17AE/D17AK scene depth. The original has no depth buffer: it paints world
+// faces by their farthest corner and props by their average, so a distant
+// prop can sort in front of a nearer world face (the club's exterior sign
+// post over the door header) and adjacent panels can swap at some angles.
+// Every opaque packet the original draws for a world or scenery mesh is given
+// its corners' view depth through the host-vertex channel, so the depth test
+// resolves real overlap. Packets, ordering slots, UVs and colours stay
+// native. Translucent packets, sprites, sky, water and the first-person
+// layer keep painter order. A mesh's packets are matched by their integer
+// corner positions after it is drawn; ambiguous or unmatched packets keep
+// painter order. DNTTK_SCENE_DEPTH=0 (developer) disables.
+bool scene_depth() {static const bool v=env_int("DNTTK_SCENE_DEPTH",1,0,1)!=0;return v;}
+struct SceneDepthMesh { bool live=false;uint32_t cursor=0;std::vector<NearProjected> verts;std::vector<std::pair<uint32_t,uint16_t>> keys; };
+SceneDepthMesh scene_pending;
+uint64_t scene_depth_meshes,scene_depth_packets,scene_depth_ambiguous,scene_depth_wraps,scene_depth_polygons,scene_depth_unmatched,scene_depth_breaks;
+void scene_depth_flush() {
+    if(!scene_pending.live) return;
+    scene_pending.live=false;
+    const uint32_t from=scene_pending.cursor,to=psx_mod_read_word(context);
+    const uint32_t start=psx_mod_read_word(context+4),end=psx_mod_read_word(context+8);
+    if(to==from) return;
+    if(!(end>start && from>=start && from<end && to>from && to<=end)) {++scene_depth_wraps;return;}
+    const auto& keys=scene_pending.keys;const auto& verts=scene_pending.verts;
+    const bool geometry=pgxp_mesh_geometry(),textures=pgxp_mesh_textures();
+    for(uint32_t p=from,guard=0;p<to && guard<16384;++guard) {
+        const uint32_t n=psx_mod_read_word(p)>>24;
+        if(!n || n>12 || p+4*(n+1)>to) {++scene_depth_breaks;break;}
+        const uint32_t cmd=psx_mod_read_word(p+4),op=cmd>>24;
+        const uint32_t packet=p;p+=4*(n+1);
+        if(op<0x20 || op>0x3f || (op&2)) continue;
+        ++scene_depth_polygons;
+        const bool quad=op&8,textured=op&4,gouraud=op&0x10;
+        const unsigned corners=quad?4:3;
+        if(n!=1+corners*(1+(textured?1:0))+(gouraud?corners-1:0)) continue;
+        uint32_t addr[4];int index[4];bool ok=true;
+        for(unsigned k=0,w=2;k<corners && ok;++k) {
+            if(gouraud && k) ++w;
+            addr[k]=packet+4*w;
+            const uint32_t word=psx_mod_read_word(addr[k]);
+            auto it=std::lower_bound(keys.begin(),keys.end(),std::make_pair(word,(uint16_t)0));
+            if(it==keys.end() || it->first!=word) {ok=false;++scene_depth_unmatched;break;}
+            index[k]=it->second;
+            for(auto j=it+1;j!=keys.end() && j->first==word;++j)
+                if(std::abs(verts[j->second].view[2]-verts[index[k]].view[2])>verts[index[k]].view[2]*0.01) {ok=false;++scene_depth_ambiguous;break;}
+            w+=1+(textured?1:0);
+        }
+        if(!ok) continue;
+        for(unsigned k=0;k<corners;++k) {
+            const NearProjected& v=verts[index[k]];
+            const uint32_t word=psx_mod_read_word(addr[k]);
+            const int32_t x16=geometry?v.x16:(int32_t)(int16_t)word*65536,y16=geometry?v.y16:(int32_t)(int16_t)(word>>16)*65536;
+            psx_mod_gpu_host_vertex_coverage(addr[k],word,x16,y16,textures?(float)v.view[2]:1.0f,-1.0f,-1.0f,(float)v.view[2],1.0f);
+        }
+        ++scene_depth_packets;
+    }
+}
+void scene_depth_begin(const Frame& f) {
+    scene_depth_flush();
+    if(!scene_depth() || !precise() || conservative() || !input_modernized()) return;
+    auto& m=scene_pending;
+    m.verts=f.verts;m.keys.clear();
+    for(size_t i=0;i<f.verts.size();++i)
+        if(f.verts[i].safe && f.verts[i].view[2]>16) m.keys.push_back({f.verts[i].sxy,(uint16_t)i});
+    std::sort(m.keys.begin(),m.keys.end());
+    m.cursor=psx_mod_read_word(context);m.live=!m.keys.empty();
+    scene_depth_meshes+=m.live;
+}
 bool begin(Frame& f,CPUState* cpu,bool object) {
     f.g=read_gte(cpu);f.object=object;f.stats=object?&object_stats:&world_stats;
     f.far_limit=psx_mod_read_word(context+0x78);f.zsf3=(uint32_t)(int32_t)(int16_t)cpu->gte_ctrl[29];last_zsf3=(int32_t)f.zsf3;
@@ -838,6 +911,7 @@ void world(CPUState* cpu) {
         colors[i]=d>0?near_dpcs(f.g,c,(int16_t)d):c;
     }
     trace_vertices(f);
+    scene_depth_begin(f);
     if(!any && !platform_candidate) {trace_record(f,"native_mesh",0);if(!f.trace) return;}
     const uint32_t list=mesh+psx_mod_read_word(mesh+0x18);
     std::vector<Group> groups;std::vector<uint32_t> taken;
@@ -1121,6 +1195,14 @@ void object(CPUState* cpu) {
     const uint32_t vertices=psx_mod_read_word(mesh+0x10),list=psx_mod_read_word(mesh+0x14);
     if(!count || vertices<0x80010000 || vertices>0x801ffff0 || list<0x80010000 || (list>0x801ffff0 && list!=missing_texture_copy+0x20)) return;
     Frame f{};if(!begin(f,cpu,true)) return;
+    // D17AH: native sky layers are composed in painter order, not world depth.
+    // Retain perspective texture coordinates and all clipping/ordering rules.
+    static SkyRenderIdentity sky_identity;
+    const uint32_t sky_ra=cpu->gpr[31];
+    f.sky=env_int("DNTTK_SKY_PAINTER",1,0,1) &&
+        (sky_ra==0x80038c94u || sky_ra==0x80038cf0u ||
+         sky_ra==0x80038da8u || sky_ra==0x80038e44u) &&
+        sky_identity.valid(input_host_frame(),g_dirty_ram_code_gen,g_psx_ram);
     // Keep the accepted display geometry, pose, UVs and depth. Changing only
     // this mesh's projection restores its original apparent size and position
     // at every world FOV. The shared GTE and gameplay matrices are untouched;
@@ -1199,6 +1281,7 @@ void object(CPUState* cpu) {
     double compact_key=0;
     if(static_depth) {for(const auto& v:f.verts) compact_key+=v.sz;compact_key/=count;}
     trace_vertices(f);
+    if(!viewmodel && !body && !f.sky && !limb.fixed_projection()) scene_depth_begin(f); else scene_depth_flush();
     if(!any && !static_top && !ladder) {trace_record(f,"native_mesh",0);if(!f.trace) return;}
     struct Taken {uint32_t record,type;bool depth_only;};
     std::vector<Group> groups;std::vector<Taken> taken;
@@ -1288,6 +1371,8 @@ void object(CPUState* cpu) {
             !(p.command&0x02000000u) && !oversize(f,p.idx,p.count);
         for(unsigned j=0;j<p.count && p.native_order;++j)
             p.native_order=f.verts[p.idx[j]].safe && f.verts[p.idx[j]].sz>=f.g.h;
+        // D17AH diagnostic: keep each sky face's native AVSZ ordering key.
+        if(f.sky && env_int("DNTTK_SKY_SOURCE_ORDER",0,0,1)) p.native_order=true;
         if(depth_only || p.native_order) {
             uint32_t sum=0;for(unsigned j=0;j<p.count;++j) sum+=f.verts[p.idx[j]].sz;
             const int32_t zsf=(int32_t)(p.count==4?f.zsf4:f.zsf3);
@@ -1318,6 +1403,8 @@ void object(CPUState* cpu) {
     if(!viewmodel) rank_coplanar(f,polys);
     for(const auto& p:polys) draw(f,p);
 }
+#include "water_clip.inc"
+
 // Occluder fade. The prop loop (0x80031fa0..0x80032078) makes a prop
 // semi-transparent and dims it by distance when it is nearer than the fade
 // distance (camera+0xa0) and its screen rectangle overlaps Duke's
@@ -1390,6 +1477,9 @@ void world_polygon_fetch(CPUState* cpu,uint32_t address) {
     ++subdivision_whole;
 }
 void near_hook_body(CPUState* cpu,uint32_t address) {
+    // The drawing chain closes after the last mesh: give it its depth.
+    if(address==0x8001fba0u) {scene_depth_flush();return;}
+    if(address==0x8002bc18u) {water_clip(cpu);return;}
     if(address==0x800114ec || address==0x8001160c) {
         if(subdivision_bypass()) world_polygon_fetch(cpu,address);
         return;
@@ -1414,6 +1504,7 @@ void near_hook_body(CPUState* cpu,uint32_t address) {
         // retaining a stale (or initially zero) budget cursor in some views.
         // Redraw workers enter this same boundary with their restored RAM.
         if(cpu->gpr[31]==0x800268f4 && identity()) {
+            scene_pending.live=false;
             region_after_load();
             frame_first_cursor=psx_mod_read_word(context);
             host_frame_reset();
@@ -1455,6 +1546,9 @@ void hook(CPUState* cpu,uint32_t address) {
 void near_clip_counters(uint64_t out[8]) {
     out[0]=world_stats.taken;out[1]=world_stats.triangles;out[2]=object_stats.taken;out[3]=object_stats.triangles;
     out[4]=mesh_fallbacks;out[5]=world_stats.budget_hits+object_stats.budget_hits;out[6]=copy_overflows;out[7]=refused;
+}
+void near_clip_water_counters(uint64_t out[4]) {
+    out[0]=water_seen;out[1]=water_taken;out[2]=water_guard_reject;out[3]=water_grid_reject;
 }
 void near_clip_prepare() {
     (void)guest_copy();(void)host_arena();
@@ -1653,22 +1747,22 @@ uint32_t near_dpcs(const NearGte& g,uint32_t rgbc,int16_t ir0) {
     return out;
 }
 const char* near_clip_debug_json() {
-    static char buffer[1024];
+    static char buffer[1280];
     auto part=[](const Stats& s,char* out,size_t n){
         std::snprintf(out,n,"{\"seen\":%llu,\"taken\":%llu,\"polys\":%llu,\"culled\":%llu,\"triangles\":%llu,\"budget_hits\":%llu}",
             (unsigned long long)s.seen,(unsigned long long)s.taken,(unsigned long long)s.polys,(unsigned long long)s.culled,
             (unsigned long long)s.triangles,(unsigned long long)s.budget_hits);
     };
     char w[192],o[192];part(world_stats,w,sizeof w);part(object_stats,o,sizeof o);
-    std::snprintf(buffer,sizeof buffer,"{\"biomask_draws\":%llu,\"biomask_triangles\":%llu,\"enabled\":%s,\"world\":%s,\"object\":%s,\"refused\":%llu,\"copy_overflows\":%llu,\"duke_skips\":%llu,\"fades_skipped\":%llu,\"fade_tests\":%llu,\"zsf3\":%d,\"arena_size\":%u,\"frame_used_peak\":%u,\"host_bytes_peak\":%u,\"packet_skips\":%llu,\"mesh_fallbacks\":%llu,\"whole_polygons\":%llu,\"subdivided_kept\":%llu,\"viewmodel\":{\"meshes\":%llu,\"packets\":%llu,\"discards\":%llu}}",
-        (unsigned long long)mask_draws,(unsigned long long)mask_triangles,enabled()?"true":"false",w,o,(unsigned long long)refused,(unsigned long long)copy_overflows,(unsigned long long)duke_skips,(unsigned long long)fades_skipped,(unsigned long long)fade_tests,(int)last_zsf3,arena_size,frame_used_peak,host_bytes_peak,(unsigned long long)packet_skips,(unsigned long long)mesh_fallbacks,(unsigned long long)subdivision_whole,(unsigned long long)subdivision_kept,(unsigned long long)viewmodel_meshes,(unsigned long long)viewmodel_packets,(unsigned long long)viewmodel_discards);
+    std::snprintf(buffer,sizeof buffer,"{\"biomask_draws\":%llu,\"biomask_triangles\":%llu,\"enabled\":%s,\"world\":%s,\"object\":%s,\"refused\":%llu,\"copy_overflows\":%llu,\"duke_skips\":%llu,\"fades_skipped\":%llu,\"fade_tests\":%llu,\"zsf3\":%d,\"arena_size\":%u,\"frame_used_peak\":%u,\"host_bytes_peak\":%u,\"packet_skips\":%llu,\"mesh_fallbacks\":%llu,\"whole_polygons\":%llu,\"subdivided_kept\":%llu,\"viewmodel\":{\"meshes\":%llu,\"packets\":%llu,\"discards\":%llu},\"scene_depth\":{\"meshes\":%llu,\"packets\":%llu,\"ambiguous\":%llu,\"wraps\":%llu,\"polygons\":%llu,\"unmatched\":%llu,\"breaks\":%llu}}",
+        (unsigned long long)mask_draws,(unsigned long long)mask_triangles,enabled()?"true":"false",w,o,(unsigned long long)refused,(unsigned long long)copy_overflows,(unsigned long long)duke_skips,(unsigned long long)fades_skipped,(unsigned long long)fade_tests,(int)last_zsf3,arena_size,frame_used_peak,host_bytes_peak,(unsigned long long)packet_skips,(unsigned long long)mesh_fallbacks,(unsigned long long)subdivision_whole,(unsigned long long)subdivision_kept,(unsigned long long)viewmodel_meshes,(unsigned long long)viewmodel_packets,(unsigned long long)viewmodel_discards,(unsigned long long)scene_depth_meshes,(unsigned long long)scene_depth_packets,(unsigned long long)scene_depth_ambiguous,(unsigned long long)scene_depth_wraps,(unsigned long long)scene_depth_polygons,(unsigned long long)scene_depth_unmatched,(unsigned long long)scene_depth_breaks);
     return buffer;
 }
 }
 PSX_MOD_CONSTRUCTOR(register_ttk_near_clip) {
     (void)ttk::host_arena();
     ttk::mask_arena=psx_mod_alloc_gpu_dma_memory(ttk::mask_frame_bytes*ttk::host_regions,16);
-    for(uint32_t address:{0x80010000u,0x80011020u,0x8002ee50u,0x80026164u,0x800114ecu,0x8001160cu})
+    for(uint32_t address:{0x8001fba0u,0x8002bc18u,0x80010000u,0x80011020u,0x8002ee50u,0x80026164u,0x800114ecu,0x8001160cu})
         psx_mod_register_function_entry_plugin("ttk.near.clip",address,ttk::hook);
 }
 

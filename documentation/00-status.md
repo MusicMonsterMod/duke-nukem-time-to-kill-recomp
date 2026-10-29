@@ -1,5 +1,32 @@
 # Current status - 2026-10-04
 
+## 2026-10-29 - Renderer plan agreed; next D17AL
+
+D17AE is user-confirmed. Next, in order: D17AL (payphone regression from
+scene depth), then D17AM1-AM4 (one host geometry path at every distance,
+report-first design, switch, sweep, re-triage). See the job board.
+
+## 2026-10-29 - D17AE/D17AG scene depth (D17AE user-confirmed)
+
+Slot 11's exterior sign post through the door header and slot 6's canopy
+holes are both original painter-order faults. Modernized now gives the
+game's own opaque world/scenery packets true view depth (packets and order
+unchanged; translucent, sprites, sky, water, weapon and Vanilla keep painter
+order). A framework replay fix keeps that depth in 120-FPS in-between images.
+The earlier removal of the world backface cull was reverted (retail world
+renderer uses NCLIP). Build and native suites pass; private 60/120-FPS
+captures verified. User confirmed D17AE in play; D17AG pan playtest and the
+D17AL payphone regression remain. See note 322.
+
+## 2026-10-29 - Selected 90-FOV renderer batch in progress
+
+D14F settings, D17AE/AF/AG/AH/AI fixture faults, D20H load colours and D17AK
+shared sweep are selected and independently tracked. User authorized continuing
+through the batch. Private fixtures and hashes are preserved; no commit/push
+or acceptance is implied. Current evidence and ownership are in
+[note 316](316-fov-renderer-quality.md). Do not infer shared causes from FOV alone.
+
+
 ## 2026-10-29 - D38 playable piano accepted and closed
 
 User authorized lock-in and closeout of revision 2: MusicMonsterMod's supplied
@@ -7795,4 +7822,19 @@ Previous binary `79a3fd5b4cd7eb535d472089e680982516100fc65b1a00c3a5dd546b85ea527
 
 ```sh
 python3 recomp/tools/local/run.py
+```
+
+**D17AF Needs playtest - water tile near-clip implemented.** Water tiles disappear
+at close range because the native water FT4 builder at `0x8002bc18` (RA `0x8002fbb4`)
+is independent of the mesh pipeline; GTE corner saturation causes the rasterizer
+to discard degenerate quads. `recomp/src/ttk/water_clip.inc` hooks the builder,
+reconstructs the four tile corners from register state and cross-checks against
+the grid records, then emits clipped host packets in the native OT slot using
+painter depth. Opt-in: `DNTTK_WATER_CLIP=1`. Contract tests (guard rejections,
+painter-depth takeover, grid mismatch reject, far-tile pass-through) all pass.
+Gameplay playtest in slot-10 remains; promotion to default after validation.
+Details: documentation/321-d17af-water-clip.md.
+
+```sh
+DNTTK_WATER_CLIP=1 python3 recomp/tools/local/run.py
 ```

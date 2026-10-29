@@ -7921,10 +7921,10 @@ index 48319dfd..7acf3ccc 100644
  
 diff --git a/runtime/src/render_replay.c b/runtime/src/render_replay.c
 new file mode 100644
-index 00000000..0666984a
+index 00000000..9516dd23
 --- /dev/null
 +++ b/runtime/src/render_replay.c
-@@ -0,0 +1,364 @@
+@@ -0,0 +1,389 @@
 +/* render_replay.c - presentation-only guest render replay (Time to Kill D17).
 + * See render_replay.h. The MMIO policy below is the whole device contract of
 + * a replay: GP0 and GPU DMA execute synchronously into the (saved) VRAM, reads
@@ -7962,9 +7962,32 @@ index 00000000..0666984a
 +static uint32_t s_rec_cap = 0, s_rec_n = 0, s_rec_run = 0;
 +static int s_rec_overflow = 0;
 +static int s_rec_need_src = 0;
++/* Vertex words a plugin described during this job. The live path prefers a
++ * plugin's host vertex over PGXP metadata; the DMA walk below must not record
++ * PGXP metadata after it for the same word, which would replace it. */
++#define REC_HV_CAP 32768u
++static uint32_t s_rec_hv_addr[REC_HV_CAP], s_rec_hv_word[REC_HV_CAP], s_rec_hv_job[REC_HV_CAP], s_rec_job = 0;
++static inline uint32_t rec_hv_slot(uint32_t addr) { return ((addr >> 2) * 2654435761u) >> 17; }
++static void rec_hv_mark(uint32_t addr, uint32_t word) {
++    addr &= 0x00FFFFFCu;
++    for (uint32_t k = 0, i = rec_hv_slot(addr); k < 16u; k++, i = (i + 1u) & (REC_HV_CAP - 1u)) {
++        if (s_rec_hv_job[i] != s_rec_job || s_rec_hv_addr[i] == addr) {
++            s_rec_hv_job[i] = s_rec_job; s_rec_hv_addr[i] = addr; s_rec_hv_word[i] = word; return;
++        }
++    }
++}
++static int rec_hv_marked(uint32_t addr, uint32_t word) {
++    addr &= 0x00FFFFFCu;
++    for (uint32_t k = 0, i = rec_hv_slot(addr); k < 16u; k++, i = (i + 1u) & (REC_HV_CAP - 1u)) {
++        if (s_rec_hv_job[i] != s_rec_job) return 0;
++        if (s_rec_hv_addr[i] == addr) return s_rec_hv_word[i] == word;
++    }
++    return 0;
++}
 +void render_replay_record_begin(uint32_t *buf, uint32_t cap) {
 +    s_rec = buf; s_rec_cap = cap; s_rec_n = 0; s_rec_run = UINT32_MAX; s_rec_overflow = 0;
 +    s_rec_need_src = 0;
++    if (++s_rec_job == 0) { memset(s_rec_hv_job, 0, sizeof s_rec_hv_job); s_rec_job = 1; }
 +    // Each frozen job starts with a new RAM image, never inherited precision.
 +    if (g_pgxp_mesh_active) pgxp_invalidate_all();
 +}
@@ -7989,6 +8012,7 @@ index 00000000..0666984a
 +    const uint32_t p[9] = { addr, word, (uint32_t)x16, (uint32_t)y16, zb, ub, vb, db, cb };
 +    rec_item(4u, p, 9);
 +    s_rec_need_src = 1;
++    if (depth_z > 0.0f) rec_hv_mark(addr, word);
 +}
 +static void rec_word(uint32_t word) {
 +    if (s_rec_run == UINT32_MAX || (s_rec[s_rec_run] & 0xFFFFFFu) == 0xFFFFFFu) {
@@ -8098,6 +8122,7 @@ index 00000000..0666984a
 +                            const int texture=pgxp_mesh_textures();
 +                            for(int k=0;k<corners;++k) {
 +                                const unsigned index=1+k*step;const uint32_t value=words[index];
++                                if(rec_hv_marked(a+4*index,value)) continue;
 +                                render_replay_record_host_vertex(a+4*index,value,
 +                                    pgxp_mesh_geometry()?x[k]:(int32_t)(int16_t)value*65536,
 +                                    pgxp_mesh_geometry()?y[k]:(int32_t)(int16_t)(value>>16)*65536,

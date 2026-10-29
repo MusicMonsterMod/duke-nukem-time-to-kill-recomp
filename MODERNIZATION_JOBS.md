@@ -1,5 +1,196 @@
 # Time to Kill — modernization jobs
 
+## 2026-10-29 - Renderer plan: one geometry path (agreed order)
+
+User agreed the recommendation after D17AE: stop adding one-off rules at the
+seam between the original painter-order pipeline and the host near-clip
+renderer, and draw all 3D scene geometry through one host path at every
+distance. Do these in order. The game still decides what is drawn (meshes,
+transforms, animation, lighting); only how it reaches the screen changes.
+Sprites, particles, blood, water, sky, weapon, HUD, menus and FMV keep their
+existing handling. Non-renderer backlog continues independently.
+
+### D17AL - Embedded prop contact depth (slot-12 payphone regression) - NEXT
+
+**Status: Todo (next; agreed 2026-10-29). Related: D17AE, D17AC.**
+User slot 12 (new save, 2026-10-29): walking toward the payphone, its front
+unit is missing until close, then pops in. Confirmed caused by D17AE scene
+depth: with `DNTTK_SCENE_DEPTH=0` the unit shows at every step. The payphone
+is embedded about 10-11 units in its wall (D17AC); the original painted it
+over the wall, the host near path (props under 3072) already grants its
+16-unit contact allowance, but scene depth gives distant native packets exact
+depth with no allowance. Fix game-wide: scene-depth prop packets use the same
+contact rules as host prop pieces (`DNTTK_PROP_CONTACT`, the verified phone
+back allowance), so a prop's appearance cannot change at the handover.
+Acceptance: phone stable from far to touching at FOV 64/90/120, 60 and 120
+FPS; slot 11 post and slot 6 canopy stay fixed; props flush with walls do not
+start showing through walls; Vanilla unchanged. Private copy of current UI
+slot 12; old D17AI slot-12 fixture is kept in `recomp/analysis/d17ak/fixtures`.
+
+### D17AM - Unified host geometry path (parent)
+
+**Status: Todo (after D17AL). Related: D17A, D17AE, D17AK, D11B.**
+Goal: every world and prop polygon is drawn by the host at every distance,
+with depth, perspective texturing and the original's clipping/colour/UV
+rules, retiring the 1536/3072 handover and the per-case depth rules that
+exist only because of it. Done when D17AM1-AM4 are done.
+
+#### D17AM1 - Inventory and unified rule design (report first)
+
+**Status: Todo (after D17AL).** Catalogue every current threshold and special
+case in `near_clip.cpp` (perspective_z/object_perspective_z handover, platform
+depth, compact/pickup props, static box tops, ladders, phone back, coplanar
+rank, source order and object bias, warped quads, world subdivision bypass,
+scene depth, sky painter, viewmodel) with what each protects and its
+evidence. Define the single rule set (contact tolerance, decal/coplanar
+order, translucency, sort keys) and measure the cost of full takeover: host
+packet bytes per frame against the 128 KB arena, CPU per frame, 120-FPS worker
+time, on the heaviest fixtures (canal, outdoor town, club). Present for
+approval before implementation.
+
+#### D17AM2 - Implementation behind a developer switch
+
+**Status: Todo (after D17AM1 approval).** Implement the approved path with a
+developer switch to compare against the current renderer. Resize/restructure
+the host packet budget safely (savestate-carried mod memory, D20C region
+rules), keep replay precedence and stale-entry rules, and keep the
+first-person, Bio Mask, sky and water layers unchanged.
+
+#### D17AM3 - Regression sweep and default switch
+
+**Status: Todo (after D17AM2).** All private fixtures and level-select levels:
+static, walk and turn routes at FOV 64/90/120, 60 and 120 FPS, 16:9 and 4:3;
+embedded props, decals, blood, coplanar floors, ladders/platforms, pickups,
+actors. Performance within D23 budgets. Then make it the Modernized default
+and remove superseded special cases. Vanilla unchanged.
+
+#### D17AM4 - Re-triage the remaining renderer batch
+
+**Status: Todo (after D17AM3).** Re-test D17AF (water), D17AH (sky), D17AI
+(slot-12 wall near cube, old fixture copy), D20H and D17AK against the unified
+path; close what it fixes and keep only genuine effect/sky/water bugs.
+
+## 2026-10-29 - 90 FOV baseline and renderer investigations
+
+User selected this batch for implementation and investigation. Jobs are independently
+tracked; cross-job links are coordination relationships, not evidence of shared
+causes or prerequisites preventing reproduction. No acceptance or commit/push
+closeout is implied. Evidence: [batch note 316](documentation/316-fov-renderer-quality.md).
+
+### D14F - 90-degree default and 120-degree maximum world FOV
+
+**Status: In progress (selected 2026-10-29). Related: D14A, D14B, D19X.**
+Inspect and retain the existing FOV convention. Fresh/unset defaults become 90; explicit saved preferences survive. Retain minimum; update slider, validation, persistence and descriptions. Preserve fixed weapon/hand presentation.
+
+Reproduction/fixture: pending inventory. Cause: unconfirmed. Changes: none at
+registration. Validation: pending. Remaining: reproduction, diagnosis, correction
+and appropriate visual/regression evidence; preserve player originals.
+
+### D17AE - Slot-11 ceiling artifact above door
+
+**Status: Done (user-confirmed 2026-10-29; follow-up D17AL). Related: D14F, D17AG, D17AK.**
+Private copy of current UI slot 11; walk backward/forward at 90. Identify ceiling geometry/render operation; stable ceiling without missing or incorrectly visible adjacent geometry.
+
+User symptom (2026-10-29, re-created as a brand-new-game save in slot 11):
+the outdoor sign's support post shows through the top of the doorframe
+(research/screencaps/flickering.mp4). Cause: native painter order. The header
+is a world face sorted by its farthest corner (slot 105); the post is a prop
+sorted by its average depth (slot ~103), so it paints over the nearer header.
+Reproduced with host near clipping disabled and in native captures.
+
+Changes:
+
+1. Scene depth (`near_clip.cpp`, `DNTTK_SCENE_DEPTH`, default on in
+Modernized). After each world/scenery mesh draws, its own opaque ring packets
+are matched to its projected corners and given true view depth through the
+host-vertex channel; the drawing-chain close (`0x8001fba0`) flushes the last
+mesh. Packets, ordering slots, UVs and colours are unchanged. Translucent
+packets, sprites, sky, water, the first-person layer and Vanilla keep painter
+order.
+2. Framework (`render_replay.c`): replay workers no longer let later PGXP
+metadata replace a plugin's host depth for the same vertex word, matching the
+live path's precedence. Without this, 120-FPS in-between images still showed
+the post. Patch exported and verified (55 files match the clean pin).
+3. Reverted Sonnet's removal of the world backface cull: the retail world
+renderer does call NCLIP (`0x800115e4`, `0x80011734`, `0x80011764`,
+`0x80011788`). The FOV-independent guard band is kept; with it, the original
+void route and the new save show an intact ceiling.
+
+Validation: post hidden in every capture at FOV default/60/90/120, 60 and
+120 FPS, standing and walking (16-frame rocks, 8-step walks); new
+`ttk-near-test` contract plus near, controls, input, aim, gas, loading and
+live-env suites pass; 120-FPS replay 0 misses/failures, about 5% more worker
+time. Same change fixes D17AG. User confirmed the slot-11 fix in play
+(2026-10-29). Known regression: embedded payphone, tracked as D17AL.
+See `documentation/322-d17ae-ceiling-investigation.md`.
+
+### D17AF - Latest slot-10 ground water disappears
+
+**Status: Needs playtest (selected 2026-10-29). Related: D14F, D17AK.**
+Preserve latest resaved UI slot 10 without distracting blood. Slow backward/forward movement; distinguish visibility, clipping, depth, transparency and texture state. Correct water/surrounding surface relationships throughout.
+
+Cause: GTE corner saturation on close water tiles; native water FT4 builder at
+`0x8002bc18` / RA `0x8002fbb4` is independent of the mesh pipeline, so ordinary
+near-clip did not intercept it. Changes: `water_clip.inc` added; hooked in
+`near_clip.cpp` at line 1406. Contract tests passing (all groups). Opt-in via
+`DNTTK_WATER_CLIP=1` pending gameplay validation. Remaining: gameplay verify in
+slot-10, regression check in other water levels, promote from opt-in to default
+after validation. Note 321: [documentation/321-d17af-water-clip.md](documentation/321-d17af-water-clip.md).
+
+### D20H - Slot-5 intermittent extreme colour corruption on load
+
+**Status: In progress (selected 2026-10-29). Related: D20C, D37A.**
+Private current UI slot 5, repeated loads and screencaps/crazy-colors.png. Record attempts/outcomes and transient versus persistent corruption; inspect restore/resource/state lifecycle independently until a shared cause is proven.
+
+Reproduction/fixture: pending inventory. Cause: unconfirmed. Changes: none at
+registration. Validation: pending. Remaining: reproduction, diagnosis, correction
+and appropriate visual/regression evidence; preserve player originals.
+
+### D17AG - Slot-6 holes in wooden panelling
+
+**Status: Needs playtest (selected 2026-10-29). Related: D14F, D17AE, D17AK.**
+Private current UI slot 6; pan left/right at panelling above caravan/crate. Continuous correct visibility without revealing hidden surfaces.
+
+Cause: native painter order (note 320). Fixed by the D17AE scene-depth change:
+at the slot-6 load view the canopy holes present with `DNTTK_SCENE_DEPTH=0`
+are gone at FOV 64, 90 and 120, 60 and 120 FPS. Turn sweeps across slots
+5/6/8/10/12 show no new artifacts. Remaining: user pan playtest. See note 322.
+
+### D17AH - Slot-8 sky glitching and popping
+
+**Status: In progress (selected 2026-10-29). Related: D14D, D17AK.**
+Private current UI slot 8; move/rotate. Inspect previous sky fixes and assumptions first. Stable sky plus representative other sky variants and regression checks.
+
+Reproduction/fixture: pending inventory. Cause: unconfirmed. Changes: none at
+registration. Validation: pending. Remaining: reproduction, diagnosis, correction
+and appropriate visual/regression evidence; preserve player originals.
+
+### D17AI - Slot-12 wall near pushable cube disappears
+
+**Status: In progress (selected 2026-10-29). Related: D17Z, D17AA, D17AK.**
+Private current UI slot 12; backward/forward movement. Stable wall with correct cube and surrounding depth/visibility.
+
+Reproduction/fixture: pending inventory. Cause: unconfirmed. Changes: none at
+registration. Validation: pending. Remaining: reproduction, diagnosis, correction
+and appropriate visual/regression evidence; preserve player originals.
+
+### D17AK - Shared renderer investigation and FOV quality sweep
+
+**Status: In progress (selected 2026-10-29). Related: D14A, D14B, D14D.**
+Cycle available private saves; capture and trace seams/missing surfaces/popping. Establish shared causes from evidence only, coordinate shared renderer edits, prefer principled minimal corrections. Replacement renderer is outside scope.
+
+Reproduction/fixture: pending inventory. Cause: unconfirmed. Changes: none at
+registration. Validation: pending. Remaining: reproduction, diagnosis, correction
+and appropriate visual/regression evidence; preserve player originals.
+
+Shared acceptance: previous code/config default, 90 and 120 FOV; intermediate
+thresholds as needed. Projection/viewport changes require primary and contrasting
+supported aspects. Preserve weapons/hands, HUD/menus, occlusion/transparency/sky,
+save compatibility, Vanilla and accepted 120-Hz gameplay. Record exact fixtures,
+attempt counts, comparable captures, automated and live results separately.
+Unavailable fixtures and unreproduced symptoms remain explicit limitations.
+
+
 
 ### D38 - Play the piano with E
 
@@ -961,6 +1152,20 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 
 | ID | Job | Status | Depends on |
 | --- | --- | --- | --- |
+| D17AL | Embedded prop contact depth (slot-12 payphone regression) | Todo (next) | D17AE |
+| D17AM | Unified host geometry path (parent) | Todo | D17AL, D17AM1-AM4 |
+| D17AM1 | Unified geometry: inventory and rule design (report first) | Todo | D17AL |
+| D17AM2 | Unified geometry: implementation behind a developer switch | Todo | D17AM1 approval |
+| D17AM3 | Unified geometry: regression sweep and default switch | Todo | D17AM2 |
+| D17AM4 | Re-triage D17AF/AH/AI/AK and D20H against the unified path | Todo | D17AM3 |
+| D14F | 90-default / 120-maximum world FOV | In progress | Selected batch; see intake above |
+| D17AE | Slot-11 sign post through door header | Done (user-confirmed 2026-10-29) | Scene depth for native world/scenery packets; replay precedence fix; world backface cull restored |
+| D17AF | Latest slot-10 ground water visibility | In progress | Selected batch; see intake above |
+| D20H | Slot-5 intermittent colour corruption on load | In progress | Selected batch; see intake above |
+| D17AG | Slot-6 wooden panelling holes | Needs playtest | Fixed by D17AE scene depth |
+| D17AH | Slot-8 sky glitching and popping | In progress | Selected batch; see intake above |
+| D17AI | Slot-12 wall near pushable cube | In progress | Selected batch; see intake above |
+| D17AK | Shared renderer FOV quality sweep | In progress | Selected batch; see intake above |
 | D01 | Establish the Vanilla regression route | Done | — |
 | D02 | Persistent Vanilla / Modernized profiles | Done | D01 |
 | D03 | Player, camera and aiming state research | Done | D01 |

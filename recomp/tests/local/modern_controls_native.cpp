@@ -869,6 +869,29 @@ int main(int argc,char** argv) {
                     assert(psx_mod_read_byte(floor+4)==0xfe);
                     psx_mod_write_half(p+0x60,63);psx_mod_write_word(object+4,uint32_t(-61958));
                     assert(!ttk::push_contact_ready());refused();
+                    // D08T10: LEVEL01 box after pulling onto a no-grab floor.
+                    std::ifstream level1(std::string(argv[4])+"/LEVEL01.OVR",std::ios::binary);
+                    level1.read((char*)ram+0xca968,12196);assert(level1.gcount()==12196);++g_dirty_ram_code_gen;
+                    psx_mod_write_half(object+0x2c,271);psx_mod_write_word(table+28*271,0x083090e2);
+                    psx_mod_write_word(object+4,31229);psx_mod_write_word(object+8,uint32_t(-510));
+                    psx_mod_write_half(object+0x1c,0);
+                    for(int z:{-2552,-4202,-6000})for(unsigned yaw:{0u,2048u}) {
+                        psx_mod_write_word(object+12,uint32_t(z));psx_mod_write_half(p+0x24,yaw);
+                        psx_mod_write_half(p+0x60,63);assert(ttk::push_contact_ready());
+                        acquire();assert(psx_mod_read_half(p+0x60)==121);
+                        assert(psx_mod_read_byte(floor+4)==0xfe);
+                    }
+                    psx_mod_write_half(p+0x60,63);psx_mod_write_half(p+0x24,1024);refused();
+                    psx_mod_write_half(p+0x24,0);
+                    hull_ray_hit=1;refused();hull_ray_hit=0;
+                    lookahead_drop=512;refused();lookahead_drop=0;
+                    lineup_ok=0;refused();lineup_ok=1;
+                    ttk::modern=false;refused();ttk::modern=true;
+                    psx_mod_write_word(object+4,31230);assert(!ttk::push_contact_ready());refused();
+                    psx_mod_write_word(object+4,31229);psx_mod_write_word(object+8,uint32_t(-509));assert(!ttk::push_contact_ready());
+                    psx_mod_write_word(object+8,uint32_t(-510));psx_mod_write_half(object+0x1c,1);assert(!ttk::push_contact_ready());
+                    psx_mod_write_half(object+0x2c,165);
+                    std::puts("PASS: D08T10 repeat box acquisition, both facings, support/wall/axis/profile/placement refusal");
                     std::copy(overlay.begin(),overlay.end(),ram+0xca968);++g_dirty_ram_code_gen;
                     std::puts("PASS: D08T9 Z-lane boundary/midpoint acquisition, both facings, axis/support/wall/profile/placement refusal");
                 }
@@ -1632,6 +1655,11 @@ int main(int argc,char** argv) {
                     psx_mod_write_word(object+12,uint32_t(z));assert(ttk::push_contact_ready()==(level.number==5));
                 }
                 psx_mod_write_word(object+4,uint32_t(-61958));assert(!ttk::push_contact_ready());
+                psx_mod_write_word(table+28*271,0x083090e2);psx_mod_write_half(object+0x2c,271);
+                psx_mod_write_word(object+4,31229);psx_mod_write_word(object+8,uint32_t(-510));psx_mod_write_half(object+0x1c,0);
+                for(int z:{-2552,-4202,-6000}) {
+                    psx_mod_write_word(object+12,uint32_t(z));assert(ttk::push_contact_ready()==(level.number==1));
+                }
                 psx_mod_write_word(0x800d2660,old_table);psx_mod_write_word(p+0x174,old_contact);psx_mod_write_word(p+0x48,old_floor);
             }
             previous_tag=tag;

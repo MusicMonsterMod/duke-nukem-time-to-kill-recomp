@@ -1,6 +1,18 @@
 # Time to Kill — modernization jobs
 
 
+### D08T10 - Slot-5 box repeat grab after pulling
+
+**Status: Done (user-accepted; closeout authorized 2026-10-29). Dependencies: D08T3, D08T7, D08T9 (Done).** Selected
+2026-10-29. User reports the current slot-5 box can be pulled back once, then
+cannot be grabbed again. Investigate private copies and distinguish floor
+acquisition permission from contact, alignment and supported travel. Extend
+verified placement eligibility if justified, retaining collision/support,
+fixed scenery, existing lanes, first/third-person policy and Vanilla.
+Acceptance: reproduce the failure, repeat release/reapproach/grab and reverse
+at the affected position, verify a fresh private boundary reload, run native
+regressions and obtain user gameplay acceptance. Player saves remain untouched.
+
 ### D35I1 - Climb down from a climbing-wall top (slot 7)
 
 **Status: Done (user-accepted; closeout authorized 2026-10-28).** Selected 2026-10-28. User reports no climb-down
@@ -1053,6 +1065,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08T6 | Push/pull ownership and lock-zone investigation (recent slots) | Done | D08T3, D08T4, D08T5 |
 | D08T7 | Regrab movable objects throughout their permitted travel lane | Done (user-accepted 2026-10-24) | D08T6 |
 | D08T8 | Apartment alley platform mantle stalls: W cannot climb, Space cannot drop | Done | D08V, D08X, D08T3 |
+| D08T10 | Slot-5 box repeat grab after pulling | Done (user-accepted 2026-10-29) | D08T3, D08T7, D08T9 |
 | D08T9 | Level-5 dumpster cannot be pushed again after first push (slot 8, bug 2) | Done | D08T3, D08T7 |
 | D08T4 | Save slot 10 dumpster: the grab prompt shows but it will not move; find out whether it is meant to be fixed (Vanilla check) | Done (user-accepted 2026-10-20; fixed by design, no prompt there now) | D08T2 |
 | D08V | Sewer mantle/hang modern-control coverage (slot 12 area) | Done | D08, D08B |
@@ -23595,3 +23608,53 @@ the already-accepted D19X/D19Y camera sliders. Existing native, Python and
 private runtime evidence stands; no post-acceptance gameplay change or launch.
 Note 314 retains the intermediate reload stalls and their unproven cause.
 Commit/push as MusicMonsterMod authorized. No next job selected.
+
+
+## 2026-10-29 - D08T10 slot-5 repeat-grab candidate
+
+Private current slot 5 reproduces LEVEL01 (authenticated tag 4), type-271 box
+at (31229,-510,-2552), yaw 0. Pulling to Z -4202 crosses Duke onto a floor
+whose byte-4 grab bit is clear. Release/reapproach still contacts the box,
+but the baseline remains armed/idle 63 instead of grabbing. The cause is
+acquisition permission, not an inability to reverse while holding it.
+
+Added this verified Z lane to `push.inc`'s existing placement table. Identity
+uses overlay, type, fixed X, height and yaw; no save slot/address/prior-grab
+latch. Original alignment, stationary support/clearance, collision and manual
+travel remain unchanged. Floor records are not edited. Vanilla remains gated out.
+
+Build and controls/input/aim native suites pass. Added acquisition tests cover
+both facings, several Z positions, wrong axis/height/cross-position/yaw,
+line-up/wall/support refusal, Vanilla and eligibility across all 21 authenticated
+overlays. Existing dumpster/symbol-lane and fixed-scenery assertions pass.
+
+Private real-input Xvfb/OpenGL evidence: `recomp/analysis/d08t10/`.
+`baseline.json` records the failure. `candidate60.json` establishes repeated
+release/regrab, signed push/pull and private reload in third person; its final
+stop assertion was invalid because ten seconds had not reached the end of this
+long lane. Retained as a failed route, not a passing limit check.
+`candidate120.json` uses first person and 120 FPS, finds the stop near Z -20613,
+asserts no further travel, releases/regrabs and retreats, and passes pause/resume,
+neutral hold and reload at the affected floor. Snapshot timings are not a speed
+benchmark. `candidate120-final.png` records the final scene.
+
+All intake player save/card file hashes and mtimes are unchanged. No framework,
+generated-code, media or player-setting edits. No commit/push or acceptance
+closeout. Broader campaign placements, opposite-face live approach and sound
+quality remain unverified; native tests cover opposite facing. User playtest
+is pending. Load current slot 5, pull, release, walk back into contact and grab
+again; repeat W/S travel. Launch: `python3 recomp/tools/local/run.py`.
+
+
+## 2026-10-29 - D08T10 accepted and closed
+
+User: "lock it in and close us out! great work". D08T10 is Done. The verified
+LEVEL01 box retains grab permission throughout its supported Z travel lane.
+Implementation, native regressions and manual are included in the authorized
+MusicMonsterMod commit/push closeout. The candidate work log above retains
+its evidence and coverage limits, including the invalid 60-FPS route's stop
+assumption; the 120-FPS first-person limit/retreat route passed. No gameplay
+change, rebuild or launch after acceptance. Player files remain untouched.
+Framework export is unchanged; all 55 changed/new files match after applying
+the patch to the clean pinned dependency. No next job selected.
+Launch: `python3 recomp/tools/local/run.py`.

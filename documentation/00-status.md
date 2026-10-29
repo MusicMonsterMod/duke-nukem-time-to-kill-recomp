@@ -1,6 +1,26 @@
 # Current status - 2026-10-04
 
 
+## 2026-10-29 - D08T10 slot-5 box repeat grab accepted and closed
+
+User: "lock it in and close us out! great work". D08T10 is Done, with
+implementation, documentation, commit and push closeout authorized. Pulling
+the LEVEL01 type-271 box crossed Duke onto a floor that forbids fresh grabs.
+Its verified Z lane now uses the existing guarded acquisition extension;
+original alignment, support/collision, manual travel and Vanilla are preserved.
+
+Build and controls/input/aim suites passed. Private third-person 60-FPS routes
+verified repeated grabs, signed travel and affected-floor reload; their final
+limit assertion was invalid because the box had not reached the end. The
+first-person 120-FPS route passed repeated grabs, reload, held stop near
+Z -20613, release/regrab/retreat and pause/resume. Full evidence and remaining
+campaign/opposite-face live/sound limits are in the D08T10 job-board work log.
+All 40 intake player files retain hashes/mtimes. No rebuild or launch after
+acceptance. Framework export is unchanged and all 55 files match the clean
+pinned dependency after patch application. No next job selected.
+Launch: `python3 recomp/tools/local/run.py`.
+
+
 ## 2026-10-28 - HUD levels and camera sliders accepted and closed
 
 User: "lock it in, close it out!" D19U/D19U1 are Done; D19X/D19Y were already

@@ -52,7 +52,7 @@ static bool push_floor_allows() {
     const uint32_t floor=psx_mod_read_word(player+0x48);
     return floor>=0x80010000u && floor<0x80200000u-4 && (psx_mod_read_byte(floor+4)&1);
 }
-// D08T7/D08T9: authored mobility for verified travel lanes. Position along
+// D08T7/D08T9/D08T10: authored mobility for verified travel lanes. Position along
 // the lane is deliberately not identity: a loaded boundary save must work on
 // its first grab. Overlay + type + lane/rotation distinguish fixed scenery,
 // including LEVEL05's otherwise identical dumpster. No floor bits are changed.
@@ -63,6 +63,7 @@ static constexpr PushLane push_lanes[]={
     {9,924,5632,33268,3072}, // LEVEL06 symbol blocks, recent slots 9-11
     {9,924,5632,32244,3072},
     {9,924,5632,30196,3072},
+    {4,271,-510,31229,0,true}, // D08T10: LEVEL01 box, Z travel
     {8,165,-9728,-61959,1023,true}, // LEVEL05 movable dumpster, Z travel
 };
 static const PushLane* push_lane(uint32_t object) {

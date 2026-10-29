@@ -1,5 +1,34 @@
 # Next-session handoff
 
+## 2026-10-29 - D17AM2 closed; next D17AM3
+
+D17AM2 (unified geometry behind `DNTTK_UNIFIED_GEOMETRY=1`, note 325) and
+D19AA (Tab fast-forward removed) are Done and committed. User playtest: stable;
+slot 12 panel fixed by world coplanar ranking. Next: D17AM3 - sweep the private
+fixtures (D17AK set, D17AL slots, `recomp/analysis/d17am2-play/fixture`) and
+level-select levels with `recomp/analysis/d17am1/measure.py` (MODE base/unified,
+SLOT, FOV, RATE, VIEW, WIDE=off for 4:3, MASK, LOOK, WALK, STATIC_ONLY, CARDS),
+make unified the Modernized default, then remove superseded special cases.
+Then D17AM4 (D17AF water with the new slot 10 save, D17AH, D17AI, D17AK, D20H).
+Run `ttk-near-test` with and without the switch after every change.
+
+## 2026-10-29 - D17AM2 unified geometry candidate (Needs playtest)
+
+D17AM1 approved as recommended. D17AM2 implemented in `near_clip.cpp` behind
+`DNTTK_UNIFIED_GEOMETRY=1` (note 325). Also for both renderers: wide-FOV guard
+band fix (FOV 120 margins). Contracts: run `ttk-near-test` both with and
+without the switch. Debug JSON `near.measure` carries demand, downgrades and
+fallbacks by owner. Next: user playtest with the switch, then D17AM3.
+
+## 2026-10-29 - D17AM1 report awaiting review
+
+Inventory, unified rule set and full-takeover cost are in note 324. Developer
+measurement switch `DNTTK_NEAR_TAKEOVER=all` / `DNTTK_NEAR_MEASURE=1` added to
+`near_clip.cpp` (default off). Canal and Western street exceed one 128 KB host
+region under full takeover; the GPU DMA aperture is full, so D17AM2's budget
+plan (one packet per quad, Bio Mask arena into host regions) needs approval
+first, with the four listed decisions. Probe: `recomp/analysis/d17am1/measure.py`.
+
 ## 2026-10-29 - D17AL closed; next D17AM1
 
 User accepted D17AL (note 323) and authorized commit/push. Scene-depth prop

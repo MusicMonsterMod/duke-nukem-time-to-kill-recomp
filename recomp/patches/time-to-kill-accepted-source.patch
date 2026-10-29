@@ -4616,10 +4616,10 @@ index d0d9eb72..64615ab1 100644
                 !s_gte_replay_sandbox && s_speculative_depth == 0) {
          s_nclip_fallbacks++;
 diff --git a/runtime/src/host_keymap.c b/runtime/src/host_keymap.c
-index 5f66e0a9..470da031 100644
+index 5f66e0a9..b8b8c751 100644
 --- a/runtime/src/host_keymap.c
 +++ b/runtime/src/host_keymap.c
-@@ -80,8 +80,9 @@ static void add_bind(HostKeymapAction action, int keycode, int scancode, int mod
+@@ -80,17 +80,20 @@ static void add_bind(HostKeymapAction action, int keycode, int scancode, int mod
  
  static void apply_defaults(void) {
      if (s_actions[HOST_KEYMAP_FULLSCREEN].count == 0) {
@@ -4629,9 +4629,12 @@ index 5f66e0a9..470da031 100644
 +         * stay free; config.ini [KeyMap] Fullscreen can still rebind it. */
 +        add_bind(HOST_KEYMAP_FULLSCREEN, (int)SDLK_F11, (int)SDL_SCANCODE_F11, 0);
      }
-     if (s_actions[HOST_KEYMAP_TURBO].count == 0)
-         add_bind(HOST_KEYMAP_TURBO, (int)SDLK_TAB, (int)SDL_SCANCODE_TAB, 0);
-@@ -89,8 +90,9 @@ static void apply_defaults(void) {
+-    if (s_actions[HOST_KEYMAP_TURBO].count == 0)
+-        add_bind(HOST_KEYMAP_TURBO, (int)SDLK_TAB, (int)SDL_SCANCODE_TAB, 0);
++    /* Time to Kill: no fast-forward key by default (the player's choice,
++     * 2026-10-29); Tab is kept free for a future game action. config.ini
++     * [KeyMap] Turbo can still bind one. */
+     if (s_actions[HOST_KEYMAP_VOLUME_UP].count == 0)
          add_bind(HOST_KEYMAP_VOLUME_UP, (int)SDLK_KP_PLUS, (int)SDL_SCANCODE_KP_PLUS, 0);
      if (s_actions[HOST_KEYMAP_VOLUME_DOWN].count == 0)
          add_bind(HOST_KEYMAP_VOLUME_DOWN, (int)SDLK_KP_MINUS, (int)SDL_SCANCODE_KP_MINUS, 0);
@@ -4643,7 +4646,7 @@ index 5f66e0a9..470da031 100644
  #if defined(PSX_HAS_RBENGINE_SNAP)
      if (s_actions[HOST_KEYMAP_REWIND].count == 0)
          add_bind(HOST_KEYMAP_REWIND, (int)SDLK_F8, (int)SDL_SCANCODE_F8, 0);
-@@ -213,10 +215,18 @@ void host_keymap_load(const char *config_ini_path) {
+@@ -213,10 +216,18 @@ void host_keymap_load(const char *config_ini_path) {
      apply_defaults();
  }
  
@@ -4663,7 +4666,7 @@ index 5f66e0a9..470da031 100644
      int i;
      if (action < 0 || action >= HOST_KEYMAP_ACTION_COUNT) return 0;
      a = &s_actions[action];
-@@ -224,7 +234,7 @@ int host_keymap_match_event(HostKeymapAction action, int keycode,
+@@ -224,7 +235,7 @@ int host_keymap_match_event(HostKeymapAction action, int keycode,
          if (a->binds[i].keycode != keycode &&
              (scancode <= 0 || a->binds[i].scancode != scancode))
              continue;
@@ -4672,7 +4675,7 @@ index 5f66e0a9..470da031 100644
      }
      return 0;
  }
-@@ -235,7 +245,6 @@ int host_keymap_match(HostKeymapAction action, int keycode, int mod) {
+@@ -235,7 +246,6 @@ int host_keymap_match(HostKeymapAction action, int keycode, int mod) {
  
  int host_keymap_down(HostKeymapAction action, const uint8_t *keys, int mod) {
      const HostKeyAction *a;
@@ -4680,7 +4683,7 @@ index 5f66e0a9..470da031 100644
      int i;
      if (!keys || action < 0 || action >= HOST_KEYMAP_ACTION_COUNT) return 0;
      a = &s_actions[action];
-@@ -243,7 +252,7 @@ int host_keymap_down(HostKeymapAction action, const uint8_t *keys, int mod) {
+@@ -243,7 +253,7 @@ int host_keymap_down(HostKeymapAction action, const uint8_t *keys, int mod) {
          const int sc = a->binds[i].scancode;
          if (sc <= 0 || sc >= SDL_NUM_SCANCODES) continue;
          if (!keys[sc]) continue;

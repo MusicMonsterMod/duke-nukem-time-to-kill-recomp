@@ -1,5 +1,24 @@
 # Current status - 2026-10-04
 
+## 2026-10-29 - D17AM2 accepted; Tab fast-forward removed
+
+Unified geometry (developer switch) accepted after a live playtest; the slot 12
+panel flicker is fixed. Tab no longer fast-forwards. Next: D17AM3.
+
+## 2026-10-29 - D17AM2 unified geometry behind a developer switch (Needs playtest)
+
+All world/prop/actor geometry can be drawn by the host at every distance with
+`DNTTK_UNIFIED_GEOMETRY=1`; Modernized default unchanged. Matches the current
+renderer within 0.05% of pixels on static fixtures; heaviest routes fit the
+merged budget with no skipped packets or replay failures. FOV 120 margin fix
+applies to both renderers. See note 325.
+
+## 2026-10-29 - D17AM1 unified geometry report (awaiting review)
+
+Report only: inventory of near-path rules, proposed single rule set, and
+measured full-takeover cost on canal, Western street/canopy and club fixtures.
+No renderer behaviour change; developer measurement switch only. See note 324.
+
 ## 2026-10-29 - D17AL payphone fixed (user-accepted)
 
 Scene-depth prop packets now share the host prop contact allowance, so the

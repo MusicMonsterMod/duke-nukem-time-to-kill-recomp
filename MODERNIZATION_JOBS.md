@@ -46,7 +46,7 @@ exist only because of it. Done when D17AM1-AM4 are done.
 
 #### D17AM1 - Inventory and unified rule design (report first)
 
-**Status: Todo (next).** Catalogue every current threshold and special
+**Status: Done (user-approved 2026-10-29: "go entirely with your recommendation, end to end"; [note 324](documentation/324-d17am1-unified-geometry-design.md)).** Catalogue every current threshold and special
 case in `near_clip.cpp` (perspective_z/object_perspective_z handover, platform
 depth, compact/pickup props, static box tops, ladders, phone back, coplanar
 rank, source order and object bias, warped quads, world subdivision bypass,
@@ -59,7 +59,7 @@ approval before implementation.
 
 #### D17AM2 - Implementation behind a developer switch
 
-**Status: Todo (after D17AM1 approval).** Implement the approved path with a
+**Status: Done (user-accepted 2026-10-29; [note 325](documentation/325-d17am2-unified-geometry.md); developer switch `DNTTK_UNIFIED_GEOMETRY=1`).** Implement the approved path with a
 developer switch to compare against the current renderer. Resize/restructure
 the host packet budget safely (savestate-carried mod memory, D20C region
 rules), keep replay precedence and stale-entry rules, and keep the
@@ -67,7 +67,7 @@ first-person, Bio Mask, sky and water layers unchanged.
 
 #### D17AM3 - Regression sweep and default switch
 
-**Status: Todo (after D17AM2).** All private fixtures and level-select levels:
+**Status: Todo (next; D17AM2 Done).** All private fixtures and level-select levels:
 static, walk and turn routes at FOV 64/90/120, 60 and 120 FPS, 16:9 and 4:3;
 embedded props, decals, blood, coplanar floors, ladders/platforms, pickups,
 actors. Performance within D23 budgets. Then make it the Modernized default
@@ -1163,8 +1163,8 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | --- | --- | --- | --- |
 | D17AL | Embedded prop contact depth (slot-12 payphone regression) | Done | D17AE |
 | D17AM | Unified host geometry path (parent) | Todo | D17AL, D17AM1-AM4 |
-| D17AM1 | Unified geometry: inventory and rule design (report first) | Todo | D17AL |
-| D17AM2 | Unified geometry: implementation behind a developer switch | Todo | D17AM1 approval |
+| D17AM1 | Unified geometry: inventory and rule design (report first) | Done | D17AL |
+| D17AM2 | Unified geometry: implementation behind a developer switch | Done | D17AM1 approval |
 | D17AM3 | Unified geometry: regression sweep and default switch | Todo | D17AM2 |
 | D17AM4 | Re-triage D17AF/AH/AI/AK and D20H against the unified path | Todo | D17AM3 |
 | D14F | 90-default / 120-maximum world FOV | In progress | Selected batch; see intake above |
@@ -1399,6 +1399,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D19T1 | DELETE SAVED GAME: shows the slot's name without quotes (cleaner; D19T quotes stay available) | Done (user-accepted 2026-10-21) | D19S, D19T |
 | D19X | First-person FOV slider after View Bob in Gameplay | Done (user-accepted) | D14A, D19G, D19N |
 | D19Y | Third-person Camera Distance slider in Gameplay | Done (user-accepted) | D19G, D19N |
+| D19AA | Remove the Tab fast-forward key (Tab reserved for a future game action) | Done | - |
 | D19Z | Full mouse support for menu UI | Todo (backlog only) | D19; closeout includes D19Z1/Z3 |
 | D19Z1 | Top-left menu Back icon and control | Todo (backlog only) | D19Z core pointer support |
 | D19Z2 | Design a Time to Kill mouse cursor | Todo (backlog only) | - |
@@ -24025,3 +24026,110 @@ acceptance; implementation, tests and documentation commit/push are
 authorized as MusicMonsterMod. Evidence and limits remain in
 [note 323](documentation/323-d17al-prop-contact-depth.md). D17AM1 is next.
 No next job started.
+
+## 2026-10-29 - D17AM1 report delivered (awaiting review)
+
+Selected D17AM1. Catalogued every threshold and special case in
+`near_clip.cpp` with what it protects, its evidence note and a proposed fate,
+and proposed one rule set: host owns every world/prop/actor polygon (sky and
+first-person layer excluded), native ordering slots for all pieces, unclipped
+quads as one packet on the native diagonal, one contact rule (2 units, 16 for
+the payphone back), D17W coplanar rank, per-mesh fallback to today's path.
+Measured full takeover with a new developer switch
+(`DNTTK_NEAR_TAKEOVER=all`, `DNTTK_NEAR_MEASURE=1`; defaults unchanged,
+`ttk-near-test` passes). Club and canopy fit one 128 KB region; the canal
+(peak 179 KB) and Western street (164 KB, 116 frames over) do not, mostly
+world geometry. The 1 MiB GPU DMA aperture is already full; plan: one packet
+per quad, Bio Mask arena merged into the host regions (4 x 175 KB). Hook time
++0.1-0.7 ms per live frame on average; 120-FPS worker time unchanged within
+noise, no replay failures. Risk: worker output stream (768 KB) near capacity
+at full demand. Decisions requested: rule set, translucency (painter-only
+proposed), actors, budget plan. Private fixture copies; player files
+hash-checked unchanged. No renderer change, commit or push. D17AM2 waits for
+approval. [Note 324](documentation/324-d17am1-unified-geometry-design.md).
+
+## 2026-10-29 - D17AM1 approved; D17AM2 started
+
+User: "i'm gonna say i want to go entirely with your recommendation, end to
+end". All four D17AM1 decisions approved as recommended: the rule set (native
+ordering slots for every piece, object bias retired), translucent host faces
+painter-only without depth, actors included, and the budget plan including
+the Bio Mask space merge. Refinement agreed in discussion: each frame's
+region is that frame's existing 128 KB host block plus its 47 KB Bio Mask
+block, written through one cursor, so the GPU DMA allocation records and
+savestate layout stay identical; 47 KB stays reserved while the mask is worn.
+D17AM1 Done; D17AM2 In progress. No commit or push authorized.
+
+## 2026-10-29 - D17AM2 unified geometry candidate (Needs playtest)
+
+`DNTTK_UNIFIED_GEOMETRY=1` (developer, default off) draws every world, prop
+and actor polygon through the host path at every distance with the approved
+D17AM1 rules: native ordering slots for every piece, one GT4/G4 per
+unclipped quad on the native diagonal, splitting only past the GPU size
+limit, one contact rule, D17W rank, translucent scene faces painter-only.
+Found and replicated two retail world-renderer rules the host now needs:
+clip-rectangle culling (context flag 0x80) and black silhouettes beyond
+`ctx+0x70`. Budget: each frame's region is its 128 KB host block plus its
+47 KB Bio Mask block through one cursor (allocations and savestate layout
+unchanged); unified scene geometry leaves 8 KB for the weapon, 32 KB for the
+sky and, while the mask is worn, the built mask mesh's need. An unaffordable
+mesh is downgraded to the current rules, never left wholly native near the
+eye. Fixed for both renderers: at FOV 120 the angular guard band clipped host
+pieces out of the 16:9 margins (black near floor at the right edge); the band
+is now never narrower than the native 480x240 pixels.
+Evidence: switch off, contracts pass with the packet digest unchanged from
+HEAD; switch on, new unified contract passes. Static A/B on club, sign post,
+payphone, Western street/canopy, third person and 4:3: 0.001-0.05% pixels
+differ; canal differences traced to animated light tables plus a faster draw
+cadence (GP0 dump: same primitives, same order). Payphone whole on the D17AL
+approach. Heaviest routes (canal/street FOV 120, 120 FPS, with and without
+the Bio Mask): peak 135 KB, 0 skipped packets, at most 1 fallback, 0 replay
+failures/misses; hook +0.1-0.4 ms per frame; 120-FPS worker time 3-5 ms lower.
+Player files hash-checked unchanged. No framework edits, commit or push.
+Next: live playtest with the switch, then D17AM3 (sweep, default switch,
+removal of superseded cases).
+
+## 2026-10-29 - D17AM2 user playtest; slot 10/12 reports; D19AA
+
+User playtest with `DNTTK_UNIFIED_GEOMETRY=1` (live, their words via speech to
+text): "it seems nice and stable"; Bio Mask "equips and looks absolutely fine"
+(slot 3); slot 2 jetpack, push/pull blocks (continuous and second pushes
+retained), climbing, mantling, monkey bars, enemies, NPCs, combat and the
+crystal machine all fine; no wall-edge or texture glitches seen on the
+medieval level: "I'm gonna say we are absolutely fine we're in business".
+This is playtest evidence, not D17AM2 acceptance or closeout.
+
+Reported, private copies of current saves in `recomp/analysis/d17am2-play/`
+(hashes in `originals.sha256`; player files unchanged after testing):
+
+- UI slot 12 (new save): a wall panel artifacts while looking left/right.
+  Not reproduced visibly offscreen. Trace of the load view found world mesh
+  `0x801a1a38` faces `0x801a1cb0`/`0x801a1d18` (and `0x801a1d20`/`0x801a1d38`):
+  the same four corners defined twice with opposite winding, both drawn and
+  exactly coplanar, so the depth test can alternate between them; within 1536
+  units, so the current renderer is likely affected too. Unified mode now
+  ranks overlapping coplanar world faces like D17W does for props (the earlier
+  record, painted last by the original, wins); plane-bucketed comparison;
+  new unified contract. Needs the user to confirm the panel in play.
+- UI slot 10 (new save): water tiles vanish around Duke while walking across
+  the water. Same slot and symptom as D17AF (In progress); water tiles are
+  excluded from unified geometry, so this is independent of the switch.
+  Covered by the D17AM4 re-triage.
+
+D19AA (user request): Tab no longer fast-forwards. The framework default
+`HOST_KEYMAP_TURBO` binding was removed in `host_keymap.c` (a config.ini
+`[KeyMap] Turbo` entry can still bind one); manual updated. Runtime patch
+exported and verified against the clean pin (55 files match); savestates load.
+Player build SHA-256 `d5341463174b683b72c586dd51e898ee68b9d7ba0c5ba205303107e42346cd2a`.
+No commit or push.
+
+## 2026-10-29 - D17AM2 and D19AA accepted and closed
+
+User: "slot 12's texture glitch looks fixed to me. Let's commit and push this
+work now as we stand and close us out." D17AM2 is Done by user acceptance
+(stable live playtest with the switch; slot 12 panel confirmed fixed).
+D19AA (Tab fast-forward removed) closed as part of the same authorized
+closeout; it was implemented as requested and checked by build/load, not by a
+separate in-play test. D17AM1 was already Done. Commit/push authorized as
+MusicMonsterMod. Next: D17AM3 (sweep, Modernized default, removal of
+superseded special cases), then D17AM4. D17AF (slot 10 water) remains open.

@@ -159,6 +159,102 @@ static void packet_contracts(const char* executable) {
         std::puts("D17Y missing animation: filtered copy, valid zero descriptor, Vanilla and malformed-list guards PASS");
     }
     live_eye=true;
+    // D17AM2 unified geometry (run with DNTTK_UNIFIED_GEOMETRY=1; the
+    // contracts below describe the current renderer and are skipped).
+    if(std::getenv("DNTTK_UNIFIED_GEOMETRY") && std::string_view(std::getenv("DNTTK_UNIFIED_GEOMETRY"))=="1") {
+        auto head=[&](unsigned slot){return psx_mod_read_word(ot+slot*8);};
+        // Close any scene-depth mesh left pending by the contracts above.
+        {CPUState close{};observed_hook(&close,0x8001fba0);}
+        // A distant world quad is drawn here as one GT4 in its native slot
+        // (farthest corner SZ 4096 >> 5); Vanilla keeps the original path.
+        // kind 0/1: Modernized/Vanilla. 2: every corner beyond ctx+0x70, a
+        // black untextured silhouette. 3: clip-rectangle culling (flag 0x80)
+        // with the quad wholly right of the rectangle: not drawn.
+        for(int kind=0;kind<4;++kind) {
+            const bool modernized=kind!=1;modern=modernized;
+            auto c=reset();c.gpr[31]=0x80037344;
+            word(ctx+0x70,kind==2?4000:0xffff);
+            if(kind==3) {word(ctx+0x50,0x80);word(ctx+0x18,uint32_t(uint16_t(-200))|uint32_t(uint16_t(-100))<<16);word(ctx+0x1c,uint32_t(uint16_t(-120))|120u<<16);}
+            word(mesh+0x14,4);word(mesh+0x18,0x50);
+            const uint32_t packed[4]={0x0004013f,0x00040101,0x0004053f,0x00040501};
+            for(int i=0;i<4;++i) {word(mesh+0x1c+8*i,packed[i]);word(mesh+0x20+8*i,0x34808080);}
+            word(mesh+0x50,0x00010061);word(mesh+0x54,0x03020100);
+            word(mesh+0x58,0x02000000);word(mesh+0x5c,0xff);
+            observed_hook(&c,0x80011020);
+            if(!modernized) {assert(c.gpr[4]==mesh && host_vertices==0);continue;}
+            if(kind==3) {assert(c.gpr[4]!=mesh && host_vertices==0);for(unsigned i=0;i<2048;++i) assert(!head(i));continue;}
+            assert(c.gpr[4]!=mesh && host_vertices==4);
+            for(unsigned i=0;i<2048;++i) assert((head(i)!=0)==(i==128));
+            const uint32_t prim=head(128);
+            if(kind==2) {
+                assert((psx_mod_read_word(prim)>>24)==8 && psx_mod_read_word(prim+4)==0x38000000u);
+                for(unsigned k=1;k<4;++k) assert(psx_mod_read_word(prim+4+8*k)==0);
+                continue;
+            }
+            assert((psx_mod_read_word(prim)>>24)==12 && (psx_mod_read_word(prim+4)>>24)==0x3c);
+            for(const auto& v:host_corners) assert(v.depth>0);
+        }
+        modern=true;
+        // A world panel defined twice on the same corners (the other side's
+        // winding, both drawn): the earlier record, which the original paints
+        // last, stays in front under the depth test; the other is pushed back.
+        {
+            auto c=reset();c.gpr[31]=0x80037344;word(ctx+0x70,0xffff);
+            word(mesh+0x14,4);word(mesh+0x18,0x50);
+            const uint32_t packed[4]={0x0004013f,0x00040101,0x0004053f,0x00040501};
+            for(int i=0;i<4;++i) {word(mesh+0x1c+8*i,packed[i]);word(mesh+0x20+8*i,0x34808080);}
+            word(mesh+0x50,0x00020061);word(mesh+0x54,0x03020100);word(mesh+0x58,0x02000000);
+            word(mesh+0x5c,0x02030001);word(mesh+0x60,0x02000000);word(mesh+0x64,0xff);
+            observed_hook(&c,0x80011020);
+            assert(host_corners.size()==8);
+            for(int i=0;i<4;++i) assert(host_corners[4+i].depth>host_corners[i].depth*1.0001f || host_corners[i].depth>host_corners[4+i].depth*1.0001f);
+            float first=0,second=0;for(int i=0;i<4;++i){first+=host_corners[i].depth;second+=host_corners[4+i].depth;}
+            // Emitted in rank order: the unranked (earlier) record first.
+            assert(first<second);
+        }
+        // Prop faces keep their own native AVSZ3 slots (no shared key or
+        // object bias); a translucent face carries no depth.
+        for(bool semi:{false,true}) {
+            auto c=reset();c.gpr[31]=0x80032288;
+            psx_mod_write_byte(mesh+6,6);word(mesh+0x10,verts);word(mesh+0x14,list);
+            for(int face=0;face<2;++face) {
+                const uint32_t v=verts+face*24;
+                word(v,(uint16_t)-100|uint32_t(uint16_t(-100))<<16);word(v+4,5000+face*200);
+                word(v+8,100|uint32_t(uint16_t(-100))<<16);word(v+12,5000+face*200);
+                word(v+16,100u<<16);word(v+20,5000+face*200);
+                const uint32_t record=list+4+face*16;
+                word(record,face?0x00050403:0x00020100);word(record+4,0);
+                word(record+8,(semi && face?0x22000000:0x02000000)|0x1f);word(record+12,0x1f00);
+            }
+            word(list,0x00020024);word(list+36,0xff);
+            observed_hook(&c,0x80010000);assert(host_vertices==6);
+            for(unsigned i=0;i<2048;++i) assert((head(i)!=0)==(i==156 || i==162));
+            for(unsigned i=0;i<6;++i) assert(semi && i>=3 ? host_corners[i].depth<0 : host_corners[i].depth>0);
+        }
+        // A warped prop quad is one packet in PS1 corner order: the GPU
+        // draws it on the native 1-2 diagonal.
+        {
+            auto c=reset();c.gpr[31]=0x80032288;
+            psx_mod_write_byte(mesh+6,4);word(mesh+0x10,verts);word(mesh+0x14,list);
+            const int xyz[4][3]={{-100,-100,5000},{100,-100,5000},{-100,100,5000},{100,100,5050}};
+            for(int i=0;i<4;++i) {
+                word(verts+i*8,uint16_t(xyz[i][0])|uint32_t(uint16_t(xyz[i][1]))<<16);
+                word(verts+i*8+4,xyz[i][2]);
+            }
+            word(list,0x0001002c);word(list+4,0x03020100);
+            word(list+8,0);word(list+12,0x0200001f);
+            word(list+16,0x1f1f1f00);word(list+20,0xff);
+            observed_hook(&c,0x80010000);assert(host_corners.size()==4);
+            for(int i=0;i<4;++i) {
+                const auto& v=host_corners[i];
+                assert(v.z==xyz[i][2] && v.u==(i%2?31:0) && v.v==(i>=2?31:0));
+            }
+            unsigned slot=0;for(unsigned i=0;i<2048;++i) if(head(i)) slot=i;
+            assert((psx_mod_read_word(head(slot)+4)>>24)==0x2c+0x10);
+        }
+        std::puts("D17AM2 unified geometry: one GT4 per unclipped quad, native slots, far silhouettes, clip-rectangle cull, painter-only translucency, Vanilla guard PASS");
+        return;
+    }
     auto cpu=reset();cpu.gpr[31]=0x80037344;
     word(mesh+0x14,3);word(mesh+0x18,0x40);
     // Source depths 1024,2048,4096. All clipped/subdivided children must
@@ -1087,7 +1183,8 @@ int main(int argc,char** argv) {
     // Translation of the projection centre leaves the same physical ray.
     g.ofx=123*65536;g.ofy=42*65536;
     assert(std::abs(ttk::near_raster_depth(floor,g,123,142,1500)-2000.0/(1+100/256.0))<1e-9);
-    if(argc==2) {packet_contracts(argv[1]);whole_polygon_contracts();}
+    const bool unified_run=std::getenv("DNTTK_UNIFIED_GEOMETRY") && std::string_view(std::getenv("DNTTK_UNIFIED_GEOMETRY"))=="1";
+    if(argc==2) {packet_contracts(argv[1]);if(!unified_run) whole_polygon_contracts();}
     biomask_packet_contracts();
     frozen_packet_contracts();
     water_clip_contracts();

@@ -66,7 +66,8 @@ control hook is temporarily unavailable. Capture returns automatically when
 verified gameplay resumes. Unknown code still fails its identity checks; the
 hooks are not forced onto it. Report any remaining loss of control with the
 session log in `recomp/build-local/logs/`.
-**F10 has no action.** Use Escape to pause and free the cursor, then resume to
+**F10 has no action.** **Tab has no action** either: the fast-forward key was
+removed (2026-10-29) and Tab is reserved for a future game action. Use Escape to pause and free the cursor, then resume to
 recapture. In **OPTIONS > CONTROLS > CONTROL SCHEME**, choose **MODERN**
 (default) or explicitly choose **LEGACY** and CONFIRM. The choice applies
 immediately and survives relaunches; loading a save cannot change it.

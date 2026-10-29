@@ -72,8 +72,11 @@ and Unlimited stress/debug. There is no 120 FPS ceiling. See the
 - **[3x5 Microfont](https://github.com/nimaid/microfont)** by nimaid (CC0 1.0):
   the Modernized inventory switcher digits. It is kept with its licence in
   `recomp/assets/ui/fonts/microfont/`.
-- **Original UI art** (the inventory selection frame and the crosshair) by
-  MusicMonsterMod, in `recomp/assets/ui/`.
+- **Original UI art** by MusicMonsterMod: 17 distinct designs covering the
+  inventory selection frame, crosshair, mission-item icons (keys/keycards,
+  three energy crystals, notes/paper and Family Jewel), medkit, steroids,
+  invincibility, invisibility, Double Duke, challenge-item icon and used-item
+  tick. [UI art inventory](recomp/assets/ui/README.md).
 - **Custom Bio Mask first-person mesh** by MusicMonsterMod.
 - **Piano interpolation of "Grabbag" by Lee Jackson**, performed by
   MusicMonsterMod, for the playable saloon piano.

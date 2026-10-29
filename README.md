@@ -74,8 +74,9 @@ and Unlimited stress/debug. There is no 120 FPS ceiling. See the
   `recomp/assets/ui/fonts/microfont/`.
 - **Original UI art** (the inventory selection frame and the crosshair) by
   MusicMonsterMod, in `recomp/assets/ui/`.
-- **MusicMonsterMod**: the custom Bio Mask mesh and the performed piano
-  recording used by the playable saloon piano.
+- **Custom Bio Mask first-person mesh** by MusicMonsterMod.
+- **Piano interpolation of "Grabbag" by Lee Jackson**, performed by
+  MusicMonsterMod, for the playable saloon piano.
 - **Bio Mask audio**: adapted from [Gas Decompression](https://pixabay.com/sound-effects/film-special-effects-gas-decompression-329819/)
   by **CreatorsHome**, under the Pixabay Content License.
 - **Night-vision audio**: adapted from [Old camera flash](https://pixabay.com/sound-effects/technology-old-camera-flash-6800/)

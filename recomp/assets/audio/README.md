@@ -53,8 +53,8 @@ active mask in clean air removes it after the exit grace, with a removal cue.
 ## Playable piano
 
 Piano performance and supplied recording: **MusicMonsterMod**. The short
-performance interpolates the Duke 3D theme; this credit identifies the performer,
-not authorship of the underlying theme. The accepted source is the user's
+performance interpolates "Grabbag" by **Lee Jackson**; this credit identifies
+MusicMonsterMod as the performer, not the composer of the underlying theme. The accepted source is the user's
 `research/music/pianobag.wav`, replacing the initial MIDI/soundfont render.
 
 `piano.wav` preserves that recording's timbre, pitch, timing and dynamics.

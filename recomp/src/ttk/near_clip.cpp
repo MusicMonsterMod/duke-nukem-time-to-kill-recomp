@@ -635,6 +635,23 @@ void refine(Frame& f,const Poly& poly,const std::vector<Vertex>& shape,unsigned 
 }
 // Clip and draw one polygon. Quads are PS1 order (v0 v1 v2 v3 = two rows),
 // so the outline is 0 1 3 2.
+// World and object matrices quantize their translations independently.
+// Resolve the resulting contact uncertainty in favour of static props,
+// matching their existing foreground OT priority, within two game units
+// along the surface normal. Never give actors or weapons this tolerance.
+// D17AC: the retail payphone's textured back is embedded about 10-11 world
+// units in its mounting wall. Preserve its raster/UV geometry and native
+// ordering, but allow that verified panel 16 units of contact depth from the
+// open side only. It still loses to nearer occluders.
+// D17AL: host pieces and scene-depth native packets share this rule, so a
+// prop's depth does not change where it moves between the two paths.
+// Returns the amount to subtract from a view-space plane distance d.
+double prop_contact_shift(double d,bool phone_back) {
+    static const int contact=env_int("DNTTK_PROP_CONTACT",2,0,2);
+    static const bool phone_depth=env_int("DNTTK_PHONE_BACK_DEPTH",1,0,1)!=0;
+    const int allowance=phone_back && phone_depth && d>0 ? 16:contact;
+    return std::copysign(std::min((double)allowance,std::abs(d)*0.5),d);
+}
 void draw(Frame& f,const Poly& poly) {
     ++f.stats->polys;
     static const bool source_order=env_int("DNTTK_SOURCE_ORDER",1,0,1)!=0;
@@ -698,20 +715,9 @@ void draw(Frame& f,const Poly& poly) {
         if(poly.count==4) {const Vertex second[3]={shape[3],shape[1],shape[2]};emit(f,local,second);}
         return;
     }
-    // World and object matrices quantize their translations independently.
-    // Resolve the resulting contact uncertainty in favour of static props,
-    // matching their existing foreground OT priority, within two game units
-    // along the surface normal. Never give actors or weapons this tolerance.
-    static const int contact=env_int("DNTTK_PROP_CONTACT",2,0,2);
-    static const bool phone_depth=env_int("DNTTK_PHONE_BACK_DEPTH",1,0,1)!=0;
-    // D17AC: the retail payphone's textured back is embedded about 10-11
-    // world units in its mounting wall. Preserve its raster/UV geometry and
-    // native ordering, but allow that verified panel 16 units of contact
-    // depth from the open side only. It still loses to nearer occluders.
-    const int allowance=poly.phone_back && phone_depth && local.depth_plane.d>0 ? 16:contact;
-    if(f.object && !poly.actor && !f.viewmodel && allowance) {
+    if(f.object && !poly.actor && !f.viewmodel) {
         auto& p=local.depth_plane;
-        p.d-=std::copysign(std::min((double)allowance,std::abs(p.d)*0.5),p.d);
+        p.d-=prop_contact_shift(p.d,poly.phone_back);
     }
     // D17W: push a face the original paints over slightly behind its plane
     // (about 0.8 units at 3400), so the depth test keeps the original's winner.
@@ -783,8 +789,13 @@ bool front_facing(const Frame& f,const Poly& poly,uint32_t flags,bool second_tri
 // layer keep painter order. A mesh's packets are matched by their integer
 // corner positions after it is drawn; ambiguous or unmatched packets keep
 // painter order. DNTTK_SCENE_DEPTH=0 (developer) disables.
+// D17AL: prop packets take the same contact allowance as host prop pieces
+// (prop_contact_shift), including the verified payphone back; otherwise an
+// embedded prop is hidden by its wall at a distance and appears only once
+// the near path takes it over. DNTTK_SCENE_PROP_CONTACT=0 (developer)
+// gives prop packets exact depth for comparison.
 bool scene_depth() {static const bool v=env_int("DNTTK_SCENE_DEPTH",1,0,1)!=0;return v;}
-struct SceneDepthMesh { bool live=false;uint32_t cursor=0;std::vector<NearProjected> verts;std::vector<std::pair<uint32_t,uint16_t>> keys; };
+struct SceneDepthMesh { bool live=false,prop=false,phone=false;uint32_t cursor=0;std::vector<NearProjected> verts;std::vector<std::pair<uint32_t,uint16_t>> keys; };
 SceneDepthMesh scene_pending;
 uint64_t scene_depth_meshes,scene_depth_packets,scene_depth_ambiguous,scene_depth_wraps,scene_depth_polygons,scene_depth_unmatched,scene_depth_breaks;
 void scene_depth_flush() {
@@ -819,20 +830,36 @@ void scene_depth_flush() {
             w+=1+(textured?1:0);
         }
         if(!ok) continue;
+        // Moving the plane by a fixed distance along its normal scales every
+        // point's depth along its eye ray by the same factor. The plane uses
+        // the host piece's corner order (0,1,3 for quads); warped quads, like
+        // host pieces, get no allowance. Perspective weights stay exact.
+        double scale=1;
+        if(scene_pending.prop) {
+            const NearDepthPlane plane=near_depth_plane(verts[index[0]].view,verts[index[1]].view,verts[index[quad?3:2]].view);
+            bool warped=false;
+            if(quad) {const double* q=verts[index[2]].view;warped=std::abs(plane.n[0]*q[0]+plane.n[1]*q[1]+plane.n[2]*q[2]-plane.d)>1e-5;}
+            const bool phone_back=scene_pending.phone && quad && textured && !gouraud &&
+                index[0]==0 && index[1]==4 && index[2]==2 && index[3]==6;
+            if(!warped && std::abs(plane.d)>1e-9) scale=1-prop_contact_shift(plane.d,phone_back)/plane.d;
+        }
         for(unsigned k=0;k<corners;++k) {
             const NearProjected& v=verts[index[k]];
             const uint32_t word=psx_mod_read_word(addr[k]);
             const int32_t x16=geometry?v.x16:(int32_t)(int16_t)word*65536,y16=geometry?v.y16:(int32_t)(int16_t)(word>>16)*65536;
-            psx_mod_gpu_host_vertex_coverage(addr[k],word,x16,y16,textures?(float)v.view[2]:1.0f,-1.0f,-1.0f,(float)v.view[2],1.0f);
+            psx_mod_gpu_host_vertex_coverage(addr[k],word,x16,y16,textures?(float)v.view[2]:1.0f,-1.0f,-1.0f,(float)(v.view[2]*scale),1.0f);
         }
         ++scene_depth_packets;
     }
 }
-void scene_depth_begin(const Frame& f) {
+// prop: a non-actor object mesh (host pieces of it take the contact
+// allowance); phone: the verified payphone shape at the static-prop caller.
+void scene_depth_begin(const Frame& f,bool prop=false,bool phone=false) {
     scene_depth_flush();
     if(!scene_depth() || !precise() || conservative() || !input_modernized()) return;
     auto& m=scene_pending;
-    m.verts=f.verts;m.keys.clear();
+    static const bool prop_contact=env_int("DNTTK_SCENE_PROP_CONTACT",1,0,1)!=0;
+    m.verts=f.verts;m.keys.clear();m.prop=prop && prop_contact;m.phone=phone;
     for(size_t i=0;i<f.verts.size();++i)
         if(f.verts[i].safe && f.verts[i].view[2]>16) m.keys.push_back({f.verts[i].sxy,(uint16_t)i});
     std::sort(m.keys.begin(),m.keys.end());
@@ -1281,7 +1308,7 @@ void object(CPUState* cpu) {
     double compact_key=0;
     if(static_depth) {for(const auto& v:f.verts) compact_key+=v.sz;compact_key/=count;}
     trace_vertices(f);
-    if(!viewmodel && !body && !f.sky && !limb.fixed_projection()) scene_depth_begin(f); else scene_depth_flush();
+    if(!viewmodel && !body && !f.sky && !limb.fixed_projection()) scene_depth_begin(f,!actor,phone); else scene_depth_flush();
     if(!any && !static_top && !ladder) {trace_record(f,"native_mesh",0);if(!f.trace) return;}
     struct Taken {uint32_t record,type;bool depth_only;};
     std::vector<Group> groups;std::vector<Taken> taken;

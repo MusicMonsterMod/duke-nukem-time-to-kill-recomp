@@ -1,5 +1,15 @@
 # Next-session handoff
 
+## 2026-10-29 - D17AL closed; next D17AM1
+
+User accepted D17AL (note 323) and authorized commit/push. Scene-depth prop
+packets use the same contact allowance as host prop pieces via
+`prop_contact_shift` in `near_clip.cpp`; developer switch
+`DNTTK_SCENE_PROP_CONTACT=0`. Next on the renderer plan: D17AM1 (report
+first). Known pre-existing test issue: `ttk-near-test` with
+`DNTTK_TEXTURE_PRECISION=corrected` fails at the D17Z contract (line 252),
+also at the previous commit. Resume with `/continue-duke-recomp D17AM1`.
+
 ## 2026-10-29 - Next: D17AL, then the unified geometry path (D17AM)
 
 User confirmed the D17AE slot-11 fix in play and authorized commit/push of

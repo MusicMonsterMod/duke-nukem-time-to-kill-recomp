@@ -10,9 +10,9 @@ transforms, animation, lighting); only how it reaches the screen changes.
 Sprites, particles, blood, water, sky, weapon, HUD, menus and FMV keep their
 existing handling. Non-renderer backlog continues independently.
 
-### D17AL - Embedded prop contact depth (slot-12 payphone regression) - NEXT
+### D17AL - Embedded prop contact depth (slot-12 payphone regression)
 
-**Status: Todo (next; agreed 2026-10-29). Related: D17AE, D17AC.**
+**Status: Done (user-accepted; closeout authorized 2026-10-29). Related: D17AE, D17AC.**
 User slot 12 (new save, 2026-10-29): walking toward the payphone, its front
 unit is missing until close, then pops in. Confirmed caused by D17AE scene
 depth: with `DNTTK_SCENE_DEPTH=0` the unit shows at every step. The payphone
@@ -27,9 +27,18 @@ FPS; slot 11 post and slot 6 canopy stay fixed; props flush with walls do not
 start showing through walls; Vanilla unchanged. Private copy of current UI
 slot 12; old D17AI slot-12 fixture is kept in `recomp/analysis/d17ak/fixtures`.
 
+Candidate: scene-depth prop packets now use the same contact allowance as
+host prop pieces (one `prop_contact_shift` rule in `near_clip.cpp`, the phone
+back identified by the existing D17AC shape check). Private slot-12 approach:
+front unit missing in steps 0-3 with the change off, whole at every step with
+it on, at FOV 64/90/120 and 60/120 FPS. Slot 11 post and slot 6 canopy
+unchanged; 120-FPS replay 0 misses; near contracts pass. Developer switch
+`DNTTK_SCENE_PROP_CONTACT=0`. See
+[note 323](documentation/323-d17al-prop-contact-depth.md).
+
 ### D17AM - Unified host geometry path (parent)
 
-**Status: Todo (after D17AL). Related: D17A, D17AE, D17AK, D11B.**
+**Status: Todo (next). Related: D17A, D17AE, D17AK, D11B.**
 Goal: every world and prop polygon is drawn by the host at every distance,
 with depth, perspective texturing and the original's clipping/colour/UV
 rules, retiring the 1536/3072 handover and the per-case depth rules that
@@ -37,7 +46,7 @@ exist only because of it. Done when D17AM1-AM4 are done.
 
 #### D17AM1 - Inventory and unified rule design (report first)
 
-**Status: Todo (after D17AL).** Catalogue every current threshold and special
+**Status: Todo (next).** Catalogue every current threshold and special
 case in `near_clip.cpp` (perspective_z/object_perspective_z handover, platform
 depth, compact/pickup props, static box tops, ladders, phone back, coplanar
 rank, source order and object bias, warped quads, world subdivision bypass,
@@ -1152,7 +1161,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 
 | ID | Job | Status | Depends on |
 | --- | --- | --- | --- |
-| D17AL | Embedded prop contact depth (slot-12 payphone regression) | Todo (next) | D17AE |
+| D17AL | Embedded prop contact depth (slot-12 payphone regression) | Done | D17AE |
 | D17AM | Unified host geometry path (parent) | Todo | D17AL, D17AM1-AM4 |
 | D17AM1 | Unified geometry: inventory and rule design (report first) | Todo | D17AL |
 | D17AM2 | Unified geometry: implementation behind a developer switch | Todo | D17AM1 approval |
@@ -23993,3 +24002,26 @@ no post-acceptance gameplay change, rebuild or launch. See
 and clean-pin verification, repository/privacy and staged whitespace checks
 complete the closeout. No next job selected.
 Launch: `python3 recomp/tools/local/run.py`.
+
+## 2026-10-29 - D17AL payphone contact depth candidate
+
+Selected D17AL. Reproduced on a private copy of current UI slot 12: with
+D17AE scene depth the embedded payphone's front unit lost to its wall until
+the near path took over. Scene-depth prop packets now take the same contact
+allowance as host prop pieces (2 units; 16 for the verified phone back),
+applied by scaling each packet's corner depths onto the shifted plane;
+packets, order, UVs and perspective weights unchanged. Phone whole at every
+approach step at FOV 64/90/120, 60 and 120 FPS; slot 11 post and slot 6
+canopy unchanged; turn sweeps on five slots clean; 120-FPS replay 0 misses;
+near contracts pass (new D17AL contract). Pre-existing D17Z contract failure
+under corrected textures noted. Player files hash-checked unchanged. Needs
+playtest; no acceptance, commit or push.
+[Note 323](documentation/323-d17al-prop-contact-depth.md).
+
+## 2026-10-29 - D17AL accepted and closed
+
+User: "absolutely perfect. lock it in and close us out". D17AL is Done by user
+acceptance; implementation, tests and documentation commit/push are
+authorized as MusicMonsterMod. Evidence and limits remain in
+[note 323](documentation/323-d17al-prop-contact-depth.md). D17AM1 is next.
+No next job started.

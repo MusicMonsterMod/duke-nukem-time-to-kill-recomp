@@ -1,5 +1,12 @@
 # Current status - 2026-10-04
 
+## 2026-10-29 - D17AL payphone fixed (user-accepted)
+
+Scene-depth prop packets now share the host prop contact allowance, so the
+slot-12 payphone stays whole from far to touching (private captures, FOV
+64/90/120, 60/120 FPS). D17AE/D17AG fixes unchanged. User accepted and
+authorized closeout. Next: D17AM1. See note 323.
+
 ## 2026-10-29 - Renderer plan agreed; next D17AL
 
 D17AE is user-confirmed. Next, in order: D17AL (payphone regression from

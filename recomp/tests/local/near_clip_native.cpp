@@ -615,6 +615,54 @@ static void packet_contracts(const char* executable) {
             }
         }
         std::puts("D17AC phone panel: bounded depth, unchanged raster/UV/order and exclusion guards PASS");
+        // D17AL: beyond the host takeover the phone's own native packets get
+        // scene depth. They must carry the same contact allowance as its host
+        // pieces (16 for the rear panel, 2 for other faces), so it cannot
+        // vanish into its wall at a distance and pop in at the handover.
+        // Modified shapes keep 2; Vanilla keeps painter order.
+        const bool phone_enabled=!(std::getenv("DNTTK_PHONE_BACK_DEPTH") && std::string_view(std::getenv("DNTTK_PHONE_BACK_DEPTH"))=="0");
+        for(int kind=0;kind<3;++kind) {
+            modern=kind!=2;
+            auto c=reset();c.gpr[31]=0x80032288;
+            c.gte_ctrl[0]=0;c.gte_ctrl[1]=4096;c.gte_ctrl[3]=uint16_t(-4096);c.gte_ctrl[4]=0;
+            c.gte_ctrl[7]=4000;c.gte_ctrl[26]=1024;
+            psx_mod_write_byte(mesh+6,10);word(mesh+0x10,verts);word(mesh+0x14,list);
+            for(int i=0;i<10;++i) {
+                word(verts+i*8,uint16_t(xyz[i][0]+(kind==1 && i==8))|uint32_t(uint16_t(xyz[i][1]))<<16);
+                word(verts+i*8+4,uint16_t(xyz[i][2]));
+            }
+            word(list,0x0002002c);word(list+4,0x06020400);word(list+8,0);word(list+12,0x02000000|31);
+            word(list+16,0x07030501);word(list+20,0);word(list+24,0x02000000|31);word(list+28,0xff);
+            observed_hook(&c,0x80010000);
+            assert(c.gpr[4]==mesh && host_vertices==0); // distant: native packets
+            ttk::NearGte g{};g.r[0][2]=4096;g.r[1][1]=4096;g.r[2][0]=-4096;g.tr[2]=4000;g.h=1024;
+            constexpr uint32_t ring=0x80160000;
+            const int faces[2][4]={{0,4,2,6},{1,5,3,7}};
+            float z[2][4];
+            for(int f=0;f<2;++f) {
+                const uint32_t at=ring+40*f;
+                word(at,0x09000000);word(at+4,0x2c808080);
+                for(int k=0;k<4;++k) {
+                    const int i=faces[f][k];
+                    const auto p=ttk::near_project(g,(int16_t)(xyz[i][0]+(kind==1 && i==8)),(int16_t)xyz[i][1],(int16_t)xyz[i][2]);
+                    assert(p.safe && p.sz>=3072);
+                    word(at+8+8*k,p.sxy);word(at+12+8*k,0);z[f][k]=(float)p.view[2];
+                }
+            }
+            word(ctx,ring+80);
+            CPUState close{};observed_hook(&close,0x8001fba0);
+            if(kind==2) {assert(host_vertices==0);continue;}
+            assert(host_vertices==8);
+            for(int f=0;f<2;++f) for(int k=0;k<4;++k) {
+                const auto& v=host_corners[4*f+k];
+                const float offset=f==0 && kind==0 && phone_enabled?16.0f:2.0f;
+                assert(v.word==psx_mod_read_word(ring+40*f+8+8*k));
+                assert(std::abs(v.depth-(z[f][k]-offset))<0.02f);
+            }
+            for(unsigned i=0;i<2048;++i) assert(psx_mod_read_word(ot+i*8)==0);
+        }
+        modern=true;
+        std::puts("D17AL scene-depth prop contact: native phone back 16, other prop faces 2, shape/Vanilla guards PASS");
     }
     // Two opaque faces of a compact prop stay in one ordering bucket so
     // host/native draw state cannot alternate for each face. Translucent

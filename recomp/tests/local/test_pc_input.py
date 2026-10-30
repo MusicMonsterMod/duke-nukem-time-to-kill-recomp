@@ -195,6 +195,13 @@ class MenuKeyNamesTest(unittest.TestCase):
         for code, token in named.items():
             self.assertEqual(pc_input.TOKENS.get(token), code, token)
 
+    # D19AC: the OPTIONS list is screen -1; the wheel check read screens[-1]
+    # every tick there and crashed when that heap memory was unmapped.
+    def test_wheel_slider_check_skips_options_list(self):
+        source = (TOOLS.parents[1] / 'src/ttk/game_menu.cpp').read_text()
+        line = next(l for l in source.splitlines() if 'const bool camera_slider=' in l)
+        self.assertIn('screen>=0 && view_slider(screens[screen]', line)
+
 class D21ProfileTest(unittest.TestCase):
     def test_schema53_adds_free_look_without_stealing_middle_mouse(self):
         with tempfile.TemporaryDirectory() as d:

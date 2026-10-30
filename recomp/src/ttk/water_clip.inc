@@ -32,7 +32,7 @@ bool water_valid(uint32_t p,unsigned n) {return p>=0x80010000u && p<=0x80200000u
 // saturated packet). The current row is cleared up to the vertex being
 // flagged; its last vertex, and the previous row, are cleared again when the
 // row's tiles are built. Far and screen culling of other tiles is unchanged.
-uint64_t water_near_cleared=0,water_near_dropped=0;
+uint64_t water_near_cleared=0,water_near_dropped=0,water_budget_native=0;
 void water_clear_near(uint32_t row,unsigned count) {
     if(!water_valid(row,16*count)) return;
     for(unsigned i=0;i<count;++i) {
@@ -97,16 +97,30 @@ void water_clip(CPUState* cpu) {
            f.verts[i].sz!=psx_mod_read_word(records[i]+4)) {++water_grid_reject;drop();return;}
         unsafe|=!f.verts[i].safe;
     }
-    if(!unsafe && !oversize(f,idx,4)) return;
-    // Painter depth only; texture perspective retains positive Z. A tile the
-    // original skips has corners at SZ 0 behind the eye, so its native slot
-    // is far too near and painter order would lay it over nearer scenery: it
-    // is depth-tested at its surface instead, 32 units deep, so scenery just
-    // under the waterline stays over it as the original paints it (the slot-10
-    // channel walkway's grating lies about 10-15 units below the surface).
-    f.sky=!skipped;
+    // D17AN: every tile is depth-tested once unified geometry gives the
+    // scene true depth. In painter order a tile under a bridge whose nearest
+    // corner is close to the eye sorted in front of the deck above it (the
+    // slot-12 bridge start). DNTTK_WATER_DEPTH=0 (developer) keeps painter
+    // order for tiles the original builds.
+    static const bool all_depth=env_int("DNTTK_WATER_DEPTH",1,0,1)!=0;
+    const bool depth=skipped || (all_depth && unified());
+    const bool optional=!unsafe && !skipped && !oversize(f,idx,4);
+    if(optional && !depth) return;
+    // A tile taken only for its depth leaves the far reserve to near meshes,
+    // like a distant mesh (D17AM3): otherwise the canal's (UI 2) water took
+    // the budget and near meshes later in the frame fell back whole. Short
+    // of it, the tile stays native in painter order.
+    f.far=optional;
+    if(optional && budget(f)<takeover_reserve+24*0x28) {++water_budget_native;return;}
+    // A tile the original skips has corners at SZ 0 behind the eye, so its
+    // native slot is far too near and painter order would lay it over nearer
+    // scenery. Depth-tested tiles use their surface 32 units deep, so
+    // scenery just under the waterline stays over it as the original paints
+    // it (the slot-10 channel walkway's grating lies about 10-15 units below
+    // the surface). Painter tiles keep texture perspective only.
+    f.sky=!depth;
     Poly p{};p.source=packet;p.count=4;p.textured=true;p.actor=true;
-    if(skipped) p.depth_push=32;
+    if(depth) p.depth_push=32;
     p.native_order=true;p.native_slot=clamp((int32_t)cpu->gpr[4],0,0x7ff);
     p.command=0x34000000u|(command&0x03000000u);
     p.clut=psx_mod_read_half(packet+14);p.tpage=psx_mod_read_half(packet+22);

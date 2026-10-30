@@ -1,5 +1,33 @@
 # Next-session handoff
 
+## 2026-10-30 - Batch closed and pushed
+
+D14F, D17AN, D17AP, D19AC Done; D17AO Deferred (authored gap). Next
+playtests: D20H (slot 5 repeated loads), D17AG (slot 6 panelling pan),
+D17AI (slot 12 cube wall), D17AK (FOV sweep). The `recomp/psxrecomp`
+submodule's local edits predate this batch and are already in the exported
+patch; no framework edits here.
+
+## 2026-10-30 - D19AC Needs playtest; D17AN batch confirmed by the user
+
+User confirmed D14F, D17AN, D17AP; D17AO accepted as authored geometry and
+paused until after D19AC. D19AC: OPTIONS crash fixed in `game_menu.cpp`
+(guard on the wheel slider check); repro `recomp/analysis/d19ac/repro.py`.
+Uncommitted: the D17AN batch files plus `game_menu.cpp`,
+`recomp/tests/local/test_pc_input.py`, notes 327-328. Closeout of D14F,
+D17AN, D17AP, D17AO waits for the user's instruction. Note 328.
+
+## 2026-10-30 - D17AN/AP Needs playtest, D17AO blocked on a decision
+
+Uncommitted: `recomp/src/ttk/water_clip.inc`, `recomp/src/ttk/near_clip.cpp`,
+`recomp/tests/local/near_clip_native.cpp`, docs. Playtest: slot 12 bridge
+(water must stay under the deck), slot 9 grave soil pan, D14F slider, plus
+D20H, D17AG, D17AI, D17AK. D17AO: ask the user whether to patch the slot 11
+ceiling gap (authored; note 327 has the mesh/vertex evidence). Frozen
+executables `build-local/*.an-head`, `*.an-cand2`; harness
+`recomp/analysis/d17an/`. Use the clean `d08-camera-final` LEVEL00 fixture
+for `ttk-controls-test`. Note 327.
+
 ## 2026-10-29 - D17AM closed; next renderer follow-ups
 
 User playtest positive; D17AM3/AM4, D17AF and D17AH Done. New Todo jobs:

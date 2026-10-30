@@ -1489,7 +1489,7 @@ bool game_menu_input(const MenuKeys& keys) {
     for(int n=repeat(rep_down,k.down,k.down_taps,now);n>0;--n) move(1);
     for(int n=repeat(rep_left,k.left,k.left_taps,now);n>0;--n) change(-1,now-rep_left.since);
     for(int n=repeat(rep_right,k.right,k.right_taps,now);n>0;--n) change(1,now-rep_right.since);
-    const bool camera_slider=page==Page::Options && view_slider(screens[screen].rows[cursor]);
+    const bool camera_slider=page==Page::Options && screen>=0 && view_slider(screens[screen].rows[cursor]);
     for(int w=k.wheel;w>0;--w) {if(camera_slider)change(1,0);else move(-1);}
     for(int w=k.wheel;w<0;++w) {if(camera_slider)change(-1,0);else move(1);}
     if(k.confirm_taps) confirm();

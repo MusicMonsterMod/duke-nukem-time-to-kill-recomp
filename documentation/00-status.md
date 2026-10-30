@@ -1,5 +1,29 @@
 # Current status - 2026-10-04
 
+## 2026-10-30 - D14F, D17AN, D17AP, D19AC closed; D17AO deferred
+
+User-confirmed in play and closed on instruction. D17AO is an authored level
+gap, kept as a possible future fix. Still Needs playtest: D20H, D17AG, D17AI,
+D17AK. Notes 327-328.
+
+## 2026-10-30 - D19AC OPTIONS crash fixed; D17AN batch playtested
+
+User confirmed D14F, D17AN and D17AP in play; D17AO accepted as authored
+level geometry (closeout awaits instruction). New crash on opening OPTIONS
+from the pause menu (D19AB regression, `screens[-1]` read): fixed with a
+`screen>=0` guard; reproduced 5/6 on the previous build, 0/10 fixed. Needs
+playtest. No commit or push. Note 328.
+
+## 2026-10-30 - D17AN/AP fixed, D17AO diagnosed, D14F re-verified
+
+D17AN: water tiles depth-tested at their surface under unified geometry
+(far reserve kept for near meshes). D17AP: warped quads drawn as native
+halves again (D17X). D17AO: authored gap between two room meshes, present in
+every renderer; needs the user's decision. D14F was already in afd4ad6;
+re-verified. Contracts, native suites, 33-scene A/B, routes and timing pass.
+Needs playtest: D14F, D17AN, D17AP plus D20H, D17AG, D17AI, D17AK. No commit
+or push. Note 327.
+
 ## 2026-10-29 - D17AM3/AM4 closed after playtest; follow-ups registered
 
 User: graphically much more stable; slot 10 water and slot 8 sky confirmed.

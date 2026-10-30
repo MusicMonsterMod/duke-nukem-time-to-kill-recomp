@@ -79,9 +79,28 @@ and remove superseded special cases. Vanilla unchanged.
 (slot-12 wall near cube, old fixture copy), D20H and D17AK against the unified
 path; close what it fixes and keep only genuine effect/sky/water bugs.
 
+### D19AC - Crash on opening OPTIONS from the pause menu
+
+**Status: Done (user-confirmed 2026-10-30, [note 328](documentation/328-d19ac-options-crash.md)). Related: D19AB.**
+User (2026-10-30, 07:23): after an F7 load of UI slot 11 (also slot 2),
+Escape then OPTIONS crashes the game, every time, even after waiting about
+30 seconds. Cause: five SIGSEGV core dumps, all in `game_menu_input` at the
+mouse-wheel slider check. On the OPTIONS list `screen` is -1, and D19AB's
+`view_slider(screens[screen].rows[cursor])` dropped the old `screen==2`
+short-circuit, so every menu tick read `screens[-1]`, heap memory before the
+vector; it crashed whenever that memory held an invalid pointer. Fix: guard
+with `screen>=0`. Reproduced offscreen on the previous build (5 of 6 runs
+died, same stack); fixed build 10 of 10 survived on UI slots 11 and 2 with
+the OPTIONS list confirmed open. Remaining: user playtest.
+
 ### D17AN - Slot-12 water showing through the bridge deck
 
-**Status: Todo (reported in the D17AM3/AM4 playtest, 2026-10-29). Related: D17AF, D17AM.**
+**Status: Done (user-confirmed 2026-10-30, [note 327](documentation/327-d17an-ao-ap-renderer-followups.md)). Related: D17AF, D17AM.**
+Cause: water tiles kept painter order; a tile under the bridge sorted nearer
+than the deck. Fix: with unified geometry every water tile is depth-tested at
+its surface 32 units deep (the D17AF rule); a tile taken only for depth
+leaves the 48 KB far reserve to near meshes, else stays native (canal).
+Bridge clean in capture; contracts, 33-scene A/B, routes and timing pass.
 User (Family Jewels, new UI slot 12, 22:23): the water texture clips through
 the ground texture of the bridge, especially at the start of the bridge.
 Private copy: `recomp/analysis/d17am3/playtest-fixture` (hashes in
@@ -90,7 +109,13 @@ native water painter order against the deck; Vanilla unchanged.
 
 ### D17AO - Slot-11 ceiling hole showing the sky
 
-**Status: Todo (reported in the D17AM3/AM4 playtest, 2026-10-29). Related: D17AM, D17AH.**
+**Status: Deferred - user decision 2026-10-30: authored level gap, acknowledged, no action now; possible future level-data fix (diagnosed 2026-10-30, [note 327](documentation/327-d17an-ao-ap-renderer-followups.md)). Related: D17AM, D17AH.**
+Not a renderer regression: the wedge appears in unified, earlier and native
+renderers and in the pre-afd4ad6 build. A trace shows an authored gap: two
+room meshes (`0x80192f94`, `0x801bb994`) leave a lens-shaped strip open in
+the ceiling and the sky dome shows through. The original camera evidently
+never sees it; the independent camera does. Options: leave as authored, a
+level-data patch for this spot, or a generic gap-sealing rule.
 User (Family Jewels, new UI slot 11, 22:21): a hole in the ceiling of this
 area shows the sky, most visibly when jumping; never seen before. Compare
 with `DNTTK_UNIFIED_GEOMETRY=0` and the original renderer (clip-rectangle
@@ -98,7 +123,10 @@ cull, far silhouettes, downgrades) before changing anything. Same private copy.
 
 ### D17AP - Slot-9 grave-dig soil corners flashing again
 
-**Status: Todo (reported in the D17AM3/AM4 playtest, 2026-10-29). Related: D17X, D17AM.**
+**Status: Done (user-confirmed 2026-10-30, [note 327](documentation/327-d17an-ao-ap-renderer-followups.md)). Related: D17X, D17AM.**
+Cause: unified geometry drew a warped quad wholly on screen as one packet
+with no depth plane, bypassing D17X. Fix: warped quads are drawn as their two
+native halves with per-triangle plane depth. Notches gone in the pan capture.
 User (Old West, new UI slot 9): the corners of the dug grave's dirt flash when
 panning, as in D17X (accepted 2026-10-22), now with unified geometry. Read
 D17X first; likely coplanar or contact depth between the soil and the ground.
@@ -113,12 +141,17 @@ closeout is implied. Evidence: [batch note 316](documentation/316-fov-renderer-q
 
 ### D14F - 90-degree default and 120-degree maximum world FOV
 
-**Status: In progress (selected 2026-10-29). Related: D14A, D14B, D19X.**
+**Status: Done (user-confirmed 2026-10-30: DISPLAY slider, default 90; re-verified 2026-10-29). Related: D14A, D14B, D19X.**
 Inspect and retain the existing FOV convention. Fresh/unset defaults become 90; explicit saved preferences survive. Retain minimum; update slider, validation, persistence and descriptions. Preserve fixed weapon/hand presentation.
 
-Reproduction/fixture: pending inventory. Cause: unconfirmed. Changes: none at
-registration. Validation: pending. Remaining: reproduction, diagnosis, correction
-and appropriate visual/regression evidence; preserve player originals.
+Implemented in commit afd4ad6 ([note 317](documentation/317-d14f-fov-settings.md));
+the "none at registration" lines here were stale. Re-verified 2026-10-29:
+C++ default 90, range 60-120 (`first_person_fov.h`); OPTIONS > DISPLAY slider
+60-120, default 90, one-degree steps; launcher and profile fallback 90 with
+explicit saved values kept; Vanilla still forces 64; manual matches; Python
+profile suite 111 tests pass. Visual coverage at FOV 64/90/120 came from the
+D17AM3 sweep (note 326). Remaining: the user's in-game check of the slider
+and default.
 
 ### D17AE - Slot-11 ceiling artifact above door
 
@@ -1212,10 +1245,10 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D17AM2 | Unified geometry: implementation behind a developer switch | Done | D17AM1 approval |
 | D17AM3 | Unified geometry: regression sweep and default switch | Done | D17AM2 |
 | D17AM4 | Re-triage D17AF/AH/AI/AK and D20H against the unified path | Done | D17AM3 |
-| D17AN | Slot-12 water showing through the bridge deck (level 6) | Todo | D17AM |
-| D17AO | Slot-11 ceiling hole showing the sky (level 6) | Todo | D17AM |
-| D17AP | Slot-9 grave-dig soil corners flashing again (D17X recurrence) | Todo | D17X, D17AM |
-| D14F | 90-default / 120-maximum world FOV | In progress | Selected batch; see intake above |
+| D17AN | Slot-12 water showing through the bridge deck (level 6) | Done (user-confirmed 2026-10-30) | D17AM; note 327 |
+| D17AO | Slot-11 ceiling hole showing the sky (level 6) | Deferred (authored level gap; no action now, possible future level-data fix) | D17AM; note 327 |
+| D17AP | Slot-9 grave-dig soil corners flashing again (D17X recurrence) | Done (user-confirmed 2026-10-30) | D17X, D17AM; note 327 |
+| D14F | 90-default / 120-maximum world FOV | Done (user-confirmed 2026-10-30) | Implemented in afd4ad6 (note 317); re-verified 2026-10-29 |
 | D17AE | Slot-11 sign post through door header | Done (user-confirmed 2026-10-29) | Scene depth for native world/scenery packets; replay precedence fix; world backface cull restored |
 | D17AF | Latest slot-10 ground water visibility | Done | Selected batch; see intake above |
 | D20H | Slot-5 intermittent colour corruption on load | Needs playtest | Selected batch; see intake above |
@@ -1449,6 +1482,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D19Y | Third-person Camera Distance slider in Gameplay | Done (user-accepted) | D19G, D19N |
 | D19AA | Remove the Tab fast-forward key (Tab reserved for a future game action) | Done | - |
 | D19AB | FIRST-PERSON FOV and CAMERA DISTANCE moved to OPTIONS > DISPLAY after FRAME RATE (as in EDuke32) | Done | D19X, D19Y, D19N |
+| D19AC | Crash on opening OPTIONS from the pause menu (D19AB regression) | Done (user-confirmed 2026-10-30) | D19AB; note 328 |
 | D19Z | Full mouse support for menu UI | Todo (backlog only) | D19; closeout includes D19Z1/Z3 |
 | D19Z1 | Top-left menu Back icon and control | Todo (backlog only) | D19Z core pointer support |
 | D19Z2 | Design a Time to Kill mouse cursor | Todo (backlog only) | - |
@@ -24257,3 +24291,36 @@ jobs, commit and push. D17AM3/AM4 and parent D17AM Done; D20H, D17AI and
 D17AK stay Needs playtest (not specifically tested). New saves (UI 8, 9, 11,
 12) copied privately to `recomp/analysis/d17am3/playtest-fixture`; player
 files untouched.
+
+## 2026-10-30 - User playtest of the D17AN batch; D19AC registered and fixed (Needs playtest)
+
+User playtest (speech to text, paraphrased): D14F slider on DISPLAY with
+default 90 "perfect"; D17AN slot 12 "now fixed I can confirm"; D17AP slot 9
+grave soil "fixed, confirmed"; D17AO accepted as a level-geometry error,
+further testing paused. Closeout of these waits for the user's instruction.
+New report: opening OPTIONS from the pause menu crashed the game, reproducible
+after an F7 load of UI slot 11 or 2. Registered as D19AC and fixed at once on
+the user's instruction: an unguarded `screens[-1]` read in the D19AB wheel
+slider check (`game_menu.cpp`), now guarded with `screen>=0`. Evidence: five
+player core dumps (07:22-07:25) with one stack; offscreen repro
+`recomp/analysis/d19ac/repro.py` (private fixture copy, player files
+hash-checked): previous build died 5 of 6, fixed build survived 10 of 10 with
+the OPTIONS list confirmed open (`page 0`, `screen -1`). New source guard in
+`recomp/tests/local/test_pc_input.py`; that suite (18 tests) passes. No commit
+or push. [Note 328](documentation/328-d19ac-options-crash.md).
+
+## 2026-10-30 - D19AC confirmed; D17AO deferred
+
+User: the OPTIONS crash is fixed in play (D19AC). D17AO: accepted as a
+genuine authored gap in the level geometry, not a bug; acknowledged on the
+board as a possible future fix, no action now (Deferred). Remaining
+playtests from the batch: D20H, D17AG, D17AI, D17AK. Closeout of D14F,
+D17AN, D17AP, D19AC and D17AO awaits the user's instruction. No commit or
+push.
+
+## 2026-10-30 - D14F, D17AN, D17AP, D19AC closed; D17AO deferred
+
+User: "lock it in and close it out". D14F, D17AN, D17AP and D19AC Done on
+the user's playtest; D17AO Deferred (authored level gap, possible future
+fix). D20H, D17AG, D17AI and D17AK stay Needs playtest. Committed and pushed
+as MusicMonsterMod on that instruction.

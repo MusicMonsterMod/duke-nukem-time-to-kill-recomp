@@ -233,8 +233,9 @@ static void packet_contracts(const char* executable) {
             for(unsigned i=0;i<2048;++i) assert((head(i)!=0)==(i==156 || i==162));
             for(unsigned i=0;i<6;++i) assert(semi && i>=3 ? host_corners[i].depth<0 : host_corners[i].depth>0);
         }
-        // A warped prop quad is one packet in PS1 corner order: the GPU
-        // draws it on the native 1-2 diagonal.
+        // D17AP: a warped prop quad is drawn as its two native halves
+        // (0-1-2, 2-1-3), each with its own plane depth, as D17X requires;
+        // as one packet its snapped corners took raw vertex depth.
         {
             auto c=reset();c.gpr[31]=0x80032288;
             psx_mod_write_byte(mesh+6,4);word(mesh+0x10,verts);word(mesh+0x14,list);
@@ -246,13 +247,13 @@ static void packet_contracts(const char* executable) {
             word(list,0x0001002c);word(list+4,0x03020100);
             word(list+8,0);word(list+12,0x0200001f);
             word(list+16,0x1f1f1f00);word(list+20,0xff);
-            observed_hook(&c,0x80010000);assert(host_corners.size()==4);
-            for(int i=0;i<4;++i) {
-                const auto& v=host_corners[i];
-                assert(v.z==xyz[i][2] && v.u==(i%2?31:0) && v.v==(i>=2?31:0));
+            observed_hook(&c,0x80010000);assert(host_corners.size()==6);
+            const int halves[6]={0,1,2,2,1,3};
+            for(int i=0;i<6;++i) {
+                const auto& v=host_corners[i];const int k=halves[i];
+                assert(v.z==xyz[k][2] && v.u==(k%2?31:0) && v.v==(k>=2?31:0) && v.depth>0);
             }
-            unsigned slot=0;for(unsigned i=0;i<2048;++i) if(head(i)) slot=i;
-            assert((psx_mod_read_word(head(slot)+4)>>24)==0x2c+0x10);
+            for(unsigned i=0;i<2048;++i) if(head(i)) assert((psx_mod_read_word(head(i)+4)>>24)==0x24+0x10);
         }
         // D20H: a state saved part way through a frame resumes it. Its OT
         // links into packets restored in the mirrored region; this process's
@@ -285,6 +286,35 @@ static void packet_contracts(const char* executable) {
             assert(next!=saved && next>=arena+want*region && next<arena+(want+1)*region);
             assert(next==arena+want*region && psx_mod_read_word(mirror)==want);
             for(int i=1;i<13;++i) assert(psx_mod_read_word(saved+4*i)==copy[i]);
+        }
+        // D17AN: with unified geometry every water tile, even a safe distant
+        // one the original draws itself, is taken and depth-tested at its
+        // surface 32 units deep, so scenery above the water (the slot-12
+        // bridge deck) is never painted over by a tile sorted nearer.
+        {
+            constexpr uint32_t wpkt=0x80165000,wrgn=0x80165080,wstk=0x80165100,wrw0=0x80165200,wrw1=0x80165220;
+            auto half=[](uint32_t a,uint16_t v){psx_mod_write_byte(a,v&0xff);psx_mod_write_byte(a+1,v>>8);};
+            word(wpkt,9u<<24);word(wpkt+4,0x2e808080u);
+            for(int i=0;i<4;++i) word(wpkt+12+i*8,0x40404040u);
+            half(wpkt+14,0x0100u);half(wpkt+22,0x0019u);
+            word(0x800c3cd8u,0);half(wrgn,0);half(wrgn+2,100);half(wrgn+8,0);
+            word(wstk+0x90,wrgn-8);word(wstk+0x60,0);half(wstk+0x58,3100u);
+            ttk::NearGte g{};for(int i=0;i<3;++i) g.r[i][i]=4096;g.h=256;
+            const ttk::NearProjected u[4]={ttk::near_project(g,0,100,2076),ttk::near_project(g,1024,100,2076),
+                ttk::near_project(g,0,100,3100),ttk::near_project(g,1024,100,3100)};
+            const uint32_t rec[4]={wrw0,wrw0+16,wrw1,wrw1+16};
+            for(int i=0;i<4;++i) {assert(u[i].safe);word(rec[i],u[i].sxy);word(rec[i]+4,u[i].sz);}
+            auto wc=reset();
+            wc.gpr[31]=0x8002fbb4u;wc.gpr[5]=wpkt;wc.gpr[21]=wrgn;
+            wc.gpr[29]=wstk;wc.gpr[17]=wrw0;wc.gpr[18]=wrw1;wc.gpr[20]=0;wc.gpr[4]=500;
+            host_corners.clear();observed_hook(&wc,0x8002bc18);
+            assert(!host_corners.empty() && (psx_mod_read_word(wpkt)>>24)==0);
+            // Plane y=100: depth along each ray scales by (100+32)/100.
+            for(const auto& v:host_corners) assert(v.depth>0 && v.depth>v.z*1.2f &&
+                (!pgxp_mesh_geometry() || std::abs(v.depth-v.z*1.32f)<v.z*0.01f));
+            word(wpkt,9u<<24);modern=false;host_corners.clear();observed_hook(&wc,0x8002bc18);
+            assert(host_corners.empty() && (psx_mod_read_word(wpkt)>>24)==9);modern=true;
+            std::puts("D17AN unified water: safe tiles depth-tested at the surface 32 units deep, Vanilla untouched PASS");
         }
         std::puts("D20H mid-frame load: the rest of a loaded frame goes to the next region, restored packets intact PASS");
         std::puts("D17AM2 unified geometry: one GT4 per unclipped quad, native slots, far silhouettes, clip-rectangle cull, painter-only translucency, Vanilla guard PASS");

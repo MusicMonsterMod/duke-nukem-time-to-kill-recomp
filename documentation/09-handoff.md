@@ -1,5 +1,12 @@
 # Next-session handoff
 
+## 2026-10-30 - D18C closed (crackle no longer occurs)
+
+User confirmed repeated play of the construction-sign scene with no audio
+issues "in a long time"; D18C is Done with no action required and no cause
+isolated. Reopen if the crackle returns. Documentation only; no build or game
+run. No next job selected.
+
 ## 2026-10-30 - D29 cancelled (covered by the mission inventory)
 
 User decision: D29 (progression items and objectives legibility) is

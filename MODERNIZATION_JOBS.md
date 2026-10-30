@@ -1473,7 +1473,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D18 | FMV and audio presentation safeguards | Done (research accepted 2026-10-27) | D01, D02 |
 | D18A | Voice/music/gunfire crackle investigation | Done | D01, D02 |
 | D18B | Concurrent voice with music (no music mute) | Done (user-accepted 2026-10-27) | D18, D21 |
-| D18C | Load-sensitive crackle at construction signs and train ledge | Todo | D17B, D18A |
+| D18C | Load-sensitive crackle at construction signs and train ledge | Done (user-confirmed no longer occurs, 2026-10-30) | D17B, D18A |
 | D18D | Music silent after death and Continue until Duke's next voice line | Done (user-accepted 2026-10-21) | D01 |
 | D18E | Challenge stages 21-26 have no music: reuse fitting in-game tracks (user mapping) | Todo | D22B, D26A |
 | D18F | Recomp-owned FMV playback and replacement/mod foundation | Todo | D18 |
@@ -9986,7 +9986,12 @@ recorded; volume-channel hooks prepared for D21 without requiring the full menu.
 
 ### D18C - Load-sensitive crackle at construction signs and train ledge
 
-**Todo.** Current UI 1 (`cards-user8`, file 00): turn around, approach the
+**Status: Done (user-confirmed 2026-10-30: no audio issues on repeated play of
+the scene "in a long time").** Closed on the user's playtest with no code
+change; no cause was isolated. Reopen if the crackle is heard again. The
+original report and acceptance plan below are retained as history.
+
+**Original report.** Current UI 1 (`cards-user8`, file 00): turn around, approach the
 construction signs, move/fire, then jump onto the ledge; user hears brief,
 self-resolving crackle. Current UI 10 (file 09): turn/move/jump around train
 platform ledge. Include UI 12 club movement as an audio stress comparison.
@@ -24558,3 +24563,14 @@ D22E is Done; note 330 is the accepted matrix baseline, and the D22E-D22O job
 split stands. No changes to the matrix content after acceptance. D22 remains
 the parent tracker (Todo); D26D is recommended before D22F/D22O. No next job
 selected.
+
+## 2026-10-30 - D18C closed: crackle no longer occurs
+
+User: "i have played this scene several times over and i havent had any audio
+issues, in a long time regarding this. let's mark it as complete." D18C is
+Done on the user's repeated play of the slot-1 construction-sign route; no
+action required. No code change, build or game run, and no cause was isolated:
+the starvation measured in early slot-10/12 runs predates the D17 renderer
+work, the D17AM unified geometry default and the D18B audio rework, which
+plausibly removed it, but that is not established. Reopen D18C if the crackle
+returns. No next job selected.

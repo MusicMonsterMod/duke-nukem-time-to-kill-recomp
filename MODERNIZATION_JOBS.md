@@ -1534,7 +1534,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D22E | Campaign matrix and evidence baseline (documentation first) | Done (user-accepted; closed 2026-10-30; note 330) | D01 |
 | D22F | Level load and level-to-level handoff sweep | Todo | D22E |
 | D22G | Per-level native/interpreted coverage measurement | Todo | D22E; coordinate D23G |
-| D22H | Progression items and objectives per level | Todo | D22E; related D29 |
+| D22H | Progression items and objectives per level | Todo | D22E |
 | D22I | Enemies and weapons per level | Todo | D22E |
 | D22J | Boss encounters | Todo | D22E |
 | D22K | Save and load round-trips per level | Todo | D22E |
@@ -1569,7 +1569,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D27 | Caps Lock RUN MODE quotes; Shift-run clunk silence deferred | Done (quotes); clunk deferred low-priority | D04, D19A |
 | D27A | Modern Shift/run is silent: remove the walk/run toggle click `0x0001` from the Shift path, keep the D08A10 heartbeat | Done (user-accepted) | D27, D08A10 |
 | D28 | Scroll Lock holster and WEAPON LOWERED/RAISED quotes | Done | D04, D19A |
-| D29 | Progression items and objectives legibility: research and design first (Level 2 bank-vault notes) | Todo | D19A, D22B, D26A |
+| D29 | Progression items and objectives legibility: research and design first (Level 2 bank-vault notes) | Cancelled (covered by D08A5/D08A18/D08A19, 2026-10-30) | D19A, D22B, D26A |
 | D30 | List the project on recomp.board (recomp.fyi): commit `.recomp.json` to claim our row | Done | - |
 | D31 | Eye-catching README: own-capture hero banner, in-engine icon, screenshots, social preview and credits (design locked, concept 7) | Todo | - |
 | D32 | Game icon: replace the framework psxrecomp.ico/.png/.svg with the D31 in-engine icon (exe, window, taskbar, launcher) | Todo | D31 design |
@@ -11841,7 +11841,7 @@ keeps a stale aim vector). [Note 152](documentation/152-d22d-energy-beam.md).
 
 ### D22H - Progression items and objectives per level
 
-**Status: Todo. Dependencies: D22E. Related: D29.** Per level, list the required keys, cards, switches and mission items (from data, notes and play) and confirm each can be obtained and used, and that the gate it opens works, in Modernized first and third person. Use private saves placed before each gate. D29 owns legibility and design; this job only checks that progression works.
+**Status: Todo. Dependencies: D22E.** Per level, list the required keys, cards, switches and mission items (from data, notes and play) and confirm each can be obtained and used, and that the gate it opens works, in Modernized first and third person. Use private saves placed before each gate. Legibility is covered by the D08A5 mission inventory (D29 cancelled 2026-10-30); this job only checks that progression works.
 
 **Acceptance:** progression column filled per level; each item/gate is verified or has a dedicated blocker job.
 
@@ -12715,7 +12715,19 @@ manual/game manual updated.
 
 ### D29 - Progression items and objectives legibility (research and design first)
 
-**Todo. Opened 2026-10-06 from the user's Level 2 playthrough.** A gameplay
+**Cancelled 2026-10-30 (user decision): covered by D08A5/D08A18/D08A19.** The
+mission inventory on `,` / `.` answers the job's core questions: it lists every
+mission item the level needs (papers included) with found/total, unfound items
+as silhouettes, a name card with FOUND / NOT FOUND YET / USED, Enter to use the
+browsed item at its lock and a green tick once used, all kept by saves. The
+Level 2 papers are combo pieces the game consumes at the lock, not codes to
+read, so "what information did it contain" does not apply. Not pursued: a
+distinct pickup notification, rewritten objective text and a separate
+campaign-wide legibility audit; D22H still verifies every progression item and
+gate works. A concrete gap seen later becomes its own small job. The original
+brief is kept below for reference.
+
+**Opened 2026-10-06 from the user's Level 2 playthrough.** A gameplay
 modernization and player-legibility job, not a conventional bug. Modernized
 profile only; Vanilla keeps the original presentation.
 

@@ -119,8 +119,8 @@ boss levels name no mission items, so D22H still has to check their gates
    it does not show that enemies take damage.
 3. Level 1: D22A's arrival had movement, aim, fire, pause and view checks (A,
    U accepted "completely playable", 2026-10-04). Its exit was not recorded.
-4. Level 2: D29 records the bank-vault notes as a legibility problem, not a
-   blocker.
+4. Level 2: D29 recorded the bank-vault notes as a legibility problem, not a
+   blocker (D29 cancelled 2026-10-30, covered by the D08A5 mission inventory).
 5. The user loads private saves in these levels (renderer jobs D17W level 3,
    D17X/D17AN level 6, handoff slot 5 LEVEL09). That shows the saves load. It
    does not audit their state.

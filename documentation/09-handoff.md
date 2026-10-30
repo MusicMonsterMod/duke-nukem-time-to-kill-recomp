@@ -1,5 +1,13 @@
 # Next-session handoff
 
+## 2026-10-30 - D29 cancelled (covered by the mission inventory)
+
+User decision: D29 (progression items and objectives legibility) is
+Cancelled. The D08A5/D08A18/D08A19 mission inventory already shows every
+mission item a level needs, found/total, FOUND / NOT FOUND YET / USED and use
+at the lock; the Level 2 papers are combo pieces, not codes. D22H no longer
+references D29. Documentation only; no build or game run. No next job selected.
+
 ## 2026-10-30 - D22E accepted and closed
 
 User accepted note 330 and the D22E-D22O job list; D22E is Done. D22 stays

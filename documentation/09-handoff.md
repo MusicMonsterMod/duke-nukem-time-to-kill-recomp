@@ -1,5 +1,14 @@
 # Next-session handoff
 
+## 2026-10-30 - D22 split; D22E campaign matrix Needs review
+
+D22 is a parent tracker; its sub-jobs are D22E-D22O. The D22E baseline matrix
+is [note 330](330-d22e-campaign-matrix.md). It covers indices 0-3, 5-12 and
+27-29 plus the ending, with an evidence label in every cell. Biggest gaps: no
+natural exits beyond level 0, no boss evidence, and the campaign order waits
+on D26D. Documentation only. Next: the user reviews note 330, then picks a
+D22 sub-job (D26D first is recommended for D22F/D22O).
+
 ## 2026-10-30 - D35N1/D35N2 accepted and closed
 
 User confirmed both mirrors "working perfectly" and authorized closeout. Mirror

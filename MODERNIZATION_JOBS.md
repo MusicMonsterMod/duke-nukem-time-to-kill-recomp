@@ -1526,11 +1526,22 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D20G | Investigate UI slot 11 reload fatal GPU halt: regression assessment and fix decision; recurrence lessons in note 213 | Done (user-accepted 2026-10-24; unreproduced, revisit if similar symptoms recur) | D20C |
 | D21A | Momentary crouch takes over C toggle until release | Done (user-accepted) | D21 |
 | D21 | Reworked SOUND menu and configurable C held crouch | Done (user-accepted 2026-10-27) | D04, D19 |
-| D22 | Campaign fidelity and overlay coverage | Todo | D01 |
+| D22 | Campaign fidelity and overlay coverage (parent; split into D22E-D22O 2026-10-30) | Todo | D01, D22E-D22O |
 | D22A | Portal transition loses Modernized controls and first person (slot 7) | Done (user-accepted; closed 2026-10-30) | D05, D06, D11 |
 | D22B | Modern controls and first person in every level and transition (no classic fallback) | Done (user-accepted; closed 2026-10-30) | D22A, D26A |
 | D22C | Level 11 starts with Legacy controls until F10 (control mode must persist) | Done (user-accepted; closed 2026-10-30) | D22B |
 | D22D | Energy weapon (key 7) fires but has no effect on enemies | Done (user-accepted 2026-10-19) | D07C |
+| D22E | Campaign matrix and evidence baseline (documentation first) | Needs review (note 330) | D01 |
+| D22F | Level load and level-to-level handoff sweep | Todo | D22E |
+| D22G | Per-level native/interpreted coverage measurement | Todo | D22E; coordinate D23G |
+| D22H | Progression items and objectives per level | Todo | D22E; related D29 |
+| D22I | Enemies and weapons per level | Todo | D22E |
+| D22J | Boss encounters | Todo | D22E |
+| D22K | Save and load round-trips per level | Todo | D22E |
+| D22L | Movies and scripted sequences per level | Todo | D22E; related D18F |
+| D22M | End-game flow: final level, ending and return to title | Todo | D22E, D22J |
+| D22N | Extra modes: explicit test scope (challenge stages, two-player) | Todo | D22E |
+| D22O | Completion playthrough evidence and closeout | Todo | D22F, D22H-D22M |
 | D23 | Performance budgets and long-session stability | Done (user-accepted 2026-10-26) | D01 |
 | D23A | Modernized frame-budget regression (guard identity cost) | Done | D08 |
 | D23B | Intro FMV stutter: stranded native movie shard | Done | D23 |
@@ -11643,6 +11654,8 @@ Maintain a level-by-level matrix for loading, progression items, enemies, weapon
 
 **Acceptance:** the intended single-player campaign has recorded completion evidence and no known progression blocker; failures get reproduction steps and dedicated jobs. Record native/interpreted boundaries honestly. This long-running job must not prevent earlier prototypes.
 
+**Split 2026-10-30 (user request: smaller, manageable jobs; no work started).** D22 is now a parent tracker. Its work is divided into D22E-D22O below; D22 closes when they are Done and no known progression blocker remains. D22A-D22D are earlier bounded bugs and stay as recorded. The matrix lives in [note 330](documentation/330-d22e-campaign-matrix.md). Every sub-job uses private save/card copies and offscreen runs where possible, never the player's saves or memory cards; Vanilla stays unchanged. Failures found in any sub-job get their own dated job with reproduction steps rather than being fixed inside the survey job.
+
 ### D22A - Portal transition loses Modernized controls and first person (slot 7)
 
 **Accepted (2026-10-04, user playtest).** "Level 2 is working and is completely
@@ -11807,6 +11820,72 @@ case; controls, input and Python (146 OK) suites pass. Not verified: the
 user's playtest, bosses and other enemy types, levels beyond 0 and 1. Found:
 D07E (stale-lease shots use the original auto-aim; `original` weapon aim
 keeps a stale aim vector). [Note 152](documentation/152-d22d-energy-beam.md).
+
+### D22E - Campaign matrix and evidence baseline (documentation first)
+
+**Status: Needs review (baseline written 2026-10-30, [note 330](documentation/330-d22e-campaign-matrix.md)). Dependencies: D01.** Create one engineering note holding the campaign matrix: one row per campaign level (all 21 selectable levels, in the authoritative order from D26A/D26D where known) plus the ending. Columns: load, handoff to the next level, progression items, enemies, weapons, bosses, saves, movies/scripted sequences, native coverage and completed-by-play. Each cell carries an evidence label: user playtest (with date), automated/offscreen run, inferred from an earlier job, or unverified. Fill only what existing jobs, notes and the handoff already prove (D22A-D22D, D22B's every-level controls pass, D26A level select, D20B statistics screen, earlier level-specific jobs). No game runs, builds or code changes.
+
+**Acceptance:** the note exists, is linked from the board and status, and every cell is either filled from cited evidence or marked unverified. The remaining gaps define the scope of D22F-D22O.
+
+### D22F - Level load and level-to-level handoff sweep
+
+**Status: Todo. Dependencies: D22E.** For every level, using background/offscreen runs and the debug console (`level N`, `endlevel`): the level loads from a new game route and from level select, play starts in Modernized with controls and the selected view, and the level-complete/statistics screen hands off to the correct next level. Record any hang, wrong destination, missing overlay or fallback. Load and handoff only; it does not prove the level can be completed by play.
+
+**Acceptance:** matrix load and handoff columns filled for every level, with failures split into dedicated jobs.
+
+### D22G - Per-level native/interpreted coverage measurement
+
+**Status: Todo. Dependencies: D22E. Coordinate with D23G.** Per level, capture dispatch-miss, interpreter/fallback and dirty-code counters for a representative route (load, early play, one transition). Record which overlays and code paths run natively and which are interpreted, honestly and without claiming exhaustive dynamic coverage. Measurement only; making more code native and the fast-path work belong to D23G.
+
+**Acceptance:** the native coverage column is filled per level with the measured route named, and any correctness or performance problem traced to interpretation becomes a D23G item or a dedicated job.
+
+### D22H - Progression items and objectives per level
+
+**Status: Todo. Dependencies: D22E. Related: D29.** Per level, list the required keys, cards, switches and mission items (from data, notes and play) and confirm each can be obtained and used, and that the gate it opens works, in Modernized first and third person. Use private saves placed before each gate. D29 owns legibility and design; this job only checks that progression works.
+
+**Acceptance:** progression column filled per level; each item/gate is verified or has a dedicated blocker job.
+
+### D22I - Enemies and weapons per level
+
+**Status: Todo. Dependencies: D22E.** Per level, confirm the enemy types present spawn, react, take damage and die, and that every weapon available there fires and damages correctly with Modernized aiming (D22D covered the energy weapon on levels 0 and 1 only). Note pickups and ammo that fail to appear. Bosses are D22J.
+
+**Acceptance:** enemies and weapons columns filled per level; failures split into dedicated jobs.
+
+### D22J - Boss encounters
+
+**Status: Todo. Dependencies: D22E.** Identify every boss encounter and its level. For each: the encounter starts, the boss can be damaged and defeated with Modernized controls and aiming in first and third person, and defeat triggers the correct progression. Use private saves placed just before each boss; the user's playthrough confirms difficulty and feel where automation cannot.
+
+**Acceptance:** each boss has a recorded win (automated or user playtest) and correct progression, or a dedicated blocker job.
+
+### D22K - Save and load round-trips per level
+
+**Status: Todo. Dependencies: D22E.** Per level, verify SAVE GAME / LOAD GAME (savestates) and the statistics-screen save: saving mid-level and after completion, then loading, resumes in the right place with inventory, health, objectives and Modernized controls intact. Private cards and saves only.
+
+**Acceptance:** saves column filled per level; any lost state or failed load has a dedicated job.
+
+### D22L - Movies and scripted sequences per level
+
+**Status: Todo. Dependencies: D22E. Related: D18F.** Inventory the FMVs and in-engine scripted sequences tied to each level (intros, cutscenes, between-level movies) and confirm each plays once at the right time, with audio, and returns control correctly. Recomp-owned FMV playback and replacement is D18F, not this job.
+
+**Acceptance:** movies column filled per level; missing, repeated or stuck sequences get dedicated jobs.
+
+### D22M - End-game flow: final level, ending and return to title
+
+**Status: Todo. Dependencies: D22E, D22J.** Verify the final level's completion, the ending movie and credits, and the return to the title or menu, plus any post-game unlocks the original grants. Use a private save near the end.
+
+**Acceptance:** the ending plays through to its normal conclusion in Modernized with no hang, recorded in the matrix.
+
+### D22N - Extra modes: explicit test scope (challenge stages, two-player)
+
+**Status: Todo. Dependencies: D22E.** List the modes outside the single-player campaign (challenge stages 21-26, two-player split-screen per D34B/D34C, character selection) and record each as tested, partially tested or untested, with what was observed. These modes are not part of D22's campaign acceptance; this job prevents them from being implicitly claimed as supported. D18E (challenge music) stays separate.
+
+**Acceptance:** a short scope table in the matrix note with an honest status for every extra mode.
+
+### D22O - Completion playthrough evidence and closeout
+
+**Status: Todo. Dependencies: D22F, D22H-D22M.** Build a short checklist of the levels, bosses and the ending that still lack completed-by-play evidence and present it to the user for playtesting, which can be done in level groups across several sessions. Record each completion with its date and executable, update the matrix, and close D22 when every campaign level has completion evidence and no known progression blocker remains.
+
+**Acceptance:** completed-by-play column filled for the whole campaign; D22 parent marked Done with the user's confirmation.
 
 ### D23 — Performance budgets and long-session stability
 
@@ -24441,3 +24520,21 @@ native mirror pose and line in Modernized (note 329). No post-acceptance code
 change. Implementation, test and documentation committed and pushed as
 MusicMonsterMod together with the board cleanup. Framework patch unchanged.
 No next job selected. Launch: `python3 recomp/tools/local/run.py`.
+
+## 2026-10-30 - D22 split into D22E-D22O; D22E campaign matrix baseline (Needs review)
+
+At the user's request D22 is now a parent tracker with eleven sub-jobs,
+D22E-D22O (matrix, load/handoff, native counters, progression, enemies and
+weapons, bosses, saves, scripted sequences, ending, extra modes, completion
+playthrough). D22E then wrote the campaign matrix,
+[note 330](documentation/330-d22e-campaign-matrix.md): 15 campaign levels
+(indices 0-3, 5-12, 27-29) plus the ending, ten columns, and every cell either
+cited (user / automated / inferred) or marked unverified. Mission items per
+level come from note 114. The flow facts come from notes 179, 183 and 281:
+level 29 leads to the ending, 27-29 are boss levels, and the ending is VICTRY,
+KILT on difficulty 3, then CREDIT. Gaps found: only level 0 has a recorded
+natural exit, there is no boss evidence, enemy and weapon evidence covers
+levels 0-1 and the energy weapon only, there are no per-level native counters,
+and campaign order waits on D26D, which D22F/D22O need for "correct next
+level". Documentation only: no build, game run or code change. Remaining:
+user review of the matrix.

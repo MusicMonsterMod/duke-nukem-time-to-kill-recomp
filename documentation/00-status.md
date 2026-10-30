@@ -1,5 +1,12 @@
 # Current status - 2026-10-04
 
+## 2026-10-30 - D22 split; D22E campaign matrix Needs review
+
+D22 was split into D22E-D22O at the user's request. D22E's campaign matrix is
+[note 330](330-d22e-campaign-matrix.md): an evidence baseline only, with no
+build or game run. Uncommitted: `MODERNIZATION_JOBS.md`, note 330, status and
+handoff.
+
 ## 2026-10-30 - D35N1/D35N2 accepted and closed
 
 User confirmed both mirrors "working perfectly" and authorized closeout. Mirror

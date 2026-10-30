@@ -108,6 +108,8 @@ const char* controls_debug_json();
 // modern camera does not own the view.
 // at_ms >= 0: the mouse look as it was at that time (performance clock, ms).
 bool replay_gameplay_context();
+// D17AR3: the live frame in progress is redraw-only (frame_replay.cpp).
+bool live_frame_redraw_only();
 // D23E/D23H: one second of gameplay judged by overclock_lease: 0 kept up,
 // 1 behind real time, 2 not a gameplay second (menus, loads). Sheds presents
 // on a sustained deficit and steps back up when emulation keeps up again.

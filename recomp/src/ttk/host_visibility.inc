@@ -56,6 +56,7 @@ static const HostVisGuard host_vis_guards[]={
 };
 static std::array<std::vector<uint32_t>,3> host_vis_words;
 static uint64_t host_vis_frames=0,host_vis_refusals=0,host_vis_rooms=0,host_vis_extra=0,host_vis_tested=0,host_vis_selected=0,host_vis_left=0;
+static uint64_t host_vis_redraw_only=0;
 static uint64_t host_vis_missed=0,host_vis_widened=0,host_vis_select_us=0,host_vis_draw_us=0;
 static uint32_t host_vis_last_missed=0,host_vis_last_missed_from=0;
 static uint32_t host_vis_last_rooms=0,host_vis_last_pieces=0,host_vis_last_game=0;
@@ -316,6 +317,11 @@ static bool host_vis_walk(CPUState* cpu) {
     }
     std::stable_sort(picks.begin(),picks.end(),[](const Pick& x,const Pick& y){return x.distance<y.distance;});
     unsigned pieces_drawn=0;uint32_t current=~0u,flags=0x300;
+    // D17AR3: a redraw-only live frame is never shown (frame_replay.cpp); its
+    // selection stands (rooms for the props and object passes), no piece is
+    // emitted and none goes back to the game's walk.
+    const bool redraw_only=live_frame_redraw_only();
+    if(redraw_only) {pieces_drawn=(unsigned)picks.size();host_vis_redraw_only+=picks.size();picks.clear();}
     for(const Pick& k:picks) {
         if(k.room!=current) {
             // The room's state as the walk sets it (0x80062bd8..0x80062d00).
@@ -400,13 +406,13 @@ static bool host_vis_object_pass(uint32_t ra) {
     return true;
 }
 static const char* host_visibility_debug_json() {
-    static char buffer[768];
+    static char buffer[896];
     uint64_t n[5];near_clip_host_counters(n);
     std::snprintf(buffer,sizeof buffer,"{\"enabled\":%s,\"frames\":%llu,\"refusals\":%llu,\"rooms\":%llu,\"over_walls\":%llu,\"tested\":%llu,"
-        "\"selected\":%llu,\"drawn\":%llu,\"left\":%llu,\"left_far\":%llu,\"left_near\":%llu,\"walk_nulled\":%llu,\"game_missed\":%llu,\"game_widened\":%llu,\"last_missed\":[%u,%u],\"select_us\":%llu,\"draw_us\":%llu,\"last\":{\"rooms\":%u,\"pieces\":%u,\"game_rooms\":%u,\"props_rooms\":%u}}",
+        "\"selected\":%llu,\"drawn\":%llu,\"left\":%llu,\"left_far\":%llu,\"left_near\":%llu,\"walk_nulled\":%llu,\"game_missed\":%llu,\"game_widened\":%llu,\"last_missed\":[%u,%u],\"select_us\":%llu,\"draw_us\":%llu,\"redraw_only_pieces\":%llu,\"last\":{\"rooms\":%u,\"pieces\":%u,\"game_rooms\":%u,\"props_rooms\":%u}}",
         host_visibility_enabled()?"true":"false",(unsigned long long)host_vis_frames,(unsigned long long)host_vis_refusals,(unsigned long long)host_vis_rooms,
         (unsigned long long)host_vis_extra,(unsigned long long)host_vis_tested,(unsigned long long)host_vis_selected,(unsigned long long)n[0],
-        (unsigned long long)n[1],(unsigned long long)n[3],(unsigned long long)n[4],(unsigned long long)n[2],(unsigned long long)host_vis_missed,(unsigned long long)host_vis_widened,host_vis_last_missed_from,host_vis_last_missed,(unsigned long long)host_vis_select_us,(unsigned long long)host_vis_draw_us,host_vis_last_rooms,host_vis_last_pieces,host_vis_last_game,host_vis_props_count);
+        (unsigned long long)n[1],(unsigned long long)n[3],(unsigned long long)n[4],(unsigned long long)n[2],(unsigned long long)host_vis_missed,(unsigned long long)host_vis_widened,host_vis_last_missed_from,host_vis_last_missed,(unsigned long long)host_vis_select_us,(unsigned long long)host_vis_draw_us,(unsigned long long)host_vis_redraw_only,host_vis_last_rooms,host_vis_last_pieces,host_vis_last_game,host_vis_props_count);
     return buffer;
 }
 bool hostvis_console_command(const char* line,void (*say)(const char*),bool& close) {

@@ -18,6 +18,9 @@ bool fov_console_command(const char* line, void (*say)(const char*), bool& close
 // D17AR2 (developer): "hostvis [on|off|default]" (modern_controls.cpp,
 // host_visibility.inc), the host world visibility switch for the session.
 bool hostvis_console_command(const char* line, void (*say)(const char*), bool& close);
+// D17AR3 (developer): "redrawonly [on|off|default]" (frame_replay.cpp),
+// redraw-only live frames for the session.
+bool redraw_only_console_command(const char* line, void (*say)(const char*), bool& close);
 // D24B: the game's own name for level n (from guest RAM, "" when unavailable).
 bool level_title(unsigned n, char* out, unsigned cap);
 }

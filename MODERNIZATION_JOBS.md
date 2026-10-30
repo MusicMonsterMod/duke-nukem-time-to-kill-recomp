@@ -100,8 +100,9 @@ core, no host contention). Open: smoothness (D17AR3); the user's launch with
 
 #### D17AR3 - Regression sweep, performance and default switch
 
-**Status: In progress (part 1, performance, accepted 2026-10-30; part 2 next:
-redraw-only live frames, approved by the user; [note 338](documentation/338-d17ar3-host-visibility-performance.md)).**
+**Status: In progress (part 1, performance, and part 2, redraw-only live
+frames, accepted 2026-10-30; next: the default switch and the rest below; [note 338](documentation/338-d17ar3-host-visibility-performance.md),
+[note 339](documentation/339-d17ar3-redraw-only-live-frames.md)).**
 User priority after the D17AR2 playtest: make host
 visibility silky smooth at 120 Hz (slot 10 and the moat dip to every second
 refresh). Also: level 28 never engages; check why the user's
@@ -133,6 +134,28 @@ by this massive performance hike. especially on my absurd state save on slot
 see how far we can push this renderer". The user also wants the renderer
 named: the in-game renderer choice will be Classic and our renderer (name to
 come from the user; EDuke32's are classic, Polymost and Polymer).
+Work log 2026-10-30 (part 2, redraw-only live frames, Needs playtest): at 120
+Hz an engaged live gameplay frame keeps its host world selection but emits no
+pieces, and the GPU DMA lists it sends after its flip drop their drawing
+primitives (state, uploads, copies and DMA timing unchanged); the presenter
+never shows that image (keeps the screen; thumbnails from the last redraw).
+Engaged after 8 redraw presents in a row, only in gameplay with the late
+camera and live workers; 3 misses in a row, a failed redraw or a savestate
+load draw again; never at 60 Hz, Vanilla, menus, pause, loading, split screen.
+TTK sends each frame as about 9 lists chained after the flip, so the flip is
+the frame boundary. `DNTTK_REDRAW_ONLY=0` / console `redrawonly off`
+(developer); `PSX_LIVE_SKIP_CANARY=1` check. Canary over all 10 fixture slots,
+pause, thumbnail, save/load: no stale pixel shown; an early garbled-texture
+frame after loads (re-presenting a cache entry) fixed by not swapping. Same
+build off/on, 120 Hz, scale 4, seconds at full rate of 24, host visibility on:
+slot 10 turning 20 to 24, standing at the loaded view 1 to 24 (p95 26.7 to 8.8
+ms), slot 2 turning 11 to 24, standing 20 to 24; host off slot 2 20 to 24.
+Forced full rate: slot 10 loaded view 47.7 to 60.0 fields/s. `ttk-near-test`
+passes; patch re-exported and verified. Not automated: pause resume,
+inventory, level changes, split screen (playtest).
+Playtest 2026-10-30 (part 2): "it feels unbelievably smooth." Part 2 accepted
+and committed. D17AR3 continues: host visibility default switch, level 28, the
+full regression sweep, then pushing the renderer further and naming it.
 
 #### D17AR4 - Retire superseded portal patches
 
@@ -1589,7 +1612,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D17AR | Host-owned world visibility (parent): the host decides what world geometry is drawn | In progress (AR1 done; AR2 accepted; AR3 in progress: performance part 1) | D17AM, D17AQ; D17AR1-AR4 |
 | D17AR1 | Host visibility: inventory, data-format verification and design (report first) | Done (design approved 2026-10-30; note 336) | D17AM |
 | D17AR2 | Host visibility: implementation behind a developer switch | Accepted (visual playtest passed; performance to D17AR3) | D17AR1 |
-| D17AR3 | Host visibility: regression sweep, performance and default switch | In progress (part 1 performance accepted; part 2 next: redraw-only live frames) | D17AR2 |
+| D17AR3 | Host visibility: regression sweep, performance and default switch | In progress (parts 1-2 accepted: performance, redraw-only live frames; next: default switch, level 28, sweep) | D17AR2 |
 | D17AR4 | Host visibility: retire superseded portal patches (open sky, portal widening) | Todo | D17AR3 |
 | D17AS | Slot-2 moat: large dark triangle in/under the water (research/screencaps/triangle.mp4) | Todo (report first) | D17AM |
 | D14F | 90-default / 120-maximum world FOV | Done (user-confirmed 2026-10-30) | Implemented in afd4ad6 (note 317); re-verified 2026-10-29 |

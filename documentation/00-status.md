@@ -1,5 +1,22 @@
 # Current status - 2026-10-04
 
+## 2026-10-30 - D17AR3 part 2 accepted
+
+User playtest of redraw-only live frames: "it feels unbelievably smooth."
+Committed. Next session: D17AR3 continues with the host visibility default
+switch, level 28 and the full regression sweep (note 339 "Remaining"), then
+pushing the renderer further and naming it.
+
+## 2026-10-30 - D17AR3 part 2: redraw-only live frames (Needs playtest)
+
+At 120 Hz the emulation thread no longer draws the live gameplay frame nobody
+sees (host world emission and GPU primitives skipped; the presenter keeps the
+screen instead of showing it; thumbnails from the last redraw). Same build
+off/on, host visibility on, seconds at full rate of 24: slot 10 standing at the
+loaded view 1 to 24, slot 2 turning 11 to 24, all four routes 24. Canary over
+all fixture slots, pause, thumbnails and loads clean. Needs the user's
+playtest, especially pause/resume, inventory and level changes. Note 339.
+
 ## 2026-10-30 - D17AR3 part 1 accepted; part 2 (redraw-only live frames) next
 
 User playtest: "it's feeling really good ... especially on my absurd state save

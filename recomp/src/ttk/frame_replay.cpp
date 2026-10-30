@@ -30,6 +30,7 @@
 #include "sky_render.h"
 #include "psx_sdl.h"
 #include <algorithm>
+#include <atomic>
 #include <chrono>
 #include <cmath>
 #include <cstdint>
@@ -864,11 +865,78 @@ void submit_due(const PSXModPresentInfo* info,Frame* shown) {
 
 enum Kind {gameplay_image=0, frontend_image=1, loading_image_kind=2};
 void capture(CPUState* cpu,int kind);
+// D17AR3 part 2: redraw-only live frames. With the late camera every
+// gameplay present is a worker redraw (a missing one repeats the last), so
+// the live frame's own drawing is never shown, yet it cost the emulation
+// thread its host world pass and all of its GPU drawing. While engaged, a
+// live gameplay frame selects its host world as before but emits no pieces
+// (host_visibility.inc), and the GPU DMA lists it sends after its flip drop
+// their drawing primitives (psx_mod_live_draw_skip_arm); state, VRAM
+// uploads and copies, the guest's own timing and everything the game reads
+// are unchanged. The presenter never shows such an image: it keeps the screen
+// as it is, and savestate thumbnails come from the last redraw shown. Engaged
+// only in gameplay images with the late camera and live workers, after 8
+// presents in a row showed a redraw; 3 presents in a row without one (workers
+// stalled or restarting), a failed redraw or a savestate load draw the next
+// live frames again. Frontend,
+// loading, menus, pause, split screen, 60 Hz and Vanilla are never engaged.
+// DNTTK_REDRAW_ONLY=0 (developer) or console "redrawonly off" disables it.
+std::atomic<int> redraw_only_override{-1};
+bool redraw_only_switch() {
+    static const bool v=[]{const char* t=std::getenv("DNTTK_REDRAW_ONLY");return !(t && t[0]=='0' && !t[1]);}();
+    const int o=redraw_only_override.load(std::memory_order_relaxed);
+    return o<0 ? v : o!=0;
+}
+bool live_redraw_only=false, redraw_only_engaged=false, redraw_only_submit=false;
+unsigned ro_good=0, ro_miss_run=0;
+uint64_t ro_failures_seen=0, ro_frames=0, ro_engages=0, ro_drops=0;
+void redraw_only_trace(const char* what) {
+    static const bool on=std::getenv("DNTTK_REDRAW_ONLY_TRACE")!=nullptr;
+    if(!on) return;
+    uint64_t st[11];psx_mod_live_draw_skip_stats(st);
+    std::fprintf(stderr,"[TTK redraw-only] %s field=%llu lists=%llu/%llu skipped=%llu flips=%llu\n",what,(unsigned long long)s_frame_count,
+        (unsigned long long)st[9],(unsigned long long)st[10],(unsigned long long)st[0],(unsigned long long)psx_mod_present_flips());
+}
+void redraw_only_decide(bool gameplay) {
+    const bool want=gameplay && redraw_only_switch() && late_camera() && continuous_timeline() &&
+        replay_gameplay_context() && psx_mod_replay_workers_active();
+    // A savestate load replaces VRAM under any older redraw: draw the first
+    // frames after it again until fresh redraws are shown.
+    static uint32_t load_epoch=0;
+    const bool failed=failures!=ro_failures_seen || psx_mod_savestate_loads()!=load_epoch;
+    ro_failures_seen=failures;load_epoch=psx_mod_savestate_loads();
+    if(failed) ro_good=0;
+    if(!want || failed || ro_miss_run>=3) {
+        if(redraw_only_engaged) ++ro_drops;
+        redraw_only_engaged=false;
+    } else if(!redraw_only_engaged && ro_good>=8) {
+        redraw_only_engaged=true;++ro_engages;
+    }
+    live_redraw_only=redraw_only_submit=redraw_only_engaged;
+    if(live_redraw_only) ++ro_frames;
+    redraw_only_trace(live_redraw_only?"compose engaged":"compose");
+}
+// Every flip (0x8001fcbc, gameplay, frontend and loading alike) is a frame
+// boundary: the frame's lists are sent after it, several of them, chained
+// from the GPU's completion interrupt until the next frame. They skip only
+// when the composition before this flip was engaged, so a frame drawn
+// without one (pause, menus, loading) never inherits it.
+void redraw_only_flip(CPUState*,uint32_t) {
+    if(psx_mod_replay_active()) return;
+    psx_mod_live_draw_skip_arm(redraw_only_submit);
+    if(redraw_only_submit) redraw_only_trace("flip armed");
+    redraw_only_submit=false;
+}
 void composition_hook(CPUState* cpu,uint32_t address) {
+    if(address==composition && !psx_mod_replay_active()) {
+        live_redraw_only=redraw_only_submit=false;
+        psx_mod_live_draw_skip_enable(replay_on && interp_replay && redraw_only_switch());
+    }
     if(address!=composition || !replay_on || !interp_replay || psx_mod_replay_active()) return;
     const bool fe=frontend_composition(cpu);
     if(!fe && (cpu->gpr[31]!=composition_ret || psx_mod_read_word(0x800c27bc)!=1)) return;
     if(continuous_timeline() && !fe && !replay_gameplay_context()) return;
+    redraw_only_decide(!fe);
     capture(cpu,fe ? frontend_image : gameplay_image);
 }
 void capture(CPUState* cpu,int kind) {
@@ -1385,9 +1453,11 @@ int timeline_provider(const PSXModPresentInfo* info) {
         if(c>=0) {
             if(target_hz==-1) late_pace(c==last_shown_cache);
             shown_serial=best->serial;cache[c].used=++cache_clock;++reused;
+            ++ro_good;ro_miss_run=0;
             trace(info,best->alpha[pick],best,pick,drawn);last_shown_cache=c;return c+1;
         }
     }
+    ro_good=0;++ro_miss_run;
     if(last_shown_cache>=0 && psx_mod_replay_cache_valid(last_shown_cache)) {
         ++late_repeats;if(target_hz==-1) late_pace(true);
         trace(info,0,nullptr,-2,false);return last_shown_cache+1;
@@ -1696,6 +1766,29 @@ int replay_load_window(int window) {
     return 0;
 }
 
+// D17AR3: the live frame in progress skips its drawing (host_visibility.inc).
+bool live_frame_redraw_only() {return live_redraw_only && !psx_mod_replay_active();}
+const char* redraw_only_json() {
+    static char buffer[384];uint64_t st[11];psx_mod_live_draw_skip_stats(st);
+    std::snprintf(buffer,sizeof buffer,"{\"kept\":[%llu,%llu,%llu,%llu,%llu],\"switch\":%s,\"engaged\":%s,\"frames\":%llu,\"engages\":%llu,\"drops\":%llu,\"lists\":%llu,\"prims\":%llu,\"held\":%llu,\"blind\":%d,\"good\":%u}",
+        (unsigned long long)st[4],(unsigned long long)st[5],(unsigned long long)st[6],(unsigned long long)st[7],(unsigned long long)st[8],
+        redraw_only_switch()?"true":"false",redraw_only_engaged?"true":"false",(unsigned long long)ro_frames,(unsigned long long)ro_engages,(unsigned long long)ro_drops,
+        (unsigned long long)st[0],(unsigned long long)st[1],(unsigned long long)st[2],psx_mod_live_draw_blind(),ro_good);
+    return buffer;
+}
+bool redraw_only_console_command(const char* line,void (*say)(const char*),bool& close) {
+    if(std::strcmp(line,"redrawonly") && std::strncmp(line,"redrawonly ",11)) return false;
+    close=false;
+    if(line[10]) {
+        const char* v=line+11;
+        if(!std::strcmp(v,"on")) redraw_only_override=1;
+        else if(!std::strcmp(v,"off")) redraw_only_override=0;
+        else if(!std::strcmp(v,"default")) redraw_only_override=-1;
+        else {say("Usage: redrawonly [on|off|default] (developer, session only)");return true;}
+    }
+    say(redraw_only_switch()?"Redraw-only live frames on (developer).":"Redraw-only live frames off.");
+    return true;
+}
 const char* frame_replay_debug_json() {
     static char buffer[24576];
     int n=std::snprintf(buffer,sizeof buffer,"{\"on\":%s,\"interp\":%s,\"target_hz\":%d,\"steps\":%d,\"captures\":%llu,\"publishes\":%llu,"
@@ -1712,6 +1805,7 @@ const char* frame_replay_debug_json() {
     // Append the present trace: "ms/alpha/shown/ready/cached/njobs[d]/serial/yaw/t/planned alpha".
     if(n>1 && n<(int)sizeof buffer-64) {
         n-=1;
+        n+=std::snprintf(buffer+n,sizeof buffer-n,",\"redraw_only\":%s",redraw_only_json());
         n+=std::snprintf(buffer+n,sizeof buffer-n,",\"timeline\":{\"slack_ms\":%.2f,\"pose_lag_ms\":%.2f,\"oldest_age_ms\":%.2f,\"future_evictions\":%llu},\"frontend\":{\"live\":%s,\"captures\":%llu,\"resets\":%llu,\"interval_ms\":%.1f,\"delay_ms\":%.1f,\"input\":%s,\"newest\":%s,\"kept\":%llu,\"alone\":%llu,\"held\":%llu,\"game_menu\":%s,\"menu\":%s},\"loading\":{\"live\":%s,\"captures\":%llu,\"resets\":%llu,\"interval_ms\":%.1f},\"trace\":\"",response_slack,response_pose_lag,response_oldest_age,(unsigned long long)response_future_evictions,
             frontend_live()?"true":"false",(unsigned long long)frontend_captures,(unsigned long long)frontend_resets,frontend_interval_ms,newest_frontend(),ttk_frontend_input_json(),frontend_newest()?"true":"false",(unsigned long long)menu_kept,(unsigned long long)menu_alone_jobs,(unsigned long long)menu_held,ttk_game_menu_json(),menu_latency_json(),
             loading_live()?"true":"false",(unsigned long long)loading_captures,(unsigned long long)loading_resets,loading_interval_ms);
@@ -1739,4 +1833,5 @@ PSX_MOD_CONSTRUCTOR(register_ttk_frame_replay) {
     psx_mod_register_function_entry_plugin("ttk.frame.replay.profile",0x8001ca4cu,ttk::quality_actor_end);
     psx_mod_register_function_entry_plugin("ttk.frame.replay.xf",0x800292a0u,ttk::transform_load);
     psx_mod_register_function_entry_plugin("ttk.frame.replay",0x8001fba0u,ttk::composition_end);
+    psx_mod_register_function_entry_plugin("ttk.frame.replay",ttk::flip,ttk::redraw_only_flip);
 }

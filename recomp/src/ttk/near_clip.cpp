@@ -52,6 +52,7 @@
 #include "mod_plugins.h"
 #include "code_identity.h"
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdio>
 #include <cstdint>
@@ -733,7 +734,18 @@ double prop_contact_shift(double d,bool phone_back) {
 void draw(Frame& f,const Poly& poly) {
     ++f.stats->polys;
     static const bool source_order=env_int("DNTTK_SOURCE_ORDER",1,0,1)!=0;
-    std::vector<Vertex> shape;shape.reserve(poly.count);
+    // At most four corners plus one per clip plane: no heap per polygon.
+    struct Shape {
+        Vertex v[12];unsigned n=0;
+        size_t size() const {return n;}
+        Vertex* data() {return v;}
+        Vertex* begin() {return v;} Vertex* end() {return v+n;}
+        const Vertex* begin() const {return v;} const Vertex* end() const {return v+n;}
+        Vertex& operator[](size_t i) {return v[i];}
+        const Vertex& operator[](size_t i) const {return v[i];}
+        void push_back(const Vertex& x) {v[n++]=x;}
+        void clear() {n=0;}
+    } shape;
     static const int order3[3]={0,1,2},order4[4]={0,1,3,2};
     const int* order=poly.count==3?order3:order4;
     for(unsigned j=0;j<poly.count;++j) {
@@ -815,14 +827,14 @@ void draw(Frame& f,const Poly& poly) {
         for(const auto& v:shape) {if(plane(v,k,f.g.h)>=0) inside=true;else outside=true;}
         if(!outside) continue;
         if(!inside) {shape.clear();break;}
-        std::vector<Vertex> out;
+        Shape out;
         for(size_t i=0;i<shape.size();++i) {
             const Vertex& a=shape[i];const Vertex& b=shape[(i+1)%shape.size()];
             const double da=plane(a,k,f.g.h),db=plane(b,k,f.g.h);
             if(da>=0) out.push_back(a);
             if((da>=0)!=(db>=0)) out.push_back(edge_cut(a,b,da,db));
         }
-        shape.swap(out);
+        shape=out;
     }
     if(shape.size()<3) {++f.stats->culled;trace_record(f,"clip_reject",poly.source);return;}
     if(f.trace) trace_record(f,"clip",poly.source,",\"corners\":"+std::to_string(shape.size()));
@@ -974,6 +986,9 @@ bool animate(uint32_t& t1,uint32_t& t2,uint32_t& t3,bool object) {
 }
 
 void rank_coplanar(const Frame& f,std::vector<Poly>& polys);
+void rank_coplanar_world(const Frame& f,std::vector<Poly>& polys,uint32_t mesh,uint64_t sig,const std::vector<uint32_t>& taken);
+extern uint64_t coplanar_hits,coplanar_builds;
+inline uint64_t coplanar_mix(uint64_t h,uint32_t w);
 uint64_t unified_downgrades,fallback_kind[3],near_fallbacks;
 // Bytes a mesh's taken faces are expected to need before it is taken over.
 // Unified scene geometry: about one packet per face (most are unclipped quads).
@@ -1006,8 +1021,12 @@ void world(CPUState* cpu) {
     std::vector<uint32_t> colors(count);
     f.verts.resize(count);
     bool any=false;
+    // Vertex positions and the polygon list, hashed as they are read
+    // (rank_coplanar_world). The colour-index nibble is not geometry.
+    uint64_t sig=coplanar_mix(0xcbf29ce484222325ull,count);
     for(unsigned i=0;i<count;++i) {
         const uint32_t record=mesh+0x1c+8*i,w0=psx_mod_read_word(record),w1=psx_mod_read_word(record+4);
+        sig=coplanar_mix(sig,w0&0xf0ffffffu);
         const uint32_t xy=((w0&0xff)<<10)|((w0&0xff00)<<15);
         f.verts[i]=near_project(f.g,(int16_t)xy,(int16_t)(xy>>16),(int16_t)((((w0>>16)&0xff)<<10)&0xffff));
         any|=!f.verts[i].safe || f.verts[i].sz<std::max<uint32_t>(perspective_z,2048);
@@ -1029,12 +1048,14 @@ void world(CPUState* cpu) {
     // D17AM2: a mesh the frame cannot afford whole is downgraded: drawn as
     // the earlier renderer would (its near polygons here, the rest native
     // with scene depth), never left wholly to the original near the eye.
+    uint64_t list_sig=sig;
     for(;;) {
-    groups.clear();taken.clear();
+    groups.clear();taken.clear();list_sig=sig;
     uint32_t cursor=list;
     for(unsigned guard=0;;++guard) {
         if(guard>256) return;
         const uint32_t header=psx_mod_read_word(cursor);cursor+=4;
+        list_sig=coplanar_mix(list_sig,header);
         const uint32_t type=header&0xffff,n=header>>16;
         if(type==0xff) break;
         if((type!=0x60 && type!=0x61) || !n || n>4096) return;
@@ -1042,6 +1063,7 @@ void world(CPUState* cpu) {
         const unsigned corners=type==0x60?3:4;
         for(uint32_t k=0;k<n;++k,cursor+=8) {
             const uint32_t word=psx_mod_read_word(cursor);
+            list_sig=coplanar_mix(list_sig,word);
             bool unsafe=forced;uint32_t zmin=0xffff;int idx[4];
             for(unsigned j=0;j<corners;++j) {
                 const unsigned i=(word>>(8*j))&0xff;if(i>=count) return;idx[j]=(int)i;
@@ -1068,9 +1090,14 @@ void world(CPUState* cpu) {
     const unsigned read_verts=(count+2)/3*3;
     const uint32_t head_size=0x1c+8*read_verts,list_offset=(head_size+15)&~15u;
     if(!copy || list_offset+list_bytes(groups)>copy_size) {++copy_overflows;return;}
-    for(uint32_t i=0;i<head_size;i+=4) psx_mod_write_word(copy+i,psx_mod_read_word(mesh+i));
-    psx_mod_write_word(copy+0x18,list_offset);
-    write_list(copy+list_offset,groups);
+    // D17AR3: with every face drawn here the original gets a null mesh
+    // (below) and never reads the copy, so it is written only when faces
+    // are left to it.
+    if(!groups.empty()) {
+        for(uint32_t i=0;i<head_size;i+=4) psx_mod_write_word(copy+i,psx_mod_read_word(mesh+i));
+        psx_mod_write_word(copy+0x18,list_offset);
+        write_list(copy+list_offset,groups);
+    }
     // The original clears the color-index nibble of every vertex it reads
     // (0x80011170); it now reads the copy, so apply that to the real mesh.
     if(!(flags&2))
@@ -1142,7 +1169,7 @@ void world(CPUState* cpu) {
     // D17AM2: overlapping coplanar faces of one world mesh (a panel defined
     // for both sides, a decal on its wall) keep the original's painter
     // winner under the depth test, as D17W does for props.
-    if(unified_scene(f)) rank_coplanar(f,polys);
+    if(unified_scene(f)) rank_coplanar_world(f,polys,mesh,list_sig,taken);
     for(const auto& p:polys) draw(f,p);
 }
 unsigned object_record_size(uint32_t type) {
@@ -1214,42 +1241,31 @@ void filter_missing_animation(CPUState* cpu) {
 // object() emits them in rank order, so the OT paints them as the original
 // did; draw() also pushes a ranked face back for the depth test.
 // DNTTK_NEAR_COPLANAR=0 (developer) turns it off for comparisons.
-void rank_coplanar(const Frame& f,std::vector<Poly>& polys) {
-    static const bool on=env_int("DNTTK_NEAR_COPLANAR",1,0,1)==1;
-    if(!on) return;
-    struct Face {double n[3],d,c[4][3];unsigned count;int slot;};
-    std::vector<Face> faces(polys.size());
-    std::vector<bool> planar(polys.size(),false);
-    std::vector<size_t> group(polys.size());
-    for(size_t i=0;i<group.size();++i) group[i]=i;
-    auto root=[&](size_t i) {while(group[i]!=i) i=group[i]=group[group[i]];return i;};
-    static const int order4[4]={0,1,3,2};
-    for(size_t i=0;i<polys.size();++i) {
-        const Poly& p=polys[i];Face& a=faces[i];a.count=p.count;
-        uint32_t sum=0;
-        for(unsigned j=0;j<p.count;++j) {
-            const auto& v=f.verts[p.idx[p.count==4?order4[j]:j]];
-            for(int k=0;k<3;++k) a.c[j][k]=v.view[k];
-            sum+=f.verts[p.idx[j]].sz;
-        }
-        const NearDepthPlane plane=near_depth_plane(a.c[0],a.c[1],a.c[2]);
-        if(!plane.n[0] && !plane.n[1] && !plane.n[2]) continue;
-        for(int k=0;k<3;++k) a.n[k]=plane.n[k];a.d=plane.d;
-        bool flat=true;
-        for(unsigned j=3;j<p.count;++j) flat&=std::abs(a.n[0]*a.c[j][0]+a.n[1]*a.c[j][1]+a.n[2]*a.c[j][2]-a.d)<0.5;
-        const int64_t zsf=(int32_t)(p.count==4?f.zsf4:f.zsf3);
-        a.slot=unified_scene(f) && p.native_order ? p.native_slot : (int)(((zsf*sum)>>12)>>3)+p.bias;
-        planar[i]=flat;
-    }
+// A face's plane and corners (quads in outline order 0 1 3 2); planar when
+// the plane exists and a quad's fourth corner lies within half a unit of it.
+struct CoplanarFace {double n[3],d,c[4][3];unsigned count;};
+bool coplanar_face(CoplanarFace& a,unsigned count) {
+    a.count=count;
+    const NearDepthPlane plane=near_depth_plane(a.c[0],a.c[1],a.c[2]);
+    if(!plane.n[0] && !plane.n[1] && !plane.n[2]) return false;
+    for(int k=0;k<3;++k) a.n[k]=plane.n[k];a.d=plane.d;
+    bool flat=true;
+    for(unsigned j=3;j<count;++j) flat&=std::abs(a.n[0]*a.c[j][0]+a.n[1]*a.c[j][1]+a.n[2]*a.c[j][2]-a.d)<0.5;
+    return flat;
+}
+// Pairs of planar faces (i<j) on one plane that overlap by more than half a
+// unit. bucketed: compare only faces whose planes fall in the same or a
+// neighbouring bucket (world meshes have hundreds of faces).
+std::vector<std::pair<size_t,size_t>> coplanar_pairs(const std::vector<CoplanarFace>& faces,const std::vector<bool>& planar,bool bucketed) {
     // Separating axes in the plane of a: overlap of more than half a unit.
-    auto overlap=[](const Face& a,const Face& b) {
+    auto overlap=[](const CoplanarFace& a,const CoplanarFace& b) {
         double u[3]={a.c[1][0]-a.c[0][0],a.c[1][1]-a.c[0][1],a.c[1][2]-a.c[0][2]};
         const double length=std::sqrt(u[0]*u[0]+u[1]*u[1]+u[2]*u[2]);
         if(length<1e-9) return false;
         for(double& x:u) x/=length;
         const double w[3]={a.n[1]*u[2]-a.n[2]*u[1],a.n[2]*u[0]-a.n[0]*u[2],a.n[0]*u[1]-a.n[1]*u[0]};
         double pa[4][2],pb[4][2];
-        auto flatten=[&](const Face& s,double out[4][2]) {
+        auto flatten=[&](const CoplanarFace& s,double out[4][2]) {
             for(unsigned j=0;j<s.count;++j) {
                 out[j][0]=u[0]*s.c[j][0]+u[1]*s.c[j][1]+u[2]*s.c[j][2];
                 out[j][1]=w[0]*s.c[j][0]+w[1]*s.c[j][1]+w[2]*s.c[j][2];
@@ -1277,12 +1293,12 @@ void rank_coplanar(const Frame& f,std::vector<Poly>& polys) {
     // D17AM2: world meshes have hundreds of faces; compare only faces whose
     // planes fall in the same or a neighbouring bucket (normal to 1/64,
     // distance to 4 units, sign-canonical). Props keep the full comparison.
-    std::vector<std::pair<size_t,size_t>> pairs;
-    if(!f.object) {
+    std::vector<std::pair<size_t,size_t>> pairs,found;
+    if(bucketed) {
         std::vector<std::pair<std::array<int64_t,4>,size_t>> keys;
-        for(size_t i=0;i<polys.size();++i) {
+        for(size_t i=0;i<faces.size();++i) {
             if(!planar[i]) continue;
-            const Face& a=faces[i];int big=0;
+            const CoplanarFace& a=faces[i];int big=0;
             for(int k=1;k<3;++k) if(std::abs(a.n[k])>std::abs(a.n[big])) big=k;
             const double s=a.n[big]<0?-1:1;
             keys.push_back({{std::llround(s*a.n[0]*64),std::llround(s*a.n[1]*64),std::llround(s*a.n[2]*64),(int64_t)std::floor(s*a.d/4)},i});
@@ -1296,21 +1312,36 @@ void rank_coplanar(const Frame& f,std::vector<Poly>& polys) {
             }
         std::sort(pairs.begin(),pairs.end());
     } else {
-        for(size_t i=0;i<polys.size();++i) if(planar[i])
-            for(size_t j=i+1;j<polys.size();++j) if(planar[j]) pairs.push_back({i,j});
+        for(size_t i=0;i<faces.size();++i) if(planar[i])
+            for(size_t j=i+1;j<faces.size();++j) if(planar[j]) pairs.push_back({i,j});
     }
     for(const auto& [i,j]:pairs) {
-        {
-            const Face& a=faces[i];const Face& b=faces[j];
-            const double dot=a.n[0]*b.n[0]+a.n[1]*b.n[1]+a.n[2]*b.n[2];
-            if(std::abs(dot)<0.9999) continue;
-            bool on=true;
-            for(unsigned k=0;k<b.count && on;++k) on=std::abs(a.n[0]*b.c[k][0]+a.n[1]*b.c[k][1]+a.n[2]*b.c[k][2]-a.d)<0.5;
-            if(!on || !overlap(a,b)) continue;
-            // i is the earlier record: it is painted last unless j sorts nearer.
-            ++polys[b.slot<a.slot?i:j].coplanar_rank;
-            group[root(i)]=root(j);
-        }
+        const CoplanarFace& a=faces[i];const CoplanarFace& b=faces[j];
+        const double dot=a.n[0]*b.n[0]+a.n[1]*b.n[1]+a.n[2]*b.n[2];
+        if(std::abs(dot)<0.9999) continue;
+        bool on=true;
+        for(unsigned k=0;k<b.count && on;++k) on=std::abs(a.n[0]*b.c[k][0]+a.n[1]*b.c[k][1]+a.n[2]*b.c[k][2]-a.d)<0.5;
+        if(on && overlap(a,b)) found.push_back({i,j});
+    }
+    return found;
+}
+// Ranks the faces of each coplanar pair (i the earlier record: it is painted
+// last unless j sorts nearer), gives each overlapping group one shared sort
+// depth, and orders the faces by rank.
+void apply_coplanar(const Frame& f,std::vector<Poly>& polys,const std::vector<std::pair<size_t,size_t>>& pairs) {
+    if(pairs.empty()) return;
+    std::vector<size_t> group(polys.size());
+    for(size_t i=0;i<group.size();++i) group[i]=i;
+    auto root=[&](size_t i) {while(group[i]!=i) i=group[i]=group[group[i]];return i;};
+    auto slot=[&](const Poly& p) {
+        if(unified_scene(f) && p.native_order) return p.native_slot;
+        uint32_t sum=0;for(unsigned j=0;j<p.count;++j) sum+=f.verts[p.idx[j]].sz;
+        const int64_t zsf=(int32_t)(p.count==4?f.zsf4:f.zsf3);
+        return (int)(((zsf*sum)>>12)>>3)+p.bias;
+    };
+    for(const auto& [i,j]:pairs) {
+        ++polys[slot(polys[j])<slot(polys[i])?i:j].coplanar_rank;
+        group[root(i)]=root(j);
     }
     std::vector<double> sum(polys.size(),0);std::vector<unsigned> corners(polys.size(),0);
     for(size_t i=0;i<polys.size();++i) {
@@ -1322,6 +1353,84 @@ void rank_coplanar(const Frame& f,std::vector<Poly>& polys) {
         if(corners[r]>polys[i].count && polys[i].key_z<=0) polys[i].key_z=sum[r]/corners[r];
     }
     std::stable_sort(polys.begin(),polys.end(),[](const Poly& a,const Poly& b) {return a.coplanar_rank<b.coplanar_rank;});
+}
+bool coplanar_on() {static const bool on=env_int("DNTTK_NEAR_COPLANAR",1,0,1)==1;return on;}
+void rank_coplanar(const Frame& f,std::vector<Poly>& polys) {
+    if(!coplanar_on()) return;
+    static const int order4[4]={0,1,3,2};
+    std::vector<CoplanarFace> faces(polys.size());std::vector<bool> planar(polys.size(),false);
+    for(size_t i=0;i<polys.size();++i) {
+        const Poly& p=polys[i];
+        for(unsigned j=0;j<p.count;++j) {
+            const auto& v=f.verts[p.idx[p.count==4?order4[j]:j]];
+            for(int k=0;k<3;++k) faces[i].c[j][k]=v.view[k];
+        }
+        planar[i]=coplanar_face(faces[i],p.count);
+    }
+    apply_coplanar(f,polys,coplanar_pairs(faces,planar,!f.object));
+}
+// D17AR3: world pieces do not move (D17AR2 proof 2), so which of a mesh's
+// faces are coplanar and overlap does not depend on the view. The pairs are
+// found once per mesh in its own (exact integer) coordinates and kept, keyed
+// by the mesh address and checked against a hash of its vertex positions and
+// polygon list that world() folds in as it reads them. Only the ranking,
+// which depends on the view, runs every frame. Before, every host piece
+// repeated the search in view space: about 13 us of its 48. The search
+// itself is unchanged; DNTTK_COPLANAR_CACHE=0 (developer) repeats it in view
+// space every frame, as before, and DNTTK_COPLANAR_CHECK=1 (developer) runs
+// both and counts meshes whose ranks or sort depths differ.
+struct CoplanarMesh {uint64_t sig=0;std::vector<std::pair<uint32_t,uint32_t>> pairs;};
+std::vector<std::pair<uint32_t,CoplanarMesh>> coplanar_meshes; // sorted by mesh address
+uint64_t coplanar_hits=0,coplanar_builds=0,coplanar_checked=0,coplanar_mismatch=0;
+bool coplanar_cache() {static const bool on=env_int("DNTTK_COPLANAR_CACHE",1,0,1)==1;return on;}
+inline uint64_t coplanar_mix(uint64_t h,uint32_t w) {return (h^w)*0x100000001b3ull;}
+// taken: every face of the mesh (unified geometry takes them all), tagged
+// records in list order; polys: those drawn this frame, in the same order.
+void rank_coplanar_world(const Frame& f,std::vector<Poly>& polys,uint32_t mesh,uint64_t sig,const std::vector<uint32_t>& taken) {
+    if(!coplanar_on()) return;
+    if(!coplanar_cache()) {rank_coplanar(f,polys);return;}
+    auto it=std::lower_bound(coplanar_meshes.begin(),coplanar_meshes.end(),mesh,[](const auto& e,uint32_t m){return e.first<m;});
+    if(it==coplanar_meshes.end() || it->first!=mesh) it=coplanar_meshes.insert(it,{mesh,{}});
+    CoplanarMesh& c=it->second;
+    if(c.sig!=sig || !sig) {
+        static const int order4[4]={0,1,3,2};
+        std::vector<CoplanarFace> faces(taken.size());std::vector<bool> planar(taken.size(),false);
+        for(size_t i=0;i<taken.size();++i) {
+            const uint32_t record=taken[i]&~1u,word=psx_mod_read_word(record);
+            const unsigned count=(taken[i]&1)?4:3;
+            for(unsigned j=0;j<count;++j) {
+                const uint32_t w0=psx_mod_read_word(mesh+0x1c+8*((word>>(8*(count==4?order4[j]:j)))&0xff));
+                const uint32_t xy=((w0&0xff)<<10)|((w0&0xff00)<<15);
+                faces[i].c[j][0]=(int16_t)xy;faces[i].c[j][1]=(int16_t)(xy>>16);faces[i].c[j][2]=(int16_t)((((w0>>16)&0xff)<<10)&0xffff);
+            }
+            planar[i]=coplanar_face(faces[i],count);
+        }
+        c.pairs.clear();
+        for(const auto& [i,j]:coplanar_pairs(faces,planar,true)) c.pairs.push_back({taken[i]&~1u,taken[j]&~1u});
+        c.sig=sig;++coplanar_builds;
+    } else ++coplanar_hits;
+    static const bool check=env_int("DNTTK_COPLANAR_CHECK",0,0,1)==1;
+    std::vector<Poly> reference;
+    if(check) {reference=polys;rank_coplanar(f,reference);}
+    struct Check {const std::vector<Poly>& got;const std::vector<Poly>& want;bool on;
+        ~Check() {
+            if(!on) return;
+            ++coplanar_checked;bool same=got.size()==want.size();
+            for(size_t i=0;same && i<got.size();++i) same=got[i].source==want[i].source && got[i].coplanar_rank==want[i].coplanar_rank && got[i].key_z==want[i].key_z;
+            coplanar_mismatch+=!same;
+        }} verify{polys,reference,check};
+    if(c.pairs.empty()) return;
+    // Faces culled this frame drop out of their pairs.
+    auto find=[&](uint32_t record) {
+        auto p=std::lower_bound(polys.begin(),polys.end(),record,[](const Poly& q,uint32_t r){return q.source<r;});
+        return p!=polys.end() && p->source==record ? (size_t)(p-polys.begin()) : polys.size();
+    };
+    std::vector<std::pair<size_t,size_t>> pairs;
+    for(const auto& [a,b]:c.pairs) {
+        const size_t i=find(a),j=find(b);
+        if(i<polys.size() && j<polys.size()) pairs.push_back({i,j});
+    }
+    apply_coplanar(f,polys,pairs);
 }
 // D17AC: authenticate the retail payphone shape, not a scene address, slot,
 // texture page or a type-table index that another level can reuse. Modified
@@ -1354,7 +1463,8 @@ void object(CPUState* cpu) {
     // Retain perspective texture coordinates and all clipping/ordering rules.
     static SkyRenderIdentity sky_identity;
     const uint32_t sky_ra=cpu->gpr[31];
-    f.sky=env_int("DNTTK_SKY_PAINTER",1,0,1) &&
+    static const bool sky_painter=env_int("DNTTK_SKY_PAINTER",1,0,1)!=0;
+    f.sky=sky_painter &&
         (sky_ra==0x80038c94u || sky_ra==0x80038cf0u ||
          sky_ra==0x80038da8u || sky_ra==0x80038e44u) &&
         sky_identity.valid(input_host_frame(),g_dirty_ram_code_gen,g_psx_ram);
@@ -1451,7 +1561,8 @@ void object(CPUState* cpu) {
         p.phone_back=phone && type==0x2c && word==0x06020400u &&
             !(p.command&0x02000000u);
         // D17AH diagnostic: keep each sky face's native AVSZ ordering key.
-        if(f.sky && env_int("DNTTK_SKY_SOURCE_ORDER",0,0,1)) p.native_order=true;
+        static const bool sky_source_order=env_int("DNTTK_SKY_SOURCE_ORDER",0,0,1)!=0;
+        if(f.sky && sky_source_order) p.native_order=true;
         if(unified_scene(f)) p.native_order=true;
         if(p.native_order) {
             uint32_t sum=0;for(unsigned j=0;j<p.count;++j) sum+=f.verts[p.idx[j]].sz;
@@ -1858,14 +1969,14 @@ uint32_t near_dpcs(const NearGte& g,uint32_t rgbc,int16_t ir0) {
     return out;
 }
 const char* near_clip_debug_json() {
-    static char buffer[2048];
+    static char buffer[2304];
     auto part=[](const Stats& s,char* out,size_t n){
         std::snprintf(out,n,"{\"seen\":%llu,\"taken\":%llu,\"polys\":%llu,\"culled\":%llu,\"triangles\":%llu,\"budget_hits\":%llu}",
             (unsigned long long)s.seen,(unsigned long long)s.taken,(unsigned long long)s.polys,(unsigned long long)s.culled,
             (unsigned long long)s.triangles,(unsigned long long)s.budget_hits);
     };
     char w[192],o[192];part(world_stats,w,sizeof w);part(object_stats,o,sizeof o);
-    std::snprintf(buffer,sizeof buffer,"{\"biomask_draws\":%llu,\"biomask_triangles\":%llu,\"enabled\":%s,\"world\":%s,\"object\":%s,\"refused\":%llu,\"copy_overflows\":%llu,\"duke_skips\":%llu,\"fades_skipped\":%llu,\"fade_tests\":%llu,\"zsf3\":%d,\"arena_size\":%u,\"frame_used_peak\":%u,\"host_bytes_peak\":%u,\"packet_skips\":%llu,\"mesh_fallbacks\":%llu,\"whole_polygons\":%llu,\"subdivided_kept\":%llu,\"viewmodel\":{\"meshes\":%llu,\"packets\":%llu,\"discards\":%llu},\"scene_depth\":{\"meshes\":%llu,\"packets\":%llu,\"ambiguous\":%llu,\"wraps\":%llu,\"polygons\":%llu,\"unmatched\":%llu,\"breaks\":%llu},\"measure\":{\"frames\":%llu,\"demand_peak\":%u,\"demand_avg\":%llu,\"frames_over_budget\":%llu,\"emits_peak\":%llu,\"hook_us_peak\":%llu,\"hook_us_avg\":%llu,\"kind_peak\":[%u,%u,%u,%u,%u],\"kind_avg\":[%llu,%llu,%llu,%llu,%llu],\"unified\":%s,\"unified_downgrades\":%llu,\"fallbacks\":[%llu,%llu,%llu],\"near_fallbacks\":%llu},\"water\":{\"seen\":%llu,\"taken\":%llu,\"guard\":%llu,\"grid\":%llu,\"near_cleared\":%llu,\"near_dropped\":%llu,\"budget_native\":%llu}}",
+    std::snprintf(buffer,sizeof buffer,"{\"biomask_draws\":%llu,\"biomask_triangles\":%llu,\"enabled\":%s,\"world\":%s,\"object\":%s,\"refused\":%llu,\"copy_overflows\":%llu,\"duke_skips\":%llu,\"fades_skipped\":%llu,\"fade_tests\":%llu,\"zsf3\":%d,\"arena_size\":%u,\"frame_used_peak\":%u,\"host_bytes_peak\":%u,\"packet_skips\":%llu,\"mesh_fallbacks\":%llu,\"whole_polygons\":%llu,\"subdivided_kept\":%llu,\"viewmodel\":{\"meshes\":%llu,\"packets\":%llu,\"discards\":%llu},\"scene_depth\":{\"meshes\":%llu,\"packets\":%llu,\"ambiguous\":%llu,\"wraps\":%llu,\"polygons\":%llu,\"unmatched\":%llu,\"breaks\":%llu},\"measure\":{\"frames\":%llu,\"demand_peak\":%u,\"demand_avg\":%llu,\"frames_over_budget\":%llu,\"emits_peak\":%llu,\"hook_us_peak\":%llu,\"hook_us_avg\":%llu,\"kind_peak\":[%u,%u,%u,%u,%u],\"kind_avg\":[%llu,%llu,%llu,%llu,%llu],\"unified\":%s,\"unified_downgrades\":%llu,\"fallbacks\":[%llu,%llu,%llu],\"near_fallbacks\":%llu},\"water\":{\"seen\":%llu,\"taken\":%llu,\"guard\":%llu,\"grid\":%llu,\"near_cleared\":%llu,\"near_dropped\":%llu,\"budget_native\":%llu},\"coplanar\":{\"hits\":%llu,\"builds\":%llu,\"checked\":%llu,\"mismatch\":%llu}}",
         (unsigned long long)mask_draws,(unsigned long long)mask_triangles,enabled()?"true":"false",w,o,(unsigned long long)refused,(unsigned long long)copy_overflows,(unsigned long long)duke_skips,(unsigned long long)fades_skipped,(unsigned long long)fade_tests,(int)last_zsf3,arena_size,frame_used_peak,host_bytes_peak,(unsigned long long)packet_skips,(unsigned long long)mesh_fallbacks,(unsigned long long)subdivision_whole,(unsigned long long)subdivision_kept,(unsigned long long)viewmodel_meshes,(unsigned long long)viewmodel_packets,(unsigned long long)viewmodel_discards,(unsigned long long)scene_depth_meshes,(unsigned long long)scene_depth_packets,(unsigned long long)scene_depth_ambiguous,(unsigned long long)scene_depth_wraps,(unsigned long long)scene_depth_polygons,(unsigned long long)scene_depth_unmatched,(unsigned long long)scene_depth_breaks,
         (unsigned long long)demand_frames,demand_peak,(unsigned long long)(demand_frames?demand_total/demand_frames:0),(unsigned long long)demand_over,(unsigned long long)emits_peak,(unsigned long long)hook_us_peak,(unsigned long long)(hook_frames?hook_us_total/hook_frames:0),
         kind_peak[0],kind_peak[1],kind_peak[2],kind_peak[3],kind_peak[4],
@@ -1874,7 +1985,8 @@ const char* near_clip_debug_json() {
         (unsigned long long)(demand_frames?kind_total[4]/demand_frames:0),unified()?"true":"false",(unsigned long long)unified_downgrades,
         (unsigned long long)fallback_kind[0],(unsigned long long)fallback_kind[1],(unsigned long long)fallback_kind[2],(unsigned long long)near_fallbacks,
         (unsigned long long)water_seen,(unsigned long long)water_taken,(unsigned long long)water_guard_reject,(unsigned long long)water_grid_reject,
-        (unsigned long long)water_near_cleared,(unsigned long long)water_near_dropped,(unsigned long long)water_budget_native);
+        (unsigned long long)water_near_cleared,(unsigned long long)water_near_dropped,(unsigned long long)water_budget_native,
+        (unsigned long long)coplanar_hits,(unsigned long long)coplanar_builds,(unsigned long long)coplanar_checked,(unsigned long long)coplanar_mismatch);
     return buffer;
 }
 }

@@ -15,7 +15,8 @@ bool water_render_identity() {
     return memo.ok;
 }
 bool water_live() {
-    return input_modernized() && env_int("DNTTK_WATER_CLIP",1,0,1) && enabled() &&
+    static const bool on=env_int("DNTTK_WATER_CLIP",1,0,1)!=0;
+    return input_modernized() && on && enabled() &&
         (first_person_view_live() || widescreen_near_clip_live()) &&
         identity() && water_render_identity();
 }

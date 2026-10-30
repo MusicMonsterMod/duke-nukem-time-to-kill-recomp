@@ -389,7 +389,14 @@ Emulation-thread profiler (developer): `PSX_PROF=FILE` samples the main thread
 every millisecond of its CPU time and writes the counts at exit;
 `PSX_PROF_CALLERS=1` also attributes time spent in the GL driver, libc and the
 vDSO to the calling runtime function; `PSX_PROF_REPLAY=1` samples only inside
-D17 redraw feeds (every 0.2 ms). `symprof.py FILE [N]` symbolizes it. Player
+D17 redraw feeds (every 0.2 ms). `symprof.py FILE [N]` symbolizes it.
+`PSX_PROF_WALL=1` samples wall time instead (blocked time counts where it
+waits); thread CPU-clock samples fire at the kernel tick at best, so compare
+their shares, not totals. `PSX_PROF_STACKS=FILE` also writes each sample's
+call stack (`recomp/analysis/d17ar3/incl.py` and `cats.py` give inclusive
+shares); `PSX_PROF_CALLERS_SKIP=N` attributes external time N frames further
+out. `DNTTK_REPLAY_SHED=0` keeps presents at full rate when emulation falls
+behind, to measure a scene's real cost (note 338). Player
 sessions run with `PSX_FORENSICS=0` (the runtime's always-on forensic rings
 quiet, no per-frame VRAM readback); set `PSX_FORENSICS=1` or launch with
 `--diagnostics` to keep them.

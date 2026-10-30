@@ -1665,7 +1665,10 @@ bool frame_rate_set(const char* value) {
 //   most 16: one probe every 80 s in a scene that cannot hold it).
 // - Backoff halves after each clean minute at the full rate, so a session's
 //   history does not keep the game slower than the scene needs.
+// DNTTK_REPLAY_SHED=0 (developer) never sheds, to measure a scene at full rate.
 int replay_load_window(int window) {
+    static const bool shed=[]{const char* t=std::getenv("DNTTK_REPLAY_SHED");return !(t && t[0]=='0' && !t[1]);}();
+    if(!shed) window=window==1 ? 2 : window;
     if(!replay_on || !interp_replay || !late_camera()) {shed_bad=shed_clean=0;return window==1 ? -1 : 0;}
     shed_steps=std::min(shed_steps,pace_div-1);  // Unlimited's late_pace shares the divisor
     ++shed_since_probe;

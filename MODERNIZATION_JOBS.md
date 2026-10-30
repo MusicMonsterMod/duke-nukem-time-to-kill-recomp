@@ -100,11 +100,39 @@ core, no host contention). Open: smoothness (D17AR3); the user's launch with
 
 #### D17AR3 - Regression sweep, performance and default switch
 
-**Status: Todo (next).** User priority after the D17AR2 playtest: make host
+**Status: In progress (part 1, performance, accepted 2026-10-30; part 2 next:
+redraw-only live frames, approved by the user; [note 338](documentation/338-d17ar3-host-visibility-performance.md)).**
+User priority after the D17AR2 playtest: make host
 visibility silky smooth at 120 Hz (slot 10 and the moat dip to every second
 refresh). Also: level 28 never engages; check why the user's
 `DNTTK_HOST_VISIBILITY=1` launch did not reach the game's environment. All private fixtures and level-select levels, static/walk/
 turn/jetpack routes, FOV 60/90/120, 4:3 and 16:9, 60 and 120 Hz.
+Work log 2026-10-30 (part 1, performance): at slot 10 most redraws were
+dropped (their GP0 record overflowed 192K words: 8% while turning, all of them
+at the loaded view, where the screen repeated the live 30 fps image). Redraw
+buffer 1M words; precise vertices in the GPU DMA aperture indexed directly
+instead of a probed hash (the emulation thread's largest single cost); world
+coplanar pairs cached per mesh (host piece 48 to 30 us); no unused mesh copy;
+cached environment switches. Checks: coplanar cache 0 differences in 67,735
+meshes, direct table identical over 46 million lookups, D17AR2 84-view sweep
+unchanged, `ttk-near-test` passes, patch re-exported. Same conditions against
+the accepted D17AR2 build (120 Hz, scale 4, turning, seconds at full rate of
+24): slot 10 host on 10 to 21 (failed redraws 574 to 0, present p95 15.5 to
+9.2 ms), slot 2 host on 3 to 21, host off 20 to 24 and 12 to 20. Standing in
+the heaviest views (slot 10 loaded view, parts of slot 2) still falls to every
+second refresh: the emulation thread needs 110-128% of a core there. A
+throwaway experiment that skipped the live frame's host world and GPU drawing
+(at 120 Hz every present is a redraw) reached full rate there (slot 10 60.0
+fields/s from about 47); making that real is a design change awaiting the
+user's decision. `run.py` passes `DNTTK_HOST_VISIBILITY` through (all four
+processes log on); the user's earlier launch could not be reproduced.
+Playtest 2026-10-30 (part 1): "it's feeling really good. quality has increased
+by this massive performance hike. especially on my absurd state save on slot
+2. that's actually really smooth now." Part 1 accepted and committed. Next
+(part 2): redraw-only live frames (note 338, last section), then "let's really
+see how far we can push this renderer". The user also wants the renderer
+named: the in-game renderer choice will be Classic and our renderer (name to
+come from the user; EDuke32's are classic, Polymost and Polymer).
 
 #### D17AR4 - Retire superseded portal patches
 
@@ -1558,10 +1586,10 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D17AO | Slot-11 ceiling hole showing the sky (level 6) | Deferred (authored level gap; no action now, possible future level-data fix) | D17AM; note 327 |
 | D17AP | Slot-9 grave-dig soil corners flashing again (D17X recurrence) | Done (user-confirmed 2026-10-30) | D17X, D17AM; note 327 |
 | D17AQ | Slot-10 jetpack height: level sections pop in and out while turning (room visibility) | Needs playtest (B max limit, A open sky, dormant enemies (C1 withdrawn); note 335) | D17AM, D14F |
-| D17AR | Host-owned world visibility (parent): the host decides what world geometry is drawn | In progress (AR1 done; AR2 accepted; AR3 next: performance) | D17AM, D17AQ; D17AR1-AR4 |
+| D17AR | Host-owned world visibility (parent): the host decides what world geometry is drawn | In progress (AR1 done; AR2 accepted; AR3 in progress: performance part 1) | D17AM, D17AQ; D17AR1-AR4 |
 | D17AR1 | Host visibility: inventory, data-format verification and design (report first) | Done (design approved 2026-10-30; note 336) | D17AM |
 | D17AR2 | Host visibility: implementation behind a developer switch | Accepted (visual playtest passed; performance to D17AR3) | D17AR1 |
-| D17AR3 | Host visibility: regression sweep, performance and default switch | Todo (next; smoothness first) | D17AR2 |
+| D17AR3 | Host visibility: regression sweep, performance and default switch | In progress (part 1 performance accepted; part 2 next: redraw-only live frames) | D17AR2 |
 | D17AR4 | Host visibility: retire superseded portal patches (open sky, portal widening) | Todo | D17AR3 |
 | D17AS | Slot-2 moat: large dark triangle in/under the water (research/screencaps/triangle.mp4) | Todo (report first) | D17AM |
 | D14F | 90-default / 120-maximum world FOV | Done (user-confirmed 2026-10-30) | Implemented in afd4ad6 (note 317); re-verified 2026-10-29 |

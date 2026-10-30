@@ -1,5 +1,23 @@
 # Current status - 2026-10-04
 
+## 2026-10-30 - D17AR3 part 1 accepted; part 2 (redraw-only live frames) next
+
+User playtest: "it's feeling really good ... especially on my absurd state save
+on slot 2. that's actually really smooth now." Committed. Next session: D17AR3
+part 2, redraw-only live frames (note 338), approved by the user. The user is
+choosing a name for our renderer: the in-game renderer choice will be Classic
+and ours (EDuke32's are classic, Polymost and Polymer).
+
+## 2026-10-30 - D17AR3 part 1: host visibility performance at 120 Hz (Needs decision)
+
+At slot 10 most 120 Hz redraws were silently dropped (record overflow), so the
+screen repeated 30 fps images. Fixed, plus a direct precise-vertex table and a
+per-mesh coplanar cache. Same-conditions turning runs with host visibility:
+full-rate seconds 10 to 21 (slot 10) and 3 to 21 (slot 2) of 24. The heaviest
+standing views still drop to every second refresh; an experiment skipping the
+live frame's drawing (every 120 Hz present is a redraw) reached full rate
+there. Note 338.
+
 ## 2026-10-30 - D17AR2 accepted on visuals; performance next (D17AR3)
 
 User playtest of revision 3: "Visually, fantastic ... nothing is popping in

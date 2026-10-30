@@ -1288,7 +1288,7 @@ index be30e5af..f23d273d 100644
          now = SDL_GetPerformanceCounter();     /* ONE read per iteration */
          uint32_t ms = frame_pacing_sleep_ms(now, p->next_deadline, freq, period);
 diff --git a/runtime/src/gpu.c b/runtime/src/gpu.c
-index aaf69df7..af4c157a 100644
+index aaf69df7..7b371319 100644
 --- a/runtime/src/gpu.c
 +++ b/runtime/src/gpu.c
 @@ -33,6 +33,7 @@
@@ -1299,26 +1299,81 @@ index aaf69df7..af4c157a 100644
  
  extern uint16_t psx_read_half(uint32_t addr);
  extern uint8_t  psx_read_byte(uint32_t addr);
-@@ -313,6 +314,11 @@ static int ws_full_2d_mode(void) {
+@@ -239,10 +240,26 @@ void gpu_ws_set_gameplay_state_gate(uint32_t addr,
+         ws_gameplay_state_values[i] = values[i];
+ }
+ 
++/* A host-side read of a main-RAM word for classification. The widescreen
++ * predicates below run several times per primitive, and the full guest load
++ * path cost more than the rest of them (Time to Kill D17AR3). Lockstep and
++ * data-shard recording keep that path, as psx_cyc_load_word does. */
++extern uint8_t *g_psx_ram;
++extern int g_ls_mode;
++extern volatile int g_ds_recording;
++static inline uint32_t ws_ram_word(uint32_t addr) {
++    const uint32_t phys = addr & 0x1FFFFFFFu;
++    if (g_ls_mode == 0 && !g_ds_recording && phys < 0x00800000u) {
++        uint32_t v;
++        memcpy(&v, g_psx_ram + (phys & 0x1FFFFCu), sizeof v);
++        return v;
++    }
++    return psx_read_word(addr);
++}
+ static int ws_gameplay_state_matches(void) {
+     if (!ws_gameplay_state_addr || ws_gameplay_state_value_count == 0)
+         return -1;
+-    uint32_t state = psx_read_word(ws_gameplay_state_addr);
++    uint32_t state = ws_ram_word(ws_gameplay_state_addr);
+     for (int i = 0; i < ws_gameplay_state_value_count; i++)
+         if (state == ws_gameplay_state_values[i]) return 1;
+     return 0;
+@@ -313,6 +330,11 @@ static int ws_full_2d_mode(void) {
      return ws_full_2d || env;
  }
  static int ws_game_mode(void) {
 +    /* D34B: this title's two native viewports are a single 4:3 framebuffer.
 +     * Do not classify its 3D signal as a single widescreen camera. */
 +#ifdef PSX_GAME_TTK
-+    if (psx_read_word(0x800c27bc) == 2) return 0;
++    if (ws_ram_word(0x800c27bc) == 2) return 0;
 +#endif
      int state_match = ws_gameplay_state_matches();
      if (state_match >= 0) return state_match;
      if (ws_full_2d_mode()) return 1;
-@@ -3202,7 +3208,25 @@ int gpu_video_standard_is_pal(void) {
+@@ -1991,19 +2013,18 @@ static int32_t ws_disp_x(void) {
+     return 0;
+ }
+ 
++static const GpuDisplayInfo *gpu_display_info_ref(void);
+ static int32_t ws_disp_w(void) {
+     int src_w = 0;
+     if (ws_local_viewport_layout(NULL, &src_w, NULL, NULL))
+         return (int32_t)src_w;
+-    GpuDisplayInfo di;
+-    gpu_get_display_info(&di);
+-    return di.width ? (int32_t)di.width : 320;
++    const GpuDisplayInfo *di = gpu_display_info_ref();
++    return di->width ? (int32_t)di->width : 320;
+ }
+ 
+ static int32_t ws_disp_h(void) {
+-    GpuDisplayInfo di;
+-    gpu_get_display_info(&di);
+-    return di.height ? (int32_t)di.height : 240;
++    const GpuDisplayInfo *di = gpu_display_info_ref();
++    return di->height ? (int32_t)di->height : 240;
+ }
+ 
+ /* Full-screen fades and environmental filters are authored as 320x240 TILEs.
+@@ -3202,7 +3223,30 @@ int gpu_video_standard_is_pal(void) {
      return (int)(video_mode & 1u);
  }
  
 +static void gpu_compute_display_info(GpuDisplayInfo* out);
 +/* Called several times per primitive by the widescreen paths. The result is a
 + * pure function of these display registers, so reuse it while all are equal. */
- void gpu_get_display_info(GpuDisplayInfo* out) {
++/* The display info for the current registers, recomputed when one changes.
++ * Per-primitive callers read it in place instead of copying it. */
++static const GpuDisplayInfo *gpu_display_info_ref(void) {
 +    static GpuDisplayInfo cached;
 +    static uint32_t key[12];
 +    static int valid = 0;
@@ -1330,14 +1385,17 @@ index aaf69df7..af4c157a 100644
 +        memcpy(key, now, sizeof key);
 +        valid = 1;
 +    }
-+    *out = cached;
++    return &cached;
++}
+ void gpu_get_display_info(GpuDisplayInfo* out) {
++    *out = *gpu_display_info_ref();
 +}
 +
 +static void gpu_compute_display_info(GpuDisplayInfo* out) {
      out->display_x = display_area_x;
      out->display_y = display_area_y;
      out->depth24   = (int)(display_depth & 1u);
-@@ -3318,6 +3342,151 @@ uint32_t gpu_texture_correction_hits(void) {
+@@ -3318,6 +3362,210 @@ uint32_t gpu_texture_correction_hits(void) {
      return sw_perspective_triangle_count();
  }
  
@@ -1379,24 +1437,91 @@ index aaf69df7..af4c157a 100644
 +static inline uint32_t hpv_slot(uint32_t key) {
 +    return ((key >> 2) * 2654435761u) >> (32 - 17);
 +}
++/* Packets in the GPU DMA aperture (where title plugins write their own) are
++ * indexed by their word offset instead: no probing, no eviction, and a
++ * packet's corners sit next to each other in the table. Each vertex took
++ * about three cache misses in the probed table (keys, ages, entry); with
++ * hundreds of thousands per second at 120 Hz that was the emulation
++ * thread's largest single cost (Time to Kill D17AR3). An entry is present
++ * when its addr is the key (aperture keys are never 0). PSX_HOST_PV_DIRECT=0
++ * (developer) keeps every address in the probed table. */
++#define HOST_PV_AP_WORDS (PSX_MOD_GPU_DMA_APERTURE_SIZE / 4u)
++static HostPV s_hpv_ap_live[HOST_PV_AP_WORDS], s_hpv_ap_replay[HOST_PV_AP_WORDS];
++static int s_hpv_direct = -1;
++static inline int hpv_aperture(uint32_t key) {
++    if (s_hpv_direct < 0) { const char *e = getenv("PSX_HOST_PV_DIRECT"); s_hpv_direct = !(e && e[0] == '0'); }
++    return s_hpv_direct && key >= PSX_MOD_GPU_DMA_APERTURE_BASE &&
++           key - PSX_MOD_GPU_DMA_APERTURE_BASE < PSX_MOD_GPU_DMA_APERTURE_SIZE;
++}
++static inline HostPV *hpv_ap_entry(int replay, uint32_t key) {
++    return &(replay ? s_hpv_ap_replay : s_hpv_ap_live)[(key - PSX_MOD_GPU_DMA_APERTURE_BASE) >> 2];
++}
++static const HostPV *hpv_find_probed(int replay, uint32_t key);
++/* PSX_HOST_PV_CHECK=1 (developer): every vertex is stored in both tables and
++ * each aperture lookup is compared; counts go to stderr every 2^20 lookups. */
++static int s_hpv_check = -1;
++static uint64_t s_hpv_check_n[4];   /* same, direct only, probed only, different */
++static int hpv_check(void) {
++    if (s_hpv_check < 0) { const char *e = getenv("PSX_HOST_PV_CHECK"); s_hpv_check = e && e[0] == '1'; }
++    return s_hpv_check;
++}
++/* The entry stored for a key in the live or replay tables, or NULL. */
++static const HostPV *hpv_find(int replay, uint32_t key) {
++    if (hpv_aperture(key)) {
++        const HostPV *e = hpv_ap_entry(replay, key);
++        if (e->addr != key) e = NULL;
++        if (hpv_check()) {
++            const HostPV *p = hpv_find_probed(replay, key);
++            const int k = e && p ? (e->word == p->word && e->seq == p->seq && e->x16 == p->x16 && e->y16 == p->y16 &&
++                                    e->z == p->z && e->u == p->u && e->v == p->v && e->depth_z == p->depth_z ? 0 : 3)
++                                 : e ? 1 : p ? 2 : 0;
++            if ((++s_hpv_check_n[k] + s_hpv_check_n[(k + 1) & 3] + s_hpv_check_n[(k + 2) & 3] + s_hpv_check_n[(k + 3) & 3]) % (1u << 20) == 0)
++                fprintf(stderr, "[hpv check] same=%llu direct_only=%llu probed_only=%llu different=%llu\n",
++                        (unsigned long long)s_hpv_check_n[0], (unsigned long long)s_hpv_check_n[1],
++                        (unsigned long long)s_hpv_check_n[2], (unsigned long long)s_hpv_check_n[3]);
++        }
++        return e;
++    }
++    return hpv_find_probed(replay, key);
++}
++static const HostPV *hpv_find_probed(int replay, uint32_t key) {
++    const HostPV *t = replay ? s_hpv_replay : s_hpv_live;
++    const uint32_t *keys = replay ? s_hpv_key_replay : s_hpv_key_live;
++    const uint32_t base = hpv_slot(key);
++    for (uint32_t k = 0; k < HOST_PV_PROBE; k++) {
++        const uint32_t c = (base + k) & (HOST_PV_CAP - 1u);
++        if (keys[c] == key) return &t[c];
++    }
++    return NULL;
++}
 +extern int g_render_replay_record;
 +extern void render_replay_record_host_vertex(uint32_t addr, uint32_t word, int32_t x16, int32_t y16, float z, float u, float v, float depth_z, float coverage);
 +extern void gl_set_precise_uv(int enabled, const float *u, const float *v);
 +extern void gl_set_host_depth(int enabled, const float *z);
 +extern void gl_set_host_coverage(float coverage);
 +void gpu_host_vertex_store(uint32_t addr, uint32_t word, int32_t x16, int32_t y16, float z, float u, float v, float depth_z, float coverage) {
-+    /* 8-way probe: reuse this address's entry, else the oldest in the window. */
-+    HostPV *t = hpv_table();
-+    uint32_t *keys = hpv_keys(), *ages = hpv_ages();
-+    const uint32_t a = hpv_key(addr), base = hpv_slot(a);
-+    uint32_t slot = HOST_PV_CAP;
-+    for (uint32_t k = 0; k < HOST_PV_PROBE; k++) {
-+        const uint32_t c = (base + k) & (HOST_PV_CAP - 1u);
-+        if (keys[c] == a) { slot = c; break; }
-+        if (slot == HOST_PV_CAP || (int32_t)(ages[c] - ages[slot]) < 0) slot = c;
++    const uint32_t a = hpv_key(addr);
++    HostPV *e;
++    if (hpv_aperture(a) && hpv_check()) {
++        /* Both tables, same sequence number. */
++        HostPV *d = hpv_ap_entry(g_render_replay_active, a);
++        d->addr = a; d->word = word; d->seq = s_hpv_seq + 1; d->x16 = x16; d->y16 = y16; d->z = z; d->u = u; d->v = v; d->depth_z = depth_z; d->coverage = coverage;
 +    }
-+    HostPV *e = &t[slot];
-+    keys[slot] = a; ages[slot] = s_hpv_seq + 1;
++    if (hpv_aperture(a) && !hpv_check()) e = hpv_ap_entry(g_render_replay_active, a);
++    else {
++        /* 8-way probe: reuse this address's entry, else the oldest in the window. */
++        HostPV *t = hpv_table();
++        uint32_t *keys = hpv_keys(), *ages = hpv_ages();
++        const uint32_t base = hpv_slot(a);
++        uint32_t slot = HOST_PV_CAP;
++        for (uint32_t k = 0; k < HOST_PV_PROBE; k++) {
++            const uint32_t c = (base + k) & (HOST_PV_CAP - 1u);
++            if (keys[c] == a) { slot = c; break; }
++            if (slot == HOST_PV_CAP || (int32_t)(ages[c] - ages[slot]) < 0) slot = c;
++        }
++        e = &t[slot];
++        keys[slot] = a; ages[slot] = s_hpv_seq + 1;
++    }
 +    e->addr = a; e->word = word; e->seq = ++s_hpv_seq; e->x16 = x16; e->y16 = y16; e->z = z; e->u = u; e->v = v; e->depth_z = depth_z; e->coverage = coverage;
 +    s_hpv_stored++;
 +}
@@ -1430,15 +1555,7 @@ index aaf69df7..af4c157a 100644
 +    if (gp0_cmd_source_addr == 0xFFFFFFFFu) { s_hpv_nosrc++; return 0; }
 +    const HostPV *e[3];
 +    for (int i = 0; i < 3; i++) {
-+        uint32_t addr = hpv_key(gp0_cmd_source_addr + (uint32_t)idx[i] * 4u);
-+        const HostPV *t = hpv_table();
-+        const uint32_t *keys = hpv_keys();
-+        const uint32_t base = hpv_slot(addr);
-+        e[i] = NULL;
-+        for (uint32_t k = 0; k < HOST_PV_PROBE; k++) {
-+            const uint32_t c = (base + k) & (HOST_PV_CAP - 1u);
-+            if (keys[c] == addr) { e[i] = &t[c]; break; }
-+        }
++        e[i] = hpv_find(g_render_replay_active, hpv_key(gp0_cmd_source_addr + (uint32_t)idx[i] * 4u));
 +        if (!e[i]) { if (i) s_hpv_addr++; return 0; }
 +        if (e[i]->word != gp0_cmd_buf[idx[i]]) { s_hpv_word++; return 0; }
 +    }
@@ -1489,7 +1606,7 @@ index aaf69df7..af4c157a 100644
  /* Per-vertex precise positions (PGXP, ENHANCEMENTS.md G1). Each of the three
   * packet words is resolved independently: the address-keyed dataflow shadow
   * first (validated against the actual word — exact provenance, survives
-@@ -3327,9 +3496,45 @@ uint32_t gpu_texture_correction_hits(void) {
+@@ -3327,9 +3575,45 @@ uint32_t gpu_texture_correction_hits(void) {
   * it, so shared edges between neighbouring triangles cannot disagree by more
   * than the sub-pixel fraction. The integer delta folds in draw offsets and
   * any widescreen adjustment already applied by the caller. */
@@ -1535,7 +1652,7 @@ index aaf69df7..af4c157a 100644
      if (!gte_geometry_correction_enabled()) {
          gr_set_precise_triangle(0, 0,0, 0,0, 0,0);
          return;
-@@ -3359,6 +3564,31 @@ static void prepare_precise_triangle(int i0, int i1, int i2,
+@@ -3359,6 +3643,23 @@ static void prepare_precise_triangle(int i0, int i1, int i2,
      gr_set_precise_triangle(1, fx[0],fy[0], fx[1],fy[1], fx[2],fy[2]);
  }
  
@@ -1550,16 +1667,8 @@ index aaf69df7..af4c157a 100644
 +    const unsigned count=(op&8)?4:3,step=1+((op&4)!=0)+((op&16)!=0);
 +    for(unsigned i=0;i<count;++i) {
 +        const unsigned index=1+i*step;
-+        const uint32_t addr=hpv_key(gp0_cmd_source_addr+4*index),base=hpv_slot(addr);
-+        int found=0;
-+        for(unsigned k=0;k<HOST_PV_PROBE;++k) {
-+            const uint32_t c=(base+k)&(HOST_PV_CAP-1u);
-+            if(s_hpv_key_replay[c]!=addr) continue;
-+            const HostPV *p=&s_hpv_replay[c];
-+            if( p->word==gp0_cmd_buf[index] &&
-+               (int32_t)(p->seq-s_hpv_replay_floor)>0) {found=1;break;}
-+        }
-+        if(!found) return 0;
++        const HostPV *p=hpv_find(1,hpv_key(gp0_cmd_source_addr+4*index));
++        if(!p || p->word!=gp0_cmd_buf[index] || (int32_t)(p->seq-s_hpv_replay_floor)<=0) return 0;
 +    }
 +    return 1;
 +}
@@ -1567,7 +1676,7 @@ index aaf69df7..af4c157a 100644
  /* Arming rate for perspective-correct UVs, per condition.
   *
   * perspective_triangles alone cannot answer "how much texture warp is left",
-@@ -3390,6 +3620,11 @@ void gpu_texture_correction_stats(uint64_t *attempts, uint64_t *armed,
+@@ -3390,6 +3691,11 @@ void gpu_texture_correction_stats(uint64_t *attempts, uint64_t *armed,
   * SWC2 projection store at that same DMA packet address. This preserves the
   * association through ordering-table reordering and rejects CPU-built UI. */
  static void prepare_texture_triangle(int i0, int i1, int i2) {
@@ -1579,7 +1688,7 @@ index aaf69df7..af4c157a 100644
      gr_set_perspective_triangle(0, 0.0f, 0.0f, 0.0f);
      s_texcorr.attempts++;
      if (!s_texture_correction_enabled) { s_texcorr.no_correction++; return; }
-@@ -3649,7 +3884,7 @@ static void gp0_exec_mono_quad(void) {
+@@ -3649,7 +3955,7 @@ static void gp0_exec_mono_quad(void) {
      /* Semi axis-aligned mono quads (UI boxes/borders): one rect, not two tris.
       * Thin semi borders (e.g. CTR name-entry OT-1144 teal 3×H) otherwise double-
       * blend their shared diagonal — nearly the whole strip — and overpaint 3D. */
@@ -1588,7 +1697,7 @@ index aaf69df7..af4c157a 100644
          int32_t min_x = vx[0], max_x = vx[0], min_y = vy[0], max_y = vy[0];
          for (int i = 1; i < 4; i++) {
              if (vx[i] < min_x) min_x = vx[i];
-@@ -3875,7 +4110,7 @@ static void gp0_exec_textured_quad(void) {
+@@ -3875,7 +4181,7 @@ static void gp0_exec_textured_quad(void) {
  
      setup_textured_draw(color24, semi_trans, raw_texture);
  
@@ -1597,7 +1706,7 @@ index aaf69df7..af4c157a 100644
          vx[0] == vx[2] && vx[1] == vx[3] &&
          u[0] == u[2] && u[1] == u[3] &&
          v[0] == v[1] && v[2] == v[3]) {
-@@ -3943,11 +4178,14 @@ static void gp0_exec_shaded_textured_tri(void) {
+@@ -3943,11 +4249,14 @@ static void gp0_exec_shaded_textured_tri(void) {
      uint16_t clut_x = (clut & 0x3F) * 16;
      uint16_t clut_y = (clut >> 6) & 0x1FF;
      uint16_t tpage_word = (uint16_t)(gp0_cmd_buf[5] >> 16);
@@ -1615,7 +1724,7 @@ index aaf69df7..af4c157a 100644
      for (int i = 0; i < 3; i++) {
          vx[i] += draw_offset_x;
          vy[i] += draw_offset_y;
-@@ -4526,7 +4764,7 @@ static void gp0_exec_vram_to_cpu(void) {
+@@ -4526,7 +4835,7 @@ static void gp0_exec_vram_to_cpu(void) {
  /* Determine how many words a GP0 command requires (header only, not counting
   * variable-length data for 0xA0). Returns -1 for polylines (terminated by
   * sentinel). Returns 0 for unknown commands (will be fatal). */
@@ -1624,7 +1733,7 @@ index aaf69df7..af4c157a 100644
      switch (opcode) {
          /* NOP / control */
          case 0x00: return 1;
-@@ -4874,6 +5112,10 @@ static uint64_t gp0_ring_seq    = 0;      /* total commands recorded */
+@@ -4874,6 +5183,10 @@ static uint64_t gp0_ring_seq    = 0;      /* total commands recorded */
  static uint32_t gp0_ring_head   = 0;      /* next write slot */
  
  static void gp0_ring_record(const uint32_t *words, int n) {
@@ -5547,16 +5656,22 @@ index 62c387d0..31a8cd9e 100644
              int x = (lw > dw + margin) ? (lw - dw - margin) : margin;
 diff --git a/runtime/src/host_profiler.c b/runtime/src/host_profiler.c
 new file mode 100644
-index 00000000..06ec3fbd
+index 00000000..6f43f60e
 --- /dev/null
 +++ b/runtime/src/host_profiler.c
-@@ -0,0 +1,151 @@
+@@ -0,0 +1,192 @@
 +/* host_profiler.c - developer sampling profiler for the emulation thread.
 + *
 + * PSX_PROF=FILE samples the thread that calls host_profiler_start() every 1 ms
 + * of its CPU time (SIGPROF from a thread CPU-clock timer) and, at exit, writes
 + * one line per sampled program counter: "count offset" where offset is
 + * relative to the executable's load base (symbolize with addr2line -f -e EXE).
++ * PSX_PROF_WALL=1 samples every 1 ms of wall time instead, so time the thread
++ * spends blocked (GPU synchronisation, sleeps) is counted where it waits.
++ * PSX_PROF_STACKS=FILE also keeps each sample's call stack (executable frames,
++ * innermost first; one "#stack" line per sample) for inclusive attribution.
++ * Thread CPU-clock timers fire at the kernel tick at best, so CPU-time
++ * profiles undercount at short intervals; compare shares, not totals.
 + * Inert unless the variable is set. Linux only. */
 +#if defined(__linux__)
 +#define _GNU_SOURCE 1
@@ -5581,6 +5696,9 @@ index 00000000..06ec3fbd
 +/* PSX_PROF_CALLERS=1: samples outside the executable (GL driver, libc, vDSO)
 + * are also attributed to the nearest executable frame on the stack. */
 +static int s_callers = 0;
++/* PSX_PROF_CALLERS_SKIP=N: attribute to the (N+1)th executable frame instead
++ * (to see who calls a wrapper such as a sleep). */
++static int s_callers_skip = 0;
 +/* PSX_PROF_REPLAY=1: only sample while a D17 redraw is being fed. */
 +static int s_replay_only = 0;
 +extern int g_render_replay_active;
@@ -5598,6 +5716,11 @@ index 00000000..06ec3fbd
 +    }
 +}
 +
++#define STACK_SAMPLES 120000u
++#define STACK_DEPTH 24
++static uintptr_t (*s_stacks)[STACK_DEPTH] = NULL;
++static uint8_t *s_stack_n = NULL;
++static uint32_t s_stack_count = 0;
 +static uint64_t s_first_frame=0,s_last_frame=0;
 +extern uint64_t s_frame_count;
 +static void on_prof(int sig, siginfo_t *si, void *ctx) {
@@ -5612,12 +5735,23 @@ index 00000000..06ec3fbd
 +#else
 +    uintptr_t pc = 0;
 +#endif
++    if (s_stacks && s_stack_count < STACK_SAMPLES) {
++        void *bt[64];
++        int n = backtrace(bt, 64), k = 0;
++        uintptr_t *out = s_stacks[s_stack_count];
++        if (pc >= s_exe_lo && pc < s_exe_hi) out[k++] = pc;
++        for (int i = 2; i < n && k < STACK_DEPTH; i++) {
++            uintptr_t f = (uintptr_t)bt[i];
++            if (f >= s_exe_lo && f < s_exe_hi) out[k++] = f;
++        }
++        s_stack_n[s_stack_count++] = (uint8_t)k;
++    }
 +    if (s_callers && (pc < s_exe_lo || pc >= s_exe_hi)) {
 +        void *bt[48];
 +        int n = backtrace(bt, 48);
-+        for (int i = 2; i < n; i++) {
++        for (int i = 2, skip = s_callers_skip; i < n; i++) {
 +            uintptr_t f = (uintptr_t)bt[i];
-+            if (f >= s_exe_lo && f < s_exe_hi) { note_caller(f); break; }
++            if (f >= s_exe_lo && f < s_exe_hi && skip-- <= 0) { note_caller(f); break; }
 +        }
 +    }
 +    uint32_t h = (uint32_t)((pc >> 2) * 2654435761u) & (PROF_SLOTS - 1u);
@@ -5657,6 +5791,18 @@ index 00000000..06ec3fbd
 +                             (unsigned long long)s_pc[k]);
 +    for (uint32_t k = 0; k < CALLER_SLOTS; k++)
 +        if (s_cpc[k]) fprintf(f, "#caller %u 0x%llx\n", s_ccount[k], (unsigned long long)(s_cpc[k] - s_base));
++    if (s_stacks) {
++        const char *sf = getenv("PSX_PROF_STACKS");
++        FILE *g = sf ? fopen(sf, "w") : NULL;
++        if (g) {
++            for (uint32_t i = 0; i < s_stack_count; i++) {
++                fputs("#stack", g);
++                for (int k = 0; k < s_stack_n[i]; k++) fprintf(g, " 0x%llx", (unsigned long long)(s_stacks[i][k] - s_base));
++                fputc('\n', g);
++            }
++            fclose(g);
++        }
++    }
 +    /* Module map for samples outside the executable. */
 +    FILE *m = fopen("/proc/self/maps", "r");
 +    if (m) {
@@ -5678,8 +5824,11 @@ index 00000000..06ec3fbd
 +    s_last_frame=last?strtoull(last,NULL,10):0;
 +    dl_iterate_phdr(find_base, NULL);
 +    { const char *c = getenv("PSX_PROF_CALLERS"); s_callers = c && c[0] == '1'; }
++    { const char *c = getenv("PSX_PROF_CALLERS_SKIP"); s_callers_skip = c ? atoi(c) : 0; }
 +    { const char *c = getenv("PSX_PROF_REPLAY"); s_replay_only = c && c[0] == '1'; }
-+    if (s_callers) { void *warm[4]; backtrace(warm, 4); }   /* load the unwinder now */
++    { const char *c = getenv("PSX_PROF_STACKS");
++      if (c && *c) { s_stacks = calloc(STACK_SAMPLES, sizeof *s_stacks); s_stack_n = calloc(STACK_SAMPLES, 1); s_stack_count = 0; } }
++    if (s_callers || s_stacks) { void *warm[4]; backtrace(warm, 4); }   /* load the unwinder now */
 +    struct sigaction sa;
 +    memset(&sa, 0, sizeof sa);
 +    sa.sa_sigaction = on_prof;
@@ -5691,7 +5840,8 @@ index 00000000..06ec3fbd
 +    sev.sigev_signo = SIGPROF;
 +    sev._sigev_un._tid = (pid_t)syscall(SYS_gettid);
 +    timer_t t;
-+    if (timer_create(CLOCK_THREAD_CPUTIME_ID, &sev, &t) != 0) return;
++    const char *wall = getenv("PSX_PROF_WALL");
++    if (timer_create(wall && wall[0] == '1' ? CLOCK_MONOTONIC : CLOCK_THREAD_CPUTIME_ID, &sev, &t) != 0) return;
 +    const long ns = s_replay_only ? 200000 : 1000000;
 +    struct itimerspec its = {{0, ns}, {0, ns}};
 +    timer_settime(t, 0, &its, NULL);
@@ -8469,10 +8619,10 @@ index 00000000..9516dd23
 +int psx_mod_present_display_y(void) { return gl_renderer_replay_display_y(); }
 diff --git a/runtime/src/render_worker.c b/runtime/src/render_worker.c
 new file mode 100644
-index 00000000..da318805
+index 00000000..36cb103a
 --- /dev/null
 +++ b/runtime/src/render_worker.c
-@@ -0,0 +1,505 @@
+@@ -0,0 +1,515 @@
 +/* render_worker.c - render replay worker processes (Time to Kill D17).
 + *
 + * Re-running a game's view composition costs as much host time as the game's
@@ -8524,7 +8674,11 @@ index 00000000..da318805
 +#define RW_SLOTS       8
 +#define RW_JOBS        16
 +#define RW_PARAMS      65536
-+#define RW_OUT_WORDS   (192u * 1024u)
++/* A redraw's GP0 stream. Host precise vertices take ten words each, so a
++ * frame drawn by a title's own renderer (Time to Kill host visibility: about
++ * 220K words at the castle) overflowed the former 192K and the redraw was
++ * dropped. Pages are touched only as far as a stream reaches. */
++#define RW_OUT_WORDS   (1024u * 1024u)
 +#define RW_JOB_DEADLINE_MS 250
 +
 +enum { RW_FREE = 0, RW_QUEUED = 1, RW_RUNNING = 2, RW_DONE = 3, RW_FAILED = 4 };
@@ -8535,7 +8689,7 @@ index 00000000..da318805
 +    _Atomic uint32_t discard;   /* released while queued/running: free on completion */
 +    _Atomic uint32_t loaded;    /* the worker has copied the slot image */
 +    _Atomic int32_t worker;
-+    uint32_t slot, params_len, out_words, ok;
++    uint32_t slot, params_len, out_words, ok, overflow;
 +    uint64_t tag, done_ticks;
 +    _Atomic uint64_t start_ticks;
 +    uint8_t  params[RW_PARAMS];
@@ -8560,7 +8714,7 @@ index 00000000..da318805
 +static PSXModReplayDrawFn s_draw = NULL;
 +static uint32_t  s_overlay_loads = 0, s_mod_used = 0;
 +extern uint32_t  psx_mod_memory_used_bytes(void);
-+static uint64_t  s_spawns = 0, s_deaths = 0, s_kills = 0, s_jobs_done = 0, s_jobs_failed = 0;
++static uint64_t  s_spawns = 0, s_deaths = 0, s_kills = 0, s_jobs_done = 0, s_jobs_failed = 0, s_jobs_overflow = 0;
 +static uint64_t  s_job_us_total = 0, s_job_us_max = 0;
 +
 +extern void overlay_loader_get_counters(uint32_t *loads, uint32_t *invalidations,
@@ -8689,6 +8843,10 @@ index 00000000..da318805
 +        job->out_words = n;
 +        job->ok = (ok && !overflow && n > 0) ? 1u : 0u;
 +        job->done_ticks = ticks();
++        job->overflow = overflow ? 1u : 0u;
++        if(!job->ok && getenv("PSX_REPLAY_PROFILE"))
++            fprintf(stderr,"[replay fail] ok=%d overflow=%d words=%u us=%llu\n",ok,overflow,n,
++                    (unsigned long long)ticks_us(job->done_ticks-job->start_ticks));
 +        if(profile && *profile && ++profile_jobs%128==0) {
 +            extern void host_profiler_flush(void);host_profiler_flush();
 +        }
@@ -8858,6 +9016,7 @@ index 00000000..da318805
 +        atomic_store(&job->start_ticks, 0u);
 +        job->out_words = 0;
 +        job->ok = 0;
++        job->overflow = 0;
 +        atomic_store(&job->discard, 0u);
 +        atomic_store(&job->loaded, 0u);
 +        atomic_store(&job->state, RW_QUEUED);
@@ -8894,6 +9053,7 @@ index 00000000..da318805
 +        if (us > s_job_us_max) s_job_us_max = us;
 +    } else if (st == RW_FAILED) {
 +        s_jobs_failed++;
++        s_jobs_overflow += j->overflow;
 +    }
 +    if (st == RW_DONE || st == RW_FAILED) atomic_store(&j->state, RW_FREE);
 +}
@@ -8945,11 +9105,11 @@ index 00000000..da318805
 +            q += st == RW_QUEUED; r += st == RW_RUNNING; d += st == RW_DONE;
 +        }
 +    snprintf(out, cap, "{\"workers\":%d,\"spawns\":%llu,\"deaths\":%llu,\"kills\":%llu,"
-+             "\"done\":%llu,\"failed\":%llu,\"job_us_avg\":%.0f,\"job_us_max\":%llu,"
++             "\"done\":%llu,\"failed\":%llu,\"overflows\":%llu,\"job_us_avg\":%.0f,\"job_us_max\":%llu,"
 +             "\"queued\":%u,\"running\":%u,\"ready\":%u}",
 +             s_count, (unsigned long long)s_spawns, (unsigned long long)s_deaths,
 +             (unsigned long long)s_kills, (unsigned long long)s_jobs_done,
-+             (unsigned long long)s_jobs_failed,
++             (unsigned long long)s_jobs_failed, (unsigned long long)s_jobs_overflow,
 +             s_jobs_done ? (double)s_job_us_total / (double)s_jobs_done : 0.0,
 +             (unsigned long long)s_job_us_max, q, r, d);
 +}

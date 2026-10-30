@@ -211,7 +211,7 @@ after validation. Note 321: [documentation/321-d17af-water-clip.md](documentatio
 
 ### D20H - Slot-5 intermittent extreme colour corruption on load
 
-**Status: Needs playtest (cause found and fixed in D17AM4, [note 326](documentation/326-d17am3-am4-unified-default.md)). Related: D20C, D37A.**
+**Status: Done (user-confirmed 2026-10-30; earlier: cause found and fixed in D17AM4, [note 326](documentation/326-d17am3-am4-unified-default.md)). Related: D20C, D37A.**
 D17AM4: reproduced on a private level-2 pose pair (load mid-frame state,
 captures, load another): corrupted colours, then a GP0 0x1F halt. A load
 resumes the saved frame, whose OT links into the mirrored host packet
@@ -227,7 +227,7 @@ and appropriate visual/regression evidence; preserve player originals.
 
 ### D17AG - Slot-6 holes in wooden panelling
 
-**Status: Needs playtest (selected 2026-10-29). Related: D14F, D17AE, D17AK.**
+**Status: Done (user-confirmed 2026-10-30; earlier: selected 2026-10-29). Related: D14F, D17AE, D17AK.**
 Private current UI slot 6; pan left/right at panelling above caravan/crate. Continuous correct visibility without revealing hidden surfaces.
 
 Cause: native painter order (note 320). Fixed by the D17AE scene-depth change:
@@ -248,7 +248,7 @@ and appropriate visual/regression evidence; preserve player originals.
 
 ### D17AI - Slot-12 wall near pushable cube disappears
 
-**Status: Needs playtest (not reproduced in D17AM4, [note 326](documentation/326-d17am3-am4-unified-default.md)). Related: D17Z, D17AA, D17AK.**
+**Status: Done (user-confirmed 2026-10-30; earlier: not reproduced in D17AM4, [note 326](documentation/326-d17am3-am4-unified-default.md)). Related: D17Z, D17AA, D17AK.**
 Old slot-12 fixture copy: forward, backward and turning routes past the
 cube at FOV 90/120 show the wall intact in both renderers. Needs the
 user's check before closing.
@@ -260,7 +260,7 @@ and appropriate visual/regression evidence; preserve player originals.
 
 ### D17AK - Shared renderer investigation and FOV quality sweep
 
-**Status: Needs playtest (D17AM3 sweep is its evidence, [note 326](documentation/326-d17am3-am4-unified-default.md)). Related: D14A, D14B, D14D.**
+**Status: Done (user-confirmed 2026-10-30; earlier: D17AM3 sweep is its evidence, [note 326](documentation/326-d17am3-am4-unified-default.md)). Related: D14A, D14B, D14D.**
 D17AM3/AM4: all 12 slots and 21 level-select levels at FOV 64/90/120, 60/120
 FPS, 16:9/4:3, first/third person, Bio Mask. Shared causes found: D20H
 (host packet region after mid-frame loads) and the D17AF water rejection.
@@ -1251,11 +1251,11 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D14F | 90-default / 120-maximum world FOV | Done (user-confirmed 2026-10-30) | Implemented in afd4ad6 (note 317); re-verified 2026-10-29 |
 | D17AE | Slot-11 sign post through door header | Done (user-confirmed 2026-10-29) | Scene depth for native world/scenery packets; replay precedence fix; world backface cull restored |
 | D17AF | Latest slot-10 ground water visibility | Done | Selected batch; see intake above |
-| D20H | Slot-5 intermittent colour corruption on load | Needs playtest | Selected batch; see intake above |
-| D17AG | Slot-6 wooden panelling holes | Needs playtest | Fixed by D17AE scene depth |
+| D20H | Slot-5 intermittent colour corruption on load | Done (user-confirmed 2026-10-30) | Selected batch; see intake above |
+| D17AG | Slot-6 wooden panelling holes | Done (user-confirmed 2026-10-30) | Fixed by D17AE scene depth |
 | D17AH | Slot-8 sky glitching and popping | Done | Selected batch; see intake above |
-| D17AI | Slot-12 wall near pushable cube | Needs playtest | Selected batch; see intake above |
-| D17AK | Shared renderer FOV quality sweep | Needs playtest | Selected batch; see intake above |
+| D17AI | Slot-12 wall near pushable cube | Done (user-confirmed 2026-10-30) | Selected batch; see intake above |
+| D17AK | Shared renderer FOV quality sweep | Done (user-confirmed 2026-10-30) | Selected batch; see intake above |
 | D01 | Establish the Vanilla regression route | Done | — |
 | D02 | Persistent Vanilla / Modernized profiles | Done | D01 |
 | D03 | Player, camera and aiming state research | Done | D01 |
@@ -24324,3 +24324,14 @@ User: "lock it in and close it out". D14F, D17AN, D17AP and D19AC Done on
 the user's playtest; D17AO Deferred (authored level gap, possible future
 fix). D20H, D17AG, D17AI and D17AK stay Needs playtest. Committed and pushed
 as MusicMonsterMod on that instruction.
+
+## 2026-10-30 - D20H, D17AG, D17AI, D17AK closed
+
+User playtest (speech to text, paraphrased): D20H slot 5 repeated loads,
+colours always normal, no freeze; D17AG slot 6 panelling solid, "probably
+the best it's ever looked", ammo no longer shows through; D17AI slot 12 cube
+wall issue gone; D17AK FOV 90/120 across several saves, no artifacts. At FOV
+120 the centre of the view looks far away: explained as inherent to
+rectilinear projection (centre about 58% of its size at 90); user chose no
+action and keeps 90 as the default. All four Done; committed and pushed as
+MusicMonsterMod on the user's instruction ("close it out").

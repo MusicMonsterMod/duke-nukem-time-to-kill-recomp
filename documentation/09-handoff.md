@@ -1,5 +1,10 @@
 # Next-session handoff
 
+## 2026-10-30 - Renderer playtest backlog cleared
+
+D20H, D17AG, D17AI, D17AK Done on the user's playtest. No open Needs
+playtest items from the D17AM/D17AN batches; D17AO stays Deferred.
+
 ## 2026-10-30 - Batch closed and pushed
 
 D14F, D17AN, D17AP, D19AC Done; D17AO Deferred (authored gap). Next

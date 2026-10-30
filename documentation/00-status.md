@@ -1,5 +1,10 @@
 # Current status - 2026-10-04
 
+## 2026-10-30 - D20H, D17AG, D17AI, D17AK closed
+
+All four user-confirmed in play. FOV 120 centre distance accepted as
+inherent to the projection; no action.
+
 ## 2026-10-30 - D14F, D17AN, D17AP, D19AC closed; D17AO deferred
 
 User-confirmed in play and closed on instruction. D17AO is an authored level

@@ -165,7 +165,7 @@ void measure_rollover() {
     frame_demand_bytes=0;frame_hook_us=0;frame_emits=0;
 }
 
-struct Stats { uint64_t seen,taken,polys,culled,triangles,budget_hits; };
+struct Stats { uint64_t seen,taken,polys,culled,triangles,budget_hits,skipped; };
 Stats world_stats,object_stats;
 uint64_t refused,copy_overflows,duke_skips,fades_skipped,fade_tests;
 uint32_t empty_rect;
@@ -1019,7 +1019,12 @@ void world(CPUState* cpu) {
             const uint32_t b=mesh+0x1c+8*i+3;const uint8_t v=psx_mod_read_byte(b);
             if(v&0xf) psx_mod_write_byte(b,v&0xf0);
         }
-    cpu->gpr[4]=copy;
+    // D17AQ: with every face drawn here the copy has no polygons left, but
+    // the original would still transform all its vertices (RTPT) for nothing.
+    // A null mesh returns at once (0x80011020); the nibble clear above is the
+    // only effect the vertex pass would have had.
+    cpu->gpr[4]=groups.empty()?0:copy;
+    world_stats.skipped+=groups.empty();
     ++world_stats.taken;
     const uint32_t textures=psx_mod_read_word(context+0x58);
     std::vector<Poly> polys;polys.reserve(taken.size());

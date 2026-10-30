@@ -445,7 +445,7 @@ std::vector<Screen> make_screens() {
          {{"OPENGL","opengl","\"opengl\""},{"SOFTWARE","software","\"software\""}},0},
         {"FILTER",Section::Presentation,"output_filter",nullptr,false,"HOW THE FINISHED IMAGE IS SCALED TO THE WINDOW",
          {{"LINEAR","linear","\"linear\""},{"NEAREST","nearest","\"nearest\""}},0},
-        {"DRAW DISTANCE",Section::Controls,"draw_distance","DNTTK_DRAW_DISTANCE",false,"EXTENDED: TWICE THE VIEW, NO DISTANT BLACK SEAMS",
+        {"DRAW DISTANCE",Section::Controls,"draw_distance","DNTTK_DRAW_DISTANCE",false,"EXTENDED: MAXIMUM VIEW, DISTANT ENEMIES WAIT UNTIL NEAR",
          {{"EXTENDED","extended","\"extended\""},{"ORIGINAL","original","\"original\""}},0},
         {"GEOMETRY",Section::Controls,"geometry_precision","DNTTK_GEOMETRY_PRECISION",false,"CORRECTED: STEADIER POLYGON EDGES",
          {{"ORIGINAL","original","\"original\""},{"CORRECTED","corrected","\"corrected\""}},0},

@@ -68,7 +68,7 @@ def main(argv=None):
     p.add_argument('--view-bob', choices=profiles.VIEW_BOBS, help='save Modernized first-person view bob while walking: off, subtle, on (default) or strong; standing still is steady at every setting')
     p.add_argument('--geometry-precision', choices=profiles.PRECISION_MODES, help='save Modernized mesh geometry: original (default) or corrected subpixel positions; OpenGL, next launch')
     p.add_argument('--texture-precision', choices=profiles.PRECISION_MODES, help='save Modernized mesh textures: original (default) or corrected perspective; OpenGL, next launch')
-    p.add_argument('--draw-distance', choices=profiles.DRAW_DISTANCES, help='save Modernized draw distance: extended (default; twice the view limit, no distant black seams) or original; Vanilla always uses original')
+    p.add_argument('--draw-distance', choices=profiles.DRAW_DISTANCES, help='save Modernized draw distance: extended (default; maximum view limit, open sky over outdoor walls, distant enemies dormant until near or hurt, no distant black seams) or original; Vanilla always uses original')
     p.add_argument('--frame-rate', choices=profiles.FRAME_RATES, help="save Modernized frame rate: auto (display-aware, up to 120 FPS), display (the monitor's refresh), 30, 60 (original), 120, 144, 165, 180, 240 or unlimited; game speed is unchanged, Vanilla always uses 60")
     p.add_argument('--no-session-log', action='store_true', help='do not mirror runtime stderr into build-local/logs/session-*.log')
     a = p.parse_args(argv)

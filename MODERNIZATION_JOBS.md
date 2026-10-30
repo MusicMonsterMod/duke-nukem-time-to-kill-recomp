@@ -1,5 +1,71 @@
 # Time to Kill — modernization jobs
 
+## 2026-10-30 - Host-owned world visibility (D17AR) and water triangle (D17AS)
+
+User (2026-10-30, after the D17AQ moat playtest): scenery still disappears at
+the screen edges along the slot-2 moat, and asked why owning the renderer has
+not removed such problems. The answer is that the game still decides what is
+drawn (portal walk, room rectangles, piece and prop culling, far limits); the
+host path only decides how. The user chose option C: "I want option C so
+badly, that's truly exactly what i want."
+
+### D17AR - Host-owned world visibility (parent)
+
+**Status: Todo. Dependencies: D17AM, D17AQ.** Goal: the host owns world
+visibility. Each level's room geometry is read from the game's own data once,
+kept host-side in world space, and drawn by frustum, distance and depth from
+the real camera every frame, independent of the portal walk and its
+rectangles. The game keeps all simulation: Duke, enemies, props, doors,
+pickups, effects. Expected to remove portal pop-in and edge cut-offs in every
+level, and to recover the guest cost of the original room walk. Vanilla
+unchanged. Done when D17AR1-AR4 are done.
+
+#### D17AR1 - Inventory, data-format verification and design (report first)
+
+**Status: Done (user: "the design is approved", 2026-10-30; [note 336](documentation/336-d17ar1-host-visibility-design.md)).**
+Work log 2026-10-30: verified on slot 2 (level 6) that world vertices are
+room min + (1024*b0, 128*b1, 1024*b2) and the room transform is
+R * (room min - eye) (134 traced meshes, max error 2.8); the 120 Hz redraws
+re-run the composition through the same hooks. Design: host world cache and
+pass reusing the D17AM emission with a synthesized GTE state, guard-banded
+frustum, room-graph and over-wall selection, props/objects fed the host list,
+game room walk emptied. Five proofs gate D17AR2. Approved; D17AR2 starts in a
+fresh session. D17AS (water triangle) deferred by the user.
+Original scope: Verify against the live game: room/piece/mesh
+formats and the exact room transform, per-room and per-vertex lighting and
+colour tables, fog, texture and animated-texture lookup, transparency and
+water, special pieces (sky rooms, mirrors, moving or hidden geometry, secret
+areas, level overlays), what the room walk does besides drawing (state the
+props/actors and object passes depend on), late-camera redraw interaction,
+and the cost model (host draw vs the guest room walk). Present the design and
+the stages for approval before implementation.
+
+#### D17AR2 - Implementation behind a developer switch
+
+**Status: Todo (after D17AR1 approval).**
+
+#### D17AR3 - Regression sweep, performance and default switch
+
+**Status: Todo.** All private fixtures and level-select levels, static/walk/
+turn/jetpack routes, FOV 60/90/120, 4:3 and 16:9, 60 and 120 Hz.
+
+#### D17AR4 - Retire superseded portal patches
+
+**Status: Todo.** D17AQ open sky, D17P/D17Y portal widening and similar
+rules, once host visibility covers them.
+
+### D17AS - Slot-2 moat: large dark triangle in or under the water
+
+**Status: Todo (report first). Dependencies: D17AM.** User clip
+`research/screencaps/triangle.mp4` (17.9 s, 60 fps, 1456x820): around 1.5 s
+a large sharp-edged dark triangle covers the moat floor while Duke stands in
+the water, and around 7-9 s a dark vertical wedge crosses the centre of the
+view underwater. Not reproduced by a scripted look-down/turn route from slot
+2 (the dark region there was close textured rock, identical with D17AQ off).
+Not known whether it predates D17AQ. Next: reproduce from the clip's route
+(wade into deeper water and dive), compare with D17AQ off and with
+`DNTTK_UNIFIED_GEOMETRY=0`, and trace the triangle's source.
+
 ## 2026-10-29 - Renderer plan: one geometry path (agreed order)
 
 User agreed the recommendation after D17AE: stop adding one-off rules at the
@@ -353,7 +419,7 @@ case added to the D08T3 group; 115 groups, input and aim pass. Earlier
 
 ### D17AQ - Slot-10 jetpack height: level sections pop in and out
 
-**Status: Todo (report first). Dependencies: D17AM, D14F.** Opened 2026-10-30
+**Status: Needs playtest (fixes B, A, C1 implemented; [note 335](documentation/335-d17aq-draw-reach-report.md)). Dependencies: D17AM, D14F.** Opened 2026-10-30
 from the user's playtest: in UI slot 10 (saved 2026-10-30 12:24) Duke hovers
 high above the level with the jetpack; turning left and right makes parts of
 the level appear and disappear, a little at a time. The user asks whether this
@@ -375,6 +441,60 @@ Include in the report: the far-end cutoff in slot 2 (draw-distance limit,
 room/portal visibility or fog), and the enemy activation/spawn distance versus
 the now-visible range, with what extending each would cost (frame rate
 included, given D23G).
+
+**Work log 2026-10-30 - report ([note 335](documentation/335-d17aq-draw-reach-report.md)).**
+Private copies of UI slots 10 and 2 (both level 6), offscreen, player files
+hash-checked. Slot 10: Duke hovers at Y -1898 in sky room 1, above the moat
+walls (tops near Y 1000). The original portal walk lists neighbours only
+through portals and clips them to the portal rectangles, so sky rooms seen
+over the walls are never drawn and portal rooms are cut mid-screen and drop
+out as Duke turns. Same at FOV 60, 90 and 4:3; Vanilla reaches the same
+height and shows the same void. A removed developer experiment listing every
+sky room made the view whole (thread 0.66 to 0.82 at 120 Hz, ring peak 64540
+to 115872 of 139744); the remaining black is authored void. Slot 2: the moat
+end is 50000-63000 away, past the Extended limit 51104; at the GTE maximum
+65535 it appears, cost within noise. Enemies: the spawn/despawn radius is the
+original mesh far limit (25552 in level 6, set at load at `0x800da474`; cap
+12 live of 51 spawners), so they spawn in view under Extended draw distance.
+Proposed (Modernized Extended only): A render-only open-sky visibility, B
+limit to 65535, C1 spawn radius to the Extended limit with despawn
+hysteresis (gameplay change) or C2 fade-in. No player code changed; the
+player executable is byte-identical. Next: user picks which fixes to build.
+
+**Work log 2026-10-30 - B, A, C1 implemented (Needs playtest).** User: "proceed
+with your exact recommendation ... open her up". Modernized Extended only:
+B raises the room/mesh limit to 0xffff in every level; A opens sky rooms to
+the whole view (or appends them) while the camera is in a sky room and Duke
+can see them over the camera room's walls (mesh-piece bounds sight test);
+C1 adds entry hook `0x80099164` (regenerated, codegen hash unchanged) so
+enemies spawn out to the extended limit and are removed 4096 beyond it, with
+exact distance and no game variable written. Native controls (117 PASS, new
+D17AQ groups), near, input and profile tests pass; 12-slot sweep shows no
+lost geometry; Vanilla unchanged. Cost at 120 Hz/150%: slot 10 hover 30 to 22
+game frames/s (open sky shows 4-8 more rooms), slot 2 ground 30.2 to about 28;
+presents stay 120. Level cap (12 in level 6) now fills at once with distant
+enemies. Playtest: slots 10 and 2, outdoor levels, combat feel.
+
+**Work log 2026-10-30 - C1 withdrawn; dormant enemies (Needs playtest).** User:
+C1 changed the flow; wants Duke 3D behavior (present, no reaction until near
+or shot) and reported a very slow slot-12 load. C1 removed. New
+`enemy_reach.inc` (hooks `0x80099164`, `0x80099530`, `0x80025944`,
+`0x800632b8`, `0x8006cefc`): spawn to the extended limit and remove 4096
+beyond it with the original cap and replacement; beyond the original radius a
+spawned enemy's class controller is skipped (class 0 for that call only)
+until it is hurt; post-load heal from the type table. Distant enemies stayed
+still in slot 2, a hurt one woke, live never exceeded the cap in 12 slots,
+cost about 0.2 game frames/s. Slot 12 loads in about 21 ms here; the user's
+log has no slot-12 load and host checks found no contention, so cause
+unknown; asked the user how it was loaded.
+
+**Work log 2026-10-30 - slot 10 slowdown (Needs playtest).** User corrected
+the slow slot to 10. Cause: open sky at hover, 30 to 23.6 game frames/s at
+the player's settings (game runs slow). Fixed in three steps: rectangles of
+the seen pieces only, a null mesh to the original world routine when the host
+takes every face (all scenes), and the object pass back on the portal walk's
+list (new hook `0x800374cc`): 28.1 at hover, slot 2 at parity (30.1). Tests
+and a 12-slot sweep pass (note 335, revision 3).
 
 ### D08T11 - Slot-8 pushable block stuck; game-wide eligibility
 
@@ -1380,7 +1500,13 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D17AN | Slot-12 water showing through the bridge deck (level 6) | Done (user-confirmed 2026-10-30) | D17AM; note 327 |
 | D17AO | Slot-11 ceiling hole showing the sky (level 6) | Deferred (authored level gap; no action now, possible future level-data fix) | D17AM; note 327 |
 | D17AP | Slot-9 grave-dig soil corners flashing again (D17X recurrence) | Done (user-confirmed 2026-10-30) | D17X, D17AM; note 327 |
-| D17AQ | Slot-10 jetpack height: level sections pop in and out while turning (room visibility) | Todo (report first) | D17AM, D14F |
+| D17AQ | Slot-10 jetpack height: level sections pop in and out while turning (room visibility) | Needs playtest (B max limit, A open sky, dormant enemies (C1 withdrawn); note 335) | D17AM, D14F |
+| D17AR | Host-owned world visibility (parent): the host decides what world geometry is drawn | In progress (AR1 approved; AR2 next) | D17AM, D17AQ; D17AR1-AR4 |
+| D17AR1 | Host visibility: inventory, data-format verification and design (report first) | Done (design approved 2026-10-30; note 336) | D17AM |
+| D17AR2 | Host visibility: implementation behind a developer switch | Todo (next; approved design) | D17AR1 |
+| D17AR3 | Host visibility: regression sweep, performance and default switch | Todo | D17AR2 |
+| D17AR4 | Host visibility: retire superseded portal patches (open sky, portal widening) | Todo | D17AR3 |
+| D17AS | Slot-2 moat: large dark triangle in/under the water (research/screencaps/triangle.mp4) | Todo (report first) | D17AM |
 | D14F | 90-default / 120-maximum world FOV | Done (user-confirmed 2026-10-30) | Implemented in afd4ad6 (note 317); re-verified 2026-10-29 |
 | D17AE | Slot-11 sign post through door header | Done (user-confirmed 2026-10-29) | Scene depth for native world/scenery packets; replay precedence fix; world backface cull restored |
 | D17AF | Latest slot-10 ground water visibility | Done | Selected batch; see intake above |

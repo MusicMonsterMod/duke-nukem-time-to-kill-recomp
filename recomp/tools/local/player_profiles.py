@@ -582,7 +582,7 @@ def describe_cpu_timing(value):
 def describe_draw_distance(value):
     if value == 'original':
         return 'original (the original view limit: the far end of long views is black)'
-    return 'extended (twice the original view limit; no black seams between distant sections)'
+    return 'extended (the maximum view limit, over outdoor walls from the jetpack, distant enemies in place but dormant until you are near or hurt them; no black seams between distant sections)'
 
 
 def describe_jump(value):
@@ -808,8 +808,9 @@ def menu(settings, read=input, write=print):
             if edited['active'] != 'modernized':
                 write('Vanilla keeps the original view limit; select Modernized for the draw distance.')
                 continue
-            write('extended draws twice as far, so long corridors end in their real walls instead of black, '
-                  'and closes thin black seams between distant sections. original keeps the original limit.')
+            write('extended draws as far as the PlayStation depth range allows, so long corridors end in their real walls '
+                  'instead of black, shows outdoor areas over the walls when you fly above them, shows distant enemies standing '
+                  'still until you come near or hurt them and closes thin black seams between distant sections. original keeps the original limit.')
             value = read('Draw distance (' + '/'.join(DRAW_DISTANCES) + '; blank cancels): ').strip()
             if value in DRAW_DISTANCES:
                 edited['profiles']['modernized']['controls']['draw_distance'] = value

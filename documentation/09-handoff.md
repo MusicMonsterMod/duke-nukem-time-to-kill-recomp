@@ -1,5 +1,52 @@
 # Next-session handoff
 
+## 2026-10-30 - D17AR1 approved; closeout commit
+
+User approved the D17AR design (note 336) and asked to commit and push, then
+start D17AR2 in a fresh session. D17AQ remains Needs playtest (B max limit,
+A open sky with revision-3 performance fixes, dormant enemies). D17AS (water
+triangle) deferred. Next: D17AR2, host world cache and pass behind
+`DNTTK_HOST_VISIBILITY=1`, starting with the five proofs in note 336.
+
+## 2026-10-30 - D17AR (host-owned visibility) selected; D17AR1 report Needs review
+
+User chose option C. New jobs D17AR (parent, AR1-AR4) and D17AS (slot-2
+water triangle, `research/screencaps/triangle.mp4`, not yet reproduced).
+D17AR1 report: [note 336](336-d17ar1-host-visibility-design.md). D17AQ stays
+Needs playtest. No code changed for D17AR.
+
+## 2026-10-30 - D17AQ revision 3: slot 10 slowdown (Needs playtest)
+
+The slow slot was 10 (jetpack). Open sky slowed the game there to 23.6 game
+frames/s; now 28.1 (30.1 without the feature), slot 2 unchanged at 30.1
+([note 335](335-d17aq-draw-reach-report.md)). Launch:
+`python3 recomp/tools/local/run.py`.
+
+## 2026-10-30 - D17AQ revision 2: dormant enemies (Needs playtest)
+
+C1 (enemies spawned and active out to the extended range) changed the game's
+flow and was withdrawn. Enemies now appear out to the extended range but stay
+dormant until Duke is within the original range or hurts them; the cap and
+nearby spawning are the original's ([note 335](335-d17aq-draw-reach-report.md)).
+Slot 12's slow load did not reproduce (about 21 ms here); awaiting the user's
+steps. Launch: `python3 recomp/tools/local/run.py`.
+
+## 2026-10-30 - D17AQ B/A/C1 implemented (Needs playtest)
+
+Extended draw distance now reaches the 65535 maximum, draws outdoor areas
+seen over the walls from the jetpack, and places enemies out to that range
+([note 335](335-d17aq-draw-reach-report.md)). Tests and a 12-slot sweep pass;
+slot 10 hover costs 30 to 22 game frames/s (presents 120). New hook
+`0x80099164`. Launch: `python3 recomp/tools/local/run.py`.
+
+## 2026-10-30 - D17AQ report Needs review
+
+Draw-reach report delivered ([note 335](335-d17aq-draw-reach-report.md)):
+slot 10 pop-in is the original portal visibility seen from above the moat
+walls (Vanilla same), slot 2's black moat end is past the Extended limit, and
+enemies spawn at the original 25552 radius. Proposed fixes A/B/C await the
+user's choice. No player code changed. Launch: `python3 recomp/tools/local/run.py`.
+
 ## 2026-10-30 - Closeout: D23G part 1, D08T11, D08T12, D08T13
 
 User authorized closeout. D08T11 (pushed objects stay grabbable), D08T12

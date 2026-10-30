@@ -6925,6 +6925,129 @@ int main(int argc,char** argv) {
         setup();call(0x80062b48,0,0,0x80012345);assert(top()==-80);
         std::puts("PASS: D17Y open upper portal, downstream/indoor/height/bounds/caller and Vanilla guards");
     }
+    // D17AQ: open sky lists the sky rooms Duke sees over the camera room's
+    // walls, only from a sky room and only in view.
+    {
+        constexpr uint32_t table=0x80180000,pieces=0x80182000,entry=0x800d68b0,rect=0x800d2210;
+        auto box=[&](uint32_t room,int32_t x0,int32_t y0,int32_t z0,int32_t x1,int32_t y1,int32_t z1,uint32_t flags) {
+            const uint32_t a=table+room*88;
+            for(uint32_t i=0;i<88;i+=4) psx_mod_write_word(a+i,0);
+            psx_mod_write_word(a,x0);psx_mod_write_word(a+4,y0);psx_mod_write_word(a+8,z0);psx_mod_write_word(a+12,flags);
+            psx_mod_write_word(a+0x20,x1);psx_mod_write_word(a+0x24,y1);psx_mod_write_word(a+0x28,z1);
+        };
+        auto piece=[&](uint32_t room,unsigned slot,int16_t x0,int16_t y0,int16_t z0,int16_t x1,int16_t y1,int16_t z1) {
+            const uint32_t a=table+room*88,list=pieces+room*0x100,p=pieces+0x1000+room*0x100+slot*0x20;
+            psx_mod_write_byte(a+0x32,slot+1);psx_mod_write_word(a+0x40,list);psx_mod_write_word(list+4*slot,p);
+            const int16_t v[8]={x0,y0,z0,0,x1,y1,z1,0};
+            for(unsigned k=0;k<8;++k) psx_mod_write_half(p+4+2*k,uint16_t(v[k]));
+        };
+        auto setup=[&](int32_t eye_y,int forward) {
+            psx_mod_write_word(0x800da454,table);psx_mod_write_word(0x800da47c,2);psx_mod_write_word(c+0x90,0);
+            box(0,0,-2048,0,10240,13312,10240,8);
+            piece(0,0,9000,4096,0,10240,15360,10240);           // east wall, top at Y 2048
+            box(1,12000,-2048,0,20000,13312,10240,8);
+            piece(1,0,2000,6048,3000,6000,15360,7000);          // a yard wall, top at Y 4000
+            const int16_t m[9]={0,0,int16_t(-4096*forward),0,4096,0,int16_t(4096*forward),0,0};
+            for(int i=0;i<9;++i) psx_mod_write_half(c+0x20+2*i,uint16_t(m[i]));
+            psx_mod_write_word(c+0x14,5000);psx_mod_write_word(c+0x18,eye_y);psx_mod_write_word(c+0x1c,5000);
+            psx_mod_write_half(c+0x42,160);
+            psx_mod_write_half(rect,uint16_t(-256));psx_mod_write_half(rect+2,uint16_t(-120));
+            psx_mod_write_half(rect+4,512);psx_mod_write_half(rect+6,240);
+            psx_mod_write_word(0x800d68a8,1);
+            psx_mod_write_half(entry,uint16_t(-256));psx_mod_write_half(entry+2,uint16_t(-120));
+            psx_mod_write_half(entry+4,512);psx_mod_write_half(entry+6,240);psx_mod_write_word(entry+8,0);
+            psx_mod_write_word(0x800da450,1000);psx_mod_write_word(0x800da34c,2000);
+            psx_mod_write_word(0x800d67a8+0x74,1000+0x13d0);
+        };
+        auto run=[&]{call(0x80062b48,0,0,0x8002e688);};
+        auto listed=[&](uint32_t room){
+            for(uint32_t i=0;i<psx_mod_read_word(0x800d68a8);++i) if(psx_mod_read_word(entry+12*i+8)==room) return true;
+            return false;
+        };
+        setup(-1800,1);run();assert(psx_mod_read_word(0x800d67a8+0x74)==0xffff && listed(1)); // above the wall
+        // drawn through the screen rectangle of its seen piece (x about +-36 plus margin), not the whole view
+        auto edge=[&](uint32_t e,int i){return int(int16_t(psx_mod_read_half(e+2*i)));};
+        assert(edge(entry+12,0)<-36 && edge(entry+12,0)>-60 && edge(entry+12,2)>72 && edge(entry+12,2)<120);
+        assert(edge(entry+12,1)>=-120 && edge(entry+12,1)+edge(entry+12,3)<=120);
+        call(0x800374cc,c,0,0x8002e6e4);assert(psx_mod_read_word(0x800d68a8)==1); // the object pass: the walk's own rooms
+        setup(8000,1);run();assert(!listed(1));                       // below it, on the ground
+        setup(-1800,-1);run();assert(!listed(1));                     // behind the camera
+        setup(-1800,1);psx_mod_write_word(table+12,0);run();assert(!listed(1)); // indoors
+        setup(-1800,1);psx_mod_write_word(table+88+12,0);run();assert(!listed(1)); // not a sky room
+        setup(-1800,1);psx_mod_write_word(0x800d67a8+0x74,1234);run();assert(!listed(1)); // unknown limit: refused
+        // A portal-listed sky room opens to the whole view only when seen over the walls.
+        setup(-1800,1);psx_mod_write_word(0x800d68a8,2);
+        psx_mod_write_half(entry+12,uint16_t(-20));psx_mod_write_half(entry+14,uint16_t(-20));
+        psx_mod_write_half(entry+16,40);psx_mod_write_half(entry+18,40);psx_mod_write_word(entry+20,1);
+        run();assert(edge(entry+12,0)<-36 && edge(entry+12,0)>-60 && edge(entry+12,0)+edge(entry+12,2)>=22); // widened over the portal's
+        assert(edge(entry+12,1)<=-22 && edge(entry+12,1)+edge(entry+12,3)>=22);
+        setup(8000,1);psx_mod_write_word(0x800d68a8,2);
+        psx_mod_write_half(entry+12,uint16_t(-20));psx_mod_write_half(entry+14,uint16_t(-20));
+        psx_mod_write_half(entry+16,40);psx_mod_write_half(entry+18,40);psx_mod_write_word(entry+20,1);
+        run();assert(psx_mod_read_half(entry+12)==uint16_t(-22) && psx_mod_read_half(entry+16)==44); // margin only
+        setup(-1800,1);ttk::modern=false;run();assert(!listed(1));ttk::modern=true;
+        setup(-1800,1);call(0x80062b48,0,0,0x80012345);assert(!listed(1));
+        psx_mod_write_word(0x800da47c,0);psx_mod_write_word(0x800d68a8,0);
+        std::puts("PASS: D17AQ open sky over walls, ground/behind/indoor/flags/limit/caller and Vanilla guards");
+
+        // Dormant enemies: spawner range out to the extended limit with removal
+        // hysteresis, without writing the radius; beyond the original radius a
+        // spawned enemy's controller is skipped until it is hurt.
+        constexpr uint32_t duke=0x800d719c,record=0x80183000,records=0x80184000,actor_a=0x80185000,actor_b=0x80186000;
+        psx_mod_write_word(0x800da450,20480);
+        auto range=[&](int32_t dx,uint32_t ra,uint32_t type=1) {
+            psx_mod_write_word(record,type);
+            for(int i=0;i<3;++i) {psx_mod_write_word(duke+4*i,1000);psx_mod_write_word(record+8+4*i,1000);}
+            psx_mod_write_word(record+8,uint32_t(1000+dx));
+            CPUState cpu{};cpu.gpr[4]=duke;cpu.gpr[5]=record;cpu.gpr[31]=ra;cpu.gpr[29]=0x801f0000;
+            const uint32_t radius=psx_mod_read_word(0x800dd9e0);
+            hooks().at(0x80099164)(&cpu,0x80099164);
+            assert(psx_mod_read_word(0x800dd9e0)==radius);
+            return cpu.gpr[4];
+        };
+        const uint32_t far_point=range(70000,0x800991ec);
+        assert(far_point!=duke && far_point!=record+8);
+        for(int i=0;i<3;++i) assert(psx_mod_read_word(far_point+4*i)==0x40000000u);
+        assert(range(40000,0x800991ec)==record+8);   // the original 25552 says too far
+        assert(range(-65535,0x80099288)==record+8 && range(65600,0x80099288)==far_point);
+        assert(range(67000,0x80099310)==record+8);   // removal waits 4096 longer
+        assert(range(69700,0x80099310)==far_point);
+        assert(range(70000,0x800991ec,0x3d)==duke && range(70000,0x800991ec,0x385)==duke && range(70000,0x800991ec,0x3e)==duke);
+        assert(range(70000,0x80012345)==duke);       // other callers
+        auto actor=[&](uint32_t a,int32_t x,uint8_t cls,int16_t health) {
+            for(uint32_t i=0;i<0x40;i+=4) psx_mod_write_word(a+i,0);
+            psx_mod_write_word(a+4,uint32_t(1000+x));psx_mod_write_word(a+8,1000);psx_mod_write_word(a+12,1000);
+            psx_mod_write_byte(a+0x15,cls);psx_mod_write_half(a+0x32,uint16_t(health));
+        };
+        psx_mod_write_word(0x800de720,records);psx_mod_write_word(0x800c56a0,2);psx_mod_write_word(0x800dd9e0,25552u*25552u);
+        for(uint32_t i=0;i<0x60;i+=4) psx_mod_write_word(records+i,0);
+        psx_mod_write_word(records+4,actor_a);psx_mod_write_word(records+0x14,1);
+        psx_mod_write_word(records+0x30+4,actor_b);psx_mod_write_word(records+0x30+0x14,1);
+        actor(actor_a,40000,6,100);actor(actor_b,1000,6,100);
+        auto tick=[&]{call(0x80099530,duke,0,0x80025b18);};
+        auto prep=[&](uint32_t a,uint32_t ra=0x80025be0){call(0x80025944,a,0,ra);};
+        auto empty=[&](uint32_t a){call(0x800632b8,a,0,0x80025c00);};
+        tick();prep(actor_a);assert(psx_mod_read_byte(actor_a+0x15)==0);   // dormant: the empty handler runs
+        empty(actor_a);assert(psx_mod_read_byte(actor_a+0x15)==6);           // and puts the class back
+        prep(actor_b);assert(psx_mod_read_byte(actor_b+0x15)==6);           // near: the original enemy
+        prep(actor_a,0x80012345);assert(psx_mod_read_byte(actor_a+0x15)==6); // other callers
+        prep(actor_a,0x80025c58);assert(psx_mod_read_byte(actor_a+0x15)==0);
+        call(0x8006cefc,0,0,0x80025c8c);assert(psx_mod_read_byte(actor_a+0x15)==6); // after the loop
+        psx_mod_write_half(actor_a+0x32,90);tick();prep(actor_a);assert(psx_mod_read_byte(actor_a+0x15)==6); // hurt: awake
+        psx_mod_write_half(actor_a+0x32,100);tick();prep(actor_a);assert(psx_mod_read_byte(actor_a+0x15)==6); // stays awake
+        psx_mod_write_word(records+0x14,0);tick();psx_mod_write_word(records+0x14,1);tick(); // a new enemy in that record
+        prep(actor_a);assert(psx_mod_read_byte(actor_a+0x15)==0);empty(actor_a);
+        // A savestate taken inside the hold: the next tick heals from the type table.
+        constexpr uint32_t types=0x80187000;
+        psx_mod_write_word(0x800d2660,types);psx_mod_write_half(actor_a+0x2c,3);psx_mod_write_byte(types+28*3+6,6);
+        psx_mod_write_byte(actor_a+0x15,0);tick();assert(psx_mod_read_byte(actor_a+0x15)==0); // only after a load
+        ++save_loads;tick();assert(psx_mod_read_byte(actor_a+0x15)==6);
+        psx_mod_write_word(0x800d2660,0);
+        psx_mod_write_word(0x800c56a0,0);psx_mod_write_word(0x800de720,0);tick();
+        prep(actor_a);assert(psx_mod_read_byte(actor_a+0x15)==6);
+        std::puts("PASS: D17AQ dormant enemies: extended spawner range, hysteresis, hold/release, hurt wake and callers");
+
+    }
     assert(ttk::camera_body_coverage(650,0)==0);
     assert(ttk::camera_body_coverage(1700,0)==1);
     assert(ttk::camera_body_coverage(650,660)==1);

@@ -184,8 +184,10 @@ static void packet_contracts(const char* executable) {
             word(mesh+0x58,0x02000000);word(mesh+0x5c,0xff);
             observed_hook(&c,0x80011020);
             if(!modernized) {assert(c.gpr[4]==mesh && host_vertices==0);continue;}
-            if(kind==3) {assert(c.gpr[4]!=mesh && host_vertices==0);for(unsigned i=0;i<2048;++i) assert(!head(i));continue;}
-            assert(c.gpr[4]!=mesh && host_vertices==4);
+            // D17AQ: every face is taken, so the original gets a null mesh and
+            // skips its vertex pass.
+            if(kind==3) {assert(c.gpr[4]==0 && host_vertices==0);for(unsigned i=0;i<2048;++i) assert(!head(i));continue;}
+            assert(c.gpr[4]==0 && host_vertices==4);
             for(unsigned i=0;i<2048;++i) assert((head(i)!=0)==(i==128));
             const uint32_t prim=head(128);
             if(kind==2) {

@@ -262,14 +262,29 @@ walk. With `original` textures the original pieces remain.
 ### Draw distance (Modernized)
 
 The original game stops drawing a few rooms ahead, so long views such as the
-subway corridor end in a black box, and thin black lines can cross distant
-ceilings and floors. `extended` (the Modernized default) draws twice as far and
-closes those distant seams; with geometry or texture precision `corrected` it
-also keeps thin distant surfaces. `original` keeps the original limit. Choose
-**D** in `--settings` or `--draw-distance original|extended`; it applies on the
-next launch and saves your preference. Gameplay is unchanged, and Vanilla
-always uses the original limit. A very long view can still end in black beyond
-twice the original distance.
+subway corridor or the castle moat end in a black box, and thin black lines can
+cross distant ceilings and floors. `extended` (the Modernized default) draws as
+far as the PlayStation's depth range allows (65535 units, two to three times
+the original) and closes those distant seams; with geometry or texture
+precision `corrected` it also keeps thin distant surfaces.
+
+Outdoors, the original only draws neighbouring areas through their openings,
+so flying high with the jetpack showed pieces of the level popping in and out
+as you turned. With `extended`, outdoor areas you can see over the walls are
+drawn whole. Some spots stay black because the level has no scenery there.
+
+The original also creates enemies only when you come within its own short view
+range and removes them past it, which `extended` would show in the open. With
+`extended`, enemies are placed out to the new view limit, as in Duke 3D: a
+distant enemy stands where it is and does not react until you come within the
+original range, or until you hurt it (a shot, a kick or a blast wakes it for
+good). Near you the game plays as the original: the same enemies, the same
+limit on how many are alive at once.
+
+`original` keeps the original limits and behavior. Choose **D** in
+`--settings` or `--draw-distance original|extended`; it applies on the next
+launch and saves your preference. Vanilla always uses the original. A very
+long view can still end in black beyond 65535 units.
 
 ### Portable steroids (Modernized)
 

@@ -285,6 +285,12 @@ regenerated (see the D14 note above). Framework headers hashed into the codegen
 tag (`runtime/codegen_hash_sources.cmake`, including `cpu_state.h`) must not
 change for title features: a new tag rejects every existing savestate. See
 [note 97](97-d17p-distant-bands.md).
+D17AQ: `extended` now uses the 0xffff maximum, open sky over outdoor walls
+and dormant distant enemies; six hooks (`0x80099164`, `0x80099530`,
+`0x80025944`, `0x800632B8`, `0x8006CEFC`, `0x800374CC`) were added to `game.local.toml` and
+regenerated (codegen hash unchanged). Developer A/B: `DNTTK_OPEN_SKY=0`,
+`DNTTK_ENEMY_REACH=0`. See
+[note 335](335-d17aq-draw-reach-report.md).
 
 ## World subdivision (D17N)
 

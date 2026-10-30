@@ -298,15 +298,18 @@ static void open_sky_rooms() {
 // rooms it drew nothing visible over the slot-10 moat but cost 2 game frames
 // a second, so it gets the portal walk's own list back.
 // Developer: DNTTK_OPEN_SKY_OBJECTS=1 keeps the added rooms for it.
+#include "host_visibility.inc"
 static void open_sky_object_pass(uint32_t ra) {
+    if(host_vis_object_pass(ra)) {open_sky_count=0;return;}
     static const bool keep=[]{const char* t=std::getenv("DNTTK_OPEN_SKY_OBJECTS");return t && !std::strcmp(t,"1");}();
     if(keep || ra!=0x8002e6e4u || !open_sky_count || psx_mod_read_word(0x800d68a8)!=open_sky_count) return;
     psx_mod_write_word(0x800d68a8,open_sky_original);open_sky_count=0;
 }
-static void draw_distance_apply(uint32_t address,uint32_t ra) {
+static void draw_distance_apply(CPUState* cpu,uint32_t address,uint32_t ra) {
     const bool rooms=address==0x8006276c && ra==0x8002e650;
     const bool walk=address==0x80062b48 && ra==0x8002e688;
     const bool scene=address==0x8002ffec && ra==0x8002e6dc;
+    if(scene) host_vis_scene();
     if((!rooms && !walk && !scene) || !draw_distance_extended()) return;
     if(!code_identity(distance_guards,distance_words)) {++distance_refusals;return;}
     // Developer: DNTTK_PRECISE_CULLING=0 keeps native NCLIP decisions.
@@ -328,18 +331,19 @@ static void draw_distance_apply(uint32_t address,uint32_t ra) {
     psx_mod_write_word(view_limits+0x78,(uint32_t)(limit>>2));
     if(far!=limit) distance_original=far;
     distance_extended=limit;
-    if(walk) {widen_portals();open_sky_rooms();}
+    // D17AR2: the host world pass supersedes the portal widening and open sky.
+    if(walk && !host_vis_walk(cpu)) {widen_portals();open_sky_rooms();}
     if(scene) ++distance_frames;
 }
 static const char* enemy_reach_debug_json();
 static const char* draw_distance_debug_json() {
-    static char buffer[1024];
+    static char buffer[2048];
     uint64_t checks=0,flips=0;gte_nclip_culling_stats(&checks,&flips);
     std::snprintf(buffer,sizeof buffer,"{\"mode\":\"%s\",\"frames\":%llu,\"refusals\":%llu,\"original\":%d,\"extended\":%d,"
         "\"portals_widened\":%llu,\"nclip_checks\":%llu,\"nclip_flips\":%llu,"
-        "\"open_sky\":{\"frames\":%llu,\"opened\":%llu,\"added\":%llu},\"enemies\":%s}",
+        "\"open_sky\":{\"frames\":%llu,\"opened\":%llu,\"added\":%llu},\"host_visibility\":%s,\"enemies\":%s}",
         draw_distance_extended()?"extended":"original",(unsigned long long)distance_frames,(unsigned long long)distance_refusals,
         distance_original,distance_extended,(unsigned long long)portal_widened,(unsigned long long)checks,(unsigned long long)flips,
-        (unsigned long long)open_sky_frames,(unsigned long long)open_sky_opened,(unsigned long long)open_sky_added,enemy_reach_debug_json());
+        (unsigned long long)open_sky_frames,(unsigned long long)open_sky_opened,(unsigned long long)open_sky_added,host_visibility_debug_json(),enemy_reach_debug_json());
     return buffer;
 }

@@ -1,5 +1,20 @@
 # Time to Kill — modernization jobs
 
+## 2026-10-30 - Swimming: left click does not draw a holstered weapon (D08O5)
+
+### D08O5 - Left click draws a holstered weapon while swimming
+
+**Status: Todo. Dependencies: D08O1, D08O3.** User report (2026-10-30, after
+the D17AR2 playtest): "if you are swimming with the weapon holstered, left
+click doesnt draw your weapon like it does on land. It needs to draw the
+weapon." Expected: Modernized, game-wide, left click (fire) while swimming
+with the weapon holstered draws the current weapon exactly as on land (D08E
+responsive holstered fire); D08Q7 fixed the same gap for jetpack flight.
+Vanilla unchanged. Reproduce with the player's real input in water (a
+private copy of a swimming save), find where the swim states skip the
+ground holstered-fire draw path, and verify draw, then fire, at surface and
+underwater.
+
 ## 2026-10-30 - Host-owned world visibility (D17AR) and water triangle (D17AS)
 
 User (2026-10-30, after the D17AQ moat playtest): scenery still disappears at
@@ -42,11 +57,53 @@ the stages for approval before implementation.
 
 #### D17AR2 - Implementation behind a developer switch
 
-**Status: Todo (after D17AR1 approval).**
+**Status: Accepted (visual playtest passed 2026-10-30; performance carried to D17AR3; [note 337](documentation/337-d17ar2-host-visibility.md)).**
+Work log 2026-10-30: host world pass behind `DNTTK_HOST_VISIBILITY=1`
+(default off; developer console `hostvis on|off`). At the room walk the host
+selects rooms (host portal walk with a 15% guard band, sky rooms over the
+walls, plus every game-listed room) and pieces, and draws them through the
+D17AM emission with the walk's GTE/context state; the game's walk keeps only
+pieces the frame budget sends back; props get the host list, the object pass
+the game's. Proofs: 84 matched views over all 21 selectable levels, 81 within
+animation noise, the rest an explosion and newly drawn far geometry; the slot-10
+jetpack pop-in and the castle cut-off are filled. No world piece data changes
+in any level; single walk/camera-render caller on the disc; no refusals,
+props list at most 15. Fixed during the sweep: portal corners are a 2x2 grid
+(level 21 lost a room). Cost: about 4-5% fewer game frames/s at 120 Hz in the
+moat views (drawing about 2.6 ms a frame; the expected guest saving was mostly
+already taken by D17AQ). Level 28: draw-distance limits refused, host pass
+never engages. Remaining for D17AR3: performance, level 28, FOV/aspect/view
+modes and routes.
+Work log 2026-10-30 (revision 2, after the user's review and live session):
+far-end holes were distant pieces the frame budget sent back to the original
+renderer (drawn black; 24-37% of host pieces). Host pieces now draw nearest
+first and leave only a measured props/actors share; host frames drop the far
+reserve for props; the rectangle test is on for host pieces; the host packet
+arena is two 256 KB regions (about 350 KB a frame, same allocation, savestate
+mirror tagged for both layouts). Pieces handed back 0 at both fixtures, no
+prop fallbacks, 84-view sweep clean, Bio Mask and savestates checked. 120 Hz:
+slot 10 29.35 off / 28.35 on, slot 2 29.2 / 29.25 game frames/s (28.0 and
+28.5 before the job).
+Work log 2026-10-30 (revision 3): user playtest saw no change. At `auto`
+(120 Hz) most frames are redraw-worker frames, and `hostvis on` reached only
+the main process (the launch had no environment switch). The switch now rides
+in RenderState to the workers; 120 Hz console-toggle comparisons show the
+moat's far end filled and the slot-10 castle wall continuous.
+Playtest 2026-10-30 (revision 3, `hostvis on` reaching all four processes):
+user: "Visually, fantastic. performance-wise, it needs a lot of work to make
+this silky smooth! ... nothing is popping in and out of existence anymore, so
+this is certainly the right direction." Counters: about 312000 host pieces,
+none handed back, no fallbacks; 75-90 presents/s most minutes with brief
+emulation-behind drops (also with the switch off; main thread at 100% of a
+core, no host contention). Open: smoothness (D17AR3); the user's launch with
+`DNTTK_HOST_VISIBILITY=1` did not reach the game's environment (to check).
 
 #### D17AR3 - Regression sweep, performance and default switch
 
-**Status: Todo.** All private fixtures and level-select levels, static/walk/
+**Status: Todo (next).** User priority after the D17AR2 playtest: make host
+visibility silky smooth at 120 Hz (slot 10 and the moat dip to every second
+refresh). Also: level 28 never engages; check why the user's
+`DNTTK_HOST_VISIBILITY=1` launch did not reach the game's environment. All private fixtures and level-select levels, static/walk/
 turn/jetpack routes, FOV 60/90/120, 4:3 and 16:9, 60 and 120 Hz.
 
 #### D17AR4 - Retire superseded portal patches
@@ -1501,10 +1558,10 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D17AO | Slot-11 ceiling hole showing the sky (level 6) | Deferred (authored level gap; no action now, possible future level-data fix) | D17AM; note 327 |
 | D17AP | Slot-9 grave-dig soil corners flashing again (D17X recurrence) | Done (user-confirmed 2026-10-30) | D17X, D17AM; note 327 |
 | D17AQ | Slot-10 jetpack height: level sections pop in and out while turning (room visibility) | Needs playtest (B max limit, A open sky, dormant enemies (C1 withdrawn); note 335) | D17AM, D14F |
-| D17AR | Host-owned world visibility (parent): the host decides what world geometry is drawn | In progress (AR1 approved; AR2 next) | D17AM, D17AQ; D17AR1-AR4 |
+| D17AR | Host-owned world visibility (parent): the host decides what world geometry is drawn | In progress (AR1 done; AR2 accepted; AR3 next: performance) | D17AM, D17AQ; D17AR1-AR4 |
 | D17AR1 | Host visibility: inventory, data-format verification and design (report first) | Done (design approved 2026-10-30; note 336) | D17AM |
-| D17AR2 | Host visibility: implementation behind a developer switch | Todo (next; approved design) | D17AR1 |
-| D17AR3 | Host visibility: regression sweep, performance and default switch | Todo | D17AR2 |
+| D17AR2 | Host visibility: implementation behind a developer switch | Accepted (visual playtest passed; performance to D17AR3) | D17AR1 |
+| D17AR3 | Host visibility: regression sweep, performance and default switch | Todo (next; smoothness first) | D17AR2 |
 | D17AR4 | Host visibility: retire superseded portal patches (open sky, portal widening) | Todo | D17AR3 |
 | D17AS | Slot-2 moat: large dark triangle in/under the water (research/screencaps/triangle.mp4) | Todo (report first) | D17AM |
 | D14F | 90-default / 120-maximum world FOV | Done (user-confirmed 2026-10-30) | Implemented in afd4ad6 (note 317); re-verified 2026-10-29 |
@@ -1606,6 +1663,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08AF | Smooth plunge-to-swimming control handoff at maximum depth (UI slot 9) | Done | D08AE, D08O |
 | D08O3 | E in water keeps the weapon: redraw when no climb-out follows the stow | Done (user-accepted; closed 2026-10-30) | D08O1 |
 | D08O4 | Brief Ctrl dive keeps swimming forward after release (dive anim plays on; player UI slot 3) | Done (user-accepted) | D08O |
+| D08O5 | Left click draws a holstered weapon while swimming | Todo | D08O1, D08O3 |
 | D08N | Duke3D-style scuba gear item | Cancelled (out of scope) | — |
 | D08P | Crystal-2 turret / scripted-camera control recovery | Done | D08 |
 | D08Q | Modern jetpack flight controls | Done | D08 |

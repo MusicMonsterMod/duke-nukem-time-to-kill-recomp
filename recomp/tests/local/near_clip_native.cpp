@@ -270,12 +270,14 @@ static void packet_contracts(const char* executable) {
                 word(mesh+0x50,0x00010061);word(mesh+0x54,0x03020100);word(mesh+0x58,0x02000000);word(mesh+0x5c,0xff);
                 return c;
             };
-            constexpr uint32_t arena=0x80f00000,region=0x20000,mirror=arena+4*region;
+            // D17AR2: two regions in the unchanged 512 KB arena; the mirror after
+            // it holds the region plus 4 (0-3 are the D17R1 four-region layout).
+            constexpr uint32_t arena=0x80f00000,regions=2,region=0x80000/regions,mirror=arena+0x80000,tag=4;
             auto c=quad();
             CPUState b{};b.gpr[31]=0x800268f4;b.gpr[4]=mesh;b.gpr[5]=ot;b.gpr[6]=ctx;b.gpr[7]=bm;
             observed_hook(&b,0x80026164);
             observed_hook(&c,0x80011020);
-            const uint32_t saved=head(128),r=psx_mod_read_word(mirror);
+            const uint32_t saved=head(128),r=psx_mod_read_word(mirror)-tag;
             assert(saved>=arena+r*region && saved<arena+(r+1)*region);
             uint32_t copy[13];for(int i=0;i<13;++i) copy[i]=psx_mod_read_word(saved+4*i);
             // The process carries on elsewhere in the same region...
@@ -284,9 +286,9 @@ static void packet_contracts(const char* executable) {
             ++test_loads;
             auto d=quad();word(ot+128*8,saved);word(ot+128*8+4,saved);word(bm+16,0x00800000);
             observed_hook(&d,0x80011020);
-            const uint32_t next=head(128),want=(r+1)%4;
+            const uint32_t next=head(128),want=(r+1)%regions;
             assert(next!=saved && next>=arena+want*region && next<arena+(want+1)*region);
-            assert(next==arena+want*region && psx_mod_read_word(mirror)==want);
+            assert(next==arena+want*region && psx_mod_read_word(mirror)==want+tag);
             for(int i=1;i<13;++i) assert(psx_mod_read_word(saved+4*i)==copy[i]);
         }
         // D17AN: with unified geometry every water tile, even a safe distant

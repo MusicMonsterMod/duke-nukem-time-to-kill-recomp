@@ -1238,7 +1238,7 @@ static void hook_body(CPUState* cpu, uint32_t address) {
         piano_use_held=false;
     uint32_t ra=cpu->gpr[31], sp=cpu->gpr[29];
     if (sp<0x80010100 || sp>0x801ffff0 || (sp&3)) {head_restore();return;}
-    if(address==0x8006276c || address==0x80062b48 || address==0x8002ffec) {draw_distance_apply(address,ra);if(address==0x8002ffec) pole_visibility_draw(cpu,ra);return;}
+    if(address==0x8006276c || address==0x80062b48 || address==0x8002ffec) {draw_distance_apply(cpu,address,ra);if(address==0x8002ffec) pole_visibility_draw(cpu,ra);return;}
     if(address==0x80076330) {apartment_switch_query(cpu);mirror_use_query(cpu);return;}
     if(address==0x80081a48) {pickup_select_begin(cpu);steroids_pickup(cpu);apartment_pickup(cpu);return;}
     if(address==0x80051cf0) {push_obstacle_action(cpu,ra);return;}
@@ -1863,6 +1863,9 @@ struct RenderState {
     RifleReload rifle_reload; RunArms run_arms; unsigned weapon_slot;
     uint32_t weapon_matrix, hidden_matrix;
     bool kick_active; unsigned kick_frame; uint32_t kick_point, leg_matrices;
+    // D17AR2: the live frame's host visibility switch (the console toggle
+    // changes only this process; redraw workers forked before it).
+    bool host_visibility;
 };
 bool replay_gameplay_context() { return gameplay_context(); }
 void render_state_prepare() {
@@ -1918,6 +1921,7 @@ void render_state_save(void* out) {
     r.weapon_matrix=weapon_matrix; r.hidden_matrix=hidden_matrix;
     r.kick_active=kick_active; r.kick_frame=kick_active ? kick_frame() : 0u;
     r.kick_point=kick_point; r.leg_matrices=leg_matrices;
+    r.host_visibility=host_visibility_enabled();
     std::memcpy(out,&r,sizeof r);
 }
 void render_state_blend_mask(void* out,const void* next,double alpha) {
@@ -1951,6 +1955,7 @@ void render_state_load(const void* in) {
     weapon_matrix=r.weapon_matrix; hidden_matrix=r.hidden_matrix;
     kick_active=r.kick_active; override_kick_frame=r.kick_frame;
     kick_point=r.kick_point; leg_matrices=r.leg_matrices;
+    host_vis_override=r.host_visibility?1:0;
     // Draw-time transients start clean, as at the start of a live frame.
     head_flag=backpack_flag=0; third_body_drawing=false; mirror_duke_drawing=false; duke_drawing=false; actor_drawing=false; limb_scope_forget();
     render_override=true; override_lease_cam=r.lease_cam;

@@ -130,12 +130,19 @@ constexpr unsigned max_depth=12;
 // 139744 bytes). Sharing that ring capped host packets at 60% of it per frame,
 // and with the extended draw distance the game alone fills 61% in the medieval
 // canal: every later mesh, the sky last of all, fell back to the original path,
-// whose near rejection left stair-stepped holes in the clouds. The arena has
-// four 128 KB regions, one per frame in turn, so a region is reused only three
-// frames after the GPU walked it (the canal peaks near 50 KB of host packets).
-// Short of budget, pieces stop splitting, and a mesh that cannot be afforded
-// stays entirely on the original path.
-constexpr uint32_t host_frame_bytes=128*1024, host_regions=4, split_reserve=8*1024, takeover_reserve=6*1024;
+// whose near rejection left stair-stepped holes in the clouds. The arena is
+// one 512 KB allocation (unchanged since D17R1, so savestates keep their
+// layout and the D20C mirror word after it). D17AR2: it is split into two
+// 256 KB regions, one per frame in turn (D17R1 had four of 128 KB). The GPU
+// walks a frame's list serially after that frame is built, so frame N's list
+// is done before frame N+1's starts, and its region is rewritten only while
+// frame N+2 is built. Host world visibility at jetpack height over the level-6
+// moat needs about 230 KB a frame; the distant pieces that did not fit went
+// back to the original renderer, which drew them black. Short of budget,
+// pieces stop splitting, and a mesh that cannot be afforded stays entirely on
+// the original path.
+constexpr uint32_t arena_bytes=512*1024, host_regions=2, host_frame_bytes=arena_bytes/host_regions;
+constexpr uint32_t split_reserve=8*1024, takeover_reserve=6*1024;
 // Outside unified geometry (the sky, unaffordable meshes and the developer
 // comparison), polygons with a corner this near are drawn here. The PS1 maps textures
 // affinely; where an original polygon meets a subdivided one the shared edge
@@ -153,6 +160,11 @@ uint32_t frame_demand_bytes,demand_peak;uint64_t demand_frames,demand_over,deman
 uint64_t frame_hook_us,hook_us_peak,hook_us_total,hook_frames,frame_emits,emits_peak;
 // Demand by owner: world, prop (and water), actor, sky, first-person layer.
 uint32_t frame_kind_bytes[5],kind_peak[5];uint64_t kind_total[5];
+// D17AR2: the packets the props and actors (which follow the room walk) drew
+// last frame plus what the meshes refused the host path would have needed (a
+// quad each): a reserve sized from what they drew alone would shrink once
+// they were squeezed.
+uint32_t frame_after_missed=0,last_after_walk_bytes=0;
 void measure_rollover() {
     if(frame_demand_bytes || frame_hook_us) {
         ++demand_frames;demand_total+=frame_demand_bytes;demand_peak=std::max(demand_peak,frame_demand_bytes);
@@ -161,6 +173,8 @@ void measure_rollover() {
         emits_peak=std::max(emits_peak,frame_emits);
         for(int k=0;k<5;++k){kind_peak[k]=std::max(kind_peak[k],frame_kind_bytes[k]);kind_total[k]+=frame_kind_bytes[k];}
     }
+    if(frame_demand_bytes) last_after_walk_bytes=frame_kind_bytes[1]+frame_kind_bytes[2]+frame_after_missed;
+    frame_after_missed=0;
     for(auto& b:frame_kind_bytes) b=0;
     frame_demand_bytes=0;frame_hook_us=0;frame_emits=0;
 }
@@ -181,6 +195,10 @@ uint64_t mask_draws,mask_triangles;
 // Reserve before any savestate load: importing a saved allocation tail must
 // not fill the aperture while this process still has a null mask_arena.
 constexpr uint32_t mask_frame_bytes=47*1024;
+// The Bio Mask allocation keeps its four blocks (savestate layout); each
+// region takes two neighbouring ones (94 KB) after its host block.
+constexpr uint32_t mask_blocks=4, region_mask_bytes=mask_frame_bytes*(mask_blocks/host_regions);
+static_assert(mask_blocks%host_regions==0,"regions share the Bio Mask blocks evenly");
 struct HeldPacket { uint32_t prim,tag; double z; };
 std::vector<HeldPacket> held_packets;
 uint32_t held_frame;
@@ -189,16 +207,27 @@ uint32_t held_frame;
 // into the region it was built in, so after a load the next frame moves on from
 // that one rather than from this process's, which could be the same region and
 // overwrite it. A state without mod memory reads an end-of-list fill: any region.
+// D17AR2: the mirror holds the region plus mirror_tag, so a state saved with
+// the four 128 KB regions (values 0-3) is told apart from one saved with the
+// two 256 KB regions (values 4-5); the next region after a load is the one its
+// frame's packets do not occupy, in either layout.
+constexpr uint32_t mirror_tag=4;
 uint32_t host_arena_base,host_region,region_mirror,region_loads;
-void region_mirror_store() {if(region_mirror) psx_mod_write_word(region_mirror,host_region);}
+void region_mirror_store() {if(region_mirror) psx_mod_write_word(region_mirror,host_region+mirror_tag);}
+uint32_t region_after(uint32_t mirrored) {
+    if(mirrored>=mirror_tag && mirrored<mirror_tag+host_regions) return (mirrored-mirror_tag+1)%host_regions;
+    if(mirrored<4) return (mirrored*128*1024/host_frame_bytes+1)%host_regions; // D17R1 layout
+    return 0;
+}
 // Reserved at startup (see the constructor below), not at the first packet: a
 // state loaded before that would find the aperture unmapped, and the loaded
 // ordering table's links into it would fold into main RAM and draw garbage.
-// The zeroed mirror matches the starting region 0.
+// A zeroed mirror reads as D17R1 region 0, whose packets lie in region 0, so
+// a load moves on to region 1.
 uint32_t host_arena() {
     if(!host_arena_base) {
-        host_arena_base=psx_mod_alloc_gpu_dma_memory(host_frame_bytes*host_regions+16,16);
-        if(host_arena_base) region_mirror=host_arena_base+host_frame_bytes*host_regions;
+        host_arena_base=psx_mod_alloc_gpu_dma_memory(arena_bytes+16,16);
+        if(host_arena_base) region_mirror=host_arena_base+arena_bytes;
     }
     return host_arena_base;
 }
@@ -219,7 +248,7 @@ void region_after_load() {
     region_loads=loads;
     held_packets.clear();scene_depth_cancel();
     if(!region_mirror) return;
-    host_region=(psx_mod_read_word(region_mirror)+1)%host_regions;
+    host_region=region_after(psx_mod_read_word(region_mirror));
     frame_host_bytes=0;
     region_mirror_store();
 }
@@ -231,14 +260,15 @@ void host_frame_reset() {
     frame_host_bytes=0;
     region_mirror_store();
 }
-// D17AM2: a frame's region is its 128 KB host block plus its 47 KB Bio Mask
-// block, filled through one cursor (frame_host_bytes). The two GPU DMA
-// allocations, their order and the D20C mirror are unchanged, so savestates
-// keep their layout. No packet straddles the two blocks.
-constexpr uint32_t region_bytes=host_frame_bytes+mask_frame_bytes;
+// D17AM2: a frame's region is its host block plus its Bio Mask space (one
+// 47 KB block then; since D17AR2 a 256 KB block and two Bio Mask blocks),
+// filled through one cursor (frame_host_bytes). The two GPU DMA allocations,
+// their order and the D20C mirror word are unchanged, so savestates keep their
+// layout. No packet straddles the two parts.
+constexpr uint32_t region_bytes=host_frame_bytes+region_mask_bytes;
 uint32_t region_address(uint32_t offset) {
     const uint32_t r=host_region%host_regions;
-    return offset<host_frame_bytes ? host_arena()+r*host_frame_bytes+offset : mask_arena+r*mask_frame_bytes+(offset-host_frame_bytes);
+    return offset<host_frame_bytes ? host_arena()+r*host_frame_bytes+offset : mask_arena+r*region_mask_bytes+(offset-host_frame_bytes);
 }
 // D12 first-person weapon. Every polygon of the hand, weapon, flash and held
 // item meshes is drawn here while first_person_weapon_drawing(). Their packets
@@ -432,7 +462,7 @@ bool mask_worn() {
     return (psx_mod_read_half(player+0x35c)&2) && psx_mod_read_half(player+0x35e);
 }
 // Cursor limit for a packet's owner. Current renderer: host pieces and the
-// weapon keep the 128 KB block as before; the mask and frozen tint use the
+// weapon keep the host block as before; the mask and frozen tint use the
 // rest. Unified: everything but the mask leaves the mask what the built mesh
 // needs while it is worn (one packet per triangle; the tint's otherwise); all
 // but the first-person layer leave it 8 KB; all but the sky and that layer
@@ -448,12 +478,27 @@ bool mask_worn() {
 // DNTTK_UNIFIED_FAR_RESERVE_KB (developer) overrides the 48 KB.
 constexpr uint32_t viewmodel_reserve=8*1024, sky_reserve=32*1024, tint_reserve=256, far_z=4096;
 uint32_t far_reserve() {static const uint32_t v=1024u*env_int("DNTTK_UNIFIED_FAR_RESERVE_KB",48,0,96);return v;}
+// D17AR2: the host world pass draws its pieces nearest first, so each of
+// them, near or distant, leaves room only for what is drawn after the room
+// walk: the props and actors (the sky and first-person layer keep their own
+// reserves). Without it the wider world selection could take the whole frame
+// and every prop fell back.
+// It leaves what they asked for last frame plus a quarter, two meshes' takeover
+// allowance (each mesh is admitted only with its own) and 4 KB, between 24 and
+// 64 KB. Before, distant pieces went back to
+// the original renderer once a frame held about 80 KB, and it drew them black.
+// In such a frame the props and actors themselves no longer leave the far
+// reserve: the world already left them their share.
+bool host_piece=false,host_frame=false;
+uint32_t after_walk_reserve() {
+    return std::clamp<uint32_t>(last_after_walk_bytes+last_after_walk_bytes/4+2*takeover_reserve+4096,24*1024,64*1024);
+}
 constexpr uint32_t mask_reserve=(uint32_t)std::size(bio_mask_mesh)*0x28+tint_reserve;
 static_assert(mask_reserve<=mask_frame_bytes,"Bio Mask mesh exceeds its block");
 uint32_t cursor_limit(const Frame& f) {
     if(f.biomask) return region_bytes;
     if(!unified()) return host_frame_bytes;
-    return region_bytes-(mask_worn()?mask_reserve:tint_reserve)-(f.viewmodel?0:viewmodel_reserve)-(f.viewmodel || f.sky?0:sky_reserve)-(f.far?far_reserve():0);
+    return region_bytes-(mask_worn()?mask_reserve:tint_reserve)-(f.viewmodel?0:viewmodel_reserve)-(f.viewmodel || f.sky?0:sky_reserve)-(host_piece?after_walk_reserve():f.far && !(host_frame && f.object)?far_reserve():0);
 }
 uint32_t budget(const Frame& f) {
     if(!host_arena() || !mask_arena) return 0;
@@ -932,7 +977,20 @@ void rank_coplanar(const Frame& f,std::vector<Poly>& polys);
 uint64_t unified_downgrades,fallback_kind[3],near_fallbacks;
 // Bytes a mesh's taken faces are expected to need before it is taken over.
 // Unified scene geometry: about one packet per face (most are unclipped quads).
-uint32_t mesh_need(const Frame& f,size_t faces) {return takeover_reserve+(uint32_t)faces*(unified_scene(f)?0x34:0x28*3);}
+// D17AR2: a distant host piece (every vertex 4096+ away) is never cut by the
+// near plane, so it needs about its packets: a quad each, with half again for
+// faces the screen edges split.
+uint32_t mesh_need(const Frame& f,size_t faces) {
+    if(host_piece && f.far && unified_scene(f)) return 512+(uint32_t)faces*0x34*3/2;
+    return takeover_reserve+(uint32_t)faces*(unified_scene(f)?0x34:0x28*3);
+}
+// D17AR2 host visibility: a piece drawn from the host world pass
+// (near_clip_host_world_piece) is either drawn here whole or left untouched,
+// never downgraded part way, since the game's walk that would draw the rest
+// is emptied. host_walk_kept: the pieces the game's own walk still draws.
+bool host_walk_filter=false;
+std::vector<uint32_t> host_walk_kept;
+uint64_t host_world_pieces=0,host_world_left=0,host_walk_nulled=0,host_left_far=0,host_left_near=0;
 // 0x80011020 entry: a0 mesh, a1 ordering table, a2 render context, a3 bitmap.
 void world(CPUState* cpu) {
     const uint32_t mesh=cpu->gpr[4],ra=cpu->gpr[31];
@@ -996,6 +1054,7 @@ void world(CPUState* cpu) {
         if(!group.kept.empty()) groups.push_back(std::move(group));
     }
     if(forced && budget(f)<mesh_need(f,taken.size())) {
+        if(host_piece) {++(f.far?host_left_far:host_left_near);trace_record(f,"host_piece_left",0);return;}
         forced=false;f.scene=false;++unified_downgrades;trace_record(f,"unified_downgrade",0);
         scene_depth_begin(f);
         if(!any) return;
@@ -1357,6 +1416,7 @@ void object(CPUState* cpu) {
         if(!group.kept.empty()) groups.push_back(std::move(group));
     }
     if(forced && budget(f)<mesh_need(f,taken.size())) {
+        if(!f.sky && !viewmodel) frame_after_missed+=(uint32_t)taken.size()*0x34;
         forced=false;f.scene=false;++unified_downgrades;trace_record(f,"unified_downgrade",0);
         if(!body) scene_depth_begin(f,!actor,phone);
         if(!any) return;
@@ -1365,7 +1425,9 @@ void object(CPUState* cpu) {
     break;
     }
     if(taken.empty()) return;
-    if(budget(f)<mesh_need(f,taken.size())) {++mesh_fallbacks;++fallback_kind[f.sky?2:1];near_fallbacks+=!f.far;trace_record(f,"mesh_budget_fallback",0);return;}
+    if(budget(f)<mesh_need(f,taken.size())) {
+        if(!f.sky && !viewmodel) frame_after_missed+=(uint32_t)taken.size()*0x34;
+        ++mesh_fallbacks;++fallback_kind[f.sky?2:1];near_fallbacks+=!f.far;trace_record(f,"mesh_budget_fallback",0);return;}
     const uint32_t copy=guest_copy();
     if(!copy || 0x20+list_bytes(groups)>copy_size) {++copy_overflows;return;}
     for(uint32_t i=0;i<0x18;i+=4) psx_mod_write_word(copy+i,psx_mod_read_word(mesh+i));
@@ -1500,6 +1562,12 @@ void near_hook_body(CPUState* cpu,uint32_t address) {
         if(subdivision_bypass()) world_polygon_fetch(cpu,address);
         return;
     }
+    // D17AR2: while the host world pass owns the frame, the room walk's own
+    // calls (ra 0x80062db8) draw only the pieces it left to the game.
+    if(address==0x80011020 && host_walk_filter && cpu->gpr[31]==0x80062db8u &&
+       !std::binary_search(host_walk_kept.begin(),host_walk_kept.end(),cpu->gpr[4])) {
+        cpu->gpr[4]=0;++host_walk_nulled;return;
+    }
     // A new mesh rewrites the vertex buffer; a pending restore is stale.
     if(address==0x80011020) subdivision_restore_addr=0;
     if(g_pgxp_mesh_active && (address==0x80010000 || address==0x80011020)) {
@@ -1520,6 +1588,7 @@ void near_hook_body(CPUState* cpu,uint32_t address) {
         // retaining a stale (or initially zero) budget cursor in some views.
         // Redraw workers enter this same boundary with their restored RAM.
         if(cpu->gpr[31]==0x800268f4 && identity()) {
+            host_walk_filter=false;host_frame=false;
             scene_pending.live=false;
             region_after_load();
             frame_first_cursor=psx_mod_read_word(context);
@@ -1566,6 +1635,22 @@ void hook(CPUState* cpu,uint32_t address) {
 }
 }
 
+bool near_clip_host_world_live() {
+    const bool clip_live=first_person_view_live() || third_person_camera_live() || widescreen_near_clip_live();
+    return clip_live && (renderers()&1) && unified() && identity();
+}
+bool near_clip_host_world_piece(CPUState* cpu) {
+    const uint32_t mesh=cpu->gpr[4];
+    host_piece=true;hook(cpu,0x80011020);host_piece=false;
+    const bool drawn=mesh && cpu->gpr[4]==0;
+    ++(drawn?host_world_pieces:host_world_left);
+    return drawn;
+}
+void near_clip_host_walk(bool filter,const std::vector<uint32_t>& kept) {
+    if(filter) host_frame=true;
+    host_walk_filter=filter;host_walk_kept=kept;std::sort(host_walk_kept.begin(),host_walk_kept.end());
+}
+void near_clip_host_counters(uint64_t out[5]) {out[0]=host_world_pieces;out[1]=host_world_left;out[2]=host_walk_nulled;out[3]=host_left_far;out[4]=host_left_near;}
 void near_clip_counters(uint64_t out[8]) {
     out[0]=world_stats.taken;out[1]=world_stats.triangles;out[2]=object_stats.taken;out[3]=object_stats.triangles;
     out[4]=mesh_fallbacks;out[5]=world_stats.budget_hits+object_stats.budget_hits;out[6]=copy_overflows;out[7]=refused;
@@ -1575,7 +1660,7 @@ void near_clip_water_counters(uint64_t out[4]) {
 }
 void near_clip_prepare() {
     (void)guest_copy();(void)host_arena();
-    if(!mask_arena)mask_arena=psx_mod_alloc_gpu_dma_memory(mask_frame_bytes*host_regions,16);
+    if(!mask_arena)mask_arena=psx_mod_alloc_gpu_dma_memory(mask_frame_bytes*mask_blocks,16);
     if(!empty_rect) {
         empty_rect=psx_mod_alloc_guest_memory(16,16);
         if(empty_rect) {
@@ -1620,7 +1705,7 @@ void near_clip_viewmodel_flush() {
 // Original Blender geometry, emitted into the same ordered/replayed GPU stream as
 // the weapon. Separate arena keeps the mesh out of the world's packet budget.
 void near_clip_biomask(double dip,uint32_t light) {
-    if(!mask_arena)mask_arena=psx_mod_alloc_gpu_dma_memory(mask_frame_bytes*host_regions,16);
+    if(!mask_arena)mask_arena=psx_mod_alloc_gpu_dma_memory(mask_frame_bytes*mask_blocks,16);
     static Stats stats{};
     if(!psx_mod_replay_active() && std::getenv("DNTTK_MASK_TRACE"))std::fprintf(stderr,"mask-arena=%08x region=%u bytes=%u frame=%u\n",mask_arena,host_region,frame_host_bytes,frame_first_cursor);
     if(!mask_arena)return;
@@ -1795,7 +1880,7 @@ const char* near_clip_debug_json() {
 }
 PSX_MOD_CONSTRUCTOR(register_ttk_near_clip) {
     (void)ttk::host_arena();
-    ttk::mask_arena=psx_mod_alloc_gpu_dma_memory(ttk::mask_frame_bytes*ttk::host_regions,16);
+    ttk::mask_arena=psx_mod_alloc_gpu_dma_memory(ttk::mask_frame_bytes*ttk::mask_blocks,16);
     for(uint32_t address:{0x8001fba0u,0x8002bc18u,0x800b4d2cu,0x80010000u,0x80011020u,0x8002ee50u,0x80026164u,0x800114ecu,0x8001160cu})
         psx_mod_register_function_entry_plugin("ttk.near.clip",address,ttk::hook);
 }

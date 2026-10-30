@@ -1,5 +1,36 @@
 # Current status - 2026-10-04
 
+## 2026-10-30 - D17AR2 accepted on visuals; performance next (D17AR3)
+
+User playtest of revision 3: "Visually, fantastic ... nothing is popping in
+and out of existence anymore", but performance "needs a lot of work to make
+this silky smooth". D17AR2 accepted (not yet committed); D17AR3 next with
+smoothness first, level 28, and the launch environment check. Note 337.
+
+## 2026-10-30 - D17AR2 revision 3: switch reaches redraw workers (Needs playtest)
+
+User playtest of revision 2 saw no difference: at 120 Hz the redraw workers
+never received `hostvis on`. The switch now travels with each redraw job. See
+note 337.
+
+## 2026-10-30 - D17AR2 revision 2: distant pieces drawn, larger frame budget (Needs playtest)
+
+User review: far-end holes in slot 2 and pop-in at slot 10 remained. Cause:
+the frame budget sent 24-37% of host-selected pieces back to the original
+renderer, which drew them black. Host pieces now draw nearest first with a
+measured props/actors reserve, and the host packet arena is two 256 KB regions
+(about 350 KB a frame; same allocation, savestates keep loading). Zero pieces
+handed back at both fixtures; the moat's far end is filled. See note 337.
+
+## 2026-10-30 - D17AR2 host visibility behind a developer switch (Needs review)
+
+Host world pass implemented behind `DNTTK_HOST_VISIBILITY=1` (default off,
+player build unchanged; console `hostvis on|off`). Five proofs and the
+21-level matched-view sweep in [note 337](337-d17ar2-host-visibility.md):
+host drawing matches the game's walk within noise and fills the slot-10
+jetpack pop-in. Costs about 4-5% game frames/s at 120 Hz in the moat views;
+level 28 never engages (draw-distance refusal). Next: D17AR3 after review.
+
 ## 2026-10-30 - D17AR1 approved; closeout commit
 
 User approved the D17AR design (note 336) and asked to commit and push, then

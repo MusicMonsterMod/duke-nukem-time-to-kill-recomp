@@ -1,5 +1,7 @@
 #pragma once
 #include <cstdint>
+#include <vector>
+struct CPUState;
 namespace ttk {
 // D11B: world-mesh near clipping for the eye view (near_clip.cpp).
 // Screen-space helpers exposed for the native test.
@@ -33,6 +35,18 @@ void near_clip_load_frame_state(const NearClipFrameState& s);
 // Diagnostic counters (world taken, world triangles, object taken, object
 // triangles, mesh fallbacks, budget hits, copy overflows, refused).
 void near_clip_counters(uint64_t out[8]);
+// D17AR2 host visibility. True when a room-walk piece would be drawn here
+// whole (Modernized unified geometry with the near path live).
+bool near_clip_host_world_live();
+// Draws one world piece (cpu: a0 mesh, a1-a3 and ra as the room walk's call,
+// GTE and render context set for its room) as the room walk would. False when
+// it is left to the game's own walk (the frame cannot afford it).
+bool near_clip_host_world_piece(CPUState* cpu);
+// While filter is set, the room walk's own mesh calls draw only kept pieces.
+void near_clip_host_walk(bool filter,const std::vector<uint32_t>& kept);
+// Host pieces drawn, left to the game, walk calls nulled, left by the
+// budget (far meshes, near meshes).
+void near_clip_host_counters(uint64_t out[5]);
 // Water clip diagnostic counters (seen, taken, guard_reject, grid_reject).
 void near_clip_water_counters(uint64_t out[4]);
 }

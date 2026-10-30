@@ -1,6 +1,6 @@
 # D22E - Campaign matrix and evidence baseline
 
-Status: Needs review (documentation only, 2026-10-30). Parent: D22. This note
+Status: Done (user-accepted 2026-10-30; documentation only). Parent: D22. This note
 is the D22 campaign matrix. D22F-D22O fill it in; each fills only its own
 columns and records failures as separate jobs. No game runs, builds or code
 changes were made for this baseline. Every cell is taken from an existing job,

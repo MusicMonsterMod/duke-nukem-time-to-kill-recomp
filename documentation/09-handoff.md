@@ -1,5 +1,10 @@
 # Next-session handoff
 
+## 2026-10-30 - D22E accepted and closed
+
+User accepted note 330 and the D22E-D22O job list; D22E is Done. D22 stays
+Todo as the parent. No next job selected.
+
 ## 2026-10-30 - D22 split; D22E campaign matrix Needs review
 
 D22 is a parent tracker; its sub-jobs are D22E-D22O. The D22E baseline matrix

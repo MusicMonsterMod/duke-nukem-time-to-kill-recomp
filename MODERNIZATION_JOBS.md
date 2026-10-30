@@ -1531,7 +1531,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D22B | Modern controls and first person in every level and transition (no classic fallback) | Done (user-accepted; closed 2026-10-30) | D22A, D26A |
 | D22C | Level 11 starts with Legacy controls until F10 (control mode must persist) | Done (user-accepted; closed 2026-10-30) | D22B |
 | D22D | Energy weapon (key 7) fires but has no effect on enemies | Done (user-accepted 2026-10-19) | D07C |
-| D22E | Campaign matrix and evidence baseline (documentation first) | Needs review (note 330) | D01 |
+| D22E | Campaign matrix and evidence baseline (documentation first) | Done (user-accepted; closed 2026-10-30; note 330) | D01 |
 | D22F | Level load and level-to-level handoff sweep | Todo | D22E |
 | D22G | Per-level native/interpreted coverage measurement | Todo | D22E; coordinate D23G |
 | D22H | Progression items and objectives per level | Todo | D22E; related D29 |
@@ -11823,7 +11823,7 @@ keeps a stale aim vector). [Note 152](documentation/152-d22d-energy-beam.md).
 
 ### D22E - Campaign matrix and evidence baseline (documentation first)
 
-**Status: Needs review (baseline written 2026-10-30, [note 330](documentation/330-d22e-campaign-matrix.md)). Dependencies: D01.** Create one engineering note holding the campaign matrix: one row per campaign level (all 21 selectable levels, in the authoritative order from D26A/D26D where known) plus the ending. Columns: load, handoff to the next level, progression items, enemies, weapons, bosses, saves, movies/scripted sequences, native coverage and completed-by-play. Each cell carries an evidence label: user playtest (with date), automated/offscreen run, inferred from an earlier job, or unverified. Fill only what existing jobs, notes and the handoff already prove (D22A-D22D, D22B's every-level controls pass, D26A level select, D20B statistics screen, earlier level-specific jobs). No game runs, builds or code changes.
+**Status: Done (user-accepted with the D22E-D22O job list; closeout authorized 2026-10-30, [note 330](documentation/330-d22e-campaign-matrix.md)). Dependencies: D01.** Create one engineering note holding the campaign matrix: one row per campaign level (all 21 selectable levels, in the authoritative order from D26A/D26D where known) plus the ending. Columns: load, handoff to the next level, progression items, enemies, weapons, bosses, saves, movies/scripted sequences, native coverage and completed-by-play. Each cell carries an evidence label: user playtest (with date), automated/offscreen run, inferred from an earlier job, or unverified. Fill only what existing jobs, notes and the handoff already prove (D22A-D22D, D22B's every-level controls pass, D26A level select, D20B statistics screen, earlier level-specific jobs). No game runs, builds or code changes.
 
 **Acceptance:** the note exists, is linked from the board and status, and every cell is either filled from cited evidence or marked unverified. The remaining gaps define the scope of D22F-D22O.
 
@@ -24538,3 +24538,11 @@ levels 0-1 and the energy weapon only, there are no per-level native counters,
 and campaign order waits on D26D, which D22F/D22O need for "correct next
 level". Documentation only: no build, game run or code change. Remaining:
 user review of the matrix.
+
+## 2026-10-30 - D22E and the D22 split accepted and closed
+
+User: "that document, and the jobs list is all accepted. close that out".
+D22E is Done; note 330 is the accepted matrix baseline, and the D22E-D22O job
+split stands. No changes to the matrix content after acceptance. D22 remains
+the parent tracker (Todo); D26D is recommended before D22F/D22O. No next job
+selected.

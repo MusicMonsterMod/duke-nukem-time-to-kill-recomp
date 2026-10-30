@@ -1,5 +1,10 @@
 # Current status - 2026-10-04
 
+## 2026-10-30 - D22E accepted and closed
+
+User accepted the campaign matrix (note 330) and the D22E-D22O split. D22E is
+Done; committed and pushed as MusicMonsterMod. No next job selected.
+
 ## 2026-10-30 - D22 split; D22E campaign matrix Needs review
 
 D22 was split into D22E-D22O at the user's request. D22E's campaign matrix is

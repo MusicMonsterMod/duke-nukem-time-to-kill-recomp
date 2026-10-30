@@ -6,7 +6,7 @@ import wave
 from pathlib import Path
 
 name = sys.argv[3] if len(sys.argv) > 3 else 'night_vision'
-frames = {'night_vision': 10584, 'bio_mask': 24255, 'piano': 266131}[name]
+frames = {'night_vision': 10584, 'bio_mask': 24255, 'piano': 287318}[name]
 with wave.open(sys.argv[1], 'rb') as source:
     if (source.getnchannels(), source.getsampwidth(), source.getframerate(), source.getnframes()) != (1, 2, 44100, frames):
         raise SystemExit(f'{name} cue must be {frames} frames of mono 44100 Hz signed 16-bit PCM')

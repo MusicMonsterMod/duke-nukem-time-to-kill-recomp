@@ -5,6 +5,16 @@ closeout explicitly authorized. Final revision uses MusicMonsterMod's supplied
 WAV, replacing the initial MIDI render. Credits and processing:
 [audio provenance](../recomp/assets/audio/README.md).
 
+## D38A - re-recorded take (2026-10-30, Done, user-accepted)
+
+The asset is now finished from the user's MIDI-keyboard re-recording
+(`research/music/pianobag-final.mp4`): mono, cleanup EQ, presence lift,
+gentle compression, a short damped saloon room, trimmed lead and a rung-out
+tail fade, loudness matched to the accepted take (-23.3 LUFS). 6.515 s,
+287318 frames, peak -9.59 dBFS. Runtime behavior below is unchanged; the
+slot-9 saloon piano plays it once per use. See the D38A work-log entry.
+The finished-asset figures under "Verification and limits" describe D38.
+
 ## Behavior and implementation
 
 Successful Modernized use of the verified LEVEL01 piano (overlay tag 4,

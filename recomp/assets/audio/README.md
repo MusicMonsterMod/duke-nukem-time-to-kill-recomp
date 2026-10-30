@@ -54,22 +54,27 @@ active mask in clean air removes it after the exit grace, with a removal cue.
 
 Piano performance and supplied recording: **MusicMonsterMod**. The short
 performance interpolates "Grabbag" by **Lee Jackson**; this credit identifies
-MusicMonsterMod as the performer, not the composer of the underlying theme. The accepted source is the user's
-`research/music/pianobag.wav`, replacing the initial MIDI/soundfont render.
+MusicMonsterMod as the performer, not the composer of the underlying theme. The current source
+(D38A) is the audio track of the user's MIDI-keyboard re-recording
+`research/music/pianobag-final.mp4`, replacing the D38 `pianobag.wav` take.
 
-`piano.wav` preserves that recording's timbre, pitch, timing and dynamics.
-Processing converts to mono 44.1 kHz, applies a 40-Hz high-pass, quiet-tail
-handling and 2 ms/100 ms edge fades, then normalizes toward -21 dBFS RMS
-subject to a -6 dBFS peak ceiling. Final duration is 6.035 seconds, peak
--6.00 dBFS and RMS -23.61 dBFS. The 532306-byte asset is about half the
-1064568-byte source size without lossy compression. `piano.json` records
-source/output hashes and measurements. Reproduce from the local source with:
+`piano.wav` keeps that performance's notes, timing and pitch. The finishing
+pass folds to mono, removes subsonic rumble (50 Hz, 24 dB/oct), trims 2 dB of
+250-Hz mud, lifts presence (+5 dB at 2.8 kHz, +3 dB shelf at 5 kHz), applies
+gentle 2:1 compression above -24 dB, resamples to 44.1 kHz with soxr, and adds
+a deterministic damped small-room response 15 dB under the dry signal. The
+leading silence is trimmed to 5 ms; the recording's cut-off tail rings out
+350 ms and ends in a 700 ms raised-cosine release. Loudness matches the
+accepted D38 asset (-23.3 LUFS) under a -6 dBFS peak ceiling, with TPDF dither.
+Final duration is 6.515 seconds (287318 frames), peak -9.59 dBFS and RMS
+-23.92 dBFS. `piano.json` records source/output hashes and measurements.
+Reproduce from the local source with:
 
 ```sh
-python3 recomp/tools/local/prepare_piano_audio.py research/music/pianobag.wav recomp/assets/audio/piano.wav
+python3 recomp/tools/local/prepare_piano_audio.py research/music/pianobag-final.mp4 recomp/assets/audio/piano.wav
 ```
 
 The ordinary build embeds the finished WAV; it needs neither the original
-recording, a MIDI renderer nor a soundfont. Playback starts on successful
+recording, NumPy, FFmpeg, a MIDI renderer nor a soundfont. Playback starts on successful
 Modernized piano use, follows effects/master volume, and fades with distance
-from the piano. See [D38](../../../documentation/315-d38-playable-piano.md).
+from the piano. See [D38/D38A](../../../documentation/315-d38-playable-piano.md).

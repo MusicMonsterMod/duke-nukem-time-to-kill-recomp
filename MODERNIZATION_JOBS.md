@@ -290,6 +290,21 @@ respect effects volume and world/load boundaries, and preserve Vanilla.
 Acceptance: private slot-5 interaction/repeat/load checks, unrelated-use and
 Vanilla isolation, audio mix regressions, finished render and user playtest.
 
+#### D38A - Re-recorded saloon piano performance
+
+**Status: Done (user-accepted; closeout authorized 2026-10-30). Dependencies: D38 (Done).** Selected 2026-10-30. The user
+re-recorded the piano line on a MIDI keyboard; the accepted source is now the
+audio of `research/music/pianobag-final.mp4` (local, untracked). Extract it,
+trim the leading silence and cut-off tail, give it a quality/mastering pass
+(mono fold-down, cleanup EQ, gentle dynamics, short room character, natural
+tail fade, normalization to the D38 level) so it sits in the game's mix, and
+replace `recomp/assets/audio/piano.wav`. Keep the performance's notes, timing
+and pitch. Runtime behavior (native use hook, distance falloff, repeat/load
+guards, Vanilla isolation) is unchanged. Acceptance: reproducible processing
+with recorded hashes/measurements, build and audio regressions, a private
+check of the saloon piano in a copy of UI slot 9 and the user's listening
+playtest.
+
 
 ### D08T10 - Slot-5 box repeat grab after pulling
 
@@ -24335,3 +24350,46 @@ wall issue gone; D17AK FOV 90/120 across several saves, no artifacts. At FOV
 rectilinear projection (centre about 58% of its size at 90); user chose no
 action and keeps 90 as the default. All four Done; committed and pushed as
 MusicMonsterMod on the user's instruction ("close it out").
+
+## 2026-10-30 - D38A re-recorded saloon piano candidate
+
+User re-recorded the D38 piano line on a MIDI keyboard and supplied
+`research/music/pianobag-final.mp4` (local, untouched). Its Opus audio track
+is 7.71 s, 48 kHz stereo: 1.55 s of leading digital silence, L/R correlation
+0.5 (safe mono fold, -0.3 dB versus the channel average), subsonic 16-22 Hz
+content, almost no energy above 5 kHz, and the recording stops mid-decay at
+-52 dBFS (an audible click if left).
+
+`prepare_piano_audio.py` now takes any FFmpeg-readable input and reproduces
+the finished asset: mono fold; 50 Hz 24 dB/oct high-pass; -2 dB at 250 Hz;
++5 dB at 2.8 kHz and a +3 dB 5 kHz shelf so the dark keyboard tone reads in
+the game mix and through distance falloff; 2:1 compression above -24 dB;
+soxr to 44.1 kHz; a deterministic damped small-room response (12 ms
+pre-delay, early wood reflections, RT60 0.65 s lows / 0.30 s highs) mixed
+-15 dB under the dry signal for a saloon character; lead trim to 5 ms before
+the first note; a 350 ms ring-out and 700 ms raised-cosine release in place
+of the cut; loudness matched to the accepted D38 asset (-23.3 LUFS) under the
+-6 dBFS ceiling; TPDF dither, zero endpoints. Notes, timing and pitch are
+unchanged. Result: 287318 frames (6.515 s), peak -9.59 dBFS, RMS -23.92
+dBFS, -23.3 LUFS, zero clipped samples; hashes in `piano.json`. The embed
+guard's frame count is updated; runtime code is unchanged.
+
+Verification: player build relinks with the regenerated `piano_pcm.h`;
+`ttk-audio-test` passes (full PCM, chunk boundaries, repeat suppression,
+gadget coexistence, gain/mute, cancellation, XYZ falloff). Private copy of
+current UI slot 9 (third person, 60 setting): Duke at the saloon piano, one
+E tap starts one `[piano-sound] start samples=287318`; a second tap 2.4 s
+into playback does not restart it; gain 1.0 at the bench. Captured host
+output peaks at -8.91 dBFS, RMS -23.65 dBFS, zero clipped samples. These
+are technical checks; tone, room amount and level await the user's
+listening playtest. Evidence: `recomp/analysis/d38a/`. All 40 player
+save/card files retain intake hashes and mtimes. No framework, generated-C,
+commit or push. Launch: `python3 recomp/tools/local/run.py`.
+
+## 2026-10-30 - D38A accepted and closed
+
+User: "lock it in and close it out". D38A is Done: the re-recorded piano
+take with its quality pass replaces the D38 asset. Implementation, audio
+asset/provenance and documentation committed and pushed as MusicMonsterMod.
+No post-acceptance change, rebuild or launch. Framework patch unchanged.
+No next job selected. Launch: `python3 recomp/tools/local/run.py`.

@@ -1,5 +1,14 @@
 # Next-session handoff
 
+## 2026-10-30 - D38A re-recorded saloon piano accepted and closed
+
+The user's MIDI-keyboard re-recording (`research/music/pianobag-final.mp4`)
+replaces `piano.wav` after a quality pass: mono, rumble/mud cleanup,
+presence lift, gentle compression, short saloon room, trimmed lead, rung-out
+tail fade, loudness matched to the accepted D38 level. Build and audio suite
+pass; private slot-9 saloon check plays once, no restart, no clipping.
+User accepted it in play; committed and pushed as MusicMonsterMod.
+
 ## 2026-10-30 - Renderer playtest backlog cleared
 
 D20H, D17AG, D17AI, D17AK Done on the user's playtest. No open Needs

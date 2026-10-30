@@ -1238,7 +1238,7 @@ static void hook_body(CPUState* cpu, uint32_t address) {
     uint32_t ra=cpu->gpr[31], sp=cpu->gpr[29];
     if (sp<0x80010100 || sp>0x801ffff0 || (sp&3)) {head_restore();return;}
     if(address==0x8006276c || address==0x80062b48 || address==0x8002ffec) {draw_distance_apply(address,ra);if(address==0x8002ffec) pole_visibility_draw(cpu,ra);return;}
-    if(address==0x80076330) {apartment_switch_query(cpu);return;}
+    if(address==0x80076330) {apartment_switch_query(cpu);mirror_use_query(cpu);return;}
     if(address==0x80081a48) {pickup_select_begin(cpu);steroids_pickup(cpu);apartment_pickup(cpu);return;}
     if(address==0x80051cf0) {push_obstacle_action(cpu,ra);return;}
     if(address==0x80051890) {push_idle_action(cpu,ra);return;}

@@ -6251,6 +6251,41 @@ int main(int argc,char** argv) {
     psx_mod_write_word(query_sp+0x60,psx_mod_read_word(p+12)+400);
     ttk::modern=false;assert(!switch_query());ttk::modern=true;
     psx_mod_write_word(query_sp+0xb0,0x800518bc);assert(!switch_query());
+    psx_mod_write_word(query_sp+0xb0,0x800518c0);
+    psx_mod_write_word(0x800be570,1);assert(!switch_query()); // apartment level only
+    {
+        // D35N1/D35N2: a mirror (class 11, use flag 0x400000) behind furniture
+        // gets its first finder ray aimed through its centre up to 896 units,
+        // on any level; other objects, rooms, views and Vanilla are unchanged.
+        constexpr uint32_t table=0x801e8000,mirror=0x801d6600;
+        const uint32_t saved_table=psx_mod_read_word(0x800d2660);
+        psx_mod_write_word(0x800d2660,table);
+        psx_mod_write_word(table+28*750,0x80509002);psx_mod_write_byte(table+28*750+4,11);
+        psx_mod_write_word(table+28*751,0x80509002);psx_mod_write_byte(table+28*751+4,4);
+        psx_mod_write_half(mirror+0x2c,750);psx_mod_write_byte(mirror+0x2e,psx_mod_read_byte(p+0x2e));
+        auto mirror_query=[&](){
+            for(unsigned j=0;j<3;++j)psx_mod_write_word(query_sp+0x28+4*j,psx_mod_read_word(p+4+4*j));
+            CPUState cpu{};cpu.gpr[4]=query_sp+0x18;cpu.gpr[5]=mirror;cpu.gpr[6]=query_sp+0x38;
+            cpu.gpr[7]=query_sp+0x48;cpu.gpr[20]=p+0x1c;cpu.gpr[29]=query_sp;cpu.gpr[31]=0x80077e18;
+            writes=0;hooks().at(0x80076330)(&cpu,0x80076330);return writes;
+        };
+        psx_mod_write_word(query_sp+0x58,psx_mod_read_word(p+4)+100);
+        psx_mod_write_word(query_sp+0x60,psx_mod_read_word(p+12)+700);
+        assert(mirror_query()>0 && int32_t(psx_mod_read_word(query_sp+0x30))>int32_t(psx_mod_read_word(query_sp+0x60)));
+        psx_mod_write_word(0x800be570,0);assert(mirror_query()>0);psx_mod_write_word(0x800be570,1);
+        psx_mod_write_word(query_sp+0x60,psx_mod_read_word(p+12)+950);assert(!mirror_query());
+        psx_mod_write_word(query_sp+0x60,psx_mod_read_word(p+12)-700);assert(!mirror_query());
+        psx_mod_write_word(query_sp+0x60,psx_mod_read_word(p+12)+700);
+        psx_mod_write_byte(mirror+0x2e,psx_mod_read_byte(p+0x2e)+1);assert(!mirror_query());
+        psx_mod_write_byte(mirror+0x2e,psx_mod_read_byte(p+0x2e));
+        psx_mod_write_half(mirror+0x2c,751);assert(!mirror_query());psx_mod_write_half(mirror+0x2c,750);
+        psx_mod_write_word(table+28*750,0x80109002);assert(!mirror_query());psx_mod_write_word(table+28*750,0x80509002);
+        ttk::modern=false;assert(!mirror_query());ttk::modern=true;
+        psx_mod_write_word(query_sp+0xb0,0x800518bc);assert(!mirror_query());psx_mod_write_word(query_sp+0xb0,0x800518c0);
+        psx_mod_write_word(0x800c27bc,2);assert(!mirror_query());psx_mod_write_word(0x800c27bc,1);
+        assert(mirror_query()>0);
+        psx_mod_write_word(0x800d2660,saved_table);psx_mod_write_word(0x800be570,0);
+    }
     {
         // D08A4: a steroids pickup (type 638) is held instead of run. The
         // original case writes the full amount and bit 1; at its sound call

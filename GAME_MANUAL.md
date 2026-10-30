@@ -832,6 +832,9 @@ uses the item, and redraws his weapon when it finishes. In first person, look
 down toward the interaction to see his animated hands.
 
 In Modernized, Duke's reflection stays opaque when close to a mirror.
+In Modernized, E also works at a mirror behind a counter, dresser or other
+furniture: face it from up to about twice the usual reach and Duke admires
+himself and says his mirror line, as at any other mirror.
 First-person grooming hands and forearms clip continuously at the camera while
 keeping the original animation. Intentional power-up effects still apply.
 

@@ -1324,7 +1324,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08A27 | Toxic gas effect fills the widescreen viewport (slot 11) | Done | D08A26, D14 |
 | D08A28 | Bio Mask PS1 authenticity: geometry, texel density and visual demake | Done | D08A26, D08A24; D36 ownership contract |
 | D08A22 | Switcher strips and mission card scale with the window like the native HUD (icons too small in small windows) | Done (user-accepted) | D08A1, D08A5, D24A |
-| D08G3 | `dnupgrade` cheat: upgrade all weapons (Laser Gatling etc.) | Accepted | D08G2 |
+| D08G3 | `dnupgrade` cheat: upgrade all weapons (Laser Gatling etc.) | Done (user-accepted; closed 2026-10-30) | D08G2 |
 | D08G4 | `dnstuff`, `dnitems`, `dninventory` also give 100% armor; running steroids stop and a full dose is held | Done (user-accepted) | D08G |
 | D08G5 | Partial cheat entry causes mouse-look stutter until another key breaks the sequence | Done (user-accepted) | D08G2 |
 | D08G6 | Fun cheat `dntlod`: show "Play Zaxtor's Oblivion!" | Done (user-accepted) | D08G2 |
@@ -1350,9 +1350,9 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08L1 | Modern locomotion - allow walking and crouch-walking off ledges | Done (user-accepted 2026-10-23) | D08L, D08K, D08T3 |
 | D08M | Modern underwater swimming controls (foundation) | Done | D08 |
 | D08O | Deep free-swim polish (strafe, Ctrl dive, mantle-only exit) | Done | D08M |
-| D08O1 | Fire weapons while swimming (Modernized, game-wide; medieval UI slot 2) | Accepted | D07C, D08O, D22B |
-| D08O2 | Weapon points forward while swimming and firing in motion (v1: upper body to the view) | Accepted | D08O1 |
-| D08O2A | Natural swim-fire pose v2: torso stays in the stroke, arms raised to fire and head looking up | Accepted | D08O2 |
+| D08O1 | Fire weapons while swimming (Modernized, game-wide; medieval UI slot 2) | Done (user-accepted; closed 2026-10-30) | D07C, D08O, D22B |
+| D08O2 | Weapon points forward while swimming and firing in motion (v1: upper body to the view) | Done (user-accepted; closed 2026-10-30) | D08O1 |
+| D08O2A | Natural swim-fire pose v2: torso stays in the stroke, arms raised to fire and head looking up | Done (user-accepted; closed 2026-10-30) | D08O2 |
 | D08O2B | Swim-fire aims down again (regression): weapon points down while swimming and firing (player UI slot 3; slot 2 still correct) | Done (user-accepted) | D08O2A |
 | D08AA | Unify walking/running speeds across land, shallow water, surface swim and underwater | Done (user-accepted 2026-10-19) | D08, D08M, D08O |
 | D08AB | SWIMMING menu option: MODERN (D08AA pace) / ORIGINAL swim speeds | Done (user-accepted 2026-10-20) | D08AA, D19 |
@@ -1360,7 +1360,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08AD | Fix third-person walk/run animations in deeper shallow water (updated slot 10) | Done (user-accepted 2026-10-22) | D08AC, D08K11 |
 | D08AE | Restore deep-water entry resistance and timely swim handoff (slots 9 and 2) | Done (user-accepted 2026-10-22) | D08AC, D08AD |
 | D08AF | Smooth plunge-to-swimming control handoff at maximum depth (UI slot 9) | Done | D08AE, D08O |
-| D08O3 | E in water keeps the weapon: redraw when no climb-out follows the stow | Accepted | D08O1 |
+| D08O3 | E in water keeps the weapon: redraw when no climb-out follows the stow | Done (user-accepted; closed 2026-10-30) | D08O1 |
 | D08O4 | Brief Ctrl dive keeps swimming forward after release (dive anim plays on; player UI slot 3) | Done (user-accepted) | D08O |
 | D08N | Duke3D-style scuba gear item | Cancelled (out of scope) | — |
 | D08P | Crystal-2 turret / scripted-camera control recovery | Done | D08 |
@@ -1370,18 +1370,18 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08Q2 | Jetpack unavailable after death, Continue and dnstuff (slot 10) | Done | D08Q, D08A1, D08G |
 | D08Q3 | Jetpack weapon aiming and missing crosshair | Done | D07C, D08Q, D08Q2, D08R |
 | D08S | EDuke32-style jetpack scheme (instant J on/off, midair, 61 s fuel) | Done | D08R, D08Q3 |
-| D08Q4 | Duke3D-style `dnkroz`: health to 100 and unlimited jetpack fuel | Accepted | D08G, D08Q |
+| D08Q4 | Duke3D-style `dnkroz`: health to 100 and unlimited jetpack fuel | Done (user-accepted; closed 2026-10-30) | D08G, D08Q |
 | D08Q5 | Weapon switching while flying the jetpack (number keys and wheel) | Done (user-accepted) | D08A, D08Q3 |
-| D08Q6 | Modern jetpack altitude creeps upward in level flight (hold height unless Space/Ctrl) | Accepted | D08Q, D08Q1 |
+| D08Q6 | Modern jetpack altitude creeps upward in level flight (hold height unless Space/Ctrl) | Done (user-accepted; closed 2026-10-30) | D08Q, D08Q1 |
 | D08Q7 | Draw a holstered weapon with left click during jetpack flight (bug 1) | Done | D08Q3, D08Q5 |
 | D08Q8 | Smooth jetpack clearance along rising floors, descending ceilings and maximum height (slot 12, bug 4) | Done | D08Q, D08S |
 | D08Q9 | Jetpack horizontal pace follows walk/run and active steroids | Done | D08Q8, D08AA |
 | D08T | Pushable objects: modern grab/push/pull and climb (alley dumpster) | Done | D08 |
 | D08T1 | Separate push/pull from mantling: E always mantles, hold RMB to grab | Done | D08T, D04 |
-| D08T2 | Duke-symbol pushable blocks cannot be pushed with Modern controls (RMB grab, game-wide) | Accepted | D08T1, D22B |
+| D08T2 | Duke-symbol pushable blocks cannot be pushed with Modern controls (RMB grab, game-wide) | Done (user-accepted; closed 2026-10-30) | D08T1, D22B |
 | D08U | Top-of-ladder mount: grab a ladder from a platform and climb down | Done | D08, D08J |
-| D08U1 | Ladder that cannot be descended with E (player slot 12), systemic ladder-top coverage | Accepted | D08U, D22B |
-| D08U2 | Enemy standing at a ladder top blocks the climb-off: Duke should push it back (player slot 5) | Accepted | D08U, D08J |
+| D08U1 | Ladder that cannot be descended with E (player slot 12), systemic ladder-top coverage | Done (user-accepted; closed 2026-10-30) | D08U, D22B |
+| D08U2 | Enemy standing at a ladder top blocks the climb-off: Duke should push it back (player slot 5) | Done (user-accepted; closed 2026-10-30) | D08U, D08J |
 | D08T3 | Free manual push and pull while holding Grab (no fixed-size shoves) | Done (user-accepted 2026-10-23) | D08T2 |
 | D08T5 | Alley dumpster push limit at the slot-7 reference position | Done (user-accepted 2026-10-24) | D08T3 |
 | D08T6 | Push/pull ownership and lock-zone investigation (recent slots) | Done | D08T3, D08T4, D08T5 |
@@ -1402,9 +1402,9 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08Z5 | WALL BACKFLIP option: Modern (default) replaces the steep-slope backflip and its backwards push with a slope jump that climbs; Original keeps it (UI slot 10 police car) | Done (user-accepted 2026-10-21) | D08Z1, D08Z4, D19N |
 | D08Z6 | Fluid forward jumps onto tall steps/ledges from a blocked run (UI slot 10, right corner) | Done | D08Z, D08Z1 |
 | D08J1 | Hold-E run-up grab for overhead ladders (slot-6 ladder) | Done | D08J, D08X, D08U |
-| D08J2 | Poles and chains: A/D turn the wrong way (A turns right, D left) | Accepted | D08J |
-| D08J4 | Ceiling monkey-bar climbing: camera-relative travel, no mid-span drops (player UI slot 3) | Accepted | D08J, D22B |
-| D08J3 | Free camera while on ladders, poles and chains (investigation + usability testing) | Accepted | D06, D08J |
+| D08J2 | Poles and chains: A/D turn the wrong way (A turns right, D left) | Done (user-accepted; closed 2026-10-30) | D08J |
+| D08J4 | Ceiling monkey-bar climbing: camera-relative travel, no mid-span drops (player UI slot 3) | Done (user-accepted; closed 2026-10-30) | D08J, D22B |
+| D08J3 | Free camera while on ladders, poles and chains (investigation + usability testing) | Done (user-accepted; closed 2026-10-30) | D06, D08J |
 | D08J5 | Climb down chains (and poles): reach the bottom and let go or step off (player UI slot 3) | Done | D08J2, D08J3 |
 | D08V1 | Modernized controls lost for the rest of the session after a missed chain jump; modern controls must never be lost | Done | D08V, D08J5 |
 | D08A29 | Scroll-wheel weapon changes while running | Done (user-accepted) | D08A, D08AA |
@@ -1423,11 +1423,11 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D11A | Scroll-wheel zoom lock into first-person | Cancelled (P toggle suffices) | - |
 | D12 | First-person weapons and state polish | Done | D11 |
 | D12A | First-person quick kick without leaving the eye view | Done | D12 |
-| D12B | Costume-aware first-person kick leg, game-wide (LEVEL01 slots 8/9) | Accepted | D12A, D22A |
+| D12B | Costume-aware first-person kick leg, game-wide (LEVEL01 slots 8/9) | Done (user-accepted; closed 2026-10-30) | D12A, D22A |
 | D12C | Kick impact sound on a real hit only (wall, crate, actor); empty-air and out-of-range kicks stay silent | Done (user-accepted) | D12A |
 | D12D | Upgraded first-person weapon framing (Challenge Stage 4 Incendiary RPG) | Done (user-accepted 2026-10-22) | D12, D22B |
 | D11C | Savestates can keep Duke's first-person head hidden (slot 12) | Done | D11 |
-| D11D | First-person eye height from Duke's real proportions, game-wide (LEVEL01 slot 8) | Accepted | D11, D22A |
+| D11D | First-person eye height from Duke's real proportions, game-wide (LEVEL01 slot 8) | Done (user-accepted; closed 2026-10-30) | D11, D22A |
 | D11E | First person while swimming (underwater eye view, game-wide) | Done (user-accepted 2026-10-24) | D08O, D11, D22B |
 | D11F | First person while flying the jetpack (game-wide, all schemes) | Done | D11, D08Q3, D22B |
 | D11G | New level can start in third person although first person is selected (player UI slot 11 -> next level); left click restores it | Cancelled (cannot reproduce, 2026-10-21; reopen if seen again) | D11, D22B |
@@ -1436,24 +1436,24 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D14A | Configurable first-person FOV foundation | Done (user-accepted 2026-10-28) | D11, D14 |
 | D14B | Decouple first-person weapon/arms presentation from world FOV | Done (user-accepted 2026-10-28) | D14A foundation |
 | D14C | Investigate first-person leg presentation across world FOV | Done (user-accepted 2026-10-28) | D14A, D14B |
-| D15 | Optional geometry and texture precision | Accepted | D13 |
+| D15 | Optional geometry and texture precision | Done (user-accepted; closed 2026-10-30) | D13 |
 | D16 | Texture manipulation and replacement foundation | Done (bounded foundation accepted 2026-10-27) | D13 |
 | D16A | HRP assets and first-person weapon research (later) | Cancelled (original assets preferred) | - |
 | D17 | High refresh rate rendering without faster simulation (Match Display, 30-240, Unlimited) | Done (user-accepted) | D01, D13 |
-| D17A | High-refresh texture/geometry instability: popping, flicker, black areas | Accepted | D17, D11B, D14 |
-| D17B | Mouse responsiveness and input latency at high refresh rates | Accepted | D17, D08 |
-| D17D | Club-exit furniture: lower wooden board popping | Accepted | D17A |
-| D17E | Subway peripheral wall visibility near the camera | Accepted | D17A |
-| D17F | Apartment/club closet edge and lower-geometry artifacts | Accepted | D17A |
+| D17A | High-refresh texture/geometry instability: popping, flicker, black areas | Done (user-accepted; closed 2026-10-30) | D17, D11B, D14 |
+| D17B | Mouse responsiveness and input latency at high refresh rates | Done (user-accepted; closed 2026-10-30) | D17, D08 |
+| D17D | Club-exit furniture: lower wooden board popping | Done (user-accepted; closed 2026-10-30) | D17A |
+| D17E | Subway peripheral wall visibility near the camera | Done (user-accepted; closed 2026-10-30) | D17A |
+| D17F | Apartment/club closet edge and lower-geometry artifacts | Done (user-accepted; closed 2026-10-30) | D17A |
 | D17G | Strip-club translation jerk during Shift+W / Shift+S | Done (user-verified 2026-10-22; no action needed) | D17B |
 | D17H | Train-control and platform/ledge movement stutters | Done (user-verified 2026-10-22; no action needed) | D17B |
 | D17I | Unlimited stale-camera scheduling episodes | Done (user-accepted 2026-10-22; no action necessary) | D17B |
 | D17J | Verify older isolated visual reports against accepted baseline | Done (user-verified 2026-10-22; no action necessary) | D17A |
-| D17K | Coplanar ground blood in save slot 12 | Accepted | D17D |
+| D17K | Coplanar ground blood in save slot 12 | Done (user-accepted; closed 2026-10-30) | D17D |
 | D17L | Tabletop props cut off on approach/retreat in save slot 11 | Done | D17D |
 | D17M | Shotgun ammo visible through ladder platform | Done (user-accepted 2026-10-22) | D17D |
 | D17M1 | Upper ladder visible through platform (updated UI slot 10) | Done (user-accepted 2026-10-22) | D17M |
-| D17N | Diagonal wall artifacts during movement (world subdivision) | Accepted | D17A |
+| D17N | Diagonal wall artifacts during movement (world subdivision) | Done (user-accepted; closed 2026-10-30) | D17A |
 | D17Q | Residual wall/surface flicker: Corrected-renderer stability polish | Done (user-accepted) | D17N |
 | D17O | Unstable sky appearance when looking up (slot 10) | Done (user-accepted) | D17A, D17B |
 | D17P | Distant horizontal black bands in new subway slot 8 | Done (user-accepted) | D15 |
@@ -1511,7 +1511,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D19N | Consolidate the original OPTIONS screens with ours: one plain OPTIONS screen for the everyday settings, the rest under ADVANCED; remove duplicated or conflicting settings | Done (user-accepted 2026-10-20) | D19, D19G |
 | D19A | Duke font assets for host messages and modern UI | Done | D04 |
 | D19B | Responsive modern menu navigation and transitions | Todo | D02, D04 |
-| D19C | Interim: more responsive original menus (faster cursor and screen response, no 10 Hz feel) | Accepted (demo-backed menus; loading spinner and full sweep in D19E) | D17T |
+| D19C | Interim: more responsive original menus (faster cursor and screen response, no 10 Hz feel) | Done (user-accepted; closed 2026-10-30; demo-backed menus; loading spinner and full sweep in D19E) | D17T |
 | D19D | Interim: Esc backs out of sub-menus; PC-friendly navigation where the mapped PS1 buttons fall short | Done (user-accepted) | D04, D17T |
 | D19E | Menu responsiveness close-out: menus over the loading spinner are less responsive; sweep every frontend menu and screen for best response | Done (accepted 2026-10-18) | D19C, D17U |
 | D19F | PC button icons: keyboard and mouse prompt sprites drawn in the exact style of the disc's PS1 button sprites | Todo | D19D, D24A |
@@ -1527,32 +1527,32 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D21A | Momentary crouch takes over C toggle until release | Done (user-accepted) | D21 |
 | D21 | Reworked SOUND menu and configurable C held crouch | Done (user-accepted 2026-10-27) | D04, D19 |
 | D22 | Campaign fidelity and overlay coverage | Todo | D01 |
-| D22A | Portal transition loses Modernized controls and first person (slot 7) | Accepted | D05, D06, D11 |
-| D22B | Modern controls and first person in every level and transition (no classic fallback) | Accepted | D22A, D26A |
-| D22C | Level 11 starts with Legacy controls until F10 (control mode must persist) | Accepted | D22B |
+| D22A | Portal transition loses Modernized controls and first person (slot 7) | Done (user-accepted; closed 2026-10-30) | D05, D06, D11 |
+| D22B | Modern controls and first person in every level and transition (no classic fallback) | Done (user-accepted; closed 2026-10-30) | D22A, D26A |
+| D22C | Level 11 starts with Legacy controls until F10 (control mode must persist) | Done (user-accepted; closed 2026-10-30) | D22B |
 | D22D | Energy weapon (key 7) fires but has no effect on enemies | Done (user-accepted 2026-10-19) | D07C |
 | D23 | Performance budgets and long-session stability | Done (user-accepted 2026-10-26) | D01 |
 | D23A | Modernized frame-budget regression (guard identity cost) | Done | D08 |
 | D23B | Intro FMV stutter: stranded native movie shard | Done | D23 |
 | D23C | Medieval castle moat slowdown with Necros active (profile, do not optimise blind) | Done | D23, D22B |
 | D23D | Minor slowdown around the strip-club-type area of Level 9 (low priority) | Done | D23, D22B |
-| D23E | Stutter with enemies on screen while walking (UI slots 9 and 10) | Accepted | D23, D22B |
-| D23F | Faster timing model: emulation-thread budget for 150% CPU at high refresh (big) | Accepted | D23E, D17 |
+| D23E | Stutter with enemies on screen while walking (UI slots 9 and 10) | Done (user-accepted; closed 2026-10-30) | D23, D22B |
+| D23F | Faster timing model: emulation-thread budget for 150% CPU at high refresh (big) | Done (user-accepted; closed 2026-10-30) | D23E, D17 |
 | D23G | Finish the fast path: dispatch, overlays, interpreter, observers and redraw cost (all-in-one) | Todo | D23F |
-| D23H | Presents fall from 120 to about 60 over extended play (savestate hitches, sticky shedding) | Accepted | D23E, D23F |
+| D23H | Presents fall from 120 to about 60 over extended play (savestate hitches, sticky shedding) | Done (user-accepted; closed 2026-10-30) | D23E, D23F |
 | D24 | Linux / Windows player build and disc import | Todo | D19, D22, D23 |
-| D24A | Public clone gives the full experience: fonts, inventory icons/digits from a proper tracked or disc-derived source (no research/ dependency) | Accepted | D19A, D08A3 |
-| D24B | Savestate menu (F7) dressed in the TTK fonts and disc art | Accepted | D24A |
+| D24A | Public clone gives the full experience: fonts, inventory icons/digits from a proper tracked or disc-derived source (no research/ dependency) | Done (user-accepted; closed 2026-10-30) | D19A, D08A3 |
+| D24B | Savestate menu (F7) dressed in the TTK fonts and disc art | Done (user-accepted; closed 2026-10-30) | D24A |
 | D24C | TTK-font `!` drawn from I and period; console prompt `>` instead of `]` | Done (user-accepted) | D24A |
 | D24D | `<` and `>` in messages fall back to the system font (e.g. ORIGINAL MOVEMENT <state>); actually `(` `)`, now built from the font's O | Done (user-accepted 2026-10-20) | D24C |
 | D24E | TTK-font `%` drawn from period and slash (`./.`), as `!` was (e.g. MEDKIT 39%) | Done (user-accepted 2026-10-20) | D24C |
 | D25 | Modernized edition release acceptance | Todo | D08, D08A, D08B, D09, D10, D14, D17, D18, D20, D21, D24 |
 | D26 | Backtick debug console (fps and helpers) | Done | D04 |
-| D26A | Debug level-select panel for whole-game testing | Accepted | D26, D22A |
-| D26E | Debug `spawn <item>` console command (EDuke32-style) | Accepted | D26A |
+| D26A | Debug level-select panel for whole-game testing | Done (user-accepted; closed 2026-10-30) | D26, D22A |
+| D26E | Debug `spawn <item>` console command (EDuke32-style) | Done (user-accepted; closed 2026-10-30) | D26A |
 | D26F | Spawning in-game items, continued: level crystals as custom pickups (`spawn 1761/2761/3761`) | Done | D26E, D08A5 |
 | D26B | Own view/control selections across console, menus, loads and transitions | Done (user-accepted 2026-10-23) | D26, D11 |
-| D26C | Console command history (Up/Down) | Accepted | D26 |
+| D26C | Console command history (Up/Down) | Done (user-accepted; closed 2026-10-30) | D26 |
 | D26D | Level select: authoritative order, numbering, names and categories | Todo | D26A |
 | D26G | Console: holding Backspace or a character key repeats it | Done (user-accepted 2026-10-20) | D26 |
 | D27 | Caps Lock RUN MODE quotes; Shift-run clunk silence deferred | Done (quotes); clunk deferred low-priority | D04, D19A |
@@ -1592,8 +1592,8 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D35L | First-person death and respawn presentation research | Done (user-accepted; no action needed) | D35 |
 | D35M | First-person door opening and related use interactions | Done | D35A |
 | D35N | First-person mirror interactions and reflected-Duke proximity fade | Done | D35A |
-| D35N1 | Missing mirror voice line at slot 6 (base-game design oversight, bug 3) | Todo | D35N |
-| D35N2 | Missing mirror voice line at new slot 8 (Old West; do with D35N1) | Todo | D35N |
+| D35N1 | Missing mirror voice line at slot 6 (base-game design oversight, bug 3) | Done (user-accepted; closed 2026-10-30; note 329) | D35N |
+| D35N2 | Missing mirror voice line at new slot 8 (Old West; do with D35N1) | Done (user-accepted; closed 2026-10-30; note 329) | D35N |
 | D36 | First-person body, arms and interaction presentation quality audit (research only) | Done (research accepted 2026-10-26) | D11, D12, D35, D08K, D08A26 |
 | D36A | Existing first-person systems and complete state catalogue | Done (research accepted 2026-10-26) | D11, D12, D35, D08K, D08A26 |
 | D36B | Every weapon/variant: missing arms and connected hand geometry audit | Done (research accepted 2026-10-26) | D36A |
@@ -1646,7 +1646,7 @@ source diagnosis, measured ordering stability, tests and bounded visual coverage
 
 ### D17Z - Slot-12 medieval corridor wall glitch
 
-**Status: Needs playtest. Depends on D11B/D17N/D17Q (accepted).** Candidate
+**Status: Done (user-accepted with D17AA; closeout authorized 2026-10-26, commit 5c8b5de). User re-confirmed the renderer state in play 2026-10-30 after the D17AM unified-geometry default. Depends on D11B/D17N/D17Q (accepted).** Candidate
 preserves the native triangle diagonal for Corrected-texture world quads before
 near clipping, preventing uneven wall UVs from remapping at takeover. Build,
 focused interpolation/clipping regression and private 60/120 corridor routes pass;
@@ -2232,7 +2232,15 @@ explicitly authorized lock-in and closeout.
 
 ### D35N1 - Missing mirror voice line at slot 6 (bug 3)
 
-**Status:** Todo. **Dependencies:** D35N (Done).
+**Status:** Done (user-accepted 2026-10-30: "working perfectly"; closeout authorized; with D35N2; [note 329](documentation/329-d35n1-n2-mirror-reach.md)). **Dependencies:** D35N (Done).
+
+**Cause and fix:** the mirror and its line (pose 278, random line 50-52) are
+native and intact. The mirror stands behind a counter, so the 512-unit E use
+finder ray never reaches it (732 units) and E does nothing. In Modernized the
+finder's first ray is aimed through a mirror's centre (interaction class 11/15
+with the use flag) up to 896 units within a 35-degree view cone, in Duke's
+room only. The original callback, line-up, pose, line choice and repeat rules
+are unchanged; Vanilla is unchanged.
 
 **Report:** Duke does not say the mirror voice line at current slot 6. The
 user identifies this as an original-game level-design oversight, rather than
@@ -2245,7 +2253,11 @@ other quotes. Keep the original Vanilla behavior.
 
 ### D35N2 - Missing mirror voice line at new slot 8
 
-**Status:** Todo (reported 2026-10-29). **Dependencies:** D35N (Done); do with D35N1.
+**Status:** Done (user-accepted 2026-10-30; closeout authorized; reported 2026-10-29; fixed with D35N1, [note 329](documentation/329-d35n1-n2-mirror-reach.md)). **Dependencies:** D35N (Done); do with D35N1.
+
+**Cause and fix:** as D35N1. The user's recollection was right: the dresser
+keeps Duke 541 units from the type-750 mirror, beyond the 512-unit ray. Fixed by
+the same mirror-only reach.
 
 **Report:** In the Old West (user's new UI slot 8, 22:33), pressing E at a
 mirror does not make Duke say his usual mirror line. The user recalls a
@@ -24392,4 +24404,40 @@ User: "lock it in and close it out". D38A is Done: the re-recorded piano
 take with its quality pass replaces the D38 asset. Implementation, audio
 asset/provenance and documentation committed and pushed as MusicMonsterMod.
 No post-acceptance change, rebuild or launch. Framework patch unchanged.
+No next job selected. Launch: `python3 recomp/tools/local/run.py`.
+
+## 2026-10-30 - Board cleanup: accepted jobs closed
+
+User: "if i have accepted them they are in the game!" and asked to close them
+off. The 35 job-table rows still marked Accepted (D08G3, D08O1-O3/O2A, D08Q4,
+D08Q6, D08T2, D08U1, D08U2, D08J2-J4, D12B, D11D, D15, D17A, D17B, D17D,
+D17E, D17F, D17K, D17N, D19C, D22A-C, D23E, D23F, D23H, D24A, D24B, D26A,
+D26C, D26E) are now Done (user-accepted; closed 2026-10-30). Each row keeps
+its earlier qualifier (D19C still points its loading-spinner sweep to D19E,
+Done). D17Z's detail entry still read Needs playtest. It was Done on
+2026-10-26 (commit 5c8b5de), and the user re-confirmed the renderer state in
+play on 2026-10-30. Documentation only.
+
+## 2026-10-30 - D35N1/D35N2 mirrors behind furniture (Needs playtest)
+
+Both mirrors are out of the E use finder's 512-unit ray: the slot-6 counter
+(732 units) and the Old West dresser (541). E found nothing, so the native
+mirror pose 278 and its line 50-52 never ran. The mirror and quote code are
+intact. In Modernized, the finder's first ray is aimed through a mirror's centre
+(class 11/15, use flag) up to 896 units within a 35-degree view cone, same
+room only. Shares the light switch's call-chain check, with no new hooks, and
+leaves Vanilla unchanged. Private 2026-10-24/10-29 fixtures: E twice at each
+mirror plays 278 in first person (blend 1) and global third person; slot 8
+marks lines 52 and 51 as played. Slot-7 mirror unchanged. Build and
+`ttk-controls-test` pass with new mirror cases. Hearing the line is player
+acceptance. [Note 329](documentation/329-d35n1-n2-mirror-reach.md).
+Launch: `python3 recomp/tools/local/run.py`.
+
+## 2026-10-30 - D35N1/D35N2 accepted and closed
+
+User: "working perfectly. lock it in and close it out". D35N1 and D35N2 are
+Done: E at the slot-6 counter mirror and the Old West dresser mirror plays the
+native mirror pose and line in Modernized (note 329). No post-acceptance code
+change. Implementation, test and documentation committed and pushed as
+MusicMonsterMod together with the board cleanup. Framework patch unchanged.
 No next job selected. Launch: `python3 recomp/tools/local/run.py`.

@@ -1,5 +1,23 @@
 # Next-session handoff
 
+## 2026-10-30 - D35N1/D35N2 accepted and closed
+
+User confirmed both mirrors "working perfectly" and authorized closeout. Mirror
+reach (note 329) and the board cleanup committed and pushed as MusicMonsterMod.
+No open Needs playtest items. No next job selected.
+
+## 2026-10-30 - D35N1/D35N2 mirror reach Needs playtest; board cleaned up
+
+E at a mirror behind a counter (slot 6) or dresser (Old West) now plays the
+native mirror pose and line in Modernized: the use finder's first ray is aimed
+through a mirror's centre up to 896 units (note 329). Uncommitted:
+`recomp/src/ttk/apartment_interaction.inc`, `modern_controls.cpp`,
+`recomp/tests/local/modern_controls_native.cpp`, `GAME_MANUAL.md`, docs.
+Harness `recomp/analysis/d35n1/` (`verify.py SLOT TAG`, `CARDS=cards-s6`
+slot index 5, `cards-s8` index 7). Playtest: E at both mirrors, twice; hear the
+line. The 35 Accepted table rows are closed as Done, and D17Z's stale
+Needs-playtest detail is corrected (user, 2026-10-30).
+
 ## 2026-10-30 - D38A re-recorded saloon piano accepted and closed
 
 The user's MIDI-keyboard re-recording (`research/music/pianobag-final.mp4`)

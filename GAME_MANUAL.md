@@ -503,7 +503,7 @@ controls. Entering an unsupported state, changing view, loading or releasing
 capture clears the inspection. Vanilla is unchanged.
 
 While captured, use **left mouse** to fire/action, **Space** to jump, **Scroll Lock** (tap) to
-draw/holster, **hold Left Ctrl** to crouch and release to stand, or **tap C** to stay crouched and tap it again to stand (with W/A/S/D: crouch walk; standing requires overhead clearance), **Left Shift** as the speed modifier,
+draw/holster, **hold Left Ctrl** to crouch and release to stand, or **tap C** to stay crouched and tap it again to stand (with W/A/S/D: crouch walk; standing requires overhead clearance, and if Duke ends up kneeling somewhere even lower than a crouch he can always crawl back out through space at least as roomy), **Left Shift** as the speed modifier,
 **hold right mouse** (or **Alt**) to grab a pushable object, **comma/period** to browse the mission items (see Mission items below; the original sidesteps are unbound, A/D strafe),
 and **I** for inventory. **E is interaction-only and never fires.** If necessary,
 a tap automatically requests holstering and then interacts once that animation
@@ -1795,6 +1795,12 @@ while keeping your grip, or reverse without regrabbing. Release Grab to stop
 and let go. Touching a pushable object shows which button
 grabs, and each grab shows the push/pull keys (at most once every few seconds). With `original` weapon aiming or camera, only **Alt** grabs (right mouse
 is precision aim there); both are rebindable (`grab`, `grab_alt`).
+
+An object you have pushed can always be grabbed again along the line it
+moved on, wherever it ended up, so pushing one into a recess or a corner no
+longer leaves it stuck (D08T11, awaiting playtest). Objects the level placed
+as fixed scenery, such as the street dumpster in level 5, still cannot be moved. A pushed object stops
+against bars, gates and frames like any wall, and so does Duke while pushing (D08T13).
 
 Mouse look keeps working while you hold an object. With global VIEW set to
 FIRST PERSON, **PUSH/PULL VIEW** in OPTIONS > ADVANCED > ACTION PERSPECTIVE

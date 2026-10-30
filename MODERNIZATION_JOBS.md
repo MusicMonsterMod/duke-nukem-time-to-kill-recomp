@@ -318,6 +318,123 @@ Acceptance: reproduce the failure, repeat release/reapproach/grab and reverse
 at the affected position, verify a fresh private boundary reload, run native
 regressions and obtain user gameplay acceptance. Player saves remain untouched.
 
+### D08T13 - Pushed block and Duke pass through metal bars
+
+**Status: Done (user-accepted 2026-10-30: "the fix is in! and it's absolutely
+perfect"; closeout authorized 2026-10-30; [note 334](documentation/334-d08t13-multibox-push-collision.md)).
+Dependencies: D08T3, D08T11.** User report after D08T11/D08T12 acceptance: the
+slot 8 Duke-symbol block, pushed in the other direction, goes straight through
+a set of metal bars, and Duke clips through the bars while pushing. Wanted: a
+game-wide safeguard (as D08T5 limited the alley dumpster), the block stopping
+just short of the bars, and Duke never passing through bars while pushing.
+Investigation so far (private slot 8 copy): pulling along the block's Z lane
+toward -Z stops correctly at block Z 20389 against plain walls (Duke leads
+and his checks stop him); a barred window is visible on the side wall, so the
+reported push is probably along X from the spawn area, where the original
+floor allows grabs on any face. Scripted placement of Duke behind the block
+failed (the debug server writes single bytes while the game runs). Next: a
+user save just before pushing into the bars; then compare the manual mover's
+ray and clearance queries (`0x800774cc`, `0x8007765c`) with the original walk
+collision at the bars and use the original collision for both block and Duke.
+Acceptance: the block stops short of the bars and Duke cannot pass them at the
+reported spot; other blocks/dumpsters (D08T2-T11) keep their travel; native
+regressions; Vanilla unchanged; user playtest.
+
+**Work log (2026-10-30, Needs playtest).** User saves: UI slot 8 (block just
+before the bars) and UI slot 9 (in them). The bars are box 2 of a three-box
+LEVEL06 frame object (type 354); the manual mover read only box 0 (the lintel
+above the block), for the block and for Duke. `push.inc` now checks every box
+of every room object; a box already overlapped at the start may only shrink
+or let the block back out toward Duke. Slot 8: stops 2 units short of the
+bars and pulls back; slot 9: cannot go further, backs out; Duke leading now
+stops at his radius instead of walking through (Z 19465 before). Native gate
+case added to the D08T3 group; 115 groups, input and aim pass. Earlier
+"probably along X" guess was wrong: the bars are on the block's Z track.
+
+### D17AQ - Slot-10 jetpack height: level sections pop in and out
+
+**Status: Todo (report first). Dependencies: D17AM, D14F.** Opened 2026-10-30
+from the user's playtest: in UI slot 10 (saved 2026-10-30 12:24) Duke hovers
+high above the level with the jetpack; turning left and right makes parts of
+the level appear and disappear, a little at a time. The user asks whether this
+is an original PlayStation drawing limit. Measured during D23G: slot 10 holds
+120 presents/s at 0.66 of the emulation thread, so it is not a performance
+problem; a still from the save shows the centre drawn and both sides empty.
+Report first: identify whether the game's room/portal visibility, its view
+cone or the widescreen portal bounds decide what is skipped at this height,
+compare Vanilla 4:3 and Modernized FOV 60/90 from the same private save, and
+say what a game-wide fix would involve before implementing anything.
+Acceptance (report): cause identified with evidence and a proposed fix the
+user approves.
+
+**User follow-up (2026-10-30).** Slot 10 still shows the same reach. Because
+Modernized now shows so much more, enemies visibly come into existence only as
+Duke gets close (Necros on the long moat stretch). From one end of the long
+moat (UI slot 2) the far end is completely black: the level does not draw it.
+Include in the report: the far-end cutoff in slot 2 (draw-distance limit,
+room/portal visibility or fog), and the enemy activation/spawn distance versus
+the now-visible range, with what extending each would cost (frame rate
+included, given D23G).
+
+### D08T11 - Slot-8 pushable block stuck; game-wide eligibility
+
+**Status: Done (user-accepted 2026-10-30: "I can push and pull the block now no problem"; closeout authorized 2026-10-30; [note 332](documentation/332-d08t11-displaced-pushables.md)). Dependencies: D08T3, D08T7, D08T10 (Done).** Opened
+2026-10-30 from the user's playtest: in UI slot 8 (saved 2026-10-30 12:22)
+the block can no longer be pushed or pulled; there is no save from before it
+stuck. The user asks whether all push/pull blocks can be fixed at once rather
+than one at a time as play finds them. Reproduce on a private copy, find why
+the stuck position is refused (lane, alignment, support or acquisition gate)
+and prefer a game-wide rule over a per-object exception. If a single rule cannot
+be proven safe for every object, say so and keep per-object fixes as the
+fallback the user accepted.
+Acceptance: the slot-8 block can be grabbed, pushed and pulled again from its
+stuck position; earlier accepted blocks and dumpsters (D08T2-T10) still work;
+native regressions pass; Vanilla unchanged; user playtest.
+
+**Work log (2026-10-30, Needs playtest).** The block (type 924) had been
+pushed 2490 units into a wall recess onto a no-grab floor, the same failure
+class as D08T7/T9/T10. Game-wide rule in `push.inc`: the level's placement rows
+(`*0x800de720`, 48 bytes, count `0x800de724`) keep each object's authored
+x/y/z, so a pushable object away from its authored x or z has been pushed and
+may be grabbed along that axis anywhere. Fixed scenery never moves and stays
+fixed without a list; the verified lanes remain for authored spots. Private
+slot 8: grab from the recess, pull out, push back, release, regrab, pull again.
+`ttk-controls-test` new D08T11 group plus all D08T groups pass (115 groups).
+Limit: card-save reloads were not tested (savestates only). Manual updated.
+
+### D08T12 - Crouch soft lock at a pushed block
+
+**Status: Done (user-accepted 2026-10-30: "the softlock is now fixed"; closeout authorized; [note 333](documentation/333-d08t12-squeezed-crawl.md)). Dependencies: D08K, D08T11.** Opened 2026-10-30. The user
+reports that in slot 8 Duke can be soft-locked by pushing the block in and
+then jumping onto it or crouching to get under it: he cannot stand up again.
+Reproduce on a private copy, identify the uncrouch clearance test and the
+block's collision at that spot, and make sure Duke can always leave (stand,
+crawl out or be pushed clear) without passing through solid geometry.
+Acceptance: no soft lock at the reported spot from either route; ordinary
+crouch and crawl spaces still keep Duke crouched where the ceiling is low;
+Vanilla unchanged; user playtest.
+
+**Investigation (2026-10-30).** Three scripted routes on the private slot 8
+copy did not reproduce it: with the block in its recess, W+E+Space reaches only
+a hang on its face (animation 149; the recess leaves no room on top), holding W
+does not climb higher, and S drops back; crouching in front and releasing
+stands normally. Needs a save made while stuck (any free slot) or the exact
+key sequence.
+
+**Work log (2026-10-30, Needs playtest).** The user saved the soft lock in UI
+slot 9 (13:24). Private copy: Duke kneels (178) on the block top inside the
+recess; W/S/A/D, Ctrl, Space and C do nothing. The crouch was adopted and the
+stand-up correctly refused (no headroom); every crawl probe failed `hull_low`
+because the headroom where he kneels is already below the 704 crouch hull, so
+every destination, including the way back, looked too low. Game-wide fix in
+`crouch_hull.inc`: a crouch walk that starts squeezed may move where headroom
+is at least what he has now (and at least 0x100), with the head ray just under
+that ceiling; never into tighter space; other probes keep the full hull.
+Private slot 9: S crawls along the block top, W crawls off the edge into the
+original fall, he lands, stands (63) and walks. `ttk-controls-test` adds the
+squeezed case to D08K12 (moves at 0x280, refuses at 0xf0); all 115 groups,
+input, aim and near suites pass. Manual updated. Player save only read.
+
 ### D35I1 - Climb down from a climbing-wall top (slot 7)
 
 **Status: Done (user-accepted; closeout authorized 2026-10-28).** Selected 2026-10-28. User reports no climb-down
@@ -1263,6 +1380,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D17AN | Slot-12 water showing through the bridge deck (level 6) | Done (user-confirmed 2026-10-30) | D17AM; note 327 |
 | D17AO | Slot-11 ceiling hole showing the sky (level 6) | Deferred (authored level gap; no action now, possible future level-data fix) | D17AM; note 327 |
 | D17AP | Slot-9 grave-dig soil corners flashing again (D17X recurrence) | Done (user-confirmed 2026-10-30) | D17X, D17AM; note 327 |
+| D17AQ | Slot-10 jetpack height: level sections pop in and out while turning (room visibility) | Todo (report first) | D17AM, D14F |
 | D14F | 90-default / 120-maximum world FOV | Done (user-confirmed 2026-10-30) | Implemented in afd4ad6 (note 317); re-verified 2026-10-29 |
 | D17AE | Slot-11 sign post through door header | Done (user-confirmed 2026-10-29) | Scene depth for native world/scenery packets; replay precedence fix; world backface cull restored |
 | D17AF | Latest slot-10 ground water visibility | Done | Selected batch; see intake above |
@@ -1388,6 +1506,9 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08T7 | Regrab movable objects throughout their permitted travel lane | Done (user-accepted 2026-10-24) | D08T6 |
 | D08T8 | Apartment alley platform mantle stalls: W cannot climb, Space cannot drop | Done | D08V, D08X, D08T3 |
 | D08T10 | Slot-5 box repeat grab after pulling | Done (user-accepted 2026-10-29) | D08T3, D08T7, D08T9 |
+| D08T11 | Slot-8 pushable block stuck; game-wide push/pull eligibility instead of per-block fixes | Done (user-accepted; closed 2026-10-30; note 332) | D08T3, D08T7, D08T10 |
+| D08T12 | Crouch soft lock under or on top of a pushed block (slot 8) | Done (user-accepted; closed 2026-10-30; note 333) | D08K, D08T11 |
+| D08T13 | Pushed block and Duke pass through metal bars (slot 8); game-wide push collision | Done (user-accepted; closed 2026-10-30; note 334) | D08T3, D08T11 |
 | D08T9 | Level-5 dumpster cannot be pushed again after first push (slot 8, bug 2) | Done | D08T3, D08T7 |
 | D08T4 | Save slot 10 dumpster: the grab prompt shows but it will not move; find out whether it is meant to be fixed (Vanilla check) | Done (user-accepted 2026-10-20; fixed by design, no prompt there now) | D08T2 |
 | D08V | Sewer mantle/hang modern-control coverage (slot 12 area) | Done | D08, D08B |
@@ -1549,7 +1670,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D23D | Minor slowdown around the strip-club-type area of Level 9 (low priority) | Done | D23, D22B |
 | D23E | Stutter with enemies on screen while walking (UI slots 9 and 10) | Done (user-accepted; closed 2026-10-30) | D23, D22B |
 | D23F | Faster timing model: emulation-thread budget for 150% CPU at high refresh (big) | Done (user-accepted; closed 2026-10-30) | D23E, D17 |
-| D23G | Finish the fast path: dispatch, overlays, interpreter, observers and redraw cost (all-in-one) | Todo | D23F |
+| D23G | Finish the fast path: dispatch, overlays, interpreter, observers and redraw cost (all-in-one) | In progress (part 1 renderer feed user-accepted 2026-10-30, note 331; steps 1-3, 5 remain) | D23F |
 | D23H | Presents fall from 120 to about 60 over extended play (savestate hitches, sticky shedding) | Done (user-accepted; closed 2026-10-30) | D23E, D23F |
 | D24 | Linux / Windows player build and disc import | Todo | D19, D22, D23 |
 | D24A | Public clone gives the full experience: fonts, inventory icons/digits from a proper tracked or disc-derived source (no research/ dependency) | Done (user-accepted; closed 2026-10-30) | D19A, D08A3 |
@@ -12121,7 +12242,7 @@ judges the feel at 150% and decides whether it becomes the default.
 
 ### D23G - Finish the fast path: dispatch, overlays, interpreter, observers and redraw cost
 
-**Todo, all-in-one. Opened 2026-10-05 from D23F's limits** ([note 105](documentation/105-d23f-fast-timing.md)).
+**In progress: part 1 (renderer feed, [note 331](documentation/331-d23g-renderer-feed.md)) user-accepted 2026-10-30; steps 1-3 and 5 remain. Selected 2026-10-30. All-in-one. Opened 2026-10-05 from D23F's limits** ([note 105](documentation/105-d23f-fast-timing.md)).
 D23F moved the statically recompiled game code to the fast model. What is
 left on the emulation thread (fast, slot 9, 150%): the call/return dispatch
 path about 13% (`psx_dispatch_impl` -> BIOS table miss -> `dirty_ram_dispatch`
@@ -12155,6 +12276,71 @@ long-standing captures with or without D23F (last matching run before D23E).
 frame rate, savestates, audio, FMV and loading unchanged; Vanilla guest
 behavior unchanged; the user's playtest finds no regression and the same
 feel.
+
+**Work log (2026-10-30, re-profile; no code change).** Current build (D17AM
+unified geometry, D14F 90 FOV default), D23F harness copied to
+`recomp/analysis/d23g-20261030/` (local only): offscreen real GPU, private
+copy of the current player profile, the D23F private savestate copies, dummy
+audio, idle host (load under 1, no backups running).
+
+| Run (150%, moving) | Thread | Game frames/s | Presents/s | `[TTK cpu]` reduced |
+| --- | --- | --- | --- | --- |
+| Slot 9, 60 Hz (D23F: 0.49) | 0.58 | 26.1 | - | 0 |
+| Slot 9, 120 Hz, FOV 90 (D23F: 0.73, 120.1) | 0.85 | 26.2 | 110.0 | 1 |
+| Slot 10, 120 Hz, FOV 90 (D23F: 0.82, 120.2) | 0.94 / 0.93 | 21.6 / 21.9 | 107.1 / 106.7 | 2 / 2 |
+| Slot 10, 120 Hz, FOV 60 | 0.91 | 24.0 | 120.4 | 0 |
+| Slot 1, 120 Hz, FOV 90 | 0.78 | 30.0 | 120.1 | 0 |
+
+Findings: the emulation thread has lost the headroom D23F bought. At the
+player's 120 Hz the busy scenes (slots 9, 10) now drop presents; the same
+slot 10 route at FOV 60 holds 120, so the wider default view is what tips it
+over. At 60 Hz the dispatch path is still about 15% of the thread
+(`psx_dispatch_impl` 4.0, `psx_game_find_entry` 2.3,
+`dirty_ram_text_native_ok_ranges_from` 2.0, observers `fntrace_record` /
+`xprobe_event` / `text_xlate_on_dispatch` about 1.8). At 120 Hz slot 10 the
+largest cost is the GL feed: NVIDIA driver 17.8% self plus libc 7.4% and GL
+callers (texture batch passes 3.8, flush 3.1, framebuffer binds 2.9,
+enable/disable 2.9, replay begin/end and rect blits about 3); dispatch is
+about 9%. FOV 90 against 60 grows GL driver, host vertex store, `d16_match`
+and texture batch time. Caller attribution is approximate (`gl_perf_mirror_end`
+appears although `PSX_GL_PERF=0` returns at once).
+
+Proposed order by measured impact at 120 Hz: (a) step 4, GL feed and redraw
+cost (fewer binds/state changes and draw passes per redraw); (b) steps 1-2,
+dispatch fast path and per-call observers (the mod and text-translation hooks
+in `fntrace_record` must stay); (c) step 3, overlay/interpreter. Target:
+slots 9 and 10 hold 120 presents/s at FOV 90 with no reduced-present events,
+with the D23G acceptance unchanged.
+
+**Work log (2026-10-30, part 1: renderer feed; Needs playtest).** User
+report: the UI slot 2 lake (saved 2026-10-05) is the one place that still
+slows down, worst in the water; the user suspected draw distance. Measured on
+private copies: in the water the emulation thread was 100% busy while
+advancing 1-9 fields per quarter second (frames up to 53 fields), the GPU
+peaked at 80%, and 46% of the thread was in the NVIDIA driver. The batch
+counters showed over 1000 textured batches per frame, almost all split on
+depth-tested versus painter-order primitives (ground versus translucent
+water), each paying a full texture/uniform/upload setup and two widescreen
+framebuffer binds. It is batching, not draw distance.
+Changes (framework, exported patch): depth runs inside one textured batch
+(`PSX_GL_DEPTH_RUNS=0` compares), `GL_DEPTH_TEST` in the GL state cache,
+`d16_match` without its per-call 128 KiB stack-probe frame, memoised display
+information, compact host-vertex probe arrays.
+Results at 150%/120 Hz: D23F slot 9 110 -> 120.4 presents/s; D23F slot 10
+107 -> 120.0-120.3; user slot 2 72-82 -> 110.6 with the longest game frame
+3-4 fields (was 53) and no water hitches in two 40 s routes (17-19 slow
+windows each before); user slot 10 unchanged at 120.3. Images after loading
+slots 2, 8 and 10 are pixel-identical to the previous build. Native suites
+pass; Vanilla 59.93 fields/s; pristine checkout plus patch reproduces all 55
+framework files. Still open: the view right after loading slot 2 needs about
+0.9 of the thread at 120 Hz and the pacer presents every second refresh for
+about 5 s after the load. The slot 10 pop-in is room visibility, not frame
+rate (slot 10 holds 120 at 0.66): new job D17AQ.
+
+**Playtest (2026-10-30): part 1 accepted.** User on slot 2: "Buttery smooth
+this is the best it's ever been by far ... it's playing perfectly the
+stability is just absolutely next level ... studio grade quality in terms of
+performance and feel." Part 1 closed out (commit/push authorized 2026-10-30); D23G stays open.
 
 ### D23H - Presents fall from 120 to about 60 over extended play
 

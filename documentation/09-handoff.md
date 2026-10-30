@@ -1,5 +1,74 @@
 # Next-session handoff
 
+## 2026-10-30 - Closeout: D23G part 1, D08T11, D08T12, D08T13
+
+User authorized closeout. D08T11 (pushed objects stay grabbable), D08T12
+(squeezed crawl-out) and D08T13 (every collision box stops pushes) are Done;
+D23G part 1 (renderer feed) is accepted and committed, D23G stays In progress
+for the dispatch path, observers, overlay/interpreter timing and Vanilla cost.
+Committed and pushed as MusicMonsterMod. No next job selected.
+Launch: `python3 recomp/tools/local/run.py`.
+
+## 2026-10-30 - D08T13 accepted
+
+User: "the fix is in! and it's absolutely perfect". Accepted and awaiting
+closeout authorization: D23G part 1 (notes 331), D08T11 (332), D08T12 (333),
+D08T13 (334). D23G stays open for steps 1-3 and 5. Backlog: D17AQ (draw reach,
+moat far end, enemy activation distance).
+
+## 2026-10-30 - D08T12 accepted; D08T13 bars collision Needs playtest
+
+User confirmed the slot 9 crawl-out (D08T12 accepted). New D08T13: the slot 8
+block and Duke passed through metal bars because the manual push test read
+only box 0 of each object; the bars are box 2 of a three-box frame. Every box
+is now checked game-wide, with a back-out rule for blocks already inside
+([note 334](334-d08t13-multibox-push-collision.md)). Accepted, not yet closed:
+D23G part 1, D08T11, D08T12. Commit/push not yet authorized.
+
+## 2026-10-30 - Playtest: D23G part 1 and D08T11 accepted; D08T12 Needs playtest
+
+User: slot 2 "buttery smooth ... the best it's ever been by far"; slot 8 block
+pushes and pulls. Both accepted; commit/push not yet authorized. D08T12: the
+user's slot-9 soft lock (kneeling on the block top under the recess ceiling)
+is fixed game-wide - a crouch walk that starts squeezed below the crouch hull
+may crawl through equal or roomier headroom ([note 333](333-d08t12-squeezed-crawl.md)).
+D17AQ now also covers the slot 2 moat's black far end and enemies appearing
+only up close. D23G steps 1-3 and 5 remain.
+
+## 2026-10-30 - D08T11 game-wide pushed-object mobility (Needs playtest)
+
+Pushed objects stay grabbable wherever they end up: a pushable object away
+from its authored placement (level placement rows) may be grabbed along the
+moved axis on any floor; fixed scenery never moves and stays fixed
+([note 332](332-d08t11-displaced-pushables.md)). Slot 8 block grabs, pulls
+out of its recess, pushes back and regrabs on a private copy; controls suite
+passes. D08T12 soft lock did not reproduce on three routes; ask the user for a
+save made while stuck. D23G part 1 also Needs playtest (entry below).
+
+## 2026-10-30 - D23G part 1 (renderer feed) Needs playtest
+
+User slot 2 lake slowdown traced to textured-batch splitting between
+depth-tested ground and translucent water (over 1000 batches a frame); fixed
+by depth runs inside one batch plus four smaller renderer savings
+([note 331](331-d23g-renderer-feed.md)). 120 Hz busy scenes hold 120 again
+(slots 9/10 of the D23F set); slot 2 water hitches are gone, about 110
+presents/s overall; the view right after loading slot 2 still drops to every
+second refresh for about 5 s. New backlog: D17AQ (slot 10 jetpack pop-in,
+report first), D08T11 (slot 8 stuck block, game-wide push/pull rule),
+D08T12 (crouch soft lock at that block). Next: user playtest of slot 2 and
+general play; D08T11/T12 investigation.
+
+## 2026-10-30 - D23G selected; re-profile done (In progress)
+
+Re-profiled the current build with the D23F harness (local
+`recomp/analysis/d23g-20261030/`). At 150% and 120 Hz the busy scenes now drop
+presents: slot 9 110/s, slot 10 about 107/s with reduced-present events
+(D23F: 120 in both). Slot 10 at FOV 60 holds 120, so the D14F 90 default tips
+it over. At 120 Hz the GL feed (driver about 18% plus callers) is the largest
+cost; dispatch about 9% (about 15% at 60 Hz). No code change yet. Proposed
+order and evidence are in the D23G work log. Next: GL feed/redraw cost first,
+then the dispatch fast path.
+
 ## 2026-10-30 - D18C closed (crackle no longer occurs)
 
 User confirmed repeated play of the construction-sign scene with no audio

@@ -75,7 +75,30 @@ static const PushLane* push_lane(uint32_t object) {
            (psx_mod_read_half(object+0x1c)&4095)==lane.yaw)return &lane;
     return nullptr;
 }
-static bool push_lane_allows(uint32_t object) {return push_lane(object)!=nullptr;}
+// D08T11: game-wide mobility. The level's placement rows (*0x800de720, 48
+// bytes, count 0x800de724; type, live object, authored x/y/z) are never
+// rewritten as an object moves, so a pushable object away from its authored
+// x or z has been pushed and is movable along that axis wherever it now stands.
+// Fixed scenery (LEVEL05's street dumpster, no grab floor anywhere near it)
+// can never be pushed and so never qualifies. Returns axis bits 1 = X, 2 = Z.
+static unsigned push_displaced_axes(uint32_t object) {
+    if(!input_modernized() || !(object_type_flags(object)&object_pushable) || !identity())return 0;
+    const uint32_t table=psx_mod_read_word(0x800de720),count=psx_mod_read_word(0x800de724);
+    if(!count || count>1024 || (table&3) || table<0x80010000u || table>0x80200000u-48*count)return 0;
+    const unsigned type=psx_mod_read_half(object+0x2c);
+    for(uint32_t row=table;row<table+48*count;row+=48) {
+        if(psx_mod_read_word(row+4)!=object)continue;
+        if(psx_mod_read_word(row)!=type)return 0;
+        return (psx_mod_read_word(row+8)!=psx_mod_read_word(object+4)?1u:0u) |
+               (psx_mod_read_word(row+16)!=psx_mod_read_word(object+12)?2u:0u);
+    }
+    return 0;
+}
+static unsigned push_mobile_axes(uint32_t object) {
+    const auto* lane=push_lane(object);
+    return (lane?(lane->along_z?2u:1u):0u) | push_displaced_axes(object);
+}
+static bool push_lane_allows(uint32_t object) {return push_mobile_axes(object)!=0;}
 static void push_lane_acquire(CPUState* cpu);
 // Duke is touching a pushable object on normal ground (idle, gait or wall bump)
 // where the original grab can start.
@@ -150,9 +173,26 @@ static bool push_manual_enabled() {
     return !value || std::strcmp(value,"original");
 }
 struct PushBounds {int32_t x0,x1,y0,y1,z0,z1;};
-static bool push_bounds(uint32_t object,PushBounds& b) {
+// D08T13: an object's box list (+0x44) holds a count (halfword +4) of 16-byte
+// boxes from +8; box 0 alone is what object_box reads. Gates and frames keep
+// their bars in later boxes (LEVEL06 type 354: lintel, right pillar, bars).
+static unsigned object_box_count(uint32_t object) {
+    const uint32_t list=psx_mod_read_word(object+0x44);
+    if(!list || list<0x80010000u || list>=0x80200000u || (list&3))return 1;
+    const unsigned count=psx_mod_read_half(list+4);
+    return count<1 ? 1 : count>16 ? 16 : count;
+}
+static bool object_box_at(uint32_t object,unsigned index,int16_t* box) {
+    if(!index)return object_box(object,box);
+    const uint32_t list=psx_mod_read_word(object+0x44),base=list?psx_mod_read_word(list+8):0;
+    if(!list || base<0x80010000u || base>=0x80200000u-16*(index+1) || (base&1))return false;
+    for(int i=0;i<8;++i)box[i]=(int16_t)psx_mod_read_half(base+16*index+2*i);
+    return box[4]>box[0] && box[6]>box[2] && box[5]>box[1];
+}
+static bool push_bounds(uint32_t object,PushBounds& b,unsigned index=0) {
     int16_t box[8];
-    if(!object_box(object,box)) {
+    if(!object_box_at(object,index,box)) {
+        if(index)return false;
         // Ladder collision panels have zero depth. They still stop a block.
         if(!(object_type_flags(object)&0x200) || !ladder_box(object,box))return false;
         if(box[0]==box[4]){box[0]-=16;box[4]+=16;}
@@ -225,9 +265,30 @@ static bool push_step_clear(CPUState* cpu,uint32_t object,int dx,int dz) {
             const uint32_t other=psx_mod_read_word(node+8);node=psx_mod_read_word(node+4);
             const uint32_t flags=object_type_flags(other);
             if(other==object || other==player || !flags || (flags&8))continue;
-            PushBounds q;if(!push_bounds(other,q))continue;
-            if(px+dx-220<q.x1 && px+dx+220>q.x0 && pz+dz-220<q.z1 && pz+dz+220>q.z0 && int32_t(feet)-0x370<q.y1-8 && int32_t(feet)>q.y0+8)return false;
-            if(b.x0+dx<q.x1-8 && b.x1+dx>q.x0+8 && b.z0+dz<q.z1-8 && b.z1+dz>q.z0+8 && b.y0<q.y1-8 && b.y1>q.y0+8)return false;
+            for(unsigned i=0,n=object_box_count(other);i<n;++i) {
+                PushBounds q;if(!push_bounds(other,q,i))continue;
+                // Overlap area on the floor plane, 0 when apart. A move that
+                // starts already overlapping (an older save) may only reduce it
+                // or back the block out toward Duke (Duke himself: away from the
+                // obstacle); the stationary grab check accepts the overlap.
+                auto area=[&](int32_t x0,int32_t x1,int32_t z0,int32_t z1,int32_t m) {
+                    const int64_t w=int64_t(std::min(x1,q.x1-m))-std::max(x0,q.x0+m),d=int64_t(std::min(z1,q.z1-m))-std::max(z0,q.z0+m);
+                    return w>0 && d>0 ? w*d : int64_t(0);
+                };
+                if(int32_t(feet)-0x370<q.y1-8 && int32_t(feet)>q.y0+8) {
+                    const int64_t after=area(px+dx-220,px+dx+220,pz+dz-220,pz+dz+220,0);
+                    const int64_t before=area(px-220,px+220,pz-220,pz+220,0);
+                    const bool away=int64_t(dx)*(px-(q.x0+q.x1)/2)+int64_t(dz)*(pz-(q.z0+q.z1)/2)>0;
+                    if(after>before || (after && after==before && (dx || dz) && !away))return false;
+                }
+                if(b.y0<q.y1-8 && b.y1>q.y0+8) {
+                    const int64_t after=area(b.x0+dx,b.x1+dx,b.z0+dz,b.z1+dz,8);
+                    const int64_t before=area(b.x0,b.x1,b.z0,b.z1,8);
+                    // Only back out toward Duke, never on through the obstacle.
+                    const bool pull=int64_t(dx)*(px-(b.x0+b.x1)/2)+int64_t(dz)*(pz-(b.z0+b.z1)/2)>0;
+                    if(after>before || (after && after==before && (dx || dz) && !pull))return false;
+                }
+            }
         }
         return !node;
     };
@@ -260,9 +321,9 @@ static void push_lane_acquire(CPUState* cpu) {
     const bool aligned=original_call(cpu,0x8007ec4c,0x113,&lined) && (lined&0xffff);
     // The original line-up computes target facing at +0x24. Only the
     // placement's travel axis gains permission; oblique grabs still fail.
-    const auto* lane=push_lane(object);
+    const unsigned axes=push_mobile_axes(object);
     const bool facing_z=((((psx_mod_read_half(player+0x24)+512)&4095)/1024)&1)==0;
-    const bool along=lane && facing_z==lane->along_z;
+    const bool along=(axes&(facing_z?2u:1u))!=0;
     const bool clear=aligned && along && push_step_clear(cpu,object,0,0);
     if(!clear) {
         for(unsigned i=0;i<0x8a4/4;++i)psx_mod_write_word(player+4*i,saved[i]);

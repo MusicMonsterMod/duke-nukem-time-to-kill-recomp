@@ -810,6 +810,34 @@ int main(int argc,char** argv) {
             assert(std::abs(stopped-x0)<30);move();assert(int32_t(psx_mod_read_word(object+4))==stopped);
             ttk::input.move_x=-mx;ttk::input.move_y=-my;move();
             assert(int32_t(psx_mod_read_word(object+4))==stopped-direction*30);
+            // D08T13: a gate's bars live in a later box of its list (box 0 is
+            // the lintel above the block). The bars stop the block; a block
+            // already in them (older save) backs out toward Duke only.
+            {
+                const uint32_t gate=0x801ea600,gate_list=0x801ea700,gate_boxes=0x801ea720;
+                const int32_t saved_px=int32_t(psx_mod_read_word(p+4));
+                psx_mod_write_half(gate+0x2c,354);psx_mod_write_word(table+28*354,0x1012);
+                psx_mod_write_word(gate+0x44,gate_list);psx_mod_write_half(gate_list+4,3);psx_mod_write_word(gate_list+8,gate_boxes);
+                const int16_t parts[3][8]={{-64,-1600,-600,0,64,-1000,600,0},{-64,-512,3000,0,64,512,3100,0},{-64,-512,-600,0,64,512,600,0}};
+                for(int k=0;k<3;++k)for(int i=0;i<8;++i)psx_mod_write_half(gate_boxes+16*k+2*i,uint16_t(parts[k][i]));
+                psx_mod_write_half(gate+0x1c,0);psx_mod_write_word(gate+8,0);psx_mod_write_word(gate+12,2000);
+                psx_mod_write_word(node+8,gate);
+                const int start=int32_t(psx_mod_read_word(object+4));
+                psx_mod_write_word(p+4,uint32_t(start-direction*1100));
+                psx_mod_write_word(gate+4,uint32_t(start+direction*(512+64+24)));
+                ttk::input.move_x=mx;ttk::input.move_y=my;move();
+                const int at_bars=int32_t(psx_mod_read_word(object+4));
+                assert(std::abs(at_bars-start)<=30);move();assert(int32_t(psx_mod_read_word(object+4))==at_bars);
+                psx_mod_write_word(gate+4,uint32_t(at_bars+direction*400)); // block already in the bars
+                move();assert(int32_t(psx_mod_read_word(object+4))==at_bars);
+                ttk::input.move_x=-mx;ttk::input.move_y=-my;move();
+                assert(int32_t(psx_mod_read_word(object+4))==at_bars-direction*30);
+                psx_mod_write_half(gate_list+4,1);psx_mod_write_word(gate+4,uint32_t(start+direction*(512+64+24)));
+                psx_mod_write_word(object+4,uint32_t(start));ttk::input.move_x=mx;ttk::input.move_y=my;move();
+                assert(int32_t(psx_mod_read_word(object+4))==start+direction*30); // box 0 alone: no bars
+                psx_mod_write_word(object+4,uint32_t(start));psx_mod_write_word(p+4,uint32_t(saved_px));
+                psx_mod_write_word(node+8,ladder);
+            }
             psx_mod_write_word(0x800da454,saved_rooms);psx_mod_write_word(0x800da47c,saved_count);
             // D08T5: slot-7 boundary is exact even for a partial final step.
             // Old saves beyond it can retreat; another lane/type is unaffected.
@@ -860,6 +888,38 @@ int main(int argc,char** argv) {
                 acquire();assert(psx_mod_read_half(p+0x60)==121); // old beyond-limit save
                 psx_mod_write_half(p+0x60,63);psx_mod_write_word(object+12,13830);
                 assert(!ttk::push_contact_ready());refused();
+                // D08T11: an object away from its authored placement was pushed
+                // there and stays movable along that axis on a no-grab floor.
+                {
+                    const uint32_t rows=0x801ec800,old_table=psx_mod_read_word(0x800de720),old_count=psx_mod_read_word(0x800de724);
+                    psx_mod_write_word(0x800de720,rows);psx_mod_write_word(0x800de724,2);
+                    psx_mod_write_word(rows,0x20);psx_mod_write_word(rows+4,0);
+                    psx_mod_write_word(rows+48,165);psx_mod_write_word(rows+52,object);
+                    psx_mod_write_word(rows+56,6000);psx_mod_write_word(rows+60,uint32_t(-9728));psx_mod_write_word(rows+64,13830);
+                    psx_mod_write_word(object+4,7292);
+                    psx_mod_write_half(p+0x24,1024);assert(ttk::push_contact_ready());
+                    acquire();assert(psx_mod_read_half(p+0x60)==121 && psx_mod_read_word(p+0x290)==object);
+                    assert(psx_mod_read_byte(floor+4)==0xfe && psx_mod_read_word(object+4)==7292);
+                    psx_mod_write_half(p+0x60,63);psx_mod_write_half(p+0x24,3072);
+                    acquire();assert(psx_mod_read_half(p+0x60)==121); // either facing
+                    psx_mod_write_half(p+0x60,63);psx_mod_write_half(p+0x24,0);refused(); // across the axis
+                    psx_mod_write_half(p+0x24,1024);
+                    hull_ray_hit=1;refused();hull_ray_hit=0;
+                    lineup_ok=0;refused();lineup_ok=1;
+                    ttk::modern=false;refused();ttk::modern=true;
+                    psx_mod_write_word(rows+56,7292);assert(!ttk::push_contact_ready());refused(); // at spawn: fixed scenery
+                    psx_mod_write_word(rows+60,0);assert(!ttk::push_contact_ready()); // height alone is not travel
+                    psx_mod_write_word(rows+60,uint32_t(-9728));psx_mod_write_word(rows+64,12000);
+                    psx_mod_write_half(p+0x24,0);assert(ttk::push_contact_ready());
+                    acquire();assert(psx_mod_read_half(p+0x60)==121); // Z displacement allows Z
+                    psx_mod_write_half(p+0x60,63);psx_mod_write_half(p+0x24,1024);refused();
+                    psx_mod_write_word(rows+48,166);assert(!ttk::push_contact_ready()); // row of another type
+                    psx_mod_write_word(rows+48,165);psx_mod_write_word(rows+52,object+0x60);assert(!ttk::push_contact_ready());
+                    psx_mod_write_word(0x800de724,0);assert(!ttk::push_contact_ready());
+                    psx_mod_write_word(0x800de720,old_table);psx_mod_write_word(0x800de724,old_count);
+                    psx_mod_write_half(p+0x60,63);
+                    std::puts("PASS: D08T11 displaced placement acquisition, axis, spawn/height/row/profile refusal, unchanged floor");
+                }
                 // D08T9: a fresh LEVEL05 boundary load can acquire the Z lane,
                 // in either direction, without granting mobility to its scenery.
                 if(argc==5) {
@@ -921,7 +981,7 @@ int main(int argc,char** argv) {
             ttk::modern=true;ttk::grab_owns=false;ttk::input.move_x=ttk::input.move_y=0;lookahead_drop=-100000;
             ttk::input.epoch=saved_push_epoch;psx_mod_write_word(0x800d21fc,saved_push_ticks);
             for(unsigned i=0;i<sizeof before;++i)psx_mod_write_byte(p+i,before[i]);
-            std::puts("PASS: D08T3 held-direction grab handoff, flat ladder, stop/reverse, held neutral, support/wall refusal, query restoration and Vanilla");
+            std::puts("PASS: D08T3 held-direction grab handoff, flat ladder, D08T13 multi-box bars and back-out, stop/reverse, held neutral, support/wall refusal, query restoration and Vanilla");
         }
         psx_mod_write_half(p+0x60,63);psx_mod_write_word(p+0x174,0);psx_mod_write_word(p+0x290,0);
         assert(!ttk::push_grab_ready() && ttk::movement_ready());
@@ -2897,6 +2957,22 @@ int main(int argc,char** argv) {
                     assert(psx_mod_read_half(p+0x60)==178 && ttk::crouch_walk_input_ready());
                 }
                 hull_ray_hit=0;ttk::input.move_y=1;
+                // D08T12: already squeezed below the crouch hull (a crouched
+                // landing under a low ceiling), Duke crawls through equal
+                // headroom instead of being refused everywhere; no headroom
+                // at all still refuses.
+                {
+                    const bool keep_running=ttk::running;ttk::running=false;ttk::input.move_x=0;
+                    auto moved=[&]{
+                        const int32_t x=int32_t(psx_mod_read_word(p+4)),z=int32_t(psx_mod_read_word(p+12));
+                        call(0x8005a210,p,0x800c2754,0x80041b34,0x801ff000);
+                        return int32_t(psx_mod_read_word(p+4))!=x || int32_t(psx_mod_read_word(p+12))!=z;
+                    };
+                    clearance_result=0x280;assert(moved());
+                    assert(psx_mod_read_half(p+0x60)==178 && ttk::crouch_walk_input_ready());
+                    clearance_result=0xf0;assert(!moved());
+                    clearance_result=0x2e0;ttk::running=keep_running;
+                }
                 // Released Ctrl cannot stand under a low ceiling; run remains
                 // available until the existing stand-up owner finds headroom.
                 ttk::input.held[ttk::crouch]=false;ttk::running=true;
@@ -2924,7 +3000,7 @@ int main(int argc,char** argv) {
         ttk::input=saved;psx_mod_write_half(p+0x60,63);psx_mod_write_byte(p+0x22c,0);
         psx_mod_write_half(p+0xba,0);
         psx_mod_write_word(p+4,saved_x);psx_mod_write_word(p+12,saved_z);
-        std::puts("PASS: D08K12 walk/run/release/diagonal crouch pace and blocked standing; D08L1 walk/run ledge falls and collision refusals");
+        std::puts("PASS: D08K12 walk/run/release/diagonal crouch pace and blocked standing; D08T12 squeezed crawl; D08L1 walk/run ledge falls and collision refusals");
     }
     // D10E: inspection rotates the view alone, then returns to the retained
     // gameplay heading; its virtual shot eye translates with the player.

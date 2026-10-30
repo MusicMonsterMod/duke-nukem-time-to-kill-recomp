@@ -14,7 +14,7 @@
 // The test mover below is debug-only (backtick console "crouchwalk"); D08K4
 // turns the probe into the Modernized crouch walk.
 static constexpr int32_t crouch_hull=0x2c0, crouch_step_up=0x100, crouch_step_down=0x100;
-static unsigned hull_probes,hull_moves,hull_blocks[8];
+static unsigned hull_probes,hull_moves,hull_blocks[8],hull_squeeze_moves;
 // Debug only: crouchwalk's optional third number tests the probe at another hull height.
 static std::atomic<int> hull_test_height{crouch_hull};
 enum HullBlock {hull_clear=0,hull_low=1,hull_wall=2,hull_ray=3,hull_slope=4,hull_edge=5,hull_object=6,hull_failed=7};
@@ -108,13 +108,23 @@ static HullBlock crouch_probe(CPUState* cpu,int32_t dx,int32_t dz,int32_t& step_
     const HullState before=hull_save();
     HullScratch scratch(cpu->gpr[29]);
     auto fail=[&](HullBlock b){hull_restore(before);++hull_blocks[b];return b;};
+    // D08T12: a crouch walk that starts already squeezed below the hull (a
+    // crouched landing under a low ceiling, slot 8's block in its recess) may
+    // move anywhere at least as roomy as here, so Duke can always crawl back
+    // out; never into a tighter space. Probes elsewhere keep the full hull.
+    int32_t need=hull;
+    if(allow_drop) {
+        int32_t here_step=0,here=0;
+        if(crouch_floor(cpu,scratch,0,0,here_step,here)==hull_clear && here>=0x100 && here<hull) need=here;
+        hull_restore(before);
+    }
     auto judge=[&](int32_t ax,int32_t az,int32_t& step) {
         int32_t headroom=0;
         const HullBlock b=crouch_floor(cpu,scratch,ax,az,step,headroom);
         // A walk-off crosses at the current feet height, not at the floor
         // below. Check clearance above that height even when the floor drops.
         const int32_t clearance=allow_drop && step>crouch_step_down ? headroom-step : headroom;
-        return b!=hull_clear ? b : clearance<hull ? hull_low : step<-crouch_step_up ? hull_wall :
+        return b!=hull_clear ? b : clearance<need ? hull_low : step<-crouch_step_up ? hull_wall :
             (!allow_drop && step>crouch_step_down) ? hull_edge : hull_clear;
     };
     // D08K7: first the point 0x8007926c judges, Duke's radius-based look-ahead
@@ -131,7 +141,8 @@ static HullBlock crouch_probe(CPUState* cpu,int32_t dx,int32_t dz,int32_t& step_
     if(const HullBlock b=judge(dx,dz,step); b!=hull_clear) return fail(b);
     // Head ray at crouch height, from here to there (0x8007926c uses 0x370).
     int32_t hit=0;
-    const uint32_t from=scratch.point(0,x,feet-hull,z),to=scratch.point(1,x+dx,feet+(allow_drop && step>crouch_step_down?0:step)-hull,z+dz);
+    const int32_t head=need<hull ? need-0x20 : hull;   // squeezed: just under the ceiling here
+    const uint32_t from=scratch.point(0,x,feet-head,z),to=scratch.point(1,x+dx,feet+(allow_drop && step>crouch_step_down?0:step)-head,z+dz);
     if(!original_call(cpu,0x800774cc,from,&hit,to)) return fail(hull_failed);
     if(hit) return fail(hull_ray);
     if(step<0) {
@@ -140,6 +151,7 @@ static HullBlock crouch_probe(CPUState* cpu,int32_t dx,int32_t dz,int32_t& step_
         if(steep&0xffff) return fail(hull_slope);
     }
     step_y=step;
+    if(need<hull) ++hull_squeeze_moves;
     return hull_clear;
 }
 // D08K7 stand-up (crouch.inc): the standing clearance 0x370 (as 0x8007926c)
@@ -268,7 +280,7 @@ bool crouch_console_command(const char* line,void (*say)(const char*),bool& clos
     if(std::strncmp(line,"crouchwalk",10) && std::strncmp(line,"crouchscan",10) && !go)return false;
     if(go) line+=8; else if(!std::strncmp(line,"crouchwalk",10)) line+=10;
     if(!input_modernized()) {say("Crouch tests: Modernized profile only");return true;}
-    char text[160];
+    char text[224];
     if(!go && !std::strncmp(line,"crouchscan",10)) {
         int r=1536,g=64;std::sscanf(line+10,"%d %d",&r,&g);if(r<64)r=64;if(r>8192)r=8192;if(g<16)g=16;if(g>512)g=512;
         hull_scan_step.store(g);
@@ -277,8 +289,8 @@ bool crouch_console_command(const char* line,void (*say)(const char*),bool& clos
     int fwd=0,side=0,height=crouch_hull;
     if(std::strstr(line,"off") || std::sscanf(line,"%d %d %d",&fwd,&side,&height)<1) {hull_test_on.store(false);hull_test_fwd=hull_test_side=0;}
     else {hull_test_world.store(go);hull_test_fwd=fwd;hull_test_side=side;hull_test_height.store(height<0x100?0x100:height>0x800?0x800:height);hull_test_on.store(true);}
-    std::snprintf(text,sizeof text,"Crouch walk test %s (fwd %d side %d hull %d); probes %u moves %u blocked low %u wall %u ray %u slope %u edge %u object %u; stand %u refused %u",
+    std::snprintf(text,sizeof text,"Crouch walk test %s (fwd %d side %d hull %d); probes %u moves %u blocked low %u wall %u ray %u slope %u edge %u object %u; stand %u refused %u; squeezed %u",
                   hull_test_on.load()?"on":"off",hull_test_fwd,hull_test_side,hull_test_height.load(),hull_probes,hull_moves,hull_blocks[hull_low],hull_blocks[hull_wall],
-                  hull_blocks[hull_ray],hull_blocks[hull_slope],hull_blocks[hull_edge],hull_blocks[hull_object],stand_checks,stand_refusals);
+                  hull_blocks[hull_ray],hull_blocks[hull_slope],hull_blocks[hull_edge],hull_blocks[hull_object],stand_checks,stand_refusals,hull_squeeze_moves);
     say(text);close=hull_test_on.load();return true;
 }

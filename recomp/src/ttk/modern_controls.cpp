@@ -1130,16 +1130,20 @@ extern "C" void ttk_fast_timing_renew(void);
 // sheds high-refresh presents on a sustained deficit and steps back up when
 // emulation keeps up; the lease pauses only when nothing is left to shed.
 // Seconds that span a gap (menus, loads: 3 s or more between player updates)
-// and seconds while the overclock is paused are not judged.
+// and seconds while the overclock is paused are not judged. D17AR3 part 4:
+// nor are the 3 s after a savestate load (its catch-up is not the scene's
+// cost; judged, it halved high-refresh presents after loads).
 static void overclock_lease() {
     using clk=std::chrono::steady_clock;
-    static clk::time_point window_start,paused_until;static uint64_t window_frame;static unsigned pauses;
+    static clk::time_point window_start,paused_until,settle_until;static uint64_t window_frame;static unsigned pauses;
+    static uint32_t loads_seen=psx_mod_savestate_loads();
     const auto now=clk::now();const uint64_t frame=input_host_frame();
+    if(psx_mod_savestate_loads()!=loads_seen) {loads_seen=psx_mod_savestate_loads();settle_until=now+std::chrono::seconds(3);}
     if(window_start.time_since_epoch().count()==0 || frame<window_frame) {window_start=now;window_frame=frame;}
     const double dt=std::chrono::duration<double>(now-window_start).count();
     if(dt>=1.0) {
         const double rate=(frame-window_frame)/dt;
-        const int verdict=replay_load_window(dt>=3.0 || now<paused_until ? 2 : rate<57.0 ? 1 : 0);
+        const int verdict=replay_load_window(dt>=3.0 || now<paused_until || now<settle_until ? 2 : rate<57.0 ? 1 : 0);
         if(verdict>0) {
             if(++pauses<=20)std::fprintf(stderr,"[TTK cpu] emulation behind real time (%.1f frames/s): high-refresh presents reduced\n",rate);
         } else if(verdict<0) {

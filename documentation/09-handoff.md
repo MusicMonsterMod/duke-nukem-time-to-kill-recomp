@@ -1,5 +1,29 @@
 # Next-session handoff
 
+## 2026-10-31 - D17AR3 part 4 accepted; D17AR3 closed
+
+User: "this is great work. fully accepted." AUTO at the display's full
+refresh (up to 240), even step-down in heavy views, unjudged savestate loads
+and lighter-view probes are committed. D17AR3 is Accepted. Next renderer
+steps: D17AR5 (cheaper Polymorph redraw feed so slot 10's vista holds 180 Hz),
+D17AR6 (Classic / Polymorph in OPTIONS), D17AR4 (retire superseded portal
+patches).
+
+## 2026-10-31 - D17AR3 part 4: Polymorph, AUTO at the display's full refresh
+
+Part 3 committed and pushed (`49085e8`). The user named our renderer
+**Polymorph** and gave AUTO to the agent: "I want the best compatibility for
+the widest array of monitors." Their 180 Hz display had AUTO at 90. AUTO now
+uses every refresh up to 240 Hz (even fraction above), and the governor steps
+evenly to every 2nd/3rd refresh in heavy scenes; savestate loads are not
+judged for 3 s; retries of the faster rate wait until redraws are clearly
+cheaper or 30 clean seconds. Offscreen: 144/165 full everywhere except slot
+10's jetpack vista standing; 180 the same (vista steps to 90); 240 full in 7
+of 10 slots. The vista's limit is the main-thread redraw feed (46%, note 341
+profile): new D17AR5. New D17AR6: Classic / Polymorph choice in OPTIONS.
+Playtest: normal launch on the 180 Hz display (AUTO), slots 2 and 10, turning
+toward and away from heavy views, savestate loads. Note 341.
+
 ## 2026-10-31 - D17AR3 part 3 accepted; playtest backlog added
 
 User accepted the default switch, level 28, the sweep and revision 2 (club

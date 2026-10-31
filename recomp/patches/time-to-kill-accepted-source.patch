@@ -279,7 +279,7 @@ index 7406c39a..4010755e 100644
  }
  #endif
 diff --git a/runtime/include/mod_plugins.h b/runtime/include/mod_plugins.h
-index a1e4645e..d3e91e60 100644
+index a1e4645e..60955f45 100644
 --- a/runtime/include/mod_plugins.h
 +++ b/runtime/include/mod_plugins.h
 @@ -153,6 +153,127 @@ enum {
@@ -309,7 +309,7 @@ index a1e4645e..d3e91e60 100644
 +    uint64_t next_deadline;    /* counter value of the next present */
 +} PSXModPresentInfo;
 +typedef int (*PSXModPresentReplayFn)(const PSXModPresentInfo *info, void *user);
-+/* target_hz: -2 automatic (up to 120), -1 unlimited, 0 display, positive fixed. */
++/* target_hz: -2 automatic (up to 240), -1 unlimited, 0 display, positive fixed. */
 +int psx_mod_set_present_replay(PSXModPresentReplayFn fn, void *user, int32_t target_hz);
 +/* Present every d-th period of the replay rate (1..16); 1 = every period. */
 +void psx_mod_set_present_divisor(int d);
@@ -588,20 +588,22 @@ index 00000000..e34ef18e
 +#endif
 diff --git a/runtime/include/replay_rate.h b/runtime/include/replay_rate.h
 new file mode 100644
-index 00000000..c681fb39
+index 00000000..b2d66c00
 --- /dev/null
 +++ b/runtime/include/replay_rate.h
-@@ -0,0 +1,16 @@
+@@ -0,0 +1,18 @@
 +#ifndef PSX_REPLAY_RATE_H
 +#define PSX_REPLAY_RATE_H
 +#include <math.h>
-+/* AUTO uses a whole number of display refreshes per image, capped at 120.
-+ * Keep fractional refresh (119.88, 239.76, etc.) rather than rounding it.
++/* AUTO uses a whole number of display refreshes per image, capped at 240:
++ * every refresh up to 240 Hz, an even fraction above it (Time to Kill D17AR3
++ * part 4; the title's pacing drops to every 2nd or 3rd refresh, evenly, where
++ * a scene cannot keep up). Keep fractional refresh (119.88, 239.76, etc.).
 + * Unknown/invalid display modes fall back to 60 without assuming VRR. */
 +static inline double replay_resolved_hz(double requested, double host) {
 +    if (requested == -2.0) {
 +        if (!isfinite(host) || host < 1.0 || host > 1000.0) return 60.0;
-+        return host / ceil(host / 120.0);
++        return host / ceil(host / 240.0);
 +    }
 +    if (requested > 0.0) return requested;
 +    if (requested < 0.0) return 1000.0;
@@ -6172,7 +6174,7 @@ index 3a43a141..2d9ed690 100644
              if (horizon_kind == 2) {
                  s_extra_horizon_hits++;
 diff --git a/runtime/src/main.cpp b/runtime/src/main.cpp
-index fe317583..854a5205 100644
+index fe317583..b5f37184 100644
 --- a/runtime/src/main.cpp
 +++ b/runtime/src/main.cpp
 @@ -27,6 +27,7 @@
@@ -6516,7 +6518,7 @@ index fe317583..854a5205 100644
 +        s_mod_replay_saved_vsync = g_video_vsync;
 +        g_video_vsync = 0;
 +        std::fprintf(stdout, "psxrecomp: mod selected replay presentation (%s)\n",
-+                     target_hz == -2 ? "auto (up to 120 Hz)" : target_hz == 0 ? "display refresh" :
++                     target_hz == -2 ? "auto (up to 240 Hz)" : target_hz == 0 ? "display refresh" :
 +                     target_hz < 0 ? "unlimited" : "fixed rate");
 +    }
 +    return 1;

@@ -169,9 +169,10 @@ core, no host contention). Open: smoothness (D17AR3); the user's launch with
 
 #### D17AR3 - Regression sweep, performance and default switch
 
-**Status: In progress (parts 1-2 accepted 2026-10-30; part 3, default
+**Status: Accepted (parts 1-2 accepted 2026-10-30; part 3, default
 switch, level 28, regression sweep and its revision 2, accepted 2026-10-31;
-next: pushing the renderer and naming it; [note 338](documentation/338-d17ar3-host-visibility-performance.md),
+part 4, AUTO at the display's full refresh, accepted 2026-10-31, [note 341](documentation/341-d17ar3-auto-full-refresh.md);
+renderer named Polymorph; [note 338](documentation/338-d17ar3-host-visibility-performance.md),
 [note 339](documentation/339-d17ar3-redraw-only-live-frames.md),
 [note 340](documentation/340-d17ar3-host-visibility-default.md)).**
 User priority after the D17AR2 playtest: make host
@@ -264,11 +265,49 @@ the club back room "this rendition is perfect"; slot 10 at jetpack height
 "there is not one single indication of slow down ... we've really really
 succeeded"; "I'm extremely happy with the work and I accept this". D17AR3
 continues: pushing the renderer further and naming it.
+Closeout 2026-10-31: part 3 committed and pushed (`49085e8`). The user named
+the renderer **Polymorph** ("we're morphing the locked in n-space engine now
+to something far beyond it's 1998 bounds") and chose full 180 Hz as the push,
+then gave AUTO to the agent: "I'm allowing you to now own this. I want the
+best compatibility for the widest array of monitors."
+Work log 2026-10-31 (part 4, accepted the same day: "this is great work. fully
+accepted"): the player's 180 Hz display
+had AUTO at 90 (D17S `refresh / ceil(refresh / 120)`). AUTO now gives every
+refresh up to 240 Hz its own picture (an even fraction above: 360 -> 180);
+the existing governor drops evenly to every 2nd or 3rd refresh where a scene
+cannot keep up. Savestate loads no longer count as emulation behind for 3 s;
+after stepping down, the governor retries the faster rate only when the
+redraws are clearly cheaper (under 75% of the cost at the step down) or after
+30 clean seconds, and a failed retry returns after one slow second. Results
+(fixture routes, scale 4): final build 120 Hz 120 of 120 route seconds at full rate, 180 Hz 115 of 120 (only slot 10's vista); 144 and 165 full everywhere but slot 10's jetpack
+vista standing; 180 full except that vista (steps to 90, sometimes 60);
+240 full in 7 of 10 slots, the rest stepping to about 120. Cause in the vista
+(perf): drawing finished worker redraws into the GL renderer takes 46% of the
+main thread (3.5 ms a redraw), mostly per-primitive batcher work; workers,
+scale and GPU are not limits. That is D17AR5. Tests: auto-rate, profile,
+`ttk-near-test`, `ttk-input-test`, `ttk-controls-test` pass; patch
+re-exported and verified. Note 341.
 
 #### D17AR4 - Retire superseded portal patches
 
 **Status: Todo.** D17AQ open sky, D17P/D17Y portal widening and similar
 rules, once host visibility covers them.
+
+#### D17AR5 - Polymorph: cheaper redraw feed for 180 Hz in the heaviest views
+
+**Status: Todo.** Slot 10's jetpack vista falls to half the refresh at 180
+Hz: each finished worker redraw costs the main thread about 3.5 ms to draw
+into the GL renderer (46% of the thread; textured quad path, command
+dispatch, batch flushes, widescreen helpers; note 341 profile). Goal: about a
+third cheaper, or the feed off the emulation thread, so the vista holds 180
+with game speed at 60. Measure with `recomp/analysis/d17ar3p5/` probes.
+
+#### D17AR6 - Renderer choice in OPTIONS: Classic and Polymorph
+
+**Status: Todo.** The user named our renderer Polymorph (2026-10-31). Offer
+Classic (the original renderer) and Polymorph in OPTIONS > DISPLAY and the
+launcher, mapping to the existing switches (host visibility, unified
+geometry, near path, redraw-only); Vanilla stays Classic.
 
 ### D17AS - Slot-2 moat: large dark triangle in or under the water
 
@@ -1720,8 +1759,10 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D17AR | Host-owned world visibility (parent): the host decides what world geometry is drawn | In progress (AR1 done; AR2 accepted; AR3 parts 1-3 accepted) | D17AM, D17AQ; D17AR1-AR4 |
 | D17AR1 | Host visibility: inventory, data-format verification and design (report first) | Done (design approved 2026-10-30; note 336) | D17AM |
 | D17AR2 | Host visibility: implementation behind a developer switch | Accepted (visual playtest passed; performance to D17AR3) | D17AR1 |
-| D17AR3 | Host visibility: regression sweep, performance and default switch | In progress (parts 1-3 accepted; next: push the renderer and name it) | D17AR2 |
+| D17AR3 | Host visibility: regression sweep, performance and default switch | Accepted (parts 1-4; renderer named Polymorph; further speed in D17AR5) | D17AR2 |
 | D17AR4 | Host visibility: retire superseded portal patches (open sky, portal widening) | Todo | D17AR3 |
+| D17AR5 | Polymorph: cheaper redraw feed so the heaviest views hold 180 Hz | Todo | D17AR3 |
+| D17AR6 | Renderer choice in OPTIONS: Classic and Polymorph | Todo | D17AR3 |
 | D17AS | Slot-2 moat: large dark triangle in/under the water (research/screencaps/triangle.mp4) | Todo (report first) | D17AM |
 | D14F | 90-default / 120-maximum world FOV | Done (user-confirmed 2026-10-30) | Implemented in afd4ad6 (note 317); re-verified 2026-10-29 |
 | D17AE | Slot-11 sign post through door header | Done (user-confirmed 2026-10-29) | Scene depth for native world/scenery packets; replay precedence fix; world backface cull restored |

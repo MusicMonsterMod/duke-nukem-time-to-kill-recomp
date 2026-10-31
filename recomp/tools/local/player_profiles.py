@@ -561,7 +561,7 @@ def describe_steroids(value, key='R'):
 
 def describe_frame_rate(value):
     if value == 'auto':
-        return 'auto (display-aware rate up to 120 FPS; game speed unchanged)'
+        return 'auto (your display\'s refresh up to 240 FPS, half or a third where a scene cannot keep up; game speed unchanged)'
     if value == '60':
         return '60 (original presentation)'
     if value == 'display':

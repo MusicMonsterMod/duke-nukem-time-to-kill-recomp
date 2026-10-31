@@ -147,10 +147,13 @@ OPTIONS > DISPLAY > FRAME RATE, which applies as soon as you confirm, also
 after a launch at 60 (OpenGL renderer; with the software renderer it waits
 for the next launch):
 
-- `auto` (default for new Modernized settings): the highest evenly spaced
-  display rate up to 120 FPS. Examples: 60 Hz -> 60 FPS, 120 Hz -> 120,
-  144 Hz -> 72, 165 Hz -> 82.5, 180 Hz -> 90, 240 Hz -> 120. Displays
-  below 120 Hz use their refresh rate; unknown refresh falls back to 60.
+- `auto` (default for new Modernized settings): one picture for every
+  display refresh, up to 240 FPS. Examples: 60 Hz -> 60 FPS, 120 Hz -> 120,
+  144 Hz -> 144, 165 Hz -> 165, 180 Hz -> 180, 240 Hz -> 240; faster
+  displays use an even fraction (360 Hz -> 180). Where a scene is too heavy
+  for the computer to keep up, pictures drop evenly to every second or third
+  refresh (180 Hz -> 90 or 60) instead of slowing the game, and return to the
+  full rate once the view is lighter. Unknown refresh falls back to 60.
   AUTO follows display changes and preserves fractional rates such as 59.94.
   Existing saved choices stay selected; choose AUTO explicitly to try it.
 - `60`: the original presentation.
@@ -201,9 +204,10 @@ that lead adapts to recent slow redraws. This adds latency, especially in busy
 scenes. Shots and aiming still follow the game's own camera updates.
 Fixed-rate and Match Display modes retain the requested cadence. A missed
 deadline can still repeat an image. **D17A and D17B are player-accepted.**
-120 FPS is the primary quality/regression target; 180 FPS+ remains excellent
-high-refresh support, 240 FPS+ robustness/compatibility, and Unlimited a
-stress/debug mode. This does not cap rendering at 120 or change saved settings.
+120 and 180 FPS are the primary quality/regression targets (AUTO on 120 Hz
+and 180 Hz displays); 144 and 165 FPS are checked on every test save, 240
+FPS is supported with even steps down in heavy scenes, and Unlimited is a
+stress/debug mode.
 
 The original-style 60 setting normally presents roughly 30 new game images
 per second with repeated views. 120 is not secretly 60: it can render about

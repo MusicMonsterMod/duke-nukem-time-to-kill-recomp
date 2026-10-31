@@ -27,11 +27,11 @@ static void frame_interpolation_schedule_reset(int *p) {*p=0;}
         code += r'''
 int main(void) {
     double modes[][2]={{24,24},{50,50},{59.94,59.94},{60,60},{75,75},
-        {100,100},{119.88,119.88},{120,120},{144,72},{165,82.5},
-        {180,90},{239.76,119.88},{240,120},{360,120},{500,100}};
+        {100,100},{119.88,119.88},{120,120},{144,144},{165,165},
+        {180,180},{239.76,239.76},{240,240},{360,180},{480,240},{500,166.666666667}};
     for (unsigned i=0;i<sizeof(modes)/sizeof(modes[0]);++i) {
         double hz=replay_resolved_hz(-2,modes[i][0]);
-        assert(fabs(hz-modes[i][1])<0.00001 && hz<=120);
+        assert(fabs(hz-modes[i][1])<0.00001 && hz<=240);
         assert(fabs(modes[i][0]/hz-round(modes[i][0]/hz))<0.00001);
         s_rp_target_hz=-2;s_rp_next_deadline=100;s_rp_last_prefetch=50;s_rp_schedule=1;
         gl_renderer_set_replay_host_hz(modes[i][0]);
@@ -50,7 +50,7 @@ int main(void) {
     gl_renderer_set_replay_target_hz(-1);
     assert(replay_resolved_hz(-1,60)==1000);
     gl_renderer_set_replay_target_hz(-2);
-    assert(replay_resolved_hz(s_rp_target_hz,240)==120);
+    assert(replay_resolved_hz(s_rp_target_hz,240)==240);
 }
 '''
         with tempfile.TemporaryDirectory() as temp:

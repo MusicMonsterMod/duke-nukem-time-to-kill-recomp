@@ -17,7 +17,7 @@
 //     draws its stream into saved/restored VRAM and presents it.
 //
 // The live guest never sees a replay. DNTTK_FRAME_RATE selects the present
-// rate: auto (display-aware, capped at 120), display (the monitor's refresh), 30, 60 (the original presentation,
+// rate: auto (every display refresh up to 240, evenly divided above), display (the monitor's refresh), 30, 60 (the original presentation,
 // no replays), 120, 144, 165, 180, 240 or unlimited. Vanilla always runs 60.
 // DNTTK_FRAME_INTERP=off disables the redraws (developer, documentation/80).
 #include "cpu_state.h"
@@ -618,6 +618,7 @@ int pace_div=1, pace_clean=0, pace_backoff=1; uint64_t pace_presents=0, pace_bad
 double pace_last_ratio=0; uint64_t pace_mid=0;
 // D23H load shedding (replay_load_window): divisor steps it owns, its backoff.
 int shed_steps=0, shed_backoff=1, shed_bad=0, shed_clean=0, shed_since_probe=1000, shed_full_clean=0;
+double shed_feed_ms=0;  // D17AR3 part 4: redraw feed cost in the second that shed
 uint64_t shed_probes=0, shed_failed_probes=0;  // D23H: windows between 2% and 10%
 // D23H: every present-rate change goes to the session log with its reason,
 // and late_pace prints a summary each minute (presents/s, rate, backoff).
@@ -1242,6 +1243,7 @@ int cache_victim() {
 // take the time the game itself needs, wherever the tick happens.
 double tokens_ms=0.0;
 double feed_ms=1.5;     // recent main-thread cost of one redraw (EMA)
+double window_feed_sum=0; uint64_t window_feed_n=0;  // this second's redraw feeds (replay_load_window)
 uint64_t bucket_t=0;
 bool budget_ok(const PSXModPresentInfo* info) {
     if(!info->frequency) return false;
@@ -1273,6 +1275,7 @@ bool render(Frame& f,int index,const PSXModPresentInfo* info,bool due=false) {
     const double ms=(double)(SDL_GetPerformanceCounter()-t0)*1000.0/(double)info->frequency;
     tokens_ms-=ms;
     feed_ms+=(ms-feed_ms)*0.2;
+    window_feed_sum+=ms;++window_feed_n;
     if(!ok) {++failures;f.failed[index]=true;return false;}
     cache[c]={f.serial,index,++cache_clock};
     // The image is cached: free the worker job for the next submissions.
@@ -1743,22 +1746,32 @@ int replay_load_window(int window) {
     if(!replay_on || !interp_replay || !late_camera()) {shed_bad=shed_clean=0;return window==1 ? -1 : 0;}
     shed_steps=std::min(shed_steps,pace_div-1);  // Unlimited's late_pace shares the divisor
     ++shed_since_probe;
+    const double feed=window_feed_n>=10 ? window_feed_sum/(double)window_feed_n : 0.0;
+    window_feed_sum=0;window_feed_n=0;
     if(window==2) {shed_bad=0;shed_clean=0;return 0;}  // not a gameplay second (menu, load)
     if(window==1) {
         shed_clean=0;shed_full_clean=0;
-        if(++shed_bad<2) return 0;
+        // D17AR3 part 4: a step up that falls behind in its first seconds goes
+        // back after one slow second, so a probe costs the game less speed.
+        if(++shed_bad<(shed_since_probe<=10 ? 1 : 2)) return 0;
         shed_bad=0;
         if(pace_div>=(target_hz==-1 ? 16 : 3)) return -1;
         const bool failed_probe=shed_since_probe<=10;
         if(failed_probe) {shed_backoff=std::min(shed_backoff*2,16);++shed_failed_probes;}
         ++pace_div;++shed_steps;pace_clean=0;pace_presents=pace_bad=0;psx_mod_set_present_divisor(pace_div);++pace_changes;++emu_sheds;
+        shed_feed_ms=feed;
         shed_since_probe=1000;
         pace_log(failed_probe?"emulation behind, faster rate failed":"emulation behind",0,shed_backoff);
         return 1;
     }
     shed_bad=0;
     if(shed_steps>0) {
-        if(++shed_clean>=5*shed_backoff) {
+        // D17AR3 part 4: step back up once the view's redraws are clearly
+        // cheaper than when it shed (turned away from a heavy vista), or
+        // after a long clean run. Probing the same heavy view slowed the game
+        // for a second each time (slot 10's jetpack view at 180 Hz).
+        const bool lighter=feed>0.0 && shed_feed_ms>0.0 && feed<shed_feed_ms*0.75;
+        if(++shed_clean>=(lighter ? 5 : 30)*shed_backoff) {
             --pace_div;--shed_steps;shed_clean=0;shed_since_probe=0;++shed_probes;
             pace_clean=0;pace_presents=pace_bad=0;psx_mod_set_present_divisor(pace_div);++pace_changes;
             pace_log("emulation keeping up, trying faster",0,shed_backoff);

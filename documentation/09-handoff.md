@@ -1,5 +1,24 @@
 # Next-session handoff
 
+## 2026-10-31 - D17AR5 accepted and closed
+
+User: "fully accepted/ lock it in, close it out". The cheaper Polymorph
+redraw feed (note 342) is committed. Next renderer steps: D17AR6 (Classic /
+Polymorph in OPTIONS), D17AR4 (retire superseded portal patches).
+
+## 2026-10-31 - D17AR5: cheaper Polymorph redraw feed
+
+Each redraw now costs the main thread 24% less (4.0 -> 3.07 ms in slot 10's
+jetpack vista at 180 Hz): whole-command GP0 feed, per-feed answers for
+display info and the widescreen classifiers, 56-byte textured vertices, the
+census ring on live frames only, and the CPU VRAM array saved only when a
+redraw writes it. All exact. Unshed, the vista went from 43.5 to 59.1 game
+frames/s; with the default governor it held 180 in two long holds and in 4 of
+5 governed routes (margin about 1-3 frames/s over the 57 line). Route sweep:
+120 Hz full everywhere; 180 Hz 111 of 120 (part 4: 92 the same evening).
+Playtest: normal launch on the 180 Hz display, stand and turn in slot 10's
+vista, slot 2, a savestate load in a heavy view. Note 342.
+
 ## 2026-10-31 - D17AR3 part 4 accepted; D17AR3 closed
 
 User: "this is great work. fully accepted." AUTO at the display's full

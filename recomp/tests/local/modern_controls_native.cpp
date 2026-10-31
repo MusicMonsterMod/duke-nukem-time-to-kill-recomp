@@ -246,6 +246,7 @@ namespace ttk {bool anim_extra_clip(unsigned clip,uint32_t& first,uint32_t& coun
 }}
 // D23E: no high-refresh redraws in the harness; the overclock lease pauses.
 namespace ttk {int replay_load_window(int window){return window==1 ? -1 : 0;}}
+namespace ttk {bool live_frame_redraw_only(){return false;}}
 extern "C" void ttk_fast_timing_renew(void) {}
 static uint32_t save_loads;
 extern "C" uint32_t psx_mod_savestate_loads(void){return save_loads;}

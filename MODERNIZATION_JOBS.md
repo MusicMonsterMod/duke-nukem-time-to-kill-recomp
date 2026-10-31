@@ -295,12 +295,35 @@ rules, once host visibility covers them.
 
 #### D17AR5 - Polymorph: cheaper redraw feed for 180 Hz in the heaviest views
 
-**Status: Todo.** Slot 10's jetpack vista falls to half the refresh at 180
+**Status: Done (user-accepted 2026-10-31; closeout authorized).** Slot 10's jetpack vista falls to half the refresh at 180
 Hz: each finished worker redraw costs the main thread about 3.5 ms to draw
 into the GL renderer (46% of the thread; textured quad path, command
 dispatch, batch flushes, widescreen helpers; note 341 profile). Goal: about a
 third cheaper, or the feed off the emulation thread, so the vista holds 180
 with game speed at 60. Measure with `recomp/analysis/d17ar3p5/` probes.
+Work log 2026-10-31 (Needs playtest): the feed had no single hot spot; it
+repeated small costs for about 46,000 GP0 words and 7,600 triangles a redraw.
+Exact framework changes (same pictures, less work): recorded GP0 runs go in as
+whole commands instead of word by word; display info, the native-4:3
+classifier and the sprite-tag lookup are answered once while their inputs
+cannot change; the widescreen census ring records live primitives only;
+textured vertices are 56 bytes instead of 88 (small integers as
+non-normalized integers, shader unchanged); a redraw session saves the 1 MB
+CPU VRAM array only when something writes it. Slot 10's vista standing at 180
+(scale 4, shedding off, three alternating pairs): main thread per redraw 4.0
+-> 3.07 ms (24% lower; feed alone 20%), game 43.5 -> 59.1 fields/s, 158 ->
+179 presents/s. Default governor: two long holds kept 180 every interval
+(75 s, 45 s) at game 60; the governed route held 180 standing and turning in
+4 of 5 runs (one stepped to 90 at 57.0 frames/s just after the load). Margin
+over the governor's 57 line is about 1-3 frames/s with the desktop busy.
+Route sweep: 120 Hz 120 of 120 seconds full; 180 Hz 111 of 120 (part 4 build
+the same evening: 92 of 120). Vanilla renders normally. `ttk-near-test`,
+`ttk-input-test`, `test_auto_frame_rate.py` pass; `ttk-controls-test` gets
+its missing `live_frame_redraw_only` stub and then stops at an existing
+`movement_ready()` assertion that the part 4 executable fails too. Patch
+re-exported and verified. Not moved off the emulation thread. Note 342.
+Playtest 2026-10-31: accepted. User: "fully accepted/ lock it in, close it
+out". Committed and pushed.
 
 #### D17AR6 - Renderer choice in OPTIONS: Classic and Polymorph
 
@@ -1761,7 +1784,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D17AR2 | Host visibility: implementation behind a developer switch | Accepted (visual playtest passed; performance to D17AR3) | D17AR1 |
 | D17AR3 | Host visibility: regression sweep, performance and default switch | Accepted (parts 1-4; renderer named Polymorph; further speed in D17AR5) | D17AR2 |
 | D17AR4 | Host visibility: retire superseded portal patches (open sky, portal widening) | Todo | D17AR3 |
-| D17AR5 | Polymorph: cheaper redraw feed so the heaviest views hold 180 Hz | Todo | D17AR3 |
+| D17AR5 | Polymorph: cheaper redraw feed so the heaviest views hold 180 Hz | Done | D17AR3 |
 | D17AR6 | Renderer choice in OPTIONS: Classic and Polymorph | Todo | D17AR3 |
 | D17AS | Slot-2 moat: large dark triangle in/under the water (research/screencaps/triangle.mp4) | Todo (report first) | D17AM |
 | D14F | 90-default / 120-maximum world FOV | Done (user-confirmed 2026-10-30) | Implemented in afd4ad6 (note 317); re-verified 2026-10-29 |

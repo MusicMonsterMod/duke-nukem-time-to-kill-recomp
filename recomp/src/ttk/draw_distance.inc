@@ -319,7 +319,9 @@ static void draw_distance_apply(CPUState* cpu,uint32_t address,uint32_t ra) {
     const int32_t alternate=(int32_t)psx_mod_read_word(level_alternate);
     const int32_t mesh=fade+0x13d0;
     const int32_t far=(int32_t)psx_mod_read_word(view_limits+0x74);
-    if(fade<=0 || mesh>=0xffff || alternate<=0 || alternate>=0xffff) {++distance_refusals;return;}
+    // Level 28's own alternate limit (69511) is already past 0xffff; it is
+    // kept as the game sets it (extend_limit never lowers a limit).
+    if(fade<=0 || mesh>=0xffff || alternate<=0 || alternate>0xfffff) {++distance_refusals;return;}
     int32_t limit;
     if(far==mesh || far==extend_limit(mesh)) limit=extend_limit(mesh);
     else if(far==alternate || far==extend_limit(alternate)) limit=extend_limit(alternate);

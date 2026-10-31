@@ -1,5 +1,72 @@
 # Time to Kill — modernization jobs
 
+## 2026-10-31 - Playtest backlog: HUD art, decal stability, firing while climbing, first-person power-ups
+
+User, after accepting D17AR3 part 3 (2026-10-31): "this is exactly the game
+that I want to be playing". Observations recorded as jobs; none started. The
+swimming request in the same playtest is D08O5 (already on the board).
+
+### D19U2 - Borderless HUD: no black squares behind icons
+
+**Status: Todo. Dependencies: D19U1.** In Borderless (D19U1, `-` from Full)
+the box borders are removed (`widescreen.inc` zero-width box record
+`0x800c44a4`), but icons such as the health cross and the jetpack gadget icon
+still sit on an opaque black square; the ammo icon has none (offscreen
+check, fixture slot 10, `recomp/analysis/d17ar3p4/hud-b-crop.png`). The
+[ / ] switcher already draws the jetpack, Bio Mask and night-vision icons
+with transparent backgrounds, so suitable art is likely available. Inventory
+every Borderless element (native and our own boxes: health, armor, ammo,
+gadget, power-up and steroids countdowns, challenge item), find whether each
+square comes from the icon cell (CLUT colour 0 opaque, a filled cell) or a
+separate fill, and draw the contents without it, reusing switcher art where
+the native art has no transparent version. Full and Hidden unchanged; Vanilla
+unchanged. Visual review at the player's window sizes.
+
+### D17AT - Ground decals and small props stable on any surface
+
+**Status: Todo (report first). Dependencies: D17AM, D17K.** User: the shells
+on the ground in slot 12 (file 11, medieval canal) clip in and out as the
+water texture animates; ground blood in slot 11 (file 10) pops in and out
+when walking left and right over it; the blood in slot 7 (file 6, Family
+Jewels castle tower, across the jump) flickers. "I want our renderer to
+absolutely own that ... to never have this problem whatsoever." D17K fixed one
+case (floor ordering key); this is the general rule. Find for each case which
+path draws the decal or prop (game OT, host world pass, scene depth), where
+it is coplanar or nearly so with the surface under it, and what decides the
+order frame to frame (animated water texture swaps, host depth, OT slot). Then
+design one host rule that keeps a decal or small prop lying on a surface
+drawn over it at every distance, angle and frame rate, in every level, without
+showing it through walls. Private copies of the three saves; verify at 60 and
+120 Hz.
+
+### D08J6 - Firing while climbing (research first)
+
+**Status: Todo (research report first). Dependencies: D08J, D35E, D35F.** User:
+"the ability to shoot while climbing ... Duke stopping and then shooting and
+then you would be able to resume climbing". Example: slot 7 (file 6), the
+castle tower with two floating enemies near the climb. Duke's hands are on the
+ladder, chain or pole and are visible, so simultaneous climbing and firing is
+not expected. Expected direction: pressing fire while climbing stops the
+climb, draws the current weapon (fire draws it, as on land, D08E), aims and
+fires; climbing input resumes the climb (weapon stowed). Report first: how
+current games handle firing on ladders and other climbs (one-handed sidearm,
+hang-and-aim, automatic holster on resume), which fits TTK's animations and
+first/third person, what the game's climb states allow (mode 8, chains,
+poles, climbing walls), and a staged plan. Vanilla unchanged.
+
+### D36M - First-person power-up looks: invisibility, invincibility, Double Duke
+
+**Status: Todo. Dependencies: D36J, D08A17.** In third person Duke turns
+translucent while invisible and changes colour with invincibility and Double
+Duke; the first-person arms, legs and weapon do not. The user wants the
+first-person view to show the same: translucent while invisible, the power-up
+colour for invincibility and Double Duke, for as long as each lasts (the
+D08A17 countdowns already show the time). Find how the game marks the model
+for each power-up (render flags, semi-transparency, colour), apply the same
+to the first-person body and weapon presentation (D36 ownership, note 257's
+fade rules preserve intentional translucency), and keep the Bio Mask and
+night-vision overlays correct. Vanilla unchanged.
+
 ## 2026-10-30 - Swimming: left click does not draw a holstered weapon (D08O5)
 
 ### D08O5 - Left click draws a holstered weapon while swimming
@@ -13,7 +80,9 @@ responsive holstered fire); D08Q7 fixed the same gap for jetpack flight.
 Vanilla unchanged. Reproduce with the player's real input in water (a
 private copy of a swimming save), find where the swim states skip the
 ground holstered-fire draw path, and verify draw, then fire, at surface and
-underwater.
+underwater. Asked again in the 2026-10-31 playtest: "when you go into the
+water I want to be able to draw the weapon when you start firing even if your
+weapon is lowered".
 
 ## 2026-10-30 - Host-owned world visibility (D17AR) and water triangle (D17AS)
 
@@ -100,9 +169,11 @@ core, no host contention). Open: smoothness (D17AR3); the user's launch with
 
 #### D17AR3 - Regression sweep, performance and default switch
 
-**Status: In progress (part 1, performance, and part 2, redraw-only live
-frames, accepted 2026-10-30; next: the default switch and the rest below; [note 338](documentation/338-d17ar3-host-visibility-performance.md),
-[note 339](documentation/339-d17ar3-redraw-only-live-frames.md)).**
+**Status: In progress (parts 1-2 accepted 2026-10-30; part 3, default
+switch, level 28, regression sweep and its revision 2, accepted 2026-10-31;
+next: pushing the renderer and naming it; [note 338](documentation/338-d17ar3-host-visibility-performance.md),
+[note 339](documentation/339-d17ar3-redraw-only-live-frames.md),
+[note 340](documentation/340-d17ar3-host-visibility-default.md)).**
 User priority after the D17AR2 playtest: make host
 visibility silky smooth at 120 Hz (slot 10 and the moat dip to every second
 refresh). Also: level 28 never engages; check why the user's
@@ -156,6 +227,43 @@ inventory, level changes, split screen (playtest).
 Playtest 2026-10-30 (part 2): "it feels unbelievably smooth." Part 2 accepted
 and committed. D17AR3 continues: host visibility default switch, level 28, the
 full regression sweep, then pushing the renderer further and naming it.
+Work log 2026-10-30 (part 3, Needs playtest): host world visibility is on by
+default in Modernized (Extended draw distance, unified geometry, near path
+live); `DNTTK_HOST_VISIBILITY=0` (developer) turns it off, console `hostvis`
+still overrides. Level 28: its own alternate room limit is 69511, past
+0xffff, and the draw-distance check refused it every frame; now accepted and
+kept as the game sets it, so the extended limits and the host pass run there
+(about 61 host pieces a frame, none handed back). Sweep: 21 levels x 5 views x
+5 configurations (FOV 60/90/120, 4:3 and 16:9, first and third person, 60 Hz
+matched host off/on/off): engaged in all 525 views, no refusals, no pieces
+handed back, no piece data changes; the 8 views above noise are gameplay
+events and animation, checked by eye. Fixture routes (10 slots, still/turn/
+walk, scale 4, default build, no environment): 120 Hz 180 of 180 seconds at
+full rate (same as host off), 60 Hz all engaged, 120 Hz FOV 120 4:3 180 of
+180 (one route without host frames: Duke killed, death camera at 4:3 uses the
+game's walk); redraw-only engaged in every 120 Hz route. Vanilla: no
+draw-distance or host frames. `ttk-near-test`, `ttk-input-test` pass; no
+framework changes. Seen, not visibility: level 28 sky drawn as a box with
+black around it in some views (host off the same).
+Playtest 2026-10-31 (part 3): performance and visuals "looking great", with
+regressions: muzzle-flash light stuck on the ground (slot 12), the slot-4
+club garbled, slow and then halted (GP0 0x1F). Work log 2026-10-31 (revision
+2, Needs playtest): the club failure dates from D17AR2's two-region packet
+arena (same with every switch off; fine before D17AR2): in the club three
+passes a frame each started a new region, so the frame overwrote its own
+packets. Now the first reset after a flip picks the frame's region and later
+ones append (carried to the workers). The stuck light: a redraw-only live
+frame drew no pieces, so the renderer's vertex light-mark clear never ran in
+live RAM; it now applies that clear to its selected pieces. Club at 120 Hz
+scale 4: 16 of 16 seconds at full rate, drawn correctly; light clears after
+firing. Canary, level sweep, 120 Hz routes and `ttk-near-test` clean. Note
+340.
+Playtest 2026-10-31 (part 3, revision 2): accepted. User: "there's no issue
+there with the club ... no problems there with the muzzle flash either";
+the club back room "this rendition is perfect"; slot 10 at jetpack height
+"there is not one single indication of slow down ... we've really really
+succeeded"; "I'm extremely happy with the work and I accept this". D17AR3
+continues: pushing the renderer further and naming it.
 
 #### D17AR4 - Retire superseded portal patches
 
@@ -1609,10 +1717,10 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D17AO | Slot-11 ceiling hole showing the sky (level 6) | Deferred (authored level gap; no action now, possible future level-data fix) | D17AM; note 327 |
 | D17AP | Slot-9 grave-dig soil corners flashing again (D17X recurrence) | Done (user-confirmed 2026-10-30) | D17X, D17AM; note 327 |
 | D17AQ | Slot-10 jetpack height: level sections pop in and out while turning (room visibility) | Needs playtest (B max limit, A open sky, dormant enemies (C1 withdrawn); note 335) | D17AM, D14F |
-| D17AR | Host-owned world visibility (parent): the host decides what world geometry is drawn | In progress (AR1 done; AR2 accepted; AR3 in progress: performance part 1) | D17AM, D17AQ; D17AR1-AR4 |
+| D17AR | Host-owned world visibility (parent): the host decides what world geometry is drawn | In progress (AR1 done; AR2 accepted; AR3 parts 1-3 accepted) | D17AM, D17AQ; D17AR1-AR4 |
 | D17AR1 | Host visibility: inventory, data-format verification and design (report first) | Done (design approved 2026-10-30; note 336) | D17AM |
 | D17AR2 | Host visibility: implementation behind a developer switch | Accepted (visual playtest passed; performance to D17AR3) | D17AR1 |
-| D17AR3 | Host visibility: regression sweep, performance and default switch | In progress (parts 1-2 accepted: performance, redraw-only live frames; next: default switch, level 28, sweep) | D17AR2 |
+| D17AR3 | Host visibility: regression sweep, performance and default switch | In progress (parts 1-3 accepted; next: push the renderer and name it) | D17AR2 |
 | D17AR4 | Host visibility: retire superseded portal patches (open sky, portal widening) | Todo | D17AR3 |
 | D17AS | Slot-2 moat: large dark triangle in/under the water (research/screencaps/triangle.mp4) | Todo (report first) | D17AM |
 | D14F | 90-default / 120-maximum world FOV | Done (user-confirmed 2026-10-30) | Implemented in afd4ad6 (note 317); re-verified 2026-10-29 |
@@ -1762,6 +1870,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08J4 | Ceiling monkey-bar climbing: camera-relative travel, no mid-span drops (player UI slot 3) | Done (user-accepted; closed 2026-10-30) | D08J, D22B |
 | D08J3 | Free camera while on ladders, poles and chains (investigation + usability testing) | Done (user-accepted; closed 2026-10-30) | D06, D08J |
 | D08J5 | Climb down chains (and poles): reach the bottom and let go or step off (player UI slot 3) | Done | D08J2, D08J3 |
+| D08J6 | Firing while climbing: stop, draw, fire, resume (research first) | Todo (research first) | D08J, D35E, D35F |
 | D08V1 | Modernized controls lost for the rest of the session after a missed chain jump; modern controls must never be lost | Done | D08V, D08J5 |
 | D08A29 | Scroll-wheel weapon changes while running | Done (user-accepted) | D08A, D08AA |
 | D08A30 | Reverse weapon-wheel direction: up advances, down goes back | Done (user-accepted) | D08A29 |
@@ -1806,6 +1915,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D17I | Unlimited stale-camera scheduling episodes | Done (user-accepted 2026-10-22; no action necessary) | D17B |
 | D17J | Verify older isolated visual reports against accepted baseline | Done (user-verified 2026-10-22; no action necessary) | D17A |
 | D17K | Coplanar ground blood in save slot 12 | Done (user-accepted; closed 2026-10-30) | D17D |
+| D17AT | Ground decals and small props stable on any surface (slots 12, 11, 7) | Todo (report first) | D17AM, D17K |
 | D17L | Tabletop props cut off on approach/retreat in save slot 11 | Done | D17D |
 | D17M | Shotgun ammo visible through ladder platform | Done (user-accepted 2026-10-22) | D17D |
 | D17M1 | Upper ladder visible through platform (updated UI slot 10) | Done (user-accepted 2026-10-22) | D17M |
@@ -1860,6 +1970,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D19Z3 | Implement the approved custom menu cursor | Todo (backlog only) | D19Z2, D19Z core pointer support |
 | D19U | Live minus/plus status-bar controls | Done (user-accepted) | D04, D19N |
 | D19U1 | Borderless status bars and three-level HUD selection | Done (user-accepted) | D19U |
+| D19U2 | Borderless HUD: no black squares behind icons | Todo | D19U1 |
 | D19L | Menus stay up and responsive while demo scenes load behind the title menu (no blank spinner gap) | Done (user-accepted 2026-10-19 with D19O) | D19J, D19E |
 | D19M | QUIT GAME menu item that closes the whole program (pause list, death list, title main menu), with a YES / NO prompt | Done (user-accepted 2026-10-19; title item in D19J, accepted) | D19H |
 | D19O | Frontend redraws flash back to the previous menu image after a change (PRESS START -> main menu: 13 presents of PRESS START; also in the original menus) | Done (user-accepted 2026-10-19) | D19C, D19J |
@@ -1977,6 +2088,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D36I1 | Slot-5 mirror grooming arm continuity | Done | D36G/I |
 | D36J | Coherent body and quick-kick leg presentation | Done (user-accepted 2026-10-26) | D36G, D36H |
 | D36K | Traversal and special-action visual coverage | Done | D36G, D36H, D36I, D36J |
+| D36M | First-person power-up looks: invisibility translucent, invincibility and Double Duke colours | Todo | D36J, D08A17 |
 | D37 | Temporary movement failure at 07:26 UK on 2026-10-26 (separate research) | Done | - |
 | D37A | Safe animation restoration across save allocation layouts | Done (user-accepted 2026-10-26) | D37 |
 | R01 | DisruptorRecomp architecture and modernization reference research | Done | - |

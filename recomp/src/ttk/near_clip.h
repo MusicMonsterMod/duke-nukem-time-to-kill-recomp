@@ -27,7 +27,9 @@ void near_clip_frozen_tint();
 // the next (packet budget, held weapon packets). A render replay worker loads
 // the live frame's value so its redraws take the same decisions.
 // host_region: the D17R1 host packet arena region the frame writes.
-struct NearClipFrameState { uint32_t first_cursor,host_bytes,held_frame,host_region; };
+struct NearClipFrameState { uint32_t first_cursor,host_bytes,held_frame,host_region; bool region_chosen; };
+// Every flip (0x8001fcbc) ends a displayed frame's packet region.
+void near_clip_flip();
 // Reserve draw-time scratch before replay workers fork.
 void near_clip_prepare();
 NearClipFrameState near_clip_frame_state();
@@ -38,6 +40,9 @@ void near_clip_counters(uint64_t out[8]);
 // D17AR2 host visibility. True when a room-walk piece would be drawn here
 // whole (Modernized unified geometry with the near path live).
 bool near_clip_host_world_live();
+// The one RAM effect drawing a world piece in a non-flat room has (the
+// colour-index nibble clear), for a redraw-only live frame that draws none.
+void near_clip_host_world_unlit(uint32_t mesh);
 // Draws one world piece (cpu: a0 mesh, a1-a3 and ra as the room walk's call,
 // GTE and render context set for its room) as the room walk would. False when
 // it is left to the game's own walk (the frame cannot afford it).

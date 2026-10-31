@@ -273,6 +273,12 @@ so flying high with the jetpack showed pieces of the level popping in and out
 as you turned. With `extended`, outdoor areas you can see over the walls are
 drawn whole. Some spots stay black because the level has no scenery there.
 
+With `extended` the game no longer decides which parts of the level are drawn
+from the openings it can see through: every surface in view is drawn, in every
+level, so scenery does not pop in and out or get cut off at the screen edges
+as you turn, walk or fly. Enemies, doors and everything else still play as in
+the original.
+
 The original also creates enemies only when you come within its own short view
 range and removes them past it, which `extended` would show in the open. With
 `extended`, enemies are placed out to the new view limit, as in Duke 3D: a

@@ -1,5 +1,6 @@
-// D17AR2 host-owned world visibility (developer switch DNTTK_HOST_VISIBILITY=1;
-// design: documentation/336-d17ar1-host-visibility-design.md). Modernized
+// D17AR2 host-owned world visibility (on by default since D17AR3; developer
+// DNTTK_HOST_VISIBILITY=0 turns it off; design:
+// documentation/336-d17ar1-host-visibility-design.md). Modernized
 // Extended draw distance with unified geometry only; Vanilla and "original"
 // never reach it.
 //
@@ -65,7 +66,7 @@ static uint32_t host_vis_last_rooms=0,host_vis_last_pieces=0,host_vis_last_game=
 // (RenderState), so high-refresh frames follow the toggle too.
 static std::atomic<int> host_vis_override{-1};
 static bool host_visibility_enabled() {
-    static const bool v=[]{const char* t=std::getenv("DNTTK_HOST_VISIBILITY");return t && !std::strcmp(t,"1");}();
+    static const bool v=[]{const char* t=std::getenv("DNTTK_HOST_VISIBILITY");return !(t && !std::strcmp(t,"0"));}();
     const int o=host_vis_override.load(std::memory_order_relaxed);
     return o<0 ? v : o!=0;
 }
@@ -230,7 +231,7 @@ static bool host_vis_walk(CPUState* cpu) {
     // The session log records the switch (the environment and console are not).
     static int logged=-1;
     const int on=host_visibility_enabled();
-    if(on!=logged) {std::fprintf(stderr,"[TTK hostvis] host world visibility %s (developer switch)\n",on?"on":"off");logged=on;}
+    if(on!=logged) {std::fprintf(stderr,"[TTK hostvis] host world visibility %s\n",on?"on":"off");logged=on;}
     if(!on || !near_clip_host_world_live()) return false;
     if(!psx_mod_read_word(0x800c3c8c)) return false; // the walk draws nothing either
     if(!code_identity(host_vis_guards,host_vis_words)) {++host_vis_refusals;return false;}
@@ -319,9 +320,15 @@ static bool host_vis_walk(CPUState* cpu) {
     unsigned pieces_drawn=0;uint32_t current=~0u,flags=0x300;
     // D17AR3: a redraw-only live frame is never shown (frame_replay.cpp); its
     // selection stands (rooms for the props and object passes), no piece is
-    // emitted and none goes back to the game's walk.
+    // emitted and none goes back to the game's walk. Drawing would also have
+    // cleared the pieces' vertex light marks (a muzzle flash sets them); the
+    // redraw workers copy this RAM, so without the clear the light stayed on.
     const bool redraw_only=live_frame_redraw_only();
-    if(redraw_only) {pieces_drawn=(unsigned)picks.size();host_vis_redraw_only+=picks.size();picks.clear();}
+    if(redraw_only) {
+        for(const Pick& k:picks)
+            if(!flat && !(psx_mod_read_word(table+k.room*88+12)&2)) near_clip_host_world_unlit(k.piece);
+        pieces_drawn=(unsigned)picks.size();host_vis_redraw_only+=picks.size();picks.clear();
+    }
     for(const Pick& k:picks) {
         if(k.room!=current) {
             // The room's state as the walk sets it (0x80062bd8..0x80062d00).
@@ -425,6 +432,6 @@ bool hostvis_console_command(const char* line,void (*say)(const char*),bool& clo
         else if(!std::strcmp(v,"default")) host_vis_override=-1;
         else {say("Usage: hostvis [on|off|default] (developer, session only)");return true;}
     }
-    say(host_visibility_enabled()?"Host world visibility on (developer).":"Host world visibility off.");
+    say(host_visibility_enabled()?"Host world visibility on.":"Host world visibility off (developer).");
     return true;
 }

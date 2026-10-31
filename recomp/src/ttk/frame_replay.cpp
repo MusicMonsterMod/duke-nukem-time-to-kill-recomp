@@ -922,6 +922,7 @@ void redraw_only_decide(bool gameplay) {
 // when the composition before this flip was engaged, so a frame drawn
 // without one (pause, menus, loading) never inherits it.
 void redraw_only_flip(CPUState*,uint32_t) {
+    near_clip_flip();
     if(psx_mod_replay_active()) return;
     psx_mod_live_draw_skip_arm(redraw_only_submit);
     if(redraw_only_submit) redraw_only_trace("flip armed");

@@ -1,5 +1,39 @@
 # Current status - 2026-10-04
 
+## 2026-10-31 - D17AR3 part 3 accepted; playtest backlog added
+
+User accepted the default switch, level 28, the sweep and revision 2 (club
+and muzzle-flash fixes): "I'm extremely happy with the work and I accept
+this." Not yet committed. New jobs from the playtest: D19U2 (Borderless HUD
+black squares), D17AT (ground decals and small props flickering, slots 12,
+11, 7), D08J6 (firing while climbing, research first), D36M (first-person
+power-up looks); D08O5 (draw while swimming) re-requested. D17AR3 continues
+with pushing the renderer further and naming it.
+
+## 2026-10-31 - D17AR3 part 3 revision 2: club crash and stuck flash light fixed (Needs playtest)
+
+From the user's playtest. Slot 4 club (garbled screen, slowdown, GP0 halt):
+a D17AR2 regression in the host packet arena, independent of the switches. In
+the club three passes a frame each started a new region of two, so the frame
+overwrote its own packets. Now one region per displayed frame (chosen at the
+first reset after a flip). Club at 120 Hz scale 4: full rate, drawn
+correctly. Muzzle-flash light stuck on the ground (slot 12): redraw-only live
+frames skipped the renderer's vertex light-mark clear; they now apply it.
+Canary, level sweep, 120 Hz routes and the native test are clean. No machine
+contention in the playtest window. Note 340.
+
+## 2026-10-30 - D17AR3 part 3: host visibility on by default, level 28 (Needs playtest)
+
+Host world visibility is now on by default in Modernized (no environment
+needed; `DNTTK_HOST_VISIBILITY=0` is the developer off switch). Level 28 never
+engaged because its own room limit (69511) is past 0xffff and the
+draw-distance check refused it; it is now accepted, and level 28 draws through
+the host pass. Regression sweep: 525 matched views (21 levels, FOV 60/90/120,
+4:3 and 16:9, first and third person) engaged with no refusals or missing
+geometry; 10 fixture slots x still/turn/walk at 120 Hz scale 4 at full rate
+in every second (as with host off), 60 Hz clean, Vanilla untouched. Needs
+the user's playtest at their settings. Note 340.
+
 ## 2026-10-30 - D17AR3 part 2 accepted
 
 User playtest of redraw-only live frames: "it feels unbelievably smooth."

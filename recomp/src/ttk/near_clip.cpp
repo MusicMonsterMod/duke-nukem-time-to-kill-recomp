@@ -125,6 +125,17 @@ bool unified() {
     static const bool v=env_int("DNTTK_UNIFIED_GEOMETRY",1,0,1)==1;
     return v && input_modernized();
 }
+// The vertex pass of the mesh renderer (0x80011170) clears the colour-index
+// nibble of every vertex it reads (vertex groups of three). Lights such as the
+// muzzle flash set it on the vertices they reach, so a mesh that is never
+// drawn keeps its light.
+void clear_color_index(uint32_t mesh,unsigned count) {
+    const unsigned read_verts=(count+2)/3*3;
+    for(unsigned i=0;i<read_verts;++i) {
+        const uint32_t b=mesh+0x1c+8*i+3;const uint8_t v=psx_mod_read_byte(b);
+        if(v&0xf) psx_mod_write_byte(b,v&0xf0);
+    }
+}
 constexpr unsigned max_depth=12;
 // Packet arena (D17R1). Host packets have their own arena in the GPU DMA
 // aperture (24-bit OT links reach it), never the game's render ring (ctx+4..+8,
@@ -214,6 +225,15 @@ uint32_t held_frame;
 // frame's packets do not occupy, in either layout.
 constexpr uint32_t mirror_tag=4;
 uint32_t host_arena_base,host_region,region_mirror,region_loads;
+// A displayed frame's packets all go in one region (see the arena above).
+// Besides the composition, a pass that starts on an empty OT (the world
+// renderer called from 0x80037c54 and the object filter from 0x80038c94 in
+// the level-0 club, D17AR3) also resets the frame; rotating at each of them
+// took three regions a frame there, so with two the frame's last pass
+// overwrote its first before the GPU drew it (garbage lines, then GP0 0x1F /
+// 0xFD halts). The first reset after a flip picks the frame's region; later
+// ones keep appending to it. Cleared by near_clip_flip().
+bool region_chosen=false;
 void region_mirror_store() {if(region_mirror) psx_mod_write_word(region_mirror,host_region+mirror_tag);}
 uint32_t region_after(uint32_t mirrored) {
     if(mirrored>=mirror_tag && mirrored<mirror_tag+host_regions) return (mirrored-mirror_tag+1)%host_regions;
@@ -250,15 +270,17 @@ void region_after_load() {
     held_packets.clear();scene_depth_cancel();
     if(!region_mirror) return;
     host_region=region_after(psx_mod_read_word(region_mirror));
-    frame_host_bytes=0;
+    frame_host_bytes=0;region_chosen=true;
     region_mirror_store();
 }
-// A new frame's packets start a fresh region; an unused one is kept.
+// A new frame's packets start a fresh region; an unused one is kept. Later
+// resets before the next flip continue in the same region.
 void measure_rollover();
 void host_frame_reset() {
     measure_rollover();
+    if(region_chosen) return;
     if(frame_host_bytes) host_region=(host_region+1)%host_regions;
-    frame_host_bytes=0;
+    frame_host_bytes=0;region_chosen=true;
     region_mirror_store();
 }
 // D17AM2: a frame's region is its host block plus its Bio Mask space (one
@@ -1100,11 +1122,7 @@ void world(CPUState* cpu) {
     }
     // The original clears the color-index nibble of every vertex it reads
     // (0x80011170); it now reads the copy, so apply that to the real mesh.
-    if(!(flags&2))
-        for(unsigned i=0;i<read_verts;++i) {
-            const uint32_t b=mesh+0x1c+8*i+3;const uint8_t v=psx_mod_read_byte(b);
-            if(v&0xf) psx_mod_write_byte(b,v&0xf0);
-        }
+    if(!(flags&2)) clear_color_index(mesh,count);
     // D17AQ: with every face drawn here the copy has no polygons left, but
     // the original would still transform all its vertices (RTPT) for nothing.
     // A null mesh returns at once (0x80011020); the nibble clear above is the
@@ -1746,6 +1764,10 @@ void hook(CPUState* cpu,uint32_t address) {
 }
 }
 
+void near_clip_host_world_unlit(uint32_t mesh) {
+    const unsigned count=psx_mod_read_half(mesh+0x14);
+    if(count && count<=1024 && mesh>=0x80010000u && mesh+0x1c+8*((count+2)/3*3)<=0x80200000u) clear_color_index(mesh,count);
+}
 bool near_clip_host_world_live() {
     const bool clip_live=first_person_view_live() || third_person_camera_live() || widescreen_near_clip_live();
     return clip_live && (renderers()&1) && unified() && identity();
@@ -1780,10 +1802,11 @@ void near_clip_prepare() {
         }
     }
 }
-NearClipFrameState near_clip_frame_state() {return {frame_first_cursor,frame_host_bytes,held_frame,host_region};}
+void near_clip_flip() {region_chosen=false;}
+NearClipFrameState near_clip_frame_state() {return {frame_first_cursor,frame_host_bytes,held_frame,host_region,region_chosen};}
 void near_clip_load_frame_state(const NearClipFrameState& s) {
     frame_first_cursor=s.first_cursor;frame_host_bytes=s.host_bytes;held_frame=s.held_frame;host_region=s.host_region%host_regions;
-    held_packets.clear();
+    region_chosen=s.region_chosen;held_packets.clear();
 }
 
 void near_clip_viewmodel_flush() {

@@ -28,6 +28,9 @@ bool hold_button_sampled();
 bool interaction_restore_ready();
 /* D08O3: the E redraw in the native swim states (surface / underwater). */
 bool interaction_swim_restore_ready();
+/* D08O5: fire draws a holstered weapon in the native swim states. */
+bool swim_fire_draw_ready();
+bool swim_fire_cross_masked();
 bool interaction_alive();
 bool interaction_holster_ready();
 bool weapon_drawn();

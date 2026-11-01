@@ -590,7 +590,7 @@ reaching the next ladder, then use W to climb once attached. The automatic holst
 and redraw still apply; you do not need C for a transfer. Original collision and
 traversal rules determine whether a surface can be caught.
 If you deliberately holster with Scroll Lock, E leaves it holstered. In supported ground
-states and settled jetpack flight, **left-click draws the selected weapon; keep holding to fire**. A quick
+states, settled jetpack flight and swimming, **left-click draws the selected weapon; keep holding to fire**. A quick
 click released during drawing leaves it drawn without firing a delayed shot.
 Boot retains its unarmed attack. Ordinary ground draw/holster animations run at
 1.5x; E-owned airborne stow and its final blend use a bounded 4x animation budget; original firing speed is unchanged. On supported ladders and ledges, **W/S** feed
@@ -1131,8 +1131,13 @@ Number keys, **'** / **;** and the mouse wheel switch weapons in the water too,
 but only between the weapons the original allows there (Desert Eagle,
 Combat Shotgun, Gatling Gun / Laser Gatling, Buffalo Rifle, Crossbow and Pipe
 Bomb); the others (Boot, knife, axe, RPG, Energy Weapon, Flamethrower,
-Freezer, Dynamite, Holy Hand Grenade) are skipped. Holstered, fire does nothing
-underwater, as in the original. First person stays active in the water (D11E).
+Freezer, Dynamite, Holy Hand Grenade) are skipped. With the weapon holstered,
+**left-click draws it on the surface and underwater, as on land; keep holding
+to fire** (D08O5). A quick click only draws. If the holstered weapon is one
+the water does not allow, the game's own water substitute is drawn (for
+example the Crossbow); with none available, fire does nothing. Swimming
+strokes keep going while the weapon comes out. Vanilla keeps the original
+(holstered fire does nothing in water). First person stays active in the water (D11E).
 
 **Modernized jetpack**: **J** immediately starts flight. From the ground it
 gives a short automatic lift, then hovers. During a jump or fall it arrests

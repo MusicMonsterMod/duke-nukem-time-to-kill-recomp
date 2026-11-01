@@ -1544,6 +1544,10 @@ uint16_t input_pad() {
         value |= 16384;
         circle_request=true;
     }
+    // D08O5: in water the draw is the original weapon request (select_weapon),
+    // not Circle; unarmed Cross stays off until the weapon is out.
+    if(captured && action_down(fire) && !action_down(holster) &&
+       !action_down(interact) && swim_fire_cross_masked()) value |= 16384;
     // Keep the persisted action ID/binding. In supported Modernized locomotion
     // it is the speed modifier: default walk, Shift run, Caps Lock reverses it.
     if (locomotion && !short_fall_input_ready() && !wade_full_speed_ready() &&

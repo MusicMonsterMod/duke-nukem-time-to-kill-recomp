@@ -1,5 +1,23 @@
 # Next-session handoff
 
+## 2026-11-01 - D08O5 accepted and closed; D14G queued
+
+User: "very good work!! i can confirm it works." D08O5 is Done (note 345).
+New backlog job D14G: in first-person swimming with the weapon holstered the
+arms look disembodied. Intake research reproduced loose forearms/hands
+during surface strokes; lead: the D36H4 unarmed Body rule excludes the
+Swimming action. Not started.
+
+## 2026-11-01 - D08O5: left click draws a holstered weapon while swimming (Needs playtest)
+
+Modernized: on the surface and underwater, holstered left click draws the
+weapon (the original water weapon request, so strokes keep going) and held
+fire then shoots; a quick click only draws; a weapon the water refuses takes
+the game's water substitute. Unarmed Cross stays off while stowed, so fire
+never climbs out (E does). Vanilla unchanged. Playtest: swim holstered, hold
+or click left mouse underwater, on the surface and while swimming, in both
+views; at a ledge E still climbs out. Note 345.
+
 ## 2026-11-01 - D17AR4 accepted and closed
 
 User tested the slot-8 castle jump in both renderers: "ready to accept this,

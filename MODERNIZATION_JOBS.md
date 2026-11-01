@@ -67,11 +67,47 @@ to the first-person body and weapon presentation (D36 ownership, note 257's
 fade rules preserve intentional translucency), and keep the Bio Mask and
 night-vision overlays correct. Vanilla unchanged.
 
+## 2026-11-01 - Swimming: holstered arms projection (D14G)
+
+User, accepting D08O5 (2026-11-01): "when swimming with the weapon holstered,
+duke's arms show a weird projection. i think we did some significant work to
+arms projections in high fov but this must have been missed off". Recorded
+only; not started.
+
+### D14G - Holstered swimming arms look disembodied in first person
+
+**Status: Todo. Dependencies: D11E, D36H4, D14B, D08O5.** User: in
+first-person swimming with the weapon holstered "the arms looks disembodied"
+(a "weird projection"). Read note 257 (D36) and notes 305/306 (D36H5) first.
+
+Intake research (2026-11-01, private slot-2 moat copy, first person, 60 Hz,
+offscreen; `recomp/analysis/d08o5/shots/sheet.png`, local only): holstered
+underwater idle and strokes showed no arms in the sampled frames. During
+surface strokes, separate forearm/sleeve and hand pieces appear low on the
+screen with no shoulder, upper arm or torso connecting them. Source lead:
+the D36H4 unarmed rule in `first_person.inc` (`ra == 0x80034c6c`) claims
+the spine/torso parts and unarmed arm parts 10-15 as `Body` (world clipping
+admission plus the 120-unit screen-down framing). It only runs for the Ground,
+Committed, Fall and Jetpack actions, not `PerspectiveAction::Swimming`. So
+swimming holstered arms keep native ownership while the D11E eye is
+root-anchored inside the pitched swim body. These are world-projection
+limbs; the D14B fixed projection (DisplayArm/DisplayHand) applies only to
+armed display arms, so a high-FOV projection miss is possible but unconfirmed.
+
+Scope: identify the actual owner of each visible piece per stroke phase
+(surface 122-126, underwater 127-130/133), then give holstered swimming arms a
+connected, intentional presentation: either an arm chain connected from the
+shoulder (D36H5 contact-arm design) or hidden at the eye where the stroke
+cannot be shown plausibly. Check the default and maximum world FOV, 120 and
+180 Hz, the D08O5 draw into the armed swim pose, and the D36K backpack hide.
+Armed swimming, land, flight and Vanilla unchanged. Report findings before a
+design choice if more than one option fits.
+
 ## 2026-10-30 - Swimming: left click does not draw a holstered weapon (D08O5)
 
 ### D08O5 - Left click draws a holstered weapon while swimming
 
-**Status: Todo. Dependencies: D08O1, D08O3.** User report (2026-10-30, after
+**Status: Done (user-accepted 2026-11-01). Dependencies: D08O1, D08O3.** User report (2026-10-30, after
 the D17AR2 playtest): "if you are swimming with the weapon holstered, left
 click doesnt draw your weapon like it does on land. It needs to draw the
 weapon." Expected: Modernized, game-wide, left click (fire) while swimming
@@ -83,6 +119,20 @@ ground holstered-fire draw path, and verify draw, then fire, at surface and
 underwater. Asked again in the 2026-10-31 playtest: "when you go into the
 water I want to be able to draw the weapon when you start firing even if your
 weapon is lowered".
+
+Work log 2026-11-01: baseline reproduced in the slot-2 moat (holstered, held
+fire underwater and on the surface: equipment 0, no shots). Fire now draws in
+the swim states through the original weapon request (D08O3's path, not a
+Circle tap that could end a stroke); a refused weapon takes the original swim
+remap; unarmed Cross is held off while stowed so fire never climbs out. Live
+60/third and 120/first: draw then fire, click draws only, stroke/strafe/dive
+and surface swimming keep moving, four weapons; land, jetpack and Vanilla
+unchanged; native controls/input/aim pass. Limits: no live ledge in the moat,
+level 6 only. [Note 345](documentation/345-d08o5-swim-fire-draw.md).
+
+Accepted 2026-11-01. User: "very good work!! i can confirm it works."
+Closeout, commit and push authorized. Follow-up: holstered swimming arms
+arms (disembodied in first person) recorded as D14G after intake research.
 
 ## 2026-10-30 - Host-owned world visibility (D17AR) and water triangle (D17AS)
 
@@ -1921,7 +1971,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08AF | Smooth plunge-to-swimming control handoff at maximum depth (UI slot 9) | Done | D08AE, D08O |
 | D08O3 | E in water keeps the weapon: redraw when no climb-out follows the stow | Done (user-accepted; closed 2026-10-30) | D08O1 |
 | D08O4 | Brief Ctrl dive keeps swimming forward after release (dive anim plays on; player UI slot 3) | Done (user-accepted) | D08O |
-| D08O5 | Left click draws a holstered weapon while swimming | Todo | D08O1, D08O3 |
+| D08O5 | Left click draws a holstered weapon while swimming | Done (user-accepted 2026-11-01; note 345) | D08O1, D08O3 |
 | D08N | Duke3D-style scuba gear item | Cancelled (out of scope) | — |
 | D08P | Crystal-2 turret / scripted-camera control recovery | Done | D08 |
 | D08Q | Modern jetpack flight controls | Done | D08 |
@@ -2000,6 +2050,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D14A | Configurable first-person FOV foundation | Done (user-accepted 2026-10-28) | D11, D14 |
 | D14B | Decouple first-person weapon/arms presentation from world FOV | Done (user-accepted 2026-10-28) | D14A foundation |
 | D14C | Investigate first-person leg presentation across world FOV | Done (user-accepted 2026-10-28) | D14A, D14B |
+| D14G | Holstered swimming arms look disembodied in first person | Todo (intake research done) | D11E, D36H4, D14B, D08O5 |
 | D15 | Optional geometry and texture precision | Done (user-accepted; closed 2026-10-30) | D13 |
 | D16 | Texture manipulation and replacement foundation | Done (bounded foundation accepted 2026-10-27) | D13 |
 | D16A | HRP assets and first-person weapon research (later) | Cancelled (original assets preferred) | - |

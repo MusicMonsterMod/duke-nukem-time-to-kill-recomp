@@ -2666,6 +2666,55 @@ int main(int argc,char** argv) {
     call(0x80058120,p,0,0x80041c44,0x801ff000);assert(kicks==1);
     psx_mod_write_byte(p+0x3b8,2);psx_mod_write_half(p+0x74,5);
     {
+        // D08O5: in the native swim states held fire draws a settled holstered
+        // weapon through the original request (+0x3ba, flag 4) at the swim
+        // handler entry, never Circle; unarmed Cross is masked meanwhile.
+        const uint32_t saved_water=psx_mod_read_word(p+0x834),saved_flag=psx_mod_read_word(p+0x20c);
+        psx_mod_write_word(p+0x834,psx_mod_read_word(p+0x1c8)-800);psx_mod_write_word(p+0x20c,1);
+        psx_mod_write_byte(p+0x22c,5);psx_mod_write_byte(p+0x22d,5);
+        psx_mod_write_half(p+0x60,127);psx_mod_write_half(p+0x74,127);
+        psx_mod_write_byte(p+0x3b8,0);psx_mod_write_byte(p+0x3b9,4);psx_mod_write_byte(p+0x3ba,4);psx_mod_write_word(p+0x224,0);
+        ++ttk::input.sequence;call(0x8003ade4,c,p,0x80025ee8);
+        assert(ttk::swim_weapon_ready() && !ttk::movement_ready());
+        assert(ttk::swim_fire_draw_ready() && ttk::swim_fire_cross_masked() && !ttk::fire_draw_ready());
+        call(0x800455bc,p,0,0x8004b5bc);assert(!(psx_mod_read_word(p+0x224)&4)); // fire not held
+        ttk::input.held[ttk::fire]=true;
+        for(unsigned blocked : {(unsigned)ttk::holster,(unsigned)ttk::interact}) {
+            ttk::input.held[blocked]=true;call(0x800455bc,p,0,0x8004b5bc);
+            assert(!(psx_mod_read_word(p+0x224)&4));ttk::input.held[blocked]=false;
+        }
+        call(0x800455bc,p,0,0x8004b5bc);
+        assert(psx_mod_read_byte(p+0x3ba)==4 && (psx_mod_read_word(p+0x224)&4) && !ttk::swim_fire_draw_ready());
+        psx_mod_write_word(p+0x224,0);
+        // Surface states too; a weapon the swim states refuse takes the
+        // original remap (2 -> 3), Boot or a refused unowned remap never.
+        psx_mod_write_byte(p+0x22c,4);psx_mod_write_byte(p+0x22d,4);psx_mod_write_half(p+0x60,122);psx_mod_write_half(p+0x74,122);
+        psx_mod_write_byte(p+0x3ba,2);call(0x800455bc,p,0,0x8004b5bc);
+        assert(psx_mod_read_byte(p+0x3ba)==3 && (psx_mod_read_word(p+0x224)&4));
+        psx_mod_write_word(p+0x224,0);psx_mod_write_byte(p+0x3ba,0);
+        assert(!ttk::swim_fire_draw_ready() && !ttk::swim_fire_cross_masked());
+        const uint16_t crossbow=psx_mod_read_half(p+0x2c4+3*4);psx_mod_write_half(p+0x2c4+3*4,0);psx_mod_write_byte(p+0x3ba,2);
+        assert(!ttk::swim_fire_draw_ready() && !ttk::swim_fire_cross_masked());
+        psx_mod_write_half(p+0x2c4+3*4,crossbow);psx_mod_write_byte(p+0x3ba,4);
+        // Unsettled, transitions, drawn or detonator equipment, Vanilla.
+        psx_mod_write_half(p+0x74,6);assert(!ttk::swim_fire_draw_ready());psx_mod_write_half(p+0x74,122);
+        for(unsigned flag : {1u,4u,8u,0x40u,0x80u,0x200u}) {
+            psx_mod_write_word(p+0x224,flag);assert(!ttk::swim_fire_draw_ready());
+        }
+        psx_mod_write_word(p+0x224,0);
+        for(unsigned equipment : {1u,2u}) {
+            psx_mod_write_byte(p+0x3b8,equipment);assert(!ttk::swim_fire_draw_ready() && !ttk::swim_fire_cross_masked());
+        }
+        psx_mod_write_byte(p+0x3b8,0);
+        ttk::modern=false;assert(!ttk::swim_fire_draw_ready() && !ttk::swim_fire_cross_masked());ttk::modern=true;
+        ttk::input.held[ttk::fire]=false;
+        psx_mod_write_word(p+0x834,saved_water);psx_mod_write_word(p+0x20c,saved_flag);
+        psx_mod_write_byte(p+0x22c,0);psx_mod_write_byte(p+0x22d,0);psx_mod_write_half(p+0x60,63);
+        psx_mod_write_byte(p+0x3b8,2);psx_mod_write_half(p+0x74,5);psx_mod_write_word(p+0x224,0);
+        ++ttk::input.sequence;call(0x8003ade4,c,p,0x80025ee8);
+        std::puts("PASS: D08O5 swim fire-draw, remap and state/Vanilla guards");
+    }
+    {
         // D08Q5: in flight (mode 10) weapon groups, the wheel and X reach the
         // original request; items other than the pack, the kick, fire held,
         // draws and Vanilla stay refused.

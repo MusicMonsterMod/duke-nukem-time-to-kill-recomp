@@ -36,6 +36,24 @@ static bool underwater_weapon(unsigned slot) {
     if(psx_mod_read_half(player+0x2c4+4*slot)&8)actual=slot==7?28:slot==8?29:slot==9?27:slot;
     return psx_mod_read_byte(0x800c4590+44*actual)&4;
 }
+// D08O5: the weapon fire draws in water. A holster keeps its weapon in
+// +0x3ba; one the original cannot use there takes the original swim remap
+// (1/2 -> 3, 8-11 -> 7, 13 -> 12) when that weapon is owned and loaded.
+static unsigned swim_fire_draw_weapon() {
+    unsigned slot=base_weapon(psx_mod_read_byte(player+0x3ba));
+    if(slot==0 || slot>14)return 0;
+    if(!underwater_weapon(slot))slot=slot<=2?3:slot>=8 && slot<=11?7:slot==13?12:0;
+    return slot && usable_weapon(slot) && underwater_weapon(slot)?slot:0;
+}
+bool swim_fire_draw_ready() {
+    return interaction_swim_restore_ready() && !(psx_mod_read_word(player+0x224)&0x2cd) && swim_fire_draw_weapon();
+}
+// While stowed, fire must not reach the swim handler as unarmed Cross: at a
+// surface ledge that is the climb-out. The draw sets equipment 2 directly;
+// equipment 1 (a thrown pipe bomb's detonator) keeps its own Cross.
+bool swim_fire_cross_masked() {
+    return swim_weapon_ready() && psx_mod_read_byte(player+0x3b8)==0 && swim_fire_draw_weapon();
+}
 // Original callable item path, on an isolated CPU/stack, never an input/fire macro.
 static bool original_call(CPUState* source,uint32_t address,uint32_t a1,int32_t* result=nullptr,int64_t a2=-1) {
     uint32_t top=source->gpr[29];
@@ -313,6 +331,7 @@ static bool night_vision_toggle() {
     return true;
 }
 static unsigned swim_redraws; // D08O3
+static unsigned swim_fire_draws; // D08O5
 static void select_weapon(CPUState* cpu) {
     const auto& f=input_snapshot(Context::Gameplay);
     input_ack_commands(f.command_serial);
@@ -384,6 +403,14 @@ static void select_weapon(CPUState* cpu) {
        equipped>0 && equipped<=14 && usable_weapon(equipped) && underwater_weapon(equipped)) {
         psx_mod_write_byte(player+0x3ba,equipped);
         psx_mod_write_word(player+0x224,flags|4);++selections;++swim_redraws;
+    }
+    // D08O5: fire draws a holstered weapon in water, as on land (D08E) and in
+    // flight (D08Q7), through the same original request as D08O3: a Circle tap
+    // could end a thrust stroke. Held fire then reaches the drawn weapon; a
+    // tap only draws, and nothing is buffered after release.
+    if(f.held[fire] && !f.held[holster] && !f.held[interact] && !movement_ready() && swim_fire_draw_ready()) {
+        psx_mod_write_byte(player+0x3ba,swim_fire_draw_weapon());
+        psx_mod_write_word(player+0x224,psx_mod_read_word(player+0x224)|4);++selections;++swim_fire_draws;
     }
     // D08A12: the next stick after a throw, once fire is let go and Duke can
     // take a weapon request (ground or jetpack flight).

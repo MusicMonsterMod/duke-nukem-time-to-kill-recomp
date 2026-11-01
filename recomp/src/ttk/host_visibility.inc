@@ -88,6 +88,11 @@ struct HostVisEntry {uint32_t room;int16_t r[4];};
 static HostVisEntry host_vis_game[32],host_vis_props[32];
 static uint32_t host_vis_game_count=0,host_vis_props_count=0;
 static bool host_vis_live=false;
+// D17AT6: every room the host showed in the frame being drawn (game-listed
+// rooms included). Small models such as blood pools are drawn only for rooms
+// set in the portal walk's bitset (0x800e1f10, see host_visibility_room_shown).
+static std::vector<bool> host_vis_shown;
+static bool host_vis_shown_valid=false;
 struct HostVisCamera {double m[9];double eye[3];double h;};
 // View-space position (x right, y down, z forward) of a world point.
 static void host_vis_view(const HostVisCamera& c,const double p[3],double v[3]) {
@@ -239,7 +244,11 @@ static void host_vis_write_list(const HostVisEntry* e,uint32_t n) {
 }
 // Room walk entry (ra 0x8002e688), after the draw-distance limits. True when
 // the host drew the world and the game's walk was emptied.
+bool host_visibility_room_shown(uint32_t room) {
+    return host_vis_shown_valid && room<host_vis_shown.size() && host_vis_shown[room];
+}
 static bool host_vis_walk(CPUState* cpu) {
+    host_vis_shown_valid=false;
     host_vis_live=false;
     // The session log records the switch (the environment and console are not).
     static int logged=-1;
@@ -427,6 +436,9 @@ static bool host_vis_walk(CPUState* cpu) {
     host_vis_write_list(walk,walk_count);
     near_clip_host_walk(true,left);
     host_vis_live=true;
+    host_vis_shown.assign(rooms,false);
+    for(uint32_t room:order) if(room<rooms) host_vis_shown[room]=true;
+    host_vis_shown_valid=true;
     ++host_vis_frames;host_vis_rooms+=order.size();
     host_vis_last_rooms=(uint32_t)order.size();host_vis_last_pieces=pieces_drawn;host_vis_last_game=count;
     return true;

@@ -1,5 +1,94 @@
 # Next-session handoff
 
+## 2026-11-01 - D17AT accepted and closed; D17AU queued
+
+User: "100% acceptable ... accept this job as closed"; slot 7 clean, a very
+slight shimmer left in slots 11 and 12 ("the best it's ever looked it looks
+better than the base game"). D17AT is Done (note 348): blood pools are host
+decals (exact placement, one slot, depth pass), wide-view culls bypassed,
+Polymorph rooms honoured, water tested but not written. New job D17AU: no
+shimmer at all, reference clip `Video_2026-11-01_14-22-44.mp4`. Not started.
+
+## 2026-11-01 - D17AT12: blood blobs keep one order while panning (Needs playtest)
+
+User clip `Video_2026-11-01_13-27-51.mp4` (slot 11): blobs swap which is on
+top while panning. Blobs crossed sort-slot boundaries as the eye moved; all
+blood decals now share one slot, so the order among them never changes.
+Playtest slots 7, 11, 12 at 180 Hz, slow pans over the pools. Note 348.
+
+## 2026-11-01 - D17AT11: blood planes no longer jitter (Needs playtest)
+
+User clip `Video_2026-11-01_12-57-03.mp4`: much more stable, nothing
+disappears, minimal glitching left where splats meet surfaces. The game
+truncates each blood model's translation to whole units, so every blob's
+plane moved by up to a unit as the camera moved; the host now places blood
+models with the exact translation (residual about 0.05 units). Playtest slot 7
+at 180 Hz, especially the wall-floor corners. Note 348.
+
+## 2026-11-01 - D17AT10: no more blood dropouts while turning (Needs playtest)
+
+User clip `Video_2026-11-01_12-31-22.mp4`: edges fixed, but harsh flicker
+while turning. Wall splats sitting slightly inside their wall vanished for
+single images once D17AT9 changed the draw order; the decal depth pass now
+writes 4 units up instead of 2, so the order no longer matters. Offscreen: no
+dropouts in 15 fast-turn runs at 180 Hz. Playtest slot 7 at 180 Hz, fast and
+slow turns. Note 348.
+
+## 2026-11-01 - D17AT7-9: blood at the view edges and the last shimmer (Needs playtest)
+
+From the user's clip (`research/screencaps/bloody.mp4`, slot 7): blood at
+the screen edges was dropped by two game culls sized for the 4:3 view (side
+cull, and the facing test's oversize limit); both bypassed for live blood
+models, with the host clipping and testing facing itself. The remaining
+shimmer was overlapping blobs swapping order while turning (the game sorts by
+view depth); decals now sort by straight-line distance. Playtest slot 7 at
+180 Hz turning to the edges and panning over overlaps; slots 11 and 12.
+Note 348.
+
+## 2026-11-01 - D17AT6: blood no longer vanishes at the sides of the view (Needs playtest)
+
+User report on D17AT5: blood disappears in the peripheral view when looking
+left and right. Cause: the blood-object draw (`0x800a2690`) only draws objects
+whose room is in the game's portal-walk bitset, while Polymorph shows rooms
+that walk does not list. A new entry hook sets the room bit for that object's
+test only when the host showed the room (cleared right after). Decal depth
+offsets made robust (scaled depth). Playtest slot 7 (closer save), 11, 12 at
+180 Hz, turning left and right. Note 348.
+
+## 2026-11-01 - D17AT5: no shimmer where blood blobs overlap (Needs playtest)
+
+User report after the first D17AT build: shimmer only where blood blobs
+overlap. Cause: blobs of a pool z-fought (each model's rounded transform moves
+its plane by fractions of a unit as the camera moves). Flat small models are
+now drawn as decals: a depth-only pass 2 units up and a test-only colour pass
+6 units up, keeping the game's own order among blobs. New framework mode
+`psx_mod_gpu_host_vertex_depth_only` (patch exported). Playtest slot 7 (the
+closer save), 11 and 12 at 180 Hz. Note 348.
+
+## 2026-11-01 - D17AT: blood pools and shells stable on their surfaces (Needs playtest)
+
+Approved design implemented (note 348). Blood pools are small flat meshes
+(renderer `0x8002e02c`, not the sprite queue the report named): the host now
+draws every face with true depth and the prop contact allowance, and keeps
+faces under Duke's feet. Water tests depth but no longer writes it, so things
+the game paints after the water (the slot-12 shell boxes) stay whole. New
+framework call `psx_mod_gpu_host_vertex_test_only` (patch exported). Visible
+change: the slot-11 pool now ends at the edge of a 128-unit step it used to
+paint over intermittently. Playtest: slots 12, 11 and 7 at 180 Hz; walk over
+the pools; water views. Compare switches: `DNTTK_MODEL_DEPTH=0`,
+`DNTTK_WATER_WRITE=1`.
+
+## 2026-11-01 - D17AT report: decals and shells on surfaces (awaiting decision)
+
+Reproduced all three. Blood is the game's decal queue (`0x8009b1c0`),
+never owned by the host: painter-only packets over host floors with depth,
+cut by floor polygons the original sorts nearer (same cut with the game's
+own packets). Slot-12 shell boxes sit up to 140 units under the canal water,
+which writes depth (D17AN) on its animated opaque texels. Proposed: host
+decals with plane depth and a contact allowance; water depth-tested but not
+written (small framework mode). No code changed.
+[Note 348](348-d17at-decal-stability-report.md).
+
 ## 2026-11-01 - D17AS closed: moat triangle is original level design
 
 Reproduced the slot-2 moat triangle and underwater wedge from the clip's

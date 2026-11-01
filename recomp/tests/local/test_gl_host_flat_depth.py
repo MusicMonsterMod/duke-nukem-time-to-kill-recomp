@@ -58,6 +58,8 @@ static void glDrawArrays(int mode,int first,int n){
 #define glDepthFunc(...) ((void)0)
 #define glDepthMask(...) ((void)0)
 #define glLineWidth(...) ((void)0)
+#define host_depth_run_state(...) ((void)0)
+#define host_depth_run_end(...) ((void)0)
 #define flush_tex_batch(...) ((void)0)
 #define flush_cpu_upload(...) ((void)0)
 #define mark_prim_dirty(...) ((void)0)

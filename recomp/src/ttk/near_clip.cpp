@@ -56,6 +56,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstdint>
+#include <cstring>
 #include <cstdlib>
 #include <string_view>
 #include <vector>
@@ -70,6 +71,8 @@
 extern "C" uint8_t* g_psx_ram;
 extern "C" uint32_t g_dirty_ram_code_gen;
 namespace ttk {
+// D17AT6 (host_visibility.inc): rooms Polymorph showed this frame.
+bool host_visibility_room_shown(uint32_t room);
 namespace {
 struct Guard { uint32_t address, size; const char* digest; };
 const Guard near_guards[]={
@@ -377,6 +380,15 @@ struct Poly {
     unsigned coplanar_rank=0;
     // Units the depth plane moves away from the eye (near water tiles).
     double depth_push=0;
+    // D17AT3: test depth but never write it (water surfaces).
+    bool depth_test_only=false;
+    // D17AT5: write depth without colour (the depth pass of a decal).
+    bool depth_only=false;
+    // D17AT6: raster depth from the unshifted plane, then scaled (below 1:
+    // nearer). Moving a plane toward the eye by s scales every depth on it by
+    // 1 - s/|d|; doing it after the raster fallback keeps a decal's two
+    // passes in their order even where a shifted plane would fall back.
+    double depth_scale=1;
 };
 struct Frame {
     bool biomask=false;
@@ -633,9 +645,9 @@ void emit(Frame& f,const Poly& poly,const Vertex* v,unsigned n=3) {
             // prop subdivisions cannot turn a shared plane into intersecting
             // triangles. Keep texture perspective and visible PS1 snapping.
             static const bool depth_fix=env_int("DNTTK_PLANE_DEPTH",1,0,1)!=0;
-            const double depth=depth_fix ? near_raster_depth(poly.depth_plane,f.g,x16/65536.0,y16/65536.0,v[i].p[2]) : v[i].p[2];
+            const double depth=(depth_fix ? near_raster_depth(poly.depth_plane,f.g,x16/65536.0,y16/65536.0,v[i].p[2]) : v[i].p[2])*poly.depth_scale;
             if(f.trace) {trace_raster[i][0]=x16/65536.0;trace_raster[i][1]=y16/65536.0;trace_raster[i][2]=v[i].p[2];trace_raster[i][3]=painter?-v[i].p[2]:depth;}
-            psx_mod_gpu_host_vertex_coverage(addr,word,x16,y16,(float)v[i].p[2],poly.textured?(float)std::clamp(v[i].uv[0],0.0,255.0):-1.0f,poly.textured?(float)std::clamp(v[i].uv[1],0.0,255.0):-1.0f,(float)(painter?-v[i].p[2]:depth), (float)f.coverage);
+            (poly.depth_only?psx_mod_gpu_host_vertex_depth_only:poly.depth_test_only?psx_mod_gpu_host_vertex_test_only:psx_mod_gpu_host_vertex_coverage)(addr,word,x16,y16,(float)v[i].p[2],poly.textured?(float)std::clamp(v[i].uv[0],0.0,255.0):-1.0f,poly.textured?(float)std::clamp(v[i].uv[1],0.0,255.0):-1.0f,(float)(painter?-v[i].p[2]:depth), (float)f.coverage);
         }
         ++precise_triangles;
     }
@@ -839,7 +851,8 @@ void draw(Frame& f,const Poly& poly) {
     // D17W: push a face the original paints over slightly behind its plane
     // (about 0.8 units at 3400), so the depth test keeps the original's winner.
     if(poly.coplanar_rank) local.depth_plane.d*=1+poly.coplanar_rank/4096.0;
-    if(poly.depth_push) local.depth_plane.d+=std::copysign(poly.depth_push,local.depth_plane.d);
+    // Positive moves the plane away from the eye, negative toward it.
+    if(poly.depth_push) local.depth_plane.d+=(local.depth_plane.d<0?-1:1)*poly.depth_push;
     if(whole) {const Vertex quad[4]={shape[0],shape[1],shape[3],shape[2]};emit(f,local,quad,4);return;}
     for(int k=0;k<5 && shape.size()>=3;++k) {
         // Most compact props are wholly inside the guard band. Preserve their
@@ -1609,6 +1622,7 @@ void object(CPUState* cpu) {
     for(const auto& p:polys) draw(f,p);
 }
 #include "water_clip.inc"
+#include "model_depth.inc"
 
 // Occluder fade. The prop loop (0x80031fa0..0x80032078) makes a prop
 // semi-transparent and dims it by distance when it is nearer than the fade
@@ -1683,10 +1697,18 @@ void world_polygon_fetch(CPUState* cpu,uint32_t address) {
 }
 void near_hook_body(CPUState* cpu,uint32_t address) {
     region_after_load();
+    // D17AT: a small model's temporary changes to game data (face flags,
+    // room bit) end with it. Any other hook ends the model, before anything
+    // else runs, so no frame boundary (where redraw workers copy the
+    // machine) ever sees them; near_clip_flip() is the backstop.
+    if(address!=0x8002d848u && address!=0x8002bd48u && address!=0x800a2690u) model_end();
     // The drawing chain closes after the last mesh: give it its depth.
     if(address==0x8001fba0u) {scene_depth_flush();return;}
     if(address==0x8002bc18u) {water_clip(cpu);return;}
     if(address==0x800b4d2cu) {water_near_flags(cpu);return;}
+    if(address==0x8002d848u) {model_begin(cpu);return;}
+    if(address==0x800a2690u) {object_room_lift(cpu);return;}
+    if(address==0x8002bd48u) {model_link(cpu);return;}
     if(address==0x800114ec || address==0x8001160c) {
         if(subdivision_bypass()) world_polygon_fetch(cpu,address);
         return;
@@ -1718,6 +1740,8 @@ void near_hook_body(CPUState* cpu,uint32_t address) {
         // Redraw workers enter this same boundary with their restored RAM.
         if(cpu->gpr[31]==0x800268f4 && identity()) {
             host_walk_filter=false;host_frame=false;
+            object_room_word=0; // the camera render clears the bitset
+            model_flags_restore();
             scene_pending.live=false;
             region_after_load();
             frame_first_cursor=psx_mod_read_word(context);
@@ -1802,7 +1826,7 @@ void near_clip_prepare() {
         }
     }
 }
-void near_clip_flip() {region_chosen=false;}
+void near_clip_flip() {region_chosen=false;model_end();}
 NearClipFrameState near_clip_frame_state() {return {frame_first_cursor,frame_host_bytes,held_frame,host_region,region_chosen};}
 void near_clip_load_frame_state(const NearClipFrameState& s) {
     frame_first_cursor=s.first_cursor;frame_host_bytes=s.host_bytes;held_frame=s.held_frame;host_region=s.host_region%host_regions;
@@ -1992,14 +2016,14 @@ uint32_t near_dpcs(const NearGte& g,uint32_t rgbc,int16_t ir0) {
     return out;
 }
 const char* near_clip_debug_json() {
-    static char buffer[2304];
+    static char buffer[3328];
     auto part=[](const Stats& s,char* out,size_t n){
         std::snprintf(out,n,"{\"seen\":%llu,\"taken\":%llu,\"polys\":%llu,\"culled\":%llu,\"triangles\":%llu,\"budget_hits\":%llu}",
             (unsigned long long)s.seen,(unsigned long long)s.taken,(unsigned long long)s.polys,(unsigned long long)s.culled,
             (unsigned long long)s.triangles,(unsigned long long)s.budget_hits);
     };
     char w[192],o[192];part(world_stats,w,sizeof w);part(object_stats,o,sizeof o);
-    std::snprintf(buffer,sizeof buffer,"{\"biomask_draws\":%llu,\"biomask_triangles\":%llu,\"enabled\":%s,\"world\":%s,\"object\":%s,\"refused\":%llu,\"copy_overflows\":%llu,\"duke_skips\":%llu,\"fades_skipped\":%llu,\"fade_tests\":%llu,\"zsf3\":%d,\"arena_size\":%u,\"frame_used_peak\":%u,\"host_bytes_peak\":%u,\"packet_skips\":%llu,\"mesh_fallbacks\":%llu,\"whole_polygons\":%llu,\"subdivided_kept\":%llu,\"viewmodel\":{\"meshes\":%llu,\"packets\":%llu,\"discards\":%llu},\"scene_depth\":{\"meshes\":%llu,\"packets\":%llu,\"ambiguous\":%llu,\"wraps\":%llu,\"polygons\":%llu,\"unmatched\":%llu,\"breaks\":%llu},\"measure\":{\"frames\":%llu,\"demand_peak\":%u,\"demand_avg\":%llu,\"frames_over_budget\":%llu,\"emits_peak\":%llu,\"hook_us_peak\":%llu,\"hook_us_avg\":%llu,\"kind_peak\":[%u,%u,%u,%u,%u],\"kind_avg\":[%llu,%llu,%llu,%llu,%llu],\"unified\":%s,\"unified_downgrades\":%llu,\"fallbacks\":[%llu,%llu,%llu],\"near_fallbacks\":%llu},\"water\":{\"seen\":%llu,\"taken\":%llu,\"guard\":%llu,\"grid\":%llu,\"near_cleared\":%llu,\"near_dropped\":%llu,\"budget_native\":%llu},\"coplanar\":{\"hits\":%llu,\"builds\":%llu,\"checked\":%llu,\"mismatch\":%llu}}",
+    std::snprintf(buffer,sizeof buffer,"{\"biomask_draws\":%llu,\"biomask_triangles\":%llu,\"enabled\":%s,\"world\":%s,\"object\":%s,\"refused\":%llu,\"copy_overflows\":%llu,\"duke_skips\":%llu,\"fades_skipped\":%llu,\"fade_tests\":%llu,\"zsf3\":%d,\"arena_size\":%u,\"frame_used_peak\":%u,\"host_bytes_peak\":%u,\"packet_skips\":%llu,\"mesh_fallbacks\":%llu,\"whole_polygons\":%llu,\"subdivided_kept\":%llu,\"viewmodel\":{\"meshes\":%llu,\"packets\":%llu,\"discards\":%llu},\"scene_depth\":{\"meshes\":%llu,\"packets\":%llu,\"ambiguous\":%llu,\"wraps\":%llu,\"polygons\":%llu,\"unmatched\":%llu,\"breaks\":%llu},\"measure\":{\"frames\":%llu,\"demand_peak\":%u,\"demand_avg\":%llu,\"frames_over_budget\":%llu,\"emits_peak\":%llu,\"hook_us_peak\":%llu,\"hook_us_avg\":%llu,\"kind_peak\":[%u,%u,%u,%u,%u],\"kind_avg\":[%llu,%llu,%llu,%llu,%llu],\"unified\":%s,\"unified_downgrades\":%llu,\"fallbacks\":[%llu,%llu,%llu],\"near_fallbacks\":%llu},\"water\":{\"seen\":%llu,\"taken\":%llu,\"guard\":%llu,\"grid\":%llu,\"near_cleared\":%llu,\"near_dropped\":%llu,\"budget_native\":%llu},\"coplanar\":{\"hits\":%llu,\"builds\":%llu,\"checked\":%llu,\"mismatch\":%llu},\"models\":{\"seen\":%llu,\"taken\":%llu,\"mismatch\":%llu,\"near_cleared\":%llu,\"faces\":%llu,\"faces_taken\":%llu,\"faces_native\":%llu,\"faces_dropped\":%llu,\"faces_budget\":%llu,\"flat\":%llu,\"faces_decal\":%llu,\"room_lifts\":%llu,\"sides_cleared\":%llu,\"flags_lifted\":%llu,\"backface\":%llu,\"refined\":%llu,\"refine_skipped\":%llu,\"refine_max\":%.3f,\"refine_last\":[%.2f,%.2f,%.2f,%.0f,%.0f,%.0f]}}",
         (unsigned long long)mask_draws,(unsigned long long)mask_triangles,enabled()?"true":"false",w,o,(unsigned long long)refused,(unsigned long long)copy_overflows,(unsigned long long)duke_skips,(unsigned long long)fades_skipped,(unsigned long long)fade_tests,(int)last_zsf3,arena_size,frame_used_peak,host_bytes_peak,(unsigned long long)packet_skips,(unsigned long long)mesh_fallbacks,(unsigned long long)subdivision_whole,(unsigned long long)subdivision_kept,(unsigned long long)viewmodel_meshes,(unsigned long long)viewmodel_packets,(unsigned long long)viewmodel_discards,(unsigned long long)scene_depth_meshes,(unsigned long long)scene_depth_packets,(unsigned long long)scene_depth_ambiguous,(unsigned long long)scene_depth_wraps,(unsigned long long)scene_depth_polygons,(unsigned long long)scene_depth_unmatched,(unsigned long long)scene_depth_breaks,
         (unsigned long long)demand_frames,demand_peak,(unsigned long long)(demand_frames?demand_total/demand_frames:0),(unsigned long long)demand_over,(unsigned long long)emits_peak,(unsigned long long)hook_us_peak,(unsigned long long)(hook_frames?hook_us_total/hook_frames:0),
         kind_peak[0],kind_peak[1],kind_peak[2],kind_peak[3],kind_peak[4],
@@ -2009,14 +2033,16 @@ const char* near_clip_debug_json() {
         (unsigned long long)fallback_kind[0],(unsigned long long)fallback_kind[1],(unsigned long long)fallback_kind[2],(unsigned long long)near_fallbacks,
         (unsigned long long)water_seen,(unsigned long long)water_taken,(unsigned long long)water_guard_reject,(unsigned long long)water_grid_reject,
         (unsigned long long)water_near_cleared,(unsigned long long)water_near_dropped,(unsigned long long)water_budget_native,
-        (unsigned long long)coplanar_hits,(unsigned long long)coplanar_builds,(unsigned long long)coplanar_checked,(unsigned long long)coplanar_mismatch);
+        (unsigned long long)coplanar_hits,(unsigned long long)coplanar_builds,(unsigned long long)coplanar_checked,(unsigned long long)coplanar_mismatch,
+        (unsigned long long)model_seen,(unsigned long long)model_taken,(unsigned long long)model_mismatch,(unsigned long long)model_near_cleared,(unsigned long long)model_faces,
+        (unsigned long long)model_faces_taken,(unsigned long long)model_faces_native,(unsigned long long)model_faces_dropped,(unsigned long long)model_faces_budget,(unsigned long long)model_flat,(unsigned long long)model_faces_decal,(unsigned long long)object_room_lifts,(unsigned long long)model_sides_cleared,(unsigned long long)model_flags_lifted,(unsigned long long)model_backface,(unsigned long long)model_refined,(unsigned long long)model_refine_skipped,model_refine_max,model_refine_last[0],model_refine_last[1],model_refine_last[2],model_refine_last[3],model_refine_last[4],model_refine_last[5]);
     return buffer;
 }
 }
 PSX_MOD_CONSTRUCTOR(register_ttk_near_clip) {
     (void)ttk::host_arena();
     ttk::mask_arena=psx_mod_alloc_gpu_dma_memory(ttk::mask_frame_bytes*ttk::mask_blocks,16);
-    for(uint32_t address:{0x8001fba0u,0x8002bc18u,0x800b4d2cu,0x80010000u,0x80011020u,0x8002ee50u,0x80026164u,0x800114ecu,0x8001160cu})
+    for(uint32_t address:{0x8001fba0u,0x8002bc18u,0x800b4d2cu,0x80010000u,0x80011020u,0x8002ee50u,0x80026164u,0x800114ecu,0x8001160cu,0x8002d848u,0x8002bd48u,0x800a2690u})
         psx_mod_register_function_entry_plugin("ttk.near.clip",address,ttk::hook);
 }
 

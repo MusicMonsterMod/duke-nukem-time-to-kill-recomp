@@ -119,9 +119,16 @@ void water_clip(CPUState* cpu) {
     // scenery just under the waterline stays over it as the original paints
     // it (the slot-10 channel walkway's grating lies about 10-15 units below
     // the surface). Painter tiles keep texture perspective only.
+    // D17AT3: tiles test depth but never write it. Nearer geometry (a bridge
+    // deck) still hides the water, but whatever the game paints after a tile
+    // draws over it as the original paints it, however deep: before, the
+    // slot-12 canal's shell boxes (up to 140 units under the surface) were
+    // cut wherever the animated water texture was opaque.
+    // DNTTK_WATER_WRITE=1 (developer) restores depth writes.
+    static const bool write=env_int("DNTTK_WATER_WRITE",0,0,1)!=0;
     f.sky=!depth;
     Poly p{};p.source=packet;p.count=4;p.textured=true;p.actor=true;
-    if(depth) p.depth_push=32;
+    if(depth) {p.depth_push=32;p.depth_test_only=!write;}
     p.native_order=true;p.native_slot=clamp((int32_t)cpu->gpr[4],0,0x7ff);
     p.command=0x34000000u|(command&0x03000000u);
     p.clut=psx_mod_read_half(packet+14);p.tpage=psx_mod_read_half(packet+22);

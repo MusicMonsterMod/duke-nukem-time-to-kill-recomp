@@ -24,7 +24,9 @@ unchanged. Visual review at the player's window sizes.
 
 ### D17AT - Ground decals and small props stable on any surface
 
-**Status: Todo (report first). Dependencies: D17AM, D17K.** User: the shells
+**Status: Done (user-accepted 2026-11-01: "this is 100% acceptable ... accept this job as closed"). Design approved by the user 2026-11-01 ("i approve the
+recommended design of the proposed fix in 3 stages"; water option A)
+([note 348](documentation/348-d17at-decal-stability-report.md)). Dependencies: D17AM, D17K.** User: the shells
 on the ground in slot 12 (file 11, medieval canal) clip in and out as the
 water texture animates; ground blood in slot 11 (file 10) pops in and out
 when walking left and right over it; the blood in slot 7 (file 6, Family
@@ -38,6 +40,111 @@ design one host rule that keeps a decal or small prop lying on a surface
 drawn over it at every distance, angle and frame rate, in every level, without
 showing it through walls. Private copies of the three saves; verify at 60 and
 120 Hz.
+
+**2026-11-01 report (note 348).** All three reproduced offscreen on private
+copies. Blood is a per-frame decal queue (`0x8009b7fc` queues,
+`0x8009b1c0` draws) that the host never took over: native painter-only
+packets over host floors with depth, so a floor polygon the original sorts
+nearer cuts the blood (also with the game's own packets: not a Polymorph
+regression). Slot-12 shells: the shell-box prop lies 15 above to 140 below
+the water plane; host water writes depth (D17AN, 32-unit push) on its
+non-transparent texels, so the cut follows the animated texture; with
+`DNTTK_WATER_DEPTH=0` the boxes are whole. Proposed rule: decals as host
+geometry with plane depth and a distance-scaled contact allowance (D17AT2);
+water tested but not written via a small framework depth mode (D17AT3);
+sweep (D17AT4). No code changed.
+
+**2026-11-01 implementation (Needs playtest; note 348).** Correction: the
+blood is not the sprite queue but small flat meshes from the small-model
+renderer `0x8002e02c`. D17AT2: new hooks `0x8002D848`/`0x8002BD48`
+(regenerated C, codegen hash unchanged); each model is re-projected and
+checked against the game's records, near flags cleared, and every face is
+drawn as a host prop polygon (plane depth, two-unit contact allowance, game
+slot and material) with its native packet emptied (`model_depth.inc`,
+`DNTTK_MODEL_DEPTH=0` to compare). D17AT3: framework
+`psx_mod_gpu_host_vertex_test_only` (patch exported, verified on a clean pin);
+water tiles test depth without writing it (`DNTTK_WATER_WRITE=1` to compare).
+Offscreen: slot-12 shell boxes whole in every frame, slot-11 pool identical
+frame to frame (it now ends at a 128-unit step it used to spread over), slot-7
+ledge blood host-drawn; moat, bridge and grating regressions clean; 120 Hz no
+replay failures; no measurable cost at 180; Vanilla untouched;
+`ttk-near-test` PASS with new contracts. Python suite has one pre-existing
+failure (`test_primitive_trace`, same at HEAD). Player check at 180 Hz needed.
+
+**2026-11-01 follow-up D17AT5 (Needs playtest; note 348).** User: the
+shimmer is only where blood blobs overlap. Measured z-fighting between blobs of
+one pool (depth winner changed 5x more often than edge motion explains). Flat
+small models are now decals: depth-only pass 2 units up (new framework mode
+`psx_mod_gpu_host_vertex_depth_only`) and a test-only colour pass 6 units up,
+so blobs keep the game's painter order among themselves while floors and
+nearer walls still resolve by depth. No measurable cost at 180. Blob parts
+that run under a wall stay cut (deliberate). Compare: `DNTTK_DECAL_LIFT=0`.
+
+**2026-11-01 follow-up D17AT6 (Needs playtest; note 348).** User: blood
+disappears at the sides of the view when turning. Cause: the blood-object
+draw (`0x800a2690`) tests the room bitset the game's portal walk fills, while
+Polymorph shows more rooms than that walk lists; a pool in such a room was
+skipped whole (434-840 draws per turning route on the user's save). Fix: a new
+hook sets the room bit for that one object's test when the host showed the
+room, cleared before anything else runs. Decal offsets are now depth scales
+(robust where a shifted plane fell back). The game's screen cull was ruled
+out (redraws use the late camera) and left as is. No measurable cost at 180.
+
+**2026-11-01 follow-up D17AT7-9 (Needs playtest; note 348).** From the
+user's clip `bloody.mp4`: blood vanishing at the view edges came from two game
+culls sized for the 4:3 view (a side cull at about half-width 341 against 480,
+and an oversize-face cull of 120000 in the facing test), now bypassed for
+live blood models with the host clipping and testing facing in view space;
+the remaining shimmer came from blob order following view depth, which
+changes while turning; decals now sort by straight-line distance, so turning
+never reorders them (measured winner changes at fixed points: 1631 to 831,
+with 802 explained by edge motion alone). Compare: `DNTTK_MODEL_SIDE_CULL=1`,
+`DNTTK_DECAL_SLOT=0`.
+
+**2026-11-01 follow-up D17AT10 (Needs playtest; note 348).** User clip
+`Video_2026-11-01_12-31-22.mp4`: edges fixed, harsh flicker while turning.
+Single-image dropouts of wall splats that sit up to ~2 units inside their
+wall, introduced by D17AT9's distance slots (the wall could be drawn after
+the splat). The decal depth pass now writes 4 units up (was 2), so the order
+no longer matters; no dropouts in 15 fast-turn runs, blob order still stable.
+
+**2026-11-01 follow-up D17AT11 (Needs playtest; note 348).** User clip
+`Video_2026-11-01_12-57-03.mp4`: "significantly more stable ... nothing is
+disappearing"; minimal glitching left where splats meet surfaces. Each blood
+model's translation was truncated to whole units by the game, so its plane
+jittered by up to a unit per frame; the host now places blood models with
+the exact translation (object and camera positions through the camera
+matrix). No dropouts, order stable, no measurable cost.
+
+**2026-11-01 follow-up D17AT12 (Needs playtest; note 348).** User: blobs
+still swap which is on top while panning (all three saves). Blobs crossed
+distance-slot boundaries as the eye moved (about 7% of comparisons). All
+blood decals now share one ordering slot, so their order is always the
+game's object order. A ranked depth rule was tried and left off.
+
+**2026-11-01 accepted and closed.** User: "I want to now accept this this is
+100% acceptable ... it's not perfect however ... accept this job as closed";
+"slot 7 does not exhibit any issues anymore however in slot 11 and 12 you can
+see a very very slight shimmering"; "this is literally the best it's ever
+looked it looks better than the base game". Remaining shimmer moved to D17AU.
+
+### D17AU - Polymorph decals: no shimmer at all
+
+**Status: Todo. Dependencies: D17AT.** User, accepting D17AT (2026-11-01):
+"the next job is to aim for perfection with no shimmering whatsoever ... push
+polymorph renderer to the next level to allow for blood splatters to look
+robust." Reference clip `research/screencaps/Video_2026-11-01_14-22-44.mp4`:
+slot 7 (UI) clean; slots 11 and 12 show a very slight shimmer of the pools
+while panning. Start from note 348 (what D17AT learned: the small-model
+renderer `0x8002e02c`, decal passes, exact placement, slots, the measures
+that could and could not see the problem). Candidate directions, report
+first: measure the residual per pixel with a deterministic camera path in
+the redraw workers rather than video; separate texture crawl (texel
+aliasing in motion, every renderer) from blob order changes; consider a
+true decal composite (blobs of one surface resolved together in a stable
+order, for example by object id in a stencil or a per-surface layer) instead
+of depth offsets; and texture filtering or supersampling for blood only, if
+the residual is aliasing. Classic and Vanilla unchanged; verify at 180 Hz.
 
 ### D08J6 - Firing while climbing (research first)
 
@@ -2093,7 +2200,8 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D17I | Unlimited stale-camera scheduling episodes | Done (user-accepted 2026-10-22; no action necessary) | D17B |
 | D17J | Verify older isolated visual reports against accepted baseline | Done (user-verified 2026-10-22; no action necessary) | D17A |
 | D17K | Coplanar ground blood in save slot 12 | Done (user-accepted; closed 2026-10-30) | D17D |
-| D17AT | Ground decals and small props stable on any surface (slots 12, 11, 7) | Todo (report first) | D17AM, D17K |
+| D17AT | Ground decals and small props stable on any surface (slots 12, 11, 7) | Done (user-accepted 2026-11-01; blood pools host decals, water tested not written; note 348) | D17AM, D17K |
+| D17AU | Polymorph decals: no shimmer at all (slots 11, 12) | Todo | D17AT |
 | D17L | Tabletop props cut off on approach/retreat in save slot 11 | Done | D17D |
 | D17M | Shotgun ammo visible through ladder platform | Done (user-accepted 2026-10-22) | D17D |
 | D17M1 | Upper ladder visible through platform (updated UI slot 10) | Done (user-accepted 2026-10-22) | D17M |

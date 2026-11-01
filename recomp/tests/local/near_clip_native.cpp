@@ -53,16 +53,23 @@ extern "C" uint16_t psx_mod_read_half(uint32_t a){return psx_mod_read_byte(a)|(p
 extern "C" uint32_t psx_mod_read_word(uint32_t a){return psx_mod_read_half(a)|(uint32_t(psx_mod_read_half(a+2))<<16);}
 extern "C" void psx_mod_write_byte(uint32_t a,uint8_t v){byte_at(a)=v;}
 extern "C" void psx_mod_write_word(uint32_t a,uint32_t v){for(int i=0;i<4;++i)byte_at(a+i)=v>>(8*i);}
+extern "C" void psx_mod_write_half(uint32_t a,uint16_t v){for(int i=0;i<2;++i)byte_at(a+i)=v>>(8*i);}
 extern "C" int psx_mod_register_function_entry_plugin(const char*,uint32_t,PSXModFunctionEntryCallback cb){near_hook=cb;return 1;}
 extern "C" int psx_mod_gpu_host_vertex(uint32_t,uint32_t,int32_t,int32_t,float,float,float){return 1;}
 extern "C" int psx_mod_gpu_host_vertex_depth(uint32_t,uint32_t w,int32_t x,int32_t y,float z,float u,float v,float d){++host_vertices;host_corners.push_back({w,x,y,z,u,v,d});return 1;}
 extern "C" int psx_mod_gpu_host_vertex_coverage(uint32_t a,uint32_t w,int32_t x,int32_t y,float z,float u,float v,float d,float coverage){observed_coverage=coverage;return psx_mod_gpu_host_vertex_depth(a,w,x,y,z,u,v,d);}
+int observed_test_only=0;
+int observed_depth_only=0;
+extern "C" int psx_mod_gpu_host_vertex_depth_only(uint32_t a,uint32_t w,int32_t x,int32_t y,float z,float u,float v,float d,float coverage){++observed_depth_only;return psx_mod_gpu_host_vertex_coverage(a,w,x,y,z,u,v,d,coverage);}
+extern "C" int psx_mod_gpu_host_vertex_test_only(uint32_t a,uint32_t w,int32_t x,int32_t y,float z,float u,float v,float d,float coverage){++observed_test_only;return psx_mod_gpu_host_vertex_coverage(a,w,x,y,z,u,v,d,coverage);}
 
 extern "C" int psx_mod_replay_active(void){return 0;}
 static uint32_t test_loads=0;
 extern "C" uint32_t psx_mod_savestate_loads(void){return test_loads;}
 namespace ttk {bool frame_trace_on(){return false;} void frame_trace_account(uint32_t,long){}}
 static bool lower_body=false;
+static bool shown_room=false;
+namespace ttk {bool host_visibility_room_shown(uint32_t){return shown_room;}}
 namespace ttk {void first_person_mesh_begin(CPUState*){} void third_person_mesh_begin(CPUState*){} bool input_modernized(){return modern;} bool first_person_view_live(){return live_eye;} bool third_person_camera_live(){return modern && live_third;} double third_person_body_coverage(){return body_coverage;} bool widescreen_near_clip_live(){return false;} bool third_person_duke_drawing(){return duke;} bool first_person_duke_drawing(){return duke;} bool first_person_actor_drawing(){return duke;} LimbPresentation first_person_limb_presentation(){return test_viewmodel?limb_presentation(test_owner,test_part):lower_body?limb_presentation(LimbOwner::Body,5,true):interaction?limb_presentation(LimbOwner::Interaction,0x0f):LimbPresentation{};} bool first_person_interaction_drawing(){return interaction;} bool first_person_weapon_drawing(){return false;} uint64_t input_host_frame(){return 0;}}
 static int16_t sx(uint32_t p){return (int16_t)p;} static int16_t sy(uint32_t p){return (int16_t)(p>>16);}
 // A whole-hook observation oracle: compare this digest across separate runs
@@ -311,14 +318,81 @@ static void packet_contracts(const char* executable) {
             auto wc=reset();
             wc.gpr[31]=0x8002fbb4u;wc.gpr[5]=wpkt;wc.gpr[21]=wrgn;
             wc.gpr[29]=wstk;wc.gpr[17]=wrw0;wc.gpr[18]=wrw1;wc.gpr[20]=0;wc.gpr[4]=500;
+            const int test_only_before=observed_test_only;
             host_corners.clear();observed_hook(&wc,0x8002bc18);
             assert(!host_corners.empty() && (psx_mod_read_word(wpkt)>>24)==0);
+            // D17AT3: tiles test depth but never write it.
+            assert(observed_test_only-test_only_before==(int)host_corners.size());
             // Plane y=100: depth along each ray scales by (100+32)/100.
             for(const auto& v:host_corners) assert(v.depth>0 && v.depth>v.z*1.2f &&
                 (!pgxp_mesh_geometry() || std::abs(v.depth-v.z*1.32f)<v.z*0.01f));
             word(wpkt,9u<<24);modern=false;host_corners.clear();observed_hook(&wc,0x8002bc18);
             assert(host_corners.empty() && (psx_mod_read_word(wpkt)>>24)==9);modern=true;
             std::puts("D17AN unified water: safe tiles depth-tested at the surface 32 units deep, Vanilla untouched PASS");
+        }
+        // D17AT2: a small model (0x8002e02c, blood pools): its vertices are
+        // re-projected and must match the game's records, near flags are
+        // cleared so near faces are built, and each face reaching the OT
+        // link is drawn by the host from its vertices while its native
+        // packet keeps a zero-length link. A face linked under another
+        // transform, or outside Modernized, is left to the game.
+        {
+            constexpr uint32_t mdl=0x80166000,mv=0x80166100,rec=0x80166200,pk=0x80166300;
+            auto half=[](uint32_t a,uint16_t v){psx_mod_write_byte(a,v&0xff);psx_mod_write_byte(a+1,v>>8);};
+            ttk::NearGte g{};for(int i=0;i<3;++i) g.r[i][i]=4096;g.tr[2]=2000;g.h=256;
+            const int16_t vx[4]={-100,100,-100,100},vz[4]={-100,-100,100,100};
+            half(mdl+2,4);word(mdl+0xc,mv);
+            uint32_t sxy[4];
+            for(int i=0;i<4;++i) {
+                half(mv+8*i,(uint16_t)vx[i]);half(mv+8*i+2,100);half(mv+8*i+4,(uint16_t)vz[i]);
+                const ttk::NearProjected q=ttk::near_project(g,vx[i],100,vz[i]);sxy[i]=q.sxy;
+                word(rec+8*i,q.sxy);half(rec+8*i+4,(uint16_t)(q.sz>>2));half(rec+8*i+6,i?0:0x11);
+            }
+            auto packet=[&] {
+                word(pk,9u<<24);word(pk+4,0x2c808080u);
+                for(int i=0;i<4;++i) {word(pk+8+8*i,sxy[i]);word(pk+12+8*i,(i==0?0x7ac0u:i==1?0x1cu:0u)<<16|0x2020u);}
+            };
+            auto mc=reset();mc.gte_ctrl[7]=2000;mc.gpr[31]=0x8002e06cu;mc.gpr[4]=mdl;mc.gpr[5]=rec;
+            observed_hook(&mc,0x8002d848);
+            assert(psx_mod_read_half(rec+6)==0); // near flag cleared (0x10), screen flag too
+            packet();mc.gpr[31]=0x8002d114u;mc.gpr[4]=600<<3;mc.gpr[5]=pk;
+            const int depth_only_before=observed_depth_only,test_only_model=observed_test_only;
+            host_corners.clear();observed_hook(&mc,0x8002bd48);
+            assert(!host_corners.empty() && (psx_mod_read_word(pk)>>24)==0);
+            for(const auto& v:host_corners) assert(v.depth>0);
+            // D17AT5/AT12: a flat model is a decal: a depth-only pass and a
+            // test-only colour pass (in the one decal slot).
+            const int depth_corners=observed_depth_only-depth_only_before,colour_corners=observed_test_only-test_only_model;
+            assert(depth_corners>0 && depth_corners==colour_corners && (int)host_corners.size()==2*depth_corners);
+            // Another transform (the sprite queue): not this model.
+            packet();mc.gte_ctrl[7]=2100;host_corners.clear();observed_hook(&mc,0x8002bd48);
+            assert(host_corners.empty() && (psx_mod_read_word(pk)>>24)==9);
+            // Vanilla: the model is never taken.
+            mc.gte_ctrl[7]=2000;half(rec+6,0x10);modern=false;mc.gpr[31]=0x8002e06cu;mc.gpr[4]=mdl;mc.gpr[5]=rec;
+            observed_hook(&mc,0x8002d848);assert(psx_mod_read_half(rec+6)==0x10);
+            packet();mc.gpr[31]=0x8002d114u;mc.gpr[4]=600<<3;mc.gpr[5]=pk;host_corners.clear();observed_hook(&mc,0x8002bd48);
+            assert(host_corners.empty() && (psx_mod_read_word(pk)>>24)==9);modern=true;
+            // D17AT6: a room Polymorph shows passes the object's room test
+            // (0x800a2690) for that object only; the bit is gone once its
+            // faces start, and never set for a room the host did not show
+            // or outside Modernized.
+            {
+                constexpr uint32_t obj=0x80166400,bits=0x800e1f10;
+                for(int i=0;i<4;++i) word(bits+4*i,0);
+                psx_mod_write_byte(obj+0x38,37);
+                auto oc=reset();oc.gpr[5]=obj;
+                shown_room=true;observed_hook(&oc,0x800a2690);
+                assert(psx_mod_read_word(bits+4)==(1u<<5));
+                auto mb=reset();mb.gte_ctrl[7]=2000;mb.gpr[31]=0x8002e06cu;mb.gpr[4]=mdl;mb.gpr[5]=rec;
+                observed_hook(&mb,0x8002d848);assert(psx_mod_read_word(bits+4)==0);
+                shown_room=false;observed_hook(&oc,0x800a2690);assert(psx_mod_read_word(bits+4)==0);
+                shown_room=true;modern=false;observed_hook(&oc,0x800a2690);assert(psx_mod_read_word(bits+4)==0);
+                modern=true;
+                word(bits+4,1u<<5);observed_hook(&oc,0x800a2690);observed_hook(&mb,0x8002d848);
+                assert(psx_mod_read_word(bits+4)==(1u<<5)); // a bit the game set stays
+                shown_room=false;
+            }
+            std::puts("D17AT2/AT5 small models: re-projected, near faces kept, flat faces drawn as decals (depth pass, test-only colour, one slot), other transforms and Vanilla untouched; D17AT6 host-shown rooms pass the object room test for that object only PASS");
         }
         std::puts("D20H mid-frame load: the rest of a loaded frame goes to the next region, restored packets intact PASS");
         std::puts("D17AM2 unified geometry: one GT4 per unclipped quad, native slots, far silhouettes, clip-rectangle cull, painter-only translucency, Vanilla guard PASS");

@@ -826,7 +826,9 @@ void submit_due(const PSXModPresentInfo* info,Frame* shown) {
         }
     }
     if(!late_lead_fixed) {
-        const double wanted=std::clamp(late_ready_ms+3.0,10.0,40.0);
+        // D17AW: on the render thread an image is ready its drawing time after
+        // the worker finishes; the lead covers both.
+        const double wanted=std::clamp(late_ready_ms+psx_mod_replay_render_latency_ms()+3.0,10.0,40.0);
         // Slew with elapsed time so the mouse sampling time cannot jump
         // backwards when a slow job enters the readiness window.
         static double last_adjust=0;
@@ -1229,18 +1231,25 @@ int cache_find(uint64_t frame,int index) {
         if(cache[c].serial==frame && cache[c].index==index && psx_mod_replay_cache_valid(c)) return c;
     return -1;
 }
+// D17AW: the entry whose redraw is queued on the render thread, not drawn yet.
+int cache_pending_find(uint64_t frame,int index) {
+    for(int c=0;c<cache_entries;++c)
+        if(cache[c].serial==frame && cache[c].index==index && psx_mod_replay_cache_pending(c)) return c;
+    return -1;
+}
 int cache_victim() {
     // An empty entry, else an image of a frame already off screen, else the
     // least recently used.
     int best=-1;
     for(int c=0;c<cache_entries;++c) {
         if(c==last_shown_cache) continue;
+        if(psx_mod_replay_cache_pending(c)) continue;   // D17AW: being drawn on the render thread
         if(!psx_mod_replay_cache_valid(c) || !frame_by_serial(cache[c].serial)) return c;
         if(cache[c].serial<shown_serial && (best<0 || cache[c].used<cache[best].used)) best=c;
     }
     if(best>=0) return best;
     best=last_shown_cache==0?1:0;
-    for(int c=0;c<cache_entries;++c) if(c!=last_shown_cache && cache[c].used<cache[best].used) best=c;
+    for(int c=0;c<cache_entries;++c) if(c!=last_shown_cache && !psx_mod_replay_cache_pending(c) && cache[c].used<cache[best].used) best=c;
     return best;
 }
 // Main-thread budget for drawing redraws: a token bucket refilled at
@@ -1259,6 +1268,11 @@ bool budget_ok(const PSXModPresentInfo* info) {
     bucket_t=info->now;
     return tokens_ms>=budget_ms*0.5;
 }
+double due_wait_ms=4.0;   // D17AW: DNTTK_RT_DUE_WAIT_MS
+// D17AW: redraws are drawn on the render thread. Queueing one costs the
+// emulation thread almost nothing, so the slack and budget governors (which
+// kept feeds out of the game's own time) do not hold them back.
+bool rt_async() {return psx_mod_replay_render_async()!=0;}
 bool render(Frame& f,int index,const PSXModPresentInfo* info,bool due=false) {
     uint64_t tag=0;
     if(f.failed[index] || f.jobs[index]<0 || psx_mod_replay_job_state(f.jobs[index],&tag)!=3 || tag!=f.serial) return false;
@@ -1267,7 +1281,7 @@ bool render(Frame& f,int index,const PSXModPresentInfo* info,bool due=false) {
     // (one feed, about 1 ms): refusing it froze the view for a present and
     // then caught up, the jerk at the dancers (2026-10-02).
     static const bool due_free=[]{const char* t=std::getenv("DNTTK_LATE_DUE_FREE");return !(t && t[0]=='0' && !t[1]);}();
-    if(!(due && due_free && late_camera()) && !budget_ok(info)) {++governed;return false;}
+    if(!(due && due_free && late_camera()) && !rt_async() && !budget_ok(info)) {++governed;return false;}
     if(due) budget_ok(info);   // keep the bucket's clock current
     if(f.submit_ms[index]>0.0) {
         note_ready((double)info->now*1000.0/(double)info->frequency-f.submit_ms[index]);
@@ -1283,6 +1297,9 @@ bool render(Frame& f,int index,const PSXModPresentInfo* info,bool due=false) {
     window_feed_sum+=ms;++window_feed_n;
     if(!ok) {++failures;f.failed[index]=true;return false;}
     cache[c]={f.serial,index,++cache_clock};
+    // D17AW: on the render thread the image is only queued. A present due now
+    // waits for it a little, as the single-thread path drew it right here.
+    if(due && psx_mod_replay_cache_pending(c)) psx_mod_replay_wait_cache(c,due_wait_ms);
     // The image is cached: free the worker job for the next submissions.
     psx_mod_replay_release(f.jobs[index]); f.jobs[index]=-1;
     ++presented;
@@ -1304,7 +1321,7 @@ Frame* shown_frame(uint64_t flips) {
 
 // Prepare the next redraws while the emulation thread has spare time.
 void prefetch(const PSXModPresentInfo* info) {
-    if(info->slack_ms<slack_floor_ms) {++governed;return;}
+    if(!rt_async() && info->slack_ms<slack_floor_ms) {++governed;return;}
     // Never start a preparation that would run past the next present.
     if(info->next_deadline && info->frequency) {
         const double to_next=info->next_deadline>info->now ? (double)(info->next_deadline-info->now)*1000.0/(double)info->frequency : 0.0;
@@ -1393,7 +1410,8 @@ int timeline_provider(const PSXModPresentInfo* info) {
     }
     static double adjust_ms=0;
     if(!late_lead_fixed) {
-        const double wanted=std::clamp(late_ready_ms+3.0,6.0,40.0);
+        // D17AW: plus the render thread's drawing time (0 without it).
+        const double wanted=std::clamp(late_ready_ms+psx_mod_replay_render_latency_ms()+3.0,6.0,40.0);
         const double step=adjust_ms?std::clamp((now_ms-adjust_ms)*.1,0.0,1.0):0;
         late_lead_ms+=std::clamp(wanted-late_lead_ms,-step,step);
     }
@@ -1444,7 +1462,7 @@ int timeline_provider(const PSXModPresentInfo* info) {
             uint64_t tag=0;
             if(f.target[i]<at && psx_mod_replay_job_state(f.jobs[i],&tag)==3 && tag==f.serial) {best=&f;pick=i;at=f.target[i];}
         }
-        if(best && info->slack_ms>=slack_floor_ms) {
+        if(best && (rt_async() || info->slack_ms>=slack_floor_ms)) {
             if(at<=next_ms+period*.5 || next_ms-now_ms>=feed_ms*1.2)
                 if(render(*best,pick,info)) ++prefetched;
         }
@@ -1454,11 +1472,18 @@ int timeline_provider(const PSXModPresentInfo* info) {
     for(auto& f:frames) if(f.valid) for(int i=0;i<f.njobs;++i) {
         if(f.target[i]>now_ms+period*.25 || f.target[i]<=at) continue;
         uint64_t tag=0;
-        if(cache_find(f.serial,i)>=0 || (f.jobs[i]>=0 && !f.failed[i] && psx_mod_replay_job_state(f.jobs[i],&tag)==3 && tag==f.serial)) {best=&f;pick=i;at=f.target[i];}
+        if(cache_find(f.serial,i)>=0 || cache_pending_find(f.serial,i)>=0 ||
+           (f.jobs[i]>=0 && !f.failed[i] && psx_mod_replay_job_state(f.jobs[i],&tag)==3 && tag==f.serial)) {best=&f;pick=i;at=f.target[i];}
     }
     if(best) {
         int c=cache_find(best->serial,pick);bool drawn=false;
-        if(c<0 && info->slack_ms>=slack_floor_ms && render(*best,pick,info,true)) {c=cache_find(best->serial,pick);drawn=true;}
+        // D17AW: queued on the render thread and not finished yet. The
+        // single-thread path drew it right here; wait for it a little.
+        if(c<0) {
+            const int p=cache_pending_find(best->serial,pick);
+            if(p>=0 && psx_mod_replay_wait_cache(p,due_wait_ms)) {c=cache_find(best->serial,pick);drawn=true;}
+        }
+        if(c<0 && (rt_async() || info->slack_ms>=slack_floor_ms) && render(*best,pick,info,true)) {c=cache_find(best->serial,pick);drawn=true;}
         if(c>=0) {
             if(target_hz==-1) late_pace(c==last_shown_cache);
             shown_serial=best->serial;cache[c].used=++cache_clock;++reused;
@@ -1510,7 +1535,11 @@ int provider(const PSXModPresentInfo* info,void*) {
         int c=cache_find(shown->serial,i);
         static const bool nodue=std::getenv("DNTTK_REPLAY_NODUE")!=nullptr;
         bool drawn=false;
-        if(c<0 && !nodue && info->slack_ms>=slack_floor_ms && render(*shown,i,info,true)) {c=cache_find(shown->serial,i);drawn=true;}
+        if(c<0 && !nodue) {   // D17AW: queued on the render thread
+            const int p=cache_pending_find(shown->serial,i);
+            if(p>=0 && psx_mod_replay_wait_cache(p,due_wait_ms)) {c=cache_find(shown->serial,i);drawn=true;}
+        }
+        if(c<0 && !nodue && (rt_async() || info->slack_ms>=slack_floor_ms) && render(*shown,i,info,true)) {c=cache_find(shown->serial,i);drawn=true;}
         if(c>=0) {
             // The same image twice in a row is a repeat (pacing counts it).
             if(late_camera() && !test0) late_pace(c==last_shown_cache);
@@ -1559,7 +1588,16 @@ void activate() {
     if(const char* t=std::getenv("DNTTK_REPLAY_SLACK_MS")) {slack_floor_ms=std::clamp(std::atof(t),0.0,16.0);slack_fixed=true;}
     if(const char* t=std::getenv("DNTTK_LATE_LEAD_MS")) {late_lead_ms=std::clamp(std::atof(t),2.0,40.0);late_lead_fixed=true;}
     if(const char* t=std::getenv("DNTTK_REPLAY_BUDGET_MS")) {budget_ms=std::clamp(std::atof(t),0.5,16.0);budget_fixed=true;}
+    if(const char* t=std::getenv("DNTTK_RT_DUE_WAIT_MS")) due_wait_ms=std::clamp(std::atof(t),0.0,8.0);
     psx_mod_set_replay_status(status_json);
+    // D17AW: Polymorph draws its redraws on the host render thread, so the
+    // emulation thread only emulates. Classic keeps the single-thread path;
+    // DNTTK_RENDER_THREAD=0 (developer) does too.
+    {
+        const char* r=std::getenv("DNTTK_WORLD_RENDERER");
+        const char* t=std::getenv("DNTTK_RENDER_THREAD");
+        psx_mod_set_render_thread(!(r && !std::strcmp(r,"classic")) && !(t && t[0]=='0' && !t[1]));
+    }
     const int32_t hz=parse_rate(std::getenv("DNTTK_FRAME_RATE"));
     if(hz==60) return;
     apply_rate(hz);

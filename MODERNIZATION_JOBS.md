@@ -140,7 +140,7 @@ experience at the end of the day".
 
 ### D17AW - Polymorph: present redraws from a host render thread
 
-**Status: Todo (report first). Dependencies: D17AR5, D17AQ.** The emulation
+**Status: Done (user-accepted 2026-11-01: "it plays beautifully ... fully accept"; [note 353](documentation/353-d17aw-render-thread-report.md)). Dependencies: D17AR5, D17AQ.** The emulation
 thread also feeds every finished worker redraw into the GL renderer (about
 3 ms each, 46% of the thread at 180 Hz in slot 10; GPU about 7% busy). In
 heavy views (slot 10 jetpack vista, slot 2 moat) that keeps the game under
@@ -153,6 +153,59 @@ failure and fallback, measured headroom. Polymorph only; Classic frozen;
 Vanilla unchanged. Acceptance: slot 10 and slot 2 hold 180 at 60 fields/s,
 loads without a slow second, no audio dropouts, 21-level sweep and native
 tests pass, user playtest.
+
+**2026-11-01 stage 1 report (awaiting decision; note 353).** Slot 10 vista
+at 180 (shedding off): the emulation thread is at 100% and half of it (50-51%)
+is the redraw feed, so the game runs 41-43 fields/s. Since D17AX the vista
+redraw is about 79,500 GP0 words and 5.2 ms (D17AR5: 46,000 and 3.07 ms); the
+distant pieces that used to fall back are now drawn every redraw, and the
+D17AR5 margin is gone. Turning: 2.5 ms, 56-57 fields/s. GPU 24-49% busy; the
+driver is 13% of the thread. Without the feed the game needs about 72% of a
+thread at 60 fields/s (still vista). One render thread would need about 94%
+at 180 in the still vista; two about 47% each. After loads the slow stretch
+is the feed saturation until the step down, plus about 0.2 s of live-drawn
+frames. Options: R1 all GL on a render thread (not recommended: the live
+command path reads guest RAM); R2 redraw renderer instances on their own
+threads with shared GL contexts, per-thread renderer state, a per-frame
+snapshot (VRAM blit, GPU snapshot, RAM reads from the worker slot image),
+presentation on the render thread (recommended); R3 workers send ready
+vertex batches (later, if needed). Staged plan 2a/2b/3/4 in note 353. No
+code changed.
+
+**2026-11-01 implementation (Needs playtest; note 353).** User: "im so ready,
+lets go" (R2). Polymorph's redraws are drawn on a host render thread with its
+own renderer instance (the renderer sources compiled again with every global
+renamed, `runtime/src/render_copy/`), a shared GL context and a per-publish
+snapshot of the VRAM surfaces, CPU VRAM, GPU emulator and widescreen state.
+The emulation thread queues redraws and adopts finished images. Title: cache
+victims skip images being drawn, leads include the render latency, a due
+present waits briefly for an image already being drawn, and the slack/budget
+governors no longer hold queueing back. Classic and `DNTTK_RENDER_THREAD=0`
+keep the single-thread path; Vanilla unchanged.
+- Same pictures: 1646 of 1646 sampled images exact against the single-thread
+  path (`PSX_RT_VALIDATE=1`, all 10 fixture slots, still and turning).
+- Slot 10 vista at fixed 180: game 41-43 to 59.9 fields/s, presents 155 to
+  180, emulation thread 100% to about 70%, feed share 50% to 0.
+- Route sweep at 180 with the governor: 162 of 180 seconds at full rate
+  (D17AX build: 130); every slot but the vista holds 180, slot 2 99 to 180.
+- Slot 2 load: 0 audio underruns (was 504).
+- Limits: the vista standing still holds 180 presents but about 110 fresh
+  images/s, limited by worker jobs (21-23 ms each, 3 workers; more workers
+  are slower on 8 cores); the slow first second after loading the vista
+  remains (both builds about 45 fields/s). One render thread by default
+  (`PSX_RENDER_THREADS=2` gives no gain here).
+- Tests: controls 119 PASS, near, input, auto rate; clean quit; the patch
+  applies to the pinned commit; codegen hash unchanged.
+
+**2026-11-01 accepted and closed.** User: "perfect. it plays beautifully ...
+fully accept. lock it in, close us out". Their session log (slot 2 load, about
+7 minutes): one step to every 2nd refresh at the load (audio ring 28 ms),
+back to every refresh, then 180.0 presents/s in every full minute with no
+further changes; window-close exit, no crash; RSS 408 to 472 MB, levelling
+off. D17AW is Done. Retained limits: the slot 10 vista standing still is
+limited by worker job cost (about 110 fresh images/s); the slow first
+second after loading the vista; 120 Hz, the 21-level sweep with this build
+and the second instance's GPU memory not measured.
 
 ## 2026-11-01 - Polymorph: flickering wall triangles (D17AV)
 
@@ -2319,7 +2372,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D17AR6 | Renderer choice in OPTIONS: Classic and Polymorph | Done | D17AR3 |
 | D17AS | Slot-2 moat: large dark triangle in/under the water (research/screencaps/triangle.mp4) | Done (original level design, left as authored by user decision 2026-11-01; note 347) | D17AM |
 | D17AV | Polymorph: flickering triangle on corridor walls (UI slot 8) | Done (user-accepted 2026-11-01; note 351) | D17AM, D17W |
-| D17AW | Polymorph: present redraws from a host render thread (no slow second after loads, 180 Hz in heavy views) | Todo (report first) | D17AR5, D17AQ |
+| D17AW | Polymorph: present redraws from a host render thread (no slow second after loads, 180 Hz in heavy views) | Done | D17AR5, D17AQ |
 | D17AX | Polymorph: draw the whole level from jetpack height (slot 10 black sides and castle interior) | Done (flicker fix; note 352) | D17AR, D17AQ |
 | D14F | 90-default / 120-maximum world FOV | Done (user-confirmed 2026-10-30) | Implemented in afd4ad6 (note 317); re-verified 2026-10-29 |
 | D17AE | Slot-11 sign post through door header | Done (user-confirmed 2026-10-29) | Scene depth for native world/scenery packets; replay precedence fix; world backface cull restored |

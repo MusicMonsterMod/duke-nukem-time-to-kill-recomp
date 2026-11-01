@@ -1,5 +1,41 @@
 # Current status - 2026-10-04
 
+## 2026-11-01 - D17AW accepted and closed
+
+User: "perfect. it plays beautifully ... fully accept. lock it in, close us
+out". D17AW (Polymorph render thread; [note 353](353-d17aw-render-thread-report.md))
+is Done. Their session log: 180.0 presents/s every minute after one short
+step-down at the load, clean exit. Next candidates: cheaper worker jobs for
+the slot 10 vista (about 110 fresh images/s standing there), the slow first
+second after loading the vista, mist and haze as a new job.
+
+## 2026-11-01 - D17AW: Polymorph render thread (Needs playtest)
+
+Implemented R2 ([note 353](353-d17aw-render-thread-report.md)): Polymorph's
+redraws are drawn on a host render thread with its own renderer instance and
+a shared GL context; the emulation thread only queues them and presents.
+- Same pictures: 1646 of 1646 sampled images exact against the old path.
+- Slot 10 vista at 180: game 60 fields/s (was 41-43), 180 presents (was 155),
+  but about 110 fresh images/s there: worker jobs (21-23 ms) are the next
+  limit.
+- 180 Hz route sweep with the governor: 162 of 180 seconds at full rate (was
+  130); slot 2 holds 180 (was 99) and loads with 0 audio underruns (was 504).
+- The slow first second after loading the vista remains.
+- Playtest: slot 10 vista (standing and turning), slot 2 moat, a few loads,
+  audio; `DNTTK_RENDER_THREAD=0` for comparison.
+
+## 2026-11-01 - D17AW stage 1 report: render thread (awaiting decision)
+
+Report in [note 353](353-d17aw-render-thread-report.md). In the slot 10
+vista at 180 the emulation thread is saturated and half of it is the redraw
+feed (5.2 ms and 79,500 GP0 words per redraw since D17AX, was 3.07 ms and
+46,000), so the game runs about 42 fields/s and the governor steps to 90.
+Without the feed the game needs about 72% of a thread. Recommended R2: redraw
+renderer instances on their own threads (shared GL context, per-thread
+renderer state, per-frame snapshot, presents on the render thread), in stages
+2a/2b/3/4; possibly two instances, since one would need about 94% at 180 in
+that view. Waiting for the user's choice. No code changed.
+
 ## 2026-11-01 - D17AX accepted and closed
 
 User: "100% accepted. no slowdowns, no crackle, its stable, no flicker. lock

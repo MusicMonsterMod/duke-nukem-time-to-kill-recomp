@@ -303,7 +303,7 @@ index 7406c39a..64088220 100644
  }
  #endif
 diff --git a/runtime/include/mod_plugins.h b/runtime/include/mod_plugins.h
-index a1e4645e..8bddb024 100644
+index a1e4645e..7614155d 100644
 --- a/runtime/include/mod_plugins.h
 +++ b/runtime/include/mod_plugins.h
 @@ -54,6 +54,13 @@ uint32_t psx_mod_alloc_guest_memory(uint32_t size, uint32_t alignment);
@@ -320,7 +320,7 @@ index a1e4645e..8bddb024 100644
  
  /* Current per-side widescreen reveal in native game pixels (zero at 4:3). */
  int32_t psx_mod_widescreen_x_margin(void);
-@@ -153,6 +160,137 @@ enum {
+@@ -153,6 +160,151 @@ enum {
      PSX_MOD_FRAME_INTERPOLATION_MOTION_ADAPTIVE = 1
  };
  int psx_mod_set_frame_interpolation_blend(uint32_t blend_mode);
@@ -430,6 +430,20 @@ index a1e4645e..8bddb024 100644
 + * present that shows it; psx_mod_replay_cache_valid reports a usable entry. */
 +int  psx_mod_replay_render_job(int job, int cache);
 +int  psx_mod_replay_cache_valid(int cache);
++/* D17AW: a redraw for the entry is queued on (or being drawn by) the render
++ * thread. Not valid yet, but not free to reuse either. */
++int  psx_mod_replay_cache_pending(int cache);
++/* D17AW: recent time from queuing a redraw to its image being ready on the
++ * render thread (0 when the emulation thread draws them). */
++double psx_mod_replay_render_latency_ms(void);
++/* D17AW: draw redraws on the host render thread (render_thread.h) by default;
++ * the PSX_RENDER_THREAD environment variable overrides it. */
++void psx_mod_set_render_thread(int on);
++/* D17AW: wait up to max_ms for the image queued for cache entry `cache`
++ * (a due present); 1 when it is valid. 0 at once without the render thread. */
++int  psx_mod_replay_wait_cache(int cache, double max_ms);
++/* D17AW: 1 while redraws are drawn on the render thread. */
++int  psx_mod_replay_render_async(void);
 +/*
 + * Host precise vertex for a packet the plugin wrote itself: `addr` is the guest
 + * address of one GP0 vertex word, `word` its value (validation), x16/y16 the
@@ -458,7 +472,7 @@ index a1e4645e..8bddb024 100644
  int psx_mod_set_auto_skip_fmv(int enabled);
  /*
   * Draw still artwork behind the game image in OpenGL letterbox/pillarbox
-@@ -195,6 +333,20 @@ int psx_mod_set_load_acceleration(uint32_t wall_clock_multiplier,
+@@ -195,6 +347,20 @@ int psx_mod_set_load_acceleration(uint32_t wall_clock_multiplier,
  int psx_mod_set_disc_speed(uint32_t divisor,
                             uint32_t instant_max_per_frame);
  
@@ -634,6 +648,104 @@ index 00000000..e34ef18e
 +#endif
 +
 +#endif
+diff --git a/runtime/include/render_thread.h b/runtime/include/render_thread.h
+new file mode 100644
+index 00000000..00d553cf
+--- /dev/null
++++ b/runtime/include/render_thread.h
+@@ -0,0 +1,92 @@
++/* render_thread.h - redraws on a host render thread (Time to Kill D17AW).
++ *
++ * The emulation thread used to draw every finished worker redraw into the GL
++ * renderer itself (render_replay.h), about 5 ms each in the heaviest views.
++ * With the render threads on, independent instances of the GPU emulator and
++ * GL renderer (render_copy/, every global renamed rc_* and rc2_*) run on
++ * their own threads with GL contexts shared with the emulation thread's:
++ *
++ *   - at each worker publish the emulation thread snapshots its renderer
++ *     (VRAM surfaces as GPU copies, the CPU VRAM array, GPU emulator and
++ *     widescreen state) into a small ring (gl_rt_capture);
++ *   - psx_mod_replay_render_job queues the redraw instead of drawing it;
++ *   - the render thread loads the snapshot into its instance (gl_rt_load),
++ *     feeds the stream, and captures the image into the shared cache texture;
++ *   - the emulation thread adopts finished images (fenced) and presents them.
++ *
++ * PSX_RENDER_THREAD=0 keeps the single-thread path; any render-thread
++ * failure falls back to it. */
++#ifndef PSX_RENDER_THREAD_H
++#define PSX_RENDER_THREAD_H
++
++#include <stdint.h>
++
++#ifdef __cplusplus
++extern "C" {
++#endif
++
++#define RT_WIDE_SURF 4
++#define RT_INSTANCES 2   /* render threads, each with its own renderer instance */
++
++/* One renderer snapshot. GL names are share-group objects created by the
++ * emulation thread's instance; FBOs are per context and kept per side. */
++typedef struct GlRtSnap {
++    /* Shared textures and renderbuffers (emulation thread creates). */
++    unsigned hr_tex, hr_rb, raw_tex;
++    unsigned wide_tex[RT_WIDE_SURF], wide_rb[RT_WIDE_SURF];
++    int      alloc_scale, alloc_wide_w, alloc_wide[RT_WIDE_SURF];
++    unsigned m_hr_fbo, m_raw_fbo, m_wide_fbo[RT_WIDE_SURF];   /* emulation context */
++    /* Per render thread (its context): FBOs and the textures they wrap. */
++    unsigned c_hr_fbo[RT_INSTANCES], c_raw_fbo[RT_INSTANCES], c_wide_fbo[RT_INSTANCES][RT_WIDE_SURF];
++    unsigned c_hr_tex[RT_INSTANCES], c_raw_tex[RT_INSTANCES], c_wide_tex[RT_INSTANCES][RT_WIDE_SURF];
++    /* Renderer state at capture. */
++    int scale, wide_w, wide_off, wide_base[RT_WIDE_SURF];
++    int wide_cur_on, wide_cur_base, wide_suppress, wide_fast, ws_ablate;
++    int off_x, off_y, area_x1, area_y1, area_x2, area_y2;
++    int semi_en, semi_mode, mod_r, mod_g, mod_b, mod_raw, mask_set, mask_check;
++    int tw_mask_x, tw_mask_y, tw_off_x, tw_off_y, tex_filter, stencil_valid;
++    int gpu_dirty, hz_clear_pending, aspect_num, aspect_den;
++    int pack_dirty[5];              /* set, x0, y0, x1, y1 */
++    int rp_path, rp_w, rp_h, rp_base_x, rp_linear, rp_force_4_3;
++    /* CPU-side state. */
++    uint16_t *cpu;                  /* VRAM array copy (1 MB) */
++    uint8_t  gpu[1024];             /* gpu_snapshot_write */
++    uint32_t gpu_len;
++    uint8_t *ws;                    /* gpu_rt_ws_export */
++    uint32_t ws_len;
++    /* Synchronisation. */
++    void    *fence;                 /* GLsync: emulation thread's copies done (it deletes it) */
++    void    *read_fence[RT_INSTANCES];   /* GLsync: each render thread's reads done */
++    uint64_t gen;                   /* bumped at every capture */
++    int      valid;
++} GlRtSnap;
++
++/* Emulation thread. */
++int  psx_rt_enabled(void);               /* switch on and the thread ready */
++void psx_rt_publish(int slot);           /* at a worker publish */
++int  psx_rt_render(int job, const uint32_t *stream, uint32_t words, int slot, int cache);
++int  psx_rt_job_held(int job);           /* the thread still reads the job's stream */
++int  psx_rt_cache_pending(int cache);    /* a redraw for the cache entry is queued or drawing */
++void psx_rt_poll(void);                  /* adopt finished images */
++int  psx_rt_wait(int cache, double max_ms);   /* wait for a queued image */
++void psx_rt_after_present(int slot);     /* a cache image was drawn to the screen */
++void psx_rt_drop(void);                  /* savestate load, mode change: forget work */
++void psx_rt_shutdown(void);
++double psx_rt_latency_ms(void);          /* queue to finished, recent mean */
++const char *psx_rt_status_json(void);
++
++/* The renderer instances (gpu_gl_renderer.c; the render thread's copy is
++ * rc_*). Emulation-thread side: */
++int  gl_rt_capture(GlRtSnap *s);
++void gl_rt_adopt(int cache, unsigned tex, int tw, int th, void *fence);
++void gl_rt_forget_cache(void);
++/* Render-thread side: */
++int  gl_rt_init_shared(void *window, void *context);
++int  gl_rt_load(GlRtSnap *s, int surfaces, int instance);
++int  gl_rt_cache_image(int cache, unsigned *tex, int *tw, int *th);
++
++#ifdef __cplusplus
++}
++#endif
++
++#endif
 diff --git a/runtime/include/replay_rate.h b/runtime/include/replay_rate.h
 new file mode 100644
 index 00000000..b2d66c00
@@ -698,14 +810,27 @@ index badec733..ba101aef 100644
  uint32_t spu_ram_peek(uint32_t addr, uint8_t *out, uint32_t len);
  
 diff --git a/runtime/runtime.cmake b/runtime/runtime.cmake
-index 149a3fdc..cb79f6a0 100644
+index 149a3fdc..b7f0a80e 100644
 --- a/runtime/runtime.cmake
 +++ b/runtime/runtime.cmake
-@@ -326,6 +326,9 @@ set(PSXRECOMP_RUNTIME_SOURCES
+@@ -326,6 +326,22 @@ set(PSXRECOMP_RUNTIME_SOURCES
      ${PSXRECOMP_ROOT}/runtime/src/interrupts.c
      ${PSXRECOMP_ROOT}/runtime/src/frame_pacing.c
      ${PSXRECOMP_ROOT}/runtime/src/frame_interpolation.c
 +    ${PSXRECOMP_ROOT}/runtime/src/render_replay.c
++    ${PSXRECOMP_ROOT}/runtime/src/render_thread.c
++    ${PSXRECOMP_ROOT}/runtime/src/render_copy/rc_gpu.c
++    ${PSXRECOMP_ROOT}/runtime/src/render_copy/rc_gpu_gl_renderer.c
++    ${PSXRECOMP_ROOT}/runtime/src/render_copy/rc_gpu_sw_renderer.c
++    ${PSXRECOMP_ROOT}/runtime/src/render_copy/rc_gpu_render.c
++    ${PSXRECOMP_ROOT}/runtime/src/render_copy/rc_gpu_vram_dirty.c
++    ${PSXRECOMP_ROOT}/runtime/src/render_copy/rc_render_replay.c
++    ${PSXRECOMP_ROOT}/runtime/src/render_copy/rc2_gpu.c
++    ${PSXRECOMP_ROOT}/runtime/src/render_copy/rc2_gpu_gl_renderer.c
++    ${PSXRECOMP_ROOT}/runtime/src/render_copy/rc2_gpu_sw_renderer.c
++    ${PSXRECOMP_ROOT}/runtime/src/render_copy/rc2_gpu_render.c
++    ${PSXRECOMP_ROOT}/runtime/src/render_copy/rc2_gpu_vram_dirty.c
++    ${PSXRECOMP_ROOT}/runtime/src/render_copy/rc2_render_replay.c
 +    ${PSXRECOMP_ROOT}/runtime/src/render_worker.c
 +    ${PSXRECOMP_ROOT}/runtime/src/host_profiler.c
      ${PSXRECOMP_ROOT}/runtime/src/host_time.c
@@ -975,7 +1100,7 @@ index 0fe0d272..0863cb1c 100644
  #ifdef _WIN32
            Sleep(1);
 diff --git a/runtime/src/debug_server.c b/runtime/src/debug_server.c
-index 645f055e..042d1f85 100644
+index 645f055e..02f346ce 100644
 --- a/runtime/src/debug_server.c
 +++ b/runtime/src/debug_server.c
 @@ -128,6 +128,18 @@ static int    s_resp_overflow = 0;
@@ -1123,12 +1248,20 @@ index 645f055e..042d1f85 100644
               gte_geometry_correction_enabled(),
               (unsigned)hits,
               (unsigned)gpu_texture_correction_hits(),
-@@ -7843,6 +7899,78 @@ static void handle_gl_interp(int id, const char *json)
+@@ -7843,6 +7899,86 @@ static void handle_gl_interp(int id, const char *json)
               (unsigned long long)swaps);
  }
  
 +/* render_replay: Time to Kill D17 replay presentation counters. */
 +#include "render_replay.h"
++/* D17AW: the render thread (render_thread.h). */
++extern const char *psx_rt_status_json(void);
++static void handle_render_thread(int id, const char *json)
++{
++    (void)json;
++    send_fmt("{\"id\":%d,\"ok\":true,\"render_thread\":%s}", id, psx_rt_status_json());
++}
++
 +static void handle_render_replay(int id, const char *json)
 +{
 +    const RenderReplayStats *st = render_replay_stats();
@@ -1202,7 +1335,7 @@ index 645f055e..042d1f85 100644
  /* gl_wide_fast on=<0|1>: native-wide centre-blit fast path. 1 (default) = skip
   * the redundant centre mirror and copy the canonical 4:3 frame into the wide
   * surface centre at present (fast). 0 = re-rasterize the whole wide surface
-@@ -8571,7 +8699,7 @@ static void disp_ring_capture(void)
+@@ -8571,7 +8707,7 @@ static void disp_ring_capture(void)
      static int enabled = -1;
      if (enabled < 0) {
          const char *e = getenv("PSX_DISPLAY_RING");
@@ -1211,7 +1344,7 @@ index 645f055e..042d1f85 100644
      }
      if (!enabled) return;
      if (!s_disp_ring_px) {
-@@ -13667,6 +13795,8 @@ static const CmdEntry s_commands[] = {
+@@ -13667,6 +13803,8 @@ static const CmdEntry s_commands[] = {
      { "xprobe_arm",        handle_xprobe_arm },
      { "xprobe_watch",      handle_xprobe_watch },
      { "ce_profile",        handle_ce_profile },
@@ -1220,16 +1353,17 @@ index 645f055e..042d1f85 100644
      { "frame",             handle_frame },
      { "frame_fingerprint", handle_frame_fingerprint },
      { "record_frame",      handle_record_frame },
-@@ -13702,6 +13832,8 @@ static const CmdEntry s_commands[] = {
+@@ -13702,6 +13840,9 @@ static const CmdEntry s_commands[] = {
      { "present_ring",      handle_present_ring },
      { "frame_perf",        handle_frame_perf },
      { "gl_ws_ablate",      handle_gl_ws_ablate },
 +    { "render_replay",     handle_render_replay },
++    { "render_thread",     handle_render_thread },
 +    { "replay_dump",       handle_replay_dump },
      { "gl_interp",         handle_gl_interp },
      { "gl_wide_fast",      handle_gl_wide_fast },
      { "synth_recurse",     handle_synth_recurse },
-@@ -14439,14 +14571,23 @@ void debug_server_init(int port)
+@@ -14439,14 +14580,23 @@ void debug_server_init(int port)
  static int recv_line(sock_t c, char *buf, int cap)
  {
      int len = 0;
@@ -1254,7 +1388,7 @@ index 645f055e..042d1f85 100644
      buf[cap - 1] = '\0';
      return cap - 1;   /* over-long line: take what we have */
  }
-@@ -14463,6 +14604,17 @@ static int io_thread_main(void *arg)
+@@ -14463,6 +14613,17 @@ static int io_thread_main(void *arg)
          int clen = sizeof(caddr);
          sock_t c = accept(s_listen, (struct sockaddr *)&caddr, &clen);
          if (c == SOCK_INVALID) { if (!s_io_running) break; SDL_Delay(5); continue; }
@@ -1272,7 +1406,7 @@ index 645f055e..042d1f85 100644
  
          char req[RECV_BUF_SIZE];
          int rl = recv_line(c, req, sizeof(req));
-@@ -14665,18 +14817,25 @@ void debug_server_check_watchpoints(void)
+@@ -14665,18 +14826,25 @@ void debug_server_check_watchpoints(void)
  
  void debug_server_shutdown(void)
  {
@@ -1408,7 +1542,7 @@ index be30e5af..f23d273d 100644
          now = SDL_GetPerformanceCounter();     /* ONE read per iteration */
          uint32_t ms = frame_pacing_sleep_ms(now, p->next_deadline, freq, period);
 diff --git a/runtime/src/gpu.c b/runtime/src/gpu.c
-index aaf69df7..9db0895c 100644
+index aaf69df7..ca25ca12 100644
 --- a/runtime/src/gpu.c
 +++ b/runtime/src/gpu.c
 @@ -33,6 +33,7 @@
@@ -2148,8 +2282,77 @@ index aaf69df7..9db0895c 100644
  /* ---- GP1 write (0x1F801814 write) ---- */
  
  static void gp1_reset(void) {
+@@ -5830,3 +6309,68 @@ int gpu_snapshot_read(const uint8_t *p, uint32_t len) {
+ }
+ uint16_t* gpu_get_vram_ptr(void){ return vram; }
+ uint32_t  gpu_get_vram_bytes(void){ return (uint32_t)sizeof(vram); }
++
++/* ---- Time to Kill D17AW: widescreen state for the render thread ----------
++ * The render thread draws redraws with its own instance of this file
++ * (render_copy/rc_gpu.c). A feed on the emulation thread ran with this
++ * instance's widescreen configuration and live classifier inputs (sprite
++ * tags, GTE and overhang stamps, backdrop ring); the render thread's instance
++ * imports them as they were when the frame was published. */
++#define GPU_RT_WS_VARS(X) \
++    X(ws_xnum) X(ws_xden) X(ws_anchor_addr) X(ws_hud_sprt) X(ws_auto_ui_squash) \
++    X(ws_auto_ui_dense) X(ws_ui_prepass) X(ws_ui_prepass_count) X(ws_ui_prepass_rank) \
++    X(ws_mode) X(ws_cfg_num) X(ws_cfg_den) X(ws_tags) X(ws_tags_gen) \
++    X(ws_last_tag_stamp) X(ws_last_3d_stamp) X(ws_full_2d) X(ws_clear_reveal) \
++    X(g_mmx6_void_sides) X(g_mmx6_void_generation) X(ws_gte_game_mode_cfg) \
++    X(ws_gte_frame) X(ws_gte_count) X(ws_last_gte_stamp) X(ws_precise_nclip_cfg) \
++    X(ws_gameplay_state_addr) X(ws_gameplay_state_values) X(ws_gameplay_state_value_count) \
++    X(ws_gte_prev_verts) X(ws_last_world3d_stamp) X(ws_sust_world3d_stamp) \
++    X(ws_ovh_frame) X(ws_ovh_count) X(ws_ovh_prev) X(ws_last_ovh_stamp) X(ws_sust_ovh_stamp) \
++    X(s_ws_fmv_frame_cache) X(s_ws_fmv_cached) X(ws_local_viewport_cfg) X(ws_local_viewport_slot) \
++    X(ws_margin_override) X(ws_cull_guard_pixels) X(ws_activation_guard_pixels) \
++    X(ws_explicit_bias_sites) X(ws_explicit_slti_sites) X(ws_explicit_range_sites) \
++    X(ws_explicit_bias_n) X(ws_explicit_slti_n) X(ws_explicit_range_n) \
++    X(ws_explicit_slti_lower_sites) X(ws_explicit_slti_lower_n) \
++    X(ws_explicit_negsub_sites) X(ws_explicit_negsub_n) \
++    X(ws_explicit_vxrange_sites) X(ws_explicit_vxrange_n) \
++    X(ws_explicit_depth_sites) X(ws_explicit_depth_n) \
++    X(ws_explicit_plane_nx_sites) X(ws_explicit_plane_nx_n) \
++    X(ws_explicit_xclip_load_sites) X(ws_explicit_xclip_load_n) \
++    X(ws_cull_keep_sites) X(ws_cull_keep_n) X(ws_angle_sites) X(ws_angle_n) \
++    X(ws_aspect_cone_sites) X(ws_aspect_cone_n) X(ws_aspect_cone_forward_addr) \
++    X(ws_aspect_cone_object_type_offset) X(ws_aspect_cone_hysteresis_pixels) \
++    X(ws_aspect_cone_queue_reserve) X(ws_aspect_cone_queue_count_addrs) \
++    X(ws_aspect_cone_queue_capacities) X(ws_aspect_cone_queue_type_masks) \
++    X(ws_aspect_cone_state) X(ws_aspect_cone_wide_latched) \
++    X(ws_signed_bound_addr) X(ws_signed_bound_expected) X(ws_signed_bound_count) \
++    X(g_bg2d_layer_base) X(g_bg2d_ring_base) X(g_bg2d_map_size_addr) \
++    X(g_bg2d_layer_stride_addr) X(g_bg2d_ring_cols) X(g_bg2d_layer_count) \
++    X(g_bg2d_layer_struct_stride) X(g_bg2d_packet_cap) X(g_bg2d_native_cols) \
++    X(g_bg2d_parent_links) X(g_mmx6_freshfix) X(g_mmx6_refill_cols) X(g_mmx6_refill_frame) \
++    X(ws_cull_w_imms) X(ws_cull_w_n) X(ws_cull_h_imms) X(ws_cull_h_n) \
++    X(ws_auto_cull_on_cfg) X(ws_auto_backdrop_on_cfg) X(g_ws_bd_margin) X(g_ws_bd_from_interp) \
++    X(s_bd_ring) X(s_bd_ring_seq) X(ws_backdrop_sites) X(ws_backdrop_site_n) \
++    X(g_ws_backdrop_lo) X(g_ws_backdrop_hi) X(ws_nw_phase_backdrop) X(ws_nw_textured_edges) \
++    X(g_ws_tex_edge_pct) X(g_bdg_src_lo) X(g_bdg_src_hi) X(bdg_src_frame) \
++    X(s_bg_phase_frame) X(s_bg_phase_over) X(ws_nw_hud_corners) X(ws_nw_hud_tag_rects) \
++    X(ws_nw_left_hud_packet_lo) X(ws_nw_left_hud_packet_hi) X(ws_nw_backdrop) \
++    X(ws_nw_flat_backdrop) X(split_recent_left_age) X(split_recent_right_age) \
++    X(split_recent_display_w) X(split_recent_display_h) X(ws_fb_base) X(ws_fb_n) \
++    X(s_texture_correction_enabled)
++uint32_t gpu_rt_ws_bytes(void) {
++    uint32_t n = 0;
++#define X(v) n += (uint32_t)sizeof(v);
++    GPU_RT_WS_VARS(X)
++#undef X
++    return n;
++}
++void gpu_rt_ws_export(uint8_t *p) {
++#define X(v) memcpy(p, &(v), sizeof(v)); p += sizeof(v);
++    GPU_RT_WS_VARS(X)
++#undef X
++}
++void gpu_rt_ws_import(const uint8_t *p) {
++#define X(v) memcpy(&(v), p, sizeof(v)); p += sizeof(v);
++    GPU_RT_WS_VARS(X)
++#undef X
++}
 diff --git a/runtime/src/gpu_gl_renderer.c b/runtime/src/gpu_gl_renderer.c
-index d0ccc3d5..2316d4f5 100644
+index d0ccc3d5..991356c7 100644
 --- a/runtime/src/gpu_gl_renderer.c
 +++ b/runtime/src/gpu_gl_renderer.c
 @@ -1,3 +1,4 @@
@@ -2157,7 +2360,7 @@ index d0ccc3d5..2316d4f5 100644
  /* gpu_gl_renderer.c — hardware OpenGL renderer backend.
   *
   * ARCHITECTURE (v2 — GPU-authoritative VRAM)
-@@ -68,6 +69,7 @@
+@@ -68,12 +69,14 @@
  #include "gpu_sw_renderer.h"
  #include "gpu_gl_renderer.h"
  #include "frame_interpolation.h"
@@ -2165,7 +2368,14 @@ index d0ccc3d5..2316d4f5 100644
  #include "host_osd.h"
  #include "psx_savestate_menu.h"
  #include "host_time.h"
-@@ -247,6 +249,12 @@ static void gl_perf_mirror_end(void);   /* mirror pass (timestamp pair; splits s
+ #include "latency_ring.h"
+ #include "frame_pacing.h"
+ #include "psx_rewind.h"
++#include "render_thread.h"
+ 
+ #include "psx_sdl.h"
+ #if defined(PSX_SDL3)
+@@ -247,6 +250,12 @@ static void gl_perf_mirror_end(void);   /* mirror pass (timestamp pair; splits s
  static int s_ws_ablate = 0;
  static void flush_tex_batch(void); /* textured-prim batch — defined below, flushed from coherency points */
  static void flush_flat_batch(void); /* flat/gouraud GEO batch (MotK starfield 0x68 dots) */
@@ -2178,7 +2388,7 @@ index d0ccc3d5..2316d4f5 100644
  static PFN_glGenRenderbuffers  p_glGenRenderbuffers;
  static PFN_glDeleteRenderbuffers p_glDeleteRenderbuffers;
  static PFN_glBindRenderbuffer  p_glBindRenderbuffer;
-@@ -299,6 +307,71 @@ static int load_modern_gl(void) {
+@@ -299,6 +308,71 @@ static int load_modern_gl(void) {
      return ok;
  }
  
@@ -2250,7 +2460,7 @@ index d0ccc3d5..2316d4f5 100644
  /* ---- state ------------------------------------------------------------- */
  static SDL_Window   *s_win = NULL;
  static SDL_GLContext s_ctx = NULL;
-@@ -339,6 +412,7 @@ static FrameInterpolationSchedule s_interp_schedule;
+@@ -339,6 +413,7 @@ static FrameInterpolationSchedule s_interp_schedule;
  static void interp_reset_history(void);
  static int interp_present(float alpha);
  static void interp_present_source_interval(void);
@@ -2258,7 +2468,7 @@ index d0ccc3d5..2316d4f5 100644
  static void interp_draw_quad(float alpha, int lx, int ly, int lw, int lh);
  static void present_bezel(int ww, int wh, int lx, int ly, int lw, int lh);
  
-@@ -348,6 +422,19 @@ static int           s_raster_ok = 0;      /* full GPU pipeline available */
+@@ -348,6 +423,19 @@ static int           s_raster_ok = 0;      /* full GPU pipeline available */
  static GLuint        s_hr_tex = 0, s_hr_fbo = 0, s_hr_rb = 0;
  /* Native raw-1555 sampling mirror + readback source. */
  static GLuint        s_raw_tex = 0, s_raw_fbo = 0;
@@ -2278,7 +2488,7 @@ index d0ccc3d5..2316d4f5 100644
  /* CPU->VRAM upload staging (native RGBA8). */
  static GLuint        s_up_tex = 0;
  /* copy_rect staging (hr-sized RGBA8). */
-@@ -363,7 +450,16 @@ static GLuint s_tex_prog = 0, s_tex_vao = 0, s_tex_vbo = 0;
+@@ -363,7 +451,16 @@ static GLuint s_tex_prog = 0, s_tex_vao = 0, s_tex_vbo = 0;
   * PS1-faithful default, which makes the vertex shader's w exactly 1.0 and the
   * fragment shader read the noperspective varying — i.e. bit-identical to the
   * pre-feature pipeline. */
@@ -2296,7 +2506,7 @@ index d0ccc3d5..2316d4f5 100644
  static GLuint s_blit_prog = 0, s_blit_vao = 0, s_blit_vbo = 0;
  static GLuint s_pack_prog = 0, s_stencil_prog = 0, s_empty_vao = 0;
  
-@@ -375,6 +471,46 @@ static int     s_pc_valid = 0;                  /* sub-pixel positions present *
+@@ -375,6 +472,46 @@ static int     s_pc_valid = 0;                  /* sub-pixel positions present *
  static float   s_pc_x[3], s_pc_y[3];            /* native VRAM px, fractional  */
  static int     s_pq_valid = 0;                  /* perspective weights present */
  static float   s_pq[3];
@@ -2343,7 +2553,7 @@ index d0ccc3d5..2316d4f5 100644
  
  /* TEX program uniforms. */
  static GLint s_uVram = -1, s_uTpage = -1, s_uClut = -1, s_uDepth = -1;
-@@ -539,6 +675,7 @@ static void flush_cpu_upload(void);   /* fwd: overflow flushes then re-adds */
+@@ -539,6 +676,7 @@ static void flush_cpu_upload(void);   /* fwd: overflow flushes then re-adds */
   * with touching/overlapping y-ranges — the row-scan / column-scan poke
   * patterns). Never unions disjoint rects post-init (that was the flicker bug). */
  static void up_add(int x0, int y0, int x1, int y1) {
@@ -2351,7 +2561,7 @@ index d0ccc3d5..2316d4f5 100644
      if (x0 < 0) x0 = 0; if (y0 < 0) y0 = 0;
      if (x1 > VRAM_W - 1) x1 = VRAM_W - 1;
      if (y1 > VRAM_H - 1) y1 = VRAM_H - 1;
-@@ -706,10 +843,10 @@ static void hold_ensure_tex(int w, int h) {
+@@ -706,10 +844,10 @@ static void hold_ensure_tex(int w, int h) {
      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE,
                   NULL);
@@ -2364,7 +2574,7 @@ index d0ccc3d5..2316d4f5 100644
      s_hold_tw = w;
      s_hold_th = h;
  }
-@@ -724,7 +861,7 @@ static void hold_capture_drawable(void) {
+@@ -724,7 +862,7 @@ static void hold_capture_drawable(void) {
      if (ww < 1 || wh < 1)
          return;
      hold_ensure_tex(ww, wh);
@@ -2373,7 +2583,7 @@ index d0ccc3d5..2316d4f5 100644
      glBindTexture(GL_TEXTURE_2D, s_hold_tex);
      glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, ww, wh);
      glBindTexture(GL_TEXTURE_2D, 0);
-@@ -741,14 +878,14 @@ static void hold_capture_native_fbo(GLuint src_fbo, int dx, int dy, int dw, int
+@@ -741,14 +879,14 @@ static void hold_capture_native_fbo(GLuint src_fbo, int dx, int dy, int dw, int
      if (!s_ctx || !src_fbo || dw < 1 || dh < 1)
          return;
      hold_ensure_tex(dw * S, dh * S);
@@ -2393,7 +2603,7 @@ index d0ccc3d5..2316d4f5 100644
      s_hold_kind = HOLD_NATIVE;
      s_hold_force_4_3 = force_4_3 ? 1 : 0;
      s_hold_linear = linear ? 1 : 0;
-@@ -795,8 +932,15 @@ int gl_renderer_coh_get(uint64_t seq, GlCohEvent *out) {
+@@ -795,8 +933,15 @@ int gl_renderer_coh_get(uint64_t seq, GlCohEvent *out) {
  static GlPresEvent s_pres_ring[GL_PRES_RING_CAP];
  static uint64_t    s_pres_seq = 0;
  
@@ -2409,7 +2619,7 @@ index d0ccc3d5..2316d4f5 100644
      /* The ring metadata stays always-on, but pixel probing must not: each
       * glReadPixels synchronously drains queued GPU work. Two probes per frame
       * were enough to make Tomba 2 miss its frame budget. */
-@@ -829,12 +973,12 @@ static void pres_record(int path, int dx, int dy, int w, int h,
+@@ -829,12 +974,12 @@ static void pres_record(int path, int dx, int dy, int w, int h,
      uint8_t sp[3] = { 0, 0, 0 };
      e->src_valid = 0;
      if (probe_pixels && (path == GL_PRES_VRAM) && w > 0 && h > 0 && s_hr_fbo) {
@@ -2424,7 +2634,7 @@ index d0ccc3d5..2316d4f5 100644
          e->src_valid = 1;
      }
      e->src_r = sp[0]; e->src_g = sp[1]; e->src_b = sp[2];
-@@ -959,24 +1103,27 @@ static const char *GEO_VS =
+@@ -959,24 +1104,27 @@ static const char *GEO_VS =
      "#version 330\n"
      "layout(location=0) in vec2 a_pos;\n"
      "layout(location=1) in vec4 a_col;\n"
@@ -2455,7 +2665,7 @@ index d0ccc3d5..2316d4f5 100644
  
  /* Textured prims: sample raw 1555 VRAM (integer), CLUT decode per depth,
   * texture window, optional bilinear, texel-0 discard, STP-split discard,
-@@ -996,11 +1143,11 @@ static const char *TEX_VS =
+@@ -996,11 +1144,11 @@ static const char *TEX_VS =
      "layout(location=2) in vec4 a_col;\n"
      "layout(location=3) in vec2 a_tpage;\n"
      "layout(location=4) in vec2 a_clut;\n"
@@ -2470,7 +2680,7 @@ index d0ccc3d5..2316d4f5 100644
      "uniform float u_shift;\n"
      "uniform float u_xoff;   /* native-wide x translation (px); 0 canonical */\n"
      "uniform float u_xhalf;  /* x clip half-extent (px); 512 canonical */\n"
-@@ -1011,11 +1158,11 @@ static const char *TEX_VS =
+@@ -1011,11 +1159,11 @@ static const char *TEX_VS =
      "flat out int v_persp;\n"
      "flat out ivec2 v_tpage; flat out ivec2 v_clut; flat out int v_depth;\n"
      "flat out int v_raw; flat out ivec4 v_limits; flat out int v_semi;\n"
@@ -2485,7 +2695,7 @@ index d0ccc3d5..2316d4f5 100644
      "  v_limits = ivec4(floor(a_limits + 0.5));\n"
      "  /* u_shift: align GL's center-sample grid with the PS1 integer grid (see\n"
      "   * GEO_VS) so interpolated uv at a fragment equals the PS1 DDA value. */\n"
-@@ -1031,11 +1178,11 @@ static const char *TEX_VS =
+@@ -1031,11 +1179,11 @@ static const char *TEX_VS =
      "   * a_q == 0 (feature off) w is exactly 1.0 and this is the old expression. */\n"
      "  float w = (a_q > 0.0) ? (1.0 / a_q) : 1.0;\n"
      "  vec2 ndc = vec2((xb+u_shift+u_xoff)/u_xhalf - 1.0, (a_pos.y+u_shift)/256.0 - 1.0);\n"
@@ -2499,7 +2709,7 @@ index d0ccc3d5..2316d4f5 100644
      "out vec4 frag; out vec4 blend_factor;\n"
      "flat in ivec2 v_tpage;   /* texture page base, VRAM px */\n"
      "flat in ivec2 v_clut;    /* CLUT base, VRAM px */\n"
-@@ -1044,6 +1191,8 @@ static const char *TEX_FS =
+@@ -1044,6 +1192,8 @@ static const char *TEX_FS =
      "flat in ivec4 v_limits;  /* prim uv sampling bounds (inclusive, post-wrap) */\n"
      "flat in int v_semi;      /* GP0 command has semi-transparency enabled */\n"
      "uniform usampler2D u_vram;\n"
@@ -2508,7 +2718,7 @@ index d0ccc3d5..2316d4f5 100644
      "uniform int u_semipass;  /* 0=all texels, 1=STP=0 only, 2=STP=1 only */\n"
      "uniform int u_semimode;  /* PS1 blend mode; drives dual-source factors */\n"
      "uniform ivec4 u_twin;    /* texture window: mask_x, mask_y, off_x, off_y */\n"
-@@ -1054,6 +1203,7 @@ static const char *TEX_FS =
+@@ -1054,6 +1204,7 @@ static const char *TEX_FS =
      "  return int(texelFetch(u_vram, ivec2(x & 1023, y & 511), 0).r);\n"
      "}\n"
      "int fetch_texel(int u, int v){\n"
@@ -2516,7 +2726,7 @@ index d0ccc3d5..2316d4f5 100644
      "  u &= 255; v &= 255;\n"
      "  if ((u_twin.x | u_twin.y) != 0) {\n"
      "    u = (u & ~(u_twin.x * 8)) | ((u_twin.z & u_twin.x) * 8);\n"
-@@ -1075,12 +1225,13 @@ static const char *TEX_FS =
+@@ -1075,12 +1226,13 @@ static const char *TEX_FS =
      "  return vec3(float(raw & 31), float((raw >> 5) & 31), float((raw >> 10) & 31)) / 31.0;\n"
      "}\n"
      "void main(){\n"
@@ -2531,7 +2741,7 @@ index d0ccc3d5..2316d4f5 100644
      "    int raw = fetch_texel(int(floor(uv.x)), int(floor(uv.y)));\n"
      "    if (raw == 0) discard;\n"
      "    rgb = col5(raw);\n"
-@@ -1113,9 +1264,17 @@ static const char *TEX_FS =
+@@ -1113,9 +1265,17 @@ static const char *TEX_FS =
      "                + float((c01 >> 15) & 1) * w01 + float((c11 >> 15) & 1) * w11) / opac;\n"
      "    stp = stpf >= 0.5 ? 1 : 0;\n"
      "  }\n"
@@ -2549,7 +2759,7 @@ index d0ccc3d5..2316d4f5 100644
      "  float dst_factor = 0.0;\n"
      "  if (u_semimode == 4 && v_semi != 0 && stp != 0) {\n"
      "    dst_factor = v_semi == 1 ? 0.5 : 1.0;\n"
-@@ -1227,7 +1386,7 @@ static inline uint32_t conv_1555_to_rgba8(uint16_t p) {
+@@ -1227,7 +1387,7 @@ static inline uint32_t conv_1555_to_rgba8(uint16_t p) {
   *              stored value is known to be 0 when the test passed) and a 0
   *              via KEEP. */
  static void mask_stencil(int write_val) {
@@ -2558,7 +2768,7 @@ index d0ccc3d5..2316d4f5 100644
      glStencilMask(0x01);
      if (s_mask_check) {
          glStencilFunc(GL_EQUAL, 0, 0x01);
-@@ -1239,7 +1398,7 @@ static void mask_stencil(int write_val) {
+@@ -1239,7 +1399,7 @@ static void mask_stencil(int write_val) {
  }
  /* Like mask_stencil but never checks (uploads: gpu.c already applied mask). */
  static void plain_stencil(int write_val) {
@@ -2567,7 +2777,7 @@ index d0ccc3d5..2316d4f5 100644
      glStencilMask(0x01);
      glStencilFunc(GL_ALWAYS, write_val ? 1 : 0, 0x01);
      glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
-@@ -1249,7 +1408,7 @@ static void plain_stencil(int write_val) {
+@@ -1249,7 +1409,7 @@ static void plain_stencil(int write_val) {
   * channel (mask bit) is always replaced by the source fragment's alpha.
   *   0: B/2 + F/2   1: B + F   2: B - F   3: B + F/4 */
  static void apply_psx_blend(int mode) {
@@ -2576,7 +2786,7 @@ index d0ccc3d5..2316d4f5 100644
      p_glBlendEquationSeparate((mode & 3) == 2 ? PSXGL_FUNC_REVERSE_SUBTRACT
                                                : PSXGL_FUNC_ADD,
                                PSXGL_FUNC_ADD);
-@@ -1271,9 +1430,9 @@ static void apply_psx_blend(int mode) {
+@@ -1271,9 +1431,9 @@ static void apply_psx_blend(int mode) {
  
  /* ---- hr FBO render-state bracket ---------------------------------------- */
  static void hr_begin(int clip_to_draw_area) {
@@ -2588,7 +2798,7 @@ index d0ccc3d5..2316d4f5 100644
      if (clip_to_draw_area) {
          int sw = s_area_x2 - s_area_x1 + 1, sh = s_area_y2 - s_area_y1 + 1;
          if (sw < 0) sw = 0; if (sh < 0) sh = 0;
-@@ -1282,16 +1441,20 @@ static void hr_begin(int clip_to_draw_area) {
+@@ -1282,16 +1442,20 @@ static void hr_begin(int clip_to_draw_area) {
      }
  }
  static void hr_end(void) {
@@ -2615,7 +2825,7 @@ index d0ccc3d5..2316d4f5 100644
  }
  
  /* ---- coherency: CPU -> GPU upload flush --------------------------------- */
-@@ -1309,6 +1472,8 @@ static void flush_cpu_upload(void) {
+@@ -1309,6 +1473,8 @@ static void flush_cpu_upload(void) {
      int nrects = s_up_nrects;
      memcpy(rects, s_up_rects, (size_t)nrects * sizeof(DirtyRect));
      s_up_nrects = 0;
@@ -2624,7 +2834,7 @@ index d0ccc3d5..2316d4f5 100644
  
      /* Stage every rect's CPU data first (texture uploads outside the FBO
       * bracket), then draw all the quads in one bracket. Only the exact
-@@ -1349,15 +1514,15 @@ static void flush_cpu_upload(void) {
+@@ -1349,15 +1515,15 @@ static void flush_cpu_upload(void) {
       * here, the data is final. up_tex is VRAM-aligned: src texel = frag/S. */
      uint64_t draw_t0 = diag ? SDL_GetPerformanceCounter() : 0;
      hr_begin(0);
@@ -2643,7 +2853,7 @@ index d0ccc3d5..2316d4f5 100644
      p_glBindBuffer(PSXGL_ARRAY_BUFFER, s_blit_vbo);
      for (int i = 0; i < nrects; i++) {
          int x = rects[i].x0, y = rects[i].y0;
-@@ -1381,33 +1546,33 @@ static void flush_cpu_upload(void) {
+@@ -1381,33 +1547,33 @@ static void flush_cpu_upload(void) {
   * Sampling an attached render target is undefined, so copy color to the shared
   * scratch texture first. Wide targets never exceed the 1024-pixel VRAM width. */
  static void rebuild_target_stencil(GLuint target_fbo, int target_w, int target_h) {
@@ -2689,7 +2899,7 @@ index d0ccc3d5..2316d4f5 100644
  }
  
  static void rebuild_mask_stencils(void) {
-@@ -1430,23 +1595,23 @@ static void pack_flush(void) {
+@@ -1430,23 +1596,23 @@ static void pack_flush(void) {
      rect_clear(&s_pack_dirty);
      coh_record(GL_COH_PACK, x, y, x + w - 1, y + h - 1);
  
@@ -2723,7 +2933,7 @@ index d0ccc3d5..2316d4f5 100644
  }
  
  /* Make sure the raw mirror is current for a textured draw that samples the
-@@ -1489,9 +1654,10 @@ static void ensure_cpu(void) {
+@@ -1489,9 +1655,10 @@ static void ensure_cpu(void) {
      flush_tex_batch();   /* realise queued textured draws before reading the FBO back */
      flush_cpu_upload();
      pack_flush();
@@ -2736,7 +2946,7 @@ index d0ccc3d5..2316d4f5 100644
      s_gpu_dirty = 0;
      coh_record(GL_COH_ENSURE, 0, 0, VRAM_W - 1, VRAM_H - 1);
  }
-@@ -1501,8 +1667,17 @@ static void ensure_cpu(void) {
+@@ -1501,8 +1668,17 @@ static void ensure_cpu(void) {
  static uint64_t s_scene_prims = 0;     /* frame_perf: scene primitives submitted (pre double-draw) */
  static uint64_t s_scene_prims_tex = 0; /* frame_perf: of which textured (vs flat geometry)         */
  static void flush_tex_batch(void);     /* fwd: drained at the backdrop-phase boundary below */
@@ -2754,7 +2964,7 @@ index d0ccc3d5..2316d4f5 100644
      int x0 = xs[0], x1 = xs[0], y0 = ys[0], y1 = ys[0];
      for (int i = 1; i < n; i++) {
          if (xs[i] < x0) x0 = xs[i]; if (xs[i] > x1) x1 = xs[i];
-@@ -1523,6 +1698,7 @@ static void mark_prim_dirty(const int *xs, const int *ys, int n, int textured) {
+@@ -1523,6 +1699,7 @@ static void mark_prim_dirty(const int *xs, const int *ys, int n, int textured) {
      if (y0 < s_area_y1) y0 = s_area_y1;
      if (x1 > s_area_x2) x1 = s_area_x2;
      if (y1 > s_area_y2) y1 = s_area_y2;
@@ -2762,7 +2972,7 @@ index d0ccc3d5..2316d4f5 100644
      rect_add(&s_pack_dirty, x0, y0, x1, y1);
      /* Dual-raster keeps CPU current via SW writes — do not mark GPU-ahead. */
      if (!s_cpu_auth_dual)
-@@ -1553,9 +1729,9 @@ static void mark_prim_dirty(const int *xs, const int *ys, int n, int textured) {
+@@ -1553,9 +1730,9 @@ static void mark_prim_dirty(const int *xs, const int *ys, int n, int textured) {
   * top/bottom edge flicker (16:9 GL only). */
  static void wide_target_begin(int dx, GLint uXoff, GLint uXhalf) {
      if (s_ws_ablate != 3)   /* ablate 3: no FBO rebind (draws land in hr — perf probe) */
@@ -2774,7 +2984,7 @@ index d0ccc3d5..2316d4f5 100644
      {
          int sy = s_area_y1, sh = s_area_y2 - s_area_y1 + 1;
          if (sy < 0) { sh += sy; sy = 0; }
-@@ -1570,7 +1746,7 @@ static void wide_target_end(GLint uXoff, GLint uXhalf) {
+@@ -1570,7 +1747,7 @@ static void wide_target_end(GLint uXoff, GLint uXhalf) {
      p_glUniform1f(uXoff, 0.0f);
      p_glUniform1f(uXhalf, 512.0f);
      if (s_ws_ablate != 3)
@@ -2783,7 +2993,7 @@ index d0ccc3d5..2316d4f5 100644
  }
  
  extern int psx_ws_prim_is_tagged(void);   /* gpu.c: is the current GP0 prim sprite-tagged? */
-@@ -1664,7 +1840,7 @@ static void wide_clear_bd_scale(GLint uScale, GLint uCenter) {
+@@ -1664,7 +1841,7 @@ static void wide_clear_bd_scale(GLint uScale, GLint uCenter) {
  /* ---- textured-prim batching -------------------------------------------- *
   * Consecutive textured prims sharing blend/mask/texwindow/filter coalesce into
   * one draw. Per-prim texture state (texpage/clut/depth/raw/uv-limits) rides in
@@ -2792,7 +3002,7 @@ index d0ccc3d5..2316d4f5 100644
   * mask/twin/filter are batch keys. flush_tex_batch() draws the queued verts; it
   * is called before any op that reads VRAM, writes it outside the batch, or
   * changes batch state (see callers: flush_cpu_upload, flush_pack_if_sampling,
-@@ -1672,9 +1848,33 @@ static void wide_clear_bd_scale(GLint uScale, GLint uCenter) {
+@@ -1672,9 +1849,33 @@ static void wide_clear_bd_scale(GLint uScale, GLint uCenter) {
   * already-coherent texture (per-prim coherency was ensured at append time), so
   * flush_tex_batch never re-enters those helpers. */
  #define TEXBATCH_MAXV 8190                 /* multiple of 3; ~2730 tris */
@@ -2827,7 +3037,7 @@ index d0ccc3d5..2316d4f5 100644
  static int   s_tb_mask = 0, s_tb_filter = 0;
  static int   s_tb_twin[4] = {0, 0, 0, 0};
  static uint64_t s_batch_total = 0, s_batch_reason[7];
-@@ -1701,19 +1901,36 @@ void gl_renderer_batch_diag(uint64_t out[8]) {
+@@ -1701,19 +1902,36 @@ void gl_renderer_batch_diag(uint64_t out[8]) {
   * blended per the PSX mode. Cross-prim order is kept by isolating semi prims to
   * one per batch (see gpu_textured_triangle), so this batch holds a single prim
   * whose two passes do not self-overlap. */
@@ -2869,7 +3079,7 @@ index d0ccc3d5..2316d4f5 100644
          } else if (!s_tb_mask) {
              /* Alpha is already exact; defer its duplicate stencil encoding
               * until a later GP0(E6h) actually enables destination masking. */
-@@ -1724,22 +1941,22 @@ static void tex_batch_draw_passes(int nverts, int semi) {
+@@ -1724,22 +1942,22 @@ static void tex_batch_draw_passes(int nverts, int semi) {
           * dual-source factors, so the whole painter-ordered batch is one draw.
           * Mode 2 needs a different blend equation and stays on the conservative
           * isolated path below. */
@@ -2898,7 +3108,7 @@ index d0ccc3d5..2316d4f5 100644
      }
  }
  
-@@ -1762,12 +1979,12 @@ static int    s_cw_batches = 0, s_cw_wide_sets = 0, s_cw_wide_cfgs = 0,
+@@ -1762,12 +1980,12 @@ static int    s_cw_batches = 0, s_cw_wide_sets = 0, s_cw_wide_cfgs = 0,
                s_cw_wide_clears = 0, s_cw_fbo_creates = 0, s_cw_flush_depth = 0;
  
  /* Textured-batch variant of mirror_x_center_only: scan the queued verts' x
@@ -2916,7 +3126,7 @@ index d0ccc3d5..2316d4f5 100644
          if (x < flo) flo = x; if (x > fhi) fhi = x;
      }
      /* floor/ceil, not a truncating cast: with geometry_correction these are
-@@ -1779,41 +1996,76 @@ static int mirror_batch_center_only(int nverts) {
+@@ -1779,41 +1997,76 @@ static int mirror_batch_center_only(int nverts) {
  
  static void flush_tex_batch(void) {
      if (s_tb_n == 0) return;
@@ -3011,7 +3221,7 @@ index d0ccc3d5..2316d4f5 100644
      hr_end();
      if (--s_cw_flush_depth == 0) s_cw_flush_ms += cw_ms() - cw_t0;
  }
-@@ -1821,17 +2073,19 @@ static void flush_tex_batch(void) {
+@@ -1821,17 +2074,19 @@ static void flush_tex_batch(void) {
  /* Flat / gouraud GEO batch — MotK title/char-select starfields issue ~30k/s
   * GP0(68h) 1x1 dots; each was two immediate gpu_triangle draws (BufferData +
   * DrawArrays each). Coalesce opaque/semi-uniform tris into one draw. */
@@ -3033,7 +3243,7 @@ index d0ccc3d5..2316d4f5 100644
          if (x < flo) flo = x; if (x > fhi) fhi = x;
      }
      /* floor/ceil rather than a truncating cast — see mirror_batch_center_only. */
-@@ -1844,13 +2098,18 @@ static void flush_flat_batch(void) {
+@@ -1844,13 +2099,18 @@ static void flush_flat_batch(void) {
      s_fb_n = 0;
  
      hr_begin(1);
@@ -3056,7 +3266,7 @@ index d0ccc3d5..2316d4f5 100644
      glDrawArrays(GL_TRIANGLES, 0, nverts);
  
      if (g_wide_cur && !s_wide_suppress && s_ws_ablate != 1 &&
-@@ -1866,11 +2125,12 @@ static void flush_flat_batch(void) {
+@@ -1866,11 +2126,12 @@ static void flush_flat_batch(void) {
          wide_target_end(s_geo_uXoff, s_geo_uXhalf);
          gl_perf_mirror_end();
      }
@@ -3070,7 +3280,7 @@ index d0ccc3d5..2316d4f5 100644
  static void gpu_geometry(GLenum mode, const int *xs, const int *ys,
                           const uint16_t *cs, int n, int semi) {
      flush_tex_batch();   /* flat prim: drain textured draws first (order + program) */
-@@ -1879,27 +2139,38 @@ static void gpu_geometry(GLenum mode, const int *xs, const int *ys,
+@@ -1879,27 +2140,38 @@ static void gpu_geometry(GLenum mode, const int *xs, const int *ys,
      /* Sub-pixel positions only describe a 3-vertex projected triangle. */
      const int precise = s_pc_valid && mode == GL_TRIANGLES && n == 3;
  
@@ -3120,7 +3330,7 @@ index d0ccc3d5..2316d4f5 100644
                         verts, PSXGL_STREAM_DRAW);
          glDrawArrays(mode, 0, n);
          if (g_wide_cur && !s_wide_suppress && s_ws_ablate != 1 &&
-@@ -1918,24 +2189,28 @@ static void gpu_geometry(GLenum mode, const int *xs, const int *ys,
+@@ -1918,24 +2190,28 @@ static void gpu_geometry(GLenum mode, const int *xs, const int *ys,
          return;
      }
  
@@ -3151,7 +3361,7 @@ index d0ccc3d5..2316d4f5 100644
  }
  
  static void gpu_triangle(int x0,int y0,uint16_t c0, int x1,int y1,uint16_t c1,
-@@ -1972,18 +2247,40 @@ static void gpu_textured_triangle(const int *xs, const int *ys,
+@@ -1972,18 +2248,40 @@ static void gpu_textured_triangle(const int *xs, const int *ys,
           * own precomputed lim and pre-bumped uvs). */
          int *mu = uv_buf, *mv = uv_buf + 3;
          for (int i = 0; i < 3; i++) { mu[i] = us[i]; mv[i] = vs[i]; }
@@ -3196,7 +3406,7 @@ index d0ccc3d5..2316d4f5 100644
      mark_prim_dirty(xs, ys, 3, 1 /* textured */);
  
      /* Append to the textured batch. Flush first if this prim's blend/mask/twin/
-@@ -1993,15 +2290,17 @@ static void gpu_textured_triangle(const int *xs, const int *ys,
+@@ -1993,15 +2291,17 @@ static void gpu_textured_triangle(const int *xs, const int *ys,
          flush_flat_batch();   /* painter order: flat GEO before textured */
          int twx = s_tw_mask_x, twy = s_tw_mask_y, tox = s_tw_off_x, toy = s_tw_off_y;
          int gate = bd_prim_gate(xs, 3, 1); /* backdrop-stretch gate is also a batch key */
@@ -3221,7 +3431,7 @@ index d0ccc3d5..2316d4f5 100644
          else if (!s_mask_check && semi != 2)
              batch_semi = 4;
          else
-@@ -2016,14 +2315,19 @@ static void gpu_textured_triangle(const int *xs, const int *ys,
+@@ -2016,14 +2316,19 @@ static void gpu_textured_triangle(const int *xs, const int *ys,
           * semi-transparent textured prim: drain the open batch, draw this
           * prim alone (composited fully before the next), let opaque prims
           * keep batching. Cost is one draw per semi prim. */
@@ -3243,7 +3453,7 @@ index d0ccc3d5..2316d4f5 100644
              else if (twx != s_tb_twin[0] || twy != s_tb_twin[1] ||
                       tox != s_tb_twin[2] || toy != s_tb_twin[3]) reason = 5;
          }
-@@ -2034,23 +2338,31 @@ static void gpu_textured_triangle(const int *xs, const int *ys,
+@@ -2034,23 +2339,31 @@ static void gpu_textured_triangle(const int *xs, const int *ys,
          if (s_tb_n + 3 > TEXBATCH_MAXV) { s_batch_reason[6]++; flush_tex_batch(); }
          if (s_tb_n == 0) {            /* opening a batch: capture its keyed state */
              s_tb_semi = batch_semi; s_tb_mask = s_mask_set; s_tb_filter = s_tex_filter; s_tb_gate = gate;
@@ -3288,7 +3498,7 @@ index d0ccc3d5..2316d4f5 100644
          if (isolate) flush_tex_batch();   /* draw this semi prim alone, in submission order */
      }
  }
-@@ -2067,28 +2379,28 @@ static void wide_flat_rect_direct(int wx, int y, int ww, int h, uint16_t c, int
+@@ -2067,28 +2380,28 @@ static void wide_flat_rect_direct(int wx, int y, int ww, int h, uint16_t c, int
      float b = (((c >> 10) & 0x1F) << 3) / 255.0f;
      float a = s_mask_set ? 1.0f : 0.0f;
      float fx0 = (float)wx, fy0 = (float)y, fx1 = (float)(wx + ww), fy1 = (float)(y + h);
@@ -3326,7 +3536,7 @@ index d0ccc3d5..2316d4f5 100644
  }
  
  static void gpu_flat_rect(int x,int y,int w,int h,uint16_t c,int semi) {
-@@ -2153,12 +2465,15 @@ static void gpu_textured_rect(int x,int y,int w,int h,
+@@ -2153,12 +2466,15 @@ static void gpu_textured_rect(int x,int y,int w,int h,
   * offset; coordinates wrap. A scissored clear (color + stencil) per wrapped
   * segment is exactly this. */
  static void fill_segment(int x, int y, int w, int h, float r, float g, float b) {
@@ -3343,7 +3553,7 @@ index d0ccc3d5..2316d4f5 100644
      rect_add(&s_pack_dirty, x, y, x + w - 1, y + h - 1);
  }
  
-@@ -2175,15 +2490,15 @@ static void gpu_fill(int x,int y,int w,int h,uint16_t c) {
+@@ -2175,15 +2491,15 @@ static void gpu_fill(int x,int y,int w,int h,uint16_t c) {
      if (x + w > VRAM_W) { w1 = VRAM_W - x; w2 = w - w1; }
      if (y + h > VRAM_H) { h1 = VRAM_H - y; h2 = h - h1; }
  
@@ -3363,7 +3573,7 @@ index d0ccc3d5..2316d4f5 100644
      if (!s_cpu_auth_dual)
          s_gpu_dirty = 1;
      coh_record(GL_COH_FILL, x, y, x + w - 1, y + h - 1);
-@@ -2208,19 +2523,19 @@ static void gpu_copy_rect(int sx,int sy,int dx,int dy,int w,int h) {
+@@ -2208,19 +2524,19 @@ static void gpu_copy_rect(int sx,int sy,int dx,int dy,int w,int h) {
      if (w <= 0 || h <= 0) return;
  
      int S = s_scale;
@@ -3390,7 +3600,7 @@ index d0ccc3d5..2316d4f5 100644
      p_glActiveTexture(PSXGL_TEXTURE0);
      glBindTexture(GL_TEXTURE_2D, s_scratch_tex);
      p_glUniform1i(s_uBlitSrc, 0);
-@@ -2233,7 +2548,7 @@ static void gpu_copy_rect(int sx,int sy,int dx,int dy,int w,int h) {
+@@ -2233,7 +2549,7 @@ static void gpu_copy_rect(int sx,int sy,int dx,int dy,int w,int h) {
          fx0, fy0,  fx1, fy0,  fx0, fy1,
          fx1, fy0,  fx0, fy1,  fx1, fy1,
      };
@@ -3399,7 +3609,7 @@ index d0ccc3d5..2316d4f5 100644
      p_glBindBuffer(PSXGL_ARRAY_BUFFER, s_blit_vbo);
      p_glBufferData(PSXGL_ARRAY_BUFFER, sizeof verts, verts, PSXGL_STREAM_DRAW);
      /* Two passes split by source bit15 so stencil tracks the copied mask. */
-@@ -2241,6 +2556,7 @@ static void gpu_copy_rect(int sx,int sy,int dx,int dy,int w,int h) {
+@@ -2241,6 +2557,7 @@ static void gpu_copy_rect(int sx,int sy,int dx,int dy,int w,int h) {
      mask_stencil(1);          p_glUniform1i(s_uBlitPass, 2); glDrawArrays(GL_TRIANGLES, 0, 6);
      hr_end();
  
@@ -3407,7 +3617,7 @@ index d0ccc3d5..2316d4f5 100644
      rect_add(&s_pack_dirty, dx, dy, dx + w - 1, dy + h - 1);
      if (!s_cpu_auth_dual)
          s_gpu_dirty = 1;
-@@ -2309,9 +2625,46 @@ static void glb_set_perspective_triangle(int enabled, float q0, float q1, float
+@@ -2309,9 +2626,46 @@ static void glb_set_perspective_triangle(int enabled, float q0, float q1, float
      s_pq[0] = q0; s_pq[1] = q1; s_pq[2] = q2;
      sw_set_perspective_triangle(enabled, q0, q1, q2);
  }
@@ -3456,7 +3666,7 @@ index d0ccc3d5..2316d4f5 100644
  
  /* Pre-context draws (s_raster_ok == 0) fall back to the software rasterizer
   * over CPU VRAM; the initial full-VRAM upload at context init folds them in.
-@@ -2319,7 +2672,7 @@ static void glb_set_draw_offset(int x,int y) { flush_flat_batch(); flush_tex_bat
+@@ -2319,7 +2673,7 @@ static void glb_set_draw_offset(int x,int y) { flush_flat_batch(); flush_tex_bat
   * SW @ 1× for authority, then GPU @ s_scale for present quality. */
  /* The sub-pixel / perspective override describes exactly one triangle; drop it
   * once that triangle has been submitted so a later prim can never inherit it. */
@@ -3465,7 +3675,7 @@ index d0ccc3d5..2316d4f5 100644
  
  static void glb_draw_flat_triangle(int x0,int y0,int x1,int y1,int x2,int y2,uint16_t col) {
      if (s_cpu_auth_dual || !s_raster_ok)
-@@ -2339,12 +2692,16 @@ static void glb_fill_rect(int x,int y,int w,int h,uint16_t c){
+@@ -2339,12 +2693,16 @@ static void glb_fill_rect(int x,int y,int w,int h,uint16_t c){
      if (s_cpu_auth_dual || !s_raster_ok)
          sw_fill_rect(x,y,w,h,c);
      if (!s_raster_ok) return;
@@ -3482,7 +3692,7 @@ index d0ccc3d5..2316d4f5 100644
      gpu_copy_rect(sx,sy,dx,dy,w,h);
  }
  static void glb_draw_textured_triangle(int x0,int y0,int u0,int v0,int x1,int y1,int u1,int v1,int x2,int y2,int u2,int v2,uint16_t cx,uint16_t cy,uint16_t tp){
-@@ -2460,12 +2817,13 @@ static void depth24_clear_skipped_fb(void) {
+@@ -2460,12 +2818,13 @@ static void depth24_clear_skipped_fb(void) {
      flush_tex_batch();
      int x0 = s_d24_skip_fb.x0, y0 = s_d24_skip_fb.y0;
      int x1 = s_d24_skip_fb.x1, y1 = s_d24_skip_fb.y1;
@@ -3500,7 +3710,7 @@ index d0ccc3d5..2316d4f5 100644
      glViewport(0, 0, VRAM_W * S, VRAM_H * S);
      glScissor(x0 * S, y0 * S, rw * S, rh * S);
      glClearColor(0.f, 0.f, 0.f, 0.f);
-@@ -2473,13 +2831,13 @@ static void depth24_clear_skipped_fb(void) {
+@@ -2473,13 +2832,13 @@ static void depth24_clear_skipped_fb(void) {
      glStencilMask(0xFF);
      glClear(GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
      if (s_raw_fbo) {
@@ -3517,7 +3727,7 @@ index d0ccc3d5..2316d4f5 100644
      rect_add(&s_pack_dirty, x0, y0, x1, y1);
      present_dirty_rect(x0, y0, x1, y1, 1);
      rect_clear(&s_d24_skip_fb);
-@@ -2519,6 +2877,7 @@ static void depth24_upload_policy(void) {
+@@ -2519,6 +2878,7 @@ static void depth24_upload_policy(void) {
  }
  
  static void glb_vram_write(int x,int y,uint16_t px){
@@ -3525,7 +3735,7 @@ index d0ccc3d5..2316d4f5 100644
      sw_vram_write(x,y,px);
      depth24_upload_policy();
      /* Point pokes are never MDEC frames — always stage to FBO. */
-@@ -2526,6 +2885,7 @@ static void glb_vram_write(int x,int y,uint16_t px){
+@@ -2526,6 +2886,7 @@ static void glb_vram_write(int x,int y,uint16_t px){
  }
  static uint16_t glb_vram_read(int x,int y){ ensure_cpu(); return sw_vram_read(x,y); }
  static void glb_vram_transfer_in(int x,int y,int w,int h,const uint16_t *d){
@@ -3533,7 +3743,7 @@ index d0ccc3d5..2316d4f5 100644
      sw_vram_transfer_in(x,y,w,h,d);
      depth24_upload_policy();
      if (s_depth24_skip_up && depth24_is_fb_transfer(x, y, w, h)) {
-@@ -2634,13 +2994,13 @@ static GLuint make_tex(GLenum internal, int w, int h, GLenum fmt, GLenum type) {
+@@ -2634,13 +2995,13 @@ static GLuint make_tex(GLenum internal, int w, int h, GLenum fmt, GLenum type) {
  
  static int make_fbo(GLuint *out_fbo, GLuint color_tex, GLuint stencil_rb) {
      p_glGenFramebuffers(1, out_fbo);
@@ -3549,7 +3759,7 @@ index d0ccc3d5..2316d4f5 100644
      if (st != PSXGL_FRAMEBUFFER_COMPLETE) {
          fprintf(stdout, "psxrecomp: GL FBO incomplete (0x%X)\n", st);
          return 0;
-@@ -2666,6 +3026,9 @@ static int init_gpu_raster(void) {
+@@ -2666,6 +3027,9 @@ static int init_gpu_raster(void) {
      s_scratch_tex = make_tex(GL_RGBA8, hw, hh, GL_RGBA, GL_UNSIGNED_BYTE);
      s_up_tex      = make_tex(GL_RGBA8, VRAM_W, VRAM_H, GL_RGBA, GL_UNSIGNED_BYTE);
      s_raw_tex     = make_tex(PSXGL_R16UI, VRAM_W, VRAM_H, PSXGL_RED_INTEGER, GL_UNSIGNED_SHORT);
@@ -3559,7 +3769,7 @@ index d0ccc3d5..2316d4f5 100644
      /* Force the driver's first texture-upload allocation while the renderer is
       * initializing. NVIDIA otherwise defers it until the first MDEC frame,
       * producing a measured ~33 ms glTexSubImage hitch and an audible underrun. */
-@@ -2691,6 +3054,23 @@ static int init_gpu_raster(void) {
+@@ -2691,6 +3055,23 @@ static int init_gpu_raster(void) {
      if (!make_fbo(&s_scratch_fbo, s_scratch_tex, 0)) return 0;
  
      s_uVram  = p_glGetUniformLocation(s_tex_prog, "u_vram");
@@ -3583,7 +3793,7 @@ index d0ccc3d5..2316d4f5 100644
      s_uTpage = p_glGetUniformLocation(s_tex_prog, "u_tpage");
      s_uClut  = p_glGetUniformLocation(s_tex_prog, "u_clut");
      s_uDepth = p_glGetUniformLocation(s_tex_prog, "u_depth");
-@@ -2719,9 +3099,9 @@ static int init_gpu_raster(void) {
+@@ -2719,9 +3100,9 @@ static int init_gpu_raster(void) {
      s_tex_uXcenter = p_glGetUniformLocation(s_tex_prog, "u_xcenter");
      /* Default the new uniforms to the no-op (1.0 scale, 0 centre) -- GLSL would
       * otherwise zero them, collapsing all x to 0. */
@@ -3595,7 +3805,7 @@ index d0ccc3d5..2316d4f5 100644
      p_glUniform1f(s_tex_uXscale, 1.0f); p_glUniform1f(s_tex_uXcenter, 0.0f);
  
      /* Sample-grid alignment shift: half an HR pixel, set once (S is fixed
-@@ -2733,7 +3113,7 @@ static int init_gpu_raster(void) {
+@@ -2733,7 +3114,7 @@ static int init_gpu_raster(void) {
       * be off by one texel at exact-integer uv — accepted. */
      {
          float shift = 0.5f / (float)s_scale - 1.0f / 64.0f;
@@ -3604,7 +3814,7 @@ index d0ccc3d5..2316d4f5 100644
          p_glUniform1f(p_glGetUniformLocation(s_geo_prog, "u_shift"), shift);
          /* Native-wide projection defaults: x translation 0, clip half-extent
           * 512 — so the GEO_VS x term reduces to (x+u_shift)/512-1, bit-identical
-@@ -2741,62 +3121,68 @@ static int init_gpu_raster(void) {
+@@ -2741,62 +3122,68 @@ static int init_gpu_raster(void) {
           * restore these defaults. */
          p_glUniform1f(s_geo_uXoff, 0.0f);
          p_glUniform1f(s_geo_uXhalf, 512.0f);
@@ -3696,7 +3906,7 @@ index d0ccc3d5..2316d4f5 100644
      rect_clear(&s_pack_dirty);
      s_up_nrects = 0;
      up_add(0, 0, VRAM_W - 1, VRAM_H - 1);
-@@ -2833,6 +3219,7 @@ int gl_renderer_init_context(SDL_Window *win) {
+@@ -2833,6 +3220,7 @@ int gl_renderer_init_context(SDL_Window *win) {
      SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
      s_ctx = SDL_GL_CreateContext(win);
      if (!s_ctx) { fprintf(stdout, "psxrecomp: GL context creation failed (%s)\n", SDL_GetError()); return 0; }
@@ -3704,7 +3914,7 @@ index d0ccc3d5..2316d4f5 100644
      if (SDL_GL_MakeCurrent(win, s_ctx) != 0) { fprintf(stdout, "psxrecomp: MakeCurrent failed (%s)\n", SDL_GetError()); SDL_GL_DeleteContext(s_ctx); s_ctx=NULL; return 0; }
      /* Swap interval: 1=vsync (tear-free, default), 0=immediate (lowest display
       * latency, may tear; our wall-clock pacer still holds 59.94Hz), -1=adaptive.
-@@ -2841,7 +3228,7 @@ int gl_renderer_init_context(SDL_Window *win) {
+@@ -2841,7 +3229,7 @@ int gl_renderer_init_context(SDL_Window *win) {
          SDL_GL_SetSwapInterval(1);
          s_swap_interval = 1;
      }
@@ -3713,11 +3923,12 @@ index d0ccc3d5..2316d4f5 100644
      const char *ver = (const char *)glGetString(GL_VERSION);
      fprintf(stdout, "psxrecomp: OpenGL context created (%s)\n", ver ? ver : "?");
  
-@@ -2905,10 +3292,12 @@ void gl_renderer_set_swap_interval(int interval) {
+@@ -2905,10 +3293,13 @@ void gl_renderer_set_swap_interval(int interval) {
  }
  
  void gl_renderer_shutdown(void) {
 +    if(s_d16.source) fprintf(stderr,"ttk-texture: checks=%llu matched_triangles=%llu\n",(unsigned long long)s_d16_checks,(unsigned long long)s_d16_hits);
++    psx_rt_shutdown();   /* the render threads use contexts shared with this one */
      if (s_ctx) {
          ensure_cpu();
          SDL_GL_DeleteContext(s_ctx); s_ctx = NULL;
@@ -3726,7 +3937,7 @@ index d0ccc3d5..2316d4f5 100644
      free(s_conv); s_conv = NULL;
      s_raster_ok = 0;
      /* New context regenerates s_present_tex empty; a stale size makes
-@@ -2916,7 +3305,7 @@ void gl_renderer_shutdown(void) {
+@@ -2916,7 +3307,7 @@ void gl_renderer_shutdown(void) {
       * (rematch 24-bit FMV → black picture, audio still runs). */
      s_present_w = 0;
      s_present_h = 0;
@@ -3735,7 +3946,7 @@ index d0ccc3d5..2316d4f5 100644
      s_osd_tw = 0;
      s_osd_th = 0;
      s_depth24_skip_up = 0;
-@@ -2937,9 +3326,10 @@ void gl_renderer_present(const uint32_t *pixels, int src_w, int src_h, int linea
+@@ -2937,9 +3328,10 @@ void gl_renderer_present(const uint32_t *pixels, int src_w, int src_h, int linea
                           int force_4_3, int content_w) {
      if (!s_ctx) return;
      interp_reset_history();
@@ -3748,7 +3959,7 @@ index d0ccc3d5..2316d4f5 100644
      glClearColor(0.f,0.f,0.f,1.f); glClear(GL_COLOR_BUFFER_BIT);
      int lx, ly, lw, lh;
      if (force_4_3)
-@@ -2992,7 +3382,7 @@ void gl_renderer_present(const uint32_t *pixels, int src_w, int src_h, int linea
+@@ -2992,7 +3384,7 @@ void gl_renderer_present(const uint32_t *pixels, int src_w, int src_h, int linea
      glViewport(lx, ly, lw, lh);
      p_glActiveTexture(PSXGL_TEXTURE0);
      upload_present_tex(pixels, src_w, src_h, filt_mode >= 0 ? 1 : 0);
@@ -3757,7 +3968,7 @@ index d0ccc3d5..2316d4f5 100644
      present_set_sharp(filt_mode, src_w, src_h, lw, lh);
      if (crop) {
          /* Cropped present keeps left-aligned content; still inset so linear
-@@ -3010,8 +3400,8 @@ void gl_renderer_present(const uint32_t *pixels, int src_w, int src_h, int linea
+@@ -3010,8 +3402,8 @@ void gl_renderer_present(const uint32_t *pixels, int src_w, int src_h, int linea
      } else {
          p_glUniform4f(s_present_uUvRect, 0.f, 0.f, 1.f, 1.f);
      }
@@ -3768,7 +3979,7 @@ index d0ccc3d5..2316d4f5 100644
      pres_record(GL_PRES_CPU, 0, 0, src_w, src_h, lx, ly, lw, lh);
      hold_capture_drawable();
      latency_ring_mark(LAT_SWAP_BEGIN);
-@@ -3025,9 +3415,10 @@ void gl_renderer_present(const uint32_t *pixels, int src_w, int src_h, int linea
+@@ -3025,9 +3417,10 @@ void gl_renderer_present(const uint32_t *pixels, int src_w, int src_h, int linea
  void gl_renderer_present_blank(void) {
      if (!s_ctx) return;
      interp_reset_history();
@@ -3781,18 +3992,19 @@ index d0ccc3d5..2316d4f5 100644
      pres_record(GL_PRES_BLANK, 0, 0, 0, 0, 0, 0, ww, wh);
      hold_capture_drawable();
      latency_ring_mark(LAT_SWAP_BEGIN);
-@@ -3052,7 +3443,10 @@ void gl_renderer_invalidate_present(void) {
+@@ -3052,7 +3445,11 @@ void gl_renderer_invalidate_present(void) {
      interp_reset_history();
  }
  
 +static void rp_live_after_load(void);
  void gl_renderer_restage_vram_after_savestate(void) {
 +    s_d16_valid=-1;
++    psx_rt_drop();   /* the render thread's queued redraws belong to the old state */
 +    rp_live_after_load();
      if (!s_raster_ok || !s_vram) return;
      /* Belt-and-suspenders after boot_state VRAM apply: force CPU mirror → FBO
       * even if a depth24 skip swallowed the restore, then re-arm scanout-band
-@@ -3123,14 +3517,41 @@ int gl_renderer_fbo_peek(int x, int y, int w, int h, uint16_t *out) {
+@@ -3123,14 +3520,41 @@ int gl_renderer_fbo_peek(int x, int y, int w, int h, uint16_t *out) {
      rect_add(&s_pack_dirty, x, y, x + w - 1, y + h - 1);
      pack_flush();
      coh_record(GL_COH_PEEK, x, y, x + w - 1, y + h - 1);
@@ -3836,7 +4048,7 @@ index d0ccc3d5..2316d4f5 100644
  /* Diagnostic (debug server "gl_vram_diff"): full-VRAM comparison of the
   * GPU-side truth (FBO via pack) against the CPU array, WITHOUT writing
   * either. Reports mismatch count + bounding box + a few sample coords.
-@@ -3148,9 +3569,9 @@ int gl_renderer_vram_diff(uint32_t *count, int bbox[4],
+@@ -3148,9 +3572,9 @@ int gl_renderer_vram_diff(uint32_t *count, int bbox[4],
      rect_add(&s_pack_dirty, 0, 0, VRAM_W - 1, VRAM_H - 1);
      pack_flush();
      coh_record(GL_COH_DIFF, 0, 0, VRAM_W - 1, VRAM_H - 1);
@@ -3848,7 +4060,7 @@ index d0ccc3d5..2316d4f5 100644
      uint32_t n = 0;
      int x0 = VRAM_W, y0 = VRAM_H, x1 = -1, y1 = -1, ns = 0;
      for (int y = 0; y < VRAM_H; y++) {
-@@ -3212,7 +3633,7 @@ void gl_renderer_diag(int *gpu_dirty, int pending[5], int pack[5]) {
+@@ -3212,7 +3636,7 @@ void gl_renderer_diag(int *gpu_dirty, int pending[5], int pack[5]) {
  
  static void wide_free_all(void) {
      for (int i = 0; i < WIDE_MAX_SURF; i++) {
@@ -3857,7 +4069,7 @@ index d0ccc3d5..2316d4f5 100644
          if (s_wide_tex[i]) { glDeleteTextures(1, &s_wide_tex[i]); s_wide_tex[i] = 0; }
          if (s_wide_rb[i])  { p_glDeleteRenderbuffers(1, &s_wide_rb[i]); s_wide_rb[i] = 0; }
          s_wide_base[i] = -1;
-@@ -3244,13 +3665,15 @@ static GLuint wide_fbo_for(int base_x) {
+@@ -3244,13 +3668,15 @@ static GLuint wide_fbo_for(int base_x) {
                  return 0;
              }
              /* Clear to black so unwritten margins are clean (not stale). */
@@ -3877,7 +4089,7 @@ index d0ccc3d5..2316d4f5 100644
              s_wide_base[i] = base_x;
              return s_wide_fbo[i];
          }
-@@ -3263,6 +3686,7 @@ static GLuint wide_fbo_for(int base_x) {
+@@ -3263,6 +3689,7 @@ static GLuint wide_fbo_for(int base_x) {
   * sw_wide_configure. */
  static void glb_wide_configure(int wide_w, int offset) {
      if (!s_raster_ok) return;
@@ -3885,7 +4097,7 @@ index d0ccc3d5..2316d4f5 100644
      double t0 = cw_ms(); s_cw_wide_cfgs++;
      flush_tex_batch();   /* a queued batch's wide mirror targets the CURRENT surfaces */
      if (wide_w <= 0) { wide_free_all(); g_wide_w = 0; g_wide_off = 0; s_cw_wide_ms += cw_ms() - t0; return; }
-@@ -3275,6 +3699,7 @@ static void glb_wide_configure(int wide_w, int offset) {
+@@ -3275,6 +3702,7 @@ static void glb_wide_configure(int wide_w, int offset) {
  /* Select the wide surface to mirror into for the back buffer at base_x. */
  static void glb_wide_set_target(int base_x) {
      if (!s_raster_ok) { g_wide_cur = 0; return; }
@@ -3893,7 +4105,7 @@ index d0ccc3d5..2316d4f5 100644
      double t0 = cw_ms(); s_cw_wide_sets++;
      flush_tex_batch();   /* drain into the OLD target before switching */
      g_wide_cur = wide_fbo_for(base_x);
-@@ -3294,6 +3719,7 @@ static void glb_wide_clear(int base_x, int y, int h, uint16_t color) {
+@@ -3294,6 +3722,7 @@ static void glb_wide_clear(int base_x, int y, int h, uint16_t color) {
      flush_tex_batch();
      GLuint fbo = wide_fbo_for(base_x);
      if (!fbo) { s_cw_wide_ms += cw_ms() - t0; return; }
@@ -3901,7 +4113,7 @@ index d0ccc3d5..2316d4f5 100644
      gl_perf_mirror_begin();
      int H = VRAM_H * s_scale;
      int y0 = y * s_scale, y1 = (y + h) * s_scale;
-@@ -3304,16 +3730,18 @@ static void glb_wide_clear(int base_x, int y, int h, uint16_t color) {
+@@ -3304,16 +3733,18 @@ static void glb_wide_clear(int base_x, int y, int h, uint16_t color) {
      float g = ((color >> 5) & 0x1F) / 31.0f;
      float b = ((color >> 10) & 0x1F) / 31.0f;
      float a = (color >> 15) & 1 ? 1.0f : 0.0f;
@@ -3925,7 +4137,7 @@ index d0ccc3d5..2316d4f5 100644
      gl_perf_mirror_end();
      s_cw_wide_ms += cw_ms() - t0;
  }
-@@ -3326,6 +3754,7 @@ static void glb_wide_clear_margins(int base_x, int y, int h, uint16_t color, int
+@@ -3326,6 +3757,7 @@ static void glb_wide_clear_margins(int base_x, int y, int h, uint16_t color, int
      flush_tex_batch();
      GLuint fbo = wide_fbo_for(base_x);
      if (!fbo) { s_cw_wide_ms += cw_ms() - t0; return; }
@@ -3933,7 +4145,7 @@ index d0ccc3d5..2316d4f5 100644
      gl_perf_mirror_begin();
      int H = VRAM_H * s_scale;
      int W = g_wide_w * s_scale;
-@@ -3342,9 +3771,9 @@ static void glb_wide_clear_margins(int base_x, int y, int h, uint16_t color, int
+@@ -3342,9 +3774,9 @@ static void glb_wide_clear_margins(int base_x, int y, int h, uint16_t color, int
      float g = ((color >> 5) & 0x1F) / 31.0f;
      float b = ((color >> 10) & 0x1F) / 31.0f;
      float a = (color >> 15) & 1 ? 1.0f : 0.0f;
@@ -3945,7 +4157,7 @@ index d0ccc3d5..2316d4f5 100644
      glClearColor(r, g, b, a);
      glClearStencil((color >> 15) & 1);
      glStencilMask(0xFF);
-@@ -3356,8 +3785,8 @@ static void glb_wide_clear_margins(int base_x, int y, int h, uint16_t color, int
+@@ -3356,8 +3788,8 @@ static void glb_wide_clear_margins(int base_x, int y, int h, uint16_t color, int
          glScissor(W - margin, y0, margin, y1 - y0);
          glClear(GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
      }
@@ -3956,7 +4168,7 @@ index d0ccc3d5..2316d4f5 100644
      gl_perf_mirror_end();
      s_cw_wide_ms += cw_ms() - t0;
  }
-@@ -3401,10 +3830,10 @@ static int glb_render_wide_display(uint32_t *out, int pitch, int base_x,
+@@ -3401,10 +3833,10 @@ static int glb_render_wide_display(uint32_t *out, int pitch, int base_x,
  
      uint32_t *tmp = (uint32_t *)malloc((size_t)W * out_h * sizeof(uint32_t));
      if (!tmp) return 0;
@@ -3969,7 +4181,7 @@ index d0ccc3d5..2316d4f5 100644
  
      /* Orientation: the wide FBO stores PS1 y inverted (geo shader maps vram_y=0
       * to NDC y=-1 = FBO BOTTOM), and glReadPixels reads bottom-up — the two
-@@ -3445,10 +3874,10 @@ static int glb_wide_dump_full(uint32_t *out, int cap_pixels, int *ow, int *oh,
+@@ -3445,10 +3877,10 @@ static int glb_wide_dump_full(uint32_t *out, int cap_pixels, int *ow, int *oh,
      if (cap_pixels > 0 && (long)W * H > cap_pixels) { H = cap_pixels / W; if (H <= 0) return 0; }
      uint32_t *tmp = (uint32_t *)malloc((size_t)W * H * sizeof(uint32_t));
      if (!tmp) return 0;
@@ -3982,7 +4194,7 @@ index d0ccc3d5..2316d4f5 100644
      /* Same orientation reasoning as glb_render_wide_display: glReadPixels row 0 =
       * PS1 top scanline, so copy straight (top-down). */
      int count = 0;
-@@ -3618,7 +4047,12 @@ static void gl_perf_present_exit(int wide) {
+@@ -3618,7 +4050,12 @@ static void gl_perf_present_exit(int wide) {
      s_pf_buf_wide[s_pf_b]  = wide;
      s_pf_buf_frame[s_pf_b] = s_pf_count;
      int rd = (s_pf_b + 1) % GLPERF_NBUF;   /* oldest buffer (frame count+1-NBUF), now done */
@@ -3996,7 +4208,7 @@ index d0ccc3d5..2316d4f5 100644
          GLuint64 sc = 0, pr = 0;
          p_glGetQueryObjectui64v(s_pf_scene_q[rd],   GL_QUERY_RESULT, &sc);
          p_glGetQueryObjectui64v(s_pf_present_q[rd], GL_QUERY_RESULT, &pr);
-@@ -3782,11 +4216,11 @@ static int interp_capture(GLuint fbo, int x, int y, int w, int h,
+@@ -3782,11 +4219,11 @@ static int interp_capture(GLuint fbo, int x, int y, int w, int h,
      int dst = 0;
      if (s_interp_valid == 1) dst = s_interp_cur == 0 ? 1 : 0;
      else if (s_interp_valid >= 2) dst = s_interp_prev;
@@ -4010,7 +4222,7 @@ index d0ccc3d5..2316d4f5 100644
      if (s_interp_valid == 0) {
          s_interp_cur = dst;
          s_interp_valid = 1;
-@@ -3804,7 +4238,7 @@ static int interp_capture(GLuint fbo, int x, int y, int w, int h,
+@@ -3804,7 +4241,7 @@ static int interp_capture(GLuint fbo, int x, int y, int w, int h,
  
  static void interp_draw_quad(float alpha, int lx, int ly, int lw, int lh) {
      int prev = s_interp_prev, curr = s_interp_cur;
@@ -4019,7 +4231,7 @@ index d0ccc3d5..2316d4f5 100644
      glViewport(lx, ly, lw, lh);
      p_glActiveTexture(PSXGL_TEXTURE0);
      glBindTexture(GL_TEXTURE_2D, s_interp_tex[prev]);
-@@ -3814,16 +4248,16 @@ static void interp_draw_quad(float alpha, int lx, int ly, int lw, int lh) {
+@@ -3814,16 +4251,16 @@ static void interp_draw_quad(float alpha, int lx, int ly, int lw, int lh) {
      glBindTexture(GL_TEXTURE_2D, s_interp_tex[curr]);
      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, s_interp_linear ? GL_LINEAR : GL_NEAREST);
      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, s_interp_linear ? GL_LINEAR : GL_NEAREST);
@@ -4040,7 +4252,7 @@ index d0ccc3d5..2316d4f5 100644
      p_glActiveTexture(PSXGL_TEXTURE0);
  }
  
-@@ -3836,8 +4270,8 @@ static int interp_present(float alpha) {
+@@ -3836,8 +4273,8 @@ static int interp_present(float alpha) {
          letterbox_rect_aspect(ww, wh, 4, 3, &lx, &ly, &lw, &lh);
      else
          letterbox_rect(ww, wh, &lx, &ly, &lw, &lh);
@@ -4051,7 +4263,7 @@ index d0ccc3d5..2316d4f5 100644
      if (lx != 0 || ly != 0 || lw != ww || lh != wh) {
          glClearColor(0.f, 0.f, 0.f, 1.f);
          glClear(GL_COLOR_BUFFER_BIT);
-@@ -3905,6 +4339,952 @@ static void interp_present_source_interval(void) {
+@@ -3905,6 +4342,954 @@ static void interp_present_source_interval(void) {
      }
  }
  
@@ -4748,6 +4960,7 @@ index d0ccc3d5..2316d4f5 100644
 +        s_rp_last_present = now;
 +    }
 +    s_rp_presents++;
++    if (slot >= 1) psx_rt_after_present(slot);   /* the render thread may redraw it next */
 +}
 +
 +/* Debug dump of the real displayed frame (slot 0) and the last replayed frame
@@ -4909,6 +5122,7 @@ index d0ccc3d5..2316d4f5 100644
 + * VBlank present. */
 +uint64_t gl_renderer_rp_tick(uint64_t now) {
 +    if (!s_ctx || !s_raster_ok || !s_rp_enabled || !s_rp_valid[0] || s_rr_active) return 0;
++    psx_rt_poll();   /* images the render thread finished (D17AW) */
 +    uint64_t f = SDL_GetPerformanceFrequency();
 +    double target = replay_resolved_hz(s_rp_target_hz, s_rp_host_hz);
 +    if (target < 1.0) target = s_rp_source_hz > 0.0 ? s_rp_source_hz : 60.0;
@@ -5004,7 +5218,7 @@ index d0ccc3d5..2316d4f5 100644
  /* Draw one host OSD ARGB image into the default framebuffer at (vx,vy)
   * in top-left window coordinates (y down). Bitmap is ow×oh; viewport is
   * dw×dh (may upscale for HiDPI / large windows). */
-@@ -3932,18 +5312,26 @@ static void gl_draw_osd_image(const uint32_t *px, int ow, int oh,
+@@ -3932,18 +5317,26 @@ static void gl_draw_osd_image(const uint32_t *px, int ow, int oh,
      if (vx + dw > ww) dw = ww - vx;
      if (vy + dh > wh) dh = wh - vy;
      if (dw < 1 || dh < 1) return;
@@ -5039,7 +5253,7 @@ index d0ccc3d5..2316d4f5 100644
      p_glUniform1i(s_present_uTex, 0);
      present_set_sharp(0, 0, 0, 0, 0);   /* OSD is authored at output res */
      /* Host OSD bitmaps are top-down (row 0 = top), same as guest CPU
-@@ -3951,19 +5339,29 @@ static void gl_draw_osd_image(const uint32_t *px, int ow, int oh,
+@@ -3951,19 +5344,29 @@ static void gl_draw_osd_image(const uint32_t *px, int ow, int oh,
       * cancel for already-oriented captures and made toasts upside-down. */
      p_glUniform4f(s_present_uUvRect, 0.f, 0.f, 1.f, 1.f);
      {
@@ -5072,7 +5286,7 @@ index d0ccc3d5..2316d4f5 100644
              const uint32_t *px = NULL;
              int ow = 0, oh = 0;
              /* OSD authored for ~480-tall present; grow with drawable height. */
-@@ -3972,9 +5370,64 @@ static void gl_swap_with_osd(void) {
+@@ -3972,9 +5375,64 @@ static void gl_swap_with_osd(void) {
              if (ui < 1) ui = 1;
              if (ui > 8) ui = 8;
              margin = 8 * ui;
@@ -5140,7 +5354,7 @@ index d0ccc3d5..2316d4f5 100644
              if (host_osd_volume_image(&px, &ow, &oh) && px) {
                  const int dw = ow * ui, dh = oh * ui;
                  int vx = (ww > dw + margin) ? (ww - dw - margin) : margin;
-@@ -4012,6 +5465,7 @@ static void gl_swap_with_osd(void) {
+@@ -4012,6 +5470,7 @@ static void gl_swap_with_osd(void) {
                  uint8_t *rows = (uint8_t *)malloc((size_t)ww * wh * 3);
                  uint8_t *flip = rows ? (uint8_t *)malloc((size_t)ww * wh * 3) : NULL;
                  if (rows && flip) {
@@ -5148,7 +5362,7 @@ index d0ccc3d5..2316d4f5 100644
                      glPixelStorei(GL_PACK_ALIGNMENT, 1);
                      glReadPixels(0, 0, ww, wh, GL_RGB, GL_UNSIGNED_BYTE, rows);
                      for (int y = 0; y < wh; y++)
-@@ -4038,13 +5492,13 @@ static void present_target_quad(GLuint tex, int tex_w, int tex_h,
+@@ -4038,13 +5497,13 @@ static void present_target_quad(GLuint tex, int tex_w, int tex_h,
                                  int x, int y, int w, int h, int linear,
                                  int lx, int ly, int lw, int lh, int v_flip) {
      float u0, v0, u1, v1;
@@ -5164,7 +5378,7 @@ index d0ccc3d5..2316d4f5 100644
      p_glUniform1i(s_present_uTex, 0);
      /* The rasterized path already renders at the internal scale, so it has no
       * low-res source to reconstruct — keep the plain sample. */
-@@ -4068,10 +5522,10 @@ static void present_target_quad(GLuint tex, int tex_w, int tex_h,
+@@ -4068,10 +5527,10 @@ static void present_target_quad(GLuint tex, int tex_w, int tex_h,
          v1 = t;
      }
      p_glUniform4f(s_present_uUvRect, u0, v0, u1, v1);
@@ -5178,7 +5392,7 @@ index d0ccc3d5..2316d4f5 100644
  }
  
  /* Bezel art: a still image behind the frame, filling whatever the letterbox or
-@@ -4104,19 +5558,19 @@ int gl_renderer_has_bezel(void) { return s_bezel_tex != 0; }
+@@ -4104,19 +5563,19 @@ int gl_renderer_has_bezel(void) { return s_bezel_tex != 0; }
  static void present_bezel(int ww, int wh, int lx, int ly, int lw, int lh) {
      if (!s_bezel_tex || ww <= 0 || wh <= 0) return;
      if (lx <= 0 && ly <= 0 && lw >= ww && lh >= wh) return;
@@ -5205,7 +5419,7 @@ index d0ccc3d5..2316d4f5 100644
  }
  
  int gl_renderer_present_hold_last(void) {
-@@ -4131,8 +5585,8 @@ int gl_renderer_present_hold_last(void) {
+@@ -4131,8 +5590,8 @@ int gl_renderer_present_hold_last(void) {
       * the hold texture. Still present the host overlays: otherwise save-state
       * rejection/status messages are generated but remain invisible on GL. */
      if (s_hold_kind == HOLD_NONE || !s_hold_tex) {
@@ -5216,7 +5430,7 @@ index d0ccc3d5..2316d4f5 100644
          glClearColor(0.f, 0.f, 0.f, 1.f);
          glClear(GL_COLOR_BUFFER_BIT);
          latency_ring_mark(LAT_SWAP_BEGIN);
-@@ -4141,8 +5595,8 @@ int gl_renderer_present_hold_last(void) {
+@@ -4141,8 +5600,8 @@ int gl_renderer_present_hold_last(void) {
          s_probe_swap++;
          return 1;
      }
@@ -5227,7 +5441,7 @@ index d0ccc3d5..2316d4f5 100644
      glClearColor(0.f, 0.f, 0.f, 1.f);
      glClear(GL_COLOR_BUFFER_BIT);
      if (s_hold_kind == HOLD_DRAWABLE) {
-@@ -4204,7 +5658,8 @@ void gl_renderer_present_vram(int disp_x, int disp_y, int w, int h, int linear,
+@@ -4204,7 +5663,8 @@ void gl_renderer_present_vram(int disp_x, int disp_y, int w, int h, int linear,
          !present_dirty_test(disp_x, disp_y, disp_x + w - 1, disp_y + h - 1) &&
          !host_osd_needs_present() &&
          !psx_present_vsync_owns_cadence() &&
@@ -5237,7 +5451,7 @@ index d0ccc3d5..2316d4f5 100644
          s_probe_skip++;
          gl_perf_present_enter();
          gl_perf_present_exit(0);
-@@ -4221,12 +5676,22 @@ void gl_renderer_present_vram(int disp_x, int disp_y, int w, int h, int linear,
+@@ -4221,12 +5681,22 @@ void gl_renderer_present_vram(int disp_x, int disp_y, int w, int h, int linear,
       * display mode (e.g. 216/224-line menus) must fill the rect as before.
       * The FMV band fix lives in the depth24/CPU present paths only. */
  
@@ -5262,7 +5476,7 @@ index d0ccc3d5..2316d4f5 100644
      int interp_pair = interp_capture(s_hr_fbo, disp_x, disp_y, w, h,
                                       linear, force_4_3, GL_PRES_VRAM);
      if (interp_pair) {
-@@ -4270,7 +5735,11 @@ static void wide_blit_center(GLuint wide_fbo, int base_x, int disp_y, int disp_h
+@@ -4270,7 +5740,11 @@ static void wide_blit_center(GLuint wide_fbo, int base_x, int disp_y, int disp_h
      int native_w = g_wide_w - 2 * g_wide_off;
      if (native_w <= 0) return;
      int S = s_scale;
@@ -5275,7 +5489,7 @@ index d0ccc3d5..2316d4f5 100644
      /* Copy the canonical framebuffer column into the wide surface CENTRE over the
       * FULL VRAM height, not just the current display band [disp_y, disp_y+disp_h].
       * The wide surface holds BOTH vertical double-buffer bands (Ape flips
-@@ -4279,16 +5748,16 @@ static void wide_blit_center(GLuint wide_fbo, int base_x, int disp_y, int disp_h
+@@ -4279,16 +5753,16 @@ static void wide_blit_center(GLuint wide_fbo, int base_x, int disp_y, int disp_h
       * column makes the wide CENTRE bit-identical to what the full mirror would
       * have drawn there for every band, so nothing the present reads is ever left
       * black. The margins (x outside the centre) are untouched. */
@@ -5301,7 +5515,7 @@ index d0ccc3d5..2316d4f5 100644
  }
  
  /* GPU-direct native-wide present: blit the displayed buffer's wide FBO straight
-@@ -4315,7 +5784,8 @@ int gl_renderer_present_wide_fbo(int disp_x, int disp_y, int disp_h, int linear)
+@@ -4315,7 +5789,8 @@ int gl_renderer_present_wide_fbo(int disp_x, int disp_y, int disp_h, int linear)
          !present_dirty_test(0, disp_y, VRAM_W - 1, disp_y + disp_h - 1) &&
          !host_osd_needs_present() &&
          !psx_present_vsync_owns_cadence() &&
@@ -5311,7 +5525,7 @@ index d0ccc3d5..2316d4f5 100644
          s_probe_skip++;
          gl_perf_present_enter();
          gl_perf_present_exit(1);
-@@ -4327,12 +5797,23 @@ int gl_renderer_present_wide_fbo(int disp_x, int disp_y, int disp_h, int linear)
+@@ -4327,12 +5802,23 @@ int gl_renderer_present_wide_fbo(int disp_x, int disp_y, int disp_h, int linear)
      letterbox_rect(ww, wh, &lx, &ly, &lw, &lh);
      wide_blit_center(fbo, disp_x, disp_y, disp_h);   /* fast-path: authoritative centre */
  
@@ -5337,6 +5551,230 @@ index d0ccc3d5..2316d4f5 100644
      int interp_pair = interp_capture(fbo, 0, disp_y, g_wide_w, disp_h,
                                       linear, 0, GL_PRES_WIDE);
      if (interp_pair) {
+@@ -4393,3 +5879,223 @@ static const GpuRenderBackend GL_BACKEND = {
+ };
+ 
+ const GpuRenderBackend *gl_backend_get(void) { return &GL_BACKEND; }
++
++/* ---- Time to Kill D17AW: redraws on the render thread (render_thread.h) ----
++ * Compiled into both renderer instances. The emulation thread's instance
++ * captures snapshots and adopts finished images; the render thread's
++ * instance (render_copy/, rc_*) loads snapshots and draws the redraws. GL
++ * names of textures and renderbuffers are shared by the two contexts;
++ * framebuffers are per context, so each side wraps the shared textures in
++ * its own. */
++#include "render_thread.h"
++#define RT_SYNC_GPU_COMMANDS_COMPLETE 0x9117
++#define RT_TIMEOUT_IGNORED 0xFFFFFFFFFFFFFFFFull
++typedef void *(APIENTRY *PFN_rtFenceSync)(GLenum, GLbitfield);
++typedef void  (APIENTRY *PFN_rtWaitSync)(void *, GLbitfield, GLuint64);
++typedef void  (APIENTRY *PFN_rtDeleteSync)(void *);
++static PFN_rtFenceSync  p_rtFenceSync;
++static PFN_rtWaitSync   p_rtWaitSync;
++static PFN_rtDeleteSync p_rtDeleteSync;
++static int rt_sync_ok(void) {
++    if (!p_rtFenceSync) {
++        p_rtFenceSync  = (PFN_rtFenceSync)SDL_GL_GetProcAddress("glFenceSync");
++        p_rtWaitSync   = (PFN_rtWaitSync)SDL_GL_GetProcAddress("glWaitSync");
++        p_rtDeleteSync = (PFN_rtDeleteSync)SDL_GL_GetProcAddress("glDeleteSync");
++    }
++    return p_rtFenceSync && p_rtWaitSync && p_rtDeleteSync;
++}
++static void *rt_fence(void) {
++    void *f = p_rtFenceSync(RT_SYNC_GPU_COMMANDS_COMPLETE, 0);
++    glFlush();   /* the other context waits on it: submit it now */
++    return f;
++}
++static void rt_wait_delete(void **f) {
++    if (!*f) return;
++    p_rtWaitSync(*f, 0, RT_TIMEOUT_IGNORED);
++    p_rtDeleteSync(*f);
++    *f = NULL;
++}
++static GLuint rt_rb(int w, int h) {
++    GLuint rb = 0;
++    p_glGenRenderbuffers(1, &rb);
++    p_glBindRenderbuffer(PSXGL_RENDERBUFFER, rb);
++    p_glRenderbufferStorage(PSXGL_RENDERBUFFER, PSXGL_DEPTH24_STENCIL8, w, h);
++    p_glBindRenderbuffer(PSXGL_RENDERBUFFER, 0);
++    return rb;
++}
++static void rt_drop_fbo(GLuint *fbo) { if (*fbo) { gs_delete_fbs(1, fbo); *fbo = 0; } }
++static const GLbitfield RT_ALL = GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT | GL_DEPTH_BUFFER_BIT;
++
++/* Emulation thread: copy the live surfaces and state into s. */
++int gl_rt_capture(GlRtSnap *s) {
++    if (!s_ctx || !s_raster_ok || s_rr_active || s_cpu_auth_dual || s_rp_path < 0 || !rt_sync_ok())
++        return 0;
++    flush_flat_batch();
++    flush_tex_batch();
++    flush_cpu_upload();
++    const int S = s_scale, hw = VRAM_W * S, hh = VRAM_H * S;
++    for (int k = 0; k < RT_INSTANCES; k++)
++        rt_wait_delete(&s->read_fence[k]);   /* the render threads' last reads of s */
++    if (s->alloc_scale != S) {
++        rt_drop_fbo(&s->m_hr_fbo); rt_drop_fbo(&s->m_raw_fbo);
++        if (s->hr_tex) glDeleteTextures(1, &s->hr_tex);
++        if (s->hr_rb) p_glDeleteRenderbuffers(1, &s->hr_rb);
++        if (!s->raw_tex) {
++            s->raw_tex = make_tex(PSXGL_R16UI, VRAM_W, VRAM_H, PSXGL_RED_INTEGER, GL_UNSIGNED_SHORT);
++        }
++        s->hr_tex = make_tex(GL_RGBA8, hw, hh, GL_RGBA, GL_UNSIGNED_BYTE);
++        s->hr_rb = rt_rb(hw, hh);
++        if (!make_fbo(&s->m_hr_fbo, s->hr_tex, s->hr_rb) ||
++            !make_fbo(&s->m_raw_fbo, s->raw_tex, 0)) { s->alloc_scale = 0; return 0; }
++        s->alloc_scale = S;
++        for (int i = 0; i < RT_WIDE_SURF; i++) s->alloc_wide[i] = 0;
++    }
++    for (int i = 0; i < RT_WIDE_SURF; i++) {
++        const int want = (i < WIDE_MAX_SURF && s_wide_fbo[i] && g_wide_w > 0) ? g_wide_w * S : 0;
++        if (want && s->alloc_wide[i] != want) {
++            rt_drop_fbo(&s->m_wide_fbo[i]);
++            if (s->wide_tex[i]) glDeleteTextures(1, &s->wide_tex[i]);
++            if (s->wide_rb[i]) p_glDeleteRenderbuffers(1, &s->wide_rb[i]);
++            s->wide_tex[i] = make_tex(GL_RGBA8, want, hh, GL_RGBA, GL_UNSIGNED_BYTE);
++            s->wide_rb[i] = rt_rb(want, hh);
++            if (!make_fbo(&s->m_wide_fbo[i], s->wide_tex[i], s->wide_rb[i])) { s->alloc_wide[i] = 0; return 0; }
++            s->alloc_wide[i] = want;
++        }
++        s->wide_base[i] = want ? s_wide_base[i] : -1;
++    }
++    gs_disable(GL_SCISSOR_TEST);
++    rr_blit(s_hr_fbo, s->m_hr_fbo, hw, hh, RT_ALL);
++    rr_blit(s_raw_fbo, s->m_raw_fbo, VRAM_W, VRAM_H, GL_COLOR_BUFFER_BIT);
++    for (int i = 0; i < RT_WIDE_SURF; i++)
++        if (s->wide_base[i] >= 0) rr_blit(s_wide_fbo[i], s->m_wide_fbo[i], g_wide_w * S, hh, RT_ALL);
++    gs_bind_fb(PSXGL_READ_FRAMEBUFFER, 0);
++    gs_bind_fb(PSXGL_DRAW_FRAMEBUFFER, 0);
++    if (s->fence) { p_rtDeleteSync(s->fence); s->fence = NULL; }
++    s->fence = rt_fence();
++    s->scale = S; s->wide_w = g_wide_w; s->wide_off = g_wide_off;
++    s->wide_cur_on = g_wide_cur != 0; s->wide_cur_base = g_wide_cur_base;
++    s->wide_suppress = s_wide_suppress; s->wide_fast = s_wide_fast; s->ws_ablate = s_ws_ablate;
++    s->off_x = s_off_x; s->off_y = s_off_y;
++    s->area_x1 = s_area_x1; s->area_y1 = s_area_y1; s->area_x2 = s_area_x2; s->area_y2 = s_area_y2;
++    s->semi_en = s_semi_en; s->semi_mode = s_semi_mode;
++    s->mod_r = s_mod_r; s->mod_g = s_mod_g; s->mod_b = s_mod_b; s->mod_raw = s_mod_raw;
++    s->mask_set = s_mask_set; s->mask_check = s_mask_check;
++    s->tw_mask_x = s_tw_mask_x; s->tw_mask_y = s_tw_mask_y; s->tw_off_x = s_tw_off_x; s->tw_off_y = s_tw_off_y;
++    s->tex_filter = s_tex_filter; s->stencil_valid = s_stencil_valid; s->gpu_dirty = s_gpu_dirty;
++    s->hz_clear_pending = s_hz_clear_pending;
++    s->aspect_num = s_aspect_num; s->aspect_den = s_aspect_den;
++    s->pack_dirty[0] = s_pack_dirty.set; s->pack_dirty[1] = s_pack_dirty.x0; s->pack_dirty[2] = s_pack_dirty.y0;
++    s->pack_dirty[3] = s_pack_dirty.x1; s->pack_dirty[4] = s_pack_dirty.y1;
++    s->rp_path = s_rp_path; s->rp_w = s_rp_w; s->rp_h = s_rp_h; s->rp_base_x = s_rp_base_x;
++    s->rp_linear = s_rp_linear; s->rp_force_4_3 = s_rp_force_4_3;
++    if (!s->cpu) s->cpu = (uint16_t *)malloc((size_t)VRAM_W * VRAM_H * sizeof(uint16_t));
++    if (!s->cpu || !s_vram) return 0;
++    memcpy(s->cpu, s_vram, (size_t)VRAM_W * VRAM_H * sizeof(uint16_t));
++    return 1;
++}
++
++/* Emulation thread: cache entry `cache` now holds the render thread's image. */
++void gl_rt_adopt(int cache, unsigned tex, int tw, int th, void *fence) {
++    const int slot = cache + 1;
++    if (slot < 1 || slot > RP_CACHE || !rt_sync_ok()) return;
++    if (s_rp_tex[slot] != tex) {
++        rt_drop_fbo(&s_rp_fbo[slot]);
++        s_rp_tex[slot] = tex;
++        make_fbo(&s_rp_fbo[slot], tex, 0);   /* for the debug dumps */
++    }
++    s_rp_tw[slot] = tw; s_rp_th[slot] = th;
++    void *f = fence;
++    rt_wait_delete(&f);
++    s_rp_valid[slot] = 1;
++    s_rp_gen[slot]++;
++}
++
++/* Emulation thread: the cache textures belong to the render thread; forget
++ * them (their FBOs here are ours) before drawing cache images itself again. */
++void gl_rt_forget_cache(void) {
++    for (int slot = 1; slot <= RP_CACHE; slot++) {
++        rt_drop_fbo(&s_rp_fbo[slot]);
++        s_rp_tex[slot] = 0; s_rp_tw[slot] = s_rp_th[slot] = 0; s_rp_valid[slot] = 0;
++    }
++}
++
++/* Render thread: set up this instance on a context shared with the
++ * emulation thread's (already current on the calling thread). */
++int gl_rt_init_shared(void *window, void *context) {
++    s_win = (SDL_Window *)window;
++    s_ctx = (SDL_GLContext)context;
++    gs_forget();
++    gs_disable(GL_DEPTH_TEST); gs_disable(GL_CULL_FACE);
++    int ok = load_modern_gl() && rt_sync_ok();
++    if (ok) ok = init_gpu_raster();
++    if (!ok) { s_raster_ok = 0; return 0; }
++    return 1;
++}
++
++/* Render thread: load snapshot s (surfaces only when `surfaces`). */
++int gl_rt_load(GlRtSnap *s, int surfaces, int k) {
++    if (!s_raster_ok || s_rr_active || s->scale != s_scale || k < 0 || k >= RT_INSTANCES) return 0;
++    if (s->wide_w != g_wide_w || s->wide_off != g_wide_off) glb_wide_configure(s->wide_w, s->wide_off);
++    if (surfaces) {
++        const int S = s_scale, hw = VRAM_W * S, hh = VRAM_H * S;
++        if (s->c_hr_tex[k] != s->hr_tex) {
++            rt_drop_fbo(&s->c_hr_fbo[k]);
++            if (!make_fbo(&s->c_hr_fbo[k], s->hr_tex, s->hr_rb)) return 0;
++            s->c_hr_tex[k] = s->hr_tex;
++        }
++        if (s->c_raw_tex[k] != s->raw_tex) {
++            rt_drop_fbo(&s->c_raw_fbo[k]);
++            if (!make_fbo(&s->c_raw_fbo[k], s->raw_tex, 0)) return 0;
++            s->c_raw_tex[k] = s->raw_tex;
++        }
++        if (s->fence) p_rtWaitSync(s->fence, 0, RT_TIMEOUT_IGNORED);
++        gs_disable(GL_SCISSOR_TEST);
++        rr_blit(s->c_hr_fbo[k], s_hr_fbo, hw, hh, RT_ALL);
++        rr_blit(s->c_raw_fbo[k], s_raw_fbo, VRAM_W, VRAM_H, GL_COLOR_BUFFER_BIT);
++        for (int i = 0; i < RT_WIDE_SURF; i++) {
++            if (s->wide_base[i] < 0) continue;
++            if (s->c_wide_tex[k][i] != s->wide_tex[i]) {
++                rt_drop_fbo(&s->c_wide_fbo[k][i]);
++                if (!make_fbo(&s->c_wide_fbo[k][i], s->wide_tex[i], s->wide_rb[i])) return 0;
++                s->c_wide_tex[k][i] = s->wide_tex[i];
++            }
++            GLuint dst = wide_fbo_for(s->wide_base[i]);
++            if (!dst) return 0;
++            rr_blit(s->c_wide_fbo[k][i], dst, s->wide_w * S, hh, RT_ALL);
++        }
++        gs_bind_fb(PSXGL_READ_FRAMEBUFFER, 0);
++        gs_bind_fb(PSXGL_DRAW_FRAMEBUFFER, 0);
++        if (s->read_fence[k]) p_rtDeleteSync(s->read_fence[k]);
++        s->read_fence[k] = rt_fence();
++    }
++    memcpy(s_vram, s->cpu, (size_t)VRAM_W * VRAM_H * sizeof(uint16_t));
++    s_up_nrects = 0;
++    s_wide_suppress = s->wide_suppress; s_wide_fast = s->wide_fast; s_ws_ablate = s->ws_ablate;
++    g_wide_cur = s->wide_cur_on ? wide_fbo_for(s->wide_cur_base) : 0;
++    g_wide_cur_base = s->wide_cur_base;
++    s_off_x = s->off_x; s_off_y = s->off_y;
++    s_area_x1 = s->area_x1; s_area_y1 = s->area_y1; s_area_x2 = s->area_x2; s_area_y2 = s->area_y2;
++    s_semi_en = s->semi_en; s_semi_mode = s->semi_mode;
++    s_mod_r = s->mod_r; s_mod_g = s->mod_g; s_mod_b = s->mod_b; s_mod_raw = s->mod_raw;
++    s_mask_set = s->mask_set; s_mask_check = s->mask_check;
++    s_tw_mask_x = s->tw_mask_x; s_tw_mask_y = s->tw_mask_y; s_tw_off_x = s->tw_off_x; s_tw_off_y = s->tw_off_y;
++    s_tex_filter = s->tex_filter; s_stencil_valid = s->stencil_valid; s_gpu_dirty = s->gpu_dirty;
++    s_pc_valid = s_pq_valid = 0;
++    s_hz_clear_pending = s->hz_clear_pending;
++    s_aspect_num = s->aspect_num; s_aspect_den = s->aspect_den;
++    s_pack_dirty.set = s->pack_dirty[0]; s_pack_dirty.x0 = s->pack_dirty[1]; s_pack_dirty.y0 = s->pack_dirty[2];
++    s_pack_dirty.x1 = s->pack_dirty[3]; s_pack_dirty.y1 = s->pack_dirty[4];
++    s_rp_path = s->rp_path; s_rp_w = s->rp_w; s_rp_h = s->rp_h; s_rp_base_x = s->rp_base_x;
++    s_rp_linear = s->rp_linear; s_rp_force_4_3 = s->rp_force_4_3;
++    s_d16_valid = -1;
++    sw_set_draw_offset(s_off_x, s_off_y);
++    return 1;
++}
++
++/* Render thread: the image a session captured into cache entry `cache`. */
++int gl_rt_cache_image(int cache, unsigned *tex, int *tw, int *th) {
++    const int slot = cache + 1;
++    if (slot < 1 || slot > RP_CACHE || !s_rp_valid[slot]) return 0;
++    *tex = s_rp_tex[slot]; *tw = s_rp_tw[slot]; *th = s_rp_th[slot];
++    return 1;
++}
 diff --git a/runtime/src/gpu_sw_renderer.c b/runtime/src/gpu_sw_renderer.c
 index ff40acee..21dc8167 100644
 --- a/runtime/src/gpu_sw_renderer.c
@@ -9009,12 +9447,1111 @@ index 48319dfd..7acf3ccc 100644
      for (i = 0; i < SSM_W * SSM_H; i++)
          s_panel[i] = 0xFF0F1118u;
  
+diff --git a/runtime/src/render_copy/gen_names.py b/runtime/src/render_copy/gen_names.py
+new file mode 100644
+index 00000000..cf4c5f6d
+--- /dev/null
++++ b/runtime/src/render_copy/gen_names.py
+@@ -0,0 +1,42 @@
++#!/usr/bin/env python3
++"""Generate rc_names.h and rc2_names.h in this directory (Time to Kill D17AW).
++
++Each render thread runs its own, independent instance of the GPU emulator and
++GL renderer: the same sources compiled again (runtime/src/render_copy/rc_*.c,
++rc2_*.c) with every global symbol they define renamed to rc_<name> (rc2_). File-scope statics
++are per translation unit and so already separate. This script lists the global
++symbols the original objects define and writes the rename header.
++
++Usage: gen_names.py <object dir of the original runtime objects>
++A symbol missing from the header makes the link fail with a duplicate
++definition, so a stale header can never share state silently: rerun this
++script after adding a global to one of the copied sources.
++"""
++import subprocess, sys
++from pathlib import Path
++
++SOURCES = ["gpu.c", "gpu_gl_renderer.c", "gpu_sw_renderer.c", "gpu_render.c",
++           "gpu_vram_dirty.c", "render_replay.c"]
++
++def main():
++    objdir = Path(sys.argv[1])
++    names = set()
++    for s in SOURCES:
++        out = subprocess.run(["nm", "--defined-only", "-g", str(objdir / f"{s}.o")],
++                             capture_output=True, text=True, check=True).stdout
++        for line in out.splitlines():
++            parts = line.split()
++            if len(parts) == 3 and parts[1] in "TDBRCVW":
++                names.add(parts[2])
++    for prefix in ("rc", "rc2"):
++        out = Path(__file__).resolve().parent / f"{prefix}_names.h"
++        guard = f"{prefix.upper()}_NAMES_H"
++        lines = ["/* Generated by gen_names.py - do not edit. */",
++                 f"#ifndef {guard}", f"#define {guard}"]
++        lines += [f"#define {n} {prefix}_{n}" for n in sorted(names)]
++        lines += ["#endif", ""]
++        out.write_text("\n".join(lines))
++        print(f"{out}: {len(names)} symbols")
++
++if __name__ == "__main__":
++    main()
+diff --git a/runtime/src/render_copy/rc2_gpu.c b/runtime/src/render_copy/rc2_gpu.c
+new file mode 100644
+index 00000000..eaa7c48a
+--- /dev/null
++++ b/runtime/src/render_copy/rc2_gpu.c
+@@ -0,0 +1,6 @@
++/* Time to Kill D17AW: the second render thread's own instance of gpu.c (README in
++ * gen_names.py): every global it defines is renamed rc2_*. */
++#define PSX_RENDER_COPY 1
++#include "rc2_names.h"
++#include "rc_overrides.h"
++#include "../gpu.c"
+diff --git a/runtime/src/render_copy/rc2_gpu_gl_renderer.c b/runtime/src/render_copy/rc2_gpu_gl_renderer.c
+new file mode 100644
+index 00000000..eef7f959
+--- /dev/null
++++ b/runtime/src/render_copy/rc2_gpu_gl_renderer.c
+@@ -0,0 +1,6 @@
++/* Time to Kill D17AW: the second render thread's own instance of gpu_gl_renderer.c (README in
++ * gen_names.py): every global it defines is renamed rc2_*. */
++#define PSX_RENDER_COPY 1
++#include "rc2_names.h"
++#include "rc_overrides.h"
++#include "../gpu_gl_renderer.c"
+diff --git a/runtime/src/render_copy/rc2_gpu_render.c b/runtime/src/render_copy/rc2_gpu_render.c
+new file mode 100644
+index 00000000..f001a468
+--- /dev/null
++++ b/runtime/src/render_copy/rc2_gpu_render.c
+@@ -0,0 +1,6 @@
++/* Time to Kill D17AW: the second render thread's own instance of gpu_render.c (README in
++ * gen_names.py): every global it defines is renamed rc2_*. */
++#define PSX_RENDER_COPY 1
++#include "rc2_names.h"
++#include "rc_overrides.h"
++#include "../gpu_render.c"
+diff --git a/runtime/src/render_copy/rc2_gpu_sw_renderer.c b/runtime/src/render_copy/rc2_gpu_sw_renderer.c
+new file mode 100644
+index 00000000..a7697703
+--- /dev/null
++++ b/runtime/src/render_copy/rc2_gpu_sw_renderer.c
+@@ -0,0 +1,6 @@
++/* Time to Kill D17AW: the second render thread's own instance of gpu_sw_renderer.c (README in
++ * gen_names.py): every global it defines is renamed rc2_*. */
++#define PSX_RENDER_COPY 1
++#include "rc2_names.h"
++#include "rc_overrides.h"
++#include "../gpu_sw_renderer.c"
+diff --git a/runtime/src/render_copy/rc2_gpu_vram_dirty.c b/runtime/src/render_copy/rc2_gpu_vram_dirty.c
+new file mode 100644
+index 00000000..528eb68b
+--- /dev/null
++++ b/runtime/src/render_copy/rc2_gpu_vram_dirty.c
+@@ -0,0 +1,6 @@
++/* Time to Kill D17AW: the second render thread's own instance of gpu_vram_dirty.c (README in
++ * gen_names.py): every global it defines is renamed rc2_*. */
++#define PSX_RENDER_COPY 1
++#include "rc2_names.h"
++#include "rc_overrides.h"
++#include "../gpu_vram_dirty.c"
+diff --git a/runtime/src/render_copy/rc2_names.h b/runtime/src/render_copy/rc2_names.h
+new file mode 100644
+index 00000000..cad453d9
+--- /dev/null
++++ b/runtime/src/render_copy/rc2_names.h
+@@ -0,0 +1,439 @@
++/* Generated by gen_names.py - do not edit. */
++#ifndef RC2_NAMES_H
++#define RC2_NAMES_H
++#define g_bdg_applied rc2_g_bdg_applied
++#define g_bdg_base rc2_g_bdg_base
++#define g_bdg_clearx rc2_g_bdg_clearx
++#define g_bdg_cur rc2_g_bdg_cur
++#define g_bdg_off rc2_g_bdg_off
++#define g_bdg_prims rc2_g_bdg_prims
++#define g_bdg_src_hi rc2_g_bdg_src_hi
++#define g_bdg_src_lo rc2_g_bdg_src_lo
++#define g_bdg_w rc2_g_bdg_w
++#define g_dbg_clut rc2_g_dbg_clut
++#define g_dbg_hi rc2_g_dbg_hi
++#define g_dbg_lo rc2_g_dbg_lo
++#define g_dbg_match_n rc2_g_dbg_match_n
++#define g_dbg_match_tagged rc2_g_dbg_match_tagged
++#define g_dbg_mode rc2_g_dbg_mode
++#define g_doff_cnt_last rc2_g_doff_cnt_last
++#define g_doff_cnt_this rc2_g_doff_cnt_this
++#define g_doff_max_last rc2_g_doff_max_last
++#define g_doff_max_this rc2_g_doff_max_this
++#define g_doff_min_last rc2_g_doff_min_last
++#define g_doff_min_this rc2_g_doff_min_this
++#define g_gp0_last_copy_sp rc2_g_gp0_last_copy_sp
++#define g_pollhack_vblank_count rc2_g_pollhack_vblank_count
++#define g_psx_vram_dirty_tracking rc2_g_psx_vram_dirty_tracking
++#define g_ptrace rc2_g_ptrace
++#define g_ptrace_n rc2_g_ptrace_n
++#define g_render_replay_active rc2_g_render_replay_active
++#define g_render_replay_record rc2_g_render_replay_record
++#define g_ws_backdrop_hi rc2_g_ws_backdrop_hi
++#define g_ws_backdrop_lo rc2_g_ws_backdrop_lo
++#define g_ws_bd_from_interp rc2_g_ws_bd_from_interp
++#define g_ws_bd_margin rc2_g_ws_bd_margin
++#define g_ws_bd_phase_mode rc2_g_ws_bd_phase_mode
++#define g_ws_bd_phase_thresh rc2_g_ws_bd_phase_thresh
++#define g_ws_bd_stretch_on rc2_g_ws_bd_stretch_on
++#define g_ws_bd_stretch_pct rc2_g_ws_bd_stretch_pct
++#define g_ws_tex_edge_pct rc2_g_ws_tex_edge_pct
++#define gl_backend_get rc2_gl_backend_get
++#define gl_host_depth_clears rc2_gl_host_depth_clears
++#define gl_host_depth_triangles rc2_gl_host_depth_triangles
++#define gl_renderer_batch_diag rc2_gl_renderer_batch_diag
++#define gl_renderer_coh_get rc2_gl_renderer_coh_get
++#define gl_renderer_coh_total rc2_gl_renderer_coh_total
++#define gl_renderer_cpu_auth_dual rc2_gl_renderer_cpu_auth_dual
++#define gl_renderer_diag rc2_gl_renderer_diag
++#define gl_renderer_fbo_peek rc2_gl_renderer_fbo_peek
++#define gl_renderer_flush_cpu_uploads rc2_gl_renderer_flush_cpu_uploads
++#define gl_renderer_get_wide_fast rc2_gl_renderer_get_wide_fast
++#define gl_renderer_get_ws_ablate rc2_gl_renderer_get_ws_ablate
++#define gl_renderer_grab_presented_argb rc2_gl_renderer_grab_presented_argb
++#define gl_renderer_has_bezel rc2_gl_renderer_has_bezel
++#define gl_renderer_init_context rc2_gl_renderer_init_context
++#define gl_renderer_interpolation_diag rc2_gl_renderer_interpolation_diag
++#define gl_renderer_interpolation_owns_cadence rc2_gl_renderer_interpolation_owns_cadence
++#define gl_renderer_invalidate_present rc2_gl_renderer_invalidate_present
++#define gl_renderer_live_blind rc2_gl_renderer_live_blind
++#define gl_renderer_live_held rc2_gl_renderer_live_held
++#define gl_renderer_live_skip_enable rc2_gl_renderer_live_skip_enable
++#define gl_renderer_live_window rc2_gl_renderer_live_window
++#define gl_renderer_note_live_list rc2_gl_renderer_note_live_list
++#define gl_renderer_perf_aggregate rc2_gl_renderer_perf_aggregate
++#define gl_renderer_perf_prim_split rc2_gl_renderer_perf_prim_split
++#define gl_renderer_pres_get rc2_gl_renderer_pres_get
++#define gl_renderer_pres_total rc2_gl_renderer_pres_total
++#define gl_renderer_present rc2_gl_renderer_present
++#define gl_renderer_present_blank rc2_gl_renderer_present_blank
++#define gl_renderer_present_hold_last rc2_gl_renderer_present_hold_last
++#define gl_renderer_present_probe_reset rc2_gl_renderer_present_probe_reset
++#define gl_renderer_present_probe_take rc2_gl_renderer_present_probe_take
++#define gl_renderer_present_rect_dirty rc2_gl_renderer_present_rect_dirty
++#define gl_renderer_present_vram rc2_gl_renderer_present_vram
++#define gl_renderer_present_wide_fbo rc2_gl_renderer_present_wide_fbo
++#define gl_renderer_replay_available rc2_gl_renderer_replay_available
++#define gl_renderer_replay_cadence rc2_gl_renderer_replay_cadence
++#define gl_renderer_replay_counts rc2_gl_renderer_replay_counts
++#define gl_renderer_replay_diag rc2_gl_renderer_replay_diag
++#define gl_renderer_replay_display_y rc2_gl_renderer_replay_display_y
++#define gl_renderer_replay_divisor rc2_gl_renderer_replay_divisor
++#define gl_renderer_replay_flips rc2_gl_renderer_replay_flips
++#define gl_renderer_replay_owns_cadence rc2_gl_renderer_replay_owns_cadence
++#define gl_renderer_replay_rates rc2_gl_renderer_replay_rates
++#define gl_renderer_restage_vram_after_savestate rc2_gl_renderer_restage_vram_after_savestate
++#define gl_renderer_rp_tick rc2_gl_renderer_rp_tick
++#define gl_renderer_runtime_diag rc2_gl_renderer_runtime_diag
++#define gl_renderer_set_bezel rc2_gl_renderer_set_bezel
++#define gl_renderer_set_cpu_auth_dual rc2_gl_renderer_set_cpu_auth_dual
++#define gl_renderer_set_display_aspect rc2_gl_renderer_set_display_aspect
++#define gl_renderer_set_fmv_filter rc2_gl_renderer_set_fmv_filter
++#define gl_renderer_set_interpolation rc2_gl_renderer_set_interpolation
++#define gl_renderer_set_interpolation_suspended rc2_gl_renderer_set_interpolation_suspended
++#define gl_renderer_set_replay_divisor rc2_gl_renderer_set_replay_divisor
++#define gl_renderer_set_replay_host_hz rc2_gl_renderer_set_replay_host_hz
++#define gl_renderer_set_replay_provider rc2_gl_renderer_set_replay_provider
++#define gl_renderer_set_replay_target_hz rc2_gl_renderer_set_replay_target_hz
++#define gl_renderer_set_swap_interval rc2_gl_renderer_set_swap_interval
++#define gl_renderer_set_wide_fast rc2_gl_renderer_set_wide_fast
++#define gl_renderer_set_ws_ablate rc2_gl_renderer_set_ws_ablate
++#define gl_renderer_shutdown rc2_gl_renderer_shutdown
++#define gl_renderer_sync_cpu rc2_gl_renderer_sync_cpu
++#define gl_renderer_vram_diff rc2_gl_renderer_vram_diff
++#define gl_replay_begin rc2_gl_replay_begin
++#define gl_replay_cache_valid rc2_gl_replay_cache_valid
++#define gl_replay_compare_cache rc2_gl_replay_compare_cache
++#define gl_replay_cow_last rc2_gl_replay_cow_last
++#define gl_replay_cow_stats rc2_gl_replay_cow_stats
++#define gl_replay_cpu_vram_touch rc2_gl_replay_cpu_vram_touch
++#define gl_replay_dump_done rc2_gl_replay_dump_done
++#define gl_replay_end rc2_gl_replay_end
++#define gl_replay_last_area rc2_gl_replay_last_area
++#define gl_replay_multi_area rc2_gl_replay_multi_area
++#define gl_replay_ordered_semi rc2_gl_replay_ordered_semi
++#define gl_replay_quality_json rc2_gl_replay_quality_json
++#define gl_replay_request_dump rc2_gl_replay_request_dump
++#define gl_replay_reset_capture_cache rc2_gl_replay_reset_capture_cache
++#define gl_replay_resume rc2_gl_replay_resume
++#define gl_replay_set_capture_cache rc2_gl_replay_set_capture_cache
++#define gl_rt_adopt rc2_gl_rt_adopt
++#define gl_rt_cache_image rc2_gl_rt_cache_image
++#define gl_rt_capture rc2_gl_rt_capture
++#define gl_rt_forget_cache rc2_gl_rt_forget_cache
++#define gl_rt_init_shared rc2_gl_rt_init_shared
++#define gl_rt_load rc2_gl_rt_load
++#define gl_set_host_coverage rc2_gl_set_host_coverage
++#define gl_set_host_depth rc2_gl_set_host_depth
++#define gl_set_precise_uv rc2_gl_set_precise_uv
++#define gp0_command_word_count rc2_gp0_command_word_count
++#define gpu_arm_shaded_quad_capture rc2_gpu_arm_shaded_quad_capture
++#define gpu_cosim_dump rc2_gpu_cosim_dump
++#define gpu_cosim_snapshot_bytes rc2_gpu_cosim_snapshot_bytes
++#define gpu_cosim_snapshot_write rc2_gpu_cosim_snapshot_write
++#define gpu_depth24_on_savestate_loaded rc2_gpu_depth24_on_savestate_loaded
++#define gpu_depth24_present_hold_tick rc2_gpu_depth24_present_hold_tick
++#define gpu_depth24_present_row rc2_gpu_depth24_present_row
++#define gpu_depth24_rgb_limit rc2_gpu_depth24_rgb_limit
++#define gpu_depth24_upload_span_reset rc2_gpu_depth24_upload_span_reset
++#define gpu_display_info_hold rc2_gpu_display_info_hold
++#define gpu_display_is_depth24 rc2_gpu_display_is_depth24
++#define gpu_display_pixel_argb rc2_gpu_display_pixel_argb
++#define gpu_display_pixel_rgb rc2_gpu_display_pixel_rgb
++#define gpu_get_a0_count rc2_gpu_get_a0_count
++#define gpu_get_a0_extra rc2_gpu_get_a0_extra
++#define gpu_get_a0_history rc2_gpu_get_a0_history
++#define gpu_get_a0_src rc2_gpu_get_a0_src
++#define gpu_get_c0_count rc2_gpu_get_c0_count
++#define gpu_get_c0_history rc2_gpu_get_c0_history
++#define gpu_get_crtc_debug rc2_gpu_get_crtc_debug
++#define gpu_get_display_info rc2_gpu_get_display_info
++#define gpu_get_draw_area rc2_gpu_get_draw_area
++#define gpu_get_gp0_count rc2_gpu_get_gp0_count
++#define gpu_get_gp0_stats rc2_gpu_get_gp0_stats
++#define gpu_get_opcode_count rc2_gpu_get_opcode_count
++#define gpu_get_shaded_quad_capture rc2_gpu_get_shaded_quad_capture
++#define gpu_get_vram rc2_gpu_get_vram
++#define gpu_get_vram_bytes rc2_gpu_get_vram_bytes
++#define gpu_get_vram_ptr rc2_gpu_get_vram_ptr
++#define gpu_gp0_ring_capacity rc2_gpu_gp0_ring_capacity
++#define gpu_gp0_ring_dump_frame rc2_gpu_gp0_ring_dump_frame
++#define gpu_gp0_ring_frame_span rc2_gpu_gp0_ring_frame_span
++#define gpu_gp0_ring_max_words rc2_gpu_gp0_ring_max_words
++#define gpu_gp0_ring_total rc2_gpu_gp0_ring_total
++#define gpu_host_replay_begin rc2_gpu_host_replay_begin
++#define gpu_host_replay_stale rc2_gpu_host_replay_stale
++#define gpu_host_vertex_misses rc2_gpu_host_vertex_misses
++#define gpu_host_vertex_stats rc2_gpu_host_vertex_stats
++#define gpu_host_vertex_store rc2_gpu_host_vertex_store
++#define gpu_init rc2_gpu_init
++#define gpu_last_frame_vertical_split_screen rc2_gpu_last_frame_vertical_split_screen
++#define gpu_live_skip_list_begin rc2_gpu_live_skip_list_begin
++#define gpu_live_skip_list_end rc2_gpu_live_skip_list_end
++#define gpu_live_skip_node rc2_gpu_live_skip_node
++#define gpu_mesh_correction_stats rc2_gpu_mesh_correction_stats
++#define gpu_pgxp_rederive_enable rc2_gpu_pgxp_rederive_enable
++#define gpu_read_gpuread rc2_gpu_read_gpuread
++#define gpu_read_gpustat rc2_gpu_read_gpustat
++#define gpu_rt_ws_bytes rc2_gpu_rt_ws_bytes
++#define gpu_rt_ws_export rc2_gpu_rt_ws_export
++#define gpu_rt_ws_import rc2_gpu_rt_ws_import
++#define gpu_set_gp0_linked_list_node rc2_gpu_set_gp0_linked_list_node
++#define gpu_set_gp0_source rc2_gpu_set_gp0_source
++#define gpu_set_screen_kind rc2_gpu_set_screen_kind
++#define gpu_set_vblank_callback rc2_gpu_set_vblank_callback
++#define gpu_snapshot_bytes rc2_gpu_snapshot_bytes
++#define gpu_snapshot_read rc2_gpu_snapshot_read
++#define gpu_snapshot_write rc2_gpu_snapshot_write
++#define gpu_texture_correction_enabled rc2_gpu_texture_correction_enabled
++#define gpu_texture_correction_hits rc2_gpu_texture_correction_hits
++#define gpu_texture_correction_set rc2_gpu_texture_correction_set
++#define gpu_texture_correction_stats rc2_gpu_texture_correction_stats
++#define gpu_vblank_arm_deferred_present rc2_gpu_vblank_arm_deferred_present
++#define gpu_vblank_clear_deferred_present rc2_gpu_vblank_clear_deferred_present
++#define gpu_vblank_flush_present rc2_gpu_vblank_flush_present
++#define gpu_vblank_present_pending rc2_gpu_vblank_present_pending
++#define gpu_vblank_release_present_flush_guard rc2_gpu_vblank_release_present_flush_guard
++#define gpu_vblank_tick rc2_gpu_vblank_tick
++#define gpu_vertical_split_debug rc2_gpu_vertical_split_debug
++#define gpu_video_standard_is_pal rc2_gpu_video_standard_is_pal
++#define gpu_vram_dirty_any rc2_gpu_vram_dirty_any
++#define gpu_vram_dirty_clear rc2_gpu_vram_dirty_clear
++#define gpu_vram_dirty_mark_all rc2_gpu_vram_dirty_mark_all
++#define gpu_vram_dirty_mark_rect rc2_gpu_vram_dirty_mark_rect
++#define gpu_vram_dirty_mark_row_impl rc2_gpu_vram_dirty_mark_row_impl
++#define gpu_vram_dirty_mark_rows rc2_gpu_vram_dirty_mark_rows
++#define gpu_vram_dirty_mask rc2_gpu_vram_dirty_mask
++#define gpu_vram_dirty_row_count rc2_gpu_vram_dirty_row_count
++#define gpu_vram_dirty_set_tracking rc2_gpu_vram_dirty_set_tracking
++#define gpu_vram_dirty_tracking rc2_gpu_vram_dirty_tracking
++#define gpu_vram_dirty_verify_enabled rc2_gpu_vram_dirty_verify_enabled
++#define gpu_vram_peek rc2_gpu_vram_peek
++#define gpu_write_gp0 rc2_gpu_write_gp0
++#define gpu_write_gp0_words rc2_gpu_write_gp0_words
++#define gpu_write_gp1 rc2_gpu_write_gp1
++#define gpu_ws_begin_linked_list rc2_gpu_ws_begin_linked_list
++#define gpu_ws_bg2d_configure rc2_gpu_ws_bg2d_configure
++#define gpu_ws_bg2d_set_parent_links rc2_gpu_ws_bg2d_set_parent_links
++#define gpu_ws_census_dump rc2_gpu_ws_census_dump
++#define gpu_ws_census_seq rc2_gpu_ws_census_seq
++#define gpu_ws_census_set rc2_gpu_ws_census_set
++#define gpu_ws_configure rc2_gpu_ws_configure
++#define gpu_ws_end_linked_list rc2_gpu_ws_end_linked_list
++#define gpu_ws_get_aspect_cone_site_debug rc2_gpu_ws_get_aspect_cone_site_debug
++#define gpu_ws_get_debug rc2_gpu_ws_get_debug
++#define gpu_ws_mmx6_freshfix_get rc2_gpu_ws_mmx6_freshfix_get
++#define gpu_ws_mmx6_refill_cols rc2_gpu_ws_mmx6_refill_cols
++#define gpu_ws_mmx6_set_freshfix rc2_gpu_ws_mmx6_set_freshfix
++#define gpu_ws_mmx6_validate rc2_gpu_ws_mmx6_validate
++#define gpu_ws_netplay_local_viewport_base_x rc2_gpu_ws_netplay_local_viewport_base_x
++#define gpu_ws_netplay_local_viewport_width rc2_gpu_ws_netplay_local_viewport_width
++#define gpu_ws_nw_flat_backdrop_enabled rc2_gpu_ws_nw_flat_backdrop_enabled
++#define gpu_ws_precise_nclip_enabled rc2_gpu_ws_precise_nclip_enabled
++#define gpu_ws_prepass_linked_list rc2_gpu_ws_prepass_linked_list
++#define gpu_ws_present_native_43 rc2_gpu_ws_present_native_43
++#define gpu_ws_restore_linked_list_rank rc2_gpu_ws_restore_linked_list_rank
++#define gpu_ws_set_activation_guard_pixels rc2_gpu_ws_set_activation_guard_pixels
++#define gpu_ws_set_angle_sites rc2_gpu_ws_set_angle_sites
++#define gpu_ws_set_aspect_cone rc2_gpu_ws_set_aspect_cone
++#define gpu_ws_set_auto_hooks rc2_gpu_ws_set_auto_hooks
++#define gpu_ws_set_auto_ui_squash rc2_gpu_ws_set_auto_ui_squash
++#define gpu_ws_set_clear_reveal rc2_gpu_ws_set_clear_reveal
++#define gpu_ws_set_cull_guard_pixels rc2_gpu_ws_set_cull_guard_pixels
++#define gpu_ws_set_cull_imms rc2_gpu_ws_set_cull_imms
++#define gpu_ws_set_cull_keep_sites rc2_gpu_ws_set_cull_keep_sites
++#define gpu_ws_set_depth_cull_sites rc2_gpu_ws_set_depth_cull_sites
++#define gpu_ws_set_explicit_cull_sites rc2_gpu_ws_set_explicit_cull_sites
++#define gpu_ws_set_full_2d rc2_gpu_ws_set_full_2d
++#define gpu_ws_set_gameplay_state_gate rc2_gpu_ws_set_gameplay_state_gate
++#define gpu_ws_set_gte_game_mode rc2_gpu_ws_set_gte_game_mode
++#define gpu_ws_set_margin_override rc2_gpu_ws_set_margin_override
++#define gpu_ws_set_negsub_cull_sites rc2_gpu_ws_set_negsub_cull_sites
++#define gpu_ws_set_netplay_local_viewport rc2_gpu_ws_set_netplay_local_viewport
++#define gpu_ws_set_nw_backdrop rc2_gpu_ws_set_nw_backdrop
++#define gpu_ws_set_nw_flat_backdrop rc2_gpu_ws_set_nw_flat_backdrop
++#define gpu_ws_set_nw_hud_corners rc2_gpu_ws_set_nw_hud_corners
++#define gpu_ws_set_nw_hud_tag_rects rc2_gpu_ws_set_nw_hud_tag_rects
++#define gpu_ws_set_nw_left_hud_packet_range rc2_gpu_ws_set_nw_left_hud_packet_range
++#define gpu_ws_set_nw_phase_backdrop rc2_gpu_ws_set_nw_phase_backdrop
++#define gpu_ws_set_nw_textured_edges rc2_gpu_ws_set_nw_textured_edges
++#define gpu_ws_set_plane_nx_sites rc2_gpu_ws_set_plane_nx_sites
++#define gpu_ws_set_precise_nclip rc2_gpu_ws_set_precise_nclip
++#define gpu_ws_set_signed_x_bound_sites rc2_gpu_ws_set_signed_x_bound_sites
++#define gpu_ws_set_slti_lower_cull_sites rc2_gpu_ws_set_slti_lower_cull_sites
++#define gpu_ws_set_vxrange_cull_sites rc2_gpu_ws_set_vxrange_cull_sites
++#define gpu_ws_set_xclip_load_sites rc2_gpu_ws_set_xclip_load_sites
++#define gr_backend rc2_gr_backend
++#define gr_copy_rect rc2_gr_copy_rect
++#define gr_draw_flat_rect rc2_gr_draw_flat_rect
++#define gr_draw_flat_triangle rc2_gr_draw_flat_triangle
++#define gr_draw_gouraud_triangle rc2_gr_draw_gouraud_triangle
++#define gr_draw_line rc2_gr_draw_line
++#define gr_draw_shaded_line rc2_gr_draw_shaded_line
++#define gr_draw_shaded_textured_triangle rc2_gr_draw_shaded_textured_triangle
++#define gr_draw_textured_rect rc2_gr_draw_textured_rect
++#define gr_draw_textured_rect_scaled rc2_gr_draw_textured_rect_scaled
++#define gr_draw_textured_triangle rc2_gr_draw_textured_triangle
++#define gr_fill_rect rc2_gr_fill_rect
++#define gr_get_draw_area rc2_gr_get_draw_area
++#define gr_init rc2_gr_init
++#define gr_render_display rc2_gr_render_display
++#define gr_render_display_hires rc2_gr_render_display_hires
++#define gr_render_wide_display rc2_gr_render_wide_display
++#define gr_scale rc2_gr_scale
++#define gr_set_backend rc2_gr_set_backend
++#define gr_set_color_modulation rc2_gr_set_color_modulation
++#define gr_set_draw_area rc2_gr_set_draw_area
++#define gr_set_draw_offset rc2_gr_set_draw_offset
++#define gr_set_mask_bits rc2_gr_set_mask_bits
++#define gr_set_perspective_triangle rc2_gr_set_perspective_triangle
++#define gr_set_precise_triangle rc2_gr_set_precise_triangle
++#define gr_set_scale rc2_gr_set_scale
++#define gr_set_semi_transparency rc2_gr_set_semi_transparency
++#define gr_set_texture_filter rc2_gr_set_texture_filter
++#define gr_set_texture_window rc2_gr_set_texture_window
++#define gr_texture_filter rc2_gr_texture_filter
++#define gr_vram_read rc2_gr_vram_read
++#define gr_vram_transfer_in rc2_gr_vram_transfer_in
++#define gr_vram_transfer_out rc2_gr_vram_transfer_out
++#define gr_vram_write rc2_gr_vram_write
++#define gr_wide_clear rc2_gr_wide_clear
++#define gr_wide_clear_margins rc2_gr_wide_clear_margins
++#define gr_wide_configure rc2_gr_wide_configure
++#define gr_wide_disable_target rc2_gr_wide_disable_target
++#define gr_wide_dump_full rc2_gr_wide_dump_full
++#define gr_wide_set_target rc2_gr_wide_set_target
++#define gr_wide_supported rc2_gr_wide_supported
++#define psx_mod_gpu_host_vertex rc2_psx_mod_gpu_host_vertex
++#define psx_mod_gpu_host_vertex_coverage rc2_psx_mod_gpu_host_vertex_coverage
++#define psx_mod_gpu_host_vertex_depth rc2_psx_mod_gpu_host_vertex_depth
++#define psx_mod_gpu_host_vertex_depth_only rc2_psx_mod_gpu_host_vertex_depth_only
++#define psx_mod_gpu_host_vertex_test_only rc2_psx_mod_gpu_host_vertex_test_only
++#define psx_mod_live_draw_blind rc2_psx_mod_live_draw_blind
++#define psx_mod_live_draw_skip_arm rc2_psx_mod_live_draw_skip_arm
++#define psx_mod_live_draw_skip_enable rc2_psx_mod_live_draw_skip_enable
++#define psx_mod_live_draw_skip_stats rc2_psx_mod_live_draw_skip_stats
++#define psx_mod_present_display_y rc2_psx_mod_present_display_y
++#define psx_mod_present_flips rc2_psx_mod_present_flips
++#define psx_mod_replay_active rc2_psx_mod_replay_active
++#define psx_mod_replay_begin rc2_psx_mod_replay_begin
++#define psx_mod_replay_end rc2_psx_mod_replay_end
++#define psx_mod_set_replay_status rc2_psx_mod_set_replay_status
++#define psx_ws_activation_margin rc2_psx_ws_activation_margin
++#define psx_ws_angle_site rc2_psx_ws_angle_site
++#define psx_ws_angle_widen rc2_psx_ws_angle_widen
++#define psx_ws_aspect_cone_result rc2_psx_ws_aspect_cone_result
++#define psx_ws_aspect_cone_site rc2_psx_ws_aspect_cone_site
++#define psx_ws_auto_cull_on rc2_psx_ws_auto_cull_on
++#define psx_ws_backdrop_preload rc2_psx_ws_backdrop_preload
++#define psx_ws_backdrop_ring_json rc2_psx_ws_backdrop_ring_json
++#define psx_ws_backdrop_ring_note rc2_psx_ws_backdrop_ring_note
++#define psx_ws_backdrop_value rc2_psx_ws_backdrop_value
++#define psx_ws_backdrop_x rc2_psx_ws_backdrop_x
++#define psx_ws_bg2d_cols rc2_psx_ws_bg2d_cols
++#define psx_ws_bg2d_startcol rc2_psx_ws_bg2d_startcol
++#define psx_ws_bg2d_startx rc2_psx_ws_bg2d_startx
++#define psx_ws_bg2d_stream_left rc2_psx_ws_bg2d_stream_left
++#define psx_ws_bg2d_stream_right rc2_psx_ws_bg2d_stream_right
++#define psx_ws_bg2d_undercap rc2_psx_ws_bg2d_undercap
++#define psx_ws_cull_bltz rc2_psx_ws_cull_bltz
++#define psx_ws_cull_bltz_at rc2_psx_ws_cull_bltz_at
++#define psx_ws_cull_keep_result rc2_psx_ws_cull_keep_result
++#define psx_ws_cull_keep_site rc2_psx_ws_cull_keep_site
++#define psx_ws_cull_slti rc2_psx_ws_cull_slti
++#define psx_ws_cull_slti_lower rc2_psx_ws_cull_slti_lower
++#define psx_ws_cull_sltiu rc2_psx_ws_cull_sltiu
++#define psx_ws_cull_vxrange rc2_psx_ws_cull_vxrange
++#define psx_ws_dbg_gate_frame_snapshot rc2_psx_ws_dbg_gate_frame_snapshot
++#define psx_ws_depth_bound rc2_psx_ws_depth_bound
++#define psx_ws_func_has_screen_cull rc2_psx_ws_func_has_screen_cull
++#define psx_ws_is_backdrop_site rc2_psx_ws_is_backdrop_site
++#define psx_ws_is_cull_bias_site rc2_psx_ws_is_cull_bias_site
++#define psx_ws_is_cull_depth_site rc2_psx_ws_is_cull_depth_site
++#define psx_ws_is_cull_negsub_site rc2_psx_ws_is_cull_negsub_site
++#define psx_ws_is_cull_plane_nx_site rc2_psx_ws_is_cull_plane_nx_site
++#define psx_ws_is_cull_range_site rc2_psx_ws_is_cull_range_site
++#define psx_ws_is_cull_slti_lower_site rc2_psx_ws_is_cull_slti_lower_site
++#define psx_ws_is_cull_slti_site rc2_psx_ws_is_cull_slti_site
++#define psx_ws_is_cull_vxrange_site rc2_psx_ws_is_cull_vxrange_site
++#define psx_ws_is_cull_w_imm rc2_psx_ws_is_cull_w_imm
++#define psx_ws_is_cull_xclip_load_site rc2_psx_ws_is_cull_xclip_load_site
++#define psx_ws_is_signed_x_bound_site rc2_psx_ws_is_signed_x_bound_site
++#define psx_ws_mmx6_bg_bufbase rc2_psx_ws_mmx6_bg_bufbase
++#define psx_ws_mmx6_bg_cols rc2_psx_ws_mmx6_bg_cols
++#define psx_ws_mmx6_bg_refill_all rc2_psx_ws_mmx6_bg_refill_all
++#define psx_ws_mmx6_bg_stage_init rc2_psx_ws_mmx6_bg_stage_init
++#define psx_ws_mmx6_bg_startcol rc2_psx_ws_mmx6_bg_startcol
++#define psx_ws_mmx6_bg_startx rc2_psx_ws_mmx6_bg_startx
++#define psx_ws_mmx6_bg_stream_left rc2_psx_ws_mmx6_bg_stream_left
++#define psx_ws_mmx6_bg_stream_right rc2_psx_ws_mmx6_bg_stream_right
++#define psx_ws_mmx6_bg_undercap rc2_psx_ws_mmx6_bg_undercap
++#define psx_ws_note_gte_project rc2_psx_ws_note_gte_project
++#define psx_ws_plane_nx rc2_psx_ws_plane_nx
++#define psx_ws_player_x_bound rc2_psx_ws_player_x_bound
++#define psx_ws_prim_in_backdrop rc2_psx_ws_prim_in_backdrop
++#define psx_ws_prim_is_tagged rc2_psx_ws_prim_is_tagged
++#define psx_ws_set_backdrop_sites rc2_psx_ws_set_backdrop_sites
++#define psx_ws_sprite_tag rc2_psx_ws_sprite_tag
++#define psx_ws_ui_groups_json rc2_psx_ws_ui_groups_json
++#define psx_ws_x_margin rc2_psx_ws_x_margin
++#define psx_ws_xclip_bound rc2_psx_ws_xclip_bound
++#define render_replay_begin rc2_render_replay_begin
++#define render_replay_end rc2_render_replay_end
++#define render_replay_feed rc2_render_replay_feed
++#define render_replay_mmio_read rc2_render_replay_mmio_read
++#define render_replay_mmio_write rc2_render_replay_mmio_write
++#define render_replay_plugin_status rc2_render_replay_plugin_status
++#define render_replay_record_begin rc2_render_replay_record_begin
++#define render_replay_record_end rc2_render_replay_record_end
++#define render_replay_record_host_vertex rc2_render_replay_record_host_vertex
++#define render_replay_reset_channel rc2_render_replay_reset_channel
++#define render_replay_rt_session rc2_render_replay_rt_session
++#define render_replay_stats rc2_render_replay_stats
++#define render_replay_stats_mut rc2_render_replay_stats_mut
++#define sw_copy_rect rc2_sw_copy_rect
++#define sw_draw_flat_rect rc2_sw_draw_flat_rect
++#define sw_draw_flat_triangle rc2_sw_draw_flat_triangle
++#define sw_draw_gouraud_triangle rc2_sw_draw_gouraud_triangle
++#define sw_draw_line rc2_sw_draw_line
++#define sw_draw_shaded_line rc2_sw_draw_shaded_line
++#define sw_draw_shaded_textured_triangle rc2_sw_draw_shaded_textured_triangle
++#define sw_draw_textured_rect rc2_sw_draw_textured_rect
++#define sw_draw_textured_rect_scaled rc2_sw_draw_textured_rect_scaled
++#define sw_draw_textured_triangle rc2_sw_draw_textured_triangle
++#define sw_fill_rect rc2_sw_fill_rect
++#define sw_get_draw_area rc2_sw_get_draw_area
++#define sw_perspective_triangle_count rc2_sw_perspective_triangle_count
++#define sw_render_display rc2_sw_render_display
++#define sw_render_display_hires rc2_sw_render_display_hires
++#define sw_render_wide_display rc2_sw_render_wide_display
++#define sw_renderer_init rc2_sw_renderer_init
++#define sw_renderer_scale rc2_sw_renderer_scale
++#define sw_renderer_set_scale rc2_sw_renderer_set_scale
++#define sw_set_color_modulation rc2_sw_set_color_modulation
++#define sw_set_draw_area rc2_sw_set_draw_area
++#define sw_set_draw_offset rc2_sw_set_draw_offset
++#define sw_set_mask_bits rc2_sw_set_mask_bits
++#define sw_set_perspective_triangle rc2_sw_set_perspective_triangle
++#define sw_set_precise_triangle rc2_sw_set_precise_triangle
++#define sw_set_semi_transparency rc2_sw_set_semi_transparency
++#define sw_set_texture_filter rc2_sw_set_texture_filter
++#define sw_set_texture_window rc2_sw_set_texture_window
++#define sw_texture_filter rc2_sw_texture_filter
++#define sw_vram_read rc2_sw_vram_read
++#define sw_vram_transfer_in rc2_sw_vram_transfer_in
++#define sw_vram_transfer_out rc2_sw_vram_transfer_out
++#define sw_vram_write rc2_sw_vram_write
++#define sw_wide_clear rc2_sw_wide_clear
++#define sw_wide_clear_margins rc2_sw_wide_clear_margins
++#define sw_wide_configure rc2_sw_wide_configure
++#define sw_wide_disable_target rc2_sw_wide_disable_target
++#define sw_wide_dump_full rc2_sw_wide_dump_full
++#define sw_wide_emit_tile rc2_sw_wide_emit_tile
++#define sw_wide_set_target rc2_sw_wide_set_target
++#define sw_wide_width rc2_sw_wide_width
++#define ws_bg_phase_note rc2_ws_bg_phase_note
++#define ws_native_wide_active rc2_ws_native_wide_active
++#define ws_nw_extra rc2_ws_nw_extra
++#define ws_nw_present_width rc2_ws_nw_present_width
++#endif
+diff --git a/runtime/src/render_copy/rc2_render_replay.c b/runtime/src/render_copy/rc2_render_replay.c
+new file mode 100644
+index 00000000..388de95a
+--- /dev/null
++++ b/runtime/src/render_copy/rc2_render_replay.c
+@@ -0,0 +1,6 @@
++/* Time to Kill D17AW: the second render thread's own instance of render_replay.c (README in
++ * gen_names.py): every global it defines is renamed rc2_*. */
++#define PSX_RENDER_COPY 1
++#include "rc2_names.h"
++#include "rc_overrides.h"
++#include "../render_replay.c"
+diff --git a/runtime/src/render_copy/rc_gpu.c b/runtime/src/render_copy/rc_gpu.c
+new file mode 100644
+index 00000000..7216fce8
+--- /dev/null
++++ b/runtime/src/render_copy/rc_gpu.c
+@@ -0,0 +1,6 @@
++/* Time to Kill D17AW: the render thread's own instance of gpu.c (README in
++ * gen_names.py): every global it defines is renamed rc_*. */
++#define PSX_RENDER_COPY 1
++#include "rc_names.h"
++#include "rc_overrides.h"
++#include "../gpu.c"
+diff --git a/runtime/src/render_copy/rc_gpu_gl_renderer.c b/runtime/src/render_copy/rc_gpu_gl_renderer.c
+new file mode 100644
+index 00000000..a6f7414f
+--- /dev/null
++++ b/runtime/src/render_copy/rc_gpu_gl_renderer.c
+@@ -0,0 +1,6 @@
++/* Time to Kill D17AW: the render thread's own instance of gpu_gl_renderer.c (README in
++ * gen_names.py): every global it defines is renamed rc_*. */
++#define PSX_RENDER_COPY 1
++#include "rc_names.h"
++#include "rc_overrides.h"
++#include "../gpu_gl_renderer.c"
+diff --git a/runtime/src/render_copy/rc_gpu_render.c b/runtime/src/render_copy/rc_gpu_render.c
+new file mode 100644
+index 00000000..33da587a
+--- /dev/null
++++ b/runtime/src/render_copy/rc_gpu_render.c
+@@ -0,0 +1,6 @@
++/* Time to Kill D17AW: the render thread's own instance of gpu_render.c (README in
++ * gen_names.py): every global it defines is renamed rc_*. */
++#define PSX_RENDER_COPY 1
++#include "rc_names.h"
++#include "rc_overrides.h"
++#include "../gpu_render.c"
+diff --git a/runtime/src/render_copy/rc_gpu_sw_renderer.c b/runtime/src/render_copy/rc_gpu_sw_renderer.c
+new file mode 100644
+index 00000000..389e97af
+--- /dev/null
++++ b/runtime/src/render_copy/rc_gpu_sw_renderer.c
+@@ -0,0 +1,6 @@
++/* Time to Kill D17AW: the render thread's own instance of gpu_sw_renderer.c (README in
++ * gen_names.py): every global it defines is renamed rc_*. */
++#define PSX_RENDER_COPY 1
++#include "rc_names.h"
++#include "rc_overrides.h"
++#include "../gpu_sw_renderer.c"
+diff --git a/runtime/src/render_copy/rc_gpu_vram_dirty.c b/runtime/src/render_copy/rc_gpu_vram_dirty.c
+new file mode 100644
+index 00000000..357e84ec
+--- /dev/null
++++ b/runtime/src/render_copy/rc_gpu_vram_dirty.c
+@@ -0,0 +1,6 @@
++/* Time to Kill D17AW: the render thread's own instance of gpu_vram_dirty.c (README in
++ * gen_names.py): every global it defines is renamed rc_*. */
++#define PSX_RENDER_COPY 1
++#include "rc_names.h"
++#include "rc_overrides.h"
++#include "../gpu_vram_dirty.c"
+diff --git a/runtime/src/render_copy/rc_names.h b/runtime/src/render_copy/rc_names.h
+new file mode 100644
+index 00000000..03ceebe2
+--- /dev/null
++++ b/runtime/src/render_copy/rc_names.h
+@@ -0,0 +1,439 @@
++/* Generated by gen_names.py - do not edit. */
++#ifndef RC_NAMES_H
++#define RC_NAMES_H
++#define g_bdg_applied rc_g_bdg_applied
++#define g_bdg_base rc_g_bdg_base
++#define g_bdg_clearx rc_g_bdg_clearx
++#define g_bdg_cur rc_g_bdg_cur
++#define g_bdg_off rc_g_bdg_off
++#define g_bdg_prims rc_g_bdg_prims
++#define g_bdg_src_hi rc_g_bdg_src_hi
++#define g_bdg_src_lo rc_g_bdg_src_lo
++#define g_bdg_w rc_g_bdg_w
++#define g_dbg_clut rc_g_dbg_clut
++#define g_dbg_hi rc_g_dbg_hi
++#define g_dbg_lo rc_g_dbg_lo
++#define g_dbg_match_n rc_g_dbg_match_n
++#define g_dbg_match_tagged rc_g_dbg_match_tagged
++#define g_dbg_mode rc_g_dbg_mode
++#define g_doff_cnt_last rc_g_doff_cnt_last
++#define g_doff_cnt_this rc_g_doff_cnt_this
++#define g_doff_max_last rc_g_doff_max_last
++#define g_doff_max_this rc_g_doff_max_this
++#define g_doff_min_last rc_g_doff_min_last
++#define g_doff_min_this rc_g_doff_min_this
++#define g_gp0_last_copy_sp rc_g_gp0_last_copy_sp
++#define g_pollhack_vblank_count rc_g_pollhack_vblank_count
++#define g_psx_vram_dirty_tracking rc_g_psx_vram_dirty_tracking
++#define g_ptrace rc_g_ptrace
++#define g_ptrace_n rc_g_ptrace_n
++#define g_render_replay_active rc_g_render_replay_active
++#define g_render_replay_record rc_g_render_replay_record
++#define g_ws_backdrop_hi rc_g_ws_backdrop_hi
++#define g_ws_backdrop_lo rc_g_ws_backdrop_lo
++#define g_ws_bd_from_interp rc_g_ws_bd_from_interp
++#define g_ws_bd_margin rc_g_ws_bd_margin
++#define g_ws_bd_phase_mode rc_g_ws_bd_phase_mode
++#define g_ws_bd_phase_thresh rc_g_ws_bd_phase_thresh
++#define g_ws_bd_stretch_on rc_g_ws_bd_stretch_on
++#define g_ws_bd_stretch_pct rc_g_ws_bd_stretch_pct
++#define g_ws_tex_edge_pct rc_g_ws_tex_edge_pct
++#define gl_backend_get rc_gl_backend_get
++#define gl_host_depth_clears rc_gl_host_depth_clears
++#define gl_host_depth_triangles rc_gl_host_depth_triangles
++#define gl_renderer_batch_diag rc_gl_renderer_batch_diag
++#define gl_renderer_coh_get rc_gl_renderer_coh_get
++#define gl_renderer_coh_total rc_gl_renderer_coh_total
++#define gl_renderer_cpu_auth_dual rc_gl_renderer_cpu_auth_dual
++#define gl_renderer_diag rc_gl_renderer_diag
++#define gl_renderer_fbo_peek rc_gl_renderer_fbo_peek
++#define gl_renderer_flush_cpu_uploads rc_gl_renderer_flush_cpu_uploads
++#define gl_renderer_get_wide_fast rc_gl_renderer_get_wide_fast
++#define gl_renderer_get_ws_ablate rc_gl_renderer_get_ws_ablate
++#define gl_renderer_grab_presented_argb rc_gl_renderer_grab_presented_argb
++#define gl_renderer_has_bezel rc_gl_renderer_has_bezel
++#define gl_renderer_init_context rc_gl_renderer_init_context
++#define gl_renderer_interpolation_diag rc_gl_renderer_interpolation_diag
++#define gl_renderer_interpolation_owns_cadence rc_gl_renderer_interpolation_owns_cadence
++#define gl_renderer_invalidate_present rc_gl_renderer_invalidate_present
++#define gl_renderer_live_blind rc_gl_renderer_live_blind
++#define gl_renderer_live_held rc_gl_renderer_live_held
++#define gl_renderer_live_skip_enable rc_gl_renderer_live_skip_enable
++#define gl_renderer_live_window rc_gl_renderer_live_window
++#define gl_renderer_note_live_list rc_gl_renderer_note_live_list
++#define gl_renderer_perf_aggregate rc_gl_renderer_perf_aggregate
++#define gl_renderer_perf_prim_split rc_gl_renderer_perf_prim_split
++#define gl_renderer_pres_get rc_gl_renderer_pres_get
++#define gl_renderer_pres_total rc_gl_renderer_pres_total
++#define gl_renderer_present rc_gl_renderer_present
++#define gl_renderer_present_blank rc_gl_renderer_present_blank
++#define gl_renderer_present_hold_last rc_gl_renderer_present_hold_last
++#define gl_renderer_present_probe_reset rc_gl_renderer_present_probe_reset
++#define gl_renderer_present_probe_take rc_gl_renderer_present_probe_take
++#define gl_renderer_present_rect_dirty rc_gl_renderer_present_rect_dirty
++#define gl_renderer_present_vram rc_gl_renderer_present_vram
++#define gl_renderer_present_wide_fbo rc_gl_renderer_present_wide_fbo
++#define gl_renderer_replay_available rc_gl_renderer_replay_available
++#define gl_renderer_replay_cadence rc_gl_renderer_replay_cadence
++#define gl_renderer_replay_counts rc_gl_renderer_replay_counts
++#define gl_renderer_replay_diag rc_gl_renderer_replay_diag
++#define gl_renderer_replay_display_y rc_gl_renderer_replay_display_y
++#define gl_renderer_replay_divisor rc_gl_renderer_replay_divisor
++#define gl_renderer_replay_flips rc_gl_renderer_replay_flips
++#define gl_renderer_replay_owns_cadence rc_gl_renderer_replay_owns_cadence
++#define gl_renderer_replay_rates rc_gl_renderer_replay_rates
++#define gl_renderer_restage_vram_after_savestate rc_gl_renderer_restage_vram_after_savestate
++#define gl_renderer_rp_tick rc_gl_renderer_rp_tick
++#define gl_renderer_runtime_diag rc_gl_renderer_runtime_diag
++#define gl_renderer_set_bezel rc_gl_renderer_set_bezel
++#define gl_renderer_set_cpu_auth_dual rc_gl_renderer_set_cpu_auth_dual
++#define gl_renderer_set_display_aspect rc_gl_renderer_set_display_aspect
++#define gl_renderer_set_fmv_filter rc_gl_renderer_set_fmv_filter
++#define gl_renderer_set_interpolation rc_gl_renderer_set_interpolation
++#define gl_renderer_set_interpolation_suspended rc_gl_renderer_set_interpolation_suspended
++#define gl_renderer_set_replay_divisor rc_gl_renderer_set_replay_divisor
++#define gl_renderer_set_replay_host_hz rc_gl_renderer_set_replay_host_hz
++#define gl_renderer_set_replay_provider rc_gl_renderer_set_replay_provider
++#define gl_renderer_set_replay_target_hz rc_gl_renderer_set_replay_target_hz
++#define gl_renderer_set_swap_interval rc_gl_renderer_set_swap_interval
++#define gl_renderer_set_wide_fast rc_gl_renderer_set_wide_fast
++#define gl_renderer_set_ws_ablate rc_gl_renderer_set_ws_ablate
++#define gl_renderer_shutdown rc_gl_renderer_shutdown
++#define gl_renderer_sync_cpu rc_gl_renderer_sync_cpu
++#define gl_renderer_vram_diff rc_gl_renderer_vram_diff
++#define gl_replay_begin rc_gl_replay_begin
++#define gl_replay_cache_valid rc_gl_replay_cache_valid
++#define gl_replay_compare_cache rc_gl_replay_compare_cache
++#define gl_replay_cow_last rc_gl_replay_cow_last
++#define gl_replay_cow_stats rc_gl_replay_cow_stats
++#define gl_replay_cpu_vram_touch rc_gl_replay_cpu_vram_touch
++#define gl_replay_dump_done rc_gl_replay_dump_done
++#define gl_replay_end rc_gl_replay_end
++#define gl_replay_last_area rc_gl_replay_last_area
++#define gl_replay_multi_area rc_gl_replay_multi_area
++#define gl_replay_ordered_semi rc_gl_replay_ordered_semi
++#define gl_replay_quality_json rc_gl_replay_quality_json
++#define gl_replay_request_dump rc_gl_replay_request_dump
++#define gl_replay_reset_capture_cache rc_gl_replay_reset_capture_cache
++#define gl_replay_resume rc_gl_replay_resume
++#define gl_replay_set_capture_cache rc_gl_replay_set_capture_cache
++#define gl_rt_adopt rc_gl_rt_adopt
++#define gl_rt_cache_image rc_gl_rt_cache_image
++#define gl_rt_capture rc_gl_rt_capture
++#define gl_rt_forget_cache rc_gl_rt_forget_cache
++#define gl_rt_init_shared rc_gl_rt_init_shared
++#define gl_rt_load rc_gl_rt_load
++#define gl_set_host_coverage rc_gl_set_host_coverage
++#define gl_set_host_depth rc_gl_set_host_depth
++#define gl_set_precise_uv rc_gl_set_precise_uv
++#define gp0_command_word_count rc_gp0_command_word_count
++#define gpu_arm_shaded_quad_capture rc_gpu_arm_shaded_quad_capture
++#define gpu_cosim_dump rc_gpu_cosim_dump
++#define gpu_cosim_snapshot_bytes rc_gpu_cosim_snapshot_bytes
++#define gpu_cosim_snapshot_write rc_gpu_cosim_snapshot_write
++#define gpu_depth24_on_savestate_loaded rc_gpu_depth24_on_savestate_loaded
++#define gpu_depth24_present_hold_tick rc_gpu_depth24_present_hold_tick
++#define gpu_depth24_present_row rc_gpu_depth24_present_row
++#define gpu_depth24_rgb_limit rc_gpu_depth24_rgb_limit
++#define gpu_depth24_upload_span_reset rc_gpu_depth24_upload_span_reset
++#define gpu_display_info_hold rc_gpu_display_info_hold
++#define gpu_display_is_depth24 rc_gpu_display_is_depth24
++#define gpu_display_pixel_argb rc_gpu_display_pixel_argb
++#define gpu_display_pixel_rgb rc_gpu_display_pixel_rgb
++#define gpu_get_a0_count rc_gpu_get_a0_count
++#define gpu_get_a0_extra rc_gpu_get_a0_extra
++#define gpu_get_a0_history rc_gpu_get_a0_history
++#define gpu_get_a0_src rc_gpu_get_a0_src
++#define gpu_get_c0_count rc_gpu_get_c0_count
++#define gpu_get_c0_history rc_gpu_get_c0_history
++#define gpu_get_crtc_debug rc_gpu_get_crtc_debug
++#define gpu_get_display_info rc_gpu_get_display_info
++#define gpu_get_draw_area rc_gpu_get_draw_area
++#define gpu_get_gp0_count rc_gpu_get_gp0_count
++#define gpu_get_gp0_stats rc_gpu_get_gp0_stats
++#define gpu_get_opcode_count rc_gpu_get_opcode_count
++#define gpu_get_shaded_quad_capture rc_gpu_get_shaded_quad_capture
++#define gpu_get_vram rc_gpu_get_vram
++#define gpu_get_vram_bytes rc_gpu_get_vram_bytes
++#define gpu_get_vram_ptr rc_gpu_get_vram_ptr
++#define gpu_gp0_ring_capacity rc_gpu_gp0_ring_capacity
++#define gpu_gp0_ring_dump_frame rc_gpu_gp0_ring_dump_frame
++#define gpu_gp0_ring_frame_span rc_gpu_gp0_ring_frame_span
++#define gpu_gp0_ring_max_words rc_gpu_gp0_ring_max_words
++#define gpu_gp0_ring_total rc_gpu_gp0_ring_total
++#define gpu_host_replay_begin rc_gpu_host_replay_begin
++#define gpu_host_replay_stale rc_gpu_host_replay_stale
++#define gpu_host_vertex_misses rc_gpu_host_vertex_misses
++#define gpu_host_vertex_stats rc_gpu_host_vertex_stats
++#define gpu_host_vertex_store rc_gpu_host_vertex_store
++#define gpu_init rc_gpu_init
++#define gpu_last_frame_vertical_split_screen rc_gpu_last_frame_vertical_split_screen
++#define gpu_live_skip_list_begin rc_gpu_live_skip_list_begin
++#define gpu_live_skip_list_end rc_gpu_live_skip_list_end
++#define gpu_live_skip_node rc_gpu_live_skip_node
++#define gpu_mesh_correction_stats rc_gpu_mesh_correction_stats
++#define gpu_pgxp_rederive_enable rc_gpu_pgxp_rederive_enable
++#define gpu_read_gpuread rc_gpu_read_gpuread
++#define gpu_read_gpustat rc_gpu_read_gpustat
++#define gpu_rt_ws_bytes rc_gpu_rt_ws_bytes
++#define gpu_rt_ws_export rc_gpu_rt_ws_export
++#define gpu_rt_ws_import rc_gpu_rt_ws_import
++#define gpu_set_gp0_linked_list_node rc_gpu_set_gp0_linked_list_node
++#define gpu_set_gp0_source rc_gpu_set_gp0_source
++#define gpu_set_screen_kind rc_gpu_set_screen_kind
++#define gpu_set_vblank_callback rc_gpu_set_vblank_callback
++#define gpu_snapshot_bytes rc_gpu_snapshot_bytes
++#define gpu_snapshot_read rc_gpu_snapshot_read
++#define gpu_snapshot_write rc_gpu_snapshot_write
++#define gpu_texture_correction_enabled rc_gpu_texture_correction_enabled
++#define gpu_texture_correction_hits rc_gpu_texture_correction_hits
++#define gpu_texture_correction_set rc_gpu_texture_correction_set
++#define gpu_texture_correction_stats rc_gpu_texture_correction_stats
++#define gpu_vblank_arm_deferred_present rc_gpu_vblank_arm_deferred_present
++#define gpu_vblank_clear_deferred_present rc_gpu_vblank_clear_deferred_present
++#define gpu_vblank_flush_present rc_gpu_vblank_flush_present
++#define gpu_vblank_present_pending rc_gpu_vblank_present_pending
++#define gpu_vblank_release_present_flush_guard rc_gpu_vblank_release_present_flush_guard
++#define gpu_vblank_tick rc_gpu_vblank_tick
++#define gpu_vertical_split_debug rc_gpu_vertical_split_debug
++#define gpu_video_standard_is_pal rc_gpu_video_standard_is_pal
++#define gpu_vram_dirty_any rc_gpu_vram_dirty_any
++#define gpu_vram_dirty_clear rc_gpu_vram_dirty_clear
++#define gpu_vram_dirty_mark_all rc_gpu_vram_dirty_mark_all
++#define gpu_vram_dirty_mark_rect rc_gpu_vram_dirty_mark_rect
++#define gpu_vram_dirty_mark_row_impl rc_gpu_vram_dirty_mark_row_impl
++#define gpu_vram_dirty_mark_rows rc_gpu_vram_dirty_mark_rows
++#define gpu_vram_dirty_mask rc_gpu_vram_dirty_mask
++#define gpu_vram_dirty_row_count rc_gpu_vram_dirty_row_count
++#define gpu_vram_dirty_set_tracking rc_gpu_vram_dirty_set_tracking
++#define gpu_vram_dirty_tracking rc_gpu_vram_dirty_tracking
++#define gpu_vram_dirty_verify_enabled rc_gpu_vram_dirty_verify_enabled
++#define gpu_vram_peek rc_gpu_vram_peek
++#define gpu_write_gp0 rc_gpu_write_gp0
++#define gpu_write_gp0_words rc_gpu_write_gp0_words
++#define gpu_write_gp1 rc_gpu_write_gp1
++#define gpu_ws_begin_linked_list rc_gpu_ws_begin_linked_list
++#define gpu_ws_bg2d_configure rc_gpu_ws_bg2d_configure
++#define gpu_ws_bg2d_set_parent_links rc_gpu_ws_bg2d_set_parent_links
++#define gpu_ws_census_dump rc_gpu_ws_census_dump
++#define gpu_ws_census_seq rc_gpu_ws_census_seq
++#define gpu_ws_census_set rc_gpu_ws_census_set
++#define gpu_ws_configure rc_gpu_ws_configure
++#define gpu_ws_end_linked_list rc_gpu_ws_end_linked_list
++#define gpu_ws_get_aspect_cone_site_debug rc_gpu_ws_get_aspect_cone_site_debug
++#define gpu_ws_get_debug rc_gpu_ws_get_debug
++#define gpu_ws_mmx6_freshfix_get rc_gpu_ws_mmx6_freshfix_get
++#define gpu_ws_mmx6_refill_cols rc_gpu_ws_mmx6_refill_cols
++#define gpu_ws_mmx6_set_freshfix rc_gpu_ws_mmx6_set_freshfix
++#define gpu_ws_mmx6_validate rc_gpu_ws_mmx6_validate
++#define gpu_ws_netplay_local_viewport_base_x rc_gpu_ws_netplay_local_viewport_base_x
++#define gpu_ws_netplay_local_viewport_width rc_gpu_ws_netplay_local_viewport_width
++#define gpu_ws_nw_flat_backdrop_enabled rc_gpu_ws_nw_flat_backdrop_enabled
++#define gpu_ws_precise_nclip_enabled rc_gpu_ws_precise_nclip_enabled
++#define gpu_ws_prepass_linked_list rc_gpu_ws_prepass_linked_list
++#define gpu_ws_present_native_43 rc_gpu_ws_present_native_43
++#define gpu_ws_restore_linked_list_rank rc_gpu_ws_restore_linked_list_rank
++#define gpu_ws_set_activation_guard_pixels rc_gpu_ws_set_activation_guard_pixels
++#define gpu_ws_set_angle_sites rc_gpu_ws_set_angle_sites
++#define gpu_ws_set_aspect_cone rc_gpu_ws_set_aspect_cone
++#define gpu_ws_set_auto_hooks rc_gpu_ws_set_auto_hooks
++#define gpu_ws_set_auto_ui_squash rc_gpu_ws_set_auto_ui_squash
++#define gpu_ws_set_clear_reveal rc_gpu_ws_set_clear_reveal
++#define gpu_ws_set_cull_guard_pixels rc_gpu_ws_set_cull_guard_pixels
++#define gpu_ws_set_cull_imms rc_gpu_ws_set_cull_imms
++#define gpu_ws_set_cull_keep_sites rc_gpu_ws_set_cull_keep_sites
++#define gpu_ws_set_depth_cull_sites rc_gpu_ws_set_depth_cull_sites
++#define gpu_ws_set_explicit_cull_sites rc_gpu_ws_set_explicit_cull_sites
++#define gpu_ws_set_full_2d rc_gpu_ws_set_full_2d
++#define gpu_ws_set_gameplay_state_gate rc_gpu_ws_set_gameplay_state_gate
++#define gpu_ws_set_gte_game_mode rc_gpu_ws_set_gte_game_mode
++#define gpu_ws_set_margin_override rc_gpu_ws_set_margin_override
++#define gpu_ws_set_negsub_cull_sites rc_gpu_ws_set_negsub_cull_sites
++#define gpu_ws_set_netplay_local_viewport rc_gpu_ws_set_netplay_local_viewport
++#define gpu_ws_set_nw_backdrop rc_gpu_ws_set_nw_backdrop
++#define gpu_ws_set_nw_flat_backdrop rc_gpu_ws_set_nw_flat_backdrop
++#define gpu_ws_set_nw_hud_corners rc_gpu_ws_set_nw_hud_corners
++#define gpu_ws_set_nw_hud_tag_rects rc_gpu_ws_set_nw_hud_tag_rects
++#define gpu_ws_set_nw_left_hud_packet_range rc_gpu_ws_set_nw_left_hud_packet_range
++#define gpu_ws_set_nw_phase_backdrop rc_gpu_ws_set_nw_phase_backdrop
++#define gpu_ws_set_nw_textured_edges rc_gpu_ws_set_nw_textured_edges
++#define gpu_ws_set_plane_nx_sites rc_gpu_ws_set_plane_nx_sites
++#define gpu_ws_set_precise_nclip rc_gpu_ws_set_precise_nclip
++#define gpu_ws_set_signed_x_bound_sites rc_gpu_ws_set_signed_x_bound_sites
++#define gpu_ws_set_slti_lower_cull_sites rc_gpu_ws_set_slti_lower_cull_sites
++#define gpu_ws_set_vxrange_cull_sites rc_gpu_ws_set_vxrange_cull_sites
++#define gpu_ws_set_xclip_load_sites rc_gpu_ws_set_xclip_load_sites
++#define gr_backend rc_gr_backend
++#define gr_copy_rect rc_gr_copy_rect
++#define gr_draw_flat_rect rc_gr_draw_flat_rect
++#define gr_draw_flat_triangle rc_gr_draw_flat_triangle
++#define gr_draw_gouraud_triangle rc_gr_draw_gouraud_triangle
++#define gr_draw_line rc_gr_draw_line
++#define gr_draw_shaded_line rc_gr_draw_shaded_line
++#define gr_draw_shaded_textured_triangle rc_gr_draw_shaded_textured_triangle
++#define gr_draw_textured_rect rc_gr_draw_textured_rect
++#define gr_draw_textured_rect_scaled rc_gr_draw_textured_rect_scaled
++#define gr_draw_textured_triangle rc_gr_draw_textured_triangle
++#define gr_fill_rect rc_gr_fill_rect
++#define gr_get_draw_area rc_gr_get_draw_area
++#define gr_init rc_gr_init
++#define gr_render_display rc_gr_render_display
++#define gr_render_display_hires rc_gr_render_display_hires
++#define gr_render_wide_display rc_gr_render_wide_display
++#define gr_scale rc_gr_scale
++#define gr_set_backend rc_gr_set_backend
++#define gr_set_color_modulation rc_gr_set_color_modulation
++#define gr_set_draw_area rc_gr_set_draw_area
++#define gr_set_draw_offset rc_gr_set_draw_offset
++#define gr_set_mask_bits rc_gr_set_mask_bits
++#define gr_set_perspective_triangle rc_gr_set_perspective_triangle
++#define gr_set_precise_triangle rc_gr_set_precise_triangle
++#define gr_set_scale rc_gr_set_scale
++#define gr_set_semi_transparency rc_gr_set_semi_transparency
++#define gr_set_texture_filter rc_gr_set_texture_filter
++#define gr_set_texture_window rc_gr_set_texture_window
++#define gr_texture_filter rc_gr_texture_filter
++#define gr_vram_read rc_gr_vram_read
++#define gr_vram_transfer_in rc_gr_vram_transfer_in
++#define gr_vram_transfer_out rc_gr_vram_transfer_out
++#define gr_vram_write rc_gr_vram_write
++#define gr_wide_clear rc_gr_wide_clear
++#define gr_wide_clear_margins rc_gr_wide_clear_margins
++#define gr_wide_configure rc_gr_wide_configure
++#define gr_wide_disable_target rc_gr_wide_disable_target
++#define gr_wide_dump_full rc_gr_wide_dump_full
++#define gr_wide_set_target rc_gr_wide_set_target
++#define gr_wide_supported rc_gr_wide_supported
++#define psx_mod_gpu_host_vertex rc_psx_mod_gpu_host_vertex
++#define psx_mod_gpu_host_vertex_coverage rc_psx_mod_gpu_host_vertex_coverage
++#define psx_mod_gpu_host_vertex_depth rc_psx_mod_gpu_host_vertex_depth
++#define psx_mod_gpu_host_vertex_depth_only rc_psx_mod_gpu_host_vertex_depth_only
++#define psx_mod_gpu_host_vertex_test_only rc_psx_mod_gpu_host_vertex_test_only
++#define psx_mod_live_draw_blind rc_psx_mod_live_draw_blind
++#define psx_mod_live_draw_skip_arm rc_psx_mod_live_draw_skip_arm
++#define psx_mod_live_draw_skip_enable rc_psx_mod_live_draw_skip_enable
++#define psx_mod_live_draw_skip_stats rc_psx_mod_live_draw_skip_stats
++#define psx_mod_present_display_y rc_psx_mod_present_display_y
++#define psx_mod_present_flips rc_psx_mod_present_flips
++#define psx_mod_replay_active rc_psx_mod_replay_active
++#define psx_mod_replay_begin rc_psx_mod_replay_begin
++#define psx_mod_replay_end rc_psx_mod_replay_end
++#define psx_mod_set_replay_status rc_psx_mod_set_replay_status
++#define psx_ws_activation_margin rc_psx_ws_activation_margin
++#define psx_ws_angle_site rc_psx_ws_angle_site
++#define psx_ws_angle_widen rc_psx_ws_angle_widen
++#define psx_ws_aspect_cone_result rc_psx_ws_aspect_cone_result
++#define psx_ws_aspect_cone_site rc_psx_ws_aspect_cone_site
++#define psx_ws_auto_cull_on rc_psx_ws_auto_cull_on
++#define psx_ws_backdrop_preload rc_psx_ws_backdrop_preload
++#define psx_ws_backdrop_ring_json rc_psx_ws_backdrop_ring_json
++#define psx_ws_backdrop_ring_note rc_psx_ws_backdrop_ring_note
++#define psx_ws_backdrop_value rc_psx_ws_backdrop_value
++#define psx_ws_backdrop_x rc_psx_ws_backdrop_x
++#define psx_ws_bg2d_cols rc_psx_ws_bg2d_cols
++#define psx_ws_bg2d_startcol rc_psx_ws_bg2d_startcol
++#define psx_ws_bg2d_startx rc_psx_ws_bg2d_startx
++#define psx_ws_bg2d_stream_left rc_psx_ws_bg2d_stream_left
++#define psx_ws_bg2d_stream_right rc_psx_ws_bg2d_stream_right
++#define psx_ws_bg2d_undercap rc_psx_ws_bg2d_undercap
++#define psx_ws_cull_bltz rc_psx_ws_cull_bltz
++#define psx_ws_cull_bltz_at rc_psx_ws_cull_bltz_at
++#define psx_ws_cull_keep_result rc_psx_ws_cull_keep_result
++#define psx_ws_cull_keep_site rc_psx_ws_cull_keep_site
++#define psx_ws_cull_slti rc_psx_ws_cull_slti
++#define psx_ws_cull_slti_lower rc_psx_ws_cull_slti_lower
++#define psx_ws_cull_sltiu rc_psx_ws_cull_sltiu
++#define psx_ws_cull_vxrange rc_psx_ws_cull_vxrange
++#define psx_ws_dbg_gate_frame_snapshot rc_psx_ws_dbg_gate_frame_snapshot
++#define psx_ws_depth_bound rc_psx_ws_depth_bound
++#define psx_ws_func_has_screen_cull rc_psx_ws_func_has_screen_cull
++#define psx_ws_is_backdrop_site rc_psx_ws_is_backdrop_site
++#define psx_ws_is_cull_bias_site rc_psx_ws_is_cull_bias_site
++#define psx_ws_is_cull_depth_site rc_psx_ws_is_cull_depth_site
++#define psx_ws_is_cull_negsub_site rc_psx_ws_is_cull_negsub_site
++#define psx_ws_is_cull_plane_nx_site rc_psx_ws_is_cull_plane_nx_site
++#define psx_ws_is_cull_range_site rc_psx_ws_is_cull_range_site
++#define psx_ws_is_cull_slti_lower_site rc_psx_ws_is_cull_slti_lower_site
++#define psx_ws_is_cull_slti_site rc_psx_ws_is_cull_slti_site
++#define psx_ws_is_cull_vxrange_site rc_psx_ws_is_cull_vxrange_site
++#define psx_ws_is_cull_w_imm rc_psx_ws_is_cull_w_imm
++#define psx_ws_is_cull_xclip_load_site rc_psx_ws_is_cull_xclip_load_site
++#define psx_ws_is_signed_x_bound_site rc_psx_ws_is_signed_x_bound_site
++#define psx_ws_mmx6_bg_bufbase rc_psx_ws_mmx6_bg_bufbase
++#define psx_ws_mmx6_bg_cols rc_psx_ws_mmx6_bg_cols
++#define psx_ws_mmx6_bg_refill_all rc_psx_ws_mmx6_bg_refill_all
++#define psx_ws_mmx6_bg_stage_init rc_psx_ws_mmx6_bg_stage_init
++#define psx_ws_mmx6_bg_startcol rc_psx_ws_mmx6_bg_startcol
++#define psx_ws_mmx6_bg_startx rc_psx_ws_mmx6_bg_startx
++#define psx_ws_mmx6_bg_stream_left rc_psx_ws_mmx6_bg_stream_left
++#define psx_ws_mmx6_bg_stream_right rc_psx_ws_mmx6_bg_stream_right
++#define psx_ws_mmx6_bg_undercap rc_psx_ws_mmx6_bg_undercap
++#define psx_ws_note_gte_project rc_psx_ws_note_gte_project
++#define psx_ws_plane_nx rc_psx_ws_plane_nx
++#define psx_ws_player_x_bound rc_psx_ws_player_x_bound
++#define psx_ws_prim_in_backdrop rc_psx_ws_prim_in_backdrop
++#define psx_ws_prim_is_tagged rc_psx_ws_prim_is_tagged
++#define psx_ws_set_backdrop_sites rc_psx_ws_set_backdrop_sites
++#define psx_ws_sprite_tag rc_psx_ws_sprite_tag
++#define psx_ws_ui_groups_json rc_psx_ws_ui_groups_json
++#define psx_ws_x_margin rc_psx_ws_x_margin
++#define psx_ws_xclip_bound rc_psx_ws_xclip_bound
++#define render_replay_begin rc_render_replay_begin
++#define render_replay_end rc_render_replay_end
++#define render_replay_feed rc_render_replay_feed
++#define render_replay_mmio_read rc_render_replay_mmio_read
++#define render_replay_mmio_write rc_render_replay_mmio_write
++#define render_replay_plugin_status rc_render_replay_plugin_status
++#define render_replay_record_begin rc_render_replay_record_begin
++#define render_replay_record_end rc_render_replay_record_end
++#define render_replay_record_host_vertex rc_render_replay_record_host_vertex
++#define render_replay_reset_channel rc_render_replay_reset_channel
++#define render_replay_rt_session rc_render_replay_rt_session
++#define render_replay_stats rc_render_replay_stats
++#define render_replay_stats_mut rc_render_replay_stats_mut
++#define sw_copy_rect rc_sw_copy_rect
++#define sw_draw_flat_rect rc_sw_draw_flat_rect
++#define sw_draw_flat_triangle rc_sw_draw_flat_triangle
++#define sw_draw_gouraud_triangle rc_sw_draw_gouraud_triangle
++#define sw_draw_line rc_sw_draw_line
++#define sw_draw_shaded_line rc_sw_draw_shaded_line
++#define sw_draw_shaded_textured_triangle rc_sw_draw_shaded_textured_triangle
++#define sw_draw_textured_rect rc_sw_draw_textured_rect
++#define sw_draw_textured_rect_scaled rc_sw_draw_textured_rect_scaled
++#define sw_draw_textured_triangle rc_sw_draw_textured_triangle
++#define sw_fill_rect rc_sw_fill_rect
++#define sw_get_draw_area rc_sw_get_draw_area
++#define sw_perspective_triangle_count rc_sw_perspective_triangle_count
++#define sw_render_display rc_sw_render_display
++#define sw_render_display_hires rc_sw_render_display_hires
++#define sw_render_wide_display rc_sw_render_wide_display
++#define sw_renderer_init rc_sw_renderer_init
++#define sw_renderer_scale rc_sw_renderer_scale
++#define sw_renderer_set_scale rc_sw_renderer_set_scale
++#define sw_set_color_modulation rc_sw_set_color_modulation
++#define sw_set_draw_area rc_sw_set_draw_area
++#define sw_set_draw_offset rc_sw_set_draw_offset
++#define sw_set_mask_bits rc_sw_set_mask_bits
++#define sw_set_perspective_triangle rc_sw_set_perspective_triangle
++#define sw_set_precise_triangle rc_sw_set_precise_triangle
++#define sw_set_semi_transparency rc_sw_set_semi_transparency
++#define sw_set_texture_filter rc_sw_set_texture_filter
++#define sw_set_texture_window rc_sw_set_texture_window
++#define sw_texture_filter rc_sw_texture_filter
++#define sw_vram_read rc_sw_vram_read
++#define sw_vram_transfer_in rc_sw_vram_transfer_in
++#define sw_vram_transfer_out rc_sw_vram_transfer_out
++#define sw_vram_write rc_sw_vram_write
++#define sw_wide_clear rc_sw_wide_clear
++#define sw_wide_clear_margins rc_sw_wide_clear_margins
++#define sw_wide_configure rc_sw_wide_configure
++#define sw_wide_disable_target rc_sw_wide_disable_target
++#define sw_wide_dump_full rc_sw_wide_dump_full
++#define sw_wide_emit_tile rc_sw_wide_emit_tile
++#define sw_wide_set_target rc_sw_wide_set_target
++#define sw_wide_width rc_sw_wide_width
++#define ws_bg_phase_note rc_ws_bg_phase_note
++#define ws_native_wide_active rc_ws_native_wide_active
++#define ws_nw_extra rc_ws_nw_extra
++#define ws_nw_present_width rc_ws_nw_present_width
++#endif
+diff --git a/runtime/src/render_copy/rc_overrides.h b/runtime/src/render_copy/rc_overrides.h
+new file mode 100644
+index 00000000..84d06df1
+--- /dev/null
++++ b/runtime/src/render_copy/rc_overrides.h
+@@ -0,0 +1,11 @@
++/* Time to Kill D17AW: calls the render thread's instance makes differently.
++ * A feed on the emulation thread ran with PGXP suppressed, and must never
++ * write guest RAM or notify the emulation thread's text translation; these
++ * replacements (render_thread.c) give the same answers without touching the
++ * emulation thread's state. */
++#ifndef RC_OVERRIDES_H
++#define RC_OVERRIDES_H
++#define pgxp_mesh_polygon      rc_replay_pgxp_mesh_polygon
++#define text_xlate_vram_upload rc_replay_text_xlate_vram_upload
++#define psx_write_half         rc_replay_psx_write_half
++#endif
+diff --git a/runtime/src/render_copy/rc_render_replay.c b/runtime/src/render_copy/rc_render_replay.c
+new file mode 100644
+index 00000000..f47f860a
+--- /dev/null
++++ b/runtime/src/render_copy/rc_render_replay.c
+@@ -0,0 +1,6 @@
++/* Time to Kill D17AW: the render thread's own instance of render_replay.c (README in
++ * gen_names.py): every global it defines is renamed rc_*. */
++#define PSX_RENDER_COPY 1
++#include "rc_names.h"
++#include "rc_overrides.h"
++#include "../render_replay.c"
 diff --git a/runtime/src/render_replay.c b/runtime/src/render_replay.c
 new file mode 100644
-index 00000000..a508b1dd
+index 00000000..8c071495
 --- /dev/null
 +++ b/runtime/src/render_replay.c
-@@ -0,0 +1,395 @@
+@@ -0,0 +1,437 @@
 +/* render_replay.c - presentation-only guest render replay (Time to Kill D17).
 + * See render_replay.h. The MMIO policy below is the whole device contract of
 + * a replay: GP0 and GPU DMA execute synchronously into the (saved) VRAM, reads
@@ -9410,12 +10947,615 @@ index 00000000..a508b1dd
 +uint64_t psx_mod_present_flips(void) { return gl_renderer_replay_flips(); }
 +extern int gl_renderer_replay_display_y(void);
 +int psx_mod_present_display_y(void) { return gl_renderer_replay_display_y(); }
++
++/* Time to Kill D17AW: one redraw on the render thread's instance
++ * (render_copy/rc_render_replay.c, render_thread.h). Only the GPU emulator
++ * and renderer of that instance are touched: the guest's cycle counters,
++ * interrupts, PGXP and debug state belong to the emulation thread and a feed
++ * runs no guest code. The instance starts from the snapshot's GPU state;
++ * gl_replay_end restores its surfaces for the next redraw of the same frame. */
++extern void gpu_rt_ws_import(const uint8_t *p);
++int render_replay_rt_session(const uint32_t *stream, uint32_t n, const uint8_t *gpu, uint32_t gpu_len,
++                             const uint8_t *ws, int capture_cache) {
++    extern int gl_replay_set_capture_cache(int c);
++    extern void gl_replay_reset_capture_cache(void);
++    extern void gpu_host_replay_begin(void);
++    if (g_render_replay_active) return 0;
++    gpu_rt_ws_import(ws);
++    if (!gpu_snapshot_read(gpu, gpu_len)) { s_stats.failed++; return 0; }
++    if (!gl_replay_set_capture_cache(capture_cache)) return 0;
++    const uint64_t t0 = SDL_GetPerformanceCounter();
++    if (!gl_replay_begin()) { s_stats.failed++; gl_replay_reset_capture_cache(); return 0; }
++    gpu_host_replay_begin();
++    render_replay_reset_channel();
++    g_render_replay_active = 1;
++    s_stats.sessions++;
++    const uint64_t t1 = SDL_GetPerformanceCounter();
++    const int ok = render_replay_feed(stream, n);
++    g_render_replay_active = 0;
++    const uint64_t t2 = SDL_GetPerformanceCounter();
++    const int captured = gl_replay_end(ok) && ok;
++    gl_replay_resume();
++    gl_replay_reset_capture_cache();
++    if (captured) s_stats.captured++; else s_stats.failed++;
++    const uint64_t f = SDL_GetPerformanceFrequency();
++    if (f) {
++        const uint64_t now = SDL_GetPerformanceCounter(), us = (now - t0) * 1000000u / f;
++        s_stats.begin_us += (t1 - t0) * 1000000u / f;
++        s_stats.guest_us += (t2 - t1) * 1000000u / f;
++        s_stats.end_us += (now - t2) * 1000000u / f;
++        s_stats.total_us += us; s_stats.last_us = us;
++        if (us > s_stats.max_us) s_stats.max_us = us;
++    }
++    return captured;
++}
+diff --git a/runtime/src/render_thread.c b/runtime/src/render_thread.c
+new file mode 100644
+index 00000000..576f7f0c
+--- /dev/null
++++ b/runtime/src/render_thread.c
+@@ -0,0 +1,555 @@
++/* render_thread.c - redraws on host render threads (Time to Kill D17AW).
++ * See render_thread.h. The emulation thread owns the guest, its renderer
++ * instance and the window; each render thread owns another renderer instance
++ * (render_copy/, rc_* and rc2_*) on a GL context shared with the first.
++ * Everything the threads exchange goes through s_mu: snapshot reference
++ * counts, the request queue, finished images and the fences that order GPU
++ * access to shared textures. */
++#include "render_thread.h"
++#include "gpu_render.h"
++#include "psx_sdl.h"
++#if defined(PSX_SDL3)
++#include <SDL3/SDL_opengl.h>
++#else
++#include <SDL_opengl.h>
++#endif
++#include <stdatomic.h>
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++#include <time.h>
++#include <stdint.h>
++
++#if defined(__unix__) || defined(__APPLE__)
++#include <pthread.h>
++#define RT_POSIX 1
++#endif
++
++/* The render threads' renderer instances (render_copy/). */
++#define RT_INSTANCE_API(P) \
++    extern void P##_gr_set_backend(GrBackend backend); \
++    extern void P##_gr_set_scale(int scale); \
++    extern void P##_gr_set_texture_filter(int bilinear); \
++    extern void P##_gpu_init(void); \
++    extern int  P##_gl_rt_init_shared(void *window, void *context); \
++    extern int  P##_gl_rt_load(GlRtSnap *s, int surfaces, int instance); \
++    extern int  P##_gl_rt_cache_image(int cache, unsigned *tex, int *tw, int *th); \
++    extern int  P##_render_replay_rt_session(const uint32_t *stream, uint32_t n, const uint8_t *gpu, \
++                                             uint32_t gpu_len, const uint8_t *ws, int capture_cache);
++RT_INSTANCE_API(rc)
++RT_INSTANCE_API(rc2)
++typedef struct {
++    void (*set_backend)(GrBackend);
++    void (*set_scale)(int);
++    void (*set_texture_filter)(int);
++    void (*gpu_init)(void);
++    int  (*init_shared)(void *, void *);
++    int  (*load)(GlRtSnap *, int, int);
++    int  (*cache_image)(int, unsigned *, int *, int *);
++    int  (*session)(const uint32_t *, uint32_t, const uint8_t *, uint32_t, const uint8_t *, int);
++} RtApi;
++#define RT_API(P) { P##_gr_set_backend, P##_gr_set_scale, P##_gr_set_texture_filter, P##_gpu_init, \
++                    P##_gl_rt_init_shared, P##_gl_rt_load, P##_gl_rt_cache_image, P##_render_replay_rt_session }
++static const RtApi RT_APIS[RT_INSTANCES] = { RT_API(rc), RT_API(rc2) };
++/* The emulation thread's instance. */
++extern uint32_t gpu_rt_ws_bytes(void);
++extern void     gpu_rt_ws_export(uint8_t *p);
++extern uint32_t gpu_snapshot_bytes(void);
++extern void     gpu_snapshot_write(uint8_t *p);
++
++/* Calls the render thread's instance makes instead (render_copy/rc_overrides.h).
++ * A feed on the emulation thread ran with PGXP suppressed, where the mesh
++ * lookup finds nothing. */
++int rc_replay_pgxp_mesh_polygon(uint32_t addr, const uint32_t *words, uint32_t count,
++                                int32_t x[4], int32_t y[4], uint16_t z[4]) {
++    (void)addr; (void)words; (void)count; (void)x; (void)y; (void)z;
++    return 0;
++}
++void rc_replay_text_xlate_vram_upload(int x, int y, int w, int h) { (void)x; (void)y; (void)w; (void)h; }
++void rc_replay_psx_write_half(uint32_t addr, uint16_t val) { (void)addr; (void)val; }
++
++#ifdef RT_POSIX
++
++#define RT_SNAPS 3
++#define RT_QUEUE 16
++#define RT_CACHE 16
++#define RT_JOBS  16
++#define RT_SLOTS 8
++
++typedef struct {
++    int job, slot, cache, snap;
++    const uint32_t *stream;
++    uint32_t words;
++    void *read_fence;          /* the emulation thread's last draw of the cache image */
++    uint32_t epoch;
++    uint64_t queued;
++} RtReq;
++typedef struct {
++    int state;                 /* 0 none, 1 queued, 2 finished, 3 failed */
++    int drawing;               /* a render thread has taken it */
++    unsigned tex; int tw, th;
++    void *fence;
++    uint32_t epoch;
++} RtResult;
++
++static int s_switch = -1;                   /* PSX_RENDER_THREAD */
++static _Atomic int s_state = 0;             /* 0 off, 1 starting, 2 ready, -1 failed */
++static atomic_int s_running = 0;
++static atomic_int s_ready_n = 0;            /* render threads ready */
++typedef struct {
++    SDL_Window *hidden;
++    SDL_GLContext ctx;
++    pthread_t thread;
++    int started;
++    int loaded_snap;                        /* snapshot in its surfaces */
++    uint64_t loaded_gen;
++    uint64_t sessions, surface_loads;
++    double busy_ms;
++    uint64_t busy_t0;
++} RtThread;
++static RtThread s_th[RT_INSTANCES];
++static int s_threads = 1;   /* PSX_RENDER_THREADS=2: both instances (more CPU, no gain on 8 cores) */
++static pthread_mutex_t s_mu = PTHREAD_MUTEX_INITIALIZER;
++static pthread_cond_t s_cv = PTHREAD_COND_INITIALIZER;
++static pthread_cond_t s_done_cv = PTHREAD_COND_INITIALIZER;   /* a result was posted */
++
++static GlRtSnap s_snap[RT_SNAPS];
++static int      s_snap_refs[RT_SNAPS];
++static uint64_t s_snap_gen = 0;
++static int      s_slot_snap[RT_SLOTS] = { -1, -1, -1, -1, -1, -1, -1, -1 };
++static RtReq    s_q[RT_QUEUE];             /* oldest first */
++static int      s_q_n = 0;
++static RtResult s_res[RT_CACHE];
++static int      s_held[RT_JOBS];
++static void    *s_main_read[RT_CACHE];      /* emulation context fences, per cache entry */
++static uint32_t s_epoch = 1;
++
++/* Statistics (debug server). */
++static uint64_t s_sessions = 0, s_failed = 0, s_refused = 0, s_captures = 0, s_capture_fail = 0;
++static uint64_t s_adopted = 0, s_stale = 0, s_surface_loads = 0, s_q_max = 0;
++static double   s_lat_ms = 0.0, s_session_ms = 0.0, s_load_ms = 0.0;
++/* Queue-to-finished times of the last 64 redraws: the presenter's lead needs
++ * their tail, not their mean (psx_rt_latency_ms gives the 90th percentile). */
++static double   s_lat_ring[64];
++static unsigned s_lat_n = 0;
++static uint64_t s_val_exact = 0, s_val_bad = 0, s_val_skip = 0;
++void psx_rt_note_validation(int exact) {
++    if (exact > 0) s_val_exact++; else if (exact == 0) s_val_bad++; else s_val_skip++;
++}
++
++/* GL entry points used here (each context resolves the same functions). */
++#define RT_SYNC_GPU_COMMANDS_COMPLETE 0x9117
++#define RT_TIMEOUT_IGNORED 0xFFFFFFFFFFFFFFFFull
++typedef void *(APIENTRY *PFN_rtFenceSync)(GLenum, GLbitfield);
++typedef void  (APIENTRY *PFN_rtWaitSync)(void *, GLbitfield, GLuint64);
++typedef void  (APIENTRY *PFN_rtDeleteSync)(void *);
++static PFN_rtFenceSync  p_FenceSync;
++static PFN_rtWaitSync   p_WaitSync;
++static PFN_rtDeleteSync p_DeleteSync;
++typedef void (APIENTRY *PFN_rtFlush)(void);
++static PFN_rtFlush p_Flush;
++
++static double ms_since(uint64_t t) {
++    const uint64_t f = SDL_GetPerformanceFrequency();
++    return f ? (double)(SDL_GetPerformanceCounter() - t) * 1000.0 / (double)f : 0.0;
++}
++
++static int s_title_default = 0;   /* psx_mod_set_render_thread */
++static int switch_on(void) {
++    if (s_switch < 0) {
++        const char *e = getenv("PSX_RENDER_THREAD");
++        s_switch = (e && e[0]) ? e[0] == '1' : s_title_default;
++    }
++    return s_switch;
++}
++/* The title's default (PSX_RENDER_THREAD overrides it); before the first redraw. */
++void psx_mod_set_render_thread(int on) { s_title_default = on ? 1 : 0; s_switch = -1; }
++
++/* The request thread k takes next: one for the snapshot already in its
++ * surfaces (a full load copies every VRAM surface), else the oldest. */
++static int pick_request(int k) {
++    const RtThread *t = &s_th[k];
++    for (int i = 0; i < s_q_n; i++)
++        if (s_q[i].snap == t->loaded_snap && s_snap[s_q[i].snap].gen == t->loaded_gen) return i;
++    return s_q_n ? 0 : -1;
++}
++
++static void *thread_main(void *arg) {
++    const int k = (int)(intptr_t)arg;
++    RtThread *t = &s_th[k];
++    const RtApi *api = &RT_APIS[k];
++    if (SDL_GL_MakeCurrent(t->hidden, t->ctx) != 0) {
++        fprintf(stdout, "psxrecomp: render thread %d: MakeCurrent failed (%s)\n", k, SDL_GetError());
++        atomic_store(&s_state, -1);
++        return NULL;
++    }
++    api->set_backend(GR_BACKEND_OPENGL);
++    api->gpu_init();
++    api->set_scale(gr_scale());
++    api->set_texture_filter(gr_texture_filter());
++    if (!api->init_shared(t->hidden, t->ctx)) {
++        fprintf(stdout, "psxrecomp: render thread %d: renderer init failed\n", k);
++        atomic_store(&s_state, -1);
++        return NULL;
++    }
++    uint8_t gpu[sizeof(((GlRtSnap *)0)->gpu)];
++    uint8_t *ws = (uint8_t *)malloc(gpu_rt_ws_bytes());
++    if (!ws) { atomic_store(&s_state, -1); return NULL; }
++    t->loaded_snap = -1;
++    if (atomic_fetch_add(&s_ready_n, 1) + 1 == s_threads && atomic_load(&s_state) == 1) {
++        atomic_store(&s_state, 2);
++        fprintf(stdout, "psxrecomp: %d render thread(s) ready (shared GL contexts)\n", s_threads);
++    }
++    pthread_mutex_lock(&s_mu);
++    while (atomic_load(&s_running)) {
++        const int qi = pick_request(k);
++        if (qi < 0) { pthread_cond_wait(&s_cv, &s_mu); continue; }
++        RtReq r = s_q[qi];
++        memmove(&s_q[qi], &s_q[qi + 1], (size_t)(s_q_n - qi - 1) * sizeof(RtReq));
++        s_q_n--;
++        if (s_res[r.cache].epoch == r.epoch) s_res[r.cache].drawing = 1;
++        t->busy_t0 = SDL_GetPerformanceCounter();
++        GlRtSnap *sn = &s_snap[r.snap];
++        const int surfaces = t->loaded_snap != r.snap || t->loaded_gen != sn->gen;
++        const uint64_t tl = SDL_GetPerformanceCounter();
++        int ok = sn->valid && api->load(sn, surfaces, k);
++        if (ok && surfaces) { t->loaded_snap = r.snap; t->loaded_gen = sn->gen; t->surface_loads++; s_surface_loads++; }
++        if (!ok) t->loaded_snap = -1;
++        const uint32_t gpu_len = sn->gpu_len;
++        if (ok) { memcpy(gpu, sn->gpu, gpu_len); memcpy(ws, sn->ws, sn->ws_len); }
++        s_load_ms += (ms_since(tl) - s_load_ms) * 0.1;
++        s_snap_refs[r.snap]--;
++        pthread_mutex_unlock(&s_mu);
++
++        unsigned tex = 0; int tw = 0, th = 0; void *fence = NULL;
++        if (r.read_fence) { p_WaitSync(r.read_fence, 0, RT_TIMEOUT_IGNORED); p_DeleteSync(r.read_fence); }
++        const uint64_t ts = SDL_GetPerformanceCounter();
++        if (ok) ok = api->session(r.stream, r.words, gpu, gpu_len, ws, r.cache);
++        if (ok) ok = api->cache_image(r.cache, &tex, &tw, &th);
++        if (ok) { fence = p_FenceSync(RT_SYNC_GPU_COMMANDS_COMPLETE, 0); p_Flush(); }
++        const double session = ms_since(ts);
++
++        pthread_mutex_lock(&s_mu);
++        s_held[r.job] = 0;
++        s_sessions++;
++        t->sessions++;
++        if (!ok) s_failed++;
++        s_session_ms += (session - s_session_ms) * 0.1;
++        {
++            const double lat = ms_since(r.queued);
++            s_lat_ms += (lat - s_lat_ms) * 0.1;
++            s_lat_ring[s_lat_n++ % 64u] = lat;
++        }
++        t->busy_ms += ms_since(t->busy_t0);
++        t->busy_t0 = 0;
++        RtResult *res = &s_res[r.cache];
++        res->drawing = 0;
++        if (res->state == 1 && res->epoch == r.epoch) {
++            if (res->fence) p_DeleteSync(res->fence);
++            res->state = ok ? 2 : 3; res->tex = tex; res->tw = tw; res->th = th; res->fence = fence;
++        } else if (fence) {
++            p_DeleteSync(fence);   /* dropped while it was drawn */
++        }
++        pthread_cond_broadcast(&s_done_cv);
++    }
++    pthread_mutex_unlock(&s_mu);
++    free(ws);
++    SDL_GL_MakeCurrent(t->hidden, NULL);
++    return NULL;
++}
++
++/* Emulation thread, GL current: create the shared contexts and the threads. */
++static void start(void) {
++    atomic_store(&s_state, 1);
++    {
++        const char *e = getenv("PSX_RENDER_THREADS");
++        if (e && (e[0] == '1' || e[0] == '2') && !e[1]) s_threads = e[0] - '0';
++    }
++    SDL_Window *main_win = SDL_GL_GetCurrentWindow();
++    SDL_GLContext main_ctx = SDL_GL_GetCurrentContext();
++    p_FenceSync  = (PFN_rtFenceSync)SDL_GL_GetProcAddress("glFenceSync");
++    p_WaitSync   = (PFN_rtWaitSync)SDL_GL_GetProcAddress("glWaitSync");
++    p_DeleteSync = (PFN_rtDeleteSync)SDL_GL_GetProcAddress("glDeleteSync");
++    p_Flush      = (PFN_rtFlush)SDL_GL_GetProcAddress("glFlush");
++    if (!main_win || !main_ctx || !p_FenceSync || !p_WaitSync || !p_DeleteSync || !p_Flush) {
++        atomic_store(&s_state, -1);
++        return;
++    }
++    for (int k = 0; k < s_threads; k++) {
++        RtThread *t = &s_th[k];
++        t->hidden = SDL_CreateWindow("psxrecomp render thread", 0, 0, 16, 16,
++                                     SDL_WINDOW_OPENGL | SDL_WINDOW_HIDDEN);
++        if (t->hidden) {
++            SDL_GL_SetAttribute(SDL_GL_SHARE_WITH_CURRENT_CONTEXT, 1);
++            SDL_GL_MakeCurrent(main_win, main_ctx);   /* share with the emulation context */
++            t->ctx = SDL_GL_CreateContext(t->hidden);
++            SDL_GL_SetAttribute(SDL_GL_SHARE_WITH_CURRENT_CONTEXT, 0);
++        }
++        SDL_GL_MakeCurrent(main_win, main_ctx);
++        if (!t->ctx) {
++            fprintf(stdout, "psxrecomp: render thread %d: shared context failed (%s)\n", k, SDL_GetError());
++            atomic_store(&s_state, -1);
++            return;
++        }
++        SDL_GL_MakeCurrent(t->hidden, NULL);   /* release it for its thread */
++        SDL_GL_MakeCurrent(main_win, main_ctx);
++    }
++    atomic_store(&s_running, 1);
++    /* exit() (debug quit, fatal paths) must stop the threads before the GL
++     * driver's own exit handlers, registered earlier, tear it down. */
++    atexit(psx_rt_shutdown);
++    for (int k = 0; k < s_threads; k++) {
++        if (pthread_create(&s_th[k].thread, NULL, thread_main, (void *)(intptr_t)k) != 0) {
++            atomic_store(&s_state, -1);
++            break;
++        }
++        s_th[k].started = 1;
++    }
++}
++
++int psx_rt_enabled(void) {
++    if (!switch_on()) return 0;
++    const int st = atomic_load(&s_state);
++    if (st == 0) start();
++    return atomic_load(&s_state) == 2;
++}
++
++void psx_rt_publish(int slot) {
++    if (!psx_rt_enabled() || slot < 0 || slot >= RT_SLOTS) return;
++    pthread_mutex_lock(&s_mu);
++    int pick = -1;
++    for (int i = 0; i < RT_SNAPS; i++) {
++        if (s_snap_refs[i]) continue;
++        if (pick < 0 || s_snap[i].gen < s_snap[pick].gen) pick = i;
++    }
++    if (pick < 0) { pthread_mutex_unlock(&s_mu); return; }   /* all in use: keep the old one */
++    GlRtSnap *s = &s_snap[pick];
++    const uint32_t ws_len = gpu_rt_ws_bytes(), gpu_len = gpu_snapshot_bytes();
++    if (!s->ws) s->ws = (uint8_t *)malloc(ws_len);
++    s->valid = 0;
++    if (s->ws && gpu_len <= sizeof s->gpu && gl_rt_capture(s)) {
++        gpu_snapshot_write(s->gpu);
++        s->gpu_len = gpu_len;
++        gpu_rt_ws_export(s->ws);
++        s->ws_len = ws_len;
++        s->gen = ++s_snap_gen;
++        s->valid = 1;
++        s_slot_snap[slot] = pick;
++        s_captures++;
++    } else {
++        s_capture_fail++;
++        for (int i = 0; i < RT_SLOTS; i++) if (s_slot_snap[i] == pick) s_slot_snap[i] = -1;
++    }
++    pthread_mutex_unlock(&s_mu);
++}
++
++int psx_rt_render(int job, const uint32_t *stream, uint32_t words, int slot, int cache) {
++    if (atomic_load(&s_state) != 2 || job < 0 || job >= RT_JOBS || cache < 0 || cache >= RT_CACHE ||
++        slot < 0 || slot >= RT_SLOTS)
++        return 0;
++    pthread_mutex_lock(&s_mu);
++    const int snap = s_slot_snap[slot];
++    if (snap < 0 || !s_snap[snap].valid) { pthread_mutex_unlock(&s_mu); return 0; }
++    if (s_q_n >= RT_QUEUE || s_res[cache].state == 1 || s_held[job]) {
++        s_refused++;
++        pthread_mutex_unlock(&s_mu);
++        return -1;
++    }
++    RtReq *r = &s_q[s_q_n];
++    r->job = job; r->slot = slot; r->cache = cache; r->snap = snap;
++    r->stream = stream; r->words = words;
++    r->read_fence = s_main_read[cache]; s_main_read[cache] = NULL;   /* the thread deletes it */
++    r->epoch = s_epoch;
++    r->queued = SDL_GetPerformanceCounter();
++    s_q_n++;
++    if ((uint64_t)s_q_n > s_q_max) s_q_max = (uint64_t)s_q_n;
++    s_snap_refs[snap]++;
++    s_held[job] = 1;
++    RtResult *res = &s_res[cache];
++    if (res->fence) { p_DeleteSync(res->fence); res->fence = NULL; }
++    res->state = 1; res->epoch = s_epoch; res->drawing = 0;
++    pthread_cond_broadcast(&s_cv);
++    pthread_mutex_unlock(&s_mu);
++    return 1;
++}
++
++int psx_rt_job_held(int job) {
++    if (atomic_load(&s_state) != 2 || job < 0 || job >= RT_JOBS) return 0;
++    pthread_mutex_lock(&s_mu);
++    const int held = s_held[job];
++    pthread_mutex_unlock(&s_mu);
++    return held;
++}
++
++int psx_rt_cache_pending(int cache) {
++    if (atomic_load(&s_state) != 2 || cache < 0 || cache >= RT_CACHE) return 0;
++    pthread_mutex_lock(&s_mu);
++    const int pending = s_res[cache].state == 1;
++    pthread_mutex_unlock(&s_mu);
++    return pending;
++}
++
++/* Emulation thread: a present is due and wants the image queued for `cache`.
++ * Wait for it up to max_ms (the single-thread path drew it right then), but
++ * only while a render thread is already drawing it, and within a budget of
++ * 30 ms of waiting per second: when the render threads fall behind, waiting
++ * would take the time the game itself needs. */
++static uint64_t s_waits = 0, s_wait_hits = 0, s_wait_skips = 0, s_wait_t = 0;
++static double s_wait_ms = 0.0, s_wait_tokens = 30.0;
++int psx_rt_wait(int cache, double max_ms) {
++    if (atomic_load(&s_state) != 2 || cache < 0 || cache >= RT_CACHE || max_ms <= 0.0) return 0;
++    const uint64_t t0 = SDL_GetPerformanceCounter();
++    if (s_wait_t) {
++        const double f = (double)SDL_GetPerformanceFrequency();
++        s_wait_tokens += (double)(t0 - s_wait_t) / f * 30.0;
++        if (s_wait_tokens > 30.0) s_wait_tokens = 30.0;
++    }
++    s_wait_t = t0;
++    if (max_ms > s_wait_tokens) max_ms = s_wait_tokens;
++    pthread_mutex_lock(&s_mu);
++    const int drawing = s_res[cache].state == 1 && s_res[cache].drawing;
++    pthread_mutex_unlock(&s_mu);
++    if (!drawing || max_ms < 0.25) { s_wait_skips++; return 0; }
++    struct timespec until;
++    clock_gettime(CLOCK_REALTIME, &until);
++    long ns = until.tv_nsec + (long)(max_ms * 1e6);
++    until.tv_sec += ns / 1000000000L; until.tv_nsec = ns % 1000000000L;
++    pthread_mutex_lock(&s_mu);
++    s_waits++;
++    while (s_res[cache].state == 1)
++        if (pthread_cond_timedwait(&s_done_cv, &s_mu, &until) != 0) break;
++    const int done = s_res[cache].state == 2;
++    if (done) s_wait_hits++;
++    const double waited = ms_since(t0);
++    s_wait_ms += waited;
++    s_wait_tokens -= waited;
++    pthread_mutex_unlock(&s_mu);
++    if (done) psx_rt_poll();
++    return done;
++}
++
++void psx_rt_poll(void) {
++    if (atomic_load(&s_state) != 2) return;
++    RtResult done[RT_CACHE];
++    int n = 0, which[RT_CACHE];
++    pthread_mutex_lock(&s_mu);
++    for (int c = 0; c < RT_CACHE; c++) {
++        RtResult *r = &s_res[c];
++        if (r->state != 2 && r->state != 3) continue;
++        if (r->epoch == s_epoch && r->state == 2) { done[n] = *r; which[n++] = c; }
++        else if (r->fence) { p_DeleteSync(r->fence); s_stale++; }
++        r->state = 0; r->fence = NULL;
++    }
++    pthread_mutex_unlock(&s_mu);
++    for (int i = 0; i < n; i++) {
++        gl_rt_adopt(which[i], done[i].tex, done[i].tw, done[i].th, done[i].fence);
++        s_adopted++;
++    }
++}
++
++void psx_rt_after_present(int slot) {
++    const int cache = slot - 1;
++    if (atomic_load(&s_state) != 2 || cache < 0 || cache >= RT_CACHE) return;
++    void *f = p_FenceSync(RT_SYNC_GPU_COMMANDS_COMPLETE, 0);
++    p_Flush();
++    pthread_mutex_lock(&s_mu);
++    if (s_main_read[cache]) p_DeleteSync(s_main_read[cache]);
++    s_main_read[cache] = f;
++    pthread_mutex_unlock(&s_mu);
++}
++
++void psx_rt_drop(void) {
++    if (atomic_load(&s_state) != 2) return;
++    pthread_mutex_lock(&s_mu);
++    for (int i = 0; i < s_q_n; i++) {
++        RtReq *r = &s_q[i];
++        s_snap_refs[r->snap]--;
++        s_held[r->job] = 0;
++        if (r->read_fence) p_DeleteSync(r->read_fence);
++    }
++    s_q_n = 0;
++    s_epoch++;
++    for (int c = 0; c < RT_CACHE; c++) {
++        if (s_res[c].fence) p_DeleteSync(s_res[c].fence);
++        s_res[c].fence = NULL;
++        if (s_res[c].state != 1) s_res[c].state = 0;   /* a drawn one is discarded on return */
++    }
++    for (int i = 0; i < RT_SLOTS; i++) s_slot_snap[i] = -1;
++    pthread_mutex_unlock(&s_mu);
++}
++
++void psx_rt_shutdown(void) {
++    if (!atomic_load(&s_running)) return;
++    pthread_mutex_lock(&s_mu);
++    atomic_store(&s_running, 0);
++    pthread_cond_broadcast(&s_cv);
++    pthread_mutex_unlock(&s_mu);
++    for (int k = 0; k < RT_INSTANCES; k++)
++        if (s_th[k].started) { pthread_join(s_th[k].thread, NULL); s_th[k].started = 0; }
++    atomic_store(&s_state, 0);
++}
++
++static int cmp_double(const void *a, const void *b) {
++    const double x = *(const double *)a, y = *(const double *)b;
++    return (x > y) - (x < y);
++}
++double psx_rt_latency_ms(void) {
++    if (atomic_load(&s_state) != 2) return 0.0;
++    double v[64];
++    pthread_mutex_lock(&s_mu);
++    const unsigned n = s_lat_n < 64u ? s_lat_n : 64u;
++    memcpy(v, s_lat_ring, n * sizeof(double));
++    pthread_mutex_unlock(&s_mu);
++    if (!n) return 0.0;
++    qsort(v, n, sizeof(double), cmp_double);
++    return v[(n * 9u) / 10u];
++}
++
++const char *psx_rt_status_json(void) {
++    static char out[768];
++    pthread_mutex_lock(&s_mu);
++    double busy[RT_INSTANCES];
++    for (int k = 0; k < RT_INSTANCES; k++)
++        busy[k] = s_th[k].busy_ms + (s_th[k].busy_t0 ? ms_since(s_th[k].busy_t0) : 0.0);
++    snprintf(out, sizeof out,
++             "{\"switch\":%d,\"state\":%d,\"sessions\":%llu,\"failed\":%llu,\"refused\":%llu,"
++             "\"captures\":%llu,\"capture_fail\":%llu,\"adopted\":%llu,\"stale\":%llu,"
++             "\"surface_loads\":%llu,\"queue\":%d,\"queue_max\":%llu,\"latency_ms\":%.3f,"
++             "\"session_ms\":%.3f,\"load_ms\":%.3f,\"threads\":%d,\"busy_ms\":[%.1f,%.1f],"
++             "\"thread_sessions\":[%llu,%llu],\"thread_loads\":[%llu,%llu],"
++             "\"validate\":{\"exact\":%llu,\"bad\":%llu,\"skipped\":%llu},"
++             "\"waits\":%llu,\"wait_hits\":%llu,\"wait_skips\":%llu,\"wait_ms\":%.1f}",
++             switch_on(), atomic_load(&s_state), (unsigned long long)s_sessions,
++             (unsigned long long)s_failed, (unsigned long long)s_refused,
++             (unsigned long long)s_captures, (unsigned long long)s_capture_fail,
++             (unsigned long long)s_adopted, (unsigned long long)s_stale,
++             (unsigned long long)s_surface_loads, s_q_n, (unsigned long long)s_q_max,
++             s_lat_ms, s_session_ms, s_load_ms, s_threads, busy[0], busy[1],
++             (unsigned long long)s_th[0].sessions, (unsigned long long)s_th[1].sessions,
++             (unsigned long long)s_th[0].surface_loads, (unsigned long long)s_th[1].surface_loads,
++             (unsigned long long)s_val_exact, (unsigned long long)s_val_bad, (unsigned long long)s_val_skip,
++             (unsigned long long)s_waits, (unsigned long long)s_wait_hits, (unsigned long long)s_wait_skips, s_wait_ms);
++    pthread_mutex_unlock(&s_mu);
++    return out;
++}
++
++#else  /* no POSIX threads: the single-thread path only */
++
++void psx_mod_set_render_thread(int on) { (void)on; }
++int psx_rt_wait(int cache, double max_ms) { (void)cache; (void)max_ms; return 0; }
++int psx_rt_enabled(void) { return 0; }
++void psx_rt_publish(int slot) { (void)slot; }
++int psx_rt_render(int job, const uint32_t *stream, uint32_t words, int slot, int cache) {
++    (void)job; (void)stream; (void)words; (void)slot; (void)cache; return 0;
++}
++int psx_rt_job_held(int job) { (void)job; return 0; }
++int psx_rt_cache_pending(int cache) { (void)cache; return 0; }
++void psx_rt_poll(void) {}
++void psx_rt_after_present(int slot) { (void)slot; }
++void psx_rt_drop(void) {}
++void psx_rt_shutdown(void) {}
++double psx_rt_latency_ms(void) { return 0.0; }
++const char *psx_rt_status_json(void) { return "{\"switch\":0,\"state\":0}"; }
++void psx_rt_note_validation(int exact) { (void)exact; }
++
++#endif
 diff --git a/runtime/src/render_worker.c b/runtime/src/render_worker.c
 new file mode 100644
-index 00000000..36cb103a
+index 00000000..524d71df
 --- /dev/null
 +++ b/runtime/src/render_worker.c
-@@ -0,0 +1,515 @@
+@@ -0,0 +1,579 @@
 +/* render_worker.c - render replay worker processes (Time to Kill D17).
 + *
 + * Re-running a game's view composition costs as much host time as the game's
@@ -9437,6 +11577,7 @@ index 00000000..36cb103a
 +#include "mod_plugins.h"
 +#include "psx_cycles.h"
 +#include "psx_sdl.h"
++#include "render_thread.h"
 +
 +#include <stdint.h>
 +#include <stdio.h>
@@ -9711,9 +11852,20 @@ index 00000000..36cb103a
 +    start_workers();
 +}
 +
++/* D17AW: a finished job the render thread is still reading is released once
++ * it is done (maintain), so no worker can reuse its stream before. */
++static uint8_t s_rt_release[RW_JOBS];
++/* PSX_RT_VALIDATE=1 (developer): every 8th render-thread image is compared
++ * with the same job drawn here, the single-thread path (exact RGBA match). */
++static uint8_t s_rt_val_hold[RW_JOBS];
++static int s_rt_val_on = -1, s_rt_val_cache = -1, s_rt_val_job = -1;
++static uint64_t s_rt_val_n = 0, s_rt_val_t = 0;
 +/* Reap dead workers, kill overrunning ones, refork on overlay changes. */
++void psx_mod_replay_release(int job);
 +static void maintain(void) {
 +    int status;
++    for (int j = 0; j < RW_JOBS; j++)
++        if (s_rt_release[j] && !psx_rt_job_held(j) && !s_rt_val_hold[j]) psx_mod_replay_release(j);
 +    for (int i = 0; i < s_count; i++) {
 +        if (s_pids[i] <= 0) continue;
 +        pid_t r = waitpid(s_pids[i], &status, WNOHANG);
@@ -9789,6 +11941,7 @@ index 00000000..36cb103a
 +     * never runs (it records GP0 instead of drawing): pin the parent's value. */
 +    s_sh->slot_ws_margin[slot] = psx_ws_x_margin();
 +    atomic_store(&s_sh->slot_ready[slot], 1u);
++    psx_rt_publish(slot);   /* the render thread draws this slot's redraws (D17AW) */
 +    return 1;
 +}
 +
@@ -9826,6 +11979,8 @@ index 00000000..36cb103a
 +
 +void psx_mod_replay_release(int job) {
 +    if (!s_sh || job < 0 || job >= RW_JOBS) return;
++    if (psx_rt_job_held(job) || s_rt_val_hold[job]) { s_rt_release[job] = 1; return; }
++    s_rt_release[job] = 0;
 +    RwJob *j = &s_sh->jobs[job];
 +    uint32_t st = atomic_load(&j->state);
 +    if (st == RW_QUEUED) {
@@ -9865,6 +12020,28 @@ index 00000000..36cb103a
 +extern void gl_replay_reset_capture_cache(void);
 +extern int gl_replay_cache_valid(int c);
 +int psx_mod_replay_render_job(int job, int cache) {
++    /* D17AW: with the render thread, queue the redraw; the cache entry is
++     * valid once the thread has drawn it (psx_mod_replay_cache_valid). */
++    if (s_sh && job >= 0 && job < RW_JOBS && psx_rt_enabled() &&
++        atomic_load(&s_sh->jobs[job].state) == RW_DONE) {
++        RwJob *j = &s_sh->jobs[job];
++        if (!gl_replay_set_capture_cache(cache)) return 0;
++        gl_replay_reset_capture_cache();
++        const int q = psx_rt_render(job, job_out((uint32_t)job), j->out_words, (int)j->slot, cache);
++        if (q > 0) {
++            if (s_rt_val_on < 0) { const char *e = getenv("PSX_RT_VALIDATE"); s_rt_val_on = e && e[0] == '1'; }
++            if (s_rt_val_on && s_rt_val_cache >= 0 && ticks_us(ticks() - s_rt_val_t) > 500000u) {
++                s_rt_val_hold[s_rt_val_job] = 0;   /* its image never came: give up */
++                s_rt_val_cache = -1;
++            }
++            if (s_rt_val_on && s_rt_val_cache < 0 && (s_rt_val_n++ % 8u) == 0) {
++                s_rt_val_cache = cache; s_rt_val_job = job; s_rt_val_hold[job] = 1; s_rt_val_t = ticks();
++            }
++            return 1;
++        }
++        if (q < 0) return 0;
++        /* q == 0: no snapshot for the slot yet; draw it here. */
++    }
 +    if (!gl_replay_set_capture_cache(cache)) return 0;
 +    int ok = psx_mod_replay_present_job(job);
 +    static int validate=-1;
@@ -9886,7 +12063,30 @@ index 00000000..36cb103a
 +    gl_replay_reset_capture_cache();
 +    return ok && gl_replay_cache_valid(cache);
 +}
-+int psx_mod_replay_cache_valid(int cache) { return gl_replay_cache_valid(cache); }
++extern void psx_rt_note_validation(int exact);
++extern int gl_replay_compare_cache(int cache, int second);
++int psx_mod_replay_cache_valid(int cache) {
++    psx_rt_poll();
++    const int valid = gl_replay_cache_valid(cache);
++    if (valid && cache == s_rt_val_cache) {
++        const int job = s_rt_val_job;
++        s_rt_val_cache = -1;
++        int exact = 0;
++        if (gl_replay_compare_cache(cache, 0) && gl_replay_set_capture_cache(cache)) {
++            const int drawn = psx_mod_replay_present_job(job);
++            gl_replay_reset_capture_cache();
++            exact = drawn && gl_replay_compare_cache(cache, 1);
++            psx_rt_note_validation(drawn ? exact : -1);
++        }
++        s_rt_val_hold[job] = 0;
++        return gl_replay_cache_valid(cache);
++    }
++    return valid;
++}
++int psx_mod_replay_cache_pending(int cache) { return psx_rt_cache_pending(cache); }
++double psx_mod_replay_render_latency_ms(void) { return psx_rt_latency_ms(); }
++int psx_mod_replay_render_async(void) { return s_sh && psx_rt_enabled(); }
++int psx_mod_replay_wait_cache(int cache, double max_ms) { return psx_rt_wait(cache, max_ms) && psx_mod_replay_cache_valid(cache); }
 +
 +int psx_mod_replay_workers_active(void) { return s_sh ? s_count : 0; }
 +
@@ -9926,6 +12126,10 @@ index 00000000..36cb103a
 +int psx_mod_replay_present_job(int job) { (void)job; return 0; }
 +int psx_mod_replay_workers_active(void) { return 0; }
 +int psx_mod_replay_render_job(int job, int cache) { (void)job; (void)cache; return 0; }
++int psx_mod_replay_cache_pending(int cache) { (void)cache; return 0; }
++double psx_mod_replay_render_latency_ms(void) { return 0.0; }
++int psx_mod_replay_render_async(void) { return 0; }
++int psx_mod_replay_wait_cache(int cache, double max_ms) { (void)cache; (void)max_ms; return 0; }
 +int psx_mod_replay_cache_valid(int cache) { (void)cache; return 0; }
 +void render_worker_stats(char *out, size_t cap) { snprintf(out, cap, "{\"workers\":0}"); }
 +void render_worker_shutdown(void) {}

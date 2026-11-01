@@ -1223,7 +1223,7 @@ case added to the D08T3 group; 115 groups, input and aim pass. Earlier
 
 ### D17AQ - Slot-10 jetpack height: level sections pop in and out
 
-**Status: Needs playtest (B max limit, A open sky (Classic), dormant enemies, load crackle fix; [note 335](documentation/335-d17aq-draw-reach-report.md)). Dependencies: D17AM, D14F.** Opened 2026-10-30
+**Status: Done (user closed 2026-11-01: "close D17AQ"; B max limit, A open sky (Classic), dormant enemies, load crackle fix; [note 335](documentation/335-d17aq-draw-reach-report.md)). Dependencies: D17AM, D14F.** Opened 2026-10-30
 from the user's playtest: in UI slot 10 (saved 2026-10-30 12:24) Duke hovers
 high above the level with the jetpack; turning left and right makes parts of
 the level appear and disappear, a little at a time. The user asks whether this
@@ -1357,6 +1357,12 @@ in the same video are recorded as D17AX.
 "no slowdowns, no crackle, its stable". The Revision 4b crackle check was in
 that build and is committed with D17AX. Status left as Needs playtest for
 the user to close.
+
+**2026-11-01 closed.** After D17AW (render thread) was accepted, the user:
+"close D17AQ". The user reported no crackle on the D17AX and D17AW builds;
+their D17AW session log shows one audio-low step at the load and 180
+presents/s afterwards. D17AQ is Done. Retained: the slow first second after
+loading the slot 10 vista (both builds about 45 fields/s, D17AW note 353).
 
 ### D08T11 - Slot-8 pushable block stuck; game-wide eligibility
 
@@ -2362,7 +2368,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D17AN | Slot-12 water showing through the bridge deck (level 6) | Done (user-confirmed 2026-10-30) | D17AM; note 327 |
 | D17AO | Slot-11 ceiling hole showing the sky (level 6) | Deferred (authored level gap; no action now, possible future level-data fix) | D17AM; note 327 |
 | D17AP | Slot-9 grave-dig soil corners flashing again (D17X recurrence) | Done (user-confirmed 2026-10-30) | D17X, D17AM; note 327 |
-| D17AQ | Slot-10 jetpack height: level sections pop in and out while turning (room visibility) | Needs playtest (B max limit, A open sky, dormant enemies (C1 withdrawn), load crackle fix; note 335) | D17AM, D14F |
+| D17AQ | Slot-10 jetpack height: level sections pop in and out while turning (room visibility) | Done (B max limit, A open sky, dormant enemies (C1 withdrawn), load crackle fix; note 335) | D17AM, D14F |
 | D17AR | Host-owned world visibility (parent): the host decides what world geometry is drawn | Done (AR1-AR6 done) | D17AM, D17AQ; D17AR1-AR4 |
 | D17AR1 | Host visibility: inventory, data-format verification and design (report first) | Done (design approved 2026-10-30; note 336) | D17AM |
 | D17AR2 | Host visibility: implementation behind a developer switch | Accepted (visual playtest passed; performance to D17AR3) | D17AR1 |

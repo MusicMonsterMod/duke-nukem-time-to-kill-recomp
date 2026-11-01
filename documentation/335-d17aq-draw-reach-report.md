@@ -461,3 +461,9 @@ pulls in 3 of 4 loads and 566 in one. A 15-load sweep of every fixture slot
 gave 0 dry pulls elsewhere; UI slot 5 stepped once, at 45 ms (near-dry).
 Native tests and `test_auto_frame_rate.py` pass. The slow first second
 itself remains (D17AW).
+
+## Closed (2026-11-01)
+
+User: "close D17AQ", after D17AW was accepted. No crackle reported on the
+D17AX and D17AW builds. Retained limit: the slow first second after loading
+the slot 10 vista (D17AW note 353).

@@ -1,5 +1,11 @@
 # Current status - 2026-10-04
 
+## 2026-11-01 - D17AQ closed
+
+User: "close D17AQ". Its parts (B max limit, A open sky for Classic,
+dormant enemies, load crackle check) are in the player build; no crackle
+reported on the D17AX and D17AW builds. Done ([note 335](335-d17aq-draw-reach-report.md)).
+
 ## 2026-11-01 - D17AW accepted and closed
 
 User: "perfect. it plays beautifully ... fully accept. lock it in, close us

@@ -1,5 +1,15 @@
 # Current status - 2026-10-04
 
+## 2026-11-01 - D17AS closed: moat triangle is original level design
+
+Reproduced the slot-2 moat triangle and underwater wedge from the clip's
+route. Both are one lone triangle in the level's room data (face `0x8018dd5c`,
+mesh `0x8018dad0`), present in every renderer path including the game's own
+packets; it hangs from the water surface across the open channel at a room
+boundary and connects to nothing. User's theory confirmed; same class as
+D17AO. User decision: option 1, leave as authored; job Done, no fix planned.
+No code changed. [Note 347](347-d17as-moat-stray-triangle.md).
+
 ## 2026-11-01 - D14G accepted and closed
 
 User: "perfect. lock it in, close it out." D14G is Done (note 346):

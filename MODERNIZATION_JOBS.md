@@ -433,7 +433,21 @@ Accepted 2026-11-01. User: "lock it in, close us out". Committed and pushed.
 
 ### D17AS - Slot-2 moat: large dark triangle in or under the water
 
-**Status: Todo (report first). Dependencies: D17AM.** User clip
+**Status: Done - closed as original level design (user decision 2026-11-01: option 1, leave as authored; no fix planned; [note 347](documentation/347-d17as-moat-stray-triangle.md)). Dependencies: D17AM.**
+Work log 2026-11-01: reproduced from the clip's route (wade forward, dive,
+turn) on a private fixture copy. Identical with the default, earlier,
+native (`DNTTK_NEAR_CLIP=0`), host-visibility-off and water switches off, so
+not a renderer regression. Both symptoms are one face, `0x8018dd5c` of room
+mesh `0x8018dad0`, drawn by the game's room walk: a lone triangle hanging
+from the water surface on the channel's west wall to 2048 units deep across
+the channel, in the plane where this room meets the next. It shares its deep
+corner with no other face, and the next room continues the channel through
+that plane, so it closes nothing. The user's theory holds; same class as
+D17AO. Recommendation: leave as authored (or one small level-data job for
+D17AO and D17AS together). No code changed.
+User decision 2026-11-01: option 1. The triangle is part of the original
+level design; it stays as authored and the job is closed with no fix planned.
+Original report: User clip
 `research/screencaps/triangle.mp4` (17.9 s, 60 fps, 1456x820): around 1.5 s
 a large sharp-edged dark triangle covers the moat floor while Duke stands in
 the water, and around 7-9 s a dark vertical wedge crosses the centre of the
@@ -1885,7 +1899,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D17AR4 | Host visibility: retire superseded portal patches (open sky, portal widening) | Done (kept for Classic; Polymorph covers D17Y; note 344) | D17AR3 |
 | D17AR5 | Polymorph: cheaper redraw feed so the heaviest views hold 180 Hz | Done | D17AR3 |
 | D17AR6 | Renderer choice in OPTIONS: Classic and Polymorph | Done | D17AR3 |
-| D17AS | Slot-2 moat: large dark triangle in/under the water (research/screencaps/triangle.mp4) | Todo (report first) | D17AM |
+| D17AS | Slot-2 moat: large dark triangle in/under the water (research/screencaps/triangle.mp4) | Done (original level design, left as authored by user decision 2026-11-01; note 347) | D17AM |
 | D14F | 90-default / 120-maximum world FOV | Done (user-confirmed 2026-10-30) | Implemented in afd4ad6 (note 317); re-verified 2026-10-29 |
 | D17AE | Slot-11 sign post through door header | Done (user-confirmed 2026-10-29) | Scene depth for native world/scenery packets; replay precedence fix; world backface cull restored |
 | D17AF | Latest slot-10 ground water visibility | Done | Selected batch; see intake above |

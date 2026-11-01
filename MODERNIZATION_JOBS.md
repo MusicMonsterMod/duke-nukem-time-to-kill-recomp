@@ -130,7 +130,7 @@ looked it looks better than the base game". Remaining shimmer moved to D17AU.
 
 ### D17AU - Polymorph decals: no shimmer at all
 
-**Status: Todo. Dependencies: D17AT.** User, accepting D17AT (2026-11-01):
+**Status: Cancelled (user satisfied, 2026-11-01). Dependencies: D17AT.** User, accepting D17AT (2026-11-01):
 "the next job is to aim for perfection with no shimmering whatsoever ... push
 polymorph renderer to the next level to allow for blood splatters to look
 robust." Reference clip `research/screencaps/Video_2026-11-01_14-22-44.mp4`:
@@ -145,6 +145,27 @@ true decal composite (blobs of one surface resolved together in a stable
 order, for example by object id in a stencil or a per-surface layer) instead
 of depth offsets; and texture filtering or supersampling for blood only, if
 the residual is aliasing. Classic and Vanilla unchanged; verify at 180 Hz.
+
+**2026-11-01 report (In progress, awaiting choice; note 349).** Measured on
+a fixed redraw yaw path (new developer switch `DNTTK_LATE_TEST_YAW_FILE`;
+runs repeat to the pixel), scale 4, 180 Hz. Three parts: (1) decal corners
+still use the game's GTE screen positions (whole-unit truncation), so blobs
+slide against each other by up to 0.1 native px per image; developer switch
+`DNTTK_DECAL_EXACT=1` projects them exactly and cuts pan-induced pops by a
+third to a half (slot 11 close 0.09% to 0.06%, slot 12 about 0.26% to
+0.12%); (2) slot 12's pool lies under the canal's animated translucent
+water, drawn the same in Vanilla: authored, most of the change seen there;
+(3) the rest is aliased speckle edges (cutout texels), which only
+coverage-based edges can remove. Proposed: D17AU2 exact corners by default;
+D17AU3 anti-aliased decal edges with a decal composite (framework, design
+report first). Nothing changes in play until a stage is chosen.
+
+**2026-11-01 cancelled.** User, after playing: "lets shelve this. it looks so
+good right now ... we have bigger fish to fry ... im genuinely so happy with
+how the blood looks now, its better than ever". D17AU2 and D17AU3 are not
+built. The report (note 349) and both developer switches stay, off by
+default (`DNTTK_DECAL_EXACT`, `DNTTK_LATE_TEST_YAW_FILE`), for reference if
+the job is ever reopened. Nothing changed in play.
 
 ### D08J6 - Firing while climbing (research first)
 
@@ -2201,7 +2222,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D17J | Verify older isolated visual reports against accepted baseline | Done (user-verified 2026-10-22; no action necessary) | D17A |
 | D17K | Coplanar ground blood in save slot 12 | Done (user-accepted; closed 2026-10-30) | D17D |
 | D17AT | Ground decals and small props stable on any surface (slots 12, 11, 7) | Done (user-accepted 2026-11-01; blood pools host decals, water tested not written; note 348) | D17AM, D17K |
-| D17AU | Polymorph decals: no shimmer at all (slots 11, 12) | Todo | D17AT |
+| D17AU | Polymorph decals: no shimmer at all (slots 11, 12) | Cancelled (user satisfied with D17AT's blood, 2026-11-01) | D17AT |
 | D17L | Tabletop props cut off on approach/retreat in save slot 11 | Done | D17D |
 | D17M | Shotgun ammo visible through ladder platform | Done (user-accepted 2026-10-22) | D17D |
 | D17M1 | Upper ladder visible through platform (updated UI slot 10) | Done (user-accepted 2026-10-22) | D17M |

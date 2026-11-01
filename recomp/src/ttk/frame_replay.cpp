@@ -667,6 +667,11 @@ bool apply_late(const InterpState& a,const InterpState& b,double alpha,Params& p
     }
     static const double test_yaw=[]{const char* t=std::getenv("DNTTK_LATE_TEST_YAW");return t?std::atof(t)*3.14159265358979/180:0.0;}();
     ly+=test_yaw;   // developer check: every redraw turned by this many degrees
+    // D17AU (developer): DNTTK_LATE_TEST_YAW_FILE names a file holding degrees
+    // added to every redraw from now on, so a still scene can be panned along
+    // the same path in every run.
+    static const char* yaw_file=std::getenv("DNTTK_LATE_TEST_YAW_FILE");
+    if(yaw_file) if(FILE* y=std::fopen(yaw_file,"r")) {double d=0;if(std::fscanf(y,"%lf",&d)==1) ly+=d*3.14159265358979/180;std::fclose(y);}
     last_late_yaw=(float)(ly*180/3.14159265358979);
     const double sy=std::sin(ly),cy=std::cos(ly),sp=std::sin(lp),cp=std::cos(lp);
     const double rl[9]={cy,0,-sy,-sy*sp,cp,-cy*sp,sy*cp,sp,cy*cp};

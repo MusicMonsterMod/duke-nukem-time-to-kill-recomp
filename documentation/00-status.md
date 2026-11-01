@@ -1,5 +1,16 @@
 # Current status - 2026-10-04
 
+## 2026-11-01 - D17AU reported, then cancelled
+
+Report (note 349): the remaining blood shimmer is decal corners drawn at the
+game's rounded screen positions (developer switch `DNTTK_DECAL_EXACT=1`
+removes a third to a half of it), the canal's authored translucent water
+over the slot-12 pool (same in Vanilla), and aliased speckle edges. User,
+after playing: "lets shelve this ... its better than ever". D17AU is
+Cancelled; no stage built; switches stay off by default. New developer
+switch `DNTTK_LATE_TEST_YAW_FILE` turns redraws along a fixed path for
+repeatable render measurements.
+
 ## 2026-11-01 - D17AT accepted and closed; D17AU queued
 
 User: "100% acceptable ... accept this job as closed"; slot 7 clean, a very

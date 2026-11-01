@@ -389,6 +389,9 @@ struct Poly {
     // 1 - s/|d|; doing it after the raster fallback keeps a decal's two
     // passes in their order even where a shifted plane would fall back.
     double depth_scale=1;
+    // D17AU: corners at the exact projection of their view positions, not
+    // the game's GTE screen positions (see model_link).
+    bool exact_screen=false;
 };
 struct Frame {
     bool biomask=false;
@@ -787,7 +790,7 @@ void draw(Frame& f,const Poly& poly) {
         Vertex v{};
         for(int a=0;a<3;++a){v.p[a]=f.verts[i].view[a];v.rgb[a]=(poly.colors[k]>>(8*a))&0xff;}
         v.uv[0]=poly.uv[k]&0xff;v.uv[1]=(poly.uv[k]>>8)&0xff;
-        v.original=f.verts[i].safe?i:-1;
+        v.original=f.verts[i].safe && !poly.exact_screen?i:-1;
         if(v.original>=0 && v.p[2]>0) {
             double x,y;screen(f,v,x,y);
             v.ex=(pgxp_mesh_geometry()?f.verts[i].x16/65536.0:(int16_t)f.verts[i].sxy)-x;

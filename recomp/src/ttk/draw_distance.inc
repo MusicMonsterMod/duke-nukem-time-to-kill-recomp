@@ -350,7 +350,7 @@ static void draw_distance_apply(CPUState* cpu,uint32_t address,uint32_t ra) {
 }
 static const char* enemy_reach_debug_json();
 static const char* draw_distance_debug_json() {
-    static char buffer[2048];
+    static char buffer[4096];
     uint64_t checks=0,flips=0;gte_nclip_culling_stats(&checks,&flips);
     std::snprintf(buffer,sizeof buffer,"{\"mode\":\"%s\",\"frames\":%llu,\"refusals\":%llu,\"original\":%d,\"extended\":%d,"
         "\"portals_widened\":%llu,\"nclip_checks\":%llu,\"nclip_flips\":%llu,"

@@ -1,5 +1,159 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-01 - Polymorph: whole level from the jetpack (D17AX)
+
+User (2026-11-01, `research/screencaps/Video_2026-11-01_18-52-03.mp4`, slot
+10 load): "there's rendering artifacts in the distance ... it looks like
+draw distance problems that we experienced pre-polymorph ... we SHOULD be
+able to render everything here, this game is comically small in comparison
+to modern games. we must be able to do this".
+
+### D17AX - Polymorph: draw the whole level from jetpack height (slot 10)
+
+**Status: Done (user-accepted 2026-11-01: "100% accepted. no slowdowns, no crackle, its stable, no flicker"; [note 352](documentation/352-d17ax-jetpack-vista-report.md)). Dependencies: D17AR, D17AQ; related D17AW.**
+Video review (2026-11-01): hovering in slot 10 (level 6) facing the castle,
+the band between the front wall's top and the mountain backdrop is black
+(the castle interior and anything beyond the wall), and turning left or right
+the level reads as a floating island: everything past the moat banks is
+black down to the screen edge. Same class as the original D17AQ report
+(centre drawn, sides empty), which concluded the rest was authored void
+after listing every sky room; that was never shown for every room or with
+host visibility. Report first, per black region (castle interior, both
+side banks, behind the camera):
+- Geometry the level has but the host pass does not select (host portal
+  walk, over-the-walls test, guard band, far limit 65535, piece budget, the
+  original room data's rectangles) - prove it with a developer mode that
+  draws every room and piece of the level in range.
+- Geometry the level never authored (the PlayStation camera never saw it).
+  Propose fills for the user to choose: extend terrain to the backdrop,
+  a horizon skirt matched to the sky/mountains, distance fog or haze, or
+  authored meshes per the D08A28 style guide.
+Measure cost at 180 Hz with D17AW in mind (the player's machine already
+steps slot 10 to every 2nd/3rd refresh). Then implement the chosen fix
+game-wide (every outdoor level from jetpack height, not a slot-10 patch),
+Polymorph only; Classic frozen; Vanilla unchanged. Acceptance: slot 10
+turning a full circle at hover shows no black ground or wall gaps the user
+objects to, slot 2 moat and other outdoor levels checked, 21-level sweep
+without lost geometry, user playtest.
+
+**2026-11-01 report (awaiting decision; note 352).** Full-turn captures at
+hover with a new developer switch `DNTTK_HOST_VIS_ALL` (`1`, `sky` or a room
+list; rooms drawn whole-view, kept out of the props list; debug `list` of
+selected rooms). Behind the camera and past both moat banks: authored void.
+Level 6 has no room beyond room 1's outer bank (Z -6144) or the moat rooms'
+outer edges, and forcing any room group adds nothing there. The castle band:
+the keep tower and gatehouse exist in non-sky rooms 33, 34, 38 and 43-49,
+which the over-the-walls test never offers because it considers sky rooms
+only. The rest of the band is void below the sky model's black mountain
+ring. Every sky room with geometry in view is already selected; the guard
+band, the 65535 limit and the room rectangles hide nothing. Side finding:
+every room whole-view fills the near-clip arena (139616 of 139744 bytes),
+and pieces falling back to the game's renderer overran its packet area
+(garbage textures, Duke dropped, GPU stopped on 0x1F; reproduced twice). Arena
+peak: 30% current, 59% with all interior rooms. Cost at 180 Hz (player
+settings) with all interior rooms: within run-to-run noise, fields at 60.
+Sky rooms exist in levels 1, 5, 6, 8, 10, 11, 21 and 28. Proposed: A
+(over-the-walls for every room, capped before the arena fills, never handed
+back to the game's renderer), then B1 (backdrop continued below the
+horizon) with B2 (distance haze); B3 horizon skirt or B4 authored terrain
+optional. `ttk-controls-test` (119 PASS), `ttk-near-test` and
+`ttk-input-test` pass. The player-facing build is unchanged apart from the
+developer switch and debug field.
+
+**2026-11-01 implementation (Needs playtest; note 352).** User: "i think B4
+is too extreme, at least at this point in time. but other than that, let's
+go with your most educated and informed recommendation" (A, B1, B2; B3
+left for later).
+- A: from a sky room, every room is offered to the over-the-walls test. Non-sky
+  ("scenery") pieces also need a sight line to their top that clears every
+  regularly drawn piece's bounds. They are drawn last, dropped (never handed
+  to the game's walk) when unaffordable, and kept out of the props list and
+  shown set.
+- More packet space: the vista already exceeded the 350 KB region, and the
+  1 MiB GPU aperture was full. The framework gains a second 1 MiB aperture
+  below it (0x80E00000), which each near-clip region uses for another
+  512 KB. It is carried in savestates as an optional tail older builds skip,
+  and in replay images. The first aperture's layout and the codegen hash
+  (0x8bab543c) are unchanged, and existing saves load (`modmem=restored`).
+  Two post-load faults found while testing were fixed: the missing world for
+  a few frames, and texture corruption after the third cycle.
+- B1: a mist band below the horizon in the level's own sky tone (sampled
+  from VRAM), under the mountain ring.
+- B2: GL distance haze towards the band's horizon colour for host-depth
+  primitives, from the original fog start to the extended limit, at most
+  55%. B1 and B2 are on only in sky rooms and ease over 0.5 s.
+- Evidence: in slot 10 the keep tower and gatehouse show, and black below
+  the mountains is now mist. 153 pieces a frame, no fallbacks or drops
+  (original-renderer fallbacks 1404 to 0). Slot 2 is unchanged, and a 21-level
+  sweep against the old behaviour lost no geometry. Three save/load cycles
+  are clean. Vanilla is unchanged. Tests: controls 119 PASS, near, input,
+  framework aperture; the patch is exported and verified on the pinned
+  commit.
+- Cost at 180 Hz (player settings): about 2 fields/s more in the slot 10
+  vista (raw 57 to 54-55). With the governor it runs at every second refresh
+  (90 presents/s), with fields at 60; D17AW is the fix for that.
+- Developer switches: `DNTTK_OVER_WALLS_ROOMS`, `DNTTK_SCENERY_OCCLUSION`,
+  `DNTTK_EXTRA_ARENA`, `DNTTK_MIST`, `DNTTK_HAZE`, `DNTTK_HOST_VIS_ALL`.
+- Not seen: other outdoor levels from the jetpack (scripted flights did not
+  climb), the gatehouse notch filled (it stays black), the player's display.
+
+**2026-11-01 revision (Needs playtest; note 352 Revision 2).** User after
+the playtest: the fog "doesnt work for me ... visually its not it", and the
+gatehouse is "probably unnecessary"; "all i really wanted was for a couple
+of those draw distance issues ... to not flicker". Then: "let's keep the
+high KB per frame, and if anything go a lot higher". Mist and haze are for
+a later, better-integrated job; the notes stay in note 352.
+- Removed: A (non-sky rooms over the walls, per-piece occlusion), B1 (mist
+  band, sky sampling), B2 (haze API and shader terms).
+- Cause of the flicker: in the slot 10 vista the 350 KB region overflowed in
+  about half the frames, and the distant pieces that did not fit went back to
+  the original renderer as black holes, changing with the view. Consecutive
+  turning shots show a far wall section missing in one frame and present in
+  the next (old size); with the larger region it is present in every frame,
+  and nothing goes to the original renderer.
+- Kept and grown:
+  - Second GPU DMA aperture, 2 MiB at 0x80D00000 (3 MiB at 0x80C00000 stopped
+    the BIOS at boot). Each frame region gains 1 MiB (1.35 MB in all, about
+    2.8 times the vista's peak); the two regions alternate 64 KB chunks.
+  - Replay images and the "XTR2" savestate tail copy only the part ever
+    written. Older saves load untouched; the codegen hash is unchanged.
+- Evidence: three save/load cycles clean; 21-level sweep identical at heading
+  0; controls 119 PASS, near, input and the framework header test pass; the
+  patch is verified on the pinned commit.
+- Cost at 180 Hz: raw 54.6-56.7 fields/s against 55.2-57.3 (about 1
+  field/s, within spread).
+- Developer: `DNTTK_EXTRA_ARENA=0`, `DNTTK_HOST_VIS_ALL`.
+
+**2026-11-01 accepted and closed.** User: "100% accepted. no slowdowns, no
+crackle, its stable, no flicker. lock it in, close it out!" D17AX is Done.
+Retained limits: other outdoor levels' jetpack vistas not flown by script;
+the authored void past level edges stays black; mist and haze are a future
+job (design kept in note 352); the slot 10 vista still needs D17AW to hold
+180 presents/s on this machine.
+
+## 2026-11-01 - Polymorph render thread (D17AW)
+
+User (2026-11-01, after the D17AQ load-crackle fix): right after a load the
+game "churns" before running smoothly, and asked whether owning more of the
+stack would prevent the delay in taking over; "I want a first class
+experience at the end of the day".
+
+### D17AW - Polymorph: present redraws from a host render thread
+
+**Status: Todo (report first). Dependencies: D17AR5, D17AQ.** The emulation
+thread also feeds every finished worker redraw into the GL renderer (about
+3 ms each, 46% of the thread at 180 Hz in slot 10; GPU about 7% busy). In
+heavy views (slot 10 jetpack vista, slot 2 moat) that keeps the game under
+60 fields/s at 180 Hz, so the governor steps to 90, and every savestate load
+churns for about a second first (D17AQ work log 2026-11-01). Goal: a host
+render thread owns GL and presents the redraws, so the emulation thread only
+emulates. Report first: GL context ownership, VRAM and redraw-cache handoff,
+presenter timing, savestate loads, the first post-load frames, menus/FMV,
+failure and fallback, measured headroom. Polymorph only; Classic frozen;
+Vanilla unchanged. Acceptance: slot 10 and slot 2 hold 180 at 60 fields/s,
+loads without a slow second, no audio dropouts, 21-level sweep and native
+tests pass, user playtest.
+
 ## 2026-11-01 - Polymorph: flickering wall triangles (D17AV)
 
 ### D17AV - Polymorph: flickering triangle on corridor walls (slot 8)
@@ -1016,7 +1170,7 @@ case added to the D08T3 group; 115 groups, input and aim pass. Earlier
 
 ### D17AQ - Slot-10 jetpack height: level sections pop in and out
 
-**Status: Needs playtest (fixes B, A, C1 implemented; [note 335](documentation/335-d17aq-draw-reach-report.md)). Dependencies: D17AM, D14F.** Opened 2026-10-30
+**Status: Needs playtest (B max limit, A open sky (Classic), dormant enemies, load crackle fix; [note 335](documentation/335-d17aq-draw-reach-report.md)). Dependencies: D17AM, D14F.** Opened 2026-10-30
 from the user's playtest: in UI slot 10 (saved 2026-10-30 12:24) Duke hovers
 high above the level with the jetpack; turning left and right makes parts of
 the level appear and disappear, a little at a time. The user asks whether this
@@ -1092,6 +1246,64 @@ the seen pieces only, a null mesh to the original world routine when the host
 takes every face (all scenes), and the object pass back on the portal walk's
 list (new hook `0x800374cc`): 28.1 at hover, slot 2 at parity (30.1). Tests
 and a 12-slot sweep pass (note 335, revision 3).
+
+**Work log 2026-11-01 - slot 10 load crackle (Needs playtest).** User: "pay
+attention to the audio crackle when you load this one". Their 17:31 session
+loaded slot 10 and logged the emulation behind real time (46 frames/s) and a
+step to every 2nd refresh; the host was idle (load 0.37, Timeshift's 17:00 run
+had ended, no memory or I/O pressure). Reproduced offscreen at the player's
+settings (180 Hz, 4x, CPU 150%, Polymorph): after the load the vista ran at
+44-50 fields/s and the 180 ms audio ring ran dry (5374 dry pulls in about
+1 s) inside the 3 s after a load that the governor does not judge (D17AR3
+part 4); the step down came only after it. Fix (Modernized only, our code,
+no framework change): `overclock_lease` reads the ring through
+`psx_audio_out_stats`; once the ring has filled since the last load or
+gap, a fall under half its target sheds one present step at once
+(`replay_audio_low`, `audio_sheds` in `render_replay`), the settle window
+included; a further step waits 1.5 s and needs a lower ring. Slot 10: 0
+dry pulls in three load runs and a turning run (ring low 78-88 ms, game
+back to 60). Slot 2 also sheds once after its load and avoids continuous
+crackle: with shedding off it runs 41-51 fields/s at 180. The other 10
+fixture slots: no shed, no dry pull, about 175-184 presents/s. Vanilla
+unchanged (no governor line, no dry pull). `ttk-input-test`,
+`ttk-near-test`, `ttk-controls-test` (119 PASS; two stubs added) and
+`test_auto_frame_rate.py` pass. Note 335 revision 4. Not addressed: the
+vista still runs at 90 presents/s at 180 on this machine (D17AR5 had held
+180 there; not re-measured against that build).
+User follow-up: right after the load it "churns", then is fine. Measured
+(three loads per session, slot 10, 180 Hz): every load draws its first 3-5
+game frames on the emulation thread (12-24 ms of host world pass each, 47-113
+ms frames) until the first post-load worker redraw exists; then the 180 Hz
+redraw feed on the same thread keeps the vista under 60 fields/s until the
+step down (about 1 s). Engaging redraw-only after 2 instead of 8 redraws
+changed nothing measurable (the first redraw is what is waited for) and was
+reverted. Moving the redraw feed off the emulation thread is the change that
+would remove both; not started, awaiting the user's choice.
+
+**Work log 2026-11-01 - crackle check revised (Needs playtest).** User:
+crackle unchanged. Their 18:22 log: the slot-2 load stepped down only by the
+old slow-second rule at 35.8 frames/s, no `audio running low`. Cause: the
+check armed only once the ring had refilled to 90% after the load, and a
+start that slow never refills it. Now it also arms 0.5 s after a load or
+gap, sheds under a third of the target (60 ms; UI slot 5 dipped to 94 ms
+without running dry), and a second step waits 0.75 s and needs the ring
+still falling. Emulating the slower start (CPU 200%): dry pulls about 7800
+to 0-1255 per load, two steps. Player settings: slot 10 0 dry pulls in 3 of
+4 loads (566 in one); 15-load sweep of all fixture slots, others 0; UI slot
+5 stepped once at 45 ms (near-dry). Native tests (119 PASS) and
+`test_auto_frame_rate.py` pass. The remaining slow first second needs
+D17AW.
+User retest (18:51 log, video): crackle "not perfect, it might be a tiny bit
+better". The log shows the revised check acting (shed at 29 ms after the
+first load, 35 ms after the second); a 180 probe failed and the second load
+went to every 3rd refresh (72 presents/s over the minute). The session was
+being screen-recorded, which also loads the machine. Distant black areas
+in the same video are recorded as D17AX.
+
+**2026-11-01 user report (during the D17AX revision playtest, slot 10).**
+"no slowdowns, no crackle, its stable". The Revision 4b crackle check was in
+that build and is committed with D17AX. Status left as Needs playtest for
+the user to close.
 
 ### D08T11 - Slot-8 pushable block stuck; game-wide eligibility
 
@@ -2097,7 +2309,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D17AN | Slot-12 water showing through the bridge deck (level 6) | Done (user-confirmed 2026-10-30) | D17AM; note 327 |
 | D17AO | Slot-11 ceiling hole showing the sky (level 6) | Deferred (authored level gap; no action now, possible future level-data fix) | D17AM; note 327 |
 | D17AP | Slot-9 grave-dig soil corners flashing again (D17X recurrence) | Done (user-confirmed 2026-10-30) | D17X, D17AM; note 327 |
-| D17AQ | Slot-10 jetpack height: level sections pop in and out while turning (room visibility) | Needs playtest (B max limit, A open sky, dormant enemies (C1 withdrawn); note 335) | D17AM, D14F |
+| D17AQ | Slot-10 jetpack height: level sections pop in and out while turning (room visibility) | Needs playtest (B max limit, A open sky, dormant enemies (C1 withdrawn), load crackle fix; note 335) | D17AM, D14F |
 | D17AR | Host-owned world visibility (parent): the host decides what world geometry is drawn | Done (AR1-AR6 done) | D17AM, D17AQ; D17AR1-AR4 |
 | D17AR1 | Host visibility: inventory, data-format verification and design (report first) | Done (design approved 2026-10-30; note 336) | D17AM |
 | D17AR2 | Host visibility: implementation behind a developer switch | Accepted (visual playtest passed; performance to D17AR3) | D17AR1 |
@@ -2107,6 +2319,8 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D17AR6 | Renderer choice in OPTIONS: Classic and Polymorph | Done | D17AR3 |
 | D17AS | Slot-2 moat: large dark triangle in/under the water (research/screencaps/triangle.mp4) | Done (original level design, left as authored by user decision 2026-11-01; note 347) | D17AM |
 | D17AV | Polymorph: flickering triangle on corridor walls (UI slot 8) | Done (user-accepted 2026-11-01; note 351) | D17AM, D17W |
+| D17AW | Polymorph: present redraws from a host render thread (no slow second after loads, 180 Hz in heavy views) | Todo (report first) | D17AR5, D17AQ |
+| D17AX | Polymorph: draw the whole level from jetpack height (slot 10 black sides and castle interior) | Done (flicker fix; note 352) | D17AR, D17AQ |
 | D14F | 90-default / 120-maximum world FOV | Done (user-confirmed 2026-10-30) | Implemented in afd4ad6 (note 317); re-verified 2026-10-29 |
 | D17AE | Slot-11 sign post through door header | Done (user-confirmed 2026-10-29) | Scene depth for native world/scenery packets; replay precedence fix; world backface cull restored |
 | D17AF | Latest slot-10 ground water visibility | Done | Selected batch; see intake above |

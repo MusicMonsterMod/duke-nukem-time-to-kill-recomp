@@ -249,11 +249,26 @@ uint32_t region_after(uint32_t mirrored) {
 // ordering table's links into it would fold into main RAM and draw garbage.
 // A zeroed mirror reads as D17R1 region 0, whose packets lie in region 0, so
 // a load moves on to region 1.
+// D17AX: each region also gets 1 MB of the second GPU DMA aperture after
+// its host and Bio Mask blocks (the first aperture is full), about 1.35 MB a
+// frame. The jetpack vista over the level-6 moat filled the 350 KB region in
+// about half its frames, and the distant pieces that did not fit went back to
+// the original renderer, which drew them dark: they flickered between the
+// two. The vista peaks near 480 KB. Savestates carry that aperture as an
+// optional tail and the first aperture's layout is unchanged, so existing
+// saves load. The two regions take alternate 64 KB chunks of it, so what a
+// frame uses sits at the start of the aperture for either region: replay
+// images and savestates copy only the part ever written. Developer
+// DNTTK_EXTRA_ARENA=0: without it.
+constexpr uint32_t extra_region_bytes=1024*1024,extra_chunk=64*1024;
+uint32_t extra_arena=0;
 uint32_t host_arena() {
     if(!host_arena_base) {
         host_arena_base=psx_mod_alloc_gpu_dma_memory(arena_bytes+16,16);
         if(host_arena_base) region_mirror=host_arena_base+arena_bytes;
     }
+    static const bool extra=env_int("DNTTK_EXTRA_ARENA",1,0,1)!=0;
+    if(extra && !extra_arena) extra_arena=psx_mod_alloc_gpu_dma_extra_memory(extra_region_bytes*host_regions,16);
     return host_arena_base;
 }
 // D20H: a state is usually saved part way through drawing a frame, and the
@@ -292,10 +307,14 @@ void host_frame_reset() {
 // filled through one cursor (frame_host_bytes). The two GPU DMA allocations,
 // their order and the D20C mirror word are unchanged, so savestates keep their
 // layout. No packet straddles the two parts.
-constexpr uint32_t region_bytes=host_frame_bytes+region_mask_bytes;
+constexpr uint32_t base_region_bytes=host_frame_bytes+region_mask_bytes;
+uint32_t region_bytes() {return base_region_bytes+(extra_arena?extra_region_bytes:0);}
 uint32_t region_address(uint32_t offset) {
     const uint32_t r=host_region%host_regions;
-    return offset<host_frame_bytes ? host_arena()+r*host_frame_bytes+offset : mask_arena+r*region_mask_bytes+(offset-host_frame_bytes);
+    if(offset<host_frame_bytes) return host_arena()+r*host_frame_bytes+offset;
+    if(offset<base_region_bytes) return mask_arena+r*region_mask_bytes+(offset-host_frame_bytes);
+    const uint32_t o=offset-base_region_bytes;
+    return extra_arena+((o/extra_chunk)*host_regions+r)*extra_chunk+o%extra_chunk;
 }
 // D12 first-person weapon. Every polygon of the hand, weapon, flash and held
 // item meshes is drawn here while first_person_weapon_drawing(). Their packets
@@ -535,9 +554,9 @@ uint32_t after_walk_reserve() {
 constexpr uint32_t mask_reserve=(uint32_t)std::size(bio_mask_mesh)*0x28+tint_reserve;
 static_assert(mask_reserve<=mask_frame_bytes,"Bio Mask mesh exceeds its block");
 uint32_t cursor_limit(const Frame& f) {
-    if(f.biomask) return region_bytes;
+    if(f.biomask) return region_bytes();
     if(!unified()) return host_frame_bytes;
-    return region_bytes-(mask_worn()?mask_reserve:tint_reserve)-(f.viewmodel?0:viewmodel_reserve)-(f.viewmodel || f.sky?0:sky_reserve)-(host_piece?after_walk_reserve():f.far && !(host_frame && f.object)?far_reserve():0);
+    return region_bytes()-(mask_worn()?mask_reserve:tint_reserve)-(f.viewmodel?0:viewmodel_reserve)-(f.viewmodel || f.sky?0:sky_reserve)-(host_piece?after_walk_reserve():f.far && !(host_frame && f.object)?far_reserve():0);
 }
 uint32_t budget(const Frame& f) {
     if(!host_arena() || !mask_arena) return 0;
@@ -549,6 +568,9 @@ uint32_t packet_alloc(const Frame& f,uint32_t size) {
     region_after_load();
     uint32_t at=frame_host_bytes;
     if(at<host_frame_bytes && at+size>host_frame_bytes) at=host_frame_bytes;
+    if(at<base_region_bytes && at+size>base_region_bytes) at=base_region_bytes;
+    if(at>=base_region_bytes && (at-base_region_bytes)/extra_chunk!=(at+size-1-base_region_bytes)/extra_chunk)
+        at=base_region_bytes+((at-base_region_bytes)/extra_chunk+1)*extra_chunk;
     if(!host_arena() || !mask_arena || at+size>cursor_limit(f)) return 0;
     frame_host_bytes=at+size;host_bytes_peak=std::max(host_bytes_peak,frame_host_bytes);
     return region_address(at);

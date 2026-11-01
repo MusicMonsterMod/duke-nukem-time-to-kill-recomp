@@ -373,3 +373,91 @@ contract now expects the null mesh) pass. A 12-slot sweep of the new build
 with D17AQ off against the previous build found at most 1.0% changed pixels,
 weapon bob and animation only (slot 5 checked by eye). Slot 10 hover views
 with and without the object-pass cut are identical at matching headings.
+
+## Revision 4 (2026-11-01): audio crackle after loading slot 10
+
+User: "pay attention to the audio crackle when you load this one too". The
+player's 17:31 session log loaded slot 10 (file slot 9), then printed
+`emulation behind real time (46.0 frames/s)` and `presents every 2
+refreshes`. Host state at the time: load average 0.37, the hourly Timeshift
+run had ended at 17:00:01, memory and I/O pressure near zero. No host
+contention was found.
+
+Reproduction (private fixture copy, offscreen on the real GPU, the player's
+settings: AUTO 180 Hz, 4x, 16:9, CPU 150%, Polymorph; probe
+`recomp/analysis/d17aq/crackle.py`, local only), half-second samples from
+the load:
+
+| Time after load | Fields/s | Presents/s | Ring dry pulls | Ring fill |
+| --- | --- | --- | --- | --- |
+| 0.5 s | 55.8 | 177 | 0 | 178 ms |
+| 1.1 s | 55.7 | 139 | 0 | 143 ms |
+| 1.6 s | 43.9 | 179 | 574 | 17 ms |
+| 2.1 s | 47.4 | 156 | 4514 | 17 ms |
+| 2.6 s | 70.2 | 92 | 286 | 105 ms |
+
+The first logic frames after the load carry the host world pass (about 13
+ms of hooks each) on top of the redraw feed for 180 presents, and the
+vista stays just under real time. The audio ring holds 180 ms, so at 45 of
+60 fields/s it is empty in about 0.7 s. That happens inside the 3 s after a
+savestate load, which the governor does not judge (D17AR3 part 4, so the
+load's catch-up would not halve presents in light scenes). The step to
+every 2nd refresh came only once that window ended.
+
+Fix (Modernized only, `recomp/src/ttk`, no framework change):
+
+- `overclock_lease` (`modern_controls.cpp`) reads the ring each player
+  update through the existing `psx_audio_out_stats`. Once the ring has
+  reached 90% of its target since the last savestate load or gap (over
+  0.5 s between updates: menus, pauses, level loads), a fall under half the
+  target calls `replay_audio_low`. The settle window does not exempt it.
+- `replay_audio_low` (`frame_replay.cpp`) sheds one present step at once,
+  through the same step as a slow second (`shed_step`), with the second's
+  redraw feed so far as the reference for stepping back up. A further step
+  waits 1.5 s and needs the ring lower than at the previous one. Counter
+  `audio_sheds` in `render_replay`; log line `audio running low`.
+- `DNTTK_REPLAY_SHED=0` still disables all shedding (developer).
+
+Results with the new build:
+
+- Slot 10, three load runs and one turning run: 0 dry pulls; one step at
+  about 1 s after the load (ring low 78-88 ms); 60 fields/s after it.
+- Slot 2 (moat): one step after its load, 0 dry pulls. With shedding off it
+  runs at 41-51 fields/s at 180 Hz with about 5000 dry pulls every half
+  second, so the step is needed there (the old governor also stepped,
+  after the window).
+- The other 10 fixture slots at 180: no step, no dry pull, 175-184
+  presents/s.
+- Vanilla, slot 10: no governor line, no dry pull.
+- `ttk-input-test`, `ttk-near-test`, `ttk-controls-test` (clean
+  `d08-camera-final` fixture, LEVEL01, all levels; 119 PASS, exit 0; stubs
+  for `replay_audio_low` and `psx_audio_out_stats`) and
+  `test_auto_frame_rate.py` pass.
+
+Limits: slot 10's vista and the slot-2 moat view run at 90 presents/s at
+180 Hz on this machine. D17AR5 had measured 180 held in the vista; this
+build was not compared against that one, so a later cost increase is
+possible but not established. Offscreen probes poll the debug server
+every half second, which costs a little. The fix prevents the crackle;
+it does not make the view cheaper.
+
+### Revision 4b (2026-11-01): the check armed too late on the player's machine
+
+User playtest: crackle unchanged. The player's session stepped down at 35.8
+frames/s by the old rule only. The check waited for the ring to refill to
+90% after a load, which a start that slow never does. Revised:
+
+- It arms once the ring has filled or 0.5 s after a load or gap (a healthy
+  scene refills in about 0.2 s).
+- The threshold is a third of the target (60 ms). UI slot 5 dips to 94 ms at
+  180 Hz without running dry; at half it stepped down needlessly.
+- A second step waits 0.75 s and needs the ring 5 ms lower than at the
+  first. A game keeping up at 60 holds the ring level without refilling it,
+  so "not recovered" stepped a healthy slot 10 down to 60 presents.
+
+Results: with the slower start emulated (CPU 200%), dry pulls fell from
+about 7800 to 0-1255 per load. At the player's settings slot 10 had 0 dry
+pulls in 3 of 4 loads and 566 in one. A 15-load sweep of every fixture slot
+gave 0 dry pulls elsewhere; UI slot 5 stepped once, at 45 ms (near-dry).
+Native tests and `test_auto_frame_rate.py` pass. The slow first second
+itself remains (D17AW).

@@ -43,6 +43,8 @@ extern "C" uint32_t psx_mod_alloc_guest_memory(uint32_t size,uint32_t){static ui
 // D17R1 host packet arena (GPU DMA aperture).
 static uint32_t dma_next=0x80f00000,dma_allocations;
 extern "C" uint32_t psx_mod_alloc_gpu_dma_memory(uint32_t n,uint32_t align){dma_next=(dma_next+align-1)&~(align-1);const auto p=dma_next;dma_next+=n;assert(dma_next<=0x81000000);++dma_allocations;return p;}
+// D17AX: no second aperture here (the region keeps its D17AR2 size).
+extern "C" uint32_t psx_mod_alloc_gpu_dma_extra_memory(uint32_t,uint32_t){return 0;}
 static int32_t test_margin=85;
 extern "C" int32_t psx_mod_widescreen_x_margin(void){return test_margin;}
 // GPU DMA aperture (0x80f00000, mod_memory.h), apart from main RAM as in the runtime.

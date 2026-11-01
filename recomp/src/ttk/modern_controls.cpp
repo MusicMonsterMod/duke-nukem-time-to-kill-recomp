@@ -1134,12 +1134,32 @@ extern "C" void ttk_fast_timing_renew(void);
 // and seconds while the overclock is paused are not judged. D17AR3 part 4:
 // nor are the 3 s after a savestate load (its catch-up is not the scene's
 // cost; judged, it halved high-refresh presents after loads).
+// D17AQ: the audio ring is the one deficit the player hears. Once it has
+// filled since the last load or gap, or 0.5 s after it (a scene too slow to
+// refill the ring after a load never fills it; a healthy one refills in
+// about 0.2 s), a fall under a third of its target sheds a present step at once
+// (replay_audio_low), the settle window included; a further step waits
+// 0.75 s and needs the ring still falling (5 ms lower than at the last; a
+// game keeping up at 60 holds the ring level, it does not refill it).
+extern "C" int psx_audio_out_stats(double* fill_ms,double* target_ms,uint64_t* underruns,uint64_t* overflow_drops,double* correction,int* legacy,int* host_rate);
 static void overclock_lease() {
     using clk=std::chrono::steady_clock;
-    static clk::time_point window_start,paused_until,settle_until;static uint64_t window_frame;static unsigned pauses;
+    static clk::time_point window_start,paused_until,settle_until,last_call,audio_quiet_until,audio_arm_at;static uint64_t window_frame;static unsigned pauses;
+    static bool audio_filled;static double audio_shed_fill;
     static uint32_t loads_seen=psx_mod_savestate_loads();
     const auto now=clk::now();const uint64_t frame=input_host_frame();
-    if(psx_mod_savestate_loads()!=loads_seen) {loads_seen=psx_mod_savestate_loads();settle_until=now+std::chrono::seconds(3);}
+    if(psx_mod_savestate_loads()!=loads_seen) {loads_seen=psx_mod_savestate_loads();settle_until=now+std::chrono::seconds(3);audio_filled=false;audio_arm_at=now+std::chrono::milliseconds(500);audio_shed_fill=1e9;}
+    if(now-last_call>std::chrono::milliseconds(500)) {audio_filled=false;audio_arm_at=now+std::chrono::milliseconds(500);audio_shed_fill=1e9;}  // menu, pause, level load: the ring refills
+    last_call=now;
+    double fill=0,target=0,correction=0;uint64_t underruns=0,drops=0;int legacy=1,host_rate=0;
+    if(psx_audio_out_stats(&fill,&target,&underruns,&drops,&correction,&legacy,&host_rate) && !legacy && target>0) {
+        if(fill>=target*0.9) {audio_filled=true;audio_shed_fill=target;}
+        else if((audio_filled || now>=audio_arm_at) && fill<target/3 && now>=audio_quiet_until && fill<audio_shed_fill-5 && replay_audio_low()>0) {
+            audio_quiet_until=now+std::chrono::milliseconds(750);audio_shed_fill=fill;
+            settle_until=now;window_start=now;window_frame=frame;
+            if(++pauses<=20)std::fprintf(stderr,"[TTK cpu] audio running low (%.0f of %.0f ms): high-refresh presents reduced\n",fill,target);
+        }
+    }
     if(window_start.time_since_epoch().count()==0 || frame<window_frame) {window_start=now;window_frame=frame;}
     const double dt=std::chrono::duration<double>(now-window_start).count();
     if(dt>=1.0) {

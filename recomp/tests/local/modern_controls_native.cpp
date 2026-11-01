@@ -55,6 +55,8 @@ extern "C" uint32_t psx_mod_alloc_guest_memory(uint32_t size,uint32_t align){
     assert(next<0x801e1000);return result;
 }
 extern "C" uint32_t psx_mod_alloc_gpu_dma_memory(uint32_t,uint32_t){return 0;}
+// D17AX: no second aperture here (the region keeps its D17AR2 size).
+extern "C" uint32_t psx_mod_alloc_gpu_dma_extra_memory(uint32_t,uint32_t){return 0;}
 extern "C" uint8_t psx_mod_read_byte(uint32_t a) {return ram[a&0x1fffff];}
 extern "C" uint16_t psx_mod_read_half(uint32_t a) {return psx_mod_read_byte(a)|(psx_mod_read_byte(a+1)<<8);}
 extern "C" uint32_t psx_mod_read_word(uint32_t a) {return psx_mod_read_half(a)|(uint32_t(psx_mod_read_half(a+2))<<16);}
@@ -254,6 +256,8 @@ namespace ttk {bool anim_extra_clip(unsigned clip,uint32_t& first,uint32_t& coun
 // D23E: no high-refresh redraws in the harness; the overclock lease pauses.
 namespace ttk {int replay_load_window(int window){return window==1 ? -1 : 0;}}
 namespace ttk {bool live_frame_redraw_only(){return false;}}
+namespace ttk {int replay_audio_low(){return 0;}}
+extern "C" int psx_audio_out_stats(double*,double*,uint64_t*,uint64_t*,double*,int* legacy,int*){*legacy=1;return 0;}
 extern "C" void ttk_fast_timing_renew(void) {}
 static uint32_t save_loads;
 extern "C" uint32_t psx_mod_savestate_loads(void){return save_loads;}

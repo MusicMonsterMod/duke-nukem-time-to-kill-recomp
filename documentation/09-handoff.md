@@ -1,5 +1,95 @@
 # Next-session handoff
 
+## 2026-11-01 - D17AX accepted and closed
+
+User: "100% accepted. no slowdowns, no crackle, its stable, no flicker. lock
+it in, close it out!" D17AX (distant flicker fix: second GPU DMA aperture,
+1.35 MB per frame region; [note 352](352-d17ax-jetpack-vista-report.md)) is
+Done. The same build carried the uncommitted D17AQ Revision 4b crackle
+check; the user reported no crackle, and it is committed with D17AX (D17AQ
+status left for the user to close). Next candidates: D17AW (render thread,
+the slot 10 vista still steps to 90 presents/s at 180 Hz), mist and haze as a
+new, better-integrated job.
+
+## 2026-11-01 - D17AX revised: distant flicker fix only (Needs playtest)
+
+After the playtest the user rejected the mist and haze and did not need the
+towers; the goal is no distant flicker. Both are removed from the code; their
+design stays in [note 352](352-d17ax-jetpack-vista-report.md) for a later job.
+- Cause: the slot 10 vista overflowed the 350 KB host region in about half the
+  frames, and the distant pieces that did not fit became black holes that
+  came and went while turning (shown in consecutive shots).
+- Fix: a second GPU DMA aperture (2 MiB at 0x80D00000) adds 1 MiB to each
+  frame region. Replay images and savestates copy only its written part;
+  older saves load untouched, and the codegen hash is unchanged. 3 MiB at
+  0x80C00000 stopped the BIOS at boot.
+- Evidence: nothing left to the original renderer in the vista; save/load
+  clean; 21-level sweep unchanged; tests pass.
+- Cost: about 1 field/s at 180 Hz (within spread).
+
+## 2026-11-01 - D17AX: towers over the walls, mist and haze outdoors (superseded: removed, see revision above)
+
+Implemented the chosen A, B1 and B2 ([note 352](352-d17ax-jetpack-vista-report.md)):
+- Polymorph now draws towers and roofs from indoor rooms seen over the walls,
+  each piece with a sight test against the walls in front.
+- Below the sky's mountains there is a dim mist in the level's own sky tone
+  instead of black, and distant surfaces fade slightly into it (outdoors
+  only).
+- A second 1 MiB GPU DMA aperture gives each frame 512 KB more packet space.
+  It is carried in savestates as an optional tail; the codegen hash and the
+  first aperture's layout are unchanged, so existing saves load.
+- Slot 10: tower and gatehouse visible, nothing left to the original
+  renderer. Slot 2 and a 21-level sweep show no lost geometry. Save/load is
+  clean, Vanilla is unchanged, and the native and framework tests pass.
+- Cost: about 2 fields/s in the slot 10 vista at 180 Hz, so it runs at
+  every second refresh there (D17AW). Playtest: slot 10 full circle at hover,
+  slot 2, other outdoor levels from the jetpack.
+
+## 2026-11-01 - D17AX report: jetpack vista (awaiting decision)
+
+Report in [note 352](352-d17ax-jetpack-vista-report.md). Slot 10 at hover:
+behind the camera and past both moat banks is authored void, since level 6
+has no room beyond them. The band above the castle wall is partly geometry the
+host pass never selects: the keep tower and gatehouse are in non-sky rooms
+(33, 34, 38, 43-49), and the over-the-walls test only offers sky rooms. The
+rest of the band is void below the black mountain silhouette of the sky
+model. A new developer switch, `DNTTK_HOST_VIS_ALL` (`1`, `sky` or a room
+list), provides the proof. Drawing every room exhausts the near-clip arena
+and crashes the GPU stream, so any wider selection needs an arena cap.
+Proposed: A (over the walls for every room, capped), then B1 backdrop to the
+ground plus B2 haze; B3 skirt or B4 authored terrain optional. Waiting
+for the user's choice. Tests pass (controls 119, near, input).
+
+## 2026-11-01 - D17AX opened: whole level from the jetpack
+
+User video `research/screencaps/Video_2026-11-01_18-52-03.mp4` (slot 10):
+from jetpack height the castle interior band and everything past the moat
+banks are black, so the level reads as a floating island when turning. New
+job D17AX (report first): prove per region whether the geometry exists but
+is not selected (developer draw-all mode) or was never authored, then fix
+game-wide or propose fills. D17AQ retest: crackle "a tiny bit better"; the
+revised check acted in the 18:51 log.
+
+## 2026-11-01 - D17AQ: crackle check revised (Needs playtest)
+
+User: crackle unchanged. Their log showed the check never armed: it waited
+for the audio ring to refill after a load, which a start at about 36
+frames/s never does. It now arms 0.5 s after a load, sheds under a third of
+the target and takes a second step if the ring keeps falling. Offscreen,
+slot 10: 0 dry pulls in 3 of 4 loads; other slots clean. New job D17AW (host
+render thread) for the slow first second. Note 335 revision 4b.
+
+## 2026-11-01 - D17AQ: slot 10 load crackle (Needs playtest)
+
+User asked to watch the audio crackle when loading slot 10. Cause: in the
+jetpack vista at 180 Hz the game fell to 44-50 fields/s in the 3 s after a
+load that the frame-rate governor does not judge, and the 180 ms audio ring
+ran dry; the host was idle. Now a ring under half its target sheds a present
+step at once (`replay_audio_low`), load window included: 0 dry pulls in slot
+10, slot 2 avoids continuous crackle, other slots unchanged, Vanilla
+unchanged. Playtest: load slots 10 and 2 at 180 Hz and listen; the earlier
+D17AQ items (B, A in Classic, dormant enemies) remain. Note 335 revision 4.
+
 ## 2026-11-01 - D17AV accepted and closed
 
 User: "it is now fixed! great work. superb". D17AV is Done (note 351): in

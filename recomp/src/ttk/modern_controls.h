@@ -119,6 +119,9 @@ bool live_frame_redraw_only();
 // Returns 1 after a shed, -1 when behind and nothing is left to shed (pause
 // the overclock), else 0.
 int replay_load_window(int window);
+// D17AQ: the audio ring is under a third of its target in gameplay: shed one present
+// step now. Returns 1 after a shed, else 0 (nothing to shed, shedding off).
+int replay_audio_low();
 void render_state_prepare();
 bool late_view(double& yaw, double& pitch, double at_ms=-1);
 bool late_pivot(double* xyz);

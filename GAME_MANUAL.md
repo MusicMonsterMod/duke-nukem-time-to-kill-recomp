@@ -207,7 +207,10 @@ deadline can still repeat an image. **D17A and D17B are player-accepted.**
 120 and 180 FPS are the primary quality/regression targets (AUTO on 120 Hz
 and 180 Hz displays); 144 and 165 FPS are checked on every test save, 240
 FPS is supported with even steps down in heavy scenes, and Unlimited is a
-stress/debug mode.
+stress/debug mode. When a heavy view would slow the game enough to be heard
+(the sound buffer running low, including just after loading a save), the
+frame rate steps down at once instead of letting the sound crackle; it steps
+back up when the view gets lighter.
 
 The original-style 60 setting normally presents roughly 30 new game images
 per second with repeated views. 120 is not secretly 60: it can render about
@@ -276,6 +279,9 @@ Outdoors, the original only draws neighbouring areas through their openings,
 so flying high with the jetpack showed pieces of the level popping in and out
 as you turned. With `extended`, outdoor areas you can see over the walls are
 drawn whole. Some spots stay black because the level has no scenery there.
+In wide views such as the castle from the jetpack, distant walls no longer
+flicker with black holes while you turn: every distant piece now fits in the
+frame instead of some being dropped from frame to frame.
 
 With `extended` the game no longer decides which parts of the level are drawn
 from the openings it can see through: every surface in view is drawn, in every

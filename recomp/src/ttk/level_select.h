@@ -18,6 +18,9 @@ bool fov_console_command(const char* line, void (*say)(const char*), bool& close
 // D17AR2 (developer): "hostvis [on|off|default]" (modern_controls.cpp,
 // host_visibility.inc), the host world visibility switch for the session.
 bool hostvis_console_command(const char* line, void (*say)(const char*), bool& close);
+// D17AV (developer): "smoothquads [on|off|default]" (near_clip.cpp), smooth
+// quad shading in live frames for the session.
+bool smoothquads_console_command(const char* line, void (*say)(const char*), bool& close);
 // D17AR3 (developer): "redrawonly [on|off|default]" (frame_replay.cpp),
 // redraw-only live frames for the session.
 bool redraw_only_console_command(const char* line, void (*say)(const char*), bool& close);

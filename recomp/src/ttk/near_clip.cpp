@@ -53,6 +53,7 @@
 #include "code_identity.h"
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <cmath>
 #include <cstdio>
 #include <cstdint>
@@ -768,6 +769,109 @@ double prop_contact_shift(double d,bool phone_back) {
     const int allowance=phone_back && phone_depth && d>0 ? 16:contact;
     return std::copysign(std::min((double)allowance,std::abs(d)*0.5),d);
 }
+// D17AV: smooth quad shading (draw). The break shows as a change of slope
+// along the diagonal, which the eye picks out even when small: slot 8's left
+// panel breaks at a twist of 7 (corner 0x39 against 0x32), clearly visible.
+// Below 2 (one colour step) there is nothing to see.
+constexpr int smooth_quad_twist=2;
+uint64_t smooth_quad_count=0,smooth_quad_joins=0;
+// Developer console "smoothquads [on|off|default]" overrides it for the
+// session in live frames (A/B shots at 60 Hz; redraw workers keep the
+// switch).
+std::atomic<int> smooth_quads_override{-1};
+bool smooth_quads() {
+    static const bool on=env_int("DNTTK_SMOOTH_QUADS",1,0,1)!=0;
+    const int o=smooth_quads_override.load(std::memory_order_relaxed);
+    return o<0 ? on : o!=0;
+}
+bool smooth_twist(const uint32_t* colors) {
+    for(int c=0;c<3;++c) {
+        auto ch=[&](int k) {return (int)((colors[k]>>(8*c))&0xff);};
+        if(std::abs(ch(0)+ch(3)-ch(1)-ch(2))>=smooth_quad_twist) return true;
+    }
+    return false;
+}
+// D17AV: whether corner s's texture coordinates follow from triangle p q r's
+// map over their plane (within half a texel): then any split of the four
+// corners shows the same texture.
+bool one_texture_map(const Vertex& p,const Vertex& q,const Vertex& r,const Vertex& s) {
+    double u[3],v[3],w[3];
+    for(int k=0;k<3;++k) {u[k]=q.p[k]-p.p[k];v[k]=r.p[k]-p.p[k];w[k]=s.p[k]-p.p[k];}
+    auto dot=[](const double* a,const double* b) {return a[0]*b[0]+a[1]*b[1]+a[2]*b[2];};
+    const double uu=dot(u,u),uv=dot(u,v),vv=dot(v,v),wu=dot(w,u),wv=dot(w,v),den=uu*vv-uv*uv;
+    if(std::abs(den)<1e-9) return false;
+    const double alpha=(wu*vv-wv*uv)/den,beta=(wv*uu-wu*uv)/den;
+    for(int k=0;k<2;++k)
+        if(std::abs(p.uv[k]+alpha*(q.uv[k]-p.uv[k])+beta*(r.uv[k]-p.uv[k])-s.uv[k])>=0.5) return false;
+    return true;
+}
+// D17AV: a flat square the level builds from two triangles has the same
+// break along their shared edge (slot 8's left panel: (60,79,78) and
+// (60,79,61), corner 60 lit). Two opaque triangles of one world mesh that
+// share an edge, lie in one plane, form a convex quad, carry one texture
+// mapping (the fourth corner's texture coordinates follow from the other
+// triangle's) and the same rank are drawn as that quad, so draw() shades it
+// smoothly; only when the colours would break. polys: one mesh's, ranked.
+void join_smooth_pairs(const Frame& f,std::vector<Poly>& polys) {
+    std::vector<bool> gone(polys.size(),false);
+    auto sub=[](const double* a,const double* b,double* o) {for(int k=0;k<3;++k) o[k]=a[k]-b[k];};
+    auto dot=[](const double* a,const double* b) {return a[0]*b[0]+a[1]*b[1]+a[2]*b[2];};
+    auto cross=[](const double* a,const double* b,double* o) {o[0]=a[1]*b[2]-a[2]*b[1];o[1]=a[2]*b[0]-a[0]*b[2];o[2]=a[0]*b[1]-a[1]*b[0];};
+    for(size_t i=0;i<polys.size();++i) {
+        Poly& a=polys[i];
+        if(gone[i] || a.count!=3 || (a.command&0x02000000u)) continue;
+        for(size_t j=i+1;j<polys.size();++j) {
+            const Poly& b=polys[j];
+            if(gone[j] || b.count!=3 || b.coplanar_rank!=a.coplanar_rank || b.command!=a.command || b.textured!=a.textured
+               || (a.textured && (b.clut!=a.clut || b.tpage!=a.tpage)) || b.depth_push!=a.depth_push) continue;
+            // Shared edge: corners of a found in b.
+            int in_b[3],shared=0,lone_a=-1;
+            for(int x=0;x<3;++x) {
+                in_b[x]=-1;for(int y=0;y<3;++y) if(a.idx[x]==b.idx[y]) in_b[x]=y;
+                if(in_b[x]>=0) ++shared; else lone_a=x;
+            }
+            if(shared!=2) continue;
+            int lone_b=-1;for(int y=0;y<3;++y) if(b.idx[y]!=a.idx[(lone_a+1)%3] && b.idx[y]!=a.idx[(lone_a+2)%3]) lone_b=y;
+            bool same=true;
+            for(int x=0;x<3;++x) if(in_b[x]>=0) same&=a.colors[x]==b.colors[in_b[x]] && (!a.textured || a.uv[x]==b.uv[in_b[x]]);
+            if(!same) continue;
+            const int ip=lone_a,iq=(lone_a+1)%3,ir=(lone_a+2)%3;
+            const double* P=f.verts[a.idx[ip]].view;const double* Q=f.verts[a.idx[iq]].view;
+            const double* R=f.verts[a.idx[ir]].view;const double* S=f.verts[b.idx[lone_b]].view;
+            double u[3],v[3],w[3],n[3];sub(Q,P,u);sub(R,P,v);sub(S,P,w);cross(u,v,n);
+            const double len=std::sqrt(dot(n,n));
+            if(len<1e-9 || std::abs(dot(n,w))/len>1e-3) continue;
+            // Convex: P and S on opposite sides of the shared edge Q-R.
+            double e[3],pq[3],sq[3],c1[3],c2[3];sub(R,Q,e);sub(P,Q,pq);sub(S,Q,sq);cross(e,pq,c1);cross(e,sq,c2);
+            if(dot(c1,c2)>=0) continue;
+            // S = P + alpha*u + beta*v; its texture coordinates must follow.
+            const double uu=dot(u,u),uv=dot(u,v),vv=dot(v,v),wu=dot(w,u),wv=dot(w,v),den=uu*vv-uv*uv;
+            if(std::abs(den)<1e-9) continue;
+            const double alpha=(wu*vv-wv*uv)/den,beta=(wv*uu-wu*uv)/den;
+            if(a.textured) {
+                bool follows=true;
+                for(int k=0;k<2;++k) {
+                    auto t=[&](uint32_t word) {return (double)((word>>(8*k))&0xff);};
+                    const double want=t(a.uv[ip])+alpha*(t(a.uv[iq])-t(a.uv[ip]))+beta*(t(a.uv[ir])-t(a.uv[ip]));
+                    follows&=std::abs(want-t(b.uv[lone_b]))<0.5;
+                }
+                if(!follows) continue;
+            }
+            // PS1 quad order: v0 v1 v2 v3 with outline 0 1 3 2: P Q R S.
+            Poly q=a;q.count=4;
+            const int from[4]={ip,iq,ir,-1};
+            for(int k=0;k<3;++k) {q.idx[k]=a.idx[from[k]];q.colors[k]=a.colors[from[k]];q.uv[k]=a.uv[from[k]];}
+            q.idx[3]=b.idx[lone_b];q.colors[3]=b.colors[lone_b];q.uv[3]=b.uv[lone_b];
+            if(!smooth_twist(q.colors)) continue;
+            q.native_slot=std::max(a.native_slot,b.native_slot);q.key_z=std::max(a.key_z,b.key_z);
+            a=q;gone[j]=true;++smooth_quad_joins;
+            break;
+        }
+    }
+    size_t out=0;
+    for(size_t i=0;i<polys.size();++i) if(!gone[i]) polys[out++]=polys[i];
+    polys.resize(out);
+}
 void draw(Frame& f,const Poly& poly) {
     ++f.stats->polys;
     static const bool source_order=env_int("DNTTK_SOURCE_ORDER",1,0,1)!=0;
@@ -821,14 +925,27 @@ void draw(Frame& f,const Poly& poly) {
     // D17AP: so is a warped quad, as D17X requires. As one packet it had no
     // depth plane, so its snapped corners took raw vertex depth and the grave
     // soil's corners cut into the floor (slot 9) again.
+    // D17AV: the GPU shades a quad as two triangles on its 1-2 diagonal, so
+    // a quad with one lit corner shows a hard-edged bright triangle (slot 8's
+    // wall panels; the original does the same). A flat world quad whose
+    // corner colours do not blend evenly is drawn as four triangles meeting
+    // at its centre, which takes the average of the four corner colours: the
+    // break along one diagonal becomes a blend across the whole face.
+    // DNTTK_SMOOTH_QUADS=0 (developer) keeps the two-triangle shading.
+    bool smooth=false;
+    // Only where one texture map covers the quad (corner 3's coordinates
+    // follow from corners 0-2): otherwise its two halves map the texture
+    // differently (D17Z) and a centre corner would move it.
+    if(smooth_quads() && unified_scene(f) && !f.object && poly.count==4 && !warped && smooth_twist(poly.colors))
+        smooth=!poly.textured || one_texture_map(shape[0],shape[1],shape[3],shape[2]);
     bool whole=false;
     // DNTTK_UNIFIED_QUADS=0 (developer) draws every quad as its two halves.
     static const bool quads=env_int("DNTTK_UNIFIED_QUADS",1,0,1)!=0;
-    if(quads && unified_scene(f) && poly.count==4) {
+    if(quads && unified_scene(f) && poly.count==4 && !smooth) {
         whole=!unified_oversize(f,shape.data(),shape.size());
         for(const auto& v:shape) for(int k=0;k<5 && whole;++k) whole=plane(v,k,f.g.h)>=0;
     }
-    const bool halves=unified_scene(f)?!whole || (warped && warped_split):world_texture_split || (warped && warped_split);
+    const bool halves=!smooth && (unified_scene(f)?!whole || (warped && warped_split):world_texture_split || (warped && warped_split));
     if(halves && poly.count==4) {
         --f.stats->polys; // each native half is counted by its recursive draw
         static const int triangles[2][3]={{0,1,2},{2,1,3}};
@@ -857,6 +974,30 @@ void draw(Frame& f,const Poly& poly) {
     // Positive moves the plane away from the eye, negative toward it.
     if(poly.depth_push) local.depth_plane.d+=(local.depth_plane.d<0?-1:1)*poly.depth_push;
     if(whole) {const Vertex quad[4]={shape[0],shape[1],shape[3],shape[2]};emit(f,local,quad,4);return;}
+    // Keep the original world polygon's farthest-corner ordering key.
+    // 0x80011654/0x80011684/0x800116b4 skip smaller depths, so this is
+    // a maximum, not a minimum. Sorting subdivisions individually lets a
+    // near floor piece overwrite native decals/props that were ordered in
+    // front of the whole floor. Host depth still resolves host-host overlap.
+    if(source_order && !f.object) {
+        for(unsigned j=0;j<poly.count;++j)
+            local.key_z=std::max(local.key_z,(double)f.verts[poly.idx[j]].sz);
+    }
+    Shape pieces[4];unsigned piece_count=1;
+    if(smooth) {
+        // shape is the outline (corners 0 1 3 2). The centre of a flat quad
+        // is the mean of its corners in position, texture and colour; it
+        // follows the corners' snap to the GTE's integer positions.
+        Vertex centre{};centre.original=-1;
+        for(const auto& v:shape) {
+            for(int a=0;a<3;++a) {centre.p[a]+=v.p[a]/4;centre.rgb[a]+=v.rgb[a]/4;}
+            centre.uv[0]+=v.uv[0]/4;centre.uv[1]+=v.uv[1]/4;centre.ex+=v.ex/4;centre.ey+=v.ey/4;
+        }
+        for(unsigned i=0;i<4;++i) {pieces[i].push_back(shape[i]);pieces[i].push_back(shape[(i+1)%4]);pieces[i].push_back(centre);}
+        piece_count=4;++smooth_quad_count;
+    } else pieces[0]=shape;
+    for(unsigned piece=0;piece<piece_count;++piece) {
+    Shape& shape=pieces[piece];
     for(int k=0;k<5 && shape.size()>=3;++k) {
         // Most compact props are wholly inside the guard band. Preserve their
         // vertices directly instead of allocating/copying five temporary
@@ -874,20 +1015,12 @@ void draw(Frame& f,const Poly& poly) {
         }
         shape=out;
     }
-    if(shape.size()<3) {++f.stats->culled;trace_record(f,"clip_reject",poly.source);return;}
+    if(shape.size()<3) {++f.stats->culled;trace_record(f,"clip_reject",poly.source);continue;}
     if(f.trace) trace_record(f,"clip",poly.source,",\"corners\":"+std::to_string(shape.size()));
-    // Keep the original world polygon's farthest-corner ordering key.
-    // 0x80011654/0x80011684/0x800116b4 skip smaller depths, so this is
-    // a maximum, not a minimum. Sorting subdivisions individually lets a
-    // near floor piece overwrite native decals/props that were ordered in
-    // front of the whole floor. Host depth still resolves host-host overlap.
-    if(source_order && !f.object) {
-        for(unsigned j=0;j<poly.count;++j)
-            local.key_z=std::max(local.key_z,(double)f.verts[poly.idx[j]].sz);
-    }
     for(size_t i=1;i+1<shape.size();++i) {
         const Vertex tri[3]={shape[0],shape[i],shape[i+1]};
         subdivide(f,local,tri,0);
+    }
     }
 }
 // NCLIP's sign equals the sign of det(v0,v1,v2) in view space.
@@ -1044,6 +1177,27 @@ uint32_t mesh_need(const Frame& f,size_t faces) {
 bool host_walk_filter=false;
 std::vector<uint32_t> host_walk_kept;
 uint64_t host_world_pieces=0,host_world_left=0,host_walk_nulled=0,host_left_far=0,host_left_near=0;
+// D17AV: a quad record that repeats a corner draws one triangle: of the
+// GPU's two halves (0 1 2) and (1 2 3), the one with three corners. The
+// world cull (front_facing) accepts a quad seen from either side when its
+// second half faces the eye, so such a triangle showed from behind too:
+// slot 8's left panel showed a back-side triangle, with the back's texture
+// tile and palette, over half of its front. Polymorph draws it as that
+// triangle, culled by its own winding.
+bool repeated_corner_triangle(Poly& p) {
+    if(p.count!=4) return false;
+    static const int halves[2][3]={{0,1,2},{1,2,3}};
+    for(const auto& h:halves) {
+        const int a=p.idx[h[0]],b=p.idx[h[1]],c=p.idx[h[2]];
+        if(a==b || b==c || a==c) continue;
+        int repeats=0;for(int j=0;j<4;++j) for(int k=0;k<j;++k) repeats+=p.idx[j]==p.idx[k];
+        if(!repeats) return false;
+        Poly t=p;t.count=3;
+        for(int j=0;j<3;++j) {t.idx[j]=p.idx[h[j]];t.colors[j]=p.colors[h[j]];t.uv[j]=p.uv[h[j]];}
+        p=t;return true;
+    }
+    return false;
+}
 // 0x80011020 entry: a0 mesh, a1 ordering table, a2 render context, a3 bitmap.
 void world(CPUState* cpu) {
     const uint32_t mesh=cpu->gpr[4],ra=cpu->gpr[31];
@@ -1153,7 +1307,8 @@ void world(CPUState* cpu) {
         Poly p{};p.source=record;p.count=(tagged&1)?4:3;p.textured=true;p.command=0x34000000u;
         const uint32_t word=psx_mod_read_word(record);
         for(unsigned j=0;j<p.count;++j) p.idx[j]=(word>>(8*j))&0xff;
-        if(!(psx_mod_read_half(record+6)&0x200) && !front_facing(f,p,flags,true)) {++world_stats.culled;trace_record(f,"backface",record);continue;}
+        Poly drawn=p;const bool repeated=unified_scene(f) && repeated_corner_triangle(drawn);
+        if(!(psx_mod_read_half(record+6)&0x200) && !front_facing(f,repeated?drawn:p,flags,!repeated)) {++world_stats.culled;trace_record(f,"backface",record);continue;}
         // D17AM2: the original's own per-polygon rules (0x80011634..0x800116f0,
         // 0x80011894..0x800118a8) for faces it would have drawn itself. With
         // context flag 0x80, a polygon whose corners all lie past one edge of
@@ -1183,6 +1338,7 @@ void world(CPUState* cpu) {
         if(silhouette) {
             p.textured=false;p.command=0x30000000u;
             for(unsigned j=0;j<p.count;++j) p.colors[j]=0;
+            if(repeated) repeated_corner_triangle(p);
             polys.push_back(p);continue;
         }
         const int16_t tex=(int16_t)psx_mod_read_half(record+4);
@@ -1198,12 +1354,14 @@ void world(CPUState* cpu) {
             if(all&0x10) c=near_dpcs(f.g,c,(int16_t)psx_mod_read_word(psx_mod_read_word(context+0x68)+(c>>24)*4));
             p.colors[j]=c&0xffffff;
         }
+        if(repeated) repeated_corner_triangle(p);
         polys.push_back(p);
     }
     // D17AM2: overlapping coplanar faces of one world mesh (a panel defined
     // for both sides, a decal on its wall) keep the original's painter
     // winner under the depth test, as D17W does for props.
     if(unified_scene(f)) rank_coplanar_world(f,polys,mesh,list_sig,taken);
+    if(unified_scene(f) && smooth_quads()) join_smooth_pairs(f,polys);
     for(const auto& p:polys) draw(f,p);
 }
 unsigned object_record_size(uint32_t type) {
@@ -1279,6 +1437,17 @@ void filter_missing_animation(CPUState* cpu) {
 // the plane exists and a quad's fourth corner lies within half a unit of it.
 struct CoplanarFace {double n[3],d,c[4][3];unsigned count;};
 bool coplanar_face(CoplanarFace& a,unsigned count) {
+    // D17AV: a triangle stored as a quad repeats one corner (indices
+    // a,b,c,a: the GPU draws a,b,c twice). In edge order the repeat can land
+    // in the first three corners and give no plane, so the face was never
+    // ranked against the faces it overlaps. Keep each distinct corner once.
+    if(count==4)
+        for(unsigned j=1;j<count;++j)
+            for(unsigned k=0;k<j;++k)
+                if(a.c[j][0]==a.c[k][0] && a.c[j][1]==a.c[k][1] && a.c[j][2]==a.c[k][2]) {
+                    for(unsigned m=j;m+1<count;++m) for(int q=0;q<3;++q) a.c[m][q]=a.c[m+1][q];
+                    --count;j=count;break;
+                }
     a.count=count;
     const NearDepthPlane plane=near_depth_plane(a.c[0],a.c[1],a.c[2]);
     if(!plane.n[0] && !plane.n[1] && !plane.n[2]) return false;
@@ -1373,9 +1542,54 @@ void apply_coplanar(const Frame& f,std::vector<Poly>& polys,const std::vector<st
         const int64_t zsf=(int32_t)(p.count==4?f.zsf4:f.zsf3);
         return (int)(((zsf*sum)>>12)>>3)+p.bias;
     };
+    // D17AV: a face ranks behind every face painted over it (one more than
+    // the highest of them), not by how many there are: with A over B and B
+    // over C, counting gave B and C the same rank and they fought.
+    // A face made of some of another's corners (a triangle over half of a
+    // quad) can never sort farther than it, so the original paints it on top
+    // except when both share the farthest corner and tie, where record order
+    // decides: turning the view swapped them back and forth (slot 8's wall).
+    // On a tie the subset face wins, so it stays on top in every view.
+    auto subset=[](const Poly& a,const Poly& b) {
+        unsigned distinct=0,shared=0;
+        for(unsigned x=0;x<a.count;++x) {
+            bool repeat=false,found=false;
+            for(unsigned y=0;y<x;++y) repeat|=a.idx[y]==a.idx[x];
+            if(repeat) continue;
+            ++distinct;
+            for(unsigned y=0;y<b.count;++y) found|=b.idx[y]==a.idx[x];
+            shared+=found;
+        }
+        unsigned other=0;
+        for(unsigned x=0;x<b.count;++x) {bool repeat=false;for(unsigned y=0;y<x;++y) repeat|=b.idx[y]==b.idx[x];other+=!repeat;}
+        return shared==distinct && distinct<other;
+    };
+    auto duplicate=[&](const Poly& a,const Poly& b) {
+        if(!subset(a,b) || a.textured!=b.textured || (a.textured && (a.clut!=b.clut || a.tpage!=b.tpage))) return false;
+        for(unsigned x=0;x<a.count;++x)
+            for(unsigned y=0;y<b.count;++y)
+                if(a.idx[x]==b.idx[y] && (a.colors[x]!=b.colors[y] || (a.textured && a.uv[x]!=b.uv[y]))) return false;
+        return true;
+    };
+    std::vector<std::pair<size_t,size_t>> order; // {winner, loser}
     for(const auto& [i,j]:pairs) {
-        ++polys[slot(polys[j])<slot(polys[i])?i:j].coplanar_rank;
+        const int si=slot(polys[i]),sj=slot(polys[j]);
+        bool j_wins=sj<si || (sj==si && subset(polys[j],polys[i]) && !subset(polys[i],polys[j]));
+        // A face that only repeats part of a bigger one (same texture,
+        // palette and texture coordinates at every shared corner: slot 8's
+        // wall panels) adds nothing but its own shading break, so the bigger
+        // face stays on top and is shaded as a whole (smooth_quad_shading).
+        if(duplicate(polys[j],polys[i])) j_wins=false;
+        else if(duplicate(polys[i],polys[j])) j_wins=true;
+        order.push_back(j_wins?std::make_pair(j,i):std::make_pair(i,j));
         group[root(i)]=root(j);
+    }
+    // Ties broken by the subset rule could in principle close a cycle;
+    // a longest path is at most one step per pair, so stop there.
+    for(size_t pass=0,changed=1;changed && pass<=order.size();++pass) {
+        changed=0;
+        for(const auto& [w,l]:order)
+            if(polys[l].coplanar_rank<polys[w].coplanar_rank+1) {polys[l].coplanar_rank=polys[w].coplanar_rank+1;changed=1;}
     }
     std::vector<double> sum(polys.size(),0);std::vector<unsigned> corners(polys.size(),0);
     for(size_t i=0;i<polys.size();++i) {
@@ -2050,3 +2264,18 @@ PSX_MOD_CONSTRUCTOR(register_ttk_near_clip) {
 }
 
 extern "C" const uint16_t* ttk_biomask_texture(void) {return bio_mask_atlas;}
+namespace ttk {
+bool smoothquads_console_command(const char* line,void (*say)(const char*),bool& close) {
+    if(std::strcmp(line,"smoothquads") && std::strncmp(line,"smoothquads ",12)) return false;
+    close=false;
+    if(line[11]) {
+        const char* v=line+12;
+        if(!std::strcmp(v,"on")) smooth_quads_override=1;
+        else if(!std::strcmp(v,"off")) smooth_quads_override=0;
+        else if(!std::strcmp(v,"default")) smooth_quads_override=-1;
+        else {say("Usage: smoothquads [on|off|default] (developer, session only)");return true;}
+    }
+    say(smooth_quads()?"Smooth quad shading on.":"Smooth quad shading off (developer).");
+    return true;
+}
+}

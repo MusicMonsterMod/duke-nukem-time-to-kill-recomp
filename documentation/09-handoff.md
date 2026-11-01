@@ -1,5 +1,36 @@
 # Next-session handoff
 
+## 2026-11-01 - D17AV accepted and closed
+
+User: "it is now fixed! great work. superb". D17AV is Done (note 351): in
+Polymorph, overlapping coplanar faces keep one order in every view, quads
+with an unevenly lit corner shade smoothly instead of breaking on a
+diagonal, flat triangle pairs are joined for it, and repeated-corner quads
+no longer show from behind. Classic frozen; Vanilla unchanged. No next job
+selected.
+
+## 2026-11-01 - D17AV second pass: shading break removed (Needs playtest)
+
+User: still there, less flickery. The remaining triangle was a shading break:
+a lit corner on a quad the GPU shades as two triangles (as the original
+does). The panels' extra faces are exact duplicates of the quad's texture map, and the left panel showed a back-side
+triangle from the front. Polymorph now shades such quads smoothly, joins flat
+triangle pairs into them, keeps the whole face over duplicates and culls
+repeated-corner quads by their own winding (note 351). Developer switch
+`DNTTK_SMOOTH_QUADS=0`, console `smoothquads`. Playtest: slot 8 again.
+
+## 2026-11-01 - D17AV: flickering wall triangles (Needs playtest)
+
+Slot 8's corridor wall panels are several faces in one place (quads and
+triangles with different textures). Polymorph ranks such faces with a small
+depth step; a triangle stored as a quad with a repeated corner was never
+ranked (stripes on the left wall), counted ranks could tie, and ties in the
+original's farthest-corner order swapped with the view (the right wall's
+triangle came and went). All three fixed in `near_clip.cpp` (note 351); each
+panel now keeps one winner in every traced frame. Same pattern found by a
+static sweep on levels 1, 2, 3, 5, 6, 7, 8, 9, 11 and 25, covered by the same
+rules. Playtest: slot 8, look left and right.
+
 ## 2026-11-01 - D19U2 accepted and closed
 
 User: "i like it!" and, after the cross size fix, "lock it in close it out!".

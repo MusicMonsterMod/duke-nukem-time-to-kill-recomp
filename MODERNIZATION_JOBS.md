@@ -1,5 +1,56 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-01 - Polymorph: flickering wall triangles (D17AV)
+
+### D17AV - Polymorph: flickering triangle on corridor walls (slot 8)
+
+**Status: Done (user-accepted 2026-11-01: "it is now fixed! great work. superb"; [note 351](documentation/351-d17av-coplanar-wall-flicker.md)). Dependencies: D17AM, D17W.** User (2026-11-01): in a
+new state in UI slot 8 (file 7), looking left and right shows a flickering
+triangle on a section of corridor wall. "I don't want this to happen in our
+renderer whatsoever." Find the cause, fix it in Polymorph and check for other
+places in the game with the same problem. Classic is frozen: from now on
+renderer work targets Polymorph only (user, 2026-11-01). Vanilla unchanged.
+
+**2026-11-01 implementation (Needs playtest; note 351).** Each corridor wall
+panel (level 6, room 22) is several faces in the same place, quads and
+triangles with different textures. Polymorph gives such faces a small depth
+step by rank (D17W/D17AM2), and three faults let them fight or swap: a
+triangle stored as a quad with a repeated corner got no plane and was never
+ranked (the left panel's stripes); counted ranks could tie along a chain; and
+when a triangle and the quad it covers tied in the original's farthest-corner
+order, record order chose, so turning made the triangles come and go (the
+right panel; Classic does the same). Fixed in `near_clip.cpp`: repeated
+corners dropped before the plane is made, rank = one more than the highest
+face over it, and on a tie the face built from the other's corners wins.
+Traced 56-step pan: each panel keeps one winner in every frame (93 and 37
+traced frames). Static sweep of every selectable level: repeated-corner pairs
+only on level 6 (5); tie-prone chains in 20 meshes; 144 subset pairs with
+different textures on levels 1, 2, 3, 5, 6, 7, 8, 9, 11 and 25, all covered by
+the same rules. `ttk-near-test` and `ttk-controls-test` pass. Not seen: the
+other levels' places in game, 120/180 Hz, third person.
+
+**2026-11-01 follow-up (Needs playtest; note 351).** User: "the issue is
+still present but it's not as flickery" (`Video_2026-11-01_16-30-27.mp4`).
+The order now held; the remaining triangle is a shading break: one corner of
+each panel is lit, and the GPU shades a quad as two triangles on a diagonal,
+so the light stops at a hard edge (as in the original). The panels' extra
+faces are exact duplicates of the quad's texture map, and the left panel's
+front is two triangles plus a back-side triangle showing through (repeated-
+corner quads pass the cull from both sides). Polymorph now shades such quads
+smoothly (four triangles around a centre with the mean colour, only where
+one texture map covers the face), joins flat triangle pairs into such quads,
+keeps the whole face over exact duplicates, and culls repeated-corner quads
+as their triangle. Slot 8: both panels one even wall. A/B on slot 8 and
+levels 1 and 5: no texture or edge changes. Cost at 180 Hz: worker job
+average 9.0 to 9.5 ms, peak and cadence unchanged. Developer
+`DNTTK_SMOOTH_QUADS=0`, console `smoothquads`.
+
+**2026-11-01 accepted and closed.** User: "it is now fixed! great work.
+superb", then authorized the closeout. D17AV is Done. Retained limits: a
+possible cross-room ceiling hairline seen briefly after turns (not tied to
+this change), other levels' lit quads not visited one by one, not measured
+on the player's 180 Hz display.
+
 ## 2026-10-31 - Playtest backlog: HUD art, decal stability, firing while climbing, first-person power-ups
 
 User, after accepting D17AR3 part 3 (2026-10-31): "this is exactly the game
@@ -2055,6 +2106,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D17AR5 | Polymorph: cheaper redraw feed so the heaviest views hold 180 Hz | Done | D17AR3 |
 | D17AR6 | Renderer choice in OPTIONS: Classic and Polymorph | Done | D17AR3 |
 | D17AS | Slot-2 moat: large dark triangle in/under the water (research/screencaps/triangle.mp4) | Done (original level design, left as authored by user decision 2026-11-01; note 347) | D17AM |
+| D17AV | Polymorph: flickering triangle on corridor walls (UI slot 8) | Done (user-accepted 2026-11-01; note 351) | D17AM, D17W |
 | D14F | 90-default / 120-maximum world FOV | Done (user-confirmed 2026-10-30) | Implemented in afd4ad6 (note 317); re-verified 2026-10-29 |
 | D17AE | Slot-11 sign post through door header | Done (user-confirmed 2026-10-29) | Scene depth for native world/scenery packets; replay precedence fix; world backface cull restored |
 | D17AF | Latest slot-10 ground water visibility | Done | Selected batch; see intake above |

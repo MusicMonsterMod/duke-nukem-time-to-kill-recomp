@@ -291,6 +291,12 @@ and dormant distant enemies; six hooks (`0x80099164`, `0x80099530`,
 regenerated (codegen hash unchanged). Developer A/B: `DNTTK_OPEN_SKY=0`,
 `DNTTK_ENEMY_REACH=0`. See
 [note 335](335-d17aq-draw-reach-report.md).
+D17AR4: the portal margin (`DNTTK_PORTAL_MARGIN`), open upper edge
+(`DNTTK_OPEN_PORTAL_TOP`) and open-sky list (`DNTTK_OPEN_SKY`) are the Classic
+renderer's; Polymorph's host pass selects rooms itself (including the open
+upper edge) and ignores them. `DNTTK_HOST_VIS_AUDIT=1` (developer) reports
+where Classic's rectangles would reach past the host's. See
+[note 344](344-d17ar4-portal-patches.md).
 
 ## World subdivision (D17N)
 

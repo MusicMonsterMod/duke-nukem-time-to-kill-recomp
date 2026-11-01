@@ -24,7 +24,7 @@
 //    derived from the level globals, never from the context, so applying twice
 //    is harmless. The globals also drive gameplay distance checks
 //    (0x800993d0, 0x800a5b84) and are untouched.
-// 2. Portal rectangles (widen_portals below).
+// 2. Portal rectangles (widen_portals below; Classic only, see D17AR4 below).
 // 3. Thin distant faces. A ceiling or floor cell a pixel tall can have
 //    integer corners whose NCLIP determinant is zero or of the wrong sign, so
 //    the mesh renderer (0x80011894/0x80011ab4) skips it. With exact projection
@@ -54,6 +54,12 @@ static int32_t extend_limit(int32_t far) {
     const int32_t override=draw_distance_override();
     return override ? std::max(override,far) : std::max(far,0xffff);
 }
+// D17AR4: the portal rectangle rules (D17P margin, D17Y open upper edge) and
+// the D17AQ open-sky list below are the Classic renderer's. Polymorph's host
+// world pass (host_visibility.inc) selects rooms and pieces itself and these
+// run only on frames it does not draw: Classic, or a frame it refuses. The
+// over-the-walls geometry (open_sky_pieces/_in_view/_seen) is shared: the host
+// pass uses it for its own selection.
 // Portal rectangles. The portal walk (0x8006276c) lists each visible room
 // with the screen rectangle of the opening it is seen through (0x800d68b0,
 // 12-byte entries: x, y, w, h, room; count 0x800d68a8). The room walk
@@ -75,28 +81,32 @@ static int32_t portal_margin() {
 // Its authored portal ends at the source room ceiling, but the independent
 // camera can see the neighbour above that edge. Extend only that direct
 // neighbour's top; downstream door/window apertures remain intact.
+// upper_edge_open is the geometry (room records a -> b through portal p);
+// the host portal walk applies it too (D17AR4).
+static bool upper_edge_open(uint32_t a,uint32_t b,uint32_t p) {
+    if(!(psx_mod_read_word(b+12)&8)) return false;
+    const int32_t top=(int32_t)psx_mod_read_word(a+0x14);
+    if((int32_t)psx_mod_read_word(b+0x14)>=top) return false;
+    const int32_t origin=(int32_t)psx_mod_read_word(a+4);
+    int32_t lo=INT32_MAX,hi=INT32_MIN;
+    for(unsigned j=0;j<4;++j) {
+        const int32_t y=origin+(int16_t)psx_mod_read_half(p+8*j+2);
+        lo=std::min(lo,y);hi=std::max(hi,y);
+    }
+    return lo==top && hi>lo;
+}
 static bool open_upper_portal(uint32_t target) {
     static const bool enabled=[] {const char* e=std::getenv("DNTTK_OPEN_PORTAL_TOP");return !e || std::strcmp(e,"0");}();
     if(!enabled) return false;
     const uint32_t table=psx_mod_read_word(0x800da454),source=psx_mod_read_word(camera+0x90);
     if(source>=256 || target>=256 || source==target || table<0x80010000u || table>0x801fa800u || (table&3)) return false;
     const uint32_t a=table+source*88,b=table+target*88;
-    if(!(psx_mod_read_word(b+12)&8)) return false;
-    const int32_t top=(int32_t)psx_mod_read_word(a+0x14);
-    if((int32_t)psx_mod_read_word(b+0x14)>=top) return false;
     const unsigned count=psx_mod_read_byte(a+0x30);
     const uint32_t portals=psx_mod_read_word(a+0x38);
     if(!count || count>32 || portals<0x80010000u || portals>0x80200000u-count*36 || (portals&3)) return false;
-    const int32_t origin=(int32_t)psx_mod_read_word(a+4);
     for(unsigned i=0;i<count;++i) {
         const uint32_t p=portals+i*36;
-        if((int16_t)psx_mod_read_half(p+14)!=(int32_t)target) continue;
-        int32_t lo=INT32_MAX,hi=INT32_MIN;
-        for(unsigned j=0;j<4;++j) {
-            const int32_t y=origin+(int16_t)psx_mod_read_half(p+8*j+2);
-            lo=std::min(lo,y);hi=std::max(hi,y);
-        }
-        if(lo==top && hi>lo) return true;
+        if((int16_t)psx_mod_read_half(p+14)==(int32_t)target && upper_edge_open(a,b,p)) return true;
     }
     return false;
 }
@@ -143,7 +153,7 @@ static void widen_portals() {
 // (which gets the original list back, below) read this list, all inside the camera render, so this changes
 // drawing only; the portal walk's own room bitmap is untouched. The walk
 // stops at 32 entries (0x8006286c), so the list never grows past 31.
-// Developer: DNTTK_OPEN_SKY=0 keeps the portal-walk list.
+// Developer: DNTTK_OPEN_SKY=0 keeps the portal-walk list (Classic only).
 static uint64_t open_sky_frames=0,open_sky_opened=0,open_sky_added=0;
 static uint32_t open_sky_original=0,open_sky_count=0;
 static bool open_sky_enabled() {
@@ -333,7 +343,8 @@ static void draw_distance_apply(CPUState* cpu,uint32_t address,uint32_t ra) {
     psx_mod_write_word(view_limits+0x78,(uint32_t)(limit>>2));
     if(far!=limit) distance_original=far;
     distance_extended=limit;
-    // D17AR2: the host world pass supersedes the portal widening and open sky.
+    // D17AR2/D17AR4: the host world pass supersedes the portal widening and
+    // open sky; they remain for Classic and for a frame the host refuses.
     if(walk && !host_vis_walk(cpu)) {widen_portals();open_sky_rooms();}
     if(scene) ++distance_frames;
 }

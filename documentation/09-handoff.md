@@ -1,5 +1,24 @@
 # Next-session handoff
 
+## 2026-11-01 - D17AR4 accepted and closed
+
+User tested the slot-8 castle jump in both renderers: "ready to accept this,
+and then you can close us out". Classic keeps the portal patches; Polymorph
+covers them (note 344). D17AR (host-owned visibility) is complete. Their
+slot 8 now holds the D17Y castle copy; the push/pull save they had there is
+backed up under `recomp/saves/backups/slot08-pushpull-20261101/`.
+
+## 2026-11-01 - D17AR4: portal patches kept for Classic, D17Y in Polymorph (Needs playtest)
+
+User decision: the D17P margin, D17Y open upper edge and D17AQ open-sky list
+stay as Classic's rules; Polymorph must not depend on them. Polymorph's
+over-the-walls selection no longer reads `DNTTK_OPEN_SKY`, and the host
+portal walk now applies the D17Y rule itself (shared `upper_edge_open`):
+before, third person in the slot-8 castle jump showed sky in place of the
+tower tops in Polymorph. Developer audit `DNTTK_HOST_VIS_AUDIT=1`. Playtest:
+slot 8, third person, jump facing the castle towers (both renderers); slot 10
+jetpack and the subway as before. Note 344.
+
 ## 2026-11-01 - D17AR6 accepted and closed
 
 User: "lock it in, close us out". The Polymorph / Classic choice (OPTIONS >

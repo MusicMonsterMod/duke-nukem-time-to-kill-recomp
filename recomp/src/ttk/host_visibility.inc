@@ -40,7 +40,10 @@
 //   against the host's room rectangle.
 // Every room the portal walk listed is kept too, its rectangle the union of
 // both, so the host never draws less than the game would (game_missed counts
-// rooms the host walk alone did not reach).
+// rooms the host walk alone did not reach). The portal walk's rectangles are
+// read unwidened: D17P/D17Y portal widening and D17AQ open-sky list rewriting
+// belong to Classic (draw_distance.inc) and run only when this pass does not
+// (D17AR4).
 // The game's walk then gets only the rooms of pieces the frame could not
 // afford (normally none), drawing only those pieces; the props/actors pass
 // (0x8002ffec) gets the host room list (game-listed rooms first, each
@@ -60,6 +63,11 @@ static uint64_t host_vis_frames=0,host_vis_refusals=0,host_vis_rooms=0,host_vis_
 static uint64_t host_vis_redraw_only=0;
 static uint64_t host_vis_missed=0,host_vis_widened=0,host_vis_select_us=0,host_vis_draw_us=0;
 static uint32_t host_vis_last_missed=0,host_vis_last_missed_from=0;
+// D17AR4: openings given an open upper edge (D17Y) by the host walk.
+static uint64_t host_vis_open_tops=0;
+// D17AR4 audit: entries checked, past the host rectangle, open upper edges,
+// open upper edges past the host's top; the largest overshoot and last room.
+static uint64_t host_vis_audit[4]={};static double host_vis_audit_max=0;static uint32_t host_vis_audit_room=0;
 static uint32_t host_vis_last_rooms=0,host_vis_last_pieces=0,host_vis_last_game=0;
 // Developer console "hostvis [on|off|default]" overrides the switch for the
 // session. Redraw workers get the live frame's value with each job
@@ -182,8 +190,12 @@ static void host_vis_select(const HostVisCamera& c,uint32_t table,uint32_t rooms
             if(!host_vis_bounds(v,4,b)) continue;
             for(int k=0;k<4;++k) b[k]*=c.h;
             const double* r=sel[room].r;
-            const double s[4]={std::max(b[0],r[0]),std::max(b[1],r[1]),std::min(b[2],r[2]),std::min(b[3],r[3])};
+            double s[4]={std::max(b[0],r[0]),std::max(b[1],r[1]),std::min(b[2],r[2]),std::min(b[3],r[3])};
             if(s[2]<=s[0] || s[3]<=s[1]) continue;
+            // D17Y: a full-height opening from the camera room into a taller
+            // sky room shows that room above the opening's top edge too
+            // (D17AR4: the host's own rule, not Classic's switch).
+            if(room==source && upper_edge_open(a,table+(uint32_t)target*88,p)) {s[1]=r[1];++host_vis_open_tops;}
             auto& t=sel[target];
             if(t.on) {
                 const double* q=t.r;
@@ -193,9 +205,10 @@ static void host_vis_select(const HostVisCamera& c,uint32_t table,uint32_t rooms
             if(++t.visits<=8) queue.push_back((uint32_t)target);
         }
     }
-    // Over the walls (D17AQ open-sky test, guard-banded).
+    // Over the walls (the D17AQ open-sky test, guard-banded). It is part of
+    // host selection, so the Classic switch DNTTK_OPEN_SKY does not reach it.
     const uint32_t home=table+source*88;
-    if(!open_sky_enabled() || !(psx_mod_read_word(home+12)&8)) return;
+    if(!(psx_mod_read_word(home+12)&8)) return;
     OpenSkyView v;
     for(int i=0;i<9;++i) v.m[i]=(int16_t)c.m[i];
     for(int i=0;i<3;++i) v.eye[i]=(int32_t)c.eye[i];
@@ -281,6 +294,24 @@ static bool host_vis_walk(CPUState* cpu) {
             std::copy(s,s+4,sel[room].r);sel[room].on=true;order.push_back(room);
             ++host_vis_missed;host_vis_last_missed=room;
             host_vis_last_missed_from=source;
+        }
+    }
+    // D17AR4 audit (developer DNTTK_HOST_VIS_AUDIT=1): would Classic's portal
+    // rectangles (D17P margin, D17Y open upper edge) reach past the host's?
+    static const bool audit=[]{const char* t=std::getenv("DNTTK_HOST_VIS_AUDIT");return t && !std::strcmp(t,"1");}();
+    if(audit) {
+        const int32_t mg=portal_margin();
+        for(uint32_t i=0;i<count;++i) {
+            const uint32_t room=host_vis_game[i].room;const int16_t* g=host_vis_game[i].r;
+            if(room>=rooms || g[2]<=0 || g[3]<=0) continue;
+            const bool top=open_upper_portal(room);
+            const double c[4]={(double)std::max<int32_t>(rx,g[0]-mg)-ox,(double)(top?ry:std::max<int32_t>(ry,g[1]-mg))-oy,
+                               (double)std::min<int32_t>(rx+rw,g[0]+g[2]+mg)-ox,(double)std::min<int32_t>(ry+rh,g[1]+g[3]+mg)-oy};
+            const double* q=sel[room].r;
+            const double out=std::max({q[0]-c[0],q[1]-c[1],c[2]-q[2],c[3]-q[3]});
+            ++host_vis_audit[0];
+            if(out>0.5) {++host_vis_audit[1];host_vis_audit_max=std::max(host_vis_audit_max,out);}
+            if(top) {++host_vis_audit[2];if(q[1]-c[1]>0.5) {++host_vis_audit[3];host_vis_audit_room=room;}}
         }
     }
     // Context the walk sets before its loop (0x80062b84..0x80062bc0).
@@ -413,13 +444,15 @@ static bool host_vis_object_pass(uint32_t ra) {
     return true;
 }
 static const char* host_visibility_debug_json() {
-    static char buffer[896];
+    static char buffer[1024];
     uint64_t n[5];near_clip_host_counters(n);
     std::snprintf(buffer,sizeof buffer,"{\"enabled\":%s,\"frames\":%llu,\"refusals\":%llu,\"rooms\":%llu,\"over_walls\":%llu,\"tested\":%llu,"
-        "\"selected\":%llu,\"drawn\":%llu,\"left\":%llu,\"left_far\":%llu,\"left_near\":%llu,\"walk_nulled\":%llu,\"game_missed\":%llu,\"game_widened\":%llu,\"last_missed\":[%u,%u],\"select_us\":%llu,\"draw_us\":%llu,\"redraw_only_pieces\":%llu,\"last\":{\"rooms\":%u,\"pieces\":%u,\"game_rooms\":%u,\"props_rooms\":%u}}",
+        "\"selected\":%llu,\"drawn\":%llu,\"left\":%llu,\"left_far\":%llu,\"left_near\":%llu,\"walk_nulled\":%llu,\"game_missed\":%llu,\"game_widened\":%llu,\"last_missed\":[%u,%u],\"select_us\":%llu,\"draw_us\":%llu,\"redraw_only_pieces\":%llu,\"last\":{\"rooms\":%u,\"pieces\":%u,\"game_rooms\":%u,\"props_rooms\":%u},"
+        "\"open_tops\":%llu,\"audit\":[%llu,%llu,%llu,%llu,%.1f,%u]}",
         host_visibility_enabled()?"true":"false",(unsigned long long)host_vis_frames,(unsigned long long)host_vis_refusals,(unsigned long long)host_vis_rooms,
         (unsigned long long)host_vis_extra,(unsigned long long)host_vis_tested,(unsigned long long)host_vis_selected,(unsigned long long)n[0],
-        (unsigned long long)n[1],(unsigned long long)n[3],(unsigned long long)n[4],(unsigned long long)n[2],(unsigned long long)host_vis_missed,(unsigned long long)host_vis_widened,host_vis_last_missed_from,host_vis_last_missed,(unsigned long long)host_vis_select_us,(unsigned long long)host_vis_draw_us,(unsigned long long)host_vis_redraw_only,host_vis_last_rooms,host_vis_last_pieces,host_vis_last_game,host_vis_props_count);
+        (unsigned long long)n[1],(unsigned long long)n[3],(unsigned long long)n[4],(unsigned long long)n[2],(unsigned long long)host_vis_missed,(unsigned long long)host_vis_widened,host_vis_last_missed_from,host_vis_last_missed,(unsigned long long)host_vis_select_us,(unsigned long long)host_vis_draw_us,(unsigned long long)host_vis_redraw_only,host_vis_last_rooms,host_vis_last_pieces,host_vis_last_game,host_vis_props_count,(unsigned long long)host_vis_open_tops,
+        (unsigned long long)host_vis_audit[0],(unsigned long long)host_vis_audit[1],(unsigned long long)host_vis_audit[2],(unsigned long long)host_vis_audit[3],host_vis_audit_max,host_vis_audit_room);
     return buffer;
 }
 bool hostvis_console_command(const char* line,void (*say)(const char*),bool& close) {

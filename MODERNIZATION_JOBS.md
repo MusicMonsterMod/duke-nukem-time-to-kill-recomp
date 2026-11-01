@@ -95,7 +95,7 @@ badly, that's truly exactly what i want."
 
 ### D17AR - Host-owned world visibility (parent)
 
-**Status: Todo. Dependencies: D17AM, D17AQ.** Goal: the host owns world
+**Status: Done (D17AR1-AR4 done 2026-11-01). Dependencies: D17AM, D17AQ.** Goal: the host owns world
 visibility. Each level's room geometry is read from the game's own data once,
 kept host-side in world space, and drawn by frustum, distance and depth from
 the real camera every frame, independent of the portal walk and its
@@ -290,8 +290,30 @@ re-exported and verified. Note 341.
 
 #### D17AR4 - Retire superseded portal patches
 
-**Status: Todo.** D17AQ open sky, D17P/D17Y portal widening and similar
-rules, once host visibility covers them.
+**Status: Done (user-accepted 2026-11-01; closeout authorized; [note 344](documentation/344-d17ar4-portal-patches.md)).** D17AQ open sky, D17P/D17Y portal widening and similar
+rules, once host visibility covers them. User decision 2026-11-01: keep them
+for the Classic renderer; Polymorph must not depend on them.
+Work log 2026-11-01 (Needs playtest): the three rules already ran only on
+frames the host pass did not draw, but Polymorph's over-the-walls selection
+read the Classic switch `DNTTK_OPEN_SKY`, and Polymorph did not cover D17Y:
+third person in the slot-8 castle jump (wall view), room 22's rectangle top
+fell to -33 and the tower tops showed sky, as in Classic with the rule off.
+Now one predicate (`upper_edge_open`) serves Classic's rule and the host
+portal walk, which gives that direct neighbour the camera room's top;
+`DNTTK_OPEN_SKY` is Classic-only; Classic code is labelled. Developer audit
+`DNTTK_HOST_VIS_AUDIT=1` compares Classic's rectangles with the host's each
+frame: open tops past the host 35 of 447 before, 0 after; only the 2-pixel
+margin remains (exact face tests make it unnecessary; subway clean).
+Matched routes (Polymorph / Classic / Classic rules off): jetpack moat castle
+whole / whole / cut; subway clean / clean / dark outline; castle tower tops
+drawn / drawn / sky; also at 120 Hz. 21-level sweep: no refusals or pieces
+handed back, 83 of 84 views within noise, one an enemy's muzzle flash.
+`ttk-near-test`, `ttk-input-test` pass; `ttk-controls-test` stops at the
+existing `movement_ready()` assertion. No framework changes. Note 344.
+Playtest 2026-11-01 (slot 8 replaced at the user's request with the D17Y
+castle copy; their push/pull save backed up under `recomp/saves/backups/`):
+third-person castle jump in Polymorph and Classic, logs clean. User: "ready
+to accept this, and then you can close us out". Committed and pushed.
 
 #### D17AR5 - Polymorph: cheaper redraw feed for 180 Hz in the heaviest views
 
@@ -1792,11 +1814,11 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D17AO | Slot-11 ceiling hole showing the sky (level 6) | Deferred (authored level gap; no action now, possible future level-data fix) | D17AM; note 327 |
 | D17AP | Slot-9 grave-dig soil corners flashing again (D17X recurrence) | Done (user-confirmed 2026-10-30) | D17X, D17AM; note 327 |
 | D17AQ | Slot-10 jetpack height: level sections pop in and out while turning (room visibility) | Needs playtest (B max limit, A open sky, dormant enemies (C1 withdrawn); note 335) | D17AM, D14F |
-| D17AR | Host-owned world visibility (parent): the host decides what world geometry is drawn | In progress (AR1 done; AR2 accepted; AR3 parts 1-3 accepted) | D17AM, D17AQ; D17AR1-AR4 |
+| D17AR | Host-owned world visibility (parent): the host decides what world geometry is drawn | Done (AR1-AR6 done) | D17AM, D17AQ; D17AR1-AR4 |
 | D17AR1 | Host visibility: inventory, data-format verification and design (report first) | Done (design approved 2026-10-30; note 336) | D17AM |
 | D17AR2 | Host visibility: implementation behind a developer switch | Accepted (visual playtest passed; performance to D17AR3) | D17AR1 |
 | D17AR3 | Host visibility: regression sweep, performance and default switch | Accepted (parts 1-4; renderer named Polymorph; further speed in D17AR5) | D17AR2 |
-| D17AR4 | Host visibility: retire superseded portal patches (open sky, portal widening) | Todo | D17AR3 |
+| D17AR4 | Host visibility: retire superseded portal patches (open sky, portal widening) | Done (kept for Classic; Polymorph covers D17Y; note 344) | D17AR3 |
 | D17AR5 | Polymorph: cheaper redraw feed so the heaviest views hold 180 Hz | Done | D17AR3 |
 | D17AR6 | Renderer choice in OPTIONS: Classic and Polymorph | Done | D17AR3 |
 | D17AS | Slot-2 moat: large dark triangle in/under the water (research/screencaps/triangle.mp4) | Todo (report first) | D17AM |

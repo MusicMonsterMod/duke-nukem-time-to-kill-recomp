@@ -303,7 +303,8 @@ and character is drawn through one geometry path at every distance, the PC
 decides which parts of the world are in view (with Extended draw distance),
 and at high refresh rates the game stops drawing frames nobody sees, so the
 in-between pictures come faster. **Classic** keeps the game's own drawing
-order and visibility, as before Polymorph. First person and widescreen work
+order and visibility, as before Polymorph, with this project's earlier fixes
+for distant seams and for views over outdoor walls. First person and widescreen work
 in both. Choose it in OPTIONS > DISPLAY > RENDERER or with
 `--world-renderer polymorph|classic`; it applies on the next launch and saves
 your preference. Vanilla always uses Classic.

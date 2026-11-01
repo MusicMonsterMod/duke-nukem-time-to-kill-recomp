@@ -163,6 +163,134 @@ static uint32_t art_load_packet(const GadgetArt& art) {
     put(0x01000000u);
     return packet;
 }
+// D19U2: Borderless icons without their square. The disc's HUD cells fill the
+// background with an opaque black palette entry (0x8000; the box frame used to
+// surround it); the ammo strip's background entry is 0x0000 and so already
+// transparent. In Borderless each native icon below is drawn from a keyed copy
+// of its cell: black texels connected to the cell edge become that palette's
+// own transparent entry (the [ / ] switcher's rule, build_ttk_inv_icons.py), so
+// black detail inside an icon stays. The air icon is a full water tile with no
+// black and keeps its own cell; the project's own art is already transparent.
+// Copies are built from live VRAM each frame (nothing retail-derived is stored)
+// and loaded through OT slot 1, which the GPU walks just before the status
+// bar's slot 0. Only while the load is queued do the records point at the
+// copies; widescreen_hud_restore puts them back.
+// A copy keeps its cell's column in the 64-word texture page: 0x8008b678 sets
+// the right edge u = (x % 64) * 4 + width and takes one off at 256, so the cross
+// and Bio Mask (x 1020) are drawn as 15 texel columns stretched over 16. Their
+// copies go to x 1020 too, in the HUD sheet's blank stretches rows 46-71 and
+// 95-120 (empty on the disc and in play: live survey), or they would draw one
+// pixel narrower than in Full. The rest use the free band right of the
+// D08A7/D08A17 cells (rows 205-220, empty in play).
+struct KeyedIcon {uint32_t record,word0,cell_x,cell_y;uint16_t keyed_x,keyed_y;};
+static constexpr KeyedIcon keyed_icons[]={
+    {0x800c44e4,0x101039ffu,1020,189,1020,54},   // health cross
+    {0x800c44f4,0x10103b3fu,1016,173,988,205},   // armour
+    {0x800c44b4,0x1010397fu,1008,137,992,205},   // jetpack
+    {0x800c44c4,0x10103affu,1020,173,1020,100},  // Bio Mask
+    {0x800c4504,0x1010393fu,1008,121,1000,205},  // night-vision goggles
+    {0x800c4554,0x0d1037ffu,1008,153,1004,205},  // counter (levels 21-26, multiplayer)
+};
+static constexpr unsigned keyed_count=sizeof keyed_icons/sizeof keyed_icons[0];
+static bool keyed_icons_applied=false;
+static unsigned keyed_loads;
+static bool keyed_record_original(const KeyedIcon& k) {
+    return psx_mod_read_word(k.record)==k.word0 && psx_mod_read_word(k.record+4)==k.cell_x &&
+           psx_mod_read_word(k.record+8)==k.cell_y;
+}
+// Keyed 4bpp rows (two words a row, texel 0 lowest), or false when the palette
+// has no transparent entry to key to.
+static bool keyed_cell(const KeyedIcon& k,uint32_t out[32]) {
+    const uint16_t* vram=gpu_get_vram();
+    if(!vram) return false;
+    const unsigned w=16,h=k.word0>>24,clut=k.word0&0xffff;
+    const uint16_t* palette=vram+(clut>>6)*1024+(clut&63)*16;
+    int clear=-1;
+    bool black[16];
+    for(unsigned i=0;i<16;++i) {
+        if(!palette[i] && clear<0) clear=(int)i;
+        black[i]=!(palette[i]&0x7fff);  // 0x0000 or STP black
+    }
+    if(clear<0) return false;
+    uint8_t t[16][16];
+    for(unsigned y=0;y<h;++y) for(unsigned x=0;x<w;++x)
+        t[y][x]=(vram[(k.cell_y+y)*1024+k.cell_x+x/4]>>(4*(x%4)))&15;
+    bool seen[16][16]={};
+    uint8_t stack[4*16*16+64][2];unsigned n=0;  // every texel pushes at most four
+    for(unsigned x=0;x<w;++x) {stack[n][0]=x;stack[n++][1]=0;stack[n][0]=x;stack[n++][1]=h-1;}
+    for(unsigned y=0;y<h;++y) {stack[n][0]=0;stack[n++][1]=y;stack[n][0]=w-1;stack[n++][1]=y;}
+    while(n) {
+        const unsigned x=stack[--n][0],y=stack[n][1];
+        if(seen[y][x] || !black[t[y][x]]) continue;
+        seen[y][x]=true;t[y][x]=(uint8_t)clear;
+        if(x>0) {stack[n][0]=x-1;stack[n++][1]=y;}
+        if(x+1<w) {stack[n][0]=x+1;stack[n++][1]=y;}
+        if(y>0) {stack[n][0]=x;stack[n++][1]=y-1;}
+        if(y+1<h) {stack[n][0]=x;stack[n++][1]=y+1;}
+    }
+    for(unsigned y=0;y<h;++y) for(unsigned word=0;word<2;++word) {
+        uint32_t v=0;
+        for(unsigned i=0;i<8;++i) v|=(uint32_t)t[y][word*8+i]<<(4*i);
+        out[2*y+word]=v;
+    }
+    return true;
+}
+static void keyed_icons_begin(CPUState* source) {
+    if(!hud_applied || !hud_borderless() || !identity()) return;
+    const uint32_t top=source->gpr[29];
+    if(guest_busy || top<0x801f4000 || top>0x801ffff0 || g_precise_mode || g_ls_mode || g_psx_call_bail) return;
+    bool use[keyed_count]={};
+    uint32_t cells[keyed_count][32];
+    unsigned words=1+1;  // tag, cache clear
+    for(unsigned i=0;i<keyed_count;++i)
+        if(keyed_record_original(keyed_icons[i]) && keyed_cell(keyed_icons[i],cells[i])) {
+            use[i]=true;words+=3+2*(keyed_icons[i].word0>>24);
+        }
+    if(words==2) return;
+    // The HUD packet ring, as art_load_packet uses it.
+    uint32_t packet=psx_mod_read_word(glyph_cursor);
+    const uint32_t start=psx_mod_read_word(glyph_cursor+4),end=psx_mod_read_word(glyph_cursor+8);
+    if(end<packet+4*words) packet=start;
+    if(packet<0x80010000 || packet+4*words>0x80200000 || end<start+4*words) return;
+    psx_mod_write_word(glyph_cursor,packet+4*words);
+    uint32_t a=packet;
+    auto put=[&](uint32_t v) { psx_mod_write_word(a,v);a+=4; };
+    put((words-1)<<24|0xffffffu);
+    for(unsigned i=0;i<keyed_count;++i) if(use[i]) {
+        const unsigned h=keyed_icons[i].word0>>24;
+        put(0xa0000000u);put((uint32_t)keyed_icons[i].keyed_y<<16|keyed_icons[i].keyed_x);put(h<<16|4u);
+        for(unsigned j=0;j<2*h;++j) put(cells[i][j]);
+    }
+    put(0x01000000u);
+    // 0x8002bc18 on a saved stack and scratchpad, as hud_box_draw calls it.
+    uint32_t saved[1024],scratch[256];
+    const uint32_t base=(top-4096)&~3u;
+    for(unsigned i=0;i<1024;++i) saved[i]=psx_mod_read_word(base+4*i);
+    for(unsigned i=0;i<256;++i) scratch[i]=psx_mod_read_word(0x1f800000+4*i);
+    CPUState cpu=*source;cpu.pc=0;cpu.gpr[29]=top-0x100;cpu.gpr[31]=0x800000fc;
+    cpu.gpr[4]=1;cpu.gpr[5]=packet;cpu.gpr[6]=0;cpu.gpr[7]=0;
+    guest_busy=true;psx_dispatch_call(&cpu,0x8002bc18,0x800000fc);guest_busy=false;
+    const bool ok=cpu.pc==0 && !g_psx_call_bail;
+    for(unsigned i=0;i<1024;++i) if(psx_mod_read_word(base+4*i)!=saved[i]) psx_mod_write_word(base+4*i,saved[i]);
+    for(unsigned i=0;i<256;++i) if(psx_mod_read_word(0x1f800000+4*i)!=scratch[i]) psx_mod_write_word(0x1f800000+4*i,scratch[i]);
+    if(!ok) return;
+    ++keyed_loads;
+    for(unsigned i=0;i<keyed_count;++i) if(use[i]) {
+        psx_mod_write_word(keyed_icons[i].record+4,keyed_icons[i].keyed_x);
+        psx_mod_write_word(keyed_icons[i].record+8,keyed_icons[i].keyed_y);
+    }
+    keyed_icons_applied=true;
+}
+static void keyed_icons_restore() {
+    if(!keyed_icons_applied) return;
+    // Only records still pointing at a copy (a restored state may differ).
+    for(const auto& k:keyed_icons)
+        if(psx_mod_read_word(k.record)==k.word0 && psx_mod_read_word(k.record+4)==k.keyed_x &&
+           psx_mod_read_word(k.record+8)==k.keyed_y) {
+            psx_mod_write_word(k.record+4,k.cell_x);psx_mod_write_word(k.record+8,k.cell_y);
+        }
+    keyed_icons_applied=false;
+}
 static bool gadget_owned(unsigned item) {
     if(item==4) return steroids_owned();  // D08A4 held, D08A8 running
     if(item!=1 && item!=2 && item!=3 && item!=5) return false;
@@ -305,9 +433,9 @@ static void gadget_hud(CPUState* cpu) {
     gadget_box_draw(cpu,item,x,y,item==5 || item==4 || on);
 }
 static const char* powerups_debug_json() {
-    static char buffer[224];
-    std::snprintf(buffer,sizeof buffer,"{\"draws\":%u,\"invincibility\":%d,\"invisibility\":%d,\"double_duke\":%d,\"challenge_found\":%u,\"challenge_draws\":%u}",powerup_draws,
+    static char buffer[256];
+    std::snprintf(buffer,sizeof buffer,"{\"draws\":%u,\"invincibility\":%d,\"invisibility\":%d,\"double_duke\":%d,\"challenge_found\":%u,\"challenge_draws\":%u,\"keyed_icon_loads\":%u}",powerup_draws,
         (int16_t)psx_mod_read_half(player+0x8a0),(int16_t)psx_mod_read_half(player+0x89c),(int16_t)psx_mod_read_half(player+0x89e),
-        psx_mod_read_byte(player+0x85e),challenge_draws);
+        psx_mod_read_byte(player+0x85e),challenge_draws,keyed_loads);
     return buffer;
 }

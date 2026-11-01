@@ -1,5 +1,22 @@
 # Next-session handoff
 
+## 2026-11-01 - D19U2 accepted and closed
+
+User: "i like it!" and, after the cross size fix, "lock it in close it out!".
+D19U2 is Done (note 350): in Borderless the native icons draw without their
+black squares, the cross and Bio Mask at exactly the Full size (copies keep
+the original's 16:15 texture stretch at column 1020). Full, Hidden and Vanilla
+unchanged. No next job selected.
+
+## 2026-11-01 - D19U2: Borderless icons without black squares
+
+The black squares were the icons' own opaque-black backgrounds. In Borderless
+the cross, armour, jetpack, Bio Mask, goggles and counter now draw from keyed
+copies made each frame from live VRAM (edge black made transparent, black
+inside an icon kept), loaded just before the status bar. Full, Hidden and
+Vanilla unchanged. Offscreen 60/120 Hz checks and the native controls suite
+pass (note 350). Playtest: `-` once from Full, with jetpack/goggles/Bio Mask.
+
 ## 2026-11-01 - D17AU reported, then cancelled
 
 Report (note 349): the remaining blood shimmer is decal corners drawn at the

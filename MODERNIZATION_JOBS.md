@@ -8,7 +8,7 @@ swimming request in the same playtest is D08O5 (already on the board).
 
 ### D19U2 - Borderless HUD: no black squares behind icons
 
-**Status: Todo. Dependencies: D19U1.** In Borderless (D19U1, `-` from Full)
+**Status: Done (user-accepted 2026-11-01: "lock it in close it out!"; [note 350](documentation/350-d19u2-borderless-icons.md)). Dependencies: D19U1.** In Borderless (D19U1, `-` from Full)
 the box borders are removed (`widescreen.inc` zero-width box record
 `0x800c44a4`), but icons such as the health cross and the jetpack gadget icon
 still sit on an opaque black square; the ammo icon has none (offscreen
@@ -21,6 +21,33 @@ square comes from the icon cell (CLUT colour 0 opaque, a filled cell) or a
 separate fill, and draw the contents without it, reusing switcher art where
 the native art has no transparent version. Full and Hidden unchanged; Vanilla
 unchanged. Visual review at the player's window sizes.
+
+**2026-11-01 implementation (Needs playtest; note 350).** The squares are in
+the icon cells: each native HUD icon's background is an opaque black palette
+entry (`0x8000`); the ammo strip's is transparent and the air icon is a full
+water tile. In Borderless the cross, armour, jetpack, Bio Mask, goggles and
+counter are drawn from keyed copies built each frame from live VRAM: black
+connected to the cell edge becomes the palette's transparent entry (the
+switcher's rule; black inside an icon stays), loaded through OT slot 1 into
+the empty band x 984-1007 row 205, with the records pointed at the copies only
+inside the HUD scope. Own art (medkit, steroids, power-ups, challenge) was
+already transparent. Verified offscreen at 60 and 120 Hz (slots 10 and 7,
+gadgets on/off, 12 consecutive replay presents), Full/Hidden/Vanilla
+unchanged, native controls suite with a new D19U2 group. Not seen: counter
+(levels 21-26), air under water, 21:9, the player's 180 Hz display.
+
+**2026-11-01 size fix (Needs playtest).** User: the cross seemed one pixel
+smaller in Borderless. Confirmed (28 vs 30 screen pixels wide): the original
+sprite routine clamps the right texture edge at 255, so cells at x 1020 (cross,
+Bio Mask) draw 15 columns stretched over 16; the copies drew at true size.
+Their copies now keep column 1020 (blank sheet rows 54 and 100), and the
+cross matches Full pixel for pixel. Pause-menu fonts unchanged; native suite
+passes.
+
+**2026-11-01 accepted and closed.** User: "i like it!", then after the size
+fix: "lock it in close it out!". D19U2 is Done. Commit/push as MusicMonsterMod
+authorized. Retained limits: counter (levels 21-26), air icon under water,
+21:9 and the 180 Hz display were not seen in testing.
 
 ### D17AT - Ground decals and small props stable on any surface
 
@@ -2277,7 +2304,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D19Z3 | Implement the approved custom menu cursor | Todo (backlog only) | D19Z2, D19Z core pointer support |
 | D19U | Live minus/plus status-bar controls | Done (user-accepted) | D04, D19N |
 | D19U1 | Borderless status bars and three-level HUD selection | Done (user-accepted) | D19U |
-| D19U2 | Borderless HUD: no black squares behind icons | Todo | D19U1 |
+| D19U2 | Borderless HUD: no black squares behind icons | Done (user-accepted) | D19U1 |
 | D19L | Menus stay up and responsive while demo scenes load behind the title menu (no blank spinner gap) | Done (user-accepted 2026-10-19 with D19O) | D19J, D19E |
 | D19M | QUIT GAME menu item that closes the whole program (pause list, death list, title main menu), with a YES / NO prompt | Done (user-accepted 2026-10-19; title item in D19J, accepted) | D19H |
 | D19O | Frontend redraws flash back to the previous menu image after a change (PRESS START -> main menu: 13 presents of PRESS START; also in the original menus) | Done (user-accepted 2026-10-19) | D19C, D19J |

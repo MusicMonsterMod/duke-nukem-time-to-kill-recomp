@@ -1478,7 +1478,8 @@ kept on the memory card as before. Game speed is how fast Duke and the enemies m
 original's default); it is not the frame rate. **Status bars** now offers **Full**, **Borderless** and **Hidden** in
 Options > Gameplay. During Modernized gameplay, **-** steps Full -> Borderless
 -> Hidden, and **= / +** steps back. Each press moves one level and stops at
-an endpoint. Borderless retains the icons and numbers, removing their frames;
+an endpoint. Borderless retains the icons and numbers, removing their frames
+and the black squares behind the icons;
 Hidden retains the previous Off behavior. Crosshair and inventory browsing are
 independent. The choice applies immediately and persists across saves, levels
 and restarts. Menu changes still require Confirm; Cancel and Defaults work as

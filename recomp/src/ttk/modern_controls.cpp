@@ -20,6 +20,7 @@
 #include "code_identity.h"
 #include "near_clip.h"
 #include "pgxp.h"
+#include "gpu.h"
 #include <algorithm>
 #include <atomic>
 #include <cctype>
@@ -1584,6 +1585,7 @@ static void hook_body(CPUState* cpu, uint32_t address) {
         }
     } else if (address==0x8008ba30) {
         widescreen_hud_begin(ra);
+        keyed_icons_begin(cpu);
         gadget_hud(cpu);
         hud_border_begin();
     } else if (address==0x8001fc44) {

@@ -72,6 +72,8 @@ extern "C" int psx_mod_register_function_entry_plugin(const char*,uint32_t a,PSX
 extern "C" int psx_mod_gpu_host_vertex(uint32_t,uint32_t,int32_t,int32_t,float,float,float){return 1;}
 extern "C" int psx_mod_gpu_host_vertex_depth(uint32_t,uint32_t,int32_t,int32_t,float,float,float,float){return 1;}
 extern "C" int psx_mod_gpu_host_vertex_coverage(uint32_t,uint32_t,int32_t,int32_t,float,float,float,float,float){return 1;}
+extern "C" int psx_mod_gpu_host_vertex_depth_only(uint32_t,uint32_t,int32_t,int32_t,float,float,float,float,float){return 1;}
+extern "C" int psx_mod_gpu_host_vertex_test_only(uint32_t,uint32_t,int32_t,int32_t,float,float,float,float,float){return 1;}
 static PSXModActivationCallback activation;static unsigned aspect_num,aspect_den;
 extern "C" int psx_mod_register_activation_plugin(const char*,PSXModActivationCallback cb) {activation=cb;return 1;}
 extern "C" int psx_mod_set_fixed_display_aspect(uint32_t n,uint32_t d) {aspect_num=n;aspect_den=d;return 1;}
@@ -113,7 +115,12 @@ static bool jet_geometry,jet_side_wall,jet_route_wall;
 static int jet_slope=0,jet_ceiling_slope=0;
 static int jet_floor=1000000,jet_ceiling=-1000000,jet_step_x=1000000,jet_step_floor=1000000,jet_step_ceiling=-1000000;
 static int jw_result,jw_hits,jw_sweeps;static int32_t jw_nx,jw_nz;
+// D19U2: ordering-table adds (slot, packet) and the VRAM the keyed icons read.
+static std::vector<std::array<uint32_t,2>> ot_adds;
+static uint16_t test_vram[1024*512];
+extern "C" const uint16_t* gpu_get_vram(void){return test_vram;}
 extern "C" void psx_dispatch_call(CPUState* cpu,uint32_t address,uint32_t) {
+    if(address==0x8002bc18) {ot_adds.push_back({cpu->gpr[4],cpu->gpr[5]});cpu->pc=0;return;}
     if(address==0x8007d65c) {
         const uint32_t p=0x800d7198;const unsigned dir=cpu->gpr[5];assert(dir<4 && cpu->gpr[6]==0);
         wall_queries.push_back({int(dir),int16_t(psx_mod_read_half(p+0xfc)),int16_t(psx_mod_read_half(p+0xfe)),int16_t(psx_mod_read_half(p+0x100)),int(psx_mod_read_word(0x801e4018))});
@@ -1608,6 +1615,64 @@ int main(int argc,char** argv) {
         }
         int hud_status=0;assert(waitpid(hud_child,&hud_status,0)==hud_child && WIFEXITED(hud_status) && WEXITSTATUS(hud_status)==0);
         psx_mod_write_word(box,original_box);ttk_live_env_set("DNTTK_STATUS_BARS","full");
+        // D19U2: Borderless icons drawn from keyed copies. The cross cell's
+        // edge-connected opaque black (index 15) becomes its transparent entry
+        // (index 4); black enclosed by the icon stays. Records point at the copy
+        // only while its load is queued in OT slot 1, and are restored after.
+        {
+            constexpr uint32_t cross=0x800c44e4,ring=0x800d67a8;
+            const uint32_t others[]={0x800c44f4,0x800c44b4,0x800c44c4,0x800c4504,0x800c4554};
+            uint32_t kept[5];for(unsigned i=0;i<5;++i){kept[i]=psx_mod_read_word(others[i]);psx_mod_write_word(others[i],0);}
+            const uint32_t kept_cross[3]={psx_mod_read_word(cross),psx_mod_read_word(cross+4),psx_mod_read_word(cross+8)};
+            psx_mod_write_word(cross,0x101039ff);psx_mod_write_word(cross+4,1020);psx_mod_write_word(cross+8,189);
+            psx_mod_write_word(ring,0x80100000);psx_mod_write_word(ring+4,0x80100000);psx_mod_write_word(ring+8,0x80108000);
+            for(unsigned i=0;i<16;++i) test_vram[231*1024+1008+i]=i==4?0:i==15?0x8000:0x001f;
+            auto texel=[](unsigned x,unsigned y)->unsigned{
+                if(x==8 && y==8) return 15;                       // enclosed black
+                return x>=6 && x<=10 && y>=6 && y<=10?1:15;};
+            for(unsigned y=0;y<16;++y) for(unsigned w=0;w<4;++w) {
+                uint16_t v=0;for(unsigned i=0;i<4;++i) v|=uint16_t(texel(4*w+i,y)<<(4*i));
+                test_vram[(189+y)*1024+1020+w]=v;
+            }
+            auto record_at=[&](unsigned x,unsigned y){return psx_mod_read_word(cross)==0x101039ff && psx_mod_read_word(cross+4)==x && psx_mod_read_word(cross+8)==y;};
+            auto slot1=[&]{unsigned n=0;for(auto& a:ot_adds) if(a[0]==1) ++n;return n;};
+            ttk_live_env_set("DNTTK_STATUS_BARS","borderless");
+            ot_adds.clear();
+            call(0x8008ba30,0,0,0x80026590,0x801ff000);
+            assert(record_at(1020,54) && slot1()==1);
+            uint32_t packet=0;for(auto& a:ot_adds) if(a[0]==1) packet=a[1];
+            assert(psx_mod_read_word(packet+4)==0xa0000000u && psx_mod_read_word(packet+8)==(54u<<16|1020u) && psx_mod_read_word(packet+12)==(16u<<16|4u));
+            for(unsigned y=0;y<16;++y) for(unsigned x=0;x<16;++x) {
+                const unsigned got=(psx_mod_read_word(packet+16+4*(2*y+x/8))>>(4*(x%8)))&15;
+                const unsigned t=texel(x,y);
+                assert(got==(t==15 && !(x==8 && y==8)?4u:t));
+            }
+            assert(psx_mod_read_word(packet+16+4*32)==0x01000000u && psx_mod_read_word(packet)>>24==36);
+            call(0x8001fc44,2,0,0x800265ac);assert(record_at(1020,189));
+            call(0x8008ba30,0,0,0x80026590,0x801ff000);assert(record_at(1020,54));
+            call(0x8002e850,0,0,0x800265d4);assert(record_at(1020,189));            // alternate exit
+            ot_adds.clear();
+            call(0x8008ba30,0,0,0x80026590);assert(record_at(1020,189) && !slot1()); // stack outside the guest's
+            call(0x8001fc44,2,0,0x800265ac);
+            ttk_live_env_set("DNTTK_STATUS_BARS","full");
+            call(0x8008ba30,0,0,0x80026590,0x801ff000);assert(record_at(1020,189) && !slot1());
+            call(0x8001fc44,2,0,0x800265ac);
+            ttk_live_env_set("DNTTK_STATUS_BARS","borderless");
+            ttk::modern=false;call(0x8008ba30,0,0,0x80026590,0x801ff000);assert(record_at(1020,189) && !slot1());ttk::modern=true;
+            call(0x8001fc44,2,0,0x800265ac);
+            psx_mod_write_word(cross+8,190);                                           // changed record
+            call(0x8008ba30,0,0,0x80026590,0x801ff000);assert(record_at(1020,190) && !slot1());
+            call(0x8001fc44,2,0,0x800265ac);
+            psx_mod_write_word(cross+8,189);test_vram[231*1024+1008+4]=0x0421;      // no transparent entry
+            call(0x8008ba30,0,0,0x80026590,0x801ff000);assert(record_at(1020,189) && !slot1());
+            call(0x8001fc44,2,0,0x800265ac);
+            for(uint32_t a:{ring,ring+4,ring+8}) psx_mod_write_word(a,0);
+            for(unsigned i=0;i<3;++i) psx_mod_write_word(cross+4*i,kept_cross[i]);
+            for(unsigned i=0;i<5;++i) psx_mod_write_word(others[i],kept[i]);
+            std::fill(std::begin(test_vram),std::end(test_vram),uint16_t(0));
+            ttk_live_env_set("DNTTK_STATUS_BARS","full");
+            std::puts("PASS: D19U2 Borderless keyed icons (edge black keyed, enclosed kept, slot-1 load, restored; Full/Vanilla/changed record untouched)");
+        }
         std::puts("PASS: D14 view rectangle and HUD corners (margin-sized, render/status-bar callers only, restored, 4:3/Vanilla/split screen untouched)");
     }
     // D23A identity memo: the verdict is reused within one host frame and

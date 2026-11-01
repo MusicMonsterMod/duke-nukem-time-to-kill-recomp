@@ -2675,7 +2675,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D23D | Minor slowdown around the strip-club-type area of Level 9 (low priority) | Done | D23, D22B |
 | D23E | Stutter with enemies on screen while walking (UI slots 9 and 10) | Done (user-accepted; closed 2026-10-30) | D23, D22B |
 | D23F | Faster timing model: emulation-thread budget for 150% CPU at high refresh (big) | Done (user-accepted; closed 2026-10-30) | D23E, D17 |
-| D23G | Finish the fast path: dispatch, overlays, interpreter, observers and redraw cost (all-in-one) | In progress (part 1 renderer feed user-accepted 2026-10-30, note 331; steps 1-3, 5 remain) | D23F |
+| D23G | Finish the fast path: dispatch, overlays, interpreter, observers and redraw cost (all-in-one) | In progress (part 2 dispatch fast path and observers user-accepted 2026-11-01, note 354; part 1 renderer feed accepted 2026-10-30, note 331; steps 3, 5 remain) | D23F |
 | D23H | Presents fall from 120 to about 60 over extended play (savestate hitches, sticky shedding) | Done (user-accepted; closed 2026-10-30) | D23E, D23F |
 | D24 | Linux / Windows player build and disc import | Todo | D19, D22, D23 |
 | D24A | Public clone gives the full experience: fonts, inventory icons/digits from a proper tracked or disc-derived source (no research/ dependency) | Done (user-accepted; closed 2026-10-30) | D19A, D08A3 |
@@ -13248,7 +13248,7 @@ judges the feel at 150% and decides whether it becomes the default.
 
 ### D23G - Finish the fast path: dispatch, overlays, interpreter, observers and redraw cost
 
-**In progress: part 1 (renderer feed, [note 331](documentation/331-d23g-renderer-feed.md)) user-accepted 2026-10-30; steps 1-3 and 5 remain. Selected 2026-10-30. All-in-one. Opened 2026-10-05 from D23F's limits** ([note 105](documentation/105-d23f-fast-timing.md)).
+**In progress: part 2 (steps 1-2, dispatch fast path and per-call observers, [note 354](documentation/354-d23g-dispatch-fast-path.md)) user-accepted 2026-11-01. Part 1 (renderer feed, [note 331](documentation/331-d23g-renderer-feed.md)) user-accepted 2026-10-30; steps 3 and 5 remain. Selected 2026-10-30. All-in-one. Opened 2026-10-05 from D23F's limits** ([note 105](documentation/105-d23f-fast-timing.md)).
 D23F moved the statically recompiled game code to the fast model. What is
 left on the emulation thread (fast, slot 9, 150%): the call/return dispatch
 path about 13% (`psx_dispatch_impl` -> BIOS table miss -> `dirty_ram_dispatch`
@@ -13347,6 +13347,36 @@ rate (slot 10 holds 120 at 0.66): new job D17AQ.
 this is the best it's ever been by far ... it's playing perfectly the
 stability is just absolutely next level ... studio grade quality in terms of
 performance and feel." Part 1 closed out (commit/push authorized 2026-10-30); D23G stays open.
+
+**Work log (2026-11-01, part 2: dispatch fast path and per-call observers;
+Needs playtest).** Re-profiled on the D17AW build (slot 10 vista, 180 Hz):
+with redraws on the render thread, the dispatch path was 12-13% of the
+emulation thread at about 190 ns per dispatch (600,000 per second). Changes
+(framework, exported patch): a cache of "this function's code is still the
+original" answers, cleared by every code-page change (`PSX_TEXT_OK_CACHE=0`
+compares, `=verify` re-checks every hit); one validity check per call instead
+of two; the per-call `xprobe_event` record only with forensics or an armed
+trip/watch; mod function-entry hooks matched by a compact address list; the
+generated BIOS dispatcher sends game text straight to the game path instead of
+a BIOS-table search that cannot match. The last one is emitter output, so the
+codegen hash is now `0xebce51ea`; the user agreed to lose savestates, but the
+regenerated game code and every BIOS function body are byte-identical, so
+`boot_state.c` accepts the old hash (reviewed exception) and existing saves
+load. `build.py` passes `--force-bios` so the BIOS C is always regenerated.
+Results: 188-196 -> 147-148 ns per dispatch (about 23%, 2.5-3 points of the
+thread). Verify mode over 21 levels: 80.4 million hits re-checked, 0
+disagreements. Final build over the same 21 levels: 59.9-60.1 fields/s,
+no errors. Images after loading six fixture slots identical to the old
+build; old-hash saves load and a new save reloads; Vanilla 59.9-60.0 fields/s,
+0 underruns; native suites pass; pristine checkout plus patch reproduces all 78
+framework files. Playtest: usual play, loads from LOAD GAME (existing saves
+must load), a level change, saving a new game and loading it.
+
+**Playtest (2026-11-01): part 2 accepted.** User: "the stability now is
+literally next level. lock it in, close us out!" Executable
+`f53b391249e45ce816b56ef1cf0cb76d7e93cccfcad2001b43faa61da53afd6e` is the regression baseline
+(codegen hash `0xebce51ea`). Part 2 closed out; D23G stays open for steps 3
+and 5.
 
 ### D23H - Presents fall from 120 to about 60 over extended play
 

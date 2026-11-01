@@ -1,5 +1,29 @@
 # Current status - 2026-10-04
 
+## 2026-11-01 - D23G part 2 accepted and closed out
+
+User: "the stability now is literally next level. lock it in, close us out!"
+D23G part 2 (dispatch fast path and per-call observers;
+[note 354](354-d23g-dispatch-fast-path.md)) is accepted; executable
+`f53b391249e45ce816b56ef1cf0cb76d7e93cccfcad2001b43faa61da53afd6e` (codegen hash `0xebce51ea`,
+older savestates accepted) is the regression baseline. D23G stays open for
+step 3 (overlay and interpreter timing) and step 5 (Vanilla flag cost).
+
+## 2026-11-01 - D23G part 2: dispatch fast path (Needs playtest)
+
+Steps 1-2 of D23G ([note 354](354-d23g-dispatch-fast-path.md)): every call
+between game functions is cheaper, 188-196 -> 147-148 ns (about 23% of the
+dispatch path, 2.5-3 points of the emulation thread in the slot 10 vista).
+- Cached "code still original" answers (cleared by any code change; verify
+  mode over 21 levels: 0 disagreements in 80.4 million hits), one check per
+  call, the boundary probe only in diagnostic sessions, indexed mod hooks.
+- The generated BIOS dispatcher no longer searches its table for game text.
+  Codegen hash now `0xebce51ea`; game code and BIOS function bodies are
+  byte-identical, so existing savestates are accepted and still load.
+- Same images after loads; Vanilla 60 fields/s, 0 underruns; suites pass.
+- Playtest: normal play, LOAD GAME with existing saves, a level change, a new
+  save and its load. Steps 3 and 5 remain.
+
 ## 2026-11-01 - D17AQ closed
 
 User: "close D17AQ". Its parts (B max limit, A open sky for Classic,

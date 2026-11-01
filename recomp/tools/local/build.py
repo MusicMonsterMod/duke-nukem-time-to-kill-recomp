@@ -45,8 +45,10 @@ def main():
     run(['cmake','--build','build-recompiler','--target','psxrecomp-game','psxrecomp-bios','--parallel',args.jobs],env)
     env['PSXRECOMP_GAME']=str(ROOT/'build-recompiler'/('psxrecomp-game'+exe))
     env['PSXRECOMP_BIOS']=str(ROOT/'build-recompiler'/('psxrecomp-bios'+exe))
+    # --force-bios: the BIOS dispatcher is emitter output too (D23G); a checkout
+    # that already has generated BIOS C must not keep linking the old one.
     run([sys.executable,'psxrecomp/psxrecomp_cli.py','generate','--config','game.local.toml',
-         '--project-root',ROOT,'--disc','disc/time-to-kill.cue'],env)
+         '--project-root',ROOT,'--disc','disc/time-to-kill.cue','--force-bios'],env)
     run(['cmake','--preset','local-dev'],env)
     if not args.configure_only:
         run(['cmake','--build','--preset','local-dev','--parallel',args.jobs],env)

@@ -375,6 +375,9 @@ std::vector<Screen> make_screens() {
         {"FRAME RATE",Section::Controls,"frame_rate","DNTTK_FRAME_RATE",true,"AUTO MATCHES THE DISPLAY UP TO 240 FPS. GAME SPEED NEVER CHANGES",
          {{"AUTO","auto","\"auto\""},{"DISPLAY","display","\"display\""},{"30","30","\"30\""},{"60","60","\"60\""},{"120","120","\"120\""},{"144","144","\"144\""},
           {"165","165","\"165\""},{"180","180","\"180\""},{"240","240","\"240\""},{"UNLIMITED","unlimited","\"unlimited\""}},0},
+        // D17AR6: the world renderer (run.py maps it to the D17AM/D17AR switches).
+        {"RENDERER",Section::Controls,"world_renderer","DNTTK_WORLD_RENDERER",false,"POLYMORPH: OUR RENDERER. CLASSIC: THE ORIGINAL DRAWING",
+         {{"POLYMORPH","polymorph","\"polymorph\""},{"CLASSIC","classic","\"classic\""}},0},
         // D19AB: view settings follow FRAME RATE here, as in EDuke32's display menu.
         {"FIRST-PERSON FOV",Section::Controls,"first_person_fov","DNTTK_FP_FOV",true,
          "HORIZONTAL DEGREES AT 4:3. MOUSE WHEEL ADJUSTS. CONFIRM TO APPLY",{},90,true,60,120,1},
@@ -441,7 +444,7 @@ std::vector<Screen> make_screens() {
         {"STEROIDS",Section::Controls,"steroids","DNTTK_STEROIDS",false,"PORTABLE: A PICKUP IS STORED, R TAKES IT",
          {{"PORTABLE","portable","\"portable\""},{"ORIGINAL","original","\"original\""}},0},
         heading("GRAPHICS"),
-        {"RENDERER",Section::Presentation,"renderer",nullptr,false,"SOFTWARE IS THE ORIGINAL LOOK",
+        {"BACKEND",Section::Presentation,"renderer",nullptr,false,"OPENGL OR SOFTWARE. SOFTWARE IS THE ORIGINAL LOOK",
          {{"OPENGL","opengl","\"opengl\""},{"SOFTWARE","software","\"software\""}},0},
         {"FILTER",Section::Presentation,"output_filter",nullptr,false,"HOW THE FINISHED IMAGE IS SCALED TO THE WINDOW",
          {{"LINEAR","linear","\"linear\""},{"NEAREST","nearest","\"nearest\""}},0},
@@ -1696,7 +1699,7 @@ const char* needs(const Row& r) {
     if((k=="shoulder" || k=="camera_distance" || k=="weapon_aim") && is("camera","original")) return "NEEDS CAMERA INDEPENDENT, IN ADVANCED";
     if(k=="crosshair" && is("red_dot","1")) return "RED DOT ON HIDES THE MODERN CROSSHAIR";
     if(k=="crosshair" && is("weapon_aim","original")) return "NEEDS WEAPON AIM VIEW, IN ADVANCED";
-    if((k=="internal_scale" || k=="geometry_precision" || k=="texture_precision") && is("renderer","software")) return "NEEDS RENDERER OPENGL, IN ADVANCED";
+    if((k=="internal_scale" || k=="geometry_precision" || k=="texture_precision") && is("renderer","software")) return "NEEDS BACKEND OPENGL, IN ADVANCED";
     return nullptr;
 }
 void draw_settings(Guest& g,const Geometry& geo) {

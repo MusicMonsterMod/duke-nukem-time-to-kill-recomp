@@ -848,7 +848,7 @@ class CameraPreferencesTest(unittest.TestCase):
             subprocess.run(cmd+['--camera','original','--mouse-sensitivity','0.25','--invert-y','on'],check=True,capture_output=True)
             raw=path.read_bytes()
             result,_=profiles.load(path)
-            self.assertEqual(result['profiles']['modernized']['controls'],{**profiles.CONTROLLER_DEFAULTS, **profiles.SOUND_DEFAULTS,'status_bars':'full','first_person_legs':'on','first_person_fov':90,'scheme':'modern','camera':'original','mouse_sensitivity':0.25,'invert_y':True,'weapon_aim':'view','crosshair':True,'red_dot':False,'aim_assist':'off','jetpack':'modern','camera_distance':0,'shoulder':'center','view':'third','widescreen':'16:9','cpu_overclock':150,'cpu_timing':'fast','jump':'assisted','frame_rate':'auto','view_bob':'on','geometry_precision':'original','texture_precision':'original','draw_distance':'extended','steroids':'portable','jump_walls':'slide','landing':'modern','dynamite':'modern','auto_bio_mask':'on','night_vision':'modern','swimming':'modern','swim_view':'first','jetpack_view':'first','push_view':'first','ladder_view':'first','pole_view':'first','mantle_view':'first','overhead_view':'first','wall_view':'first','wall_backflip':'modern','crouch':'modern'})
+            self.assertEqual(result['profiles']['modernized']['controls'],{**profiles.CONTROLLER_DEFAULTS, **profiles.SOUND_DEFAULTS,'status_bars':'full','first_person_legs':'on','first_person_fov':90,'scheme':'modern','camera':'original','mouse_sensitivity':0.25,'invert_y':True,'weapon_aim':'view','crosshair':True,'red_dot':False,'aim_assist':'off','jetpack':'modern','camera_distance':0,'shoulder':'center','view':'third','widescreen':'16:9','cpu_overclock':150,'cpu_timing':'fast','jump':'assisted','frame_rate':'auto','view_bob':'on','geometry_precision':'original','texture_precision':'original','draw_distance':'extended','world_renderer':'polymorph','steroids':'portable','jump_walls':'slide','landing':'modern','dynamite':'modern','auto_bio_mask':'on','night_vision':'modern','swimming':'modern','swim_view':'first','jetpack_view':'first','push_view':'first','ladder_view':'first','pole_view':'first','mantle_view':'first','overhead_view':'first','wall_view':'first','wall_backflip':'modern','crouch':'modern'})
             invalid=subprocess.run(cmd+['--mouse-sensitivity','nan'],capture_output=True)
             self.assertNotEqual(invalid.returncode,0);self.assertEqual(path.read_bytes(),raw)
             subprocess.run(cmd+['--vanilla'],check=True,capture_output=True)
@@ -858,7 +858,7 @@ class CameraPreferencesTest(unittest.TestCase):
     def test_terminal_camera_edit(self):
         replies=iter(['7','independent 0.2 on','5'])
         edited=profiles.menu(profiles.defaults(),lambda _:next(replies),lambda _:None)
-        self.assertEqual(edited['profiles']['modernized']['controls'],{**profiles.CONTROLLER_DEFAULTS, **profiles.SOUND_DEFAULTS,'status_bars':'full','first_person_legs':'on','first_person_fov':90,'scheme':'modern','camera':'independent','mouse_sensitivity':0.2,'invert_y':True,'weapon_aim':'view','crosshair':True,'red_dot':False,'aim_assist':'off','jetpack':'modern','camera_distance':0,'shoulder':'center','view':'third','widescreen':'16:9','cpu_overclock':150,'cpu_timing':'fast','jump':'assisted','frame_rate':'auto','view_bob':'on','geometry_precision':'original','texture_precision':'original','draw_distance':'extended','steroids':'portable','jump_walls':'slide','landing':'modern','dynamite':'modern','auto_bio_mask':'on','night_vision':'modern','swimming':'modern','swim_view':'first','jetpack_view':'first','push_view':'first','ladder_view':'first','pole_view':'first','mantle_view':'first','overhead_view':'first','wall_view':'first','wall_backflip':'modern','crouch':'modern'})
+        self.assertEqual(edited['profiles']['modernized']['controls'],{**profiles.CONTROLLER_DEFAULTS, **profiles.SOUND_DEFAULTS,'status_bars':'full','first_person_legs':'on','first_person_fov':90,'scheme':'modern','camera':'independent','mouse_sensitivity':0.2,'invert_y':True,'weapon_aim':'view','crosshair':True,'red_dot':False,'aim_assist':'off','jetpack':'modern','camera_distance':0,'shoulder':'center','view':'third','widescreen':'16:9','cpu_overclock':150,'cpu_timing':'fast','jump':'assisted','frame_rate':'auto','view_bob':'on','geometry_precision':'original','texture_precision':'original','draw_distance':'extended','world_renderer':'polymorph','steroids':'portable','jump_walls':'slide','landing':'modern','dynamite':'modern','auto_bio_mask':'on','night_vision':'modern','swimming':'modern','swim_view':'first','jetpack_view':'first','push_view':'first','ladder_view':'first','pole_view':'first','mantle_view':'first','overhead_view':'first','wall_view':'first','wall_backflip':'modern','crouch':'modern'})
 
     def test_view_bob_menu_and_migration(self):
         replies=iter(['b','subtle','b','wobbly','5'])
@@ -1657,6 +1657,51 @@ class DrawDistanceTest(unittest.TestCase):
         answers=iter(['d','original','5'])
         vanilla=profiles.menu({**profiles.defaults(),'active':'vanilla'},read=lambda _: next(answers),write=lambda *_: None)
         self.assertEqual(vanilla['profiles']['modernized']['controls']['draw_distance'],'extended')
+
+
+class WorldRendererTest(unittest.TestCase):
+    # D17AR6: Polymorph or Classic (an additive field); Vanilla is always Classic.
+    SWITCHES=('DNTTK_UNIFIED_GEOMETRY','DNTTK_HOST_VISIBILITY','DNTTK_REDRAW_ONLY')
+    def test_recovery_cli_env_vanilla_and_sidecar(self):
+        with tempfile.TemporaryDirectory() as d:
+            path=Path(d)/'profiles.json'
+            data=profiles.defaults()
+            for p in data['profiles'].values():
+                p['controls'].pop('world_renderer')
+            path.write_text(json.dumps(data))
+            loaded,_=profiles.load(path)
+            for p in loaded['profiles'].values():
+                self.assertEqual(p['controls']['world_renderer'],'polymorph')
+            with patch.dict(os.environ,{},clear=True),patch.object(Path,'is_file',return_value=True),patch.object(run.subprocess,'call',return_value=0) as launch,patch.object(run,'ensure_movie_shard'):
+                run.main(['--settings-file',str(path),'--no-session-log'])
+                env=launch.call_args.kwargs['env']
+                self.assertEqual(env['DNTTK_WORLD_RENDERER'],'polymorph')
+                self.assertFalse(any(k in env for k in self.SWITCHES+('DNTTK_NEAR_CLIP',)))
+                run.main(['--settings-file',str(path),'--no-session-log','--world-renderer','classic'])
+                env=launch.call_args.kwargs['env']
+                self.assertEqual(env['DNTTK_WORLD_RENDERER'],'classic')
+                self.assertEqual([env[k] for k in self.SWITCHES],['0']*3)
+                self.assertNotIn('DNTTK_NEAR_CLIP',env)
+                self.assertEqual(profiles.load(path)[0]['profiles']['modernized']['controls']['world_renderer'],'classic')
+                # Developer values still win over the profile.
+                with patch.dict(os.environ,{'DNTTK_HOST_VISIBILITY':'1'}):
+                    run.main(['--settings-file',str(path),'--no-session-log'])
+                self.assertEqual(launch.call_args.kwargs['env']['DNTTK_HOST_VISIBILITY'],'1')
+                run.main(['--settings-file',str(path),'--no-session-log','--world-renderer','polymorph','--vanilla'])
+                env=launch.call_args.kwargs['env']
+                self.assertEqual(env['DNTTK_WORLD_RENDERER'],'classic')
+                self.assertFalse(any(k in env for k in self.SWITCHES))
+                self.assertEqual(profiles.load(path)[0]['profiles']['modernized']['controls']['world_renderer'],'polymorph')
+            settings,_=profiles.load(path)
+            profiles.menu_settings_path(path).write_text(json.dumps(dict(version=1,active='modernized',
+                controls=dict(world_renderer='classic'),presentation={})))
+            self.assertTrue(profiles.absorb_menu_settings(path,settings))
+            self.assertEqual(settings['profiles']['modernized']['controls']['world_renderer'],'classic')
+            self.assertIn('World renderer: Classic',profiles.describe(settings))
+            with self.assertRaises(SystemExit),patch('sys.stderr'):
+                run.main(['--settings-file',str(path),'--no-session-log','--world-renderer','fast'])
+            controls=dict(settings['profiles']['modernized']['controls'],world_renderer='fast')
+            self.assertEqual(profiles.validate_controls(controls)['world_renderer'],'polymorph')
 
 
 class SteroidsOptionTest(unittest.TestCase):

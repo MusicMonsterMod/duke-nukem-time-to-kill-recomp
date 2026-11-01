@@ -296,6 +296,18 @@ limit on how many are alive at once.
 launch and saves your preference. Vanilla always uses the original. A very
 long view can still end in black beyond 65535 units.
 
+### Renderer: Polymorph or Classic (Modernized)
+
+**Polymorph** is this project's renderer and the default: every wall, prop
+and character is drawn through one geometry path at every distance, the PC
+decides which parts of the world are in view (with Extended draw distance),
+and at high refresh rates the game stops drawing frames nobody sees, so the
+in-between pictures come faster. **Classic** keeps the game's own drawing
+order and visibility, as before Polymorph. First person and widescreen work
+in both. Choose it in OPTIONS > DISPLAY > RENDERER or with
+`--world-renderer polymorph|classic`; it applies on the next launch and saves
+your preference. Vanilla always uses Classic.
+
 ### Portable steroids (Modernized)
 
 With `portable` (the Modernized default), steroids work as in EDuke32: picking
@@ -1435,12 +1447,12 @@ the original's style:
 - **CONTROLS**: mouse sensitivity (slider), invert mouse and **KEY
   BINDINGS** (below).
 - **DISPLAY**: window (windowed / borderless / exclusive), resolution,
-  widescreen and frame rate.
+  widescreen, frame rate and renderer (Polymorph / Classic).
 - **GAMEPLAY**: view, shoulder, camera distance, crosshair, gore, status bars
   and view bob.
 - **ADVANCED**: one list under headings. CAMERA AND AIM: camera, weapon aim, first-person legs.
   MOVEMENT: jump, jump walls, wall backflip, crouch, swimming, jetpack.
-  ITEMS: dynamite, steroids. GRAPHICS: renderer, filter, draw distance,
+  ITEMS: dynamite, steroids. GRAPHICS: backend (OpenGL / software), filter, draw distance,
   geometry, textures.
   PERFORMANCE: CPU speed, CPU timing. ORIGINAL GAME: **auto aim**, red dot,
   game speed.
@@ -1476,7 +1488,7 @@ Vanilla stays on the memory card: Modernized saves keep it for Vanilla.
 
 A dimmed row has no effect with the current settings; its description says
 what it needs (for example shoulder and camera distance need camera
-INDEPENDENT, resolution needs the OpenGL renderer).
+INDEPENDENT, resolution needs the OpenGL backend).
 
 Up/Down choose (hold to repeat; the list scrolls), Left/Right change the value
 (hold a slider to speed up), **Enter** confirms and keeps the changes,
@@ -1487,7 +1499,7 @@ widescreen, camera, view, shoulder, camera distance, weapon aim, crosshair,
 auto aim, gore, status bars, game speed, red dot, jump, jump walls, landing,
 swimming, dynamite and view bob. Frame rate applies at once too, from any launch rate (choosing 60 returns
 to the original presentation); with the software renderer it says
-**NEXT LAUNCH**, like renderer, resolution, filter, draw distance,
+**NEXT LAUNCH**, like renderer, backend, resolution, filter, draw distance,
 geometry, textures, CPU speed, CPU timing, jetpack and steroids, which apply
 the next time you start the game. A new widescreen shape also reshapes a plain
 window (fullscreen and maximised windows show bars instead). Confirmed

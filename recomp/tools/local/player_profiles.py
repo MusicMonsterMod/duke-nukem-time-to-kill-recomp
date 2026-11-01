@@ -104,9 +104,14 @@ DRAW_DISTANCES = ('original', 'extended')
 # a steroids pickup as one dose (EDuke32 style) that R takes; original starts
 # the effect on pickup.
 STEROIDS_MODES = ('portable', 'original')
+# D17AR6 world renderer (Modernized only; Vanilla always draws Classic).
+# polymorph is unified geometry, host world visibility and redraw-only live
+# frames; classic is the game's own pipeline with the near path that first
+# person and widescreen need.
+WORLD_RENDERERS = ('polymorph', 'classic')
 # Alt-wheel boom range in game units; 0 keeps the original follow distance.
 CAMERA_DISTANCE_RANGE = (768, 6144)
-DEFAULT_CONTROLS = {'status_bars': 'full', 'scheme': 'modern', 'camera': 'independent', 'mouse_sensitivity': 0.12, 'invert_y': False, 'weapon_aim': 'view', 'crosshair': True, 'red_dot': False, 'aim_assist': 'off', 'jetpack': 'modern', 'camera_distance': 0, 'first_person_legs': 'on', 'first_person_fov': 90, 'shoulder': 'center', 'view': 'third', 'widescreen': '16:9', 'cpu_overclock': 150, 'cpu_timing': 'fast', 'jump': 'assisted', 'frame_rate': 'auto', 'view_bob': 'on', 'geometry_precision': 'original', 'texture_precision': 'original', 'draw_distance': 'extended', 'steroids': 'portable', 'jump_walls': 'slide', 'landing': 'modern', 'dynamite': 'modern', 'auto_bio_mask': 'on', 'night_vision': 'modern', 'swimming': 'modern', 'swim_view': 'first', 'jetpack_view': 'first', 'push_view': 'first', 'ladder_view': 'first', 'pole_view': 'first', 'mantle_view': 'first', 'overhead_view': 'first', 'wall_view': 'first', 'wall_backflip': 'modern', 'crouch': 'modern'}
+DEFAULT_CONTROLS = {'status_bars': 'full', 'scheme': 'modern', 'camera': 'independent', 'mouse_sensitivity': 0.12, 'invert_y': False, 'weapon_aim': 'view', 'crosshair': True, 'red_dot': False, 'aim_assist': 'off', 'jetpack': 'modern', 'camera_distance': 0, 'first_person_legs': 'on', 'first_person_fov': 90, 'shoulder': 'center', 'view': 'third', 'widescreen': '16:9', 'cpu_overclock': 150, 'cpu_timing': 'fast', 'jump': 'assisted', 'frame_rate': 'auto', 'view_bob': 'on', 'geometry_precision': 'original', 'texture_precision': 'original', 'draw_distance': 'extended', 'world_renderer': 'polymorph', 'steroids': 'portable', 'jump_walls': 'slide', 'landing': 'modern', 'dynamite': 'modern', 'auto_bio_mask': 'on', 'night_vision': 'modern', 'swimming': 'modern', 'swim_view': 'first', 'jetpack_view': 'first', 'push_view': 'first', 'ladder_view': 'first', 'pole_view': 'first', 'mantle_view': 'first', 'overhead_view': 'first', 'wall_view': 'first', 'wall_backflip': 'modern', 'crouch': 'modern'}
 # display is how the game opens (the runtime reports the last state at exit);
 # fullscreen_mode is what F11 enters from a window.
 SOUND_DEFAULTS = dict(sound_master=-1, sound_effects=-1, sound_music=-1, sound_speech=-1, sound_mode=-1)
@@ -135,7 +140,8 @@ def validate_controls(value):
         if type(fov) not in (int, float) or not math.isfinite(fov) or not 60 <= fov <= 120:
             fov = 90
         value = {**value, 'status_bars': value.get('status_bars') if valid_enum(value.get('status_bars'), ('full', 'borderless', 'hidden')) else 'full', 'first_person_fov': round(fov),
-                 'first_person_legs': value.get('first_person_legs') if valid_enum(value.get('first_person_legs'), ('on', 'off')) else 'on'}
+                 'first_person_legs': value.get('first_person_legs') if valid_enum(value.get('first_person_legs'), ('on', 'off')) else 'on',
+                 'world_renderer': value.get('world_renderer') if valid_enum(value.get('world_renderer'), WORLD_RENDERERS) else 'polymorph'}
     if not isinstance(value, dict) or set(value) != set(DEFAULT_CONTROLS):
         raise ValueError('Invalid camera preferences.')
     validate_action_view(value['swim_view'])
@@ -543,6 +549,7 @@ def describe(settings):
         lines.append(f"Swimming view: {controls['swim_view']} (when global view is first person)")
         lines.append(f"Mesh geometry: {controls['geometry_precision']}; textures: {controls['texture_precision']} (OpenGL; next launch)")
         lines.append(f"Frame rate: {describe_frame_rate(controls['frame_rate'])}")
+        lines.append(f"World renderer: {describe_world_renderer(controls['world_renderer'])}")
         lines.append(f"Draw distance: {describe_draw_distance(controls['draw_distance'])}")
         lines.append(f"Steroids: {describe_steroids(controls['steroids'], pc_input_key(settings, 'steroids'))}")
         lines.append(f"First-person legs: {controls['first_person_legs']} (Options > Advanced; torso stays hidden)")
@@ -577,6 +584,12 @@ def describe_cpu_timing(value):
     if value == 'fast':
         return 'fast (gameplay uses far less host CPU, so high refresh rates and the overclock keep up; same emulated speed)'
     return 'accurate (full cycle model for every instruction)'
+
+
+def describe_world_renderer(value):
+    if value == 'classic':
+        return 'Classic (the game\'s own drawing order and visibility; next launch)'
+    return 'Polymorph (one geometry path, host world visibility, redraw-only frames at high refresh; next launch)'
 
 
 def describe_draw_distance(value):

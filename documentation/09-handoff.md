@@ -1,5 +1,22 @@
 # Next-session handoff
 
+## 2026-11-01 - D17AR6 accepted and closed
+
+User: "lock it in, close us out". The Polymorph / Classic choice (OPTIONS >
+DISPLAY > RENDERER, `--world-renderer`, note 343) is committed. Next renderer
+step: D17AR4 (retire superseded portal patches).
+
+## 2026-10-31 - D17AR6: Polymorph / Classic renderer choice (Needs playtest)
+
+OPTIONS > DISPLAY > RENDERER offers POLYMORPH (default) and CLASSIC, applied
+on the next launch; launcher `--world-renderer polymorph|classic`. Classic
+turns off unified geometry, host world visibility and redraw-only frames and
+keeps the near path, which first person and widescreen need (with it off,
+first-person arms and close walls broke). Vanilla is unchanged (always
+Classic). ADVANCED's OpenGL / software row is now BACKEND. Playtest: switch
+to CLASSIC, relaunch, compare first and third person and a heavy 180 Hz view;
+switch back. Note 343.
+
 ## 2026-10-31 - D17AR5 accepted and closed
 
 User: "fully accepted/ lock it in, close it out". The cheaper Polymorph

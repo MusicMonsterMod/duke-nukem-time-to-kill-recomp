@@ -327,10 +327,23 @@ out". Committed and pushed.
 
 #### D17AR6 - Renderer choice in OPTIONS: Classic and Polymorph
 
-**Status: Todo.** The user named our renderer Polymorph (2026-10-31). Offer
+**Status: Done (user-accepted 2026-11-01; closeout authorized).** The user named our renderer Polymorph (2026-10-31). Offer
 Classic (the original renderer) and Polymorph in OPTIONS > DISPLAY and the
 launcher, mapping to the existing switches (host visibility, unified
 geometry, near path, redraw-only); Vanilla stays Classic.
+Work log 2026-10-31 (Needs playtest): OPTIONS > DISPLAY has RENDERER:
+POLYMORPH / CLASSIC (next launch); the launcher has `--world-renderer
+polymorph|classic` (profile field `world_renderer`, default polymorph).
+Classic turns off unified geometry, host visibility and redraw-only (developer
+values still win). The near path stays on: with it off, first person broke
+(D36 arms changed, close walls vanished in slot 10), while with it on Classic
+first person matched Polymorph in nine views. Vanilla sets none of the
+switches and is unchanged. The ADVANCED OpenGL / software row is renamed
+BACKEND. Real-key round trip (confirm CLASSIC, quit, relaunch): host frames 0,
+unified off, redraw-only off, near on; back to Polymorph with the flag. Profile
+tests (112), `ttk-near-test`, `ttk-input-test`, `test_auto_frame_rate` pass.
+No framework changes. Not live (a later option). Note 343.
+Accepted 2026-11-01. User: "lock it in, close us out". Committed and pushed.
 
 ### D17AS - Slot-2 moat: large dark triangle in or under the water
 
@@ -1785,7 +1798,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D17AR3 | Host visibility: regression sweep, performance and default switch | Accepted (parts 1-4; renderer named Polymorph; further speed in D17AR5) | D17AR2 |
 | D17AR4 | Host visibility: retire superseded portal patches (open sky, portal widening) | Todo | D17AR3 |
 | D17AR5 | Polymorph: cheaper redraw feed so the heaviest views hold 180 Hz | Done | D17AR3 |
-| D17AR6 | Renderer choice in OPTIONS: Classic and Polymorph | Todo | D17AR3 |
+| D17AR6 | Renderer choice in OPTIONS: Classic and Polymorph | Done | D17AR3 |
 | D17AS | Slot-2 moat: large dark triangle in/under the water (research/screencaps/triangle.mp4) | Todo (report first) | D17AM |
 | D14F | 90-default / 120-maximum world FOV | Done (user-confirmed 2026-10-30) | Implemented in afd4ad6 (note 317); re-verified 2026-10-29 |
 | D17AE | Slot-11 sign post through door header | Done (user-confirmed 2026-10-29) | Scene depth for native world/scenery packets; replay precedence fix; world backface cull restored |

@@ -68,6 +68,7 @@ def main(argv=None):
     p.add_argument('--view-bob', choices=profiles.VIEW_BOBS, help='save Modernized first-person view bob while walking: off, subtle, on (default) or strong; standing still is steady at every setting')
     p.add_argument('--geometry-precision', choices=profiles.PRECISION_MODES, help='save Modernized mesh geometry: original (default) or corrected subpixel positions; OpenGL, next launch')
     p.add_argument('--texture-precision', choices=profiles.PRECISION_MODES, help='save Modernized mesh textures: original (default) or corrected perspective; OpenGL, next launch')
+    p.add_argument('--world-renderer', choices=profiles.WORLD_RENDERERS, help='save Modernized renderer: polymorph (default; one geometry path, host world visibility, redraw-only frames at high refresh) or classic (the game\'s own drawing order and visibility); Vanilla always uses classic')
     p.add_argument('--draw-distance', choices=profiles.DRAW_DISTANCES, help='save Modernized draw distance: extended (default; maximum view limit, open sky over outdoor walls, distant enemies dormant until near or hurt, no distant black seams) or original; Vanilla always uses original')
     p.add_argument('--frame-rate', choices=profiles.FRAME_RATES, help="save Modernized frame rate: auto (your display's refresh, up to 240 FPS), display (the monitor's refresh), 30, 60 (original), 120, 144, 165, 180, 240 or unlimited; game speed is unchanged, Vanilla always uses 60")
     p.add_argument('--no-session-log', action='store_true', help='do not mirror runtime stderr into build-local/logs/session-*.log')
@@ -107,7 +108,7 @@ def main(argv=None):
             profile = settings['profiles']['modernized']
             profile['bindings'] = pc_input.rebind(profile['bindings'], a.bind)
             changed = True
-        if a.auto_bio_mask is not None or a.night_vision is not None or a.wall_view is not None or a.overhead_view is not None or a.mantle_view is not None or a.pole_view is not None or a.ladder_view is not None or a.push_view is not None or a.jetpack_view is not None or a.swim_view is not None or a.steroids is not None or a.draw_distance is not None or a.geometry_precision is not None or a.texture_precision is not None or a.view_bob is not None or a.frame_rate is not None or a.jump is not None or a.jump_walls is not None or a.landing is not None or a.wall_backflip is not None or a.crouch is not None or a.dynamite is not None or a.swimming is not None or a.cpu_overclock is not None or a.cpu_timing is not None or a.widescreen is not None or a.camera_distance is not None or a.shoulder is not None or a.view is not None or a.jetpack is not None or a.aim_assist is not None or a.red_dot is not None or a.crosshair is not None or a.weapon_aim is not None or a.camera is not None or a.mouse_sensitivity is not None or a.invert_y is not None:
+        if a.auto_bio_mask is not None or a.night_vision is not None or a.wall_view is not None or a.overhead_view is not None or a.mantle_view is not None or a.pole_view is not None or a.ladder_view is not None or a.push_view is not None or a.jetpack_view is not None or a.swim_view is not None or a.steroids is not None or a.draw_distance is not None or a.world_renderer is not None or a.geometry_precision is not None or a.texture_precision is not None or a.view_bob is not None or a.frame_rate is not None or a.jump is not None or a.jump_walls is not None or a.landing is not None or a.wall_backflip is not None or a.crouch is not None or a.dynamite is not None or a.swimming is not None or a.cpu_overclock is not None or a.cpu_timing is not None or a.widescreen is not None or a.camera_distance is not None or a.shoulder is not None or a.view is not None or a.jetpack is not None or a.aim_assist is not None or a.red_dot is not None or a.crosshair is not None or a.weapon_aim is not None or a.camera is not None or a.mouse_sensitivity is not None or a.invert_y is not None:
             controls = dict(settings['profiles']['modernized']['controls'])
             if a.aim_assist is not None: controls['aim_assist'] = a.aim_assist
             if a.jetpack is not None: controls['jetpack'] = a.jetpack
@@ -135,6 +136,7 @@ def main(argv=None):
             if a.frame_rate is not None: controls['frame_rate'] = a.frame_rate
             if a.geometry_precision is not None: controls['geometry_precision'] = a.geometry_precision
             if a.draw_distance is not None: controls['draw_distance'] = a.draw_distance
+            if a.world_renderer is not None: controls['world_renderer'] = a.world_renderer
             if a.texture_precision is not None: controls['texture_precision'] = a.texture_precision
             if a.view_bob is not None: controls['view_bob'] = a.view_bob
             if a.shoulder is not None: controls['shoulder'] = a.shoulder
@@ -235,6 +237,13 @@ def main(argv=None):
         print('Mesh precision requires OpenGL; this software-renderer session uses Original.', file=sys.stderr)
     # D17P: render-only view limits; Vanilla keeps the original.
     env['DNTTK_DRAW_DISTANCE'] = controls['draw_distance'] if modernized else 'original'
+    # D17AR6: Classic turns Polymorph's switches off (explicit developer values
+    # still win). Vanilla never reaches them; the near path stays for first
+    # person and widescreen.
+    env['DNTTK_WORLD_RENDERER'] = controls['world_renderer'] if modernized else 'classic'
+    if modernized and controls['world_renderer'] == 'classic':
+        for key in ('DNTTK_UNIFIED_GEOMETRY', 'DNTTK_HOST_VISIBILITY', 'DNTTK_REDRAW_ONLY'):
+            env.setdefault(key, '0')
     # Explicit developer overrides remain session-only; ordinary launches use the profile.
     if modernized:
         env.setdefault('DNTTK_FP_FOV', str(controls['first_person_fov']))

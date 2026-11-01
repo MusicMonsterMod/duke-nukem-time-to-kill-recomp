@@ -70,6 +70,16 @@ paplay /usr/share/sounds/freedesktop/stereo/complete.oga || canberra-gtk-play -i
 
 Play it once per finished job, not for job listings or intermediate steps. A failed chime never blocks the summary.
 
+## After a closeout
+
+When the user accepts a job and authorizes the closeout (documentation, commit and push), end the closeout reply with up to three suggested next jobs and a ready-to-run command for each (user request, 2026-11-01). Pick them from the current board: unfinished jobs whose dependencies are met, preferring follow-ups the closed job uncovered and related open work. Give each a one-line reason, then the command, for example:
+
+```
+/continue-duke-recomp work on D36H6
+```
+
+Suggesting jobs does not start one. Do not mark any job In progress; wait for the user to run a command or choose.
+
 ## Private paths
 
 Never write the local account name or an expanded personal home directory into

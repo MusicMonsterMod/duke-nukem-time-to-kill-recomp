@@ -76,7 +76,7 @@ only; not started.
 
 ### D14G - Holstered swimming arms look disembodied in first person
 
-**Status: Todo. Dependencies: D11E, D36H4, D14B, D08O5.** User: in
+**Status: Done (user-accepted 2026-11-01). Dependencies: D11E, D36H4, D14B, D08O5.** User: in
 first-person swimming with the weapon holstered "the arms looks disembodied"
 (a "weird projection"). Read note 257 (D36) and notes 305/306 (D36H5) first.
 
@@ -102,6 +102,20 @@ cannot be shown plausibly. Check the default and maximum world FOV, 120 and
 180 Hz, the D08O5 draw into the armed swim pose, and the D36K backpack hide.
 Armed swimming, land, flight and Vanilla unchanged. Report findings before a
 design choice if more than one option fits.
+
+Work log 2026-11-01: joint sampling confirmed the cause. At the surface the
+shoulders sit at the eye plane, so the native cull dropped upper arms (and
+often forearms) and kept hands/cuffs; looking down puts a shoulder joint
+near screen centre, ruling out plain Body admission (open shoulder ends).
+Holstered swimming now uses the accepted D36H5 contact rig unchanged (native
+hands, eye-anchored shoulders, authored elbow pole); a drawn weapon keeps its
+display arms. Native controls/aim/near pass with a new swim group (mutation
+checked). Live 60/FOV 90, 120 Hz and FOV 120: connected arms from the screen
+edge, D08O5 draw, restow, private save/load, dive; replay zero failures.
+Limits: one moat route, default costume. [Note 346](documentation/346-d14g-swim-contact-arms.md).
+
+Accepted 2026-11-01. User: "perfect. lock it in, close it out". Closeout,
+commit and push authorized.
 
 ## 2026-10-30 - Swimming: left click does not draw a holstered weapon (D08O5)
 
@@ -2050,7 +2064,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D14A | Configurable first-person FOV foundation | Done (user-accepted 2026-10-28) | D11, D14 |
 | D14B | Decouple first-person weapon/arms presentation from world FOV | Done (user-accepted 2026-10-28) | D14A foundation |
 | D14C | Investigate first-person leg presentation across world FOV | Done (user-accepted 2026-10-28) | D14A, D14B |
-| D14G | Holstered swimming arms look disembodied in first person | Todo (intake research done) | D11E, D36H4, D14B, D08O5 |
+| D14G | Holstered swimming arms look disembodied in first person | Done (user-accepted 2026-11-01) | D11E, D36H4, D14B, D08O5 |
 | D15 | Optional geometry and texture precision | Done (user-accepted; closed 2026-10-30) | D13 |
 | D16 | Texture manipulation and replacement foundation | Done (bounded foundation accepted 2026-10-27) | D13 |
 | D16A | HRP assets and first-person weapon research (later) | Cancelled (original assets preferred) | - |

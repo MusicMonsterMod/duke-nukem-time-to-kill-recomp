@@ -1404,6 +1404,16 @@ static bool interaction_depth_bridge(PerspectiveAction action) {
         action==PerspectiveAction::Pole || action==PerspectiveAction::Mantle ||
         action==PerspectiveAction::Overhead || action==PerspectiveAction::WaterExit;
 }
+// D14G: holstered swimming strokes carry native hands in front of an eye that
+// sits at the pitched body's shoulder plane. Whole-joint culling kept hands and
+// cuffs but dropped the arms, and free look exposes open shoulder ends. Empty
+// hands share the contact rig; armed swimming keeps its display arms.
+static bool swim_contact_arms(PerspectiveAction action) {
+    return action==PerspectiveAction::Swimming && psx_mod_read_byte(player+0x3b8)==0;
+}
+static bool contact_arm_action(PerspectiveAction action) {
+    return interaction_depth_bridge(action) || swim_contact_arms(action);
+}
 // D36H5: a separate first-person contact rig. Hands retain their native world
 // matrices; shoulders belong to the eye rig, with elbows solved between them.
 // Geometry still uses world depth/lighting, never the weapon overlay. Native
@@ -1412,7 +1422,7 @@ static void first_person_contact_arm(CPUState* cpu,uint32_t desc,int part) {
     // Every authenticated contact owner uses the same rig, including Push,
     // Use and Mirror. The perspective resolver owns action eligibility; do
     // not duplicate a traversal-only subset or whitelist animation numbers.
-    if(!interaction_depth_bridge(fp_policy.action))return;
+    if(!contact_arm_action(fp_policy.action))return;
     if(!input_modern_controls() || psx_mod_read_byte(player+0x3b8)!=0 ||
        part<10 || part>14 || part==12)return;
     const char* mode=std::getenv("DNTTK_FP_CONTACT_ARMS");
@@ -1504,11 +1514,11 @@ static void first_person_weapon_joint(CPUState* cpu,uint32_t ra) {
         limb_draw.bridge_joint_depth=false;
     }
     if(ra==0x80034c6c && weapon_duke_draw && fp_blend>=0.5 && orbit_valid &&
-       fp_policy.effective && interaction_depth_bridge(fp_policy.action) &&
+       fp_policy.effective && contact_arm_action(fp_policy.action) &&
        cpu->gpr[4]==camera && cpu->gpr[20]==player) {
         const int part=duke_joint_part(duke_model(),cpu->gpr[23]);
         if(part>=int(part_arm_first) && part<=0x0f) {
-            limb_claim(cpu,LimbOwner::Interaction,part,interaction_depth_bridge(fp_policy.action));
+            limb_claim(cpu,LimbOwner::Interaction,part,true);
             first_person_contact_arm(cpu,duke_model(),part);
         }
     }

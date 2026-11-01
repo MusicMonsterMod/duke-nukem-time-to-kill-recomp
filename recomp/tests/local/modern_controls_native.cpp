@@ -5631,6 +5631,24 @@ int main(int argc,char** argv) {
                         call(0x8001ca4c,0x800d0000,0,0x800376b4);
                         psx_mod_write_byte(desc+0x38,mapped);
                         psx_mod_write_byte(pack,0);
+                        // D14G: holstered strokes share the contact rig; a
+                        // drawn weapon keeps its display arms, never the rig.
+                        if(mode==4 || mode==5) {
+                            assert(std::strstr(ttk::controls_debug_json(),"\"action\":\"swimming\""));
+                            contact_arms(true);contact_rig(true);
+                            const auto held=psx_mod_read_byte(p+0x3b8);
+                            psx_mod_write_byte(p+0x3b8,2);
+                            for(unsigned part:{10u,11u,13u,14u}) {
+                                call(0x800348d8,c,p,0x8003769c);
+                                CPUState joint{};joint.gpr[4]=c;joint.gpr[20]=p;joint.gpr[29]=0x801f0000;
+                                joint.gpr[23]=psx_mod_read_byte(desc+0x24+part);
+                                joint.gpr[5]=mats+0x20*joint.gpr[23];joint.gpr[31]=0x80034c6c;
+                                hooks().at(0x800292a0)(&joint,0x800292a0);
+                                assert(ttk::first_person_limb_presentation().owner!=ttk::LimbOwner::Interaction);
+                                call(0x8001ca4c,0x800d0000,0,0x800376b4);
+                            }
+                            psx_mod_write_byte(p+0x3b8,held);
+                        }
                         const auto flags=psx_mod_read_word(p+0x224);
                         psx_mod_write_word(p+0x224,flags|0x200);frame();assert(metric("\"blend\":")==((mode==4 || mode==5)?1:0) && !ttk::movement_ready());
                         psx_mod_write_word(p+0x224,flags|0x20000000);frame();assert(metric("\"blend\":")==0);

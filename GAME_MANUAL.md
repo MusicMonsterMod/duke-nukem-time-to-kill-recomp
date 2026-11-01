@@ -431,7 +431,8 @@ person afterward. Water climb-outs still use the mantle's third-person view.
 
 In first-person swimming, Duke's backpack is hidden from the eye view so it
 does not swing across the screen during ascent and descent. It remains visible
-in third person.
+in third person. With the weapon holstered, Duke's swimming arms reach in
+from the screen edge as connected arms, the same as when climbing.
 
 The launcher also accepts `--swim-view first` or `--swim-view legacy-third`;
 these update the saved preference. Add `--show-settings` to save without launching.

@@ -1,5 +1,20 @@
 # Current status - 2026-10-04
 
+## 2026-11-01 - D14G accepted and closed
+
+User: "perfect. lock it in, close it out." D14G is Done (note 346):
+holstered first-person swimming arms use the D36H5 contact rig. No
+post-acceptance code change. No next job selected.
+
+## 2026-11-01 - D14G: holstered swimming arms use the contact rig (Needs playtest)
+
+First-person swimming with the weapon holstered now draws connected arms:
+the same D36H5 contact-arm rig used for climbing and interactions (native
+hands, shoulders anchored to the eye). Before, the surface stroke showed
+loose hands/cuffs. A drawn weapon keeps its display arms; Vanilla and third
+person unchanged. Playtest: swim holstered on the surface and underwater,
+look down, try FOV 120, left click to draw and holster again. Note 346.
+
 ## 2026-11-01 - D08O5 accepted and closed; D14G queued
 
 User: "very good work!! i can confirm it works." D08O5 is Done (note 345).

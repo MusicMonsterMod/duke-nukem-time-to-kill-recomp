@@ -60,7 +60,7 @@ repeated grabs from several approach speeds; other mantles, ledge hangs and
 water climb-outs (D35G, D08X, D08V coverage) unchanged; Vanilla unchanged;
 the user's playtest.
 
-### D20I - Live level stats: time, kills and secrets in the bottom-left corner
+### D20I - LEVEL STATS (time, kills, secrets) in the bottom-left corner; LEVEL STATS and FPS toggles in DISPLAY
 
 **Status: Todo. Dependencies: D20E, D20D, D24A.** EDuke32 shows three
 small lines above its status bar in the bottom-left corner: `T: 3:03.39`,
@@ -83,15 +83,36 @@ how disc fonts take a palette and how a project palette was added. Plan: the
 same font, a red palette for the letters and a gold palette for the values;
 if the disc's red is too dark at this size, add a bright red project palette
 the way Console steel was added. Show the user swatches before building.
-Open questions for the job: an option to turn it on / off (OPTIONS >
-MODERNIZED), the time format (EDuke32 shows minutes:seconds.hundredths),
-levels without secrets, and whether it hides with the HUD levels (D19U1).
+Settings (user, 2026-11-02): the feature is called LEVEL STATS. It gets an
+ON / OFF row in OPTIONS > DISPLAY (`game_menu.cpp`, the DISPLAY page beside
+WINDOW, RESOLUTION, FRAME RATE), saved in the Modernized profile with the
+usual schema migration, applied at once. In the same job, add an FPS row to
+DISPLAY that turns the compact statistics block on and off, the one the
+console `fps` command toggles today (framework console, `main.cpp`); the row
+and the console command must stay in step and the choice is saved. Open
+questions: the time format (EDuke32 shows minutes:seconds.hundredths), levels
+without secrets, whether LEVEL STATS hides with the HUD levels (D19U1), and
+where LEVEL STATS sits when the FPS block is also on (FPS is top left).
+
+User advice (2026-11-02): in EDuke32 the kill total is dynamic; it can go up
+during a level when enemies are added after the start. Do the same, clean
+room (from observed behavior, not EDuke32's source): Y counts enemies that
+exist or have existed this level, so a spawned enemy raises it. D20E's Y is
+the level-load rule over the placement table and is fixed; it found one
+runtime increment of the game's own enemies-left count (challenge stage 25,
+type `0x7f`) but did not survey mid-level spawns (spawners, triggers,
+reinforcements). The job must find where the game creates enemies after the
+load and count those that pass the same rule, keep the dancer / non-hostile
+exclusions consistent with D20E, and decide whether the statistics screen's
+`X OF Y` follows the same dynamic total so the two never disagree.
 
 **Acceptance:** three lines in the bottom-left corner during Modernized
-gameplay that match the statistics screen values (time, kills X/Y, secrets
-X/Y), readable red and gold in the TTK font, correct in 4:3 and 16:9 and at
-every HUD size, no effect on frame rate; Vanilla unchanged; the user's
-playtest.
+gameplay that match the statistics screen values (time, kills X/Y with the
+dynamic total, secrets X/Y), readable red and gold in the TTK font, correct in
+4:3 and 16:9 and at every HUD size, no effect on frame rate; OPTIONS > DISPLAY
+has LEVEL STATS and FPS rows that apply at once and persist across launches,
+FPS in step with the console command; GAME_MANUAL updated; Vanilla unchanged;
+the user's playtest.
 
 ## 2026-11-01 - Polymorph: whole level from the jetpack (D17AX)
 
@@ -2477,7 +2498,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D17AE | Slot-11 sign post through door header | Done (user-confirmed 2026-10-29) | Scene depth for native world/scenery packets; replay precedence fix; world backface cull restored |
 | D17AF | Latest slot-10 ground water visibility | Done | Selected batch; see intake above |
 | D20H | Slot-5 intermittent colour corruption on load | Done (user-confirmed 2026-10-30) | Selected batch; see intake above |
-| D20I | Live level stats in the bottom-left corner: time, kills and secrets in the TTK font, red and gold (EDuke32 style) | Todo | D20E, D20D, D24A |
+| D20I | LEVEL STATS in the bottom-left corner (time, kills, secrets; TTK font, red and gold, EDuke32 style) plus LEVEL STATS and FPS toggles in OPTIONS > DISPLAY | Todo | D20E, D20D, D24A |
 | D17AG | Slot-6 wooden panelling holes | Done (user-confirmed 2026-10-30) | Fixed by D17AE scene depth |
 | D17AH | Slot-8 sky glitching and popping | Done | Selected batch; see intake above |
 | D17AI | Slot-12 wall near pushable cube | Done (user-confirmed 2026-10-30) | Selected batch; see intake above |

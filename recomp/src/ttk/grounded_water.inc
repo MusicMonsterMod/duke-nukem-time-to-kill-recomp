@@ -43,11 +43,23 @@ static constexpr GroundWaterPatch ground_water_patches[]={
     {0x8004b8fc,0x1040000a,0x1000000a},
     {0x8004ba00,0x1040000a,0x1000000a},
     {0x8004bb04,0x1040000a,0x1000000a},
+    // D08Q10: Duke's update spends air (+0x236 -= dt, drowning at 0) only in
+    // swim state 5 and otherwise refills it at 8 * dt. Host flight with the
+    // head under water takes the state-5 branch (80041fd8 bne -> nop).
+    {0x80041fd8,0x14620028,0x00000000},
+    // D08Q10: Duke's update closes an open pack whose root is under the
+    // water level (8004260c -> 8003ff6c(player,1)). Host flight under water.
+    {0x8004260c,0x10400003,0x10000003},
 };
+static constexpr unsigned k_jet_air_patch=std::size(ground_water_patches)-2;
+static constexpr unsigned k_jet_close_patch=std::size(ground_water_patches)-1;
+static constexpr uint32_t k_jet_patches=(1u<<k_jet_air_patch)|(1u<<k_jet_close_patch);
 static uint32_t ground_water_dispatch_sp;
 static uint64_t ground_water_dispatch_epoch;
 static uint32_t ground_water_patch_mask;
 static unsigned ground_water_kind;
+static uint32_t jet_close_sp,jet_close_ra,jet_close_armed;
+static uint64_t jet_close_epoch;
 static void grounded_water_restore() {
     if(!ground_water_patch_mask)return;
     for(unsigned i=0;i<std::size(ground_water_patches);++i) {
@@ -85,13 +97,32 @@ static void grounded_water_dispatch(CPUState* cpu,uint32_t ra) {
 // Patch before function entry so the runtime selects its guarded interpreter;
 // recheck the refreshed water depth at the final neck lookup. Deep entry and
 // existing surface/underwater modes retain native physics and effects.
+static bool grounded_water_jet_transition(CPUState* cpu,uint32_t ra);
 static void grounded_water_transition(CPUState* cpu,uint32_t ra) {
     ground_water_dispatch_sp=0;
+    if(grounded_water_jet_transition(cpu,ra))return;
     if(cpu->gpr[4]!=player || ra!=0x8005a4f8 || !grounded_water_flight() ||
        psx_mod_read_byte(player+0x22c)!=9 || !input_snapshot(Context::Gameplay).active ||
        !independent_camera() || !player_identity_ready())return;
     ground_water_dispatch_sp=cpu->gpr[29];
     ground_water_dispatch_epoch=input_snapshot(Context::Gameplay).epoch;ground_water_kind=2;
+}
+// D08Q10: host-owned jetpack flight (Modern/EDuke32) treats the water
+// surface as a floor and may hover under it after a water start. The same native swim
+// entry (its head/root band test, any mode but 4/5/8) would otherwise turn
+// mode 10 into surface swimming and close the pack. Veto only that entry,
+// at any depth, through the same authenticated pre-state frame. Classic
+// flight and every other state keep the native water entry.
+static bool grounded_water_jetpack() {
+    return input_modernized() && !jetpack_classic() && jetpack_flying_early() &&
+        jetpack_input_ready();
+}
+static bool grounded_water_jet_transition(CPUState* cpu,uint32_t ra) {
+    if(cpu->gpr[4]!=player || ra!=0x8005a4f8 || !grounded_water_jetpack() ||
+       !player_identity_ready())return false;
+    ground_water_dispatch_sp=cpu->gpr[29];
+    ground_water_dispatch_epoch=input_snapshot(Context::Gameplay).epoch;ground_water_kind=5;
+    return true;
 }
 static void grounded_water_complete(CPUState* cpu) {
     ground_water_dispatch_sp=0;
@@ -106,7 +137,63 @@ static void grounded_water_complete(CPUState* cpu) {
     ground_water_dispatch_sp=cpu->gpr[29];ground_water_dispatch_epoch=f.epoch;
     ground_water_kind=4;
 }
+// D08Q10: Duke's update (800412a4) under host flight (Modern/EDuke32) in
+// water. With the root under the water level the pack stays open; with the
+// head under it Duke holds his breath as in swim state 5 (air drains, native
+// drowning at 0, god mode unchanged). Patch at the update's entry so the
+// runtime selects the guarded interpreter; every hook restores the words and
+// grounded_water_query reapplies them only while this authenticated frame
+// (0x58, ra at -4) is on the stack and their condition still holds. The model
+// build (800411b8, called right after the pack test) ends it. Fuel, damage
+// and every other close remain native.
+static bool jet_head_under_water() {
+    const uint32_t layout=psx_mod_read_word(player+0x40),matrices=psx_mod_read_word(player+0x3c);
+    if(layout<0x80010000u || layout>=0x801ffff0u || matrices<0x80010000u || matrices>=0x801fe000u)return false;
+    const unsigned head=psx_mod_read_byte(layout+0x34);
+    return head<64 && (int32_t)psx_mod_read_word(matrices+32*head+0x18)>water_surface_y();
+}
+static uint32_t grounded_water_jet_wanted() {
+    if(!grounded_water_jetpack() || !water_present() || g_precise_mode || g_ls_mode ||
+       g_psx_call_bail || !identity())return 0;
+    uint32_t mask=0;
+    if((int32_t)psx_mod_read_word(player+8)>water_surface_y())mask|=1u<<k_jet_close_patch;
+    if(jet_head_under_water())mask|=1u<<k_jet_air_patch;
+    return mask;
+}
+static void grounded_water_jet_apply(uint32_t mask) {
+    for(unsigned i:{k_jet_air_patch,k_jet_close_patch}) {
+        if(!(mask&(1u<<i)))continue;
+        const auto& p=ground_water_patches[i];
+        if(psx_mod_read_word(p.address)!=p.original)continue;
+        psx_mod_write_code_word(p.address,p.replacement);
+        ground_water_patch_mask|=1u<<i;
+    }
+}
+static void grounded_water_jet_close_arm(CPUState* cpu) {
+    jet_close_sp=0;
+    const uint32_t sp=cpu->gpr[29];
+    if(cpu->gpr[4]!=player || sp<0x80010100 || sp>0x801ffff0 || (sp&3) ||
+       !input_snapshot(Context::Gameplay).active)return;
+    jet_close_armed=grounded_water_jet_wanted();
+    if(!jet_close_armed)return;
+    jet_close_sp=sp;jet_close_ra=cpu->gpr[31];
+    jet_close_epoch=input_snapshot(Context::Gameplay).epoch;
+    grounded_water_jet_apply(jet_close_armed);
+}
+static void grounded_water_jet_close_query(CPUState* cpu,uint32_t address) {
+    if(!jet_close_sp)return;
+    const uint32_t sp=cpu->gpr[29];
+    const uint32_t mask=jet_close_armed&grounded_water_jet_wanted();
+    if((address==0x800411b8 && cpu->gpr[31]==0x80042634) || !input_modernized() ||
+       input_snapshot(Context::Gameplay).epoch!=jet_close_epoch ||
+       sp<0x80010100 || sp>jet_close_sp-0x58 ||
+       psx_mod_read_word(jet_close_sp-4)!=jet_close_ra || !mask) {
+        jet_close_sp=0;return;
+    }
+    grounded_water_jet_apply(mask);
+}
 static void grounded_water_query(CPUState* cpu,uint32_t address) {
+    grounded_water_jet_close_query(cpu,address);
     // Arm after hook_body: walking's terrain probe calls guest functions
     // before the dispatcher has pushed its frame. Arming before that probe
     // made its nested hooks reject the not-yet-existing dispatcher stack.
@@ -114,9 +201,10 @@ static void grounded_water_query(CPUState* cpu,uint32_t address) {
     if(address==0x8004b644)grounded_water_complete(cpu);
     if(!ground_water_dispatch_sp)return;
     const uint32_t sp=cpu->gpr[29];
-    const uint32_t target=ground_water_kind==4?0x8004b644:ground_water_kind==2?0x80055e80:0x80048410;
-    const uint32_t caller=ground_water_kind==4?0x8005a470:ground_water_kind==2?0x8005a4f8:0x8004b634;
-    const unsigned frame_size=ground_water_kind==4?0x20:ground_water_kind==2?0x50:0x28;
+    const bool transition=ground_water_kind==2 || ground_water_kind==5;
+    const uint32_t target=ground_water_kind==4?0x8004b644:transition?0x80055e80:0x80048410;
+    const uint32_t caller=ground_water_kind==4?0x8005a470:transition?0x8005a4f8:0x8004b634;
+    const unsigned frame_size=ground_water_kind==4?0x20:transition?0x50:0x28;
     const unsigned ra_offset=ground_water_kind==4?8:4;
     const bool entry=address==target && sp==ground_water_dispatch_sp;
     if(!input_modernized() || input_snapshot(Context::Gameplay).epoch!=ground_water_dispatch_epoch ||
@@ -124,18 +212,19 @@ static void grounded_water_query(CPUState* cpu,uint32_t address) {
        (!entry && (sp>ground_water_dispatch_sp-frame_size ||
                     psx_mod_read_word(ground_water_dispatch_sp-ra_offset)!=caller)) ||
        g_precise_mode || g_ls_mode || g_psx_call_bail || !identity() ||
-       (ground_water_kind>=2 && !grounded_water_modern()) ||
-       ((ground_water_kind==2 || ground_water_kind==3) && !grounded_water_flight())) {
+       (ground_water_kind>=2 && ground_water_kind<=4 && !grounded_water_modern()) ||
+       ((ground_water_kind==2 || ground_water_kind==3) && !grounded_water_flight()) ||
+       (ground_water_kind==5 && !grounded_water_jetpack())) {
         ground_water_dispatch_sp=0;return;
     }
     for(const auto& p:ground_water_patches)
-        if(psx_mod_read_word(p.address)!=p.original) {ground_water_dispatch_sp=0;return;}
+        if(!(k_jet_patches&(1u<<(&p-ground_water_patches))) && psx_mod_read_word(p.address)!=p.original) {ground_water_dispatch_sp=0;return;}
     for(unsigned i=0;i<std::size(ground_water_patches);++i) {
         const auto& p=ground_water_patches[i];
         if((ground_water_kind==1 && i<5) ||
-           (ground_water_kind==2 && p.address==0x80056240) ||
+           (transition && p.address==0x80056240) ||
            (ground_water_kind==3 && p.address==0x80054cbc) ||
-           (ground_water_kind==4 && i>=7)) {
+           (ground_water_kind==4 && i>=7 && !(k_jet_patches&(1u<<i)))) {
             psx_mod_write_code_word(p.address,p.replacement);
             ground_water_patch_mask|=1u<<i;
         }

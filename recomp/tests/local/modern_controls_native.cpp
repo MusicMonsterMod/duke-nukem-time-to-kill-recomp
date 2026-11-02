@@ -88,6 +88,8 @@ static uint32_t hull_object;static int hull_ray_hit,hull_steep;static std::vecto
 static int32_t hull_object_top;   // D08K7: the step 0x80077748 reports onto the contact's top
 static int ladder_end_result=0;static unsigned ladder_end_calls;
 static unsigned kicks, edge_launches, crouch_falls;
+static unsigned bubbles; static int32_t bubble_y; // D08Q10 80044fa4(actor, count, position)
+static std::vector<uint32_t> surface_sounds; // D08Q10 8006bbd8 ids, 0x80000000|handle for 8006af44
 static bool terrain_nested_hook;static unsigned terrain_nested_calls;
 static int terrain_result=3,terrain_floor=-1000;
 static uint32_t terrain_reference;
@@ -230,6 +232,17 @@ extern "C" void psx_dispatch_call(CPUState* cpu,uint32_t address,uint32_t) {
         psx_mod_write_half(p+0x84c,on?5:0);
         psx_mod_write_half(p+0x358,psx_mod_read_half(p+0x358)&~0x8000u);
         psx_mod_write_word(p+0x224,psx_mod_read_word(p+0x224)&~0x10001000u);
+        cpu->pc=0;return;
+    }
+    if(address==0x8006bbd8 || address==0x8006af44) {
+        surface_sounds.push_back(address==0x8006bbd8 ? cpu->gpr[4] : 0x80000000u|cpu->gpr[4]);
+        cpu->gpr[2]=0x1234;cpu->pc=0;return;
+    }
+    if(address==0x80044fa4) {
+        // The position must sit between the isolated call frame and the caller.
+        assert(cpu->gpr[4]==0x800d7198 && cpu->gpr[5]>=1 && cpu->gpr[5]<=2 &&
+               cpu->gpr[6]>cpu->gpr[29] && cpu->gpr[6]<cpu->gpr[29]+0x100);
+        bubbles+=cpu->gpr[5];bubble_y=std::max(bubble_y,(int32_t)psx_mod_read_word(cpu->gpr[6]+4));
         cpu->pc=0;return;
     }
     assert(address==0x8007926c || address==0x800797f4 || address==0x800402d0 || address==0x8007765c || address==0x800517a4);
@@ -450,8 +463,78 @@ int main(int argc,char** argv) {
         assert(psx_mod_read_byte(p+0x22c)==10 && psx_mod_read_half(p+0x35a)>0);
         update(2);assert(psx_mod_read_half(p+0x35a)==0 && psx_mod_read_byte(p+0x22c)==9);
         toggle();assert(psx_mod_read_byte(p+0x22c)==9); // empty cannot activate
+        // D08Q10: a fall under the water level starts too and, as in EDuke32,
+        // holds Duke where he is (no automatic rise, no ground lift).
         psx_mod_write_half(p+0x35a,9000);psx_mod_write_word(p+0x834,0);psx_mod_write_word(p+8,10);
-        toggle();assert(psx_mod_read_byte(p+0x22c)==9); // water veto
+        toggle();assert(psx_mod_read_byte(p+0x22c)==10 && psx_mod_read_half(p+0x60)==163 &&
+                        (psx_mod_read_half(p+0x358)&3)==3 && psx_mod_read_word(p+0x834)==0);
+        update(2);assert(psx_mod_read_word(p+0x1f8)==0); // holds, no launch
+        ttk::input.held[ttk::jump]=true;update(2);
+        assert((int32_t)psx_mod_read_word(p+0x1f8)<0); // Space climbs out
+        ttk::input.held[ttk::jump]=false;
+        toggle(); // off under water: native underwater swimming at once, no fall
+        assert(psx_mod_read_byte(p+0x22c)==5 && psx_mod_read_half(p+0x60)==127 && !(psx_mod_read_half(p+0x358)&2));
+        // Surface/underwater swim: J is read inside the swim handler, so the
+        // start waits for Duke's next update entry (800412a4).
+        for(unsigned swim:{4u,5u}) {
+            psx_mod_write_byte(p+0x22c,swim);psx_mod_write_byte(p+0x22d,swim);psx_mod_write_half(p+0x60,swim==4?122:127);
+            psx_mod_write_half(p+0x358,1);psx_mod_write_half(p+0x26,swim==5?(uint16_t)-900:0);psx_mod_write_word(p+0x224,0x100);
+            toggle();assert(psx_mod_read_byte(p+0x22c)==swim && !(psx_mod_read_half(p+0x358)&2));
+            ++ttk::input.epoch;call(0x800412a4,p,0,0x80041000,0x801fff00);
+            assert(psx_mod_read_byte(p+0x22c)==swim); // a new capture/load drops the request
+            toggle();call(0x800412a4,p,0,0x80041000,0x801fff00);
+            assert(psx_mod_read_byte(p+0x22c)==10 && psx_mod_read_half(p+0x60)==163 && (psx_mod_read_half(p+0x358)&3)==3);
+            assert(psx_mod_read_word(p+0x834)==0 && psx_mod_read_half(p+0x26)==0 && !(psx_mod_read_word(p+0x224)&0x100));
+            update(2); // surface: the ground start's lift; underwater: hold
+            assert(swim==4 ? (int32_t)psx_mod_read_word(p+0x1f8)<0 : psx_mod_read_word(p+0x1f8)==0);
+            if(swim==4) {ttk::input.held[ttk::crouch]=true;update(2);ttk::input.held[ttk::crouch]=false;update(2);}
+            // Bubbles while the head is under water (native cadence 300-900 dt).
+            {
+                // This fixture has no model; supply a layout with head joint 3.
+                const uint32_t saved_layout=psx_mod_read_word(p+0x40),saved_matrices=psx_mod_read_word(p+0x3c);
+                constexpr uint32_t layout=0x801e8000,matrices=0x801e8100,head=matrices+32*3+0x18;
+                psx_mod_write_byte(layout+0x34,3);
+                psx_mod_write_word(p+0x40,layout);psx_mod_write_word(p+0x3c,matrices);
+                psx_mod_write_word(head,500);bubbles=0;bubble_y=-100000;
+                for(int i=0;i<100;++i)update(2);
+                assert(bubbles>=2 && bubble_y==500); // breathing at the head, trail below it
+                // Duke's update holds his breath (state-5 air branch) and keeps
+                // the pack open; the next hook outside that frame restores both.
+                call(0x800412a4,p,0,0x80041000,0x801fff00);
+                assert(psx_mod_read_word(0x80041fd8)==0 && psx_mod_read_word(0x8004260c)==0x10000003);
+                camera();
+                assert(psx_mod_read_word(0x80041fd8)==0x14620028 && psx_mod_read_word(0x8004260c)==0x10400003);
+                psx_mod_write_word(p+0x268,0x55);surface_sounds.clear();
+                psx_mod_write_word(head,(uint32_t)-500);bubbles=0; // head above the water
+                for(int i=0;i<100;++i)update(2);
+                assert(bubbles==0);
+                // Surfacing: the native splash and breath once, ambience loop stopped.
+                assert((surface_sounds==std::vector<uint32_t>{0x3003,0x200e,0x80000055u}) &&
+                       psx_mod_read_word(p+0x268)==0);
+                call(0x800412a4,p,0,0x80041000,0x801fff00); // head out: Duke breathes
+                assert(psx_mod_read_word(0x80041fd8)==0x14620028 && psx_mod_read_word(0x8004260c)==0x10000003);
+                camera();
+                psx_mod_write_word(p+0x40,saved_layout);psx_mod_write_word(p+0x3c,saved_matrices);
+            }
+            toggle();assert(psx_mod_read_byte(p+0x22c)==5 && psx_mod_read_half(p+0x60)==127);
+        }
+        psx_mod_write_byte(p+0x22c,9);psx_mod_write_byte(p+0x22d,9);psx_mod_write_half(p+0x60,108);
+        // Fuel-out under water swims at once: no 108 fall, so no splash entry.
+        psx_mod_write_half(p+0x358,1);psx_mod_write_word(p+0x224,0);
+        toggle();assert(psx_mod_read_byte(p+0x22c)==10);
+        psx_mod_write_half(p+0x35a,1);
+        for(int i=0;i<20 && psx_mod_read_byte(p+0x22c)==10;++i)update(2);
+        assert(psx_mod_read_byte(p+0x22c)==5 && psx_mod_read_half(p+0x60)==127 &&
+               !(psx_mod_read_half(p+0x358)&2) && psx_mod_read_half(p+0x35a)==0);
+        psx_mod_write_half(p+0x35a,9000);
+        // A native cut-out (Modern fuel-out) inside the handler: the same
+        // update's pre-state step entry swims before its water entry splashes.
+        psx_mod_write_byte(p+0x22c,9);psx_mod_write_byte(p+0x22d,9);psx_mod_write_half(p+0x60,108);
+        psx_mod_write_half(p+0x358,1);toggle();assert(psx_mod_read_byte(p+0x22c)==10);update(2);
+        psx_mod_write_byte(p+0x22c,9);psx_mod_write_half(p+0x60,108);psx_mod_write_half(p+0x358,1);
+        call(0x80055e80,p,0,0x8005a4f8,0x801fff00);
+        assert(psx_mod_read_byte(p+0x22c)==5 && psx_mod_read_half(p+0x60)==127);
+        psx_mod_write_byte(p+0x22c,9);psx_mod_write_byte(p+0x22d,9);psx_mod_write_half(p+0x60,108);
         psx_mod_write_word(p+0x834,0x40000000);psx_mod_write_half(p+0x32,0);
         toggle();assert(psx_mod_read_byte(p+0x22c)==9); // death veto
         psx_mod_write_half(p+0x32,10000);poke(0x4ade0);toggle();assert(psx_mod_read_byte(p+0x22c)==9);poke(0x4ade0);
@@ -470,7 +553,7 @@ int main(int argc,char** argv) {
         ttk::input.sequence+=2;camera();call(0x8005a210,p,0x800c2754,0x80041b34,0x801fff00);
         psx_mod_write_byte(p+0x22c,0);psx_mod_write_half(p+0x60,105);poll();
         assert(psx_mod_read_byte(p+0x22c)==0 && psx_mod_read_half(p+0x60)==105 && !(psx_mod_read_half(p+0x358)&2));
-        std::puts("PASS: D08S instant ground/air toggles, 61-second fuel, god mode, landing and safety gates");return 0;
+        std::puts("PASS: D08S instant ground/air toggles, 61-second fuel, god mode, landing and safety gates; D08Q10 starts under water and from surface/underwater swim (deferred to the update entry, epoch-dropped), surface lifting like the ground, underwater holding until Space, off straight to underwater swimming, bubbles and held breath only with the head under water, native surfacing sounds once, fuel-out and native cut-out under water straight to swimming");return 0;
     }
     // D08Q3: actual flight eligibility retains overlay, camera, capture and
     // alive checks, and never enables ground movement/air-steering writes.

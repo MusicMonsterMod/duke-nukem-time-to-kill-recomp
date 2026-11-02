@@ -1,5 +1,49 @@
 # Next-session handoff
 
+## 2026-11-02 - D08Q10 accepted and closed; backlog intake D08G7-D08G9, D08A32, D14H, D35D1
+
+User: "that's the one!! you absolutely got it. the feature is perfect now" and "i accept this job at hand" (2026-11-02), with closeout authorized. D08Q10 is Done at revision 10
+([note 357](357-d08q10-water-jetpack.md)): J on the surface lifts like a ground
+start, underwater it holds then flies freely, the surface is a one-way floor
+from above, with native bubbles, held breath and surfacing sounds and no
+splash on any under-water switch-off. Executable
+`3afecaf4bc648e19563c25c8af30f859a68e2ab2e0474fe6af09e9f75e7bd6f4`.
+
+New Todo jobs from the same session (initial research on the board):
+D08G7 (dnkroz GOD MODE text, red flash and occasional pain sound on OFF),
+D08G8 (cheats anywhere, not only on solid ground), D08G9 (dnkroz after death:
+Duke gets back up, remains stay), D08A32 (a distinct ammo icon per weapon,
+review artifact first), D14H (jetpack first-person arms on the FOV-independent
+projection) and D35D1 (steady first-person push/pull grab, slot 12). Standing
+rule: "dnkroz" always means dnkroz and dncornholio, completely identical.
+
+## 2026-11-02 - D08Q10: jetpack from water; the surface is a floor (Needs playtest)
+
+Modern and EDuke32: J on the water surface or underwater starts the jetpack
+and Duke holds exactly where he is until Space (revision 3, matching the
+EDuke32 reference video; revisions 1-2 rose automatically; revision 4 adds
+swim-style breathing bubbles and a pack bubble trail under water; revision 5
+keeps the air meter draining, with native drowning, while his head is under;
+revision 6 lets him fly freely under water, Ctrl included, while the surface
+stays a one-way floor from above; revision 7 makes a surface start lift like
+a ground start and J off under water return straight to swimming; revision 8
+plays the native surfacing splash and breath when he flies out of the water;
+revisions 9-10 remove the splash when fuel runs out under water, including
+while moving);
+while flying, the water surface is a floor (Ctrl stops just above it, flight
+never sinks back in); J off over water swims as before. Three native rules
+blocked it (pack open refuses water, the pre-state step forces swimming, Duke's
+update closes a pack under water); host code defers the swim-state start to
+Duke's update entry and vetoes the last two only for host-owned flight, in the
+existing grounded-water patch framework. Classic and Vanilla unchanged; no
+codegen change, savestates load
+([note 357](357-d08q10-water-jetpack.md)). Verified on private
+copies of slot 12: surface and underwater starts, Ctrl floor, WASD over water,
+J off, Modern first person 120/180 and EDuke32 third person 180, frame rate
+unchanged during the rise; full native controls suite and EDuke32 suite pass.
+Needs the user's playtest for feel. Executable
+`3afecaf4bc648e19563c25c8af30f859a68e2ab2e0474fe6af09e9f75e7bd6f4`.
+
 ## 2026-11-02 - D23G step 5 accepted; D23G Done; new jobs D08Q10, D36H8, D20I
 
 User: "I was really thrilled with the performance, the game is feeling better

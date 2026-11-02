@@ -55,7 +55,7 @@ bool swim_fire_cross_masked() {
     return swim_weapon_ready() && psx_mod_read_byte(player+0x3b8)==0 && swim_fire_draw_weapon();
 }
 // Original callable item path, on an isolated CPU/stack, never an input/fire macro.
-static bool original_call(CPUState* source,uint32_t address,uint32_t a1,int32_t* result=nullptr,int64_t a2=-1) {
+static bool original_call(CPUState* source,uint32_t address,uint32_t a1,int32_t* result=nullptr,int64_t a2=-1,int64_t a0=-1) {
     uint32_t top=source->gpr[29];
     if(guest_busy || top<0x801f4000 || top>0x801ffff0 || g_precise_mode || g_ls_mode || g_psx_call_bail)return false;
     uint32_t saved[1024],scratch[256];
@@ -65,7 +65,7 @@ static bool original_call(CPUState* source,uint32_t address,uint32_t a1,int32_t*
     for(unsigned i=0;i<1024;++i)saved[i]=psx_mod_read_word(base+4*i);
     for(unsigned i=0;i<256;++i)scratch[i]=psx_mod_read_word(0x1f800000+4*i);
     CPUState cpu=*source;cpu.pc=0;cpu.gpr[29]=top-0x100;cpu.gpr[31]=0x800000fc;
-    cpu.gpr[4]=player;cpu.gpr[5]=a1;
+    cpu.gpr[4]=a0>=0?(uint32_t)a0:player;cpu.gpr[5]=a1; // a0: Duke unless given
     if(a2>=0)cpu.gpr[6]=(uint32_t)a2;
     guest_busy=true;psx_dispatch_call(&cpu,address,0x800000fc);guest_busy=false;
     // Restore only what the call changed: guest writes are the costly part
@@ -180,8 +180,9 @@ static void use_item(CPUState* cpu,unsigned item) {
         psx_mod_write_word(player+0x224,psx_mod_read_word(player+0x224)|0xc);
         return;
     }
-    // Jetpack cannot be switched in water; the normal-state lease excludes it.
-    if(item==1 && psx_mod_read_word(player+0x834)!=0x40000000 &&
+    // The native jetpack cannot be switched on in water; the normal-state
+    // lease excludes it. D08Q10: switching an open pack off always works.
+    if(item==1 && !(psx_mod_read_half(player+0x358)&2) && psx_mod_read_word(player+0x834)!=0x40000000 &&
        (int32_t)psx_mod_read_word(player+8)>(int32_t)psx_mod_read_word(player+0x834))return;
     // Do not mutate a request unless nested execution is available.
     if(guest_busy || cpu->gpr[29]<0x801f4000 || cpu->gpr[29]>0x801ffff0 || g_precise_mode || g_ls_mode || g_psx_call_bail)return;
@@ -428,8 +429,12 @@ static void select_weapon(CPUState* cpu) {
     if(mission_enter) {const int item=mission_browsed_item();mission_close();mission_use(cpu,item);}
     // D08S: Modern starts on ground or in a jump/fall. Its accepted in-flight
     // off toggle stays intact; EDuke32 uses its immediate toggle in both states.
+    // D08Q10: both also start while swimming (surface 4, underwater 5), and
+    // Modern switches off under water the same way (straight to swimming).
     const unsigned jet_mode=psx_mod_read_byte(player+0x22c);
-    if(jetpack_eduke32() || (!jetpack_classic() && (jet_mode==0 || jet_mode==9)))for(unsigned n=0;n<f.command_count && n<32;++n)
+    const bool jet_submerged=jet_mode==10 && psx_mod_read_word(player+0x834)!=0x40000000 &&
+        (int32_t)psx_mod_read_word(player+8)>(int32_t)psx_mod_read_word(player+0x834);
+    if(jetpack_eduke32() || (!jetpack_classic() && (jet_mode==0 || jet_mode==9 || jet_mode==4 || jet_mode==5 || jet_submerged)))for(unsigned n=0;n<f.command_count && n<32;++n)
         if(f.commands[n]==jetpack || (f.commands[n]==item_use && selected_item==1 && !mission_enter)) {
             if(jet_instant_toggle(cpu)) {remember_item(1);inventory_feedback(false);}
             return;

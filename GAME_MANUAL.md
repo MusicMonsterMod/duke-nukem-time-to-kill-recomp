@@ -1171,6 +1171,20 @@ at a ceiling or the outdoor height limit settles against the boundary instead
 of repeatedly bumping it. Walls and gaps with insufficient clearance still
 block travel. Classic shares the clearance handling while retaining its
 original thrust and landing behavior.
+**Water** (Modern and EDuke32, D08Q10): **J** also starts the jetpack while
+swimming on the surface or underwater. On the surface he lifts off exactly
+like a ground start, to the same height above the water. Underwater, as in
+EDuke32, he stays exactly where he is and then flies freely: **Space** up (and
+out), **Ctrl** down, **W/A/S/D** around; he breathes bubbles as when swimming,
+and the pack trails more as it thrusts. He is still holding his breath: the
+air meter keeps running down (and drowning hurts) until his head is out of the
+water. Breaking the surface plays the same splash and gasp as surfacing while
+swimming. While the pack is on, the water surface is a floor from above, so he
+cannot fly back in: **Ctrl** stops just above it and Duke hovers there, and
+flying over the water never sinks him back in. **J** off over water drops him
+in to swim as before; **J** off or running out of fuel under water goes
+straight back to swimming where he is, without a splash. Classic keeps the
+original rule: no jetpack in water.
 Fuel drains while flying and while hovering (the original rule); when it runs
 out Duke falls the same way. The ground controls return the moment he lands.
 With view aiming enabled, aim with the mouse and fire the equipped weapon with
@@ -1197,8 +1211,8 @@ provides 61 seconds of flight, including hover; pausing does not use fuel.
 The existing percentage shows the remaining share of that duration. Fuel-out
 also switches the pack off. God mode keeps unlimited fuel. Descending to ground
 level keeps the sound and flames running until **J** switches the pack off.
-Entering water uses the original collision result and closes the pack; underwater
-activation is refused. Flight retains your selected first- or third-person view.
+Water works as for Modern above: **J** starts in or under water and Duke
+holds his position until **Space**, and the surface is a floor while flying (D08Q10). Flight retains your selected first- or third-person view.
 
 Select **EDUKE32** in **OPTIONS > ADVANCED**, **JETPACK** under the MOVEMENT
 heading (next launch), or launch with the following command. This saves the preference:

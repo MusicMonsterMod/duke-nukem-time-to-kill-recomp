@@ -1178,6 +1178,13 @@ static void overclock_lease() {
 static long frame_us;static std::map<uint32_t,long> frame_per;
 bool frame_trace_on() {static const bool on=std::getenv("DNTTK_FRAME_TRACE")!=nullptr;return on;}
 void frame_trace_account(uint32_t address,long us) {frame_us+=us;frame_per[address]+=us;}
+// D08Q10 diagnostics (DNTTK_SOUND_TRACE): every 8006bbd8 / 8006b270 sound
+// request with its caller and Duke's mode, pose and height.
+static void d08q10_sound_trace(CPUState* cpu,uint32_t address) {
+    static const bool on=std::getenv("DNTTK_SOUND_TRACE")!=nullptr;
+    if(on)std::fprintf(stderr,"ttk-sound %08x id=%04x ra=%08x mode=%u anim=%u y=%d\n",address,cpu->gpr[4],cpu->gpr[31],
+        psx_mod_read_byte(player+0x22c),psx_mod_read_half(player+0x60),(int32_t)psx_mod_read_word(player+8));
+}
 static void hook(CPUState* cpu, uint32_t address) {
     const bool update=address==0x8005a210 && cpu->gpr[4]==player;
     if(update && input_modernized() && psx_mod_read_word(0x800c27bc)==1) {overclock_lease();ttk_fast_timing_renew();}
@@ -1276,7 +1283,7 @@ static void hook_body(CPUState* cpu, uint32_t address) {
         swim_fire_hide(cpu,ra);
         return;
     }
-    if(address==0x80055e80) {crouch_landing_finish(cpu,ra);grounded_water_transition(cpu,ra);return;}
+    if(address==0x80055e80) {jet_cutout_prestate(cpu,ra);crouch_landing_finish(cpu,ra);grounded_water_transition(cpu,ra);return;}
     if(address==0x800411b8) {crouch_walk_pose(cpu);swim_aim_begin(cpu,ra);return;}
     if(address==0x8002b9f4) {
         // The original level teardown destroys these records. Forget host
@@ -2076,7 +2083,7 @@ PSX_MOD_CONSTRUCTOR(register_ttk_controls) {
     // D08A4: the sound routine; only the pickup tail's call (ra 0x800828d8) goes further.
     psx_mod_register_function_entry_plugin("ttk.modern.controls",0x8006b73c,[](CPUState* cpu,uint32_t){ttk::steroids_damage_restore();ttk::sound_logged(cpu);if(cpu->gpr[31]==0x800828d8u)ttk::steroids_pickup_sound(cpu);});
     // D27A: the player update; only Duke's call goes further.
-    psx_mod_register_function_entry_plugin("ttk.modern.controls",0x800412a4,[](CPUState* cpu,uint32_t){ttk::steroids_damage_restore();if(cpu->gpr[4]==ttk::player)ttk::run_click_presync();});
+    psx_mod_register_function_entry_plugin("ttk.modern.controls",0x800412a4,[](CPUState* cpu,uint32_t){ttk::steroids_damage_restore();if(cpu->gpr[4]==ttk::player){ttk::run_click_presync();ttk::jet_water_start(cpu);ttk::grounded_water_jet_close_arm(cpu);}});
     // D12C: the damage sphere; only the original kick's call (ra 0x80049098) goes further.
     psx_mod_register_function_entry_plugin("ttk.modern.controls",0x800a979c,[](CPUState* cpu,uint32_t){ttk::steroids_damage_restore();if(cpu->gpr[31]==0x80049098u)ttk::kick_sphere_entry(cpu);});
     // D08A8: the composition's call after the status bar when 0x8001fc44 is skipped.
@@ -2088,7 +2095,7 @@ PSX_MOD_CONSTRUCTOR(register_ttk_controls) {
     // D08Z1: after ttk.modern.controls at the same entry, so the velocity is final.
     psx_mod_register_function_entry_plugin("ttk.jump.walls",0x8003ebf4,[](CPUState* cpu,uint32_t){ttk::jump_walls_presolve(cpu);ttk::jump_walls_bounce_rerun(cpu);});
     // D08Z2: the sound call; only the bounce's contact sound (ra 0x80055a10) goes further.
-    psx_mod_register_function_entry_plugin("ttk.jump.walls",0x8006bbd8,[](CPUState* cpu,uint32_t){ttk::jump_walls_bounce_sound(cpu);});
+    psx_mod_register_function_entry_plugin("ttk.jump.walls",0x8006bbd8,[](CPUState* cpu,uint32_t){ttk::d08q10_sound_trace(cpu,0x8006bbd8);ttk::jump_walls_bounce_sound(cpu);});
     // D08Z5: the slope slide start (after the mode 2 store), its fall start and that fall's launch rotation.
     psx_mod_register_function_entry_plugin("ttk.wall.backflip",0x8005446c,[](CPUState* cpu,uint32_t){ttk::wall_backflip_slide_start(cpu);});
     psx_mod_register_function_entry_plugin("ttk.wall.backflip",0x8003f060,[](CPUState* cpu,uint32_t){ttk::wall_backflip_fall(cpu);});
@@ -2101,5 +2108,5 @@ PSX_MOD_CONSTRUCTOR(register_ttk_controls) {
     psx_mod_register_function_entry_plugin("ttk.modern.controls",0x8004dea4,[](CPUState* cpu,uint32_t){ttk::dynamite_entry(cpu);});
     // D08A12: the sparks and the sizzle; only the unlit stick's calls (ra 0x8004e138 / 0x8004e154) go further.
     psx_mod_register_function_entry_plugin("ttk.modern.controls",0x8006d594,[](CPUState* cpu,uint32_t){ttk::dynamite_sparks(cpu);});
-    psx_mod_register_function_entry_plugin("ttk.modern.controls",0x8006b270,[](CPUState* cpu,uint32_t){if(cpu->gpr[31]==0x80054cb0u)ttk::hook(cpu,0x8006b270);ttk::dynamite_sizzle(cpu);});
+    psx_mod_register_function_entry_plugin("ttk.modern.controls",0x8006b270,[](CPUState* cpu,uint32_t){ttk::d08q10_sound_trace(cpu,0x8006b270);if(cpu->gpr[31]==0x80054cb0u)ttk::hook(cpu,0x8006b270);ttk::dynamite_sizzle(cpu);});
 }

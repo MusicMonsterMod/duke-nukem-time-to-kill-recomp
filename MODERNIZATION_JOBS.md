@@ -1,5 +1,183 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-02 - Backlog intake: cheat feel, cheats anywhere, dnkroz revive, ammo icons, jetpack arm projection, first-person push arms
+
+User, while accepting D08Q10 (2026-11-02). Six jobs recorded with brief
+initial research only; none started. Standing rule from the user: **"dnkroz"
+always means both `dnkroz` and `dncornholio`, treated as completely
+identical** (they already map to the same cheat in
+`recomp/src/ttk/cheat_codes.h`).
+
+### D08G7 - dnkroz feel: GOD MODE ON / OFF text, red flash and pain sound on OFF
+
+**Status: Todo. Dependencies: D08G2, D08Q4.** Make `dnkroz` (and
+`dncornholio`) behave like Duke 3D / EDuke32. Reference:
+`research/screencaps/dnkroz-dncornholio.mp4` (28 s). The code toggles: the
+top-of-screen text reads "GOD MODE: ON" / "GOD MODE: OFF". Switching **off**
+flashes the screen red (the damage tint), and Duke sometimes makes a single
+short pain sound, the one-hit pain he makes when stepping in acid or fire or
+getting burnt; the sound does not play every time. Switching **on** shows no
+tint in the reference.
+
+Initial research: `cheats.inc` toggles `0x800c3cc6` and shows "God Mode:
+On/Off" (`input_notice`); no flash or sound today. Find the original TTK
+damage tint and the matching short pain/burn voice, and trigger them through
+original routines (not a host overlay) without dealing damage; decide the
+"sometimes" rule from the reference (chance or cooldown). Wording follows the
+D08G1 Duke3D confirmation style.
+
+**Acceptance:** dnkroz and dncornholio identical; ON text with no tint; OFF
+text with the red flash and, sometimes, the short pain sound; no health or
+armour change; Vanilla unchanged; the user's playtest against the video.
+
+### D08G8 - Cheats work anywhere, not only on solid ground
+
+**Status: Todo. Dependencies: D08G2.** Today every typed cheat in Modernized
+is refused off the ground with "Cheat unavailable here - stand on solid
+ground". The user wants cheats accepted anywhere: in the air, swimming,
+jetpack flight, climbing, ladders, pushing, and so on.
+
+Initial research: one shared gate at the top of `cheats_update`
+(`cheats.inc`) requires the ground movement lease (`movement_ready()`) as well
+as gameplay context, player identity and the guarded guest stack, and
+`cheats_update` runs only from the ground player-update path. Many cheats are
+plain RAM writes (god, unlimited ammo, health, ammo, upgrade, steroids,
+`dntlod`); `dnstuff`, weapons, inventory, keys and items call original
+routines (`8003d7bc`, `8003d738`, `8003d840`) that need a safe guest call and
+may assume a ground state. Work: run cheat processing for every player state
+(swim, flight, traversal), keep the guest-call guards, and verify each
+cheat's original routine outside the ground state (weapon/item grants during
+swim, flight and attached traversal) before allowing it there. Refuse only
+where genuinely unsafe (cutscenes, menus, death unless D08G9), with a precise
+message.
+
+**Acceptance:** every cheat works in the air, swimming, under water, in
+jetpack flight and on ladders/climbs, with no stuck state, weapon or pose
+glitch; Vanilla unchanged.
+
+### D08G9 - dnkroz after death: Duke gets back up and play continues
+
+**Status: Todo. Dependencies: D08G7, D08G8, D08Q4.** In Duke 3D typing
+`dnkroz` (or `dncornholio`) while dead brings Duke straight back with full
+health and god mode on, and play continues. Reference:
+`research/screencaps/dead.mp4` (32 s): killed ("PRESS OPEN TO RESTART
+LEVEL"), the code is typed, "GOD MODE: ON", Duke is up at 100 health; after
+being blown to pieces the gibs stay on the floor and Duke simply carries on
+from there.
+
+Whatever the death (shot, burnt, drowned, blown up with nothing left of the
+body), a fresh living Duke continues from where the old one died; the remains
+(corpse, blood, entrails) stay in the world. Initial research: god mode
+currently only tops up a living Duke (`god_mode_update` requires health > 0)
+and the cheat gate refuses outside the ground lease, so death needs its own
+authenticated path. Research the native death states/animations (e.g. the
+227 death pose), the game-over/restart flow and camera, the player actor
+versus gib actors, weapons/inventory retained, and whether the original has a
+respawn or level-restart routine to reuse rather than resurrecting by hand.
+
+**Acceptance:** dnkroz during any death (including gibbed) returns a living,
+controllable Duke at the death spot with god mode on and his inventory; the
+remains stay; first and third person; savestates and Vanilla unchanged.
+
+### D08A32 - A distinct ammo icon for every weapon in the bottom-right HUD
+
+**Status: Todo (design review first). Dependencies: D08A21, D24A.** The
+bottom-right ammo box uses the same (animated) ammunition icon for every
+weapon; for example the flamethrower shows animated machine-gun cartridges.
+The user wants a proper icon per weapon/ammo type, made like the accepted
+16x16 gadget icons (steroids, medkit, invincibility, invisibility, Double
+Duke, HUD challenge): 14x14 artwork inside a 16x16 transparent canvas so it
+never touches the frame in the framed HUD (see the TTK font picker,
+`research/TTK-UI-and-Font-Research.html`, and D08A21).
+
+Process to automate and evaluate: capture each piece of ammunition in game at
+its best angle, ideally isolated; reduce to 14x14 with bilinear reduction in
+Photon (the photon skills); fill the feathered, semi-transparent edge by
+stacking duplicate layers until opaque; place it in a 16x16 canvas. Research
+first: how the native HUD draws the ammo icon and its animation, whether a
+static icon per weapon is better than animating (likely), and which ammo
+types the weapons actually share. Produce an artifact with all the icon
+designs for the user's review before any game integration.
+
+**Acceptance:** user-approved icon set (review artifact first); each weapon
+shows its own ammo icon in the bottom-right box, framed and borderless HUD,
+all HUD scales; tracked or disc-derived sources per D24A; Vanilla unchanged.
+
+### D14H - Jetpack first-person arms: FOV-independent viewmodel projection
+
+**Status: Todo. Dependencies: D14B, D14G, D36K1, D11F.** In first-person
+jetpack flight Duke's disembodied arms do not appear to use the safe
+viewmodel projection introduced with the wider field of view. Review the arms
+during flight and give them the same projection.
+
+Initial research: the D14B note
+([note 297](documentation/297-d14b-weapon-projection.md)) records that
+jetpack's unarmed arms retain world projection (only `DisplayHand` and its
+connected arm chains are FOV-independent); D14G already moved holstered
+swimming arms onto the fixed projection, and D36K1
+([note 273](documentation/273-d36k1-jetpack-arms.md)) owns unarmed jetpack
+arm continuity. Follow D14G's approach; read the D36 audit and the D36H5
+notes (305/306) first, per AGENTS.md.
+
+**Acceptance:** jetpack arms (unarmed and armed, every flight pose and lean)
+keep the same size and framing at every world FOV, with no disembodied or
+clipped segments; ground, swim and other arms unchanged; the user's playtest.
+
+### D35D1 - First-person push/pull: a steady grab, not the native turn-and-shove arms
+
+**Status: Todo. Dependencies: D35D, D36D, D36H5, D08T3.** Fixture: the
+player's UI slot 12 (pushable block nearby; test on private copies only). In
+first person, pushing the dumpster shows Duke's arms going through the
+third-person push animation, where he turns around and shoves with his back;
+it looks good in third person but in first person the arms flail. The user
+wants a stable first-person grab: Duke has hold of the object in front of
+him, with no turning or twisting, for push, pull, grab and release.
+
+Initial research: D35D ([note 226](documentation/226-d35d-first-person-push-pull.md))
+anchored the eye for push/pull (anims 119/120/121) but kept the arms native at
+world depth (D36 audit, [note 257](documentation/257-d36-first-person-presentation-audit.md),
+push row). Start from the D36H5 contact-arm design and repair guide
+([note 305](documentation/305-d36h5-contact-arm-rig.md),
+[note 306](documentation/306-d36h5-interaction-arm-coverage.md)); identify the
+actual presentation owner per frame before changing anything. Third person
+keeps the native animation.
+
+**Acceptance:** in first person, grab, push, pull, reversal and release show
+both hands steadily on the object (slot 12 and the other accepted push
+fixtures, slots 5 and 8), at 120 and 180 Hz; third person and push physics
+unchanged; Vanilla unchanged; the user's playtest.
+
+## 2026-11-02 - D08Q10: jetpack from water; the surface is a floor (Done)
+
+User: "that's the one!! you absolutely got it. the feature is perfect now" and "i accept this job at hand" (2026-11-02), with closeout authorized. Revision 10 is accepted; executable
+`3afecaf4bc648e19563c25c8af30f859a68e2ab2e0474fe6af09e9f75e7bd6f4`.
+
+
+Modern and EDuke32: J on the water surface or underwater starts the jetpack
+and Duke holds exactly where he is until Space (revision 3, matching the
+EDuke32 reference video; revisions 1-2 rose automatically; revision 4 adds
+swim-style breathing bubbles and a pack bubble trail under water; revision 5
+keeps the air meter draining, with native drowning, while his head is under;
+revision 6 lets him fly freely under water, Ctrl included, while the surface
+stays a one-way floor from above; revision 7 makes a surface start lift like
+a ground start and J off under water return straight to swimming; revision 8
+plays the native surfacing splash and breath when he flies out of the water;
+revisions 9-10 remove the splash when fuel runs out under water, including
+while moving);
+while flying, the water surface is a floor (Ctrl stops just above it, flight
+never sinks back in); J off over water swims as before. Three native rules
+blocked it (pack open refuses water, the pre-state step forces swimming, Duke's
+update closes a pack under water); host code defers the swim-state start to
+Duke's update entry and vetoes the last two only for host-owned flight, in the
+existing grounded-water patch framework. Classic and Vanilla unchanged; no
+codegen change, savestates load
+([note 357](documentation/357-d08q10-water-jetpack.md)). Verified on private
+copies of slot 12: surface and underwater starts, Ctrl floor, WASD over water,
+J off, Modern first person 120/180 and EDuke32 third person 180, frame rate
+unchanged during the rise; full native controls suite and EDuke32 suite pass.
+Needs the user's playtest for feel. Executable
+`3afecaf4bc648e19563c25c8af30f859a68e2ab2e0474fe6af09e9f75e7bd6f4`.
+
 ## 2026-11-02 - Playtest backlog: jetpack from water, mantle arm flicker, live level stats
 
 User, after accepting D23G step 5 (2026-11-02). Recorded as jobs with initial
@@ -7,7 +185,7 @@ research; none started.
 
 ### D08Q10 - Start the jetpack in water; the water surface is a floor while flying
 
-**Status: Todo. Dependencies: D08S, D08Q8, D08O.** Fixture: the player's UI
+**Status: Done (user-accepted 2026-11-02; revision 10, note 357). Dependencies: D08S, D08Q8, D08O.** Fixture: the player's UI
 slot 12 (saved on the water surface); test on private copies only. The user
 wants EDuke32 / Duke 3D behavior: press J while swimming on the surface, or
 underwater, and the jetpack starts and Duke flies up and out of the water.
@@ -2560,6 +2738,9 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08G4 | `dnstuff`, `dnitems`, `dninventory` also give 100% armor; running steroids stop and a full dose is held | Done (user-accepted) | D08G |
 | D08G5 | Partial cheat entry causes mouse-look stutter until another key breaks the sequence | Done (user-accepted) | D08G2 |
 | D08G6 | Fun cheat `dntlod`: show "Play Zaxtor's Oblivion!" | Done (user-accepted) | D08G2 |
+| D08G7 | dnkroz feel: GOD MODE ON/OFF text, red flash and occasional short pain sound on OFF (dncornholio identical) | Todo | D08G2, D08Q4 |
+| D08G8 | Cheats work anywhere, not only on solid ground | Todo | D08G2 |
+| D08G9 | dnkroz after death: Duke gets back up where he died, remains stay | Todo | D08G7, D08G8, D08Q4 |
 | D08H | Apartment furniture, hidden pickup and switch targeting | Done | D08 |
 | D08I | Responsive run-start and edge jumps | Done | D08 |
 | D08J | Armed airborne ladder grabs and automatic weapon transitions | Done | D08, D08E |
@@ -2609,7 +2790,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08Q7 | Draw a holstered weapon with left click during jetpack flight (bug 1) | Done | D08Q3, D08Q5 |
 | D08Q8 | Smooth jetpack clearance along rising floors, descending ceilings and maximum height (slot 12, bug 4) | Done | D08Q, D08S |
 | D08Q9 | Jetpack horizontal pace follows walk/run and active steroids | Done | D08Q8, D08AA |
-| D08Q10 | Start the jetpack in water (J on the surface or underwater); the water surface is a floor while flying (slot 12, EDuke32 feel) | Todo | D08S, D08Q8, D08O |
+| D08Q10 | Start the jetpack in water (J on the surface or underwater); the water surface is a floor while flying (slot 12, EDuke32 feel) | Done (user-accepted 2026-11-02; note 357) | D08S, D08Q8, D08O |
 | D08T | Pushable objects: modern grab/push/pull and climb (alley dumpster) | Done | D08 |
 | D08T1 | Separate push/pull from mantling: E always mantles, hold RMB to grab | Done | D08T, D04 |
 | D08T2 | Duke-symbol pushable blocks cannot be pushed with Modern controls (RMB grab, game-wide) | Done (user-accepted; closed 2026-10-30) | D08T1, D22B |
@@ -2647,6 +2828,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08V1 | Modernized controls lost for the rest of the session after a missed chain jump; modern controls must never be lost | Done | D08V, D08J5 |
 | D08A29 | Scroll-wheel weapon changes while running | Done (user-accepted) | D08A, D08AA |
 | D08A30 | Reverse weapon-wheel direction: up advances, down goes back | Done (user-accepted) | D08A29 |
+| D08A32 | A distinct ammo icon for every weapon in the bottom-right HUD (14x14 in 16x16, review artifact first) | Todo (design review first) | D08A21, D24A |
 | D09 | Modern controller support | Done (user-accepted 2026-10-27) | D05, D06, D07 |
 | D09A | Separate keyboard and gamepad seats for local two-player | Done (user-accepted 2026-10-27) | D09, D34B implementation |
 | D10 | Third-person camera polish | Done | D08 |
@@ -2675,6 +2857,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D14B | Decouple first-person weapon/arms presentation from world FOV | Done (user-accepted 2026-10-28) | D14A foundation |
 | D14C | Investigate first-person leg presentation across world FOV | Done (user-accepted 2026-10-28) | D14A, D14B |
 | D14G | Holstered swimming arms look disembodied in first person | Done (user-accepted 2026-11-01) | D11E, D36H4, D14B, D08O5 |
+| D14H | Jetpack first-person arms use the FOV-independent viewmodel projection | Todo | D14B, D14G, D36K1, D11F |
 | D15 | Optional geometry and texture precision | Done (user-accepted; closed 2026-10-30) | D13 |
 | D16 | Texture manipulation and replacement foundation | Done (bounded foundation accepted 2026-10-27) | D13 |
 | D16A | HRP assets and first-person weapon research (later) | Cancelled (original assets preferred) | - |
@@ -2824,6 +3007,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D35B | Swimming perspective option using accepted first-person swimming | Done | D35A, D11E |
 | D35C | Jetpack perspective option using accepted first-person flight | Done | D35A, D11F |
 | D35D | First-person push/pull and grab presentation | Done | D35A, D08T3, D08T7 |
+| D35D1 | First-person push/pull: a steady grab instead of the native turn-and-shove arms (slot 12) | Todo | D35D, D36D, D36H5, D08T3 |
 | D35E | First-person ladder climbing lifecycle | Done | D35A, D08J3, D08U, D08J1 |
 | D35F | First-person chain, pole and pole-class lamppost climbing | Done | D35A, D35E, D08J5 |
 | D35F1 | Chain disappears near the top while climbing (current UI slot 10) | Done | D35F |

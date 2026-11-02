@@ -1,5 +1,36 @@
 # Current status - 2026-10-04
 
+## 2026-11-02 - D26H accepted and closed; D26J, D26K, D08Q11 added
+
+User: "fully accepted!!". D26H is Done ([note 111](111-d26e-debug-spawn.md)).
+Executable `85c3eee19a0a343e54b978e2772bd8f75df2ec3fcd0422171e517de249d45d50`. No framework
+change. New backlog (not started): D26J (the console keeps crouch and jetpack
+flight), D26K (no holster while the console is open; shares D26J's console
+input path: opening the console releases capture and publishes inactive
+gameplay frames, a hypothesis to confirm), D08Q11 (jetpack lift-off directly
+from toggle-crouch). Details and acceptance tests are on the board.
+
+## 2026-11-02 - D26H: spawned items clear of Duke's pickup reach (Needs playtest)
+
+Cause: the original pickup loop (`0x8007fd04`) touches an item when `|dx|` and
+`|dz|` are each below its bounding radius (`+0x5a`, at least 0x100). The
+flamethrower's is 579, so 600 units along a diagonal view (424 per axis) was
+inside it. Now `spawn` reads the new object's radius and moves it out until
+its larger axis offset clears the radius + 128: along the view, else up to 40
+degrees to either side. A spot needs no wall in the original segment query,
+a floor within 256 below Duke's feet, and no solid placed object (dumpster) on
+the way. Then `0x80095cb0` relinks the room. With no usable spot it keeps the
+old 600 spot and says "(close: way ahead blocked)". Small items straight ahead
+are unchanged. Executable
+`85c3eee19a0a343e54b978e2772bd8f75df2ec3fcd0422171e517de249d45d50`
+([note 111](111-d26e-debug-spawn.md#d26h-out-of-dukes-pickup-reach-2026-11-02)).
+Evidence (private slot 12 copies, level 0 alley): before, the flamethrower and
+RPG at 135/225 degrees were owned on the first frame. After, the flamethrower,
+RPG and buffalo rifle at seven view angles (21 spawns) were never picked up
+standing, and walking onto them picked them up. `ttk-controls-test` (122
+groups), input, aim and overlay guard checks pass. No framework change; manual
+updated. Awaiting the user's playtest (flamethrower).
+
 ## 2026-11-02 - D08A33 accepted and closed
 
 User: "i accept the pickups job!! lock it in, close us out". D08A33 is Done

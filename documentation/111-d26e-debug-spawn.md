@@ -118,3 +118,61 @@ history: Up/Down recall (newest first, Down past the newest clears the line),
 `spawn steroids` and Enter spawned again; `history` listed "1 SPAWN STEROIDS,
 2 ITEMS".
 
+
+## D26H: out of Duke's pickup reach (2026-11-02)
+
+Status: **Accepted** (2026-11-02, "fully accepted!!").
+
+User, testing D08A33: "make sure the weapons spawn a little in front of duke
+because when i spawn a flamethrower for example, duke automatically picks it
+up."
+
+Cause (original code). The pickup loop `0x8007fd04` touches an item when
+`|dx|` and `|dz|` are **each** below `max(0x100, +0x5a)`: a square, not a
+circle. `+0x5a` is the object's bounding radius, computed from its model box
+at creation (`0x800961c0..0x80096244`). Measured in level 0: flamethrower 579,
+RPG 559, buffalo rifle 485, freezer 442, Gatling gun 417, energy weapon 380,
+shotgun 373, crossbow 348, axe 301, pipe bomb 253, knife 240, steroids 235,
+shotgun ammo 221, medkit 205, Desert Eagle 183, flamethrower ammo 117. Spawned
+600 units along the view, an item is only 424 units out on each axis when the
+camera looks diagonally, so anything with a radius above that (the flamethrower
+first) was taken at once. Straight down an axis, 600 already cleared every type.
+
+Fix (`spawn_clear_of_reach` in `recomp/src/ttk/spawn.inc`). After
+`CreateObject`, the radius is read from the new object. If its larger axis
+offset would not clear `max(0x100, radius) + 128`, the object is moved out:
+- along the view first, then 10, 20, 30 and 40 degrees to either side (nearest
+  first; a direction nearer a map axis needs less distance);
+- a spot is used only when the original segment query (`0x8006d980`, through
+  `view_segment_query`) from Duke's position to the spot + 128 hits no world;
+  a straight-down query from the spot finds a floor within 256 below Duke's
+  feet (`+0x1c8`), so no ledge; and the way, widened by 128, misses every solid
+  placed object in the room lists (`0x800da454`, the same objects and boxes
+  `push_step_clear` stops at: a dumpster is not world to the segment query);
+- the object is relinked to its new room with the original `0x80095cb0`
+  (guarded since D08T3), then dropped as before (`+0x35 = 1`);
+- with no usable spot, it stays at the old 600 position and the notice adds
+  "(close: way ahead blocked)".
+Items that already clear the reach (most items straight ahead) are unchanged.
+The log line now reports the object's final position and room.
+
+Evidence (executable
+`85c3eee19a0a343e54b978e2772bd8f75df2ec3fcd0422171e517de249d45d50`; private
+card copies of `saves/local-play` UI slot 12, level 0 alley, Xvfb, debug port,
+`recomp/analysis/d26h-spawn-distance/probe.py`; player saves, cards and
+profiles unchanged after every run):
+
+| Check | Before | After |
+| --- | --- | --- |
+| Flamethrower / RPG, camera at 135 and 225 degrees | picked up on the first frame (owned 9 / 8) | not picked up; 707 / 687 out on the larger axis |
+| Flamethrower, RPG, buffalo rifle at 45, 135, 180, 225, 270, 315 degrees | - | 18 of 18 not picked up; walking along the view took 17 (52-74 frames); the RPG at 45 degrees lay 30 degrees off the view, so a straight walk passed it |
+| Same three at 90 degrees, a dumpster ahead | - | every spot blocked by the dumpster; kept at 600, not picked up (larger axis 591-599 for radii 485-579), picked up by walking |
+| Duke against the dumpster, flamethrower | spot behind the dumpster (before the object check) | kept at 600 with the blocked notice |
+| Every weapon and ammo level 0 loads, steroids, medkit, straight ahead | none picked up at 600 | small items unchanged at 600; buffalo rifle 613, RPG 687, flamethrower 707 |
+| `ttk-controls-test` (LEVEL00 fixture, LEVEL01, all levels), `ttk-input-test`, `ttk-aim-test`, `level_overlay_guards.py --check` | | pass (122 groups) |
+
+Limits: a ledge was not found in the test spot, so the drop refusal is
+checked only as code (every accepted spot found a floor). Holy hand grenade and
+dynamite are not loaded in level 0 and were not measured. Spawning in a tight
+space can still drop a large item within reach (the old placement, now with the
+notice).

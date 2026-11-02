@@ -154,6 +154,83 @@ static void spawn_crystal_update(CPUState* cpu) {
         ++i;
     }
 }
+// D26H: out of Duke's pickup reach. The pickup loop's touch test is a square
+// (|dx| and |dz| each below max(0x100, +0x5a), see spawn_crystal_touched), and
+// +0x5a is the model's bounding radius set at creation: 579 for the
+// flamethrower. 600 along a diagonal view is only 424 per axis, inside it.
+// Move the new object out until its larger axis offset clears the reach by
+// spawn_reach_margin: along the view, else up to spawn_turn_limit degrees to
+// either side (nearest first; nearer an axis needs less distance). A spot is
+// usable when the way there is open (original segment query 0x8006d980 at
+// Duke's height, no world hit before the spot + spawn_wall_margin), no solid
+// placed object (a dumpster: not world to that query) crosses the way or the
+// spot, and a floor lies within spawn_drop_limit below Duke's feet there (no
+// ledge). With none, it stays at spawn_distance, as before. 0x80095cb0 relinks
+// it to its new cell.
+static constexpr int32_t spawn_reach_margin=128,spawn_wall_margin=128,spawn_drop_limit=256;
+static constexpr int spawn_turn_step=10,spawn_turn_limit=40;
+static unsigned spawn_moves,spawn_blocked;
+// The room lists (0x800da454, 88-byte rooms, list at +0x48) hold every placed
+// object; solid ones are those push_step_clear also stops at (type flags set,
+// no flag 8). The way from Duke to the spot + margin, widened by the margin,
+// must miss each of their boxes that spans Duke's standing height.
+static bool spawn_objects_clear(uint32_t object,double px,double pz,double tx,double tz,int32_t feet) {
+    const uint32_t rooms=psx_mod_read_word(0x800da454),count=psx_mod_read_word(0x800da47c);
+    if(count>128 || (count && (rooms<0x80010000 || rooms>0x80200000-count*88 || (rooms&3))))return false;
+    for(unsigned room=0;room<count;++room) {
+        uint32_t node=psx_mod_read_word(rooms+88*room+0x48);
+        for(unsigned n=0;node && n<1024;++n) {
+            if(node<0x80010000 || node>0x801ffff0 || (node&3))return false;
+            const uint32_t other=psx_mod_read_word(node+8);node=psx_mod_read_word(node+4);
+            const uint32_t flags=object_type_flags(other);
+            if(other==object || other==player || !flags || (flags&8))continue;
+            for(unsigned i=0,boxes=object_box_count(other);i<boxes;++i) {
+                PushBounds q;if(!push_bounds(other,q,i))continue;
+                if(q.y1<=feet-0x370 || q.y0>=feet)continue;
+                // Segment against the widened box on the floor plane (slabs).
+                double t0=0,t1=1;
+                const double from[2]={px,pz},span[2]={tx-px,tz-pz};
+                const double lo[2]={double(q.x0-spawn_wall_margin),double(q.z0-spawn_wall_margin)};
+                const double hi[2]={double(q.x1+spawn_wall_margin),double(q.z1+spawn_wall_margin)};
+                for(int k=0;k<2 && t0<=t1;++k) {
+                    if(std::fabs(span[k])<1e-6){if(from[k]<lo[k] || from[k]>hi[k])t0=2;continue;}
+                    double a=(lo[k]-from[k])/span[k],b=(hi[k]-from[k])/span[k];
+                    if(a>b)std::swap(a,b);
+                    t0=std::max(t0,a);t1=std::min(t1,b);
+                }
+                if(t0<=t1)return false;
+            }
+        }
+        if(node)return false;
+    }
+    return true;
+}
+static bool spawn_clear_of_reach(CPUState* cpu,uint32_t object,double view) {
+    const int32_t reach=std::max<int32_t>(0x100,(int16_t)psx_mod_read_half(object+0x5a));
+    const double px=(int32_t)psx_mod_read_word(player+4),py=(int32_t)psx_mod_read_word(player+8),pz=(int32_t)psx_mod_read_word(player+12);
+    const int32_t feet=(int32_t)psx_mod_read_word(player+0x1c8);
+    for(int turn=0;turn<=spawn_turn_limit;turn=turn>0?-turn:spawn_turn_step-turn) {
+        const double a=view+turn*3.141592653589793/180,s=std::sin(a),c=std::cos(a);
+        const double need=std::max<double>(spawn_distance,(reach+spawn_reach_margin)/std::max(std::fabs(s),std::fabs(c)));
+        if(!turn && need<=spawn_distance)return true;
+        const double from[3]={px,py,pz},ahead[3]={px+s*(need+spawn_wall_margin),py,pz+c*(need+spawn_wall_margin)};
+        const double spot[3]={px+s*need,py,pz+c*need},below[3]={spot[0],double(feet+spawn_drop_limit),spot[2]};
+        double hit[3];int wall=0,floor=0;
+        if(!view_segment_query(cpu,from,ahead,hit,wall) || wall==1 ||
+           !view_segment_query(cpu,spot,below,hit,floor) || floor!=1 ||
+           !spawn_objects_clear(object,px,pz,ahead[0],ahead[2],feet))continue;
+        psx_mod_write_word(object+4,uint32_t(int32_t(std::lround(spot[0]))));
+        psx_mod_write_word(object+12,uint32_t(int32_t(std::lround(spot[2]))));
+        int32_t ignored=0;
+        hull_call(cpu,0x80095cb0,object,&ignored);
+        ++spawn_moves;
+        std::fprintf(stderr,"[TTK spawn] reach %d: moved to %.0f ahead, %+d degrees\n",reach,need,turn);
+        return true;
+    }
+    ++spawn_blocked;
+    std::fprintf(stderr,"[TTK spawn] reach %d: no clear spot within %d degrees, kept at %u\n",reach,spawn_turn_limit,spawn_distance);
+    return false;
+}
 static int spawn_pending=-1;
 static uint64_t spawn_deadline;
 static void spawn_update(CPUState* cpu) {
@@ -188,6 +265,7 @@ static void spawn_update(CPUState* cpu) {
        psx_mod_read_half(object+0x2c)!=unsigned(type)) {
         input_notice("Spawn could not complete");return;
     }
+    const bool clear=spawn_clear_of_reach(cpu,object,a);
     // Like a real drop (80096B98), the original fall then places the item: it
     // overrides this start height and rests where the game's own enemy drops
     // rest (checked: a pig cop's ammo drop and a spawned item settle at the same
@@ -211,9 +289,11 @@ static void spawn_update(CPUState* cpu) {
         std::snprintf(text,sizeof text,"Spawned generic crystal (item 14)");
     else if(name)std::snprintf(text,sizeof text,"Spawned %s",name);
     else std::snprintf(text,sizeof text,"Spawned type %d",type);
+    if(!clear)std::strncat(text," (close: way ahead blocked)",sizeof text-std::strlen(text)-1);
     for(char* c=text;*c;++c)*c=char(std::toupper((unsigned char)*c));
     input_notice(text);
-    std::fprintf(stderr,"[TTK spawn] type %d object %08x at %d,%d,%d cell %d\n",type,object,x,(int32_t)position[1],z,(int)int32_t(cell));
+    std::fprintf(stderr,"[TTK spawn] type %d object %08x at %d,%d,%d cell %d\n",type,object,(int32_t)psx_mod_read_word(object+4),
+                 (int32_t)position[1],(int32_t)psx_mod_read_word(object+12),(int)int8_t(psx_mod_read_byte(object+0x2e)));
 }
 static bool spawn_same(const char* a,const char* b) {
     for(;*a && *b;++a,++b)if(std::tolower((unsigned char)*a)!=std::tolower((unsigned char)*b))return false;

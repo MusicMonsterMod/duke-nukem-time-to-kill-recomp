@@ -1,5 +1,169 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-02 - D26H accepted and closed
+
+User: "fully accepted!!". D26H is Done
+([note 111](documentation/111-d26e-debug-spawn.md#d26h-out-of-dukes-pickup-reach-2026-11-02)):
+`spawn` moves an item out of the original square pickup reach (along the view,
+else up to 40 degrees aside; walls, ledges and solid objects checked) or keeps
+the old spot with "(close: way ahead blocked)". Executable
+`85c3eee19a0a343e54b978e2772bd8f75df2ec3fcd0422171e517de249d45d50`. No framework change.
+D26J, D26K and D08Q11 were added to the backlog in the same session.
+
+## 2026-11-02 - Backlog intake: console keeps Duke's state (D26J, D26K); jetpack from toggle-crouch (D08Q11)
+
+User request (2026-11-02), recorded only; not started. A short code reading
+defined the jobs; every cause below is a **hypothesis to confirm**, not an
+established root cause.
+
+Shared observation for D26J and D26K: the console is an overlay and the game
+keeps running while it is open (no pause). Opening it (backtick in
+`debug_console_event`, framework `recomp/psxrecomp/runtime/src/main.cpp`,
+tracked through `recomp/patches/time-to-kill-accepted-source.patch`) calls
+`ttk::input_release()` (`recomp/src/ttk/pc_input.cpp`). That drops capture and
+calls `clear()`, which clears held keys, mouse, pending interaction, holster
+pulse and the push latch and starts a new input epoch. While capture is off,
+`input_frame()` publishes a gameplay frame with `active = false`. The
+Modernized owners then step back: the jetpack owner requires an active frame
+(`jetpack_input_ready()`, `recomp/src/ttk/jetpack.inc`, also its fall grace
+ends on a new epoch), and `frame.held[crouch]` (from `crouch_down()`, which
+includes the C toggle `crouch_latched`) is published only for an active
+frame. So the console may be treated as a capture loss (like focus loss or a
+menu), not an overlay with its own input focus. The preferred outcome for both
+jobs: **opening the console does not by itself change Duke's gameplay state.**
+
+### D26J - Console keeps Duke's movement state (crouch, jetpack)
+
+**Status: Todo. Dependencies: D26 (console), D26B (view ownership across the
+console), D08K (crouch), D08Q (jetpack). Shares the console input path with
+D26K.** Priority medium.
+
+Observed (user): crouched Duke stands up when the console opens; Duke flying
+the jetpack falls to the ground when the console opens. Expected: both states
+continue unchanged while the console is open and after it closes.
+
+Investigation:
+- Confirm which of these causes it: the release itself (`input_release` /
+  `clear`), the inactive frame (`frame.active`), the new epoch (jetpack fall
+  grace, `jet_epoch`), or `crouch_toggle_context()` clearing `crouch_latched`
+  in `input_frame()`.
+- Separate toggle states (C crouch latch, jetpack on/off, altitude hold) from
+  held inputs (Ctrl crouch, Space/climb, movement keys). A held key cannot
+  stay held after its key-up is consumed by the console; decide whether it
+  freezes or is released, and keep the C toggle and the jetpack itself.
+- For the jetpack, decide how flight is kept while the console has focus:
+  hold the current altitude (the D08Q6 hold) with no thrust, rather than
+  losing the owner.
+- Audit, without fixing beyond scope: swimming, ladders/poles, push-pull grab,
+  precise aim and steroids.
+- The frame should be "active, no new input" while the console is open, not
+  "inactive"; console keys must still never reach gameplay.
+
+Acceptance (private save copies; offscreen first, then the user's check):
+1. Toggle-crouch with C, open the console, wait 10 s, close it: Duke stays
+   crouched throughout, with no stand-up animation.
+2. Fly the jetpack at a held altitude, open the console, wait 10 s, close
+   it: Duke stays at that altitude (no fall), with the jetpack running and
+   fuel use as the original's while hovering.
+3. With the console open, type W, A, S, D, C, Space, E and the digits: none
+   moves Duke, crouches, jumps, uses or switches anything.
+4. After closing, the next gameplay input works on the first press, and the
+   view/mouse capture returns as today (D26B).
+5. Holding Ctrl (momentary crouch) or W while opening the console has a
+   documented, consistent result (released, not stuck).
+6. Vanilla unchanged; `ttk-controls-test` and `ttk-input-test` pass, with a
+   new native group for the console keeping crouch and jetpack.
+
+### D26K - No weapon holster while the console is open
+
+**Status: Todo. Dependencies: D26 (console). Shares the console input path
+with D26J (likely fixed together, tested separately).** Priority low-medium.
+
+Observed (user, reported again after D08A33): with the console open, Duke
+eventually goes idle and holsters his weapon. Expected: the equipped weapon
+stays in its ready pose while the console is open, and closing the console
+causes no draw or holster.
+
+Known: during D08A33 this did not reproduce offscreen (slot 12 copy, about 25
+s open, typing and clicks): equipment 2, the drawn weapon and the ready loop
+did not change ([note 361](documentation/361-d08a33-equip-pickups.md), "Reported, not reproduced").
+Get the user's exact steps (weapon, view, time open, mouse or pad).
+
+Investigation:
+- Find what holsters the weapon: the original idle timer/animation (an
+  inactivity count), or a Modernized holster path that runs on an inactive
+  frame or a new input epoch (`holster_pulse`, interaction and push state
+  cleared by `clear()`).
+- Determine whether console time counts as player inactivity, and suppress
+  only the console's share without changing normal idle behaviour.
+- Check that opening/closing the console never resets the weapon animation
+  (upper-body animation `+0x74`, equipment `+0x3b8/+0x3b9`).
+
+Acceptance (private save copies; at least two weapon slots plus fists/a
+gadget, first and third person):
+1. Open the console for 60 s (longer than the idle holster time, measured
+   first with the console closed): no holster, the weapon stays visible
+   ready.
+2. Close the console: no draw or holster animation; firing works at once.
+3. With the console closed, the original idle holster still happens after
+   the same time as before.
+4. Vanilla unchanged; native controls tests pass.
+
+### D08Q11 - Jetpack lifts off directly from toggle-crouch
+
+**Status: Todo. Dependencies: D08Q (jetpack), D08S (instant jetpack), D08K
+(crouch, C toggle).** Priority medium. Independent of the console jobs.
+
+Observed (user): toggle-crouched with C, starting the jetpack does not lift
+Duke; he lifts off only after a further Space. From standing, the jetpack
+lifts off at once. Expected: the same direct lift-off from toggle-crouch.
+
+Known from the code (to confirm): the Modernized start in
+`recomp/src/ttk/jetpack.inc` accepts ground mode 0, airborne 9 and swim 4/5,
+and sets the start lift (`jet_lift_active`, `k_jet_start_lift`) only for
+mode 0 or a water-surface start. Crouch is a ground stance; whether the
+crouched player is in mode 0 or another state, and whether the start is
+refused or opened without the lift, is unverified. Separately,
+`crouch_toggle_context()` (`recomp/src/ttk/pc_input.cpp`) drops `crouch_latched`
+once `jetpack_input_ready()` is true, and the crouch hull (D08K2) may hold Duke
+down or refuse the standing height on the first flight frame.
+
+Investigation: trace J while toggle-crouched (mode `+0x22c`, animation,
+`+0x358`, `jet_lift_active`, crouch latch) in first and third person; compare
+with a standing start; check low ceilings (a crouched start under a low ceiling
+must not push Duke into it: lift as far as clearance allows).
+
+Acceptance (private save copies, first and third person):
+1. C to crouch, then J: Duke stands up into the normal lift-off and hovers
+   at the ground start height, with no Space press.
+2. Ascent, descent, altitude hold and landing are unchanged (D08Q6/D08Q8);
+   after landing Duke is standing (the latch stays off) and walks normally.
+3. Ctrl-held (momentary) crouch then J behaves the same.
+4. Under a low ceiling the start lifts only as far as the clearance allows.
+5. Crouch, crouch-walk, crouch-jump and jetpack controls show no regressions;
+   `ttk-controls-test` passes; Vanilla unchanged.
+
+## 2026-11-02 - D26H: spawned items clear of Duke's pickup reach (Needs playtest)
+
+Cause: the original pickup loop (`0x8007fd04`) touches an item when `|dx|` and
+`|dz|` are each below its bounding radius (`+0x5a`, at least 0x100). The
+flamethrower's is 579, so 600 units along a diagonal view (424 per axis) was
+inside it. Now `spawn` reads the new object's radius and moves it out until
+its larger axis offset clears the radius + 128: along the view, else up to 40
+degrees to either side. A spot needs no wall in the original segment query,
+a floor within 256 below Duke's feet, and no solid placed object (dumpster) on
+the way. Then `0x80095cb0` relinks the room. With no usable spot it keeps the
+old 600 spot and says "(close: way ahead blocked)". Small items straight ahead
+are unchanged. Executable
+`85c3eee19a0a343e54b978e2772bd8f75df2ec3fcd0422171e517de249d45d50`
+([note 111](documentation/111-d26e-debug-spawn.md#d26h-out-of-dukes-pickup-reach-2026-11-02)).
+Evidence (private slot 12 copies, level 0 alley): before, the flamethrower and
+RPG at 135/225 degrees were owned on the first frame. After, the flamethrower,
+RPG and buffalo rifle at seven view angles (21 spawns) were never picked up
+standing, and walking onto them picked them up. `ttk-controls-test` (122
+groups), input, aim and overlay guard checks pass. No framework change; manual
+updated. Awaiting the user's playtest (flamethrower).
+
 ## 2026-11-02 - D17AY accepted and closed
 
 User: "great work, fully accept - the animations looks super smooth" and
@@ -46,7 +210,7 @@ User, while testing D08A33 (2026-11-02). Recorded only; not started.
 
 ### D26H - Spawned weapons land far enough ahead of Duke
 
-**Status: Todo. Dependencies: D26E (debug spawn).** User: "make sure the
+**Status: Done (user-accepted 2026-11-02). Dependencies: D26E (debug spawn).** User: "make sure the
 weapons spawn a little in front of duke because when i spawn a flamethrower
 for example, duke automatically picks it up." `spawn` places the item
 `spawn_distance` (600 units) along the camera view (`recomp/src/ttk/spawn.inc`),
@@ -3083,6 +3247,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08Q8 | Smooth jetpack clearance along rising floors, descending ceilings and maximum height (slot 12, bug 4) | Done | D08Q, D08S |
 | D08Q9 | Jetpack horizontal pace follows walk/run and active steroids | Done | D08Q8, D08AA |
 | D08Q10 | Start the jetpack in water (J on the surface or underwater); the water surface is a floor while flying (slot 12, EDuke32 feel) | Done (user-accepted 2026-11-02; note 357) | D08S, D08Q8, D08O |
+| D08Q11 | Jetpack lifts off directly from toggle-crouch (no extra Space) | Todo | D08Q, D08S, D08K |
 | D08T | Pushable objects: modern grab/push/pull and climb (alley dumpster) | Done | D08 |
 | D08T1 | Separate push/pull from mantling: E always mantles, hold RMB to grab | Done | D08T, D04 |
 | D08T2 | Duke-symbol pushable blocks cannot be pushed with Modern controls (RMB grab, game-wide) | Done (user-accepted; closed 2026-10-30) | D08T1, D22B |
@@ -3284,8 +3449,10 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D26C | Console command history (Up/Down) | Done (user-accepted; closed 2026-10-30) | D26 |
 | D26D | Level select: authoritative order, numbering, names and categories | Todo | D26A |
 | D26G | Console: holding Backspace or a character key repeats it | Done (user-accepted 2026-10-20) | D26 |
-| D26H | Spawned weapons land far enough ahead that Duke does not pick them up at once | Todo | D26E |
+| D26H | Spawned weapons land far enough ahead that Duke does not pick them up at once | Done (user-accepted 2026-11-02) | D26E |
 | D26I | Console: numpad digits (and keypad keys) type into the console | Todo | D26, D26G |
+| D26J | Console keeps Duke's movement state (toggle crouch, jetpack flight) while open | Todo | D26, D26B, D08K, D08Q |
+| D26K | No weapon holster while the console is open | Todo | D26 (shares D26J's console input path) |
 | D27 | Caps Lock RUN MODE quotes; Shift-run clunk silence deferred | Done (quotes); clunk deferred low-priority | D04, D19A |
 | D27A | Modern Shift/run is silent: remove the walk/run toggle click `0x0001` from the Shift path, keep the D08A10 heartbeat | Done (user-accepted) | D27, D08A10 |
 | D28 | Scroll Lock holster and WEAPON LOWERED/RAISED quotes | Done | D04, D19A |

@@ -1623,7 +1623,12 @@ Modernized gameplay, open the console and type `spawn <item>` (for example
 `spawn steroids`, `spawn skeleton key`, `spawn torn paper`) or `spawn <number>`.
 The console closes and the item drops a few steps ahead, in the direction the
 camera looks, using the game's own item-drop code, so walking over it picks it up
-normally. It bounces and settles exactly as an enemy's dropped item does, so it can
+normally. An item big enough to reach Duke from there (the flamethrower, RPG and buffalo rifle
+always; most weapons when the camera looks diagonally) lands farther out, up to
+40 degrees to one side if that way is clearer, so Duke does not pick it up where
+he stands. If a wall, ledge or solid object (such as a
+dumpster) blocks every such spot, the item drops at the usual distance and the
+message adds "(close: way ahead blocked)"; step back and spawn again. It bounces and settles exactly as an enemy's dropped item does, so it can
 look partly sunk into the ground, as the game's own drops do. `items` (or `spawn` on its own) lists what this level can spawn: items by name,
 then **weapons** and their **ammo** by name and number (D08A33, for example
 `gatling gun (41)`, `freezer (641)`, `gatling ammo (562)`), then every other

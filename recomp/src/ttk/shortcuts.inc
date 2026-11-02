@@ -11,6 +11,10 @@ static bool steroids_owned();
 static bool steroids_use(CPUState* cpu);
 static void steroids_poll();
 static void pickup_select_apply();
+// D08A33 new-weapon draw (pickup_select.inc).
+static unsigned pickup_weapon_due();
+static void pickup_weapon_drawn();
+static void pickup_weapon_cancel();
 // D08A12 next stick after a throw (dynamite.inc, included later).
 static bool dynamite_redraw_due(unsigned equipment,uint32_t flags);
 static bool dynamite_redraw;
@@ -419,6 +423,27 @@ static void select_weapon(CPUState* cpu) {
        (movement_ready() || jetpack_input_ready()) && usable_weapon(14)) {
         psx_mod_write_byte(player+0x3ba,14);
         psx_mod_write_word(player+0x224,flags|4);++selections;++dynamite_redraws;dynamite_redraw=false;
+    }
+    // D08A33: the player's own weapon choice, taken or not, drops a waiting pickup draw.
+    if(f.command_serial && command_seen!=f.command_serial)for(unsigned n=0;n<f.command_count && n<32;++n) {
+        const int action=f.commands[n];
+        if((action>=weapon_group_1 && action<=weapon_group_0) || action==weapon_previous ||
+           action==weapon_next || action==weapon_last) pickup_weapon_cancel();
+    }
+    // D08A33: EQUIP PICKUPS IF NEW draws a newly owned weapon through the same
+    // request and gate as the number keys, once fire is let go.
+    if(const unsigned fresh=pickup_weapon_due();fresh<=14) {
+        const bool jet_ready=jetpack_input_ready();
+        const bool swim_ready=!jet_ready && !movement_ready() && swim_weapon_ready();
+        const unsigned now_flags=psx_mod_read_word(player+0x224);
+        if((equipment==2 || remote) && current==fresh && weapon_idle) pickup_weapon_cancel();
+        else if((movement_ready() || jet_ready || swim_ready) && (equipment==0 || equipment==2 || remote) &&
+                (!(equipment==2 || remote) || weapon_idle) && !f.held[fire] && !f.held[original_aim] &&
+                !f.held[interact] && !(now_flags&0x2cd) && usable_weapon(fresh) &&
+                (!swim_ready || underwater_weapon(fresh))) {
+            psx_mod_write_byte(player+0x3ba,fresh);
+            psx_mod_write_word(player+0x224,now_flags|4);++selections;pickup_weapon_drawn();
+        }
     }
     if(!f.command_serial || command_seen==f.command_serial)return;
     command_seen=f.command_serial;

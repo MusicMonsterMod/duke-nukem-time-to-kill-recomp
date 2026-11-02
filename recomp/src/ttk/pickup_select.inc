@@ -19,9 +19,24 @@
 // mid-activation it waits for the next item poll that finds none.
 // The original inventory grant (dninventory, dnstuff, dnitems) does not go
 // through the dispatcher and keeps the current selection, as in EDuke32.
-struct PickupSnapshot {bool pending;uint32_t loads;uint16_t flags[6];int16_t amounts[6];};
+//
+// D08A33 EQUIP PICKUPS: IF NEW (default) also draws a weapon Duke did not own.
+// Weapon pickups reach the dispatcher's give-weapon helper 0x800818ec (a1 the
+// slot): it sets bit 0 of +0x2c4+4*slot for an unowned weapon, or only adds
+// ammo to an owned one; ammo pickups (0x80081720) never touch bit 0. Only in
+// multiplayer does the helper itself request the new weapon. Here a slot whose
+// bit 0 went 0 -> 1 across the dispatcher call is drawn through the same
+// request as the number keys (+0x3ba, flag 4), so the original stow/draw, ammo
+// and HUD run. NEVER does neither this nor the D08A9 item selection.
+struct PickupSnapshot {bool pending;uint32_t loads;uint16_t flags[6];int16_t amounts[6];uint16_t weapons[15];};
 static PickupSnapshot pickup_before;
 static unsigned pickup_selection,pickup_selects,pickup_deferred,pickup_refills;
+static unsigned pickup_weapon=255,pickup_weapon_age,pickup_weapon_draws,pickup_weapon_drops;
+static uint32_t pickup_weapon_loads;
+static bool equip_pickups() {
+    const char* v=ttk_live_env("DNTTK_EQUIP_PICKUPS");
+    return input_modernized() && (!v || std::strcmp(v,"never"));
+}
 static bool pickup_activation_pending() {
     for(unsigned i=1;i<=5;++i) if(psx_mod_read_half(player+0x354+4*i)&0x8000) return true;
     return false;
@@ -39,8 +54,9 @@ static void pickup_select_apply() {
 static void pickup_select_begin(CPUState* cpu) {
     pickup_before.pending=false;
     if(cpu->gpr[4]!=player || cpu->gpr[31]!=0x8007fe6c || !player_identity_ready() ||
-       psx_mod_read_byte(player+0x233)!=0) return;
+       psx_mod_read_byte(player+0x233)!=0 || !equip_pickups()) return;
     pickup_before.pending=true;pickup_before.loads=psx_mod_savestate_loads();
+    for(unsigned w=0;w<15;++w) pickup_before.weapons[w]=psx_mod_read_half(player+0x2c4+4*w);
     for(unsigned i=1;i<=5;++i) {
         pickup_before.flags[i]=psx_mod_read_half(player+0x354+4*i);
         pickup_before.amounts[i]=(int16_t)psx_mod_read_half(player+0x356+4*i);
@@ -51,6 +67,10 @@ static void pickup_select_end() {
     if(!pickup_before.pending) return;
     pickup_before.pending=false;
     if(pickup_before.loads!=psx_mod_savestate_loads()) return;
+    for(unsigned w=1;w<15;++w)
+        if((psx_mod_read_half(player+0x2c4+4*w)&1) && !(pickup_before.weapons[w]&1)) {
+            pickup_weapon=w;pickup_weapon_age=0;pickup_weapon_loads=pickup_before.loads;break;
+        }
     for(unsigned i:{1u,2u,3u,4u,5u}) {
         const unsigned flags=psx_mod_read_half(player+0x354+4*i);
         const int16_t amount=(int16_t)psx_mod_read_half(player+0x356+4*i);
@@ -64,9 +84,25 @@ static void pickup_select_end() {
         break;
     }
 }
+// The draw waits for the state the number keys need (select_weapon's gate) for
+// up to pickup_weapon_wait player updates (about two seconds), so a pickup
+// while firing, climbing, pushing or mid-throw draws once Duke is ready and
+// fire is let go. A weapon key, a savestate load, death or the weapon already
+// in hand drop it; nothing is buffered beyond the window.
+static constexpr unsigned pickup_weapon_wait=60;
+static unsigned pickup_weapon_due() {
+    if(pickup_weapon>14) return 255;
+    if(pickup_weapon_loads!=psx_mod_savestate_loads() || !equip_pickups() || !interaction_alive() ||
+       (int16_t)psx_mod_read_half(player+0x32)<=0 || ++pickup_weapon_age>pickup_weapon_wait) {
+        pickup_weapon=255;++pickup_weapon_drops;return 255;
+    }
+    return pickup_weapon;
+}
+static void pickup_weapon_drawn() {pickup_weapon=255;++pickup_weapon_draws;}
+static void pickup_weapon_cancel() {if(pickup_weapon<=14){pickup_weapon=255;++pickup_weapon_drops;}}
 static const char* pickup_select_debug_json() {
-    static char buffer[128];
-    std::snprintf(buffer,sizeof buffer,"{\"selects\":%u,\"refills\":%u,\"deferred\":%u,\"waiting\":%u}",
-        pickup_selects,pickup_refills,pickup_deferred,pickup_selection);
+    static char buffer[192];
+    std::snprintf(buffer,sizeof buffer,"{\"selects\":%u,\"refills\":%u,\"deferred\":%u,\"waiting\":%u,\"weapon_draws\":%u,\"weapon_drops\":%u,\"weapon_waiting\":%u}",
+        pickup_selects,pickup_refills,pickup_deferred,pickup_selection,pickup_weapon_draws,pickup_weapon_drops,pickup_weapon>14?0:pickup_weapon);
     return buffer;
 }

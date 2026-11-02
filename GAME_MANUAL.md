@@ -911,7 +911,7 @@ and **B** the Bio Mask (TTK's gas mask). Modern night vision and enabled Auto Bi
 Mask toggle instantly while firing; original gadget modes retain their equip
 and weapon-redraw animations. **J** also switches the jetpack
 off in mid-flight (a controlled fall follows). Underwater air still equips automatically.
-**[ / ]** cycle eligible gadgets; **Enter** uses the selected gadget. In Modernized, a gadget you pick up (jetpack, Bio Mask, goggles, medkit, steroids), or top up when it was not full, becomes the selected one at once, as in Duke 3D, so its HUD box shows and **Enter** use it; keys and mission items leave the selection alone. **, / .** browse the level's mission items (see Mission items below). **R takes steroids** (see Portable steroids below). In third person, **Q kicks only while standing still with Mighty Boot already selected on 1**
+**[ / ]** cycle eligible gadgets; **Enter** uses the selected gadget. In Modernized, with **EQUIP PICKUPS** on **IF NEW** (the default, see below), a gadget you pick up (jetpack, Bio Mask, goggles, medkit, steroids), or top up when it was not full, becomes the selected one at once, as in Duke 3D, so its HUD box shows and **Enter** use it; keys and mission items leave the selection alone. **, / .** browse the level's mission items (see Mission items below). **R takes steroids** (see Portable steroids below). In third person, **Q kicks only while standing still with Mighty Boot already selected on 1**
 (the original kick). Q never selects another weapon or presses fire. In first
 person Q is a quick kick with any weapon (see below).
 
@@ -1624,8 +1624,15 @@ Modernized gameplay, open the console and type `spawn <item>` (for example
 The console closes and the item drops a few steps ahead, in the direction the
 camera looks, using the game's own item-drop code, so walking over it picks it up
 normally. It bounces and settles exactly as an enemy's dropped item does, so it can
-look partly sunk into the ground, as the game's own drops do. `items` lists what this level can spawn: names first, then every
-other pickup by number. Each level loads only its own item models, so an item
+look partly sunk into the ground, as the game's own drops do. `items` (or `spawn` on its own) lists what this level can spawn: items by name,
+then **weapons** and their **ammo** by name and number (D08A33, for example
+`gatling gun (41)`, `freezer (641)`, `gatling ammo (562)`), then every other
+pickup by number. The weapon numbers are: throwing knife 45, throwing axe 1,
+crossbow 21, desert eagle 59, combat shotgun 66, buffalo rifle 10, gatling gun
+41, rpg 47, flamethrower 37, energy weapon 34, freezer 641, pipe bomb 58, holy
+hand grenade 608, dynamite 126; ammo: crossbow 609, desert eagle 33, shotgun
+65, buffalo rifle 124, gatling 562, rpg 106, flamethrower 38, energy weapon
+125, freezer 642. Only those this level has loaded are listed and spawnable. Each level loads only its own item models, so an item
 from another level (crystals in Duke Hill, for example) is refused rather than
 spawned invisible. Mission keys take this level's name (`key 1` is the Subway
 Security Key in level 0 and the Warehouse Key in level 5). Vanilla refuses it.
@@ -2031,6 +2038,24 @@ not protect against bullets, falls, water or other non-gas hazards.
 choice immediately. Vanilla stays original. The launcher accepts
 `--auto-bio-mask on|off` (saves the preference); terminal `--settings` uses
 **M Auto Bio Mask**.
+
+### Equip pickups (D08A33)
+
+**OPTIONS > ADVANCED > ITEMS > EQUIP PICKUPS** works like EDuke32's option of
+the same name. **IF NEW** (the default): picking up a weapon Duke does not have
+yet (for example the Gatling gun) draws it at once, with its normal draw
+animation, ammo and HUD; picking up a gadget makes it the selected item. A
+gadget is only selected, never used: **Enter** uses it. A weapon Duke already
+has, and ammo, never switch. If Duke is firing, climbing, pushing or in the
+middle of a throw or another weapon animation, the new weapon is drawn once he
+is ready and fire is let go, within about two seconds; pressing a weapon key
+yourself first keeps your choice. Weapons from cheats (`dnstuff`) never switch.
+
+**NEVER** equips and selects nothing, as in the original game. A gadget is
+still selected when it is the only one you carry. Confirm applies and saves the
+choice immediately. Vanilla always uses NEVER. The launcher accepts
+`--equip-pickups if-new|never` (saves the preference); terminal `--settings`
+uses **E Equip pickups**.
 
 ### Inventory feedback and crouch scope (2026-09-28)
 

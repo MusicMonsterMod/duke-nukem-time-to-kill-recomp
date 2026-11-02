@@ -8,6 +8,73 @@ User: "great work, fully accept - the animations looks super smooth" and
 `972de2e2f0ef2e106d04db074da26fd187a7c311d40b1f902e8ff590adb6be23`. The last two player
 session logs show no failures. No framework change.
 
+## 2026-11-02 - D08A33 accepted and closed
+
+User: "i accept the pickups job!! lock it in, close us out". D08A33 is Done
+([note 361](documentation/361-d08a33-equip-pickups.md)): EQUIP PICKUPS IF NEW
+(default) / NEVER, profile schema 61, and the named weapons and ammo in the
+console `spawn` list. Executable
+`2fd0b986485196af4eb17d7f6cd86315579e738f0db1c337198e0a0be426831b`. No framework change. The
+reported holster while in the console did not reproduce and stays open in
+note 361 (no fix made); D26H and D26I were recorded during testing.
+
+## 2026-11-02 - Backlog intake: numpad in the console (D26I)
+
+User, while testing D08A33 (2026-11-02). Recorded only; not started.
+
+### D26I - Console: the numpad types
+
+**Status: Todo. Dependencies: D26 (console), D26G (key repeat).** User:
+"make the numpad work with the console." The console's key handler
+(`debug_console_event` in the runtime `main.cpp`, a framework file tracked
+through `recomp/patches/time-to-kill-accepted-source.patch`) maps only the
+main-row letters, digits, space, `-` and `=`; keypad Enter already runs the
+line, but keypad digits and other keypad keys type nothing.
+
+Initial notes (not researched): map keypad 0-9 (with and without Num Lock, as
+a desktop text field does), and decide on keypad `-`, `+`, `.`, `/`, `*`;
+keep repeat (D26G) and make sure keypad keys still never reach gameplay while
+the console is open. Framework edit: export the runtime patch afterwards.
+
+**Acceptance:** `spawn 641` typed on the numpad spawns the freezer; keypad
+keys repeat like the main row; nothing reaches gameplay while the console is
+open; the user's check.
+
+## 2026-11-02 - Backlog intake: spawned weapons too close (D26H)
+
+User, while testing D08A33 (2026-11-02). Recorded only; not started.
+
+### D26H - Spawned weapons land far enough ahead of Duke
+
+**Status: Todo. Dependencies: D26E (debug spawn).** User: "make sure the
+weapons spawn a little in front of duke because when i spawn a flamethrower
+for example, duke automatically picks it up." `spawn` places the item
+`spawn_distance` (600 units) along the camera view (`recomp/src/ttk/spawn.inc`),
+then it bounces and settles like a dropped item; a weapon such as the
+flamethrower can end up within Duke's pickup reach straight away.
+
+Initial notes (not researched): measure where spawned weapons settle versus
+Duke's pickup radius, per weapon type; place weapons (and possibly all
+pickups) far enough ahead that a standing Duke does not touch them, without
+pushing them through walls or off ledges (fall back to the original distance,
+or refuse, when the spot ahead is blocked).
+
+**Acceptance:** spawning each weapon in front of a standing Duke leaves it on
+the ground in view until he walks onto it; walls, ledges and other items still
+behave; the user's playtest (flamethrower).
+
+## 2026-11-02 - D08A33: EQUIP PICKUPS (Needs playtest)
+
+OPTIONS > ADVANCED > ITEMS > EQUIP PICKUPS: IF NEW (default) draws a newly
+picked-up weapon through the original weapon request (waiting for fire to be
+let go or Duke to be ready, about two seconds at most) and keeps the D08A9
+gadget selection; NEVER does neither. Owned weapons, ammo and `dnstuff` never
+switch. Profile schema 61, `run.py --equip-pickups if-new|never`; Vanilla
+always never. Executable
+`2fd0b986485196af4eb17d7f6cd86315579e738f0db1c337198e0a0be426831b`
+([note 361](documentation/361-d08a33-equip-pickups.md)). Awaiting the user's
+playtest (Gatling gun in slot 12, steroids).
+
 ## 2026-11-02 - Backlog intake: EQUIP PICKUPS option (D08A33)
 
 User, while playtesting D17AY (2026-11-02), asked for an EDuke32-style
@@ -15,7 +82,7 @@ option. Recorded only; not started.
 
 ### D08A33 - EQUIP PICKUPS: IF NEW (default) / NEVER, with new weapons auto-equipped
 
-**Status: Todo. Dependencies: D08A9, D08A, D19 (in-game options).** EDuke32
+**Status: Done (user-accepted 2026-11-02: "i accept the pickups job!!"). Dependencies: D08A9, D08A, D19 (in-game options).** EDuke32
 has an "equip pickups" choice. TTK should have the same option with two values:
 
 - **IF NEW** (the new default): picking up a weapon Duke does not already own
@@ -52,6 +119,47 @@ Duke; spawning items or weapons is also fine.
 becomes the selection without being used; owned weapons and their ammo never
 switch; NEVER switches nothing; the option is saved and shown in OPTIONS;
 Vanilla unchanged; the user's playtest (Gatling gun and steroids).
+
+**Work log 2026-11-02 - built (Needs playtest).** Executable
+`2fd0b986485196af4eb17d7f6cd86315579e738f0db1c337198e0a0be426831b`.
+[Note 361](documentation/361-d08a33-equip-pickups.md).
+
+- Research: weapons are given by the dispatcher's helper `0x800818ec`; it sets
+  ownership bit 0 of `+0x2c4+4*slot` only for an unowned weapon, else adds
+  ammo; ammo pickups (`0x80081720`) never touch it. The helper's own weapon
+  request runs only in multiplayer.
+- Implementation: `pickup_select.inc` snapshots weapon ownership with the D08A9
+  items around the dispatcher call; a weapon that became owned is drawn from
+  `select_weapon` through the number keys' request (`+0x3ba`, flag 4) and
+  gate, waiting up to 60 player updates (about two seconds) when Duke is not
+  ready (fire held, climbing, pushing, mid-throw); a weapon key, savestate
+  load or death drops it. NEVER also stops the D08A9 item selection. OPTIONS >
+  ADVANCED > ITEMS > EQUIP PICKUPS (live), profile schema 61
+  (`equip_pickups`, if-new default), `run.py --equip-pickups`, terminal
+  choice E; Vanilla always never. No hooks, codegen or framework change.
+- Evidence: `ttk-controls-test` 122 groups (new D08A33 group), input, aim and
+  near suites, Python profile/input tests (new EquipPickupsOptionTest). Live
+  private slot-12 runs: IF NEW draws the Gatling gun at the pickup (HUD 150);
+  with fire held it waits and draws on release; an owned Gatling's ammo
+  pickup (10 -> 160) and `dnstuff` do not switch; NEVER keeps the shotgun;
+  spawned steroids become the selection (held, not used) under IF NEW and
+  leave a selected medkit under NEVER; the OPTIONS row changed with real keys
+  saves `never` to the profile. Player files unchanged.
+- Limits: the user's playtest; only the Gatling gun was picked up live;
+  climbing/pushing/swimming/jetpack pickups not exercised live; Vanilla by
+  construction and native test. The unrelated `test_primitive_trace`
+  (near-renderer, files not touched here) fails in the Python discovery run.
+
+**Work log 2026-11-02 - spawn weapon names; console holster report.** User,
+while testing: "can you add spawn numbers for the weapons, when you type the
+"spawn" command in on its own" and "duke will holster his weapon when you are
+in the terminal". `spawn` (and `items`) now list "Weapons here" and "Ammo
+here" by name and type (`spawn.inc`); the types come from the pickup
+dispatcher and were checked live in level 0: every listed weapon gave its slot
+and was drawn under IF NEW, every ammo pickup only added ammo without a switch
+(table in note 361). The holster in the console did not reproduce offscreen
+(typing, Enter, clicks, 25 seconds open, the player's settings copy); waiting
+for the exact steps, no fix made.
 
 ## 2026-11-02 - D17AY: full-refresh presentation audit (Needs playtest)
 
@@ -3013,7 +3121,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08A29 | Scroll-wheel weapon changes while running | Done (user-accepted) | D08A, D08AA |
 | D08A30 | Reverse weapon-wheel direction: up advances, down goes back | Done (user-accepted) | D08A29 |
 | D08A32 | A distinct ammo icon for every weapon in the bottom-right HUD (14x14 in 16x16, review artifact first) | Todo (design review first) | D08A21, D24A |
-| D08A33 | EQUIP PICKUPS option: IF NEW (default) auto-equips new weapons and selects new items; NEVER does neither | Todo | D08A9, D08A, D19 |
+| D08A33 | EQUIP PICKUPS option: IF NEW (default) auto-equips new weapons and selects new items; NEVER does neither | Done (user-accepted 2026-11-02) | D08A9, D08A, D19 |
 | D09 | Modern controller support | Done (user-accepted 2026-10-27) | D05, D06, D07 |
 | D09A | Separate keyboard and gamepad seats for local two-player | Done (user-accepted 2026-10-27) | D09, D34B implementation |
 | D10 | Third-person camera polish | Done | D08 |
@@ -3176,6 +3284,8 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D26C | Console command history (Up/Down) | Done (user-accepted; closed 2026-10-30) | D26 |
 | D26D | Level select: authoritative order, numbering, names and categories | Todo | D26A |
 | D26G | Console: holding Backspace or a character key repeats it | Done (user-accepted 2026-10-20) | D26 |
+| D26H | Spawned weapons land far enough ahead that Duke does not pick them up at once | Todo | D26E |
+| D26I | Console: numpad digits (and keypad keys) type into the console | Todo | D26, D26G |
 | D27 | Caps Lock RUN MODE quotes; Shift-run clunk silence deferred | Done (quotes); clunk deferred low-priority | D04, D19A |
 | D27A | Modern Shift/run is silent: remove the walk/run toggle click `0x0001` from the Shift path, keep the D08A10 heartbeat | Done (user-accepted) | D27, D08A10 |
 | D28 | Scroll Lock holster and WEAPON LOWERED/RAISED quotes | Done | D04, D19A |

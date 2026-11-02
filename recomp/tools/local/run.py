@@ -61,6 +61,7 @@ def main(argv=None):
     p.add_argument('--jetpack-view', choices=profiles.ACTION_VIEWS, help='save jetpack perspective under global first person: first (default) or legacy-third; does not change flight scheme')
     p.add_argument('--swimming', choices=profiles.SWIMMING_MODES, help='save Modernized swimming: modern (default; Shift walks or runs in water at the land speeds) or original (the original water speeds, shallow water always runs); Vanilla always uses original')
     p.add_argument('--auto-bio-mask', choices=profiles.AUTO_BIO_MASK_MODES, help='save automatic gas protection and instant Bio Mask use: on (default) or off (original manual use)')
+    p.add_argument('--equip-pickups', choices=profiles.EQUIP_PICKUPS_MODES, help='save Modernized equip pickups: if-new (default; a new weapon is drawn and a new item selected) or never (the original); Vanilla always uses never')
     p.add_argument('--night-vision', choices=profiles.NIGHT_VISION_MODES, help='save night vision: modern (instant toggle, uninterrupted fire) or original (equip animation)')
     p.add_argument('--dynamite', choices=profiles.DYNAMITE_MODES, help='save Modernized dynamite: modern (default; a drawn stick stays unlit until fire, so you can switch away) or original (drawing it lights the fuse); Vanilla always uses original')
     p.add_argument('--jump', choices=profiles.JUMP_STYLES, help='save Modernized jump style: assisted (original lip launch, fixed arc) or manual (leaves on the press, edge grace, air steering)')
@@ -108,7 +109,7 @@ def main(argv=None):
             profile = settings['profiles']['modernized']
             profile['bindings'] = pc_input.rebind(profile['bindings'], a.bind)
             changed = True
-        if a.auto_bio_mask is not None or a.night_vision is not None or a.wall_view is not None or a.overhead_view is not None or a.mantle_view is not None or a.pole_view is not None or a.ladder_view is not None or a.push_view is not None or a.jetpack_view is not None or a.swim_view is not None or a.steroids is not None or a.draw_distance is not None or a.world_renderer is not None or a.geometry_precision is not None or a.texture_precision is not None or a.view_bob is not None or a.frame_rate is not None or a.jump is not None or a.jump_walls is not None or a.landing is not None or a.wall_backflip is not None or a.crouch is not None or a.dynamite is not None or a.swimming is not None or a.cpu_overclock is not None or a.cpu_timing is not None or a.widescreen is not None or a.camera_distance is not None or a.shoulder is not None or a.view is not None or a.jetpack is not None or a.aim_assist is not None or a.red_dot is not None or a.crosshair is not None or a.weapon_aim is not None or a.camera is not None or a.mouse_sensitivity is not None or a.invert_y is not None:
+        if a.auto_bio_mask is not None or a.equip_pickups is not None or a.night_vision is not None or a.wall_view is not None or a.overhead_view is not None or a.mantle_view is not None or a.pole_view is not None or a.ladder_view is not None or a.push_view is not None or a.jetpack_view is not None or a.swim_view is not None or a.steroids is not None or a.draw_distance is not None or a.world_renderer is not None or a.geometry_precision is not None or a.texture_precision is not None or a.view_bob is not None or a.frame_rate is not None or a.jump is not None or a.jump_walls is not None or a.landing is not None or a.wall_backflip is not None or a.crouch is not None or a.dynamite is not None or a.swimming is not None or a.cpu_overclock is not None or a.cpu_timing is not None or a.widescreen is not None or a.camera_distance is not None or a.shoulder is not None or a.view is not None or a.jetpack is not None or a.aim_assist is not None or a.red_dot is not None or a.crosshair is not None or a.weapon_aim is not None or a.camera is not None or a.mouse_sensitivity is not None or a.invert_y is not None:
             controls = dict(settings['profiles']['modernized']['controls'])
             if a.aim_assist is not None: controls['aim_assist'] = a.aim_assist
             if a.jetpack is not None: controls['jetpack'] = a.jetpack
@@ -121,6 +122,7 @@ def main(argv=None):
             if a.wall_backflip is not None: controls['wall_backflip'] = a.wall_backflip
             if a.crouch is not None: controls['crouch'] = a.crouch
             if a.auto_bio_mask is not None: controls['auto_bio_mask'] = a.auto_bio_mask
+            if a.equip_pickups is not None: controls['equip_pickups'] = a.equip_pickups
             if a.night_vision is not None: controls['night_vision'] = a.night_vision
             if a.dynamite is not None: controls['dynamite'] = a.dynamite
             if a.swim_view is not None: controls['swim_view'] = a.swim_view
@@ -265,6 +267,7 @@ def main(argv=None):
         if modernized and controls[key] >= 0:
             env['DNTTK_' + key.upper()] = str(controls[key])
     env['DNTTK_AUTO_BIO_MASK'] = controls['auto_bio_mask'] if modernized else 'off'
+    env['DNTTK_EQUIP_PICKUPS'] = controls['equip_pickups'] if modernized else 'never'
     env['DNTTK_NIGHT_VISION'] = controls['night_vision'] if modernized else 'original'
     env['DNTTK_DYNAMITE'] = controls['dynamite'] if modernized else 'original'
     env['DNTTK_SWIM_VIEW'] = controls['swim_view'] if modernized else 'legacy-third'

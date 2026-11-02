@@ -1,5 +1,30 @@
 # Next-session handoff
 
+## 2026-11-02 - D08A33 accepted and closed
+
+User: "i accept the pickups job!! lock it in, close us out". D08A33 is Done
+([note 361](361-d08a33-equip-pickups.md)): EQUIP PICKUPS IF NEW
+(default) / NEVER, profile schema 61, and the named weapons and ammo in the
+console `spawn` list. Executable
+`2fd0b986485196af4eb17d7f6cd86315579e738f0db1c337198e0a0be426831b`. No framework change. The
+reported holster while in the console did not reproduce and stays open in
+note 361 (no fix made); D26H and D26I were recorded during testing.
+
+## 2026-11-02 - D08A33: EQUIP PICKUPS (Needs playtest)
+
+OPTIONS > ADVANCED > ITEMS > EQUIP PICKUPS: IF NEW (default) draws a weapon
+Duke did not own when he picks it up, through the original weapon request
+(native stow/draw, ammo, HUD), and keeps the D08A9 gadget selection; NEVER
+does neither. Owned weapons, ammo and `dnstuff` never switch; a pickup while
+Duke is not ready waits for the number keys' gate for about two seconds.
+Profile schema 61 (`equip_pickups`), `run.py --equip-pickups if-new|never`,
+terminal choice E; Vanilla always never. Native controls 122 groups; live
+private slot-12 runs (Gatling drawn, fire-held wait, owned ammo, NEVER,
+steroids selection both ways, menu row saved). Executable
+`2fd0b986485196af4eb17d7f6cd86315579e738f0db1c337198e0a0be426831b`
+([note 361](361-d08a33-equip-pickups.md)). No framework change. Next: the
+user's playtest.
+
 ## 2026-11-02 - D17AY accepted and closed
 
 User: "great work, fully accept - the animations looks super smooth" and

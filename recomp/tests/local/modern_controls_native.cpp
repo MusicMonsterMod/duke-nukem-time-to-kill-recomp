@@ -6950,9 +6950,60 @@ int main(int argc,char** argv) {
         assert(pickup(3,18000)==5);poll();assert(psx_mod_read_half(0x800c3f94)==5);
         psx_mod_write_half(p+0x35c,1);poll();assert(psx_mod_read_half(0x800c3f94)==3);
         ttk::modern=false;assert(pickup(1,9000)==3);ttk::modern=true;
+        // D08A33 EQUIP PICKUPS: NEVER leaves a new gadget unselected.
+        psx_mod_write_half(p+0x358,0);psx_mod_write_half(0x800c3f94,3);
+        setenv("DNTTK_EQUIP_PICKUPS","never",1);assert(pickup(1,9000)==3);unsetenv("DNTTK_EQUIP_PICKUPS");
+        // IF NEW draws a weapon whose owned bit 0 the dispatcher set, through
+        // the number keys' request (+0x3ba, flag 4); owned weapons (ammo),
+        // NEVER, Vanilla and a waiting draw past its window do not.
+        {
+            const uint16_t gat0=psx_mod_read_half(p+0x2c4+4*7),gat_ammo=psx_mod_read_half(p+0x2c6+4*7);
+            ttk::input={};ttk::input.active=true;ttk::input.sequence=20000;ttk::input.epoch=200;
+            psx_mod_write_word(p,0);psx_mod_write_half(p+0x60,63);psx_mod_write_half(p+0x74,5);
+            psx_mod_write_byte(p+0x22c,0);psx_mod_write_byte(p+0x22d,0);
+            psx_mod_write_byte(p+0x3b8,2);psx_mod_write_byte(p+0x3b9,4);psx_mod_write_byte(p+0x3ba,4);
+            call(0x8003ade4,c,p,0x80025ee8);
+            auto weapon_pickup=[&](unsigned slot,bool grant){
+                CPUState cpu{};cpu.gpr[4]=p;cpu.gpr[5]=box;cpu.gpr[29]=0x801fff00;cpu.gpr[31]=0x8007fe6c;
+                hooks().at(0x80081a48)(&cpu,0x80081a48);
+                if(grant)psx_mod_write_half(p+0x2c4+4*slot,psx_mod_read_half(p+0x2c4+4*slot)|1);
+                psx_mod_write_half(p+0x2c6+4*slot,50);
+                CPUState after{};after.gpr[29]=0x801fff00;after.gpr[31]=0x8007fe78;hooks().at(0x8001ca4c)(&after,0x8001ca4c);
+            };
+            auto drawn=[&](unsigned slot){
+                psx_mod_write_byte(p+0x3ba,4);poll();
+                return (psx_mod_read_word(p+0x224)&4) && psx_mod_read_byte(p+0x3ba)==slot;
+            };
+            psx_mod_write_half(p+0x2c4+4*7,0);
+            weapon_pickup(7,true);assert(drawn(7));                     // new Gatling gun
+            assert(!drawn(7));                                          // once only
+            weapon_pickup(7,false);assert(!drawn(7));                   // owned: ammo only
+            psx_mod_write_half(p+0x2c4+4*7,0);
+            setenv("DNTTK_EQUIP_PICKUPS","never",1);weapon_pickup(7,true);assert(!drawn(7));unsetenv("DNTTK_EQUIP_PICKUPS");
+            psx_mod_write_half(p+0x2c4+4*7,0);
+            ttk::modern=false;weapon_pickup(7,true);ttk::modern=true;assert(!drawn(7));
+            // Fire held at the pickup: the draw waits, then comes after release.
+            psx_mod_write_half(p+0x2c4+4*7,0);weapon_pickup(7,true);
+            ttk::input.held[ttk::fire]=true;assert(!drawn(7));
+            ttk::input.held[ttk::fire]=false;assert(drawn(7));
+            // Mid-attack (upper 30) for longer than the window: dropped.
+            psx_mod_write_half(p+0x2c4+4*7,0);weapon_pickup(7,true);
+            psx_mod_write_half(p+0x74,30);for(int i=0;i<70;++i)assert(!drawn(7));
+            psx_mod_write_half(p+0x74,5);assert(!drawn(7));
+            // The player's own weapon key drops a waiting draw.
+            psx_mod_write_half(p+0x2c4+4*7,0);weapon_pickup(7,true);
+            ttk::input.held[ttk::fire]=true;assert(!drawn(7));ttk::input.held[ttk::fire]=false;
+            ttk::input.commands[0]=ttk::weapon_group_2;ttk::input.command_count=1;++ttk::input.command_serial;
+            psx_mod_write_word(p+0x224,0);call(0x80058120,p,0,0x80041c44,0x801ff000);
+            assert(psx_mod_read_byte(p+0x3ba)!=7);ttk::input.command_count=0;
+            assert(!drawn(7));
+            assert(std::strstr(ttk::controls_debug_json(),"\"weapon_draws\":2,"));
+            psx_mod_write_half(p+0x2c4+4*7,gat0);psx_mod_write_half(p+0x2c6+4*7,gat_ammo);psx_mod_write_word(p+0x224,0);
+        }
         for(unsigned i=1;i<=5;++i){psx_mod_write_half(p+0x354+4*i,0);psx_mod_write_half(p+0x356+4*i,0);}
         psx_mod_write_half(p+0x32,health);
         std::puts("PASS: D08A9 picked-up gadget selected (grant, refill), keys/full/other return/other caller/Vanilla keep it, waits for an activation");
+        std::puts("PASS: D08A33 EQUIP PICKUPS: IF NEW draws a new weapon once (after fire is let go), owned weapon/ammo, NEVER, Vanilla, a missed window and a weapon key do not; NEVER leaves gadgets unselected");
     }
     std::puts("PASS: bounded switch query, model-centre ray, reach/cone/parent/Vanilla fallbacks");
     std::puts("PASS: concealed pickup, exposed/other-room/Vanilla/actor/caller/code fallbacks; inventory preserved");

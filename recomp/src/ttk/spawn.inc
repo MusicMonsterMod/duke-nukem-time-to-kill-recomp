@@ -12,7 +12,7 @@
 // 28 bytes per type) have bit 2; the model comes from the per-level table
 // *800DDB18 at the type's +0x10. A level loads only its own models, so a type
 // without one here is refused instead of creating an invisible object.
-struct SpawnItem {const char* name;uint16_t type;int8_t level;};
+struct SpawnItem {const char* name;uint16_t type;int8_t level;uint8_t group=0;}; // group: 0 item, 1 weapon, 2 ammo
 // Names follow the game's own strings. Mission slots 153/154 change name per
 // level (inventory screen); -1 = any level.
 static constexpr SpawnItem spawn_items[]={
@@ -26,6 +26,19 @@ static constexpr SpawnItem spawn_items[]={
     {"steroids",638,-1},{"armor",320,-1},{"health",473,-1},{"atomic health",581,-1},
     {"medkit",580,-1},{"biomask",560,-1},{"goggles",573,-1},{"jetpack",753,-1},
     {"invulnerability",1047,-1},{"invisibility",1045,-1},{"double duke",1046,-1},
+    // Weapons and ammo: the type cases of the pickup dispatcher 0x80081a48
+    // that give a weapon (0x800818ec, or bit 0 set with the ammo for 12-14)
+    // or only its ammo (0x80081720). Names follow the weapon slots
+    // (documentation/33-controls-shortcuts.md). Upgraded slots (27-29) come
+    // from the same pickups when Duke has the upgrade.
+    {"throwing knife",45,-1,1},{"throwing axe",1,-1,1},{"crossbow",21,-1,1},
+    {"desert eagle",59,-1,1},{"combat shotgun",66,-1,1},{"buffalo rifle",10,-1,1},
+    {"gatling gun",41,-1,1},{"rpg",47,-1,1},{"flamethrower",37,-1,1},
+    {"energy weapon",34,-1,1},{"freezer",641,-1,1},{"pipe bomb",58,-1,1},
+    {"holy hand grenade",608,-1,1},{"dynamite",126,-1,1},
+    {"crossbow ammo",609,-1,2},{"desert eagle ammo",33,-1,2},{"shotgun ammo",65,-1,2},
+    {"buffalo rifle ammo",124,-1,2},{"gatling ammo",562,-1,2},{"rpg ammo",106,-1,2},
+    {"flamethrower ammo",38,-1,2},{"energy weapon ammo",125,-1,2},{"freezer ammo",642,-1,2},
 };
 static constexpr uint32_t spawn_types=0x800d2660,spawn_models=0x800ddb18,spawn_free=0x800ddafc;
 static constexpr unsigned spawn_type_count=0x7428/28,spawn_distance=600;
@@ -218,21 +231,28 @@ bool spawn_console_command(const char* line,void (*say)(const char*),bool& close
     }
     const unsigned level=psx_mod_read_word(0x800be570);
     if(list) {
-        say("Spawnable here (spawn <name> or spawn <type>):");
         char row[100]{};size_t used=0;
-        for(auto& item:spawn_items) {
-            if((item.level>=0 && unsigned(item.level)!=level) || !spawn_model_ready(item.type))continue;
-            char entry[40];std::snprintf(entry,sizeof entry,"%s (%u)",item.name,item.type);
-            if(used+std::strlen(entry)+2>=44) {say(row);used=0;row[0]=0;}
-            used+=std::snprintf(row+used,sizeof row-used,"%s%s",used?", ":"  ",entry);
+        // D08A33: weapons and their ammo get their own lists (user, 2026-11-02).
+        static const char* const titles[]={"Spawnable here (spawn <name> or spawn <type>):",
+            "Weapons here:","Ammo here:"};
+        for(unsigned group=0;group<3;++group) {
+            bool first=true;
+            for(auto& item:spawn_items) {
+                if(item.group!=group || (item.level>=0 && unsigned(item.level)!=level) || !spawn_model_ready(item.type))continue;
+                if(first){say(titles[group]);first=false;}
+                char entry[40];std::snprintf(entry,sizeof entry,"%s (%u)",item.name,item.type);
+                if(used+std::strlen(entry)+2>=44) {say(row);used=0;row[0]=0;}
+                used+=std::snprintf(row+used,sizeof row-used,"%s%s",used?", ":"  ",entry);
+            }
+            if(used)say(row);
+            used=0;row[0]=0;
+            if(group==0 && spawn_crystal_level(level))
+                say("  Crystals: red energy crystal (1761), blue (2761), green (3761)");
         }
-        if(used)say(row);
-        if(spawn_crystal_level(level))
-            say("  Crystals: red energy crystal (1761), blue (2761), green (3761)");
         // Every other pickup-class type (type byte 6 == 1) whose model this
-        // level has loaded, by number: weapons, ammo and unnamed slots.
+        // level has loaded, by number: unnamed slots.
         const uint32_t types=psx_mod_read_word(spawn_types);
-        used=0;row[0]=0;bool first=true;
+        bool first=true;
         for(unsigned type=1;cheat_ram(types,28*spawn_type_count) && type<spawn_type_count;++type) {
             if(psx_mod_read_byte(types+28*type+6)!=1 || !(psx_mod_read_word(types+28*type)&2) || !spawn_model_ready(type))continue;
             bool named=false;

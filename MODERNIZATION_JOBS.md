@@ -1,5 +1,38 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-02 - D17BA accepted and closed
+
+User: "fixed! accepted. lock it in and close us out". D17BA is Done
+([note 366](documentation/366-d17ba-open-models.md)): Polymorph draws the inner faces of open static models from both sides,
+so the slot-12 burning barrel shows its inside up close from every side.
+Executable `d8e1cac1c50bb38558ac65b83d8434e8233c06cb5e9ddba888b2a96f3385f107`.
+No framework change. No new backlog.
+
+## 2026-11-02 - D17BA: open models show their inside (Needs playtest)
+
+Cause confirmed ([note 366](documentation/366-d17ba-open-models.md)): the
+slot-12 burning barrel (type 220, mesh `0x8012cb90`) is six one-sided outer
+walls with no lid, bottom or inner faces, plus a double-sided flame cross. From
+outside, the far walls' inner sides are back faces, culled exactly as the
+original NCLIP culls them, so the open top showed the floor and wall behind.
+No host culling difference is involved. Fix (Polymorph unified geometry,
+static props only): an open model (an edge of a one-sided face has no reversed
+twin, other than at its base) draws both sides of its inner faces (back side
+facing the model's centre, opaque, no back-to-back twin within 8 units), with
+the face's own texture, colour and host depth. Actors, Duke, the first-person
+layer, the sky, Classic and Vanilla keep the original cull.
+`DNTTK_OPEN_MODELS=0` (developer) turns it off. Evidence: private slot-12
+views up close, walking around it in first and third person at 180 Hz: the
+inside is drawn from every side. Sweep of all 21 levels: 413 level meshes
+(1946 static objects, 9162 faces) gain inner faces, listed in
+`recomp/analysis/d17ba/changed.json`; on/off shots of 12 saves show only
+the barrel, a lamp's inner glass and a wagon's wheel boxes changing, with no
+see-through or z-fighting. Cost: +13 to +70 us host time per game frame, game
+frames and fields unchanged. `ttk-controls-test`, `ttk-near-test` and
+`ttk-input-test` pass. Executable
+`d8e1cac1c50bb38558ac65b83d8434e8233c06cb5e9ddba888b2a96f3385f107`. No
+framework change. Awaiting the user's check.
+
 ## 2026-11-02 - D17AZ accepted and closed; D17BA added
 
 User: "excellent work ... lock in this job that we've just done now with
@@ -298,7 +331,7 @@ Acceptance (private save copies, first and third person):
 
 ### D17BA - The burning barrel's inside is missing up close
 
-**Status: Todo. Dependencies: none (renderer work targets Polymorph).**
+**Status: Done ([note 366](documentation/366-d17ba-open-models.md)), accepted 2026-11-02. Dependencies: none (renderer work targets Polymorph).**
 Priority medium.
 
 Observed (user, 2026-11-02): load UI slot 12 (saved 2026-11-02 20:33) and walk
@@ -3380,7 +3413,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D17AX | Polymorph: draw the whole level from jetpack height (slot 10 black sides and castle interior) | Done (flicker fix; note 352) | D17AR, D17AQ |
 | D17AY | Full-refresh presentation audit: draw-time hooks must not read 30 Hz tick state against interpolated redraws | Done (user-accepted) | D17, D14H, D35D1 |
 | D17AZ | Polymorph: slot-12 train vanishes at the view edge; objects across rooms stay drawn game-wide | Done | D17AR, D17AR4, D17AX |
-| D17BA | Polymorph: burning barrel inside missing up close (one-sided faces?) | Todo | - |
+| D17BA | Polymorph: open models (burning barrel) show their inside | Done | - |
 | D14F | 90-default / 120-maximum world FOV | Done (user-confirmed 2026-10-30) | Implemented in afd4ad6 (note 317); re-verified 2026-10-29 |
 | D17AE | Slot-11 sign post through door header | Done (user-confirmed 2026-10-29) | Scene depth for native world/scenery packets; replay precedence fix; world backface cull restored |
 | D17AF | Latest slot-10 ground water visibility | Done | Selected batch; see intake above |

@@ -61,6 +61,7 @@
 #include <cstdlib>
 #include <string_view>
 #include <vector>
+#include <unordered_map>
 #include <sstream>
 #include <iomanip>
 #ifdef _WIN32
@@ -1715,6 +1716,107 @@ bool phone_mesh(uint32_t vertices,unsigned count) {
         if((int16_t)psx_mod_read_half(vertices+8*i+2*k)!=xyz[i][k]) return false;
     return true;
 }
+// D17BA: open models. A static model whose one-sided faces do not close
+// (the slot-12 burning barrel: six outer walls, no lid, no inside) shows the
+// background through its opening where the far walls' inner sides should be,
+// because the original culls back faces (NCLIP) and its low, distant camera
+// rarely looked in. Polymorph draws both sides of such a model's one-sided
+// faces that form its inside. A model is open when an edge of a one-sided
+// face (by corner position, quads in the GPU's 0-1-3-2 order) has no reversed
+// twin in another one-sided face, other than at its base (the model's lowest
+// corners, standing on the floor); double-sided faces (flames, cards) do not
+// close it. Of an open model, a one-sided face gets its back side when that
+// side faces the model's centre (an inner wall: a flat panel or sign does
+// not), it is opaque, and no opposite-facing face lies within 8 units of its
+// plane (a back-to-back panel, which would fight it). The inside shows the
+// face's own texture and colour. Static scene props only: actors, Duke, the
+// first-person layer and the sky keep the original rule.
+// DNTTK_OPEN_MODELS=0 (developer) keeps the original cull everywhere.
+uint64_t open_model_builds=0,open_model_meshes=0,open_model_faces=0,open_model_drawn=0;
+struct OpenModel {uint32_t vertices=0,list=0,count=0,sum=0;std::vector<uint32_t> faces;};
+const std::vector<uint32_t>& open_model_faces_of(uint32_t mesh,uint32_t vertices,uint32_t list,unsigned count) {
+    static std::unordered_map<uint32_t,OpenModel> cache;
+    // The model's data may be replaced by a level load: the cache entry holds
+    // a checksum of its corner positions and face corner lists.
+    uint32_t sum=2166136261u,cursor=list;
+    for(unsigned i=0;i<count;++i) sum=((sum^psx_mod_read_word(vertices+8*i))*16777619u^psx_mod_read_half(vertices+8*i+4))*16777619u;
+    for(unsigned guard=0;guard<=256;++guard) {
+        const uint32_t header=psx_mod_read_word(cursor);cursor+=4;sum=(sum^header)*16777619u;
+        const uint32_t type=header&0xffff,n=header>>16,size=object_record_size(type);
+        if(type==0xff || !size || !n || n>4096) break;
+        for(uint32_t k=0;k<n;++k) sum=(sum^psx_mod_read_word(cursor+k*size))*16777619u;
+        cursor+=n*size;
+    }
+    if(const auto it=cache.find(mesh);it!=cache.end()) {
+        const OpenModel& m=it->second;
+        if(m.vertices==vertices && m.list==list && m.count==count && m.sum==sum) return m.faces;
+    }
+    ++open_model_builds;
+    OpenModel m{vertices,list,count,sum,{}};
+    struct Face {uint32_t record;int idx[4];unsigned n;double normal[3],d;bool translucent;};
+    std::vector<Face> faces;
+    auto position=[&](int i,double* out){for(int k=0;k<3;++k) out[k]=(int16_t)psx_mod_read_half(vertices+8*i+2*k);};
+    auto key=[&](int i){return (uint64_t)psx_mod_read_word(vertices+8*i)<<16|psx_mod_read_half(vertices+8*i+4);};
+    std::vector<std::pair<uint64_t,uint64_t>> edges;
+    cursor=list;
+    for(unsigned guard=0;guard<=256;++guard) {
+        const uint32_t header=psx_mod_read_word(cursor);cursor+=4;
+        const uint32_t type=header&0xffff,n=header>>16,size=object_record_size(type);
+        if(type==0xff || !size || !n || n>4096) break;
+        for(uint32_t k=0;k<n;++k,cursor+=size) {
+            const uint32_t bits=psx_mod_read_word(cursor+(type==0x20 || type==0x28 || type==0x30 || type==0x38 ? 4 : 8))>>25;
+            if(bits&1) continue;
+            Face face{cursor,{},(type&8)?4u:3u,{},0,(bits&0x10)!=0};
+            const uint32_t word=psx_mod_read_word(cursor);bool bad=false;
+            for(unsigned j=0;j<face.n;++j) {face.idx[j]=(word>>(8*j))&0xff;bad|=face.idx[j]>=(int)count;}
+            if(bad) continue;
+            double a[3],b[3],c[3];position(face.idx[0],a);position(face.idx[1],b);position(face.idx[2],c);
+            const double u[3]={b[0]-a[0],b[1]-a[1],b[2]-a[2]},v[3]={c[0]-a[0],c[1]-a[1],c[2]-a[2]};
+            double nn[3]={u[1]*v[2]-u[2]*v[1],u[2]*v[0]-u[0]*v[2],u[0]*v[1]-u[1]*v[0]};
+            const double len=std::sqrt(nn[0]*nn[0]+nn[1]*nn[1]+nn[2]*nn[2]);
+            if(len<1e-6) continue;
+            for(int i=0;i<3;++i) face.normal[i]=nn[i]/len;
+            face.d=face.normal[0]*a[0]+face.normal[1]*a[1]+face.normal[2]*a[2];
+            static constexpr int quad[4]={0,1,3,2};
+            for(unsigned j=0;j<face.n;++j) {
+                const int from=face.idx[face.n==4?quad[j]:j],to=face.idx[face.n==4?quad[(j+1)%4]:(j+1)%3];
+                if(key(from)!=key(to)) edges.push_back({key(from),key(to)});
+            }
+            faces.push_back(face);
+        }
+    }
+    std::vector<std::pair<uint64_t,uint64_t>> sorted=edges;std::sort(sorted.begin(),sorted.end());
+    double base=-32768,centre[3]={0,0,0};
+    for(unsigned i=0;i<count;++i) {
+        double p[3];position(i,p);base=std::max(base,p[1]);
+        for(int k=0;k<3;++k) centre[k]+=p[k]/count;
+    }
+    // Key layout: z in bits 0-15, x in 16-31, y in 32-47.
+    auto y_of=[](uint64_t k){return (double)(int16_t)(k>>32);};
+    bool open=false;
+    for(const auto& [a,b]:edges)
+        open|=!std::binary_search(sorted.begin(),sorted.end(),std::make_pair(b,a)) && std::min(y_of(a),y_of(b))<base-4;
+    if(open) {
+        ++open_model_meshes;
+        for(const auto& face:faces) {
+            // With y down, (v1-v0) x (v2-v0) of a front face points into the
+            // model: the centre lies on the side its back faces.
+            const double inside=face.normal[0]*centre[0]+face.normal[1]*centre[1]+face.normal[2]*centre[2]-face.d;
+            bool twin=false;
+            for(const auto& other:faces) {
+                const double dot=face.normal[0]*other.normal[0]+face.normal[1]*other.normal[1]+face.normal[2]*other.normal[2];
+                twin|=&other!=&face && dot<-0.99 && std::abs(face.d+other.d)<8.0;
+            }
+            if(inside>1.0 && !face.translucent && !twin) m.faces.push_back(face.record);
+        }
+        std::sort(m.faces.begin(),m.faces.end());
+        open_model_faces+=m.faces.size();
+    }
+    if(cache.size()>=4096) cache.clear();
+    OpenModel& slot=cache[mesh];slot=std::move(m);
+    return slot.faces;
+}
+bool open_models_on() {static const bool v=env_int("DNTTK_OPEN_MODELS",1,0,1)!=0;return v;}
 // 0x80010000 entry, same register contract as the world renderer.
 void object(CPUState* cpu) {
     const uint32_t mesh=cpu->gpr[4];
@@ -1818,6 +1920,9 @@ void object(CPUState* cpu) {
     const uint32_t flags=psx_mod_read_word(context+0x50),palette=vertices+count*8;
     const uint32_t command_bits=psx_mod_read_word(context+0x48),tpage_bits=psx_mod_read_word(context+0x4c);
     std::vector<Poly> polys;polys.reserve(taken.size());
+    // D17BA: both sides of an open static model's one-sided faces.
+    const std::vector<uint32_t>* open_faces=open_models_on() && unified_scene(f) && !actor && !body && !viewmodel && !f.sky ?
+        &open_model_faces_of(mesh,vertices,list,count) : nullptr;
     for(const auto& [record,type]:taken) {
         Poly p{};p.source=record;p.count=(type&8)?4:3;p.actor=actor;
         const uint32_t word=psx_mod_read_word(record);
@@ -1825,7 +1930,10 @@ void object(CPUState* cpu) {
         const bool textured=type==0x24 || type==0x2c || type==0x34 || type==0x3c;
         const bool gouraud=type==0x30 || type==0x38 || type==0x34 || type==0x3c;
         const uint32_t bits=psx_mod_read_word(record+(type==0x20 || type==0x28 || type==0x30 || type==0x38 ? 4 : 8))>>25;
-        if(!(bits&1) && !front_facing(f,p,flags,false)) {++object_stats.culled;trace_record(f,"backface",record);continue;}
+        if(!(bits&1) && !front_facing(f,p,flags,false)) {
+            if(!open_faces || !std::binary_search(open_faces->begin(),open_faces->end(),record)) {++object_stats.culled;trace_record(f,"backface",record);continue;}
+            ++open_model_drawn;trace_record(f,"open_back",record);
+        }
         p.textured=textured;p.bias=((bits&8)?1:0)-((bits&4)?1:0);
         p.command=(textured?0x34000000u:0x30000000u)|((bits&0x10)<<21)|command_bits;
         p.phone_back=phone && type==0x2c && word==0x06020400u &&
@@ -2255,14 +2363,14 @@ uint32_t near_dpcs(const NearGte& g,uint32_t rgbc,int16_t ir0) {
     return out;
 }
 const char* near_clip_debug_json() {
-    static char buffer[3328];
+    static char buffer[3584];
     auto part=[](const Stats& s,char* out,size_t n){
         std::snprintf(out,n,"{\"seen\":%llu,\"taken\":%llu,\"polys\":%llu,\"culled\":%llu,\"triangles\":%llu,\"budget_hits\":%llu}",
             (unsigned long long)s.seen,(unsigned long long)s.taken,(unsigned long long)s.polys,(unsigned long long)s.culled,
             (unsigned long long)s.triangles,(unsigned long long)s.budget_hits);
     };
     char w[192],o[192];part(world_stats,w,sizeof w);part(object_stats,o,sizeof o);
-    std::snprintf(buffer,sizeof buffer,"{\"biomask_draws\":%llu,\"biomask_triangles\":%llu,\"enabled\":%s,\"world\":%s,\"object\":%s,\"refused\":%llu,\"copy_overflows\":%llu,\"duke_skips\":%llu,\"fades_skipped\":%llu,\"fade_tests\":%llu,\"zsf3\":%d,\"arena_size\":%u,\"frame_used_peak\":%u,\"host_bytes_peak\":%u,\"packet_skips\":%llu,\"mesh_fallbacks\":%llu,\"whole_polygons\":%llu,\"subdivided_kept\":%llu,\"viewmodel\":{\"meshes\":%llu,\"packets\":%llu,\"discards\":%llu},\"scene_depth\":{\"meshes\":%llu,\"packets\":%llu,\"ambiguous\":%llu,\"wraps\":%llu,\"polygons\":%llu,\"unmatched\":%llu,\"breaks\":%llu},\"measure\":{\"frames\":%llu,\"demand_peak\":%u,\"demand_avg\":%llu,\"frames_over_budget\":%llu,\"emits_peak\":%llu,\"hook_us_peak\":%llu,\"hook_us_avg\":%llu,\"kind_peak\":[%u,%u,%u,%u,%u],\"kind_avg\":[%llu,%llu,%llu,%llu,%llu],\"unified\":%s,\"unified_downgrades\":%llu,\"fallbacks\":[%llu,%llu,%llu],\"near_fallbacks\":%llu},\"water\":{\"seen\":%llu,\"taken\":%llu,\"guard\":%llu,\"grid\":%llu,\"near_cleared\":%llu,\"near_dropped\":%llu,\"budget_native\":%llu},\"coplanar\":{\"hits\":%llu,\"builds\":%llu,\"checked\":%llu,\"mismatch\":%llu},\"models\":{\"seen\":%llu,\"taken\":%llu,\"mismatch\":%llu,\"near_cleared\":%llu,\"faces\":%llu,\"faces_taken\":%llu,\"faces_native\":%llu,\"faces_dropped\":%llu,\"faces_budget\":%llu,\"flat\":%llu,\"faces_decal\":%llu,\"room_lifts\":%llu,\"sides_cleared\":%llu,\"flags_lifted\":%llu,\"backface\":%llu,\"refined\":%llu,\"refine_skipped\":%llu,\"refine_max\":%.3f,\"refine_last\":[%.2f,%.2f,%.2f,%.0f,%.0f,%.0f]}}",
+    std::snprintf(buffer,sizeof buffer,"{\"biomask_draws\":%llu,\"biomask_triangles\":%llu,\"enabled\":%s,\"world\":%s,\"object\":%s,\"refused\":%llu,\"copy_overflows\":%llu,\"duke_skips\":%llu,\"fades_skipped\":%llu,\"fade_tests\":%llu,\"zsf3\":%d,\"arena_size\":%u,\"frame_used_peak\":%u,\"host_bytes_peak\":%u,\"packet_skips\":%llu,\"mesh_fallbacks\":%llu,\"whole_polygons\":%llu,\"subdivided_kept\":%llu,\"viewmodel\":{\"meshes\":%llu,\"packets\":%llu,\"discards\":%llu},\"scene_depth\":{\"meshes\":%llu,\"packets\":%llu,\"ambiguous\":%llu,\"wraps\":%llu,\"polygons\":%llu,\"unmatched\":%llu,\"breaks\":%llu},\"measure\":{\"frames\":%llu,\"demand_peak\":%u,\"demand_avg\":%llu,\"frames_over_budget\":%llu,\"emits_peak\":%llu,\"hook_us_peak\":%llu,\"hook_us_avg\":%llu,\"kind_peak\":[%u,%u,%u,%u,%u],\"kind_avg\":[%llu,%llu,%llu,%llu,%llu],\"unified\":%s,\"unified_downgrades\":%llu,\"fallbacks\":[%llu,%llu,%llu],\"near_fallbacks\":%llu},\"water\":{\"seen\":%llu,\"taken\":%llu,\"guard\":%llu,\"grid\":%llu,\"near_cleared\":%llu,\"near_dropped\":%llu,\"budget_native\":%llu},\"coplanar\":{\"hits\":%llu,\"builds\":%llu,\"checked\":%llu,\"mismatch\":%llu},\"models\":{\"seen\":%llu,\"taken\":%llu,\"mismatch\":%llu,\"near_cleared\":%llu,\"faces\":%llu,\"faces_taken\":%llu,\"faces_native\":%llu,\"faces_dropped\":%llu,\"faces_budget\":%llu,\"flat\":%llu,\"faces_decal\":%llu,\"room_lifts\":%llu,\"sides_cleared\":%llu,\"flags_lifted\":%llu,\"backface\":%llu,\"refined\":%llu,\"refine_skipped\":%llu,\"refine_max\":%.3f,\"refine_last\":[%.2f,%.2f,%.2f,%.0f,%.0f,%.0f]},\"open_models\":{\"builds\":%llu,\"open\":%llu,\"faces\":%llu,\"drawn\":%llu}}",
         (unsigned long long)mask_draws,(unsigned long long)mask_triangles,enabled()?"true":"false",w,o,(unsigned long long)refused,(unsigned long long)copy_overflows,(unsigned long long)duke_skips,(unsigned long long)fades_skipped,(unsigned long long)fade_tests,(int)last_zsf3,arena_size,frame_used_peak,host_bytes_peak,(unsigned long long)packet_skips,(unsigned long long)mesh_fallbacks,(unsigned long long)subdivision_whole,(unsigned long long)subdivision_kept,(unsigned long long)viewmodel_meshes,(unsigned long long)viewmodel_packets,(unsigned long long)viewmodel_discards,(unsigned long long)scene_depth_meshes,(unsigned long long)scene_depth_packets,(unsigned long long)scene_depth_ambiguous,(unsigned long long)scene_depth_wraps,(unsigned long long)scene_depth_polygons,(unsigned long long)scene_depth_unmatched,(unsigned long long)scene_depth_breaks,
         (unsigned long long)demand_frames,demand_peak,(unsigned long long)(demand_frames?demand_total/demand_frames:0),(unsigned long long)demand_over,(unsigned long long)emits_peak,(unsigned long long)hook_us_peak,(unsigned long long)(hook_frames?hook_us_total/hook_frames:0),
         kind_peak[0],kind_peak[1],kind_peak[2],kind_peak[3],kind_peak[4],
@@ -2274,7 +2382,8 @@ const char* near_clip_debug_json() {
         (unsigned long long)water_near_cleared,(unsigned long long)water_near_dropped,(unsigned long long)water_budget_native,
         (unsigned long long)coplanar_hits,(unsigned long long)coplanar_builds,(unsigned long long)coplanar_checked,(unsigned long long)coplanar_mismatch,
         (unsigned long long)model_seen,(unsigned long long)model_taken,(unsigned long long)model_mismatch,(unsigned long long)model_near_cleared,(unsigned long long)model_faces,
-        (unsigned long long)model_faces_taken,(unsigned long long)model_faces_native,(unsigned long long)model_faces_dropped,(unsigned long long)model_faces_budget,(unsigned long long)model_flat,(unsigned long long)model_faces_decal,(unsigned long long)object_room_lifts,(unsigned long long)model_sides_cleared,(unsigned long long)model_flags_lifted,(unsigned long long)model_backface,(unsigned long long)model_refined,(unsigned long long)model_refine_skipped,model_refine_max,model_refine_last[0],model_refine_last[1],model_refine_last[2],model_refine_last[3],model_refine_last[4],model_refine_last[5]);
+        (unsigned long long)model_faces_taken,(unsigned long long)model_faces_native,(unsigned long long)model_faces_dropped,(unsigned long long)model_faces_budget,(unsigned long long)model_flat,(unsigned long long)model_faces_decal,(unsigned long long)object_room_lifts,(unsigned long long)model_sides_cleared,(unsigned long long)model_flags_lifted,(unsigned long long)model_backface,(unsigned long long)model_refined,(unsigned long long)model_refine_skipped,model_refine_max,model_refine_last[0],model_refine_last[1],model_refine_last[2],model_refine_last[3],model_refine_last[4],model_refine_last[5],
+        (unsigned long long)open_model_builds,(unsigned long long)open_model_meshes,(unsigned long long)open_model_faces,(unsigned long long)open_model_drawn);
     return buffer;
 }
 }

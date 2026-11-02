@@ -133,6 +133,8 @@ uint16_t input_last_pad();
 // load behind the title menu).
 void input_menu_poll();
 void input_release();
+// D26J: the console opens over gameplay (no new input) or closes (resume).
+void input_console(bool open);
 // Pause/death lists acknowledge the menu and release capture if held.
 void input_release_for_menu();
 void input_state_loaded();

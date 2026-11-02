@@ -1569,6 +1569,13 @@ through them, **Ctrl+Home** jumps to the oldest and **End** to the newest. New
 output scrolls back to the bottom. **Up / Down** recall the commands you typed
 (newest first; Down past the newest clears the line), and `history` lists them. Holding Backspace or a character key repeats it, like a desktop text field. While scrolled up, `-- MORE BELOW: PGDN / END --`
 shows above the prompt.
+In Modernized play the console does not pause the game and does not change
+Duke's state: a C crouch stays crouched and a hovering jetpack holds its
+altitude while you type. Nothing you type reaches Duke. Keys held when it opens
+are let go; one still held when you close the console acts again at once.
+The mouse is free while the console is open (moving it does not turn the view)
+and captured again when it closes. Switching to another window while the
+console is open does not change Duke's state either.
 
 **First-person FOV.** In Modernized, **Options > Display > First-person FOV**
 is directly after Frame Rate, followed by Camera Distance (as in EDuke32's display menu). The slider ranges from **60 to 120**, in one-degree

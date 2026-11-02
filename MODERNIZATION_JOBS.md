@@ -1,5 +1,55 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-02 - D26J accepted and closed
+
+User: "excellent work, accepted. lock it in and close it out". D26J is Done
+([note 362](documentation/362-d26j-console-input-hold.md)): the console holds
+input over Modernized gameplay (active frame, same epoch, no new input), so a
+C crouch stays crouched and the jetpack holds its altitude, including when the
+window loses focus while the console is open; mouse motion no longer moves the
+view while it is open. Executable
+`d28b1a8e8cbc23c2bfc4933d4e48d9d4050d12011c778956a03cd6219d5b34bf`. Framework `main.cpp` change in the runtime patch. Open: focus loss
+without the console still releases gameplay (crouch/jetpack may drop), outside
+D26J's scope; D26K (holster while the console is open) unchanged.
+
+## 2026-11-02 - D26J round 2: no mouse leak, defocus keeps the hold (Needs playtest)
+
+User playtest of D26J: the view "vibrates around" with mouse movement while
+the console is open, and defocusing the window with the console open still
+stood a crouched Duke up and landed the jetpack. Causes: the presenter's late
+look peeked queued mouse motion that the console then swallowed (camera leaned
+and snapped back); and round 1 made focus loss end the console hold. Now the
+peek is skipped while the console holds input, and focus loss/minimize during
+the hold keeps it (refocus continues it, same epoch). Executable
+`d28b1a8e8cbc23c2bfc4933d4e48d9d4050d12011c778956a03cd6219d5b34bf`; no framework change this round.
+Evidence: real X focus moved to another window for 5 s with mouse motion, with
+the console open: crouch and jetpack altitude unchanged through away, back and
+close; native D26J group extended (the new peek check fails without the fix).
+See [note 362](documentation/362-d26j-console-input-hold.md#round-2-user-playtest-2026-11-02).
+
+## 2026-11-02 - D26J: the console holds input; Duke keeps crouch and jetpack (Needs playtest)
+
+Cause confirmed ([note 362](documentation/362-d26j-console-input-hold.md)):
+opening the console released capture (and released again every frame), so
+gameplay frames went inactive and the Modernized owners stepped back: the C
+crouch is only published in an active frame, and the jetpack owner requires
+one. Reproduced on the same build by dropping capture while the console is
+open: crouched Duke stood up at once, the held jetpack fell to the ground in
+about 2 s. Now `ttk::input_console()` makes the console an overlay with its own
+keyboard focus: over captured Modernized gameplay the frame stays active in the
+same input epoch with no new input (held keys, buttons, look and queued presses
+dropped; the C latch kept; mouse freed), and closing recaptures and takes
+still-held keys from the device. Uncaptured/Vanilla keep the old release.
+Framework `main.cpp` change exported to the runtime patch. Executable
+`ddcfbd583309d54e8b5ff9355a3c3c61961152df4bc35249ce9dcd687f5c0284`.
+Evidence (private slot 12 copy, real backtick console, third and first
+person): crouch held 10 s with W/A/S/D/C/Space/E/1/click typed, nothing moved;
+jetpack held its altitude 10 s; first input after close works; held W
+released while open and acting again if still held at close; `level 1` from
+the console recaptures as without it. `ttk-input-test` (new D26J group),
+`ttk-controls-test` (122 groups) pass. Awaiting the user's check. D26K is
+not addressed (shares the path).
+
 ## 2026-11-02 - D26H accepted and closed
 
 User: "fully accepted!!". D26H is Done
@@ -34,7 +84,8 @@ jobs: **opening the console does not by itself change Duke's gameplay state.**
 
 ### D26J - Console keeps Duke's movement state (crouch, jetpack)
 
-**Status: Todo. Dependencies: D26 (console), D26B (view ownership across the
+**Status: Done (user-accepted 2026-11-02; [note 362](documentation/362-d26j-console-input-hold.md)).
+Dependencies: D26 (console), D26B (view ownership across the
 console), D08K (crouch), D08Q (jetpack). Shares the console input path with
 D26K.** Priority medium.
 
@@ -3451,7 +3502,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D26G | Console: holding Backspace or a character key repeats it | Done (user-accepted 2026-10-20) | D26 |
 | D26H | Spawned weapons land far enough ahead that Duke does not pick them up at once | Done (user-accepted 2026-11-02) | D26E |
 | D26I | Console: numpad digits (and keypad keys) type into the console | Todo | D26, D26G |
-| D26J | Console keeps Duke's movement state (toggle crouch, jetpack flight) while open | Todo | D26, D26B, D08K, D08Q |
+| D26J | Console keeps Duke's movement state (toggle crouch, jetpack flight) while open | Done (user-accepted 2026-11-02) | D26, D26B, D08K, D08Q |
 | D26K | No weapon holster while the console is open | Todo | D26 (shares D26J's console input path) |
 | D27 | Caps Lock RUN MODE quotes; Shift-run clunk silence deferred | Done (quotes); clunk deferred low-priority | D04, D19A |
 | D27A | Modern Shift/run is silent: remove the walk/run toggle click `0x0001` from the Shift path, keep the D08A10 heartbeat | Done (user-accepted) | D27, D08A10 |

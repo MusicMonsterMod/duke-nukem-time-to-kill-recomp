@@ -41,6 +41,10 @@ int input_take_hud_step() {
     return 0;
 }
 static bool modern, captured, focused, autorun;
+static bool console_open, console_hold; // D26J: console open (over captured gameplay)
+// D26J: the window lost focus while the console held input; the hold goes on
+// (it already gives gameplay no input) and closing it then releases capture.
+static bool hold_focus_lost;
 // Keep ownership through clear()/focus/strip expiry until the physical release.
 static bool inventory_enter_down;
 static bool allow_capture = true;
@@ -280,8 +284,39 @@ void input_state_loaded() {
 void input_release() {
     if (window && captured) relative(false);
     captured = false;
+    console_hold = false;
+    if(hold_focus_lost) {hold_focus_lost=false;focused=false;}
     capture_after=sequence+12;
     clear();
+}
+// D26J: the backtick console is an overlay with its own keyboard focus, not
+// a capture loss. Gameplay keeps its active frame, epoch and toggles (C crouch
+// latch, jetpack flight and altitude hold) and sees no new input: held keys,
+// buttons, look and queued presses are dropped (their key-ups go to the
+// console), the mouse is freed. Closing recaptures and takes still-held
+// gameplay keys from the device state, as Escape/resume does.
+void input_console(bool open) {
+    console_open=open;
+    if(!open) {
+        if(!console_hold)return;
+        if(hold_focus_lost) {input_release();return;}
+        console_hold=false;
+        controller_blocked|=controller_buttons;
+        if(!(window && relative(true))) {input_release();return;}
+        resync_held();
+        return;
+    }
+    if(!(modern && focused && captured)) {input_release();return;}
+    if(window)relative(false);
+    console_hold=true;
+    release_keys();
+    std::memset(mouse,0,sizeof mouse);
+    dx=dy=0;command_count=0;hud_steps.store(0);
+    cheat_typing.reset();cheat_pending=Cheat::None;
+    controller_blocked|=controller_buttons;
+    controller_trigger_blocked|=(controller_axes[4]>8192?1u:0u)|(controller_axes[5]>8192?2u:0u);
+    std::fill(controller_held,controller_held+action_count,false);controller_x=controller_y=0;
+    interaction_pending=false;interaction_pulse=0;airborne_interact=false;
 }
 void input_release_for_menu() {
     if(captured)input_release();
@@ -489,17 +524,23 @@ void input_event(const SDL_Event& e) {
 #if defined(PSX_SDL3)
     if ((e.type == SDL_EVENT_WINDOW_FOCUS_LOST || e.type == SDL_EVENT_WINDOW_MINIMIZED)
         && e.window.windowID == SDL_GetWindowID(window)) {
+        if(console_hold) {hold_focus_lost=true;return;}
         focused = false; input_release(); return;
     }
     if (e.type == SDL_EVENT_WINDOW_FOCUS_GAINED && e.window.windowID == SDL_GetWindowID(window)) {
+        if(console_hold) {hold_focus_lost=false;return;}
         focused = true; clear(); return;
     }
 #else
     if (e.type == SDL_WINDOWEVENT && e.window.windowID == SDL_GetWindowID(window)) {
         if (e.window.event == SDL_WINDOWEVENT_FOCUS_LOST || e.window.event == SDL_WINDOWEVENT_MINIMIZED) {
+            if(console_hold) {hold_focus_lost=true;return;}
             focused = false; input_release(); return;
         }
-        if (e.window.event == SDL_WINDOWEVENT_FOCUS_GAINED) { focused = true; clear(); return; }
+        if (e.window.event == SDL_WINDOWEVENT_FOCUS_GAINED) {
+            if(console_hold) {hold_focus_lost=false;return;}
+            focused = true; clear(); return;
+        }
     }
 #endif
     if (e.type == SDL_QUIT) { input_release(); return; }
@@ -805,7 +846,7 @@ static void controller_frame() {
     const uint32_t buttons=controller_buttons&~controller_blocked;
     const uint32_t pressed=buttons&~controller_previous;
     controller_previous=buttons;
-    if(!controller_connected || !focused || !captured || !input_controller_owns_gameplay())return;
+    if(!controller_connected || !focused || !captured || console_hold || !input_controller_owns_gameplay())return;
     auto button=[&](int b){return (buttons&(1u<<b))!=0;};
     auto edge=[&](int b){return (pressed&(1u<<b))!=0;};
     const double dz=controller_setting("DNTTK_CONTROLLER_DEADZONE",20,5,50)/100;
@@ -876,7 +917,7 @@ void input_frame() {
        sequence-std::max<uint64_t>(capture_offer_at.load(),escape_at)>capture_offer_window ||
        (sequence>escape_start_deadline+capture_offer_window &&
         capture_offer_at.load()>escape_start_deadline)))escape_hold=false;
-    if (initial_capture && !escape_hold && sequence>=capture_after && modern && focused && allow_capture && !captured
+    if (initial_capture && !escape_hold && !console_open && sequence>=capture_after && modern && focused && allow_capture && !captured
         && capture_offer.load() && sequence-capture_offer_at.load()<=capture_offer_window) {
         capture_offer.store(false);
         if(capture_now()) {std::fprintf(stderr,"[TTK input] Gameplay captured automatically\n");}
@@ -992,7 +1033,7 @@ void input_frame() {
     // Diagnostics only (DNTTK_TEST_INPUT=<file>): a script steers the
     // offscreen game. The file is re-read every input frame: held key names
     // (w a s d shift ctrl space e q up down enter left right x z c esc v backspace
-    // pgup pgdn home end delete),
+    // pgup pgdn home end delete; D26J: grave opens/closes the console, 1),
     // mouse1 (held left button, D08K6),
     // cheat=<word>, act=<action> (D07E) and quick=<save/load/savemenu/loadmenu>
     // (D20; once per change of word) and
@@ -1005,14 +1046,16 @@ void input_frame() {
         // D20: a file without a quick= word ends the last one (the same word again acts again).
         static char quick_last[16];bool quick_seen=false;
         static const bool uncaptured=std::getenv("DNTTK_TEST_UNCAPTURED")!=nullptr;
-        focused=true; captured=!uncaptured;
+        // D26J: a console hold keeps its own focus/capture state (real defocus).
+        if(!console_hold) {focused=true; captured=!uncaptured;}
         static const struct {const char* name;SDL_Scancode code;} named[]={{"w",SDL_SCANCODE_W},{"a",SDL_SCANCODE_A},
             {"s",SDL_SCANCODE_S},{"d",SDL_SCANCODE_D},{"shift",SDL_SCANCODE_LSHIFT},{"ctrl",SDL_SCANCODE_LCTRL},
             {"space",SDL_SCANCODE_SPACE},{"e",SDL_SCANCODE_E},{"q",SDL_SCANCODE_Q},
             {"up",SDL_SCANCODE_UP},{"down",SDL_SCANCODE_DOWN},{"enter",SDL_SCANCODE_RETURN},
             {"left",SDL_SCANCODE_LEFT},{"right",SDL_SCANCODE_RIGHT},{"x",SDL_SCANCODE_X},{"z",SDL_SCANCODE_Z},
             {"c",SDL_SCANCODE_C},{"esc",SDL_SCANCODE_ESCAPE},{"v",SDL_SCANCODE_V},{"backspace",SDL_SCANCODE_BACKSPACE},
-            {"pgup",SDL_SCANCODE_PAGEUP},{"pgdn",SDL_SCANCODE_PAGEDOWN},{"home",SDL_SCANCODE_HOME},{"end",SDL_SCANCODE_END},{"delete",SDL_SCANCODE_DELETE}};
+            {"pgup",SDL_SCANCODE_PAGEUP},{"pgdn",SDL_SCANCODE_PAGEDOWN},{"home",SDL_SCANCODE_HOME},{"end",SDL_SCANCODE_END},{"delete",SDL_SCANCODE_DELETE},
+            {"grave",SDL_SCANCODE_GRAVE},{"1",SDL_SCANCODE_1}};
         bool was[sizeof named/sizeof named[0]];
         for(size_t i=0;i<sizeof named/sizeof named[0];++i){was[i]=keys[named[i].code];keys[named[i].code]=false;}
         mouse[1]=false;mouse[2]=false;
@@ -1050,7 +1093,7 @@ void input_frame() {
                     }
                 }
                 // D19G: "play" is captured gameplay for this frame (menus run uncaptured).
-                else if(!std::strcmp(word,"play")) captured=true;
+                else if(!std::strcmp(word,"play")) captured=captured || !console_hold;
                 else if(!std::strcmp(word,"mouse1")) mouse[1]=true;
                 else if(!std::strcmp(word,"mouse3")) mouse[2]=true;
                 else if(!std::strncmp(word,"dx=",3)) dx+=std::atof(word+3);
@@ -1099,6 +1142,9 @@ void input_frame() {
             SDL_PushEvent(&e);
         }
     }
+    // D26J: nothing reaches gameplay while the console holds input (the
+    // diagnostics above write keys directly; real keys go to the console).
+    if(console_hold) {release_keys();std::memset(mouse,0,sizeof mouse);dx=dy=0;command_count=0;}
     if(crouch_cancel_held && focused && captured && !action_down(crouch)) crouch_cancel_held=false;
     if(crouch_jump_consumed && focused && captured && !action_down(jump)) crouch_jump_consumed=false;
     frame = {};
@@ -1150,7 +1196,8 @@ bool input_live_look(uint64_t& out_epoch, double& x, double& y, double at_ms) {
     // at what the OS has delivered since, so a late camera sees it now. The
     // events stay queued and reach input_event() at the next pump as usual.
     static const bool peek=[]{const char* t=std::getenv("DNTTK_LATE_PEEK");return !(t && t[0]=='0' && !t[1]);}();
-    if(peek) {
+    // D26J: the console takes queued motion; it never reaches the look.
+    if(peek && !console_hold) {
         SDL_PumpEvents();
         SDL_Event events[128];
         const int n=SDL_PeepEvents(events,128,SDL_PEEKEVENT,SDL_MOUSEMOTION,SDL_MOUSEMOTION);
@@ -1612,10 +1659,11 @@ extern "C" const char* ttk_input_debug_json() {
     {size_t n=0;for(int i=0;i<ttk::action_count && n<sizeof binds_text-8;++i)
         n+=std::snprintf(binds_text+n,sizeof binds_text-n,"%s%d",i?",":"",ttk::binds[i]);}
     std::snprintf(buffer, sizeof buffer,
-        "{\"binds\":[%s],\"sequence\":%llu,\"jump_remaining\":%llu,\"modernized\":%s,\"focused\":%s,\"captured\":%s,\"capture_hold\":%s,\"capture_allowed\":%s,\"capture_requested\":%s,\"offer_age\":%llu,\"scheme\":\"%s\",\"pad\":%u,\"move_x\":%.5f,\"move_y\":%.5f,\"look_x\":%.1f,\"look_y\":%.1f,\"device\":%d,\"controls\":%s,\"cpu_timing\":%s}",
+        "{\"binds\":[%s],\"sequence\":%llu,\"jump_remaining\":%llu,\"modernized\":%s,\"focused\":%s,\"captured\":%s,\"capture_hold\":%s,\"console_open\":%s,\"console_hold\":%s,\"hold_focus_lost\":%s,\"active\":%s,\"epoch\":%llu,\"capture_allowed\":%s,\"capture_requested\":%s,\"offer_age\":%llu,\"scheme\":\"%s\",\"pad\":%u,\"move_x\":%.5f,\"move_y\":%.5f,\"look_x\":%.1f,\"look_y\":%.1f,\"device\":%d,\"controls\":%s,\"cpu_timing\":%s}",
         binds_text, (unsigned long long)ttk::sequence, (unsigned long long)(ttk::input_jump_pending()?ttk::jump_deadline-ttk::sequence+1:0),
         ttk::modern ? "true" : "false", ttk::focused ? "true" : "false", ttk::captured ? "true" : "false",
-        ttk::escape_hold?"true":"false",ttk::allow_capture?"true":"false",ttk::initial_capture?"true":"false",
+        ttk::escape_hold?"true":"false",ttk::console_open?"true":"false",ttk::console_hold?"true":"false",ttk::hold_focus_lost?"true":"false",
+        f.active?"true":"false",(unsigned long long)f.epoch,ttk::allow_capture?"true":"false",ttk::initial_capture?"true":"false",
         (unsigned long long)(ttk::sequence-ttk::capture_offer_at.load()),ttk::input_modern_controls()?"modern":"legacy",
         ttk::input_pad(), f.move_x, f.move_y, f.look_x, f.look_y, (int)f.device, ttk::controls_debug_json(), ttk_fast_timing_json());
     return buffer;

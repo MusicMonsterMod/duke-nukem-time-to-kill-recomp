@@ -1043,13 +1043,76 @@ int main() {
     key(SDL_SCANCODE_KP_PLUS,true);key(SDL_SCANCODE_KP_PLUS,false);
     CHECK(ttk::input_take_hud_step()==-1 && ttk::input_take_hud_step()==1 && ttk::input_take_hud_step()==0);
     key(SDL_SCANCODE_KP_MINUS,true);ttk::input_state_loaded();CHECK(ttk::input_take_hud_step()==0);
+    // D26J: the console holds input over captured gameplay: the frame stays
+    // active in the same epoch, the C crouch latch survives, nothing typed
+    // reaches gameplay, held keys release and resume from the device on close.
+    {
+        const bool ready_was=ready;ready=true;
+        ttk::input_release();capture_fixture();ttk::input_state_loaded();
+        key(SDL_SCANCODE_C,true);key(SDL_SCANCODE_C,false);
+        auto cf=tick();CHECK(cf.active && cf.held[ttk::crouch]);
+        const uint64_t console_epoch=cf.epoch;
+        key(SDL_SCANCODE_W,true);motion(40,0);
+        ttk::input_console(true);
+        CHECK(!SDL_GetWindowRelativeMouseMode(win));
+        for(int i=0;i<600;++i) {
+            ttk::input_allow_capture(true);ttk::input_offer_gameplay_capture();
+            cf=tick();
+            CHECK(cf.active && cf.epoch==console_epoch && cf.held[ttk::crouch]);
+            CHECK(cf.move_x==0 && cf.move_y==0 && cf.look_x==0 && cf.look_y==0 && cf.command_count==0);
+            CHECK(!cf.held[ttk::jump] && !cf.held[ttk::interact] && !cf.held[ttk::fire]);
+        }
+        CHECK(ttk::input_pad()==0xfbff); // only the kept crouch, no typed key
+        ttk::input_console(false);
+        CHECK(SDL_GetWindowRelativeMouseMode(win));
+        cf=tick();CHECK(cf.active && cf.epoch==console_epoch && cf.held[ttk::crouch] && cf.move_y==0);
+        key(SDL_SCANCODE_W,false);
+        key(SDL_SCANCODE_D,true);cf=tick();CHECK(cf.move_x>0);key(SDL_SCANCODE_D,false); // first press works
+        key(SDL_SCANCODE_C,true);key(SDL_SCANCODE_C,false);CHECK(!tick().held[ttk::crouch]);
+        // Jetpack flight keeps its owner (active frame, same epoch); the latch
+        // is not set in flight, and an open console holds Space as released.
+        jet=true;key(SDL_SCANCODE_SPACE,true);CHECK(tick().held[ttk::jump]);
+        ttk::input_console(true);
+        for(int i=0;i<60;++i) {cf=tick();CHECK(cf.active && cf.epoch==console_epoch && !cf.held[ttk::jump] && !cf.held[ttk::crouch]);}
+        ttk::input_console(false);key(SDL_SCANCODE_SPACE,false);
+        CHECK(tick().active && tick().epoch==console_epoch);jet=false;
+        // Focus loss while open keeps the hold (user report): the C latch and
+        // the epoch survive defocus and refocus; closing resumes as usual.
+        key(SDL_SCANCODE_C,true);key(SDL_SCANCODE_C,false);CHECK(tick().held[ttk::crouch]);
+        ttk::input_console(true);focus(false);
+        for(int i=0;i<60;++i) {cf=tick();CHECK(cf.active && cf.epoch==console_epoch && cf.held[ttk::crouch] && cf.look_x==0);}
+        CHECK(ttk::input_pad()==0xfbff);
+        focus(true);
+        for(int i=0;i<20;++i) {ttk::input_offer_gameplay_capture();cf=tick();CHECK(cf.active && cf.epoch==console_epoch && cf.held[ttk::crouch]);}
+        // Queued mouse motion belongs to the console: the late look never peeks it.
+        {
+            uint64_t le;double lx0,ly0,lx1,ly1;CHECK(ttk::input_live_look(le,lx0,ly0));
+            SDL_Event m{};m.type=SDL_MOUSEMOTION;m.motion.windowID=SDL_GetWindowID(win);m.motion.xrel=300;m.motion.yrel=200;
+            SDL_PushEvent(&m);CHECK(ttk::input_live_look(le,lx1,ly1) && lx1==lx0 && ly1==ly0);
+            SDL_FlushEvent(SDL_MOUSEMOTION);
+        }
+        ttk::input_console(false);
+        cf=tick();CHECK(cf.active && cf.epoch==console_epoch && cf.held[ttk::crouch] && SDL_GetWindowRelativeMouseMode(win));
+        key(SDL_SCANCODE_C,true);key(SDL_SCANCODE_C,false);CHECK(!tick().held[ttk::crouch]);
+        // Closed while still unfocused (debug port): a real release.
+        ttk::input_console(true);focus(false);CHECK(tick().active);
+        ttk::input_console(false);CHECK(!tick().active);
+        focus(true);
+        for(int i=0;i<13 && !tick().active;++i)ttk::input_offer_gameplay_capture();
+        CHECK(tick().active && SDL_GetWindowRelativeMouseMode(win));
+        // Opened from an uncaptured context (menu): release, no capture while open.
+        ttk::input_release();ttk::input_console(true);
+        for(int i=0;i<20;++i) {ttk::input_offer_gameplay_capture();CHECK(!tick().active);}
+        ttk::input_console(false);
+        ready=ready_was;
+    }
     ttk::input_release();SDL_setenv_unsafe("DNTTK_INPUT_MODE", "vanilla", 1);
     ttk::input_init(win);focus(true);capture_fixture();
     key(SDL_SCANCODE_CAPSLOCK,true);key(SDL_SCANCODE_R,true);
     CHECK(!tick().active && ttk::input_pad()==0xffff);
     SDL_DestroyWindow(win);
     SDL_Quit();
-    std::puts("PASS: independent movement, normalized diagonals, context isolation, mouse deltas, focus loss, repeat suppression, Escape/pause/inventory release, menu fallback, overlay capture guard, no implicit tank fallback, explicit persistent control scheme, F7 savestate recapture and fresh-offer capture, D08T1 hold-to-grab (E mantles, RMB/Alt grab latch, push-pull, release, fresh press, holster, legacy precision aim), D08U ladder-top E request, hint and S descent Cross, D08J1 one ladder leap jump per E hold, reach held through the leap, D08J5 Ctrl and S-at-the-end let go of a pole or chain, D19D menu Escape/Backspace/Enter/V/wheel per screen with latched buttons, D20 quick save / load and F2 / F3 keys");
+    std::puts("PASS: independent movement, normalized diagonals, context isolation, mouse deltas, focus loss, repeat suppression, Escape/pause/inventory release, menu fallback, overlay capture guard, no implicit tank fallback, explicit persistent control scheme, F7 savestate recapture and fresh-offer capture, D08T1 hold-to-grab (E mantles, RMB/Alt grab latch, push-pull, release, fresh press, holster, legacy precision aim), D08U ladder-top E request, hint and S descent Cross, D08J1 one ladder leap jump per E hold, reach held through the leap, D08J5 Ctrl and S-at-the-end let go of a pole or chain, D19D menu Escape/Backspace/Enter/V/wheel per screen with latched buttons, D20 quick save / load and F2 / F3 keys, D26J console input hold");
 }
 
 namespace ttk { bool directional_takeoff_ready(){return preparing;} bool edge_jump_queued(){return edge_queued;}

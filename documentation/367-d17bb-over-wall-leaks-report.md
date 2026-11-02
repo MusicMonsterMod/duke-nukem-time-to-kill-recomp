@@ -1,7 +1,7 @@
 # D17BB - Other rooms' wall pieces showing over the castle walls: intake report
 
-2026-11-02. Status: Needs playtest. The user chose option A; the
-implementation is at the end of this note.
+2026-11-02. Status: Done, accepted by the user 2026-11-02. Shipped: the
+region rule (round 2 below); option A and option 1 are recorded as tried.
 
 Evidence is local under `recomp/analysis/d17bb/` (`look.py`, `dump.py`,
 `rooms.py`, `objs.py`, `seen.py`, `sheet.py`; shots, RAM dump, `evidence.png`). Every run
@@ -249,3 +249,31 @@ rule cannot tell "the wall continuing" from "the back skin of the wall in
 front". Next step (user chose it): option 1, per-face back-skin hiding (faces
 in the narrow gap directly behind the camera room's own wall stay hidden;
 everything else of nearby rooms may show over the walls).
+
+## Option 1 prototyped and set aside; accepted (2026-11-02)
+
+Per-face back-skin hiding was prototyped offline on four RAM dumps
+(courtyard ground, both stable-roof saves, moatside; `skins.py`, local):
+
+- Faces of other rooms in a band behind the camera room's wall: the spire
+  needs a 4096-unit band, which also hides the wall continuing into room 22
+  (the notch fill) and faces seen through the moat gate; tips from rooms
+  behind intermediate walls remain.
+- The same band against every drawn room's walls: more caught, same
+  over-hiding and gate problem.
+- Crown faces on a large wall face that faces away from the eye: almost no
+  visible face qualifies; the spire and merlons do not sit on clean wall
+  faces in the level data.
+
+No automatic rule separated "castle worth seeing" from "castle tips" in
+these views, so it was not built. User: "we tried, let's stay at the commit
+for the time being", then accepted: "let's accept this, and push it now. if
+we wanna keep going with it we can always come back in the future".
+
+Remaining: from the stable roof (slot 12) the notch where the south wall
+continues into courtyard 22 stays, as in the original. A future route is a
+per-level visibility file on top of the region rule (for example "from
+courtyard 8, room 22 over the walls"), authored in game with a developer
+console command.
+
+Executable `f52724f03a01672b6b9abf00a2c2668562bf6111db220ae2b2b373801691bcc3`.

@@ -1,5 +1,19 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-02 - D17BB accepted and closed
+
+User: "let's accept this, and push it now. if we wanna keep going with it we
+can always come back in the future". D17BB is Done
+([note 367](documentation/367-d17bb-over-wall-leaks-report.md)): Polymorph
+offers over-the-walls rooms only from the camera room's own open-air region,
+so castle wall skins no longer poke over the battlements from the courtyard
+or the moat, and the jetpack moat vista keeps the moat, banks and outer
+walls. Option 1 (per-face back-skin hiding) was prototyped offline and set
+aside: no automatic rule separated wanted castle views from tips. Known: the
+stable-roof notch (south wall into courtyard 22) remains, as in the
+original; a per-level visibility file is the route if revisited. Executable
+`f52724f03a01672b6b9abf00a2c2668562bf6111db220ae2b2b373801691bcc3`. No framework change. No new backlog.
+
 ## 2026-11-02 - D17BB round 2: region rule kept as a milestone; back-skin faces next (In progress)
 
 User compared option A and the region rule again and chose the region rule
@@ -406,7 +420,7 @@ Acceptance (private save copies, first and third person):
 
 ### D17BB - Other rooms' wall pieces show over the castle walls
 
-**Status: In progress (region rule kept 2026-11-02; per-face back-skin hiding next; [note 367](documentation/367-d17bb-over-wall-leaks-report.md)). Dependencies: D17AR (done). Renderer work targets Polymorph.**
+**Status: Done (region rule; accepted 2026-11-02; [note 367](documentation/367-d17bb-over-wall-leaks-report.md)). Dependencies: D17AR (done). Renderer work targets Polymorph.**
 Priority high (visible in normal play, not only from the jetpack).
 
 Observed (user, 2026-11-02): load UI slot 12 (castle courtyard, level 6) and
@@ -3526,7 +3540,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D17AY | Full-refresh presentation audit: draw-time hooks must not read 30 Hz tick state against interpolated redraws | Done (user-accepted) | D17, D14H, D35D1 |
 | D17AZ | Polymorph: slot-12 train vanishes at the view edge; objects across rooms stay drawn game-wide | Done | D17AR, D17AR4, D17AX |
 | D17BA | Polymorph: open models (burning barrel) show their inside | Done | - |
-| D17BB | Polymorph: other rooms' wall pieces show over the castle walls (slot 12 courtyard) | In progress (region rule; back-skin faces next; note 367) | D17AR |
+| D17BB | Polymorph: other rooms' wall pieces show over the castle walls (slot 12 courtyard) | Done (region rule; note 367) | D17AR |
 | D14F | 90-default / 120-maximum world FOV | Done (user-confirmed 2026-10-30) | Implemented in afd4ad6 (note 317); re-verified 2026-10-29 |
 | D17AE | Slot-11 sign post through door header | Done (user-confirmed 2026-10-29) | Scene depth for native world/scenery packets; replay precedence fix; world backface cull restored |
 | D17AF | Latest slot-10 ground water visibility | Done | Selected batch; see intake above |

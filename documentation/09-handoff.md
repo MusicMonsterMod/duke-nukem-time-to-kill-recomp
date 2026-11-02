@@ -1,5 +1,19 @@
 # Next-session handoff
 
+## 2026-11-02 - D17BB accepted and closed
+
+User: "let's accept this, and push it now. if we wanna keep going with it we
+can always come back in the future". D17BB is Done
+([note 367](documentation/367-d17bb-over-wall-leaks-report.md)): Polymorph
+offers over-the-walls rooms only from the camera room's own open-air region,
+so castle wall skins no longer poke over the battlements from the courtyard
+or the moat, and the jetpack moat vista keeps the moat, banks and outer
+walls. Option 1 (per-face back-skin hiding) was prototyped offline and set
+aside: no automatic rule separated wanted castle views from tips. Known: the
+stable-roof notch (south wall into courtyard 22) remains, as in the
+original; a per-level visibility file is the route if revisited. Executable
+`f52724f03a01672b6b9abf00a2c2668562bf6111db220ae2b2b373801691bcc3`. No framework change. No new backlog.
+
 ## 2026-11-02 - D17BB round 2: region rule kept as a milestone; back-skin faces next (In progress)
 
 User compared option A and the region rule again and chose the region rule

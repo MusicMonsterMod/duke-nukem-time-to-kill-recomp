@@ -1,5 +1,17 @@
 # Current status - 2026-10-04
 
+## 2026-11-02 - D23G step 3 closed (measured, no code change)
+
+Step 3 (fast timing for overlay code and the interpreter,
+[note 355](355-d23g-step3-overlay-interpreter.md)) has nothing measurable to
+win. Level overlays run interpreted, not as compiled libraries; across all 21
+selectable levels the interpreter runs at most about 140,000 instructions per
+second (under 0.3% of guest work), and the one compiled library in play (the
+geometry math routine) spends about 0.1 of a point of the thread in its
+timing model. No code changed; executable unchanged. Closed by the user's
+decision ("let's go with your recommendation, then close it out"); D23G stays
+open for step 5 (Vanilla flag cost).
+
 ## 2026-11-01 - D23G part 2 accepted and closed out
 
 User: "the stability now is literally next level. lock it in, close us out!"

@@ -2675,7 +2675,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D23D | Minor slowdown around the strip-club-type area of Level 9 (low priority) | Done | D23, D22B |
 | D23E | Stutter with enemies on screen while walking (UI slots 9 and 10) | Done (user-accepted; closed 2026-10-30) | D23, D22B |
 | D23F | Faster timing model: emulation-thread budget for 150% CPU at high refresh (big) | Done (user-accepted; closed 2026-10-30) | D23E, D17 |
-| D23G | Finish the fast path: dispatch, overlays, interpreter, observers and redraw cost (all-in-one) | In progress (part 2 dispatch fast path and observers user-accepted 2026-11-01, note 354; part 1 renderer feed accepted 2026-10-30, note 331; steps 3, 5 remain) | D23F |
+| D23G | Finish the fast path: dispatch, overlays, interpreter, observers and redraw cost (all-in-one) | In progress (step 3 closed 2026-11-02 by user decision: measured, no saving to win, no code change, note 355; part 2 user-accepted 2026-11-01, note 354; part 1 accepted 2026-10-30, note 331; step 5 remains) | D23F |
 | D23H | Presents fall from 120 to about 60 over extended play (savestate hitches, sticky shedding) | Done (user-accepted; closed 2026-10-30) | D23E, D23F |
 | D24 | Linux / Windows player build and disc import | Todo | D19, D22, D23 |
 | D24A | Public clone gives the full experience: fonts, inventory icons/digits from a proper tracked or disc-derived source (no research/ dependency) | Done (user-accepted; closed 2026-10-30) | D19A, D08A3 |
@@ -13377,6 +13377,24 @@ literally next level. lock it in, close us out!" Executable
 `f53b391249e45ce816b56ef1cf0cb76d7e93cccfcad2001b43faa61da53afd6e` is the regression baseline
 (codegen hash `0xebce51ea`). Part 2 closed out; D23G stays open for steps 3
 and 5.
+
+**Work log (2026-11-02, step 3: overlay and interpreter timing; measured,
+no code change).** [Note 355](documentation/355-d23g-step3-overlay-interpreter.md).
+Level overlays are not compiled libraries: the cache holds only MOVIE.OVR and
+the geometry math routine (`0x800B3D9C`), and every `LEVELxx.OVR` runs in the
+dirty-RAM interpreter. Over all 21 selectable levels, moving, the interpreter
+runs 31,500-139,900 instructions per second (most of it the BIOS interrupt
+handler; under 0.3% of guest instructions), phase share 0.9-3.1%; the math
+library is called 6,100-25,300 times per second, phase share 0.6-3.7%. Slot 9
+perf at 180 Hz: math library 0.56% of the thread, its accurate timing helpers
+about 0.11%; `dirty_ram_dispatch` 1.38%; the text check's cost is part 2's
+cache hits, not the math call's failing check. Fast timing here would save
+about 0.1 of a point and shift D23F's calibration; compiling level overlays
+would save well under one point. Recommendation: close step 3 as measured;
+step 5 remains.
+
+**Decision (2026-11-02): step 3 closed as measured.** User: "let's go with
+your recommendation, then close it out". D23G stays open for step 5 only.
 
 ### D23H - Presents fall from 120 to about 60 over extended play
 

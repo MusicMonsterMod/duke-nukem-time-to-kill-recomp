@@ -6661,8 +6661,9 @@ int main(int argc,char** argv) {
         ttk::input.command_count=0;
         std::puts("PASS: D08Q2 stranded jetpack repair, picker/J, empty fuel, transition/death/Vanilla/code guards");
     }
-    cheat_calls.clear();cheat(ttk::Cheat::Stuff);
-    assert((cheat_calls==std::vector<uint32_t>{0x8003d7bc,0x8003d738,0x8003d840}));
+    // D08G8: a dead Duke (health 0) refuses cheats; the fixture Duke lives.
+    const uint16_t fixture_health=psx_mod_read_half(p+0x32);psx_mod_write_half(p+0x32,10000);
+    cheat_calls.clear();cheat(ttk::Cheat::Stuff);    assert((cheat_calls==std::vector<uint32_t>{0x8003d7bc,0x8003d738,0x8003d840}));
     {
         // D08G4: the inventory cheats set full armour (10000, never lower) and
         // stop running steroids, leaving the dose held; the grant is stubbed, so
@@ -6726,6 +6727,32 @@ int main(int argc,char** argv) {
         psx_mod_write_half(p+0x358,saved_jet);psx_mod_write_half(p+0x35a,saved_fuel);
         std::puts("PASS: D08Q4 god mode health/jetpack pin and jetpack grant, Atomic surplus kept, off resumes; D08G3 upgrade bits and mask");
     }
+    {
+        // D08G8: every living state takes cheats (air 9, ladder 3, surface 4,
+        // underwater 5, jetpack 10, frozen); dead, a scripted scene and a busy
+        // guest stack refuse them.
+        const uint8_t mode=psx_mod_read_byte(p+0x22c),previous=psx_mod_read_byte(p+0x22d);
+        const uint32_t word=psx_mod_read_word(p),inhibit=psx_mod_read_word(p+0x224);
+        const uint16_t health=psx_mod_read_half(p+0x32);
+        psx_mod_write_half(0x800c3cc6,0);
+        for(unsigned m:{9u,3u,4u,5u,10u}) {
+            psx_mod_write_byte(p+0x22c,m);psx_mod_write_byte(p+0x22d,m);
+            cheat_calls.clear();cheat(ttk::Cheat::Weapons);assert((cheat_calls==std::vector<uint32_t>{0x8003d7bc}));
+            cheat(ttk::Cheat::God);assert(psx_mod_read_half(0x800c3cc6)==1);
+            cheat(ttk::Cheat::God);assert(psx_mod_read_half(0x800c3cc6)==0);
+        }
+        psx_mod_write_word(p,word|0x20000);cheat(ttk::Cheat::God);assert(psx_mod_read_half(0x800c3cc6)==1);
+        cheat(ttk::Cheat::God);psx_mod_write_word(p,word);
+        psx_mod_write_word(p,word|2);cheat_calls.clear();cheat(ttk::Cheat::Stuff);cheat(ttk::Cheat::God);
+        assert(cheat_calls.empty() && psx_mod_read_half(0x800c3cc6)==0);psx_mod_write_word(p,word);
+        psx_mod_write_half(p+0x32,0);cheat(ttk::Cheat::God);assert(psx_mod_read_half(0x800c3cc6)==0);psx_mod_write_half(p+0x32,health);
+        psx_mod_write_word(p+0x224,inhibit|0x20000000);cheat_calls.clear();cheat(ttk::Cheat::Stuff);
+        assert(cheat_calls.empty());psx_mod_write_word(p+0x224,inhibit);
+        ttk::pending_cheat=ttk::Cheat::Stuff;cheat_calls.clear();call(0x8005a210,p,0x800c2754,0x80041b34,0x80100000);
+        assert(cheat_calls.empty());
+        psx_mod_write_byte(p+0x22c,mode);psx_mod_write_byte(p+0x22d,previous);
+        std::puts("PASS: D08G8 cheats in air, ladder, swim, underwater, jetpack and frozen; refused dead, in a scene, off the guest stack");
+    }
     psx_mod_write_word(0x800c27bc,2);cheat_calls.clear();cheat(ttk::Cheat::Stuff);assert(cheat_calls.empty());
     psx_mod_write_word(0x800c27bc,1);ttk::input.active=false;cheat(ttk::Cheat::God);assert(psx_mod_read_half(0x800c3cc6)==0);ttk::input.active=true;
     constexpr uint32_t table=0x801e1000,types=0x801e8000,enemy=0x801c0000,npc=0x801c0400;
@@ -6749,6 +6776,7 @@ int main(int argc,char** argv) {
     cheat(ttk::Cheat::Monsters);call(0x8002b9f4,1,0,0x80025474);
     writes=0;cheat(ttk::Cheat::Monsters); // all rows already inactive/dead/disabled
     assert(psx_mod_read_word(table+20)==16);
+    psx_mod_write_half(p+0x32,fixture_health);
     // Concealed apartment pickup is denied by dispatch, never by moving/deleting
     // its object or changing the player's inventory. Exposed/other rooms fall through.
     ground();psx_mod_write_word(0x800c27bc,1);psx_mod_write_word(0x800dd878,0);

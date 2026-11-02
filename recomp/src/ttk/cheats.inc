@@ -119,15 +119,27 @@ static void upgrade_weapons() {
     }
     psx_mod_write_byte(player+0x85f,psx_mod_read_byte(player+0x85f)|0x3f);
 }
+// D08G8: cheats work in every living player state (ground, air, swimming,
+// jetpack flight, ladders, climbs, pushes, frozen). The ground movement lease
+// is not required; the grants are plain record writes on the player
+// (8003d7bc/8003d738/8003d840 change no pose, mode or held weapon). Refused
+// only while dead (D08G9), in a scripted scene (+0x224 bit 0x20000000), outside
+// captured single-player gameplay, or when the guest call cannot be made.
+static const char* cheat_refusal(CPUState* cpu) {
+    if(!input_snapshot(Context::Gameplay).active || !player_identity_ready() || psx_mod_read_word(0x800c27bc)!=1)
+        return "Cheat unavailable here";
+    if((psx_mod_read_word(player)&2) || (int16_t)psx_mod_read_half(player+0x32)<=0)
+        return "Cheat unavailable - Duke is dead";
+    if(psx_mod_read_word(player+0x224)&0x20000000)return "Cheat unavailable during a scene";
+    if(guest_busy || cpu->gpr[29]<0x801f4000 || cpu->gpr[29]>0x801ffff0 || g_precise_mode || g_ls_mode || g_psx_call_bail)
+        return "Cheat unavailable - try again";
+    return nullptr;
+}
 static void cheats_update(CPUState* cpu) {
     god_mode_update();
     auto command=input_take_cheat();
     if(command==Cheat::None)return;
-    if(!input_snapshot(Context::Gameplay).active || !player_identity_ready() ||
-       psx_mod_read_word(0x800c27bc)!=1 || !movement_ready() || guest_busy ||
-       cpu->gpr[29]<0x801f4000 || g_precise_mode || g_ls_mode || g_psx_call_bail) {
-        input_notice("Cheat unavailable here - stand on solid ground");return;
-    }
+    if(auto refusal=cheat_refusal(cpu)) {input_notice(refusal);return;}
     bool ok=true;
     switch(command) {
     case Cheat::Monsters: if(!toggle_monsters(cpu))input_notice("Enemy toggle unavailable");return;

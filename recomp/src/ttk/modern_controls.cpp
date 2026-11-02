@@ -1243,7 +1243,10 @@ static void hook_body(CPUState* cpu, uint32_t address) {
     static uint32_t loads_seen=psx_mod_savestate_loads();
     const uint32_t loads=psx_mod_savestate_loads();
     if(loads!=loads_seen) {
-        loads_seen=loads;camera_world_reset();input_state_loaded();
+        // D08G8: a load's longjmp can abandon a host guest call
+        // (original_call and friends) mid-flight; that call never clears
+        // guest_busy, which would refuse every later one.
+        loads_seen=loads;camera_world_reset();input_state_loaded();guest_busy=false;
     }
     // D08S pause/menus can keep fields advancing without a player update.
     // Do not charge that gap when normal flight resumes.

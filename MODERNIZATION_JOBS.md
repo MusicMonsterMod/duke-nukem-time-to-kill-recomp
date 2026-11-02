@@ -1,5 +1,106 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-02 - D08G8 accepted and closed; D08Z7 added
+
+User: "i confirm its all working. great work". D08G8 is Done: typed cheats
+work in every living state (air, swimming, under water, jetpack flight,
+ladders, climbs, pushes, frozen), refused only while dead, in a scene,
+outside captured Modernized gameplay or when the guest call is unsafe; the
+stuck `guest_busy` after a savestate load is fixed. Executable
+`135a186db9834b71faf4dc955e1f779058725c5027ede65b50c078cf6d6e441c`. No
+framework change.
+
+New job D08Z7 (user, same message): backward jumps should use the same
+natural, FPS-style technique as the forward jump. Reference: the user's UI
+slot 7. Initial measurements are in the job entry.
+
+### D08Z7 - Backward jumps use the forward jump's technique (UI slot 7)
+
+**Status: Todo. Dependencies: D08Z, D08C, D08Z3.** User report: load UI
+slot 7 and jump backwards, holding Shift and pressing S then Space (or just
+holding all three): Duke ends up doing a forward jump. The user wants the
+backward jump to work the same way as the modern forward jump: a natural
+first-person-shooter hop in the direction pressed that may or may not gain
+a little height, not a different technique.
+
+Initial research (2026-11-02, private copy of UI slot 7, file slot 6, the
+player's profile: manual jump, first person, lab
+`recomp/analysis/d08g8-cheats-anywhere/probe.py` case `dj2`):
+
+| Input | Animations | Peak | Takeoff velocity |
+| --- | --- | --- | --- |
+| W then Space | 98 (repeats while held) | about 320 | (4351, -4142), forward |
+| S then Space | 98, then 106 / 103 after falling | about 310 | (-4351, 4142), backward |
+| Shift+S then Space | 94, 96 (standing preparation), 98, 106, 103 | about 310 | (-2013, 4142) |
+| Shift+S+Space together | 98, 78/94/96, 103 | about 340 | (-4351, 4142) |
+| Space alone | 96, 97 (standing jump) | about 1060 | (1977, -1883) |
+
+Duke's heading (`+0x1c`) never changes; the backward jump moves backwards
+but plays the forward-jump body animation 98, and with Shift held from a
+standstill it first plays the standing jump preparation 96. Behind Duke in
+this save is a long drop, so held keys chain into a fall, hard landing 106
+and running jumps 103 (anim 103 is the running forward jump). Not yet
+established: which of these the user sees as "a forward jump" (the 98 pose
+while going backwards, the 96 wind-up, or the 103 running jump after the
+drop); reproduce with the player's real taps and holds and a session log
+first, in first and third person.
+
+Work: make the backward (and, for consistency, sideways and diagonal)
+directional jump take off exactly like the modern forward jump (D08Z manual
+and the assisted style): same quick takeoff, the same small, natural arc in
+the pressed direction, no standing-jump wind-up and no switch to a running
+forward jump; decide the body animation for a backward hop (for example a
+neutral or backward-leaning airborne pose rather than the forward-leap 98).
+Game-wide rule, not slot 7 only.
+
+**Acceptance:** at UI slot 7 and elsewhere, Shift+S then Space and holding
+Shift+S+Space give a backward hop like the forward jump (same takeoff
+timing and height behaviour, moving backwards, no forward-jump or running
+jump technique); forward, sideways and standing jumps unchanged unless the
+user asks; manual and assisted jump styles; first and third person; Vanilla
+unchanged; the user's playtest.
+
+## 2026-11-02 - D08G8: cheats work anywhere (Needs playtest)
+
+- **Change** (`recomp/src/ttk/cheats.inc`): the cheat gate no longer needs
+  the ground movement lease. `cheats_update` already ran from the player
+  update (`8005a210`) in every state; only the gate refused. Cheats now work
+  on the ground, in the air, swimming, under water, in jetpack flight, on
+  ladders and climbs, pushing and frozen. Refused, with a specific message,
+  only when Duke is dead ("Cheat unavailable - Duke is dead", left for
+  D08G9), in a scripted scene (`+0x224` bit `0x20000000`: "during a scene"),
+  outside captured single-player Modernized gameplay ("unavailable here")
+  or when the guest call cannot be made safely ("try again"). The grants
+  (`8003d7bc`, `8003d738`, `8003d840`) only write weapon/item/key records;
+  they change no pose, mode or held weapon.
+- **Bug found while testing** (`modern_controls.cpp`): a savestate load can
+  unwind out of a host guest call (`original_call`, `cheat_call`, ...) and
+  leave `guest_busy` set for the rest of the session, which quietly refuses
+  every later guest call (cheats, jetpack, crouch hull, kick, HUD calls).
+  Live: after 6 and 16 loads in two runs, every code said "try again" with
+  `guest_busy=1`. The existing per-load reset now clears it; 36 further
+  loads did not repeat it.
+- **Evidence** (private card/savestate copies, Xvfb, port 9583; lab
+  `recomp/analysis/d08g8-cheats-anywhere/`): all 13 codes (18 entries,
+  including toggles back and `dncornholio`) applied with the right message
+  in each state: surface swim (mode 4), under water (5), jetpack flight
+  (10), ladder (3, anim 186), mid-jump (9, one jump per code), ground.
+  Held weapon, upper-body pose and mode never changed; the ladder still
+  climbs down afterwards; a mid-air code leaves the jump arc and landing
+  frame identical to a jump without one. Dead: refused for `dnkroz`,
+  `dnhealth`, `dnstuff`. Vanilla: five codes ignored, no state change;
+  Vanilla regression route `d08g8-vanilla` exit 0, captures normal.
+- **Suites:** `ttk-controls-test` 124 groups (new D08G8 group: air, ladder,
+  swim, under water, jetpack, frozen allowed; dead, scene, off-stack
+  refused; the fixture Duke now has health), `ttk-input-test`; Python 223
+  tests, 1 failure (`test_primitive_trace`, already failing before this
+  job), 2 skipped. Executable
+  `135a186db9834b71faf4dc955e1f779058725c5027ede65b50c078cf6d6e441c`.
+  No framework change, no hook list or generated code change.
+- **Not verified:** the user's playtest; pole/chain climbs, mantles and
+  pushes were not driven live (same gate, no state-specific code); cheats
+  during an in-game cutscene were not driven.
+
 ## 2026-11-02 - D17BB accepted and closed
 
 User: "let's accept this, and push it now. if we wanna keep going with it we
@@ -831,7 +932,7 @@ armour change; Vanilla unchanged; the user's playtest against the video.
 
 ### D08G8 - Cheats work anywhere, not only on solid ground
 
-**Status: Todo. Dependencies: D08G2.** Today every typed cheat in Modernized
+**Status: Done (user-accepted 2026-11-02). Dependencies: D08G2.** Today every typed cheat in Modernized
 is refused off the ground with "Cheat unavailable here - stand on solid
 ground". The user wants cheats accepted anywhere: in the air, swimming,
 jetpack flight, climbing, ladders, pushing, and so on.
@@ -3608,7 +3709,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08G5 | Partial cheat entry causes mouse-look stutter until another key breaks the sequence | Done (user-accepted) | D08G2 |
 | D08G6 | Fun cheat `dntlod`: show "Play Zaxtor's Oblivion!" | Done (user-accepted) | D08G2 |
 | D08G7 | dnkroz feel: GOD MODE ON/OFF text, red flash and occasional short pain sound on OFF (dncornholio identical) | Todo | D08G2, D08Q4 |
-| D08G8 | Cheats work anywhere, not only on solid ground | Todo | D08G2 |
+| D08G8 | Cheats work anywhere, not only on solid ground | Done (user-accepted 2026-11-02) | D08G2 |
 | D08G9 | dnkroz after death: Duke gets back up where he died, remains stay | Todo | D08G7, D08G8, D08Q4 |
 | D08H | Apartment furniture, hidden pickup and switch targeting | Done | D08 |
 | D08I | Responsive run-start and edge jumps | Done | D08 |
@@ -3689,6 +3790,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08Z4 | First person briefly cuts to third person when jumping into the cop car (UI slot 6) | Done (user-accepted 2026-10-20) | D08Z1, D08V, D11 |
 | D08Z5 | WALL BACKFLIP option: Modern (default) replaces the steep-slope backflip and its backwards push with a slope jump that climbs; Original keeps it (UI slot 10 police car) | Done (user-accepted 2026-10-21) | D08Z1, D08Z4, D19N |
 | D08Z6 | Fluid forward jumps onto tall steps/ledges from a blocked run (UI slot 10, right corner) | Done | D08Z, D08Z1 |
+| D08Z7 | Backward jumps use the forward jump's natural technique (UI slot 7: Shift+S, Space gives a forward jump) | Todo | D08Z, D08C, D08Z3 |
 | D08J1 | Hold-E run-up grab for overhead ladders (slot-6 ladder) | Done | D08J, D08X, D08U |
 | D08J2 | Poles and chains: A/D turn the wrong way (A turns right, D left) | Done (user-accepted; closed 2026-10-30) | D08J |
 | D08J4 | Ceiling monkey-bar climbing: camera-relative travel, no mid-span drops (player UI slot 3) | Done (user-accepted; closed 2026-10-30) | D08J, D22B |

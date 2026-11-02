@@ -1,5 +1,28 @@
 # Current status - 2026-10-04
 
+## 2026-11-02 - D08G8 accepted and closed; D08Z7 added
+
+User: "i confirm its all working". D08G8 is Done: typed cheats work in every
+living state, refused only while dead, in a scene, outside captured
+Modernized gameplay or when unsafe; the stuck `guest_busy` after a savestate
+load is fixed. Executable
+`135a186db9834b71faf4dc955e1f779058725c5027ede65b50c078cf6d6e441c`. New job
+D08Z7: backward jumps (UI slot 7, Shift+S then Space) should take off like the
+modern forward jump instead of a forward-jump technique; initial slot 7
+measurements are in its board entry.
+
+## 2026-11-02 - D08G8: cheats work anywhere (Needs playtest)
+
+Typed cheats now work in every living state: air, swimming, under water,
+jetpack flight, ladders/climbs, pushes, frozen. Refused only while dead
+(D08G9), in a scripted scene, outside captured Modernized gameplay, or when
+the guest call is unsafe, each with its own message. Also fixed: a savestate
+load could leave the mod's `guest_busy` flag stuck, refusing every later
+guest call (cheats, jetpack, crouch hull, kick) until restart. Live: 13 codes
+in 6 states, no pose, mode or weapon change; Vanilla unchanged. Executable
+`135a186db9834b71faf4dc955e1f779058725c5027ede65b50c078cf6d6e441c`. Next: the
+user's playtest. Lab `recomp/analysis/d08g8-cheats-anywhere/`.
+
 ## 2026-11-02 - D17BB accepted and closed
 
 User: "let's accept this, and push it now. if we wanna keep going with it we

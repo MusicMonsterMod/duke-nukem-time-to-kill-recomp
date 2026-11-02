@@ -1943,8 +1943,10 @@ direction together with X climbs instead.
 
 ### Typed debugging cheats (Modernized)
 
-Stand on solid ground with mouse capture active and type a code directly—no console
-or Enter. A message confirms the result. The first D can move Duke slightly, so
+With mouse capture active, type a code directly - no console or Enter. Codes work
+anywhere Duke is alive: on the ground, jumping, swimming, under water, flying the
+jetpack, on ladders and climbing. They are refused while Duke is dead or during a
+scene. A message confirms the result. The first D can move Duke slightly, so
 start away from ledges. Escape or focus loss cancels typing; F10 has no action.
 The mouse keeps turning the camera while you type. Any key that is not the next
 letter of a code (W, Space and so on) or a mouse click cancels the code and does

@@ -8,7 +8,9 @@ not furniture physics or the light-switch target.
 
 ## Player use
 
-Stand on solid ground in captured Modernized gameplay and type a complete code.
+In captured Modernized gameplay, type a complete code. Since D08G8 (2026-11-02)
+this works in every living state: ground, air, swimming, under water, jetpack
+flight, ladders, climbs, pushes.
 No console or Enter is required. After `dn`, an on-screen message shows the input
 and typing consumes the remaining letters instead of activating their shortcuts.
 The first D still acts as the ordinary movement key, so start away from an edge.
@@ -17,8 +19,9 @@ Typing owns only the keyboard (D08G5): mouse look and the wheel stay live, a
 click cancels the prefix and acts, and a key that breaks the prefix acts at once
 as its normal key. Codes
 are case-insensitive physical letter keys, consistent with the keyboard bindings.
-Vanilla, menus, dead players, attached traversal, unsupported code and multiplayer
-cannot execute these commands. A rejected request is discarded, never deferred
+Vanilla, menus, dead players, scripted scenes (`+0x224` bit `0x20000000`),
+unsupported code and multiplayer cannot execute these commands; each refusal
+names its reason. A rejected request is discarded, never deferred
 until the player later lands or enters gameplay.
 
 | Code | Time to Kill effect |

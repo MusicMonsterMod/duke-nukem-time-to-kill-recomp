@@ -1,5 +1,80 @@
 # Next-session handoff
 
+## 2026-11-02 - D17BB round 2: region rule kept as a milestone; back-skin faces next (In progress)
+
+User compared option A and the region rule again and chose the region rule
+("i think we can work with this"): over-the-walls rooms only from the camera
+room's own open-air region (from the level's portal graph). Slots 12 (stable
+roof) and 11 (moatside) are pixel-identical to the game's own room list; the
+jetpack moat vista keeps the moat, banks and outer walls. Executable
+`f52724f03a01672b6b9abf00a2c2668562bf6111db220ae2b2b373801691bcc3`. Developer `DNTTK_OVER_WALLS=0|all`, console
+`hostvis walls off|region|all|default`. Tests pass. New slot 12 report, a
+piece missing: from the stable roof the south wall continuing into courtyard
+22 is cut to its portal rectangle, leaving a notch (same in the original).
+Next (user's choice): per-face back-skin hiding, so nearby rooms can show
+over the walls without the far face of the wall in front
+([note 367](documentation/367-d17bb-over-wall-leaks-report.md)).
+
+## 2026-11-02 - D17BB round 1: region rule tried, back to option A (Needs playtest)
+
+User: "an AMAZING start", then reported chopped castle walls from a stable
+roof (slot 12) and tips over the outer wall moatside (slot 11): with Duke
+near wall-top height the option A gate admits courtyard rooms over the walls.
+A region rule (over-the-walls rooms only from the camera room's own open-air
+region, from the level's portal graph) made both views pixel-identical to
+the game's own list and kept the jetpack moat vista, but the user preferred
+the grander view: "it just isnt it ... let's just go back one version".
+Option A is restored, byte-identical to its build
+(`dfd2cd8751ccc0fef29004a704f5dc05c5ebb5dad50e5d49ed54a3ebeec33028`); its
+tests and sweeps stand. Known with option A: castle parts over the walls from
+near wall-top height can show chopped edges and tips. Details in
+[note 367](documentation/367-d17bb-over-wall-leaks-report.md). Awaiting the
+user's playtest.
+
+## 2026-11-02 - D17BB: over the walls only near wall-top height (Needs playtest)
+
+User chose option A ([note 367](documentation/367-d17bb-over-wall-leaks-report.md)).
+Polymorph's over-the-walls test now also needs the eye to be within 1024
+units (about one storey) of the camera room's wall top where the sight line
+leaves the room; with no piece at that point the nearest one within 1024
+counts. From the slot-12 courtyard floor (3300+ below the wall tops) no moat
+room is admitted, so the castle walls show what the original shows: no spire,
+tilted block or spikes over the battlements, first and third person, FOV 90
+and 120, 180 Hz. The slot-10 trench (160 below the rim) and jetpack hover
+keep their over-the-walls rooms; slot 2 moat is pixel-identical. Sweep of 21
+levels at ground level (168 views) and six outdoor levels on the jetpack (48
+views), gate on/off in the same view: no geometry lost. Classic unchanged
+(its open-sky caller passes no slack); Vanilla never reaches it. Developer:
+`DNTTK_OVER_WALLS_EYE` (`-1` off), console `hostvis eye <n>|default`.
+`ttk-controls-test`, `ttk-near-test`, `ttk-input-test` pass. Executable
+`dfd2cd8751ccc0fef29004a704f5dc05c5ebb5dad50e5d49ed54a3ebeec33028`. No framework change. Limits: a gated room appears as the eye nears
+wall-top height (a possible pop while climbing); outer skins seen from the
+ramparts remain (option B). Awaiting the user's playtest.
+
+## 2026-11-02 - Backlog intake: other rooms' wall pieces over the castle walls (D17BB)
+
+User (slot 12, speech to text): over the castle wall "elements from ...
+elsewhere in the map" are drawn, "different parts of those castle walls are
+being rendered and it makes it look really glitched". Asked to stand the job
+up, investigate, and set out the options, including a file that says which
+rooms can be seen from which. Investigated now (offscreen, private save copy,
+nothing changed); report in
+[note 367](documentation/367-d17bb-over-wall-leaks-report.md).
+
+Cause confirmed: from the courtyard (level 6, room 8) Polymorph's
+over-the-walls test (inherited from D17AQ) admits the moat rooms 2, 3 and 4,
+which the original portal walk never lists from there. Their pieces include
+the outer, moat-side skin of the castle wall, built only to be seen from the
+moat; its spire, merlons and spikes rise above the inner wall and show as
+"tilted" fragments. A room-ID render of the RAM dump attributes every odd
+shape to room 2 or 4; the game's own room list (`DNTTK_HOST_VISIBILITY=0`,
+`DNTTK_OPEN_SKY=0`) shows a clean wall top. The test is coarse (bounding
+boxes compared only at the room edge; no piece there counts as open). Options
+A-D in the note; recommended: A (look over walls only when the eye is above
+them), then B (shared-wall skins hidden from inside), with C (the user's
+visibility rules file) kept as the override layer. Status Todo, waiting for
+the user's choice.
+
 ## 2026-11-02 - D17BA accepted and closed
 
 User: "fixed! accepted. lock it in and close us out". D17BA is Done

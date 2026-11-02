@@ -279,6 +279,12 @@ Outdoors, the original only draws neighbouring areas through their openings,
 so flying high with the jetpack showed pieces of the level popping in and out
 as you turned. With `extended`, outdoor areas you can see over the walls are
 drawn whole. Some spots stay black because the level has no scenery there.
+Over the walls you see only the open air you are in: from the moat or the
+jetpack the whole moat and the outside of the castle, from inside a walled
+courtyard just that courtyard and what its openings show. The two faces of a
+castle wall belong to different areas and were built to be seen only from
+their own side, so the far face no longer pokes up above the battlements as
+stray spires and tips.
 In wide views such as the castle from the jetpack, distant walls no longer
 flicker with black holes while you turn: every distant piece now fits in the
 frame instead of some being dropped from frame to frame.

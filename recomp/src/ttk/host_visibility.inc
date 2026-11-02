@@ -84,6 +84,42 @@ static bool host_visibility_enabled() {
     const int o=host_vis_override.load(std::memory_order_relaxed);
     return o<0 ? v : o!=0;
 }
+// D17BB: over-the-walls rooms come only from the camera room's open-air
+// region: the sky rooms joined to it through the level's own portals, sky
+// room to sky room. A castle's moat ring is one region and each walled
+// courtyard another, so the moat never shows courtyard walls poking over the
+// outer wall and a courtyard never shows the moat's (or another courtyard's)
+// wall skins over its own: the two skins of a castle wall belong to different
+// rooms and were built to be seen only from their own side. Developer:
+// DNTTK_OVER_WALLS=0 (none), all (every sky room, as before D17BB), default
+// region; console "hostvis walls off|all|region|default" (main process only).
+static std::atomic<int> host_vis_walls_override{-1};
+static int host_vis_over_walls() { // 0 none, 1 region, 2 all
+    static const int v=[]{const char* t=std::getenv("DNTTK_OVER_WALLS");
+        if(!t || !*t) return 1;
+        return !std::strcmp(t,"0") ? 0 : !std::strcmp(t,"all") ? 2 : 1;}();
+    const int o=host_vis_walls_override.load(std::memory_order_relaxed);
+    return o<0 ? v : o;
+}
+// The open-air region of a sky room: sky rooms reached through portals.
+static void host_vis_sky_region(uint32_t table,uint32_t rooms,uint32_t source,std::vector<bool>& region) {
+    region.assign(rooms,false);
+    std::vector<uint32_t> stack{source};region[source]=true;
+    while(!stack.empty()) {
+        const uint32_t room=stack.back();stack.pop_back();
+        const uint32_t a=table+room*88;
+        const unsigned count=psx_mod_read_byte(a+0x30);
+        const uint32_t portals=psx_mod_read_word(a+0x38);
+        if(!count || count>64 || portals<0x80010000u || portals>0x80200000u-count*36 || (portals&3)) continue;
+        for(unsigned i=0;i<count;++i) {
+            const int32_t target=(int16_t)psx_mod_read_half(portals+i*36+14);
+            if(target<0 || (uint32_t)target>=rooms || region[target]) continue;
+            if(!(psx_mod_read_word(table+(uint32_t)target*88+12)&8)) continue;
+            region[target]=true;stack.push_back((uint32_t)target);
+        }
+    }
+}
+static uint64_t host_vis_region_skipped=0;
 static double host_vis_guard() {
     static const double v=[]{const char* t=std::getenv("DNTTK_HOST_VIS_GUARD");
         const long n=t?std::atol(t):15;return (n>=0 && n<=100 ? n : 15)/100.0;}();
@@ -252,7 +288,10 @@ static void host_vis_select(const HostVisCamera& c,uint32_t table,uint32_t rooms
     // Over the walls (the D17AQ open-sky test, guard-banded). It is part of
     // host selection, so the Classic switch DNTTK_OPEN_SKY does not reach it.
     const uint32_t home=table+source*88;
-    if(!(psx_mod_read_word(home+12)&8)) return;
+    const int over_walls=host_vis_over_walls();
+    if(!(psx_mod_read_word(home+12)&8) || !over_walls) return;
+    static std::vector<bool> region;
+    if(over_walls==1) host_vis_sky_region(table,rooms,source,region);
     OpenSkyView v;
     for(int i=0;i<9;++i) v.m[i]=(int16_t)c.m[i];
     for(int i=0;i<3;++i) v.eye[i]=(int32_t)c.eye[i];
@@ -266,6 +305,7 @@ static void host_vis_select(const HostVisCamera& c,uint32_t table,uint32_t rooms
     for(uint32_t room=0;room<rooms;++room) {
         const uint32_t a=table+room*88;
         if(room==source || !(psx_mod_read_word(a+12)&8)) continue;
+        if(over_walls==1 && !region[room]) {++host_vis_region_skipped;continue;}
         if(!sel[room].on && !open_sky_in_view(a,v.m,v.eye,v.h,v.rect[0],v.rect[1],v.rect[2],v.rect[3],far)) continue;
         if(!open_sky_pieces(a,pieces) || pieces.empty() || !open_sky_seen(v,lo,hi,walls,pieces,r)) continue;
         const double s[4]={(double)r[0],(double)r[1],(double)r[2],(double)r[3]};
@@ -601,22 +641,33 @@ static const char* host_visibility_debug_json() {
         used+=std::snprintf(list+used,sizeof list-used,"%s%u",i?",":"",(unsigned)host_vis_last_order[i]);
     std::snprintf(buffer,sizeof buffer,"{\"enabled\":%s,\"frames\":%llu,\"refusals\":%llu,\"rooms\":%llu,\"over_walls\":%llu,\"tested\":%llu,"
         "\"selected\":%llu,\"drawn\":%llu,\"left\":%llu,\"left_far\":%llu,\"left_near\":%llu,\"walk_nulled\":%llu,\"game_missed\":%llu,\"game_widened\":%llu,\"last_missed\":[%u,%u],\"select_us\":%llu,\"draw_us\":%llu,\"redraw_only_pieces\":%llu,\"last\":{\"rooms\":%u,\"pieces\":%u,\"game_rooms\":%u,\"props_rooms\":%u},"
-        "\"open_tops\":%llu,\"audit\":[%llu,%llu,%llu,%llu,%.1f,%u],\"developer_dropped\":%llu,\"reach\":[%llu,%llu,%u,%llu],\"list\":[%s]}",
+        "\"open_tops\":%llu,\"audit\":[%llu,%llu,%llu,%llu,%.1f,%u],\"developer_dropped\":%llu,\"reach\":[%llu,%llu,%u,%llu],\"region_skipped\":%llu,\"list\":[%s]}",
         host_visibility_enabled()?"true":"false",(unsigned long long)host_vis_frames,(unsigned long long)host_vis_refusals,(unsigned long long)host_vis_rooms,
         (unsigned long long)host_vis_extra,(unsigned long long)host_vis_tested,(unsigned long long)host_vis_selected,(unsigned long long)n[0],
         (unsigned long long)n[1],(unsigned long long)n[3],(unsigned long long)n[4],(unsigned long long)n[2],(unsigned long long)host_vis_missed,(unsigned long long)host_vis_widened,host_vis_last_missed_from,host_vis_last_missed,(unsigned long long)host_vis_select_us,(unsigned long long)host_vis_draw_us,(unsigned long long)host_vis_redraw_only,host_vis_last_rooms,host_vis_last_pieces,host_vis_last_game,host_vis_props_count,(unsigned long long)host_vis_open_tops,
-        (unsigned long long)host_vis_audit[0],(unsigned long long)host_vis_audit[1],(unsigned long long)host_vis_audit[2],(unsigned long long)host_vis_audit[3],host_vis_audit_max,host_vis_audit_room,(unsigned long long)host_vis_developer_dropped,(unsigned long long)host_vis_reach_drawn,(unsigned long long)host_vis_reach_tested,host_vis_reach_last,(unsigned long long)host_vis_reach_us,list);
+        (unsigned long long)host_vis_audit[0],(unsigned long long)host_vis_audit[1],(unsigned long long)host_vis_audit[2],(unsigned long long)host_vis_audit[3],host_vis_audit_max,host_vis_audit_room,(unsigned long long)host_vis_developer_dropped,(unsigned long long)host_vis_reach_drawn,(unsigned long long)host_vis_reach_tested,host_vis_reach_last,(unsigned long long)host_vis_reach_us,(unsigned long long)host_vis_region_skipped,list);
     return buffer;
 }
 bool hostvis_console_command(const char* line,void (*say)(const char*),bool& close) {
     if(std::strcmp(line,"hostvis") && std::strncmp(line,"hostvis ",8)) return false;
     close=false;
+    if(!std::strncmp(line,"hostvis walls ",14)) {
+        const char* v=line+14;
+        if(!std::strcmp(v,"off")) host_vis_walls_override=0;
+        else if(!std::strcmp(v,"region")) host_vis_walls_override=1;
+        else if(!std::strcmp(v,"all")) host_vis_walls_override=2;
+        else if(!std::strcmp(v,"default")) host_vis_walls_override=-1;
+        else {say("Usage: hostvis walls off|region|all|default (developer, session only)");return true;}
+        const int m=host_vis_over_walls();
+        say(m==0?"Over-the-walls rooms off.":m==2?"Over-the-walls rooms: every sky room.":"Over-the-walls rooms: own open-air region.");
+        return true;
+    }
     if(line[7]) {
         const char* v=line+8;
         if(!std::strcmp(v,"on")) host_vis_override=1;
         else if(!std::strcmp(v,"off")) host_vis_override=0;
         else if(!std::strcmp(v,"default")) host_vis_override=-1;
-        else {say("Usage: hostvis [on|off|default] (developer, session only)");return true;}
+        else {say("Usage: hostvis [on|off|default|walls off|region|all|default] (developer, session only)");return true;}
     }
     say(host_visibility_enabled()?"Host world visibility on.":"Host world visibility off (developer).");
     return true;

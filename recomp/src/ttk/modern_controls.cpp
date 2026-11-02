@@ -1074,6 +1074,7 @@ static bool facing_ready() {
 #include "shortcuts.inc"
 #include "steroids.inc"
 #include "steroids_beat.inc"
+#include "console_idle.inc"
 #include "run_click.inc"
 #include "pickup_select.inc"
 #include "crouch.inc"
@@ -1348,6 +1349,7 @@ static void hook_body(CPUState* cpu, uint32_t address) {
             cheats_update(cpu);
             spawn_update(cpu);
             steroids_beat(cpu); // D08A10
+            console_idle_hold(); // D26K
             grounded_water_gait();
             terrain_update(cpu);
             crouch_landing_track(cpu);

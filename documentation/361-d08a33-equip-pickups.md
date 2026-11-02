@@ -136,6 +136,10 @@ and the ready loop unchanged, and the first-person weapon visible. The console
 consumes key events (`debug_console_event`) and capture is withheld while it
 is open. Waiting on the exact steps from the user; no fix made.
 
+Follow-up (D26K, [note 363](363-d26k-console-idle-hold.md)): the holster is the
+original idle timer, which runs only in run mode (Caps Lock or Shift); this
+check was in walk mode. Fixed in D26K.
+
 ## Limits
 
 - Weapons and ammo not loaded in level 0 (holy hand grenade, dynamite, and

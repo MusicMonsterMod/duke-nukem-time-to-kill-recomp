@@ -1576,6 +1576,9 @@ are let go; one still held when you close the console acts again at once.
 The mouse is free while the console is open (moving it does not turn the view)
 and captured again when it closes. Switching to another window while the
 console is open does not change Duke's state either.
+Time in the console does not count as standing idle: Duke does not put his
+weapon away or start an idle fidget while it is open, and the idle countdown
+continues where it was when you close it.
 
 **First-person FOV.** In Modernized, **Options > Display > First-person FOV**
 is directly after Frame Rate, followed by Camera Distance (as in EDuke32's display menu). The slider ranges from **60 to 120**, in one-degree

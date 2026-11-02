@@ -126,7 +126,7 @@ With the console open every Modernized owner sees an active frame with all
 inputs released, the same as a player letting go of every key: swimming drifts
 as on release, ladders/poles hang, a push/pull grab lets go (Grab is released),
 precision aim ends (Mouse2 released), steroids and other timers keep running
-(the game is not paused). D26K (holster while the console is open) shares this
+(the game is not paused). D26K (holster while the console is open, [note 363](363-d26k-console-idle-hold.md)) shares this
 path; equipment did not change in these 10 s windows, but D26K's 60 s check
 and its cause are not part of D26J.
 

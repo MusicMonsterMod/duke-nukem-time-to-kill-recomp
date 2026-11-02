@@ -295,6 +295,7 @@ void input_release() {
 // buttons, look and queued presses are dropped (their key-ups go to the
 // console), the mouse is freed. Closing recaptures and takes still-held
 // gameplay keys from the device state, as Escape/resume does.
+bool input_console_holding() { return console_hold; }
 void input_console(bool open) {
     console_open=open;
     if(!open) {

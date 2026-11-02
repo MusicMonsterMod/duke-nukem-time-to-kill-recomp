@@ -1,5 +1,35 @@
 # Current status - 2026-10-04
 
+## 2026-11-02 - D26K accepted and closed
+
+User: "excellent work! lock it in, close it out". D26K is Done
+([note 363](363-d26k-console-idle-hold.md)): while the console
+holds input the original idle countdown (`player+0x240`) keeps its value, so
+Duke does not holster or fidget in the console (the run-mode idle holster
+took about 14 s); closing resumes the countdown, and the idle holster with
+the console closed is unchanged. Executable
+`e0714bcbd5b17717dca8c78688ef74e40f0dba42fdb9040bdfeef2c109d625e7`. No framework change.
+
+## 2026-11-02 - D26K: the console does not count as idle time (Needs playtest)
+
+Cause confirmed ([note 363](363-d26k-console-idle-hold.md)): the
+holster is the original idle sequence. `0x80053038` counts `player+0x240` down
+from 3000 whenever the pad shows no activity and, at zero, holsters an armed
+weapon (`0x8004d4a4`), then fidgets. In Modernized walk mode the Walk bit
+keeps it at 3000; in run mode (Caps Lock or Shift) the neutral pad lets it
+run, about 14 s. With the console holding input (D26J) Caps Lock stays on, so
+it ran while the console was open (reproduced: holster after 15.6 s open).
+Now `console_idle_hold()` keeps that countdown at its value while the console
+holds (resets still apply); closing resumes it, so the idle holster comes after
+the same remaining time. Executable
+`e0714bcbd5b17717dca8c78688ef74e40f0dba42fdb9040bdfeef2c109d625e7`; no framework change.
+Evidence (private slot 10 copy, real console, Caps Lock run mode): 65 s open
+with typing, third person (weapon 4) and first person (weapon 5): no holster,
+ready pose kept, first click after close fires; fists 40 s: no fidget, first
+click punches; closed: holster after 14.1 s as before; 5 s idle + 65 s open:
+holster 8.7 s after close. `ttk-controls-test` (123 groups, new D26K group
+fails without the change), `ttk-input-test` pass. Awaiting the user's check.
+
 ## 2026-11-02 - D26J accepted and closed
 
 User: "excellent work, accepted. lock it in and close it out". D26J is Done

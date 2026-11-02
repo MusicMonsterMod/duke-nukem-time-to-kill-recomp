@@ -135,6 +135,8 @@ void input_menu_poll();
 void input_release();
 // D26J: the console opens over gameplay (no new input) or closes (resume).
 void input_console(bool open);
+// D26K: the console holds gameplay input (opened over captured Modernized play).
+bool input_console_holding();
 // Pause/death lists acknowledge the menu and release capture if held.
 void input_release_for_menu();
 void input_state_loaded();

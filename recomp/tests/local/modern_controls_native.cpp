@@ -325,6 +325,8 @@ void input_offer_gameplay_capture() {++capture_offers;}
 void input_ack_commands(uint64_t) {}
 bool input_wants_initial_capture() {return want_capture;}
 bool input_running(bool){return running;}
+static bool console_holding;
+bool input_console_holding(){return console_holding;}
 static bool grab_owns;
 bool input_push_grab_owns_cross(){return grab_owns;}
 static bool reach_held;
@@ -3285,6 +3287,31 @@ int main(int argc,char** argv) {
         ttk::input.held[ttk::camera_free_look]=false;ttk::input.active=false;frame();assert(!ttk::free_look_active());
         ttk::input=saved;frame();
         std::puts("PASS: D10E separate inspection yaw, fixed facing/shot direction, translated aim eye, smooth release, immediate continuous steering recovery, repress and view/input boundaries");
+    }
+    {
+        // D26K: while the console holds input the native idle countdown
+        // (player+0x240, 0x80053038) keeps its value; activity resets still
+        // apply. The fixture models the native step (10) between updates.
+        const uint16_t saved_timer=psx_mod_read_half(p+0x240);
+        const auto saved_input=ttk::input;
+        auto timer=[&]{return unsigned(psx_mod_read_half(p+0x240));};
+        auto set=[&](unsigned v){psx_mod_write_half(p+0x240,v);};
+        auto update=[&]{++ttk::input.sequence;call(0x8005a210,p,0x800c2754,0x80041b34,0x801fff00);};
+        auto native_step=[&]{const unsigned t=timer();set(t>10?t-10:0);};
+        ttk::input.active=true;ttk::input.move_x=ttk::input.move_y=0;
+        assert(ttk::player_identity_ready());
+        set(1200);update();native_step();update();assert(timer()==1190);  // closed: the original's countdown
+        ttk::console_holding=true;update();
+        for(int i=0;i<600;++i){native_step();update();assert(timer()==1190);}
+        set(3000);update();native_step();update();assert(timer()==3000);   // a reset applies and is kept
+        ttk::console_holding=false;update();native_step();update();assert(timer()==2990); // closing resumes
+        ttk::console_holding=true;set(8);update();native_step();update();native_step();update();assert(timer()==8); // never expires
+        ++ttk::input.epoch;set(700);update();native_step();update();assert(timer()==700);  // new epoch: latched again
+        ttk::console_holding=false;
+        ttk::modern=false;ttk::console_holding=true;set(500);update();native_step();update();assert(timer()==490); // Vanilla
+        ttk::modern=true;ttk::console_holding=false;
+        ttk::input=saved_input;set(saved_timer);update();
+        std::puts("PASS: D26K console keeps the native idle countdown (no idle holster), resets apply, close resumes, epoch/Vanilla guards");
     }
     // D10 recenter: V swings yaw behind Duke's heading and pitch to the first
     // (original) follow pitch; mouse motion cancels a swing. Shoulder offsets

@@ -1,5 +1,35 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-02 - D26K accepted and closed
+
+User: "excellent work! lock it in, close it out". D26K is Done
+([note 363](documentation/363-d26k-console-idle-hold.md)): while the console
+holds input the original idle countdown (`player+0x240`) keeps its value, so
+Duke does not holster or fidget in the console (the run-mode idle holster
+took about 14 s); closing resumes the countdown, and the idle holster with
+the console closed is unchanged. Executable
+`e0714bcbd5b17717dca8c78688ef74e40f0dba42fdb9040bdfeef2c109d625e7`. No framework change.
+
+## 2026-11-02 - D26K: the console does not count as idle time (Needs playtest)
+
+Cause confirmed ([note 363](documentation/363-d26k-console-idle-hold.md)): the
+holster is the original idle sequence. `0x80053038` counts `player+0x240` down
+from 3000 whenever the pad shows no activity and, at zero, holsters an armed
+weapon (`0x8004d4a4`), then fidgets. In Modernized walk mode the Walk bit
+keeps it at 3000; in run mode (Caps Lock or Shift) the neutral pad lets it
+run, about 14 s. With the console holding input (D26J) Caps Lock stays on, so
+it ran while the console was open (reproduced: holster after 15.6 s open).
+Now `console_idle_hold()` keeps that countdown at its value while the console
+holds (resets still apply); closing resumes it, so the idle holster comes after
+the same remaining time. Executable
+`e0714bcbd5b17717dca8c78688ef74e40f0dba42fdb9040bdfeef2c109d625e7`; no framework change.
+Evidence (private slot 10 copy, real console, Caps Lock run mode): 65 s open
+with typing, third person (weapon 4) and first person (weapon 5): no holster,
+ready pose kept, first click after close fires; fists 40 s: no fidget, first
+click punches; closed: holster after 14.1 s as before; 5 s idle + 65 s open:
+holster 8.7 s after close. `ttk-controls-test` (123 groups, new D26K group
+fails without the change), `ttk-input-test` pass. Awaiting the user's check.
+
 ## 2026-11-02 - D26J accepted and closed
 
 User: "excellent work, accepted. lock it in and close it out". D26J is Done
@@ -127,7 +157,7 @@ Acceptance (private save copies; offscreen first, then the user's check):
 
 ### D26K - No weapon holster while the console is open
 
-**Status: Todo. Dependencies: D26 (console). Shares the console input path
+**Status: Done (user-accepted 2026-11-02; [note 363](documentation/363-d26k-console-idle-hold.md)). Dependencies: D26 (console). Shares the console input path
 with D26J (likely fixed together, tested separately).** Priority low-medium.
 
 Observed (user, reported again after D08A33): with the console open, Duke
@@ -3503,7 +3533,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D26H | Spawned weapons land far enough ahead that Duke does not pick them up at once | Done (user-accepted 2026-11-02) | D26E |
 | D26I | Console: numpad digits (and keypad keys) type into the console | Todo | D26, D26G |
 | D26J | Console keeps Duke's movement state (toggle crouch, jetpack flight) while open | Done (user-accepted 2026-11-02) | D26, D26B, D08K, D08Q |
-| D26K | No weapon holster while the console is open | Todo | D26 (shares D26J's console input path) |
+| D26K | No weapon holster while the console is open | Done | D26 (shares D26J's console input path) |
 | D27 | Caps Lock RUN MODE quotes; Shift-run clunk silence deferred | Done (quotes); clunk deferred low-priority | D04, D19A |
 | D27A | Modern Shift/run is silent: remove the walk/run toggle click `0x0001` from the Shift path, keep the D08A10 heartbeat | Done (user-accepted) | D27, D08A10 |
 | D28 | Scroll Lock holster and WEAPON LOWERED/RAISED quotes | Done | D04, D19A |

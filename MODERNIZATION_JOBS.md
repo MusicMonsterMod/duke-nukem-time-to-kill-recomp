@@ -105,7 +105,7 @@ all HUD scales; tracked or disc-derived sources per D24A; Vanilla unchanged.
 
 ### D14H - Jetpack first-person arms: FOV-independent viewmodel projection
 
-**Status: Todo. Dependencies: D14B, D14G, D36K1, D11F.** In first-person
+**Status: Done (user-accepted 2026-11-02). Dependencies: D14B, D14G, D36K1, D11F.** In first-person
 jetpack flight Duke's disembodied arms do not appear to use the safe
 viewmodel projection introduced with the wider field of view. Review the arms
 during flight and give them the same projection.
@@ -122,6 +122,33 @@ notes (305/306) first, per AGENTS.md.
 **Acceptance:** jetpack arms (unarmed and armed, every flight pose and lean)
 keep the same size and framing at every world FOV, with no disembodied or
 clipped segments; ground, swim and other arms unchanged; the user's playtest.
+
+Work log 2026-11-02: cause confirmed. D36K1 claims empty-handed flight arms as
+`Body` (world projection) while flight legs and armed display arms use the
+fixed H=256 projection; since FOV 90 became the default (H=160) the arms draw
+at about 62% of their accepted framing (36% at FOV 120), shrinking toward the
+centre and exposing open upper-arm ends when looking down. New owner
+`FlightArm` keeps Body's world depth/clipping/fade and takes the fixed
+projection; armed flight was already correct. Native suites pass (flight
+group and D14B packet group extended). Live slot-8 LEVEL05 flight, FOV
+60/90/120 at 60 Hz and FOV 120 at 120 Hz: identical arm framing at every FOV,
+connected with the legs, armed unchanged; replay zero failures. Limits: one
+route, default costume, corner slices at steep pitch as in D36K1.
+[Note 358](documentation/358-d14h-jetpack-arm-projection.md).
+
+Revision 2 (2026-11-02), after the user's first look: "they dont seem to move
+with duke if you turn left and right quickly", "duke's whole body in fact
+really", "and crouching i suppose too". Gameplay heading already follows the
+mouse each game update; the late camera turns each redraw while Duke's
+skeleton is interpolated at 30 Hz, so his body trailed fast turns. Late
+first-person redraws now draw Duke alone through his interpolated yaw at the
+late pitch (equivalent to turning his whole body to the mouse yaw), in every
+first-person state, holstered or armed. Fixed-offset redraw test at 120 Hz:
+old build swings arms/legs, new holds them; replay zero failures; native
+suites pass. Needs the user's live turn playtest.
+
+Accepted 2026-11-02 (revision 2). User: "that's a winner. lock it in and
+close it out". Closeout, commit and push authorized.
 
 ### D35D1 - First-person push/pull: a steady grab, not the native turn-and-shove arms
 
@@ -2857,7 +2884,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D14B | Decouple first-person weapon/arms presentation from world FOV | Done (user-accepted 2026-10-28) | D14A foundation |
 | D14C | Investigate first-person leg presentation across world FOV | Done (user-accepted 2026-10-28) | D14A, D14B |
 | D14G | Holstered swimming arms look disembodied in first person | Done (user-accepted 2026-11-01) | D11E, D36H4, D14B, D08O5 |
-| D14H | Jetpack first-person arms use the FOV-independent viewmodel projection | Todo | D14B, D14G, D36K1, D11F |
+| D14H | Jetpack first-person arms use the FOV-independent viewmodel projection | Done (user-accepted 2026-11-02) | D14B, D14G, D36K1, D11F |
 | D15 | Optional geometry and texture precision | Done (user-accepted; closed 2026-10-30) | D13 |
 | D16 | Texture manipulation and replacement foundation | Done (bounded foundation accepted 2026-10-27) | D13 |
 | D16A | HRP assets and first-person weapon research (later) | Cancelled (original assets preferred) | - |

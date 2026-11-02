@@ -376,13 +376,14 @@ uint64_t captures=0,publishes=0,submits=0,presented=0,reused=0,no_job=0,failures
 struct Params {
     uint32_t magic;
     float alpha;
-    uint32_t flags;          // 1 = camera fields present, 4 = loading image (logo angle)
+    uint32_t flags;          // 1 = camera fields present, 4 = loading image (logo angle), 8 = body camera
     uint32_t nmats;          // matrix patches following the header
     CameraState camera;
     uint32_t render_len;     // draw-time host state after the patches
     uint32_t nxf;            // transform substitutions after the render state
     NearClipFrameState near; // D17A: the live frame's near clip accounting
     int32_t logo;            // D17U: logo angle to show (flag 4)
+    int16_t body_rot[9],body_view[9]; // D14H: Duke's own draw (flag 8)
 };
 struct MatPatch {uint32_t addr; Mat mat;};
 constexpr uint32_t params_max=60000;
@@ -698,6 +699,23 @@ bool apply_late(const InterpState& a,const InterpState& b,double alpha,Params& p
     for(int i=0;i<9;++i) {
         c.rot[i]=(int16_t)std::lround(rl[i]*4096);
         c.view[i]=(int16_t)std::lround(std::clamp(rl[i]*vs[i/3],-32768.0,32767.0));
+    }
+    // D14H: in first person Duke faces the view yaw at every game frame, but
+    // his skeleton is interpolated between game frames while the late view
+    // turns at the present rate, so on fast turns his body trailed the view
+    // and caught up at the next game frame. Draw Duke alone through the
+    // interpolated yaw at the late pitch, about the same eye: identical to
+    // turning his whole body to the late yaw. Gameplay heading, aim and the
+    // world are untouched. DNTTK_LATE_BODY=0 (developer) keeps the old draw.
+    static const bool body=[]{const char* t=std::getenv("DNTTK_LATE_BODY");return !(t && t[0]=='0' && !t[1]);}();
+    if(eye && body) {
+        const double gy=std::atan2(ra[6],ra[8]),by=std::sin(gy),bx=std::cos(gy);
+        const double rb[9]={bx,0,-by,-by*sp,cp,-bx*sp,by*cp,sp,bx*cp};
+        for(int i=0;i<9;++i) {
+            p.body_rot[i]=(int16_t)std::lround(rb[i]*4096);
+            p.body_view[i]=(int16_t)std::lround(std::clamp(rb[i]*vs[i/3],-32768.0,32767.0));
+        }
+        p.flags|=8;
     }
     return true;
 }
@@ -1048,6 +1066,8 @@ void capture(CPUState* cpu,int kind) {
 
 // Worker process: draw a published frame (memory and CPU already loaded).
 const uint8_t* sub_table=nullptr; uint32_t sub_n=0, sub_cursor=0;
+// D14H: the late and body cameras for this redraw (replay_body_camera).
+struct BodyCamera {bool valid=false,body=false; int16_t rot[2][9],view[2][9];} body_camera;
 int worker_draw(CPUState* source,const void* params,uint32_t len) {
     const uint64_t quality_start=quality_profile()?SDL_GetPerformanceCounter():0;
     quality_actor_start=quality_actor_ticks=quality_actor_count=0;
@@ -1071,6 +1091,12 @@ int worker_draw(CPUState* source,const void* params,uint32_t len) {
             for(int i=0;i<3;++i) psx_mod_write_word(camera_base+0x34+4*i,(uint32_t)p.camera.view_t[i]);
         }
         if(cam_mask&8) for(int i=0;i<3;++i) psx_mod_write_word(camera_base+0x14+4*i,(uint32_t)p.camera.pos[i]);
+        body_camera={};
+        if((p.flags&8) && (cam_mask&5)==5) {
+            body_camera.valid=true;
+            std::memcpy(body_camera.rot[0],p.camera.rot,sizeof p.body_rot);std::memcpy(body_camera.view[0],p.camera.view,sizeof p.body_view);
+            std::memcpy(body_camera.rot[1],p.body_rot,sizeof p.body_rot);std::memcpy(body_camera.view[1],p.body_view,sizeof p.body_view);
+        }
         // The camera update (0x8003ade4) stores the eye's room from
         // 0x80039dd0(target position, eye, target room, previous room), which
         // walks portals from Duke to the eye. Between two frames in different
@@ -1146,7 +1172,7 @@ int worker_draw(CPUState* source,const void* params,uint32_t len) {
         }
     }
     g_psx_call_bail=0;
-    sub_table=nullptr; sub_n=0;
+    sub_table=nullptr; sub_n=0; body_camera={};
     static const bool log=std::getenv("DNTTK_REPLAY_LOG")!=nullptr;
     if(log) {
         uint64_t nc1[8]; near_clip_counters(nc1);
@@ -1737,6 +1763,16 @@ void composition_end(CPUState* cpu,uint32_t) {
     rec_frame=nullptr;
 }
 } // namespace
+// D14H: Duke's own actor draw in a late first-person redraw uses the body
+// camera; every other draw (world, reflection, other actors) the late one.
+void replay_body_camera(bool duke) {
+    if(!body_camera.valid || body_camera.body==duke) return;
+    body_camera.body=duke;
+    for(int i=0;i<9;++i) {
+        psx_mod_write_half(camera_base+2*i,(uint16_t)body_camera.rot[duke][i]);
+        psx_mod_write_half(camera_base+0x20+2*i,(uint16_t)body_camera.view[duke][i]);
+    }
+}
 
 // D19G: FRAME RATE confirmed in the in-game OPTIONS. D19G1: from any launch
 // rate. 60 stops replay presentation and returns to the original present path

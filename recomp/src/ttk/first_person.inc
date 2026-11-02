@@ -683,6 +683,7 @@ static void weapon_draw_bounds(bool duke_entry,bool list_step_after_duke) {
         !psx_mod_read_half(0x800d2540);
     if(duke_entry) weapon_duke_draw=true;
     if(list_step_after_duke) weapon_duke_draw=false;
+    replay_body_camera(duke_entry); // D14H: no-op outside late first-person redraws
     if(duke_entry || list_step_after_duke) {display_hand_done=false;weapon_release();near_clip_viewmodel_flush();}
     if(mask && psx_mod_read_half(player+0x35e) && psx_mod_read_half(player+0x854)==2)
         near_clip_biomask(bob_dip,biomask_light);
@@ -1560,11 +1561,13 @@ static void first_person_weapon_joint(CPUState* cpu,uint32_t ra) {
         const bool unarmed=psx_mod_read_byte(player+0x3b8)==0;
         // D36K1: flight arms use native world poses and safe clipping too.
         // Keep flight legs and the grounded-only lowering outside this policy.
+        // D14H: they also take the display projection (H=256), like the
+        // legs and armed display arms, so world FOV never resizes them.
         const bool flying=fp_policy.action==PerspectiveAction::Jetpack;
         if(((!flying && ((part>=0 && part<=int(part_spine)) || part==21)) ||
             (unarmed && part>=10 && part<=15)) && mats>=0x80010000 && mats<=0x801ffd80 &&
            cpu->gpr[5]==mats+0x20*cpu->gpr[23]) {
-            limb_claim(cpu,LimbOwner::Body,part,true);
+            limb_claim(cpu,flying?LimbOwner::FlightArm:LimbOwner::Body,part,true);
             if(part==int(part_spine)) first_person_torso_matrix(cpu,desc,mats);
             if(!flying && unarmed && part>=10 && part<=15) {
                 // D36H6: direct unarmed loads at 60 Hz can precede both a

@@ -1,5 +1,28 @@
 # Current status - 2026-10-04
 
+## 2026-11-02 - D14H accepted and closed
+
+User: "that's a winner. lock it in and close it out." D14H is Done at
+revision 2 ([note 358](358-d14h-jetpack-arm-projection.md)): empty-handed
+flight arms on the fixed display projection, and in every first-person state
+Duke's whole body turns with the mouse between game frames. Executable
+`e20f64960237792afb450a9c0d6db47c797083e131753c226a4b238679458457`.
+No framework change; the accepted framework patch is unchanged.
+
+## 2026-11-02 - D14H: jetpack arms on the fixed display projection (Needs playtest)
+
+Empty-handed first-person flight arms now use the fixed H=256 projection like
+the flight legs and armed display arms (new `FlightArm` owner; world depth,
+clipping and fade unchanged), so world FOV no longer shrinks them or exposes
+the upper-arm ends. Native suites pass; slot-8 LEVEL05 flight verified at FOV
+60/90/120 (60 Hz) and FOV 120 (120 Hz). Awaiting the user's playtest
+([note 358](358-d14h-jetpack-arm-projection.md)).
+
+Revision 2: in every first-person state Duke's whole body now turns with the
+mouse between game frames (late redraws draw Duke through his interpolated
+yaw at the late pitch; gameplay unchanged; `DNTTK_LATE_BODY=0` compares).
+Executable `e20f64960237792afb450a9c0d6db47c797083e131753c226a4b238679458457`.
+
 ## 2026-11-02 - D08Q10 accepted and closed; backlog intake D08G7-D08G9, D08A32, D14H, D35D1
 
 User: "that's the one!! you absolutely got it. the feature is perfect now" and "i accept this job at hand" (2026-11-02), with closeout authorized. D08Q10 is Done at revision 10

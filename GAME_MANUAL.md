@@ -1019,6 +1019,10 @@ Space ascends, Ctrl dives, and E remains the way to climb out. MANTLE VIEW choos
 First person also stays active during jetpack takeoff, flight and landing
 with Modern, Classic and EDuke32 flight controls. The eye stays centered above
 Duke through flight lean; aiming and the crosshair work as on the ground.
+With empty hands his arms keep the same screen size and framing at every
+world FOV, like the weapon view and his legs.
+In Modernized first person Duke's whole body turns with the mouse at the
+display rate, so his arms and legs stay with the view on fast turns.
 Plain ladders retain first person by default, with LADDER VIEW offering the
 existing third-person camera. Chains and poles also retain first person by
 default, with CHAIN/POLE VIEW offering third person. Ledges retain first person

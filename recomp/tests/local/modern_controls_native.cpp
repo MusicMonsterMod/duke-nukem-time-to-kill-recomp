@@ -270,6 +270,7 @@ namespace ttk {bool anim_extra_clip(unsigned clip,uint32_t& first,uint32_t& coun
 namespace ttk {int replay_load_window(int window){return window==1 ? -1 : 0;}}
 namespace ttk {bool live_frame_redraw_only(){return false;}}
 namespace ttk {int replay_audio_low(){return 0;}}
+namespace ttk {void replay_body_camera(bool){}} // D14H: replay workers only
 extern "C" int psx_audio_out_stats(double*,double*,uint64_t*,uint64_t*,double*,int* legacy,int*){*legacy=1;return 0;}
 extern "C" void ttk_fast_timing_renew(void) {}
 static uint32_t save_loads;
@@ -5907,6 +5908,7 @@ int main(int argc,char** argv) {
                             call(0x8001ca4c,0x800d0000,0,0x800376b4);
                             // D36K1: flight admits only empty-handed arm chains,
                             // never legs, and preserves native flight transforms.
+                            // D14H: with world depth but the fixed display projection.
                             const auto equipment=psx_mod_read_byte(p+0x3b8);
                             const std::vector<uint8_t> original(ram+(mats&0x1fffff),ram+(mats&0x1fffff)+19*0x20);
                             for(unsigned equip:{0u,1u,2u}) for(unsigned j=0;j<19;++j) {
@@ -5917,9 +5919,10 @@ int main(int argc,char** argv) {
                                 hooks().at(0x800292a0)(&cpu,0x800292a0);
                                 const auto limb=ttk::first_person_limb_presentation();
                                 const bool arm=equip==0 && parts[j]>=10 && parts[j]<=15;
-                                assert((limb.owner==ttk::LimbOwner::Body)==arm);
+                                assert((limb.owner==ttk::LimbOwner::FlightArm)==arm && limb.owner!=ttk::LimbOwner::Body);
                                 if(arm) {
                                     assert(cpu.gpr[5]==mats+0x20*j && limb.world_clip() && !limb.viewmodel());
+                                    assert(limb.fixed_projection() && limb.light==ttk::LimbLight::CorrectProximityFade);
                                     assert(limb.bridge_joint_depth && limb.parts==(1u<<parts[j]));
                                     cpu.gpr[31]=0x80034c8c;cpu.gte_ctrl[26]=256;cpu.gpr[16]=0;
                                     psx_mod_write_word(cpu.gpr[29]+0x98,c);

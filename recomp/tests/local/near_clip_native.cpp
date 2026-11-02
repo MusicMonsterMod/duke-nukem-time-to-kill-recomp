@@ -591,12 +591,13 @@ static void packet_contracts(const char* executable) {
     {
         live_eye=true;test_viewmodel=true;
         for(auto owner:{ttk::LimbOwner::DisplayHand,ttk::LimbOwner::DisplayArm,
-                       ttk::LimbOwner::Interaction,ttk::LimbOwner::Body,ttk::LimbOwner::Kick,ttk::LimbOwner::Legs}) {
+                       ttk::LimbOwner::Interaction,ttk::LimbOwner::Body,ttk::LimbOwner::Kick,ttk::LimbOwner::Legs,
+                       ttk::LimbOwner::FlightArm}) {
             test_owner=owner;
             for(int part:{1,2,3,4,5,6,7,8,21}) for(int margin:{0,85,192}) {
                 test_part=part;test_margin=margin;
                 const bool fixed=owner==ttk::LimbOwner::DisplayHand || owner==ttk::LimbOwner::DisplayArm ||
-                    owner==ttk::LimbOwner::Kick || owner==ttk::LimbOwner::Legs;
+                    owner==ttk::LimbOwner::Kick || owner==ttk::LimbOwner::Legs || owner==ttk::LimbOwner::FlightArm;
                 object_case(0x80034dd0,100,true,false,0,500);
                 const auto baseline=host_corners;assert(!baseline.empty());
                 for(int h:{160,177,191,209,256,277}) {
@@ -615,7 +616,7 @@ static void packet_contracts(const char* executable) {
         }
         test_part=0x0f;test_owner=ttk::LimbOwner::DisplayHand;test_viewmodel=false;test_margin=85;
         ttk::near_clip_load_frame_state({0,0,0,0});
-        std::puts("PASS: D14B/D36J4 fixed display/Q/door projection, world/contact exclusion, UV/depth and GTE preservation at three aspects");
+        std::puts("PASS: D14B/D36J4/D14H fixed display/Q/door/flight-arm projection, world/contact exclusion, UV/depth and GTE preservation at three aspects");
     }
     // D17AB: a mirror can leave the native OT empty while each arm/weapon
     // mesh queues host packets. More than four meshes must not wrap the arena

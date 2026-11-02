@@ -448,6 +448,16 @@ static void crouch_jump_press() {
     crouch_cancel_held=binds[crouch] && action_down(crouch);
     jump_deadline=jump_pressed_at=0;
 }
+// D08Q11: a ground jetpack start stands Duke up into the lift, as a crouch
+// jump does: the C stance ends and a crouch key already held stays ignored
+// until released, so neither reads as Descend on the first flight update
+// (this update's published frame included).
+void input_jetpack_started(bool ground) {
+    const bool latched=crouch_latched;
+    crouch_latched=false;
+    if(ground && action_down(crouch)) crouch_cancel_held=true;
+    if(latched || ground) frame.held[crouch]=crouch_down();
+}
 static bool crouch_binding_event(int code) {
     return code==binds[crouch] ||
         (binds[crouch]==SDL_SCANCODE_LSHIFT && code==SDL_SCANCODE_RSHIFT) ||

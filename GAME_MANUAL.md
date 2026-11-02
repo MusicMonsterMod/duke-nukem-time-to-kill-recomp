@@ -1151,7 +1151,11 @@ strokes keep going while the weapon comes out. Vanilla keeps the original
 (holstered fire does nothing in water). First person stays active in the water (D11E).
 
 **Modernized jetpack**: **J** immediately starts flight. From the ground it
-gives a short automatic lift, then hovers. During a jump or fall it arrests
+gives a short automatic lift, then hovers. Crouching (**C** or a held
+**Ctrl**), Duke stands up into the same lift and hover: the **C** crouch ends,
+and a **Ctrl** still held from the crouch does not descend until you release it
+and press it again. Where there is no room to stand, **J** does nothing and Duke
+stays crouched. During a jump or fall it arrests
 vertical movement and holds the activation height, without the ground boost.
 **Space** climbs further. A quick J-off/J-on can restart flight while the pack is still
 closing. In the air the **mouse** turns Duke and the

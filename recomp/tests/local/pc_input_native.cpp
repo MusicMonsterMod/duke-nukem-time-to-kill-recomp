@@ -324,6 +324,25 @@ int main() {
     alive=false;CHECK(!tick().held[ttk::crouch]);alive=true;CHECK(!tick().held[ttk::crouch]);
     key(SDL_SCANCODE_C,true);key(SDL_SCANCODE_C,false);CHECK(tick().held[ttk::crouch]);
     jet=true;CHECK(!tick().held[ttk::crouch]);jet=false;CHECK(!tick().held[ttk::crouch]);
+    // D08Q11: a ground jetpack start ends the C stance in the frame already
+    // published, and a Ctrl held from before stays ignored until released.
+    {
+        const auto& now=ttk::input_snapshot(ttk::Context::Gameplay);
+        key(SDL_SCANCODE_C,true);key(SDL_SCANCODE_C,false);CHECK(tick().held[ttk::crouch]);
+        ttk::input_jetpack_started(true);CHECK(!now.held[ttk::crouch]);
+        jet=true;CHECK(!tick().held[ttk::crouch]);jet=false;CHECK(!tick().held[ttk::crouch]); // landed: standing
+        key(SDL_SCANCODE_LCTRL,true);CHECK(tick().held[ttk::crouch]);
+        ttk::input_jetpack_started(true);CHECK(!now.held[ttk::crouch]);
+        jet=true;for(int i=0;i<5;++i)CHECK(!tick().held[ttk::crouch]);
+        key(SDL_SCANCODE_LCTRL,true,true);CHECK(!tick().held[ttk::crouch]);
+        key(SDL_SCANCODE_LCTRL,false);CHECK(!tick().held[ttk::crouch]);
+        key(SDL_SCANCODE_LCTRL,true);CHECK(tick().held[ttk::crouch]); // a fresh press descends
+        key(SDL_SCANCODE_LCTRL,false);jet=false;CHECK(!tick().held[ttk::crouch]);
+        // Airborne start: the stance ends, a held Ctrl still descends.
+        key(SDL_SCANCODE_C,true);key(SDL_SCANCODE_C,false);key(SDL_SCANCODE_LCTRL,true);CHECK(tick().held[ttk::crouch]);
+        ttk::input_jetpack_started(false);CHECK(now.held[ttk::crouch]);
+        key(SDL_SCANCODE_LCTRL,false);CHECK(!tick().held[ttk::crouch]);
+    }
     for(bool* state : {&d21_swimming,&d21_underwater,&traversal,&trav_camera}) {
         key(SDL_SCANCODE_C,true);key(SDL_SCANCODE_C,false);CHECK(tick().held[ttk::crouch]);
         *state=true;CHECK(!tick().held[ttk::crouch]);*state=false;CHECK(!tick().held[ttk::crouch]);
@@ -1112,7 +1131,7 @@ int main() {
     CHECK(!tick().active && ttk::input_pad()==0xffff);
     SDL_DestroyWindow(win);
     SDL_Quit();
-    std::puts("PASS: independent movement, normalized diagonals, context isolation, mouse deltas, focus loss, repeat suppression, Escape/pause/inventory release, menu fallback, overlay capture guard, no implicit tank fallback, explicit persistent control scheme, F7 savestate recapture and fresh-offer capture, D08T1 hold-to-grab (E mantles, RMB/Alt grab latch, push-pull, release, fresh press, holster, legacy precision aim), D08U ladder-top E request, hint and S descent Cross, D08J1 one ladder leap jump per E hold, reach held through the leap, D08J5 Ctrl and S-at-the-end let go of a pole or chain, D19D menu Escape/Backspace/Enter/V/wheel per screen with latched buttons, D20 quick save / load and F2 / F3 keys, D26J console input hold");
+    std::puts("PASS: independent movement, normalized diagonals, context isolation, mouse deltas, focus loss, repeat suppression, Escape/pause/inventory release, menu fallback, overlay capture guard, no implicit tank fallback, explicit persistent control scheme, F7 savestate recapture and fresh-offer capture, D08T1 hold-to-grab (E mantles, RMB/Alt grab latch, push-pull, release, fresh press, holster, legacy precision aim), D08U ladder-top E request, hint and S descent Cross, D08J1 one ladder leap jump per E hold, reach held through the leap, D08J5 Ctrl and S-at-the-end let go of a pole or chain, D19D menu Escape/Backspace/Enter/V/wheel per screen with latched buttons, D20 quick save / load and F2 / F3 keys, D26J console input hold, D08Q11 jetpack start ends the crouch");
 }
 
 namespace ttk { bool directional_takeoff_ready(){return preparing;} bool edge_jump_queued(){return edge_queued;}

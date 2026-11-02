@@ -317,6 +317,7 @@ static bool modern;
 static bool running, jump_pending, auto_stow;
 bool input_auto_stow_pending(){return auto_stow;}
 bool input_jump_pending(){return jump_pending;}
+void input_jetpack_started(bool){}
 bool input_take_jump(){bool result=jump_pending;jump_pending=false;return result;}
 bool input_take_swim_redraw(){return false;}
 static bool want_capture;
@@ -577,7 +578,30 @@ int main(int argc,char** argv) {
         ttk::input.sequence+=2;camera();call(0x8005a210,p,0x800c2754,0x80041b34,0x801fff00);
         psx_mod_write_byte(p+0x22c,0);psx_mod_write_half(p+0x60,105);poll();
         assert(psx_mod_read_byte(p+0x22c)==0 && psx_mod_read_half(p+0x60)==105 && !(psx_mod_read_half(p+0x358)&2));
-        std::puts("PASS: D08S instant ground/air toggles, 61-second fuel, god mode, landing and safety gates; D08Q10 starts under water and from surface/underwater swim (deferred to the update entry, epoch-dropped), surface lifting like the ground, underwater holding until Space, off straight to underwater swimming, bubbles and held breath only with the head under water, native surfacing sounds once, fuel-out and native cut-out under water straight to swimming");return 0;
+        // D08Q11: from a kneel (178) Duke stands up into the lift: the root
+        // (pelvis) rises to the standing height over the feet before the
+        // flight envelope is used. No standing room: the pack stays closed.
+        {
+            ttk::input.sequence+=2;camera();
+            psx_mod_write_byte(p+0x22d,0);psx_mod_write_half(p+0x60,178);psx_mod_write_word(p+0x224,0);
+            psx_mod_write_word(p+0x1c8,(uint32_t)-1000);psx_mod_write_word(p+8,(uint32_t)-1282);
+            clearance_result=2048;lookahead_drop=-100000;hull_object=0;
+            bool close=false;auto say=[](const char*){};
+            assert(ttk::crouch_console_command("crouchstand block",say,close));
+            toggle();assert(psx_mod_read_byte(p+0x22c)==0 && psx_mod_read_half(p+0x60)==178 &&
+                            (int32_t)psx_mod_read_word(p+8)==-1282 && !(psx_mod_read_half(p+0x358)&2));
+            assert(ttk::crouch_console_command("crouchstand free",say,close));
+            toggle();assert(psx_mod_read_byte(p+0x22c)==10 && psx_mod_read_half(p+0x60)==163 &&
+                            (int32_t)psx_mod_read_word(p+8)==-1515);
+            update(2);assert((int32_t)psx_mod_read_word(p+0x1f8)<0); // lifts with no Space
+            toggle();assert(psx_mod_read_byte(p+0x22c)==9);
+            // Standing (63): the root is untouched.
+            psx_mod_write_byte(p+0x22c,0);psx_mod_write_byte(p+0x22d,0);psx_mod_write_half(p+0x60,63);
+            psx_mod_write_word(p+0x224,0);psx_mod_write_word(p+8,(uint32_t)-1400);
+            toggle();assert(psx_mod_read_byte(p+0x22c)==10 && (int32_t)psx_mod_read_word(p+8)==-1400);
+            toggle();
+        }
+        std::puts("PASS: D08Q11 kneeling start stands into the lift, refused without standing room; D08S instant ground/air toggles, 61-second fuel, god mode, landing and safety gates; D08Q10 starts under water and from surface/underwater swim (deferred to the update entry, epoch-dropped), surface lifting like the ground, underwater holding until Space, off straight to underwater swimming, bubbles and held breath only with the head under water, native surfacing sounds once, fuel-out and native cut-out under water straight to swimming");return 0;
     }
     // D08Q3: actual flight eligibility retains overlay, camera, capture and
     // alive checks, and never enables ground movement/air-steering writes.

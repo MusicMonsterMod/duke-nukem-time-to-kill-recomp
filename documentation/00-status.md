@@ -1,5 +1,31 @@
 # Current status - 2026-10-04
 
+## 2026-11-02 - D08Q11 accepted and closed; D17AZ added
+
+User: "this job is now complete and I'm very happy with the results so it's
+fully accepted". D08Q11 is Done
+([note 364](364-d08q11-crouch-jetpack-start.md)): from a C
+crouch or a held Ctrl, J stands Duke up into the normal lift with no Space;
+there is no start without room to stand. Executable
+`8c9b31d2a33c8e613661625683e098d43be95e7ee4190a0b725ff75ded84612a`. No
+framework change. New backlog (not started): D17AZ, the slot-12 train vanishes
+at the edge of the view. Brief investigation: the game draws objects from the
+room/portal list, much like sectors, and the object pass still uses the
+game's own list (hypothesis to confirm).
+
+## 2026-11-02 - D08Q11: jetpack lifts off directly from a crouch (Needs playtest)
+
+From C crouch or held Ctrl, J now stands Duke up into the normal lift
+([note 364](364-d08q11-crouch-jetpack-start.md)). Two confirmed causes: the crouch read as Descend on the
+first flight update, and the kneeling root (pelvis 282 above the feet, about
+515 standing) put the flight envelope into the floor so Duke landed at once.
+A ground start from a crouch now needs standing room (else J does nothing),
+raises the root to standing height and ends the C stance; a Ctrl held from
+the crouch is ignored until released. Executable
+`8c9b31d2a33c8e613661625683e098d43be95e7ee4190a0b725ff75ded84612a`. Offscreen
+probe (third person 60 Hz, first person 180 Hz) and native suites pass. No
+framework change. Awaiting the user's check.
+
 ## 2026-11-02 - D26K accepted and closed
 
 User: "excellent work! lock it in, close it out". D26K is Done

@@ -94,6 +94,8 @@ static bool jet_fuel_pending;
 // Move through native velocity/collision, never by teleporting the root.
 static constexpr float k_jet_start_lift=640.f;
 static constexpr uint64_t k_jet_start_fields=20;
+// D08Q11: standing idle pelvis above the feet (animation 63 bobs 506..525).
+static constexpr int32_t k_jet_stand_pelvis=515;
 static bool jet_lift_active;
 static bool jet_head_under; // D08Q10 surfacing: head under the water last update
 static uint64_t jet_lift_frame,jet_lift_epoch;
@@ -193,7 +195,14 @@ static bool jet_instant_toggle(CPUState* cpu) {
        ((owned&0x8000) && !closing) || (int16_t)psx_mod_read_half(player+0x35a)<=0)return false;
     if(guest_busy || cpu->gpr[29]<0x801f4000 || cpu->gpr[29]>0x801ffff0 ||
        g_precise_mode || g_ls_mode || g_psx_call_bail)return false;
-    const int32_t start_y=(int32_t)psx_mod_read_word(player+8);
+    // D08Q11: from a crouch (C stance or held Ctrl) Duke stands up into the
+    // lift. The root is his pelvis (feet +0x1c8 minus the pose's height), so a
+    // kneeling start puts the flight envelope's feet into the floor and the
+    // first update lands him again. Without standing room (D08K7's 0x370
+    // clearance) the pack stays closed and he keeps crouching.
+    const bool kneeling=mode==0 && crouch_pose(psx_mod_read_half(player+0x60));
+    if(kneeling && !crouch_stand_room(cpu))return false;
+    int32_t start_y=(int32_t)psx_mod_read_word(player+8);
     int32_t water_floor=0;
     const bool water_start=jet_water_floor(water_floor) && start_y>water_floor;
     // 800402d0 refuses swim states and a root under the water level. Present
@@ -218,6 +227,11 @@ static bool jet_instant_toggle(CPUState* cpu) {
     psx_mod_write_word(player,psx_mod_read_word(player)&~0x20u);
     psx_mod_write_word(player+0x224,psx_mod_read_word(player+0x224)&~0x88000041u);
     jet_eduke_pose(163,10); // authenticated native entry's lower-body setup
+    input_jetpack_started(mode==0);
+    if(kneeling) {
+        const int32_t standing=(int32_t)psx_mod_read_word(player+0x1c8)-k_jet_stand_pelvis;
+        if(standing<start_y) {start_y=standing;psx_mod_write_word(player+8,(uint32_t)start_y);}
+    }
     jet_fall_grace=false;
     // Ground starts lift off; airborne starts arrest vertical motion and
     // capture the current height without replaying the ground launch boost.

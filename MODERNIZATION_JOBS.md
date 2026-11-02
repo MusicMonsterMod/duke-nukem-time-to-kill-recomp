@@ -1,5 +1,41 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-02 - D08Q11 accepted and closed; D17AZ added
+
+User: "this job is now complete and I'm very happy with the results so it's
+fully accepted". D08Q11 is Done
+([note 364](documentation/364-d08q11-crouch-jetpack-start.md)): from a C
+crouch or a held Ctrl, J stands Duke up into the normal lift with no Space;
+there is no start without room to stand. Executable
+`8c9b31d2a33c8e613661625683e098d43be95e7ee4190a0b725ff75ded84612a`. No
+framework change. New backlog (not started): D17AZ, the slot-12 train vanishes
+at the edge of the view. Brief investigation: the game draws objects from the
+room/portal list, much like sectors, and the object pass still uses the
+game's own list (hypothesis to confirm).
+
+## 2026-11-02 - D08Q11: jetpack lifts off directly from a crouch (Needs playtest)
+
+Cause confirmed, two parts ([note 364](documentation/364-d08q11-crouch-jetpack-start.md)).
+From C crouch (or held Ctrl) J opened the pack, but (1) the crouch was still
+in the published frame and read as Descend, which ends the start lift, and
+(2) Duke's root is his pelvis, 282 above the feet kneeling against about 515
+standing, so the flight envelope's feet started 233 units into the floor and
+the native collision landed him at once (pack open on the ground until Space).
+Fix: a ground start from a crouch pose checks D08K7's standing clearance
+(refused without room: Duke stays crouched, pack closed), raises the root to
+the standing height and lifts from there (`jetpack.inc`); every start ends the
+C stance in the current frame, and a ground start ignores a crouch key held
+from before until it is released (`input_jetpack_started`, `pc_input.cpp`).
+Classic and Vanilla do not use this path. No framework change. Executable
+`8c9b31d2a33c8e613661625683e098d43be95e7ee4190a0b725ff75ded84612a`.
+Evidence: offscreen probe on a private card copy (slot 11), third person 60 Hz
+and first person 180 Hz: standing, C crouch and held Ctrl all lift directly
+and hover within the standing run-to-run spread; climb, descent, landing to
+standing (latch off) and walking unchanged; `crouchstand block` refuses and
+`free` lifts. `ttk-input-test` and `ttk-controls-test` (with new D08Q11
+groups, default and EDuke32 runs) pass. Not played: a real low ceiling (the
+base game has none that forces a crouch). Awaiting the user's check.
+
 ## 2026-11-02 - D26K accepted and closed
 
 User: "excellent work! lock it in, close it out". D26K is Done
@@ -192,7 +228,7 @@ gadget, first and third person):
 
 ### D08Q11 - Jetpack lifts off directly from toggle-crouch
 
-**Status: Todo. Dependencies: D08Q (jetpack), D08S (instant jetpack), D08K
+**Status: Done (user-accepted 2026-11-02; [note 364](documentation/364-d08q11-crouch-jetpack-start.md)). Dependencies: D08Q (jetpack), D08S (instant jetpack), D08K
 (crouch, C toggle).** Priority medium. Independent of the console jobs.
 
 Observed (user): toggle-crouched with C, starting the jetpack does not lift
@@ -223,6 +259,62 @@ Acceptance (private save copies, first and third person):
 4. Under a low ceiling the start lifts only as far as the clearance allows.
 5. Crouch, crouch-walk, crouch-jump and jetpack controls show no regressions;
    `ttk-controls-test` passes; Vanilla unchanged.
+
+### D17AZ - The slot-12 train vanishes at the edge of the view
+
+**Status: Todo. Dependencies: D17AR (host world visibility), D17AR4, D17AX.**
+Priority medium. Renderer work targets Polymorph (Classic is frozen).
+
+Observed (user, 2026-11-02): load UI slot 12 and slowly turn right. The train
+disappears before it leaves the view. The user compares it with EDuke32, where
+a sprite or voxel that spans several sectors disappears at the edge of the
+view when the sector it belongs to is culled.
+
+Brief investigation (documentation and code notes only; nothing run; every
+cause is a **hypothesis to confirm**): the user's guess holds up. In TTK the
+"rooms" do work like sectors for drawing. Each frame the portal walk
+`0x8006276c` lists the rooms whose portal openings are on screen (at most 32,
+each with the screen rectangle of its opening). The game's room walk, the
+props/actors pass `0x8002ffec` and the object pass `0x800374cc` all draw from
+that list ([note 336](documentation/336-d17ar1-host-visibility-design.md)).
+D17AR moved **world geometry** to a host decision. The props/actors pass gets
+the host room list. The **object pass still gets the game's own portal list**,
+because its handlers affect play ([note 337](documentation/337-d17ar2-host-visibility.md)).
+Likely causes, in order:
+1. The train is drawn through the object or props pass. It is linked to one
+   room (or to the room of its origin). When that room's opening leaves the
+   screen, the room is not listed and the whole train is skipped, even
+   though its body still reaches into rooms that are on screen. This is the
+   EDuke32 sector case.
+2. A per-object cull against the listed room's rectangle or the frustum uses
+   the object's origin and a small radius instead of its real extent. A long
+   train is then dropped once its origin leaves the view.
+3. Less likely: the D17AM3 far reserve hands it back to the original
+   renderer, or a far limit cuts it (D17P, D17AX).
+
+Investigation: identify the train's owner in slot 12 (level, object or prop
+record, type, room link, bounds/radius). Trace the frame where it vanishes:
+is its room listed (game and host walk)? Is it submitted and then culled, and
+by which test? Compare Polymorph with Classic and with `hostvis off`, in first
+and third person and at FOV 90/120. Then sweep the other levels for large
+multi-room objects (trains, vehicles, doors, lifts, big props) that show the
+same pop.
+
+Direction (to choose after the report): a game-wide rule, not a slot-12 patch.
+Draw an object when its real bounds intersect the view frustum and any room
+visible to the host, whichever room it is linked to. Keep the object pass's
+gameplay handlers on the game's own list (as D17AR requires); only the drawing
+decision widens. Classic and Vanilla stay unchanged.
+
+Acceptance:
+1. Slot 12: turning slowly in either direction, the train stays drawn until
+   its real extent leaves the screen. First and third person, FOV 90 and 120,
+   at 180 Hz.
+2. The object pass's gameplay behavior (handlers, triggers, AI) is unchanged.
+3. A level sweep finds no other object popping at the view edge, or lists the
+   remaining cases with their causes.
+4. Polymorph frame rate holds in the heaviest views (D17AR5); Classic and
+   Vanilla are unchanged.
 
 ## 2026-11-02 - D26H: spawned items clear of Duke's pickup reach (Needs playtest)
 
@@ -3209,6 +3301,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D17AW | Polymorph: present redraws from a host render thread (no slow second after loads, 180 Hz in heavy views) | Done | D17AR5, D17AQ |
 | D17AX | Polymorph: draw the whole level from jetpack height (slot 10 black sides and castle interior) | Done (flicker fix; note 352) | D17AR, D17AQ |
 | D17AY | Full-refresh presentation audit: draw-time hooks must not read 30 Hz tick state against interpolated redraws | Done (user-accepted) | D17, D14H, D35D1 |
+| D17AZ | Polymorph: slot-12 train vanishes at the view edge; objects across rooms stay drawn game-wide | Todo | D17AR, D17AR4, D17AX |
 | D14F | 90-default / 120-maximum world FOV | Done (user-confirmed 2026-10-30) | Implemented in afd4ad6 (note 317); re-verified 2026-10-29 |
 | D17AE | Slot-11 sign post through door header | Done (user-confirmed 2026-10-29) | Scene depth for native world/scenery packets; replay precedence fix; world backface cull restored |
 | D17AF | Latest slot-10 ground water visibility | Done | Selected batch; see intake above |
@@ -3328,7 +3421,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08Q8 | Smooth jetpack clearance along rising floors, descending ceilings and maximum height (slot 12, bug 4) | Done | D08Q, D08S |
 | D08Q9 | Jetpack horizontal pace follows walk/run and active steroids | Done | D08Q8, D08AA |
 | D08Q10 | Start the jetpack in water (J on the surface or underwater); the water surface is a floor while flying (slot 12, EDuke32 feel) | Done (user-accepted 2026-11-02; note 357) | D08S, D08Q8, D08O |
-| D08Q11 | Jetpack lifts off directly from toggle-crouch (no extra Space) | Todo | D08Q, D08S, D08K |
+| D08Q11 | Jetpack lifts off directly from toggle-crouch (no extra Space) | Done (user-accepted 2026-11-02; note 364) | D08Q, D08S, D08K |
 | D08T | Pushable objects: modern grab/push/pull and climb (alley dumpster) | Done | D08 |
 | D08T1 | Separate push/pull from mantling: E always mantles, hold RMB to grab | Done | D08T, D04 |
 | D08T2 | Duke-symbol pushable blocks cannot be pushed with Modern controls (RMB grab, game-wide) | Done (user-accepted; closed 2026-10-30) | D08T1, D22B |

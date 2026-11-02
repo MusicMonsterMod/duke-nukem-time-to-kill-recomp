@@ -1,5 +1,98 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-02 - Playtest backlog: jetpack from water, mantle arm flicker, live level stats
+
+User, after accepting D23G step 5 (2026-11-02). Recorded as jobs with initial
+research; none started.
+
+### D08Q10 - Start the jetpack in water; the water surface is a floor while flying
+
+**Status: Todo. Dependencies: D08S, D08Q8, D08O.** Fixture: the player's UI
+slot 12 (saved on the water surface); test on private copies only. The user
+wants EDuke32 / Duke 3D behavior: press J while swimming on the surface, or
+underwater, and the jetpack starts and Duke flies up and out of the water.
+While the jetpack is on, Duke cannot descend below the water surface (Ctrl /
+descent stops at the surface and he hovers there); turning the jetpack off
+over water drops him back in as now. Reference recording:
+`research/screencaps/water-jetpack.mp4` (EDuke32, 54 s: off underwater, J
+on, rises out, hovers and flies over the water, never sinks back in).
+
+Initial research: J currently refuses in water by design.
+`recomp/src/ttk/shortcuts.inc` ("Jetpack cannot be switched in water; the
+normal-state lease excludes it") returns when the player's height (`player+8`)
+is below the water level (`player+0x834`, `0x40000000` = no water), and the
+D08S instant-jetpack lease only runs in the normal state
+([note 219](documentation/219-d08s-instant-jetpack.md)). D08S's checks note
+that flying down into water today enters the native swim state (slot 9); that
+becomes a surface floor for this job. D08Q8 owns flight clearance (floors,
+ceilings, maximum height, [note 250](documentation/250-d08q8-flight-clearance.md)):
+the surface floor belongs in the same clearance, game-wide, not per level.
+Work: a purpose-built swim/underwater -> jetpack transition (state, animation,
+first and third person, weapon), the surface floor while flying, fuel and
+`dnkroz` unchanged, no snapping at the surface at 120 / 180 Hz. Vanilla
+unchanged.
+
+**Acceptance:** from slot 12 on the surface and from underwater, J starts the
+jetpack and Duke rises out; with the jetpack on he cannot go below the
+surface anywhere water exists; turning it off over water swims as now;
+first person, third person and both jetpack schemes; the user's playtest
+matches the EDuke32 feel.
+
+### D36H8 - Run-jump mantle across water: extended arms flicker (slot 11)
+
+**Status: Todo. Dependencies: D36H5, D35G, D08X.** Fixture: the player's UI
+slot 11 (re-saved 2026-11-02 in front of a body of water); test on private
+copies only. Route: run (Shift + W) to the ledge, Space to jump, then hold E
+at once to mantle onto the far ledge. While Duke's arms are extended for the
+grab they flicker; the user wants the arm model robust in this situation.
+Read the D36 audit ([note 257](documentation/257-d36-first-person-presentation-audit.md))
+and the D36H5 design and repair guide
+([note 305](documentation/305-d36h5-contact-arm-rig.md),
+[note 306](documentation/306-d36h5-interaction-arm-coverage.md)) first:
+identify the actual presentation owner of the extended-arm pose (airborne
+ledge grab D08X, first-person mantle D35G or the contact rig) and the slot
+contents per frame before changing anything, then fix the cause (clipping,
+near plane, depth, pose handoff or a frame where the arms are dropped) for
+every airborne grab and mantle, not this ledge only.
+
+**Acceptance:** the slot 11 route shows no arm flicker at 120 and 180 Hz,
+repeated grabs from several approach speeds; other mantles, ledge hangs and
+water climb-outs (D35G, D08X, D08V coverage) unchanged; Vanilla unchanged;
+the user's playtest.
+
+### D20I - Live level stats: time, kills and secrets in the bottom-left corner
+
+**Status: Todo. Dependencies: D20E, D20D, D24A.** EDuke32 shows three
+small lines above its status bar in the bottom-left corner: `T: 3:03.39`,
+`K: 12/36`, `S: 2/7`, the letters red and the values a light gold-beige
+(reference: `research/screencaps/level-stats.png`). The user wants the same
+in Modernized play, positioned similarly (bottom left, above the HUD,
+following the presented 4:3 / 16:9 rectangle and the HUD scale).
+
+Initial research: the values already exist from the statistics screen work
+([note 179](documentation/179-d20b-statistics-screen.md),
+[note 181](documentation/181-d20d-richer-statistics.md),
+[note 183](documentation/183-d20e-statistics-research.md)): the level timer
+is player `+0x398` in ms (a savestate load rewinds it), secrets found are
+`+0x3b0` of `0x800beb18` with the total the statistics screen shows (levels
+27-30 have no secrets row), and kills X OF Y use the D20E level-load enemy
+rule. Font: the console `fps` block uses TTK Medium Italic with the project
+palette "Console steel" and a drop shadow (GAME_MANUAL, console section); the
+D24A font picker (`research/TTK-UI-and-Font-Research.html`, local) documents
+how disc fonts take a palette and how a project palette was added. Plan: the
+same font, a red palette for the letters and a gold palette for the values;
+if the disc's red is too dark at this size, add a bright red project palette
+the way Console steel was added. Show the user swatches before building.
+Open questions for the job: an option to turn it on / off (OPTIONS >
+MODERNIZED), the time format (EDuke32 shows minutes:seconds.hundredths),
+levels without secrets, and whether it hides with the HUD levels (D19U1).
+
+**Acceptance:** three lines in the bottom-left corner during Modernized
+gameplay that match the statistics screen values (time, kills X/Y, secrets
+X/Y), readable red and gold in the TTK font, correct in 4:3 and 16:9 and at
+every HUD size, no effect on frame rate; Vanilla unchanged; the user's
+playtest.
+
 ## 2026-11-01 - Polymorph: whole level from the jetpack (D17AX)
 
 User (2026-11-01, `research/screencaps/Video_2026-11-01_18-52-03.mp4`, slot
@@ -2384,6 +2477,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D17AE | Slot-11 sign post through door header | Done (user-confirmed 2026-10-29) | Scene depth for native world/scenery packets; replay precedence fix; world backface cull restored |
 | D17AF | Latest slot-10 ground water visibility | Done | Selected batch; see intake above |
 | D20H | Slot-5 intermittent colour corruption on load | Done (user-confirmed 2026-10-30) | Selected batch; see intake above |
+| D20I | Live level stats in the bottom-left corner: time, kills and secrets in the TTK font, red and gold (EDuke32 style) | Todo | D20E, D20D, D24A |
 | D17AG | Slot-6 wooden panelling holes | Done (user-confirmed 2026-10-30) | Fixed by D17AE scene depth |
 | D17AH | Slot-8 sky glitching and popping | Done | Selected batch; see intake above |
 | D17AI | Slot-12 wall near pushable cube | Done (user-confirmed 2026-10-30) | Selected batch; see intake above |
@@ -2494,6 +2588,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08Q7 | Draw a holstered weapon with left click during jetpack flight (bug 1) | Done | D08Q3, D08Q5 |
 | D08Q8 | Smooth jetpack clearance along rising floors, descending ceilings and maximum height (slot 12, bug 4) | Done | D08Q, D08S |
 | D08Q9 | Jetpack horizontal pace follows walk/run and active steroids | Done | D08Q8, D08AA |
+| D08Q10 | Start the jetpack in water (J on the surface or underwater); the water surface is a floor while flying (slot 12, EDuke32 feel) | Todo | D08S, D08Q8, D08O |
 | D08T | Pushable objects: modern grab/push/pull and climb (alley dumpster) | Done | D08 |
 | D08T1 | Separate push/pull from mantling: E always mantles, hold RMB to grab | Done | D08T, D04 |
 | D08T2 | Duke-symbol pushable blocks cannot be pushed with Modern controls (RMB grab, game-wide) | Done (user-accepted; closed 2026-10-30) | D08T1, D22B |
@@ -2675,7 +2770,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D23D | Minor slowdown around the strip-club-type area of Level 9 (low priority) | Done | D23, D22B |
 | D23E | Stutter with enemies on screen while walking (UI slots 9 and 10) | Done (user-accepted; closed 2026-10-30) | D23, D22B |
 | D23F | Faster timing model: emulation-thread budget for 150% CPU at high refresh (big) | Done (user-accepted; closed 2026-10-30) | D23E, D17 |
-| D23G | Finish the fast path: dispatch, overlays, interpreter, observers and redraw cost (all-in-one) | In progress (step 3 closed 2026-11-02 by user decision: measured, no saving to win, no code change, note 355; part 2 user-accepted 2026-11-01, note 354; part 1 accepted 2026-10-30, note 331; step 5 remains) | D23F |
+| D23G | Finish the fast path: dispatch, overlays, interpreter, observers and redraw cost (all-in-one) | Done (user-accepted 2026-11-02; step 5 Vanilla flag cost, note 356; step 3 closed 2026-11-02 by user decision: measured, no saving to win, no code change, note 355; part 2 user-accepted 2026-11-01, note 354; part 1 accepted 2026-10-30, note 331; step 5 remains) | D23F |
 | D23H | Presents fall from 120 to about 60 over extended play (savestate hitches, sticky shedding) | Done (user-accepted; closed 2026-10-30) | D23E, D23F |
 | D24 | Linux / Windows player build and disc import | Todo | D19, D22, D23 |
 | D24A | Public clone gives the full experience: fonts, inventory icons/digits from a proper tracked or disc-derived source (no research/ dependency) | Done (user-accepted; closed 2026-10-30) | D19A, D08A3 |
@@ -2748,6 +2843,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D36J | Coherent body and quick-kick leg presentation | Done (user-accepted 2026-10-26) | D36G, D36H |
 | D36K | Traversal and special-action visual coverage | Done | D36G, D36H, D36I, D36J |
 | D36M | First-person power-up looks: invisibility translucent, invincibility and Double Duke colours | Todo | D36J, D08A17 |
+| D36H8 | Run-jump mantle across water: extended arms flicker (slot 11) | Todo | D36H5, D35G, D08X |
 | D37 | Temporary movement failure at 07:26 UK on 2026-10-26 (separate research) | Done | - |
 | D37A | Safe animation restoration across save allocation layouts | Done (user-accepted 2026-10-26) | D37 |
 | R01 | DisruptorRecomp architecture and modernization reference research | Done | - |
@@ -13248,7 +13344,7 @@ judges the feel at 150% and decides whether it becomes the default.
 
 ### D23G - Finish the fast path: dispatch, overlays, interpreter, observers and redraw cost
 
-**In progress: part 2 (steps 1-2, dispatch fast path and per-call observers, [note 354](documentation/354-d23g-dispatch-fast-path.md)) user-accepted 2026-11-01. Part 1 (renderer feed, [note 331](documentation/331-d23g-renderer-feed.md)) user-accepted 2026-10-30; steps 3 and 5 remain. Selected 2026-10-30. All-in-one. Opened 2026-10-05 from D23F's limits** ([note 105](documentation/105-d23f-fast-timing.md)).
+**Done (user-accepted 2026-11-02; step 5 note 356, step 3 closed as measured note 355). Earlier: part 2 (steps 1-2, dispatch fast path and per-call observers, [note 354](documentation/354-d23g-dispatch-fast-path.md)) user-accepted 2026-11-01. Part 1 (renderer feed, [note 331](documentation/331-d23g-renderer-feed.md)) user-accepted 2026-10-30; steps 3 and 5 remain. Selected 2026-10-30. All-in-one. Opened 2026-10-05 from D23F's limits** ([note 105](documentation/105-d23f-fast-timing.md)).
 D23F moved the statically recompiled game code to the fast model. What is
 left on the emulation thread (fast, slot 9, 150%): the call/return dispatch
 path about 13% (`psx_dispatch_impl` -> BIOS table miss -> `dirty_ram_dispatch`
@@ -13395,6 +13491,38 @@ step 5 remains.
 
 **Decision (2026-11-02): step 3 closed as measured.** User: "let's go with
 your recommendation, then close it out". D23G stays open for step 5 only.
+
+**Work log (2026-11-02, step 5: Vanilla flag cost; Needs playtest).**
+[Note 356](documentation/356-d23g-step5-vanilla-flag-cost.md). Measured with
+debug turbo (fields per CPU-second of the emulation thread, no pacing), D17AQ
+fixture slots 9 / 1 / 10, private copies: the per-instruction flag tests cost
+the accurate model 7-9% (current 40.9 / 51.7 / 99.2 against 43.6 / 55.6 /
+108.1 for a build without the include), more than D23F's 3-point estimate.
+Cause: byte stores in the accurate step may alias the flag, so it was
+reloaded before every instruction. Change (`fast_timing.h`/`.c` only; no
+generated C, emitter or framework edit; codegen hash unchanged): each
+generated function's `psx_cyc_bb_defer_begin()` opening declares a local copy
+of the flag, the hooks test the copy, and the branch edge refreshes it after
+any host call; calls re-enter through the opening. Results: accurate 43.7 /
+54.3 / 103.1 (all of the cost back in slot 9, about two thirds in 1 and 10);
+fast (Modernized) 64.6 -> 65.8, 84.3 -> 87.6, 217.6 -> 226.9. Vanilla 60
+fields/s, 0 underruns, thread 71.6 -> 64.2% (slot 1) and 67.2 -> 63.4%
+(slot 9). Images after loading six slots identical; fixture saves load and a
+new save reloads; levels 0-3, 5-12, 21-29 at 59.8-60.0 fields/s; native suites
+pass; framework patch unchanged. Executable
+`20c7e77484093a6e7ddbdc8cdd268d50bcf34cb0b3aeefc49a335910a0c51f6e`.
+Playtest: a Vanilla session (`run.py --vanilla`) and usual Modernized play,
+same feel, loads and a level change.
+
+**Playtest (2026-11-02): step 5 accepted; D23G Done.** User: "I was really
+thrilled with the performance, the game is feeling better than ever ... The
+save states loaded with no issue in vanilla and modern play too. So i fully
+accept." Session logs: Vanilla slot 1 load clean; Modernized about 14 minutes
+at 59.9-60.0 game fields/s and 180 presents/s (lower minutes only with the
+pause menu open), one brief audio-low pace step right after a load, saves to
+slots 10 and 11 written. Executable
+`20c7e77484093a6e7ddbdc8cdd268d50bcf34cb0b3aeefc49a335910a0c51f6e` is the
+regression baseline. All D23G steps are done (step 3 closed as measured).
 
 ### D23H - Presents fall from 120 to about 60 over extended play
 

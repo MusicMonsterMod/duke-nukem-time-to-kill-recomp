@@ -30,7 +30,7 @@
  * updates; menus, movies and loading still return to accurate within 0.2 s. */
 #define TTK_FT_LEASE_CYCLES (12ull * 564480ull)
 
-int g_ttk_ft_on = 0;
+int ttk_ft_on = 0;
 int g_ttk_ft_quiet = 0;
 uint32_t g_ttk_ft_budget = TTK_FT_EDGE_PERIOD;
 uint32_t g_ttk_ft_load_cycles = TTK_FT_LOAD_CYCLES;
@@ -71,8 +71,8 @@ int ttk_fast_timing_enabled(void) { return s_enabled; }
 void ttk_fast_timing_renew(void) {
     if (!s_enabled) return;
     s_until = psx_cycle_count + TTK_FT_LEASE_CYCLES;
-    if (!g_ttk_ft_on && !g_ls_replay_active && !g_event_step_conservative) {
-        g_ttk_ft_on = 1;
+    if (!ttk_ft_on && !g_ls_replay_active && !g_event_step_conservative) {
+        ttk_ft_on = 1;
         g_ttk_ft_budget = s_period;
         ++s_leases;
     }
@@ -84,7 +84,7 @@ void ttk_ft_edge_slow(CPUState *cpu, uint32_t resume_pc) {
     /* The clock can also move back (savestate load, overclock rewind). */
     if (psx_cycle_count > s_until || s_until - psx_cycle_count > 2u * TTK_FT_LEASE_CYCLES ||
         g_ls_replay_active || g_event_step_conservative) {
-        g_ttk_ft_on = 0;
+        ttk_ft_on = 0;
         ++s_lapses;
     }
     g_ttk_ft_budget = s_period;
@@ -98,7 +98,7 @@ const char *ttk_fast_timing_json(void) {
     snprintf(buffer, sizeof buffer,
              "{\"enabled\":%s,\"active\":%s,\"instr_q8\":%u,\"load_cycles\":%u,\"edge_period\":%u,\"slow_edges\":%llu,"
              "\"maintenance\":%llu,\"leases\":%llu,\"lapses\":%llu,\"calibration\":%s}",
-             s_enabled ? "true" : "false", g_ttk_ft_on ? "true" : "false", g_ttk_ft_instr_q8, g_ttk_ft_load_cycles, s_period,
+             s_enabled ? "true" : "false", ttk_ft_on ? "true" : "false", g_ttk_ft_instr_q8, g_ttk_ft_load_cycles, s_period,
              (unsigned long long)s_slow_edges, (unsigned long long)s_maintenance,
              (unsigned long long)s_leases, (unsigned long long)s_lapses, ttk_fast_timing_calibration_json());
     return buffer;

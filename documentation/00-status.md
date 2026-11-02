@@ -1,5 +1,29 @@
 # Current status - 2026-10-04
 
+## 2026-11-02 - D23G step 5 accepted; D23G Done; new jobs D08Q10, D36H8, D20I
+
+User: "I was really thrilled with the performance, the game is feeling better
+than ever ... The save states loaded with no issue in vanilla and modern play
+too. So i fully accept." Executable
+`20c7e77484093a6e7ddbdc8cdd268d50bcf34cb0b3aeefc49a335910a0c51f6e` is the
+regression baseline ([note 356](356-d23g-step5-vanilla-flag-cost.md)). New
+Todo jobs from the same playtest: D08Q10 (start the jetpack in water; the
+surface is a floor while flying, slot 12), D36H8 (run-jump mantle arm flicker,
+slot 11), D20I (live time / kills / secrets in the bottom-left corner).
+
+## 2026-11-02 - D23G step 5: Vanilla flag cost (Needs playtest)
+
+The D23F fast-timing flag tests cost the accurate model (always used by
+Vanilla) 7-9% of the emulation thread's throughput, not the 3 points D23F
+estimated. Each generated function now keeps a local copy of the flag, read at
+its opening and after host calls at branch edges, so the per-instruction tests
+use a register ([note 356](356-d23g-step5-vanilla-flag-cost.md)). Accurate
+model: slot 9 recovers all of it, slots 1 and 10 about two thirds; fast model
+(Modernized) 2-4% faster too. Vanilla 60 fields/s, 0 underruns; images,
+savestates and the level sweep unchanged. Only `recomp/src/ttk/fast_timing.h`
+and `.c` changed; codegen hash unchanged. Executable
+`20c7e77484093a6e7ddbdc8cdd268d50bcf34cb0b3aeefc49a335910a0c51f6e`.
+
 ## 2026-11-02 - D23G step 3 closed (measured, no code change)
 
 Step 3 (fast timing for overlay code and the interpreter,

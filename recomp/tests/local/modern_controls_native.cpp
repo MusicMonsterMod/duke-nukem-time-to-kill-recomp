@@ -270,7 +270,7 @@ namespace ttk {bool anim_extra_clip(unsigned clip,uint32_t& first,uint32_t& coun
 namespace ttk {int replay_load_window(int window){return window==1 ? -1 : 0;}}
 namespace ttk {bool live_frame_redraw_only(){return false;}}
 namespace ttk {int replay_audio_low(){return 0;}}
-namespace ttk {void replay_body_camera(bool){}} // D14H: replay workers only
+namespace ttk {void replay_body_camera(bool){}bool replay_late_rotation(int16_t*){return false;}} // D14H/D35D1: replay workers only
 extern "C" int psx_audio_out_stats(double*,double*,uint64_t*,uint64_t*,double*,int* legacy,int*){*legacy=1;return 0;}
 extern "C" void ttk_fast_timing_renew(void) {}
 static uint32_t save_loads;
@@ -5313,6 +5313,141 @@ int main(int argc,char** argv) {
                         ttk::render_state_load(state.data());assert(metric("\"blend\":")==int(eye));
                         ttk::input.first_person=true;
                     }
+                }
+                // D35D1: the first-person grip replaces the turn-and-shove arms.
+                // Hands sit on the held object's near face, mirrored about the
+                // body, independent of the native 119/120 pose; 121 blends by
+                // nearness to the hold; native matrices, third person and the
+                // one-launch native comparison stay untouched. Both costumes.
+                {
+                    const std::vector<uint8_t> old_desc(ram+(desc&0x1fffff),ram+(desc&0x1fffff)+0x400);
+                    const std::vector<uint8_t> old_mats(ram+(mats&0x1fffff),ram+(mats&0x1fffff)+19*32);
+                    const std::vector<uint8_t> old_object_bytes(ram+(object&0x1fffff),ram+(object&0x1fffff)+0x48);
+                    const auto yaw=psx_mod_read_half(p+0x1c);
+                    const uint32_t list=0x801eb000,box=0x801eb100;
+                    const int32_t px=psx_mod_read_word(p+4),py=psx_mod_read_word(p+8),pz=psx_mod_read_word(p+12);
+                    psx_mod_write_half(p+0x1c,1024); // forward +X, body right -Z
+                    uint8_t old_camera[32];std::memcpy(old_camera,ram+(c&0x1fffff),32);
+                    for(unsigned i=0;i<3;++i)psx_mod_write_word(object+4+4*i,uint32_t(i==0?px+600:i==1?py:pz));
+                    psx_mod_write_half(object+0x1c,0);psx_mod_write_word(object+0x44,list);
+                    psx_mod_write_word(list+8,box);
+                    auto set_box=[&](int16_t top) {
+                        const int16_t b[8]={-200,top,-400,0,200,512,400,0};
+                        for(unsigned i=0;i<8;++i)psx_mod_write_half(box+2*i,uint16_t(b[i]));
+                    };
+                    auto word=[](const uint8_t* b){int32_t v;std::memcpy(&v,b,4);return v;};
+                    auto half=[](const uint8_t* b){int16_t v;std::memcpy(&v,b,2);return v;};
+                    // Draw parts 10..15; returns each drawn matrix.
+                    auto draw=[&](uint8_t (&out)[6][32],bool (&moved)[6]) {
+                        // Eye at the standing push eye, looking along +X.
+                        const int16_t rows[9]={0,0,-4096,0,4096,0,4096,0,0};
+                        for(unsigned i=0;i<9;++i)psx_mod_write_half(c+2*i,uint16_t(rows[i]));
+                        psx_mod_write_word(c+20,uint32_t(px));psx_mod_write_word(c+24,uint32_t(py-295));
+                        psx_mod_write_word(c+28,uint32_t(pz));
+                        call(0x800348d8,c,p,0x8003769c);
+                        for(unsigned part:{13u,14u,15u,10u,11u,12u}) {
+                            const unsigned j=psx_mod_read_byte(desc+0x24+part);
+                            CPUState cpu{};cpu.gpr[4]=c;cpu.gpr[5]=mats+32*j;cpu.gpr[20]=p;
+                            cpu.gpr[23]=j;cpu.gpr[29]=0x801f0000;cpu.gpr[31]=0x80034c6c;
+                            hooks().at(0x800292a0)(&cpu,0x800292a0);
+                            moved[part-10]=cpu.gpr[5]!=mats+32*j;
+                            std::memcpy(out[part-10],ram+(cpu.gpr[5]&0x1fffff),32);
+                        }
+                        call(0x8001ca4c,0x800d0000,0,0x800376b4);
+                    };
+                    // Rigid native arm fixture; `swing` moves the chains as 119/120 do.
+                    auto pose_arms=[&](int swing) {
+                        for(unsigned part=10;part<=15;++part) {
+                            const unsigned j=psx_mod_read_byte(desc+0x24+part),n=(part-10)%3;
+                            for(unsigned i=0;i<9;++i)psx_mod_write_half(mats+32*j+2*i,i%4==0?4096:0);
+                            const int side=part<13?1:-1;
+                            psx_mod_write_word(mats+32*j+20,uint32_t(px+swing+n*60));
+                            psx_mod_write_word(mats+32*j+24,uint32_t(py-140+n*50));
+                            psx_mod_write_word(mats+32*j+28,uint32_t(pz+side*(100+n*20)-swing));
+                        }
+                    };
+                    setenv("DNTTK_PUSH_VIEW","first",1);
+                    for(const auto* costume:{first_map,cowboy})for(int16_t top:{int16_t(-512),int16_t(-100)}) {
+                        layout(costume);set_box(top);
+                        const int32_t grip_y=py+std::max(-150,top+60);
+                        for(unsigned pose:{120u,119u}) {
+                            psx_mod_write_half(p+0x60,pose);++save_loads;for(int i=0;i<30;++i)frame();
+                            assert(metric("\"blend\":")==1);
+                            uint8_t first[6][32]={};
+                            for(int swing:{0,-180,240}) {
+                                pose_arms(swing);
+                                const std::vector<uint8_t> native(ram+(mats&0x1fffff),ram+(mats&0x1fffff)+19*32);
+                                uint8_t out[6][32];bool moved[6];draw(out,moved);
+                                for(bool m:moved)assert(m);
+                                assert(std::equal(native.begin(),native.end(),ram+(mats&0x1fffff)));
+                                // Face at +400 along X, 85 inset; sides on -Z/+Z.
+                                for(unsigned h:{2u,5u}) {
+                                    assert(std::abs(word(out[h]+20)-(px+315))<=1);
+                                    assert(std::abs(word(out[h]+24)-grip_y)<=1);
+                                    assert(std::abs(word(out[h]+28)-(pz+(h==2?150:-150)))<=1);
+                                }
+                                // Mirrored hands about the body plane (world Z here):
+                                // row 0 keeps Z and flips X/Y, rows 1/2 flip Z.
+                                for(unsigned r=0;r<3;++r)for(unsigned k=0;k<3;++k) {
+                                    const int a=half(out[2]+6*r+2*k),b=half(out[5]+6*r+2*k);
+                                    const bool flip=r==0?k!=2:k==2;
+                                    assert(std::abs(a-(flip?-b:b))<=2);
+                                }
+                                // Connected chain: each bone's fixture offset
+                                // (60,50,+-20) in its local frame reaches the next joint.
+                                for(unsigned i:{0u,1u,3u,4u}) {
+                                    const double local[3]={60,50,i<3?20.0:-20.0};
+                                    for(unsigned k=0;k<3;++k) {
+                                        double end=word(out[i]+20+4*k);
+                                        for(unsigned r=0;r<3;++r)end+=local[r]*half(out[i]+6*r+2*k)/4096;
+                                        assert(std::abs(end-word(out[i+1]+20+4*k))<3);
+                                    }
+                                }
+                                // Steady: the native swing never moves the result.
+                                if(swing==0)std::memcpy(first,out,sizeof out);
+                                else assert(!std::memcmp(first,out,sizeof out));
+                            }
+                        }
+                        // 121: native hands at the hold blend fully, far away stay native.
+                        psx_mod_write_half(p+0x60,121);++save_loads;for(int i=0;i<30;++i)frame();
+                        pose_arms(0);
+                        for(unsigned part:{12u,15u}) {
+                            const unsigned j=psx_mod_read_byte(desc+0x24+part);
+                            const int hold[3]={part==12?-152:176,part==12?-36:-18,part==12?277:201};
+                            psx_mod_write_word(mats+32*j+20,uint32_t(px+hold[2]));
+                            psx_mod_write_word(mats+32*j+24,uint32_t(py+hold[1]));
+                            psx_mod_write_word(mats+32*j+28,uint32_t(pz-hold[0])); // body right is -Z
+                        }
+                        {
+                            uint8_t out[6][32];bool moved[6];draw(out,moved);
+                            assert(moved[2] && moved[5]);
+                            assert(std::abs(word(out[2]+20)-(px+315))<=1 && std::abs(word(out[5]+28)-(pz-150))<=1);
+                        }
+                        pose_arms(-900);
+                        {
+                            uint8_t out[6][32];bool moved[6];draw(out,moved);
+                            assert(!moved[2] && !moved[5]);
+                        }
+                        // One-launch native comparison and the third-person choice.
+                        psx_mod_write_half(p+0x60,120);pose_arms(0);
+                        setenv("DNTTK_FP_PUSH_GRIP","native",1);
+                        {
+                            uint8_t out[6][32];bool moved[6];draw(out,moved);
+                            assert(!moved[2] && !moved[5] && moved[0] && moved[3]);
+                        }
+                        unsetenv("DNTTK_FP_PUSH_GRIP");
+                        setenv("DNTTK_PUSH_VIEW","legacy-third",1);++save_loads;for(int i=0;i<30;++i)frame();
+                        {
+                            uint8_t out[6][32];bool moved[6];draw(out,moved);
+                            for(bool m:moved)assert(!m);
+                        }
+                        setenv("DNTTK_PUSH_VIEW","first",1);
+                    }
+                    std::copy(old_desc.begin(),old_desc.end(),ram+(desc&0x1fffff));
+                    std::copy(old_mats.begin(),old_mats.end(),ram+(mats&0x1fffff));
+                    std::copy(old_object_bytes.begin(),old_object_bytes.end(),ram+(object&0x1fffff));
+                    psx_mod_write_half(p+0x1c,yaw);std::memcpy(ram+(c&0x1fffff),old_camera,32);
+                    std::puts("PASS: D35D1 first-person push grip (face/top/width placement, mirrored hands, steady through 119/120, 121 hold blend, native comparison, third person, both costumes, native matrices)");
                 }
                 unsetenv("DNTTK_PUSH_VIEW");psx_mod_write_word(p+0x290,old_object);
                 psx_mod_write_word(0x800d2660,saved_table);

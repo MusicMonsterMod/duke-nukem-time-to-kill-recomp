@@ -1,5 +1,43 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-02 - Backlog intake: full-refresh presentation audit (D17AY)
+
+User, while accepting D35D1 (2026-11-02): "should we stand up a backlog job to
+spec everything up to the full refresh rate rather than having various
+animations etc interpolate at 30hz?", then "yes lets stand up the backlog
+job". Recorded only; not started.
+
+### D17AY - Full-refresh presentation: no draw-time reads of 30 Hz tick state
+
+**Status: Todo. Dependencies: D17 (render replay), D14H, D35D1.** The game
+logic, physics and animation timing run at the original 30 Hz tick and stay
+there; raising the simulation rate is not the goal. Render replay already
+interpolates the camera, object transforms and Duke's joint matrices to the
+display rate (120/180 Hz). The defect class is host presentation code that,
+at draw time, reads gameplay state that is only updated per tick (player
+position +4..+12, facing +0x1c, held/attached object positions, timers) and
+combines it with interpolated data. D35D1 revision 2 was one instance: the
+push grip anchored to Duke's last-tick position stepped against the
+interpolated eye (up to 29 units in redraws) and vibrated; D14H's body camera
+versus the late camera was a second, rotational instance.
+
+Scope:
+1. Inventory every draw-time hook in `recomp/src/ttk/` (first-person eye and
+   body/limb rigs, contact arms, weapon/viewmodel and display-hand placement,
+   Q/door legs, swim/jetpack arms, HUD and world markers, crosshair/red dot,
+   reflections, the D14H body camera) and list the tick-rate state each reads.
+2. Provide shared interpolated values for redraws (for example player
+   position/facing and the held or attached object) through the render-replay
+   snapshot, so fixes reuse one source instead of per-feature workarounds.
+3. Add a per-draw diagnostic that reports a presentation quantity stepping at
+   the tick rate against the interpolated view, and use it at 120 and 180 Hz
+   (the player's display is 180 Hz).
+
+**Acceptance:** an inventory with each reader classified (fixed, already
+interpolated, intentionally tick-rate); measured before/after evidence for
+every fix at 120 and 180 Hz; Vanilla and 60 Hz unchanged; the user's
+playtest of the reported cases.
+
 ## 2026-11-02 - Backlog intake: cheat feel, cheats anywhere, dnkroz revive, ammo icons, jetpack arm projection, first-person push arms
 
 User, while accepting D08Q10 (2026-11-02). Six jobs recorded with brief
@@ -152,7 +190,7 @@ close it out". Closeout, commit and push authorized.
 
 ### D35D1 - First-person push/pull: a steady grab, not the native turn-and-shove arms
 
-**Status: Todo. Dependencies: D35D, D36D, D36H5, D08T3.** Fixture: the
+**Status: Done (user-accepted 2026-11-02). Dependencies: D35D, D36D, D36H5, D08T3.** Fixture: the
 player's UI slot 12 (pushable block nearby; test on private copies only). In
 first person, pushing the dumpster shows Duke's arms going through the
 third-person push animation, where he turns around and shoves with his back;
@@ -173,6 +211,45 @@ keeps the native animation.
 both hands steadily on the object (slot 12 and the other accepted push
 fixtures, slots 5 and 8), at 120 and 180 Hz; third person and push physics
 unchanged; Vanilla unchanged; the user's playtest.
+
+Work log 2026-11-02: owner confirmed as the D36H5 contact rig (Push), whose
+targets were the native 119/120 hands; in Duke's body frame they sweep several
+hundred units and the native shoulders swap sides. New first-person grip
+(`push_grip`, first_person.inc): hands on the held object's near face from its
+push box (85-unit inset, chest height under the top edge, 150 each side within
+its width), rotations from the native grab-121 hold mirrored for both sides,
+fingers pitched up; arms solved by the existing rig. 119/120 grip fully, 121
+blends by nearness to the hold; `push_letgo` (render-replay snapshot) keeps the
+grip through the release's replay of 121 until its let-go phase, removing a
+grip-drop-grip dip. `DNTTK_FP_PUSH_GRIP=native` compares. Animation, physics,
+eye, third person and Vanilla unchanged. Native controls (new D35D1 group,
+both costumes), near, aim and input suites pass. Private runs: slot-12
+dumpster at 120/180 Hz (with mid-grip save/load; replay 0 failures), native
+comparison, third person, archived D35D LEVEL06 symbol blocks at 120/180 Hz.
+Board slots 5 and 8 no longer hold push scenes; the archived D35D fixtures
+stood in. Not rerun: LEVEL01 box, LEVEL05 movable dumpster. Executable
+`84fa6e7fb6966343175c03307c1ef20339b2ceafb32d9a2568cde07a6cc69e77`.
+[Note 359](documentation/359-d35d1-first-person-push-grip.md). Needs the
+user's playtest.
+
+Revision 2 (2026-11-02), after the user's first look: "functionally, it works
+perfectly. but what is happening is the arms appear to vibrate". Cause: in
+120/180 Hz redraws the eye (and objects, Duke's joints) are interpolated
+between 30 Hz game ticks, but the grip was anchored to Duke's last-tick
+position (+4..+12); traced in redraws the eye ran up to 29 units ahead of it,
+so the hands stepped against the view while pushing. Turning added a second
+mismatch: D14H draws Duke through the body camera while the object uses the
+late camera. The grip now anchors to the interpolated eye and, in late
+redraws, is placed through the late camera (new `replay_late_rotation`). In-draw
+trace: hand screen position constant across push redraws; still-hold hand
+moves with the world within about 0.2 px. Suites pass; slot-12 route at
+180 Hz, replay 0 failures. Executable
+`6872f692f956bd70fda32c29c9fc099246cdbb3e878f0c5d7ee09489f3946bab`.
+
+Accepted 2026-11-02 (revision 2). User: "absolutely solid work! fantastic,
+and accepted" and "lets lock it in and close us out". Closeout, commit and
+push authorized. Follow-up D17AY recorded for draw-time reads of tick-rate
+state.
 
 ## 2026-11-02 - D08Q10: jetpack from water; the surface is a floor (Done)
 
@@ -2699,6 +2776,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D17AV | Polymorph: flickering triangle on corridor walls (UI slot 8) | Done (user-accepted 2026-11-01; note 351) | D17AM, D17W |
 | D17AW | Polymorph: present redraws from a host render thread (no slow second after loads, 180 Hz in heavy views) | Done | D17AR5, D17AQ |
 | D17AX | Polymorph: draw the whole level from jetpack height (slot 10 black sides and castle interior) | Done (flicker fix; note 352) | D17AR, D17AQ |
+| D17AY | Full-refresh presentation audit: draw-time hooks must not read 30 Hz tick state against interpolated redraws | Todo | D17, D14H, D35D1 |
 | D14F | 90-default / 120-maximum world FOV | Done (user-confirmed 2026-10-30) | Implemented in afd4ad6 (note 317); re-verified 2026-10-29 |
 | D17AE | Slot-11 sign post through door header | Done (user-confirmed 2026-10-29) | Scene depth for native world/scenery packets; replay precedence fix; world backface cull restored |
 | D17AF | Latest slot-10 ground water visibility | Done | Selected batch; see intake above |
@@ -3034,7 +3112,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D35B | Swimming perspective option using accepted first-person swimming | Done | D35A, D11E |
 | D35C | Jetpack perspective option using accepted first-person flight | Done | D35A, D11F |
 | D35D | First-person push/pull and grab presentation | Done | D35A, D08T3, D08T7 |
-| D35D1 | First-person push/pull: a steady grab instead of the native turn-and-shove arms (slot 12) | Todo | D35D, D36D, D36H5, D08T3 |
+| D35D1 | First-person push/pull: a steady grab instead of the native turn-and-shove arms (slot 12) | Done (revision 2; note 359) | D35D, D36D, D36H5, D08T3 |
 | D35E | First-person ladder climbing lifecycle | Done | D35A, D08J3, D08U, D08J1 |
 | D35F | First-person chain, pole and pole-class lamppost climbing | Done | D35A, D35E, D08J5 |
 | D35F1 | Chain disappears near the top while climbing (current UI slot 10) | Done | D35F |

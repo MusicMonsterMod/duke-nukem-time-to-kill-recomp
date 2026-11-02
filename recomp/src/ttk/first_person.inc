@@ -1415,6 +1415,112 @@ static bool swim_contact_arms(PerspectiveAction action) {
 static bool contact_arm_action(PerspectiveAction action) {
     return interaction_depth_bridge(action) || swim_contact_arms(action);
 }
+// D35D1: a steady first-person grip for push/pull. Pull 119 and push 120 turn
+// Duke around to shove with his back; their native hands sweep across the
+// view and the shoulders swap sides. In first person the arms instead hold
+// the object's near face in front of the body, built from the native grab
+// 121 hold (both sides averaged into one mirrored pose), placed by Duke's
+// gameplay facing (+0x1c, constant while holding) and the object's box.
+// Grab 121 blends from native by how near its hands are to that hold, so
+// the reach in and the let-go stay continuous; 119/120 hold fully. The only
+// host state is the release marker (push_letgo), carried by render replay.
+// Animation, movement and the third-person/reflection draws stay native.
+struct PushGrip {contact_arm::Vec pos[3];double rows[3][3][3];double weight;};
+// Hold-pose rows of semantic parts 10/11/12 in Duke's body frame (right,
+// down, forward), in 1/4096. The right chain mirrors these.
+static constexpr int16_t push_grip_rows[3][3][3]={
+    {{3760,1554,-477},{-1315,3615,1407},{955,-1138,3817}},
+    {{3855,1384,54},{-344,804,4002},{1341,-3770,873}},
+    {{3317,1713,1686},{-1720,-316,3704},{1679,-3707,464}},
+};
+static bool push_grip(uint32_t desc,int first,const contact_arm::Vec* native,PushGrip& out) {
+    using contact_arm::Vec;
+    if(fp_policy.action!=PerspectiveAction::Push)return false;
+    const char* mode=std::getenv("DNTTK_FP_PUSH_GRIP");
+    if(mode && !std::strcmp(mode,"native"))return false;
+    const unsigned animation=psx_mod_read_half(player+0x60);
+    if(!push_animation(animation))return false;
+    PushBounds box;
+    if(!push_bounds(psx_mod_read_word(player+0x290),box))return false;
+    const double yaw=psx_mod_read_half(player+0x1c)*tau/4096;
+    const Vec fwd={std::sin(yaw),0,std::cos(yaw)},right={fwd.z,0,-fwd.x},down={0,1,0};
+    const Vec pos={double(int32_t(psx_mod_read_word(player+4))),double(int32_t(psx_mod_read_word(player+8))),
+                   double(int32_t(psx_mod_read_word(player+12)))};
+    const double side=first==10?-1:1;
+    auto world=[&](Vec b){return right*b.x+down*b.y+fwd*b.z;};
+    // Native hold hands (body frame) for the grab-121 blend.
+    const Vec hold=first==10?Vec{-152,-36,277}:Vec{176,-18,201};
+    double weight=1;
+    // The release replays 121 from its start: hold until its let-go phase.
+    if(animation==121 && !(push_letgo && psx_mod_read_half(player+0x6a)==0)) {
+        const Vec d=native[2]-pos,local={d.dot(right),d.y,d.dot(fwd)};
+        const double t=std::clamp(1-(local-hold).length()/300,0.0,1.0);
+        weight=t*t*(3-2*t);
+        if(weight<=0)return false;
+    }
+    // Near face and lateral extent of the held object's box, from Duke.
+    double face=1e9,lmin=1e9,lmax=-1e9;
+    for(int32_t x:{box.x0,box.x1})for(int32_t z:{box.z0,box.z1}) {
+        const Vec c=Vec{double(x),pos.y,double(z)}-pos;
+        face=std::min(face,c.dot(fwd));lmin=std::min(lmin,c.dot(right));lmax=std::max(lmax,c.dot(right));
+    }
+    // Knuckles on the face at chest height (85 units keeps the glove out of
+    // the retail dumpster face), below the top edge and within its width.
+    Vec hand={side*150,std::max(-150.0,box.y0-pos.y+60),std::clamp(face-85,180.0,360.0)};
+    if(lmax-lmin>160)hand.x=std::clamp(hand.x,lmin+60,lmax-60);
+    const Vec shoulder={side*92,-139,75};
+    // Fingers pitched 55 degrees up from the hold's forward grip.
+    const double c=std::cos(55*tau/360),s=std::sin(55*tau/360);
+    for(int n=0;n<3;++n)for(int r=0;r<3;++r) {
+        Vec b={push_grip_rows[n][r][0]/4096.0,push_grip_rows[n][r][1]/4096.0,push_grip_rows[n][r][2]/4096.0};
+        // Mirror the right chain across the body's sagittal plane.
+        if(side>0)b=r==0?Vec{b.x,-b.y,-b.z}:Vec{-b.x,b.y,b.z};
+        // Pitch the hand's fingers up toward the face.
+        if(n==2)b={b.x,b.y*c-b.z*s,b.y*s+b.z*c};
+        const Vec w=world(b);
+        out.rows[n][r][0]=w.x;out.rows[n][r][1]=w.y;out.rows[n][r][2]=w.z;
+    }
+    // Anchor to the eye, not Duke's position: 120/180 Hz redraws interpolate
+    // the eye (and the object) between game ticks while +4..+12 keep the last
+    // tick, which made the grip step against the view while pushing. The push
+    // eye sits straight over Duke's position (stable eye), so in a live frame
+    // this is the same place.
+    const Vec eye={double(int32_t(psx_mod_read_word(camera+20))),
+                   double(int32_t(psx_mod_read_word(camera+24))),
+                   double(int32_t(psx_mod_read_word(camera+28)))};
+    const Vec anchor={eye.x,pos.y,eye.z};
+    out.pos[0]=anchor+world(shoulder);out.pos[2]=anchor+world(hand);
+    out.pos[1]=(out.pos[0]+out.pos[2])*.5;
+    // D14H draws Duke through the body camera (interpolated yaw) while the
+    // object uses the late mouse camera. Place the grip where the late camera
+    // sees it: p' = eye + B^T L (p - eye), rows likewise.
+    int16_t late[9];
+    if(replay_late_rotation(late)) {
+        double m[3][3]={};
+        for(int r=0;r<3;++r)for(int k=0;k<3;++k)for(int j=0;j<3;++j)
+            m[r][k]+=int16_t(psx_mod_read_half(camera+2*(3*j+r)))/4096.0*late[3*j+k]/4096.0;
+        auto map=[&](Vec v){return Vec{m[0][0]*v.x+m[0][1]*v.y+m[0][2]*v.z,
+            m[1][0]*v.x+m[1][1]*v.y+m[1][2]*v.z,m[2][0]*v.x+m[2][1]*v.y+m[2][2]*v.z};};
+        for(Vec& p:out.pos)p=eye+map(p-eye);
+        for(auto& part:out.rows)for(auto& row:part) {
+            const Vec w=map(Vec{row[0],row[1],row[2]});
+            row[0]=w.x;row[1]=w.y;row[2]=w.z;
+        }
+    }
+    out.weight=weight;
+    return true;
+}
+// Blend native rows toward the grip and re-orthonormalize (rows: local axes).
+static void push_grip_blend(double rows[3][3],const double grip[3][3],double weight) {
+    using contact_arm::Vec;
+    Vec r[3];
+    for(int k=0;k<3;++k)r[k]={rows[k][0]+(grip[k][0]-rows[k][0])*weight,
+        rows[k][1]+(grip[k][1]-rows[k][1])*weight,rows[k][2]+(grip[k][2]-rows[k][2])*weight};
+    r[0]=r[0]*(1/r[0].length());
+    r[1]=r[1]-r[0]*r[1].dot(r[0]);r[1]=r[1]*(1/r[1].length());
+    r[2]={r[0].y*r[1].z-r[0].z*r[1].y,r[0].z*r[1].x-r[0].x*r[1].z,r[0].x*r[1].y-r[0].y*r[1].x};
+    for(int k=0;k<3;++k){rows[k][0]=r[k].x;rows[k][1]=r[k].y;rows[k][2]=r[k].z;}
+}
 // D36H5: a separate first-person contact rig. Hands retain their native world
 // matrices; shoulders belong to the eye rig, with elbows solved between them.
 // Geometry still uses world depth/lighting, never the weapon overlay. Native
@@ -1425,7 +1531,7 @@ static void first_person_contact_arm(CPUState* cpu,uint32_t desc,int part) {
     // not duplicate a traversal-only subset or whitelist animation numbers.
     if(!contact_arm_action(fp_policy.action))return;
     if(!input_modern_controls() || psx_mod_read_byte(player+0x3b8)!=0 ||
-       part<10 || part>14 || part==12)return;
+       part<10 || part>15)return;
     const char* mode=std::getenv("DNTTK_FP_CONTACT_ARMS");
     if(mode && !std::strcmp(mode,"native"))return;
     const uint32_t mats=psx_mod_read_word(player+0x3c);
@@ -1434,14 +1540,51 @@ static void first_person_contact_arm(CPUState* cpu,uint32_t desc,int part) {
     uint32_t source[3];
     using contact_arm::Vec;
     Vec native[3];
+    double rows[3][3][3];
     for(int n=0;n<3;++n) {
         const int joint=duke_part_joint(desc,first+n);if(joint<0)return;
         source[n]=mats+32*joint;
         native[n]={double(int32_t(psx_mod_read_word(source[n]+20))),
                    double(int32_t(psx_mod_read_word(source[n]+24))),
                    double(int32_t(psx_mod_read_word(source[n]+28)))};
+        for(int r=0;r<3;++r)for(int k=0;k<3;++k)
+            rows[n][r][k]=int16_t(psx_mod_read_half(source[n]+2*(3*r+k)))/4096.0;
     }
     if(cpu->gpr[5]!=source[index])return;
+    // Bone lengths are the skeleton's; the grip only moves the chain.
+    const double upper=(native[1]-native[0]).length(),lower=(native[2]-native[1]).length();
+    // Each bone's axis in its own local frame (a skeleton constant), so a
+    // gripped source rotation still carries its bone direction.
+    Vec bone_axis[2];
+    for(int n=0;n<2;++n) {
+        const Vec d=native[n+1]-native[n];
+        bone_axis[n]={rows[n][0][0]*d.x+rows[n][0][1]*d.y+rows[n][0][2]*d.z,
+                 rows[n][1][0]*d.x+rows[n][1][1]*d.y+rows[n][1][2]*d.z,
+                 rows[n][2][0]*d.x+rows[n][2][1]*d.y+rows[n][2][2]*d.z};
+    }
+    PushGrip grip;
+    const bool gripped=push_grip(desc,first,native,grip);
+    if(gripped)for(int n=0;n<3;++n) {
+        push_grip_blend(rows[n],grip.rows[n],grip.weight);
+        native[n]=native[n]+(grip.pos[n]-native[n])*grip.weight;
+    }
+    // Replay reserves this scratch before forking; 60 Hz without replay may
+    // enter directly from a climbing save before any weapon has allocated it.
+    auto scratch=[]{
+        if(!hidden_matrix)hidden_matrix=psx_mod_alloc_guest_memory(0x20,16);
+        return hidden_matrix!=0;
+    };
+    if(index==2) {
+        // Hands keep their native world matrices except in the push grip.
+        if(!gripped || !scratch())return;
+        for(int r=0;r<3;++r)for(int k=0;k<3;++k)psx_mod_write_half(hidden_matrix+2*(3*r+k),
+            uint16_t(int16_t(std::clamp(std::lround(4096*rows[2][r][k]),-32768L,32767L))));
+        psx_mod_write_half(hidden_matrix+18,0);
+        const double origin[3]={native[2].x,native[2].y,native[2].z};
+        for(int k=0;k<3;++k)psx_mod_write_word(hidden_matrix+20+4*k,uint32_t(int32_t(std::lround(origin[k]))));
+        cpu->gpr[5]=hidden_matrix;
+        return;
+    }
     const Vec eye={double(int32_t(psx_mod_read_word(camera+20))),
                    double(int32_t(psx_mod_read_word(camera+24))),
                    double(int32_t(psx_mod_read_word(camera+28)))};
@@ -1452,7 +1595,6 @@ static void first_person_contact_arm(CPUState* cpu,uint32_t desc,int part) {
     // swapping left/right or imposing an angle cutoff. Put the root behind
     // the eye with room for the upper-arm mesh's shoulder surface.
     const double lateral=std::clamp(2*(native[0]-eye).dot(axes[0]),-220.0,220.0);
-    const double upper=(native[1]-native[0]).length(),lower=(native[2]-native[1]).length();
     const Vec hand_delta=native[2]-eye;
     const Vec hand_local={hand_delta.dot(axes[0]),hand_delta.dot(axes[1]),hand_delta.dot(axes[2])};
     const Vec anchor={lateral,150,-64};
@@ -1468,6 +1610,11 @@ static void first_person_contact_arm(CPUState* cpu,uint32_t desc,int part) {
         upper,lower,pose))return;
     const Vec target[3]={pose.shoulder,pose.elbow,pose.hand};
     Vec a=native[index+1]-native[index],b=target[index+1]-target[index];
+    if(gripped) {
+        a={0,0,0};
+        for(int r=0;r<3;++r)a=a+Vec{rows[index][r][0],rows[index][r][1],rows[index][r][2]}*
+            (r==0?bone_axis[index].x:r==1?bone_axis[index].y:bone_axis[index].z);
+    }
     const double scale=b.length()/a.length();
     a=a*(1/a.length());b=b*(1/b.length());
     const double av[3]={a.x,a.y,a.z},bv[3]={b.x,b.y,b.z};
@@ -1483,14 +1630,11 @@ static void first_person_contact_arm(CPUState* cpu,uint32_t desc,int part) {
         Mat3 square;mat_mul(cross,cross,square);
         for(int r=0;r<3;++r)for(int k=0;k<3;++k)swing[r][k]+=cross[r][k]+square[r][k]/(1+dot);
     }
-    // Replay reserves this scratch before forking; 60 Hz without replay may
-    // enter directly from a climbing save before any weapon has allocated it.
-    if(!hidden_matrix)hidden_matrix=psx_mod_alloc_guest_memory(0x20,16);
-    if(!hidden_matrix)return;
+    if(!scratch())return;
     for(int r=0;r<3;++r) {
         double row[3]={};
         for(int k=0;k<3;++k)for(int j=0;j<3;++j)
-            row[k]+=int16_t(psx_mod_read_half(source[index]+2*(3*r+j)))/4096.0*swing[k][j];
+            row[k]+=rows[index][r][j]*swing[k][j];
         const double along=row[0]*bv[0]+row[1]*bv[1]+row[2]*bv[2];
         for(int k=0;k<3;++k)psx_mod_write_half(hidden_matrix+2*(3*r+k),
             uint16_t(int16_t(std::clamp(std::lround(4096*(row[k]+(scale-1)*along*bv[k])),-32768L,32767L))));

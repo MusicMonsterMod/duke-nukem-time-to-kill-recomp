@@ -335,8 +335,13 @@ static void push_lane_acquire(CPUState* cpu) {
     if(std::getenv("DNTTK_PUSH_TRACE"))std::fprintf(stderr,
         "ttk-push acquire object=%08x aligned=%d along=%d clear=%d\n",object,aligned,along,clear);
 }
+// D35D1: set while the release below replays grab 121 toward its let-go, so
+// the first-person grip can stay on the object instead of dipping to the
+// clip's start (entry and release share its keyframes). Draw-time only.
+static bool push_letgo;
 static void push_manual_release(bool orphan=false) {
     if((push_manual_object || orphan) && push_animation(psx_mod_read_half(player+0x60))) {
+        push_letgo=true;
         // The original hold's release branch finishes the interaction. Restart
         // all channels so no walking clip survives into the next action.
         for(unsigned ch=0;ch<4;++ch) {
@@ -350,6 +355,7 @@ static void push_manual_release(bool orphan=false) {
 }
 static void push_manual_prepare(CPUState* cpu) {
     const auto& f=input_snapshot(Context::Gameplay);
+    if(push_manual_object || psx_mod_read_half(player+0x60)!=121)push_letgo=false;
     if(push_manual_object && push_manual_epoch!=f.epoch)push_manual_release();
     if(!push_manual_enabled() || !f.active || !input_push_grab_owns_cross() || !push_grab_ready()) {
         const unsigned animation=psx_mod_read_half(player+0x60);

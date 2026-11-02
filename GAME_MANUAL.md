@@ -1874,8 +1874,9 @@ against bars, gates and frames like any wall, and so does Duke while pushing (D0
 Mouse look keeps working while you hold an object. With global VIEW set to
 FIRST PERSON, **PUSH/PULL VIEW** in OPTIONS > ADVANCED > ACTION PERSPECTIVE
 selects FIRST PERSON (default) or the existing THIRD PERSON interaction view.
-CONFIRM applies and saves it. The eye stays over Duke's body; look down toward
-the contact point to see his native hands. Push/pull and use-interaction arms
+CONFIRM applies and saves it. The eye stays over Duke's body, and in first
+person both hands hold the object's near face at chest height while you grab,
+push, pull and let go, instead of the third-person turn-and-shove arms (D35D1). Push/pull and use-interaction arms
 now clip at the visible geometry instead of disappearing as whole segments
 when their joint origins approach the eye. Global THIRD PERSON always wins,
 and releasing the object follows the current global VIEW. E-to-mantle still

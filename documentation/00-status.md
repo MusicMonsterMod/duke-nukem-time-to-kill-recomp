@@ -1,5 +1,31 @@
 # Current status - 2026-10-04
 
+## 2026-11-02 - D35D1 accepted and closed; D17AY recorded
+
+User: "absolutely solid work! fantastic, and accepted" and "lets lock it in
+and close us out". D35D1 is Done at revision 2
+([note 359](359-d35d1-first-person-push-grip.md)): in first person the hands
+hold the object's face steadily through grab, push, pull and release, with
+no vibration at 120/180 Hz. Executable
+`6872f692f956bd70fda32c29c9fc099246cdbb3e878f0c5d7ee09489f3946bab`.
+New backlog job D17AY (Todo): audit draw-time hooks that read 30 Hz tick
+state against interpolated redraws. No framework change.
+
+## 2026-11-02 - D35D1: first-person push/pull grip (Needs playtest)
+
+In first person, grabbing, pushing and pulling an object now keeps both hands
+steadily on its near face instead of showing the native turn-and-shove arms;
+release lets go smoothly. Third person, push physics and Vanilla unchanged.
+Native suites pass (new D35D1 group); slot-12 dumpster at 120/180 Hz and the
+archived LEVEL06 symbol blocks verified on private copies. Executable
+`84fa6e7fb6966343175c03307c1ef20339b2ceafb32d9a2568cde07a6cc69e77`.
+Awaiting the user's playtest ([note 359](359-d35d1-first-person-push-grip.md)).
+
+Revision 2: the arms no longer vibrate at 120/180 Hz. The grip follows the
+interpolated eye instead of Duke's last-tick position, and in late redraws it
+is placed through the late camera. Executable
+`6872f692f956bd70fda32c29c9fc099246cdbb3e878f0c5d7ee09489f3946bab`.
+
 ## 2026-11-02 - D14H accepted and closed
 
 User: "that's a winner. lock it in and close it out." D14H is Done at

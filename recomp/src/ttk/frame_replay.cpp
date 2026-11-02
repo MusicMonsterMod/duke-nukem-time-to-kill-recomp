@@ -1774,6 +1774,15 @@ void replay_body_camera(bool duke) {
     }
 }
 
+// D35D1: while Duke's body camera is current in a late redraw, the late
+// camera's rotation, so a contact fixed to the world (the push grip) can be
+// placed in the body view where the late camera sees the object.
+bool replay_late_rotation(int16_t rot[9]) {
+    if(!body_camera.valid || !body_camera.body) return false;
+    std::memcpy(rot,body_camera.rot[0],sizeof body_camera.rot[0]);
+    return true;
+}
+
 // D19G: FRAME RATE confirmed in the in-game OPTIONS. D19G1: from any launch
 // rate. 60 stops replay presentation and returns to the original present path
 // (as a 60 launch); another rate starts it, the render workers at the next

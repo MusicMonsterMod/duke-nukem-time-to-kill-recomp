@@ -127,6 +127,7 @@ bool late_view(double& yaw, double& pitch, double at_ms=-1);
 bool late_pivot(double* xyz);
 double late_fp_blend();
 void replay_body_camera(bool duke);
+bool replay_late_rotation(int16_t rot[9]);
 size_t render_state_size();
 void render_state_save(void* out);
 void render_state_load(const void* in);

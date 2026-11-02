@@ -309,8 +309,9 @@ static void open_sky_rooms() {
 // a second, so it gets the portal walk's own list back.
 // Developer: DNTTK_OPEN_SKY_OBJECTS=1 keeps the added rooms for it.
 #include "host_visibility.inc"
-static void open_sky_object_pass(uint32_t ra) {
-    if(host_vis_object_pass(ra)) {open_sky_count=0;return;}
+static void open_sky_object_pass(CPUState* cpu) {
+    const uint32_t ra=cpu->gpr[31];
+    if(host_vis_object_pass(cpu,ra)) {open_sky_count=0;return;}
     static const bool keep=[]{const char* t=std::getenv("DNTTK_OPEN_SKY_OBJECTS");return t && !std::strcmp(t,"1");}();
     if(keep || ra!=0x8002e6e4u || !open_sky_count || psx_mod_read_word(0x800d68a8)!=open_sky_count) return;
     psx_mod_write_word(0x800d68a8,open_sky_original);open_sky_count=0;

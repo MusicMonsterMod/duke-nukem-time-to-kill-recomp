@@ -57,8 +57,11 @@ static const HostVisGuard host_vis_guards[]={
     {0x80029660,0x18c,"5a9150b197569cf2f186bc6cf69f963b446b28541c7ff481eecc1fa120280261"},
     {0x800b444c,0x160,"704b7d8ebd6995ceb4134b7c68371678756cff1becec9850d930302d8aeabd02"},
     {0x8006276c,0x3dc,"c6544cdc51f5ba439a9e802458f8418e87a252021d487c3da59b21090fbe1c89"},
+    // D17AZ: the object pass and its static-object renderer (reach draws).
+    {0x800374cc,0x2ac,"0a623badc1e3360e74e61e7da97d2010ddc21cc1e89bd4d34c45a5f0cbe5c71a"},
+    {0x80031d10,0x654,"8ed8575e0fd05c6291209498ae990fb0048fd0cfb15990e8cc7914cfa9fe96b2"},
 };
-static std::array<std::vector<uint32_t>,3> host_vis_words;
+static std::array<std::vector<uint32_t>,5> host_vis_words;
 static uint64_t host_vis_frames=0,host_vis_refusals=0,host_vis_rooms=0,host_vis_extra=0,host_vis_tested=0,host_vis_selected=0,host_vis_left=0;
 static uint64_t host_vis_redraw_only=0;
 static uint64_t host_vis_missed=0,host_vis_widened=0,host_vis_select_us=0,host_vis_draw_us=0;
@@ -97,6 +100,9 @@ static bool host_vis_live=false;
 static std::vector<bool> host_vis_shown;
 static bool host_vis_shown_valid=false;
 struct HostVisCamera {double m[9];double eye[3];double h;};
+// D17AZ: the live frame's camera and guard-banded view (view-rect coordinates
+// centred on the GTE offset), for the object reach test at the object pass.
+static HostVisCamera host_vis_frame_cam;static double host_vis_frame_guard[4];
 // View-space position (x right, y down, z forward) of a world point.
 static void host_vis_view(const HostVisCamera& c,const double p[3],double v[3]) {
     const double d[3]={p[0]-c.eye[0],p[1]-c.eye[1],p[2]-c.eye[2]};
@@ -311,6 +317,7 @@ static bool host_vis_walk(CPUState* cpu) {
     const double view[4]={rx-ox,ry-oy,rx+rw-ox,ry+rh-oy};
     const double gx=(view[2]-view[0])*0.5*host_vis_guard(),gy=(view[3]-view[1])*0.5*host_vis_guard();
     const double guard[4]={view[0]-gx,view[1]-gy,view[2]+gx,view[3]+gy};
+    host_vis_frame_cam=c;std::copy(guard,guard+4,host_vis_frame_guard);
     host_vis_game_count=count;
     for(uint32_t i=0;i<count;++i) {
         const uint32_t e=0x800d68b0+12*i;host_vis_game[i].room=psx_mod_read_word(e+8);
@@ -490,10 +497,99 @@ static void host_vis_scene() {
     near_clip_host_walk(false,{});
     if(host_vis_live) host_vis_write_list(host_vis_props,host_vis_props_count);
 }
-// Object pass entry (ra 0x8002e6e4): the portal walk's own list.
-static bool host_vis_object_pass(uint32_t ra) {
+// D17AZ: objects that reach out of their room. The object pass 0x800374cc
+// visits only the rooms the portal walk listed: for each, the room's object
+// list (+0x48, nodes +4 next, +8 object), its targetables (+0x4c) and the
+// global list, drawing each through the renderer table 0x800c0bf8 by kind
+// (+0x14) with the room's rectangle. An object belongs to one room (+0x2e),
+// so one that reaches into rooms on screen vanished whole as soon as its own
+// room's opening left the view: the slot-12 train (type 77, radius 9573,
+// owned by the room behind the camera room), like a multi-sector sprite in
+// EDuke32. Here, after the pass has its list back, each static object
+// (kind 1, renderer 0x80031d10, the kind of nearly every object that reaches
+// out of its room in all 21 levels) in a room the walk did not list is drawn
+// through that renderer with the whole view rectangle when its bounding
+// sphere (position +4, radius +0x5a) reaches out of its room's box into the
+// box of a room the host shows, and into the guard-banded view. The renderer
+// keeps its own sphere, box, far and near tests, clipping and depth; host
+// depth hides what lies behind nearer walls. Only drawing changes: the lists,
+// object membership and every handler stay the game's. Actors (kind 2) and
+// the rest stay on the pass (D17AQ). Redraw workers run the same pass.
+// Developer: DNTTK_OBJECT_REACH=0 turns it off.
+static uint64_t host_vis_reach_drawn=0,host_vis_reach_tested=0,host_vis_reach_us=0;
+static uint32_t host_vis_reach_last=0;
+static bool host_vis_reach_enabled() {
+    static const bool v=[]{const char* t=std::getenv("DNTTK_OBJECT_REACH");return !(t && !std::strcmp(t,"0"));}();
+    return v;
+}
+static void host_vis_reach_draw(CPUState* source) {
+    host_vis_reach_last=0;
+    if(!host_vis_reach_enabled() || !host_vis_shown_valid) return;
+    const uint32_t table=psx_mod_read_word(0x800da454),rooms=psx_mod_read_word(0x800da47c);
+    if(!rooms || rooms>256 || rooms!=host_vis_shown.size() || table<0x80010000u || table>0x80200000u-rooms*88 || (table&3)) return;
+    if(psx_mod_read_word(0x800c0bf8+4)!=0x80031d10u) return;
+    const uint32_t top=source->gpr[29];
+    if(source->gpr[4]!=camera || guest_busy || top<0x801f4000 || top>0x801ffff0 ||
+       g_precise_mode || g_ls_mode || g_psx_call_bail) return;
+    const auto t0=std::chrono::steady_clock::now();
+    std::vector<bool> listed(rooms,false);
+    for(uint32_t i=0;i<host_vis_game_count;++i) if(host_vis_game[i].room<rooms) listed[host_vis_game[i].room]=true;
+    static std::vector<std::array<double,6>> boxes;boxes.resize(rooms);
+    for(uint32_t room=0;room<rooms;++room) {
+        const uint32_t a=table+room*88;
+        for(int k=0;k<3;++k) {boxes[room][k]=(int32_t)psx_mod_read_word(a+4*k);boxes[room][3+k]=(int32_t)psx_mod_read_word(a+0x20+4*k);}
+    }
+    static std::vector<uint32_t> draw;draw.clear();
+    for(uint32_t room=0;room<rooms && draw.size()<32;++room) {
+        if(listed[room]) continue;
+        const double* rlo=boxes[room].data();const double* rhi=rlo+3;
+        uint32_t node=psx_mod_read_word(table+room*88+0x48);
+        for(unsigned n=0;node && n<512 && draw.size()<32;++n,node=psx_mod_read_word(node+4)) {
+            if(node<0x80010000u || node>0x801ffff0u || (node&3)) break;
+            const uint32_t o=psx_mod_read_word(node+8);
+            if(o<0x80010000u || o>0x801fff00u || (o&3)) continue;
+            if(psx_mod_read_byte(o+0x14)!=1 || (int8_t)psx_mod_read_byte(o+0x2e)!=(int)room) continue;
+            const int rad=(int16_t)psx_mod_read_half(o+0x5a);
+            if(rad<=0) continue;
+            double lo[3],hi[3];bool out=false;
+            for(int k=0;k<3;++k) {
+                const double p=(int32_t)psx_mod_read_word(o+4+4*k);
+                lo[k]=p-rad;hi[k]=p+rad;out|=lo[k]<rlo[k] || hi[k]>rhi[k];
+            }
+            if(!out) continue;
+            ++host_vis_reach_tested;
+            bool reach=false;
+            for(uint32_t s=0;s<rooms && !reach;++s) {
+                if(s==room || !host_vis_shown[s]) continue;
+                const double* slo=boxes[s].data();const double* shi=slo+3;
+                reach=lo[0]<shi[0] && hi[0]>slo[0] && lo[1]<shi[1] && hi[1]>slo[1] && lo[2]<shi[2] && hi[2]>slo[2];
+            }
+            if(reach && host_vis_box(host_vis_frame_cam,lo,hi,host_vis_frame_guard)) draw.push_back(o);
+        }
+    }
+    host_vis_reach_us+=(uint64_t)std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now()-t0).count();
+    if(draw.empty()) return;
+    // The renderer runs on a copy of the CPU with the stack and scratchpad
+    // restored afterwards, as D35F1's pole draw does.
+    uint32_t saved[1024],scratch[256];
+    const uint32_t base=(top-4096)&~3u;
+    for(unsigned i=0;i<1024;++i) saved[i]=psx_mod_read_word(base+4*i);
+    for(unsigned i=0;i<256;++i) scratch[i]=psx_mod_read_word(0x1f800000+4*i);
+    for(uint32_t o:draw) {
+        CPUState cpu=*source;cpu.pc=0;cpu.gpr[29]=top-0x100;cpu.gpr[31]=0x800000fc;
+        cpu.gpr[4]=camera;cpu.gpr[5]=o;cpu.gpr[6]=0x800d2210;
+        guest_busy=true;psx_dispatch_call(&cpu,0x80031d10,0x800000fc);guest_busy=false;
+    }
+    for(unsigned i=0;i<1024;++i) if(psx_mod_read_word(base+4*i)!=saved[i]) psx_mod_write_word(base+4*i,saved[i]);
+    for(unsigned i=0;i<256;++i) if(psx_mod_read_word(0x1f800000+4*i)!=scratch[i]) psx_mod_write_word(0x1f800000+4*i,scratch[i]);
+    host_vis_reach_drawn+=draw.size();host_vis_reach_last=(uint32_t)draw.size();
+}
+// Object pass entry (ra 0x8002e6e4): the portal walk's own list, then the
+// objects that reach out of unlisted rooms (D17AZ).
+static bool host_vis_object_pass(CPUState* cpu,uint32_t ra) {
     if(!host_vis_live || ra!=0x8002e6e4u) return false;
     host_vis_write_list(host_vis_game,host_vis_game_count);
+    host_vis_reach_draw(cpu);
     host_vis_live=false;
     return true;
 }
@@ -505,11 +601,11 @@ static const char* host_visibility_debug_json() {
         used+=std::snprintf(list+used,sizeof list-used,"%s%u",i?",":"",(unsigned)host_vis_last_order[i]);
     std::snprintf(buffer,sizeof buffer,"{\"enabled\":%s,\"frames\":%llu,\"refusals\":%llu,\"rooms\":%llu,\"over_walls\":%llu,\"tested\":%llu,"
         "\"selected\":%llu,\"drawn\":%llu,\"left\":%llu,\"left_far\":%llu,\"left_near\":%llu,\"walk_nulled\":%llu,\"game_missed\":%llu,\"game_widened\":%llu,\"last_missed\":[%u,%u],\"select_us\":%llu,\"draw_us\":%llu,\"redraw_only_pieces\":%llu,\"last\":{\"rooms\":%u,\"pieces\":%u,\"game_rooms\":%u,\"props_rooms\":%u},"
-        "\"open_tops\":%llu,\"audit\":[%llu,%llu,%llu,%llu,%.1f,%u],\"developer_dropped\":%llu,\"list\":[%s]}",
+        "\"open_tops\":%llu,\"audit\":[%llu,%llu,%llu,%llu,%.1f,%u],\"developer_dropped\":%llu,\"reach\":[%llu,%llu,%u,%llu],\"list\":[%s]}",
         host_visibility_enabled()?"true":"false",(unsigned long long)host_vis_frames,(unsigned long long)host_vis_refusals,(unsigned long long)host_vis_rooms,
         (unsigned long long)host_vis_extra,(unsigned long long)host_vis_tested,(unsigned long long)host_vis_selected,(unsigned long long)n[0],
         (unsigned long long)n[1],(unsigned long long)n[3],(unsigned long long)n[4],(unsigned long long)n[2],(unsigned long long)host_vis_missed,(unsigned long long)host_vis_widened,host_vis_last_missed_from,host_vis_last_missed,(unsigned long long)host_vis_select_us,(unsigned long long)host_vis_draw_us,(unsigned long long)host_vis_redraw_only,host_vis_last_rooms,host_vis_last_pieces,host_vis_last_game,host_vis_props_count,(unsigned long long)host_vis_open_tops,
-        (unsigned long long)host_vis_audit[0],(unsigned long long)host_vis_audit[1],(unsigned long long)host_vis_audit[2],(unsigned long long)host_vis_audit[3],host_vis_audit_max,host_vis_audit_room,(unsigned long long)host_vis_developer_dropped,list);
+        (unsigned long long)host_vis_audit[0],(unsigned long long)host_vis_audit[1],(unsigned long long)host_vis_audit[2],(unsigned long long)host_vis_audit[3],host_vis_audit_max,host_vis_audit_room,(unsigned long long)host_vis_developer_dropped,(unsigned long long)host_vis_reach_drawn,(unsigned long long)host_vis_reach_tested,host_vis_reach_last,(unsigned long long)host_vis_reach_us,list);
     return buffer;
 }
 bool hostvis_console_command(const char* line,void (*say)(const char*),bool& close) {

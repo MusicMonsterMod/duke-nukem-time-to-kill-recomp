@@ -1,5 +1,41 @@
 # Next-session handoff
 
+## 2026-11-02 - D17AZ accepted and closed; D17BA added
+
+User: "excellent work ... lock in this job that we've just done now with
+D17AZ, and close us out." D17AZ is Done
+([note 365](365-d17az-object-reach.md)): static objects that reach out of an unlisted room into a
+shown room are drawn by their own renderer, so the slot-12 train stays drawn
+until it leaves the screen. Executable
+`868256dc4ea4d963a20769d802442750a32fdcdf9139b22a9b8dd9aeb66fabf9`. No
+framework change. New backlog (not started): D17BA, the slot-12 burning
+barrel's inside is missing up close. Brief look: through the open top the
+floor and wall show where the far inside wall should be; the user's
+hypothesis (one-sided faces, back-face culled) is the first to confirm.
+
+## 2026-11-02 - D17AZ: objects that reach out of their room stay drawn (Needs playtest)
+
+Cause confirmed ([note 365](365-d17az-object-reach.md)): the slot-12 train is one static object
+(type 77, radius 9573) in room 82's object list. Duke stands in room 19, and
+the train runs into it. The object pass `0x800374cc` is a draw loop over the
+game's portal list, so the whole train vanished the frame room 82's opening
+left the view. This is the EDuke32 sector case; no rectangle or far cull was
+involved. Fix (Polymorph host visibility only): at the object pass, each kind-1
+static object in a room the walk did not list is drawn through its own
+renderer `0x80031d10` (whole view rectangle) when its bounding sphere reaches
+out of its room into a room the host shows and into the guard-banded view. The
+game's lists, membership and the pass itself are unchanged; actors stay on the
+game's list. `DNTTK_OBJECT_REACH=0` (developer) turns it off. Executable
+`868256dc4ea4d963a20769d802442750a32fdcdf9139b22a9b8dd9aeb66fabf9`. No
+framework change. Evidence: private slot-12 turns (first person FOV 90/120,
+third person, 60/180 Hz): the train stays drawn and leaves the screen by its
+real extent (off: gone from step 11 to step 46). Sweep of all 21 levels: 491
+static objects reach into another room and are covered; 50 actor records and
+one targetable static object are not (listed in the note). Cost: 30-67 us per
+game frame, game frames and fields unchanged in slots 12, 10 and 2.
+`ttk-controls-test`, `ttk-near-test` and `ttk-input-test` pass. Awaiting the
+user's check.
+
 ## 2026-11-02 - D08Q11 accepted and closed; D17AZ added
 
 User: "this job is now complete and I'm very happy with the results so it's

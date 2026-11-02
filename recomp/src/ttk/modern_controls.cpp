@@ -2118,7 +2118,7 @@ PSX_MOD_CONSTRUCTOR(register_ttk_controls) {
     psx_mod_register_function_entry_plugin("ttk.modern.controls",0x80099530,[](CPUState* cpu,uint32_t){ttk::reach_tick(cpu);});
     psx_mod_register_function_entry_plugin("ttk.modern.controls",0x80025944,[](CPUState* cpu,uint32_t){ttk::reach_hold(cpu);});
     psx_mod_register_function_entry_plugin("ttk.modern.controls",0x800632b8,[](CPUState* cpu,uint32_t){ttk::reach_release(cpu);});
-    psx_mod_register_function_entry_plugin("ttk.modern.controls",0x800374cc,[](CPUState* cpu,uint32_t){ttk::open_sky_object_pass(cpu->gpr[31]);});
+    psx_mod_register_function_entry_plugin("ttk.modern.controls",0x800374cc,[](CPUState* cpu,uint32_t){ttk::open_sky_object_pass(cpu);});
     psx_mod_register_function_entry_plugin("ttk.modern.controls",0x8006cefc,[](CPUState*,uint32_t){ttk::reach_restore();});
     // D08O2A: a shared matrix routine; its own hook keeps the per-joint cost to a few compares.
     psx_mod_register_function_entry_plugin("ttk.modern.controls",0x800b42ec,[](CPUState* cpu,uint32_t){ttk::swim_aim_arm(cpu);});

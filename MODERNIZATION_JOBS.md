@@ -1,5 +1,41 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-02 - D17AZ accepted and closed; D17BA added
+
+User: "excellent work ... lock in this job that we've just done now with
+D17AZ, and close us out." D17AZ is Done
+([note 365](documentation/365-d17az-object-reach.md)): static objects that reach out of an unlisted room into a
+shown room are drawn by their own renderer, so the slot-12 train stays drawn
+until it leaves the screen. Executable
+`868256dc4ea4d963a20769d802442750a32fdcdf9139b22a9b8dd9aeb66fabf9`. No
+framework change. New backlog (not started): D17BA, the slot-12 burning
+barrel's inside is missing up close. Brief look: through the open top the
+floor and wall show where the far inside wall should be; the user's
+hypothesis (one-sided faces, back-face culled) is the first to confirm.
+
+## 2026-11-02 - D17AZ: objects that reach out of their room stay drawn (Needs playtest)
+
+Cause confirmed ([note 365](documentation/365-d17az-object-reach.md)): the slot-12 train is one static object
+(type 77, radius 9573) in room 82's object list. Duke stands in room 19, and
+the train runs into it. The object pass `0x800374cc` is a draw loop over the
+game's portal list, so the whole train vanished the frame room 82's opening
+left the view. This is the EDuke32 sector case; no rectangle or far cull was
+involved. Fix (Polymorph host visibility only): at the object pass, each kind-1
+static object in a room the walk did not list is drawn through its own
+renderer `0x80031d10` (whole view rectangle) when its bounding sphere reaches
+out of its room into a room the host shows and into the guard-banded view. The
+game's lists, membership and the pass itself are unchanged; actors stay on the
+game's list. `DNTTK_OBJECT_REACH=0` (developer) turns it off. Executable
+`868256dc4ea4d963a20769d802442750a32fdcdf9139b22a9b8dd9aeb66fabf9`. No
+framework change. Evidence: private slot-12 turns (first person FOV 90/120,
+third person, 60/180 Hz): the train stays drawn and leaves the screen by its
+real extent (off: gone from step 11 to step 46). Sweep of all 21 levels: 491
+static objects reach into another room and are covered; 50 actor records and
+one targetable static object are not (listed in the note). Cost: 30-67 us per
+game frame, game frames and fields unchanged in slots 12, 10 and 2.
+`ttk-controls-test`, `ttk-near-test` and `ttk-input-test` pass. Awaiting the
+user's check.
+
 ## 2026-11-02 - D08Q11 accepted and closed; D17AZ added
 
 User: "this job is now complete and I'm very happy with the results so it's
@@ -260,9 +296,51 @@ Acceptance (private save copies, first and third person):
 5. Crouch, crouch-walk, crouch-jump and jetpack controls show no regressions;
    `ttk-controls-test` passes; Vanilla unchanged.
 
+### D17BA - The burning barrel's inside is missing up close
+
+**Status: Todo. Dependencies: none (renderer work targets Polymorph).**
+Priority medium.
+
+Observed (user, 2026-11-02): load UI slot 12 (saved 2026-11-02 20:33) and walk
+up to the burning barrel. Its back is not drawn; the rest only appears once
+Duke walks around it.
+
+Brief look (offscreen, private copy of the save; nothing changed; every cause
+is a **hypothesis to confirm**): the barrel is a placed static object (type
+220, renderer kind 1 `0x80031d10`, model `0x8012cb90`, local box about 320 x
+750 x 280, room 22), with the flame drawn above it. From about 500 units and
+looking down, the barrel's open top shows the floor and the wall behind it
+where the far inside wall should be (`recomp/analysis/d17az-barrel/barrel-sheet.png`).
+Likely causes, in order:
+1. The user's hypothesis: the model's faces are one-sided. From outside, the
+   far side's inner faces point away from the camera and are back-face culled
+   (NCLIP), so the open top shows through to the background. The original
+   PlayStation view (low, far camera) rarely looked into it.
+2. The host culling decision (D17 precise culling, `DNTTK_PRECISE_CULLING`)
+   or the near-clip emission drops faces the original NCLIP would keep.
+3. The model has no inner faces at all (only an outer shell and no lid), so
+   only added geometry or a cap would close it.
+
+Investigation: compare Polymorph, `DNTTK_PRECISE_CULLING=0`, Classic and
+Vanilla in the same view. Trace the barrel's polygons (primitive trace) for
+culled versus absent faces. Then sweep the levels for other open models
+(barrels, bins, pipes, crates) with the same look.
+
+Direction (to choose after the report): a game-wide rule, not one barrel. For
+example, draw both sides of the faces of open models (flagged per model from
+the game's own data), with the inside showing the same texture, if cause 1 or
+2 holds. Classic and Vanilla stay unchanged.
+
+Acceptance:
+1. Slot 12: walking up to and around the barrel, its far side and inside are
+   always drawn; first and third person, 180 Hz.
+2. No double-sided faces show through solid models elsewhere (z-fighting,
+   wrong-side lighting); the level sweep lists every model the rule changes.
+3. Polymorph frame rate holds; Classic and Vanilla unchanged.
+
 ### D17AZ - The slot-12 train vanishes at the edge of the view
 
-**Status: Todo. Dependencies: D17AR (host world visibility), D17AR4, D17AX.**
+**Status: Done ([note 365](documentation/365-d17az-object-reach.md)), accepted 2026-11-02. Dependencies: D17AR (host world visibility), D17AR4, D17AX.**
 Priority medium. Renderer work targets Polymorph (Classic is frozen).
 
 Observed (user, 2026-11-02): load UI slot 12 and slowly turn right. The train
@@ -3301,7 +3379,8 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D17AW | Polymorph: present redraws from a host render thread (no slow second after loads, 180 Hz in heavy views) | Done | D17AR5, D17AQ |
 | D17AX | Polymorph: draw the whole level from jetpack height (slot 10 black sides and castle interior) | Done (flicker fix; note 352) | D17AR, D17AQ |
 | D17AY | Full-refresh presentation audit: draw-time hooks must not read 30 Hz tick state against interpolated redraws | Done (user-accepted) | D17, D14H, D35D1 |
-| D17AZ | Polymorph: slot-12 train vanishes at the view edge; objects across rooms stay drawn game-wide | Todo | D17AR, D17AR4, D17AX |
+| D17AZ | Polymorph: slot-12 train vanishes at the view edge; objects across rooms stay drawn game-wide | Done | D17AR, D17AR4, D17AX |
+| D17BA | Polymorph: burning barrel inside missing up close (one-sided faces?) | Todo | - |
 | D14F | 90-default / 120-maximum world FOV | Done (user-confirmed 2026-10-30) | Implemented in afd4ad6 (note 317); re-verified 2026-10-29 |
 | D17AE | Slot-11 sign post through door header | Done (user-confirmed 2026-10-29) | Scene depth for native world/scenery packets; replay precedence fix; world backface cull restored |
 | D17AF | Latest slot-10 ground water visibility | Done | Selected batch; see intake above |

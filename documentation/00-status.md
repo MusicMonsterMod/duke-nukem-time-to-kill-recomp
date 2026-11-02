@@ -1,5 +1,28 @@
 # Current status - 2026-10-04
 
+## 2026-11-02 - D17AY accepted and closed
+
+User: "great work, fully accept - the animations looks super smooth" and
+"lock it in and close it out". D17AY is Done
+([note 360](360-d17ay-full-refresh-presentation.md)). Executable
+`972de2e2f0ef2e106d04db074da26fd187a7c311d40b1f902e8ff590adb6be23`. The last two player
+session logs show no failures. No framework change.
+
+## 2026-11-02 - D17AY: full-refresh presentation audit (Needs playtest)
+
+Draw-time host code no longer mixes 30 Hz game state with the 120/180 Hz
+interpolated view in the cases found: first-person recoil, quick-kick and
+door-kick legs, the crouch/swim animated hand, the FOV change entering and
+leaving first person, and the push grip's position reads now advance between
+game frames. Render replay supplies in-between object poses to draw hooks
+(`draw_object_pose`); a new in-draw trace (`DNTTK_PRESENT_TRACE=1`,
+`recomp/tools/local/present_trace.py`) measured each fix before/after at 120
+and 180 Hz on private copies. Native suites pass; 60 Hz and Vanilla
+unchanged. Executable
+`972de2e2f0ef2e106d04db074da26fd187a7c311d40b1f902e8ff590adb6be23`.
+Awaiting the user's playtest ([note 360](360-d17ay-full-refresh-presentation.md)).
+No framework change.
+
 ## 2026-11-02 - D35D1 accepted and closed; D17AY recorded
 
 User: "absolutely solid work! fantastic, and accepted" and "lets lock it in

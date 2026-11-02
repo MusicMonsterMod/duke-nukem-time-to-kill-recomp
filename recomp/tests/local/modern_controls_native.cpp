@@ -271,6 +271,27 @@ namespace ttk {int replay_load_window(int window){return window==1 ? -1 : 0;}}
 namespace ttk {bool live_frame_redraw_only(){return false;}}
 namespace ttk {int replay_audio_low(){return 0;}}
 namespace ttk {void replay_body_camera(bool){}bool replay_late_rotation(int16_t*){return false;}} // D14H/D35D1: replay workers only
+// D17AY: a redraw's in-between object poses (frame_replay.cpp); empty = a live draw.
+struct TestDrawPose {uint32_t obj; double pos[3]; double yaw;};
+static std::vector<TestDrawPose> test_draw_poses;
+namespace ttk {
+bool draw_object_pose(uint32_t obj,double pos[3],double* yaw) {
+    for(const auto& t:test_draw_poses) if(t.obj==obj) {
+        for(int k=0;k<3;++k)pos[k]=t.pos[k];
+        if(yaw)*yaw=t.yaw;
+        return true;
+    }
+    for(int k=0;k<3;++k)pos[k]=int32_t(psx_mod_read_word(obj+4+4*k));
+    if(yaw)*yaw=psx_mod_read_half(obj+0x1c)&0xfff;
+    return false;
+}
+bool present_trace_reference=false;
+static bool test_redraw=false;
+bool replay_redraw_active() {return test_redraw;}
+bool present_trace_enabled() {return false;}
+void present_trace(const char*,const double*) {}
+void present_trace_value(const char*,double) {}
+}
 extern "C" int psx_audio_out_stats(double*,double*,uint64_t*,uint64_t*,double*,int* legacy,int*){*legacy=1;return 0;}
 extern "C" void ttk_fast_timing_renew(void) {}
 static uint32_t save_loads;
@@ -3430,6 +3451,18 @@ int main(int argc,char** argv) {
                     renderer_available=false;ttk::render_state_load(image.data());
                     assert(ttk::third_person_camera_live());
                     assert(std::abs(ttk::third_person_body_coverage()-opacity)<1e-9);
+                    // D17AY: a redraw between ticks moves Duke and the eye
+                    // together; the dissolve follows Duke's in-between position,
+                    // not the last tick's (which would read 300 units nearer).
+                    TestDrawPose duke{p,{},0};
+                    for(int i=0;i<3;++i) {
+                        duke.pos[i]=int32_t(psx_mod_read_word(p+4+4*i))+forward[i]*300;
+                        psx_mod_write_word(c+0x14+4*i,uint32_t(int32_t(psx_mod_read_word(c+0x14+4*i))+int32_t(std::lround(forward[i]*300))));
+                    }
+                    assert(std::abs(ttk::third_person_body_coverage()-opacity)>1e-3);
+                    test_draw_poses={duke};
+                    assert(std::abs(ttk::third_person_body_coverage()-opacity)<1e-3);
+                    test_draw_poses.clear();
                     _exit(0);
                 }
                 int status=0;assert(waitpid(child,&status,0)==child && WIFEXITED(status) && WEXITSTATUS(status)==0);
@@ -5338,11 +5371,11 @@ int main(int argc,char** argv) {
                     auto word=[](const uint8_t* b){int32_t v;std::memcpy(&v,b,4);return v;};
                     auto half=[](const uint8_t* b){int16_t v;std::memcpy(&v,b,2);return v;};
                     // Draw parts 10..15; returns each drawn matrix.
-                    auto draw=[&](uint8_t (&out)[6][32],bool (&moved)[6]) {
+                    auto draw=[&](uint8_t (&out)[6][32],bool (&moved)[6],int dx=0,int dy=0) {
                         // Eye at the standing push eye, looking along +X.
                         const int16_t rows[9]={0,0,-4096,0,4096,0,4096,0,0};
                         for(unsigned i=0;i<9;++i)psx_mod_write_half(c+2*i,uint16_t(rows[i]));
-                        psx_mod_write_word(c+20,uint32_t(px));psx_mod_write_word(c+24,uint32_t(py-295));
+                        psx_mod_write_word(c+20,uint32_t(px+dx));psx_mod_write_word(c+24,uint32_t(py-295+dy));
                         psx_mod_write_word(c+28,uint32_t(pz));
                         call(0x800348d8,c,p,0x8003769c);
                         for(unsigned part:{13u,14u,15u,10u,11u,12u}) {
@@ -5442,6 +5475,27 @@ int main(int argc,char** argv) {
                             for(bool m:moved)assert(!m);
                         }
                         setenv("DNTTK_PUSH_VIEW","first",1);
+                    }
+                    // D17AY: a redraw between ticks shows Duke, the object and
+                    // the eye in between (here 40 further along and 30 up a
+                    // slope); the grip moves with them, not with the last tick.
+                    {
+                        psx_mod_write_half(p+0x60,120);++save_loads;for(int i=0;i<30;++i)frame();
+                        pose_arms(0);
+                        uint8_t live[6][32],between[6][32],tick[6][32];bool moved[6];
+                        draw(live,moved);
+                        test_draw_poses={{p,{px+40.0,py-30.0,double(pz)},1024},{object,{px+640.0,py-30.0,double(pz)},0}};
+                        draw(between,moved,40,-30);
+                        test_draw_poses.clear();
+                        draw(tick,moved,40,-30);
+                        for(unsigned h:{2u,5u}) {
+                            assert(std::abs(word(between[h]+20)-(word(live[h]+20)+40))<=1);
+                            assert(std::abs(word(between[h]+24)-(word(live[h]+24)-30))<=1);
+                            assert(std::abs(word(between[h]+28)-word(live[h]+28))<=1);
+                            assert(std::abs(word(tick[h]+24)-word(live[h]+24))<=1);   // the old step
+                            assert(!std::memcmp(between[h],live[h],18));               // same rows
+                        }
+                        std::puts("PASS: D17AY push grip follows the in-between Duke and object in a redraw");
                     }
                     std::copy(old_desc.begin(),old_desc.end(),ram+(desc&0x1fffff));
                     std::copy(old_mats.begin(),old_mats.end(),ram+(mats&0x1fffff));

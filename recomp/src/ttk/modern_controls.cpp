@@ -240,7 +240,7 @@ static bool third_body_drawing=false;
 // first-person body/viewmodel. Reset at its verified list successor or entry
 // to another actor, and when a replay/world snapshot is installed.
 static bool mirror_duke_drawing=false;
-static unsigned override_kick_frame=0;
+static double override_kick_frame=0;
 // D12A first-person quick kick (kick.inc).
 static bool kick_request(bool queue=false);
 // D11B: between Duke's actor draw entry and the next object-list step.
@@ -1895,11 +1895,17 @@ struct RenderState {
     FirePose fire_poses[32];
     RifleReload rifle_reload; RunArms run_arms; unsigned weapon_slot;
     uint32_t weapon_matrix, hidden_matrix;
-    bool kick_active; unsigned kick_frame; uint32_t kick_point, leg_matrices;
+    bool kick_active; double kick_frame; uint32_t kick_point, leg_matrices;
     // D17AR2: the live frame's host visibility switch (the console toggle
     // changes only this process; redraw workers forked before it).
     bool host_visibility;
     bool push_letgo;
+    // D17AY: tick-rate presentation values blended per redraw, and the
+    // jetpack flame re-arm's flight flag (workers fork before a flight).
+    bool door_valid; double door_frame;
+    ChannelHand channel_hand;
+    double projection_blend;
+    bool jet_flight;
 };
 bool replay_gameplay_context() { return gameplay_context(); }
 void render_state_prepare() {
@@ -1954,6 +1960,10 @@ void render_state_save(void* out) {
     std::memcpy(r.fire_poses,fire_poses,sizeof fire_poses);
     r.weapon_matrix=weapon_matrix; r.hidden_matrix=hidden_matrix;
     r.kick_active=kick_active; r.kick_frame=kick_active ? kick_frame() : 0u;
+    r.door_valid=door_kick_frame_live(r.door_frame);
+    r.channel_hand={};r.channel_hand.valid=animated_weapon_channel_live(r.channel_hand.q,r.channel_hand.rel);
+    r.projection_blend=fp_blend;
+    r.jet_flight=jet_flight_live;
     r.kick_point=kick_point; r.leg_matrices=leg_matrices;
     r.host_visibility=host_visibility_enabled();
     r.push_letgo=push_letgo;
@@ -1972,6 +1982,30 @@ void render_state_blend_mask(void* out,const void* next,double alpha) {
         a.rifle_reload.pull+=(b.rifle_reload.pull-a.rifle_reload.pull)*alpha;
         a.kick+=(b.kick-a.kick)*alpha;
     }
+    // DNTTK_DRAW_POSE=tick (developer, D17AY): the values below keep the last tick.
+    static const bool tick=[]{const char* t=std::getenv("DNTTK_DRAW_POSE");return t && !std::strcmp(t,"tick");}();
+    if(tick) {std::memcpy(out,&a,sizeof a);return;}
+    if(!(a.weapon_slot==6 && b.weapon_slot==6) && a.weapon_slot==b.weapon_slot && b.kick<=a.kick) {
+        // D17AY: every weapon's recoil eases back between game ticks. A new
+        // shot (kick rising) still starts with its muzzle flash, at the tick.
+        a.kick+=(b.kick-a.kick)*alpha;
+    }
+    // D17AY: the quick kick's leg frame, the door kick and the crouch/swim
+    // animated hand advance between ticks; the FOV eases into the eye.
+    if(a.kick_active && b.kick_active && b.kick_frame>=a.kick_frame && b.kick_frame-a.kick_frame<=8)
+        a.kick_frame+=(b.kick_frame-a.kick_frame)*alpha;
+    if(a.door_valid && b.door_valid && b.door_frame>=a.door_frame)
+        a.door_frame+=(b.door_frame-a.door_frame)*alpha;
+    if(a.channel_hand.valid && b.channel_hand.valid && a.weapon_slot==b.weapon_slot) {
+        double* q=a.channel_hand.q;const double* p=b.channel_hand.q;
+        const double sign=q[0]*p[0]+q[1]*p[1]+q[2]*p[2]+q[3]*p[3]<0 ? -1 : 1;
+        double n=0;
+        for(int i=0;i<4;++i) {q[i]+=(sign*p[i]-q[i])*alpha;n+=q[i]*q[i];}
+        n=std::sqrt(n);
+        if(n>1e-9) for(int i=0;i<4;++i) q[i]/=n;
+        for(int i=0;i<3;++i) a.channel_hand.rel[i]+=(b.channel_hand.rel[i]-a.channel_hand.rel[i])*alpha;
+    }
+    a.projection_blend+=(b.projection_blend-a.projection_blend)*alpha;
     std::memcpy(out,&a,sizeof a);
 }
 void render_state_load(const void* in) {
@@ -1992,6 +2026,10 @@ void render_state_load(const void* in) {
     kick_point=r.kick_point; leg_matrices=r.leg_matrices;
     host_vis_override=r.host_visibility?1:0;
     push_letgo=r.push_letgo;
+    override_door_valid=r.door_valid; override_door_frame=r.door_frame;
+    override_channel_hand=r.channel_hand;
+    override_projection_blend=r.projection_blend;
+    jet_flight_live=r.jet_flight;
     // Draw-time transients start clean, as at the start of a live frame.
     head_flag=backpack_flag=0; third_body_drawing=false; mirror_duke_drawing=false; duke_drawing=false; actor_drawing=false; limb_scope_forget();
     render_override=true; override_lease_cam=r.lease_cam;
@@ -2040,10 +2078,14 @@ double third_person_body_coverage() {
     if(!third_person_camera_live() || !body_coverage_supported() || third_person_body_effect()) return 1.0;
     double d[3];
     // Chest centre, independent of animation jitter and costume joint indices.
-    for(int i=0;i<3;++i) d[i]=(int32_t)psx_mod_read_word(player+4+4*i)-(int32_t)psx_mod_read_word(camera+0x14+4*i);
+    // D17AY: Duke where this draw shows him (between game ticks in a redraw).
+    draw_object_pose(player,d,nullptr);
+    for(int i=0;i<3;++i) d[i]-=(int32_t)psx_mod_read_word(camera+0x14+4*i);
     d[1]-=640;
     const double lateral=d[0]*(int16_t)psx_mod_read_half(camera)/4096.0+d[1]*(int16_t)psx_mod_read_half(camera+2)/4096.0+d[2]*(int16_t)psx_mod_read_half(camera+4)/4096.0;
-    return camera_body_coverage(std::sqrt(d[0]*d[0]+d[1]*d[1]+d[2]*d[2]),lateral);
+    const double coverage=camera_body_coverage(std::sqrt(d[0]*d[0]+d[1]*d[1]+d[2]*d[2]),lateral);
+    present_trace_value("body_coverage",coverage);
+    return coverage;
 }
 bool first_person_view_live() {return input_modernized() && fp_blend>0 && orbit_valid;}
 bool first_person_duke_drawing() {return duke_drawing;}

@@ -1,5 +1,84 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-02 - D17AY accepted and closed
+
+User: "great work, fully accept - the animations looks super smooth" and
+"lock it in and close it out". D17AY is Done
+([note 360](documentation/360-d17ay-full-refresh-presentation.md)). Executable
+`972de2e2f0ef2e106d04db074da26fd187a7c311d40b1f902e8ff590adb6be23`. The last two player
+session logs show no failures. No framework change.
+
+## 2026-11-02 - Backlog intake: EQUIP PICKUPS option (D08A33)
+
+User, while playtesting D17AY (2026-11-02), asked for an EDuke32-style
+option. Recorded only; not started.
+
+### D08A33 - EQUIP PICKUPS: IF NEW (default) / NEVER, with new weapons auto-equipped
+
+**Status: Todo. Dependencies: D08A9, D08A, D19 (in-game options).** EDuke32
+has an "equip pickups" choice. TTK should have the same option with two values:
+
+- **IF NEW** (the new default): picking up a weapon Duke does not already own
+  (for example the Gatling gun) switches to it at once. Picking up an inventory
+  item or object he does not already have (for example steroids) makes it the
+  selected item. It is only selected, not used: Enter then uses it.
+- **NEVER**: nothing is equipped or selected automatically. Today's weapon
+  behaviour is NEVER.
+
+User: "having tested it out, this functionality appears to exist perfectly
+for the items, just not the weapons." Items already follow D08A9
+(`recomp/src/ttk/pickup_select.inc`): a picked-up gadget becomes the [ / ]
+selection, and refills select it too. The work is mainly new weapons, plus
+making the option govern both parts.
+
+Initial notes (not yet researched): find the weapon pickup path, mark a
+weapon as new when its ownership bit goes from 0 to 1, and switch through the
+original weapon-change request (as D08A29/D08A30 wheel changes do) so the
+draw animation, ammo and HUD stay native. Decide the cases that should not
+switch:
+- Duke is firing, climbing, swimming, pushing or mid-throw;
+- the `dnstuff`/`dnitems` cheat grants (EDuke32 cheats do not switch);
+- an ammo pickup for a weapon he already owns. User (2026-11-02): ammo
+  never affects it in EDuke32; only a new weapon switches.
+
+Under NEVER, the D08A9 item selection is off as well. Save the option in the
+Modernized profile and show it in the in-game OPTIONS. Vanilla stays
+unchanged (NEVER, original behaviour).
+
+Test scene (user): player UI slot 12 has the Gatling gun right in front of
+Duke; spawning items or weapons is also fine.
+
+**Acceptance:** with IF NEW, a new weapon is drawn on pickup and a new item
+becomes the selection without being used; owned weapons and their ammo never
+switch; NEVER switches nothing; the option is saved and shown in OPTIONS;
+Vanilla unchanged; the user's playtest (Gatling gun and steroids).
+
+## 2026-11-02 - D17AY: full-refresh presentation audit (Needs playtest)
+
+Every draw-time host reader in `recomp/src/ttk/` was inventoried and
+classified (fixed, already interpolated, intentionally tick-rate) in
+[note 360](documentation/360-d17ay-full-refresh-presentation.md). Shared
+source: render replay now records object poses (Duke, the held/climbed
+object, drawn actors) with each frame and gives every redraw the in-between
+pose through `draw_object_pose`; other tick-rate host values use the existing
+`RenderState` blend. Fixed: first-person recoil for every weapon, the
+quick-kick and door-kick legs, the crouch/swim animated hand, the eye
+projection while entering/leaving first person, the push grip's Duke/object
+reads (slopes, the hold blend), the developer third-person dissolve, and the
+jetpack flame re-arm flag in workers. New diagnostic: `DNTTK_PRESENT_TRACE=1`
+plus `recomp/tools/local/present_trace.py`. `DNTTK_DRAW_POSE=tick` restores
+the old readers for one launch.
+
+Evidence: native controls (121 groups, new D17AY checks), near, aim and input
+pass. Private slot-12 runs at 120 and 180 Hz, before/after: weapon recoil,
+quick-kick foot and frame, and the eye projection moved only at game-frame
+boundaries before (interior 0) and move between redraws after; push grip
+unchanged on flat ground (already eye-anchored). 60 Hz runs no redraws;
+Vanilla unchanged by construction. Player files unchanged. Executable
+`972de2e2f0ef2e106d04db074da26fd187a7c311d40b1f902e8ff590adb6be23`.
+Remaining: the user's playtest of the reported cases at 180 Hz; door kick,
+crouch/swim hand and the dissolve were not exercised at runtime.
+
 ## 2026-11-02 - Backlog intake: full-refresh presentation audit (D17AY)
 
 User, while accepting D35D1 (2026-11-02): "should we stand up a backlog job to
@@ -9,7 +88,7 @@ job". Recorded only; not started.
 
 ### D17AY - Full-refresh presentation: no draw-time reads of 30 Hz tick state
 
-**Status: Todo. Dependencies: D17 (render replay), D14H, D35D1.** The game
+**Status: Done (user-accepted 2026-11-02). Dependencies: D17 (render replay), D14H, D35D1.** The game
 logic, physics and animation timing run at the original 30 Hz tick and stay
 there; raising the simulation rate is not the goal. Render replay already
 interpolates the camera, object transforms and Duke's joint matrices to the
@@ -2776,7 +2855,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D17AV | Polymorph: flickering triangle on corridor walls (UI slot 8) | Done (user-accepted 2026-11-01; note 351) | D17AM, D17W |
 | D17AW | Polymorph: present redraws from a host render thread (no slow second after loads, 180 Hz in heavy views) | Done | D17AR5, D17AQ |
 | D17AX | Polymorph: draw the whole level from jetpack height (slot 10 black sides and castle interior) | Done (flicker fix; note 352) | D17AR, D17AQ |
-| D17AY | Full-refresh presentation audit: draw-time hooks must not read 30 Hz tick state against interpolated redraws | Todo | D17, D14H, D35D1 |
+| D17AY | Full-refresh presentation audit: draw-time hooks must not read 30 Hz tick state against interpolated redraws | Done (user-accepted) | D17, D14H, D35D1 |
 | D14F | 90-default / 120-maximum world FOV | Done (user-confirmed 2026-10-30) | Implemented in afd4ad6 (note 317); re-verified 2026-10-29 |
 | D17AE | Slot-11 sign post through door header | Done (user-confirmed 2026-10-29) | Scene depth for native world/scenery packets; replay precedence fix; world backface cull restored |
 | D17AF | Latest slot-10 ground water visibility | Done | Selected batch; see intake above |
@@ -2934,6 +3013,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08A29 | Scroll-wheel weapon changes while running | Done (user-accepted) | D08A, D08AA |
 | D08A30 | Reverse weapon-wheel direction: up advances, down goes back | Done (user-accepted) | D08A29 |
 | D08A32 | A distinct ammo icon for every weapon in the bottom-right HUD (14x14 in 16x16, review artifact first) | Todo (design review first) | D08A21, D24A |
+| D08A33 | EQUIP PICKUPS option: IF NEW (default) auto-equips new weapons and selects new items; NEVER does neither | Todo | D08A9, D08A, D19 |
 | D09 | Modern controller support | Done (user-accepted 2026-10-27) | D05, D06, D07 |
 | D09A | Separate keyboard and gamepad seats for local two-player | Done (user-accepted 2026-10-27) | D09, D34B implementation |
 | D10 | Third-person camera polish | Done | D08 |

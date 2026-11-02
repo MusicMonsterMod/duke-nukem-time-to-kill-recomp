@@ -189,9 +189,16 @@ static int kick_freeze() {
 }
 static unsigned kick_frame() {
     if(kick_freeze()>=0) return (unsigned)kick_freeze();
-    if(render_override) return override_kick_frame;   // D17 worker: the live frame's value
+    if(render_override) return (unsigned)override_kick_frame;   // D17 worker: the live frame's value
     const uint64_t now=input_host_frame();
     return now>=kick_start ? (unsigned)std::min<uint64_t>(now-kick_start,kick_frames) : 0;
+}
+// D17AY: the leg's draw frame. A redraw between two game ticks gets the
+// in-between frame (render_state_blend_mask), so the leg moves at the
+// present rate; the attack clock, hit and sound keep kick_frame().
+static double kick_draw_frame() {
+    if(render_override && replay_redraw_active() && kick_freeze()<0) return override_kick_frame;
+    return kick_frame();
 }
 // A guest call with up to four register arguments and two stack arguments, on
 // an isolated stack as original_call does.
@@ -412,7 +419,7 @@ static void leg_pose(unsigned leg,double frame,double (&lh)[3][3],double* p,bool
 // previous/current key and blend, so pause, load and redraw need no timer or
 // new persistent state. Native pose 116 has six keys: ready, ready, chamber,
 // strike (0x800 sound event), retract, rest. Never start the quick-kick attack.
-static bool door_kick_frame(double& frame) {
+static bool door_kick_frame_live(double& frame) {
     if(!input_modern_controls() || !fp_policy.effective || fp_policy.action!=PerspectiveAction::Use ||
        psx_mod_read_half(player+0x60)!=116 || !use_interaction_eye() || !state(true,true)) return false;
     const unsigned clip=psx_mod_read_half(0x800c2d64+8*116);
@@ -427,6 +434,16 @@ static bool door_kick_frame(double& frame) {
     const double t=std::clamp((double(ticks)-left)/ticks,0.0,1.0);
     constexpr double keys[]={0,0,kick_chamber,kick_extend,kick_retract,kick_frames};
     frame=keys[previous-first]+(keys[current-first]-keys[previous-first])*t;
+    return true;
+}
+// D17AY: the guest key and timer advance per game tick; a redraw uses the
+// frame captured with its game frame, blended toward the next one.
+static bool override_door_valid=false;
+static double override_door_frame=0;
+static bool door_kick_frame(double& frame) {
+    if(!render_override || !replay_redraw_active()) return door_kick_frame_live(frame);
+    if(!override_door_valid) return false;
+    frame=override_door_frame;
     return true;
 }
 static bool kick_leg_joint(CPUState* cpu) {
@@ -450,7 +467,7 @@ static bool kick_leg_joint(CPUState* cpu) {
     // Each joint's polygons consume its matrix before the next transform.
     // The attachment can reuse the hip scratch slot without a new allocation.
     const uint32_t out_m=leg_matrices+0x20*leg;
-    const double frame=door?door_frame:kick_frame();
+    const double frame=door?door_frame:kick_draw_frame();
     const double door_anchor[3]={0,80,160};
     const double* anchor=door?door_anchor:kick_anchor();
     double p[3],lh[3][3];
@@ -515,6 +532,12 @@ static bool kick_leg_joint(CPUState* cpu) {
         double w=(int32_t)psx_mod_read_word(camera+0x14+4*i);
         for(int k=0;k<3;++k) w+=c[k][i]*(p[k]+anchor[k]);
         psx_mod_write_word(out_m+0x14+4*i,(uint32_t)(int32_t)std::lround(w));
+    }
+    if(present_trace_enabled() && leg==int(leg_joints)-1) {
+        double foot[3];
+        for(int i=0;i<3;++i) foot[i]=int32_t(psx_mod_read_word(out_m+0x14+4*i));
+        present_trace(door?"door_kick_foot":"kick_foot",foot);
+        present_trace_value(door?"door_kick_frame":"kick_frame",frame);
     }
     limb_claim(cpu,LimbOwner::Kick,duke_joint_part(desc,joint),true);
     cpu->gpr[5]=out_m;++kick_leg_draws;

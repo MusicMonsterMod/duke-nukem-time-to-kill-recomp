@@ -182,11 +182,19 @@ static_assert(sizeof(Mat)==0x20,"PsyQ MATRIX");
 struct ActorState {uint32_t actor=0, mats=0, model=0; int joints=0; Mat mat[max_joints];};
 struct CameraState {int16_t rot[9]; int16_t distance; int32_t anchor[3]; uint32_t room;
                    int16_t view[9]; int32_t view_t[3]; int32_t pos[3];};
+// D17AY: object positions (+4..+12) and headings (+0x1c, 4096 a turn) of Duke,
+// the objects he holds or climbs (+0x290, +0x17c) and the drawn actors. Game
+// ticks update them; host draw hooks read them through draw_object_pose, which
+// in a redraw returns the in-between value instead of the last tick.
+constexpr int max_poses=24;
+struct ObjectPose {uint32_t obj; int32_t pos[3]; uint16_t yaw, pad;};
 struct InterpState {
     CameraState camera{};
     bool has_pivot=false; double pivot[3]{};   // orbit pivot (late camera, third person)
     int nactors=0;
     ActorState actor[max_actors];
+    int nposes=0;
+    ObjectPose pose[max_poses];
 };
 uint32_t drawn[max_actors]; int ndrawn=0;      // actors drawn by the last live frame
 uint32_t drawn_kind[max_actors];
@@ -230,6 +238,16 @@ void capture_state(InterpState& st) {
     };
     add(duke);
     for(int i=0;i<ndrawn;++i) add(drawn[i]);
+    st.nposes=0;
+    auto pose=[&](uint32_t obj){
+        if(!ram_ok(obj,0x20) || st.nposes>=max_poses) return;
+        for(int i=0;i<st.nposes;++i) if(st.pose[i].obj==obj) return;
+        ObjectPose& o=st.pose[st.nposes++];
+        o.obj=obj; o.yaw=psx_mod_read_half(obj+0x1c); o.pad=0;
+        for(int i=0;i<3;++i) o.pos[i]=(int32_t)psx_mod_read_word(obj+4+4*i);
+    };
+    pose(duke); pose(psx_mod_read_word(duke+0x290)); pose(psx_mod_read_word(duke+0x17c));
+    for(int i=0;i<ndrawn;++i) pose(drawn[i]);
 }
 
 // Rotation part of a Q12 matrix to a unit quaternion and back (row major).
@@ -384,10 +402,13 @@ struct Params {
     NearClipFrameState near; // D17A: the live frame's near clip accounting
     int32_t logo;            // D17U: logo angle to show (flag 4)
     int16_t body_rot[9],body_view[9]; // D14H: Duke's own draw (flag 8)
+    uint64_t serial;         // D17AY: base frame (present trace)
+    uint32_t nposes;         // D17AY: in-between object poses
+    ObjectPose pose[max_poses];
 };
 struct MatPatch {uint32_t addr; Mat mat;};
 constexpr uint32_t params_max=60000;
-uint64_t blended_mats=0,skipped_actors=0,camera_cuts=0,pending_flips=0,blended_xf=0,skipped_objects=0,substituted=0,sub_misses=0;
+uint64_t blended_poses=0,blended_mats=0,skipped_actors=0,camera_cuts=0,pending_flips=0,blended_xf=0,skipped_objects=0,substituted=0,sub_misses=0;
 Frame* rec_frame=nullptr;      // live frame whose transforms are being recorded
 uint32_t xf_obj=0; uint16_t xf_seq=0;
 uint32_t scratch=0;            // mod memory ring for substituted matrices
@@ -419,6 +440,24 @@ uint32_t build_params(const InterpState& a,const InterpState& b,double alpha,uin
         p.camera=c;
         p.flags|=1;
     } else ++camera_cuts;
+    // D17AY: objects present in both frames; a jump (teleport, respawn,
+    // reused slot) keeps the base pose.
+    for(int i=0;i<a.nposes && p.nposes<(uint32_t)max_poses;++i) {
+        const ObjectPose& x=a.pose[i];
+        const ObjectPose* y=nullptr;
+        for(int k=0;k<b.nposes;++k) if(b.pose[k].obj==x.obj) {y=&b.pose[k];break;}
+        ObjectPose o=x;
+        if(y) {
+            long dx=(long)y->pos[0]-x.pos[0],dy=(long)y->pos[1]-x.pos[1],dz=(long)y->pos[2]-x.pos[2];
+            if(dx*dx+dy*dy+dz*dz<=(long)1536*1536) {
+                for(int k=0;k<3;++k) o.pos[k]=lerp_i(x.pos[k],y->pos[k],alpha);
+                const int turn=(((int)(y->yaw&0xfff)-(int)(x.yaw&0xfff)+2048)%4096+4096)%4096-2048;
+                o.yaw=(uint16_t)((x.yaw&0xf000)|(((int)(x.yaw&0xfff)+(int)std::lround(turn*alpha))&0xfff));
+                ++blended_poses;
+            }
+        }
+        p.pose[p.nposes++]=o;
+    }
     uint32_t used=sizeof(Params);
     for(int i=0;i<a.nactors;++i) {
         const ActorState& x=a.actor[i];
@@ -759,7 +798,7 @@ int submit_job(Frame& base,const Frame& next,double alpha,bool late,double look_
     uint32_t len=build_params(base.state,next.state,interp_off ? 0.0 : interp_full ? 1.0 : alpha,param_buffer);
     {
         Params p; std::memcpy(&p,param_buffer,sizeof p);
-        p.near=base.near;
+        p.near=base.near; p.serial=base.serial;
         last_late_yaw=999.0f;
         if(late) {if(apply_late(base.state,next.state,alpha,p,look_ms)) ++late_applied; else ++late_skipped;}
         std::memcpy(param_buffer,&p,sizeof p);
@@ -1068,6 +1107,8 @@ void capture(CPUState* cpu,int kind) {
 const uint8_t* sub_table=nullptr; uint32_t sub_n=0, sub_cursor=0;
 // D14H: the late and body cameras for this redraw (replay_body_camera).
 struct BodyCamera {bool valid=false,body=false; int16_t rot[2][9],view[2][9];} body_camera;
+// D17AY: this redraw's in-between object poses and its place in the timeline.
+struct DrawPoses {bool valid=false,tick=false; uint64_t serial=0; float alpha=0; uint32_t n=0; ObjectPose pose[max_poses];} draw_poses;
 int worker_draw(CPUState* source,const void* params,uint32_t len) {
     const uint64_t quality_start=quality_profile()?SDL_GetPerformanceCounter():0;
     quality_actor_start=quality_actor_ticks=quality_actor_count=0;
@@ -1120,6 +1161,12 @@ int worker_draw(CPUState* source,const void* params,uint32_t len) {
             g_psx_call_bail=0;
         }
     }
+    // D17AY developer comparison: DNTTK_DRAW_POSE=tick keeps every draw-time
+    // reader on the last game tick (the behaviour before D17AY).
+    static const bool pose_tick=[]{const char* t=std::getenv("DNTTK_DRAW_POSE");return t && !std::strcmp(t,"tick");}();
+    draw_poses={};
+    draw_poses.valid=true; draw_poses.tick=pose_tick; draw_poses.serial=p.serial; draw_poses.alpha=p.alpha;
+    draw_poses.n=std::min<uint32_t>(p.nposes,max_poses); std::memcpy(draw_poses.pose,p.pose,sizeof p.pose);
     static const bool no_actors=std::getenv("DNTTK_INTERP_NO_ACTORS")!=nullptr;
     if(no_actors) p.nmats=0;
     const uint8_t* patches=(const uint8_t*)params+sizeof(Params);
@@ -1172,7 +1219,7 @@ int worker_draw(CPUState* source,const void* params,uint32_t len) {
         }
     }
     g_psx_call_bail=0;
-    sub_table=nullptr; sub_n=0; body_camera={};
+    sub_table=nullptr; sub_n=0; body_camera={}; draw_poses={};
     static const bool log=std::getenv("DNTTK_REPLAY_LOG")!=nullptr;
     if(log) {
         uint64_t nc1[8]; near_clip_counters(nc1);
@@ -1774,6 +1821,51 @@ void replay_body_camera(bool duke) {
     }
 }
 
+// D17AY: an object's position (+4..+12) and heading (+0x1c, 4096 a turn) as
+// this draw shows it. A redraw between two game ticks gets the in-between
+// value captured with the frames (true); a live draw, or an object neither
+// frame recorded, reads guest memory (false). yaw may be null.
+bool replay_redraw_active() {return draw_poses.valid;}
+// D17AY diagnostic: a trace reference reads the in-between pose even under
+// DNTTK_DRAW_POSE=tick, so the old and new readers are measured alike.
+bool present_trace_reference=false;
+bool draw_object_pose(uint32_t obj,double pos[3],double* yaw) {
+    if(!draw_poses.tick || present_trace_reference) for(uint32_t i=0;i<draw_poses.n;++i) if(draw_poses.pose[i].obj==obj) {
+        const ObjectPose& o=draw_poses.pose[i];
+        for(int k=0;k<3;++k) pos[k]=o.pos[k];
+        if(yaw) *yaw=o.yaw&0xfff;
+        return true;
+    }
+    for(int k=0;k<3;++k) pos[k]=(int32_t)psx_mod_read_word(obj+4+4*k);
+    if(yaw) *yaw=psx_mod_read_half(obj+0x1c)&0xfff;
+    return false;
+}
+// D17AY developer diagnostic, DNTTK_PRESENT_TRACE=1: a presented world point
+// relative to the view of the draw that shows it (camera eye +0x14 and view
+// rows +0x20 as loaded for this draw), one stderr line per redraw with its
+// base frame and fraction. A point that steps at the game tick against the
+// interpolated view jumps at each new base frame while moving evenly within
+// one (recomp/tools/local/present_trace.py measures that).
+bool present_trace_enabled() {static const bool on=std::getenv("DNTTK_PRESENT_TRACE")!=nullptr;return on;}
+void present_trace(const char* name,const double world[3]) {
+    if(!present_trace_enabled() || !draw_poses.valid) return;
+    double d[3],v[3];
+    for(int i=0;i<3;++i) d[i]=world[i]-(int32_t)psx_mod_read_word(camera_base+0x14+4*i);
+    for(int r=0;r<3;++r) {
+        v[r]=0;
+        for(int k=0;k<3;++k) v[r]+=(int16_t)psx_mod_read_half(camera_base+0x20+2*(3*r+k))/4096.0*d[k];
+    }
+    std::fprintf(stderr,"[present] s=%llu a=%.4f body=%d n=%s v=%.2f,%.2f,%.2f\n",(unsigned long long)draw_poses.serial,
+        draw_poses.alpha,body_camera.valid && body_camera.body ? 1 : 0,name,v[0],v[1],v[2]);
+}
+
+// A presented scalar (an opacity, a blend), logged as v=value,0,1.
+void present_trace_value(const char* name,double value) {
+    if(!present_trace_enabled() || !draw_poses.valid) return;
+    std::fprintf(stderr,"[present] s=%llu a=%.4f body=%d n=%s v=%.5f,0,1\n",(unsigned long long)draw_poses.serial,
+        draw_poses.alpha,body_camera.valid && body_camera.body ? 1 : 0,name,value);
+}
+
 // D35D1: while Duke's body camera is current in a late redraw, the late
 // camera's rotation, so a contact fixed to the world (the push grip) can be
 // placed in the body view where the late camera sees the object.
@@ -1915,11 +2007,11 @@ bool redraw_only_console_command(const char* line,void (*say)(const char*),bool&
 const char* frame_replay_debug_json() {
     static char buffer[24576];
     int n=std::snprintf(buffer,sizeof buffer,"{\"on\":%s,\"interp\":%s,\"target_hz\":%d,\"steps\":%d,\"captures\":%llu,\"publishes\":%llu,"
-        "\"submits\":%llu,\"rendered\":%llu,\"shown\":%llu,\"no_job\":%llu,\"failures\":%llu,\"serial\":%llu,\"prefetched\":%llu,\"governed\":%llu,\"deferred\":%llu,\"feed_ms\":%.2f,\"budget_ms\":%.2f,\"blended_mats\":%llu,\"skipped_actors\":%llu,\"camera_cuts\":%llu,\"drawn\":%d,\"pending_flips\":%llu,\"blended_xf\":%llu,\"skipped_objects\":%llu,\"substituted\":%llu,\"sub_misses\":%llu,\"late\":%s,\"late_applied\":%llu,\"late_skipped\":%llu,\"late_jit\":%llu,\"late_repeats\":%llu,\"lead_ms\":%.1f,\"ready_ms\":%.1f,\"pace_div\":%d,\"pace_backoff\":%d,\"pace_clean\":%d,\"pace_ratio\":%.3f,\"pace_mid\":%llu,\"shed_steps\":%d,\"shed_backoff\":%d,\"shed_probes\":%llu,\"shed_failed_probes\":%llu,\"pace_changes\":%llu,\"emu_sheds\":%llu,\"audio_sheds\":%llu,\"ahead\":[%llu,%llu,%llu,%llu,%llu,%llu,%llu,%llu]}",
+        "\"submits\":%llu,\"rendered\":%llu,\"shown\":%llu,\"no_job\":%llu,\"failures\":%llu,\"serial\":%llu,\"prefetched\":%llu,\"governed\":%llu,\"deferred\":%llu,\"feed_ms\":%.2f,\"budget_ms\":%.2f,\"blended_mats\":%llu,\"blended_poses\":%llu,\"skipped_actors\":%llu,\"camera_cuts\":%llu,\"drawn\":%d,\"pending_flips\":%llu,\"blended_xf\":%llu,\"skipped_objects\":%llu,\"substituted\":%llu,\"sub_misses\":%llu,\"late\":%s,\"late_applied\":%llu,\"late_skipped\":%llu,\"late_jit\":%llu,\"late_repeats\":%llu,\"lead_ms\":%.1f,\"ready_ms\":%.1f,\"pace_div\":%d,\"pace_backoff\":%d,\"pace_clean\":%d,\"pace_ratio\":%.3f,\"pace_mid\":%llu,\"shed_steps\":%d,\"shed_backoff\":%d,\"shed_probes\":%llu,\"shed_failed_probes\":%llu,\"pace_changes\":%llu,\"emu_sheds\":%llu,\"audio_sheds\":%llu,\"ahead\":[%llu,%llu,%llu,%llu,%llu,%llu,%llu,%llu]}",
         replay_on?"true":"false",interp_replay?"true":"false",(int)target_hz,steps,(unsigned long long)captures,
         (unsigned long long)publishes,(unsigned long long)submits,(unsigned long long)presented,(unsigned long long)reused,
         (unsigned long long)no_job,(unsigned long long)failures,(unsigned long long)serial,
-        (unsigned long long)prefetched,(unsigned long long)governed,(unsigned long long)deferred,feed_ms,budget_ms,(unsigned long long)blended_mats,
+        (unsigned long long)prefetched,(unsigned long long)governed,(unsigned long long)deferred,feed_ms,budget_ms,(unsigned long long)blended_mats,(unsigned long long)blended_poses,
         (unsigned long long)skipped_actors,(unsigned long long)camera_cuts,ndrawn,(unsigned long long)pending_flips,(unsigned long long)blended_xf,(unsigned long long)skipped_objects,
         (unsigned long long)substituted,(unsigned long long)sub_misses,late_camera()?"true":"false",
         (unsigned long long)late_applied,(unsigned long long)late_skipped,(unsigned long long)late_jit,(unsigned long long)late_repeats,late_lead_ms,late_ready_ms,pace_div,pace_backoff,pace_clean,pace_last_ratio,(unsigned long long)pace_mid,shed_steps,shed_backoff,(unsigned long long)shed_probes,(unsigned long long)shed_failed_probes,(unsigned long long)pace_changes,(unsigned long long)emu_sheds,(unsigned long long)audio_sheds,

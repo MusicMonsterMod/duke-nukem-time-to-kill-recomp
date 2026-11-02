@@ -128,6 +128,18 @@ bool late_pivot(double* xyz);
 double late_fp_blend();
 void replay_body_camera(bool duke);
 bool replay_late_rotation(int16_t rot[9]);
+// D17AY: an object's position (+4..+12) and heading (+0x1c, 0..4095) as this
+// draw shows it: interpolated in a redraw between game ticks (true), else
+// guest memory (false). Draw-time hooks use it instead of reading the fields.
+bool draw_object_pose(uint32_t obj,double pos[3],double* yaw);
+// D17AY: a render replay redraw is drawing (worker process, inside its job).
+bool replay_redraw_active();
+extern bool present_trace_reference;
+// D17AY developer diagnostic (DNTTK_PRESENT_TRACE=1): log a presented world
+// point in the view of the current redraw.
+bool present_trace_enabled();
+void present_trace(const char* name,const double world[3]);
+void present_trace_value(const char* name,double value);
 size_t render_state_size();
 void render_state_save(void* out);
 void render_state_load(const void* in);

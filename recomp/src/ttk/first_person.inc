@@ -123,11 +123,16 @@ static void head_restore() {
     }
 }
 // 0x800b4d9c(H) entry from the render's per-frame load of camera[+0x42].
+// D17AY: the blend steps per game tick while the view enters or leaves the
+// eye; a redraw uses the in-between blend (render_state_blend_mask).
+static double override_projection_blend=0;
 static void first_person_projection(CPUState* cpu,uint32_t ra) {
     const int original=(int16_t)psx_mod_read_half(camera+0x42);
-    if(ra!=0x8002e4d0 || fp_blend<=0 || !orbit_valid || (int32_t)cpu->gpr[4]!=original ||
+    const double blend=render_override && replay_redraw_active() ? override_projection_blend : fp_blend;
+    if(ra!=0x8002e4d0 || blend<=0 || !orbit_valid || (int32_t)cpu->gpr[4]!=original ||
        original<128 || original>1024) return;
-    last_projection=(int)std::lround(original+(eye_projection()-original)*fp_blend);
+    last_projection=(int)std::lround(original+(eye_projection()-original)*blend);
+    present_trace_value("projection",last_projection);
     cpu->gpr[4]=(uint32_t)last_projection;
     ++projections;
 }
@@ -928,7 +933,7 @@ static RunArms running_arm_pose() {
     pose.weight=weight;
     return pose;
 }
-static bool animated_weapon_channel(double* q,double* pos) {
+static bool animated_weapon_channel_live(double* q,double* pos) {
     const unsigned slot=weapon_view_slot();
     if((!crouch_weapon_active() && !swim_weapon_view_active()) ||
        !(slot==1 || slot==2 || slot==3 || slot==12 || slot==13 || slot==14 || slot==32))return false;
@@ -937,6 +942,17 @@ static bool animated_weapon_channel(double* q,double* pos) {
     Mat3 hand;double rel[3];
     if(!display_arm_channel(arm,hand,rel))return false;
     mat_quat(hand,q);std::memcpy(pos,rel,sizeof rel);
+    return true;
+}
+// D17AY: the channel's keys and timer advance per game tick; a redraw uses
+// the hand captured with its game frame, blended toward the next one.
+struct ChannelHand {bool valid; double q[4],rel[3];};
+static ChannelHand override_channel_hand;
+static bool animated_weapon_channel(double* q,double* pos) {
+    if(!render_override || !replay_redraw_active()) return animated_weapon_channel_live(q,pos);
+    if(!override_channel_hand.valid) return false;
+    std::memcpy(q,override_channel_hand.q,sizeof override_channel_hand.q);
+    std::memcpy(pos,override_channel_hand.rel,sizeof override_channel_hand.rel);
     return true;
 }
 // Level-frame hand (orientation lh, position rel from the eye) for display:
@@ -1091,6 +1107,11 @@ static bool prepare_display_matrix(uint32_t real,uint32_t desc,bool advance=fals
     for(int i=0;i<3;++i) {
         const double w=(int32_t)psx_mod_read_word(camera+0x14+4*i)+c[0][i]*v[0]+c[1][i]*v[1]+c[2][i]*v[2];
         psx_mod_write_word(weapon_matrix+0x14+4*i,(uint32_t)(int32_t)std::lround(w));
+    }
+    if(present_trace_enabled()) {
+        double hand[3];
+        for(int i=0;i<3;++i) hand[i]=int32_t(psx_mod_read_word(weapon_matrix+0x14+4*i));
+        present_trace("weapon_hand",hand);
     }
     if(advance)display_hand_done=true;
     return true;
@@ -1440,12 +1461,25 @@ static bool push_grip(uint32_t desc,int first,const contact_arm::Vec* native,Pus
     if(mode && !std::strcmp(mode,"native"))return false;
     const unsigned animation=psx_mod_read_half(player+0x60);
     if(!push_animation(animation))return false;
+    const uint32_t object=psx_mod_read_word(player+0x290);
     PushBounds box;
-    if(!push_bounds(psx_mod_read_word(player+0x290),box))return false;
-    const double yaw=psx_mod_read_half(player+0x1c)*tau/4096;
+    if(!push_bounds(object,box))return false;
+    // D17AY: Duke and the object as this draw shows them (in-between game
+    // ticks in a redraw); the box moves with the object.
+    double at[3],heading=0,object_at[3];
+    draw_object_pose(player,at,&heading);
+    draw_object_pose(object,object_at,nullptr);
+    double object_seen[3];   // D17AY trace reference: where the object is drawn
+    present_trace_reference=true;draw_object_pose(object,object_seen,nullptr);present_trace_reference=false;
+    {
+        const int32_t dx=int32_t(std::lround(object_at[0]))-int32_t(psx_mod_read_word(object+4));
+        const int32_t dy=int32_t(std::lround(object_at[1]))-int32_t(psx_mod_read_word(object+8));
+        const int32_t dz=int32_t(std::lround(object_at[2]))-int32_t(psx_mod_read_word(object+12));
+        box.x0+=dx;box.x1+=dx;box.y0+=dy;box.y1+=dy;box.z0+=dz;box.z1+=dz;
+    }
+    const double yaw=heading*tau/4096;
     const Vec fwd={std::sin(yaw),0,std::cos(yaw)},right={fwd.z,0,-fwd.x},down={0,1,0};
-    const Vec pos={double(int32_t(psx_mod_read_word(player+4))),double(int32_t(psx_mod_read_word(player+8))),
-                   double(int32_t(psx_mod_read_word(player+12)))};
+    const Vec pos={at[0],at[1],at[2]};
     const double side=first==10?-1:1;
     auto world=[&](Vec b){return right*b.x+down*b.y+fwd*b.z;};
     // Native hold hands (body frame) for the grab-121 blend.
@@ -1480,11 +1514,9 @@ static bool push_grip(uint32_t desc,int first,const contact_arm::Vec* native,Pus
         const Vec w=world(b);
         out.rows[n][r][0]=w.x;out.rows[n][r][1]=w.y;out.rows[n][r][2]=w.z;
     }
-    // Anchor to the eye, not Duke's position: 120/180 Hz redraws interpolate
-    // the eye (and the object) between game ticks while +4..+12 keep the last
-    // tick, which made the grip step against the view while pushing. The push
-    // eye sits straight over Duke's position (stable eye), so in a live frame
-    // this is the same place.
+    // Anchor to the eye, not Duke's position: the eye is the view's own
+    // in-between point (and the late camera's centre), and the push eye sits
+    // straight over Duke's position, so in a live frame this is the same place.
     const Vec eye={double(int32_t(psx_mod_read_word(camera+20))),
                    double(int32_t(psx_mod_read_word(camera+24))),
                    double(int32_t(psx_mod_read_word(camera+28)))};
@@ -1494,6 +1526,8 @@ static bool push_grip(uint32_t desc,int first,const contact_arm::Vec* native,Pus
     // D14H draws Duke through the body camera (interpolated yaw) while the
     // object uses the late mouse camera. Place the grip where the late camera
     // sees it: p' = eye + B^T L (p - eye), rows likewise.
+    // D17AY trace reference: the object's centre, seen like the grip.
+    Vec centre={object_seen[0],object_seen[1]+(box.y0+box.y1)*.5-object_at[1],object_seen[2]};
     int16_t late[9];
     if(replay_late_rotation(late)) {
         double m[3][3]={};
@@ -1502,10 +1536,16 @@ static bool push_grip(uint32_t desc,int first,const contact_arm::Vec* native,Pus
         auto map=[&](Vec v){return Vec{m[0][0]*v.x+m[0][1]*v.y+m[0][2]*v.z,
             m[1][0]*v.x+m[1][1]*v.y+m[1][2]*v.z,m[2][0]*v.x+m[2][1]*v.y+m[2][2]*v.z};};
         for(Vec& p:out.pos)p=eye+map(p-eye);
+        centre=eye+map(centre-eye);
         for(auto& part:out.rows)for(auto& row:part) {
             const Vec w=map(Vec{row[0],row[1],row[2]});
             row[0]=w.x;row[1]=w.y;row[2]=w.z;
         }
+    }
+    if(present_trace_enabled() && weight>=1) {
+        const double h[3]={out.pos[2].x,out.pos[2].y,out.pos[2].z},o[3]={centre.x,centre.y,centre.z};
+        present_trace(first==10?"push_hand_l":"push_hand_r",h);
+        if(first==10) {present_trace("push_object",o);present_trace_value("push_heading",heading);}
     }
     out.weight=weight;
     return true;

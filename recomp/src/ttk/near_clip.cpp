@@ -51,6 +51,7 @@
 #include "cpu_state.h"
 #include "mod_plugins.h"
 #include "code_identity.h"
+#include "live_env.h"
 #include <algorithm>
 #include <array>
 #include <atomic>
@@ -126,9 +127,10 @@ double precise_depth_ratio() {static const double v=env_int("DNTTK_NEAR_SPLIT_RA
 // first-person layer keep their paths; a mesh the frame cannot afford is
 // drawn with the earlier near-boundary rules (below) and scene depth.
 // DNTTK_UNIFIED_GEOMETRY=0 (developer) restores those rules everywhere.
+// D40: otherwise the live renderer decides (Classic: off).
 bool unified() {
-    static const bool v=env_int("DNTTK_UNIFIED_GEOMETRY",1,0,1)==1;
-    return v && input_modernized();
+    static const int v=ttk_env_switch("DNTTK_UNIFIED_GEOMETRY");
+    return (v<0 ? !ttk_world_classic() : v==1) && input_modernized();
 }
 // The vertex pass of the mesh renderer (0x80011170) clears the colour-index
 // nibble of every vertex it reads (vertex groups of three). Lights such as the

@@ -28,6 +28,7 @@
 #include "weapon_aim.h"
 #include "near_clip.h"
 #include "screen_flash.h"
+#include "live_env.h"
 #include "sky_render.h"
 #include "psx_sdl.h"
 #include <algorithm>
@@ -948,12 +949,13 @@ void capture(CPUState* cpu,int kind);
 // stalled or restarting), a failed redraw or a savestate load draw the next
 // live frames again. Frontend,
 // loading, menus, pause, split screen, 60 Hz and Vanilla are never engaged.
-// DNTTK_REDRAW_ONLY=0 (developer) or console "redrawonly off" disables it.
+// DNTTK_REDRAW_ONLY=0 (developer) or console "redrawonly off" disables it;
+// D40: without either, the live renderer decides (Classic: off).
 std::atomic<int> redraw_only_override{-1};
 bool redraw_only_switch() {
-    static const bool v=[]{const char* t=std::getenv("DNTTK_REDRAW_ONLY");return !(t && t[0]=='0' && !t[1]);}();
+    static const int v=ttk_env_switch("DNTTK_REDRAW_ONLY");
     const int o=redraw_only_override.load(std::memory_order_relaxed);
-    return o<0 ? v : o!=0;
+    return o>=0 ? o!=0 : v>=0 ? v!=0 : !ttk_world_classic();
 }
 bool live_redraw_only=false, redraw_only_engaged=false, redraw_only_submit=false;
 unsigned ro_good=0, ro_miss_run=0;
@@ -989,7 +991,31 @@ void redraw_only_decide(bool gameplay) {
 // from the GPU's completion interrupt until the next frame. They skip only
 // when the composition before this flip was engaged, so a frame drawn
 // without one (pause, menus, loading) never inherits it.
+// D40: a renderer switch (OPTIONS, console) waits for the next flip, so a
+// frame is drawn wholly by one renderer: the frame just composed keeps the
+// renderer it was built with (its redraws carry it in RenderState), the
+// next one is drawn by the new one. Polymorph draws its redraws on the render
+// thread (D17AW); Classic keeps the single-thread path.
+std::atomic<int> world_request{-1};
+bool render_thread_wanted() {
+    const char* t=std::getenv("DNTTK_RENDER_THREAD");
+    return !ttk_world_classic() && !(t && t[0]=='0' && !t[1]);
+}
+uint64_t world_switches=0;
+void world_renderer_apply() {
+    const int q=world_request.exchange(-1);
+    if(q<0 || q==ttk_world_classic()) return;
+    ttk_world_classic_set(q);
+    // Polymorph's present tint stops on Classic (D39G: no flash there), and
+    // does not come back with a switch to Polymorph.
+    if(q) screen_flash(0);
+    psx_mod_set_render_thread(render_thread_wanted());
+    ++world_switches;
+    std::fprintf(stderr,"[TTK renderer] %s (switch %llu, field %llu)\n",q?"classic":"polymorph",
+        (unsigned long long)world_switches,(unsigned long long)s_frame_count);
+}
 void redraw_only_flip(CPUState*,uint32_t) {
+    if(!psx_mod_replay_active()) world_renderer_apply();
     near_clip_flip();
     if(psx_mod_replay_active()) return;
     psx_mod_live_draw_skip_arm(redraw_only_submit);
@@ -1705,11 +1731,7 @@ void activate() {
     // D17AW: Polymorph draws its redraws on the host render thread, so the
     // emulation thread only emulates. Classic keeps the single-thread path;
     // DNTTK_RENDER_THREAD=0 (developer) does too.
-    {
-        const char* r=std::getenv("DNTTK_WORLD_RENDERER");
-        const char* t=std::getenv("DNTTK_RENDER_THREAD");
-        psx_mod_set_render_thread(!(r && !std::strcmp(r,"classic")) && !(t && t[0]=='0' && !t[1]));
-    }
+    psx_mod_set_render_thread(render_thread_wanted());
     const int32_t hz=parse_rate(std::getenv("DNTTK_FRAME_RATE"));
     if(hz==60) return;
     apply_rate(hz);
@@ -2043,14 +2065,43 @@ bool redraw_only_console_command(const char* line,void (*say)(const char*),bool&
     say(redraw_only_switch()?"Redraw-only live frames on (developer).":"Redraw-only live frames off.");
     return true;
 }
+// D40: the world renderer in game, as EDuke32's setrendermode. Applies at the
+// next flip; the OPTIONS row saves the choice, the console does not.
+bool world_renderer_request(bool classic) {
+    if(!modernized_session) return false;
+    world_request.store(classic?1:0);
+    return true;
+}
+const char* world_renderer_json() {
+    static char buffer[192];
+    const int q=world_request.load();
+    std::snprintf(buffer,sizeof buffer,"{\"renderer\":\"%s\",\"pending\":\"%s\",\"switches\":%llu,\"render_thread\":%s}",
+        ttk_world_classic()?"classic":"polymorph",q<0?"":q?"classic":"polymorph",(unsigned long long)world_switches,
+        psx_mod_replay_render_async()?"true":"false");
+    return buffer;
+}
+bool renderer_console_command(const char* line,void (*say)(const char*),bool& close) {
+    if(std::strcmp(line,"renderer") && std::strncmp(line,"renderer ",9)) return false;
+    close=false;
+    if(line[8]) {
+        const char* v=line+9;
+        const bool classic=!std::strcmp(v,"classic");
+        if(!classic && std::strcmp(v,"polymorph")) {say("Usage: renderer [polymorph|classic] (this session; OPTIONS > DISPLAY saves it)");return true;}
+        if(!world_renderer_request(classic)) {say("The renderer switch needs the Modernized profile.");return true;}
+        say(classic?"Renderer: Classic.":"Renderer: Polymorph.");
+        return true;
+    }
+    say(ttk_world_classic()?"Renderer: Classic.":"Renderer: Polymorph.");
+    return true;
+}
 extern "C" void gl_renderer_present_tint_diag(uint64_t* asked,uint64_t* drawn,float last[4]);
 const char* frame_replay_debug_json() {
     static char buffer[98304];
     uint64_t tint_asked=0,tint_drawn=0; float tint_last[4]{};
     gl_renderer_present_tint_diag(&tint_asked,&tint_drawn,tint_last);
-    int n=std::snprintf(buffer,sizeof buffer,"{\"flash\":%s,\"on\":%s,\"interp\":%s,\"target_hz\":%d,\"steps\":%d,\"captures\":%llu,\"publishes\":%llu,"
+    int n=std::snprintf(buffer,sizeof buffer,"{\"renderer\":%s,\"flash\":%s,\"on\":%s,\"interp\":%s,\"target_hz\":%d,\"steps\":%d,\"captures\":%llu,\"publishes\":%llu,"
         "\"submits\":%llu,\"rendered\":%llu,\"shown\":%llu,\"no_job\":%llu,\"failures\":%llu,\"serial\":%llu,\"prefetched\":%llu,\"governed\":%llu,\"deferred\":%llu,\"feed_ms\":%.2f,\"budget_ms\":%.2f,\"blended_mats\":%llu,\"blended_poses\":%llu,\"skipped_actors\":%llu,\"camera_cuts\":%llu,\"drawn\":%d,\"pending_flips\":%llu,\"blended_xf\":%llu,\"skipped_objects\":%llu,\"substituted\":%llu,\"sub_misses\":%llu,\"late\":%s,\"late_applied\":%llu,\"late_skipped\":%llu,\"late_jit\":%llu,\"late_repeats\":%llu,\"lead_ms\":%.1f,\"ready_ms\":%.1f,\"pace_div\":%d,\"pace_backoff\":%d,\"pace_clean\":%d,\"pace_ratio\":%.3f,\"pace_mid\":%llu,\"shed_steps\":%d,\"shed_backoff\":%d,\"shed_probes\":%llu,\"shed_failed_probes\":%llu,\"pace_changes\":%llu,\"emu_sheds\":%llu,\"audio_sheds\":%llu,\"ahead\":[%llu,%llu,%llu,%llu,%llu,%llu,%llu,%llu]}",
-        screen_flash_json(tint_asked,tint_drawn,tint_last),replay_on?"true":"false",interp_replay?"true":"false",(int)target_hz,steps,(unsigned long long)captures,
+        world_renderer_json(),screen_flash_json(tint_asked,tint_drawn,tint_last),replay_on?"true":"false",interp_replay?"true":"false",(int)target_hz,steps,(unsigned long long)captures,
         (unsigned long long)publishes,(unsigned long long)submits,(unsigned long long)presented,(unsigned long long)reused,
         (unsigned long long)no_job,(unsigned long long)failures,(unsigned long long)serial,
         (unsigned long long)prefetched,(unsigned long long)governed,(unsigned long long)deferred,feed_ms,budget_ms,(unsigned long long)blended_mats,(unsigned long long)blended_poses,

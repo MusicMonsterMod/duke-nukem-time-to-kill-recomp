@@ -63,7 +63,7 @@ stays a developer A/B.
 
 - Not live: the choice applies on the next launch. A live switch would need
   the unified and near-path switches to take a runtime override and reach the
-  forked redraw workers; possible later.
+  forked redraw workers; possible later. D40 made it live ([note 371](371-d40-live-renderer-switch.md)).
 - Classic at high refresh has no redraw-only frames, so heavy views reach
   high rates less often than Polymorph (expected; not measured here).
 - The console replies still say "(developer)" for the switches.

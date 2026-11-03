@@ -89,7 +89,7 @@
 
 extern "C" int g_psx_call_bail, g_precise_mode, g_ls_mode;
 
-namespace ttk {bool frame_rate_live();bool frame_rate_set(const char* value);}
+namespace ttk {bool frame_rate_live();bool frame_rate_set(const char* value);bool world_renderer_request(bool classic);}
 
 namespace ttk {
 namespace {
@@ -375,8 +375,8 @@ std::vector<Screen> make_screens() {
         {"FRAME RATE",Section::Controls,"frame_rate","DNTTK_FRAME_RATE",true,"AUTO MATCHES THE DISPLAY UP TO 240 FPS. GAME SPEED NEVER CHANGES",
          {{"AUTO","auto","\"auto\""},{"DISPLAY","display","\"display\""},{"30","30","\"30\""},{"60","60","\"60\""},{"120","120","\"120\""},{"144","144","\"144\""},
           {"165","165","\"165\""},{"180","180","\"180\""},{"240","240","\"240\""},{"UNLIMITED","unlimited","\"unlimited\""}},0},
-        // D17AR6: the world renderer (run.py maps it to the D17AM/D17AR switches).
-        {"RENDERER",Section::Controls,"world_renderer","DNTTK_WORLD_RENDERER",false,"POLYMORPH: OUR RENDERER. CLASSIC: THE ORIGINAL DRAWING",
+        // D17AR6: the world renderer (D17AM/D17AR switches). D40: live, from the next frame.
+        {"RENDERER",Section::Controls,"world_renderer","DNTTK_WORLD_RENDERER",true,"POLYMORPH: OUR RENDERER. CLASSIC: THE ORIGINAL DRAWING",
          {{"POLYMORPH","polymorph","\"polymorph\""},{"CLASSIC","classic","\"classic\""}},0},
         // D19AB: view settings follow FRAME RATE here, as in EDuke32's display menu.
         {"FIRST-PERSON FOV",Section::Controls,"first_person_fov","DNTTK_FP_FOV",true,
@@ -1222,6 +1222,7 @@ void apply_live(const Row& r,int v) {
         return;
     }
     if(key=="frame_rate" && !frame_rate_set(value)) return;
+    if(key=="world_renderer" && !world_renderer_request(!std::strcmp(value,"classic"))) return;
     // Until a change ttk_live_env() is plain getenv (an unset variable stays unset).
     if(r.env) ttk_live_env_set(r.env,value);
     if(key=="status_bars") {

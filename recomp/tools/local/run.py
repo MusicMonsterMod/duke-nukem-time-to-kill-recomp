@@ -241,13 +241,11 @@ def main(argv=None):
         print('Mesh precision requires OpenGL; this software-renderer session uses Original.', file=sys.stderr)
     # D17P: render-only view limits; Vanilla keeps the original.
     env['DNTTK_DRAW_DISTANCE'] = controls['draw_distance'] if modernized else 'original'
-    # D17AR6: Classic turns Polymorph's switches off (explicit developer values
-    # still win). Vanilla never reaches them; the near path stays for first
-    # person and widescreen.
+    # D17AR6: Classic turns Polymorph's switches off. D40: the game derives
+    # them from this live choice (OPTIONS switches it in game); explicit
+    # developer values still win. Vanilla never reaches them; the near path
+    # stays for first person and widescreen.
     env['DNTTK_WORLD_RENDERER'] = controls['world_renderer'] if modernized else 'classic'
-    if modernized and controls['world_renderer'] == 'classic':
-        for key in ('DNTTK_UNIFIED_GEOMETRY', 'DNTTK_HOST_VISIBILITY', 'DNTTK_REDRAW_ONLY'):
-            env.setdefault(key, '0')
     # Explicit developer overrides remain session-only; ordinary launches use the profile.
     if modernized:
         env.setdefault('DNTTK_FP_FOV', str(controls['first_person_fov']))

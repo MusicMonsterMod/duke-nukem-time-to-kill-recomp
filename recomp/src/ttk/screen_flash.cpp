@@ -75,10 +75,7 @@ void screen_flash_update() {
         screen_flash((int)((q>>18)&0xff),(int)((q>>12)&0x3f),(int)((q>>6)&0x3f),(int)(q&0x3f));
 }
 FlashOption screen_flash_option() {return flash_option_parse(ttk_live_env("DNTTK_SCREEN_FLASHES"));}
-bool screen_flash_classic() {
-    static const bool v=[]{const char* r=std::getenv("DNTTK_WORLD_RENDERER");return r && !std::strcmp(r,"classic");}();
-    return v;
-}
+bool screen_flash_classic() {return ttk_world_classic()!=0;}
 bool screen_flash_steps() {
     static const bool v=[]{const char* t=std::getenv("DNTTK_FLASH_STEPS");return t && t[0]=='1';}();
     return v;

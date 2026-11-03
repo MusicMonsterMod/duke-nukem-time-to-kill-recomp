@@ -1952,6 +1952,8 @@ struct RenderState {
     // D17AR2: the live frame's host visibility switch (the console toggle
     // changes only this process; redraw workers forked before it).
     bool host_visibility;
+    // D40: the live frame's world renderer (switchable in game).
+    bool world_classic;
     bool push_letgo;
     // D17AY: tick-rate presentation values blended per redraw, and the
     // jetpack flame re-arm's flight flag (workers fork before a flight).
@@ -2019,6 +2021,7 @@ void render_state_save(void* out) {
     r.jet_flight=jet_flight_live;
     r.kick_point=kick_point; r.leg_matrices=leg_matrices;
     r.host_visibility=host_visibility_enabled();
+    r.world_classic=ttk_world_classic()!=0;
     r.push_letgo=push_letgo;
     std::memcpy(out,&r,sizeof r);
 }
@@ -2078,6 +2081,7 @@ void render_state_load(const void* in) {
     kick_active=r.kick_active; override_kick_frame=r.kick_frame;
     kick_point=r.kick_point; leg_matrices=r.leg_matrices;
     host_vis_override=r.host_visibility?1:0;
+    ttk_world_classic_set(r.world_classic);
     push_letgo=r.push_letgo;
     override_door_valid=r.door_valid; override_door_frame=r.door_frame;
     override_channel_hand=r.channel_hand;

@@ -163,7 +163,7 @@ target_compile_options(ttk-flash-test PRIVATE -UNDEBUG)
 target_compile_features(ttk-flash-test PRIVATE cxx_std_17)
 
 if(TARGET SDL3::SDL3)
-add_executable(ttk-near-test EXCLUDE_FROM_ALL tests/local/near_clip_native.cpp src/ttk/near_clip.cpp
+add_executable(ttk-near-test EXCLUDE_FROM_ALL tests/local/near_clip_native.cpp src/ttk/near_clip.cpp src/ttk/live_env.cpp
     ${PSXRECOMP_ROOT}/runtime/src/psx_sha256.c)
 target_include_directories(ttk-near-test PRIVATE src/ttk ${PSXRECOMP_ROOT}/runtime/include)
 target_compile_options(ttk-near-test PRIVATE -UNDEBUG)

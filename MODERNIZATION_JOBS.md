@@ -1,5 +1,42 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-03 - D40 accepted and closed: live renderer switch
+
+User: "this is awesome. confirmed working! lock it in close it out." D40 is
+Done: OPTIONS > DISPLAY > RENDERER switches Polymorph / Classic on CONFIRM,
+mid-level, and saves the choice; the console's `renderer polymorph|classic`
+switches for the session. A first report of Classic looking wrong after a
+switch did not reproduce with copies of the player's settings and slot 3
+(live switch matched a Classic launch); the user then confirmed it working.
+[Note 371](documentation/371-d40-live-renderer-switch.md).
+
+## 2026-11-03 - D40: live renderer switch (Needs playtest)
+
+[Note 371](documentation/371-d40-live-renderer-switch.md). OPTIONS > DISPLAY >
+RENDERER now switches Polymorph / Classic as soon as it is confirmed,
+mid-level, as EDuke32 does, and still saves the choice; the backtick console
+has `renderer polymorph|classic` (session only). One runtime renderer state
+(`live_env.cpp`) replaces the launch-latched reads: unified geometry, host
+world visibility, redraw-only frames and the Classic flash checks follow it,
+developer switches still win when set, and `run.py` now exports only
+`DNTTK_WORLD_RENDERER`. A switch applies at the next flip, so each frame is
+drawn by one renderer; redraw workers get it in RenderState; the render thread
+(D17AW) turns on and off with it (framework: `psx_mod_set_render_thread` is
+live, forgetting stale slot snapshots when turned back on). A switch to
+Classic clears a flash in flight.
+
+Evidence (private fixture copies, offscreen, player files unchanged): both
+ways in third and first person at 60/120/180 Hz; 40 switches while walking,
+turning and firing held 60 fields/s and 180 (or 120) presents/s with 0 failed
+redraws; no black or torn present in dumps across switches; back to Polymorph
+matches the view before the switch; a flash in flight stops on Classic and
+does not return; frozen views correct per renderer; savestates load after
+switches; a Classic launch starts the render thread mid-session; the OPTIONS
+row switches in game and saves `classic`; Vanilla refuses. Suites pass
+(live-env, flash, near, input, aim, controls 125 PASS; Python 225 with the old
+`test_primitive_trace` failure). Remaining: the user's playtest on the real
+display.
+
 ## 2026-11-03 - D39F accepted and closed: pickup flashes; D41 lighting pre-job
 
 User: "let's lock it in and close us out here". D39F is Done: pickups flash
@@ -2925,7 +2962,7 @@ between the D08G7 PS1-quad approximation and no flash, behind the same API.
 
 ### D40 - Switch renderer live in game (EDuke32-style)
 
-**Status: Todo (intake 2026-11-03). Dependencies: D17AR6 (renderer choice), D39G.**
+**Status: Done (user-accepted 2026-11-03; closeout authorized; [note 371](documentation/371-d40-live-renderer-switch.md)). Dependencies: D17AR6 (renderer choice), D39G (Done).**
 User, 2026-11-03: "i want the ability to switch renderer on the fly like in
 eduke". In EDuke32 the renderer (`setrendermode` / the video menu) changes
 immediately, mid-game. Here OPTIONS > DISPLAY > RENDERER (Polymorph / Classic)
@@ -4285,7 +4322,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D39F | Pickup flashes (explosion flashes removed; left for D41) | Done (accepted 2026-11-03) | D39C |
 | D41 | Foundational lighting system (pre-job: case-study artifact, then spawns the lighting jobs) | Todo (placeholder, intake 2026-11-03) | none |
 | D39G | Classic renderer fallback for flashes | Done (accepted 2026-11-03) | D39C |
-| D40 | Switch renderer (Polymorph / Classic) live in game, as EDuke32 does | Todo (intake 2026-11-03) | D17AR6, D39G |
+| D40 | Switch renderer (Polymorph / Classic) live in game, as EDuke32 does | Done | D17AR6, D39G |
 | D08H | Apartment furniture, hidden pickup and switch targeting | Done | D08 |
 | D08I | Responsive run-start and edge jumps | Done | D08 |
 | D08J | Armed airborne ladder grabs and automatic weapon transitions | Done | D08, D08E |

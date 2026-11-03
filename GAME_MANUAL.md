@@ -317,9 +317,12 @@ and at high refresh rates the game stops drawing frames nobody sees, so the
 in-between pictures come faster. **Classic** keeps the game's own drawing
 order and visibility, as before Polymorph, with this project's earlier fixes
 for distant seams and for views over outdoor walls. First person and widescreen work
-in both. Choose it in OPTIONS > DISPLAY > RENDERER or with
-`--world-renderer polymorph|classic`; it applies on the next launch and saves
-your preference. Vanilla always uses Classic.
+in both. Choose it in OPTIONS > DISPLAY > RENDERER: it switches as soon as you
+confirm, mid-level, as in EDuke32, and saves your preference. The backtick
+console's `renderer polymorph` / `renderer classic` switches for this session
+only (`renderer` alone names the current one). `--world-renderer
+polymorph|classic` saves the choice from the launcher. A screen flash in
+progress stops when you switch to Classic. Vanilla always uses Classic.
 
 ### Portable steroids (Modernized)
 
@@ -1551,9 +1554,9 @@ defaults. The line above the buttons describes the highlighted option.
 These apply as soon as you confirm: mouse sensitivity, invert mouse, window,
 widescreen, camera, view, shoulder, camera distance, weapon aim, crosshair,
 auto aim, gore, status bars, game speed, red dot, jump, jump walls, landing,
-swimming, dynamite and view bob. Frame rate applies at once too, from any launch rate (choosing 60 returns
+swimming, dynamite, view bob and renderer. Frame rate applies at once too, from any launch rate (choosing 60 returns
 to the original presentation); with the software renderer it says
-**NEXT LAUNCH**, like renderer, backend, resolution, filter, draw distance,
+**NEXT LAUNCH**, like backend, resolution, filter, draw distance,
 geometry, textures, CPU speed, CPU timing, jetpack and steroids, which apply
 the next time you start the game. A new widescreen shape also reshapes a plain
 window (fullscreen and maximised windows show bars instead). Confirmed
@@ -1583,7 +1586,7 @@ outside the game.
 
 **Backtick (`)** opens a Quake-style drop-down developer console (TTK Medium
 Italic font, `>` prompt). Typed commands and their replies stay in the console scrollback (`help`,
-`fps`, `clear`, `quit`, `palfrom` (see Screen flashes), unknown-command errors). `fps` also toggles a compact
+`fps`, `clear`, `quit`, `palfrom` (see Screen flashes), `renderer` (see Renderer), unknown-command errors). `fps` also toggles a compact
 persistent statistics block in the top-left of the game view after you close the
 console (F remains unbound for gameplay). Escape or backtick closes the console.
 The console keeps 512 lines: **PgUp / PgDn** or the **mouse wheel** scroll back

@@ -1,5 +1,26 @@
 # Next-session handoff
 
+## 2026-11-03 - D40 accepted and closed: live renderer switch
+
+User: "this is awesome. confirmed working! lock it in close it out." D40 is
+Done: OPTIONS > DISPLAY > RENDERER switches Polymorph / Classic on CONFIRM,
+mid-level, and saves the choice; the console's `renderer polymorph|classic`
+switches for the session. A first report of Classic looking wrong after a
+switch did not reproduce with copies of the player's settings and slot 3
+(live switch matched a Classic launch); the user then confirmed it working.
+[Note 371](371-d40-live-renderer-switch.md).
+
+## 2026-11-03 - D40: live renderer switch (Needs playtest)
+
+[Note 371](371-d40-live-renderer-switch.md). OPTIONS > DISPLAY > RENDERER switches Polymorph / Classic
+on CONFIRM, mid-level, and saves the choice; console `renderer
+polymorph|classic` for the session. One runtime renderer state replaces the
+launch-latched switches (developer values still win); the switch applies at
+the next flip; workers get it in RenderState; the render thread follows it
+(framework). Offscreen evidence at 60/120/180 Hz, third and first person,
+moving, firing, frozen, flashing and across savestates: no failed redraws,
+stalls or black frames. Needs the user's playtest on the real display.
+
 ## 2026-11-03 - D39F accepted and closed: pickup flashes; D41 lighting pre-job
 
 User: "let's lock it in and close us out here". D39F is Done: pickups flash

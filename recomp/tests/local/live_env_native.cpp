@@ -18,6 +18,19 @@ int main() {
     assert(!std::strcmp(ttk_live_env("DNTTK_LIVE_TEST_A"),"1"));
     assert(!std::strcmp(ttk_live_env("DNTTK_LIVE_TEST_B"),"original"));
     assert(ttk_live_env("DNTTK_LIVE_TEST_C")==nullptr);
+    // D40: the world renderer starts from the launch choice and follows a switch;
+    // a developer switch is explicit only when set.
+    setenv("DNTTK_WORLD_RENDERER","classic",1);
+    assert(ttk_world_classic()==1);
+    ttk_world_classic_set(0);
+    assert(ttk_world_classic()==0);
+    ttk_world_classic_set(1);
+    assert(ttk_world_classic()==1);
+    unsetenv("DNTTK_LIVE_TEST_S");
+    assert(ttk_env_switch("DNTTK_LIVE_TEST_S")==-1);
+    setenv("DNTTK_LIVE_TEST_S","",1);assert(ttk_env_switch("DNTTK_LIVE_TEST_S")==-1);
+    setenv("DNTTK_LIVE_TEST_S","0",1);assert(ttk_env_switch("DNTTK_LIVE_TEST_S")==0);
+    setenv("DNTTK_LIVE_TEST_S","1",1);assert(ttk_env_switch("DNTTK_LIVE_TEST_S")==1);
     std::puts("PASS: live settings start from the environment and follow the menu");
     return 0;
 }

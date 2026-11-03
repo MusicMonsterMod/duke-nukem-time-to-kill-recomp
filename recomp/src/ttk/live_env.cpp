@@ -29,3 +29,20 @@ extern "C" void ttk_live_env_set(const char* name,const char* value) {
         if(!n) {s.value.store(value,std::memory_order_release);s.name.store(name,std::memory_order_release);return;}
     }
 }
+
+namespace {std::atomic<int> world_classic{-1};}
+extern "C" int ttk_world_classic(void) {
+    int v=world_classic.load(std::memory_order_relaxed);
+    if(v<0) {
+        const char* r=std::getenv("DNTTK_WORLD_RENDERER");
+        v=r && !std::strcmp(r,"classic");
+        world_classic.store(v,std::memory_order_relaxed);
+    }
+    return v;
+}
+extern "C" void ttk_world_classic_set(int classic) {world_classic.store(classic?1:0,std::memory_order_relaxed);}
+extern "C" int ttk_env_switch(const char* name) {
+    const char* t=std::getenv(name);
+    if(!t || !*t) return -1;
+    return !(t[0]=='0' && !t[1]);
+}

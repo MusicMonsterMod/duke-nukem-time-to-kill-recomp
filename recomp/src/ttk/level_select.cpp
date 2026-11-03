@@ -141,6 +141,7 @@ bool level_console_command(const char* line, void (*say)(const char*), bool& clo
     if(hostvis_console_command(line,say,close))return true;
     if(smoothquads_console_command(line,say,close))return true;
     if(redraw_only_console_command(line,say,close))return true;
+    if(renderer_console_command(line,say,close))return true;
     if(flash_console_command(line,say,close))return true;
     // D20: EDuke32's quicksave / quickload, the F6 / F9 keys' own action.
     if(!std::strcmp(line,"quicksave") || !std::strcmp(line,"quickload")) {

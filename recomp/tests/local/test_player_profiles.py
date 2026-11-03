@@ -1747,6 +1747,7 @@ class DrawDistanceTest(unittest.TestCase):
 
 class WorldRendererTest(unittest.TestCase):
     # D17AR6: Polymorph or Classic (an additive field); Vanilla is always Classic.
+    # D40: the game derives the switches from the live renderer; run.py sets none.
     SWITCHES=('DNTTK_UNIFIED_GEOMETRY','DNTTK_HOST_VISIBILITY','DNTTK_REDRAW_ONLY')
     def test_recovery_cli_env_vanilla_and_sidecar(self):
         with tempfile.TemporaryDirectory() as d:
@@ -1766,8 +1767,7 @@ class WorldRendererTest(unittest.TestCase):
                 run.main(['--settings-file',str(path),'--no-session-log','--world-renderer','classic'])
                 env=launch.call_args.kwargs['env']
                 self.assertEqual(env['DNTTK_WORLD_RENDERER'],'classic')
-                self.assertEqual([env[k] for k in self.SWITCHES],['0']*3)
-                self.assertNotIn('DNTTK_NEAR_CLIP',env)
+                self.assertFalse(any(k in env for k in self.SWITCHES+('DNTTK_NEAR_CLIP',)))
                 self.assertEqual(profiles.load(path)[0]['profiles']['modernized']['controls']['world_renderer'],'classic')
                 # Developer values still win over the profile.
                 with patch.dict(os.environ,{'DNTTK_HOST_VISIBILITY':'1'}):

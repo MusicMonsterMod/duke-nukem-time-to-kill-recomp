@@ -79,10 +79,11 @@ static uint32_t host_vis_last_rooms=0,host_vis_last_pieces=0,host_vis_last_game=
 // session. Redraw workers get the live frame's value with each job
 // (RenderState), so high-refresh frames follow the toggle too.
 static std::atomic<int> host_vis_override{-1};
+// D40: without either, the live renderer decides (Classic: off).
 static bool host_visibility_enabled() {
-    static const bool v=[]{const char* t=std::getenv("DNTTK_HOST_VISIBILITY");return !(t && !std::strcmp(t,"0"));}();
+    static const int v=ttk_env_switch("DNTTK_HOST_VISIBILITY");
     const int o=host_vis_override.load(std::memory_order_relaxed);
-    return o<0 ? v : o!=0;
+    return o>=0 ? o!=0 : v>=0 ? v!=0 : !ttk_world_classic();
 }
 // D17BB: over-the-walls rooms come only from the camera room's open-air
 // region: the sky rooms joined to it through the level's own portals, sky

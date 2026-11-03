@@ -3,7 +3,7 @@
 Job: [D39](../MODERNIZATION_JOBS.md) and D39A-D39G. Status: D39A accepted
 2026-11-03 (spec table below, locked); D39B accepted 2026-11-03
 (section below); D39C accepted 2026-11-03 (section below); D39D accepted
-2026-11-03 (section below); D39E accepted 2026-11-03 (section below). Follows D08G7 ([note 369](369-d08g7-kroz-feel.md)),
+2026-11-03 (section below); D39E accepted 2026-11-03 (section below); D39G accepted 2026-11-03 (section below). Follows D08G7 ([note 369](369-d08g7-kroz-feel.md)),
 accepted as preliminary.
 
 ## Why
@@ -570,6 +570,46 @@ change.
 - Under steady fire (slot 3: a hit every 1.3 s) the 1.07 s red is nearly
   continuous, as Duke3D's would be; REDUCED is the softer choice.
 
+## D39G - Classic renderer: no god-mode flash (accepted 2026-11-03)
+
+Decision (user, 2026-11-03): "remove the godmode flash unfortunately, and
+leave it there. the freeze one is harmless enough. the godmode one was just
+not smooth enough to have in the game, so we leave classic renderer simple".
+
+### Change
+
+- `cheats.inc` `god_mode_off_feel`: Classic starts no flash; the log reads
+  `flash none (Classic)`. Polymorph still calls `screen_flash(32, 32, 0, 0)`.
+- Removed the D08G7 quads entirely: `near_clip_screen_flash()`,
+  `near_clip_screen_flash_set()`, `near_clip_screen_flash_draw()`, the
+  frame-delta fade tick, the draw hook at `0x8001fc44` (return `0x800265c4`),
+  the 192-byte fixed packet slot at the end of each host region's base part
+  (`packet_alloc` now only keeps packets from straddling the base and extra
+  parts), the native contract test and the `screen_flash` /
+  `screen_flash_draws` fields of the near-clip debug JSON.
+- The tagged word at mirror + 4 is retired, not reused: an old savestate may
+  carry a nonzero D08G7 level there, which nothing reads. The D39B flash
+  record stays at mirror + 8.
+- Unchanged: D35J5's half-blend frozen quads (Classic's frozen tint), the
+  console refusal on Classic, Classic damage (no flash), Polymorph, Vanilla.
+
+### Evidence (local lab `recomp/analysis/d39g-classic/`, ignored)
+
+`probe.py` (D39E's, plus a `cgod` case) on private card copies, offscreen,
+slot 4, 180 Hz. Player saves and profile hash-checked unchanged after every
+run.
+
+| Check | Result |
+| --- | --- |
+| Classic, third person, god off x3 | frame mean RGB before OFF and 4 captures after within 0.05 levels; 0 tints drawn; log `flash none (Classic)` with the pain grunt |
+| Classic, first person, frozen (`hurt=7`) | D35J5 quads drawn: whole-frame fit (0.508, 3.85), (0.508, 3.83), (0.513, 30.89), equal to D39E's |
+| Polymorph, third person, god off x3 | 193 presents, 1066.7 ms, onset 0.498-0.499, slope -0.468/s (as D39D); onset frame colour fit w 0.49-0.55 toward (31.8, 0.3, 0.4) on two reps, the third capture missed the onset |
+| Polymorph, third person, frozen | fit (0.384, 25.99), (0.390, 14.25), (0.412, 31.02), equal to D39E's |
+
+Suites: `ttk-flash-test`, `ttk-near-test` (D08G7 contract removed),
+`ttk-input-test`, `ttk-aim-test`, `ttk-controls-test` (125 PASS) pass.
+User playtest on Classic, 2026-11-03: "classic renderer looks fine".
+
 ## TTK side (known)
 
 - TTK draws no hit tint. Its damage handler `0x800a40a8` (hooked since D08A13)
@@ -596,8 +636,8 @@ change.
 3. **Game API.** `screen_flash(intensity, r, g, b)` with palfrom units and
    rules, state in mod memory; a console command (`flash 48 63 63 63`) and
    debug JSON for tests; Vanilla never flashes.
-4. **Classic renderer** (frozen): keep the D08G7 add/subtract quads as its
-   fallback, or no flash.
+4. **Classic renderer** (frozen): no flash (D39G decided; the D08G7 quads
+   are removed, the D35J5 frozen quads stay).
 5. **Accessibility:** a Screen Flashes option (On / Reduced / Off), D21.
 
 ## Risks

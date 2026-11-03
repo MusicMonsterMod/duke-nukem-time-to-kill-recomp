@@ -1,5 +1,27 @@
 # Current status - 2026-10-04
 
+## 2026-11-03 - D39G accepted and closed: Classic keeps no god-mode flash
+
+User: "close it out! good work. classic renderer looks fine". D39G is Done:
+Classic shows no god-mode flash (the D08G7 PS1 quads and their slot, tick and
+hook are removed); D35J5's frozen quads stay Classic's frozen tint; Polymorph
+and Vanilla unchanged. [Note 370](370-d39-screen-flash-framework.md),
+D39G section. Next: D39F (pickups and explosions), D40 (live renderer switch).
+
+## 2026-11-03 - D39G: Classic keeps no god-mode flash (Needs playtest)
+
+User: "remove the godmode flash unfortunately, and leave it there. the freeze
+one is harmless enough. the godmode one was just not smooth enough to have in
+the game, so we leave classic renderer simple". Classic now shows no flash
+when god mode is switched off (text and pain grunt unchanged); the D08G7 PS1
+add/subtract quads are deleted outright: their draw, level word accessors,
+fade tick, the `0x8001fc44` hook, the fixed packet slot at the end of each host
+region's base part and the `screen_flash` / `screen_flash_draws` debug JSON
+fields. The mod-memory word after the D20C mirror is left unused (old
+savestates may carry a stale tagged value; nothing reads it). D35J5's frozen
+quads stay Classic's frozen tint. Polymorph and Vanilla unchanged.
+[Note 370](370-d39-screen-flash-framework.md), D39G section.
+
 ## 2026-11-03 - D39E accepted and closed: damage, Necro and frozen flashes
 
 User: "amazing work! lock it in and close us out". D39E is Done: real hits on

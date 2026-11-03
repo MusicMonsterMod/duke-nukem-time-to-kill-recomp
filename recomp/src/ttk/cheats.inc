@@ -144,25 +144,16 @@ static const char* cheat_refusal(CPUState* cpu) {
 // untouched.
 // D39D: the flash is Duke3D's own, palfrom 32 32 0 0 (D39A, measured from
 // dnkroz), on the present tint; SCREEN FLASHES scales it where it is drawn.
-// Classic has no present tint and keeps the D08G7 quads (D39G decides): OFF
-// skips them, REDUCED starts them at half.
+// D39G: Classic (no present tint) shows no flash; the D08G7 PS1 quads that
+// drew it there were not smooth enough and are gone.
 static void god_mode_off_feel(CPUState* cpu) {
-    const FlashOption flashes=screen_flash_option();
-    if(!screen_flash_classic()) screen_flash(32,32,0,0);
-    else if(flashes!=FlashOption::Off) near_clip_screen_flash_set(flashes==FlashOption::Reduced?screen_flash_start/2:screen_flash_start);
+    const bool classic=screen_flash_classic();
+    if(!classic) screen_flash(32,32,0,0);
     static uint32_t seed=0x2d08a7u^(uint32_t)std::chrono::steady_clock::now().time_since_epoch().count();
     seed=seed*1103515245u+12345u;
     const uint32_t sound=((seed>>16)&0xff)<128?0x2009u+((seed>>24)&1):0;
     const bool played=sound && cheat_call(cpu,0x8006b270,sound,player+4);
-    std::fprintf(stderr,"[TTK god] off: flash %s, pain %s\n",flash_option_name(flashes),!sound?"none":played?(sound==0x2009?"0x2009":"0x200a"):"refused");
-}
-// The fade steps with the game's frame delta (0x800d21fc), so it lasts the
-// same time at 30 and 20 fps; paused, it waits.
-static void screen_flash_tick() {
-    if(const uint32_t level=near_clip_screen_flash()) {
-        const int16_t delta=(int16_t)psx_mod_read_half(0x800d21fc);
-        near_clip_screen_flash_set(delta>0 && (uint32_t)delta<level?level-(uint32_t)delta:delta>0?0:level);
-    }
+    std::fprintf(stderr,"[TTK god] off: flash %s, pain %s\n",classic?"none (Classic)":flash_option_name(screen_flash_option()),!sound?"none":played?(sound==0x2009?"0x2009":"0x200a"):"refused");
 }
 static void damage_resolve();      // D39E (damage_flash.inc)
 static int damage_frame_lost;
@@ -181,7 +172,6 @@ static void flash_frame(CPUState* cpu) {
     frozen_tint_update();    // D39E: frozen blue
 }
 static void cheats_update(CPUState* cpu) {
-    screen_flash_tick();
     god_mode_update();
     auto command=input_take_cheat();
     if(command==Cheat::None)return;

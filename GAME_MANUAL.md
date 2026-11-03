@@ -1976,7 +1976,7 @@ its normal job straight away.
 | Code | Effect |
 | --- | --- |
 | `dnmonsters` | Toggle enemies hidden/shown; NPCs, pickups and switches remain |
-| `dnkroz` / `dncornholio` | Toggle god mode: health to at least 100, and Duke has the jetpack at full fuel the whole time it is on (Atomic Health can still take Duke to 200). It is a toggle: if god mode is already on, typing it turns it off. The confirmation reads GOD MODE: ON or GOD MODE: OFF; switching off flashes the screen red, as a hit does in Duke Nukem 3D, and Duke sometimes grunts (no damage) |
+| `dnkroz` / `dncornholio` | Toggle god mode: health to at least 100, and Duke has the jetpack at full fuel the whole time it is on (Atomic Health can still take Duke to 200). It is a toggle: if god mode is already on, typing it turns it off. The confirmation reads GOD MODE: ON or GOD MODE: OFF; switching off flashes the screen red, as a hit does in Duke Nukem 3D (Polymorph renderer; Classic shows no flash), and Duke sometimes grunts (no damage) |
 | `dnstuff` | Grant all weapons/ammo, inventory and keys, and full (100) armor |
 | `dnkeys` | Grant keys |
 | `dnweapons` | Grant weapons and ammo |
@@ -2139,9 +2139,8 @@ still fading. Pickups and big explosions come in a later update.
 Confirm applies and saves the choice immediately. Vanilla never flashes. The
 launcher accepts `--screen-flashes on|reduced|off` (saves the preference);
 terminal `--settings` uses **X Screen flashes**. Console flashes need the
-Polymorph renderer (Classic answers that it cannot show them). On the
-Classic renderer, the god-mode flash uses an older approximation: a red
-tint that fades in steps.
+Polymorph renderer (Classic answers that it cannot show them). The Classic
+renderer shows no god-mode or hit flashes; only the frozen tint remains there.
 
 The backtick console's `palfrom I [R G B]` (or `flash`) starts a flash with
 Duke 3D's own numbers: intensity `I` from 0 to 255 (63 is the strongest; above

@@ -23,13 +23,6 @@ const char* near_clip_debug_json();
 void near_clip_viewmodel_flush();
 void near_clip_biomask(double dip,uint32_t light);
 void near_clip_frozen_tint();
-// D08G7: hit-flash level in frame-delta units (300 a second), carried in mod
-// memory; screen_flash_start holds the peak for two 30 Hz ticks, then fades.
-constexpr uint32_t screen_flash_start=340;
-uint32_t near_clip_screen_flash();
-void near_clip_screen_flash_set(uint32_t level);
-// Appends the flash to ordering-table slot 0 (after the HUD).
-void near_clip_screen_flash_draw();
 // D39B: the two-word flash record after it (screen_flash.h), 0 before the arena.
 uint32_t near_clip_flash_record();
 // D17A: the frame accounting the near clip carries from one renderer call to

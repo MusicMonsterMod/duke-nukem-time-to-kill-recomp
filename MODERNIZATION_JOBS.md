@@ -1,5 +1,27 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-03 - D39G accepted and closed: Classic keeps no god-mode flash
+
+User: "close it out! good work. classic renderer looks fine". D39G is Done:
+Classic shows no god-mode flash (the D08G7 PS1 quads and their slot, tick and
+hook are removed); D35J5's frozen quads stay Classic's frozen tint; Polymorph
+and Vanilla unchanged. [Note 370](documentation/370-d39-screen-flash-framework.md),
+D39G section. Next: D39F (pickups and explosions), D40 (live renderer switch).
+
+## 2026-11-03 - D39G: Classic keeps no god-mode flash (Needs playtest)
+
+User: "remove the godmode flash unfortunately, and leave it there. the freeze
+one is harmless enough. the godmode one was just not smooth enough to have in
+the game, so we leave classic renderer simple". Classic now shows no flash
+when god mode is switched off (text and pain grunt unchanged); the D08G7 PS1
+add/subtract quads are deleted outright: their draw, level word accessors,
+fade tick, the `0x8001fc44` hook, the fixed packet slot at the end of each host
+region's base part and the `screen_flash` / `screen_flash_draws` debug JSON
+fields. The mod-memory word after the D20C mirror is left unused (old
+savestates may carry a stale tagged value; nothing reads it). D35J5's frozen
+quads stay Classic's frozen tint. Polymorph and Vanilla unchanged.
+[Note 370](documentation/370-d39-screen-flash-framework.md), D39G section.
+
 ## 2026-11-03 - D39E accepted and closed: damage, Necro and frozen flashes
 
 User: "amazing work! lock it in and close us out". D39E is Done: real hits on
@@ -2859,9 +2881,47 @@ flash as specified; user's playtest.
 
 #### D39G - Classic renderer fallback
 
-**Status: Todo. Dependencies: D39C.** Classic is frozen (2026-11-01): decide
+**Status: Done (user-accepted; closeout authorized 2026-11-03; [note 370](documentation/370-d39-screen-flash-framework.md), D39G section). Dependencies: D39C.** Decision (user, 2026-11-03): no god-mode flash on Classic; the D08G7 quads are removed; the D35J5 frozen quads stay. Classic is frozen (2026-11-01): decide
 between the D08G7 PS1-quad approximation and no flash, behind the same API.
 **Acceptance:** Classic shows the chosen behaviour without regressions.
+
+### D40 - Switch renderer live in game (EDuke32-style)
+
+**Status: Todo (intake 2026-11-03). Dependencies: D17AR6 (renderer choice), D39G.**
+User, 2026-11-03: "i want the ability to switch renderer on the fly like in
+eduke". In EDuke32 the renderer (`setrendermode` / the video menu) changes
+immediately, mid-game. Here OPTIONS > DISPLAY > RENDERER (Polymorph / Classic)
+applies only on the next launch.
+
+Known from intake (not yet audited): `run.py` passes the choice as
+`DNTTK_WORLD_RENDERER` and, for Classic, defaults `DNTTK_UNIFIED_GEOMETRY`,
+`DNTTK_HOST_VISIBILITY` and `DNTTK_REDRAW_ONLY` to 0. Several readers latch the
+environment once in function statics (`screen_flash_classic()`, host
+visibility, `frame_replay.cpp`), and the near-clip packet arenas, redraw
+workers and render replay state are sized and chosen per frame from them.
+
+Scope:
+1. Survey every consumer of the four switches (and anything derived: arenas,
+   replay workers, present tint, unified geometry caches, host visibility
+   state) and classify each as switchable per frame, at a frame boundary, or
+   needing a level reload.
+2. One runtime renderer state (in RenderState / mod memory as appropriate)
+   replacing the latched getenv reads; environment and profile only seed it at
+   launch. Explicit developer overrides keep winning.
+3. The OPTIONS entry applies on Confirm, mid-level, at a clean frame boundary
+   (no torn or black frame, no packet arena overflow, redraw workers resynced),
+   and still saves the preference. Optionally a console command (`renderer
+   polymorph|classic`, like EDuke32's `setrendermode`) and a debug port command
+   for tests.
+4. Flashes follow the switch: a Polymorph tint in flight stops cleanly on
+   Classic; Classic's frozen quads stop on Polymorph (D39G).
+
+**Acceptance:** switching both ways repeatedly mid-level, in third and first
+person, while moving, firing, frozen and during a flash, at 60/120/180 Hz,
+shows the chosen renderer from the next frame with no crash, stall, missing
+geometry or stale state; savestates load correctly after a switch; the choice
+persists; Vanilla stays Classic and unchanged; native regressions; user's
+playtest.
 
 ### D08T10 - Slot-5 box repeat grab after pulling
 
@@ -4147,7 +4207,8 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D39D | God-mode off flash on D39 (replaces the D08G7 quads) | Done (accepted 2026-11-03) | D39C, D08G7 |
 | D39E | Damage flashes from real hits, per TTK damage type | Done (accepted 2026-11-03) | D39C |
 | D39F | Pickup and explosion flashes (white on big blasts) | Todo | D39C |
-| D39G | Classic renderer fallback for flashes | Todo | D39C |
+| D39G | Classic renderer fallback for flashes | Done (accepted 2026-11-03) | D39C |
+| D40 | Switch renderer (Polymorph / Classic) live in game, as EDuke32 does | Todo (intake 2026-11-03) | D17AR6, D39G |
 | D08H | Apartment furniture, hidden pickup and switch targeting | Done | D08 |
 | D08I | Responsive run-start and edge jumps | Done | D08 |
 | D08J | Armed airborne ladder grabs and automatic weapon transitions | Done | D08, D08E |

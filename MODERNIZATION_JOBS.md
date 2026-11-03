@@ -1,5 +1,43 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-03 - D39F accepted and closed: pickup flashes; D41 lighting pre-job
+
+User: "let's lock it in and close us out here". D39F is Done: pickups flash
+1:1 with Duke3D (items, ammo, keys and inventory `palfrom 16 0 32`, weapons
+`32 0 32`); explosions flash only when they hurt Duke (D39E). The explosion
+research stays in [note 370](documentation/370-d39-screen-flash-framework.md), D39F section. New pre-job D41,
+foundational lighting system: a placeholder that, when started, stands up a
+case-study artifact (GZDoom/UZDoom, EDuke32, Ironwail and others) and spawns
+the real lighting jobs. D39 is complete.
+
+## 2026-11-03 - D39F: pickup flashes (Needs playtest)
+
+[Note 370](documentation/370-d39-screen-flash-framework.md), D39F section.
+User: "work on D39F - of course, to really get close, experiment with eduke
+and learn from it". Pickups now flash 1:1 with Duke3D's GAME.CON: items,
+ammo, keys and inventory `palfrom 16 0 32`, weapons `32 0 32` (owned or not),
+replacing whatever is fading; refused pickups draw nothing.
+`pickup_flash.inc` rides the dispatcher's taken-pickup sounds (`0x8006bbd8`
+ra `0x80082d3c`, or the powerup cases' `0x8006b73c` ra `0x800828d8`), one
+flash per dispatcher call, on hooks that already existed (new entry hooks
+change generated code).
+
+The first build also flashed white for explosions (a Duke3D-style kick for
+blasts in view and a distance-scaled close white). The EDuke32 experiment
+showed Duke3D answers an explosion with a short lift of the world's lighting,
+not a palfrom. After playtesting (user: "everything works exactly as
+prescribed ... pickups however look amazing. we should really stick 1:1 with
+eduke ... lighting tricks are outside the scope really of this job though so
+i'd say we just remove those flashes specifically for now") the blast flashes
+were removed; explosions flash only when they hurt Duke (D39E). The
+measurements and the explosion code map stay in note 370 for a future
+lighting system.
+
+Evidence (180 Hz, private cards, player files unchanged): eleven pickup types
+flashed with their colours, refused ones did not, steroids once; RPG blasts
+draw nothing; OFF draws nothing; Classic and Vanilla unchanged. Suites pass
+(flash, near, input, aim, controls 125 PASS).
+
 ## 2026-11-03 - D39G accepted and closed: Classic keeps no god-mode flash
 
 User: "close it out! good work. classic renderer looks fine". D39G is Done:
@@ -2802,7 +2840,7 @@ playtest.
 
 ### D39 - Screen flash framework (Duke3D palfrom-style coloured flashes)
 
-**Status: Todo (intake 2026-11-03; [note 370](documentation/370-d39-screen-flash-framework.md)).**
+**Status: Done (D39A-D39G accepted 2026-11-03; [note 370](documentation/370-d39-screen-flash-framework.md)).**
 User, 2026-11-03: "i want to be able to do any damage or explosion flashes
 that we want ... We need to really own this". Own coloured full-screen
 flashes the way EDuke32's `palfrom <intensity> <r> <g> <b>` does: an
@@ -2872,7 +2910,7 @@ unchanged; user's playtest.
 
 #### D39F - Pickup and explosion flashes
 
-**Status: Todo. Dependencies: D39C.** Pickups through `0x80081a48`
+**Status: Done (user-accepted; closeout authorized 2026-11-03; [note 370](documentation/370-d39-screen-flash-framework.md), D39F section; pickups only; the user removed the explosion flashes, left for D41). Dependencies: D39C.** Pickups through `0x80081a48`
 (item 16 0 32, weapon 32 0 32, armour 24 0 32), and explosions: survey the
 explosion and effect spawns (e.g. `0x8006d594`, `0x80070f7c`) and add a white
 flash scaled by size and distance for big blasts (the user's own EDuke32
@@ -2922,6 +2960,44 @@ shows the chosen renderer from the next frame with no crash, stall, missing
 geometry or stale state; savestates load correctly after a switch; the choice
 persists; Vanilla stays Classic and unchanged; native regressions; user's
 playtest.
+
+### D41 - Foundational lighting system (pre-job)
+
+**Status: Todo (placeholder, intake 2026-11-03). Dependencies: none. Do not implement lighting under this ID: starting it produces the case-study artifact and a scoped set of child jobs for the user to choose from.**
+User, 2026-11-03: "i think we make a foundational lighting system for this
+game. to bring it in line with other source ports like gzdoom, uzdoom,
+eduke32, ironwail and so on. Real, genuine lighting"; "that job will actually
+spawn a bunch of other jobs when i want to start this. It should also stand
+up an artifact which can have screenshots and case studies of how lighting
+has been achieved elsewhere, and to see what our options are in terms of the
+implementation of real lighting, in the way that these retro engines have
+acomplished it".
+
+When selected:
+1. **Case-study artifact** (published page, updated as the study grows):
+   screenshots and how each port lights its world. GZDoom / UZDoom and
+   EDuke32 still light from the maps' baked sector light, but with dynamic
+   lights, light falloff and modern renderers on top (EDuke32: Polymost
+   shading and visibility, Polymer per-pixel lights, the explosion world
+   light-up measured in D39F); Ironwail / Quake: lightmaps, dynamic lights and
+   lightstyles, a polygon engine closer to TTK's "n-space" engine (the user's
+   name for it). Other relevant ports as found. Captures from the user's own
+   installs on private copies where possible.
+2. **TTK today:** survey the engine's own lighting tricks (vertex colours,
+   light-style effects, explosion and muzzle effects, fog/depth cue) and what
+   Polymorph already knows of each draw (geometry, normals, world positions).
+3. **Options:** baked-from-original versus dynamic, per-vertex versus
+   per-pixel, lightmaps, shadowing, cost at 180 Hz with render replay, and
+   how Vanilla and Classic stay untouched.
+4. **Child jobs:** a proposed breakdown (foundation, dynamic lights,
+   explosion and weapon lights replacing D39F's removed flashes, level
+   lighting) added to the board as Todo for the user to select.
+
+Inputs: [note 370](documentation/370-d39-screen-flash-framework.md) D39F
+"Blast research" (EDuke32 explosion light-up measurements, TTK explosion code
+map); the D39 present tint. **Acceptance:** the artifact is published and
+reviewed with the user, and the child jobs are on the board; no lighting code
+under D41 itself.
 
 ### D08T10 - Slot-5 box repeat grab after pulling
 
@@ -4200,13 +4276,14 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08G7 | dnkroz feel: GOD MODE ON/OFF text, red flash and occasional short pain sound on OFF (dncornholio identical) | Done (accepted as preliminary 2026-11-03; flash to D39D) | D08G2, D08Q4 |
 | D08G8 | Cheats work anywhere, not only on solid ground | Done (user-accepted 2026-11-02) | D08G2 |
 | D08G9 | dnkroz after death: Duke gets back up where he died, remains stay | Todo | D08G7, D08G8, D08Q4 |
-| D39 | Screen flash framework: Duke3D palfrom-style coloured flashes (parent) | Todo | D39A-D39G |
+| D39 | Screen flash framework: Duke3D palfrom-style coloured flashes (parent) | Done (D39A-D39G accepted 2026-11-03) | D39A-D39G |
 | D39A | Flash spec: measure palfrom in EDuke32 (rate, hold, override, blend) | Done (accepted 2026-11-03) | - |
 | D39B | Polymorph present tint: exact colour mix, display-rate fade, replay-safe | Done (accepted 2026-11-03) | D39A |
 | D39C | Game flash API, console command, debug JSON, Screen Flashes option | Done (accepted 2026-11-03) | D39B |
 | D39D | God-mode off flash on D39 (replaces the D08G7 quads) | Done (accepted 2026-11-03) | D39C, D08G7 |
 | D39E | Damage flashes from real hits, per TTK damage type | Done (accepted 2026-11-03) | D39C |
-| D39F | Pickup and explosion flashes (white on big blasts) | Todo | D39C |
+| D39F | Pickup flashes (explosion flashes removed; left for D41) | Done (accepted 2026-11-03) | D39C |
+| D41 | Foundational lighting system (pre-job: case-study artifact, then spawns the lighting jobs) | Todo (placeholder, intake 2026-11-03) | none |
 | D39G | Classic renderer fallback for flashes | Done (accepted 2026-11-03) | D39C |
 | D40 | Switch renderer (Polymorph / Classic) live in game, as EDuke32 does | Todo (intake 2026-11-03) | D17AR6, D39G |
 | D08H | Apartment furniture, hidden pickup and switch targeting | Done | D08 |

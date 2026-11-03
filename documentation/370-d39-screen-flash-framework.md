@@ -3,7 +3,7 @@
 Job: [D39](../MODERNIZATION_JOBS.md) and D39A-D39G. Status: D39A accepted
 2026-11-03 (spec table below, locked); D39B accepted 2026-11-03
 (section below); D39C accepted 2026-11-03 (section below); D39D accepted
-2026-11-03 (section below); D39E accepted 2026-11-03 (section below); D39G accepted 2026-11-03 (section below). Follows D08G7 ([note 369](369-d08g7-kroz-feel.md)),
+2026-11-03 (section below); D39E accepted 2026-11-03 (section below); D39F accepted 2026-11-03 (section below; pickups only); D39G accepted 2026-11-03 (section below). Follows D08G7 ([note 369](369-d08g7-kroz-feel.md)),
 accepted as preliminary.
 
 ## Why
@@ -570,6 +570,113 @@ change.
 - Under steady fire (slot 3: a hit every 1.3 s) the 1.07 s red is nearly
   continuous, as Duke3D's would be; REDUCED is the softer choice.
 
+## D39F - Pickup flashes (accepted 2026-11-03)
+
+Pickups flash 1:1 with Duke3D. Explosions do not flash unless they hurt Duke
+(D39E's blast red): user, 2026-11-03, after playtesting a white blast flash:
+"we should really stick 1:1 with eduke. eduke has a much better lighting
+system than ours to allow for those extreme weapon explosions ... lighting
+tricks are outside the scope really of this job though so i'd say we just
+remove those flashes specifically for now". The blast research below is kept
+for a future lighting system (user, 2026-11-03: "a foundational lighting
+system for this game ... in line with other source ports like gzdoom, uzdoom,
+eduke32, ironwail ... Real, genuine lighting"; board pre-job D41).
+
+### Behaviour
+
+- `pickup_flash.inc`: the dispatcher `0x80081a48` (s1 Duke, s3 the object,
+  type +0x2c) plays a taken pickup's sound in its common tail, `0x8006bbd8` at
+  ra `0x80082d3c`, only when the pickup was accepted (s0 set; a full item or
+  a weapon Duke cannot carry more of plays nothing). The powerup cases ending
+  at `0x800828d0` (steroids among them) play their own `0x8006b73c` at ra
+  `0x800828d8` first; one clears s2 (`0x800828ac`) and reaches the tail
+  silently, steroids keep s2 and play both. One flash per dispatcher call
+  (counted at its entry). Both sound routines were already hooked: entry
+  hooks are declared in `game.local.toml` at code generation, and a new one
+  changes the generated code (and rejects existing savestates).
+- `pickup_flash_for` (`screen_flash.h`, native-tested), GAME.CON's values:
+  every item, ammo, key and inventory pickup (`getcode`, `quikget`)
+  `palfrom 16 0 32`; a weapon pickup (`getweaponcode`, `quikweaponget`)
+  `32 0 32`, owned or not, for the 14 weapon pickup types (`spawn.inc` group
+  1). Duke3D's `24 0 32` is only the pig cop's dropped shield; TTK armour takes
+  `16 0 32` like Duke3D's armour (no TTK counterpart to the shield was looked
+  for).
+- A pickup replaces whatever is fading (palfrom's rule, measured in D39A), so
+  it shows over a hit's red, as in EDuke32.
+- SCREEN FLASHES, Vanilla and Classic as every D39 flash. Developer:
+  `DNTTK_DAMAGE_TRACE=1` also prints `[TTK pickup]` lines; debug JSON
+  `plugin.flash` gains `pickups` and `pickup` (the last one and what it drew).
+
+The values come from GAME.CON with D39A's measured palfrom behaviour; live
+pickups were not captured in EDuke32.
+
+### Evidence (local lab `recomp/analysis/d39f-pickup-blast/`, ignored)
+
+`probe.py` (D39E's harness) on private card copies, offscreen on the NVIDIA
+GPU at 180 Hz, third person. Player saves and profile hash-checked unchanged
+after every run. Executable `1e21fae3a0981cad86548ba9b926d179c210b77bbe9e936c0b26a551e9f37743`.
+
+| Check | Result |
+| --- | --- |
+| Pickups, slots 3 and 4 (`spawn <item>`, walk over) | health, armour, RPG ammo, Desert Eagle ammo, medkit, goggles, steroids: 16 0 32; RPG, combat shotgun, pipe bomb, dynamite: 32 0 32; one flash each (steroids drew two before the per-call guard) |
+| Refused pickups (slot 4: RPG 8/8, shotgun ammo full, medkit full) | no flash |
+| RPG blasts at 4808 and 603 units, god mode | no flash started, 0 tints drawn |
+| SCREEN FLASHES OFF | the record runs (pickup noted), 0 tints drawn |
+| Classic / Vanilla | no pickup flash / no flash plugin |
+
+Suites: `ttk-flash-test` (pickup cases), `ttk-near-test`, `ttk-input-test`,
+`ttk-aim-test`, `ttk-controls-test` (125 PASS) pass. No framework change.
+User playtest of the first build (with blast flashes, since removed): "everything
+works exactly as prescribed ... pickups however look amazing". Accepted
+2026-11-03: "let's lock it in and close us out here".
+
+### Blast research (kept for D41, the lighting system; not implemented)
+
+**EDuke32 experiment** (behaviour only; setup as D39A: private copy, r10669,
+Polymost 640x480, 60 fps, offscreen X, lossless capture; lab
+`recomp/analysis/d39f-pickup-blast/eduke32/`). Test CON `blast0.con` (ours)
+spawns an RPG explosion sprite (EXPLOSION2, no damage) straight ahead of Duke
+every 2.5 s at 512 to 8192 units; `blast2.con` adds 1024 and 6144 behind and
+30000 ahead (past the end wall); `blast1.con` adds a candidate distance white.
+
+| Blast | Native EDuke32 (frame mean above the status bar) |
+| --- | --- |
+| Any distance ahead (512 to 30000) | The world lights up: 44 -> 59-60, about 2 tics, back to about 47 within 0.25 s |
+| Behind Duke (1024, 6144) | Nothing |
+| Close (512 / 1024) | The fireball sprite fills the view (173 / 93 at its peak) |
+| HUD | Status bar +1, weapon +1: a lighting change of the world (dark +12, mid tones +14-25), not a tint |
+| A blast that hurts Duke | GAME.CON `ifwasweapon RPG` / `RADIUSEXPLOSION`: `palfrom 48 52` (D39E) |
+
+A white `palfrom 32` held for its full fade (1.07 s) read as grey haze up
+close, not a flash. The user also notes Duke3D does use a white flash for some
+large events, most prominently the nuke button that ends a level (EDuke32 save
+`explosiontest`, press E); not measured here.
+
+**TTK blasts.** Each explosion plays its blast sound with the position in a1
+before its radius damage `0x800a62f4` and the per-player camera shake
+`0x80028a2c(camera, position, A, B)` (size x falloff into camera +0x48/+0x4a;
+falloff `0x800289ac` = 1 - 0.225 x distance / 4096 out to 16384):
+
+| Sound call (routine, ra) | Function | Shake (size) |
+| --- | --- | --- |
+| `0x8006b73c` `0x80070418` | `0x800702bc` projectile blasts (rockets, grenades) | `0x800c3d06/04` (450) |
+| `0x8006b73c` `0x800708e4`; under water `0x8006b270` `0x80070858` | `0x800707cc` (pipe bombs, Holy Hand Grenade) | 450 |
+| `0x8006b73c` `0x80071044`; under water `0x8006b270` `0x80070ff8` | `0x80070f7c` dynamite | 450 |
+| `0x8006b73c` `0x8006413c` | `0x80063f0c` an enemy blown apart (drops its item, gib sound `0x4007`) | `0x800c3d10` (400) |
+
+`0x80097090` (shake 130/64) has no blast sound of its own. The camera eye is
++0x64..+0x6c and the view matrix +0x20 (rows right, down, forward; row 0
+carries the 1.6 aspect). Measure distance from Duke (+4..+0xc), not the eye:
+looking down in third person the eye was 3883 units from a rocket at Duke's
+feet. A hit from the same blast resolves after the sound (its radius damage
+follows), so any blast effect must let that hit's red win.
+
+The first D39F build drew a Duke3D-style kick (`palfrom 6` white for a blast
+in the picture, measured 0.092 over 217 ms) and a close white (up to 20 within
+1500 units of Duke, 0 at 6000; measured 0.310 over 661 ms) on these hooks;
+the user's playtest confirmed it worked as specified, and it was removed in
+favour of real lighting later.
+
 ## D39G - Classic renderer: no god-mode flash (accepted 2026-11-03)
 
 Decision (user, 2026-11-03): "remove the godmode flash unfortunately, and
@@ -617,9 +724,9 @@ User playtest on Classic, 2026-11-03: "classic renderer looks fine".
   12 toxic gas, mode 5 under water, others `0x2009`/`0x200a`). It is the
   natural source for damage flashes, with the type, amount, attacker and
   source object in its arguments.
-- Pickups: `0x80081a48` (hooked, D08A9). Explosions: effect spawns such as
-  `0x8006d594(type, pos, ...)` and the explosion/death calls (`0x80070f7c`)
-  need a survey (D39F).
+- Pickups: `0x80081a48` (hooked, D08A9; D39F flashes). Explosions: surveyed
+  in D39F (the blast sound calls before each radius damage and camera shake);
+  no blast flash (left for a future lighting system).
 - The flash state already lives in guest mod memory (the word after the D20C
   mirror, tag `0x5d087000`), so savestates and redraw workers carry it.
 

@@ -25,6 +25,7 @@ uint32_t held=0;
 struct Note {double t; float w; int16_t slot; bool drawn;};
 Note notes[2048]; unsigned notes_n=0;
 char damage_note[96]=""; uint64_t damage_notes=0;
+char pickup_note[96]=""; uint64_t pickup_notes=0;
 std::atomic<uint32_t> hurt_request{0};
 }
 
@@ -99,6 +100,9 @@ bool screen_flash_live(float rgbw[4]) {
 void screen_flash_damage_note(const char* note) {
     std::snprintf(damage_note,sizeof damage_note,"%s",note); ++damage_notes;
 }
+void screen_flash_pickup_note(const char* note) {
+    std::snprintf(pickup_note,sizeof pickup_note,"%s",note); ++pickup_notes;
+}
 void screen_flash_test_hurt(int type,int amount) {
     hurt_request.store(1u<<31|(uint32_t)std::clamp(type,0,255)<<16|(uint32_t)std::clamp(amount,0,0xffff));
 }
@@ -114,9 +118,9 @@ void screen_flash_note(int slot,const float rgbw[4],bool drawn) {
 const char* screen_flash_json(uint64_t asked,uint64_t drawn,const float last[4]) {
     static char buffer[65536];
     const FlashState s=screen_flash_read();
-    int n=std::snprintf(buffer,sizeof buffer,"{\"record\":\"0x%08x\",\"level\":%u,\"rgb\":[%u,%u,%u],\"seq\":%u,\"steps\":%s,\"option\":\"%s\",\"requests\":%llu,\"updates\":%llu,\"starts\":%llu,\"damage_hits\":%llu,\"damage\":\"%s\","
+    int n=std::snprintf(buffer,sizeof buffer,"{\"record\":\"0x%08x\",\"level\":%u,\"rgb\":[%u,%u,%u],\"seq\":%u,\"steps\":%s,\"option\":\"%s\",\"requests\":%llu,\"updates\":%llu,\"starts\":%llu,\"damage_hits\":%llu,\"damage\":\"%s\",\"pickups\":%llu,\"pickup\":\"%s\","
         "\"tint_asked\":%llu,\"tint_drawn\":%llu,\"tint_last\":[%.4f,%.4f,%.4f,%.5f],\"notes\":\"",
-        near_clip_flash_record(),s.level,s.r,s.g,s.b,s.seq,screen_flash_steps()?"true":"false",flash_option_name(screen_flash_option()),(unsigned long long)request_count,(unsigned long long)updates,(unsigned long long)starts,(unsigned long long)damage_notes,damage_note,
+        near_clip_flash_record(),s.level,s.r,s.g,s.b,s.seq,screen_flash_steps()?"true":"false",flash_option_name(screen_flash_option()),(unsigned long long)request_count,(unsigned long long)updates,(unsigned long long)starts,(unsigned long long)damage_notes,damage_note,(unsigned long long)pickup_notes,pickup_note,
         (unsigned long long)asked,(unsigned long long)drawn,last[0],last[1],last[2],last[3]);
     // Per present, oldest first: "host ms/slot/weight".
     const unsigned first=notes_n>2048?notes_n-2048:0;

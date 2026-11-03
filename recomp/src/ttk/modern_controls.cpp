@@ -1087,6 +1087,7 @@ static bool facing_ready() {
 #include "terrain.inc"
 #include "cheats.inc"
 #include "damage_flash.inc"
+#include "pickup_flash.inc"
 #include "apartment_interaction.inc"
 #include "push.inc"
 #include "ladder_top.inc"
@@ -1281,7 +1282,7 @@ static void hook_body(CPUState* cpu, uint32_t address) {
     if (sp<0x80010100 || sp>0x801ffff0 || (sp&3)) {head_restore();return;}
     if(address==0x8006276c || address==0x80062b48 || address==0x8002ffec) {draw_distance_apply(cpu,address,ra);if(address==0x8002ffec) pole_visibility_draw(cpu,ra);return;}
     if(address==0x80076330) {apartment_switch_query(cpu);mirror_use_query(cpu);return;}
-    if(address==0x80081a48) {pickup_select_begin(cpu);steroids_pickup(cpu);apartment_pickup(cpu);return;}
+    if(address==0x80081a48) {pickup_flash_begin();pickup_select_begin(cpu);steroids_pickup(cpu);apartment_pickup(cpu);return;}
     if(address==0x80051cf0) {push_obstacle_action(cpu,ra);return;}
     if(address==0x80051890) {push_idle_action(cpu,ra);return;}
     if(address==0x800455bc) {
@@ -2178,7 +2179,7 @@ PSX_MOD_CONSTRUCTOR(register_ttk_controls) {
     // neck query only. Other joint lookups retain the cheap caller check.
     psx_mod_register_function_entry_plugin("ttk.modern.controls",0x8003964c,[](CPUState* cpu,uint32_t){if(cpu->gpr[31]==0x8007a9f8u)ttk::swim_plunge_sweep(cpu);else if(cpu->gpr[31]==0x8007d7fcu)ttk::pole_probe_floor(cpu);else if(cpu->gpr[31]==0x8005610cu)ttk::hook(cpu,0x8003964c);});
     // D08A4: the sound routine; only the pickup tail's call (ra 0x800828d8) goes further.
-    psx_mod_register_function_entry_plugin("ttk.modern.controls",0x8006b73c,[](CPUState* cpu,uint32_t){ttk::steroids_damage_restore();ttk::sound_logged(cpu);if(cpu->gpr[31]==0x800828d8u)ttk::steroids_pickup_sound(cpu);});
+    psx_mod_register_function_entry_plugin("ttk.modern.controls",0x8006b73c,[](CPUState* cpu,uint32_t){ttk::steroids_damage_restore();ttk::sound_logged(cpu);if(cpu->gpr[31]==0x800828d8u){ttk::steroids_pickup_sound(cpu);ttk::pickup_flash_sound(cpu);}});
     // D27A: the player update; only Duke's call goes further.
     psx_mod_register_function_entry_plugin("ttk.modern.controls",0x800412a4,[](CPUState* cpu,uint32_t){ttk::steroids_damage_restore();if(cpu->gpr[4]==ttk::player){ttk::flash_frame(cpu);ttk::run_click_presync();ttk::jet_water_start(cpu);ttk::grounded_water_jet_close_arm(cpu);}});
     // D12C: the damage sphere; only the original kick's call (ra 0x80049098) goes further.
@@ -2192,7 +2193,7 @@ PSX_MOD_CONSTRUCTOR(register_ttk_controls) {
     // D08Z1: after ttk.modern.controls at the same entry, so the velocity is final.
     psx_mod_register_function_entry_plugin("ttk.jump.walls",0x8003ebf4,[](CPUState* cpu,uint32_t){ttk::jump_walls_presolve(cpu);ttk::jump_walls_bounce_rerun(cpu);});
     // D08Z2: the sound call; only the bounce's contact sound (ra 0x80055a10) goes further.
-    psx_mod_register_function_entry_plugin("ttk.jump.walls",0x8006bbd8,[](CPUState* cpu,uint32_t){ttk::d08q10_sound_trace(cpu,0x8006bbd8);ttk::jump_walls_bounce_sound(cpu);});
+    psx_mod_register_function_entry_plugin("ttk.jump.walls",0x8006bbd8,[](CPUState* cpu,uint32_t){ttk::d08q10_sound_trace(cpu,0x8006bbd8);ttk::jump_walls_bounce_sound(cpu);if(cpu->gpr[31]==0x80082d3cu)ttk::pickup_flash_sound(cpu);});
     // D08Z5: the slope slide start (after the mode 2 store), its fall start and that fall's launch rotation.
     psx_mod_register_function_entry_plugin("ttk.wall.backflip",0x8005446c,[](CPUState* cpu,uint32_t){ttk::wall_backflip_slide_start(cpu);});
     psx_mod_register_function_entry_plugin("ttk.wall.backflip",0x8003f060,[](CPUState* cpu,uint32_t){ttk::wall_backflip_fall(cpu);});

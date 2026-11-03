@@ -1,5 +1,43 @@
 # Current status - 2026-10-04
 
+## 2026-11-03 - D39F accepted and closed: pickup flashes; D41 lighting pre-job
+
+User: "let's lock it in and close us out here". D39F is Done: pickups flash
+1:1 with Duke3D (items, ammo, keys and inventory `palfrom 16 0 32`, weapons
+`32 0 32`); explosions flash only when they hurt Duke (D39E). The explosion
+research stays in [note 370](370-d39-screen-flash-framework.md), D39F section. New pre-job D41,
+foundational lighting system: a placeholder that, when started, stands up a
+case-study artifact (GZDoom/UZDoom, EDuke32, Ironwail and others) and spawns
+the real lighting jobs. D39 is complete.
+
+## 2026-11-03 - D39F: pickup flashes (Needs playtest)
+
+[Note 370](370-d39-screen-flash-framework.md), D39F section.
+User: "work on D39F - of course, to really get close, experiment with eduke
+and learn from it". Pickups now flash 1:1 with Duke3D's GAME.CON: items,
+ammo, keys and inventory `palfrom 16 0 32`, weapons `32 0 32` (owned or not),
+replacing whatever is fading; refused pickups draw nothing.
+`pickup_flash.inc` rides the dispatcher's taken-pickup sounds (`0x8006bbd8`
+ra `0x80082d3c`, or the powerup cases' `0x8006b73c` ra `0x800828d8`), one
+flash per dispatcher call, on hooks that already existed (new entry hooks
+change generated code).
+
+The first build also flashed white for explosions (a Duke3D-style kick for
+blasts in view and a distance-scaled close white). The EDuke32 experiment
+showed Duke3D answers an explosion with a short lift of the world's lighting,
+not a palfrom. After playtesting (user: "everything works exactly as
+prescribed ... pickups however look amazing. we should really stick 1:1 with
+eduke ... lighting tricks are outside the scope really of this job though so
+i'd say we just remove those flashes specifically for now") the blast flashes
+were removed; explosions flash only when they hurt Duke (D39E). The
+measurements and the explosion code map stay in note 370 for a future
+lighting system.
+
+Evidence (180 Hz, private cards, player files unchanged): eleven pickup types
+flashed with their colours, refused ones did not, steroids once; RPG blasts
+draw nothing; OFF draws nothing; Classic and Vanilla unchanged. Suites pass
+(flash, near, input, aim, controls 125 PASS).
+
 ## 2026-11-03 - D39G accepted and closed: Classic keeps no god-mode flash
 
 User: "close it out! good work. classic renderer looks fine". D39G is Done:

@@ -79,5 +79,10 @@ int main() {
     assert(df(2,0,false,false,50,20).intensity==0);                         // a Necro bolt god mode cancelled
     assert(is(df(2,0,true),32,32,0,0));                                      // a killing hit
     for(unsigned t=1;t<=20;++t) assert(df(t,0).intensity==0);               // cancelled (god mode, mask) or nothing taken
+    // D39F: pickups (Duke3D getcode 16 0 32, getweaponcode 32 0 32) by the
+    // dispatcher's object types.
+    auto pf=[](unsigned t){return ttk::pickup_flash_for(t);};
+    for(unsigned t:{473u,581u,320u,580u,560u,573u,753u,638u,106u,33u,65u,153u,154u,1047u}) assert(is(pf(t),16,0,32,0) && !std::strcmp(pf(t).kind,"item"));
+    for(unsigned t:{45u,1u,21u,59u,66u,10u,41u,47u,37u,34u,641u,58u,608u,126u}) assert(is(pf(t),32,0,32,0) && !std::strcmp(pf(t).kind,"weapon"));
     std::puts("screen flash: ok");
 }

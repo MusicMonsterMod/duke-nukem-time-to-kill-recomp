@@ -2127,7 +2127,13 @@ does any hit that actually hurts Duke (D39E):
 
 A hit that does not hurt Duke never flashes: god mode, invincibility, a worn
 Bio Mask in gas. A light hit does not cut short a stronger flash that is
-still fading. Pickups and big explosions come in a later update.
+still fading.
+
+Pickups flash too, as in Duke 3D (D39F): a light green for items, ammo,
+keys and inventory (`palfrom 16 0 32`), a stronger green for a weapon
+(`palfrom 32 0 32`). Only a pickup Duke actually takes flashes; walking over
+a full item does nothing. Explosions flash only when they hurt Duke (the
+strong red above).
 
 **OPTIONS > GAMEPLAY > SCREEN FLASHES** (accessibility):
 
@@ -2140,7 +2146,8 @@ Confirm applies and saves the choice immediately. Vanilla never flashes. The
 launcher accepts `--screen-flashes on|reduced|off` (saves the preference);
 terminal `--settings` uses **X Screen flashes**. Console flashes need the
 Polymorph renderer (Classic answers that it cannot show them). The Classic
-renderer shows no god-mode or hit flashes; only the frozen tint remains there.
+renderer shows no god-mode, hit or pickup flashes; only the frozen tint
+remains there.
 
 The backtick console's `palfrom I [R G B]` (or `flash`) starts a flash with
 Duke 3D's own numbers: intensity `I` from 0 to 255 (63 is the strongest; above

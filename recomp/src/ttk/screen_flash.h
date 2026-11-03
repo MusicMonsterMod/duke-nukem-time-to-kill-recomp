@@ -109,8 +109,24 @@ inline DamageFlash damage_flash_for(unsigned type,int lost,bool died,bool frozen
         return lost>=damage_heavy_hit || died?DamageFlash{32,32,0,0,"hit"}:DamageFlash{16,32,0,0,"hit"};
     }
 }
+// D39F: pickups, Duke3D's GAME.CON values (note 370 catalog): every item,
+// ammo, key and inventory pickup (getcode, quikget) palfrom 16 0 32; a weapon
+// pickup (getweaponcode, quikweaponget) 32 0 32, owned or not. type is the
+// picked-up object's type (+0x2c), the dispatcher 0x80081a48's own switch.
+inline bool pickup_is_weapon(unsigned type) {
+    switch(type) {
+    case 45: case 1: case 21: case 59: case 66: case 10: case 41: case 47:
+    case 37: case 34: case 641: case 58: case 608: case 126: return true;
+    default: return false;
+    }
+}
+inline DamageFlash pickup_flash_for(unsigned type) {
+    return pickup_is_weapon(type)?DamageFlash{32,0,32,0,"weapon"}:DamageFlash{16,0,32,0,"item"};
+}
 // Diagnostic: the last damage hit and what it drew (debug JSON "damage").
 void screen_flash_damage_note(const char* note);
+// D39F diagnostic: the last pickup and what it drew (debug JSON "pickup").
+void screen_flash_pickup_note(const char* note);
 // Developer (DNTTK_TEST_INPUT hurt=type,amount): one hit through Duke's own
 // damage handler at the next player update, to test each damage type.
 void screen_flash_test_hurt(int type,int amount);

@@ -1,5 +1,18 @@
 # Next-session handoff
 
+## 2026-11-03 - D39A accepted and closed: palfrom measured
+
+Spec table in [note 370](370-d39-screen-flash-framework.md), measured in a
+private offscreen EDuke32 copy with a test CON (appendix) and per-pixel fits.
+D39B should implement `w = min(I,63)/64`, colour x4, replace-always, minus 1
+per game tic, I > 63 hold, then add the sub-tic interpolation on top (the
+original steps at 30 Hz with no interpolation). Open for D39B: tint the TTK
+pause screen or not (EDuke32 tints and freezes). Console flash: EDuke32 has
+none; D39C adds `palfrom <I> <r> <g> <b>` (alias `flash`) per the user.
+Reproduce: Xvfb display, `-usecwd -nosetup -ns -mx fltest.con`, load slot,
+read `TIC`/`FRM` lines from `eduke32.log`; avoid typing cheats with movement
+letters bound (`d` strafes) when fitting against a static frame.
+
 ## 2026-11-03 - D08G7 accepted as preliminary; D39 screen flash framework
 
 User: the D08G7 flash is "a great start" but staggers; "We need to really own

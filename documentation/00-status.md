@@ -1,5 +1,13 @@
 # Current status - 2026-10-04
 
+## 2026-11-03 - D39A accepted and closed: palfrom measured
+
+EDuke32 behaviour measured offscreen ([note 370](370-d39-screen-flash-framework.md)):
+`out = in(1-w) + 4Cw`, `w = min(I,63)/64`, minus 1 per 30 Hz tic, instant
+onset, no peak hold, every call replaces, I > 63 extends the hold; tints
+everything including menu and console, frozen while paused. EDuke32 has no
+console flash command; D39C adds one (`palfrom` arguments). Next: D39B.
+
 ## 2026-11-03 - D08G7 accepted as preliminary; D39 screen flash framework
 
 User: the D08G7 flash is "a great start" but staggers; "We need to really own

@@ -1,5 +1,31 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-03 - D39A accepted and closed: palfrom measured in EDuke32
+
+User: "lock this research tier in and then close us out". D39A is Done; the
+note 370 table is the spec D39B/C implement.
+
+[Note 370](documentation/370-d39-screen-flash-framework.md) now holds the
+measured table. Private EDuke32 copy (user's r10669 build, 32-bit Polymost,
+`kroztest` save copy), offscreen at 60 fps, a test CON module logging
+`pals_time` per tic and per frame, and lossless captures fitted per pixel:
+
+- **Blend:** `out = in * (1 - w) + 4 * C * w` per channel in display values,
+  `w = min(I, 63) / 64` (fits within 1.5 levels over whole frames).
+- **Timing:** instant onset; minus 1 a 30 Hz tic, no sub-tic change and no
+  peak hold (the "2 tics" read from the user's video was capture cadence);
+  I > 63 holds full strength for I - 63 tics.
+- **Rules:** every call replaces intensity and colour (weaker too); last call
+  in a tic wins. God mode off is exactly `palfrom 32 32 0 0`.
+- **Coverage:** world, weapon, status bar, quotes, in-game menu and OSD; the
+  flash freezes while paused.
+- **Console:** EDuke32 has no console flash (`palfrom` at its OSD is an
+  unknown command; none on the wiki console list). Per the user's request
+  D39C adds one with palfrom arguments.
+
+Not measured: Classic 8-bit renderer, Polymer, save/load or level change.
+No game code changed. Next: D39B.
+
 ## 2026-11-03 - D08G7 accepted as preliminary; D39 screen flash framework added
 
 User, on the D08G7 flash: "it's a great start, but the fade isnt smooth
@@ -2562,7 +2588,7 @@ never flashes. Polymorph is the target; Classic is frozen (D39G).
 
 #### D39A - Flash spec: measure palfrom in EDuke32
 
-**Status: Todo. Dependencies: none.** Confirm the D08G7 measurements in
+**Status: Done (user-accepted; closeout authorized 2026-11-03; spec table in [note 370](documentation/370-d39-screen-flash-framework.md)). Dependencies: none.** Confirm the D08G7 measurements in
 EDuke32 itself (user install under `~/Games`, the `kroztest` save; private
 copies only): drive a few flashes (a test CON or the console: pickup
 16 0 32, RPG hit 48 52, white 63 63 63 63, an intensity above 63, two
@@ -2593,7 +2619,11 @@ with palfrom units and rules, state in guest mod memory (D08G7's word or a
 small versioned record), a developer console command (`flash 48 63 63 63`),
 debug JSON, and an OPTIONS / profile setting Screen Flashes On / Reduced /
 Off (accessibility, D21). **Acceptance:** native tests of the rules; console
-flashes match D39A captures; option persists.
+flashes match D39A captures; option persists. User, 2026-11-03: "i'm
+pretty sure you can issue a color flash just from the console. we should aim
+for that functionality". D39A found EDuke32 itself has none (`palfrom` at its
+OSD: "unknown command or cvar"), so the console command takes palfrom
+arguments directly: `palfrom 48 52` (alias `flash`).
 
 #### D39D - God-mode off flash on D39
 
@@ -3905,7 +3935,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08G8 | Cheats work anywhere, not only on solid ground | Done (user-accepted 2026-11-02) | D08G2 |
 | D08G9 | dnkroz after death: Duke gets back up where he died, remains stay | Todo | D08G7, D08G8, D08Q4 |
 | D39 | Screen flash framework: Duke3D palfrom-style coloured flashes (parent) | Todo | D39A-D39G |
-| D39A | Flash spec: measure palfrom in EDuke32 (rate, hold, override, blend) | Todo | - |
+| D39A | Flash spec: measure palfrom in EDuke32 (rate, hold, override, blend) | Done (accepted 2026-11-03) | - |
 | D39B | Polymorph present tint: exact colour mix, display-rate fade, replay-safe | Todo | D39A |
 | D39C | Game flash API, console command, debug JSON, Screen Flashes option | Todo | D39B |
 | D39D | God-mode off flash on D39 (replaces the D08G7 quads) | Todo | D39C, D08G7 |

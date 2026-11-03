@@ -1,5 +1,26 @@
 # Next-session handoff
 
+## 2026-11-03 - D26I accepted and closed: the numpad types in the console
+
+User: "confirmed working. lock it in, close us out". D26I is Done: the
+backtick console takes the keypad (digits and `.` with Num Lock on, `- + * /`
+always, navigation with Num Lock off, held keys repeat). Framework `main.cpp`
+only, patch exported. Executable
+`c3a2951a1819b0d6124abb0e38d0385e1d87cdf199eea19e9c5857b310bfcb82`.
+
+## 2026-11-03 - D26I: the numpad types in the console (Needs playtest)
+
+The backtick console now takes the keypad. Num Lock on: digits and `.`;
+keypad `- + * /` always type. Num Lock off: keypad 8 / 2 recall commands,
+9 / 3 page, 1 jumps to the newest line, as in a desktop text field. Held keys
+repeat. Framework `main.cpp` only, patch exported and verified. Real X keys on
+a private run: keypad `spawn 641` was accepted (console closed), symbols and a
+held keypad 7 typed and repeated, Num Lock off recalled history and typed no
+digits. Nothing reaches gameplay while the console is open (it consumes every
+key first). Executable
+`c3a2951a1819b0d6124abb0e38d0385e1d87cdf199eea19e9c5857b310bfcb82`.
+Needs the user's check.
+
 ## 2026-11-03 - D08A34 accepted and closed: the medkit heals in water
 
 User: "perfect. lock it in, close it out". D08A34 is Done: in Modernized, M

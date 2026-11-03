@@ -1316,13 +1316,47 @@ console `spawn` list. Executable
 reported holster while in the console did not reproduce and stays open in
 note 361 (no fix made); D26H and D26I were recorded during testing.
 
+## 2026-11-03 - D26I accepted and closed: the numpad types in the console
+
+User: "confirmed working. lock it in, close us out". D26I is Done; executable
+`c3a2951a1819b0d6124abb0e38d0385e1d87cdf199eea19e9c5857b310bfcb82` is the regression baseline.
+
+## 2026-11-03 - D26I: the numpad types in the console (Needs playtest)
+
+- Selected by the user ("work on D26I"). Framework `runtime/src/main.cpp`
+  `debug_console_event` only; the runtime patch is exported.
+- Num Lock on: keypad 0-9 type digits and keypad `.` types `.`. Keypad `-`,
+  `+`, `*` and `/` always type their characters. Num Lock off: the keypad's
+  navigation keys act as the main keys, as in a desktop text field: 8 / 2
+  recall commands (Up / Down), 9 / 3 page the scrollback, 1 (End) jumps to the
+  newest line; 4, 5, 6, 0 and `.` type nothing. Keypad Enter runs the line as
+  before. Held keypad keys take the OS repeat (D26G path).
+- Gameplay: unchanged. The console consumes every key event while open, before
+  gameplay input or host hotkeys (keypad `+` / `-` volume) see it; closed,
+  keypad keys behave as before.
+- Evidence (`recomp/analysis/d26i-20261103/keypad.py`, real X key events via
+  xdotool on private Xvfb :96, autorepeat 250 ms / 30 Hz, private card copy,
+  port 9251; typed lines read back through `history`): Num Lock on, `spawn `
+  plus keypad 6 4 1 and keypad Enter gave `spawn 641`, and the console closed,
+  which `spawn` does only after accepting the item ("Spawning ..."); keypad
+  `- + * / . 0` then keypad 7 held 1 s gave `-+*/.07777777777`; Num Lock off,
+  keypad 8 twice recalled `spawn 641` (edited to `spawn 641 z`), and `ab` plus
+  keypad 1 4 5 6 0 `.` gave `ab`. Note for harnesses: with Num Lock off,
+  `xdotool key KP_8` sets Num Lock on its own event to produce that keysym;
+  send `KP_Up`, `KP_End` and so on instead.
+- Patch exported; applies to the pinned clean framework and reproduces
+  `main.cpp`. No hashed header touched. Executable
+  `c3a2951a1819b0d6124abb0e38d0385e1d87cdf199eea19e9c5857b310bfcb82`.
+- Not verified: the user's keyboard, and the freezer seen in game (the run
+  confirms the command was accepted, not the pickup on screen).
+
 ## 2026-11-02 - Backlog intake: numpad in the console (D26I)
 
 User, while testing D08A33 (2026-11-02). Recorded only; not started.
 
 ### D26I - Console: the numpad types
 
-**Status: Todo. Dependencies: D26 (console), D26G (key repeat).** User:
+**Status: Done (user-accepted 2026-11-03: "confirmed working"). Dependencies: D26 (console), D26G (key repeat).** User:
 "make the numpad work with the console." The console's key handler
 (`debug_console_event` in the runtime `main.cpp`, a framework file tracked
 through `recomp/patches/time-to-kill-accepted-source.patch`) maps only the
@@ -4808,7 +4842,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D26D | Level select: authoritative order, numbering, names and categories | Todo | D26A |
 | D26G | Console: holding Backspace or a character key repeats it | Done (user-accepted 2026-10-20) | D26 |
 | D26H | Spawned weapons land far enough ahead that Duke does not pick them up at once | Done (user-accepted 2026-11-02) | D26E |
-| D26I | Console: numpad digits (and keypad keys) type into the console | Todo | D26, D26G |
+| D26I | Console: numpad digits (and keypad keys) type into the console | Done (user-accepted 2026-11-03) | D26, D26G |
 | D26J | Console keeps Duke's movement state (toggle crouch, jetpack flight) while open | Done (user-accepted 2026-11-02) | D26, D26B, D08K, D08Q |
 | D26K | No weapon holster while the console is open | Done | D26 (shares D26J's console input path) |
 | D27 | Caps Lock RUN MODE quotes; Shift-run clunk silence deferred | Done (quotes); clunk deferred low-priority | D04, D19A |

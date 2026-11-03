@@ -1603,7 +1603,7 @@ console (F remains unbound for gameplay). Escape or backtick closes the console.
 The console keeps 512 lines: **PgUp / PgDn** or the **mouse wheel** scroll back
 through them, **Ctrl+Home** jumps to the oldest and **End** to the newest. New
 output scrolls back to the bottom. **Up / Down** recall the commands you typed
-(newest first; Down past the newest clears the line), and `history` lists them. Holding Backspace or a character key repeats it, like a desktop text field. While scrolled up, `-- MORE BELOW: PGDN / END --`
+(newest first; Down past the newest clears the line), and `history` lists them. Holding Backspace or a character key repeats it, like a desktop text field. The numpad types too: with Num Lock on its digits and `.`, and `- + * /` always; with Num Lock off its 8 / 2 recall commands, 9 / 3 scroll and 1 jumps to the newest line. Keypad Enter runs the line. While scrolled up, `-- MORE BELOW: PGDN / END --`
 shows above the prompt.
 In Modernized play the console does not pause the game and does not change
 Duke's state: a C crouch stays crouched and a hovering jetpack holds its

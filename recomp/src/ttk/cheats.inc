@@ -160,6 +160,7 @@ static void screen_flash_tick() {
 }
 static void cheats_update(CPUState* cpu) {
     screen_flash_tick();
+    screen_flash_update();   // D39B
     god_mode_update();
     auto command=input_take_cheat();
     if(command==Cheat::None)return;

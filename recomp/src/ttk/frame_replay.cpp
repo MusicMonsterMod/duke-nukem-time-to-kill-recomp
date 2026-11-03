@@ -27,6 +27,7 @@
 #include "modern_controls.h"
 #include "weapon_aim.h"
 #include "near_clip.h"
+#include "screen_flash.h"
 #include "sky_render.h"
 #include "psx_sdl.h"
 #include <algorithm>
@@ -373,6 +374,7 @@ struct Frame {
     uint32_t menu=0;       // D19C: frontend state and cursor (diagnostic)
     bool menu_mode=false;  // D19E: captured in game mode 0 (frontend menus can be drawn)
     uint32_t shows[max_jobs]; // D19C: menu signature of the image each redraw is drawn from
+    FlashState flash;      // D39B: the screen flash at composition
 };
 Frame frames[slots];
 extern double late_lead_ms;
@@ -1070,6 +1072,7 @@ void capture(CPUState* cpu,int kind) {
         if(guest_y>=0 && shown_y>=0 && guest_y!=shown_y) ++pending_flips;
     }
     f->slot=slot;
+    f->flash=screen_flash_read();
     f->valid=true;
     f->frontend=kind!=gameplay_image;
     f->loading=kind==loading_image_kind;
@@ -1256,6 +1259,11 @@ constexpr int cache_entries=16;
 uint64_t shown_serial=0;    // frame on screen at the last due present
 struct Cached {uint64_t serial=0; int index=-1; uint64_t used=0;};
 Cached cache[cache_entries];
+// D39B: each cached redraw's screen flash, mixed at the redraw's own alpha
+// between the two frames it blends, so the fade follows the same clock as
+// the motion it is drawn over (and a repeated image keeps its tint).
+struct CachedTint {bool on=false; float rgbw[4]{};};
+CachedTint cache_tint[cache_entries];
 uint64_t cache_clock=0, prefetched=0, governed=0, deferred=0, late_repeats=0;
 int last_shown_cache=-1;   // cache entry of the last present (late camera keeps it)
 double slack_floor_ms=0.5;
@@ -1370,6 +1378,11 @@ bool render(Frame& f,int index,const PSXModPresentInfo* info,bool due=false) {
     window_feed_sum+=ms;++window_feed_n;
     if(!ok) {++failures;f.failed[index]=true;return false;}
     cache[c]={f.serial,index,++cache_clock};
+    {
+        const Frame* next=frame_by_serial(f.serial+1);
+        CachedTint& t=cache_tint[c];
+        t.on=flash_mix(f.flash,next?next->flash:f.flash,f.alpha[index],screen_flash_steps(),t.rgbw);
+    }
     // D17AW: on the render thread the image is only queued. A present due now
     // waits for it a little, as the single-thread path drew it right here.
     if(due && psx_mod_replay_cache_pending(c)) psx_mod_replay_wait_cache(c,due_wait_ms);
@@ -1632,6 +1645,20 @@ int provider(const PSXModPresentInfo* info,void*) {
     return 0;
 }
 
+// D39B: Polymorph's present tint (Modernized; Classic and Vanilla never).
+// A replay image carries its own tint; anything else shows the live record.
+int present_tint(int slot,float rgbw[4],void*) {
+    static const bool classic=[]{const char* r=std::getenv("DNTTK_WORLD_RENDERER");return r && !std::strcmp(r,"classic");}();
+    if(classic || !input_modernized()) return 0;
+    bool on=false;
+    if(slot>=1 && slot<=cache_entries) {
+        const CachedTint& t=cache_tint[slot-1];
+        if((on=t.on)) std::memcpy(rgbw,t.rgbw,sizeof t.rgbw);
+    } else on=screen_flash_live(rgbw);
+    screen_flash_note(slot,rgbw,on);
+    return on;
+}
+
 bool modernized_session=false;   // D19G1: FRAME RATE can start replay later
 bool slack_fixed=false;
 // The present rate's own settings, at a launch and on a FRAME RATE change.
@@ -1663,6 +1690,7 @@ void activate() {
     if(const char* t=std::getenv("DNTTK_REPLAY_BUDGET_MS")) {budget_ms=std::clamp(std::atof(t),0.5,16.0);budget_fixed=true;}
     if(const char* t=std::getenv("DNTTK_RT_DUE_WAIT_MS")) due_wait_ms=std::clamp(std::atof(t),0.0,8.0);
     psx_mod_set_replay_status(status_json);
+    psx_mod_set_present_tint(present_tint,nullptr);
     // D17AW: Polymorph draws its redraws on the host render thread, so the
     // emulation thread only emulates. Classic keeps the single-thread path;
     // DNTTK_RENDER_THREAD=0 (developer) does too.
@@ -2004,11 +2032,14 @@ bool redraw_only_console_command(const char* line,void (*say)(const char*),bool&
     say(redraw_only_switch()?"Redraw-only live frames on (developer).":"Redraw-only live frames off.");
     return true;
 }
+extern "C" void gl_renderer_present_tint_diag(uint64_t* asked,uint64_t* drawn,float last[4]);
 const char* frame_replay_debug_json() {
-    static char buffer[24576];
-    int n=std::snprintf(buffer,sizeof buffer,"{\"on\":%s,\"interp\":%s,\"target_hz\":%d,\"steps\":%d,\"captures\":%llu,\"publishes\":%llu,"
+    static char buffer[98304];
+    uint64_t tint_asked=0,tint_drawn=0; float tint_last[4]{};
+    gl_renderer_present_tint_diag(&tint_asked,&tint_drawn,tint_last);
+    int n=std::snprintf(buffer,sizeof buffer,"{\"flash\":%s,\"on\":%s,\"interp\":%s,\"target_hz\":%d,\"steps\":%d,\"captures\":%llu,\"publishes\":%llu,"
         "\"submits\":%llu,\"rendered\":%llu,\"shown\":%llu,\"no_job\":%llu,\"failures\":%llu,\"serial\":%llu,\"prefetched\":%llu,\"governed\":%llu,\"deferred\":%llu,\"feed_ms\":%.2f,\"budget_ms\":%.2f,\"blended_mats\":%llu,\"blended_poses\":%llu,\"skipped_actors\":%llu,\"camera_cuts\":%llu,\"drawn\":%d,\"pending_flips\":%llu,\"blended_xf\":%llu,\"skipped_objects\":%llu,\"substituted\":%llu,\"sub_misses\":%llu,\"late\":%s,\"late_applied\":%llu,\"late_skipped\":%llu,\"late_jit\":%llu,\"late_repeats\":%llu,\"lead_ms\":%.1f,\"ready_ms\":%.1f,\"pace_div\":%d,\"pace_backoff\":%d,\"pace_clean\":%d,\"pace_ratio\":%.3f,\"pace_mid\":%llu,\"shed_steps\":%d,\"shed_backoff\":%d,\"shed_probes\":%llu,\"shed_failed_probes\":%llu,\"pace_changes\":%llu,\"emu_sheds\":%llu,\"audio_sheds\":%llu,\"ahead\":[%llu,%llu,%llu,%llu,%llu,%llu,%llu,%llu]}",
-        replay_on?"true":"false",interp_replay?"true":"false",(int)target_hz,steps,(unsigned long long)captures,
+        screen_flash_json(tint_asked,tint_drawn,tint_last),replay_on?"true":"false",interp_replay?"true":"false",(int)target_hz,steps,(unsigned long long)captures,
         (unsigned long long)publishes,(unsigned long long)submits,(unsigned long long)presented,(unsigned long long)reused,
         (unsigned long long)no_job,(unsigned long long)failures,(unsigned long long)serial,
         (unsigned long long)prefetched,(unsigned long long)governed,(unsigned long long)deferred,feed_ms,budget_ms,(unsigned long long)blended_mats,(unsigned long long)blended_poses,

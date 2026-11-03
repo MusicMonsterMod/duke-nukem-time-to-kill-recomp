@@ -1,5 +1,25 @@
 # Current status - 2026-10-04
 
+## 2026-11-03 - D39B accepted and closed
+
+User: "excellent. lock it in and close us out". D39B is Done
+([note 370](370-d39-screen-flash-framework.md)): Polymorph's present tint
+with the Duke3D palfrom mix and a per-redraw fade; layer and pause behaviour
+kept as implemented. Next: D39C (flash API, `palfrom` console command, Screen
+Flashes option).
+
+## 2026-11-03 - D39B: Polymorph present tint (Needs review)
+
+Polymorph tints every present with the Duke3D palfrom mix
+(`out = in(1-w) + 4Cw`, exact weight, one blended quad; nothing when idle),
+over the picture and HUD overlays, under the developer console. The fade is
+evaluated per redraw from the two frames it blends, so it is a straight line
+at 120/180 (193 distinct weights over the 1067 ms god-off fade at 180) and
+the 30 Hz staircase on request (`DNTTK_FLASH_STEPS=1`); 33 steps at FRAME
+RATE 60, where the game has no in-betweens. Colour fits, replace, I > 63
+hold, savestates, pause (frozen, drawn) checked; Vanilla and Classic
+unchanged. No game event uses it yet (D39C). [Note 370](370-d39-screen-flash-framework.md).
+
 ## 2026-11-03 - D39A accepted and closed: palfrom measured
 
 EDuke32 behaviour measured offscreen ([note 370](370-d39-screen-flash-framework.md)):

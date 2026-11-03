@@ -19,6 +19,7 @@
 #include "live_env.h"
 #include "code_identity.h"
 #include "near_clip.h"
+#include "screen_flash.h"
 #include "pgxp.h"
 #include "gpu.h"
 #include <algorithm>

@@ -1,5 +1,27 @@
 # Next-session handoff
 
+## 2026-11-03 - D39B accepted and closed
+
+User: "excellent. lock it in and close us out". D39B is Done
+([note 370](370-d39-screen-flash-framework.md)): Polymorph's present tint
+with the Duke3D palfrom mix and a per-redraw fade; layer and pause behaviour
+kept as implemented. Next: D39C (flash API, `palfrom` console command, Screen
+Flashes option).
+
+## 2026-11-03 - D39B: Polymorph present tint (Needs review)
+
+Framework hook `psx_mod_set_present_tint` (exported patch; regenerate
+`render_copy/rc*_names.h` with `gen_names.py` after adding renderer globals,
+or the link fails on duplicates). Title: `src/ttk/screen_flash.{h,cpp}`
+(record at near-clip mirror + 8, `screen_flash_palfrom`, `flash_mix`),
+per-frame capture and per-cache-entry tint in `frame_replay.cpp`. D39C
+builds on `screen_flash_palfrom` (rules already replace-always) and adds the
+console command, debug JSON command and the option; `DNTTK_FLASH_STEPS` is
+the steps switch to expose. Test: `recomp/analysis/d39b-present-tint/probe.py`
+(offscreen on the GPU; Xvfb presents no redraws), test input
+`flash=I,r,g,b[,hold]`, notes in `render_replay` `plugin.flash`. Open for
+review: the layer (console above the tint), pause tint at full strength.
+
 ## 2026-11-03 - D39A accepted and closed: palfrom measured
 
 Spec table in [note 370](370-d39-screen-flash-framework.md), measured in a

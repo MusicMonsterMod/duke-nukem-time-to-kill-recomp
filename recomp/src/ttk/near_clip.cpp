@@ -2328,6 +2328,7 @@ void near_clip_frozen_tint() {
 constexpr uint32_t screen_flash_tag=0x5d087000u,screen_flash_full=320;
 uint64_t screen_flash_draws;
 uint32_t screen_flash_word() {return region_mirror?region_mirror+4:0;}
+uint32_t near_clip_flash_record() {return region_mirror?region_mirror+8:0;}
 uint32_t near_clip_screen_flash() {
     const uint32_t a=screen_flash_word();
     if(!a) return 0;

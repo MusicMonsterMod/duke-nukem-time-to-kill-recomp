@@ -30,6 +30,8 @@ uint32_t near_clip_screen_flash();
 void near_clip_screen_flash_set(uint32_t level);
 // Appends the flash to ordering-table slot 0 (after the HUD).
 void near_clip_screen_flash_draw();
+// D39B: the two-word flash record after it (screen_flash.h), 0 before the arena.
+uint32_t near_clip_flash_record();
 // D17A: the frame accounting the near clip carries from one renderer call to
 // the next (packet budget, held weapon packets). A render replay worker loads
 // the live frame's value so its redraws take the same decisions.

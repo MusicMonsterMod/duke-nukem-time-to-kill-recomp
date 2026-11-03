@@ -6,6 +6,7 @@
 #include "mod_plugins.h"
 #include "game_menu.h"
 #include "live_env.h"
+#include "screen_flash.h"
 #include <algorithm>
 #include <cctype>
 #include <cmath>
@@ -1090,6 +1091,15 @@ void input_frame() {
                     if(std::strcmp(last,word+4)) {
                         std::snprintf(last,sizeof last,"%s",word+4);
                         for(int i=0;i<action_count;++i) if(!std::strcmp(last,names[i]))command(i);
+                    }
+                }
+                // D39B: flash=I,r,g,b starts a palfrom flash, once per change of word.
+                else if(!std::strncmp(word,"flash=",6)) {
+                    static char last[32];
+                    if(std::strcmp(last,word+6)) {
+                        std::snprintf(last,sizeof last,"%s",word+6);
+                        int v[5]={0,0,0,0,0};
+                        if(std::sscanf(last,"%d,%d,%d,%d,%d",&v[0],&v[1],&v[2],&v[3],&v[4])>=1) screen_flash_request(v[0],v[1],v[2],v[3],v[4]!=0);
                     }
                 }
                 // D20: quick=save|load|savemenu|loadmenu, once per change (F6 / F9 / F2 / F3).

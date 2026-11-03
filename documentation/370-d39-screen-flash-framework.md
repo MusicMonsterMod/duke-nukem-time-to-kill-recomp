@@ -1,7 +1,8 @@
 # D39 - Screen flash framework (Duke3D `palfrom`-style colour flashes)
 
 Job: [D39](../MODERNIZATION_JOBS.md) and D39A-D39G. Status: D39A accepted
-2026-11-03 (spec table below, locked); no code yet. Follows D08G7 ([note 369](369-d08g7-kroz-feel.md)),
+2026-11-03 (spec table below, locked); D39B accepted 2026-11-03
+(section below). Follows D08G7 ([note 369](369-d08g7-kroz-feel.md)),
 accepted as preliminary.
 
 ## Why
@@ -160,6 +161,109 @@ load the save, then read `TIC`/`FRM` lines from `eduke32.log`.
 | god mode off (engine: a zero-damage hit) | (32 32) | red |
 
 Night vision and steroids are palette swaps in Duke3D, not palfrom.
+
+## D39B - Polymorph present tint (accepted 2026-11-03)
+
+### Framework (`recomp/psxrecomp`, in the exported patch)
+
+- `psx_mod_set_present_tint(fn, user)` (`mod_plugins.h`): a title callback,
+  asked once per present on the window's thread, fills `rgbw` and returns
+  non-zero to tint. `slot` is the replay image being shown (the replay
+  provider's own return value: 0 the real image, n > 0 cache entry n - 1) or
+  -1 for a present outside replay presentation. Blank presents are never
+  asked.
+- `gpu_gl_renderer.c` `gl_draw_present_tint`: one quad with constant-alpha
+  blending (`glBlendColor(w)`, `CONSTANT_ALPHA / ONE_MINUS_CONSTANT_ALPHA`,
+  colour from a 1x1 texel), so `out = in * (1 - w) + rgb * w` in display
+  values with the exact weight and no shader of its own. Idle (callback
+  returns 0) it draws nothing.
+- **Layer, settled:** over the fitted picture and the title's HUD overlays
+  (crosshair, quote text, D08A5 inventory box, key card, LOAD GAME
+  thumbnail), as Duke3D tints its status bar and quotes; under the developer
+  console (moved after the tint; it is a developer tool and spans the whole
+  window) and the runtime's overlays (volume, rewind, savestate panel).
+  Letterbox bars and bezels outside the picture stay as they are.
+- Every present path goes through `gl_swap_with_osd`, so live, replay,
+  hold-last and `present_shot` captures all carry the tint. The render-thread
+  copies of the renderer (`render_copy/rc*_names.h`, regenerated with
+  `gen_names.py`) never present.
+
+### Title (`recomp/src/ttk/screen_flash.{h,cpp}`, `frame_replay.cpp`)
+
+- **Record:** two words after the D08G7 word in the near-clip arena tail (mod
+  memory, `near_clip_flash_record()` = mirror + 8): `0x39` tag, 6-bit seq and
+  6-bit r, g, b; then `0x5d39` tag and the level, the palfrom intensity x 10
+  in frame-delta units (300 a second: one 30 Hz tic is 10, so a fade keeps
+  its duration at 20 fps). Savestates and redraw workers carry it; an old
+  state reads none. `screen_flash_palfrom(I, r, g, b)` replaces the flash
+  (seq + 1); `screen_flash_update()` runs first in each Modernized player
+  update (next to the D08G7 tick) and subtracts the frame delta.
+- **Display-rate fade:** every captured frame stores the record. A cached
+  redraw's tint is mixed when the redraw enters the cache, at the redraw's
+  own alpha between the two frames it blends (`flash_mix`): the fade follows
+  the same clock and world delay as the motion, and a repeated image keeps
+  its tint. A flash started in the next frame (seq changed or level rose)
+  shows from the next pair at alpha 0 at full intensity: Duke3D's instant
+  onset on the tic's first frame, never blended in.
+- **Live presents** (FRAME RATE 60, the real image, pause): the live record,
+  carried on from the last player update by at most one update's step. Only
+  in gameplay (`0x800bcbb0` = 1, not suspended); paused it is frozen and still
+  drawn (as EDuke32); with no player update for 500 ms (a load or a scene)
+  nothing is drawn.
+- **Steps:** `DNTTK_FLASH_STEPS=1` (developer, for now; D39C may expose it)
+  draws each game frame's own level: Duke3D's 30 Hz staircase.
+- Modernized and Polymorph only: Vanilla never registers the callback;
+  Classic returns no tint (D39G decides). The D08G7 god-mode quads are
+  untouched until D39D.
+- Diagnostics: `render_replay` debug JSON `plugin.flash` (record, level,
+  colour, seq, tint counters, last tint, the last 2048 presents as
+  `ms/slot/weight`); `DNTTK_TEST_INPUT` `flash=I,r,g,b[,hold]` starts a flash
+  (hold 1 restarts it every update: Duke3D's palfrom each tic, a steady
+  level). No player-facing trigger yet: D39C adds the API, console command
+  and option.
+
+### Evidence (local lab `recomp/analysis/d39b-present-tint/`, ignored)
+
+`probe.py` on private card copies, offscreen on the NVIDIA GPU
+(`SDL_VIDEODRIVER=offscreen`; under Xvfb software GL no redraw ever presented,
+so Xvfb is unusable here), third person, slot 4. Executable
+`c7bc0fca498011a02f09578e3b4c6d5c337a11346465c1043b83cdc6f566a8cf`.
+Player saves and profile hash-checked unchanged after every run.
+
+| Check | Result |
+| --- | --- |
+| Colour (180 Hz, eight held flashes, per-channel least squares of the whole frame against an unflashed one) | Drawn weight exactly I/64 (8 -> 0.125 ... 63 -> 0.984). Fitted `1 - w` within 0.015 of the spec (0.861-0.872 for 0.875; 0.488-0.501 for 0.5; 0.017-0.020 for 0.016); offsets within 0.2 levels of `4 C w` (31.94 for 31.5 at the darkest, 63.83 for 64, 155.89 for 156, 247.9 for 248.06, 144.0 for 144); mean residual 0.14-0.54 levels |
+| Fade, god-off 32 32 0 0, 180 Hz | 193 presents over 1066.7 ms (32 tics), 193 distinct weights, onset 0.4994, slope -0.468/s (spec 0.469), max residual from a straight line 0.0065, largest present-to-present drop 0.0052; three repetitions identical |
+| Fade, 120 Hz | 129 presents, 129 distinct weights over 1066 ms, same slope and residual |
+| Fade, FRAME RATE 60 | No in-between redraws at 60: the game presents only its own images (30 a second), so the fade has 33 even steps over 1068 ms, like the picture it is drawn on (onset 0.494) |
+| `palfrom 100 0 0 63` | full strength (0.984) held 1.23 s (37 tics, I - 63), then the same straight fade |
+| Steps setting, 180 Hz | 33 distinct levels, onset 0.5: the Duke3D staircase |
+| Replace | red 48 then green 16 two fields later: level 160, green, seq + 1 |
+| Savestate | saved at level 950-960, loaded state restores the record and fades on from it |
+| Pause | frozen (950 and 950 one second apart) and drawn under the pause menu, as EDuke32 |
+| Idle | 360-370 presents asked, none drawn |
+| Coverage (captures) | world, Duke, crosshair and status bar tinted; developer console's translucent panel and text over the tint |
+| Vanilla (60) / Classic (180) | captures with a requested flash identical to without (mean RGB equal to 0.1); Classic draws 0 tints |
+
+Suites: new `ttk-flash-test` (mix rules: weight, colour, linear fade, steps,
+instant onset, replacement, 20 fps line), `ttk-controls-test`,
+`ttk-input-test`, `ttk-aim-test`, `ttk-near-test`, animation save/restore
+pass; Python 223 with the one failure that predates this job
+(`test_primitive_trace`), 2 skipped. Framework patch exported; applied to a
+clean checkout of the pin it reproduces every modified and new framework
+file byte for byte.
+
+### Limits
+
+- At FRAME RATE 60 the fade steps at the game's 30 images a second (as the
+  picture does); smoothness above that needs the in-between redraws
+  (FRAME RATE above 60, the default AUTO on the player's display).
+- Paused at full strength the pause menu is hard to read (EDuke32 behaves
+  the same); D39C's Reduced/Off option and the game's own flashes, which are
+  short, make this rare.
+- Not checked: first person (same present path; no first-person-specific
+  code), widescreen bezels with letterbox bars (bars are left untinted by
+  design), a flash across a level change.
 
 ## TTK side (known)
 

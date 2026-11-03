@@ -1,5 +1,39 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-03 - D39B accepted and closed: Polymorph present tint
+
+User: "excellent. lock it in and close us out". D39B is Done: the present
+tint hook, the palfrom record and the per-redraw fade ship as measured in
+the entry below and [note 370](documentation/370-d39-screen-flash-framework.md).
+The layer (developer console above the tint) and the pause behaviour
+(frozen, drawn) stand as implemented. Next: D39C, the game flash API,
+console command and Screen Flashes option.
+
+## 2026-11-03 - D39B: Polymorph present tint (Needs review)
+
+[Note 370](documentation/370-d39-screen-flash-framework.md), D39B section.
+Framework: `psx_mod_set_present_tint`, one constant-alpha blended quad per
+present (`out = in(1-w) + rgb w`, exact weight), over the picture and the
+game's HUD overlays, under the developer console and the runtime overlays;
+nothing drawn when idle. Title: a palfrom record in mod memory (intensity x
+10 in frame-delta units, colour, seq), stored with every captured frame; each
+cached redraw gets the flash at its own alpha between its two frames, so the
+fade follows the motion clock; a new flash appears at once on its frame.
+Live presents (60, pause) use the record carried on from the last update;
+paused it freezes and stays drawn. `DNTTK_FLASH_STEPS=1` gives the 30 Hz
+staircase.
+
+Measured on the GPU (offscreen): colour fits within 0.015 in weight and 0.2
+levels in offset for eight flashes; god-off fade 32 tics (1066.7 ms) with a
+distinct weight on every present at 180 (193) and 120 (129), slope -0.468/s
+against 0.469; 33 steps at FRAME RATE 60 (no in-betweens there); I > 63 hold,
+replace, savestate, pause and idle as specified; Vanilla and Classic
+unchanged. Suites pass (new `ttk-flash-test`); Python 223, the old
+`test_primitive_trace` failure only. Patch exported and verified on a clean
+pin. Nothing in the game triggers it yet: D39C adds the API, console command
+and option. Executable
+`c7bc0fca498011a02f09578e3b4c6d5c337a11346465c1043b83cdc6f566a8cf`.
+
 ## 2026-11-03 - D39A accepted and closed: palfrom measured in EDuke32
 
 User: "lock this research tier in and then close us out". D39A is Done; the
@@ -2600,7 +2634,7 @@ is tinted (HUD, text, menus). Clean room: behaviour only, no engine code.
 
 #### D39B - Polymorph present tint
 
-**Status: Todo. Dependencies: D39A.** A framework capability in
+**Status: Done (user-accepted; closeout authorized 2026-11-03; [note 370](documentation/370-d39-screen-flash-framework.md); no in-game trigger until D39C). Dependencies: D39A.** A framework capability in
 `recomp/psxrecomp` (export with `export_runtime_patch.py`, verify against
 the clean pin): a final full-frame mix(frame, colour, weight) pass on the
 presented image, for the live present and render-replay redraws, with the
@@ -3936,7 +3970,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08G9 | dnkroz after death: Duke gets back up where he died, remains stay | Todo | D08G7, D08G8, D08Q4 |
 | D39 | Screen flash framework: Duke3D palfrom-style coloured flashes (parent) | Todo | D39A-D39G |
 | D39A | Flash spec: measure palfrom in EDuke32 (rate, hold, override, blend) | Done (accepted 2026-11-03) | - |
-| D39B | Polymorph present tint: exact colour mix, display-rate fade, replay-safe | Todo | D39A |
+| D39B | Polymorph present tint: exact colour mix, display-rate fade, replay-safe | Done (accepted 2026-11-03) | D39A |
 | D39C | Game flash API, console command, debug JSON, Screen Flashes option | Todo | D39B |
 | D39D | God-mode off flash on D39 (replaces the D08G7 quads) | Todo | D39C, D08G7 |
 | D39E | Damage flashes from real hits, per TTK damage type | Todo | D39C |

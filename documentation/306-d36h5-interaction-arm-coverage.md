@@ -170,4 +170,33 @@ Keep original media and player saves out of Git. The implementation and native
 regression tests are tracked, so the solution remains understandable even when
 local capture directories are unavailable.
 
+## D36H8 - reaching arms over the neck (2026-11-03, accepted)
+
+U: run-jump across the slot-11 sewer water with E held; the raised empty arms
+of the airborne reach flickered before the catch (user video, looking down).
+L: reproduced on a private copy at 120 Hz (7 presents on, 13 off, 15 on);
+Classic the same; Duke's room stays listed and his own camera skips the
+actor cull.
+
+Owner: not this rig. The reach 109 keeps the perspective action `ground`, so
+its empty arms (parts 10-15, equipment 0) are D36H4 body-path limbs, hidden by
+`first_person_hide_body_joint` whenever the D14E1 eye-over-pelvis envelope
+fails. Draw-time trace: the reach leans the body and the eye ran 106-117 units
+ahead of the pelvis (limit 96) while staying 16-24 units over the neck.
+
+S: `first_person_arms_eye_inside` admits empty arms while the eye is over the
+neck joint (horizontal 128, 0-224 above), in addition to the pelvis envelope.
+Body/legs keep the pelvis rule; a displaced eye fails both; armed arms, the
+contact rig, third person and Vanilla are unchanged. Draw matrices only, no
+state, the same in replay. Regression: the D14E1 group pins the neck away for
+its displaced-eye cases and adds the reach (eye 116 ahead of the pelvis, over
+the neck: arms drawn as Body, body hidden; neck away: arms hidden; armed arms
+unchanged), both costumes, H 256 and 160.
+
+L: after the fix the same route shows the arms continuously through the reach
+into the catch and mantle at 120 Hz (two runs) and 180 Hz. Evidence and route
+scripts: `recomp/analysis/d36h8/` (local). Executable
+`21e023029b3487de97d149e736a9b8f964213cbb588c5f0b59e3b4bc9792bd1b`.
+U: accepted after the playtest ("perfect. lock it in and close us out").
+
 Launch from the workspace root: `python3 recomp/tools/local/run.py`.

@@ -1,5 +1,75 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-03 - D36H8 accepted and closed: reaching arms no longer flicker
+
+User: "perfect. lock it in and close us out". D36H8 is Done: the empty arms of
+the airborne ledge reach stay drawn while the eye is over Duke's neck, so the
+slot-11 run-jump with E held no longer switches them off and on before the
+catch. Body and legs keep the pelvis envelope; armed arms, the contact rig and
+Vanilla are unchanged ([note 306](documentation/306-d36h5-interaction-arm-coverage.md),
+D36H8 section).
+
+## 2026-11-03 - D36H8: reaching arms no longer flicker (Needs playtest)
+
+User video `research/screencaps/Video_2026-11-03_18-41-03.mp4` (local) and a
+new UI slot 11 at the spot. The video shows the raised, empty-handed arms of
+the airborne ledge reach (pose 109) switching off and on in a steady rhythm
+before the catch, looking down from above the far ledge. Reproduced offscreen
+on a private copy (Shift + W for 36 frames, Space, E held, view pitched down):
+arms 7 presents on, 13 off, 15 on.
+
+Cause (confirmed at draw time): the reach keeps the first-person action
+`ground`, so its empty arms use the D36H4 body path, which hides them
+whenever the D14E1 eye-over-pelvis envelope fails. The reach leans Duke
+forward: the eye ran 106-117 units ahead of the pelvis (limit 96) while it
+stayed 16-24 units over the neck. The envelope flipped from tick to tick. Not
+the renderer (Classic the same) and not the room list or the game's actor cull
+(Duke's own camera skips it).
+
+Fix (`recomp/src/ttk/first_person.inc`, game-wide): empty arms are also
+admitted while the eye sits over the neck joint they hang from (within 128
+horizontally, 0-224 above it). Body and legs keep the pelvis envelope; a
+displaced eye still hides the arms; armed arms, contact rig and Vanilla are
+unchanged. Same draw matrices, no state, identical in replay. Evidence: same
+route after the fix at 120 Hz (twice) and 180 Hz, the arms stay drawn through
+the whole reach into the catch and mantle; level look unchanged. New
+`ttk-controls-test` cases (both costumes, FOVs, armed/unarmed, eye over/away
+from the neck); `ttk-controls-test` 125 groups (LEVEL00, LEVEL01, all levels),
+`ttk-input-test`, `ttk-near-test`, `ttk-aim-test` and the animation save
+checks pass. [Note 306](documentation/306-d36h5-interaction-arm-coverage.md),
+D36H8 section. Executable
+`21e023029b3487de97d149e736a9b8f964213cbb588c5f0b59e3b4bc9792bd1b`. Needs the
+user's playtest on slot 11.
+
+## 2026-11-03 - D36H8: arm flicker not reproduced (Blocked)
+
+Selected by the user. UI slot 11 has been re-saved twice since the job was
+logged (moatside for D17BB, then again at 23:22), so the investigation used a
+private copy of the 09:52 save from 2026-11-02 (the sewer: water ahead, ledge
+beyond; Duke holding the pistol). Route on Xvfb with real key events (Shift +
+W, Space, then E held), run-ups of 4-24 frames, at 120 and 180 Hz, looking
+level and up; every present captured (`replay_dump` 96-present sequences).
+Local evidence under `recomp/analysis/d36h8/` (`route.py`, `seq.py`, sheets).
+
+- In every run the jump arms the D08X reach: the weapon is stowed, the
+  reach pose 109 plays for about 70 frames, nothing is caught, Duke slides
+  down the wall and drops into the water (127). No catch, so no 147/148 hang
+  or mantle in these runs.
+- During the reach the first-person policy stays `ground`, so the
+  arms belong to the ordinary unarmed body path (D36H4: native pose, world
+  depth, lowered 120 units in screen space), not the D36H5 contact rig.
+- What the captures show: the raised arms sit at the top edge of the view,
+  so mostly hands and cut forearms show. They swing in and out at the edge
+  with the native reach animation, darken, and go into the wall near contact.
+  No present-to-present on/off alternation was seen; the 180 Hz redraws repeat
+  the 30 Hz pose. That is not proof that no flicker exists on the real display.
+
+Superseded the same day by the user's recording (entry above).
+Originally next: the user's recording, then fix the identified cause. Candidate directions only after
+that evidence: give the airborne reach its own framing (arms fully in view
+instead of fragments at the top edge), or the contact rig once a ledge is
+caught. No code changed.
+
 ## 2026-11-03 - D17BC accepted and closed: Classic lightweight visibility
 
 User: "great work. fixed. lock it in and close it out". D17BC is Done:
@@ -1671,7 +1741,7 @@ matches the EDuke32 feel.
 
 ### D36H8 - Run-jump mantle across water: extended arms flicker (slot 11)
 
-**Status: Todo. Dependencies: D36H5, D35G, D08X.** Fixture: the player's UI
+**Status: Done (user-accepted 2026-11-03; fix: empty arms also admitted over the neck, [note 306](documentation/306-d36h5-interaction-arm-coverage.md) D36H8 section). Dependencies: D36H5, D35G, D08X.** Fixture: the player's UI
 slot 11 (re-saved 2026-11-02 in front of a body of water); test on private
 copies only. Route: run (Shift + W) to the ledge, Space to jump, then hold E
 at once to mantle onto the far ledge. While Duke's arms are extended for the
@@ -4684,7 +4754,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D36J | Coherent body and quick-kick leg presentation | Done (user-accepted 2026-10-26) | D36G, D36H |
 | D36K | Traversal and special-action visual coverage | Done | D36G, D36H, D36I, D36J |
 | D36M | First-person power-up looks: invisibility translucent, invincibility and Double Duke colours | Todo | D36J, D08A17 |
-| D36H8 | Run-jump mantle across water: extended arms flicker (slot 11) | Todo | D36H5, D35G, D08X |
+| D36H8 | Run-jump mantle across water: extended arms flicker (slot 11) | Done (user-accepted 2026-11-03; note 306) | D36H5, D35G, D08X |
 | D37 | Temporary movement failure at 07:26 UK on 2026-10-26 (separate research) | Done | - |
 | D37A | Safe animation restoration across save allocation layouts | Done (user-accepted 2026-10-26) | D37 |
 | R01 | DisruptorRecomp architecture and modernization reference research | Done | - |

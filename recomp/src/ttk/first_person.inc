@@ -1316,6 +1316,21 @@ static bool first_person_body_eye_inside(uint32_t desc,uint32_t mats,bool crouch
     }
     return dx*dx+dz*dz<=96.0*96.0 && height>=minimum_height && height<=352;
 }
+// D36H8: empty arms hang from the shoulders, not the pelvis. A forward-leaning
+// action (the airborne ledge reach 109) carries the eye up to about 120 units
+// ahead of the pelvis while it stays over the neck, so the pelvis envelope
+// alone switched the reaching arms on and off between frames. Arms are also
+// admitted while the eye sits over the neck joint; a displaced eye fails both.
+// Same draw matrices as the body test: no state, identical in replay.
+static bool first_person_arms_eye_inside(uint32_t desc,uint32_t mats) {
+    const int neck=duke_part_joint(desc,part_neck);
+    if(neck<0)return false;
+    const uint32_t base=mats+0x20*neck+0x14;
+    const double dx=double((int32_t)psx_mod_read_word(camera+0x14))-(int32_t)psx_mod_read_word(base);
+    const double dz=double((int32_t)psx_mod_read_word(camera+0x1c))-(int32_t)psx_mod_read_word(base+8);
+    const double height=double((int32_t)psx_mod_read_word(base+4))-(int32_t)psx_mod_read_word(camera+0x18);
+    return dx*dx+dz*dz<=128.0*128.0 && height>=0 && height<=224;
+}
 static bool first_person_hide_body_joint(CPUState* cpu,uint32_t desc,uint32_t mats,int part) {
     const bool native_body=(part>=0 && part<=9) || part==20 || part==21;
     const bool empty_arms=psx_mod_read_byte(player+0x3b8)==0 &&
@@ -1340,7 +1355,8 @@ static bool first_person_hide_body_joint(CPUState* cpu,uint32_t desc,uint32_t ma
     const unsigned animation=psx_mod_read_half(player+0x60);
     const bool crouched_legs=show_legs && (animation==176 || animation==178) &&
         psx_mod_read_byte(player+0x22c)<=1 && psx_mod_read_byte(player+0x22d)<=1;
-    if(!hide_native && ((!native_body && !empty_arms) || first_person_body_eye_inside(desc,mats,crouched_legs)))return false;
+    if(!hide_native && ((!native_body && !empty_arms) || first_person_body_eye_inside(desc,mats,crouched_legs) ||
+        (empty_arms && first_person_arms_eye_inside(desc,mats))))return false;
     // The camera itself is a valid matrix whose origin is exactly at the eye.
     // Native whole-joint rejection therefore sees depth zero. No scratch
     // allocation can fail open; do not grant the polygon-depth bridge.

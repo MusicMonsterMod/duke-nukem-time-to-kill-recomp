@@ -1,5 +1,46 @@
 # Next-session handoff
 
+## 2026-11-03 - D36H8 accepted and closed: reaching arms no longer flicker
+
+User: "perfect. lock it in and close us out". D36H8 is Done: the empty arms of
+the airborne ledge reach stay drawn while the eye is over Duke's neck, so the
+slot-11 run-jump with E held no longer switches them off and on before the
+catch. Body and legs keep the pelvis envelope; armed arms, the contact rig and
+Vanilla are unchanged ([note 306](documentation/306-d36h5-interaction-arm-coverage.md),
+D36H8 section).
+
+## 2026-11-03 - D36H8: reaching arms no longer flicker (Needs playtest)
+
+User video `research/screencaps/Video_2026-11-03_18-41-03.mp4` (local) and a
+new UI slot 11 at the spot. The video shows the raised, empty-handed arms of
+the airborne ledge reach (pose 109) switching off and on in a steady rhythm
+before the catch, looking down from above the far ledge. Reproduced offscreen
+on a private copy (Shift + W for 36 frames, Space, E held, view pitched down):
+arms 7 presents on, 13 off, 15 on.
+
+Cause (confirmed at draw time): the reach keeps the first-person action
+`ground`, so its empty arms use the D36H4 body path, which hides them
+whenever the D14E1 eye-over-pelvis envelope fails. The reach leans Duke
+forward: the eye ran 106-117 units ahead of the pelvis (limit 96) while it
+stayed 16-24 units over the neck. The envelope flipped from tick to tick. Not
+the renderer (Classic the same) and not the room list or the game's actor cull
+(Duke's own camera skips it).
+
+Fix (`recomp/src/ttk/first_person.inc`, game-wide): empty arms are also
+admitted while the eye sits over the neck joint they hang from (within 128
+horizontally, 0-224 above it). Body and legs keep the pelvis envelope; a
+displaced eye still hides the arms; armed arms, contact rig and Vanilla are
+unchanged. Same draw matrices, no state, identical in replay. Evidence: same
+route after the fix at 120 Hz (twice) and 180 Hz, the arms stay drawn through
+the whole reach into the catch and mantle; level look unchanged. New
+`ttk-controls-test` cases (both costumes, FOVs, armed/unarmed, eye over/away
+from the neck); `ttk-controls-test` 125 groups (LEVEL00, LEVEL01, all levels),
+`ttk-input-test`, `ttk-near-test`, `ttk-aim-test` and the animation save
+checks pass. [Note 306](documentation/306-d36h5-interaction-arm-coverage.md),
+D36H8 section. Executable
+`21e023029b3487de97d149e736a9b8f964213cbb588c5f0b59e3b4bc9792bd1b`. Needs the
+user's playtest on slot 11.
+
 ## 2026-11-03 - D17BC accepted and closed: Classic lightweight visibility
 
 User: "great work. fixed. lock it in and close it out". D17BC is Done:

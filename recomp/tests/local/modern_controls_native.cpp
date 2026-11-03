@@ -4611,6 +4611,14 @@ int main(int argc,char** argv) {
                 const auto equip=psx_mod_read_byte(p+0x3b8);
                 for(const auto* costume:{first_map,cowboy}) {
                     layout(costume);
+                    // D36H8: keep the neck clear of every displaced eye below,
+                    // so only the pelvis envelope decides these cases.
+                    const uint32_t neck=mats+32*psx_mod_read_byte(desc+0x24+0x10)+0x14;
+                    uint32_t saved_neck[3];
+                    auto place_neck=[&](int x,int y,int z){const int d[3]={x,y,z};
+                        for(int k=0;k<3;++k)psx_mod_write_word(neck+4*k,psx_mod_read_word(mats+0x14+4*k)+d[k]);};
+                    for(int k=0;k<3;++k)saved_neck[k]=psx_mod_read_word(neck+4*k);
+                    place_neck(400,0,0);
                     const std::vector<uint8_t> original(ram+(mats&0x1fffff),ram+(mats&0x1fffff)+19*32);
                     for(const auto delta: {std::array<int,3>{0,-294,0}, {0,-224,0}, {97,-294,0}, {-97,-294,0},
                                           {0,-294,97}, {0,-294,-97}, {0,-353,0}, {0,-127,0}, {52,-464,-184}}) {
@@ -4640,11 +4648,37 @@ int main(int argc,char** argv) {
                         }
                     }
                     assert(std::equal(original.begin(),original.end(),ram+(mats&0x1fffff)));
+                    // D36H8: the airborne reach leans the eye about 116 ahead
+                    // of the pelvis but over the neck. Empty arms stay drawn
+                    // there; the body stays hidden, armed arms keep their owner
+                    // and an eye away from the neck still hides the arms.
+                    unsetenv("DNTTK_FP_BODY");
+                    for(const auto& reach:{std::array<int,4>{100,-156,0,1},{-60,-156,0,0},{100,-156,160,0},{100,-20,0,0}}) {
+                        place_neck(reach[0],reach[1],reach[2]);
+                        const int delta[3]={116,-250,0};
+                        for(int k=0;k<3;++k)psx_mod_write_word(c+0x14+4*k,psx_mod_read_word(mats+0x14+4*k)+delta[k]);
+                        for(unsigned h:{256u,160u}) for(unsigned equipment:{0u,2u}) {
+                            psx_mod_write_byte(p+0x3b8,equipment);
+                            for(unsigned part:{0u,9u,21u,10u,12u,13u,15u}) {
+                                call(0x800348d8,c,p,0x8003769c);
+                                CPUState draw{};draw.gpr[4]=c;draw.gpr[20]=p;draw.gpr[23]=psx_mod_read_byte(desc+0x24+part);
+                                draw.gpr[5]=mats+32*draw.gpr[23];draw.gpr[29]=0x801f0000;draw.gpr[31]=0x80034c6c;draw.gte_ctrl[26]=h;
+                                hooks().at(0x800292a0)(&draw,0x800292a0);
+                                const bool arm=part>=10 && part<=15;
+                                const bool hidden=!arm || (equipment==0 && !reach[3]);
+                                assert((ttk::first_person_limb_presentation().owner==ttk::LimbOwner::HiddenBody)==hidden);
+                                if(arm && equipment==0 && reach[3])
+                                    assert(ttk::first_person_limb_presentation().owner==ttk::LimbOwner::Body && draw.gpr[5]!=c);
+                                call(0x8001ca4c,0x800d0000,0,0x800376b4);
+                            }
+                        }
+                    }
+                    for(int k=0;k<3;++k)psx_mod_write_word(neck+4*k,saved_neck[k]);
                 }
                 unsetenv("DNTTK_FP_BODY");
                 for(int k=0;k<3;++k)psx_mod_write_word(c+0x14+4*k,eye[k]);
                 psx_mod_write_byte(p+0x3b8,equip);layout(first_map);
-                std::puts("PASS: D36J2 default/explicit/invalid no-body and D14E1 displaced-eye body rejection across costumes, FOVs, armed/unarmed draws and immediate scope restoration");
+                std::puts("PASS: D36J2 default/explicit/invalid no-body, D14E1 displaced-eye body rejection and D36H8 reaching arms over the neck across costumes, FOVs, armed/unarmed draws and immediate scope restoration");
             }
             // D36H4: empty-handed locomotion retains native connected chains,
             // including costumes with different joint ordering. Armed/held-item

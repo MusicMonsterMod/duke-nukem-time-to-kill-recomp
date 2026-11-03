@@ -2311,9 +2311,11 @@ void near_clip_frozen_tint() {
     }
     psx_mod_write_word(slot+4,p);
 }
-// D08G7's hit-flash word (mirror + 4) is retired: D39G removed the Classic
-// quads, and Polymorph draws flashes as its present tint (screen_flash.h).
-// The D39B flash record follows it.
+// D08G7's hit-flash word (mirror + 4) was retired by D39G (Classic quads
+// removed; Polymorph draws flashes as its present tint, screen_flash.h); D20I
+// keeps its reinforcement count there, under its own tag. The D39B flash
+// record follows it.
+uint32_t near_clip_enemy_extras_word() {return region_mirror?region_mirror+4:0;}
 uint32_t near_clip_flash_record() {return region_mirror?region_mirror+8:0;}
 NearDepthPlane near_depth_plane(const double a[3],const double b[3],const double c[3]) {
     NearDepthPlane p{};

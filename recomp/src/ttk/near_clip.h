@@ -25,6 +25,8 @@ void near_clip_biomask(double dip,uint32_t light);
 void near_clip_frozen_tint();
 // D39B: the two-word flash record after it (screen_flash.h), 0 before the arena.
 uint32_t near_clip_flash_record();
+// D20I: the reinforcement count word (the retired D08G7 word, mirror + 4), 0 before the arena exists.
+uint32_t near_clip_enemy_extras_word();
 // D17A: the frame accounting the near clip carries from one renderer call to
 // the next (packet budget, held weapon packets). A render replay worker loads
 // the live frame's value so its redraws take the same decisions.

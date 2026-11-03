@@ -1,5 +1,47 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-03 - D20I accepted and closed: LEVEL STATS and the FPS row
+
+User: "lock it in and close it out, this is awesome!" D20I is Done: EDuke32's
+level stats replicated clean room (`T:` `K:` `S:` bottom left over the HUD, red
+letters and beige values, a complete count red, steady after playtest round
+1), the kill total growing with the game's reinforcements and carried by
+savestates, and OPTIONS > DISPLAY LEVEL STATS and FPS (schema 63; the console
+`fps` command and the row stay in step). [Note 376](documentation/376-d20i-level-stats.md).
+Executable `01970d99ddfebeba77d9f3209a5790d656c95ca823e4494cb8b5788da867b583`.
+
+## 2026-11-03 - D20I playtest round 1: steady text (Needs playtest)
+
+User: "incredibly legit ... very slightly ... some kind of small amount of
+motion to the text". The overlay's width followed the text and is sampled
+nearest at a fractional scale, so each digit change rescaled every letter;
+proportional digits also slid what followed. Now a fixed-width canvas and
+fixed-width digit cells: only the ticking digits change between frames
+(note 376). Executable `01970d99ddfebeba77d9f3209a5790d656c95ca823e4494cb8b5788da867b583`.
+
+## 2026-11-03 - D20I: LEVEL STATS and the FPS row (Needs playtest)
+
+EDuke32's level stats, replicated clean room from a private run of the user's
+EDuke32 (720p, test CON reading the player fields; no source read): `T:`
+minutes:seconds.hundredths, `K:` kills/total, `S:` secrets/total in the
+bottom-left corner over the HUD (at the bottom with STATUS BARS HIDDEN), red
+letters, beige values, a complete count (0/0 included) red. TTK Medium Italic
+in two project palettes measured from EDuke32 (font sets 14 and 15; swatches
+A-D in `recomp/analysis/d20i/swatches.png`, B built). Dynamic kill total: the
+only enemies made after the load are reinforcements (`0x80091920`, six spare
+spawner rows; killing a dancer or other innocent calls four, levels 1, 2, 7,
+8 and 9 by script); the total is D20E's rule over the level's own rows plus
+each spare enemy that appears, kept in mod memory so savestates carry it, and
+the statistics screen uses the same total. OPTIONS > DISPLAY: LEVEL STATS (on)
+and FPS (off), live and saved (schema 63, `--level-stats`, `--fps`); the
+console `fps` command and the row stay in step (framework
+`psx_mod_fps_display`). Seen offscreen: 16:9 borderless and full, 4:3 hidden,
+level 9 dancer `0/30` -> `1/34`, save / restart / load `1/34` -> `0/30` ->
+`1/34`, statistics screen 1 OF 34 with no overlay, rows and console sync,
+Vanilla unchanged. Not run at 120/180 Hz. Executable
+`e6a31a2ee6c0d10b925783aa12f11796b8702c1a2e64d9a0b7dab7b2f02d5e8d`.
+[Note 376](documentation/376-d20i-level-stats.md).
+
 ## 2026-11-03 - D42 and D08G9 accepted and closed: death scene, dnkroz revive
 
 User: "thats it, lock it in and close it out!!!! it's working! it's really
@@ -2173,7 +2215,7 @@ the user's playtest.
 
 ### D20I - LEVEL STATS (time, kills, secrets) in the bottom-left corner; LEVEL STATS and FPS toggles in DISPLAY
 
-**Status: Todo. Dependencies: D20E, D20D, D24A.** EDuke32 shows three
+**Status: Done (user-accepted 2026-11-03: "lock it in and close it out, this is awesome!"; [note 376](documentation/376-d20i-level-stats.md)). Dependencies: D20E, D20D, D24A.** EDuke32 shows three
 small lines above its status bar in the bottom-left corner: `T: 3:03.39`,
 `K: 12/36`, `S: 2/7`, the letters red and the values a light gold-beige
 (reference: `research/screencaps/level-stats.png`). The user wants the same
@@ -4775,7 +4817,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D17AE | Slot-11 sign post through door header | Done (user-confirmed 2026-10-29) | Scene depth for native world/scenery packets; replay precedence fix; world backface cull restored |
 | D17AF | Latest slot-10 ground water visibility | Done | Selected batch; see intake above |
 | D20H | Slot-5 intermittent colour corruption on load | Done (user-confirmed 2026-10-30) | Selected batch; see intake above |
-| D20I | LEVEL STATS in the bottom-left corner (time, kills, secrets; TTK font, red and gold, EDuke32 style) plus LEVEL STATS and FPS toggles in OPTIONS > DISPLAY | Todo | D20E, D20D, D24A |
+| D20I | LEVEL STATS in the bottom-left corner (time, kills, secrets; TTK font, red and gold, EDuke32 style) plus LEVEL STATS and FPS toggles in OPTIONS > DISPLAY | Done | D20E, D20D, D24A |
 | D17AG | Slot-6 wooden panelling holes | Done (user-confirmed 2026-10-30) | Fixed by D17AE scene depth |
 | D17AH | Slot-8 sky glitching and popping | Done | Selected batch; see intake above |
 | D17AI | Slot-12 wall near pushable cube | Done (user-confirmed 2026-10-30) | Selected batch; see intake above |

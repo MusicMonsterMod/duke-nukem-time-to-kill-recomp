@@ -76,6 +76,7 @@
 #include "savestate_slots.h"
 #include "ttk_font.h"
 #include "inventory_hud.h"
+#include "near_clip.h"
 #include <algorithm>
 #include <array>
 #include <atomic>
@@ -405,6 +406,12 @@ std::vector<Screen> make_screens() {
          "HORIZONTAL DEGREES AT 4:3. MOUSE WHEEL ADJUSTS. CONFIRM TO APPLY",{},90,true,60,120,1},
         {"CAMERA DISTANCE",Section::Controls,"camera_distance","DNTTK_CAMERA_DISTANCE",true,
          "THIRD PERSON. MOUSE WHEEL ADJUSTS. ALT AND WHEEL ALSO SET IT IN GAME",{},0,true,0,6144,128},
+        // D20I: EDuke32's level stats, and the console's fps block (the command
+        // and this row stay in step: fps_sync).
+        {"LEVEL STATS",Section::Controls,"level_stats","DNTTK_LEVEL_STATS",true,"LEVEL TIME AND KILL AND SECRET COUNTS. BOTTOM LEFT",
+         {on_off[0],on_off[1]},0},
+        {"FPS",Section::Controls,"fps",nullptr,true,"FRAME RATE STATISTICS AT THE TOP LEFT. THE CONSOLE FPS COMMAND TOO",
+         {on_off[0],on_off[1]},1},
     }};
     s[2]={"GAMEPLAY",{
         view_row("VIEW","view","DNTTK_CAMERA_VIEW","THE FIRST / THIRD PERSON KEY SWITCHES IN GAME"),
@@ -518,6 +525,7 @@ std::deque<std::string> owned_strings; // env values not among the choices (stab
 int screen=-1;            // -1 OPTIONS, else screens[]
 int cursor=0, top=0;      // selection and first visible row
 bool owned=false;         // sub-screen 8 (or 9) is ours
+int fps_seen=-1;          // D20I: the fps block as last seen (-1 not yet)
 // Actions for the next live frame (guest writes and sounds happen there).
 int pending_sub=-1, pending_cursor=-1, pending_sound=-1;
 int sound_want[5]={-1,-1,-1,-1,-1};
@@ -1282,6 +1290,7 @@ void apply_live(const Row& r,int v) {
         return;
     }
     if(key=="frame_rate" && !frame_rate_set(value)) return;
+    if(key=="fps") {fps_seen=!std::strcmp(value,"1");psx_mod_set_fps_display(fps_seen);return;}
     if(key=="world_renderer" && !world_renderer_request(!std::strcmp(value,"classic"))) return;
     // Until a change ttk_live_env() is plain getenv (an unset variable stays unset).
     if(r.env) ttk_live_env_set(r.env,value);
@@ -1325,6 +1334,7 @@ void refresh_from_game(int s) {
         else if(key=="game_speed") committed[s][i]=std::clamp<int>(psx_mod_read_half(game_speed),r.lo,r.hi);
     }
     set("status_bars",ttk_live_env("DNTTK_STATUS_BARS"));
+    set("fps",psx_mod_fps_display() ? "1" : "0");
     set("view",input_first_person() ? "first" : "third");
     const int side=input_shoulder();
     set("shoulder",side>0 ? "right" : side<0 ? "left" : "center");
@@ -2318,25 +2328,81 @@ constexpr int stats_lift=25, stats_list_y=95;
 constexpr int stats_title=44, stats_step=13;
 // D20E: the level's enemy total, by the rule the level load 0x800242b0 uses
 // for its enemies-left count 0x800d253c: placement rows (*0x800de720, 48
-// bytes, count 0x800de724) whose type is not Duke (0x20), has type flag bit
-// 0 (*0x800d2660 + 28*type) and is not in the load's exclusion list. The
-// count itself is no use here: dancers are counted but never subtracted.
-// The rows stay through deaths, Continue and the statistics screen. -1 when
-// the table does not read sensibly.
-int enemy_total() {
+// bytes) whose type is not Duke (0x20), has type flag bit 0 (*0x800d2660 +
+// 28*type) and is not in the load's exclusion list. The count itself is no
+// use here: dancers are counted but never subtracted. The rows stay through
+// deaths, Continue and the statistics screen.
+//
+// D20I: the total grows when the game adds an enemy, as EDuke32's does. The
+// load copies the level's enemies to rows [0, 0x800d253e) and adds 6 spare
+// rows (flag 0x10) before the spawner count 0x800c56a0; the table count
+// 0x800de724 goes on with object rows. The only enemies made later are
+// reinforcements: 0x80091920 arms a free spare row (type 57, or 95 on levels
+// 7, 9 and 11) when Duke kills a dancer or other innocent (damage class 4)
+// and from level scripts (levels 1, 2, 7, 8, 9); a spare's enemy that dies or
+// is despawned frees the row for the next one. So the total is the rule over
+// the level's own rows plus every spare enemy that has appeared
+// (enemy_extras_tick). -1 when the table does not read sensibly.
+constexpr uint32_t spawner_table=0x800de720, placed_enemies=0x800d253e, spawner_count=0x800c56a0, type_table=0x800d2660;
+bool counted_enemy(uint32_t type,uint32_t types) {
     static constexpr uint32_t excluded[]={0x7a,0x7b,0xa7,0xcc,0x112,0x13f,0x158,0x21a,0x21c,0x243,0x25d};
-    const uint32_t table=psx_mod_read_word(0x800de720),count=psx_mod_read_word(0x800de724),types=psx_mod_read_word(0x800d2660);
+    return type<1100 && type!=0x20 && (psx_mod_read_word(types+28*type)&1) &&
+           std::find(std::begin(excluded),std::end(excluded),type)==std::end(excluded);
+}
+bool spawner_rows(uint32_t& table,uint32_t& placed,uint32_t& count,uint32_t& types) {
     auto inside=[](uint32_t a,uint32_t n) {return !(a&3) && a>=0x80010000 && a<=0x80200000-n;};
-    if(!count || count>1024 || !inside(table,count*48) || !inside(types,28*1100)) return -1;
+    table=psx_mod_read_word(spawner_table);placed=psx_mod_read_half(placed_enemies);
+    count=psx_mod_read_word(spawner_count);types=psx_mod_read_word(type_table);
+    return placed<=count && count<=placed+8 && count<=1024 && inside(table,count*48) && inside(types,28*1100);
+}
+// Reinforcements that have appeared this level: the low half of a tagged word
+// in mod memory, so savestates carry it (host copy until the arena exists).
+constexpr uint32_t extras_tag=0xd2010000u;
+uint32_t extras_host=0;
+uint32_t enemy_extras() {
+    const uint32_t a=near_clip_enemy_extras_word();
+    if(!a) return extras_host;
+    const uint32_t v=psx_mod_read_word(a);
+    return (v&0xffff0000u)==extras_tag ? v&0xffffu : 0;
+}
+void enemy_extras_set(uint32_t n) {
+    extras_host=std::min<uint32_t>(n,0xffff);
+    if(const uint32_t a=near_clip_enemy_extras_word()) psx_mod_write_word(a,extras_tag|extras_host);
+}
+int enemy_total() {
+    uint32_t table,placed,count,types;
+    if(!spawner_rows(table,placed,count,types) || !placed) return -1;
     int total=0;
-    for(uint32_t i=0;i<count;++i) {
+    for(uint32_t i=0;i<placed;++i) {
         const uint32_t type=psx_mod_read_word(table+48*i);
         if(type>=1100) return -1;
-        if(type==0x20 || !(psx_mod_read_word(types+28*type)&1) ||
-           std::find(std::begin(excluded),std::end(excluded),type)!=std::end(excluded)) continue;
-        ++total;
+        total+=counted_enemy(type,types);
     }
-    return total;
+    return total+(int)enemy_extras();
+}
+// Once per gameplay composition: a spare row whose enemy is now live (actor
+// +4, flag bit 0 spawned) and was not at the last look is a new enemy. A
+// level (re)start clears the count; a savestate load brings its own.
+struct ExtrasWatch {uint32_t loads=~0u;bool was_playing=false;uint8_t live=0;} extras_watch;
+void enemy_extras_tick() {
+    const bool playing=psx_mod_read_half(game_mode)==1 && psx_mod_read_half(level_phase)==phase_playing;
+    uint8_t live=0;
+    uint32_t table,placed,count,types;
+    if(playing && spawner_rows(table,placed,count,types))
+        for(uint32_t i=placed;i<count;++i) {
+            const uint32_t row=table+48*i;
+            if(psx_mod_read_word(row+4) && (psx_mod_read_word(row+20)&1) && counted_enemy(psx_mod_read_word(row),types))
+                live|=uint8_t(1u<<(i-placed));
+        }
+    const uint32_t loads=psx_mod_savestate_loads();
+    if(loads!=extras_watch.loads) extras_watch.loads=loads;
+    else if(playing && !extras_watch.was_playing) enemy_extras_set(0);
+    else if(const uint8_t fresh=live&~extras_watch.live) {
+        uint32_t n=0;
+        for(uint8_t b=fresh;b;b&=uint8_t(b-1)) ++n;
+        enemy_extras_set(enemy_extras()+n);
+    }
+    extras_watch.live=live;extras_watch.was_playing=playing;
 }
 void draw_stats(Guest& g,const Geometry& geo) {
     const int n=level(), row=(geo.h-60)/2+geo.y0-stats_lift, title=row-stats_title;
@@ -2388,6 +2454,73 @@ void draw_stats(Guest& g,const Geometry& geo) {
         g.prompt(icon_select,"SELECT",-geo.w/8,py);
         g.prompt(icon_cross,"CONFIRM",geo.w/8,py);
     } else g.prompt(icon_cross,"CONFIRM",0,py);
+}
+
+// ---- D20I: LEVEL STATS ----
+// EDuke32's level stats, replicated from its observed behaviour (clean room,
+// 2026-11-03, a private run of the user's EDuke32 at 720p): three lines in the
+// bottom-left corner, T: minutes:seconds.hundredths (minutes uncapped, no
+// hours), K: kills/total, S: secrets/total; letters red, values beige; a count
+// that is complete (X = Y, 0/0 included) turns red. They sit over the HUD and
+// stay at the bottom when it is hidden. Ours: the level timer player +0x398
+// (ms; a savestate load rewinds it), kills +0x3b6 of enemy_total() (the
+// statistics screen's X OF Y), secrets +0x3b0 of 0x800beb18. Shown in one-player
+// play while the game runs (pause, menus and other screens hide it), Modernized
+// with OPTIONS > DISPLAY > LEVEL STATS on. Drawn by the presenter from
+// ttk_level_stats_image (TTK font sets 14 and 15).
+struct StatsLine {const char* label;char value[24];bool done;};
+std::mutex stats_mutex;
+StatsLine stats_lines[3]={{"T:",{},false},{"K:",{},false},{"S:",{},false}};
+bool stats_shown=false, stats_hud=true;
+uint32_t stats_serial=0; // bumped when the text changes
+// Gameplay composition stops calling the tick on other screens (the
+// statistics screen): lines not refreshed for this long are hidden.
+constexpr uint64_t stats_stale_ms=250;
+uint64_t stats_at=0;
+void stats_publish(bool shown,const StatsLine* lines=nullptr,bool hud=true) {
+    std::lock_guard<std::mutex> lock(stats_mutex);
+    if(shown && lines) {
+        bool same=stats_hud==hud;
+        for(int i=0;i<3;++i) same=same && stats_lines[i].done==lines[i].done && !std::strcmp(stats_lines[i].value,lines[i].value);
+        if(!same) {for(int i=0;i<3;++i) stats_lines[i]=lines[i];stats_hud=hud;++stats_serial;}
+    }
+    stats_shown=shown;
+    stats_at=SDL_GetTicks();
+}
+// Once per gameplay composition (game_menu_frame), Modernized only.
+void level_stats_tick() {
+    const char* on=ttk_live_env("DNTTK_LEVEL_STATS");
+    const bool running=on && !std::strcmp(on,"1") && psx_mod_read_half(game_mode)==1 &&
+        psx_mod_read_half(level_phase)==phase_playing && !psx_mod_read_half(paused) &&
+        !psx_mod_read_half(0x800d2540) && psx_mod_read_word(players)<2;
+    if(!running) {stats_publish(false);return;}
+    StatsLine l[3]={{"T:",{},false},{"K:",{},false},{"S:",{},false}};
+    const uint32_t ms=psx_mod_read_word(player+0x398),s=ms/1000;
+    std::snprintf(l[0].value,sizeof l[0].value,"%u:%02u.%02u",s/60,s%60,ms%1000/10);
+    const int kills=(int)half(player+0x3b6),enemies=enemy_total();
+    if(enemies>=0) {std::snprintf(l[1].value,sizeof l[1].value,"%d/%d",kills,enemies);l[1].done=kills>=enemies;}
+    else std::snprintf(l[1].value,sizeof l[1].value,"%d",kills);
+    const int found=(int)half(player+0x3b0),secrets=(int)half(secrets_total);
+    std::snprintf(l[2].value,sizeof l[2].value,"%d/%d",found,secrets);
+    l[2].done=found>=secrets;
+    stats_publish(true,l,psx_mod_read_half(settings_word)&status_bars_bit);
+}
+
+// D20I: the console `fps` command and the performance key turn the fps block
+// on and off behind the menu's back; DISPLAY > FPS follows and is saved.
+void fps_sync() {
+    const int now=psx_mod_fps_display();
+    if(now==fps_seen) return;
+    std::lock_guard<std::recursive_mutex> lock(mutex);
+    ensure_init();
+    const bool first=fps_seen<0;
+    fps_seen=now;
+    const int s=1,i=row_of(s,"fps");
+    if(i<0) return;
+    const int v=choice_from_env(screens[s].rows[i],now ? "1" : "0");
+    if(committed[s][i]==v) return;
+    committed[s][i]=draft[s][i]=v;
+    if(!first) write_settings();
 }
 
 // ---- D19J: the title pages' actions, in the frontend tick ----
@@ -3164,10 +3297,13 @@ void game_menu_frame(CPUState* cpu) {
         std::lock_guard<std::recursive_mutex> lock(mutex);
         if(psx_mod_read_half(game_mode)!=1 || !duke_dead()) {death_scene=death_open=false;death_prompt_clear();}
     }
-    if(!enabled() || psx_mod_replay_active() || g_precise_mode || g_ls_mode || g_psx_call_bail) {title_publish(nullptr,0);return;}
+    if(!enabled() || psx_mod_replay_active() || g_precise_mode || g_ls_mode || g_psx_call_bail) {title_publish(nullptr,0);stats_publish(false);return;}
     {std::lock_guard<std::recursive_mutex> lock(mutex);savestate_check();quick_poll();}
     if(authentic()) {
         level_title_tick(); // D43
+        enemy_extras_tick(); // D20I: before the stats read the total
+        level_stats_tick();
+        fps_sync();
         enforce_modern_settings();apply_sound(cpu);
         while(const int step=input_take_hud_step()) {
             if(psx_mod_read_half(game_mode)!=1 || psx_mod_read_half(paused)) continue;
@@ -3285,6 +3421,54 @@ extern "C" int ttk_level_title_image(const uint32_t** pixels,int* width,int* hei
     *pixels=out;*width=w;*height=h;*screen_width=screen_w;return 1;
 }
 extern "C" int ttk_level_title_pixels(const uint32_t* pixels) {return pixels==title_out;}
+// D20I: the LEVEL STATS image (ARGB, 1x font pixels in 720-line units) and
+// whether the HUD shows (the presenter puts it over the HUD, else at the
+// bottom); 0 when hidden. From the presenter thread. The canvas is always
+// stats_canvas_w wide, so its scale on screen never changes (the presenter
+// samples nearest: a width that followed the text redrew every letter a
+// little differently whenever a digit changed), and digits sit in cells of
+// the widest digit's width, so a ticking digit never moves the text after it.
+static constexpr int stats_canvas_w=160,stats_cap_h=48;
+static uint32_t stats_out[stats_canvas_w*stats_cap_h];
+static void stats_draw_value(int set,const char* text,int x,int y,int h) {
+    int cell=0;
+    for(char d='0';d<='9';++d) {const char s[2]={d,0};cell=std::max(cell,ttk_font_text_width(set,s));}
+    for(const char* c=text;*c;++c) {
+        const char s[2]={*c,0};
+        const int wd=ttk_font_text_width(set,s);
+        if(wd<0) return;
+        if(*c>='0' && *c<='9') {ttk_font_draw(set,s,stats_out,stats_canvas_w,h,x+(cell-wd)/2,y);x+=cell;}
+        else {ttk_font_draw(set,s,stats_out,stats_canvas_w,h,x,y);x+=wd;}
+    }
+}
+extern "C" int ttk_level_stats_image(const uint32_t** pixels,int* width,int* height,int* hud) {
+    using namespace ttk;
+    static uint32_t drawn=~0u;static int h=0,shown_hud=1;
+    *pixels=nullptr;*width=*height=0;*hud=1;
+    StatsLine lines[3];uint32_t serial;
+    {
+        std::lock_guard<std::mutex> lock(stats_mutex);
+        if(!stats_shown || SDL_GetTicks()-stats_at>stats_stale_ms) return 0;
+        std::memcpy(lines,stats_lines,sizeof lines);serial=stats_serial;shown_hud=stats_hud;
+    }
+    if(serial!=drawn) {
+        drawn=serial;h=0;
+        const int pitch=ttk_font_line_height(TTK_FONT_STATS_LABEL);
+        int column=0;
+        for(const StatsLine& l:lines) column=std::max(column,ttk_font_text_width(TTK_FONT_STATS_LABEL,l.label));
+        column+=6; // the gap EDuke32 leaves after the letters
+        if(pitch<=0 || column<=6 || 3*pitch>stats_cap_h) return 0;
+        h=3*pitch;
+        std::fill(stats_out,stats_out+stats_canvas_w*h,0u);
+        for(int i=0;i<3;++i) {
+            ttk_font_draw(TTK_FONT_STATS_LABEL,lines[i].label,stats_out,stats_canvas_w,h,0,i*pitch);
+            stats_draw_value(lines[i].done?TTK_FONT_STATS_LABEL:TTK_FONT_STATS_VALUE,lines[i].value,column,i*pitch,h);
+        }
+    }
+    if(!h) return 0;
+    *pixels=stats_out;*width=stats_canvas_w;*height=h;*hud=shown_hud;return 1;
+}
+extern "C" int ttk_level_stats_pixels(const uint32_t* pixels) {return pixels==stats_out;}
 extern "C" int ttk_menu_thumb_pixels(const uint32_t* pixels) {
     using namespace ttk;
     return pixels && pixels==overlay_out.data();

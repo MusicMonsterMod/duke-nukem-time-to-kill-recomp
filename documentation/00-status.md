@@ -1,5 +1,29 @@
 # Current status - 2026-10-04
 
+## 2026-11-03 - D20I accepted and closed: LEVEL STATS and the FPS row
+
+User: "lock it in and close it out, this is awesome!" D20I is Done: EDuke32's
+level stats replicated clean room (`T:` `K:` `S:` bottom left over the HUD, red
+letters and beige values, a complete count red, steady after playtest round
+1), the kill total growing with the game's reinforcements and carried by
+savestates, and OPTIONS > DISPLAY LEVEL STATS and FPS (schema 63; the console
+`fps` command and the row stay in step). [Note 376](376-d20i-level-stats.md).
+Executable `01970d99ddfebeba77d9f3209a5790d656c95ca823e4494cb8b5788da867b583`.
+
+## 2026-11-03 - D20I: LEVEL STATS and the FPS row (Needs playtest)
+
+EDuke32's level stats replicated clean room (private run of the user's
+EDuke32, observed only): `T:` `K:` `S:` in the bottom-left corner over the
+HUD, red letters and beige values from two measured project palettes, a
+complete count red; the kill total grows with the game's reinforcements
+(`0x80091920`, spare spawner rows; count in mod memory, carried by
+savestates; the statistics screen agrees). OPTIONS > DISPLAY gains LEVEL
+STATS and FPS (schema 63; the console `fps` command and the row stay in
+step through the new framework `psx_mod_fps_display`; patch exported and
+verified). Offscreen checks pass; 120/180 Hz and a real playtest remain.
+[Note 376](376-d20i-level-stats.md). Executable
+`e6a31a2ee6c0d10b925783aa12f11796b8702c1a2e64d9a0b7dab7b2f02d5e8d`.
+
 ## 2026-11-03 - D42 and D08G9 accepted and closed
 
 D42 death scene ([note 373](373-d42-death-scene.md)): live scene, PRESS E TO

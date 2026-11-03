@@ -56,6 +56,14 @@ SHADOW = 0xff0c0c18  # Console steel's darkest navy
 # D43: the level title's red (Duke 3D's level name), the steel ramp's steps in red.
 RED = ['000000', '1c0000', '300000', '440404', '600808', '780c0c', '901010', 'a81414', 'bc1818', 'cc2020',
        'dc2c2c', 'e83c3c', 'f45050', 'fc6c6c', 'fc8c8c', '000000']
+# D20I: LEVEL STATS, matched to EDuke32's level stats as measured on its 720p
+# frame (clean room: colours read off the screen): the letters' orange-red
+# (#8c200c..#d83414) and the values' light gold-beige (#986444..#ecd8b0), each
+# with a dark outline (step 1) in its own hue. Medium Italic uses steps 1 and 4-13.
+STATS_RED = ['000000', '280400', '180400', '3c0800', '601404', '78180a', '8c200c', '9c240c', 'ac280c', 'b82c10',
+             'c83010', 'd83414', 'e8442a', 'f45c40', '000000', '000000']
+STATS_BEIGE = ['000000', '28140c', '180c04', '3c2014', '6c4428', '805234', '986444', 'a87450', 'bc8e66', 'ccac80',
+               'dcc298', 'ecd8b0', 'f4e4c4', 'fcf0dc', '000000', '000000']
 
 BIG_ROWS = [(0, ',-./0123456789A'), (18, 'BCDEFGHIJKLM'), (36, 'NOPQRSTUVWXY'), (54, "Z:;<>=?@'")]
 MEDIUM_ROWS = [(72, ',-./0123456789ABCDEFG'), (84, 'HIJKLMNOPQRSTUVWXY'), (96, "Z:;<>=?@©™'")]
@@ -80,6 +88,10 @@ SETS = [  # name, font, palette or '#rrggbb' tint (system font), scale, spacing,
     # D43: the level title card (user, 2026-11-03): TTK Big Italic, 1x, spacing -1,
     # in red over a near-black shadow; drawn in the game's screen pixels like the menu.
     ('level_title', 'big', 'red', 1, -1, 0xff140000),
+    # D20I LEVEL STATS: TTK Medium Italic, 1x, in EDuke32's colours: the letters
+    # (and a finished count) red, the values beige, each with a shadow in its hue.
+    ('level_stats_label', 'medium', 'stats_red', 1, 0, 0xff180400),
+    ('level_stats_value', 'medium', 'stats_beige', 1, 0, 0xff180c04),
 ]
 FONT_INFO = {'big': (BIG_ROWS, 17, 8), 'medium': (MEDIUM_ROWS, 11, 5), 'system': (None, 8, 8), 'micro': (None, 5, 4)}  # rows, height, space
 EXCLAMATION = {'big': (2, 3), 'medium': (1, 2)}  # D24C: period rows trimmed, stem taper (px)
@@ -321,7 +333,9 @@ def build(raw, exe):
     fonts['micro'] = micro_font()
     palettes = {225: sheet.palette(225), 226: sheet.palette(226),
                 'steel': [tuple(int(h[i:i + 2], 16) for i in (0, 2, 4)) for h in STEEL],
-                'red': [tuple(int(h[i:i + 2], 16) for i in (0, 2, 4)) for h in RED]}
+                'red': [tuple(int(h[i:i + 2], 16) for i in (0, 2, 4)) for h in RED],
+                'stats_red': [tuple(int(h[i:i + 2], 16) for i in (0, 2, 4)) for h in STATS_RED],
+                'stats_beige': [tuple(int(h[i:i + 2], 16) for i in (0, 2, 4)) for h in STATS_BEIGE]}
     headers, pixels, records, fallbacks = b'', b'', [], {}
     base = 4 + len(SETS) * (8 + 95 * 8)
     for name, font, pal, scale, spacing, shadow in SETS:

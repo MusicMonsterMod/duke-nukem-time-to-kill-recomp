@@ -36,6 +36,9 @@ after their kill credit). Its readers: the challenge-stage HUD (levels
 21-26), the stage-complete check `0x80095034`, the bosses' checks (levels
 27-29) and a level 11 event (-9 threshold). The only runtime increment is
 challenge stage 25's spawned type `0x7f`.
+(D20I correction, [note 376](376-d20i-level-stats.md): that increment is a
+placed type-0x7f object at load, flag bit 0 clear; the only runtime enemies
+are reinforcements through `0x80091920`.)
 
 **The live count cannot stand for "dead so far"**: the strip-club dancers
 (types 922, 1013, class 8, 1 HP) are in the count, and killing one credits a

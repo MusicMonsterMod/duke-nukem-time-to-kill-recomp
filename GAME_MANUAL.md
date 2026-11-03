@@ -1451,6 +1451,26 @@ the same way on every menu screen:
   statistics screen, RESTART LEVEL or loading a save, but not CONTINUE after
   a death), its name shows in red just under the crosshair, as in Duke 3D, for about three seconds, fading out by itself. Play is never
   interrupted; pausing hides it and holds its time.
+- **Level stats** (OPTIONS > DISPLAY > LEVEL STATS, on by default): three
+  small lines in the bottom-left corner during play, as EDuke32 shows them:
+  `T:` the level time (minutes:seconds.hundredths), `K:` enemies killed out
+  of the level's total, `S:` secrets found out of the level's secrets. The
+  letters are red and the numbers a light gold; a count you have completed
+  (all enemies, all secrets, or a level with none) turns red. They sit just
+  above the health box, follow 4:3 and widescreen and the HUD size, and drop
+  to the bottom edge when STATUS BARS is HIDDEN. They match the statistics
+  screen: the time is the level's own timer (it stops while Duke is dead,
+  and loading a savestate rewinds it), and the kill total grows when the game
+  sends reinforcements (killing a dancer or other innocent calls four, and
+  some levels send them by script), as EDuke32's does. Pausing, menus and the
+  statistics screen hide them. **FPS** on the same page shows or hides the
+  frame rate statistics block at the top left: it is the same block as the
+  console's `fps` command, and the two stay in step (typing `fps` changes the
+  setting, which is saved). Both apply as soon as you confirm. The launcher
+  accepts `--level-stats on|off` and `--fps on|off` (saved); terminal
+  `--settings` uses **V Level stats** and **Y FPS display**. Vanilla shows
+  neither by default (the console `fps` command still works there for the
+  session).
 - **LOAD GAME** (title, pause and death menus) lists the 12 savestate slots
   (the same slots as F7) with the level name, opening on slot 01.
   The chosen slot's picture, era and save time (in the console's steel
@@ -1539,7 +1559,8 @@ the original's style:
 - **CONTROLS**: mouse sensitivity (slider), invert mouse and **KEY
   BINDINGS** (below).
 - **DISPLAY**: window (windowed / borderless / exclusive), resolution,
-  widescreen, frame rate and renderer (Polymorph / Classic).
+  widescreen, frame rate, renderer (Polymorph / Classic), first-person FOV,
+  camera distance, **LEVEL STATS** and **FPS** (see Level stats below).
 - **GAMEPLAY**: view, shoulder, camera distance, crosshair, gore, status bars
   and view bob.
 - **ADVANCED**: one list under headings. CAMERA AND AIM: camera, weapon aim, first-person legs.
@@ -1624,7 +1645,8 @@ outside the game.
 Italic font, `>` prompt). Typed commands and their replies stay in the console scrollback (`help`,
 `fps`, `clear`, `quit`, `palfrom` (see Screen flashes), `renderer` (see Renderer), unknown-command errors). `fps` also toggles a compact
 persistent statistics block in the top-left of the game view after you close the
-console (F remains unbound for gameplay). Escape or backtick closes the console.
+console (F remains unbound for gameplay); in Modernized it is the same setting as
+OPTIONS > DISPLAY > FPS and is saved. Escape or backtick closes the console.
 The console keeps 512 lines: **PgUp / PgDn** or the **mouse wheel** scroll back
 through them, **Ctrl+Home** jumps to the oldest and **End** to the newest. New
 output scrolls back to the bottom. **Up / Down** recall the commands you typed

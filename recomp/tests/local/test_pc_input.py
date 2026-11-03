@@ -213,7 +213,7 @@ class D21ProfileTest(unittest.TestCase):
                 profile['bindings']['fire'] = 'Mouse3'
             profiles.save(path, old)
             loaded, _ = profiles.load(path)
-            self.assertEqual(loaded['version'], 62)
+            self.assertEqual(loaded['version'], 63)
             for profile in loaded['profiles'].values():
                 self.assertEqual(profile['bindings']['fire'], 'Mouse3')
                 self.assertEqual(profile['bindings']['camera_free_look'], 'Unbound')

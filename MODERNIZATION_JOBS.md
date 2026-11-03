@@ -1,5 +1,57 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-03 - D08G7 accepted as preliminary; D39 screen flash framework added
+
+User, on the D08G7 flash: "it's a great start, but the fade isnt smooth
+enough, it kind of staggers", then: "no point in refining this iteration of
+the godmode flash ... We need to really own this". D08G7 is Done as
+preliminary: GOD MODE: ON / OFF text, the OFF flash (PS1 add/subtract quads,
+game-tick fade) and the 50% pain grunt ship as they are; the flash moves to
+D39D. Why it staggered: the level steps at the 30 Hz (20 Hz on overrun) game
+tick and redraws at 180 Hz repeat each step; the framebuffer is 8-bit, so
+not colour precision.
+
+New parent D39 with D39A-D39G ([note 370](documentation/370-d39-screen-flash-framework.md)):
+EDuke32 palfrom spec measurement, a Polymorph present-stage tint with a
+display-rate fade, the game flash API and a Screen Flashes option, the
+god-mode flash moved onto it, damage flashes from the original damage
+handler, pickup and explosion flashes, and a Classic fallback. Research so
+far: the palfrom syntax and units (EDuke32 wiki), the measured god-off curve,
+and the 35 palfrom uses in the user's GAME.CON (pickups green, hits red,
+shrinker magenta, freeze blue, squish white, boss stomps full red). Next:
+D39A.
+
+## 2026-11-03 - D08G7: dnkroz feel (Needs playtest)
+
+[Note 369](documentation/369-d08g7-kroz-feel.md). `dnkroz` / `dncornholio`
+now read `GOD MODE: ON` / `GOD MODE: OFF`. OFF flashes the screen red and,
+half the time, Duke gives a short pain grunt; ON shows text only.
+
+- **Reference, measured** from the user's EDuke32 video: instant rise to about
+  a 50% red blend, about 2 tics held, then a straight-line fade in 30 Hz steps
+  over about 32 tics (1.1 s in all); grunt on 2 of 3 toggles (the Duke3D
+  script's `ifrnd 128` at full health).
+- **TTK has no hit tint** (the damage handler `0x800a40a8` only rumbles and
+  plays `0x2009`/`0x200a` for an ordinary hit), so the flash is new: a
+  subtractive and an additive full-width quad from the D35J5 freeze-tint
+  packet, appended to slot 0 at `0x8001fc44(0)` (ra `0x800265c4`), so it
+  covers the world, Duke and the status bar. The level is carried in mod
+  memory (savestates, 180 Hz redraws); the packet has a fixed slot outside
+  the cursor (from the cursor it starved props, drawn dark as black triangles).
+  Grunt: one of the original ordinary-hit pair through `0x8006b270`; no
+  damage, rumble, health or armour change.
+- **Evidence:** offscreen 60 and 180 Hz, slot 3 and slot 4; 9 grunts in 21
+  OFF toggles; health/armour unchanged; Vanilla untouched. `ttk-near-test`
+  (new D08G7 group), `ttk-controls-test` 125 groups, `ttk-input-test`;
+  Python 223, 1 old failure (`test_primitive_trace`), 2 skipped. Executable
+  `1cf2a7008a8533051fe814df22572356f9f9632b0c7cede67d3acfa4807bc225`. No
+  framework, hook-list or generated-code change.
+- **Limits:** a PS1 add/subtract fade, not Duke3D's proportional palette mix
+  (bright blues read purple at the peak); the host inventory box and OSD text
+  stay untinted; first person not captured (same chain). Seen while testing,
+  not caused here: black triangles across the top of the slot 3 street for
+  the first seconds after a load at 180 Hz. Needs the user's playtest.
+
 ## 2026-11-03 - D08Z7 accepted and closed
 
 User: "it's a winner!!! lock and load - close us out". D08Z7 is Done
@@ -970,7 +1022,7 @@ identical** (they already map to the same cheat in
 
 ### D08G7 - dnkroz feel: GOD MODE ON / OFF text, red flash and pain sound on OFF
 
-**Status: Todo. Dependencies: D08G2, D08Q4.** Make `dnkroz` (and
+**Status: Done (accepted as preliminary 2026-11-03; [note 369](documentation/369-d08g7-kroz-feel.md)). The flash moves to the D39 framework in D39D. Dependencies: D08G2, D08Q4.** Make `dnkroz` (and
 `dncornholio`) behave like Duke 3D / EDuke32. Reference:
 `research/screencaps/dnkroz-dncornholio.mp4` (28 s). The code toggles: the
 top-of-screen text reads "GOD MODE: ON" / "GOD MODE: OFF". Switching **off**
@@ -2494,6 +2546,87 @@ check of the saloon piano in a copy of UI slot 9 and the user's listening
 playtest.
 
 
+### D39 - Screen flash framework (Duke3D palfrom-style coloured flashes)
+
+**Status: Todo (intake 2026-11-03; [note 370](documentation/370-d39-screen-flash-framework.md)).**
+User, 2026-11-03: "i want to be able to do any damage or explosion flashes
+that we want ... We need to really own this". Own coloured full-screen
+flashes the way EDuke32's `palfrom <intensity> <r> <g> <b>` does: an
+instant tint toward a colour at intensity/64 that fades by one step a 30 Hz
+tic, over the world, weapon, HUD and text. D08G7 drew its flash as PS1 GPU
+commands, which only approximate a variable mix (bright blues went purple)
+and stepped at the game tick (staggered at 180 Hz). The renderer is ours, so
+the flash moves there. Note 370 holds the measured spec, the catalog of
+Duke3D's 35 palfrom uses and the design direction. Modernized only; Vanilla
+never flashes. Polymorph is the target; Classic is frozen (D39G).
+
+#### D39A - Flash spec: measure palfrom in EDuke32
+
+**Status: Todo. Dependencies: none.** Confirm the D08G7 measurements in
+EDuke32 itself (user install under `~/Games`, the `kroztest` save; private
+copies only): drive a few flashes (a test CON or the console: pickup
+16 0 32, RPG hit 48 52, white 63 63 63 63, an intensity above 63, two
+flashes in a row), capture frames and measure the curve. Record: decrement
+per tic, the >63 hold, whether a new flash replaces or keeps the stronger,
+the 2-tic peak, the blend (linear per channel in 6-bit palette units), what
+is tinted (HUD, text, menus). Clean room: behaviour only, no engine code.
+**Acceptance:** a measured table in note 370 that D39B/C implement.
+
+#### D39B - Polymorph present tint
+
+**Status: Todo. Dependencies: D39A.** A framework capability in
+`recomp/psxrecomp` (export with `export_runtime_patch.py`, verify against
+the clean pin): a final full-frame mix(frame, colour, weight) pass on the
+presented image, for the live present and render-replay redraws, with the
+weight evaluated per present from the flash state and the interpolated game
+time so the fade is smooth at 120/180/240 Hz (optional Duke3D 30 Hz steps).
+Settle the layer (before or after host overlays such as the inventory box and
+OSD). Never on menus, loading screens, FMV or the pause screen beyond what
+the spec says. **Acceptance:** exact colour against the spec on captures,
+smooth measured fade at 60/120/180 Hz, savestates and redraws consistent, no
+cost when idle, Vanilla and Classic unchanged.
+
+#### D39C - Game flash API and Screen Flashes option
+
+**Status: Todo. Dependencies: D39B.** `screen_flash(intensity, r, g, b)`
+with palfrom units and rules, state in guest mod memory (D08G7's word or a
+small versioned record), a developer console command (`flash 48 63 63 63`),
+debug JSON, and an OPTIONS / profile setting Screen Flashes On / Reduced /
+Off (accessibility, D21). **Acceptance:** native tests of the rules; console
+flashes match D39A captures; option persists.
+
+#### D39D - God-mode off flash on D39
+
+**Status: Todo. Dependencies: D39C, D08G7.** Replace the D08G7 add/subtract
+quads with `screen_flash(32, 32, 0, 0)` (the measured god-off flash). Keep
+the text and the 50% pain grunt. **Acceptance:** user's playtest against
+`research/screencaps/dnkroz-dncornholio.mp4`: smooth, exact red.
+
+#### D39E - Damage flashes from real hits
+
+**Status: Todo. Dependencies: D39C.** From the original damage handler
+`0x800a40a8` (type, amount, attacker, source object), map TTK damage to
+Duke3D-style flashes (shots and fire red, explosions strong red, freeze blue,
+shrink/expand magenta, toxic gas, falls), not while god mode or the steroid
+shield cancels the hit. Survey the damage types first. **Acceptance:** each
+mapped type flashes as specified; no flash for cancelled hits; Vanilla
+unchanged; user's playtest.
+
+#### D39F - Pickup and explosion flashes
+
+**Status: Todo. Dependencies: D39C.** Pickups through `0x80081a48`
+(item 16 0 32, weapon 32 0 32, armour 24 0 32), and explosions: survey the
+explosion and effect spawns (e.g. `0x8006d594`, `0x80070f7c`) and add a white
+flash scaled by size and distance for big blasts (the user's own EDuke32
+mods flash white on big explosions). **Acceptance:** pickups and blasts
+flash as specified; user's playtest.
+
+#### D39G - Classic renderer fallback
+
+**Status: Todo. Dependencies: D39C.** Classic is frozen (2026-11-01): decide
+between the D08G7 PS1-quad approximation and no flash, behind the same API.
+**Acceptance:** Classic shows the chosen behaviour without regressions.
+
 ### D08T10 - Slot-5 box repeat grab after pulling
 
 **Status: Done (user-accepted; closeout authorized 2026-10-29). Dependencies: D08T3, D08T7, D08T9 (Done).** Selected
@@ -3768,9 +3901,17 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08G4 | `dnstuff`, `dnitems`, `dninventory` also give 100% armor; running steroids stop and a full dose is held | Done (user-accepted) | D08G |
 | D08G5 | Partial cheat entry causes mouse-look stutter until another key breaks the sequence | Done (user-accepted) | D08G2 |
 | D08G6 | Fun cheat `dntlod`: show "Play Zaxtor's Oblivion!" | Done (user-accepted) | D08G2 |
-| D08G7 | dnkroz feel: GOD MODE ON/OFF text, red flash and occasional short pain sound on OFF (dncornholio identical) | Todo | D08G2, D08Q4 |
+| D08G7 | dnkroz feel: GOD MODE ON/OFF text, red flash and occasional short pain sound on OFF (dncornholio identical) | Done (accepted as preliminary 2026-11-03; flash to D39D) | D08G2, D08Q4 |
 | D08G8 | Cheats work anywhere, not only on solid ground | Done (user-accepted 2026-11-02) | D08G2 |
 | D08G9 | dnkroz after death: Duke gets back up where he died, remains stay | Todo | D08G7, D08G8, D08Q4 |
+| D39 | Screen flash framework: Duke3D palfrom-style coloured flashes (parent) | Todo | D39A-D39G |
+| D39A | Flash spec: measure palfrom in EDuke32 (rate, hold, override, blend) | Todo | - |
+| D39B | Polymorph present tint: exact colour mix, display-rate fade, replay-safe | Todo | D39A |
+| D39C | Game flash API, console command, debug JSON, Screen Flashes option | Todo | D39B |
+| D39D | God-mode off flash on D39 (replaces the D08G7 quads) | Todo | D39C, D08G7 |
+| D39E | Damage flashes from real hits, per TTK damage type | Todo | D39C |
+| D39F | Pickup and explosion flashes (white on big blasts) | Todo | D39C |
+| D39G | Classic renderer fallback for flashes | Todo | D39C |
 | D08H | Apartment furniture, hidden pickup and switch targeting | Done | D08 |
 | D08I | Responsive run-start and edge jumps | Done | D08 |
 | D08J | Armed airborne ladder grabs and automatic weapon transitions | Done | D08, D08E |

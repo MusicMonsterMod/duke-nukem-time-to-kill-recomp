@@ -1,5 +1,27 @@
 # Next-session handoff
 
+## 2026-11-03 - D08G7 accepted as preliminary; D39 screen flash framework
+
+User: the D08G7 flash is "a great start" but staggers; "We need to really own
+this". D08G7 is Done as preliminary (GOD MODE text, PS1-quad red flash,
+50% grunt; [note 369](369-d08g7-kroz-feel.md)). New D39 parent with
+D39A-D39G ([note 370](370-d39-screen-flash-framework.md)): Duke3D
+palfrom-style flashes owned in Polymorph (exact colour mix, display-rate
+fade), a game flash API and Screen Flashes option, the god-mode flash moved
+over (D39D), damage, pickup and explosion flashes, Classic fallback. Next:
+D39A, measure palfrom in EDuke32.
+
+## 2026-11-03 - D08G7: dnkroz feel (Needs playtest)
+
+`dnkroz` / `dncornholio` read GOD MODE: ON / OFF; OFF flashes the screen red
+(instant rise, about 2 tics held, straight-line fade over about 1.1 s, as
+measured from the user's EDuke32 video) and half the time Duke gives one of
+the original ordinary-hit grunts; no damage. TTK has no hit tint of its own,
+so the flash is a new add/subtract quad pair at the end of the view chain
+(world, Duke, status bar), with a fixed packet slot and its level in mod
+memory. Executable `1cf2a7008a8533051fe814df22572356f9f9632b0c7cede67d3acfa4807bc225`.
+[Note 369](369-d08g7-kroz-feel.md). Next: the user's playtest against the video.
+
 ## 2026-11-03 - D08Z7 accepted and closed
 
 User: "it's a winner!!! lock and load - close us out". D08Z7 is Done

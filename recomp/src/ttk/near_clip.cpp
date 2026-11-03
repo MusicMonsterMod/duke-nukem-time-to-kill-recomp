@@ -309,6 +309,12 @@ void host_frame_reset() {
 // their order and the D20C mirror word are unchanged, so savestates keep their
 // layout. No packet straddles the two parts.
 constexpr uint32_t base_region_bytes=host_frame_bytes+region_mask_bytes;
+// D08G7: the hit flash's packet has a fixed slot at the end of each region's
+// base part, outside every cursor allocation. It is linked before the props
+// and actors are drawn, so taking it from the cursor would shrink what the
+// world pass leaves them: a prop that no longer fitted went back to the
+// original renderer, drawn dark (black triangles across the top of a street).
+constexpr uint32_t flash_slot_bytes=192, flash_slot_offset=base_region_bytes-flash_slot_bytes;
 uint32_t region_bytes() {return base_region_bytes+(extra_arena?extra_region_bytes:0);}
 uint32_t region_address(uint32_t offset) {
     const uint32_t r=host_region%host_regions;
@@ -569,7 +575,7 @@ uint32_t packet_alloc(const Frame& f,uint32_t size) {
     region_after_load();
     uint32_t at=frame_host_bytes;
     if(at<host_frame_bytes && at+size>host_frame_bytes) at=host_frame_bytes;
-    if(at<base_region_bytes && at+size>base_region_bytes) at=base_region_bytes;
+    if(at<base_region_bytes && at+size>flash_slot_offset) at=base_region_bytes;
     if(at>=base_region_bytes && (at-base_region_bytes)/extra_chunk!=(at+size-1-base_region_bytes)/extra_chunk)
         at=base_region_bytes+((at-base_region_bytes)/extra_chunk+1)*extra_chunk;
     if(!host_arena() || !mask_arena || at+size>cursor_limit(f)) return 0;
@@ -2243,9 +2249,9 @@ void near_clip_biomask(double dip,uint32_t light) {
 // Recover the texture-page state immediately before slot 1's new tail.
 // Native packets and our clipped packets each carry one GP0 primitive. Search
 // nearest slots first, retaining the last page writer in each linked list.
-static bool frozen_previous_tpage(uint16_t& page) {
+static bool frozen_previous_tpage(uint16_t& page,unsigned first=viewmodel_slot) {
     unsigned budget=16384;
-    for(unsigned index=viewmodel_slot;index<2048 && budget;++index) {
+    for(unsigned index=first;index<2048 && budget;++index) {
         uint32_t q=psx_mod_read_word(ordering+index*8);
         const uint32_t tail=psx_mod_read_word(ordering+index*8+4);
         bool found=false;
@@ -2309,6 +2315,68 @@ void near_clip_frozen_tint() {
     }
     psx_mod_write_word(slot+4,p);
 }
+// D08G7: the Duke3D hit flash, drawn after everything in the gameplay chain
+// (world, weapon, HUD). Its level (0..screen_flash_start, frame-delta units,
+// 300 a second) is the word after the D20C mirror, in mod memory, so
+// savestates and redraw workers carry it; a word without the tag reads 0.
+// Duke3D starts its palette fade at half red and takes one step per 30 Hz
+// tic: it holds about two tics, then fades linearly to nothing in about 32
+// (measured from the user's EDuke32 recording). TTK has no hit tint of its
+// own. The PS1 GPU has no variable blend, so the fade is a subtractive quad
+// (green and blue down) and an additive one (red up), both scaled with the
+// level; at the peak they match Duke3D's half-red mix for mid-tones.
+constexpr uint32_t screen_flash_tag=0x5d087000u,screen_flash_full=320;
+uint64_t screen_flash_draws;
+uint32_t screen_flash_word() {return region_mirror?region_mirror+4:0;}
+uint32_t near_clip_screen_flash() {
+    const uint32_t a=screen_flash_word();
+    if(!a) return 0;
+    const uint32_t v=psx_mod_read_word(a);
+    return (v&0xfffff000u)==screen_flash_tag?std::min<uint32_t>(v&0xfff,screen_flash_start):0;
+}
+void near_clip_screen_flash_set(uint32_t level) {
+    if(const uint32_t a=screen_flash_word()) psx_mod_write_word(a,screen_flash_tag|std::min<uint32_t>(level,screen_flash_start));
+}
+void near_clip_screen_flash_draw() {
+    const uint32_t level=std::min(near_clip_screen_flash(),screen_flash_full);
+    uint16_t page=0;
+    if(!level || !mask_arena || !frozen_previous_tpage(page,0))return;
+    const auto scaled=[&](unsigned peak){return (uint32_t)((peak*level+screen_flash_full/2)/screen_flash_full);};
+    const uint32_t sub=scaled(44),add=scaled(40);
+    if(!sub && !add)return;
+    constexpr unsigned size=4+4*(7*3+5*4);
+    const int m=std::clamp(psx_mod_widescreen_x_margin(),0,512);
+    static_assert(size<=flash_slot_bytes,"flash packet exceeds its slot");
+    region_after_load();
+    if(!host_arena())return;
+    const uint32_t p=region_address(flash_slot_offset);
+    const auto xy=[](int x,int y){return uint32_t(uint16_t(x))|(uint32_t(uint16_t(y))<<16);};
+    psx_mod_write_word(p,((size>>2)-1)<<24);
+    unsigned cursor=4;
+    auto page_only=[&](uint16_t tpage) {
+        const uint32_t words[]={0x25000000u,xy(-512,-256),0,xy(-512,-256),uint32_t(tpage)<<16,xy(-512,-256),0};
+        for(auto word:words){psx_mod_write_word(p+cursor,word);cursor+=4;}
+    };
+    // Semi-transparency 2 (B-F), then 1 (B+F); colour words are 0xBBGGRR.
+    for(const auto [mode,colour]:{std::pair<uint16_t,uint32_t>{0x40,sub<<16|sub<<8},{0x20,add}}) {
+        page_only((page&~0x60u)|mode);
+        for(int half=0;half<2;++half) {
+            const int left=half?0:-256-m,right=half?256+m:0;
+            const uint32_t words[]={0x2a000000u|colour,xy(left,-128),xy(right,-128),xy(left,128),xy(right,128)};
+            for(auto word:words){psx_mod_write_word(p+cursor,word);cursor+=4;}
+        }
+    }
+    page_only(page);
+    const uint32_t slot=ordering;
+    const auto head=psx_mod_read_word(slot),tail=psx_mod_read_word(slot+4);
+    if(head)psx_mod_write_word(tail,(psx_mod_read_word(tail)&0xff000000u)|(p&0xffffffu));
+    else {
+        psx_mod_write_word(slot,p);
+        psx_mod_write_word(bitmap,psx_mod_read_word(bitmap)|0x80000000u);
+    }
+    psx_mod_write_word(slot+4,p);
+    ++screen_flash_draws;
+}
 NearDepthPlane near_depth_plane(const double a[3],const double b[3],const double c[3]) {
     NearDepthPlane p{};
     double u[3],v[3];
@@ -2363,15 +2431,15 @@ uint32_t near_dpcs(const NearGte& g,uint32_t rgbc,int16_t ir0) {
     return out;
 }
 const char* near_clip_debug_json() {
-    static char buffer[3584];
+    static char buffer[4096];
     auto part=[](const Stats& s,char* out,size_t n){
         std::snprintf(out,n,"{\"seen\":%llu,\"taken\":%llu,\"polys\":%llu,\"culled\":%llu,\"triangles\":%llu,\"budget_hits\":%llu}",
             (unsigned long long)s.seen,(unsigned long long)s.taken,(unsigned long long)s.polys,(unsigned long long)s.culled,
             (unsigned long long)s.triangles,(unsigned long long)s.budget_hits);
     };
     char w[192],o[192];part(world_stats,w,sizeof w);part(object_stats,o,sizeof o);
-    std::snprintf(buffer,sizeof buffer,"{\"biomask_draws\":%llu,\"biomask_triangles\":%llu,\"enabled\":%s,\"world\":%s,\"object\":%s,\"refused\":%llu,\"copy_overflows\":%llu,\"duke_skips\":%llu,\"fades_skipped\":%llu,\"fade_tests\":%llu,\"zsf3\":%d,\"arena_size\":%u,\"frame_used_peak\":%u,\"host_bytes_peak\":%u,\"packet_skips\":%llu,\"mesh_fallbacks\":%llu,\"whole_polygons\":%llu,\"subdivided_kept\":%llu,\"viewmodel\":{\"meshes\":%llu,\"packets\":%llu,\"discards\":%llu},\"scene_depth\":{\"meshes\":%llu,\"packets\":%llu,\"ambiguous\":%llu,\"wraps\":%llu,\"polygons\":%llu,\"unmatched\":%llu,\"breaks\":%llu},\"measure\":{\"frames\":%llu,\"demand_peak\":%u,\"demand_avg\":%llu,\"frames_over_budget\":%llu,\"emits_peak\":%llu,\"hook_us_peak\":%llu,\"hook_us_avg\":%llu,\"kind_peak\":[%u,%u,%u,%u,%u],\"kind_avg\":[%llu,%llu,%llu,%llu,%llu],\"unified\":%s,\"unified_downgrades\":%llu,\"fallbacks\":[%llu,%llu,%llu],\"near_fallbacks\":%llu},\"water\":{\"seen\":%llu,\"taken\":%llu,\"guard\":%llu,\"grid\":%llu,\"near_cleared\":%llu,\"near_dropped\":%llu,\"budget_native\":%llu},\"coplanar\":{\"hits\":%llu,\"builds\":%llu,\"checked\":%llu,\"mismatch\":%llu},\"models\":{\"seen\":%llu,\"taken\":%llu,\"mismatch\":%llu,\"near_cleared\":%llu,\"faces\":%llu,\"faces_taken\":%llu,\"faces_native\":%llu,\"faces_dropped\":%llu,\"faces_budget\":%llu,\"flat\":%llu,\"faces_decal\":%llu,\"room_lifts\":%llu,\"sides_cleared\":%llu,\"flags_lifted\":%llu,\"backface\":%llu,\"refined\":%llu,\"refine_skipped\":%llu,\"refine_max\":%.3f,\"refine_last\":[%.2f,%.2f,%.2f,%.0f,%.0f,%.0f]},\"open_models\":{\"builds\":%llu,\"open\":%llu,\"faces\":%llu,\"drawn\":%llu}}",
-        (unsigned long long)mask_draws,(unsigned long long)mask_triangles,enabled()?"true":"false",w,o,(unsigned long long)refused,(unsigned long long)copy_overflows,(unsigned long long)duke_skips,(unsigned long long)fades_skipped,(unsigned long long)fade_tests,(int)last_zsf3,arena_size,frame_used_peak,host_bytes_peak,(unsigned long long)packet_skips,(unsigned long long)mesh_fallbacks,(unsigned long long)subdivision_whole,(unsigned long long)subdivision_kept,(unsigned long long)viewmodel_meshes,(unsigned long long)viewmodel_packets,(unsigned long long)viewmodel_discards,(unsigned long long)scene_depth_meshes,(unsigned long long)scene_depth_packets,(unsigned long long)scene_depth_ambiguous,(unsigned long long)scene_depth_wraps,(unsigned long long)scene_depth_polygons,(unsigned long long)scene_depth_unmatched,(unsigned long long)scene_depth_breaks,
+    std::snprintf(buffer,sizeof buffer,"{\"screen_flash\":%u,\"screen_flash_draws\":%llu,\"biomask_draws\":%llu,\"biomask_triangles\":%llu,\"enabled\":%s,\"world\":%s,\"object\":%s,\"refused\":%llu,\"copy_overflows\":%llu,\"duke_skips\":%llu,\"fades_skipped\":%llu,\"fade_tests\":%llu,\"zsf3\":%d,\"arena_size\":%u,\"frame_used_peak\":%u,\"host_bytes_peak\":%u,\"packet_skips\":%llu,\"mesh_fallbacks\":%llu,\"whole_polygons\":%llu,\"subdivided_kept\":%llu,\"viewmodel\":{\"meshes\":%llu,\"packets\":%llu,\"discards\":%llu},\"scene_depth\":{\"meshes\":%llu,\"packets\":%llu,\"ambiguous\":%llu,\"wraps\":%llu,\"polygons\":%llu,\"unmatched\":%llu,\"breaks\":%llu},\"measure\":{\"frames\":%llu,\"demand_peak\":%u,\"demand_avg\":%llu,\"frames_over_budget\":%llu,\"emits_peak\":%llu,\"hook_us_peak\":%llu,\"hook_us_avg\":%llu,\"kind_peak\":[%u,%u,%u,%u,%u],\"kind_avg\":[%llu,%llu,%llu,%llu,%llu],\"unified\":%s,\"unified_downgrades\":%llu,\"fallbacks\":[%llu,%llu,%llu],\"near_fallbacks\":%llu},\"water\":{\"seen\":%llu,\"taken\":%llu,\"guard\":%llu,\"grid\":%llu,\"near_cleared\":%llu,\"near_dropped\":%llu,\"budget_native\":%llu},\"coplanar\":{\"hits\":%llu,\"builds\":%llu,\"checked\":%llu,\"mismatch\":%llu},\"models\":{\"seen\":%llu,\"taken\":%llu,\"mismatch\":%llu,\"near_cleared\":%llu,\"faces\":%llu,\"faces_taken\":%llu,\"faces_native\":%llu,\"faces_dropped\":%llu,\"faces_budget\":%llu,\"flat\":%llu,\"faces_decal\":%llu,\"room_lifts\":%llu,\"sides_cleared\":%llu,\"flags_lifted\":%llu,\"backface\":%llu,\"refined\":%llu,\"refine_skipped\":%llu,\"refine_max\":%.3f,\"refine_last\":[%.2f,%.2f,%.2f,%.0f,%.0f,%.0f]},\"open_models\":{\"builds\":%llu,\"open\":%llu,\"faces\":%llu,\"drawn\":%llu}}",
+        near_clip_screen_flash(),(unsigned long long)screen_flash_draws,(unsigned long long)mask_draws,(unsigned long long)mask_triangles,enabled()?"true":"false",w,o,(unsigned long long)refused,(unsigned long long)copy_overflows,(unsigned long long)duke_skips,(unsigned long long)fades_skipped,(unsigned long long)fade_tests,(int)last_zsf3,arena_size,frame_used_peak,host_bytes_peak,(unsigned long long)packet_skips,(unsigned long long)mesh_fallbacks,(unsigned long long)subdivision_whole,(unsigned long long)subdivision_kept,(unsigned long long)viewmodel_meshes,(unsigned long long)viewmodel_packets,(unsigned long long)viewmodel_discards,(unsigned long long)scene_depth_meshes,(unsigned long long)scene_depth_packets,(unsigned long long)scene_depth_ambiguous,(unsigned long long)scene_depth_wraps,(unsigned long long)scene_depth_polygons,(unsigned long long)scene_depth_unmatched,(unsigned long long)scene_depth_breaks,
         (unsigned long long)demand_frames,demand_peak,(unsigned long long)(demand_frames?demand_total/demand_frames:0),(unsigned long long)demand_over,(unsigned long long)emits_peak,(unsigned long long)hook_us_peak,(unsigned long long)(hook_frames?hook_us_total/hook_frames:0),
         kind_peak[0],kind_peak[1],kind_peak[2],kind_peak[3],kind_peak[4],
         (unsigned long long)(demand_frames?kind_total[0]/demand_frames:0),(unsigned long long)(demand_frames?kind_total[1]/demand_frames:0),

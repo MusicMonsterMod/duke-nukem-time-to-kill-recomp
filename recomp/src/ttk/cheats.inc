@@ -22,7 +22,7 @@ static bool cheat_call(CPUState* cpu,uint32_t address,uint32_t actor,uint32_t a1
         const uint32_t at=top-192;
         for(unsigned i=0;i<words;++i)psx_mod_write_word(at+4*i,buffer[i]);
         copy.gpr[6]=at;copy.gpr[7]=0;
-    }
+    } else if(a1) {copy.gpr[5]=a1;copy.gpr[6]=0;}
     guest_busy=true;psx_dispatch_call(&copy,address,0x800000fc);guest_busy=false;
     if(result)*result=copy.gpr[2];
     for(unsigned i=0;i<sizeof stack;++i)psx_mod_write_byte(top-4096+i,stack[i]);
@@ -135,7 +135,31 @@ static const char* cheat_refusal(CPUState* cpu) {
         return "Cheat unavailable - try again";
     return nullptr;
 }
+// D08G7: Duke3D's god-mode feel. Switching off flashes the screen red (the
+// hit fade, near_clip_screen_flash) and, as Duke3D's player script does for a
+// hit at full health (ifrnd 128), half the time Duke gives the short pain
+// grunt: one of the two the original damage handler plays for an ordinary hit
+// (0x800a4604: 0x2009 + rand % 2, via 0x8006b270 at Duke's position). No
+// damage is dealt and no rumble; switching on shows neither. Host random, so
+// the game's own random sequence is untouched.
+static void god_mode_off_feel(CPUState* cpu) {
+    near_clip_screen_flash_set(screen_flash_start);
+    static uint32_t seed=0x2d08a7u^(uint32_t)std::chrono::steady_clock::now().time_since_epoch().count();
+    seed=seed*1103515245u+12345u;
+    const uint32_t sound=((seed>>16)&0xff)<128?0x2009u+((seed>>24)&1):0;
+    const bool played=sound && cheat_call(cpu,0x8006b270,sound,player+4);
+    std::fprintf(stderr,"[TTK god] off: flash, pain %s\n",!sound?"none":played?(sound==0x2009?"0x2009":"0x200a"):"refused");
+}
+// The fade steps with the game's frame delta (0x800d21fc), so it lasts the
+// same time at 30 and 20 fps; paused, it waits.
+static void screen_flash_tick() {
+    if(const uint32_t level=near_clip_screen_flash()) {
+        const int16_t delta=(int16_t)psx_mod_read_half(0x800d21fc);
+        near_clip_screen_flash_set(delta>0 && (uint32_t)delta<level?level-(uint32_t)delta:delta>0?0:level);
+    }
+}
 static void cheats_update(CPUState* cpu) {
+    screen_flash_tick();
     god_mode_update();
     auto command=input_take_cheat();
     if(command==Cheat::None)return;
@@ -146,7 +170,9 @@ static void cheats_update(CPUState* cpu) {
     case Cheat::God:
         psx_mod_write_half(0x800c3cc6,!psx_mod_read_half(0x800c3cc6));
         god_mode_update();
-        input_notice(psx_mod_read_half(0x800c3cc6)?"God Mode: On":"God Mode: Off");return;
+        if(psx_mod_read_half(0x800c3cc6))input_notice("GOD MODE: ON");
+        else {input_notice("GOD MODE: OFF");god_mode_off_feel(cpu);}
+        return;
     case Cheat::Upgrade: upgrade_weapons();input_notice("Weapons Upgraded");return;
     case Cheat::Tlod: input_notice("Play Zaxtor's Oblivion!");return;
     case Cheat::Unlimited:

@@ -1149,6 +1149,40 @@ static void frozen_packet_contracts() {
     test_margin=85;assert(dma_allocations==allocations);
     std::puts("PASS: D35J5 tint packet page restoration, all blend modes, widescreen and HUD ordering");
 }
+// D08G7: the hit flash goes to slot 0's tail (after the HUD) from its fixed
+// slot, leaves the frame cursor alone, restores the page and fades.
+static void screen_flash_contracts() {
+    constexpr uint32_t ot=0x800d27a0,bitmap=0x800d26a0,hud=0x801f0100;
+    const auto allocations=dma_allocations;
+    ttk::near_clip_screen_flash_set(0);assert(ttk::near_clip_screen_flash()==0);
+    for(unsigned level:{340u,320u,160u,10u}) for(bool with_hud:{true,false}) {
+        test_margin=85;ttk::near_clip_load_frame_state({0,0,0,0});
+        for(unsigned i=0;i<2048*8;i+=4)psx_mod_write_word(ot+i,0);
+        psx_mod_write_word(bitmap,with_hud?0x80000000u:0);
+        psx_mod_write_word(ot+8*5,hud+0x40);psx_mod_write_word(ot+8*5+4,hud+0x40);psx_mod_write_word(bitmap,psx_mod_read_word(bitmap)|(0x80000000u>>5));
+        psx_mod_write_word(hud+0x40,0x09000000);psx_mod_write_word(hud+0x44,0x2c808080);psx_mod_write_word(hud+0x54,0x000f0000);
+        if(with_hud) {psx_mod_write_word(ot,hud);psx_mod_write_word(ot+4,hud);psx_mod_write_word(hud,0x03000000);}
+        ttk::near_clip_screen_flash_set(level);assert(ttk::near_clip_screen_flash()==level);
+        const auto before=ttk::near_clip_frame_state().host_bytes;
+        ttk::near_clip_screen_flash_draw();
+        assert(ttk::near_clip_frame_state().host_bytes==before);
+        const auto p=psx_mod_read_word(ot+4);
+        assert(p!=hud && psx_mod_read_word(p)==(41u<<24));
+        if(with_hud) assert(psx_mod_read_word(ot)==hud && (psx_mod_read_word(hud)&0xffffff)==(p&0xffffff));
+        else assert(psx_mod_read_word(ot)==p && (psx_mod_read_word(bitmap)&0x80000000u));
+        const unsigned w=std::min(level,320u);
+        const uint32_t sub=(44*w+160)/320,add=(40*w+160)/320;
+        assert(psx_mod_read_word(p+20)==((0x00fu|0x40u)<<16) && psx_mod_read_word(p+32)==(0x2a000000u|sub<<16|sub<<8));
+        assert(psx_mod_read_word(p+88)==((0x00fu|0x20u)<<16) && psx_mod_read_word(p+100)==(0x2a000000u|add));
+        assert(int16_t(psx_mod_read_word(p+36))==-256-85 && int16_t(psx_mod_read_word(p+60))==256+85);
+        assert(psx_mod_read_word(p+156)==(0x00fu<<16));
+    }
+    ttk::near_clip_screen_flash_set(0);
+    for(unsigned i=0;i<2048*8;i+=4)psx_mod_write_word(ot+i,0);
+    ttk::near_clip_screen_flash_draw();assert(!psx_mod_read_word(ot));
+    test_margin=85;assert(dma_allocations==allocations);
+    std::puts("PASS: D08G7 hit flash after the HUD, fixed slot, page restored, level scaling");
+}
 int main(int argc,char** argv) {
     // A load-first session must own its world and mask packet arenas before
     // savestate restore can import any unclaimed allocation tail. Animation
@@ -1208,6 +1242,7 @@ int main(int argc,char** argv) {
     if(argc==2) {packet_contracts(argv[1]);if(!unified_run) whole_polygon_contracts();}
     biomask_packet_contracts();
     frozen_packet_contracts();
+    screen_flash_contracts();
     water_clip_contracts();
     std::puts("ttk-near-test PASS");
 }

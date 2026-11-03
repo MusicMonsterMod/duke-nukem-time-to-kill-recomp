@@ -1270,6 +1270,9 @@ static void hook_body(CPUState* cpu, uint32_t address) {
     // after it, whatever the mode is by then.
     if(address==0x8001fc44 || address==0x800b4d9c) steroids_hud_restore();
     if (!input_modernized()) return;
+    // D08G7: the hit flash goes last into the view's chain (world and status
+    // bar), as 0x8001fc44(0) at 0x800265bc starts the next one.
+    if(address==0x8001fc44 && cpu->gpr[31]==0x800265c4u) near_clip_screen_flash_draw();
     steroids_death_clear(); // D08A14
     dynamite_track(); // D08A12
     const auto& f=input_snapshot(Context::Gameplay);

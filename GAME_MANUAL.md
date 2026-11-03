@@ -1967,7 +1967,7 @@ its normal job straight away.
 | Code | Effect |
 | --- | --- |
 | `dnmonsters` | Toggle enemies hidden/shown; NPCs, pickups and switches remain |
-| `dnkroz` / `dncornholio` | Toggle god mode: health to at least 100, and Duke has the jetpack at full fuel the whole time it is on (Atomic Health can still take Duke to 200). It is a toggle: if god mode is already on, typing it turns it off |
+| `dnkroz` / `dncornholio` | Toggle god mode: health to at least 100, and Duke has the jetpack at full fuel the whole time it is on (Atomic Health can still take Duke to 200). It is a toggle: if god mode is already on, typing it turns it off. The confirmation reads GOD MODE: ON or GOD MODE: OFF; switching off flashes the screen red, as a hit does in Duke Nukem 3D, and Duke sometimes grunts (no damage) |
 | `dnstuff` | Grant all weapons/ammo, inventory and keys, and full (100) armor |
 | `dnkeys` | Grant keys |
 | `dnweapons` | Grant weapons and ammo |

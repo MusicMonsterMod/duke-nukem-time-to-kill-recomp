@@ -2310,7 +2310,7 @@ int main(int argc,char** argv) {
             return int32_t(psx_mod_read_word(p+0x1fc));
         };
         for(uint32_t ra:{0x800546c4u,0x800546dcu,0x800546ecu}) assert(launch(ra)==0 && psx_mod_read_word(p+0x1f4)==0);
-        assert(std::strstr(ttk::controls_debug_json(),"\"wall_backflip\":{\"modern\":true,\"slides\":0,\"stops\":3,\"jumps\":0,\"climbs\":0,\"lifts\":0}"));
+        assert(std::strstr(ttk::controls_debug_json(),"\"wall_backflip\":{\"modern\":true,\"slides\":0,\"stops\":3,\"jumps\":0,\"climbs\":0,\"redirects\":0,\"lifts\":0}"));
         assert(launch(0x80043f44)==-3040);                    // another fall start
         assert(launch(0x800546dc,0x8007f2e0)==-3040);         // another rotation (0x8007f224's own)
         call(0x80066e34,0x801effe0,p+0x1f4,0x8003e488);assert(psx_mod_read_word(p+0x1fc)==0); // then this fall's flight start
@@ -2329,6 +2329,8 @@ int main(int argc,char** argv) {
         // start's 9. Only that branch's next initialization (0x800493a4 from the
         // lower-body update), only 99/100; a standing jump's 99, original and
         // Vanilla keep it.
+        const float held_x=ttk::input.move_x,held_y=ttk::input.move_y;
+        ttk::input.move_x=ttk::input.move_y=0; // no direction: Duke's facing decides (D08Z7)
         auto start=[&](unsigned anim,uint8_t m,bool armed,uint32_t ra=0x8005a3a0){
             if(armed)call(0x8005446c,p,0,0x800547fc);
             psx_mod_write_byte(p+0x22c,m);psx_mod_write_half(p+0x60,anim);psx_mod_write_half(p+0x68,0);psx_mod_write_half(p+0x23e,anim);
@@ -2364,8 +2366,43 @@ int main(int argc,char** argv) {
         call(0x8003ebf4,p,0,0x80055934);assert(near(0x1f4,5952));               // once per jump
         psx_mod_write_word(p+0x1f8,0);psx_mod_write_byte(p+0x22c,mode);psx_mod_write_half(p+0x60,63);
         assert(std::strstr(ttk::controls_debug_json(),"\"wall_backflip\":{\"modern\":true,\"slides\":1,\"stops\":4,\"jumps\":6,\"climbs\":3,"));
-        psx_mod_write_word(p+0x1fc,0);psx_mod_write_byte(p+0x22c,mode);psx_mod_write_half(p+0x60,63);
-        std::puts("PASS: D08Z5 wall backflip (no launch off a slope slide, its jump starts 98 not 99/100 and climbs the slope; other falls, rotations, jumps, original and Vanilla keep theirs)");
+        // D08Z7: a held direction decides instead of Duke's facing. Toward
+        // the face (uphill is +0x2bc + 2048) a facing-down 98 climbs; away from
+        // it a facing-up 99 leaves the pressed way at its own speed (the
+        // fall's rise when it had none). Aim held keeps the facing rule.
+        {
+            const double yaw=std::atan2((int16_t)psx_mod_read_half(c+12),(int16_t)psx_mod_read_half(c+16)); // view_yaw(), no free look
+            auto toward=[&](double angle){ // camera-relative keys for a world direction
+                ttk::input.move_x=float(std::sin(angle-yaw));ttk::input.move_y=float(std::cos(angle-yaw));
+                const auto e=ttk::movement(yaw,ttk::input.move_x,ttk::input.move_y);
+                assert(std::abs(e.x-std::sin(angle))<1e-3 && std::abs(e.z-std::cos(angle))<1e-3);
+            };
+            constexpr double turn=6.283185307179586/4096;
+            psx_mod_write_half(p+0x2bc,64453);
+            const double uphill=((int16_t)64453+2048)*turn,downhill=uphill+3.141592653589793;
+            toward(uphill);
+            assert(start(98,2,true)==98);
+            psx_mod_write_byte(p+0x22c,9);psx_mod_write_half(p+0x2bc,64453);psx_mod_write_half(p+0x2be,uint16_t(-586));
+            psx_mod_write_word(p+0x1f4,uint32_t(-5952));psx_mod_write_word(p+0x1f8,uint32_t(-6917));psx_mod_write_word(p+0x1fc,uint32_t(-808));
+            call(0x8003ebf4,p,0,0x80055934);assert(near(0x1f4,1370) && near(0x1fc,124));  // the climb, not off the slope
+            toward(downhill);
+            assert(start(99,2,true)==98);
+            psx_mod_write_byte(p+0x22c,9);
+            psx_mod_write_word(p+0x1f4,5952);psx_mod_write_word(p+0x1f8,0);psx_mod_write_word(p+0x1fc,808);
+            call(0x8003ebf4,p,0,0x80055934);
+            const double speed=std::hypot(5952.0,808.0);
+            assert(near(0x1f4,int32_t(std::lround(speed*std::sin(downhill)))) && near(0x1fc,int32_t(std::lround(speed*std::cos(downhill)))));
+            assert(near(0x1f8,-6917));
+            ttk::input.held[ttk::original_aim]=true;
+            assert(start(98,2,true)==98);psx_mod_write_byte(p+0x22c,9);
+            psx_mod_write_word(p+0x1f4,5952);psx_mod_write_word(p+0x1fc,808);psx_mod_write_word(p+0x1f8,uint32_t(-6917));
+            writes=0;call(0x8003ebf4,p,0,0x80055934);assert(near(0x1f4,5952) && near(0x1fc,808)); // facing rule
+            ttk::input.held[ttk::original_aim]=false;
+            assert(std::strstr(ttk::controls_debug_json(),"\"climbs\":4,\"redirects\":1,"));
+        }
+        ttk::input.move_x=held_x;ttk::input.move_y=held_y;
+        psx_mod_write_word(p+0x1f8,0);psx_mod_write_word(p+0x1fc,0);psx_mod_write_byte(p+0x22c,mode);psx_mod_write_half(p+0x60,63);
+        std::puts("PASS: D08Z5 wall backflip (no launch off a slope slide, its jump starts 98 not 99/100 and climbs the slope; other falls, rotations, jumps, original and Vanilla keep theirs); D08Z7 a held direction picks climb or a jump the pressed way, aim keeps the facing rule");
     }
     psx_mod_write_half(p+0x60,63);
     uint32_t sp=0x801f0000-0x30-0x58;
@@ -6452,6 +6489,78 @@ int main(int argc,char** argv) {
     call(0x8005a210,p,0x800c2754,0x80041b34,0x801fff00);assert(psx_mod_read_half(p+0x60)==97);
     psx_mod_write_word(p+0x10,-11648);
     call(0x8005a210,p,0x800c2754,0x80041b34,0x801fff00);assert(psx_mod_read_half(p+0x60)==98);
+    // D08Z7: a held or repeated jump taken straight out of a landing (105/106),
+    // a wall bump (94/95) or on the landing update itself (0/9 after a jump
+    // camera) is still an owned takeoff, so 98 follows the pressed direction
+    // instead of Duke's facing. Stale epochs and non-jump landings stay unowned.
+    {
+        auto landed=[&](unsigned pose,unsigned mode,unsigned previous,int reject=0) {
+            ground();ttk::input.move_x=0;ttk::input.move_y=-1;
+            ++ttk::input.epoch;ttk::input.sequence+=20; // the idle sample is gone
+            if(pose==105 || pose==0) { // a live jump camera first
+                psx_mod_write_half(p+0x60,98);psx_mod_write_byte(p+0x22c,9);psx_mod_write_byte(p+0x22d,9);
+                call(0x8003ade4,c,p,0x80025ee8);++ttk::input.sequence;call(0x8003ade4,c,p,0x80025ee8);
+            }
+            if(pose) {
+                psx_mod_write_half(p+0x60,pose);psx_mod_write_byte(p+0x22c,mode);psx_mod_write_byte(p+0x22d,previous);
+                ++ttk::input.sequence;call(0x8003ade4,c,p,0x80025ee8);
+            }
+            if(reject==1)++ttk::input.epoch;
+            if(reject==2)ttk::input.sequence+=20;
+            psx_mod_write_half(p+0x60,96);psx_mod_write_half(p+0x68,0);
+            psx_mod_write_byte(p+0x22c,0);psx_mod_write_byte(p+0x22d,pose?0:9);
+            call(0x800493a4,p,0,0x8005a4d0);
+            return ttk::directional_takeoff_ready();
+        };
+        for(unsigned pose:{94u,95u,106u,105u})assert(landed(pose,0,0));
+        assert(landed(0,0,0));                         // landing update, 0/9
+        assert(!landed(106,0,9));                      // still settling from the air
+        assert(!landed(108,9,9));                      // a fall is not ground
+        assert(!landed(94,0,0,1) && !landed(0,0,0,1)); // load/focus epoch
+        assert(!landed(94,0,0,2) && !landed(0,0,0,2)); // stale sample
+        // The owned landing-update takeoff redirects its 98 once (backward).
+        assert(landed(0,0,0));
+        psx_mod_write_half(p+0x60,98);psx_mod_write_byte(p+0x22c,9);psx_mod_write_byte(p+0x22d,0);
+        psx_mod_write_word(p+0x1f4,0);psx_mod_write_word(p+0x1fc,1000);psx_mod_write_word(p+0x1f8,-900);
+        call(0x8003ebf4,p,0,0x80055934);
+        assert(std::abs((int32_t)psx_mod_read_word(p+0x1fc)+1000)<1 && (int32_t)psx_mod_read_word(p+0x1f8)==-900);
+        // Clearance refused: the vertical 97 drifts the pressed way, same speed.
+        auto blocked=[&](int reject) {
+            ground();ttk::input.move_x=0;ttk::input.move_y=-1;
+            call(0x800493a4,p,0,0x8005a3a0);call(0x8003ade4,c,p,0x80025ee8);
+            if(reject==1) {ground();ttk::input.move_x=ttk::input.move_y=0;call(0x800493a4,p,0,0x8005a3a0);}
+            psx_mod_write_half(p+0x60,97);psx_mod_write_byte(p+0x22c,9);psx_mod_write_byte(p+0x22d,reject==2?9:0);
+            psx_mod_write_word(p+0x1f4,0);psx_mod_write_word(p+0x1fc,1000);psx_mod_write_word(p+0x1f8,-9000);
+            if(reject==3)ttk::input.held[ttk::original_aim]=true;
+            if(reject==4)ttk::modern=false;
+            uint32_t ra=reject==5?0x80055934:0x80055bc4;
+            writes=0;call(0x8003ebf4,p,0,ra);
+            ttk::input.held[ttk::original_aim]=false;ttk::modern=true;
+            return (int32_t)psx_mod_read_word(p+0x1fc);
+        };
+        assert(std::abs(blocked(0)+1000)<1 && (int32_t)psx_mod_read_word(p+0x1f8)==-9000 && psx_mod_read_word(p+0x1f4)==0);
+        for(int reject=1;reject<=5;++reject)assert(blocked(reject)==1000);
+        // Jump, then hold S: manual steers the vertical 97 (cap: its drift,
+        // at least 2048); assisted, aim and a stale epoch keep the drift.
+        auto vertical=[&](const char* style,int reject) {
+            setenv("DNTTK_JUMP",style,1);
+            ground();ttk::input.move_x=ttk::input.move_y=0;
+            call(0x800493a4,p,0,0x8005a3a0);call(0x8003ade4,c,p,0x80025ee8);
+            psx_mod_write_half(p+0x60,97);psx_mod_write_byte(p+0x22c,9);psx_mod_write_byte(p+0x22d,0);
+            psx_mod_write_word(p+0x1f4,0);psx_mod_write_word(p+0x1fc,1000);psx_mod_write_word(p+0x1f8,-9000);
+            call(0x8003ebf4,p,0,0x80055bc4);assert(psx_mod_read_word(p+0x1fc)==1000); // takeoff: no direction yet
+            psx_mod_write_byte(p+0x22d,9);ttk::input.move_y=-1;psx_mod_write_half(p+0xba,11);
+            if(reject==1)ttk::input.held[ttk::original_aim]=true;
+            if(reject==2)++ttk::input.epoch;
+            for(int i=0;i<30;++i)call(0x8003ebf4,p,0,0x80055bc4);
+            ttk::input.held[ttk::original_aim]=false;unsetenv("DNTTK_JUMP");
+            assert((int32_t)psx_mod_read_word(p+0x1f8)==-9000);
+            return (int32_t)psx_mod_read_word(p+0x1fc);
+        };
+        assert(std::abs(vertical("manual",0)+2048)<2);   // reversed, at the 2048 floor
+        assert(vertical("assisted",0)==1000 && vertical("manual",1)==1000 && vertical("manual",2)==1000);
+        std::puts("PASS: D08Z7 jumps out of landings, bumps and the landing update stay owned (no facing-direction 98); blocked 97 drifts the pressed way; manual steers the vertical 97 (assisted/aim/epoch keep the drift); neutral/airborne/aim/Vanilla/caller untouched");
+    }
     // D08Z6: clearance, not proximity, permits forward acceleration. Manual
     // running builds speed through the ordinary steering and sweep path;
     // walking/assisted keep the standing cap, and release adds no impulse.

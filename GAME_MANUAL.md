@@ -592,6 +592,18 @@ Original clearance checks can refuse a directional jump near an obstruction.
 This input-order behavior was **accepted by the player on 2026-09-27**; see the
 [controls record](documentation/34-standing-directional-jumps.md).
 
+Backward, sideways and diagonal jumps (D08Z7, accepted 2026-11-03) take off
+the same way as a forward jump, in the direction you hold, also when Space is
+held through a landing, a hard landing or a bump against a wall: Duke never
+jumps forward while you hold S. When something right behind Duke refuses the
+jump, he hops straight up and drifts the way you pressed (into the obstacle),
+not forward. Running backward or sideways with **Shift** gives the same
+running jump as running forward. If the jump lands Duke on a slope too
+steep to stand on, a jump from the slide also follows the keys you hold:
+toward the slope he climbs it as before, any other way he jumps that way.
+With the manual jump style, a jump started with Space alone can be steered
+too: jump, then hold S and he comes down behind where he took off.
+
 Armed airborne **E** requests accelerate only the required original stow
 transition so the weapon can clear before ladder contact. Attachment still needs
 valid original contact; safe exit restores the intended weapon automatically.

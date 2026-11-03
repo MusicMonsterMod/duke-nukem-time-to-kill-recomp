@@ -48,14 +48,19 @@ static void manual_air_seed() {
 }
 // From the owned ballistic update (0x8003ebf4 from 0x80055934), before the
 // original gravity, swept collision and integration of this update.
+static void manual_air_steer(const InputFrame& f,double cap);
 static void manual_air_control(const InputFrame& f) {
     if(!manual_jump() || !flight_valid || flight_epoch!=f.epoch || f.held[original_aim] || air_cap<=0)return;
+    manual_air_steer(f,air_cap);
+}
+// D08Z7: the vertical jump 97 steers too (its own cap, see modern_controls.cpp).
+static void manual_air_steer(const InputFrame& f,double cap) {
     if(!f.move_x && !f.move_y)return;
     const Vec2 wish=movement(view_yaw(),f.move_x,f.move_y);
     const unsigned dt=psx_mod_read_half(player+0xba);
     const double scale=dt>0 && dt<=64?dt/air_nominal_dt:1.0;
     Vec2 v{(double)(int32_t)psx_mod_read_word(player+0x1f4),(double)(int32_t)psx_mod_read_word(player+0x1fc)};
-    v=air_steer(v,wish,air_cap,air_cap*air_accel_fraction*air_control_scale()*scale);
+    v=air_steer(v,wish,cap,cap*air_accel_fraction*air_control_scale()*scale);
     psx_mod_write_word(player+0x1f4,(int32_t)std::lround(v.x));
     psx_mod_write_word(player+0x1fc,(int32_t)std::lround(v.z));
     ++air_steers;

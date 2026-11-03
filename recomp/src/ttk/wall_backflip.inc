@@ -72,20 +72,38 @@ static void wall_backflip_launch(CPUState* cpu) {
 // Modern: that start becomes 98, the original's own jump off a slope, in
 // Duke's facing. A standing jump's 99/100 (Down held at 0x8005492c) is left
 // alone.
-static unsigned wall_backflip_jumps,wall_backflip_climbs;
-static bool wall_backflip_climb_pending;
+// D08Z7: with a camera-relative direction held (Modernized input), the
+// slide jump follows it instead of Duke's facing: toward the face it is the
+// climbing slope jump below, otherwise the 98 leaves the pressed way at its
+// own speed. Backing onto a slope (143, facing down it) and jumping with S
+// held used to leap forward off it. No direction keeps the facing rule.
+static unsigned wall_backflip_jumps,wall_backflip_climbs,wall_backflip_redirects;
+static bool wall_backflip_climb_pending,wall_backflip_redirect_pending;
+static Vec2 wall_backflip_intent{};
 static void wall_backflip_jump(CPUState* cpu) {
     const uint32_t ra=cpu->gpr[31];
     if(cpu->gpr[4]!=player || (ra!=0x8005a3a0 && ra!=0x8005a4d0))return;
     const bool pending=wall_backflip_jump_pending;
     wall_backflip_jump_pending=false;
+    wall_backflip_redirect_pending=false;
     const unsigned animation=psx_mod_read_half(player+0x60);
-    if(!pending || !wall_backflip_modern() || (animation!=99 && animation!=100) || psx_mod_read_half(player+0x68)!=0 ||
-       !player_identity_ready())return;
+    if(!pending || !wall_backflip_modern() || (animation!=98 && animation!=99 && animation!=100) ||
+       psx_mod_read_half(player+0x68)!=0 || !player_identity_ready())return;
+    const auto& f=input_snapshot(Context::Gameplay);
+    const bool directed=input_modernized() && independent_camera() && f.active && !f.held[original_aim] &&
+        (f.move_x || f.move_y);
+    bool climb=animation!=98;
+    if(directed) {
+        constexpr double turn=6.283185307179586/4096;
+        const double uphill=((int16_t)psx_mod_read_half(player+0x2bc)+2048)*turn;
+        wall_backflip_intent=movement(view_yaw(),f.move_x,f.move_y);
+        climb=wall_backflip_intent.x*std::sin(uphill)+wall_backflip_intent.z*std::cos(uphill)>0;
+    } else if(animation==98)return;
     if(std::getenv("DNTTK_TRAVERSAL_TRACE"))
-        std::fprintf(stderr,"ttk-wall-backflip jump anim=%u mode=%u yaw=%u slope=%u\n",animation,psx_mod_read_byte(player+0x22c),psx_mod_read_half(player+0x24),psx_mod_read_half(player+0x2bc));
+        std::fprintf(stderr,"ttk-wall-backflip jump anim=%u mode=%u yaw=%u slope=%u directed=%d climb=%d\n",animation,psx_mod_read_byte(player+0x22c),psx_mod_read_half(player+0x24),psx_mod_read_half(player+0x2bc),directed,climb);
     psx_mod_write_half(player+0x60,98);psx_mod_write_half(player+0x23e,98);
-    wall_backflip_climb_pending=true;
+    if(climb)wall_backflip_climb_pending=true;
+    else wall_backflip_redirect_pending=true;
     ++wall_backflip_jumps;
 }
 // The original 98 from there goes nowhere: Duke takes off pressed into the
@@ -123,6 +141,19 @@ static uint32_t wall_backflip_drift[2];
 static unsigned wall_backflip_climb_updates,wall_backflip_lifts;
 static void wall_backflip_climb(CPUState* cpu) {
     if(cpu->gpr[4]!=player || cpu->gpr[31]!=0x80055934)return;
+    // D08Z7: a slide jump away from the face leaves the pressed way, with the
+    // slope jump's rise when the fall had already started.
+    if(wall_backflip_redirect_pending) {
+        wall_backflip_redirect_pending=false;
+        if(psx_mod_read_half(player+0x60)==98 && psx_mod_read_byte(player+0x22c)==9 &&
+           !(psx_mod_read_word(player)&0x20002) && player_identity_ready()) {
+            if((int32_t)psx_mod_read_word(player+0x1f8)>=0)psx_mod_write_word(player+0x1f8,(uint32_t)wall_backflip_rise);
+            auto v=redirect((int32_t)psx_mod_read_word(player+0x1f4),(int32_t)psx_mod_read_word(player+0x1fc),wall_backflip_intent);
+            psx_mod_write_word(player+0x1f4,(uint32_t)(int32_t)std::lround(v.x));
+            psx_mod_write_word(player+0x1fc,(uint32_t)(int32_t)std::lround(v.z));
+            ++wall_backflip_redirects;
+        }
+    }
     const bool pending=wall_backflip_climb_pending;
     wall_backflip_climb_pending=false;
     // From the bottom of the face the handler has already started the fall
@@ -177,8 +208,8 @@ static void wall_backflip_climb(CPUState* cpu) {
     }
 }
 static const char* wall_backflip_debug_json() {
-    static char buffer[160];
-    std::snprintf(buffer,sizeof buffer,"{\"modern\":%s,\"slides\":%u,\"stops\":%u,\"jumps\":%u,\"climbs\":%u,\"lifts\":%u}",wall_backflip_modern()?"true":"false",
-        wall_backflip_slides,wall_backflip_stops,wall_backflip_jumps,wall_backflip_climbs,wall_backflip_lifts);
+    static char buffer[192];
+    std::snprintf(buffer,sizeof buffer,"{\"modern\":%s,\"slides\":%u,\"stops\":%u,\"jumps\":%u,\"climbs\":%u,\"redirects\":%u,\"lifts\":%u}",wall_backflip_modern()?"true":"false",
+        wall_backflip_slides,wall_backflip_stops,wall_backflip_jumps,wall_backflip_climbs,wall_backflip_redirects,wall_backflip_lifts);
     return buffer;
 }

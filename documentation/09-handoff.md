@@ -1,5 +1,39 @@
 # Next-session handoff
 
+## 2026-11-03 - D08Z7 accepted and closed
+
+User: "it's a winner!!! lock and load - close us out". D08Z7 is Done
+([note 368](documentation/368-d08z7-backward-jumps.md)): backward, sideways
+and diagonal jumps go the way you hold, also when Space is held through
+landings and wall bumps, out of a slope slide (toward the slope: the
+climbing slope jump) and, in the manual style, when a Space-alone jump is
+steered after takeoff. Executable `d214c47d11cd04abe4d9098c2a76d36ff78ec0120897384ab833f992f3739481`. Remaining limit: the airborne body
+pose stays the directional/running jump pose.
+
+## 2026-11-03 - D08Z7 revision 2 (Needs playtest)
+
+User retest at UI slot 11 (file slot 10): backward jumps still went forward,
+and jump-then-S moved Duke forward. Causes: the backward hop lands on a steep
+slope and the held Space takes the original slide jump along Duke's facing
+(+2785 forward); the vertical jump 97 had no air control and drifts forward
+(+717). Now a held direction picks the slide jump (toward the face: D08Z5
+climb; otherwise the pressed way) and manual steers the vertical jump.
+Executable `d214c47d11cd04abe4d9098c2a76d36ff78ec0120897384ab833f992f3739481`. Next: the user's playtest at UI 11.
+[Note 368](documentation/368-d08z7-backward-jumps.md).
+
+## 2026-11-02 - D08Z7: backward jumps keep their direction (Needs playtest)
+
+With keys held, a jump taken straight out of a hard landing (106), a light
+landing (105), a wall bump (94/95) or on the landing update itself was not
+owned by the Modernized takeoff (no recent grounded camera sample), so the
+original 98 flew along Duke's facing: a forward jump while S was held. Those
+poses now count as ground and the landing update is accepted after a live
+jump camera; a clearance-refused directional jump (vertical 97) drifts the
+pressed way. Slot 7 and the drop below: every S flight backward in manual
+and assisted, first and third person; other jumps match the baseline.
+Executable `48d9f484a35d7b8648eb89f2dcc927895ac284680005e82de42a4b30a30c981d`. Next: the user's playtest. Lab
+`recomp/analysis/d08z7-backward-jump/`, [note 368](documentation/368-d08z7-backward-jumps.md).
+
 ## 2026-11-02 - D08G8 accepted and closed; D08Z7 added
 
 User: "i confirm its all working". D08G8 is Done: typed cheats work in every

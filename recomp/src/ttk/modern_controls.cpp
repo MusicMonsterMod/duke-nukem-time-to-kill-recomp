@@ -91,7 +91,10 @@ static uint64_t takeoff_epoch, takeoff_frame;
 static Vec2 takeoff_intent{};
 static bool takeoff_obstacle;
 static int32_t takeoff_top;
-static unsigned standing_takeoffs;
+static unsigned standing_takeoffs, blocked_drifts;
+static bool vertical_steer;
+static uint64_t vertical_epoch;
+static double vertical_cap;
 static bool takeoff_owned() {
     const auto& f=input_snapshot(Context::Gameplay);
     return takeoff_valid && f.active && takeoff_epoch==f.epoch &&
@@ -1325,11 +1328,16 @@ static void hook_body(CPUState* cpu, uint32_t address) {
         kick_convert(cpu,ra);
         // Original lower-body initializer, after the game accepted jump from
         // normal ground. Keep its 96 preparation and clearance choice intact.
+        // D08Z7: a held jump can land and take off again in one update, so
+        // the last camera sample is still the live jump camera, not ground.
+        const bool landed_ground=jump_camera && camera_frame && camera_epoch==f.epoch &&
+            within_frame(f.sequence,camera_frame);
         if(cpu->gpr[4]!=player || (ra!=0x8005a3a0 && ra!=0x8005a4d0) || psx_mod_read_half(player+0x60)!=96 ||
            psx_mod_read_half(player+0x68)!=0 || !f.active || !independent_camera() ||
-           !ground_frame || ground_epoch!=f.epoch || !within_frame(f.sequence,ground_frame) ||
+           !(landed_ground || (ground_frame && ground_epoch==f.epoch && within_frame(f.sequence,ground_frame))) ||
            !player_identity_ready() || (psx_mod_read_word(player)&0x20002) ||
-           psx_mod_read_byte(player+0x22c)!=0 || psx_mod_read_byte(player+0x22d)!=0 ||
+           psx_mod_read_byte(player+0x22c)!=0 ||
+           (psx_mod_read_byte(player+0x22d)!=0 && !(landed_ground && psx_mod_read_byte(player+0x22d)==9)) ||
            (psx_mod_read_word(player+0x224)&0x202002c1) || f.held[crouch] || f.held[original_aim])return;
         if(takeoff_owned())return;
         takeoff_intent=movement(view_yaw(),f.move_x,f.move_y);
@@ -1474,6 +1482,36 @@ static void hook_body(CPUState* cpu, uint32_t address) {
         if(std::getenv("DNTTK_TRAVERSAL_TRACE") && cpu->gpr[4]==player)
             std::fprintf(stderr,"ttk-jump ra=%08x anim=%u state=%u/%u flags=%08x had=%d gap=%llu epoch=%llu/%llu\n",ra,psx_mod_read_half(player+0x60),psx_mod_read_byte(player+0x22c),psx_mod_read_byte(player+0x22d),psx_mod_read_word(player+0x224),had_movement,(unsigned long long)(f.sequence-movement_frame),(unsigned long long)f.epoch,(unsigned long long)intent_epoch);
 
+        // D08Z7: the vertical jump 97 of an owned takeoff. When original
+        // clearance refused a directional takeoff, its small drift along Duke's
+        // facing (it shows on the descent) points where the player pressed
+        // instead, so a blocked backward jump never travels forward. Manual
+        // style steers it like any other jump, capped at that drift (at least
+        // the walking-fall floor): jump, then hold S, and Duke comes down
+        // behind, not in front. Original gravity, height and swept collision;
+        // with no key held Space alone keeps the original drift.
+        if(cpu->gpr[4]==player && ra==0x80055bc4 && f.active && psx_mod_read_half(player+0x60)==97 &&
+           psx_mod_read_byte(player+0x22c)==9 &&
+           !(psx_mod_read_word(player)&0x20002) && !(psx_mod_read_word(player+0x224)&0x20000200) && identity()) {
+            if(psx_mod_read_byte(player+0x22d)==0) {
+                vertical_steer=false;
+                if(takeoff_owned() && !f.held[original_aim]) {
+                    if(takeoff_direction) {
+                        auto v=redirect((int32_t)psx_mod_read_word(player+0x1f4),
+                                        (int32_t)psx_mod_read_word(player+0x1fc),takeoff_intent);
+                        psx_mod_write_word(player+0x1f4,(int32_t)std::lround(v.x));
+                        psx_mod_write_word(player+0x1fc,(int32_t)std::lround(v.z));
+                        ++blocked_drifts;
+                    }
+                    vertical_steer=true;vertical_epoch=f.epoch;
+                    vertical_cap=std::max(std::hypot((double)(int32_t)psx_mod_read_word(player+0x1f4),
+                                                     (double)(int32_t)psx_mod_read_word(player+0x1fc)),air_cap_floor);
+                }
+            } else if(vertical_steer && vertical_epoch==f.epoch && manual_jump() && !f.held[original_aim]) {
+                manual_air_steer(f,vertical_cap);
+            }
+            return;
+        }
         // Directional-jump ballistic update: initial takeoff is 9/0 before 9/9.
         // Latch the last supported movement
         // direction once, before original gravity, swept collision and integration.
@@ -1710,7 +1748,14 @@ static void hook_body(CPUState* cpu, uint32_t address) {
             swim_frame=f.sequence;swim_epoch=f.epoch;
             swim_update(cpu,true);
         }
-        if(state() && (animation==63 || (animation>=72 && animation<=79))) {
+        // D08Z7: the original also takes a held or repeated jump straight out
+        // of a landing (105/106) or a wall bump (94/95). Those are settled
+        // ground poses with camera-only leases; without a sample here the
+        // takeoff was unowned and 98 left along Duke's facing (a forward jump
+        // with S held).
+        if((state() && (animation==63 || (animation>=72 && animation<=79))) ||
+           (state(true) && (landing_pose_anim(animation) || animation==105) &&
+            psx_mod_read_byte(player+0x22c)==0 && psx_mod_read_byte(player+0x22d)==0)) {
             ground_frame=f.sequence;ground_epoch=f.epoch;
         }
         // A short run-up can enter jump before a root-motion callback. Keep the
@@ -2102,10 +2147,10 @@ bool first_person_interaction_drawing() {return first_person_limb_presentation()
 bool first_person_weapon_drawing() {return first_person_limb_presentation().viewmodel();}
 const char* controls_debug_json() {
     static char buffer[8192];
-    std::snprintf(buffer,sizeof buffer,"{\"free_look\":{\"active\":%s,\"held\":%s,\"offset_yaw\":%.6f,\"offset_pitch\":%.6f},\"tight_camera\":{\"live\":%s,\"safe_boom\":%.2f,\"compressed\":%s,\"coverage\":%.4f},\"mouse_deg\":%.4f,\"edge_jumps\":%u,\"step_drops\":%u,\"run_offs\":%u,\"delayed_jumps\":%u,\"standing_takeoffs\":%u,\"swim_mantles\":%u,\"wade_jumps\":%u,\"swim_dives\":%u,\"swim_dive_stops\":%u,\"swim_paces\":%u,\"swimming\":\"%s\",\"swim_fire_masks\":%u,\"swim_fire_restores\":%u,\"swim_aims\":%u,\"swim_aim_restores\":%u,\"swim_arm_aims\":%u,\"swim_redraws\":%u,\"swim_fire_draws\":%u,\"ledge_assists\":%u,\"jet_updates\":%u,\"jet_hovers\":%u,\"jet_descents\":%u,\"jet_hold_captures\":%u,\"jet_root_nudges\":%u,\"jet\":%s,\"jet_scheme\":\"%s\",\"jet_classic\":%s,\"jet_classic_updates\":%u,\"push_masks\":%u,\"push_idle_masks\":%u,\"push_grab\":%s,\"ledge_reach_arms\":%u,\"air_mantles\":%u,\"hang_releases\":%u,\"lift_catches\":%u,\"turn_catches\":%u,\"drop_mantles\":%u,\"last_drop_rel\":%d,\"step_ups\":%u,\"mantle_upper_handoffs\":%u,\"mantle_upper_restores\":%u,\"last_step_rel\":%d,\"edge_postpones\":%u,\"jump_style\":\"%s\",\"air_steers\":%u,\"coyote_jumps\":%u,\"quick_takeoffs\":%u,\"air_cap\":%.0f,\"hang_settles\":%u,\"ceiling\":{\"ready\":%s,\"updates\":%u,\"turns\":%u,\"advances\":%u,\"drops\":%u},\"ladder_top\":{\"available\":%s,\"active\":%s,\"starts\":%u,\"mounts\":%u,\"aborts\":%u,\"leaps\":%u,\"leap_nudges\":%u,\"end_probes\":%u,\"end_hits\":%u,\"end_stops\":%u,\"mount_finishes\":%u,\"actor_exits\":%u,\"actor_exit_checks\":%u},\"pole\":{\"mount_starts\":%u,\"mounts\":%u,\"mount_aborts\":%u,\"floor_rejects\":%u,\"stall_drops\":%u,\"mounting\":%s},\"identity_calls\":%llu,\"identity_checks\":%llu,\"identity_us\":%llu,\"selections\":%llu,\"jumps\":%llu,\"speed_changes\":%llu,\"moves\":%llu,\"probes\":%llu,\"cameras\":%llu,\"frame_window\":%u,\"refusals\":%llu,\"ready\":%s,\"swim\":%s,\"looks\":%llu,\"orbits\":%llu,\"yaw\":%.6f,\"pitch\":%.6f,\"radius\":%.3f,\"preferred_radius\":%.3f,\"shoulder_offset\":%.3f,\"recentering\":%s,\"recenters\":%llu,\"rest_pitch\":%.6f,\"key_look\":{\"hold\":%d,\"lock\":%s,\"returning\":%s,\"looks\":%llu,\"returns\":%llu,\"taps\":%llu},\"key_turn\":{\"hold\":%d,\"running\":%s,\"turns\":%llu},\"selected_item\":%u,\"last_weapon\":%u,\"crouch_entries\":%u,\"crouch_exits\":%u,\"crouch_blocked\":%u,\"facings\":%llu,\"arms\":%llu,\"orientations\":%llu,\"fp\":{\"action\":\"%s\",\"effective\":%s,\"requested\":%s,\"supported\":%s,\"blend\":%.3f,\"reason\":\"%s\",\"updates\":%llu,\"fallbacks\":%llu,\"follows\":%llu,\"head_hides\":%llu,\"head_reclaims\":%llu,\"head_flag\":%u,\"min_boom\":%u,\"projection\":%d,\"fov\":%s,\"projections\":%llu,\"near\":%s,\"weapon\":{\"enabled\":%s,\"hands\":%llu,\"draws\":%llu,\"flashes\":%llu,\"items\":%llu,\"readies\":%llu,\"pose\":\"%s\",\"recorded\":%llu,\"arm_hides\":%llu,\"fade_clears\":%llu,\"matrix\":%u},\"kick\":%s},\"aim\":%s,\"draw_distance\":%s,\"steroids\":%s,\"steroid_beat\":%s,\"pickup_select\":%s,\"run_click\":%s,\"powerups\":%s,\"jump_walls\":%s,\"landing\":%s,\"wall_backflip\":%s,\"dynamite\":%s}",
+    std::snprintf(buffer,sizeof buffer,"{\"free_look\":{\"active\":%s,\"held\":%s,\"offset_yaw\":%.6f,\"offset_pitch\":%.6f},\"tight_camera\":{\"live\":%s,\"safe_boom\":%.2f,\"compressed\":%s,\"coverage\":%.4f},\"mouse_deg\":%.4f,\"edge_jumps\":%u,\"step_drops\":%u,\"run_offs\":%u,\"delayed_jumps\":%u,\"standing_takeoffs\":%u,\"blocked_drifts\":%u,\"swim_mantles\":%u,\"wade_jumps\":%u,\"swim_dives\":%u,\"swim_dive_stops\":%u,\"swim_paces\":%u,\"swimming\":\"%s\",\"swim_fire_masks\":%u,\"swim_fire_restores\":%u,\"swim_aims\":%u,\"swim_aim_restores\":%u,\"swim_arm_aims\":%u,\"swim_redraws\":%u,\"swim_fire_draws\":%u,\"ledge_assists\":%u,\"jet_updates\":%u,\"jet_hovers\":%u,\"jet_descents\":%u,\"jet_hold_captures\":%u,\"jet_root_nudges\":%u,\"jet\":%s,\"jet_scheme\":\"%s\",\"jet_classic\":%s,\"jet_classic_updates\":%u,\"push_masks\":%u,\"push_idle_masks\":%u,\"push_grab\":%s,\"ledge_reach_arms\":%u,\"air_mantles\":%u,\"hang_releases\":%u,\"lift_catches\":%u,\"turn_catches\":%u,\"drop_mantles\":%u,\"last_drop_rel\":%d,\"step_ups\":%u,\"mantle_upper_handoffs\":%u,\"mantle_upper_restores\":%u,\"last_step_rel\":%d,\"edge_postpones\":%u,\"jump_style\":\"%s\",\"air_steers\":%u,\"coyote_jumps\":%u,\"quick_takeoffs\":%u,\"air_cap\":%.0f,\"hang_settles\":%u,\"ceiling\":{\"ready\":%s,\"updates\":%u,\"turns\":%u,\"advances\":%u,\"drops\":%u},\"ladder_top\":{\"available\":%s,\"active\":%s,\"starts\":%u,\"mounts\":%u,\"aborts\":%u,\"leaps\":%u,\"leap_nudges\":%u,\"end_probes\":%u,\"end_hits\":%u,\"end_stops\":%u,\"mount_finishes\":%u,\"actor_exits\":%u,\"actor_exit_checks\":%u},\"pole\":{\"mount_starts\":%u,\"mounts\":%u,\"mount_aborts\":%u,\"floor_rejects\":%u,\"stall_drops\":%u,\"mounting\":%s},\"identity_calls\":%llu,\"identity_checks\":%llu,\"identity_us\":%llu,\"selections\":%llu,\"jumps\":%llu,\"speed_changes\":%llu,\"moves\":%llu,\"probes\":%llu,\"cameras\":%llu,\"frame_window\":%u,\"refusals\":%llu,\"ready\":%s,\"swim\":%s,\"looks\":%llu,\"orbits\":%llu,\"yaw\":%.6f,\"pitch\":%.6f,\"radius\":%.3f,\"preferred_radius\":%.3f,\"shoulder_offset\":%.3f,\"recentering\":%s,\"recenters\":%llu,\"rest_pitch\":%.6f,\"key_look\":{\"hold\":%d,\"lock\":%s,\"returning\":%s,\"looks\":%llu,\"returns\":%llu,\"taps\":%llu},\"key_turn\":{\"hold\":%d,\"running\":%s,\"turns\":%llu},\"selected_item\":%u,\"last_weapon\":%u,\"crouch_entries\":%u,\"crouch_exits\":%u,\"crouch_blocked\":%u,\"facings\":%llu,\"arms\":%llu,\"orientations\":%llu,\"fp\":{\"action\":\"%s\",\"effective\":%s,\"requested\":%s,\"supported\":%s,\"blend\":%.3f,\"reason\":\"%s\",\"updates\":%llu,\"fallbacks\":%llu,\"follows\":%llu,\"head_hides\":%llu,\"head_reclaims\":%llu,\"head_flag\":%u,\"min_boom\":%u,\"projection\":%d,\"fov\":%s,\"projections\":%llu,\"near\":%s,\"weapon\":{\"enabled\":%s,\"hands\":%llu,\"draws\":%llu,\"flashes\":%llu,\"items\":%llu,\"readies\":%llu,\"pose\":\"%s\",\"recorded\":%llu,\"arm_hides\":%llu,\"fade_clears\":%llu,\"matrix\":%u},\"kick\":%s},\"aim\":%s,\"draw_distance\":%s,\"steroids\":%s,\"steroid_beat\":%s,\"pickup_select\":%s,\"run_click\":%s,\"powerups\":%s,\"jump_walls\":%s,\"landing\":%s,\"wall_backflip\":%s,\"dynamite\":%s}",
         free_look.active?"true":"false",free_look.held?"true":"false",free_look.x,free_look.y,
         third_person_camera_live()?"true":"false",tight_distance,tight_compressed?"true":"false",third_person_body_coverage(),sensitivity()*360/tau,
-        edge_jumps,step_drops,run_offs,delayed_jumps,standing_takeoffs,swim_mantles,wade_jumps,swim_dives,swim_dive_stops,swim_paces,swimming_modern()?"modern":"original",swim_fire_masks,swim_fire_restores,swim_aims,swim_aim_restores,swim_arm_aims,swim_redraws,swim_fire_draws,ledge_assists,jet_updates,jet_hover_engages,jet_descents,jet_hold_captures,jet_root_nudges,jetpack_input_ready()?"true":"false",jetpack_classic()?"classic":jetpack_eduke32()?"eduke32":"modern",jetpack_classic_input_ready()?"true":"false",jet_classic_updates,push_masks,push_idle_masks,push_grab_ready()?"true":"false",ledge_reach_arms,air_mantles,hang_releases,lift_catches,turn_catches,drop_mantles,last_drop_rel,step_ups,mantle_upper_handoffs,mantle_upper_restores,last_step_rel,edge_postpones,manual_jump()?"manual":"assisted",air_steers,coyote_jumps,quick_takeoffs,air_cap,hang_settles,ceiling_hang_ready()?"true":"false",ceiling_updates,ceiling_turns,ceiling_advances,ceiling_drops,ladder_top_available()?"true":"false",mount.active?"true":"false",ladder_mount_starts,ladder_mounts,ladder_mount_aborts,ladder_leaps,ladder_leap_nudges,ladder_end_probes,ladder_end_hits,ladder_end_stops,ladder_mount_finishes,ladder_actor_exits,ladder_actor_checks,pole_mount_starts,pole_mounts,pole_mount_aborts,pole_floor_rejects,pole_stall_drops,pole_mount.active?"true":"false",(unsigned long long)identity_calls,(unsigned long long)identity_checks,(unsigned long long)(identity_ns/1000),(unsigned long long)selections,(unsigned long long)jumps,(unsigned long long)speed_changes,(unsigned long long)moves,(unsigned long long)probes,(unsigned long long)cameras,frame_window,
+        edge_jumps,step_drops,run_offs,delayed_jumps,standing_takeoffs,blocked_drifts,swim_mantles,wade_jumps,swim_dives,swim_dive_stops,swim_paces,swimming_modern()?"modern":"original",swim_fire_masks,swim_fire_restores,swim_aims,swim_aim_restores,swim_arm_aims,swim_redraws,swim_fire_draws,ledge_assists,jet_updates,jet_hover_engages,jet_descents,jet_hold_captures,jet_root_nudges,jetpack_input_ready()?"true":"false",jetpack_classic()?"classic":jetpack_eduke32()?"eduke32":"modern",jetpack_classic_input_ready()?"true":"false",jet_classic_updates,push_masks,push_idle_masks,push_grab_ready()?"true":"false",ledge_reach_arms,air_mantles,hang_releases,lift_catches,turn_catches,drop_mantles,last_drop_rel,step_ups,mantle_upper_handoffs,mantle_upper_restores,last_step_rel,edge_postpones,manual_jump()?"manual":"assisted",air_steers,coyote_jumps,quick_takeoffs,air_cap,hang_settles,ceiling_hang_ready()?"true":"false",ceiling_updates,ceiling_turns,ceiling_advances,ceiling_drops,ladder_top_available()?"true":"false",mount.active?"true":"false",ladder_mount_starts,ladder_mounts,ladder_mount_aborts,ladder_leaps,ladder_leap_nudges,ladder_end_probes,ladder_end_hits,ladder_end_stops,ladder_mount_finishes,ladder_actor_exits,ladder_actor_checks,pole_mount_starts,pole_mounts,pole_mount_aborts,pole_floor_rejects,pole_stall_drops,pole_mount.active?"true":"false",(unsigned long long)identity_calls,(unsigned long long)identity_checks,(unsigned long long)(identity_ns/1000),(unsigned long long)selections,(unsigned long long)jumps,(unsigned long long)speed_changes,(unsigned long long)moves,(unsigned long long)probes,(unsigned long long)cameras,frame_window,
         (unsigned long long)refusals,lease_ready()?"true":"false",swim_lease_ready()?"true":"false",(unsigned long long)looks,(unsigned long long)orbits,yaw,pitch,radius,preferred_radius,shoulder_offset,recentering?"true":"false",(unsigned long long)recenters,rest_pitch,key_hold,key_lock?"true":"false",key_return?"true":"false",(unsigned long long)key_looks,(unsigned long long)key_returns,(unsigned long long)key_taps,turn_hold,turn_running?"true":"false",(unsigned long long)key_turns,selected_item,last_equipped,crouch_entries,crouch_exits,crouch_blocked,(unsigned long long)facings,(unsigned long long)arms,(unsigned long long)orientations,
         perspective_action(fp_policy.action),fp_policy.effective?"true":"false",fp_policy.selected?"true":"false",fp_policy.capable?"true":"false",fp_blend,perspective_reason(fp_policy.reason),(unsigned long long)fp_updates,(unsigned long long)fp_fallbacks,(unsigned long long)fp_follows,(unsigned long long)head_hides,(unsigned long long)head_reclaims,head_flag,psx_mod_read_word(min_boom_word),fp_blend>0?last_projection:(int)(int16_t)psx_mod_read_half(camera+0x42),first_person_fov_debug_json(),(unsigned long long)projections,near_clip_debug_json(),weapon_view_enabled()?"true":"false",(unsigned long long)weapon_hands,(unsigned long long)weapon_draws,(unsigned long long)weapon_flashes,(unsigned long long)weapon_items,(unsigned long long)weapon_readies,weapon_ready_pose()?"ready":"animated",(unsigned long long)poses_recorded,(unsigned long long)arm_hides,(unsigned long long)fade_clears,weapon_matrix,kick_debug_json(),aim_debug_json(),draw_distance_debug_json(),steroids_debug_json(),steroids_beat_debug_json(),pickup_select_debug_json(),run_click_debug_json(),powerups_debug_json(),jump_walls_debug_json(),landing_debug_json(),wall_backflip_debug_json(),dynamite_debug_json());
     return buffer;

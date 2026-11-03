@@ -1,5 +1,65 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-03 - D08Z7 accepted and closed
+
+User: "it's a winner!!! lock and load - close us out". D08Z7 is Done
+([note 368](documentation/368-d08z7-backward-jumps.md)): backward, sideways
+and diagonal jumps go the way you hold, also when Space is held through
+landings and wall bumps, out of a slope slide (toward the slope: the
+climbing slope jump) and, in the manual style, when a Space-alone jump is
+steered after takeoff. Executable `d214c47d11cd04abe4d9098c2a76d36ff78ec0120897384ab833f992f3739481`. Remaining limit: the airborne body
+pose stays the directional/running jump pose.
+
+## 2026-11-03 - D08Z7 revision 2: slot 11 slope jumps, jump-then-S (Needs playtest)
+
+User: "for me it's slot 11 ... the original problem still exists ... you
+could jump, and hold S, and it will cause duke to move forward". At UI 11
+(file slot 10) two more forward cases, both fixed
+([note 368](documentation/368-d08z7-backward-jumps.md)):
+
+- **Slope behind Duke** (`wall_backflip.inc`): the backward hop lands on a
+  face too steep to stand on; the held Space takes the original slide jump,
+  which leaps along Duke's facing (forward +2785 when he faces down the
+  slope). With a direction held the direction now decides: toward the face
+  is the D08Z5 climbing slope jump, otherwise the jump leaves the pressed
+  way. No key keeps the facing rule.
+- **Space, then S** (`modern_controls.cpp`, `manual_jump.inc`): the vertical
+  jump 97 had no air control and its original drift went forward (+717).
+  Manual now steers it like other jumps (capped at its drift, at least
+  2048); assisted keeps the fixed arc.
+- Evidence (executable `d214c47d11cd04abe4d9098c2a76d36ff78ec0120897384ab833f992f3739481`): UI 11 Space-then-S -536, all held:
+  backward hop then slope climbs in place; assisted/third backward; UI 7 and
+  drop-bottom routes unchanged; forward, sideways and Space-alone jumps as
+  before. `ttk-controls-test` passes (D08Z5 checks now neutral-input, new
+  slope and vertical-steer cases).
+
+## 2026-11-02 - D08Z7: backward jumps keep their direction (Needs playtest)
+
+- **Cause** (`modern_controls.cpp`, [note 368](documentation/368-d08z7-backward-jumps.md)):
+  with keys held at slot 7, Duke hops back over the railing, lands hard
+  (106) and the original takes the next jump straight out of the landing.
+  The D08C takeoff owner needed a grounded camera sample, recorded only in
+  idle/walk/run, so jumps out of 105/106, wall bumps 94/95 or the landing
+  update itself were unowned and the original 98 flew along Duke's facing:
+  a forward jump (about 3600 units) with S held.
+- **Change**: the grounded sample also covers the settled poses 94/95/105/106
+  (camera-only lease, state 0/0); a takeoff on the landing update after a
+  live jump camera is accepted (also state 0/9). When clearance refuses an
+  owned directional jump, the vertical 97's small drift now follows the
+  pressed direction instead of Duke's facing. No height, speed, timing,
+  animation or clearance change; Space alone and Vanilla unchanged.
+- **Evidence** (executable `48d9f484a35d7b8648eb89f2dcc927895ac284680005e82de42a4b30a30c981d`, lab
+  `recomp/analysis/d08z7-backward-jump/`): slot 7 all-three-held, before:
+  98 back, 98 **forward +3636**, 103; after: every S flight backward in
+  manual/assisted, first/third person. Against the wall below the drop, held
+  S+Space now hops in place (-11..+53 along facing) instead of jumping
+  forward. Forward, sideways, running and Space-alone jumps match the
+  baseline. `ttk-controls-test` (new D08Z7 group, fails on the old code),
+  `ttk-input-test`, `ttk-aim-test` pass.
+- **Limits**: the airborne body pose stays the directional 98 / running
+  103/104 (Duke keeps his facing); a blocked jump keeps the original
+  vertical height. Needs the user's playtest.
+
 ## 2026-11-02 - D08G8 accepted and closed; D08Z7 added
 
 User: "i confirm its all working. great work". D08G8 is Done: typed cheats
@@ -16,7 +76,7 @@ slot 7. Initial measurements are in the job entry.
 
 ### D08Z7 - Backward jumps use the forward jump's technique (UI slot 7)
 
-**Status: Todo. Dependencies: D08Z, D08C, D08Z3.** User report: load UI
+**Status: Done (accepted by the user 2026-11-03, revision 2; see the work log above and [note 368](documentation/368-d08z7-backward-jumps.md)). Dependencies: D08Z, D08C, D08Z3.** User report: load UI
 slot 7 and jump backwards, holding Shift and pressing S then Space (or just
 holding all three): Duke ends up doing a forward jump. The user wants the
 backward jump to work the same way as the modern forward jump: a natural
@@ -3790,7 +3850,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08Z4 | First person briefly cuts to third person when jumping into the cop car (UI slot 6) | Done (user-accepted 2026-10-20) | D08Z1, D08V, D11 |
 | D08Z5 | WALL BACKFLIP option: Modern (default) replaces the steep-slope backflip and its backwards push with a slope jump that climbs; Original keeps it (UI slot 10 police car) | Done (user-accepted 2026-10-21) | D08Z1, D08Z4, D19N |
 | D08Z6 | Fluid forward jumps onto tall steps/ledges from a blocked run (UI slot 10, right corner) | Done | D08Z, D08Z1 |
-| D08Z7 | Backward jumps use the forward jump's natural technique (UI slot 7: Shift+S, Space gives a forward jump) | Todo | D08Z, D08C, D08Z3 |
+| D08Z7 | Backward jumps use the forward jump's natural technique (UI slot 7: Shift+S, Space gives a forward jump) | Done | D08Z, D08C, D08Z3 |
 | D08J1 | Hold-E run-up grab for overhead ladders (slot-6 ladder) | Done | D08J, D08X, D08U |
 | D08J2 | Poles and chains: A/D turn the wrong way (A turns right, D left) | Done (user-accepted; closed 2026-10-30) | D08J |
 | D08J4 | Ceiling monkey-bar climbing: camera-relative travel, no mid-span drops (player UI slot 3) | Done (user-accepted; closed 2026-10-30) | D08J, D22B |

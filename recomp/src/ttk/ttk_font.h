@@ -22,6 +22,8 @@ enum {TTK_FONT_PANEL_TITLE=3,TTK_FONT_PANEL_SLOT=4,TTK_FONT_PANEL_SLOT_SELECTED=
 // D08A19: 12 USED (system, the mockup's gold).
 enum {TTK_FONT_MISSION_FOUND=8,TTK_FONT_MISSION_LABEL=9,TTK_FONT_MISSION_COUNT=10,TTK_FONT_MISSION_COMPLETE=11,
       TTK_FONT_MISSION_USED=12};
+// D43: the level title card (TTK Big Italic, red, 1x, spacing -1, near-black shadow).
+enum {TTK_FONT_LEVEL_TITLE=13};
 int ttk_font_draw(int set,const char* text,uint32_t* dst,int dst_w,int dst_h,int x,int y);
 // D19T: the same with `spacing` extra pixels after each letter (one call per
 // line, so its double quotes open and close in turn).

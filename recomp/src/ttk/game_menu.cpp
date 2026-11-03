@@ -75,6 +75,7 @@
 #include "savestate_slots.h"
 #include "ttk_font.h"
 #include "inventory_hud.h"
+#include "ttk_font.h"
 #include <algorithm>
 #include <array>
 #include <atomic>
@@ -2076,6 +2077,53 @@ std::string text_of(int id) {
     for(uint32_t a=s;s>=0x80010000u && s<0x80200000u && t.size()<40;++a) {const char ch=(char)psx_mod_read_byte(a);if(!ch) break;t+=ch;}
     return t;
 }
+// ---- D43: the level title card ----
+// When a level starts (a new level, the next one after the statistics screen,
+// RESTART LEVEL, a savestate load; not CONTINUE, which respawns in place), its
+// name shows in red a little below the middle of the picture (Duke 3D's place,
+// under the crosshair), as EDuke32 shows the map name: 85 tics at 30 Hz, the
+// last 32 fading. The clock runs only while play does; pause and menus hold
+// and hide it. Drawn by the presenter from ttk_level_title_image (TTK font
+// set 13), in the game's screen pixels like the menu text (its width across
+// the 4:3 picture, 240 lines down).
+constexpr uint32_t level_phase=0x800ce1b0;
+constexpr uint16_t phase_playing=2;
+constexpr double title_total_ms=85*1000.0/30, title_fade_ms=32*1000.0/30;
+struct LevelCard {bool was_playing=false, pending=false;uint32_t loads=0;double left=0;uint64_t at=0;uint64_t shown=0;} level_card;
+std::mutex title_mutex;
+char title_text[64];
+int title_alpha=0, title_screen_w=0; // the game's screen width (the menu text's pixels)
+void title_publish(const char* text,int alpha) {
+    std::lock_guard<std::mutex> lock(title_mutex);
+    if(text) std::snprintf(title_text,sizeof title_text,"%s",text);
+    title_alpha=alpha;
+    if(text) {const int w=(int16_t)psx_mod_read_half(geometry+4);title_screen_w=w>=256 && w<=1024 ? w : 0;}
+}
+// Once per gameplay composition (game_menu_frame), Modernized only.
+void level_title_tick() {
+    const bool playing=psx_mod_read_half(game_mode)==1 && psx_mod_read_half(level_phase)==phase_playing;
+    const bool running=playing && !psx_mod_read_half(paused) && !psx_mod_read_half(0x800d2540);
+    const uint32_t loads=psx_mod_savestate_loads();
+    if(loads!=level_card.loads) {level_card.loads=loads;level_card.pending=playing;level_card.left=0;}
+    else if(playing && !level_card.was_playing) {level_card.pending=true;level_card.left=0;}
+    if(!playing) {level_card.pending=false;level_card.left=0;}
+    level_card.was_playing=playing;
+    const uint64_t now=SDL_GetTicks();
+    const double step=std::min<double>(double(now-level_card.at),100.0);
+    level_card.at=now;
+    if(level_card.pending && running) {
+        level_card.pending=false;
+        const int n=level(),id=n>=0 && n<32 ? (int16_t)half(level_names+2*n) : 0;
+        if(id>0 && id<=text_last) {
+            std::string name=text_of(id);
+            for(char& c:name) c=(char)std::toupper((unsigned char)c);
+            if(!name.empty()) {title_publish(name.c_str(),255);level_card.left=title_total_ms;++level_card.shown;return;}
+        }
+    }
+    if(running && level_card.left>0) level_card.left=std::max(0.0,level_card.left-step);
+    // Hidden (and held) under the pause menu and other screens.
+    title_publish(nullptr,!running || level_card.left<=0 ? 0 : level_card.left>=title_fade_ms ? 255 : (int)std::lround(255*level_card.left/title_fade_ms));
+}
 std::string slot_name(int slot) {
     const SlotInfo& s=slot_info[slot];
     if(!s.exists) return "EMPTY";
@@ -2985,9 +3033,10 @@ void apply_sound(CPUState* cpu) {
 }
 
 void game_menu_frame(CPUState* cpu) {
-    if(!enabled() || psx_mod_replay_active() || g_precise_mode || g_ls_mode || g_psx_call_bail) return;
+    if(!enabled() || psx_mod_replay_active() || g_precise_mode || g_ls_mode || g_psx_call_bail) {title_publish(nullptr,0);return;}
     {std::lock_guard<std::recursive_mutex> lock(mutex);savestate_check();quick_poll();}
     if(authentic()) {
+        level_title_tick(); // D43
         enforce_modern_settings();apply_sound(cpu);
         while(const int step=input_take_hud_step()) {
             if(psx_mod_read_half(game_mode)!=1 || psx_mod_read_half(paused)) continue;
@@ -3062,10 +3111,11 @@ extern "C" int ttk_load_ui_present_ready() {
 extern "C" const char* ttk_game_menu_json() {
     using namespace ttk;
     static char buffer[1280];
-    std::snprintf(buffer,sizeof buffer,"{\"settings\":{\"word\":%u,\"game_speed\":%u,\"enforced\":%llu,\"card_packs\":%llu,\"card_loads\":%llu,\"card_auto_aim\":%s},\"owned\":%s,\"page\":%d,\"screen\":%d,\"cursor\":%d,\"top\":%d,\"items\":%d,\"entries\":%llu,\"draws\":%llu,\"writes\":%llu,\"finals\":%llu,\"handoff\":%d,\"pending_state\":%d,\"loading\":%s,\"card\":[%llu,%llu,%llu],\"identity\":%s,\"drops\":%llu,\"drop\":[%d,%u,%u],\"skips\":[%llu,%llu,%llu,%llu],\"skip_ra\":\"%x\",\"quick\":[%d,%d,%d],\"stats\":[%d,%d,%llu,%llu]}",
+    std::snprintf(buffer,sizeof buffer,"{\"settings\":{\"word\":%u,\"game_speed\":%u,\"enforced\":%llu,\"card_packs\":%llu,\"card_loads\":%llu,\"card_auto_aim\":%s},\"owned\":%s,\"page\":%d,\"screen\":%d,\"cursor\":%d,\"top\":%d,\"items\":%d,\"entries\":%llu,\"draws\":%llu,\"writes\":%llu,\"finals\":%llu,\"handoff\":%d,\"pending_state\":%d,\"loading\":%s,\"card\":[%llu,%llu,%llu],\"identity\":%s,\"drops\":%llu,\"drop\":[%d,%u,%u],\"skips\":[%llu,%llu,%llu,%llu],\"skip_ra\":\"%x\",\"quick\":[%d,%d,%d],\"stats\":[%d,%d,%llu,%llu],\"title\":[%llu,%.0f]}",
         psx_mod_read_half(settings_word),psx_mod_read_half(game_speed),(unsigned long long)enforced,(unsigned long long)card_packs,(unsigned long long)card_loads,card.auto_aim?"true":"false",
         owned?"true":"false",(int)page,screen,cursor,top,(int)list.size(),(unsigned long long)entries,(unsigned long long)draws,(unsigned long long)writes,
-        (unsigned long long)finals,(int)handoff,pending_state,loading?"true":"false",(unsigned long long)card_skips,(unsigned long long)card_hidden,(unsigned long long)psx_mod_unpaced_vblanks(),identity_checked?(identity_ok?"true":"false"):"null",(unsigned long long)drops,drop_why,drop_state,drop_sub,(unsigned long long)skip_owned,(unsigned long long)skip_screen,(unsigned long long)skip_image,(unsigned long long)drawn_calls,skip_ra,quick_slot,direct_open?1:0,(int)direct,stats_open?1:0,stats_wait,(unsigned long long)stats_entries,(unsigned long long)stats_continues);
+        (unsigned long long)finals,(int)handoff,pending_state,loading?"true":"false",(unsigned long long)card_skips,(unsigned long long)card_hidden,(unsigned long long)psx_mod_unpaced_vblanks(),identity_checked?(identity_ok?"true":"false"):"null",(unsigned long long)drops,drop_why,drop_state,drop_sub,(unsigned long long)skip_owned,(unsigned long long)skip_screen,(unsigned long long)skip_image,(unsigned long long)drawn_calls,skip_ra,quick_slot,direct_open?1:0,(int)direct,stats_open?1:0,stats_wait,(unsigned long long)stats_entries,(unsigned long long)stats_continues,
+        (unsigned long long)level_card.shown,level_card.left);
     return buffer;
 }
 
@@ -3073,6 +3123,36 @@ extern "C" const char* ttk_game_menu_json() {
 // host_osd_draw_sdl): its pixels (transparent around the thumbnail and text)
 // and its rectangle (x, y, w, h) as fractions of the 4:3 menu area of the game
 // picture. Valid until the next call.
+// D43: the level title card's image (ARGB, alpha faded), 0 when none shows.
+// From the presenter thread.
+static constexpr int title_cap_w=1024,title_cap_h=48;
+static uint32_t title_out[title_cap_w*title_cap_h];
+extern "C" int ttk_level_title_image(const uint32_t** pixels,int* width,int* height,int* screen_width) {
+    using namespace ttk;
+    constexpr int cap_w=title_cap_w,cap_h=title_cap_h;
+    static uint32_t base[cap_w*cap_h];
+    uint32_t* const out=title_out;
+    static char drawn[64];static int drawn_alpha=-1,w=0,h=0;
+    char text[64];int alpha,screen_w;
+    {std::lock_guard<std::mutex> lock(title_mutex);std::memcpy(text,title_text,sizeof text);alpha=title_alpha;screen_w=title_screen_w;}
+    *pixels=nullptr;*width=*height=*screen_width=0;
+    if(alpha<=0 || !text[0] || !screen_w) return 0;
+    if(std::strcmp(text,drawn)) {
+        const int tw=ttk_font_text_width(TTK_FONT_LEVEL_TITLE,text),th=ttk_font_line_height(TTK_FONT_LEVEL_TITLE);
+        drawn_alpha=-1;w=h=0;std::snprintf(drawn,sizeof drawn,"%s",text);
+        if(tw<=0 || th<=0 || tw+4>cap_w || th>cap_h) return 0;
+        w=tw+4;h=th;
+        std::fill(base,base+w*h,0u);
+        ttk_font_draw(TTK_FONT_LEVEL_TITLE,text,base,w,h,0,0);
+    }
+    if(!w) return 0;
+    if(alpha!=drawn_alpha) {
+        for(int i=0;i<w*h;++i) out[i]=base[i] ? ((base[i]>>24)*(uint32_t)alpha/255u)<<24 | (base[i]&0xffffffu) : 0u;
+        drawn_alpha=alpha;
+    }
+    *pixels=out;*width=w;*height=h;*screen_width=screen_w;return 1;
+}
+extern "C" int ttk_level_title_pixels(const uint32_t* pixels) {return pixels==title_out;}
 extern "C" int ttk_menu_thumb_pixels(const uint32_t* pixels) {
     using namespace ttk;
     return pixels && pixels==overlay_out.data();

@@ -1,5 +1,48 @@
 # Next-session handoff
 
+## 2026-11-03 - D43 committed; D42 playtest round 1 (In progress)
+
+D43 committed on its own (D42 shares files; split at the user's choice). D42
+round 1: the mouse still moves on the death scene with a jitter, and the
+floor view does not match EDuke32's angle. Next: an EDuke32 clean-room study
+of the death view (the user's `deathtest` save). D42 code is local only.
+
+## 2026-11-03 - D43 accepted: level title card in the menu font's size
+
+User accepted D43 after a tweak: TTK Big Italic, 1x, spacing -1, shadow, in
+the title red, drawn in the game's screen pixels like the pause menu's level
+name, its top just under the crosshair as in EDuke32
+([note 374](374-d43-level-title.md)). Executable
+`044e2d959ff3dfbe8280fb714f0f34bbc2e08da8e7c1869302339fb44379913a`. D42 still
+awaits its playtest; the commit waits for it (shared files).
+
+## 2026-11-03 - D42 death scene and D43 level title (Needs playtest)
+
+D42 ([note 373](373-d42-death-scene.md)): a death stays on a live death scene
+under "PRESS E TO OPEN MENU"; E opens the death list (no continues line),
+Escape there returns to the scene; Escape on the scene is the pause menu;
+continues are unlimited; first person drops the view to the floor, third
+person keeps the original death camera. D43 ([note 374](374-d43-level-title.md)):
+the level's name in red near the middle when a level starts, restarts or a save
+loads (not after CONTINUE), about 2.8 s, fading. New hooks `0x80042be8`,
+`0x80042d04` (codegen hash unchanged); framework `host_osd_text_is`,
+`host_osd_title_image`; patch exported. Executable
+`65ec2d1d1e7e103943d302d630e4751e07ed33d8a794638769ed0baa1e887126`. Awaiting
+the user's playtest; D08G9 follows D42.
+
+## 2026-11-03 - Backlog intake: death state and menu (D42), level title card (D43); D08G9 waits on D42
+
+User request recorded as backlog only; nothing started. D42 (new): a death
+no longer opens the death list; Duke stays on the death scene (first person
+at floor level, third person the original animation) under a top line
+naming the bound Open key; Open opens the existing D19H death list, Escape
+returns to the scene; unlimited continues, no "N CONTINUES REMAINING";
+console usable while dead. D08G9 (existing dnkroz revive) updated in place
+and now depends on D42. D43 (new, independent): the level's name near the
+centre at level start, Duke 3D style, fading by itself. Open decisions are
+listed under each job on the board, notably that D42's first-person floor
+view reverses D35L's accepted third-person death view.
+
 ## 2026-11-03 - D26I accepted and closed: the numpad types in the console
 
 User: "confirmed working. lock it in, close us out". D26I is Done: the

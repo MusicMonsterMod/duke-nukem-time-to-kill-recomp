@@ -276,10 +276,10 @@ index 9f64b4ab..712af1f4 100644
                                      int *history_frames,
                                      double *host_hz, double *target_hz,
 diff --git a/runtime/include/host_osd.h b/runtime/include/host_osd.h
-index e4e6f307..63b065a7 100644
+index e4e6f307..07c33b5a 100644
 --- a/runtime/include/host_osd.h
 +++ b/runtime/include/host_osd.h
-@@ -16,11 +16,39 @@ extern "C" {
+@@ -16,11 +16,44 @@ extern "C" {
   * when OSD is gated off.
   */
  
@@ -295,6 +295,11 @@ index e4e6f307..63b065a7 100644
  void host_osd_push(const char *msg, int duration_ms);
 +void host_osd_push_centered(const char *msg, int duration_ms);
 +int host_osd_text_centered(void);
++/* D43: the level title card image (alpha faded) in the game's screen pixels
++ * (screen_w across the 4:3 picture, 240 lines down); 1 while it shows. */
++int host_osd_title_image(const uint32_t **pixels, int *w, int *h, int *screen_w);
++/* D43: the title's top below the picture's top (just under the crosshair). */
++int host_osd_title_top(int picture_h);
 +int host_osd_inventory_image(const uint32_t **pixels, int *w, int *h, int available_width);
 +/* Title card surface drawn at the top centre (y 14 in 480-line units). */
 +int host_osd_card_image(const uint32_t **pixels, int *w, int *h, int available_width);
@@ -2511,7 +2516,7 @@ index aaf69df7..ca25ca12 100644
 +#undef X
 +}
 diff --git a/runtime/src/gpu_gl_renderer.c b/runtime/src/gpu_gl_renderer.c
-index d0ccc3d5..ba255e32 100644
+index d0ccc3d5..30a50668 100644
 --- a/runtime/src/gpu_gl_renderer.c
 +++ b/runtime/src/gpu_gl_renderer.c
 @@ -1,3 +1,4 @@
@@ -5541,7 +5546,7 @@ index d0ccc3d5..ba255e32 100644
              const uint32_t *px = NULL;
              int ow = 0, oh = 0;
              /* OSD authored for ~480-tall present; grow with drawable height. */
-@@ -3972,9 +5453,68 @@ static void gl_swap_with_osd(void) {
+@@ -3972,9 +5453,77 @@ static void gl_swap_with_osd(void) {
              if (ui < 1) ui = 1;
              if (ui > 8) ui = 8;
              margin = 8 * ui;
@@ -5583,6 +5588,15 @@ index d0ccc3d5..ba255e32 100644
 +                    const int dw = (int)(ow * s + 0.5f), dh = (int)(oh * s + 0.5f);
 +                    gl_draw_osd_image(px,ow,oh,dw,dh,lx+(lw-dw)/2,ly+(int)(14.f*s+0.5f),ww,wh);
 +                }
++                int title_sw = 0;
++                if (host_osd_title_image(&px, &ow, &oh, &title_sw) && px) {
++                    /* D43: the level title in the game's screen pixels, as the
++                     * menu text is drawn (screen width across the 4:3 picture,
++                     * 240 lines down), its top just under the crosshair as in
++                     * EDuke32 (host_osd_title_top). */
++                    const int dw = (int)(ow * (lh * 4.f / 3.f) / title_sw + 0.5f), dh = (int)(oh * lh / 240.f + 0.5f);
++                    gl_draw_osd_image(px,ow,oh,dw,dh,lx+(lw-dw)/2,ly+host_osd_title_top(lh),ww,wh);
++                }
 +                {
 +                    /* D19K: the LOAD GAME image (thumbnail, steel text), placed by the menu in
 +                     * its 4:3 area (fractions), centred in the fitted picture: the rect
@@ -5613,7 +5627,7 @@ index d0ccc3d5..ba255e32 100644
              if (host_osd_volume_image(&px, &ow, &oh) && px) {
                  const int dw = ow * ui, dh = oh * ui;
                  int vx = (ww > dw + margin) ? (ww - dw - margin) : margin;
-@@ -4012,6 +5552,7 @@ static void gl_swap_with_osd(void) {
+@@ -4012,6 +5561,7 @@ static void gl_swap_with_osd(void) {
                  uint8_t *rows = (uint8_t *)malloc((size_t)ww * wh * 3);
                  uint8_t *flip = rows ? (uint8_t *)malloc((size_t)ww * wh * 3) : NULL;
                  if (rows && flip) {
@@ -5621,7 +5635,7 @@ index d0ccc3d5..ba255e32 100644
                      glPixelStorei(GL_PACK_ALIGNMENT, 1);
                      glReadPixels(0, 0, ww, wh, GL_RGB, GL_UNSIGNED_BYTE, rows);
                      for (int y = 0; y < wh; y++)
-@@ -4038,13 +5579,13 @@ static void present_target_quad(GLuint tex, int tex_w, int tex_h,
+@@ -4038,13 +5588,13 @@ static void present_target_quad(GLuint tex, int tex_w, int tex_h,
                                  int x, int y, int w, int h, int linear,
                                  int lx, int ly, int lw, int lh, int v_flip) {
      float u0, v0, u1, v1;
@@ -5637,7 +5651,7 @@ index d0ccc3d5..ba255e32 100644
      p_glUniform1i(s_present_uTex, 0);
      /* The rasterized path already renders at the internal scale, so it has no
       * low-res source to reconstruct — keep the plain sample. */
-@@ -4068,10 +5609,10 @@ static void present_target_quad(GLuint tex, int tex_w, int tex_h,
+@@ -4068,10 +5618,10 @@ static void present_target_quad(GLuint tex, int tex_w, int tex_h,
          v1 = t;
      }
      p_glUniform4f(s_present_uUvRect, u0, v0, u1, v1);
@@ -5651,7 +5665,7 @@ index d0ccc3d5..ba255e32 100644
  }
  
  /* Bezel art: a still image behind the frame, filling whatever the letterbox or
-@@ -4104,19 +5645,19 @@ int gl_renderer_has_bezel(void) { return s_bezel_tex != 0; }
+@@ -4104,19 +5654,19 @@ int gl_renderer_has_bezel(void) { return s_bezel_tex != 0; }
  static void present_bezel(int ww, int wh, int lx, int ly, int lw, int lh) {
      if (!s_bezel_tex || ww <= 0 || wh <= 0) return;
      if (lx <= 0 && ly <= 0 && lw >= ww && lh >= wh) return;
@@ -5678,7 +5692,7 @@ index d0ccc3d5..ba255e32 100644
  }
  
  int gl_renderer_present_hold_last(void) {
-@@ -4131,8 +5672,8 @@ int gl_renderer_present_hold_last(void) {
+@@ -4131,8 +5681,8 @@ int gl_renderer_present_hold_last(void) {
       * the hold texture. Still present the host overlays: otherwise save-state
       * rejection/status messages are generated but remain invisible on GL. */
      if (s_hold_kind == HOLD_NONE || !s_hold_tex) {
@@ -5689,7 +5703,7 @@ index d0ccc3d5..ba255e32 100644
          glClearColor(0.f, 0.f, 0.f, 1.f);
          glClear(GL_COLOR_BUFFER_BIT);
          latency_ring_mark(LAT_SWAP_BEGIN);
-@@ -4141,8 +5682,8 @@ int gl_renderer_present_hold_last(void) {
+@@ -4141,8 +5691,8 @@ int gl_renderer_present_hold_last(void) {
          s_probe_swap++;
          return 1;
      }
@@ -5700,7 +5714,7 @@ index d0ccc3d5..ba255e32 100644
      glClearColor(0.f, 0.f, 0.f, 1.f);
      glClear(GL_COLOR_BUFFER_BIT);
      if (s_hold_kind == HOLD_DRAWABLE) {
-@@ -4204,7 +5745,8 @@ void gl_renderer_present_vram(int disp_x, int disp_y, int w, int h, int linear,
+@@ -4204,7 +5754,8 @@ void gl_renderer_present_vram(int disp_x, int disp_y, int w, int h, int linear,
          !present_dirty_test(disp_x, disp_y, disp_x + w - 1, disp_y + h - 1) &&
          !host_osd_needs_present() &&
          !psx_present_vsync_owns_cadence() &&
@@ -5710,7 +5724,7 @@ index d0ccc3d5..ba255e32 100644
          s_probe_skip++;
          gl_perf_present_enter();
          gl_perf_present_exit(0);
-@@ -4221,12 +5763,22 @@ void gl_renderer_present_vram(int disp_x, int disp_y, int w, int h, int linear,
+@@ -4221,12 +5772,22 @@ void gl_renderer_present_vram(int disp_x, int disp_y, int w, int h, int linear,
       * display mode (e.g. 216/224-line menus) must fill the rect as before.
       * The FMV band fix lives in the depth24/CPU present paths only. */
  
@@ -5735,7 +5749,7 @@ index d0ccc3d5..ba255e32 100644
      int interp_pair = interp_capture(s_hr_fbo, disp_x, disp_y, w, h,
                                       linear, force_4_3, GL_PRES_VRAM);
      if (interp_pair) {
-@@ -4270,7 +5822,11 @@ static void wide_blit_center(GLuint wide_fbo, int base_x, int disp_y, int disp_h
+@@ -4270,7 +5831,11 @@ static void wide_blit_center(GLuint wide_fbo, int base_x, int disp_y, int disp_h
      int native_w = g_wide_w - 2 * g_wide_off;
      if (native_w <= 0) return;
      int S = s_scale;
@@ -5748,7 +5762,7 @@ index d0ccc3d5..ba255e32 100644
      /* Copy the canonical framebuffer column into the wide surface CENTRE over the
       * FULL VRAM height, not just the current display band [disp_y, disp_y+disp_h].
       * The wide surface holds BOTH vertical double-buffer bands (Ape flips
-@@ -4279,16 +5835,16 @@ static void wide_blit_center(GLuint wide_fbo, int base_x, int disp_y, int disp_h
+@@ -4279,16 +5844,16 @@ static void wide_blit_center(GLuint wide_fbo, int base_x, int disp_y, int disp_h
       * column makes the wide CENTRE bit-identical to what the full mirror would
       * have drawn there for every band, so nothing the present reads is ever left
       * black. The margins (x outside the centre) are untouched. */
@@ -5774,7 +5788,7 @@ index d0ccc3d5..ba255e32 100644
  }
  
  /* GPU-direct native-wide present: blit the displayed buffer's wide FBO straight
-@@ -4315,7 +5871,8 @@ int gl_renderer_present_wide_fbo(int disp_x, int disp_y, int disp_h, int linear)
+@@ -4315,7 +5880,8 @@ int gl_renderer_present_wide_fbo(int disp_x, int disp_y, int disp_h, int linear)
          !present_dirty_test(0, disp_y, VRAM_W - 1, disp_y + disp_h - 1) &&
          !host_osd_needs_present() &&
          !psx_present_vsync_owns_cadence() &&
@@ -5784,7 +5798,7 @@ index d0ccc3d5..ba255e32 100644
          s_probe_skip++;
          gl_perf_present_enter();
          gl_perf_present_exit(1);
-@@ -4327,12 +5884,23 @@ int gl_renderer_present_wide_fbo(int disp_x, int disp_y, int disp_h, int linear)
+@@ -4327,12 +5893,23 @@ int gl_renderer_present_wide_fbo(int disp_x, int disp_y, int disp_h, int linear)
      letterbox_rect(ww, wh, &lx, &ly, &lw, &lh);
      wide_blit_center(fbo, disp_x, disp_y, disp_h);   /* fast-path: authoritative centre */
  
@@ -5810,7 +5824,7 @@ index d0ccc3d5..ba255e32 100644
      int interp_pair = interp_capture(fbo, 0, disp_y, g_wide_w, disp_h,
                                       linear, 0, GL_PRES_WIDE);
      if (interp_pair) {
-@@ -4393,3 +5961,230 @@ static const GpuRenderBackend GL_BACKEND = {
+@@ -4393,3 +5970,230 @@ static const GpuRenderBackend GL_BACKEND = {
  };
  
  const GpuRenderBackend *gl_backend_get(void) { return &GL_BACKEND; }
@@ -6262,7 +6276,7 @@ index 5f66e0a9..b8b8c751 100644
      return 0;
  }
 diff --git a/runtime/src/host_osd.c b/runtime/src/host_osd.c
-index 62c387d0..31a8cd9e 100644
+index 62c387d0..880dd36f 100644
 --- a/runtime/src/host_osd.c
 +++ b/runtime/src/host_osd.c
 @@ -11,19 +11,20 @@
@@ -6325,7 +6339,7 @@ index 62c387d0..31a8cd9e 100644
  
  static int      s_volume = 100;          /* host master 0..100 */
  static int      s_vol_pct = 100;         /* last shown bar fill */
-@@ -143,10 +166,54 @@ static int      s_vol_dirty = 1;
+@@ -143,10 +166,75 @@ static int      s_vol_dirty = 1;
  static int      s_needs_clear;
  
  #define OSD_IMG_W  ((OSD_PAD_X * 2 + OSD_MAX_CHARS * OSD_GLYPH_W) * OSD_SCALE)
@@ -6343,8 +6357,11 @@ index 62c387d0..31a8cd9e 100644
 +extern int ttk_inventory_image(const uint32_t**,int*,int*,int);
 +extern int ttk_inventory_pixels(const uint32_t*);
 +extern int ttk_mission_card_image(const uint32_t**,int*,int*,int);
++extern int ttk_level_title_image(const uint32_t**,int*,int*,int*);
++extern int ttk_level_title_pixels(const uint32_t*);
 +#endif
 +extern int ttk_aim_crosshair_pixels(const uint32_t*);
++extern int ttk_aim_crosshair_image(const uint32_t**,int*,int*);
 +int host_osd_inventory_image(const uint32_t** pixels,int* w,int* h,int available_width) {
 +#if defined(TTK_CHEAT_OSD)
 +    return ttk_inventory_image(pixels,w,h,available_width);
@@ -6359,6 +6376,23 @@ index 62c387d0..31a8cd9e 100644
 +    (void)pixels;(void)w;(void)h;(void)available_width;return 0;
 +#endif
 +}
++/* D43: the level title's top, from the picture's top: just under the
++ * crosshair's lower tip, as EDuke32 puts the map name (its top 2 lines under
++ * the crosshair on 720 lines). Without a crosshair, EDuke32's own size. */
++int host_osd_title_top(int picture_h) {
++    const uint32_t *px = NULL; int w = 0, h = 0;
++    const int cross = ttk_aim_crosshair_image(&px, &w, &h) && px ?
++        host_osd_crosshair_extent(h, (float)picture_h) : (picture_h * 15 + 360) / 720;
++    const int gap = picture_h / 360 < 1 ? 1 : picture_h / 360;
++    return (picture_h + cross) / 2 + gap;
++}
++int host_osd_title_image(const uint32_t** pixels,int* w,int* h,int* screen_w) {
++#if defined(TTK_CHEAT_OSD)
++    return ttk_level_title_image(pixels,w,h,screen_w);
++#else
++    (void)pixels;(void)w;(void)h;(void)screen_w;return 0;
++#endif
++}
 +extern int ttk_menu_thumb_pixels(const uint32_t*);
 +int host_osd_text_has_alpha(const uint32_t *pixels) {
 +    if(pixels == s_console_img)return 1;
@@ -6367,6 +6401,7 @@ index 62c387d0..31a8cd9e 100644
 +    if(ttk_aim_crosshair_pixels(pixels))return 1;
 +#if defined(TTK_CHEAT_OSD)
 +    if(ttk_inventory_pixels(pixels))return 1;
++    if(ttk_level_title_pixels(pixels))return 1;
 +#endif
 +    return s_font_image && pixels == s_img;
 +}
@@ -6381,7 +6416,7 @@ index 62c387d0..31a8cd9e 100644
  
  /* Vertical bar: outer 16x120 @ 2x → 32x240. Fill grows from the bottom. */
  #define VOL_BAR_W   (16 * OSD_SCALE)
-@@ -169,6 +236,9 @@ static int          s_sdl_rw_th;
+@@ -169,6 +257,9 @@ static int          s_sdl_rw_th;
  static SDL_Texture *s_sdl_ssm_tex;
  static int          s_sdl_ssm_tw;
  static int          s_sdl_ssm_th;
@@ -6391,7 +6426,7 @@ index 62c387d0..31a8cd9e 100644
  static SDL_Renderer *s_sdl_ren;
  #endif
  
-@@ -202,6 +272,12 @@ static int vol_visible(void) {
+@@ -202,6 +293,12 @@ static int vol_visible(void) {
  }
  
  static void rasterize_text(const char *msg) {
@@ -6404,7 +6439,7 @@ index 62c387d0..31a8cd9e 100644
      int n = (int)strlen(msg);
      if (n > OSD_MAX_CHARS) n = OSD_MAX_CHARS;
      s_img_w = (OSD_PAD_X * 2 + n * OSD_GLYPH_W) * OSD_SCALE;
-@@ -276,9 +352,23 @@ static void sdl_blit_argb(SDL_Renderer *renderer, SDL_Texture **tex,
+@@ -276,9 +373,23 @@ static void sdl_blit_argb(SDL_Renderer *renderer, SDL_Texture **tex,
                                   SDL_TEXTUREACCESS_STREAMING, w, h);
          *tw = w;
          *th = h;
@@ -6429,7 +6464,7 @@ index 62c387d0..31a8cd9e 100644
      void *locked = NULL;
      int pitch = 0;
  #if defined(PSX_SDL3)
-@@ -337,30 +427,232 @@ void host_osd_push(const char *msg, int duration_ms) {
+@@ -337,30 +448,232 @@ void host_osd_push(const char *msg, int duration_ms) {
      snprintf(s_msg, sizeof(s_msg), "%s", msg);
      s_expire_ms = SDL_GetTicks() + (Uint32)duration_ms;
      s_active = 1;
@@ -6669,7 +6704,7 @@ index 62c387d0..31a8cd9e 100644
  void host_osd_show_volume(int percent, int duration_ms) {
  #if !HOST_OSD_VISUAL
      (void)percent;
-@@ -398,7 +690,7 @@ int host_osd_needs_present(void) {
+@@ -398,7 +711,7 @@ int host_osd_needs_present(void) {
  #if !HOST_OSD_VISUAL
      return 0;
  #else
@@ -6678,7 +6713,7 @@ index 62c387d0..31a8cd9e 100644
      return s_needs_clear;
  #endif
  }
-@@ -410,21 +702,14 @@ int host_osd_image(const uint32_t **pixels, int *w, int *h) {
+@@ -410,21 +723,14 @@ int host_osd_image(const uint32_t **pixels, int *w, int *h) {
      if (h) *h = 0;
      return 0;
  #else
@@ -6703,7 +6738,7 @@ index 62c387d0..31a8cd9e 100644
      if (pixels) *pixels = s_img;
      if (w) *w = s_img_w;
      if (h) *h = s_img_h;
-@@ -432,6 +717,60 @@ int host_osd_image(const uint32_t **pixels, int *w, int *h) {
+@@ -432,6 +738,60 @@ int host_osd_image(const uint32_t **pixels, int *w, int *h) {
  #endif
  }
  
@@ -6764,7 +6799,7 @@ index 62c387d0..31a8cd9e 100644
  int host_osd_volume_image(const uint32_t **pixels, int *w, int *h) {
  #if !HOST_OSD_VISUAL
      if (pixels) *pixels = NULL;
-@@ -457,14 +796,63 @@ void host_osd_present_done(void) {
+@@ -457,14 +817,63 @@ void host_osd_present_done(void) {
  #if !HOST_OSD_VISUAL
      return;
  #else
@@ -6829,7 +6864,7 @@ index 62c387d0..31a8cd9e 100644
  #if HOST_OSD_VISUAL
      {
          const uint32_t *px;
-@@ -477,9 +865,132 @@ void host_osd_draw_sdl(struct SDL_Renderer *renderer) {
+@@ -477,9 +886,146 @@ void host_osd_draw_sdl(struct SDL_Renderer *renderer) {
          if (ui < 1) ui = 1;
          if (ui > 8) ui = 8;
          margin = 8 * ui;
@@ -6879,8 +6914,7 @@ index 62c387d0..31a8cd9e 100644
 +                SDL_SetRenderViewport(renderer, &old_view); SDL_SetRenderClipRect(renderer, clipped?&old_clip:NULL);
 +            } else
 +#endif
-             sdl_blit_argb(renderer, &s_sdl_tex, &s_sdl_tw, &s_sdl_th, px, w, h,
--                          margin, margin, w * ui, h * ui);
++            sdl_blit_argb(renderer, &s_sdl_tex, &s_sdl_tw, &s_sdl_th, px, w, h,
 +                          margin, margin, w * tui, h * tui);
 +        }
 +        if (host_osd_image(&px, &w, &h) && px) {
@@ -6915,7 +6949,8 @@ index 62c387d0..31a8cd9e 100644
 +                SDL_SetRenderViewport(renderer, &old_view); SDL_SetRenderClipRect(renderer, clipped?&old_clip:NULL);
 +            } else
 +#endif
-+            sdl_blit_argb(renderer, &s_sdl_tex, &s_sdl_tw, &s_sdl_th, px, w, h,
+             sdl_blit_argb(renderer, &s_sdl_tex, &s_sdl_tw, &s_sdl_th, px, w, h,
+-                          margin, margin, w * ui, h * ui);
 +                          host_osd_text_centered() ? (lw-w*tui)/2 : margin, margin, w * tui, h * tui);
 +        }
 +        /* Inventory is a separate temporary surface; never replaces quotes.
@@ -6948,6 +6983,20 @@ index 62c387d0..31a8cd9e 100644
 +                    sdl_blit_argb(renderer,&s_sdl_tex,&s_sdl_tw,&s_sdl_th,px,w,h,
 +                        fx+(fw-dw)/2,fy+(int)(14.f*scale+0.5f),dw,dh);
 +                }
++                SDL_SetRenderLogicalPresentation(renderer,old_w,old_h,old_mode);
++                SDL_SetRenderScale(renderer,sx,sy);SDL_SetRenderViewport(renderer,&view);
++                SDL_SetRenderClipRect(renderer,clipped?&clip:NULL);
++            }
++            int title_sw=0;
++            if(host_osd_title_image(&px,&w,&h,&title_sw) && px) {
++                /* D43: the level title in the game's screen pixels (the menu
++                 * text's: its width across the 4:3 picture, 240 lines down),
++                 * its top just under the crosshair. */
++                SDL_SetRenderLogicalPresentation(renderer,0,0,SDL_LOGICAL_PRESENTATION_DISABLED);
++                SDL_SetRenderViewport(renderer,NULL);SDL_SetRenderClipRect(renderer,NULL);SDL_SetRenderScale(renderer,1,1);
++                const int dw=(int)(w*(fh*4.f/3.f)/title_sw+0.5f),dh=(int)(h*fh/240.f+0.5f);
++                sdl_blit_argb(renderer,&s_sdl_tex,&s_sdl_tw,&s_sdl_th,px,w,h,
++                    fx+(fw-dw)/2,fy+host_osd_title_top(fh),dw,dh);
 +                SDL_SetRenderLogicalPresentation(renderer,old_w,old_h,old_mode);
 +                SDL_SetRenderScale(renderer,sx,sy);SDL_SetRenderViewport(renderer,&view);
 +                SDL_SetRenderClipRect(renderer,clipped?&clip:NULL);

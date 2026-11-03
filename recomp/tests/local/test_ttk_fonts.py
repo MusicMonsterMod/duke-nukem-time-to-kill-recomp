@@ -28,7 +28,9 @@ class DiscFontPack(unittest.TestCase):
         for b in payload:
             h = ((h ^ b) * 16777619) & 0xffffffff
         self.assertEqual(h, digest)
-        self.assertEqual(struct.unpack_from('<I', payload, 0)[0], 13)  # D08A19: 12 mission_used
+        self.assertEqual(struct.unpack_from('<I', payload, 0)[0], 14)  # D08A19: 12 mission_used; D43: 13 level_title
+        line, scale, shadow, _, colour = struct.unpack_from('<BBBBI', payload, 4 + 13 * 768)
+        self.assertEqual((line, scale, shadow, colour), (19, 1, 1, 0xff140000))  # D43: red 1x, near-black shadow
         # line height, scale, shadow: messages, headings, console, then the D24B panel
         # title, slot, selected slot, text and dim text, then the D08A5 FOUND text
         # and the three 2x Microfont mission sets.

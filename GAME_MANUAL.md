@@ -1426,6 +1426,11 @@ the same way on every menu screen:
   and QUIT GAME). QUIT TO MENU asks QUIT TO MENU? and gives up through the
   game over screen to the title menu; QUIT GAME closes the program. CONTINUE asks CONFIRM CONTINUE (YES highlighted), the others ask
   YES / NO with NO highlighted. Escape does nothing on the list and cancels a prompt.
+- **Level title:** when a level starts (a new level, the next level after the
+  statistics screen, RESTART LEVEL or loading a save, but not CONTINUE after
+  a death), its name shows in red just under the crosshair, as in Duke 3D,
+  for about three seconds, fading out by itself. Play is never interrupted;
+  pausing hides it and holds its time.
 - **LOAD GAME** (title, pause and death menus) lists the 12 savestate slots
   (the same slots as F7) with the level name, opening on slot 01.
   The chosen slot's picture, era and save time (in the console's steel

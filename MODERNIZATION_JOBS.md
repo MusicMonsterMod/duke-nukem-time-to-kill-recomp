@@ -1,5 +1,208 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-03 - D43 committed on its own; D42 playtest round 1 (In progress)
+
+User: "lock that text job in", committed separately from D42 (user choice:
+split). D42 playtest round 1, user: the mouse still moves on the death scene,
+with "a vibrating look", and the view is not "at the angle right on the floor
+like with eduke". Next: study EDuke32's death view in the user's install
+(their `deathtest` save, RPG death) and build a clean-room re-implementation
+of its look, "as close as 1:1" as possible. D42's code stays uncommitted
+until then.
+
+## 2026-11-03 - D43 accepted: level title card in the menu font's size
+
+User: "It's superb"; the red "is surprisingly much better than I thought";
+asked for the same size and kerning as the pause menu's level name, then:
+TTK Big Italic, 1x, spacing -1, with shadow, and to lock the job in after the
+tweak. Set 13 is now 1x / -1 / shadow, drawn in the game's screen pixels as
+the menu text is; on the same frame the title is 326 px wide (with shadow)
+against the heading's 308, the same height. The title red is in the D24A
+font picker as "Title red (project)". Last tweak (user): the top just under
+the crosshair, lined up with EDuke32 (its top 2 lines under the crosshair's
+lower tip on 720 lines; ours 296 / 298 on 576). D43 is Done
+([note 374](documentation/374-d43-level-title.md)). Executable
+`044e2d959ff3dfbe8280fb714f0f34bbc2e08da8e7c1869302339fb44379913a`. Not
+committed yet: it shares files with D42, which awaits its death playtest.
+
+## 2026-11-03 - D42 death scene and D43 level title (Needs playtest)
+
+User: "lets get started on the new ones we just logged". Decisions asked
+first: first-person death goes to the floor (reverses D35L for first person);
+Escape on the death scene opens the real pause menu, Open the death menu,
+Escape on the death menu returns to the scene; the title shows on a new
+level, RESTART LEVEL and a load (not CONTINUE), in red.
+
+**D42** ([note 373](documentation/373-d42-death-scene.md)): new entry hooks on
+Duke's death updates `0x80042be8` / `0x80042d04` (regenerated, two lines,
+codegen hash unchanged) hold the original death count, so the scene stays live
+under "PRESS E TO OPEN MENU" (the USE key's name). E lets the count run out
+into the D19H death list (no continues line); Escape there puts the dying
+state back and resumes the scene. Escape on the scene is the original pause
+(SAVE GAME left off while dead). Continues never run out (count kept at one
+or more; REPLAY no longer spends one; the statistics CONTINUES line is gone).
+First person: a presentation-only `death` perspective keeps the eye on Duke's
+neck as he falls, so the view ends on the floor, look frozen; third person
+keeps the original death camera. Framework: `host_osd_text_is()`. Evidence
+(private fixture copies, offscreen): ordinary and blast deaths held 8 s+;
+E / Escape / pause round trips; console on the scene; zero continues still
+gives the list; CONTINUE, RESTART LEVEL, QUIT TO MENU, LOAD GAME as before;
+120 Hz. `ttk-controls-test` (142 groups, new D42 case; two D35L-era dead-flag
+checks now set health), `ttk-input-test`, `ttk-flash-test`,
+`ttk-inventory-test` pass.
+
+**D43** ([note 374](documentation/374-d43-level-title.md)): on entering play
+(new level, restart, `level N`) or after a savestate load, the level's own
+name shows in a new red 2x TTK Big Italic set, centred at 57% of the picture,
+EDuke32's 85 tics at 30 Hz with the last 32 fading; held and hidden while
+paused. Evidence: load "FAMILY JEWELS", `level 8` "HOLY TERROR", RESTART
+LEVEL shown; CONTINUE not shown; 4:3 and 16:9, first and third person.
+`test_ttk_fonts.py`, `ttk-font-test` pass.
+
+Runtime patch exported (applies to a clean pinned checkout). Executable
+`65ec2d1d1e7e103943d302d630e4751e07ed33d8a794638769ed0baa1e887126`. Not
+verified: the user's play, real display and controller, 180 Hz, Vanilla
+death in play (code-gated), the next level after the statistics screen.
+D08G9 can start once D42 is accepted.
+
+## 2026-11-03 - Backlog intake: death state and menu (D42), level title card (D43); D08G9 waits on D42
+
+User, 2026-11-03: three requirements recorded as backlog only; nothing
+started, no code, build or launch. D42 (new) replaces the instant death list
+with a visible death state, Open opens the existing death menu, unlimited
+continues. D08G9 (existing dnkroz revive job, updated in place, no
+duplicate) now depends on D42. D43 (new, independent) shows the level's name
+when a level begins, as Duke 3D does. References:
+`research/screencaps/Video_2026-11-03_20-08-25.mp4` (24 s, EDuke32
+`deathtest` save: RPG death, floor-level first-person view with the HUD at
+0, "PRESS OPEN TO RESTART LEVEL" at the top, Open then asks "LOAD LAST GAME:
+"DEATHTEST" [Y/N]", the load shows "HOLLYWOOD HOLOCAUST") and
+`research/screencaps/Video_2026-11-03_20-09-20.mp4` (11 s: new game ->
+episode -> skill -> "HOLLYWOOD HOLOCAUST" in the red menu font just above the
+centre over live play, fading out within about 2 s).
+
+### D42 - Death state and menu: stay on the death scene, Open opens the menu, unlimited continues
+
+**Status: In progress (playtest round 1, 2026-11-03; [note 373](documentation/373-d42-death-scene.md)). Dependencies: D19H, D19P, D19M, D19K, D26 (console). Prerequisite of D08G9.**
+Today a death in Modernized goes straight to the D19H death list under the
+original's "N CONTINUES REMAINING" (`game_menu.cpp` `draw_death`, menu value
+`0x800be56a` = 15, continues byte `0x800d7411`). The user wants Duke 3D /
+EDuke32 behaviour with TTK's own menu:
+
+1. **Death scene.** Duke dies and the game stays on the death scene; no menu
+   opens. Third person keeps the original death animation and camera.
+   First person shows a floor-level view of the scene, as Duke 3D does (see
+   decision 1). A short line at the top of the screen, in the existing
+   notice style, reads like "PRESS <key> TO OPEN MENU", naming the key bound
+   to USE / MANTLE (`interact`, D19G KEY BINDINGS), not a fixed E.
+2. **Menu.** Open/Interact on the death scene opens the existing death list
+   (D19H style, no EDuke32-style menu). Escape on the list closes it and
+   returns to the death scene; Escape in its prompts still backs out one
+   level (D19D). Duke stays dead throughout; opening, navigating and closing
+   the menu changes nothing.
+3. **Unlimited continues.** CONTINUE always works; the "N CONTINUES
+   REMAINING" line and every other countdown go. Keep CONTINUE, LOAD GAME,
+   RESTART LEVEL, QUIT TO MENU and QUIT GAME (and the challenge stages'
+   REPLAY LEVEL / GIVE UP) with their established meaning (note 147 table:
+   CONTINUE `0x800d71cd` = 2, RESTART `0x800c3f34`, QUIT TO MENU via the game
+   over screen, note 153). Removes the 2026-10-19 "keep CONFIRM CONTINUE for
+   now" interim recorded under D19H.
+4. **Console and cheats.** The backtick console opens and closes on the death
+   scene (and over the menu, or the menu yields to it; decide) without
+   starting a respawn, restart or menu action. Typed `dnkroz` reaches the
+   cheat system while dead; D08G8 currently refuses every cheat while dead
+   with a message, which stays until D08G9 adds the revive.
+
+Investigate first: how the original reaches menu 15 from death (the death
+flag `0x800be55c`, the delay before the list, D35L's actor death flags that
+drop the modern first-person view), what CONTINUE restores versus RESTART
+LEVEL (checkpoint, inventory, health, timers), what happens today at zero
+continues (game over), where else the count is read or decremented
+(challenge REPLAY decrements it, `game_menu.cpp`; the statistics screen's
+CONTINUES line reads the per-level used count at stats `+0x279`), and how
+the Escape pause key, the D19 menu ownership and the death screen interact.
+Pin the count instead of deleting it if that keeps savestates, card saves
+and the statistics screen consistent.
+
+**Acceptance:** no automatic death menu; first person keeps a visible
+floor-level scene, third person its original animation; the top line names
+the bound Open key and follows a rebind; Open opens the existing list,
+Escape returns to the death scene, Duke still dead; unlimited continues, no
+remaining-continues text anywhere; console opens and closes while dead with
+no state change; CONTINUE, LOAD GAME, RESTART LEVEL, QUIT TO MENU, QUIT GAME
+and the challenge choices behave as before; savestates from before the
+change still load (dead and alive); 4:3 and 16:9, 120 and 180 Hz; Vanilla
+unchanged (original death screen and continues).
+
+**Open decisions (ask when selected):**
+1. First-person death camera. D35L (user, 2026-10-25) accepted the current
+   behaviour, where death drops first person to the original third-person
+   death presentation, and closed the DEATH VIEW research with no action.
+   This request asks for a floor-level first-person death view: confirm it
+   reverses D35L for first person (and whether gibbed/drowned deaths, where
+   there is no body to lie with, use the same view).
+2. Escape on the death scene. Recommendation: Escape also opens the death
+   list (EDuke32 opens its menu on Escape; in TTK Escape already opens the
+   pause list in life), and Escape on the list closes it.
+3. The Open key opens the menu rather than EDuke32's restart / "LOAD LAST
+   GAME" prompt; confirm CONTINUE stays the first highlighted item.
+4. Whether the statistics screen keeps its CONTINUES used line once the
+   count is unlimited.
+5. Controller: which button stands for Open and how the line names it
+   before D19F icons exist.
+
+**Risks:** the original's death sequence may time out or advance on its own
+(game over, demo, attract) if menu 15 is held back; the original continue
+path may depend on the count (zero -> game over) and the challenge stages
+reuse it; D19 identity guards cover the death handler (`0x8008647c`);
+savestates taken on the old death list must still resume sensibly; D36M /
+D39 death fades and D18D music after Continue must not regress.
+
+### D43 - Level title card: the level's name over the start of play (Duke 3D style)
+
+**Status: Done (user-accepted 2026-11-03; [note 374](documentation/374-d43-level-title.md)). Dependencies: none required (uses D19A fonts, D08A22 scaling, D19 menu text). Independent of D42.**
+When a level begins, show its name prominently near the centre of the
+screen, as Duke 3D shows "HOLLYWOOD HOLOCAUST": over live play, no input,
+gameplay never paused, then it fades out by itself (the reference holds
+about 1.5 s and fades within about 2 s). Same in first and third person.
+
+Initial research: level names are the game's own string ids at
+`0x800c3d2c` (per level, read through the string table `0x800c60f4`);
+`level_select.cpp` and `game_menu.cpp` `level_title` already draw them in
+the menu font, so the text and the original UI text path exist.
+`level_index` `0x800be570`; mode 1 level load `0x80025438` (guarded in
+`level_select.cpp`) is a candidate level-entry event.
+
+Investigate: the level-entry event for a new level, the next level after
+statistics, RESTART LEVEL, CONTINUE and a savestate load; challenge stages
+(21-26) and two-player arenas; any original loading card or mission
+briefing on entry that already names the level; collisions with the D08A22
+mission card, top-centre notices and cheat confirmations, the HUD and
+widescreen margins; scaling across 4:3 / 16:9 and window sizes (follow the
+presented game rect as the native HUD does).
+
+**Acceptance:** the correct name on every level entered; centred, large,
+in a Duke 3D-like treatment in the game's own font and colours; gone after a
+short interval with no input; play never interrupted; 4:3 and 16:9 at 120
+and 180 Hz; first and third person; the defined load / restart / continue
+rules tested; Vanilla unchanged.
+
+**Open decisions (ask when selected):**
+1. When it shows. EDuke32 shows it on a new level and on loading a save (the
+   death reference shows it after LOAD LAST GAME). Recommendation: new
+   level, RESTART LEVEL and savestate load; not on CONTINUE after a death or
+   a quickload within the same level (decide).
+2. Treatment: the red menu font as in Duke 3D or TTK's large title font;
+   colour, hold and fade times; an OPTIONS > DISPLAY toggle (as LEVEL STATS
+   in D20I).
+
+### D08G9 update
+
+D08G9 (dnkroz after death) now depends on D42 as well: the revive happens
+from D42's visible death state, with the console reachable and the death
+menu closed or out of the way. Its text gains the user's 2026-11-03
+requirements in its own section (2026-11-02 intake, "Update 2026-11-03").
+
 ## 2026-11-03 - D08A34 accepted and closed: the medkit heals in water
 
 User: "perfect. lock it in, close it out". D08A34 is Done: in Modernized, M
@@ -1661,7 +1864,7 @@ glitch; Vanilla unchanged.
 
 ### D08G9 - dnkroz after death: Duke gets back up and play continues
 
-**Status: Todo. Dependencies: D08G7, D08G8, D08Q4.** In Duke 3D typing
+**Status: Todo (waits on D42). Dependencies: D42, D08G7, D08G8, D08Q4.** In Duke 3D typing
 `dnkroz` (or `dncornholio`) while dead brings Duke straight back with full
 health and god mode on, and play continues. Reference:
 `research/screencaps/dead.mp4` (32 s): killed ("PRESS OPEN TO RESTART
@@ -1682,6 +1885,26 @@ respawn or level-restart routine to reuse rather than resurrecting by hand.
 **Acceptance:** dnkroz during any death (including gibbed) returns a living,
 controllable Duke at the death spot with god mode on and his inventory; the
 remains stay; first and third person; savestates and Vanilla unchanged.
+
+**Update 2026-11-03 (user): blocked on D42.** The revive builds on D42's
+visible death state: Duke dies and stays on the death scene, the console is
+reachable, `dnkroz` (or `dncornholio`) typed there and accepted by the
+existing cheat system returns Duke to a valid playable state with no level
+restart, the death menu never interferes, and the selected first- or
+third-person view comes back. Do not assume the original cheat code can
+revive. Investigate before implementing: the existing dnkroz handling
+(`cheats.inc`, D08G7, D08Q4, D08G8's "refused while dead" gate), death and
+player-state transitions, health and invulnerability, animation state
+restoration (death pose, D37A save layouts), weapon and input state
+(leases, held keys, the D08A switcher), camera restoration (D35L death
+flags revoke the modern view), and conflicts with the recomp's own systems
+(D36M / D39 death fades, D08A14 steroids cleared at death, D08Q2 jetpack,
+D18D music). Decide whether dnkroz alone revives or a separate recovery
+step (for example the original Continue respawn at the death spot) does it.
+Added acceptance: the console stays usable while dead; Duke is never left
+in a death animation or camera; movement, weapons and interactions resume;
+first and third person tested; dnkroz while alive unchanged (D08G7 text,
+D39D flash, D08Q4 top-up).
 
 ### D08A32 - A distinct ammo icon for every weapon in the bottom-right HUD
 
@@ -4576,7 +4799,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08G6 | Fun cheat `dntlod`: show "Play Zaxtor's Oblivion!" | Done (user-accepted) | D08G2 |
 | D08G7 | dnkroz feel: GOD MODE ON/OFF text, red flash and occasional short pain sound on OFF (dncornholio identical) | Done (accepted as preliminary 2026-11-03; flash to D39D) | D08G2, D08Q4 |
 | D08G8 | Cheats work anywhere, not only on solid ground | Done (user-accepted 2026-11-02) | D08G2 |
-| D08G9 | dnkroz after death: Duke gets back up where he died, remains stay | Todo | D08G7, D08G8, D08Q4 |
+| D08G9 | dnkroz after death: Duke gets back up where he died, remains stay | Todo (waits on D42) | D42, D08G7, D08G8, D08Q4 |
 | D39 | Screen flash framework: Duke3D palfrom-style coloured flashes (parent) | Done (D39A-D39G accepted 2026-11-03) | D39A-D39G |
 | D39A | Flash spec: measure palfrom in EDuke32 (rate, hold, override, blend) | Done (accepted 2026-11-03) | - |
 | D39B | Polymorph present tint: exact colour mix, display-rate fade, replay-safe | Done (accepted 2026-11-03) | D39A |
@@ -4585,6 +4808,8 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D39E | Damage flashes from real hits, per TTK damage type | Done (accepted 2026-11-03) | D39C |
 | D39F | Pickup flashes (explosion flashes removed; left for D41) | Done (accepted 2026-11-03) | D39C |
 | D41 | Foundational lighting system (pre-job: case-study artifact, then spawns the lighting jobs) | Todo (placeholder, intake 2026-11-03) | none |
+| D42 | Death state and menu: stay on the death scene, Open opens the existing death list, Escape returns, unlimited continues, console usable while dead | In progress (playtest round 1: mouse jitter, floor angle; EDuke32 clean-room study; note 373) | D19H, D19P, D19M, D19K, D26 |
+| D43 | Level title card: the level's name near the centre when a level begins, Duke 3D style, fades by itself | Done (user-accepted 2026-11-03; note 374) | - |
 | D39G | Classic renderer fallback for flashes | Done (accepted 2026-11-03) | D39C |
 | D40 | Switch renderer (Polymorph / Classic) live in game, as EDuke32 does | Done | D17AR6, D39G |
 | D08H | Apartment furniture, hidden pickup and switch targeting | Done | D08 |

@@ -53,10 +53,13 @@ EXE_LOAD = 0x80010000
 STEEL = ['000000', '0c0c18', '14182c', '202840', '405080', '5c70a0', '7088b4', '84a4cc', '94b0d8',
          'a4c4e4', 'b4d4f4', 'bcdcfc', 'd0e6fc', 'e4f0ff', 'f4faff', '000000']
 SHADOW = 0xff0c0c18  # Console steel's darkest navy
+# D43: the level title's red (Duke 3D's level name), the steel ramp's steps in red.
+RED = ['000000', '1c0000', '300000', '440404', '600808', '780c0c', '901010', 'a81414', 'bc1818', 'cc2020',
+       'dc2c2c', 'e83c3c', 'f45050', 'fc6c6c', 'fc8c8c', '000000']
 
 BIG_ROWS = [(0, ',-./0123456789A'), (18, 'BCDEFGHIJKLM'), (36, 'NOPQRSTUVWXY'), (54, "Z:;<>=?@'")]
 MEDIUM_ROWS = [(72, ',-./0123456789ABCDEFG'), (84, 'HIJKLMNOPQRSTUVWXY'), (96, "Z:;<>=?@©™'")]
-SETS = [  # name, font, palette or '#rrggbb' tint (system font), scale, spacing, shadow
+SETS = [  # name, font, palette or '#rrggbb' tint (system font), scale, spacing, shadow (True: SHADOW, or its ARGB)
     ('messages', 'big', 'steel', 1, 1, True),
     ('headings', 'big', 225, 2, 1, False),
     ('console', 'medium', 'steel', 1, 0, True),
@@ -74,6 +77,9 @@ SETS = [  # name, font, palette or '#rrggbb' tint (system font), scale, spacing,
     ('mission_complete', 'micro', '#5fd35f', 2, 1, False),
     # D08A19: USED on the item card, in the gold of the user's mockup.
     ('mission_used', 'system', '#ffdc30', 1, 0, False),
+    # D43: the level title card (user, 2026-11-03): TTK Big Italic, 1x, spacing -1,
+    # in red over a near-black shadow; drawn in the game's screen pixels like the menu.
+    ('level_title', 'big', 'red', 1, -1, 0xff140000),
 ]
 FONT_INFO = {'big': (BIG_ROWS, 17, 8), 'medium': (MEDIUM_ROWS, 11, 5), 'system': (None, 8, 8), 'micro': (None, 5, 4)}  # rows, height, space
 EXCLAMATION = {'big': (2, 3), 'medium': (1, 2)}  # D24C: period rows trimmed, stem taper (px)
@@ -314,7 +320,8 @@ def build(raw, exe):
     fonts['system'] = system
     fonts['micro'] = micro_font()
     palettes = {225: sheet.palette(225), 226: sheet.palette(226),
-                'steel': [tuple(int(h[i:i + 2], 16) for i in (0, 2, 4)) for h in STEEL]}
+                'steel': [tuple(int(h[i:i + 2], 16) for i in (0, 2, 4)) for h in STEEL],
+                'red': [tuple(int(h[i:i + 2], 16) for i in (0, 2, 4)) for h in RED]}
     headers, pixels, records, fallbacks = b'', b'', [], {}
     base = 4 + len(SETS) * (8 + 95 * 8)
     for name, font, pal, scale, spacing, shadow in SETS:
@@ -324,7 +331,8 @@ def build(raw, exe):
             colours = [tint] * 16  # 1-bit system glyphs: every lit texel takes the tint
         else:
             colours = palettes[pal]
-        headers += struct.pack('<BBBBI', height + 2, scale, int(shadow), 0, SHADOW if shadow else 0)
+        shadow_colour = (SHADOW if shadow is True else shadow) if shadow else 0
+        headers += struct.pack('<BBBBI', height + 2, scale, int(bool(shadow)), 0, shadow_colour)
         used = []
         for code in range(32, 127):
             ch = chr(code).upper()  # all caps

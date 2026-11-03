@@ -176,3 +176,20 @@ checked only as code (every accepted spot found a floor). Holy hand grenade and
 dynamite are not loaded in level 0 and were not measured. Spawning in a tight
 space can still drop a large item within reach (the old placement, now with the
 notice).
+
+## D39E addition: enemies (2026-11-03)
+
+`spawn enemy` alone (or `enemies`, or a bad type) lists the creature types
+the level's spawner records hold: type, verified name (50 Necro), count, and
+"(non-hostile)" for class 8 (records with class 0 are not creatures and are
+left out). `spawn enemy <type>` (Modernized gameplay) takes a record
+of that type from `*0x800de720` (48 bytes, count `0x800c56a0`; +0 type, +4 live
+actor, +8 x/y/z, +0x14 flags: bit 0 spawned, 0x10 failed for good, 0x16
+skipped), preferring one not in play, writes a position 1500 units ahead of
+the view at Duke's height, and creates it with the original `0x80098f3c` (as
+`dnmonsters` restores enemies). A record already in play is removed first
+with `0x80098d70`; at the live cap (`0x800c56a4` of `0x800c56a8`) the farthest
+live enemy is removed first. If creation fails the 0x10 flag is cleared so
+the record is not lost. Only types the level places can be spawned (their
+models are loaded). Verified: level 6, types 57, 50 (Necro), 26 and 344
+created in front of Duke; the Necro attacked once approached.

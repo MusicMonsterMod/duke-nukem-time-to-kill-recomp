@@ -1045,7 +1045,8 @@ void input_frame() {
     // Diagnostics only (DNTTK_TEST_INPUT=<file>): a script steers the
     // offscreen game. The file is re-read every input frame: held key names
     // (w a s d shift ctrl space e q up down enter left right x z c esc v backspace
-    // pgup pgdn home end delete; D26J: grave opens/closes the console, 1),
+    // pgup pgdn home end delete; D26J: grave opens/closes the console, 1;
+    // D39E: 0, the Freezer's key),
     // mouse1 (held left button, D08K6),
     // cheat=<word>, act=<action> (D07E) and quick=<save/load/savemenu/loadmenu>
     // (D20; once per change of word) and
@@ -1067,7 +1068,7 @@ void input_frame() {
             {"left",SDL_SCANCODE_LEFT},{"right",SDL_SCANCODE_RIGHT},{"x",SDL_SCANCODE_X},{"z",SDL_SCANCODE_Z},
             {"c",SDL_SCANCODE_C},{"esc",SDL_SCANCODE_ESCAPE},{"v",SDL_SCANCODE_V},{"backspace",SDL_SCANCODE_BACKSPACE},
             {"pgup",SDL_SCANCODE_PAGEUP},{"pgdn",SDL_SCANCODE_PAGEDOWN},{"home",SDL_SCANCODE_HOME},{"end",SDL_SCANCODE_END},{"delete",SDL_SCANCODE_DELETE},
-            {"grave",SDL_SCANCODE_GRAVE},{"1",SDL_SCANCODE_1}};
+            {"grave",SDL_SCANCODE_GRAVE},{"1",SDL_SCANCODE_1},{"0",SDL_SCANCODE_0}};
         bool was[sizeof named/sizeof named[0]];
         for(size_t i=0;i<sizeof named/sizeof named[0];++i){was[i]=keys[named[i].code];keys[named[i].code]=false;}
         mouse[1]=false;mouse[2]=false;
@@ -1100,6 +1101,15 @@ void input_frame() {
                         std::snprintf(last,sizeof last,"%s",word+6);
                         int v[5]={0,0,0,0,0};
                         if(std::sscanf(last,"%d,%d,%d,%d,%d",&v[0],&v[1],&v[2],&v[3],&v[4])>=1) screen_flash_request(v[0],v[1],v[2],v[3],v[4]!=0);
+                    }
+                }
+                // D39E: hurt=type,amount sends one hit through Duke's own damage handler, once per change of word.
+                else if(!std::strncmp(word,"hurt=",5)) {
+                    static char last[32];
+                    if(std::strcmp(last,word+5)) {
+                        std::snprintf(last,sizeof last,"%s",word+5);
+                        int type=0,amount=0;
+                        if(std::sscanf(last,"%d,%d",&type,&amount)==2 && type>0) screen_flash_test_hurt(type,amount);
                     }
                 }
                 // D20: quick=save|load|savemenu|loadmenu, once per change (F6 / F9 / F2 / F3).

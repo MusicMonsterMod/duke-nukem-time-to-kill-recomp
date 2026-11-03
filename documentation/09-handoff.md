@@ -1,5 +1,110 @@
 # Next-session handoff
 
+## 2026-11-03 - D39E accepted and closed: damage, Necro and frozen flashes
+
+User: "amazing work! lock it in and close us out". D39E is Done: real hits on
+Duke flash Duke3D-style by the original handler's damage families (shots red
+`32 32`, heavy blasts `48 52`, falls, gas), Necro bolts EDuke32's Octabrain
+purple `48 48 0 48`, and the Freezer EDuke32's frozen blue `16 0 0 24`, held
+every frame while frozen and cleared exactly with the thaw frame (D35J5's quads
+remain Classic's). Debug `spawn enemy` lists and spawns this level's enemies.
+[Note 370](370-d39-screen-flash-framework.md), D39E section. Next: D39F (pickups and
+explosions), D39G (Classic).
+
+## 2026-11-03 - D39E follow-up: Necro purple, frozen blue on the framework, enemy spawn (Needs playtest)
+
+User: "when the necros hit you (the analogue to the octobrains), i think it
+should be the same purple flash as eduke32. and of course, i think the
+freezethrower tint should be reimplemented into this framework too", and "to
+test stuff you can just spawn anything you need" (now in the skill and
+memory). Correction: damage type 7 is the Freezer (note 275), not fire as the
+first D39E entry said. Changes ([note 370](370-d39-screen-flash-framework.md), D39E):
+Necro bolts (attacker type 50, projectile row 20) flash Duke3D's Octabrain
+purple `palfrom 48 48 0 48`; a Freezer hit and every player update while Duke
+is frozen give `palfrom 16 0 0 24` (held, fading over 16 tics on thaw),
+matched to `research/screencaps/freezethrow.mp4`; D35J5's half-blend quads
+now draw only on Classic. New debug `enemies` / `spawn enemy <type>`
+(original spawner records and creation). Measured: level 6 spawned Necro, 6
+bolts -> 6 purple flashes (weight 0.734 toward 192 0 192); frozen hold 0.25
+blue for the whole freeze, 0.55 s fade, both views; first-person frame mean
+matches the spec within 0.2; Classic keeps the quads. Suites as before (125
+controls PASS; Python 225, old failure only). Limit: the frozen blue now
+also shows in third person. Executable
+`fbf48386913386d70a7277a5f4a83debd041bf85b23831f2536f8df618f0f45d`.
+
+Thaw timing (user: "it looks like duke moves just a few miliseconds before
+the blue tint is un-applied"): measured. The thaw happens inside Duke's update
+(drain `0x8004157c`: `(13653 x delta) >> 12` from +0x214, double with the
+jetpack; thaw when that covers the rest), after the per-frame hook had already
+held the blue, so the first thawed frame (no ice, Duke starting to move) still
+carried blue on all its presents: one game frame late (6 presents, 33 ms at 30
+fps; 50 ms in a 20 fps scene). The hook now predicts that thaw with the game's
+own rule and clears the blue in that frame. Per-present trace
+(`DNTTK_FLASH_TRACE=1`): last blue present composed from frame 147 (frozen),
+first present of frame 148 (thawed) has none, 0 presents apart; the session log
+counts "cleared with the thaw frame". Suites pass (the input test hung on the
+desktop display and passed on a private Xvfb). Executable
+`ca2c7f814dbd44d4364e33de58162f6d6b1345672c6b94c1ad6c41df15b4c2f7`.
+
+Frozen colour final: EDuke32's own, `palfrom 16 0 0 24`, held every frame and
+cleared at once on the thaw (user: "i'd really love the same coloration ...
+in eduke it's instant"). Fitted from `freezethrow.mp4` (each channel x0.75,
+blue +23); measured in UI slot 11 first person: frame mean within 0.5 of the
+formula, blue gone the first frame after the thaw. Executable
+`5e84129288e183f2ac04125c075dfc22694f9af4f352d362d52a734d72e7d89b`.
+
+Fix: the user still saw no blue while frozen. Cause: the flash's per-frame
+work (fade, hit resolution, frozen hold) ran from the step-table entry
+`0x8005a210`, which the game skips while Duke is frozen, so a real Freezer
+hit never started the blue (the earlier `hurt=7` tests resolved the hit at
+once and the stalled fade kept that first frame's blue on screen: 1 hold in
+a 2.9 s freeze). It now runs at the entry of Duke's update `0x800412a4`, every
+game frame: 91 holds in a 2.8 s freeze; fade durations unchanged (32 -> 1065.7
+ms, 48 -> 1599.8, 16 -> 533.3), slot-3 hits 9/9. The session log now notes
+each freeze and thaw (`[TTK flash] frozen: ...`, `thawed: N blue holds, M
+skipped (reason)`). Not yet seen: a freeze from a real reflected Freezer shot
+(scripted runs could not get one to come back). Executable
+`c80094df6b0272afa0bb31132a970ce13a4dabb5543e19c131a1114358546543`.
+
+Follow-up: the frozen blue was too faint at Duke3D's 16 0 0 24 (user: "i
+couldnt even see the blue tint"); it is now D35J5's accepted half blend toward
+(8, 8, 64), `palfrom 32 2 2 16`, held while frozen and fading over about 1 s
+after the thaw. Measured in UI slot 11, first person: weight 0.5 held, frame
+mean within 0.4 of the D35J5 mix. `spawn enemy` alone now lists the enemies
+the level can spawn (type, verified name, count, non-hostile).
+
+## 2026-11-03 - D39E: damage flashes from real hits (Needs playtest)
+
+[Note 370](370-d39-screen-flash-framework.md), D39E section.
+Survey of Duke's damage handler `0x800a40a8` from the owned executable:
+arguments, the 20-type switch and its families, the cancel gate (god mode,
+invincibility, scene bit, the original steroid shield, a worn Bio Mask) and
+the fact that armour is taken before the god-mode test. The Freezer (type 7)
+deals nothing itself. New `damage_flash.inc`: an entry
+hook notes Duke's health, armour, gate and frozen bit and judges the hit
+after the call returns, so only a hit that took health, armour (gate open),
+his life, or froze him flashes. `damage_flash_for` (`screen_flash.h`)
+gives Duke3D's catalog values: shots and most hits `32 32` (under 3% `16 32`),
+blasts `32 32` / heavy (15%+) `48 52`, freeze (corrected in the follow-up), falls `16 32` / heavy
+(25%+) `32 32`, toxic gas `16 24 32 0` (our yellow-green; Duke3D has none). A
+hit draws only if at least as strong as the flash still fading; hits in one
+game frame add up. No TTK freeze or shrink type was found; the mapping can
+take one. Developer: `DNTTK_TEST_INPUT` `hurt=type,amount` (a hit through the
+original handler), `DNTTK_DAMAGE_TRACE=1`, debug JSON `damage` fields.
+
+Measured offscreen, 180 Hz, private card copies: slot 3 pig cop 9 hits -> 9
+flashes drawn, hit frame red weight 0.504 toward 62.7 (spec 0.5, 64); all
+types 1-20 flash as mapped; god mode cancels types 2, 4, 7, 11, 12; a light
+hit does not cut a 48 blast; SCREEN FLASHES On 0.749, Reduced 0.25, Off
+nothing; Vanilla untouched; Classic no flash. Suites: `ttk-flash-test`,
+`ttk-near-test`, `ttk-input-test`, `ttk-aim-test`, `ttk-controls-test` (125
+PASS); Python 225 with the old `test_primitive_trace` failure only. No
+framework change. Limits: EDuke32 trooper-shot comparison not completed (the
+copy stalled under Xvfb), so a plain hit's `32 32` rests on D39A's measured
+engine hit; blasts, falls, gas and fire seen only through `hurt=`, not from
+real sources. Executable
+`858654965a05eb933bbbe2ed4ba4e17e8e499d39783fc1ca9ca0a76d517e700d`.
+
 ## 2026-11-03 - D39D accepted and closed: god-mode off flash on the present tint
 
 User: "amazing work! lock it in, close it out". D39D is Done: god mode off is

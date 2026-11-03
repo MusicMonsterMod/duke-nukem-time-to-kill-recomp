@@ -1,5 +1,9 @@
 # D35J5 - Frozen first-person blue vision
 
+> 2026-11-03, D39E: on the Polymorph renderer the blue is now the D39 present
+> tint, Duke3D's `palfrom 16 0 0 24` held while frozen (both views, SCREEN
+> FLASHES applies; note 370). The half-blend quads below remain Classic's.
+
 2026-10-26. Status: Done - user accepted and explicitly authorized closeout.
 User: "awesome!!! lock it in and close us out".
 

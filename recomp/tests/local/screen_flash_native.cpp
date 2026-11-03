@@ -32,6 +32,10 @@ int main() {
     // new frame, then the new one (no blend between the two).
     assert(ttk::flash_mix(st(440,63,0,0,5),st(160,0,63,0,6),0.7,false,c) && near(c[3],44.0/64) && near(c[0],252.0/255));
     assert(ttk::flash_mix(st(160,0,63,0,6),st(150,0,63,0,6),0.0,false,c) && near(c[3],16.0/64) && near(c[1],252.0/255));
+    // D39E: a flash cleared in the next frame (palfrom 0, the thaw) still
+    // shows across the pair: those images are the base frame's composition.
+    const FlashState blue=st(160,0,0,24,9),cleared=st(0,0,0,24,10);
+    assert(ttk::flash_mix(blue,cleared,0.0,false,c) && ttk::flash_mix(blue,cleared,0.9,false,c) && near(c[3],0.25));
     // The last tic fades to nothing; a 20 fps frame (delta 15) keeps the line.
     assert(ttk::flash_mix(st(10,32,0,0,1),st(0,32,0,0,1),0.5,false,c) && near(c[3],0.5/64));
     assert(!ttk::flash_mix(st(10,32,0,0,1),st(0,32,0,0,1),1.0,false,c));
@@ -59,5 +63,21 @@ int main() {
     assert(ttk::flash_parse_palfrom(" 256",v) && ttk::flash_parse_palfrom(" 32 64",v));
     assert(ttk::flash_parse_palfrom(" -1",v) && ttk::flash_parse_palfrom(" 32 red",v) && ttk::flash_parse_palfrom(" 3.5",v));
     assert(ttk::flash_parse_palfrom(" 1 2 3 4 5",v) && ttk::flash_parse_palfrom(" 99999999999999999999",v));
+    // D39E: real hits on Duke (damage type, health + armour taken, death,
+    // freeze, attacker type, projectile row) to Duke3D palfrom values.
+    auto df=[](unsigned t,int lost,bool died=false,bool lit=false,unsigned src=0,int proj=-1){return ttk::damage_flash_for(t,lost,died,lit,src,proj);};
+    auto is=[](ttk::DamageFlash f,int i,int r,int g,int b){return f.intensity==i && f.r==r && f.g==g && f.b==b;};
+    assert(is(df(2,750),32,32,0,0) && !std::strcmp(df(2,750).kind,"hit"));   // pig cop shot (slot 3)
+    assert(is(df(2,224),16,32,0,0) && is(df(1,300),32,32,0,0));             // light hit: Duke3D's knee
+    assert(is(df(4,1124),32,32,0,0) && is(df(4,3000),48,52,0,0));           // blasts: RPG strength when heavy
+    assert(is(df(13,1500),48,52,0,0) && is(df(16,10,true),48,52,0,0));
+    assert(is(df(11,2250),16,32,0,0) && is(df(11,2500),32,32,0,0));         // falls
+    assert(is(df(12,5),16,24,32,0));                                         // gas, each frame in it
+    assert(is(df(7,0,false,true),16,0,0,24) && df(7,0).intensity==0);       // the Freezer: EDuke32's frozen blue
+    assert(is(df(2,750,false,false,50,20),48,48,0,48) && !std::strcmp(df(2,750,false,false,50,20).kind,"necro")); // Necro bolt
+    assert(is(df(2,750,false,false,0,20),48,48,0,48) && is(df(2,750,false,false,57,2),32,32,0,0));
+    assert(df(2,0,false,false,50,20).intensity==0);                         // a Necro bolt god mode cancelled
+    assert(is(df(2,0,true),32,32,0,0));                                      // a killing hit
+    for(unsigned t=1;t<=20;++t) assert(df(t,0).intensity==0);               // cancelled (god mode, mask) or nothing taken
     std::puts("screen flash: ok");
 }

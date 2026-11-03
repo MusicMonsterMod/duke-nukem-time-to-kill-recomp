@@ -375,6 +375,7 @@ struct Frame {
     bool menu_mode=false;  // D19E: captured in game mode 0 (frontend menus can be drawn)
     uint32_t shows[max_jobs]; // D19C: menu signature of the image each redraw is drawn from
     FlashState flash;      // D39B: the screen flash at composition
+    uint32_t duke_word=0;  // D39E trace: Duke's word 0 at composition (bit 0x20000 frozen)
 };
 Frame frames[slots];
 extern double late_lead_ms;
@@ -1073,6 +1074,7 @@ void capture(CPUState* cpu,int kind) {
     }
     f->slot=slot;
     f->flash=screen_flash_read();
+    f->duke_word=psx_mod_read_word(0x800d7198);
     f->valid=true;
     f->frontend=kind!=gameplay_image;
     f->loading=kind==loading_image_kind;
@@ -1262,7 +1264,7 @@ Cached cache[cache_entries];
 // D39B: each cached redraw's screen flash, mixed at the redraw's own alpha
 // between the two frames it blends, so the fade follows the same clock as
 // the motion it is drawn over (and a repeated image keeps its tint).
-struct CachedTint {bool on=false; float rgbw[4]{};};
+struct CachedTint {bool on=false; float rgbw[4]{}; uint64_t serial=0; double alpha=0; uint32_t duke_word=0;};
 CachedTint cache_tint[cache_entries];
 uint64_t cache_clock=0, prefetched=0, governed=0, deferred=0, late_repeats=0;
 int last_shown_cache=-1;   // cache entry of the last present (late camera keeps it)
@@ -1382,6 +1384,7 @@ bool render(Frame& f,int index,const PSXModPresentInfo* info,bool due=false) {
         const Frame* next=frame_by_serial(f.serial+1);
         CachedTint& t=cache_tint[c];
         t.on=flash_mix(f.flash,next?next->flash:f.flash,f.alpha[index],screen_flash_steps(),t.rgbw);
+        t.serial=f.serial;t.alpha=f.alpha[index];t.duke_word=f.duke_word;
     }
     // D17AW: on the render thread the image is only queued. A present due now
     // waits for it a little, as the single-thread path drew it right here.
@@ -1656,6 +1659,14 @@ int present_tint(int slot,float rgbw[4],void*) {
     } else on=screen_flash_live(rgbw);
     on=on && flash_option_rgbw(screen_flash_option(),rgbw);   // D39C: SCREEN FLASHES
     screen_flash_note(slot,rgbw,on);
+    // D39E developer trace: per present, the game frame its picture is
+    // composed from, the blend toward the next, Duke frozen in that frame, the tint.
+    static const bool trace=[]{const char* t=std::getenv("DNTTK_FLASH_TRACE");return t && t[0]=='1';}();
+    if(trace && slot>=1 && slot<=cache_entries) {
+        const CachedTint& t=cache_tint[slot-1];
+        std::fprintf(stderr,"[TTK tint] frame %llu alpha %.3f frozen %d w %.3f\n",(unsigned long long)t.serial,t.alpha,
+            (t.duke_word&0x20000u)?1:0,on?rgbw[3]:0.f);
+    }
     return on;
 }
 

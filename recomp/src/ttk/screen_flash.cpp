@@ -24,6 +24,8 @@ std::atomic<uint64_t> request_count{0};
 uint32_t held=0;
 struct Note {double t; float w; int16_t slot; bool drawn;};
 Note notes[2048]; unsigned notes_n=0;
+char damage_note[96]=""; uint64_t damage_notes=0;
+std::atomic<uint32_t> hurt_request{0};
 }
 
 FlashState screen_flash_read() {
@@ -94,15 +96,27 @@ bool screen_flash_live(float rgbw[4]) {
     if(!hold && !screen_flash_steps()) level-=std::min(since*0.3,(double)tick_delta);
     return flash_rgbw(s,level,rgbw);
 }
+void screen_flash_damage_note(const char* note) {
+    std::snprintf(damage_note,sizeof damage_note,"%s",note); ++damage_notes;
+}
+void screen_flash_test_hurt(int type,int amount) {
+    hurt_request.store(1u<<31|(uint32_t)std::clamp(type,0,255)<<16|(uint32_t)std::clamp(amount,0,0xffff));
+}
+bool screen_flash_take_hurt(int& type,int& amount) {
+    const uint32_t q=hurt_request.exchange(0);
+    if(!q) return false;
+    type=(int)((q>>16)&0xff); amount=(int)(q&0xffff);
+    return true;
+}
 void screen_flash_note(int slot,const float rgbw[4],bool drawn) {
     notes[notes_n++%2048]={now_ms(),drawn?rgbw[3]:0.f,(int16_t)slot,drawn};
 }
 const char* screen_flash_json(uint64_t asked,uint64_t drawn,const float last[4]) {
     static char buffer[65536];
     const FlashState s=screen_flash_read();
-    int n=std::snprintf(buffer,sizeof buffer,"{\"record\":\"0x%08x\",\"level\":%u,\"rgb\":[%u,%u,%u],\"seq\":%u,\"steps\":%s,\"option\":\"%s\",\"requests\":%llu,\"updates\":%llu,\"starts\":%llu,"
+    int n=std::snprintf(buffer,sizeof buffer,"{\"record\":\"0x%08x\",\"level\":%u,\"rgb\":[%u,%u,%u],\"seq\":%u,\"steps\":%s,\"option\":\"%s\",\"requests\":%llu,\"updates\":%llu,\"starts\":%llu,\"damage_hits\":%llu,\"damage\":\"%s\","
         "\"tint_asked\":%llu,\"tint_drawn\":%llu,\"tint_last\":[%.4f,%.4f,%.4f,%.5f],\"notes\":\"",
-        near_clip_flash_record(),s.level,s.r,s.g,s.b,s.seq,screen_flash_steps()?"true":"false",flash_option_name(screen_flash_option()),(unsigned long long)request_count,(unsigned long long)updates,(unsigned long long)starts,
+        near_clip_flash_record(),s.level,s.r,s.g,s.b,s.seq,screen_flash_steps()?"true":"false",flash_option_name(screen_flash_option()),(unsigned long long)request_count,(unsigned long long)updates,(unsigned long long)starts,(unsigned long long)damage_notes,damage_note,
         (unsigned long long)asked,(unsigned long long)drawn,last[0],last[1],last[2],last[3]);
     // Per present, oldest first: "host ms/slot/weight".
     const unsigned first=notes_n>2048?notes_n-2048:0;

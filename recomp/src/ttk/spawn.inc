@@ -44,6 +44,18 @@ static constexpr uint32_t spawn_types=0x800d2660,spawn_models=0x800ddb18,spawn_f
 static constexpr unsigned spawn_type_count=0x7428/28,spawn_distance=600;
 static std::atomic<int> spawn_request{-1};
 static std::atomic<unsigned> spawn_requests;
+// D39E debug enemy spawn ("spawn enemy <type>"): the level's own spawner
+// records (*0x800de720, 48 bytes, count 0x800c56a0: +0 type, +4 live actor,
+// +8 x/y/z, +0x14 flags: bit 0 spawned, 0x10 failed for good, 0x16 skipped;
+// note 335). A record of that type is moved in front of Duke and created by
+// the original 0x80098f3c, as dnmonsters restores one; an already spawned
+// one is first removed by 0x80098d70. At the live cap (0x800c56a4 of
+// 0x800c56a8) the farthest live enemy is removed first, as the original's
+// own nearest-first replacement does. Only types this level places (their
+// models are loaded) can be spawned.
+static std::atomic<int> enemy_request{-1};
+static void spawn_enemy(CPUState* cpu,int type);
+static constexpr unsigned enemy_distance=1500;
 
 // A model is needed and loaded, or not needed (the original's own rule).
 static bool spawn_model_ready(unsigned type) {
@@ -238,6 +250,11 @@ static void spawn_update(CPUState* cpu) {
     // so it does not need captured input, only a verified Modernized gameplay
     // player. Wait up to ~5 s (300 host frames) for one, then give up.
     spawn_crystal_update(cpu);
+    if(const int e=enemy_request.exchange(-1);e>=0) {
+        if(player_identity_ready() && psx_mod_read_word(0x800c27bc)==1 && !guest_busy && cpu->gpr[29]>=0x801f4000 &&
+           !g_precise_mode && !g_ls_mode && !g_psx_call_bail) spawn_enemy(cpu,e);
+        else input_notice("Spawn unavailable here");
+    }
     const int fresh=spawn_request.exchange(-1);
     if(fresh>=0){spawn_pending=fresh;spawn_deadline=input_host_frame()+300;}
     if(spawn_pending<0)return;
@@ -295,14 +312,83 @@ static void spawn_update(CPUState* cpu) {
     std::fprintf(stderr,"[TTK spawn] type %d object %08x at %d,%d,%d cell %d\n",type,object,(int32_t)psx_mod_read_word(object+4),
                  (int32_t)position[1],(int32_t)psx_mod_read_word(object+12),(int)int8_t(psx_mod_read_byte(object+0x2e)));
 }
+static void spawn_enemy(CPUState* cpu,int type) {
+    const uint32_t table=psx_mod_read_word(0x800de720),count=psx_mod_read_word(0x800c56a0);
+    if(!count || count>512 || !cheat_ram(table,count*48)) {input_notice("Spawn: no enemy records here");return;}
+    const int32_t px=(int32_t)psx_mod_read_word(player+4),pz=(int32_t)psx_mod_read_word(player+12);
+    auto far2=[&](uint32_t row){const uint32_t a=psx_mod_read_word(row+4);
+        const double dx=(int32_t)psx_mod_read_word(a+4)-px,dz=(int32_t)psx_mod_read_word(a+12)-pz;return dx*dx+dz*dz;};
+    uint32_t pick=0,farthest=0;double most=-1;
+    for(unsigned i=0;i<count;++i) {
+        const uint32_t row=table+48*i,flags=psx_mod_read_word(row+20);
+        if(flags&0x16)continue;
+        const bool live=(flags&1) && cheat_ram(psx_mod_read_word(row+4),0x2cc);
+        if(live && far2(row)>most){most=far2(row);farthest=row;}
+        if(psx_mod_read_word(row)!=unsigned(type))continue;
+        if(!pick || (!live && (psx_mod_read_word(pick+20)&1)))pick=row;   // prefer one not in play
+    }
+    if(!pick) {input_notice("Spawn: that enemy is not placed in this level");return;}
+    auto remove=[&](uint32_t row){return cheat_call(cpu,0x80098d70,row);};
+    if(psx_mod_read_word(pick+20)&1) {if(!remove(pick)){input_notice("Spawn could not complete");return;}}
+    else if((int16_t)psx_mod_read_half(0x800c56a4)>=(int16_t)psx_mod_read_half(0x800c56a8) && farthest && farthest!=pick)
+        remove(farthest);
+    const double a=view_yaw();
+    psx_mod_write_word(pick+8,uint32_t(px+int32_t(std::lround(std::sin(a)*enemy_distance))));
+    psx_mod_write_word(pick+12,psx_mod_read_word(player+8));
+    psx_mod_write_word(pick+16,uint32_t(pz+int32_t(std::lround(std::cos(a)*enemy_distance))));
+    const uint32_t before=psx_mod_read_word(pick+20);
+    if(!cheat_call(cpu,0x80098f3c,pick) || !(psx_mod_read_word(pick+20)&1)) {
+        psx_mod_write_word(pick+20,before&~0x10u);   // never leave the record disabled for good
+        input_notice("Spawn could not complete");return;
+    }
+    const uint32_t actor=psx_mod_read_word(pick+4);
+    char text[48];std::snprintf(text,sizeof text,"SPAWNED ENEMY %d",type);
+    input_notice(text);
+    std::fprintf(stderr,"[TTK spawn] enemy %d record %08x actor %08x class %u at %d,%d,%d\n",type,pick,actor,
+        cheat_ram(actor,0x2cc)?psx_mod_read_byte(actor+0x15):0,(int32_t)psx_mod_read_word(actor+4),(int32_t)psx_mod_read_word(actor+8),(int32_t)psx_mod_read_word(actor+12));
+}
 static bool spawn_same(const char* a,const char* b) {
     for(;*a && *b;++a,++b)if(std::tolower((unsigned char)*a)!=std::tolower((unsigned char)*b))return false;
     return !*a && !*b;
 }
 // Runtime event-pump thread, between guest frames: parse and queue only (the
 // emulation thread checks identity and the player before creating anything).
+// "enemies" / "spawn enemy": the enemy types this level places and so can
+// spawn (spawner records with a creature class; class 0 records are not
+// creatures). Names only where verified.
+static const char* enemy_name(unsigned type) {
+    switch(type) {
+    case 50: return "Necro";
+    default: return nullptr;
+    }
+}
+static void enemy_list(void (*say)(const char*)) {
+    if(!input_modernized() || psx_mod_read_half(0x800bcbb0)!=1) {say("Spawn enemy: Modernized gameplay only");return;}
+    const uint32_t table=psx_mod_read_word(0x800de720),count=psx_mod_read_word(0x800c56a0),types=psx_mod_read_word(spawn_types);
+    if(!count || count>512 || !cheat_ram(table,count*48) || !cheat_ram(types,28*spawn_type_count)) {say("Spawn enemy: no enemies placed in this level");return;}
+    unsigned seen[64]={},n[64]={},k=0;
+    for(unsigned i=0;i<count;++i) {
+        const unsigned t=psx_mod_read_word(table+48*i);
+        if(!t || t>=spawn_type_count || !psx_mod_read_byte(types+28*t+6))continue;
+        unsigned j=0;while(j<k && seen[j]!=t)++j;
+        if(j==k){if(k==64)continue;seen[k++]=t;}
+        ++n[j];
+    }
+    if(!k) {say("Spawn enemy: no enemies placed in this level");return;}
+    say("Enemies you can spawn here (spawn enemy <type>):");
+    for(unsigned j=0;j<k;++j) {
+        const unsigned cls=psx_mod_read_byte(types+28*seen[j]+6);
+        const char* name=enemy_name(seen[j]);
+        char row[64];std::snprintf(row,sizeof row,"  %u%s%s%s - %u placed%s",seen[j],name?" ":"",name?name:"",
+            "",n[j],cls==8?" (non-hostile)":"");
+        say(row);
+    }
+}
 bool spawn_console_command(const char* line,void (*say)(const char*),bool& close) {
     close=false;
+    if(!std::strcmp(line,"enemies") || !std::strcmp(line,"spawn enemy") || !std::strcmp(line,"spawn enemies")) {
+        enemy_list(say);return true;
+    }
     const bool list=!std::strcmp(line,"items") || !std::strcmp(line,"spawn");
     if(!list && std::strncmp(line,"spawn ",6))return false;
     if(!input_modernized()) {say("Spawn: Modernized profile only (Vanilla is unchanged)");return true;}
@@ -348,6 +434,13 @@ bool spawn_console_command(const char* line,void (*say)(const char*),bool& close
     }
     const char* what=line+6;
     while(*what==' ')++what;
+    if(!std::strncmp(what,"enemy",5) && (what[5]==' ' || !what[5])) {
+        char* e=nullptr;const long t=std::strtol(what+5,&e,10);
+        if(e==what+5 || *e || t<=0 || unsigned(t)>=spawn_type_count) {say("Spawn enemy: give a type number from the list:");enemy_list(say);return true;}
+        enemy_request.store(int(t));
+        char reply[64];std::snprintf(reply,sizeof reply,"Spawning enemy %ld...",t);say(reply);
+        close=true;return true;
+    }
     int type=-1;
     char* end=nullptr;
     const long number=std::strtol(what,&end,10);

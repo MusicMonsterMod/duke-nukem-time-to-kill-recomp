@@ -1686,6 +1686,15 @@ console says "(already found)". Other levels refuse them. `spawn 761` is a
 different, generic crystal from the game data: it sets a hidden inventory slot,
 not the level's crystals, and the console says so.
 
+`spawn enemy` on its own (or `enemies`) lists the enemies you can spawn in
+this level: type number, name where known (50 Necro), how many the level
+places, and "(non-hostile)" for characters that do not fight. `spawn enemy <type>` brings one of them to life about 1500 units in front of
+the view (for example `spawn enemy 50`, a Necro, in level 6). It uses the
+level's own spawner: an enemy of that type not yet in play is moved there and
+created the original way (one already in play is moved instead), and if the
+level's limit of live enemies is reached the farthest one is removed first.
+Only types the level places can be spawned.
+
 **Debug sound audition (Modernized).** `sfx <id>` in the console plays a game
 sound at Duke, `id` = bank * 0x1000 + index (for example `sfx 0x1012`, a low
 thump; `sfx 0x100f`, the pickup sound). Bank 1 (`0x1000` to
@@ -2100,9 +2109,25 @@ uses **E Equip pickups**.
 
 Modernized can flash the whole screen with a colour, the way Duke Nukem 3D
 does for hits and pickups: the picture jumps toward the colour, then fades
-back smoothly over a moment. For now the god-mode cheat and the console are
-the only things that flash. Hits, pickups and explosions come in later
-updates.
+back smoothly over a moment. Turning off the god-mode cheat flashes, and so
+does any hit that actually hurts Duke (D39E):
+
+- **Shots, blows and most hits**: red, as in Duke 3D (`palfrom 32 32`). A
+  light hit, under 3% of health and armour together, is a softer red
+  (`palfrom 16 32`, Duke 3D's kick).
+- **Blasts**: red; a heavy one (15% or more, or a killing blast) is Duke 3D's
+  strong RPG red (`palfrom 48 52`).
+- **Necro bolts**: Duke 3D's purple Octabrain flash (`palfrom 48 48 0 48`).
+- **Frozen** (Freezer): Duke Nukem 3D's frozen blue (`palfrom 16 0 0 24`)
+  for as long as Duke is frozen, gone the moment he thaws. It now shows in third person too;
+  SCREEN FLASHES REDUCED makes it a quarter, OFF turns it off. The Classic
+  renderer keeps the older tint.
+- **Falls**: soft red; a heavy fall (25% or more) the full red.
+- **Toxic gas**: a sickly yellow-green while it hurts Duke.
+
+A hit that does not hurt Duke never flashes: god mode, invincibility, a worn
+Bio Mask in gas. A light hit does not cut short a stronger flash that is
+still fading. Pickups and big explosions come in a later update.
 
 **OPTIONS > GAMEPLAY > SCREEN FLASHES** (accessibility):
 

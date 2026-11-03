@@ -75,6 +75,47 @@ inline const char* flash_parse_palfrom(const char* text,int v[4]) {
     return n?nullptr:"an intensity is needed";
 }
 
+// D39E: the flash for one real hit on Duke, from the original handler's
+// damage type (0x800a40a8 a3; the families are its own switch, 0x80018aec),
+// the attacker's object type and projectile row (0x800c4bc0) when known, and
+// what the hit took: health plus armour in the game's units (10000 is 100%),
+// Duke's death, or (type 7, the Freezer) freezing him. Duke3D's palfrom
+// values from note 370's catalog; intensity 0 is no flash. Note 370, D39E.
+struct DamageFlash {int intensity=0,r=0,g=0,b=0; const char* kind="none";};
+constexpr int damage_heavy_hit=300, damage_heavy_blast=1500, damage_heavy_fall=2500;
+// Necro (object type 50, TTK's Octabrain) and its bolt (projectile row 20):
+// Duke3D's Octabrain blast, COOLEXPLOSION1, palfrom 48 48 0 48.
+constexpr unsigned damage_necro_type=50; constexpr int damage_necro_projectile=20;
+// Frozen: EDuke32's frozen colour, palfrom 16 0 0 24 (out = 0.75 x in, blue
+// + 24), given every frame while frozen and gone at once on the thaw (user,
+// 2026-11-03: "it absolutely does not need to fade out. in eduke it's
+// instant"). Fitted from research/screencaps/freezethrow.mp4: every channel
+// x0.75 and blue +23 on the same view (moment match; the frozen eye is lower).
+constexpr DamageFlash damage_frozen{16,0,0,24,"freeze"};
+inline DamageFlash damage_flash_for(unsigned type,int lost,bool died,bool frozen=false,unsigned source_type=0,int projectile=-1) {
+    if(type==7)                                     // the Freezer: the hit freezes Duke
+        return frozen || lost>0 || died?damage_frozen:DamageFlash{};
+    if(lost<=0 && !died) return {};                 // cancelled or absorbed: no hit
+    if(source_type==damage_necro_type || projectile==damage_necro_projectile)
+        return {48,48,0,48,"necro"};
+    switch(type) {
+    case 4: case 13: case 16:                       // blasts (the knockback branch)
+        return lost>=damage_heavy_blast || died?DamageFlash{48,52,0,0,"blast"}:DamageFlash{32,32,0,0,"blast"};
+    case 11:                                        // a fall
+        return lost>=damage_heavy_fall || died?DamageFlash{32,32,0,0,"fall"}:DamageFlash{16,32,0,0,"fall"};
+    case 12:                                        // toxic gas, every frame in it
+        return {16,24,32,0,"gas"};
+    default:                                        // shots, blows and the rest
+        return lost>=damage_heavy_hit || died?DamageFlash{32,32,0,0,"hit"}:DamageFlash{16,32,0,0,"hit"};
+    }
+}
+// Diagnostic: the last damage hit and what it drew (debug JSON "damage").
+void screen_flash_damage_note(const char* note);
+// Developer (DNTTK_TEST_INPUT hurt=type,amount): one hit through Duke's own
+// damage handler at the next player update, to test each damage type.
+void screen_flash_test_hurt(int type,int amount);
+bool screen_flash_take_hurt(int& type,int& amount);
+
 // Live record (mod memory); all zero without one.
 FlashState screen_flash_read();
 // D39C game API, Duke3D palfrom <intensity> <r> <g> <b> (emulation thread,

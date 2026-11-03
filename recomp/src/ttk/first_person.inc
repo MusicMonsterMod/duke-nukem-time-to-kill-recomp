@@ -692,7 +692,9 @@ static void weapon_draw_bounds(bool duke_entry,bool list_step_after_duke) {
     if(duke_entry || list_step_after_duke) {display_hand_done=false;weapon_release();near_clip_viewmodel_flush();}
     if(mask && psx_mod_read_half(player+0x35e) && psx_mod_read_half(player+0x854)==2)
         near_clip_biomask(bob_dip,biomask_light);
-    if(frozen)near_clip_frozen_tint();
+    // D39E: Polymorph draws frozen blue as a present tint (damage_flash.inc);
+    // these PS1 quads remain Classic's.
+    if(frozen && screen_flash_classic())near_clip_frozen_tint();
 }
 // Ready pose (default). At rest Duke carries a drawn weapon raised (pistol)
 // or across his body (shotgun), which from the eye shows the weapon's side or

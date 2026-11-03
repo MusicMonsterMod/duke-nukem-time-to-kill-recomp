@@ -1086,6 +1086,7 @@ static bool facing_ready() {
 #include "manual_jump.inc"
 #include "terrain.inc"
 #include "cheats.inc"
+#include "damage_flash.inc"
 #include "apartment_interaction.inc"
 #include "push.inc"
 #include "ladder_top.inc"
@@ -2183,7 +2184,7 @@ PSX_MOD_CONSTRUCTOR(register_ttk_controls) {
     // D08A4: the sound routine; only the pickup tail's call (ra 0x800828d8) goes further.
     psx_mod_register_function_entry_plugin("ttk.modern.controls",0x8006b73c,[](CPUState* cpu,uint32_t){ttk::steroids_damage_restore();ttk::sound_logged(cpu);if(cpu->gpr[31]==0x800828d8u)ttk::steroids_pickup_sound(cpu);});
     // D27A: the player update; only Duke's call goes further.
-    psx_mod_register_function_entry_plugin("ttk.modern.controls",0x800412a4,[](CPUState* cpu,uint32_t){ttk::steroids_damage_restore();if(cpu->gpr[4]==ttk::player){ttk::run_click_presync();ttk::jet_water_start(cpu);ttk::grounded_water_jet_close_arm(cpu);}});
+    psx_mod_register_function_entry_plugin("ttk.modern.controls",0x800412a4,[](CPUState* cpu,uint32_t){ttk::steroids_damage_restore();if(cpu->gpr[4]==ttk::player){ttk::flash_frame(cpu);ttk::run_click_presync();ttk::jet_water_start(cpu);ttk::grounded_water_jet_close_arm(cpu);}});
     // D12C: the damage sphere; only the original kick's call (ra 0x80049098) goes further.
     psx_mod_register_function_entry_plugin("ttk.modern.controls",0x800a979c,[](CPUState* cpu,uint32_t){ttk::steroids_damage_restore();if(cpu->gpr[31]==0x80049098u)ttk::kick_sphere_entry(cpu);});
     // D08A8: the composition's call after the status bar when 0x8001fc44 is skipped.
@@ -2203,7 +2204,7 @@ PSX_MOD_CONSTRUCTOR(register_ttk_controls) {
     // D08Z5: the slide's jump start (99/100 backwards) at the lower-body initializer.
     psx_mod_register_function_entry_plugin("ttk.wall.backflip",0x800493a4,[](CPUState* cpu,uint32_t){ttk::wall_backflip_jump(cpu);});
     // D08A13: Duke's damage handler; running steroids no longer shield the hit.
-    psx_mod_register_function_entry_plugin("ttk.modern.controls",0x800a40a8,[](CPUState* cpu,uint32_t){ttk::steroids_damage_entry(cpu);ttk::bio_mask_damage_entry(cpu);});
+    psx_mod_register_function_entry_plugin("ttk.modern.controls",0x800a40a8,[](CPUState* cpu,uint32_t){ttk::steroids_damage_entry(cpu);ttk::bio_mask_damage_entry(cpu);ttk::damage_flash_entry(cpu);});
     // D08A12: the held-throwable handler; dynamite stays unlit until fire.
     psx_mod_register_function_entry_plugin("ttk.modern.controls",0x8004dea4,[](CPUState* cpu,uint32_t){ttk::dynamite_entry(cpu);});
     // D08A12: the sparks and the sizzle; only the unlit stick's calls (ra 0x8004e138 / 0x8004e154) go further.

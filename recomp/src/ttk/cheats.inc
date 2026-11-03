@@ -164,9 +164,24 @@ static void screen_flash_tick() {
         near_clip_screen_flash_set(delta>0 && (uint32_t)delta<level?level-(uint32_t)delta:delta>0?0:level);
     }
 }
+static void damage_resolve();      // D39E (damage_flash.inc)
+static int damage_frame_lost;
+static void damage_test_hurt(CPUState* cpu);
+static void frozen_tint_update();
+// D39B/E: the screen flash's game frame (fade, hits, frozen blue). It runs at
+// the entry of Duke's update 0x800412a4, which runs every game frame; this
+// step-table entry (0x8005a210) does not while Duke is frozen, so the flash
+// would stop there (D39E: no blue while frozen).
+static void flash_frame(CPUState* cpu) {
+    if(!input_modernized())return;
+    screen_flash_update();   // D39B
+    damage_resolve();        // D39E: a hit since the last frame
+    damage_frame_lost=0;
+    damage_test_hurt(cpu);
+    frozen_tint_update();    // D39E: frozen blue
+}
 static void cheats_update(CPUState* cpu) {
     screen_flash_tick();
-    screen_flash_update();   // D39B
     god_mode_update();
     auto command=input_take_cheat();
     if(command==Cheat::None)return;

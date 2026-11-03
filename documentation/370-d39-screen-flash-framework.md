@@ -2,7 +2,7 @@
 
 Job: [D39](../MODERNIZATION_JOBS.md) and D39A-D39G. Status: D39A accepted
 2026-11-03 (spec table below, locked); D39B accepted 2026-11-03
-(section below). Follows D08G7 ([note 369](369-d08g7-kroz-feel.md)),
+(section below); D39C accepted 2026-11-03 (section below). Follows D08G7 ([note 369](369-d08g7-kroz-feel.md)),
 accepted as preliminary.
 
 ## Why
@@ -264,6 +264,100 @@ file byte for byte.
 - Not checked: first person (same present path; no first-person-specific
   code), widescreen bezels with letterbox bars (bars are left untinted by
   design), a flash across a level change.
+
+## D39C - Game flash API, console command and Screen Flashes option (accepted 2026-11-03)
+
+### API (`recomp/src/ttk/screen_flash.{h,cpp}`)
+
+- `screen_flash(intensity, r = 0, g = 0, b = 0)` is the game API (D39B's
+  `screen_flash_palfrom`, renamed): palfrom units and rules on the emulation
+  thread, in the Modernized player update. Every call replaces the flash,
+  weaker or stronger; the last call in a game frame wins; intensity is
+  clamped to 0..255 (0 clears), components to 0..63. D39D-F call it.
+- Other threads (the console, `DNTTK_TEST_INPUT flash=`) use
+  `screen_flash_request`, an atomic word the next player update turns into a
+  `screen_flash` call. The record (mod memory) is still written only on the
+  emulation thread.
+- Rules are pure inline functions, tested natively: `flash_parse_palfrom`
+  (console arguments), `flash_option_rgbw` / `flash_option_parse` (option).
+
+### Console (`palfrom`, alias `flash`)
+
+`palfrom <intensity> [r] [g] [b]` at the backtick console (dispatched from
+`level_console_command`; listed by `help`, the one framework line in the
+exported patch). Whole numbers only; intensity 0..255, components 0..63,
+omitted components 0; anything else is refused with the reason and a usage
+line. Accepted: the reply echoes the four values (noting SCREEN FLASHES OFF or
+REDUCED) and the console closes so the flash is seen. Refused with a reason
+outside play (`0x800bcbb0` != 1), in Vanilla and on Classic. The debug port's
+`console` command runs the same line.
+
+The flash appears with the replayed game frame of the update that started it
+(D39B: the tint travels with the frame, so it stays in step with the
+picture). Measured: the first tinted present comes about 3 game frames after
+the console call at 180 Hz, the same delay as the motion.
+
+### SCREEN FLASHES option
+
+OPTIONS > GAMEPLAY > SCREEN FLASHES ON / REDUCED / OFF (profile
+`controls.screen_flashes`, schema 62, default `on`; `run.py --screen-flashes`;
+terminal choice X; env `DNTTK_SCREEN_FLASHES`, live; Vanilla always `off`).
+
+- Applied where the tint is drawn (`present_tint`, after the live/replay
+  choice), never to the record: the fade, savestates and replay are the same
+  under every option, and a change applies to the next present.
+- **On:** the measured weight. **Reduced:** `min(w / 2, 1/4)`: god mode off
+  (32) draws as 16, a pickup (16) as 8, white 63 as 16; durations unchanged.
+  **Off:** nothing drawn.
+- The D08G7 god-mode quads (until D39D) follow it too: Off skips the flash,
+  Reduced starts it at half (170 of 340; a quarter mix at the peak).
+
+### Debug JSON
+
+`render_replay` `plugin.flash` gains `option` (`on` / `reduced` / `off`) and
+`requests` (console and test-input requests), beside D39B's record, level,
+colour, seq, tint counters and per-present notes.
+
+### Evidence (local lab `recomp/analysis/d39c-flash-api/`, ignored)
+
+`probe.py` (D39B's with console cases) on private card copies, offscreen on
+the NVIDIA GPU at 180 Hz, third person, slot 4; flashes issued through the
+debug port's `console` command. Player saves and profile hash-checked
+unchanged after every run. Executable
+`e8734712ae3f0a5e5e394406e56b14449facff3359d8a839fbe9e46d215a1ceb`.
+
+| Check | Result (spec from the D39A table) |
+| --- | --- |
+| `palfrom 32 32` (god off) | 193 presents, 1066.7 ms (32 tics), onset 0.498 (0.5), slope -0.468/s (0.469), 193 distinct weights, max residual 0.007 |
+| `palfrom 48 52` | 1599.8 ms (48 tics), onset 0.748 (0.75) |
+| `flash 16 0 32` | 533.3 ms (16 tics), onset 0.249 (0.25) |
+| `palfrom 63 63 63 63` | 2099.9 ms (63 tics), onset 0.982 (0.984) |
+| `palfrom 100 0 0 63` | full strength 0.984 held 1227.8 ms (37 tics, I - 63), then the same line |
+| Colour (whole-frame per-channel fit of six console flashes, mid-fade) | one weight for all three channels (within 0.004); implied 6-bit colour within 0.2 of the request for five, about 1 unit for 48 48 0 48 |
+| Replace | `palfrom 48 63 0 0`, then `flash 16 0 63 0`: level 160, green, seq + 1; `palfrom 0` clears (level 0) |
+| Refusals | empty, 256, component 64, words, negative, five numbers: the reason and usage; `flashy` stays an unknown command |
+| Reduced | held 32 32: weight 0.25; 63 white: 0.25; 16 green: 0.125 |
+| Off | held flashes: record runs (level 320 / 630 / 160), 0 tints drawn; reply notes OFF |
+| OPTIONS | GAMEPLAY row drawn and cycled (ON, REDUCED, OFF); CONFIRM saved `screen_flashes: off` to the private profile and applied live (a following console flash replied OFF and drew nothing) |
+| God mode off (D08G7 quads) | peak level 340 On, 170 Reduced, none Off |
+| Vanilla / Classic | console reply "Modernized only" / "need the Polymorph renderer"; nothing drawn |
+
+Suites: `ttk-flash-test` (new option and argument cases), `ttk-controls-test`
+(LEVEL00 fixture, LEVEL01, all levels; 125 PASS lines), `ttk-input-test`,
+`ttk-aim-test`, `ttk-near-test` pass; Python 225 with the one failure that
+predates this job (`test_primitive_trace`), 2 skipped; the new schema 62
+tests pass and the older schema references moved to 62. Framework patch exported; applied to a clean
+checkout of the pin `08ec704` it reproduces all 78 framework files byte for
+byte.
+
+### Limits
+
+- No game event calls `screen_flash` yet besides the console: D39D (god
+  mode), D39E (damage) and D39F (pickups, explosions).
+- `DNTTK_FLASH_STEPS` (the Duke3D 30 Hz staircase) stays a developer
+  setting; it is not on OPTIONS.
+- Reduced (half, capped at a quarter) was accepted with the job; not yet
+  judged against real hit flashes (D39E).
 
 ## TTK side (known)
 

@@ -2,8 +2,11 @@
 // The record lives in mod memory; Polymorph's present tint draws it.
 #include "screen_flash.h"
 #include "near_clip.h"
+#include "live_env.h"
 #include "mod_plugins.h"
 #include "psx_sdl.h"
+#include "pc_input.h"
+#include "level_select.h"
 #include <atomic>
 #include <cstdio>
 #include <cstdlib>
@@ -17,6 +20,7 @@ double now_ms() {return 1000.0*(double)SDL_GetPerformanceCounter()/(double)SDL_G
 // Host time and frame delta of the last player update (live fade).
 double tick_ms=0; uint32_t tick_delta=flash_tic; uint64_t updates=0, starts=0;
 std::atomic<uint32_t> requested{0};
+std::atomic<uint64_t> request_count{0};
 uint32_t held=0;
 struct Note {double t; float w; int16_t slot; bool drawn;};
 Note notes[2048]; unsigned notes_n=0;
@@ -40,7 +44,7 @@ void write(const FlashState& s) {
     psx_mod_write_word(a+4,level_tag|std::min(s.level,flash_level_max));
 }
 }
-void screen_flash_palfrom(int intensity,int r,int g,int b) {
+void screen_flash(int intensity,int r,int g,int b) {
     FlashState s=screen_flash_read();
     s.seq=(uint8_t)((s.seq+1)&0x3f);
     s.level=(uint32_t)std::clamp(intensity,0,255)*flash_tic;
@@ -49,6 +53,7 @@ void screen_flash_palfrom(int intensity,int r,int g,int b) {
     ++starts;
 }
 void screen_flash_request(int intensity,int r,int g,int b,bool hold) {
+    ++request_count;
     requested.store(1u<<31|(hold?1u<<30:0u)|(uint32_t)std::clamp(intensity,0,255)<<18|(uint32_t)std::clamp(r,0,63)<<12|(uint32_t)std::clamp(g,0,63)<<6|(uint32_t)std::clamp(b,0,63));
 }
 // Before anything this update starts: a flash started now is drawn at its
@@ -64,8 +69,9 @@ void screen_flash_update() {
     if(q) held=q&(1u<<30)?q:0;
     else q=held;
     if(q)
-        screen_flash_palfrom((int)((q>>18)&0xff),(int)((q>>12)&0x3f),(int)((q>>6)&0x3f),(int)(q&0x3f));
+        screen_flash((int)((q>>18)&0xff),(int)((q>>12)&0x3f),(int)((q>>6)&0x3f),(int)(q&0x3f));
 }
+FlashOption screen_flash_option() {return flash_option_parse(ttk_live_env("DNTTK_SCREEN_FLASHES"));}
 bool screen_flash_steps() {
     static const bool v=[]{const char* t=std::getenv("DNTTK_FLASH_STEPS");return t && t[0]=='1';}();
     return v;
@@ -90,9 +96,9 @@ void screen_flash_note(int slot,const float rgbw[4],bool drawn) {
 const char* screen_flash_json(uint64_t asked,uint64_t drawn,const float last[4]) {
     static char buffer[65536];
     const FlashState s=screen_flash_read();
-    int n=std::snprintf(buffer,sizeof buffer,"{\"record\":\"0x%08x\",\"level\":%u,\"rgb\":[%u,%u,%u],\"seq\":%u,\"steps\":%s,\"updates\":%llu,\"starts\":%llu,"
+    int n=std::snprintf(buffer,sizeof buffer,"{\"record\":\"0x%08x\",\"level\":%u,\"rgb\":[%u,%u,%u],\"seq\":%u,\"steps\":%s,\"option\":\"%s\",\"requests\":%llu,\"updates\":%llu,\"starts\":%llu,"
         "\"tint_asked\":%llu,\"tint_drawn\":%llu,\"tint_last\":[%.4f,%.4f,%.4f,%.5f],\"notes\":\"",
-        near_clip_flash_record(),s.level,s.r,s.g,s.b,s.seq,screen_flash_steps()?"true":"false",(unsigned long long)updates,(unsigned long long)starts,
+        near_clip_flash_record(),s.level,s.r,s.g,s.b,s.seq,screen_flash_steps()?"true":"false",flash_option_name(screen_flash_option()),(unsigned long long)request_count,(unsigned long long)updates,(unsigned long long)starts,
         (unsigned long long)asked,(unsigned long long)drawn,last[0],last[1],last[2],last[3]);
     // Per present, oldest first: "host ms/slot/weight".
     const unsigned first=notes_n>2048?notes_n-2048:0;
@@ -102,5 +108,36 @@ const char* screen_flash_json(uint64_t asked,uint64_t drawn,const float last[4])
     }
     std::snprintf(buffer+n,sizeof buffer-n,"\"}");
     return buffer;
+}
+// D39C: "palfrom <intensity> [r] [g] [b]" (alias "flash") at the backtick
+// console, palfrom's own arguments and rules. The console thread queues it;
+// the next player update starts it. The console closes so the flash is seen.
+bool flash_console_command(const char* line,void (*say)(const char*),bool& close) {
+    const char* args=nullptr;
+    for(const char* name:{"palfrom","flash"}) {
+        const size_t n=std::strlen(name);
+        if(!std::strncmp(line,name,n) && (!line[n] || line[n]==' ')) args=line+n;
+    }
+    if(!args) return false;
+    close=false;
+    int v[4];
+    if(const char* refusal=flash_parse_palfrom(args,v)) {
+        char reply[128];
+        std::snprintf(reply,sizeof reply,"palfrom: %s. Usage: palfrom I [R G B] (I 0-255, R G B 0-63)",refusal);
+        say(reply);
+        return true;
+    }
+    if(!input_modernized()) {say("Screen flashes are Modernized only (Vanilla never flashes).");return true;}
+    const char* r=std::getenv("DNTTK_WORLD_RENDERER");
+    if(r && !std::strcmp(r,"classic")) {say("Screen flashes need the Polymorph renderer (OPTIONS > DISPLAY > RENDERER).");return true;}
+    if(psx_mod_read_half(game_mode)!=1) {say("Screen flashes show in play only: start or load a game first.");return true;}
+    screen_flash_request(v[0],v[1],v[2],v[3]);
+    char reply[128];
+    const FlashOption o=screen_flash_option();
+    std::snprintf(reply,sizeof reply,"palfrom %d %d %d %d%s",v[0],v[1],v[2],v[3],
+        o==FlashOption::Off?" (not drawn: SCREEN FLASHES is OFF)":o==FlashOption::Reduced?" (SCREEN FLASHES REDUCED)":"");
+    say(reply);
+    close=true;
+    return true;
 }
 }

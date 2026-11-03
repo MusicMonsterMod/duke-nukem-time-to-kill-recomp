@@ -1655,6 +1655,7 @@ int present_tint(int slot,float rgbw[4],void*) {
         const CachedTint& t=cache_tint[slot-1];
         if((on=t.on)) std::memcpy(rgbw,t.rgbw,sizeof t.rgbw);
     } else on=screen_flash_live(rgbw);
+    on=on && flash_option_rgbw(screen_flash_option(),rgbw);   // D39C: SCREEN FLASHES
     screen_flash_note(slot,rgbw,on);
     return on;
 }

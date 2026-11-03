@@ -1583,7 +1583,7 @@ outside the game.
 
 **Backtick (`)** opens a Quake-style drop-down developer console (TTK Medium
 Italic font, `>` prompt). Typed commands and their replies stay in the console scrollback (`help`,
-`fps`, `clear`, `quit`, unknown-command errors). `fps` also toggles a compact
+`fps`, `clear`, `quit`, `palfrom` (see Screen flashes), unknown-command errors). `fps` also toggles a compact
 persistent statistics block in the top-left of the game view after you close the
 console (F remains unbound for gameplay). Escape or backtick closes the console.
 The console keeps 512 lines: **PgUp / PgDn** or the **mouse wheel** scroll back
@@ -2095,6 +2095,35 @@ still selected when it is the only one you carry. Confirm applies and saves the
 choice immediately. Vanilla always uses NEVER. The launcher accepts
 `--equip-pickups if-new|never` (saves the preference); terminal `--settings`
 uses **E Equip pickups**.
+
+### Screen flashes (D39C)
+
+Modernized can flash the whole screen with a colour, the way Duke Nukem 3D
+does for hits and pickups: the picture jumps toward the colour, then fades
+back smoothly over a moment. For now the god-mode cheat and the console are
+the only things that flash. Hits, pickups and explosions come in later
+updates.
+
+**OPTIONS > GAMEPLAY > SCREEN FLASHES** (accessibility):
+
+- **ON** (the default): flashes at their full Duke 3D strength.
+- **REDUCED**: half as strong, and never more than a quarter of the way to
+  the colour. Durations are unchanged.
+- **OFF**: no flashes are drawn.
+
+Confirm applies and saves the choice immediately. Vanilla never flashes. The
+launcher accepts `--screen-flashes on|reduced|off` (saves the preference);
+terminal `--settings` uses **X Screen flashes**. Console flashes need the
+Polymorph renderer (Classic answers that it cannot show them).
+
+The backtick console's `palfrom I [R G B]` (or `flash`) starts a flash with
+Duke 3D's own numbers: intensity `I` from 0 to 255 (63 is the strongest; above
+63 stays at full strength for longer; 0 clears a flash) and red, green and
+blue from 0 to 63 (missing ones are 0). Each 1 of intensity lasts one 30 Hz
+tic. A new flash always replaces the current one. The console closes so you
+can see it. Examples: `palfrom 32 32` (the god-mode off red), `palfrom 48 52`
+(an RPG hit), `flash 16 0 32` (an item pickup), `palfrom 32 63 63 63`
+(white). It only works in play, in Modernized.
 
 ### Inventory feedback and crouch scope (2026-09-28)
 

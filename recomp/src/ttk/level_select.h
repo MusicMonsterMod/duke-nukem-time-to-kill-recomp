@@ -24,6 +24,8 @@ bool smoothquads_console_command(const char* line, void (*say)(const char*), boo
 // D17AR3 (developer): "redrawonly [on|off|default]" (frame_replay.cpp),
 // redraw-only live frames for the session.
 bool redraw_only_console_command(const char* line, void (*say)(const char*), bool& close);
+// D39C: "palfrom <intensity> [r] [g] [b]" and its alias "flash" (screen_flash.cpp).
+bool flash_console_command(const char* line, void (*say)(const char*), bool& close);
 // D24B: the game's own name for level n (from guest RAM, "" when unavailable).
 bool level_title(unsigned n, char* out, unsigned cap);
 }

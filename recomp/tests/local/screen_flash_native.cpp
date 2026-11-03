@@ -1,8 +1,10 @@
-// D39B: the screen flash mix rules (screen_flash.h), against note 370's spec.
+// D39B/C: the screen flash mix rules, the Screen Flashes option and the
+// console's palfrom arguments (screen_flash.h), against note 370's spec.
 #include "screen_flash.h"
 #include <cassert>
 #include <cmath>
 #include <cstdio>
+#include <cstring>
 using ttk::FlashState;
 static bool near(double a,double b,double e=1e-6) {return std::fabs(a-b)<=e;}
 static FlashState st(uint32_t intensity_tenths,int r,int g,int b,int seq) {FlashState s;s.level=intensity_tenths;s.r=r;s.g=g;s.b=b;s.seq=seq;return s;}
@@ -34,5 +36,28 @@ int main() {
     assert(ttk::flash_mix(st(10,32,0,0,1),st(0,32,0,0,1),0.5,false,c) && near(c[3],0.5/64));
     assert(!ttk::flash_mix(st(10,32,0,0,1),st(0,32,0,0,1),1.0,false,c));
     assert(ttk::flash_mix(st(300,32,0,0,1),st(285,32,0,0,1),0.5,false,c) && near(c[3],29.25/64));
+    // D39C option: On draws the measured weight, Reduced half of it capped at
+    // a quarter, Off nothing; colour unchanged.
+    using ttk::FlashOption;
+    float o[4]={128.f/255,0,0,0.5f};
+    assert(ttk::flash_option_rgbw(FlashOption::On,o) && near(o[3],0.5));
+    assert(ttk::flash_option_rgbw(FlashOption::Reduced,o) && near(o[3],0.25) && near(o[0],128.0/255));
+    o[3]=63.f/64; assert(ttk::flash_option_rgbw(FlashOption::Reduced,o) && near(o[3],0.25));
+    o[3]=0.25f; assert(ttk::flash_option_rgbw(FlashOption::Reduced,o) && near(o[3],0.125));
+    o[3]=0.5f; assert(!ttk::flash_option_rgbw(FlashOption::Off,o));
+    assert(ttk::flash_option_parse(nullptr)==FlashOption::On && ttk::flash_option_parse("on")==FlashOption::On);
+    assert(ttk::flash_option_parse("reduced")==FlashOption::Reduced && ttk::flash_option_parse("off")==FlashOption::Off);
+    assert(!std::strcmp(ttk::flash_option_name(FlashOption::Reduced),"reduced"));
+    // Console arguments: palfrom's own, omitted components 0.
+    int v[4];
+    assert(!ttk::flash_parse_palfrom(" 48 52",v) && v[0]==48 && v[1]==52 && v[2]==0 && v[3]==0);
+    assert(!ttk::flash_parse_palfrom(" 63 63 63 63",v) && v[0]==63 && v[3]==63);
+    assert(!ttk::flash_parse_palfrom(" 100 0 0 63",v) && v[0]==100 && v[3]==63);
+    assert(!ttk::flash_parse_palfrom(" 0",v) && v[0]==0);
+    assert(!ttk::flash_parse_palfrom(" 255\t1",v) && v[0]==255 && v[1]==1);
+    assert(ttk::flash_parse_palfrom("",v) && ttk::flash_parse_palfrom("   ",v));
+    assert(ttk::flash_parse_palfrom(" 256",v) && ttk::flash_parse_palfrom(" 32 64",v));
+    assert(ttk::flash_parse_palfrom(" -1",v) && ttk::flash_parse_palfrom(" 32 red",v) && ttk::flash_parse_palfrom(" 3.5",v));
+    assert(ttk::flash_parse_palfrom(" 1 2 3 4 5",v) && ttk::flash_parse_palfrom(" 99999999999999999999",v));
     std::puts("screen flash: ok");
 }

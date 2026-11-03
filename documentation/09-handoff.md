@@ -1,5 +1,30 @@
 # Next-session handoff
 
+## 2026-11-03 - D39C accepted and closed: flash API, console palfrom, SCREEN FLASHES
+
+User: "its rediculously good, well done ... accepted and close it out". D39C
+is Done: `screen_flash`, the `palfrom` / `flash` console command, debug JSON
+and OPTIONS > GAMEPLAY > SCREEN FLASHES (Reduced: half, capped at a quarter)
+ship as measured in the entry below and
+[note 370](370-d39-screen-flash-framework.md). Next: D39D (god-mode flash on
+`screen_flash`), D39E (damage), D39F (pickups and explosions).
+
+## 2026-11-03 - D39C: flash API, console palfrom, SCREEN FLASHES (Needs review)
+
+API `screen_flash(I, r, g, b)` (`src/ttk/screen_flash.h`; D39B's
+`screen_flash_palfrom` renamed), emulation thread only; other threads use
+`screen_flash_request`. Console `flash_console_command` (dispatched from
+`level_console_command`; help line in the exported framework patch). Option
+`DNTTK_SCREEN_FLASHES` read live by `screen_flash_option()`, applied in
+`frame_replay.cpp` `present_tint` and in `cheats.inc` `god_mode_off_feel`.
+Profile schema 62 (`screen_flashes`). Test:
+`recomp/analysis/d39c-flash-api/probe.py` (cases `cfade`, `ccolour`,
+`creplace`, `cerrors`, `coption`, `god`; `FLASHES=reduced|off`); console
+flashes show about 3 game frames after the call (the replay's world delay),
+so capture after `wait(10)`. D39D: replace the D08G7 quads in
+`god_mode_off_feel` with `screen_flash(32, 32, 0, 0)` and drop the option
+gate there. Open for review: Reduced strength (half, capped at a quarter).
+
 ## 2026-11-03 - D39B accepted and closed
 
 User: "excellent. lock it in and close us out". D39B is Done

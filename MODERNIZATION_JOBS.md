@@ -1,5 +1,38 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-03 - D39C accepted and closed: flash API, console palfrom, SCREEN FLASHES
+
+User: "its rediculously good, well done ... accepted and close it out". D39C
+is Done: `screen_flash`, the `palfrom` / `flash` console command, debug JSON
+and OPTIONS > GAMEPLAY > SCREEN FLASHES (Reduced: half, capped at a quarter)
+ship as measured in the entry below and
+[note 370](documentation/370-d39-screen-flash-framework.md). Next: D39D (god-mode flash on
+`screen_flash`), D39E (damage), D39F (pickups and explosions).
+
+## 2026-11-03 - D39C: game flash API, console palfrom, SCREEN FLASHES (Needs review)
+
+[Note 370](documentation/370-d39-screen-flash-framework.md), D39C section.
+`screen_flash(I, r, g, b)` is the game API (palfrom rules: replace always,
+last call in a frame wins, I 0..255, colour 0..63). The backtick console's
+`palfrom I [R G B]` (alias `flash`, listed in `help`) queues one and closes
+the console; bad arguments, Vanilla, Classic and non-play are refused with a
+reason. OPTIONS > GAMEPLAY > SCREEN FLASHES ON / REDUCED / OFF (schema 62,
+`--screen-flashes`, terminal X; Vanilla off) scales only what is drawn:
+Reduced is half the weight capped at a quarter, Off draws nothing; the
+D08G7 god-mode quads follow it until D39D. Debug JSON `plugin.flash` adds
+`option` and `requests`.
+
+Measured offscreen at 180 Hz with console flashes: durations exactly I tics
+(32 -> 1066.7 ms, 48 -> 1599.8, 16 -> 533.3, 63 -> 2099.9), onsets I/64,
+slope -0.468/s, I > 63 hold 1227.8 ms (37 tics), one weight across channels
+and colour within 0.2 of the request (about 1 unit for magenta); replace and
+clear; Reduced 0.25 / 0.25 / 0.125; Off 0 drawn; the OPTIONS row saved and
+applied live; god-off peak 340 / 170 / 0. Suites pass (flash, controls 125
+PASS, input, aim, near); Python 225, the old `test_primitive_trace` failure
+only. Patch exported and verified on a clean pin. Open for review: the
+Reduced strength. Executable
+`e8734712ae3f0a5e5e394406e56b14449facff3359d8a839fbe9e46d215a1ceb`.
+
 ## 2026-11-03 - D39B accepted and closed: Polymorph present tint
 
 User: "excellent. lock it in and close us out". D39B is Done: the present
@@ -2648,7 +2681,7 @@ cost when idle, Vanilla and Classic unchanged.
 
 #### D39C - Game flash API and Screen Flashes option
 
-**Status: Todo. Dependencies: D39B.** `screen_flash(intensity, r, g, b)`
+**Status: Done (user-accepted; closeout authorized 2026-11-03; [note 370](documentation/370-d39-screen-flash-framework.md), D39C section). Dependencies: D39B.** `screen_flash(intensity, r, g, b)`
 with palfrom units and rules, state in guest mod memory (D08G7's word or a
 small versioned record), a developer console command (`flash 48 63 63 63`),
 debug JSON, and an OPTIONS / profile setting Screen Flashes On / Reduced /
@@ -3971,7 +4004,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D39 | Screen flash framework: Duke3D palfrom-style coloured flashes (parent) | Todo | D39A-D39G |
 | D39A | Flash spec: measure palfrom in EDuke32 (rate, hold, override, blend) | Done (accepted 2026-11-03) | - |
 | D39B | Polymorph present tint: exact colour mix, display-rate fade, replay-safe | Done (accepted 2026-11-03) | D39A |
-| D39C | Game flash API, console command, debug JSON, Screen Flashes option | Todo | D39B |
+| D39C | Game flash API, console command, debug JSON, Screen Flashes option | Done (accepted 2026-11-03) | D39B |
 | D39D | God-mode off flash on D39 (replaces the D08G7 quads) | Todo | D39C, D08G7 |
 | D39E | Damage flashes from real hits, per TTK damage type | Todo | D39C |
 | D39F | Pickup and explosion flashes (white on big blasts) | Todo | D39C |

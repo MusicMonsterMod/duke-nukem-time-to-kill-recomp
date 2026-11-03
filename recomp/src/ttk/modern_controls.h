@@ -5,6 +5,12 @@
 struct CPUState;
 namespace ttk {
 bool movement_ready();
+// D08G9: a cheat typed on the death scene (game_menu's death hook): true for
+// dnkroz / dncornholio (god mode is now on; the caller revives Duke), other
+// cheats are refused with the dead notice.
+bool death_cheat_take();
+// D08G9: the revive is under way (the death view's roll unwinds after it).
+void death_view_revive();
 const char* movement_lease_miss();
 bool edge_jump_queued();
 // DNTTK_FRAME_TRACE: other plugins add their hook time to the frame trace.

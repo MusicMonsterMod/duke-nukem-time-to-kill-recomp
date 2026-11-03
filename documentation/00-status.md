@@ -1,5 +1,15 @@
 # Current status - 2026-10-04
 
+## 2026-11-03 - D42 and D08G9 accepted and closed
+
+D42 death scene ([note 373](373-d42-death-scene.md)): live scene, PRESS E TO
+OPEN MENU, EDuke32's first-person death view (clean room: level, low,
+random roll, turn to the killer, no body), unlimited continues, CONTINUE at
+once, music plays on. D08G9 ([note 375](375-d08g9-dnkroz-revive.md)): dnkroz
+on the death scene revives Duke where he fell with god mode on. New entry
+hooks `0x80042BE8`, `0x80042D04` (codegen hash unchanged). Executable
+`6f2cb01e753f41ae05c334ba5fba1ae00af9b67654988c0dfe70244f04fff7e7`.
+
 ## 2026-11-03 - D43 committed; D42 playtest round 1 (In progress)
 
 D43 committed on its own (D42 shares files; split at the user's choice). D42

@@ -373,9 +373,73 @@ static bool frozen_eye_state() {
         (int32_t)psx_mod_read_word(player+0x214)>0 &&
         (int16_t)psx_mod_read_half(player+0x32)>0;
 }
+// D42: Duke dying (player word 0 bit 1, no health) with the first-person view
+// selected, one player. Read-only presentation predicate: the eye follows the
+// body to the floor; it never authorizes movement, aim or fire.
+static bool death_eye_state() {
+    return input_modernized() && input_snapshot(Context::Gameplay).first_person &&
+        psx_mod_read_word(0x800c27bc)==1 && (psx_mod_read_word(player)&2) &&
+        (int16_t)psx_mod_read_half(player+0x32)<=0;
+}
+// D42: EDuke32's first-person death view, re-implemented from its behaviour
+// (clean room; documentation/373-d42-death-scene.md). Look input stops (late
+// redraws too), the view levels out, the eye rides the body (over its root)
+// and drops as Duke 3D's does: from 36 to 20 of the 38 units of standing eye
+// height, falling under sprite gravity (176 per tic squared over 4096 units,
+// 30 tics a second: about 0.23 s), and the screen rolls to a random angle
+// (Duke 3D's dead_flag plus a map-height term: any angle), turning another
+// 32 / 2048 of a turn as the body falls. Presentation only.
+// While dead the view also turns toward the killer, half the remaining angle
+// per tic (Duke 3D's wackedbyactor): the source object of the last hit
+// (Duke's damage handler, stack +0x10; damage_flash.inc), if it was not Duke
+// and is still the same object (its type id +0x2c).
+// D08G9: after a dnkroz revive the roll unwinds, half per tic (Duke 3D's
+// rotscrnang -= rotscrnang >> 1 once alive); CONTINUE and restarts reset it.
+struct DeathView {bool active=false,revived=false;double start_ms=0,roll0=0,turn_ms=0,unwind=0,unwind_ms=0;uint32_t killer=0;uint16_t killer_id=0;};
+static DeathView death_view;
+static uint32_t last_hit_source;
+static double last_hit_ms;
+static constexpr double death_standing_eye=294; // the upright eye above the root (swim, climb)
+static double death_fall_fraction() {
+    const double tics=std::max(0.0,(input_clock_ms()-death_view.start_ms)*30/1000);
+    return std::min(1.0,176*tics*(tics+1)/2/4096);
+}
+static double death_eye_height() {return death_standing_eye*(36-16*death_fall_fraction())/38;}
+static double death_roll() {
+    if(death_view.active) return death_view.roll0+death_fall_fraction()*32*tau/2048;
+    return death_view.unwind*std::pow(0.5,std::max(0.0,input_clock_ms()-death_view.unwind_ms)*30/1000);
+}
+void death_view_revive() {death_view.revived=true;}
+static void death_view_update() {
+    if(!death_eye_state()) {
+        if(death_view.active) {
+            death_view.unwind=death_view.revived ? wrap_yaw(death_roll()) : 0;death_view.unwind_ms=input_clock_ms();
+        } else if(death_view.unwind && std::abs(death_roll())<0.001) death_view.unwind=0;
+        death_view.active=death_view.revived=false;return;
+    }
+    if(death_view.active) return;
+    death_view.active=true;death_view.start_ms=death_view.turn_ms=input_clock_ms();
+    const uint32_t seed=(uint32_t)SDL_GetPerformanceCounter()*2654435761u;
+    death_view.roll0=(seed>>21)*tau/2048;
+    death_view.killer=0;
+    if(last_hit_source && last_hit_source!=player && death_view.start_ms-last_hit_ms<2000) {
+        death_view.killer=last_hit_source;death_view.killer_id=psx_mod_read_half(last_hit_source+0x2c);
+    }
+}
+static void death_view_turn() {
+    const double now=input_clock_ms(),dt=std::clamp(now-death_view.turn_ms,0.0,200.0);
+    death_view.turn_ms=now;
+    const uint32_t k=death_view.killer;
+    if(!k || psx_mod_read_half(k+0x2c)!=death_view.killer_id) return;
+    const double dx=(int32_t)psx_mod_read_word(k+4)-(int32_t)psx_mod_read_word(player+4);
+    const double dz=(int32_t)psx_mod_read_word(k+12)-(int32_t)psx_mod_read_word(player+12);
+    if(std::hypot(dx,dz)<1) return;
+    yaw=wrap_yaw(yaw+wrap_yaw(std::atan2(dx,dz)-yaw)*(1-std::pow(0.5,dt*30/1000)));
+}
 static bool climb_state_early();
 static void orbit_begin(uint32_t sp) {
     const auto& f=input_snapshot(Context::Gameplay);
+    death_view_update();
     double target[3];
     if (!independent_camera() || !pivot(target)) {free_look={};orbit_valid=false;look.reset();return;}
     // A slow original game update is not a camera ownership transition.
@@ -452,11 +516,15 @@ static void orbit_begin(uint32_t sp) {
         shoulder_offset+=(side-shoulder_offset)*blend;
     }
     auto delta=look.consume(f.epoch,f.total_x,f.total_y);
-    const bool frozen=frozen_eye_state();
+    const bool frozen=frozen_eye_state() || death_eye_state(); // D42: no look while dead
     if(frozen) {
         delta={};recentering=false;key_hold=0;key_return=false;key_ms=-1;
         turn_hold=0;turn_ms=-1;
     }
+    // D42: dead, the view levels out at once (Duke 3D's horizon 100, eased
+    // over a tic or two).
+    if(death_view.active && ticks) pitch*=std::pow(0.25,ticks);
+    if(death_view.active) death_view_turn();
     // Bounded to ordinary grounded locomotion. Attached traversal, flight,
     // swimming, first person and ownership boundaries discard inspection.
     const bool inspect_ok=f.active && !f.first_person && fp_blend==0 && !frozen &&
@@ -513,6 +581,15 @@ static void orbit_begin(uint32_t sp) {
 static void view_matrix(uint32_t destination) {
     double sy=std::sin(inspection_yaw()),cy=std::cos(inspection_yaw()),sp=std::sin(inspection_pitch()),cp=std::cos(inspection_pitch());
     double matrix[]={cy,0,-sy,-sy*sp,cp,-cy*sp,sy*cp,sp,cy*cp};
+    // D42: the death view's screen roll turns the right and down rows about
+    // the forward row (the eye view only).
+    if((death_view.active || death_view.unwind) && fp_blend>0) {
+        const double r=death_roll()*fp_blend,cr=std::cos(r),sr=std::sin(r);
+        for(int i=0;i<3;++i) {
+            const double right=matrix[i],down=matrix[3+i];
+            matrix[i]=cr*right+sr*down;matrix[3+i]=-sr*right+cr*down;
+        }
+    }
     for(int i=0;i<9;++i) psx_mod_write_half(destination+2*i,(int16_t)std::lround(matrix[i]*4096));
 }
 static void orbit_constraint(uint32_t delta) {
@@ -809,6 +886,10 @@ static bool state(bool camera_only=false,bool presentation=false) {
     // Only the presentation lease may ignore the guest pause/inventory word.
     if(presentation) {
         if(psx_mod_read_half(0x800bcbb0)!=1 || psx_mod_read_half(0x800d2540))return false;
+        // D42: the first-person death eye keeps the normal camera while Duke dies.
+        if(camera_only && death_eye_state())
+            return psx_mod_read_word(camera+0xa4)==player && psx_mod_read_word(player+0x7d4)==camera &&
+                !(psx_mod_read_word(player+0x224)&0x20000000u);
     } else if(!gameplay_context())return false;
     unsigned animation=psx_mod_read_half(player+0x60);
     // Guarded idle/locomotion dispatch; wall bumps and this jump lease permit camera only.
@@ -1682,7 +1763,9 @@ static void hook_body(CPUState* cpu, uint32_t address) {
             psx_mod_write_word(player+0x224,psx_mod_read_word(player+0x224)|0x82000000u);
         // Original actor draw (a0 camera, a1 actor) from the object-list loop.
         actor_drawing=true;
-        duke_drawing=cpu->gpr[4]==camera && cpu->gpr[5]==player && ra==0x8003769c;
+        // D42: a dying Duke is drawn from the second object loop (0x800376c0,
+        // its list step returns to 0x80037724); the death eye owns that draw.
+        duke_drawing=cpu->gpr[4]==camera && cpu->gpr[5]==player && (ra==0x8003769c || (ra==0x8003771c && death_eye_state()));
         third_body_drawing=duke_drawing;
         weapon_draw_bounds(duke_drawing && fp_blend>0 && identity(),false);
         {
@@ -1699,7 +1782,7 @@ static void hook_body(CPUState* cpu, uint32_t address) {
         // Next object-list step after Duke's draw returns: the head joint flag is cleared.
         duke_drawing=false;actor_drawing=false;
         if(ra==0x8007fe78) pickup_select_end(); // D08A9: after the pickup dispatcher
-        if(ra==0x800376b4) {third_body_drawing=false;head_restore();weapon_draw_bounds(false,true);}
+        if(ra==0x800376b4 || ra==0x80037724) {third_body_drawing=false;head_restore();weapon_draw_bounds(false,true);}
     } else if (address==0x800b4d2c) {
         first_person_ladder_near(cpu,ra);
     } else if (address==0x800292a0) {
@@ -1978,7 +2061,7 @@ bool late_view(double& out_yaw,double& out_pitch,double at_ms) {
     // Only while the modern camera owns the view (the live frame's lease at
     // Duke's draw) and follows Duke: a game-owned camera (new-game opening,
     // scripted views, climbs) must never get the mouse direction.
-    if(!input_modernized() || !orbit_valid || recentering || !independent_camera() || !last_lease_cam || frozen_eye_state() ||
+    if(!input_modernized() || !orbit_valid || recentering || !independent_camera() || !last_lease_cam || frozen_eye_state() || death_eye_state() ||
        psx_mod_read_word(camera+0xa4)!=player) return false;
     uint64_t live_epoch=0; double x=0,y=0;
     if(!input_live_look(live_epoch,x,y,at_ms) || !look.valid || look.epoch!=live_epoch) return false;

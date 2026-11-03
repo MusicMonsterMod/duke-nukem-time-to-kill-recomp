@@ -68,6 +68,8 @@ void input_notice(const char* message);
 // D08A18: start the normal E interaction (stow, then the original action), as
 // if E were pressed; from the emulation thread.
 void input_request_interaction();
+// D42: Open (USE binding) presses since the last call, from the emulation thread.
+int input_take_open_presses();
 // A guest update acknowledges accepted or rejected commands; bounded host expiry.
 void input_ack_commands(uint64_t serial);
 // A verified original normal-gameplay camera callback offers initial capture.

@@ -1060,7 +1060,9 @@ existing third-person camera. Chains and poles also retain first person by
 default, with CHAIN/POLE VIEW offering third person. Ledges retain first person
 by default, with MANTLE VIEW offering third person. Climbing walls still show
 the free third-person camera; scripted and
-turret cameras and death use the original camera. Dodge rolls
+turret cameras use the original camera. A death in first person keeps first
+person with the view on the floor; a death in third person uses the original
+death camera. Dodge rolls
 and slides down steep slopes stay in first person, and so do falls (off an edge, a
 car roof or after bumping a wall). Pressing P
 again returns to third person. Console, pause, menus and focus loss retain the
@@ -1421,16 +1423,34 @@ the same way on every menu screen:
   picture is the game as it was when you paused, not the menu. Loading such
   a save puts you straight back into play through LOAD GAME, quickload or F7,
   including older saves without resume metadata.
-- **Death screen:** CONTINUE, LOAD GAME, RESTART LEVEL, QUIT TO MENU and
-  QUIT GAME under the continues left (challenge stages: REPLAY LEVEL, GIVE UP
-  and QUIT GAME). QUIT TO MENU asks QUIT TO MENU? and gives up through the
-  game over screen to the title menu; QUIT GAME closes the program. CONTINUE asks CONFIRM CONTINUE (YES highlighted), the others ask
-  YES / NO with NO highlighted. Escape does nothing on the list and cancels a prompt.
+- **Death:** when Duke dies the game stays on the death scene, as in Duke 3D:
+  no menu opens. The line at the top reads PRESS E TO OPEN MENU (it names
+  whatever key USE / MANTLE is bound to). In first person the view is Duke
+  3D's: it drops with Duke to near the floor, levels out, tilts to a random
+  angle and turns toward whoever killed him; none of Duke is shown. In third
+  person the original death animation and camera play. Mouse look is off
+  while dead. The music keeps playing. On the death scene:
+  - **E (USE)** opens the death menu: CONTINUE, LOAD GAME, RESTART LEVEL,
+    QUIT TO MENU and QUIT GAME (challenge stages: REPLAY LEVEL, GIVE UP and
+    QUIT GAME). **Escape** on that menu closes it and returns to the death
+    scene; Duke stays dead.
+  - **Escape** opens the normal pause menu (RESUME returns to the death scene;
+    SAVE GAME is not offered while Duke is dead).
+  - The console (`` ` ``) opens and closes without changing anything.
+  - Typing `dnkroz` (or `dncornholio`) brings Duke back up where he fell,
+    with full health and GOD MODE: ON, as in Duke 3D. Other cheats say
+    Cheat unavailable - Duke is dead.
+  Continues are unlimited: there is no continues count and no game over for
+  running out. CONTINUE (and REPLAY LEVEL) act at once, with no CONFIRM
+  CONTINUE, and bring Duke back at the last checkpoint, as before. QUIT TO MENU asks QUIT TO MENU?
+  and gives up through the game over screen to the title menu; QUIT GAME
+  closes the program. The others ask YES / NO with NO highlighted, and
+  Escape cancels a prompt. Vanilla (`run.py --vanilla`) keeps the original
+  death screen and continues.
 - **Level title:** when a level starts (a new level, the next level after the
   statistics screen, RESTART LEVEL or loading a save, but not CONTINUE after
-  a death), its name shows in red just under the crosshair, as in Duke 3D,
-  for about three seconds, fading out by itself. Play is never interrupted;
-  pausing hides it and holds its time.
+  a death), its name shows in red just under the crosshair, as in Duke 3D, for about three seconds, fading out by itself. Play is never
+  interrupted; pausing hides it and holds its time.
 - **LOAD GAME** (title, pause and death menus) lists the 12 savestate slots
   (the same slots as F7) with the level name, opening on slot 01.
   The chosen slot's picture, era and save time (in the console's steel
@@ -1442,7 +1462,7 @@ the same way on every menu screen:
   (`run.py --vanilla`) keeps the original memory card LOAD GAME.
 - **Statistics screen** (after each level, one player): the original screen's
   look, with more lines: the level name and DIFFICULTY, then ENEMIES KILLED,
-  TIME TAKEN, BEST TIME, CONTINUES REMAINING, SECRETS FOUND, MISSION ITEMS
+  TIME TAKEN, BEST TIME, SECRETS FOUND, MISSION ITEMS
   (found or used, on levels that have them), CHALLENGE FOUND and HEALTH /
   ARMOR (COMPLETED or FAILED after a challenge stage). BEST TIME is your
   fastest finish of that level on that difficulty; a faster one reads NEW

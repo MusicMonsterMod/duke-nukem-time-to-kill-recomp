@@ -54,6 +54,11 @@ static void damage_resolve() {
 // under running steroids is a normal hit, and the original shield is not).
 static void damage_flash_entry(CPUState* cpu) {
     damage_resolve();  // a previous hit: its call has returned
+    // D42: the source of the latest hit on Duke (the death view turns to it).
+    if(cpu->gpr[4]==player && input_modernized()) {
+        const uint32_t at=cpu->gpr[29]>=0x80000000u && cpu->gpr[29]<0x801ffff0u ? psx_mod_read_word(cpu->gpr[29]+0x10) : 0;
+        last_hit_source=at>=0x80010000u && at<=0x801fffa0u && !(at&3) ? at : 0;last_hit_ms=input_clock_ms();
+    }
     if(cpu->gpr[4]!=player || !input_modernized() || screen_flash_classic() || !player_identity_ready()) return;
     const uint32_t sp=cpu->gpr[29],ra=cpu->gpr[31];
     DamageHit& h=damage_hit;

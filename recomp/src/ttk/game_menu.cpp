@@ -61,6 +61,7 @@
 // the pad, and its text is hidden); CONFIRM hands it the result its own Cross
 // gives (documentation/179-d20b-statistics-screen.md).
 #include "game_menu.h"
+#include <cctype>
 #include <cmath>
 #include "host_osd.h"
 #include "live_env.h"
@@ -75,7 +76,6 @@
 #include "savestate_slots.h"
 #include "ttk_font.h"
 #include "inventory_hud.h"
-#include "ttk_font.h"
 #include <algorithm>
 #include <array>
 #include <atomic>
@@ -126,6 +126,12 @@ const Guard guards[]={
     {0x800857e4u,0x990u,"80acc5a03247a7a97930a0d8278cc68839fd0694914e5e1dee3cf04e5d5d4cc8"},  // pause top handler (12)
     {0x8008647cu,0x7f0u,"af33ec8f74e797df8f960b844588faa1011fdf22e8a6469ca34177a363b1da38"},  // death screen handler (15)
     {0x8002690cu,0x90u,"03968170f1610cb68b72423a8fb70e3664bd36899f7b5d15b2fdaba62fe67c19"},   // mode 1: dispatch, resume on 0
+    // D42: Duke's death updates, the waiting state's CONTINUE and the pause entry.
+    {0x80042be8u,0x11cu,"7519fc935fd5b59266746d8a3386d18728ca2734675e2fae943a2df6cd1d7d5f"},  // death update
+    {0x80042d04u,0xe4u,"4eeded191034a67106d424529ea7137712fbf8e6be836850f634b4b058500d9c"},   // death update (second)
+    {0x80042de8u,0x60u,"37ce5d5fbf140e0eb25865c08849d9f15019262dcaf03baeb15f5cad5720f96d"},   // waiting state: CONTINUE
+    {0x800269a0u,0xd0u,"14c0c22e8b683b663ce5ae1be3e9df954b3af69a1804dcf04c8780eb77fc6006"},   // mode 1: Start pauses (not while waiting)
+    {0x8003c240u,0xb4u,"1ebb4fd688ca5863ed818723201c41dd0064818e6c924291327950530f028668"},   // CD music: resume at the saved position
     {0x800c3d2cu,0x40u,"c9ef39aacbbd3027c182f6bdb255613e0794c223519cfcda97ce4a45a604c513"},   // level name string ids
     {0x800c3e10u,0x104u,"76189e6a61e1552476bb95a777ad819198c94812700157401ed2092b1f146fb8"},  // briefing string ids (13 x 10)
     {0x80094a38u,0x40u,"8e661ce6839ad2f8cefacf50eea5e0a97e9f547f5f060ce100590cc04d12f03b"},   // game event (restart, quit, replay)
@@ -209,12 +215,27 @@ constexpr uint16_t pause_top=12, death_top=15;
 constexpr uint32_t paused=0x800be568, player=0x800d7198, player_size=0x8a4, player_flags=0x224;
 constexpr uint32_t fn_resume_sound=0x8006ac24, fn_resume_music=0x8003c3dc, fn_event=0x80094a38;
 constexpr uint32_t continue_request=0x800d71cd; // byte 2: the death screen's CONTINUE (not the challenge stages)
+// D42: the death scene. Duke's death updates (0x80042be8, 0x80042d04) count
+// the player's +0x3a down by the tick's fields (0x800d21fc). When it runs out
+// a one-player game with continues left (+0x279) sets the waiting state
+// (+0x15 = 0x19, +0x35 = 1) and opens the death screen (paused, 15); with
+// none it gives up (event 0xff). Modernized holds the count above the tick's
+// fields, so the scene stays live (the original pause on Start works there,
+// 0x800269a0 refuses only the waiting state), until Open (the USE binding)
+// lets it run out. Continues never run out: the count is kept at one or more.
+// Escape on the death list puts the death state back and resumes the scene.
+constexpr uint32_t fn_death_update=0x80042be8, fn_death_update_alt=0x80042d04;
+constexpr uint32_t death_timer=player+0x3a, player_state=player+0x15;
+constexpr uint8_t state_waiting=0x19;
+// The CD music player (documentation/182): drive state, saved music position,
+// resume at that position.
+constexpr uint32_t cd_state=0x800c26a8, music_position=0x800d7184, fn_music_resume=0x8003c240;
 constexpr uint16_t restart_code=13, main_menu_code=1; // the pause handler's results the main loop acts on
 constexpr uint32_t event_replay=0xfd, event_restart=0xfe, event_quit=0xff;
 // Text ids: YES, NO, REALLY QUIT?, RESTART LEVEL?, CONFIRM CONTINUE, CONFIRM
-// REPLAY, CONTINUE / CONTINUES REMAINING.
+// REPLAY.
 constexpr int text_yes=0xfb, text_no=0xfc, text_quit=0x102, text_restart=0x103;
-constexpr int text_continue=0x104, text_replay=0x113, text_remaining=0xf7, text_remaining_many=0xf8;
+constexpr int text_continue=0x104, text_replay=0x113;
 constexpr int text_last=0x19a; // the highest id a level name or briefing uses (guarded)
 // D19J: the frontend (state 0x800d24e4 and its handlers' variables).
 constexpr uint32_t fe_state=0x800d24e4, fe_cursor=0x800d24e6, fe_items=0x800d2528, fe_timer=0x800d24d0, fe_fields=0x800d21fc;
@@ -262,11 +283,11 @@ constexpr uint32_t gameplay_exit=0x800270e8, end_code=0x800be55e;
 constexpr uint32_t stats_one_begin=0x800277dc, stats_one_end=0x80027df8, stats_challenge_begin=0x80027214, stats_challenge_end=0x80027474;
 constexpr uint16_t stats_wait_fields=300;
 // The one-player screen's values: the player's kills (+0x3b6), time in ms
-// (+0x398), continues (+0x279) and secrets (+0x3b0), the level's secret count,
+// (+0x398) and secrets (+0x3b0; D42: continues +0x279 no longer shown), the level's secret count,
 // the challenge item found (0x800d79f6) and the challenge stages won (bits of
 // 0x800d79f7 from stage 21).
 constexpr uint32_t secrets_total=0x800beb18, challenge_found=0x800d79f6, challenges_done=0x800d79f7;
-constexpr int text_kills_label=0x86, text_time_label=0x87, text_continues_label=0xf9, text_secrets_label=0x88;
+constexpr int text_kills_label=0x86, text_time_label=0x87, text_secrets_label=0x88;
 constexpr int text_challenge_label=0xfa, text_completed=0xd5, text_failed=0xd6, text_save=0x17, text_continue_prompt=0x19;
 // Text ids of the title pages (the originals pass the same).
 constexpr int text_title1=1, text_title2=2, text_one=0x57, text_two=0x58, text_load=0x31, text_options=0x59;
@@ -539,7 +560,40 @@ Act return_item=Act::Resume;  // the item highlighted when the list comes back
 // does on that confirmation (its sound, flags and calls) and what the main
 // loop then does with its result. The handler itself never runs: it would draw
 // the old screen into the next image, which then shows for one frame.
-enum class Final {None, Resume, PauseRestart, PauseMainMenu, DeathContinue, DeathRestart, DeathQuit};
+enum class Final {None, Resume, PauseRestart, PauseMainMenu, DeathContinue, DeathRestart, DeathQuit, DeathScene};
+// D42: the death scene (see death_update_entry). death_state is the dying
+// state the waiting state replaced (0: not known, after a load on the list).
+bool death_scene=false, death_open=false;
+uint8_t death_state=0;
+uint64_t death_holds=0, death_opens=0, death_returns=0, death_music=0, death_revives=0;
+// D08G9: dnkroz on the death scene brings Duke back where he fell, through the
+// game's own CONTINUE respawn (0x80042de8: +0x35 = 2 in the waiting state).
+// That respawn takes its position from the checkpoint's placement row (the
+// table *0x800de720, 48-byte rows, row index from 0x800d82f8 by the
+// checkpoint +0x27a; position words +8..+0x14 to the player's +4..+0x10, the
+// room from the position). For the one tick it runs, the row holds Duke's own
+// position; it is put back as soon as Duke is up (game_menu_frame).
+uint32_t revive_row=0;
+uint8_t revive_saved[0x30];
+// The line at the top, in the notice style, naming the key bound to USE. It
+// never covers another notice (it waits for one to end) and goes when a menu
+// opens or Duke is up again.
+char death_prompt[64], death_prompt_shown[64];
+void death_prompt_show() {
+    char key[32];std::snprintf(key,sizeof key,"%s",input_binding_name(interact));
+    for(char& c:key) c=(char)std::toupper((unsigned char)c);
+    std::snprintf(death_prompt,sizeof death_prompt,"PRESS %s TO OPEN MENU",key);
+    const bool ours=death_prompt_shown[0] && host_osd_text_is(death_prompt_shown);
+    if(ours && !std::strcmp(death_prompt,death_prompt_shown)) return;
+    if(!ours && host_osd_text_centered()) return;
+    host_osd_push_centered(death_prompt,3600000);
+    std::snprintf(death_prompt_shown,sizeof death_prompt_shown,"%s",death_prompt);
+}
+void death_prompt_clear() {
+    if(death_prompt_shown[0] && host_osd_text_is(death_prompt_shown)) host_osd_push(" ",1);
+    death_prompt_shown[0]=0;
+}
+bool duke_dead();
 Final pending_final=Final::None;
 // After a resume the screen value stays ours through that dispatch and reads 0
 // again at the next composition.
@@ -625,6 +679,8 @@ void savestate_check() {
     direct=Page::Options;direct_open=false;
     owned=false;page=Page::Options;screen=-1;pending_sub=pending_cursor=-1;
     pending_final=Final::None;resumed=false;
+    death_scene=death_open=false;death_state=0; // D42: a loaded world's own death
+    revive_row=0;                               // D08G9: the load replaced the row
     resume_load=psx_mod_read_half(game_mode)==1 && psx_mod_read_half(paused)!=0;
     quiet_resume=false;
     pending_state=-1;handoff=Handoff::None;title_cmds.clear();second_character_cmds.clear();split_return_main=false;title_enter=false;
@@ -835,7 +891,7 @@ void build_list(Page p) {
         if(has_briefing()) list.push_back({"MISSION BRIEFING",Act::Brief});
         list.push_back({"OPTIONS",Act::Options});
         if(psx_mod_read_word(players)==1) {
-            list.push_back({"SAVE GAME",Act::Save}); // D19Q
+            if(!duke_dead()) list.push_back({"SAVE GAME",Act::Save}); // D19Q; D42: not on the death scene
             list.push_back({"LOAD GAME",Act::Load});
         }
         if(!challenge()) list.push_back({"RESTART LEVEL",Act::Restart});
@@ -1149,7 +1205,10 @@ void list_confirm() {
     case Act::Load: open_load(page);sound(0);break;
     case Act::Save: open_save();sound(0);break;
     case Act::Resume: act_now(a);break;
-    default: ask_from=page;ask_act=a;page=Page::Ask;cursor=a==Act::Continue ? 0 : 1;sound(1);break;
+    // D42: continues are unlimited, so CONTINUE (and REPLAY LEVEL) act at
+    // once; the original's CONFIRM CONTINUE asked whether to spend one.
+    case Act::Continue: act_now(a);break;
+    default: ask_from=page;ask_act=a;page=Page::Ask;cursor=1;sound(1);break;
     }
 }
 
@@ -1347,7 +1406,9 @@ void confirm() {
 void back(uint16_t mode) {
     switch(page) {
     case Page::Pause: act_now(Act::Resume);return;  // Escape resumes, as the original's Start
-    case Page::Death: return;                        // nothing to go back to
+    case Page::Death:                                // D42: back to the death scene
+        if(death_state) pending_final=Final::DeathScene;
+        return;
     case Page::Brief: open_list(Page::Pause,Act::Brief);sound(0);return;
     case Page::Ask: ask_cancel();return;
     case Page::Keys: keys_back();return;
@@ -1848,13 +1909,7 @@ void draw_pause(Guest& g,const Geometry& geo) {
     g.prompt(icon_triangle,"RESUME",geo.w/4,y);
 }
 void draw_death(Guest& g,const Geometry& geo) {
-    // The original's "N CONTINUES REMAINING" (its "%d %s", at y -80).
-    const int n=psx_mod_read_byte(continues);
-    const uint32_t s=psx_mod_read_word(strings+4u*(n==1 ? text_remaining : text_remaining_many));
-    std::string words;
-    for(uint32_t a=s;s>=0x80010000u && s<0x80200000u && words.size()<40;++a) {const char ch=(char)psx_mod_read_byte(a);if(!ch) break;words+=ch;}
-    char line[64];std::snprintf(line,sizeof line,"%d %s",n,words.c_str());
-    g.say(line,0,-80,font_menu|centre);
+    // D42: no "N CONTINUES REMAINING" (continues are unlimited).
     draw_list(g,geo,8);
     const int y=prompt_y(geo);
     g.prompt(icon_select,"SELECT",-geo.w/8,y);
@@ -2306,8 +2361,7 @@ void draw_stats(Guest& g,const Geometry& geo) {
         line_id(text_time_label,clock(psx_mod_read_word(player+0x398)));
         if(stats_new_best) line("BEST TIME:","NEW BEST!",blue);
         else line("BEST TIME:",stats_best_ms ? clock(stats_best_ms) : "--:--");
-        std::snprintf(value,sizeof value,"%d",(int)psx_mod_read_byte(player+0x279));
-        line_id(text_continues_label,value);
+        // D42: continues are unlimited in Modernized; the count is not shown.
         if((unsigned)(n-27)>=4u) {
             std::snprintf(value,sizeof value,"%d OF %d",(int)half(player+0x3b0),(int)half(secrets_total));
             line_id(text_secrets_label,value);
@@ -2480,6 +2534,58 @@ void draw_page(CPUState* cpu,const MenuContext* c);
 // runs in this very tick) and to take over the original OPTIONS before its
 // handler draws anything.
 bool trace() {static const bool v=std::getenv("DNTTK_MENU_TRACE")!=nullptr;return v;}
+// D42: at Duke's death updates (a0 the player), each game tick while he is
+// dying and play runs: hold the count, or let it run out after Open.
+void death_update_entry(CPUState* cpu) {
+    if(!enabled() || psx_mod_replay_active() || g_precise_mode || g_ls_mode || g_psx_call_bail) return;
+    if(cpu->gpr[4]!=player || psx_mod_read_half(game_mode)!=1 || psx_mod_read_word(players)!=1) return;
+    ensure_init();
+    if(!authentic()) return;
+    std::lock_guard<std::recursive_mutex> lock(mutex);
+    savestate_check();
+    const uint8_t s=psx_mod_read_byte(player_state);
+    if(s==state_waiting) return;
+    death_state=s;
+    if(!psx_mod_read_byte(continues)) psx_mod_write_byte(continues,1); // never the game over
+    if(!death_scene) {
+        death_scene=true;death_open=false;input_take_open_presses();
+        // The music plays on through the death scene (user, 2026-11-03): the
+        // death's hit paused the CD music (0x800a470c -> 0x8003c478, drive
+        // state 0x800c26a8 = 0); the game's own resume (0x8003c240, as
+        // CONTINUE calls it) seeks back to the saved position and plays.
+        if(psx_mod_read_half(cd_state)==0 && psx_mod_read_word(music_position)) {
+            busy=true;
+            {Guest g(cpu);g.call(fn_music_resume,0,0,0,0);}
+            busy=false;++death_music;
+        }
+    }
+    if(input_take_open_presses()>0 && !death_open) {death_open=true;++death_opens;}
+    if(!revive_row && death_cheat_take()) {
+        const int cp=(int8_t)psx_mod_read_byte(player+0x27a);
+        const uint32_t rows=psx_mod_read_word(0x800de720);
+        const int row=(int16_t)psx_mod_read_half(0x800d82f8+2*cp);
+        const uint32_t at=rows+48u*(uint32_t)row;
+        if(cp>=0 && row>=0 && rows>=0x80010000u && at+0x30<=0x80200000u) {
+            for(uint32_t i=0;i<0x30;++i) revive_saved[i]=psx_mod_read_byte(at+i);
+            for(uint32_t i=0;i<16;i+=4) psx_mod_write_word(at+8+i,psx_mod_read_word(player+4+i));
+            revive_row=at;
+            psx_mod_write_byte(player_state,state_waiting);psx_mod_write_byte(continue_request,2);
+            death_scene=death_open=false;death_prompt_clear();++death_revives;
+            death_view_revive();
+            const uint32_t fields=psx_mod_read_word(tick_fields);
+            if(fields<0x8000u) psx_mod_write_half(death_timer,(uint16_t)(fields+1)); // this update: no death screen
+            return;
+        }
+    }
+    if(death_open) {
+        // Runs out in this update: the waiting state and the death list.
+        psx_mod_write_half(death_timer,0);death_open=false;death_scene=false;
+        return;
+    }
+    const uint32_t fields=psx_mod_read_word(tick_fields);
+    if(psx_mod_read_half(death_timer)<=fields && fields<0x8000u) {psx_mod_write_half(death_timer,(uint16_t)(fields+1));++death_holds;}
+    death_prompt_show();
+}
 void game_menu_tick(CPUState* cpu) {
     if(trace()) {static uint32_t n;if(n++<40) std::fprintf(stderr,"[TTK menu] tick pc=%08x mode %u enabled %d replay %d precise %d ls %d bail %d\n",
         cpu->pc,psx_mod_read_half(game_mode),enabled(),psx_mod_replay_active(),g_precise_mode,g_ls_mode,g_psx_call_bail);}
@@ -2580,6 +2686,7 @@ bool gameplay_tick(CPUState* cpu) {
         const Final f=pending_final;
         pending_final=Final::None;
         const bool pause=f==Final::Resume || f==Final::PauseRestart || f==Final::PauseMainMenu;
+        death_prompt_clear();
         if(sub==(pause ? ours_sub : death_sub)) {
             // D19I: this image still shows the page, as the original's
             // handler draws its screen in the tick that acts on the press.
@@ -2597,9 +2704,15 @@ bool gameplay_tick(CPUState* cpu) {
                 case Final::PauseRestart: psx_mod_write_half(pause_reset,1);psx_mod_write_half(pause_screen,restart_code);break;
                 case Final::PauseMainMenu: split_return_main=psx_mod_read_word(players)==2;psx_mod_write_half(pause_reset,1);psx_mod_write_half(pause_screen,main_menu_code);break;
                 case Final::DeathContinue:
-                    if(challenge()) {psx_mod_write_byte(continues,(uint8_t)(psx_mod_read_byte(continues)-1));g.call(fn_event,event_replay,0,0,0);}
+                    // D42: REPLAY LEVEL no longer spends a continue.
+                    if(challenge()) g.call(fn_event,event_replay,0,0,0);
                     else psx_mod_write_byte(continue_request,2);
                     psx_mod_write_half(death_reset,1);break;
+                case Final::DeathScene:
+                    // D42: the dying state again, as before its count ran out;
+                    // death_update_entry holds the count from the next tick.
+                    psx_mod_write_byte(player_state,death_state);psx_mod_write_byte(continue_request,0);
+                    psx_mod_write_half(death_reset,1);death_scene=false;++death_returns;break;
                 case Final::DeathRestart: g.call(fn_event,event_restart,0,0,0);psx_mod_write_half(death_reset,1);break;
                 case Final::DeathQuit: psx_mod_write_half(death_reset,1);g.call(fn_event,challenge() ? event_restart : event_quit,0,0,0);break;
                 case Final::None: break;
@@ -2622,6 +2735,8 @@ bool gameplay_tick(CPUState* cpu) {
         return true;
     }
     if(sub==pause_top) {
+        death_prompt_clear(); // D42: Escape on the death scene; Open presses
+        death_scene=false;    // made in the pause menu are dropped on return
         // D19Q: the displayed image is still the last of play.
         pause_thumb_ok=savestate_grab_thumb(pause_thumb)!=0;
         open_list(Page::Pause,return_item);return_item=Act::Resume;
@@ -2637,6 +2752,7 @@ bool gameplay_tick(CPUState* cpu) {
         return true;
     }
     if(sub==death_top) {
+        death_prompt_clear();
         open_list(Page::Death,Act::Continue);owned=true;++entries;
         input_release_for_menu();
         psx_mod_write_half(pause_screen,death_sub);
@@ -3033,6 +3149,21 @@ void apply_sound(CPUState* cpu) {
 }
 
 void game_menu_frame(CPUState* cpu) {
+    if(revive_row && (psx_mod_read_half(game_mode)!=1 || !duke_dead())) {
+        // D08G9: Duke is up; the checkpoint row is the level's again. No
+        // CONTINUE invincibility on top of god mode.
+        std::lock_guard<std::recursive_mutex> lock(mutex);
+        if(psx_mod_read_half(game_mode)==1) {
+            for(uint32_t i=0;i<0x30;++i) psx_mod_write_byte(revive_row+i,revive_saved[i]);
+            psx_mod_write_half(player+0x8a0,0);
+        }
+        revive_row=0;
+    }
+    if(death_scene || death_prompt_shown[0]) {
+        // D42: Duke up again (Continue, restart, load) or play left.
+        std::lock_guard<std::recursive_mutex> lock(mutex);
+        if(psx_mod_read_half(game_mode)!=1 || !duke_dead()) {death_scene=death_open=false;death_prompt_clear();}
+    }
     if(!enabled() || psx_mod_replay_active() || g_precise_mode || g_ls_mode || g_psx_call_bail) {title_publish(nullptr,0);return;}
     {std::lock_guard<std::recursive_mutex> lock(mutex);savestate_check();quick_poll();}
     if(authentic()) {
@@ -3111,10 +3242,11 @@ extern "C" int ttk_load_ui_present_ready() {
 extern "C" const char* ttk_game_menu_json() {
     using namespace ttk;
     static char buffer[1280];
-    std::snprintf(buffer,sizeof buffer,"{\"settings\":{\"word\":%u,\"game_speed\":%u,\"enforced\":%llu,\"card_packs\":%llu,\"card_loads\":%llu,\"card_auto_aim\":%s},\"owned\":%s,\"page\":%d,\"screen\":%d,\"cursor\":%d,\"top\":%d,\"items\":%d,\"entries\":%llu,\"draws\":%llu,\"writes\":%llu,\"finals\":%llu,\"handoff\":%d,\"pending_state\":%d,\"loading\":%s,\"card\":[%llu,%llu,%llu],\"identity\":%s,\"drops\":%llu,\"drop\":[%d,%u,%u],\"skips\":[%llu,%llu,%llu,%llu],\"skip_ra\":\"%x\",\"quick\":[%d,%d,%d],\"stats\":[%d,%d,%llu,%llu],\"title\":[%llu,%.0f]}",
+    std::snprintf(buffer,sizeof buffer,"{\"settings\":{\"word\":%u,\"game_speed\":%u,\"enforced\":%llu,\"card_packs\":%llu,\"card_loads\":%llu,\"card_auto_aim\":%s},\"owned\":%s,\"page\":%d,\"screen\":%d,\"cursor\":%d,\"top\":%d,\"items\":%d,\"entries\":%llu,\"draws\":%llu,\"writes\":%llu,\"finals\":%llu,\"handoff\":%d,\"pending_state\":%d,\"loading\":%s,\"card\":[%llu,%llu,%llu],\"identity\":%s,\"drops\":%llu,\"drop\":[%d,%u,%u],\"skips\":[%llu,%llu,%llu,%llu],\"skip_ra\":\"%x\",\"quick\":[%d,%d,%d],\"stats\":[%d,%d,%llu,%llu],\"death\":[%d,%u,%llu,%llu,%llu],\"title\":[%llu,%.0f]}",
         psx_mod_read_half(settings_word),psx_mod_read_half(game_speed),(unsigned long long)enforced,(unsigned long long)card_packs,(unsigned long long)card_loads,card.auto_aim?"true":"false",
         owned?"true":"false",(int)page,screen,cursor,top,(int)list.size(),(unsigned long long)entries,(unsigned long long)draws,(unsigned long long)writes,
         (unsigned long long)finals,(int)handoff,pending_state,loading?"true":"false",(unsigned long long)card_skips,(unsigned long long)card_hidden,(unsigned long long)psx_mod_unpaced_vblanks(),identity_checked?(identity_ok?"true":"false"):"null",(unsigned long long)drops,drop_why,drop_state,drop_sub,(unsigned long long)skip_owned,(unsigned long long)skip_screen,(unsigned long long)skip_image,(unsigned long long)drawn_calls,skip_ra,quick_slot,direct_open?1:0,(int)direct,stats_open?1:0,stats_wait,(unsigned long long)stats_entries,(unsigned long long)stats_continues,
+        death_scene?1:0,(unsigned)death_state,(unsigned long long)death_holds,(unsigned long long)death_opens,(unsigned long long)death_returns,
         (unsigned long long)level_card.shown,level_card.left);
     return buffer;
 }
@@ -3218,6 +3350,9 @@ PSX_MOD_CONSTRUCTOR(register_ttk_game_menu) {
         psx_mod_register_function_entry_plugin("ttk.game.menu",a,[](CPUState* cpu,uint32_t){ttk::game_menu_tick(cpu);});
     // D19J: the frontend tick itself, before its pad read and state dispatch.
     psx_mod_register_function_entry_plugin("ttk.game.menu",0x80022324u,[](CPUState* cpu,uint32_t){ttk::title_entry(cpu);});
+    // D42: Duke's death updates (the death scene).
+    for(uint32_t a:{ttk::fn_death_update,ttk::fn_death_update_alt})
+        psx_mod_register_function_entry_plugin("ttk.game.menu",a,[](CPUState* cpu,uint32_t){ttk::death_update_entry(cpu);});
     // D19K: the startup memory card texts. D20B: the statistics screen's.
     psx_mod_register_function_entry_plugin("ttk.game.menu",ttk::fn_text,[](CPUState* cpu,uint32_t){ttk::card_text_entry(cpu);ttk::stats_text_entry(cpu);});
     // D20B: gameplay's exit (the level's last image) and the statistics screen's flip.

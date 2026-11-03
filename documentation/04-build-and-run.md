@@ -464,3 +464,10 @@ One hook (`0x8008B454`, the text call; only states 1 and 2's CHECKING
 strings are used) was added to `game.local.toml` and regenerated with
 `psxrecomp_cli.py generate`; codegen hash unchanged. See
 [note 169](169-d19k-load-game.md).
+
+## Death scene hooks (D42)
+
+Two hooks (`0x80042BE8` and `0x80042D04`, Duke's death updates) were added to
+`game.local.toml` and regenerated with `psxrecomp_cli.py generate` (see the
+D14 note above); two generated lines, codegen hash unchanged, savestates load.
+See [note 373](373-d42-death-scene.md).

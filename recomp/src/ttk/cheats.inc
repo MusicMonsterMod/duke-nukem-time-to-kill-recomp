@@ -173,6 +173,17 @@ static void flash_frame(CPUState* cpu) {
     powerup_tint_update();   // D36M: power-up tint
     frozen_tint_update();    // D39E: frozen blue
 }
+// D08G9: on the death scene Duke's update does not run, so game_menu's death
+// hook takes the cheats. dnkroz / dncornholio turn god mode on and the caller
+// brings Duke back where he fell (Duke 3D); everything else stays refused.
+bool death_cheat_take() {
+    const Cheat command=input_take_cheat();
+    if(command==Cheat::None)return false;
+    if(command!=Cheat::God || !player_identity_ready()) {input_notice("Cheat unavailable - Duke is dead");return false;}
+    psx_mod_write_half(0x800c3cc6,1);
+    input_notice("GOD MODE: ON");
+    return true;
+}
 static void cheats_update(CPUState* cpu) {
     god_mode_update();
     auto command=input_take_cheat();

@@ -1,5 +1,45 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-03 - D42 and D08G9 accepted and closed: death scene, dnkroz revive
+
+User: "thats it, lock it in and close it out!!!! it's working! it's really
+working". D42 is Done: a death stays on a live scene with PRESS E TO OPEN
+MENU, EDuke32's first-person death view (level, low, random roll, turning to
+the killer, no body), unlimited continues with CONTINUE acting at once, the
+music playing on, Escape and console usable while dead
+([note 373](documentation/373-d42-death-scene.md)). D08G9 is Done: dnkroz on
+the death scene brings Duke back where he fell with god mode on
+([note 375](documentation/375-d08g9-dnkroz-revive.md)). Executable
+`6f2cb01e753f41ae05c334ba5fba1ae00af9b67654988c0dfe70244f04fff7e7`.
+
+## 2026-11-03 - D42 round 3 and D08G9: killer turn, no confirm, music, dnkroz revive (Needs playtest)
+
+User: "the death scene feels incredible"; asked for the turn toward the
+killer, CONTINUE without CONFIRM CONTINUE, the music to keep playing, and
+dnkroz on the death scene to revive Duke there (D08G9, now selected).
+D42: the death view turns to the last hit's source object (Duke's damage
+handler, stack +0x10) half per tic, as EDuke32 does (seen: slot 3 pig cop
+kept centred); CONTINUE / REPLAY act at once; the game's own music resume
+runs when the death scene starts (the CD position advanced throughout).
+D08G9 ([note 375](documentation/375-d08g9-dnkroz-revive.md)): dnkroz on the
+scene turns god mode on and runs the original CONTINUE respawn with the
+checkpoint row briefly holding Duke's own position: up where he fell, full
+health, god on; the roll unwinds as in Duke 3D. Suites pass. Executable
+`6f2cb01e753f41ae05c334ba5fba1ae00af9b67654988c0dfe70244f04fff7e7`. Code
+uncommitted (D42 and D08G9 together).
+
+## 2026-11-03 - D42 round 2: EDuke32's death view (Needs playtest)
+
+Clean-room re-implementation of EDuke32's first-person death view from its
+behaviour (source and the user's recording; live EDuke32 runs in a private
+headless display froze after loads): look locked (the high-refresh redraws
+were applying the mouse, the "vibrating look"), level view, the eye drops
+with the body to 20/38 of standing height over about 0.23 s, a random
+screen roll that turns a little during the fall, and none of Duke drawn (a
+dying Duke comes from a second draw loop the eye hooks did not know). Not
+reproduced: turning toward the killer. Tests pass; details in
+[note 373](documentation/373-d42-death-scene.md). Code still uncommitted.
+
 ## 2026-11-03 - D43 committed on its own; D42 playtest round 1 (In progress)
 
 User: "lock that text job in", committed separately from D42 (user choice:
@@ -83,7 +123,7 @@ centre over live play, fading out within about 2 s).
 
 ### D42 - Death state and menu: stay on the death scene, Open opens the menu, unlimited continues
 
-**Status: In progress (playtest round 1, 2026-11-03; [note 373](documentation/373-d42-death-scene.md)). Dependencies: D19H, D19P, D19M, D19K, D26 (console). Prerequisite of D08G9.**
+**Status: Done (user-accepted 2026-11-03; [note 373](documentation/373-d42-death-scene.md)). Dependencies: D19H, D19P, D19M, D19K, D26 (console). Prerequisite of D08G9.**
 Today a death in Modernized goes straight to the D19H death list under the
 original's "N CONTINUES REMAINING" (`game_menu.cpp` `draw_death`, menu value
 `0x800be56a` = 15, continues byte `0x800d7411`). The user wants Duke 3D /
@@ -1864,7 +1904,7 @@ glitch; Vanilla unchanged.
 
 ### D08G9 - dnkroz after death: Duke gets back up and play continues
 
-**Status: Todo (waits on D42). Dependencies: D42, D08G7, D08G8, D08Q4.** In Duke 3D typing
+**Status: Done (user-accepted 2026-11-03; [note 375](documentation/375-d08g9-dnkroz-revive.md)). Dependencies: D42, D08G7, D08G8, D08Q4.** In Duke 3D typing
 `dnkroz` (or `dncornholio`) while dead brings Duke straight back with full
 health and god mode on, and play continues. Reference:
 `research/screencaps/dead.mp4` (32 s): killed ("PRESS OPEN TO RESTART
@@ -4799,7 +4839,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08G6 | Fun cheat `dntlod`: show "Play Zaxtor's Oblivion!" | Done (user-accepted) | D08G2 |
 | D08G7 | dnkroz feel: GOD MODE ON/OFF text, red flash and occasional short pain sound on OFF (dncornholio identical) | Done (accepted as preliminary 2026-11-03; flash to D39D) | D08G2, D08Q4 |
 | D08G8 | Cheats work anywhere, not only on solid ground | Done (user-accepted 2026-11-02) | D08G2 |
-| D08G9 | dnkroz after death: Duke gets back up where he died, remains stay | Todo (waits on D42) | D42, D08G7, D08G8, D08Q4 |
+| D08G9 | dnkroz after death: Duke gets back up where he died, remains stay | Done (user-accepted 2026-11-03; note 375) | D42, D08G7, D08G8, D08Q4 |
 | D39 | Screen flash framework: Duke3D palfrom-style coloured flashes (parent) | Done (D39A-D39G accepted 2026-11-03) | D39A-D39G |
 | D39A | Flash spec: measure palfrom in EDuke32 (rate, hold, override, blend) | Done (accepted 2026-11-03) | - |
 | D39B | Polymorph present tint: exact colour mix, display-rate fade, replay-safe | Done (accepted 2026-11-03) | D39A |
@@ -4808,7 +4848,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D39E | Damage flashes from real hits, per TTK damage type | Done (accepted 2026-11-03) | D39C |
 | D39F | Pickup flashes (explosion flashes removed; left for D41) | Done (accepted 2026-11-03) | D39C |
 | D41 | Foundational lighting system (pre-job: case-study artifact, then spawns the lighting jobs) | Todo (placeholder, intake 2026-11-03) | none |
-| D42 | Death state and menu: stay on the death scene, Open opens the existing death list, Escape returns, unlimited continues, console usable while dead | In progress (playtest round 1: mouse jitter, floor angle; EDuke32 clean-room study; note 373) | D19H, D19P, D19M, D19K, D26 |
+| D42 | Death state and menu: stay on the death scene, Open opens the existing death list, Escape returns, unlimited continues, console usable while dead | Done (user-accepted 2026-11-03; note 373) | D19H, D19P, D19M, D19K, D26 |
 | D43 | Level title card: the level's name near the centre when a level begins, Duke 3D style, fades by itself | Done (user-accepted 2026-11-03; note 374) | - |
 | D39G | Classic renderer fallback for flashes | Done (accepted 2026-11-03) | D39C |
 | D40 | Switch renderer (Polymorph / Classic) live in game, as EDuke32 does | Done | D17AR6, D39G |

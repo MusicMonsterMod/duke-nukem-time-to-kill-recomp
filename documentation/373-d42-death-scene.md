@@ -1,6 +1,6 @@
 # D42 - Death scene: stay on the scene, Open opens the menu, unlimited continues
 
-2026-11-03. Status: In progress (playtest round 1: the mouse still moves the view, with a jitter, and the floor view is not EDuke32's angle; an EDuke32 clean-room study of the death view follows). Not yet committed.
+2026-11-03. Status: Done (user-accepted 2026-11-03: "it's working! it's really working"; D08G9 revive in note 375).
 
 ## Request
 
@@ -122,3 +122,95 @@ hash-checked unchanged after every run. `recomp/analysis/d42/probe.py`
   nothing there until a new death (the dying state is not in the save).
 - The view does not roll as Duke 3D's does; the first-person eye sits where
   the neck lies and keeps the heading at the moment of death.
+
+## Round 2: EDuke32's first-person death view (clean room)
+
+User (playtest round 1): the mouse still moved the dead view, with "a
+vibrating look", and the view was not "at the angle right on the floor like
+with eduke"; asked for a clean-room re-implementation of EDuke32's death
+view, "as close as 1:1" as possible, using the `deathtest` save.
+
+### What EDuke32 does (its behaviour, from its source and the recording)
+
+From `research/eduke32` (`P_FragPlayer`, `P_Dead`, `G_MovePlayers`, the
+camera setup in `game.cpp`) and the user's recording
+`Video_2026-11-03_20-08-25.mp4`:
+
+- Look input stops while dead; the view is level (horizon 100, no look
+  offset); the angle does not follow the mouse. It eases toward the actor
+  that killed the player (half the difference per tic), if any.
+- The eye follows the body: x/y the body's, height 20 units above it (of 38
+  standing). At the moment of death the body is lifted 16 units, so the eye
+  starts about 36 above the floor and falls with sprite gravity (176 per tic
+  squared, 30 tics a second) to 20: about 0.23 s.
+- The screen rolls (Polymost's true 3D roll): `dead_flag` is random (0..255
+  or 1024..1279 of 2048) and the per-tic roll adds `(floor z + eye z) >> 7`,
+  a map-height term, so the final angle is effectively any angle; it turns
+  32 / 2048 of a turn more while the body falls, then stays. The recording's
+  death settled at about 45-50 degrees within the first frames.
+- Nothing of the player's body is drawn; the weapon is gone.
+
+The user's EDuke32 was run privately (Xvfb, copies of the config and
+`deathtest` in a job folder, `-usecwd`): the save loaded, but in that
+headless setup the game stopped responding after loads, so the live runs gave
+no death captures; the source and the recording are the evidence. The user's
+EDuke32 saves and config are unchanged (one `-help` probe rewrote the log
+file `~/.config/eduke32/eduke32.log`).
+
+### TTK implementation (our own code)
+
+- `modern_controls.cpp` `DeathView`: on the first camera update of a death
+  in first person: a random roll (uniform over the turn) and the death time.
+  The eye height above Duke's root is 294 (the upright eye used for swim and
+  climb views) times (36 - 16 * fall) / 38, fall from the same gravity curve;
+  the roll grows by 32 / 2048 of a turn over the fall. The pitch levels out
+  (quartered per tick). `view_matrix` turns its right and down rows about the
+  forward row by the roll (forward unchanged, so aim/seeding reads are not
+  affected). The eye sits over the root, not the neck.
+- Mouse: the late (high refresh) redraw look (`late_view`) now refuses the
+  death eye too. The vibration was those redraws applying live mouse motion
+  between game frames that kept the frozen view.
+- Body: a dying Duke is drawn from the game's second object loop (call
+  `0x8003771c`, list step `0x80037724`), which the eye-view draw hooks did
+  not recognise; while the death eye runs that draw is Duke's, and every
+  joint takes the camera matrix (the native depth test rejects it), so
+  nothing of Duke shows.
+- Not reproduced: the turn toward the killer (TTK's attacker is not known
+  here yet; the reference death is self-inflicted, with no turn).
+
+### Evidence (round 2)
+
+Private fixture, offscreen, slot 10 save, first person:
+- fall frames at 0.05-2 s: rolled level view, no body or weapon; the roll
+  differs per death (seen about 150, 70 degrees);
+- mouse `dx` / `dy` while dead: identical view; at 180 Hz, six frames 30 ms
+  apart with alternating mouse motion: the same geometry (only water
+  animates);
+- E opens the list and Escape returns to the scene as before;
+- `ttk-controls-test` (142 groups), `ttk-input-test`, `ttk-flash-test` pass.
+
+## Round 3 (user, 2026-11-03: "the death scene feels incredible")
+
+Requests: turn the view toward the killer; CONTINUE without "confirm
+continue" (unlimited now); `dnkroz` on the death scene revives Duke (D08G9,
+[note 375](375-d08g9-dnkroz-revive.md)); the music should keep playing.
+
+- **Killer turn** (EDuke32's `wackedbyactor`: half the angle per tic toward
+  the actor that killed the player): Duke's damage handler `0x800a40a8`
+  receives the attacker or source object at stack +0x10; the D39E hook now
+  records it for every hit (both renderers). At death, if the last hit was
+  within 2 s and its source is not Duke, the death view turns toward that
+  object's position (+4 / +12), half the remaining yaw per 1/30 s (time
+  based, so the same at any refresh), for as long as the object keeps its
+  type id (+0x2c). Self-inflicted and test hits do not turn. Evidence: slot 3,
+  health 1, the pig cop (id 57) kills Duke; the trace named it as the killer
+  and the rolled view kept the pig cop centred while it moved (yaw
+  2.49 -> 2.11 over 1.75 s following it).
+- **CONTINUE**: acts at once from the death list (REPLAY LEVEL too); the
+  other prompts stay (NO first).
+- **Music**: the killing hit pauses the CD music (`0x800a470c` ->
+  `0x8003c478`, drive state `0x800c26a8` = 0). When the death scene starts,
+  Modernized calls the game's own resume `0x8003c240` (as CONTINUE does;
+  guarded). Evidence: drive state 3 (seek) at the death, 2 (playing) from
+  then on; the music position kept advancing through the scene, the death
+  list and after CONTINUE (`0x2410a` -> `0x24747`, never back).

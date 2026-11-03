@@ -764,6 +764,8 @@ void input_event(const SDL_Event& e) {
 uint64_t input_host_frame() { return sequence; }
 static std::atomic<bool> interaction_request{false};
 void input_request_interaction() {interaction_request.store(true);}
+static std::atomic<int> open_presses{0};
+int input_take_open_presses() {return open_presses.exchange(0);}
 // D34B diagnostic only: exercise real SDL routing/hotplug with two independent
 // virtual pads. The file contains two decimal SDL button masks. Never enabled
 // by player profiles; no guest RAM injection or player-save access.
@@ -1176,6 +1178,14 @@ void input_frame() {
     // D26J: nothing reaches gameplay while the console holds input (the
     // diagnostics above write keys directly; real keys go to the console).
     if(console_hold) {release_keys();std::memset(mouse,0,sizeof mouse);dx=dy=0;command_count=0;}
+    // D42: Open (the USE binding, keyboard, mouse or pad) presses for the
+    // death scene's menu; the console holds them like any key.
+    {
+        static bool was;
+        const bool now=modern && focused && !console_hold && action_down(interact);
+        if(now && !was) open_presses.fetch_add(1);
+        was=now;
+    }
     if(crouch_cancel_held && focused && captured && !action_down(crouch)) crouch_cancel_held=false;
     if(crouch_jump_consumed && focused && captured && !action_down(jump)) crouch_jump_consumed=false;
     frame = {};

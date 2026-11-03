@@ -5331,7 +5331,23 @@ int main(int argc,char** argv) {
                     for(uint32_t bad:{0x20000000u}) {
                         psx_mod_write_word(p+0x224,bits|bad);frame();assert(metric("\"blend\":")==0);
                     }
-                    psx_mod_write_word(p+0x224,bits);psx_mod_write_word(p,actor|2u);frame();assert(metric("\"blend\":")==0);
+                    // D42: the dead flag alone (health left) still drops the eye; dying
+                    // with no health in a one-player game keeps the floor-level death eye.
+                    {
+                        const uint16_t health=psx_mod_read_half(p+0x32);const uint32_t seats=psx_mod_read_word(0x800c27bc);
+                        psx_mod_write_word(0x800c27bc,1);psx_mod_write_half(p+0x32,100);
+                        psx_mod_write_word(p+0x224,bits);psx_mod_write_word(p,actor|2u);frame();assert(metric("\"blend\":")==0);
+                        psx_mod_write_half(p+0x32,0);frame();frame();frame();assert(metric("\"blend\":")==1);
+                        assert(std::strstr(ttk::controls_debug_json(),"\"action\":\"death\""));
+                        psx_mod_write_word(0x800c27bc,2);frame();assert(metric("\"blend\":")==0); // two players: original
+                        ttk::input.first_person=false;psx_mod_write_word(0x800c27bc,1);frame();assert(metric("\"blend\":")==0); // third person
+                        ttk::input.first_person=true;
+                        psx_mod_write_half(p+0x32,health);psx_mod_write_word(0x800c27bc,seats);
+                        psx_mod_write_word(p,actor);frame();frame();frame();
+                        std::puts("PASS: D42 first-person death eye (dead with no health, one player, first person only)");
+                    }
+                    psx_mod_write_word(p,actor|2u);psx_mod_write_half(p+0x32,100);frame();assert(metric("\"blend\":")==0);
+                    psx_mod_write_half(p+0x32,0);
                     psx_mod_write_word(p,actor);psx_mod_write_word(c+0xa4,0);frame();assert(metric("\"blend\":")==0);
                     psx_mod_write_word(c+0xa4,p);frame();assert(metric("\"blend\":")==1);
                     if(use) {
@@ -6336,7 +6352,11 @@ int main(int argc,char** argv) {
                 psx_mod_write_half(p+0x358,3);psx_mod_write_byte(p+0x22c,10);
                 psx_mod_write_half(p+0x60,164);frame();
                 unsetenv("DNTTK_JETPACK");
-                psx_mod_write_word(p,2);frame();assert(metric("\"blend\":")==0);
+                {   // the dead flag with health left (D42: no health is the death eye)
+                    const uint16_t health=psx_mod_read_half(p+0x32);psx_mod_write_half(p+0x32,100);
+                    psx_mod_write_word(p,2);frame();assert(metric("\"blend\":")==0);
+                    psx_mod_write_half(p+0x32,health);
+                }
                 psx_mod_write_word(p,0);frame();assert(metric("\"blend\":")==1);
                 ttk::modern=false;frame();assert(!ttk::first_person_view_live());
                 ttk::modern=true;frame();assert(metric("\"blend\":")==1);

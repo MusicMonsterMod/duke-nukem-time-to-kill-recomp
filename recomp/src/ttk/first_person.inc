@@ -211,6 +211,7 @@ static void first_person_update(const InputFrame& f,unsigned ticks,bool acquirin
     const unsigned animation=psx_mod_read_half(player+0x60);
     PerspectiveFacts facts{};
     facts.selected=f.first_person;facts.active=f.active;
+    facts.death=death_eye_state();
     facts.use=use_interaction_eye();
     facts.mirror=mirror_interaction_eye();
     // Water exit takes ownership before the lingering water flag clears.
@@ -326,7 +327,9 @@ static bool first_person_anchor(const double* forward,double* anchor) {
     const bool using_object=(fp_policy.action==PerspectiveAction::Use || fp_policy.action==PerspectiveAction::Mirror) && fp_policy.effective;
     const bool fidget=idle_fidget_eye();
     const bool climbing=(fp_policy.action==PerspectiveAction::Wall || fp_policy.action==PerspectiveAction::Ladder || fp_policy.action==PerspectiveAction::Pole) && fp_policy.effective;
-    const bool root_anchored=swimming || jetting || pushing || climbing || mantling || using_object || fidget;
+    // D42: the death eye rides the neck as the body falls, to the floor.
+    const bool dying=fp_policy.action==PerspectiveAction::Death && fp_policy.effective;
+    const bool root_anchored=swimming || jetting || pushing || climbing || mantling || using_object || fidget || dying;
     if(root_anchored) pivot_y=root[1];
     // Rebase the previous offset when switching between root and land pivot;
     // real body travel stays immediate, only the posture difference is eased.
@@ -354,6 +357,7 @@ static bool first_person_anchor(const double* forward,double* anchor) {
     // Idle gestures and committed use animations may lean or turn the neck
     // sharply. Keep a comfortable upright eye while native arms/events run.
     if(pushing || climbing || mantling || using_object || fidget) {target[0]=target[2]=0;target[1]=-294;}
+    if(dying) {target[0]=target[2]=0;target[1]=-death_eye_height();} // over the body (D42)
     // D15: the slow centring drift was still feeding idle neck animation into
     // the camera after locomotion stopped. Hold within the existing dead band
     // while stationary; actual travel, posture changes beyond the band and
@@ -369,7 +373,7 @@ static bool first_person_anchor(const double* forward,double* anchor) {
         // Swim/flight offsets converge completely, including surface clearance;
         // the land dead band would retain the previous posture indefinitely.
         const double anchored_step=d*0.5;
-        eye_rel[i]=eye_rel_valid && eye_offset_valid ? eye_rel[i]+(root_anchored?anchored_step:step) : target[i];
+        eye_rel[i]=eye_rel_valid && eye_offset_valid && !dying ? eye_rel[i]+(root_anchored?anchored_step:step) : target[i];
         eye_offset[i]=eye_rel[i];
     }
     const bool was_valid=eye_offset_valid;
@@ -1733,6 +1737,14 @@ static void first_person_weapon_joint(CPUState* cpu,uint32_t ra) {
        cpu->gpr[4]==camera && cpu->gpr[20]==player) {
         const uint32_t desc=duke_model(),mats=psx_mod_read_word(player+0x3c);
         const int part=desc?duke_joint_part(desc,cpu->gpr[23]):-1;
+        if(part>=0 && mats>=0x80010000 && mats<=0x801ffd80 &&
+           cpu->gpr[5]==mats+0x20*cpu->gpr[23] && fp_policy.action==PerspectiveAction::Death) {
+            // D42: the death eye shows none of Duke (as Duke 3D): every joint
+            // takes the camera matrix, so the native depth test rejects it.
+            limb_claim(cpu,LimbOwner::HiddenBody,part);
+            cpu->gpr[5]=camera;
+            return;
+        }
         if(part>=0 && mats>=0x80010000 && mats<=0x801ffd80 &&
            cpu->gpr[5]==mats+0x20*cpu->gpr[23] && first_person_hide_body_joint(cpu,desc,mats,part))return;
         // Every authenticated first-person action shares the ordinary leg

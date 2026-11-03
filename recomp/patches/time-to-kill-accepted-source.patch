@@ -13069,10 +13069,10 @@ index 00000000..c82c70d9
 +#endif
 diff --git a/runtime/tests/test_dirty_text_restore.py b/runtime/tests/test_dirty_text_restore.py
 new file mode 100644
-index 00000000..11707dc8
+index 00000000..7cf303c3
 --- /dev/null
 +++ b/runtime/tests/test_dirty_text_restore.py
-@@ -0,0 +1,87 @@
+@@ -0,0 +1,91 @@
 +#!/usr/bin/env python3
 +"""Execute the actual restore/native-range guards against bypassed RAM writes."""
 +from pathlib import Path
@@ -13085,7 +13085,8 @@ index 00000000..11707dc8
 +a = src.index('void dirty_ram_text_guard_resync_after_restore(void) {')
 +b = src.index('\nvoid overlay_watch_invalidate_after_ram_restore', a)
 +restore = src[a:b]
-+a = src.index('int dirty_ram_text_native_ok_ranges_from(')
++# D23G: the guard is now fronted by a positive-result cache.
++a = src.index('/* D23G: positive results')
 +b = src.index('\n/* Preserve the generated-code ABI', a)
 +guard = src[a:b]
 +loader = (root / 'runtime/src/overlay_loader.c').read_text()
@@ -13099,6 +13100,7 @@ index 00000000..11707dc8
 +#include <stdint.h>
 +#include <string.h>
 +#include <assert.h>
++#include <stdlib.h>
 +#define DIRTY_RAM_PAGE_SHIFT 12
 +static uint8_t ram[12288], reference[5000];
 +static uint8_t *text_ref_image=reference;
@@ -13107,6 +13109,8 @@ index 00000000..11707dc8
 +static uint32_t g_text_diverged_pages,g_text_native_blocked,g_text_exact_mismatches;
 +static uint32_t g_text_exact_last_range_lo,g_text_exact_last_range_len;
 +static uint32_t g_text_exact_last_mismatch,g_text_exact_last_live,g_text_exact_last_ref;
++static uint32_t s_text_native_gen=1;
++uint32_t g_dirty_ram_code_gen=1,g_overlay_region_floor;
 +static int aot_blocked(uint32_t x) {(void)x;return 0;}
 +static int dirty_ram_is_dirty(uint32_t x) {(void)x;return 0;}
 +''' + restore + guard + r'''

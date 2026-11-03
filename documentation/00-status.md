@@ -1,5 +1,30 @@
 # Current status - 2026-10-04
 
+## 2026-11-03 - D08A34 accepted and closed: the medkit heals in water
+
+User: "perfect. lock it in, close it out". D08A34 is Done: in Modernized, M
+and Enter on the selected medkit heal on the water surface, under water, in
+jetpack flight and while firing (never at zero health), as R takes steroids.
+The original heal (`800402d0`) had no water check; the ground-only input
+lease dropped the request. Ground use unchanged; Vanilla does not run this
+code.
+
+## 2026-11-03 - D08A34: the medkit heals in water (Needs playtest)
+
+User: the medkit could not be used under water or on the water surface (slot
+11). Cause: Modernized took M (and Enter on the selected medkit) only in the
+ground weapon/item lease, which the swim states never satisfy, so the request
+was dropped; the original heal (`800402d0`, medkit branch) has no movement
+check. In Modernized the medkit is now taken in every live gameplay state, as
+R takes steroids: surface, under water, jetpack flight, while firing; never
+at zero health. A zero (boot table) capacity, the original equipment request,
+keeps the ground lease. Vanilla does not run this code. Evidence on a private
+copy of slot 11 (spawned medkit, `hurt=`): before, ground healed, surface and
+under water did not; after, M and Enter heal on the ground, under water and on
+the surface. `ttk-controls-test` (new D08A34 case), `ttk-input-test`,
+`ttk-inventory-test` pass. Executable
+`cd9dabb4c8d464b134b30bda33e2fd08648d07a9a53e7c5677f37e291602692f`.
+
 ## 2026-11-03 - D36M accepted and closed: power-up tints
 
 User: "lock it in, close us out. this is a winner". D36M is Done: while a

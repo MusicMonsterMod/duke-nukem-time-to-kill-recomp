@@ -505,6 +505,18 @@ static void select_weapon(CPUState* cpu) {
             if(steroid_doses()) {remember_item(4);steroids_use(cpu);inventory_feedback(false);}
             break;
         }
+    // D08A34: M, or Enter / U on the medkit, heals in every live gameplay
+    // state (swimming on the surface or under water, flight, firing), as R
+    // takes steroids. With its live capacity set, 800402d0's medkit branch only
+    // moves charge into health, with no movement-state check; the ground lease
+    // below dropped it in water. A zero capacity (boot table) is the original
+    // equipment request and keeps that lease.
+    const bool medkit_direct=psx_mod_read_half(0x800c2712+4*5)!=0;
+    if(medkit_direct)for(unsigned n=0;n<f.command_count && n<32;++n)
+        if(f.commands[n]==medkit || (f.commands[n]==item_use && selected_item==5 && !mission_enter)) {
+            if((int16_t)psx_mod_read_half(player+0x32)>0)use_item(cpu,5);
+            break;
+        }
     const bool jet_select=jetpack_input_ready();
     if(jet_select) {
         for(unsigned n=0;n<f.command_count && n<32;++n)
@@ -556,6 +568,7 @@ static void select_weapon(CPUState* cpu) {
                 action==item_use?(mission_enter || selected_item==4?0:selected_item):0;
             if(item==2 && bio_mask_auto())continue;
             if(item==3 && night_vision_modern())continue; // already handled without owning the weapon
+            if(item==5 && medkit_direct)continue; // D08A34: taken above in every state
             if(item) {use_item(cpu,item);break;} // one item activation per guest update
             // R (and Enter / U on steroids) were taken above, in every state.
         }

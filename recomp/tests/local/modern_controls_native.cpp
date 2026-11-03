@@ -117,6 +117,7 @@ static unsigned pole_draw_calls;
 static int wall_results[4]{};static std::vector<std::array<int,5>> wall_queries;
 static bool jet_geometry,jet_side_wall,jet_route_wall;
 static int jet_slope=0,jet_ceiling_slope=0;
+static unsigned medkit_heals; // D08A34
 static int jet_floor=1000000,jet_ceiling=-1000000,jet_step_x=1000000,jet_step_floor=1000000,jet_step_ceiling=-1000000;
 static int jw_result,jw_hits,jw_sweeps;static int32_t jw_nx,jw_nz;
 // D19U2: ordering-table adds (slot, packet) and the VRAM the keyed icons read.
@@ -247,6 +248,10 @@ extern "C" void psx_dispatch_call(CPUState* cpu,uint32_t address,uint32_t) {
     }
     assert(address==0x8007926c || address==0x800797f4 || address==0x800402d0 || address==0x8007765c || address==0x800517a4);
     if(address==0x800517a4)++kicks;
+    // D08A34: the medkit branch of 800402d0 (instant heal, pending bit cleared).
+    if(address==0x800402d0 && cpu->gpr[5]==5 && (psx_mod_read_half(0x800d7198+0x368)&0x8000)) {
+        ++medkit_heals;psx_mod_write_half(0x800d7198+0x368,psx_mod_read_half(0x800d7198+0x368)&0x7fff);
+    }
     if(address==0x8007926c || address==0x800797f4) {
         if(terrain_nested_hook) {
             CPUState nested=*cpu;nested.gpr[29]-=0x158;nested.gpr[31]=0x800794b8;
@@ -2730,6 +2735,19 @@ int main(int argc,char** argv) {
     // No medkit ownership means no request. An owned dose uses original item equipment.
     psx_mod_write_half(p+0x368,0);request(ttk::medkit);assert(!(psx_mod_read_word(p+0x224)&12));
     psx_mod_write_half(p+0x368,1);psx_mod_write_half(p+0x36a,100);
+    // D08A34: with its live capacity the medkit heals in every live state (here
+    // with fire held, which the ground lease refuses), never at zero health.
+    {
+        const uint16_t capacity=psx_mod_read_half(0x800c2712+4*5),health=psx_mod_read_half(p+0x32);
+        auto use_at=[&](int action){psx_mod_write_word(p+0x224,0);ttk::input.commands[0]=action;
+            ttk::input.command_count=1;++ttk::input.command_serial;call(0x80058120,p,0,0x80041c44,0x801fe000);};
+        psx_mod_write_half(0x800c2712+4*5,10000);ttk::input.held[ttk::fire]=true;
+        psx_mod_write_half(p+0x32,0);use_at(ttk::medkit);assert(medkit_heals==0 && !(psx_mod_read_word(p+0x224)&12));
+        psx_mod_write_half(p+0x32,5000);use_at(ttk::medkit);
+        assert(medkit_heals==1 && !(psx_mod_read_word(p+0x224)&12) && !(psx_mod_read_half(p+0x368)&0x8000));
+        ttk::input.held[ttk::fire]=false;psx_mod_write_half(0x800c2712+4*5,capacity);psx_mod_write_half(p+0x32,health);
+        std::puts("PASS: D08A34 medkit heals outside the ground lease, never at zero health");
+    }
     request(ttk::medkit);assert(psx_mod_read_byte(p+0x3bb)==5 && (psx_mod_read_word(p+0x224)&12)==12);
     // Shared original menu selection, cycle-only immutability, zero/one/many,
     // active empty toggles, and depletion. No synthetic animation acceptance.

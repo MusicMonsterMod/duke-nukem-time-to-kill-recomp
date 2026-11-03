@@ -1,5 +1,30 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-03 - D08A34 accepted and closed: the medkit heals in water
+
+User: "perfect. lock it in, close it out". D08A34 is Done: in Modernized, M
+and Enter on the selected medkit heal on the water surface, under water, in
+jetpack flight and while firing (never at zero health), as R takes steroids.
+The original heal (`800402d0`) had no water check; the ground-only input
+lease dropped the request. Ground use unchanged; Vanilla does not run this
+code.
+
+## 2026-11-03 - D08A34: the medkit heals in water (Needs playtest)
+
+User: the medkit could not be used under water or on the water surface (slot
+11). Cause: Modernized took M (and Enter on the selected medkit) only in the
+ground weapon/item lease, which the swim states never satisfy, so the request
+was dropped; the original heal (`800402d0`, medkit branch) has no movement
+check. In Modernized the medkit is now taken in every live gameplay state, as
+R takes steroids: surface, under water, jetpack flight, while firing; never
+at zero health. A zero (boot table) capacity, the original equipment request,
+keeps the ground lease. Vanilla does not run this code. Evidence on a private
+copy of slot 11 (spawned medkit, `hurt=`): before, ground healed, surface and
+under water did not; after, M and Enter heal on the ground, under water and on
+the surface. `ttk-controls-test` (new D08A34 case), `ttk-input-test`,
+`ttk-inventory-test` pass. Executable
+`cd9dabb4c8d464b134b30bda33e2fd08648d07a9a53e7c5677f37e291602692f`.
+
 ## 2026-11-03 - D36M accepted and closed: power-up tints
 
 User: "lock it in, close us out. this is a winner". D36M is Done: while a
@@ -1355,7 +1380,7 @@ option. Recorded only; not started.
 
 ### D08A34 - The medkit cannot be used in water (underwater or on the surface)
 
-**Status: Todo (backlog, intake 2026-11-03). Dependencies: D08A7.** User:
+**Status: Done (user-accepted 2026-11-03: "perfect. lock it in, close it out"). Dependencies: D08A7.** User:
 "There seems to be a bug where you can't use the medkit underwater and you
 can't use the Med kit either on the surface of the water. use slot 11 to
 test." Fixture: UI slot 11 (file slot 10, re-saved 2026-11-03, the sewer with
@@ -1369,6 +1394,36 @@ Vanilla's own rule if the original refuses it there.
 **Acceptance:** in Modernized the medkit heals underwater and on the water
 surface when Duke is hurt (slot 11); grounded use unchanged; Vanilla
 unchanged; the user's playtest.
+
+**Work log (2026-11-03).** Found: `select_weapon` (`src/ttk/shortcuts.inc`)
+handed M and Enter-on-medkit to `use_item` only in its last loop, behind the
+ground lease (`movement_ready`, idle weapon, fire/aim/interact released). In
+the swim states only weapon choices pass (`weapons_only`), so the medkit was
+skipped. The original `800402d0` medkit branch (player+0x368 bit 15) only
+moves charge (+0x36a) into health (+0x32) up to the type maximum, with no
+mode check. Change: with a live medkit capacity (`800c2712+4*5` non-zero, the
+instant heal), M / Enter on the medkit are taken before the lease in every
+live gameplay state, once per command, only while health is above zero; the
+last loop skips the medkit then. A zero capacity (the boot table, the
+original equipment request with its animation) keeps the old lease, so the
+D08Q flight refusal case still holds. Vanilla never reaches `select_weapon`
+(`interaction_alive` is Modernized only). Whether Vanilla's own Select menu
+heals in water was not run.
+
+Evidence (`recomp/analysis/d08a34/probe.py`, ignored; offscreen, private copy
+of the player's cards, slot 11 = file slot 10, `spawn medkit`, `hurt=2,N`,
+`act=medkit` / `act=item_use`; player files hash-checked unchanged):
+
+| Case | Before (HEAD build) | After |
+| --- | --- | --- |
+| Ground, M / Enter | heals / heals | heals / heals |
+| Under water (mode 5), M / Enter | nothing / nothing | heals / heals |
+| Surface (mode 4), M / Enter | nothing / nothing | heals / heals |
+
+`ttk-controls-test` gains a D08A34 case (live capacity, fire held: zero
+health refused, then one heal call with the pending bit cleared, no equipment
+request); it, `ttk-input-test` and `ttk-inventory-test` pass. Accepted by the
+user on 2026-11-03.
 
 ### D08A33 - EQUIP PICKUPS: IF NEW (default) / NEVER, with new weapons auto-equipped
 
@@ -4588,7 +4643,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08A29 | Scroll-wheel weapon changes while running | Done (user-accepted) | D08A, D08AA |
 | D08A30 | Reverse weapon-wheel direction: up advances, down goes back | Done (user-accepted) | D08A29 |
 | D08A32 | A distinct ammo icon for every weapon in the bottom-right HUD (14x14 in 16x16, review artifact first) | Todo (design review first) | D08A21, D24A |
-| D08A34 | The medkit cannot be used in water (underwater or on the surface; slot 11) | Todo (backlog) | D08A7 |
+| D08A34 | The medkit cannot be used in water (underwater or on the surface; slot 11) | Done | D08A7 |
 | D08A33 | EQUIP PICKUPS option: IF NEW (default) auto-equips new weapons and selects new items; NEVER does neither | Done (user-accepted 2026-11-02) | D08A9, D08A, D19 |
 | D09 | Modern controller support | Done (user-accepted 2026-10-27) | D05, D06, D07 |
 | D09A | Separate keyboard and gamepad seats for local two-player | Done (user-accepted 2026-10-27) | D09, D34B implementation |

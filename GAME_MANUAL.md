@@ -938,7 +938,7 @@ Weapon changes require a safe ready state; inputs during firing, reload or
 an existing draw/stow transition are discarded rather than queued. In Modernized a drawn dynamite stays unlit until you fire, so you can
 switch away from it (see Dynamite below); once lit, or with `--dynamite original`,
 it must finish its original throw/fuse before a requested weapon switch completes. A usable pipe-bomb remote remains accessible without spare ammo.
-**M** uses an owned portable medkit, **J** toggles the jetpack, **N** night vision,
+**M** uses an owned portable medkit (in Modernized also while swimming, flying the jetpack or firing), **J** toggles the jetpack, **N** night vision,
 and **B** the Bio Mask (TTK's gas mask). Modern night vision and enabled Auto Bio
 Mask toggle instantly while firing; original gadget modes retain their equip
 and weapon-redraw animations. **J** also switches the jetpack

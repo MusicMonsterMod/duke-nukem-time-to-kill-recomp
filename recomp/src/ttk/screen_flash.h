@@ -123,6 +123,27 @@ inline bool pickup_is_weapon(unsigned type) {
 inline DamageFlash pickup_flash_for(unsigned type) {
     return pickup_is_weapon(type)?DamageFlash{32,0,32,0,"weapon"}:DamageFlash{16,0,32,0,"item"};
 }
+// D36M: power-up tints at a light weight, as Quake tints its powerups
+// (user, 2026-11-03: "not a strong tint, but just a touch"). A steady palfrom
+// hold each game frame while a coin's timer runs, like the frozen blue, in
+// the coin's own colour (user: "take them from the pickups themselves"),
+// measured from the spawned coins: invincibility gold, invisibility the
+// coin's violet (hue 249), Double Duke the rose pink of its aura (hue 353).
+// All at intensity 8 (weight 1/8, Quake's quad 30/255). Several at once share
+// the intensity and average their colours. A stronger flash shows over it and
+// fades back down to it.
+constexpr int powerup_tint_intensity=8;
+constexpr DamageFlash powerup_invincibility{powerup_tint_intensity,63,50,0,"invincibility"},
+    powerup_invisibility{powerup_tint_intensity,30,25,63,"invisibility"},
+    powerup_double_duke{powerup_tint_intensity,63,24,32,"double duke"};
+inline DamageFlash powerup_tint_for(bool invincible,bool invisible,bool double_duke) {
+    int n=0,r=0,g=0,b=0;
+    for(const auto& [on,t]:{std::pair{invincible,powerup_invincibility},{invisible,powerup_invisibility},{double_duke,powerup_double_duke}})
+        if(on) {++n;r+=t.r;g+=t.g;b+=t.b;}
+    if(!n) return {};
+    if(n==1) return invincible?powerup_invincibility:invisible?powerup_invisibility:powerup_double_duke;
+    return {powerup_tint_intensity,(r+n/2)/n,(g+n/2)/n,(b+n/2)/n,"mixed"};
+}
 // Diagnostic: the last damage hit and what it drew (debug JSON "damage").
 void screen_flash_damage_note(const char* note);
 // D39F diagnostic: the last pickup and what it drew (debug JSON "pickup").
@@ -142,6 +163,8 @@ void screen_flash(int intensity,int r=0,int g=0,int b=0);
 FlashOption screen_flash_option();
 // One player update (Modernized): minus the game's frame delta.
 void screen_flash_update();
+// Player updates so far (D36M: a game frame without one while Duke is dead).
+uint64_t screen_flash_update_count();
 // The world renderer is Classic (D40: live, ttk_world_classic()): no present
 // tint (D39G decides Classic's flashes).
 bool screen_flash_classic();

@@ -433,9 +433,9 @@ static void gadget_hud(CPUState* cpu) {
     gadget_box_draw(cpu,item,x,y,item==5 || item==4 || on);
 }
 static const char* powerups_debug_json() {
-    static char buffer[256];
-    std::snprintf(buffer,sizeof buffer,"{\"draws\":%u,\"invincibility\":%d,\"invisibility\":%d,\"double_duke\":%d,\"challenge_found\":%u,\"challenge_draws\":%u,\"keyed_icon_loads\":%u}",powerup_draws,
+    static char buffer[320];
+    std::snprintf(buffer,sizeof buffer,"{\"draws\":%u,\"invincibility\":%d,\"invisibility\":%d,\"double_duke\":%d,\"challenge_found\":%u,\"challenge_draws\":%u,\"keyed_icon_loads\":%u,\"tint_holds\":%u,\"tint\":\"%s\",\"pickup_skips\":%u,\"dead_frames\":%u}",powerup_draws,
         (int16_t)psx_mod_read_half(player+0x8a0),(int16_t)psx_mod_read_half(player+0x89c),(int16_t)psx_mod_read_half(player+0x89e),
-        psx_mod_read_byte(player+0x85e),challenge_draws,keyed_loads);
+        psx_mod_read_byte(player+0x85e),challenge_draws,keyed_loads,powerup_holds,powerup_held.kind,pickup_tint_skips,dead_flash_frames);
     return buffer;
 }

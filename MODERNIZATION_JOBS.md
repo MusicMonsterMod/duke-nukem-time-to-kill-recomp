@@ -1,5 +1,46 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-03 - D36M accepted and closed: power-up tints
+
+User: "lock it in, close us out. this is a winner". D36M is Done: while a
+power-up runs, Modernized Polymorph gives the view a light tint in the coin's
+own colour (gold invincibility, violet invisibility, the rose pink of the
+Double Duke aura; palfrom 8, mixed when several run). Hits flash over it,
+pickups do not flash while it runs, it ends with the power-up and at death,
+and the killing hit's flash now fades on the death screen instead of
+freezing. Classic and Vanilla unchanged ([note 370](documentation/370-d39-screen-flash-framework.md),
+D36M section). Backlog: D08A34 (medkit in water).
+
+## 2026-11-03 - D36M playtest round 1: no pickup flashes over a power-up; tint ends on death
+
+User: pickups flashing over a power-up tint did not look right, and the tint
+stayed on the screen after dying. Pickups now draw no flash while a power-up
+runs (hits still flash over it). Duke's update stops once he is dead, which
+froze the flash record; a game frame without a player update while Duke is
+dead now runs the fade and the power-up check from an existing main-loop
+hook, so a power-up tint ends at death and the killing red fades out instead
+of staying on the death screen. Evidence: armor during Double Duke no flash,
+without a power-up the usual green; at 120 Hz the death red fades to 0 within
+about a second. Suites pass. [Note 370](documentation/370-d39-screen-flash-framework.md),
+D36M round 1. Needs playtest. New backlog job D08A34 (medkit in water, user
+report).
+
+## 2026-11-03 - D36M: power-up tints (Needs playtest)
+
+User: a light Quake/Doom-style screen tint for the power-ups, using the D39
+tint, instead of recolouring the first-person model. While a coin runs,
+Modernized Polymorph holds palfrom 8 in its colour each game frame, in the
+coins' own colours (user's follow-up): gold for invincibility, the coin's
+violet for invisibility, the rose pink of the Double Duke aura; several at
+once average. It is the frozen-blue hold: hits and pickups flash
+over it and fade back to it, it ends with the timer, it follows SCREEN
+FLASHES; Classic and Vanilla draw nothing. Evidence on a private copy with
+console spawns: each tint, the mix, the hand-back when one ends, the clear at
+the end, a hit over the grey; Classic none. `ttk-flash-test` (new cases),
+`ttk-controls-test` 125 groups and `ttk-input-test` pass. Manual updated;
+[note 370](documentation/370-d39-screen-flash-framework.md), D36M section.
+Needs the user's playtest.
+
 ## 2026-11-03 - D36H8 accepted and closed: reaching arms no longer flicker
 
 User: "perfect. lock it in and close us out". D36H8 is Done: the empty arms of
@@ -1312,6 +1353,23 @@ playtest (Gatling gun in slot 12, steroids).
 User, while playtesting D17AY (2026-11-02), asked for an EDuke32-style
 option. Recorded only; not started.
 
+### D08A34 - The medkit cannot be used in water (underwater or on the surface)
+
+**Status: Todo (backlog, intake 2026-11-03). Dependencies: D08A7.** User:
+"There seems to be a bug where you can't use the medkit underwater and you
+can't use the Med kit either on the surface of the water. use slot 11 to
+test." Fixture: UI slot 11 (file slot 10, re-saved 2026-11-03, the sewer with
+water ahead); test on private copies, spawn the medkit (`spawn medkit`) and
+take damage (`hurt=`) as needed. Not investigated yet: first find whether the
+original game refuses the medkit while swimming (Vanilla, same spot) or
+whether a Modernized swimming path (D08O swim controls, the use/inventory
+input while swimming) drops the request. Fix the cause game-wide, keep
+Vanilla's own rule if the original refuses it there.
+
+**Acceptance:** in Modernized the medkit heals underwater and on the water
+surface when Duke is hurt (slot 11); grounded use unchanged; Vanilla
+unchanged; the user's playtest.
+
 ### D08A33 - EQUIP PICKUPS: IF NEW (default) / NEVER, with new weapons auto-equipped
 
 **Status: Done (user-accepted 2026-11-02: "i accept the pickups job!!"). Dependencies: D08A9, D08A, D19 (in-game options).** EDuke32
@@ -2284,7 +2342,7 @@ poles, climbing walls), and a staged plan. Vanilla unchanged.
 
 ### D36M - First-person power-up looks: invisibility, invincibility, Double Duke
 
-**Status: Todo. Dependencies: D36J, D08A17.** In third person Duke turns
+**Status: Done (user-accepted 2026-11-03; user direction: a light Quake/Doom-style screen tint per power-up on the D39 tint, [note 370](documentation/370-d39-screen-flash-framework.md) D36M section). Dependencies: D36J, D08A17.** In third person Duke turns
 translucent while invisible and changes colour with invincibility and Double
 Duke; the first-person arms, legs and weapon do not. The user wants the
 first-person view to show the same: translucent while invisible, the power-up
@@ -4530,6 +4588,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08A29 | Scroll-wheel weapon changes while running | Done (user-accepted) | D08A, D08AA |
 | D08A30 | Reverse weapon-wheel direction: up advances, down goes back | Done (user-accepted) | D08A29 |
 | D08A32 | A distinct ammo icon for every weapon in the bottom-right HUD (14x14 in 16x16, review artifact first) | Todo (design review first) | D08A21, D24A |
+| D08A34 | The medkit cannot be used in water (underwater or on the surface; slot 11) | Todo (backlog) | D08A7 |
 | D08A33 | EQUIP PICKUPS option: IF NEW (default) auto-equips new weapons and selects new items; NEVER does neither | Done (user-accepted 2026-11-02) | D08A9, D08A, D19 |
 | D09 | Modern controller support | Done (user-accepted 2026-10-27) | D05, D06, D07 |
 | D09A | Separate keyboard and gamepad seats for local two-player | Done (user-accepted 2026-10-27) | D09, D34B implementation |
@@ -4753,7 +4812,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D36I1 | Slot-5 mirror grooming arm continuity | Done | D36G/I |
 | D36J | Coherent body and quick-kick leg presentation | Done (user-accepted 2026-10-26) | D36G, D36H |
 | D36K | Traversal and special-action visual coverage | Done | D36G, D36H, D36I, D36J |
-| D36M | First-person power-up looks: invisibility translucent, invincibility and Double Duke colours | Todo | D36J, D08A17 |
+| D36M | Power-up looks: a light screen tint per power-up (Quake/Doom style, D39 tint) | Done (user-accepted 2026-11-03; note 370) | D36J, D08A17 |
 | D36H8 | Run-jump mantle across water: extended arms flicker (slot 11) | Done (user-accepted 2026-11-03; note 306) | D36H5, D35G, D08X |
 | D37 | Temporary movement failure at 07:26 UK on 2026-10-26 (separate research) | Done | - |
 | D37A | Safe animation restoration across save allocation layouts | Done (user-accepted 2026-10-26) | D37 |

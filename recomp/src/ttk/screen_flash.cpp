@@ -74,6 +74,7 @@ void screen_flash_update() {
     if(q)
         screen_flash((int)((q>>18)&0xff),(int)((q>>12)&0x3f),(int)((q>>6)&0x3f),(int)(q&0x3f));
 }
+uint64_t screen_flash_update_count() {return updates;}
 FlashOption screen_flash_option() {return flash_option_parse(ttk_live_env("DNTTK_SCREEN_FLASHES"));}
 bool screen_flash_classic() {return ttk_world_classic()!=0;}
 bool screen_flash_steps() {

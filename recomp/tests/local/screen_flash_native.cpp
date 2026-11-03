@@ -84,5 +84,12 @@ int main() {
     auto pf=[](unsigned t){return ttk::pickup_flash_for(t);};
     for(unsigned t:{473u,581u,320u,580u,560u,573u,753u,638u,106u,33u,65u,153u,154u,1047u}) assert(is(pf(t),16,0,32,0) && !std::strcmp(pf(t).kind,"item"));
     for(unsigned t:{45u,1u,21u,59u,66u,10u,41u,47u,37u,34u,641u,58u,608u,126u}) assert(is(pf(t),32,0,32,0) && !std::strcmp(pf(t).kind,"weapon"));
+    // D36M: power-up tints (the coins' own colours, intensity 8), averaged when combined.
+    auto pt=[](bool a,bool b,bool c){return ttk::powerup_tint_for(a,b,c);};
+    assert(pt(false,false,false).intensity==0);
+    assert(is(pt(true,false,false),8,63,50,0) && is(pt(false,true,false),8,30,25,63) && is(pt(false,false,true),8,63,24,32));
+    assert(is(pt(true,false,true),8,63,37,16) && is(pt(true,true,true),8,52,33,32) && !std::strcmp(pt(true,true,false).kind,"mixed"));
+    { float w[4]; ttk::FlashState s; s.level=8*ttk::flash_tic; s.r=63;
+      assert(ttk::flash_rgbw(s,s.level,w) && w[3]==0.125f); }
     std::puts("screen flash: ok");
 }

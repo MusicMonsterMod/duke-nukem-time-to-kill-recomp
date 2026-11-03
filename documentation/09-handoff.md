@@ -1,5 +1,46 @@
 # Next-session handoff
 
+## 2026-11-03 - D36M accepted and closed: power-up tints
+
+User: "lock it in, close us out. this is a winner". D36M is Done: while a
+power-up runs, Modernized Polymorph gives the view a light tint in the coin's
+own colour (gold invincibility, violet invisibility, the rose pink of the
+Double Duke aura; palfrom 8, mixed when several run). Hits flash over it,
+pickups do not flash while it runs, it ends with the power-up and at death,
+and the killing hit's flash now fades on the death screen instead of
+freezing. Classic and Vanilla unchanged ([note 370](documentation/370-d39-screen-flash-framework.md),
+D36M section). Backlog: D08A34 (medkit in water).
+
+## 2026-11-03 - D36M playtest round 1: no pickup flashes over a power-up; tint ends on death
+
+User: pickups flashing over a power-up tint did not look right, and the tint
+stayed on the screen after dying. Pickups now draw no flash while a power-up
+runs (hits still flash over it). Duke's update stops once he is dead, which
+froze the flash record; a game frame without a player update while Duke is
+dead now runs the fade and the power-up check from an existing main-loop
+hook, so a power-up tint ends at death and the killing red fades out instead
+of staying on the death screen. Evidence: armor during Double Duke no flash,
+without a power-up the usual green; at 120 Hz the death red fades to 0 within
+about a second. Suites pass. [Note 370](documentation/370-d39-screen-flash-framework.md),
+D36M round 1. Needs playtest. New backlog job D08A34 (medkit in water, user
+report).
+
+## 2026-11-03 - D36M: power-up tints (Needs playtest)
+
+User: a light Quake/Doom-style screen tint for the power-ups, using the D39
+tint, instead of recolouring the first-person model. While a coin runs,
+Modernized Polymorph holds palfrom 8 in its colour each game frame, in the
+coins' own colours (user's follow-up): gold for invincibility, the coin's
+violet for invisibility, the rose pink of the Double Duke aura; several at
+once average. It is the frozen-blue hold: hits and pickups flash
+over it and fade back to it, it ends with the timer, it follows SCREEN
+FLASHES; Classic and Vanilla draw nothing. Evidence on a private copy with
+console spawns: each tint, the mix, the hand-back when one ends, the clear at
+the end, a hit over the grey; Classic none. `ttk-flash-test` (new cases),
+`ttk-controls-test` 125 groups and `ttk-input-test` pass. Manual updated;
+[note 370](documentation/370-d39-screen-flash-framework.md), D36M section.
+Needs the user's playtest.
+
 ## 2026-11-03 - D36H8 accepted and closed: reaching arms no longer flicker
 
 User: "perfect. lock it in and close us out". D36H8 is Done: the empty arms of

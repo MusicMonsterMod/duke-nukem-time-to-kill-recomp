@@ -2189,7 +2189,7 @@ PSX_MOD_CONSTRUCTOR(register_ttk_controls) {
     // D12C: the damage sphere; only the original kick's call (ra 0x80049098) goes further.
     psx_mod_register_function_entry_plugin("ttk.modern.controls",0x800a979c,[](CPUState* cpu,uint32_t){ttk::steroids_damage_restore();if(cpu->gpr[31]==0x80049098u)ttk::kick_sphere_entry(cpu);});
     // D08A8: the composition's call after the status bar when 0x8001fc44 is skipped.
-    psx_mod_register_function_entry_plugin("ttk.modern.controls",0x8002e850,[](CPUState* cpu,uint32_t){ttk::steroids_damage_restore();if(cpu->gpr[31]==0x800265d4u){ttk::steroids_hud_restore();ttk::widescreen_hud_restore();}});
+    psx_mod_register_function_entry_plugin("ttk.modern.controls",0x8002e850,[](CPUState* cpu,uint32_t){ttk::steroids_damage_restore();if(cpu->gpr[31]==0x800265d4u){ttk::steroids_hud_restore();ttk::widescreen_hud_restore();ttk::flash_dead_frame();}});
     // D35I: authenticated wall motion before the native climb dispatcher.
     psx_mod_register_function_entry_plugin("ttk.wall.climb",0x80043eb8,[](CPUState* cpu,uint32_t){ttk::wall_climb_dispatch(cpu,cpu->gpr[31]);});
     // D08Z5: the slope jump's first airborne update, before D08Z1 sees the velocity.

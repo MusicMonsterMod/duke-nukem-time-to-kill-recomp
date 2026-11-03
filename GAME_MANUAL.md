@@ -389,6 +389,17 @@ that too, starting at 25. Savestates keep them; a level change ends them.
 `dnkroz` is a separate god mode and shows no box. Vanilla has no boxes. See
 [notes](documentation/132-d08a17-powerup-countdowns.md).
 
+While a power-up runs, Modernized also gives the whole screen a light tint,
+the way Quake colours the view for its power-ups (D36M), in each coin's own
+colour: gold for invincibility, violet for invisibility and the rose pink of
+the Double Duke coin's aura, about an eighth of the way to the colour
+(`palfrom 8`). Two or three at once mix their
+colours. A hit flashes over the tint and fades back down to it; pickups do
+not flash while a power-up runs (the coin itself included). The tint ends the
+moment the power-up does, including the Continue invincibility, and at once
+when Duke dies. It follows **SCREEN FLASHES** (REDUCED halves it, OFF removes
+it). Classic and Vanilla show no tint.
+
 ### Dynamite (Modernized, D08A12, accepted 2026-10-08)
 
 In the original game drawing the dynamite lights its fuse at once: it has to be
@@ -2132,10 +2143,15 @@ A hit that does not hurt Duke never flashes: god mode, invincibility, a worn
 Bio Mask in gas. A light hit does not cut short a stronger flash that is
 still fading.
 
+Running power-ups hold a light tint of their own (D36M; see the power-up
+countdowns above).
+
 Pickups flash too, as in Duke 3D (D39F): a light green for items, ammo,
 keys and inventory (`palfrom 16 0 32`), a stronger green for a weapon
 (`palfrom 32 0 32`). Only a pickup Duke actually takes flashes; walking over
-a full item does nothing. Explosions flash only when they hurt Duke (the
+a full item does nothing, and nothing flashes while a power-up tint runs.
+When Duke dies, the killing hit's flash fades out as usual instead of
+staying on the death screen. Explosions flash only when they hurt Duke (the
 strong red above).
 
 **OPTIONS > GAMEPLAY > SCREEN FLASHES** (accessibility):

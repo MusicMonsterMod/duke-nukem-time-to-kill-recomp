@@ -717,6 +717,84 @@ Suites: `ttk-flash-test`, `ttk-near-test` (D08G7 contract removed),
 `ttk-input-test`, `ttk-aim-test`, `ttk-controls-test` (125 PASS) pass.
 User playtest on Classic, 2026-11-03: "classic renderer looks fine".
 
+## D36M - Power-up tints (accepted 2026-11-03)
+
+User, selecting D36M: "i'd honestly be happy with the tint, not a strong
+tint, but just a touch of the tint, just like how quake does it, just how doom
+does it. we learnt how to do the tint already". The job's original plan
+(recolouring the first-person body and weapon) is replaced by a view tint.
+
+Reference: Quake's powerup colour shifts (about 30/255 for quad and
+pentagram); Doom colours the whole view too. Colours: the first build used
+Quake's (quad blue, pentagram gold, ring grey); the user then asked for the
+coins' own colours ("take them from the pickups themselves ... the
+invisibility can be a purple, and the double duke can be the more pink hue
+that you get in the aura around the double duke pickup"). Measured from the
+spawned coins (`coins.py`, `coins.png`, `zoom.png`): invisibility coin
+violet, mean saturated rgb 71 58 146 (hue 249); Double Duke aura rose,
+118 45 54 (hue 353, pinker on the rim); invincibility coin yellow 247 238 81
+(the user kept the gold).
+
+Rule (`screen_flash.h` `powerup_tint_for`, `pickup_flash.inc`
+`powerup_tint_update`, called from `flash_frame` before the frozen blue):
+while a coin timer runs (+0x8a0 invincibility, +0x89c invisibility, +0x89e
+Double Duke; gadget_hud.inc, D08A17) each game frame holds palfrom 8 (weight
+1/8) in its colour: invincibility 63 50 0 (gold), invisibility 30 25 63
+(the coin's violet), Double Duke 63 24 32 (the aura's rose pink). Several at once share intensity 8 and
+average their colours. The same hold as the frozen blue: it never cuts a
+stronger fading flash short, so a hit or pickup shows over it and fades back
+to it; frozen (palfrom 16) wins over it. The tint ends with the frame whose
+update drains the last of the timer (the drain runs after this hook), and
+only our own hold is cleared. Dead Duke, Vanilla and Classic: no tint. Debug
+JSON `powerups.tint` and `tint_holds`.
+
+Evidence (private copy of UI slot 11, offscreen, console spawn; local
+`recomp/analysis/d36m/`, `compare2.png`; `compare.png` is the first
+colours): invisibility drawn as rgb 30 25 63 level 80 (weight about 0.12);
+Double Duke 63 24 32; invincibility 63 50 0; Double Duke plus invincibility
+mixed 63 37 16. With the first colours: the mix went back to gold alone when
+Double Duke ended, and to none (level 0) the moment invincibility ended. A test hit
+(`hurt=2,300`) while invisible drew the red (level 120) and returned to the
+grey; a hit while invincible took nothing and drew nothing. Classic: no tint,
+no holds. `ttk-flash-test` (new power-up cases), `ttk-controls-test` (125
+groups) and `ttk-input-test` pass. Executable
+`1b5e816502944ced135a647ada1445111444e1fcc1a37bc1b7283afce04d7de4`.
+
+Limits: mixed colours are an average (gold and pink give orange). No expiry
+blink (Doom blinks its invulnerability in the last seconds); it can be added
+if wanted.
+
+### Playtest round 1 (2026-11-03)
+
+User: a pickup (shotgun ammo, health) flashing over a running power-up tint
+"doesn't quite look right ... for pickups don't make the screen flash"; and
+"if you die while you have one of these active the color stays on the
+screen".
+
+- **Pickups.** `pickup_flash_sound` draws no flash while any coin timer runs
+  (`powerup_tint_running`; the coin's own pickup included, its tint starts
+  instead). Hits still flash over the tint. Debug `powerups.pickup_skips`.
+  Evidence: armor during Double Duke, no flash, tint steady (level 80, rgb
+  63 24 32); armor without a power-up, the usual green (level 130).
+- **Death.** Confirmed: Duke's update (0x800412a4, where `flash_frame` runs)
+  stops once he is dead; the player-update count stayed at 159 while game
+  frames went on, so the record froze with what it held (at 120 Hz the
+  killing red stayed at half strength on the death screen; a power-up hold
+  would stay the same way). `flash_dead_frame`, called from the existing
+  main-loop HUD hook (0x8002e850 at ra 0x800265d4; no new hook, generated
+  code unchanged), runs the fade and the power-up check on a game frame
+  without a player update while Duke is dead (flags bit 2, health 0), never
+  in a redraw, paused or suspended. The power-up tint ends at once
+  (`powerup_tint_update` sees him dead) and the killing red fades in its
+  usual time. Evidence at 120 Hz: red 320 -> 160 -> 0 within about a
+  second of death, then nothing. This also applies to deaths with no
+  power-up running. Debug `powerups.dead_frames`.
+
+`ttk-flash-test`, `ttk-controls-test` (125 groups) and `ttk-input-test`
+pass. Executable
+`ade4c90ca1d56af484fad8ee8dad89ea36bf01c5db6f2016cd6433d228f29427`. Accepted
+after the user's playtest ("lock it in, close us out. this is a winner").
+
 ## TTK side (known)
 
 - TTK draws no hit tint. Its damage handler `0x800a40a8` (hooked since D08A13)

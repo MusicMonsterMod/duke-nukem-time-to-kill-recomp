@@ -1,5 +1,17 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-03 - D17AR2 and D17AR3 closed; D17AO cancelled
+
+User: "close all the accepted one, and formally cancel D17AO with no action
+required there". D17AR2 (host visibility behind a developer switch, accepted
+2026-10-30, [note 337](documentation/337-d17ar2-host-visibility.md)) and D17AR3
+(regression sweep, performance and default switch, parts 1-4 accepted
+2026-10-31, notes 338-341; renderer named Polymorph) are Done; their remaining
+speed work was D17AR5, already Done. D17AO (slot-11 ceiling hole showing the
+sky, an authored level gap, [note 327](documentation/327-d17an-ao-ap-renderer-followups.md))
+is Cancelled with no action required. Board bookkeeping only; no code,
+build or executable change.
+
 ## 2026-11-03 - D20I accepted and closed: LEVEL STATS and the FPS row
 
 User: "lock it in and close it out, this is awesome!" D20I is Done: EDuke32's
@@ -2870,7 +2882,7 @@ the stages for approval before implementation.
 
 #### D17AR2 - Implementation behind a developer switch
 
-**Status: Accepted (visual playtest passed 2026-10-30; performance carried to D17AR3; [note 337](documentation/337-d17ar2-host-visibility.md)).**
+**Status: Done (closed 2026-11-03; visual playtest passed 2026-10-30; performance carried to D17AR3; [note 337](documentation/337-d17ar2-host-visibility.md)).**
 Work log 2026-10-30: host world pass behind `DNTTK_HOST_VISIBILITY=1`
 (default off; developer console `hostvis on|off`). At the room walk the host
 selects rooms (host portal walk with a 15% guard band, sky rooms over the
@@ -2913,7 +2925,7 @@ core, no host contention). Open: smoothness (D17AR3); the user's launch with
 
 #### D17AR3 - Regression sweep, performance and default switch
 
-**Status: Accepted (parts 1-2 accepted 2026-10-30; part 3, default
+**Status: Done (closed 2026-11-03; parts 1-2 accepted 2026-10-30; part 3, default
 switch, level 28, regression sweep and its revision 2, accepted 2026-10-31;
 part 4, AUTO at the display's full refresh, accepted 2026-10-31, [note 341](documentation/341-d17ar3-auto-full-refresh.md);
 renderer named Polymorph; [note 338](documentation/338-d17ar3-host-visibility-performance.md),
@@ -3246,7 +3258,7 @@ native water painter order against the deck; Vanilla unchanged.
 
 ### D17AO - Slot-11 ceiling hole showing the sky
 
-**Status: Deferred - user decision 2026-10-30: authored level gap, acknowledged, no action now; possible future level-data fix (diagnosed 2026-10-30, [note 327](documentation/327-d17an-ao-ap-renderer-followups.md)). Related: D17AM, D17AH.**
+**Status: Cancelled - user decision 2026-11-03: no action required (2026-10-30: authored level gap, acknowledged, deferred) (diagnosed 2026-10-30, [note 327](documentation/327-d17an-ao-ap-renderer-followups.md)). Related: D17AM, D17AH.**
 Not a renderer regression: the wedge appears in unified, earlier and native
 renderers and in the pre-afd4ad6 build. A trace shows an authored gap: two
 room meshes (`0x80192f94`, `0x801bb994`) leave a lens-shaped strip open in
@@ -4794,13 +4806,13 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D17AM3 | Unified geometry: regression sweep and default switch | Done | D17AM2 |
 | D17AM4 | Re-triage D17AF/AH/AI/AK and D20H against the unified path | Done | D17AM3 |
 | D17AN | Slot-12 water showing through the bridge deck (level 6) | Done (user-confirmed 2026-10-30) | D17AM; note 327 |
-| D17AO | Slot-11 ceiling hole showing the sky (level 6) | Deferred (authored level gap; no action now, possible future level-data fix) | D17AM; note 327 |
+| D17AO | Slot-11 ceiling hole showing the sky (level 6) | Cancelled (user decision 2026-11-03: authored level gap, no action required) | D17AM; note 327 |
 | D17AP | Slot-9 grave-dig soil corners flashing again (D17X recurrence) | Done (user-confirmed 2026-10-30) | D17X, D17AM; note 327 |
 | D17AQ | Slot-10 jetpack height: level sections pop in and out while turning (room visibility) | Done (B max limit, A open sky, dormant enemies (C1 withdrawn), load crackle fix; note 335) | D17AM, D14F |
 | D17AR | Host-owned world visibility (parent): the host decides what world geometry is drawn | Done (AR1-AR6 done) | D17AM, D17AQ; D17AR1-AR4 |
 | D17AR1 | Host visibility: inventory, data-format verification and design (report first) | Done (design approved 2026-10-30; note 336) | D17AM |
-| D17AR2 | Host visibility: implementation behind a developer switch | Accepted (visual playtest passed; performance to D17AR3) | D17AR1 |
-| D17AR3 | Host visibility: regression sweep, performance and default switch | Accepted (parts 1-4; renderer named Polymorph; further speed in D17AR5) | D17AR2 |
+| D17AR2 | Host visibility: implementation behind a developer switch | Done (user-accepted 2026-10-30; closed 2026-11-03) | D17AR1 |
+| D17AR3 | Host visibility: regression sweep, performance and default switch | Done (user-accepted parts 1-4 2026-10-31; closed 2026-11-03; further speed in D17AR5) | D17AR2 |
 | D17AR4 | Host visibility: retire superseded portal patches (open sky, portal widening) | Done (kept for Classic; Polymorph covers D17Y; note 344) | D17AR3 |
 | D17AR5 | Polymorph: cheaper redraw feed so the heaviest views hold 180 Hz | Done | D17AR3 |
 | D17AR6 | Renderer choice in OPTIONS: Classic and Polymorph | Done | D17AR3 |

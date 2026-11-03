@@ -1,5 +1,17 @@
 # Current status - 2026-10-04
 
+## 2026-11-03 - D17AR2 and D17AR3 closed; D17AO cancelled
+
+User: "close all the accepted one, and formally cancel D17AO with no action
+required there". D17AR2 (host visibility behind a developer switch, accepted
+2026-10-30, [note 337](337-d17ar2-host-visibility.md)) and D17AR3
+(regression sweep, performance and default switch, parts 1-4 accepted
+2026-10-31, notes 338-341; renderer named Polymorph) are Done; their remaining
+speed work was D17AR5, already Done. D17AO (slot-11 ceiling hole showing the
+sky, an authored level gap, [note 327](327-d17an-ao-ap-renderer-followups.md))
+is Cancelled with no action required. Board bookkeeping only; no code,
+build or executable change.
+
 ## 2026-11-03 - D20I accepted and closed: LEVEL STATS and the FPS row
 
 User: "lock it in and close it out, this is awesome!" D20I is Done: EDuke32's

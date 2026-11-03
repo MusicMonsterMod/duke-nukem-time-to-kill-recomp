@@ -284,7 +284,7 @@ jetpack the whole moat and the outside of the castle, from inside a walled
 courtyard just that courtyard and what its openings show. The two faces of a
 castle wall belong to different areas and were built to be seen only from
 their own side, so the far face no longer pokes up above the battlements as
-stray spires and tips.
+stray spires and tips. This holds for both renderers, Polymorph and Classic.
 In wide views such as the castle from the jetpack, distant walls no longer
 flicker with black holes while you turn: every distant piece now fits in the
 frame instead of some being dropped from frame to frame.

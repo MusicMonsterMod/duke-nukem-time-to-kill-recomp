@@ -729,7 +729,7 @@ index 00000000..e34ef18e
 +#endif
 diff --git a/runtime/include/render_thread.h b/runtime/include/render_thread.h
 new file mode 100644
-index 00000000..00d553cf
+index 00000000..e0623109
 --- /dev/null
 +++ b/runtime/include/render_thread.h
 @@ -0,0 +1,92 @@
@@ -814,7 +814,7 @@ index 00000000..00d553cf
 + * rc_*). Emulation-thread side: */
 +int  gl_rt_capture(GlRtSnap *s);
 +void gl_rt_adopt(int cache, unsigned tex, int tw, int th, void *fence);
-+void gl_rt_forget_cache(void);
++int  gl_rt_forget_cache(void);
 +/* Render-thread side: */
 +int  gl_rt_init_shared(void *window, void *context);
 +int  gl_rt_load(GlRtSnap *s, int surfaces, int instance);
@@ -2511,7 +2511,7 @@ index aaf69df7..ca25ca12 100644
 +#undef X
 +}
 diff --git a/runtime/src/gpu_gl_renderer.c b/runtime/src/gpu_gl_renderer.c
-index d0ccc3d5..d5c339c6 100644
+index d0ccc3d5..ba255e32 100644
 --- a/runtime/src/gpu_gl_renderer.c
 +++ b/runtime/src/gpu_gl_renderer.c
 @@ -1,3 +1,4 @@
@@ -4445,7 +4445,7 @@ index d0ccc3d5..d5c339c6 100644
      if (lx != 0 || ly != 0 || lw != ww || lh != wh) {
          glClearColor(0.f, 0.f, 0.f, 1.f);
          glClear(GL_COLOR_BUFFER_BIT);
-@@ -3905,6 +4347,956 @@ static void interp_present_source_interval(void) {
+@@ -3905,6 +4347,961 @@ static void interp_present_source_interval(void) {
      }
  }
  
@@ -4508,6 +4508,8 @@ index d0ccc3d5..d5c339c6 100644
 +static GLuint s_rp_tex[RP_CACHE + 1], s_rp_fbo[RP_CACHE + 1];
 +static int    s_rp_tw[RP_CACHE + 1], s_rp_th[RP_CACHE + 1];
 +static int    s_rp_valid[RP_CACHE + 1];
++/* The texture is ours (made here), not one adopted from the render thread. */
++static int    s_rp_own[RP_CACHE + 1];
 +static int    s_rp_capture_slot = 1;   /* where the next replay capture goes */
 +static int    s_rp_path = -1, s_rp_w = 0, s_rp_h = 0, s_rp_base_x = 0;
 +static int    s_rp_force_4_3 = 0, s_rp_linear = 0;
@@ -4835,10 +4837,13 @@ index d0ccc3d5..d5c339c6 100644
 +}
 +
 +static void rp_ensure_tex(int slot, int tw, int th) {
-+    if (s_rp_tex[slot] && s_rp_tw[slot] == tw && s_rp_th[slot] == th) return;
++    if (s_rp_tex[slot] && s_rp_own[slot] && s_rp_tw[slot] == tw && s_rp_th[slot] == th) return;
 +    if (s_rp_fbo[slot]) { gs_delete_fbs(1, &s_rp_fbo[slot]); s_rp_fbo[slot] = 0; }
-+    if (s_rp_tex[slot]) { glDeleteTextures(1, &s_rp_tex[slot]); s_rp_tex[slot] = 0; }
++    /* An adopted texture belongs to the render thread: never draw into or
++     * delete it here (Time to Kill D17BC, renderer switch). */
++    if (s_rp_tex[slot] && s_rp_own[slot]) glDeleteTextures(1, &s_rp_tex[slot]);
 +    s_rp_tex[slot] = make_tex(GL_RGBA8, tw, th, GL_RGBA, GL_UNSIGNED_BYTE);
++    s_rp_own[slot] = 1;
 +    make_fbo(&s_rp_fbo[slot], s_rp_tex[slot], 0);
 +    s_rp_tw[slot] = tw; s_rp_th[slot] = th;
 +}
@@ -5402,7 +5407,7 @@ index d0ccc3d5..d5c339c6 100644
  /* Draw one host OSD ARGB image into the default framebuffer at (vx,vy)
   * in top-left window coordinates (y down). Bitmap is ow×oh; viewport is
   * dw×dh (may upscale for HiDPI / large windows). */
-@@ -3932,18 +5324,26 @@ static void gl_draw_osd_image(const uint32_t *px, int ow, int oh,
+@@ -3932,18 +5329,26 @@ static void gl_draw_osd_image(const uint32_t *px, int ow, int oh,
      if (vx + dw > ww) dw = ww - vx;
      if (vy + dh > wh) dh = wh - vy;
      if (dw < 1 || dh < 1) return;
@@ -5437,7 +5442,7 @@ index d0ccc3d5..d5c339c6 100644
      p_glUniform1i(s_present_uTex, 0);
      present_set_sharp(0, 0, 0, 0, 0);   /* OSD is authored at output res */
      /* Host OSD bitmaps are top-down (row 0 = top), same as guest CPU
-@@ -3951,19 +5351,95 @@ static void gl_draw_osd_image(const uint32_t *px, int ow, int oh,
+@@ -3951,19 +5356,95 @@ static void gl_draw_osd_image(const uint32_t *px, int ow, int oh,
       * cancel for already-oriented captures and made toasts upside-down. */
      p_glUniform4f(s_present_uUvRect, 0.f, 0.f, 1.f, 1.f);
      {
@@ -5536,7 +5541,7 @@ index d0ccc3d5..d5c339c6 100644
              const uint32_t *px = NULL;
              int ow = 0, oh = 0;
              /* OSD authored for ~480-tall present; grow with drawable height. */
-@@ -3972,9 +5448,68 @@ static void gl_swap_with_osd(void) {
+@@ -3972,9 +5453,68 @@ static void gl_swap_with_osd(void) {
              if (ui < 1) ui = 1;
              if (ui > 8) ui = 8;
              margin = 8 * ui;
@@ -5608,7 +5613,7 @@ index d0ccc3d5..d5c339c6 100644
              if (host_osd_volume_image(&px, &ow, &oh) && px) {
                  const int dw = ow * ui, dh = oh * ui;
                  int vx = (ww > dw + margin) ? (ww - dw - margin) : margin;
-@@ -4012,6 +5547,7 @@ static void gl_swap_with_osd(void) {
+@@ -4012,6 +5552,7 @@ static void gl_swap_with_osd(void) {
                  uint8_t *rows = (uint8_t *)malloc((size_t)ww * wh * 3);
                  uint8_t *flip = rows ? (uint8_t *)malloc((size_t)ww * wh * 3) : NULL;
                  if (rows && flip) {
@@ -5616,7 +5621,7 @@ index d0ccc3d5..d5c339c6 100644
                      glPixelStorei(GL_PACK_ALIGNMENT, 1);
                      glReadPixels(0, 0, ww, wh, GL_RGB, GL_UNSIGNED_BYTE, rows);
                      for (int y = 0; y < wh; y++)
-@@ -4038,13 +5574,13 @@ static void present_target_quad(GLuint tex, int tex_w, int tex_h,
+@@ -4038,13 +5579,13 @@ static void present_target_quad(GLuint tex, int tex_w, int tex_h,
                                  int x, int y, int w, int h, int linear,
                                  int lx, int ly, int lw, int lh, int v_flip) {
      float u0, v0, u1, v1;
@@ -5632,7 +5637,7 @@ index d0ccc3d5..d5c339c6 100644
      p_glUniform1i(s_present_uTex, 0);
      /* The rasterized path already renders at the internal scale, so it has no
       * low-res source to reconstruct — keep the plain sample. */
-@@ -4068,10 +5604,10 @@ static void present_target_quad(GLuint tex, int tex_w, int tex_h,
+@@ -4068,10 +5609,10 @@ static void present_target_quad(GLuint tex, int tex_w, int tex_h,
          v1 = t;
      }
      p_glUniform4f(s_present_uUvRect, u0, v0, u1, v1);
@@ -5646,7 +5651,7 @@ index d0ccc3d5..d5c339c6 100644
  }
  
  /* Bezel art: a still image behind the frame, filling whatever the letterbox or
-@@ -4104,19 +5640,19 @@ int gl_renderer_has_bezel(void) { return s_bezel_tex != 0; }
+@@ -4104,19 +5645,19 @@ int gl_renderer_has_bezel(void) { return s_bezel_tex != 0; }
  static void present_bezel(int ww, int wh, int lx, int ly, int lw, int lh) {
      if (!s_bezel_tex || ww <= 0 || wh <= 0) return;
      if (lx <= 0 && ly <= 0 && lw >= ww && lh >= wh) return;
@@ -5673,7 +5678,7 @@ index d0ccc3d5..d5c339c6 100644
  }
  
  int gl_renderer_present_hold_last(void) {
-@@ -4131,8 +5667,8 @@ int gl_renderer_present_hold_last(void) {
+@@ -4131,8 +5672,8 @@ int gl_renderer_present_hold_last(void) {
       * the hold texture. Still present the host overlays: otherwise save-state
       * rejection/status messages are generated but remain invisible on GL. */
      if (s_hold_kind == HOLD_NONE || !s_hold_tex) {
@@ -5684,7 +5689,7 @@ index d0ccc3d5..d5c339c6 100644
          glClearColor(0.f, 0.f, 0.f, 1.f);
          glClear(GL_COLOR_BUFFER_BIT);
          latency_ring_mark(LAT_SWAP_BEGIN);
-@@ -4141,8 +5677,8 @@ int gl_renderer_present_hold_last(void) {
+@@ -4141,8 +5682,8 @@ int gl_renderer_present_hold_last(void) {
          s_probe_swap++;
          return 1;
      }
@@ -5695,7 +5700,7 @@ index d0ccc3d5..d5c339c6 100644
      glClearColor(0.f, 0.f, 0.f, 1.f);
      glClear(GL_COLOR_BUFFER_BIT);
      if (s_hold_kind == HOLD_DRAWABLE) {
-@@ -4204,7 +5740,8 @@ void gl_renderer_present_vram(int disp_x, int disp_y, int w, int h, int linear,
+@@ -4204,7 +5745,8 @@ void gl_renderer_present_vram(int disp_x, int disp_y, int w, int h, int linear,
          !present_dirty_test(disp_x, disp_y, disp_x + w - 1, disp_y + h - 1) &&
          !host_osd_needs_present() &&
          !psx_present_vsync_owns_cadence() &&
@@ -5705,7 +5710,7 @@ index d0ccc3d5..d5c339c6 100644
          s_probe_skip++;
          gl_perf_present_enter();
          gl_perf_present_exit(0);
-@@ -4221,12 +5758,22 @@ void gl_renderer_present_vram(int disp_x, int disp_y, int w, int h, int linear,
+@@ -4221,12 +5763,22 @@ void gl_renderer_present_vram(int disp_x, int disp_y, int w, int h, int linear,
       * display mode (e.g. 216/224-line menus) must fill the rect as before.
       * The FMV band fix lives in the depth24/CPU present paths only. */
  
@@ -5730,7 +5735,7 @@ index d0ccc3d5..d5c339c6 100644
      int interp_pair = interp_capture(s_hr_fbo, disp_x, disp_y, w, h,
                                       linear, force_4_3, GL_PRES_VRAM);
      if (interp_pair) {
-@@ -4270,7 +5817,11 @@ static void wide_blit_center(GLuint wide_fbo, int base_x, int disp_y, int disp_h
+@@ -4270,7 +5822,11 @@ static void wide_blit_center(GLuint wide_fbo, int base_x, int disp_y, int disp_h
      int native_w = g_wide_w - 2 * g_wide_off;
      if (native_w <= 0) return;
      int S = s_scale;
@@ -5743,7 +5748,7 @@ index d0ccc3d5..d5c339c6 100644
      /* Copy the canonical framebuffer column into the wide surface CENTRE over the
       * FULL VRAM height, not just the current display band [disp_y, disp_y+disp_h].
       * The wide surface holds BOTH vertical double-buffer bands (Ape flips
-@@ -4279,16 +5830,16 @@ static void wide_blit_center(GLuint wide_fbo, int base_x, int disp_y, int disp_h
+@@ -4279,16 +5835,16 @@ static void wide_blit_center(GLuint wide_fbo, int base_x, int disp_y, int disp_h
       * column makes the wide CENTRE bit-identical to what the full mirror would
       * have drawn there for every band, so nothing the present reads is ever left
       * black. The margins (x outside the centre) are untouched. */
@@ -5769,7 +5774,7 @@ index d0ccc3d5..d5c339c6 100644
  }
  
  /* GPU-direct native-wide present: blit the displayed buffer's wide FBO straight
-@@ -4315,7 +5866,8 @@ int gl_renderer_present_wide_fbo(int disp_x, int disp_y, int disp_h, int linear)
+@@ -4315,7 +5871,8 @@ int gl_renderer_present_wide_fbo(int disp_x, int disp_y, int disp_h, int linear)
          !present_dirty_test(0, disp_y, VRAM_W - 1, disp_y + disp_h - 1) &&
          !host_osd_needs_present() &&
          !psx_present_vsync_owns_cadence() &&
@@ -5779,7 +5784,7 @@ index d0ccc3d5..d5c339c6 100644
          s_probe_skip++;
          gl_perf_present_enter();
          gl_perf_present_exit(1);
-@@ -4327,12 +5879,23 @@ int gl_renderer_present_wide_fbo(int disp_x, int disp_y, int disp_h, int linear)
+@@ -4327,12 +5884,23 @@ int gl_renderer_present_wide_fbo(int disp_x, int disp_y, int disp_h, int linear)
      letterbox_rect(ww, wh, &lx, &ly, &lw, &lh);
      wide_blit_center(fbo, disp_x, disp_y, disp_h);   /* fast-path: authoritative centre */
  
@@ -5805,7 +5810,7 @@ index d0ccc3d5..d5c339c6 100644
      int interp_pair = interp_capture(fbo, 0, disp_y, g_wide_w, disp_h,
                                       linear, 0, GL_PRES_WIDE);
      if (interp_pair) {
-@@ -4393,3 +5956,223 @@ static const GpuRenderBackend GL_BACKEND = {
+@@ -4393,3 +5961,230 @@ static const GpuRenderBackend GL_BACKEND = {
  };
  
  const GpuRenderBackend *gl_backend_get(void) { return &GL_BACKEND; }
@@ -5930,7 +5935,9 @@ index d0ccc3d5..d5c339c6 100644
 +    if (slot < 1 || slot > RP_CACHE || !rt_sync_ok()) return;
 +    if (s_rp_tex[slot] != tex) {
 +        rt_drop_fbo(&s_rp_fbo[slot]);
++        if (s_rp_tex[slot] && s_rp_own[slot]) glDeleteTextures(1, &s_rp_tex[slot]);
 +        s_rp_tex[slot] = tex;
++        s_rp_own[slot] = 0;
 +        make_fbo(&s_rp_fbo[slot], tex, 0);   /* for the debug dumps */
 +    }
 +    s_rp_tw[slot] = tw; s_rp_th[slot] = th;
@@ -5940,13 +5947,18 @@ index d0ccc3d5..d5c339c6 100644
 +    s_rp_gen[slot]++;
 +}
 +
-+/* Emulation thread: the cache textures belong to the render thread; forget
-+ * them (their FBOs here are ours) before drawing cache images itself again. */
-+void gl_rt_forget_cache(void) {
++/* Emulation thread: the cache textures adopted from the render thread belong
++ * to it; forget them (their FBOs here are ours) before drawing cache images
++ * itself again. Our own textures stay. */
++int gl_rt_forget_cache(void) {
++    int n = 0;
 +    for (int slot = 1; slot <= RP_CACHE; slot++) {
++        if (s_rp_own[slot] || !s_rp_tex[slot]) continue;
 +        rt_drop_fbo(&s_rp_fbo[slot]);
 +        s_rp_tex[slot] = 0; s_rp_tw[slot] = s_rp_th[slot] = 0; s_rp_valid[slot] = 0;
++        n++;
 +    }
++    return n;
 +}
 +
 +/* Render thread: set up this instance on a context shared with the
@@ -11444,10 +11456,10 @@ index 00000000..8c071495
 +}
 diff --git a/runtime/src/render_thread.c b/runtime/src/render_thread.c
 new file mode 100644
-index 00000000..1b59d928
+index 00000000..9e729e83
 --- /dev/null
 +++ b/runtime/src/render_thread.c
-@@ -0,0 +1,564 @@
+@@ -0,0 +1,578 @@
 +/* render_thread.c - redraws on host render threads (Time to Kill D17AW).
 + * See render_thread.h. The emulation thread owns the guest, its renderer
 + * instance and the window; each render thread owns another renderer instance
@@ -11613,15 +11625,29 @@ index 00000000..1b59d928
 +    return s_switch;
 +}
 +/* The title's default (PSX_RENDER_THREAD overrides it). Emulation thread; also
-+ * live (Time to Kill D40, renderer switch). Turned off, queued redraws still
-+ * finish and are adopted, and new ones draw on the emulation thread. Turned
-+ * on again, the slots' snapshots are older than their workers' frames, so
-+ * they are forgotten (each slot draws here until its next publish). */
++ * live (Time to Kill D40, renderer switch). Turned off, its queued and
++ * unfinished redraws are dropped and the image cache forgets the textures it
++ * adopted from it, so new ones draw on the emulation thread into their own
++ * (D17BC: drawing into or presenting those textures showed images from
++ * before the switch for single presents). Turned on again, the slots'
++ * snapshots are older than their workers' frames, so they are forgotten
++ * (each slot draws here until its next publish). */
 +void psx_mod_set_render_thread(int on) {
 +    const int was = s_switch;
++    const int was_on = switch_on();
 +    s_title_default = on ? 1 : 0;
 +    s_switch = -1;
-+    if (was == 0 && switch_on()) psx_rt_drop();
++    const int now_on = switch_on();
++    if (was == 0 && now_on) psx_rt_drop();
++    if (was_on && !now_on && atomic_load(&s_state) == 2) {
++        pthread_mutex_lock(&s_mu);
++        const int queued = s_q_n;
++        pthread_mutex_unlock(&s_mu);
++        psx_rt_drop();
++        const int released = gl_rt_forget_cache();
++        fprintf(stdout, "psxrecomp: render thread off: %d queued redraw(s) dropped, %d cache image(s) released\n",
++                queued, released);
++    }
 +}
 +
 +/* The request thread k takes next: one for the snapshot already in its

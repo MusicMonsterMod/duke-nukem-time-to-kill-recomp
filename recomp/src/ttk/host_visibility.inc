@@ -94,6 +94,7 @@ static bool host_visibility_enabled() {
 // rooms and were built to be seen only from their own side. Developer:
 // DNTTK_OVER_WALLS=0 (none), all (every sky room, as before D17BB), default
 // region; console "hostvis walls off|all|region|default" (main process only).
+// Classic's open-sky list (draw_distance.inc) follows the same rule (D17BC).
 static std::atomic<int> host_vis_walls_override{-1};
 static int host_vis_over_walls() { // 0 none, 1 region, 2 all
     static const int v=[]{const char* t=std::getenv("DNTTK_OVER_WALLS");

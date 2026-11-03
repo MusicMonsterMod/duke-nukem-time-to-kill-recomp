@@ -7596,6 +7596,9 @@ int main(int argc,char** argv) {
             psx_mod_write_word(0x800da454,table);psx_mod_write_word(0x800da47c,2);psx_mod_write_word(c+0x90,0);
             box(0,0,-2048,0,10240,13312,10240,8);
             piece(0,0,9000,4096,0,10240,15360,10240);           // east wall, top at Y 2048
+            // D17BC: one portal joins the two sky rooms (one open-air region).
+            for(uint32_t i=0;i<36;i+=4) psx_mod_write_word(pieces+0x3000+i,0);
+            psx_mod_write_byte(table+0x30,1);psx_mod_write_word(table+0x38,pieces+0x3000);psx_mod_write_half(pieces+0x3000+14,1);
             box(1,12000,-2048,0,20000,13312,10240,8);
             piece(1,0,2000,6048,3000,6000,15360,7000);          // a yard wall, top at Y 4000
             const int16_t m[9]={0,0,int16_t(-4096*forward),0,4096,0,int16_t(4096*forward),0,0};
@@ -7626,6 +7629,7 @@ int main(int argc,char** argv) {
         setup(-1800,1);psx_mod_write_word(table+12,0);run();assert(!listed(1)); // indoors
         setup(-1800,1);psx_mod_write_word(table+88+12,0);run();assert(!listed(1)); // not a sky room
         setup(-1800,1);psx_mod_write_word(0x800d67a8+0x74,1234);run();assert(!listed(1)); // unknown limit: refused
+        setup(-1800,1);psx_mod_write_byte(table+0x30,0);run();assert(!listed(1)); // D17BC: another open-air region
         // A portal-listed sky room opens to the whole view only when seen over the walls.
         setup(-1800,1);psx_mod_write_word(0x800d68a8,2);
         psx_mod_write_half(entry+12,uint16_t(-20));psx_mod_write_half(entry+14,uint16_t(-20));
@@ -7639,7 +7643,7 @@ int main(int argc,char** argv) {
         setup(-1800,1);ttk::modern=false;run();assert(!listed(1));ttk::modern=true;
         setup(-1800,1);call(0x80062b48,0,0,0x80012345);assert(!listed(1));
         psx_mod_write_word(0x800da47c,0);psx_mod_write_word(0x800d68a8,0);
-        std::puts("PASS: D17AQ open sky over walls, ground/behind/indoor/flags/limit/caller and Vanilla guards");
+        std::puts("PASS: D17AQ open sky over walls, ground/behind/indoor/flags/limit/region/caller and Vanilla guards");
 
         // Dormant enemies: spawner range out to the extended limit with removal
         // hysteresis, without writing the radius; beyond the original radius a

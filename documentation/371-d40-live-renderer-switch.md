@@ -97,3 +97,6 @@ codegen hash change.
   Classic launch through the same menu path and walk); the user then
   confirmed the switch working on the real display.
 - Classic is frozen (2026-11-01): it was not changed, only reached live.
+- Fixed in D17BC ([note 372](372-d17bc-classic-lightweight-visibility.md)): turning the render thread off
+  left the redraw cache on its textures, so a switch to Classic could show
+  stale images for single presents; the switch now releases them.

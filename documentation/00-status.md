@@ -1,5 +1,44 @@
 # Current status - 2026-10-04
 
+## 2026-11-03 - D17BC accepted and closed: Classic lightweight visibility
+
+User: "great work. fixed. lock it in and close it out". D17BC is Done:
+Classic's over-the-walls list follows Polymorph's D17BB region rule (slot 10
+shows the same over the wall as Polymorph), and a live Polymorph -> Classic
+switch no longer shows stale redraw images (the render thread's cache images
+are released when it is turned off). The other Classic reductions in
+[note 372](372-d17bc-classic-lightweight-visibility.md) stay proposals, not built.
+
+## 2026-11-03 - D17BC: Classic lightweight visibility (Needs playtest)
+
+[Note 372](372-d17bc-classic-lightweight-visibility.md). User:
+Classic shows more over the slot-10 castle wall than Polymorph; Classic should
+be the lightweight option. Classic's over-the-walls list (D17AQ open sky) now
+follows Polymorph's D17BB region rule: only sky rooms in the camera room's own
+open-air region are widened or added, so the moat no longer draws courtyard
+wall tops over the outer wall, and the slot-12 courtyard loses the moat-side
+merlons, as in Polymorph. Same switch for both renderers (`DNTTK_OVER_WALLS`,
+console `hostvis walls`). Evidence: same-frame A/B shots at 16 headings
+(slot 10) and 8 (slot 12), Classic, private copies; appended rooms per frame
+during a turn about 3.9 -> 2.5 (indicative; 60-field cap, no frame-rate gain
+measured). `ttk-controls-test` 125 groups (D17AQ group gains a region case),
+`ttk-input-test`, `ttk-near-test` and `check_repo.py` pass. Vanilla and
+Polymorph unchanged. Further Classic reductions proposed in the note (eye-height
+gate recommended next); none built. Needs the user's Classic playtest on slot
+10 and slot 12.
+
+Playtest round 2: the user's video shows single presents of old views (another
+heading) about twice every 0.53 s after a Polymorph -> Classic switch on slot
+10. Cause: the switch turned the D17AW render thread off but left all 16 redraw
+cache entries on the thread's textures (and its unfinished redraws still
+adoptable), so Classic drew into and presented stale textures; the cleanup
+`gl_rt_forget_cache()` was never called. Fix (framework, patch exported and
+verified on the pin): turning the thread off drops its queued work and releases
+the adopted images; the cache never draws into or deletes a thread texture.
+Stress (12 switches, 180 Hz, 4x): 16 images released per switch, 0 misses,
+0 failed redraws. The harness never reproduced the flash on the old build, so
+it needs the user's playtest. Suites pass. [Note 372](372-d17bc-classic-lightweight-visibility.md).
+
 ## 2026-11-03 - D40 accepted and closed: live renderer switch
 
 User: "this is awesome. confirmed working! lock it in close it out." D40 is

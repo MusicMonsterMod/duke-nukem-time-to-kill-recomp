@@ -153,8 +153,15 @@ static void widen_portals() {
 // (which gets the original list back, below) read this list, all inside the camera render, so this changes
 // drawing only; the portal walk's own room bitmap is untouched. The walk
 // stops at 32 entries (0x8006286c), so the list never grows past 31.
+// D17BC: Classic follows Polymorph's D17BB region rule (host_visibility.inc):
+// only sky rooms in the camera room's own open-air region are widened or
+// added, so the slot-10 moat no longer draws the courtyards' wall tops over
+// the outer wall and Classic never draws more than Polymorph selects. The
+// same switch serves both (DNTTK_OVER_WALLS=0|all, console "hostvis walls").
 // Developer: DNTTK_OPEN_SKY=0 keeps the portal-walk list (Classic only).
-static uint64_t open_sky_frames=0,open_sky_opened=0,open_sky_added=0;
+static int host_vis_over_walls();
+static void host_vis_sky_region(uint32_t table,uint32_t rooms,uint32_t source,std::vector<bool>& region);
+static uint64_t open_sky_frames=0,open_sky_opened=0,open_sky_added=0,open_sky_region_skipped=0;
 static uint32_t open_sky_original=0,open_sky_count=0;
 static bool open_sky_enabled() {
     static const bool v=[]{const char* t=std::getenv("DNTTK_OPEN_SKY");return !t || std::strcmp(t,"0");}();
@@ -256,7 +263,8 @@ static void open_sky_write(uint32_t e,const int32_t r[4]) {
     psx_mod_write_half(e+4,(uint16_t)(int16_t)(r[2]-r[0]));psx_mod_write_half(e+6,(uint16_t)(int16_t)(r[3]-r[1]));
 }
 static void open_sky_rooms() {
-    if(!open_sky_enabled()) return;
+    const int over_walls=host_vis_over_walls();
+    if(!open_sky_enabled() || !over_walls) return;
     const uint32_t table=psx_mod_read_word(0x800da454),rooms=psx_mod_read_word(0x800da47c),source=psx_mod_read_word(camera+0x90);
     if(!rooms || rooms>128 || source>=rooms || table<0x80010000u || table>0x80200000u-rooms*88 || (table&3)) return;
     if(!(psx_mod_read_word(table+source*88+12)&8)) return;
@@ -275,12 +283,18 @@ static void open_sky_rooms() {
     for(int i=0;i<3;++i) {lo[i]=(int32_t)psx_mod_read_word(home+4*i);hi[i]=(int32_t)psx_mod_read_word(home+0x20+4*i);}
     static std::vector<OpenSkyBox> walls,pieces;
     if(!open_sky_pieces(home,walls)) return;
+    static std::vector<bool> region;
+    if(over_walls==1) host_vis_sky_region(table,rooms,source,region);
+    const auto outside=[&](uint32_t room) {
+        if(over_walls!=1 || region[room]) return false;
+        ++open_sky_region_skipped;return true;
+    };
     bool listed[128]={};
     for(uint32_t i=0;i<count;++i) {
         const uint32_t e=0x800d68b0+12*i,room=psx_mod_read_word(e+8);
         if(room>=rooms) continue;
         listed[room]=true;
-        if(room==source || !(psx_mod_read_word(table+room*88+12)&8)) continue;
+        if(room==source || !(psx_mod_read_word(table+room*88+12)&8) || outside(room)) continue;
         if(!open_sky_pieces(table+room*88,pieces) || !open_sky_seen(v,lo,hi,walls,pieces,r)) continue;
         const int32_t x=(int16_t)psx_mod_read_half(e),y=(int16_t)psx_mod_read_half(e+2);
         const int32_t w=(int16_t)psx_mod_read_half(e+4),hh=(int16_t)psx_mod_read_half(e+6);
@@ -292,7 +306,7 @@ static void open_sky_rooms() {
     const int32_t far=(int32_t)psx_mod_read_word(view_limits+0x74);
     for(uint32_t room=0;room<rooms && count<31;++room) {
         const uint32_t a=table+room*88;
-        if(listed[room] || !(psx_mod_read_word(a+12)&8)) continue;
+        if(listed[room] || !(psx_mod_read_word(a+12)&8) || outside(room)) continue;
         if(!open_sky_in_view(a,v.m,v.eye,v.h,v.rect[0]-16,v.rect[1]-16,v.rect[2]+16,v.rect[3]+16,far)) continue;
         if(!open_sky_pieces(a,pieces) || pieces.empty() || !open_sky_seen(v,lo,hi,walls,pieces,r)) continue;
         const uint32_t e=0x800d68b0+12*count;
@@ -355,9 +369,9 @@ static const char* draw_distance_debug_json() {
     uint64_t checks=0,flips=0;gte_nclip_culling_stats(&checks,&flips);
     std::snprintf(buffer,sizeof buffer,"{\"mode\":\"%s\",\"frames\":%llu,\"refusals\":%llu,\"original\":%d,\"extended\":%d,"
         "\"portals_widened\":%llu,\"nclip_checks\":%llu,\"nclip_flips\":%llu,"
-        "\"open_sky\":{\"frames\":%llu,\"opened\":%llu,\"added\":%llu},\"host_visibility\":%s,\"enemies\":%s}",
+        "\"open_sky\":{\"frames\":%llu,\"opened\":%llu,\"added\":%llu,\"region_skipped\":%llu},\"host_visibility\":%s,\"enemies\":%s}",
         draw_distance_extended()?"extended":"original",(unsigned long long)distance_frames,(unsigned long long)distance_refusals,
         distance_original,distance_extended,(unsigned long long)portal_widened,(unsigned long long)checks,(unsigned long long)flips,
-        (unsigned long long)open_sky_frames,(unsigned long long)open_sky_opened,(unsigned long long)open_sky_added,host_visibility_debug_json(),enemy_reach_debug_json());
+        (unsigned long long)open_sky_frames,(unsigned long long)open_sky_opened,(unsigned long long)open_sky_added,(unsigned long long)open_sky_region_skipped,host_visibility_debug_json(),enemy_reach_debug_json());
     return buffer;
 }

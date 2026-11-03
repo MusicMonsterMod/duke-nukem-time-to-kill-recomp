@@ -2,7 +2,8 @@
 
 Job: [D39](../MODERNIZATION_JOBS.md) and D39A-D39G. Status: D39A accepted
 2026-11-03 (spec table below, locked); D39B accepted 2026-11-03
-(section below); D39C accepted 2026-11-03 (section below). Follows D08G7 ([note 369](369-d08g7-kroz-feel.md)),
+(section below); D39C accepted 2026-11-03 (section below); D39D accepted
+2026-11-03 (section below). Follows D08G7 ([note 369](369-d08g7-kroz-feel.md)),
 accepted as preliminary.
 
 ## Why
@@ -358,6 +359,54 @@ byte.
   setting; it is not on OPTIONS.
 - Reduced (half, capped at a quarter) was accepted with the job; not yet
   judged against real hit flashes (D39E).
+
+## D39D - God-mode off flash on the present tint (accepted 2026-11-03)
+
+### Change
+
+- `cheats.inc` `god_mode_off_feel`: switching god mode off calls
+  `screen_flash(32, 32, 0, 0)`, the flash D39A measured from `dnkroz` in
+  EDuke32. The SCREEN FLASHES option applies where it is drawn
+  (`present_tint`), as for every flash. The GOD MODE: OFF text and the 50%
+  pain grunt (D08G7) are unchanged; ON shows no flash.
+- Classic (no present tint): the D08G7 PS1 quads stay its god-off flash, with
+  their option gate (Off skips, Reduced starts at half), until D39G decides.
+  The quad hook in `modern_controls.cpp` now draws only on Classic, so an old
+  savestate carrying a D08G7 level shows no quads on Polymorph (the level just
+  runs out).
+- `screen_flash_classic()` (`screen_flash.h`) is the one Classic check, used by
+  the console refusal, `present_tint` and the cheat.
+
+### Evidence (local lab `recomp/analysis/d39d-god-flash/`, ignored)
+
+`probe.py` (D39C's with `kroz`, `krozopt`, `ktrace` cases) on private card
+copies, offscreen on the NVIDIA GPU, slot 4. Player saves and profile
+hash-checked unchanged after every run. Executable
+`22e2c33b9dcfd0407fdbc2d67c81b207d7947df673b94f3448fd03db85022015`.
+
+| Check | Result (spec: D39A god mode off, `palfrom 32 32 0 0`) |
+| --- | --- |
+| Trigger | one OFF pulse: one flash (seq + 1, colour 32 0 0, level 320); ON: none |
+| Fade, 180 Hz, third person, x3 | 193-194 presents, 1066.7-1072 ms (32 tics), 193-194 distinct weights, onset 0.4997 (0.5), slope -0.468/s (0.469), max residual 0.007 |
+| Fade, 120 Hz | 130 presents, 1075 ms, slope -0.468/s |
+| First person | same fade (193 presents, 1066 ms); held flashes of eight colours fit within 0.003 of the spec weight and 0.3 levels of the colour |
+| Colour, god-off frame against an unflashed one | red: w 0.499, colour 31.8 (0.5, 32); green and blue: w 0.49-0.55 (idle animation between the two frames) |
+| D08G7 quads (Polymorph) | level 0 throughout |
+| Reduced / Off | peak weight 0.25 / 0 tints drawn |
+| Classic | quad peak 340 (as D08G7), 0 tints |
+
+Suites: `ttk-flash-test`, `ttk-near-test`, `ttk-input-test`, `ttk-aim-test`,
+`ttk-controls-test` (125 PASS) pass; Python 225 with the old
+`test_primitive_trace` failure, 2 skipped. No framework change.
+
+### Limits
+
+- The GOD MODE: OFF text is host-drawn at once; the flash rides the replayed
+  game frame, so the text can lead the red by about 3 game frames (0.1 s, the
+  replay's world delay measured in D39C). One of three first-person captures
+  caught that gap. In EDuke32 they start together.
+- Accepted on the user's playtest (2026-11-03): "amazing work! lock it in,
+  close it out".
 
 ## TTK side (known)
 

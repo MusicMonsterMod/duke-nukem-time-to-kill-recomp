@@ -135,18 +135,21 @@ static const char* cheat_refusal(CPUState* cpu) {
         return "Cheat unavailable - try again";
     return nullptr;
 }
-// D08G7: Duke3D's god-mode feel. Switching off flashes the screen red (the
-// hit fade, near_clip_screen_flash) and, as Duke3D's player script does for a
-// hit at full health (ifrnd 128), half the time Duke gives the short pain
-// grunt: one of the two the original damage handler plays for an ordinary hit
-// (0x800a4604: 0x2009 + rand % 2, via 0x8006b270 at Duke's position). No
-// damage is dealt and no rumble; switching on shows neither. Host random, so
-// the game's own random sequence is untouched.
-// D39C: SCREEN FLASHES OFF skips the flash, REDUCED starts it at half (a
-// quarter mix, the option's cap) until D39D moves it onto the present tint.
+// D08G7: Duke3D's god-mode feel. Switching off flashes the screen red and, as
+// Duke3D's player script does for a hit at full health (ifrnd 128), half the
+// time Duke gives the short pain grunt: one of the two the original damage
+// handler plays for an ordinary hit (0x800a4604: 0x2009 + rand % 2, via
+// 0x8006b270 at Duke's position). No damage is dealt and no rumble; switching
+// on shows neither. Host random, so the game's own random sequence is
+// untouched.
+// D39D: the flash is Duke3D's own, palfrom 32 32 0 0 (D39A, measured from
+// dnkroz), on the present tint; SCREEN FLASHES scales it where it is drawn.
+// Classic has no present tint and keeps the D08G7 quads (D39G decides): OFF
+// skips them, REDUCED starts them at half.
 static void god_mode_off_feel(CPUState* cpu) {
     const FlashOption flashes=screen_flash_option();
-    if(flashes!=FlashOption::Off) near_clip_screen_flash_set(flashes==FlashOption::Reduced?screen_flash_start/2:screen_flash_start);
+    if(!screen_flash_classic()) screen_flash(32,32,0,0);
+    else if(flashes!=FlashOption::Off) near_clip_screen_flash_set(flashes==FlashOption::Reduced?screen_flash_start/2:screen_flash_start);
     static uint32_t seed=0x2d08a7u^(uint32_t)std::chrono::steady_clock::now().time_since_epoch().count();
     seed=seed*1103515245u+12345u;
     const uint32_t sound=((seed>>16)&0xff)<128?0x2009u+((seed>>24)&1):0;

@@ -85,6 +85,9 @@ void screen_flash(int intensity,int r=0,int g=0,int b=0);
 FlashOption screen_flash_option();
 // One player update (Modernized): minus the game's frame delta.
 void screen_flash_update();
+// The world renderer is Classic (DNTTK_WORLD_RENDERER, fixed at launch): no
+// present tint (D39G decides Classic's flashes).
+bool screen_flash_classic();
 // D39B developer setting DNTTK_FLASH_STEPS=1: the 30 Hz staircase.
 bool screen_flash_steps();
 // A present outside replay presentation (60 Hz, the real image, pause):

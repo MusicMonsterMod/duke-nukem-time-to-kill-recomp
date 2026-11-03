@@ -2114,7 +2114,9 @@ updates.
 Confirm applies and saves the choice immediately. Vanilla never flashes. The
 launcher accepts `--screen-flashes on|reduced|off` (saves the preference);
 terminal `--settings` uses **X Screen flashes**. Console flashes need the
-Polymorph renderer (Classic answers that it cannot show them).
+Polymorph renderer (Classic answers that it cannot show them). On the
+Classic renderer, the god-mode flash uses an older approximation: a red
+tint that fades in steps.
 
 The backtick console's `palfrom I [R G B]` (or `flash`) starts a flash with
 Duke 3D's own numbers: intensity `I` from 0 to 255 (63 is the strongest; above

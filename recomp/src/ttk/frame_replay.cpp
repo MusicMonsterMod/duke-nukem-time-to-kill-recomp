@@ -1648,8 +1648,7 @@ int provider(const PSXModPresentInfo* info,void*) {
 // D39B: Polymorph's present tint (Modernized; Classic and Vanilla never).
 // A replay image carries its own tint; anything else shows the live record.
 int present_tint(int slot,float rgbw[4],void*) {
-    static const bool classic=[]{const char* r=std::getenv("DNTTK_WORLD_RENDERER");return r && !std::strcmp(r,"classic");}();
-    if(classic || !input_modernized()) return 0;
+    if(screen_flash_classic() || !input_modernized()) return 0;
     bool on=false;
     if(slot>=1 && slot<=cache_entries) {
         const CachedTint& t=cache_tint[slot-1];

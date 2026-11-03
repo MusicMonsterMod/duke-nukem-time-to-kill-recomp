@@ -1,8 +1,9 @@
 # D08G7 - dnkroz feel: GOD MODE text, red flash and pain grunt on OFF
 
 Job: [D08G7](../MODERNIZATION_JOBS.md). Status: Done (accepted as preliminary
-2026-11-03). The flash moves to the D39 framework
-([note 370](370-d39-screen-flash-framework.md)), D39D.
+2026-11-03). The flash moved to the D39 framework
+([note 370](370-d39-screen-flash-framework.md)) in D39D: on Polymorph it is
+`screen_flash(32, 32, 0, 0)`; the quads below remain Classic's only.
 `dnkroz` and `dncornholio` stay the same cheat (`recomp/src/ttk/cheat_codes.h`).
 
 ## Reference (Duke3D / EDuke32)

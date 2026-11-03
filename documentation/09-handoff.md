@@ -1,5 +1,39 @@
 # Next-session handoff
 
+## 2026-11-03 - D39D accepted and closed: god-mode off flash on the present tint
+
+User: "amazing work! lock it in, close it out". D39D is Done: god mode off is
+Duke3D's `palfrom 32 32 0 0` on the Polymorph present tint, as measured in
+the entry below and [note 370](370-d39-screen-flash-framework.md). Classic keeps the D08G7 quads until
+D39G. Next: D39E (damage), D39F (pickups and explosions), D39G (Classic).
+
+## 2026-11-03 - D39D: god-mode off flash on the D39 present tint (Needs playtest)
+
+[Note 370](370-d39-screen-flash-framework.md), D39D section.
+Switching `dnkroz` / `dncornholio` off now calls `screen_flash(32, 32, 0, 0)`,
+Duke3D's measured god-off flash (D39A), drawn by the Polymorph present tint:
+exact red mix, smooth at the display rate, scaled by SCREEN FLASHES where it is
+drawn. The GOD MODE: OFF text and the 50% pain grunt are unchanged; ON shows
+no flash. The D08G7 PS1 quads now draw only on the Classic renderer (no
+present tint there; D39G decides Classic), so Classic's god-off flash is as
+before. `screen_flash_classic()` is the one Classic check (console, tint,
+quads).
+
+Measured offscreen on the NVIDIA GPU, third person, slot 4, private card
+copies: each OFF starts exactly one flash (seq + 1, colour 32 0 0); at 180 Hz
+193 presents over 1066.7 ms (32 tics), 193 distinct weights, onset 0.4997,
+slope -0.468/s (spec 0.469), max residual 0.007, three repetitions; 120 Hz 130
+presents, same line; first person the same fade, and held first-person flashes
+fit within 0.003 of the spec weight; whole-frame fit of the god-off frame red
+w 0.499 toward 31.8 (spec 0.5 toward 32); D08G7 quad level 0 throughout;
+Reduced peak weight 0.25; Off 0 tints drawn; Classic quad peak 340 and 0 tints.
+Suites: `ttk-flash-test`, `ttk-near-test`, `ttk-input-test`, `ttk-aim-test`,
+`ttk-controls-test` (125 PASS) pass; Python 225 with the old
+`test_primitive_trace` failure only. No framework change. Limit: the OFF text
+is host-drawn at once, the flash rides the replayed game frame, so the text
+can lead the red by about 3 game frames (0.1 s; the D39C world delay).
+Code: `cheats.inc` `god_mode_off_feel`; `modern_controls.cpp` gates `near_clip_screen_flash_draw` on Classic. Test: `recomp/analysis/d39d-god-flash/probe.py` (cases `kroz`, `krozopt`, `ktrace`; `VIEW`, `RATE`, `FLASHES`, `RENDERER`). Probe pitfall fixed there: `inp()` wrote `cheat=none` and `cheat=dnkroz` together, so the edge reader fired every read. Executable `22e2c33b9dcfd0407fdbc2d67c81b207d7947df673b94f3448fd03db85022015`.
+
 ## 2026-11-03 - D39C accepted and closed: flash API, console palfrom, SCREEN FLASHES
 
 User: "its rediculously good, well done ... accepted and close it out". D39C

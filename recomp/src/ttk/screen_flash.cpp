@@ -72,6 +72,10 @@ void screen_flash_update() {
         screen_flash((int)((q>>18)&0xff),(int)((q>>12)&0x3f),(int)((q>>6)&0x3f),(int)(q&0x3f));
 }
 FlashOption screen_flash_option() {return flash_option_parse(ttk_live_env("DNTTK_SCREEN_FLASHES"));}
+bool screen_flash_classic() {
+    static const bool v=[]{const char* r=std::getenv("DNTTK_WORLD_RENDERER");return r && !std::strcmp(r,"classic");}();
+    return v;
+}
 bool screen_flash_steps() {
     static const bool v=[]{const char* t=std::getenv("DNTTK_FLASH_STEPS");return t && t[0]=='1';}();
     return v;
@@ -128,8 +132,7 @@ bool flash_console_command(const char* line,void (*say)(const char*),bool& close
         return true;
     }
     if(!input_modernized()) {say("Screen flashes are Modernized only (Vanilla never flashes).");return true;}
-    const char* r=std::getenv("DNTTK_WORLD_RENDERER");
-    if(r && !std::strcmp(r,"classic")) {say("Screen flashes need the Polymorph renderer (OPTIONS > DISPLAY > RENDERER).");return true;}
+    if(screen_flash_classic()) {say("Screen flashes need the Polymorph renderer (OPTIONS > DISPLAY > RENDERER).");return true;}
     if(psx_mod_read_half(game_mode)!=1) {say("Screen flashes show in play only: start or load a game first.");return true;}
     screen_flash_request(v[0],v[1],v[2],v[3]);
     char reply[128];

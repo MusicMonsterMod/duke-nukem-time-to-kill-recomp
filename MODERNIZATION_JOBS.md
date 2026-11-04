@@ -1,5 +1,16 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-04 - D10F research closed; D10F1 added
+
+The third-person camera gets caught behind surfaces because the native solve
+tests a window 193 units in front of the lens, then pushes a pinned camera
+back out to 768 along Duke's back; reproduced with player-like mouse orbits
+(lens in walls, a doorway pop of about 1840 units in one step, Duke out of
+frame in free look). User saved UI 12 (closet), UI 11 (crate room, fine thanks
+to the native box fade) and UI 6 (monkey bars, camera above the grill);
+recorded and closed. Implementation is D10F1 (Todo).
+[Note 379](documentation/379-d10f-close-surface-camera.md). No code change.
+
 ## 2026-11-04 - D08J6E accepted and closed: Duke turns to the aim on monkey bars and chains
 
 User: "incredible work as always, you can read my recent logs, but im happy with the results. lets lock it in and close it out!!!" D08J6E is Done: with the sidearm out in third person, Duke turns on the
@@ -133,7 +144,7 @@ Executable `c0402b1ac27410cf60976b39dd4c00bd3fc0eb6dff1dc6b0a93d917cca521b14`.
 
 ### D10F - Third-person camera near close surfaces (research report first)
 
-**Status: Todo. Dependencies: D10, D10B1, D08J3.** User: "you can get caught
+**Status: Done (research report 2026-11-04, [note 379](documentation/379-d10f-close-surface-camera.md); user review and save states recorded, closed for this session; implementation is D10F1). Dependencies: D10, D10B1, D08J3.** User: "you can get caught
 behind objects and such ... usually when up against close surfaces". Report
 first: reproduce with the user's real input (player-like orbits against
 pillars, crates, doorways, ladder walls) on private save copies, record where
@@ -145,6 +156,53 @@ change that keeps D10B1's native Duke and box fading (the user's rollback
 reason) and keeps the saved distance and shoulder. Ask the user for save
 states where it feels off. Vanilla and the Original camera unchanged; check
 180 Hz.
+
+**2026-11-04 research report (Needs review).** [Note 379](documentation/379-d10f-close-surface-camera.md).
+Native solve (static read): four rays from the pivot to the corners of a
+512 x 240 window at the anchor, snap to the closest hit, then the 768
+minimum puts the anchor back at 768 along Duke's heading frame
+(`player+0x7CC`), not the view; the lens sits 193 units behind the tested
+window (`camera+0x42`/2). Reproduced on a private D10B apartment copy with
+the user's saved distance 3456, mouse sweeps of about 9 degrees per step:
+lens inside walls at 1312-2058 units (minimum not involved), the wardrobe
+face filling the frame, pinned at 761-775 with the camera's room changing,
+and a pop of about 1840 units through a doorway in one step (761 -> 2598,
+rooms 83 -> 7). D10B's `DNTTK_TIGHT_CAMERA=1` still shows the lens-in-wall
+frames and the doorway pop. Free look held: Duke out of the frame in all
+five pinned steps (the push follows his back). 180 Hz identical. Proposal
+D10F1 (camera position only, native fades kept): probe the real lens with
+the original segment query (`0x8006D980`) and a small ring, an on-axis floor
+in place of the push-out (about 450), instant in and eased out (about 0.1 s
+hold, 0.35 s), shoulder toward centre while compressed. Open: user save
+states, the floor, the return speed, and whether a compressed camera may look
+into the next room. Limits: one fixture; crates/actors, enemies, climbs and
+other levels not probed. No code, build or executable change.
+
+**2026-11-04 user review and closeout.** User saved UI 12 (closet: "part of
+the closet is obscuring the camera"), UI 11 (crate room: "very playable",
+the native box fade "starts when the camera gets too close") and UI 6
+(monkey bars: "the camera goes above the grill ... you want to be able to
+look down and ... see if there are any enemies down below"). Direction: "go
+through a few of them and just start seeing where we can tighten things up
+where the camera does adjust to it better when it's against walls and not
+clipping into walls". Recorded in note 379; D10F Done; D10F1 added.
+
+### D10F1 - Third-person camera: clear lens against walls and grills
+
+**Status: Todo. Dependencies: D10F.** Implement the D10F proposal
+([note 379](documentation/379-d10f-close-surface-camera.md)): probe the real
+lens with the original segment query and a small ring (world hits only; crates
+and breakables keep the native fade the user likes), an on-axis floor in
+place of the 768 push-out (start about 450), instant in and eased out (start
+0.1 s hold, 0.35 s), shoulder toward centre while compressed. Camera position
+only: native fades, saved distance and shoulder, look input and aim
+unchanged; Vanilla and the Original camera unchanged; developer A/B switch.
+Test on private copies of the user's UI 12 (closet), UI 11 (crate room,
+regression: must stay as playable) and UI 6 (monkey bars: camera stays below
+the grill with the floor in view; coordinate with D08J3A) plus the D10F
+apartment sweep at 60/120/180 (no lens-in-wall frames, no doorway pop, Duke
+in frame with free look). Confirm the floor, the return speed and the
+doorway rule with the user.
 
 ### D08J3A - Climb camera revisit with aiming
 
@@ -5720,7 +5778,8 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D10A | Rapid mouse turning and Shift-running investigation | Done | D06, D07C, D08 |
 | D10B | Tight-space third-person camera: translucent Duke and see-through doors | Superseded by D10B1 | D10, D11B |
 | D10B1 | Roll back D10B behavior; restore native third-person obstruction handling | Done | D10B |
-| D10F | Third-person camera near close surfaces (research report first) | Todo | D10, D10B1, D08J3 |
+| D10F | Third-person camera near close surfaces (research report first) | Done | D10, D10B1, D08J3 |
+| D10F1 | Third-person camera: clear lens against walls and grills | Todo | D10F |
 | D10G | Aim and mouse feel in third person (research report first) | Todo | D07, D10, D10E, D10F |
 | D10C | Duke 3D look keys: Page Up / Page Down look up / down while held and recenter on release; Home / End lock the look up / down (bindable) | Done (user-accepted 2026-10-20) | D06, D19G |
 | D10D | Keyboard turning in Modernized: Left / Right arrows turn the view left / right (Duke 3D style, alongside the mouse) | Done (user-accepted 2026-10-20) | D06, D10C |

@@ -1,5 +1,17 @@
 # Current status - 2026-10-04
 
+## 2026-11-04 - D10F camera near close surfaces: research report (Done; D10F1 next)
+
+Native solve read and reproduced on a private apartment copy: the lens sits
+193 units behind the window the four corner rays test, and the 768 minimum
+pushes a pinned camera back out along Duke's heading. Result: lens inside
+walls, a doorway pop of about 1840 units in one update, Duke out of frame
+in free look; D10B's lower minimum does not fix it; 180 Hz identical.
+Proposal D10F1 (lens probe, on-axis floor, eased return, shoulder relief;
+native fades kept). [Note 379](379-d10f-close-surface-camera.md). No code
+or executable change. User save states recorded (UI 12 closet, UI 11 crate room
+fine, UI 6 monkey bars camera above the grill); D10F1 added as Todo.
+
 ## 2026-11-04 - D08J6E accepted and closed
 
 User: "incredible work as always, you can read my recent logs, but im happy with the results. lets lock it in and close it out!!!" Armed monkey-bar and chain turn to the aim is Done at the candidate

@@ -1,5 +1,18 @@
 # Next-session handoff
 
+## 2026-11-04 - D10F research report (Done; D10F1 next)
+
+Report in [note 379](379-d10f-close-surface-camera.md); D10F is Done (user
+closeout). User save states (UI slots, runtime = UI - 1): UI 12 closet
+obscuring the camera, UI 11 crate room fine (native box fade), UI 6 monkey
+bars with the camera above the grill. D10F1 (Todo) implements the proposal;
+the floor (about 450), return speed (0.1 s / 0.35 s) and doorway rule still
+need the user's confirmation.
+Probe scripts and screenshots: `recomp/analysis/d10f/` (local; `sweep.py`,
+`backwall.py`, `camlab.py`, `mipsdis.py`). No code, build or executable
+change; executable still `c0402b1a...`. Launch:
+`python3 recomp/tools/local/run.py`.
+
 ## 2026-11-04 - D08J6E accepted and closed
 
 User: "incredible work as always, you can read my recent logs, but im happy with the results. lets lock it in and close it out!!!" Armed monkey-bar and chain turn to the aim is Done at the candidate

@@ -1,5 +1,6 @@
 // Collision fixture checks for the actual adapter; not retail geometry proof.
 #include "weapon_aim.h"
+#include "level_select.h"
 #include "modern_controls.h"
 #include "pc_input.h"
 #include "cpu_state.h"
@@ -29,7 +30,7 @@ extern "C" uint32_t psx_mod_alloc_guest_memory(uint32_t n,uint32_t){static uint3
 extern "C" void psx_mod_host_call_begin(void){}
 extern "C" void psx_mod_host_call_end(void){}
 extern "C" int psx_mod_register_function_entry_plugin(const char*,uint32_t a,PSXModFunctionEntryCallback cb){if(a==0x8003c500)callback=cb;return 1;}
-namespace ttk {bool free_look_active(){return false;}bool free_look_aim(double*,double*){return false;}static InputFrame f;const InputFrame& input_snapshot(Context){return f;}uint64_t input_host_frame(){return f.sequence;}bool input_modernized(){return modern;}bool input_modern_controls(){return modern;}bool movement_ready(){return ready;}const char* movement_lease_miss(){return "test";}bool locomotion_input_ready(){return false;}bool jetpack_input_ready(){return modern && jet_ready;}bool swim_weapon_ready(){return modern && swim_ready;}bool airborne_shot_ready(){return modern && air_ready;}bool climb_shot_ready(){return modern && climb_ready;}bool player_identity_ready(){return ready;}bool frame_trace_on(){return false;}void frame_trace_account(uint32_t,long){}}
+namespace ttk {bool free_look_active(){return false;}bool free_look_aim(double*,double*){return false;}static InputFrame f;const InputFrame& input_snapshot(Context){return f;}uint64_t input_host_frame(){return f.sequence;}bool input_modernized(){return modern;}bool input_modern_controls(){return modern;}bool movement_ready(){return ready;}const char* movement_lease_miss(){return "test";}bool locomotion_input_ready(){return false;}bool jetpack_input_ready(){return modern && jet_ready;}bool swim_weapon_ready(){return modern && swim_ready;}bool airborne_shot_ready(){return modern && air_ready;}bool climb_shot_ready(){return modern && climb_ready;}bool player_identity_ready(){return ready;}static bool fp_view;bool first_person_view_live(){return fp_view;}bool frame_trace_on(){return false;}void frame_trace_account(uint32_t,long){}}
 extern "C" void psx_dispatch_call(CPUState* c,uint32_t address,uint32_t ret) {
     assert(address==0x8006d980 && ret==0x800000fc && c->gpr[4]==0x800d7198);
     uint32_t a=c->gpr[5],sp=c->gpr[29];
@@ -80,6 +81,35 @@ int main(int argc,char**argv) {
     assert(psx_mod_read_word(sp+0x40)==100); // precision-camera origin cannot teleport the muzzle
     seed();cover=true;callback(&c,0x8003c500);
     assert(psx_mod_read_word(sp+0x40)==42); // retract from near cover, never teleport forward
+    // D10G1 (lift 0.35, cap 35 degrees by default): a muzzle 300 below and 100 beside the screen ray. With the wall
+    // 200 ahead the round leaves almost along the view (the point itself is
+    // 58 degrees off); at 1000 ahead it still converges on the point.
+    cover=false;
+    auto off_view=[&](int eye_z){seed();psx_mod_write_word(cam+0x1c,eye_z);
+        psx_mod_write_word(p+0xc0,300);psx_mod_write_word(p+0xc4,eye_z);
+        callback(&c,0x8003c500);
+        double d[3],n=0;for(int i=0;i<3;++i){d[i]=(int32_t)psx_mod_read_word(c.gpr[6]+4*i);n+=d[i]*d[i];}
+        assert(c.gpr[6]==0x801e0000 && d[0]<=0 && d[1]<=0);
+        return std::acos(d[2]/std::sqrt(n))*180/3.141592653589793;};
+    {
+        bool closed=false;auto quiet=[](const char*){};
+        assert(ttk::point_blank_console_command("pointblank 0",quiet,closed) && closed);
+        const double level=off_view(800);
+        assert(ttk::point_blank_console_command("pointblank 2",quiet,closed) && !closed); // refused
+        assert(ttk::point_blank_console_command("pointblank 0.25 60",quiet,closed) && !closed); // refused
+        assert(ttk::point_blank_console_command("pointblank 0.5 40",quiet,closed) && closed);
+        const double wide=off_view(800);
+        assert(ttk::point_blank_console_command("pointblank default",quiet,closed) && closed);
+        const double close=off_view(800),far=off_view(0);
+        setenv("DNTTK_POINT_BLANK","0",1);const double close_off=off_view(800);unsetenv("DNTTK_POINT_BLANK");
+        ttk::fp_view=true;assert(std::abs(off_view(800)-close_off)<0.01);ttk::fp_view=false; // first person unchanged
+        std::printf("D10G1 round off the view: wall 200 ahead %.1f (lift 0 %.1f, point aim %.1f), 1000 ahead %.1f\n",close,level,close_off,far);
+        std::fflush(stdout);assert(level<9 && close>level && close<=35.05 && wide>close && wide<=40.05 && close_off>55 && std::abs(far-17.6)<0.3);
+        double last=0;
+        for(int z=900;z>=0;z-=10){const double a=off_view(z);if(z%100==0)std::printf(" %d:%.1f",1000-z,a);assert(a<=35.05 && (z==900 || std::abs(a-last)<3));last=a;}std::puts("");
+    }
+    psx_mod_write_word(cam+0x1c,0);psx_mod_write_word(p+0xc4,0);
+    std::puts("PASS: D10G1 point-blank rounds stay within 35 degrees of the view, continuous with distance");
     psx_mod_write_byte(p+0x3b8,2);psx_mod_write_byte(p+0x3b9,4);
     psx_mod_write_word(p+0x224,0);assert(ttk_aim_reticle()); // walking is still armed
     // Native marker selection suppresses the modern reticle, including the

@@ -1,5 +1,54 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-04 - D10G1 accepted and closed: point-blank aim, lift 0.35
+
+User: "great, lock it in and close it out". D10G1 is Done with the user's
+chosen defaults, lift 0.35 and a 35-degree cap
+([note 385](documentation/385-d10g1-point-blank-aim.md)); the backtick
+console `pointblank` stays for session tuning, and the main-keyboard period
+now types in the console. Next ready: D10G2 blocked-shot hint, D10G3 shot
+direction from the newest look. Executable
+`54c62f65e96603be2f58e1e0332f2a385ce45cc02a6583c6d489460c23b0d748`.
+
+## 2026-11-04 - D10G1 revision 3: lift 0.35 chosen (Needs playtest)
+
+User, after trying console values: "it's gotta be pointblank 0.35 35". New
+default lift 0.35, cap 35 degrees. Wall sweep: close side-wall rounds strike
+40-132 units below the crosshair and all 7 hit (the corner round lost in
+revision 1 hits again). `ttk-aim-test` passes. Executable
+`54c62f65e96603be2f58e1e0332f2a385ce45cc02a6583c6d489460c23b0d748`.
+
+## 2026-11-04 - D10G1 revision 2: point-blank lift (Needs playtest)
+
+User: "i think the point blank positioning might be a touch low?". Close
+rounds now meet the wall a quarter of the way up from muzzle level toward
+the crosshair, capped at 35 degrees off the view (was muzzle level, 25):
+bent wall hits 46-112 units below the crosshair instead of 112-154. Live
+tuning: backtick console `pointblank <lift> [max]` (session only),
+`pointblank default`. Measured table in
+[note 385](documentation/385-d10g1-point-blank-aim.md). Executable
+`aece128a2062afb9000d28bbf2f1072d9c5cef6ecd383c81f69c8e252b8a5062`.
+Console fix after the user's "i cant use the . in the console": the
+main-keyboard period now types `.` (it worked only on the numpad with Num
+Lock); framework change exported to the runtime patch. Executable
+`eb1a3175897a0d503ad44b34c94abfccc86d3884f0700d2520dc02ce058cbe45`.
+
+## 2026-11-04 - D10G1 point-blank aim (Needs playtest)
+
+Modernized, view aiming, third person: a round fired at a wall or prop close
+ahead blends from the crosshair point toward the view (fully along the view
+inside 128 units, the exact point beyond 512) and never leaves more than 25
+degrees off the view ([note 385](documentation/385-d10g1-point-blank-aim.md)).
+An enemy (targetable actor) under the crosshair, assisted shots, throws,
+first person, ORIGINAL aim and Vanilla keep the exact point. Wall sweep: max
+25.0 degrees (was 70.9), median 1.0 (was 43.7); open room max 13.6 (was
+45.7), long shots unchanged; `ttk-aim-test` passes with a new D10G1 group;
+D08J6 climb fire unchanged on ladder, chain and wall. Drawn gun arm unchanged
+(it already aims along the view). One wall-sweep round aimed 2 units from a
+wall's end now slips past the corner (no impact; it hit before). Not
+verified: enemies at point-blank (no enemy spawn), player feel. Executable
+`ae1b0b9f7ebc303f6d4d6fc37cc1d459cf6441b28b59896722cdf285b6a4fa2a`.
+
 ## 2026-11-04 - D10G closed: going with the recommendations; D10G1-3 and D10F2 added
 
 User: "i wanna go with your recommendation for an easy smooth and
@@ -562,7 +611,7 @@ to Vanilla or the original aim option.
 
 ### D10G1 - Point-blank aim: fire along the view when the crosshair point is close
 
-**Status: Todo. Dependencies: D10G.** Measured in
+**Status: Done (2026-11-04, [note 385](documentation/385-d10g1-point-blank-aim.md); user: "it's gotta be pointblank 0.35 35", then "lock it in and close it out"; default lift 0.35, cap 35 degrees). Dependencies: D10G.** Measured in
 [note 384](documentation/384-d10g-aim-mouse-feel.md): against a wall with the
 boom compressed, rounds and the drawn gun arm leave up to 71 degrees off the
 view. Modernized, view aiming, third person: when the crosshair point is close
@@ -6186,7 +6235,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D10F | Third-person camera near close surfaces (research report first) | Done | D10, D10B1, D08J3 |
 | D10F1 | Third-person camera: clear lens against walls and grills | Done (user-accepted 2026-11-04) | D10F |
 | D10G | Aim and mouse feel in third person (research report first) | Done (closed 2026-11-04; note 384) | D07, D10, D10E, D10F |
-| D10G1 | Point-blank aim: fire along the view when the crosshair point is close | Todo | D10G |
+| D10G1 | Point-blank aim: fire along the view when the crosshair point is close | Done (closed 2026-11-04; note 385) | D10G |
 | D10G2 | Blocked-shot crosshair hint | Todo | D10G1 |
 | D10G3 | Shot direction from the newest look | Todo | D10G1 |
 | D10F2 | Camera behind an object when opening a door (UI slot 11) | Todo | D10F1 |

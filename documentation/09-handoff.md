@@ -1,5 +1,32 @@
 # Next-session handoff
 
+## 2026-11-04 - D10G1 closed: point-blank aim, lift 0.35
+
+User: "great, lock it in and close it out". D10G1 is Done
+([note 385](385-d10g1-point-blank-aim.md)): close third-person rounds at a wall
+or prop leave near the view and strike a little below the crosshair (lift
+0.35, cap 35 degrees; `pointblank` console tuning). Next ready: D10G2, D10G3.
+Launch: `python3 recomp/tools/local/run.py`.
+
+## 2026-11-04 - D10G1 revision 2: point-blank lift (Needs playtest)
+
+User felt close shots were "a touch low", then chose "pointblank 0.35 35"
+in the console: default lift 0.35, cap 35 degrees; close wall hits 40-132
+units below the crosshair (was 112-154 at gun height).
+Tune live with the backtick console `pointblank <lift 0..1> [max 5..45]`
+([note 385](385-d10g1-point-blank-aim.md)). Launch: `python3 recomp/tools/local/run.py`.
+
+## 2026-11-04 - D10G1 point-blank aim (Needs playtest)
+
+Third person, view aiming: rounds at a close wall or prop leave along the
+view, blended by distance (128-512 units) and capped at 25 degrees off it;
+enemies under the crosshair, assisted shots, throws, first person and Vanilla
+keep the exact point ([note 385](385-d10g1-point-blank-aim.md)). Wall sweep
+max 25.0 degrees (was 70.9), open room max 13.6 (was 45.7); `ttk-aim-test`
+and D08J6 climb fire pass. Needs the user's play check, including close
+enemies (none can be spawned). Next after acceptance: D10G2, D10G3.
+Launch: `python3 recomp/tools/local/run.py`.
+
 ## 2026-11-04 - D10G closed; D10G1-3 and D10F2 added
 
 User: "i wanna go with your recommendation for an easy smooth and

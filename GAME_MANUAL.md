@@ -1444,6 +1444,18 @@ sees the target. The adapter checks for a muzzle protruding through cover.
 Original pellet spread, projectile travel, gravity, bounce and damage rules
 remain. No target leading or gravity compensation is added.
 
+**Point-blank shots (Modernized, third person, D10G1).** The gun is lower
+than the camera, so when Duke stands close to a wall the crosshair point is
+well above the muzzle. Instead of climbing steeply toward that point, a round
+fired at a wall or prop within about 500 units leaves close to your view
+direction and strikes a little below the crosshair, blending in smoothly with
+distance, and never more than 35 degrees off the view. To tune the height for
+the session, open the backtick console and type `pointblank <lift> [max]`:
+lift 0 strikes at gun height, 1 aims at the crosshair (default 0.35); max is
+the largest angle off the view, 5 to 45 degrees (default 35).
+`pointblank default` restores both. Shots at an enemy under the crosshair, assisted shots, throws,
+first person, `original` aiming and Vanilla are unchanged.
+
 First-map checks now cover the pistol, shotgun, rifle, Gatling, RPG, freezer,
 crossbow, knife/axe, pipe bomb, grenade, dynamite, flamethrower and energy weapon.
 RPG flight and explosions follow pitched view aim. Throws keep their original

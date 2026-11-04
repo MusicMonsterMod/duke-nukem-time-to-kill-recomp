@@ -1,3 +1,4 @@
+#include <atomic>
 #include <chrono>
 // SLUS-00583 / LEVEL00 weapon adapter. Runs before the original dispatch,
 // preserving muzzle, spread, projectile integration and damage handling.
@@ -27,6 +28,9 @@ static bool busy;
 static unsigned hidden_markers, assisted_shots;
 static bool last_assisted;
 static unsigned close_retractions;
+// D10G1: shots bent toward the view because the crosshair point was close.
+static unsigned point_blank_shots;
+static double last_bend;
 static uint32_t aim_vector, aim_origin, beam_origins;
 void aim_render_prepare() {
     // Populate contents only when used; reserve stable host pointers before
@@ -141,6 +145,53 @@ static bool assist(CPUState* cpu,const double* eye,const double* muzzle,const do
 // address at sp+0x40. No entry lease, camera link, map or gameplay-state gate:
 // the dot is cosmetic, so any Modernized frame that draws it for Duke hides it,
 // including interpreted slices where an entry hook may not fire.
+// D10G1 point-blank aim. The muzzle sits well below and beside the screen ray
+// (about 300 units below it with the boom compressed), so a crosshair point a
+// few hundred units ahead sent rounds up to 70 degrees off the view. Aim at a
+// point at the crosshair point's depth, between the muzzle's own view-parallel
+// ray and the crosshair point: point_blank_lift of the way up inside
+// point_blank_near, rising to the crosshair point itself at point_blank_far.
+// Never more than point_blank_max off the view. Both steps are continuous, so
+// sweeping the crosshair never visibly switches.
+static constexpr double point_blank_near=128,point_blank_far=512;
+static constexpr double point_blank_lift_default=0.35,point_blank_max_default=35;
+static std::atomic<double> point_blank_lift{-1},point_blank_max{point_blank_max_default};
+static double lift_setting() {
+    double lift=point_blank_lift.load(std::memory_order_relaxed);
+    if(lift>=0)return lift;
+    lift=point_blank_lift_default;
+    if(const char* v=std::getenv("DNTTK_POINT_BLANK_LIFT")) {char* end;double d=std::strtod(v,&end);if(end!=v && d>=0 && d<=1)lift=d;}
+    if(const char* v=std::getenv("DNTTK_POINT_BLANK_MAX")) {char* end;double d=std::strtod(v,&end);if(end!=v && d>=5 && d<=45)point_blank_max.store(d,std::memory_order_relaxed);}
+    point_blank_lift.store(lift,std::memory_order_relaxed);
+    return lift;
+}
+// DNTTK_POINT_BLANK=0 keeps the pre-D10G1 point aim (developer A/B).
+static bool point_blank_enabled() {const char* v=std::getenv("DNTTK_POINT_BLANK");return !v || std::strcmp(v,"0");}
+static bool unit(double* v) {
+    double length=std::sqrt(v[0]*v[0]+v[1]*v[1]+v[2]*v[2]);
+    if(!std::isfinite(length)||length<1e-6)return false;
+    for(int i=0;i<3;++i)v[i]/=length;
+    return true;
+}
+static void point_blank(const double* forward,const double* muzzle,const double* target,double convergence,double* dir) {
+    double t=std::clamp((convergence-point_blank_near)/(point_blank_far-point_blank_near),0.0,1.0);
+    t=t*t*(3-2*t);
+    const double lift=lift_setting(),up=lift+(1-lift)*t;
+    double aim[3];
+    for(int i=0;i<3;++i) {
+        const double level=muzzle[i]+forward[i]*convergence;
+        aim[i]=level+(target[i]-level)*up-muzzle[i];
+    }
+    if(!unit(aim))return;
+    double dot=0;for(int i=0;i<3;++i)dot+=aim[i]*forward[i];
+    const double limit=point_blank_max.load(std::memory_order_relaxed)*3.141592653589793/180;
+    if(dot<std::cos(limit)) {
+        double side[3];for(int i=0;i<3;++i)side[i]=aim[i]-forward[i]*dot;
+        if(!unit(side))return;
+        for(int i=0;i<3;++i)aim[i]=forward[i]*std::cos(limit)+side[i]*std::sin(limit);
+    }
+    std::copy(aim,aim+3,dir);
+}
 static void marker_hook(CPUState* cpu,uint32_t address) {
     if(address!=0x8002bc18 || cpu->gpr[31]!=0x80033db0 || cpu->gpr[20]!=player)return;
     const char* visible=ttk_live_env("DNTTK_RED_DOT");
@@ -320,6 +371,19 @@ static void aim_hook_body(CPUState* cpu,uint32_t address) {
     }
     double dir[3];for(int i=0;i<3;++i)dir[i]=target[i]-muzzle[i];
     ok=ok && normal(dir);
+    // D10G1: a point close ahead. A targetable actor under the crosshair
+    // (an enemy) or an assisted lock keeps the exact point, so the round meets
+    // it; walls and untargetable props bend. Thrown weapons keep their
+    // original lob; first person (the eye near the gun) keeps the point aim.
+    last_bend=0;
+    if(ok && !thrown && !last_assisted && !(kind==2 && targetable(view_actor)) && !first_person_view_live() && point_blank_enabled()) {
+        double before[3];std::copy(dir,dir+3,before);
+        double remaining=0;for(int i=0;i<3;++i)remaining+=(target[i]-muzzle[i])*forward[i];
+        point_blank(forward,muzzle,target,remaining,dir);
+        double dot=0;for(int i=0;i<3;++i)dot+=before[i]*dir[i];
+        last_bend=std::acos(std::clamp(dot,-1.0,1.0))*180/3.141592653589793;
+        if(last_bend>0.05)++point_blank_shots;else last_bend=0;
+    }
     if(ok) {
         // Host enhancement argument storage; never alias the caller matrix,
         // persistent auto-aim state or actor heading.
@@ -342,7 +406,7 @@ static void aim_hook_body(CPUState* cpu,uint32_t address) {
             std::copy(eye,eye+3,beam_eye);std::copy(forward,forward+3,beam_forward);
         }
         ++shots;if(last_assisted)++assisted_shots;last_kind=cover?4:(last_assisted?2:kind);last_weapon=cpu->gpr[7];
-        if(diagnostics())std::fprintf(stderr,"ttk-aim-shot weapon=%d target=%.0f,%.0f,%.0f direction=%.0f,%.0f,%.0f cover=%d\n",last_weapon,target[0],target[1],target[2],last_direction[0],last_direction[1],last_direction[2],cover);
+        if(diagnostics())std::fprintf(stderr,"ttk-aim-shot weapon=%d target=%.0f,%.0f,%.0f direction=%.0f,%.0f,%.0f cover=%d bend=%.1f\n",last_weapon,target[0],target[1],target[2],last_direction[0],last_direction[1],last_direction[2],cover,last_bend);
     } else ++rejected;
     busy=false;
 }
@@ -351,9 +415,28 @@ static void hook(CPUState* cpu,uint32_t address) {
     const auto t0=std::chrono::steady_clock::now();aim_hook_body(cpu,address);
     frame_trace_account(address|0x1u,(long)std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now()-t0).count());
 }
+// D10G1 tuning: "pointblank [lift [max]|default]", session only. lift: the
+// fraction of the way from the muzzle's level up to the crosshair point that
+// a close round meets the surface; max: degrees off the view (5-45).
+bool point_blank_console_command(const char* line,void (*say)(const char*),bool& close) {
+    if(std::strcmp(line,"pointblank") && std::strncmp(line,"pointblank ",11))return false;
+    close=false;
+    if(line[10]) {
+        const char* value=line+11;double lift=point_blank_lift_default,max=point_blank_max_default;
+        int used=0;const int n=std::sscanf(value,"%lf %n",&lift,&used);
+        if(n==1 && value[used])std::sscanf(value+used,"%lf",&max);
+        else if(n!=1 && std::strcmp(value,"default"))lift=-1;
+        if(lift<0 || lift>1 || max<5 || max>45) {say("Usage: pointblank [lift 0..1 [max 5..45]|default] (0 muzzle level, 1 crosshair; session only)");return true;}
+        point_blank_lift.store(lift,std::memory_order_relaxed);point_blank_max.store(max,std::memory_order_relaxed);close=true;
+    }
+    char text[192];std::snprintf(text,sizeof text,
+        "Point-blank lift %.2f, max %.0f degrees (0 muzzle level, 1 crosshair point; session only). Default %.2f, %.0f.",
+        lift_setting(),point_blank_max.load(std::memory_order_relaxed),point_blank_lift_default,point_blank_max_default);
+    say(text);return true;
+}
 const char* aim_debug_json() {
     static char out[1280];
-    std::snprintf(out,sizeof out,"{\"beam_locks\":%u,\"beam_extra_locks\":%u,\"close_retractions\":%u,\"assisted_shots\":%u,\"hidden_markers\":%u,\"last_assisted\":%s,\"reticle\":%s,\"shots\":%u,\"rejected\":%u,\"queries\":%u,\"lease_misses\":%u,\"last_lease_miss\":\"%s\",\"identity_calls\":%llu,\"identity_checks\":%llu,\"weapon\":%d,\"hit_kind\":%d,\"origin\":[%.0f,%.0f,%.0f],\"target\":[%.0f,%.0f,%.0f],\"direction\":[%.0f,%.0f,%.0f]}",beam_locks,beam_extra_locks,close_retractions,assisted_shots,hidden_markers,last_assisted?"true":"false",ttk_aim_reticle()?"true":"false",shots,rejected,queries,lease_misses,last_lease_miss,(unsigned long long)aim_identity_calls,(unsigned long long)aim_identity_checks,last_weapon,last_kind,last_origin[0],last_origin[1],last_origin[2],last_target[0],last_target[1],last_target[2],last_direction[0],last_direction[1],last_direction[2]);return out;
+    std::snprintf(out,sizeof out,"{\"point_blank_shots\":%u,\"point_blank_lift\":%.2f,\"last_bend\":%.1f,\"beam_locks\":%u,\"beam_extra_locks\":%u,\"close_retractions\":%u,\"assisted_shots\":%u,\"hidden_markers\":%u,\"last_assisted\":%s,\"reticle\":%s,\"shots\":%u,\"rejected\":%u,\"queries\":%u,\"lease_misses\":%u,\"last_lease_miss\":\"%s\",\"identity_calls\":%llu,\"identity_checks\":%llu,\"weapon\":%d,\"hit_kind\":%d,\"origin\":[%.0f,%.0f,%.0f],\"target\":[%.0f,%.0f,%.0f],\"direction\":[%.0f,%.0f,%.0f]}",point_blank_shots,lift_setting(),last_bend,beam_locks,beam_extra_locks,close_retractions,assisted_shots,hidden_markers,last_assisted?"true":"false",ttk_aim_reticle()?"true":"false",shots,rejected,queries,lease_misses,last_lease_miss,(unsigned long long)aim_identity_calls,(unsigned long long)aim_identity_checks,last_weapon,last_kind,last_origin[0],last_origin[1],last_origin[2],last_target[0],last_target[1],last_target[2],last_direction[0],last_direction[1],last_direction[2]);return out;
 }
 }
 static int crosshair_forced=-1; // -1 follow env; 0/1 override (I key, EDuke-style)

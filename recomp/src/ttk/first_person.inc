@@ -1034,6 +1034,62 @@ static bool display_pose(Mat3 lh,double* rel,bool& ready) {
 static uint32_t hidden_matrix;
 static uint64_t arm_hides;
 static bool weapon_held() {const unsigned s=psx_mod_read_byte(player+0x3b8);return s==1 || s==2;}
+// D08J7D: the one-handed armed pull-up (D08J7C) from the eye. In the armed
+// sidearm hang and through the pull-up the off hand (parts 10-12) is on the
+// lip, so it takes the contact rig (its native hand, from hang 149 or clip
+// 41) instead of being hidden for the viewmodel; the gun arm stays the
+// viewmodel, raised beside the head while the clip holds its high ready and
+// back to the aimed pose while firing (onehand_view_raise). Replay workers
+// get both with the frame. DNTTK_FP_ONEHAND=0 keeps the D08J7C view (A/B).
+struct OnehandView {bool offhand; double raise;};
+static OnehandView override_onehand_view;
+// The off hand only while it is on the lip: 140 lifts it off from about
+// frame 4 (400-860 units over the lip by frame 5, D35G alley platform), and
+// the eye rig would then stretch it into a glove beside the eye. Its native
+// world height against the ledge top the hang caught (+0x1c8, game Y down).
+// While firing the aimed chest carries the clip's hand 70-190 units up
+// (slot 9 copy); within the reach the drawn hand is pinned to the lip
+// (first_person_contact_arm), so it stays planted while Duke shoots. The
+// aim also draws it back toward the eye (slot 9 copy: level with the eye
+// while firing, 90-245 ahead otherwise); closer than offhand_eye_depth it
+// would fill the view as a near slab, so it is hidden there.
+static constexpr double offhand_lip_reach=250,offhand_lip_rest=40,offhand_eye_depth=128;
+static bool offhand_on_lip() {
+    const uint32_t desc=duke_model(),mats=psx_mod_read_word(player+0x3c);
+    if(!desc || mats<0x80010000 || mats>0x801ffd80)return false;
+    const int joint=duke_part_joint(desc,12);
+    if(joint<0)return false;
+    const uint32_t hand=mats+32*joint;
+    const double lip=int32_t(psx_mod_read_word(player+0x1c8));
+    double p[3]={double(int32_t(psx_mod_read_word(hand+20))),double(int32_t(psx_mod_read_word(hand+24))),
+                 double(int32_t(psx_mod_read_word(hand+28)))};
+    if(std::abs(p[1]-lip)>offhand_lip_reach)return false;
+    p[1]=lip+std::clamp(p[1]-lip,-offhand_lip_rest,offhand_lip_rest);
+    double depth=0;
+    for(int k=0;k<3;++k)depth+=int16_t(psx_mod_read_half(camera+12+2*k))/4096.0*(p[k]-int32_t(psx_mod_read_word(camera+20+4*k)));
+    return depth>=offhand_eye_depth;
+}
+static OnehandView onehand_view_live() {
+    static const int enabled=ttk_env_switch("DNTTK_FP_ONEHAND");
+    if(!enabled || !input_modern_controls())return {};
+    const bool sidearm=psx_mod_read_byte(player+0x3b8)==2 &&
+        base_weapon(psx_mod_read_byte(player+0x3b9))==climb_sidearm;
+    const bool pullup=armed_pullup_active() && onehand_weight>0;
+    return {sidearm && (hang_weapon_ready() || pullup) && offhand_on_lip(),pullup ? onehand_view_raise : 0};
+}
+static OnehandView onehand_view() {return render_override ? override_onehand_view : onehand_view_live();}
+// High ready, developer tuning only: DNTTK_FP_ONEHAND_RAISE=pitch,roll,x,y,z
+// (degrees muzzle up and rolled out, view units as weapon_slot_offset).
+static const double* onehand_raise_pose() {
+    static double value[5]={50,-15,40,-120,-60};
+    static const bool parsed=[]{
+        const char* text=std::getenv("DNTTK_FP_ONEHAND_RAISE");double v[5];
+        if(text && std::sscanf(text,"%lf,%lf,%lf,%lf,%lf",&v[0],&v[1],&v[2],&v[3],&v[4])==5)
+            for(int i=0;i<5;++i) value[i]=std::clamp(v[i],-1000.0,1000.0);
+        return true;
+    }();
+    (void)parsed;return value;
+}
 // Close-camera fade. For the root joint the draw loop makes the rest of the
 // actor semi-transparent and dark when the root is nearer than 1024
 // (0x80034e18: render context +0x48 = 0x2000000, +0x4c = 0x600000, flat
@@ -1157,10 +1213,19 @@ static bool prepare_display_matrix(uint32_t real,uint32_t desc,bool advance=fals
             double m[3][3];mat_mul(ry,rx,m);mat_mul(m,rz,m);mat_mul(m,lh,lh);
         }
     }
+    // D08J7D: the pull-up's high ready, about the grip in the level frame.
+    const double raise=std::clamp(onehand_view().raise,0.0,1.0);
+    const double* high=onehand_raise_pose();
+    if(raise>0) {
+        const double d=3.14159265358979/180,p=high[0]*d*raise,r=high[1]*d*raise;
+        const double rx[3][3]={{1,0,0},{0,std::cos(p),-std::sin(p)},{0,std::sin(p),std::cos(p)}};
+        const double rz[3][3]={{std::cos(r),-std::sin(r),0},{std::sin(r),std::cos(r),0},{0,0,1}};
+        double m[3][3];mat_mul(rz,rx,m);mat_mul(m,lh,lh);
+    }
     const double* anchor=weapon_anchor();const double k=weapon_motion();
     const unsigned slot=weapon_view_slot();
     const double* extra=slot<32 ? slot_offset(slot) : weapon_slot_offset[0];
-    for(int r=0;r<3;++r) v[r]=anchor[r]+k*(rel[r]-weapon_reference[r])+extra[r];
+    for(int r=0;r<3;++r) v[r]=anchor[r]+k*(rel[r]-weapon_reference[r])+extra[r]+raise*high[2+r];
     // The level-frame world rotation lh is shown pitched with the view: world
     // rotation C^T lh, stored transposed as lh^T C. The render's C (x scaled)
     // times its transpose gives lh; the flash offset follows the same rotation.
@@ -1660,8 +1725,10 @@ static void first_person_contact_arm(CPUState* cpu,uint32_t desc,int part) {
     // Use and Mirror. The perspective resolver owns action eligibility; do
     // not duplicate a traversal-only subset or whitelist animation numbers.
     if(!contact_arm_action(fp_policy.action))return;
-    if(!input_modern_controls() || psx_mod_read_byte(player+0x3b8)!=0 ||
-       part<10 || part>15)return;
+    // D08J7D: armed, only the off hand on the lip in the one-handed pull-up.
+    const unsigned equipment=psx_mod_read_byte(player+0x3b8);
+    if(!input_modern_controls() || part<10 || part>15 ||
+       (equipment!=0 && !(equipment==2 && part<13 && onehand_view().offhand)))return;
     const char* mode=std::getenv("DNTTK_FP_CONTACT_ARMS");
     if(mode && !std::strcmp(mode,"native"))return;
     const uint32_t mats=psx_mod_read_word(player+0x3c);
@@ -1694,6 +1761,13 @@ static void first_person_contact_arm(CPUState* cpu,uint32_t desc,int part) {
     }
     PushGrip grip;
     const bool gripped=push_grip(desc,first,native,grip);
+    // D08J7D: the armed off hand keeps the lip's height (offhand_on_lip).
+    const Vec source_native[3]={native[0],native[1],native[2]};
+    const bool pinned=!gripped && equipment==2;
+    if(pinned) {
+        const double lip=int32_t(psx_mod_read_word(player+0x1c8));
+        native[2].y=lip+std::clamp(native[2].y-lip,-offhand_lip_rest,offhand_lip_rest);
+    }
     if(gripped)for(int n=0;n<3;++n) {
         push_grip_blend(rows[n],grip.rows[n],grip.weight);
         native[n]=native[n]+(grip.pos[n]-native[n])*grip.weight;
@@ -1706,7 +1780,7 @@ static void first_person_contact_arm(CPUState* cpu,uint32_t desc,int part) {
     };
     if(index==2) {
         // Hands keep their native world matrices except in the push grip.
-        if(!gripped || !scratch())return;
+        if((!gripped && !pinned) || !scratch())return;
         for(int r=0;r<3;++r)for(int k=0;k<3;++k)psx_mod_write_half(hidden_matrix+2*(3*r+k),
             uint16_t(int16_t(std::clamp(std::lround(4096*rows[2][r][k]),-32768L,32767L))));
         psx_mod_write_half(hidden_matrix+18,0);
@@ -1756,7 +1830,7 @@ static void first_person_contact_arm(CPUState* cpu,uint32_t desc,int part) {
     if(!contact_arm::solve(shoulder,native[2],native[1],axes[0]*(lateral/110)+axes[1]-axes[2],
         upper,lower,pose))return;
     const Vec target[3]={pose.shoulder,pose.elbow,pose.hand};
-    Vec a=native[index+1]-native[index],b=target[index+1]-target[index];
+    Vec a=source_native[index+1]-source_native[index],b=target[index+1]-target[index];
     if(gripped) {
         a={0,0,0};
         for(int r=0;r<3;++r)a=a+Vec{rows[index][r][0],rows[index][r][1],rows[index][r][2]}*
@@ -1896,6 +1970,8 @@ static void first_person_weapon_joint(CPUState* cpu,uint32_t ra) {
     const unsigned joint=cpu->gpr[23];
     const int part=duke_joint_part(desc,joint);
     if(part>=(int)part_arm_first && part<=(int)part_arm_last && cpu->gpr[5]==psx_mod_read_word(player+0x3c)+0x20*joint) {
+        // D08J7D: the off hand on the lip keeps its contact-rig matrix.
+        if(part<13 && fp_policy.action==PerspectiveAction::Mantle && onehand_view().offhand)return;
         const unsigned slot=weapon_view_slot();
         // Support grips come from this weapon's native two-handed pose, with
         // its display scale applied about the unchanged right-hand anchor.

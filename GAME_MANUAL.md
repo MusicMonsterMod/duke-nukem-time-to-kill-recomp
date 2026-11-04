@@ -870,7 +870,9 @@ enemies along the wall beside you. A short click only draws, and the same
 sidearm swap as on climbs applies. **W** pulls Duke up one-handed with the
 sidearm still out, firing or not: no holstering, and the same speed as an
 unarmed pull-up. He hauls himself up on his left hand, leaning onto it, with
-the pistol held up beside his head until he is over the lip. Keep left
+the pistol held up beside his head until he is over the lip. In first person you
+see it too: his left hand grips the lip and pushes him up, and the pistol
+rises beside the view. Keep left
 click held and he shoots the whole way up: the pistol comes down from beside
 his head and fires at the crosshair, then goes back up when you let go. A
 shot aimed into the ledge in front of him hits the ledge; aim over the lip

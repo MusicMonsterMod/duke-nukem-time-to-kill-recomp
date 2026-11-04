@@ -6139,6 +6139,65 @@ int main(int argc,char** argv) {
                 psx_mod_write_byte(p+0x22c,0);psx_mod_write_byte(p+0x22d,0);++save_loads;frame();
                 std::puts("PASS: D35G1 hidden armed step-up limbs stay culled; native mantle hands remain visible");
             }
+            // D08J7D: in the armed sidearm hang (and the one-handed pull-up) the
+            // off hand on the lip takes the contact rig instead of hiding for the
+            // viewmodel; its drawn height is pinned to the lip. Off the lip, at
+            // the eye or with another weapon it stays hidden. Native matrices
+            // are never written.
+            {
+                const auto equip=psx_mod_read_byte(p+0x3b8),weapon=psx_mod_read_byte(p+0x3b9);
+                const auto upper=psx_mod_read_half(p+0x74);const auto lip_old=psx_mod_read_word(p+0x1c8);
+                uint8_t old_camera[32];std::memcpy(old_camera,ram+(c&0x1fffff),32);
+                const std::vector<uint8_t> old_mats(ram+(mats&0x1fffff),ram+(mats&0x1fffff)+19*32);
+                psx_mod_write_half(p+0x60,149);psx_mod_write_byte(p+0x22c,6);psx_mod_write_byte(p+0x22d,6);
+                psx_mod_write_byte(p+0x3b8,2);psx_mod_write_half(p+0x74,5);
+                const int32_t lip=-1000;psx_mod_write_word(p+0x1c8,uint32_t(lip));
+                for(unsigned i=0;i<9;++i)psx_mod_write_half(c+2*i,i%4==0?4096:0);
+                for(unsigned i=0;i<3;++i)psx_mod_write_word(c+20+4*i,0);
+                auto place=[&](int32_t hand_y,int32_t hand_z) {
+                    for(unsigned part=10;part<=12;++part) {
+                        const unsigned j=psx_mod_read_byte(desc+0x24+part);
+                        for(unsigned i=0;i<9;++i)psx_mod_write_half(mats+32*j+2*i,i%4==0?4096:0);
+                        psx_mod_write_word(mats+32*j+20,uint32_t(-100));
+                        psx_mod_write_word(mats+32*j+24,uint32_t(part==12?hand_y:hand_y+100*int32_t(12-part)));
+                        psx_mod_write_word(mats+32*j+28,uint32_t(hand_z));
+                    }
+                };
+                struct Case {unsigned weapon;int32_t dy,z;bool shown;};
+                for(const Case k:{Case{4,0,300,true},Case{4,-150,300,true},Case{4,-400,300,false},
+                                  Case{4,0,60,false},Case{5,0,300,false}}) {
+                    psx_mod_write_byte(p+0x3b9,k.weapon);place(lip+k.dy,k.z);
+                    ++save_loads;frame();assert(metric("\"blend\":")==1);
+                    assert(std::strstr(ttk::controls_debug_json(),"\"action\":\"mantle\""));
+                    const std::vector<uint8_t> native(ram+(mats&0x1fffff),ram+(mats&0x1fffff)+19*32);
+                    // The off hand reaches redraws with the frame (replay worker draw).
+                    std::vector<uint8_t> frame_state(ttk::render_state_size());
+                    ttk::render_state_save(frame_state.data());ttk::render_state_load(frame_state.data());
+                    call(0x800348d8,c,p,0x8003769c);
+                    for(unsigned part=10;part<=12;++part) {
+                        CPUState joint{};joint.gpr[4]=c;joint.gpr[20]=p;joint.gpr[29]=0x801f0000;
+                        joint.gpr[23]=psx_mod_read_byte(desc+0x24+part);
+                        const uint32_t m=mats+0x20*joint.gpr[23];
+                        joint.gpr[5]=m;joint.gpr[31]=0x80034c6c;
+                        hooks().at(0x800292a0)(&joint,0x800292a0);
+                        const auto owner=ttk::first_person_limb_presentation().owner;
+                        assert((owner==ttk::LimbOwner::Interaction)==k.shown);
+                        // Off the lip the sidearm's free arm hides; a two-handed
+                        // weapon keeps its support grip on the viewmodel.
+                        if(!k.shown)assert(owner==(k.weapon==4?ttk::LimbOwner::HiddenArm:ttk::LimbOwner::DisplayArm));
+                        // The drawn hand keeps the lip's height (pinned within 40).
+                        if(k.shown && part==12)
+                            assert(joint.gpr[5]!=m && int32_t(psx_mod_read_word(joint.gpr[5]+24))==lip+std::max(k.dy,-40));
+                    }
+                    call(0x8001ca4c,0x800d0000,0,0x800376b4);
+                    assert(std::equal(native.begin(),native.end(),ram+(mats&0x1fffff)));
+                }
+                std::copy(old_mats.begin(),old_mats.end(),ram+(mats&0x1fffff));std::memcpy(ram+(c&0x1fffff),old_camera,32);
+                psx_mod_write_byte(p+0x3b8,equip);psx_mod_write_byte(p+0x3b9,weapon);psx_mod_write_half(p+0x74,upper);
+                psx_mod_write_word(p+0x1c8,lip_old);psx_mod_write_half(p+0x60,63);
+                psx_mod_write_byte(p+0x22c,0);psx_mod_write_byte(p+0x22d,0);++save_loads;frame();
+                std::puts("PASS: D08J7D armed sidearm hang off hand on the contact rig, lip pin, off-lip/eye/other-weapon hides");
+            }
             // D35E: shared clips need a plain ladder, exits may already
             // own the landing. Presentation never grants locomotion/aim.
             {

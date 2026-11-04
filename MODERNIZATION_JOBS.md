@@ -3111,7 +3111,7 @@ acceptance.
 
 ### D08J7D - One-handed armed pull-up in first person
 
-**Status: Todo. Dependencies: D08J7C, D35G, D36H9.** User, on D08J7C
+**Status: Done (user-accepted and closed 2026-11-04: "i'm really happy with this progress! lock it in and close it out"; off hand on the lip through the contact rig, pistol high ready; [note 378](documentation/378-d08j7-mantle-fire-research.md) D08J7D section). Dependencies: D08J7C, D35G, D36H9.** User, on D08J7C
 revision 2: "do we have a backlog job in to get this animation into first
 person too? it's very close already isnt it"; added with D08J7C revision 3
 (2026-11-04). In third person the armed pull-up is one-handed (host clip 41,
@@ -3128,6 +3128,45 @@ anything; keep the D36H9 hang fixes (no arm flicker, legs sliver). Test on
 the D35G alley hang and the user's slot 9 copy at 60/120/180 with and
 without fire, looking up, down and sideways; the holstered pull-up, third
 person and Vanilla unchanged.
+
+**2026-11-04 candidate (Needs playtest).** Owner: the D36H5 contact rig
+(Mantle) for the off hand, the D12 viewmodel for the gun arm. Before, an
+armed Mantle hid the off-hand chain (parts 10-12) at the eye for the
+viewmodel. Now, in the armed sidearm hang and the one-handed pull-up, the off
+hand takes the contact rig while it is on the lip: native hand within 250
+units of the ledge top (`+0x1c8`) and at least 128 units ahead of the eye. Its
+drawn height is pinned to within 40 units of the lip, so it stays planted
+while the aimed chest lifts the clip's hand (firing). From pull-up frame 4,
+140 lifts the hand 400-860 units off the lip and it is hidden (it is below
+the view by then). The pistol viewmodel follows the clip's gun-arm weight
+(`onehand_view_raise`): high ready (50 degrees muzzle up, rolled out, raised
+to the right) while the chest is below the lip, aimed while firing (the
+D08J7C 70 ms rule), and down to the normal pose at the late phase. Both reach
+replay redraws through RenderState. Evidence: D35G alley at 60/120/180 with
+and without fire (61-frame pull-up at every rate, lands armed). The 60 Hz
+Xvfb recording shows the hand on the lip sliding down the view as Duke rises,
+with no late glove. Looking up in the armed hang shows the off hand on the
+lip (A/B: nothing). Looking left or down shows near forearm slabs for a few
+frames, the same as the accepted holstered pull-up. User slot 9 copy: 65-69
+frames at 60/120/180, lands armed, 9 rounds with fire. Without fire it shows
+the hand and the raised pistol. With fire the hand is hidden: the aim holds
+it level with the eye. The eye-depth rule removed the near slab there; the
+A/B run shows the pig cop's weapon slab with and without the change. Third
+person (61 frames) and Vanilla (Up refused) are unchanged. Native controls
+148 groups (new D08J7D group: rig owner, lip pin, off-lip, at-eye and shotgun
+cases through a render-state replay), input, aim and near suites pass.
+Limits: lip reach and eye depth are measured constants (alley, slot 9). The
+off hand is hidden while firing on slot 9. The high ready is a viewmodel
+offset tuned on screenshots (developer `DNTTK_FP_ONEHAND_RAISE=pitch,roll,x,y,z`).
+The hand pops out below the screen edge around frame 4. A 180 Hz recording
+fell behind real time with an unrelated eduke32 at 100% CPU (load 4.7). The
+unrecorded 180 runs were normal (61 frames). A/B: `DNTTK_FP_ONEHAND=0`.
+Executable `396f207794e73cf19a59dfd2c4fe7da89bb7e276f4c3871f4d4d893bd0bec862`.
+
+**2026-11-04 accepted and closed.** User: "i'm really happy with this progress! lock it in and close it out" D08J7D is Done at the
+candidate build. The user also closed the eduke32 instance that loaded the
+host during the 180 Hz recording. No gameplay edits, builds or launches after
+acceptance.
 
 ### D08J6B - Hang-and-aim pose, third person
 
@@ -5408,7 +5447,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08J7 | Shooting while mantling (research first) | Done (D08J7A user-accepted; closed 2026-11-04; note 378) | D08J6, D08X, D08Z2, D35G |
 | D08J7B | Weapon up on landing and a shorter pull-up | Done (closed with D08J7C 2026-11-04; note 378) | D08J7 |
 | D08J7C | One-handed armed pull-up and the sidearm return | Done (user-accepted 2026-11-04; note 378) | D08J7B |
-| D08J7D | One-handed armed pull-up in first person | Todo | D08J7C, D35G, D36H9 |
+| D08J7D | One-handed armed pull-up in first person | Done | D08J7C, D35G, D36H9 |
 | D08J6B | Hang-and-aim pose on climbs, third person (user UI slots 12, 11, 8) | Todo | D08J6 |
 | D08J6C | Firing while climbing in first person | Todo | D08J6B, D35E, D35F, D36 |
 | D08J6D | Firing on monkey bars and ledge hangs (user UI slot 6) | Todo | D08J6A, D08J4, D08J7 |

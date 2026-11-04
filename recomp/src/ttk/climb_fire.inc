@@ -135,6 +135,9 @@ static unsigned armed_pullup_first,armed_pullups,armed_pullup_restores;
 // The one-handed pull-up pose (onehand_pullup.inc): its weight, 140 position
 // (frames from the first, fractional) and writes, for the debug report.
 static double onehand_weight,onehand_phase;
+// D08J7D: the first-person viewmodel's high ready (0 aimed, 1 raised beside
+// the head), the clip's gun-arm weight as onehand_pullup_pose last wrote it.
+static double onehand_view_raise;
 static bool onehand_owned;
 static unsigned onehand_writes;
 bool hang_pullup_handoff() {return hang_drop_pending && armed_pullup && hang_weapon_ready();}

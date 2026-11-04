@@ -51,7 +51,7 @@ static void onehand_pullup_pose(CPUState* cpu) {
     const bool on=enabled!=0 && desc && armed_pullup_active() && onehand_position(kp,kc,t);
     onehand_weight=std::clamp(onehand_weight+(on?1:-1)*dt/onehand_ramp_ms,0.0,1.0);
     if(on && dt==0)onehand_weight=std::max(onehand_weight,1e-3);
-    if(!desc || onehand_weight<=0) {onehand_weight=0;onehand_owned=false;return;}
+    if(!desc || onehand_weight<=0) {onehand_weight=0;onehand_owned=false;onehand_view_raise=0;return;}
     std::array<std::array<int32_t,4>,32> a{},b{};uint32_t ma=0,mb=0;
     if(on && (!crouch_frame_quats(kp,a,ma) || !crouch_frame_quats(kc,b,mb)))return;
     if(!on && !onehand_owned)return;
@@ -60,6 +60,7 @@ static void onehand_pullup_pose(CPUState* cpu) {
     if(!onehand_owned)onehand_gun_weight=aimed?0:1;
     onehand_gun_weight=std::clamp(onehand_gun_weight+(aimed?-1:1)*dt/onehand_aim_ms,0.0,1.0);
     const double gun=std::clamp(double(armed_pullup_late)-onehand_phase,0.0,1.0)*onehand_gun_weight;
+    onehand_view_raise=gun*onehand_weight;
     for(unsigned i=0;i<8;++i) {
         const unsigned j=onehand_ids[i];
         const uint32_t r=crouch_joint_record(desc,j);

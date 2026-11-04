@@ -2070,6 +2070,8 @@ struct RenderState {
     ChannelHand channel_hand;
     double projection_blend;
     bool jet_flight;
+    // D08J7D: the one-handed pull-up's off hand and viewmodel high ready.
+    OnehandView onehand_view;
 };
 bool replay_gameplay_context() { return gameplay_context(); }
 void render_state_prepare() {
@@ -2132,6 +2134,7 @@ void render_state_save(void* out) {
     r.host_visibility=host_visibility_enabled();
     r.world_classic=ttk_world_classic()!=0;
     r.push_letgo=push_letgo;
+    r.onehand_view=onehand_view_live();
     std::memcpy(out,&r,sizeof r);
 }
 void render_state_blend_mask(void* out,const void* next,double alpha) {
@@ -2171,6 +2174,7 @@ void render_state_blend_mask(void* out,const void* next,double alpha) {
         for(int i=0;i<3;++i) a.channel_hand.rel[i]+=(b.channel_hand.rel[i]-a.channel_hand.rel[i])*alpha;
     }
     a.projection_blend+=(b.projection_blend-a.projection_blend)*alpha;
+    a.onehand_view.raise+=(b.onehand_view.raise-a.onehand_view.raise)*alpha;
     std::memcpy(out,&a,sizeof a);
 }
 void render_state_load(const void* in) {
@@ -2192,6 +2196,7 @@ void render_state_load(const void* in) {
     host_vis_override=r.host_visibility?1:0;
     ttk_world_classic_set(r.world_classic);
     push_letgo=r.push_letgo;
+    override_onehand_view=r.onehand_view;
     override_door_valid=r.door_valid; override_door_frame=r.door_frame;
     override_channel_hand=r.channel_hand;
     override_projection_blend=r.projection_blend;

@@ -1,5 +1,25 @@
 # Next-session handoff
 
+## 2026-11-04 - D08J7D accepted and closed
+
+User: "i'm really happy with this progress! lock it in and close it out" The one-handed armed pull-up in first person is Done: the off hand
+grips the lip on the contact rig, and the pistol is held up beside the head
+while Duke climbs and comes down to aim while firing.
+[Note 378](378-d08j7-mantle-fire-research.md). Executable
+`396f207794e73cf19a59dfd2c4fe7da89bb7e276f4c3871f4d4d893bd0bec862`.
+
+## 2026-11-04 - D08J7D one-handed pull-up in first person (accepted below)
+
+Modernized, first person, armed sidearm hang and pull-up: Duke's off hand now
+grips the lip on the contact rig (shown while it is on the lip and ahead of
+the eye, its height pinned to the lip while firing) instead of being hidden
+for the viewmodel, and the pistol is held up beside the head while he climbs,
+down to aim while firing (the D08J7C rule). Alley 60/120/180 and the slot 9
+copy, third person and Vanilla unchanged; native controls 148 groups.
+[Note 378](378-d08j7-mantle-fire-research.md) D08J7D section. A/B
+`DNTTK_FP_ONEHAND=0`. Executable
+`396f207794e73cf19a59dfd2c4fe7da89bb7e276f4c3871f4d4d893bd0bec862`.
+
 ## 2026-11-04 - D36H9 accepted and closed
 
 User: "thats it, thats a winner. lock it in, close it out" ("the job was way

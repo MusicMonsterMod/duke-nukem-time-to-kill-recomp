@@ -294,3 +294,11 @@ of leg is all it needs to show". Measured leg top above the bottom edge at the
 U: accepted ("thats it, thats a winner. lock it in, close it out"; "the job was
 way simpler than we thought"). Shipped: ownership fix, steady Mantle eye, legs
 88 units back. Fade and body-heading shoulders rejected (A/B switches only).
+
+## D08J7D - armed off hand on the lip (2026-11-04, accepted)
+
+The contact rig now also serves the pistol's free arm (parts 10-12, equipment
+2) in the armed sidearm hang and the D08J7C one-handed pull-up, while the hand
+is on the lip and ahead of the eye; its drawn height is pinned to the lip.
+Other armed Mantle cases (D35G1 step-ups) keep the hidden arm. Details and
+evidence: [note 378](378-d08j7-mantle-fire-research.md) D08J7D section.

@@ -699,3 +699,86 @@ User: "the work here is absolutely quality. legendary work. i'm really happy wit
 is closed with it (same accepted build). First-person presentation of the
 one-handed pull-up is job D08J7D.
 
+
+## D08J7D - the one-handed pull-up in first person (Done, user-accepted 2026-11-04)
+
+User, on D08J7C revision 2: "do we have a backlog job in to get this
+animation into first person too? it's very close already isnt it".
+
+### Owner and behavior (Modernized, first person)
+
+- Before: an armed Mantle (`fp_policy.action` Mantle, equipment 2) hid the
+  pistol's free arm (parts 10-12) at the eye for the viewmodel (D35G1). The
+  climb showed only the pistol.
+- Off hand: in the armed sidearm hang (`hang_weapon_ready()`) and the
+  one-handed pull-up (`armed_pullup_active()`, clip weight above 0), parts
+  10-12 take the D36H5 contact rig (`first_person_contact_arm`, eye-anchored
+  shoulders, native hand target) while the hand is on the lip
+  (`offhand_on_lip()`): native hand within 250 units of the ledge top
+  `+0x1c8`, and the drawn hand at least 128 units ahead of the eye. The drawn
+  hand is pinned to within 40 units of the lip height; the native matrices
+  are never written.
+- Measured (alley, `geo.py`): the clip's left hand stays within 40 of the lip
+  to pull-up frame 3.8, then 140 lifts it 400-860 units up by frame 5. Before
+  the lip gate the eye rig stretched it into a close glove beside the eye.
+  While firing, the aimed chest lifts it 70-190 units and, on the slot 9
+  copy, draws it level with the eye (eye depth -50 to +66; 90-245 without
+  fire), hence the pin and the depth rule.
+- Gun arm: the viewmodel takes a high ready weighted by the clip's own
+  gun-arm weight (`onehand_view_raise`, written in `onehand_pullup_pose`):
+  50 degrees muzzle up, 15 rolled out, 40 right, 120 up, 60 nearer, about the
+  grip. While firing it eases to the aimed pose in 70 ms (the D08J7C rule) and
+  it is gone from the late phase. Developer tuning:
+  `DNTTK_FP_ONEHAND_RAISE=pitch,roll,x,y,z`.
+- Replay: `OnehandView` (off hand, raise) is in RenderState and the raise
+  blends between ticks. No hook, guard, generated code, framework or save
+  change. `DNTTK_FP_ONEHAND=0` gives the D08J7C view (A/B).
+
+### Verification
+
+Executable `396f207794e73cf19a59dfd2c4fe7da89bb7e276f4c3871f4d4d893bd0bec862`. Private lab `recomp/analysis/d08j7d/` (`fp7d.py`, `rec.py`,
+`frames.py`, `geo.py`, `slot9.py`; offscreen or Xvfb, dummy audio, private
+copies only; player saves, cards and settings hash-checked after every run).
+
+- D35G alley, fire held, 60/120/180: 61-frame pull-up at every rate, lands
+  with the pistol, view-aimed rounds. Sheets `s60/s120/s180-sheet.png`,
+  `ap-sheet.png` (pin) and `ar-sheet.png` (depth rule).
+- Recording `rec/r60b.mp4` (no fire, 60 Hz), sheet `r60b-a.png`: hang (hand
+  above the view), off hand on the lip sliding down the view as Duke rises,
+  pistol at the high ready, hand gone under the bottom edge near frame 4,
+  pistol down. Before the lip gate (`r60-a.png`) a glove came back near the
+  eye late in the pull-up.
+- Looks at 120 (`looks.png`): right clean; left and down show near forearm
+  slabs for a few frames, as in the accepted holstered pull-up (`ulooks.png`,
+  larger there). Up in the armed hang (`up-ab.png`): off hand on the lip, A/B
+  none.
+- User slot 9 copy (`slot9.py`): 65-69 frames at 60/120/180, lands armed, 9
+  rounds with fire. Without fire the hand and the raised pistol show. With
+  fire the hand is hidden. `s9ab-half.png` (A/B) shows the tan slab in one
+  frame is the pig cop's weapon, present without the change.
+- Third person at 120: 61 frames, unchanged. Vanilla (`van7c.py`): Up still
+  refused in the armed hang.
+- Native: `ttk-controls-test` 148 groups with LEVEL00, LEVEL01 and all levels
+  (new D08J7D group: off hand on the contact rig, pin, off-lip, at-eye and
+  shotgun support-grip cases, through a render-state save and load),
+  `ttk-input-test`, `ttk-aim-test`, `ttk-near-test`.
+- A 180 Hz Xvfb recording (`rec/f180.mp4`) fell behind real time. The host
+  had an unrelated eduke32 at 100% CPU (load 4.7) plus ffmpeg. The unrecorded
+  180 runs played the 61-frame pull-up normally. Host contention, not
+  established as a game fault.
+
+### Limits
+
+- The lip reach, rest and eye depth are measured constants (alley platform,
+  slot 9), not per-ledge geometry.
+- On slot 9, firing hides the off hand (the aim brings it to the eye); the
+  pose itself is unchanged.
+- The hand leaves the view below the bottom edge at about frame 4 without a
+  fade.
+- The high ready is a viewmodel offset judged on screenshots; no enemies were
+  framed for aiming checks; only Polymorph checked.
+
+### D08J7D closeout (2026-11-04)
+
+User: "i'm really happy with this progress! lock it in and close it out" D08J7D is Done at executable `396f207794e73cf19a59dfd2c4fe7da89bb7e276f4c3871f4d4d893bd0bec862`. The remaining limits
+above stay as recorded. Broader first-person arm coverage is still D36H6.

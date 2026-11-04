@@ -1512,7 +1512,11 @@ uint16_t input_pad() {
     // The original ignores the ladder let-go while Cross is held, so a held E
     // (interact = Cross) must not keep Duke on the last rung.
     bool ladder_let_go=false;
-    if(captured && traversal_input_ready() && !ladder_exit_ready()) {
+    // D08J6A: held fire on a climb, with a sidearm to draw, stops the climb:
+    // no climb directions; climb_fire.inc requests the draw at the next rest.
+    const bool climb_fire_hold=captured && action_down(fire) && !action_down(holster) &&
+        !action_down(interact) && climb_fire_hold_ready();
+    if(captured && traversal_input_ready() && !ladder_exit_ready() && !climb_fire_hold) {
         const bool mount_finishing=ladder_mount_finishing();
         if(action_down(move_forward) && !action_down(move_back) && !mount_finishing) value &= ~16;
         // D08U1: S at a ladder that ends above the floor lets go from the
@@ -1636,6 +1640,13 @@ uint16_t input_pad() {
     // not Circle; unarmed Cross stays off until the weapon is out.
     if(captured && action_down(fire) && !action_down(holster) &&
        !action_down(interact) && swim_fire_cross_masked()) value |= 16384;
+    // D08J6A: unarmed Cross stays off while fire waits for the sidearm on a
+    // climb. Armed, climbing input spends one Circle tap to stow; the held
+    // direction then climbs on once traversal input resumes (holstered).
+    if(climb_fire_hold) value |= 16384;
+    if(captured && !action_down(fire) && !action_down(holster) && !action_down(interact) &&
+       (action_down(move_forward) || action_down(move_back) || action_down(move_left) || action_down(move_right)) &&
+       climb_stow_ready()) circle_request=true;
     // Keep the persisted action ID/binding. In supported Modernized locomotion
     // it is the speed modifier: default walk, Shift run, Caps Lock reverses it.
     if (locomotion && !short_fall_input_ready() && !wade_full_speed_ready() &&

@@ -1,5 +1,34 @@
 # Current status - 2026-10-04
 
+## 2026-11-04 - D08J6A accepted and closed; D08J6B-D and D08J7 added
+
+User: "great progress so far and i love the direction ... lock us in and
+close us out". D08J6A (firing while climbing: sidearm draw, view-aimed shots,
+automatic holster and climb on) is Done ([note 377](377-d08j6-climb-fire-research.md)).
+New jobs: D08J6B hang-and-aim pose, D08J6C first person, D08J6D monkey bars
+and ledge hangs (user test saves: UI slot 12 ladder, 11 chain, 6 monkey bars,
+8 climbing wall) and D08J7 shooting while mantling, the next job by user
+priority.
+
+## 2026-11-04 - D08J6A firing while climbing (Needs playtest)
+
+Modernized: held left click on a ladder, chain/pole or climbing wall stops
+the climb, draws the sidearm (another selection is swapped out and given
+back) and fires at the crosshair; W/S/A/D holster and climb on; Space lets go
+armed. Uses the original climb draw/fire/stow; no new hook or codegen change.
+Pose still original (D08J6B next). [Note 377](377-d08j6-climb-fire-research.md).
+Executable `c5c6a30b010df99ad7981cf3452d6105ba02811d2cc2a050e0bff7b6abed9a56`.
+
+## 2026-11-03 - D08J6 research report (Needs decision)
+
+Firing while climbing. The original already stops, draws (Circle tap),
+fires real rounds and resumes on ladders, chains and climbing walls; the
+Modernized build lacks fire-to-draw and auto-stow on climbs, camera-aimed
+shots and a believable pose (both hands leave the rung). Recommended
+hang-and-aim with new animation, staged D08J6A-D. Decisions and a slot 7
+tower save state requested. [Note 377](377-d08j6-climb-fire-research.md).
+No code, build or executable change.
+
 ## 2026-11-03 - D17AR2 and D17AR3 closed; D17AO cancelled
 
 User: "close all the accepted one, and formally cancel D17AO with no action

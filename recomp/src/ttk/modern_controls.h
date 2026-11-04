@@ -37,6 +37,11 @@ bool interaction_swim_restore_ready();
 /* D08O5: fire draws a holstered weapon in the native swim states. */
 bool swim_fire_draw_ready();
 bool swim_fire_cross_masked();
+/* D08J6A: fire draws the sidearm on ladders, chains, poles and climbing walls. */
+bool climb_weapon_ready();
+bool climb_fire_hold_ready();
+bool climb_stow_ready();
+bool climb_shot_ready();
 bool interaction_alive();
 bool interaction_holster_ready();
 bool weapon_drawn();

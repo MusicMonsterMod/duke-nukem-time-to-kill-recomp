@@ -44,7 +44,9 @@ static void wall_climb_dispatch(CPUState* cpu,uint32_t ra) {
     const unsigned upper=psx_mod_read_half(player+0x74);
     if(upper>=278 || (psx_mod_read_word(0x800c2824+4*upper)&8))return;
     WallQueryPose pose;if(!pose.count)return;
-    const int horizontal=(f.move_x>0)-(f.move_x<0),vertical=(f.move_y>0)-(f.move_y<0);
+    // D08J6A: held fire with a sidearm to draw stops the climb like zero input.
+    const bool firing=f.held[fire] && !f.held[holster] && !f.held[interact] && climb_fire_hold_ready();
+    const int horizontal=firing?0:(f.move_x>0)-(f.move_x<0),vertical=firing?0:(f.move_y>0)-(f.move_y<0);
     const int direction=horizontal+3*vertical;
     if(wall_epoch!=f.epoch || direction!=wall_last_direction) {
         // Native idle dispatch chooses the proper animation, without waiting

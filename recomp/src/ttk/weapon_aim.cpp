@@ -47,9 +47,9 @@ static bool view_mode() {
 static bool supported(unsigned weapon) {return view_weapon_supported(weapon);}
 // Jumps, falls, flight and the original swim states own a camera/input lease,
 // never the ground movement lease. Reuse their authenticated state for shots
-// and beam completion without widening any locomotion writes or admitting
-// attached traversal states (D07F: jumps and falls).
-static bool shot_ready() {return movement_ready() || airborne_shot_ready() || jetpack_input_ready() || swim_weapon_ready();}
+// and beam completion without widening any locomotion writes (D07F: jumps
+// and falls). D08J6A: of the attached states, only an armed settled climb.
+static bool shot_ready() {return movement_ready() || airborne_shot_ready() || jetpack_input_ready() || swim_weapon_ready() || climb_shot_ready();}
 extern "C" uint8_t* g_psx_ram;
 extern "C" uint32_t g_dirty_ram_code_gen;
 static uint64_t aim_identity_calls, aim_identity_checks;

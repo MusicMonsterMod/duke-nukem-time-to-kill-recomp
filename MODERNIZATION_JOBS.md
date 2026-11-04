@@ -2733,7 +2733,7 @@ the job is ever reopened. Nothing changed in play.
 
 ### D08J6 - Firing while climbing (research first)
 
-**Status: Todo (research report first). Dependencies: D08J, D35E, D35F.** User:
+**Status: Done (D08J6A user-accepted and closed 2026-11-04: "great progress so far and i love the direction ... lock us in and close us out"; the remaining stages are jobs D08J6B, D08J6C and D08J6D; [note 377](documentation/377-d08j6-climb-fire-research.md)). Dependencies: D08J, D35E, D35F.** User:
 "the ability to shoot while climbing ... Duke stopping and then shooting and
 then you would be able to resume climbing". Example: slot 7 (file 6), the
 castle tower with two floating enemies near the climb. Duke's hands are on the
@@ -2745,6 +2745,90 @@ current games handle firing on ladders and other climbs (one-handed sidearm,
 hang-and-aim, automatic holster on resume), which fits TTK's animations and
 first/third person, what the game's climb states allow (mode 8, chains,
 poles, climbing walls), and a staged plan. Vanilla unchanged.
+
+**2026-11-03 research report.** The original game already stops, draws, fires
+and resumes on ladders, chains and climbing walls, driven by a Circle tap:
+draw about 0.45 s while attached, real rounds (ladder 9, chain 6, wall 6),
+no climbing while armed (rung handler refuses upper animations with table
+flag 8), a second tap stows and W/S climb again to the exits. Missing:
+left click does nothing on climbs (fire-to-draw admits ground/flight/swim
+only), climbing keys do not stow, shots are not camera-adapted (they hit
+the ladder/wall in front), the armed pose is the ground upper body with
+both hands off the rung, and first-person weapon presentation is wrong on
+climbs. User: open to new animation and Blender, "absolute professionalism".
+Recommended: hang-and-aim (off hand on the rung, torso clamp, gun arm aims)
+in stages D08J6A mechanics, B third-person pose, C first person, D monkey
+bars and ledge hangs. Waiting on the decisions listed in note 377 and a
+user save state at the slot 7 tower. No code or build change.
+
+**2026-11-04 D08J6A candidate (Needs playtest).** User chose every
+recommendation ("Uncharted, and Tomb Raider are BRILLIANT comparisons ... we go
+total cleanroom"). Held left click on a ladder, chain/pole or climbing wall
+stops the climb, draws the sidearm (swapping out another selection, given back
+on holstering or on landing after letting go armed) and fires at the
+crosshair; W/S/A/D holster and climb on. Ladder, chain and wall routes pass at
+60/120/180 settings (first shot 15-25 game frames after the press, climbing
+again 21-25 after release); Vanilla unchanged; native controls, input, aim and
+near suites pass. Pose and first-person weapon presentation are still the
+original (D08J6B/C); monkey bars and ledge hangs D08J6D. Executable
+`c5c6a30b010df99ad7981cf3452d6105ba02811d2cc2a050e0bff7b6abed9a56`.
+
+**2026-11-04 accepted and closed.** User: "great progress so far and i love
+the direction ... lock us in and close us out". D08J6A is Done; stages B-D are
+the new jobs D08J6B, D08J6C and D08J6D, with the user's test saves (UI slot 12
+ladder, 11 chain, 6 monkey bars, 8 climbing wall). New job D08J7, shooting
+while mantling, is the next job by user priority. No gameplay edits, builds or
+launches after acceptance.
+
+### D08J7 - Shooting while mantling
+
+**Status: Todo (next job, user priority 2026-11-04). Dependencies: D08J6, D08X, D08Z2, D35G.** User, closing
+D08J6A: "is it gonna be possible to add in the ability to shoot when
+mantling, like that's just huge because currently it prevents you from
+shooting whatsoever and you might take quite a lot of damage during that
+essentially offenseless time - so if we could also add it in for mantling".
+Duke stows before grabbing a ledge (D08J/D08X E stow) and cannot fire through
+the hang, pull-up and mantle. Research first, as D08J6 did (note 377): what
+the original mantle/hang states allow (draw request, Circle, Cross, the
+one-arm aim of record 5 the skeleton build already has in modes 6/7, upper
+track during the mantle clips), how current games handle it (Uncharted and
+Tomb Raider: sidearm while hanging from a ledge, no shooting during the
+pull-up itself, or a quick cancel), and which phases can shoot (hang,
+shimmy, pull-up start/end). Then build on D08J6A's lease, sidearm swap,
+view-aimed shots and automatic stow so mantling is never a defenceless
+window, keeping the D08Z2 mantle upper-body handoff, D35G first person and
+Vanilla unchanged. Test with private copies of the user's saves and spawned
+pickups; ask the user for a save state where enemies attack during a mantle.
+
+### D08J6B - Hang-and-aim pose, third person
+
+**Status: Todo. Dependencies: D08J6.** Note 377 stage B. Replace the original
+two-handed upper body on climbs with a clean-room hang-and-aim pose: the off
+hand stays on the rung, chain or wall hold (climb clip on records 0, 2-4 and
+9-18), the chest turns toward the aim within a clamp, the gun arm (records
+5-7) aims at the crosshair (look-at helpers as in D08O2A). Blender-authored
+one-arm draw and holster, aim idle and recoil, and per-family grips through
+the D08K1 pipeline; read note 265 for any new art. User test saves (private
+copies only): UI slot 12 ladder, UI slot 11 chain, UI slot 8 climbing wall,
+and the slot 7 castle tower with floating enemies. Validate in game from
+several angles at 60/120/180, not only in Blender. Vanilla unchanged.
+
+### D08J6C - Firing while climbing in first person
+
+**Status: Todo. Dependencies: D08J6B, D35E, D35F, D36.** Note 377 stage C.
+On ladders the normal weapon viewmodel replaces the climbing hands; on the
+chain no weapon shows at all. Show the off hand on the rung and the gun arm
+aiming from the other side in the ladder and pole/chain views (note 257
+ownership, notes 305/306 arm coverage, the D35E/F clipping path). Same user
+saves as D08J6B. Vanilla unchanged.
+
+### D08J6D - Firing on monkey bars and ledge hangs
+
+**Status: Todo. Dependencies: D08J6A, D08J4, D08J7.** Note 377 stage D.
+Probe the original ceiling monkey bars (mode 7) and hangs (mode 6) live, then
+extend the climb lease, draw, stow and view-aimed shots to them with the
+D08J6B pose. User test save (private copy only): UI slot 6 monkey bars.
+Vanilla unchanged.
 
 ### D36M - First-person power-up looks: invisibility, invincibility, Double Duke
 
@@ -4991,7 +5075,11 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08J4 | Ceiling monkey-bar climbing: camera-relative travel, no mid-span drops (player UI slot 3) | Done (user-accepted; closed 2026-10-30) | D08J, D22B |
 | D08J3 | Free camera while on ladders, poles and chains (investigation + usability testing) | Done (user-accepted; closed 2026-10-30) | D06, D08J |
 | D08J5 | Climb down chains (and poles): reach the bottom and let go or step off (player UI slot 3) | Done | D08J2, D08J3 |
-| D08J6 | Firing while climbing: stop, draw, fire, resume (research first) | Todo (research first) | D08J, D35E, D35F |
+| D08J6 | Firing while climbing: stop, draw, fire, resume (research first) | Done (D08J6A user-accepted; closed 2026-11-04; note 377) | D08J, D35E, D35F |
+| D08J7 | Shooting while mantling (research first) | Todo (next job, user priority 2026-11-04) | D08J6, D08X, D08Z2, D35G |
+| D08J6B | Hang-and-aim pose on climbs, third person (user UI slots 12, 11, 8) | Todo | D08J6 |
+| D08J6C | Firing while climbing in first person | Todo | D08J6B, D35E, D35F, D36 |
+| D08J6D | Firing on monkey bars and ledge hangs (user UI slot 6) | Todo | D08J6A, D08J4, D08J7 |
 | D08V1 | Modernized controls lost for the rest of the session after a missed chain jump; modern controls must never be lost | Done | D08V, D08J5 |
 | D08A29 | Scroll-wheel weapon changes while running | Done (user-accepted) | D08A, D08AA |
 | D08A30 | Reverse weapon-wheel direction: up advances, down goes back | Done (user-accepted) | D08A29 |

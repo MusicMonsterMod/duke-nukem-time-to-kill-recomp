@@ -845,6 +845,20 @@ drops. **W** climbs back up (at the top he climbs off onto the platform).
 Duke back up onto the platform beside the chain, as the original game does.
 Vanilla is unchanged (no top grab; the only way on is a jump).
 
+**Shooting while climbing (Modernized, D08J6).**
+On a ladder, pole, chain or climbing wall, hold **left click**: Duke stops
+climbing, draws his sidearm (the Desert Eagle slot) and fires where the
+crosshair points, so you can turn the camera and shoot behind or below him.
+A short click only draws. Like Uncharted and Tomb Raider, only the one-handed
+sidearm comes out on a climb: if another weapon is selected, the sidearm
+takes its place and your weapon comes back when Duke holsters (or when he
+reaches the ground after letting go armed). Press **W/S** (or **A/D**) to
+climb on: Duke holsters by himself and keeps climbing. **Space** lets go with
+the weapon out. With no sidearm ammo, left click does nothing on a climb.
+Number keys do not change weapons on a climb. Duke still uses the game's
+ordinary weapon pose for now (a proper one-handed hang-and-aim pose is coming).
+Vanilla is unchanged.
+
 **Free camera while climbing (Modernized, D08J3).**
 On ladders, poles, chains and climbing walls the mouse camera stays yours: turn
 it all the way round Duke, look up the ladder or down to the floor, zoom with

@@ -2970,6 +2970,73 @@ int main(int argc,char** argv) {
         std::puts("PASS: D08O5 swim fire-draw, remap and state/Vanilla guards");
     }
     {
+        // D08J6A: on a ladder, chain, pole or climbing wall held fire draws the
+        // sidearm (4) through the original request at the climb dispatcher,
+        // swapping out another selection; holstered again it gets it back.
+        // Armed, climbing input may stow from the idle or the aim hold (8);
+        // shots are view-adapted there. Never outside the climb clips or in Vanilla.
+        const uint32_t attached=psx_mod_read_word(p+0x17c);
+        const uint16_t sidearm_ammo=psx_mod_read_half(p+0x2c6+4*4),sidearm_owned=psx_mod_read_half(p+0x2c4+4*4);
+        psx_mod_write_half(p+0x2c4+4*4,sidearm_owned|1);psx_mod_write_half(p+0x2c6+4*4,20);
+        psx_mod_write_word(p+0x17c,0x801d9fe4);
+        psx_mod_write_byte(p+0x22c,3);psx_mod_write_byte(p+0x22d,3);
+        psx_mod_write_half(p+0x60,187);psx_mod_write_half(p+0x74,187);
+        psx_mod_write_byte(p+0x3b8,0);psx_mod_write_byte(p+0x3b9,4);psx_mod_write_byte(p+0x3ba,5);psx_mod_write_word(p+0x224,0);
+        ++ttk::input.sequence;call(0x8003ade4,c,p,0x80025ee8);
+        assert(ttk::climb_weapon_ready() && ttk::climb_fire_hold_ready() && !ttk::climb_stow_ready() && !ttk::climb_shot_ready());
+        assert(!ttk::fire_draw_ready() && !ttk::movement_ready());
+        call(0x80043eb8,p,0,0x8004b60c,0x801ff000);assert(!(psx_mod_read_word(p+0x224)&4)); // fire not held
+        ttk::input.held[ttk::fire]=true;
+        for(unsigned blocked : {(unsigned)ttk::holster,(unsigned)ttk::interact}) {
+            ttk::input.held[blocked]=true;call(0x80043eb8,p,0,0x8004b60c,0x801ff000);
+            assert(!(psx_mod_read_word(p+0x224)&4));ttk::input.held[blocked]=false;
+        }
+        call(0x80043eb8,p,0,0x8004b5bc,0x801ff000);assert(!(psx_mod_read_word(p+0x224)&4)); // foreign caller
+        call(0x80043eb8,p,0,0x8004b60c,0x801ff000);
+        assert(psx_mod_read_byte(p+0x3ba)==4 && (psx_mod_read_word(p+0x224)&4));
+        assert(std::strstr(ttk::controls_debug_json(),"\"climb_fire\":{\"ready\":true,") && std::strstr(ttk::controls_debug_json(),"\"swap_from\":5,"));
+        // The request pending (flag 4) and the draw in progress refuse a second one.
+        call(0x80043eb8,p,0,0x8004b60c,0x801ff000);assert(std::strstr(ttk::controls_debug_json(),"\"draws\":1,"));
+        psx_mod_write_word(p+0x224,0);psx_mod_write_half(p+0x74,6);
+        call(0x80043eb8,p,0,0x8004b60c,0x801ff000);assert(!(psx_mod_read_word(p+0x224)&4) && psx_mod_read_byte(p+0x3ba)==4);
+        // Holstered and settled again on the climb: the selection returns.
+        ttk::input.held[ttk::fire]=false;psx_mod_write_half(p+0x74,187);
+        call(0x80043eb8,p,0,0x8004b60c,0x801ff000);
+        assert(psx_mod_read_byte(p+0x3ba)==5 && std::strstr(ttk::controls_debug_json(),"\"swap_from\":-1,"));
+        // Every climb clip, mid-step too; mounts, catches, exits and hangs never.
+        for(unsigned anim : {186u,187u,188u,189u,192u,193u,194u,195u,198u,199u,202u,205u}) {
+            psx_mod_write_half(p+0x60,anim);psx_mod_write_half(p+0x74,anim);assert(ttk::climb_fire_hold_ready());
+        }
+        for(unsigned anim : {147u,148u,156u,185u,190u,191u,196u,197u,206u,207u,210u,63u}) {
+            psx_mod_write_half(p+0x60,anim);psx_mod_write_half(p+0x74,anim);assert(!ttk::climb_weapon_ready());
+        }
+        psx_mod_write_half(p+0x60,187);psx_mod_write_half(p+0x74,187);
+        psx_mod_write_byte(p+0x22d,8);assert(!ttk::climb_weapon_ready());psx_mod_write_byte(p+0x22d,3);
+        psx_mod_write_word(p+0x17c,0);assert(!ttk::climb_weapon_ready());psx_mod_write_word(p+0x17c,0x801d9fe4);
+        psx_mod_write_half(p+0x2c6+4*4,0);assert(ttk::climb_weapon_ready() && !ttk::climb_fire_hold_ready());psx_mod_write_half(p+0x2c6+4*4,20);
+        // Armed: stow from the idle or the aim hold, never mid-shot or with a request.
+        psx_mod_write_byte(p+0x3b8,2);psx_mod_write_byte(p+0x3b9,4);
+        for(unsigned upper : {5u,8u}) {psx_mod_write_half(p+0x74,upper);assert(ttk::climb_stow_ready() && ttk::climb_shot_ready());}
+        for(unsigned upper : {6u,9u,11u}) {psx_mod_write_half(p+0x74,upper);assert(!ttk::climb_stow_ready() && ttk::climb_shot_ready());}
+        psx_mod_write_half(p+0x74,5);psx_mod_write_word(p+0x224,4);assert(!ttk::climb_stow_ready());psx_mod_write_word(p+0x224,0);
+        assert(!ttk::climb_fire_hold_ready());
+        ttk::modern=false;assert(!ttk::climb_weapon_ready() && !ttk::climb_stow_ready() && !ttk::climb_shot_ready());ttk::modern=true;
+        // Let go armed with the swapped sidearm: on settled ground the
+        // original request switches back to the swapped weapon.
+        psx_mod_write_byte(p+0x3b8,0);psx_mod_write_half(p+0x74,187);psx_mod_write_byte(p+0x3ba,5);
+        ttk::input.held[ttk::fire]=true;call(0x80043eb8,p,0,0x8004b60c,0x801ff000);ttk::input.held[ttk::fire]=false;
+        assert(psx_mod_read_byte(p+0x3ba)==4 && std::strstr(ttk::controls_debug_json(),"\"swap_from\":5,"));
+        psx_mod_write_word(p+0x17c,attached);
+        psx_mod_write_byte(p+0x22c,0);psx_mod_write_byte(p+0x22d,0);psx_mod_write_half(p+0x60,63);
+        psx_mod_write_byte(p+0x3b8,2);psx_mod_write_byte(p+0x3b9,4);psx_mod_write_half(p+0x74,5);psx_mod_write_word(p+0x224,0);
+        ++ttk::input.sequence;call(0x8003ade4,c,p,0x80025ee8);assert(ttk::movement_ready() && !ttk::climb_weapon_ready());
+        ++ttk::input.command_serial;call(0x80058120,p,0,0x80041c44,0x801ff000);
+        assert(psx_mod_read_byte(p+0x3ba)==5 && (psx_mod_read_word(p+0x224)&4) && std::strstr(ttk::controls_debug_json(),"\"ground_restores\":1}"));
+        psx_mod_write_word(p+0x224,0);psx_mod_write_byte(p+0x3ba,4);
+        psx_mod_write_half(p+0x2c6+4*4,sidearm_ammo);psx_mod_write_half(p+0x2c4+4*4,sidearm_owned);
+        std::puts("PASS: D08J6A climb fire-draw, sidearm swap and return, stow/shot gates, clips and Vanilla");
+    }
+    {
         // D08Q5: in flight (mode 10) weapon groups, the wheel and X reach the
         // original request; items other than the pack, the kick, fire held,
         // draws and Vanilla stay refused.

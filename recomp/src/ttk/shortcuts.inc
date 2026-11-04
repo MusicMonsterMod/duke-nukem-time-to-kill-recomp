@@ -18,6 +18,8 @@ static void pickup_weapon_cancel();
 // D08A12 next stick after a throw (dynamite.inc, included later).
 static bool dynamite_redraw_due(unsigned equipment,uint32_t flags);
 static bool dynamite_redraw;
+// D08J6A sidearm swap returned on the ground (climb_fire.inc, included later).
+static void climb_fire_ground_restore(const InputFrame& f,unsigned equipment,uint32_t flags);
 static unsigned dynamite_redraws;
 static unsigned base_weapon(unsigned slot) {return slot==27?9:slot==28?7:slot==29?8:slot;}
 static bool usable_weapon(unsigned slot) {
@@ -417,6 +419,7 @@ static void select_weapon(CPUState* cpu) {
         psx_mod_write_byte(player+0x3ba,swim_fire_draw_weapon());
         psx_mod_write_word(player+0x224,psx_mod_read_word(player+0x224)|4);++selections;++swim_fire_draws;
     }
+    climb_fire_ground_restore(f,equipment,flags);
     // D08A12: the next stick after a throw, once fire is let go and Duke can
     // take a weapon request (ground or jetpack flight).
     if(dynamite_redraw_due(equipment,flags) && !f.held[fire] && !f.held[original_aim] && !(flags&0x2c5) &&

@@ -1,5 +1,24 @@
 # Current status - 2026-10-04
 
+## 2026-11-04 - D10G closed; D10G1-3 and D10F2 added
+
+User: "i wanna go with your recommendation for an easy smooth and
+professional experience". D10G is Done ([note 384](384-d10g-aim-mouse-feel.md)).
+Next: D10G1 point-blank aim, then D10G2 blocked-shot hint and D10G3 newest-look
+shot direction. New report: at UI slot 11 opening the door puts the camera
+behind something (D10F2, not yet reproduced). No code or build change.
+Launch: `python3 recomp/tools/local/run.py`.
+
+## 2026-11-04 - D10G aim and mouse feel report
+
+Research only, no code or build change ([note 384](384-d10g-aim-mouse-feel.md)).
+Mouse turn is raw, linear and frame-rate/boom independent. Measured problem:
+against walls with the boom compressed, rounds and the gun arm leave up to 71
+degrees off the view. Press to shot (100-200 ms) is native weapon timing.
+Proposed D10G1 point-blank aim (recommended), D10G2 blocked-shot hint, D10G3
+newest-look shot direction; waiting on the user's choice. Launch:
+`python3 recomp/tools/local/run.py`.
+
 ## 2026-11-04 - D12E2 cancelled; D09C controller rumble added
 
 User: "I'm actually happy with the kicks! i wanna leave the kicks at this

@@ -1,5 +1,45 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-04 - D10G closed: going with the recommendations; D10G1-3 and D10F2 added
+
+User: "i wanna go with your recommendation for an easy smooth and
+professional experience". D10G is Done as a research job
+([note 384](documentation/384-d10g-aim-mouse-feel.md)). New jobs: **D10G1**
+point-blank aim (next), **D10G2** blocked-shot hint and **D10G3** shot
+direction from the newest look. Declined as recommended: changes to the mouse
+turn, a fire-triggered aim camera, shortening native weapon timing.
+
+User report in the same closeout: "i just saved slot 11 too, when you open the
+door, duke exhibits a problem there where the camera just goes behind
+something and looks dumb". Logged as **D10F2** (UI slot 11, runtime 10;
+private copies only). The save was not opened in this session. No code,
+build or executable change.
+
+## 2026-11-04 - D10G research report: aim and mouse feel (Needs review)
+
+Research only; no code, build or executable change
+([note 384](documentation/384-d10g-aim-mouse-feel.md)). Measured offscreen on
+private apartment card copies with the pistol, executable
+`f57c694de9e655fa7d50f1a109b9c31e7bcf2fcae76590809499591cb419e070`.
+
+- Mouse turn is already raw and linear: no smoothing or acceleration, the
+  same angle per count at 60/120/180 and at any boom length (the orbit turns
+  about the pivot; radius never scales the step).
+- Point-blank parallax: against a wall with the boom compressed (lens
+  450-520), rounds and the drawn gun arm leave up to 71 degrees off the view
+  (median 44, 18 of 24 over 20; open room median 7), and 13 of 24 recorded no
+  impact. Likely part of "shooting in impossible directions" on the ground.
+- Press to shot is the native weapon timing: about 200 ms from rest, about
+  100 ms with the gun up, same in first person; the round takes the crosshair
+  direction when it leaves. The shot direction is about one game update
+  (about 33 ms) behind the newest look on screen.
+
+Proposals for the user: D10G1 point-blank aim (fire along the view when the
+crosshair point is close; recommended), D10G2 blocked-shot hint, D10G3 shot
+direction from the newest look. Not recommended: a fire-triggered aim camera
+(no aim button in TTK), changes to the mouse turn, shortening native weapon
+timing. Not measured: enemies, other weapons, climbs, the real 180 Hz display.
+
 ## 2026-11-04 - D12E2 cancelled; D09C controller rumble added
 
 User, after the D12E2 scoping discussion: "i honestly think we drop this, but
@@ -510,7 +550,7 @@ leaves the gun arc. Apply D10F's result to climbs; user saves UI 12 (ladder),
 
 ### D10G - Aim and mouse feel in third person (research report first)
 
-**Status: Todo. Dependencies: D07, D10, D10E, D10F.** User: "any tightening we
+**Status: Done (research report 2026-11-04, [note 384](documentation/384-d10g-aim-mouse-feel.md); user closeout 2026-11-04: "i wanna go with your recommendation for an easy smooth and professional experience"; implementation is D10G1, then D10G2 and D10G3). Dependencies: D07, D10, D10E, D10F.** User: "any tightening we
 should do between that [aiming], and even between third person mouse
 movement". Report first: mouse sensitivity, smoothing and frame-rate
 independence of the orbit at 60/120/180, whether the same mouse motion turns
@@ -519,6 +559,47 @@ muzzle agreement near walls (close retractions, muzzle cover), and whether a
 light aim camera while firing (tighter shoulder, a little closer, same look
 input) fits TTK. Coordinate with D10E free look (fire cancels it). No change
 to Vanilla or the original aim option.
+
+### D10G1 - Point-blank aim: fire along the view when the crosshair point is close
+
+**Status: Todo. Dependencies: D10G.** Measured in
+[note 384](documentation/384-d10g-aim-mouse-feel.md): against a wall with the
+boom compressed, rounds and the drawn gun arm leave up to 71 degrees off the
+view. Modernized, view aiming, third person: when the crosshair point is close
+to the muzzle (proposed under about 512 units, or the round would leave more
+than about 25 degrees off the view), aim along the view from the muzzle,
+blended by distance so nothing visibly switches; the drawn gun arm follows the
+same direction. Keep the body-to-muzzle cover guard and the 64-unit
+retraction. Test: the D10G wall sweep (no round over about 25 degrees off the
+view, every round meets the surface it is fired at), the open-room sweep
+unchanged, `ttk-aim-test`, D08J6 climb fire. Vanilla, ORIGINAL aim and first
+person unchanged.
+
+### D10G2 - Blocked-shot crosshair hint
+
+**Status: Todo. Dependencies: D10G1.** When something nearer than the
+crosshair point blocks the muzzle-to-point line (one query, already used for
+cover), show a small marker at the muzzle hit or dim the crosshair, as in
+modern third-person shooters. Crosshair stays at screen centre. Judged with
+the user in play; off in Vanilla and with the crosshair off.
+
+### D10G3 - Shot direction from the newest look
+
+**Status: Todo. Dependencies: D10G1.** Shots read the previous game update's
+camera, about 33 ms behind the per-redraw late view the player sees
+([note 384](documentation/384-d10g-aim-mouse-feel.md)). Take the direction
+from the late view when the round leaves. Native weapon timing (100-200 ms
+press to shot) stays unchanged.
+
+### D10F2 - Camera behind an object when opening a door (UI slot 11)
+
+**Status: Todo. Dependencies: D10F1.** User (2026-11-04): "i just saved slot
+11 too, when you open the door, duke exhibits a problem there where the
+camera just goes behind something and looks dumb". Reproduce on a private
+copy of UI slot 11 (runtime 10): open the door and record the lens, the
+D10F1 probe hits and actors (a door actor may be passed over by the
+crate-fade rule, or the opening door may move into the probed ray between
+updates). Fix in the D10F1 clear lens, game-wide, not for this door only.
 
 ### D08J6F - Shots beyond the gun arc on climbs and hangs
 
@@ -6104,7 +6185,11 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D10B1 | Roll back D10B behavior; restore native third-person obstruction handling | Done | D10B |
 | D10F | Third-person camera near close surfaces (research report first) | Done | D10, D10B1, D08J3 |
 | D10F1 | Third-person camera: clear lens against walls and grills | Done (user-accepted 2026-11-04) | D10F |
-| D10G | Aim and mouse feel in third person (research report first) | Todo | D07, D10, D10E, D10F |
+| D10G | Aim and mouse feel in third person (research report first) | Done (closed 2026-11-04; note 384) | D07, D10, D10E, D10F |
+| D10G1 | Point-blank aim: fire along the view when the crosshair point is close | Todo | D10G |
+| D10G2 | Blocked-shot crosshair hint | Todo | D10G1 |
+| D10G3 | Shot direction from the newest look | Todo | D10G1 |
+| D10F2 | Camera behind an object when opening a door (UI slot 11) | Todo | D10F1 |
 | D10C | Duke 3D look keys: Page Up / Page Down look up / down while held and recenter on release; Home / End lock the look up / down (bindable) | Done (user-accepted 2026-10-20) | D06, D19G |
 | D10D | Keyboard turning in Modernized: Left / Right arrows turn the view left / right (Duke 3D style, alongside the mouse) | Done (user-accepted 2026-10-20) | D06, D10C |
 | D11 | First-person playable prototype | Done | D08, D10 |

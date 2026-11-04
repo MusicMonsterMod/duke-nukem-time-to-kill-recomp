@@ -1515,7 +1515,7 @@ uint16_t input_pad() {
     // D08J6A: held fire on a climb, with a sidearm to draw, stops the climb:
     // no climb directions; climb_fire.inc requests the draw at the next rest.
     const bool climb_fire_hold=captured && action_down(fire) && !action_down(holster) &&
-        !action_down(interact) && climb_fire_hold_ready();
+        !action_down(interact) && climb_fire_hold_ready() && !(hang_weapon_ready() && action_down(move_forward));
     if(captured && traversal_input_ready() && !ladder_exit_ready() && !climb_fire_hold) {
         const bool mount_finishing=ladder_mount_finishing();
         if(action_down(move_forward) && !action_down(move_back) && !mount_finishing) value &= ~16;
@@ -1550,13 +1550,18 @@ uint16_t input_pad() {
     // Otherwise held Space jumps again on the dumpster, and held W/E catches
     // the same ledge immediately. Fresh presses after release work normally.
     // D08J7A: S or Space in an armed ledge hang lets go with the weapon out
-    // (climb_fire.inc hands the hang pose to the release); W/A/D stow below.
+    // (climb_fire.inc hands the hang pose to the release); A/D (and W with another weapon) stow below.
     // Armed, the hang is no traversal state, so Space needs this Down too.
     const bool hang_drop=captured && hang_drop_armed_ready(!action_down(fire) && !action_down(holster) &&
         !action_down(interact) && !action_down(move_forward) && (action_down(move_back) || jump_down()));
     if(!captured || (!jump_down() && !action_down(interact) && !traversal_input_ready()))ledge_dropping=false;
     if(captured && (ledge_hang_ready() || hang_drop) && jump_down())ledge_dropping=true;
     if(hang_drop) value &= ~64;
+    // D08J7C: W in a ledge hang with the sidearm out pulls up one-handed,
+    // firing or not (climb_fire.inc hands the hang pose to the pull-up start).
+    const bool hang_pullup=captured && hang_pullup_input_ready(action_down(move_forward) && !action_down(move_back) &&
+        !action_down(holster) && !action_down(interact));
+    if(hang_pullup) value &= ~16;
     if(ledge_dropping) {
         jump_deadline=jump_pressed_at=0;airborne_interact=false;
         interaction_pending=false;interaction_pulse=0;interaction_started=false;holster_pulse=0;
@@ -1638,7 +1643,7 @@ uint16_t input_pad() {
     // Once drawing starts the readiness gate closes; held fire then reaches the
     // original weapon handler. No shot is buffered after release or focus loss.
     if(captured && action_down(fire) && !action_down(holster) &&
-       !action_down(interact) && fire_draw_ready()) {
+       !action_down(interact) && fire_draw_ready() && !mantle_fire_cross_masked()) {
         value |= 16384;
         circle_request=true;
     }
@@ -1650,7 +1655,12 @@ uint16_t input_pad() {
     // climb. Armed, climbing input spends one Circle tap to stow; the held
     // direction then climbs on once traversal input resumes (holstered).
     if(climb_fire_hold) value |= 16384;
-    if(captured && !hang_drop && !action_down(fire) && !action_down(holster) && !action_down(interact) &&
+    // D08J7B: and while fire waits for the weapon queued during a mantle.
+    if(captured && action_down(fire) && mantle_fire_cross_masked()) value |= 16384;
+    // D08J7C: no rounds from the armed pull-up while the chest is below the lip
+    // (nor from the hang once W asks for it).
+    if(captured && (hang_pullup || armed_pullup_fire_masked())) value |= 16384;
+    if(captured && !hang_drop && !hang_pullup && !action_down(fire) && !action_down(holster) && !action_down(interact) &&
        (action_down(move_forward) || action_down(move_back) || action_down(move_left) || action_down(move_right)) &&
        climb_stow_ready()) circle_request=true;
     // Keep the persisted action ID/binding. In supported Modernized locomotion

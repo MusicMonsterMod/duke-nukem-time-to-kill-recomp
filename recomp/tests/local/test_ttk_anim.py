@@ -138,7 +138,41 @@ class OwnedDisc(unittest.TestCase):
             path = Path(tmp) / 'anim.pack'
             cw.write_host_pack(self.g, path)
             data = path.read_bytes()
-        self.assertEqual(struct.unpack_from('<I', data, 8)[0], 19)  # walk/idle, run, matching upper clips, padding
+        self.assertEqual(struct.unpack_from('<I', data, 8)[0], 20)  # walk/idle, run, matching upper clips, one-hand pull-up, padding
+
+    def test_onehand_pullup(self):
+        # D08J7C: the one-handed pull-up upper body, frame for frame with 140.
+        import ttk_onehand_pullup as oh
+        import numpy as np
+        h = self.g.hierarchies[t.DUKE_HIERARCHY]
+        frames = oh.frames(self.g)
+        self.assertEqual(len(frames), 11)   # a leading copy, then 140's 10 frames
+        pistol, _ = self.g.animation_quats(oh.PISTOL, 0)
+        for k, f in enumerate(frames[1:]):
+            q = t.joint_quats_for_frame(f)
+            self.assertEqual(sorted(q), sorted(oh.UPPER_IDS))
+            for c in f['commands']:
+                t.encode_command(c)
+            base = oh.base_quats(self.g, k)
+            one, orig = t.pose(h, {**base, **q}), t.pose(h, base)
+            # Legs and root are never in the clip; the chest and its left hand
+            # lean onto the lip while the chest is below it.
+            if k < 5:
+                lw, rw = orig[4][1], orig[7][1]
+                target = lw + oh.PARAMS['medial'] * ((lw + rw) / 2 - lw) * np.array([1.0, 0.0, 1.0])
+                self.assertLess(float(np.linalg.norm(one[4][1] - target)), 8.0)  # Q12 rounding down the arm
+                # The gun wrist reaches the high ready, well over the shoulder
+                # in chest space (y down).
+                cm, ct = one[1]
+                wrist = cm.T @ (one[7][1] - ct)
+                self.assertLess(float(np.linalg.norm(wrist - [oh.PARAMS['gun_x'], oh.PARAMS['gun_y'], oh.PARAMS['gun_z']])), 2.0)
+                self.assertLess(wrist[1], h['joints'][5]['offset'][1] - 50)
+            if k >= oh.LATE:
+                for j in (13, 14, 15):
+                    self.assertTrue(t.same_rotation(q[j], pistol[j], 3 / 4096))
+            if k == 9:
+                for j in (9, 10, 11, 12, 16):
+                    self.assertTrue(t.same_rotation(q[j], base[j], 3 / 4096))
 
     def test_reference_gait_contact_and_clearance(self):
         import ttk_crouch_walk as cw

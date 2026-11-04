@@ -469,6 +469,8 @@ std::vector<Screen> make_screens() {
         heading("ITEMS"),
         {"EQUIP PICKUPS",Section::Controls,"equip_pickups","DNTTK_EQUIP_PICKUPS",true,"IF NEW: DRAW A NEW WEAPON, SELECT A NEW ITEM",
          {{"IF NEW","if-new","\"if-new\""},{"NEVER","never","\"never\""}},0},
+        {"SIDEARM RETURN",Section::Controls,"sidearm_return","DNTTK_SIDEARM_RETURN",true,"NEVER: KEEP THE CLIMB SIDEARM UNTIL YOU CHOOSE",
+         {{"AUTO","auto","\"auto\""},{"NEVER","never","\"never\""}},1},
         {"AUTO BIO MASK",Section::Controls,"auto_bio_mask","DNTTK_AUTO_BIO_MASK",true,"ON: AUTO GAS PROTECTION AND INSTANT USE WHILE FIRING",
          {{"ON","on","\"on\""},{"OFF","off","\"off\""}},0},
         {"NIGHT VISION",Section::Controls,"night_vision","DNTTK_NIGHT_VISION",true,"MODERN: INSTANT ON/OFF WITHOUT INTERRUPTING FIRE",

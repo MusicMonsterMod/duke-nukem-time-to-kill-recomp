@@ -262,7 +262,8 @@ bool ledge_hang_ready() {
 // headroom; no position, collision result or floor permission is invented.
 static void ledge_pullup_retry(CPUState* cpu) {
     const auto& f=input_snapshot(Context::Gameplay);
-    if(!ledge_hang_ready() || !f.held[move_forward] || f.held[move_back] ||
+    // D08J7C: also the update an armed hang hands the hang pose to the pull-up.
+    if(!(ledge_hang_ready() || hang_pullup_handoff()) || !f.held[move_forward] || f.held[move_back] ||
        f.held[jump] || f.held[original_aim] || !((~input_last_pad())&16) || guest_busy ||
        (psx_mod_read_word(player+0x224)&0x200241u))return;
     const unsigned upper=psx_mod_read_half(player+0x74);

@@ -851,8 +851,12 @@ climbing, draws his sidearm (the Desert Eagle slot) and fires where the
 crosshair points, so you can turn the camera and shoot behind or below him.
 A short click only draws. Like Uncharted and Tomb Raider, only the one-handed
 sidearm comes out on a climb: if another weapon is selected, the sidearm
-takes its place and your weapon comes back when Duke holsters (or when he
-reaches the ground after letting go armed). Press **W/S** (or **A/D**) to
+takes its place and your weapon comes back when Duke holsters. If he
+reaches the ground with the sidearm still out (after letting go armed, or an
+armed pull-up from a ledge), he keeps it until you choose a weapon (number
+keys or the wheel). **SIDEARM RETURN: AUTO** instead brings your weapon back
+by itself once you have been off the trigger for about 0.75 seconds (see
+Sidearm return below). Press **W/S** (or **A/D**) to
 climb on: Duke holsters by himself and keeps climbing. **Space** lets go with
 the weapon out. With no sidearm ammo, left click does nothing on a climb.
 Number keys do not change weapons on a climb. Duke still uses the game's
@@ -863,11 +867,23 @@ Vanilla is unchanged.
 Hanging from a ledge, hold **left click**: Duke keeps one hand on the lip,
 draws his sidearm and fires where the crosshair points, so you can shoot
 enemies along the wall beside you. A short click only draws, and the same
-sidearm swap as on climbs applies. **W** (pull up) and **A/D** (shimmy)
-holster by themselves and then move. **S** or **Space** lets go with the
-pistol still out, so Duke lands ready to shoot; your own weapon comes back
-on the ground. Shooting during the climb over the lip itself is not possible
-(both hands are busy). Vanilla is unchanged.
+sidearm swap as on climbs applies. **W** pulls Duke up one-handed with the
+sidearm still out, firing or not: no holstering, and the same speed as an
+unarmed pull-up. He hauls himself up on his left hand, leaning onto it, with
+the pistol held up beside his head until he is over the lip. Keep left
+click held and he shoots the whole way up: the pistol comes down from beside
+his head and fires at the crosshair, then goes back up when you let go. A
+shot aimed into the ledge in front of him hits the ledge; aim over the lip
+or along the wall. He lands ready to shoot. **A/D** (shimmy) holster by
+themselves and then move. **S** or **Space** lets go with the pistol still
+out, so Duke lands ready to shoot. After either he keeps the sidearm until
+you choose a weapon (**SIDEARM RETURN: AUTO** brings yours back once you have
+been off the trigger for about 0.75 seconds; see above).
+Unarmed, shooting during the climb over the lip is not possible (both hands
+are busy), but it never stops the climb: hold or click **left click** while
+Duke climbs up or pulls himself over (holding **W** in a hang climbs on even
+with left click held) and your own weapon comes up the moment he lands. The pull-up itself is quicker than the original (about 1 second
+instead of 1.7). Vanilla is unchanged.
 
 **Free camera while climbing (Modernized, D08J3).**
 On ladders, poles, chains and climbing walls the mouse camera stays yours: turn
@@ -2192,6 +2208,20 @@ still selected when it is the only one you carry. Confirm applies and saves the
 choice immediately. Vanilla always uses NEVER. The launcher accepts
 `--equip-pickups if-new|never` (saves the preference); terminal `--settings`
 uses **E Equip pickups**.
+
+### Sidearm return (D08J7C)
+
+On a ladder, chain, pole, climbing wall or ledge hang, left click swaps your
+selected weapon for the one-handed sidearm. **OPTIONS > ADVANCED > ITEMS >
+SIDEARM RETURN** decides what happens once Duke is back on the ground with the
+sidearm still out (after letting go armed or an armed pull-up). **NEVER** (the
+default): he keeps the sidearm until you choose a weapon. **AUTO**: he keeps
+the sidearm while you keep shooting, and your weapon comes back by itself
+about 0.75 seconds after your last shot; choosing a weapon yourself first
+keeps your choice. Holstering while still on a climb gives your selection back
+either way. Confirm applies and saves the choice immediately. Vanilla has no
+sidearm swap. The launcher accepts `--sidearm-return auto|never` (saves the
+preference); terminal `--settings` uses **A Sidearm return**.
 
 ### Screen flashes (D39C)
 

@@ -1,7 +1,9 @@
 # D08J7 - Shooting while mantling: research report
 
 2026-11-04. Research report (the job's first deliverable), then D08J7A,
-accepted and closed 2026-11-04 (see Closeout).
+accepted and closed 2026-11-04 (see Closeout), then D08J7B and D08J7C
+(D08J7C user-accepted 2026-11-04 at revision 3, D08J7B closed with it; the
+last sections).
 
 ## Request
 
@@ -324,6 +326,106 @@ the edge.
 - No enemies near a ledge; shot landing points in the hang were not
   measured beyond the aim counter and screenshots.
 
+## D08J7B - weapon up on landing, shorter pull-up (Done, closed with D08J7C)
+
+User decisions 2b (fire never interrupts the climb; weapon up the moment
+Duke lands) and 3 (Modernized pull-up about 1.0-1.2 s).
+
+### Behavior (Modernized only)
+
+- Fire held or clicked while Duke climbs over a lip queues his weapon: the
+  climb up the face (139), the pull-up (140), a height mantle (134-138), or
+  the hang a platform climb passes through with W held (149). The weapon is
+  the one selected before the E stow (a hang sidearm swap's own weapon, if
+  one is pending).
+- The climb never stops for it. W held in a ledge hang now climbs on through
+  held fire: no sidearm draw there (D08J7A draws when W is not held).
+- On the first ground frame the original weapon request draws it, with the
+  draw and its opening generic blend (0/1, two-handed weapons) at 2x. Held
+  fire then reaches the weapon; unarmed Cross stays off while the draw waits.
+- The pull-up 140 plays 1.6x (both tracks): 104 game frames (1.74 s) become
+  63-67 (about 1.05 s). Only the animation runner's time is scaled; events,
+  root motion and collision stay the original's.
+
+### Implementation
+
+- `climb_fire.inc`: `mantle_fire_update()` once per player update (after
+  `hang_fire_update()`). The queue is kept in the host during 134-139 and the
+  hang; the request (`+0x224 |= 4`, selection written) is set once the
+  pull-up 140 runs in mode 8, where the original keeps it and serves it on the
+  first ground frame before the upper track blends out of the mantle (set one
+  update later on the ground, the draw waited about 18 frames behind that
+  blend). After a height mantle it is set on the ground. Not during 139 or a
+  hang: the original serves the request at once in a ledge hang, which would
+  stop a platform climb in its brief hang. A holster, an own weapon, an
+  equipment change or anything but the ground (a fall) drops the queue.
+- `pullup_advance()` at the animation runner `0x80059db0`: lower track (ra
+  `0x8005a3d4`, delta at the update's sp-0x30, a3 0) and upper track when it
+  plays 140 (ra `0x8005a5a8`, sp-0x2e, a3 1), each once per update, as the
+  D08Z quick takeoff and crouch do. The D08J6A transition boost gains the
+  landing draw (2x) through `mantle_draw_boost`, until a weapon idle pose.
+- `pc_input.cpp`: the D08J6A climb hold yields to W in a ledge hang; Cross is
+  masked and the D08E Circle fire-draw is held off while the queued draw
+  waits (`mantle_fire_cross_masked()`). Debug `controls.mantle_fire`:
+  `queued`, `weapon`, `boost`, `queues`, `requests`, `drops`, `pullup_boosts`.
+- No new hook address, guard, generated code, framework or codegen change;
+  existing savestates load.
+
+### Verification
+
+Executable SHA-256
+`ca7d1a22bf575a6ee4d7a3c010338e6f6d641e698e416a6b1bfa540fb90aa9ab`.
+Private lab `recomp/analysis/d08j7/` (`p7b.py`, `endpos.py`, `sewer7b.py`,
+`slot9e.py`; offscreen, dummy audio, port 9612, private copies only; player
+saves, cards and settings hash-checked unchanged after every run).
+
+| Route | 60 | 120 | 180 |
+| --- | --- | --- | --- |
+| Alley W+E dumpster then platform, no fire: pull-up frames | 63, 60 | 64, 61 | 64, 62 |
+| Fire held from 139 to landing: shotgun (selected before the stow) out after landing | 0.17 s | 0.17 s | 0.17 s |
+| One 60 ms click a third into 140: shotgun out after landing | 0.20 s | 0.17 s | 0.17 s |
+| Fire through the platform's second climb and brief hang: no stop, shotgun out | 0.17 s | 0.20 s | 0.20 s |
+| User slot 9 copy, jump catch, then W + fire: pull-up, pistol out on landing, hang draws 0 | 67 frames, 0 | 66, 0 | 66, 0 |
+
+"Out" is equipment 2; the ready pose follows about 0.25 s later for the
+shotgun. Before: fire during the climb was dropped (the weapon came out only
+if fire was still held on the ground, through D08E), and the pull-up was 104
+frames. First person (60): the same outcomes. Slot-12 sewer ledge (D08V copy,
+turn 180, W+E): pull-up 64 frames, pistol out 2 frames after landing, end
+position identical with and without fire.
+
+End position, A/B against the same build with the speed-up off (W+E until
+140 starts, then all keys released, standing position 2.5 s later, twice
+each): dumpster `[6667, -10739, 13823]` in both; platform pull-up from the
+saved hang `[7262, -11763/-11764, 13735]` without and `[7264, -11762, 13749]`
+with the speed-up (14 units along one axis, reproducible).
+
+Regressions on this binary: D08J7A hang routes (`cand.py`: 5 rounds and 5
+view shots, A shimmy 481 with the shotgun selection back, W pull-up, S and
+Space armed drops with the shotgun drawn back, click draws only) and D08J6A
+(alley ladder W, D35F chain S, D35I1 wall S) match their previous runs.
+Native suites pass: `ttk-controls-test` (145 groups; new D08J7B group: queue
+in 139 without a request, no hang draw with W held, request in 140, 2x
+landing draw until the idle pose, height mantle served on the ground,
+refusals for armed, no weapon and Vanilla, drops on a fall and the holster,
+pull-up 1.6x on both tracks once per update, other clips/modes and Vanilla
+unchanged), `ttk-input-test` under Xvfb (W climbs on in a hang through held
+fire; Cross masked while the draw waits), `ttk-aim-test`, `ttk-near-test`.
+
+### Limits
+
+- Vanilla was not driven live: the test input file works only in Modernized.
+  Every change is behind `input_modernized()` and covered by the native
+  Vanilla checks.
+- The faster pull-up moves the platform end 14 units along one axis (not
+  seen on the dumpster or in the sewer); the cause (per-update collision
+  versus animation time) was not traced.
+- Climbing-wall and chain top exits (206, 196) and ladder exits are not
+  mantles: fire there is not queued (D08J6A owns those climbs).
+- No enemies were framed during a mantle; the landing draw was measured by
+  equipment, pose and timing only.
+- The armed hang's W pull-up without fire (D08J7A) still lands holstered.
+
 ## Closeout
 
 2026-11-04. User: "excellent work. lock it in and close it out!". D08J7A is
@@ -331,3 +433,269 @@ Done. The mantle stage (2b: weapon up on landing; 3: pull-up about 1.0-1.2 s)
 is the new job D08J7B. The runtime patch re-export was unchanged (no framework
 edits). No gameplay edits, builds or launches after acceptance; no player data
 touched.
+
+## D08J7C - one-handed armed pull-up and the sidearm return (Done, user-accepted 2026-11-04)
+
+User, reviewing D08J7B: "i think Duke could mantle up with 1 hand with the
+sidearm out you know". Decisions (2026-11-04): W in an armed hang (sidearm
+only) always pulls up one-handed, firing or not; the D08J7B speed; shots in
+the late phase only (knee on the lip to standing); one sidearm return rule
+for the armed pull-up, the D08J7A armed drop and the D08J6A armed let-go
+(option C with D's cancel).
+
+### Behavior (Modernized only)
+
+- In a settled ledge hang with the sidearm out, W pulls Duke up one-handed:
+  no holster step, firing or not. The body, legs, head and off hand play the
+  pull-up 140 (1.6x, D08J7B); the gun arm keeps the sidearm's pose. Another
+  weapon drawn in a hang (the original Circle draws the selection) still
+  holsters first; A/D still holster and shimmy; holstered pull-ups are
+  unchanged.
+- Shots: refused while the chest is below the lip (pull-up frames 0-5 of 10,
+  and the hang once W is held), allowed and view-aimed from frame 6 (knee on
+  the lip) until Duke stands. He lands with the sidearm out.
+- Sidearm return: back on the ground with a swapped sidearm out (armed
+  pull-up, D08J7A armed drop, D08J6A armed let-go), Duke keeps it while the
+  player keeps shooting; 0.75 s after the last fire (real time, the same at
+  60/120/180) the swapped weapon is requested. Taps closer than that never
+  start it. A number key, the wheel, previous/next/last weapon cancel it.
+- Fire during the swap: the original switch is not interrupted (holster 6,
+  draw 21 run to the end); held fire then fires the new weapon as soon as it
+  is up (shotgun: first shot about 0.3 s after its draw starts, 0.84 s after
+  the swap began). No host change was made there.
+
+### Why the original refuses, and the per-channel pose
+
+- The hang handler `0x800471ec` (anims 147-153, jump table `0x80014070`)
+  starts the pull-up for 149 at `0x8004728c`: it refuses when the upper
+  animation (`+0x74`) carries table flag 8 (a weapon pose), `+0x224 & 0x200000`
+  or `& 0x241`; with Up in the history word it calls the pull-up test
+  `0x8007d240` and writes 140 to the lower track. The equipment byte is not
+  tested.
+- The model mixes four channels per joint group (note 188): 0 root and legs
+  (`+0x60`), 1 right arm (`+0x74`, the "upper" track), 2 left arm (`+0x88`), 3
+  chest/head (`+0x9c`). The sidearm poses fill channel 1 only, so with the
+  sidearm block on `+0x74` and 140 on the others, the body and the off hand pull
+  up while the gun arm holds the pistol: no new animation was needed for the
+  prototype. Channels 2 and 3 stay in step with channel 0 (frame offsets 30 and
+  10 throughout the 1.6x pull-up).
+
+### Implementation
+
+- `climb_fire.inc`: the D08J7A drop handoff also serves the pull-up. W held
+  (`hang_pullup_armed_ready`: hang lease, equipment 2, base weapon 4, a sidearm
+  pose other than draw/stow 6/7, no request) writes the hang pose 149 to the
+  upper track for one player update; the original then starts 140; at the
+  next update the kept 0x14-byte sidearm block comes back (or, refused, Duke
+  still hangs with it). The pull-up's first lower frame is kept;
+  `armed_pullup_fire_masked()` (handoff or frames 0-5) and
+  `armed_pullup_shot_ready()` (frame 6 on, camera owner) gate fire, and
+  `climb_shot_ready()` admits the late phase for view-aimed shots.
+  `hang_fire_update()` now runs before `ledge_pullup_retry()` (D08T8), which
+  accepts the handoff update: the alley platform is a climbable object whose
+  original pull-up test fails and the host retry pulls up.
+- `climb_fire_ground_restore()`: waits `sidearm_return_ms` (750) after the
+  last fire seen with a swap pending (`input_clock_ms`); `climb_swap_cancel()`
+  from `select_weapon` on any weapon choice command, before the return check.
+- `pc_input.cpp`: `hang_pullup_input_ready()` sends original Up while W is
+  held in the armed sidearm hang (the pose test would miss the handoff update
+  itself, where Up must reach the game); no stow tap; Cross masked while the
+  handoff or the early pull-up runs.
+- Debug `controls.climb_fire`: `armed_pullup`, `armed_pullup_late`,
+  `armed_pullups`, `armed_pullup_restores`, `return_waits`, `return_cancels`.
+- No new hook address, guard, generated code, framework or codegen change;
+  existing savestates load. Vanilla: every path is behind `input_modernized()`.
+
+### Verification
+
+Executable SHA-256
+`908d46a985d9ceb4ec56ae61ef3c655f7d7f1627d09cdf7e2a0072d39e62b3d6`.
+Private lab `recomp/analysis/d08j7/` (`p7c.py`, `geo7c.py`, `ret7c.py`,
+`slot9f.py`, `sewer7c.py`, `van7c.py`; offscreen, dummy audio, private copies
+only; player saves, cards and settings hash-checked unchanged after every
+run).
+
+Lip height (`geo7c.py`, joint world positions `[player+0x3c]` against the
+ledge top `+0x1c8`, alley platform): the chest crosses the lip between
+pull-up frames 4 and 5, the knee between 5 and 6.
+
+| Saved platform hang, shotgun selected, fire draws the sidearm, then W + fire | 60 | 120 | 180 |
+| --- | --- | --- | --- |
+| Pull-up game frames (third / first person) | 62 / 65 | 64 / 65 | 62 / 64 |
+| Rounds in frames 0-5 / from frame 6, view-aimed | 0 / 1, 1 | 0 / 1, 1 | 0 / 1, 1 |
+| Lands with the sidearm out (weapon 4) | yes | yes | yes |
+| Swapped shotgun requested after fire release (pull-up route) | 0.81 s | 0.82 s | 0.80 s |
+| Five taps 0.53 s apart: no swap; after the last | 0.79 s | 0.78 s | 0.78 s |
+| `1` pressed 0.3 s after release: return cancelled | yes | yes | yes |
+| D08J7A armed drop (S): shotgun back after landing | 1.47 s | 1.47 s | 1.47 s |
+
+Without fire: W pulls up armed at once (no holster), lands with the pistol,
+and the shotgun comes back on landing (fire released long before). Before
+the Cross mask covered the handoff update, one round fired at frame 2 (the
+hang's Cross reached the game during the handoff); none since. First person:
+the sidearm viewmodel stays up through the whole mantle view
+(`p7c-fp-sheet.png`). Side view (`p7c-side-sheet.png`): the off hand on the
+lip and the pistol arm pointing forward; before the mask, the early rounds
+hit the platform face.
+
+User slot 9 copy (`slot9f.py`, jump catch, fire draws, W + fire): pull-up 66
+frames at 60/120/180, lands armed, 6 rounds, all view-aimed (the pistol was
+already selected: no swap). The slot-12 sewer route is a direct mantle (139
+into 140, no hang), so the armed pull-up does not apply there; its D08J7B
+route was re-run unchanged (64/63 frames, pistol 2 frames after landing, the
+same end). Vanilla (`van7c.py`, raw pads): Circle draws in the hang and Up
+leaves Duke hanging armed, as in the original; no handoff.
+
+Regressions (on the candidate before the choice cancel moved ahead of the
+return check in `select_weapon`; nothing else differs):
+D08J6A alley ladder W, D35F chain S and D35I1 wall S match their D08J7B runs
+(shotgun back after landing); D08J7B `p7b.py` (pull-up 59-64 frames, shotgun
+up 0.17-0.20 s after landing); D08J7A `cand.py` (5 rounds and view shots, A
+shimmy with the shotgun back, S/Space armed drops, click draws only). Its W
+case now pulls up armed instead of holstering (the intended change). Native:
+`ttk-controls-test` 146 groups (new D08J7C group: input gate, handoff gates
+and blocks, mid-shot handoff, block restore over 140, the frame-6 mask and
+shot boundary, the end of the pull-up, refused handoff, the 0.75 s return
+with a tap restarting it, the choice cancel, Vanilla), `ttk-input-test` under
+Xvfb (W in the armed sidearm hang is Up with no stow tap, Cross masked),
+`ttk-aim-test`, `ttk-near-test`.
+
+### Limits
+
+- Pose prototype: the gun arm plays the sidearm's own idle/fire poses over
+  the pull-up (records 5-7 not aimed at the crosshair, no lean); the Blender
+  one-handed pull-up clip (D08K1/D08K4 extra clips, shared with D08J6B) is
+  not built. Judge it in game first.
+- The late-phase boundary (frame 6 of 10) is measured on the alley platform;
+  other ledges share the clip, not checked geometrically.
+- At most one or two rounds fit in the late window at the pistol's rate.
+- Fire during the swap waits for the new weapon (the original switch is not
+  interrupted).
+- No enemies were framed: shots measured by ammo, the aim counter and
+  screenshots.
+
+### Revision 1: SIDEARM RETURN option (2026-11-04)
+
+User, on the automatic return: "i'm in 2 minds about whether we switch the gun
+back automatically", then chose to make it a setting ("option 3"), defaulting
+to the built behavior.
+
+- OPTIONS > ADVANCED > ITEMS > SIDEARM RETURN: AUTO (default, the 0.75 s rule
+  above) or NEVER (on the ground the swap is forgotten and Duke keeps the
+  sidearm until the player chooses; a holster while still attached gives the
+  selection back as before). Live (`DNTTK_SIDEARM_RETURN` through the live
+  environment), saved with CONFIRM. Profile schema 64 (`sidearm_return`,
+  migration from 63 adds `auto`), `run.py --sidearm-return auto|never`,
+  terminal `--settings` choice A. Vanilla receives `never` and has no swap.
+- Evidence: Python profile/input suites (138 tests, new
+  `SidearmReturnOptionTest`: menu, invalid values, migration, launcher,
+  Vanilla, in-game sidecar); native D08J7C group adds the NEVER case; live
+  private alley hang with the profile set to never: armed pull-up and armed
+  drop keep the pistol (no return requested), and auto still returns the
+  shotgun about 0.73 s after release. Executable
+  `87d8b01d982d8a872c17b0770f749214cfe1a4e5b9e2bdae9f8fa521e042dbaa`.
+
+The arm flicker and legs-only body the user reported in the slot 9 first-person
+hang predate this job (the same on the D08J7B build); they are job D36H9
+(torso to be added, user decision).
+
+### Revision 2: one-handed pull-up clip, NEVER default (2026-11-04)
+
+User: "i wanna go for a proper one handed look to this. And i think never
+should be the default :( ... we should leave the option there".
+
+- SIDEARM RETURN defaults to NEVER. Profile schema 65: a schema 64 `auto`
+  (the revision 1 default) migrates to `never` once; a schema 65 `auto` is
+  the player's choice and stays. The menu row, `run.py --sidearm-return`,
+  terminal choice A and the native fallback (unset = NEVER, `climb_fire.inc`)
+  follow. AUTO is unchanged.
+- Clip: `recomp/tools/local/ttk_onehand_pullup.py` builds the upper body
+  (ROT ids 9, 16, 10-15) of a one-handed pull-up frame for frame with 140 on
+  Duke's skeleton, from 140's own pose (frames that leave a joint out carry
+  the previous frame's value, as the channel blend does): the chest yawed 22,
+  rolled 12 and pitched 6 degrees onto the left arm (full to frame 4, then
+  0.8/0.55/0.3/0.12/0 as he stands); the left hand two-bone IK-solved onto
+  140's lip contact moved 35% of the way to the hands' midpoint, keeping
+  140's hand orientation and elbow direction; the head keeping 140's world
+  orientation; the gun wrist at chest-space (135, -235, 25) with the muzzle
+  12 degrees forward of straight up and the sights toward Duke (elbow out
+  and down), blending into the pistol idle (animation 5) to reach it at frame
+  6. It is host extra clip 41 in `ttk-anim.pack` (`ttk_crouch_walk.py
+  --host-pack`, before the padding clip). `--render DIR` writes side, front
+  and quarter comparison sheets; `--set KEY=VALUE` tries variants.
+- Runtime `onehand_pullup.inc`: at `0x800411b8` (after the channel blend and
+  the crouch walk) while `armed_pullup_active()`, sample clip 41 at channel
+  0's previous/current frame and t (so the D08J7B 1.6x timing holds) and
+  slerp the joint records toward it with a weight ramped over 140 ms of real
+  time, in and out. Gun arm weight 1 to frame 5, 0 at frame 6 (the late shots
+  aim from the channel's own pose); chest and head left to the original aim
+  build while `+0x224 & 0x100`. Legs and root are never written. Debug
+  `controls.climb_fire`: `onehand_weight`, `onehand_phase`, `onehand_writes`.
+  `DNTTK_ONEHAND_PULLUP=0` keeps the revision 1 pose (developer A/B).
+- Evidence (private lab `recomp/analysis/d08j7/` `p7d.py`; sheets
+  `p7d-s150-sheet.png`, `p7d-s-300-sheet.png`, `p7e-s150-sheet.png`,
+  `p7d-fp-sheet.png`; offline renders `recomp/analysis/d08j7c-clip/r2/`):
+  33 pose writes per pull-up, full weight reached; left hand on the lip and
+  the pistol up beside the head in the climb, the sidearm pose from the knee
+  on the lip; fire held at 60/120/180: no round before the late phase, one
+  view-aimed round in it, lands with the sidearm; first person at 180: the
+  sidearm viewmodel stays up and the raised body arm never enters the view;
+  user slot 9 copy: 66-frame pull-up, lands armed; A/B off: 0 writes; Vanilla
+  (raw pads): Up still refused in the armed hang. Native `ttk-controls-test`
+  147 groups, `ttk-input-test`, `ttk-aim-test`, `ttk-near-test`; Python
+  profile/input 139; `test_ttk_anim.py` 17 (new: frame count, joint set,
+  encodable, left hand within 8 units of the lip target, gun wrist at the
+  high ready, gun arm equal to the pistol pose from frame 6, chest and left
+  arm back on 140 at frame 9). Executable
+  `c89d98930383a099dd60fc39fa2652d975e265d5dc5448b1ea68675e88d60b18`.
+- Limits: a procedural IK clip, not hand-keyed in Blender; the pistol mesh is
+  not in the offline render, so its muzzle direction was judged in game
+  screenshots only; one ledge geometry (alley platform) and the slot 9 catch
+  checked; no enemies framed.
+
+### Revision 3: shooting the whole way up (2026-11-04)
+
+User: "with the one handed pull up, duke actually never needs to stop
+shooting"; "proceed" on the proposal (drop the early mask, let the aim's
+cover handling decide, aim the gun arm while firing).
+
+- `climb_fire.inc`: `armed_pullup_shot_ready()` covers the whole armed
+  pull-up; `armed_pullup_fire_masked()` only the handoff update (the hang's
+  Cross must not reach the game while the original starts 140). The view
+  shot leaves from the real muzzle; the body-to-muzzle trace
+  (`weapon_aim.cpp`) pulls a muzzle behind the lip back to Duke's side, so a
+  round aimed into the ledge face hits it, over the lip or along the wall it
+  flies. `armed_pullup_view_aim()` gives the original aim look-at
+  (`0x80097a44`) the view direction during the armed pull-up, as
+  `presentation_ready()` does on the ground (view aiming, independent camera,
+  no original-aim hold); without it the chest and pistol pointed along
+  Duke's heading while the round went to the crosshair (seen with the camera
+  turned 90 degrees). The D08J7A hang is unchanged.
+- `onehand_pullup.inc`: while `+0x224 & 0x100` the gun arm's weight ramps
+  to the channel's aimed sidearm pose over 70 ms (`onehand_aim_ms`) and back
+  to the high ready after; the left arm stays on the clip, the chest and head
+  on the original aim.
+- Evidence (`p7d.py` with `FIRE=1`; sheets `p7f-fire60-sheet.png` before the
+  look-at, `p7g-fire60-sheet.png` camera turned, `p7g-n60-sheet.png` chase
+  camera, `p7g-fp-sheet.png` first person at 180): 4 view-aimed rounds through
+  the pull-up at 60/120/180 (revision 2: 1), pull-up 56-61 frames, the same
+  end position at every rate, lands armed; muzzle flash toward the crosshair;
+  user slot 9 copy with fire: 67 frames, 9 rounds (8 view-aimed), lands armed;
+  Vanilla: Up still refused. `cand.py` (D08J7A): one run fell behind real time
+  (about 149 frames in about 5 s of script time after a reload; the draw click
+  did not register; then the debug port stopped answering at a screenshot),
+  on a host at load 2.3 with an unrelated eduke32 running; it passed 5
+  reruns with identical results (not reproduced). The stalled step does not pass through the
+  pull-up code. Not established as a game fault. Native suites, Python suites
+  as revision 2. Executable `a040b2c15b2bf7426c7c9752c3e5c2e9f1565214727a401c44dbe87edfbbeaaf`.
+- Limits: the chest look-at can twist Duke's chest far from his hips when the
+  camera looks well to the side (the ground behaves the same); the left hand
+  is the clip's, relative to the aimed chest, so it can leave the lip
+  while firing sideways; no enemies framed; first person is job D08J7D.
+
+### D08J7C closeout (2026-11-04)
+
+User: "the work here is absolutely quality. legendary work. i'm really happy with it. lock it in close it out". D08J7C is Done at revision 3 and D08J7B
+is closed with it (same accepted build). First-person presentation of the
+one-handed pull-up is job D08J7D.
+

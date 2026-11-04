@@ -246,6 +246,7 @@ if(EXISTS "${TTK_DISC_IMAGE}" AND EXISTS "${TTK_DISC_EXE}")
             --host-pack "${CMAKE_CURRENT_BINARY_DIR}/ttk-anim.pack"
         DEPENDS "${TTK_DISC_IMAGE}" "${TTK_DISC_EXE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/local/ttk_crouch_walk.py"
             "${CMAKE_CURRENT_SOURCE_DIR}/tools/local/ttk_anim.py" "${CMAKE_CURRENT_SOURCE_DIR}/assets/anim/crouch-walk-mocap.json"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tools/local/ttk_onehand_pullup.py"
         VERBATIM)
     add_custom_target(ttk-anim-assets DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/ttk-anim.pack")
     add_dependencies(psx-runtime ttk-anim-assets)

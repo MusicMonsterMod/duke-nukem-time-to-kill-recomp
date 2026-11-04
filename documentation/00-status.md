@@ -36,6 +36,61 @@ gone at the look limit, solid again standing. No new hook or codegen change.
 [Note 306](306-d36h5-interaction-arm-coverage.md) D36H9 section. Executable
 `a87d304b36c72636bab815b3367ecc7ec3e974701ce7d22d63f17a9034a78ec4`.
 
+## 2026-11-04 - D08J7C accepted and closed; D08J7B closed with it
+
+User: "the work here is absolutely quality. legendary work. i'm really happy with it. lock it in close it out". D08J7C (one-handed armed pull-up with
+its own upper-body clip, shooting the whole way up, SIDEARM RETURN with NEVER
+as the default) is Done; D08J7B (weapon up on landing, the 1.6x pull-up), the
+base it is built on, is closed with it. Next first-person step: D08J7D.
+Executable `a040b2c15b2bf7426c7c9752c3e5c2e9f1565214727a401c44dbe87edfbbeaaf`.
+
+## 2026-11-04 - D08J7C revision 3: shooting the whole way up; D08J7D added (Needs playtest)
+
+User: "with the one handed pull up, duke actually never needs to stop
+shooting". The armed pull-up fires view-aimed throughout (only the handoff
+update masked); while firing the gun arm leaves the high ready and the
+original aim look-at takes the view direction, so the pistol points where
+the rounds go. New job D08J7D: the one-handed pull-up in first person.
+[Note 378](378-d08j7-mantle-fire-research.md). Executable `a040b2c15b2bf7426c7c9752c3e5c2e9f1565214727a401c44dbe87edfbbeaaf`.
+
+## 2026-11-04 - D08J7C revision 2: one-handed pull-up clip, NEVER default (Needs playtest)
+
+User, on revision 1: "i wanna go for a proper one handed look to this. And i
+think never should be the default ... we should leave the option there".
+SIDEARM RETURN now defaults to NEVER (profile schema 65; a schema 64 `auto`,
+the old default, becomes `never` once; AUTO stays selectable). The armed
+pull-up has its own one-handed upper body: host extra clip 41 in
+`ttk-anim.pack` (`ttk_onehand_pullup.py`, frame for frame with 140: chest
+leaned onto the left arm, left hand IK-solved on the lip, head on the ledge,
+pistol held muzzle up beside the head until the late phase), written on the
+joint records at `0x800411b8` by `onehand_pullup.inc`; legs and root stay on
+140. No new hook or codegen change. [Note 378](378-d08j7-mantle-fire-research.md).
+Executable `c89d98930383a099dd60fc39fa2652d975e265d5dc5448b1ea68675e88d60b18`.
+
+## 2026-11-04 - D08J7C one-handed armed pull-up, sidearm return (Needs playtest)
+
+Modernized: W in a ledge hang with the sidearm out pulls up one-handed (no
+holster, the D08J7B speed); the gun arm keeps the pistol while the body and
+off hand pull up (per-channel mixing, no new clip yet). No rounds while the
+chest is below the lip; view-aimed from the knee on the lip. The swapped
+weapon comes back 0.75 s off the trigger (armed pull-up, armed drop, armed
+let-go); a weapon choice cancels it. Revision 1: OPTIONS > ADVANCED > ITEMS >
+SIDEARM RETURN (AUTO default / NEVER keeps the sidearm), profile schema 64,
+`run.py --sidearm-return`. No new hook or codegen change. The first-person
+hang arm flicker and legs-only view predate this job: new job D36H9 (torso).
+[Note 378](378-d08j7-mantle-fire-research.md). Executable
+`87d8b01d982d8a872c17b0770f749214cfe1a4e5b9e2bdae9f8fa521e042dbaa`.
+
+## 2026-11-04 - D08J7B weapon up on landing, shorter pull-up (Needs playtest)
+
+Modernized: fire during a climb over a lip (139, 140, height mantles, or a
+W-held hang between climbs) never stops it; the weapon selected before the E
+stow comes up on the first ground frame, drawn 2x. W held in a ledge hang now
+climbs on through held fire. The pull-up plays 1.6x (about 1.05 s instead of
+1.74 s) with the same end position. No new hook or codegen change.
+[Note 378](378-d08j7-mantle-fire-research.md). Executable
+`ca7d1a22bf575a6ee4d7a3c010338e6f6d641e698e416a6b1bfa540fb90aa9ab`.
+
 ## 2026-11-04 - D08J7A accepted and closed; D08J7B added
 
 User: "excellent work. lock it in and close it out!". D08J7A (shooting from

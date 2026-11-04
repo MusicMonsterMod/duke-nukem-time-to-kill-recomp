@@ -703,6 +703,11 @@ def write_host_pack(group, path):
             if frames:
                 entries.append(dict(group=0xffff, clip=cid + (10 if upper else 0),
                                     source_sha256='00' * 32, frames=frames))
+    # D08J7C: the one-handed armed pull-up's upper body (ttk_onehand_pullup.py),
+    # frame for frame with the pull-up 140, written by climb_fire.inc.
+    import ttk_onehand_pullup
+    entries.append(dict(group=0xffff, clip=ttk_onehand_pullup.ONEHAND_CLIP, source_sha256='00' * 32,
+                        frames=ttk_onehand_pullup.frames(group)))
     # Padding after the last clip: the original stepper (0x80059db0) loops a
     # channel within the animation's own clip, so if it ever advanced a
     # host-driven channel it would walk on past the extra clips; with a weapon

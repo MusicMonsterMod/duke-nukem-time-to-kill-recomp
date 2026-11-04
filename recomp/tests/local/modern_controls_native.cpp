@@ -426,6 +426,9 @@ int main(int argc,char** argv) {
     assert(ttk::parse_action_view("first",choice) && choice==ttk::ActionView::First);
     std::puts("PASS: D35G presentation policy covers all 8192 fact combinations; denials and enum validation");
     setenv("DNTTK_DRAW_DISTANCE","extended",1);
+    // D08J7C: the sidearm return timer cases below run with AUTO (NEVER is the
+    // default; the D08J7C group checks the unset default).
+    ttk_live_env_set("DNTTK_SIDEARM_RETURN","auto");
     assert(argc>=3 && argc<=5);
     std::ifstream exe(argv[1],std::ios::binary);exe.seekg(2048);exe.read((char*)ram+0x10000,0xbb000);assert(exe.gcount()==0xbb000);
     std::ifstream overlay(argv[2],std::ios::binary);overlay.read((char*)ram+0xca968,9668);assert(overlay.gcount()==9668);
@@ -3078,7 +3081,7 @@ int main(int argc,char** argv) {
         ttk::input.held[ttk::move_back]=false;
         psx_mod_write_byte(p+0x22c,9);psx_mod_write_half(p+0x60,108);psx_mod_write_half(p+0x74,108);update();
         for(unsigned i=0;i<5;++i)assert(psx_mod_read_word(p+0x74+4*i)==block[i]);
-        assert(std::strstr(ttk::controls_debug_json(),"\"hang_drop_restores\":1}"));
+        assert(std::strstr(ttk::controls_debug_json(),"\"hang_drop_restores\":1,"));
         // Space, refused by the original (still hanging): the block comes back too.
         psx_mod_write_byte(p+0x22c,6);psx_mod_write_half(p+0x60,149);
         ttk::input.held[ttk::jump]=true;update();assert(psx_mod_read_half(p+0x74)==149);ttk::input.held[ttk::jump]=false;
@@ -3092,6 +3095,176 @@ int main(int argc,char** argv) {
         psx_mod_write_half(p+0x2c6+4*4,sidearm_ammo);psx_mod_write_half(p+0x2c4+4*4,sidearm_owned);
         ++ttk::input.sequence;call(0x8003ade4,c,p,0x80025ee8);
         std::puts("PASS: D08J7A ledge-hang fire-draw, swap return, armed drop handoff, hang gates and Vanilla");
+    }
+    {
+        // D08J7B: fire during a mantle never stops it. It queues the weapon
+        // selected before the E stow; set in the pull-up (or on the ground after
+        // a height mantle), the original request draws it on the first ground
+        // frame. The pull-up 140 runs 1.6x on both tracks.
+        auto update=[&]{call(0x8005a210,p,0x800c2754,0x80041b34,0x801fff00);};
+        auto json=[]{return std::string(ttk::controls_debug_json());};
+        const uint16_t sidearm_ammo=psx_mod_read_half(p+0x2c6+4*4),sidearm_owned=psx_mod_read_half(p+0x2c4+4*4);
+        psx_mod_write_half(p+0x2c4+4*4,sidearm_owned|1);psx_mod_write_half(p+0x2c6+4*4,20);
+        psx_mod_write_byte(p+0x22c,8);psx_mod_write_byte(p+0x22d,0);
+        psx_mod_write_half(p+0x60,139);psx_mod_write_half(p+0x74,139);
+        psx_mod_write_byte(p+0x3b8,0);psx_mod_write_byte(p+0x3ba,4);psx_mod_write_word(p+0x224,0);
+        update();assert(json().find("\"queued\":false")!=std::string::npos);
+        ttk::input.held[ttk::fire]=true;update();ttk::input.held[ttk::fire]=false;
+        // Queued, but no request while climbing (a ledge hang would serve it).
+        assert(!(psx_mod_read_word(p+0x224)&4) && json().find("\"queued\":true,\"weapon\":4,")!=std::string::npos);
+        assert(ttk::mantle_fire_cross_masked());
+        // The brief hang between the climbs of a platform, W held: still climbing.
+        psx_mod_write_byte(p+0x22c,6);psx_mod_write_half(p+0x60,149);psx_mod_write_half(p+0x74,149);
+        ttk::input.held[ttk::move_forward]=true;ttk::input.held[ttk::fire]=true;update();
+        assert(!(psx_mod_read_word(p+0x224)&4) && psx_mod_read_byte(p+0x3ba)==4); // no hang draw with W held
+        ttk::input.held[ttk::move_forward]=false;ttk::input.held[ttk::fire]=false;
+        // The pull-up: the request (served by the original on the ground), the 2x landing draw.
+        psx_mod_write_byte(p+0x22c,8);psx_mod_write_half(p+0x60,140);psx_mod_write_half(p+0x74,140);update();
+        assert((psx_mod_read_word(p+0x224)&4) && psx_mod_read_byte(p+0x3ba)==4 && json().find("\"requests\":1,")!=std::string::npos);
+        assert(json().find("\"boost\":true")!=std::string::npos && ttk::mantle_fire_cross_masked());
+        psx_mod_write_byte(p+0x22c,0);psx_mod_write_half(p+0x60,72);psx_mod_write_half(p+0x74,72);
+        {
+            CPUState draw{};draw.gpr[29]=0x801ffeb0;draw.gpr[31]=0x8005a5a8;
+            draw.gpr[4]=p+0x74;draw.gpr[5]=p;draw.gpr[6]=0x801fff00-0x2e;draw.gpr[7]=1;
+            psx_mod_write_word(p+0x224,0);psx_mod_write_half(p+0x74,6);
+            ttk::input.sequence+=1;update();psx_mod_write_half(0x801fff00-0x2e,100);
+            hooks().at(0x80059db0)(&draw,0x80059db0);assert(psx_mod_read_half(0x801fff00-0x2e)==200);
+        }
+        psx_mod_write_byte(p+0x3b8,2);psx_mod_write_half(p+0x74,21);update();
+        assert(!ttk::mantle_fire_cross_masked() && json().find("\"boost\":true")!=std::string::npos); // drawing
+        psx_mod_write_half(p+0x74,5);update();assert(json().find("\"boost\":false")!=std::string::npos);
+        // A height mantle is served on the ground.
+        psx_mod_write_byte(p+0x3b8,0);psx_mod_write_byte(p+0x22c,8);psx_mod_write_half(p+0x60,136);psx_mod_write_half(p+0x74,136);
+        ttk::input.held[ttk::fire]=true;update();ttk::input.held[ttk::fire]=false;assert(!(psx_mod_read_word(p+0x224)&4));
+        psx_mod_write_byte(p+0x22c,0);psx_mod_write_half(p+0x60,63);psx_mod_write_half(p+0x74,63);update();
+        assert((psx_mod_read_word(p+0x224)&4) && json().find("\"requests\":2,")!=std::string::npos);
+        psx_mod_write_word(p+0x224,0);psx_mod_write_byte(p+0x3b8,2);psx_mod_write_half(p+0x74,5);update();
+        // Refusals: no usable weapon, already armed, Vanilla; a fall or the
+        // holster drops the queue.
+        psx_mod_write_byte(p+0x22c,8);psx_mod_write_half(p+0x60,139);psx_mod_write_half(p+0x74,139);
+        ttk::input.held[ttk::fire]=true;update();assert(json().find("\"queues\":2,")!=std::string::npos); // armed
+        psx_mod_write_byte(p+0x3b8,0);psx_mod_write_byte(p+0x3ba,0);update();assert(json().find("\"queues\":2,")!=std::string::npos);
+        psx_mod_write_byte(p+0x3ba,4);ttk::modern=false;update();ttk::modern=true;assert(json().find("\"queues\":2,")!=std::string::npos);
+        update();ttk::input.held[ttk::fire]=false;assert(json().find("\"queues\":3,")!=std::string::npos);
+        psx_mod_write_byte(p+0x22c,9);psx_mod_write_half(p+0x60,107);update();
+        assert(!(psx_mod_read_word(p+0x224)&4) && json().find("\"drops\":1,")!=std::string::npos);
+        psx_mod_write_byte(p+0x22c,8);psx_mod_write_half(p+0x60,139);ttk::input.held[ttk::fire]=true;update();ttk::input.held[ttk::fire]=false;
+        ttk::input.held[ttk::holster]=true;psx_mod_write_byte(p+0x22c,0);psx_mod_write_half(p+0x60,72);update();ttk::input.held[ttk::holster]=false;
+        assert(!(psx_mod_read_word(p+0x224)&4) && json().find("\"drops\":2,")!=std::string::npos);
+        // Pull-up: lower and upper 1.6x, once per update; other clips, modes and Vanilla unchanged.
+        CPUState lower{};lower.gpr[29]=0x801ffeb0;lower.gpr[31]=0x8005a3d4;
+        lower.gpr[4]=p+0x60;lower.gpr[5]=p;lower.gpr[6]=0x801fff00-0x30;lower.gpr[7]=0;
+        CPUState upper{};upper.gpr[29]=0x801ffeb0;upper.gpr[31]=0x8005a5a8;
+        upper.gpr[4]=p+0x74;upper.gpr[5]=p;upper.gpr[6]=0x801fff00-0x2e;upper.gpr[7]=1;
+        auto run=[&](CPUState& c,unsigned anim,unsigned mode){
+            psx_mod_write_byte(p+0x22c,mode);psx_mod_write_half(p+0x60,anim);psx_mod_write_half(p+0x74,anim);update();
+            psx_mod_write_half(c.gpr[6],100);hooks().at(0x80059db0)(&c,0x80059db0);return psx_mod_read_half(c.gpr[6]);};
+        assert(run(lower,140,8)==160);
+        hooks().at(0x80059db0)(&lower,0x80059db0);assert(psx_mod_read_half(lower.gpr[6])==160);
+        assert(run(upper,140,8)==160);
+        assert(run(lower,139,8)==100 && run(lower,140,0)==100 && run(lower,149,6)==100);
+        ttk::modern=false;assert(run(lower,140,8)==100);ttk::modern=true;
+        assert(json().find("\"pullup_boosts\":1}")!=std::string::npos);
+        psx_mod_write_byte(p+0x22c,0);psx_mod_write_byte(p+0x22d,0);psx_mod_write_half(p+0x60,63);
+        psx_mod_write_byte(p+0x3b8,2);psx_mod_write_byte(p+0x3b9,4);psx_mod_write_half(p+0x74,5);psx_mod_write_word(p+0x224,0);
+        psx_mod_write_half(p+0x2c6+4*4,sidearm_ammo);psx_mod_write_half(p+0x2c4+4*4,sidearm_owned);
+        ++ttk::input.sequence;call(0x8003ade4,c,p,0x80025ee8);
+        std::puts("PASS: D08J7B mantle fire queue, landing draw request and 2x draw, refusals, pull-up 1.6x and Vanilla");
+    }
+    {
+        // D08J7C: W in a ledge hang with the sidearm out pulls up one-handed.
+        // The hang pose takes the upper track for one update (the original
+        // pull-up check refuses a weapon pose), then the sidearm block comes
+        // back over the pull-up 140. Only the handoff update masks Cross; the
+        // whole pull-up then takes view-adapted shots (revision 3). Back on the ground the
+        // swapped weapon returns 0.75 s off the trigger; a weapon choice cancels it.
+        auto update=[&]{call(0x8005a210,p,0x800c2754,0x80041b34,0x801fff00);};
+        auto json=[]{return std::string(ttk::controls_debug_json());};
+        auto select=[&]{++ttk::input.command_serial;call(0x80058120,p,0,0x80041c44,0x801ff000);};
+        const uint16_t sidearm_ammo=psx_mod_read_half(p+0x2c6+4*4),sidearm_owned=psx_mod_read_half(p+0x2c4+4*4);
+        psx_mod_write_half(p+0x2c4+4*4,sidearm_owned|1);psx_mod_write_half(p+0x2c6+4*4,20);
+        auto hang_draw=[&]{
+            psx_mod_write_byte(p+0x22c,6);psx_mod_write_byte(p+0x22d,6);psx_mod_write_half(p+0x60,149);psx_mod_write_half(p+0x74,149);
+            psx_mod_write_byte(p+0x3b8,0);psx_mod_write_byte(p+0x3b9,4);psx_mod_write_byte(p+0x3ba,5);psx_mod_write_word(p+0x224,0);
+            ++ttk::input.sequence;call(0x8003ade4,c,p,0x80025ee8);
+            ttk::input.held[ttk::fire]=true;update();ttk::input.held[ttk::fire]=false;
+            assert(psx_mod_read_byte(p+0x3ba)==4 && json().find("\"swap_from\":5,")!=std::string::npos);
+            psx_mod_write_word(p+0x224,0);psx_mod_write_byte(p+0x3b8,2);psx_mod_write_half(p+0x74,5);
+        };
+        hang_draw();
+        // Input: Up while W is held, any sidearm pose; never another weapon, holstered or Vanilla.
+        assert(ttk::hang_pullup_input_ready(true) && !ttk::hang_pullup_input_ready(false));
+        psx_mod_write_byte(p+0x3b9,5);assert(!ttk::hang_pullup_input_ready(true));psx_mod_write_byte(p+0x3b9,4);
+        psx_mod_write_byte(p+0x3b8,0);assert(!ttk::hang_pullup_input_ready(true));psx_mod_write_byte(p+0x3b8,2);
+        ttk::modern=false;assert(!ttk::hang_pullup_input_ready(true));ttk::modern=true;
+        // The handoff waits for a sidearm pose (not a draw/stow) and no request; holster/E refuse it.
+        ttk::input.held[ttk::move_forward]=true;ttk::input.held[ttk::fire]=true;
+        psx_mod_write_half(p+0x74,6);update();assert(psx_mod_read_half(p+0x74)==6);
+        psx_mod_write_half(p+0x74,5);psx_mod_write_word(p+0x224,4);update();assert(psx_mod_read_half(p+0x74)==5);psx_mod_write_word(p+0x224,0);
+        for(unsigned blocked : {(unsigned)ttk::holster,(unsigned)ttk::interact,(unsigned)ttk::move_back}) {
+            ttk::input.held[blocked]=true;update();assert(psx_mod_read_half(p+0x74)==5);ttk::input.held[blocked]=false;
+        }
+        psx_mod_write_half(p+0x74,10); // mid-shot: still one-handed
+        uint32_t block[5];for(unsigned i=0;i<5;++i)block[i]=psx_mod_read_word(p+0x74+4*i);
+        update();
+        assert(psx_mod_read_half(p+0x74)==149 && psx_mod_read_half(p+0x7c)==0 && ttk::hang_pullup_handoff() && ttk::armed_pullup_fire_masked());
+        const std::string drops_before=json().substr(json().find("\"hang_drops\":"),16);
+        assert(json().find("\"armed_pullups\":1,")!=std::string::npos);
+        // The original started the pull-up: the sidearm block comes back over 140.
+        psx_mod_write_byte(p+0x22c,8);psx_mod_write_byte(p+0x22d,6);psx_mod_write_half(p+0x60,140);psx_mod_write_half(p+0x66,1479);
+        psx_mod_write_half(p+0x74,140);update();
+        for(unsigned i=0;i<5;++i)assert(psx_mod_read_word(p+0x74+4*i)==block[i]);
+        assert(json().find("\"armed_pullup\":true,")!=std::string::npos && json().find("\"armed_pullup_restores\":1,")!=std::string::npos);
+        assert(json().substr(json().find("\"hang_drops\":"),16)==drops_before); // not a drop
+        psx_mod_write_byte(p+0x22d,8);
+        // Every pull-up frame, chest below the lip or not: no mask, view shots.
+        for(unsigned frame : {1479u,1482u,1484u,1485u,1488u}) {
+            psx_mod_write_half(p+0x66,frame);assert(!ttk::armed_pullup_fire_masked() && ttk::climb_shot_ready());
+        }
+        ttk::modern=false;assert(!ttk::armed_pullup_fire_masked() && !ttk::climb_shot_ready());ttk::modern=true;
+        psx_mod_write_byte(p+0x3b8,0);assert(!ttk::climb_shot_ready());psx_mod_write_byte(p+0x3b8,2);
+        // Landed: the pull-up is over; its shots and mask with it.
+        ttk::input.held[ttk::move_forward]=false;
+        psx_mod_write_byte(p+0x22c,0);psx_mod_write_byte(p+0x22d,0);psx_mod_write_half(p+0x60,72);psx_mod_write_half(p+0x74,5);update();
+        assert(json().find("\"armed_pullup\":false,")!=std::string::npos && !ttk::armed_pullup_fire_masked());
+        psx_mod_write_byte(p+0x22c,8);psx_mod_write_half(p+0x60,140);psx_mod_write_half(p+0x66,1486);assert(!ttk::climb_shot_ready());
+        // Return: kept while fire is held and for 0.75 s after it.
+        psx_mod_write_byte(p+0x22c,0);psx_mod_write_half(p+0x60,63);psx_mod_write_word(p+0x224,0);
+        ++ttk::input.sequence;call(0x8003ade4,c,p,0x80025ee8);assert(ttk::movement_ready());
+        select();assert(psx_mod_read_byte(p+0x3ba)==4); // fire still held
+        ttk::input.held[ttk::fire]=false;
+        ttk::clock_ms+=500;select();assert(psx_mod_read_byte(p+0x3ba)==4 && !(psx_mod_read_word(p+0x224)&4));
+        assert(json().find("\"return_waits\":1,")!=std::string::npos);
+        ttk::input.held[ttk::fire]=true;select();ttk::input.held[ttk::fire]=false; // a tap restarts the pause
+        ttk::clock_ms+=500;select();assert(psx_mod_read_byte(p+0x3ba)==4);
+        ttk::clock_ms+=300;select();
+        assert(psx_mod_read_byte(p+0x3ba)==5 && (psx_mod_read_word(p+0x224)&4) && json().find("\"swap_from\":-1,")!=std::string::npos);
+        // Refused by the original (still hanging): the block comes back, no pull-up tracked.
+        hang_draw();ttk::input.held[ttk::move_forward]=true;update();assert(psx_mod_read_half(p+0x74)==149);
+        ttk::input.held[ttk::move_forward]=false;update();
+        assert(psx_mod_read_half(p+0x74)==5 && json().find("\"armed_pullup\":false,")!=std::string::npos && !ttk::armed_pullup_fire_masked());
+        // A weapon choice cancels the pending return (D08J7A armed drop here).
+        psx_mod_write_byte(p+0x22c,0);psx_mod_write_byte(p+0x22d,0);psx_mod_write_half(p+0x60,63);psx_mod_write_word(p+0x224,0);
+        ++ttk::input.sequence;call(0x8003ade4,c,p,0x80025ee8);
+        ttk::input.commands[0]=ttk::weapon_group_3;ttk::input.command_count=1;select();ttk::input.command_count=0;
+        assert(json().find("\"swap_from\":-1,")!=std::string::npos && json().find("\"return_cancels\":1,")!=std::string::npos);
+        psx_mod_write_word(p+0x224,0);
+        ttk::clock_ms+=1000;select();assert(!(psx_mod_read_word(p+0x224)&4));
+        // OPTIONS > SIDEARM RETURN NEVER (the default, unset here): the sidearm
+        // stays, the swap is forgotten.
+        ttk_live_env_set("DNTTK_SIDEARM_RETURN",nullptr);
+        hang_draw();
+        psx_mod_write_byte(p+0x22c,0);psx_mod_write_byte(p+0x22d,0);psx_mod_write_half(p+0x60,63);psx_mod_write_word(p+0x224,0);
+        ++ttk::input.sequence;call(0x8003ade4,c,p,0x80025ee8);
+        ttk::clock_ms+=1000;select();
+        assert(psx_mod_read_byte(p+0x3ba)==4 && !(psx_mod_read_word(p+0x224)&4) && json().find("\"swap_from\":-1,")!=std::string::npos);
+        ttk_live_env_set("DNTTK_SIDEARM_RETURN","auto");
+        psx_mod_write_byte(p+0x22c,0);psx_mod_write_byte(p+0x22d,0);psx_mod_write_half(p+0x60,63);
+        psx_mod_write_byte(p+0x3b8,2);psx_mod_write_byte(p+0x3b9,4);psx_mod_write_half(p+0x74,5);psx_mod_write_word(p+0x224,0);
+        psx_mod_write_byte(p+0x3ba,4);
+        psx_mod_write_half(p+0x2c6+4*4,sidearm_ammo);psx_mod_write_half(p+0x2c4+4*4,sidearm_owned);
+        ++ttk::input.sequence;call(0x8003ade4,c,p,0x80025ee8);
+        std::puts("PASS: D08J7C armed one-handed pull-up handoff, handoff-only fire mask and view shots throughout, sidearm return timer, choice cancel, SIDEARM RETURN NEVER default and Vanilla");
     }
     {
         // D08Q5: in flight (mode 10) weapon groups, the wheel and X reach the
@@ -5317,7 +5490,7 @@ int main(int argc,char** argv) {
                 const std::vector<uint8_t> old_mats(ram+(mats&0x1fffff),ram+(mats&0x1fffff)+19*32);
                 uint8_t old_camera[32];std::memcpy(old_camera,ram+(c&0x1fffff),32);
                 const auto held=psx_mod_read_byte(p+0x3b8);psx_mod_write_byte(p+0x3b8,0);
-                // D36H9: ledge shoulders may follow Duke's heading; face the identity camera.
+                // D36H9: ledge shoulders follow Duke's heading; face the identity camera.
                 const auto heading=psx_mod_read_half(p+0x1c);psx_mod_write_half(p+0x1c,0);
                 for(const auto* costume:{first_map,cowboy})for(unsigned distance:{100u,300u,550u}) {
                     layout(costume);

@@ -859,9 +859,13 @@ by itself once you have been off the trigger for about 0.75 seconds (see
 Sidearm return below). Press **W/S** (or **A/D**) to
 climb on: Duke holsters by himself and keeps climbing. **Space** lets go with
 the weapon out. With no sidearm ammo, left click does nothing on a climb.
-Number keys do not change weapons on a climb. Duke still uses the game's
-ordinary weapon pose for now (a proper one-handed hang-and-aim pose is coming).
-Vanilla is unchanged.
+Number keys do not change weapons on a climb. In third person Duke keeps one
+hand on the rung, chain or wall hold while the sidearm is out: his chest and
+head turn toward where you aim (up to about 50 degrees for the chest), and
+while firing the gun arm points at the crosshair (up to about 110 degrees to
+his right and 60 to his left; further round, the rounds still go to the
+crosshair but the arm stops at its limit). The first-person view is unchanged
+for now. Vanilla is unchanged.
 
 **Shooting from a ledge hang (Modernized, D08J7).**
 Hanging from a ledge, hold **left click**: Duke keeps one hand on the lip,

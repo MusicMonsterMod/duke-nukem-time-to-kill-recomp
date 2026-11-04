@@ -3267,6 +3267,146 @@ int main(int argc,char** argv) {
         std::puts("PASS: D08J7C armed one-handed pull-up handoff, handoff-only fire mask and view shots throughout, sidearm return timer, choice cancel, SIDEARM RETURN NEVER default and Vanilla");
     }
     {
+        // D08J6B: the hang-and-aim pose. Sidearm out on a mode 3 climb under
+        // view aiming: the chest turns toward the view within 50 degrees, the
+        // off-hand arm is solved back onto its climb-clip contact (shoulder
+        // swing, elbow bend, hand grip kept), the head turns, and while the
+        // original aims the head look-at and the one-arm aim (+0x124, lent for
+        // the gun shoulder only) take the clamped view direction.
+        const uint32_t attached=psx_mod_read_word(p+0x17c),old_model=psx_mod_read_word(p+0x40);
+        const uint16_t heading=psx_mod_read_half(p+0x1c),view[3]={psx_mod_read_half(c+12),psx_mod_read_half(c+14),psx_mod_read_half(c+16)};
+        setenv("DNTTK_WEAPON_AIM","view",1);setenv("DNTTK_CAMERA_MODE","independent",1);
+        // A 19-joint model: pelvis, chest (part 9, depth 2), left arm 0x0a-0x0c
+        // (depth 3-5), right arm 0x0d-0x0f, head (part 0x10, depth 3).
+        constexpr uint32_t model=0x801e9000;
+        const unsigned parts[19]={0,9,0x0a,0x0b,0x0c,0x0d,0x0e,0x0f,0x14,0x10,1,2,3,4,5,6,7,8,0x11};
+        const unsigned depth[19]={1,2,3,4,5,3,4,5,3,3,2,3,4,5,2,3,4,5,3};
+        for(uint32_t i=0;i<0x44+0x28*19;++i)psx_mod_write_byte(model+i,0);
+        psx_mod_write_byte(model,19);
+        for(unsigned j=0;j<19;++j) {
+            psx_mod_write_byte(model+0x24+parts[j],j);psx_mod_write_byte(model+0x44+0x28*j+1,parts[j]);
+            psx_mod_write_byte(model+0x44+0x28*j+2,depth[j]);
+        }
+        const int tf[3]={0,130,0},th[3]={0,0,128};
+        for(int i=0;i<3;++i) {
+            psx_mod_write_word(model+0x44+0x28*3+0x14+4*i,(uint32_t)tf[i]);
+            psx_mod_write_word(model+0x44+0x28*4+0x14+4*i,(uint32_t)th[i]);
+        }
+        psx_mod_write_word(p+0x40,model);
+        psx_mod_write_word(p+0x17c,0x801d9fe4);
+        psx_mod_write_byte(p+0x22c,3);psx_mod_write_byte(p+0x22d,3);
+        psx_mod_write_half(p+0x60,187);psx_mod_write_half(p+0x74,5);psx_mod_write_half(p+0x1c,0);
+        psx_mod_write_byte(p+0x3b8,2);psx_mod_write_byte(p+0x3b9,4);psx_mod_write_byte(p+0x3ba,4);psx_mod_write_word(p+0x224,0);
+        // View 90 degrees to Duke's right (+X; he faces +Z).
+        psx_mod_write_half(c+12,4096);psx_mod_write_half(c+14,0);psx_mod_write_half(c+16,0);
+        ++ttk::input.sequence;call(0x8003ade4,c,p,0x80025ee8);
+        assert(ttk::climb_weapon_ready() && ttk::climb_shot_ready());
+        auto json=[&](){return std::string(ttk::controls_debug_json());};
+        auto begin=[&](uint32_t ra=0x80042634){ttk::clock_ms+=200;call(0x800411b8,p,0,ra);};
+        // Real-time ramp: steps are capped at 100 ms, the ramp is 160 ms.
+        begin();begin();begin();
+        assert(json().find("\"climb_aim\":{\"set\":true,\"weight\":1.000,")!=std::string::npos);
+        assert(json().find("\"chest_yaw\":0.873,\"head_yaw\":1.222,\"dir\":[1.000,0.000,0.000]")!=std::string::npos);
+        // Matrices: row-major Q12, translation at +0x14.
+        using M=std::array<std::array<double,3>,3>;
+        auto put=[&](uint32_t a,const M& m,const double* t=nullptr) {
+            for(int i=0;i<3;++i)for(int j=0;j<3;++j)psx_mod_write_half(a+2*(3*i+j),(uint16_t)(int16_t)std::lround(m[i][j]*4096));
+            for(int i=0;i<3;++i)psx_mod_write_word(a+0x14+4*i,(uint32_t)(int32_t)std::lround(t?t[i]:0));
+        };
+        auto get=[&](uint32_t a){M m{};for(int i=0;i<3;++i)for(int j=0;j<3;++j)m[i][j]=(int16_t)psx_mod_read_half(a+2*(3*i+j))/4096.0;return m;};
+        auto mul=[](const M& a,const M& b){M m{};for(int i=0;i<3;++i)for(int j=0;j<3;++j)for(int k=0;k<3;++k)m[i][j]+=a[i][k]*b[k][j];return m;};
+        auto mv=[](const M& m,const double* v,double* o){for(int i=0;i<3;++i)o[i]=m[i][0]*v[0]+m[i][1]*v[1]+m[i][2]*v[2];};
+        const M id{{{1,0,0},{0,1,0},{0,0,1}}};
+        const double ce=std::cos(1.0),se=std::sin(1.0);
+        const M bend{{{1,0,0},{0,ce,-se},{0,se,ce}}}; // the clip's elbow
+        const double ts[3]={-100,-160,0};
+        auto compose=[&](unsigned joint,uint32_t parent,uint32_t local,uint32_t out,uint32_t ra=0x8009899c,uint32_t actor=0) {
+            if(!actor)actor=p;
+            CPUState cpu{};cpu.gpr[29]=0x801f0000;cpu.gpr[31]=ra;cpu.gpr[4]=parent;cpu.gpr[5]=local;cpu.gpr[6]=out;
+            cpu.gpr[ra==0x8009899c?16:17]=model+0x44+0x28*joint;cpu.gpr[21]=actor;
+            hooks().at(0x800b42ec)(&cpu,0x800b42ec);
+        };
+        constexpr uint32_t L=0x1f800300;
+        // One build: the chest turn, then the left arm (shoulder, forearm, hand).
+        auto build=[&](M& ws,M& wf,M& wh,double* hand) {
+            put(0x1f800020,id);put(L,id);compose(1,0x1f800020,L,0x1f800040);
+            const M chest=get(L);put(0x1f800040,chest);
+            put(L,id,ts);compose(2,0x1f800040,L,0x1f800060);
+            ws=mul(chest,get(L));double s[3];mv(chest,ts,s);put(0x1f800060,ws,s);
+            put(L,bend);for(int i=0;i<3;++i)psx_mod_write_word(L+0x14+4*i,(uint32_t)tf[i]);
+            compose(3,0x1f800060,L,0x1f800080);
+            wf=mul(ws,get(L));double e[3],d[3];mv(ws,(const double[]){0,130,0},d);for(int i=0;i<3;++i)e[i]=s[i]+d[i];
+            put(0x1f800080,wf,e);
+            put(L,id);compose(4,0x1f800080,L,0x1f8000a0);
+            wh=mul(wf,get(L));mv(wf,(const double[]){0,0,128},d);for(int i=0;i<3;++i)hand[i]=e[i]+d[i];
+        };
+        // The chest local is the 50 degree world turn.
+        M ws,wf,wh;double hand[3];
+        build(ws,wf,wh,hand);
+        {
+            put(0x1f800020,id);put(L,id);compose(1,0x1f800020,L,0x1f800040);const M chest=get(L);
+            assert(std::abs(chest[0][2]-std::sin(0.873))<.002 && std::abs(chest[2][0]+std::sin(0.873))<.002 && std::abs(chest[1][1]-1)<.002);
+        }
+        // Unturned reference: shoulder at ts, the hand at ts + tf + bend*th.
+        double ref[3];{double d[3];mv(bend,(const double[]){0,0,128},d);for(int i=0;i<3;++i)ref[i]=ts[i]+tf[i]+d[i];}
+        // First build had no cached forearm: the shoulder only keeps its orientation.
+        // Second build: the hand is back on its contact with its grip unchanged.
+        begin();build(ws,wf,wh,hand);
+        const double drift=std::hypot(hand[0]-ref[0],hand[1]-ref[1],hand[2]-ref[2]);
+        assert(drift<3 && json().find("\"ik_solves\":")!=std::string::npos);
+        const M wh0=bend;
+        for(int i=0;i<3;++i)for(int j=0;j<3;++j)assert(std::abs(wh[i][j]-wh0[i][j])<.01);
+        // Foreign actors, callers and joint shapes are untouched.
+        put(L,id);compose(1,0x1f800020,L,0x1f800040,0x8009899c,p+0x8a4);assert(get(L)[0][2]==0);
+        put(L,id);compose(1,0x1f800020,L,0x1f800040,0x80098998);assert(get(L)[0][2]==0);
+        put(L,id);compose(1,0x1f800000,L,0x1f800040);assert(get(L)[0][2]==0);
+        // Firing (aim bit, pose 11): +0x124 holds the clamped view for the gun
+        // shoulder only, back at the next joint's composition; the head's
+        // look-at takes the same direction.
+        for(int i=0;i<3;++i)psx_mod_write_word(p+0x124+4*i,(uint32_t)(i==2?4096:0));
+        psx_mod_write_word(p+0x224,0x100);psx_mod_write_half(p+0x74,11);begin();
+        assert((int32_t)psx_mod_read_word(p+0x124)==4096 && psx_mod_read_word(p+0x12c)==0 && json().find("\"lent\":true")!=std::string::npos);
+        put(L,id);compose(6,0x1f800060,L,0x1f800080,0x800980d0);
+        assert(psx_mod_read_word(p+0x124)==0 && (int32_t)psx_mod_read_word(p+0x12c)==4096 && json().find("\"lent\":false")!=std::string::npos);
+        {
+            CPUState look{};look.gpr[29]=0x801f0000;look.gpr[31]=0x80097f28;look.gpr[4]=0x1f800060;look.gpr[5]=p+0x124;look.gpr[18]=p;
+            hooks().at(0x80097a44)(&look,0x80097a44);
+            assert(look.gpr[5]!=p+0x124 && (int32_t)psx_mod_read_word(look.gpr[5])==4096 && psx_mod_read_word(look.gpr[5]+8)==0);
+        }
+        // A restore point before the forearm also gives +0x124 back.
+        begin();assert(json().find("\"lent\":true")!=std::string::npos);
+        call(0x8003ade4,c,p,0x80025ee8);assert((int32_t)psx_mod_read_word(p+0x12c)==4096 && json().find("\"lent\":false")!=std::string::npos);
+        // Behind Duke: the chest stops at 50 degrees, the gun arm at its arc.
+        psx_mod_write_word(p+0x224,0);psx_mod_write_half(p+0x74,5);
+        psx_mod_write_half(c+12,(uint16_t)-2896);psx_mod_write_half(c+16,(uint16_t)-2896);begin();
+        assert(json().find("\"chest_yaw\":-0.873,")!=std::string::npos);
+        psx_mod_write_half(c+12,4096);psx_mod_write_half(c+16,0);
+        // The stow ramps out; refusals clear the build.
+        psx_mod_write_half(p+0x74,7);ttk::clock_ms+=80;call(0x800411b8,p,0,0x80042634);
+        assert(json().find("\"weight\":0.500,")!=std::string::npos);
+        psx_mod_write_half(p+0x74,5);begin();begin();
+        auto refused=[&](){begin();return json().find("\"climb_aim\":{\"set\":false,")!=std::string::npos;};
+        begin(0x80042630);assert(json().find("\"climb_aim\":{\"set\":false,")!=std::string::npos);
+        psx_mod_write_byte(p+0x3b9,5);assert(refused());psx_mod_write_byte(p+0x3b9,4);
+        psx_mod_write_byte(p+0x3b8,0);assert(refused());psx_mod_write_byte(p+0x3b8,2);
+        ttk::input.held[ttk::original_aim]=true;assert(refused());ttk::input.held[ttk::original_aim]=false;
+        setenv("DNTTK_WEAPON_AIM","original",1);assert(refused());setenv("DNTTK_WEAPON_AIM","view",1);
+        psx_mod_write_half(p+0x60,140);assert(refused());psx_mod_write_half(p+0x60,187);
+        ttk::modern=false;
+        {
+            ttk::clock_ms+=200;call(0x800411b8,p,0,0x80042634);
+            for(int i=0;i<3;++i)psx_mod_write_word(p+0x124+4*i,(uint32_t)(i==2?4096:0));
+            put(L,id);writes=0;compose(1,0x1f800020,L,0x1f800040);assert(writes==0);
+        }
+        ttk::modern=true;assert(!refused());
+        psx_mod_write_word(p+0x17c,attached);psx_mod_write_word(p+0x40,old_model);
+        psx_mod_write_byte(p+0x22c,0);psx_mod_write_byte(p+0x22d,0);psx_mod_write_half(p+0x60,63);psx_mod_write_half(p+0x74,5);
+        psx_mod_write_half(p+0x1c,heading);for(int i=0;i<3;++i)psx_mod_write_half(c+12+2*i,view[i]);
+        ++ttk::input.sequence;call(0x8003ade4,c,p,0x80025ee8);begin();
+        assert(json().find("\"climb_aim\":{\"set\":false,")!=std::string::npos);
+        std::puts("PASS: D08J6B climb hang-and-aim: chest turn, off-hand IK onto the contact with its grip, clamps, +0x124 lend and returns, head look-at, stow ramp, refusals and Vanilla");
+    }
+    {
         // D08Q5: in flight (mode 10) weapon groups, the wheel and X reach the
         // original request; items other than the pack, the kick, fire held,
         // draws and Vanilla stay refused.

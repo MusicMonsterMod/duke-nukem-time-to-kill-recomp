@@ -1,5 +1,28 @@
 # Current status - 2026-10-04
 
+## 2026-11-04 - D08J6B accepted and closed
+
+User: "i love it all, this animation works perfectly fine". The third-person hang-and-aim pose on ladders, chains/poles and
+climbing walls is Done: chest and head turn toward the aim, the off hand stays
+on the climb, the firing gun arm points at the crosshair.
+[Note 377](377-d08j6-climb-fire-research.md). Executable
+`b293c25036ef3124f1666c76c1a21a3fc531e80e11e71e2d7532a937354c9806`.
+
+## 2026-11-04 - D08J6B hang-and-aim pose on climbs, third person (accepted above)
+
+Modernized, third person, sidearm out on a ladder, chain/pole or climbing
+wall: the chest turns toward the view (clamp 50 degrees), the off-hand arm is
+solved back onto its climb-clip contact (two-bone IK, grip kept), the head
+looks toward the view, and while firing the original one-arm aim and head
+look-at take the view direction (gun arc 110 right, 60 left). Before, the
+firing pistol pointed along Duke's heading at the ladder or wall. Off hand
+within about 12 units of its contact and the firing gun arm within 13 degrees
+of the aim on all three families at 60/120/180; Vanilla unchanged; native
+controls 149 groups. Prototype on the original poses; Blender clips wait for
+the user's in-game judgement. [Note 377](377-d08j6-climb-fire-research.md)
+D08J6B section. A/B `DNTTK_CLIMB_AIM=0`. Executable
+`b293c25036ef3124f1666c76c1a21a3fc531e80e11e71e2d7532a937354c9806`.
+
 ## 2026-11-04 - D08J7D accepted and closed
 
 User: "i'm really happy with this progress! lock it in and close it out" The one-handed armed pull-up in first person is Done: the off hand

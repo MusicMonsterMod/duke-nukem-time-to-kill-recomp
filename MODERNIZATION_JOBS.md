@@ -3170,7 +3170,7 @@ acceptance.
 
 ### D08J6B - Hang-and-aim pose, third person
 
-**Status: Todo. Dependencies: D08J6.** Note 377 stage B. Replace the original
+**Status: Done (user-accepted and closed 2026-11-04: "i love it all, this animation works perfectly fine"; [note 377](documentation/377-d08j6-climb-fire-research.md) D08J6B section). Dependencies: D08J6.** Note 377 stage B. Replace the original
 two-handed upper body on climbs with a clean-room hang-and-aim pose: the off
 hand stays on the rung, chain or wall hold (climb clip on records 0, 2-4 and
 9-18), the chest turns toward the aim within a clamp, the gun arm (records
@@ -3180,6 +3180,38 @@ the D08K1 pipeline; read note 265 for any new art. User test saves (private
 copies only): UI slot 12 ladder, UI slot 11 chain, UI slot 8 climbing wall,
 and the slot 7 castle tower with floating enemies. Validate in game from
 several angles at 60/120/180, not only in Blender. Vanilla unchanged.
+
+**2026-11-04 prototype (Needs playtest).** Modernized, third person, sidearm
+out on a ladder, chain/pole or climbing wall: the chest turns toward the view
+(50 degree clamp), the off-hand arm is solved back onto its climb-clip contact
+(two-bone IK, grip kept), the head looks toward the view, and while firing the
+original one-arm aim and head look-at take the view direction (gun arc 110
+degrees right, 60 left). Before, the firing pistol pointed along Duke's
+heading at the ladder or wall. New `climb_aim.inc` on the existing
+`0x800411b8` and `0x800b42ec` hooks; the one-arm aim (no entry hook) reads
+`+0x124`, lent for the gun shoulder's build only and restored at the next
+joint; new guard `0x800978f8`; no hook, codegen or save change. Ladder, chain
+and wall fixtures: off hand within about 12 units of its contact (86 before
+the IK), firing arm within 13 degrees of the aim, the same at 60/120/180;
+D08J6A routes unchanged; Vanilla unchanged; native controls 149 groups (new
+D08J6B group), input, aim and near suites pass. Limits: no Blender clips yet
+(waiting on the user's judgement of the prototype), idle keeps the original
+high ready, beyond the arc the arm stops while rounds still go to the
+crosshair, user saves and the slot 7 tower not used, no enemies framed. A/B
+`DNTTK_CLIMB_AIM=0`. Executable
+`b293c25036ef3124f1666c76c1a21a3fc531e80e11e71e2d7532a937354c9806`.
+
+**2026-11-04 accepted and closed.** User, on the ladder: "duke can clearly
+shoot in the right direction here and it looks superb. that one is a
+winner"; after the chain, wall, behind-the-arc, idle and draw/holster checks:
+"i love it all, this animation works perfectly fine". Done at the prototype build: the arc limit and the high-ready idle
+stay as built; the Blender clips are not needed for now. First person is
+D08J6C, monkey bars and hangs D08J6D. A low frame rate during the first test
+was a host check: the game halved high-refresh presents after a savestate
+load (audio running low); the host was idle, Cinnamon used about 20% of a core
+continuously; the user's retest after restarting Cinnamon was fine (not
+established as the cause). No gameplay edits, builds or launches after
+acceptance.
 
 ### D08J6C - Firing while climbing in first person
 
@@ -5448,7 +5480,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08J7B | Weapon up on landing and a shorter pull-up | Done (closed with D08J7C 2026-11-04; note 378) | D08J7 |
 | D08J7C | One-handed armed pull-up and the sidearm return | Done (user-accepted 2026-11-04; note 378) | D08J7B |
 | D08J7D | One-handed armed pull-up in first person | Done | D08J7C, D35G, D36H9 |
-| D08J6B | Hang-and-aim pose on climbs, third person (user UI slots 12, 11, 8) | Todo | D08J6 |
+| D08J6B | Hang-and-aim pose on climbs, third person (user UI slots 12, 11, 8) | Done (user-accepted; closed 2026-11-04; note 377) | D08J6 |
 | D08J6C | Firing while climbing in first person | Todo | D08J6B, D35E, D35F, D36 |
 | D08J6D | Firing on monkey bars and ledge hangs (user UI slot 6) | Todo | D08J6A, D08J4, D08J7 |
 | D08V1 | Modernized controls lost for the rest of the session after a missed chain jump; modern controls must never be lost | Done | D08V, D08J5 |

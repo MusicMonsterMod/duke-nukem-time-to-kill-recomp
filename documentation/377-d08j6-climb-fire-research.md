@@ -265,3 +265,119 @@ ledge hangs). User test saves for them, used only as private copies: UI slot
 The user also asked for shooting while mantling, now D08J7 and the next job.
 The runtime patch re-export was unchanged (no framework edits). No gameplay
 edits, builds or launches after acceptance; no player data touched.
+
+## D08J6B - hang-and-aim pose, third person (Needs playtest)
+
+2026-11-04. Prototype on the original poses, judged in game before any
+Blender clip (the D08J7C order; see the user decisions under Limits).
+
+### What the original does (probes)
+
+- Armed on a climb, only channel 1 (right arm, `+0x74`) carries the sidearm
+  pose; legs, the left arm and the chest/head (channels 0, 2, 3) stay on the
+  climb clip (ladder: 187 on 0, 2, 3; upper 3 -> 0 -> 6 -> 5 on the draw,
+  9/11 firing). So the off hand already holds the rung, chain or wall.
+- The aim build `0x80097c04` in modes 3/6/7, with a weapon pose (table flag
+  8) and `+0x224 & 0x200100` (firing): the head gets the look-at
+  `0x80097a44` and, in poses 8/11, the gun shoulder the one-arm aim
+  `0x800978f8` (the direction as the bone's Y axis), both from `+0x124`
+  (set from the heading at `0x8003fcc8`), which faces the climb. The chest is
+  never aimed. Hence the D08J6A limit: rounds went to the crosshair while the
+  pistol pointed at the ladder or wall.
+- `0x800978f8` has no entry hook (entry hooks are fixed at codegen; adding one
+  would change the codegen hash and reject savestates).
+
+### Behavior (Modernized, view aiming, third person, sidearm out, mode 3)
+
+- Chest: turns toward the view about the world vertical, clamped to 50
+  degrees each way.
+- Off hand: the left arm is solved back onto its climb-clip contact. Shoulder
+  swing and elbow bend (the D36H5 two-bone solver, bend plane from the clip's
+  own elbow), hand orientation kept, so the grip looks the same.
+- Head: looks toward the view, clamped to 70 degrees.
+- Firing (the original aim): the head look-at and the one-arm aim take the
+  view direction, clamped to the gun arc (110 degrees to Duke's right, 60
+  across the body to his left, pitch 70).
+- Idle (pose 5): the pistol stays in the original high ready beside the head,
+  turned with the chest.
+- Weight ramps over 160 ms of real time (the same at 60/120/180) and out for
+  the stow (upper 7). Hangs and monkey bars (modes 6/7) are D08J6D; first
+  person (`fp_blend > 0`) is D08J6C and unchanged.
+
+### Implementation
+
+- New `climb_aim.inc` (controls adapter, after `swim.inc`):
+  `climb_aim_begin` at the existing `0x800411b8` hook (ra `0x80042634`)
+  computes the turn and the clamped direction; `climb_aim_arm` at the
+  existing `0x800b42ec` composition hook (after `swim_aim_arm`) writes the
+  chest, left shoulder, forearm, hand and head local matrices in the build's
+  scratch (`0x1f800020..0x1f8000a0`), checked by actor, caller, part, depth
+  and scratch slot. The forearm's local rotation for the solve comes from the
+  previous build (the climb rests while armed); without it the shoulder only
+  keeps its orientation.
+- Head look-at: the existing `0x80097a44` hook replaces its direction
+  argument (as on the ground). One-arm aim: `+0x124` holds the clamped
+  direction (its own length kept) only for the gun shoulder's build in poses
+  8/11 and is restored at the next joint's composition or the first restore
+  point after the build (`0x800411b8`, `0x80055e80`, `0x800493a4`,
+  `0x8003ade4`, `0x800455bc`). Its readers outside the build (`0x80057088`,
+  `0x800a16d8`) never see the lent value.
+- New guard `0x800978f8` (332 bytes; the one-arm aim reads `+0x124`). No new
+  hook address, generated code, framework or codegen change; existing
+  savestates load. Vanilla: behind `input_modernized()`.
+- Debug `controls.climb_aim`; A/B `DNTTK_CLIMB_AIM=0`; developer limits
+  `DNTTK_CLIMB_AIM_LIMITS=chest,head,gun_right,gun_left,pitch` (degrees).
+
+### Verification
+
+Private lab `recomp/analysis/d08j6b/` (local only: `probe.py`, `geo.py`,
+`pose.py`, `sweep.py`, `van.py`; offscreen, dummy audio, port 9613, copies of
+the D35E ladder, D35F chain and D35I1 climbing-wall fixtures; player saves,
+cards and settings hash-checked unchanged after every run).
+
+| Camera turns, idle and firing (`geo.py`) | Ladder | Chain | Wall (cowboy model) |
+| --- | --- | --- | --- |
+| Off hand from its holstered contact, max | 12 units (86 before the IK) | 6 | 12 |
+| Firing gun arm (shoulder to hand) vs the clamped aim, max | 13 degrees | 13 | 13 |
+| Same at 120 / 180 (ladder) | 12 / 12, 13 / 13 | - | - |
+
+Before (A/B off) the firing arm pointed along the heading (chain: at the wall
+Duke faces); now it points along the view, the chest and head turn and the off
+hand stays on the chain (`ab-chain.png`, `ab-chain-zoom.png`; wall
+`sweep-wall-grid.png`). `+0x124` lends and returns balance in every run.
+D08J6A regression (`d08j6/cand.py` ladder W, chain S, wall S): draw, 6 view
+shots, stow and climb, let go armed, identical to the D08J7C runs except that
+the pistol is kept on landing, the accepted SIDEARM RETURN NEVER default.
+Vanilla (`van.py`, `--vanilla`, raw pads): the original Circle draw and
+Cross fire (5 rounds) on the ladder, no climb-aim build. Native:
+`ttk-controls-test` 149 groups with LEVEL00, LEVEL01 and all levels (new
+D08J6B group: chest turn, off-hand IK onto the contact with its grip in a
+synthetic chain, clamps, `+0x124` lend and both returns, head look-at, stow
+ramp, foreign actor/caller/slot, refusals, Vanilla), `ttk-input-test` under
+Xvfb, `ttk-aim-test`, `ttk-near-test`.
+
+Executable SHA-256 `b293c25036ef3124f1666c76c1a21a3fc531e80e11e71e2d7532a937354c9806`.
+
+### Limits and decisions for the user
+
+- Prototype: no Blender clips yet (one-arm draw/holster, aim idle, recoil,
+  per-family grips). The draw and stow are the original upper-body clips on
+  the gun arm.
+- Idle keeps the original high ready; the arm aims only while firing, as on
+  the ground. An aim idle (arm on the crosshair whenever the sidearm is out)
+  is possible.
+- Beyond the arc the arm stops at its limit while rounds still go to the
+  crosshair (behind Duke). Alternatives: refuse shots beyond the arc, or let
+  Duke swing out.
+- The user saves (UI slots 12, 11, 8) and the slot 7 castle tower were not
+  used; fixtures only. No enemies framed. Only Polymorph checked.
+- The off-hand solve uses the previous build's forearm rotation (one update
+  old; the climb is at rest while armed).
+
+### D08J6B closeout
+
+2026-11-04. User: "duke can clearly shoot in the right direction here and it
+looks superb. that one is a winner", then "i love it all, this animation works perfectly fine". D08J6B is Done at executable
+`b293c25036ef3124f1666c76c1a21a3fc531e80e11e71e2d7532a937354c9806`. The arc
+limit (the arm stops, rounds still go to the crosshair) and the high-ready
+idle stay as built; no Blender clips for now. First person is D08J6C.

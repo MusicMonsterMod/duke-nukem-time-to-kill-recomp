@@ -708,6 +708,10 @@ def write_host_pack(group, path):
     import ttk_onehand_pullup
     entries.append(dict(group=0xffff, clip=ttk_onehand_pullup.ONEHAND_CLIP, source_sha256='00' * 32,
                         frames=ttk_onehand_pullup.frames(group)))
+    # D12E1: the third-person quick kick's legs and pelvis (ttk_quick_kick.py),
+    # a left-leg roundhouse, written by tp_kick.inc.
+    import ttk_quick_kick
+    entries += ttk_quick_kick.pack_entries(group)
     # Padding after the last clip: the original stepper (0x80059db0) loops a
     # channel within the animation's own clip, so if it ever advanced a
     # host-driven channel it would walk on past the extra clips; with a weapon

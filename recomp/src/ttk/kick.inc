@@ -93,6 +93,8 @@ static constexpr uint32_t impact_sound_routine=0x8006b73c;
 static constexpr int impact_octave_up=48;
 static constexpr uint32_t impact_stop_routine=0x80068900;
 static uint64_t impact_replaced;
+// D12E1: a pitch step added to the impact for one call (the third-person kick).
+static int impact_pitch_offset;
 static int impact_pitch() {
     static const int value=[]{
         const char* text=std::getenv("DNTTK_KICK_IMPACT_PITCH");char* end=nullptr;
@@ -249,7 +251,7 @@ static void kick_impact(CPUState* cpu,bool object) {
             node=next;
         }
     uint32_t handle=0;
-    if(!kick_call(cpu,impact_sound_routine,{(uint32_t)impact_id(),player+4,0x800,(uint32_t)impact_pitch(),0,0},nullptr,&handle)) {++impact_failed;return;}
+    if(!kick_call(cpu,impact_sound_routine,{(uint32_t)impact_id(),player+4,0x800,(uint32_t)std::clamp(impact_pitch()+impact_pitch_offset,-64,63),0,0},nullptr,&handle)) {++impact_failed;return;}
     ++impacts;
     // Louder (user request 2026-10-08: double its volume). The call returns a
     // handle, the sound's address in its low 24 bits (0x80067e74); +0x5c is

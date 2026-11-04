@@ -1021,9 +1021,11 @@ and **B** the Bio Mask (TTK's gas mask). Modern night vision and enabled Auto Bi
 Mask toggle instantly while firing; original gadget modes retain their equip
 and weapon-redraw animations. **J** also switches the jetpack
 off in mid-flight (a controlled fall follows). Underwater air still equips automatically.
-**[ / ]** cycle eligible gadgets; **Enter** uses the selected gadget. In Modernized, with **EQUIP PICKUPS** on **IF NEW** (the default, see below), a gadget you pick up (jetpack, Bio Mask, goggles, medkit, steroids), or top up when it was not full, becomes the selected one at once, as in Duke 3D, so its HUD box shows and **Enter** use it; keys and mission items leave the selection alone. **, / .** browse the level's mission items (see Mission items below). **R takes steroids** (see Portable steroids below). In third person, **Q kicks only while standing still with Mighty Boot already selected on 1**
-(the original kick). Q never selects another weapon or presses fire. In first
-person Q is a quick kick with any weapon (see below).
+**[ / ]** cycle eligible gadgets; **Enter** uses the selected gadget. In Modernized, with **EQUIP PICKUPS** on **IF NEW** (the default, see below), a gadget you pick up (jetpack, Bio Mask, goggles, medkit, steroids), or top up when it was not full, becomes the selected one at once, as in Duke 3D, so its HUD box shows and **Enter** use it; keys and mission items leave the selection alone. **, / .** browse the level's mission items (see Mission items below). **R takes steroids** (see Portable steroids below). In third person, **Q** is the quick kick with any weapon, standing, walking or
+running or jumping (see Third-person quick kick below; **KICK: ORIGINAL** restores the
+original kick, only while standing still with Mighty Boot already selected on 1).
+Q never selects another weapon or presses fire. In first person Q is a quick
+kick with any weapon (see below).
 
 **Alt + wheel up** brings the camera closer; **Alt + wheel down** moves it farther.
 Distance is clamped and smoothed, retains wall collision, and remembers your
@@ -1643,6 +1645,7 @@ the original's style:
   and view bob.
 - **ADVANCED**: one list under headings. CAMERA AND AIM: camera, weapon aim, first-person legs.
   MOVEMENT: jump, jump walls, wall backflip, crouch, swimming, jetpack.
+  COMBAT: kick (third person: quick / original).
   ITEMS: dynamite, steroids. GRAPHICS: backend (OpenGL / software), filter, draw distance,
   geometry, textures.
   PERFORMANCE: CPU speed, CPU timing. ORIGINAL GAME: **auto aim**, red dot,
@@ -2243,6 +2246,31 @@ still selected when it is the only one you carry. Confirm applies and saves the
 choice immediately. Vanilla always uses NEVER. The launcher accepts
 `--equip-pickups if-new|never` (saves the preference); terminal `--settings`
 uses **E Equip pickups**.
+
+### Third-person quick kick (D12E1)
+
+In third person, **Q** is a fast MMA-style roundhouse with the left leg, the
+third-person partner of the first-person quick kick: the same cadence (the shin
+is out about 0.15 s after the press, about 0.45 s a kick), reach and damage.
+Duke's hips turn over into the kick while his arms, chest and weapon stay near
+your aim, so you can keep firing while he kicks, with any weapon or holstered,
+standing, walking, running or in a jump. Tap Q repeatedly or hold it to chain
+kicks. With the Mighty Boot selected (key 1), holding the
+left mouse button kicks too. While the leg is out Duke slows to a walk, and he
+steps a little into each kick (never through a wall or an edge). A kick that
+connects lands with the impact thud (its pitch varies a little from kick to
+kick), a burst of sparks at the contact, a brief hold of the strike pose and a
+small camera punch; a kick into empty air only whooshes. Kicks do not knock
+enemies back. In a jump the other leg keeps the jump's pose and there is no
+step. Not crouched, swimming, climbing or on the jetpack (Q does nothing
+there, as before). E never kicks.
+
+**OPTIONS > ADVANCED > COMBAT > KICK** chooses **QUICK** (the default) or
+**ORIGINAL** (the original full-body kicks, only standing still with the Boot
+selected and holstered). First person always uses its own quick kick. Vanilla
+always uses the original. The launcher accepts
+`--third-person-kick quick|original` (saves the preference); terminal
+`--settings` uses **Q Third-person kick**.
 
 ### Sidearm return (D08J7C)
 

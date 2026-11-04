@@ -5605,8 +5605,15 @@ int main(int argc,char** argv) {
                     setenv("DNTTK_KICK_IMPACT","off",1);                          // read once: still on
                     sphere_strike=true;quick(30);sphere_strike=false;assert(thuds()==1);unsetenv("DNTTK_KICK_IMPACT");
                 }
-                // Third person: the original request plays as before.
+                // Third person. D12E1 KICK QUICK (the default): an original Boot
+                // request (no Q or attack held) restarts idle 63 and starts no kick.
                 ttk::input.first_person=false;for(unsigned i=0;i<40;++i)frame();
+                psx_mod_write_half(p+0x60,112);psx_mod_write_half(p+0x68,0);
+                call(0x800493a4,p,0,0x8005a490,0x801fff00);assert(psx_mod_read_half(p+0x60)==63);
+                assert(std::strstr(ttk::controls_debug_json(),"\"tp_kick\":{\"quick\":true"));
+                assert(std::strstr(ttk::controls_debug_json(),"\"suppressed\":1,"));
+                // KICK ORIGINAL: the original request plays as before.
+                setenv("DNTTK_TP_KICK","original",1);
                 psx_mod_write_half(p+0x60,112);psx_mod_write_half(p+0x68,0);
                 call(0x800493a4,p,0,0x8005a490,0x801fff00);assert(psx_mod_read_half(p+0x60)==112);
                 // D12C: the original kick's sphere call (ra 0x80049098) is made by
@@ -5637,6 +5644,7 @@ int main(int argc,char** argv) {
                     ttk::modern=true;sphere_strike=false;
                     psx_mod_write_half(p+0x60,112);
                 }
+                unsetenv("DNTTK_TP_KICK");
                 psx_mod_write_half(p+0x60,63);
                 psx_mod_write_word(0x800d21fc,saved_delta);psx_mod_write_half(p+0x364,saved_power);
                 ttk::input.first_person=true;for(unsigned i=0;i<40;++i)frame();

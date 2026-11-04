@@ -1,5 +1,71 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-04 - D12E1 accepted and closed
+
+User: "LOCK IT IN AND CLOSE IT OUT. once again you've outdone yourself.
+insanely good work. accepted". D12E1 is Done at revision 3: the left-leg
+MMA-style roundhouse on the legs and hips, any weapon, on the move and in
+jumps, ADVANCED > COMBAT > KICK: QUICK (default) / ORIGINAL. The measured key
+table in `ttk_quick_kick.py` is committed; the reference motion file stays
+local. No framework edits (runtime patch unchanged). D12E2 (finisher,
+knockback, rumble) is next in line. Executable
+`86a5e664e2b495bbdc5b5ff50e91182eba326505d5602705d08ba0b8375f72d8`.
+
+## 2026-11-04 - D12E1 revision 3: the left leg
+
+User on revision 2: "10000000% that's our kick big boy. but left leg. LEFT
+LEG!". The roundhouse is mirrored onto the left leg (`KICK_LEG` in
+`ttk_quick_kick.py`); everything else unchanged. Re-measured offscreen:
+ground, held and jump kicks; `ttk-controls-test` PASS; executable
+`86a5e664e2b495bbdc5b5ff50e91182eba326505d5602705d08ba0b8375f72d8`
+([note 382](documentation/382-d12e1-third-person-quick-kick.md) revision 3).
+
+## 2026-11-04 - D12E1 revision 2: one leg, MMA roundhouse, jump kicks (Needs playtest)
+
+User: "always the same leg ... more of the MMA kick ... like a faster version
+of this" (a local reference roundhouse in `research/mma-kick`), "the animation
+is totally off", and kicks in a jump as in first person. The clip is now a
+single right-leg roundhouse measured from the reference (`ttk_quick_kick.py
+--measure`, 16 keys, about 3.5x faster to the strike) and retargeted with IK:
+hips turn over (0.7 of the reference), knee across the body, shin out at about
+pelvis height, re-chamber, support foot pivoting; the chest follows the hips by
+0.35. Jumps (mode 9 and the standing jump) kick with the jump's support leg.
+Offscreen: ground and jump kicks run, pig cop down in three kicks,
+`ttk-controls-test` PASS. No reference file is committed
+([note 382](documentation/382-d12e1-third-person-quick-kick.md) revision 2).
+
+## 2026-11-04 - D12E1 third-person quick kick: Needs playtest
+
+Implemented the locked note 381 design
+([note 382](documentation/382-d12e1-third-person-quick-kick.md)).
+Revision 1 executable `674bf8c7ff7ecf130e5fe6acffd29ded6c45598b0dbdc2123c5527416ca2d02a`; revision 2 `eea4298d3c9c5b0356b3b06378b4ebe829331006a1b745cbbdf71181213a83fa`.
+
+- **Clip:** `recomp/tools/local/ttk_quick_kick.py` writes host clips 51 (right
+  leg) and 52 (its mirror) into `ttk-anim.pack`: 9 keys (coil, chamber, snap
+  with extra hip flex, held strike with a knee give, re-chamber, landing) from
+  115's legs channel, support foot IK-planted and turning out, no root motion.
+- **Runtime** (`recomp/src/ttk/tp_kick.inc`): pelvis and legs written at
+  `0x800411b8` with the chest kept on the aim; Q / held attack with the Boot /
+  converted Boot requests; hits 133-333 ms through the D12A sphere aimed from
+  the hip; whoosh at the snap, D12C thud with a never-repeating pitch step,
+  spark `0x8006d594(6, ...)`, 50 ms hold and camera punch on real hits only;
+  walking pace 0-350 ms and a 35 unit step through the standing hull; chained
+  kicks at 350 ms alternate legs; a view switch or leaving the ground cancels
+  with an 80 ms fade.
+- **Setting:** ADVANCED > COMBAT > KICK: QUICK / ORIGINAL (schema 66
+  `third_person_kick`, `--third-person-kick`, `DNTTK_TP_KICK`); Vanilla
+  `original`. GAME_MANUAL.md updated.
+- **Evidence:** profile tests 123 OK; `ttk-controls-test` and `ttk-input-test`
+  PASS; offscreen probes at 60/120/180 Hz (Q to kick 37-75 ms, 0.46 s, held Q
+  10 kicks in 3.4 s alternating legs, walking cap applied); a spawned pig cop
+  went down in three kicks with first contact 135-155 ms; ORIGINAL plays 114 as
+  the pre-change build; Vanilla route completed as the baseline; key poses
+  captured in game. Player files unchanged.
+- **Open for the user:** the look at 180 Hz ("absolutely legit"), punch and
+  hold strength, the forward step, the spark. From the behind camera the
+  extended foot is partly hidden by Duke's body at the strike. No native
+  pose-level test (the harness stubs extra clips).
+
 ## 2026-11-04 - D12E closed: spectacular third-person kick locked as D12E1; D12E2 added
 
 User, after the report: the inspiration for "twitchy third person visuals" is
@@ -336,7 +402,7 @@ selects it.
 
 ### D12E1 - Spectacular third-person quick kick (legs layer)
 
-**Status: Todo. Dependencies: D12E, D08K4.** Implement the locked design in
+**Status: Done (accepted by the user 2026-11-04, revision 3; [note 382](documentation/382-d12e1-third-person-quick-kick.md)). Dependencies: D12E, D08K4.** Implement the locked design in
 [note 381](documentation/381-d12e-third-person-kick-research.md) section 6
 (user: "let's make this custom kick absolutely spectacular ... try whatever it
 is that you recommend"; inspiration ARPGs and character action, "twitchy third
@@ -5970,7 +6036,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D12C | Kick impact sound on a real hit only (wall, crate, actor); empty-air and out-of-range kicks stay silent | Done (user-accepted) | D12A |
 | D12D | Upgraded first-person weapon framing (Challenge Stage 4 Incendiary RPG) | Done (user-accepted 2026-10-22) | D12, D22B |
 | D12E | Third-person quick kick (research report first) | Done (closed 2026-11-04; note 381) | D12A, D12C, D10F1 |
-| D12E1 | Spectacular third-person quick kick (legs layer, alternating legs, hit-pause, camera punch, spark) | Todo | D12E, D08K4 |
+| D12E1 | Spectacular third-person quick kick (legs layer, alternating legs, hit-pause, camera punch, spark) | Done (accepted 2026-11-04; left-leg MMA roundhouse, note 382) | D12E, D08K4 |
 | D12E2 | Third-person kick finisher and enemy payoff (heavy third kick, knockback, rumble) | Todo | D12E1 |
 | D11C | Savestates can keep Duke's first-person head hidden (slot 12) | Done | D11 |
 | D11D | First-person eye height from Duke's real proportions, game-wide (LEVEL01 slot 8) | Done (user-accepted; closed 2026-10-30) | D11, D22A |

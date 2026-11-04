@@ -474,8 +474,10 @@ static void select_weapon(CPUState* cpu) {
         }
     // D12A: in the eye view Q is the quick kick (kick.inc), with any weapon,
     // moving or in the air; it never touches the original equipment or animation.
+    // D12E1: in third person (KICK QUICK) the legs-only quick kick (tp_kick.inc).
     bool eye_kick=false;
-    for(unsigned n=0;n<f.command_count && n<32;++n) if(f.commands[n]==quick_kick && kick_request(true)) eye_kick=true;
+    for(unsigned n=0;n<f.command_count && n<32;++n)
+        if(f.commands[n]==quick_kick && (kick_request(true) || tp_kick_request(true))) eye_kick=true;
     // D08Q: J in flight is the original inventory toggle (358 bit1 → 800402d0
     // → 8003ff6c closing), which the mode-10 handler turns into the 108 fall.
     // D08R: jetpack_input_ready() covers both schemes.

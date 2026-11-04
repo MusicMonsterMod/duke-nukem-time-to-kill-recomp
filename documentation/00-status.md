@@ -1,5 +1,48 @@
 # Current status - 2026-10-04
 
+## 2026-11-04 - D12E1 accepted and closed
+
+User: "LOCK IT IN AND CLOSE IT OUT ... insanely good work. accepted". The
+third-person quick kick is Done: a left-leg MMA-style roundhouse on the legs
+and hips (arms and weapon on the aim), any weapon, on the move and in jumps,
+D12A cadence and damage, hit-only spark, hold and camera punch; ADVANCED >
+COMBAT > KICK: QUICK / ORIGINAL ([note 382](382-d12e1-third-person-quick-kick.md)).
+Next in the kick line: D12E2 (finisher, knockback, rumble). Launch:
+`python3 recomp/tools/local/run.py`.
+
+## 2026-11-04 - D12E1 revision 3: left-leg roundhouse
+
+The user accepted the revision 2 roundhouse ("that's our kick") on the left
+leg; the clip is now mirrored onto it. Needs playtest
+([note 382](382-d12e1-third-person-quick-kick.md)). Launch:
+`python3 recomp/tools/local/run.py`.
+
+## 2026-11-04 - D12E1 revision 2: one leg, MMA roundhouse, jump kicks
+
+The third-person quick kick is now always the right leg, a fast MMA-style
+roundhouse measured from the user's local reference motion and retargeted onto
+Duke (hips turn over, knee across, shin out at pelvis height), and it works in
+jumps as in first person. Needs playtest
+([note 382](382-d12e1-third-person-quick-kick.md)). Launch:
+`python3 recomp/tools/local/run.py`.
+
+## 2026-11-04 - D12E1 third-person quick kick ready for playtest
+
+Modernized third person: Q is a legs-only snap kick (authored clips 51/52 from
+the front kick 115, `ttk_quick_kick.py`, `tp_kick.inc`) with any weapon,
+standing, walking or running; arms, chest and weapon stay on the aim and fire
+works throughout. D12A cadence (contact about 0.13 s, 0.45 s a kick, chained
+kicks at 0.35 s alternate legs), the D12A sphere and damage, whoosh at the
+snap, D12C thud with pitch variation, original spark burst, a 50 ms strike hold
+and a camera punch on real hits only, walking pace and a 35 unit step during
+the kick. ADVANCED > COMBAT > KICK: QUICK (default) / ORIGINAL (profile schema
+66, `--third-person-kick`). ORIGINAL, first person and Vanilla unchanged
+(native suites, Vanilla route). Measured offscreen: pig cop down in three
+kicks, first contact 135-155 ms. Needs the user's look and feel judgement at
+180 Hz ([note 382](382-d12e1-third-person-quick-kick.md)). Executable
+`674bf8c7ff7ecf130e5fe6acffd29ded6c45598b0dbdc2123c5527416ca2d02a`. Launch:
+`python3 recomp/tools/local/run.py`.
+
 ## 2026-11-04 - D12E closed; spectacular kick locked as D12E1, D12E2 added
 
 User: "let's make this custom kick absolutely spectacular. I'd say let's try

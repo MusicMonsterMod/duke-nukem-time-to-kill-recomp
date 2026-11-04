@@ -63,6 +63,7 @@ def main(argv=None):
     p.add_argument('--auto-bio-mask', choices=profiles.AUTO_BIO_MASK_MODES, help='save automatic gas protection and instant Bio Mask use: on (default) or off (original manual use)')
     p.add_argument('--equip-pickups', choices=profiles.EQUIP_PICKUPS_MODES, help='save Modernized equip pickups: if-new (default; a new weapon is drawn and a new item selected) or never (the original); Vanilla always uses never')
     p.add_argument('--screen-flashes', choices=profiles.SCREEN_FLASHES_MODES, help='save Modernized screen flashes: on (default; Duke3D-style coloured flashes), reduced (half strength, at most a quarter) or off; Vanilla never flashes')
+    p.add_argument('--third-person-kick', choices=profiles.THIRD_PERSON_KICKS, help='save the Modernized third-person KICK: quick (default; a fast legs-only kick with any weapon, on the move) or original (the holstered Boot kicks 112-115); Vanilla always uses original')
     p.add_argument('--sidearm-return', choices=profiles.SIDEARM_RETURN_MODES, help='save Modernized SIDEARM RETURN: never (default; keep a climb or hang sidearm until you choose) or auto (your weapon comes back 0.75 s after the last shot)')
     p.add_argument('--level-stats', choices=('on', 'off'), help='save Modernized LEVEL STATS: on (default; time, kills and secrets in the bottom-left corner) or off; Vanilla never shows them')
     p.add_argument('--fps', choices=('on', 'off'), help='save the Modernized FPS display (the console fps statistics block): on or off (default)')
@@ -113,7 +114,7 @@ def main(argv=None):
             profile = settings['profiles']['modernized']
             profile['bindings'] = pc_input.rebind(profile['bindings'], a.bind)
             changed = True
-        if a.auto_bio_mask is not None or a.equip_pickups is not None or a.screen_flashes is not None or a.sidearm_return is not None or a.level_stats is not None or a.fps is not None or a.night_vision is not None or a.wall_view is not None or a.overhead_view is not None or a.mantle_view is not None or a.pole_view is not None or a.ladder_view is not None or a.push_view is not None or a.jetpack_view is not None or a.swim_view is not None or a.steroids is not None or a.draw_distance is not None or a.world_renderer is not None or a.geometry_precision is not None or a.texture_precision is not None or a.view_bob is not None or a.frame_rate is not None or a.jump is not None or a.jump_walls is not None or a.landing is not None or a.wall_backflip is not None or a.crouch is not None or a.dynamite is not None or a.swimming is not None or a.cpu_overclock is not None or a.cpu_timing is not None or a.widescreen is not None or a.camera_distance is not None or a.shoulder is not None or a.view is not None or a.jetpack is not None or a.aim_assist is not None or a.red_dot is not None or a.crosshair is not None or a.weapon_aim is not None or a.camera is not None or a.mouse_sensitivity is not None or a.invert_y is not None:
+        if a.auto_bio_mask is not None or a.equip_pickups is not None or a.screen_flashes is not None or a.sidearm_return is not None or a.third_person_kick is not None or a.level_stats is not None or a.fps is not None or a.night_vision is not None or a.wall_view is not None or a.overhead_view is not None or a.mantle_view is not None or a.pole_view is not None or a.ladder_view is not None or a.push_view is not None or a.jetpack_view is not None or a.swim_view is not None or a.steroids is not None or a.draw_distance is not None or a.world_renderer is not None or a.geometry_precision is not None or a.texture_precision is not None or a.view_bob is not None or a.frame_rate is not None or a.jump is not None or a.jump_walls is not None or a.landing is not None or a.wall_backflip is not None or a.crouch is not None or a.dynamite is not None or a.swimming is not None or a.cpu_overclock is not None or a.cpu_timing is not None or a.widescreen is not None or a.camera_distance is not None or a.shoulder is not None or a.view is not None or a.jetpack is not None or a.aim_assist is not None or a.red_dot is not None or a.crosshair is not None or a.weapon_aim is not None or a.camera is not None or a.mouse_sensitivity is not None or a.invert_y is not None:
             controls = dict(settings['profiles']['modernized']['controls'])
             if a.aim_assist is not None: controls['aim_assist'] = a.aim_assist
             if a.jetpack is not None: controls['jetpack'] = a.jetpack
@@ -129,6 +130,7 @@ def main(argv=None):
             if a.equip_pickups is not None: controls['equip_pickups'] = a.equip_pickups
             if a.screen_flashes is not None: controls['screen_flashes'] = a.screen_flashes
             if a.sidearm_return is not None: controls['sidearm_return'] = a.sidearm_return
+            if a.third_person_kick is not None: controls['third_person_kick'] = a.third_person_kick
             if a.level_stats is not None: controls['level_stats'] = a.level_stats == 'on'
             if a.fps is not None: controls['fps'] = a.fps == 'on'
             if a.night_vision is not None: controls['night_vision'] = a.night_vision
@@ -276,6 +278,7 @@ def main(argv=None):
     env['DNTTK_EQUIP_PICKUPS'] = controls['equip_pickups'] if modernized else 'never'
     env['DNTTK_SCREEN_FLASHES'] = controls['screen_flashes'] if modernized else 'off'
     env['DNTTK_SIDEARM_RETURN'] = controls['sidearm_return'] if modernized else 'never'
+    env['DNTTK_TP_KICK'] = controls['third_person_kick'] if modernized else 'original'
     env['DNTTK_LEVEL_STATS'] = '1' if modernized and controls['level_stats'] else '0'
     if modernized and controls['fps']: env['PSX_FPS_TELEMETRY'] = '1'
     env['DNTTK_NIGHT_VISION'] = controls['night_vision'] if modernized else 'original'

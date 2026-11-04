@@ -466,6 +466,10 @@ std::vector<Screen> make_screens() {
          {{"MODERN","modern","\"modern\""},{"ORIGINAL","original","\"original\""}},0},
         {"JETPACK",Section::Controls,"jetpack","DNTTK_JETPACK",false,"EDUKE32: INSTANT J FLIGHT, 61 SECONDS OF FUEL",
          {{"MODERN","modern","\"modern\""},{"CLASSIC","classic","\"classic\""},{"EDUKE32","eduke32","\"eduke32\""}},0},
+        // D12E1: the third-person quick kick (tp_kick.inc); ORIGINAL keeps 112..115.
+        heading("COMBAT"),
+        {"KICK",Section::Controls,"third_person_kick","DNTTK_TP_KICK",true,"QUICK: A FAST KICK IN THIRD PERSON, WEAPON STAYS UP",
+         {{"QUICK","quick","\"quick\""},{"ORIGINAL","original","\"original\""}},0},
         heading("ITEMS"),
         {"EQUIP PICKUPS",Section::Controls,"equip_pickups","DNTTK_EQUIP_PICKUPS",true,"IF NEW: DRAW A NEW WEAPON, SELECT A NEW ITEM",
          {{"IF NEW","if-new","\"if-new\""},{"NEVER","never","\"never\""}},0},

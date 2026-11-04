@@ -1,5 +1,57 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-04 - D12E closed: spectacular third-person kick locked as D12E1; D12E2 added
+
+User, after the report: the inspiration for "twitchy third person visuals" is
+the ARPG, "not just exclusively ARPG's ... we seriously want knowledge";
+"let's make this custom kick absolutely spectacular. I'd say let's try
+whatever it is that you recommend"; "lock it in and close us out". Two more
+sourced research passes (ARPGs, character action, fighting games, shooter
+melee, animation and audio craft) are in
+[note 381](documentation/381-d12e-third-person-kick-research.md) sections 5-6.
+D12E Done. Locked design for **D12E1** (Todo): a legs-channel quick kick with
+the first-person cadence, alternating legs, a Duke-only hit-pause and a camera
+punch on real hits, the original spark at the contact, layered whoosh and
+varied impact, any weapon, on the move; ADVANCED > COMBAT > KICK: QUICK /
+ORIGINAL, QUICK default. **D12E2** (Todo, after D12E1): a heavier third-kick
+finisher, the game's own knockback (reaction 84), enemy shake, rumble and
+optional magnetism. No code, build or executable change.
+
+## 2026-11-04 - D12E third-person kick research report ready
+
+Research only: no gameplay code, hook, build or executable change
+([note 381](documentation/381-d12e-third-person-kick-research.md)).
+Executable measured `ac4634201d59a1b6133043becb570c55aec461db5631df071c31a9667a5136d4`.
+
+- **Original kick, static read.** In third person Q reaches the Boot attack
+  `0x800517a4` only holstered with the Boot selected, at idle 63, with no
+  movement or jump; armed or moving, Q does nothing. It picks
+  `112 + rand() % 4`; only 112-115 reach the kick case `0x80049044`, the
+  executable's only damage-sphere call. All four channels share each clip
+  (full-body). 114 is the spinning kick. 116 is the door kick.
+- **Measured** (private apartment fixture copy, offscreen, port 9617,
+  `recomp/analysis/d12e/`, local): Q to start 35-92 ms; 113/115 last
+  1.04-1.06 s, 114 0.92-0.97 s; the strike key (foot out) comes at about
+  0.47-0.62 s; W held from 0.1 s does not move Duke until the kick ends; a
+  held Q for 6 s gives one kick. Player files unchanged.
+- **Industry brief** (sourced in the note): spammable armed melees are about
+  0.4-0.6 s, land in the first 0.1-0.2 s, layer the kick under an aiming upper
+  body, keep recovery cancellable, and keep key poses rather than speed up a
+  clip uniformly. Official frame data for most third-person shooters is not
+  published.
+- **Options:** A faster 112-115, B cut 115 from its chamber, C legs-channel
+  authored clip (recommended), D host leg-joint override, E new full-body
+  clip. **Proposed D12E1 = C:** a `ttk_quick_kick.py` clip in `ttk-anim.pack`
+  on channel 0 only (the D08K4 crouch-walk path), keyed from 115, with
+  anticipation, snap, a 100 ms held strike, retract and settle in 450 ms,
+  hits 133-333 ms through the D12A sphere aimed along the aim from Duke's
+  hip, D12C sound, chaining like first person, any weapon, the pace capped at
+  walking during the kick, and ADVANCED > COMBAT > KICK: QUICK / ORIGINAL.
+
+Open for the user: approve C, default QUICK or off, the running pace rule,
+camera punch, which leg. Limits: no enemy contact timed (one fixture), 112
+not drawn by the random pick here.
+
 ## 2026-11-04 - D10F1 accepted and closed; D12E third-person quick kick added
 
 User: "I'm very happy with the gameplay and performance in this iteration, and the camera angles have made the game feel solidly playable." D10F1 is Done at the candidate defaults; executable
@@ -255,7 +307,7 @@ acceptance. Executable `ac4634201d59a1b6133043becb570c55aec461db5631df071c31a966
 
 ### D12E - Third-person quick kick (research report first)
 
-**Status: Todo. Dependencies: D12A, D12C, D10F1.** User (2026-11-04, playing
+**Status: Done (research closed by the user 2026-11-04; [note 381](documentation/381-d12e-third-person-kick-research.md); implementation D12E1, D12E2). Dependencies: D12A, D12C, D10F1.** User (2026-11-04, playing
 in third person after D10F1): the original third-person kicks ("the like jiu
 jitsu kicks and stuff that he does in third person mode are so slow that you
 will basically get [hurt] if you actually take [it] seriously") make
@@ -281,6 +333,54 @@ D36 first-person presentation audit for ownership). Measure the current
 third-person kick timings in game, propose one approach with its timing
 budget, and the toggle's menu home. No implementation until the user
 selects it.
+
+### D12E1 - Spectacular third-person quick kick (legs layer)
+
+**Status: Todo. Dependencies: D12E, D08K4.** Implement the locked design in
+[note 381](documentation/381-d12e-third-person-kick-research.md) section 6
+(user: "let's make this custom kick absolutely spectacular ... try whatever it
+is that you recommend"; inspiration ARPGs and character action, "twitchy third
+person visuals").
+
+- Authored legs-and-pelvis clips on channel 0 (the D08K4 crouch-walk path,
+  `ttk-anim.pack`, new `ttk_quick_kick.py`), keyed from 115, foot IK on the
+  support leg, plus the mirror for the other leg; arms, chest, head and
+  weapon stay on the original aim. Any weapon or holstered; standing, walking,
+  running on the ground.
+- Budget: coil 0-67 ms, chamber 67-117, snap in about 2 frames, strike held
+  to about 283, settle with overshoot, chain point 350, done 450 ms; hits
+  133-333 ms through the D12A sphere aimed from Duke's hip; fire available.
+- Alternating legs when chained; Duke-only hit-pause (about 50 ms, taken from
+  the recovery) and a camera punch only on a real hit; the original spark
+  burst `0x8006d594(6, ...)` at the contact; whoosh at the snap (verify
+  `0x1000` is not a vocal), D12C impact with about +/-5% pitch variation;
+  whiffs whoosh only.
+- Pace capped at walking during 0-350 ms; 30-40 unit step on the snap through
+  Duke's collision; no magnetism.
+- ADVANCED > COMBAT > KICK: QUICK / ORIGINAL (`controls.third_person_kick`,
+  `DNTTK_TP_KICK`), QUICK default; ORIGINAL and Vanilla keep 112-115
+  exactly; first person unchanged. GAME_MANUAL.md.
+
+**Acceptance:** in third person Q kicks with any weapon while standing,
+walking and running; first contact within about 150 ms of the press and
+about 0.45 s per kick, chaining and a held Q repeating; the aim and weapon
+stay up and firing works during the kick; legs alternate; the clip reads as
+an authored snap kick at 60, 120 and 180 Hz (contact sheets plus the user's
+judgement: "absolutely legit"); hit-pause, camera punch and spark only on real
+hits; damage per kick as in first person; ORIGINAL, first person and Vanilla
+unchanged (native suites, Vanilla route); frame budget unchanged.
+
+### D12E2 - Third-person kick finisher and enemy payoff
+
+**Status: Todo. Dependencies: D12E1.** From
+[note 381](documentation/381-d12e-third-person-kick-research.md) section 6:
+a heavier third kick in a chain (a roundhouse keyed from 114's strike pose,
+about 520 ms, hit-pause about 83 ms); knockback and stagger through the game's
+own enemy reactions (trace what selects reaction 84, the original kick's
+shove; never a host shove that bypasses collision); a draw-only shake of the
+struck enemy; gamepad rumble on a hit; optional short magnetism if D12E1 play
+shows near misses. Each piece judged with the user; Vanilla and ORIGINAL
+unchanged.
 
 ### D08J3A - Climb camera revisit with aiming
 
@@ -5869,7 +5969,9 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D12B | Costume-aware first-person kick leg, game-wide (LEVEL01 slots 8/9) | Done (user-accepted; closed 2026-10-30) | D12A, D22A |
 | D12C | Kick impact sound on a real hit only (wall, crate, actor); empty-air and out-of-range kicks stay silent | Done (user-accepted) | D12A |
 | D12D | Upgraded first-person weapon framing (Challenge Stage 4 Incendiary RPG) | Done (user-accepted 2026-10-22) | D12, D22B |
-| D12E | Third-person quick kick (research report first) | Todo | D12A, D12C, D10F1 |
+| D12E | Third-person quick kick (research report first) | Done (closed 2026-11-04; note 381) | D12A, D12C, D10F1 |
+| D12E1 | Spectacular third-person quick kick (legs layer, alternating legs, hit-pause, camera punch, spark) | Todo | D12E, D08K4 |
+| D12E2 | Third-person kick finisher and enemy payoff (heavy third kick, knockback, rumble) | Todo | D12E1 |
 | D11C | Savestates can keep Duke's first-person head hidden (slot 12) | Done | D11 |
 | D11D | First-person eye height from Duke's real proportions, game-wide (LEVEL01 slot 8) | Done (user-accepted; closed 2026-10-30) | D11, D22A |
 | D11E | First person while swimming (underwater eye view, game-wide) | Done (user-accepted 2026-10-24) | D08O, D11, D22B |

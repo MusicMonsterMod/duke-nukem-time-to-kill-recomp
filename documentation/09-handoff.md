@@ -1,5 +1,31 @@
 # Next-session handoff
 
+## 2026-11-04 - D12E closed; spectacular kick locked as D12E1, D12E2 added
+
+User: "let's make this custom kick absolutely spectacular. I'd say let's try
+whatever it is that you recommend"; inspiration ARPGs, "not just exclusively
+ARPG's". [Note 381](381-d12e-third-person-kick-research.md) now holds the
+measurements (original kick: holstered Boot at a standstill only, foot out at
+about 0.6 s, 1.0-1.1 s locked, a held Q kicks once), sourced research across
+ARPGs, character action, fighting games and shooter melee, and the locked
+design. Next: D12E1 (legs-channel quick kick, alternating legs, hit-pause,
+camera punch, spark, layered sound, KICK: QUICK / ORIGINAL), then D12E2
+(finisher, knockback, rumble). No code or build change. Launch:
+`python3 recomp/tools/local/run.py`.
+
+## 2026-11-04 - D12E third-person kick research report ready (closed above)
+
+Research only, no code or build change ([note 381](381-d12e-third-person-kick-research.md)).
+Measured on the accepted D10F1 build: the third-person kick needs a holstered
+Boot and a standstill, the foot lands about 0.6 s in, the whole kick locks Duke
+for 1.0-1.1 s, and a held Q kicks once. The first-person kick lands in about
+0.15 s and is done in 0.45 s. Proposal D12E1: an authored quick-kick clip on
+the legs channel only (the D08K4 crouch-walk path), keyed from the original
+front kick 115, arms and weapon kept on the aim, the D12A cadence, hit and
+D12C sound, a capped pace while moving, and ADVANCED > COMBAT > KICK:
+QUICK / ORIGINAL. Awaiting the user's choice. Launch:
+`python3 recomp/tools/local/run.py`.
+
 ## 2026-11-04 - D10F1 accepted and closed; D12E added
 
 User: "I'm very happy with the gameplay and performance in this iteration, and the camera angles have made the game feel solidly playable." D10F1 Done at the candidate defaults

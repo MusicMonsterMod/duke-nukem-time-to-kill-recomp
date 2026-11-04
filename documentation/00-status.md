@@ -1,5 +1,35 @@
 # Current status - 2026-10-04
 
+## 2026-11-04 - D08J7A accepted and closed; D08J7B added
+
+User: "excellent work. lock it in and close it out!". D08J7A (shooting from
+ledge hangs: sidearm draw, view-aimed shots, holster to move, armed drop) is
+Done ([note 378](378-d08j7-mantle-fire-research.md)). New job D08J7B: weapon
+up on landing after a climb and a shorter Modernized pull-up.
+
+## 2026-11-04 - D08J7A shooting from ledge hangs (Needs playtest)
+
+Modernized: held left click in a ledge hang draws the sidearm (the D08J6A
+swap) and fires at the crosshair; W and A/D holster and move; S and Space let
+go with the pistol out and the own weapon comes back on the ground. No
+shooting during the climb over the lip (user choice 2b, D08J7B with the
+landing draw and a shorter pull-up next). No new hook or codegen change.
+[Note 378](378-d08j7-mantle-fire-research.md). Executable
+`0ccd15e8ba4fd9ff24f43362cd87e0be416b6c19b25837517d177b8074bb025c`.
+
+## 2026-11-04 - D08J7 research report (Needs decision)
+
+Shooting while mantling. In a ledge hang the original already draws (Circle
+tap), fires real rounds with one hand on the lip and stows, but refuses
+shimmy, pull-up and drop while armed; Modernized has no fire-to-draw there
+and hang shots go into the wall. The climb and pull-up (about 2.2 s per
+climb) drop Circle and defer the weapon request to landing. Recommended:
+hang and fight with the D08J6A sidearm rules, fire during the climb stops in
+the hang, a queued draw on landing and a shorter pull-up; staged D08J7A/B.
+Decisions and an enemy save state requested.
+[Note 378](378-d08j7-mantle-fire-research.md). No code, build or executable
+change.
+
 ## 2026-11-04 - D08J6A accepted and closed; D08J6B-D and D08J7 added
 
 User: "great progress so far and i love the direction ... lock us in and

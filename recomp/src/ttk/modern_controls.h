@@ -39,6 +39,8 @@ bool swim_fire_draw_ready();
 bool swim_fire_cross_masked();
 /* D08J6A: fire draws the sidearm on ladders, chains, poles and climbing walls. */
 bool climb_weapon_ready();
+bool hang_weapon_ready();
+bool hang_drop_armed_ready(bool drop);
 bool climb_fire_hold_ready();
 bool climb_stow_ready();
 bool climb_shot_ready();

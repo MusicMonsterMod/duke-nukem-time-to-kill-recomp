@@ -1549,8 +1549,14 @@ uint16_t input_pad() {
     // D08T8: consume the drop press through the original release animation.
     // Otherwise held Space jumps again on the dumpster, and held W/E catches
     // the same ledge immediately. Fresh presses after release work normally.
+    // D08J7A: S or Space in an armed ledge hang lets go with the weapon out
+    // (climb_fire.inc hands the hang pose to the release); W/A/D stow below.
+    // Armed, the hang is no traversal state, so Space needs this Down too.
+    const bool hang_drop=captured && hang_drop_armed_ready(!action_down(fire) && !action_down(holster) &&
+        !action_down(interact) && !action_down(move_forward) && (action_down(move_back) || jump_down()));
     if(!captured || (!jump_down() && !action_down(interact) && !traversal_input_ready()))ledge_dropping=false;
-    if(captured && ledge_hang_ready() && jump_down())ledge_dropping=true;
+    if(captured && (ledge_hang_ready() || hang_drop) && jump_down())ledge_dropping=true;
+    if(hang_drop) value &= ~64;
     if(ledge_dropping) {
         jump_deadline=jump_pressed_at=0;airborne_interact=false;
         interaction_pending=false;interaction_pulse=0;interaction_started=false;holster_pulse=0;
@@ -1644,7 +1650,7 @@ uint16_t input_pad() {
     // climb. Armed, climbing input spends one Circle tap to stow; the held
     // direction then climbs on once traversal input resumes (holstered).
     if(climb_fire_hold) value |= 16384;
-    if(captured && !action_down(fire) && !action_down(holster) && !action_down(interact) &&
+    if(captured && !hang_drop && !action_down(fire) && !action_down(holster) && !action_down(interact) &&
        (action_down(move_forward) || action_down(move_back) || action_down(move_left) || action_down(move_right)) &&
        climb_stow_ready()) circle_request=true;
     // Keep the persisted action ID/binding. In supported Modernized locomotion
@@ -1695,7 +1701,7 @@ uint16_t input_pad() {
     if(ledge_dropping) {
         value |= 16384|pads[jump];
         if(traversal_input_ready())value |= 16|32|64|128;
-        if(ledge_hang_ready())value &= ~64;
+        if(ledge_hang_ready() || hang_weapon_ready())value &= ~64;
     }
     last_pad=value;
     return value;

@@ -859,6 +859,16 @@ Number keys do not change weapons on a climb. Duke still uses the game's
 ordinary weapon pose for now (a proper one-handed hang-and-aim pose is coming).
 Vanilla is unchanged.
 
+**Shooting from a ledge hang (Modernized, D08J7).**
+Hanging from a ledge, hold **left click**: Duke keeps one hand on the lip,
+draws his sidearm and fires where the crosshair points, so you can shoot
+enemies along the wall beside you. A short click only draws, and the same
+sidearm swap as on climbs applies. **W** (pull up) and **A/D** (shimmy)
+holster by themselves and then move. **S** or **Space** lets go with the
+pistol still out, so Duke lands ready to shoot; your own weapon comes back
+on the ground. Shooting during the climb over the lip itself is not possible
+(both hands are busy). Vanilla is unchanged.
+
 **Free camera while climbing (Modernized, D08J3).**
 On ladders, poles, chains and climbing walls the mouse camera stays yours: turn
 it all the way round Duke, look up the ladder or down to the floor, zoom with

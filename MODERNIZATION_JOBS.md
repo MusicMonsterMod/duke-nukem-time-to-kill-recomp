@@ -2782,7 +2782,7 @@ launches after acceptance.
 
 ### D08J7 - Shooting while mantling
 
-**Status: Todo (next job, user priority 2026-11-04). Dependencies: D08J6, D08X, D08Z2, D35G.** User, closing
+**Status: Done (D08J7A user-accepted and closed 2026-11-04: "excellent work. lock it in and close it out!"; the mantle stage is job D08J7B; [note 378](documentation/378-d08j7-mantle-fire-research.md)). Dependencies: D08J6, D08X, D08Z2, D35G.** User, closing
 D08J6A: "is it gonna be possible to add in the ability to shoot when
 mantling, like that's just huge because currently it prevents you from
 shooting whatsoever and you might take quite a lot of damage during that
@@ -2799,6 +2799,60 @@ view-aimed shots and automatic stow so mantling is never a defenceless
 window, keeping the D08Z2 mantle upper-body handoff, D35G first person and
 Vanilla unchanged. Test with private copies of the user's saves and spawned
 pickups; ask the user for a save state where enemies attack during a mantle.
+
+**2026-11-04 research report.** Private offscreen probes on the D35G alley
+fixture (saved platform hang, dumpster and platform W+E climb). In the ledge
+hang (149, mode 6) the original already draws on a Circle tap (about 0.4 s),
+fires real rounds (8) with one hand kept on the lip, and stows on a second
+tap; armed, it refuses shimmy, pull-up and drop. Left click does nothing
+there and hang shots go into the wall (not camera-adapted). During the climb
+(139 0.47 s, pull-up 140 1.74 s, about 2.2 s per climb, 4.5 s for the
+two-climb route) a Circle tap is lost and the original weapon request waits
+until the first ground frame. Recommended: A, hang and fight (fire draws the
+sidearm in a hang, view-aimed shots, W/A/D/S/Space stow and act); B, fire
+during the climb up the face stops Duke in the hang, fire during the pull-up
+queues the draw for landing with the weapon he had before the E stow, and a
+shorter Modernized pull-up (about 1.0-1.2 s). No shooting while both hands
+push over the lip. Staged D08J7A/B; pose with D08J6B/C. Waiting on the six
+decisions in note 378 and a user save state with enemies near a mantle. No
+code or build change.
+
+**2026-11-04 decisions.** User: 1 yes (sidearm swap in hangs), 3 recommended
+(pull-up about 1.0-1.2 s), 5 recommended (D08J6D keeps monkey bars and object
+hangs); 2 (fire stops the climb in the hang) and 4 (leaving the hang armed)
+under discussion. User slot 9 (private copy): vertical E jump catches the
+ledge (147, 149); enemies are to Duke's right along the wall (user) and a
+pig cop stands on the lip above, so hang shots need a wide side arc and must
+clear the lip upward. No code or build change.
+
+**2026-11-04 D08J7A candidate (Needs playtest).** User chose 2b (fire never
+interrupts the climb; weapon up on landing) and 4b (drop with the pistol
+out). Held left click in a settled ledge hang draws the sidearm (D08J6A swap)
+and fires at the crosshair; W and A/D holster and act; S and Space let go
+armed through a one-update hang-pose handoff of the upper track, and the
+swapped weapon is drawn back on the ground. Hang route at 60/120/180 settings,
+first person, the user's slot 9 copy (9 view shots looking right, armed
+drop) and the D08J6A climb regression pass; Vanilla unchanged; native
+controls, input, aim and near suites pass. Pose still original (D08J6B/C).
+D08J7B (queued landing draw, pull-up about 1.0-1.2 s) is next. Executable
+`0ccd15e8ba4fd9ff24f43362cd87e0be416b6c19b25837517d177b8074bb025c`.
+
+**2026-11-04 accepted and closed.** User: "excellent work. lock it in and
+close it out!". D08J7A is Done; the mantle stage (user decisions 2b and 3) is
+the new job D08J7B. No gameplay edits, builds or launches after acceptance.
+
+### D08J7B - Weapon up on landing and a shorter pull-up
+
+**Status: Todo. Dependencies: D08J7.** Note 378 part B with the user's
+decisions: fire never interrupts a climb (2b); fire held or clicked during
+the climb or pull-up queues the original weapon request (the original
+already defers it to the first ground frame) and brings back the weapon
+Duke had before the E stow, drawn at the fast rate; the Modernized pull-up
+(140, 1.74 s) plays in about 1.0-1.2 s (3) with the root motion unchanged so
+Duke ends where he does today. Keep the D08Z2 upper-body handoff, D35G first
+person, the D08X catches and Vanilla unchanged. Test on the D35G alley climb
+(dumpster and platform), the slot-12 sewer wall catch and the user's slot 9
+copy at 60/120/180.
 
 ### D08J6B - Hang-and-aim pose, third person
 
@@ -5076,7 +5130,8 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08J3 | Free camera while on ladders, poles and chains (investigation + usability testing) | Done (user-accepted; closed 2026-10-30) | D06, D08J |
 | D08J5 | Climb down chains (and poles): reach the bottom and let go or step off (player UI slot 3) | Done | D08J2, D08J3 |
 | D08J6 | Firing while climbing: stop, draw, fire, resume (research first) | Done (D08J6A user-accepted; closed 2026-11-04; note 377) | D08J, D35E, D35F |
-| D08J7 | Shooting while mantling (research first) | Todo (next job, user priority 2026-11-04) | D08J6, D08X, D08Z2, D35G |
+| D08J7 | Shooting while mantling (research first) | Done (D08J7A user-accepted; closed 2026-11-04; note 378) | D08J6, D08X, D08Z2, D35G |
+| D08J7B | Weapon up on landing and a shorter pull-up | Todo | D08J7 |
 | D08J6B | Hang-and-aim pose on climbs, third person (user UI slots 12, 11, 8) | Todo | D08J6 |
 | D08J6C | Firing while climbing in first person | Todo | D08J6B, D35E, D35F, D36 |
 | D08J6D | Firing on monkey bars and ledge hangs (user UI slot 6) | Todo | D08J6A, D08J4, D08J7 |

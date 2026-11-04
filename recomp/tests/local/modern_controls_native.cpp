@@ -3031,10 +3031,67 @@ int main(int argc,char** argv) {
         psx_mod_write_byte(p+0x3b8,2);psx_mod_write_byte(p+0x3b9,4);psx_mod_write_half(p+0x74,5);psx_mod_write_word(p+0x224,0);
         ++ttk::input.sequence;call(0x8003ade4,c,p,0x80025ee8);assert(ttk::movement_ready() && !ttk::climb_weapon_ready());
         ++ttk::input.command_serial;call(0x80058120,p,0,0x80041c44,0x801ff000);
-        assert(psx_mod_read_byte(p+0x3ba)==5 && (psx_mod_read_word(p+0x224)&4) && std::strstr(ttk::controls_debug_json(),"\"ground_restores\":1}"));
+        assert(psx_mod_read_byte(p+0x3ba)==5 && (psx_mod_read_word(p+0x224)&4) && std::strstr(ttk::controls_debug_json(),"\"ground_restores\":1,"));
         psx_mod_write_word(p+0x224,0);psx_mod_write_byte(p+0x3ba,4);
         psx_mod_write_half(p+0x2c6+4*4,sidearm_ammo);psx_mod_write_half(p+0x2c4+4*4,sidearm_owned);
         std::puts("PASS: D08J6A climb fire-draw, sidearm swap and return, stow/shot gates, clips and Vanilla");
+    }
+    {
+        // D08J7A: the settled ledge hang (149, mode 6) has the climb lease.
+        // Held fire draws the sidearm at Duke's update (no climb dispatcher
+        // there), holstered again the selection returns; armed, S lets go with
+        // the weapon out: the hang pose takes the upper track for one update,
+        // then the kept weapon block comes back (fallen or refused).
+        const uint16_t sidearm_ammo=psx_mod_read_half(p+0x2c6+4*4),sidearm_owned=psx_mod_read_half(p+0x2c4+4*4);
+        psx_mod_write_half(p+0x2c4+4*4,sidearm_owned|1);psx_mod_write_half(p+0x2c6+4*4,20);
+        psx_mod_write_byte(p+0x22c,6);psx_mod_write_byte(p+0x22d,6);
+        psx_mod_write_half(p+0x60,149);psx_mod_write_half(p+0x74,149);
+        psx_mod_write_byte(p+0x3b8,0);psx_mod_write_byte(p+0x3b9,4);psx_mod_write_byte(p+0x3ba,5);psx_mod_write_word(p+0x224,0);
+        ++ttk::input.sequence;call(0x8003ade4,c,p,0x80025ee8);
+        auto update=[&]{call(0x8005a210,p,0x800c2754,0x80041b34,0x801fff00);};
+        assert(ttk::hang_weapon_ready() && ttk::climb_weapon_ready() && ttk::climb_fire_hold_ready() && !ttk::climb_shot_ready());
+        update();assert(!(psx_mod_read_word(p+0x224)&4) && psx_mod_read_byte(p+0x3ba)==5); // fire not held
+        ttk::input.held[ttk::fire]=true;update();
+        assert(psx_mod_read_byte(p+0x3ba)==4 && (psx_mod_read_word(p+0x224)&4) && std::strstr(ttk::controls_debug_json(),"\"swap_from\":5,"));
+        psx_mod_write_word(p+0x224,0);ttk::input.held[ttk::fire]=false;update();
+        assert(psx_mod_read_byte(p+0x3ba)==5 && std::strstr(ttk::controls_debug_json(),"\"swap_from\":-1,"));
+        // Only the settled ledge hang: grabs, shimmy steps, entry frames, the
+        // mode-7 object/ceiling hang and Vanilla never.
+        for(unsigned anim : {147u,148u,150u,152u,153u,140u}) {psx_mod_write_half(p+0x60,anim);assert(!ttk::hang_weapon_ready());}
+        psx_mod_write_half(p+0x60,149);
+        psx_mod_write_byte(p+0x22d,8);assert(!ttk::hang_weapon_ready());psx_mod_write_byte(p+0x22d,6);
+        psx_mod_write_byte(p+0x22c,7);psx_mod_write_byte(p+0x22d,7);assert(!ttk::hang_weapon_ready() && !ttk::climb_weapon_ready());
+        psx_mod_write_byte(p+0x22c,6);psx_mod_write_byte(p+0x22d,6);
+        ttk::modern=false;assert(!ttk::hang_weapon_ready() && !ttk::climb_weapon_ready());ttk::modern=true;
+        // Armed: stow and view shots as on climbs.
+        psx_mod_write_byte(p+0x3b8,2);psx_mod_write_half(p+0x74,5);
+        assert(ttk::climb_stow_ready() && ttk::climb_shot_ready() && ttk::hang_drop_armed_ready(true) && !ttk::hang_drop_armed_ready(false));
+        psx_mod_write_half(p+0x74,9);assert(!ttk::hang_drop_armed_ready(true));psx_mod_write_half(p+0x74,5);
+        psx_mod_write_word(p+0x224,4);assert(!ttk::hang_drop_armed_ready(true));psx_mod_write_word(p+0x224,0);
+        // S: the hang pose for one update, the weapon block back in the fall.
+        uint32_t block[5];for(unsigned i=0;i<5;++i)block[i]=psx_mod_read_word(p+0x74+4*i);
+        for(unsigned blocked : {(unsigned)ttk::fire,(unsigned)ttk::move_forward,(unsigned)ttk::holster,(unsigned)ttk::interact}) {
+            ttk::input.held[ttk::move_back]=true;ttk::input.held[blocked]=true;update();
+            assert(psx_mod_read_half(p+0x74)==5);ttk::input.held[blocked]=false;
+        }
+        update();assert(psx_mod_read_half(p+0x74)==149 && psx_mod_read_half(p+0x7c)==0 && std::strstr(ttk::controls_debug_json(),"\"hang_drops\":1,"));
+        ttk::input.held[ttk::move_back]=false;
+        psx_mod_write_byte(p+0x22c,9);psx_mod_write_half(p+0x60,108);psx_mod_write_half(p+0x74,108);update();
+        for(unsigned i=0;i<5;++i)assert(psx_mod_read_word(p+0x74+4*i)==block[i]);
+        assert(std::strstr(ttk::controls_debug_json(),"\"hang_drop_restores\":1}"));
+        // Space, refused by the original (still hanging): the block comes back too.
+        psx_mod_write_byte(p+0x22c,6);psx_mod_write_half(p+0x60,149);
+        ttk::input.held[ttk::jump]=true;update();assert(psx_mod_read_half(p+0x74)==149);ttk::input.held[ttk::jump]=false;
+        update();for(unsigned i=0;i<5;++i)assert(psx_mod_read_word(p+0x74+4*i)==block[i]);
+        // A savestate load between the two updates keeps the loaded pose.
+        ttk::input.held[ttk::move_back]=true;update();ttk::input.held[ttk::move_back]=false;assert(psx_mod_read_half(p+0x74)==149);
+        ++save_loads;update();assert(psx_mod_read_half(p+0x74)==149);--save_loads;
+        psx_mod_write_byte(p+0x22c,0);psx_mod_write_byte(p+0x22d,0);psx_mod_write_half(p+0x60,63);
+        psx_mod_write_byte(p+0x3b8,2);psx_mod_write_byte(p+0x3b9,4);psx_mod_write_half(p+0x74,5);psx_mod_write_word(p+0x224,0);
+        psx_mod_write_byte(p+0x3ba,4);
+        psx_mod_write_half(p+0x2c6+4*4,sidearm_ammo);psx_mod_write_half(p+0x2c4+4*4,sidearm_owned);
+        ++ttk::input.sequence;call(0x8003ade4,c,p,0x80025ee8);
+        std::puts("PASS: D08J7A ledge-hang fire-draw, swap return, armed drop handoff, hang gates and Vanilla");
     }
     {
         // D08Q5: in flight (mode 10) weapon groups, the wheel and X reach the

@@ -1467,6 +1467,7 @@ static void hook_body(CPUState* cpu, uint32_t address) {
             ledge_pullup_retry(cpu); // D08T8
             object_hang_update();
             ceiling_hang_update();
+            hang_fire_update(); // D08J7A
             unsigned animation=psx_mod_read_half(player+0x60);
             // Space may precede direction. An authenticated neutral preparation
             // keeps its input/camera lease, but supplies no Forward until the

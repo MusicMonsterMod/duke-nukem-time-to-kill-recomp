@@ -1,5 +1,14 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-04 - D12E2 cancelled; D09C controller rumble added
+
+User, after the D12E2 scoping discussion: "i honestly think we drop this, but
+stand rumble up in the backlog as a standalone for later on. I'm actually
+happy with the kicks! i wanna leave the kicks at this point". D12E2 is
+Cancelled: no finisher, knockback, enemy shake or magnetism; the D12E1 kick
+stays as accepted. Rumble becomes **D09C** (Todo), not tied to the kick. No
+code, build or executable change.
+
 ## 2026-11-04 - D08A35 accepted and closed
 
 User: "legendary. this is the one. lock it in and close us out". D08A35 is
@@ -474,7 +483,11 @@ unchanged (native suites, Vanilla route); frame budget unchanged.
 
 ### D12E2 - Third-person kick finisher and enemy payoff
 
-**Status: Todo. Dependencies: D12E1.** From
+**Status: Cancelled (user decision 2026-11-04: "I'm actually happy with the
+kicks! i wanna leave the kicks at this point"; rumble moved to D09C).
+Dependencies: D12E1.** Scoping found the finisher spec stale (D12E1 revision 2
+replaced the alternating front kick with a single left-leg roundhouse) and the
+reaction 84 shove untraced. Original scope, from
 [note 381](documentation/381-d12e-third-person-kick-research.md) section 6:
 a heavier third kick in a chain (a roundhouse keyed from 114's strike pose,
 about 520 ms, hit-pause about 83 ms); knockback and stagger through the game's
@@ -6083,6 +6096,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08A35 | Cowboy hat stays on under the Bio Mask (and night-vision goggles) in third person | Done (user-accepted 2026-11-04; note 383) | D08A24, D08A26, D08A23 |
 | D09 | Modern controller support | Done (user-accepted 2026-10-27) | D05, D06, D07 |
 | D09A | Separate keyboard and gamepad seats for local two-player | Done (user-accepted 2026-10-27) | D09, D34B implementation |
+| D09C | Controller rumble: the game's own vibration on a real pad, plus Modernized hit feedback | Todo (added 2026-11-04, from cancelled D12E2) | D09, D09A |
 | D10 | Third-person camera polish | Done | D08 |
 | D10E | Optional held middle-mouse third-person free look (issue #1 inspiration) | Done (user-accepted 2026-10-27) | D04, D06, D07, D10 |
 | D10A | Rapid mouse turning and Shift-running investigation | Done | D06, D07C, D08 |
@@ -6103,7 +6117,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D12D | Upgraded first-person weapon framing (Challenge Stage 4 Incendiary RPG) | Done (user-accepted 2026-10-22) | D12, D22B |
 | D12E | Third-person quick kick (research report first) | Done (closed 2026-11-04; note 381) | D12A, D12C, D10F1 |
 | D12E1 | Spectacular third-person quick kick (legs layer, alternating legs, hit-pause, camera punch, spark) | Done (accepted 2026-11-04; left-leg MMA roundhouse, note 382) | D12E, D08K4 |
-| D12E2 | Third-person kick finisher and enemy payoff (heavy third kick, knockback, rumble) | Todo | D12E1 |
+| D12E2 | Third-person kick finisher and enemy payoff (heavy third kick, knockback, rumble) | Cancelled (user decision 2026-11-04: kicks stay as accepted; rumble is D09C) | D12E1 |
 | D11C | Savestates can keep Duke's first-person head hidden (slot 12) | Done | D11 |
 | D11D | First-person eye height from Duke's real proportions, game-wide (LEVEL01 slot 8) | Done (user-accepted; closed 2026-10-30) | D11, D22A |
 | D11E | First person while swimming (underwater eye view, game-wide) | Done (user-accepted 2026-10-24) | D08O, D11, D22B |
@@ -12907,6 +12921,29 @@ controller/keyboard arrangement "100% works" and two-player works as a
 foundational first step. D09A is accepted; modern gameplay/presentation is D34C.
 This is user-reported acceptance, not newly observed exhaustive hardware tests.
 User explicitly authorizes implementation/documentation commit and push closeout.
+
+### D09C - Controller rumble
+
+**Status: Todo. Dependencies: D09, D09A.** User (2026-11-04, cancelling
+D12E2): "stand rumble up in the backlog as a standalone for later on".
+
+Known from earlier notes (not yet verified on hardware): the game drives
+DualShock vibration through `0x8001e840` (wall bump, note 131; jump-wall
+bounce, note 134; damage types, note 370), and the framework already relays
+the guest pad's small/large motor values to `SDL_GameControllerRumble`
+(`update_controller_rumble`, seat routing per D09A note 290). Note 381's
+"no rumble in the host" meant no host-originated rumble. Physical rumble has
+never been tested on this build.
+
+Scope: verify the original vibration reaches a real pad (wall bump, damage,
+explosions) with the game's vibration setting; fix the relay if it does not;
+then propose Modernized rumble for events the original leaves silent (kick
+hits in first and third person, firing, landings), with an on/off and
+strength setting and nothing on a whiff. Two-player routing per seat. Vanilla
+keeps the original vibration only.
+
+Acceptance: the user feels the original events on their pad; Modernized
+additions judged with the user; keyboard-only play and Vanilla unchanged.
 
 ### D10 — Third-person camera polish
 

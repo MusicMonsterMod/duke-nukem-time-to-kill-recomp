@@ -1,5 +1,12 @@
 # Current status - 2026-10-04
 
+## 2026-11-04 - D12E2 cancelled; D09C controller rumble added
+
+User: "I'm actually happy with the kicks! i wanna leave the kicks at this
+point". D12E2 (finisher, knockback, enemy shake, magnetism) is Cancelled; the
+D12E1 kick stays as accepted. Rumble is a standalone backlog job, D09C (Todo).
+No code or build change. Launch: `python3 recomp/tools/local/run.py`.
+
 ## 2026-11-04 - D08A35 accepted and closed
 
 User: "legendary. this is the one. lock it in and close us out". Duke keeps
@@ -30,7 +37,7 @@ third-person quick kick is Done: a left-leg MMA-style roundhouse on the legs
 and hips (arms and weapon on the aim), any weapon, on the move and in jumps,
 D12A cadence and damage, hit-only spark, hold and camera punch; ADVANCED >
 COMBAT > KICK: QUICK / ORIGINAL ([note 382](382-d12e1-third-person-quick-kick.md)).
-Next in the kick line: D12E2 (finisher, knockback, rumble). Launch:
+Next in the kick line was D12E2 (since cancelled). Launch:
 `python3 recomp/tools/local/run.py`.
 
 ## 2026-11-04 - D12E1 revision 3: left-leg roundhouse

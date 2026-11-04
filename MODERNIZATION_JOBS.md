@@ -1,5 +1,41 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-04 - D08A35 accepted and closed
+
+User: "legendary. this is the one. lock it in and close us out". D08A35 is
+Done at revision 2: in the Old West levels Duke keeps his cowboy hat in third
+person under the Bio Mask and the goggles, the masked head tucked under the
+brim with the face plate whole. Modernized only; game RAM and saves never hold
+the copy. No framework edits (runtime patch unchanged). Executable
+`f57c694de9e655fa7d50f1a109b9c31e7bcf2fcae76590809499591cb419e070`.
+
+## 2026-11-04 - D08A35 revision 2: no hole at the eyes (Needs playtest)
+
+User: "largely fixed ... exactly what i wanted", but Duke had a hole in his
+head at the eyes. Revision 1 pressed the masked head's forehead down to the
+back's brim height, folding the mask's face plate. The front now only tucks
+the forehead under the high front brim (-95); the back keeps its press.
+Eye-level front: face plate and lenses whole; back views still clean.
+Executable `f57c694de9e655fa7d50f1a109b9c31e7bcf2fcae76590809499591cb419e070`. [Note 383](documentation/383-d08a35-cowboy-hat-bio-mask.md).
+
+## 2026-11-04 - D08A35: the cowboy hat stays on under the Bio Mask (Needs playtest)
+
+In Modernized, when the Bio Mask or the goggles replace the Old West head,
+Duke's mesh draw gets a private copy of the bare masked head with the
+costume's own 50 hat faces added and the head's top pressed under the brim;
+the game's model and saves never hold it. Private slot-3 copy: hat on with
+mask and goggles (back and front), native head after removal, level 6 and
+first person unchanged. Not driven: the real gas crossing, the Vanilla route,
+mirrors. [Note 383](documentation/383-d08a35-cowboy-hat-bio-mask.md).
+No framework edits. Executable
+`0fce22c66b0f8b5c2d0e20cf4a9a6fca6f954c333b8e5121856cc9effc8117fc`. Launch: `python3 recomp/tools/local/run.py`.
+
+## 2026-11-04 - D08A35 added: the cowboy hat stays on under the Bio Mask
+
+User request from UI slot 3 in third person: the Bio Mask takes Duke's cowboy
+hat off. The native equip replaces the whole head mesh with a bare masked head;
+the job keeps the costume's hat on it. Selected for work in the same request.
+
 ## 2026-11-04 - D12E1 accepted and closed
 
 User: "LOCK IT IN AND CLOSE IT OUT. once again you've outdone yourself.
@@ -2189,6 +2225,35 @@ playtest (Gatling gun in slot 12, steroids).
 
 User, while playtesting D17AY (2026-11-02), asked for an EDuke32-style
 option. Recorded only; not started.
+
+### D08A35 - Cowboy hat stays on under the Bio Mask
+
+**Status: Done (revision 2 user-accepted 2026-11-04; [note 383](documentation/383-d08a35-cowboy-hat-bio-mask.md)). Dependencies: D08A24, D08A26, D08A23.** User
+(2026-11-04, UI slot 3, third person, cowboy costume): "when you walk into the
+toxic gas ... the biomask comes on but Duke loses his cowboy hat ... there is
+no reason for this to happen we could absolutely rework the model so that the
+cowboy hat stays on Duke's Head".
+
+Cause (research, 2026-11-04): the mask is not drawn on top of the head. The
+native equip at `8004e894..8004e94c` swaps the head joint's mesh pointer for
+one shared masked-head mesh (`[800ddb18]+0x1030`), and night-vision goggles do
+the same with `+0x10c4`; removal restores `[[800ddb14]+4]`. Those meshes are
+the bare-headed default Duke, so the Old West costume (levels 1, 2, 3, 27)
+loses its hat while either is worn.
+
+Scope: in Modernized, a cowboy Duke wearing the Bio Mask (and the goggles,
+same mechanism) keeps his hat in third person: the hat from the costume's own
+head mesh sits on the masked head at the same place, lit and drawn like the
+rest of Duke, with no clipping through the mask straps. Other costumes, first
+person (head hidden), the native equip/drain/depletion and Vanilla stay
+unchanged. Savestates and card saves keep working (no stray pointers saved).
+
+Acceptance: slot 3 third person, walk into gas: mask on, hat on; leave or
+deplete: original head and hat; goggles likewise; a non-cowboy level unchanged;
+Vanilla unchanged; user judges the look in game.
+
+Accepted 2026-11-04 at revision 2: a draw-time private head copy, see
+[note 383](documentation/383-d08a35-cowboy-hat-bio-mask.md).
 
 ### D08A34 - The medkit cannot be used in water (underwater or on the surface)
 
@@ -6015,6 +6080,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08A32 | A distinct ammo icon for every weapon in the bottom-right HUD (14x14 in 16x16, review artifact first) | Todo (design review first) | D08A21, D24A |
 | D08A34 | The medkit cannot be used in water (underwater or on the surface; slot 11) | Done | D08A7 |
 | D08A33 | EQUIP PICKUPS option: IF NEW (default) auto-equips new weapons and selects new items; NEVER does neither | Done (user-accepted 2026-11-02) | D08A9, D08A, D19 |
+| D08A35 | Cowboy hat stays on under the Bio Mask (and night-vision goggles) in third person | Done (user-accepted 2026-11-04; note 383) | D08A24, D08A26, D08A23 |
 | D09 | Modern controller support | Done (user-accepted 2026-10-27) | D05, D06, D07 |
 | D09A | Separate keyboard and gamepad seats for local two-player | Done (user-accepted 2026-10-27) | D09, D34B implementation |
 | D10 | Third-person camera polish | Done | D08 |

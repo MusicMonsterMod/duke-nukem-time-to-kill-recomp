@@ -1,5 +1,28 @@
 # Current status - 2026-10-04
 
+## 2026-11-04 - D08A35 accepted and closed
+
+User: "legendary. this is the one. lock it in and close us out". Duke keeps
+his cowboy hat under the Bio Mask and goggles in third person (Done,
+[note 383](383-d08a35-cowboy-hat-bio-mask.md)). No next job selected. Launch:
+`python3 recomp/tools/local/run.py`.
+
+## 2026-11-04 - D08A35 revision 2: no hole at the eyes (Needs playtest)
+
+The front of the masked head is no longer pressed under the back's brim
+height, which had folded the mask's face plate into a hole at the eyes
+([note 383](383-d08a35-cowboy-hat-bio-mask.md)). Launch:
+`python3 recomp/tools/local/run.py`.
+
+## 2026-11-04 - D08A35: the cowboy hat stays on under the Bio Mask (Needs playtest)
+
+The Bio Mask and goggles swap the whole head mesh for a bare default head,
+which took the Old West hat off. Modernized now draws that head with the
+costume's own hat on it, its top pressed under the brim; game RAM and saves
+are untouched ([note 383](383-d08a35-cowboy-hat-bio-mask.md)). Next: the user
+checks slot 3 in third person, into the gas and out. Launch:
+`python3 recomp/tools/local/run.py`.
+
 ## 2026-11-04 - D12E1 accepted and closed
 
 User: "LOCK IT IN AND CLOSE IT OUT ... insanely good work. accepted". The

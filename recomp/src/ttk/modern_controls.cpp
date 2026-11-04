@@ -2267,6 +2267,139 @@ void first_person_mesh_begin(CPUState* cpu) {
        third_person_body_effect() || !identity()) return;
     fade_clear(cpu);
 }
+// D08A35: the Bio Mask (face equipment 2, [800ddb18]+0x1030) and the goggles
+// (3, +0x10c4) replace the whole head joint's mesh with a bare default head,
+// so the Old West costume lost its hat. When that head is submitted for Duke,
+// draw instead a private copy of it with the hat faces of the costume's own
+// head (the pristine model, [[800ddb14]+4]) appended, the D17Y way: only a0
+// changes, the game's model and saves never hold the copy. The hat is every
+// face of the original head lying wholly above the bare skull (y <= -60) and
+// reaching the crown, the brim or its back; the original's vertices keep their
+// light data. Rebuilt at every draw (redraw workers draw from their own RAM).
+// DNTTK_COWBOY_HAT=0 (developer) keeps the native bare head.
+static uint32_t hat_copy[2];
+static uint64_t hat_draws;
+static constexpr uint32_t hat_copy_bytes=0x1000;
+bool cowboy_hat_mesh(uint32_t address) {
+    for(const uint32_t c:hat_copy) if(c && address>=c && address<c+hat_copy_bytes) return true;
+    return false;
+}
+void cowboy_hat_mesh_begin(CPUState* cpu) {
+    static const bool on=[]{const char* t=std::getenv("DNTTK_COWBOY_HAT");return !(t && t[0]=='0' && !t[1]);}();
+    const unsigned face=psx_mod_read_half(player+0x854);
+    const uint32_t desc=duke_model(),mesh=cpu->gpr[4];
+    if(!on || (face!=2 && face!=3) || cpu->gpr[31]!=0x800351f4 || cpu->gpr[20]!=player || !desc ||
+       duke_part_joint(desc,part_neck)!=(int)cpu->gpr[23] || !identity()) return;
+    // Only the Old West model wears a hat: its neck is joint 15 (D11D). The
+    // other costumes' heads (hair, helmets) never match.
+    if(cpu->gpr[23]!=15) return;
+    auto valid=[](uint32_t a,uint32_t n) {return a>=0x80010000u && a<=0x80200000u-n && !(a&3);};
+    const uint32_t gadgets=psx_mod_read_word(0x800ddb18),heads=psx_mod_read_word(0x800ddb14);
+    if(!valid(gadgets,0x10c8) || mesh!=psx_mod_read_word(gadgets+(face==2?0x1030:0x10c4)) || !valid(heads,8)) return;
+    const uint32_t pristine=psx_mod_read_word(heads+4);
+    if(!valid(pristine,0x44+0x28*duke_joints)) return;
+    const uint32_t head=psx_mod_read_word(pristine+0x44+0x28*cpu->gpr[23]+0x24);
+    if(!valid(head,0x18) || !valid(mesh,0x18) || head==mesh) return;
+    struct Mesh {unsigned count;uint32_t box,verts,list;};
+    auto read=[&](uint32_t m,Mesh& out) {
+        out={psx_mod_read_byte(m+6),psx_mod_read_word(m+8),psx_mod_read_word(m+0x10),psx_mod_read_word(m+0x14)};
+        return out.count && valid(out.box,0x10) && valid(out.verts,8*out.count) && valid(out.list,4);
+    };
+    Mesh bare{},own{};
+    if(!read(mesh,bare) || !read(head,own)) return;
+    auto vy=[&](unsigned i){return (int16_t)psx_mod_read_half(own.verts+8*i+2);};
+    // The bare head's list, kept whole; the costume head's hat faces (GT3).
+    uint32_t cursor=bare.list,bare_bytes=0;
+    for(unsigned guard=0;;++guard) {
+        if(guard>16 || !valid(cursor,4)) return;
+        const uint32_t header=psx_mod_read_word(cursor);
+        const unsigned type=header&0xff,n=header>>16;
+        if(type==0xff) break;
+        const unsigned size=type==0x2c || type==0x24 ? 16 : type==0x28 || type==0x20 ? 8 : 0;
+        if(!size || !n || n>512 || !valid(cursor,4+n*size)) return;
+        cursor+=4+n*size;bare_bytes+=4+n*size;
+    }
+    const uint32_t end_word=psx_mod_read_word(cursor);
+    std::vector<uint32_t> hat;std::array<int,256> remap;remap.fill(-1);
+    unsigned added=0,brim=0;
+    cursor=own.list;
+    for(unsigned guard=0;;++guard) {
+        if(guard>16 || !valid(cursor,4)) return;
+        const uint32_t header=psx_mod_read_word(cursor);cursor+=4;
+        const unsigned type=header&0xff,n=header>>16;
+        if(type==0xff) break;
+        const unsigned size=type==0x2c || type==0x24 ? 16 : type==0x28 || type==0x20 ? 8 : 0;
+        if(!size || !n || n>512 || !valid(cursor,n*size)) return;
+        for(unsigned k=0;k<n && type==0x24;++k) {
+            const uint32_t r=cursor+16*k,idx=psx_mod_read_word(r);
+            bool above=true,crown=false,wide=false;
+            for(unsigned j=0;j<3;++j) {
+                const unsigned i=(idx>>(8*j))&0xff;
+                if(i>=own.count) return;
+                const int16_t x=(int16_t)psx_mod_read_half(own.verts+8*i),y=vy(i),z=(int16_t)psx_mod_read_half(own.verts+8*i+4);
+                above&=y<=-60;crown|=y<-98 || std::abs(x)>35 || z<-60;wide|=std::abs(x)>60;
+            }
+            if(!above || !crown) continue;
+            hat.push_back(r);brim+=wide;
+            for(unsigned j=0;j<3;++j) {const unsigned i=(idx>>(8*j))&0xff;if(remap[i]<0) remap[i]=int(bare.count+added++);}
+        }
+        cursor+=n*size;
+    }
+    // A costume without a hat (or another costume's head) draws as native.
+    if(hat.size()<16 || brim<8 || bare.count+added>255) return;
+    const uint32_t verts_at=0x28,list_at=verts_at+8*(bare.count+added);
+    if(list_at+bare_bytes+4+16*hat.size()+4>hat_copy_bytes) return;
+    uint32_t& copy=hat_copy[face==2?0:1];
+    if(!copy) copy=psx_mod_alloc_guest_memory(hat_copy_bytes,16);
+    if(!copy) return;
+    for(uint32_t i=0;i<0x18;i+=4) psx_mod_write_word(copy+i,psx_mod_read_word(mesh+i));
+    psx_mod_write_byte(copy+6,bare.count+added);
+    psx_mod_write_word(copy+8,copy+0x18);
+    psx_mod_write_word(copy+0x10,copy+verts_at);
+    psx_mod_write_word(copy+0x14,copy+list_at);
+    // Box: min x, y, z, extent; max x, y, z, extent. The costume head's box
+    // already holds its hat, so the union is conservative.
+    for(unsigned k=0;k<8;++k) {
+        const int16_t a=(int16_t)psx_mod_read_half(bare.box+2*k),b=(int16_t)psx_mod_read_half(own.box+2*k);
+        psx_mod_write_half(copy+0x18+2*k,(uint16_t)(k<3?std::min(a,b):std::max(a,b)));
+    }
+    // The bare head is taller and wider than the costume's skull (flat top at
+    // -122 and 40 across). At the back the hat's brim meets the crown low
+    // (about -84 at z -41) and the head's hair sat between them, where the
+    // painter sort drew it over the hat: there the head's top (above -66) is
+    // pressed under the brim line, to -76 at most, and in by 15%. At the front
+    // the brim meets the crown high (about -98 at z 49), so only the forehead
+    // above -95 is lowered to -95: pressing it further folded the mask's face
+    // plate and opened a hole at the eyes. Blended over z 0..20. The side
+    // respirator canisters (|x| >= 45) keep their shape.
+    for(unsigned i=0;i<bare.count;++i) {
+        const uint32_t v=bare.verts+8*i,o=copy+verts_at+8*i;
+        psx_mod_write_word(o,psx_mod_read_word(v));psx_mod_write_word(o+4,psx_mod_read_word(v+4));
+        const int x=(int16_t)psx_mod_read_half(v),y=(int16_t)psx_mod_read_half(v+2),z=(int16_t)psx_mod_read_half(v+4);
+        if(y>=-66 || std::abs(x)>=45) continue;
+        const int front=std::clamp(z,0,20); // 0 back .. 20 front
+        const int bx=x*85/100,by=-66+(y+66)*10/56,bz=z*85/100,fy=std::max(y,-95);
+        psx_mod_write_half(o,(uint16_t)(int16_t)((bx*(20-front)+x*front)/20));
+        psx_mod_write_half(o+2,(uint16_t)(int16_t)((by*(20-front)+fy*front)/20));
+        psx_mod_write_half(o+4,(uint16_t)(int16_t)((bz*(20-front)+z*front)/20));
+    }
+    for(unsigned i=0;i<own.count;++i)
+        if(remap[i]>=0) for(unsigned w=0;w<2;++w)
+            psx_mod_write_word(copy+verts_at+8*remap[i]+4*w,psx_mod_read_word(own.verts+8*i+4*w));
+    for(uint32_t i=0;i<bare_bytes;i+=4) psx_mod_write_word(copy+list_at+i,psx_mod_read_word(bare.list+i));
+    uint32_t out=copy+list_at+bare_bytes;
+    psx_mod_write_word(out,0x24u|(uint32_t)hat.size()<<16);out+=4;
+    for(const uint32_t r:hat) {
+        const uint32_t idx=psx_mod_read_word(r);
+        uint32_t mapped=idx&0xff000000u;
+        for(unsigned j=0;j<3;++j) mapped|=(uint32_t)remap[(idx>>(8*j))&0xff]<<(8*j);
+        psx_mod_write_word(out,mapped);
+        for(uint32_t w=4;w<16;w+=4) psx_mod_write_word(out+w,psx_mod_read_word(r+w));
+        out+=16;
+    }
+    psx_mod_write_word(out,end_word);
+    cpu->gpr[4]=copy;++hat_draws;
+}
 double first_person_legs_coverage() {return body_coverage_supported()?hang_legs_alpha():1.0;}
 double third_person_body_coverage() {
     if(!third_person_camera_live() || !body_coverage_supported() || third_person_body_effect()) return 1.0;

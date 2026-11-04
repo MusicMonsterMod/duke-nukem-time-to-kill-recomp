@@ -172,6 +172,9 @@ double third_person_body_coverage();
 double first_person_legs_coverage();
 void third_person_mesh_begin(CPUState* cpu);
 void first_person_mesh_begin(CPUState* cpu);
+// D08A35: the cowboy hat on the Bio Mask / goggles head (a private mesh copy).
+void cowboy_hat_mesh_begin(CPUState* cpu);
+bool cowboy_hat_mesh(uint32_t address);
 // D11B: Duke's own actor draw is in progress (object meshes belong to him).
 bool first_person_duke_drawing();
 // D11B: any actor draw (0x800348d8) is in progress, until the next list step.

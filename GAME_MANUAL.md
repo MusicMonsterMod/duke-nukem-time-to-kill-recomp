@@ -2190,6 +2190,12 @@ saves the choice. Vanilla retains original behavior. The launcher also accepts
 `--night-vision modern|original`; this saves the preference. In `--settings`,
 choose **N Night vision**.
 
+### Cowboy hat under the Bio Mask (D08A35)
+
+In the Old West levels, Duke keeps his cowboy hat in third person while the Bio
+Mask or the night-vision goggles are on (Modernized; Vanilla shows the original
+bare head).
+
 ### First-person Bio Mask mesh (D08A26 / D08A28)
 
 While the Bio Mask is active in Modernized first person, a low-poly respirator

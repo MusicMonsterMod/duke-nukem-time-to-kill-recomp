@@ -1834,7 +1834,9 @@ void object(CPUState* cpu) {
     ++object_stats.seen;
     const unsigned count=psx_mod_read_byte(mesh+6);
     const uint32_t vertices=psx_mod_read_word(mesh+0x10),list=psx_mod_read_word(mesh+0x14);
-    if(!count || vertices<0x80010000 || vertices>0x801ffff0 || list<0x80010000 || (list>0x801ffff0 && list!=missing_texture_copy+0x20)) return;
+    // D08A35: the hat head copy keeps its vertices and list beside it.
+    const bool hat=cowboy_hat_mesh(mesh) && cowboy_hat_mesh(vertices) && cowboy_hat_mesh(list);
+    if(!count || ((vertices<0x80010000 || vertices>0x801ffff0 || list<0x80010000 || (list>0x801ffff0 && list!=missing_texture_copy+0x20)) && !hat)) return;
     Frame f{};if(!begin(f,cpu,true)) return;
     // D17AH: native sky layers are composed in painter order, not world depth.
     // Retain perspective texture coordinates and all clipping/ordering rules.
@@ -2121,7 +2123,7 @@ void near_hook_body(CPUState* cpu,uint32_t address) {
     if(!mesh || cpu->gpr[5]!=ordering || cpu->gpr[6]!=context || cpu->gpr[7]!=bitmap) return;
     if(mesh<0x80010000 || mesh>0x801f0000 || (mesh&3)) return;
     if(!identity()) {++refused;return;}
-    if(object_filter) {third_person_mesh_begin(cpu);first_person_mesh_begin(cpu);filter_missing_animation(cpu);}
+    if(object_filter) {third_person_mesh_begin(cpu);first_person_mesh_begin(cpu);filter_missing_animation(cpu);cowboy_hat_mesh_begin(cpu);}
     if(!clip_live || !enabled()) return;
     if(address==0x80011020 && (renderers()&1)) world(cpu);
     else if(address==0x80010000 && (renderers()&2)) object(cpu);

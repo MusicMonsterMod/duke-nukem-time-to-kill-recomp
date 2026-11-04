@@ -892,7 +892,10 @@ again to choose the direction relative to the new view. CONFIRM applies and
 saves the choice; `--pole-view first` or `--pole-view legacy-third` also saves it.
 **MANTLE VIEW** offers FIRST PERSON (default) / THIRD PERSON for ledge hangs,
 shimmying, pull-ups and water climb-outs. The eye follows Duke over the lip and
-his hands keep their native poses. E catches/climbs, W pulls up, A/D shimmy and
+his hands keep their native poses. In first person a hang holds the eye steady
+just behind the lip (both hands in view looking ahead); his legs hang below,
+only a sliver of them at the bottom of the view when you look straight down.
+E catches/climbs, W pulls up, A/D shimmy and
 Space or S drops from a settled ledge hang as before. CONFIRM applies and saves
 it; `--mantle-view first` or `--mantle-view legacy-third` also saves the choice.
 **WALL CLIMB VIEW** offers FIRST PERSON (default) / THIRD PERSON for climbing

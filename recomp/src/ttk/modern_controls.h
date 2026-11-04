@@ -162,6 +162,8 @@ bool first_person_view_live();
 bool third_person_camera_live();
 bool third_person_duke_drawing();
 double third_person_body_coverage();
+// D36H9: coverage of the first-person legs drawn now (1 = solid).
+double first_person_legs_coverage();
 void third_person_mesh_begin(CPUState* cpu);
 void first_person_mesh_begin(CPUState* cpu);
 // D11B: Duke's own actor draw is in progress (object meshes belong to him).

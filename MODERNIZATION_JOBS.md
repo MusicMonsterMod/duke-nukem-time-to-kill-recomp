@@ -2225,6 +2225,111 @@ repeated grabs from several approach speeds; other mantles, ledge hangs and
 water climb-outs (D35G, D08X, D08V coverage) unchanged; Vanilla unchanged;
 the user's playtest.
 
+### D36H9 - Ledge hang first person: upper arm flicker and legs-only body (slot 9)
+
+**Status: Done (user-accepted 2026-11-04: "thats it, thats a winner. lock it in, close it out"; the flicker fix plus legs moved back to a sliver; [note 306](documentation/306-d36h5-interaction-arm-coverage.md) D36H9 section). Dependencies: D36H8, D35G, D08J7A.** User, reviewing D08J7C
+(video `Video_2026-11-04_08-54-07.mp4`): "when mantling now, the arms
+flicker. for example, from the same save slot, simply jump and grab the
+ledge, and W to climb up, and duke's arms flicker. furthermore you can see
+the disembodied legs in this view too." Slot 9, first person, unarmed: jump
+catch, hang 149, look down and turn right along the wall; an upper arm pops
+in and out at the side of the view, and below the eye only the legs (and the
+holstered pistol) are drawn, no torso.
+
+Reproduced 2026-11-04 on private copies at the 180 setting (Xvfb, 60 fps
+recording, `recomp/analysis/d08j7/flickrec.py`): the same intrusion on the
+D08J7C candidate and on the D08J7B build
+(`ca7d1a22bf575a6ee4d7a3c010338e6f6d641e698e416a6b1bfa540fb90aa9ab`), so it
+is not a D08J7C regression. Likely the mechanism of note 257 and D36H8: a
+whole limb part shown or hidden as its origin depth or the eye envelope test
+changes with the view, here the hang's raised arms beside the eye. Identify
+the actual owner first (D35G Mantle presentation, D36H4 body path or the
+D36H5 contact rig; notes 257, 305, 306), then make the hang arms continuous
+(hidden or shown, never popping) and decide with the user what the hang
+shows when looking down (legs alone read as disembodied: hide them, or add
+the torso). Test the slot 9 copy and the D35G alley hang at 60/120/180,
+looking down and sideways; shimmy, pull-up and drop; third person and
+Vanilla unchanged.
+
+**2026-11-04 decision.** User, on what the hang shows when looking down: "he
+could get a torso in this case too"; after the options (D14E already draws the
+pelvis and vest on the ground, not in hangs) the user chose instead to keep the
+dangling legs and fade them out only while looking down in a hang: "i kinda
+wanna try this. when duke goes transparent when he's in a tight spot, it's
+really the same kind of thing i think". Plan: in first-person ledge hangs
+(grab, hang, shimmy) the legs and pelvis use the game's own close-camera fade
+(`first_person.inc` notes it: render context `0x800d67a8` +0x48 semi-transparent,
++0x4c blend, colors and GTE back color darkened), scaled by downward pitch so
+they are solid looking ahead or sideways and fade smoothly to nothing looking
+straight down; back to solid as the pull-up brings the knee onto the lip. The
+upper arms go through the near-plane polygon clip path instead of whole-part
+rejection, so they never pop. Thresholds tuned in game at 60/120/180 and 60-90
+FOV; Polymorph and Classic checked; third person and Vanilla unchanged.
+
+**2026-11-04 implementation (Needs playtest).** Owner: the D36H5 contact rig
+(Mantle). Three causes, each fixed game-wide for the Mantle owner: (1) the hang
+draw calls the list iterator 0x8001ca4c inside Duke's draw (ra 0x80075810) and
+the hook took it for the object loop's step, dropping first-person ownership
+mid-draw; a call below the actor-entry stack frame now keeps it. (2) The rig's
+shoulders were anchored in camera yaw, so turning the view in a hang swept an
+upper arm across the eye as a near slab; in Mantle they follow Duke's heading
+with the camera pitch. (3) The eye itself alternated 84 units per tick: the
+native solver's ray from Duke's pivot to the point ahead of the eye hit the lip
+at alternating positions. The fully blended Mantle eye now takes the requested
+delta through the existing 0x8002a038 easing hook (no new hook, no codegen
+change, savestates unaffected), and ledge hangs place the eye 128 units behind
+the root along Duke's heading, keeping the accepted framing (both hands on the
+lip). Legs: the third-person body's screen-door coverage, solid to 45 degrees
+down, gone at the 60-degree look limit, in hangs and pull-ups; solid standing.
+Rejected: the game's own B+F/4 close-camera blend (a binary hide at this pitch
+range) and the solver bypass without a setback (hands left the view).
+Evidence: slot 9 slow pans at 60/180 without the per-tick corner flicker
+(per-frame skin-pixel counts on Xvfb recordings); D35G alley hang 60/120/180
+look-down, pan, shimmy, pull-up; third person and `--vanilla` hang unchanged;
+D36H8 slot-11 mantle 120/180 continuous and identical to an A/B run with the new
+switches off. Native controls 147 groups (new D36H9 group), input, aim and near
+suites, Python profile and input suites pass. Limits: pitch-based fade; legs
+return solid when Duke stands, not exactly at the knee; the setback is a
+measured constant; only Polymorph checked (the plan's Classic and 60-90 FOV
+checks were not run). Developer A/B switches: `DNTTK_FP_HANG_EYE=native`,
+`DNTTK_FP_CONTACT_ARMS=camera`, `DNTTK_FP_HANG_LEGS=solid`. Executable
+`a87d304b36c72636bab815b3367ecc7ec3e974701ce7d22d63f17a9034a78ec4`.
+
+**2026-11-04 revision 1 (Needs playtest).** User: "the leg view just isnt it.
+can you revert it back to the hanging legs while i make a decision. and the
+arms seem to have changed too because now i can really badly see Duke's
+disembodied shoulders". Both reverted to the earlier presentation: the legs
+are solid dangling legs again (fade kept only as developer A/B
+`DNTTK_FP_HANG_LEGS=fade`), and the contact-rig shoulders are camera-anchored
+again (body-heading frame only as `DNTTK_FP_CONTACT_ARMS=body`). Kept: the
+draw-ownership fix and the steady hang eye. Slot 9 slow pans at 60/180 still
+show no per-tick arm flicker; native controls 147 groups pass. The leg
+treatment waits for the user's decision. Executable
+`0434285d96aba58fdb4980f75fd122a3fdb76f5206127a32120f0bb22c5b4ed6`.
+
+**2026-11-04 revision 2 trial (Needs playtest).** User: "when hanging, all i
+want you to do is try: moving the legs back a few inches on my screen. lets say
+4 inches back as i perceive it." In a ledge hang the dangling leg rig moves a
+further 140 units back along the view heading (the D36J5 leg setback, plus
+140): at FOV 90, the legs' depth and a 27-inch 16:9 screen, about 4 inches
+toward the bottom of the screen. Looking straight down (the 60-degree limit)
+they now sit just below the bottom edge; before, their top was about 29% up
+the screen. Developer tuning only: `DNTTK_FP_HANG_LEGS_BACK=<units>`. Pull-up,
+standing legs, arms and eye unchanged. Executable
+`074ace53ff13ae7826f85864ace7ae2af884c2254a248c187ef365d6dd08ed7e`.
+Iterated the same day: "bring em forward an inch", then "basically a sliver
+of leg is all it needs to show". Measured leg top above the bottom edge at the
+60-degree look: 0 units 25.5%, 30 15.3%, 60 9.7%, 80 4.5%, 88 2.3%, 92 1.0%,
+105 and 140 none. Now 88 units (a sliver). Executable
+`89fe6df1b40ee15028a96d25041714ba39a988eba9c7c01de6d1d3d2e47b2ebe`.
+
+**2026-11-04 accepted and closed.** User: "thats it, thats a winner. lock it
+in, close it out", adding "the job was way simpler than we thought". Shipped:
+the nested-draw ownership fix, the steady Mantle eye (requested delta through
+the easing hook, 128-unit hang setback) and the hang legs 88 units back (a
+sliver at the lowest look). The leg fade and body-heading shoulders were
+rejected and stay off (developer A/B only).
+
 ### D20I - LEVEL STATS (time, kills, secrets) in the bottom-left corner; LEVEL STATS and FPS toggles in DISPLAY
 
 **Status: Done (user-accepted 2026-11-03: "lock it in and close it out, this is awesome!"; [note 376](documentation/376-d20i-level-stats.md)). Dependencies: D20E, D20D, D24A.** EDuke32 shows three
@@ -5365,6 +5470,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D36K | Traversal and special-action visual coverage | Done | D36G, D36H, D36I, D36J |
 | D36M | Power-up looks: a light screen tint per power-up (Quake/Doom style, D39 tint) | Done (user-accepted 2026-11-03; note 370) | D36J, D08A17 |
 | D36H8 | Run-jump mantle across water: extended arms flicker (slot 11) | Done (user-accepted 2026-11-03; note 306) | D36H5, D35G, D08X |
+| D36H9 | Ledge hang first person: upper arm flicker and legs-only body (slot 9) | Done | D36H8, D35G, D08J7A |
 | D37 | Temporary movement failure at 07:26 UK on 2026-10-26 (separate research) | Done | - |
 | D37A | Safe animation restoration across save allocation layouts | Done (user-accepted 2026-10-26) | D37 |
 | R01 | DisruptorRecomp architecture and modernization reference research | Done | - |

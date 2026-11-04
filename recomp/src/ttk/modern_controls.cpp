@@ -249,6 +249,7 @@ static double override_kick_frame=0;
 static bool kick_request(bool queue=false);
 // D11B: between Duke's actor draw entry and the next object-list step.
 static bool duke_drawing,actor_drawing;
+static uint32_t actor_draw_sp; // D36H9: the object loop's sp at the actor entry
 static bool jump_animation(unsigned animation) {
     return animation==96 || animation==97 || animation==98 || animation==103 ||
         animation==104 || animation==105 || animation==109;
@@ -592,6 +593,11 @@ static void view_matrix(uint32_t destination) {
     }
     for(int i=0;i<9;++i) psx_mod_write_half(destination+2*i,(int16_t)std::lround(matrix[i]*4096));
 }
+// D36H9: requested eye delta (world) of a fully blended first-person
+// mantle/hang eye, for first_person_unsolved_eye after the native solve.
+static bool hang_eye_request;
+static double hang_eye_delta[3];
+static bool hang_eye_owner();
 static void orbit_constraint(uint32_t delta) {
     double target[3]; if (!pivot(target)) {orbit_valid=false;return;}
     double sy=std::sin(inspection_yaw()),cy=std::cos(inspection_yaw()),sp=std::sin(inspection_pitch()),cp=std::cos(inspection_pitch());
@@ -611,7 +617,9 @@ static void orbit_constraint(uint32_t delta) {
         if(eye_view) orbit+=(eye[i]-orbit)*fp_blend;
         int32_t desired=std::lround(orbit);
         psx_mod_write_word(delta+4*i,desired-current);
+        hang_eye_delta[i]=desired-current;
     }
+    hang_eye_request=eye_view && hang_eye_owner();
     ++orbits;
 }
 #include "apartment_secret.inc"
@@ -1722,6 +1730,7 @@ static void hook_body(CPUState* cpu, uint32_t address) {
     } else if (address==0x8002a038) {
         min_boom_restore();
         first_person_follow(cpu,ra,sp);
+        first_person_unsolved_eye(cpu,ra,sp);
         // Native solver has already checked the requested position. Its delta
         // is now in view space. Enter a constraint immediately; ease only the
         // outward boom, never yaw/pitch or the player's preferred distance.
@@ -1769,7 +1778,7 @@ static void hook_body(CPUState* cpu, uint32_t address) {
            psx_mod_read_word(camera+0xa4)==player && psx_mod_read_word(player+0x7d4)==camera)
             psx_mod_write_word(player+0x224,psx_mod_read_word(player+0x224)|0x82000000u);
         // Original actor draw (a0 camera, a1 actor) from the object-list loop.
-        actor_drawing=true;
+        actor_drawing=true;actor_draw_sp=cpu->gpr[29];
         // D42: a dying Duke is drawn from the second object loop (0x800376c0,
         // its list step returns to 0x80037724); the death eye owns that draw.
         duke_drawing=cpu->gpr[4]==camera && cpu->gpr[5]==player && (ra==0x8003769c || (ra==0x8003771c && death_eye_state()));
@@ -1787,7 +1796,11 @@ static void hook_body(CPUState* cpu, uint32_t address) {
             fade_restore(cpu);mirror_duke_drawing=false;
         }
         // Next object-list step after Duke's draw returns: the head joint flag is cleared.
-        duke_drawing=false;actor_drawing=false;
+        // D36H9: the same list iterator also runs inside an actor draw (ra
+        // 0x80075810 in the ledge hang, below the loop's stack frame). That
+        // call is not a list step and must not end Duke's draw ownership.
+        const bool nested=actor_drawing && cpu->gpr[29]<actor_draw_sp;
+        if(!nested) {duke_drawing=false;actor_drawing=false;}
         if(ra==0x8007fe78) pickup_select_end(); // D08A9: after the pickup dispatcher
         if(ra==0x800376b4 || ra==0x80037724) {third_body_drawing=false;head_restore();weapon_draw_bounds(false,true);}
     } else if (address==0x800b4d2c) {
@@ -2221,6 +2234,7 @@ void first_person_mesh_begin(CPUState* cpu) {
        third_person_body_effect() || !identity()) return;
     fade_clear(cpu);
 }
+double first_person_legs_coverage() {return body_coverage_supported()?hang_legs_alpha():1.0;}
 double third_person_body_coverage() {
     if(!third_person_camera_live() || !body_coverage_supported() || third_person_body_effect()) return 1.0;
     double d[3];

@@ -200,3 +200,97 @@ scripts: `recomp/analysis/d36h8/` (local). Executable
 U: accepted after the playtest ("perfect. lock it in and close us out").
 
 Launch from the workspace root: `python3 recomp/tools/local/run.py`.
+
+## D36H9 - ledge hang: arm flicker and legs-only view (2026-11-04, accepted)
+
+U: slot 9, first person, unarmed: jump catch, hang, look down and turn along
+the wall; an upper arm popped in and out at the side, and only the legs (and
+holstered pistol) showed below the eye. L: reproduced on private copies at
+60/120/180 (Xvfb recordings, per-frame skin-pixel counts) on the D08J7B and
+D08J7C builds alike.
+
+Owner: the contact rig (`first_person_contact_arm`, Mantle). Three causes,
+found in order with a temporary draw trace (removed):
+
+1. Draw ownership was lost mid-draw. The hang draw iterates a list
+   (0x8001ca4c, ra 0x80075810) inside Duke's own draw; the hook treated every
+   such call as the object loop's next step and cleared `duke_drawing`, so the
+   arm meshes went through the generic scene path. S: a call below the
+   actor-entry stack frame (`actor_draw_sp`) is nested and keeps ownership.
+2. Camera-yaw shoulders swept through the view. The virtual shoulder anchor
+   (lateral, 150 down, 64 back) is in camera axes; with the hands fixed on the
+   lip, turning the view slid it from +190 to -220 across the eye and the upper
+   arm crossed the view as a near slab. S: in Mantle the anchor frame follows
+   Duke's drawn heading with the camera pitch (identical at zero look offset).
+3. The eye itself alternated. The native solver casts four rays from Duke's
+   pivot to the requested point (eye plus the native forward distance); looking
+   down from a hang that point lies in the lip and the nearest hit (0x8003a5e0)
+   alternated between two positions 84 units apart per tick, moving the eye and
+   the camera-attached arms. A new hook there would change generated code
+   (savestates), so: once the Mantle eye is fully blended in, the existing
+   0x8002a038 easing hook takes our requested delta (rotated by the camera rows,
+   as 0x800b444c does). Without the solver's push-back the hang eye sat over the
+   root and lost the accepted framing (both hands on the lip), so a ledge hang
+   (mode 6/7, anims 147-153) places the eye 128 units behind the root along
+   Duke's heading, matching the native look-ahead framing. Overhead bars, water
+   exits, blends, third person and Vanilla keep the native solve.
+
+Legs (user decision, same day): keep the dangling legs and fade them only
+while looking down, like Duke in a tight third-person spot. The game's own
+close-camera blend (B+F/4) is effectively a binary hide, so the legs use the
+third-person body's screen-door coverage (`first_person_legs_coverage`, all
+faces host-drawn): solid to 45 degrees down (where they enter the view), gone
+at the 60-degree look limit, in the hang and the pull-up (140); solid standing.
+
+L: slot 9 slow pans at 60 and 180 show no skin-pixel jumps (before: alternating
+every tick at the screen corner); the pull-up shows the arms continuously.
+D35G alley hang at 60/120/180: look-down, pan, shimmy and pull-up clean; legs
+hidden hanging and mid pull-up, solid standing; third person unchanged; Vanilla
+(--vanilla) hang unchanged. D36H8 slot-11 run-jump mantle at 120/180: catch and
+mantle continuous, identical to an A/B run with the new switches off.
+Developer A/B switches: `DNTTK_FP_HANG_EYE=native`, `DNTTK_FP_CONTACT_ARMS=camera`,
+`DNTTK_FP_HANG_LEGS=solid`. Native controls 147 groups (new D36H9 group:
+nested list call keeps ownership, the loop step ends it; the contact-rig group
+faces Duke to the identity camera), input, aim and near suites, Python profile
+and input suites pass. Scripts: `recomp/analysis/d36h9/` (local).
+
+Limits: the fade is pitch-based, not per-limb visibility; the legs return
+solid at the end of the pull-up rather than as the knee reaches the lip (the
+clip's start frame is not readable statelessly); the 128-unit setback is a
+measured constant from slot 9 and the alley, not per-level geometry; without
+the GL coverage path (`psx_mod_present_replay_available`) the legs stay solid;
+only Polymorph was checked. Executable
+`a87d304b36c72636bab815b3367ecc7ec3e974701ce7d22d63f17a9034a78ec4`.
+
+
+Revision 1 (2026-11-04). User: "the leg view just isnt it.
+can you revert it back to the hanging legs while i make a decision. and the
+arms seem to have changed too because now i can really badly see Duke's
+disembodied shoulders". Both reverted to the earlier presentation: the legs
+are solid dangling legs again (fade kept only as developer A/B
+`DNTTK_FP_HANG_LEGS=fade`), and the contact-rig shoulders are camera-anchored
+again (body-heading frame only as `DNTTK_FP_CONTACT_ARMS=body`). Kept: the
+draw-ownership fix and the steady hang eye. Slot 9 slow pans at 60/180 still
+show no per-tick arm flicker; native controls 147 groups pass. The leg
+treatment waits for the user's decision. Executable
+`0434285d96aba58fdb4980f75fd122a3fdb76f5206127a32120f0bb22c5b4ed6`.
+
+Revision 2 trial (2026-11-04). User: "when hanging, all i
+want you to do is try: moving the legs back a few inches on my screen. lets say
+4 inches back as i perceive it." In a ledge hang the dangling leg rig moves a
+further 140 units back along the view heading (the D36J5 leg setback, plus
+140): at FOV 90, the legs' depth and a 27-inch 16:9 screen, about 4 inches
+toward the bottom of the screen. Looking straight down (the 60-degree limit)
+they now sit just below the bottom edge; before, their top was about 29% up
+the screen. Developer tuning only: `DNTTK_FP_HANG_LEGS_BACK=<units>`. Pull-up,
+standing legs, arms and eye unchanged. Executable
+`074ace53ff13ae7826f85864ace7ae2af884c2254a248c187ef365d6dd08ed7e`.
+Iterated the same day: "bring em forward an inch", then "basically a sliver
+of leg is all it needs to show". Measured leg top above the bottom edge at the
+60-degree look: 0 units 25.5%, 30 15.3%, 60 9.7%, 80 4.5%, 88 2.3%, 92 1.0%,
+105 and 140 none. Now 88 units (a sliver). Executable
+`89fe6df1b40ee15028a96d25041714ba39a988eba9c7c01de6d1d3d2e47b2ebe`.
+
+U: accepted ("thats it, thats a winner. lock it in, close it out"; "the job was
+way simpler than we thought"). Shipped: ownership fix, steady Mantle eye, legs
+88 units back. Fade and body-heading shoulders rejected (A/B switches only).

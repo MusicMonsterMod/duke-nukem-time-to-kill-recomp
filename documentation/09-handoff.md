@@ -1,5 +1,41 @@
 # Next-session handoff
 
+## 2026-11-04 - D36H9 accepted and closed
+
+User: "thats it, thats a winner. lock it in, close it out" ("the job was way
+simpler than we thought"). First-person ledge hangs: no per-tick arm flicker
+(Duke's draw ownership kept through a nested list call; the Mantle eye no
+longer moved by the camera solver, hang eye 128 units behind the root), and
+the dangling legs sit 88 units further back so only a sliver shows at the
+lowest look. The leg fade and body-heading shoulders were rejected and stay
+off. [Note 306](306-d36h5-interaction-arm-coverage.md). Executable
+`89fe6df1b40ee15028a96d25041714ba39a988eba9c7c01de6d1d3d2e47b2ebe`.
+
+## 2026-11-04 - D36H9 revision 1: legs and shoulders reverted (Needs playtest)
+
+User rejected the leg fade and saw disembodied shoulders after the
+body-anchored arm frame. Both reverted (solid dangling legs, camera-anchored
+shoulders; developer A/B `DNTTK_FP_HANG_LEGS=fade`, `DNTTK_FP_CONTACT_ARMS=body`).
+Kept: the draw-ownership fix and the steady hang eye, which alone remove the
+per-tick arm flicker in the slot 9 pans. Leg treatment awaits the user's
+decision. Executable
+`0434285d96aba58fdb4980f75fd122a3fdb76f5206127a32120f0bb22c5b4ed6`.
+
+## 2026-11-04 - D36H9 ledge hang arms and legs, first person (Needs playtest)
+
+Modernized, first person, ledge hangs (slot 9, D35G alley): no more upper-arm
+flicker while looking down and turning. Fixed three causes for the Mantle
+owner: Duke's draw ownership was dropped by a list call nested in his own draw;
+the contact rig's shoulders followed camera yaw and swept an arm across the
+eye; and the native camera solver moved the eye 84 units back and forth per
+tick against the lip (the fully blended Mantle eye now takes its requested
+position through the existing easing hook, the hang eye sits 128 units behind
+the root, keeping both hands on the lip looking ahead). The dangling legs fade
+with the third-person tight-spot screen-door coverage from 45 degrees down,
+gone at the look limit, solid again standing. No new hook or codegen change.
+[Note 306](306-d36h5-interaction-arm-coverage.md) D36H9 section. Executable
+`a87d304b36c72636bab815b3367ecc7ec3e974701ce7d22d63f17a9034a78ec4`.
+
 ## 2026-11-04 - D08J7A accepted and closed; D08J7B added
 
 User: "excellent work. lock it in and close it out!". D08J7A (shooting from

@@ -3740,6 +3740,13 @@ int main(int argc,char** argv) {
             psx_mod_write_word(ctx+0x48,0);psx_mod_write_word(ctx+0x4c,0);
             std::puts("PASS: D10B1 native minimum/follow/fade retained, no body dissolve, replay gate off");
         }
+        // D36H9: the ledge hang draw iterates a list (0x8001ca4c, ra 0x80075810)
+        // inside Duke's own draw, below the object loop's frame. Only the
+        // loop's own step at the actor-entry stack ends Duke's draw ownership.
+        call(0x800348d8,c,p,0x8003769c);assert(ttk::first_person_duke_drawing());
+        call(0x8001ca4c,0x800d0000,0,0x80075810,0x801effa0);assert(ttk::first_person_duke_drawing());
+        call(0x8001ca4c,0x800d0000,0,0x800376b4);assert(!ttk::first_person_duke_drawing());
+        std::puts("PASS: D36H9 nested list iteration keeps Duke's draw ownership until the loop step");
         // D35N: only reflected Duke loses the native close-distance fade.
         // Primary body, other actors, powers and Vanilla retain their policy.
         {
@@ -5310,6 +5317,8 @@ int main(int argc,char** argv) {
                 const std::vector<uint8_t> old_mats(ram+(mats&0x1fffff),ram+(mats&0x1fffff)+19*32);
                 uint8_t old_camera[32];std::memcpy(old_camera,ram+(c&0x1fffff),32);
                 const auto held=psx_mod_read_byte(p+0x3b8);psx_mod_write_byte(p+0x3b8,0);
+                // D36H9: ledge shoulders may follow Duke's heading; face the identity camera.
+                const auto heading=psx_mod_read_half(p+0x1c);psx_mod_write_half(p+0x1c,0);
                 for(const auto* costume:{first_map,cowboy})for(unsigned distance:{100u,300u,550u}) {
                     layout(costume);
                     for(unsigned i=0;i<9;++i)psx_mod_write_half(c+2*i,i%4==0?4096:0);
@@ -5368,7 +5377,7 @@ int main(int argc,char** argv) {
                 }
                 std::copy(old_desc.begin(),old_desc.end(),ram+(desc&0x1fffff));
                 std::copy(old_mats.begin(),old_mats.end(),ram+(mats&0x1fffff));
-                std::memcpy(ram+(c&0x1fffff),old_camera,32);psx_mod_write_byte(p+0x3b8,held);
+                std::memcpy(ram+(c&0x1fffff),old_camera,32);psx_mod_write_byte(p+0x3b8,held);psx_mod_write_half(p+0x1c,heading);
             };
             // D35J/M: presentation-only transient leases. Native state, action
             // lockouts and ownership/death/script guards must survive them.

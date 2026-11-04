@@ -312,6 +312,12 @@ static double eye_reference_offset;
 
 static bool eye_rel_valid, bob_last_valid;
 uint64_t bob_updates;
+static constexpr double hang_setback=128;
+static bool hang_eye_owner();
+static bool hang_eye_setback() {
+    const unsigned a=psx_mod_read_half(player+0x60),mode=psx_mod_read_byte(player+0x22c);
+    return fp_policy.action==PerspectiveAction::Mantle && hang_eye_owner() && (mode==6 || mode==7) && a>=147 && a<=153;
+}
 // Requested anchor for the eye view; false when the neck joint is unavailable.
 static bool first_person_anchor(const double* forward,double* anchor) {
     double neck[3];
@@ -357,6 +363,15 @@ static bool first_person_anchor(const double* forward,double* anchor) {
     // Idle gestures and committed use animations may lean or turn the neck
     // sharply. Keep a comfortable upright eye while native arms/events run.
     if(pushing || climbing || mantling || using_object || fidget) {target[0]=target[2]=0;target[1]=-294;}
+    // D36H9: a ledge hang presses the root against the wall. The accepted
+    // D35G framing (both hands on the lip) came from the native solver
+    // pushing the eye back off the wall, which alternated while looking
+    // down. Place it there directly, 128 units behind the root along Duke's
+    // heading; the solver no longer moves it (first_person_unsolved_eye).
+    if(hang_eye_setback()) {
+        const double yaw=psx_mod_read_half(player+0x1c)*tau/4096;
+        target[0]=-hang_setback*std::sin(yaw);target[2]=-hang_setback*std::cos(yaw);
+    }
     if(dying) {target[0]=target[2]=0;target[1]=-death_eye_height();} // over the body (D42)
     // D15: the slow centring drift was still feeding idle neck animation into
     // the camera after locomotion stopped. Hold within the existing dead band
@@ -459,6 +474,30 @@ static void first_person_constraint() {
     if(psx_mod_read_word(min_boom_word)>min_boom_original) return;
     psx_mod_write_word(min_boom_word,(uint32_t)std::lround(min_boom_original*(1-fp_blend)));
     min_boom_written=true;
+}
+// D36H9: the ledge (Mantle) eye sits over Duke's root, inside his own hull,
+// or at the hang setback over open air. The native solver casts four rays
+// from his pivot to the requested point (the eye plus the native forward
+// distance), which looking down from a hang lies in the lip: the nearest hit
+// (0x8003a5e0) alternated between two positions about 84 units apart from
+// tick to tick, and the eye and the camera-attached arms jumped with it.
+// Once the eye is fully blended in, the easing (0x8002a038, view-space
+// deltas from 0x800b444c) takes the requested delta instead, rotated by the
+// same camera rows. Blends, third person, overhead bars (eye above a
+// ceiling hang) and the other owners keep the native solve.
+static bool hang_eye_owner() {
+    // Developer A/B only: DNTTK_FP_HANG_EYE=native keeps the native solve.
+    static const bool native=[]{const char* t=std::getenv("DNTTK_FP_HANG_EYE");return t && !std::strcmp(t,"native");}();
+    return !native && fp_blend>=1 && fp_policy.effective && fp_policy.action==PerspectiveAction::Mantle;
+}
+static void first_person_unsolved_eye(CPUState* cpu,uint32_t ra,uint32_t sp) {
+    if(!hang_eye_request || !orbit_valid || sp!=orbit_sp-0xb8 || !hang_eye_owner())return;
+    const int axis=ra==0x8003af40?0:ra==0x8003af60?1:ra==0x8003af80?2:-1;
+    if(axis<0)return;
+    double view=0;
+    for(int k=0;k<3;++k)view+=int16_t(psx_mod_read_half(camera+6*axis+2*k))/4096.0*hang_eye_delta[k];
+    cpu->gpr[4]=uint32_t(int32_t(std::lround(view)));
+    if(axis==2)hang_eye_request=false;
 }
 // 0x8002a038 entry from the normal camera's follow easing (0x8003ade4 frame).
 static uint64_t fp_follows;
@@ -1032,6 +1071,26 @@ static void fade_restore(CPUState* cpu) {
     if(cpu) for(int i=0;i<3;++i) cpu->gte_ctrl[13+i]=(uint32_t)fade_save.bk[i];
     fade_save.active=false;
 }
+// D36H9: the legs dangling in a first-person ledge hang read as
+// disembodied when looking down (the torso stays hidden). They fade with the
+// third-person body's screen-door coverage (Duke in a tight spot), scaled by
+// downward pitch: solid to 45 degrees (where they enter the view), gone at
+// the 60-degree look limit, through the hang and the pull-up.
+// Computed from the draw's camera and pose, so redraws agree.
+static double hang_legs_alpha() {
+    // Off pending the user's decision (2026-11-04: "the leg view just isnt
+    // it"); developer A/B only: DNTTK_FP_HANG_LEGS=fade.
+    static const bool fade=[]{const char* t=std::getenv("DNTTK_FP_HANG_LEGS");return t && !std::strcmp(t,"fade");}();
+    const unsigned a=psx_mod_read_half(player+0x60),mode=psx_mod_read_byte(player+0x22c);
+    // A pull-up (140; its previous mode reads 8 after the first tick) keeps
+    // the same rule while the legs are below the lip; standing on it they
+    // are solid again.
+    const bool pullup=fp_policy.action==PerspectiveAction::Mantle && hang_eye_owner() && mode==8 && a==140;
+    if(!fade || !(hang_eye_setback() || pullup))return 1;
+    const double down=int16_t(psx_mod_read_half(camera+14))/4096.0;
+    static const double s0=std::sin(45*tau/360),s1=std::sin(60*tau/360);
+    return std::clamp((s1-down)/(s1-s0),0.0,1.0);
+}
 // Arms preview the same grip as the hand. Only the native right-hand draw
 // advances recoil/pose counters, preserving the original once-per-draw timing.
 static bool prepare_display_matrix(uint32_t real,uint32_t desc,bool advance=false) {
@@ -1378,6 +1437,15 @@ static void first_person_legs_matrix(CPUState* cpu,uint32_t desc,uint32_t mats) 
     const double length=std::hypot(x,z);
     if(length<1)return;
     double setback=48;
+    // D36H9 trial (user, 2026-11-04): in a ledge hang move the dangling legs
+    // back along the view heading, toward the bottom of the screen looking
+    // down. Tuned with the user to a sliver at the 60-degree look limit (88
+    // units: about 2% of the screen height at FOV 90).
+    // Developer tuning only: DNTTK_FP_HANG_LEGS_BACK=<units>.
+    if(hang_eye_setback()) {
+        static const double back=[]{const char* t=std::getenv("DNTTK_FP_HANG_LEGS_BACK");return t?std::atof(t):88.0;}();
+        setback+=back;
+    }
     if(fp_policy.action==PerspectiveAction::Ladder) {
         // Ladder-end hangs swing both open thigh roots into the eye view.
         // Move the entire rig only as far as needed to put both roots below
@@ -1653,6 +1721,23 @@ static void first_person_contact_arm(CPUState* cpu,uint32_t desc,int part) {
     Vec axes[3];
     for(int r=0;r<3;++r)axes[r]={int16_t(psx_mod_read_half(camera+6*r))/4096.0,
         int16_t(psx_mod_read_half(camera+6*r+2))/4096.0,int16_t(psx_mod_read_half(camera+6*r+4))/4096.0};
+    // D36H9: in ledge hangs and mantles the hands stay on the lip while free
+    // look turns the eye. Camera-yaw shoulders then slid across the eye and
+    // swept each upper arm through the view as a near slab. These shoulders
+    // follow Duke's body heading (drawn pose, as the push grip) with the
+    // camera's pitch; at zero look offset this is the camera frame.
+    // Off by default: looking sideways it brought the shoulder ends beside the
+    // eye (user, 2026-11-04). Developer A/B only: DNTTK_FP_CONTACT_ARMS=body.
+    if(fp_policy.action==PerspectiveAction::Mantle && mode && !std::strcmp(mode,"body")) {
+        double at[3],heading=0;
+        draw_object_pose(player,at,&heading);
+        const double yaw=heading*tau/4096;
+        const Vec fwd={std::sin(yaw),0,std::cos(yaw)};
+        const double sp=std::clamp(axes[2].y,-1.0,1.0),cp=std::sqrt(1-sp*sp);
+        axes[0]={fwd.z,0,-fwd.x};
+        axes[1]=fwd*(-sp)+Vec{0,cp,0};
+        axes[2]=fwd*cp+Vec{0,sp,0};
+    }
     // Follow the native side continuously through free look, rather than
     // swapping left/right or imposing an angle cutoff. Put the root behind
     // the eye with room for the upper-arm mesh's shoulder surface.

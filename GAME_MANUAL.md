@@ -567,6 +567,19 @@ jetpack flight, attached traversal and scripted cameras retain their existing
 controls. Entering an unsupported state, changing view, loading or releasing
 capture clears the inspection. Vanilla is unchanged.
 
+**Camera against walls (Modernized third person, D10F1, accepted 2026-11-04).** The
+orbit camera stays on its own line behind Duke and never sits inside a wall or a
+large piece of furniture such as the apartment wardrobe: when something solid
+is in the way it moves in front of it at once, then eases back out (after about
+a tenth of a second, over about a third of a second) when the way clears, so it
+no longer jumps across a doorway. The closest it comes is about 450 units, and
+the shoulder offset shrinks with it. Small objects such as crates still fade
+out of the way as before, and Duke still fades when the camera is close. On the
+monkey bars the camera stays below the grill, so looking down shows the floor
+underneath. Free Look keeps Duke in view the same way. Your camera distance and
+shoulder settings are not changed. The Original camera and Vanilla are
+unchanged.
+
 While captured, use **left mouse** to fire/action, **Space** to jump, **Scroll Lock** (tap) to
 draw/holster, **hold Left Ctrl** to crouch and release to stand, or **tap C** to stay crouched and tap it again to stand (with W/A/S/D: crouch walk; standing requires overhead clearance, and if Duke ends up kneeling somewhere even lower than a crouch he can always crawl back out through space at least as roomy), **Left Shift** as the speed modifier,
 **hold right mouse** (or **Alt**) to grab a pushable object, **comma/period** to browse the mission items (see Mission items below; the original sidesteps are unbound, A/D strafe),

@@ -1,5 +1,29 @@
 # Next-session handoff
 
+## 2026-11-04 - D10F1 accepted and closed; D12E added
+
+User: "I'm very happy with the gameplay and performance in this iteration, and the camera angles have made the game feel solidly playable." D10F1 Done at the candidate defaults
+([note 380](380-d10f1-clear-lens.md)), executable `ac463420...`. New job D12E
+(Todo, research report first): a toggle for a quick kick in third person
+with the first-person kick's cadence, animated professionally. Launch:
+`python3 recomp/tools/local/run.py`.
+
+## 2026-11-04 - D10F1 clear lens against walls and grills (accepted above)
+
+Implemented in `recomp/src/ttk/clear_lens.inc` (follow-easing hook of the
+native camera update; [note 380](380-d10f1-clear-lens.md)). The lens is traced
+with the original segment query; the boom shortens in front of walls and
+large actors (the wardrobe), crates pass and keep the native fade, inward is
+instant and outward eases (0.1 s, 0.35 s), and on the monkey bars the lens
+stays under the grate. Verified offscreen on private copies (apartment at
+60/120/180, free look, the user's UI 12/11/6 states) and by the native
+suites. Open: floor 450, return speed, doorway rule, crate-room play, Duke's
+fade starting sooner in corridors, 1.35 ms per camera update beside large
+actors, monkey-bar framing (D08J3A). Candidate
+`ac4634201d59a1b6133043becb570c55aec461db5631df071c31a9667a5136d4`; `DNTTK_CLEAR_LENS=0` for A/B.
+Probe scripts: `recomp/analysis/d10f1/` (local). Launch:
+`python3 recomp/tools/local/run.py`.
+
 ## 2026-11-04 - D10F research report (Done; D10F1 next)
 
 Report in [note 379](379-d10f-close-surface-camera.md); D10F is Done (user

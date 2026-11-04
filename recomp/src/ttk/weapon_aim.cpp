@@ -75,15 +75,17 @@ static bool normal(double* v) {
 // The original segment query consumes two padded s32 XYZ vectors, room seed,
 // ignored actor and output pointers. Query-only: no damage or projectile spawn.
 // Keep nested CPU/GTE and scratch RAM independent of the original call.
-static bool trace(CPUState* source,const double* from,const double* to,double* hit,int& kind,uint32_t* actor=nullptr) {
+static bool trace(CPUState* source,const double* from,const double* to,double* hit,int& kind,uint32_t* actor=nullptr,uint32_t ignore=player) {
     uint32_t top=source->gpr[29];
     if(top<0x801f4000 || top>0x801ffff0)return false;
-    uint8_t saved[4096],scratch[1024];
-    for(unsigned i=0;i<sizeof saved;++i)saved[i]=psx_mod_read_byte(top-4096+i);
-    for(unsigned i=0;i<sizeof scratch;++i)scratch[i]=psx_mod_read_byte(0x1f800000+i);
+    if(top&3)return false;
+    // Word copies (D10F1: the camera lens runs several queries per update).
+    uint32_t saved[1024],scratch[256];
+    for(unsigned i=0;i<1024;++i)saved[i]=psx_mod_read_word(top-4096+4*i);
+    for(unsigned i=0;i<256;++i)scratch[i]=psx_mod_read_word(0x1f800000+4*i);
     CPUState cpu=*source;uint32_t sp=top-0x100;
     cpu.pc=0;cpu.gpr[29]=sp;cpu.gpr[31]=0x800000fc;
-    cpu.gpr[4]=player;cpu.gpr[5]=sp+0x30;
+    cpu.gpr[4]=ignore;cpu.gpr[5]=sp+0x30;
     cpu.gpr[6]=(int8_t)psx_mod_read_byte(player+0x2e);cpu.gpr[7]=sp+0x50;
     for(unsigned i=0;i<0x80;i+=4)psx_mod_write_word(sp+i,0);
     write_vector(sp+0x30,from);write_vector(sp+0x40,to);
@@ -100,14 +102,17 @@ static bool trace(CPUState* source,const double* from,const double* to,double* h
     bool hit_actor=raw>=0x80010000u && raw<=0x801ffffcu && !(raw&3);
     bool ok=cpu.pc==0 && !g_psx_call_bail && (kind==0 || kind==1 || hit_actor) && room>=-1 && room<128 && (kind || room>=0);
     if(ok) {if(kind)read_vector(sp+0x60,hit);else std::copy(to,to+3,hit);}
-    for(unsigned i=0;i<sizeof saved;++i)psx_mod_write_byte(top-4096+i,saved[i]);
-    for(unsigned i=0;i<sizeof scratch;++i)psx_mod_write_byte(0x1f800000+i,scratch[i]);
+    for(unsigned i=0;i<1024;++i)psx_mod_write_word(top-4096+4*i,saved[i]);
+    for(unsigned i=0;i<256;++i)psx_mod_write_word(0x1f800000+4*i,scratch[i]);
     if(actor)*actor=ok && hit_actor?raw:0;
     kind=kind==0?0:kind==1?1:2;
     ++queries;return ok;
 }
 bool view_segment_query(CPUState* cpu,const double* from,const double* to,double* hit,int& kind) {
     return player_identity_ready() && identity() && trace(cpu,from,to,hit,kind);
+}
+bool camera_segment_query(CPUState* cpu,const double* from,const double* to,double* hit,int& kind,uint32_t ignore,uint32_t* actor) {
+    return player_identity_ready() && identity() && trace(cpu,from,to,hit,kind,actor,ignore?ignore:player);
 }
 // Assistance follows only an existing original target lock close to the view.
 // Independently recheck camera AND physical-muzzle visibility against that exact

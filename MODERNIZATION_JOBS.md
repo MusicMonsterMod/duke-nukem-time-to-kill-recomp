@@ -1,5 +1,22 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-04 - D10F1 accepted and closed; D12E third-person quick kick added
+
+User: "I'm very happy with the gameplay and performance in this iteration, and the camera angles have made the game feel solidly playable." D10F1 is Done at the candidate defaults; executable
+`ac4634201d59a1b6133043becb570c55aec461db5631df071c31a9667a5136d4`. New job D12E (Todo, research report first): a
+Modernized toggle for a fast, professionally animated quick kick in third
+person, matching the first-person kick's cadence and hit path.
+
+## 2026-11-04 - D10F1 clear lens implemented (accepted above)
+
+Third-person camera now keeps a clear lens on its own axis: in front of walls
+and the apartment wardrobe at once, eased back out (0.1 s hold, about 0.35 s),
+crates still fade, below the monkey-bar grill. Native fades, distance,
+shoulder and look unchanged; Vanilla and the Original camera unchanged.
+[Note 380](documentation/380-d10f1-clear-lens.md). Candidate
+`ac4634201d59a1b6133043becb570c55aec461db5631df071c31a9667a5136d4`. User to judge the floor, return
+speed, doorway rule and crate room.
+
 ## 2026-11-04 - D10F research closed; D10F1 added
 
 The third-person camera gets caught behind surfaces because the native solve
@@ -8,7 +25,7 @@ back out to 768 along Duke's back; reproduced with player-like mouse orbits
 (lens in walls, a doorway pop of about 1840 units in one step, Duke out of
 frame in free look). User saved UI 12 (closet), UI 11 (crate room, fine thanks
 to the native box fade) and UI 6 (monkey bars, camera above the grill);
-recorded and closed. Implementation is D10F1 (Todo).
+recorded and closed. Implementation is D10F1 (Needs playtest, entry above).
 [Note 379](documentation/379-d10f-close-surface-camera.md). No code change.
 
 ## 2026-11-04 - D08J6E accepted and closed: Duke turns to the aim on monkey bars and chains
@@ -189,7 +206,7 @@ clipping into walls". Recorded in note 379; D10F Done; D10F1 added.
 
 ### D10F1 - Third-person camera: clear lens against walls and grills
 
-**Status: Todo. Dependencies: D10F.** Implement the D10F proposal
+**Status: Done (user-accepted 2026-11-04, [note 380](documentation/380-d10f1-clear-lens.md)). Dependencies: D10F.** Implement the D10F proposal
 ([note 379](documentation/379-d10f-close-surface-camera.md)): probe the real
 lens with the original segment query and a small ring (world hits only; crates
 and breakables keep the native fade the user likes), an on-axis floor in
@@ -203,6 +220,67 @@ the grill with the floor in view; coordinate with D08J3A) plus the D10F
 apartment sweep at 60/120/180 (no lens-in-wall frames, no doorway pop, Duke
 in frame with free look). Confirm the floor, the return speed and the
 doorway rule with the user.
+
+**2026-11-04 implementation (Needs playtest).** [Note 380](documentation/380-d10f1-clear-lens.md).
+Modernized third-person orbit only: after the native solve, the follow easing
+(`0x8002a038` from `0x8003ade4`) takes an anchor on the orbit's own axis whose
+lens is clear. The original segment query traces the pivot to the lens and
+three ring points (48 units); the nearest hit less 48 shortens the boom and
+shoulder together; floor 450. Actors stop the lens unless the native fade
+covers them from it and the lens is outside them (back query): crates pass,
+the apartment wardrobe (type 194, whose inside drew black when passed) stops
+it. Instant in; out after 0.1 s over about 0.35 s in host time. Native follow
+lag kept and its lens re-probed. Monkey bars: the lens stays 96 below the
+hanging grate (the query does not report grates). Native fades, saved
+distance and shoulder, look input, aim and the 768 word unchanged; Vanilla and
+the Original camera unchanged; `DNTTK_CLEAR_LENS=0` A/B. Evidence (private
+copies): apartment sweep at 60/120/180 and free look with no black or wall
+frames and Duke in frame; UI 12 at distance 3456 the wardrobe no longer fills
+the frame; UI 6 the camera below the grill with the floor in view (very close
+at a steep pitch, Duke not visible); UI 11 corridor clear but about 200 units
+closer than native, so Duke's native fade starts sooner. Cost about 1.35 ms per
+camera update orbiting beside the wardrobe (game still 30 updates/s).
+`ttk-controls-test` (default, `DNTTK_CLEAR_LENS=0`, `DNTTK_TIGHT_CAMERA=1`),
+`ttk-aim-test`, `ttk-near-test` PASS; no framework edits. Candidate executable
+`ac4634201d59a1b6133043becb570c55aec461db5631df071c31a9667a5136d4`. Open for the user: the floor, return
+speed, the doorway rule (a long boom can still ease into the next room), the
+crate room in play and 180 Hz feel.
+
+**2026-11-04 accepted and closed.** User: "I'm very happy with the gameplay and performance in this iteration, and the camera angles have made the game feel solidly playable." Done at the candidate
+defaults (floor 450, hold 0.1 s, return 0.35 s, doorways allowed). The other
+open questions (doorway rule, corridor fade, steep monkey-bar framing) were
+not raised and stay with D08J3A/D10G if they come up. Runtime patch re-export
+unchanged (no framework edits). No gameplay edits, builds or launches after
+acceptance. Executable `ac4634201d59a1b6133043becb570c55aec461db5631df071c31a9667a5136d4`.
+
+### D12E - Third-person quick kick (research report first)
+
+**Status: Todo. Dependencies: D12A, D12C, D10F1.** User (2026-11-04, playing
+in third person after D10F1): the original third-person kicks ("the like jiu
+jitsu kicks and stuff that he does in third person mode are so slow that you
+will basically get [hurt] if you actually take [it] seriously") make
+third-person play hard; "we want the quick kick to be quick ... exactly the
+same thing as what we do spam it in first person and you have more offense".
+"I underestimated the importance of third person ... it's original identity
+... I want to get third person looking right ... and feeling right and
+playable."
+
+Scope: a Modernized option (toggle) between the original kick and a quick
+kick in third person, with the D12A cadence, reach, damage path and D12C
+impact sound; Vanilla, first person and the original-kick setting unchanged.
+It must look professional ("absolutely legit"), not a sped-up spin.
+
+Report first (deep research): how third-person action games present a fast
+melee kick or boot (duration, wind-up/recovery, upper-body layering so the
+weapon and aim stay up, root motion, hit-stop, camera response); what the
+original animation set offers (animation 115 front kick used by D12A, the
+existing kick clips and their timing); options from retiming or cutting an
+original clip, a partial-body leg layer over the current pose, to a new
+authored clip (Blender allowed, following the D08A28 style guide and the
+D36 first-person presentation audit for ownership). Measure the current
+third-person kick timings in game, propose one approach with its timing
+budget, and the toggle's menu home. No implementation until the user
+selects it.
 
 ### D08J3A - Climb camera revisit with aiming
 
@@ -5779,7 +5857,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D10B | Tight-space third-person camera: translucent Duke and see-through doors | Superseded by D10B1 | D10, D11B |
 | D10B1 | Roll back D10B behavior; restore native third-person obstruction handling | Done | D10B |
 | D10F | Third-person camera near close surfaces (research report first) | Done | D10, D10B1, D08J3 |
-| D10F1 | Third-person camera: clear lens against walls and grills | Todo | D10F |
+| D10F1 | Third-person camera: clear lens against walls and grills | Done (user-accepted 2026-11-04) | D10F |
 | D10G | Aim and mouse feel in third person (research report first) | Todo | D07, D10, D10E, D10F |
 | D10C | Duke 3D look keys: Page Up / Page Down look up / down while held and recenter on release; Home / End lock the look up / down (bindable) | Done (user-accepted 2026-10-20) | D06, D19G |
 | D10D | Keyboard turning in Modernized: Left / Right arrows turn the view left / right (Duke 3D style, alongside the mouse) | Done (user-accepted 2026-10-20) | D06, D10C |
@@ -5791,6 +5869,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D12B | Costume-aware first-person kick leg, game-wide (LEVEL01 slots 8/9) | Done (user-accepted; closed 2026-10-30) | D12A, D22A |
 | D12C | Kick impact sound on a real hit only (wall, crate, actor); empty-air and out-of-range kicks stay silent | Done (user-accepted) | D12A |
 | D12D | Upgraded first-person weapon framing (Challenge Stage 4 Incendiary RPG) | Done (user-accepted 2026-10-22) | D12, D22B |
+| D12E | Third-person quick kick (research report first) | Todo | D12A, D12C, D10F1 |
 | D11C | Savestates can keep Duke's first-person head hidden (slot 12) | Done | D11 |
 | D11D | First-person eye height from Duke's real proportions, game-wide (LEVEL01 slot 8) | Done (user-accepted; closed 2026-10-30) | D11, D22A |
 | D11E | First person while swimming (underwater eye view, game-wide) | Done (user-accepted 2026-10-24) | D08O, D11, D22B |

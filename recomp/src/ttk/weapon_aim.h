@@ -7,6 +7,9 @@ const char* aim_debug_json();
 // D12A: the original query-only segment trace (0x8006d980) under the aim code
 // identity. kind 0 miss (hit = to), 1 world, 2 actor.
 bool view_segment_query(CPUState* cpu,const double* from,const double* to,double* hit,int& kind);
+// D10F1: the same query for the camera lens, passing over one actor (0: Duke)
+// and naming the actor it stops at (kind 2).
+bool camera_segment_query(CPUState* cpu,const double* from,const double* to,double* hit,int& kind,uint32_t ignore,uint32_t* actor);
 }
 extern "C" int ttk_aim_reticle();
 extern "C" int ttk_aim_crosshair_enabled(void);

@@ -309,6 +309,20 @@ static bool segment_hit;static double segment_point[3];static int segment_kind=2
 bool view_segment_query(CPUState*,const double*,const double* to,double* hit,int& kind) {
     kind=segment_hit?segment_kind:0;for(int i=0;i<3;++i)hit[i]=segment_hit?segment_point[i]:to[i];return true;
 }
+// D10F1: the camera lens query. A world plane at camera_wall (0: none)
+// along camera_wall_axis blocks every segment crossing it.
+static double camera_wall;static int camera_wall_axis;static unsigned camera_queries;
+bool camera_segment_query(CPUState*,const double* from,const double* to,double* hit,int& kind,uint32_t,uint32_t* actor) {
+    ++camera_queries;if(actor)*actor=0;
+    const int a=camera_wall_axis;
+    const double d=to[a]-from[a];
+    if(camera_wall && d && (camera_wall-from[a])/d>0 && (camera_wall-from[a])/d<1) {
+        const double t=(camera_wall-from[a])/d;
+        for(int i=0;i<3;++i)hit[i]=from[i]+(to[i]-from[i])*t;
+        kind=1;return true;
+    }
+    kind=0;for(int i=0;i<3;++i)hit[i]=to[i];return true;
+}
 static InputFrame input;
 static Cheat pending_cheat=Cheat::None;
 Cheat input_take_cheat(){auto c=pending_cheat;pending_cheat=Cheat::None;return c;}
@@ -4172,6 +4186,10 @@ int main(int argc,char** argv) {
             std::puts("PASS: D10B scoped minimum, inward solve, outward hold/recovery and saved-distance isolation");
         } else {
             // D10B1: ordinary launches leave native collision/fade decisions intact.
+            // D10F1: only the follow easing takes the clear-lens delta (rate 1).
+            const char* lens_env=std::getenv("DNTTK_CLEAR_LENS");
+            const bool lens_on=!lens_env || std::strcmp(lens_env,"0");
+            psx_mod_write_half(c+0x42,386);
             frame();sp=0x801f0000-0xb8;
             call(0x8003aa48,c,sp+0x18,0x8003aeb0,sp);
             assert(psx_mod_read_word(0x800c3c48)==768);
@@ -4179,7 +4197,56 @@ int main(int argc,char** argv) {
                 CPUState cpu{};cpu.gpr[4]=(uint32_t)-100;cpu.gpr[5]=4;
                 cpu.gpr[29]=sp;cpu.gpr[31]=ra;
                 hooks().at(0x8002a038)(&cpu,0x8002a038);
-                assert(cpu.gpr[4]==(uint32_t)-100 && cpu.gpr[5]==4);
+                if(lens_on) assert(cpu.gpr[5]==1);
+                else assert(cpu.gpr[4]==(uint32_t)-100 && cpu.gpr[5]==4);
+            }
+            assert(psx_mod_read_word(0x800c3c48)==768);
+            if(lens_on) {
+                // One camera update: frame, constraint, the three easing calls.
+                // Returns the eased view-space delta the update would apply.
+                auto lens_update=[&](double ms,int32_t* view) {
+                    ttk::clock_ms+=ms;frame();
+                    call(0x8003aa48,c,sp+0x18,0x8003aeb0,sp);
+                    for(int i=0;i<3;++i) {
+                        double t=(int32_t)psx_mod_read_word(p+0x7bc+4*i);if(i==1)t+=(int32_t)psx_mod_read_word(c+0x88);
+                        psx_mod_write_word(sp+0x28+4*i,(uint32_t)std::lround(t));
+                    }
+                    int axis=0;
+                    for(uint32_t ra:{0x8003af40u,0x8003af60u,0x8003af80u}) {
+                        CPUState cpu{};cpu.gpr[4]=psx_mod_read_word(sp+0x18+4*axis);cpu.gpr[5]=4;
+                        cpu.gpr[29]=sp;cpu.gpr[31]=ra;
+                        hooks().at(0x8002a038)(&cpu,0x8002a038);
+                        assert(cpu.gpr[5]==1);view[axis++]=(int32_t)cpu.gpr[4];
+                    }
+                };
+                int32_t view[3];
+                const double queries=ttk::camera_queries,declines=metric("\"declines\":");
+                lens_update(16,view);
+                assert(ttk::camera_queries>queries);
+                const double reach=metric("\"reach\":");const int32_t open_z=view[2];
+                assert(reach>800 && std::abs(metric("\"clear_lens\":{\"enabled\":true,\"live\":true,\"lens\":")-reach)<1e-6);
+                // Duke faces +X and the camera sits behind him: a wall across
+                // -X shortens the boom at once, in front of the wall.
+                const double tx=(int32_t)psx_mod_read_word(p+0x7bc);
+                ttk::camera_wall_axis=0;ttk::camera_wall=tx-700;
+                // A still camera reuses its probe for one update: two updates.
+                lens_update(16,view);lens_update(16,view);
+                const double lens=metric("\"lens\":");
+                assert(lens<700 && lens>=450 && lens<reach);
+                assert(view[2]>open_z); // the anchor lands forward of the open boom, toward Duke
+                // A wall inside the floor: the lens stops at the floor (450).
+                ttk::camera_wall=tx-300;lens_update(16,view);lens_update(16,view);
+                assert(std::abs(metric("\"lens\":")-450)<1);
+                // Clear again: hold briefly, then ease back out in host time.
+                ttk::camera_wall=0;lens_update(16,view);lens_update(16,view);
+                assert(std::abs(metric("\"lens\":")-450)<1);
+                lens_update(150,view);
+                const double easing=metric("\"lens\":");assert(easing>450 && easing<reach);
+                for(int i=0;i<90;++i)lens_update(1000.0/60,view);
+                assert(std::abs(metric("\"lens\":")-reach)<1e-6);
+                assert(metric("\"declines\":")==declines);
+                assert(metric("\"preferred_radius\":")>=768); // the saved boom is never written
+                std::puts("PASS: D10F1 clear lens: rate-1 delta, instant pull-in in front of a wall, floor, hold and eased return");
             }
             assert(!ttk::third_person_camera_live());
             assert(ttk::third_person_body_coverage()==1);

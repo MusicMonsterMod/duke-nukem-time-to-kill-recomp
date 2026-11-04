@@ -496,3 +496,109 @@ Executable SHA-256 `ae9d9f4f6845ce81a400a7269416bf8eae2b173cfe0eeab8916d5f43c93c
 (camera feel near close surfaces, aim and mouse tightening, monkey-bar
 facing) is the board's blast list: D08J6E, D10F, D08J3A, D10G, D08J6F. No
 gameplay edits, builds or launches after acceptance.
+
+## D08J6E - monkey bars and chains: Duke turns to the aim (accepted)
+
+2026-11-04. User: "with the monkey bars, duke could easily change his
+direction based on where the mouse is pointing, because you can sometimes end
+up shooting in impossible directions when duke is not facing the right way",
+then, selecting the job: "it's the same for chain climbing too, really,
+identical". So poles and chains are in scope; ladders, climbing walls and
+ledge hangs stay with D08J6F.
+
+### What the original does (probe)
+
+Private copy of the D35F chain fixture (`recomp/analysis/d08j6e/probe0.py`,
+local only): with the sidearm out on the chain (192), writing Duke's yaw
+moved him round the chain, 225 units from its axis and facing it, armed or
+holstered. The hang-climb places him from his yaw every update; it has no
+wall test of its own for that placement. Under a ceiling the yaw is only
+stored (the D08J4 turn already relies on this).
+
+### Behavior (Modernized, third person, view aiming, sidearm out)
+
+- Monkey bars (mode 7, settled 149 under a climbable object, not crates) and
+  poles/chains (mode 3, 192-195, a 0x400 object): at every player update
+  Duke turns on the hold toward the view, at most 192 yaw units (about 17
+  degrees) per update and half the remaining error near the end, so he
+  settles without overshoot. On the bars he turns on the spot; on a chain he
+  goes round it (the original's placement).
+- On a chain the view is kept 35 degrees to his gun side: facing the view
+  straight, the line of fire ran through the chain (its box is 69 units each
+  side of the axis; the first candidate's crosshair hit it 87 units from the
+  axis). With the bias the rounds pass to the right of it and the pistol is
+  clear of the chain on screen.
+- A chain step is taken only if the world is clear from Duke's chest to his
+  new place, a body width (96 units) further out and ahead (the segment query
+  the aim already uses). Without it Duke went into the platform beside the
+  D35F chain's top and 4 of 7 rounds in a fast turn were rejected (fired from
+  inside the wall, so along the original heading). Lower on the same chain
+  the whole circle is clear.
+- Not while holstered (the D08J4 WASD turn and the D08J2 A/D circling are
+  unchanged), stowing (upper 7), with the original aim key, in first person,
+  in Vanilla, or on ladders and climbing walls.
+- `DNTTK_CLIMB_TURN=follow` (default) faces the view; `arc` turns only once
+  the view leaves the 50-degree chest clamp; `0` is the developer A/B.
+  `DNTTK_CLIMB_TURN_RATE` (yaw units per update) and `DNTTK_CLIMB_TURN_BIAS`
+  (degrees, chains) tune it.
+
+### Implementation
+
+- `climb_aim.inc`: `climb_turn_update(cpu)` at the player update
+  (`0x8005a210`, after `ceiling_hang_update`), with `climb_turn_family()` and
+  `climb_turn_clear()` (`pole_axis`, `view_segment_query`). Debug
+  `controls.climb_aim.turn_error`, `turn_updates`, `turns`, `turn_blocks`.
+- No new hook address, guard, generated code, framework or codegen change;
+  existing savestates load. Vanilla: behind `input_modernized()` (the
+  `climb_aim_ready` lease).
+
+### Verification
+
+Private lab `recomp/analysis/d08j6e/` (local only: `probe0.py`, `turn.py`,
+`fire.py`, `bias.py`, `box.py`, `low.py`, `van.py`, `regress.sh`; offscreen,
+dummy audio; player saves, cards and settings hash-checked unchanged after
+every run).
+
+| Route | 60 | 120 | 180 |
+| --- | --- | --- | --- |
+| Slot 6 copy, ceiling: draw, camera turns both ways, fire while turning | follows within 3 yaw units, stays on the hold, 10 of 10 view shots | same | same |
+| D35F chain, lower: 12 camera steps round | full circle, 0 blocks | same | same |
+| D35F chain, near the top: hold fire still / slow / fast turn | 7, 7, 7 rounds, all view shots, 0 rejected | same | same (8 still) |
+
+Before the wall test: fast turn 3 of 7 view shots. With
+`DNTTK_CLIMB_TURN=0`: Duke stays where he was (the D08J6D behavior).
+First person (ceiling and chain): no turn. Vanilla (`van.py`, `--vanilla`,
+raw pads, a private hang state): original Circle draw, 5 rounds along the
+heading, no host turn or aim build. Native: `ttk-controls-test` 151 groups
+with LEVEL00, LEVEL01 and all levels (new D08J6E group: rate, easing, arc,
+chain bias, wall refusal and an actor in the segment, stowing, holstered,
+original aim, switch, travel step, crates, ladders, walls, ladder-type holds,
+Vanilla), `ttk-input-test` under Xvfb, `ttk-aim-test`, `ttk-near-test`.
+
+Regressions (`regress.sh`): the D08J6D ceiling route at 120/180 and first
+person as accepted apart from the new turn (yaw follows the side look; one
+180 Hz fire-mid-travel run stopped one grip earlier); D08J6A ladder, chain
+and wall routes identical; D08J7A hang identical in two reruns (the first
+run lost its S drop, then the debug port reported "emu busy or frozen"; not
+reproduced).
+
+Executable SHA-256 `c0402b1ac27410cf60976b39dd4c00bd3fc0eb6dff1dc6b0a93d917cca521b14`.
+
+### Limits and decisions for the user
+
+- Follow (default, he always faces the view) or arc (he turns only once the
+  view leaves the 50-degree chest clamp); the rate (192 per update); the
+  35-degree chain bias.
+- Against a wall or ledge Duke stops; he does not go the long way round.
+- Camera framing near the chain top (one run pushed the camera into the wall)
+  is D10F/D08J3A. Ladders, climbing walls and ledge hangs are D08J6F.
+- No enemies framed; fixtures and the slot 6 copy only (user UI slot 11 chain
+  not used).
+
+### D08J6E closeout
+
+2026-11-04. User: "incredible work as always, you can read my recent logs, but im happy with the results. lets lock it in and close it out!!!" D08J6E is Done at executable
+`c0402b1ac27410cf60976b39dd4c00bd3fc0eb6dff1dc6b0a93d917cca521b14` with the candidate defaults (follow,
+192 yaw units per update, 35-degree chain bias). The user's session log
+showed a steady 180 presents/s. No gameplay edits, builds or launches after
+acceptance.

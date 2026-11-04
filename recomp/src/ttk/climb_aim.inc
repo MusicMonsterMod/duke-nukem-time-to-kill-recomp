@@ -266,10 +266,81 @@ static bool climb_aim_direction(CPUState* cpu) {
     cpu->gpr[5]=climb_aim_vector;
     return true;
 }
+// D08J6E: armed on the ceiling monkey bars (mode 7, 149) or a pole or chain
+// (mode 3, 192..195), Duke turns on the hold toward the view, as the
+// holstered D08J4 travel turns him toward WASD. The original keeps him on
+// the hold: under a ceiling it only stores the yaw; on a pole or chain it
+// places him 225 units from the axis along his yaw every update, armed or not
+// (D08J6E probe), so the turn circles him round it, facing it. Ladders and
+// climbing walls have no turn (D08J6F). Same lease as the pose
+// (climb_aim_ready: third person, view aiming, sidearm out, not stowing).
+// The rate is per player update (the original's clock), eased in the last
+// few degrees. DNTTK_CLIMB_TURN: follow (default) turns until he faces the
+// view; arc only once the view leaves the chest clamp; 0 off (developer A/B).
+// DNTTK_CLIMB_TURN_RATE (yaw units per update, 192 = about 17 degrees) and
+// DNTTK_CLIMB_TURN_BIAS (degrees, chains only, 35) tune it. On a chain the
+// view is kept that far to his gun side: facing it, the line of fire would
+// run through the chain (its box is about 69 units each side of the axis).
+static int climb_turn_rate,climb_turn_bias,climb_turn_mode; // mode 0 off, 1 follow, 2 arc
+static int climb_turn_error;
+static unsigned climb_turn_updates,climb_turns,climb_turn_blocks;
+// Chains hang close to walls (the D35F chain is about 200 units from one), and
+// the original places Duke from his yaw without a wall test: a turn step is
+// taken only if the world is clear from Duke's chest to his new place, a body
+// width further out and ahead (the round from inside a wall is rejected).
+static constexpr double climb_turn_chest=256,climb_turn_clearance=96;
+static bool climb_turn_clear(CPUState* cpu,int turned,int step) {
+    if(psx_mod_read_byte(player+0x22c)!=3)return true;
+    PoleAxis axis;
+    if(!pole_axis(psx_mod_read_word(player+0x17c),axis))return false;
+    const double px=(int32_t)psx_mod_read_word(player+4),pz=(int32_t)psx_mod_read_word(player+12),
+        y=(int32_t)psx_mod_read_word(player+8)-climb_turn_chest;
+    const double r=std::max(64.0,std::hypot(px-axis.x,pz-axis.z)),reach=r+climb_turn_clearance;
+    // Duke sits at the axis minus r along his heading; look a body width on.
+    const double h=(turned*tau/4096)+(step>0?1:-1)*climb_turn_clearance/r;
+    const double from[3]={px,y,pz},to[3]={axis.x-reach*std::sin(h),y,axis.z-reach*std::cos(h)};
+    double hit[3];int kind=0;
+    return view_segment_query(cpu,from,to,hit,kind) && kind!=1;
+}
+static bool climb_turn_family() {
+    const unsigned a=psx_mod_read_half(player+0x60),mode=psx_mod_read_byte(player+0x22c);
+    if(mode==7)return ceiling_weapon_ready();
+    return mode==3 && a>=192 && a<=195 && pole_object(object_type_flags(psx_mod_read_word(player+0x17c)));
+}
+// Player update (0x8005a210), before the original climb or hang handler.
+static void climb_turn_update(CPUState* cpu) {
+    const char* v=std::getenv("DNTTK_CLIMB_TURN");
+    climb_turn_mode=!v || !std::strcmp(v,"follow") ? 1 : !std::strcmp(v,"arc") ? 2 : 0;
+    const char* r=std::getenv("DNTTK_CLIMB_TURN_RATE");
+    climb_turn_rate=r ? std::clamp(std::atoi(r),16,1024) : 192;
+    const char* b=std::getenv("DNTTK_CLIMB_TURN_BIAS");
+    climb_turn_bias=(b ? std::clamp(std::atoi(b),-90,90) : 35)*4096/360;
+    climb_aim_limits();
+    climb_turn_error=0;
+    if(!climb_turn_mode || !climb_aim_ready() || !climb_turn_family() || psx_mod_read_half(player+0x74)==7 ||
+       !player_identity_ready())return;
+    ++climb_turn_updates;
+    const int view=static_cast<int>(std::lround(view_yaw()*4096/tau))&4095;
+    const int heading=psx_mod_read_half(player+0x1c)&4095;
+    const int bias=psx_mod_read_byte(player+0x22c)==3 ? climb_turn_bias : 0;
+    int error=((view-bias-heading+2048)&4095)-2048;
+    if(climb_turn_mode==2) {
+        const int limit=static_cast<int>(std::lround(climb_chest_max*4096/tau));
+        error=std::abs(error)<=limit ? 0 : error-(error>0?limit:-limit);
+    }
+    climb_turn_error=error;
+    if(std::abs(error)<4)return;
+    // Full rate far off, half the remaining error near the target.
+    const int step=std::clamp(error/2+(error>0?1:-1),-climb_turn_rate,climb_turn_rate);
+    const int turned=(heading+step)&4095;
+    if(!climb_turn_clear(cpu,turned,step)) {++climb_turn_blocks;return;}
+    psx_mod_write_half(player+0x1c,turned);psx_mod_write_half(player+0x24,turned);
+    ++climb_turns;
+}
 static const char* climb_aim_debug_json() {
-    static char buffer[640];
-    std::snprintf(buffer,sizeof buffer,"{\"set\":%s,\"weight\":%.3f,\"delta\":%.3f,\"chest_yaw\":%.3f,\"head_yaw\":%.3f,\"dir\":[%.3f,%.3f,%.3f],\"builds\":%u,\"chest_turns\":%u,\"offhand_holds\":%u,\"head_turns\":%u,\"look_aims\":%u,\"aim_lends\":%u,\"aim_returns\":%u,\"lent\":%s,\"ik_solves\":%u,\"ik_reach\":%.3f,\"ik_elbow\":[%.0f,%.0f,%.0f],\"ik_target\":[%.0f,%.0f,%.0f]}",
+    static char buffer[704];
+    std::snprintf(buffer,sizeof buffer,"{\"set\":%s,\"weight\":%.3f,\"delta\":%.3f,\"chest_yaw\":%.3f,\"head_yaw\":%.3f,\"dir\":[%.3f,%.3f,%.3f],\"builds\":%u,\"chest_turns\":%u,\"offhand_holds\":%u,\"head_turns\":%u,\"look_aims\":%u,\"aim_lends\":%u,\"aim_returns\":%u,\"lent\":%s,\"ik_solves\":%u,\"ik_reach\":%.3f,\"ik_elbow\":[%.0f,%.0f,%.0f],\"ik_target\":[%.0f,%.0f,%.0f],\"turn_error\":%d,\"turn_updates\":%u,\"turns\":%u,\"turn_blocks\":%u}",
         climb_aim_set?"true":"false",climb_aim_weight,climb_view_delta,climb_chest_yaw,climb_head_yaw,climb_aim_dir[0],climb_aim_dir[1],climb_aim_dir[2],
-        climb_aim_builds,climb_chest_turns,climb_offhand_holds,climb_head_turns,climb_look_aims,climb_aim_lends,climb_aim_returns,climb_aim_lent?"true":"false",climb_ik_solves,climb_ik_reach,climb_elbow.x,climb_elbow.y,climb_elbow.z,climb_target.x,climb_target.y,climb_target.z);
+        climb_aim_builds,climb_chest_turns,climb_offhand_holds,climb_head_turns,climb_look_aims,climb_aim_lends,climb_aim_returns,climb_aim_lent?"true":"false",climb_ik_solves,climb_ik_reach,climb_elbow.x,climb_elbow.y,climb_elbow.z,climb_target.x,climb_target.y,climb_target.z,climb_turn_error,climb_turn_updates,climb_turns,climb_turn_blocks);
     return buffer;
 }

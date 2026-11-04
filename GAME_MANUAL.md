@@ -864,8 +864,11 @@ hand on the rung, chain or wall hold while the sidearm is out: his chest and
 head turn toward where you aim (up to about 50 degrees for the chest), and
 while firing the gun arm points at the crosshair (up to about 110 degrees to
 his right and 60 to his left; further round, the rounds still go to the
-crosshair but the arm stops at its limit). The first-person view is unchanged
-for now. Vanilla is unchanged.
+crosshair but the arm stops at its limit). On a pole or chain, with the
+sidearm out, Duke also goes round it as you turn the camera (D08J6E), keeping
+the chain a little to his left so it never blocks the shot; a wall or ledge
+beside the chain stops him. The first-person view is unchanged for now.
+Vanilla is unchanged.
 
 **Shooting from a ledge hang (Modernized, D08J7).**
 Hanging from a ledge, hold **left click**: Duke keeps one hand on the lip,
@@ -948,9 +951,10 @@ If he is moving hand over hand, he stops at the next grip first. The
 sidearm swap, the short click (draw only) and SIDEARM RETURN work as on
 climbs. **WASD** holster by themselves and then move on; **Ctrl** or
 **Space** let go with the pistol still out, so Duke lands ready to shoot. In
-third person his chest, head and firing arm turn toward the aim as on climbs.
-The first-person view shows the normal sidearm for now. Vanilla is
-unchanged.
+third person his chest, head and firing arm turn toward the aim as on climbs,
+and with the sidearm out Duke turns on the bars to face wherever the camera
+looks (Modernized, D08J6E), so you can shoot all the way round. The
+first-person view shows the normal sidearm for now. Vanilla is unchanged.
 With global First Person selected, **OVERHEAD VIEW** in OPTIONS > ADVANCED >
 ACTION PERSPECTIVE chooses FIRST PERSON (default) or THIRD PERSON. CONFIRM
 applies and saves it. This is separate from MANTLE VIEW and changes only the

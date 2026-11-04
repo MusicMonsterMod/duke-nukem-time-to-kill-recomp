@@ -3171,6 +3171,83 @@ int main(int argc,char** argv) {
         std::puts("PASS: D08J6D ceiling monkey-bar fire-draw, swap return, travel hold, armed Ctrl let-go, hang-and-aim in modes 6/7, crates and Vanilla");
     }
     {
+        // D08J6E: armed under the ceiling or on a pole/chain, Duke turns on
+        // the hold toward the view at the player update (rate-limited, eased);
+        // on a chain the view stays 35 degrees to his gun side and a step into
+        // the world (the segment query) is refused. Holstered, stowing, other
+        // climbs, the switch and Vanilla never turn him.
+        const uint16_t sidearm_ammo=psx_mod_read_half(p+0x2c6+4*4),sidearm_owned=psx_mod_read_half(p+0x2c4+4*4);
+        psx_mod_write_half(p+0x2c4+4*4,sidearm_owned|1);psx_mod_write_half(p+0x2c6+4*4,20);
+        const uint32_t attached=psx_mod_read_word(p+0x17c),old_table=psx_mod_read_word(0x800d2660);
+        constexpr uint32_t table=0x801e8e00,hold=0x801e8f00,box=0x801e8f80;constexpr unsigned type=1;
+        psx_mod_write_word(0x800d2660,table);
+        const uint32_t type_flags=psx_mod_read_word(table+28*type);
+        uint8_t saved_hold[0x50],saved_box[16];
+        for(unsigned i=0;i<sizeof saved_hold;++i)saved_hold[i]=psx_mod_read_byte(hold+i);
+        for(unsigned i=0;i<sizeof saved_box;++i)saved_box[i]=psx_mod_read_byte(box+i);
+        psx_mod_write_word(table+28*type,0x80);psx_mod_write_half(hold+0x2c,type);psx_mod_write_word(p+0x17c,hold);
+        setenv("DNTTK_WEAPON_AIM","view",1);setenv("DNTTK_CAMERA_MODE","independent",1);unsetenv("DNTTK_CLIMB_TURN");
+        const uint16_t view[3]={psx_mod_read_half(c+12),psx_mod_read_half(c+14),psx_mod_read_half(c+16)};
+        const int32_t pos[3]={(int32_t)psx_mod_read_word(p+4),(int32_t)psx_mod_read_word(p+8),(int32_t)psx_mod_read_word(p+12)};
+        psx_mod_write_half(c+12,4096);psx_mod_write_half(c+14,0);psx_mod_write_half(c+16,0); // view yaw 1024
+        auto hang=[&](unsigned mode,unsigned anim){
+            psx_mod_write_byte(p+0x22c,mode);psx_mod_write_byte(p+0x22d,mode);psx_mod_write_half(p+0x60,anim);
+            psx_mod_write_byte(p+0x3b8,2);psx_mod_write_byte(p+0x3b9,4);psx_mod_write_byte(p+0x3ba,4);
+            psx_mod_write_half(p+0x74,5);psx_mod_write_word(p+0x224,0);
+            psx_mod_write_half(p+0x1c,0);psx_mod_write_half(p+0x24,0);
+            ++ttk::input.sequence;call(0x8003ade4,c,p,0x80025ee8);
+        };
+        auto update=[&]{call(0x8005a210,p,0x800c2754,0x80041b34,0x801fff00);return (int)(psx_mod_read_half(p+0x1c)&4095);};
+        hang(7,149);assert(ttk::ceiling_weapon_ready());
+        assert(update()==192 && psx_mod_read_half(p+0x24)==192); // full rate far off
+        int yaw=192;for(int i=0;i<20;++i)yaw=update();
+        assert(std::abs(yaw-1024)<4); // eased onto the view, no overshoot
+        assert(std::strstr(ttk::controls_debug_json(),"\"turn_blocks\":0}"));
+        // Stowing, holstered, the original aim key, the switch, Vanilla: no turn.
+        hang(7,149);psx_mod_write_half(p+0x74,7);assert(update()==0);
+        hang(7,149);psx_mod_write_byte(p+0x3b8,0);psx_mod_write_half(p+0x74,149);assert(update()==0);
+        hang(7,149);ttk::input.held[ttk::original_aim]=true;assert(update()==0);ttk::input.held[ttk::original_aim]=false;
+        setenv("DNTTK_CLIMB_TURN","0",1);hang(7,149);assert(update()==0);
+        // arc: only once the view leaves the 50-degree chest clamp.
+        setenv("DNTTK_CLIMB_TURN","arc",1);hang(7,149);for(int i=0;i<20;++i)yaw=update();
+        assert(std::abs(yaw-(1024-569))<4);
+        unsetenv("DNTTK_CLIMB_TURN");
+        hang(7,150);assert(update()==0); // a travel step
+        psx_mod_write_word(table+28*type,0xc0);hang(7,149);assert(update()==0); // crates
+        psx_mod_write_word(table+28*type,0x80);
+        ttk::modern=false;hang(7,149);assert(update()==0);ttk::modern=true;
+        // A chain: a 138-wide column, 4096 tall, its axis at the hold's origin.
+        psx_mod_write_word(table+28*type,0x400);psx_mod_write_word(hold+0x44,0);psx_mod_write_word(hold+0x40,box-4);
+        for(uint32_t o : {4u,8u,12u})psx_mod_write_word(hold+o,0);psx_mod_write_half(hold+0x1c,0);
+        const int16_t column[8]={-69,-2048,-69,97,69,2048,69,2050};
+        for(int i=0;i<8;++i)psx_mod_write_half(box+2*i,(uint16_t)column[i]);
+        psx_mod_write_word(p+4,0);psx_mod_write_word(p+8,(uint32_t)-500);psx_mod_write_word(p+12,(uint32_t)-225);
+        ttk::segment_hit=false;hang(3,192);assert(ttk::climb_weapon_ready());
+        for(int i=0;i<20;++i)yaw=update();
+        assert(std::abs(yaw-(1024-398))<4); // the view 35 degrees to his right
+        // The world in the way (a wall): refused; an actor in the segment is no wall.
+        ttk::segment_hit=true;ttk::segment_kind=1;hang(3,192);assert(update()==0);
+        assert(!std::strstr(ttk::controls_debug_json(),"\"turn_blocks\":0}"));
+        ttk::segment_kind=2;hang(3,192);assert(update()==192);
+        ttk::segment_hit=false;
+        // Ladders and climbing walls do not turn (D08J6F); nor a ladder-type hold.
+        hang(3,187);assert(update()==0);
+        hang(3,198);assert(update()==0);
+        psx_mod_write_word(table+28*type,0x100);hang(3,192);assert(update()==0);
+        ttk::modern=false;psx_mod_write_word(table+28*type,0x400);hang(3,192);assert(update()==0);ttk::modern=true;
+        for(unsigned i=0;i<sizeof saved_hold;++i)psx_mod_write_byte(hold+i,saved_hold[i]);
+        for(unsigned i=0;i<sizeof saved_box;++i)psx_mod_write_byte(box+i,saved_box[i]);
+        psx_mod_write_word(table+28*type,type_flags);psx_mod_write_word(p+0x17c,attached);psx_mod_write_word(0x800d2660,old_table);
+        for(int i=0;i<3;++i) {psx_mod_write_half(c+12+2*i,view[i]);psx_mod_write_word(p+4+4*i,(uint32_t)pos[i]);}
+        ttk::segment_kind=2;
+        psx_mod_write_byte(p+0x22c,0);psx_mod_write_byte(p+0x22d,0);psx_mod_write_half(p+0x60,63);
+        psx_mod_write_byte(p+0x3b8,2);psx_mod_write_byte(p+0x3b9,4);psx_mod_write_half(p+0x74,5);psx_mod_write_word(p+0x224,0);
+        psx_mod_write_byte(p+0x3ba,4);psx_mod_write_half(p+0x1c,0);psx_mod_write_half(p+0x24,0);
+        psx_mod_write_half(p+0x2c6+4*4,sidearm_ammo);psx_mod_write_half(p+0x2c4+4*4,sidearm_owned);
+        ++ttk::input.sequence;call(0x8003ade4,c,p,0x80025ee8);
+        std::puts("PASS: D08J6E armed monkey-bar and chain turn to the view: rate, easing, arc, chain bias, wall refusal, gates and Vanilla");
+    }
+    {
         // D08J7B: fire during a mantle never stops it. It queues the weapon
         // selected before the E stow; set in the pull-up (or on the ground after
         // a height mantle), the original request draws it on the first ground

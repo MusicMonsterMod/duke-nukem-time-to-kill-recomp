@@ -1,5 +1,14 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-04 - D08J6E accepted and closed: Duke turns to the aim on monkey bars and chains
+
+User: "incredible work as always, you can read my recent logs, but im happy with the results. lets lock it in and close it out!!!" D08J6E is Done: with the sidearm out in third person, Duke turns on the
+monkey bars and goes round poles and chains toward the camera (192 yaw units
+per update, eased; the view 35 degrees to his gun side on chains; steps into
+the world refused). [Note 377](documentation/377-d08j6-climb-fire-research.md)
+D08J6E section. Executable `c0402b1ac27410cf60976b39dd4c00bd3fc0eb6dff1dc6b0a93d917cca521b14`. Remaining blast
+list: D10F, D08J3A, D10G, D08J6F.
+
 ## 2026-11-04 - D08J6D accepted and closed; camera and aim feel blast list (D10F, D10G, D08J3A, D08J6E, D08J6F)
 
 D08J6D is Done (user: "it definitely works fine, but i have another reservation which i wanna flag up. your work is absolutely solid here though. excellent work, accepted"). Executable
@@ -73,9 +82,9 @@ GDC talks themselves were not watched.
 
 Blast list (suggested order: D08J6E, D10F, D08J3A, D10G, D08J6F):
 
-### D08J6E - Monkey bars: Duke turns to the aim while armed
+### D08J6E - Monkey bars and chains: Duke turns to the aim while armed
 
-**Status: Todo. Dependencies: D08J6D, D08J4.** User: "duke could easily change
+**Status: Done (user-accepted and closed 2026-11-04: "im happy with the results. lets lock it in and close it out"; chains and poles in scope per the user: "it's the same for chain climbing too, really, identical"; [note 377](documentation/377-d08j6-climb-fire-research.md) D08J6E section). Dependencies: D08J6D, D08J4.** User: "duke could easily change
 his direction based on where the mouse is pointing". With the sidearm out
 under a climbable ceiling, turn Duke on the bar toward the camera's yaw (the
 D08J4 turn, rate-limited, original travel still refused while armed) so the
@@ -84,6 +93,43 @@ Decide with the user: always while armed, or only when the aim leaves the
 arc, and the turn rate. Firing must not spin him behind the shot; first
 person and Vanilla unchanged. Test on the private slot 6 copy (note 377
 D08J6D route) at 60/120/180.
+
+**2026-11-04 candidate (Needs playtest).** Probe (D35F chain copy): armed or
+not, the original places Duke on a chain 225 units from its axis along his
+yaw every update, so a yaw change takes him round it. Modernized, third
+person, view aiming, sidearm out: on the monkey bars (settled 149, not
+crates) and on poles and chains (192-195) Duke turns on the hold toward the
+camera at every player update, 192 yaw units (about 17 degrees) at most and
+half the remaining error near the end (`climb_aim.inc` `climb_turn_update`,
+called after `ceiling_hang_update`). On the bars he turns on the spot; on a
+chain he goes round it, with the view kept 35 degrees to his gun side (facing
+it straight, the crosshair and rounds hit the chain, box 69 units each side
+of the axis). A chain step is refused when the world is in the way from his
+chest to his new place plus a body width (`view_segment_query`): without it
+Duke went into the platform beside the D35F chain top and 4 of 7 rounds in a
+fast turn were rejected. Default "always while armed" (follow);
+`DNTTK_CLIMB_TURN=arc` turns only past the 50-degree chest clamp, `0` is the
+A/B; `DNTTK_CLIMB_TURN_RATE` and `DNTTK_CLIMB_TURN_BIAS` tune it. Evidence:
+slot 6 copy at 60/120/180, identical: Duke follows within 3 yaw units, no
+travel, 10 of 10 view shots while turning; D35F chain at 60/120/180: full
+circle lower down (0 blocks), still/slow/fast turns firing 7, 7, 7 rounds,
+all view-aimed, 0 rejected. First person, holstered, the original aim key
+and Vanilla (`--vanilla` raw pads: original draw, 5 rounds along the
+heading, no host turn) unchanged. Regressions: D08J6D ceiling route at
+120/180/first person as accepted apart from the new turn (one 180 Hz
+fire-mid-travel run stopped one grip earlier); D08J6A ladder, chain and wall
+routes identical; D08J7A hang identical in two reruns (a first run lost its
+S drop and then the debug port reported "emu busy or frozen"; not
+reproduced). Native: controls 151 groups (new D08J6E group), input under
+Xvfb, aim and near pass. No new hook, guard, codegen or save change.
+Limits: user decisions open (follow or arc, the rate, the 35-degree chain
+bias); against a wall Duke stops rather than going the long way round; the
+camera framing near the chain top (pushed into the wall in one run) is
+D10F/D08J3A; ladders, walls and ledges stay D08J6F; no enemies framed; the slot 6 copy and the
+D35F chain fixture only (user UI slot 11 chain not used).
+Executable `c0402b1ac27410cf60976b39dd4c00bd3fc0eb6dff1dc6b0a93d917cca521b14`.
+
+**2026-11-04 accepted and closed.** User: "incredible work as always, you can read my recent logs, but im happy with the results. lets lock it in and close it out!!!" Done at the candidate defaults (follow, 192 per update, 35-degree chain bias). The user's 17:10 session log (chain and climb, slot 5 state) shows a steady 180 presents/s and no errors. Runtime patch re-export unchanged (no framework edits). No gameplay edits, builds or launches after acceptance.
 
 ### D10F - Third-person camera near close surfaces (research report first)
 
@@ -129,10 +175,9 @@ to Vanilla or the original aim option.
 sometimes end up shooting in impossible directions when duke is not facing
 the right way". Today on ladders, climbing walls, chains/poles and ledge hangs
 the arm stops at its arc while the rounds still go to the crosshair (kept at
-D08J6B's acceptance). Options for the user: chains and poles circle Duke
-round toward the aim (the original A/D circling); ladders, walls and ledges
-refuse shots beyond the arc (crosshair feedback), or Duke leans out further.
-Monkey bars are D08J6E.
+D08J6B's acceptance). Options for the user: ladders, walls and ledges refuse
+shots beyond the arc (crosshair feedback), or Duke leans out further. Monkey
+bars, chains and poles are D08J6E (Duke turns or goes round to the aim).
 
 ## 2026-11-03 - D17AR2 and D17AR3 closed; D17AO cancelled
 
@@ -5659,7 +5704,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08J6B | Hang-and-aim pose on climbs, third person (user UI slots 12, 11, 8) | Done (user-accepted; closed 2026-11-04; note 377) | D08J6 |
 | D08J6C | Firing while climbing in first person | Todo | D08J6B, D35E, D35F, D36 |
 | D08J6D | Firing on monkey bars and ledge hangs (user UI slot 6) | Done (user-accepted; closed 2026-11-04; note 377) | D08J6A, D08J4, D08J7 |
-| D08J6E | Monkey bars: Duke turns to the aim while armed | Todo | D08J6D, D08J4 |
+| D08J6E | Monkey bars and chains: Duke turns to the aim while armed | Done | D08J6D, D08J4 |
 | D08J6F | Shots beyond the gun arc on climbs and hangs | Todo | D08J6B, D08J6D, D08J6E |
 | D08J3A | Climb camera revisit with aiming | Todo | D08J3, D08J6B, D08J6D, D10F |
 | D08V1 | Modernized controls lost for the rest of the session after a missed chain jump; modern controls must never be lost | Done | D08V, D08J5 |

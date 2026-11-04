@@ -1,5 +1,27 @@
 # Next-session handoff
 
+## 2026-11-04 - D08J6E accepted and closed
+
+User: "incredible work as always, you can read my recent logs, but im happy with the results. lets lock it in and close it out!!!" Armed monkey-bar and chain turn to the aim is Done at the candidate
+defaults. [Note 377](377-d08j6-climb-fire-research.md). Executable
+`c0402b1ac27410cf60976b39dd4c00bd3fc0eb6dff1dc6b0a93d917cca521b14`. Next on the blast list: D10F,
+D08J3A, D10G, D08J6F.
+
+## 2026-11-04 - D08J6E monkey bars and chains turn to the aim (accepted above)
+
+Modernized, third person, view aiming: with the sidearm out on the monkey
+bars Duke turns on the spot toward the camera; on a pole or chain he goes
+round it (the original's own placement from his yaw), keeping the view 35
+degrees to his gun side so the line of fire clears the chain. Rate 192 yaw
+units per player update, eased at the end; chain steps into the world are
+refused (segment query from his chest). Slot 6 copy and the D35F chain at
+60/120/180: Duke follows the view within 3 yaw units, all rounds view-aimed
+(0 rejected, 4 of 7 before the wall test); first person, holstered and
+Vanilla unchanged; native controls 151 groups, input, aim, near pass.
+Option `DNTTK_CLIMB_TURN=arc` turns only past the chest clamp; `0` A/B.
+[Note 377](377-d08j6-climb-fire-research.md) D08J6E section. Executable
+`c0402b1ac27410cf60976b39dd4c00bd3fc0eb6dff1dc6b0a93d917cca521b14`.
+
 ## 2026-11-04 - D08J6D accepted and closed; camera blast list
 
 User: "your work is absolutely solid here though. excellent work, accepted".

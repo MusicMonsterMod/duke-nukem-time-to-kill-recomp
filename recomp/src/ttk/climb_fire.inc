@@ -1,4 +1,5 @@
-// D08J6A: firing while climbing (note 377); D08J7A: and from ledge hangs (note 378). Included in the guarded controls
+// D08J6A: firing while climbing (note 377); D08J7A: and from ledge hangs (note 378);
+// D08J6D: and under climbable ceilings. Included in the guarded controls
 // adapter after shortcuts.inc. The original climb states already stop, draw,
 // fire and stow: the climb dispatcher 0x80043eb8 refuses to move while the
 // upper animation carries table flag 8 (a weapon pose), a weapon request or a
@@ -32,23 +33,36 @@ bool hang_weapon_ready() {
     return attached_weapon_owner() && psx_mod_read_byte(player+0x22c)==6 && psx_mod_read_byte(player+0x22d)==6 &&
         psx_mod_read_half(player+0x60)==149 && identity();
 }
+// D08J6D: the ceiling monkey bars (mode 7 under a climbable object, D08J4).
+// The original draws there on Circle, fires with one hand on the bar, stows,
+// and lets go armed through Square; armed, it refuses the hand-over-hand
+// travel (150/151). Crates (0xc0) are let go at once (D08X) and never get it.
+static bool ceiling_attached() {
+    const unsigned a=psx_mod_read_half(player+0x60);
+    return attached_weapon_owner() && psx_mod_read_byte(player+0x22c)==7 && psx_mod_read_byte(player+0x22d)==7 &&
+        a>=149 && a<=151 && (object_type_flags(psx_mod_read_word(player+0x17c))&object_climbable)==0x80u && identity();
+}
+bool ceiling_weapon_ready() {return ceiling_attached() && psx_mod_read_half(player+0x60)==149;}
 bool climb_weapon_ready() {
     if(!attached_weapon_owner())return false;
     if(psx_mod_read_byte(player+0x22c)==6)return hang_weapon_ready();
+    if(psx_mod_read_byte(player+0x22c)==7)return ceiling_weapon_ready();
     return psx_mod_read_byte(player+0x22c)==3 && psx_mod_read_byte(player+0x22d)==3 &&
         climb_clip(psx_mod_read_half(player+0x60)) && psx_mod_read_word(player+0x17c) && identity();
 }
 // Holstered on a climb with a loaded sidearm: held fire stops the climb (the
 // host sends no climb directions) and must never reach the climb handlers as
 // unarmed Cross (Down + Cross steps off a ladder, D08U).
+// On the ceiling also during a travel step: held fire ends it at the next
+// hang (ceiling_hang.inc sends no Up), where the draw starts.
 bool climb_fire_hold_ready() {
-    return climb_weapon_ready() && psx_mod_read_byte(player+0x3b8)==0 && usable_weapon(climb_sidearm);
+    return (climb_weapon_ready() || ceiling_attached()) && psx_mod_read_byte(player+0x3b8)==0 && usable_weapon(climb_sidearm);
 }
 // The draw starts at once, also inside a climb step: with no direction sent
 // the step ends at its rest, where the flag-8 refusal holds Duke.
 static bool climb_fire_draw_ready() {
     const unsigned a=psx_mod_read_half(player+0x60);
-    return climb_fire_hold_ready() && psx_mod_read_half(player+0x74)==a &&
+    return climb_weapon_ready() && climb_fire_hold_ready() && psx_mod_read_half(player+0x74)==a &&
         !(psx_mod_read_word(player+0x224)&0x2cd);
 }
 // Armed on a climb in the weapon's settled idle, or the one-arm aim hold (8)
@@ -64,7 +78,7 @@ bool armed_pullup_shot_ready();
 bool climb_shot_ready() {return (climb_weapon_ready() && psx_mod_read_byte(player+0x3b8)==2) || armed_pullup_shot_ready();}
 // The draw request and the swap's return while still attached: at the climb
 // dispatcher entry (Duke from 0x8004b60c), and once per player update in a
-// ledge hang (hang_fire_update).
+// ledge hang or under a ceiling (hang_fire_update).
 static void climb_fire_request() {
     if(!interaction_alive()) {climb_swap_from=climb_no_swap;return;}
     const auto& f=input_snapshot(Context::Gameplay);
@@ -183,6 +197,7 @@ static void hang_fire_update() {
         return;
     }
     if(armed_pullup && !armed_pullup_active())armed_pullup=false;
+    if(ceiling_weapon_ready()) {climb_fire_request();return;}
     if(!hang_weapon_ready())return;
     climb_fire_request();
     const auto& f=input_snapshot(Context::Gameplay);
@@ -247,8 +262,8 @@ static void climb_fire_ground_restore(const InputFrame& f,unsigned equipment,uin
 }
 static const char* climb_fire_debug_json() {
     static char buffer[512];
-    std::snprintf(buffer,sizeof buffer,"{\"ready\":%s,\"hang\":%s,\"hold\":%s,\"stow\":%s,\"shot\":%s,\"swap_from\":%d,\"draws\":%u,\"swaps\":%u,\"restores\":%u,\"ground_restores\":%u,\"hang_drops\":%u,\"hang_drop_restores\":%u,\"armed_pullup\":%s,\"armed_pullup_late\":%s,\"armed_pullups\":%u,\"armed_pullup_restores\":%u,\"return_waits\":%u,\"return_cancels\":%u,\"onehand_weight\":%.3f,\"onehand_phase\":%.3f,\"onehand_writes\":%u}",
-        climb_weapon_ready()?"true":"false",hang_weapon_ready()?"true":"false",climb_fire_hold_ready()?"true":"false",climb_stow_ready()?"true":"false",
+    std::snprintf(buffer,sizeof buffer,"{\"ready\":%s,\"hang\":%s,\"ceiling\":%s,\"hold\":%s,\"stow\":%s,\"shot\":%s,\"swap_from\":%d,\"draws\":%u,\"swaps\":%u,\"restores\":%u,\"ground_restores\":%u,\"hang_drops\":%u,\"hang_drop_restores\":%u,\"armed_pullup\":%s,\"armed_pullup_late\":%s,\"armed_pullups\":%u,\"armed_pullup_restores\":%u,\"return_waits\":%u,\"return_cancels\":%u,\"onehand_weight\":%.3f,\"onehand_phase\":%.3f,\"onehand_writes\":%u}",
+        climb_weapon_ready()?"true":"false",hang_weapon_ready()?"true":"false",ceiling_weapon_ready()?"true":"false",climb_fire_hold_ready()?"true":"false",climb_stow_ready()?"true":"false",
         climb_shot_ready()?"true":"false",climb_swap_from==climb_no_swap?-1:(int)climb_swap_from,
         climb_fire_draws,climb_swaps,climb_restores,climb_ground_restores,hang_drop_handoffs,hang_drop_restores,
         armed_pullup?"true":"false",armed_pullup_shot_ready()?"true":"false",armed_pullups,armed_pullup_restores,sidearm_return_waits,sidearm_return_cancels,onehand_weight,onehand_phase,onehand_writes);

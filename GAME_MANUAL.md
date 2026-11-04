@@ -871,7 +871,10 @@ for now. Vanilla is unchanged.
 Hanging from a ledge, hold **left click**: Duke keeps one hand on the lip,
 draws his sidearm and fires where the crosshair points, so you can shoot
 enemies along the wall beside you. A short click only draws, and the same
-sidearm swap as on climbs applies. **W** pulls Duke up one-handed with the
+sidearm swap as on climbs applies. In third person, while the sidearm is out
+in the hang, his chest and head turn toward where you aim and the firing arm
+points at the crosshair, with the same limits as on climbs; his other hand
+stays on the lip. **W** pulls Duke up one-handed with the
 sidearm still out, firing or not: no holstering, and the same speed as an
 unarmed pull-up. He hauls himself up on his left hand, leaning onto it, with
 the pistol held up beside his head until he is over the lip. In first person you
@@ -939,6 +942,15 @@ like walking: W goes where the camera looks, A and D go left and right on
 screen, S comes back toward the camera, and the mouse camera stays free. Duke
 turns to face the way you steer and goes hand over hand. At the end of the
 ceiling he stops and keeps hanging. Press **Ctrl** or **Space** to let go.
+Hold **left click** while hanging there (Modernized, D08J6D): Duke stops, keeps
+one hand on the bars, draws his sidearm and fires where the crosshair points.
+If he is moving hand over hand, he stops at the next grip first. The
+sidearm swap, the short click (draw only) and SIDEARM RETURN work as on
+climbs. **WASD** holster by themselves and then move on; **Ctrl** or
+**Space** let go with the pistol still out, so Duke lands ready to shoot. In
+third person his chest, head and firing arm turn toward the aim as on climbs.
+The first-person view shows the normal sidearm for now. Vanilla is
+unchanged.
 With global First Person selected, **OVERHEAD VIEW** in OPTIONS > ADVANCED >
 ACTION PERSPECTIVE chooses FIRST PERSON (default) or THIRD PERSON. CONFIRM
 applies and saves it. This is separate from MANTLE VIEW and changes only the

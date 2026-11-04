@@ -35,6 +35,8 @@ static void ceiling_hang_update() {
     const auto& f=input_snapshot(Context::Gameplay);
     if(f.held[crouch]) {ceiling_drop=true;++ceiling_drops;return;}
     if(!f.move_x && !f.move_y)return;
+    // D08J6D: held fire stops the travel at the next hang for the sidearm draw.
+    if(f.held[fire] && !f.held[holster] && !f.held[interact] && climb_fire_hold_ready())return;
     const auto dir=movement(view_yaw(),f.move_x,f.move_y);
     const int wanted=static_cast<int>(std::lround(std::atan2(dir.x,dir.z)*4096/tau)) & 4095;
     const int heading=psx_mod_read_half(player+0x1c)&4095;
@@ -52,3 +54,8 @@ static void ceiling_hang_update() {
 // Square for Ctrl. pc_input sends no Left/Right (they would turn him) or Down.
 bool ceiling_hang_advance() {return ceiling_advance && ceiling_hang_ready();}
 bool ceiling_hang_drop() {return ceiling_drop && ceiling_hang_ready();}
+// D08J6D: Ctrl lets go with the sidearm out too (original Square, as armed
+// Space already does); the weapon stays out.
+bool ceiling_armed_drop() {
+    return ceiling_weapon_ready() && psx_mod_read_byte(player+0x3b8)==2 && input_snapshot(Context::Gameplay).held[crouch];
+}

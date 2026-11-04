@@ -1574,6 +1574,7 @@ uint16_t input_pad() {
         if(ceiling_hang_drop()) value &= ~pads[jump];
         else if(ceiling_hang_advance()) value &= ~16;
     }
+    if(captured && ceiling_armed_drop()) value &= ~pads[jump];
     // D08V: an unowned fall keeps the original fall buttons the tank fallback
     // used to give (Up/Down and the strafe pads, never D-pad turns).
     // D22B: a dodge roll or slope slide gets none; it ends in idle and the

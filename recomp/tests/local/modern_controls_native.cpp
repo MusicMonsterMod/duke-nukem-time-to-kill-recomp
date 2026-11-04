@@ -3097,6 +3097,80 @@ int main(int argc,char** argv) {
         std::puts("PASS: D08J7A ledge-hang fire-draw, swap return, armed drop handoff, hang gates and Vanilla");
     }
     {
+        // D08J6D: the ceiling monkey bars (mode 7 under a climbable object,
+        // 0x80 without 0x40) get the climb lease at the settled hang 149: held
+        // fire draws the sidearm, holstered the selection returns; during a
+        // travel step (150/151) held fire only holds (no Up, no draw); armed,
+        // Ctrl sends original Square; crates, entry frames and Vanilla never.
+        const uint16_t sidearm_ammo=psx_mod_read_half(p+0x2c6+4*4),sidearm_owned=psx_mod_read_half(p+0x2c4+4*4);
+        psx_mod_write_half(p+0x2c4+4*4,sidearm_owned|1);psx_mod_write_half(p+0x2c6+4*4,20);
+        // A scratch type table (the fixture's may be unset) with one grate type.
+        const uint32_t attached=psx_mod_read_word(p+0x17c),old_table=psx_mod_read_word(0x800d2660);
+        constexpr uint32_t table=0x801e8e00,grate=0x801e8f00;constexpr unsigned type=1;
+        psx_mod_write_word(0x800d2660,table);
+        const uint32_t type_flags=psx_mod_read_word(table+28*type);const uint16_t grate_type=psx_mod_read_half(grate+0x2c);
+        psx_mod_write_word(table+28*type,0x80);psx_mod_write_half(grate+0x2c,type);psx_mod_write_word(p+0x17c,grate);
+        psx_mod_write_byte(p+0x22c,7);psx_mod_write_byte(p+0x22d,7);
+        psx_mod_write_half(p+0x60,149);psx_mod_write_half(p+0x74,149);
+        psx_mod_write_byte(p+0x3b8,0);psx_mod_write_byte(p+0x3b9,4);psx_mod_write_byte(p+0x3ba,5);psx_mod_write_word(p+0x224,0);
+        ++ttk::input.sequence;call(0x8003ade4,c,p,0x80025ee8);
+        auto update=[&]{call(0x8005a210,p,0x800c2754,0x80041b34,0x801fff00);};
+        assert(ttk::ceiling_weapon_ready() && ttk::climb_weapon_ready() && ttk::climb_fire_hold_ready() && !ttk::hang_weapon_ready() && !ttk::climb_shot_ready());
+        update();assert(!(psx_mod_read_word(p+0x224)&4) && psx_mod_read_byte(p+0x3ba)==5);
+        ttk::input.held[ttk::fire]=true;update();
+        assert(psx_mod_read_byte(p+0x3ba)==4 && (psx_mod_read_word(p+0x224)&4) && std::strstr(ttk::controls_debug_json(),"\"swap_from\":5,"));
+        psx_mod_write_word(p+0x224,0);ttk::input.held[ttk::fire]=false;update();
+        assert(psx_mod_read_byte(p+0x3ba)==5 && std::strstr(ttk::controls_debug_json(),"\"swap_from\":-1,"));
+        // A travel step: fire holds (Cross masked by pc_input) but draws only at the hang.
+        for(unsigned anim : {150u,151u}) {
+            psx_mod_write_half(p+0x60,anim);psx_mod_write_half(p+0x74,anim);
+            assert(!ttk::ceiling_weapon_ready() && !ttk::climb_weapon_ready() && ttk::climb_fire_hold_ready());
+            ttk::input.held[ttk::fire]=true;update();ttk::input.held[ttk::fire]=false;
+            assert(!(psx_mod_read_word(p+0x224)&4) && psx_mod_read_byte(p+0x3ba)==5);
+        }
+        psx_mod_write_half(p+0x60,149);psx_mod_write_half(p+0x74,149);
+        // Crates (0xc0), other objects, entry frames, other hang clips and Vanilla never.
+        psx_mod_write_word(table+28*type,0xc0);assert(!ttk::ceiling_weapon_ready() && !ttk::climb_fire_hold_ready());
+        psx_mod_write_word(table+28*type,0);assert(!ttk::ceiling_weapon_ready());psx_mod_write_word(table+28*type,0x80);
+        psx_mod_write_byte(p+0x22d,9);assert(!ttk::ceiling_weapon_ready() && !ttk::climb_fire_hold_ready());psx_mod_write_byte(p+0x22d,7);
+        for(unsigned anim : {147u,148u,152u}) {psx_mod_write_half(p+0x60,anim);assert(!ttk::climb_fire_hold_ready());}
+        psx_mod_write_half(p+0x60,149);
+        ttk::modern=false;assert(!ttk::ceiling_weapon_ready() && !ttk::climb_weapon_ready() && !ttk::climb_fire_hold_ready());ttk::modern=true;
+        // Armed: stow, view shots and the Ctrl let-go (original Square).
+        psx_mod_write_byte(p+0x3b8,2);psx_mod_write_half(p+0x74,5);
+        assert(ttk::climb_stow_ready() && ttk::climb_shot_ready() && !ttk::ceiling_armed_drop());
+        ttk::input.held[ttk::crouch]=true;assert(ttk::ceiling_armed_drop());
+        psx_mod_write_byte(p+0x3b8,0);assert(!ttk::ceiling_armed_drop());psx_mod_write_byte(p+0x3b8,2);
+        ttk::modern=false;assert(!ttk::ceiling_armed_drop());ttk::modern=true;
+        ttk::input.held[ttk::crouch]=false;
+        // The hang-and-aim pose builds under the ceiling and in the ledge hang.
+        setenv("DNTTK_WEAPON_AIM","view",1);setenv("DNTTK_CAMERA_MODE","independent",1);
+        // A 19-joint model descriptor and a level view to Duke's right.
+        const uint32_t old_model=psx_mod_read_word(p+0x40);constexpr uint32_t model=0x801e9800;
+        const uint8_t model_joints=psx_mod_read_byte(model);
+        const uint16_t view[3]={psx_mod_read_half(c+12),psx_mod_read_half(c+14),psx_mod_read_half(c+16)};
+        psx_mod_write_byte(model,19);psx_mod_write_word(p+0x40,model);
+        psx_mod_write_half(c+12,4096);psx_mod_write_half(c+14,0);psx_mod_write_half(c+16,0);
+        ++ttk::input.sequence;call(0x8003ade4,c,p,0x80025ee8);
+        auto aimed=[&]{ttk::clock_ms+=200;call(0x800411b8,p,0,0x80042634);return std::strstr(ttk::controls_debug_json(),"\"climb_aim\":{\"set\":true,")!=nullptr;};
+        aimed(); // the first build only starts the real-time ramp
+        assert(aimed());
+        psx_mod_write_byte(p+0x22c,6);psx_mod_write_byte(p+0x22d,6);assert(ttk::hang_weapon_ready() && aimed());
+        psx_mod_write_half(p+0x60,150);assert(!aimed());psx_mod_write_half(p+0x60,149);
+        psx_mod_write_byte(p+0x22c,7);psx_mod_write_byte(p+0x22d,7);psx_mod_write_word(table+28*type,0xc0);assert(!aimed());
+        psx_mod_write_word(table+28*type,type_flags);psx_mod_write_half(grate+0x2c,grate_type);psx_mod_write_word(p+0x17c,attached);
+        psx_mod_write_word(0x800d2660,old_table);
+        psx_mod_write_byte(model,model_joints);psx_mod_write_word(p+0x40,old_model);
+        for(int i=0;i<3;++i)psx_mod_write_half(c+12+2*i,view[i]);
+        psx_mod_write_byte(p+0x22c,0);psx_mod_write_byte(p+0x22d,0);psx_mod_write_half(p+0x60,63);
+        psx_mod_write_byte(p+0x3b8,2);psx_mod_write_byte(p+0x3b9,4);psx_mod_write_half(p+0x74,5);psx_mod_write_word(p+0x224,0);
+        psx_mod_write_byte(p+0x3ba,4);
+        psx_mod_write_half(p+0x2c6+4*4,sidearm_ammo);psx_mod_write_half(p+0x2c4+4*4,sidearm_owned);
+        ++ttk::input.sequence;call(0x8003ade4,c,p,0x80025ee8);aimed();
+        assert(std::strstr(ttk::controls_debug_json(),"\"climb_aim\":{\"set\":false,"));
+        std::puts("PASS: D08J6D ceiling monkey-bar fire-draw, swap return, travel hold, armed Ctrl let-go, hang-and-aim in modes 6/7, crates and Vanilla");
+    }
+    {
         // D08J7B: fire during a mantle never stops it. It queues the weapon
         // selected before the E stow; set in the pull-up (or on the ground after
         // a height mantle), the original request draws it on the first ground

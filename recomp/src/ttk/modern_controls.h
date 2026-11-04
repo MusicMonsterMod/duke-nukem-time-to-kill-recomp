@@ -94,6 +94,8 @@ bool object_hang_release_ready();
 bool ceiling_hang_ready();
 bool ceiling_hang_advance();
 bool ceiling_hang_drop();
+bool ceiling_armed_drop();
+bool ceiling_weapon_ready();
 bool push_contact_ready();
 bool push_idle_ready();
 /* Original Up (16) / Down (64) for camera-relative movement along Duke's facing. */

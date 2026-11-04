@@ -1,5 +1,139 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-04 - D08J6D accepted and closed; camera and aim feel blast list (D10F, D10G, D08J3A, D08J6E, D08J6F)
+
+D08J6D is Done (user: "it definitely works fine, but i have another reservation which i wanna flag up. your work is absolutely solid here though. excellent work, accepted"). Executable
+`ae9d9f4f6845ce81a400a7269416bf8eae2b173cfe0eeab8916d5f43c93c010e`.
+
+The user's reservation, then the request (2026-11-04): "i just feel like the
+free look around feels very kinda off. so hard to explain, like you can get
+caught behind objects and such. Now that we actually have aiming, maybe we
+should revisit it and see if there's any tightening we should do between
+that, and even between third person mouse movement ... do some research, and
+stand up a backlog job ... how similar games flawlessly control the third
+person character. I think we're pretty close ... It's just gonna be a tweak
+to how it feels, usually when up against close surfaces etc." and "with the
+monkey bars, duke could easily change his direction based on where the mouse
+is pointing, because you can sometimes end up shooting in impossible
+directions when duke is not facing the right way". The free look on climbs is
+D08J3 (accepted 2026-10-07, [note 124](documentation/124-d08j3-climb-camera.md)).
+
+Research only; no code, build or executable change.
+
+What owns the camera today (source and notes, not re-measured live):
+- Modernized third person keeps the original four-candidate collision solve
+  and its 768-unit minimum boom (D10B1 rolled the D10B tight-space camera
+  back to native handling on 2026-10-24). The minimum pushes a solved camera
+  back out to 768 units, so against close surfaces it can end behind a
+  pillar, crate or wall edge instead of between it and Duke. D10B's lower
+  minimum (256), instant pull-in and eased recovery still exist behind the
+  developer switch `DNTTK_TIGHT_CAMERA=1`; the user's rollback reason was its
+  opaque boxes and Duke coverage, not the camera distance.
+- Climbs (D08J3) join the camera-only lease: the same orbit and collision as
+  on the ground, with the shoulder offset eased to centre. On chains and
+  ladders the pivot sits against the climb surface, so an orbit can swing
+  into the wall behind it.
+- Shots follow the screen ray from the camera, then the muzzle and cover
+  checks (`weapon_aim.cpp`); on climbs and hangs the gun arm turns only within
+  its arc (110 degrees right, 60 left) while the rounds still go to the
+  crosshair (D08J6B decision, kept at its acceptance).
+- Monkey bars: D08J4 turns Duke toward WASD (320 yaw units per update) only
+  while holstered; armed, nothing turns him (D08J6D probe: armed A/D gave no
+  turn), so the camera can look where the arm cannot point.
+
+How other games do it (online, 2026-11-04):
+- A sphere probe swept from the pivot (Unreal spring arm `ProbeSize`, Godot
+  `SpringArm3D` shape cast) rather than point candidates, with a small margin
+  so the lens never sits on a surface.
+- Pull in instantly, ease back out (about 0.3-0.5 s); ignore thin occluders
+  (poles, railings, fly-bys) briefly unless the camera would end inside
+  geometry; never auto-yaw away from a wall; pressing into a wall only
+  shortens the boom.
+- Shoulder toward the open side or centre when compressed; some games
+  auto-swap shoulders near walls, which players report as inconsistent when
+  it triggers late.
+- A separate aim camera (shorter boom, slightly narrower FOV, tighter
+  shoulder) blended in while aiming, sharing one look input so the mouse feel
+  does not change. Naughty Dog's GDC 2024 talk on The Last of Us Part II names
+  "camera vs character perception" and input delay among third-person
+  shooter problems.
+- Avoid the camera's near plane cutting the avatar, and do not over-move the
+  camera to keep unimportant objects out of the line of sight (Nesky, "50
+  Game Camera Mistakes", GDC 2014).
+- Hang/climb aiming (Uncharted, Tomb Raider): the character turns on the hold
+  toward the aim where the hold allows it (bars, ropes, pipes); on flat walls
+  the arc is limited.
+Sources: Godot SpringArm3D docs (docs.godotengine.org), Unreal
+SpringArmComponent API (dev.epicgames.com), StraySpark Godot camera system
+"Third person and deocclusion" docs (strayspark.studio), GDC Vault "50
+Camera Mistakes" (gdcvault.com/play/1020460) and "A Second Shot: Improving
+Ranged Combat in The Last of Us Part II" (gdcvault.com/play/1034215), OpenMW
+auto shoulder-swap commit, Aragami Steam discussion. Secondary summaries; the
+GDC talks themselves were not watched.
+
+Blast list (suggested order: D08J6E, D10F, D08J3A, D10G, D08J6F):
+
+### D08J6E - Monkey bars: Duke turns to the aim while armed
+
+**Status: Todo. Dependencies: D08J6D, D08J4.** User: "duke could easily change
+his direction based on where the mouse is pointing". With the sidearm out
+under a climbable ceiling, turn Duke on the bar toward the camera's yaw (the
+D08J4 turn, rate-limited, original travel still refused while armed) so the
+crosshair stays inside the gun arc; the off hand stays on the bar (D08J6B IK).
+Decide with the user: always while armed, or only when the aim leaves the
+arc, and the turn rate. Firing must not spin him behind the shot; first
+person and Vanilla unchanged. Test on the private slot 6 copy (note 377
+D08J6D route) at 60/120/180.
+
+### D10F - Third-person camera near close surfaces (research report first)
+
+**Status: Todo. Dependencies: D10, D10B1, D08J3.** User: "you can get caught
+behind objects and such ... usually when up against close surfaces". Report
+first: reproduce with the user's real input (player-like orbits against
+pillars, crates, doorways, ladder walls) on private save copies, record where
+the native solve and its 768 minimum leave the camera behind an occluder,
+snap, or pop, and compare with the industry pattern above (sphere probe from
+the pivot, instant pull-in, eased return, brief thin-occluder tolerance, no
+auto-yaw, shoulder toward centre when compressed). Propose a camera-only
+change that keeps D10B1's native Duke and box fading (the user's rollback
+reason) and keeps the saved distance and shoulder. Ask the user for save
+states where it feels off. Vanilla and the Original camera unchanged; check
+180 Hz.
+
+### D08J3A - Climb camera revisit with aiming
+
+**Status: Todo. Dependencies: D08J3, D08J6B, D08J6D, D10F.** The free camera on
+ladders, poles, chains, walls, hangs and monkey bars uses the ground solve
+with the pivot against the climb surface. With firing on every climb (D08J6),
+check orbiting into the wall behind a ladder or chain, framing while armed
+(Duke and the crosshair target both visible, the gun side open), the centred
+shoulder rule (D08J3 follow-up) against aiming, and the camera when the aim
+leaves the gun arc. Apply D10F's result to climbs; user saves UI 12 (ladder),
+11 (chain), 8 (wall), 6 (monkey bars), 9 (ledge hang), private copies only.
+
+### D10G - Aim and mouse feel in third person (research report first)
+
+**Status: Todo. Dependencies: D07, D10, D10E, D10F.** User: "any tightening we
+should do between that [aiming], and even between third person mouse
+movement". Report first: mouse sensitivity, smoothing and frame-rate
+independence of the orbit at 60/120/180, whether the same mouse motion turns
+the view by the same angle when the boom is compressed, crosshair against
+muzzle agreement near walls (close retractions, muzzle cover), and whether a
+light aim camera while firing (tighter shoulder, a little closer, same look
+input) fits TTK. Coordinate with D10E free look (fire cancels it). No change
+to Vanilla or the original aim option.
+
+### D08J6F - Shots beyond the gun arc on climbs and hangs
+
+**Status: Todo. Dependencies: D08J6B, D08J6D, D08J6E.** User: "you can
+sometimes end up shooting in impossible directions when duke is not facing
+the right way". Today on ladders, climbing walls, chains/poles and ledge hangs
+the arm stops at its arc while the rounds still go to the crosshair (kept at
+D08J6B's acceptance). Options for the user: chains and poles circle Duke
+round toward the aim (the original A/D circling); ladders, walls and ledges
+refuse shots beyond the arc (crosshair feedback), or Duke leans out further.
+Monkey bars are D08J6E.
+
 ## 2026-11-03 - D17AR2 and D17AR3 closed; D17AO cancelled
 
 User: "close all the accepted one, and formally cancel D17AO with no action
@@ -3224,11 +3358,53 @@ saves as D08J6B. Vanilla unchanged.
 
 ### D08J6D - Firing on monkey bars and ledge hangs
 
-**Status: Todo. Dependencies: D08J6A, D08J4, D08J7.** Note 377 stage D.
+**Status: Done (user-accepted and closed 2026-11-04: "your work is absolutely solid here though. excellent work, accepted"; [note 377](documentation/377-d08j6-climb-fire-research.md) D08J6D section; follow-ups D08J6E, D08J6F, D08J3A). Dependencies: D08J6A, D08J4, D08J7.** Note 377 stage D.
 Probe the original ceiling monkey bars (mode 7) and hangs (mode 6) live, then
 extend the climb lease, draw, stow and view-aimed shots to them with the
 D08J6B pose. User test save (private copy only): UI slot 6 monkey bars.
 Vanilla unchanged.
+
+**2026-11-04 candidate (Needs playtest).** Live probe of the original on a
+private copy of the user's UI slot 6 (runtime slot 5; back up, then jump with
+E to catch the ceiling grate: mode 7, 149): a Circle tap draws the pistol
+(about 0.45 s), Cross fires real rounds (8) along Duke's heading (0
+view-adapted), armed W/A/S/D do nothing, Circle stows, armed Space lets go
+with the pistol out, armed Ctrl does nothing; the gun arm alone (channel 1)
+carries the sidearm, as on climbs. Ledge hangs already had D08J7A's lease.
+Modernized now: the settled ceiling hang (149 under a climbable object, 0x80
+without 0x40; crates stay D08X) joins the climb lease (`climb_fire.inc`
+`ceiling_weapon_ready`), so held left click draws the sidearm (the D08J6A
+swap), fires at the crosshair, a short click only draws, W/A/S/D holster and
+then travel, and the swapped weapon comes back once holstered. Fire held
+during a hand-over-hand step sends no Up (`ceiling_hang.inc`): the step ends
+at the next grip and the draw starts there. Armed Ctrl lets go through
+original Square (`pc_input.cpp`), like armed Space; Duke lands armed. The
+D08J6B hang-and-aim pose (`climb_aim.inc`) now also runs in the settled ledge
+hang (mode 6) and the ceiling hang (mode 7): chest and head turn to the view,
+the off hand is solved back onto the lip or bar, the firing arm takes the
+clamped view. Evidence: slot 6 copy at 60/120/180 and first person, the
+same outcomes (6 rounds, 6 view shots, shotgun selection back, travel after
+the stow, fire mid-travel draws at the next grip, Ctrl/Space land armed,
+click 0 rounds); joint geometry firing arm within 12-13 degrees of the aim
+(ceiling and the D35G ledge hang, turns up to 86 degrees each way), off hand
+within 33 units of its contact (ceiling) and 22 (ledge); A/B screenshots
+with `DNTTK_CLIMB_AIM=0` (the original points the pistol along the heading).
+D08J6A ladder/chain/wall and D08J7A hang routes identical to their accepted
+results; Vanilla (raw pads, private hang state): original draw, 5 rounds
+along the heading, no host shots or aim builds, armed Up refused. Native
+controls 150 groups (new D08J6D group), input under Xvfb (armed Ctrl
+Square), aim and near pass. Limits: first person shows the normal pistol
+viewmodel with no off hand on the bar (D08J6C territory); the off-hand
+drift on the ceiling (up to 33) is larger than on climbs (12) because the
+hang clip moves while the solve uses the previous build's forearm; no
+enemies framed; the user's slot 6 only (slot 3 D08J4 ceiling not re-run);
+the chest turn snaps back when an armed ledge pull-up starts (from the code, not seen in play). Executable
+`ae9d9f4f6845ce81a400a7269416bf8eae2b173cfe0eeab8916d5f43c93c010e`.
+
+**2026-11-04 accepted and closed.** User: "it definitely works fine, but i have another reservation which i wanna flag up. your work is absolutely solid here though. excellent work, accepted". The
+reservation (camera feel near surfaces, aim and mouse tightening, monkey-bar
+facing) became the blast list D08J6E, D10F, D08J3A, D10G and D08J6F. No
+gameplay edits, builds or launches after acceptance.
 
 ### D36M - First-person power-up looks: invisibility, invincibility, Double Duke
 
@@ -5482,7 +5658,10 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08J7D | One-handed armed pull-up in first person | Done | D08J7C, D35G, D36H9 |
 | D08J6B | Hang-and-aim pose on climbs, third person (user UI slots 12, 11, 8) | Done (user-accepted; closed 2026-11-04; note 377) | D08J6 |
 | D08J6C | Firing while climbing in first person | Todo | D08J6B, D35E, D35F, D36 |
-| D08J6D | Firing on monkey bars and ledge hangs (user UI slot 6) | Todo | D08J6A, D08J4, D08J7 |
+| D08J6D | Firing on monkey bars and ledge hangs (user UI slot 6) | Done (user-accepted; closed 2026-11-04; note 377) | D08J6A, D08J4, D08J7 |
+| D08J6E | Monkey bars: Duke turns to the aim while armed | Todo | D08J6D, D08J4 |
+| D08J6F | Shots beyond the gun arc on climbs and hangs | Todo | D08J6B, D08J6D, D08J6E |
+| D08J3A | Climb camera revisit with aiming | Todo | D08J3, D08J6B, D08J6D, D10F |
 | D08V1 | Modernized controls lost for the rest of the session after a missed chain jump; modern controls must never be lost | Done | D08V, D08J5 |
 | D08A29 | Scroll-wheel weapon changes while running | Done (user-accepted) | D08A, D08AA |
 | D08A30 | Reverse weapon-wheel direction: up advances, down goes back | Done (user-accepted) | D08A29 |
@@ -5496,6 +5675,8 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D10A | Rapid mouse turning and Shift-running investigation | Done | D06, D07C, D08 |
 | D10B | Tight-space third-person camera: translucent Duke and see-through doors | Superseded by D10B1 | D10, D11B |
 | D10B1 | Roll back D10B behavior; restore native third-person obstruction handling | Done | D10B |
+| D10F | Third-person camera near close surfaces (research report first) | Todo | D10, D10B1, D08J3 |
+| D10G | Aim and mouse feel in third person (research report first) | Todo | D07, D10, D10E, D10F |
 | D10C | Duke 3D look keys: Page Up / Page Down look up / down while held and recenter on release; Home / End lock the look up / down (bindable) | Done (user-accepted 2026-10-20) | D06, D19G |
 | D10D | Keyboard turning in Modernized: Left / Right arrows turn the view left / right (Duke 3D style, alongside the mouse) | Done (user-accepted 2026-10-20) | D06, D10C |
 | D11 | First-person playable prototype | Done | D08, D10 |

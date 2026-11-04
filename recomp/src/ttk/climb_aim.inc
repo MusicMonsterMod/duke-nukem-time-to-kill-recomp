@@ -10,7 +10,8 @@
 // turns. Shots already follow the view (D08J6A), so the arm and the round
 // disagreed.
 //
-// Modernized, view aiming, third person, sidearm out on a mode 3 climb:
+// Modernized, view aiming, third person, sidearm out on a mode 3 climb (and
+// D08J6D's hangs):
 // - the chest turns toward the view within climb_chest_max (a yaw about the
 //   world vertical at its composition, 0x800b42ec);
 // - the off-hand shoulder keeps its climb-clip world orientation (the inverse
@@ -27,8 +28,10 @@
 //   at the first restore point after the build.
 // Weight ramps over climb_aim_ramp_ms of real time (the same at 60/120/180),
 // out again for the stow (upper 7). No game memory but the build's own
-// scratch matrices and the aim direction arguments is written. The monkey
-// bars and hangs (modes 6/7) are D08J6D; first person is D08J6C.
+// scratch matrices and the aim direction arguments is written. D08J6D: the
+// same pose in the settled ledge hang (mode 6, off hand on the lip) and under
+// the ceiling monkey bars (mode 7, off hand on the bar); the original keeps
+// the same channel split there. First person is D08J6C.
 // DNTTK_CLIMB_AIM=0 keeps the D08J6A pose (developer A/B).
 static constexpr double climb_aim_ramp_ms=160;
 static double climb_chest_max=50*tau/360,climb_head_max=70*tau/360,
@@ -64,11 +67,12 @@ static void climb_aim_limits() {
         climb_gun_left=l[3]*tau/360;climb_pitch_max=l[4]*tau/360;
     }
 }
-// Sidearm out on a mode 3 climb under view aiming (the shots' own rule,
-// climb_shot_ready, plus the presentation conditions of the ground aim).
+// Sidearm out on a climb, in a ledge hang or under a ceiling (D08J6D) under
+// view aiming (the shots' own rule, climb_shot_ready, plus the presentation
+// conditions of the ground aim).
 static bool climb_aim_ready() {
     const char* mode=ttk_live_env("DNTTK_WEAPON_AIM");
-    return fp_blend==0 && psx_mod_read_byte(player+0x22c)==3 && climb_weapon_ready() &&
+    return fp_blend==0 && climb_weapon_ready() &&
         psx_mod_read_byte(player+0x3b8)==2 && base_weapon(psx_mod_read_byte(player+0x3b9))==climb_sidearm &&
         independent_camera() && mode && !std::strcmp(mode,"view") &&
         !input_snapshot(Context::Gameplay).held[original_aim] && !(psx_mod_read_word(player+0x224)&0x80);

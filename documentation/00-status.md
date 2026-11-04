@@ -1,5 +1,32 @@
 # Current status - 2026-10-04
 
+## 2026-11-04 - D08J6D accepted and closed; camera blast list
+
+User: "your work is absolutely solid here though. excellent work, accepted".
+Firing on the monkey bars and the hang-and-aim pose in ledge hangs and on the
+monkey bars are Done. [Note 377](377-d08j6-climb-fire-research.md). Executable
+`ae9d9f4f6845ce81a400a7269416bf8eae2b173cfe0eeab8916d5f43c93c010e`. The user's
+reservation about the camera (caught behind objects near close surfaces),
+aim/mouse tightening and monkey-bar facing became backlog jobs D08J6E (turn
+to the aim on the bars), D10F (camera near close surfaces, report first),
+D08J3A (climb camera with aiming), D10G (aim and mouse feel, report first)
+and D08J6F (shots beyond the gun arc), with online research in the board's
+2026-11-04 intake section.
+
+## 2026-11-04 - D08J6D firing on monkey bars and ledge hangs (accepted above)
+
+Modernized: under a climbable ceiling (monkey bars), held left click stops
+Duke at the next grip, draws the sidearm (the climb swap) and fires at the
+crosshair; WASD holster and travel on; Ctrl or Space let go armed. In third
+person the D08J6B hang-and-aim pose now also runs on the ceiling and in the
+ledge hang (chest and head to the aim, off hand kept on the bar or lip,
+firing arm within 13 degrees of the aim). User slot 6 copy at 60/120/180 and
+first person; D08J6A/D08J7A regressions identical; Vanilla unchanged; native
+controls 150 groups, input, aim, near pass. First person shows the normal
+viewmodel. [Note 377](377-d08j6-climb-fire-research.md) D08J6D section.
+A/B `DNTTK_CLIMB_AIM=0`. Executable
+`ae9d9f4f6845ce81a400a7269416bf8eae2b173cfe0eeab8916d5f43c93c010e`.
+
 ## 2026-11-04 - D08J6B accepted and closed
 
 User: "i love it all, this animation works perfectly fine". The third-person hang-and-aim pose on ladders, chains/poles and

@@ -381,3 +381,118 @@ looks superb. that one is a winner", then "i love it all, this animation works p
 `b293c25036ef3124f1666c76c1a21a3fc531e80e11e71e2d7532a937354c9806`. The arc
 limit (the arm stops, rounds still go to the crosshair) and the high-ready
 idle stay as built; no Blender clips for now. First person is D08J6C.
+
+## D08J6D - monkey bars and ledge hangs (accepted)
+
+2026-11-04. Stage D. Ledge hangs (mode 6) already had the lease, swap, shots
+and stows from D08J7A (note 378); this stage adds the ceiling monkey bars
+(mode 7) and the D08J6B pose for both hangs. Crate hangs (mode 7, flags
+0xc0) stay as D08X releases them at once: there is no armed crate hang.
+
+### What the original does under a ceiling (probes)
+
+Private copy of the user's UI slot 6 (runtime slot 5) in
+`recomp/analysis/d08j6d/cards-slot6` (local only; hash checked against the
+player's file, player saves, cards and settings hash-checked unchanged after
+every run). Duke stands under the grate at the top of the medieval chain;
+backing up 0.4 s and a jump with E held catches the ceiling (mode 7, 149),
+whereas E at the start grabs the chain.
+
+| Test (ceiling hang 149) | Result |
+| --- | --- |
+| Hold left click, holstered | nothing |
+| Circle tap | draws the pistol: upper 3 -> 0 -> 6 -> 5, about 0.45 s |
+| Hold fire, armed | 8 real rounds, upper 11 (flag 0x100), 0 view-adapted |
+| Armed W, D, S | no movement, no turn |
+| Circle tap again | stows (6 -> 3 -> 149); holstered W travels again (150) |
+| Circle tap during a travel step | lost |
+| Armed Space | lets go (108) with the pistol out, lands armed |
+| Armed Ctrl | nothing (Ctrl reaches the original as Square only through D08J4's holstered rule) |
+
+Channels armed: legs, left arm and chest/head on 149, the gun arm (channel 1)
+on the sidearm pose, the same split the D08J6B pose relies on.
+
+### Behavior (Modernized)
+
+- Settled ceiling hang (149, mode 7/7, a climbable object 0x80 without 0x40):
+  held left click draws the sidearm (D08J6A swap), held fire fires at the
+  crosshair, a short click draws only.
+- During a hand-over-hand step (150/151) held fire sends no Up: the step
+  ends at the next grip, where the draw starts; unarmed Cross stays masked.
+- Armed, W/A/S/D spend the original stow tap and then travel; the swapped
+  weapon comes back once holstered. Ctrl lets go through original Square,
+  as armed Space already does; Duke lands with the pistol out (SIDEARM
+  RETURN applies on the ground).
+- Third person, view aiming: the D08J6B pose (chest turn, off-hand IK onto
+  the clip contact, head, clamped one-arm aim while firing) now runs in the
+  settled ledge hang (mode 6) and the ceiling hang (mode 7) too.
+
+### Implementation
+
+- `climb_fire.inc`: `ceiling_attached()` (owner, mode 7/7, 149-151, climbable
+  object, identity) and `ceiling_weapon_ready()` (149) join
+  `climb_weapon_ready()`; `climb_fire_hold_ready()` also holds during the
+  travel step; `climb_fire_draw_ready()` keeps the settled lease;
+  `hang_fire_update()` runs the shared draw request and swap return under the
+  ceiling. Debug `controls.climb_fire.ceiling`.
+- `ceiling_hang.inc`: no advance while fire holds; `ceiling_armed_drop()`.
+- `pc_input.cpp`: armed Ctrl under the ceiling releases Square.
+- `climb_aim.inc`: `climb_aim_ready()` takes the climb lease for modes 3, 6
+  and 7 (was mode 3 only).
+- No new hook address, guard, generated code, framework or codegen change;
+  existing savestates load. Vanilla: everything is behind `input_modernized()`.
+
+### Verification
+
+Private lab `recomp/analysis/d08j6d/` (local only: `probe0-5.py`, `hangto.py`,
+`cand.py`, `geo.py`, `look.py`, `van.py`, `regress.sh`; offscreen, dummy
+audio, port 9614).
+
+| Ceiling route (shotgun selected) | 60 | 120 | 180 | first person |
+| --- | --- | --- | --- | --- |
+| Hold fire 1.5 s: sidearm, rounds, view shots | 6, 6 | 6, 6 | 6, 6 | 6, 6 |
+| Then W: holstered, shotgun selection back, travelled | yes | yes | yes | yes |
+| W, then fire mid-travel: stops at the next grip, draws, fires | yes | yes | yes | yes |
+| Armed Ctrl / Space: let go, landed armed | yes | yes | yes | yes |
+| Short click: drawn, 0 rounds | yes | yes | yes | yes |
+
+Joint geometry (`geo.py`, the D08J6B method; camera turns up to about 86
+degrees each way, idle and firing): firing gun arm (shoulder to hand) vs the
+clamped aim 11.7-13.1 degrees on the ceiling and 12.0-13.4 in the D35G ledge
+hang; off hand from its holstered contact up to 33 units (ceiling) and 22
+(ledge). `+0x124` lends and returns balance. Screenshots: `look-sheet.png`,
+`ab-sheet.png` (camera to Duke's side: the original pistol points along the
+heading, the candidate into the view) and `ledge-ab-sheet.png`.
+
+Regressions on this build: D08J6A `cand.py` on the D35E ladder, D35F chain and
+D35I1 wall end in the same states as the D08J6B regression record; D08J7A
+`cand.py` (hang fire, A shimmy, armed W pull-up, S/Space drops, click) as
+accepted. Vanilla (`van.py`, `--vanilla`, raw pads, a private hang state):
+Circle draws, Cross fires 5 rounds along the heading, 0 host shots, 0 aim
+builds, armed Up refused. Native: `ttk-controls-test` 150 groups with LEVEL00,
+LEVEL01 and all levels (new D08J6D group: ceiling lease, draw and swap
+return, travel-step hold without a draw, crates, other objects, entry frames,
+other clips, armed stow/shot, Ctrl let-go, the pose in modes 6/7, Vanilla),
+`ttk-input-test` under Xvfb (armed Ctrl sends Square), `ttk-aim-test`,
+`ttk-near-test`.
+
+Executable SHA-256 `ae9d9f4f6845ce81a400a7269416bf8eae2b173cfe0eeab8916d5f43c93c010e`.
+
+### Limits
+
+- First person under the ceiling shows the normal pistol viewmodel; the off
+  hand on the bar is not drawn (first-person climb work, D08J6C).
+- The off hand drifts up to 33 units on the ceiling (12 on climbs): the hang
+  clip keeps moving while the solve uses the previous build's forearm.
+- When an armed ledge pull-up starts, the chest turn ends at once (the
+  D08J7C pull-up pose takes over; from the code, not seen in play).
+- No enemies framed; the user's slot 6 only (the D08J4 slot 3 ceiling was
+  not re-run).
+
+### D08J6D closeout
+
+2026-11-04. User: "it definitely works fine, but i have another reservation which i wanna flag up. your work is absolutely solid here though. excellent work, accepted". D08J6D is Done at executable
+`ae9d9f4f6845ce81a400a7269416bf8eae2b173cfe0eeab8916d5f43c93c010e`. The reservation
+(camera feel near close surfaces, aim and mouse tightening, monkey-bar
+facing) is the board's blast list: D08J6E, D10F, D08J3A, D10G, D08J6F. No
+gameplay edits, builds or launches after acceptance.

@@ -1,5 +1,13 @@
 # Next-session handoff
 
+## 2026-11-05 - D17AO1 registered (Todo)
+
+The slot 11 tunnel's sky patch looks fake at high FOV; the user would like it
+parallaxed, or a real skybox (Duke Hill's). First look: the city sky is loaded
+there (layers `0x61b`/`0x619`/`0x61a`), camera-relative with no parallax by
+design, seen through a ceiling gap (likely D17AO's authored gap, note 327).
+Details and options on the board. No code.
+
 ## 2026-11-05 - D44A closed; D08A36 added
 
 User: "ok, i absolutely accept this." D44A is Done at revision 2

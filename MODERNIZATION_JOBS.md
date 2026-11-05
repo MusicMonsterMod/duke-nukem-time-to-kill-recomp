@@ -1,5 +1,38 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-05 - D17AO1 registered: slot 11 tunnel sky (Todo)
+
+User, UI slot 11 (savestate 10): "the little patch of "sky" above looks so
+unbelievably fake in our high fov high def etc version of this game ... i
+wonder if we can at minimum just paralax this, or at maximum, add a real
+skybox in (the one from duke hill)." Stand-up only; no code.
+
+First look (private run, savestate 10, Modernized first person):
+
+- A sky is loaded: the sky routine `0x800388e4` has all three of the city's
+  layers selected (backdrop `0x61b`, slow cloud band `0x619`, fast band
+  `0x61a`; the same models as the D17O city sky, note 92). The user's guess
+  (no sky in a tunnel map) does not hold; the save reads level 0. So the patch
+  is the normal sky seen through a gap in the ceiling, not a stand-in texture.
+- The sky is camera-relative by design: each layer's matrix is translated to
+  the eye, so it has no movement parallax at all, only rotation (note 92). It
+  is two narrow cloud bands and a vertex-coloured backdrop, not an enclosing
+  sky, which at 90 degrees FOV and high resolution reads flat.
+- D17AO (note 327) traced a ceiling gap in this save: a strip about 3260 units
+  long and up to 105 tall between two room meshes, covered only by the sky
+  dome; cancelled as an authored gap on 2026-11-03. Whether the user's patch
+  is that same strip or a deliberate skylight is not yet confirmed: my capture
+  did not frame it.
+
+Options to weigh when selected: (1) parallax: offset or scale the sky
+layers' eye-relative matrices for this opening (presentation only; the
+three authenticated calls already exist); (2) a fuller sky: a host-drawn
+skybox behind the world, from Duke Hill's sky assets (a level loads only its
+own models, so they would come from that level's disc data, as other custom
+meshes do; note 265 for art); (3) close the gap (the D17AO choice). Start by
+confirming the exact patch with the user's view (screenshot or private
+savestate) and identifying Duke Hill's sky models.
+
 ## 2026-11-05 - D44A closed; D08A36 added
 
 User: "ok, i absolutely accept this." D44A is Done at revision 2 (Duke 3D's
@@ -6790,6 +6823,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D17AM4 | Re-triage D17AF/AH/AI/AK and D20H against the unified path | Done | D17AM3 |
 | D17AN | Slot-12 water showing through the bridge deck (level 6) | Done (user-confirmed 2026-10-30) | D17AM; note 327 |
 | D17AO | Slot-11 ceiling hole showing the sky (level 6) | Cancelled (user decision 2026-11-03: authored level gap, no action required) | D17AM; note 327 |
+| D17AO1 | Slot-11 tunnel sky patch looks fake in high FOV / high definition: at minimum parallax it, at most a real skybox (Duke Hill's) | Todo (registered 2026-11-05; first look in the work log) | D17AO, D17O |
 | D17AP | Slot-9 grave-dig soil corners flashing again (D17X recurrence) | Done (user-confirmed 2026-10-30) | D17X, D17AM; note 327 |
 | D17AQ | Slot-10 jetpack height: level sections pop in and out while turning (room visibility) | Done (B max limit, A open sky, dormant enemies (C1 withdrawn), load crackle fix; note 335) | D17AM, D14F |
 | D17AR | Host-owned world visibility (parent): the host decides what world geometry is drawn | Done (AR1-AR6 done) | D17AM, D17AQ; D17AR1-AR4 |

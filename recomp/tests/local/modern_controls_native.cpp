@@ -111,6 +111,8 @@ static std::vector<std::array<uint32_t,4>> steroid_sounds;
 
 // D08Y: the runtime CPU overclock lease (renewed from the player update).
 static unsigned overclock_renewals;extern "C" void psx_overclock_renew(void){++overclock_renewals;}
+// D10H6: the overclock scale held fire raises (CPU SPEED 150).
+extern "C" uint32_t g_psx_overclock_q16=43690u;
 // D08Z1: the isolated flight sweep 0x8007a98c reports `jw_result` with the
 // normal (jw_nx, 0, jw_nz) for its first `jw_hits` calls, then a clear path.
 static unsigned pole_draw_calls;

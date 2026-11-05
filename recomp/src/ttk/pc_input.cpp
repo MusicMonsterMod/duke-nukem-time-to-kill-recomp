@@ -1188,6 +1188,13 @@ void input_frame() {
         if(now && !was) open_presses.fetch_add(1);
         was=now;
     }
+    // D10H4: a fire press edge in captured gameplay (WEAPON FEEL RETRO latch).
+    {
+        static bool was;
+        const bool now=modern && focused && captured && !console_hold && action_down(fire);
+        if(now && !was) weapon_feel_press();
+        was=now;
+    }
     if(crouch_cancel_held && focused && captured && !action_down(crouch)) crouch_cancel_held=false;
     if(crouch_jump_consumed && focused && captured && !action_down(jump)) crouch_jump_consumed=false;
     frame = {};
@@ -1509,6 +1516,9 @@ uint16_t input_pad() {
         if (!(locomotion && i == walk) && !(jet && i == walk && !jetpack_classic_input_ready()) &&
             !(i==original_aim && view_aim_input_ready()) &&
             !(i==jump && (swim_host_owns_jump() || push_owned || crouch_jump_consumed)) && action_down(i)) value &= ~pads[i];
+    // D10H4: WEAPON FEEL RETRO keeps a press on the fire pad until the game
+    // has sampled it; the masks below still win (draws, climbs, pull-ups).
+    if (captured && input_modern_controls() && weapon_feel_latched_fire()) value &= ~pads[fire];
     // Legacy aiming: the primary Grab input is original precision aim (R1).
     if (captured && aim_down() && !view_aim_input_ready()) value &= ~pads[original_aim];
     // The original ignores the ladder let-go while Cross is held, so a held E
@@ -1723,7 +1733,8 @@ uint16_t input_last_pad() {return last_pad;}
 }
 extern "C" const char* ttk_fast_timing_json(void);
 extern "C" const char* ttk_input_debug_json() {
-    static char buffer[10240];
+    // Holds controls_debug_json() (up to 12288) and the input fields.
+    static char buffer[16384];
     const auto& f = ttk::input_snapshot(ttk::Context::Gameplay);
     // D19G: the live binding codes, in action order.
     static char binds_text[512];

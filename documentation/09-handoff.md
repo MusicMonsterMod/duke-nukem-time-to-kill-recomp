@@ -1,5 +1,134 @@
 # Next-session handoff
 
+## 2026-11-05 - D10H4 and D10H6 closed
+
+User: "lock it in and close it out". D10H4 (shot on press, the round on the
+next update, no wall stumble with a RETRO gun up;
+[note 390](390-d10h4-shot-on-press.md)) and D10H6 (held fire on
+EDuke32's clock, running and swimming tracks, fire CPU 200 while held,
+`run.py --fire-cpu off`; [note 391](391-d10h6-held-fire-clock.md))
+are Done. No framework edit; the runtime patch export is unchanged and applies
+to the pinned clean dependency. Open findings: firing in water drops the game
+to three-field updates (cause not established); the world is drawn 90 ms
+behind (D10H5). Next job: D36H10.
+
+## 2026-11-05 - D10H4 and D10H6 accepted; D36H10 added as the next job
+
+User: the fire rate is "accepted for how it feels in the water and on land
+(great work)", and "i accept the work we've done here. It's solid". CPU
+SPEED advice: 150 (the fire boost covers held fire). Closeout (commit and
+push) waits for the user's instruction. New D36H10 (water exit arms vibrate,
+UI slot 12; not a D10H side effect: the weapon-feel code is idle there) is
+the very next job after the closeout.
+
+## 2026-11-05 - D10H4 / D10H6: next-update shot, water rate, no wall stumble, --fire-cpu (Needs playtest)
+
+User: "THIS IS SO SO SO MUCH BETTER"; then the fire rate in water differs,
+"add a flag in", "that stumble has gotta go", and the first shot is not
+"absolutely RAPID" like EDuke32. Measured with the boost off at CPU SPEED 150:
+standing 5 of 14 gaps off by 17-34 ms, running 6 of 8; on, 0. So the running
+track was the main wobble and the boost the smaller one; kept.
+- First shot: the raise now runs out and on through the fire key in one
+  update, so the round leaves on the update after the game saw the press:
+  from rest Desert Eagle 58-70 ms (EDuke32 58), Gatling 57-71 (88), RPG
+  50-80 (108), Freezer 50-66 (81), Combat Shotgun 84-99 (123); 16 ms taps 20
+  of 20 ([note 390](390-d10h4-shot-on-press.md)).
+- Water: paced (track 10) and boosted; swimming speed measured unchanged by
+  the boost. Moving in water still alternates 145-207 ms: firing there drops
+  the game to 50 ms updates even at 400 (cause open).
+- Wall bump: with a RETRO gun up, running into a wall stops Duke (the
+  original's stop) instead of the stumble that lowered the gun for 500 ms.
+- `run.py --fire-cpu off` for one launch.
+[Note 391](391-d10h6-held-fire-clock.md). Suites pass.
+
+## 2026-11-05 - D10H6 playtest 3: the Desert Eagle's running fire track (Needs playtest)
+
+User: "the weapon rate of fire changes when duke moves". Running (forward,
+back or sideways) the Desert Eagle fires from upper track 10, not 16, and
+that track was not paced: 199-235 ms (about 4.6/s) against 167 ms standing or
+walking. Track 10 is now paced (and gets the D10H4 first-shot boost): running
+165-168 ms in every direction, run/walk switches mid-burst unchanged at
+166-168 ms, crouch and running jumps 160-175 ms. Gatling, Freezer and Shotgun
+were unaffected. Left original: starting a run against a wall plays a stumble
+that keeps the gun down about 500 ms
+([note 391](391-d10h6-held-fire-clock.md)). Suites pass.
+
+## 2026-11-05 - D10H6 fire CPU: steady held rate at CPU SPEED 150 (Needs playtest)
+
+User: "Fix D10H6's uneven rate without changing CPU SPEED ... run the game's
+updates faster only while a RETRO weapon is firing, so swimming and movement
+are untouched." While fire is held on a RETRO weapon (and three updates
+after), the runtime overclock runs at 200 (`DNTTK_WEAPON_FEEL_CPU`), then
+returns to the player's CPU SPEED; never in water. Cause of the swim change:
+Modernized swimming moves a fixed distance per player update
+(`pace_nominal_dt`), so faster updates swim faster; land scales with the frame
+step. At CPU SPEED 150: Desert Eagle 42 of 43 gaps 165-172 ms through a reload
+(was 148-199), Gatling 97-103 (83-117), Freezer 132-135 (133-167); land
+walk, strafe and run speeds while firing unchanged with the boost on or off
+([note 391](391-d10h6-held-fire-clock.md)). No framework edit.
+Suites pass. Water verified on a copy of UI save slot 2: firing while
+swimming never boosts and swim strafe speed is unchanged. User: "it's
+playable still, the difference feels subtle". Not verified: the real display
+for climbs.
+
+## 2026-11-05 - WEAPON FEEL renamed RETRO; CPU budget shelved
+
+User on D10H6: the Desert Eagle's held rate still felt "inconsistent",
+"especially after a reload". Cause: pacing is exact, but at CPU SPEED 150 the
+game drops to 50 ms updates under fire (more after the first reload), so gaps
+ran 148-199 ms; at 175 3 of 42 gaps were off, at 200 none (165-168 ms), host
+CPU unchanged ([note 391](391-d10h6-held-fire-clock.md)). User
+after trying 200: it "makes various movement feel different like swimming
+for example, it takes longer to strafe left and right in the water ... let's
+shelf it", and "i dont want to call this "eduke" in the options because it's
+only a close simulation of it for now. let's call it "retro"". The option is
+now **WEAPON FEEL: RETRO / MODERN** (`--weapon-feel retro|modern`); a profile
+saved as `eduke32` is renamed quietly on load. No CPU change. D10H4 and D10H6
+stay Needs playtest. Open finding: swimming strafe depends on CPU SPEED.
+
+## 2026-11-05 - D10H6 playtest 1: uneven held rate is CPU SPEED 150
+
+User: the Desert Eagle's held rate still feels "inconsistent", "especially
+after a reload". Measured: pacing exact, but at CPU SPEED 150 the game drops
+to 50 ms updates under fire (more after the first reload), so gaps are
+150-184 ms; at CPU SPEED 200 all 42 gaps were 165-168 ms
+([note 391](391-d10h6-held-fire-clock.md)). No code change; the user chooses
+whether to try or default to 200.
+
+## 2026-11-05 - D10H6 held fire on EDuke32's clock (Needs playtest)
+
+User on the D10H4 build: holding fire on the pistol "has a kind of wonky feel
+to the shooting consistency ... in comparison to eduke32"; then "let's do it
+now! this might actually get us to the 1:1 i want".
+[Note 391](391-d10h6-held-fire-clock.md). Cause: the held shot is
+the original fire loop passing its fire key, at about 11 units per update, so
+the Desert Eagle's 70-unit loop fired after 6 or 7 updates (167-237 ms,
+4.7/s); EDuke32 fires every 5 tics (167 ms, 6/s). WEAPON FEEL EDUKE32 now
+places the held fire loop on the game's own clock (`0x800d21fc`, 10 per
+EDuke32 tic) and ends it on the fire key when EDuke32's period is up. Desert
+Eagle 5 updates per shot, 166-167 ms, 5.99/s; Gatling 30 clock units, mostly
+100 ms, 9.99/s; Freezer 133-134 ms (7.5/s) while the game runs two-field
+updates. Shotgun and RPG unchanged (already faster than Duke 3D). MODERN and
+Vanilla unchanged. Not verified: the real display, swimming, climbs.
+
+## 2026-11-05 - D10H4 shot on press: WEAPON FEEL EDUKE32 (Needs playtest)
+
+New Modernized option OPTIONS > ADVANCED > COMBAT > WEAPON FEEL: EDUKE32
+(default) / MODERN (the original timing); profile schema 67,
+`run.py --weapon-feel eduke32|modern`, terminal `--settings` key H
+([note 390](390-d10h4-shot-on-press.md)). For the guns with a Duke 3D analog a
+press stays on the pad until the game has sampled it, and until its round
+leaves the raise runs 4x and the fire track 2x (ground, jumps, jetpack). Press
+to shot from rest at 180 Hz: Desert Eagle 72-102 ms (was 171-212; EDuke32 58),
+shotgun 112-145 (354-380; 123), Gatling 81-97 (256-301; 88), RPG 87-151
+(196-226; 108), Freezer 79-108 (283-297; 81); 16 ms taps 20 of 20 (MODERN 12
+of 20); held repeat unchanged. Correction to note 389: the dropped short
+presses were mostly a hurt and dying Duke at the lab spot. Code:
+`weapon_feel.inc`, `pc_input.cpp`, `weapon_aim.cpp`, `modern_controls.cpp`,
+`game_menu.cpp`, `player_profiles.py`, `run.py`; no hook or codegen change.
+Suites and profile tests pass. Not verified: the real mouse on the player's
+180 Hz display, swimming, climbs, a Vanilla launch.
+
 ## 2026-11-05 - D10H1 and D10G4 closed
 
 User: "lock it in and close us out". D10H1 (weapon feel lab,

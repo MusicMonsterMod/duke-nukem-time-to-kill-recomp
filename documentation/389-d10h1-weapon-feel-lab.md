@@ -78,6 +78,11 @@ to the first image that can show the shot.
 
 ## TTK drops short fire presses (new, measured)
 
+**Corrected by D10H4 ([note 390](390-d10h4-shot-on-press.md)):** at this
+lab spot Duke is hurt and dies about 13 s after arriving, and hit animations
+block fire; most of the drops below were that. On a healthy Duke 30-60 ms
+clicks fire; only clicks shorter than a game update (16 ms) drop.
+
 TTK (Modernized, Desert Eagle) fires only when fire is still held as the
 weapon reaches its fire frame:
 

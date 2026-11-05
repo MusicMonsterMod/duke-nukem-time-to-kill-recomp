@@ -1,5 +1,127 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-05 - D10H4 and D10H6 closed
+
+User: "lock it in and close it out". D10H4 (shot on press, the round on the
+next update, no wall stumble with a RETRO gun up;
+[note 390](documentation/390-d10h4-shot-on-press.md)) and D10H6 (held fire on
+EDuke32's clock, running and swimming tracks, fire CPU 200 while held,
+`run.py --fire-cpu off`; [note 391](documentation/391-d10h6-held-fire-clock.md))
+are Done. No framework edit; the runtime patch export is unchanged and applies
+to the pinned clean dependency. Open findings: firing in water drops the game
+to three-field updates (cause not established); the world is drawn 90 ms
+behind (D10H5). Next job: D36H10.
+
+## 2026-11-05 - D10H4 and D10H6 accepted; D36H10 added as the next job
+
+User: the fire rate is "accepted for how it feels in the water and on land
+(great work)", and "i accept the work we've done here. It's solid". CPU
+SPEED advice: 150 (the fire boost covers held fire). Closeout (commit and
+push) waits for the user's instruction. New D36H10 (water exit arms vibrate,
+UI slot 12; not a D10H side effect: the weapon-feel code is idle there) is
+the very next job after the closeout.
+
+## 2026-11-05 - D10H4 / D10H6: next-update shot, water rate, no wall stumble, --fire-cpu (Needs playtest)
+
+User: "THIS IS SO SO SO MUCH BETTER"; then the fire rate in water differs,
+"add a flag in", "that stumble has gotta go", and the first shot is not
+"absolutely RAPID" like EDuke32. Measured with the boost off at CPU SPEED 150:
+standing 5 of 14 gaps off by 17-34 ms, running 6 of 8; on, 0. So the running
+track was the main wobble and the boost the smaller one; kept.
+- First shot: the raise now runs out and on through the fire key in one
+  update, so the round leaves on the update after the game saw the press:
+  from rest Desert Eagle 58-70 ms (EDuke32 58), Gatling 57-71 (88), RPG
+  50-80 (108), Freezer 50-66 (81), Combat Shotgun 84-99 (123); 16 ms taps 20
+  of 20 ([note 390](documentation/390-d10h4-shot-on-press.md)).
+- Water: paced (track 10) and boosted; swimming speed measured unchanged by
+  the boost. Moving in water still alternates 145-207 ms: firing there drops
+  the game to 50 ms updates even at 400 (cause open).
+- Wall bump: with a RETRO gun up, running into a wall stops Duke (the
+  original's stop) instead of the stumble that lowered the gun for 500 ms.
+- `run.py --fire-cpu off` for one launch.
+[Note 391](documentation/391-d10h6-held-fire-clock.md). Suites pass.
+
+## 2026-11-05 - D10H6 playtest 3: the Desert Eagle's running fire track (Needs playtest)
+
+User: "the weapon rate of fire changes when duke moves". Running (forward,
+back or sideways) the Desert Eagle fires from upper track 10, not 16, and
+that track was not paced: 199-235 ms (about 4.6/s) against 167 ms standing or
+walking. Track 10 is now paced (and gets the D10H4 first-shot boost): running
+165-168 ms in every direction, run/walk switches mid-burst unchanged at
+166-168 ms, crouch and running jumps 160-175 ms. Gatling, Freezer and Shotgun
+were unaffected. Left original: starting a run against a wall plays a stumble
+that keeps the gun down about 500 ms
+([note 391](documentation/391-d10h6-held-fire-clock.md)). Suites pass.
+
+## 2026-11-05 - D10H6 fire CPU: steady held rate at CPU SPEED 150 (Needs playtest)
+
+User: "Fix D10H6's uneven rate without changing CPU SPEED ... run the game's
+updates faster only while a RETRO weapon is firing, so swimming and movement
+are untouched." While fire is held on a RETRO weapon (and three updates
+after), the runtime overclock runs at 200 (`DNTTK_WEAPON_FEEL_CPU`), then
+returns to the player's CPU SPEED; never in water. Cause of the swim change:
+Modernized swimming moves a fixed distance per player update
+(`pace_nominal_dt`), so faster updates swim faster; land scales with the frame
+step. At CPU SPEED 150: Desert Eagle 42 of 43 gaps 165-172 ms through a reload
+(was 148-199), Gatling 97-103 (83-117), Freezer 132-135 (133-167); land
+walk, strafe and run speeds while firing unchanged with the boost on or off
+([note 391](documentation/391-d10h6-held-fire-clock.md)). No framework edit.
+Suites pass. Water verified on a copy of UI save slot 2: firing while
+swimming never boosts and swim strafe speed is unchanged. User: "it's
+playable still, the difference feels subtle". Not verified: the real display
+for climbs.
+
+## 2026-11-05 - WEAPON FEEL renamed RETRO; CPU budget shelved
+
+User on D10H6: the Desert Eagle's held rate still felt "inconsistent",
+"especially after a reload". Cause: pacing is exact, but at CPU SPEED 150 the
+game drops to 50 ms updates under fire (more after the first reload), so gaps
+ran 148-199 ms; at 175 3 of 42 gaps were off, at 200 none (165-168 ms), host
+CPU unchanged ([note 391](documentation/391-d10h6-held-fire-clock.md)). User
+after trying 200: it "makes various movement feel different like swimming
+for example, it takes longer to strafe left and right in the water ... let's
+shelf it", and "i dont want to call this "eduke" in the options because it's
+only a close simulation of it for now. let's call it "retro"". The option is
+now **WEAPON FEEL: RETRO / MODERN** (`--weapon-feel retro|modern`); a profile
+saved as `eduke32` is renamed quietly on load. No CPU change. D10H4 and D10H6
+stay Needs playtest. Open finding: swimming strafe depends on CPU SPEED.
+
+## 2026-11-05 - D10H6 held fire on EDuke32's clock (Needs playtest)
+
+User on the D10H4 build: holding fire on the pistol "has a kind of wonky feel
+to the shooting consistency ... in comparison to eduke32"; then "let's do it
+now! this might actually get us to the 1:1 i want".
+[Note 391](documentation/391-d10h6-held-fire-clock.md). Cause: the held shot is
+the original fire loop passing its fire key, at about 11 units per update, so
+the Desert Eagle's 70-unit loop fired after 6 or 7 updates (167-237 ms,
+4.7/s); EDuke32 fires every 5 tics (167 ms, 6/s). WEAPON FEEL EDUKE32 now
+places the held fire loop on the game's own clock (`0x800d21fc`, 10 per
+EDuke32 tic) and ends it on the fire key when EDuke32's period is up. Desert
+Eagle 5 updates per shot, 166-167 ms, 5.99/s; Gatling 30 clock units, mostly
+100 ms, 9.99/s; Freezer 133-134 ms (7.5/s) while the game runs two-field
+updates. Shotgun and RPG unchanged (already faster than Duke 3D). MODERN and
+Vanilla unchanged. Not verified: the real display, swimming, climbs.
+
+## 2026-11-05 - D10H4 shot on press: WEAPON FEEL EDUKE32 (Needs playtest)
+
+New Modernized option OPTIONS > ADVANCED > COMBAT > **WEAPON FEEL**: EDUKE32
+(default) / MODERN (the original timing), profile schema 67,
+`run.py --weapon-feel`. User: "ultimately we could end up with two weapons
+profiles here. modern (where we are now) or eduke where we will be going",
+named "eduke32"; D10H3 and D10H6 can join the EDUKE32 profile.
+[Note 390](documentation/390-d10h4-shot-on-press.md). For the Desert Eagle,
+Combat Shotgun, Gatling, RPG and Freezer, a fire press is kept on the pad until
+the game has sampled it (16 ms taps: 20 of 20 fire, MODERN 12 of 20). Until the
+press's round leaves, the raise runs 4x and the fire track 2x (ground, jumps,
+jetpack). Press to shot from rest at 180 Hz: Desert Eagle 72-102 ms (MODERN
+171-212, EDuke32 58), shotgun 112-145 (354-380, 123), Gatling 81-97 (256-301,
+88), RPG 87-151 (196-226, 108), Freezer 79-108 (283-297, 81). Held repeat rates
+unchanged. **Correction:** D10H1's "short presses fire nothing" was mostly a
+lab artifact: Duke is hurt and dies about 13 s after arriving at the lab spot,
+and hit animations block fire. On a healthy Duke the original fires 30-60 ms
+clicks. Not verified: the real mouse on the player's display, swimming,
+climbs, Vanilla launch (code gated). Suites and profile tests pass.
+
 ## 2026-11-05 - D10H1 and D10G4 closed
 
 User: "lock it in and close us out". D10H1 (weapon feel lab,
@@ -842,7 +964,7 @@ rates against off; Vanilla unchanged.
 
 ### D10H4 - Shot on press: ready stance, then earlier fire frame
 
-**Status: Todo. Dependencies: D10H1.** D10H1 found that TTK fires only if
+**Status: Done (2026-11-05, accepted and closed; user: "i accept the work we've done here. It's solid", "lock it in and close it out"; [note 390](documentation/390-d10h4-shot-on-press.md); WEAPON FEEL RETRO / MODERN). Dependencies: D10H1.** D10H1 found that TTK fires only if
 fire is still held at the weapon's fire frame: presses under about 150 ms
 fire nothing (rest and gun up), while every Duke 3D click fires. Latch the
 press. User (2026-11-05): changing native
@@ -865,7 +987,7 @@ were rejected before). D10G3/D10G4 follow automatically.
 
 ### D10H6 - Repeat rate parity with Duke 3D analogs
 
-**Status: Todo. Dependencies: D10H1, D10H4.** Where TTK repeats slower while
+**Status: Done (2026-11-05, accepted and closed; user: fire rate "accepted for how it feels in the water and on land"; [note 391](documentation/391-d10h6-held-fire-clock.md); fire CPU 200 while held, not in water, steadies the rate at CPU SPEED 150; user after the D10H4 build: holding fire on the pistol "has a kind of wonky feel to the shooting consistency ... in comparison to eduke32", then "let's do it now! this might actually get us to the 1:1 i want"). Dependencies: D10H1, D10H4.** Where TTK repeats slower while
 fire is held, match the Duke 3D analog (pistol 6/s, chaingun about 10/s,
 shotgun 1/s, RPG 1.5/s), Modernized only, with a toggle (user, 2026-11-05).
 TTK-only weapons (crossbow, buffalo rifle, flamethrower) unchanged (user:
@@ -3144,6 +3266,23 @@ every airborne grab and mantle, not this ledge only.
 repeated grabs from several approach speeds; other mantles, ledge hangs and
 water climb-outs (D35G, D08X, D08V coverage) unchanged; Vanilla unchanged;
 the user's playtest.
+
+### D36H10 - Water exit first person: the arms vibrate climbing out of the water (UI slot 12)
+
+**Status: Todo; user (2026-11-05): the very next job (after the D10H4 /
+D10H6 closeout). Dependencies: D36H9, D35D1.** User: "my slot 12, when
+climbing out of the water, duke's arms vibrate around ... i feel like this
+may be a small side effect? i am not sure". Quick look on a private copy of
+UI slot 12 (runtime 11; `recomp/analysis/d10h4/slot12.py`, W+E): Duke stows
+the weapon (upper 6, 0, 122), then the water exit runs (mode 8, anim 140,
+first-person action water-exit then mantle, about 1 s) and he walks off. No
+fire is held and the WEAPON FEEL code does not act (0 boosted updates), so
+it is not a D10H side effect. Unconfirmed hypothesis: the D35D1 revision 2
+class, arms anchored to the last 30 Hz tick while 120/180 Hz redraws
+interpolate the eye. Start from notes 305 / 306 (AGENTS.md first-person arm
+rule): identify the presentation owner of the water-exit and mantle arms,
+trace hand screen positions across redraws at 180 Hz, fix game-wide, keep
+D36H9 and D35D1 unchanged. Preserve the user's slot; test on copies.
 
 ### D36H9 - Ledge hang first person: upper arm flicker and legs-only body (slot 9)
 
@@ -6494,9 +6633,9 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D10H1 | Weapon feel lab: TTK vs Duke 3D press to shot, repeat, shot on screen, per-round hits on moving enemies | Done | D10H; user "enemyshoot" save (EDuke32) |
 | D10H2 | Pistol chase: rounds that leave on target land | Todo | D10H1 |
 | D10H3 | Duke 3D style auto aim option for bullet weapons | Todo | D10H1 |
-| D10H4 | Shot on press: ready stance, then earlier fire frame | Todo | D10H1 |
+| D10H4 | Shot on press: ready stance, then earlier fire frame | Done | D10H1 |
 | D10H5 | Shorter world delay at high refresh | Todo | D10H1 |
-| D10H6 | Repeat rate parity with Duke 3D analogs | Todo | D10H1, D10H4 |
+| D10H6 | Repeat rate parity with Duke 3D analogs | Done | D10H1, D10H4 |
 | D10F2 | Camera behind an object when opening a door (UI slot 11) | Todo | D10F1 |
 | D10C | Duke 3D look keys: Page Up / Page Down look up / down while held and recenter on release; Home / End lock the look up / down (bindable) | Done (user-accepted 2026-10-20) | D06, D19G |
 | D10D | Keyboard turning in Modernized: Left / Right arrows turn the view left / right (Duke 3D style, alongside the mouse) | Done (user-accepted 2026-10-20) | D06, D10C |
@@ -6719,6 +6858,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D36M | Power-up looks: a light screen tint per power-up (Quake/Doom style, D39 tint) | Done (user-accepted 2026-11-03; note 370) | D36J, D08A17 |
 | D36H8 | Run-jump mantle across water: extended arms flicker (slot 11) | Done (user-accepted 2026-11-03; note 306) | D36H5, D35G, D08X |
 | D36H9 | Ledge hang first person: upper arm flicker and legs-only body (slot 9) | Done | D36H8, D35G, D08J7A |
+| D36H10 | Water exit first person: the arms vibrate climbing out of the water (UI slot 12) | Todo (next job) | D36H9, D35D1 |
 | D37 | Temporary movement failure at 07:26 UK on 2026-10-26 (separate research) | Done | - |
 | D37A | Safe animation restoration across save allocation layouts | Done (user-accepted 2026-10-26) | D37 |
 | R01 | DisruptorRecomp architecture and modernization reference research | Done | - |

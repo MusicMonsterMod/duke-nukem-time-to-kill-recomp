@@ -29,6 +29,7 @@ static SDL_Window* win;
 static bool inventory_visible;
 namespace ttk {
 bool hold_button_sampled(){return false;}
+void weapon_feel_press(){} bool weapon_feel_latched_fire(){return false;}
 bool inventory_visible(){return ::inventory_visible;}
 unsigned mission_presses;int mission_steps;void mission_browse_press(int d){++mission_presses;mission_steps+=d;}}
 static bool crouch_walk; // D08K4

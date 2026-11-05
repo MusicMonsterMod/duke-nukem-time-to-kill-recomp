@@ -30,6 +30,11 @@ bool short_fall_input_ready();
 bool directional_takeoff_ready();
 bool interaction_ready();
 bool fire_draw_ready();
+// D10H4 WEAPON FEEL RETRO: a fire press edge (input thread), whether the
+// fire pad is still latched for the game, and the player's gun call.
+void weapon_feel_press();
+bool weapon_feel_latched_fire();
+void weapon_feel_shot();
 bool hold_button_sampled();
 bool interaction_restore_ready();
 /* D08O3: the E redraw in the native swim states (surface / underwater). */

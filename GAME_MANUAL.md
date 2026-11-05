@@ -2307,6 +2307,39 @@ always uses the original. The launcher accepts
 `--third-person-kick quick|original` (saves the preference); terminal
 `--settings` uses **Q Third-person kick**.
 
+### Weapon feel (D10H4, D10H6)
+
+**OPTIONS > ADVANCED > COMBAT > WEAPON FEEL** chooses how the guns with a Duke
+Nukem 3D counterpart answer the fire button: the Desert Eagle (key 2), Combat
+Shotgun (3), Gatling Gun (4), RPG (5) and Freezer (0).
+
+- **RETRO** (the default) is a close simulation of Duke Nukem 3D (EDuke32):
+  - Every click fires, even a very quick tap, and the round leaves on the
+    game's next update after the click: about 50-70 ms for the Desert Eagle,
+    Gatling, RPG and Freezer and about 85-100 ms for the Combat Shotgun,
+    instead of about 200-350 ms from a lowered gun.
+  - Holding the button fires at a steady rate, standing, walking, running,
+    crouching, jumping or swimming: the Desert Eagle 6 shots a second, the
+    Gatling 10 and the Freezer 7.5. The Combat Shotgun and RPG keep their
+    original rate. While you hold fire on one of these guns the game runs at
+    CPU SPEED 200 (or your own setting if it is higher), so busy moments do not
+    make the rate uneven; your CPU SPEED returns once you let go. To try
+    without it, launch with `--fire-cpu off` (this launch only).
+  - With one of these guns up, running into a wall just stops Duke: he no
+    longer stumbles and lowers the gun, so you keep firing.
+  - In water the game itself slows down while you fire, so held shots there
+    can come a little early or late (the average rate holds).
+- **MODERN** keeps the original timing: the original raise speed and fire
+  rates (with their uneven spacing), and a tap shorter than one game update
+  may not fire.
+
+Ammo, damage and spread are unchanged, and so are the Crossbow, Buffalo Rifle,
+Flamethrower, Energy Weapon and the throwables. Vanilla always uses the original
+timing. The launcher accepts `--weapon-feel retro|modern` (saves the
+preference); terminal `--settings` uses **H Weapon feel**. A profile saved by
+the first build (which called RETRO "EDUKE32") keeps the choice under the new
+name.
+
 ### Sidearm return (D08J7C)
 
 On a ladder, chain, pole, climbing wall or ledge hang, left click swaps your

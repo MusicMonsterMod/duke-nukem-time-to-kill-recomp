@@ -403,6 +403,8 @@ static void aim_hook_body(CPUState* cpu,uint32_t address) {
     if(address==0x8001ca4c) {beam_finish(cpu);return;}
     marker_hook(cpu,address);
     if(input_modernized())observe(cpu,address);
+    // D10H4: every player gun call, whatever the aim mode.
+    if(address==0x8003c500 && cpu->gpr[4]==player && (cpu->gpr[31]==0x8004f7b4 || cpu->gpr[31]==0x8004fa88))weapon_feel_shot();
     if(g_precise_mode || g_ls_mode || g_psx_call_bail || busy || !input_modernized() || !view_mode() || input_snapshot(Context::Gameplay).held[original_aim])return;
     if(address!=0x8003c500 || cpu->gpr[4]!=player || !supported(cpu->gpr[7]))return;
     if(!shot_ready()) {

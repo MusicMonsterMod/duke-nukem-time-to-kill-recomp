@@ -470,6 +470,9 @@ std::vector<Screen> make_screens() {
         heading("COMBAT"),
         {"KICK",Section::Controls,"third_person_kick","DNTTK_TP_KICK",true,"QUICK: A FAST KICK IN THIRD PERSON, WEAPON STAYS UP",
          {{"QUICK","quick","\"quick\""},{"ORIGINAL","original","\"original\""}},0},
+        // D10H4 / D10H6: RETRO gives the Duke 3D analog guns close to EDuke32's shot timing.
+        {"WEAPON FEEL",Section::Controls,"weapon_feel","DNTTK_WEAPON_FEEL",true,"RETRO: EVERY CLICK FIRES, A STEADY FIRE RATE",
+         {{"RETRO","retro","\"retro\""},{"MODERN","modern","\"modern\""}},0},
         heading("ITEMS"),
         {"EQUIP PICKUPS",Section::Controls,"equip_pickups","DNTTK_EQUIP_PICKUPS",true,"IF NEW: DRAW A NEW WEAPON, SELECT A NEW ITEM",
          {{"IF NEW","if-new","\"if-new\""},{"NEVER","never","\"never\""}},0},

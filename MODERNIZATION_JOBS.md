@@ -6835,7 +6835,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D42 | Death state and menu: stay on the death scene, Open opens the existing death list, Escape returns, unlimited continues, console usable while dead | Done (user-accepted 2026-11-03; note 373) | D19H, D19P, D19M, D19K, D26 |
 | D43 | Level title card: the level's name near the centre when a level begins, Duke 3D style, fades by itself | Done (user-accepted 2026-11-03; note 374) | - |
 | D44 | Earthquake research: EDuke32 earthquake measured, TTK shake and sources mapped | Done (research, 2026-11-05; note 396) | - |
-| D44A | Earthquakes: EDuke32-style map-wide ground shake (1:1 target) for TNT barrels and the vest pig (not dynamite, pipe bombs or rockets); pad rumble; Modernized only | Todo | D44 |
+| D44A | Earthquakes: EDuke32-style map-wide ground shake (1:1 target) for TNT barrels and the vest pig (not dynamite, pipe bombs or rockets); pad rumble; console `earthquake <seconds>`; Modernized only | Todo | D44 |
 | D39G | Classic renderer fallback for flashes | Done (accepted 2026-11-03) | D39C |
 | D40 | Switch renderer (Polymorph / Classic) live in game, as EDuke32 does | Done | D17AR6, D39G |
 | D08H | Apartment furniture, hidden pickup and switch targeting | Done | D08 |

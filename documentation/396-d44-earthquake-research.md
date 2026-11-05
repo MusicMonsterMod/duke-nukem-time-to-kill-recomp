@@ -23,8 +23,9 @@ which is a totally different thing"):
 
 - **Earthquake**: the shaking view. EDuke32: `g_earthquakeTime`, sector
   effector `SE_2_EARTHQUAKE` ("Earthquake"), sound `EARTHQUAKE`.
-- **quake**: the command that starts one, as CON `quake <tics>`. Use it for
-  the TTK console command too.
+- **quake**: EDuke32's command, CON `quake <tics>`. The TTK console command
+  is `earthquake <seconds>` (user, 2026-11-05: "earthquake 1 (gives you a
+  second)").
 - **Rumble**: the controller only. EDuke32: `I_AddForceFeedback`,
   `controllerRumble`, the `in_rumble` setting.
 - TTK's own blast effect is the **native shake**: a camera jitter, plus pad
@@ -205,7 +206,10 @@ Target (user): EDuke32's earthquake 1:1, or as close as the game allows.
      They keep TTK's native shake unchanged.
    - Scripted level events (collapses, crashes, large set pieces), Duke3D's SE 2
      analogue, after a survey of the level overlays' event code.
-   - A console command, like CON `quake <tics>`, for testing.
+   - Console `earthquake <seconds>` (decimals allowed: `earthquake 1` is one
+     second, 30 tics); `earthquake` alone gives one detonation, 16 tics
+     (0.53 s); `earthquake 0` stops one. It sets the timer like any source,
+     never adds.
 5. **The native jitter**: in Modernized replace it for these sources, or keep
    it underneath at reduced strength. Choose by comparing captures with the
    user.

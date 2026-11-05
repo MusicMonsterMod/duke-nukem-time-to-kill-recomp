@@ -1,5 +1,20 @@
 # Current status - 2026-10-04
 
+## 2026-11-05 - Shot latency investigation; D10G3 widened
+
+Shots land behind moving targets mainly because at 120/180 Hz the world is
+drawn 90 ms in the past while rounds hit current positions; the shot camera is
+also one update old (rotation about 34 ms, eye about 64 ms of Duke's motion).
+User confirmed FRAME RATE 60 is "massively better". Next: D10G3 (now eye and
+rotation from the view on screen), then a proposed "shoot what you see" job.
+Local report `recomp/analysis/d10g-latency/REPORT.md`. No code change.
+Launch: `python3 recomp/tools/local/run.py`.
+
+## 2026-11-04 - D10G2 cancelled
+
+User: "nah cancel this off ... i dont want that, cool idea tho but not in this game". No blocked-shot crosshair hint; D10G3 remains open. No code or
+build change.
+
 ## 2026-11-04 - D10G1 closed: point-blank aim, lift 0.35
 
 User: "great, lock it in and close it out". D10G1 is Done

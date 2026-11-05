@@ -1,12 +1,36 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-05 - Shot latency against moving targets: investigation; D10G3 widened
+
+User: "my shots are behind him pretty much, like they always land a bit
+further behind when im in motion". Investigation only (local report
+`recomp/analysis/d10g-latency/REPORT.md`, offscreen, private copies, no code
+change). At 120/180 Hz the world on screen (actors, Duke, camera eye) is drawn
+90 ms in the past (`timeline_pair`, `DNTTK_WORLD_DELAY_MS` default 90) while
+rounds are hit-tested against current positions; the shot also uses the
+previous update's camera (rotation about 34 ms behind the view on screen, eye
+about 64 ms of Duke's sideways motion ahead). Estimated: tracking a running
+pig cop (about 1900 u/s) at 180 Hz lands about 236 u behind (hit half-width
+150-230 u); run-strafing about 284 u; click and stop adds the native
+100-200 ms. Projectile travel adds nothing within 3500 u. User A/B with FRAME
+RATE 60: "massively better but not perfect perfect". D10G3 is widened to take
+the eye as well as the rotation from the view on screen; a "shoot what you
+see" lag-compensation job (crosshair tested against actors where drawn) is
+proposed for after D10G3, not yet on the board.
+
+## 2026-11-04 - D10G2 cancelled: no blocked-shot hint
+
+User: "nah cancel this off ... i dont want that, cool idea tho but not in this game". D10G2 (blocked-shot crosshair hint) is Cancelled; the crosshair
+stays as it is. D10G3 (shot direction from the newest look) is unaffected.
+No code, build or executable change.
+
 ## 2026-11-04 - D10G1 accepted and closed: point-blank aim, lift 0.35
 
 User: "great, lock it in and close it out". D10G1 is Done with the user's
 chosen defaults, lift 0.35 and a 35-degree cap
 ([note 385](documentation/385-d10g1-point-blank-aim.md)); the backtick
 console `pointblank` stays for session tuning, and the main-keyboard period
-now types in the console. Next ready: D10G2 blocked-shot hint, D10G3 shot
+now types in the console. Next ready: D10G2 blocked-shot hint (since cancelled), D10G3 shot
 direction from the newest look. Executable
 `54c62f65e96603be2f58e1e0332f2a385ce45cc02a6583c6d489460c23b0d748`.
 
@@ -626,7 +650,7 @@ person unchanged.
 
 ### D10G2 - Blocked-shot crosshair hint
 
-**Status: Todo. Dependencies: D10G1.** When something nearer than the
+**Status: Cancelled (2026-11-04; user: "nah cancel this off ... i dont want that, cool idea tho but not in this game"). Dependencies: D10G1.** When something nearer than the
 crosshair point blocks the muzzle-to-point line (one query, already used for
 cover), show a small marker at the muzzle hit or dim the crosshair, as in
 modern third-person shooters. Crosshair stays at screen centre. Judged with
@@ -638,7 +662,10 @@ the user in play; off in Vanilla and with the crosshair off.
 camera, about 33 ms behind the per-redraw late view the player sees
 ([note 384](documentation/384-d10g-aim-mouse-feel.md)). Take the direction
 from the late view when the round leaves. Native weapon timing (100-200 ms
-press to shot) stays unchanged.
+press to shot) stays unchanged. Widened 2026-11-05 (latency investigation): also take
+the eye from the camera on screen, not only the rotation (the shot eye runs
+about 64 ms of Duke's sideways motion ahead, about 186 u at run). Test with
+`recomp/analysis/d10g-latency/` (`rays.py` turn and strafe) at 60/120/180.
 
 ### D10F2 - Camera behind an object when opening a door (UI slot 11)
 
@@ -6236,7 +6263,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D10F1 | Third-person camera: clear lens against walls and grills | Done (user-accepted 2026-11-04) | D10F |
 | D10G | Aim and mouse feel in third person (research report first) | Done (closed 2026-11-04; note 384) | D07, D10, D10E, D10F |
 | D10G1 | Point-blank aim: fire along the view when the crosshair point is close | Done (closed 2026-11-04; note 385) | D10G |
-| D10G2 | Blocked-shot crosshair hint | Todo | D10G1 |
+| D10G2 | Blocked-shot crosshair hint | Cancelled (2026-11-04) | D10G1 |
 | D10G3 | Shot direction from the newest look | Todo | D10G1 |
 | D10F2 | Camera behind an object when opening a door (UI slot 11) | Todo | D10F1 |
 | D10C | Duke 3D look keys: Page Up / Page Down look up / down while held and recenter on release; Home / End lock the look up / down (bindable) | Done (user-accepted 2026-10-20) | D06, D19G |

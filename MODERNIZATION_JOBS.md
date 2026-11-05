@@ -1,5 +1,79 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-05 - D10H1 and D10G4 closed
+
+User: "lock it in and close us out". D10H1 (weapon feel lab,
+[note 389](documentation/389-d10h1-weapon-feel-lab.md)) and D10G4 (shoot what
+you see, [note 387](documentation/387-d10g4-shoot-what-you-see.md), accepted
+earlier) are Done. `ttk-aim-test` passes; the runtime patch applies to the
+pinned clean dependency. Next in the D10H series: D10H2 (moving-target misses,
+with a game-moved chase fixture), D10H3 (Duke 3D style auto aim), D10H4 (latch
+the fire press).
+
+## 2026-11-05 - D10H1 weapon feel lab (closed)
+
+Measured both games at runtime ([note 389](documentation/389-d10h1-weapon-feel-lab.md)).
+Duke 3D was measured on a private, instrumented build of the local EDuke32
+source, on Xvfb, with a copy of the user's "enemyshoot" save (god mode and
+weapons through EDuke32's console). At 180 Hz, press to shot is: pistol 58 ms
+(TTK Desert Eagle 197 from rest, 82 gun up), shotgun 123 (TTK 425), chaingun
+88 (TTK Gatling 286 / 106), RPG 108 (TTK 230), freezer 81 (TTK 294 / 112).
+Held repeat: pistol 6/s (TTK 4.6-5), chaingun 10/s (TTK 8.4), freezer 7.5/s
+(TTK 5). New: TTK fires only if fire is still held at the weapon's fire frame,
+so presses under about 150 ms fire nothing, while every Duke 3D click fired
+(D10H4). Hits: Duke 3D landed every round that left on a visible enemy (18 of
+18), and autoaim kept that out to 8 degrees off. TTK slide fixture: a still
+pig cop 12 of 12; moving, 65-75% of the rounds that left with the crosshair on
+it landed (D10H2). The pistol chase tracker is not reliable yet. Diagnostic
+code only: the test input knows weapon keys 2-9.
+
+## 2026-11-05 - D10G4 accepted; D10H Duke 3D weapon feel research, D10H1-D10H6 added
+
+User on D10G4: "it's aceeptable as it is. if we can tighten it more, i'd say
+let's do it"; still targets fine, the energy weapon "feels great", other
+weapons "still fun". D10G4 is accepted, closeout pending. The user wants Duke
+3D as the benchmark for every analog weapon's responsiveness. Research report
+**D10H** ([note 388](documentation/388-d10h-duke3d-weapon-feel.md), from the
+local EDuke32 source): Duke 3D's pistol fires 33-67 ms after the click, repeats
+at 6/s, is hitscan, and with autoaim (on in the user's config) goes exactly at
+the nearest visible enemy within about 8.4 degrees; its world is drawn at most
+one tic behind. TTK: 91-228 ms, world 90 ms behind, auto aim off. New jobs:
+D10H1 weapon feel lab (on the user's "enemyshoot" EDuke32 save), D10H2 pistol chase
+rounds land, D10H3 Duke 3D style auto aim option, D10H4 shot on press, D10H5
+shorter world delay, D10H6 repeat rate parity. No code change.
+User answers: auto aim on by default in the Duke 3D hitscan-only style with a
+toggle off (D10H3); faster native timing in Modernized is fine if togglable
+(D10H4, D10H6); TTK-only weapons keep their timing.
+
+## 2026-11-05 - D20J added: LEVEL STATS make room for status panels
+
+User: "the oxygen meter goes behind the stats panel. that stats panel needs to
+act dynamically, as with our other HUD elements, and the oxygen meter or any
+other status panels that want to appear there move it upwards." New **D20J**
+(Todo, after D20I). The referenced screenshot `stats-oxygen.png` is not in the
+screencaps folder yet. Board only; no code change.
+
+## 2026-11-05 - D10G4 shoot what you see (Needs playtest)
+
+At 120/180 Hz the crosshair's screen-ray query now meets enemies where the
+image on screen drew them: `frame_replay.cpp` records each drawn object's
+shown position with the presented late view; `weapon_aim.cpp` moves every
+drawn actor that moved since (position +4 and its world joint translations)
+back there for that one query and restores every word. On an actor hit the
+round aims at the same point on it now; cover checks, D10G1 and the round
+meet current positions, and the D10G1 enemy exemption and D22D beam lock see
+the drawn enemy. Only with the D10G3 screen view: 60 Hz, game-owned cameras,
+Vanilla and `original` unchanged; native timing, spread and damage untouched.
+A/B: console `shootseen [on|off|default]`, `DNTTK_SHOOT_SEEN=0`. Evidence
+(offscreen, private copies): `ttk-aim-test` new D10G4 group passes with all
+earlier groups; a pig cop slid sideways at about 1900 u/s across a fixed
+crosshair is hit by the rewound query exactly when its drawn position is
+within about 190 u of the ray (drawn miss 23/49/151/189 hit, 222+ miss) while
+the current-position query follows its current position; 60 Hz 7/7 and
+`DNTTK_SHOOT_SEEN=0` 11/11 not rewound; D10G3 turn regression unchanged.
+Not verified: a real running enemy under the player's crosshair, the real
+180 Hz display. Executable `4f0a0d38...`.
+
 ## 2026-11-05 - D10G3 accepted and closed; D10G4 added
 
 User: "ok yes, it feels great, it feels like an improvement", then "close us
@@ -696,7 +770,7 @@ about 64 ms of Duke's sideways motion ahead, about 186 u at run). Test with
 
 ### D10G4 - Shoot what you see: crosshair tested against enemies where drawn
 
-**Status: Todo. Dependencies: D10G3.** Proposed by the 2026-11-05 latency
+**Status: Done (2026-11-05, closed; [note 387](documentation/387-d10g4-shoot-what-you-see.md); user: "it's aceeptable as it is ... if we can tighten it more, i'd say let's do it"; further tightening is D10H). Dependencies: D10G3.** Proposed by the 2026-11-05 latency
 investigation (local `recomp/analysis/d10g-latency/REPORT.md`, candidate 1).
 At 120/180 Hz actors are drawn 90 ms in the past (`timeline_pair`) while
 rounds are hit-tested against their current positions, so a running enemy
@@ -710,6 +784,92 @@ Modernized view aiming only; Vanilla, `original` aiming, native projectile,
 spread, damage and weapon timing unchanged; A/B switch like `shotview`. Needs
 a moving-enemy test fixture (spawned pig cops stand idle until shot). The user
 judges whether it feels fair at 180 Hz on the real display.
+
+### D10H - Weapon responsiveness against Duke Nukem 3D (research report)
+
+**Status: Report ready (2026-11-05, [note 388](documentation/388-d10h-duke3d-weapon-feel.md)); awaiting discussion with the user. Dependencies: D10G4.** User:
+"a great test is chasing a pig cop with the pistol ... you can easily fire a
+trail of bullets at it and not a single one will land", and "I want the
+benchmark to actually be Duke 3D ... each analogue weapon ... should
+essentially respond in the same way ... in terms of their responsiveness".
+From the local EDuke32 source: the pistol fires on the tic after the press
+(33-67 ms), repeats at 6/s, is hitscan, and with autoaim on (the user's
+`cl_autoaim "2"`) goes exactly at the nearest visible enemy within about 8.4
+degrees; the world is drawn at most one tic behind. TTK: 91-228 ms press to
+shot, world drawn 90 ms behind, Modernized auto aim off. Jobs D10H1-D10H6
+follow, iterating with the D10H1 lab.
+
+### D10H1 - Weapon feel lab: TTK against Duke 3D analogs
+
+**Status: Done (2026-11-05, accepted and closed; [note 389](documentation/389-d10h1-weapon-feel-lab.md); the pistol chase tracker is not reliable yet and moves to D10H2). Dependencies: D10H; the user's
+"enemyshoot" save (an EDuke32 save, `~/.config/eduke32/save0004.esv`, E3L1).** Offscreen, private copies: per analog weapon (note 388 table)
+measure press to shot, repeat rate while held, press to the shot visible on
+screen, and per-round hit or miss against moving enemies (add a diagnostic
+log of rounds that damage an actor). Scenarios: "enemyshoot", a pig cop chase
+with the pistol, the D10G4 slide fixture (`seen_slide.py`). Output: a TTK vs
+Duke 3D table re-run after each later job. No gameplay change.
+
+### D10H2 - Pistol chase: rounds that leave on target land
+
+**Status: Todo. Dependencies: D10H1.** D10H1 measured it on the slide
+fixture: about a third of the rounds that leave with the crosshair on a
+moving pig cop miss (still targets 12 of 12). First reproduce that with an
+enemy the game moves itself, because the fixture's host writes can land
+between the query and the sweep. Using the lab's round hit log, find any
+reason a round that leaves on the drawn enemy still misses (the game update
+order, the muzzle start beside the screen ray, the running hit box) and fix
+it game-wide. Test: the pistol chase; still targets, D10G1, D10G3, D10G4 and
+`ttk-aim-test` unchanged.
+
+### D10H3 - Duke 3D style auto aim for bullet weapons (option)
+
+**Status: Todo. Dependencies: D10H1.** User decision (2026-11-05): "on by
+default, and a toggle to turn it off"; they play EDuke32 with autoaim on
+hitscan weapons only ("Available settings are full, hitscan, and off ... If
+set to hitscan, this automatic aiming will only apply to hitscan-based
+weapons and not missile type projectiles", wiki.eduke32.com/wiki/Player_setup).
+So: Modernized AUTO AIM defaults to the Duke 3D hitscan behaviour, with an
+OFF toggle (keep ORIGINAL available). The Duke 3D analog bullet weapons
+(Desert Eagle / starting pistol, Combat Shotgun, Gatling) take the nearest
+visible targetable enemy inside the aim cone, roughly on screen vertically,
+and aim the round exactly at it after the muzzle and cover checks. RPG,
+freezer, throws and the TTK-only weapons stay unassisted. Cone: the source
+gives 48/2048 of a turn either side (about 8.4 each side, `AUTO_AIM_ANGLE 48`)
+while the wiki says "approximately 9 degree wide". User (2026-11-05): "we go
+with eduke's code": the default is the source's 48/2048 either side
+(about 8.4 degrees each side, about 17 across); console tunable. Test: the lab's chase and "enemyshoot" hit
+rates against off; Vanilla unchanged.
+
+### D10H4 - Shot on press: ready stance, then earlier fire frame
+
+**Status: Todo. Dependencies: D10H1.** D10H1 found that TTK fires only if
+fire is still held at the weapon's fire frame: presses under about 150 ms
+fire nothing (rest and gun up), while every Duke 3D click fires. Latch the
+press. User (2026-11-05): changing native
+timing in Modernized is fine, "and make it togglable"; TTK-only weapons
+(crossbow, buffalo rifle, flamethrower) keep their timing ("the dynamic on
+those is actually pretty good"). Keep the gun up while armed in play so
+every first shot takes the gun-up path (about 100 ms instead of about 210
+from rest), then investigate firing on an earlier animation frame towards the
+Duke 3D analog (pistol 33-67 ms). Modernized only; ammo, damage, spread and
+Vanilla unchanged. Test: the lab's press-to-shot table, first and third
+person, climbs and swimming.
+
+### D10H5 - Shorter world delay at high refresh
+
+**Status: Todo. Dependencies: D10H1.** Bring the 90 ms present timeline delay
+(`DNTTK_WORLD_DELAY_MS`) towards Duke 3D's one tic, adaptive and about
+55-65 ms first, so the world, muzzle flash and impacts show sooner. Judge at
+180 Hz on the real display for judder (130 ms and faster phase correction
+were rejected before). D10G3/D10G4 follow automatically.
+
+### D10H6 - Repeat rate parity with Duke 3D analogs
+
+**Status: Todo. Dependencies: D10H1, D10H4.** Where TTK repeats slower while
+fire is held, match the Duke 3D analog (pistol 6/s, chaingun about 10/s,
+shotgun 1/s, RPG 1.5/s), Modernized only, with a toggle (user, 2026-11-05).
+TTK-only weapons (crossbow, buffalo rifle, flamethrower) unchanged (user:
+"the dynamic on those is actually pretty good"). Test: the lab's repeat table.
 
 ### D10F2 - Camera behind an object when opening a door (UI slot 11)
 
@@ -3089,6 +3249,25 @@ the nested-draw ownership fix, the steady Mantle eye (requested delta through
 the easing hook, 128-unit hang setback) and the hang legs 88 units back (a
 sliver at the lowest look). The leg fade and body-heading shoulders were
 rejected and stay off (developer A/B only).
+
+### D20J - LEVEL STATS make room for status panels (oxygen meter and others)
+
+**Status: Todo. Dependencies: D20I.** User (2026-11-05): "the oxygen meter
+goes behind the stats panel. that stats panel needs to act dynamically, as
+with our other HUD elements, and the oxygen meter or any other status panels
+that want to appear there move it upwards." Reference screenshot named
+`stats-oxygen.png` (screencaps folder); not yet on disk as of 2026-11-05, so
+ask the user for it before starting. The D20I `T:` `K:` `S:` block (bottom
+left, above the HUD, [note 376](documentation/376-d20i-level-stats.md)) is
+drawn over the oxygen meter underwater. Find every native panel that can
+appear in that bottom-left band (oxygen meter first; also check the jetpack
+fuel, the held item / inventory panel, boss or mission meters, and the
+status-bar styles) and lift the LEVEL STATS block above whichever is showing
+that frame, through the same placement the other HUD elements use, following
+the presented 4:3 / 16:9 rectangle and the HUD scale. Move it smoothly or in
+one step as the user prefers, never hidden by a meter. Test underwater with
+the oxygen meter, then with the others, at 60 and 180 Hz; LEVEL STATS off
+and Vanilla unchanged.
 
 ### D20I - LEVEL STATS (time, kills, secrets) in the bottom-left corner; LEVEL STATS and FPS toggles in DISPLAY
 
@@ -6116,6 +6295,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D17AF | Latest slot-10 ground water visibility | Done | Selected batch; see intake above |
 | D20H | Slot-5 intermittent colour corruption on load | Done (user-confirmed 2026-10-30) | Selected batch; see intake above |
 | D20I | LEVEL STATS in the bottom-left corner (time, kills, secrets; TTK font, red and gold, EDuke32 style) plus LEVEL STATS and FPS toggles in OPTIONS > DISPLAY | Done | D20E, D20D, D24A |
+| D20J | LEVEL STATS make room for status panels: the oxygen meter and other panels in that band push it upwards | Todo | D20I |
 | D17AG | Slot-6 wooden panelling holes | Done (user-confirmed 2026-10-30) | Fixed by D17AE scene depth |
 | D17AH | Slot-8 sky glitching and popping | Done | Selected batch; see intake above |
 | D17AI | Slot-12 wall near pushable cube | Done (user-confirmed 2026-10-30) | Selected batch; see intake above |
@@ -6309,7 +6489,14 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D10G1 | Point-blank aim: fire along the view when the crosshair point is close | Done (closed 2026-11-04; note 385) | D10G |
 | D10G2 | Blocked-shot crosshair hint | Cancelled (2026-11-04) | D10G1 |
 | D10G3 | Shot direction from the newest look | Done (closed 2026-11-05; note 386) | D10G1 |
-| D10G4 | Shoot what you see: crosshair tested against enemies where drawn | Todo | D10G3 |
+| D10G4 | Shoot what you see: crosshair tested against enemies where drawn | Done | D10G3 |
+| D10H | Weapon responsiveness against Duke Nukem 3D: research report | Report ready (awaiting discussion) | D10G4 |
+| D10H1 | Weapon feel lab: TTK vs Duke 3D press to shot, repeat, shot on screen, per-round hits on moving enemies | Done | D10H; user "enemyshoot" save (EDuke32) |
+| D10H2 | Pistol chase: rounds that leave on target land | Todo | D10H1 |
+| D10H3 | Duke 3D style auto aim option for bullet weapons | Todo | D10H1 |
+| D10H4 | Shot on press: ready stance, then earlier fire frame | Todo | D10H1 |
+| D10H5 | Shorter world delay at high refresh | Todo | D10H1 |
+| D10H6 | Repeat rate parity with Duke 3D analogs | Todo | D10H1, D10H4 |
 | D10F2 | Camera behind an object when opening a door (UI slot 11) | Todo | D10F1 |
 | D10C | Duke 3D look keys: Page Up / Page Down look up / down while held and recenter on release; Home / End lock the look up / down (bindable) | Done (user-accepted 2026-10-20) | D06, D19G |
 | D10D | Keyboard turning in Modernized: Left / Right arrows turn the view left / right (Duke 3D style, alongside the mouse) | Done (user-accepted 2026-10-20) | D06, D10C |

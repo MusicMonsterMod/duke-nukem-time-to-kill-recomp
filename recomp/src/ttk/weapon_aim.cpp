@@ -223,6 +223,67 @@ static void screen_view(double* eye,double* forward) {
     std::copy(e,e+3,eye);std::copy(f,f+3,forward);
     last_screen_view=true;last_view_shift=shift;last_view_turn=turn;++screen_view_shots;
 }
+// D10G4 shoot what you see: at 120/180 Hz the shown image draws actors at
+// the presented world time, about 90 ms old, while the screen-ray query tests
+// them where they are now. For that one query, move each actor the shown view
+// drew back to where it drew it (position +4 and the world joint
+// translations at +0x3c that the hit tests read), then restore every word.
+// An actor hit aims the round at the same point on that actor now; the
+// cover checks and the round itself meet current positions. Only with the
+// D10G3 screen view (its eye and world time agree). DNTTK_SHOOT_SEEN=0 or
+// console "shootseen off" tests actors where they are now (developer A/B).
+static std::atomic<int> shoot_seen_override{-1};
+static bool shoot_seen_enabled() {
+    const int o=shoot_seen_override.load(std::memory_order_relaxed);
+    if(o>=0)return o!=0;
+    const char* v=std::getenv("DNTTK_SHOOT_SEEN");return !v || std::strcmp(v,"0");
+}
+static constexpr int seen_max=24,seen_words=seen_max*(1+48)*3;
+struct SeenRewind {
+    int n=0,nwords=0;
+    uint32_t actor[seen_max];double shift[seen_max][3];
+    uint32_t addr[seen_words],old[seen_words];
+};
+static unsigned seen_shots,seen_rewinds;
+static double last_seen_shift;
+static int last_seen_actors;
+static bool ram_word(uint32_t a,uint32_t n) {return a>=0x80010000u && a+n<=0x80200000u && !(a&3);}
+static void seen_rewind(SeenRewind& r) {
+    r.n=r.nwords=0;
+    uint32_t obj[seen_max];double pos[seen_max][3];
+    const int n=shot_view_poses(obj,pos,seen_max);
+    const uint32_t held=psx_mod_read_word(player+0x290),climbed=psx_mod_read_word(player+0x17c);
+    uint32_t mats_seen[seen_max];int nmats=0;
+    for(int i=0;i<n;++i) {
+        const uint32_t a=obj[i];
+        if(a==player || a==held || a==climbed || !ram_word(a,0x44))continue;
+        double now[3],d[3],len=0;read_vector(a+4,now);
+        for(int k=0;k<3;++k) {d[k]=std::round(now[k]-pos[i][k]);len+=d[k]*d[k];}
+        // Still, or a jump the replay would not blend either (respawn, slot reuse).
+        if(len<1 || len>1536.0*1536.0)continue;
+        const uint32_t mats=psx_mod_read_word(a+0x3c),model=psx_mod_read_word(a+0x40);
+        int joints=0;
+        if(ram_word(model,4) && ram_word(mats,0x20)) {
+            joints=psx_mod_read_byte(model);
+            if(joints<0 || joints>48 || !ram_word(mats,0x20u*joints))joints=0;
+            for(int k=0;k<nmats;++k) if(mats_seen[k]==mats)joints=0;   // never shift a shared block twice
+            if(joints)mats_seen[nmats++]=mats;
+        }
+        auto shift=[&](uint32_t at){
+            for(int k=0;k<3;++k) {
+                r.addr[r.nwords]=at+4*k;r.old[r.nwords]=psx_mod_read_word(at+4*k);
+                psx_mod_write_word(at+4*k,(uint32_t)((int32_t)r.old[r.nwords]-(int32_t)d[k]));++r.nwords;
+            }
+        };
+        shift(a+4);
+        for(int j=0;j<joints;++j)shift(mats+0x20u*j+0x14);
+        r.actor[r.n]=a;std::copy(d,d+3,r.shift[r.n]);++r.n;
+    }
+}
+static void seen_restore(SeenRewind& r) {
+    for(int i=r.nwords-1;i>=0;--i)psx_mod_write_word(r.addr[i],r.old[i]);
+    r.nwords=0;
+}
 static void marker_hook(CPUState* cpu,uint32_t address) {
     if(address!=0x8002bc18 || cpu->gpr[31]!=0x80033db0 || cpu->gpr[20]!=player)return;
     const char* visible=ttk_live_env("DNTTK_RED_DOT");
@@ -378,7 +439,35 @@ static void aim_hook_body(CPUState* cpu,uint32_t address) {
     double depth=0;for(int i=0;i<3;++i)depth+=(body[i]-eye[i])*forward[i];
     for(int i=0;i<3;++i)ray_start[i]=eye[i]+forward[i]*std::clamp(depth,0.0,16000.0);
     uint32_t view_actor=0;
+    static SeenRewind seen;
+    seen.n=0;last_seen_shift=0;last_seen_actors=0;
+    if(ok && last_screen_view && shoot_seen_enabled())seen_rewind(seen);
     ok=ok && trace(cpu,ray_start,target,target,kind,&view_actor);
+    seen_restore(seen);last_seen_actors=seen.n;
+    // Diagnostics: what the same ray meets with every actor where it is now.
+    int now_kind=-1;uint32_t now_actor=0;
+    // The moving actor nearest the ray: its aim point's miss distance where drawn and now.
+    double near_drawn=-1,near_now=-1,near_moved=0;uint32_t near_actor=0;
+    if(seen.n && diagnostics()) {
+        double hit[3],to[3];for(int k=0;k<3;++k)to[k]=eye[k]+forward[k]*16384;if(!trace(cpu,ray_start,to,hit,now_kind,&now_actor))now_kind=-1;
+        for(int i=0;i<seen.n;++i) {
+            double moved=0;for(int k=0;k<3;++k)moved+=seen.shift[i][k]*seen.shift[i][k];
+            if(moved<64*64 || (psx_mod_read_word(seen.actor[i])&2))continue;   // dead bodies are not shootable
+            // Ground-plane miss of the position (+4), the field the hit tests start from.
+            double now[3],was[3];read_vector(seen.actor[i]+4,now);for(int k=0;k<3;++k)was[k]=now[k]-seen.shift[i][k];
+            auto miss=[&](const double* q){const double vx=q[0]-eye[0],vz=q[2]-eye[2],h=std::hypot(forward[0],forward[2]);
+                if(h<1e-6)return 1e9;const double fx=forward[0]/h,fz=forward[2]/h,t=vx*fx+vz*fz;return t>0?std::abs(vx*fz-vz*fx):1e9;};
+            const double d=miss(was);
+            if(near_drawn<0 || d<near_drawn) {near_drawn=d;near_now=miss(now);near_moved=std::sqrt(moved);near_actor=seen.actor[i];}
+        }
+    }
+    if(seen.n)++seen_rewinds;
+    if(ok && kind==2) for(int i=0;i<seen.n;++i) if(seen.actor[i]==view_actor) {
+        // The same point on the actor where it stands now.
+        for(int k=0;k<3;++k)target[k]+=seen.shift[i][k];
+        last_seen_shift=std::sqrt(seen.shift[i][0]*seen.shift[i][0]+seen.shift[i][1]*seen.shift[i][1]+seen.shift[i][2]*seen.shift[i][2]);
+        ++seen_shots;break;
+    }
     // Keep the physical origin. Guard a muzzle protruding through thin cover
     // with a body-to-muzzle segment before committing a new direction.
     int cover=0;
@@ -438,8 +527,8 @@ static void aim_hook_body(CPUState* cpu,uint32_t address) {
             std::copy(eye,eye+3,beam_eye);std::copy(forward,forward+3,beam_forward);
         }
         ++shots;if(last_assisted)++assisted_shots;last_kind=cover?4:(last_assisted?2:kind);last_weapon=cpu->gpr[7];
-        if(diagnostics())std::fprintf(stderr,"ttk-aim-shot weapon=%d target=%.0f,%.0f,%.0f direction=%.0f,%.0f,%.0f cover=%d bend=%.1f view=%s eye=%.0f,%.0f,%.0f forward=%.4f,%.4f,%.4f shift=%.0f turn=%.2f age=%.1f\n",last_weapon,target[0],target[1],target[2],last_direction[0],last_direction[1],last_direction[2],cover,last_bend,
-            last_screen_view?"screen":"game",eye[0],eye[1],eye[2],forward[0],forward[1],forward[2],last_view_shift,last_view_turn,last_view_age);
+        if(diagnostics())std::fprintf(stderr,"ttk-aim-shot weapon=%d target=%.0f,%.0f,%.0f direction=%.0f,%.0f,%.0f cover=%d bend=%.1f view=%s eye=%.0f,%.0f,%.0f forward=%.4f,%.4f,%.4f shift=%.0f turn=%.2f age=%.1f seen=%d actor=%08x moved=%.0f now=%d,%08x near=%08x,%.0f,%.0f,%.0f\n",last_weapon,target[0],target[1],target[2],last_direction[0],last_direction[1],last_direction[2],cover,last_bend,
+            last_screen_view?"screen":"game",eye[0],eye[1],eye[2],forward[0],forward[1],forward[2],last_view_shift,last_view_turn,last_view_age,last_seen_actors,kind==2?view_actor:0,last_seen_shift,now_kind,now_kind==2?now_actor:0,near_actor,near_drawn,near_now,near_moved);
     } else ++rejected;
     busy=false;
 }
@@ -482,9 +571,24 @@ bool shot_view_console_command(const char* line,void (*say)(const char*),bool& c
         shot_view_enabled()?"on":"off",shot_view_enabled()?"view on screen":"previous game update's camera");
     say(text);return true;
 }
+bool shoot_seen_console_command(const char* line,void (*say)(const char*),bool& close) {
+    if(std::strcmp(line,"shootseen") && std::strncmp(line,"shootseen ",10))return false;
+    close=false;
+    if(line[9]) {
+        const char* value=line+10;
+        if(!std::strcmp(value,"on"))shoot_seen_override.store(1,std::memory_order_relaxed);
+        else if(!std::strcmp(value,"off"))shoot_seen_override.store(0,std::memory_order_relaxed);
+        else if(!std::strcmp(value,"default"))shoot_seen_override.store(-1,std::memory_order_relaxed);
+        else {say("Usage: shootseen [on|off|default] (on: the crosshair hits enemies where they are drawn; session only)");return true;}
+        close=true;
+    }
+    char text[192];std::snprintf(text,sizeof text,"Shoot what you see %s: the crosshair tests enemies %s (session only). Default on.",
+        shoot_seen_enabled()?"on":"off",shoot_seen_enabled()?"where they are drawn":"where they are now");
+    say(text);return true;
+}
 const char* aim_debug_json() {
-    static char out[1536];
-    std::snprintf(out,sizeof out,"{\"shot_view\":%s,\"screen_view_shots\":%u,\"screen_view_refused\":%u,\"last_screen_view\":%s,\"last_view_shift\":%.0f,\"last_view_turn\":%.2f,\"last_view_age\":%.1f,\"point_blank_shots\":%u,\"point_blank_lift\":%.2f,\"last_bend\":%.1f,\"beam_locks\":%u,\"beam_extra_locks\":%u,\"close_retractions\":%u,\"assisted_shots\":%u,\"hidden_markers\":%u,\"last_assisted\":%s,\"reticle\":%s,\"shots\":%u,\"rejected\":%u,\"queries\":%u,\"lease_misses\":%u,\"last_lease_miss\":\"%s\",\"identity_calls\":%llu,\"identity_checks\":%llu,\"weapon\":%d,\"hit_kind\":%d,\"origin\":[%.0f,%.0f,%.0f],\"target\":[%.0f,%.0f,%.0f],\"direction\":[%.0f,%.0f,%.0f]}",shot_view_enabled()?"true":"false",screen_view_shots,screen_view_refused,last_screen_view?"true":"false",last_view_shift,last_view_turn,last_view_age,point_blank_shots,lift_setting(),last_bend,beam_locks,beam_extra_locks,close_retractions,assisted_shots,hidden_markers,last_assisted?"true":"false",ttk_aim_reticle()?"true":"false",shots,rejected,queries,lease_misses,last_lease_miss,(unsigned long long)aim_identity_calls,(unsigned long long)aim_identity_checks,last_weapon,last_kind,last_origin[0],last_origin[1],last_origin[2],last_target[0],last_target[1],last_target[2],last_direction[0],last_direction[1],last_direction[2]);return out;
+    static char out[2048];
+    std::snprintf(out,sizeof out,"{\"shoot_seen\":%s,\"seen_shots\":%u,\"seen_rewinds\":%u,\"last_seen_actors\":%d,\"last_seen_shift\":%.0f,\"shot_view\":%s,\"screen_view_shots\":%u,\"screen_view_refused\":%u,\"last_screen_view\":%s,\"last_view_shift\":%.0f,\"last_view_turn\":%.2f,\"last_view_age\":%.1f,\"point_blank_shots\":%u,\"point_blank_lift\":%.2f,\"last_bend\":%.1f,\"beam_locks\":%u,\"beam_extra_locks\":%u,\"close_retractions\":%u,\"assisted_shots\":%u,\"hidden_markers\":%u,\"last_assisted\":%s,\"reticle\":%s,\"shots\":%u,\"rejected\":%u,\"queries\":%u,\"lease_misses\":%u,\"last_lease_miss\":\"%s\",\"identity_calls\":%llu,\"identity_checks\":%llu,\"weapon\":%d,\"hit_kind\":%d,\"origin\":[%.0f,%.0f,%.0f],\"target\":[%.0f,%.0f,%.0f],\"direction\":[%.0f,%.0f,%.0f]}",shoot_seen_enabled()?"true":"false",seen_shots,seen_rewinds,last_seen_actors,last_seen_shift,shot_view_enabled()?"true":"false",screen_view_shots,screen_view_refused,last_screen_view?"true":"false",last_view_shift,last_view_turn,last_view_age,point_blank_shots,lift_setting(),last_bend,beam_locks,beam_extra_locks,close_retractions,assisted_shots,hidden_markers,last_assisted?"true":"false",ttk_aim_reticle()?"true":"false",shots,rejected,queries,lease_misses,last_lease_miss,(unsigned long long)aim_identity_calls,(unsigned long long)aim_identity_checks,last_weapon,last_kind,last_origin[0],last_origin[1],last_origin[2],last_target[0],last_target[1],last_target[2],last_direction[0],last_direction[1],last_direction[2]);return out;
 }
 }
 static int crosshair_forced=-1; // -1 follow env; 0/1 override (I key, EDuke-style)

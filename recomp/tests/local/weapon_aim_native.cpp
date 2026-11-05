@@ -32,7 +32,13 @@ extern "C" void psx_mod_host_call_end(void){}
 extern "C" int psx_mod_register_function_entry_plugin(const char*,uint32_t a,PSXModFunctionEntryCallback cb){if(a==0x8003c500)callback=cb;return 1;}
 namespace ttk {bool free_look_active(){return false;}bool free_look_aim(double*,double*){return false;}static InputFrame f;const InputFrame& input_snapshot(Context){return f;}uint64_t input_host_frame(){return f.sequence;}bool input_modernized(){return modern;}bool input_modern_controls(){return modern;}bool movement_ready(){return ready;}const char* movement_lease_miss(){return "test";}bool locomotion_input_ready(){return false;}bool jetpack_input_ready(){return modern && jet_ready;}bool swim_weapon_ready(){return modern && swim_ready;}bool airborne_shot_ready(){return modern && air_ready;}bool climb_shot_ready(){return modern && climb_ready;}bool player_identity_ready(){return ready;}static bool fp_view;bool first_person_view_live(){return fp_view;}bool frame_trace_on(){return false;}void frame_trace_account(uint32_t,long){}
 // D10G3: the view the last present showed.
-static bool sv_ok;static double sv_eye[3],sv_fwd[3],sv_age;bool shot_view(double* e,double* f,double& age){if(!sv_ok)return false;for(int i=0;i<3;++i){e[i]=sv_eye[i];f[i]=sv_fwd[i];}age=sv_age;return true;}}
+static bool sv_ok;static double sv_eye[3],sv_fwd[3],sv_age;bool shot_view(double* e,double* f,double& age){if(!sv_ok)return false;for(int i=0;i<3;++i){e[i]=sv_eye[i];f[i]=sv_fwd[i];}age=sv_age;return true;}
+// D10G4: where that view drew the fixture actor.
+static int sp_n;static uint32_t sp_obj;static double sp_pos[3];int shot_view_poses(uint32_t* o,double (*q)[3],int max){if(!sv_ok||!sp_n||max<1)return 0;o[0]=sp_obj;for(int i=0;i<3;++i)q[0][i]=sp_pos[i];return 1;}}
+// D10G4 fixture: an actor (sphere radius 150) at its position in RAM; the
+// query records the joint translation it saw.
+static constexpr uint32_t seen_actor=0x800e1000,seen_model=0x800e1100,seen_mats=0x800e1200;
+static bool seen_on;static double seen_query_mat_x=1e9;
 extern "C" void psx_dispatch_call(CPUState* c,uint32_t address,uint32_t ret) {
     assert(address==0x8006d980 && ret==0x800000fc && c->gpr[4]==0x800d7198);
     uint32_t a=c->gpr[5],sp=c->gpr[29];
@@ -52,6 +58,13 @@ extern "C" void psx_dispatch_call(CPUState* c,uint32_t address,uint32_t ret) {
         if(aa>0 && disc>=0){double near=(-bb-std::sqrt(disc))/(2*aa);if(near>=0 && near<t){t=near;close_hit=0x800e0000;}}
     }
     if(ray_actor && to[2]==16384){t=500.0/16384;close_hit=0x800e0000;}
+    if(seen_on && to[2]==16384) {
+        double d[3],q[3],aa=0,bb=0,cc=-150*150;
+        for(int i=0;i<3;++i){d[i]=to[i]-from[i];q[i]=from[i]-(int32_t)psx_mod_read_word(seen_actor+4+4*i);aa+=d[i]*d[i];bb+=2*q[i]*d[i];cc+=q[i]*q[i];}
+        seen_query_mat_x=(int32_t)psx_mod_read_word(seen_mats+0x14);
+        double disc=bb*bb-4*aa*cc;
+        if(aa>0 && disc>=0){double near=(-bb-std::sqrt(disc))/(2*aa);if(near>=0 && near<t){t=near;close_hit=seen_actor;}}
+    }
     c->gpr[2]=close_hit?close_hit:actor_visible && to[2]==500 ? ((block_actor || (block_muzzle && from[0]==100))?1:0x800e0000) : (t<1?1:0);psx_mod_write_word(c->gpr[7],2);
     for(int i=0;i<3;++i)psx_mod_write_word(psx_mod_read_word(sp+16)+4*i,std::lround(from[i]+t*(to[i]-from[i])));
     c->gte_data[0]=0xdeadbeef; // copying CPU must isolate query temporaries
@@ -138,6 +151,36 @@ int main(int argc,char**argv) {
         assert(stale==game && cut==game && off==game && env_off==game && none==game && back==shifted);
     }
     std::puts("PASS: D10G3 shots aim from the view on screen; stale, cut or switched-off views keep the game camera");
+    // D10G4: an actor 800 ahead now 300 to the side, drawn on the crosshair
+    // (shown at x 0). The screen ray meets it where drawn (z 650) and the
+    // round aims at the same point on it now (x 300); its words are restored.
+    {
+        psx_mod_write_byte(seen_model,1);psx_mod_write_word(seen_actor+0x3c,seen_mats);psx_mod_write_word(seen_actor+0x40,seen_model);
+        auto place=[&](int x){psx_mod_write_word(seen_actor+4,x);psx_mod_write_word(seen_actor+12,800);
+            psx_mod_write_word(seen_mats+0x14,x);psx_mod_write_word(seen_mats+0x1c,800);};
+        auto slope=[&](){seed();callback(&c,0x8003c500);assert(c.gpr[6]==0x801e0000);
+            return (double)(int32_t)psx_mod_read_word(c.gpr[6])/(int32_t)psx_mod_read_word(c.gpr[6]+8);};
+        seen_on=true;ttk::sv_ok=true;for(int i=0;i<3;++i){ttk::sv_eye[i]=0;ttk::sv_fwd[i]=i==2?4096:0;}ttk::sv_age=5;
+        ttk::sp_n=1;ttk::sp_obj=seen_actor;ttk::sp_pos[0]=ttk::sp_pos[1]=0;ttk::sp_pos[2]=800;
+        place(300);const double seen=slope();const double mat_during=seen_query_mat_x;
+        const bool restored=(int32_t)psx_mod_read_word(seen_actor+4)==300 && (int32_t)psx_mod_read_word(seen_mats+0x14)==300 &&
+            (int32_t)psx_mod_read_word(seen_actor+12)==800;
+        bool closed=false;auto quiet=[](const char*){};
+        assert(ttk::shoot_seen_console_command("shootseen off",quiet,closed) && closed);const double off=slope();
+        assert(ttk::shoot_seen_console_command("shootseen sideways",quiet,closed) && !closed); // refused
+        assert(ttk::shoot_seen_console_command("shootseen default",quiet,closed) && closed);const double back=slope();
+        setenv("DNTTK_SHOOT_SEEN","0",1);const double env_off=slope();unsetenv("DNTTK_SHOOT_SEEN");
+        ttk::sv_ok=false;const double game=slope();ttk::sv_ok=true;          // no screen view: no rewind
+        ttk::sv_age=80;const double stale=slope();ttk::sv_age=5;
+        ttk::sp_pos[0]=-2000;const double jump=slope();ttk::sp_pos[0]=0;     // over 1536: not rewound
+        place(0);const double still=slope();
+        std::printf("D10G4 x/z: drawn on the crosshair, moved 300 %.3f (query saw joint x %.0f), off %.3f, game camera %.3f, still %.3f\n",seen,mat_during,off,game,still);
+        std::fflush(stdout);
+        assert(restored && mat_during==0 && std::abs(seen-200.0/650)<0.01 && back==seen);
+        assert(std::abs(off+0.1)<0.01 && env_off==off && game==off && stale==off && jump==off && std::abs(still+100.0/650)<0.01);
+        seen_on=false;ttk::sv_ok=false;ttk::sp_n=0;place(0);
+    }
+    std::puts("PASS: D10G4 the crosshair meets actors where drawn; the round aims at them now and every word is restored");
     psx_mod_write_byte(p+0x3b8,2);psx_mod_write_byte(p+0x3b9,4);
     psx_mod_write_word(p+0x224,0);assert(ttk_aim_reticle()); // walking is still armed
     // Native marker selection suppresses the modern reticle, including the

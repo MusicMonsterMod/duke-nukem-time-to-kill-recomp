@@ -1463,6 +1463,16 @@ camera one game update older. At 60 Hz nothing changes. To compare, open the
 backtick console and type `shotview off` (session only); `shotview on` or
 `shotview default` turns it back on.
 
+**Shoot what you see (Modernized, D10G4).** At FRAME RATE 120 or higher the
+picture shows enemies a moment (about 0.09 s) behind where they really are.
+A shot now tests the crosshair against each enemy where the picture drew it,
+and the round then flies at that same spot on the enemy where it stands now,
+so a running enemy under the crosshair is hit instead of the wall behind it.
+Walls and cover still stop rounds as before, and the weapon's own firing
+delay is unchanged. At 60 Hz nothing changes. To compare, open the backtick
+console and type `shootseen off` (session only); `shootseen on` or
+`shootseen default` turns it back on.
+
 First-map checks now cover the pistol, shotgun, rifle, Gatling, RPG, freezer,
 crossbow, knife/axe, pipe bomb, grenade, dynamite, flamethrower and energy weapon.
 RPG flight and explosions follow pitched view aim. Throws keep their original

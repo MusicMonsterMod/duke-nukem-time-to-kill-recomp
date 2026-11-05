@@ -1490,11 +1490,32 @@ struct TraceEntry {float ms,alpha; int8_t shown,njobs,ready,cached,drawn; uint32
 TraceEntry trace_ring[128]; unsigned trace_n=0;
 // D10G3: the late view the last present showed (shot_view, weapon_aim.cpp).
 // Presents and the game update run on the emulation thread.
-struct ShownView {bool ok=false; double eye[3]{}, fwd[3]{}; std::chrono::steady_clock::time_point at{};} shown_view_state;
+// D10G4: with it, where that image drew each object (build_params' blend of
+// the base frame toward the next at the redraw's alpha).
+struct ShownView {bool ok=false; double eye[3]{}, fwd[3]{}; std::chrono::steady_clock::time_point at{}; int nposes=0; ObjectPose pose[max_poses];} shown_view_state;
+void shown_poses(const Frame& f,int shown) {
+    const Frame* n=frame_by_serial(f.serial+1);
+    const double alpha=interp_off ? 0.0 : interp_full ? 1.0 : f.alpha[shown];
+    shown_view_state.nposes=0;
+    for(int i=0;i<f.state.nposes;++i) {
+        const ObjectPose& x=f.state.pose[i];
+        ObjectPose o=x;
+        if(n) for(int k=0;k<n->state.nposes;++k) if(n->state.pose[k].obj==x.obj) {
+            const ObjectPose& y=n->state.pose[k];
+            long dx=(long)y.pos[0]-x.pos[0],dy=(long)y.pos[1]-x.pos[1],dz=(long)y.pos[2]-x.pos[2];
+            if(dx*dx+dy*dy+dz*dz<=(long)1536*1536) for(int c=0;c<3;++c) o.pos[c]=lerp_i(x.pos[c],y.pos[c],alpha);
+            break;
+        }
+        shown_view_state.pose[shown_view_state.nposes++]=o;
+    }
+}
 void trace(const PSXModPresentInfo* info,double alpha,const Frame* f,int shown,bool drawn) {
     if(f && shown>=0) {
         shown_view_state.ok=f->view_ok[shown];
-        if(shown_view_state.ok) for(int i=0;i<3;++i) {shown_view_state.eye[i]=f->view_eye[shown][i];shown_view_state.fwd[i]=f->view_fwd[shown][i];}
+        if(shown_view_state.ok) {
+            for(int i=0;i<3;++i) {shown_view_state.eye[i]=f->view_eye[shown][i];shown_view_state.fwd[i]=f->view_fwd[shown][i];}
+            shown_poses(*f,shown);
+        }
         shown_view_state.at=std::chrono::steady_clock::now();
     } else if(shown==-1) shown_view_state.ok=false;
     else if(shown_view_state.ok) shown_view_state.at=std::chrono::steady_clock::now();   // the same image again
@@ -1916,6 +1937,12 @@ bool shot_view(double eye[3],double forward[3],double& age_ms) {
     age_ms=std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-shown_view_state.at).count();
     for(int i=0;i<3;++i) {eye[i]=shown_view_state.eye[i];forward[i]=shown_view_state.fwd[i];}
     return true;
+}
+int shot_view_poses(uint32_t obj[],double pos[][3],int max) {
+    if(!shown_view_state.ok) return 0;
+    const int n=std::min(max,shown_view_state.nposes);
+    for(int i=0;i<n;++i) {obj[i]=shown_view_state.pose[i].obj;for(int k=0;k<3;++k) pos[i][k]=shown_view_state.pose[i].pos[k];}
+    return n;
 }
 // D17AY diagnostic: a trace reference reads the in-between pose even under
 // DNTTK_DRAW_POSE=tick, so the old and new readers are measured alike.

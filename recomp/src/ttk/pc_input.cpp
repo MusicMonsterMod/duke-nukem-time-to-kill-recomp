@@ -1048,7 +1048,7 @@ void input_frame() {
     // offscreen game. The file is re-read every input frame: held key names
     // (w a s d shift ctrl space e q up down enter left right x z c esc v backspace
     // pgup pgdn home end delete; D26J: grave opens/closes the console, 1;
-    // D39E: 0, the Freezer's key),
+    // D39E: 0, the Freezer's key; D10H1: 2-9, the other weapon keys),
     // mouse1 (held left button, D08K6),
     // cheat=<word>, act=<action> (D07E) and quick=<save/load/savemenu/loadmenu>
     // (D20; once per change of word) and
@@ -1070,7 +1070,9 @@ void input_frame() {
             {"left",SDL_SCANCODE_LEFT},{"right",SDL_SCANCODE_RIGHT},{"x",SDL_SCANCODE_X},{"z",SDL_SCANCODE_Z},
             {"c",SDL_SCANCODE_C},{"esc",SDL_SCANCODE_ESCAPE},{"v",SDL_SCANCODE_V},{"backspace",SDL_SCANCODE_BACKSPACE},
             {"pgup",SDL_SCANCODE_PAGEUP},{"pgdn",SDL_SCANCODE_PAGEDOWN},{"home",SDL_SCANCODE_HOME},{"end",SDL_SCANCODE_END},{"delete",SDL_SCANCODE_DELETE},
-            {"grave",SDL_SCANCODE_GRAVE},{"1",SDL_SCANCODE_1},{"0",SDL_SCANCODE_0}};
+            {"grave",SDL_SCANCODE_GRAVE},{"1",SDL_SCANCODE_1},{"0",SDL_SCANCODE_0},
+            {"2",SDL_SCANCODE_2},{"3",SDL_SCANCODE_3},{"4",SDL_SCANCODE_4},{"5",SDL_SCANCODE_5},{"6",SDL_SCANCODE_6},
+            {"7",SDL_SCANCODE_7},{"8",SDL_SCANCODE_8},{"9",SDL_SCANCODE_9}};
         bool was[sizeof named/sizeof named[0]];
         for(size_t i=0;i<sizeof named/sizeof named[0];++i){was[i]=keys[named[i].code];keys[named[i].code]=false;}
         mouse[1]=false;mouse[2]=false;

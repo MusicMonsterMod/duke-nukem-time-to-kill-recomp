@@ -1,5 +1,54 @@
 # Current status - 2026-10-04
 
+## 2026-11-05 - D10H1 and D10G4 closed
+
+User: "lock it in and close us out". D10H1 (weapon feel lab,
+[note 389](389-d10h1-weapon-feel-lab.md)) and D10G4 (shoot what
+you see, [note 387](387-d10g4-shoot-what-you-see.md), accepted
+earlier) are Done. `ttk-aim-test` passes; the runtime patch applies to the
+pinned clean dependency. Next in the D10H series: D10H2 (moving-target misses,
+with a game-moved chase fixture), D10H3 (Duke 3D style auto aim), D10H4 (latch
+the fire press).
+
+## 2026-11-05 - D10H1 weapon feel lab (closed)
+
+Measured both games at runtime ([note 389](389-d10h1-weapon-feel-lab.md)).
+Duke 3D was measured on a private, instrumented build of the local EDuke32
+source, on Xvfb, with a copy of the user's "enemyshoot" save (god mode and
+weapons through EDuke32's console). At 180 Hz, press to shot is: pistol 58 ms
+(TTK Desert Eagle 197 from rest, 82 gun up), shotgun 123 (TTK 425), chaingun
+88 (TTK Gatling 286 / 106), RPG 108 (TTK 230), freezer 81 (TTK 294 / 112).
+Held repeat: pistol 6/s (TTK 4.6-5), chaingun 10/s (TTK 8.4), freezer 7.5/s
+(TTK 5). New: TTK fires only if fire is still held at the weapon's fire frame,
+so presses under about 150 ms fire nothing, while every Duke 3D click fired
+(D10H4). Hits: Duke 3D landed every round that left on a visible enemy (18 of
+18), and autoaim kept that out to 8 degrees off. TTK slide fixture: a still
+pig cop 12 of 12; moving, 65-75% of the rounds that left with the crosshair on
+it landed (D10H2). The pistol chase tracker is not reliable yet. Diagnostic
+code only: the test input knows weapon keys 2-9.
+
+## 2026-11-05 - D10G4 accepted; D10H Duke 3D weapon feel research
+
+D10G4 accepted by the user ("acceptable as it is"), closeout pending. The
+user set Duke 3D as the benchmark for weapon responsiveness. Research report
+[note 388](388-d10h-duke3d-weapon-feel.md) (EDuke32 source): pistol 33-67 ms
+press to shot, hitscan, autoaim exactly at the nearest visible enemy within
+about 8.4 degrees, world drawn at most one tic behind; TTK 91-228 ms, world
+90 ms behind, auto aim off. Jobs D10H1-D10H6 on the board; D10H1 (weapon feel
+lab) first, it needs the user's "enemyshoot" save. Also added D20J (LEVEL
+STATS make room for the oxygen meter). No code change.
+
+## 2026-11-05 - D10G4 shoot what you see (Needs playtest)
+
+At 120/180 Hz the crosshair now tests enemies where the image on screen drew
+them (about 90 ms ago) and the round aims at the same point on the enemy
+where it is now, so a running pig cop under the crosshair is hit instead of
+the wall behind it. Measured offscreen with a pig cop slid at about 1900 u/s:
+the rewound query hits within about 190 u of the drawn position and follows it;
+60 Hz and `shootseen off` unchanged. Needs the user's judgement at 180 Hz
+against real running enemies; A/B in the backtick console: `shootseen off`.
+[Note 387](387-d10g4-shoot-what-you-see.md). Launch: `python3 recomp/tools/local/run.py`.
+
 ## 2026-11-05 - D10G3 closed: shots aim from the view on screen
 
 User: "ok yes, it feels great, it feels like an improvement", then "close us

@@ -3329,6 +3329,22 @@ int main(int argc,char** argv) {
         assert(run(lower,140,8)==160);
         hooks().at(0x80059db0)(&lower,0x80059db0);assert(psx_mod_read_half(lower.gpr[6])==160);
         assert(run(upper,140,8)==160);
+        // D36H10: the left arm and chest channels (2, 3) keep the same clock,
+        // or the frame-offset sync snaps them between frames (vibrating arms).
+        CPUState arm{};arm.gpr[29]=0x801ffeb0;arm.gpr[31]=0x8005a75c;
+        arm.gpr[4]=p+0x88;arm.gpr[5]=p;arm.gpr[6]=0x801fff00-0x2c;arm.gpr[7]=2;
+        CPUState chest{};chest.gpr[29]=0x801ffeb0;chest.gpr[31]=0x8005a7bc;
+        chest.gpr[4]=p+0x9c;chest.gpr[5]=p;chest.gpr[6]=0x801fff00-0x2a;chest.gpr[7]=3;
+        auto run_channel=[&](CPUState& c,unsigned anim){
+            psx_mod_write_byte(p+0x22c,8);psx_mod_write_half(p+0x60,140);psx_mod_write_half(c.gpr[4],anim);update();
+            psx_mod_write_half(c.gpr[6],100);hooks().at(0x80059db0)(&c,0x80059db0);
+            const unsigned once=psx_mod_read_half(c.gpr[6]);
+            hooks().at(0x80059db0)(&c,0x80059db0);assert(psx_mod_read_half(c.gpr[6])==once);
+            return once;};
+        assert(run_channel(arm,140)==160 && run_channel(chest,140)==160);
+        assert(run_channel(arm,5)==100 && run_channel(chest,5)==100);   // armed: the channel plays its own clip
+        chest.gpr[31]=0x8005a75c;assert(run_channel(chest,140)==100);chest.gpr[31]=0x8005a7bc;
+        ttk::modern=false;assert(run_channel(arm,140)==100);ttk::modern=true;
         assert(run(lower,139,8)==100 && run(lower,140,0)==100 && run(lower,149,6)==100);
         ttk::modern=false;assert(run(lower,140,8)==100);ttk::modern=true;
         assert(json().find("\"pullup_boosts\":1}")!=std::string::npos);
@@ -3336,7 +3352,7 @@ int main(int argc,char** argv) {
         psx_mod_write_byte(p+0x3b8,2);psx_mod_write_byte(p+0x3b9,4);psx_mod_write_half(p+0x74,5);psx_mod_write_word(p+0x224,0);
         psx_mod_write_half(p+0x2c6+4*4,sidearm_ammo);psx_mod_write_half(p+0x2c4+4*4,sidearm_owned);
         ++ttk::input.sequence;call(0x8003ade4,c,p,0x80025ee8);
-        std::puts("PASS: D08J7B mantle fire queue, landing draw request and 2x draw, refusals, pull-up 1.6x and Vanilla");
+        std::puts("PASS: D08J7B mantle fire queue, landing draw request and 2x draw, refusals, pull-up 1.6x on all four channels (D36H10) and Vanilla");
     }
     {
         // D08J7C: W in a ledge hang with the sidearm out pulls up one-handed.

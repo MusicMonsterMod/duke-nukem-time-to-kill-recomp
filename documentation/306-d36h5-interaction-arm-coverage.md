@@ -302,3 +302,42 @@ The contact rig now also serves the pistol's free arm (parts 10-12, equipment
 is on the lip and ahead of the eye; its drawn height is pinned to the lip.
 Other armed Mantle cases (D35G1 step-ups) keep the hidden arm. Details and
 evidence: [note 378](378-d08j7-mantle-fire-research.md) D08J7D section.
+
+## D36H10 - water exit: vibrating arms (2026-11-05, accepted)
+
+U: UI slot 12, first person, climbing out of the water: the arms vibrate.
+L: private copy at 180 Hz with an in-draw trace of the contact hands. The eye
+moves smoothly; the native hand targets themselves swing about 200 units
+forward and back every 2-3 game updates through the pull-up 140, shoulders
+included, so the whole upper body rocks.
+
+Owner as drawn: the contact rig (WaterExit, then Mantle). Not at fault: the
+cause is the D08J7B 1.6x pull-up. Duke's pose is built from four animation
+channels (0 legs, 1 right arm, 2 left arm, 3 chest/head); the speed-up scaled
+the runner time of channels 0 and 1 only. Channels 2 and 3 ran the original
+clock and the game then puts them on channel 1's frames by offset
+(0x8005a11c), so each time channel 1 crossed into a frame first they kept a
+stale previous frame and jumped up to two frames ahead (channel 1 `1500>1501`
+while channel 2 showed `1509>1511`, then `1509>1512`). At native speed all
+four advance in lockstep and the arms make one smooth heave per frame. The
+D35G alley ledge pull-up had the same desync.
+
+S: `pullup_advance` (`climb_fire.inc`) scales channels 2 and 3 as well (runner
+returns 0x8005a75c / 0x8005a7bc, deltas sp+0x14 / +0x16), once per update,
+only while that channel plays 140, so an armed gun arm on its own clip stays
+unscaled. Root motion, events, timing and end position are unchanged. The
+contact rig, eye and hang presentation are untouched. Regression: the D08J7B
+native group runs channels 2 and 3 (scaled once, other clip, wrong caller,
+Vanilla). Developer A/B: `DNTTK_PULLUP_SYNC=off`. Diagnostic:
+`DNTTK_PRESENT_TRACE=1` now also logs `contact_hand_l/r`.
+
+L: body-frame hand direction reversals during 140: 10 forward / 10 up before,
+4 / 6 after (native speed 7 / 4); recordings show the arms coming down
+steadily instead of snapping to the top corners. Same end position and yaw,
+clip 66 game frames in both. Executable
+`5ab597cc778598dc501fd281499ebb77bedfd937dbef0ad153d655643d0b590e`.
+Limits: recorded at 180 only; slot 9 hang and armed one-handed pull-up not
+re-recorded; third person not visually judged (dark spot). Evidence:
+`recomp/analysis/d36h10/` (local).
+
+U: accepted ("fixed! lock it in and close it out. excellent work").

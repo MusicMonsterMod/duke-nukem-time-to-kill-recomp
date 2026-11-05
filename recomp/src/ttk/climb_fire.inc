@@ -279,7 +279,7 @@ static const char* climb_fire_debug_json() {
 // about 1.09 s): only the runner's time, so its events, root motion and end
 // position stay the original's.
 static constexpr unsigned pullup_scale_num=8,pullup_scale_den=5;
-static bool mantle_draw_queued,mantle_draw_boost,pullup_lower_boost,pullup_upper_boost;
+static bool mantle_draw_queued,mantle_draw_boost,pullup_boosted[4];
 static unsigned mantle_draw_weapon,mantle_draw_updates;
 static unsigned mantle_draw_queues,mantle_draw_requests,mantle_draw_drops,pullup_boosts;
 static bool mantle_clip(unsigned a) {return a>=134 && a<=140;}
@@ -291,7 +291,7 @@ static bool mantle_climbing(const InputFrame& f) {
 }
 bool mantle_fire_cross_masked() {return input_modernized() && (mantle_draw_queued || mantle_draw_boost) && psx_mod_read_byte(player+0x3b8)!=2;}
 static void mantle_fire_update() {
-    pullup_lower_boost=pullup_upper_boost=false;
+    for(bool& b:pullup_boosted)b=false;
     if(!interaction_alive() || !gameplay_context()) {mantle_draw_queued=mantle_draw_boost=false;return;}
     const auto& f=input_snapshot(Context::Gameplay);
     const unsigned equipment=psx_mod_read_byte(player+0x3b8),upper=psx_mod_read_half(player+0x74);
@@ -323,22 +323,30 @@ static void mantle_fire_update() {
     psx_mod_write_word(player+0x224,flags|4);++selections;++mantle_draw_requests;
     mantle_draw_boost=true;mantle_draw_updates=0;
 }
-// Animation runner 0x80059db0, once per player update and track: the lower
-// track from the player update (ra 0x8005a3d4, delta at sp+0x10 of that
-// frame, a3 0) and the upper track (ra 0x8005a5a8, sp+0x12, a3 1) when it
-// plays the pull-up too.
+// Animation runner 0x80059db0, once per player update and channel: the legs
+// from the player update (ra 0x8005a3d4, delta at sp+0x10 of that frame, a3 0)
+// and, when they play the pull-up too, channels 1-3 (right arm, left arm,
+// chest/head: ra 0x8005a5a8, 0x8005a75c, 0x8005a7bc; sp+0x12/0x14/0x16, a3 1-3).
+// D36H10: every channel's time is scaled. Channels 2 and 3 run their own
+// clock and are then put on channel 1's frames by offset (0x8005a11c); left at
+// the original rate they kept a stale previous frame whenever channel 1 crossed
+// into the next one first, so the chest and left arm jumped up to two frames
+// back and forth on every frame of 140: the body rocked about 200 units in
+// 66 ms, seen in first person as vibrating arms (water exit, UI slot 12).
+// DNTTK_PULLUP_SYNC=off scales only channels 0 and 1, as D08J7B (developer A/B).
 static void pullup_advance(CPUState* cpu,uint32_t ra) {
     if(!input_modernized() || psx_mod_read_half(player+0x60)!=140 || psx_mod_read_byte(player+0x22c)!=8 ||
        cpu->gpr[5]!=player || !player_identity_ready())return;
-    const bool lower=!pullup_lower_boost && cpu->gpr[4]==player+0x60 && ra==0x8005a3d4 && cpu->gpr[7]==0 &&
-        cpu->gpr[6]==weapon_update_sp-0x30;
-    const bool upper=!pullup_upper_boost && cpu->gpr[4]==player+0x74 && ra==0x8005a5a8 && cpu->gpr[7]==1 &&
-        cpu->gpr[6]==weapon_update_sp-0x2e && psx_mod_read_half(player+0x74)==140;
-    if(!lower && !upper)return;
+    static const bool sync_off=[]{const char* t=std::getenv("DNTTK_PULLUP_SYNC");return t && !std::strcmp(t,"off");}();
+    static constexpr uint32_t returns[4]={0x8005a3d4,0x8005a5a8,0x8005a75c,0x8005a7bc};
+    const unsigned ch=cpu->gpr[7];
+    if(ch>3 || (sync_off && ch>1) || pullup_boosted[ch] || ra!=returns[ch] || cpu->gpr[4]!=player+0x60+0x14*ch ||
+       cpu->gpr[6]!=weapon_update_sp-0x30+2*ch || psx_mod_read_half(player+0x60+0x14*ch)!=140)return;
     const int delta=(int16_t)psx_mod_read_half(cpu->gpr[6]);
     if(delta<=0 || delta>4096)return;
     psx_mod_write_half(cpu->gpr[6],(delta*pullup_scale_num+pullup_scale_den/2)/pullup_scale_den);
-    if(lower) {pullup_lower_boost=true;++pullup_boosts;} else pullup_upper_boost=true;
+    pullup_boosted[ch]=true;
+    if(ch==0)++pullup_boosts;
 }
 static const char* mantle_fire_debug_json() {
     static char buffer[192];

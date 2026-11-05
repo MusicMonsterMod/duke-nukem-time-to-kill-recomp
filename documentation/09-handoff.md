@@ -1,5 +1,34 @@
 # Next-session handoff
 
+## 2026-11-05 - D36H10 closed
+
+User: "fixed! lock it in and close it out. excellent work". D36H10 (water
+exit arms vibrate: the pull-up's four animation channels in step;
+[note 306](306-d36h5-interaction-arm-coverage.md) D36H10
+section) is Done. No framework edit; the runtime patch export is unchanged.
+Open: `ttk-near-test` does not link at HEAD (`cowboy_hat_mesh`, pre-existing).
+
+## 2026-11-05 - D36H10: water exit arms vibrate; the pull-up's four channels in step (accepted)
+
+User: in UI slot 12, climbing out of the water, "duke's arms vibrate
+around". Cause (traced at 180 Hz on a private copy): not the first-person rig
+or redraw timing. D08J7B plays the pull-up 140 1.6x by scaling the runner
+time of the legs and right-arm channels only; the left-arm and chest channels
+(2, 3) kept the original clock and the game then puts them on channel 1's
+frames by offset (0x8005a11c), so whenever channel 1 crossed into a frame
+first they kept a stale previous frame and jumped up to two frames ahead
+(`1509>1511`, `1509>1512`). The chest and arms rocked about 200 units back and
+forth on every frame of 140, in every pull-up (the D35G alley ledge showed it
+too); the root-anchored first-person eye makes it read as vibrating arms. Fix
+(`climb_fire.inc`): all four channels' time is scaled together. In-draw trace:
+body-frame hand reversals 10/10 -> 4/6 (native speed 7/4); recordings show
+the arms coming down steadily instead of snapping to the top corners. End
+position, yaw and clip length identical. Native controls 152 groups (D08J7B
+group extended), input, aim and animation-save checks pass; `ttk-near-test`
+does not link at HEAD (pre-existing, `cowboy_hat_mesh`). Developer A/B:
+`DNTTK_PULLUP_SYNC=off`. Executable
+`5ab597cc778598dc501fd281499ebb77bedfd937dbef0ad153d655643d0b590e`.
+
 ## 2026-11-05 - D10H4 and D10H6 closed
 
 User: "lock it in and close it out". D10H4 (shot on press, the round on the

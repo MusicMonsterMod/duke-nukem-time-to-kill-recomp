@@ -1830,6 +1830,8 @@ static void first_person_contact_arm(CPUState* cpu,uint32_t desc,int part) {
     if(!contact_arm::solve(shoulder,native[2],native[1],axes[0]*(lateral/110)+axes[1]-axes[2],
         upper,lower,pose))return;
     const Vec target[3]={pose.shoulder,pose.elbow,pose.hand};
+    // D36H10 trace: the contact hands as drawn (recomp/tools/local/present_trace.py).
+    if(present_trace_enabled() && index==0) {const double h[3]={native[2].x,native[2].y,native[2].z};present_trace(first==10?"contact_hand_l":"contact_hand_r",h);}
     Vec a=source_native[index+1]-source_native[index],b=target[index+1]-target[index];
     if(gripped) {
         a={0,0,0};

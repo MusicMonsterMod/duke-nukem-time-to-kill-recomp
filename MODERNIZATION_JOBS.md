@@ -1,5 +1,34 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-05 - D36H10 closed
+
+User: "fixed! lock it in and close it out. excellent work". D36H10 (water
+exit arms vibrate: the pull-up's four animation channels in step;
+[note 306](documentation/306-d36h5-interaction-arm-coverage.md) D36H10
+section) is Done. No framework edit; the runtime patch export is unchanged.
+Open: `ttk-near-test` does not link at HEAD (`cowboy_hat_mesh`, pre-existing).
+
+## 2026-11-05 - D36H10: water exit arms vibrate; the pull-up's four channels in step (accepted)
+
+User: in UI slot 12, climbing out of the water, "duke's arms vibrate
+around". Cause (traced at 180 Hz on a private copy): not the first-person rig
+or redraw timing. D08J7B plays the pull-up 140 1.6x by scaling the runner
+time of the legs and right-arm channels only; the left-arm and chest channels
+(2, 3) kept the original clock and the game then puts them on channel 1's
+frames by offset (0x8005a11c), so whenever channel 1 crossed into a frame
+first they kept a stale previous frame and jumped up to two frames ahead
+(`1509>1511`, `1509>1512`). The chest and arms rocked about 200 units back and
+forth on every frame of 140, in every pull-up (the D35G alley ledge showed it
+too); the root-anchored first-person eye makes it read as vibrating arms. Fix
+(`climb_fire.inc`): all four channels' time is scaled together. In-draw trace:
+body-frame hand reversals 10/10 -> 4/6 (native speed 7/4); recordings show
+the arms coming down steadily instead of snapping to the top corners. End
+position, yaw and clip length identical. Native controls 152 groups (D08J7B
+group extended), input, aim and animation-save checks pass; `ttk-near-test`
+does not link at HEAD (pre-existing, `cowboy_hat_mesh`). Developer A/B:
+`DNTTK_PULLUP_SYNC=off`. Executable
+`5ab597cc778598dc501fd281499ebb77bedfd937dbef0ad153d655643d0b590e`.
+
 ## 2026-11-05 - D10H4 and D10H6 closed
 
 User: "lock it in and close it out". D10H4 (shot on press, the round on the
@@ -3269,7 +3298,7 @@ the user's playtest.
 
 ### D36H10 - Water exit first person: the arms vibrate climbing out of the water (UI slot 12)
 
-**Status: Todo; user (2026-11-05): the very next job (after the D10H4 /
+**Status: Done (user-accepted 2026-11-05: "fixed! lock it in and close it out"; fix: the pull-up's four animation channels in step, [note 306](documentation/306-d36h5-interaction-arm-coverage.md) D36H10 section); user (2026-11-05): the very next job (after the D10H4 /
 D10H6 closeout). Dependencies: D36H9, D35D1.** User: "my slot 12, when
 climbing out of the water, duke's arms vibrate around ... i feel like this
 may be a small side effect? i am not sure". Quick look on a private copy of
@@ -3283,6 +3312,27 @@ interpolate the eye. Start from notes 305 / 306 (AGENTS.md first-person arm
 rule): identify the presentation owner of the water-exit and mantle arms,
 trace hand screen positions across redraws at 180 Hz, fix game-wide, keep
 D36H9 and D35D1 unchanged. Preserve the user's slot; test on copies.
+
+**2026-11-05 implementation (Needs playtest).** Owner as drawn: the contact
+rig (WaterExit, then Mantle), but the rig was not at fault: its native hand
+targets rocked. Duke's pose comes from four animation channels (legs, right
+arm, left arm, chest/head). D08J7B scaled the runner time of channels 0 and 1
+only (1.6x pull-up); channels 2 and 3 ran at the original rate and were then
+synced to channel 1 by frame offset (0x8005a11c), keeping a stale previous
+frame each time channel 1 crossed a frame first. Per tick the body-frame hand
+went 199, 118, 226, 224, 22, 112 units forward (native speed: one smooth heave
+per frame). `pullup_advance` now scales channels 2 and 3 too (ra 0x8005a75c /
+0x8005a7bc, sp+0x14 / +0x16, a3 2 / 3), once per update, only while that
+channel plays 140 (armed, the gun arm's own clip stays unscaled). Fixes every
+pull-up, ledge or water, first and third person. Evidence: private slot-12
+copy at 180 Hz (present trace, channel dumps, Xvfb recordings fix vs
+`DNTTK_PULLUP_SYNC=off`), D35G alley ledge channel dumps; end position, yaw
+and clip length identical; native controls (152 groups, D08J7B group now
+covers all four channels and Vanilla), input, aim and animation-save checks
+pass. Not done: 60/120 recordings (the defect is per game update, independent
+of the presentation rate), slot 9 hang and armed one-handed pull-up recordings,
+a readable third-person view (the slot-12 spot is dark under water). Needs
+the user's playtest. Scripts and evidence: `recomp/analysis/d36h10/` (local).
 
 ### D36H9 - Ledge hang first person: upper arm flicker and legs-only body (slot 9)
 
@@ -6858,7 +6908,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D36M | Power-up looks: a light screen tint per power-up (Quake/Doom style, D39 tint) | Done (user-accepted 2026-11-03; note 370) | D36J, D08A17 |
 | D36H8 | Run-jump mantle across water: extended arms flicker (slot 11) | Done (user-accepted 2026-11-03; note 306) | D36H5, D35G, D08X |
 | D36H9 | Ledge hang first person: upper arm flicker and legs-only body (slot 9) | Done | D36H8, D35G, D08J7A |
-| D36H10 | Water exit first person: the arms vibrate climbing out of the water (UI slot 12) | Todo (next job) | D36H9, D35D1 |
+| D36H10 | Water exit first person: the arms vibrate climbing out of the water (UI slot 12) | Done | D36H9, D35D1 |
 | D37 | Temporary movement failure at 07:26 UK on 2026-10-26 (separate research) | Done | - |
 | D37A | Safe animation restoration across save allocation layouts | Done (user-accepted 2026-10-26) | D37 |
 | R01 | DisruptorRecomp architecture and modernization reference research | Done | - |

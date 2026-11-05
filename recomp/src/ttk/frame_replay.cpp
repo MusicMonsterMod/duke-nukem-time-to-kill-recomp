@@ -559,8 +559,8 @@ double newest_frontend();
 // t - delay, interpolated between frames n-1 and n, so the pair must be
 // complete (frame n composed) when its redraw is submitted, a lead before t:
 // delay >= (n ready - n-1 pose time) + lead. world_delay_ms follows the p99
-// of that pair age over the last 128 frames (about 4 s) plus the lead and one present
-// (50..90 ms; 90 was the fixed value), slewed so the world clock
+// of that pair age over the last 128 frames (about 4 s) plus the lead and
+// half a present (50..90 ms; 90 was the fixed value), slewed so the world clock
 // only runs 10% slower or 3% faster, never jumps. DNTTK_WORLD_DELAY_MS
 // fixes it (50..130).
 double world_delay_ms=90.0;
@@ -568,6 +568,26 @@ bool world_delay_fixed=false;
 double pair_age_samples[128]{}; unsigned pair_age_count=0;
 double pair_age_p99=0, world_delay_wanted=90.0;
 uint64_t timeline_starved=0, timeline_presents=0;
+// D10H7 diagnostics, gameplay submits (last 1024): the actual lead
+// (target - submit) and the delay the submit needed (target - newest
+// complete pose; starved when the world delay is below it).
+double submit_ahead_samples[1024]{}, submit_need_samples[1024]{}; unsigned submit_sample_count=0;
+// D10H7: submits are never early (target - submit <= lead; the provider
+// ticks about once per present), so the present term is tail margin on the
+// p99 estimate, not submit granularity. Half a present kept starved presents
+// at the D10H5 level (0.03%, none at 0); DNTTK_WORLD_DELAY_MARGIN scales it
+// (1 = D10H5, 0 = no margin: 0.12% starved).
+double world_delay_margin_scale=0.5;
+void note_submit(double ahead,double need) {
+    submit_ahead_samples[submit_sample_count%1024]=ahead;
+    submit_need_samples[submit_sample_count++%1024]=need;
+}
+double sample_pct(const double* v,unsigned count,int pct) {
+    const unsigned n=std::min(count,1024u);
+    if(!n) return 0;
+    static double sorted[1024];std::copy(v,v+n,sorted);std::sort(sorted,sorted+n);
+    return sorted[(n-1)*pct/1000];
+}
 void note_pair_age(double ms) {
     pair_age_samples[pair_age_count++%128]=std::clamp(ms,0.0,200.0);
     const unsigned n=std::min(pair_age_count,128u);
@@ -580,11 +600,14 @@ void update_world_delay(double now_ms,double period_ms) {
     const double dt=last ? std::clamp(now_ms-last,0.0,50.0) : 0.0;
     last=now_ms;
     if(world_delay_fixed || pair_age_count<8) return;
-    world_delay_wanted=std::clamp(pair_age_p99+late_lead_ms+period_ms,50.0,90.0);
+    world_delay_wanted=std::clamp(pair_age_p99+late_lead_ms+period_ms*world_delay_margin_scale,50.0,90.0);
     world_delay_ms+=std::clamp(world_delay_wanted-world_delay_ms,-dt*0.03,dt*0.10);
 }
 double timeline_delay() {
-    static const bool init=[]{if(const char* e=std::getenv("DNTTK_WORLD_DELAY_MS")) {world_delay_ms=std::clamp(std::atof(e),50.0,130.0);world_delay_fixed=true;}return true;}();
+    static const bool init=[]{
+        if(const char* e=std::getenv("DNTTK_WORLD_DELAY_MS")) {world_delay_ms=std::clamp(std::atof(e),50.0,130.0);world_delay_fixed=true;}
+        if(const char* e=std::getenv("DNTTK_WORLD_DELAY_MARGIN")) world_delay_margin_scale=std::clamp(std::atof(e),0.0,2.0);
+        return true;}();
     (void)init;
     // D17T: frontend images are 6 fields apart. The pair around a present
     // must be complete (the next image composed and its redraw submitted a
@@ -594,13 +617,15 @@ double timeline_delay() {
     return fe>0.0 ? fe : world_delay_ms;
 }
 bool pair_starved=false;   // the last timeline_pair: world time past its pair
+double pair_end_ms=0;      // the last timeline_pair: newest complete pose time
 Frame* timeline_pair(double present_ms, Frame*& next, double& alpha) {
     const double world_ms=present_ms-timeline_delay();
     Frame* best=nullptr; Frame* oldest=nullptr;
-    next=nullptr;
+    next=nullptr; pair_end_ms=-1e30;
     for(auto& f:frames) if(f.valid && f.xf_done) {
         Frame* n=frame_by_serial(f.serial+1);
         if(!n || !n->xf_done || n->time_ms<=f.time_ms) continue;
+        pair_end_ms=std::max(pair_end_ms,n->time_ms);
         if(!oldest || f.time_ms<oldest->time_ms) oldest=&f;
         if(f.time_ms<=world_ms && (!best || f.time_ms>best->time_ms)) best=&f;
     }
@@ -1622,7 +1647,11 @@ int timeline_provider(const PSXModPresentInfo* info) {
             if(have) break;
         }
         if(have) continue;
-        if(!f->frontend) {++timeline_presents; if(pair_starved) ++timeline_starved;}
+        if(!f->frontend) {++timeline_presents; if(pair_starved) ++timeline_starved; if(next!=f) {
+            note_submit(t-now_ms,t-pair_end_ms);
+            static const bool pose_trace=std::getenv("DNTTK_POSE_TRACE")!=nullptr;
+            if(pose_trace) std::fprintf(stderr,"[submit] host_ms=%.3f t=%.3f lead=%.2f delay=%.2f need=%.2f period=%.3f\n",now_ms,t,late_lead_ms,timeline_delay(),t-pair_end_ms,period);
+        }}
         const double look_ms=std::min(t-late_lead_ms,now_ms);
         const int job=submit_job(*f,*next,alpha,!f->frontend,look_ms);
         if(job<0) break;
@@ -2207,7 +2236,10 @@ const char* frame_replay_debug_json() {
     if(n>1 && n<(int)sizeof buffer-64) {
         n-=1;
         n+=std::snprintf(buffer+n,sizeof buffer-n,",\"redraw_only\":%s",redraw_only_json());
-        n+=std::snprintf(buffer+n,sizeof buffer-n,",\"timeline\":{\"slack_ms\":%.2f,\"pose_lag_ms\":%.2f,\"oldest_age_ms\":%.2f,\"future_evictions\":%llu,\"world_delay_ms\":%.1f,\"world_delay_wanted_ms\":%.1f,\"world_delay_fixed\":%s,\"pair_age_p99_ms\":%.1f,\"presents\":%llu,\"starved\":%llu},\"frontend\":{\"live\":%s,\"captures\":%llu,\"resets\":%llu,\"interval_ms\":%.1f,\"delay_ms\":%.1f,\"input\":%s,\"newest\":%s,\"kept\":%llu,\"alone\":%llu,\"held\":%llu,\"game_menu\":%s,\"menu\":%s},\"loading\":{\"live\":%s,\"captures\":%llu,\"resets\":%llu,\"interval_ms\":%.1f},\"trace\":\"",response_slack,response_pose_lag,response_oldest_age,(unsigned long long)response_future_evictions,world_delay_ms,world_delay_wanted,world_delay_fixed?"true":"false",pair_age_p99,(unsigned long long)timeline_presents,(unsigned long long)timeline_starved,
+        n+=std::snprintf(buffer+n,sizeof buffer-n,",\"timeline\":{\"slack_ms\":%.2f,\"pose_lag_ms\":%.2f,\"oldest_age_ms\":%.2f,\"future_evictions\":%llu,\"world_delay_ms\":%.1f,\"world_delay_wanted_ms\":%.1f,\"world_delay_fixed\":%s,\"pair_age_p99_ms\":%.1f,\"presents\":%llu,\"starved\":%llu,\"margin_scale\":%.2f,\"submit_samples\":%u,\"ahead_ms\":[%.2f,%.2f,%.2f,%.2f],\"need_ms\":[%.2f,%.2f,%.2f,%.2f]},\"frontend\":{\"live\":%s,\"captures\":%llu,\"resets\":%llu,\"interval_ms\":%.1f,\"delay_ms\":%.1f,\"input\":%s,\"newest\":%s,\"kept\":%llu,\"alone\":%llu,\"held\":%llu,\"game_menu\":%s,\"menu\":%s},\"loading\":{\"live\":%s,\"captures\":%llu,\"resets\":%llu,\"interval_ms\":%.1f},\"trace\":\"",response_slack,response_pose_lag,response_oldest_age,(unsigned long long)response_future_evictions,world_delay_ms,world_delay_wanted,world_delay_fixed?"true":"false",pair_age_p99,(unsigned long long)timeline_presents,(unsigned long long)timeline_starved,
+            world_delay_margin_scale,submit_sample_count,
+            sample_pct(submit_ahead_samples,submit_sample_count,0),sample_pct(submit_ahead_samples,submit_sample_count,500),sample_pct(submit_ahead_samples,submit_sample_count,990),sample_pct(submit_ahead_samples,submit_sample_count,1000),
+            sample_pct(submit_need_samples,submit_sample_count,500),sample_pct(submit_need_samples,submit_sample_count,990),sample_pct(submit_need_samples,submit_sample_count,999),sample_pct(submit_need_samples,submit_sample_count,1000),
             frontend_live()?"true":"false",(unsigned long long)frontend_captures,(unsigned long long)frontend_resets,frontend_interval_ms,newest_frontend(),ttk_frontend_input_json(),frontend_newest()?"true":"false",(unsigned long long)menu_kept,(unsigned long long)menu_alone_jobs,(unsigned long long)menu_held,ttk_game_menu_json(),menu_latency_json(),
             loading_live()?"true":"false",(unsigned long long)loading_captures,(unsigned long long)loading_resets,loading_interval_ms);
         const unsigned first=trace_n>128?trace_n-128:0;

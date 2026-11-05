@@ -1,5 +1,31 @@
 # Next-session handoff
 
+## 2026-11-05 - D10H7 closed
+
+User: "it works absolutely fine, it's so snappy now. lock it in and close us
+out". D10H7 (world delay margin halved, about 3 ms less at 180 Hz and 4 at
+120; [note 393](documentation/393-d10h7-submit-lead-margin.md)) is Done.
+No framework edit; the runtime patch export is unchanged.
+
+## 2026-11-05 - D10H7: world delay margin halved, about 3-4 ms less (accepted)
+
+Measured first: redraws are never submitted early. `timeline_provider`
+submits a deadline at the first tick inside the lead, and the provider ticks
+about once per present, so target - submit is at most the lead (180 Hz: p50
+12-15 ms, min 6-11). The one-present term in the D10H5 delay was tail margin
+on the p99 pair-age estimate, not submit granularity, and queueing at exactly
+t - lead would raise the need. `delay_sim.py` (policies replayed against
+traced submits; reproduces the recorded D10H5 delays) gives a smooth trade:
+margin 1 / 0.5 / 0 starve 0.008 / 0.038 / 0.107% of 13101 presents. Live,
+12 s runs at 180/120 Hz on levels 1 and 8 and the apartment: margin 0.5 is
+about 3 ms less at 180 and 4 at 120, with 6 / 13781 starved (0.044%; D10H5's
+own lab level was 0.077%). Margin 0 went to 0.12%. Pace divisor 1, no
+pace changes, 0-3 repeats. `frame_replay.cpp`: margin 0.5 x period, new
+`DNTTK_WORLD_DELAY_MARGIN` (1 = D10H5 build), `ahead_ms` / `need_ms`
+timeline counters and a `[submit]` pose-trace line. Modernized only; Vanilla
+and 60 Hz unchanged. No framework edit. Open: judge on the real 180 Hz
+display. [Note 393](documentation/393-d10h7-submit-lead-margin.md).
+
 ## 2026-11-05 - D10H5 closed; D10H7 added
 
 User: "adaptive it is. i've just played all of time to kill, challenge 1, and

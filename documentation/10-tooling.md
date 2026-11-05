@@ -453,8 +453,10 @@ submission (frame, target present, alpha, flip pending). Status: `lead_ms`,
 - `DNTTK_PRESENT_TIMELINE=0` compares the previous scheduling path;
   `DNTTK_WORLD_DELAY_MS` fixes the world-history buffer (clamped 50-130;
   90 is the pre-D10H5 value). By default it adapts to the p99 pose pair age
-  plus the lead, 50-90 ms (D10H5, note 392; `render_replay` timeline
-  `world_delay_ms`, `starved`). Camera rotation is sampled much nearer
+  plus the lead and half a present, 50-90 ms (D10H5, note 392; D10H7,
+  note 393; `render_replay` timeline `world_delay_ms`, `starved`, `ahead_ms`,
+  `need_ms`). `DNTTK_WORLD_DELAY_MARGIN` scales the present term (1 is the
+  D10H5 build, 0 none). Camera rotation is sampled much nearer
   presentation.
 - `PSX_REPLAY_UNTIMED=0` compares timing-faithful workers;
   `PSX_REPLAY_VALIDATE_TIMING=1` compares both workers' complete GP0 streams.

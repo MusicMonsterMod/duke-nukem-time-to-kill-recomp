@@ -1,5 +1,34 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-05 - D10F2 closed
+
+User: "honestly incredible work. lock it in and close it out." D10F2 is Done: the third-person camera stays
+in control through door kicks, other use actions, the mirror and idle fidgets
+([note 395](documentation/395-d10f2-use-action-camera.md)). Executable
+`a2fa88caa9f6d07815ee4bab2a93327c6fb4c5aea4b11d0c16771fc4f2326dbe` is the
+regression baseline. No framework edit; the runtime patch export is unchanged.
+
+## 2026-11-05 - D10F2 third-person camera through door kicks (Needs playtest)
+
+[Note 395](documentation/395-d10f2-use-action-camera.md). Reproduced on a
+private copy of the user's UI 11 save (runtime 10): E starts the native door
+kick 116, and the camera-only lease accepted use actions only for the
+first-person eye. In third person the orbit, mouse look and D10F1 clear lens
+stopped for the 0.9 s kick and the native camera swung from 1537 to about 2415
+units, into the wall behind Duke. Not a door actor or a probe miss.
+
+Fix (`modern_controls.cpp`, `state()`): the transient presentation lease (use
+poses, mirror, idle fidgets) applies in either view. Camera presentation only;
+movement, aim, fire, the native action and its guards unchanged; Vanilla and the
+Original camera unchanged. After, at 60/120/180 Hz: lens 1518-1569 through the
+kick, the mouse turns the camera while Duke's heading and native path stay
+the same, the armed kick with fire held fires 10 rounds, fidgets keep the
+orbit. Native `ttk-controls-test` 153 PASS (new third-person transient case,
+fails against the old gate), 152 with each camera A/B switch; `ttk-aim-test`
+passes; `ttk-near-test` does not link (`cowboy_hat_mesh`, untouched here).
+Open: the user's playtest at the slot 11 door. Executable
+`a2fa88caa9f6d07815ee4bab2a93327c6fb4c5aea4b11d0c16771fc4f2326dbe`.
+
 ## 2026-11-05 - D08J8 closed
 
 User: "this work is complete fully accepted. lock it in and close it out". D08J8 (shoot through traversal: sidearm drawn and
@@ -1133,7 +1162,7 @@ TTK-only weapons (crossbow, buffalo rifle, flamethrower) unchanged (user:
 
 ### D10F2 - Camera behind an object when opening a door (UI slot 11)
 
-**Status: Todo. Dependencies: D10F1.** User (2026-11-04): "i just saved slot
+**Status: Done (2026-11-05, accepted and closed; user: "honestly incredible work"; [note 395](documentation/395-d10f2-use-action-camera.md); the third-person camera lease now covers door kicks, other use actions, the mirror and idle fidgets, so the orbit and clear lens no longer hand over to the native camera, which swung about 900 units out into the wall). Dependencies: D10F1.** User (2026-11-04): "i just saved slot
 11 too, when you open the door, duke exhibits a problem there where the
 camera just goes behind something and looks dumb". Reproduce on a private
 copy of UI slot 11 (runtime 10): open the door and record the lens, the
@@ -6908,7 +6937,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D10H5 | Shorter world delay at high refresh | Done | D10H1 |
 | D10H7 | Queue redraws at their exact lead | Done | D10H5 |
 | D10H6 | Repeat rate parity with Duke 3D analogs | Done | D10H1, D10H4 |
-| D10F2 | Camera behind an object when opening a door (UI slot 11) | Todo | D10F1 |
+| D10F2 | Camera behind an object when opening a door (UI slot 11) | Done | D10F1 |
 | D10C | Duke 3D look keys: Page Up / Page Down look up / down while held and recenter on release; Home / End lock the look up / down (bindable) | Done (user-accepted 2026-10-20) | D06, D19G |
 | D10D | Keyboard turning in Modernized: Left / Right arrows turn the view left / right (Duke 3D style, alongside the mouse) | Done (user-accepted 2026-10-20) | D06, D10C |
 | D11 | First-person playable prototype | Done | D08, D10 |

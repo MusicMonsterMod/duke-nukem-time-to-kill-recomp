@@ -580,6 +580,13 @@ underneath. Free Look keeps Duke in view the same way. Your camera distance and
 shoulder settings are not changed. The Original camera and Vanilla are
 unchanged.
 
+**Camera during doors and other use actions (D10F2, accepted 2026-11-05).** While
+Duke kicks a door open, uses a switch, wheel, statue, toilet or mirror, or plays
+an idle fidget, the third-person camera stays where it was and the mouse still
+turns it, with the same wall handling as above. Before, it briefly swung away
+to the original camera's position, which could put it behind a wall or the door
+frame. Duke's own action, facing and timing are unchanged.
+
 While captured, use **left mouse** to fire/action, **Space** to jump, **Scroll Lock** (tap) to
 draw/holster, **hold Left Ctrl** to crouch and release to stand, or **tap C** to stay crouched and tap it again to stand (with W/A/S/D: crouch walk; standing requires overhead clearance, and if Duke ends up kneeling somewhere even lower than a crouch he can always crawl back out through space at least as roomy), **Left Shift** as the speed modifier,
 **hold right mouse** (or **Alt**) to grab a pushable object, **comma/period** to browse the mission items (see Mission items below; the original sidesteps are unbound, A/D strafe),

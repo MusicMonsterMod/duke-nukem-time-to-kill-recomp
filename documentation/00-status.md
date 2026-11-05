@@ -1,5 +1,23 @@
 # Current status - 2026-10-04
 
+## 2026-11-05 - D10F2 closed
+
+User: "honestly incredible work. lock it in and close it out." D10F2 is Done (note 395); executable
+`a2fa88caa9f6d07815ee4bab2a93327c6fb4c5aea4b11d0c16771fc4f2326dbe` is the
+regression baseline.
+
+## 2026-11-05 - D10F2 third-person camera through door kicks (accepted above)
+
+At the user's slot 11 door the third-person camera dropped to the native
+camera for the 0.9 s door kick (pose 116), which swung about 900 units out into
+the wall behind Duke: the camera-only lease covered use actions only in first
+person. It now covers use poses, the mirror and idle fidgets in either view
+(camera presentation only). Lens 1518-1569 through the kick at 60/120/180 Hz;
+armed door fire unchanged. Native controls 153 PASS, aim passes. Open: the
+user's playtest. Executable
+`a2fa88caa9f6d07815ee4bab2a93327c6fb4c5aea4b11d0c16771fc4f2326dbe`,
+[note 395](documentation/395-d10f2-use-action-camera.md).
+
 ## 2026-11-05 - D08J8 closed
 
 User: "this work is complete fully accepted. lock it in and close it out". D08J8 is Done at revision 3 (executable

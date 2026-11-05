@@ -955,7 +955,10 @@ static bool state(bool camera_only=false,bool presentation=false) {
         input_snapshot(Context::Gameplay).first_person && first_person_mantle();
     const bool wall_eye=presentation && camera_only && wall_view()==ActionView::First &&
         input_snapshot(Context::Gameplay).first_person && first_person_wall();
-    const bool transient_eye=presentation && camera_only && input_snapshot(Context::Gameplay).first_person &&
+    // D10F2: in either view. Without the lease in third person, a door use
+    // (116) dropped the orbit and clear lens to the native camera for about
+    // 0.9 s, which swung out about 900 units into the wall behind Duke.
+    const bool transient_eye=presentation && camera_only &&
         (idle_fidget_eye() || use_interaction_eye() || mirror_interaction_eye());
     const bool mantle=camera_only && (traversal_camera_early() || ladder_eye || pole_eye || mantle_eye || wall_eye);
     // D22B: also the landing poses themselves (an unleased landing frame left a

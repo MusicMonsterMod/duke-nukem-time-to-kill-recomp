@@ -6168,6 +6168,12 @@ int main(int argc,char** argv) {
                     ttk::input.active=true;
                     std::vector<uint8_t> snapshot(ttk::render_state_size());ttk::render_state_save(snapshot.data());
                     ttk::input.first_person=false;++save_loads;frame();assert(metric("\"blend\":")==0);
+                    // D10F2: third person keeps the orbit (and clear lens) through the action.
+                    if(pose!=63) {
+                        const double cameras=metric("\"cameras\":");frame();
+                        assert(metric("\"cameras\":")>cameras && !ttk::movement_ready() && !ttk::locomotion_input_ready());
+                        assert(psx_mod_read_half(p+0x60)==pose && psx_mod_read_word(p+0x224)==bits);
+                    }
                     ttk::render_state_load(snapshot.data());assert(metric("\"blend\":")==1);
                     ttk::input.first_person=true;
                     for(uint32_t bad:{0x20000000u}) {

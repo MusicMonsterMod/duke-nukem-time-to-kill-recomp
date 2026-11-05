@@ -23,6 +23,7 @@
 #include "mod_plugins.h"
 #include "pc_input.h"
 #include "sky_render.h"
+#include "sky_borrow.h"
 #include "first_person_fov.h"
 #include <cstdint>
 #include <cstdlib>
@@ -49,9 +50,11 @@ void sky_background(CPUState* cpu) {
     if(!enabled) return;
     const uint32_t sp=cpu->gpr[29];
     if(sp<0x80010000u || sp>0x801fffb8u || psx_mod_read_word(sp+0x28)) return;
+    // D17AO1: a level with no sky of its own gets the borrowed one while a
+    // painted skylight was left out (sky_borrow.cpp swaps the words in).
     if(!(psx_mod_read_word(0x800da468u)&0xffffffu) &&
        !psx_mod_read_word(0x800da464u) && !psx_mod_read_word(0x800da344u) &&
-       !psx_mod_read_word(0x800da45cu) && !psx_mod_read_word(0x800da46cu)) return;
+       !psx_mod_read_word(0x800da45cu) && !psx_mod_read_word(0x800da46cu) && !sky_borrow_wanted()) return;
     struct Guard {uint32_t address,size;const char* digest;};
     static const Guard guards[]={
         {0x8002e610u,0x240u,"4b2d97487b942d6385d247a6bbe76a1c5c523a85114ed1365a14ea846ed2dde8"},

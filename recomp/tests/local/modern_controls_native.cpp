@@ -76,6 +76,7 @@ extern "C" int psx_mod_gpu_host_vertex_depth(uint32_t,uint32_t,int32_t,int32_t,f
 extern "C" int psx_mod_gpu_host_vertex_coverage(uint32_t,uint32_t,int32_t,int32_t,float,float,float,float,float){return 1;}
 extern "C" int psx_mod_gpu_host_vertex_depth_only(uint32_t,uint32_t,int32_t,int32_t,float,float,float,float,float){return 1;}
 extern "C" int psx_mod_gpu_host_vertex_test_only(uint32_t,uint32_t,int32_t,int32_t,float,float,float,float,float){return 1;}
+extern "C" int psx_mod_gpu_host_vertex_foreign(uint32_t,uint32_t,int32_t,int32_t,float,float,float,float,float){return 1;}
 static PSXModActivationCallback activation;static unsigned aspect_num,aspect_den;
 extern "C" int psx_mod_register_activation_plugin(const char*,PSXModActivationCallback cb) {activation=cb;return 1;}
 extern "C" int psx_mod_set_fixed_display_aspect(uint32_t n,uint32_t d) {aspect_num=n;aspect_den=d;return 1;}

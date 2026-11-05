@@ -43,6 +43,7 @@
 // pairs) and its bitmap 0x800d26a0.
 #include "near_clip.h"
 #include "sky_render.h"
+#include "sky_borrow.h"
 #include "bio_mask_mesh.h"
 #include "bio_mask_atlas.h"
 #include "pgxp.h"
@@ -424,7 +425,7 @@ struct Frame {
     bool trace=false;uint64_t trace_call=0;uint32_t mesh=0,instance=0,caller=0;
     double coverage=1.0;
     bool far=false; // scene mesh with every vertex at least far_z away
-    NearGte g;bool object,viewmodel;bool sky=false;uint32_t far_limit,zsf3,zsf4;
+    NearGte g;bool object,viewmodel;bool sky=false;bool borrowed=false;uint32_t far_limit,zsf3,zsf4;
     std::vector<NearProjected> verts;unsigned emitted;Stats* stats;
 };
 
@@ -676,13 +677,15 @@ void emit(Frame& f,const Poly& poly,const Vertex* v,unsigned n=3) {
             static const bool depth_fix=env_int("DNTTK_PLANE_DEPTH",1,0,1)!=0;
             const double depth=(depth_fix ? near_raster_depth(poly.depth_plane,f.g,x16/65536.0,y16/65536.0,v[i].p[2]) : v[i].p[2])*poly.depth_scale;
             if(f.trace) {trace_raster[i][0]=x16/65536.0;trace_raster[i][1]=y16/65536.0;trace_raster[i][2]=v[i].p[2];trace_raster[i][3]=painter?-v[i].p[2]:depth;}
-            (poly.depth_only?psx_mod_gpu_host_vertex_depth_only:poly.depth_test_only?psx_mod_gpu_host_vertex_test_only:psx_mod_gpu_host_vertex_coverage)(addr,word,x16,y16,(float)v[i].p[2],poly.textured?(float)std::clamp(v[i].uv[0],0.0,255.0):-1.0f,poly.textured?(float)std::clamp(v[i].uv[1],0.0,255.0):-1.0f,(float)(painter?-v[i].p[2]:depth), (float)f.coverage);
+            (poly.depth_only?psx_mod_gpu_host_vertex_depth_only:poly.depth_test_only?psx_mod_gpu_host_vertex_test_only:f.borrowed?psx_mod_gpu_host_vertex_foreign:psx_mod_gpu_host_vertex_coverage)(addr,word,x16,y16,(float)v[i].p[2],poly.textured?(float)std::clamp(v[i].uv[0],0.0,255.0):-1.0f,poly.textured?(float)std::clamp(v[i].uv[1],0.0,255.0):-1.0f,(float)(painter?-v[i].p[2]:depth), (float)f.coverage);
         }
         ++precise_triangles;
     }
     if(f.trace) {
         std::ostringstream x;x<<std::setprecision(12)<<",\"packet\":"<<prim<<",\"slot\":"<<index
-          <<",\"command\":"<<poly.command<<",\"rank\":"<<poly.coplanar_rank<<",\"xy_depth\":[";
+          <<",\"command\":"<<poly.command<<",\"rank\":"<<poly.coplanar_rank;
+        if(poly.textured) x<<",\"clut\":"<<poly.clut<<",\"tpage\":"<<poly.tpage<<",\"uv\":["<<poly.uv[0]<<','<<poly.uv[1]<<','<<poly.uv[2]<<','<<poly.uv[3]<<']';
+        x<<",\"xy_depth\":[";
         for(unsigned i=0;i<n;++i) {
             if(i)x<<',';x<<'[';for(int j=0;j<4;++j){if(j)x<<',';x<<trace_raster[i][j];}x<<']';
         }
@@ -1372,6 +1375,8 @@ void world(CPUState* cpu) {
         if(((t2>>16)&0x200) && !animate(t1,t2,t3,false)) continue;
         p.clut=t1>>16;p.tpage=t2>>16;
         p.uv[0]=t1&0xffff;p.uv[1]=t2&0xffff;p.uv[2]=t3&0xffff;p.uv[3]=t3>>16;
+        // D17AO1: a painted sky opens onto the borrowed sky drawn behind it.
+        if(sky_borrow_skip(p.clut,p.tpage,p.uv,p.count)) {trace_record(f,"sky_borrow",record);continue;}
         // Light table when every corner's color-index byte has bit 4 (0x80011908).
         uint32_t all=~0u;for(unsigned j=0;j<p.count;++j) all&=psx_mod_read_word(mesh+0x1c+8*p.idx[j])>>24;
         for(unsigned j=0;j<p.count;++j) {
@@ -1836,7 +1841,8 @@ void object(CPUState* cpu) {
     const uint32_t vertices=psx_mod_read_word(mesh+0x10),list=psx_mod_read_word(mesh+0x14);
     // D08A35: the hat head copy keeps its vertices and list beside it.
     const bool hat=cowboy_hat_mesh(mesh) && cowboy_hat_mesh(vertices) && cowboy_hat_mesh(list);
-    if(!count || ((vertices<0x80010000 || vertices>0x801ffff0 || list<0x80010000 || (list>0x801ffff0 && list!=missing_texture_copy+0x20)) && !hat)) return;
+    const bool borrowed=sky_borrow_owns(mesh) && sky_borrow_owns(vertices) && sky_borrow_owns(list);
+    if(!count || ((vertices<0x80010000 || vertices>0x801ffff0 || list<0x80010000 || (list>0x801ffff0 && list!=missing_texture_copy+0x20)) && !hat && !borrowed)) return;
     Frame f{};if(!begin(f,cpu,true)) return;
     // D17AH: native sky layers are composed in painter order, not world depth.
     // Retain perspective texture coordinates and all clipping/ordering rules.
@@ -1857,6 +1863,9 @@ void object(CPUState* cpu) {
     trace_begin(f,cpu);
     f.viewmodel=viewmodel;f.coverage=coverage;
     f.scene=!viewmodel && !f.sky && !limb.fixed_projection();
+    // D17AO1: the borrowed sky's textures exist only in the second bank, so
+    // every one of its polygons is host-drawn with the bank mark.
+    f.borrowed=f.sky && borrowed;
     if(viewmodel && held_frame!=frame_first_cursor) {held_packets.clear();held_frame=frame_first_cursor;}
     f.verts.resize(count);
     // D17AC: the payphone shape at the verified static-prop loop.
@@ -1867,7 +1876,7 @@ void object(CPUState* cpu) {
         f.verts[i]=near_project(f.g,(int16_t)xy,(int16_t)(xy>>16),(int16_t)psx_mod_read_half(vertices+8*i+4));
         any|=!f.verts[i].safe || f.verts[i].sz<std::max<uint32_t>(object_perspective_z,2048);
     }
-    bool forced=unified() && f.scene;
+    bool forced=(unified() && f.scene) || f.borrowed;
     f.far=f.scene;for(const auto& v:f.verts) f.far&=v.sz>=far_z;
     trace_vertices(f);
     // As in world(): only a downgraded scene mesh leaves native packets.
@@ -2121,7 +2130,7 @@ void near_hook_body(CPUState* cpu,uint32_t address) {
     if(!enabled() && !object_filter) return;
     const uint32_t mesh=cpu->gpr[4];
     if(!mesh || cpu->gpr[5]!=ordering || cpu->gpr[6]!=context || cpu->gpr[7]!=bitmap) return;
-    if(mesh<0x80010000 || mesh>0x801f0000 || (mesh&3)) return;
+    if((mesh<0x80010000 || mesh>0x801f0000 || (mesh&3)) && !sky_borrow_owns(mesh)) return;   // D17AO1 copy in mod memory
     if(!identity()) {++refused;return;}
     if(object_filter) {third_person_mesh_begin(cpu);first_person_mesh_begin(cpu);filter_missing_animation(cpu);cowboy_hat_mesh_begin(cpu);}
     if(!clip_live || !enabled()) return;

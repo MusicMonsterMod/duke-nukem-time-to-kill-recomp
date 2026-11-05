@@ -1,5 +1,77 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-05 - D17AO1 closed
+
+User: "lock it in and close it out. its beautiful". D17AO1 is Done at
+revision 2 ([note 398](documentation/398-d17ao1-borrowed-sky.md)): Duke Hill's
+sky through GOLD AND GUNS's painted skylight in Modernized, from a second
+texture bank built from the owned disc. Executable
+`95867765e3c80af34643cefbeeeab565b66dfa15765f39710fc5dd522bb28718` is the
+regression baseline. Framework patch exported and verified (78 files).
+
+## 2026-11-05 - D17AO1 revision 2: no stray textures (Needs playtest)
+
+User: "this is absolutely amazing!!!!", then a texture sheet where distant
+hills usually are, looking right while paused. Cause: revision 1 marked the
+borrowed layers with CLUT bit 15, which 175 of level 3's own textured model
+records already set, so they sampled Duke Hill's texture sheet while the sky
+was wanted (pausing stops compositions, so it stopped). The mark is now a host
+vertex flag (`psx_mod_gpu_host_vertex_foreign`, mode bit 4) that only the
+borrowed sky's host-drawn polygons carry; the GL renderer alone reads the
+second bank. Sky unchanged in first/third person and at 180; on/off routes
+differ only in the opening. Controls 153 PASS. Patch re-exported and verified
+(78 files). Executable
+`95867765e3c80af34643cefbeeeab565b66dfa15765f39710fc5dd522bb28718`.
+[Note 398](documentation/398-d17ao1-borrowed-sky.md).
+
+## 2026-11-05 - D17AO1 Duke Hill's sky through painted skylights (Needs playtest)
+
+[Note 398](documentation/398-d17ao1-borrowed-sky.md). The user chose the real
+Duke Hill sky. In Modernized, GOLD AND GUNS's painted skylight face is left
+out, and the native sky routine draws Duke Hill's four layers behind it: the
+five sky words and the model table pointer are swapped in for that one call
+and restored before the next. The layers sample a second texture bank, Duke
+Hill's `DB01A/B.RAW`, loaded from the owned disc into
+`build-local/ttk-sky.pack` by `build_ttk_sky.py`. Selected by CLUT bit 15; the
+framework change is in `gpu.c` and both renderers. Each cloud band gets a flat
+cloud deck closing its top ring, so the opening shows drifting clouds overhead
+rather than the flat fill. Like EDuke32's parallaxed ceilings, the sky turns
+with the view and never moves with position.
+
+Private runs, UI slot 11: clouds through the opening in first and third person
+at 60/120/180, including a 180 redraw frame; injected words never seen between
+frames; Vanilla untouched; level 1 and 0 skies unchanged; no 180 FPS cost
+(1440 against 1442 distinct images in 8 s). `ttk-controls-test` 153 PASS, sky,
+aim and input suites pass; `ttk-near-test` has not linked since `3b7d1e5`
+(D08A35), before this job. The framework patch was exported and matches a
+pristine pin plus patch (78 files). Open: the user's look in game.
+
+## 2026-11-05 - D17AO1 investigation: a painted sky face (In progress)
+
+The first look below read an older copy of UI slot 11. The player's current
+save (savestate 10, saved 2026-11-05 22:13) is GOLD AND GUNS (level 3), which
+loads no sky: all four sky selectors and the fill colour are zero (level 1 and
+level 0 travel on the same private run read their skies normally). The patch is
+one world quad at the top of a vertical shaft, texture page `0xe`, CLUT
+`0x1438`, UV 64..86 x 232..255: a 23x24-texel blue-and-cloud crop inside a level
+3 texture atlas (`DB03A.RAW`), with unrelated tiles beside it. Sliding its UVs
+cannot parallax it: there is no more sky around the crop.
+
+Duke Hill (level 1) sky: backdrop `0x611` (8 G4), fixed ring `0x612` (36 FT4,
+Y -83..0), slow and fast cloud bands `0x613`/`0x614` (72 FT4 each), fill colour
+`0x661f29`; 4-bit pages at VRAM (704,0)/(704,256), CLUTs near y 386, all inside
+the `DB01A.RAW`/`DB01B.RAW` VRAM images (note 184).
+
+EDuke32's parallaxed sky (wiki "Multipsky"): a ring of tiles (8 by default)
+around 360 degrees, drawn wherever a ceiling is flagged parallaxed, scrolled by
+view yaw and horizon, never by position. The native cloud bands are the same
+kind of eye-centred ring. Proposed: in Modernized, leave the painted face out
+and draw Duke Hill's sky behind it with the native sky routine, its four
+layers injected for that one call and sampled from a second VRAM bank loaded
+from the owned disc (renderer framework change). The user chose the Duke Hill sky.
+Trace diagnostic: the primitive trace's `emit` records now carry clut, tpage
+and uv. Harness `recomp/analysis/d17ao1/`.
+
 ## 2026-11-05 - D17AO1 registered: slot 11 tunnel sky (Todo)
 
 User, UI slot 11 (savestate 10): "the little patch of "sky" above looks so
@@ -6823,7 +6895,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D17AM4 | Re-triage D17AF/AH/AI/AK and D20H against the unified path | Done | D17AM3 |
 | D17AN | Slot-12 water showing through the bridge deck (level 6) | Done (user-confirmed 2026-10-30) | D17AM; note 327 |
 | D17AO | Slot-11 ceiling hole showing the sky (level 6) | Cancelled (user decision 2026-11-03: authored level gap, no action required) | D17AM; note 327 |
-| D17AO1 | Slot-11 tunnel sky patch looks fake in high FOV / high definition: at minimum parallax it, at most a real skybox (Duke Hill's) | Todo (registered 2026-11-05; first look in the work log) | D17AO, D17O |
+| D17AO1 | Slot-11 tunnel sky patch looks fake in high FOV / high definition: at minimum parallax it, at most a real skybox (Duke Hill's) | Done (user-accepted 2026-11-05; note 398) | D17AO, D17O |
 | D17AP | Slot-9 grave-dig soil corners flashing again (D17X recurrence) | Done (user-confirmed 2026-10-30) | D17X, D17AM; note 327 |
 | D17AQ | Slot-10 jetpack height: level sections pop in and out while turning (room visibility) | Done (B max limit, A open sky, dormant enemies (C1 withdrawn), load crackle fix; note 335) | D17AM, D14F |
 | D17AR | Host-owned world visibility (parent): the host decides what world geometry is drawn | Done (AR1-AR6 done) | D17AM, D17AQ; D17AR1-AR4 |

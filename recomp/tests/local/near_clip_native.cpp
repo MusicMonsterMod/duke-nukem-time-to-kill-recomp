@@ -64,6 +64,7 @@ int observed_test_only=0;
 int observed_depth_only=0;
 extern "C" int psx_mod_gpu_host_vertex_depth_only(uint32_t a,uint32_t w,int32_t x,int32_t y,float z,float u,float v,float d,float coverage){++observed_depth_only;return psx_mod_gpu_host_vertex_coverage(a,w,x,y,z,u,v,d,coverage);}
 extern "C" int psx_mod_gpu_host_vertex_test_only(uint32_t a,uint32_t w,int32_t x,int32_t y,float z,float u,float v,float d,float coverage){++observed_test_only;return psx_mod_gpu_host_vertex_coverage(a,w,x,y,z,u,v,d,coverage);}
+extern "C" int psx_mod_gpu_host_vertex_foreign(uint32_t a,uint32_t w,int32_t x,int32_t y,float z,float u,float v,float d,float coverage){return psx_mod_gpu_host_vertex_coverage(a,w,x,y,z,u,v,d,coverage);}
 
 extern "C" int psx_mod_replay_active(void){return 0;}
 static uint32_t test_loads=0;

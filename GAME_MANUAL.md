@@ -197,6 +197,11 @@ The sky keeps its original cloud layers and animation. The user-accepted D17O
 fix keeps those layers centered on the current view during high-refresh turning.
 It applies automatically. Original sky geometry and coarse animation steps remain.
 
+A level with no sky of its own may close an opening with a painted sky picture
+(GOLD AND GUNS's mine shaft). Modernized opens that skylight onto Duke Hill's
+sunset sky, drawn like the game's own sky: it turns as you look around, never
+moves as you walk, and its clouds drift. Vanilla keeps the painted picture.
+
 Above 60, each redraw uses recent mouse movement for the view direction
 (the eye position, Duke and other objects stay in step with the game).
 Sampling is scheduled ahead of presentation to allow the worker to finish;

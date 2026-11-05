@@ -135,7 +135,7 @@ add_custom_target(ttk-math-shard ALL
 add_dependencies(ttk-math-shard psx-runtime)
 
 # D04 PC action input; framework seams are retained in patches/.
-target_sources(psx-runtime PRIVATE src/ttk/pc_input.cpp src/ttk/modern_controls.cpp src/ttk/weapon_aim.cpp src/ttk/near_clip.cpp src/ttk/sky_widescreen.cpp src/ttk/gas_widescreen.cpp src/ttk/frame_replay.cpp src/ttk/screen_flash.cpp src/ttk/frontend_input.cpp src/ttk/level_select.cpp src/ttk/game_menu.cpp src/ttk/live_env.cpp src/ttk/anim_override.cpp src/ttk/loading_widescreen.cpp)
+target_sources(psx-runtime PRIVATE src/ttk/pc_input.cpp src/ttk/modern_controls.cpp src/ttk/weapon_aim.cpp src/ttk/near_clip.cpp src/ttk/sky_widescreen.cpp src/ttk/sky_borrow.cpp src/ttk/gas_widescreen.cpp src/ttk/frame_replay.cpp src/ttk/screen_flash.cpp src/ttk/frontend_input.cpp src/ttk/level_select.cpp src/ttk/game_menu.cpp src/ttk/live_env.cpp src/ttk/anim_override.cpp src/ttk/loading_widescreen.cpp)
 target_include_directories(psx-runtime PRIVATE src/ttk)
 
 # Explicit opt-in native input checks use the same SDL backend as the player.
@@ -238,6 +238,15 @@ if(EXISTS "${TTK_DISC_IMAGE}" AND EXISTS "${TTK_DISC_EXE}")
         VERBATIM)
     add_custom_target(ttk-inv-icon-assets DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/ttk-inv-icons.pack")
     add_dependencies(psx-runtime ttk-inv-icon-assets)
+    # D17AO1: Duke Hill's sky (meshes and VRAM image) for painted skylights
+    # in levels with no sky; loaded by sky_borrow.cpp. Retail-derived output.
+    add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/ttk-sky.pack"
+        COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/local/build_ttk_sky.py"
+            --image "${TTK_DISC_IMAGE}" --output "${CMAKE_CURRENT_BINARY_DIR}/ttk-sky.pack"
+        DEPENDS "${TTK_DISC_IMAGE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/local/build_ttk_sky.py"
+        VERBATIM)
+    add_custom_target(ttk-sky-assets DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/ttk-sky.pack")
+    add_dependencies(psx-runtime ttk-sky-assets)
     # D08K4: crouch-walk legs clips solved on Duke's skeleton from the owned disc
     # and the captured crouch walk in assets/anim (CC-BY 4.0; ttk_crouch_walk.py);
     # loaded by anim_override.cpp as extra clips.

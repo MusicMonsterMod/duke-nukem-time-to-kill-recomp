@@ -1,5 +1,28 @@
 # Next-session handoff
 
+## 2026-11-05 - D17AO1 closed
+
+User: "lock it in and close it out. its beautiful". D17AO1 is Done at
+revision 2 ([note 398](398-d17ao1-borrowed-sky.md)); executable
+`95867765e3c80af34643cefbeeeab565b66dfa15765f39710fc5dd522bb28718` is the
+regression baseline.
+
+## 2026-11-05 - D17AO1 revision 2: no stray textures (Needs playtest)
+
+The user saw a texture sheet where distant hills usually are (fine while
+paused). Revision 1's CLUT bit 15 marker is also set by level 3's own models;
+the second bank is now selected by a host vertex flag only the borrowed sky
+carries ([note 398](398-d17ao1-borrowed-sky.md)). Open: the user's retest.
+
+## 2026-11-05 - D17AO1 Duke Hill's sky through painted skylights (Needs playtest)
+
+The slot 11 patch is GOLD AND GUNS's painted sky face (level 3 loads no sky;
+the first look had read an older save). In Modernized the face is left out and
+the native sky routine draws Duke Hill's sky behind it from a second texture
+bank built from the owned disc, with a flat cloud deck overhead
+([note 398](398-d17ao1-borrowed-sky.md)). Framework patch exported. Verified on
+private runs at 60/120/180 in first and third person; open: the user's look.
+
 ## 2026-11-05 - D17AO1 registered (Todo)
 
 The slot 11 tunnel's sky patch looks fake at high FOV; the user would like it

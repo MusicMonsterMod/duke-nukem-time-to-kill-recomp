@@ -803,8 +803,11 @@ static bool mantle_state_early() {
     // D08U: a ladder's top exit 190 and bottom step-off 185 (mode 8 after the
     // climb, never the 185 mount from the ground) are the same kind of handoff.
     // D08J5: so are a pole or chain's top exit 196 and step-off 191.
+    // D08J8: and a climbing wall's top exit 206 and bottom exit 197 (user,
+    // slot 8: the camera froze over the top, so Duke could not aim there).
     return (mode==8 && animation>=134 && animation<=142 && from) ||
-        (mode==8 && (animation==185 || animation==190 || animation==191 || animation==196) && (previous==3 || previous==8)) ||
+        (mode==8 && (animation==185 || animation==190 || animation==191 || animation==196 || animation==197 || animation==206) &&
+         (previous==3 || previous==8)) ||
         (mode==6 && animation>=147 && animation<=153 && from) ||
         (mode==7 && animation>=149 && animation<=153 && (previous==6 || previous==7 || previous==9));
 }
@@ -1190,6 +1193,7 @@ static bool facing_ready() {
 #include "pole_climb.inc"
 #include "wall_climb.inc"
 #include "climb_fire.inc"
+#include "door_fire.inc"
 #include "jump_walls.inc"
 #include "landing.inc"
 #include "wall_backflip.inc"
@@ -1462,6 +1466,7 @@ static void hook_body(CPUState* cpu, uint32_t address) {
                 input_offer_gameplay_capture();
             if(shallow_land_water() && f.active && !f.held[original_aim] && identity())
                 face_view();
+            trav_aim_flag_clear(); // D08J8D: the build's fire-request bit, before the game reads it
             weapon_update_sp=sp;weapon_transition_boost=false;quick_takeoff_boost=false;
             cheats_update(cpu);
             spawn_update(cpu);
@@ -1491,7 +1496,8 @@ static void hook_body(CPUState* cpu, uint32_t address) {
             object_hang_update();
             ceiling_hang_update();
             climb_turn_update(cpu); // D08J6E
-            mantle_fire_update(); // D08J7B
+            mantle_fire_update(); // D08J7B; D08J8 traversal draw
+            door_fire_update(); // D08J8C
             unsigned animation=psx_mod_read_half(player+0x60);
             // Space may precede direction. An authenticated neutral preparation
             // keeps its input/camera lease, but supplies no Forward until the
@@ -1553,7 +1559,9 @@ static void hook_body(CPUState* cpu, uint32_t address) {
         const bool climb_lowering=climb_weapon_ready() && !f.held[fire] && (upper==8 || upper==9 || upper==11);
         // D08J7B: the queued draw on landing after a mantle runs 2x too,
         // with the generic blend (0/1) a two-handed draw starts with.
-        const bool climb=climb_lowering || (climb_weapon_ready() && (transition || upper==3 || upper==0)) ||
+        // D08J8: the sidearm drawn inside a climb over a lip comes out 4x.
+        const bool trav_draw=trav_drawn && transition && trav_weapon_ready();
+        const bool climb=climb_lowering || trav_draw || (climb_weapon_ready() && (transition || upper==3 || upper==0)) ||
             (mantle_draw_boost && (transition || upper==0 || upper==1));
         if(!weapon_transition_boost && (transition || stow_tail || climb) && (movement_ready() || e_stow || climb) &&
            cpu->gpr[4]==player+0x74 && cpu->gpr[5]==player && ra==0x8005a5a8 &&
@@ -1562,16 +1570,21 @@ static void hook_body(CPUState* cpu, uint32_t address) {
             if(delta>0 && delta<=4096) {
                 // 4x finishes E stow inside the flight window without skipping
                 // original upper events (8x left upper stuck on jump poses).
-                psx_mod_write_half(cpu->gpr[6],e_stow || climb_lowering?delta*4:climb?delta*2:delta+delta/2);weapon_transition_boost=true;
+                psx_mod_write_half(cpu->gpr[6],e_stow || climb_lowering || trav_draw?delta*4:climb?delta*2:delta+delta/2);weapon_transition_boost=true;
             }
         }
+        // D08J8D: held fire in the mantles 134-139 puts the fire track on the gun arm.
+        if(!weapon_transition_boost && cpu->gpr[4]==player+0x74 && cpu->gpr[5]==player && ra==0x8005a5a8 &&
+           cpu->gpr[7]==1 && cpu->gpr[6]==weapon_update_sp-0x2e)
+            trav_fire_drive(upper,f.held[fire] && !f.held[holster]);
         // D10H4: WEAPON FEEL RETRO runs a press's raise and fire track
         // faster until its round leaves; D10H6 paces held fire to EDuke32's
         // tics. The original runs every event.
         if(!weapon_transition_boost && cpu->gpr[4]==player+0x74 && cpu->gpr[5]==player && ra==0x8005a5a8 &&
            cpu->gpr[7]==1 && cpu->gpr[6]==weapon_update_sp-0x2e) {
             const int delta=(int16_t)psx_mod_read_half(cpu->gpr[6]);
-            const int feel=delta>0 && delta<=4096 ? weapon_feel_delta(upper,delta,f.held[fire]) : delta;
+            int feel=delta>0 && delta<=4096 ? weapon_feel_delta(upper,delta,f.held[fire]) : delta;
+            if(feel>=0 && feel<=4096)feel=trav_fire_wrap(feel); // D08J8: the driven track loops
             if(feel!=delta && feel>=0 && feel<=4096) {
                 psx_mod_write_half(cpu->gpr[6],(uint16_t)feel);weapon_transition_boost=true;++feel_boost_updates;
             }

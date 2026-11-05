@@ -70,9 +70,12 @@ static void climb_aim_limits() {
 // Sidearm out on a climb, in a ledge hang or under a ceiling (D08J6D) under
 // view aiming (the shots' own rule, climb_shot_ready, plus the presentation
 // conditions of the ground aim).
+// D08J8: and in a mantle 134-139 with the sidearm out (the host fires
+// there, trav_fire_owned; the other climbs over a lip aim through the
+// original's own build, trav_view_aim).
 static bool climb_aim_ready() {
     const char* mode=ttk_live_env("DNTTK_WEAPON_AIM");
-    return fp_blend==0 && climb_weapon_ready() &&
+    return fp_blend==0 && (climb_weapon_ready() || (trav_fire_owned() && !door_fire_owned())) &&
         psx_mod_read_byte(player+0x3b8)==2 && base_weapon(psx_mod_read_byte(player+0x3b9))==climb_sidearm &&
         independent_camera() && mode && !std::strcmp(mode,"view") &&
         !input_snapshot(Context::Gameplay).held[original_aim] && !(psx_mod_read_word(player+0x224)&0x80);
@@ -87,6 +90,7 @@ static void climb_view_forward(double* d) {
 static void climb_aim_begin(CPUState* cpu,uint32_t ra) {
     climb_aim_return();climb_aim_set=false;
     if(cpu->gpr[4]!=player || ra!=0x80042634)return;
+    trav_aim_flag_set(); // D08J8D/C: the host-driven fire's aim build
     static const int enabled=ttk_env_switch("DNTTK_CLIMB_AIM");
     climb_aim_limits();
     const double now=input_clock_ms();

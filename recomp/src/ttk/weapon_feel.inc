@@ -22,7 +22,9 @@
 // reaching the fire event exactly when the period is up (overshoot carries
 // to the next shot). Desert Eagle 5 tics (6/s), Gatling 3 (10/s), Freezer 4
 // (7.5/s); an EDuke32 tic is 10 clock units. Running or swimming, the Desert Eagle's
-// fire track is 10 (weapon_feel_fire_on), paced the same way.
+// fire track is 10 (weapon_feel_fire_on), paced the same way; D08J8: on climbs,
+// hangs and monkey bars it is 11 (the same keys), and the shot states of
+// climbs and traversal join the pacing (they ran 200-233 ms, user UI slot 7).
 // The shotgun (pump) and RPG already repeat faster than Duke 3D: native.
 // Ammo, damage, spread, the TTK-only weapons (Crossbow, Buffalo Rifle,
 // Flamethrower), the Energy Weapon and throws stay original.
@@ -61,10 +63,11 @@ static void weapon_feel_tracks(unsigned weapon,unsigned& raise,unsigned& fire) {
 // The fire track playing on the upper body (+0x74), or 0. Running (forward,
 // back or sideways) or swimming, the Desert Eagle fires from track 10 instead of 16: keys
 // 57 (0, 20), 58 (8, 20), 59 (1, 30), the same 70-unit loop with its fire
-// event on the second key.
+// event on the second key. D08J8: the one-arm fire of climbs, hangs and
+// traversal is 11 (keys 53-55, the same durations and event), raised by 9.
 static unsigned weapon_feel_fire_on(unsigned weapon,unsigned upper) {
     unsigned raise,fire;weapon_feel_tracks(weapon,raise,fire);
-    return upper==fire || (weapon==4 && upper==10) ? upper : 0;
+    return upper==fire || (weapon==4 && (upper==10 || upper==11)) ? upper : 0;
 }
 // D10H6: EDuke32's repeat in game updates (30 per second, its tics).
 static unsigned weapon_feel_repeat(unsigned weapon) {
@@ -131,6 +134,12 @@ static bool weapon_feel_armed() {
 }
 // Input thread: a fire press edge in captured Modernized gameplay.
 void weapon_feel_press() {if(weapon_feel_retro())feel_press_serial.fetch_add(1);}
+// D08J8: a sidearm drawn by held fire inside a climb (climb_fire.inc) gets
+// the press's first-shot boost, as if fire had been pressed with it up.
+static void weapon_feel_draw_press() {
+    if(!weapon_feel_retro())return;
+    feel_pending=true;feel_pending_updates=0;++feel_latches;
+}
 // Input thread: hold the fire pad while a press is unseen by the game or latched.
 bool weapon_feel_latched_fire() {
     const uint64_t serial=feel_press_serial.load();
@@ -206,7 +215,7 @@ static void weapon_feel_update(bool fire_held) {
 // Upper track (0x80059db0 from 0x8005a5a8): this update's delta (unchanged when none).
 static int weapon_feel_delta(unsigned upper,int delta,bool fire_held) {
     if(!weapon_feel_armed())return delta;
-    if(!(movement_ready() || airborne_shot_ready() || jetpack_input_ready() || swim_weapon_ready()))return delta;
+    if(!(movement_ready() || airborne_shot_ready() || jetpack_input_ready() || swim_weapon_ready() || climb_shot_ready()))return delta;
     const unsigned weapon=psx_mod_read_byte(player+0x3b9);
     unsigned raise,fire;weapon_feel_tracks(weapon,raise,fire);
     if(feel_pending) {
@@ -214,11 +223,13 @@ static int weapon_feel_delta(unsigned upper,int delta,bool fire_held) {
         // first update on the raise runs it out and on through the fire key:
         // the round leaves on the update after the game saw the press, as
         // EDuke32's does on the tic after. The Desert Eagle's fire track may
-        // be 16 or, running, 10: the later fire key of the two.
+        // be 16 or, running, 10: the later fire key of the two. D08J8: its
+        // one-arm raise 9 (climbs, water exit) leads to 10 or 11.
         FeelLoop track,shot;
-        if(raise && upper==raise) {
+        const bool one_arm=weapon==4 && upper==9;
+        if(raise && (upper==raise || one_arm)) {
             const int scaled=(int)std::lround(delta*weapon_feel_factor("DNTTK_WEAPON_FEEL_RAISE",4));
-            if(!weapon_feel_keys(raise,track) || !weapon_feel_loop(fire,shot))return scaled;
+            if(!weapon_feel_keys(upper,track) || !weapon_feel_loop(one_arm?11:fire,shot))return scaled;
             int to_event=weapon_feel_to_event(shot);
             if(weapon==4 && weapon_feel_loop(10,shot))to_event=std::max(to_event,weapon_feel_to_event(shot));
             const int rest=weapon_feel_rest(track);
@@ -256,6 +267,94 @@ static int weapon_feel_delta(unsigned upper,int delta,bool fire_held) {
     return std::max(0,target-at);
 }
 
+// D08J8D: the mantles 134-139 (lower table bit 0x2000) refuse the fire
+// request every update, so the original never raises or aims a fire track
+// there; their shot still comes from the track's fire key. With the sidearm
+// out the host owns the fire there: the game's Cross is masked
+// (mantle_fire_cross_masked), and while fire is held the one-arm fire track
+// 11 (the climbs' own; climb_aim.inc turns its arm to the view, user: third
+// person pointed the gun along Duke's heading, slot 10 crates) is put on the
+// gun arm. It loops by itself without the request (measured), and
+// weapon_feel_delta paces it as on climbs (RETRO 6/s; MODERN keeps its
+// 70-unit loop, about 210 ms). The runner starts a newly written track on its
+// next call (a rewrite of the playing track does nothing). Not during a draw,
+// stow or reload (12, 17, the shotgun pump 26), so the original's reload
+// still runs. The other climbs over a lip fire by themselves (track 10); their
+// aim takes the view (trav_view_aim).
+// D08J8C revision 3: the armed door kick 116 (also bit 0x2000, and the use
+// bit 0x40) the same way, with the weapon's own ground fire track (pistol 16,
+// shotgun 25, Gatling and Freezer 34, RPG 37), started again whenever it has
+// run out; the kick itself plays at the original speed.
+static bool trav_driving;
+static unsigned trav_drive_starts;
+static bool door_fire_owned() {
+    unsigned raise,fire;weapon_feel_tracks(psx_mod_read_byte(player+0x3b9),raise,fire);
+    return fire && armed_door_kick();
+}
+static bool trav_fire_owned() {
+    const unsigned a=psx_mod_read_half(player+0x60);
+    return input_modernized() && ((trav_shot_ready() && a<280 && (psx_mod_read_word(0x800c2824+4*a)&0x2000)) || door_fire_owned());
+}
+static unsigned trav_fire_track() {
+    if(!door_fire_owned())return 11;
+    unsigned raise,fire;weapon_feel_tracks(psx_mod_read_byte(player+0x3b9),raise,fire);
+    return fire;
+}
+static void trav_fire_drive(unsigned upper,bool held) {
+    if(!held || !trav_fire_owned() || upper==6 || upper==7 || upper==3 || upper==0 || upper==1 ||
+       upper==12 || upper==13 || upper==17 || upper==26 || (upper>=21 && upper<=23) || upper==30 || upper==31 || upper==36 || upper==40) {trav_driving=false;return;}
+    trav_driving=true;
+    const unsigned track=trav_fire_track();
+    if(upper==track)return;
+    psx_mod_write_half(player+0x74,track);psx_mod_write_half(player+0x7c,0);psx_mod_write_half(player+0x7e,0);
+    ++trav_drive_starts;
+}
+// The aim build (one-arm aim of poses 8/11, which climb_aim.inc turns to the
+// view) runs only with the fire request +0x224 0x100, which these
+// clips refuse each update. While the track is driven it is set for the model
+// build (0x800411b8, climb_aim_begin) and taken back at the next player
+// update, before the game reads it.
+static bool trav_aim_flag;
+static unsigned trav_aim_builds;
+static void trav_aim_flag_set() {
+    const uint32_t flags=psx_mod_read_word(player+0x224);
+    if(!trav_driving || psx_mod_read_half(player+0x74)!=trav_fire_track() || (flags&0x100) || !trav_fire_owned())return;
+    psx_mod_write_word(player+0x224,flags|0x100);trav_aim_flag=true;++trav_aim_builds;
+}
+static void trav_aim_flag_clear() {
+    if(!trav_aim_flag)return;
+    trav_aim_flag=false;
+    psx_mod_write_word(player+0x224,psx_mod_read_word(player+0x224)&~0x100u);
+}
+// The driven track is no loop of its own: at its end the runner moves on to
+// the lowering 9 within the same call, and the next start of the track was a
+// fresh track change with its blend, every shot (user, slot 10: the head
+// jerked back and forth while shooting). Once this update's delta (after the
+// D10H6 pacing) would reach its end, the host wraps it to its first key, as
+// a looping track does, and gives the runner no delta. Stops at the fire key
+// if the carry would pass it, so no shot is skipped.
+static unsigned trav_wraps;
+static int trav_fire_wrap(int delta) {
+    const unsigned track=trav_fire_track();
+    if(!trav_driving || psx_mod_read_half(player+0x74)!=track || delta<=0)return delta;
+    FeelLoop loop;
+    if(!weapon_feel_loop(track,loop))return delta;
+    const int rest=weapon_feel_rest(loop);
+    if(rest<0 || delta<rest)return delta;
+    int over=delta-rest,k=0;
+    while(k<loop.event && over>=loop.duration[k]) {over-=loop.duration[k];++k;}
+    const int left=std::max(1,loop.duration[k]-over);
+    psx_mod_write_half(player+0x78,(uint16_t)(loop.first+loop.count-1));
+    psx_mod_write_half(player+0x7a,(uint16_t)(loop.first+k));
+    psx_mod_write_half(player+0x76,(uint16_t)left);
+    ++trav_wraps;
+    return 0;
+}
+static const char* trav_drive_debug_json() {
+    static char buffer[96];
+    std::snprintf(buffer,sizeof buffer,"{\"driving\":%s,\"starts\":%u,\"wraps\":%u,\"aim_builds\":%u}",trav_driving?"true":"false",trav_drive_starts,trav_wraps,trav_aim_builds);
+    return buffer;
+}
 static const char* weapon_feel_debug_json() {
     static char buffer[480];
     std::snprintf(buffer,sizeof buffer,"{\"profile\":\"%s\",\"presses\":%llu,\"latches\":%llu,\"shots\":%llu,\"boosted_shots\":%llu,\"boost_updates\":%llu,\"expired\":%llu,\"pending\":%s,\"latched\":%s,\"cadence_updates\":%llu,\"last_gap\":%u,\"cpu_boost\":%s,\"cpu_boost_updates\":%llu,\"bumps_stopped\":%llu}",

@@ -1,5 +1,45 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-05 - D08J8 closed
+
+User: "this work is complete fully accepted. lock it in and close it out". D08J8 (shoot through traversal: sidearm drawn and
+fired through mantles, the water exit and ladder/chain/wall tops with
+third-person aim, doors opened with E while shooting, climb fire rate at the
+ground's 6/s; [note 394](documentation/394-d08j8-shoot-through-traversal.md))
+is Done at revision 3. D08J8F cancelled: the water exit already looks
+natural. No framework edit; the runtime patch export is unchanged.
+
+## 2026-11-05 - D08J8 revision 3: steady mantle pose, wall-top camera, full door kick (Needs playtest)
+
+User playtest of revision 2. The head no longer jerks while shooting in
+mantles (the fire track is kept looping instead of restarting); the slot 8
+wall top lets the camera turn so Duke faces the aim; doors kick open at the
+normal speed while Duke keeps shooting (167 ms). New Todo D08J8F: a
+one-handed push for the water exit while shooting.
+[Note 394](documentation/394-d08j8-shoot-through-traversal.md).
+
+## 2026-11-05 - D08J8 revision 2: third-person aim over a lip, doors on E (Needs playtest)
+
+User playtest: mantle fire and the climb fire rates are right; in third
+person the gun did not point where you aim (slot 10 crates, slot 8 wall
+top), and doors should open on E with shooting at once. Now the chest and
+pistol turn to the crosshair in mantles, water exits and ladder/chain/wall
+tops; E with a weapon out kicks a door open armed (first round 73 ms after
+fire, was about 1.3 s) and left click no longer opens doors.
+[Note 394](documentation/394-d08j8-shoot-through-traversal.md).
+
+## 2026-11-05 - D08J8 batch: shoot through traversal (Needs playtest)
+
+User batch from live commentary (UI slots 6-12), stood up as D08J8A-E and
+built together. Fire held while Duke climbs over a lip (mantles, crate
+mantles, pull-up, water exit, ladder/chain/wall tops) now draws the sidearm
+inside the climb and shoots the whole way: first round 88-120 ms after the
+press instead of 1.5-1.7 s of nothing. Armed door kicks are 6x and end once
+the door opens: first round 307 ms after the press (was 1240). Held sidearm
+fire on ladders, walls, chains, monkey bars, ledge hangs and the armed
+pull-up is now 163-171 ms like the ground (was 200-237). Modernized only.
+[Note 394](documentation/394-d08j8-shoot-through-traversal.md).
+
 ## 2026-11-05 - D10H7 closed
 
 User: "it works absolutely fine, it's so snappy now. lock it in and close us
@@ -4365,6 +4405,116 @@ candidate build. The user also closed the eduke32 instance that loaded the
 host during the 180 Hz recording. No gameplay edits, builds or launches after
 acceptance.
 
+### D08J8 - Shoot through traversal: no fire gaps after climbs, mantles and doors (batch)
+
+**Status: Done (user-accepted and closed 2026-11-05 at revision 3: "this work is complete fully accepted. lock it in and close it out"; batch D08J8A-E; [note 394](documentation/394-d08j8-shoot-through-traversal.md)). Dependencies: D08J6, D08J7C, D10H6.** User
+(2026-11-05, live commentary over UI save slots 6-12): "you should be able to
+start shooting straight away just like we did with the mantle", the armed
+one-handed pull-up from a ledge hang (D08J7C) being the model: "this works
+perfectly with the mantling where you get up the ledge and you're
+immediately able to start shooting". Sidearm rule kept (one hand on the
+climb, D08J6A). Modernized only; Vanilla unchanged.
+
+- **D08J8A - Water exit (UI slot 12).** Climbing out of the water over the
+  ledge: fire must work at once, with no long delay.
+- **D08J8B - Ladder top, chain and climbing-wall exits (UI slot 7, the
+  ladder top).** Climbing over the top with W: shooting starts at once, with
+  no gap before the gun comes back out.
+- **D08J8C - Doors (UI slot 11).** Opening a door must not stop Duke
+  shooting: "there's literally no reason ... why we stop shooting when
+  opening the door".
+- **D08J8D - Any mantle (UI slot 10, run and jump onto the crates).** Duke
+  can shoot (the sidearm) from the moment he starts climbing up, whatever
+  the weapon: "in any mantling situation you should be able to instantly
+  shoot".
+- **D08J8E - Fire rate on climbs and mantles.** The sidearm's held rate on
+  a ladder (UI slot 7, pig cops behind), climbing wall (slot 8), monkey bars
+  (slot 6), chain and mantles (slot 9) is lower than on the ground; bring it
+  to the ground rate (D10H6: 6 per second).
+
+Test on private copies of the slots; player saves and cards untouched.
+
+**2026-11-05 candidate (Needs playtest).** Measured on private copies of UI
+slots 6-12: the water exit (142), ladder top (190), crate mantle (137) and
+the other climbs over a lip ran 1.5-1.7 s holstered (fire dropped, or
+queued to the landing by D08J7B); the door kick 116 refused fire for 1.24 s;
+held sidearm fire on climbs, hangs, monkey bars and the armed pull-up ran
+200-237 ms (track 11, outside the D10H6 pacing). Cause: the fire request
+`0x80058120` refuses lower clips with table bit 0x2000 (mantles 134-139, door
+116) and the committed use bit 0x40; the shot itself is the fire track's key
+event. Changes (Modernized only):
+- A/B/D: held fire inside a climb over a lip (134-140, 142, 190, 196, 206)
+  draws the sidearm at once (D08J6A swap, SIDEARM RETURN, 4x draw, D10H4
+  first-shot boost; E held does not block it); the climb runs on and Duke
+  lands armed. The original fires by itself in 140/142/190/196/206; in the
+  0x2000 mantles the host runs the pistol fire track on the game clock
+  (`trav_fire_drive`). An armed climb up the face that stops in the hang
+  pulls up one-handed on W or E (D08J7C). The D08J7B queue remains when the
+  sidearm has no ammo.
+- C: an armed door kick plays 6x and ends through the use action's own
+  completion once the strike key (which opens the door) has ended
+  (`door_fire.inc`).
+- E: track 11 and the climb states join the D10H6 pacing.
+After (180 Hz): water exit first round 88 ms after the press, ladder top 106,
+crate mantle 120 ms into the climb, chain/wall tops 94, door 307 ms (was
+1240), all at 164-170 ms held; ladder, wall, chain, monkey bars, hang and
+armed pull-up 163-171 ms (were 197-237). 60/120 Hz identical. First person
+shows the pistol up and firing. Native `ttk-controls-test` 153 PASS (new
+D08J8 group), `ttk-input-test`, `ttk-aim-test`, `test_player_profiles` pass.
+Limits: no enemies framed; gun arm uses the sidearm's own poses over the
+climb clips (one-handed clip only in the pull-up); one late shot at some
+transitions. Executable
+`1015e6de8daf67030b1895c9bcda5275fff939814fce884c9b59a74675aa70db`.
+
+**2026-11-05 revision 2 (Needs playtest).** User: mantle fire and the climb
+fire rate confirmed; third person did not point the gun where you aim (slot
+10 crates, slot 8 wall top); doors should open on E, not left click, and
+Duke should shoot straight away after E. Mantles 134-139: host-owned fire on
+the climbs' one-arm track 11 with the D08J6B climb aim; water exit and
+ladder/chain/wall tops: the original's aim takes the view (as the D08J7C
+pull-up). Doors: E with a weapon out at a door (contact object +0x174 is a
+pose-116 door) probes with armed Cross and kicks armed, no holster (first
+round 73 ms after fire, was about 1.3 s); a probe's stray fire request is
+put back; left click no longer opens doors (the use ends at its first
+stage, first round 107 ms). Native controls 153 PASS, input and aim pass.
+Executable `af4a4d6eeebd4f683f88c80761d44dc0e0688cae403d3fa9a9b9dd43dad2b26d`;
+[note 394](documentation/394-d08j8-shoot-through-traversal.md) revision 2.
+
+**2026-11-05 revision 3 (Needs playtest).** User: slot 10 third person
+"works amazing" but the head jerks while shooting; slot 12 water exit
+functionally accepted (refinement: D08J8F); slot 8 wall top always faces
+forward; doors should open the normal way with Duke still able to shoot.
+Head jerk: the driven track 11 dropped to the lowering 9 at every loop end
+and restarted with a blend; it is now wrapped to its first key
+(`trav_fire_wrap`), steady on 11. Wall top: the exits 197/206 were missing
+from the mouse-camera lease (the camera could not turn); added, Duke now
+faces the aim. Doors: the kick plays at full length again and the host owns
+the fire through it (weapon's own fire track, 167 ms). Native controls 153
+PASS, input and aim pass. Executable
+`ab126a7f258b67539359d708d6d25cb9ce6c585fc6113ec7d1db23c419c715da`;
+[note 394](documentation/394-d08j8-shoot-through-traversal.md) revision 3.
+
+**2026-11-05 accepted and closed.** User: slot 10 "the head jerk is fixed
+... the animations great ... accepted"; slot 8 "fully accepted ... duke
+points in the right direction to where you're shooting"; slot 11 "fully
+accepted ... you can shoot and open the door at the same time perfect";
+slot 12 "points in the right direction when you get out of the water and he
+naturally gets out of the water too ... fully accepted", then
+"this work is complete fully accepted. lock it in and close it out". D08J8 is Done at revision 3; D08J8F is cancelled (no longer
+needed). No framework edit; the runtime patch export is unchanged.
+
+### D08J8F - Water exit: one-handed push while shooting
+
+**Status: Cancelled (2026-11-05). User, on the revision 3 build: Duke "naturally gets out of the water too it looks much better fully accepted".** Dependencies: D08J8, D08J7C. User (2026-11-05, slot 12,
+third person): functionally accepted, but "the third person animation is
+like a little tiny bit rigid ... even when you're shooting he should be like
+pushing himself out of the water onto the ledge". While Duke fires during
+the water exit 142, the original's aim holds his upper body still. Build a
+one-handed water-exit pose the D08J7C way (`ttk_onehand_pullup.py`, host
+clip from 142's own frames: chest leaning onto the off arm, off hand on the
+lip pushing up, gun arm free to aim), applied while armed in 142; judge in
+game in third and first person; holstered exit and Vanilla unchanged.
+
 ### D08J6B - Hang-and-aim pose, third person
 
 **Status: Done (user-accepted and closed 2026-11-04: "i love it all, this animation works perfectly fine"; [note 377](documentation/377-d08j6-climb-fire-research.md) D08J6B section). Dependencies: D08J6.** Note 377 stage B. Replace the original
@@ -6720,6 +6870,8 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08J7B | Weapon up on landing and a shorter pull-up | Done (closed with D08J7C 2026-11-04; note 378) | D08J7 |
 | D08J7C | One-handed armed pull-up and the sidearm return | Done (user-accepted 2026-11-04; note 378) | D08J7B |
 | D08J7D | One-handed armed pull-up in first person | Done | D08J7C, D35G, D36H9 |
+| D08J8 | Shoot through traversal (batch): water exit, ladder/chain/wall tops, doors, mantles, climb fire rate | Done (user-accepted and closed 2026-11-05; note 394) | D08J6, D08J7C, D10H6 |
+| D08J8F | Water exit: one-handed push out of the water while shooting (third person) | Cancelled (2026-11-05; user: the revision 3 water exit already looks natural) | D08J8, D08J7C |
 | D08J6B | Hang-and-aim pose on climbs, third person (user UI slots 12, 11, 8) | Done (user-accepted; closed 2026-11-04; note 377) | D08J6 |
 | D08J6C | Firing while climbing in first person | Todo | D08J6B, D35E, D35F, D36 |
 | D08J6D | Firing on monkey bars and ledge hangs (user UI slot 6) | Done (user-accepted; closed 2026-11-04; note 377) | D08J6A, D08J4, D08J7 |

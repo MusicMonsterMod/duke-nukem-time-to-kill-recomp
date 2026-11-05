@@ -1,5 +1,57 @@
 # Next-session handoff
 
+## 2026-11-05 - D08J8 closed
+
+User: "this work is complete fully accepted. lock it in and close it out". D08J8 is Done at revision 3 (executable
+`ab126a7f258b67539359d708d6d25cb9ce6c585fc6113ec7d1db23c419c715da` is the
+regression baseline; [note 394](documentation/394-d08j8-shoot-through-traversal.md)).
+D08J8F cancelled. No framework edit; the runtime patch export is unchanged.
+
+## 2026-11-05 - D08J8 revision 3: steady mantle pose, wall-top camera, full door kick (Needs playtest)
+
+User playtest of revision 2. Mantle head jerk fixed (driven track 11 wrapped
+to its first key instead of dropping to 9 and restarting); climbing-wall
+exits 197/206 join the mouse-camera lease (slot 8: the camera could not turn,
+so Duke always faced ahead); the door kick plays at its original length and
+the host owns the fire through it (167 ms). Water exit functionally accepted;
+its one-handed push is new job D08J8F. Native controls 153 PASS, input and
+aim pass. Open: the user's playtest; slot 11's third-person camera during the
+kick is D10F2. Executable
+`ab126a7f258b67539359d708d6d25cb9ce6c585fc6113ec7d1db23c419c715da`,
+[note 394](documentation/394-d08j8-shoot-through-traversal.md).
+
+## 2026-11-05 - D08J8 revision 2: third-person aim over a lip, doors on E (Needs playtest)
+
+User playtest of D08J8: mantle fire and climb fire rates confirmed. Fixed:
+third person now points the gun at the crosshair while climbing over a lip
+(mantles: host-owned fire on track 11 with the D08J6B climb aim; water exit
+and ladder/chain/wall tops: the original's aim takes the view). Doors: E
+with a weapon out at a door probes with armed Cross and kicks armed (no
+holster; first round 73 ms after fire), left click no longer opens doors.
+Native controls 153 PASS, input and aim pass. Open: the user's playtest
+(slot 8 wall not mountable by script; checked on the D35I1 wall and slot 7
+ladder top). Executable
+`af4a4d6eeebd4f683f88c80761d44dc0e0688cae403d3fa9a9b9dd43dad2b26d`,
+[note 394](documentation/394-d08j8-shoot-through-traversal.md).
+
+## 2026-11-05 - D08J8 batch: shoot through traversal (Needs playtest)
+
+D08J8A-E (user live commentary, UI slots 6-12), built together. Modernized
+only. Held fire inside a climb over a lip (mantles 134-139, pull-up 140, water
+exit 142, ladder/chain/wall tops 190/196/206) draws the sidearm in the climb
+and fires the whole way (the original refuses fire in the 0x2000 mantles, so
+the host runs the pistol fire track there); an armed climb up the face that
+stops in the hang pulls up one-handed on W or E. Armed door kicks (116) run
+6x and end once the strike has opened the door. The climb fire track 11 and
+climb states join the D10H6 pacing. 180 Hz: first round 88-120 ms after the
+press in climbs (was 1.5-1.7 s holstered), door 307 ms (was 1240), held rate
+on climbs 163-171 ms (was 197-237); 60/120 identical. Native controls 153
+PASS (new D08J8 group), input and aim suites pass. No framework edit; the
+runtime patch export is unchanged. Open: the user's playtest with enemies
+(slot 7 pig cops), one-handed poses outside the pull-up. Executable
+`1015e6de8daf67030b1895c9bcda5275fff939814fce884c9b59a74675aa70db`,
+[note 394](documentation/394-d08j8-shoot-through-traversal.md).
+
 ## 2026-11-05 - D10H7 closed
 
 User: "it works absolutely fine, it's so snappy now. lock it in and close us

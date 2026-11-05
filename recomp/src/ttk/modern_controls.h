@@ -47,6 +47,14 @@ bool climb_weapon_ready();
 bool hang_weapon_ready();
 bool hang_drop_armed_ready(bool drop);
 bool hang_pullup_input_ready(bool pull);
+// D08J8: a ledge hang reached by a climb with the sidearm drawn inside it.
+bool trav_hang_climbing();
+// D08J8C revision 2: E at a door with a weapon out (door_fire.inc).
+bool door_probe_ready();
+bool door_probe_firing_ready();
+void door_probe_begin(bool firing);
+int door_probe_state();   // 0 idle, 1 probing (send armed Cross), 2 armed door use, 3 refused, 4 Cross gap
+void door_probe_end();
 bool hang_pullup_handoff();
 bool armed_pullup_fire_masked();
 bool climb_fire_hold_ready();

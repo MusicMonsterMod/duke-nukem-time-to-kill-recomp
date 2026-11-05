@@ -904,11 +904,28 @@ themselves and then move. **S** or **Space** lets go with the pistol still
 out, so Duke lands ready to shoot. After either he keeps the sidearm until
 you choose a weapon (**SIDEARM RETURN: AUTO** brings yours back once you have
 been off the trigger for about 0.75 seconds; see above).
-Unarmed, shooting during the climb over the lip is not possible (both hands
-are busy), but it never stops the climb: hold or click **left click** while
-Duke climbs up or pulls himself over (holding **W** in a hang climbs on even
-with left click held) and your own weapon comes up the moment he lands. The pull-up itself is quicker than the original (about 1 second
-instead of 1.7). Vanilla is unchanged.
+The pull-up itself is quicker than the original (about 1 second instead of
+1.7). Vanilla is unchanged.
+
+**Shooting while climbing over (Modernized, D08J8).**
+Whenever Duke climbs over something, hold **left click** and he draws his
+sidearm at once and shoots the whole way, one hand on the climb: mantling
+onto a ledge or a crate (with a running jump too), pulling himself up,
+climbing out of the water, and stepping off the top of a ladder, chain or
+climbing wall. The climb never stops for it and he lands ready to shoot. In third person his chest and
+pistol turn toward where you aim, within the same limits as on climbs. The
+same sidearm swap and **SIDEARM RETURN** rule as on climbs apply. If an armed
+climb up a wall ends in a ledge hang, keep **W** or **E** held and he pulls
+himself up one-handed, still shooting. With no sidearm ammo, left click
+during the climb brings your own weapon up the moment he lands instead.
+Held fire on ladders, chains, climbing walls, monkey bars and from a ledge
+hang now repeats as fast as on the ground. Vanilla is unchanged.
+
+**Doors open with E, and never stop the shooting (Modernized, D08J8).**
+Press **E** at a door with a weapon out: Duke kicks it open as usual, with
+the gun still up (no holstering), and can keep shooting the whole time,
+kick included. E also works while you are holding left click. Left click never opens doors: at a door
+it just shoots. Holstered, E opens doors as before. Vanilla is unchanged.
 
 **Free camera while climbing (Modernized, D08J3).**
 On ladders, poles, chains and climbing walls the mouse camera stays yours: turn

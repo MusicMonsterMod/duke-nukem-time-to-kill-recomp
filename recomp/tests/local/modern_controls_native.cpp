@@ -3267,27 +3267,31 @@ int main(int argc,char** argv) {
         // D08J7B: fire during a mantle never stops it. It queues the weapon
         // selected before the E stow; set in the pull-up (or on the ground after
         // a height mantle), the original request draws it on the first ground
-        // frame. The pull-up 140 runs 1.6x on both tracks.
+        // frame. The pull-up 140 runs 1.6x on both tracks. D08J8: with sidearm
+        // ammo the sidearm is drawn in the climb instead, so the queue is tested
+        // with the sidearm empty and the shotgun selected.
         auto update=[&]{call(0x8005a210,p,0x800c2754,0x80041b34,0x801fff00);};
         auto json=[]{return std::string(ttk::controls_debug_json());};
         const uint16_t sidearm_ammo=psx_mod_read_half(p+0x2c6+4*4),sidearm_owned=psx_mod_read_half(p+0x2c4+4*4);
-        psx_mod_write_half(p+0x2c4+4*4,sidearm_owned|1);psx_mod_write_half(p+0x2c6+4*4,20);
+        psx_mod_write_half(p+0x2c4+4*4,sidearm_owned|1);psx_mod_write_half(p+0x2c6+4*4,0);
+        const uint16_t shotgun_ammo=psx_mod_read_half(p+0x2c6+4*5),shotgun_owned=psx_mod_read_half(p+0x2c4+4*5);
+        psx_mod_write_half(p+0x2c4+4*5,(shotgun_owned|1)&~8);psx_mod_write_half(p+0x2c6+4*5,20);
         psx_mod_write_byte(p+0x22c,8);psx_mod_write_byte(p+0x22d,0);
         psx_mod_write_half(p+0x60,139);psx_mod_write_half(p+0x74,139);
-        psx_mod_write_byte(p+0x3b8,0);psx_mod_write_byte(p+0x3ba,4);psx_mod_write_word(p+0x224,0);
+        psx_mod_write_byte(p+0x3b8,0);psx_mod_write_byte(p+0x3ba,5);psx_mod_write_word(p+0x224,0);
         update();assert(json().find("\"queued\":false")!=std::string::npos);
         ttk::input.held[ttk::fire]=true;update();ttk::input.held[ttk::fire]=false;
         // Queued, but no request while climbing (a ledge hang would serve it).
-        assert(!(psx_mod_read_word(p+0x224)&4) && json().find("\"queued\":true,\"weapon\":4,")!=std::string::npos);
+        assert(!(psx_mod_read_word(p+0x224)&4) && json().find("\"queued\":true,\"weapon\":5,")!=std::string::npos);
         assert(ttk::mantle_fire_cross_masked());
         // The brief hang between the climbs of a platform, W held: still climbing.
         psx_mod_write_byte(p+0x22c,6);psx_mod_write_half(p+0x60,149);psx_mod_write_half(p+0x74,149);
         ttk::input.held[ttk::move_forward]=true;ttk::input.held[ttk::fire]=true;update();
-        assert(!(psx_mod_read_word(p+0x224)&4) && psx_mod_read_byte(p+0x3ba)==4); // no hang draw with W held
+        assert(!(psx_mod_read_word(p+0x224)&4) && psx_mod_read_byte(p+0x3ba)==5); // no hang draw with W held
         ttk::input.held[ttk::move_forward]=false;ttk::input.held[ttk::fire]=false;
         // The pull-up: the request (served by the original on the ground), the 2x landing draw.
         psx_mod_write_byte(p+0x22c,8);psx_mod_write_half(p+0x60,140);psx_mod_write_half(p+0x74,140);update();
-        assert((psx_mod_read_word(p+0x224)&4) && psx_mod_read_byte(p+0x3ba)==4 && json().find("\"requests\":1,")!=std::string::npos);
+        assert((psx_mod_read_word(p+0x224)&4) && psx_mod_read_byte(p+0x3ba)==5 && json().find("\"requests\":1,")!=std::string::npos);
         assert(json().find("\"boost\":true")!=std::string::npos && ttk::mantle_fire_cross_masked());
         psx_mod_write_byte(p+0x22c,0);psx_mod_write_half(p+0x60,72);psx_mod_write_half(p+0x74,72);
         {
@@ -3311,7 +3315,7 @@ int main(int argc,char** argv) {
         psx_mod_write_byte(p+0x22c,8);psx_mod_write_half(p+0x60,139);psx_mod_write_half(p+0x74,139);
         ttk::input.held[ttk::fire]=true;update();assert(json().find("\"queues\":2,")!=std::string::npos); // armed
         psx_mod_write_byte(p+0x3b8,0);psx_mod_write_byte(p+0x3ba,0);update();assert(json().find("\"queues\":2,")!=std::string::npos);
-        psx_mod_write_byte(p+0x3ba,4);ttk::modern=false;update();ttk::modern=true;assert(json().find("\"queues\":2,")!=std::string::npos);
+        psx_mod_write_byte(p+0x3ba,5);ttk::modern=false;update();ttk::modern=true;assert(json().find("\"queues\":2,")!=std::string::npos);
         update();ttk::input.held[ttk::fire]=false;assert(json().find("\"queues\":3,")!=std::string::npos);
         psx_mod_write_byte(p+0x22c,9);psx_mod_write_half(p+0x60,107);update();
         assert(!(psx_mod_read_word(p+0x224)&4) && json().find("\"drops\":1,")!=std::string::npos);
@@ -3347,12 +3351,159 @@ int main(int argc,char** argv) {
         ttk::modern=false;assert(run_channel(arm,140)==100);ttk::modern=true;
         assert(run(lower,139,8)==100 && run(lower,140,0)==100 && run(lower,149,6)==100);
         ttk::modern=false;assert(run(lower,140,8)==100);ttk::modern=true;
-        assert(json().find("\"pullup_boosts\":1}")!=std::string::npos);
+        assert(json().find("\"pullup_boosts\":1,")!=std::string::npos);
         psx_mod_write_byte(p+0x22c,0);psx_mod_write_byte(p+0x22d,0);psx_mod_write_half(p+0x60,63);
         psx_mod_write_byte(p+0x3b8,2);psx_mod_write_byte(p+0x3b9,4);psx_mod_write_half(p+0x74,5);psx_mod_write_word(p+0x224,0);
         psx_mod_write_half(p+0x2c6+4*4,sidearm_ammo);psx_mod_write_half(p+0x2c4+4*4,sidearm_owned);
+        psx_mod_write_half(p+0x2c6+4*5,shotgun_ammo);psx_mod_write_half(p+0x2c4+4*5,shotgun_owned);
         ++ttk::input.sequence;call(0x8003ade4,c,p,0x80025ee8);
         std::puts("PASS: D08J7B mantle fire queue, landing draw request and 2x draw, refusals, pull-up 1.6x on all four channels (D36H10) and Vanilla");
+    }
+    {
+        // D08J8: held fire inside a climb over a lip draws the sidearm at once
+        // (mantles, pull-up, water exit, ladder/chain/wall tops), swapping the
+        // selection; the mantles with table bit 0x2000 get their fire track
+        // from the host; an armed door kick runs 6x and ends after its strike.
+        auto update=[&]{call(0x8005a210,p,0x800c2754,0x80041b34,0x801fff00);};
+        auto json=[]{return std::string(ttk::controls_debug_json());};
+        auto has=[&](const char* t){return json().find(t)!=std::string::npos;};
+        const uint16_t sidearm_ammo=psx_mod_read_half(p+0x2c6+4*4),sidearm_owned=psx_mod_read_half(p+0x2c4+4*4);
+        psx_mod_write_half(p+0x2c4+4*4,sidearm_owned|1);psx_mod_write_half(p+0x2c6+4*4,20);
+        auto climb=[&](unsigned clip,unsigned mode){
+            psx_mod_write_byte(p+0x22c,mode);psx_mod_write_byte(p+0x22d,0);psx_mod_write_half(p+0x60,clip);psx_mod_write_half(p+0x74,clip);
+            psx_mod_write_byte(p+0x3b8,0);psx_mod_write_byte(p+0x3ba,4);psx_mod_write_word(p+0x224,0);};
+        unsigned draws=0;
+        for(unsigned clip:{134u,137u,139u,140u,142u,190u,196u,206u}) {
+            climb(clip,8);update();assert(psx_mod_read_byte(p+0x3b8)==0);   // no fire, no draw
+            ttk::input.held[ttk::fire]=true;
+            assert(ttk::mantle_fire_cross_masked());                         // no unarmed Cross before the draw
+            update();ttk::input.held[ttk::fire]=false;++draws;
+            assert(psx_mod_read_byte(p+0x3b8)==2 && psx_mod_read_byte(p+0x3b9)==4 && psx_mod_read_byte(p+0x3ba)==4 &&
+                   psx_mod_read_half(p+0x74)==6 && !(psx_mod_read_word(p+0x224)&4));
+            // Cross stays masked in the mantles the host fires in (table bit 0x2000).
+            const bool owned=(psx_mod_read_word(0x800c2824+4*clip)&0x2000)!=0;
+            assert(ttk::climb_shot_ready() && has("\"queued\":false") && ttk::mantle_fire_cross_masked()==owned);
+            char want[32];std::snprintf(want,sizeof want,"\"draws\":%u,",draws);assert(has(want));
+        }
+        // D08Y step-up mantles also run in mode 0; E held from the grab does not hold the draw back.
+        climb(135,0);ttk::input.held[ttk::fire]=ttk::input.held[ttk::interact]=true;update();
+        ttk::input.held[ttk::fire]=ttk::input.held[ttk::interact]=false;assert(psx_mod_read_byte(p+0x3b8)==2);++draws;
+        // Refusals: the holster, no sidearm ammo, other clips and modes, Vanilla.
+        climb(137,8);ttk::input.held[ttk::fire]=ttk::input.held[ttk::holster]=true;update();
+        ttk::input.held[ttk::holster]=false;assert(psx_mod_read_byte(p+0x3b8)==0);
+        psx_mod_write_half(p+0x2c6+4*4,0);update();assert(psx_mod_read_byte(p+0x3b8)==0 && !ttk::mantle_fire_cross_masked());
+        psx_mod_write_half(p+0x2c6+4*4,20);
+        climb(140,0);update();assert(psx_mod_read_byte(p+0x3b8)==0);
+        climb(149,6);update();assert(psx_mod_read_byte(p+0x3b8)==0 || psx_mod_read_half(p+0x60)==149);
+        climb(191,8);update();assert(psx_mod_read_byte(p+0x3b8)==0);
+        climb(137,8);ttk::modern=false;update();ttk::modern=true;assert(psx_mod_read_byte(p+0x3b8)==0);
+        ttk::input.held[ttk::fire]=false;
+        // Swap: another selected weapon is kept for SIDEARM RETURN.
+        climb(142,8);psx_mod_write_byte(p+0x3ba,5);ttk::input.held[ttk::fire]=true;update();ttk::input.held[ttk::fire]=false;
+        assert(psx_mod_read_byte(p+0x3ba)==4 && has("\"swap_from\":5,") && has("\"swaps\":1,"));
+        // The draw runs 4x on the upper track.
+        {
+            CPUState up{};up.gpr[29]=0x801ffeb0;up.gpr[31]=0x8005a5a8;up.gpr[4]=p+0x74;up.gpr[5]=p;up.gpr[6]=0x801fff00-0x2e;up.gpr[7]=1;
+            ttk::input.sequence+=1;update();psx_mod_write_half(up.gpr[6],10);hooks().at(0x80059db0)(&up,0x80059db0);
+            assert(psx_mod_read_half(up.gpr[6])==40);
+            // Mantle fire: in 137 (bit 0x2000), sidearm out, the host owns the fire
+            // (Cross masked); with fire held the one-arm fire track 11 is put on
+            // the gun arm and left to loop; 142 (no bit) stays the original's.
+            const uint32_t flags137=psx_mod_read_word(0x800c2824+4*137);
+            psx_mod_write_word(0x800c2824+4*137,flags137|0x2000);
+            climb(137,8);psx_mod_write_byte(p+0x3b8,2);psx_mod_write_byte(p+0x3b9,4);psx_mod_write_half(p+0x74,5);
+            assert(ttk::mantle_fire_cross_masked());
+            ttk::input.held[ttk::fire]=true;
+            auto drive=[&](unsigned track){psx_mod_write_half(p+0x74,track);ttk::input.sequence+=1;update();
+                psx_mod_write_half(up.gpr[6],12);hooks().at(0x80059db0)(&up,0x80059db0);return psx_mod_read_half(p+0x74);};
+            assert(drive(5)==11 && psx_mod_read_half(p+0x7c)==0 && has("\"driving\":true,\"starts\":1,"));
+            assert(drive(11)==11 && has("\"starts\":1,"));        // looping: left alone
+            assert(drive(8)==11 && has("\"starts\":2,"));
+            assert(drive(17)==17 && drive(6)==6);                     // reload and draw run
+            ttk::input.held[ttk::fire]=false;assert(drive(5)==5 && has("\"driving\":false"));
+            ttk::input.held[ttk::fire]=true;
+            psx_mod_write_word(0x800c2824+4*137,flags137&~0x2000u);
+            assert(drive(5)==5 && !ttk::mantle_fire_cross_masked());
+            climb(142,8);psx_mod_write_byte(p+0x3b8,2);psx_mod_write_byte(p+0x3b9,4);
+            assert(drive(10)==10 && !ttk::mantle_fire_cross_masked());
+            ttk::input.held[ttk::fire]=false;
+            psx_mod_write_word(0x800c2824+4*137,flags137);
+        }
+        // Door (revision 3): an armed kick 116 (use stage 5, bit 0x40) plays at the
+        // original speed to its end; the host owns the fire through it: Cross is
+        // masked, the pistol's ground fire track 16 goes on the gun arm while fire
+        // is held. Holstered and Vanilla stay native.
+        {
+            const int clip=int16_t(psx_mod_read_half(0x800c2d64+8*116));
+            const uint32_t rec=0x800d8328+4*clip;const auto saved_rec=psx_mod_read_word(rec);
+            psx_mod_write_word(rec,(6u<<16)|200);
+            auto door=[&](unsigned equipment,unsigned key){
+                psx_mod_write_byte(p+0x22c,0);psx_mod_write_byte(p+0x22d,0);psx_mod_write_half(p+0x60,116);psx_mod_write_half(p+0x74,5);
+                psx_mod_write_byte(p+0x3b8,equipment);psx_mod_write_byte(p+0x3b9,4);psx_mod_write_byte(p+0x27d,5);
+                psx_mod_write_word(p+0x224,0x40);psx_mod_write_half(p+0x66,200+key);};
+            CPUState lo{};lo.gpr[29]=0x801ffeb0;lo.gpr[31]=0x8005a3d4;lo.gpr[4]=p+0x60;lo.gpr[5]=p;lo.gpr[6]=0x801fff00-0x30;lo.gpr[7]=0;
+            CPUState up{};up.gpr[29]=0x801ffeb0;up.gpr[31]=0x8005a5a8;up.gpr[4]=p+0x74;up.gpr[5]=p;up.gpr[6]=0x801fff00-0x2e;up.gpr[7]=1;
+            door(2,0);ttk::input.sequence+=1;update();
+            psx_mod_write_half(lo.gpr[6],10);hooks().at(0x80059db0)(&lo,0x80059db0);assert(psx_mod_read_half(lo.gpr[6])==10);
+            door(2,4);ttk::input.sequence+=1;update();assert(psx_mod_read_half(p+0x60)==116 && psx_mod_read_byte(p+0x27d)==5);
+            assert(ttk::mantle_fire_cross_masked() && ttk::climb_shot_ready());
+            ttk::input.held[ttk::fire]=true;
+            psx_mod_write_half(up.gpr[6],12);hooks().at(0x80059db0)(&up,0x80059db0);assert(psx_mod_read_half(p+0x74)==16);
+            ttk::input.held[ttk::fire]=false;door(2,4);ttk::input.sequence+=1;update();
+            psx_mod_write_half(up.gpr[6],12);hooks().at(0x80059db0)(&up,0x80059db0);assert(psx_mod_read_half(p+0x74)==5);
+            ttk::input.held[ttk::fire]=true;
+            door(0,4);ttk::input.sequence+=1;update();assert(!ttk::mantle_fire_cross_masked());
+            psx_mod_write_half(up.gpr[6],12);hooks().at(0x80059db0)(&up,0x80059db0);assert(psx_mod_read_half(p+0x74)==5);
+            door(2,4);ttk::modern=false;assert(!ttk::mantle_fire_cross_masked());ttk::modern=true;
+            ttk::input.held[ttk::fire]=false;
+            assert(has("\"door\":{\"kicks\":1,"));
+            // Revision 2: a use that left click started at a door ends at its first
+            // stage (the round leaves); an E probe's door use, a non-door object,
+            // a holstered Duke and Vanilla are left alone.
+            const uint32_t object=0x801b0800,types=0x801b2000,saved_types=psx_mod_read_word(0x800d2660);
+            psx_mod_write_word(0x800d2660,types);
+            unsigned door_kind=0;
+            for(unsigned k=2;k<19;++k)if(psx_mod_read_word(0x80015850+4*(k-2))==0x800515e0u){door_kind=k;break;}
+            assert(door_kind==5);
+            const uint8_t saved_kind=psx_mod_read_byte(types+28*233+4);
+            psx_mod_write_byte(types+28*233+4,door_kind);psx_mod_write_half(object+0x2c,233);
+            auto started=[&](unsigned equipment){
+                psx_mod_write_byte(p+0x22c,0);psx_mod_write_byte(p+0x22d,0);psx_mod_write_half(p+0x60,63);psx_mod_write_half(p+0x74,5);
+                psx_mod_write_byte(p+0x3b8,equipment);psx_mod_write_byte(p+0x27d,1);psx_mod_write_word(p+0x224,0x40);psx_mod_write_word(p+0x290,object);};
+            ttk::input.held[ttk::fire]=true;
+            started(2);ttk::input.sequence+=1;update();
+            assert(psx_mod_read_byte(p+0x27d)==0 && !(psx_mod_read_word(p+0x224)&0x40) && psx_mod_read_word(p+0x290)==0 && has("\"fire_cancels\":1}"));
+            started(0);ttk::input.sequence+=1;update();assert(psx_mod_read_byte(p+0x27d)==1);
+            started(2);ttk::modern=false;ttk::input.sequence+=1;update();ttk::modern=true;assert(psx_mod_read_byte(p+0x27d)==1);
+            started(2);ttk::input.held[ttk::interact]=true;ttk::input.sequence+=1;update();ttk::input.held[ttk::interact]=false;
+            assert(psx_mod_read_byte(p+0x27d)==1);
+            psx_mod_write_byte(types+28*233+4,door_kind==5?6:5);
+            started(2);ttk::input.sequence+=1;update();assert(psx_mod_read_byte(p+0x27d)==1);   // not a door
+            psx_mod_write_byte(types+28*233+4,saved_kind);
+            // E's probe (state machine, game side): a door use is kept; a fire
+            // request (no door) is put back with the upper block.
+            ttk::input.held[ttk::fire]=false;
+            psx_mod_write_byte(types+28*233+4,door_kind);
+            psx_mod_write_byte(p+0x27d,0);psx_mod_write_word(p+0x224,0);psx_mod_write_word(p+0x290,0);psx_mod_write_word(p+0x174,object);
+            psx_mod_write_half(p+0x74,5);psx_mod_write_half(p+0x76,77);
+            ttk::door_probe_begin(false);ttk::input.sequence+=1;update();assert(ttk::door_probe_state()==1);
+            psx_mod_write_word(p+0x224,0x100);psx_mod_write_half(p+0x74,15);psx_mod_write_half(p+0x76,3);
+            ttk::input.sequence+=1;update();
+            assert(ttk::door_probe_state()==3 && !(psx_mod_read_word(p+0x224)&0x100) && psx_mod_read_half(p+0x74)==5 && psx_mod_read_half(p+0x76)==77);
+            ttk::door_probe_end();assert(ttk::door_probe_state()==0);
+            ttk::door_probe_begin(false);ttk::input.sequence+=1;update();
+            psx_mod_write_byte(p+0x27d,1);psx_mod_write_word(p+0x224,0x40);psx_mod_write_word(p+0x290,object);
+            ttk::input.sequence+=1;update();assert(ttk::door_probe_state()==2 && psx_mod_read_byte(p+0x27d)==1);
+            psx_mod_write_byte(p+0x27d,0);ttk::input.sequence+=1;update();assert(ttk::door_probe_state()==0);
+            psx_mod_write_byte(types+28*233+4,saved_kind);psx_mod_write_word(p+0x174,0);psx_mod_write_word(p+0x290,0);psx_mod_write_word(p+0x224,0);
+            psx_mod_write_word(0x800d2660,saved_types);
+            psx_mod_write_word(rec,saved_rec);psx_mod_write_byte(p+0x27d,0);
+        }
+        psx_mod_write_byte(p+0x22c,0);psx_mod_write_byte(p+0x22d,0);psx_mod_write_half(p+0x60,63);
+        psx_mod_write_byte(p+0x3b8,2);psx_mod_write_byte(p+0x3b9,4);psx_mod_write_byte(p+0x3ba,4);psx_mod_write_half(p+0x74,5);psx_mod_write_word(p+0x224,0);
+        psx_mod_write_half(p+0x2c6+4*4,sidearm_ammo);psx_mod_write_half(p+0x2c4+4*4,sidearm_owned);
+        ++ttk::input.sequence;call(0x8003ade4,c,p,0x80025ee8);
+        std::puts("PASS: D08J8 traversal sidearm draw (mantles, pull-up, water exit, ladder/chain/wall tops), swap, refusals, mantle fire track, armed door kick and Vanilla");
     }
     {
         // D08J7C: W in a ledge hang with the sidearm out pulls up one-handed.
@@ -3410,7 +3561,8 @@ int main(int argc,char** argv) {
         ttk::input.held[ttk::move_forward]=false;
         psx_mod_write_byte(p+0x22c,0);psx_mod_write_byte(p+0x22d,0);psx_mod_write_half(p+0x60,72);psx_mod_write_half(p+0x74,5);update();
         assert(json().find("\"armed_pullup\":false,")!=std::string::npos && !ttk::armed_pullup_fire_masked());
-        psx_mod_write_byte(p+0x22c,8);psx_mod_write_half(p+0x60,140);psx_mod_write_half(p+0x66,1486);assert(!ttk::climb_shot_ready());
+        // D08J8: an armed sidearm in a pull-up is shot-ready by the traversal rule.
+        psx_mod_write_byte(p+0x22c,8);psx_mod_write_half(p+0x60,140);psx_mod_write_half(p+0x66,1486);assert(ttk::climb_shot_ready());
         // Return: kept while fire is held and for 0.75 s after it.
         psx_mod_write_byte(p+0x22c,0);psx_mod_write_half(p+0x60,63);psx_mod_write_word(p+0x224,0);
         ++ttk::input.sequence;call(0x8003ade4,c,p,0x80025ee8);assert(ttk::movement_ready());

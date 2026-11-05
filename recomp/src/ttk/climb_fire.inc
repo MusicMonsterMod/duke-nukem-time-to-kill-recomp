@@ -75,7 +75,9 @@ bool climb_stow_ready() {
         (upper==5 || upper==8 || upper==20 || upper==29 || upper==35 || upper==39);
 }
 bool armed_pullup_shot_ready();
-bool climb_shot_ready() {return (climb_weapon_ready() && psx_mod_read_byte(player+0x3b8)==2) || armed_pullup_shot_ready();}
+static bool trav_shot_ready();
+static bool door_fire_owned();   // weapon_feel.inc (D08J8C)
+bool climb_shot_ready() {return (climb_weapon_ready() && psx_mod_read_byte(player+0x3b8)==2) || armed_pullup_shot_ready() || trav_shot_ready() || door_fire_owned();}
 // The draw request and the swap's return while still attached: at the climb
 // dispatcher entry (Duke from 0x8004b60c), and once per player update in a
 // ledge hang or under a ceiling (hang_fire_update).
@@ -175,7 +177,17 @@ bool armed_pullup_fire_masked() {return armed_pullup && hang_drop_pending;}
 // armed pull-up fires, as presentation_ready() gives it on the ground, so the
 // chest and pistol turn to the crosshair the shots go to (climbs and hangs
 // otherwise keep the original direction). View aiming only.
+// D08J8: the same for the other climbs over a lip (water exit, ladder, chain
+// and wall tops), where the original fires from track 10 and its build turns
+// the chest and pistol to this direction (user, slot 8 wall top).
+static bool trav_fire_owned();
+static bool trav_view_aim() {
+    const char* mode=ttk_live_env("DNTTK_WEAPON_AIM");
+    return ((trav_shot_ready() && !trav_fire_owned()) || door_fire_owned()) && independent_camera() && mode && !std::strcmp(mode,"view") &&
+        !input_snapshot(Context::Gameplay).held[original_aim] && !(psx_mod_read_word(player+0x224)&0x80);
+}
 static bool armed_pullup_view_aim() {
+    if(trav_view_aim())return true;
     const char* mode=ttk_live_env("DNTTK_WEAPON_AIM");
     return armed_pullup_shot_ready() && independent_camera() && mode && !std::strcmp(mode,"view") &&
         !input_snapshot(Context::Gameplay).held[original_aim] && !(psx_mod_read_word(player+0x224)&0x80);
@@ -201,7 +213,10 @@ static void hang_fire_update() {
     if(!hang_weapon_ready())return;
     climb_fire_request();
     const auto& f=input_snapshot(Context::Gameplay);
-    const bool pull=f.active && f.held[move_forward] && !f.held[move_back] && !f.held[holster] && !f.held[interact];
+    // D08J8: in a hang a climb ended in armed, E still held from the grab pulls up too.
+    const bool on=trav_hang_climbing();
+    const bool pull=f.active && (f.held[move_forward] || (on && f.held[interact])) && !f.held[move_back] && !f.held[holster] &&
+        (!f.held[interact] || on);
     const bool drop=f.active && !f.held[fire] && !f.held[holster] && !f.held[interact] && !f.held[move_forward] &&
         (f.held[jump] || f.held[move_back]);
     const bool pullup=hang_pullup_armed_ready(pull);
@@ -289,11 +304,82 @@ static bool mantle_climbing(const InputFrame& f) {
     const unsigned a=psx_mod_read_half(player+0x60),mode=psx_mod_read_byte(player+0x22c);
     return (mantle_clip(a) && (mode==8 || mode==0)) || (a==149 && mode==6 && f.held[move_forward]);
 }
-bool mantle_fire_cross_masked() {return input_modernized() && (mantle_draw_queued || mantle_draw_boost) && psx_mod_read_byte(player+0x3b8)!=2;}
+// D08J8 (batch): shoot through traversal. Fire held while Duke climbs over a
+// lip draws the sidearm at once, inside the climb, one hand on the climb as on
+// ladders (D08J6A swap and SIDEARM RETURN): the mantles 134-139, the pull-up
+// 140, the water exit 142 and the ladder, chain and climbing-wall tops 190,
+// 196, 206 (all mode 8; the D08Y step-up mantles 134-138 also in mode 0).
+// Measured (user UI slots 10, 12, 7): the climb runs on to its end with the
+// gun out and Duke lands armed. Before, fire there was dropped (142, 190, 196,
+// 206) or queued for the landing (D08J7B: 134-140), 1.6-1.7 s with no shot.
+// The original fires by itself from 140/142/190/196/206 once armed; the
+// mantles 134-139 carry upper-table bit 0x2000, for which the fire request
+// (0x80058120) is refused every update, so weapon_feel.inc drives their fire
+// track (trav_fire_drive). In the pull-up the D08J7C one-handed pose applies.
+static bool trav_clip(unsigned a) {return (a>=134 && a<=140) || a==142 || a==190 || a==196 || a==206;}
+static bool trav_weapon_ready() {
+    const unsigned a=psx_mod_read_half(player+0x60),mode=psx_mod_read_byte(player+0x22c);
+    return attached_weapon_owner() && trav_clip(a) && (mode==8 || (mode==0 && a<=138)) && identity();
+}
+static bool trav_shot_ready() {
+    return trav_weapon_ready() && psx_mod_read_byte(player+0x3b8)==2 && base_weapon(psx_mod_read_byte(player+0x3b9))==climb_sidearm;
+}
+static bool trav_drawn;   // this climb's sidearm draw, until the clip ends
+// The climb up the face (139) ended armed in a ledge hang: the original's
+// 139 -> 140 chain refuses a weapon pose, so a W+E route (the alley dumpster)
+// stops there. W or E still held from the climb pulls up one-handed (D08J7C).
+static bool trav_hang;
+bool trav_hang_climbing() {return trav_hang && hang_weapon_ready();}
+static unsigned trav_draws,trav_swaps,trav_pullups;
+static void weapon_feel_draw_press();   // weapon_feel.inc
+static void trav_aim_flag_set();       // weapon_feel.inc
+static void trav_aim_flag_clear();
+static bool trav_fire_owned();
+// E may still be held from the grab (W+E climbs out of water): it has no
+// meaning inside these clips, so it does not hold the draw back.
+static bool trav_draw_ready(const InputFrame& f) {
+    return f.active && f.held[fire] && !f.held[holster] && trav_weapon_ready() &&
+        psx_mod_read_byte(player+0x3b8)==0 && !(psx_mod_read_word(player+0x224)&0x2cd) && usable_weapon(climb_sidearm);
+}
+// Once per player update, before the D08J7B queue (which it replaces when
+// the sidearm can come out; without sidearm ammo the queue still serves).
+static void trav_fire_update(const InputFrame& f) {
+    if(!trav_weapon_ready()) {
+        if(trav_drawn && hang_weapon_ready())trav_hang=true;
+        else if(!hang_weapon_ready())trav_hang=false;
+        trav_drawn=false;return;
+    }
+    trav_hang=false;
+    if(trav_draw_ready(f)) {
+        const unsigned selected=psx_mod_read_byte(player+0x3ba);
+        if(base_weapon(selected)!=climb_sidearm && climb_swap_from==climb_no_swap) {climb_swap_from=selected;++trav_swaps;}
+        mantle_draw_queued=false;
+        psx_mod_write_byte(player+0x3ba,climb_sidearm);psx_mod_write_byte(player+0x3b9,climb_sidearm);
+        psx_mod_write_byte(player+0x3b8,2);
+        psx_mod_write_half(player+0x74,6);psx_mod_write_half(player+0x7c,0);psx_mod_write_half(player+0x7e,0);
+        trav_drawn=true;++trav_draws;++selections;
+        weapon_feel_draw_press();
+    }
+    // Armed in the pull-up after this climb's draw (a direct 139 -> 140
+    // mantle, or a draw inside 140): the D08J7C one-handed pull-up.
+    if(trav_drawn && !armed_pullup && psx_mod_read_half(player+0x60)==140 && trav_shot_ready()) {
+        const int clip=int16_t(psx_mod_read_half(0x800c2d64+8*140));
+        if(clip>=0 && clip<2048) {
+            armed_pullup=true;armed_pullup_first=psx_mod_read_half(0x800d8328+4*clip);++trav_pullups;
+        }
+    }
+}
+static bool trav_draw_masked() {
+    if(!input_modernized() || !trav_weapon_ready() || psx_mod_read_byte(player+0x3b8)==2)return false;
+    const auto& f=input_snapshot(Context::Gameplay);
+    return f.held[fire] && usable_weapon(climb_sidearm);
+}
+bool mantle_fire_cross_masked() {return input_modernized() && (((mantle_draw_queued || mantle_draw_boost) && psx_mod_read_byte(player+0x3b8)!=2) || trav_draw_masked() || trav_fire_owned());}
 static void mantle_fire_update() {
     for(bool& b:pullup_boosted)b=false;
-    if(!interaction_alive() || !gameplay_context()) {mantle_draw_queued=mantle_draw_boost=false;return;}
+    if(!interaction_alive() || !gameplay_context()) {mantle_draw_queued=mantle_draw_boost=trav_drawn=false;return;}
     const auto& f=input_snapshot(Context::Gameplay);
+    trav_fire_update(f);
     const unsigned equipment=psx_mod_read_byte(player+0x3b8),upper=psx_mod_read_half(player+0x74);
     const uint32_t flags=psx_mod_read_word(player+0x224);
     const unsigned mode=psx_mod_read_byte(player+0x22c);
@@ -348,10 +434,14 @@ static void pullup_advance(CPUState* cpu,uint32_t ra) {
     pullup_boosted[ch]=true;
     if(ch==0)++pullup_boosts;
 }
+static const char* door_fire_debug_json();   // door_fire.inc
+static const char* trav_drive_debug_json();  // weapon_feel.inc
 static const char* mantle_fire_debug_json() {
-    static char buffer[192];
-    std::snprintf(buffer,sizeof buffer,"{\"queued\":%s,\"weapon\":%u,\"boost\":%s,\"queues\":%u,\"requests\":%u,\"drops\":%u,\"pullup_boosts\":%u}",
+    static char buffer[768];
+    std::snprintf(buffer,sizeof buffer,"{\"queued\":%s,\"weapon\":%u,\"boost\":%s,\"queues\":%u,\"requests\":%u,\"drops\":%u,\"pullup_boosts\":%u,\"trav\":{\"ready\":%s,\"shot\":%s,\"drawn\":%s,\"draws\":%u,\"swaps\":%u,\"pullups\":%u,\"drive\":%s},\"door\":%s}",
         mantle_draw_queued?"true":"false",mantle_draw_weapon,mantle_draw_boost?"true":"false",
-        mantle_draw_queues,mantle_draw_requests,mantle_draw_drops,pullup_boosts);
+        mantle_draw_queues,mantle_draw_requests,mantle_draw_drops,pullup_boosts,
+        trav_weapon_ready()?"true":"false",trav_shot_ready()?"true":"false",trav_drawn?"true":"false",trav_draws,trav_swaps,trav_pullups,
+        trav_drive_debug_json(),door_fire_debug_json());
     return buffer;
 }

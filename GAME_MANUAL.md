@@ -2441,7 +2441,7 @@ can see it. Examples: `palfrom 32 32` (the god-mode off red), `palfrom 48 52`
 (an RPG hit), `flash 16 0 32` (an item pickup), `palfrom 32 63 63 63`
 (white). It only works in play, in Modernized.
 
-### Earthquakes (D44A)
+### Earthquakes (D44A, D44B)
 
 Modernized shakes the whole level the way Duke Nukem 3D does when a big
 charge goes off (Duke 3D's earthquake, as EDuke32 plays it):
@@ -2452,6 +2452,9 @@ charge goes off (Duke 3D's earthquake, as EDuke32 plays it):
   again, so a room of TNT gives one long earthquake. Rockets, grenades, pipe
   bombs, the Holy Hand Grenade and dynamite never cause one (as in Duke 3D);
   they keep the game's own short camera jolt.
+- **Level events** (D44B): the subway train crashing at the end of the
+  tunnel in TIME TO KILL (started from the ticket booth) shakes for about
+  1.6 seconds from the moment of impact.
 - **What it looks like**: the view jumps up and down every tic and twitches a
   little to the right every other pair of tics, at full strength until it
   stops dead. It is the same everywhere in the level, however far away the

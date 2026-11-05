@@ -1,5 +1,39 @@
 # Current status - 2026-10-04
 
+## 2026-11-05 - D44B closed
+
+User: "lock it in and close it out". D44B is Done: the TIME TO KILL subway
+train crash starts a 48-tic earthquake
+([note 399](399-d44b-scripted-earthquakes.md)). The user's
+playtest also found the gas canisters, the turret and the flaming barrels
+quaking through D44A's barrel source (blast routine `0x80097090`). The other
+overlay shakes (MINER 69ER tremor rooms, OBEY OR DIE / PIG FACTORY blown-apart
+types, WING'ED DEATH and Moloch boss attacks) keep the native jitter.
+Executable `d24f6a94247e680abfd30b3deeb87695f61ad7fd8f695311b4c3623b61398abe`
+is the regression baseline. No framework edit; the runtime patch export is
+unchanged.
+
+## 2026-11-05 - D44B the subway train crash quakes (Needs playtest)
+
+[Note 399](399-d44b-scripted-earthquakes.md). User: "the train
+on time to kill would be SO good for this" (save state UI slot 10, E at the
+booth). The LEVEL00 train (type 77) is a five-state machine in the overlay
+(jump table `0x800caa2c` on `+0x35`); the crash is the step from state 2 to 3
+(`0x800cca2c`, X below 8001), with no native shake. Modernized now starts a
+48-tic earthquake (1.6 s, Duke 3D's SE 2 length) on that frame
+(`earthquake_scripted`, LEVEL00 authenticated by `first_map()`). Private runs:
+the start lands on the impact frame in third and first person; option off no
+earthquake. Native controls 153 PASS, aim passes, overlay guards match.
+Executable `d24f6a94247e680abfd30b3deeb87695f61ad7fd8f695311b4c3623b61398abe`.
+
+Overlay survey: MINER 69ER holds a small native tremor in four rooms; OBEY OR
+DIE and PIG FACTORY carry a level copy of the blown-apart death (types
+621-623); WING'ED DEATH and Moloch shake on boss attacks. All keep the native
+jitter for now (user's choice). The gas canisters near the booth already
+quake through D44A's barrel source (user: "the gas canisters actually do
+rumble now!"; the live game counted 2 trains and 6 barrel blasts). Open: the
+length, the candidates.
+
 ## 2026-11-05 - D17AO1 closed
 
 User: "lock it in and close it out. its beautiful". D17AO1 is Done at

@@ -19,6 +19,9 @@
 // (0x800702bc), pipe bombs (0x800707cc) and dynamite (0x80070f7c) keep the
 // native shake (no earthquake for weapons in Duke 3D). Console
 // "earthquake <seconds>". Modernized with EARTHQUAKES on only.
+//
+// D44B scripted level events (documentation/399-d44b-scripted-earthquakes.md):
+// TIME TO KILL's subway train crash starts 48 tics (Duke 3D's SE 2 length).
 static constexpr double quake_bob=21;       // 797-unit standing eye / 38 (Duke 3D: 256 of 38<<8)
 static constexpr double quake_yaw=8*tau/2048; // 1.41 degrees
 static constexpr unsigned quake_detonation=16;
@@ -29,7 +32,8 @@ static bool quake_shown;                    // the starting tic has been compose
 static uint32_t quake_loads;
 static std::atomic<int> quake_request{-1};  // console, in tics x 1000
 static uint32_t quake_scratch;
-static uint64_t quake_starts,quake_barrels,quake_vests,quake_images,quake_rumbles;
+static uint64_t quake_starts,quake_barrels,quake_vests,quake_images,quake_rumbles,quake_trains;
+static constexpr unsigned quake_train_crash=48;
 static bool earthquake_enabled() {
     const char* t=ttk_live_env("DNTTK_EARTHQUAKES");
     return input_modernized() && !(t && !std::strcmp(t,"off"));
@@ -56,6 +60,47 @@ static void earthquake_native_shake(CPUState* cpu) {
     ++(barrel?quake_barrels:quake_vests);
     earthquake_start(quake_detonation,barrel?"barrel":"vest");
 }
+// D44B: TIME TO KILL's subway train, object type 77 (LEVEL00 only; first_map()
+// authenticates the whole overlay). The overlay's handler switches on the
+// train's +0x35 through the jump table 0x800caa2c: 0 start (sound 0xa002),
+// 1 speed doubling to 256 a frame, 2 at speed, 3 the crash (set at
+// 0x800cca2c once X drops below 8001: the speed halves each frame, the train
+// slews and throws debris through 0x8006d6ac), 4 stopped. The step from 2 to
+// 3 is the impact. The train relinks between rooms as it runs, so it is
+// found by walking every room's object list (table 0x800da454, 88 bytes a
+// room, list +0x48, nodes +4 next, +8 object).
+static uint32_t quake_train;
+static unsigned quake_train_state=~0u;
+static uint32_t quake_train_loads;
+static uint32_t earthquake_find_train() {
+    const uint32_t table=psx_mod_read_word(0x800da454),rooms=std::min(256u,psx_mod_read_word(0x800da47c));
+    if(!table)return 0;
+    for(uint32_t room=0;room<rooms;++room) {
+        uint32_t node=psx_mod_read_word(table+room*88+0x48);
+        for(unsigned k=0;node && k<256;++k,node=psx_mod_read_word(node+4)) {
+            const uint32_t o=psx_mod_read_word(node+8);
+            if(o && psx_mod_read_half(o+0x2c)==77 && psx_mod_read_byte(o+0x14)==1)return o;
+        }
+    }
+    return 0;
+}
+static void earthquake_scripted() {
+    if(!first_map() || quake_train_loads!=psx_mod_savestate_loads()) {
+        quake_train=0;quake_train_state=~0u;quake_train_loads=psx_mod_savestate_loads();
+        if(!first_map())return;
+    }
+    if(quake_train && (psx_mod_read_half(quake_train+0x2c)!=77 || psx_mod_read_byte(quake_train+0x14)!=1)) {quake_train=0;quake_train_state=~0u;}
+    if(!quake_train) {
+        static uint64_t next_search;
+        const uint64_t frame=input_host_frame();
+        if(frame<next_search)return;
+        next_search=frame+60;
+        if(!(quake_train=earthquake_find_train()))return;
+    }
+    const unsigned state=psx_mod_read_byte(quake_train+0x35);
+    if(quake_train_state==2 && state==3 && earthquake_enabled()) {++quake_trains;earthquake_start(quake_train_crash,"train");}
+    quake_train_state=state;
+}
 // The native pad rumble latch 0x8001e97c(port, strength): raise the pad's
 // motor byte when rumble is enabled (0x800c3f9c & 0x30) and the pad has one.
 static void earthquake_rumble(unsigned strength) {
@@ -71,6 +116,7 @@ static void earthquake_rumble(unsigned strength) {
 void earthquake_compose() {
     quake_view={};
     if(!gameplay_context())return;
+    earthquake_scripted();
     const int request=quake_request.exchange(-1);
     if(request>=0) {
         if(request==0) {quake_left=0;if(earthquake_trace())std::fprintf(stderr,"[TTK quake] stopped (console)\n");}
@@ -129,8 +175,8 @@ bool earthquake_console_command(const char* line,void (*say)(const char*),bool& 
 }
 const char* earthquake_json() {
     static char b[256];
-    std::snprintf(b,sizeof b,"{\"enabled\":%s,\"left\":%.2f,\"tic\":%u,\"on\":%s,\"starts\":%llu,\"barrels\":%llu,\"vests\":%llu,\"images\":%llu,\"rumbles\":%llu}",
+    std::snprintf(b,sizeof b,"{\"enabled\":%s,\"left\":%.2f,\"tic\":%u,\"on\":%s,\"starts\":%llu,\"barrels\":%llu,\"vests\":%llu,\"images\":%llu,\"rumbles\":%llu,\"trains\":%llu}",
         earthquake_enabled()?"true":"false",quake_left,quake_view.tic,quake_view.on?"true":"false",(unsigned long long)quake_starts,(unsigned long long)quake_barrels,
-        (unsigned long long)quake_vests,(unsigned long long)quake_images,(unsigned long long)quake_rumbles);
+        (unsigned long long)quake_vests,(unsigned long long)quake_images,(unsigned long long)quake_rumbles,(unsigned long long)quake_trains);
     return b;
 }

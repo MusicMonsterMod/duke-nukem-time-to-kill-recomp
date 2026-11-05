@@ -1,5 +1,15 @@
 # Current status - 2026-10-04
 
+## 2026-11-05 - D44 explosion rumble research (Done); D44A Todo
+
+Research only ([note 396](396-d44-explosion-rumble-research.md)). EDuke32's
+rumble is one map-wide timer (16 tics per detonation, 48 for SE 2 quakes) that
+moves the eye +-256 z each tic and twitches yaw 1.41 degrees while Duke is on
+the ground: full strength, no fade, the weapon and HUD still. TTK already has a
+distance-scaled random-rotation shake with pad rumble; TNT barrels give it for
+about 0.1 s and the vest pig 0.78 s. D44A implements the Duke3D rumble 1:1
+(user target) for barrels and the pig first. No code changed.
+
 ## 2026-11-05 - D10F2 closed
 
 User: "honestly incredible work. lock it in and close it out." D10F2 is Done (note 395); executable

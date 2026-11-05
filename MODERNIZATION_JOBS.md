@@ -1,5 +1,35 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-05 - D10H5 closed; D10H7 added
+
+User: "adaptive it is. i've just played all of time to kill, challenge 1, and
+a bit of duke hill, and didnt experience a single issue", then "close this
+out". D10H5 (adaptive world delay, about 63-72 ms instead of 90 at 180 Hz;
+[note 392](documentation/392-d10h5-adaptive-world-delay.md)) is Done. A fixed
+70 / 90 blind comparison was abandoned after a desktop restart; adaptive was
+judged in play. New backlog job D10H7: submit redraws at their exact lead to
+drop the one-present margin (about 3-6 ms). No framework edit; the runtime
+patch export is unchanged.
+
+## 2026-11-05 - D10H5: adaptive world delay, about 70 ms instead of 90 at 180 Hz (accepted)
+
+The world at 120/180 Hz was drawn a fixed 90 ms behind. A present needs pose
+frames n-1 and n complete a lead before it, so the delay must cover "pair
+age" (frame n composed - frame n-1 pose time: p99 49-58 ms in 18 traced lab
+runs) plus the lead. Fixed delays on the apartment fixture: 70 ms starves
+0.07% of presents (world held at alpha 1), 65 0.7%, 60 6.7%, 55 11.7%; the
+D10H 55-65 estimate left the composition out. `frame_replay.cpp`: the delay
+now follows the p99 pair age (128 frames) + lead + one present, 50-90 ms
+(90 is the ceiling, so heavy scenes return to the old value), slewed at most
+10% slower / 3% faster world clock; new `render_replay` timeline counters
+(`world_delay_ms`, `pair_age_p99_ms`, `starved`). Offscreen 180 Hz: world age
+median 70.3 (strafe-turn), 66.3 (run-strafe), 71.6 (level 1), 63.2 (level 8),
+75.1 at 120; starved 0-1 per about 1460 presents, pace divisor 1, as at
+fixed 90. D10G4 slide fixture still on the screen view (18/19). Modernized
+only; Vanilla, 60 Hz and frontend images unchanged. `DNTTK_WORLD_DELAY_MS=90`
+is the old build for A/B. No framework edit. Open: judder on the real 180 Hz
+display (user), heavier scenes. [Note 392](documentation/392-d10h5-adaptive-world-delay.md).
+
 ## 2026-11-05 - D36H10 closed
 
 User: "fixed! lock it in and close it out. excellent work". D36H10 (water
@@ -1008,11 +1038,24 @@ person, climbs and swimming.
 
 ### D10H5 - Shorter world delay at high refresh
 
-**Status: Todo. Dependencies: D10H1.** Bring the 90 ms present timeline delay
+**Status: Done (2026-11-05, accepted and closed; user: "adaptive it is. i've just played all of time to kill, challenge 1, and a bit of duke hill, and didnt experience a single issue"; [note 392](documentation/392-d10h5-adaptive-world-delay.md); adaptive delay about 63-72 ms at 180 Hz instead of 90, `DNTTK_WORLD_DELAY_MS` fixes it). Dependencies: D10H1.** Bring the 90 ms present timeline delay
 (`DNTTK_WORLD_DELAY_MS`) towards Duke 3D's one tic, adaptive and about
 55-65 ms first, so the world, muzzle flash and impacts show sooner. Judge at
 180 Hz on the real display for judder (130 ms and faster phase correction
 were rejected before). D10G3/D10G4 follow automatically.
+
+### D10H7 - Queue redraws at their exact lead
+
+**Status: Todo. Dependencies: D10H5.** D10H5's adaptive world delay is
+p99 pair age + lead + one present period; the period term (5.6 ms at 180 Hz,
+8.3 at 120) covers redraws being submitted up to a present early, because
+`timeline_provider` submits every deadline within the lead at each tick. If
+each redraw is submitted at (or measured against) its exact t - lead, the
+period term can go: about 3-6 ms less world delay. Measure the actual
+submit-to-deadline spread first (`target - submit_ms`); `starved` and pace
+repeats must stay at the D10H5 level (`world_delay.py`, 120 and 180 Hz,
+levels 1 and 8). Modernized only; Vanilla unchanged. Not in scope (D10H5
+note 392): a lower percentile, early partial frames, extrapolation.
 
 ### D10H6 - Repeat rate parity with Duke 3D analogs
 
@@ -6684,7 +6727,8 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D10H2 | Pistol chase: rounds that leave on target land | Todo | D10H1 |
 | D10H3 | Duke 3D style auto aim option for bullet weapons | Todo | D10H1 |
 | D10H4 | Shot on press: ready stance, then earlier fire frame | Done | D10H1 |
-| D10H5 | Shorter world delay at high refresh | Todo | D10H1 |
+| D10H5 | Shorter world delay at high refresh | Done | D10H1 |
+| D10H7 | Queue redraws at their exact lead | Todo | D10H5 |
 | D10H6 | Repeat rate parity with Duke 3D analogs | Done | D10H1, D10H4 |
 | D10F2 | Camera behind an object when opening a door (UI slot 11) | Todo | D10F1 |
 | D10C | Duke 3D look keys: Page Up / Page Down look up / down while held and recenter on release; Home / End lock the look up / down (bindable) | Done (user-accepted 2026-10-20) | D06, D19G |

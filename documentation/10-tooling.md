@@ -451,8 +451,11 @@ submission (frame, target present, alpha, flip pending). Status: `lead_ms`,
 - Modernized high-refresh launches enable compatible ordered translucent
   batching (`PSX_GL_ORDERED_SEMI_BATCH=0` is the comparison). Vanilla does not.
 - `DNTTK_PRESENT_TIMELINE=0` compares the previous scheduling path;
-  `DNTTK_WORLD_DELAY_MS` adjusts the world-history buffer (default 90 ms,
-  clamped 50-130). Camera rotation is sampled much nearer presentation.
+  `DNTTK_WORLD_DELAY_MS` fixes the world-history buffer (clamped 50-130;
+  90 is the pre-D10H5 value). By default it adapts to the p99 pose pair age
+  plus the lead, 50-90 ms (D10H5, note 392; `render_replay` timeline
+  `world_delay_ms`, `starved`). Camera rotation is sampled much nearer
+  presentation.
 - `PSX_REPLAY_UNTIMED=0` compares timing-faithful workers;
   `PSX_REPLAY_VALIDATE_TIMING=1` compares both workers' complete GP0 streams.
   `PSX_REPLAY_VALIDATE_BATCH=1` compares complete RGBA redraws with batching

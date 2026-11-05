@@ -1,13 +1,13 @@
 # Time to Kill — modernization jobs
 
-## 2026-11-05 - D44 explosion rumble research (Done); D44A added
+## 2026-11-05 - D44 earthquake research (Done); D44A added
 
 User: EDuke32 saves `rumbletest`, `rumblewall`, `bigrumble` show Duke3D's
-rumble; add it to Time to Kill, starting with the UI slot 12 explosive-vest
+earthquake (the user's word: rumble); add it to Time to Kill, starting with the UI slot 12 explosive-vest
 pig and the UI slot 10 TNT barrels; research only, then stand up the
 implementation job. Mid-research: "make that camera shake really look 1:1 like
 the one in eduke".
-[Note 396](documentation/396-d44-explosion-rumble-research.md).
+[Note 396](documentation/396-d44-earthquake-research.md).
 
 EDuke32 (source and a private measured run): one global timer, 16 tics per
 detonation (SEENINE/OOZFILTER chains, linked extinguishers, cracks hit by
@@ -21,7 +21,10 @@ TTK (disassembly and a private run): a native distance-scaled shake exists
 pad rumble). Vest pig (`0x80063f0c`) 0.78 s at Duke's distance; TNT barrels
 (`0x80097090`) about 0.1 s each, which is why they feel flat. D44A: one global
 Duke3D-style timer, the exact pattern as a redraw eye offset, barrels and the
-pig first, other blasts and scripted events as candidates, Modernized only.
+pig; not dynamite, pipe bombs or rockets (no earthquake in Duke3D; user);
+scripted events as candidates; Modernized only. Terms (user, EDuke32's
+names): earthquake for the view effect, `quake` for the command, rumble only
+for the pad.
 No game code, build or framework change.
 
 ## 2026-11-05 - D10F2 closed
@@ -6831,8 +6834,8 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D41 | Foundational lighting system (pre-job: case-study artifact, then spawns the lighting jobs) | Todo (placeholder, intake 2026-11-03) | none |
 | D42 | Death state and menu: stay on the death scene, Open opens the existing death list, Escape returns, unlimited continues, console usable while dead | Done (user-accepted 2026-11-03; note 373) | D19H, D19P, D19M, D19K, D26 |
 | D43 | Level title card: the level's name near the centre when a level begins, Duke 3D style, fades by itself | Done (user-accepted 2026-11-03; note 374) | - |
-| D44 | Explosion rumble research: EDuke32 earthquake measured, TTK shake and sources mapped | Done (research, 2026-11-05; note 396) | - |
-| D44A | Explosion rumble: EDuke32-style map-wide ground shake (1:1 target) for TNT barrels, the vest pig and chosen blasts; pad rumble; Modernized only | Todo | D44 |
+| D44 | Earthquake research: EDuke32 earthquake measured, TTK shake and sources mapped | Done (research, 2026-11-05; note 396) | - |
+| D44A | Earthquakes: EDuke32-style map-wide ground shake (1:1 target) for TNT barrels and the vest pig (not dynamite, pipe bombs or rockets); pad rumble; Modernized only | Todo | D44 |
 | D39G | Classic renderer fallback for flashes | Done (accepted 2026-11-03) | D39C |
 | D40 | Switch renderer (Polymorph / Classic) live in game, as EDuke32 does | Done | D17AR6, D39G |
 | D08H | Apartment furniture, hidden pickup and switch targeting | Done | D08 |

@@ -1,4 +1,4 @@
-# D44 - Explosion rumble: EDuke32 earthquake and Time to Kill research
+# D44 - Earthquakes: EDuke32 research and Time to Kill
 
 2026-11-05. Status: Done (research only, closed out by the user's standing
 instruction for this job). Implementation: D44A (Todo). No game code, build or
@@ -16,6 +16,23 @@ rumble right when you shoot those guys"), and UI slot 10, rooms of TNT barrels
 be perfect ... it's pretty anticlimactic"). Then find other things that would
 work with the rumble.
 
+## Terms
+
+Follow EDuke32's names (user, 2026-11-05: "reserve rumbles for the pad rumble,
+which is a totally different thing"):
+
+- **Earthquake**: the shaking view. EDuke32: `g_earthquakeTime`, sector
+  effector `SE_2_EARTHQUAKE` ("Earthquake"), sound `EARTHQUAKE`.
+- **quake**: the command that starts one, as CON `quake <tics>`. Use it for
+  the TTK console command too.
+- **Rumble**: the controller only. EDuke32: `I_AddForceFeedback`,
+  `controllerRumble`, the `in_rumble` setting.
+- TTK's own blast effect is the **native shake**: a camera jitter, plus pad
+  rumble.
+
+The user's EDuke32 save names (`rumbletest` and so on) and their quoted words
+keep "rumble".
+
 Follow-up mid-research (user): "can we try and make that camera shake really
 look 1:1 like the one in eduke. or get bloody close to it". This is the D44A
 acceptance target.
@@ -23,7 +40,7 @@ acceptance target.
 Evidence labels: **S** source read (EDuke32 r10669 source, `research/eduke32`),
 **M** measured in a private run, **D** static disassembly of SLUS_005.83.
 
-## EDuke32: how the rumble works
+## EDuke32: how earthquakes work
 
 ### The effect (S, M)
 
@@ -49,7 +66,7 @@ wherever they are on the map.
   motors, strength falling with the remaining time), when controller rumble is
   on.
 - A new event sets the timer (16 or 48); it never adds. A chain of detonations
-  keeps restarting it, which is what makes `bigrumble` one long quake.
+  keeps restarting it, which is what makes `bigrumble` one long earthquake.
 
 ### Why it feels like the ground shaking
 
@@ -87,13 +104,15 @@ the world against the HUD.
 | Sector effector SE 2 (Earthquake), started by a master switch: a switch, touch plate or activator with the same lotag (`G_OperateMasterSwitches`) | 48 at three pulses (every 32 tics over 96), plus the EARTHQUAKE sound and the sector floor tilting to its slope | `actors.cpp:6945-6975`, `2568` |
 | CON `quake <tics>` | any, plus the EARTHQUAKE sound | `gameexec.cpp:5353` |
 
-During any quake, SE 33 sprites spawn falling scrap at random (`actors.cpp:8587`).
+During any earthquake, SE 33 sprites spawn falling scrap at random (`actors.cpp:8587`).
 DETONATE also fires the same-hitag SE 13 explosive sectors, SE 8, SE 18 and SE
-21, so the rumble comes with the wall or floor blowing open.
+21, so the earthquake comes with the wall or floor blowing open.
 
-Not a rumble in Duke3D: the plain EXPLODINGBARREL (gas can; GAME.CON
+Not an earthquake in Duke3D: the plain EXPLODINGBARREL (gas can; GAME.CON
 `actor EXPLODINGBARREL` has no `quake`), a FIREEXT without hitag, RPG and pipe
-bomb blasts on their own. GAME.CON uses `quake` nowhere. The rumble belongs to
+bomb blasts on their own. GAME.CON uses `quake` nowhere. Rule (user, 2026-11-05): weapons alone never
+cause an earthquake in Duke3D. In `rumblewall` the pipe bomb only does so by
+blowing a mapped crack. Earthquakes belong to
 level-design detonations, which mappers place with hitags and switches.
 
 ### The three saves (M)
@@ -105,12 +124,12 @@ tic counter in EVENT_GAME). Fire was the bound key.
 
 | Save | What goes off | Measured |
 | --- | --- | --- |
-| `rumbletest` | The extinguisher at the end of the room (a linked FIREEXT) | Quake tics 108-123: exactly 16 tics. z +-256 every tic, angle 8, 8, 0, 0. |
+| `rumbletest` | The extinguisher at the end of the room (a linked FIREEXT) | Earthquake tics 108-123: exactly 16 tics. z +-256 every tic, angle 8, 8, 0, 0. |
 | `rumblewall` | A remote pipe bomb at the cinema entrance crack (CRACK hit by RADIUSEXPLOSION) | 16 tics, 102-117, starting the tic after the detonator press |
-| `bigrumble` | The canisters down the arcade corridor (SEENINE chain) | One quake from tic 111 to 173 (63 tics, 2.1 s); the phase resets at each link (tics 119, 129, 134, 143, 148, 157) |
+| `bigrumble` | The canisters down the arcade corridor (SEENINE chain) | One earthquake from tic 111 to 173 (63 tics, 2.1 s); the phase resets at each link (tics 119, 129, 134, 143, 148, 157) |
 
 The first frames after each shot also carry unrelated z offsets (fire and
-explosion knock); the quake is the clean +-256 / 8 pattern.
+explosion knock); the earthquake is the clean +-256 / 8 pattern.
 
 Lab note: under Xvfb EDuke32 ran no game tics after a load until
 `r_maxfps "60"` and `vid_vsync "0"` were set (Xvfb reports no refresh rate).
@@ -149,7 +168,7 @@ The pig dies in a large fireball and the `0x80063f0c` shake starts at strength
 and time 234 (Duke about 7500 units away, falloff 0.585): 0.78 s, fading
 linearly. Sampled camera rotation steps 3-10 degrees on some game frames, 0 on
 others. So there is a shake, but it is short, random and fades from the first
-frame. It does not read as Duke3D's sustained rumble.
+frame. It does not read as Duke3D's sustained earthquake.
 
 ### UI slot 10: TNT barrels (M)
 
@@ -162,7 +181,7 @@ found that this routine plays no blast sound of its own.
 
 Target (user): EDuke32's earthquake 1:1, or as close as the game allows.
 
-1. **One global rumble timer**, Duke3D semantics: a source sets it (never adds),
+1. **One global earthquake timer**, Duke3D semantics: a source sets it (never adds),
    it falls at the game's 30 Hz tic, the whole level feels it, only while Duke
    is on the ground (also not swimming, on a ladder or jetpacking).
 2. **The exact pattern**: per tic, camera height +-16 Duke3D units flipping each
@@ -173,30 +192,30 @@ Target (user): EDuke32's earthquake 1:1, or as close as the game allows.
    presentation offset in the redraw camera (D10H frame replay), so it reaches
    every present and never feeds back into aim, movement or collision; in
    third person move the lens, in first person the eye.
-3. **Pad**: keep the native `0x8001e97c` route, strength following the timer
+3. **Pad rumble**: keep the native `0x8001e97c` route, strength following the timer
    as `I_AddForceFeedback` does.
 4. **Sources** (all Modernized; Vanilla unchanged):
    - TNT barrel (`0x80097090`): 16 tics each, chains restart it, like a SEENINE
      chain in `bigrumble`.
    - Explosive-vest pig and any character blown apart (`0x80063f0c`): 16 tics,
      maybe longer for the vest; decide with the user.
-   - Candidates to try with the user: dynamite (`0x80070f7c`), pipe bombs and
-     the Holy Hand Grenade (`0x800707cc`), rockets and grenades (`0x800702bc`).
-     Duke3D does not quake for its own RPG or pipe bomb, so these could be
-     distance gated or off.
+   - Not dynamite (`0x80070f7c`), pipe bombs and the Holy Hand Grenade
+     (`0x800707cc`), or rockets and grenades (`0x800702bc`). Duke3D's RPG and
+     pipe bombs cause no earthquake (user, 2026-11-05, and the source above).
+     They keep TTK's native shake unchanged.
    - Scripted level events (collapses, crashes, large set pieces), Duke3D's SE 2
      analogue, after a survey of the level overlays' event code.
    - A console command, like CON `quake <tics>`, for testing.
 5. **The native jitter**: in Modernized replace it for these sources, or keep
    it underneath at reduced strength. Choose by comparing captures with the
    user.
-6. **Option**: a Rumble on/off in the presentation settings (and the
-   controller rumble option for the pad).
+6. **Option**: Earthquakes on/off in the presentation settings, separate from
+   the controller's Rumble option.
 
 Tests: the slot 10 barrel chain and slot 12 pig at 60/120/180 Hz;
 frame-by-frame comparison with the EDuke32 measurements above (tic count,
-phase, amplitude); airborne and water immunity; pause; savestate across a
-quake; third and first person; Vanilla byte-identical behaviour.
+phase, amplitude); airborne and water immunity; pause; savestate across an
+earthquake; third and first person; Vanilla byte-identical behaviour.
 
 ## Files
 

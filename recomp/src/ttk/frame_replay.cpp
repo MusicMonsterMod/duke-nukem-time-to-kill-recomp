@@ -358,6 +358,10 @@ struct Frame {
     float late_yaw[max_jobs];   // diagnostic: late view yaw used (degrees), 999 none
     double target[max_jobs];    // late camera: the present (ms) this redraw is for
     double submit_ms[max_jobs]; // late camera: when it was submitted (ms), 0 once seen ready
+    // D10G3: the camera this redraw shows (eye, forward x4096) when the late
+    // view owned it; the shot reads it once the redraw is presented.
+    bool view_ok[max_jobs];
+    double view_eye[max_jobs][3], view_fwd[max_jobs][3];
     int njobs=0;
     InterpState state;
     uint8_t render[8192];   // modern_controls draw-time state (render_state_save)
@@ -766,6 +770,9 @@ bool apply_late(const InterpState& a,const InterpState& b,double alpha,Params& p
 uint32_t submitted_menu=0;   // D19C: menu signature of the image the last job draws from
 int submit_job(Frame& base,const Frame& next,double alpha,bool late,double look_ms) {
     submitted_menu=base.menu;
+    // Callers store this job at base.njobs.
+    const int view_at=base.njobs<max_jobs ? base.njobs : -1;
+    if(view_at>=0) base.view_ok[view_at]=false;
     if(base.loading) {
         // D17U: the shortest way round between the two images' angles.
         const double a=interp_off ? 0.0 : interp_full ? 1.0 : alpha;
@@ -804,7 +811,15 @@ int submit_job(Frame& base,const Frame& next,double alpha,bool late,double look_
         Params p; std::memcpy(&p,param_buffer,sizeof p);
         p.near=base.near; p.serial=base.serial;
         last_late_yaw=999.0f;
-        if(late) {if(apply_late(base.state,next.state,alpha,p,look_ms)) ++late_applied; else ++late_skipped;}
+        if(late) {
+            if(apply_late(base.state,next.state,alpha,p,look_ms)) {
+                ++late_applied;
+                if(view_at>=0) {
+                    base.view_ok[view_at]=true;
+                    for(int i=0;i<3;++i) {base.view_eye[view_at][i]=p.camera.pos[i];base.view_fwd[view_at][i]=p.camera.rot[6+i];}
+                }
+            } else ++late_skipped;
+        }
         std::memcpy(param_buffer,&p,sizeof p);
     }
     {
@@ -1473,7 +1488,16 @@ void prefetch(const PSXModPresentInfo* info) {
 // were cached, and whether the shown one was drawn at its present.
 struct TraceEntry {float ms,alpha; int8_t shown,njobs,ready,cached,drawn; uint32_t serial; float yaw; double t; float pa; float age;};
 TraceEntry trace_ring[128]; unsigned trace_n=0;
+// D10G3: the late view the last present showed (shot_view, weapon_aim.cpp).
+// Presents and the game update run on the emulation thread.
+struct ShownView {bool ok=false; double eye[3]{}, fwd[3]{}; std::chrono::steady_clock::time_point at{};} shown_view_state;
 void trace(const PSXModPresentInfo* info,double alpha,const Frame* f,int shown,bool drawn) {
+    if(f && shown>=0) {
+        shown_view_state.ok=f->view_ok[shown];
+        if(shown_view_state.ok) for(int i=0;i<3;++i) {shown_view_state.eye[i]=f->view_eye[shown][i];shown_view_state.fwd[i]=f->view_fwd[shown][i];}
+        shown_view_state.at=std::chrono::steady_clock::now();
+    } else if(shown==-1) shown_view_state.ok=false;
+    else if(shown_view_state.ok) shown_view_state.at=std::chrono::steady_clock::now();   // the same image again
     TraceEntry& e=trace_ring[trace_n++%128];
     e.ms=info->last_flip && info->frequency ? (float)((double)(info->now-info->last_flip)*1000.0/(double)info->frequency) : -1.0f;
     e.t=info->frequency ? (double)info->now/(double)info->frequency : 0.0;
@@ -1887,6 +1911,12 @@ void replay_body_camera(bool duke) {
 // value captured with the frames (true); a live draw, or an object neither
 // frame recorded, reads guest memory (false). yaw may be null.
 bool replay_redraw_active() {return draw_poses.valid;}
+bool shot_view(double eye[3],double forward[3],double& age_ms) {
+    if(!shown_view_state.ok) return false;
+    age_ms=std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-shown_view_state.at).count();
+    for(int i=0;i<3;++i) {eye[i]=shown_view_state.eye[i];forward[i]=shown_view_state.fwd[i];}
+    return true;
+}
 // D17AY diagnostic: a trace reference reads the in-between pose even under
 // DNTTK_DRAW_POSE=tick, so the old and new readers are measured alike.
 bool present_trace_reference=false;

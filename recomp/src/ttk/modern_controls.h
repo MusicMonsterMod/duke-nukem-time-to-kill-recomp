@@ -147,6 +147,10 @@ bool late_pivot(double* xyz);
 double late_fp_blend();
 void replay_body_camera(bool duke);
 bool replay_late_rotation(int16_t rot[9]);
+// D10G3: the late view the last present showed (eye, forward x4096) and how
+// long ago it was presented, ms (frame_replay.cpp). False when that image was
+// not a late-view redraw (60 Hz, game-owned camera, frontend).
+bool shot_view(double eye[3],double forward[3],double& age_ms);
 // D17AY: an object's position (+4..+12) and heading (+0x1c, 0..4095) as this
 // draw shows it: interpolated in a redraw between game ticks (true), else
 // guest memory (false). Draw-time hooks use it instead of reading the fields.

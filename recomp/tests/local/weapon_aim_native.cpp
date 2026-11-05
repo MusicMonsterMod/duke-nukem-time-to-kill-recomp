@@ -30,7 +30,9 @@ extern "C" uint32_t psx_mod_alloc_guest_memory(uint32_t n,uint32_t){static uint3
 extern "C" void psx_mod_host_call_begin(void){}
 extern "C" void psx_mod_host_call_end(void){}
 extern "C" int psx_mod_register_function_entry_plugin(const char*,uint32_t a,PSXModFunctionEntryCallback cb){if(a==0x8003c500)callback=cb;return 1;}
-namespace ttk {bool free_look_active(){return false;}bool free_look_aim(double*,double*){return false;}static InputFrame f;const InputFrame& input_snapshot(Context){return f;}uint64_t input_host_frame(){return f.sequence;}bool input_modernized(){return modern;}bool input_modern_controls(){return modern;}bool movement_ready(){return ready;}const char* movement_lease_miss(){return "test";}bool locomotion_input_ready(){return false;}bool jetpack_input_ready(){return modern && jet_ready;}bool swim_weapon_ready(){return modern && swim_ready;}bool airborne_shot_ready(){return modern && air_ready;}bool climb_shot_ready(){return modern && climb_ready;}bool player_identity_ready(){return ready;}static bool fp_view;bool first_person_view_live(){return fp_view;}bool frame_trace_on(){return false;}void frame_trace_account(uint32_t,long){}}
+namespace ttk {bool free_look_active(){return false;}bool free_look_aim(double*,double*){return false;}static InputFrame f;const InputFrame& input_snapshot(Context){return f;}uint64_t input_host_frame(){return f.sequence;}bool input_modernized(){return modern;}bool input_modern_controls(){return modern;}bool movement_ready(){return ready;}const char* movement_lease_miss(){return "test";}bool locomotion_input_ready(){return false;}bool jetpack_input_ready(){return modern && jet_ready;}bool swim_weapon_ready(){return modern && swim_ready;}bool airborne_shot_ready(){return modern && air_ready;}bool climb_shot_ready(){return modern && climb_ready;}bool player_identity_ready(){return ready;}static bool fp_view;bool first_person_view_live(){return fp_view;}bool frame_trace_on(){return false;}void frame_trace_account(uint32_t,long){}
+// D10G3: the view the last present showed.
+static bool sv_ok;static double sv_eye[3],sv_fwd[3],sv_age;bool shot_view(double* e,double* f,double& age){if(!sv_ok)return false;for(int i=0;i<3;++i){e[i]=sv_eye[i];f[i]=sv_fwd[i];}age=sv_age;return true;}}
 extern "C" void psx_dispatch_call(CPUState* c,uint32_t address,uint32_t ret) {
     assert(address==0x8006d980 && ret==0x800000fc && c->gpr[4]==0x800d7198);
     uint32_t a=c->gpr[5],sp=c->gpr[29];
@@ -110,6 +112,32 @@ int main(int argc,char**argv) {
     }
     psx_mod_write_word(cam+0x1c,0);psx_mod_write_word(p+0xc4,0);
     std::puts("PASS: D10G1 point-blank rounds stay within 35 degrees of the view, continuous with distance");
+    // D10G3: game camera eye 0,0,0 looking +z, muzzle 100 to the side, wall
+    // 1000 ahead. A fresh shown view aims from the screen eye and forward; a
+    // stale (over 60 ms), cut (over 1536 away) or switched-off one does not.
+    {
+        auto slope=[&](){seed();callback(&c,0x8003c500);assert(c.gpr[6]==0x801e0000);
+            return (double)(int32_t)psx_mod_read_word(c.gpr[6])/(int32_t)psx_mod_read_word(c.gpr[6]+8);};
+        auto view=[&](double ex,double fx,double age){ttk::sv_ok=true;ttk::sv_eye[0]=ex;ttk::sv_eye[1]=ttk::sv_eye[2]=0;
+            ttk::sv_fwd[0]=fx;ttk::sv_fwd[1]=0;ttk::sv_fwd[2]=std::sqrt(4096.0*4096-fx*fx);ttk::sv_age=age;};
+        const double game=slope();
+        view(300,0,5);const double shifted=slope();
+        view(0,2048,5);const double turned=slope();
+        view(300,0,80);const double stale=slope();
+        view(2000,0,5);const double cut=slope();
+        bool closed=false;auto quiet=[](const char*){};
+        view(300,0,5);
+        assert(ttk::shot_view_console_command("shotview off",quiet,closed) && closed);const double off=slope();
+        assert(ttk::shot_view_console_command("shotview maybe",quiet,closed) && !closed); // refused
+        assert(ttk::shot_view_console_command("shotview default",quiet,closed) && closed);const double back=slope();
+        setenv("DNTTK_SHOT_VIEW","0",1);const double env_off=slope();unsetenv("DNTTK_SHOT_VIEW");
+        ttk::sv_ok=false;const double none=slope();
+        std::printf("D10G3 x/z: game %.3f, screen eye +300 %.3f, screen turned 30 %.3f, stale %.3f, cut %.3f, off %.3f\n",game,shifted,turned,stale,cut,off);
+        std::fflush(stdout);
+        assert(std::abs(game+0.1)<0.01 && std::abs(shifted-0.2)<0.01 && std::abs(turned-(1000*std::tan(3.141592653589793/6)-100)/1000)<0.01);
+        assert(stale==game && cut==game && off==game && env_off==game && none==game && back==shifted);
+    }
+    std::puts("PASS: D10G3 shots aim from the view on screen; stale, cut or switched-off views keep the game camera");
     psx_mod_write_byte(p+0x3b8,2);psx_mod_write_byte(p+0x3b9,4);
     psx_mod_write_word(p+0x224,0);assert(ttk_aim_reticle()); // walking is still armed
     // Native marker selection suppresses the modern reticle, including the

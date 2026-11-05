@@ -1,5 +1,22 @@
 # Next-session handoff
 
+## 2026-11-05 - D10G3 closed: shots aim from the view on screen
+
+User: "ok yes, it feels great, it feels like an improvement", then "close us
+out". D10G3 is Done ([note 386](386-d10g3-shot-view.md)). Next for aim: D10G4
+"shoot what you see" (crosshair tested against enemies where drawn, for
+running enemies). Launch: `python3 recomp/tools/local/run.py`.
+
+## 2026-11-05 - D10G3 shots aim from the view on screen (Needs playtest)
+
+At 120/180 Hz shots now take eye and direction from the late view the last
+present showed instead of the previous update's camera. Measured offscreen:
+turning shot 2.42 to 0.00 degrees off the screen, strafing eye 42 u (walk)
+and about 186 u (run) to about 1 u; 60 Hz falls back to the game camera.
+A/B in the backtick console: `shotview off`. Moving enemies still trail by the
+90 ms world delay (the proposed "shoot what you see" job).
+[Note 386](386-d10g3-shot-view.md). Launch: `python3 recomp/tools/local/run.py`.
+
 ## 2026-11-05 - Shot latency investigation; D10G3 widened
 
 Shots land behind moving targets mainly because at 120/180 Hz the world is

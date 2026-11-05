@@ -1,5 +1,32 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-05 - D10G3 accepted and closed; D10G4 added
+
+User: "ok yes, it feels great, it feels like an improvement", then "close us
+out". D10G3 is Done ([note 386](documentation/386-d10g3-shot-view.md)): shots
+aim from the view on screen, `shotview` console A/B. The further tightening
+for moving enemies is the new **D10G4** "shoot what you see" (crosshair
+tested against enemies where drawn). No code change since the playtest build
+`b28bb735...`.
+
+## 2026-11-05 - D10G3 shots aim from the view on screen (Needs playtest)
+
+`frame_replay.cpp` records the camera each late-view redraw draws (eye after
+the late rotation, forward) and keeps the one the last present showed;
+`weapon_aim.cpp` aims view shots from it, falling back to the game camera with
+no shown late view (60 Hz, game-owned cameras), one older than 60 ms, or one
+over 1536 u or 100 degrees from the game camera. Free look, cover checks,
+D10G1, D22D and native weapon timing unchanged; Vanilla and `original`
+unchanged. A/B: console `shotview [on|off|default]`, `DNTTK_SHOT_VIEW=0`.
+Evidence (offscreen, private copies, `recomp/analysis/d10g-latency/` runs
+`g3-*`): turn 72 deg/s at 180 Hz 2.42 to 0.00 degrees (120 Hz and first
+person the same, one 1.2 degree present-boundary shot each); walk strafe eye
+42 to 0.5 u; run strafe about 186 to 1 u; `DNTTK_SHOT_VIEW=0` 2.49 degrees
+(old); 60 Hz 19/19 game camera. `ttk-aim-test` passes with a new D10G3 group.
+Not verified: real mouse and display at 180 Hz, real enemies, other weapons
+in play. Moving enemies still trail by the 90 ms world delay (proposed "shoot
+what you see" job, not on the board). Executable `b28bb735...`.
+
 ## 2026-11-05 - Shot latency against moving targets: investigation; D10G3 widened
 
 User: "my shots are behind him pretty much, like they always land a bit
@@ -658,7 +685,7 @@ the user in play; off in Vanilla and with the crosshair off.
 
 ### D10G3 - Shot direction from the newest look
 
-**Status: Todo. Dependencies: D10G1.** Shots read the previous game update's
+**Status: Done (2026-11-05, [note 386](documentation/386-d10g3-shot-view.md); user: "ok yes, it feels great, it feels like an improvement", then "close us out"). Dependencies: D10G1.** Shots read the previous game update's
 camera, about 33 ms behind the per-redraw late view the player sees
 ([note 384](documentation/384-d10g-aim-mouse-feel.md)). Take the direction
 from the late view when the round leaves. Native weapon timing (100-200 ms
@@ -666,6 +693,23 @@ press to shot) stays unchanged. Widened 2026-11-05 (latency investigation): also
 the eye from the camera on screen, not only the rotation (the shot eye runs
 about 64 ms of Duke's sideways motion ahead, about 186 u at run). Test with
 `recomp/analysis/d10g-latency/` (`rays.py` turn and strafe) at 60/120/180.
+
+### D10G4 - Shoot what you see: crosshair tested against enemies where drawn
+
+**Status: Todo. Dependencies: D10G3.** Proposed by the 2026-11-05 latency
+investigation (local `recomp/analysis/d10g-latency/REPORT.md`, candidate 1).
+At 120/180 Hz actors are drawn 90 ms in the past (`timeline_pair`) while
+rounds are hit-tested against their current positions, so a running enemy
+under the crosshair is missed behind (about 171 u at pig cop speed). Test the
+D10G3 screen ray against actors where the shown present drew them (the replay
+keeps eight snapshots); on an actor hit, aim the round at that actor's current
+position after the existing muzzle and cover checks (lag compensation as
+network shooters do it). Also fixes the knock-on where the D10G1 targetable
+exemption and the D22D beam lock see a wall instead of the moving enemy.
+Modernized view aiming only; Vanilla, `original` aiming, native projectile,
+spread, damage and weapon timing unchanged; A/B switch like `shotview`. Needs
+a moving-enemy test fixture (spawned pig cops stand idle until shot). The user
+judges whether it feels fair at 180 Hz on the real display.
 
 ### D10F2 - Camera behind an object when opening a door (UI slot 11)
 
@@ -6264,7 +6308,8 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D10G | Aim and mouse feel in third person (research report first) | Done (closed 2026-11-04; note 384) | D07, D10, D10E, D10F |
 | D10G1 | Point-blank aim: fire along the view when the crosshair point is close | Done (closed 2026-11-04; note 385) | D10G |
 | D10G2 | Blocked-shot crosshair hint | Cancelled (2026-11-04) | D10G1 |
-| D10G3 | Shot direction from the newest look | Todo | D10G1 |
+| D10G3 | Shot direction from the newest look | Done (closed 2026-11-05; note 386) | D10G1 |
+| D10G4 | Shoot what you see: crosshair tested against enemies where drawn | Todo | D10G3 |
 | D10F2 | Camera behind an object when opening a door (UI slot 11) | Todo | D10F1 |
 | D10C | Duke 3D look keys: Page Up / Page Down look up / down while held and recenter on release; Home / End lock the look up / down (bindable) | Done (user-accepted 2026-10-20) | D06, D19G |
 | D10D | Keyboard turning in Modernized: Left / Right arrows turn the view left / right (Duke 3D style, alongside the mouse) | Done (user-accepted 2026-10-20) | D06, D10C |

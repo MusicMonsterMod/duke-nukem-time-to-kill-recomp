@@ -1456,6 +1456,13 @@ the largest angle off the view, 5 to 45 degrees (default 35).
 `pointblank default` restores both. Shots at an enemy under the crosshair, assisted shots, throws,
 first person, `original` aiming and Vanilla are unchanged.
 
+**Shots follow the view on screen (Modernized, D10G3).** At FRAME RATE 120 or
+higher the picture you see is newer than the game's own camera, so a shot now
+leaves from the view you are looking at, turning or strafing, instead of the
+camera one game update older. At 60 Hz nothing changes. To compare, open the
+backtick console and type `shotview off` (session only); `shotview on` or
+`shotview default` turns it back on.
+
 First-map checks now cover the pistol, shotgun, rifle, Gatling, RPG, freezer,
 crossbow, knife/axe, pipe bomb, grenade, dynamite, flamethrower and energy weapon.
 RPG flight and explosions follow pitched view aim. Throws keep their original

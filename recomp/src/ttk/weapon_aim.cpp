@@ -192,6 +192,37 @@ static void point_blank(const double* forward,const double* muzzle,const double*
     }
     std::copy(aim,aim+3,dir);
 }
+// D10G3: the camera the shot reads (camera+0x0c/+0x14) is the previous game
+// update's; at 120/180 Hz the screen shows the late view: rotation about 34 ms
+// newer, eye at the presented world time (about 64 ms of Duke's motion older).
+// Aim from the view the last present showed, so the round goes where the
+// crosshair is on screen. Fallback to the game camera: no late-view present in
+// the last 60 ms (60 Hz, game-owned camera), or one that disagrees (cut).
+// DNTTK_SHOT_VIEW=0 or console "shotview off" keeps the game camera.
+static std::atomic<int> shot_view_override{-1};
+static bool shot_view_enabled() {
+    const int o=shot_view_override.load(std::memory_order_relaxed);
+    if(o>=0)return o!=0;
+    const char* v=std::getenv("DNTTK_SHOT_VIEW");return !v || std::strcmp(v,"0");
+}
+static unsigned screen_view_shots,screen_view_refused;
+static bool last_screen_view;
+static double last_view_shift,last_view_turn,last_view_age;
+static void screen_view(double* eye,double* forward) {
+    last_screen_view=false;last_view_shift=last_view_turn=0;last_view_age=-1;
+    double e[3],f[3],age=0;
+    if(!shot_view_enabled() || !shot_view(e,f,age))return;
+    last_view_age=age;
+    double shift=0,dot=0,a=0,b=0;
+    for(int i=0;i<3;++i) {shift+=(e[i]-eye[i])*(e[i]-eye[i]);dot+=f[i]*forward[i];a+=f[i]*f[i];b+=forward[i]*forward[i];}
+    shift=std::sqrt(shift);
+    if(a<1 || b<1)return;
+    const double turn=std::acos(std::clamp(dot/std::sqrt(a*b),-1.0,1.0))*180/3.141592653589793;
+    // The late view may lead a flick by tens of degrees (its own limit is 100).
+    if(age>60 || shift>1536 || turn>100) {++screen_view_refused;return;}
+    std::copy(e,e+3,eye);std::copy(f,f+3,forward);
+    last_screen_view=true;last_view_shift=shift;last_view_turn=turn;++screen_view_shots;
+}
 static void marker_hook(CPUState* cpu,uint32_t address) {
     if(address!=0x8002bc18 || cpu->gpr[31]!=0x80033db0 || cpu->gpr[20]!=player)return;
     const char* visible=ttk_live_env("DNTTK_RED_DOT");
@@ -336,7 +367,8 @@ static void aim_hook_body(CPUState* cpu,uint32_t address) {
     double eye[3],forward[3],target[3],muzzle[3],body[3],safe[3],ray_start[3];
     read_vector(camera+0x14,eye);read_vector(continuous?player+0x80c:player+0xbc,muzzle);
     for(int i=0;i<3;++i)forward[i]=(int16_t)psx_mod_read_half(camera+12+2*i);
-    free_look_aim(eye,forward);
+    screen_view(eye,forward);
+    if(free_look_aim(eye,forward))last_screen_view=false;
     bool ok=normal(forward);int kind=0;
     for(int i=0;i<3;++i)target[i]=eye[i]+forward[i]*16384;
     read_vector(player+4,body);body[1]=muzzle[1];
@@ -406,7 +438,8 @@ static void aim_hook_body(CPUState* cpu,uint32_t address) {
             std::copy(eye,eye+3,beam_eye);std::copy(forward,forward+3,beam_forward);
         }
         ++shots;if(last_assisted)++assisted_shots;last_kind=cover?4:(last_assisted?2:kind);last_weapon=cpu->gpr[7];
-        if(diagnostics())std::fprintf(stderr,"ttk-aim-shot weapon=%d target=%.0f,%.0f,%.0f direction=%.0f,%.0f,%.0f cover=%d bend=%.1f\n",last_weapon,target[0],target[1],target[2],last_direction[0],last_direction[1],last_direction[2],cover,last_bend);
+        if(diagnostics())std::fprintf(stderr,"ttk-aim-shot weapon=%d target=%.0f,%.0f,%.0f direction=%.0f,%.0f,%.0f cover=%d bend=%.1f view=%s eye=%.0f,%.0f,%.0f forward=%.4f,%.4f,%.4f shift=%.0f turn=%.2f age=%.1f\n",last_weapon,target[0],target[1],target[2],last_direction[0],last_direction[1],last_direction[2],cover,last_bend,
+            last_screen_view?"screen":"game",eye[0],eye[1],eye[2],forward[0],forward[1],forward[2],last_view_shift,last_view_turn,last_view_age);
     } else ++rejected;
     busy=false;
 }
@@ -434,9 +467,24 @@ bool point_blank_console_command(const char* line,void (*say)(const char*),bool&
         lift_setting(),point_blank_max.load(std::memory_order_relaxed),point_blank_lift_default,point_blank_max_default);
     say(text);return true;
 }
+bool shot_view_console_command(const char* line,void (*say)(const char*),bool& close) {
+    if(std::strcmp(line,"shotview") && std::strncmp(line,"shotview ",9))return false;
+    close=false;
+    if(line[8]) {
+        const char* value=line+9;
+        if(!std::strcmp(value,"on"))shot_view_override.store(1,std::memory_order_relaxed);
+        else if(!std::strcmp(value,"off"))shot_view_override.store(0,std::memory_order_relaxed);
+        else if(!std::strcmp(value,"default"))shot_view_override.store(-1,std::memory_order_relaxed);
+        else {say("Usage: shotview [on|off|default] (on: shots aim from the view on screen; session only)");return true;}
+        close=true;
+    }
+    char text[192];std::snprintf(text,sizeof text,"Shot view %s: shots aim from the %s (session only). Default on.",
+        shot_view_enabled()?"on":"off",shot_view_enabled()?"view on screen":"previous game update's camera");
+    say(text);return true;
+}
 const char* aim_debug_json() {
-    static char out[1280];
-    std::snprintf(out,sizeof out,"{\"point_blank_shots\":%u,\"point_blank_lift\":%.2f,\"last_bend\":%.1f,\"beam_locks\":%u,\"beam_extra_locks\":%u,\"close_retractions\":%u,\"assisted_shots\":%u,\"hidden_markers\":%u,\"last_assisted\":%s,\"reticle\":%s,\"shots\":%u,\"rejected\":%u,\"queries\":%u,\"lease_misses\":%u,\"last_lease_miss\":\"%s\",\"identity_calls\":%llu,\"identity_checks\":%llu,\"weapon\":%d,\"hit_kind\":%d,\"origin\":[%.0f,%.0f,%.0f],\"target\":[%.0f,%.0f,%.0f],\"direction\":[%.0f,%.0f,%.0f]}",point_blank_shots,lift_setting(),last_bend,beam_locks,beam_extra_locks,close_retractions,assisted_shots,hidden_markers,last_assisted?"true":"false",ttk_aim_reticle()?"true":"false",shots,rejected,queries,lease_misses,last_lease_miss,(unsigned long long)aim_identity_calls,(unsigned long long)aim_identity_checks,last_weapon,last_kind,last_origin[0],last_origin[1],last_origin[2],last_target[0],last_target[1],last_target[2],last_direction[0],last_direction[1],last_direction[2]);return out;
+    static char out[1536];
+    std::snprintf(out,sizeof out,"{\"shot_view\":%s,\"screen_view_shots\":%u,\"screen_view_refused\":%u,\"last_screen_view\":%s,\"last_view_shift\":%.0f,\"last_view_turn\":%.2f,\"last_view_age\":%.1f,\"point_blank_shots\":%u,\"point_blank_lift\":%.2f,\"last_bend\":%.1f,\"beam_locks\":%u,\"beam_extra_locks\":%u,\"close_retractions\":%u,\"assisted_shots\":%u,\"hidden_markers\":%u,\"last_assisted\":%s,\"reticle\":%s,\"shots\":%u,\"rejected\":%u,\"queries\":%u,\"lease_misses\":%u,\"last_lease_miss\":\"%s\",\"identity_calls\":%llu,\"identity_checks\":%llu,\"weapon\":%d,\"hit_kind\":%d,\"origin\":[%.0f,%.0f,%.0f],\"target\":[%.0f,%.0f,%.0f],\"direction\":[%.0f,%.0f,%.0f]}",shot_view_enabled()?"true":"false",screen_view_shots,screen_view_refused,last_screen_view?"true":"false",last_view_shift,last_view_turn,last_view_age,point_blank_shots,lift_setting(),last_bend,beam_locks,beam_extra_locks,close_retractions,assisted_shots,hidden_markers,last_assisted?"true":"false",ttk_aim_reticle()?"true":"false",shots,rejected,queries,lease_misses,last_lease_miss,(unsigned long long)aim_identity_calls,(unsigned long long)aim_identity_checks,last_weapon,last_kind,last_origin[0],last_origin[1],last_origin[2],last_target[0],last_target[1],last_target[2],last_direction[0],last_direction[1],last_direction[2]);return out;
 }
 }
 static int crosshair_forced=-1; // -1 follow env; 0/1 override (I key, EDuke-style)

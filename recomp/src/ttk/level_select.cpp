@@ -139,6 +139,7 @@ bool level_console_command(const char* line, void (*say)(const char*), bool& clo
     if(crouch_console_command(line,say,close))return true;
     if(fov_console_command(line,say,close))return true;
     if(point_blank_console_command(line,say,close))return true;
+    if(shot_view_console_command(line,say,close))return true;
     if(hostvis_console_command(line,say,close))return true;
     if(smoothquads_console_command(line,say,close))return true;
     if(redraw_only_console_command(line,say,close))return true;

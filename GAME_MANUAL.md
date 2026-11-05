@@ -1777,7 +1777,7 @@ outside the game.
 
 **Backtick (`)** opens a Quake-style drop-down developer console (TTK Medium
 Italic font, `>` prompt). Typed commands and their replies stay in the console scrollback (`help`,
-`fps`, `clear`, `quit`, `palfrom` (see Screen flashes), `renderer` (see Renderer), unknown-command errors). `fps` also toggles a compact
+`fps`, `clear`, `quit`, `palfrom` (see Screen flashes), `earthquake` (see Earthquakes), `renderer` (see Renderer), unknown-command errors). `fps` also toggles a compact
 persistent statistics block in the top-left of the game view after you close the
 console (F remains unbound for gameplay); in Modernized it is the same setting as
 OPTIONS > DISPLAY > FPS and is saved. Escape or backtick closes the console.
@@ -2435,6 +2435,41 @@ tic. A new flash always replaces the current one. The console closes so you
 can see it. Examples: `palfrom 32 32` (the god-mode off red), `palfrom 48 52`
 (an RPG hit), `flash 16 0 32` (an item pickup), `palfrom 32 63 63 63`
 (white). It only works in play, in Modernized.
+
+### Earthquakes (D44A)
+
+Modernized shakes the whole level the way Duke Nukem 3D does when a big
+charge goes off (Duke 3D's earthquake, as EDuke32 plays it):
+
+- **What starts one**: a TNT barrel going off, and an explosive-vest pig
+  cop's bomb. Each one shakes for about half a second (16 of Duke 3D's
+  30 Hz tics); a chain of barrels keeps it going, each blast starting it
+  again, so a room of TNT gives one long earthquake. Rockets, grenades, pipe
+  bombs, the Holy Hand Grenade and dynamite never cause one (as in Duke 3D);
+  they keep the game's own short camera jolt.
+- **What it looks like**: the view jumps up and down every tic and twitches a
+  little to the right every other pair of tics, at full strength until it
+  stops dead. It is the same everywhere in the level, however far away the
+  blast was. Only the world moves: the status bars, the crosshair and, in
+  first person, Duke's hands and weapon stay still. In third person Duke
+  shakes with the ground he stands on.
+- **Everywhere Duke is**: it keeps shaking while he jumps, falls, swims, flies
+  the jetpack or climbs (Duke 3D stops it in the air; here it does not).
+- **Controller**: the pad rumbles with it, as faintly as EDuke32's does, when
+  vibration is on in the game's controller options.
+
+Aiming, movement and the camera's own motion are never moved by it: shots go
+where the steady crosshair points. **OPTIONS > GAMEPLAY > EARTHQUAKES** turns
+it **ON** (the default) or **OFF** (barrels and vests then give the game's own
+short jolt). Confirm applies and saves the choice immediately. Vanilla never
+has earthquakes. The launcher accepts `--earthquakes on|off` (saves the
+preference); terminal `--settings` uses **Z Earthquakes**.
+
+The backtick console's `earthquake <seconds>` starts one by hand (decimals
+work: `earthquake 1` is one second, `earthquake 2.5`); `earthquake` on its own
+is one blast's worth, and `earthquake 0` stops one. Like a blast, it replaces
+an earthquake already running rather than adding to it, and the console closes
+so you can see it. It only works in play, in Modernized.
 
 ### Inventory feedback and crouch scope (2026-09-28)
 

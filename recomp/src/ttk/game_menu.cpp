@@ -426,6 +426,9 @@ std::vector<Screen> make_screens() {
         // D39C: accessibility (D21). REDUCED halves a flash, at most a quarter.
         {"SCREEN FLASHES",Section::Controls,"screen_flashes","DNTTK_SCREEN_FLASHES",true,"COLOURED FULL SCREEN FLASHES. REDUCED: SOFTER",
          {{"ON","on","\"on\""},{"REDUCED","reduced","\"reduced\""},{"OFF","off","\"off\""}},0},
+        // D44A: Duke 3D's map-wide earthquake for TNT barrels and characters blown apart.
+        {"EARTHQUAKES",Section::Controls,"earthquakes","DNTTK_EARTHQUAKES",true,"TNT AND VEST BOMBS SHAKE THE LEVEL, DUKE 3D STYLE",
+         {{"ON","on","\"on\""},{"OFF","off","\"off\""}},0},
     }};
     s[3]={"ADVANCED",{
         heading("CAMERA AND AIM"),

@@ -1,5 +1,33 @@
 # Next-session handoff
 
+## 2026-11-05 - D44A closed; D08A36 added
+
+User: "ok, i absolutely accept this." D44A is Done at revision 2
+([note 397](397-d44a-earthquakes.md)); executable
+`0badb77b72aca5dc355c0e66f893b650edc971e66e49f5fb156022cbe2d17a72` is the
+regression baseline. New Todo D08A36: weapon switching (number keys, wheel,
+; and ') does nothing in mid air, from any save.
+
+## 2026-11-05 - D44A revision 2: earthquakes in the air too (Needs playtest)
+
+User: the effect stopped when jumping. The on-ground gate is removed; the
+shake now continues through jumps, falls, water, flight and climbs
+([note 397](397-d44a-earthquakes.md)).
+
+## 2026-11-05 - D44A earthquakes (Needs playtest)
+
+Modernized gets Duke 3D's earthquake ([note 397](397-d44a-earthquakes.md)):
+TNT barrels and explosive-vest bombs start a 16-tic, map-wide shake (eye
++-21 units each tic, 1.41 degree yaw twitch, full strength; revision 2 also in the air), set never added, so barrel chains run as one. Hooked at the native
+shake request `0x80028a2c` (one generated line, codegen hash unchanged); the
+native jitter is replaced for those two sources; rockets, grenades, pipe
+bombs and dynamite keep it. Presentation only: live and redraw cameras, held
+per tic, weapon still in first person, aim and camera untouched. Console
+`earthquake <seconds>`; OPTIONS > GAMEPLAY > EARTHQUAKES (schema 68). Vanilla
+unchanged. Native controls 153 PASS, aim passes. New Todo D44B (scripted
+events). Open: the user's playtest. Executable
+`023672fbdf83dfe4f364f7e184673be56bed0bdcce368f8149d237d32c262d64`.
+
 ## 2026-11-05 - D44 earthquake research (Done); D44A Todo
 
 Research only ([note 396](396-d44-earthquake-research.md)). EDuke32's

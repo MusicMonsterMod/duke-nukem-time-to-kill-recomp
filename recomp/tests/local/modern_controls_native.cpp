@@ -277,7 +277,7 @@ namespace ttk {bool anim_extra_clip(unsigned clip,uint32_t& first,uint32_t& coun
 namespace ttk {int replay_load_window(int window){return window==1 ? -1 : 0;}}
 namespace ttk {bool live_frame_redraw_only(){return false;}}
 namespace ttk {int replay_audio_low(){return 0;}}
-namespace ttk {void replay_body_camera(bool){}bool replay_late_rotation(int16_t*){return false;}} // D14H/D35D1: replay workers only
+namespace ttk {void replay_body_camera(bool){}void replay_quake_camera(bool){}void replay_quake_restore(){}bool replay_late_rotation(int16_t*){return false;}} // D14H/D35D1: replay workers only
 // D17AY: a redraw's in-between object poses (frame_replay.cpp); empty = a live draw.
 struct TestDrawPose {uint32_t obj; double pos[3]; double yaw;};
 static std::vector<TestDrawPose> test_draw_poses;

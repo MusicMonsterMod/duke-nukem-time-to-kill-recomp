@@ -732,6 +732,7 @@ static void weapon_draw_bounds(bool duke_entry,bool list_step_after_duke) {
     if(duke_entry) weapon_duke_draw=true;
     if(list_step_after_duke) weapon_duke_draw=false;
     replay_body_camera(duke_entry); // D14H: no-op outside late first-person redraws
+    replay_quake_camera(duke_entry); // D44A: no-op without a first-person earthquake
     if(duke_entry || list_step_after_duke) {display_hand_done=false;weapon_release();near_clip_viewmodel_flush();}
     if(mask && psx_mod_read_half(player+0x35e) && psx_mod_read_half(player+0x854)==2)
         near_clip_biomask(bob_dip,biomask_light);

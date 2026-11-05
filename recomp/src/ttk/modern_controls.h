@@ -159,6 +159,19 @@ bool late_view(double& yaw, double& pitch, double at_ms=-1);
 bool late_pivot(double* xyz);
 double late_fp_blend();
 void replay_body_camera(bool duke);
+// D44A earthquakes (earthquake.inc): fix the offset of the live image about
+// to be composed (once a game frame), then read the offset of the image being
+// drawn (live, or the redraw's base frame in a worker): eye dy (game units,
+// Y down) and yaw (radians, right); eye = first person (Duke's own draw keeps
+// the steady camera).
+void earthquake_compose();
+bool earthquake_image(double& dy,double& yaw,bool& eye);
+const char* earthquake_json();
+// frame_replay.cpp: Duke's own draw in first person sees the steady camera,
+// every other draw the shaken one; and the live camera is put back after the
+// composition.
+void replay_quake_camera(bool duke);
+void replay_quake_restore();
 bool replay_late_rotation(int16_t rot[9]);
 // D10G3: the late view the last present showed (eye, forward x4096) and how
 // long ago it was presented, ms (frame_replay.cpp). False when that image was

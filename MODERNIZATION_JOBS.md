@@ -1,5 +1,59 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-05 - D44A closed; D08A36 added
+
+User: "ok, i absolutely accept this." D44A is Done at revision 2 (Duke 3D's
+earthquake for TNT barrels and explosive vests, in the air too;
+[note 397](documentation/397-d44a-earthquakes.md)). Executable
+`0badb77b72aca5dc355c0e66f893b650edc971e66e49f5fb156022cbe2d17a72` is the
+regression baseline. No framework edit; the runtime patch export is unchanged.
+
+New Todo D08A36 (user report): weapons cannot be changed in mid air. Load any
+save, jump, and the number keys, the mouse wheel and ; / ' do nothing.
+
+## 2026-11-05 - D44A revision 2: earthquakes in the air too (Needs playtest)
+
+User playtest: "this is FANTASTIC!!!!!!!!!!! the only problem however, is that
+the effect stops if you jump". The on-ground gate (Duke 3D's `on_ground`) is
+gone: jumps, falls, swimming, the jetpack and climbs shake too. Private run:
+a jump during `earthquake 3` shows 32 shaken images with consecutive tics (13
+steady before). Executable
+`0badb77b72aca5dc355c0e66f893b650edc971e66e49f5fb156022cbe2d17a72`. [Note 397](documentation/397-d44a-earthquakes.md).
+
+## 2026-11-05 - D44A earthquakes (Needs playtest)
+
+[Note 397](documentation/397-d44a-earthquakes.md). Duke 3D's earthquake in
+Modernized: one map-wide countdown, 16 tics per source, set never added;
+while Duke is on the ground each image moves the eye +-21 units (Duke 3D's
+1/38 of the eye height), flipping every tic, and turns it 1.41 degrees right
+two tics of four (EDuke32's `G_DrawRooms` formula on the same tic count). Full
+strength, no fade, held per tic at every frame rate.
+
+Sources: the native blast shake request `0x80028a2c` (new hook, one generated
+line, codegen hash unchanged) from the TNT barrel blast and the explosive vest
+(its only caller is the vest fuse `0x80064fa8`, so ordinary deaths never
+quake); their native jitter is replaced. Rockets, grenades, pipe bombs and
+dynamite keep the native shake. Console `earthquake <seconds>` /
+`earthquake` / `earthquake 0`. OPTIONS > GAMEPLAY > EARTHQUAKES on/off
+(schema 68, `--earthquakes`, `--settings` Z). Pad rumble at EDuke32's
+strength. Vanilla unchanged.
+
+Presentation only (`frame_replay.cpp`): the live image's camera is shaken
+after the capture and restored at the composition's end (62 of 62 images,
+camera fields identical after); redraws apply their base frame's offset
+after the late camera, after the shot view is recorded; in first person
+Duke's own draw keeps the steady camera, so the weapon stays still.
+
+Private runs: the pattern matches EDuke32 tic for tic; the slot 9 barrel
+chain gives one 49-tic earthquake restarting at each blast (like
+`bigrumble`); the slot 11 vest pig 16 tics; an RPG at a wall none;
+airborne images steady; a savestate load stops it; option off and Vanilla
+keep the native shake. Image shifts at 60/120/180 Hz show only the four exact
+states; first-person weapon unchanged. Native controls 153 PASS, aim passes,
+profile tests OK. New Todo D44B: scripted level events as sources.
+Open: the user's playtest (feel against EDuke32, bob size, vest length, pad).
+Executable `023672fbdf83dfe4f364f7e184673be56bed0bdcce368f8149d237d32c262d64`.
+
 ## 2026-11-05 - D44 earthquake research (Done); D44A added
 
 User: EDuke32 saves `rumbletest`, `rumblewall`, `bigrumble` show Duke3D's
@@ -6835,7 +6889,8 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D42 | Death state and menu: stay on the death scene, Open opens the existing death list, Escape returns, unlimited continues, console usable while dead | Done (user-accepted 2026-11-03; note 373) | D19H, D19P, D19M, D19K, D26 |
 | D43 | Level title card: the level's name near the centre when a level begins, Duke 3D style, fades by itself | Done (user-accepted 2026-11-03; note 374) | - |
 | D44 | Earthquake research: EDuke32 earthquake measured, TTK shake and sources mapped | Done (research, 2026-11-05; note 396) | - |
-| D44A | Earthquakes: EDuke32-style map-wide ground shake (1:1 target) for TNT barrels and the vest pig (not dynamite, pipe bombs or rockets); pad rumble; console `earthquake <seconds>`; Modernized only | Todo | D44 |
+| D44A | Earthquakes: EDuke32-style map-wide ground shake (1:1 target) for TNT barrels and the vest pig (not dynamite, pipe bombs or rockets); pad rumble; console `earthquake <seconds>`; Modernized only | Done (user-accepted 2026-11-05; note 397) | D44 |
+| D44B | Earthquakes from scripted level events (collapses, crashes, large set pieces; Duke 3D's SE 2 analogue): survey the level overlays' event code, then add sources to the D44A timer | Todo | D44A |
 | D39G | Classic renderer fallback for flashes | Done (accepted 2026-11-03) | D39C |
 | D40 | Switch renderer (Polymorph / Classic) live in game, as EDuke32 does | Done | D17AR6, D39G |
 | D08H | Apartment furniture, hidden pickup and switch targeting | Done | D08 |
@@ -6943,6 +6998,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08A34 | The medkit cannot be used in water (underwater or on the surface; slot 11) | Done | D08A7 |
 | D08A33 | EQUIP PICKUPS option: IF NEW (default) auto-equips new weapons and selects new items; NEVER does neither | Done (user-accepted 2026-11-02) | D08A9, D08A, D19 |
 | D08A35 | Cowboy hat stays on under the Bio Mask (and night-vision goggles) in third person | Done (user-accepted 2026-11-04; note 383) | D08A24, D08A26, D08A23 |
+| D08A36 | Weapon switching in mid air: number keys, the wheel and ; ' do nothing during a jump or fall (any save; user, 2026-11-05) | Todo | D08A, D08A29 |
 | D09 | Modern controller support | Done (user-accepted 2026-10-27) | D05, D06, D07 |
 | D09A | Separate keyboard and gamepad seats for local two-player | Done (user-accepted 2026-10-27) | D09, D34B implementation |
 | D09C | Controller rumble: the game's own vibration on a real pad, plus Modernized hit feedback | Todo (added 2026-11-04, from cancelled D12E2) | D09, D09A |

@@ -1229,6 +1229,7 @@ static void face_view() {
 #include "tp_kick.inc"
 #include "weapon_feel.inc"
 #include "pole_visibility.inc"
+#include "earthquake.inc"
 
 static void hook_body(CPUState* cpu, uint32_t address);
 // Frame diagnostics (DNTTK_FRAME_TRACE=1): wall time between player updates
@@ -1366,6 +1367,9 @@ static void hook_body(CPUState* cpu, uint32_t address) {
     // D08S pause/menus can keep fields advancing without a player update.
     // Do not charge that gap when normal flight resumes.
     if(jetpack_eduke32() && !gameplay_context())jet_fuel_frame=0;
+    // D44A: the steady camera is back before the camera update (normally
+    // already at the composition's end).
+    if(address==0x8003ade4) replay_quake_restore();
     grounded_water_restore();
     crouch_water_restore(); // D08K11: scoped native crouch water veto, also after loads/Vanilla.
     // D08A13: running steroids hidden from Duke's damage handler come back at
@@ -2121,6 +2125,8 @@ struct RenderState {
     bool jet_flight;
     // D08J7D: the one-handed pull-up's off hand and viewmodel high ready.
     OnehandView onehand_view;
+    // D44A: the earthquake offset of this image (held, never blended).
+    QuakeView quake;
 };
 bool replay_gameplay_context() { return gameplay_context(); }
 void render_state_prepare() {
@@ -2186,6 +2192,7 @@ void render_state_save(void* out) {
     r.world_classic=ttk_world_classic()!=0;
     r.push_letgo=push_letgo;
     r.onehand_view=onehand_view_live();
+    r.quake=quake_view;
     std::memcpy(out,&r,sizeof r);
 }
 void render_state_blend_mask(void* out,const void* next,double alpha) {
@@ -2252,6 +2259,7 @@ void render_state_load(const void* in) {
     override_channel_hand=r.channel_hand;
     override_projection_blend=r.projection_blend;
     jet_flight_live=r.jet_flight;
+    quake_view=r.quake;
     // Draw-time transients start clean, as at the start of a live frame.
     head_flag=backpack_flag=0; third_body_drawing=false; mirror_duke_drawing=false; duke_drawing=false; actor_drawing=false; limb_scope_forget();
     render_override=true; override_lease_cam=r.lease_cam;
@@ -2470,6 +2478,7 @@ PSX_MOD_CONSTRUCTOR(register_ttk_controls) {
     // class handler and the call after the actor loop.
     psx_mod_register_function_entry_plugin("ttk.modern.controls",0x80099164,[](CPUState* cpu,uint32_t){ttk::reach_range(cpu);});
     psx_mod_register_function_entry_plugin("ttk.modern.controls",0x80099530,[](CPUState* cpu,uint32_t){ttk::reach_tick(cpu);});
+    psx_mod_register_function_entry_plugin("ttk.modern.controls",0x80028a2c,[](CPUState* cpu,uint32_t){ttk::earthquake_native_shake(cpu);});
     psx_mod_register_function_entry_plugin("ttk.modern.controls",0x80025944,[](CPUState* cpu,uint32_t){ttk::reach_hold(cpu);});
     psx_mod_register_function_entry_plugin("ttk.modern.controls",0x800632b8,[](CPUState* cpu,uint32_t){ttk::reach_release(cpu);});
     psx_mod_register_function_entry_plugin("ttk.modern.controls",0x800374cc,[](CPUState* cpu,uint32_t){ttk::open_sky_object_pass(cpu);});

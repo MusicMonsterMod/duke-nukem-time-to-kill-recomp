@@ -1211,6 +1211,92 @@ const uint8_t* sub_table=nullptr; uint32_t sub_n=0, sub_cursor=0;
 struct BodyCamera {bool valid=false,body=false; int16_t rot[2][9],view[2][9];} body_camera;
 // D17AY: this redraw's in-between object poses and its place in the timeline.
 struct DrawPoses {bool valid=false,tick=false; uint64_t serial=0; float alpha=0; uint32_t n=0; ObjectPose pose[max_poses];} draw_poses;
+// D44A: the earthquake (earthquake.inc) in the camera of the image being
+// drawn: the eye moved by dy and the view turned by yaw about the eye. cam[0]
+// is what every draw sees; in first person Duke's own draw (arms, weapon,
+// legs) keeps cam[1], the steady camera, as Duke 3D draws its weapon over the
+// shaking world. A redraw takes its base frame's offset (render state): the
+// tic's offset holds between game frames, never blended. Live, the steady
+// camera comes back when the composition ends (or at the next camera update),
+// in each field nothing else has changed since.
+struct QuakeCamera {bool valid=false,eye=false,duke=false,live=false; CameraState cam[2];} quake_cam;
+uint64_t quake_live=0,quake_redraws=0,quake_restores=0,quake_kept=0;
+void write_camera(const CameraState& c,bool rotation) {
+    if(rotation) for(int i=0;i<9;++i) {
+        psx_mod_write_half(camera_base+2*i,(uint16_t)c.rot[i]);
+        psx_mod_write_half(camera_base+0x20+2*i,(uint16_t)c.view[i]);
+    }
+    for(int i=0;i<3;++i) {
+        psx_mod_write_word(camera_base+0x14+4*i,(uint32_t)c.pos[i]);
+        psx_mod_write_word(camera_base+0x34+4*i,(uint32_t)c.view_t[i]);
+        psx_mod_write_word(camera_base+0x64+4*i,(uint32_t)c.anchor[i]);
+    }
+}
+// Yaw about the world's vertical (+Z toward +X is a turn right), then the eye
+// (+0x14, the view translation +0x34 and the anchor +0x64 with it) down by dy.
+void quake_turn(int16_t row[3],double c,double s) {
+    const double x=row[0],z=row[2];
+    row[0]=(int16_t)std::lround(std::clamp(x*c+z*s,-32768.0,32767.0));
+    row[2]=(int16_t)std::lround(std::clamp(z*c-x*s,-32768.0,32767.0));
+}
+void quake_shake(CameraState& q,double dy,double yaw) {
+    const double c=std::cos(yaw),s=std::sin(yaw);
+    if(yaw!=0) {
+        for(int r=0;r<3;++r) {quake_turn(q.rot+3*r,c,s);quake_turn(q.view+3*r,c,s);}
+        const double ax=q.anchor[0]-q.pos[0],az=q.anchor[2]-q.pos[2];
+        q.anchor[0]=q.pos[0]+(int32_t)std::lround(ax*c+az*s);
+        q.anchor[2]=q.pos[2]+(int32_t)std::lround(az*c-ax*s);
+    }
+    const int32_t d=(int32_t)std::lround(dy);
+    q.pos[1]+=d; q.view_t[1]+=d; q.anchor[1]+=d;
+}
+void quake_begin(bool live) {
+    quake_cam={};
+    double dy=0,yaw=0; bool eye=false;
+    if(!earthquake_image(dy,yaw,eye)) return;
+    read_camera(quake_cam.cam[1]);
+    quake_cam.cam[0]=quake_cam.cam[1];
+    quake_shake(quake_cam.cam[0],dy,yaw);
+    write_camera(quake_cam.cam[0],true);
+    // A late first-person redraw switches the rotation per draw itself
+    // (replay_body_camera): its world rotation turns, Duke's stays.
+    if(body_camera.valid) {
+        std::memcpy(body_camera.rot[0],quake_cam.cam[0].rot,sizeof body_camera.rot[0]);
+        std::memcpy(body_camera.view[0],quake_cam.cam[0].view,sizeof body_camera.view[0]);
+    }
+    quake_cam.valid=true; quake_cam.eye=eye; quake_cam.live=live;
+    ++(live ? quake_live : quake_redraws);
+}
+void quake_end() {
+    if(!quake_cam.valid) return;
+    if(quake_cam.live) {
+        CameraState now; read_camera(now);
+        const CameraState& w=quake_cam.cam[quake_cam.duke];
+        const CameraState& c=quake_cam.cam[1];
+        const bool rot=!std::memcmp(now.rot,w.rot,sizeof now.rot) && !std::memcmp(now.view,w.view,sizeof now.view);
+        // The composition derives the eye (+0x14) and the view translation
+        // (+0x34) again from the anchor (0x80039c7c, +-1 rounding): within 2
+        // units of the shaken eye they are ours, and get the steady eye back.
+        auto near=[&](const int32_t v[3]) {for(int i=0;i<3;++i) if(std::abs(v[i]-w.pos[i])>2) return false; return true;};
+        const bool pos=!std::memcmp(now.pos,w.pos,sizeof now.pos) || near(now.pos);
+        const bool vt=!std::memcmp(now.view_t,w.view_t,sizeof now.view_t) || near(now.view_t);
+        const bool an=!std::memcmp(now.anchor,w.anchor,sizeof now.anchor);
+        if(rot) for(int i=0;i<9;++i) {psx_mod_write_half(camera_base+2*i,(uint16_t)c.rot[i]);psx_mod_write_half(camera_base+0x20+2*i,(uint16_t)c.view[i]);}
+        for(int i=0;i<3;++i) {
+            if(pos) psx_mod_write_word(camera_base+0x14+4*i,(uint32_t)c.pos[i]);
+            if(vt) psx_mod_write_word(camera_base+0x34+4*i,(uint32_t)c.pos[i]);
+            if(an) psx_mod_write_word(camera_base+0x64+4*i,(uint32_t)c.anchor[i]);
+        }
+        ++((rot && pos && vt && an) ? quake_restores : quake_kept);
+        static const bool trace=std::getenv("DNTTK_QUAKE_TRACE")!=nullptr;
+        if(trace && !(rot && pos && vt && an)) {
+            std::fprintf(stderr,"[TTK quake] end kept rot=%d pos=%d vt=%d an=%d duke=%d now pos %d %d %d vt %d %d %d an %d %d %d rot0 %d %d %d | wrote pos %d %d %d vt %d %d %d an %d %d %d rot0 %d %d %d\n",rot,pos,vt,an,quake_cam.duke,
+                now.pos[0],now.pos[1],now.pos[2],now.view_t[0],now.view_t[1],now.view_t[2],now.anchor[0],now.anchor[1],now.anchor[2],now.rot[0],now.rot[1],now.rot[2],
+                w.pos[0],w.pos[1],w.pos[2],w.view_t[0],w.view_t[1],w.view_t[2],w.anchor[0],w.anchor[1],w.anchor[2],w.rot[0],w.rot[1],w.rot[2]);
+        }
+    }
+    quake_cam={};
+}
 int worker_draw(CPUState* source,const void* params,uint32_t len) {
     const uint64_t quality_start=quality_profile()?SDL_GetPerformanceCounter():0;
     quality_actor_start=quality_actor_ticks=quality_actor_count=0;
@@ -1307,6 +1393,7 @@ int worker_draw(CPUState* source,const void* params,uint32_t len) {
     // it calls the flip. D17U: a loading image starts at the logo draw, whose
     // backdrop is already in the drawing chain; the draw adds the field delta.
     if(p.flags&4) psx_mod_write_half(logo_angle,(uint16_t)((p.logo-(int)psx_mod_read_half(field_delta))&0xfff));
+    if(!(p.flags&4)) quake_begin(false);
     psx_dispatch_call(&cpu,(p.flags&4) ? logo_draw : composition,flip);
     bool ok=cpu.pc==0 && !g_psx_call_bail;
     if(ok) {
@@ -1321,7 +1408,7 @@ int worker_draw(CPUState* source,const void* params,uint32_t len) {
         }
     }
     g_psx_call_bail=0;
-    sub_table=nullptr; sub_n=0; body_camera={}; draw_poses={};
+    sub_table=nullptr; sub_n=0; body_camera={}; draw_poses={}; quake_cam={};
     static const bool log=std::getenv("DNTTK_REPLAY_LOG")!=nullptr;
     if(log) {
         uint64_t nc1[8]; near_clip_counters(nc1);
@@ -1875,7 +1962,12 @@ void composition_entry(CPUState* cpu,uint32_t address) {
         ndrawn=ndrawing;
         ndrawing=0;
     }
+    // D44A: this image's earthquake offset is fixed before the capture (its
+    // render state carries it to the redraws) and shown after.
+    const bool quake=!psx_mod_replay_active() && address==composition && cpu->gpr[31]==composition_ret;
+    if(quake) {quake_end();earthquake_compose();}
     composition_hook(cpu,address);
+    if(quake) quake_begin(true);
 }
 // D17U: a loading screen's logo draw (live frames only).
 void logo_entry(CPUState* cpu,uint32_t address) {
@@ -1966,6 +2058,7 @@ void transform_load(CPUState* cpu,uint32_t) {
 // 0x8001fba0 called right after the live composition (return 0x80026904):
 // this frame's transforms are complete; redraw the previous frame toward it.
 void composition_end(CPUState* cpu,uint32_t) {
+    if(!psx_mod_replay_active() && cpu->gpr[31]==0x80026904u) quake_end();
     if(!interp_replay || psx_mod_replay_active() || !rec_frame) return;
     if(cpu->gpr[31]!=(rec_frame->frontend ? frontend_close_ret : 0x80026904u)) return;
     rec_frame->xf_done=true;
@@ -1983,6 +2076,12 @@ void composition_end(CPUState* cpu,uint32_t) {
 } // namespace
 // D14H: Duke's own actor draw in a late first-person redraw uses the body
 // camera; every other draw (world, reflection, other actors) the late one.
+void replay_quake_camera(bool duke) {
+    if(!quake_cam.valid || !quake_cam.eye || quake_cam.duke==duke) return;
+    quake_cam.duke=duke;
+    write_camera(quake_cam.cam[duke],!body_camera.valid);
+}
+void replay_quake_restore() {if(!psx_mod_replay_active()) quake_end();}
 void replay_body_camera(bool duke) {
     if(!body_camera.valid || body_camera.body==duke) return;
     body_camera.body=duke;
@@ -2217,13 +2316,19 @@ bool renderer_console_command(const char* line,void (*say)(const char*),bool& cl
     return true;
 }
 extern "C" void gl_renderer_present_tint_diag(uint64_t* asked,uint64_t* drawn,float last[4]);
+const char* quake_json() {
+    static char b[512];
+    std::snprintf(b,sizeof b,"{\"controls\":%s,\"live\":%llu,\"redraws\":%llu,\"restores\":%llu,\"kept\":%llu}",earthquake_json(),
+        (unsigned long long)quake_live,(unsigned long long)quake_redraws,(unsigned long long)quake_restores,(unsigned long long)quake_kept);
+    return b;
+}
 const char* frame_replay_debug_json() {
     static char buffer[98304];
     uint64_t tint_asked=0,tint_drawn=0; float tint_last[4]{};
     gl_renderer_present_tint_diag(&tint_asked,&tint_drawn,tint_last);
-    int n=std::snprintf(buffer,sizeof buffer,"{\"renderer\":%s,\"flash\":%s,\"on\":%s,\"interp\":%s,\"target_hz\":%d,\"steps\":%d,\"captures\":%llu,\"publishes\":%llu,"
+    int n=std::snprintf(buffer,sizeof buffer,"{\"renderer\":%s,\"flash\":%s,\"quake\":%s,\"on\":%s,\"interp\":%s,\"target_hz\":%d,\"steps\":%d,\"captures\":%llu,\"publishes\":%llu,"
         "\"submits\":%llu,\"rendered\":%llu,\"shown\":%llu,\"no_job\":%llu,\"failures\":%llu,\"serial\":%llu,\"prefetched\":%llu,\"governed\":%llu,\"deferred\":%llu,\"feed_ms\":%.2f,\"budget_ms\":%.2f,\"blended_mats\":%llu,\"blended_poses\":%llu,\"skipped_actors\":%llu,\"camera_cuts\":%llu,\"drawn\":%d,\"pending_flips\":%llu,\"blended_xf\":%llu,\"skipped_objects\":%llu,\"substituted\":%llu,\"sub_misses\":%llu,\"late\":%s,\"late_applied\":%llu,\"late_skipped\":%llu,\"late_jit\":%llu,\"late_repeats\":%llu,\"lead_ms\":%.1f,\"ready_ms\":%.1f,\"pace_div\":%d,\"pace_backoff\":%d,\"pace_clean\":%d,\"pace_ratio\":%.3f,\"pace_mid\":%llu,\"shed_steps\":%d,\"shed_backoff\":%d,\"shed_probes\":%llu,\"shed_failed_probes\":%llu,\"pace_changes\":%llu,\"emu_sheds\":%llu,\"audio_sheds\":%llu,\"ahead\":[%llu,%llu,%llu,%llu,%llu,%llu,%llu,%llu]}",
-        world_renderer_json(),screen_flash_json(tint_asked,tint_drawn,tint_last),replay_on?"true":"false",interp_replay?"true":"false",(int)target_hz,steps,(unsigned long long)captures,
+        world_renderer_json(),screen_flash_json(tint_asked,tint_drawn,tint_last),quake_json(),replay_on?"true":"false",interp_replay?"true":"false",(int)target_hz,steps,(unsigned long long)captures,
         (unsigned long long)publishes,(unsigned long long)submits,(unsigned long long)presented,(unsigned long long)reused,
         (unsigned long long)no_job,(unsigned long long)failures,(unsigned long long)serial,
         (unsigned long long)prefetched,(unsigned long long)governed,(unsigned long long)deferred,feed_ms,budget_ms,(unsigned long long)blended_mats,(unsigned long long)blended_poses,

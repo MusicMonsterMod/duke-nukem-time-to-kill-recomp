@@ -471,3 +471,15 @@ Two hooks (`0x80042BE8` and `0x80042D04`, Duke's death updates) were added to
 `game.local.toml` and regenerated with `psxrecomp_cli.py generate` (see the
 D14 note above); two generated lines, codegen hash unchanged, savestates load.
 See [note 373](373-d42-death-scene.md).
+
+## Earthquakes (D44A)
+
+Profile schema 68 adds the Modernized `earthquakes` choice: `on` (default) or
+`off`. `run.py --earthquakes VALUE` saves it (`--settings` choice Z); the
+launcher passes `DNTTK_EARTHQUAKES` (always `off` for Vanilla). One hook
+(`0x80028A2C`, the native blast shake request) was added to `game.local.toml`
+and regenerated with `psxrecomp_cli.py generate` (see the D14 note above); one
+generated line, codegen hash unchanged, savestates load. Diagnostics:
+`DNTTK_QUAKE_TRACE=1` logs starts and each shaken image; the debug command
+`render_replay` reports `plugin.quake`. See
+[note 397](397-d44a-earthquakes.md).

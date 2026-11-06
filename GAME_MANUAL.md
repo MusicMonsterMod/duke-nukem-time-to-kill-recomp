@@ -940,11 +940,16 @@ during the climb brings your own weapon up the moment he lands instead.
 Held fire on ladders, chains, climbing walls, monkey bars and from a ledge
 hang now repeats as fast as on the ground. Vanilla is unchanged.
 
-**Doors open with E, and never stop the shooting (Modernized, D08J8).**
+**Doors open with E, and never stop the shooting (Modernized, D08J8, D08J9).**
 Press **E** at a door with a weapon out: Duke kicks it open as usual, with
-the gun still up (no holstering), and can keep shooting the whole time,
-kick included. E also works while you are holding left click. Left click never opens doors: at a door
+the gun still up (no holstering), and keeps shooting the whole time, kick
+included. Every weapon fires exactly as it does on open ground: same rate,
+the shotgun pumps between shots. E works whether or not
+you are already holding left click, and holding the mouse down through the
+whole kick keeps the weapon firing. Left click never opens doors: at a door
 it just shoots. Holstered, E opens doors as before. Vanilla is unchanged.
+Point-blank rockets and Freezer shots at a closed door still hurt or freeze
+Duke, as in the original.
 
 **Free camera while climbing (Modernized, D08J3).**
 On ladders, poles, chains and climbing walls the mouse camera stays yours: turn

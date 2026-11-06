@@ -1,5 +1,40 @@
 # Current status - 2026-10-04
 
+## 2026-11-06 - D08J9 closed
+
+User: "lock it in and close it out. WORKING!!!!! well done". D08J9 is Done
+([note 405](documentation/405-d08j9-doors-and-shooting.md)). With a weapon
+out, E kicks any door open through the game's own finder and Action press,
+and the weapon fires through the kick as on open ground (its own rate, pump
+and cycle). Left click never opens a door. Holstered doors and Vanilla are
+unchanged. Executable
+`25253bf04fd558d130ba1b34867002a45c715926b48ac816676337ec5daa8e6f` is the
+regression baseline. No framework edit; the runtime patch export is
+unchanged.
+
+## 2026-11-06 - D08J9 doors and shooting, rewritten (Needs playtest)
+
+[Note 405](documentation/405-d08j9-doors-and-shooting.md). User (UI slot 10):
+the shotgun rapid-fired or went silent at a door, shots glitched, and
+sometimes Duke could not fire and open the door at the same time; "im totally
+opening to rewriting open-door code". The D08J8C probe and host-driven fire
+tracks (`door_fire.inc`) are replaced by `door_use.inc`. E with a weapon out
+asks the game's own finder and makes the original Action press for that call
+only (nothing sent through the pad), so E works at every door, also with fire
+held. Through the kick the weapon runs as the original's own, at the ground
+rate, with its own pump and reload: only for the animation runner, the kick's
+weapon gates (committed bit 0x40, 116's table bit 0x20000) are lent and put
+back before the fire request, under a host call (no savestate inside). Left
+click never opens a door. Measured on a copy of slot 10 with ten weapons and
+eight input patterns at 60/120/180 Hz and in first person. Every armed kick
+opens the door, and held-fire gaps match the ground (pistol 167 ms, shotgun
+800-834 with the pump, Gatling 100, crossbow 900, Buffalo 1.05 s,
+flamethrower/energy 45-90). The first round lands 55-70 ms after fire, or
+under 200 ms after E (shotgun before: 1.6 s). `ttk-controls-test` (door group
+rewritten), `ttk-input-test`, `ttk-aim-test`, profile tests and the guard
+audit pass. No framework edit, no new hook. Executable
+`25253bf04fd558d130ba1b34867002a45c715926b48ac816676337ec5daa8e6f`.
+
 ## 2026-11-06 - D17BE closed
 
 User: "lock it in and close us out". D17BE is Done

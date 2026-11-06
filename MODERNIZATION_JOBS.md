@@ -1,5 +1,40 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-06 - D08J9 closed
+
+User: "lock it in and close it out. WORKING!!!!! well done". D08J9 is Done
+([note 405](documentation/405-d08j9-doors-and-shooting.md)). With a weapon
+out, E kicks any door open through the game's own finder and Action press,
+and the weapon fires through the kick as on open ground (its own rate, pump
+and cycle). Left click never opens a door. Holstered doors and Vanilla are
+unchanged. Executable
+`25253bf04fd558d130ba1b34867002a45c715926b48ac816676337ec5daa8e6f` is the
+regression baseline. No framework edit; the runtime patch export is
+unchanged.
+
+## 2026-11-06 - D08J9 doors and shooting, rewritten (Needs playtest)
+
+[Note 405](documentation/405-d08j9-doors-and-shooting.md). User (UI slot 10):
+the shotgun rapid-fired or went silent at a door, shots glitched, and
+sometimes Duke could not fire and open the door at the same time; "im totally
+opening to rewriting open-door code". The D08J8C probe and host-driven fire
+tracks (`door_fire.inc`) are replaced by `door_use.inc`. E with a weapon out
+asks the game's own finder and makes the original Action press for that call
+only (nothing sent through the pad), so E works at every door, also with fire
+held. Through the kick the weapon runs as the original's own, at the ground
+rate, with its own pump and reload: only for the animation runner, the kick's
+weapon gates (committed bit 0x40, 116's table bit 0x20000) are lent and put
+back before the fire request, under a host call (no savestate inside). Left
+click never opens a door. Measured on a copy of slot 10 with ten weapons and
+eight input patterns at 60/120/180 Hz and in first person. Every armed kick
+opens the door, and held-fire gaps match the ground (pistol 167 ms, shotgun
+800-834 with the pump, Gatling 100, crossbow 900, Buffalo 1.05 s,
+flamethrower/energy 45-90). The first round lands 55-70 ms after fire, or
+under 200 ms after E (shotgun before: 1.6 s). `ttk-controls-test` (door group
+rewritten), `ttk-input-test`, `ttk-aim-test`, profile tests and the guard
+audit pass. No framework edit, no new hook. Executable
+`25253bf04fd558d130ba1b34867002a45c715926b48ac816676337ec5daa8e6f`.
+
 ## 2026-11-06 - D17BE closed
 
 User: "lock it in and close us out". D17BE is Done
@@ -5069,6 +5104,43 @@ clip from 142's own frames: chest leaning onto the off arm, off hand on the
 lip pushing up, gun arm free to aim), applied while armed in 142; judge in
 game in third and first person; holstered exit and Vanilla unchanged.
 
+### D08J9 - Doors and shooting, rewritten (UI slot 10)
+
+**Status: Done (user-accepted and closed 2026-11-06: "WORKING!!!!! well done"; [note 405](documentation/405-d08j9-doors-and-shooting.md)). Dependencies: D08J8.** User (2026-11-06,
+UI slot 10, a door): "open the door but try shooting at the same time ...
+rapid fire happening from the shotgun. glitched out shots, no shots, or we
+cant fire and open the door at the same time. kinda unpredictable
+behaviour"; "we're supposed to be able to shoot completely normally when
+opening doors"; test with different weapons and with the mouse held down; "i
+want this to be really polished". Then: "instead of being hacky around this,
+im totally opening to rewriting open-door code". Replace the D08J8C door
+probe and host-driven fire tracks with a purpose-built door use: E opens the
+door with any weapon out, the kick plays as in the original, and the
+weapon's own fire, pump, reload and rate run through it. Left click never
+opens doors. Holstered doors and Vanilla unchanged.
+
+**2026-11-06 candidate (Needs playtest).** `door_use.inc` replaces
+`door_fire.inc`. Causes found on a private copy of slot 10: E did nothing
+there (the D08J8C probe waited for `+0x174`, which only the finder writes);
+the host's door fire drive skipped the shotgun's gun-up hold 23 (no round for
+the whole kick); and the kick's fire was a host loop, not the weapon's own
+cycle. Now E (weapon out, on the ground) calls the finder `0x80077f28` and,
+at a door, the original Action press `0x80051890` with a fresh Cross for that
+call only. For the animation runner of each update of an armed door use,
+`0x40` and 116's table bit `0x20000` are lent and put back at the fire
+request `0x80058120`, under a host call (no savestate). The request's own
+decision is made without the kick. Left click at a door sees Cross as held
+since the last tick. The animation table's state guard is split at entry 116.
+Results (10 weapons, 8 input patterns, 60/120/180 Hz, first person): every
+armed kick opens the door, held gaps equal the ground's, and the first round
+lands 55-70 ms after fire. Left click: door shut, weapon fires. Away from a
+door, E still stows. Kept as in the original: the RPG point-blank kills Duke,
+the Freezer point-blank freezes him, and the crossbow, Buffalo and
+flamethrower ignore 70 ms taps. Each kick costs about 5.6 health, the same on
+the D08J8 build (cause not established). Limit: one Gatling 70 ms tap on the
+kick's last update was lost. Executable
+`25253bf04fd558d130ba1b34867002a45c715926b48ac816676337ec5daa8e6f`.
+
 ### D08J6B - Hang-and-aim pose, third person
 
 **Status: Done (user-accepted and closed 2026-11-04: "i love it all, this animation works perfectly fine"; [note 377](documentation/377-d08j6-climb-fire-research.md) D08J6B section). Dependencies: D08J6.** Note 377 stage B. Replace the original
@@ -7434,6 +7506,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08J7D | One-handed armed pull-up in first person | Done | D08J7C, D35G, D36H9 |
 | D08J8 | Shoot through traversal (batch): water exit, ladder/chain/wall tops, doors, mantles, climb fire rate | Done (user-accepted and closed 2026-11-05; note 394) | D08J6, D08J7C, D10H6 |
 | D08J8F | Water exit: one-handed push out of the water while shooting (third person) | Cancelled (2026-11-05; user: the revision 3 water exit already looks natural) | D08J8, D08J7C |
+| D08J9 | Doors and shooting, rewritten: E opens a door with any weapon out while the weapon fires natively (UI slot 10) | Done (user-accepted and closed 2026-11-06; note 405) | D08J8 |
 | D08J6B | Hang-and-aim pose on climbs, third person (user UI slots 12, 11, 8) | Done (user-accepted; closed 2026-11-04; note 377) | D08J6 |
 | D08J6C | Firing while climbing in first person | Todo | D08J6B, D35E, D35F, D36 |
 | D08J6D | Firing on monkey bars and ledge hangs (user UI slot 6) | Done (user-accepted; closed 2026-11-04; note 377) | D08J6A, D08J4, D08J7 |

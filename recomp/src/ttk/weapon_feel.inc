@@ -281,25 +281,17 @@ static int weapon_feel_delta(unsigned upper,int delta,bool fire_held) {
 // stow or reload (12, 17, the shotgun pump 26), so the original's reload
 // still runs. The other climbs over a lip fire by themselves (track 10); their
 // aim takes the view (trav_view_aim).
-// D08J8C revision 3: the armed door kick 116 (also bit 0x2000, and the use
-// bit 0x40) the same way, with the weapon's own ground fire track (pistol 16,
-// shotgun 25, Gatling and Freezer 34, RPG 37), started again whenever it has
-// run out; the kick itself plays at the original speed.
+// D08J9: doors no longer come here; through an armed door use the weapon
+// fires by itself (door_use.inc), and door_fire_owned only admits the shot
+// rules (pacing, first-shot boost, view-aimed rounds) as on the ground.
 static bool trav_driving;
 static unsigned trav_drive_starts;
-static bool door_fire_owned() {
-    unsigned raise,fire;weapon_feel_tracks(psx_mod_read_byte(player+0x3b9),raise,fire);
-    return fire && armed_door_kick();
-}
+static bool door_fire_owned() {return armed_door_use();}
 static bool trav_fire_owned() {
     const unsigned a=psx_mod_read_half(player+0x60);
-    return input_modernized() && ((trav_shot_ready() && a<280 && (psx_mod_read_word(0x800c2824+4*a)&0x2000)) || door_fire_owned());
+    return input_modernized() && trav_shot_ready() && a<280 && (psx_mod_read_word(0x800c2824+4*a)&0x2000);
 }
-static unsigned trav_fire_track() {
-    if(!door_fire_owned())return 11;
-    unsigned raise,fire;weapon_feel_tracks(psx_mod_read_byte(player+0x3b9),raise,fire);
-    return fire;
-}
+static unsigned trav_fire_track() {return 11;}
 static void trav_fire_drive(unsigned upper,bool held) {
     if(!held || !trav_fire_owned() || upper==6 || upper==7 || upper==3 || upper==0 || upper==1 ||
        upper==12 || upper==13 || upper==17 || upper==26 || (upper>=21 && upper<=23) || upper==30 || upper==31 || upper==36 || upper==40) {trav_driving=false;return;}

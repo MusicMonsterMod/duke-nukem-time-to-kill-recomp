@@ -246,9 +246,13 @@ static const Guard guards[] = {
 // on 149/152/153. The bonus levels' BONUS.OVR (DB21..DB26) stores the low
 // halfword of entry 265 (0x800c2c48). Every other bit stays authenticated.
 // Audited from the owned disc by tools/local/guard_writer_audit.py.
+// D08J9: entry 116 (the door kick, 0x800c29f4) also lends bit 0x20000 to
+// the weapon for the animation runner of an armed door use (door_use.inc).
 struct MaskedGuard { uint32_t address, size, mask; const char* digest; };
 static const MaskedGuard state_guards[] = {
-    {0x800c2824, 1060, 0xffffffbf, "46fc004364fecba392de4586e0f42115383ef4587b79768e6b39b7e383b8d737"},
+    {0x800c2824, 464, 0xffffffbf, "76c377dad4603bd28d686d20df6cc052af0d89d0d0dcded81c1127e03ef8a59c"},
+    {0x800c29f4, 4, 0xfffdffbf, "631dc582a2f076bbbf7f7795b7afe0ea7927d335c7b1403adbce952d5c7d9c04"},
+    {0x800c29f8, 592, 0xffffffbf, "e0cbb6d00c7f4e5615b16f5816b5006a82c69b231f13815a44e9c5d59ee10bb4"},
     {0x800c2c48, 4, 0xffff0000, "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119"},
     {0x800c2c4c, 56, 0xffffffbf, "c2c056fe219456a149c9145199b715844a62c1b2a701bbe6d2942075e4c13b89"},
 };

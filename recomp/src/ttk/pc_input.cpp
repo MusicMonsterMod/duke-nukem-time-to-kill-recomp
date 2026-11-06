@@ -52,7 +52,7 @@ static bool allow_capture = true;
 static std::atomic<bool> capture_offer{false};
 static std::atomic<uint64_t> capture_offer_at{0};
 static constexpr uint64_t capture_offer_window=8;
-static bool initial_capture, interaction_pending, interaction_started, door_probe_tried;
+static bool initial_capture, interaction_pending, interaction_started;
 static uint64_t jump_deadline,menu_select_deadline,jump_pressed_at;
 // Escape keeps the mouse free until the original pause has actually stopped
 // gameplay offers: a quick tap that raced the pad poll used to recapture while
@@ -681,8 +681,9 @@ void input_event(const SDL_Event& e) {
         if(pressed && captured && code==binds[interact]) {
             if(push_latched || push_request)push_let_go();
             interaction_pending=true;interaction_deadline=sequence+120;interaction_pulse=0;interaction_started=false;holster_pulse=0;
-            door_probe_tried=false; // D08J8C
-            if(!push_latched && !push_request && action_down(fire) && door_probe_firing_ready()) {door_probe_tried=true;door_probe_begin(true);}
+            // D08J9: weapon out on the ground, the game's finder decides at
+            // once whether a door is there (door_use.inc), firing or not.
+            if(!push_latched && !push_request && door_use_ready()) door_use_request();
         }
         if(pressed && captured && code==binds[holster]) {
             cancel_restore();airborne_interact=false;interaction_pending=false;interaction_pulse=0;interaction_started=false;holster_pulse=0;swim_redraw=0;
@@ -992,15 +993,11 @@ void input_frame() {
         ladder_top_seen=ladder_top;
     }
     if(interaction_pending && (sequence>interaction_deadline || action_down(fire)))interaction_pending=false;
-    // D08J8C: where E would stow a weapon on the ground, it first asks the
-    // game whether a door is there (door_fire.inc); the stow waits for the
-    // answer, and a door use consumes E.
-    if(interaction_pending && !interaction_started && !door_probe_tried && !push_latched && !push_request &&
-       interaction_holster_ready()) {door_probe_tried=true;if(door_probe_ready())door_probe_begin(false);}
-    const int door_probe_now=door_probe_state();
-    if(door_probe_now==2 && interaction_pending && !interaction_started) interaction_pending=false;
-    if(door_probe_now==3) door_probe_end();
-    if(interaction_pending && !interaction_started && door_probe_now!=1 && interaction_holster_ready()) {
+    // D08J9: the stow waits for the door answer; a door use consumes E.
+    const int door_now=door_use_state();
+    if(door_now==2 && interaction_pending && !interaction_started) interaction_pending=false;
+    if(door_now==2 || door_now==3) door_use_end();
+    if(interaction_pending && !interaction_started && door_now!=1 && interaction_holster_ready()) {
         // Shorter Circle pulse once jumping/airborne so stow begins inside the
         // ladder contact window; grounded approach keeps a slightly longer tap.
         const bool urgent=airborne_input_ready() || (jump_deadline && sequence<=jump_deadline);
@@ -1733,9 +1730,6 @@ uint16_t input_pad() {
     if(push_releasing) value |= 16|32|64|128|16384|8192|32768|2048;
     // No implicit tank movement or mouse-to-D-pad conversion when a Modern
     // lease is unavailable. Hooks retain their identity and state guards.
-    // D08J8C: E's door probe is armed Cross (the game's own finder decides).
-    if(captured && door_probe_state()==1) value &= ~16384;
-    if(captured && door_probe_state()==4) value |= 16384;
     if(ledge_dropping) {
         value |= 16384|pads[jump];
         if(traversal_input_ready())value |= 16|32|64|128;

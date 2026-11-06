@@ -127,7 +127,22 @@ static int jw_result,jw_hits,jw_sweeps;static int32_t jw_nx,jw_nz;
 static std::vector<std::array<uint32_t,2>> ot_adds;
 static uint16_t test_vram[1024*512];
 extern "C" const uint16_t* gpu_get_vram(void){return test_vram;}
+// D08J9: the door finder and the original Action press.
+static uint32_t door_finder_object;static bool door_press_accept=true;
+static unsigned door_finds,door_presses,host_calls_open;static uint32_t door_press_word;
+extern "C" void psx_mod_host_call_begin(void){++host_calls_open;}
+extern "C" void psx_mod_host_call_end(void){assert(host_calls_open);--host_calls_open;}
 extern "C" void psx_dispatch_call(CPUState* cpu,uint32_t address,uint32_t) {
+    if(address==0x80077f28) {++door_finds;psx_mod_write_word(0x800d7198+0x174,door_finder_object);psx_mod_write_half(0x800d7198+0x178,7);cpu->pc=0;return;}
+    if(address==0x80051890) {
+        const uint32_t p=0x800d7198,word=psx_mod_read_word(0x800d1b50+4*psx_mod_read_byte(p+0x233));
+        ++door_presses;door_press_word=psx_mod_read_word(word);assert(host_calls_open);
+        if(door_press_accept && (door_press_word&3)==1 && !(psx_mod_read_word(p+0x224)&0x241)) {
+            psx_mod_write_byte(p+0x27c,2);psx_mod_write_byte(p+0x27d,1);psx_mod_write_word(p+0x290,psx_mod_read_word(p+0x174));
+            psx_mod_write_word(p+0x224,psx_mod_read_word(p+0x224)|0x40);
+        }
+        cpu->pc=0;return;
+    }
     if(address==0x8002bc18) {ot_adds.push_back({cpu->gpr[4],cpu->gpr[5]});cpu->pc=0;return;}
     if(address==0x8007d65c) {
         const uint32_t p=0x800d7198;const unsigned dir=cpu->gpr[5];assert(dir<4 && cpu->gpr[6]==0);
@@ -3364,7 +3379,7 @@ int main(int argc,char** argv) {
         // D08J8: held fire inside a climb over a lip draws the sidearm at once
         // (mantles, pull-up, water exit, ladder/chain/wall tops), swapping the
         // selection; the mantles with table bit 0x2000 get their fire track
-        // from the host; an armed door kick runs 6x and ends after its strike.
+        // from the host. D08J9: doors (E, the weapon through the kick).
         auto update=[&]{call(0x8005a210,p,0x800c2754,0x80041b34,0x801fff00);};
         auto json=[]{return std::string(ttk::controls_debug_json());};
         auto has=[&](const char* t){return json().find(t)!=std::string::npos;};
@@ -3430,81 +3445,103 @@ int main(int argc,char** argv) {
             ttk::input.held[ttk::fire]=false;
             psx_mod_write_word(0x800c2824+4*137,flags137);
         }
-        // Door (revision 3): an armed kick 116 (use stage 5, bit 0x40) plays at the
-        // original speed to its end; the host owns the fire through it: Cross is
-        // masked, the pistol's ground fire track 16 goes on the gun arm while fire
-        // is held. Holstered and Vanilla stay native.
+        // D08J9 doors: E asks the game's finder and makes the original Action
+        // press with a fresh Cross for that call only; through an armed door use
+        // the weapon's gates (0x40, 116's table bit 0x20000) are open for the
+        // runner alone, and the fire request is made without the kick; left
+        // click at a door is a shot. Holstered, non-door and Vanilla stay native.
         {
-            const int clip=int16_t(psx_mod_read_half(0x800c2d64+8*116));
-            const uint32_t rec=0x800d8328+4*clip;const auto saved_rec=psx_mod_read_word(rec);
-            psx_mod_write_word(rec,(6u<<16)|200);
-            auto door=[&](unsigned equipment,unsigned key){
-                psx_mod_write_byte(p+0x22c,0);psx_mod_write_byte(p+0x22d,0);psx_mod_write_half(p+0x60,116);psx_mod_write_half(p+0x74,5);
-                psx_mod_write_byte(p+0x3b8,equipment);psx_mod_write_byte(p+0x3b9,4);psx_mod_write_byte(p+0x27d,5);
-                psx_mod_write_word(p+0x224,0x40);psx_mod_write_half(p+0x66,200+key);};
-            CPUState lo{};lo.gpr[29]=0x801ffeb0;lo.gpr[31]=0x8005a3d4;lo.gpr[4]=p+0x60;lo.gpr[5]=p;lo.gpr[6]=0x801fff00-0x30;lo.gpr[7]=0;
-            CPUState up{};up.gpr[29]=0x801ffeb0;up.gpr[31]=0x8005a5a8;up.gpr[4]=p+0x74;up.gpr[5]=p;up.gpr[6]=0x801fff00-0x2e;up.gpr[7]=1;
-            door(2,0);ttk::input.sequence+=1;update();
-            psx_mod_write_half(lo.gpr[6],10);hooks().at(0x80059db0)(&lo,0x80059db0);assert(psx_mod_read_half(lo.gpr[6])==10);
-            door(2,4);ttk::input.sequence+=1;update();assert(psx_mod_read_half(p+0x60)==116 && psx_mod_read_byte(p+0x27d)==5);
-            assert(ttk::mantle_fire_cross_masked() && ttk::climb_shot_ready());
-            ttk::input.held[ttk::fire]=true;
-            psx_mod_write_half(up.gpr[6],12);hooks().at(0x80059db0)(&up,0x80059db0);assert(psx_mod_read_half(p+0x74)==16);
-            ttk::input.held[ttk::fire]=false;door(2,4);ttk::input.sequence+=1;update();
-            psx_mod_write_half(up.gpr[6],12);hooks().at(0x80059db0)(&up,0x80059db0);assert(psx_mod_read_half(p+0x74)==5);
-            ttk::input.held[ttk::fire]=true;
-            door(0,4);ttk::input.sequence+=1;update();assert(!ttk::mantle_fire_cross_masked());
-            psx_mod_write_half(up.gpr[6],12);hooks().at(0x80059db0)(&up,0x80059db0);assert(psx_mod_read_half(p+0x74)==5);
-            door(2,4);ttk::modern=false;assert(!ttk::mantle_fire_cross_masked());ttk::modern=true;
-            ttk::input.held[ttk::fire]=false;
-            assert(has("\"door\":{\"kicks\":1,"));
-            // Revision 2: a use that left click started at a door ends at its first
-            // stage (the round leaves); an E probe's door use, a non-door object,
-            // a holstered Duke and Vanilla are left alone.
-            const uint32_t object=0x801b0800,types=0x801b2000,saved_types=psx_mod_read_word(0x800d2660);
-            psx_mod_write_word(0x800d2660,types);
+            const uint32_t object=0x801b0800,other=0x801b0900,types=0x801b2000,saved_types=psx_mod_read_word(0x800d2660);
+            const uint32_t pad_slot=0x800d1b50+4*psx_mod_read_byte(p+0x233),pad=0x801b3000,saved_slot=psx_mod_read_word(pad_slot);
+            const uint32_t kick=0x800c2824+4*116,saved_kick=psx_mod_read_word(kick);
+            const uint32_t t15=0x800c2824+4*15,t5=0x800c2824+4*5,saved15=psx_mod_read_word(t15),saved5=psx_mod_read_word(t5);
+            psx_mod_write_word(0x800d2660,types);psx_mod_write_word(pad_slot,pad);psx_mod_write_word(kick,0x22441);
+            psx_mod_write_word(t15,0x809);psx_mod_write_word(t5,0x200c);
             unsigned door_kind=0;
             for(unsigned k=2;k<19;++k)if(psx_mod_read_word(0x80015850+4*(k-2))==0x800515e0u){door_kind=k;break;}
             assert(door_kind==5);
-            const uint8_t saved_kind=psx_mod_read_byte(types+28*233+4);
+            const uint8_t saved233=psx_mod_read_byte(types+28*233+4),saved234=psx_mod_read_byte(types+28*234+4);
             psx_mod_write_byte(types+28*233+4,door_kind);psx_mod_write_half(object+0x2c,233);
-            auto started=[&](unsigned equipment){
+            psx_mod_write_byte(types+28*234+4,6);psx_mod_write_half(other+0x2c,234);
+            auto idle=[&](unsigned equipment){
                 psx_mod_write_byte(p+0x22c,0);psx_mod_write_byte(p+0x22d,0);psx_mod_write_half(p+0x60,63);psx_mod_write_half(p+0x74,5);
-                psx_mod_write_byte(p+0x3b8,equipment);psx_mod_write_byte(p+0x27d,1);psx_mod_write_word(p+0x224,0x40);psx_mod_write_word(p+0x290,object);};
-            ttk::input.held[ttk::fire]=true;
-            started(2);ttk::input.sequence+=1;update();
-            assert(psx_mod_read_byte(p+0x27d)==0 && !(psx_mod_read_word(p+0x224)&0x40) && psx_mod_read_word(p+0x290)==0 && has("\"fire_cancels\":1}"));
-            started(0);ttk::input.sequence+=1;update();assert(psx_mod_read_byte(p+0x27d)==1);
-            started(2);ttk::modern=false;ttk::input.sequence+=1;update();ttk::modern=true;assert(psx_mod_read_byte(p+0x27d)==1);
-            started(2);ttk::input.held[ttk::interact]=true;ttk::input.sequence+=1;update();ttk::input.held[ttk::interact]=false;
-            assert(psx_mod_read_byte(p+0x27d)==1);
-            psx_mod_write_byte(types+28*233+4,door_kind==5?6:5);
-            started(2);ttk::input.sequence+=1;update();assert(psx_mod_read_byte(p+0x27d)==1);   // not a door
-            psx_mod_write_byte(types+28*233+4,saved_kind);
-            // E's probe (state machine, game side): a door use is kept; a fire
-            // request (no door) is put back with the upper block.
-            ttk::input.held[ttk::fire]=false;
-            psx_mod_write_byte(types+28*233+4,door_kind);
-            psx_mod_write_byte(p+0x27d,0);psx_mod_write_word(p+0x224,0);psx_mod_write_word(p+0x290,0);psx_mod_write_word(p+0x174,object);
-            psx_mod_write_half(p+0x74,5);psx_mod_write_half(p+0x76,77);
-            ttk::door_probe_begin(false);ttk::input.sequence+=1;update();assert(ttk::door_probe_state()==1);
-            psx_mod_write_word(p+0x224,0x100);psx_mod_write_half(p+0x74,15);psx_mod_write_half(p+0x76,3);
+                psx_mod_write_byte(p+0x3b8,equipment);psx_mod_write_byte(p+0x3b9,4);psx_mod_write_byte(p+0x27d,0);psx_mod_write_byte(p+0x27c,0);
+                psx_mod_write_word(p+0x224,0);psx_mod_write_word(p+0x290,0);psx_mod_write_word(p+0x174,0);psx_mod_write_word(pad,2);};
+            // E at a door, armed: one finder call, one press with a fresh Cross,
+            // the pad word put back, a door use started, the answer 2.
+            door_finder_object=object;idle(2);
+            assert(ttk::door_use_ready());ttk::door_use_request();assert(ttk::door_use_state()==1);
             ttk::input.sequence+=1;update();
-            assert(ttk::door_probe_state()==3 && !(psx_mod_read_word(p+0x224)&0x100) && psx_mod_read_half(p+0x74)==5 && psx_mod_read_half(p+0x76)==77);
-            ttk::door_probe_end();assert(ttk::door_probe_state()==0);
-            ttk::door_probe_begin(false);ttk::input.sequence+=1;update();
-            psx_mod_write_byte(p+0x27d,1);psx_mod_write_word(p+0x224,0x40);psx_mod_write_word(p+0x290,object);
-            ttk::input.sequence+=1;update();assert(ttk::door_probe_state()==2 && psx_mod_read_byte(p+0x27d)==1);
-            psx_mod_write_byte(p+0x27d,0);ttk::input.sequence+=1;update();assert(ttk::door_probe_state()==0);
-            psx_mod_write_byte(types+28*233+4,saved_kind);psx_mod_write_word(p+0x174,0);psx_mod_write_word(p+0x290,0);psx_mod_write_word(p+0x224,0);
-            psx_mod_write_word(0x800d2660,saved_types);
-            psx_mod_write_word(rec,saved_rec);psx_mod_write_byte(p+0x27d,0);
+            assert(door_finds==1 && door_presses==1 && door_press_word==1 && psx_mod_read_word(pad)==2);
+            assert(ttk::door_use_state()==2 && psx_mod_read_byte(p+0x27d)==1 && psx_mod_read_word(p+0x290)==object);
+            // The use started this update: the weapon's window is already open.
+            assert(host_calls_open==1 && !(psx_mod_read_word(p+0x224)&0x40));
+            call(0x80058120,p,0,0x80041c44,0x801fff00);assert(!host_calls_open && (psx_mod_read_word(p+0x224)&0x40));
+            ttk::door_use_end();assert(ttk::door_use_state()==0 && !ttk::door_use_ready());   // a use is running
+            // No door in front: no press, the contact put back, the answer 3.
+            door_finder_object=other;idle(2);psx_mod_write_word(p+0x174,0x1111);
+            ttk::door_use_request();ttk::input.sequence+=1;update();
+            assert(door_presses==1 && ttk::door_use_state()==3 && psx_mod_read_word(p+0x174)==0x1111 && psx_mod_read_byte(p+0x27d)==0);
+            ttk::door_use_end();
+            // The door refuses (facing, its own answer): the answer 3.
+            door_finder_object=object;door_press_accept=false;idle(2);
+            ttk::door_use_request();ttk::input.sequence+=1;update();
+            assert(door_presses==2 && ttk::door_use_state()==3 && psx_mod_read_byte(p+0x27d)==0);
+            ttk::door_use_end();door_press_accept=true;
+            // Holstered, a committed action, airborne or Vanilla: E stays original.
+            idle(0);assert(!ttk::door_use_ready());
+            idle(2);psx_mod_write_word(p+0x224,0x40);assert(!ttk::door_use_ready());
+            idle(2);psx_mod_write_byte(p+0x22c,1);assert(!ttk::door_use_ready());
+            idle(2);ttk::modern=false;assert(!ttk::door_use_ready());ttk::modern=true;
+            // Armed kick 116 (stage 5): the runner sees 0x40 clear and 116 without
+            // 0x20000, under a host call (no savestate); the fire request's entry
+            // puts both back.
+            auto kicking=[&](unsigned equipment){
+                idle(equipment);psx_mod_write_half(p+0x60,116);psx_mod_write_byte(p+0x27d,5);
+                psx_mod_write_word(p+0x224,0x40);psx_mod_write_word(p+0x290,object);};
+            kicking(2);ttk::input.sequence+=1;update();
+            assert(!(psx_mod_read_word(p+0x224)&0x40) && psx_mod_read_word(kick)==(0x22441u&~0x20000u) && host_calls_open==1);
+            assert(ttk::climb_shot_ready() && !ttk::mantle_fire_cross_masked());
+            call(0x80058120,p,0,0x80041c44,0x801fff00);
+            assert((psx_mod_read_word(p+0x224)&0x40) && psx_mod_read_word(kick)==0x22441 && !host_calls_open);
+            // A missed fire request closes at the next runner entry (and reopens).
+            ttk::input.sequence+=1;update();assert(host_calls_open==1);ttk::input.sequence+=1;update();assert(host_calls_open==1);
+            call(0x80058120,p,0,0x80041c44,0x801fff00);assert(!host_calls_open && psx_mod_read_word(kick)==0x22441);
+            // The fire request without the kick: Cross held and a firing-capable
+            // upper (15: bit 8, no 0x2000) set 0x100; the idle 5 (0x2000) or no
+            // Cross does not.
+            kicking(2);psx_mod_write_half(p+0x74,15);psx_mod_write_word(pad,3);
+            ttk::input.sequence+=1;update();assert(psx_mod_read_word(p+0x224)&0x100);
+            call(0x80058120,p,0,0x80041c44,0x801fff00);
+            kicking(2);psx_mod_write_word(pad,3);ttk::input.sequence+=1;update();assert(!(psx_mod_read_word(p+0x224)&0x100));
+            call(0x80058120,p,0,0x80041c44,0x801fff00);
+            kicking(2);psx_mod_write_half(p+0x74,15);ttk::input.sequence+=1;update();assert(!(psx_mod_read_word(p+0x224)&0x100));
+            call(0x80058120,p,0,0x80041c44,0x801fff00);
+            // Holstered, a non-door use and Vanilla: nothing is lent.
+            kicking(0);ttk::input.sequence+=1;update();assert((psx_mod_read_word(p+0x224)&0x40) && !host_calls_open && psx_mod_read_word(kick)==0x22441);
+            kicking(2);psx_mod_write_word(p+0x290,other);ttk::input.sequence+=1;update();assert((psx_mod_read_word(p+0x224)&0x40) && !host_calls_open);
+            kicking(2);ttk::modern=false;ttk::input.sequence+=1;update();ttk::modern=true;assert((psx_mod_read_word(p+0x224)&0x40) && !host_calls_open);
+            // Left click at a door, armed: the press sees Cross held since the last
+            // tick; elsewhere, holstered or with Cross not fresh it is untouched.
+            CPUState press{};press.gpr[29]=0x801ffeb0;press.gpr[31]=0x800467fc;press.gpr[4]=p;
+            door_finder_object=object;idle(2);psx_mod_write_word(pad,1);psx_mod_write_word(p+0x174,0x2222);
+            hooks().at(0x80051890)(&press,0x80051890);assert(psx_mod_read_word(pad)==3 && psx_mod_read_word(p+0x174)==0x2222 && !host_calls_open);
+            door_finder_object=other;idle(2);psx_mod_write_word(pad,1);hooks().at(0x80051890)(&press,0x80051890);assert(psx_mod_read_word(pad)==1);
+            door_finder_object=object;idle(0);psx_mod_write_word(pad,1);hooks().at(0x80051890)(&press,0x80051890);assert(psx_mod_read_word(pad)==1);
+            idle(2);psx_mod_write_word(pad,3);hooks().at(0x80051890)(&press,0x80051890);assert(psx_mod_read_word(pad)==3);
+            idle(2);psx_mod_write_word(pad,1);ttk::modern=false;hooks().at(0x80051890)(&press,0x80051890);ttk::modern=true;assert(psx_mod_read_word(pad)==1);
+            assert(has("\"door\":{\"request\":0,\"requests\":3,\"uses\":1,\"misses\":1,\"refusals\":1,"));
+            assert(has("\"clicks\":1,"));
+            psx_mod_write_byte(types+28*233+4,saved233);psx_mod_write_byte(types+28*234+4,saved234);
+            psx_mod_write_word(0x800d2660,saved_types);psx_mod_write_word(pad_slot,saved_slot);psx_mod_write_word(kick,saved_kick);
+            psx_mod_write_word(t15,saved15);psx_mod_write_word(t5,saved5);
+            psx_mod_write_word(p+0x174,0);psx_mod_write_word(p+0x290,0);psx_mod_write_byte(p+0x27d,0);psx_mod_write_byte(p+0x27c,0);
         }
         psx_mod_write_byte(p+0x22c,0);psx_mod_write_byte(p+0x22d,0);psx_mod_write_half(p+0x60,63);
         psx_mod_write_byte(p+0x3b8,2);psx_mod_write_byte(p+0x3b9,4);psx_mod_write_byte(p+0x3ba,4);psx_mod_write_half(p+0x74,5);psx_mod_write_word(p+0x224,0);
         psx_mod_write_half(p+0x2c6+4*4,sidearm_ammo);psx_mod_write_half(p+0x2c4+4*4,sidearm_owned);
         ++ttk::input.sequence;call(0x8003ade4,c,p,0x80025ee8);
-        std::puts("PASS: D08J8 traversal sidearm draw (mantles, pull-up, water exit, ladder/chain/wall tops), swap, refusals, mantle fire track, armed door kick and Vanilla");
+        std::puts("PASS: D08J8 traversal sidearm draw (mantles, pull-up, water exit, ladder/chain/wall tops), swap, refusals, mantle fire track, D08J9 doors (E use, weapon through the kick, left click) and Vanilla");
     }
     {
         // D08J7C: W in a ledge hang with the sidearm out pulls up one-handed.

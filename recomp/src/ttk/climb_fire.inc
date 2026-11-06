@@ -76,7 +76,7 @@ bool climb_stow_ready() {
 }
 bool armed_pullup_shot_ready();
 static bool trav_shot_ready();
-static bool door_fire_owned();   // weapon_feel.inc (D08J8C)
+static bool door_fire_owned();   // weapon_feel.inc (D08J9)
 bool climb_shot_ready() {return (climb_weapon_ready() && psx_mod_read_byte(player+0x3b8)==2) || armed_pullup_shot_ready() || trav_shot_ready() || door_fire_owned();}
 // The draw request and the swap's return while still attached: at the climb
 // dispatcher entry (Duke from 0x8004b60c), and once per player update in a
@@ -434,7 +434,7 @@ static void pullup_advance(CPUState* cpu,uint32_t ra) {
     pullup_boosted[ch]=true;
     if(ch==0)++pullup_boosts;
 }
-static const char* door_fire_debug_json();   // door_fire.inc
+static const char* door_use_debug_json();   // door_use.inc
 static const char* trav_drive_debug_json();  // weapon_feel.inc
 static const char* mantle_fire_debug_json() {
     static char buffer[768];
@@ -442,6 +442,6 @@ static const char* mantle_fire_debug_json() {
         mantle_draw_queued?"true":"false",mantle_draw_weapon,mantle_draw_boost?"true":"false",
         mantle_draw_queues,mantle_draw_requests,mantle_draw_drops,pullup_boosts,
         trav_weapon_ready()?"true":"false",trav_shot_ready()?"true":"false",trav_drawn?"true":"false",trav_draws,trav_swaps,trav_pullups,
-        trav_drive_debug_json(),door_fire_debug_json());
+        trav_drive_debug_json(),door_use_debug_json());
     return buffer;
 }

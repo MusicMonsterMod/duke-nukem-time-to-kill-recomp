@@ -1196,7 +1196,7 @@ static bool facing_ready() {
 #include "pole_climb.inc"
 #include "wall_climb.inc"
 #include "climb_fire.inc"
-#include "door_fire.inc"
+#include "door_use.inc"
 #include "jump_walls.inc"
 #include "landing.inc"
 #include "wall_backflip.inc"
@@ -1397,7 +1397,7 @@ static void hook_body(CPUState* cpu, uint32_t address) {
     if(address==0x80076330) {apartment_switch_query(cpu);mirror_use_query(cpu);return;}
     if(address==0x80081a48) {pickup_flash_begin();pickup_select_begin(cpu);steroids_pickup(cpu);apartment_pickup(cpu);return;}
     if(address==0x80051cf0) {push_obstacle_action(cpu,ra);return;}
-    if(address==0x80051890) {push_idle_action(cpu,ra);return;}
+    if(address==0x80051890) {push_idle_action(cpu,ra);door_click_action(cpu,ra);return;}
     if(address==0x800455bc) {
         swim_plunge_begin(cpu);
         // D08O1: the ground weapon-selection point (0x80058120) is not reached
@@ -1504,7 +1504,7 @@ static void hook_body(CPUState* cpu, uint32_t address) {
             ceiling_hang_update();
             climb_turn_update(cpu); // D08J6E
             mantle_fire_update(); // D08J7B; D08J8 traversal draw
-            door_fire_update(); // D08J8C
+            door_use_update(cpu); // D08J9
             unsigned animation=psx_mod_read_half(player+0x60);
             // Space may precede direction. An authenticated neutral preparation
             // keeps its input/camera lease, but supplies no Forward until the
@@ -1757,6 +1757,7 @@ static void hook_body(CPUState* cpu, uint32_t address) {
     } else if (address==0x80058120) {
         // Immediately after original heading update; before original aim/model work.
         if (cpu->gpr[4]==player && ra==0x80041c44) {
+            door_fire_window_end(); // D08J9: before anything reads the use state
             god_mode_update(); // after this update's mode-10 fuel drain, before the HUD
             jet_post_update(cpu);
             bio_mask_boundary(true);

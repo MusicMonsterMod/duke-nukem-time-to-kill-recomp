@@ -75,7 +75,7 @@ static void climb_aim_limits() {
 // original's own build, trav_view_aim).
 static bool climb_aim_ready() {
     const char* mode=ttk_live_env("DNTTK_WEAPON_AIM");
-    return fp_blend==0 && (climb_weapon_ready() || (trav_fire_owned() && !door_fire_owned())) &&
+    return fp_blend==0 && (climb_weapon_ready() || trav_fire_owned()) &&
         psx_mod_read_byte(player+0x3b8)==2 && base_weapon(psx_mod_read_byte(player+0x3b9))==climb_sidearm &&
         independent_camera() && mode && !std::strcmp(mode,"view") &&
         !input_snapshot(Context::Gameplay).held[original_aim] && !(psx_mod_read_word(player+0x224)&0x80);

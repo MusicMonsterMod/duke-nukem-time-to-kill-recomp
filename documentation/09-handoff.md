@@ -1,5 +1,44 @@
 # Next-session handoff
 
+## 2026-11-06 - D08A36 closed
+
+User: "confirmed working!! lock it in, and close it out". D08A36 is Done at
+revision 2 ([note 402](documentation/402-d08a36-mid-air-weapon-switch.md)).
+In Modernized the number keys, the wheel, ; / ' and X change weapons in jumps
+and falls through the native request, and the air switch plays 2x (blend
+included) so the new weapon fires before the landing. Vanilla and ground
+switches are unchanged. Executable
+`c1e6f6239caaac7bdd8421eef3c5d3d404cdaa12457ec1606eee0be8a962772b` is the
+regression baseline. No new hook, no framework edit; the runtime patch export
+is unchanged.
+
+## 2026-11-06 - D08A36 revision 2: ready to shoot in the air (Needs playtest)
+
+User: "switching works, but you cant start shooting until you land!" Firing
+worked in the air; the switch was too slow (1x in the air, against 1.5x on the
+ground), so the new weapon was ready only just before the landing. An air
+switch now runs 2x, the generic blend between stow and draw included (the
+D08J7B rule). Private standing jumps: every weapon group ready about 0.4 s
+after the switch starts and firing before the landing (RPG, Energy Weapon,
+Flamethrower, Gatling, Buffalo Rifle, Crossbow, Freezer); running jumps too.
+Ground switches unchanged. Controls/input/aim PASS. Executable
+`c1e6f6239caaac7bdd8421eef3c5d3d404cdaa12457ec1606eee0be8a962772b`.
+[Note 402](documentation/402-d08a36-mid-air-weapon-switch.md).
+
+## 2026-11-06 - D08A36 mid-air weapon switching (Needs playtest)
+
+[Note 402](documentation/402-d08a36-mid-air-weapon-switch.md). The original
+accepts a weapon request in a jump (private run: holster, draw and ready play
+over jump pose 97 before the landing); our shortcut layer dropped it because
+the air has no ground lease. `select_weapon` now takes weapon groups, the
+wheel, ; / ' and X in mid air (the D07F air-shot lease, dodge rolls
+excluded), through the same native request. Items, the kick, held fire,
+draws and Vanilla stay refused. Native controls/input/aim suites PASS (new
+D08A36 group); live private runs switched by number key and wheel in standing
+and running jumps. Falls are covered natively only. Executable
+`83389a8849f2bd98b365fd5bc5c5d4e634ee5b10ca6fad9863d829ba9a1c4c60`. No
+framework edit, no new hook.
+
 ## 2026-11-06 - D17BD closed
 
 User: "great work. you can close it out now". D17BD is Done

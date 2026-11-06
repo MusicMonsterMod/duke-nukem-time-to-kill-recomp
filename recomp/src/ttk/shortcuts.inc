@@ -536,7 +536,12 @@ static void select_weapon(CPUState* cpu) {
     // (+0x3ba, flag 4) as the ground; there only weapon choices are taken,
     // items and the quick kick keep their ground lease.
     const bool swim_select=!jet_select && !movement_ready() && swim_weapon_ready();
-    const bool weapons_only=swim_select || jet_select;
+    // D08A36: jumps and falls (mode 9, the D07F air-shot lease) take the same
+    // request; the original plays holster, empty and draw over the jump pose.
+    // Dodge rolls keep their own ownership.
+    const bool air_select=!jet_select && !swim_select && !movement_ready() &&
+        airborne_shot_ready() && !roll_state_early();
+    const bool weapons_only=swim_select || jet_select || air_select;
     if(!(movement_ready() || weapons_only) || (equipment!=0 && equipment!=2 && !remote) || f.held[original_aim] ||
        f.held[fire] || f.held[interact] || (flags&0x2c5))return;
     // Stable original upper-body ready loops. Draw, attack and charged-throw

@@ -3795,6 +3795,66 @@ int main(int argc,char** argv) {
         assert(ttk::movement_ready());
         std::puts("PASS: D08Q5 flight weapon groups, wheel and refusals (items, kick, fire, draw, Vanilla)");
     }
+    {
+        // D08A36: jumps and falls (mode 9) take weapon groups, the wheel and X
+        // through the same request; items, the kick, fire held, draws, dodge
+        // rolls and Vanilla stay refused, and the ground lease returns on landing.
+        psx_mod_write_byte(p+0x3b8,2);psx_mod_write_byte(p+0x3b9,4);psx_mod_write_byte(p+0x3ba,4);psx_mod_write_half(p+0x74,5);
+        static const unsigned air[][3]={{97,9,0},{97,9,9},{98,9,9},{104,9,9},{107,9,0},{108,9,9},{105,0,9}};
+        for(const auto& r:air) {
+            psx_mod_write_half(p+0x60,r[0]);psx_mod_write_byte(p+0x22c,r[1]);psx_mod_write_byte(p+0x22d,r[2]);
+            psx_mod_write_word(p+0x224,0);++ttk::input.sequence;call(0x8003ade4,c,p,0x80025ee8);
+            assert(ttk::airborne_shot_ready() && !ttk::movement_ready() && !ttk::jetpack_input_ready());
+            psx_mod_write_byte(p+0x3b9,4);psx_mod_write_byte(p+0x3ba,4);
+            request(ttk::weapon_group_3);assert(psx_mod_read_byte(p+0x3ba)==5 && (psx_mod_read_word(p+0x224)&4));
+        }
+        // The air switch runs 2x on the upper track, with the generic blend
+        // while a weapon is requested; never another track or a roll.
+        {
+            CPUState up{};up.gpr[29]=0x801effc0;up.gpr[31]=0x8005a5a8;
+            up.gpr[4]=p+0x74;up.gpr[5]=p;up.gpr[6]=0x801effd2;up.gpr[7]=1;
+            auto rate=[&](unsigned upper,unsigned equipment,unsigned selected,unsigned animation) {
+                psx_mod_write_half(p+0x60,animation);psx_mod_write_byte(p+0x22c,9);psx_mod_write_byte(p+0x22d,9);
+                psx_mod_write_word(p+0x224,0);++ttk::input.sequence;call(0x8003ade4,c,p,0x80025ee8);
+                call(0x8005a210,p,0x800c2754,0x80041b34);psx_mod_write_half(p+0x60,animation);
+                psx_mod_write_half(p+0x74,upper);psx_mod_write_byte(p+0x3b8,equipment);psx_mod_write_byte(p+0x3ba,selected);
+                psx_mod_write_half(0x801effd2,1024);hooks().at(0x80059db0)(&up,0x80059db0);
+                const unsigned once=psx_mod_read_half(0x801effd2);
+                hooks().at(0x80059db0)(&up,0x80059db0);assert(psx_mod_read_half(0x801effd2)==once);
+                return once;
+            };
+            for(unsigned upper : {6u,7u,21u,22u,30u,31u,36u,40u})assert(rate(upper,2,5,97)==2048);
+            assert(rate(1,0,5,97)==2048 && rate(0,0,5,108)==2048);
+            assert(rate(1,0,0,97)==1024 && rate(1,2,5,97)==1024 && rate(20,2,5,97)==1024 && rate(24,2,5,97)==1024);
+            assert(rate(6,2,5,157)==1024);
+            ttk::modern=false;assert(rate(6,2,5,97)==1024);ttk::modern=true;
+            psx_mod_write_byte(p+0x3b8,2);psx_mod_write_byte(p+0x3b9,4);psx_mod_write_byte(p+0x3ba,4);psx_mod_write_half(p+0x74,5);
+        }
+        psx_mod_write_half(p+0x60,97);psx_mod_write_byte(p+0x22c,9);psx_mod_write_byte(p+0x22d,9);
+        psx_mod_write_word(p+0x224,0);++ttk::input.sequence;call(0x8003ade4,c,p,0x80025ee8);
+        psx_mod_write_byte(p+0x3ba,4);request(ttk::weapon_next);assert(psx_mod_read_byte(p+0x3ba)==5);
+        psx_mod_write_byte(p+0x3b9,5);psx_mod_write_byte(p+0x3ba,5);request(ttk::weapon_previous);
+        assert(psx_mod_read_byte(p+0x3ba)==4);
+        psx_mod_write_byte(p+0x3ba,5);psx_mod_write_half(p+0x368,1);psx_mod_write_half(p+0x36a,100);
+        request(ttk::medkit);assert(!(psx_mod_read_word(p+0x224)&12) && psx_mod_read_byte(p+0x3ba)==5);
+        const unsigned kicked=kicks;request(ttk::quick_kick);assert(kicks==kicked && !(psx_mod_read_word(p+0x224)&12));
+        ttk::input.held[ttk::fire]=true;request(ttk::weapon_group_5);assert(psx_mod_read_byte(p+0x3ba)==5);
+        ttk::input.held[ttk::fire]=false;
+        psx_mod_write_half(p+0x74,22);request(ttk::weapon_group_5);assert(psx_mod_read_byte(p+0x3ba)==5);
+        psx_mod_write_half(p+0x74,5);
+        ttk::modern=false;request(ttk::weapon_group_5);assert(psx_mod_read_byte(p+0x3ba)==5);ttk::modern=true;
+        for(unsigned roll : {157u,160u}) {
+            psx_mod_write_half(p+0x60,roll);psx_mod_write_word(p+0x224,0);++ttk::input.sequence;call(0x8003ade4,c,p,0x80025ee8);
+            request(ttk::weapon_group_5);assert(psx_mod_read_byte(p+0x3ba)==5 && !(psx_mod_read_word(p+0x224)&4));
+        }
+        psx_mod_write_half(p+0x60,97);psx_mod_write_word(p+0x224,0);++ttk::input.sequence;call(0x8003ade4,c,p,0x80025ee8);
+        request(ttk::weapon_group_5);assert(psx_mod_read_byte(p+0x3ba)==8);
+        psx_mod_write_byte(p+0x22c,0);psx_mod_write_byte(p+0x22d,0);
+        psx_mod_write_half(p+0x60,63);psx_mod_write_byte(p+0x3b9,4);psx_mod_write_byte(p+0x3ba,4);
+        psx_mod_write_word(p+0x224,0);++ttk::input.sequence;call(0x8003ade4,c,p,0x80025ee8);
+        assert(ttk::movement_ready() && !ttk::airborne_shot_ready());
+        std::puts("PASS: D08A36 mid-air weapon groups, wheel, 2x air switch (stow, blend, draw) and refusals (items, kick, fire, draw, rolls, Vanilla)");
+    }
 
     // Stance request has no Triangle/turn write; original animation delta is accelerated once.
     ttk::input.held[ttk::crouch]=true;ttk::input.command_count=0;
@@ -7391,7 +7451,10 @@ int main(int argc,char** argv) {
             hooks().at(0x80059db0)(&transition,0x80059db0);assert(psx_mod_read_half(0x801effd2)==4096);
             ttk::auto_stow=false;call(0x8005a210,p,0x800c2754,0x80041b34);
             psx_mod_write_half(0x801effd2,1024);
-            hooks().at(0x80059db0)(&transition,0x80059db0);assert(psx_mod_read_half(0x801effd2)==1024);
+            // D08A36: without E, an air switch's tracks run 2x (the blend only
+            // while a weapon is requested).
+            const bool air_switch=upper>=2 || psx_mod_read_byte(p+0x3ba)!=0;
+            hooks().at(0x80059db0)(&transition,0x80059db0);assert(psx_mod_read_half(0x801effd2)==(air_switch?2048:1024));
         }
 
     }

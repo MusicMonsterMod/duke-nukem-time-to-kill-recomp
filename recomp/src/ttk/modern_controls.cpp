@@ -1570,14 +1570,19 @@ static void hook_body(CPUState* cpu, uint32_t address) {
         const bool trav_draw=trav_drawn && transition && trav_weapon_ready();
         const bool climb=climb_lowering || trav_draw || (climb_weapon_ready() && (transition || upper==3 || upper==0)) ||
             (mantle_draw_boost && (transition || upper==0 || upper==1));
-        if(!weapon_transition_boost && (transition || stow_tail || climb) && (movement_ready() || e_stow || climb) &&
+        // D08A36: a switch in a jump or fall runs 2x, with the generic blend
+        // (0/1) between stow and draw (the D08J7B rule), so the new weapon is
+        // ready while Duke is still in the air (1x took the whole jump).
+        const bool air_switch=airborne_shot_ready() && !roll_state_early() && (transition ||
+            ((upper==0 || upper==1) && psx_mod_read_byte(player+0x3b8)==0 && psx_mod_read_byte(player+0x3ba)!=0));
+        if(!weapon_transition_boost && (transition || stow_tail || climb || air_switch) && (movement_ready() || e_stow || climb || air_switch) &&
            cpu->gpr[4]==player+0x74 && cpu->gpr[5]==player && ra==0x8005a5a8 &&
            cpu->gpr[7]==1 && cpu->gpr[6]==weapon_update_sp-0x2e) {
             int delta=(int16_t)psx_mod_read_half(cpu->gpr[6]);
             if(delta>0 && delta<=4096) {
                 // 4x finishes E stow inside the flight window without skipping
                 // original upper events (8x left upper stuck on jump poses).
-                psx_mod_write_half(cpu->gpr[6],e_stow || climb_lowering || trav_draw?delta*4:climb?delta*2:delta+delta/2);weapon_transition_boost=true;
+                psx_mod_write_half(cpu->gpr[6],e_stow || climb_lowering || trav_draw?delta*4:climb || air_switch?delta*2:delta+delta/2);weapon_transition_boost=true;
             }
         }
         // D08J8D: held fire in the mantles 134-139 puts the fire track on the gun arm.

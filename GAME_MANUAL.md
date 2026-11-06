@@ -1047,7 +1047,8 @@ Number keys now select familiar weapon groups when owned and usable:
 Upgrades stay on the base weapon's key. **Wheel up** selects the next usable
 weapon; **wheel down** selects the previous one. **Semicolon/apostrophe** still
 selects previous/next. These work while running with a two-handed
-weapon (Shift or RUN MODE). **X** restores the last successfully equipped weapon.
+weapon (Shift or RUN MODE), and in Modernized also in mid air (jumps and falls), where the change plays
+twice as fast so the new weapon can fire before you land. **X** restores the last successfully equipped weapon.
 Weapon changes require a safe ready state; inputs during firing, reload or
 an existing draw/stow transition are discarded rather than queued. In Modernized a drawn dynamite stays unlit until you fire, so you can
 switch away from it (see Dynamite below); once lit, or with `--dynamite original`,

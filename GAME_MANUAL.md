@@ -2441,7 +2441,7 @@ can see it. Examples: `palfrom 32 32` (the god-mode off red), `palfrom 48 52`
 (an RPG hit), `flash 16 0 32` (an item pickup), `palfrom 32 63 63 63`
 (white). It only works in play, in Modernized.
 
-### Earthquakes (D44A, D44B)
+### Earthquakes (D44A, D44B, D44C)
 
 Modernized shakes the whole level the way Duke Nukem 3D does when a big
 charge goes off (Duke 3D's earthquake, as EDuke32 plays it):
@@ -2455,6 +2455,11 @@ charge goes off (Duke 3D's earthquake, as EDuke32 plays it):
 - **Level events** (D44B): the subway train crashing at the end of the
   tunnel in TIME TO KILL (started from the ticket booth) shakes for about
   1.6 seconds from the moment of impact.
+- **The game's own big shakes** (D44C): the robot turrets that drive around
+  OBEY OR DIE and PIG FACTORY blowing up, and WING'ED DEATH and MOLOCH THE GATEKEEPER landing or stomping,
+  give one blast's earthquake each. In MINER 69ER the rooms that rumble
+  (the game's own tremor) shake as an earthquake for as long as Duke stays in
+  them, ending about half a second after he leaves.
 - **What it looks like**: the view jumps up and down every tic and twitches a
   little to the right every other pair of tics, at full strength until it
   stops dead. It is the same everywhere in the level, however far away the
@@ -2468,8 +2473,8 @@ charge goes off (Duke 3D's earthquake, as EDuke32 plays it):
 
 Aiming, movement and the camera's own motion are never moved by it: shots go
 where the steady crosshair points. **OPTIONS > GAMEPLAY > EARTHQUAKES** turns
-it **ON** (the default) or **OFF** (barrels and vests then give the game's own
-short jolt). Confirm applies and saves the choice immediately. Vanilla never
+it **ON** (the default) or **OFF** (barrels, vests, the bosses and the mine
+then give the game's own jolt or tremor). Confirm applies and saves the choice immediately. Vanilla never
 has earthquakes. The launcher accepts `--earthquakes on|off` (saves the
 preference); terminal `--settings` uses **Z Earthquakes**.
 

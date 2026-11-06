@@ -1,5 +1,86 @@
 # Current status - 2026-10-04
 
+## 2026-11-06 - D44C closed
+
+User: "i accept it, i played this irl, and they are all working! good work",
+then "close it out". D44C is Done
+([note 400](400-d44c-overlay-earthquakes.md)): the MINER 69ER
+tremor rooms hold an earthquake while Duke is inside, and the OBEY OR DIE /
+PIG FACTORY robot turrets and the WING'ED DEATH and Moloch landings start 16
+tics. Executable
+`10b1afe336b4dbc725ba499b8805bd1c51dfed61d91603388b6c29ef433bb6b4` is the
+regression baseline. No framework edit; the runtime patch export is
+unchanged. Backlog from this job: D45 (MINER 69ER drill drama), D17BD (PIG
+FACTORY water).
+
+## 2026-11-06 - D44C the OBEY OR DIE turrets quake
+
+User: types 621-623 are "a robotic turret that drives around", two at the
+start of OBEY OR DIE (UI slot 6, runtime 5). Shooting them on a private copy
+destroyed one: the native shake from the overlay return `0x800cbcf0`
+(strength 400) became a 16-tic earthquake. So D44C's LEVEL05/09 source is the
+robot turrets, not vest bombers as first read (it blows up through a level
+copy of the vest's blast); labels renamed (trace `robot turret`, counter
+`robots`). Seen in play now: tremor, WING'ED DEATH, the turrets. Not yet:
+Moloch's landing and stomp, PIG FACTORY's turrets (the same code). Still
+Needs playtest.
+
+## 2026-11-06 - D44C user save states; D45 and D17BD registered
+
+User playtest: "the drill section that's in minus 69er is incredible ... I am
+absolutely blown away how effective the rumble is here". Save states (UI
+slots; runtime one lower), run on private copies of the player's cards with
+the D44C executable:
+
+- UI 8 (WING'ED DEATH), one axe: the boss lands, native shake request from
+  the overlay return `0x800cb704` (strength 450), replaced by a 16-tic
+  earthquake. The overlay source path is confirmed in play.
+- UI 9 (MINER 69ER bomber): shot, then walked at: an ordinary vest pig (type
+  1044, the D44A vest source), 16 tics. Not one of the level copies (types
+  621-623 in OBEY OR DIE / PIG FACTORY), which remain unseen in play (user:
+  "I could not find the pig bomber in pig factory").
+- UI 7 (MOLOCH), strafe left: the explosive items behind Duke go up through
+  the barrel routine (D44A), 3 or 4 barrel earthquakes a run. The boss's own
+  landing and stomp sources (`0x800cb7fc`, `0x800cb964`) and his death were
+  not reached in these runs; the user reports an earthquake when he dies.
+
+D44C stays Needs playtest (the user has not accepted it yet). New Todo jobs
+(stand-up only, no work):
+
+- **D45** MINER 69ER drill section drama (UI slot 11): tasteful additions
+  (explosions on arrival, set-piece moments) that complement the drill and
+  its puzzle, inspired by Duke 3D levels like LA Rumble; small level
+  editing, not a redesign. User: "do not work on this now, this is purely for
+  backlog". Whether the tremor earthquake stays on permanently is still
+  being judged by the user.
+- **D17BD** PIG FACTORY water does not cover the whole area: the texture is
+  missing over part of it (UI slot 10).
+
+## 2026-11-06 - D44C the overlays' own shakes quake (Needs playtest)
+
+[Note 400](400-d44c-overlay-earthquakes.md). User: the train
+stays as it is; the MINER 69ER tremor rooms, the OBEY OR DIE / PIG FACTORY
+blown-apart types and the WING'ED DEATH and Moloch attacks become
+earthquakes. The LEVEL05/09 code is the level's own vest bomber (a fuse on
+Duke's distance), so those get the vest's 16 tics; the two bosses' landings
+and Moloch's stomp get 16 tics. They are five overlay return addresses into
+D44A's hook of `0x80028a2c`, each accepted only under its authenticated
+level tag (the interpreter's `jal` passes the overlay return address). In
+MINER 69ER, rooms 28, 35, 36 and 38 keep an earthquake running while Duke is
+inside (topped up by 16 tics, the pattern unbroken), and the tremor's native
+jitter is cleared at the camera update entry (`0x8003ade4`; a stronger shake
+still plays). Modernized with EARTHQUAKES on only. No framework edit or new hook.
+
+Private runs: room 36 and 38 held, a sustained earthquake and no native
+shake; option off and Vanilla keep the native tremor; the D44B train
+regression matches (48 tics at field 413). Not exercised in play: the level
+vests (a spawned 622 fled and took no damage) and the boss landings (no
+landing in 60 s idle). Native controls 153 PASS, aim passes, overlay guards
+match 21 levels. Executable
+`10b1afe336b4dbc725ba499b8805bd1c51dfed61d91603388b6c29ef433bb6b4`.
+Open: save states for a vest bomber and the two boss fights; whether a
+full-strength earthquake suits the mine rooms.
+
 ## 2026-11-05 - D44B closed
 
 User: "lock it in and close it out". D44B is Done: the TIME TO KILL subway

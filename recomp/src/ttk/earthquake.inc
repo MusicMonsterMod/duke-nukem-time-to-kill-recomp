@@ -22,6 +22,13 @@
 //
 // D44B scripted level events (documentation/399-d44b-scripted-earthquakes.md):
 // TIME TO KILL's subway train crash starts 48 tics (Duke 3D's SE 2 length).
+//
+// D44C the overlays' own shakes (documentation/400-d44c-overlay-earthquakes.md):
+// the robot turrets that drive around OBEY OR DIE and PIG FACTORY (types
+// 621-623, blown up by a level copy of the vest's blast) and the boss
+// landings of WING'ED DEATH and MOLOCH call 0x80028a2c from their level
+// overlay and start 16 tics like the barrels; MINER 69ER's tremor rooms hold
+// an earthquake while Duke is inside, their native jitter masked.
 static constexpr double quake_bob=21;       // 797-unit standing eye / 38 (Duke 3D: 256 of 38<<8)
 static constexpr double quake_yaw=8*tau/2048; // 1.41 degrees
 static constexpr unsigned quake_detonation=16;
@@ -32,7 +39,7 @@ static bool quake_shown;                    // the starting tic has been compose
 static uint32_t quake_loads;
 static std::atomic<int> quake_request{-1};  // console, in tics x 1000
 static uint32_t quake_scratch;
-static uint64_t quake_starts,quake_barrels,quake_vests,quake_images,quake_rumbles,quake_trains;
+static uint64_t quake_starts,quake_barrels,quake_vests,quake_images,quake_rumbles,quake_trains,quake_robots,quake_bosses,quake_tremors,quake_tremor_masks;
 static constexpr unsigned quake_train_crash=48;
 static bool earthquake_enabled() {
     const char* t=ttk_live_env("DNTTK_EARTHQUAKES");
@@ -43,6 +50,23 @@ static void earthquake_start(double tics,const char* why) {
     quake_left=tics;quake_shown=false;quake_loads=psx_mod_savestate_loads();++quake_starts;
     if(earthquake_trace())std::fprintf(stderr,"[TTK quake] start %.2f tics (%s) field %llu\n",tics,why,(unsigned long long)input_host_frame());
 }
+// D44C: level overlay calls of 0x80028a2c (return addresses inside the
+// overlay at 0x800ca968), each valid only under its authenticated level tag
+// (identity(): the whole overlay body matches the owned disc).
+struct QuakeOverlaySource {uint32_t tag,ra;bool boss;};
+static constexpr QuakeOverlaySource quake_overlay_sources[]={
+    {0x8,0x800cbcf0u,false},  // LEVEL05 OBEY OR DIE: the robot turrets, types 621-623 (0x800cbaa0)
+    {0xc,0x800cb4acu,false},  // LEVEL09 PIG FACTORY: the same code (0x800cb4a4)
+    {0x1a,0x800cb704u,true},  // LEVEL28 WING'ED DEATH: the boss lands (animation 0x143)
+    {0x1b,0x800cb7fcu,true},  // LEVEL29 MOLOCH: landing, state flag +0xb8 0x100
+    {0x1b,0x800cb964u,true},  // LEVEL29 MOLOCH: stomp, state flag +0xb8 2
+};
+static const QuakeOverlaySource* earthquake_overlay_source(uint32_t ra) {
+    if(ra<0x800ca968u)return nullptr;
+    for(const auto& s:quake_overlay_sources)
+        if(s.ra==ra)return identity() && identity_tag==s.tag?&s:nullptr;
+    return nullptr;
+}
 // Entry of 0x80028a2c.
 static void earthquake_native_shake(CPUState* cpu) {
     const uint32_t ra=cpu->gpr[31];
@@ -50,15 +74,55 @@ static void earthquake_native_shake(CPUState* cpu) {
     if(earthquake_trace() && gameplay_context())
         std::fprintf(stderr,"[TTK quake] native shake ra=%08x strength=%d time=%d%s%u\n",ra,(int)cpu->gpr[6],(int)cpu->gpr[7],
             vest?" vest type ":"",vest?psx_mod_read_half(cpu->gpr[20]+0x2c):0u);
-    // The two call sites are main executable code: each is a jal 0x80028a2c.
-    if((!barrel && !vest) || psx_mod_read_word(ra-8)!=0x0c00a28bu ||
+    // Every call site is a jal 0x80028a2c: the main executable's two, or an
+    // authenticated overlay's.
+    const QuakeOverlaySource* overlay=barrel || vest?nullptr:earthquake_overlay_source(ra);
+    if((!barrel && !vest && !overlay) || psx_mod_read_word(ra-8)!=0x0c00a28bu ||
        !earthquake_enabled() || !gameplay_context() || cpu->gpr[4]!=camera)return;
     if(!quake_scratch)quake_scratch=psx_mod_alloc_guest_memory(0xb0,16);
     if(!quake_scratch)return;
     for(uint32_t i=0;i<0xb0;i+=4)psx_mod_write_word(quake_scratch+i,psx_mod_read_word(camera+i));
     cpu->gpr[4]=quake_scratch;
+    if(overlay) {
+        // Started only when under 16 tics are left: a repeat on the first
+        // tic (a boss state that asks twice) must not hold t still (the bob
+        // flips on t), and a longer earthquake is not cut short.
+        ++(overlay->boss?quake_bosses:quake_robots);
+        if(quake_left<=quake_detonation-1)earthquake_start(quake_detonation,overlay->boss?"boss":"robot turret");
+        return;
+    }
     ++(barrel?quake_barrels:quake_vests);
     earthquake_start(quake_detonation,barrel?"barrel":"vest");
+}
+// D44C: MINER 69ER (LEVEL02) Duke's per-frame room hook 0x800cc954 holds the
+// camera jitter at strength 2 (rooms 28 and 35), 4 (36) or 6 (38) with time
+// 300 while Duke (+0x2e, his room) is inside, and latches the pad at 25, 65
+// or 100. Here it is an earthquake that keeps running while he stays.
+static unsigned earthquake_tremor_strength() {
+    if(!identity() || identity_tag!=0x5)return 0;
+    switch((int8_t)psx_mod_read_byte(player+0x2e)) {
+    case 28: case 35: return 2;
+    case 36: return 4;
+    case 38: return 6;
+    }
+    return 0;
+}
+static void earthquake_tremor() {
+    if(!earthquake_enabled() || !earthquake_tremor_strength())return;
+    if(quake_left<=0 || quake_loads!=psx_mod_savestate_loads()) {++quake_tremors;earthquake_start(quake_detonation,"tremor");}
+    // Topped up by an even number of tics, so the pattern runs on unbroken.
+    else if(quake_left<quake_detonation)quake_left+=quake_detonation;
+}
+// Camera update entry (0x8003ade4, Duke's camera): the tremor's own jitter,
+// at or below the room strength, is taken out before 0x80028bdc plays it.
+// A stronger shake (a rocket in the room) plays as usual. The overlay's pad
+// latch is left alone.
+static void earthquake_tremor_mask() {
+    if(!earthquake_enabled() || !gameplay_context())return;
+    const unsigned strength=earthquake_tremor_strength();
+    const int16_t now=(int16_t)psx_mod_read_half(camera+0x48);
+    if(!strength || now<=0 || now>(int)strength)return;
+    psx_mod_write_half(camera+0x48,0);psx_mod_write_half(camera+0x4a,0);++quake_tremor_masks;
 }
 // D44B: TIME TO KILL's subway train, object type 77 (LEVEL00 only; first_map()
 // authenticates the whole overlay). The overlay's handler switches on the
@@ -85,6 +149,7 @@ static uint32_t earthquake_find_train() {
     return 0;
 }
 static void earthquake_scripted() {
+    earthquake_tremor();
     if(!first_map() || quake_train_loads!=psx_mod_savestate_loads()) {
         quake_train=0;quake_train_state=~0u;quake_train_loads=psx_mod_savestate_loads();
         if(!first_map())return;
@@ -174,9 +239,10 @@ bool earthquake_console_command(const char* line,void (*say)(const char*),bool& 
     return true;
 }
 const char* earthquake_json() {
-    static char b[256];
-    std::snprintf(b,sizeof b,"{\"enabled\":%s,\"left\":%.2f,\"tic\":%u,\"on\":%s,\"starts\":%llu,\"barrels\":%llu,\"vests\":%llu,\"images\":%llu,\"rumbles\":%llu,\"trains\":%llu}",
+    static char b[384];
+    std::snprintf(b,sizeof b,"{\"enabled\":%s,\"left\":%.2f,\"tic\":%u,\"on\":%s,\"starts\":%llu,\"barrels\":%llu,\"vests\":%llu,\"images\":%llu,\"rumbles\":%llu,\"trains\":%llu,\"robots\":%llu,\"bosses\":%llu,\"tremors\":%llu,\"tremor_masks\":%llu}",
         earthquake_enabled()?"true":"false",quake_left,quake_view.tic,quake_view.on?"true":"false",(unsigned long long)quake_starts,(unsigned long long)quake_barrels,
-        (unsigned long long)quake_vests,(unsigned long long)quake_images,(unsigned long long)quake_rumbles,(unsigned long long)quake_trains);
+        (unsigned long long)quake_vests,(unsigned long long)quake_images,(unsigned long long)quake_rumbles,(unsigned long long)quake_trains,
+        (unsigned long long)quake_robots,(unsigned long long)quake_bosses,(unsigned long long)quake_tremors,(unsigned long long)quake_tremor_masks);
     return b;
 }

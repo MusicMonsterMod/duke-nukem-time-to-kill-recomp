@@ -1871,6 +1871,7 @@ static void hook_body(CPUState* cpu, uint32_t address) {
     } else if (address==0x8003ade4) {
         min_boom_restore();
         if (cpu->gpr[4]!=camera || cpu->gpr[5]!=player || ra!=0x80025ee8) return;
+        earthquake_tremor_mask(); // D44C
         const bool ident=identity();
         // A different authenticated level is a different world, even if no
         // normal-camera callback ran during the intervening loading screen.

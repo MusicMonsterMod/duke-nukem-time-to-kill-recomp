@@ -1,5 +1,78 @@
 # Current status - 2026-10-04
 
+## 2026-11-06 - D17BD closed
+
+User: "great work. you can close it out now". D17BD is Done
+([note 401](documentation/401-d17bd-pig-factory-water-pocket.md)). In
+Modernized, PIG FACTORY's pool room draws its four missing water surfaces:
+the two shafts (beside the brick pillar and opposite it) and the two beach
+corners, each confirmed in play by the user ("it's working!"). Vanilla is
+unchanged. Executable
+`2ed37ff6b4eebd76c7286200cd3cb87980b6b4c4d6f4684835fdb16f4d6f08c3` is the
+regression baseline. One new entry hook (`0x8002EF90`, codegen hash
+`0xebce51ea` unchanged); no framework edit. Before/after images for the
+README: `research/before-after/d17bd-pig-factory-pocket/` (local).
+
+## 2026-11-06 - D17BD the beach corners, all four patches in (Needs playtest)
+
+User: "it's working!" (the second shaft), then the last two pieces: the corner
+in the new UI slot 10 save and its opposite. They are room 62's boxes 5 and 6
+(`0x801917d4`, `0x801917ec`): the triangular ends of the pool's sloping beach,
+cut by the room's diagonal far wall. Both added to `water_pocket.cpp`'s
+table. The surface now runs into both corners. Depth hides the rest of each
+square tile (behind the wall or under the dry beach). Flags read as authored,
+Modernized and Vanilla. Before/after:
+`research/before-after/d17bd-pig-factory-pocket/beach-*`. Executable
+`2ed37ff6b4eebd76c7286200cd3cb87980b6b4c4d6f4684835fdb16f4d6f08c3`.
+
+## 2026-11-06 - D17BD the second pocket, opposite the pillar (Needs playtest)
+
+User: "it's working!" (the pillar pocket), then "the one on the other side
+needs doing". The new save is in UI slot 10 (UI 7 is still the morning's
+MOLOCH save). Room 62's second skipped box `0x80191774` (x 6144-7168, z
+2048-4096) is a second shaft, again exactly the box. `water_pocket.cpp` now
+takes a table of both pockets. The clear/restore window is closed to saves
+and loads (`psx_mod_host_call_begin/end`), and a per-frame hook on
+`0x8001fba0` restores anything left over. The new shaft animates (43% of its
+pixels, 12% before), the first pocket is unchanged, Vanilla flags read as
+authored. Before/after: `research/before-after/d17bd-pig-factory-pocket/opposite-*`.
+Executable `62f98ace28d40d3fb9ebaebcae170ee8425353967abcc6aebde307542098d506`.
+Two more patches follow, one at a time.
+
+## 2026-11-06 - D17BD the pillar pocket gets its water (Needs playtest)
+
+[Note 401](documentation/401-d17bd-pig-factory-water-pocket.md). User: "i can
+confirm that the surface is indeed treated as water", then chose option 2.
+The two water passes skip any box whose first halfword has bit 0 set, and
+room 62's pocket box (`0x8019178c`) has it set. Room 62's shaft walls are
+exactly that box (x 1024-2048, z 2048-4096, rim y 3456, water 3584). The
+new `recomp/src/ttk/water_pocket.cpp` (Modernized only) clears the pocket's
+bit while the builder `0x8002ef90` starts on the pool's box and sets it again
+when the builder starts on the pocket. The game's own builder then draws it.
+New entry hook in `game.local.toml` (one generated line, codegen hash
+`0xebce51ea` unchanged). Private runs: the pocket animates (99% of its pixels,
+47% before), matched first-person and third-person before/after, the flag
+reads as authored in 60 RAM samples and after a reload, Vanilla unchanged.
+Before/after images for the README are in
+`research/before-after/d17bd-pig-factory-pocket/` (local). Executable
+`f850e6e356ca7a38434b20d235d6ad1bcab2e6861faf83f31ca05fc1b3b876ac`.
+
+## 2026-11-06 - D17BD report: the pillar pocket is an authored gap (Needs decision)
+
+[Note 401](documentation/401-d17bd-pig-factory-water-pocket.md). User clip
+`Video_2026-11-06_10-44-51.mp4` from UI slot 10: from the far ledge, the
+square pocket beside the brick pillar has no water surface. Reproduced on a
+private copy (Duke moved 2300 units ahead and turned round). The surface is
+missing the same way in the default build, with `DNTTK_NEAR_CLIP=0` (the
+game's own packets) and with `DNTTK_WATER_CLIP=0`. Every tile the game builds
+is drawn. The water grid is x 2048-6144, z 1024-6144 (room-local). In level
+RAM it is the box at `0x80191760` (field 62). The pocket is the next box,
+`0x80191790` (x 1024-2048, z 2048-4096, the same surface height), with that
+field 0: a volume, but not a rendered water surface. Same class as D17AS /
+D17AO. Options: leave as authored, a Modernized-only water patch over the
+pocket (like D17AO1), or a game-wide rule (not recommended without a
+survey). No game code changed.
+
 ## 2026-11-06 - D44C closed
 
 User: "i accept it, i played this irl, and they are all working! good work",

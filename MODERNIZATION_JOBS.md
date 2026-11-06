@@ -1,5 +1,46 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-06 - D17BE closed
+
+User: "lock it in and close us out". D17BE is Done
+([note 404](documentation/404-d17be-street-car-folded-quad.md)). In
+Modernized's unified renderer, a static prop quad folded along its diagonal
+is drawn as its front-facing half when the original's first-half cull drops
+it, so the TIME TO KILL street car's panel under the cabin no longer pops out.
+Vanilla and Classic are unchanged. Executable
+`bb86f81ba91c4aa25dde2859cab250d6422ef08874c90e6e9ab094b648d453ec` is the
+regression baseline. No framework edit; the runtime patch export is
+unchanged. Before/after images for the README:
+`research/before-after/d17be-street-car/` (local).
+
+## 2026-11-06 - D17BE the car's folded panel draws its front half (Needs playtest)
+
+[Note 404](documentation/404-d17be-street-car-folded-quad.md). The car is one
+static prop mesh (`0x80126350`). The panel in the gap under the cabin, face
+`0x8012655c`, is a quad folded along its diagonal. The original culls an object
+quad by its first half alone, so when that half turned away the whole panel
+went, including the half that faces the camera, and the street showed
+through. It popped in and out as the view moved. The game's own packets show
+the same gap: the original game's cull, not a renderer regression. Now, in
+Modernized's unified renderer, a static prop quad whose first half faces away
+but whose second half (1 3 2) faces the eye is drawn as that triangle
+(`near_clip.cpp`; actors, Duke's body, the first-person layer and the sky
+excluded; `DNTTK_FOLDED_QUADS=0` developer switch). Private runs: the panel is
+there in every step of fine sweeps right and up (the street before). Other
+slots' saved views are unchanged apart from animation, Vanilla is identical,
+`ttk-controls-test` PASS. Before/after: `research/before-after/d17be-street-car/`
+(local). Executable
+`bb86f81ba91c4aa25dde2859cab250d6422ef08874c90e6e9ab094b648d453ec`. No
+framework edit, no new hook.
+
+## 2026-11-06 - D17BE registered and started (In progress)
+
+User: "can you check slot 10, there's a small sliver that disappears near the
+rear left wheel of this car. i'm not sure if it's a culling thing or what. put
+a ticket in now and then get to work on fixing it". UI slot 10 (runtime slot
+9, saved 16:41) is TIME TO KILL (level 0), the wrecked car on the street seen
+from above. Cause not yet known (culling, near clip, depth or authored).
+
 ## 2026-11-06 - D10H3 closed
 
 User: "lock it in and close it out!!". D10H3 is Done at revision 3
@@ -7213,6 +7254,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D17BB | Polymorph: other rooms' wall pieces show over the castle walls (slot 12 courtyard) | Done (region rule; note 367) | D17AR |
 | D17BC | Classic: lightweight visibility (over-the-walls region rule from D17BB, slot-10 moat; other Classic reductions) | Done (user-accepted 2026-11-03; note 372) | D17BB, D40 |
 | D17BD | PIG FACTORY water does not cover the whole area: its texture is missing over part of it (UI slot 10) | Done (user-accepted 2026-11-06; Modernized draws all four missing pool surfaces; note 401) | - |
+| D17BE | TIME TO KILL street car: a small sliver near the rear left wheel disappears (UI slot 10) | Done (user-accepted 2026-11-06; folded prop quads draw their front half; note 404) | - |
 | D14F | 90-default / 120-maximum world FOV | Done (user-confirmed 2026-10-30) | Implemented in afd4ad6 (note 317); re-verified 2026-10-29 |
 | D17AE | Slot-11 sign post through door header | Done (user-confirmed 2026-10-29) | Scene depth for native world/scenery packets; replay precedence fix; world backface cull restored |
 | D17AF | Latest slot-10 ground water visibility | Done | Selected batch; see intake above |

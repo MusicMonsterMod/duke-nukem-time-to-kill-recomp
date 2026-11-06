@@ -1824,6 +1824,14 @@ const std::vector<uint32_t>& open_model_faces_of(uint32_t mesh,uint32_t vertices
     return slot.faces;
 }
 bool open_models_on() {static const bool v=env_int("DNTTK_OPEN_MODELS",1,0,1)!=0;return v;}
+// D17BE: the original culls an object quad by its first half (0 1 2) alone.
+// A quad folded along its diagonal (the crushed car on TIME TO KILL's street)
+// can face away there while its other half (1 3 2) faces the eye, so that
+// half vanished as the view turned (a sliver under the cabin). Unified scene
+// meshes draw such a quad as its front half, as the world's repeated-corner
+// triangle (D17AV). DNTTK_FOLDED_QUADS=0 (developer) keeps the original cull.
+uint64_t folded_quads=0;
+bool folded_quads_on() {static const bool v=env_int("DNTTK_FOLDED_QUADS",1,0,1)!=0;return v;}
 // 0x80010000 entry, same register contract as the world renderer.
 void object(CPUState* cpu) {
     const uint32_t mesh=cpu->gpr[4];
@@ -1946,9 +1954,13 @@ void object(CPUState* cpu) {
         const bool textured=type==0x24 || type==0x2c || type==0x34 || type==0x3c;
         const bool gouraud=type==0x30 || type==0x38 || type==0x34 || type==0x3c;
         const uint32_t bits=psx_mod_read_word(record+(type==0x20 || type==0x28 || type==0x30 || type==0x38 ? 4 : 8))>>25;
+        bool folded=false;
         if(!(bits&1) && !front_facing(f,p,flags,false)) {
-            if(!open_faces || !std::binary_search(open_faces->begin(),open_faces->end(),record)) {++object_stats.culled;trace_record(f,"backface",record);continue;}
-            ++open_model_drawn;trace_record(f,"open_back",record);
+            Poly half=p;half.idx[0]=p.idx[1];half.idx[1]=p.idx[3];half.idx[2]=p.idx[2];
+            if(p.count==4 && folded_quads_on() && unified_scene(f) && !actor && !body && !viewmodel && !f.sky &&
+               front_facing(f,half,flags,false)) {folded=true;++folded_quads;trace_record(f,"folded_half",record);}
+            else if(!open_faces || !std::binary_search(open_faces->begin(),open_faces->end(),record)) {++object_stats.culled;trace_record(f,"backface",record);continue;}
+            else {++open_model_drawn;trace_record(f,"open_back",record);}
         }
         p.textured=textured;p.bias=((bits&8)?1:0)-((bits&4)?1:0);
         p.command=(textured?0x34000000u:0x30000000u)|((bits&0x10)<<21)|command_bits;
@@ -1978,6 +1990,11 @@ void object(CPUState* cpu) {
             else if(textured) c=psx_mod_read_word(context+((bits&2)?0x5c:0x54));
             else c=psx_mod_read_word(palette+4*psx_mod_read_byte(record+4));
             p.colors[j]=c&0xffffff;
+        }
+        if(folded) {
+            static const int half[3]={1,3,2};Poly t=p;t.count=3;
+            for(int j=0;j<3;++j) {t.idx[j]=p.idx[half[j]];t.colors[j]=p.colors[half[j]];t.uv[j]=p.uv[half[j]];}
+            p=t;
         }
         polys.push_back(p);
     }
@@ -2392,7 +2409,7 @@ const char* near_clip_debug_json() {
             (unsigned long long)s.triangles,(unsigned long long)s.budget_hits);
     };
     char w[192],o[192];part(world_stats,w,sizeof w);part(object_stats,o,sizeof o);
-    std::snprintf(buffer,sizeof buffer,"{\"biomask_draws\":%llu,\"biomask_triangles\":%llu,\"enabled\":%s,\"world\":%s,\"object\":%s,\"refused\":%llu,\"copy_overflows\":%llu,\"duke_skips\":%llu,\"fades_skipped\":%llu,\"fade_tests\":%llu,\"zsf3\":%d,\"arena_size\":%u,\"frame_used_peak\":%u,\"host_bytes_peak\":%u,\"packet_skips\":%llu,\"mesh_fallbacks\":%llu,\"whole_polygons\":%llu,\"subdivided_kept\":%llu,\"viewmodel\":{\"meshes\":%llu,\"packets\":%llu,\"discards\":%llu},\"scene_depth\":{\"meshes\":%llu,\"packets\":%llu,\"ambiguous\":%llu,\"wraps\":%llu,\"polygons\":%llu,\"unmatched\":%llu,\"breaks\":%llu},\"measure\":{\"frames\":%llu,\"demand_peak\":%u,\"demand_avg\":%llu,\"frames_over_budget\":%llu,\"emits_peak\":%llu,\"hook_us_peak\":%llu,\"hook_us_avg\":%llu,\"kind_peak\":[%u,%u,%u,%u,%u],\"kind_avg\":[%llu,%llu,%llu,%llu,%llu],\"unified\":%s,\"unified_downgrades\":%llu,\"fallbacks\":[%llu,%llu,%llu],\"near_fallbacks\":%llu},\"water\":{\"seen\":%llu,\"taken\":%llu,\"guard\":%llu,\"grid\":%llu,\"near_cleared\":%llu,\"near_dropped\":%llu,\"budget_native\":%llu},\"coplanar\":{\"hits\":%llu,\"builds\":%llu,\"checked\":%llu,\"mismatch\":%llu},\"models\":{\"seen\":%llu,\"taken\":%llu,\"mismatch\":%llu,\"near_cleared\":%llu,\"faces\":%llu,\"faces_taken\":%llu,\"faces_native\":%llu,\"faces_dropped\":%llu,\"faces_budget\":%llu,\"flat\":%llu,\"faces_decal\":%llu,\"room_lifts\":%llu,\"sides_cleared\":%llu,\"flags_lifted\":%llu,\"backface\":%llu,\"refined\":%llu,\"refine_skipped\":%llu,\"refine_max\":%.3f,\"refine_last\":[%.2f,%.2f,%.2f,%.0f,%.0f,%.0f]},\"open_models\":{\"builds\":%llu,\"open\":%llu,\"faces\":%llu,\"drawn\":%llu}}",
+    std::snprintf(buffer,sizeof buffer,"{\"biomask_draws\":%llu,\"biomask_triangles\":%llu,\"enabled\":%s,\"world\":%s,\"object\":%s,\"refused\":%llu,\"copy_overflows\":%llu,\"duke_skips\":%llu,\"fades_skipped\":%llu,\"fade_tests\":%llu,\"zsf3\":%d,\"arena_size\":%u,\"frame_used_peak\":%u,\"host_bytes_peak\":%u,\"packet_skips\":%llu,\"mesh_fallbacks\":%llu,\"whole_polygons\":%llu,\"subdivided_kept\":%llu,\"viewmodel\":{\"meshes\":%llu,\"packets\":%llu,\"discards\":%llu},\"scene_depth\":{\"meshes\":%llu,\"packets\":%llu,\"ambiguous\":%llu,\"wraps\":%llu,\"polygons\":%llu,\"unmatched\":%llu,\"breaks\":%llu},\"measure\":{\"frames\":%llu,\"demand_peak\":%u,\"demand_avg\":%llu,\"frames_over_budget\":%llu,\"emits_peak\":%llu,\"hook_us_peak\":%llu,\"hook_us_avg\":%llu,\"kind_peak\":[%u,%u,%u,%u,%u],\"kind_avg\":[%llu,%llu,%llu,%llu,%llu],\"unified\":%s,\"unified_downgrades\":%llu,\"fallbacks\":[%llu,%llu,%llu],\"near_fallbacks\":%llu},\"water\":{\"seen\":%llu,\"taken\":%llu,\"guard\":%llu,\"grid\":%llu,\"near_cleared\":%llu,\"near_dropped\":%llu,\"budget_native\":%llu},\"coplanar\":{\"hits\":%llu,\"builds\":%llu,\"checked\":%llu,\"mismatch\":%llu},\"models\":{\"seen\":%llu,\"taken\":%llu,\"mismatch\":%llu,\"near_cleared\":%llu,\"faces\":%llu,\"faces_taken\":%llu,\"faces_native\":%llu,\"faces_dropped\":%llu,\"faces_budget\":%llu,\"flat\":%llu,\"faces_decal\":%llu,\"room_lifts\":%llu,\"sides_cleared\":%llu,\"flags_lifted\":%llu,\"backface\":%llu,\"refined\":%llu,\"refine_skipped\":%llu,\"refine_max\":%.3f,\"refine_last\":[%.2f,%.2f,%.2f,%.0f,%.0f,%.0f]},\"open_models\":{\"builds\":%llu,\"open\":%llu,\"faces\":%llu,\"drawn\":%llu},\"folded_quads\":%llu}",
         (unsigned long long)mask_draws,(unsigned long long)mask_triangles,enabled()?"true":"false",w,o,(unsigned long long)refused,(unsigned long long)copy_overflows,(unsigned long long)duke_skips,(unsigned long long)fades_skipped,(unsigned long long)fade_tests,(int)last_zsf3,arena_size,frame_used_peak,host_bytes_peak,(unsigned long long)packet_skips,(unsigned long long)mesh_fallbacks,(unsigned long long)subdivision_whole,(unsigned long long)subdivision_kept,(unsigned long long)viewmodel_meshes,(unsigned long long)viewmodel_packets,(unsigned long long)viewmodel_discards,(unsigned long long)scene_depth_meshes,(unsigned long long)scene_depth_packets,(unsigned long long)scene_depth_ambiguous,(unsigned long long)scene_depth_wraps,(unsigned long long)scene_depth_polygons,(unsigned long long)scene_depth_unmatched,(unsigned long long)scene_depth_breaks,
         (unsigned long long)demand_frames,demand_peak,(unsigned long long)(demand_frames?demand_total/demand_frames:0),(unsigned long long)demand_over,(unsigned long long)emits_peak,(unsigned long long)hook_us_peak,(unsigned long long)(hook_frames?hook_us_total/hook_frames:0),
         kind_peak[0],kind_peak[1],kind_peak[2],kind_peak[3],kind_peak[4],
@@ -2405,7 +2422,7 @@ const char* near_clip_debug_json() {
         (unsigned long long)coplanar_hits,(unsigned long long)coplanar_builds,(unsigned long long)coplanar_checked,(unsigned long long)coplanar_mismatch,
         (unsigned long long)model_seen,(unsigned long long)model_taken,(unsigned long long)model_mismatch,(unsigned long long)model_near_cleared,(unsigned long long)model_faces,
         (unsigned long long)model_faces_taken,(unsigned long long)model_faces_native,(unsigned long long)model_faces_dropped,(unsigned long long)model_faces_budget,(unsigned long long)model_flat,(unsigned long long)model_faces_decal,(unsigned long long)object_room_lifts,(unsigned long long)model_sides_cleared,(unsigned long long)model_flags_lifted,(unsigned long long)model_backface,(unsigned long long)model_refined,(unsigned long long)model_refine_skipped,model_refine_max,model_refine_last[0],model_refine_last[1],model_refine_last[2],model_refine_last[3],model_refine_last[4],model_refine_last[5],
-        (unsigned long long)open_model_builds,(unsigned long long)open_model_meshes,(unsigned long long)open_model_faces,(unsigned long long)open_model_drawn);
+        (unsigned long long)open_model_builds,(unsigned long long)open_model_meshes,(unsigned long long)open_model_faces,(unsigned long long)open_model_drawn,(unsigned long long)folded_quads);
     return buffer;
 }
 }

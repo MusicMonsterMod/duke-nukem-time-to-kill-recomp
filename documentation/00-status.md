@@ -1,5 +1,38 @@
 # Current status - 2026-10-04
 
+## 2026-11-06 - D17BE closed
+
+User: "lock it in and close us out". D17BE is Done
+([note 404](documentation/404-d17be-street-car-folded-quad.md)). In
+Modernized's unified renderer, a static prop quad folded along its diagonal
+is drawn as its front-facing half when the original's first-half cull drops
+it, so the TIME TO KILL street car's panel under the cabin no longer pops out.
+Vanilla and Classic are unchanged. Executable
+`bb86f81ba91c4aa25dde2859cab250d6422ef08874c90e6e9ab094b648d453ec` is the
+regression baseline. No framework edit; the runtime patch export is
+unchanged. Before/after images for the README:
+`research/before-after/d17be-street-car/` (local).
+
+## 2026-11-06 - D17BE the car's folded panel draws its front half (Needs playtest)
+
+[Note 404](documentation/404-d17be-street-car-folded-quad.md). The car is one
+static prop mesh (`0x80126350`). The panel in the gap under the cabin, face
+`0x8012655c`, is a quad folded along its diagonal. The original culls an object
+quad by its first half alone, so when that half turned away the whole panel
+went, including the half that faces the camera, and the street showed
+through. It popped in and out as the view moved. The game's own packets show
+the same gap: the original game's cull, not a renderer regression. Now, in
+Modernized's unified renderer, a static prop quad whose first half faces away
+but whose second half (1 3 2) faces the eye is drawn as that triangle
+(`near_clip.cpp`; actors, Duke's body, the first-person layer and the sky
+excluded; `DNTTK_FOLDED_QUADS=0` developer switch). Private runs: the panel is
+there in every step of fine sweeps right and up (the street before). Other
+slots' saved views are unchanged apart from animation, Vanilla is identical,
+`ttk-controls-test` PASS. Before/after: `research/before-after/d17be-street-car/`
+(local). Executable
+`bb86f81ba91c4aa25dde2859cab250d6422ef08874c90e6e9ab094b648d453ec`. No
+framework edit, no new hook.
+
 ## 2026-11-06 - D10H3 closed
 
 User: "lock it in and close it out!!". D10H3 is Done at revision 3

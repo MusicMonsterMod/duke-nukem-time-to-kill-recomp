@@ -413,6 +413,20 @@ static void gadget_hud(CPUState* cpu) {
         const int32_t left=(int16_t)psx_mod_read_half(player+p.timer);
         if(left>0 && hud_box_draw(cpu,0,&p.art,left*100/powerup_full,x,y-row*rows++,true)) ++powerup_draws;
     }
+    // D20J: the air box (element 3, above the health box in the original)
+    // joins the countdowns on the right, a row above the rest, so the
+    // bottom-left band stays free for LEVEL STATS. It shows on the original's
+    // own condition (0x8008c4c0: +0x22c == 5 or air +0x236 < 12000), but it
+    // appears in place like the other boxes (user, 2026-11-06): when it is
+    // about to show, set its visible bit (state +24) first, so the status bar
+    // never starts its rise (offset +26 = health y - air y), and keep the
+    // offset 0.
+    psx_mod_write_half(hud_layout+24,(uint16_t)x);
+    psx_mod_write_half(hud_layout+26,(uint16_t)(int16_t)(y-row*rows));
+    const uint32_t air_state=0x800dd7b8+24;
+    if(psx_mod_read_byte(player+0x22c)==5 || (int16_t)psx_mod_read_half(player+0x236)<12000)
+        psx_mod_write_half(air_state,(uint16_t)(psx_mod_read_half(air_state)|1));
+    psx_mod_write_half(air_state+2,0);
     if(!selected) return;
     const bool on=item!=5 && (psx_mod_read_half(player+0x354+4*item)&2);
     if(item==1 && on) {

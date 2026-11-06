@@ -1,5 +1,27 @@
 # Next-session handoff
 
+## 2026-11-06 - D20J closed
+
+User: "lock it in and close it out. amazing work". D20J is Done
+([note 406](documentation/406-d20j-air-box-right.md)). In Modernized the air
+box is drawn on the right at the top of the countdown stack above the ammo box
+and appears in place without the original's rise; LEVEL STATS keep the
+bottom-left band. Vanilla unchanged. Executable
+`a76810b8d0cdc1bfa53ce5ea238fa335ecff46a21538189b5567ec070795acba` is the
+regression baseline. No framework edit; the runtime patch export is unchanged.
+
+## 2026-11-06 - D20J the air box moves right (accepted)
+
+User design: show the air box on the right with the other countdowns instead of
+moving LEVEL STATS. Modernized draws status bar element 3 at the top of the
+right-hand stack above the ammo box (`recomp/src/ttk/gadget_hud.inc`, inside the
+saved D14/D08A6 layout window) and appears in place without the original's
+rise (revision 2); Vanilla keeps it above health, rise included. Seen offscreen
+at 16:9 borderless 60 Hz, 4:3 full boxes 180 Hz and Vanilla; a real dive, the
+underwater jetpack, Bio Mask / goggles and STATUS BARS HIDDEN wait on the
+playtest. Executable
+`a76810b8d0cdc1bfa53ce5ea238fa335ecff46a21538189b5567ec070795acba`.
+
 ## 2026-11-06 - D08J9 closed
 
 User: "lock it in and close it out. WORKING!!!!! well done". D08J9 is Done

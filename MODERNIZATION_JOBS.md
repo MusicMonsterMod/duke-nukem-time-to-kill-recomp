@@ -1,5 +1,54 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-06 - D20J closed
+
+User: "lock it in and close it out. amazing work". D20J is Done
+([note 406](documentation/406-d20j-air-box-right.md)). In Modernized the air
+box is drawn on the right at the top of the countdown stack above the ammo box
+and appears in place without the original's rise; LEVEL STATS keep the
+bottom-left band. Vanilla unchanged. Executable
+`a76810b8d0cdc1bfa53ce5ea238fa335ecff46a21538189b5567ec070795acba` is the
+regression baseline. No framework edit; the runtime patch export is unchanged.
+
+## 2026-11-06 - D20J revision 2: the air box appears in place (Needs playtest)
+
+User: "i would prefer not to make it "slide" transition in, can we just make it
+appear as with the other stuff". The status bar starts the air box's rise when
+it turns the box on (`0x8008c4c0`: +0x22c == 5 or air +0x236 < 12000, offset
++26 = health y - air y). In Modernized `gadget_hud.inc` now sets the visible
+bit (state `0x800dd7b8 + 24`) on that same condition just before the status
+bar draws, and keeps the offset 0, so the rise never starts; the game still
+turns the box off when the air is full. Probe (private copies): Modernized 4:3
+full boxes 180 Hz offset 0 from the first read after the air drops, box in its
+final place, gone again at 12000; Vanilla still rising at the same moment
+(offset 14), unchanged. Executable
+`a76810b8d0cdc1bfa53ce5ea238fa335ecff46a21538189b5567ec070795acba`.
+
+## 2026-11-06 - D20J the air box joins the countdowns on the right (Needs playtest)
+
+User design decision (from the option mockups): "jetpack fuel is displayed on
+the right. and in fact, all countdowns are displayed on the right. ... why not
+just display the oxygen on the right. problem solved". Modernized now draws
+the air box (status bar element 3, `0x800dd778 + 24`, originally above the
+health box) at the top of the right-hand stack: above the ammo box's slot
+(selected gadget or jetpack), running steroids and running power-up coins, a
+box row (box height + 4) above whichever of those show. The bottom-left band
+is free for LEVEL STATS, which keeps its place. `gadget_hud.inc` moves the
+pair inside the D14/D08A6 saved layout window, so saves, menus and Vanilla
+never see it. The air box's own rise (health y - air y, taken from the layout
+when it appears) now starts from the ammo row, the way the jetpack box rises
+(removed in revision 2).
+
+Seen offscreen (`recomp/analysis/d20j/probe.py`, private fixture copy, slot 10,
+air set below full through the debug port, player files hash-checked
+unchanged): 16:9 borderless 60 Hz air over the selected medkit, then over a
+running invincibility coin; 4:3 full boxes 180 Hz the same with boxes, the rise
+from behind the ammo box; Vanilla 4:3 the original air box above health. Not
+yet seen: a real dive, air with the jetpack on underwater (D08Q10), Bio Mask /
+goggles on, STATUS BARS HIDDEN. Executable
+`aceeea2e6ecff4f18ab70ef5e7651dddb0c219c200cd1e1236bb33a54d62c265`. No
+framework edit.
+
 ## 2026-11-06 - D08J9 closed
 
 User: "lock it in and close it out. WORKING!!!!! well done". D08J9 is Done
@@ -4139,7 +4188,7 @@ rejected and stay off (developer A/B only).
 
 ### D20J - LEVEL STATS make room for status panels (oxygen meter and others)
 
-**Status: Todo. Dependencies: D20I.** User (2026-11-05): "the oxygen meter
+**Status: Done (user-accepted 2026-11-06; [note 406](documentation/406-d20j-air-box-right.md)). 2026-11-06: the user chose to move the air box to the right with the other countdowns instead of moving LEVEL STATS; see the work log. Dependencies: D20I.** User (2026-11-05): "the oxygen meter
 goes behind the stats panel. that stats panel needs to act dynamically, as
 with our other HUD elements, and the oxygen meter or any other status panels
 that want to appear there move it upwards." Reference screenshot named
@@ -7332,7 +7381,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D17AF | Latest slot-10 ground water visibility | Done | Selected batch; see intake above |
 | D20H | Slot-5 intermittent colour corruption on load | Done (user-confirmed 2026-10-30) | Selected batch; see intake above |
 | D20I | LEVEL STATS in the bottom-left corner (time, kills, secrets; TTK font, red and gold, EDuke32 style) plus LEVEL STATS and FPS toggles in OPTIONS > DISPLAY | Done | D20E, D20D, D24A |
-| D20J | LEVEL STATS make room for status panels: the oxygen meter and other panels in that band push it upwards | Todo | D20I |
+| D20J | LEVEL STATS make room for status panels: the air box moves to the right-hand countdown stack (user design 2026-11-06) | Done (user-accepted 2026-11-06; note 406) | D20I |
 | D17AG | Slot-6 wooden panelling holes | Done (user-confirmed 2026-10-30) | Fixed by D17AE scene depth |
 | D17AH | Slot-8 sky glitching and popping | Done | Selected batch; see intake above |
 | D17AI | Slot-12 wall near pushable cube | Done (user-confirmed 2026-10-30) | Selected batch; see intake above |

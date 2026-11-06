@@ -1616,7 +1616,10 @@ the same way on every menu screen:
   and loading a savestate rewinds it), and the kill total grows when the game
   sends reinforcements (killing a dancer or other innocent calls four, and
   some levels send them by script), as EDuke32's does. Pausing, menus and the
-  statistics screen hide them. **FPS** on the same page shows or hides the
+  statistics screen hide them. In Modernized the air box (under water or
+  while Duke gets his breath back) is drawn on the right, at the top of the
+  stack of countdowns above the ammo box, so it never sits under the level
+  stats. It appears in place, like the other boxes. **FPS** on the same page shows or hides the
   frame rate statistics block at the top left: it is the same block as the
   console's `fps` command, and the two stay in step (typing `fps` changes the
   setting, which is saved). Both apply as soon as you confirm. The launcher

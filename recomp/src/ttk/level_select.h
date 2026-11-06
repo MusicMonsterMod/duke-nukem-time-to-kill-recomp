@@ -40,6 +40,9 @@ bool shot_view_console_command(const char* line, void (*say)(const char*), bool&
 // D10G4: "shootseen [on|off|default]" (weapon_aim.cpp), session-only A/B of
 // testing the crosshair against enemies where they are drawn or where they are now.
 bool shoot_seen_console_command(const char* line, void (*say)(const char*), bool& close);
+// D10H3: "autoaim [cone|default]" (weapon_aim.cpp), the AUTO AIM EDUKE32 cone in
+// 2048ths of a turn either side of the view, session only.
+bool auto_aim_console_command(const char* line, void (*say)(const char*), bool& close);
 // D24B: the game's own name for level n (from guest RAM, "" when unavailable).
 bool level_title(unsigned n, char* out, unsigned cap);
 }

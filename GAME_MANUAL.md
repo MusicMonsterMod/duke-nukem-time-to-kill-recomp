@@ -71,8 +71,8 @@ removed (2026-10-29) and Tab is reserved for a future game action. Use Escape to
 recapture. In **OPTIONS > CONTROLS > CONTROL SCHEME**, choose **MODERN**
 (default) or explicitly choose **LEGACY** and CONFIRM. The choice applies
 immediately and survives relaunches; loading a save cannot change it.
-Changing to **LEGACY** also sets **AUTO AIM ON**, **RED DOT ON** and
-**CROSSHAIR OFF**. Changing back to **MODERN** sets **AUTO AIM OFF**,
+Changing to **LEGACY** also sets **AUTO AIM ORIGINAL**, **RED DOT ON** and
+**CROSSHAIR OFF**. Changing back to **MODERN** sets **AUTO AIM HITSCAN**,
 **RED DOT OFF** and **CROSSHAIR ON**. These are starting presets: you can
 adjust the individual settings afterward. Manual adjustments survive restarts
 and save loads; they reset only when you confirm a different control scheme.
@@ -1429,13 +1429,15 @@ original camera to get the original right-mouse precision aim back; then **Alt**
 grabs. The precision-aim action (`original_aim`) is unbound by default and can be
 bound to another input. Vanilla retains right-mouse precision aim.
 **9 Aiming display / assistance** configures three independent settings:
-`off` or experimental `original-lock` assistance, crosshair on/off, and red dot
-on/off. Assistance uses an existing game target within six degrees of view center,
-with separate camera and muzzle visibility checks. Enable original autoaim in the
-game for its target acquisition. Unsupported weapons retain original aiming.
-The crosshair marks view center; assistance can correct within that cone. The
-red dot remains the original game's marker. Hiding either marker does not change
-assistance, autoaim target acquisition or damage.
+`eduke32`, `hitscan` (the default), `off` or `original-lock` assistance,
+crosshair on/off, and red dot on/off. `eduke32` and `hitscan` are EDuke32's auto aim described under
+[Auto aim](#auto-aim-d10h3). `original-lock` uses an existing game target
+within six degrees of view center, with separate camera and muzzle visibility
+checks, and turns the original game's auto aim on for its target acquisition.
+Unsupported weapons retain original aiming. The crosshair marks view center;
+assistance can correct within its cone. The red dot remains the original
+game's marker. Hiding either marker does not change assistance, autoaim target
+acquisition or damage.
 
 **Red dot off by default in Modernized (D07D):** Modernized shows only the
 modern crosshair; the original red autoaim dot is hidden in third and first
@@ -1464,10 +1466,10 @@ For original weapon aiming with the original red dot as the marker:
 python3 recomp/tools/local/run.py --weapon-aim original --red-dot on --show-settings
 ```
 
-`--aim-assist original-lock` is **AUTO AIM ON** in OPTIONS > ADVANCED; it also
-turns the original game's auto aim on. The red dot can also show the native
-aim point without a target lock. Modernized plays with auto aim off by default,
-so add
+`--aim-assist original-lock` is **AUTO AIM ORIGINAL** in OPTIONS > ADVANCED >
+COMBAT; it also turns the original game's auto aim on. The red dot can also
+show the native aim point without a target lock. Modernized plays with **AUTO
+AIM HITSCAN** by default (`--aim-assist hitscan`), so add
 `--aim-assist original-lock` to the last command for the original auto aim.
 
 These commands save preferences without launching. Old profiles are backed up
@@ -1711,16 +1713,18 @@ the original's style:
   and view bob.
 - **ADVANCED**: one list under headings. CAMERA AND AIM: camera, weapon aim, first-person legs.
   MOVEMENT: jump, jump walls, wall backflip, crouch, swimming, jetpack.
-  COMBAT: kick (third person: quick / original).
+  COMBAT: kick (third person: quick / original), weapon feel, **auto aim**.
   ITEMS: dynamite, steroids. GRAPHICS: backend (OpenGL / software), filter, draw distance,
   geometry, textures.
-  PERFORMANCE: CPU speed, CPU timing. ORIGINAL GAME: **auto aim**, red dot,
-  game speed.
+  PERFORMANCE: CPU speed, CPU timing. ORIGINAL GAME: red dot, game speed.
 
-**Auto aim** (off by default) lets the original game's target lock help your
-aim: with view aiming it nudges a shot onto the enemy the game has locked
-when that enemy is near the crosshair, and with original weapon aiming it is
-the original auto aim. The red dot, just below it, shows the native aim
+**Auto aim** (**HITSCAN** by default, see [Auto aim](#auto-aim-d10h3)) gives
+the Desert Eagle, Combat Shotgun, Buffalo Rifle and Gatling EDuke32's auto aim
+(**EDUKE32**: every gun).
+**ORIGINAL** lets the original game's target lock help your aim instead: with
+view aiming it nudges a shot onto the enemy the game has locked when that
+enemy is near the crosshair, and with original weapon aiming it is the
+original auto aim. The red dot shows the native aim
 point during supported aiming/firing poses. It works with auto aim off too;
 it is not a permanently visible crosshair. **RED DOT ON hides the modern
 crosshair**, including its hotkey, to avoid two markers. Turning RED DOT OFF
@@ -2376,6 +2380,39 @@ timing. The launcher accepts `--weapon-feel retro|modern` (saves the
 preference); terminal `--settings` uses **H Weapon feel**. A profile saved by
 the first build (which called RETRO "EDUKE32") keeps the choice under the new
 name.
+
+### Auto aim (D10H3)
+
+**OPTIONS > ADVANCED > COMBAT > AUTO AIM** chooses how much the game helps your
+aim in Modernized view aiming:
+
+- **HITSCAN** (the default) is EDuke32's auto aim on its "hitscan" setting:
+  when you fire the Desert Eagle (key 2), Combat Shotgun (3), Gatling Gun (4)
+  or Buffalo Rifle (9), the round goes exactly at the nearest enemy
+  within about 8.4 degrees either side of the crosshair (about 17 degrees
+  across) that you can see and that the gun can reach, and that is roughly on
+  screen vertically. It only ever picks enemies: dancers, civilians and other
+  NPCs, and props, are never targeted (you can still shoot them by aiming at
+  them yourself). An enemy already under the crosshair is chosen first, so
+  you can pick the farther of two. The shotgun's pellets still spread around
+  that line. Walls, doors and other cover still stop the round. The RPG,
+  Freezer, Crossbow, Flamethrower, Energy Weapon and throwables are not
+  assisted.
+- **EDUKE32** is EDuke32's auto aim on its "all" setting: the same aim for
+  every gun, the RPG, Freezer, Crossbow, Flamethrower and Energy Weapon too
+  (its beam locks onto the auto aimed enemy). Throwables (pipe bombs,
+  grenades, dynamite, knife, axe) keep their own throw, as in EDuke32.
+- **OFF**: every round goes where the crosshair points.
+- **ORIGINAL**: the original game's target lock helps your aim within six
+  degrees, and the original's own auto aim is on (as before this option).
+
+Profiles saved before this option that had auto aim off (the old default)
+switch to **HITSCAN** once, and so do the test builds' DUKE 3D and EDUKE32
+choices (both were the hitscan behaviour); afterwards your choice is kept. Vanilla always uses
+the original game's aiming. The launcher accepts
+`--aim-assist eduke32|hitscan|off|original-lock` (saves the preference). The backtick
+console's `autoaim` shows the cone, and `autoaim 64` (in 2048ths of a turn
+either side; `autoaim default` is EDuke32's 48) changes it for the session.
 
 ### Sidearm return (D08J7C)
 

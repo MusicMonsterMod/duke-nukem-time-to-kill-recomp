@@ -30,6 +30,7 @@ extern "C" uint32_t psx_mod_alloc_guest_memory(uint32_t n,uint32_t){static uint3
 extern "C" void psx_mod_host_call_begin(void){}
 extern "C" void psx_mod_host_call_end(void){}
 extern "C" int psx_mod_register_function_entry_plugin(const char*,uint32_t a,PSXModFunctionEntryCallback cb){if(a==0x8003c500)callback=cb;return 1;}
+namespace ttk {bool auto_aim_console_command(const char*,void (*)(const char*),bool&);}
 namespace ttk {bool free_look_active(){return false;}bool free_look_aim(double*,double*){return false;}static InputFrame f;const InputFrame& input_snapshot(Context){return f;}uint64_t input_host_frame(){return f.sequence;}bool input_modernized(){return modern;}bool input_modern_controls(){return modern;}bool movement_ready(){return ready;}const char* movement_lease_miss(){return "test";}bool locomotion_input_ready(){return false;}bool jetpack_input_ready(){return modern && jet_ready;}bool swim_weapon_ready(){return modern && swim_ready;}bool airborne_shot_ready(){return modern && air_ready;}bool climb_shot_ready(){return modern && climb_ready;}bool player_identity_ready(){return ready;}void weapon_feel_shot(){}static bool fp_view;bool first_person_view_live(){return fp_view;}bool frame_trace_on(){return false;}void frame_trace_account(uint32_t,long){}
 // D10G3: the view the last present showed.
 static bool sv_ok;static double sv_eye[3],sv_fwd[3],sv_age;bool shot_view(double* e,double* f,double& age){if(!sv_ok)return false;for(int i=0;i<3;++i){e[i]=sv_eye[i];f[i]=sv_fwd[i];}age=sv_age;return true;}
@@ -378,6 +379,54 @@ int main(int argc,char**argv) {
     object(1,0x800e0000,2);assert(finish()==0); // displaced 0x800e1000 is not targetable: no double hit
     object(3,0x800e0000,3);writes=0;callback(&beam,0x8001ca4c);assert(writes==0); // never a fourth beam
     std::puts("PASS: D22D energy beam locks the crosshair actor; misses, dead, reach, list and upgrade extras");
+    // D10H3 AUTO AIM EDUKE32: the bullet weapons go exactly at the nearest
+    // hostile targetable actor (the room list above; never an NPC) inside
+    // 48/2048 of a turn either side of the view, seen from the eye and reached
+    // from the muzzle. Type table: 57 a pig cop (hostile flag, class 6), 922 a
+    // dancer (class 8, no hostile flag), 540 a prop (class 9, no hostile flag).
+    ready=true;jet_ready=false;ttk::f.active=false;
+    c.gpr[31]=0x8004f7b4;c.gpr[5]=sp+0x40;c.gpr[6]=p+0x144;c.gpr[7]=4;
+    auto fire=[&](unsigned weapon){c.gpr[7]=weapon;c.gpr[5]=sp+0x40;seed();callback(&c,0x8003c500);c.gpr[7]=4;
+        const double x=(int32_t)psx_mod_read_word(c.gpr[6]),z=(int32_t)psx_mod_read_word(c.gpr[6]+8);return 100+500.0*x/z;};
+    auto aimed=[](double at){return std::abs(at-20)<1;};
+    psx_mod_write_word(0x800e0000,1);psx_mod_write_word(0x800e00ec,20);psx_mod_write_word(0x800e00f0,0);psx_mod_write_word(0x800e00f4,500);
+    psx_mod_write_word(0x800d2660,0x801b0000);
+    psx_mod_write_word(0x801b0000+28*57,0x50208001);psx_mod_write_byte(0x801b0000+28*57+6,6);
+    psx_mod_write_word(0x801b0000+28*922,0x40628001);psx_mod_write_byte(0x801b0000+28*922+6,8);
+    psx_mod_write_word(0x801b0000+28*540,0x00218003);psx_mod_write_byte(0x801b0000+28*540+6,9);
+    psx_mod_write_half(0x800e002c,57);psx_mod_write_byte(0x800e0015,6);
+    setenv("DNTTK_AIM_ASSIST","off",1);actor_visible=true;assert(!aimed(fire(4)));
+    setenv("DNTTK_AIM_ASSIST","duke3d",1);assert(!aimed(fire(4))); // the first build's name is not a mode
+    // EDUKE32: every view-aimed gun call (the throws never reach this path).
+    setenv("DNTTK_AIM_ASSIST","eduke32",1);
+    for(unsigned weapon:{3u,4u,5u,6u,7u,8u,11u,28u,29u})assert(aimed(fire(weapon)));
+    for(unsigned weapon:{1u,12u,14u})assert(!aimed(fire(weapon)));
+    // HITSCAN: the bullet guns, Buffalo Rifle included.
+    setenv("DNTTK_AIM_ASSIST","hitscan",1);
+    for(unsigned weapon:{4u,5u,6u,7u,28u})assert(aimed(fire(weapon)));
+    for(unsigned weapon:{3u,8u,29u,11u})assert(!aimed(fire(weapon))); // Crossbow and projectiles
+    block_actor=true;assert(!aimed(fire(4)));block_actor=false;            // not seen from the eye
+    block_muzzle=true;assert(!aimed(fire(4)));block_muzzle=false;          // muzzle behind cover
+    psx_mod_write_word(0x800e0000,3);assert(!aimed(fire(4)));psx_mod_write_word(0x800e0000,1); // dead
+    psx_mod_write_word(0x801c1008,0x800e1000);assert(!aimed(fire(4)));psx_mod_write_word(0x801c1008,0x800e0000); // not targetable
+    psx_mod_write_word(0x800e00f0,400);assert(!aimed(fire(4)));psx_mod_write_word(0x800e00f0,0); // off screen vertically
+    psx_mod_write_half(0x800e002c,922);psx_mod_write_byte(0x800e0015,8);assert(!aimed(fire(4))); // a dancer: never
+    ray_actor=true;assert(!aimed(fire(4)));ray_actor=false;                                   // not even under the crosshair
+    psx_mod_write_half(0x800e002c,540);psx_mod_write_byte(0x800e0015,9);assert(!aimed(fire(4))); // a prop
+    psx_mod_write_half(0x800e002c,57);psx_mod_write_byte(0x800e0015,8);assert(!aimed(fire(4)));  // an NPC-class actor
+    psx_mod_write_byte(0x800e0015,6);assert(aimed(fire(4)));
+    psx_mod_write_word(0x800e00ec,100); // 11.3 degrees: outside EDuke32's 8.4
+    {double at=fire(4);assert(std::abs(at-100)>=1);}
+    bool shut=false;auto quiet=[](const char*){};
+    assert(ttk::auto_aim_console_command("autoaim 70",quiet,shut) && shut);   // 12.3 degrees
+    {double at=fire(4);assert(std::abs(at-100)<1);}
+    assert(ttk::auto_aim_console_command("autoaim default",quiet,shut));
+    assert(ttk::auto_aim_console_command("autoaim 999",quiet,shut) && !shut);
+    {double at=fire(4);assert(std::abs(at-100)>=1);}
+    psx_mod_write_word(0x800e00ec,20);
+    modern=false;seed();writes=0;callback(&c,0x8003c500);assert(writes==0);modern=true; // Vanilla
+    actor_visible=false;unsetenv("DNTTK_AIM_ASSIST");
+    std::puts("PASS: D10H3 EDuke32 auto aim: EDUKE32 every gun, HITSCAN the bullet guns, never NPCs or props, cone, eye and muzzle checks, dead, list, vertical, console, Vanilla");
     setenv("DNTTK_WEAPON_AIM","original",1);seed();writes=0;callback(&c,0x8003c500);assert(writes==0);
     std::puts("weapon aim guards, parallax, muzzle obstruction and original fallback passed");
 }

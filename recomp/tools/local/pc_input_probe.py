@@ -28,7 +28,7 @@ def main():
     parser.add_argument('--synthetic-weapons', action='store_true', help='D07 only: select slots directly in isolated RAM; excludes animation/acquisition acceptance')
     parser.add_argument('--renderer', choices=('software','opengl'), default='software')
     parser.add_argument('--weapon-aim', choices=('view','original'), default='view')
-    parser.add_argument('--aim-assist',choices=('off','original-lock'),default='off')
+    parser.add_argument('--aim-assist',choices=('eduke32','hitscan','off','original-lock'),default='off')
     parser.add_argument('--red-dot',choices=('on','off'),default='on')
     parser.add_argument('--crosshair',choices=('on','off'),default='on')
     parser.add_argument('--near-cover', action='store_true')

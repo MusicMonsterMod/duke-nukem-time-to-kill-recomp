@@ -142,7 +142,12 @@ STEROIDS_MODES = ('portable', 'original')
 WORLD_RENDERERS = ('polymorph', 'classic')
 # Alt-wheel boom range in game units; 0 keeps the original follow distance.
 CAMERA_DISTANCE_RANGE = (768, 6144)
-DEFAULT_CONTROLS = {'status_bars': 'full', 'scheme': 'modern', 'camera': 'independent', 'mouse_sensitivity': 0.12, 'invert_y': False, 'weapon_aim': 'view', 'crosshair': True, 'red_dot': False, 'aim_assist': 'off', 'jetpack': 'modern', 'camera_distance': 0, 'first_person_legs': 'on', 'first_person_fov': 90, 'shoulder': 'center', 'view': 'third', 'widescreen': '16:9', 'cpu_overclock': 150, 'cpu_timing': 'fast', 'jump': 'assisted', 'frame_rate': 'auto', 'view_bob': 'on', 'geometry_precision': 'original', 'texture_precision': 'original', 'draw_distance': 'extended', 'world_renderer': 'polymorph', 'steroids': 'portable', 'jump_walls': 'slide', 'landing': 'modern', 'dynamite': 'modern', 'auto_bio_mask': 'on', 'equip_pickups': 'if-new', 'screen_flashes': 'on', 'sidearm_return': 'never', 'third_person_kick': 'quick', 'weapon_feel': 'retro', 'earthquakes': 'on', 'level_stats': True, 'fps': False, 'night_vision': 'modern', 'swimming': 'modern', 'swim_view': 'first', 'jetpack_view': 'first', 'push_view': 'first', 'ladder_view': 'first', 'pole_view': 'first', 'mantle_view': 'first', 'overhead_view': 'first', 'wall_view': 'first', 'wall_backflip': 'modern', 'crouch': 'modern'}
+# D10H3: AUTO AIM, EDuke32's autoaim cone, never an NPC: eduke32 every
+# view-aimed weapon but throws; hitscan (the default since schema 69) the
+# bullet guns; off; original-lock. Schema 70 split eduke32 from hitscan: the
+# first builds' duke3d and a schema 69 eduke32 both meant hitscan.
+AIM_ASSISTS = ('eduke32', 'hitscan', 'off', 'original-lock')
+DEFAULT_CONTROLS = {'status_bars': 'full', 'scheme': 'modern', 'camera': 'independent', 'mouse_sensitivity': 0.12, 'invert_y': False, 'weapon_aim': 'view', 'crosshair': True, 'red_dot': False, 'aim_assist': 'hitscan', 'jetpack': 'modern', 'camera_distance': 0, 'first_person_legs': 'on', 'first_person_fov': 90, 'shoulder': 'center', 'view': 'third', 'widescreen': '16:9', 'cpu_overclock': 150, 'cpu_timing': 'fast', 'jump': 'assisted', 'frame_rate': 'auto', 'view_bob': 'on', 'geometry_precision': 'original', 'texture_precision': 'original', 'draw_distance': 'extended', 'world_renderer': 'polymorph', 'steroids': 'portable', 'jump_walls': 'slide', 'landing': 'modern', 'dynamite': 'modern', 'auto_bio_mask': 'on', 'equip_pickups': 'if-new', 'screen_flashes': 'on', 'sidearm_return': 'never', 'third_person_kick': 'quick', 'weapon_feel': 'retro', 'earthquakes': 'on', 'level_stats': True, 'fps': False, 'night_vision': 'modern', 'swimming': 'modern', 'swim_view': 'first', 'jetpack_view': 'first', 'push_view': 'first', 'ladder_view': 'first', 'pole_view': 'first', 'mantle_view': 'first', 'overhead_view': 'first', 'wall_view': 'first', 'wall_backflip': 'modern', 'crouch': 'modern'}
 # display is how the game opens (the runtime reports the last state at exit);
 # fullscreen_mode is what F11 enters from a window.
 SOUND_DEFAULTS = dict(sound_master=-1, sound_effects=-1, sound_music=-1, sound_speech=-1, sound_mode=-1)
@@ -157,7 +162,7 @@ DEFAULT_PROFILE = {'presentation': DEFAULT_PRESENTATION, 'bindings': pc_input.DE
 MODE_PRESENTATION = {'vanilla': {}, 'modernized': {'internal_scale': 4}}
 PREVIEW = ('Modernized first-map preview: captured WASD is camera-relative; mouse orbits the '
            'third-person camera. Unavailable hooks never switch the selected control scheme. '
-           'View aiming defaults to unassisted shots for supported weapons; others retain original aiming. Gameplay captures automatically on first entry; Escape pauses and frees the mouse; resume captures automatically. OPTIONS > CONTROLS selects Modern or Legacy; F10 has no action.')
+           'View aiming covers supported weapons, with AUTO AIM HITSCAN for the Desert Eagle, Combat Shotgun, Buffalo Rifle and Gatling; others retain original aiming. Gameplay captures automatically on first entry; Escape pauses and frees the mouse; resume captures automatically. OPTIONS > CONTROLS selects Modern or Legacy; F10 has no action.')
 
 
 def validate_controls(value):
@@ -168,6 +173,9 @@ def validate_controls(value):
         # D10H4: WEAPON FEEL's first build saved retro as eduke32.
         if value.get('weapon_feel') == 'eduke32':
             value['weapon_feel'] = 'retro'
+        # D10H3: AUTO AIM's first build saved hitscan as duke3d.
+        if value.get('aim_assist') == 'duke3d':
+            value['aim_assist'] = 'hitscan'
     if isinstance(value, dict):
         # D19X: recover this additive field without losing other preferences.
         fov = value.get('first_person_fov', 90)
@@ -196,7 +204,7 @@ def validate_controls(value):
     if not valid_enum(value['split_devices'], ('two-pads', 'keyboard-pad')):
         raise ValueError('Split devices must be two-pads or keyboard-pad.')
     sensitivity = value['mouse_sensitivity']
-    if (value['weapon_aim'] not in AIM_MODES or value['scheme'] not in ('modern', 'legacy') or value['camera'] not in CAMERAS or value['aim_assist'] not in ('off','original-lock') or value['jetpack'] not in JETPACK_SCHEMES or type(value['red_dot']) is not bool or type(value['crosshair']) is not bool or type(value['invert_y']) is not bool or
+    if (value['weapon_aim'] not in AIM_MODES or value['scheme'] not in ('modern', 'legacy') or value['camera'] not in CAMERAS or value['aim_assist'] not in AIM_ASSISTS or value['jetpack'] not in JETPACK_SCHEMES or type(value['red_dot']) is not bool or type(value['crosshair']) is not bool or type(value['invert_y']) is not bool or
         type(sensitivity) not in (int, float) or not math.isfinite(sensitivity) or
         not 0.01 <= sensitivity <= 2 or not valid_camera_distance(value['camera_distance']) or value['shoulder'] not in SHOULDERS or not valid_enum(value['view'], VIEWS) or
         value['widescreen'] not in WIDESCREEN_MODES or type(value['cpu_overclock']) is not int or
@@ -388,7 +396,7 @@ VANILLA_NOTICE = ('Modernized is now the default profile; your Vanilla settings 
 
 
 def defaults():
-    return {'version': 68, 'active': 'modernized',
+    return {'version': 70, 'active': 'modernized',
             'profiles': {mode: default_profile(mode) for mode in MODES}}
 
 
@@ -434,7 +442,7 @@ def load(path):
         notices.append('Unreadable profile settings; restored Modernized defaults.')
     else:
         version = data.get('version')
-        if type(version) is int and version > 68:
+        if type(version) is int and version > 70:
             raise ValueError(f'Profile settings version {version} is newer than this launcher; file left unchanged.')
         if type(version) is int and version == 0:
             mode = data.get('mode', 'modernized')
@@ -443,8 +451,8 @@ def load(path):
                 if renderer in RENDERERS:
                     result['profiles'][mode]['presentation']['renderer'] = renderer
             changed = True
-            notices.append('Migrated version 0 profile settings to version 68.')
-        elif type(version) is int and version in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68):
+            notices.append('Migrated version 0 profile settings to version 70.')
+        elif type(version) is int and version in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70):
             if data.get('active') == 'vanilla':
                 notices.append(VANILLA_NOTICE)
             profiles = data.get('profiles', {})
@@ -466,7 +474,7 @@ def load(path):
                         notices.append(f'{mode}: {exc} Restored presentation defaults.')
                 if isinstance(profile, dict) and isinstance(profile.get('controls'), dict):
                     try:
-                        result['profiles'][mode]['controls'] = validate_controls({**({"split_devices":"two-pads"} if version < 56 else {}), **(CONTROLLER_DEFAULTS if version < 55 else {}), **(SOUND_DEFAULTS if version < 53 else {}), **({k:v for k,v in DEFAULT_CONTROLS.items() if k in ('crosshair','red_dot','aim_assist')} if version < 5 else {}), **({'weapon_aim':'view'} if version < 4 else {}), **({'jetpack':'modern'} if version < 11 else {}), **({'camera_distance':0,'shoulder':'center'} if version < 12 else {}), **({'view':'third'} if version < 13 else {}), **({'widescreen':'16:9'} if version < 18 else {}), **({'cpu_overclock':150} if version < 19 else {}), **({'jump':'assisted'} if version < 20 else {}), **({'frame_rate':'60'} if version < 21 else {}), **({'view_bob':'on'} if version < 22 else {}), **({'geometry_precision':'original','texture_precision':'original'} if version < 23 else {}), **({'draw_distance':'extended'} if version < 24 else {}), **({'cpu_timing':'fast'} if version < 25 else {}), **({'steroids':'portable'} if version < 29 else {}), **({'jump_walls':'slide'} if version < 30 else {}), **({'landing':'modern'} if version < 31 else {}), **({'dynamite':'modern'} if version < 32 else {}), **({'swimming':'modern'} if version < 33 else {}), **({'wall_backflip':'modern'} if version < 37 else {}), **({'crouch':'modern'} if version < 39 else {}), **({'scheme':'modern'} if version < 40 else {}), **({'swim_view':'first'} if version < 41 else {}), **({'jetpack_view':'first'} if version < 42 else {}), **({'push_view':'first'} if version < 43 else {}), **({'ladder_view':'first'} if version < 44 else {}), **({'pole_view':'first'} if version < 45 else {}), **({'mantle_view':'first'} if version < 46 else {}), **({'overhead_view':'first'} if version < 47 else {}), **({'wall_view':'first'} if version < 48 else {}), **({'night_vision':'modern'} if version < 51 else {}), **({'auto_bio_mask':'on'} if version < 52 else {}), **({'equip_pickups':'if-new'} if version < 61 else {}), **({'screen_flashes':'on'} if version < 62 else {}), **({'level_stats':True,'fps':False} if version < 63 else {}), **({'sidearm_return':'never'} if version < 64 else {}), **({'third_person_kick':'quick'} if version < 66 else {}), **({'weapon_feel':'retro'} if version < 67 else {}), **({'earthquakes':'on'} if version < 68 else {}), **profile['controls'], **({'sidearm_return':'never'} if version == 64 else {})})
+                        result['profiles'][mode]['controls'] = validate_controls({**({"split_devices":"two-pads"} if version < 56 else {}), **(CONTROLLER_DEFAULTS if version < 55 else {}), **(SOUND_DEFAULTS if version < 53 else {}), **({k:v for k,v in DEFAULT_CONTROLS.items() if k in ('crosshair','red_dot','aim_assist')} if version < 5 else {}), **({'weapon_aim':'view'} if version < 4 else {}), **({'jetpack':'modern'} if version < 11 else {}), **({'camera_distance':0,'shoulder':'center'} if version < 12 else {}), **({'view':'third'} if version < 13 else {}), **({'widescreen':'16:9'} if version < 18 else {}), **({'cpu_overclock':150} if version < 19 else {}), **({'jump':'assisted'} if version < 20 else {}), **({'frame_rate':'60'} if version < 21 else {}), **({'view_bob':'on'} if version < 22 else {}), **({'geometry_precision':'original','texture_precision':'original'} if version < 23 else {}), **({'draw_distance':'extended'} if version < 24 else {}), **({'cpu_timing':'fast'} if version < 25 else {}), **({'steroids':'portable'} if version < 29 else {}), **({'jump_walls':'slide'} if version < 30 else {}), **({'landing':'modern'} if version < 31 else {}), **({'dynamite':'modern'} if version < 32 else {}), **({'swimming':'modern'} if version < 33 else {}), **({'wall_backflip':'modern'} if version < 37 else {}), **({'crouch':'modern'} if version < 39 else {}), **({'scheme':'modern'} if version < 40 else {}), **({'swim_view':'first'} if version < 41 else {}), **({'jetpack_view':'first'} if version < 42 else {}), **({'push_view':'first'} if version < 43 else {}), **({'ladder_view':'first'} if version < 44 else {}), **({'pole_view':'first'} if version < 45 else {}), **({'mantle_view':'first'} if version < 46 else {}), **({'overhead_view':'first'} if version < 47 else {}), **({'wall_view':'first'} if version < 48 else {}), **({'night_vision':'modern'} if version < 51 else {}), **({'auto_bio_mask':'on'} if version < 52 else {}), **({'equip_pickups':'if-new'} if version < 61 else {}), **({'screen_flashes':'on'} if version < 62 else {}), **({'level_stats':True,'fps':False} if version < 63 else {}), **({'sidearm_return':'never'} if version < 64 else {}), **({'third_person_kick':'quick'} if version < 66 else {}), **({'weapon_feel':'retro'} if version < 67 else {}), **({'earthquakes':'on'} if version < 68 else {}), **profile['controls'], **({'sidearm_return':'never'} if version == 64 else {}), **({'aim_assist':'hitscan'} if version < 69 and mode == 'modernized' and profile['controls'].get('aim_assist','off') == 'off' else {}), **({'aim_assist':'hitscan'} if version == 69 and profile['controls'].get('aim_assist') in ('eduke32','duke3d') else {})})
                     except ValueError as exc:
                         notices.append(f'{mode}: {exc} Restored camera defaults.')
                 # Schema 28 (D08A5): Comma/Period move from original strafe to the mission
@@ -527,8 +535,8 @@ def load(path):
                 return result, notices
             changed = result != data
             if changed and result != {**data, 'active': 'modernized'}:
-                notices.append(f'Migrated version {version} profile settings to version 68; retained preferences and added control and presentation defaults.'
-                               if version < 68 else
+                notices.append(f'Migrated version {version} profile settings to version 70; retained preferences and added control and presentation defaults.'
+                               if version < 70 else
                                'Invalid or unsupported profile fields were reset; valid preferences were retained.')
         else:
             changed = True
@@ -1010,11 +1018,11 @@ def menu(settings, read=input, write=print):
                 write('Select Modernized to edit its aiming display and assistance; Vanilla retains original behavior.')
                 continue
             controls = edited['profiles']['modernized']['controls']
-            write('Assistance is experimental: original-lock uses the game lock within 6 degrees, with camera/muzzle visibility checks. Original game autoaim must be enabled. Applies to view aiming only.')
-            values = read('assist crosshair red-dot (e.g. original-lock on off; blank cancels): ').split()
+            write('hitscan (default): Desert Eagle, Combat Shotgun, Buffalo Rifle and Gatling rounds go at the nearest visible enemy (never an NPC) within about 8.4 degrees of the crosshair, as EDuke32 autoaim on hitscan weapons; eduke32: every weapon but throws. original-lock follows the game lock within 6 degrees. Applies to view aiming only.')
+            values = read('assist crosshair red-dot (e.g. hitscan on off; blank cancels): ').split()
             if not values: continue
-            if len(values) != 3 or values[0] not in ('off','original-lock') or any(v not in ('on','off') for v in values[1:]):
-                write('Enter off/original-lock, on/off, on/off; unchanged.')
+            if len(values) != 3 or values[0] not in AIM_ASSISTS or any(v not in ('on','off') for v in values[1:]):
+                write('Enter eduke32/hitscan/off/original-lock, on/off, on/off; unchanged.')
                 continue
             controls.update(aim_assist=values[0], crosshair=values[1]=='on', red_dot=values[2]=='on')
         elif choice == '5':

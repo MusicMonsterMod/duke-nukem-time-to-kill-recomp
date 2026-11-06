@@ -223,6 +223,52 @@ static void screen_view(double* eye,double* forward) {
     std::copy(e,e+3,eye);std::copy(f,f+3,forward);
     last_screen_view=true;last_view_shift=shift;last_view_turn=turn;++screen_view_shots;
 }
+// D10H3 AUTO AIM (DNTTK_AIM_ASSIST): EDuke32's autoaim, A_FindTargetSprite in
+// player.cpp. HITSCAN (hitscan, the Modernized default; EDuke32 cl_autoaim 2):
+// the bullet guns, Desert Eagle (4), Combat Shotgun (5), Buffalo Rifle (6) and
+// Gatling (7, upgraded 28). EDUKE32 (eduke32; cl_autoaim 1): every view-aimed
+// weapon except the throws (EDuke32 never aims a pipe bomb): also the Crossbow
+// (3), RPG (8, 29), Freezer (11), Flamethrower (9, 27) and Energy Weapon (10,
+// whose D22D beam then locks the auto aimed enemy). The nearest enemy in the rooms'
+// targetable lists (the D22D beam lock's set, which also holds dancers and
+// other civilians, props and Duke's own type): only types with the hostile
+// flag 0x10000000 (*0x800D2660 + 28*type, word 0: pig cops, flyers, turrets,
+// class 27) and never AI class 8 (+0x15, type byte 6: every civilian, all with
+// 0x40000000 and without the hostile flag). EDuke32 likewise aims only at
+// A_CheckEnemySprite actors. Inside a horizontal cone of
+// AUTO_AIM_ANGLE 48/2048 of a turn either side of the view (about 8.4 degrees),
+// nearest by depth along the view, with EDuke32's vertical "on screen" test
+// (|160 * slope - horizon| < 100: slopes within 0.625 of the view's), seen from
+// the eye and reached from the muzzle (both traces must meet that actor). The
+// round then goes exactly at its aim point (+0xec, the original lock's point).
+// Apex and cone follow the shown view, with each actor where the shown image
+// drew it (D10G4); depth from Duke's body, more than duke_aim_min (EDuke32's
+// 512 is under Duke 3D's eye height). The original's spread still applies, as
+// EDuke32 adds its spread after autoaim. An enemy under the crosshair is tried
+// first, so unlike EDuke32 the player can pick the farther of two; it too gets
+// the exact aim point, which lands where D10G4's rewound point on a running
+// enemy still misses (D10H2). Console: "autoaim [cone 1..256|default]"
+// (2048ths, session only).
+static constexpr int duke_aim_cone_default=48;
+static constexpr double duke_aim_min=256,duke_aim_range=16384,duke_aim_screen=100.0/160.0;
+static std::atomic<int> duke_aim_cone{duke_aim_cone_default};
+static unsigned duke_aim_shots,duke_aim_searches,duke_aim_misses;
+static uint32_t last_duke_aim_actor;
+static double last_duke_aim_angle;
+static int last_duke_aim_candidates;
+// 0 none, 1 HITSCAN, 2 EDUKE32 (all).
+static int duke_aim_mode() {
+    const char* v=ttk_live_env("DNTTK_AIM_ASSIST");
+    return !v ? 0 : !std::strcmp(v,"hitscan") ? 1 : !std::strcmp(v,"eduke32") ? 2 : 0;
+}
+// Never an NPC: the type must be hostile and neither it nor the actor class 8.
+static bool duke_aim_enemy(uint32_t actor) {
+    const uint32_t types=psx_mod_read_word(0x800d2660);
+    const unsigned type=psx_mod_read_half(actor+0x2c);
+    if(types<0x80010000u || types>0x801f0000u || type>=4096)return false;
+    return (psx_mod_read_word(types+28*type)&0x10000000u) && psx_mod_read_byte(types+28*type+6)!=8 && psx_mod_read_byte(actor+0x15)!=8;
+}
+static bool duke_aim_hitscan(unsigned weapon) {return weapon==4 || weapon==5 || weapon==6 || weapon==7 || weapon==28;}
 // D10G4 shoot what you see: at 120/180 Hz the shown image draws actors at
 // the presented world time, about 90 ms old, while the screen-ray query tests
 // them where they are now. For that one query, move each actor the shown view
@@ -283,6 +329,53 @@ static void seen_rewind(SeenRewind& r) {
 static void seen_restore(SeenRewind& r) {
     for(int i=r.nwords-1;i>=0;--i)psx_mod_write_word(r.addr[i],r.old[i]);
     r.nwords=0;
+}
+static bool duke_aim(CPUState* cpu,const double* eye,const double* forward,const double* muzzle,const SeenRewind& seen,uint32_t prefer,double* target) {
+    ++duke_aim_searches;last_duke_aim_actor=0;last_duke_aim_angle=0;last_duke_aim_candidates=0;
+    const double h=std::hypot(forward[0],forward[2]);
+    if(h<1e-6)return false;
+    const double fx=forward[0]/h,fz=forward[2]/h,view_slope=forward[1]/h;
+    const double cone=duke_aim_cone.load(std::memory_order_relaxed)*3.141592653589793/1024;
+    const uint32_t rooms=psx_mod_read_word(0x800da454),count=psx_mod_read_word(0x800da47c);
+    if(rooms<0x80010000u || rooms>0x801f0000u || count>256)return false;
+    double body[3];read_vector(player+4,body);
+    struct Candidate {uint32_t actor;double depth,angle;};
+    Candidate found[33];int n=0;
+    if(prefer && duke_aim_enemy(prefer))found[n++]={prefer,-1,0};
+    for(unsigned room=0;room<count && n<32;++room) {
+        uint32_t node=psx_mod_read_word(rooms+0x58*room+0x4c);
+        for(unsigned i=0;node && i<64 && n<32;++i,node=psx_mod_read_word(node+4)) {
+            if(node<0x80010000u || node>0x801ffff0u || (node&3))break;
+            const uint32_t actor=psx_mod_read_word(node+8);
+            if(actor<0x80010000u || actor>0x801ffc00u || (actor&3) || actor==player || (psx_mod_read_word(actor)&2))continue;
+            bool twice=false;for(int k=0;k<n;++k)twice|=found[k].actor==actor;
+            if(twice || !duke_aim_enemy(actor))continue;
+            double point[3];read_vector(actor+0xec,point);
+            for(int k=0;k<seen.n;++k) if(seen.actor[k]==actor) for(int j=0;j<3;++j)point[j]-=seen.shift[k][j];
+            const double vx=point[0]-eye[0],vz=point[2]-eye[2],along=vx*fx+vz*fz;
+            const double depth=(point[0]-body[0])*fx+(point[2]-body[2])*fz;
+            if(along<=0 || depth<=duke_aim_min || depth>duke_aim_range)continue;
+            const double angle=std::atan2(std::abs(vx*fz-vz*fx),along);
+            if(angle>cone)continue;
+            const double slope=(point[1]-eye[1])/std::hypot(vx,vz);
+            if(std::abs(slope-view_slope)>=duke_aim_screen)continue;
+            found[n++]={actor,depth,angle};
+        }
+    }
+    last_duke_aim_candidates=n;
+    std::sort(found,found+n,[](const Candidate& a,const Candidate& b){return a.depth<b.depth;});   // the crosshair's enemy (-1) first
+    // Nearest first; at most four pairs of traces per shot.
+    for(int i=0;i<n && i<4;++i) {
+        double point[3],hit[3];read_vector(found[i].actor+0xec,point);
+        int kind=0;uint32_t met=0;
+        if(!trace(cpu,eye,point,hit,kind,&met) || met!=found[i].actor)continue;
+        if(!trace(cpu,muzzle,point,hit,kind,&met) || met!=found[i].actor)continue;
+        std::copy(point,point+3,target);
+        last_duke_aim_actor=found[i].actor;last_duke_aim_angle=found[i].angle*180/3.141592653589793;
+        return true;
+    }
+    if(n)++duke_aim_misses;
+    return false;
 }
 static void marker_hook(CPUState* cpu,uint32_t address) {
     if(address!=0x8002bc18 || cpu->gpr[31]!=0x80033db0 || cpu->gpr[20]!=player)return;
@@ -484,6 +577,11 @@ static void aim_hook_body(CPUState* cpu,uint32_t address) {
         else ok=false;
     }
     last_assisted=ok && !cover && assist(cpu,eye,muzzle,forward,target);
+    bool duke_aimed=false;
+    const int duke_mode=duke_aim_mode();
+    if(ok && !cover && duke_mode && (duke_mode==2 ? gun || continuous : gun && duke_aim_hitscan(cpu->gpr[7])))
+        duke_aimed=last_assisted=duke_aim(cpu,eye,forward,muzzle,seen,kind==2 && targetable(view_actor)?view_actor:0,target);
+    if(duke_aimed)++duke_aim_shots;
     double convergence=0;for(int i=0;i<3;++i)convergence+=(target[i]-muzzle[i])*forward[i];
     if(ok && convergence<64) {
         // A close screen-ray hit can be behind a long/offset animated muzzle.
@@ -524,13 +622,14 @@ static void aim_hook_body(CPUState* cpu,uint32_t address) {
             const auto& f=input_snapshot(Context::Gameplay);
             beam_shot_sp=sp;beam_epoch=f.epoch;beam_pending=true;
             // D22D: the beam's lock is the actor under the crosshair, or the
-            // assisted original lock once both of its cover checks passed.
-            beam_target=last_assisted?psx_mod_read_word(player+0x288):view_actor;
+            // assisted original lock once both of its cover checks passed;
+            // D10H3 EDUKE32: the auto aimed enemy.
+            beam_target=duke_aimed?last_duke_aim_actor:last_assisted?psx_mod_read_word(player+0x288):view_actor;
             std::copy(eye,eye+3,beam_eye);std::copy(forward,forward+3,beam_forward);
         }
         ++shots;if(last_assisted)++assisted_shots;last_kind=cover?4:(last_assisted?2:kind);last_weapon=cpu->gpr[7];
-        if(diagnostics())std::fprintf(stderr,"ttk-aim-shot weapon=%d target=%.0f,%.0f,%.0f direction=%.0f,%.0f,%.0f cover=%d bend=%.1f view=%s eye=%.0f,%.0f,%.0f forward=%.4f,%.4f,%.4f shift=%.0f turn=%.2f age=%.1f seen=%d actor=%08x moved=%.0f now=%d,%08x near=%08x,%.0f,%.0f,%.0f\n",last_weapon,target[0],target[1],target[2],last_direction[0],last_direction[1],last_direction[2],cover,last_bend,
-            last_screen_view?"screen":"game",eye[0],eye[1],eye[2],forward[0],forward[1],forward[2],last_view_shift,last_view_turn,last_view_age,last_seen_actors,kind==2?view_actor:0,last_seen_shift,now_kind,now_kind==2?now_actor:0,near_actor,near_drawn,near_now,near_moved);
+        if(diagnostics())std::fprintf(stderr,"ttk-aim-shot weapon=%d target=%.0f,%.0f,%.0f direction=%.0f,%.0f,%.0f cover=%d bend=%.1f view=%s eye=%.0f,%.0f,%.0f forward=%.4f,%.4f,%.4f shift=%.0f turn=%.2f age=%.1f seen=%d actor=%08x moved=%.0f now=%d,%08x near=%08x,%.0f,%.0f,%.0f autoaim=%08x,%.2f,%d\n",last_weapon,target[0],target[1],target[2],last_direction[0],last_direction[1],last_direction[2],cover,last_bend,
+            last_screen_view?"screen":"game",eye[0],eye[1],eye[2],forward[0],forward[1],forward[2],last_view_shift,last_view_turn,last_view_age,last_seen_actors,kind==2?view_actor:0,last_seen_shift,now_kind,now_kind==2?now_actor:0,near_actor,near_drawn,near_now,near_moved,duke_aimed?last_duke_aim_actor:0,last_duke_aim_angle,last_duke_aim_candidates);
     } else ++rejected;
     busy=false;
 }
@@ -588,9 +687,23 @@ bool shoot_seen_console_command(const char* line,void (*say)(const char*),bool& 
         shoot_seen_enabled()?"on":"off",shoot_seen_enabled()?"where they are drawn":"where they are now");
     say(text);return true;
 }
+bool auto_aim_console_command(const char* line,void (*say)(const char*),bool& close) {
+    if(std::strcmp(line,"autoaim") && std::strncmp(line,"autoaim ",8))return false;
+    close=false;
+    if(line[7]) {
+        const char* value=line+8;int cone=0;char tail=0;
+        if(!std::strcmp(value,"default"))cone=duke_aim_cone_default;
+        else if(std::sscanf(value,"%d%c",&cone,&tail)!=1 || cone<1 || cone>256) {say("Usage: autoaim [cone 1..256|default] (2048ths of a turn either side; EDuke32 48; session only)");return true;}
+        duke_aim_cone.store(cone,std::memory_order_relaxed);close=true;
+    }
+    const int cone=duke_aim_cone.load(std::memory_order_relaxed);
+    char text[224];std::snprintf(text,sizeof text,"Auto aim %s: EDuke32 cone %d/2048 either side (%.1f degrees; session only). Default %d (EDuke32). Shots aimed %u.",
+        duke_aim_mode()==2?"EDUKE32 (every weapon but throws)":duke_aim_mode()?"HITSCAN (bullet guns)":"off or original (OPTIONS > ADVANCED > COMBAT)",cone,cone*360.0/2048,duke_aim_cone_default,duke_aim_shots);
+    say(text);return true;
+}
 const char* aim_debug_json() {
-    static char out[2048];
-    std::snprintf(out,sizeof out,"{\"shoot_seen\":%s,\"seen_shots\":%u,\"seen_rewinds\":%u,\"last_seen_actors\":%d,\"last_seen_shift\":%.0f,\"shot_view\":%s,\"screen_view_shots\":%u,\"screen_view_refused\":%u,\"last_screen_view\":%s,\"last_view_shift\":%.0f,\"last_view_turn\":%.2f,\"last_view_age\":%.1f,\"point_blank_shots\":%u,\"point_blank_lift\":%.2f,\"last_bend\":%.1f,\"beam_locks\":%u,\"beam_extra_locks\":%u,\"close_retractions\":%u,\"assisted_shots\":%u,\"hidden_markers\":%u,\"last_assisted\":%s,\"reticle\":%s,\"shots\":%u,\"rejected\":%u,\"queries\":%u,\"lease_misses\":%u,\"last_lease_miss\":\"%s\",\"identity_calls\":%llu,\"identity_checks\":%llu,\"weapon\":%d,\"hit_kind\":%d,\"origin\":[%.0f,%.0f,%.0f],\"target\":[%.0f,%.0f,%.0f],\"direction\":[%.0f,%.0f,%.0f]}",shoot_seen_enabled()?"true":"false",seen_shots,seen_rewinds,last_seen_actors,last_seen_shift,shot_view_enabled()?"true":"false",screen_view_shots,screen_view_refused,last_screen_view?"true":"false",last_view_shift,last_view_turn,last_view_age,point_blank_shots,lift_setting(),last_bend,beam_locks,beam_extra_locks,close_retractions,assisted_shots,hidden_markers,last_assisted?"true":"false",ttk_aim_reticle()?"true":"false",shots,rejected,queries,lease_misses,last_lease_miss,(unsigned long long)aim_identity_calls,(unsigned long long)aim_identity_checks,last_weapon,last_kind,last_origin[0],last_origin[1],last_origin[2],last_target[0],last_target[1],last_target[2],last_direction[0],last_direction[1],last_direction[2]);return out;
+    static char out[2560];
+    std::snprintf(out,sizeof out,"{\"auto_aim\":\"%s\",\"duke_aim_cone\":%d,\"duke_aim_shots\":%u,\"duke_aim_searches\":%u,\"duke_aim_misses\":%u,\"last_duke_aim_actor\":\"%08x\",\"last_duke_aim_angle\":%.2f,\"last_duke_aim_candidates\":%d,\"shoot_seen\":%s,\"seen_shots\":%u,\"seen_rewinds\":%u,\"last_seen_actors\":%d,\"last_seen_shift\":%.0f,\"shot_view\":%s,\"screen_view_shots\":%u,\"screen_view_refused\":%u,\"last_screen_view\":%s,\"last_view_shift\":%.0f,\"last_view_turn\":%.2f,\"last_view_age\":%.1f,\"point_blank_shots\":%u,\"point_blank_lift\":%.2f,\"last_bend\":%.1f,\"beam_locks\":%u,\"beam_extra_locks\":%u,\"close_retractions\":%u,\"assisted_shots\":%u,\"hidden_markers\":%u,\"last_assisted\":%s,\"reticle\":%s,\"shots\":%u,\"rejected\":%u,\"queries\":%u,\"lease_misses\":%u,\"last_lease_miss\":\"%s\",\"identity_calls\":%llu,\"identity_checks\":%llu,\"weapon\":%d,\"hit_kind\":%d,\"origin\":[%.0f,%.0f,%.0f],\"target\":[%.0f,%.0f,%.0f],\"direction\":[%.0f,%.0f,%.0f]}",ttk_live_env("DNTTK_AIM_ASSIST")?ttk_live_env("DNTTK_AIM_ASSIST"):"off",duke_aim_cone.load(std::memory_order_relaxed),duke_aim_shots,duke_aim_searches,duke_aim_misses,last_duke_aim_actor,last_duke_aim_angle,last_duke_aim_candidates,shoot_seen_enabled()?"true":"false",seen_shots,seen_rewinds,last_seen_actors,last_seen_shift,shot_view_enabled()?"true":"false",screen_view_shots,screen_view_refused,last_screen_view?"true":"false",last_view_shift,last_view_turn,last_view_age,point_blank_shots,lift_setting(),last_bend,beam_locks,beam_extra_locks,close_retractions,assisted_shots,hidden_markers,last_assisted?"true":"false",ttk_aim_reticle()?"true":"false",shots,rejected,queries,lease_misses,last_lease_miss,(unsigned long long)aim_identity_calls,(unsigned long long)aim_identity_checks,last_weapon,last_kind,last_origin[0],last_origin[1],last_origin[2],last_target[0],last_target[1],last_target[2],last_direction[0],last_direction[1],last_direction[2]);return out;
 }
 }
 static int crosshair_forced=-1; // -1 follow env; 0/1 override (I key, EDuke-style)

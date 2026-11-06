@@ -35,7 +35,7 @@ def main(argv=None):
     p.add_argument('--invert-y', choices=('on', 'off'), help='save Modernized mouse Y inversion')
     p.add_argument('--weapon-aim', choices=profiles.AIM_MODES, help='save Modernized view aiming (auto-aim off) or original aiming')
     p.add_argument('--crosshair', choices=('on','off'), help='save Modernized crosshair visibility without changing aim behavior')
-    p.add_argument('--aim-assist', choices=('off','original-lock'), help='save experimental Modernized view assistance')
+    p.add_argument('--aim-assist', choices=('eduke32','hitscan','off','original-lock'), help='save Modernized AUTO AIM (EDuke32 autoaim, never NPCs): eduke32 every weapon but throws, hitscan the bullet guns, off, or original-lock')
     p.add_argument('--red-dot', choices=('on','off'), help='save original target marker visibility independently of assistance')
     p.add_argument('--jetpack', choices=profiles.JETPACK_SCHEMES, help='save Modernized jetpack scheme: modern, classic or instant eduke32 flight (61 seconds)')
     p.add_argument('--camera-distance', metavar='original|768..6144', help='save Modernized third-person distance (Alt+wheel also saves it)')

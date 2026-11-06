@@ -1,5 +1,76 @@
 # Next-session handoff
 
+## 2026-11-06 - D10H3 closed
+
+User: "lock it in and close it out!!". D10H3 is Done at revision 3
+([note 403](documentation/403-d10h3-eduke32-auto-aim.md)). OPTIONS > ADVANCED >
+COMBAT > AUTO AIM: EDUKE32 (every view-aimed weapon but throws) / HITSCAN
+(default: Desert Eagle, Combat Shotgun, Gatling, Buffalo Rifle) / OFF /
+ORIGINAL; EDuke32's 48/2048 cone, nearest visible and reachable enemy, never
+NPCs or props; profile schema 70. Executable
+`6ec91c61f9f223cd3d615593da043a1c8d0dd69503b828b8e3ca0dda0da11f4f` is the regression baseline. No framework edit; the
+runtime patch export is unchanged.
+
+## 2026-11-06 - D10H3 revision 3: AUTO AIM EDUKE32 / HITSCAN / OFF / ORIGINAL (Needs playtest)
+
+User: "split this out into eduke32 (all auto aim), hitscan only (weapons as
+described + buffalo rifle), off, and original". [Note 403](documentation/403-d10h3-eduke32-auto-aim.md).
+**HITSCAN** (default; EDuke32 `cl_autoaim 2`): Desert Eagle, Combat Shotgun,
+Gatling and now the Buffalo Rifle. **EDUKE32** (`cl_autoaim 1`): every
+view-aimed weapon but throws (Crossbow, RPG, Freezer, Flamethrower, Energy
+Weapon too; the beam locks the auto aimed enemy). Never NPCs in either.
+Profile schema 70 (`--aim-assist eduke32|hitscan|off|original-lock`): the test
+builds' `duke3d` and schema 69 `eduke32` become `hitscan`. Evidence:
+`ttk-aim-test` and `test_player_profiles` 131 pass; lab: Buffalo Rifle on
+HITSCAN, Freezer and RPG on EDUKE32 auto aimed at a pig cop 4-8 degrees off.
+Not run in game: Flamethrower, Energy Weapon, Crossbow on EDUKE32. Executable
+`6ec91c61f9f223cd3d615593da043a1c8d0dd69503b828b8e3ca0dda0da11f4f`.
+
+## 2026-11-06 - D10H3 revision 2: never NPCs, named EDUKE32 (Needs playtest)
+
+User: "the auto aim wants to target the strippers. it should never, ever
+target npc's. let's not actually call it "Duke 3D" but instead "EDuke32"."
+[Note 403](documentation/403-d10h3-eduke32-auto-aim.md). The rooms'
+targetable lists also hold dancers and civilians (class 8), props (class 9)
+and Duke's type. Auto aim now takes only types with the hostile flag
+`0x10000000` and never class 8 (type table or actor `+0x15`); measured: every
+civilian and dancer type lacks the flag, every enemy, flyer and turret type
+has it (EDuke32 likewise aims only at enemies). An NPC under the crosshair
+gets no exact point either. AUTO AIM's choice is now **EDUKE32** (`eduke32`,
+`--aim-assist eduke32|off|original-lock`); revision 1's saved `duke3d` is
+renamed in place with a notice. Evidence: `ttk-aim-test` (dancer, also under
+the crosshair, prop, class 8 actor, old value: never; pig cop: aimed) and
+`test_player_profiles` 131 pass; level 1 pig cop still auto aimed at 4 and 8
+degrees. Not verified in game at the strippers (no offscreen way to stand
+Duke in front of a dancer). Executable
+`961205da53784915d53c74ccec5c5f0313a48d2dfa5df80728449831f88d40d9`.
+
+## 2026-11-06 - D10H3 AUTO AIM DUKE 3D (Needs playtest)
+
+[Note 403](documentation/403-d10h3-eduke32-auto-aim.md). OPTIONS > ADVANCED >
+COMBAT > **AUTO AIM**: DUKE 3D (default) / OFF / ORIGINAL (moved from ORIGINAL
+GAME; profile key `aim_assist`, schema 69, `run.py --aim-assist
+duke3d|off|original-lock`; the old default `off` becomes `duke3d` once, a
+chosen ORIGINAL is kept; the MODERN scheme preset is now DUKE 3D). DUKE 3D is
+EDuke32's `A_FindTargetSprite` with `cl_autoaim 2`: the Desert Eagle, Combat
+Shotgun and Gatling (ids 4, 5, 7, 28) aim exactly at the nearest targetable
+enemy within 48/2048 of a turn either side of the view (about 8.4 degrees),
+slope within 0.625 of the view's, seen from the eye and reached from the
+muzzle; RPG, Freezer, throws, Energy Weapon and TTK-only guns never. An enemy
+under the crosshair is tried first (the player can pick the farther of two)
+and also gets the exact point. Console `autoaim [1..256|default]`. Evidence:
+`ttk-aim-test` new D10H3 group passes with all earlier groups;
+`test_player_profiles` 131 pass; offscreen lab (`recomp/analysis/d10h3/`,
+local): still pig cop 4 and 8 degrees off the crosshair, Desert Eagle 50 of 50
+rounds land with DUKE 3D against 0 of 36 with OFF, shotgun and Gatling all
+auto aimed, 12 degrees never assisted, RPG never; sliding pig cop at 1900 u/s
+43 of 48 land against 33 of 48. Executable
+`16cd5f6d8df439478b0308cf28d4c15aca3fb5ac2c8efd53fe1fe96a8b5a63c9`. No
+framework edit. Not verified: the real mouse at 180 Hz, the "enemyshoot"
+comparison, a game-moved chase, swimming, climbs. Pre-existing, unrelated:
+`test_pc_input` asserts schema 65 (already failing at 68), `test_ttk_anim`
+needs numpy.
+
 ## 2026-11-06 - D08A36 closed
 
 User: "confirmed working!! lock it in, and close it out". D08A36 is Done at

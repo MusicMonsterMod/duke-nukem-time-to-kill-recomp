@@ -357,7 +357,8 @@ Row view_row(const char* label,const char* key,const char* env,const char* help,
 // layout (enforce_modern_settings). GAME SETTINGS' rows moved: GORE and STATUS
 // BARS to GAMEPLAY; AUTO AIM (now the profile's aim assist, written into the
 // game) and GAME SPEED to ADVANCED > ORIGINAL GAME, with the RED DOT that
-// AUTO AIM drives (user review, 2026-10-20). Contract: documentation/166-d19n-options-layout.md.
+// AUTO AIM drives (user review, 2026-10-20); D10H3 moved AUTO AIM to ADVANCED >
+// COMBAT once its default became HITSCAN. Contract: documentation/166-d19n-options-layout.md.
 std::vector<Screen> make_screens() {
     std::vector<Screen> s(5);
     s[4]={"SOUND",{
@@ -476,6 +477,13 @@ std::vector<Screen> make_screens() {
         // D10H4 / D10H6: RETRO gives the Duke 3D analog guns close to EDuke32's shot timing.
         {"WEAPON FEEL",Section::Controls,"weapon_feel","DNTTK_WEAPON_FEEL",true,"RETRO: EVERY CLICK FIRES, A STEADY FIRE RATE",
          {{"RETRO","retro","\"retro\""},{"MODERN","modern","\"modern\""}},0},
+        // AUTO AIM is the profile's aim assist. D10H3: EDuke32's autoaim, never
+        // NPCs (weapon_aim.cpp): EDUKE32 every weapon but throws, HITSCAN (the
+        // default) the bullet guns. ORIGINAL follows the original
+        // target lock and also turns the original's auto aim on in the game (the
+        // native red dot then draws without a lock).
+        {"AUTO AIM",Section::Controls,"aim_assist","DNTTK_AIM_ASSIST",true,"HITSCAN: BULLET GUNS AIM AT THE NEAREST ENEMY. EDUKE32: ALL GUNS",
+         {{"EDUKE32","eduke32","\"eduke32\""},{"HITSCAN","hitscan","\"hitscan\""},{"OFF","off","\"off\""},{"ORIGINAL","original-lock","\"original-lock\""}},1},
         heading("ITEMS"),
         {"EQUIP PICKUPS",Section::Controls,"equip_pickups","DNTTK_EQUIP_PICKUPS",true,"IF NEW: DRAW A NEW WEAPON, SELECT A NEW ITEM",
          {{"IF NEW","if-new","\"if-new\""},{"NEVER","never","\"never\""}},0},
@@ -506,10 +514,6 @@ std::vector<Screen> make_screens() {
         {"CPU TIMING",Section::Controls,"cpu_timing","DNTTK_CPU_TIMING",false,"FAST USES FAR LESS HOST CPU AT THE SAME GAME SPEED",
          {{"FAST","fast","\"fast\""},{"ACCURATE","accurate","\"accurate\""}},0},
         heading("ORIGINAL GAME"),
-        // AUTO AIM is the profile's aim assist: ON also turns the original's
-        // auto aim on in the game. The native red dot also draws without a lock.
-        {"AUTO AIM",Section::Controls,"aim_assist","DNTTK_AIM_ASSIST",true,"ON: THE ORIGINAL TARGET LOCK HELPS YOUR AIM",
-         {{"OFF","off","\"off\""},{"ON","original-lock","\"original-lock\""}},0},
         {"RED DOT",Section::Controls,"red_dot","DNTTK_RED_DOT",true,"ORIGINAL AIM MARKER. HIDES THE MODERN CROSSHAIR",
          {{"OFF","0","false"},{"ON","1","true"}},0},
         // 0x80089920 sets Duke's (0x800c3c80) and the enemies' (0x800c3d14)
@@ -1364,7 +1368,7 @@ void scheme_aim_defaults(bool legacy) {
         Row& r=screens[s].rows[i];
         if(!r.key)continue;
         const std::string key=r.key;
-        const char* value=key=="aim_assist" ? (legacy?"original-lock":"off") :
+        const char* value=key=="aim_assist" ? (legacy?"original-lock":"hitscan") :
             key=="red_dot" ? (legacy?"1":"0") : key=="crosshair" ? (legacy?"0":"1") : nullptr;
         if(!value)continue;
         const int v=choice_from_env(r,value);

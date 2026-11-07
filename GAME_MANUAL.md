@@ -1536,6 +1536,15 @@ delay is unchanged. At 60 Hz nothing changes. To compare, open the backtick
 console and type `shootseen off` (session only); `shootseen on` or
 `shootseen default` turns it back on.
 
+**Rounds that leave on an enemy land (Modernized, D10H2).** The crosshair now
+asks the same question as the round itself: it is "on" an enemy only where
+the enemy's body is, not the slightly wider outline the game uses for other
+checks. A round aimed at an enemy also follows it through the enemy's own
+step in the same game update, so it goes through the spot the crosshair met.
+Speed, spread, damage and cover are the weapon's own. To compare, open the
+backtick console and type `roundfollow off` (session only); `roundfollow on`
+or `roundfollow default` turns it back on.
+
 First-map checks now cover the pistol, shotgun, rifle, Gatling, RPG, freezer,
 crossbow, knife/axe, pipe bomb, grenade, dynamite, flamethrower and energy weapon.
 RPG flight and explosions follow pitched view aim. Throws keep their original

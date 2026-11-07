@@ -1,5 +1,29 @@
 # Next-session handoff
 
+## 2026-11-07 - D10H2 closed
+
+User: "lock it in and close it out. insane work". D10H2 is Done: aim queries
+use the rounds' own actor test and rounds follow the aimed enemy's step
+(note 410). Executable
+`0a960573b50f1779f37930d11bf06c07b8c45f2ecea54d39ffc42c621ccf77ae` is the
+regression baseline. No framework edit.
+
+## 2026-11-07 - D10H2: rounds that leave on target land (Needs playtest)
+
+Most of D10H1's pistol chase misses were its fixture (debug-port byte writes
+racing the round's sweep). Two real causes were fixed for Modernized view
+aiming:
+
+- The crosshair and auto aim now ask the round's own actor test (the model
+  box) instead of a coarser one that reached past the pig cop's body.
+- A round aimed at an enemy follows that enemy's own step before its first
+  sweep (`roundfollow`).
+
+On a game-thread slide fixture, 95 of 97 drawn-on rounds landed. Still
+targets, D10H3 auto aim, D10G3 and `ttk-aim-test` are unchanged. Executable
+`0a960573b50f1779f37930d11bf06c07b8c45f2ecea54d39ffc42c621ccf77ae`.
+Details: MODERNIZATION_JOBS.md D10H2, note 410. No framework edit.
+
 ## 2026-11-07 - D08J3A closed
 
 User: "excellent work!!! well done! lock it in close it out. testing was solid. i love it". D08J3A is Done: on climbs, ledge hangs and the monkey bars the third-person clear lens floor is 96 (the ground keeps 450), so the lens stays in front of the climbed surface. Executable `6ecfe38fb8b80476de41f6824381351da066b9dbf452093325c550008b3dd0c3`. Note 400.

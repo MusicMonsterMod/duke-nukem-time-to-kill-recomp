@@ -30,7 +30,7 @@ extern "C" uint32_t psx_mod_alloc_guest_memory(uint32_t n,uint32_t){static uint3
 extern "C" void psx_mod_host_call_begin(void){}
 extern "C" void psx_mod_host_call_end(void){}
 extern "C" int psx_mod_register_function_entry_plugin(const char*,uint32_t a,PSXModFunctionEntryCallback cb){if(a==0x8003c500)callback=cb;return 1;}
-namespace ttk {bool auto_aim_console_command(const char*,void (*)(const char*),bool&);}
+namespace ttk {bool auto_aim_console_command(const char*,void (*)(const char*),bool&);bool round_follow_console_command(const char*,void (*)(const char*),bool&);}
 namespace ttk {bool free_look_active(){return false;}bool free_look_aim(double*,double*){return false;}static InputFrame f;const InputFrame& input_snapshot(Context){return f;}uint64_t input_host_frame(){return f.sequence;}bool input_modernized(){return modern;}bool input_modern_controls(){return modern;}bool movement_ready(){return ready;}const char* movement_lease_miss(){return "test";}bool locomotion_input_ready(){return false;}bool jetpack_input_ready(){return modern && jet_ready;}bool swim_weapon_ready(){return modern && swim_ready;}bool airborne_shot_ready(){return modern && air_ready;}bool climb_shot_ready(){return modern && climb_ready;}bool player_identity_ready(){return ready;}void weapon_feel_shot(){}static bool fp_view;bool first_person_view_live(){return fp_view;}bool frame_trace_on(){return false;}void frame_trace_account(uint32_t,long){}
 // D10G3: the view the last present showed.
 static bool sv_ok;static double sv_eye[3],sv_fwd[3],sv_age;bool shot_view(double* e,double* f,double& age){if(!sv_ok)return false;for(int i=0;i<3;++i){e[i]=sv_eye[i];f[i]=sv_fwd[i];}age=sv_age;return true;}
@@ -40,11 +40,15 @@ static int sp_n;static uint32_t sp_obj;static double sp_pos[3];int shot_view_pos
 // query records the joint translation it saw.
 static constexpr uint32_t seen_actor=0x800e1000,seen_model=0x800e1100,seen_mats=0x800e1200;
 static bool seen_on;static double seen_query_mat_x=1e9;
+// D10H2: the hit-test word (stack +0x18) of the last screen-ray and cover queries.
+static uint32_t ray_test=0xffffffff,cover_test=0xffffffff;
 extern "C" void psx_dispatch_call(CPUState* c,uint32_t address,uint32_t ret) {
     assert(address==0x8006d980 && ret==0x800000fc && c->gpr[4]==0x800d7198);
     uint32_t a=c->gpr[5],sp=c->gpr[29];
     double from[3],to[3],t=1;
     for(int i=0;i<3;++i){from[i]=(int32_t)psx_mod_read_word(a+4*i);to[i]=(int32_t)psx_mod_read_word(a+16+4*i);}
+    if(to[2]==16384)ray_test=psx_mod_read_word(sp+0x18);
+    else if(from[0]==0 && to[0]==100)cover_test=psx_mod_read_word(sp+0x18);
     // Infinite forward wall, plus a thin wall between actor and protruding muzzle.
     if(to[2]>1000 && from[2]<1000)t=(1000-from[2])/(to[2]-from[2]);
     if(cover && from[0]<50 && to[0]>50)t=std::fmin(t,(50-from[0])/(to[0]-from[0]));
@@ -182,6 +186,46 @@ int main(int argc,char**argv) {
         seen_on=false;ttk::sv_ok=false;ttk::sp_n=0;place(0);
     }
     std::puts("PASS: D10G4 the crosshair meets actors where drawn; the round aims at them now and every word is restored");
+    // D10H2: the screen ray uses the rounds' own actor test (word 3), the
+    // body-to-muzzle cover check the coarse one (0). A round aimed at the
+    // fixture actor (drawn on the crosshair, now 300 aside: target 300,0,650)
+    // meets it after the actor's own update stepped it 60 further: its first
+    // sweep goes through 360,0,650 (x/z 0.4 from the muzzle at 100,0,0).
+    {
+        psx_mod_write_byte(seen_model,1);psx_mod_write_word(seen_actor+0x3c,seen_mats);psx_mod_write_word(seen_actor+0x40,seen_model);
+        auto place=[&](int x){psx_mod_write_word(seen_actor+4,x);psx_mod_write_word(seen_actor+12,800);
+            psx_mod_write_word(seen_mats+0x14,x);psx_mod_write_word(seen_mats+0x1c,800);};
+        seen_on=true;ttk::sv_ok=true;for(int i=0;i<3;++i){ttk::sv_eye[i]=0;ttk::sv_fwd[i]=i==2?4096:0;}ttk::sv_age=5;
+        ttk::sp_n=1;ttk::sp_obj=seen_actor;ttk::sp_pos[0]=ttk::sp_pos[1]=0;ttk::sp_pos[2]=800;
+        constexpr uint32_t round=0x800da978+0x60*3;
+        // Shoot, then build the round as the launcher and integrator would:
+        // +0x10 owner, +0x14 origin, +4 end of the first sweep, +0x34 direction.
+        auto sweep=[&](int step,bool first=true,uint32_t owner=0x800d7198,bool dead=false,bool vanilla=false){
+            place(300);seed();callback(&c,0x8003c500);assert(c.gpr[6]==0x801e0000);
+            double d[3],n=0;for(int i=0;i<3;++i){d[i]=(int32_t)psx_mod_read_word(c.gpr[6]+4*i);n+=d[i]*d[i];}n=std::sqrt(n);
+            const double from[3]={first?100.0:101.0,0,0};
+            for(int i=0;i<3;++i){psx_mod_write_word(round+0x14+4*i,std::lround(from[i]));psx_mod_write_word(round+4+4*i,std::lround(from[i]+d[i]/n*3500));psx_mod_write_word(round+0x34+4*i,std::lround(d[i]));}
+            psx_mod_write_word(round+0x10,owner);
+            place(300+step);if(dead)psx_mod_write_word(seen_actor,2);
+            CPUState r=c;r.gpr[4]=round;modern=!vanilla;callback(&r,0x8006dd2c);modern=true;psx_mod_write_word(seen_actor,0);
+            const double ex=(int32_t)psx_mod_read_word(round+4)-from[0],ez=(int32_t)psx_mod_read_word(round+12)-from[2];
+            const double vx=(int32_t)psx_mod_read_word(round+0x34),vz=(int32_t)psx_mod_read_word(round+0x3c);
+            assert(std::abs(ex/ez-vx/vz)<0.002 && std::abs(std::hypot(ex,ez)-3500)<2); // end and direction agree; speed kept
+            return vx/vz;};
+        const double moved=sweep(60),still=sweep(0),later=sweep(60,false),other=sweep(60,true,0x800e2000),dead=sweep(60,true,0x800d7198,true),jump=sweep(600),vanilla=sweep(60,true,0x800d7198,false,true);
+        bool closed=false;auto quiet=[](const char*){};
+        assert(ttk::round_follow_console_command("roundfollow off",quiet,closed) && closed);const double off=sweep(60);
+        assert(ttk::round_follow_console_command("roundfollow maybe",quiet,closed) && !closed); // refused
+        assert(ttk::round_follow_console_command("roundfollow default",quiet,closed) && closed);const double back=sweep(60);
+        std::printf("D10H2 x/z: query test %u, cover test %u; first sweep after a 60 step %.3f, still %.3f, later sweep %.3f, other owner %.3f, dead %.3f, 600 jump %.3f, Vanilla %.3f, off %.3f\n",
+            ray_test,cover_test,moved,still,later,other,dead,jump,vanilla,off);
+        std::fflush(stdout);
+        assert(ray_test==3 && cover_test==0);
+        assert(std::abs(moved-0.4)<0.005 && back==moved && std::abs(still-200.0/650)<0.005);
+        for(double v:{later,other,dead,jump,vanilla,off})assert(std::abs(v-still)<0.005);
+        seen_on=false;ttk::sv_ok=false;ttk::sp_n=0;place(0);psx_mod_write_word(round+0x10,0);
+    }
+    std::puts("PASS: D10H2 aim queries use the rounds' own actor test; a round aimed at an actor meets it after the actor's own update");
     psx_mod_write_byte(p+0x3b8,2);psx_mod_write_byte(p+0x3b9,4);
     psx_mod_write_word(p+0x224,0);assert(ttk_aim_reticle()); // walking is still armed
     // Native marker selection suppresses the modern reticle, including the

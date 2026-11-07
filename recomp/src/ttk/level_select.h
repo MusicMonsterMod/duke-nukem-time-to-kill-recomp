@@ -43,6 +43,12 @@ bool shoot_seen_console_command(const char* line, void (*say)(const char*), bool
 // D10H3: "autoaim [cone|default]" (weapon_aim.cpp), the AUTO AIM EDUKE32 cone in
 // 2048ths of a turn either side of the view, session only.
 bool auto_aim_console_command(const char* line, void (*say)(const char*), bool& close);
+// D10H2: "testmove <actor> <u/s> [span]|off" (weapon_aim.cpp), lab fixture that
+// slides an actor across the view on the game thread, session only.
+bool test_move_console_command(const char* line, void (*say)(const char*), bool& close);
+// D10H2: "roundfollow [on|off|default]" (weapon_aim.cpp), session-only A/B of a
+// round aimed at an enemy meeting it after the enemy's own update.
+bool round_follow_console_command(const char* line, void (*say)(const char*), bool& close);
 // D24B: the game's own name for level n (from guest RAM, "" when unavailable).
 bool level_title(unsigned n, char* out, unsigned cap);
 }

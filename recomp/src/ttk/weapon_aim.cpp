@@ -79,7 +79,12 @@ static bool normal(double* v) {
 // The original segment query consumes two padded s32 XYZ vectors, room seed,
 // ignored actor and output pointers. Query-only: no damage or projectile spawn.
 // Keep nested CPU/GTE and scratch RAM independent of the original call.
-static bool trace(CPUState* source,const double* from,const double* to,double* hit,int& kind,uint32_t* actor=nullptr,uint32_t ignore=player) {
+// test: the projectile hit-test word the original sweep (0x8006dd2c) passes
+// from projectile +0 to the actor test 0x80076330 (stack argument 5; argument
+// 6, projectile +0x2e, stays 0). 0 is the coarse actor test; bit 2 selects the
+// model-box test 0x80075f0c for actors with a +0x40 model box and no +0x44
+// sphere list.
+static bool trace(CPUState* source,const double* from,const double* to,double* hit,int& kind,uint32_t* actor=nullptr,uint32_t ignore=player,uint32_t test=0) {
     uint32_t top=source->gpr[29];
     if(top<0x801f4000 || top>0x801ffff0)return false;
     if(top&3)return false;
@@ -92,6 +97,7 @@ static bool trace(CPUState* source,const double* from,const double* to,double* h
     cpu.gpr[4]=ignore;cpu.gpr[5]=sp+0x30;
     cpu.gpr[6]=(int8_t)psx_mod_read_byte(player+0x2e);cpu.gpr[7]=sp+0x50;
     for(unsigned i=0;i<0x80;i+=4)psx_mod_write_word(sp+i,0);
+    psx_mod_write_word(sp+0x18,test);
     write_vector(sp+0x30,from);write_vector(sp+0x40,to);
     psx_mod_write_word(sp+0x10,sp+0x60);psx_mod_write_word(sp+0x14,sp+0x70);
     psx_mod_write_word(sp+0x50,0xffffffff);
@@ -111,6 +117,18 @@ static bool trace(CPUState* source,const double* from,const double* to,double* h
     if(actor)*actor=ok && hit_actor?raw:0;
     kind=kind==0?0:kind==1?1:2;
     ++queries;return ok;
+}
+// D10H2: Duke's rounds are hit-tested with the projectile word +0 = 3 (the
+// launcher 0x800718ac sets it when the shooter is type 0x20 and the projectile
+// type's table word, 0x800C4BC0 + 64 * type, has bit 4: pistol 0, shotgun 1,
+// Gatling 7, RPG 8, Freezer 13, all of Duke's view-aimed bullets). The
+// crosshair query, the D10H3 auto aim and the original-lock checks ask
+// "would the round meet this actor", so they use the same test: the coarse
+// one (word 0) met a running pig cop's edge that the round's model-box test
+// then missed. DNTTK_ROUND_TEST=0 keeps the coarse test (developer A/B).
+static uint32_t round_test() {
+    static const int on=[]{const char* v=std::getenv("DNTTK_ROUND_TEST");return !v || std::strcmp(v,"0");}();
+    return on?3u:0u;
 }
 bool view_segment_query(CPUState* cpu,const double* from,const double* to,double* hit,int& kind) {
     return player_identity_ready() && identity() && trace(cpu,from,to,hit,kind);
@@ -135,8 +153,8 @@ static bool assist(CPUState* cpu,const double* eye,const double* muzzle,const do
     double dot=0;for(int i=0;i<3;++i)dot+=direction[i]*forward[i];
     if(dot<std::cos(6.0*3.141592653589793/180.0))return false;
     int kind=0;uint32_t found=0;
-    if(!trace(cpu,eye,point,hit,kind,&found) || found!=actor)return false;
-    if(!trace(cpu,muzzle,point,hit,kind,&found) || found!=actor)return false;
+    if(!trace(cpu,eye,point,hit,kind,&found,player,round_test()) || found!=actor)return false;
+    if(!trace(cpu,muzzle,point,hit,kind,&found,player,round_test()) || found!=actor)return false;
     std::copy(point,point+3,target);return true;
 }
 // D07D: ownership is proven at the enqueue alone. The marker routine's only
@@ -368,8 +386,8 @@ static bool duke_aim(CPUState* cpu,const double* eye,const double* forward,const
     for(int i=0;i<n && i<4;++i) {
         double point[3],hit[3];read_vector(found[i].actor+0xec,point);
         int kind=0;uint32_t met=0;
-        if(!trace(cpu,eye,point,hit,kind,&met) || met!=found[i].actor)continue;
-        if(!trace(cpu,muzzle,point,hit,kind,&met) || met!=found[i].actor)continue;
+        if(!trace(cpu,eye,point,hit,kind,&met,player,round_test()) || met!=found[i].actor)continue;
+        if(!trace(cpu,muzzle,point,hit,kind,&met,player,round_test()) || met!=found[i].actor)continue;
         std::copy(point,point+3,target);
         last_duke_aim_actor=found[i].actor;last_duke_aim_angle=found[i].angle*180/3.141592653589793;
         return true;
@@ -393,6 +411,9 @@ static void marker_hook(CPUState* cpu,uint32_t address) {
     ++hidden_markers;
 }
 static bool diagnostics() {const char* v=std::getenv("DNTTK_AIM_TRACE");return v && !std::strcmp(v,"1");}
+// D10H2 diagnostics: the actor the last shot met under the crosshair (or the
+// nearest moving drawn actor), logged with each flight step of the round.
+static uint32_t diag_actor;
 static void observe(CPUState* cpu,uint32_t address) {
     if(!diagnostics() || busy || !input_snapshot(Context::Gameplay).active)return;
     uint32_t a=cpu->gpr[4];
@@ -409,7 +430,8 @@ static void observe(CPUState* cpu,uint32_t address) {
         std::fprintf(stderr,"ttk-impact projectile=%08x type=%u ra=%08x point=%.0f,%.0f,%.0f\n",a,psx_mod_read_byte(a+0x30),cpu->gpr[31],p[0],p[1],p[2]);
     } else if(address==0x8006dd2c && a>=0x800da978 && a<0x800dcd78 && (a-0x800da978)%0x60==0 && psx_mod_read_word(a+0x10)==player) {
         double p[3],q[3],d[3];read_vector(a+0x14,p);read_vector(a+4,q);read_vector(a+0x34,d);
-        std::fprintf(stderr,"ttk-flight projectile=%08x type=%u ra=%08x from=%.0f,%.0f,%.0f to=%.0f,%.0f,%.0f direction=%.0f,%.0f,%.0f\n",a,psx_mod_read_byte(a+0x30),cpu->gpr[31],p[0],p[1],p[2],q[0],q[1],q[2],d[0],d[1],d[2]);
+        double t[3]={0,0,0};if(ram_word(diag_actor,0x10))read_vector(diag_actor+4,t);
+        std::fprintf(stderr,"ttk-flight projectile=%08x type=%u ra=%08x from=%.0f,%.0f,%.0f to=%.0f,%.0f,%.0f direction=%.0f,%.0f,%.0f tgt=%08x,%.0f,%.0f,%.0f test=%04x,%04x\n",a,psx_mod_read_byte(a+0x30),cpu->gpr[31],p[0],p[1],p[2],q[0],q[1],q[2],d[0],d[1],d[2],diag_actor,t[0],t[1],t[2],psx_mod_read_half(a),psx_mod_read_half(a+0x2e));
     }
 }
 // D22D: the beam updater 0x800733C8 damages only the actor in projectile +0x14,
@@ -492,8 +514,60 @@ static void beam_finish(CPUState* cpu) {
     psx_mod_write_word(object+0x14,lock);psx_mod_write_word(object+0x18,origin);
     if(diagnostics())std::fprintf(stderr,"ttk-view-beam projectile=%08x index=%u count=%u lock=%08x original=%08x origin=%.0f,%.0f,%.0f\n",object,index,count,lock,original,last_origin[0],last_origin[1],last_origin[2]);
 }
+// D10H2: the round meets the actor where its own update put it. Duke's gun
+// call runs in his update; other actors update after it and before the
+// projectiles are swept (0x8006dd2c, the same game update), so an enemy that
+// updates after Duke has taken one more step (a running pig cop about 60-100
+// units) when the round is first swept. When a view-aimed round was aimed at
+// an actor (the crosshair's, the D10H3 auto aimed or the original lock), its
+// first sweep shifts the round's end point by that actor's step since the gun
+// call, scaled along the round's line, so the round goes through the same
+// point on the actor that the crosshair met. Speed, spread round the line,
+// damage and every later sweep are the original's. Only that update, only a
+// step of 1-512 units, only rounds that start at this shot's origin.
+// DNTTK_ROUND_FOLLOW=0 or console "roundfollow off" keeps the plain round.
+static std::atomic<int> round_follow_override{-1};
+static bool round_follow_enabled() {
+    const int o=round_follow_override.load(std::memory_order_relaxed);
+    if(o>=0)return o!=0;
+    const char* v=std::getenv("DNTTK_ROUND_FOLLOW");return !v || std::strcmp(v,"0");
+}
+struct RoundFollow {bool armed=false;uint32_t actor=0;int32_t origin[3]={0,0,0};double pos[3]={0,0,0},target[3]={0,0,0};};
+static RoundFollow follow;
+static unsigned follow_arms,follow_shifts;
+static double last_follow_shift;
+static void follow_arm(uint32_t actor,const double* origin,const double* target) {
+    follow.armed=false;
+    if(!round_follow_enabled() || !ram_word(actor,0x100) || actor==player || (psx_mod_read_word(actor)&2))return;
+    follow.actor=actor;read_vector(actor+4,follow.pos);std::copy(target,target+3,follow.target);
+    for(int i=0;i<3;++i)follow.origin[i]=(int32_t)std::lround(origin[i]);
+    follow.armed=true;++follow_arms;
+}
+static void follow_flight(CPUState* cpu) {
+    const uint32_t a=cpu->gpr[4];
+    if(!follow.armed || a<0x800da978 || a>=0x800dcd78 || (a-0x800da978)%0x60 || psx_mod_read_word(a+0x10)!=player)return;
+    for(int i=0;i<3;++i) if((int32_t)psx_mod_read_word(a+0x14+4*i)!=follow.origin[i])return;   // not this shot's round, or not its first sweep
+    const uint32_t actor=follow.actor;
+    if(!ram_word(actor,0x100) || (psx_mod_read_word(actor)&2))return;
+    double now[3],d[3],step=0;read_vector(actor+4,now);
+    for(int i=0;i<3;++i) {d[i]=now[i]-follow.pos[i];step+=d[i]*d[i];}
+    step=std::sqrt(step);
+    if(step<1 || step>512)return;
+    double from[3],to[3],dir[3],reach=0,span=0,length=0;
+    read_vector(a+0x14,from);read_vector(a+4,to);read_vector(a+0x34,dir);
+    for(int i=0;i<3;++i) {reach+=(follow.target[i]-from[i])*(follow.target[i]-from[i]);span+=(to[i]-from[i])*(to[i]-from[i]);length+=dir[i]*dir[i];}
+    reach=std::sqrt(reach);span=std::sqrt(span);length=std::sqrt(length);
+    if(reach<64 || span<1 || length<1)return;
+    double u[3];for(int i=0;i<3;++i)u[i]=to[i]+d[i]*span/reach-from[i];
+    if(!unit(u))return;
+    double end[3],v[3];for(int i=0;i<3;++i) {end[i]=from[i]+u[i]*span;v[i]=u[i]*length;}
+    write_vector(a+4,end);write_vector(a+0x34,v);
+    ++follow_shifts;last_follow_shift=step;
+    if(diagnostics())std::fprintf(stderr,"ttk-round-follow projectile=%08x actor=%08x step=%.0f,%.0f,%.0f\n",a,actor,d[0],d[1],d[2]);
+}
 static void aim_hook_body(CPUState* cpu,uint32_t address) {
     if(address==0x8001ca4c) {beam_finish(cpu);return;}
+    if(address==0x8006dd2c && input_modernized() && !g_ls_mode && !g_psx_call_bail)follow_flight(cpu);
     marker_hook(cpu,address);
     if(input_modernized())observe(cpu,address);
     // D10H4: every player gun call, whatever the aim mode.
@@ -537,14 +611,14 @@ static void aim_hook_body(CPUState* cpu,uint32_t address) {
     static SeenRewind seen;
     seen.n=0;last_seen_shift=0;last_seen_actors=0;
     if(ok && last_screen_view && shoot_seen_enabled())seen_rewind(seen);
-    ok=ok && trace(cpu,ray_start,target,target,kind,&view_actor);
+    ok=ok && trace(cpu,ray_start,target,target,kind,&view_actor,player,round_test());
     seen_restore(seen);last_seen_actors=seen.n;
     // Diagnostics: what the same ray meets with every actor where it is now.
     int now_kind=-1;uint32_t now_actor=0;
     // The moving actor nearest the ray: its aim point's miss distance where drawn and now.
     double near_drawn=-1,near_now=-1,near_moved=0;uint32_t near_actor=0;
     if(seen.n && diagnostics()) {
-        double hit[3],to[3];for(int k=0;k<3;++k)to[k]=eye[k]+forward[k]*16384;if(!trace(cpu,ray_start,to,hit,now_kind,&now_actor))now_kind=-1;
+        double hit[3],to[3];for(int k=0;k<3;++k)to[k]=eye[k]+forward[k]*16384;if(!trace(cpu,ray_start,to,hit,now_kind,&now_actor,player,round_test()))now_kind=-1;
         for(int i=0;i<seen.n;++i) {
             double moved=0;for(int k=0;k<3;++k)moved+=seen.shift[i][k]*seen.shift[i][k];
             if(moved<64*64 || (psx_mod_read_word(seen.actor[i])&2))continue;   // dead bodies are not shootable
@@ -627,7 +701,18 @@ static void aim_hook_body(CPUState* cpu,uint32_t address) {
             beam_target=duke_aimed?last_duke_aim_actor:last_assisted?psx_mod_read_word(player+0x288):view_actor;
             std::copy(eye,eye+3,beam_eye);std::copy(forward,forward+3,beam_forward);
         }
+        if(gun)follow_arm(duke_aimed?last_duke_aim_actor:last_assisted?psx_mod_read_word(player+0x288):kind==2?view_actor:0,muzzle,target);
         ++shots;if(last_assisted)++assisted_shots;last_kind=cover?4:(last_assisted?2:kind);last_weapon=cpu->gpr[7];
+        int check_kind=-1;uint32_t check_actor=0;double tpos[3]={0,0,0};
+        if(diagnostics()) {
+            // D10H2: what the round's own line and test (muzzle along the final
+            // direction) meets with every actor where it is now.
+            double to[3],hit[3];for(int k=0;k<3;++k)to[k]=muzzle[k]+dir[k]*16384;
+            if(!trace(cpu,muzzle,to,hit,check_kind,&check_actor,player,3))check_kind=-1;
+            diag_actor=kind==2?view_actor:near_actor;
+            if(ram_word(diag_actor,0x10))read_vector(diag_actor+4,tpos);
+            std::fprintf(stderr,"ttk-aim-check actor=%08x pos=%.0f,%.0f,%.0f check=%d,%08x origin=%.0f,%.0f,%.0f\n",diag_actor,tpos[0],tpos[1],tpos[2],check_kind,check_kind==2?check_actor:0,muzzle[0],muzzle[1],muzzle[2]);
+        }
         if(diagnostics())std::fprintf(stderr,"ttk-aim-shot weapon=%d target=%.0f,%.0f,%.0f direction=%.0f,%.0f,%.0f cover=%d bend=%.1f view=%s eye=%.0f,%.0f,%.0f forward=%.4f,%.4f,%.4f shift=%.0f turn=%.2f age=%.1f seen=%d actor=%08x moved=%.0f now=%d,%08x near=%08x,%.0f,%.0f,%.0f autoaim=%08x,%.2f,%d\n",last_weapon,target[0],target[1],target[2],last_direction[0],last_direction[1],last_direction[2],cover,last_bend,
             last_screen_view?"screen":"game",eye[0],eye[1],eye[2],forward[0],forward[1],forward[2],last_view_shift,last_view_turn,last_view_age,last_seen_actors,kind==2?view_actor:0,last_seen_shift,now_kind,now_kind==2?now_actor:0,near_actor,near_drawn,near_now,near_moved,duke_aimed?last_duke_aim_actor:0,last_duke_aim_angle,last_duke_aim_candidates);
     } else ++rejected;
@@ -687,6 +772,21 @@ bool shoot_seen_console_command(const char* line,void (*say)(const char*),bool& 
         shoot_seen_enabled()?"on":"off",shoot_seen_enabled()?"where they are drawn":"where they are now");
     say(text);return true;
 }
+bool round_follow_console_command(const char* line,void (*say)(const char*),bool& close) {
+    if(std::strcmp(line,"roundfollow") && std::strncmp(line,"roundfollow ",12))return false;
+    close=false;
+    if(line[11]) {
+        const char* value=line+12;
+        if(!std::strcmp(value,"on"))round_follow_override.store(1,std::memory_order_relaxed);
+        else if(!std::strcmp(value,"off"))round_follow_override.store(0,std::memory_order_relaxed);
+        else if(!std::strcmp(value,"default"))round_follow_override.store(-1,std::memory_order_relaxed);
+        else {say("Usage: roundfollow [on|off|default] (on: a round aimed at an enemy meets it after the enemy's own update; session only)");return true;}
+        close=true;
+    }
+    char text[224];std::snprintf(text,sizeof text,"Round follow %s: a round aimed at an enemy %s (session only). Default on. Rounds shifted %u.",
+        round_follow_enabled()?"on":"off",round_follow_enabled()?"meets the point the crosshair met after the enemy's own update":"flies its line unchanged",follow_shifts);
+    say(text);return true;
+}
 bool auto_aim_console_command(const char* line,void (*say)(const char*),bool& close) {
     if(std::strcmp(line,"autoaim") && std::strncmp(line,"autoaim ",8))return false;
     close=false;
@@ -701,9 +801,72 @@ bool auto_aim_console_command(const char* line,void (*say)(const char*),bool& cl
         duke_aim_mode()==2?"EDUKE32 (every weapon but throws)":duke_aim_mode()?"HITSCAN (bullet guns)":"off or original (OPTIONS > ADVANCED > COMBAT)",cone,cone*360.0/2048,duke_aim_cone_default,duke_aim_shots);
     say(text);return true;
 }
+// D10H2 lab fixture (diagnostic only; console "testmove", session only): move
+// one actor sideways across the view on a triangle wave, one step per game
+// update, on the game thread at Duke's animation runner entry. Unlike debug
+// port RAM writes (one byte per request, applied at interrupt safe points),
+// its position never changes between the shot's query and the round's sweep
+// of the same update, the same as an enemy that moves in its own update. Its
+// health is kept at 30000; every drop is logged (ttk-testmove-damage). Span 0
+// leaves the position to the game (health and damage log only).
+static uint32_t move_actor;
+static double move_base[3],move_side[2],move_speed,move_span;
+static unsigned move_tick;
+static int move_hp;
+static bool move_late,move_pending;
+// Every update and every sweep of Duke's rounds: log a health drop, refill.
+static bool move_watch() {
+    const uint32_t a=move_actor;
+    if(!ram_word(a,0x100) || (psx_mod_read_word(a)&2)) {move_actor=0;std::fprintf(stderr,"ttk-testmove stop actor=%08x\n",a);return false;}
+    const int hp=(int16_t)psx_mod_read_half(a+0x32);
+    if(hp<move_hp)std::fprintf(stderr,"ttk-testmove-damage actor=%08x hp=%d->%d tick=%u\n",a,move_hp,hp,move_tick);
+    move_hp=hp;
+    if(hp<20000) {psx_mod_write_half(a+0x32,30000);move_hp=30000;}
+    return true;
+}
+static void move_step() {
+    const uint32_t a=move_actor;
+    double o=0;
+    if(move_speed>0 && move_span>0) {
+        const double ph=std::fmod(move_tick*move_speed/30.0,4*move_span);
+        o=ph<2*move_span?ph-move_span:3*move_span-ph;
+    }
+    ++move_tick;
+    if(move_span<=0)return;   // span 0: health and damage log only, the game moves it
+    psx_mod_write_word(a+4,(uint32_t)(int32_t)std::lround(move_base[0]+move_side[0]*o));
+    psx_mod_write_word(a+12,(uint32_t)(int32_t)std::lround(move_base[2]+move_side[1]*o));
+}
+// "late": the step is taken at the first sweep of one of Duke's rounds after
+// his update, as an enemy that updates after Duke (else at the next update).
+static void move_hook(CPUState* cpu,uint32_t address) {
+    if(g_ls_mode || g_psx_call_bail)return;
+    if(address==0x8005a210 && cpu->gpr[4]==player) {
+        follow.armed=false;   // D10H2: a shot's rounds are first swept in its own update
+        if(!move_actor || !move_watch())return;
+        if(!move_late)move_step();
+        else {if(move_pending)move_step();move_pending=true;}
+    } else if(address==0x8006dd2c && move_actor) {
+        const uint32_t a=cpu->gpr[4];
+        if(a<0x800da978 || a>=0x800dcd78 || (a-0x800da978)%0x60 || psx_mod_read_word(a+0x10)!=player || !move_watch())return;
+        if(move_late && move_pending) {move_pending=false;move_step();}
+    }
+}
+bool test_move_console_command(const char* line,void (*say)(const char*),bool& close) {
+    if(std::strcmp(line,"testmove") && std::strncmp(line,"testmove ",9))return false;
+    close=false;unsigned actor=0;double speed=0,span=700;char text[192],late[8]="";
+    if(!std::strcmp(line,"testmove off")) {move_actor=0;say("Test mover off.");return true;}
+    if(std::sscanf(line+8," %x %lf %lf %7s",&actor,&speed,&span,late)<2 || (late[0] && std::strcmp(late,"late")) || !ram_word(actor,0x100) || speed<0 || speed>8000 || span<0 || span>4000) {
+        say("Usage: testmove <actor hex> <units/s> [span [late]] | testmove off (lab fixture: slide an actor across the view, session only)");return true;
+    }
+    const double fx=(int16_t)psx_mod_read_half(camera+12),fz=(int16_t)psx_mod_read_half(camera+16),h=std::hypot(fx,fz);
+    if(h<1) {say("No camera.");return true;}
+    read_vector(actor+4,move_base);move_side[0]=fz/h;move_side[1]=-fx/h;
+    move_speed=speed;move_span=span;move_tick=0;move_late=late[0]!=0;move_pending=false;move_hp=(int16_t)psx_mod_read_half(actor+0x32);move_actor=actor;
+    std::snprintf(text,sizeof text,"Test mover: actor %08x, %.0f u/s, span %.0f%s.",actor,speed,span,move_late?", late":"");say(text);close=true;return true;
+}
 const char* aim_debug_json() {
-    static char out[2560];
-    std::snprintf(out,sizeof out,"{\"auto_aim\":\"%s\",\"duke_aim_cone\":%d,\"duke_aim_shots\":%u,\"duke_aim_searches\":%u,\"duke_aim_misses\":%u,\"last_duke_aim_actor\":\"%08x\",\"last_duke_aim_angle\":%.2f,\"last_duke_aim_candidates\":%d,\"shoot_seen\":%s,\"seen_shots\":%u,\"seen_rewinds\":%u,\"last_seen_actors\":%d,\"last_seen_shift\":%.0f,\"shot_view\":%s,\"screen_view_shots\":%u,\"screen_view_refused\":%u,\"last_screen_view\":%s,\"last_view_shift\":%.0f,\"last_view_turn\":%.2f,\"last_view_age\":%.1f,\"point_blank_shots\":%u,\"point_blank_lift\":%.2f,\"last_bend\":%.1f,\"beam_locks\":%u,\"beam_extra_locks\":%u,\"close_retractions\":%u,\"assisted_shots\":%u,\"hidden_markers\":%u,\"last_assisted\":%s,\"reticle\":%s,\"shots\":%u,\"rejected\":%u,\"queries\":%u,\"lease_misses\":%u,\"last_lease_miss\":\"%s\",\"identity_calls\":%llu,\"identity_checks\":%llu,\"weapon\":%d,\"hit_kind\":%d,\"origin\":[%.0f,%.0f,%.0f],\"target\":[%.0f,%.0f,%.0f],\"direction\":[%.0f,%.0f,%.0f]}",ttk_live_env("DNTTK_AIM_ASSIST")?ttk_live_env("DNTTK_AIM_ASSIST"):"off",duke_aim_cone.load(std::memory_order_relaxed),duke_aim_shots,duke_aim_searches,duke_aim_misses,last_duke_aim_actor,last_duke_aim_angle,last_duke_aim_candidates,shoot_seen_enabled()?"true":"false",seen_shots,seen_rewinds,last_seen_actors,last_seen_shift,shot_view_enabled()?"true":"false",screen_view_shots,screen_view_refused,last_screen_view?"true":"false",last_view_shift,last_view_turn,last_view_age,point_blank_shots,lift_setting(),last_bend,beam_locks,beam_extra_locks,close_retractions,assisted_shots,hidden_markers,last_assisted?"true":"false",ttk_aim_reticle()?"true":"false",shots,rejected,queries,lease_misses,last_lease_miss,(unsigned long long)aim_identity_calls,(unsigned long long)aim_identity_checks,last_weapon,last_kind,last_origin[0],last_origin[1],last_origin[2],last_target[0],last_target[1],last_target[2],last_direction[0],last_direction[1],last_direction[2]);return out;
+    static char out[2816];
+    std::snprintf(out,sizeof out,"{\"round_test\":%u,\"round_follow\":%s,\"follow_arms\":%u,\"follow_shifts\":%u,\"last_follow_shift\":%.0f,\"auto_aim\":\"%s\",\"duke_aim_cone\":%d,\"duke_aim_shots\":%u,\"duke_aim_searches\":%u,\"duke_aim_misses\":%u,\"last_duke_aim_actor\":\"%08x\",\"last_duke_aim_angle\":%.2f,\"last_duke_aim_candidates\":%d,\"shoot_seen\":%s,\"seen_shots\":%u,\"seen_rewinds\":%u,\"last_seen_actors\":%d,\"last_seen_shift\":%.0f,\"shot_view\":%s,\"screen_view_shots\":%u,\"screen_view_refused\":%u,\"last_screen_view\":%s,\"last_view_shift\":%.0f,\"last_view_turn\":%.2f,\"last_view_age\":%.1f,\"point_blank_shots\":%u,\"point_blank_lift\":%.2f,\"last_bend\":%.1f,\"beam_locks\":%u,\"beam_extra_locks\":%u,\"close_retractions\":%u,\"assisted_shots\":%u,\"hidden_markers\":%u,\"last_assisted\":%s,\"reticle\":%s,\"shots\":%u,\"rejected\":%u,\"queries\":%u,\"lease_misses\":%u,\"last_lease_miss\":\"%s\",\"identity_calls\":%llu,\"identity_checks\":%llu,\"weapon\":%d,\"hit_kind\":%d,\"origin\":[%.0f,%.0f,%.0f],\"target\":[%.0f,%.0f,%.0f],\"direction\":[%.0f,%.0f,%.0f]}",round_test(),round_follow_enabled()?"true":"false",follow_arms,follow_shifts,last_follow_shift,ttk_live_env("DNTTK_AIM_ASSIST")?ttk_live_env("DNTTK_AIM_ASSIST"):"off",duke_aim_cone.load(std::memory_order_relaxed),duke_aim_shots,duke_aim_searches,duke_aim_misses,last_duke_aim_actor,last_duke_aim_angle,last_duke_aim_candidates,shoot_seen_enabled()?"true":"false",seen_shots,seen_rewinds,last_seen_actors,last_seen_shift,shot_view_enabled()?"true":"false",screen_view_shots,screen_view_refused,last_screen_view?"true":"false",last_view_shift,last_view_turn,last_view_age,point_blank_shots,lift_setting(),last_bend,beam_locks,beam_extra_locks,close_retractions,assisted_shots,hidden_markers,last_assisted?"true":"false",ttk_aim_reticle()?"true":"false",shots,rejected,queries,lease_misses,last_lease_miss,(unsigned long long)aim_identity_calls,(unsigned long long)aim_identity_checks,last_weapon,last_kind,last_origin[0],last_origin[1],last_origin[2],last_target[0],last_target[1],last_target[2],last_direction[0],last_direction[1],last_direction[2]);return out;
 }
 }
 static int crosshair_forced=-1; // -1 follow env; 0/1 override (I key, EDuke-style)
@@ -749,4 +912,4 @@ extern "C" int ttk_aim_crosshair_image(const uint32_t** pixels,int* width,int* h
     if(!pixels||!width||!height||!ttk_aim_reticle())return 0;
     *pixels=k_crosshair;*width=9;*height=9;return 1;
 }
-PSX_MOD_CONSTRUCTOR(register_ttk_aim) {for(uint32_t a:{0x800702bcu,0x8001ca4cu,0x8002bc18u,0x8003c500u,0x800718acu,0x8006dd2cu,0x8006f1b8u})psx_mod_register_function_entry_plugin("ttk.weapon.aim",a,ttk::hook);}
+PSX_MOD_CONSTRUCTOR(register_ttk_aim) {for(uint32_t a:{0x8005a210u,0x8006dd2cu})psx_mod_register_function_entry_plugin("ttk.weapon.testmove",a,ttk::move_hook);for(uint32_t a:{0x800702bcu,0x8001ca4cu,0x8002bc18u,0x8003c500u,0x800718acu,0x8006dd2cu,0x8006f1b8u})psx_mod_register_function_entry_plugin("ttk.weapon.aim",a,ttk::hook);}

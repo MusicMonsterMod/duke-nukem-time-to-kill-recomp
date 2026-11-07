@@ -1,5 +1,45 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-07 - D10H2 closed
+
+User: "lock it in and close it out. insane work". D10H2 is Done ([note 410](documentation/410-d10h2-pistol-chase.md)):
+the crosshair, auto aim and original-lock checks use the rounds' own actor
+test, and a round aimed at an enemy follows its step before the first sweep
+(`roundfollow`). Executable
+`0a960573b50f1779f37930d11bf06c07b8c45f2ecea54d39ffc42c621ccf77ae` is the
+regression baseline. No framework edit; the runtime patch export is
+unchanged.
+
+## 2026-11-07 - D10H2: rounds that leave on target land (Needs playtest)
+
+[Note 410](documentation/410-d10h2-pistol-chase.md). Executable
+`0a960573b50f1779f37930d11bf06c07b8c45f2ecea54d39ffc42c621ccf77ae`.
+
+- **Fixture race.** Most of D10H1's 65-75% came from the fixture: debug-port
+  writes go one byte per request at interrupt safe points, so a position
+  could change, even torn, between the shot's query and the round's sweep.
+  On a new game-thread mover (console `testmove`) every round that left with
+  the drawn crosshair on the sliding pig cop landed (51/51).
+- **The pistol round is a projectile.** It is swept in the same update as the
+  shot. Enemies that update after Duke move 56-118 units before that sweep
+  (`testmove ... late` reproduces this).
+- **Fix 1: the round's own actor test.** The crosshair query, the D10H3 auto
+  aim checks and the original-lock checks now use the test the rounds use
+  (projectile word 3, the model box). They used the coarse test, which met
+  the pig cop about 250 units out, past the body's edge.
+- **Fix 2: round follow.** A round aimed at an actor follows that actor's
+  step on its first sweep (console `roundfollow`, `DNTTK_ROUND_FOLLOW=0`).
+- **Late slide, 1900 units/s, AUTO AIM OFF:** 95/97 drawn-on rounds landed
+  (round test only 53/54; coarse test with follow 73/88; old code 98/99,
+  helped by a bias, see the note). At 3000 units/s: 92/95. First person
+  45/47, 60 Hz 43/44, HITSCAN 117/119 of all rounds, still pig cop 48/48.
+- **Game-moved type 26 runners:** 15/15.
+- **Regressions:** `ttk-aim-test` passes with a new D10H2 group; D10H3 auto
+  aim cells and D10G3 turning shots are unchanged.
+- **Not verified:** the real mouse at 180 Hz; a crossing enemy moved by game
+  AI; shotgun, Gatling, RPG and Freezer in the lab; climbs, swimming,
+  jetpack. No framework edit.
+
 ## 2026-11-07 - D36H11 closed
 
 User: "perfect, its working! lock it in and close it out". D36H11 is Done:
@@ -2094,7 +2134,7 @@ Duke 3D table re-run after each later job. No gameplay change.
 
 ### D10H2 - Pistol chase: rounds that leave on target land
 
-**Status: Todo. Dependencies: D10H1.** D10H1 measured it on the slide
+**Status: Done (2026-11-07, accepted and closed; user: "lock it in and close it out. insane work"; [note 410](documentation/410-d10h2-pistol-chase.md); aim queries use the rounds' own actor test, round follow `roundfollow`). Dependencies: D10H1.** D10H1 measured it on the slide
 fixture: about a third of the rounds that leave with the crosshair on a
 moving pig cop miss (still targets 12 of 12). First reproduce that with an
 enemy the game moves itself, because the fixture's host writes can land
@@ -8174,7 +8214,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D10G4 | Shoot what you see: crosshair tested against enemies where drawn | Done | D10G3 |
 | D10H | Weapon responsiveness against Duke Nukem 3D: research report | Report ready (awaiting discussion) | D10G4 |
 | D10H1 | Weapon feel lab: TTK vs Duke 3D press to shot, repeat, shot on screen, per-round hits on moving enemies | Done | D10H; user "enemyshoot" save (EDuke32) |
-| D10H2 | Pistol chase: rounds that leave on target land | Todo | D10H1 |
+| D10H2 | Pistol chase: rounds that leave on target land | Done | D10H1 |
 | D10H3 | Duke 3D style auto aim option for bullet weapons | Done | D10H1 |
 | D10H4 | Shot on press: ready stance, then earlier fire frame | Done | D10H1 |
 | D10H5 | Shorter world delay at high refresh | Done | D10H1 |

@@ -4596,6 +4596,23 @@ int main(int argc,char** argv) {
                 const double easing=metric("\"lens\":");assert(easing>450 && easing<reach);
                 for(int i=0;i<90;++i)lens_update(1000.0/60,view);
                 assert(std::abs(metric("\"lens\":")-reach)<1e-6);
+                {
+                    // D08J3A: on a climb (ladder, mode 3) the floor is the
+                    // minimum, so the lens stays in front of the near wall.
+                    const uint8_t m0=psx_mod_read_byte(p+0x22c),m1=psx_mod_read_byte(p+0x22d);const uint16_t a0=psx_mod_read_half(p+0x60);
+                    psx_mod_write_byte(p+0x22c,3);psx_mod_write_byte(p+0x22d,3);psx_mod_write_half(p+0x60,187);
+                    ttk::camera_wall=tx-300;
+                    lens_update(16,view);lens_update(16,view);
+                    const double climb_lens=metric("\"lens\":");
+                    assert(metric("\"attached\":true")>=0 && climb_lens<300 && climb_lens>=96);
+                    psx_mod_write_byte(p+0x22c,m0);psx_mod_write_byte(p+0x22d,m1);psx_mod_write_half(p+0x60,a0);
+                    assert(metric("\"attached\":false")>=0);
+                    for(int i=0;i<90;++i)lens_update(1000.0/60,view);
+                    assert(std::abs(metric("\"lens\":")-450)<1); // back on the ground: eased out to the 450 floor
+                    ttk::camera_wall=0;for(int i=0;i<90;++i)lens_update(1000.0/60,view);
+                    assert(std::abs(metric("\"lens\":")-reach)<1e-6);
+                    std::puts("PASS: D08J3A clear lens: climbs use the minimum floor, the ground keeps 450");
+                }
                 assert(metric("\"declines\":")==declines);
                 assert(metric("\"preferred_radius\":")>=768); // the saved boom is never written
                 std::puts("PASS: D10F1 clear lens: rate-1 delta, instant pull-in in front of a wall, floor, hold and eased return");

@@ -1974,7 +1974,7 @@ unchanged.
 
 ### D08J3A - Climb camera revisit with aiming
 
-**Status: Todo. Dependencies: D08J3, D08J6B, D08J6D, D10F.** The free camera on
+**Status: Done (user-accepted and closed 2026-11-07: "excellent work!!! well done! lock it in close it out. testing was solid. i love it"; [note 400](documentation/400-d08j3a-climb-camera-revisit.md)). Dependencies: D08J3, D08J6B, D08J6D, D10F.** The free camera on
 ladders, poles, chains, walls, hangs and monkey bars uses the ground solve
 with the pivot against the climb surface. With firing on every climb (D08J6),
 check orbiting into the wall behind a ladder or chain, framing while armed
@@ -1982,6 +1982,28 @@ check orbiting into the wall behind a ladder or chain, framing while armed
 shoulder rule (D08J3 follow-up) against aiming, and the camera when the aim
 leaves the gun arc. Apply D10F's result to climbs; user saves UI 12 (ladder),
 11 (chain), 8 (wall), 6 (monkey bars), 9 (ledge hang), private copies only.
+
+**2026-11-07 accepted and closed.** User: "excellent work!!! well done! lock it in close it out. testing was solid. i love it". Done at the candidate (climb floor 96, ground 450). Runtime patch re-export unchanged (no framework edits). No gameplay edits, builds or launches after acceptance.
+
+**2026-11-07 candidate (Needs playtest).** [Note 400](documentation/400-d08j3a-climb-camera-revisit.md).
+Full-circle sweeps, sidearm out, on the ladder, chain, climbing wall, ledge
+and monkey-bar fixtures (private copies; user slots re-saved since the job
+was written and not used). Finding: on the chain (6 of 12 views) and the
+ledge hang (5 of 12) the D10F1 floor of 450 held the lens inside the
+climbed wall when viewed from that side (dark geometry filling the frame on
+the chain, a ghost of Duke on the ledge); the ladder and climbing wall were
+clear. Change (Modernized third person, `clear_lens.inc`): attached to a
+climb, ledge hang/shimmy or the monkey bars the floor is the 96 minimum, so
+the lens stops in front of the surface; the ground keeps 450;
+`DNTTK_CLIMB_CAMERA_FLOOR` tunes it. After: chain views stop at 219-348
+with the room beyond clear (60 and 180 Hz identical), ledge at 128-422
+without the ghost, ladder and wall unchanged, bars 298-331 (Duke's arm can
+come into frame). Centred shoulder and the out-of-arc aim (D08J6E/F) left as
+they are. `ttk-controls-test` 153 groups (new D08J3A case; D14 HUD block
+bypassed for the run only), `ttk-aim-test` pass. Limit: from the surface
+side Duke is not visible (no room for a camera behind him); raising the lens
+or a first-person blend there are unbuilt options. Executable
+`6ecfe38fb8b80476de41f6824381351da066b9dbf452093325c550008b3dd0c3`.
 
 ### D10G - Aim and mouse feel in third person (research report first)
 
@@ -8125,7 +8147,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08J6D | Firing on monkey bars and ledge hangs (user UI slot 6) | Done (user-accepted; closed 2026-11-04; note 377) | D08J6A, D08J4, D08J7 |
 | D08J6E | Monkey bars and chains: Duke turns to the aim while armed | Done | D08J6D, D08J4 |
 | D08J6F | Shots beyond the gun arc on climbs and hangs | Done | D08J6B, D08J6D, D08J6E |
-| D08J3A | Climb camera revisit with aiming | Todo | D08J3, D08J6B, D08J6D, D10F |
+| D08J3A | Climb camera revisit with aiming | Done (closed 2026-11-07; note 400) | D08J3, D08J6B, D08J6D, D10F |
 | D08V1 | Modernized controls lost for the rest of the session after a missed chain jump; modern controls must never be lost | Done | D08V, D08J5 |
 | D08A29 | Scroll-wheel weapon changes while running | Done (user-accepted) | D08A, D08AA |
 | D08A30 | Reverse weapon-wheel direction: up advances, down goes back | Done (user-accepted) | D08A29 |

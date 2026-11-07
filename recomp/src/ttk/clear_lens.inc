@@ -57,6 +57,17 @@ static constexpr double clear_lens_fade_depth=896;
 // Monkey bars: the lens keeps this far below the grate origin (D08J4 grates
 // sit about 240 above the pivot), and never nearer the pivot than the minimum.
 static constexpr double clear_lens_grate_gap=96, clear_lens_minimum=96;
+// D08J3A: attached to a climb (ladder, pole, chain, climbing wall), a ledge
+// hang or shimmy, or the monkey bars, the climbed surface is within a body
+// width of the pivot. Viewed from that side, a lens held at the ground floor
+// (450) sits behind it: the frame showed only the surface, Duke hidden. There
+// the floor is the minimum, so the lens stays in front of the surface and the
+// native fade covers Duke when it comes close.
+static bool clear_lens_attached() {
+    const unsigned mode=psx_mod_read_byte(player+0x22c);
+    return climb_state_early() || ceiling_hang_state() || ((mode==6 || mode==7) && mantle_state_early());
+}
+static double clear_lens_attached_floor() {static const double v=clear_lens_param("DNTTK_CLIMB_CAMERA_FLOOR",clear_lens_minimum,clear_lens_minimum,1600);return v;}
 // Fraction of from->to that stays below the hanging grate; 1 off the bars.
 static double clear_lens_under(const double* from,const double* to) {
     if(!ceiling_hang_state()) return 1;
@@ -159,7 +170,7 @@ static bool clear_lens_solve(CPUState* cpu,uint32_t sp) {
         }
         std::copy(key,key+8,clear_lens.key);clear_lens.clear=clear;clear_lens.reused=0;
     }
-    const double floor=std::min(clear_lens_floor(),reach);
+    const double floor=std::min(clear_lens_attached()?clear_lens_attached_floor():clear_lens_floor(),reach);
     double goal=std::clamp(clear*reach-(clear<1?clear_lens_margin:0),floor,reach);
     const double under=clear_lens_under(target,lens);
     if(under<1) goal=std::min(goal,std::max(clear_lens_minimum,under*reach));
@@ -242,9 +253,9 @@ static void clear_lens_follow(CPUState* cpu,uint32_t ra,uint32_t sp) {
     cpu->gpr[4]=(uint32_t)clear_lens.view[axis];cpu->gpr[5]=1;
 }
 static const char* clear_lens_debug_json() {
-    static char text[384];
-    std::snprintf(text,sizeof text,"{\"enabled\":%s,\"live\":%s,\"lens\":%.1f,\"goal\":%.1f,\"reach\":%.1f,\"floor\":%.0f,\"updates\":%u,\"probes\":%u,\"hits\":%u,\"actors\":%u,\"pulls\":%u,\"holds\":%u,\"declines\":%u,\"reuses\":%u,\"us\":%llu,\"peak_us\":%llu}",
-        clear_lens_enabled()?"true":"false",clear_lens.live?"true":"false",clear_lens.lens,clear_lens.goal,clear_lens.reach,clear_lens_floor(),
+    static char text[416];
+    std::snprintf(text,sizeof text,"{\"enabled\":%s,\"live\":%s,\"lens\":%.1f,\"goal\":%.1f,\"reach\":%.1f,\"floor\":%.0f,\"attached\":%s,\"updates\":%u,\"probes\":%u,\"hits\":%u,\"actors\":%u,\"pulls\":%u,\"holds\":%u,\"declines\":%u,\"reuses\":%u,\"us\":%llu,\"peak_us\":%llu}",
+        clear_lens_enabled()?"true":"false",clear_lens.live?"true":"false",clear_lens.lens,clear_lens.goal,clear_lens.reach,clear_lens_floor(),clear_lens_attached()?"true":"false",
         clear_lens.updates,clear_lens.probes,clear_lens.hits,clear_lens.actors,clear_lens.pulls,clear_lens.holds,clear_lens.declines,clear_lens.reuses,
         (unsigned long long)(clear_lens.ns/1000),(unsigned long long)(clear_lens.peak_ns/1000));
     return text;

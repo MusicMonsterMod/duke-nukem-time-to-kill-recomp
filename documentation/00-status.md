@@ -1,5 +1,20 @@
 # Current status - 2026-10-04
 
+## 2026-11-07 - D08J3A closed
+
+User: "excellent work!!! well done! lock it in close it out. testing was solid. i love it". D08J3A is Done: on climbs, ledge hangs and the monkey bars the third-person clear lens floor is 96 (the ground keeps 450), so the lens stays in front of the climbed surface. Executable `6ecfe38fb8b80476de41f6824381351da066b9dbf452093325c550008b3dd0c3`. Note 400.
+
+## 2026-11-07 - D08J3A: climb camera keeps the lens in front of the wall (Needs playtest)
+
+Climb camera sweeps (ladder, chain, climbing wall, ledge, monkey bars; private
+fixtures) found the D10F1 450 floor holding the lens inside the climbed wall
+on chains and ledge hangs when viewed from the wall side. Attached to a climb
+or hang the floor is now 96 (the ground keeps 450), so the lens stays in front
+of the surface. Ladder and climbing wall unchanged; 180 Hz matches 60.
+Native controls (153 groups) and aim pass. Executable
+`6ecfe38fb8b80476de41f6824381351da066b9dbf452093325c550008b3dd0c3`.
+Details: MODERNIZATION_JOBS.md D08J3A, note 400. No framework edit.
+
 ## 2026-11-07 - D08J6F closed
 
 User: "lock it in and close it out, this is phenomenal work. absolutely tight as it gets. very professional. this would have literally been revolutionary if done in 1998". D08J6F is Done: in third person, armed on a ladder, climbing wall or

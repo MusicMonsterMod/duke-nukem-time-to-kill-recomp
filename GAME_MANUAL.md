@@ -970,7 +970,9 @@ Alt+wheel, and press **V** to swing it back behind him. Climbing works as before
 (W/S up and down). On poles and chains **A** and **D** always take Duke left and
 right as seen on screen, whichever side you view him from. While he climbs the
 view is centred behind him even if you play over the shoulder (H); your
-shoulder side comes back when he gets off. With global First Person selected,
+shoulder side comes back when he gets off. Turned toward the wall, ledge or
+bars he is holding, the camera stops in front of them and comes in close (Duke
+fades out) rather than passing into the wall (D08J3A). With global First Person selected,
 **LADDER VIEW** in OPTIONS > ADVANCED > ACTION PERSPECTIVE chooses FIRST PERSON
 (default) or THIRD PERSON for plain ladders. CONFIRM applies and saves it.
 First Person keeps a steady body-height eye through mounting, climbing, hanging

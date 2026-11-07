@@ -419,8 +419,14 @@ static double ladder_leap_distance(unsigned animation) {
     if(animation==63)return 450;
     return 0;
 }
+// D08Z8: the geometry alone (a reachable plain ladder ahead), whatever Duke
+// holds; the sidearm mantle question uses it to answer "no mantle" at once.
+static bool ladder_leap_geometry();
 bool ladder_leap_ready() {
-    if(!ladder_top_ground_ready() || psx_mod_read_byte(player+0x3b8)!=0)return false;
+    return psx_mod_read_byte(player+0x3b8)==0 && ladder_leap_geometry();
+}
+static bool ladder_leap_geometry() {
+    if(!ladder_top_ground_ready())return false;
     const double reach=ladder_leap_distance(psx_mod_read_half(player+0x60));
     if(reach<=0)return false;
     const double px=(int32_t)psx_mod_read_word(player+4),pz=(int32_t)psx_mod_read_word(player+12);

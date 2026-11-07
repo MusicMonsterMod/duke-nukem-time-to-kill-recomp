@@ -1,5 +1,158 @@
 # Next-session handoff
 
+## 2026-11-07 - D08Z8 closed
+
+User: "this is very close now. i accept it, and we can lock this in and close
+it out." D08Z8 is Done ([note 408](documentation/408-d08z8-mantle-while-firing.md),
+revision 7). In Modernized, mantling and jump grabs no longer stop the
+shooting: with the Desert Eagle out Duke climbs armed and fires throughout
+(walked mantles, run-jump object mantles, jump grabs of ledges); with another
+weapon a jump climb swaps to the sidearm at the catch (its loop sound stopped,
+SIDEARM RETURN as on climbs); E at ladders and other uses is never held up.
+Vanilla unchanged. Executable
+`78a37fe292018b8eb293973cc684531dbdabef7c1e8fb20f4f6038c3d04da06b` is the regression baseline. No framework
+edit; the runtime patch export is unchanged. New Todo: D08A37 (weapon
+switching while firing).
+
+## 2026-11-07 - D08Z8 revision 7: the sidearm question no longer blocks ladders and other E uses (Needs playtest)
+
+User: after a Gatling run-jump mantle while shooting "i cant change weapon
+... and i cant mantle anymore". Reproduced on a private copy of slot 8: after
+the climb Duke holds the Desert Eagle (the swap, SIDEARM RETURN never), and
+E with it toward the wall in front of the dumpster did nothing for 2 s. That
+wall carries a ladder out of reach (D08J1 leap): revision 2's question ("does
+the original mantle here?") held the E stow while it waited, but walking into
+a ladder never reaches the obstacle action, so it ran to its 2 s limit with E
+held and the leap, which needs the weapon away, never came. Now the question
+answers "no mantle" at once when a ladder is ahead (D08J1's leap geometry,
+split out of `ladder_leap_ready` without its equipment test) or a ladder top
+is below (D08U), after two refused obstacle actions in a row (a wall, a
+switch), or after 0.67 s held without contact (was 2 s). Revision 1's fire
+hold also ends when a ladder (mode 3) or monkey bars (7) climb starts, so
+D08J8's sidearm draw and fire there work. Measured: Desert Eagle at that wall,
+no fire: "no" in 0.2 s, stow, leap, ladder, top; with fire (full clip) and with
+the Gatling: stow, leap, ladder, the sidearm drawn and firing at the top.
+Weapon changes after the climb work (3, 4, the wheel). Unchanged and not new:
+a number key while fire is held waits for the weapon's idle pose (the same on
+the ground with no climb, every weapon). Regression set: dumpster walk-in
+(Desert Eagle) and run-jump (Gatling), ledge jump (Desert Eagle, Gatling) all
+climb armed. `ttk-input-test` passes. Executable `78a37fe292018b8eb293973cc684531dbdabef7c1e8fb20f4f6038c3d04da06b`.
+
+## 2026-11-07 - D08Z8 revision 6: the Gatling's sound stops at the swap; object jump mantles swap too (Needs playtest)
+
+User: "i tried with the gatling gun and the sound just continued on!!" The
+Gatling's fire starts a loop (`0x1010`, handle `+0x260`, spin flag `+0x224`
+0x800); the original stops it at the fire end (`0x80058bd4`: clear 0x800 and
+`+0x81c`, stop the handle with `0x8006af44`, spin-down `0x1011`). The host's
+instant swap to the sidearm skipped that, so the loop played on (handle still
+live after the swap, measured). Now every host swap to the sidearm (D08Z8 jump
+grabs and mantles, D08J8 climbs) stops the swapped weapon's loop at the next
+player update the same way, the spin-down only for the Gatling. Also: with
+revision 5 no weapon stows in a jump with fire held, so the object jump mantle
+(`ledge_reach_mantle`, the dumpster) now swaps any other weapon for the
+sidearm too (one shared `sidearm_swap_in`). Private copy of slot 8: Gatling
+and shotgun run-jump onto the dumpster and to the ledge all climb with the
+pistol drawn, the loop handle cleared at the swap; Desert Eagle unchanged;
+`ttk-input-test` passes. Executable `74fc48d7664b1019af65e238ea645939b6bfab97e72d52a50c0ea29fa5d563aa`.
+
+## 2026-11-07 - D08Z8 revision 5: any weapon, jump grabs swap to the sidearm (Needs playtest)
+
+User: the same ledge jump "while open firing with the shotgun. duke should
+still mantle it and pull the sidearm out surely ... (any other weapon)".
+Before: revision 1 hid fire, the shotgun's pump never settled, so no stow and
+no reach; Duke fell short with one shot. Now, in a jump with fire and E held
+and a weapon other than the sidearm (sidearm ammo available), fire stays on
+and each update the original ledge acquisition `0x80055208` is tried on a
+saved Duke (every byte put back); where it would catch, the jump enters the
+reach 109 as the reach does, the original's next reach update catches, and at
+that grab the sidearm takes the weapon's place as D08J8 does on climbs
+(`climb_swap_from`, SIDEARM RETURN) and is drawn in the hand. No ledge: the
+weapon stays. Shotgun, private copy of the new slot 8: 148 at 1.19 s, the
+pistol drawn at the grab, first shot 0.45 s later, hang, one-handed pull-up,
+firing on top; third person and 180 Hz the same (screenshots). Desert Eagle,
+shotgun without fire (unarmed grab) and a fire + E jump with no ledge (keeps
+the shotgun) unchanged. Executable `240ccc9b776a14210b75c2fc9ac09aa869ee834b2f64d291d94123decb4b9263`.
+
+## 2026-11-07 - D08Z8 revision 4: jump grabs of ledges keep the Desert Eagle (Needs playtest)
+
+User (new UI slot 8, the alley dumpster): run-jump to the ledge ahead while
+shooting; "he cant mantle it while shooting". A wall ledge, not a climbable
+object: the original reach `0x800557f8` enters reach 109 (then grab 148,
+hang 149, pull-up 140) only when the upper pose lacks table bit 8, so with fire
+held (no stow) it never reached. Now, right after the reach at the ballistic
+hook, the armed sidearm with fire held, E and the D08X reach armed makes that
+one transition; the original catches on its own and fires through 109 / 147 /
+148 / 140 (no 0x2000 refusal). One flag for every armed sidearm climb
+(walked mantle, jump mantle, jump grab) marks the hang as the climb's
+sidearm, so W / E pull up one-handed (D08J7C); before, an armed jump mantle
+that ended in a hang (the dumpster) stayed there. Private copy of the new slot
+8, full clip: ledge jump 109, 148, 149, 140, on top, gaps 0.16-0.24 s with one
+0.33 s at the hang to pull-up hand-off; dumpster run-jump (two timings) 139,
+149, 140, on top, one 0.27 / 0.44 s gap at the same hand-off; 60 and 180 Hz,
+third person the same; no-fire ledge jump unchanged (stow, unarmed grab). The
+save's own clip (2 rounds) empties at takeoff: the Desert Eagle's reload then
+takes about 0.9 s of the jump. Executable `3849d05174c4d6300e97f5d6b1d072fbb2021d1680c207310c1be0564914597c`.
+
+## 2026-11-07 - D08Z8 revision 3: run-jump mantles keep the Desert Eagle (Needs playtest)
+
+User: "it works with walking up to it and mantling it while shooting, but run
+jump to mantle still pauses and isnt smooth". Cause (slot 8 post, private
+copy): in a jump, revision 1's held-fire rule took fire off the pad so the
+weapon could stow in flight, and the jump object mantle
+(`ledge_reach_mantle`, D08X) only started unarmed: about 0.6 s without a shot,
+a holster and a redraw. Now, with the climb sidearm out in a jump (takeoff 96
+or mode 9), E keeps fire (with fire held the stow never runs), and the jump
+mantle takes the armed sidearm through `jump_mantle_start` (D08Z2 hand-off,
+D08J8 fire through the climb, one-handed pull-up). A mid-air stow the mantle
+interrupts returns the gun ready (5), not the rest of the stow. Run-jump with
+fire held: 137 at 0.13 s after takeoff (was 0.79 s), a shot every ~166 ms
+throughout, largest gap 0.20 s (60 and 180 Hz, third person the same;
+screenshots at 180 Hz). Without fire: armed, gun ready on top, no stow. Walking
+mantles unchanged. `ttk-input-test` passes (flight case added). Executable
+`db919fa00977881b97e2016df12c5a7527c7504c9875b27a1b737602b4aab5c0`.
+
+## 2026-11-07 - D08Z8 revision 2: the Desert Eagle climbs without a pause (Needs playtest)
+
+User: "its not smooth enough ... make this really unintrusive when you
+mantle up. if its already the desert eagle, duke should just be able to
+continuously shoot." New `recomp/src/ttk/sidearm_mantle.inc`: with the climb
+sidearm out on the ground, E first asks the game's own obstacle action
+(`0x80051cf0`, from the walk / run handlers) whether it mantles here, as D08J9
+asks the door finder, and the stow waits for the answer. At the action's
+entry Duke is lent to the original as a holstered Duke sees it (equipment 0,
+a free upper pose, Cross this tick) until this update's fire request entry,
+where the weapon is put back; the original's line-up and mantle choice stay
+its own. A mantle answers E: no stow, the shooting never stops (D08J8 drives
+the sidearm through 134..139 and the one-handed pull-up), and without fire the
+upper body plays the climb and the gun pose returns on top (the D08Z2
+hand-off, now one shared `mantle_upper_handoff`). No mantle, a ladder, no
+movement input or no contact within 0.4 s of a tap (2 s held) falls back to
+revision 1. Slot 8 post, private copy: fire held, W+E: equipment 2 and a shot
+every ~165 ms from the walk-in through 139, the hang, 140 and onto the top
+(first and third person, 60 and 180 Hz, screenshots); a running tap mantles at
+0.57 s (revision 1: 1.14 s); no fire: armed climb, gun pose back on top;
+shotgun, a later fire press, E standing still (stow at once) and the slot 10
+door (armed kick) unchanged. `ttk-input-test` passes (revision 2 group added).
+Executable `5b370e4507a14a935640556e3a389f89e1dff89fd72c098e40a39c7dab5003ae`.
+
+## 2026-11-07 - D08Z8 mantling while firing (Needs playtest)
+
+Cause: E with fire already held did nothing. Held fire cancelled the pending
+E interaction (`pc_input.cpp`), and the E stow waits for an idle upper body,
+which the fire track never reaches; without the stow the original refuses the
+mantle (Duke walks into the post, 72 / 74, then stands). Fix (Modernized): an E pressed
+while fire is held wins. Fire is kept off the pad until the original stow and
+the climb have begun (through E's Cross pulse, so held fire's own draw cannot
+take the weapon back out), then D08J8 mantle fire takes over; only in ground
+movement (in a hang E stays the D08J8 pull-up). A fire press after E still
+cancels the E. Private offscreen runs on a copy of UI slot 8 (the post): fire
+held, E standing (first and third person), a running approach with an E tap,
+and the shotgun all mantle (139/140) and fire through the climb with the
+sidearm; before, none did. On open ground E over held fire now stows and
+redraws as a plain E does (firing resumes after about 1.1 s).
+`ttk-input-test` passes with a new D08Z8 group. Executable
+`e13f554fda1fe6cd2437c38c859075754e9dc9d2ec7342af3fbbf29a7a945779`. [Note 408](documentation/408-d08z8-mantle-while-firing.md).
+
 ## 2026-11-07 - D08A32 closed
 
 User: "that is fixed" (the Desert Eagle reload) and "lock it in and close us

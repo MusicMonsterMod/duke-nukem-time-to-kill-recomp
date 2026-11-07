@@ -37,6 +37,7 @@ static bool wade_full_speed; // D08K12 input policy regression
 static bool d21_swimming,d21_underwater;
 static bool climb_hold, climb_stow, hang_armed, mantle_masked, hang_sidearm, pullup_masked, trav_hang;
 static bool ready, holstered, flight, traversal, preparing, shortfall, switching, jet, jet_classic, edge_queued;
+static bool sidearm_ok, sidearm_air; static int sidearm_state, sidearm_asks; // D08Z8 revision 2
 static const char* refusal="state";
 static bool alive=true,view_aim;
 static bool push_grab,push_contact,push_idle;
@@ -921,6 +922,57 @@ int main() {
     roll_camera=false;
     trav_camera=false;
     key(SDL_SCANCODE_W,false);key(SDL_SCANCODE_A,false);tick();
+    // D08Z8: E pressed over held fire wins: fire (Cross) leaves the pad, the
+    // E stow (Circle) runs, E's Cross follows without a fire draw, and the
+    // climb hands fire back. A fire press after E still cancels the E.
+    {
+        auto mousefire=[](bool down){SDL_Event e{};e.type=down?SDL_MOUSEBUTTONDOWN:SDL_MOUSEBUTTONUP;
+            e.button.windowID=SDL_GetWindowID(win);e.button.button=1;ttk::input_event(e);};
+        ttk::input_release();ttk::input_init(win);focus(true);capture_fixture();
+        ready=true;flight=false;traversal=false;trav_camera=false;holstered=false;ladder_top=false;
+        mousefire(true);tick();tick();CHECK((ttk::input_pad()&16384)==0);             // armed fire
+        key(SDL_SCANCODE_E,true);tick();CHECK((ttk::input_pad()&16384)!=0);           // fire held off
+        bool stowed=false;
+        for(int i=0;i<8;++i){tick();const uint16_t v=ttk::input_pad();CHECK((v&16384)!=0);if(!(v&8192))stowed=true;}
+        CHECK(stowed);                                                                // E's Circle stow
+        key(SDL_SCANCODE_E,false);holstered=true;tick();
+        bool cross=false;
+        for(int i=0;i<6;++i){tick();const uint16_t v=ttk::input_pad();if(!(v&16384))cross=true;CHECK((v&8192)!=0);}
+        CHECK(cross);                                                                 // E's Cross, no fire draw
+        traversal=true;tick();(void)ttk::input_pad();                                 // the climb began
+        mousefire(false);traversal=false;holstered=false;tick();(void)ttk::input_pad();
+        // A fresh fire press after E cancels the E: fire goes through, no stow.
+        key(SDL_SCANCODE_E,true);tick();key(SDL_SCANCODE_E,false);mousefire(true);
+        bool circle=false;
+        for(int i=0;i<8;++i){tick();const uint16_t v=ttk::input_pad();if(!(v&8192))circle=true;CHECK((v&16384)==0);}
+        CHECK(!circle);
+        mousefire(false);tick();(void)ttk::input_pad();
+        // Revision 2: the sidearm out, E asks first; no stow and no fire
+        // mask while the question is open; "mantled" answers E (no stow
+        // after it); "no mantle" lets the usual stow run.
+        ttk::input_release();ttk::input_init(win);focus(true);capture_fixture();
+        ready=true;holstered=false;traversal=false;sidearm_ok=true;sidearm_state=0;sidearm_asks=0;
+        mousefire(true);tick();tick();
+        key(SDL_SCANCODE_E,true);tick();CHECK(sidearm_asks==1 && sidearm_state==1);
+        for(int i=0;i<8;++i){tick();const uint16_t v=ttk::input_pad();CHECK((v&8192)!=0 && (v&16384)==0);}  // shooting, no stow
+        sidearm_state=2;tick();(void)ttk::input_pad();CHECK(sidearm_state==0);
+        for(int i=0;i<10;++i){tick();const uint16_t v=ttk::input_pad();CHECK((v&8192)!=0 && (v&16384)==0);} // E answered
+        key(SDL_SCANCODE_E,false);mousefire(false);tick();(void)ttk::input_pad();
+        key(SDL_SCANCODE_E,true);tick();CHECK(sidearm_asks==2 && sidearm_state==1);
+        key(SDL_SCANCODE_E,false);sidearm_state=3;
+        bool stow=false;
+        for(int i=0;i<8;++i){tick();if(!(ttk::input_pad()&8192))stow=true;}
+        CHECK(stow && sidearm_state==0);
+        sidearm_ok=false;holstered=false;tick();(void)ttk::input_pad();
+        // Revision 3: E over held fire in a jump with the sidearm out keeps
+        // fire on the pad (the jump mantle takes the armed sidearm).
+        ttk::input_release();ttk::input_init(win);focus(true);capture_fixture();
+        ready=true;holstered=false;sidearm_state=0;sidearm_air=true;
+        mousefire(true);tick();tick();key(SDL_SCANCODE_E,true);
+        for(int i=0;i<8;++i){tick();CHECK((ttk::input_pad()&16384)==0);}
+        sidearm_air=false;key(SDL_SCANCODE_E,false);mousefire(false);tick();(void)ttk::input_pad();
+        std::puts("PASS: D08Z8 E over held fire stows and climbs; a later fire press cancels E; the sidearm asks before any stow");
+    }
     // D08U: E at a ladder top asks for the mount (after the E stow) instead of
     // pulsing Cross; the first arrivals name the key; S on a ladder adds Cross.
     ttk::input_release();ttk::input_init(win);focus(true);capture_fixture();
@@ -1183,7 +1235,7 @@ int main() {
 namespace ttk { void screen_flash_request(int,int,int,int,bool) {} void screen_flash_test_hurt(int,int) {} }
 namespace ttk { bool directional_takeoff_ready(){return preparing;} bool edge_jump_queued(){return edge_queued;}
 bool short_fall_input_ready() { return shortfall && flight; } bool fire_draw_ready() { return ready && holstered; } bool airborne_input_ready() { return flight; } bool interaction_alive() { return alive; } bool interaction_restore_ready() { return ready && holstered; } bool interaction_swim_restore_ready() { return false; } bool swim_fire_cross_masked() { return false; } bool climb_fire_hold_ready() { return climb_hold; } bool climb_stow_ready() { return climb_stow; } bool mantle_fire_cross_masked() { return mantle_masked; } bool hang_weapon_ready() { return hang_armed; } bool hang_drop_armed_ready(bool drop) { return drop && hang_armed && !holstered; } bool hang_pullup_input_ready(bool pull) { return pull && hang_sidearm; } bool trav_hang_climbing() { return trav_hang; } bool door_use_ready() { return false; } void door_use_request() {} int door_use_state() { return 0; } void door_use_end() {} bool armed_pullup_fire_masked() { return pullup_masked; } bool view_aim_input_ready(){return view_aim;}
-bool weapon_drawn() { return !holstered; } bool weapon_holstered() { return holstered; } bool player_identity_ready() { return true; }
+bool sidearm_in_flight() { return sidearm_air; } bool sidearm_weapon_out() { return sidearm_air; } bool sidearm_mantle_ready() { return sidearm_ok && sidearm_state==0; } void sidearm_mantle_ask() { sidearm_state=1; ++sidearm_asks; } int sidearm_mantle_state() { return sidearm_state; } void sidearm_mantle_end() { if(sidearm_state!=1) sidearm_state=0; } void sidearm_mantle_cancel() { sidearm_state=0; } bool interaction_climb_started() { return traversal; } bool weapon_drawn() { return !holstered; } bool weapon_holstered() { return holstered; } bool player_identity_ready() { return true; }
 bool crouch_walk_input_ready() { return crouch_walk; } bool movement_ready() { return ready; } bool locomotion_input_ready() { return flight; } bool traversal_input_ready() { return traversal; } bool traversal_camera_ready() { return trav_camera; } bool committed_camera_ready() { return roll_camera; } bool swim_input_ready() { return d21_swimming; } bool wade_full_speed_ready() { return wade_full_speed; } bool swim_host_owns_jump() { return false; } void swim_strafe_pads(uint16_t& left,uint16_t& right) { left=0x100; right=0x200; } bool swim_thrust_input_ready() { return d21_underwater; } bool jetpack_input_ready() { return jet; } bool jetpack_classic_input_ready() { return jet && jet_classic; } bool interaction_holster_ready() { return (ready || flight) && !holstered && !switching; } bool interaction_ready() { return (ready || flight || traversal) && holstered && !switching; } bool push_grab_ready() { return push_grab; } bool push_contact_ready() { return push_contact; } bool push_idle_ready() { return push_idle; } uint16_t push_pad(float,float y) { return !push_grab?0:y>0?16:y<0?64:0; } const char* controls_debug_json() { return "{}"; } const char* lease_refusal_reason() { return refusal; }
 bool ladder_top_available() { return ladder_top; } void ladder_top_request() { ++ladder_requests; } bool ladder_descent_ready() { return ladder_on && traversal; } int ladder_bottom_hang() { return traversal ? ladder_hang : 0; } bool ladder_end_below() { return traversal && ladder_end; } bool ladder_mount_finishing() { return false; } bool ladder_exit_ready() { return ladder_exit && traversal; } bool object_hang_release_ready() { return false; } bool ledge_hang_ready() { return ledge_hang && traversal; } bool pole_sidestep_ready() { return pole && traversal; } bool pole_view_from_front(bool held) { static bool front; if(!held) front=pole_front; return front; } bool pole_let_go_ready() { return pole_end && pole && traversal; } bool ceiling_hang_ready() { return ceiling && traversal; } bool ceiling_hang_advance() { return ceiling_adv && ceiling && traversal; } bool ceiling_hang_drop() { return ceiling_let_go && ceiling && traversal; } bool ceiling_armed_drop() { return ceiling_armed && !traversal; } bool ceiling_weapon_ready() { return ceiling_armed; }
 bool ladder_leap_ready() { return ladder_leap; } bool ladder_leap_active() { return leap_on; } void ladder_leap_note() { ++ladder_leaps; } }

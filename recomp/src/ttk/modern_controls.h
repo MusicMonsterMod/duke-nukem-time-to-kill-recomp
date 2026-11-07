@@ -62,6 +62,19 @@ bool mantle_fire_cross_masked();
 bool climb_shot_ready();
 bool interaction_alive();
 bool interaction_holster_ready();
+// D08Z8 revision 2 (sidearm_mantle.inc): with the climb sidearm out on the
+// ground, E asks whether the original mantles here before any stow.
+// State 0 idle, 1 asked, 2 mantled (E answered), 3 no mantle.
+bool sidearm_mantle_ready();
+void sidearm_mantle_ask();
+int sidearm_mantle_state();
+void sidearm_mantle_end();
+void sidearm_mantle_cancel();
+// D08Z8: a weapon that can climb as the sidearm, in a takeoff or flight: E keeps fire.
+bool sidearm_in_flight();
+bool sidearm_weapon_out();
+// D08Z8: Duke has left ground locomotion for a climb, mantle or hang.
+bool interaction_climb_started();
 bool weapon_drawn();
 bool weapon_holstered();
 bool traversal_input_ready();

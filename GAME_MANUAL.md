@@ -937,7 +937,16 @@ same sidearm swap and **SIDEARM RETURN** rule as on climbs apply. If an armed
 climb up a wall ends in a ledge hang, keep **W** or **E** held and he pulls
 himself up one-handed, still shooting. With no sidearm ammo, left click
 during the climb brings your own weapon up the moment he lands instead.
-Held fire on ladders, chains, climbing walls, monkey bars and from a ledge
+You can also start the climb while shooting (D08Z8). With the Desert Eagle
+out, walk or run into the ledge and press **E**, or run-jump at it with
+**E**, or jump at a ledge to grab it: Duke climbs with the pistol in his
+hand and, with left click held, keeps shooting, up the face or from the hang,
+through the pull-up and onto the top. With another weapon out, walking into
+a ledge with **E**, Duke stops firing just long enough to put it away and
+climb, then the sidearm shoots on through the climb; jumping at a ledge he
+grabs it with the sidearm drawn in place of your weapon, as on every climb
+(**SIDEARM RETURN** decides when your weapon comes back). A left click pressed after **E** still cancels the E, as
+before, and **E** standing still or at a ladder puts the weapon away as usual. Held fire on ladders, chains, climbing walls, monkey bars and from a ledge
 hang now repeats as fast as on the ground. Vanilla is unchanged.
 
 **Doors open with E, and never stop the shooting (Modernized, D08J8, D08J9).**

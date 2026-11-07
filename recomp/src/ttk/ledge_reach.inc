@@ -42,7 +42,36 @@ static void ledge_reach_arm(const InputFrame& f) {
 // feet, start the matching original mantle from where he is in the air.
 static constexpr uint32_t object_mantle=0xc0u;
 static int32_t stand_offset=507;   // floor (+0x1c8) minus root Y while standing
-static unsigned air_mantles, bounce_updates;
+static unsigned air_mantles, bounce_updates, armed_air_mantles, armed_stow_cuts;
+// An armed sidearm climb (a walked or jump mantle, a jump grab) in progress,
+// until it reaches the ledge hang (then trav_hang: the one-handed pull-up)
+// or the ground. D08J8's trav_drawn does not last through every one: a jump
+// mantle starts in mode 0, where trav_weapon_ready refuses 139.
+static bool sidearm_climb_live;
+// D08Z8: the climb sidearm (climb_fire.inc) drawn, which may mantle armed.
+static bool sidearm_drawn() {
+    return psx_mod_read_byte(player+0x3b8)==2 && base_weapon(psx_mod_read_byte(player+0x3b9))==climb_sidearm;
+}
+// D08Z8 revision 5: another weapon drawn and firing, which a jump climb swaps
+// for the sidearm (as D08J8 does on climbs).
+static bool sidearm_swap_ready() {
+    const auto& f=input_snapshot(Context::Gameplay);
+    return input_modernized() && f.active && f.held[fire] && psx_mod_read_byte(player+0x3b8)==2 &&
+        base_weapon(psx_mod_read_byte(player+0x3b9))!=climb_sidearm && usable_weapon(climb_sidearm);
+}
+// The swap itself, the D08J8 way: the weapon kept for SIDEARM RETURN, its
+// loop stopped at the next update (weapon_loop_stop), the sidearm drawn in
+// the hand (upper 6, the 2x draw), this climb marked as the sidearm's.
+static void sidearm_swap_in() {
+    const unsigned selected=psx_mod_read_byte(player+0x3ba);
+    if(climb_swap_from==climb_no_swap)climb_swap_from=selected;
+    weapon_loop_stop_from=psx_mod_read_byte(player+0x3b9);
+    psx_mod_write_byte(player+0x3ba,climb_sidearm);psx_mod_write_byte(player+0x3b9,climb_sidearm);
+    psx_mod_write_byte(player+0x3b8,2);
+    psx_mod_write_half(player+0x74,6);psx_mod_write_half(player+0x7c,0);psx_mod_write_half(player+0x7e,0);
+    weapon_feel_draw_press();++selections;
+    sidearm_climb_live=true;
+}
 // 0x80073ae8 for box index 0, for every object kind: the object's box list
 // (+0x44), a multi-box model (type flag 0x2000: model +0x68 -> +8) or the
 // model's single box (+0x40, +4). Eight halfwords: x, y, z, pad min and max.
@@ -117,21 +146,25 @@ static uint32_t mantle_upper_block[0x14/4];
 static bool mantle_upper_pending;
 static uint8_t mantle_upper_equip;
 static uint64_t mantle_upper_loads;
+// The upper track takes the mantle (D08Z2), its weapon block kept for the end
+// (jump mantles here, the D08Z8 sidearm mantle).
+static void mantle_upper_handoff(unsigned climb) {
+    const unsigned upper=psx_mod_read_half(player+0x74);
+    if(upper==climb || (upper<280 && !(psx_mod_read_word(0x800c2824+4*upper)&8)))return;
+    for(unsigned i=0;i<std::size(mantle_upper_block);++i)mantle_upper_block[i]=psx_mod_read_word(player+0x74+4*i);
+    mantle_upper_pending=upper<280;mantle_upper_equip=psx_mod_read_byte(player+0x3b8);
+    mantle_upper_loads=psx_mod_savestate_loads();
+    psx_mod_write_half(player+0x74,climb);
+    psx_mod_write_half(player+0x7c,0);psx_mod_write_half(player+0x7e,0);
+    ++mantle_upper_handoffs;
+}
 static void jump_mantle_start(unsigned climb,int32_t feet,int32_t rel) {
     psx_mod_write_word(player+0x1c8,feet);psx_mod_write_word(player+0x1c4,rel);
     for(uint32_t v:{0x1f4u,0x1f8u,0x1fcu})psx_mod_write_word(player+v,0);
     psx_mod_write_byte(player+0x22c,0);psx_mod_write_byte(player+0x22d,0);
     psx_mod_write_half(player+0x60,climb);
     psx_mod_write_half(player+0x68,0);psx_mod_write_half(player+0x6a,0);
-    const unsigned upper=psx_mod_read_half(player+0x74);
-    if(upper!=climb && (upper>=280 || (psx_mod_read_word(0x800c2824+4*upper)&8))) {
-        for(unsigned i=0;i<std::size(mantle_upper_block);++i)mantle_upper_block[i]=psx_mod_read_word(player+0x74+4*i);
-        mantle_upper_pending=upper<280;mantle_upper_equip=psx_mod_read_byte(player+0x3b8);
-        mantle_upper_loads=psx_mod_savestate_loads();
-        psx_mod_write_half(player+0x74,climb);
-        psx_mod_write_half(player+0x7c,0);psx_mod_write_half(player+0x7e,0);
-        ++mantle_upper_handoffs;
-    }
+    mantle_upper_handoff(climb);
 }
 // Once per player update: the mantle (134..140, 139 chains into 140) is over.
 // Back to the kept weapon pose, unless the weapon changed or a pose of its own
@@ -166,7 +199,7 @@ static void ledge_reach_mantle(CPUState* cpu) {
     if(!airborne)return;
     const auto& f=input_snapshot(Context::Gameplay);
     if(!f.active || f.held[original_aim] || !input_airborne_reach_held() || !player_identity_ready() ||
-       psx_mod_read_byte(player+0x3b8)!=0 || (psx_mod_read_word(player)&0x20002) ||
+       !(psx_mod_read_byte(player+0x3b8)==0 || sidearm_drawn() || sidearm_swap_ready()) || (psx_mod_read_word(player)&0x20002) ||
        (psx_mod_read_word(player+0x224)&0x241u))return;
     const double px=(int32_t)psx_mod_read_word(player+4),pz=(int32_t)psx_mod_read_word(player+12);
     // Direction of travel (the flight velocity), else the body heading.
@@ -244,7 +277,23 @@ static void ledge_reach_mantle(CPUState* cpu) {
         return;
     }
     psx_mod_write_half(player+0x1c,psx_mod_read_half(player+0x24));
+    // D08Z8: the climb sidearm stays out (D08Z2 hand-off, D08J8 fire through
+    // the climb, the one-handed pull-up after a 139 that ends in a hang).
+    const bool armed=psx_mod_read_byte(player+0x3b8)==2;
+    const bool swap=armed && !sidearm_drawn();
     jump_mantle_start(climb,feet,rel);
+    if(swap) {
+        // Revision 5: the other weapon gives way to the sidearm; its pose is
+        // not the one to bring back after the climb.
+        mantle_upper_pending=false;sidearm_swap_in();++armed_air_mantles;
+    } else if(armed) {
+        trav_drawn=true;sidearm_climb_live=true;++armed_air_mantles;
+        // A mid-air E stow (upper 6) the mantle interrupted: the gun comes back
+        // ready (5) at the top, not the rest of the stow.
+        if(mantle_upper_pending && (mantle_upper_block[0]&0xffff)==6) {
+            mantle_upper_block[0]=(mantle_upper_block[0]&0xffff0000u)|5u;mantle_upper_block[2]=0;++armed_stow_cuts;
+        }
+    }
     bounce_updates=5;++air_mantles;
 }
 

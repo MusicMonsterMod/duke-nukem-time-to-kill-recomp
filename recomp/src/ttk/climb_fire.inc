@@ -15,6 +15,14 @@
 static constexpr unsigned climb_sidearm=4;
 static constexpr unsigned climb_no_swap=255;
 static unsigned climb_swap_from=climb_no_swap;
+// D08Z8: a host swap to the sidearm (D08J8 on a climb, D08Z8 on a jump grab)
+// replaces the weapon at once, so its own fire end never runs: the Gatling's
+// loop (0x1010, handle +0x260, spin flag +0x224 0x800) kept playing. The
+// original's end (0x80058bd4): clear 0x800 and +0x81c, stop +0x260
+// (0x8006af44), clear it, the spin-down 0x1011 at Duke (0x8006b270, 0x800).
+// Done at the next player update with a CPU (sidearm_mantle_update).
+static unsigned weapon_loop_stop_from;   // the weapon swapped out, 0 = none
+static unsigned weapon_loop_stops;
 static unsigned climb_fire_draws,climb_swaps,climb_restores,climb_ground_restores;
 // Ladder rungs 186-189, chain/pole 192-195, climbing wall 198-205: the
 // clips the climb dispatcher runs for a settled attachment (mounts, catches
@@ -353,6 +361,7 @@ static void trav_fire_update(const InputFrame& f) {
     if(trav_draw_ready(f)) {
         const unsigned selected=psx_mod_read_byte(player+0x3ba);
         if(base_weapon(selected)!=climb_sidearm && climb_swap_from==climb_no_swap) {climb_swap_from=selected;++trav_swaps;}
+        if(base_weapon(psx_mod_read_byte(player+0x3b9))!=climb_sidearm)weapon_loop_stop_from=psx_mod_read_byte(player+0x3b9);
         mantle_draw_queued=false;
         psx_mod_write_byte(player+0x3ba,climb_sidearm);psx_mod_write_byte(player+0x3b9,climb_sidearm);
         psx_mod_write_byte(player+0x3b8,2);

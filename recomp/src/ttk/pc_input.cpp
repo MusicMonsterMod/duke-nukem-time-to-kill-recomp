@@ -53,6 +53,13 @@ static std::atomic<bool> capture_offer{false};
 static std::atomic<uint64_t> capture_offer_at{0};
 static constexpr uint64_t capture_offer_window=8;
 static bool initial_capture, interaction_pending, interaction_started;
+// D08Z8: E pressed while fire was already held. E wins: fire stays off the
+// pad until the original stow and the climb have begun (then D08J8 mantle
+// fire takes over), so held fire no longer cancels the E or blocks its stow.
+// A fresh fire press after E still cancels as before.
+static bool interaction_over_fire, interaction_pending_seen, fire_down_seen;
+static unsigned interaction_over_fire_count;
+static bool sidearm_flight_seen;   // this E met a jump with the sidearm out
 static uint64_t jump_deadline,menu_select_deadline,jump_pressed_at;
 // Escape keeps the mouse free until the original pause has actually stopped
 // gameplay offers: a quick tap that raced the pad poll used to recapture while
@@ -992,12 +999,37 @@ void input_frame() {
         }
         ladder_top_seen=ladder_top;
     }
-    if(interaction_pending && (sequence>interaction_deadline || action_down(fire)))interaction_pending=false;
+    // D08Z8 revision 2: a new E with the sidearm out asks whether the original
+    // mantles here (sidearm_mantle.inc); the stow waits for the answer.
+    if(interaction_pending && !interaction_pending_seen && sidearm_mantle_ready()) sidearm_mantle_ask();
+    const int sidearm_now=sidearm_mantle_state();
+    if(sidearm_now==2) {interaction_pending=false;interaction_over_fire=false;sidearm_mantle_end();}
+    else if(sidearm_now==3) sidearm_mantle_end();
+    // D08Z8: a new pending E with fire already down (held before this frame).
+    // Ground movement only: in a hang or on a climb E is no stow (D08J8 pull-ups).
+    if(input_modern_controls() && interaction_pending && !interaction_pending_seen && fire_down_seen && action_down(fire) && weapon_drawn() &&
+       (movement_ready() || locomotion_input_ready()) && !traversal_input_ready() && !interaction_climb_started()) {
+        interaction_over_fire=true;++interaction_over_fire_count;
+        std::fprintf(stderr,"[TTK input] E over held fire (%u): fire waits for the stow and climb\n",interaction_over_fire_count);
+    }
+    // It lasts through E's Cross pulse after the stow (interaction_pulse), or
+    // held fire's own draw (fire_draw_ready) would take the weapon back out.
+    const bool e_live=interaction_pending || (interaction_pulse && sequence<=interaction_pulse);
+    if(interaction_over_fire && (!action_down(fire) || !e_live || interaction_climb_started()))
+        interaction_over_fire=false;
+    if(interaction_pending && (sequence>interaction_deadline || (action_down(fire) && !interaction_over_fire))) {
+        interaction_pending=false;interaction_over_fire=false;
+    }
+    if(!interaction_pending && sidearm_mantle_state()==1) sidearm_mantle_cancel();   // fire, holster or a door took E
+    // A jump with the sidearm out during this E: fire stays on for the rest of it.
+    if(!interaction_over_fire)sidearm_flight_seen=false;
+    else if(sidearm_in_flight())sidearm_flight_seen=true;
+    interaction_pending_seen=interaction_pending;fire_down_seen=action_down(fire);
     // D08J9: the stow waits for the door answer; a door use consumes E.
     const int door_now=door_use_state();
     if(door_now==2 && interaction_pending && !interaction_started) interaction_pending=false;
     if(door_now==2 || door_now==3) door_use_end();
-    if(interaction_pending && !interaction_started && door_now!=1 && interaction_holster_ready()) {
+    if(interaction_pending && !interaction_started && door_now!=1 && sidearm_mantle_state()!=1 && interaction_holster_ready()) {
         // Shorter Circle pulse once jumping/airborne so stow begins inside the
         // ladder contact window; grounded approach keeps a slightly longer tap.
         const bool urgent=airborne_input_ready() || (jump_deadline && sequence<=jump_deadline);
@@ -1526,6 +1558,12 @@ uint16_t input_pad() {
     // D10H4: WEAPON FEEL RETRO keeps a press on the fire pad until the game
     // has sampled it; the masks below still win (draws, climbs, pull-ups).
     if (captured && input_modern_controls() && weapon_feel_latched_fire()) value &= ~pads[fire];
+    // D08Z8: while E waits over held fire, the armed fire input stays off so
+    // the upper body settles and the original stow (host Circle) can run.
+    // Not in a jump with the sidearm: it mantles armed there (ledge_reach.inc),
+    // and with fire held the stow never happens (the upper body never rests).
+    if (captured && input_modern_controls() && interaction_over_fire && weapon_drawn() && sidearm_mantle_state()==0 &&
+        !(sidearm_flight_seen || (jump_deadline && sequence<=jump_deadline && sidearm_weapon_out()))) value |= pads[fire];
     // Legacy aiming: the primary Grab input is original precision aim (R1).
     if (captured && aim_down() && !view_aim_input_ready()) value &= ~pads[original_aim];
     // The original ignores the ladder let-go while Cross is held, so a held E
@@ -1665,7 +1703,7 @@ uint16_t input_pad() {
     // Once drawing starts the readiness gate closes; held fire then reaches the
     // original weapon handler. No shot is buffered after release or focus loss.
     if(captured && action_down(fire) && !action_down(holster) &&
-       !action_down(interact) && fire_draw_ready() && !mantle_fire_cross_masked()) {
+       !action_down(interact) && fire_draw_ready() && !mantle_fire_cross_masked() && !interaction_over_fire) {
         value |= 16384;
         circle_request=true;
     }

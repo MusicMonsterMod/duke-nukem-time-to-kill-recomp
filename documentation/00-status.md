@@ -1,5 +1,37 @@
 # Current status - 2026-10-04
 
+## 2026-11-07 - D08Z9 closed
+
+User: "it's all working!! lock it in and close it out. excellent". D08Z9 is
+Done ([note 411](411-d08z9-stuck-weapon.md)): the D08Z8
+sidearm loan returns the weapon's whole upper block, and the Modernized
+stuck-weapon guard redraws a weapon left with the upper on the legs' clip
+(UI slot 7 loads armed). Executable
+`94bfe4480d9f4a466c848b8fefbb1abb6a6805cb09db49377400a7dc585d75f9` is the
+regression baseline. No framework edit; the runtime patch export is
+unchanged.
+
+## 2026-11-07 - D08Z9: stuck weapon, cannot shoot or change weapons (Needs playtest)
+
+User (UI slot 7): "that strange bug where i cant shoot or change weapons
+again. can we please prevent this from happening". The save had the Desert
+Eagle drawn (equipment 2) with the upper body on the legs' idle clip 63: the
+free upper of a holstered Duke, which follows the legs and never fires or
+switches. Cause, reproduced on a private copy: the D08Z8 sidearm loan (E
+with the Desert Eagle while walking into something) lends Duke as holstered;
+when the legs changed clip inside the loan (walking into a wall, 74 -> 63)
+the upper copied it and the close restored equipment 2 but not the weapon
+pose. Fixed: the loan returns the weapon's whole upper block; a new Modernized
+guard redraws the weapon through the original's draw if the state ever
+appears on settled ground (about 0.2 s, logged as `[TTK weapon] weapon pose
+repaired`), which also repairs saves already stuck (UI slot 7 loads armed).
+Wall + E now stays armed, fires and switches; every weapon's fire, crouch,
+run and jump, and the D08J9 door cases, give no repair and the same shots.
+Input and aim suites pass; controls pass with the known D14 HUD block skipped
+for one run. Vanilla unchanged. Executable
+`94bfe4480d9f4a466c848b8fefbb1abb6a6805cb09db49377400a7dc585d75f9`.
+[Note 411](411-d08z9-stuck-weapon.md).
+
 ## 2026-11-07 - D10H2 closed
 
 User: "lock it in and close it out. insane work". D10H2 is Done: aim queries

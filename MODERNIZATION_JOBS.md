@@ -1,5 +1,37 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-07 - D08Z9 closed
+
+User: "it's all working!! lock it in and close it out. excellent". D08Z9 is
+Done ([note 411](documentation/411-d08z9-stuck-weapon.md)): the D08Z8
+sidearm loan returns the weapon's whole upper block, and the Modernized
+stuck-weapon guard redraws a weapon left with the upper on the legs' clip
+(UI slot 7 loads armed). Executable
+`94bfe4480d9f4a466c848b8fefbb1abb6a6805cb09db49377400a7dc585d75f9` is the
+regression baseline. No framework edit; the runtime patch export is
+unchanged.
+
+## 2026-11-07 - D08Z9: stuck weapon, cannot shoot or change weapons (Needs playtest)
+
+User (UI slot 7): "that strange bug where i cant shoot or change weapons
+again. can we please prevent this from happening". The save had the Desert
+Eagle drawn (equipment 2) with the upper body on the legs' idle clip 63: the
+free upper of a holstered Duke, which follows the legs and never fires or
+switches. Cause, reproduced on a private copy: the D08Z8 sidearm loan (E
+with the Desert Eagle while walking into something) lends Duke as holstered;
+when the legs changed clip inside the loan (walking into a wall, 74 -> 63)
+the upper copied it and the close restored equipment 2 but not the weapon
+pose. Fixed: the loan returns the weapon's whole upper block; a new Modernized
+guard redraws the weapon through the original's draw if the state ever
+appears on settled ground (about 0.2 s, logged as `[TTK weapon] weapon pose
+repaired`), which also repairs saves already stuck (UI slot 7 loads armed).
+Wall + E now stays armed, fires and switches; every weapon's fire, crouch,
+run and jump, and the D08J9 door cases, give no repair and the same shots.
+Input and aim suites pass; controls pass with the known D14 HUD block skipped
+for one run. Vanilla unchanged. Executable
+`94bfe4480d9f4a466c848b8fefbb1abb6a6805cb09db49377400a7dc585d75f9`.
+[Note 411](documentation/411-d08z9-stuck-weapon.md).
+
 ## 2026-11-07 - D10H2 closed
 
 User: "lock it in and close it out. insane work". D10H2 is Done ([note 410](documentation/410-d10h2-pistol-chase.md)):
@@ -4536,6 +4568,28 @@ Not run live: swimming, jetpack flight. The Desert Eagle report did not
 reproduce separately. Executable
 `9adb09035646ff7a2c2745e5ad07cf7f3394cd796b458f4a77f8e853d9c55d79`, [note 409](documentation/409-d08a37-switch-while-firing.md).
 
+### D08Z9 - Stuck weapon: Duke cannot shoot or change weapons
+
+**Status: Done (user-accepted 2026-11-07: "it's all working!!"; [note 411](documentation/411-d08z9-stuck-weapon.md)). Dependencies: D08Z8.** User, 2026-11-07, UI slot 7:
+"i've just encountered that strange bug where i cant shoot or change
+weapons again. can we please prevent this from happening. deep research if
+you need to." The save: equipment 2 (Desert Eagle) with the upper track on
+the legs' clip 63 (no weapon bit), following the legs; fire and the weapon
+keys do nothing.
+
+Cause (reproduced): the D08Z8 sidearm loan's close restored the upper id
+only when it still equalled the lower clip of the loan; when the walk handler
+changed the clip inside the loan (wall + E: 74 -> 63) the lent free upper had
+copied it. Change: the loan keeps and returns the weapon's whole upper block
+(no-mantle closes); `weapon_pose_guard.inc` redraws the weapon through the
+original's request when the state lasts 6 player updates on settled ground
+with nothing in progress, logging each repair.
+
+**Acceptance:** UI slot 7 loads with a working weapon; E with the Desert
+Eagle into walls, doors and objects never leaves Duke unable to fire or
+switch; armed mantles, doors, crouch, run and jumps unchanged; no repair in
+normal play; Vanilla unchanged; the user's playtest.
+
 ### D08Z8 - Mantling while firing the Desert Eagle: held fire stops the mantle
 
 **Status: Done (user-accepted 2026-11-07, revision 7: "i accept it"; [note 408](documentation/408-d08z8-mantle-while-firing.md)). Dependencies: D08Y, D08J8.** User,
@@ -8445,6 +8499,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D36H10 | Water exit first person: the arms vibrate climbing out of the water (UI slot 12) | Done | D36H9, D35D1 |
 | D36H11 | Freezer first person: the left (support) hand does not touch the weapon | Done | D36H, D36H1 |
 | D08Z8 | Mantling while firing the Desert Eagle: held fire stops the mantle (UI slot 8 post) | Done (user-accepted 2026-11-07; note 408) | D08Y, D08J8 |
+| D08Z9 | Stuck weapon: cannot shoot or change weapons (Desert Eagle drawn, upper on the legs' clip; UI slot 7) | Done (user-accepted 2026-11-07; note 411) | D08Z8 |
 | D37 | Temporary movement failure at 07:26 UK on 2026-10-26 (separate research) | Done | - |
 | D37A | Safe animation restoration across save allocation layouts | Done (user-accepted 2026-10-26) | D37 |
 | R01 | DisruptorRecomp architecture and modernization reference research | Done | - |

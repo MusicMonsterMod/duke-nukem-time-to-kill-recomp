@@ -35,11 +35,19 @@
 static std::atomic<int> sidearm_request{0};   // 0 idle, 1 asked, 2 mantled, 3 no mantle
 static unsigned sidearm_asks,sidearm_mantles,sidearm_misses,sidearm_loans,sidearm_handoffs,sidearm_expiries;
 static unsigned sidearm_reaches,sidearm_reach_hangs;
+static unsigned sidearm_loan_repairs;   // non-mantle loans whose upper followed the legs
 // sidearm_climb_live (ledge_reach.inc): the armed climb in progress.
 static unsigned sidearm_wait;                 // player updates since the question
 static bool sidearm_loan;
 static uint8_t sidearm_loan_equip;
 static uint16_t sidearm_loan_upper,sidearm_loan_lower;
+// Stuck-weapon fix (2026-11-07): the weapon's whole upper block (+0x74, 0x14
+// bytes). Lent as holstered, a free upper body follows the legs: when the
+// walk handler changed the lower clip inside the loan (walking into a wall,
+// 74 -> 63), the upper copied it, the id no longer matched and the old close
+// put equipment 2 back over an upper on the legs' clip. That upper then
+// followed the legs for good: no weapon state handler, no shot, no switch.
+static uint32_t sidearm_loan_block[0x14/4];
 static uint32_t sidearm_loan_word,sidearm_loan_pad;
 static constexpr unsigned sidearm_tap_updates=12,sidearm_hold_updates=20;   // 0.4 s / 0.67 s
 static unsigned sidearm_refusals;   // obstacle actions in a row that did not mantle
@@ -63,8 +71,14 @@ static void sidearm_loan_close() {
     const unsigned lower=psx_mod_read_half(player+0x60);
     const bool climbed=sidearm_climb(lower) && lower!=sidearm_loan_lower;
     psx_mod_write_byte(player+0x3b8,sidearm_loan_equip);
-    // The upper id only: the original never touched the upper block on a mantle.
-    if(psx_mod_read_half(player+0x74)==sidearm_loan_lower)psx_mod_write_half(player+0x74,sidearm_loan_upper);
+    // A mantle: the upper id only (the original never touched the upper block
+    // when it started one). Anything else: the weapon's whole block, as lent.
+    if(climbed) {
+        if(psx_mod_read_half(player+0x74)==sidearm_loan_lower)psx_mod_write_half(player+0x74,sidearm_loan_upper);
+    } else {
+        if(psx_mod_read_half(player+0x74)!=sidearm_loan_lower)++sidearm_loan_repairs;
+        for(unsigned i=0;i<std::size(sidearm_loan_block);++i)psx_mod_write_word(player+0x74+4*i,sidearm_loan_block[i]);
+    }
     if(!climbed) {
         // Walking into something the original would not climb (a wall, a
         // switch): two refusals in a row answer "no", so E goes on at once.
@@ -91,6 +105,7 @@ static void sidearm_obstacle_action(CPUState* cpu,uint32_t ra) {
     if(!word)return;
     sidearm_loan_equip=psx_mod_read_byte(player+0x3b8);
     sidearm_loan_upper=psx_mod_read_half(player+0x74);
+    for(unsigned i=0;i<std::size(sidearm_loan_block);++i)sidearm_loan_block[i]=psx_mod_read_word(player+0x74+4*i);
     sidearm_loan_lower=psx_mod_read_half(player+0x60);
     sidearm_loan_word=word;sidearm_loan_pad=psx_mod_read_word(word);
     psx_mod_write_byte(player+0x3b8,0);
@@ -216,8 +231,8 @@ static void sidearm_reach(CPUState* cpu,const InputFrame& f) {
     sidearm_climb_live=true;++sidearm_reaches;
 }
 static const char* sidearm_mantle_debug_json() {
-    static char buffer[256];
-    std::snprintf(buffer,sizeof buffer,"{\"state\":%d,\"asks\":%u,\"loans\":%u,\"mantles\":%u,\"handoffs\":%u,\"misses\":%u,\"expiries\":%u,\"air_armed\":%u,\"reaches\":%u,\"reach_hangs\":%u,\"swap_probes\":%u,\"swap_reaches\":%u,\"swap_catches\":%u,\"loop_stops\":%u}",
-        sidearm_request.load(),sidearm_asks,sidearm_loans,sidearm_mantles,sidearm_handoffs,sidearm_misses,sidearm_expiries,armed_air_mantles,sidearm_reaches,sidearm_reach_hangs,sidearm_swap_probes,sidearm_swap_reaches,sidearm_swap_catches,weapon_loop_stops);
+    static char buffer[320];
+    std::snprintf(buffer,sizeof buffer,"{\"state\":%d,\"asks\":%u,\"loans\":%u,\"mantles\":%u,\"handoffs\":%u,\"misses\":%u,\"expiries\":%u,\"air_armed\":%u,\"reaches\":%u,\"reach_hangs\":%u,\"swap_probes\":%u,\"swap_reaches\":%u,\"swap_catches\":%u,\"loop_stops\":%u,\"loan_repairs\":%u}",
+        sidearm_request.load(),sidearm_asks,sidearm_loans,sidearm_mantles,sidearm_handoffs,sidearm_misses,sidearm_expiries,armed_air_mantles,sidearm_reaches,sidearm_reach_hangs,sidearm_swap_probes,sidearm_swap_reaches,sidearm_swap_catches,weapon_loop_stops,sidearm_loan_repairs);
     return buffer;
 }

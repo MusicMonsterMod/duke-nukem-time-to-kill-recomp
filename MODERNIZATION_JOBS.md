@@ -1,5 +1,101 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-07 - D08A32 round 3: orthographic icons (review)
+
+User: an orthographic pass across the board (round 2 looked dim and had
+perspective). Thirteen new icons, original pieces in Time to Kill's style
+like our other HUD icons: built in Blender with an orthographic camera, one
+view per item (long items on the diagonal), one fixed upper-left key light,
+finished with the approved Photon recipe (14x14 in 16x16, 15-colour HUD
+cell). User decision: the Gatling keeps the game's own ammo chain (the
+stepping cartridge belt), so it is unchanged. User edits: holy hand grenade
+square on, its front cross drawn in Photon in 2 px strokes (bar as thick as
+the stem) so it stays bold at 14 px; dynamite a touch brighter red. Six
+merge passes (the user's layering method) so thin parts, such as the top
+cross's arms, come out opaque. The user then finished the holy hand grenade icon
+by hand in Photon (both crosses); the build no longer regenerates it (PNG
+and 15-colour HUD cell exported from the user's PSD).
+Freezer (user design): solid at rest; each shot flashes it icy bright and
+it settles back (frames rest, shot, +1, +2; our take on the Gatling's
+stepping chain), to trigger in game when the ammo count drops. The review
+page has live demos: a Fire button for the freezer, a Firing toggle for the
+Gatling belt (its four frames from the game's own records; one step per
+shot). User: the freezer glow is "perfect". Crossbow (user
+design): the quiver is replaced by the bolts themselves, drawn as pixel art in
+Photon (`draw_bolts.py`, local): three bolts stacked, pointing left (steel
+head, wooden shaft, pale fletching, dark nock); on a shot the top bolt flies
+off to the left and the stack moves up, a new bolt entering below (frames
+rest, shot, +1, +2); Fire demo on the review page. User: the bolts "couldnt have been
+more perfect". Low ammo (user, 2026-11-07, "serious polish"): the stack
+shows min(ammo, 3) bolts, top-aligned; with three or fewer a shot sends the top
+bolt off and the stack moves up with nothing entering, down to a blank box
+when empty (user: "blank at the end") (`bolts_low.py`, local; frames 4-13, pixel-verified). In game this
+is a Modernized HUD choice by bolt count, not a generated-code change. The
+review card fires from six to empty with Reload. Dynamite (user, 2026-11-07): the rendered bundle read as one red cylinder at
+14 px, so it is drawn by hand (`dyn_design.py`, `dyn_build.py`, local; Photon,
+pixel-verified). Option A chosen, three sticks: each stick shaded on its own
+(lit left edge, red, dark right edge) so the seams read, stick ends at the
+top, two dark tape bands, a short fuse from the middle stick; art x 3-11,
+y 1-14. `build.py` keeps it as hand-made (never regenerated); the rendered
+version is kept in `keep/`. Holy hand grenade: the user's second hand edit
+(14 pixels: top cross, pin, row 6 band) re-exported and reduced to 15 colours
+(largest channel shift 12), single raster layer, alpha 0/255 only, art x 4-11,
+y 1-14; previous exports kept in `keep/`. Desert Eagle (user design,
+2026-11-07, locked in: "that's the one!! lock that in"): the two-magazine view did not read at 14 px, so the
+icon is the top of one magazine, side on, drawn from scratch
+(`deagle_design.py`, `deagle_build.py`, local; 24 frames, pixel-verified, 14
+colours): steel walls and feed lips, three full rounds and the top of a fourth
+(copper bullet pointing left, brass case, dark rim). A shot slides the top
+round out and the stack steps up; at three or fewer the follower and spring
+show; the game's 22-round clip reload (about 1.1 s) drops the empty magazine
+and raises a loaded one, a short final clip loading only the reserve left. In
+game this follows the clip count (address still to find). Energy weapon (user design), locked in (user, 2026-11-07: "this is our
+atom. lock the atom in!!"): our own atom, every pixel made here
+(`atom4_design.py`, `atom4_build.py`, local; drawn in Photon,
+pixel-verified). A 3D atom - shaded nucleus, three rings 60 degrees apart,
+three electrons - tumbled about a tilted axis and drawn straight to the 16x16
+grid with a depth test, front brighter than back, on a ramp of the cell's
+green (29b521) plus two grey-greens, 10 colours, art inside the 14x14 area.
+Character pass: pure 4x4 ordered dither (no random grain, so shades
+alternate evenly), a smudgy dark halo with an uneven edge, single grey flecks
+that never touch. 8 frames at 60 ms: the classic symbol at rest, five tumble
+poses, then a gentle swell into a glowing flare (no dark ring across it, the
+same size as the rings, a lit centre). The earlier reference-based drafts
+are discarded and not used. Auto fire on the page
+(energy and freezer) now plays continuous fire: the energy atom keeps
+tumbling and finishes its cycle on the rest pose; the freezer keeps pulsing
+peak, mid, low, mid and fades out on release (user, 2026-11-07). 
+`photon_icon.py` (local) now refuses a stale Photon document on a reused path
+and closes its document. Review artifact round 3 (same URL). No game code
+changed.
+
+## 2026-11-07 - D08A32 round 2: all fourteen icons (review)
+
+User: shotgun view approved; thrown weapons show the weapon itself. Second
+set of drafts with a flatter view, a recommended and an alternate each, in
+the real box framed and borderless. Weak at 14 px: crossbow quiver, Buffalo
+rifle boxes, the grenade's cross. User note: Duke 3D's icons owe their read
+to an orthographic look (done in round 3). No game code changed.
+
+## 2026-11-06 - D08A32 example icon: shotgun shells (review)
+
+Research: the ammo box (status bar `0x8008ba30`, element 1) draws one of four
+records `0x800c4514 + 16 * frame`, frame from the ammo count mod 4, for every
+weapon: the cartridge belt steps one round per shot. Weapon to ammo mapping
+from the D08A33 pickup table: nine ammo pickups (crossbow 609, Desert Eagle
+33, shotgun 65, Buffalo rifle 124, Gatling 562, RPG 106, flamethrower 38,
+energy weapon 125, freezer 642); the knife, axe, pipe bomb, holy hand grenade
+and dynamite have none (their icon is the weapon itself); upgraded slots
+share their ammo.
+
+Example icon, shotgun shells, through Photon headless (`photon_icon.py`,
+local): square, Image Size 14x14 bilinear, duplicate and merge four times to
+fill the soft edge, Canvas Size 16x16, PSD kept; `reduce_icon_15col.py` for
+the HUD cell. Mock-ups in the real box, framed and borderless, from in-game
+frames with the belt records at width 0. Review artifact:
+https://claude.ai/artifact/Aj8Kvjz9NjSpoqXFUUTCqu (private). No game code
+changed.
+
 ## 2026-11-06 - D20J closed
 
 User: "lock it in and close it out. amazing work". D20J is Done
@@ -3820,7 +3916,7 @@ D39D flash, D08Q4 top-up).
 
 ### D08A32 - A distinct ammo icon for every weapon in the bottom-right HUD
 
-**Status: Todo (design review first). Dependencies: D08A21, D24A.** The
+**Status: In progress (2026-11-06: example icon and review artifact first). Dependencies: D08A21, D24A.** The
 bottom-right ammo box uses the same (animated) ammunition icon for every
 weapon; for example the flamethrower shows animated machine-gun cartridges.
 The user wants a proper icon per weapon/ammo type, made like the accepted
@@ -7565,7 +7661,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08V1 | Modernized controls lost for the rest of the session after a missed chain jump; modern controls must never be lost | Done | D08V, D08J5 |
 | D08A29 | Scroll-wheel weapon changes while running | Done (user-accepted) | D08A, D08AA |
 | D08A30 | Reverse weapon-wheel direction: up advances, down goes back | Done (user-accepted) | D08A29 |
-| D08A32 | A distinct ammo icon for every weapon in the bottom-right HUD (14x14 in 16x16, review artifact first) | Todo (design review first) | D08A21, D24A |
+| D08A32 | A distinct ammo icon for every weapon in the bottom-right HUD (14x14 in 16x16, review artifact first) | In progress (example icon and review artifact first) | D08A21, D24A |
 | D08A34 | The medkit cannot be used in water (underwater or on the surface; slot 11) | Done | D08A7 |
 | D08A33 | EQUIP PICKUPS option: IF NEW (default) auto-equips new weapons and selects new items; NEVER does neither | Done (user-accepted 2026-11-02) | D08A9, D08A, D19 |
 | D08A35 | Cowboy hat stays on under the Bio Mask (and night-vision goggles) in third person | Done (user-accepted 2026-11-04; note 383) | D08A24, D08A26, D08A23 |

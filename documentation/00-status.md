@@ -1,5 +1,11 @@
 # Current status - 2026-10-04
 
+## 2026-11-07 - D08J6C: firing while climbing in first person (Done, user-accepted)
+
+Off hand stays on the ladder, chain, wall hold or monkey bar beside the
+pistol viewmodel in first person. Executable `bfd83ade959a8b3f2bca73ef0bcb408f5ba119644a9c33b2ed20aae83d9c851a`.
+Details: MODERNIZATION_JOBS.md D08J6C.
+
 ## 2026-11-07 - D36H11 closed
 
 User: "perfect, its working! lock it in and close it out". D36H11 is Done:

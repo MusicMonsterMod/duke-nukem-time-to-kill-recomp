@@ -5719,12 +5719,50 @@ acceptance.
 
 ### D08J6C - Firing while climbing in first person
 
-**Status: Todo. Dependencies: D08J6B, D35E, D35F, D36.** Note 377 stage C.
+**Status: Done (user-accepted and closed 2026-11-07: "honestly it looks so good!!!", "fully acepted - lock it in close it out"; [note 377](documentation/377-d08j6-climb-fire-research.md) D08J6C section). Dependencies: D08J6B, D35E, D35F, D36.** Note 377 stage C.
 On ladders the normal weapon viewmodel replaces the climbing hands; on the
 chain no weapon shows at all. Show the off hand on the rung and the gun arm
 aiming from the other side in the ladder and pole/chain views (note 257
 ownership, notes 305/306 arm coverage, the D35E/F clipping path). Same user
 saves as D08J6B. Vanilla unchanged.
+
+**2026-11-07 candidate (Needs playtest).** Before (this build's baseline,
+fixture copies): armed on the ladder, chain and climbing wall the first-person
+view showed only the pistol viewmodel; the off-hand arm was hidden for it.
+The pistol already showed on the chain (the "no weapon on the chain" note
+predates D08J6D/E). Owner: the D36H5 contact rig for the off hand, the D12
+viewmodel for the gun arm, the D08J7D split. The original keeps the climb
+clip on the off-hand arm while the sidearm is out (D08J6B probes), so its
+native hand is already on the rung, chain, hold or bar. Now, with the
+sidearm out on a settled climb (mode 3: ladder, chain/pole, climbing wall)
+or under the ceiling monkey bars (mode 7), the off hand (parts 10-12) takes
+the contact rig at its native world position, as on the holstered climb;
+the gun arm stays the viewmodel aimed at the crosshair. The D08J7D lip pin
+stays ledge-only (new `lip` field of the one-hand view state, carried to
+replay redraws). Change: `first_person.inc` (`onehand_view_live`, the contact
+rig pin and the viewmodel arm skip, now for every contact owner). Evidence
+(`recomp/analysis/d08j6c/`, local): D35E ladder, D35F chain, D35I1 wall and
+the slot 6 ceiling copy, idle and firing, turned and looking up/down: the
+off hand on the rung, chain, hold and bar beside the pistol; the armed
+ladder down-look and the wall/ceiling views match the holstered rig; ladder
+the same at 60/120/180. Native controls 154 groups pass (new D08J6C group:
+sidearm off hand on the rig at its native matrix, gun arm off the rig,
+shotgun off the rig, render-state replay, native matrices untouched; the
+known D14 widescreen HUD block, failing on the clean baseline, skipped for
+that run only), aim and input pass; `ttk-near-test` does not link at HEAD
+either (`cowboy_hat_mesh` undefined), not run. Limits: functional captures,
+not feel; the chain at some angles shows the same large near forearm as the
+accepted holstered chain view; third person, the ledge hang/pull-up
+(D08J7D) and Vanilla unchanged by construction (first person, Modern
+controls only), not re-captured; user saves not used; no enemies framed.
+A/B `DNTTK_FP_CLIMB_OFFHAND=0`. Executable
+`bfd83ade959a8b3f2bca73ef0bcb408f5ba119644a9c33b2ed20aae83d9c851a`.
+
+**2026-11-07 accepted and closed.** User, after the ladder, chain, wall and
+monkey-bar playtest: "honestly it looks so good!!!", then "fully acepted -
+lock it in close it out". Done at the candidate build. The runtime patch
+re-export was unchanged (no framework edits). No gameplay edits, builds or
+launches after acceptance; no player data touched.
 
 ### D08J6D - Firing on monkey bars and ledge hangs
 
@@ -8039,7 +8077,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08J8F | Water exit: one-handed push out of the water while shooting (third person) | Cancelled (2026-11-05; user: the revision 3 water exit already looks natural) | D08J8, D08J7C |
 | D08J9 | Doors and shooting, rewritten: E opens a door with any weapon out while the weapon fires natively (UI slot 10) | Done (user-accepted and closed 2026-11-06; note 405) | D08J8 |
 | D08J6B | Hang-and-aim pose on climbs, third person (user UI slots 12, 11, 8) | Done (user-accepted; closed 2026-11-04; note 377) | D08J6 |
-| D08J6C | Firing while climbing in first person | Todo | D08J6B, D35E, D35F, D36 |
+| D08J6C | Firing while climbing in first person | Done (user-accepted; closed 2026-11-07; note 377) | D08J6B, D35E, D35F, D36 |
 | D08J6D | Firing on monkey bars and ledge hangs (user UI slot 6) | Done (user-accepted; closed 2026-11-04; note 377) | D08J6A, D08J4, D08J7 |
 | D08J6E | Monkey bars and chains: Duke turns to the aim while armed | Done | D08J6D, D08J4 |
 | D08J6F | Shots beyond the gun arc on climbs and hangs | Todo | D08J6B, D08J6D, D08J6E |

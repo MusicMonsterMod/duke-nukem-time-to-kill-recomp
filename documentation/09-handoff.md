@@ -1,5 +1,26 @@
 # Next-session handoff
 
+## 2026-11-07 - D08J6C closed
+
+User: "fully acepted - lock it in close it out". D08J6C is Done: armed on a
+ladder, chain/pole, climbing wall or monkey bars, first person keeps the off
+hand on the hold beside the pistol viewmodel. Executable
+`bfd83ade959a8b3f2bca73ef0bcb408f5ba119644a9c33b2ed20aae83d9c851a` is the
+regression baseline. No framework edit; the runtime patch export is
+unchanged. Still open outside this job: the D14 HUD assertion (line 1751)
+and the `ttk-near-test` link error (`cowboy_hat_mesh`).
+
+## 2026-11-07 - D08J6C: firing while climbing in first person (Needs playtest)
+
+Armed with the sidearm on a ladder, chain/pole, climbing wall or the ceiling
+monkey bars, first person now keeps the off hand on the hold (contact rig, as
+holstered) beside the pistol viewmodel; before, the off-hand arm was hidden.
+Fixture captures, native controls/aim/input pass. Executable
+`bfd83ade959a8b3f2bca73ef0bcb408f5ba119644a9c33b2ed20aae83d9c851a`. Details and limits:
+MODERNIZATION_JOBS.md D08J6C, note 377. Open outside this job: the D14 HUD
+assertion (line 1751) and `ttk-near-test` link error (`cowboy_hat_mesh`),
+both failing at HEAD.
+
 ## 2026-11-07 - D36H11 closed
 
 User: "perfect, its working! lock it in and close it out". D36H11 is Done:

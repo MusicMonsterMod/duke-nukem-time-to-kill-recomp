@@ -1042,7 +1042,14 @@ static bool weapon_held() {const unsigned s=psx_mod_read_byte(player+0x3b8);retu
 // viewmodel, raised beside the head while the clip holds its high ready and
 // back to the aimed pose while firing (onehand_view_raise). Replay workers
 // get both with the frame. DNTTK_FP_ONEHAND=0 keeps the D08J7C view (A/B).
-struct OnehandView {bool offhand; double raise;};
+// D08J6C: the same on a ladder, chain/pole or climbing wall (mode 3) and
+// under the ceiling monkey bars (mode 7) with the sidearm out: the original
+// keeps the climb clip on the off-hand arm (channel 2, D08J6B probes), so its
+// native hand already holds the rung, chain, hold or bar, and the contact rig
+// draws it there, as for the holstered climb (D35E/F/H/I). The gun arm stays
+// the viewmodel, aimed at the crosshair. lip: the D08J7D lip pin applies
+// (ledge only); a climb hand keeps its native world position.
+struct OnehandView {bool offhand; double raise; bool lip;};
 static OnehandView override_onehand_view;
 // The off hand only while it is on the lip: 140 lifts it off from about
 // frame 4 (400-860 units over the lip by frame 5, D35G alley platform), and
@@ -1076,7 +1083,11 @@ static OnehandView onehand_view_live() {
     const bool sidearm=psx_mod_read_byte(player+0x3b8)==2 &&
         base_weapon(psx_mod_read_byte(player+0x3b9))==climb_sidearm;
     const bool pullup=armed_pullup_active() && onehand_weight>0;
-    return {sidearm && (hang_weapon_ready() || pullup) && offhand_on_lip(),pullup ? onehand_view_raise : 0};
+    if(sidearm && (hang_weapon_ready() || pullup))
+        return {offhand_on_lip(),pullup ? onehand_view_raise : 0,true};
+    static const int climbs=ttk_env_switch("DNTTK_FP_CLIMB_OFFHAND");
+    const unsigned mode=psx_mod_read_byte(player+0x22c);
+    return {climbs!=0 && sidearm && (mode==3 || mode==7) && climb_weapon_ready(),0,false};
 }
 static OnehandView onehand_view() {return render_override ? override_onehand_view : onehand_view_live();}
 // High ready, developer tuning only: DNTTK_FP_ONEHAND_RAISE=pitch,roll,x,y,z
@@ -1790,7 +1801,7 @@ static void first_person_contact_arm(CPUState* cpu,uint32_t desc,int part) {
     const bool gripped=push_grip(desc,first,native,grip);
     // D08J7D: the armed off hand keeps the lip's height (offhand_on_lip).
     const Vec source_native[3]={native[0],native[1],native[2]};
-    const bool pinned=!gripped && equipment==2;
+    const bool pinned=!gripped && equipment==2 && onehand_view().lip;
     if(pinned) {
         const double lip=int32_t(psx_mod_read_word(player+0x1c8));
         native[2].y=lip+std::clamp(native[2].y-lip,-offhand_lip_rest,offhand_lip_rest);
@@ -2000,7 +2011,8 @@ static void first_person_weapon_joint(CPUState* cpu,uint32_t ra) {
     const int part=duke_joint_part(desc,joint);
     if(part>=(int)part_arm_first && part<=(int)part_arm_last && cpu->gpr[5]==psx_mod_read_word(player+0x3c)+0x20*joint) {
         // D08J7D: the off hand on the lip keeps its contact-rig matrix.
-        if(part<13 && fp_policy.action==PerspectiveAction::Mantle && onehand_view().offhand)return;
+        // D08J6C: and on armed climbs (Ladder, Pole, Wall, Overhead owners).
+        if(part<13 && contact_arm_action(fp_policy.action) && onehand_view().offhand)return;
         const unsigned slot=weapon_view_slot();
         // Support grips come from this weapon's native two-handed pose, with
         // its display scale applied about the unchanged right-hand anchor.

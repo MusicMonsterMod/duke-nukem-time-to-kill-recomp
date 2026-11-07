@@ -602,3 +602,52 @@ Executable SHA-256 `c0402b1ac27410cf60976b39dd4c00bd3fc0eb6dff1dc6b0a93d917cca52
 192 yaw units per update, 35-degree chain bias). The user's session log
 showed a steady 180 presents/s. No gameplay edits, builds or launches after
 acceptance.
+
+## D08J6C - first person (accepted)
+
+2026-11-07. Before: armed on a climb the first-person view hid the off-hand
+arm for the pistol viewmodel (ladder, chain, wall; the pistol already showed
+on the chain). The original keeps the climb clip on the off-hand arm while
+the sidearm is out, so its native hand is on the hold.
+
+### Behavior (Modernized, first person, sidearm out)
+
+- Ladder, chain/pole, climbing wall (mode 3, settled climb clip) and ceiling
+  monkey bars (mode 7, settled hang): the off hand (parts 10-12) is drawn by
+  the D36H5 contact rig at its native world position, as on the holstered
+  climb; the gun arm is the D12 viewmodel aimed at the crosshair.
+- Two-handed weapons never reach a climb (D08J6A swap); if one is held there,
+  both arms stay with the viewmodel.
+- The ledge hang and one-handed pull-up keep D08J7D (lip pin, eye depth).
+
+### Implementation
+
+`first_person.inc`: `onehand_view_live` adds the climb case through
+`climb_weapon_ready()`; the one-hand view state gains `lip` (pin only on a
+ledge) and reaches replay redraws with the frame; the viewmodel arm skip for
+the off hand applies to every contact owner, not only Mantle. A/B
+`DNTTK_FP_CLIMB_OFFHAND=0`. No hook, guard, codegen, framework or save change.
+
+### Verification
+
+Private lab `recomp/analysis/d08j6c/` (local only): D35E ladder, D35F chain,
+D35I1 wall and the D08J6D slot 6 ceiling copies, offscreen, player files
+hash-checked. Captures idle and firing at several turns and pitches show the
+off hand on the rung, chain, hold and bar beside the pistol; the armed views
+match the holstered rig; ladder identical at 60/120/180. Native controls
+(new D08J6C group), aim and input suites pass; see the board entry for the
+pre-existing D14 HUD assertion and near-test link failure. Executable
+`bfd83ade959a8b3f2bca73ef0bcb408f5ba119644a9c33b2ed20aae83d9c851a`.
+
+### Limits
+
+Functional captures, not feel; the chain shows the holstered view's large
+near forearm at some angles; third person, D08J7D and Vanilla not
+re-captured (unchanged by construction); user saves not used; no enemies.
+
+### D08J6C closeout
+
+2026-11-07. User: "honestly it looks so good!!!", then "fully acepted - lock
+it in close it out". D08J6C is Done at executable
+`bfd83ade959a8b3f2bca73ef0bcb408f5ba119644a9c33b2ed20aae83d9c851a`. No gameplay
+edits, builds or launches after acceptance.

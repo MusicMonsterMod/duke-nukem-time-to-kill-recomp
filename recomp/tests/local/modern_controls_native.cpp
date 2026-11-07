@@ -6976,6 +6976,41 @@ int main(int argc,char** argv) {
                     }
                     psx_mod_write_word(table+28*46,0x200);
                 }
+                // D08J6C: armed on the rung with the sidearm, the off hand
+                // (parts 10-12) keeps the contact rig at its native world
+                // matrix (no lip pin); the gun arm stays on the viewmodel. Other
+                // weapons keep both arms off the rig; native matrices
+                // are never written; the off hand reaches replay redraws.
+                {
+                    const unsigned weapon=psx_mod_read_byte(p+0x3b9),upper=psx_mod_read_half(p+0x74);
+                    psx_mod_write_half(p+0x60,187);psx_mod_write_byte(p+0x22c,3);psx_mod_write_byte(p+0x22d,3);
+                    psx_mod_write_byte(p+0x3b8,2);psx_mod_write_half(p+0x74,5);
+                    for(unsigned held:{4u,5u}) {
+                        psx_mod_write_byte(p+0x3b9,held);++save_loads;frame();
+                        assert(metric("\"blend\":")==1);
+                        assert(std::strstr(ttk::controls_debug_json(),"\"action\":\"ladder\""));
+                        const std::vector<uint8_t> native(ram+(mats&0x1fffff),ram+(mats&0x1fffff)+19*32);
+                        std::vector<uint8_t> frame_state(ttk::render_state_size());
+                        ttk::render_state_save(frame_state.data());ttk::render_state_load(frame_state.data());
+                        call(0x800348d8,c,p,0x8003769c);
+                        for(unsigned part=10;part<=15;++part) {
+                            CPUState joint{};joint.gpr[4]=c;joint.gpr[20]=p;joint.gpr[29]=0x801f0000;
+                            joint.gpr[23]=psx_mod_read_byte(desc+0x24+part);
+                            const uint32_t m=mats+0x20*joint.gpr[23];
+                            joint.gpr[5]=m;joint.gpr[31]=0x80034c6c;
+                            hooks().at(0x800292a0)(&joint,0x800292a0);
+                            const auto owner=ttk::first_person_limb_presentation().owner;
+                            const bool offhand=part<=12 && held==4;
+                            assert((owner==ttk::LimbOwner::Interaction)==offhand);
+                            if(part==12 && offhand)assert(joint.gpr[5]==m);
+                            if(part<=12 && held==5)assert(owner==ttk::LimbOwner::DisplayArm || owner==ttk::LimbOwner::HiddenArm);
+                        }
+                        call(0x8001ca4c,0x800d0000,0,0x800376b4);
+                        assert(std::equal(native.begin(),native.end(),ram+(mats&0x1fffff)));
+                    }
+                    psx_mod_write_byte(p+0x3b8,0);psx_mod_write_byte(p+0x3b9,weapon);psx_mod_write_half(p+0x74,upper);
+                    std::puts("PASS: D08J6C armed ladder off hand on the contact rig (native hand), gun arm viewmodel, other weapons off the rig");
+                }
                 psx_mod_write_half(p+0x60,185);psx_mod_write_byte(p+0x22c,8);psx_mod_write_byte(p+0x22d,0);
                 ++save_loads;frame();assert(metric("\"blend\":")==1 && !ttk::movement_ready());
                 psx_mod_write_byte(p+0x22d,3);

@@ -1,5 +1,14 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-07 - D36H11 closed
+
+User: "perfect, its working! lock it in and close it out". D36H11 is Done:
+in first person the Freezer's left hand holds its ready grip and stays on
+the weapon through idle, firing, running and crouching. Executable
+`5f5e4eaefdd742983930274ffea1344260b374d2371461dfb5f5054a8d83d83e` is the
+regression baseline. No framework edit; the runtime patch export is
+unchanged.
+
 ## 2026-11-07 - D08A37 closed
 
 User: "lock it in and close it out! its working". D08A37 is Done
@@ -4454,7 +4463,7 @@ first and third person; Vanilla unchanged; the user's playtest.
 
 ### D36H11 - Freezer first person: the left (support) hand does not touch the weapon
 
-**Status: Todo (reported 2026-11-07). Dependencies: D36H, D36H1.** User,
+**Status: Done (user-accepted 2026-11-07: "perfect, its working! lock it in and close it out"; fix: Freezer support grip held on ready clip 29 key 0 and seated 30 up / 40 toward the eye, implementation below). Dependencies: D36H, D36H1.** User,
 2026-11-07: "the left arm on the freezethrower doesnt connect to the weapon".
 Read the D36 audit (note 257) and the D36H5 notes (305, 306) first, per
 AGENTS.md.
@@ -4486,6 +4495,35 @@ contact does with key 24/2). Try a measured offset with the user first
 firing (tap and held) and looking up/down, at FOV 60/90/120 and 180 Hz; the
 accepted barrel/tip framing and every other weapon unchanged; Vanilla
 unchanged; the user's playtest.
+
+**2026-11-07 implementation (Needs playtest).** Measured on private runs: the
+Freezer's ready upper clip is 29 (the Gatling's), firing switches to clip 34,
+and clip 34 is what throws the left arm to the bottom-left of the screen.
+`display_arm_matrix` (`recomp/src/ttk/first_person.inc`) now, for slot 11
+only: (1) holds the left chain on the ready grip, clip 29 key 0, through idle,
+firing, running and crouching (the same mechanism the Flamethrower / Energy
+contact uses with 24/2; right arm, events and recoil stay live), and (2)
+translates the whole left chain 30 camera units up and 40 toward the eye
+before the endpoint solve (D36H1 style), seating the glove against the
+housing's left side. Moving it right instead hides the glove behind the
+housing (the weapon paints over the arm), so contact is side contact.
+Developer overrides: `DNTTK_FP_FREEZER_HOLD=anim,key` (`-1,-1` = native) and
+`DNTTK_FP_FREEZER_SHIFT=x,y,z`. No other weapon, third person, geometry,
+save, preference or framework change.
+
+Evidence (private offscreen runs, UI slot 12 copy, LEVEL0, 16:9; local
+`recomp/analysis/d36h11/`, before/after in `research/before-after/D36H11/`):
+idle, fire (0.15 s and 0.5 s held), settle, look down, look up, run, crouch
+and crouch-fire at FOV 60/90/120 (60 Hz) and FOV 90 at 180 Hz all keep the
+glove on the housing; the native control row (overrides off) shows the
+glove leaving the weapon while firing and crouch-firing. `ttk-input-test`
+passes. Executable
+`5f5e4eaefdd742983930274ffea1344260b374d2371461dfb5f5054a8d83d83e`.
+Limits: sparse frames, not continuous motion; tap fire, swimming, jetpack,
+ladders and the third-person view not checked; no live Vanilla sweep (the
+first-person display arm path is a Modernized feature and Vanilla code is
+untouched). The left arm no longer runs its native running swing with the
+Freezer (it holds the grip, like the Energy Weapon).
 
 ### D36H10 - Water exit first person: the arms vibrate climbing out of the water (UI slot 12)
 
@@ -8261,7 +8299,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D36H8 | Run-jump mantle across water: extended arms flicker (slot 11) | Done (user-accepted 2026-11-03; note 306) | D36H5, D35G, D08X |
 | D36H9 | Ledge hang first person: upper arm flicker and legs-only body (slot 9) | Done | D36H8, D35G, D08J7A |
 | D36H10 | Water exit first person: the arms vibrate climbing out of the water (UI slot 12) | Done | D36H9, D35D1 |
-| D36H11 | Freezer first person: the left (support) hand does not touch the weapon | Todo | D36H, D36H1 |
+| D36H11 | Freezer first person: the left (support) hand does not touch the weapon | Done | D36H, D36H1 |
 | D08Z8 | Mantling while firing the Desert Eagle: held fire stops the mantle (UI slot 8 post) | Done (user-accepted 2026-11-07; note 408) | D08Y, D08J8 |
 | D37 | Temporary movement failure at 07:26 UK on 2026-10-26 (separate research) | Done | - |
 | D37A | Safe animation restoration across save allocation layouts | Done (user-accepted 2026-10-26) | D37 |

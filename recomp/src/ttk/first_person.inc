@@ -1293,6 +1293,19 @@ static bool display_arm_matrix(uint32_t real,uint32_t desc,unsigned part) {
         RunArms firing;
         if(arm_reference(24,2,firing)) {run=firing;arm_weight=1;}
     }
+    // D36H11: the Freezer's firing clip (34) swings the support hand off the
+    // weapon. Hold the left chain on its ready grip (clip 29, key 0) through
+    // idle, firing and running; the right chain, events and recoil stay live.
+    // Developer override: DNTTK_FP_FREEZER_HOLD=anim,key (-1,-1 = native).
+    static const std::array<int,2> freezer_hold=[]{
+        std::array<int,2> v{29,0};const char* t=std::getenv("DNTTK_FP_FREEZER_HOLD");
+        if(t && std::sscanf(t,"%d,%d",&v[0],&v[1])!=2)v={29,0};
+        return v;
+    }();
+    if(part<13 && slot==11 && freezer_hold[0]>=0) {
+        RunArms held;
+        if(arm_reference(unsigned(freezer_hold[0]),unsigned(freezer_hold[1]),held)) {run=held;arm_weight=1;}
+    }
     if(arm_weight>0) {
         const unsigned base=part<13?0:3;
         for(int n=0;n<3;++n) {
@@ -1338,6 +1351,19 @@ static bool display_arm_matrix(uint32_t real,uint32_t desc,unsigned part) {
             const double shift=12*c[0][r]-12*c[1][r];
             for(int n=0;n<3;++n)native[n][r]+=shift;
         }
+    }
+    // D36H11: seat the Freezer support glove against the housing's left
+    // side. Camera-space units (Y down, Z forward): 30 up, 40 toward the eye,
+    // whole chain translated before the endpoint solve like D36H1.
+    // Developer override: DNTTK_FP_FREEZER_SHIFT=x,y,z.
+    if(part<13 && slot==11) {
+        static const std::array<double,3> shift=[]{
+            std::array<double,3> v{0,-30,-40};const char* t=std::getenv("DNTTK_FP_FREEZER_SHIFT");
+            if(t && std::sscanf(t,"%lf,%lf,%lf",&v[0],&v[1],&v[2])!=3)v={0,-30,-40};
+            return v;
+        }();
+        for(int r=0;r<3;++r)for(int n=0;n<3;++n)
+            native[n][r]+=shift[0]*c[0][r]+shift[1]*c[1][r]+shift[2]*c[2][r];
     }
     // Energy Weapon: move the connected support chain clear of the housing.
     if(part<13 && slot==10)for(int r=0;r<3;++r)for(int n=0;n<3;++n)

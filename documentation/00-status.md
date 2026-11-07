@@ -1,5 +1,24 @@
 # Current status - 2026-10-04
 
+## 2026-11-07 - D36H11 closed
+
+User: "perfect, its working! lock it in and close it out". D36H11 is Done:
+in first person the Freezer's left hand holds its ready grip and stays on
+the weapon through idle, firing, running and crouching. Executable
+`5f5e4eaefdd742983930274ffea1344260b374d2371461dfb5f5054a8d83d83e` is the
+regression baseline. No framework edit; the runtime patch export is
+unchanged.
+
+## 2026-11-07 - D36H11: Freezer left hand stays on the weapon (Needs playtest)
+
+In first person the Freezer's support glove now holds the ready grip through
+firing, running and crouching and sits against the housing's left side
+(slot 11 only; hold clip 29 key 0, chain shifted 30 up / 40 toward the eye).
+Before, the firing clip threw the left arm off the weapon. Private captures
+at FOV 60/90/120 and 180 Hz; `ttk-input-test` passes. Executable
+`5f5e4eaefdd742983930274ffea1344260b374d2371461dfb5f5054a8d83d83e`. Details
+and limits: MODERNIZATION_JOBS.md D36H11. Awaits the user's playtest.
+
 ## 2026-11-07 - D08A37 closed
 
 User: "lock it in and close it out! its working". D08A37 is Done

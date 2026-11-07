@@ -1,5 +1,36 @@
 # Current status - 2026-10-04
 
+## 2026-11-07 - D08A32 closed
+
+User: "that is fixed" (the Desert Eagle reload) and "lock it in and close us
+out". D08A32 is Done ([note 407](documentation/407-d08a32-ammo-icons.md)). In
+Modernized every weapon shows its own ammo icon in the bottom-right box (the
+Gatling keeps the game's belt); the crossbow, Desert Eagle, energy weapon and
+freezer animate. Vanilla unchanged. Executable
+`2a6f59a4426c42f5436b73333332967783cacfab2611372d2bdfd69ac6526322` is the regression baseline. No framework
+edit; the runtime patch export is unchanged. New Todo: D36H11 (Freezer
+first-person left hand), D08Z8 (held fire stops a mantle, slot 8 post).
+
+## 2026-11-07 - D08A32 in-game integration (Needs playtest)
+
+The approved round 3 icons are in the game (Modernized): each weapon's own
+icon in the bottom-right ammo box, the Gatling gun keeps the game's belt.
+Drawn like the gadget icons (the original sprite call at the box's icon
+cell, its 16x16 cell and palette loaded in front of it), with the belt's four
+records at width 0 for that frame. Art tracked in `recomp/assets/ui/ammo/`;
+`recomp/tools/local/build_ammo_icons.py` writes `recomp/src/ttk/ammo_icons.h`
+(`test_ui_art.py` checks it). Animations on the game clock: crossbow bolts by
+count, Desert Eagle magazine following the clip (player `+0x230`, rounds x
+256, found by a live probe; refilled about 1.06 s after the clip's last
+shot), energy atom and freezer glow per shot; redraws take the live frame's
+choice through RenderState. Offscreen (UI slot 12 copy): all 14 weapons at
+16:9 framed and borderless and 4:3, firing logs for the four animated icons
+match the designs, 180 Hz redraws show the icons, Vanilla draws none.
+`ttk-controls-test` stops at the D14 layout check before and after this
+change (D20J's air box; pre-existing). Executable
+`b5dc76b36597bd3696e35a60aa7a2689f0b89e08274e2eb71ea1bfef4489ab6b`.
+[Note 407](documentation/407-d08a32-ammo-icons.md).
+
 ## 2026-11-06 - D20J closed
 
 User: "lock it in and close it out. amazing work". D20J is Done

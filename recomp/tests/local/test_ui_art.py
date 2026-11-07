@@ -61,6 +61,23 @@ class ProjectUiArt(unittest.TestCase):
                     self.assertTrue(left >= 1 and top >= 1 and right <= 15 and bottom <= 15, png)
                 self.assertTrue((UI / 'items/16px' / f'{name}.png').exists())
 
+    def test_ammo_icons_header_matches_pngs(self):
+        # D08A32: src/ttk/ammo_icons.h is assets/ui/ammo/ammo.json's -15col frames.
+        result = subprocess.run([sys.executable, str(ROOT / 'tools/local/build_ammo_icons.py'), '--check'],
+                                capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_ammo_icons_cover_every_weapon(self):
+        # The Gatling gun (slot 7) keeps the game's belt; every other weapon 1-14 has frames.
+        import json
+        weapons = {w['slot']: w for w in json.loads((UI / 'ammo/ammo.json').read_text())['weapons']}
+        self.assertEqual(sorted(weapons), list(range(1, 15)))
+        for slot, w in weapons.items():
+            with self.subTest(slot=slot):
+                self.assertEqual(bool(w['frames']), slot != 7)
+                for f in w['frames']:
+                    self.assertTrue((UI / 'ammo' / f).exists() and (UI / 'ammo' / f.replace('-15col', '')).exists(), f)
+
     def check_hud_cell(self, name, png):
         source = (ROOT / 'src/ttk/gadget_hud.inc').read_text()
         def table(name):

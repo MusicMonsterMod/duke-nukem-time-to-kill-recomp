@@ -81,8 +81,10 @@ static void hud_border_begin() {
     psx_mod_write_byte(0x800c44a6,0);hud_border_applied=true;
 }
 static void keyed_icons_restore();  // gadget_hud.inc (D19U2)
+static void ammo_hud_restore();     // ammo_hud.inc (D08A32)
 static void widescreen_hud_restore() {
     keyed_icons_restore();
+    ammo_hud_restore();
     if(hud_border_applied) {
         // Do not overwrite a different record installed by a restored state.
         if(psx_mod_read_word(0x800c44a4)==0x10003a3fu) psx_mod_write_byte(0x800c44a6,46);

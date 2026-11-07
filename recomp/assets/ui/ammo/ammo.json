@@ -1,0 +1,152 @@
+{
+ "note": "D08A32 ammo box icons: original 14x14 pieces in Time to Kill's style inside a 16x16 canvas, by MusicMonsterMod (D24A). Each frame has a full-colour PNG and its 15-colour HUD reduction (-15col). tools/local/build_ammo_icons.py turns the -15col frames into src/ttk/ammo_icons.h.",
+ "weapons": [
+  {
+   "slot": 1,
+   "name": "THROWING KNIFE",
+   "frames": [
+    "knife-15col.png"
+   ]
+  },
+  {
+   "slot": 2,
+   "name": "THROWING AXE",
+   "frames": [
+    "axe-15col.png"
+   ]
+  },
+  {
+   "slot": 3,
+   "name": "CROSSBOW",
+   "frames": [
+    "crossbow-00-15col.png",
+    "crossbow-01-15col.png",
+    "crossbow-02-15col.png",
+    "crossbow-03-15col.png",
+    "crossbow-04-15col.png",
+    "crossbow-02-15col.png",
+    "crossbow-06-15col.png",
+    "crossbow-07-15col.png",
+    "crossbow-08-15col.png",
+    "crossbow-09-15col.png",
+    "crossbow-10-15col.png",
+    "crossbow-11-15col.png",
+    "crossbow-12-15col.png",
+    "crossbow-13-15col.png"
+   ],
+   "note": "Frames 0 rest (3+ bolts), 1-3 shot / +1 / +2, 4 two left, 6 the 3->2 step, 7-9 the 2->1 shot, 10 one left, 11-12 the last shot, 13 empty (blank). Frame 5 is unused (frame 2 again)."
+  },
+  {
+   "slot": 4,
+   "name": "DESERT EAGLE",
+   "frames": [
+    "deagle-00-15col.png",
+    "deagle-01-15col.png",
+    "deagle-02-15col.png",
+    "deagle-03-15col.png",
+    "deagle-04-15col.png",
+    "deagle-05-15col.png",
+    "deagle-06-15col.png",
+    "deagle-07-15col.png",
+    "deagle-08-15col.png",
+    "deagle-09-15col.png",
+    "deagle-10-15col.png",
+    "deagle-11-15col.png",
+    "deagle-12-15col.png",
+    "deagle-13-15col.png",
+    "deagle-14-15col.png",
+    "deagle-15-15col.png",
+    "deagle-16-15col.png",
+    "deagle-17-15col.png",
+    "deagle-18-15col.png",
+    "deagle-19-15col.png",
+    "deagle-20-15col.png",
+    "deagle-21-15col.png",
+    "deagle-22-15col.png",
+    "deagle-23-15col.png"
+   ],
+   "note": "Frames 0-4 rest with 0-4+ rounds in the clip; 5-19 shot / +1 / +2 from a clip of 1..5+ (5 + 3*(n-1)); 20-21 the empty magazine drops; 22-23 a loaded one rises."
+  },
+  {
+   "slot": 5,
+   "name": "COMBAT SHOTGUN",
+   "frames": [
+    "shotgun-15col.png"
+   ]
+  },
+  {
+   "slot": 6,
+   "name": "BUFFALO RIFLE",
+   "frames": [
+    "buffalo-15col.png"
+   ]
+  },
+  {
+   "slot": 7,
+   "name": "GATLING GUN",
+   "frames": [],
+   "note": "No frames: the Gatling keeps the game's own stepping cartridge belt (user decision)."
+  },
+  {
+   "slot": 8,
+   "name": "RPG",
+   "frames": [
+    "rpg-15col.png"
+   ]
+  },
+  {
+   "slot": 9,
+   "name": "FLAMETHROWER",
+   "frames": [
+    "flame-15col.png"
+   ]
+  },
+  {
+   "slot": 10,
+   "name": "ENERGY WEAPON",
+   "frames": [
+    "energy-0-15col.png",
+    "energy-1-15col.png",
+    "energy-2-15col.png",
+    "energy-3-15col.png",
+    "energy-4-15col.png",
+    "energy-5-15col.png",
+    "energy-6-15col.png",
+    "energy-7-15col.png"
+   ],
+   "note": "Frame 0 rest; a shot plays 1-7 at 60 ms then 0; held fire keeps cycling and finishes on 0."
+  },
+  {
+   "slot": 11,
+   "name": "FREEZER",
+   "frames": [
+    "freezer-0-15col.png",
+    "freezer-1-15col.png",
+    "freezer-2-15col.png",
+    "freezer-3-15col.png"
+   ],
+   "note": "Frame 0 rest; a shot flashes 1 (peak), 2 (mid), 3 (low) and settles; held fire pulses 1, 2, 3, 2."
+  },
+  {
+   "slot": 12,
+   "name": "PIPE BOMB",
+   "frames": [
+    "pipebomb-15col.png"
+   ]
+  },
+  {
+   "slot": 13,
+   "name": "HOLY HAND GRENADE",
+   "frames": [
+    "grenade-15col.png"
+   ]
+  },
+  {
+   "slot": 14,
+   "name": "DYNAMITE",
+   "frames": [
+    "dynamite-15col.png"
+   ]
+  }
+ ]
+}

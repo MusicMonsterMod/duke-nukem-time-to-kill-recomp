@@ -1619,7 +1619,15 @@ the same way on every menu screen:
   statistics screen hide them. In Modernized the air box (under water or
   while Duke gets his breath back) is drawn on the right, at the top of the
   stack of countdowns above the ammo box, so it never sits under the level
-  stats. It appears in place, like the other boxes. **FPS** on the same page shows or hides the
+  stats. It appears in place, like the other boxes. In Modernized the ammo
+  box shows a picture of the current weapon's own ammunition instead of the
+  same cartridge belt for every weapon (the Gatling gun keeps its belt, which
+  steps one round per shot). Some of them move: the crossbow's bolts leave the
+  stack one by one (fewer than three left shows what is left, then an empty
+  box), the Desert Eagle's magazine follows its 22-round clip and is swapped
+  for a full one when Duke reloads, the energy weapon's atom tumbles and
+  flares on each shot and the freezer charge flashes icy bright. Vanilla
+  keeps the original belt. **FPS** on the same page shows or hides the
   frame rate statistics block at the top left: it is the same block as the
   console's `fps` command, and the two stay in step (typing `fps` changes the
   setting, which is saved). Both apply as soon as you confirm. The launcher

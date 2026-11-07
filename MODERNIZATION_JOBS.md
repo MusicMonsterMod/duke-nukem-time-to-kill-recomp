@@ -1,5 +1,46 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-07 - D08A32 closed
+
+User: "that is fixed" (the Desert Eagle reload) and "lock it in and close us
+out". D08A32 is Done ([note 407](documentation/407-d08a32-ammo-icons.md)). In
+Modernized every weapon shows its own ammo icon in the bottom-right box (the
+Gatling keeps the game's belt); the crossbow, Desert Eagle, energy weapon and
+freezer animate. Vanilla unchanged. Executable
+`2a6f59a4426c42f5436b73333332967783cacfab2611372d2bdfd69ac6526322` is the regression baseline. No framework
+edit; the runtime patch export is unchanged. New Todo: D36H11 (Freezer
+first-person left hand), D08Z8 (held fire stops a mantle, slot 8 post).
+
+## 2026-11-07 - D08A32 in-game integration (Needs playtest)
+
+The approved round 3 icons are in the game (Modernized): each weapon's own
+icon in the bottom-right ammo box, the Gatling gun keeps the game's belt.
+Drawn like the gadget icons (the original sprite call at the box's icon
+cell, its 16x16 cell and palette loaded in front of it), with the belt's four
+records at width 0 for that frame. Art tracked in `recomp/assets/ui/ammo/`;
+`recomp/tools/local/build_ammo_icons.py` writes `recomp/src/ttk/ammo_icons.h`
+(`test_ui_art.py` checks it). Animations on the game clock: crossbow bolts by
+count, Desert Eagle magazine following the clip (player `+0x230`, rounds x
+256, found by a live probe; refilled about 1.06 s after the clip's last
+shot), energy atom and freezer glow per shot; redraws take the live frame's
+choice through RenderState. Offscreen (UI slot 12 copy): all 14 weapons at
+16:9 framed and borderless and 4:3, firing logs for the four animated icons
+match the designs, 180 Hz redraws show the icons, Vanilla draws none.
+`ttk-controls-test` stops at the D14 layout check before and after this
+change (D20J's air box; pre-existing). Executable
+`b5dc76b36597bd3696e35a60aa7a2689f0b89e08274e2eb71ea1bfef4489ab6b`.
+[Note 407](documentation/407-d08a32-ammo-icons.md).
+
+Revision 2 (2026-11-07), user: "the desert eagle always ends before reload
+with 1 bullet in the mag" (holding fire). Two causes found and fixed: the clip
+is the high byte `+0x231` (the low byte of `+0x230` is written separately, and
+rounding the halfword up showed a leftover round), and the game also reloads a
+part clip (seen offscreen: a press with 2 left reloaded), which the icon only
+followed at an empty clip. The magazine now drops when the reload starts (upper
+track `+0x74` = 17) and stays gone until the refill. Offscreen at 180 Hz, held
+fire through a full clip and the early reload both show the drop. Needs the
+user's retest. Accepted 2026-11-07 (user: "that is fixed").
+
 ## 2026-11-07 - D08A32 round 3: orthographic icons (review)
 
 User: an orthographic pass across the board (round 2 looked dim and had
@@ -3916,7 +3957,7 @@ D39D flash, D08Q4 top-up).
 
 ### D08A32 - A distinct ammo icon for every weapon in the bottom-right HUD
 
-**Status: In progress (2026-11-06: example icon and review artifact first). Dependencies: D08A21, D24A.** The
+**Status: Done (user-accepted 2026-11-07; [note 407](documentation/407-d08a32-ammo-icons.md)). Dependencies: D08A21, D24A.** The
 bottom-right ammo box uses the same (animated) ammunition icon for every
 weapon; for example the flamethrower shows animated machine-gun cartridges.
 The user wants a proper icon per weapon/ammo type, made like the accepted
@@ -4138,6 +4179,72 @@ every airborne grab and mantle, not this ledge only.
 repeated grabs from several approach speeds; other mantles, ledge hangs and
 water climb-outs (D35G, D08X, D08V coverage) unchanged; Vanilla unchanged;
 the user's playtest.
+
+### D08Z8 - Mantling while firing the Desert Eagle: held fire stops the mantle
+
+**Status: Todo (reported 2026-11-07). Dependencies: D08Y, D08J8.** User,
+2026-11-07: "when you mantle something while actively shooting with the
+desert eagle, duke cannot mantle it and you have to stop shooting. but
+otherwise you can mantle and shoot at the same time if you stop, mantle, and
+then shoot." Repro: run up to the post in UI slot 8 and mantle it while
+holding fire. Fire held before the mantle starts blocks it; fire pressed after
+the mantle has started works (D08J8 mantle fire).
+
+Quick research (2026-11-07, about 5 minutes, code reading only, not
+reproduced yet):
+- The bounce mantle assist (`recomp/src/ttk/ledge_reach.inc`, `++step_ups`)
+  returns early when `player+0x224 & 0x241`, and the jump-bounce mantle
+  (`++air_mantles`) has its own gates; check whether the shot sets one of
+  these bits while fire is held.
+- The original's own mantle start (clips 134-139, D08Y step-up mantles in
+  mode 0) may refuse while the upper body is in its fire track (`+0x74` 16
+  for the Desert Eagle, the D10H6 held-fire pacing in `weapon_feel.inc` keeps
+  it there): the native start likely needs an idle upper body. D08J8
+  (`climb_fire.inc`, `weapon_feel.inc` D08J8D) already lets the sidearm fire
+  inside the mantles once started.
+- First step: on the slot 8 post (private copy), log `+0x224`, `+0x74`, the
+  lower clip `+0x60` and the D08Y / ledge-reach counters for a held-fire
+  approach versus release-then-mantle, to find which gate refuses.
+
+**Acceptance:** with fire held, Duke mantles the slot 8 post (and other
+step-up mantles) as he does without firing, and keeps firing through it per
+D08J8; every weapon that can fire on a mantle; walk and run approaches;
+first and third person; Vanilla unchanged; the user's playtest.
+
+### D36H11 - Freezer first person: the left (support) hand does not touch the weapon
+
+**Status: Todo (reported 2026-11-07). Dependencies: D36H, D36H1.** User,
+2026-11-07: "the left arm on the freezethrower doesnt connect to the weapon".
+Read the D36 audit (note 257) and the D36H5 notes (305, 306) first, per
+AGENTS.md.
+
+Initial research (2026-11-07, no code changed):
+- Owner: in first person the left arm is a `DisplayArm` support grip
+  (`recomp/src/ttk/first_person.inc`, `support=slot==3 || (slot>=5 && slot<=11)`),
+  posed from the Freezer's own two-handed pose with its display scale (1.4,
+  note 257 "seeded grip") about the unchanged right-hand anchor. Running uses
+  the Gatling's reference clip (29) and the full walking grip (slot 7 / 11
+  branch). Unlike the Gatling (D36H1 palm shift onto the underside) and the
+  Energy Weapon (housing clearance), the Freezer has no per-weapon contact
+  correction.
+- Seen in a private offscreen capture (UI slot 12 copy, LEVEL0, 16:9, FOV
+  90, 60 Hz; `recomp/analysis/d08a32/integ/shots/freezer-arm/`, local): at
+  idle the left glove floats left of and below the gun body with a visible
+  gap; while firing the left arm swings further away to the screen's bottom
+  left. Running looked close to idle. Not checked: third person, crouch,
+  swimming, jetpack, other FOVs, high refresh.
+
+Likely route (to confirm): a Freezer support-palm contact like D36H1 (move the
+whole left chain onto the housing, endpoints solved, the right hand and weapon
+framing untouched), and a hold of the ready support grip through the firing
+keys if the firing pose is what pulls it away (as the Flamethrower / Energy
+contact does with key 24/2). Try a measured offset with the user first
+(simple tuning before rigs).
+
+**Acceptance:** the left hand stays on the Freezer at idle, walking, running,
+firing (tap and held) and looking up/down, at FOV 60/90/120 and 180 Hz; the
+accepted barrel/tip framing and every other weapon unchanged; Vanilla
+unchanged; the user's playtest.
 
 ### D36H10 - Water exit first person: the arms vibrate climbing out of the water (UI slot 12)
 
@@ -7661,7 +7768,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08V1 | Modernized controls lost for the rest of the session after a missed chain jump; modern controls must never be lost | Done | D08V, D08J5 |
 | D08A29 | Scroll-wheel weapon changes while running | Done (user-accepted) | D08A, D08AA |
 | D08A30 | Reverse weapon-wheel direction: up advances, down goes back | Done (user-accepted) | D08A29 |
-| D08A32 | A distinct ammo icon for every weapon in the bottom-right HUD (14x14 in 16x16, review artifact first) | In progress (example icon and review artifact first) | D08A21, D24A |
+| D08A32 | A distinct ammo icon for every weapon in the bottom-right HUD (14x14 in 16x16, review artifact first) | Done (user-accepted 2026-11-07) | D08A21, D24A |
 | D08A34 | The medkit cannot be used in water (underwater or on the surface; slot 11) | Done | D08A7 |
 | D08A33 | EQUIP PICKUPS option: IF NEW (default) auto-equips new weapons and selects new items; NEVER does neither | Done (user-accepted 2026-11-02) | D08A9, D08A, D19 |
 | D08A35 | Cowboy hat stays on under the Bio Mask (and night-vision goggles) in third person | Done (user-accepted 2026-11-04; note 383) | D08A24, D08A26, D08A23 |
@@ -7912,6 +8019,8 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D36H8 | Run-jump mantle across water: extended arms flicker (slot 11) | Done (user-accepted 2026-11-03; note 306) | D36H5, D35G, D08X |
 | D36H9 | Ledge hang first person: upper arm flicker and legs-only body (slot 9) | Done | D36H8, D35G, D08J7A |
 | D36H10 | Water exit first person: the arms vibrate climbing out of the water (UI slot 12) | Done | D36H9, D35D1 |
+| D36H11 | Freezer first person: the left (support) hand does not touch the weapon | Todo | D36H, D36H1 |
+| D08Z8 | Mantling while firing the Desert Eagle: held fire stops the mantle (UI slot 8 post) | Todo | D08Y, D08J8 |
 | D37 | Temporary movement failure at 07:26 UK on 2026-10-26 (separate research) | Done | - |
 | D37A | Safe animation restoration across save allocation layouts | Done (user-accepted 2026-10-26) | D37 |
 | R01 | DisruptorRecomp architecture and modernization reference research | Done | - |

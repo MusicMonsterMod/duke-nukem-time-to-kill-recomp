@@ -1564,6 +1564,9 @@ uint16_t input_pad() {
     // and with fire held the stow never happens (the upper body never rests).
     if (captured && input_modern_controls() && interaction_over_fire && weapon_drawn() && sidearm_mantle_state()==0 &&
         !(sidearm_flight_seen || (jump_deadline && sequence<=jump_deadline && sidearm_weapon_out()))) value |= pads[fire];
+    // D08A37: a queued weapon switch releases the game's fire input so the
+    // shot finishes and the new weapon is drawn; held fire resumes at its ready loop.
+    if (captured && input_modern_controls() && switch_fire_masked()) value |= pads[fire];
     // Legacy aiming: the primary Grab input is original precision aim (R1).
     if (captured && aim_down() && !view_aim_input_ready()) value &= ~pads[original_aim];
     // The original ignores the ladder let-go while Cross is held, so a held E
@@ -1703,7 +1706,8 @@ uint16_t input_pad() {
     // Once drawing starts the readiness gate closes; held fire then reaches the
     // original weapon handler. No shot is buffered after release or focus loss.
     if(captured && action_down(fire) && !action_down(holster) &&
-       !action_down(interact) && fire_draw_ready() && !mantle_fire_cross_masked() && !interaction_over_fire) {
+       !action_down(interact) && fire_draw_ready() && !mantle_fire_cross_masked() && !interaction_over_fire &&
+       !switch_fire_masked()) {
         value |= 16384;
         circle_request=true;
     }

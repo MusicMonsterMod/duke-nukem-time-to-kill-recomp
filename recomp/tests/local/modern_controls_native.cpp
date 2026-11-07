@@ -2736,8 +2736,15 @@ int main(int argc,char** argv) {
 
     psx_mod_write_half(p+0x74,42);psx_mod_write_byte(p+0x3ba,5);
     request(ttk::weapon_group_2);assert(psx_mod_read_byte(p+0x3ba)==5); // charged throw refused
+    // D08A37: held fire queues the choice and releases the game's fire input;
+    // the request is written once the game has seen the release (2 updates).
     psx_mod_write_half(p+0x74,5);ttk::input.held[ttk::fire]=true;
-    request(ttk::weapon_group_2);assert(psx_mod_read_byte(p+0x3ba)==5);ttk::input.held[ttk::fire]=false;
+    request(ttk::weapon_group_2);assert(psx_mod_read_byte(p+0x3ba)==5 && ttk::switch_fire_masked());
+    call(0x80058120,p,0,0x80041c44);
+    assert(psx_mod_read_byte(p+0x3ba)==4 && (psx_mod_read_word(p+0x224)&4) && ttk::switch_fire_masked());
+    ttk::input.held[ttk::fire]=false;
+    psx_mod_write_word(p+0x224,0);psx_mod_write_byte(p+0x3b9,4);call(0x80058120,p,0,0x80041c44);
+    assert(!ttk::switch_fire_masked()); // ready loop of the new weapon: fire passes again
     // D08A29: each half of the two-handed running loop accepts a fresh
     // wheel/number request, tracks the actual weapon, and keeps native gait.
     psx_mod_write_half(p+0x2c6+28*4,20);
@@ -2755,10 +2762,11 @@ int main(int argc,char** argv) {
         request(ttk::weapon_previous);assert((psx_mod_read_word(p+0x224)&4) && psx_mod_read_byte(p+0x3ba)==row[2]);
         request(ttk::weapon_group_2);assert(psx_mod_read_byte(p+0x3ba)==4);
         ttk::input.held[ttk::fire]=true;psx_mod_write_byte(p+0x3ba,weapon);
-        request(ttk::weapon_next);assert(!(psx_mod_read_word(p+0x224)&4));
+        request(ttk::weapon_next);assert(!(psx_mod_read_word(p+0x224)&4) && ttk::switch_fire_masked());
         ttk::input.held[ttk::fire]=false;
-        call(0x80058120,p,0,0x80041c44); // rejected notch is not deferred
-        assert(!(psx_mod_read_word(p+0x224)&4));
+        call(0x80058120,p,0,0x80041c44); // D08A37: the notch waited, now served
+        assert((psx_mod_read_word(p+0x224)&4) && psx_mod_read_byte(p+0x3ba)==row[1]);
+        psx_mod_write_word(p+0x224,0);call(0x80058120,p,0,0x80041c44);assert(!ttk::switch_fire_masked());
     }
     for(unsigned upper:{6u,7u,21u,22u,24u,27u,30u,31u,33u,40u,42u}) {
         psx_mod_write_half(p+0x74,upper);psx_mod_write_byte(p+0x3ba,5);
@@ -2766,6 +2774,46 @@ int main(int argc,char** argv) {
     }
     psx_mod_write_half(p+0x60,63);psx_mod_write_half(p+0x74,5);
     psx_mod_write_byte(p+0x3b9,5);
+    // D08A37: the notches waited through the draw/attack poses; at rest the
+    // last one is served (not lost), then the queue is empty.
+    assert(ttk::switch_fire_masked());
+    psx_mod_write_word(p+0x224,0);call(0x80058120,p,0,0x80041c44);
+    assert((psx_mod_read_word(p+0x224)&4) && psx_mod_read_byte(p+0x3ba)!=5);
+    psx_mod_write_word(p+0x224,0);psx_mod_write_byte(p+0x3ba,5);call(0x80058120,p,0,0x80041c44);
+    assert(!ttk::switch_fire_masked());
+    {
+        // D08A37: finish the shot, not the lowering. Desert Eagle gun-up 14 with
+        // a queued choice is cut to rest 5 and the request written; the
+        // original fire request bits 0x110 go with it. Not the fire track 16.
+        psx_mod_write_byte(p+0x3b9,4);psx_mod_write_byte(p+0x3ba,4);psx_mod_write_half(p+0x74,16);
+        ttk::input.held[ttk::fire]=true;request(ttk::weapon_group_3);
+        psx_mod_write_word(p+0x224,0x110);call(0x80058120,p,0,0x80041c44);
+        assert(psx_mod_read_half(p+0x74)==16 && psx_mod_read_byte(p+0x3ba)==4); // shot not out yet
+        psx_mod_write_half(p+0x74,14);psx_mod_write_half(p+0x7c,7);call(0x80058120,p,0,0x80041c44);
+        assert(psx_mod_read_half(p+0x74)==5 && psx_mod_read_half(p+0x7c)==0);
+        assert(psx_mod_read_byte(p+0x3ba)==5 && (psx_mod_read_word(p+0x224)&0x114)==4);
+        // Drawing: fire stays released until the new weapon's ready loop.
+        psx_mod_write_word(p+0x224,0);psx_mod_write_byte(p+0x3b8,0);psx_mod_write_half(p+0x74,1);
+        call(0x80058120,p,0,0x80041c44);assert(ttk::switch_fire_masked());
+        psx_mod_write_byte(p+0x3b8,2);psx_mod_write_byte(p+0x3b9,5);psx_mod_write_half(p+0x74,21);
+        call(0x80058120,p,0,0x80041c44);assert(ttk::switch_fire_masked());
+        psx_mod_write_half(p+0x74,20);call(0x80058120,p,0,0x80041c44);assert(!ttk::switch_fire_masked());
+        // The weapon already out: no mask, the burst goes on.
+        psx_mod_write_half(p+0x74,25);request(ttk::weapon_group_3);
+        assert(!ttk::switch_fire_masked() && !(psx_mod_read_word(p+0x224)&4));
+        // A savestate load drops a waiting choice.
+        request(ttk::weapon_group_2);assert(ttk::switch_fire_masked());
+        ++save_loads;psx_mod_write_word(p+0x224,0);call(0x80058120,p,0,0x80041c44);--save_loads;
+        assert(!ttk::switch_fire_masked());
+        call(0x80058120,p,0,0x80041c44);assert(!ttk::switch_fire_masked() && !(psx_mod_read_word(p+0x224)&4));
+        // Vanilla: nothing is queued or masked.
+        ttk::modern=false;request(ttk::weapon_group_2);call(0x80058120,p,0,0x80041c44);
+        assert(!ttk::switch_fire_masked() && !(psx_mod_read_word(p+0x224)&4));ttk::modern=true;
+        ttk::input.held[ttk::fire]=false;call(0x8003ade4,c,p,0x80025ee8); // Modernized lease again
+        psx_mod_write_word(p+0x224,0);psx_mod_write_half(p+0x74,5);psx_mod_write_byte(p+0x3ba,5);
+        call(0x80058120,p,0,0x80041c44);
+        std::puts("PASS: D08A37 weapon switching while firing (queue, fire release, shot cut, draw mask, savestate, Vanilla)");
+    }
     std::puts("PASS: D08A29 running weapon selection and attack/draw safety");
     // No medkit ownership means no request. An owned dose uses original item equipment.
     psx_mod_write_half(p+0x368,0);request(ttk::medkit);assert(!(psx_mod_read_word(p+0x224)&12));

@@ -1063,8 +1063,13 @@ weapon; **wheel down** selects the previous one. **Semicolon/apostrophe** still
 selects previous/next. These work while running with a two-handed
 weapon (Shift or RUN MODE), and in Modernized also in mid air (jumps and falls), where the change plays
 twice as fast so the new weapon can fire before you land. **X** restores the last successfully equipped weapon.
-Weapon changes require a safe ready state; inputs during firing, reload or
-an existing draw/stow transition are discarded rather than queued. In Modernized a drawn dynamite stays unlit until you fire, so you can
+In Modernized a weapon key, the wheel or **X** also works while you hold fire,
+in a draw, a reload or a landing: the choice waits (up to about 1.5 s) instead of
+being lost. With fire held, the shot already on its way finishes, the old weapon
+is put away (the Gatling's spin stops as when you let go) and the new one is
+drawn; if fire is still held when it is ready, it starts firing (as in Duke 3D).
+Pressing the key of the weapon already out does nothing and the burst goes on.
+E or a holster key cancels a waiting choice. Vanilla is unchanged. In Modernized a drawn dynamite stays unlit until you fire, so you can
 switch away from it (see Dynamite below); once lit, or with `--dynamite original`,
 it must finish its original throw/fuse before a requested weapon switch completes. A usable pipe-bomb remote remains accessible without spare ammo.
 **M** uses an owned portable medkit (in Modernized also while swimming, flying the jetpack or firing), **J** toggles the jetpack, **N** night vision,

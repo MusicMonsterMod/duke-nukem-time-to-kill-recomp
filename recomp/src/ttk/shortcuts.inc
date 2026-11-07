@@ -340,10 +340,60 @@ static bool night_vision_toggle() {
 }
 static unsigned swim_redraws; // D08O3
 static unsigned swim_fire_draws; // D08O5
+// D08A37: Modernized weapon commands (group keys, previous/next, last) are
+// queued instead of dropped when the weapon is not ready: held fire (every
+// weapon stays on its fire tracks), a draw, a landing, a reload. While one
+// waits the game's fire input is released (switch_fire_masked, pc_input),
+// so the current shot finishes through the original's own release (the
+// Gatling's spin-down and loop stop included) and the upper body settles;
+// the request (+0x3ba, flag 4) is then written as from rest. The mask stays
+// until the new weapon reaches its ready loop; held fire then reaches it
+// (EDuke32 style). Expires after 1.5 s waiting / 3 s drawing, or when the
+// weapons lease is lost (a mantle, a climb, E). Dynamite keeps its charged
+// throw: no mask while it is out (the queue still waits for its rest).
+static unsigned switch_target=255;   // queued weapon, not yet requested
+static unsigned switch_drawing=255;  // requested, waiting for its ready loop
+static double switch_wait_ms;
+static std::chrono::steady_clock::time_point switch_clock;
+static std::atomic<bool> switch_mask{false};
+static unsigned switch_cuts,switch_queued,switch_served,switch_expired,switch_dropped,switch_ready,switch_masked_updates;
+bool switch_fire_masked() {return switch_mask.load(std::memory_order_relaxed);}
+static void switch_clear(bool expired=false) {
+    if(expired && (switch_target<=14 || switch_drawing<=14))++switch_expired;
+    switch_target=switch_drawing=255;switch_wait_ms=0;switch_mask.store(false,std::memory_order_relaxed);
+}
+// The weapon one command gives from cursor (255: none usable).
+static unsigned weapon_command_target(int action,unsigned cursor,bool swim) {
+    auto ok=[&](unsigned c){return usable_weapon(c) && (!swim || underwater_weapon(c));};
+    if(action>=weapon_group_1 && action<=weapon_group_0) {
+        unsigned group=action-weapon_group_1,begin=group_start[group],end=group_start[group+1];
+        unsigned start=begin;
+        for(unsigned i=begin;i<end;++i)if(weapon_order[i]==cursor)start=i+1==end?begin:i+1;
+        for(unsigned j=0;j<end-begin;++j) {
+            unsigned candidate=weapon_order[begin+(start-begin+j)%(end-begin)];
+            if(ok(candidate))return candidate;
+        }
+    } else if(action==weapon_previous || action==weapon_next) {
+        unsigned start=0;for(unsigned i=0;i<15;++i)if(weapon_order[i]==cursor)start=i;
+        for(unsigned j=1;j<=15;++j) {
+            unsigned candidate=weapon_order[(start+(action==weapon_next?j:15-j))%15];
+            if(ok(candidate))return candidate;
+        }
+    } else if(action==weapon_last) {
+        if(ok(last_equipped))return last_equipped;
+    }
+    return 255;
+}
+static const char* weapon_switch_debug_json() {
+    static char b[256];
+    std::snprintf(b,sizeof b,"{\"target\":%u,\"drawing\":%u,\"mask\":%s,\"queued\":%u,\"served\":%u,\"ready\":%u,\"expired\":%u,\"dropped\":%u,\"masked_updates\":%u,\"cuts\":%u}",
+        switch_target,switch_drawing,switch_fire_masked()?"true":"false",switch_queued,switch_served,switch_ready,switch_expired,switch_dropped,switch_masked_updates,switch_cuts);
+    return b;
+}
 static void select_weapon(CPUState* cpu) {
     const auto& f=input_snapshot(Context::Gameplay);
     input_ack_commands(f.command_serial);
-    if(!interaction_alive()) {equipped=last_equipped=255;command_seen=f.command_serial;return;}
+    if(!interaction_alive()) {equipped=last_equipped=255;command_seen=f.command_serial;switch_clear();return;}
     // Only primary single-player ownership; no writes into player two's menu.
     if(psx_mod_read_byte(player+0x233)!=0)return;
     mission_used_track(); // D08A19: also while input is released (no capture)
@@ -367,6 +417,7 @@ static void select_weapon(CPUState* cpu) {
     if(restored) {
         selection_loads=loads;selected_item=menu_item;
         command_seen=f.command_serial; // No queued command from the old world.
+        switch_clear();
     }
     bool changed=false;
     steroids_poll();
@@ -416,7 +467,8 @@ static void select_weapon(CPUState* cpu) {
     // flight (D08Q7), through the same original request as D08O3: a Circle tap
     // could end a thrust stroke. Held fire then reaches the drawn weapon; a
     // tap only draws, and nothing is buffered after release.
-    if(f.held[fire] && !f.held[holster] && !f.held[interact] && !movement_ready() && swim_fire_draw_ready()) {
+    if(f.held[fire] && !f.held[holster] && !f.held[interact] && !movement_ready() && swim_fire_draw_ready() &&
+       switch_target>14 && switch_drawing>14) {
         psx_mod_write_byte(player+0x3ba,swim_fire_draw_weapon());
         psx_mod_write_word(player+0x224,psx_mod_read_word(player+0x224)|4);++selections;++swim_fire_draws;
     }
@@ -451,6 +503,86 @@ static void select_weapon(CPUState* cpu) {
                 (!swim_ready || underwater_weapon(fresh))) {
             psx_mod_write_byte(player+0x3ba,fresh);
             psx_mod_write_word(player+0x224,now_flags|4);++selections;pickup_weapon_drawn();
+        }
+    }
+    // D08A37: queue Modernized weapon commands; serve them once the weapon is ready.
+    const bool modern_switch=input_modernized();
+    {
+        const auto now=std::chrono::steady_clock::now();
+        double dt=std::chrono::duration<double,std::milli>(now-switch_clock).count();
+        switch_clock=now;
+        if(!(dt>=0 && dt<=100))dt=34;
+        auto lease=[&](bool& swim) {
+            const bool jet=jetpack_input_ready();
+            swim=!jet && !movement_ready() && swim_weapon_ready();
+            const bool air=!jet && !swim && !movement_ready() && airborne_shot_ready() && !roll_state_early();
+            return movement_ready() || jet || swim || air;
+        };
+        bool swim=false;
+        const bool has_lease=lease(swim);
+        const unsigned now_flags=psx_mod_read_word(player+0x224);
+        const bool drawn=equipment==2 || remote;
+        // The request is spent and a weapon is in its ready loop (the one
+        // asked for, or the original's remap of it, e.g. in water): the
+        // switch is over, before this update's commands are read.
+        if(switch_drawing<=14 && !(now_flags&4) && ((drawn && weapon_idle) ||
+           (equipment==0 && psx_mod_read_byte(player+0x3ba)==0))) {++switch_ready;switch_clear();}
+        if(!modern_switch)switch_clear();
+        else if(weapon_choice) {
+            unsigned cursor=switch_target<=14?switch_target:switch_drawing<=14?switch_drawing:equipped;
+            for(unsigned n=0;n<f.command_count && n<32;++n) {
+                const unsigned t=weapon_command_target(f.commands[n],cursor,swim);
+                if(t<=14)cursor=t;
+            }
+            const bool same=switch_drawing<=14 ? cursor==switch_drawing :
+                drawn && !(now_flags&4) && cursor==equipped && current==equipped;
+            if(same) {
+                if(switch_target<=14)++switch_dropped;
+                if(switch_drawing<=14)switch_target=255;else switch_clear();
+            }
+            else if(cursor<=14 && cursor!=switch_target) {
+                switch_target=cursor;switch_wait_ms=0;switch_masked_updates=0;++switch_queued;
+                if(switch_drawing<=14)switch_drawing=255; // a new choice during a draw takes over
+            }
+        }
+        if(switch_target<=14 || switch_drawing<=14) {
+            switch_wait_ms+=dt;
+            const bool dynamite_out=drawn && current==14;
+            if(f.held[interact] || f.held[holster]) {++switch_dropped;switch_clear();}
+            else if(switch_target<=14) {
+                const bool mask=has_lease && !dynamite_out;
+                switch_mask.store(mask,std::memory_order_relaxed);
+                if(mask)++switch_masked_updates;
+                // Finish the shot, not the lowering: once the round is out
+                // and the fire input released, the gun-up / pump tracks
+                // after it (Desert Eagle 14, Gatling and Freezer 32, shotgun
+                // pump 26 and 23) are cut to the rest pose, from which the
+                // original starts the holster. The Gatling's loop and spin
+                // already ended when it left its fire track (34 -> 32).
+                uint32_t cut_flags=now_flags;
+                if(mask && has_lease && drawn && !weapon_idle && switch_masked_updates>=2 && !(cut_flags&0x2cd)) {
+                    const unsigned rest=current==4?5:current==5?20:current==7 || current==11?29:0;
+                    const bool recover=(current==4 && upper==14) || ((current==7 || current==11) && upper==32) ||
+                        (current==5 && (upper==26 || upper==23));
+                    if(rest && recover) {
+                        psx_mod_write_half(player+0x74,rest);psx_mod_write_half(player+0x7c,0);psx_mod_write_half(player+0x7e,0);
+                        cut_flags&=~0x110u;psx_mod_write_word(player+0x224,cut_flags);
+                        upper=rest;weapon_idle=true;++switch_cuts;
+                    }
+                }
+                if(!usable_weapon(switch_target) || (swim && !underwater_weapon(switch_target))) {++switch_dropped;switch_clear();}
+                else if(switch_wait_ms>1500)switch_clear(true);
+                else if(has_lease && (equipment==0 || drawn) && !f.held[original_aim] && !(cut_flags&0x2cd) &&
+                        (!drawn || weapon_idle) && (!f.held[fire] || switch_masked_updates>=2)) {
+                    psx_mod_write_byte(player+0x3ba,switch_target);
+                    psx_mod_write_word(player+0x224,cut_flags|4);++selections;++switch_served;
+                    switch_drawing=switch_target;switch_target=255;switch_wait_ms=0;
+                }
+            } else {
+                // Drawing: the fire input stays released until the ready loop.
+                if(!has_lease || switch_wait_ms>3000)switch_clear(true);
+                else {switch_mask.store(true,std::memory_order_relaxed);++switch_masked_updates;}
+            }
         }
     }
     if(!f.command_serial || command_seen==f.command_serial)return;
@@ -550,6 +682,9 @@ static void select_weapon(CPUState* cpu) {
     unsigned cursor=equipped,requested=255;
     for(unsigned n=0;n<f.command_count && n<32;++n) {
         int action=f.commands[n];
+        // D08A37: Modernized weapon commands were queued above.
+        if(modern_switch && ((action>=weapon_group_1 && action<=weapon_group_0) || action==weapon_previous ||
+           action==weapon_next || action==weapon_last)) continue;
         if(weapons_only && !(action>=weapon_group_1 && action<=weapon_group_0) &&
            action!=weapon_previous && action!=weapon_next && action!=weapon_last) continue;
         if(action>=weapon_group_1 && action<=weapon_group_0) {

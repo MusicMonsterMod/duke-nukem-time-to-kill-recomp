@@ -1,5 +1,38 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-07 - D08A37 closed
+
+User: "lock it in and close it out! its working". D08A37 is Done
+([note 409](documentation/409-d08a37-switch-while-firing.md)). In Modernized
+a number key, the wheel, ; / ' or X switch weapons while fire is held, in the
+air and while the weapon is busy: the choice waits (1.5 s), the current shot
+finishes, the old weapon is put away (the Gatling's loop stopped) and held
+fire carries to the new weapon. Vanilla unchanged. Executable
+`9adb09035646ff7a2c2745e5ad07cf7f3394cd796b458f4a77f8e853d9c55d79` is the
+regression baseline. No framework edit; the runtime patch export is
+unchanged. Open outside this job: the `ttk-controls-test` D14 widescreen HUD
+assertion (line 1751), failing on the clean baseline too.
+
+## 2026-11-07 - D08A37: weapon switching while firing or jumping (Needs playtest)
+
+User: "weapon switching while firing", "and weapon switching while jumping",
+"i cant seem to switch specifically to the desert eagle". Decided first: finish
+the shot, then switch; held fire carries to the new weapon. In Modernized a
+number key, the wheel, ; / ' or X now queue (up to 1.5 s) instead of being
+dropped while fire is held, in a draw, a reload or a landing. While one waits,
+the game's fire input is released so the shot finishes through the original
+release (the Gatling's loop stops), the post-shot tracks are cut to rest
+(Desert Eagle 14, Gatling/Freezer 32, shotgun pump 26/23), the original
+holster and draw run, and held fire resumes at the new weapon's ready loop.
+Measured (private copies, slot 8): holster 0.12 to 0.38 s after the key for
+the Desert Eagle, shotgun, Gatling, RPG, Energy Weapon, Buffalo Rifle and
+Freezer, 0.77 s for the crossbow group; the new weapon fired with fire still
+held, on the ground and in a jump; the weapon already out keeps its burst;
+Vanilla unchanged. `ttk-controls-test` has a new D08A37 group (the suite's
+D14 HUD assertion fails on the clean baseline too); input and aim tests pass.
+Executable `9adb09035646ff7a2c2745e5ad07cf7f3394cd796b458f4a77f8e853d9c55d79`.
+[Note 409](documentation/409-d08a37-switch-while-firing.md).
+
 ## 2026-11-07 - D08Z8 closed
 
 User: "this is very close now. i accept it, and we can lock this in and close
@@ -4335,7 +4368,7 @@ the user's playtest.
 
 ### D08A37 - Weapon switching while firing or jumping
 
-**Status: Todo (reported 2026-11-07). Dependencies: D08A36, D10H4.** User,
+**Status: Done (user-accepted 2026-11-07: "its working"; [note 409](documentation/409-d08a37-switch-while-firing.md)). Dependencies: D08A36, D10H4.** User,
 2026-11-07, at the D08Z8 closeout: "i want a backlog ticket for that yes -
 weapon switching while firing", "and weapon switching while jumping", "i
 cant seem to switch specifically to the desert eagle". Today a number key, the wheel or ; / ' pressed
@@ -4376,6 +4409,17 @@ Desert Eagle works in the user's case; the old weapon's sounds and
 state ended cleanly (no Gatling loop), held fire continuing with the new
 weapon as decided; no change without a command; Vanilla unchanged; the user's
 playtest.
+
+Work log, 2026-11-07 (Needs playtest): decided with the user, finish the
+shot then switch, and held fire carries to the new weapon. Modernized weapon
+commands queue (1.5 s) with the game's fire input released while they wait
+and during the draw; post-shot tracks are cut to rest (DE 14, Gatling/Freezer
+32, shotgun 26/23); the original holster/draw run; fire resumes at the ready
+loop. Measured on private copies for every weapon group, a jump, a queued
+press during a draw, release, same weapon and the wheel; Vanilla unchanged.
+Not run live: swimming, jetpack flight. The Desert Eagle report did not
+reproduce separately. Executable
+`9adb09035646ff7a2c2745e5ad07cf7f3394cd796b458f4a77f8e853d9c55d79`, [note 409](documentation/409-d08a37-switch-while-firing.md).
 
 ### D08Z8 - Mantling while firing the Desert Eagle: held fire stops the mantle
 
@@ -7970,7 +8014,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08A33 | EQUIP PICKUPS option: IF NEW (default) auto-equips new weapons and selects new items; NEVER does neither | Done (user-accepted 2026-11-02) | D08A9, D08A, D19 |
 | D08A35 | Cowboy hat stays on under the Bio Mask (and night-vision goggles) in third person | Done (user-accepted 2026-11-04; note 383) | D08A24, D08A26, D08A23 |
 | D08A36 | Weapon switching in mid air: number keys, the wheel and ; ' do nothing during a jump or fall (any save; user, 2026-11-05) | Done (user-accepted) | D08A, D08A29 |
-| D08A37 | Weapon switching while firing or jumping: keys and the wheel ignored while firing (ground and air) or dropped when not ready; "cant switch to the desert eagle" | Todo | D08A36, D10H4 |
+| D08A37 | Weapon switching while firing or jumping: keys and the wheel ignored while firing (ground and air) or dropped when not ready; "cant switch to the desert eagle" | Done | D08A36, D10H4 |
 | D09 | Modern controller support | Done (user-accepted 2026-10-27) | D05, D06, D07 |
 | D09A | Separate keyboard and gamepad seats for local two-player | Done (user-accepted 2026-10-27) | D09, D34B implementation |
 | D09C | Controller rumble: the game's own vibration on a real pad, plus Modernized hit feedback | Todo (added 2026-11-04, from cancelled D12E2) | D09, D09A |

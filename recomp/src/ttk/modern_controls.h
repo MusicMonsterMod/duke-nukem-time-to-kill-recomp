@@ -59,6 +59,7 @@ bool armed_pullup_fire_masked();
 bool climb_fire_hold_ready();
 bool climb_stow_ready();
 bool mantle_fire_cross_masked();
+bool switch_fire_masked(); // D08A37: a queued weapon switch holds the fire input off
 bool climb_shot_ready();
 bool interaction_alive();
 bool interaction_holster_ready();

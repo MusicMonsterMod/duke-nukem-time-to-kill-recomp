@@ -1,5 +1,38 @@
 # Next-session handoff
 
+## 2026-11-07 - D08A37 closed
+
+User: "lock it in and close it out! its working". D08A37 is Done
+([note 409](documentation/409-d08a37-switch-while-firing.md)). In Modernized
+a number key, the wheel, ; / ' or X switch weapons while fire is held, in the
+air and while the weapon is busy: the choice waits (1.5 s), the current shot
+finishes, the old weapon is put away (the Gatling's loop stopped) and held
+fire carries to the new weapon. Vanilla unchanged. Executable
+`9adb09035646ff7a2c2745e5ad07cf7f3394cd796b458f4a77f8e853d9c55d79` is the
+regression baseline. No framework edit; the runtime patch export is
+unchanged. Open outside this job: the `ttk-controls-test` D14 widescreen HUD
+assertion (line 1751), failing on the clean baseline too.
+
+## 2026-11-07 - D08A37: weapon switching while firing or jumping (Needs playtest)
+
+User: "weapon switching while firing", "and weapon switching while jumping",
+"i cant seem to switch specifically to the desert eagle". Decided first: finish
+the shot, then switch; held fire carries to the new weapon. In Modernized a
+number key, the wheel, ; / ' or X now queue (up to 1.5 s) instead of being
+dropped while fire is held, in a draw, a reload or a landing. While one waits,
+the game's fire input is released so the shot finishes through the original
+release (the Gatling's loop stops), the post-shot tracks are cut to rest
+(Desert Eagle 14, Gatling/Freezer 32, shotgun pump 26/23), the original
+holster and draw run, and held fire resumes at the new weapon's ready loop.
+Measured (private copies, slot 8): holster 0.12 to 0.38 s after the key for
+the Desert Eagle, shotgun, Gatling, RPG, Energy Weapon, Buffalo Rifle and
+Freezer, 0.77 s for the crossbow group; the new weapon fired with fire still
+held, on the ground and in a jump; the weapon already out keeps its burst;
+Vanilla unchanged. `ttk-controls-test` has a new D08A37 group (the suite's
+D14 HUD assertion fails on the clean baseline too); input and aim tests pass.
+Executable `9adb09035646ff7a2c2745e5ad07cf7f3394cd796b458f4a77f8e853d9c55d79`.
+[Note 409](documentation/409-d08a37-switch-while-firing.md).
+
 ## 2026-11-07 - D08Z8 closed
 
 User: "this is very close now. i accept it, and we can lock this in and close

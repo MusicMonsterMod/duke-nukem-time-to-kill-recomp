@@ -651,3 +651,109 @@ re-captured (unchanged by construction); user saves not used; no enemies.
 it in close it out". D08J6C is Done at executable
 `bfd83ade959a8b3f2bca73ef0bcb408f5ba119644a9c33b2ed20aae83d9c851a`. No gameplay
 edits, builds or launches after acceptance.
+
+## D08J6F - swing out on the grip (accepted)
+
+2026-11-07. User: "you can sometimes end up shooting in impossible directions
+when duke is not facing the right way". Since D08J6B, on ladders, climbing
+walls and ledge hangs the gun arm stopped at its arc (110 degrees right, 60
+left) while the rounds still went to the crosshair, behind Duke included.
+
+User decisions (2026-11-07): first option 1 (swing out on the grip, refuse
+the blind cone left; third person only, first person and Vanilla
+unchanged). After playtesting that build: "this is AWESOME ... i didnt
+realise the pose would be that good ... he could literally reach absolutely
+everywhere. i dont think theres any reason to deny any area where he cant
+shoot! so more like your original option 3". So nothing is refused; the
+reach was widened instead.
+
+### Behavior (Modernized, third person, view aiming, sidearm out)
+
+- Ladder (186-189), climbing wall (198-205), ledge hang (mode 6): once the
+  view is more than 90 degrees right of Duke's heading, his whole body
+  swings out about the vertical through the off hand's contact, toward his
+  gun side, up to 100 degrees (360 degrees/s of real time, eased over the
+  last 10; the same at 60/120/180). Further would put him into the surface.
+  The hand stays on the hold. With the chest turn and the arm this reaches
+  210 degrees to his right (150 past behind, read from the left).
+- Across the body (to his left) the arm reaches 130 degrees, the chest
+  turned 50 of them.
+- Between the two reaches (130-150 degrees left, behind him) he takes the
+  nearer side, held 5 degrees toward the side he is on so he never flips at
+  the split; the arm stops at most about 15 degrees short. Every shot fires
+  and goes to the crosshair.
+- Not on chains, poles or the monkey bars (D08J6E turns Duke there), in
+  first person (the D08J6C viewmodel always points at the crosshair),
+  holstered, stowing, with the original aim key, in mantles, or in Vanilla.
+
+### Implementation
+
+- `climb_aim.inc`: `climb_swing_family()`, `climb_reach_delta()` (side
+  choice), `climb_reach_miss()`; `climb_aim_begin` eases the swing and
+  computes the chest, head and gun directions relative to the swung body;
+  `climb_swing_root()` at the first child's composition (record 1, depth 2,
+  parent `0x1f800020`) turns the built root about the pivot, both the
+  scratch matrix and its stored entry 0 at `[player+0x3c]` (the plain build
+  `0x800987cc` stores the root, transposed, with Duke's position added,
+  before record 1; both conventions are checked before writing, mismatches
+  counted). The off-hand IK target is the clip contact turned back by the
+  swing; it is the next build's pivot (dropped if Duke moves 16 units).
+  Duke's position, collision and the original's state are never written.
+- Debug `controls.climb_aim.swing` (family, angle, target, applied, miss,
+  pivot, root swings and mismatches, transposed). A/B `DNTTK_CLIMB_SWING=0`
+  (the D08J6B behavior); developer tuning
+  `DNTTK_CLIMB_SWING_LIMITS=start,max,left,rate` (degrees, deg/s).
+- The option 1 refusal (no Cross in the blind cone) and its red crosshair
+  were removed.
+- No new hook address, guard, generated code, framework or codegen change;
+  existing savestates load.
+
+### Verification
+
+Private lab `recomp/analysis/d08j6f/` (local only: `lab.py`, `sweep.py`;
+offscreen, port 9615, copies of the D35E ladder, D35I1 wall and D35G ledge
+fixtures; player saves, cards and settings hash-checked unchanged after
+every run). Full-circle camera sweeps in about 29-degree steps, a 0.45 s
+burst at each:
+
+| Sweep | Result |
+| --- | --- |
+| Ladder, 13 steps | every burst fired (3-4 rounds, ammo spent to match); swing 21 / 50 / 79 / 100 at 111 / 140 / 169 right / 162 left; across the body at 105 and 133 left no swing; gun arm 6-11 degrees from its aim; arm short of the view at most 3 degrees |
+| Wall, 13 steps | the same; 156 left swung to 100, 127 left across the body |
+| Ledge (option 1 limits, same pose code) | swing to 80, arm within 11 degrees, off hand within 22 units of the lip, as in D08J6D |
+
+Before the last tuning (left reach 120, 10-degree hold) the wall at 127 left
+stayed swung out with the arm 23 degrees short; hence 130 and 5. Option 1
+build, also on this pose code: ladder identical at 60/120/180 (off hand
+within 14 units of its rung), first person never swung, Vanilla
+(`d08j6b/van.py`) original Circle draw and 5 rounds with no climb aim
+build; D08J6A ladder, chain and wall routes and the D08J6E chain turn as
+recorded, except that after letting go armed on the chain and wall Duke now
+lands with selection 5 (the D08J6E record had 4). Chains are outside the
+swing, so this is not from this change (later weapon work or the copied
+SIDEARM RETURN preference; not investigated). Root entry convention
+transposed, 0 mismatches.
+Native: `ttk-controls-test` 152 groups (new D08J6F group: eased swing, root
+and stored entry turned about the pivot, the nearer reach behind, the
+across-body reach, chains excluded; the pre-existing D14 HUD block, lines
+1751-1765, bypassed for the run only), `ttk-input-test` under Xvfb,
+`ttk-aim-test`.
+
+Executable SHA-256 `b4a6a545ea92e08eadca947e3143e6a61a26f0ccb34e8d24b7ac01adb3436daf`.
+
+### Limits
+
+- Fully swung out, Duke hangs sideways off the hold by one hand with his
+  legs swung out too (no foot IK on the rungs). The close camera fades him
+  in many ladder shots.
+- The final tuning (100, 130, 5) was not re-run at 120/180, on the ledge or
+  in first person; only constants changed since those runs.
+- Pitch stays clamped at 70 degrees for the arm (rounds still follow the
+  crosshair, as before).
+- No enemies framed; fixtures only (user UI slots 12 and 8 not used).
+
+### D08J6F closeout
+
+2026-11-07. User: "lock it in and close it out, this is phenomenal work. absolutely tight as it gets. very professional. this would have literally been revolutionary if done in 1998". D08J6F is Done at executable
+`b4a6a545ea92e08eadca947e3143e6a61a26f0ccb34e8d24b7ac01adb3436daf` with the round 2 defaults (no refusals). No gameplay edits, builds or
+launches after acceptance.

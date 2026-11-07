@@ -1,5 +1,22 @@
 # Current status - 2026-10-04
 
+## 2026-11-07 - D08J6F closed
+
+User: "lock it in and close it out, this is phenomenal work. absolutely tight as it gets. very professional. this would have literally been revolutionary if done in 1998". D08J6F is Done: in third person, armed on a ladder, climbing wall or
+ledge hang, Duke swings out on his holding hand or fires across his body and
+can shoot in every direction. Executable `b4a6a545ea92e08eadca947e3143e6a61a26f0ccb34e8d24b7ac01adb3436daf` is the regression baseline.
+No framework edit; the runtime patch export is unchanged.
+
+## 2026-11-07 - D08J6F: swing out on the grip (Needs playtest)
+
+Third person, sidearm out on a ladder, climbing wall or ledge hang: aims far
+to Duke's right or behind him swing him out on the holding hand (up to 100
+degrees) so the pistol reaches; to his left he fires across his body. Round
+2 after the user's playtest: nothing is refused, he shoots in every
+direction. First person and Vanilla unchanged. Executable
+`b4a6a545ea92e08eadca947e3143e6a61a26f0ccb34e8d24b7ac01adb3436daf`.
+Details: MODERNIZATION_JOBS.md D08J6F, note 377.
+
 ## 2026-11-07 - D08J6C: firing while climbing in first person (Done, user-accepted)
 
 Off hand stays on the ladder, chain, wall hold or monkey bar beside the

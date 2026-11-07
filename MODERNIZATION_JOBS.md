@@ -42,6 +42,50 @@ D14 HUD assertion fails on the clean baseline too); input and aim tests pass.
 Executable `9adb09035646ff7a2c2745e5ad07cf7f3394cd796b458f4a77f8e853d9c55d79`.
 [Note 409](documentation/409-d08a37-switch-while-firing.md).
 
+## 2026-11-07 - D08J6F accepted and closed: Duke shoots in every direction from a climb
+
+User: "lock it in and close it out, this is phenomenal work. absolutely tight as it gets. very professional. this would have literally been revolutionary if done in 1998". D08J6F is Done at the round 2 defaults (swing out to 100 degrees on the
+holding hand, 130 degrees across the body, nearer side behind with a 5-degree
+hold, nothing refused). Executable `b4a6a545ea92e08eadca947e3143e6a61a26f0ccb34e8d24b7ac01adb3436daf`. No framework edit; the runtime patch
+export is unchanged. No gameplay edits, builds or launches after acceptance.
+
+## 2026-11-07 - D08J6F: Duke reaches everywhere (Needs playtest, round 2)
+
+User, after the option 1 build: "this is AWESOME ... he could literally reach
+absolutely everywhere. i dont think theres any reason to deny any area where
+he cant shoot! so more like your original option 3". The refusal and the red
+crosshair are removed; the swing out on the holding hand now goes to 100
+degrees (further would put Duke into the surface), the arm reaches 130
+degrees across his body, and in the band between the two (behind him on his
+left) he takes the nearer side with a 5-degree hold, the arm at most about
+15 degrees short. Every shot fires to the crosshair. Evidence (private
+fixture copies): full-circle ladder and wall sweeps, every burst fired, the
+gun arm 6-11 degrees from its aim, at most 3 degrees short of the view.
+Native controls (D08J6F group updated; D14 HUD block bypassed for the run),
+input and aim suites pass. Limits: legs swing with the body; final constants
+not re-run at 120/180, ledge or first person (only constants changed since
+those runs passed). Executable `b4a6a545ea92e08eadca947e3143e6a61a26f0ccb34e8d24b7ac01adb3436daf`.
+
+## 2026-11-07 - D08J6F: swing out on the grip (Needs playtest, superseded)
+
+User decision: option 1, third person only. On ladders, climbing walls and
+ledge hangs with the sidearm out, aiming more than 90 degrees to Duke's right
+swings his body out on the holding hand (up to 80 degrees, eased; the hand
+stays on the hold), so the pistol reaches to straight behind him and a little
+past. Behind him on the off-hand side (about 90-170 degrees left) the shot is
+refused (no Cross, no round, no ammo) and the crosshair turns red. Chains,
+poles and monkey bars keep D08J6E; first person and Vanilla unchanged.
+Evidence (private fixture copies): ladder sweeps identical at 60/120/180 (arm
+within 11 degrees of the aim, off hand within 14 units, refused bursts 0
+rounds); wall and ledge the same; first person never swings or refuses;
+Vanilla original. Native controls (new D08J6F group; the known D14 HUD block
+bypassed for the run), input and aim suites and the UI art test pass. Limits:
+feel not judged; legs swing with the body; tuning numbers are first guesses;
+after letting go armed on the chain and wall the D08J6A route now lands with
+selection 5 instead of 4 (chains are outside the swing; not investigated).
+Executable `d64bac2d5deeb347920afe60478ddfd072e3bfdac5426b3a1a692be4402f98a7 (superseded)`.
+[Note 377](documentation/377-d08j6-climb-fire-research.md) D08J6F section.
+
 ## 2026-11-07 - D08Z8 closed
 
 User: "this is very close now. i accept it, and we can lock this in and close
@@ -2113,7 +2157,7 @@ updates). Fix in the D10F1 clear lens, game-wide, not for this door only.
 
 ### D08J6F - Shots beyond the gun arc on climbs and hangs
 
-**Status: Todo. Dependencies: D08J6B, D08J6D, D08J6E.** User: "you can
+**Status: Done (user-accepted and closed 2026-11-07: "this is phenomenal work. absolutely tight as it gets. very professional"; user decision: swing out on the grip, then after the option 1 playtest "he could literally reach absolutely everywhere": nothing refused; third person only, first person and Vanilla unchanged; [note 377](documentation/377-d08j6-climb-fire-research.md) D08J6F section). Dependencies: D08J6B, D08J6D, D08J6E.** User: "you can
 sometimes end up shooting in impossible directions when duke is not facing
 the right way". Today on ladders, climbing walls, chains/poles and ledge hangs
 the arm stops at its arc while the rounds still go to the crosshair (kept at
@@ -8080,7 +8124,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08J6C | Firing while climbing in first person | Done (user-accepted; closed 2026-11-07; note 377) | D08J6B, D35E, D35F, D36 |
 | D08J6D | Firing on monkey bars and ledge hangs (user UI slot 6) | Done (user-accepted; closed 2026-11-04; note 377) | D08J6A, D08J4, D08J7 |
 | D08J6E | Monkey bars and chains: Duke turns to the aim while armed | Done | D08J6D, D08J4 |
-| D08J6F | Shots beyond the gun arc on climbs and hangs | Todo | D08J6B, D08J6D, D08J6E |
+| D08J6F | Shots beyond the gun arc on climbs and hangs | Done | D08J6B, D08J6D, D08J6E |
 | D08J3A | Climb camera revisit with aiming | Todo | D08J3, D08J6B, D08J6D, D10F |
 | D08V1 | Modernized controls lost for the rest of the session after a missed chain jump; modern controls must never be lost | Done | D08V, D08J5 |
 | D08A29 | Scroll-wheel weapon changes while running | Done (user-accepted) | D08A, D08AA |

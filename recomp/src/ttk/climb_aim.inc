@@ -67,6 +67,63 @@ static void climb_aim_limits() {
         climb_gun_left=l[3]*tau/360;climb_pitch_max=l[4]*tau/360;
     }
 }
+// D08J6F: swing out on the grip. On a ladder (186-189), a climbing wall
+// (198-205) and in the ledge hang (mode 6) Duke faces the surface and cannot
+// turn on it, so an aim past the chest and the gun arc swings the whole body
+// out about the vertical through the off hand's contact (the hand stays on
+// the hold), toward his gun side: up to climb_swing_max (further would put
+// him into the surface), starting once the view is climb_swing_start right
+// of his heading, eased at climb_swing_rate (real time, the same at
+// 60/120/180). Across the body the arm reaches climb_swing_left. Every shot
+// fires (user, 2026-11-07: "he could literally reach absolutely
+// everywhere"); in the narrow band behind him between the two reaches he
+// takes the nearer side (with hysteresis) and the arm stops a few degrees
+// short. Chains, poles and the monkey bars turn Duke instead (D08J6E). The
+// swing is applied to the build's root (scratch 0x1f800020 and its stored
+// entry 0, written before the first child), so Duke's position, collision
+// and the original's own state never change.
+// DNTTK_CLIMB_SWING=0 is the D08J6B behavior;
+// DNTTK_CLIMB_SWING_LIMITS=start,max,left,rate (degrees, deg/s).
+static double climb_swing_start=90*tau/360,climb_swing_max=100*tau/360,climb_swing_left=130*tau/360,
+    climb_swing_rate=360*tau/360;
+static double climb_swing_angle,climb_swing_target,climb_swing_applied,climb_reach_error;
+static bool climb_swing_family_now,climb_swing_root_done,climb_pivot_valid;
+static double climb_pivot[3],climb_pivot_actor[3]; // world: the off hand's unswung contact, Duke's position then
+static unsigned climb_root_swings,climb_root_mismatches;
+static bool climb_root_transposed;
+static int climb_swing_enabled() {
+    static int v=-1;
+    if(v<0) {
+        v=ttk_env_switch("DNTTK_CLIMB_SWING");
+        const char* l=std::getenv("DNTTK_CLIMB_SWING_LIMITS");
+        double x[4];
+        if(l && std::sscanf(l,"%lf,%lf,%lf,%lf",&x[0],&x[1],&x[2],&x[3])==4) {
+            climb_swing_start=x[0]*tau/360;climb_swing_max=x[1]*tau/360;climb_swing_left=x[2]*tau/360;
+            climb_swing_rate=x[3]*tau/360;
+        }
+    }
+    return v;
+}
+static bool climb_swing_family() {
+    const unsigned mode=psx_mod_read_byte(player+0x22c),a=psx_mod_read_half(player+0x60);
+    if(mode==6)return true;
+    return mode==3 && ((a>=186 && a<=189) || (a>=198 && a<=205));
+}
+// The view's yaw right of the heading (radians), read on Duke's gun side
+// (past 180) when that side is nearer: beyond the left reach, the band
+// between the reaches splits at its middle, held 5 degrees toward the side
+// he is on (swung out or not) so he never flips at the split.
+static double climb_reach_delta(double delta,double swing) {
+    const double right=climb_gun_right+climb_swing_max-tau; // the right reach, read left
+    if(delta>=-climb_swing_left)return delta;
+    const double split=(right-climb_swing_left)/2+(swing>climb_swing_max/2?5:-5)*tau/360;
+    return delta<split ? delta+tau : delta;
+}
+// The arm's best direction for that view at a swing: the miss (radians).
+static double climb_reach_miss(double delta_r,double swing) {
+    return delta_r-(swing+std::clamp(delta_r-swing,-climb_swing_left,climb_gun_right));
+}
+static bool climb_aim_ready();
 // Sidearm out on a climb, in a ledge hang or under a ceiling (D08J6D) under
 // view aiming (the shots' own rule, climb_shot_ready, plus the presentation
 // conditions of the ground aim).
@@ -88,7 +145,7 @@ static void climb_view_forward(double* d) {
 }
 // 0x800411b8 entry (ra 0x80042634), the last call before the build choice.
 static void climb_aim_begin(CPUState* cpu,uint32_t ra) {
-    climb_aim_return();climb_aim_set=false;
+    climb_aim_return();climb_aim_set=false;climb_swing_root_done=false;climb_swing_applied=0;
     if(cpu->gpr[4]!=player || ra!=0x80042634)return;
     trav_aim_flag_set(); // D08J8D/C: the host-driven fire's aim build
     static const int enabled=ttk_env_switch("DNTTK_CLIMB_AIM");
@@ -98,21 +155,44 @@ static void climb_aim_begin(CPUState* cpu,uint32_t ra) {
     climb_aim_last_ms=now;
     const bool ready=enabled!=0 && climb_aim_ready() && duke_model();
     climb_ik_stage=0;
-    if(!ready) {climb_aim_weight=0;climb_rf_valid=false;return;}
+    if(!ready) {climb_aim_weight=0;climb_rf_valid=false;climb_swing_angle=climb_swing_target=climb_reach_error=0;climb_pivot_valid=false;return;}
     const bool stowing=psx_mod_read_half(player+0x74)==7;
     climb_aim_weight=std::clamp(climb_aim_weight+(stowing?-1:1)*dt/climb_aim_ramp_ms,0.0,1.0);
-    if(climb_aim_weight<=0)return;
+    if(climb_aim_weight<=0) {climb_swing_angle=climb_swing_target=climb_reach_error=0;return;}
+    // The pivot is where the hand held last build; Duke stays put while armed.
+    if(climb_pivot_valid) {
+        double moved=0;
+        for(int i=0;i<3;++i){const double d=(int32_t)psx_mod_read_word(player+4+4*i)-climb_pivot_actor[i];moved+=d*d;}
+        if(moved>16*16)climb_pivot_valid=false;
+    }
     double v[3];climb_view_forward(v);
     const double flat=std::sqrt(v[0]*v[0]+v[2]*v[2]);
     if(flat<1e-3)return;
     // Game yaw: +Z 0, +X 1024; positive turns toward +X, Duke's right.
     const double heading=(psx_mod_read_half(player+0x1c)&4095)*tau/4096;
-    const double delta=wrap_yaw(std::atan2(v[0],v[2])-heading);
+    double delta=wrap_yaw(std::atan2(v[0],v[2])-heading);
     climb_view_delta=delta;
     const double w=climb_aim_weight;
-    climb_chest_yaw=std::clamp(delta,-climb_chest_max,climb_chest_max)*w;
-    climb_head_yaw=std::clamp(delta,-climb_head_max,climb_head_max)*w;
-    const double gun=heading+std::clamp(delta,-climb_gun_left,climb_gun_right);
+    // D08J6F: the swing follows the view, idle or firing.
+    double swing=0,left=climb_gun_left;
+    climb_swing_family_now=climb_swing_enabled()!=0 && climb_swing_family();
+    if(climb_swing_family_now) {
+        delta=climb_reach_delta(delta,climb_swing_angle);
+        climb_swing_target=std::clamp(delta-climb_swing_start,0.0,climb_swing_max);
+        if(!climb_pivot_valid)climb_swing_target=0;
+        const double step=climb_swing_rate*dt/1000,error=climb_swing_target-climb_swing_angle;
+        // Full rate far off, eased over the last 10 degrees.
+        const double ease=std::min(1.0,std::abs(error)/(10*tau/360));
+        climb_swing_angle+=std::clamp(error,-step*std::max(.25,ease),step*std::max(.25,ease));
+        if(std::abs(climb_swing_target-climb_swing_angle)<.002)climb_swing_angle=climb_swing_target;
+        swing=climb_swing_angle*w;left=climb_swing_left;
+        climb_reach_error=climb_reach_miss(delta,swing);
+    } else {climb_swing_angle=climb_swing_target=climb_reach_error=0;}
+    climb_swing_applied=swing;
+    const double body=delta-swing;
+    climb_chest_yaw=std::clamp(body,-climb_chest_max,climb_chest_max)*w;
+    climb_head_yaw=std::clamp(body,-climb_head_max,climb_head_max)*w;
+    const double gun=heading+swing+std::clamp(body,-left,climb_gun_right);
     const double pitch=std::clamp(std::atan2(v[1],flat),-climb_pitch_max,climb_pitch_max);
     climb_aim_dir[0]=std::sin(gun)*std::cos(pitch);
     climb_aim_dir[1]=std::sin(pitch);
@@ -199,7 +279,21 @@ static void climb_offhand_shoulder(uint32_t model,uint32_t parent,uint32_t local
     const ClimbV tc=climb_t_read(parent+0x14),ts=climb_t_read(local+0x14);
     const ClimbV tf=climb_t_read(model+0x44+0x28*fore+0x14),th=climb_t_read(model+0x44+0x28*hand+0x14);
     const ClimbV so=tc+climb_mv(Pc,ts),sn=tc+climb_mv(Pn,ts);
-    const ClimbV eo=so+climb_mv(Ws,tf),ho=eo+climb_mv(climb_mul(Ws,climb_rf),th);
+    const ClimbV eo=so+climb_mv(Ws,tf);
+    ClimbV ho=eo+climb_mv(climb_mul(Ws,climb_rf),th);
+    // D08J6F: the clip's contact before the swing (a rigid turn about the
+    // pivot), so the hand stays on the hold; it is the next build's pivot.
+    ClimbV actor{double((int32_t)psx_mod_read_word(player+4)),double((int32_t)psx_mod_read_word(player+8)),double((int32_t)psx_mod_read_word(player+12))};
+    if(climb_swing_root_done) {
+        const ClimbV pv=ClimbV{climb_pivot[0],climb_pivot[1],climb_pivot[2]}-actor;
+        ho=pv+climb_mv(climb_tr(climb_yaw_m(climb_swing_applied)),ho-pv);
+    }
+    if(climb_swing_family_now) {
+        const ClimbV wo=ho+actor;
+        climb_pivot[0]=wo.x;climb_pivot[1]=wo.y;climb_pivot[2]=wo.z;
+        climb_pivot_actor[0]=actor.x;climb_pivot_actor[1]=actor.y;climb_pivot_actor[2]=actor.z;
+        climb_pivot_valid=true;
+    }
     contact_arm::Pose pose;
     if(!contact_arm::solve(sn,ho,eo+(sn-so),eo-so,tf.length(),th.length(),pose)) {climb_m_write(local,climb_mul(climb_tr(Pn),Ws));return;}
     const ClimbV upper=pose.elbow-sn;
@@ -210,6 +304,35 @@ static void climb_offhand_shoulder(uint32_t model,uint32_t parent,uint32_t local
     climb_m_write(local,climb_mul(climb_tr(Pn),climb_ws_new));
     climb_ik_stage=1;
 }
+// The stored entry is the scratch matrix transposed, its translation plus
+// Duke's position (0x800987cc). Both are swung only if they agree.
+static void climb_swing_root(uint32_t model) {
+    (void)model;
+    climb_swing_root_done=true;
+    const uint32_t entry=psx_mod_read_word(player+0x3c);
+    if(entry<0x80000000u || entry>0x801fffe0u) {++climb_root_mismatches;return;}
+    const ClimbM S=climb_m_read(0x1f800020u),E=climb_m_read(entry);
+    const ClimbV actor{double((int32_t)psx_mod_read_word(player+4)),double((int32_t)psx_mod_read_word(player+8)),double((int32_t)psx_mod_read_word(player+12))};
+    const ClimbV ts=climb_t_read(0x1f800020u+0x14),te=climb_t_read(entry+0x14);
+    bool transposed=true,same=true;
+    for(int i=0;i<3;++i)for(int j=0;j<3;++j) {
+        if(std::abs(S[i][j]-E[j][i])>.002)transposed=false;
+        if(std::abs(S[i][j]-E[i][j])>.002)same=false;
+    }
+    if(!transposed && !same) {++climb_root_mismatches;climb_swing_root_done=false;return;}
+    if((ts+actor-te).length()>2) {++climb_root_mismatches;climb_swing_root_done=false;return;}
+    const ClimbM R=climb_yaw_m(climb_swing_applied),Sn=climb_mul(R,S);
+    const ClimbV pv=ClimbV{climb_pivot[0],climb_pivot[1],climb_pivot[2]}-actor;
+    const ClimbV tn=pv+climb_mv(R,ts-pv);
+    climb_m_write(0x1f800020u,Sn);climb_m_write(entry,transposed?climb_tr(Sn):Sn);
+    climb_root_transposed=transposed;
+    const int32_t t[3]={(int32_t)std::lround(tn.x),(int32_t)std::lround(tn.y),(int32_t)std::lround(tn.z)};
+    for(int i=0;i<3;++i) {
+        psx_mod_write_word(0x1f800020u+0x14+4*i,(uint32_t)t[i]);
+        psx_mod_write_word(entry+0x14+4*i,(uint32_t)(t[i]+(int32_t)std::lround(i==0?actor.x:i==1?actor.y:actor.z)));
+    }
+    ++climb_root_swings;
+}
 // 0x800b42ec entry (P, L, out), after swim_aim_arm; the first test must be cheap.
 static void climb_aim_arm(CPUState* cpu) {
     if(!climb_aim_set || (cpu->gpr[31]!=0x8009899cu && cpu->gpr[31]!=0x800980d0u) || cpu->gpr[21]!=player)return;
@@ -219,6 +342,10 @@ static void climb_aim_arm(CPUState* cpu) {
     const int index=(int)((record-(model+0x44))/0x28);
     // The gun shoulder (aimed, never composed) is built: give +0x124 back.
     if(climb_aim_lent && index>psx_mod_read_byte(model+0x31))climb_aim_return();
+    // D08J6F: the first child's composition (record 1, depth 2): the root is
+    // built and stored; swing both about the pivot before any child reads it.
+    if(index==1 && !climb_swing_root_done && parent==0x1f800020u && out==0x1f800040u &&
+       psx_mod_read_byte(record+2)==2 && std::abs(climb_swing_applied)>1e-4 && climb_pivot_valid)climb_swing_root(model);
     const int chest=duke_part_joint(model,part_spine),left=duke_part_joint(model,part_left_shoulder),
         head=duke_part_joint(model,part_neck);
     if(chest<0 || psx_mod_read_byte(model+0x44+0x28*chest+2)!=2)return;
@@ -342,9 +469,11 @@ static void climb_turn_update(CPUState* cpu) {
     ++climb_turns;
 }
 static const char* climb_aim_debug_json() {
-    static char buffer[704];
-    std::snprintf(buffer,sizeof buffer,"{\"set\":%s,\"weight\":%.3f,\"delta\":%.3f,\"chest_yaw\":%.3f,\"head_yaw\":%.3f,\"dir\":[%.3f,%.3f,%.3f],\"builds\":%u,\"chest_turns\":%u,\"offhand_holds\":%u,\"head_turns\":%u,\"look_aims\":%u,\"aim_lends\":%u,\"aim_returns\":%u,\"lent\":%s,\"ik_solves\":%u,\"ik_reach\":%.3f,\"ik_elbow\":[%.0f,%.0f,%.0f],\"ik_target\":[%.0f,%.0f,%.0f],\"turn_error\":%d,\"turn_updates\":%u,\"turns\":%u,\"turn_blocks\":%u}",
+    static char buffer[1024];
+    std::snprintf(buffer,sizeof buffer,"{\"set\":%s,\"weight\":%.3f,\"delta\":%.3f,\"chest_yaw\":%.3f,\"head_yaw\":%.3f,\"dir\":[%.3f,%.3f,%.3f],\"builds\":%u,\"chest_turns\":%u,\"offhand_holds\":%u,\"head_turns\":%u,\"look_aims\":%u,\"aim_lends\":%u,\"aim_returns\":%u,\"lent\":%s,\"ik_solves\":%u,\"ik_reach\":%.3f,\"ik_elbow\":[%.0f,%.0f,%.0f],\"ik_target\":[%.0f,%.0f,%.0f],\"turn_error\":%d,\"turn_updates\":%u,\"turns\":%u,\"turn_blocks\":%u,\"swing\":{\"family\":%s,\"angle\":%.3f,\"target\":%.3f,\"applied\":%.3f,\"miss\":%.3f,\"pivot\":%s,\"root_swings\":%u,\"root_mismatches\":%u,\"transposed\":%s}}",
         climb_aim_set?"true":"false",climb_aim_weight,climb_view_delta,climb_chest_yaw,climb_head_yaw,climb_aim_dir[0],climb_aim_dir[1],climb_aim_dir[2],
-        climb_aim_builds,climb_chest_turns,climb_offhand_holds,climb_head_turns,climb_look_aims,climb_aim_lends,climb_aim_returns,climb_aim_lent?"true":"false",climb_ik_solves,climb_ik_reach,climb_elbow.x,climb_elbow.y,climb_elbow.z,climb_target.x,climb_target.y,climb_target.z,climb_turn_error,climb_turn_updates,climb_turns,climb_turn_blocks);
+        climb_aim_builds,climb_chest_turns,climb_offhand_holds,climb_head_turns,climb_look_aims,climb_aim_lends,climb_aim_returns,climb_aim_lent?"true":"false",climb_ik_solves,climb_ik_reach,climb_elbow.x,climb_elbow.y,climb_elbow.z,climb_target.x,climb_target.y,climb_target.z,climb_turn_error,climb_turn_updates,climb_turns,climb_turn_blocks,
+        climb_swing_family_now?"true":"false",climb_swing_angle,climb_swing_target,climb_swing_applied,climb_reach_error,climb_pivot_valid?"true":"false",
+        climb_root_swings,climb_root_mismatches,climb_root_transposed?"true":"false");
     return buffer;
 }

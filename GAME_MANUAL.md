@@ -894,13 +894,15 @@ the weapon out. With no sidearm ammo, left click does nothing on a climb.
 Number keys do not change weapons on a climb. In third person Duke keeps one
 hand on the rung, chain or wall hold while the sidearm is out: his chest and
 head turn toward where you aim (up to about 50 degrees for the chest), and
-while firing the gun arm points at the crosshair (up to about 110 degrees to
-his right and 60 to his left; further round, the rounds still go to the
-crosshair but the arm stops at its limit). On a pole or chain, with the
+while firing the gun arm points at the crosshair. On a ladder or climbing
+wall (and in a ledge hang), aim far round to his right or behind him and he
+swings out on the hand that holds on, opening his body like a door so the
+pistol reaches round (D08J6F); aim to his left and he fires across his body.
+He can shoot in every direction. On a pole or chain, with the
 sidearm out, Duke also goes round it as you turn the camera (D08J6E), keeping
 the chain a little to his left so it never blocks the shot; a wall or ledge
-beside the chain stops him. The first-person view is unchanged for now.
-Vanilla is unchanged.
+beside the chain stops him. In first person the pistol always points at the
+crosshair. Vanilla is unchanged.
 
 **Shooting from a ledge hang (Modernized, D08J7).**
 Hanging from a ledge, hold **left click**: Duke keeps one hand on the lip,
@@ -908,8 +910,9 @@ draws his sidearm and fires where the crosshair points, so you can shoot
 enemies along the wall beside you. A short click only draws, and the same
 sidearm swap as on climbs applies. In third person, while the sidearm is out
 in the hang, his chest and head turn toward where you aim and the firing arm
-points at the crosshair, with the same limits as on climbs; his other hand
-stays on the lip. **W** pulls Duke up one-handed with the
+points at the crosshair; his other hand stays on the lip. As on a ladder he
+swings out on that hand for aims behind him, so he can shoot in every
+direction. **W** pulls Duke up one-handed with the
 sidearm still out, firing or not: no holstering, and the same speed as an
 unarmed pull-up. He hauls himself up on his left hand, leaning onto it, with
 the pistol held up beside his head until he is over the lip. In first person you

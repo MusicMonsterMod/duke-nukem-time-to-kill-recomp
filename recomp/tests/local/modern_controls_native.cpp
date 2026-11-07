@@ -3282,7 +3282,7 @@ int main(int argc,char** argv) {
         assert(update()==192 && psx_mod_read_half(p+0x24)==192); // full rate far off
         int yaw=192;for(int i=0;i<20;++i)yaw=update();
         assert(std::abs(yaw-1024)<4); // eased onto the view, no overshoot
-        assert(std::strstr(ttk::controls_debug_json(),"\"turn_blocks\":0}"));
+        assert(std::strstr(ttk::controls_debug_json(),"\"turn_blocks\":0,"));
         // Stowing, holstered, the original aim key, the switch, Vanilla: no turn.
         hang(7,149);psx_mod_write_half(p+0x74,7);assert(update()==0);
         hang(7,149);psx_mod_write_byte(p+0x3b8,0);psx_mod_write_half(p+0x74,149);assert(update()==0);
@@ -3307,7 +3307,7 @@ int main(int argc,char** argv) {
         assert(std::abs(yaw-(1024-398))<4); // the view 35 degrees to his right
         // The world in the way (a wall): refused; an actor in the segment is no wall.
         ttk::segment_hit=true;ttk::segment_kind=1;hang(3,192);assert(update()==0);
-        assert(!std::strstr(ttk::controls_debug_json(),"\"turn_blocks\":0}"));
+        assert(!std::strstr(ttk::controls_debug_json(),"\"turn_blocks\":0,"));
         ttk::segment_kind=2;hang(3,192);assert(update()==192);
         ttk::segment_hit=false;
         // Ladders and climbing walls do not turn (D08J6F); nor a ladder-type hold.
@@ -3802,6 +3802,42 @@ int main(int argc,char** argv) {
         psx_mod_write_half(c+12,(uint16_t)-2896);psx_mod_write_half(c+16,(uint16_t)-2896);begin();
         assert(json().find("\"chest_yaw\":-0.873,")!=std::string::npos);
         psx_mod_write_half(c+12,4096);psx_mod_write_half(c+16,0);
+        // D08J6F: on the ladder a view 150 degrees right swings the root out
+        // about the off hand's contact (60 degrees past the 90 start, eased in
+        // real time); scratch root and stored entry 0 turn together, the hand
+        // stays on its hold. Nothing is refused: behind on the off-hand side
+        // he takes the nearer reach.
+        {
+            build(ws,wf,wh,hand);
+            assert(json().find("\"swing\":{\"family\":true,")!=std::string::npos && json().find("\"pivot\":true")!=std::string::npos);
+            psx_mod_write_half(c+12,2048);psx_mod_write_half(c+16,(uint16_t)-3547);
+            for(int k=0;k<4;++k)begin();
+            assert(json().find("\"angle\":1.047,\"target\":1.047,\"applied\":1.047,\"miss\":0.000")!=std::string::npos);
+            const uint32_t old_entry=psx_mod_read_word(p+0x3c);constexpr uint32_t entry=0x801ea000;
+            const double t0[3]={0,300,0},a0[3]={double((int32_t)psx_mod_read_word(p+4)),double((int32_t)psx_mod_read_word(p+8)),double((int32_t)psx_mod_read_word(p+12))};
+            const double te[3]={a0[0],a0[1]+300,a0[2]};
+            psx_mod_write_word(p+0x3c,entry);put(0x1f800020,id,t0);put(entry,id,te);put(L,id);
+            compose(1,0x1f800020,L,0x1f800040);
+            const M root=get(0x1f800020),stored=get(entry);
+            assert(std::abs(root[0][2]-std::sin(1.047))<.003 && std::abs(stored[2][0]-std::sin(1.047))<.003 && json().find("\"root_mismatches\":0")!=std::string::npos);
+            // The root turned about the pivot: the stored translation moved, Duke did not.
+            assert((int32_t)psx_mod_read_word(entry+0x14)!=(int32_t)std::lround(te[0]) && (int32_t)psx_mod_read_word(p+4)==(int32_t)a0[0]);
+            psx_mod_write_word(p+0x3c,old_entry);
+            // 142 degrees left, already swung out: the gun side, swung fully
+            // (100 degrees), the arm 8 degrees short of the view.
+            psx_mod_write_half(c+12,(uint16_t)-2522);psx_mod_write_half(c+16,(uint16_t)-3227);
+            for(int k=0;k<4;++k)begin();
+            assert(json().find("\"angle\":1.745,\"target\":1.745,\"applied\":1.745,\"miss\":0.140")!=std::string::npos);
+            // 100 degrees left: across the body, no swing, the arm on the view.
+            psx_mod_write_half(c+12,(uint16_t)-4034);psx_mod_write_half(c+16,(uint16_t)-711);
+            for(int k=0;k<6;++k)begin();
+            assert(json().find("\"angle\":0.000,\"target\":0.000,\"applied\":0.000,\"miss\":0.000")!=std::string::npos);
+            // A chain turns Duke instead (D08J6E): no swing.
+            psx_mod_write_half(p+0x60,193);begin();assert(json().find("\"swing\":{\"family\":false,")!=std::string::npos);
+            psx_mod_write_half(p+0x60,187);
+            psx_mod_write_half(c+12,4096);psx_mod_write_half(c+16,0);begin();begin();
+            std::puts("PASS: D08J6F swing out on the grip: eased swing, root and stored entry turned about the pivot, nearer reach behind, across-body reach, chains excluded");
+        }
         // The stow ramps out; refusals clear the build.
         psx_mod_write_half(p+0x74,7);ttk::clock_ms+=80;call(0x800411b8,p,0,0x80042634);
         assert(json().find("\"weight\":0.500,")!=std::string::npos);

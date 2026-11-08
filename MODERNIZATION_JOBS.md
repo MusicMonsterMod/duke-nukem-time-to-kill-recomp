@@ -7209,7 +7209,7 @@ Gatling in first and third person.
 
 ### D49 - Shots in step with the gun (energy beam lags the aim)
 
-**Status: Todo (user request 2026-11-08, during the D41B playtest; not investigated). Dependencies: none.**
+**Status: Done (user-accepted 2026-11-08: "it's really working!!", then "close this out then"; energy beam, first person; impact glow split to D49A, rounds in flight to D49B; [note 416](documentation/416-d49-beam-follows-gun.md)). Dependencies: none.**
 User: "the latency between weapon projectile and the weapon movement itself,
 really needs to be synchronized. it's most visible with the energy weapon
 itself. when you move around, the projectile beam lags behind where duke is
@@ -7226,6 +7226,83 @@ the game tick, the redraw or the beam's own update, then draw shots from
 the same aim the gun shows. Modernized only; Vanilla unchanged; hit results
 must stay as they are. Acceptance: user playtest turning and strafing while
 firing the energy weapon, then the other guns.
+
+**Work log (2026-11-08, Needs playtest).** Measured on a private copy of UI
+slot 8 (lab `recomp/analysis/d49/lab.py`, offscreen). Cause: the redraw, not
+the game tick or the beam's update. At 120/180 Hz the late view turns the
+picture to the newest mouse look and the first-person gun is drawn with it
+(D14H), but the world is drawn about 90 ms back, and the beam is a world
+segment from the muzzle at its shot (D22D origin record) along its shot
+angles, alive about three ticks. A dx=20 turn left up to 29 degrees between
+a drawn beam and the view. Fix: each beam's record also holds the view it was
+aimed from; late first-person redraws move Duke's own beams (origin, start,
+end unless locked, angles) by the view change since the shot, in the
+worker's copy only. Gameplay, hits and D22D locks unchanged; 60 Hz, third
+person and Vanilla unchanged. Console `beamfollow`, `DNTTK_BEAM_FOLLOW=0`.
+After: fast and slow turns at 180 and 120 Hz draw the streak from the muzzle
+toward the crosshair; still identical. `ttk-aim-test` (new D49 checks) and
+`ttk-input-test` pass. Remaining: the impact glow and sparks are game
+particles at the real hit point and still trail by the world delay; the
+flamethrower's fireballs and Gatling wall puffs trail the same way; third
+person unchanged (Duke and beam both delayed). Needs the user's turning and
+strafing playtest with the energy weapon.
+
+**Work log (2026-11-08, part 2, Needs playtest).** User: the beam's root
+still left the barrel. Second cause: the first-person gun is drawn in its
+presentation pose (D12/D36: anchor pushed past the near cull, per-weapon
+offsets, kick) under the body camera, about 330 units from the game muzzle
+the beam started at. Each first-person Duke draw now records the barrel tip
+exactly as the muzzle flash places it (display hand matrix and the slot's
+muzzle vector), and at the list step after Duke's draw each of Duke's beams
+gets its origin there under the world camera, angles re-aimed at the end.
+Lab: every beam draw at 180 and 120 Hz rooted on the barrel; still, fast
+turns and running strafe start at the barrel tip. Suites pass. 60 Hz, third
+person, impact glow and other guns unchanged.
+
+**Closeout (2026-11-08, Done).** User playtest at 180 Hz: "it's really
+working!! as you say the only thing that doesnt line up as such as the
+impact point lags behind", then "close this out then". The impact glow is
+D49A; launched rounds are D49B. Matched before/after captures (fast turn,
+slow turn, running strafe; `DNTTK_BEAM_FOLLOW=0` against default) are kept
+locally in `research/before-after/d49-beam-follows-gun/`.
+
+### D49A - Impact glow at the drawn beam's end (then every gun's wall hits)
+
+**Status: Todo (user request 2026-11-08, after the D49 playtest: "it's really working!! ... the only thing that doesnt line up as such as the impact point lags behind"). Dependencies: D49 (beam drawn from the barrel).**
+At 120/180 Hz in first person the energy beam now leaves the barrel toward
+the crosshair (D49), but the bright glow and sparks where it meets a wall
+stay where the beam really hit, about 90 ms of turning behind, so on fast
+turns the beam's end and its glow separate. They are game particles, not the
+beam: heap records (D49 lab, [note 416](documentation/416-d49-beam-follows-gun.md))
+with a list link at +0/+4, a drifting position at +0x10, the spawn point at
++0x50 (exactly the beam's real end +0x34), a word 0x800606f4 at +0x60 and
+type 0x0e; static pointers to them sit around 0x800de610..0x800e10f0. Find
+their list and spawner, then in late first-person redraws draw the impact
+particles of Duke's own beams at the drawn beam's end (the same view change
+D49 applies, or anchored to the moved end), drawing only. Then the same for
+the other guns' wall-hit effects (Gatling and pistol puffs and sparks, which
+trail the crosshair the same way), and decide with the user whether
+D41B's impact lights follow. Gameplay, hit points, damage and Vanilla stay
+unchanged; 60 Hz and third person unchanged unless agreed. Acceptance: user
+playtest turning fast while firing the energy weapon at near and far walls,
+then the Gatling.
+
+### D49B - Rounds leave the gun (flamethrower fireballs, rockets, rounds in flight)
+
+**Status: Todo (scoped 2026-11-08 from the D49 findings; user approved adding it). Dependencies: D49.**
+Rounds that fly on their own (flamethrower fireballs, RPG rockets, freezer
+shots and other projectiles Duke launches) are world objects drawn about
+90 ms back at 120/180 Hz, so while turning or strafing the newest ones appear
+beside the gun instead of leaving the barrel (D49 lab screenshots: the
+flamethrower stream off to the side of the crosshair). They cannot simply be
+glued to the view like the short-lived beam: draw each of Duke's newest
+rounds from the drawn barrel (D49's recorded barrel tip) and along the view
+it was aimed from, blending into its real world path within a short age
+(about 100-200 ms), drawing only. Measure per weapon (first and third
+person, 120 and 180 Hz) before choosing the blend. Hits, flight, damage, D41B
+flight lights and Vanilla unchanged. Acceptance: user playtest turning and
+strafing while firing the flamethrower, then the RPG and the other launched
+weapons.
 
 ### D50 - Frame rate halves after loading (audio running low at load)
 
@@ -8586,7 +8663,9 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D46 | Apartment mirror shows the outside when Duke turns left (user slot 8); regression unknown | Done (2026-11-08) | - |
 | D47 | First shotgun shot smokes from Duke's left shoulder (first and third person) | Todo | - |
 | D48 | Steady left hand on the Gatling gun while firing (no violent shake) | Todo | - |
-| D49 | Shots in step with the gun: the energy beam (and other rounds) lag the aim while turning | Todo | - |
+| D49 | Shots in step with the gun: the energy beam drawn from the barrel while turning and moving | Done 2026-11-08 | - |
+| D49A | Impact glow at the drawn beam's end, then every gun's wall hits | Todo | D49 |
+| D49B | Rounds leave the gun: fireballs, rockets and rounds in flight drawn from the barrel | Todo | D49 |
 | D50 | Frame rate halves after loading; energy-weapon stalls and crackle | Accepted 2026-11-08, closeout not yet authorized (deferred widescreen mirror, exact) | - |
 | D51 | Continuous fire (energy weapon, flamethrower) stops when running into a wall | Done | - |
 | D39G | Classic renderer fallback for flashes | Done (accepted 2026-11-03) | D39C |

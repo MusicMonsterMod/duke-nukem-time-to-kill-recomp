@@ -403,6 +403,17 @@ int main(int argc,char**argv) {
     shot(true);object(0,0x800e1000,1);
     writes=0;beam.gpr[31]=0x8007337c;callback(&beam,0x8001ca4c);assert(writes==0); // foreign list advance
     assert(finish()==0x800e0000 && psx_mod_read_word(0x800da990)!=p+0x80c && beam.gpr[20]==1);
+    {   // D49: the beam's record carries the view it was aimed from (redraws
+        // move the drawn beam by the view change since); other projectiles,
+        // or a slot whose origin is not its record, have none.
+        uint32_t rec=0;double eye[3],fwd[3];
+        assert(ttk::aim_beam_view(0x800da978,rec,eye,fwd) && rec==psx_mod_read_word(0x800da990));
+        const double n=std::sqrt(fwd[0]*fwd[0]+fwd[1]*fwd[1]+fwd[2]*fwd[2]);assert(std::fabs(n-1)<0.01);
+        assert(!ttk::aim_beam_view(0x800da978+0x60,rec,eye,fwd) && !ttk::aim_beam_view(0x800da978+8,rec,eye,fwd));
+        const uint32_t was=psx_mod_read_word(0x800da990);psx_mod_write_word(0x800da990,p+0x80c);
+        assert(!ttk::aim_beam_view(0x800da978,rec,eye,fwd));psx_mod_write_word(0x800da990,was);
+        assert(ttk::aim_beam_follow_enabled());
+    }
     object(0,0,1);writes=0;callback(&beam,0x8001ca4c);assert(writes==0); // consumed lease
     shot(false);object(0,0x800e0000,1);assert(finish()==0); // a miss: no auto-lock
     psx_mod_write_word(0x800e0000,3);shot(true);object(0,0x800e0000,1);assert(finish()==0); // dead
@@ -422,7 +433,7 @@ int main(int argc,char**argv) {
     shot(true);object(0,0x800e1000,2);assert(finish()==0x800e0000 && beam.gpr[20]==2);
     object(1,0x800e0000,2);assert(finish()==0); // displaced 0x800e1000 is not targetable: no double hit
     object(3,0x800e0000,3);writes=0;callback(&beam,0x8001ca4c);assert(writes==0); // never a fourth beam
-    std::puts("PASS: D22D energy beam locks the crosshair actor; misses, dead, reach, list and upgrade extras");
+    std::puts("PASS: D22D energy beam locks the crosshair actor; misses, dead, reach, list and upgrade extras; D49 shot view record");
     // D10H3 AUTO AIM EDUKE32: the bullet weapons go exactly at the nearest
     // hostile targetable actor (the room list above; never an NPC) inside
     // 48/2048 of a turn either side of the view, seen from the eye and reached

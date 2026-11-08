@@ -564,6 +564,9 @@ static void first_person_draw(bool duke,bool eye) {
 // applied. Duke's joint matrices are never written.
 static constexpr uint32_t hand_record_byte=0x33;
 static uint32_t weapon_matrix;
+// D49: the drawn barrel tip in the view frame, from this composition's Duke draw.
+static bool fp_muzzle_ok;
+static double fp_muzzle_view[3];
 // Duke's draw, from its entry (0x800348d8, ra 0x8003769c) to the list step
 // after it (0x8001ca4c, ra 0x800376b4). duke_drawing is not usable here: the
 // draw's own callees reach 0x8001ca4c before the joint loop.
@@ -729,9 +732,10 @@ static void weapon_draw_bounds(bool duke_entry,bool list_step_after_duke) {
         fp_policy.effective && fp_blend>=0.999 && frozen_eye_state() &&
         player_identity_ready() && psx_mod_read_half(0x800bcbb0)==1 &&
         !psx_mod_read_half(0x800d2540);
-    if(duke_entry) weapon_duke_draw=true;
+    if(duke_entry) {weapon_duke_draw=true;fp_muzzle_ok=false;}
     if(list_step_after_duke) weapon_duke_draw=false;
     replay_body_camera(duke_entry); // D14H: no-op outside late first-person redraws
+    if(list_step_after_duke) replay_beam_roots(); // D49: no-op outside late first-person redraws
     replay_quake_camera(duke_entry); // D44A: no-op without a first-person earthquake
     if(duke_entry || list_step_after_duke) {display_hand_done=false;weapon_release();near_clip_viewmodel_flush();}
     if(mask && psx_mod_read_half(player+0x35e) && psx_mod_read_half(player+0x854)==2)
@@ -1161,6 +1165,12 @@ static double hang_legs_alpha() {
 }
 // Arms preview the same grip as the hand. Only the native right-hand draw
 // advances recoil/pose counters, preserving the original once-per-draw timing.
+void first_person_muzzle_reset() {fp_muzzle_ok=false;}
+bool first_person_drawn_muzzle(double v[3]) {
+    if(!fp_muzzle_ok) return false;
+    for(int i=0;i<3;++i) v[i]=fp_muzzle_view[i];
+    return true;
+}
 static bool prepare_display_matrix(uint32_t real,uint32_t desc,bool advance=false) {
     if(!advance && display_hand_done)return true;
     live_valid=false;
@@ -1249,6 +1259,22 @@ static bool prepare_display_matrix(uint32_t real,uint32_t desc,bool advance=fals
     for(int i=0;i<3;++i) {
         const double w=(int32_t)psx_mod_read_word(camera+0x14+4*i)+c[0][i]*v[0]+c[1][i]*v[1]+c[2][i]*v[2];
         psx_mod_write_word(weapon_matrix+0x14+4*i,(uint32_t)(int32_t)std::lround(w));
+    }
+    {
+        // D49: the drawn barrel tip, as the muzzle flash 0x800341e4 places it
+        // (hand translation + transpose(hand) times the slot's muzzle vector,
+        // shorts at 0x800c45b0 + slot*0x2c), in this draw's view frame. The
+        // energy beam's drawn root starts here (frame_replay.cpp).
+        const uint32_t ws=psx_mod_read_byte(player+0x3b9);
+        double m[3],pw[3];
+        for(int i=0;i<3;++i) m[i]=(int16_t)psx_mod_read_half(0x800c45b0u+ws*0x2cu+2*i);
+        for(int i=0;i<3;++i) {
+            double d=(int32_t)psx_mod_read_word(weapon_matrix+0x14+4*i);
+            for(int r=0;r<3;++r) d+=(int16_t)psx_mod_read_half(weapon_matrix+2*(3*r+i))/4096.0*m[r];
+            pw[i]=d-(int32_t)psx_mod_read_word(camera+0x14+4*i);
+        }
+        for(int r=0;r<3;++r) fp_muzzle_view[r]=c[r][0]*pw[0]+c[r][1]*pw[1]+c[r][2]*pw[2];
+        fp_muzzle_ok=ws<32;
     }
     if(present_trace_enabled()) {
         double hand[3];

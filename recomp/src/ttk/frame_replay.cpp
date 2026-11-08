@@ -403,7 +403,7 @@ uint64_t captures=0,publishes=0,submits=0,presented=0,reused=0,no_job=0,failures
 struct Params {
     uint32_t magic;
     float alpha;
-    uint32_t flags;          // 1 = camera fields present, 4 = loading image (logo angle), 8 = body camera
+    uint32_t flags;          // 1 = camera fields present, 4 = loading image (logo angle), 8 = body camera, 16 = D49 beams follow the view
     uint32_t nmats;          // matrix patches following the header
     CameraState camera;
     uint32_t render_len;     // draw-time host state after the patches
@@ -872,6 +872,7 @@ int submit_job(Frame& base,const Frame& next,double alpha,bool late,double look_
         if(late) {
             if(apply_late(base.state,next.state,alpha,p,look_ms)) {
                 ++late_applied;
+                if((p.flags&8) && aim_beam_follow_enabled()) p.flags|=16;
                 if(view_at>=0) {
                     base.view_ok[view_at]=true;
                     for(int i=0;i<3;++i) {base.view_eye[view_at][i]=p.camera.pos[i];base.view_fwd[view_at][i]=p.camera.rot[6+i];}
@@ -1348,6 +1349,99 @@ void quake_end() {
     }
     quake_cam={};
 }
+// D49: in a late first-person redraw Duke and his gun are drawn as if turned
+// to the late view (D14H body camera), but the world, Duke's beams with it,
+// is drawn about 90 ms back under that view: a beam fired while turning
+// stayed where the crosshair had been. Each of Duke's view-aimed beams
+// (weapon_aim.cpp records the view it was aimed from) is moved in this
+// worker's copy only, by the change from that view to the one drawn: q ->
+// eye + Rl^T Rs (q - shot eye). It then leaves the gun the way it did on
+// screen at its shot, with Duke's motion since. Origin and start always; the
+// end too unless the beam is locked on an actor (it stays on the actor); its
+// angles then point from the moved origin to the end.
+// Gameplay, hits and the beam's real line are untouched.
+void beam_rows(const double f[3],double r[9]) {
+    const double h=std::hypot(f[0],f[2]);
+    const double sy=h>1e-9?f[0]/h:0.0,cy=h>1e-9?f[2]/h:1.0,sp=std::clamp(f[1],-1.0,1.0),cp=h;
+    const double m[9]={cy,0,-sy,-sy*sp,cp,-cy*sp,sy*cp,sp,cy*cp};
+    std::memcpy(r,m,sizeof m);
+}
+// The beam's angles (+0x24 yaw, +0x26 pitch, 4096 a turn; the updater's
+// matrix 0x8002b1b4, direction (sin y cos p, -sin p, cos y cos p)) orient its
+// drawn streak: point them from the origin record to the end, as the updater
+// built them.
+void beam_aim_angles(uint32_t a,uint32_t rec) {
+    double w[3],n=0;
+    for(int k=0;k<3;++k) {w[k]=(double)(int32_t)psx_mod_read_word(a+0x34+4*k)-(double)(int32_t)psx_mod_read_word(rec+4*k);n+=w[k]*w[k];}
+    if(n<=1.0) return;
+    n=std::sqrt(n);
+    const double k=2048.0/3.14159265358979;
+    auto unit=[&](double x){long u=std::lround(x*k)%4096; if(u>=2048) u-=4096; if(u<-2048) u+=4096; return (uint16_t)(int16_t)u;};
+    psx_mod_write_half(a+0x24,unit(std::atan2(w[0],w[2])));
+    psx_mod_write_half(a+0x26,unit(-std::asin(std::clamp(w[1]/n,-1.0,1.0))));
+}
+void beams_follow_view(const CameraState& c) {
+    double rl[9];
+    for(int r=0;r<3;++r) {
+        double n=0; for(int k=0;k<3;++k) n+=(double)c.rot[3*r+k]*c.rot[3*r+k];
+        n=std::sqrt(n); if(n<1024) return;
+        for(int k=0;k<3;++k) rl[3*r+k]=c.rot[3*r+k]/n;
+    }
+    static const bool trace=std::getenv("DNTTK_BEAM_FOLLOW_TRACE")!=nullptr;
+    for(uint32_t i=0;i<100;++i) {
+        const uint32_t a=0x800da978u+i*0x60u;
+        if(!psx_mod_read_half(a) || psx_mod_read_byte(a+0x30)!=15 || psx_mod_read_word(a+0x10)!=duke) continue;
+        uint32_t rec=0; double eye[3],fwd[3];
+        if(!aim_beam_view(a,rec,eye,fwd)) continue;
+        double rs[9]; beam_rows(fwd,rs);
+        auto move=[&](uint32_t at) {
+            double d[3],v[3];
+            for(int k=0;k<3;++k) d[k]=(double)(int32_t)psx_mod_read_word(at+4*k)-eye[k];
+            for(int r=0;r<3;++r) v[r]=rs[3*r]*d[0]+rs[3*r+1]*d[1]+rs[3*r+2]*d[2];
+            for(int k=0;k<3;++k) psx_mod_write_word(at+4*k,(uint32_t)(int32_t)std::lround(c.pos[k]+rl[k]*v[0]+rl[3+k]*v[1]+rl[6+k]*v[2]));
+        };
+        const int16_t yaw0=(int16_t)psx_mod_read_half(a+0x24);
+        move(rec); move(a+4);
+        const bool locked=psx_mod_read_word(a+0x14)!=0;
+        if(!locked) move(a+0x34);
+        beam_aim_angles(a,rec);
+        if(trace) std::fprintf(stderr,"[TTK beam follow] %08x lock %d eye %.0f,%.0f,%.0f -> %d,%d,%d fwd %.3f,%.3f,%.3f -> %.3f,%.3f,%.3f yaw %d -> %d\n",a,locked?1:0,eye[0],eye[1],eye[2],
+            c.pos[0],c.pos[1],c.pos[2],fwd[0],fwd[1],fwd[2],rl[6],rl[7],rl[8],yaw0,(int16_t)psx_mod_read_half(a+0x24));
+    }
+}
+// D49 part 2: the beam's drawn root on the drawn barrel. The first-person gun
+// is shown in its own presentation pose (ready pose, kick, per-weapon offsets)
+// with the body camera, so a beam moved with the view still started beside
+// the barrel. At the list step after Duke's draw (first_person.inc, the world
+// camera just restored; projectiles are drawn after the actors), every one of
+// Duke's view-aimed beams gets its origin on the barrel tip Duke's draw
+// recorded (view frame) under the world camera, and its angles pointed from
+// it to the end. Worker copy only.
+bool beam_follow_job=false;
+void beam_roots_at_barrel() {
+    if(!psx_mod_replay_active() || !beam_follow_job || !body_camera.valid || body_camera.body) return;
+    static const bool trace=std::getenv("DNTTK_BEAM_FOLLOW_TRACE")!=nullptr;
+    double vm[3];
+    if(!first_person_drawn_muzzle(vm)) {if(trace) std::fprintf(stderr,"[TTK beam root] no barrel\n"); return;}
+    double rl[9],e[3];
+    for(int r=0;r<3;++r) {
+        double n=0; for(int k=0;k<3;++k) {const double x=(int16_t)psx_mod_read_half(camera_base+2*(3*r+k)); n+=x*x;}
+        n=std::sqrt(n); if(n<1024) return;
+        for(int k=0;k<3;++k) rl[3*r+k]=(int16_t)psx_mod_read_half(camera_base+2*(3*r+k))/n;
+    }
+    for(int k=0;k<3;++k) e[k]=(int32_t)psx_mod_read_word(camera_base+0x14+4*k);
+    double q[3];
+    for(int k=0;k<3;++k) q[k]=e[k]+rl[k]*vm[0]+rl[3+k]*vm[1]+rl[6+k]*vm[2];
+    for(uint32_t i=0;i<100;++i) {
+        const uint32_t a=0x800da978u+i*0x60u;
+        if(!psx_mod_read_half(a) || psx_mod_read_byte(a+0x30)!=15 || psx_mod_read_word(a+0x10)!=duke) continue;
+        uint32_t rec=0; double eye[3],fwd[3];
+        if(!aim_beam_view(a,rec,eye,fwd)) continue;
+        if(trace) std::fprintf(stderr,"[TTK beam root] %08x from %d,%d,%d to %.0f,%.0f,%.0f view %.0f,%.0f,%.0f\n",a,(int32_t)psx_mod_read_word(rec),(int32_t)psx_mod_read_word(rec+4),(int32_t)psx_mod_read_word(rec+8),q[0],q[1],q[2],vm[0],vm[1],vm[2]);
+        for(int k=0;k<3;++k) {psx_mod_write_word(rec+4*k,(uint32_t)(int32_t)std::lround(q[k]));psx_mod_write_word(a+4+4*k,(uint32_t)(int32_t)std::lround(q[k]));}
+        beam_aim_angles(a,rec);
+    }
+}
 int worker_draw(CPUState* source,const void* params,uint32_t len) {
     const uint64_t quality_start=quality_profile()?SDL_GetPerformanceCounter():0;
     quality_actor_start=quality_actor_ticks=quality_actor_count=0;
@@ -1371,11 +1465,13 @@ int worker_draw(CPUState* source,const void* params,uint32_t len) {
             for(int i=0;i<3;++i) psx_mod_write_word(camera_base+0x34+4*i,(uint32_t)p.camera.view_t[i]);
         }
         if(cam_mask&8) for(int i=0;i<3;++i) psx_mod_write_word(camera_base+0x14+4*i,(uint32_t)p.camera.pos[i]);
-        body_camera={};
+        body_camera={}; beam_follow_job=false;
         if((p.flags&8) && (cam_mask&5)==5) {
             body_camera.valid=true;
             std::memcpy(body_camera.rot[0],p.camera.rot,sizeof p.body_rot);std::memcpy(body_camera.view[0],p.camera.view,sizeof p.body_view);
             std::memcpy(body_camera.rot[1],p.body_rot,sizeof p.body_rot);std::memcpy(body_camera.view[1],p.body_view,sizeof p.body_view);
+            if(p.flags&16) beams_follow_view(p.camera);
+            beam_follow_job=(p.flags&16)!=0; first_person_muzzle_reset();
         }
         // The camera update (0x8003ade4) stores the eye's room from
         // 0x80039dd0(target position, eye, target room, previous room), which
@@ -2152,6 +2248,7 @@ void replay_quake_camera(bool duke) {
     write_camera(quake_cam.cam[duke],!body_camera.valid);
 }
 void replay_quake_restore() {if(!psx_mod_replay_active()) quake_end();}
+void replay_beam_roots() {beam_roots_at_barrel();}
 void replay_body_camera(bool duke) {
     if(!body_camera.valid || body_camera.body==duke) return;
     body_camera.body=duke;

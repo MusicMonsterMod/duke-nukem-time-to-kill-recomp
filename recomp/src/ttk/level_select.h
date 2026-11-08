@@ -38,6 +38,7 @@ bool point_blank_console_command(const char* line, void (*say)(const char*), boo
 // D10G3: "shotview [on|off|default]" (weapon_aim.cpp), session-only A/B of
 // aiming shots from the view on screen versus the previous update's camera.
 bool shot_view_console_command(const char* line, void (*say)(const char*), bool& close);
+bool beam_follow_console_command(const char* line, void (*say)(const char*), bool& close);
 // D10G4: "shootseen [on|off|default]" (weapon_aim.cpp), session-only A/B of
 // testing the crosshair against enemies where they are drawn or where they are now.
 bool shoot_seen_console_command(const char* line, void (*say)(const char*), bool& close);

@@ -32,12 +32,17 @@ static unsigned close_retractions;
 static unsigned point_blank_shots;
 static double last_bend;
 static uint32_t aim_vector, aim_origin, beam_origins;
+// One record per projectile pool slot (100 x 0x60 at 0x800da978): the beam's
+// fixed origin (+0, read by the updater through projectile +0x18), a tag
+// (+12) and, for D49, the view the shot was aimed from: eye (+16) and
+// forward x4096 (+28). Redraw workers read the record from guest memory.
+constexpr uint32_t beam_record=48, beam_slots=100, beam_tag=0x44343953u;
 void aim_render_prepare() {
     // Populate contents only when used; reserve stable host pointers before
     // replay workers fork so first shots cannot force a synchronous restart.
     if(!aim_vector) aim_vector=psx_mod_alloc_guest_memory(16,16);
     if(!aim_origin) aim_origin=psx_mod_alloc_guest_memory(16,16);
-    if(!beam_origins) beam_origins=psx_mod_alloc_guest_memory(96*16,16);
+    if(!beam_origins) beam_origins=psx_mod_alloc_guest_memory(beam_slots*beam_record,16);
 }
 static uint32_t beam_shot_sp;
 static uint64_t beam_epoch;
@@ -473,6 +478,44 @@ static bool beam_extra_ok(uint32_t actor) {
     double dot=0;for(int i=0;i<3;++i)dot+=d[i]*beam_forward[i];
     return dot>=std::cos(45.0*3.141592653589793/180.0);
 }
+// D49: at 120/180 Hz the late first-person view turns the world to the newest
+// mouse look while the world itself is drawn about 90 ms back, and Duke's arms
+// and gun are drawn to match the view (D14H). A beam is a world segment from
+// the muzzle at its shot, so it trailed the gun by that delay plus its own
+// life while turning or moving. Redraw workers move Duke's own view-aimed
+// beams by the view change since their shot (frame_replay.cpp), so they leave
+// the gun where it points. Drawing only: the updater, hits and locks keep the
+// beam's real line. DNTTK_BEAM_FOLLOW=0 or console "beamfollow off" keeps the
+// world beam.
+static std::atomic<int> beam_follow_override{-1};
+bool aim_beam_follow_enabled() {
+    const int o=beam_follow_override.load(std::memory_order_relaxed);
+    if(o>=0)return o!=0;
+    const char* v=std::getenv("DNTTK_BEAM_FOLLOW");return !v || std::strcmp(v,"0");
+}
+bool aim_beam_view(uint32_t object,uint32_t& record,double eye[3],double fwd[3]) {
+    if(!beam_origins || object<0x800da978u || object>=0x800da978u+beam_slots*0x60u || (object-0x800da978u)%0x60u)return false;
+    record=beam_origins+beam_record*((object-0x800da978u)/0x60u);
+    if(psx_mod_read_word(object+0x18)!=record || psx_mod_read_word(record+12)!=beam_tag)return false;
+    read_vector(record+16,eye);read_vector(record+28,fwd);
+    for(int i=0;i<3;++i)fwd[i]/=4096;
+    return true;
+}
+bool beam_follow_console_command(const char* line,void (*say)(const char*),bool& close) {
+    if(std::strcmp(line,"beamfollow") && std::strncmp(line,"beamfollow ",11))return false;
+    close=false;
+    if(line[10]) {
+        const char* value=line+11;
+        if(!std::strcmp(value,"on"))beam_follow_override.store(1,std::memory_order_relaxed);
+        else if(!std::strcmp(value,"off"))beam_follow_override.store(0,std::memory_order_relaxed);
+        else if(!std::strcmp(value,"default"))beam_follow_override.store(-1,std::memory_order_relaxed);
+        else {say("Usage: beamfollow [on|off|default] (on: energy beams leave the gun where it points at high refresh; session only)");return true;}
+        close=true;
+    }
+    char text[192];std::snprintf(text,sizeof text,"Beam follow %s: energy beams are drawn %s (session only). Default on.",
+        aim_beam_follow_enabled()?"on":"off",aim_beam_follow_enabled()?"from the gun where it points":"where they were fired in the world");
+    say(text);return true;
+}
 // At the beam constructor's verified post-allocation list-advance call, keep
 // the original damage/line collision updater. The first beam locks onto the
 // targetable actor under the crosshair (D22D) instead of the original
@@ -491,10 +534,13 @@ static void beam_finish(CPUState* cpu) {
        psx_mod_read_word(object+0x10)!=player || psx_mod_read_byte(object+0x30)!=15 ||
        psx_mod_read_word(object+0x18)!=player+0x80c || !shot_ready() || !identity())return;
     beam_pending=false;
-    if(!beam_origins)beam_origins=psx_mod_alloc_guest_memory(96*16,16);
+    if(!beam_origins)beam_origins=psx_mod_alloc_guest_memory(beam_slots*beam_record,16);
     if(!beam_origins) {beam_extra_pending=false;return;}
-    const auto origin=beam_origins+16*((object-0x800da978)/0x60);
+    const auto origin=beam_origins+beam_record*((object-0x800da978)/0x60);
     write_vector(origin,last_origin);
+    // D49: the view this beam was aimed from (the D10G3 shown view).
+    double fwd[3];for(int i=0;i<3;++i)fwd[i]=beam_forward[i]*4096;
+    psx_mod_write_word(origin+12,beam_tag);write_vector(origin+16,beam_eye);write_vector(origin+28,fwd);
     const uint32_t original=psx_mod_read_word(object+0x14),count=cpu->gpr[20];
     uint32_t lock=0;
     if(first) {

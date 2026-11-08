@@ -1,5 +1,26 @@
 # Next-session handoff
 
+## 2026-11-08 - D49 energy beam drawn from the gun while turning (Done)
+
+User: "when you move around, the projectile beam lags behind where duke is
+pointing." Cause: at 120/180 Hz the first-person gun is drawn with the newest
+mouse look, but the world, and the beam in it, is drawn about 90 ms back; each
+beam is a world segment fixed at its shot and lives about three ticks, so it
+showed where the crosshair had been (up to 29 degrees behind in a fast lab
+turn). Fix (`weapon_aim.cpp`, `frame_replay.cpp`): each beam records the view
+it was aimed from, and late first-person redraws move Duke's own beams by
+the view change since, drawing only. Hits, locks, 60 Hz, third person and
+Vanilla unchanged; console `beamfollow off` compares. Lab: streak from the
+muzzle to the crosshair in fast and slow turns at 180 and 120 Hz. Remaining:
+the wall-impact glow (game particles) and other guns' rounds still trail by
+the world delay. [Note 416](416-d49-beam-follows-gun.md).
+Part 2 (same day): the beam's root now starts on the barrel as drawn. The
+first-person gun is shown in its presentation pose about 330 units from the
+game muzzle; each Duke draw records the drawn barrel tip (as the muzzle
+flash places it) and the redraw starts Duke's beams there.
+User accepted 2026-11-08 ("it's really working!!", "close this out then").
+The lagging impact glow is the new job D49A; rounds in flight are D49B.
+
 ## 2026-11-08 - D51 held fire no longer stops at a wall (Done)
 
 Cause: running into a wall plays the original wall-bump stumble (body 94/95),

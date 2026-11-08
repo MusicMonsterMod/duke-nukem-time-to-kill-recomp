@@ -172,6 +172,7 @@ bool late_view(double& yaw, double& pitch, double at_ms=-1);
 bool late_pivot(double* xyz);
 double late_fp_blend();
 void replay_body_camera(bool duke);
+void replay_beam_roots();
 // D44A earthquakes (earthquake.inc): fix the offset of the live image about
 // to be composed (once a game frame), then read the offset of the image being
 // drawn (live, or the redraw's base frame in a worker): eye dy (game units,
@@ -231,6 +232,9 @@ bool first_person_interaction_drawing();
 // D12: true while Duke's hand joint, its weapon, muzzle flash or held item is
 // drawn with the first-person weapon transform.
 bool first_person_weapon_drawing();
+// D49: the barrel tip as drawn in this composition's Duke draw, view frame (x right, y down, z ahead).
+bool first_person_drawn_muzzle(double v[3]);
+void first_person_muzzle_reset();
 // D14: Modernized widescreen is presenting a wider view (any camera). Near
 // polygons the original drops or tears then sit inside the revealed margins.
 bool widescreen_near_clip_live();

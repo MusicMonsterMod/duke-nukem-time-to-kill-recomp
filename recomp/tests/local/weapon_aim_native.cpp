@@ -226,25 +226,6 @@ int main(int argc,char**argv) {
         seen_on=false;ttk::sv_ok=false;ttk::sp_n=0;place(0);psx_mod_write_word(round+0x10,0);
     }
     std::puts("PASS: D10H2 aim queries use the rounds' own actor test; a round aimed at an actor meets it after the actor's own update");
-    {   // D49A: a view-aimed round's wall impact is queued with its shot's view
-        // (bound at its first sweep from the shot's muzzle); consumed once;
-        // other owners, other origins and Vanilla queue nothing.
-        constexpr uint32_t round=0x800da978+0x60*5,point=0x801f0000;
-        ttk::AimImpact got[4];ttk::aim_take_impacts(got,4);
-        for(int i=0;i<3;++i)psx_mod_write_word(point+4*i,i==2?900:i==0?40:0);
-        auto hit=[&](int from_x,uint32_t owner,bool vanilla){
-            seed();callback(&c,0x8003c500);assert(c.gpr[6]==0x801e0000);
-            psx_mod_write_word(round+0x14,from_x);psx_mod_write_word(round+0x18,0);psx_mod_write_word(round+0x1c,0);psx_mod_write_word(round+0x10,owner);
-            CPUState r=c;r.gpr[4]=round;modern=!vanilla;callback(&r,0x8006dd2c);
-            r.gpr[5]=point;callback(&r,0x8006f1b8);const unsigned n=ttk::aim_take_impacts(got,4);
-            r.gpr[5]=point;callback(&r,0x8006f1b8);assert(ttk::aim_take_impacts(got+1,3)==0); // consumed
-            modern=true;return n;};
-        assert(hit(100,p,false)==1);
-        assert(got[0].point[0]==40 && got[0].point[2]==900 && got[0].eye[0]==0 && got[0].eye[2]==0 && std::abs(got[0].fwd[2]-1)<1e-9 && got[0].fwd[0]==0);
-        assert(hit(100,0x800e2000,false)==0 && hit(300,p,false)==0 && hit(100,p,true)==0);
-        psx_mod_write_word(round+0x10,0);
-    }
-    std::puts("PASS: D49A round wall impacts carry their shot's view; foreign rounds, other origins and Vanilla refused");
     psx_mod_write_byte(p+0x3b8,2);psx_mod_write_byte(p+0x3b9,4);
     psx_mod_write_word(p+0x224,0);assert(ttk_aim_reticle()); // walking is still armed
     // Native marker selection suppresses the modern reticle, including the

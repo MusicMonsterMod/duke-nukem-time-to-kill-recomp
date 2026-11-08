@@ -2430,6 +2430,27 @@ repeats must stay at the D10H5 level (`world_delay.py`, 120 and 180 Hz,
 levels 1 and 8). Modernized only; Vanilla unchanged. Not in scope (D10H5
 note 392): a lower percentile, early partial frames, extrapolation.
 
+### D10H8 - EDuke32-close world delay in first person
+
+**Status: Todo (scoped 2026-11-08 from D49D; user: "eduke32 feel (cleanroom) IS the goal"). Dependencies: D10H5, D10H7.**
+At 120/180 Hz the view turns at once but the world (hits, smoke, bullet
+holes, enemies, pickups, the beam) is drawn about 50-90 ms in the past,
+because each present blends two finished game frames (`timeline_pair`; D10H5
+note 392: the floor is one game interval plus composition plus lead). EDuke32
+(research/eduke32: `drawframe_do` -> `P_GetInput` turns the view every
+frame; `G_DrawRooms` blends the last two 30 Hz tics) draws its world 0-33 ms
+behind, so a wall hit trails the crosshair by at most one tic of turning and
+nothing needs moving. D49D showed that moving individual world objects to
+hide the delay reads as sliding; this job attacks the delay itself. Measure
+candidates with A/B switches, first person, 120 and 180 Hz, levels 1 and 8:
+drawing from the newest finished frame (no blend; moving things step at the
+game rate), a short extrapolation past it, and blends in between; record world
+delay, `starved`, judder of enemies and Duke's motion, and how far wall hits
+trail the crosshair on fast turns. Then decide with the user which D49/D49A
+follow tricks are still needed. Modernized only; Vanilla, 60 Hz and gameplay
+unchanged. Acceptance: user playtest against EDuke32 for turning and firing
+feel.
+
 ### D10H6 - Repeat rate parity with Duke 3D analogs
 
 **Status: Done (2026-11-05, accepted and closed; user: fire rate "accepted for how it feels in the water and on land"; [note 391](documentation/391-d10h6-held-fire-clock.md); fire CPU 200 while held, not in water, steadies the rate at CPU SPEED 150; user after the D10H4 build: holding fire on the pistol "has a kind of wonky feel to the shooting consistency ... in comparison to eduke32", then "let's do it now! this might actually get us to the 1:1 i want"). Dependencies: D10H1, D10H4.** Where TTK repeats slower while
@@ -7356,7 +7377,7 @@ firing the energy weapon, still and turning.
 
 ### D49D - Pistol and shotgun wall smoke in step with the bullet holes
 
-**Status: Todo (user report 2026-11-08, after D49A: "if you load up the pistol, or shotgun, the trailing smoke seems to be out of sync slightly with the bullets when you're firing against a wall face ... giving the illusion that it \"moves towards\" the bullet hole in the wall"). Dependencies: D49A.**
+**Status: Done (user-accepted 2026-11-08: "it trails behind again but its so much better", then "lock this one in and close it out"; bullet hits left at the real hit like EDuke32, the remaining trail is D10H8; first pass judged worse by the user; user report 2026-11-08, after D49A: "if you load up the pistol, or shotgun, the trailing smoke seems to be out of sync slightly with the bullets when you're firing against a wall face ... giving the illusion that it \"moves towards\" the bullet hole in the wall"; [note 418](documentation/418-d49d-holes-with-smoke.md)). Dependencies: D49A.**
 At 120/180 Hz in first person, rapid pistol or shotgun fire into a wall face
 while moving and turning quickly makes the smoke at each hit look as if it
 travels toward its bullet hole instead of starting on it. Likely lead, to be
@@ -7372,6 +7393,50 @@ the view change is small. Drawing only; hits, decals' real placement, damage,
 D49/D49A beam behaviour, 60 Hz, third person and Vanilla unchanged. Test:
 private copy of UI slot 8, pistol then shotgun, rapid fire at a wall face
 while moving and turning quickly. Acceptance: user playtest of the same.
+
+**Work log (2026-11-08, Needs playtest).** Lead confirmed: D49A drew each new
+puff under the crosshair and eased it back while the hole stayed at the real
+hit. The hole is a persistent sprite record made by the same impact
+(`0x8006f1b8` -> `0x8006d848` -> `0x800a291c`, just before the puff): active
+list `0x800e1ef8`, pool `*0x800c5984` (96 of 0x3c bytes), position `+0x20`
+exactly the puff's point. Fix (`impact_follow.inc` only): each new hole at one
+of Duke's tagged round impacts takes the same tag as its puff, and late
+first-person redraws move it by the same view change and weights, so smoke
+and hole appear together under the crosshair and settle onto the real hit
+together. Drawing only; the game's hole records, hits, damage, D41B lights,
+the beam, 60 Hz, third person and Vanilla unchanged. `DNTTK_IMPACT_HOLES=0`
+compares. Lab (private slot 8 copy, offscreen): every hole tagged with its
+puff (pistol 16/16 and 17/17 at 180/120 Hz, shotgun 60/60, Gatling 27/27);
+180 Hz pistol fast-turn presents show the hole outside its puff before and
+inside it in every frame after. `ttk-aim-test` and `ttk-input-test` pass.
+Open: the pair still glides back to the real hit (D49A timing); needs the
+user's playtest, pistol then shotgun, rapid fire at a wall while moving and
+turning quickly.
+
+**User playtest (2026-11-08): "unfortunately i think it looks worse".** The
+hole sliding across the wall read worse than the smoke sliding onto it.
+Discussion: the cause is the high-refresh world delay (50-90 ms), not hitscan;
+EDuke32 draws its world 0-33 ms behind and never moves a hit (smoke and hole
+are world sprites at the hit). Options discussed: (1) leave bullet hits at the
+real hit, (2) shrink the world delay (new job D10H8), (3) move the decorative
+hit to the crosshair for real (advised against: guessed placement, marks away
+from the damage and lights, everything else still late). User chose (1):
+"eduke32 feel (cleanroom) IS the goal".
+
+**Work log (2026-11-08, second pass, Needs playtest).** Bullet wall hits are
+no longer moved: the D49D hole tagging and D49A's puff following are removed,
+with D49A's round impact queue (`weapon_aim.cpp` shot views, round binding,
+`aim_take_impacts`) and its `ttk-aim-test` group. The energy beam's glow and
+sparks still follow (D49/D49A). Smoke and hole now appear together at the real
+hit and never move, like EDuke32; on fast turns the hit trails the crosshair by
+the world delay (D10H8). Lab: 180 Hz pistol fast-turn presents show smoke and
+hole as one world-fixed hit in every frame; energy weapon 64 glows and 220
+sparks tagged, 0 misses. `ttk-aim-test` and `ttk-input-test` pass. Needs the
+user's playtest: pistol, shotgun and Gatling at a wall while turning.
+
+**Accepted (2026-11-08).** User playtest: "it trails behind again but its so
+much better", then "lock this one in and close it out". Shrinking the trail
+itself is D10H8.
 
 ### D50 - Frame rate halves after loading (audio running low at load)
 
@@ -8736,7 +8801,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D49A | Impact glow at the drawn beam's end, then every gun's wall hits | Done 2026-11-08 | D49 |
 | D49B | Rounds leave the gun: fireballs, rockets and rounds in flight drawn from the barrel | Todo | D49 |
 | D49C | Energy beam animated at the display rate (beam looks lower frame rate than the game) | Todo | D49 |
-| D49D | Pistol and shotgun wall smoke in step with the bullet holes (smoke slides toward the hole) | Todo | D49A |
+| D49D | Pistol and shotgun wall smoke in step with the bullet holes (smoke slides toward the hole) | Done 2026-11-08 | D49A |
 | D50 | Frame rate halves after loading; energy-weapon stalls and crackle | Accepted 2026-11-08, closeout not yet authorized (deferred widescreen mirror, exact) | - |
 | D51 | Continuous fire (energy weapon, flamethrower) stops when running into a wall | Done | - |
 | D39G | Classic renderer fallback for flashes | Done (accepted 2026-11-03) | D39C |
@@ -8872,6 +8937,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D10H5 | Shorter world delay at high refresh | Done | D10H1 |
 | D10H7 | Queue redraws at their exact lead | Done | D10H5 |
 | D10H6 | Repeat rate parity with Duke 3D analogs | Done | D10H1, D10H4 |
+| D10H8 | EDuke32-close world delay in first person (draw the world nearer the present) | Todo | D10H5, D10H7 |
 | D10F2 | Camera behind an object when opening a door (UI slot 11) | Done | D10F1 |
 | D10C | Duke 3D look keys: Page Up / Page Down look up / down while held and recenter on release; Home / End lock the look up / down (bindable) | Done (user-accepted 2026-10-20) | D06, D19G |
 | D10D | Keyboard turning in Modernized: Left / Right arrows turn the view left / right (Duke 3D style, alongside the mouse) | Done (user-accepted 2026-10-20) | D06, D10C |

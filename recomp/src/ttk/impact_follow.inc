@@ -27,12 +27,13 @@
 // redraws. DNTTK_IMPACT_FOLLOW=0 keeps the world glow (developer A/B);
 // "beamfollow off" turns both off.
 //
-// Other guns: a round's wall impact 0x8006f1b8 spawns its puff through the
-// same spawner at the hit point (types 0x12 bullets, 0x20/0x21 and 0x1c by
-// round type; the puff lives about a second). weapon_aim.cpp queues each of
-// Duke's view-aimed rounds' impacts with its shot's view (aim_take_impacts);
-// a new puff at one is tagged with it, follows while young and then settles
-// where it hit, like the sparks.
+// Bullet wall hits (D49D): the puff (effects 0x12/0x20/0x21/0x1c) and the
+// bullet hole (a sprite on list 0x800e1ef8) that a round's wall impact
+// 0x8006f1b8 makes at the same point in the same frame are not moved. D49A
+// drew new puffs under the crosshair and eased them back, and D49D moved the
+// holes with them; both read as the hit sliding across the wall. Like
+// EDuke32, smoke and hole now appear together at the real hit (the world
+// delay of the high-refresh redraws is what remains; see D10H5).
 constexpr uint32_t fx_pool_word=0x800c5894u, fx_count_word=0x800c5898u, fx_active=0x800deb50u, fx_stride=0x54u;
 constexpr uint32_t spark_pool_word=0x800c4570u, spark_active=0x800dd7f0u, spark_stride=0x80u, spark_slots=0x180u;
 constexpr uint32_t fx_slots=64u, impact_tag=0x44343941u, impact_record=32u;
@@ -50,6 +51,7 @@ bool impact_follow_enabled() {
 }
 uint32_t impact_fx_tag(uint32_t slot) {return impact_tags+16+slot*impact_record;}
 uint32_t impact_spark_tag(uint32_t slot) {return impact_tags+16+(fx_slots+slot)*impact_record;}
+
 // A record's slot in its pool, or -1.
 int pool_slot(uint32_t a,uint32_t pool,uint32_t stride,uint32_t slots) {
     if(!pool || a<pool || a>=pool+stride*slots || (a-pool)%stride) return -1;
@@ -58,8 +60,7 @@ int pool_slot(uint32_t a,uint32_t pool,uint32_t stride,uint32_t slots) {
 struct ImpactSeen {uint32_t scan=0,kind=0;int32_t pos[3]={0,0,0};};
 ImpactSeen fx_seen[fx_slots], spark_seen[spark_slots];
 uint64_t impact_epoch=~uint64_t(0);
-uint64_t impact_glows=0, impact_sparks=0, impact_glow_misses=0, impact_puffs=0, impact_points=0;
-bool impact_puff_kind(uint32_t kind) {const uint32_t k=kind&0x3ffu;return k==0x12u || k==0x20u || k==0x21u || k==0x1cu;}
+uint64_t impact_glows=0, impact_sparks=0, impact_glow_misses=0;
 void impact_tag_write(uint32_t at,uint32_t scan,const double eye[3],const double fwd[3]) {
     psx_mod_write_word(at,impact_tag);psx_mod_write_word(at+4,scan);
     for(int k=0;k<3;++k) {
@@ -95,9 +96,6 @@ void impact_tags_scan() {
         for(int k=0;k<3;++k) b.end[k]=(int32_t)psx_mod_read_word(a+0x34+4*k);
         ++nb;
     }
-    AimImpact hits[32];
-    const unsigned nh=aim_take_impacts(hits,32);
-    if(tagging) impact_points+=nh;
     // Glows tagged in this scan (sparks born beside them take their view).
     struct Fresh {double pos[3];unsigned beam;};
     Fresh fresh[fx_slots];unsigned nf=0;
@@ -123,9 +121,6 @@ void impact_tags_scan() {
                     impact_tag_write(at,scan,beams[best].eye,beams[best].fwd);++impact_glows;
                     Fresh& f=fresh[nf++];for(int k=0;k<3;++k) f.pos[k]=pos[k];f.beam=best;
                 } else ++impact_glow_misses;
-            } else if(tagging && impact_puff_kind(kind)) for(unsigned j=0;j<nh;++j) {
-                double d=0;for(int k=0;k<3;++k) d=std::max(d,std::fabs(hits[j].point[k]-pos[k]));
-                if(d<96) {impact_tag_write(at,scan,hits[j].eye,hits[j].fwd);++impact_puffs;break;}
             }
         }
         a=psx_mod_read_word(a);
@@ -198,7 +193,7 @@ void impacts_follow_view(const CameraState& c) {
         const int slot=pool_slot(a,fx_pool,fx_stride,fx_n);
         if(slot<0) break;
         const uint32_t kind=psx_mod_read_word(a+8);
-        if(((kind&0x3ffu)==0x307u || impact_puff_kind(kind)) && move(impact_fx_tag((uint32_t)slot),a+0x1c,(kind&0x3ffu)!=0x307u)) ++impact_moved_glows;
+        if((kind&0x3ffu)==0x307u && move(impact_fx_tag((uint32_t)slot),a+0x1c,false)) ++impact_moved_glows;
         a=psx_mod_read_word(a);
     }
     a=psx_mod_read_word(spark_active);

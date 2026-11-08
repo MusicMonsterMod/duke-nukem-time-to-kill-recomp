@@ -1,5 +1,22 @@
 # Current status - 2026-10-04
 
+## 2026-11-08 - D49D bullet hits stay at the real hit, like EDuke32 (Done)
+
+User report after D49A: pistol and shotgun wall smoke looked as if it moved
+towards its bullet hole. D49A drew new puffs under the crosshair and eased
+them back while the hole (sprite list `0x800e1ef8`) stayed at the real hit. A
+first pass moved the holes with their puffs; the user judged it worse. The
+cause is the high-refresh world delay (50-90 ms), not hitscan; EDuke32 draws
+0-33 ms behind and never moves a hit. Chosen fix: bullet wall hits are not
+moved at all (D49D hole tagging, D49A puff following and its round impact
+queue removed); smoke and hole appear together at the real hit. The energy
+beam's glow and sparks still follow. Lab: smoke and hole one world-fixed hit
+in every 180 Hz present; energy glows 64/64 tagged. `ttk-aim-test` and
+`ttk-input-test` pass. New job D10H8: shrink the world delay towards
+EDuke32's. [Note 418](418-d49d-holes-with-smoke.md).
+
+Accepted 2026-11-08: "it trails behind again but its so much better".
+
 ## 2026-11-08 - D49A impact glow and wall puffs at the crosshair while turning (Done)
 
 After D49 the energy beam left the gun toward the crosshair, but its wall glow

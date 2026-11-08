@@ -589,60 +589,6 @@ static void follow_arm(uint32_t actor,const double* origin,const double* target)
     for(int i=0;i<3;++i)follow.origin[i]=(int32_t)std::lround(origin[i]);
     follow.armed=true;++follow_arms;
 }
-// D49A: Duke's rounds' wall puffs drawn where the crosshair met the wall at
-// high refresh. Each view-aimed gun shot keeps its muzzle and the view it was
-// aimed from; a round's first flight sweep (0x8006dd2c) starts at that muzzle
-// (+0x14), which binds the round's pool slot to the shot; its wall impact
-// (0x8006f1b8 entry: a0 the round, a1 the point; rounds that hit a character
-// do not call it) queues the point with that view for frame_replay.cpp, which
-// tags the effects the impact spawns there. Host records only.
-struct ShotView {int32_t origin[3];double eye[3],fwd[3];std::chrono::steady_clock::time_point at;bool valid;};
-static ShotView shot_views[16];
-static unsigned shot_view_next;
-static int round_shot[100];   // ring index + 1 per projectile slot, 0 none
-static uint32_t round_shot_gen[100];
-static uint32_t shot_view_gen[16];
-static AimImpact aim_impacts[32];
-static unsigned aim_impact_n;
-static void shot_view_record(const double* muzzle,const double* eye,const double* fwd) {
-    ShotView& v=shot_views[shot_view_next];
-    for(int i=0;i<3;++i) {v.origin[i]=(int32_t)std::lround(muzzle[i]);v.eye[i]=eye[i];v.fwd[i]=fwd[i];}
-    v.at=std::chrono::steady_clock::now();v.valid=true;++shot_view_gen[shot_view_next];
-    shot_view_next=(shot_view_next+1)%16;
-}
-static int round_slot(uint32_t a) {
-    if(a<0x800da978 || a>=0x800dcd78 || (a-0x800da978)%0x60 || psx_mod_read_word(a+0x10)!=player)return -1;
-    return (int)((a-0x800da978)/0x60);
-}
-static void round_bind(CPUState* cpu) {
-    const int slot=round_slot(cpu->gpr[4]);
-    if(slot<0)return;
-    const uint32_t a=cpu->gpr[4];
-    int32_t from[3];for(int i=0;i<3;++i)from[i]=(int32_t)psx_mod_read_word(a+0x14+4*i);
-    const auto now=std::chrono::steady_clock::now();
-    for(unsigned k=0;k<16;++k) {
-        const unsigned j=(shot_view_next+15-k)%16;const ShotView& v=shot_views[j];
-        if(!v.valid || now-v.at>std::chrono::milliseconds(250))continue;
-        if(std::abs(from[0]-v.origin[0])<=1 && std::abs(from[1]-v.origin[1])<=1 && std::abs(from[2]-v.origin[2])<=1) {
-            round_shot[slot]=(int)j+1;round_shot_gen[slot]=shot_view_gen[j];return;
-        }
-    }
-}
-static void round_impact(CPUState* cpu) {
-    const int slot=round_slot(cpu->gpr[4]);
-    const uint32_t at=cpu->gpr[5];
-    if(slot<0 || at<0x80000000u || at>0x801ffff0u || !round_shot[slot])return;
-    const unsigned j=(unsigned)round_shot[slot]-1;round_shot[slot]=0;
-    const ShotView& v=shot_views[j];
-    if(!v.valid || shot_view_gen[j]!=round_shot_gen[slot] || std::chrono::steady_clock::now()-v.at>std::chrono::milliseconds(1500) || aim_impact_n>=32)return;
-    AimImpact& m=aim_impacts[aim_impact_n++];
-    read_vector(at,m.point);std::copy(v.eye,v.eye+3,m.eye);std::copy(v.fwd,v.fwd+3,m.fwd);
-}
-unsigned aim_take_impacts(AimImpact* out,unsigned max) {
-    const unsigned n=std::min(max,aim_impact_n);
-    std::copy(aim_impacts,aim_impacts+n,out);aim_impact_n=0;
-    return n;
-}
 static void follow_flight(CPUState* cpu) {
     const uint32_t a=cpu->gpr[4];
     if(!follow.armed || a<0x800da978 || a>=0x800dcd78 || (a-0x800da978)%0x60 || psx_mod_read_word(a+0x10)!=player)return;
@@ -667,8 +613,7 @@ static void follow_flight(CPUState* cpu) {
 }
 static void aim_hook_body(CPUState* cpu,uint32_t address) {
     if(address==0x8001ca4c) {beam_finish(cpu);return;}
-    if(address==0x8006dd2c && input_modernized() && !g_ls_mode && !g_psx_call_bail) {round_bind(cpu);follow_flight(cpu);}
-    if(address==0x8006f1b8 && input_modernized() && !g_ls_mode && !g_psx_call_bail)round_impact(cpu);
+    if(address==0x8006dd2c && input_modernized() && !g_ls_mode && !g_psx_call_bail)follow_flight(cpu);
     marker_hook(cpu,address);
     if(input_modernized())observe(cpu,address);
     // D10H4: every player gun call, whatever the aim mode.
@@ -802,7 +747,6 @@ static void aim_hook_body(CPUState* cpu,uint32_t address) {
             beam_target=duke_aimed?last_duke_aim_actor:last_assisted?psx_mod_read_word(player+0x288):view_actor;
             std::copy(eye,eye+3,beam_eye);std::copy(forward,forward+3,beam_forward);
         }
-        if(gun && !thrown)shot_view_record(muzzle,eye,forward);
         if(gun)follow_arm(duke_aimed?last_duke_aim_actor:last_assisted?psx_mod_read_word(player+0x288):kind==2?view_actor:0,muzzle,target);
         ++shots;if(last_assisted)++assisted_shots;last_kind=cover?4:(last_assisted?2:kind);last_weapon=cpu->gpr[7];
         int check_kind=-1;uint32_t check_actor=0;double tpos[3]={0,0,0};

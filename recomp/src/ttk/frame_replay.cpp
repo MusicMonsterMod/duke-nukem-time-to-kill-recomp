@@ -2504,9 +2504,9 @@ const char* quake_json() {
     return b;
 }
 const char* impact_json() {
-    static char b[192];
-    std::snprintf(b,sizeof b,"{\"on\":%s,\"glows\":%llu,\"sparks\":%llu,\"glow_misses\":%llu,\"round_hits\":%llu,\"puffs\":%llu}",impact_follow_enabled()?"true":"false",
-        (unsigned long long)impact_glows,(unsigned long long)impact_sparks,(unsigned long long)impact_glow_misses,(unsigned long long)impact_points,(unsigned long long)impact_puffs);
+    static char b[256];
+    std::snprintf(b,sizeof b,"{\"on\":%s,\"glows\":%llu,\"sparks\":%llu,\"glow_misses\":%llu}",impact_follow_enabled()?"true":"false",
+        (unsigned long long)impact_glows,(unsigned long long)impact_sparks,(unsigned long long)impact_glow_misses);
     return b;
 }
 const char* frame_replay_debug_json() {

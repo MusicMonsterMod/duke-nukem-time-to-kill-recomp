@@ -100,6 +100,12 @@ rounds, other origins and Vanilla refused) and `ttk-input-test` pass.
 
 ## Not changed / limits
 
+- **Superseded for bullet guns (D49D, 2026-11-08).** Puff following for the
+  Gatling, pistol and shotgun (and the round impact queue in `weapon_aim.cpp`)
+  was removed: bullet smoke and holes stay together at the real hit, like
+  EDuke32. Glow and sparks of the energy beam still follow.
+  [Note 418](418-d49d-holes-with-smoke.md).
+
 - **Lights.** D41B's impact lights (`0x8006f1b8` sparks and beam light) stay
   at the real hit point: they light the wall where it was hit. The user
   accepted the result without asking for them to follow.

@@ -159,6 +159,18 @@ inventory and card; `.` steps; `,` `,` wraps to the last jewel; Enter closed it
 with the jetpack flag unchanged (1), the next Enter switched the jetpack on
 (3); `.` then `[` shows the gadgets.
 
+## D08A39: label and count never overlap
+
+User, level 3 (2026-11-08): with one mission item the word MISSION and the
+"1/1" count overlapped. The panel width was `46 * items + 12` only (58 px for
+one item). `mission_panel_width` now takes the larger of that and
+`8 + width("MISSION") + 10 + width of the widest "N/N" in either count colour
++ 8`, clamped to the surface, and the icons are centred in it. Levels 3 and
+11 (one item) widen to about 105 px; levels with two or more items are
+unchanged pixel for pixel. `ttk-inventory-test` checks levels 3, 11 and 2,
+missing and found. Before/after shots: `research/before-after/D08A39/`
+(local). Accepted by the user 2026-11-08 ("this is a winner").
+
 ## Limits
 
 - **Controller is not implemented.** Modernized controls are keyboard and

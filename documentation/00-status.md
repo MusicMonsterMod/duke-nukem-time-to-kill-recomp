@@ -1,5 +1,12 @@
 # Current status - 2026-10-04
 
+## 2026-11-08 - D08A39 mission item label and count (Done)
+
+Accepted 2026-11-08 ("this is a winner"). The mission panel now widens to fit "MISSION", a gap and its count, so the
+one-item levels (3 and 11) no longer overlap them; other levels unchanged.
+Native test and matched level 3 shots.
+[Note 114](114-d08a5-mission-tracking.md#d08a39-label-and-count-never-overlap).
+
 ## 2026-11-08 - D41I fire and enemy weapon lights (Done)
 
 Accepted 2026-11-08 ("the lighting looks spectacular"; burning enemies

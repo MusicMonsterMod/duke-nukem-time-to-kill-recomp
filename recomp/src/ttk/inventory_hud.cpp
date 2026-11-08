@@ -249,13 +249,26 @@ void framed_icon(Canvas& c,const Sprite& frame,const MissionDef& d,int x,int y){
     if(used(d) && used_tick.w)c.sprite(used_tick,x+5+(16-used_tick.w)*2,y+3+(16-used_tick.h)*2,2);
 }
 unsigned found_count(){unsigned n=0;for(int i=0;i<slot_count;++i)n+=collected(*slots[i]);return n;}
+// D08A39: the panel is at least as wide as "MISSION", a gap and the widest
+// count this level can show ("N/N" in either colour), so the label and the
+// count never overlap (one-item levels 3 and 11 were 58 px wide); the icons
+// stay centred in it.
+int mission_panel_width(int max_width){
+    char widest[16];std::snprintf(widest,sizeof widest,"%d/%d",slot_count,slot_count);
+    const int lw=std::max(0,ttk_font_text_width(TTK_FONT_MISSION_LABEL,"MISSION"));
+    const int cw=std::max({0,ttk_font_text_width(TTK_FONT_MISSION_COUNT,widest),
+                           ttk_font_text_width(TTK_FONT_MISSION_COMPLETE,widest)});
+    constexpr int margin=8,gap=10;
+    return std::min(max_width,std::max(slot_count*46+12,margin+lw+gap+cw+margin));
+}
 void draw_mission_row(uint32_t* px,int w,int h,int y0){
     Canvas c{px,w,h};
-    const int pw=slot_count*46+12,ph=70,x0=(w-pw)/2;
+    const int pw=mission_panel_width(w),ph=70,x0=(w-pw)/2;
     c.panel(x0,y0,pw,ph);
     const bool art=load_mission();
+    const int icons_x=x0+(pw-(slot_count*46-4))/2;
     for(int i=0;i<slot_count;++i)if(art)
-        framed_icon(c,i==browse?frame_steel:frame_grey,*slots[i],x0+8+i*46,y0+6);
+        framed_icon(c,i==browse?frame_steel:frame_grey,*slots[i],icons_x+i*46,y0+6);
     char text[16];
     const unsigned got=found_count();
     std::snprintf(text,sizeof text,"%u/%d",got,slot_count);

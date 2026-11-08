@@ -1,5 +1,7 @@
 #include "inventory_hud.h"
 #include "pc_input.h"
+#include "ttk_font.h"
+#include <algorithm>
 #include <cassert>
 #include <cstdio>
 #include <string>
@@ -122,6 +124,19 @@ int main(int argc,char**argv) {
     // Never found: no tick either.
     used[6]=0;ttk::mission_update(0,used);
     assert(ttk_mission_card_image(&card,&cw,&ch,624) && ticked(card,cw)==0);
+    // D08A39: one-item levels (3, 11) and a two-item level (2): the panel holds
+    // "MISSION", a gap and the count without overlap, missing and found.
+    auto panel_width=[&](){int l=w,r=-1;for(int x=0;x<w;++x)if((pixels[30*w+x]>>24)==255){l=std::min(l,x);r=std::max(r,x);}return r-l+1;};
+    for(unsigned level:{3u,11u,2u})for(int found=0;found<2;++found) {
+        uint16_t f[17]{};if(found){f[6]=1;f[7]=1;}
+        ttk::mission_update(level,f);ttk::mission_browse_press(1);ttk::mission_update(level,f);
+        assert(visible() && h==72);
+        const int items=level==2?2:1;char widest[8];std::snprintf(widest,sizeof widest,"%d/%d",items,items);
+        const int need=8+ttk_font_text_width(TTK_FONT_MISSION_LABEL,"MISSION")+10+
+            std::max(ttk_font_text_width(TTK_FONT_MISSION_COUNT,widest),ttk_font_text_width(TTK_FONT_MISSION_COMPLETE,widest))+8;
+        if(level==3){char n[32];std::snprintf(n,sizeof n,"mission-level3-%s",found?"found":"missing");save(n,pixels,w,h);}
+        assert(ttk_font_text_width(TTK_FONT_MISSION_LABEL,"MISSION")>0 && panel_width()>=need);
+    }
     SDL_Delay(2510);ttk::mission_update(0,all);assert(!visible() && !ttk_mission_card_image(&card,&cw,&ch,624));
     std::puts("PASS: inventory strip, D08A5 mission inventory, browsing, card, D08A19 used, timeout");
 }

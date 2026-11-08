@@ -1,5 +1,28 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-08 - D08A39 accepted and closed
+
+User: "lock it in and close it out. this is a winner". D08A39 is Done.
+
+## 2026-11-08 - D08A39 mission item label and count (Needs playtest)
+
+Selected with "work on D08A39". Cause: the mission panel
+(`draw_mission_row` in `recomp/src/ttk/inventory_hud.cpp`) was sized by its
+icons alone (`46 * items + 12`), so a one-item level (3 and 11) got a 58 px
+panel while "MISSION" and the count were still drawn from its two edges and
+crossed. Change: the panel is now at least as wide as an 8 px margin,
+"MISSION", a 10 px gap, the widest count the level can show ("N/N" in the
+counting and the complete colour) and an 8 px margin, clamped to the
+surface; the icons stay centred. One-item panels become about 105 px; every
+level with two or more items already fitted and draws byte-identical
+pixels. The surface size and its placement are unchanged, so every HUD
+size and aspect gets the same layout. `ttk-inventory-test` gains levels 3,
+11 and 2, missing and found, measuring the panel against the text widths:
+it fails on the old code and passes now. Matched level 3 shots from the
+game's own rasterizer are in `research/before-after/D08A39/`. Vanilla has
+no mission panel and is unchanged; no framework change. Not yet seen in a
+live level 3 run (no level 3 state on hand); the user's playtest is next.
+
 ## 2026-11-08 - D41I accepted and closed; D08A39 added
 
 User, after the first playtest round: "When I burn an enemy the lighting
@@ -4973,7 +4996,7 @@ alternate wins, swap the eight HUD cells in game and keep Vanilla's belt.
 
 ### D08A39 - Mission item HUD text overlap
 
-**Status: Todo (backlog; reported by the user during the D41I playtest, 2026-11-08). Dependencies: none known.**
+**Status: Done (user-accepted 2026-11-08: "lock it in and close it out. this is a winner"; [note 114](documentation/114-d08a5-mission-tracking.md#d08a39-label-and-count-never-overlap)). Dependencies: none known.**
 User: "in level 3 there's only one item so when you use the greater than
 less than signs to look through them the word mission and the one slash one
 they're overlapped ... we need some kind of clause in how that looks so
@@ -9158,7 +9181,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08A36 | Weapon switching in mid air: number keys, the wheel and ; ' do nothing during a jump or fall (any save; user, 2026-11-05) | Done (user-accepted) | D08A, D08A29 |
 | D08A37 | Weapon switching while firing or jumping: keys and the wheel ignored while firing (ground and air) or dropped when not ready; "cant switch to the desert eagle" | Done | D08A36, D10H4 |
 | D08A38 | Energy weapon ammo icon, clean-edge alternate: the chosen atom with the fuzzy halo, outline flecks and stray pixels removed (review artifact) | Done (user-accepted 2026-11-08) | D08A32 |
-| D08A39 | Mission item HUD text: "MISSION" and the "1/1" count overlap when browsing with < > in a level with one mission item (level 3) | Todo (backlog, user 2026-11-08) | - |
+| D08A39 | Mission item HUD text: "MISSION" and the "1/1" count overlap when browsing with < > in a level with one mission item (level 3) | Done (user-accepted 2026-11-08) | - |
 | D09 | Modern controller support | Done (user-accepted 2026-10-27) | D05, D06, D07 |
 | D09A | Separate keyboard and gamepad seats for local two-player | Done (user-accepted 2026-10-27) | D09, D34B implementation |
 | D09C | Controller rumble: the game's own vibration on a real pad, plus Modernized hit feedback | Todo (added 2026-11-04, from cancelled D12E2) | D09, D09A |

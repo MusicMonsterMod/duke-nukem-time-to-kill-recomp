@@ -201,7 +201,7 @@ actor polygon.
 
 - D41A Light foundation (this note; Done 2026-11-08).
 - D41B Weapon and projectile lights (sections 7 and 10; Done 2026-11-08).
-- D41I Fire and enemy weapon lights (split from D41B; Todo).
+- D41I Fire and enemy weapon lights (split from D41B; section 11; Done 2026-11-08).
 - D41C Duke and first person in the light (section 8; Done 2026-11-08).
 - D41D Level light sources (emitters, animated light tables, per-level light
   files, light editor).
@@ -377,3 +377,96 @@ flames themselves (only the jet light near Duke), enemy weapons other than
 the pig cop's type 2 take the default warm values, impacts on characters
 make no light (blood), and light still passes through walls (D41F).
 
+
+## 11. D41I - Fire and enemy weapon lights (accepted and closed 2026-11-08)
+
+Sources (`recomp/src/ttk/dynamic_lights.inc`; Modernized Polymorph with
+DYNAMIC LIGHTS on; no framework change, no new game hook):
+
+- **Burning objects.** The actor draw adds flame sprites on an object's
+  joints when its flag word (+0) has bit `0x800` (the actor draw's call at
+  `0x80033868` to `0x8003012c`; a second draw path, `0x80032304` to
+  `0x8003038c`, checks the same bit; Duke's own burning was not
+  reproduced in the lab). Each game tick the placement rows (`*0x800de720`, 48
+  bytes, +4 the live object, up to the count `0x800de724`) and Duke are
+  checked; the nearest five burning objects each carry a fire light 450
+  above their feet: (1.15, 0.58, 0.22) x flicker 0.8-1.2, radius about 3600,
+  changing every tick. An object counts as burning while bit `0x800` is set
+  and bit `0x4` is clear: a burning pig cop reads `0x803` for about 6 s,
+  a burning tree `0x802`, and both turn `0x804` when the burn is over (the
+  body charred, the tree burned away; some props read `0x804` from the
+  level's start). The first version tested `0x800` alone, and the user found
+  a burned-away tree in UI slot 8 still lighting the wall (fixed before
+  acceptance). Duke's
+  bit stayed clear through walking, running, jumping, crouching and firing
+  all ten weapon keys.
+- **Flames in flight.** The flamethrower (type 14) and hi-temp flamethrower
+  (type 26) flames are projectile pool records with flag bit 0 (not the
+  value 3 that flying rounds use), up to 8 at once; the pool's draw loop
+  `0x8006d08c` sends them to the flame sprite draw `0x8006cfd8`. Three of
+  them, spread along the stream, carry a flickering fire light (0.75 x
+  flicker, radius about 2400). The D41B nozzle light stays.
+- **Enemy weapons.** Census (lab `recomp/analysis/d41i/lab.py enemy`, one
+  spawned enemy per level, god mode, 7-14 s): type 26 enemies fire
+  projectile type 3; turrets 204 and 540 type 5; robotic turret 622 type
+  29; robotic turret 623 type 33 (rockets, the RPG's model `0x34b`); the
+  level 3 gunship 605 type 31; type 95 type 34; boss 61 type 32; Moloch
+  (62) type 35 from its twin gatlings. Flyers (44), the vest pig (1044) and
+  types 847, 848 and 901 did not fire in the window. Values:
+
+| Type | Shooter | Muzzle (rgb, radius, tics) | Impact | Flight |
+| ---: | --- | --- | --- | --- |
+| 3 | type 26 | 0.85 0.58 0.28, 3400, 3 | warm, 1300, 2 | - |
+| 5 | turrets 204, 540 | 0.85 0.60 0.30, 3200, 2 | warm, 1300, 2 | - |
+| 29 | robotic turret 622 | 0.85 0.60 0.30, 3200, 2 | warm, 1300, 2 | - |
+| 31 | gunship 605 | 0.95 0.55 1.20, 3800, 3 | violet, 1600, 3 | - |
+| 32 | boss 61 | 1.00 0.62 0.30, 4400, 3 | warm, 1600, 2 | - |
+| 34 | type 95 | 0.85 0.58 0.28, 3400, 3 | warm, 1300, 2 | - |
+| 35 | Moloch | 1.00 0.62 0.30, 4400, 2 | warm, 1600, 2 | - |
+| 24, 33 | rockets (623 fires 33) | as the RPG | (blast) | warm, 2800 |
+| 28 | incendiary RPG | 1.05 0.55 0.22, 4800, 4 | (blast) | 1.05 0.50 0.18, 3200 |
+| 14, 26 | flamethrowers | none (hand flash) | none | fire lights above |
+
+  Enemy flashes keep D41B's 0.8 x radius. The gunship's bolts were set
+  violet after measuring the game's own glow when they reach Duke (about
+  R76 G46 B77 added over the tunnel walls); the others show no coloured
+  effect of their own and stay warm.
+
+The projectile type table `0x800c4bc0` (37 entries of 64 bytes, indexed by
+type) explains the families: word 4's high half is a category (2 rounds, 3
+shotgun, 4 thrown and rockets, 5 flames, 6 energy, 7 and 0x14 freezer-like,
+0x11 rifle) and word 1's high half the model (`0x34b` rocket, `0x799`
+freezer, `0x76a` shared by types 27 and 35). Types 19, 22, 23, 25 and 30 are
+also category 5 but were not seen; they take the default warm flash.
+
+Console: `light fire off|on` (session) for matched comparisons. Developer
+diagnostics: `DNTTK_PARTICLE_TRACE=1` logs the live particle list (head
+`0x800dd7f0`, 0x80-byte records, +8 kind, +0x10 position) and burning
+objects once a second; `DNTTK_LIGHT_PROBE=<hex>[,<hex>]` counts entries of
+game functions that already carry the mod hook (other functions need a
+code generation change).
+
+User: "When I burn an enemy the lighting effects are just beautiful";
+"the lighting looks spectacular".
+
+Evidence (offscreen, private apartment card copies, level 0 street at
+`DNTTK_LIGHT_AMBIENT=55`, local `recomp/analysis/d41i/`):
+
+- Build OK. `ttk-near-test` PASS, `ttk-flash-test` and `ttk-live-env-test`
+  PASS, `test_player_profiles` 133 OK; `ttk-controls-test` stops at the
+  known D14 `hud_intact` check (line 1759).
+- Matched stills of the same moment with `light fire off` and `on`: a
+  burning pig cop adds a warm pool on the street around it (lower half
+  +3.4 to +4.5 levels, 8-14% of pixels brighter by more than 10); the
+  stream adds less (lower half up to +2), the nozzle light already
+  covering most of it. `research/before-after/d41i-fire-lights/` (local).
+- 180 Hz with the stream and a burn: 7868 presents, 0 missed redraws, 0
+  failed captures.
+- Gunship 605 in the level 3 tunnel: its launches log type 31 (the violet
+  entry, set after this capture measured its glow).
+
+Limits: the burn light follows the flag, so it lasts the whole burn even
+when the visible flames have shrunk; light still passes through walls
+(D41F); the laser gatling (27) and the unseen category 5 types take the
+default warm flash; level fires (braziers, burning barrels) light only if
+the game sets the same flag on them, and lamps and other emitters are D41D.

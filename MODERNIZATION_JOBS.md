@@ -1,5 +1,35 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-08 - D41I accepted and closed; D08A39 added
+
+User, after the first playtest round: "When I burn an enemy the lighting
+effects are just beautiful ... I absolutely love the colors"; the level 3
+gunship's projectile lights "are very well done indeed"; "the lighting
+looks spectacular ... after you are done you can lock us in and close this
+out". The reported bug (UI slot 8: a tree burned away kept lighting the
+wall) is fixed: an object burns while flag bit 0x800 is set and bit 0x4
+is clear (0x804 marks a finished burn); verified on a private slot 8 copy,
+and a burning pig cop still lights for its whole burn. D41I is Done. The
+user's separate report, the mission item label and "1/1" count overlapping
+in level 3, is the new backlog job D08A39.
+
+## 2026-11-08 - D41I fire and enemy weapon lights (Needs playtest)
+
+Selected with "work on D41I". Anything that burns now glows: an enemy set
+alight by the flamethrower (and Duke, if he burns) carries a flickering
+fire light for as long as the game keeps its burning flag (bit `0x800` of
+the object's flag word, the bit the actor draw checks before putting
+flames on its joints; about 5-6 s for a pig cop). The flamethrowers' flames
+light their surroundings in flight (three per stream, from the projectile
+pool's flame records). Enemy weapons have their own values from a census
+of every level's spawned enemies: warm gun flashes sized per gun for the
+pig cops, turrets, boss 61 and Moloch's gatlings, violet for the level 3
+gunship's bolts (measured from their own glow), and the robotic turret's
+rockets carry flight light like the RPG's. Console `light fire on|off` for
+comparisons. No framework change; Vanilla and Classic unchanged. Tests as
+before (controls test at the known D14 HUD check); 180 Hz 0 missed
+redraws. [Note 413](documentation/413-d41-lighting-case-study.md) section 11.
+
 ## 2026-11-08 - D50 closed
 
 User: "close it out!". D50 is Done: the governor no longer sheds to half
@@ -4941,6 +4971,19 @@ picks the chosen atom or the alternate on the review artifact
 (https://claude.ai/artifact/Aj8Kvjz9NjSpoqXFUUTCqu, private); if the
 alternate wins, swap the eight HUD cells in game and keep Vanilla's belt.
 
+### D08A39 - Mission item HUD text overlap
+
+**Status: Todo (backlog; reported by the user during the D41I playtest, 2026-11-08). Dependencies: none known.**
+User: "in level 3 there's only one item so when you use the greater than
+less than signs to look through them the word mission and the one slash one
+they're overlapped ... we need some kind of clause in how that looks so
+that doesn't happen in that little UI element". Find the owner of the
+selected-item label and count (D08A5 mission tracking, D08A6 selected
+gadget HUD, notes 114 and 115) and lay the label and count out so they
+never overlap, whatever the count's width, in every HUD size and aspect.
+Acceptance: matched shots of the level 3 mission item before and after;
+user review.
+
 ### D08Z9 - Stuck weapon: Duke cannot shoot or change weapons
 
 **Status: Done (user-accepted 2026-11-07: "it's all working!!"; [note 411](documentation/411-d08z9-stuck-weapon.md)). Dependencies: D08Z8.** User, 2026-11-07, UI slot 7:
@@ -7310,13 +7353,36 @@ specular detail stays optional later work.
 
 ### D41I - Fire and enemy weapon lights
 
-**Status: Todo (split from D41B at its closeout, 2026-11-08). Dependencies: D41B.**
+**Status: Done (user-accepted after playtest: "the lighting looks spectacular"; burned-away tree fix verified in the lab; closeout authorized 2026-11-08; [note 413](documentation/413-d41-lighting-case-study.md) section 11). Dependencies: D41B.**
 The D41B scope not done: burning enemies and fire (find the burn and flame
 effect sources and give them flickering fire light), and per-type values for
 enemy weapons other than the pig cop's rounds (type 2): turrets, flyers and
 bosses currently take the default warm flash and spark (note 413 section 10
 table). Probe their projectile types on the levels that place them (D22I
 census, note 412) and set colours and sizes. Acceptance: user playtest.
+
+Work log 2026-11-08: burning objects light while their flag word has bit
+`0x800` (the bit the actor draw checks before adding flame sprites to the
+joints; scanned each tick over the placement rows and Duke, nearest five);
+the flamethrowers' flame records (pool types 14 and 26, flag bit 0) light
+along the stream; enemy weapon types from a lab census get their own
+values (warm guns for types 3, 5, 29, 32, 34 and 35, violet for the level 3
+gunship's bolts 31, RPG-like rockets 24, 28 and 33). Console `light fire
+on|off`. Matched stills: a burning pig cop lights the street around it;
+180 Hz 0 missed redraws. Flyers and types 847, 848 and 901 did not fire in
+the census and take the default warm flash. Needs the user's playtest.
+
+Playtest round 1 (user, 2026-11-08): "When I burn an enemy the lighting
+effects are just beautiful"; the gunship's projectile lights "are very well
+done indeed". Bug: in UI slot 8, burning the tree in front of Duke left its
+light on after the tree had burned away. Cause (private slot 8 copy): the
+tree's flag word goes 0x802 while it burns and 0x804 when it is gone,
+keeping 0x800 (two other props read 0x804 from the start); a burning pig
+cop reads 0x803, then 0x804 when its burn ends. Fix: an object burns while
+bit 0x800 is set and bit 0x4 is clear. Retest on the copy: the tree lights
+only while it burns and the wall stays dark after; a burning pig cop still
+lights for its whole burn (about 6 s). The user's separate report of the
+mission item text overlap is D08A39.
 
 ### D46 - Apartment mirror shows the outside when Duke turns left
 
@@ -8962,7 +9028,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D41F | Shadows: research spike, then shadow maps for chosen lights from the host's world-space rooms | Todo | D41A |
 | D41G | Light scale and cost: clustered light lists, untextured polygons, sprites, translucent faces, 180 Hz budgets | Todo | D41A |
 | D41H | Smooth light on models: per-vertex normals for actors and props | Done (accepted 2026-11-08) | D41C |
-| D41I | Fire and enemy weapon lights: burning enemies, fire, turret/flyer/boss weapon types (split from D41B) | Todo | D41B |
+| D41I | Fire and enemy weapon lights: burning enemies, fire, turret/flyer/boss weapon types (split from D41B) | Done (user-accepted; closed 2026-11-08; note 413 section 11) | D41B |
 | D42 | Death state and menu: stay on the death scene, Open opens the existing death list, Escape returns, unlimited continues, console usable while dead | Done (user-accepted 2026-11-03; note 373) | D19H, D19P, D19M, D19K, D26 |
 | D43 | Level title card: the level's name near the centre when a level begins, Duke 3D style, fades by itself | Done (user-accepted 2026-11-03; note 374) | - |
 | D44 | Earthquake research: EDuke32 earthquake measured, TTK shake and sources mapped | Done (research, 2026-11-05; note 396) | - |
@@ -9092,6 +9158,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D08A36 | Weapon switching in mid air: number keys, the wheel and ; ' do nothing during a jump or fall (any save; user, 2026-11-05) | Done (user-accepted) | D08A, D08A29 |
 | D08A37 | Weapon switching while firing or jumping: keys and the wheel ignored while firing (ground and air) or dropped when not ready; "cant switch to the desert eagle" | Done | D08A36, D10H4 |
 | D08A38 | Energy weapon ammo icon, clean-edge alternate: the chosen atom with the fuzzy halo, outline flecks and stray pixels removed (review artifact) | Done (user-accepted 2026-11-08) | D08A32 |
+| D08A39 | Mission item HUD text: "MISSION" and the "1/1" count overlap when browsing with < > in a level with one mission item (level 3) | Todo (backlog, user 2026-11-08) | - |
 | D09 | Modern controller support | Done (user-accepted 2026-10-27) | D05, D06, D07 |
 | D09A | Separate keyboard and gamepad seats for local two-player | Done (user-accepted 2026-10-27) | D09, D34B implementation |
 | D09C | Controller rumble: the game's own vibration on a real pad, plus Modernized hit feedback | Todo (added 2026-11-04, from cancelled D12E2) | D09, D09A |

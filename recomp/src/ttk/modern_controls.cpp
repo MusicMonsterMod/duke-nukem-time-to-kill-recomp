@@ -2610,6 +2610,13 @@ PSX_MOD_CONSTRUCTOR(register_ttk_controls) {
     // D41B: every round's launch and impact (shot lights).
     psx_mod_register_function_entry_plugin("ttk.lights",0x800718ac,[](CPUState* cpu,uint32_t){ttk::lights_launch(cpu);});
     psx_mod_register_function_entry_plugin("ttk.lights",0x8006f1b8,[](CPUState* cpu,uint32_t){ttk::lights_impact(cpu);});
+    // D41I developer probe: DNTTK_LIGHT_PROBE=<hex>[,<hex>...] counts entries of
+    // game functions that carry the mod hook (note 413 section 11).
+    if(const char* probe=std::getenv("DNTTK_LIGHT_PROBE")) for(const char* q=probe;*q;) {
+        char* end=nullptr;const unsigned long a=std::strtoul(q,&end,16);if(end==q) break;
+        if(a) psx_mod_register_function_entry_plugin("ttk.lights.probe",(uint32_t)a,[](CPUState* cpu,uint32_t fn){ttk::lights_probe_entry(cpu,fn);});
+        q=*end?end+1:end;
+    }
     psx_mod_register_function_entry_plugin("ttk.modern.controls",0x80028a2c,[](CPUState* cpu,uint32_t){ttk::lights_shake(cpu);ttk::earthquake_native_shake(cpu);});
     psx_mod_register_function_entry_plugin("ttk.modern.controls",0x80025944,[](CPUState* cpu,uint32_t){ttk::reach_hold(cpu);});
     psx_mod_register_function_entry_plugin("ttk.modern.controls",0x800632b8,[](CPUState* cpu,uint32_t){ttk::reach_release(cpu);});

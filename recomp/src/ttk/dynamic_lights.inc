@@ -20,6 +20,8 @@
 //   flight carry light, and a round that meets a wall (0x8006f1b8) lights a
 //   short spark; blasts are sized per source. Weapons without rounds (energy
 //   beam, flamethrower) light Duke's hand flash (player word 0 bit 3).
+// - D41I fire: flames in flight from the flamethrowers and burning objects
+//   (enemies, Duke; flag word bit 0x800) as flickering fire lights.
 // - console "light": a test light at Duke ("light", "light <r> <g> <b>
 //   [radius]", "light off").
 // The per-image list (LightView) travels to redraw workers in RenderState and
@@ -82,7 +84,7 @@ static double light_envelope(const LightSrc& s) {
 // launcher 0x800718ac (a0 shooter, a1 origin, a3 type) starts every round,
 // Duke's and the enemies', at its real muzzle point; 0x8006f1b8 (a0 the
 // round, a1 the point) is where a round meets a wall or an actor. Rounds in
-// flight: the projectile pool 0x800da978 holds 100 records of 0x60 bytes (+0
+// flight: the projectile pool 0x800da978 holds 96 records of 0x60 bytes (+0
 // flags, 3 while a round flies; +4 position; +0x30 type), read each tick,
 // never stored. Values are TTK units (Duke's shoulder is about 620 up) and
 // game tics; Quake's muzzle flash (radius 200 for 0.1 s) and EDuke32
@@ -102,6 +104,28 @@ static constexpr ShotLight shot_lights[]={
     {8,{1.00f,0.62f,0.30f},4800,4,{0,0,0},0,0,{0.95f,0.55f,0.22f},2800},          // RPG rocket (its blast lights the hit)
     {13,{0.55f,0.50f,1.25f},3000,3,{0.60f,0.60f,1.30f},1900,4,{0.50f,0.45f,1.15f},1800}, // freezer: violet-blue, as its shots
     {15,{0.45f,1.15f,0.40f},3200,3,{0.50f,1.25f,0.45f},2300,4,{0.40f,1.05f,0.35f},2200}, // energy round: green, as the weapon's own glow
+    // D41I enemy guns (lab census, note 413 section 11): the type each enemy
+    // launches. Rounds without a coloured effect of their own take the warm
+    // gun flash, sized by the gun; the gunship's bolts (31, the freezer's
+    // model 0x799 in the type table) glow violet. Enemy flashes are scaled by
+    // 0.8 at launch.
+    {3,{0.85f,0.58f,0.28f},3400,3,{1.00f,0.78f,0.42f},1300,2,{0,0,0},0},          // type 26 enemy rounds (levels 0-11)
+    {5,{0.85f,0.60f,0.30f},3200,2,{1.00f,0.78f,0.42f},1300,2,{0,0,0},0},          // gatling turrets 204 and 540
+    {29,{0.85f,0.60f,0.30f},3200,2,{1.00f,0.78f,0.42f},1300,2,{0,0,0},0},         // robotic turret 622
+    {31,{0.95f,0.55f,1.20f},3800,3,{1.00f,0.60f,1.25f},1600,3,{0,0,0},0},         // gunship 605's bolts (level 3): violet, as their own glow
+    {32,{1.00f,0.62f,0.30f},4400,3,{1.00f,0.78f,0.42f},1600,2,{0,0,0},0},         // boss 61's guns (level 27)
+    {34,{0.85f,0.58f,0.28f},3400,3,{1.00f,0.78f,0.42f},1300,2,{0,0,0},0},         // type 95 rounds (levels 7-11)
+    {35,{1.00f,0.62f,0.30f},4400,2,{1.00f,0.78f,0.42f},1600,2,{0,0,0},0},         // Moloch's twin gatlings (level 29)
+    // Rockets: the RPG's model (0x34b in the type table 0x800c4bc0): robotic
+    // turret 623 (33), type 24, and the incendiary RPG (28, a hotter orange).
+    {24,{1.00f,0.62f,0.30f},4800,4,{0,0,0},0,0,{0.95f,0.55f,0.22f},2800},
+    {33,{1.00f,0.62f,0.30f},4800,4,{0,0,0},0,0,{0.95f,0.55f,0.22f},2800},
+    {28,{1.05f,0.55f,0.22f},4800,4,{0,0,0},0,0,{1.05f,0.50f,0.18f},3200},
+    // Flames (the flamethrower 14, the hi-temp flamethrower 26): no launch
+    // flash (the hand flash lights the nozzle); each flame in flight is a fire
+    // light (lights_fire).
+    {14,{0,0,0},0,0,{0,0,0},0,0,{0,0,0},0},
+    {26,{0,0,0},0,0,{0,0,0},0,0,{0,0,0},0},
     // Throws and bolts (D41B probe): no flash at the hand and no spark; the
     // explosives light through the blast sources. Pipe bomb 4, Holy Hand
     // Grenade 11, dynamite 12, throwing knife 16, throwing axe 17, crossbow
@@ -113,8 +137,9 @@ static constexpr ShotLight shot_lights[]={
     {17,{0,0,0},0,0,{0,0,0},0,0,{0,0,0},0},
     {18,{0,0,0},0,0,{0,0,0},0,0,{0,0,0},0},
 };
-// Other types (enemy guns not yet probed: turrets, flyers, bosses) take a
-// warm flash and spark.
+// Other types (not seen launched in the D41I census: the laser gatling 27,
+// flyers 44 and 847/848/901, which did not fire there) take a warm flash and
+// spark.
 static constexpr ShotLight shot_light_default={255,{0.80f,0.56f,0.28f},3000,3,{1.00f,0.78f,0.42f},1200,2,{0,0,0},0};
 static const ShotLight& shot_light(unsigned type) {
     for(const ShotLight& s:shot_lights) if(s.type==type) return s;
@@ -122,7 +147,7 @@ static const ShotLight& shot_light(unsigned type) {
 }
 static unsigned lights_flight(PSXModLight* out,unsigned room) {
     unsigned n=0;
-    for(uint32_t i=0;i<100 && n<room;++i) {
+    for(uint32_t i=0;i<96 && n<room;++i) {
         const uint32_t a=0x800da978u+i*0x60u;
         if(psx_mod_read_half(a)!=3) continue;
         const ShotLight& f=shot_light(psx_mod_read_byte(a+0x30));
@@ -133,10 +158,73 @@ static unsigned lights_flight(PSXModLight* out,unsigned room) {
     }
     return n;
 }
+// D41I fire. Flames in flight: the flamethrowers' flame records in the pool
+// (types 14 and 26, flag bit 0; drawn by 0x8006cfd8 as flame sprites), up to
+// 8 at once; three of them, spread along the stream, each carry a flickering
+// fire light. Burning objects: an object whose flag word (+0) has bit 0x800
+// set (and 0x4 clear, object_burning) is drawn with flame sprites on its joints (actor draw 0x80033868,
+// Duke's 0x80032304); enemies, props and Duke each light as a fire while it
+// burns. Objects are the level's placement rows (*0x800de720, 48 bytes, +4
+// the live object; spawner and object rows up to the count 0x800de724).
+// Collected once per game tick into light_fire; the flicker changes per tick.
+struct FireLight {float p[3];float k;double radius;};
+static FireLight light_fire[8];static unsigned light_fire_count;
+static uint64_t light_burning_ticks,light_flame_ticks;
+static float light_flicker(uint32_t seed) {
+    return 0.80f+0.40f*(float)(((light_ticks*2654435761u)^(seed*40503u))>>24&255)/255.0f;
+}
+// Burning: flag word bit 0x800 while bit 0x4 is clear. Measured: a burning
+// pig cop reads 0x803 and a burning tree 0x802; both turn 0x804 when the
+// burn is over (the tree has burned away, the body is charred), and some
+// props keep 0x804 from the level's start. The flame sprites stop then too.
+static bool object_burning(uint32_t flags) {return (flags&0x804u)==0x800u;}
+static std::atomic<int> light_fire_on{1};     // D41I session toggle (console "light fire on|off")
+static void lights_fire_collect() {
+    light_fire_count=0;
+    if(!light_fire_on.load(std::memory_order_relaxed)) return;
+    const double duke[3]={(double)(int32_t)psx_mod_read_word(player+4),(double)(int32_t)psx_mod_read_word(player+8),(double)(int32_t)psx_mod_read_word(player+12)};
+    // Burning objects, nearest first (at most 5).
+    struct B {uint32_t a;double d;} burn[16];unsigned nb=0;
+    const uint32_t table=psx_mod_read_word(0x800de720),count=psx_mod_read_word(0x800de724);
+    auto consider=[&](uint32_t a){
+        if(a<0x80000000u || a>0x801fff00u || !object_burning(psx_mod_read_word(a))) return;
+        for(unsigned j=0;j<nb;++j) if(burn[j].a==a) return;
+        const double dx=(int32_t)psx_mod_read_word(a+4)-duke[0],dz=(int32_t)psx_mod_read_word(a+12)-duke[2];
+        if(nb<std::size(burn)) burn[nb++]={a,dx*dx+dz*dz};
+    };
+    consider(player);
+    for(uint32_t i=0;table>=0x80000000u && table<0x80200000u && i<count && i<1024;++i) consider(psx_mod_read_word(table+i*0x30+4));
+    std::sort(burn,burn+nb,[](const B& x,const B& y){return x.d<y.d;});
+    for(unsigned j=0;j<nb && j<5;++j) {
+        const uint32_t a=burn[j].a;FireLight& f=light_fire[light_fire_count++];
+        // The flames rise from the body: the light sits 450 above its feet.
+        f.p[0]=(float)(int32_t)psx_mod_read_word(a+4);f.p[1]=(float)(int32_t)psx_mod_read_word(a+8)-450;f.p[2]=(float)(int32_t)psx_mod_read_word(a+12);
+        f.k=light_flicker(a);f.radius=3600*(0.92+0.08*f.k);
+    }
+    if(nb) ++light_burning_ticks;
+    // Flames in flight: the pool's live flame records, oldest to newest.
+    uint32_t fl[8];unsigned nf=0;
+    for(uint32_t i=0;i<96 && nf<std::size(fl);++i) {
+        const uint32_t a=0x800da978u+i*0x60u;
+        const unsigned t=psx_mod_read_byte(a+0x30);
+        if((psx_mod_read_half(a)&1u) && (t==14 || t==26)) fl[nf++]=a;
+    }
+    if(nf) ++light_flame_ticks;
+    for(unsigned j=0;j<3 && j<nf && light_fire_count<std::size(light_fire);++j) {
+        const uint32_t a=fl[nf<=3?j:(j*(nf-1))/2];FireLight& f=light_fire[light_fire_count++];
+        f.p[0]=(float)(int32_t)psx_mod_read_word(a+4);f.p[1]=(float)(int32_t)psx_mod_read_word(a+8);f.p[2]=(float)(int32_t)psx_mod_read_word(a+12);
+        f.k=0.75f*light_flicker(a);f.radius=2400*(0.9+0.1*f.k);
+    }
+}
 static void light_spark(const double p[3],const ShotLight& s,unsigned type,uint32_t owner);
 static void lights_publish() {
     LightView v;v.amb=light_ambient();v.smooth=light_smooth_on();
     v.n=lights_flight(v.l,8);
+    for(unsigned i=0;i<light_fire_count && v.n<PSX_MOD_MAX_LIGHTS;++i) {
+        const FireLight& f=light_fire[i];PSXModLight& l=v.l[v.n++];
+        l.x=f.p[0];l.y=f.p[1];l.z=f.p[2];l.radius=(float)f.radius;
+        l.r=1.15f*f.k;l.g=0.58f*f.k;l.b=0.22f*f.k;l.flags=0;
+    }
     for(unsigned i=0;i<light_src_count && v.n<PSX_MOD_MAX_LIGHTS;++i) {
         const LightSrc& s=light_srcs[i];
         const double e=light_envelope(s);
@@ -149,10 +237,57 @@ static void lights_publish() {
     }
     light_view=v;
 }
+
+// D41I probe (developer, DNTTK_LIGHT_PROBE=<hex addr>[,<hex addr>...]):
+// function entries counted per address, caller and a0, with a1's first three
+// words when a1 points into RAM; printed every 60 Duke updates.
+struct LightProbeKey {uint32_t fn,ra,a0,a2,s10;uint64_t n;int32_t p[3];};
+static LightProbeKey light_probe_keys[96];static unsigned light_probe_n;
+static void lights_probe_entry(CPUState* cpu,uint32_t fn) {
+    const uint32_t ra=cpu->gpr[31],a0=cpu->gpr[4],a1=cpu->gpr[5];
+    for(unsigned i=0;i<light_probe_n;++i) {LightProbeKey& k=light_probe_keys[i];if(k.fn==fn && k.ra==ra && k.a0==a0) {++k.n;return;}}
+    if(light_probe_n<std::size(light_probe_keys)) {
+        LightProbeKey& k=light_probe_keys[light_probe_n++];k.fn=fn;k.ra=ra;k.a0=a0;k.a2=cpu->gpr[6];k.s10=psx_mod_read_word(cpu->gpr[29]+0x10);k.n=1;
+        for(int i=0;i<3;++i) k.p[i]=(a1>=0x80000000u && a1<0x801ffff0u)?(int32_t)psx_mod_read_word(a1+4*i):0;
+    }
+}
+static void lights_probe_report() {
+    static uint32_t t;if(++t%60) return;
+    for(unsigned i=0;i<light_probe_n;++i) {const LightProbeKey& k=light_probe_keys[i];
+        std::fprintf(stderr,"[TTK light] probe fn %08x ra %08x a0 %08x a2 %08x s10 %08x n %llu a1 %d %d %d\n",k.fn,k.ra,k.a0,k.a2,k.s10,(unsigned long long)k.n,k.p[0],k.p[1],k.p[2]);}
+    light_probe_n=0;
+}
+// D41I probe (developer, DNTTK_PARTICLE_TRACE=1): the live particle list
+// (head 0x800dd7f0, +0 next; +8 the kind word from the spawn descriptor, +0x10
+// position) summarised once a second: count per kind and the first position.
+static void lights_particle_trace() {
+    static uint32_t t;if(++t%30) return;
+    struct K {uint32_t k,n;int32_t p[3];} ks[16];unsigned nk=0,total=0;
+    uint32_t r=psx_mod_read_word(0x800dd7f0u);
+    for(unsigned i=0;i<400 && r>=0x80000000u && r<0x801fff80u;++i,r=psx_mod_read_word(r)) {
+        ++total;const uint32_t k=psx_mod_read_word(r+8);unsigned j=0;
+        while(j<nk && ks[j].k!=k) ++j;
+        if(j==nk && nk<16) {ks[nk].k=k;ks[nk].n=0;for(int c=0;c<3;++c) ks[nk].p[c]=(int32_t)psx_mod_read_word(r+0x10+4*c);++nk;}
+        if(j<nk) ++ks[j].n;
+    }
+    {   // Burning objects: flag word +0 bit 0x800 (the draw adds flame sprites per joint).
+        const uint32_t table=psx_mod_read_word(0x800de720),count=psx_mod_read_word(0x800de724);
+        unsigned burning=0;char bb[256];int bn=0;
+        for(uint32_t i=0;table>=0x80000000u && i<count && i<1024;++i) {
+            const uint32_t a=psx_mod_read_word(table+i*0x30+4);
+            if(a<0x80000000u || a>0x801fff00u || !object_burning(psx_mod_read_word(a))) continue;
+            ++burning;if(bn<200) bn+=std::snprintf(bb+bn,sizeof bb-bn," %08x@%d,%d,%d",a,(int32_t)psx_mod_read_word(a+4),(int32_t)psx_mod_read_word(a+8),(int32_t)psx_mod_read_word(a+12));
+        }
+        if(burning || object_burning(psx_mod_read_word(player))) std::fprintf(stderr,"[TTK light] burning %u%s duke %u\n",burning,bn?bb:"",object_burning(psx_mod_read_word(player))?1u:0u);
+    }
+    char b[512];int n=std::snprintf(b,sizeof b,"[TTK light] particles %u:",total);
+    for(unsigned j=0;j<nk && n<(int)sizeof b-64;++j) n+=std::snprintf(b+n,sizeof b-n," %x x%u @%d,%d,%d",ks[j].k,ks[j].n,ks[j].p[0],ks[j].p[1],ks[j].p[2]);
+    std::fprintf(stderr,"%s\n",b);
+}
 // Once per Duke update (game tick).
 static void lights_tick() {
     if(!lights_enabled() || !gameplay_context()) {
-        light_src_count=0;light_view=LightView{};return;
+        light_src_count=0;light_fire_count=0;light_view=LightView{};return;
     }
     // A loaded savestate starts with no lights in flight.
     if(light_loads!=psx_mod_savestate_loads()) {
@@ -180,6 +315,9 @@ static void lights_tick() {
     }
     }
     ++light_ticks;
+    lights_fire_collect();
+    if(std::getenv("DNTTK_LIGHT_PROBE")) lights_probe_report();
+    if(std::getenv("DNTTK_PARTICLE_TRACE")) lights_particle_trace();
     // Duke's muzzle flash without a round (word 0 bit 3, the flash his hand
     // draws): weapons that launch light their muzzle in lights_launch, so a
     // flash is only lit here when no launch of Duke's came within a tic of it.
@@ -321,6 +459,16 @@ bool lights_console_command(const char* line,void (*say)(const char*),bool& clos
         else if(!std::strcmp(v,"default")) light_smooth.store(-1);
         else if(*v) {say("Light: light smooth [on|off|default]");return true;}
         say(light_smooth_on()?"Light: smooth light on models":"Light: faceted light on models (session only)");
+        return true;
+    }
+    // D41I: "light fire on|off" - fire lights (flames, burning objects) for
+    // this session (matched comparisons).
+    if(!std::strncmp(arg,"fire",4) && (!arg[4] || arg[4]==' ')) {
+        const char* v=arg+4;while(*v==' ')++v;
+        if(!std::strcmp(v,"on")) light_fire_on.store(1);
+        else if(!std::strcmp(v,"off")) light_fire_on.store(0);
+        else if(*v) {say("Light: light fire [on|off]");return true;}
+        say(light_fire_on.load()?"Light: fire lights on":"Light: fire lights off (session only)");
         return true;
     }
     if(*arg) {

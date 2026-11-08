@@ -1,5 +1,24 @@
 # Current status - 2026-10-04
 
+## 2026-11-08 - D41I fire and enemy weapon lights (Done)
+
+Accepted 2026-11-08 ("the lighting looks spectacular"; burning enemies
+"just beautiful"). The playtest's burned-away tree bug is fixed: burning is
+flag bit 0x800 with bit 0x4 clear. New backlog: D08A39 (mission item label
+and count overlap in level 3).
+
+## 2026-11-08 - D41I fire and enemy weapon lights (first round)
+
+Burning objects (flag word bit `0x800`, the bit the actor draw checks for
+flames on the joints) carry a flickering fire light while they burn; the
+flamethrowers' flame records (pool types 14 and 26, flag bit 0) light
+along the stream; enemy weapon types from a lab census have their own
+values (warm guns, violet gunship bolts, rocket flight light). Console
+`light fire on|off`. Matched stills and 180 Hz check offscreen; the user's
+playtest is next (a burning enemy in a dark spot, the level 3 gunship,
+Moloch, robotic turrets). [Note 413](413-d41-lighting-case-study.md)
+section 11.
+
 ## 2026-11-08 - D50 frame rate and energy-weapon stalls (Done)
 
 Closed 2026-11-08 ("close it out!") after the user's slot 8 retest ("it is

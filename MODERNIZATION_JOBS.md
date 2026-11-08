@@ -1,5 +1,17 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-08 - D50 closed
+
+User: "close it out!". D50 is Done: the governor no longer sheds to half
+rate after a load on a low but steady audio ring, and the energy beam's
+widescreen mirror passes are deferred and replayed with one framebuffer
+switch (images exact). The code shipped with the D41B commit `7a7a10f`,
+which shares its source files; this closeout is documentation only. The
+`[TTK hitch]` session-log line stays as a silent diagnostic. Remaining
+limit: the beam's painter-order batch splits still cost the render thread
+more than other weapons (merging them is renderer work, not done).
+[Note 415](documentation/415-d50-load-audio-shed.md).
+
 ## 2026-11-08 - D08A38 closed
 
 User: "its perfect. lock it in and close it out". D08A38 is Done: in
@@ -8966,7 +8978,7 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D49B | Rounds leave the gun: fireballs, rockets and rounds in flight drawn from the barrel | Todo | D49 |
 | D49C | Energy beam animated at the display rate (beam looks lower frame rate than the game) | Done 2026-11-08 | D49 |
 | D49D | Pistol and shotgun wall smoke in step with the bullet holes (smoke slides toward the hole) | Done 2026-11-08 | D49A |
-| D50 | Frame rate halves after loading; energy-weapon stalls and crackle | Accepted 2026-11-08, closeout not yet authorized (deferred widescreen mirror, exact) | - |
+| D50 | Frame rate halves after loading; energy-weapon stalls and crackle | Done (user-accepted; closed 2026-11-08; note 415) | - |
 | D51 | Continuous fire (energy weapon, flamethrower) stops when running into a wall | Done | - |
 | D39G | Classic renderer fallback for flashes | Done (accepted 2026-11-03) | D39C |
 | D40 | Switch renderer (Polymorph / Classic) live in game, as EDuke32 does | Done | D17AR6, D39G |

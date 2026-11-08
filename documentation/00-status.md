@@ -1,5 +1,15 @@
 # Current status - 2026-10-04
 
+## 2026-11-08 - D50 frame rate and energy-weapon stalls (Done)
+
+Closed 2026-11-08 ("close it out!") after the user's slot 8 retest ("it is
+now fixed!!!!"). Audio-shed rule only sheds on a draining ring or underrun
+and recovers after 5 clean seconds; the energy beam's widescreen mirror
+passes replay with one framebuffer switch (images exact); `[TTK hitch]`
+logs bad gameplay seconds. Code is in the D41B commit `7a7a10f`. Limit: the
+beam's batch splits remain (renderer follow-up, not on the board).
+[Note 415](415-d50-load-audio-shed.md).
+
 ## 2026-11-08 - D08A38 clean-edge energy weapon ammo icon (Done)
 
 The user liked the D08A32 energy atom but not its fuzzy edges. The same eight
@@ -150,7 +160,7 @@ intrusive. i love how the light follows the projectiles especially of the
 freezethrower. this is truly beautiful work. lock it in and close it out,
 finally". D41B is Done. Its remaining scope (burning enemies, fire, enemy
 weapon types other than the pig cop's) is the new job D41I. The commit also
-carries the D50 fixes (accepted, closeout not yet authorized), which share
+carries the D50 fixes (closed 2026-11-08), which share
 the same source files.
 
 ## 2026-11-08 - D50 energy-weapon stalls found and fixed (Needs playtest)

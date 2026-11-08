@@ -176,3 +176,7 @@ scale 3, offscreen; `corner` with `SWEEP=1`, `PLUG=1`, `PSX_GL_FLUSH_DIAG=1`):
   gone). Merging untextured primitives into the textured batch would remove
   the splits (renderer work, not done).
 
+## Closeout
+
+User-confirmed in slot 8 ("it is now fixed!!!!") and closed 2026-11-08.
+The limits above stay as known follow-ups.

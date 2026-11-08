@@ -1,5 +1,17 @@
 # Current status - 2026-10-04
 
+## 2026-11-08 - D49B launched rounds leave the gun (Done, no code change)
+
+D49B was scoped to draw new fireballs, rockets and other launched rounds
+from the drawn barrel, because at 120/180 Hz the world was drawn about 90 ms
+behind the view. D10H8 since cut that: new things appear about 18 ms after
+their game frame. Lab (180 Hz, first person, flamethrower, A/B against the old
+draw): the newest fireball sits on or near the crosshair; the stream bends with
+turns as in EDuke32. User playtest: "it honestly feels pretty damn good!", "the
+rpg felt just phenomenally good!" No barrel blend built (it would risk the
+D49D sliding look). The click-to-fire lag the user noticed on the energy weapon
+and flamethrower is the new job D10H9. [Note 424](424-d49b-rounds-covered-by-d10h8.md).
+
 ## 2026-11-08 - D48 steady left hand on the Gatling gun (Done)
 
 Firing the Gatling in first person threw the left glove from under the barrel

@@ -336,14 +336,21 @@ only (`renderer` alone names the current one). `--world-renderer
 polymorph|classic` saves the choice from the launcher. A screen flash in
 progress stops when you switch to Classic. Vanilla always uses Classic.
 
-### Dynamic lights (Modernized, Polymorph, D41A)
+### Dynamic lights (Modernized, Polymorph, D41A, D41B)
 
 With **DYNAMIC LIGHTS** on (the default), blasts and Duke's muzzle flash put
 real light into the world: rockets, grenades, pipe bombs, dynamite, TNT
 barrels and characters blown apart light the walls, floors, props and
 characters around them in a warm flash that fades over about half a second,
-each shot Duke fires warms the ground and walls around his gun for a
-moment, and rockets and energy beam rounds carry their own light as they fly. The light falls off with distance and faces the surfaces it reaches;
+each shot Duke fires lights the ground and walls around his gun for a
+moment, and rockets, freezer and energy rounds carry their own light as they fly. Each
+gun has its own flash at the point its round leaves: warm for the Desert
+Eagle, shotgun, Gatling, Buffalo Rifle and RPG (the shotgun, rifle and RPG
+bigger), violet-blue for the freezer, green for the energy weapon, and a
+flickering fire light along the flamethrower's jet. Enemies' shots flash
+at their guns too, and a round that hits a wall makes a short spark of
+light there. Thrown weapons and crossbow bolts make no flash; their blasts
+light as before, the TNT barrel and dynamite the biggest. The light falls off with distance and faces the surfaces it reaches;
 the game's own painted lighting stays underneath. Duke himself, his
 first-person weapon, arms and legs take the light too (while a power-up
 effect plays on him he keeps his original look). Light rounds smoothly over

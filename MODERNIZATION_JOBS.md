@@ -1,5 +1,91 @@
 # Time to Kill — modernization jobs
 
+## 2026-11-08 - D41B accepted and closed; D41I split off
+
+User, after playtesting the shot lights: "the lighting looks absolutely
+incredible!! the brightness of the lighting is so beautiful but not
+intrusive. i love how the light follows the projectiles especially of the
+freezethrower. this is truly beautiful work. lock it in and close it out,
+finally". D41B is Done. Its remaining scope (burning enemies, fire, enemy
+weapon types other than the pig cop's) is the new job D41I. The commit also
+carries the D50 fixes (accepted, closeout not yet authorized), which share
+the same source files.
+
+## 2026-11-08 - D50 accepted (closeout not yet authorized)
+
+User, after playtesting slot 8 with the energy weapon: "it is now fixed!!!!
+... what an amzing job you've done". Back to the D41B playtest.
+
+## 2026-11-08 - D50 energy-weapon stalls found and fixed (Needs playtest)
+
+User: "do whatever it takes. WHATEVER it takes". A profiled player session
+showed the stalls are the emulation thread drawing live frames after
+redraw-only switched off: with the energy beam the render thread fell up to
+a quarter of a second behind. Cause: the beam interleaves untextured and
+textured primitives, so batches split thousands of times a second, and in
+native widescreen each split batch was mirrored into the wide surface with
+two framebuffer switches, which cost the NVIDIA driver a third of the
+render thread's time. Fix (framework, exported and verified): the mirror
+passes of those splits are logged and replayed in order with one switch
+before anything else uses the wide surface; images verified exact on 11456
+redraws. Also 32 worker job slots, a 250 ms tolerance before live drawing
+returns, and diagnostics (`[TTK redraw-only] off` reasons, `PSX_PROF_RT`,
+`PSX_GL_FLUSH_DIAG`). Lab, slot 8 copy: 0 switch-offs and 5 repeated
+presents in 20 s of firing (before 4 and 370). Needs the user's playtest in
+slot 8. [Note 415](documentation/415-d50-load-audio-shed.md).
+
+## 2026-11-08 - D50 follow-up: hitch log (In progress)
+
+The user still feels a slowdown firing the energy weapon at the slot 8
+corner; the 12:00 session showed no shed (the load fix held). Not reproduced
+offscreen on a private slot 8 copy (stationary and human-speed sweeps while
+firing: the game 60-62 frames/s, 182-186 presents/s). Added a `[TTK hitch]`
+session-log line for each bad gameplay second (game rate, late presents,
+missed redraws, audio ring and underruns, weapon, lights, view, position),
+silent in healthy play; the next reproduction in the player's game will show
+what goes wrong. [Note 415](documentation/415-d50-load-audio-shed.md).
+
+## 2026-11-08 - D50 frame rate halves after loading (Needs playtest)
+
+User, during the D41B playtest: a slowdown while firing the energy weapon in
+UI slot 8, "maybe a touch of audio crackle"; "stand the job up right now and
+get to work on it as it blocks testing". The logs showed the governor shed
+to 90 presents at 180 Hz a few seconds after loading (audio ring 38-59 of
+180 ms) in four of five sessions that day, with no second behind real time,
+and a pause menu held it for minutes. Fix (no framework change): the audio
+check sheds only when the ring is draining (30 ms lower within 0.4-1.5 s,
+or an underrun), not when it is low and steady; an audio shed steps back up
+after 5 clean seconds instead of 30; menus and pauses no longer reset the
+clean run. Lab on a private slot 8 copy with real audio into a silent null
+sink: a cold start sheds nothing; a CPU squeeze still sheds correctly and
+recovers in about 9 s (was about 27 s). Tests as before (controls test at
+the known D14 HUD check). The low ring at the player's starts was not
+reproduced here. [Note 415](documentation/415-d50-load-audio-shed.md).
+
+## 2026-11-08 - D41B weapon and projectile lights (Needs playtest)
+
+Selected with "work on D41B". Every round's launch now lights a muzzle flash
+at its real launch point in its weapon's colour, for Duke and for enemies
+(the projectile launcher `0x800718ac`); a round that hits a wall lights a
+short spark there (`0x8006f1b8`); the energy weapon and flamethrower, which
+fire no rounds, light from Duke's hand flash (green; a flickering fire light
+along the jet); freezer rounds join rockets and energy rounds in carrying
+light; throws and crossbow bolts make no flash; blasts are sized per source
+(TNT barrel and dynamite biggest, gib bursts small). Projectile types from a
+probe of all 14 weapons on level 0: pistol 0, shotgun 1, pig cop rounds 2,
+pipe bomb 4, Buffalo Rifle 6, Gatling 7, RPG 8, Holy Hand Grenade 11,
+dynamite 12, freezer 13, energy round 15, knife 16, axe 17, crossbow bolt
+18. No framework change, no new setting. Build OK; `ttk-near-test`,
+`ttk-flash-test`, `ttk-live-env-test` PASS, profiles OK;
+`ttk-controls-test` stops at the known D14 HUD check. Offscreen (private
+apartment cards, lab `recomp/analysis/d41b/`, local): each gun's flash lights
+Duke and the ground in its colour; a pig cop's shot lights the wall around
+it; 180 Hz with Gatling and enemies firing: 0 missed redraws. Not done:
+burning enemies and fire, other enemy weapon types (default warm values).
+Needs playtest per weapon in first and third person
+([note 413](documentation/413-d41-lighting-case-study.md) section 10).
+Executable `847865e78e50c7db50a3932f2b4343ed8c7ed56d05ea578a47fdd02e0b97bea7`.
+
 ## 2026-11-08 - D41C accepted and closed: Duke and first person in the light
 
 User, after playtesting: "the lighting looks so much smoother than the game's
@@ -6972,17 +7058,14 @@ judges look and strength, and confirms no slowdown and the option's off state.
 
 ### D41B - Weapon and projectile lights
 
-**Status: Todo (first part user-accepted and closed 2026-11-08; the remaining scope below is open; [note 413](documentation/413-d41-lighting-case-study.md) section 7). Dependencies: D41A.**
-Done so far: RPG rockets (projectile type 8) and energy beam rounds (type 15)
-carry light in flight, read each tick from the projectile pool `0x800da978`
-(flag 3 while flying); Duke's muzzle light sits at the gun's muzzle point
-(`player+0xbc`) when it is within 1500 units of him. Remaining: each weapon's muzzle light (colour,
-size, life) at the real muzzle (the hand matrix and the slot's muzzle vector,
-note 63) instead of a point ahead of Duke; enemies' muzzle flashes; rockets,
-grenades and freezer rounds that carry light in flight like the rockets;
-bullet impacts and sparks; blast sizes per type (barrel, pipe bomb, dynamite,
-gib); burning enemies and fire. Compare with EDuke32 Polymer and Ironwail
-values. Acceptance: user playtest per weapon in first and third person.
+**Status: Done (user-accepted after playtest: "the lighting looks absolutely incredible!! the brightness of the lighting is so beautiful but not intrusive. i love how the light follows the projectiles"; closeout authorized 2026-11-08; [note 413](documentation/413-d41-lighting-case-study.md) sections 7 and 10). Dependencies: D41A.**
+Rounds carry light in flight (RPG 8, freezer 13, energy 15); every round's
+launch (`0x800718ac`, Duke and enemies) lights a muzzle flash at its launch
+point in its type's colour; wall hits (`0x8006f1b8`) light a short spark; the
+energy weapon and flamethrower (no rounds) light from Duke's hand flash;
+throws and bolts make no flash; blasts sized per source (barrel, dynamite,
+pipe bomb or grenade, rocket, gib). Burning enemies, fire and enemy weapon
+types other than the pig cop's moved to D41I.
 
 ### D41C - Duke and first person in the light
 
@@ -7051,6 +7134,16 @@ the pistol, `research/before-after/d41h-smooth-light/`. 180 Hz 0 missed
 redraws. Remaining: user playtest of the look in both views; normal or
 specular detail stays optional later work.
 
+### D41I - Fire and enemy weapon lights
+
+**Status: Todo (split from D41B at its closeout, 2026-11-08). Dependencies: D41B.**
+The D41B scope not done: burning enemies and fire (find the burn and flame
+effect sources and give them flickering fire light), and per-type values for
+enemy weapons other than the pig cop's rounds (type 2): turrets, flyers and
+bosses currently take the default warm flash and spark (note 413 section 10
+table). Probe their projectile types on the levels that place them (D22I
+census, note 412) and set colours and sizes. Acceptance: user playtest.
+
 ### D46 - Apartment mirror shows the outside when Duke turns left
 
 **Status: Done (user-accepted 2026-11-08: "fully accepted. excellent work! absolutely superb. lock it in, close it out"; [note 414](documentation/414-d46-mirror-portal-depth.md)). Dependencies: none known.** User, after the
@@ -7083,6 +7176,87 @@ through the doorway is unchanged; third person and Vanilla identical.
 stops at a pre-existing assertion with or without the change. Remaining:
 user playtest; other mirrors and first-person doorways elsewhere not
 surveyed.
+
+### D47 - First shotgun shot smokes from Duke's left shoulder
+
+**Status: Todo (user report 2026-11-08, during the D41B playtest; not investigated). Dependencies: none.**
+User: "the first shoot from the shotgun seems to 'fire' (smoke etc) from
+duke's left shoulder (when viewed from first, and third person). you can see
+the smoke appear for no reason there. why does that happen? small glitch?"
+Only the first shot is reported; seen in both views. User: it has been
+happening "for a good hot minute", before D41B, so D41B did not cause it.
+Find what places the
+first shot's smoke (and whether the round or flash also starts there), and
+whether it is original behaviour or a regression from the recomp's aim,
+muzzle or first-person work. Acceptance: the first shotgun shot's smoke
+appears at the muzzle like later shots, in both views, confirmed by the user.
+
+### D48 - Steady left hand on the Gatling gun
+
+**Status: Todo (user request 2026-11-08, during the D41B playtest; not investigated). Dependencies: none.**
+User: "can we stabalize duke's left hand with the gatling gun, i dont think
+it needs to violently shake backwards and forwards. you can observe that by
+simply opening the gatling gun and firing with it. is that really how the
+game wants to do it? i think we could aim for a much more professional
+animation". First establish whether the shake is the original firing
+animation or comes from the recomp (first-person presentation, D36 arms,
+recoil or aim work), in which views it shows, and what the right hand and
+gun do meanwhile. Then hold the left (support) hand steady on the gun, with
+at most a small recoil that follows the gun. Modernized only; Vanilla
+unchanged. Read the D36 audit (note 257) and the D36H5 arm notes (305, 306)
+first if the first-person arms own it. Acceptance: user playtest firing the
+Gatling in first and third person.
+
+### D49 - Shots in step with the gun (energy beam lags the aim)
+
+**Status: Todo (user request 2026-11-08, during the D41B playtest; not investigated). Dependencies: none.**
+User: "the latency between weapon projectile and the weapon movement itself,
+really needs to be synchronized. it's most visible with the energy weapon
+itself. when you move around, the projectile beam lags behind where duke is
+pointing." While Duke turns or moves and fires, the gun and view follow the
+input at once, but the beam (and likely other rounds and their flashes) is
+drawn where the gun pointed a moment earlier. No open job covers this
+(board checked 2026-11-08). Related finished work to read first: D17B
+(input latency at high refresh), the D17 redraw path (redraws between game
+ticks), D10G3/D10G4 (the shown view's world time, about 90 ms behind at
+120/180 Hz) and D22D (the beam's lock and updater `0x800733C8`). Measure
+the gap per weapon (beam start and end against the muzzle each presented
+frame, 60 and 180 Hz, first and third person), find whether it comes from
+the game tick, the redraw or the beam's own update, then draw shots from
+the same aim the gun shows. Modernized only; Vanilla unchanged; hit results
+must stay as they are. Acceptance: user playtest turning and strafing while
+firing the energy weapon, then the other guns.
+
+### D50 - Frame rate halves after loading (audio running low at load)
+
+**Status: Accepted, closeout not yet authorized (user, 2026-11-08: "it is now fixed!!!!"; load-time shed fixed; the energy-weapon stalls traced to native-widescreen mirror framebuffer switches on the render thread and fixed with a deferred mirror, images verified exact; [note 415](documentation/415-d50-load-audio-shed.md)). Dependencies: none.**
+User: slowdown "with the energy weapon in that area" (UI slot 8), and
+"maybe a touch of audio crackle". Session logs: in four of five sessions on
+2026-11-08 the governor logged "audio running low" (38-59 of 180 ms) a few
+seconds after the savestate load and shed to every 2nd refresh (90 presents
+at 180 Hz); it steps back up only after 30 clean gameplay seconds, and a
+pause menu holds it there (11:26 session: about 2.5 minutes at 90). Not
+reproduced offscreen with the dummy audio driver. Find what stalls the game
+after a load long enough to drain the audio ring, fix it, and make a
+load-time shed recover quickly. Acceptance: loads keep 180 presents/s
+without a shed (logs), no crackle, user confirms in slot 8.
+
+### D51 - Continuous fire stops when running into a wall
+
+**Status: Todo (user report 2026-11-08, during the D41B playtest; not investigated). Dependencies: none.**
+User: "load up slot 8. fire continuously with the energy weapon (selected
+already) or flamethrower, and then holding shift, run backwards, right, or
+forwards into any wall (backwards is easiest). it cuts the flow of fire.
+very annoying". Reproduce on a private copy of UI slot 8 (internal slot 7):
+hold fire with the energy weapon or flamethrower, hold Shift (run) and run
+into a wall backwards, sideways or forwards; the stream stops. Find what
+ends the fire at the wall contact (a wall-bump or blocked-run state, a
+D08/D35 traversal or mantle check, the D10 aim or muzzle-cover logic,
+D22D's beam lock, or the original game), whether walking into the wall does
+the same, and whether other held weapons (Gatling) are affected. Fix so
+held fire keeps flowing while running into walls, Modernized only, Vanilla
+unchanged. Acceptance: user playtest in slot 8, both weapons, all three
+directions.
 
 ### D08T10 - Slot-5 box repeat grab after pulling
 
@@ -8375,13 +8549,14 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D39F | Pickup flashes (explosion flashes removed; left for D41) | Done (accepted 2026-11-03) | D39C |
 | D41 | Foundational lighting system (pre-job: case-study artifact, then spawns the lighting jobs) | Done (accepted 2026-11-08; case study published, child jobs D41A-D41H on the board) | none |
 | D41A | Light foundation: world-space corners, per-pixel lights in Polymorph, blasts and muzzle flashes, DYNAMIC LIGHTS option | Done (accepted 2026-11-08) | D41 |
-| D41B | Weapon and projectile lights: per-weapon muzzle at the real muzzle, lit projectiles in flight, impacts, per-blast sizes, burning enemies | Todo (first part accepted 2026-11-08: rockets and energy rounds carry light, muzzle light at the gun's muzzle point) | D41A |
+| D41B | Weapon and projectile lights: per-weapon muzzle at the real muzzle, lit projectiles in flight, impacts, per-blast sizes | Done (accepted 2026-11-08; fire and other enemy weapons moved to D41I) | D41A |
 | D41C | Duke and first person in the light: Duke's model, legs, arms and weapon take world lights and dimming | Done (accepted 2026-11-08) | D41A |
 | D41D | Level light sources: texture emitters, painted-light peaks, TTK's animated light tables as light styles, per-level light files and an in-game light editor | Todo | D41A |
 | D41E | Relit levels: LIGHTING Original / Enhanced / Relit, painted light dimmed per level and room, readability checks | Todo | D41C, D41D, D41F |
 | D41F | Shadows: research spike, then shadow maps for chosen lights from the host's world-space rooms | Todo | D41A |
 | D41G | Light scale and cost: clustered light lists, untextured polygons, sprites, translucent faces, 180 Hz budgets | Todo | D41A |
 | D41H | Smooth light on models: per-vertex normals for actors and props | Done (accepted 2026-11-08) | D41C |
+| D41I | Fire and enemy weapon lights: burning enemies, fire, turret/flyer/boss weapon types (split from D41B) | Todo | D41B |
 | D42 | Death state and menu: stay on the death scene, Open opens the existing death list, Escape returns, unlimited continues, console usable while dead | Done (user-accepted 2026-11-03; note 373) | D19H, D19P, D19M, D19K, D26 |
 | D43 | Level title card: the level's name near the centre when a level begins, Duke 3D style, fades by itself | Done (user-accepted 2026-11-03; note 374) | - |
 | D44 | Earthquake research: EDuke32 earthquake measured, TTK shake and sources mapped | Done (research, 2026-11-05; note 396) | - |
@@ -8390,6 +8565,11 @@ All jobs start **Todo**. Dependencies are prerequisites for completion; small in
 | D44C | Earthquakes for the overlays' remaining native shakes: MINER 69ER tremor rooms (held while Duke is inside), the OBEY OR DIE / PIG FACTORY robot turrets (types 621-623), the WING'ED DEATH and Moloch landings; train unchanged | Done (user-accepted 2026-11-06; note 400) | D44B |
 | D45 | MINER 69ER drill section drama (UI slot 11): tasteful set-piece additions (explosions on arrival, events) that complement the drill and its puzzle, LA Rumble inspired; small level editing, not a redesign | Todo (backlog, user 2026-11-06: not now) | D44C |
 | D46 | Apartment mirror shows the outside when Duke turns left (user slot 8); regression unknown | Done (2026-11-08) | - |
+| D47 | First shotgun shot smokes from Duke's left shoulder (first and third person) | Todo | - |
+| D48 | Steady left hand on the Gatling gun while firing (no violent shake) | Todo | - |
+| D49 | Shots in step with the gun: the energy beam (and other rounds) lag the aim while turning | Todo | - |
+| D50 | Frame rate halves after loading; energy-weapon stalls and crackle | Accepted 2026-11-08, closeout not yet authorized (deferred widescreen mirror, exact) | - |
+| D51 | Continuous fire (energy weapon, flamethrower) stops when running into a wall | Todo | - |
 | D39G | Classic renderer fallback for flashes | Done (accepted 2026-11-03) | D39C |
 | D40 | Switch renderer (Polymorph / Classic) live in game, as EDuke32 does | Done | D17AR6, D39G |
 | D08H | Apartment furniture, hidden pickup and switch targeting | Done | D08 |

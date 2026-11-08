@@ -157,6 +157,7 @@ void quality_actor_end(CPUState*,uint32_t) {
 // one redraw per present. Unlimited initially schedules at 1000 Hz: a
 // 4-field frame plus the lead horizon can exceed the old 15-entry limit.
 // 96 entries cover that window while pacing settles; worker jobs remain 16.
+extern "C" void render_worker_stats(char* out,size_t cap);
 constexpr int slots=8, max_steps=8, max_jobs=96;   // slots <= RW_SLOTS (render_worker.c)
 
 int32_t target_hz=60;   // 60 = original presentation (replay off)
@@ -723,6 +724,7 @@ double pace_last_ratio=0; uint64_t pace_mid=0;
 // D23H load shedding (replay_load_window): divisor steps it owns, its backoff.
 int shed_steps=0, shed_backoff=1, shed_bad=0, shed_clean=0, shed_since_probe=1000, shed_full_clean=0;
 double shed_feed_ms=0;  // D17AR3 part 4: redraw feed cost in the second that shed
+bool shed_audio=false;  // D50: the last shed was for the audio ring
 uint64_t shed_probes=0, shed_failed_probes=0;  // D23H: windows between 2% and 10%
 // D23H: every present-rate change goes to the session log with its reason,
 // and late_pace prints a summary each minute (presents/s, rate, backoff).
@@ -1017,8 +1019,8 @@ void capture(CPUState* cpu,int kind);
 // as it is, and savestate thumbnails come from the last redraw shown. Engaged
 // only in gameplay images with the late camera and live workers, after 8
 // presents in a row showed a redraw; 3 presents in a row without one (workers
-// stalled or restarting), a failed redraw or a savestate load draw the next
-// live frames again. Frontend,
+// stalled or restarting; D50: and at least 250 ms since the last one), a
+// failed redraw or a savestate load draw the next live frames again. Frontend,
 // loading, menus, pause, split screen, 60 Hz and Vanilla are never engaged.
 // DNTTK_REDRAW_ONLY=0 (developer) or console "redrawonly off" disables it;
 // D40: without either, the live renderer decides (Classic: off).
@@ -1030,6 +1032,35 @@ bool redraw_only_switch() {
 }
 bool live_redraw_only=false, redraw_only_engaged=false, redraw_only_submit=false;
 unsigned ro_good=0, ro_miss_run=0;
+// D50: when the last fresh redraw was shown (presenter, below). A short gap
+// in the workers' redraws (the energy beam's draw code makes every redraw
+// about a third dearer) no longer turns live drawing back on at once: the
+// emulation thread then drew every list itself and, on the player's machine,
+// stalled 60-100 ms (audio underruns, game slowdown). Measured (note 415):
+// with the energy beam the render thread's GL work doubles (flat/textured
+// batch ping-pong) and redraws arrive 70-130 ms apart now and then, while
+// the workers keep running. Only a gap of 3 presents and ro_tolerance_ms
+// (250 ms, the workers' own stuck-job deadline RW_JOB_DEADLINE_MS) draws
+// live frames again; meanwhile the screen repeats its last image, and the
+// pace governor sheds presents if repeats persist.
+// DNTTK_REDRAW_ONLY_TOLERANCE_MS (developer, 0 restores the 3-present rule).
+std::chrono::steady_clock::time_point ro_last_good;
+// D50 diagnostics: why presents had no redraw (reported with each switch-off).
+// miss classes: 0 no job aimed at this present, 1 job queued in a worker,
+// 2 worker finished (drawing or not picked), 3 job failed; loop counts: no
+// timeline pair for a deadline, no free worker job.
+uint64_t ro_miss_cls[4], ro_nopair, ro_nojob, ro_miss_queued, ro_miss_running;
+double ro_miss_age_max, ro_miss_age_sum; uint64_t ro_miss_age_n;
+uint64_t ro_miss_rt_pending, ro_miss_rt_gone, ro_miss_free, ro_miss_wfail;
+double ro_tolerance_ms() {
+    static const double v=[]{const char* t=std::getenv("DNTTK_REDRAW_ONLY_TOLERANCE_MS");const double n=t?std::atof(t):250.0;return n>=0 && n<=1000 ? n : 250.0;}();
+    return v;
+}
+bool ro_workers_behind() {
+    if(ro_miss_run<3) return false;
+    const double gap=std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-ro_last_good).count();
+    return gap>=ro_tolerance_ms();
+}
 uint64_t ro_failures_seen=0, ro_frames=0, ro_engages=0, ro_drops=0;
 void redraw_only_trace(const char* what) {
     static const bool on=std::getenv("DNTTK_REDRAW_ONLY_TRACE")!=nullptr;
@@ -1044,11 +1075,31 @@ void redraw_only_decide(bool gameplay) {
     // A savestate load replaces VRAM under any older redraw: draw the first
     // frames after it again until fresh redraws are shown.
     static uint32_t load_epoch=0;
-    const bool failed=failures!=ro_failures_seen || psx_mod_savestate_loads()!=load_epoch;
+    const bool fail_redraw=failures!=ro_failures_seen,fail_load=psx_mod_savestate_loads()!=load_epoch;
+    const bool failed=fail_redraw || fail_load;
     ro_failures_seen=failures;load_epoch=psx_mod_savestate_loads();
     if(failed) ro_good=0;
-    if(!want || failed || ro_miss_run>=3) {
-        if(redraw_only_engaged) ++ro_drops;
+    if(!want || failed || ro_workers_behind()) {
+        if(redraw_only_engaged) {
+            ++ro_drops;
+            // D50: why the live frames draw again (the emulation thread then
+            // draws every list itself; the player's stalls, note 415).
+            static unsigned logged;
+            static uint64_t seen_cls[4],seen_np,seen_nj;
+            if(logged<60) std::fprintf(stderr,"[TTK redraw-only] misses since last: no job %llu, in worker %llu, worker done %llu, failed %llu; deadlines without a pair %llu, no free job %llu\n",
+                (unsigned long long)(ro_miss_cls[0]-seen_cls[0]),(unsigned long long)(ro_miss_cls[1]-seen_cls[1]),(unsigned long long)(ro_miss_cls[2]-seen_cls[2]),(unsigned long long)(ro_miss_cls[3]-seen_cls[3]),
+                (unsigned long long)(ro_nopair-seen_np),(unsigned long long)(ro_nojob-seen_nj));
+            for(int k=0;k<4;++k) seen_cls[k]=ro_miss_cls[k];seen_np=ro_nopair;seen_nj=ro_nojob;
+            if(logged<60) {char w[256];render_worker_stats(w,sizeof w);
+                std::fprintf(stderr,"[TTK redraw-only] in-worker misses: render thread drawing %llu, image gone %llu, job freed %llu, worker failed %llu, queued %llu, running %llu, job age at its present mean %.1f max %.1f ms; lead %.1f, ready p99 %.1f ms; workers %s\n",
+                (unsigned long long)ro_miss_rt_pending,(unsigned long long)ro_miss_rt_gone,(unsigned long long)ro_miss_free,(unsigned long long)ro_miss_wfail,
+                (unsigned long long)ro_miss_queued,(unsigned long long)ro_miss_running,ro_miss_age_n?ro_miss_age_sum/ro_miss_age_n:0.0,ro_miss_age_max,late_lead_ms,late_ready_ms,w);}
+            ro_miss_queued=ro_miss_running=ro_miss_rt_pending=ro_miss_rt_gone=ro_miss_free=ro_miss_wfail=0;ro_miss_age_max=ro_miss_age_sum=0;ro_miss_age_n=0;
+            if(++logged<=60) std::fprintf(stderr,"[TTK redraw-only] off: %s (field %llu, %u presents without a redraw)\n",
+                !want?(!gameplay?"not a gameplay image":!psx_mod_replay_workers_active()?"workers inactive":"conditions"):
+                fail_redraw?"a redraw failed":fail_load?"savestate load":"workers behind",
+                (unsigned long long)s_frame_count,ro_miss_run);
+        }
         redraw_only_engaged=false;
     } else if(!redraw_only_engaged && ro_good>=8) {
         redraw_only_engaged=true;++ro_engages;
@@ -1723,7 +1774,8 @@ int timeline_provider(const PSXModPresentInfo* info) {
     for(double t=1000.0*info->next_deadline/info->frequency;t-now_ms<=late_lead_ms;t+=period) {
         Frame* next=nullptr;double alpha=0;Frame* f=timeline_pair(t,next,alpha);
         if(!f && (f=menu_alone())) {next=f;alpha=0;}
-        if(!f || f->njobs>=max_jobs) continue;
+        if(!f) {++ro_nopair;continue;}
+        if(f->njobs>=max_jobs) continue;
         // A new capture can move this deadline into the next snapshot pair.
         // Its already-submitted job still owns the deadline: do not submit and
         // feed the same presentation twice just because the pair changed.
@@ -1741,7 +1793,7 @@ int timeline_provider(const PSXModPresentInfo* info) {
         }}
         const double look_ms=std::min(t-late_lead_ms,now_ms);
         const int job=submit_job(*f,*next,alpha,!f->frontend,look_ms);
-        if(job<0) break;
+        if(job<0) {++ro_nojob;break;}
         if(next==f) ++menu_alone_jobs;
         const int i=f->njobs++;
         f->alpha[i]=(float)alpha;f->jobs[i]=job;f->failed[i]=false;f->submitted[i]=true;
@@ -1796,9 +1848,27 @@ int timeline_provider(const PSXModPresentInfo* info) {
         if(c>=0) {
             if(target_hz==-1) late_pace(c==last_shown_cache);
             shown_serial=best->serial;cache[c].used=++cache_clock;++reused;
-            ++ro_good;ro_miss_run=0;
+            ++ro_good;ro_miss_run=0;ro_last_good=std::chrono::steady_clock::now();
             trace(info,best->alpha[pick],best,pick,drawn);last_shown_cache=c;return c+1;
         }
+    }
+    {
+        int cls=0;
+        for(auto& f:frames) if(f.valid) for(int i=0;i<f.njobs;++i) if(std::fabs(f.target[i]-now_ms)<period*.75) {
+            uint64_t tag=0;const int st=f.jobs[i]>=0?psx_mod_replay_job_state(f.jobs[i],&tag):-1;
+            cls=std::max(cls,f.failed[i]?3:st==3?2:1);
+            if(!f.failed[i] && f.jobs[i]<0) {
+                const int pc=cache_pending_find(f.serial,i);
+                if(pc>=0) ++ro_miss_rt_pending; else if(cache_find(f.serial,i)<0) ++ro_miss_rt_gone;
+            } else if(!f.failed[i] && st==0) ++ro_miss_free;
+            else if(!f.failed[i] && st==4) ++ro_miss_wfail;
+            if(!f.failed[i] && (st==1 || st==2)) {
+                if(st==1) ++ro_miss_queued; else ++ro_miss_running;
+                const double age=f.submit_ms[i]>0?now_ms-f.submit_ms[i]:-1;
+                if(age>=0) {ro_miss_age_max=std::max(ro_miss_age_max,age);ro_miss_age_sum+=age;++ro_miss_age_n;}
+            }
+        }
+        ++ro_miss_cls[cls];
     }
     ro_good=0;++ro_miss_run;
     if(last_shown_cache>=0 && psx_mod_replay_cache_valid(last_shown_cache)) {
@@ -2208,7 +2278,7 @@ static void shed_step(double feed,const char* why) {
     const bool failed_probe=shed_since_probe<=10;
     if(failed_probe) {shed_backoff=std::min(shed_backoff*2,16);++shed_failed_probes;}
     ++pace_div;++shed_steps;pace_clean=0;pace_presents=pace_bad=0;psx_mod_set_present_divisor(pace_div);++pace_changes;++emu_sheds;
-    shed_feed_ms=feed;
+    shed_feed_ms=feed;shed_audio=false;
     shed_since_probe=1000;
     pace_log(failed_probe?"emulation behind, faster rate failed":why,0,shed_backoff);
 }
@@ -2219,7 +2289,10 @@ int replay_load_window(int window) {
     ++shed_since_probe;
     const double feed=window_feed_n>=10 ? window_feed_sum/(double)window_feed_n : 0.0;
     window_feed_sum=0;window_feed_n=0;
-    if(window==2) {shed_bad=0;shed_clean=0;return 0;}  // not a gameplay second (menu, load)
+    // Not a gameplay second (menu, pause, load): not judged. D50: it no
+    // longer wipes the clean run either; a pause is no evidence of a slow
+    // scene (a pause menu held the 11:26 session at 90 for 2 minutes).
+    if(window==2) {shed_bad=0;return 0;}
     if(window==1) {
         shed_clean=0;shed_full_clean=0;
         // D17AR3 part 4: a step up that falls behind in its first seconds goes
@@ -2237,7 +2310,12 @@ int replay_load_window(int window) {
         // after a long clean run. Probing the same heavy view slowed the game
         // for a second each time (slot 10's jetpack view at 180 Hz).
         const bool lighter=feed>0.0 && shed_feed_ms>0.0 && feed<shed_feed_ms*0.75;
-        if(++shed_clean>=(lighter ? 5 : 30)*shed_backoff) {
+        // D50: a shed for the audio ring steps back up after 5 clean seconds,
+        // like a lighter view. The ring refills only slowly (the output's
+        // rate correction, at most 0.5%), so its level is no guide; a scene
+        // that still cannot keep up drains it again and sheds again (and the
+        // failed probe doubles the backoff).
+        if(++shed_clean>=(lighter || shed_audio ? 5 : 30)*shed_backoff) {
             --pace_div;--shed_steps;shed_clean=0;shed_since_probe=0;++shed_probes;
             pace_clean=0;pace_presents=pace_bad=0;psx_mod_set_present_divisor(pace_div);++pace_changes;
             pace_log("emulation keeping up, trying faster",0,shed_backoff);
@@ -2258,12 +2336,13 @@ int replay_audio_low() {
     if(pace_div>=(target_hz==-1 ? 16 : 3)) return 0;
     const double feed=window_feed_n ? window_feed_sum/(double)window_feed_n : shed_feed_ms;
     shed_bad=shed_clean=shed_full_clean=0;
-    shed_step(feed,"audio running low");
+    shed_step(feed,"audio running low");shed_audio=true;
     ++audio_sheds;
     return 1;
 }
 
 // D17AR3: the live frame in progress skips its drawing (host_visibility.inc).
+uint64_t ro_drops_total() {return ro_drops;}  // D50 hitch log
 bool live_frame_redraw_only() {return live_redraw_only && !psx_mod_replay_active();}
 const char* redraw_only_json() {
     static char buffer[384];uint64_t st[11];psx_mod_live_draw_skip_stats(st);

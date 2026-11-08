@@ -1,5 +1,86 @@
 # Next-session handoff
 
+## 2026-11-08 - D41B accepted and closed; D41I split off
+
+User, after playtesting the shot lights: "the lighting looks absolutely
+incredible!! the brightness of the lighting is so beautiful but not
+intrusive. i love how the light follows the projectiles especially of the
+freezethrower. this is truly beautiful work. lock it in and close it out,
+finally". D41B is Done. Its remaining scope (burning enemies, fire, enemy
+weapon types other than the pig cop's) is the new job D41I. The commit also
+carries the D50 fixes (accepted, closeout not yet authorized), which share
+the same source files.
+
+## 2026-11-08 - D50 energy-weapon stalls found and fixed (Needs playtest)
+
+User: "do whatever it takes. WHATEVER it takes". A profiled player session
+showed the stalls are the emulation thread drawing live frames after
+redraw-only switched off: with the energy beam the render thread fell up to
+a quarter of a second behind. Cause: the beam interleaves untextured and
+textured primitives, so batches split thousands of times a second, and in
+native widescreen each split batch was mirrored into the wide surface with
+two framebuffer switches, which cost the NVIDIA driver a third of the
+render thread's time. Fix (framework, exported and verified): the mirror
+passes of those splits are logged and replayed in order with one switch
+before anything else uses the wide surface; images verified exact on 11456
+redraws. Also 32 worker job slots, a 250 ms tolerance before live drawing
+returns, and diagnostics (`[TTK redraw-only] off` reasons, `PSX_PROF_RT`,
+`PSX_GL_FLUSH_DIAG`). Lab, slot 8 copy: 0 switch-offs and 5 repeated
+presents in 20 s of firing (before 4 and 370). Needs the user's playtest in
+slot 8. [Note 415](415-d50-load-audio-shed.md).
+
+## 2026-11-08 - D50 follow-up: hitch log (In progress)
+
+The user still feels a slowdown firing the energy weapon at the slot 8
+corner; the 12:00 session showed no shed (the load fix held). Not reproduced
+offscreen on a private slot 8 copy (stationary and human-speed sweeps while
+firing: the game 60-62 frames/s, 182-186 presents/s). Added a `[TTK hitch]`
+session-log line for each bad gameplay second (game rate, late presents,
+missed redraws, audio ring and underruns, weapon, lights, view, position),
+silent in healthy play; the next reproduction in the player's game will show
+what goes wrong. [Note 415](415-d50-load-audio-shed.md).
+
+## 2026-11-08 - D50 frame rate halves after loading (Needs playtest)
+
+User, during the D41B playtest: a slowdown while firing the energy weapon in
+UI slot 8, "maybe a touch of audio crackle"; "stand the job up right now and
+get to work on it as it blocks testing". The logs showed the governor shed
+to 90 presents at 180 Hz a few seconds after loading (audio ring 38-59 of
+180 ms) in four of five sessions that day, with no second behind real time,
+and a pause menu held it for minutes. Fix (no framework change): the audio
+check sheds only when the ring is draining (30 ms lower within 0.4-1.5 s,
+or an underrun), not when it is low and steady; an audio shed steps back up
+after 5 clean seconds instead of 30; menus and pauses no longer reset the
+clean run. Lab on a private slot 8 copy with real audio into a silent null
+sink: a cold start sheds nothing; a CPU squeeze still sheds correctly and
+recovers in about 9 s (was about 27 s). Tests as before (controls test at
+the known D14 HUD check). The low ring at the player's starts was not
+reproduced here. [Note 415](415-d50-load-audio-shed.md).
+
+## 2026-11-08 - D41B weapon and projectile lights (Needs playtest)
+
+Selected with "work on D41B". Every round's launch now lights a muzzle flash
+at its real launch point in its weapon's colour, for Duke and for enemies
+(the projectile launcher `0x800718ac`); a round that hits a wall lights a
+short spark there (`0x8006f1b8`); the energy weapon and flamethrower, which
+fire no rounds, light from Duke's hand flash (green; a flickering fire light
+along the jet); freezer rounds join rockets and energy rounds in carrying
+light; throws and crossbow bolts make no flash; blasts are sized per source
+(TNT barrel and dynamite biggest, gib bursts small). Projectile types from a
+probe of all 14 weapons on level 0: pistol 0, shotgun 1, pig cop rounds 2,
+pipe bomb 4, Buffalo Rifle 6, Gatling 7, RPG 8, Holy Hand Grenade 11,
+dynamite 12, freezer 13, energy round 15, knife 16, axe 17, crossbow bolt
+18. No framework change, no new setting. Build OK; `ttk-near-test`,
+`ttk-flash-test`, `ttk-live-env-test` PASS, profiles OK;
+`ttk-controls-test` stops at the known D14 HUD check. Offscreen (private
+apartment cards, lab `recomp/analysis/d41b/`, local): each gun's flash lights
+Duke and the ground in its colour; a pig cop's shot lights the wall around
+it; 180 Hz with Gatling and enemies firing: 0 missed redraws. Not done:
+burning enemies and fire, other enemy weapon types (default warm values).
+Needs playtest per weapon in first and third person
+([note 413](413-d41-lighting-case-study.md) section 10).
+Executable `847865e78e50c7db50a3932f2b4343ed8c7ed56d05ea578a47fdd02e0b97bea7`.
+
 ## 2026-11-08 - D46 accepted and closed
 
 User: "fully accepted. excellent work! absolutely superb. lock it in, close it

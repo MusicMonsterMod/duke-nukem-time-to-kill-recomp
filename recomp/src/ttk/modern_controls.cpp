@@ -1269,10 +1269,48 @@ extern "C" void ttk_fast_timing_renew(void);
 // 0.75 s and needs the ring still falling (5 ms lower than at the last; a
 // game keeping up at 60 holds the ring level, it does not refill it).
 extern "C" int psx_audio_out_stats(double* fill_ms,double* target_ms,uint64_t* underruns,uint64_t* overflow_drops,double* correction,int* legacy,int* host_rate);
+extern "C" void gl_renderer_replay_diag(uint64_t* presents,uint64_t* replays,uint64_t* misses,double* target_hz,uint64_t hist[8]);
+// D50 hitch log: one session-log line for each gameplay second that went
+// wrong, so a slowdown the player feels can be read afterwards: the game
+// under 58 frames/s, late presents (1.4x the second's mean interval or more:
+// 8 ms and over at 180 presents a second), a missed redraw, an audio underrun or the audio ring falling 40
+// ms or more. Presents bucketed as the GL renderer counts them (<2, <4, <5,
+// <6, <8, <12, <20, >=20 ms). Healthy seconds log nothing; at most 300
+// lines a session. Modernized only (the lease runs only there).
+static double hitch_fill_min=1e9,hitch_fill_start=-1;
+static void hitch_sample_fill(double fill) {if(hitch_fill_start<0)hitch_fill_start=fill;hitch_fill_min=std::min(hitch_fill_min,fill);}
+extern uint64_t ro_drops_total();
+static void hitch_second(double rate,double dt,bool unjudged) {
+    static uint64_t last_p,last_m,last_h[8],last_ur,last_ro;static bool primed;static unsigned lines;
+    const uint64_t ro=ro_drops_total(),dro=ro-last_ro;last_ro=ro;
+    uint64_t p=0,r=0,m=0,h[8]{};double hz=0;gl_renderer_replay_diag(&p,&r,&m,&hz,h);
+    double fill=0,target=0,corr=0;uint64_t ur=0,od=0;int legacy=1,host=0;
+    const bool audio=psx_audio_out_stats(&fill,&target,&ur,&od,&corr,&legacy,&host) && !legacy && target>0;
+    const double fill_start=hitch_fill_start,fill_min=std::min(hitch_fill_min,audio?fill:1e9);
+    hitch_fill_start=audio?fill:-1;hitch_fill_min=1e9;
+    if(!primed) {primed=true;last_p=p;last_m=m;std::copy(h,h+8,last_h);last_ur=ur;return;}
+    uint64_t d[8];for(int i=0;i<8;++i)d[i]=h[i]-last_h[i];
+    const uint64_t dp=p-last_p,dm=m-last_m,dur=ur-last_ur;
+    last_p=p;last_m=m;std::copy(h,h+8,last_h);last_ur=ur;
+    if(unjudged || lines>=300) return;
+    // Late: a bucket starting at 1.4x the second's mean present interval or
+    // more (so a governed rate of every 2nd or 3rd refresh is not "late").
+    static constexpr double lo[8]={0,2,4,5,6,8,12,20};
+    const double mean=dp?1000.0*dt/dp:1000.0;
+    uint64_t late=0;for(int i=0;i<8;++i) if(lo[i]>=1.4*mean) late+=d[i];
+    const bool fell=audio && fill_start>=0 && fill_start-fill_min>=40;
+    if(rate>=58 && late<3 && !dm && !dur && !fell && !dro) return;
+    ++lines;
+    std::fprintf(stderr,"[TTK hitch] game %.1f/s, presents %.0f/s, late %llu (presents 8-12 ms %llu, 12-20 %llu, 20+ %llu), missed %llu, audio %.0f->%.0f (min %.0f) ms, underruns %llu, redraw-only off %llu, weapon %u, lights %u, view %s, Duke %d %d %d\n",
+        rate,dp/dt,(unsigned long long)late,(unsigned long long)d[5],(unsigned long long)d[6],(unsigned long long)d[7],(unsigned long long)dm,
+        fill_start,audio?fill:0.0,fill_min>=1e9?0.0:fill_min,(unsigned long long)dur,(unsigned long long)dro,(unsigned)psx_mod_read_byte(player+0x3b9),light_view.n,
+        first_person_view_live()?"first":"third",(int32_t)psx_mod_read_word(player+4),(int32_t)psx_mod_read_word(player+8),(int32_t)psx_mod_read_word(player+12));
+}
 static void overclock_lease() {
     using clk=std::chrono::steady_clock;
     static clk::time_point window_start,paused_until,settle_until,last_call,audio_quiet_until,audio_arm_at;static uint64_t window_frame;static unsigned pauses;
     static bool audio_filled;static double audio_shed_fill;
+    static clk::time_point low_seen_at;static double low_seen_fill;static uint64_t low_underruns;static unsigned steady_notes;  // D50
     static uint32_t loads_seen=psx_mod_savestate_loads();
     const auto now=clk::now();const uint64_t frame=input_host_frame();
     if(psx_mod_savestate_loads()!=loads_seen) {loads_seen=psx_mod_savestate_loads();settle_until=now+std::chrono::seconds(3);audio_filled=false;audio_arm_at=now+std::chrono::milliseconds(500);audio_shed_fill=1e9;}
@@ -1280,8 +1318,32 @@ static void overclock_lease() {
     last_call=now;
     double fill=0,target=0,correction=0;uint64_t underruns=0,drops=0;int legacy=1,host_rate=0;
     if(psx_audio_out_stats(&fill,&target,&underruns,&drops,&correction,&legacy,&host_rate) && !legacy && target>0) {
+        hitch_sample_fill(fill);
+        // D50: a ring that is low but steady is not the game falling behind
+        // (the output's rate correction, at most 0.5%, refills it slowly; a
+        // game keeping up at 60 holds the level), so shedding presents cannot
+        // help it. Shed only on a drain: under a third of the target and at
+        // least 30 ms lower than 0.4-1.5 s before (a game short of real time
+        // drains 100+ ms a second), or an underrun while low. Player logs,
+        // 2026-11-08: four of five sessions shed to 90 presents at 180 Hz a
+        // few seconds after loading with the ring at 38-59 ms and no second
+        // behind real time.
+        if(fill>=target/3) low_seen_at=clk::time_point{};
+        bool draining=false;
+        if(fill<target/3) {
+            const double since=low_seen_at.time_since_epoch().count() ? std::chrono::duration<double>(now-low_seen_at).count() : 9.0;
+            if(since>1.5) {low_seen_at=now;low_seen_fill=fill;low_underruns=underruns;}
+            else if(since>=0.4) {
+                draining=low_seen_fill-fill>=30.0 || underruns>low_underruns;
+                if(!draining) {
+                    if(++steady_notes<=5)std::fprintf(stderr,"[TTK cpu] audio ring low but steady (%.0f of %.0f ms, was %.0f): no present shed\n",fill,target,low_seen_fill);
+                    low_seen_at=now;low_seen_fill=fill;low_underruns=underruns;
+                }
+            }
+        }
         if(fill>=target*0.9) {audio_filled=true;audio_shed_fill=target;}
-        else if((audio_filled || now>=audio_arm_at) && fill<target/3 && now>=audio_quiet_until && fill<audio_shed_fill-5 && replay_audio_low()>0) {
+        else if((audio_filled || now>=audio_arm_at) && fill<target/3 && draining && now>=audio_quiet_until && fill<audio_shed_fill-5 && replay_audio_low()>0) {
+            low_seen_at=now;low_seen_fill=fill;low_underruns=underruns;
             audio_quiet_until=now+std::chrono::milliseconds(750);audio_shed_fill=fill;
             settle_until=now;window_start=now;window_frame=frame;
             if(++pauses<=20)std::fprintf(stderr,"[TTK cpu] audio running low (%.0f of %.0f ms): high-refresh presents reduced\n",fill,target);
@@ -1291,6 +1353,7 @@ static void overclock_lease() {
     const double dt=std::chrono::duration<double>(now-window_start).count();
     if(dt>=1.0) {
         const double rate=(frame-window_frame)/dt;
+        hitch_second(rate,dt,now<settle_until || now<paused_until || dt>=3.0);
         const int verdict=replay_load_window(dt>=3.0 || now<paused_until || now<settle_until ? 2 : rate<57.0 ? 1 : 0);
         if(verdict>0) {
             if(++pauses<=20)std::fprintf(stderr,"[TTK cpu] emulation behind real time (%.1f frames/s): high-refresh presents reduced\n",rate);
@@ -2515,6 +2578,9 @@ PSX_MOD_CONSTRUCTOR(register_ttk_controls) {
     // class handler and the call after the actor loop.
     psx_mod_register_function_entry_plugin("ttk.modern.controls",0x80099164,[](CPUState* cpu,uint32_t){ttk::reach_range(cpu);});
     psx_mod_register_function_entry_plugin("ttk.modern.controls",0x80099530,[](CPUState* cpu,uint32_t){ttk::reach_tick(cpu);});
+    // D41B: every round's launch and impact (shot lights).
+    psx_mod_register_function_entry_plugin("ttk.lights",0x800718ac,[](CPUState* cpu,uint32_t){ttk::lights_launch(cpu);});
+    psx_mod_register_function_entry_plugin("ttk.lights",0x8006f1b8,[](CPUState* cpu,uint32_t){ttk::lights_impact(cpu);});
     psx_mod_register_function_entry_plugin("ttk.modern.controls",0x80028a2c,[](CPUState* cpu,uint32_t){ttk::lights_shake(cpu);ttk::earthquake_native_shake(cpu);});
     psx_mod_register_function_entry_plugin("ttk.modern.controls",0x80025944,[](CPUState* cpu,uint32_t){ttk::reach_hold(cpu);});
     psx_mod_register_function_entry_plugin("ttk.modern.controls",0x800632b8,[](CPUState* cpu,uint32_t){ttk::reach_release(cpu);});

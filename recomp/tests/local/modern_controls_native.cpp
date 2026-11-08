@@ -295,6 +295,9 @@ namespace ttk {bool anim_extra_clip(unsigned clip,uint32_t& first,uint32_t& coun
 }}
 // D23E: no high-refresh redraws in the harness; the overclock lease pauses.
 namespace ttk {int replay_load_window(int window){return window==1 ? -1 : 0;}}
+// D50 hitch log stubs (frame_replay.cpp, gpu_gl_renderer.c).
+namespace ttk {uint64_t ro_drops_total(){return 0;}}
+extern "C" void gl_renderer_replay_diag(uint64_t* p,uint64_t* r,uint64_t* m,double* hz,uint64_t h[8]){if(p)*p=0;if(r)*r=0;if(m)*m=0;if(hz)*hz=0;if(h)for(int i=0;i<8;++i)h[i]=0;}
 namespace ttk {bool live_frame_redraw_only(){return false;}}
 namespace ttk {int replay_audio_low(){return 0;}}
 namespace ttk {void replay_body_camera(bool){}void replay_quake_camera(bool){}void replay_quake_restore(){}bool replay_late_rotation(int16_t*){return false;}} // D14H/D35D1: replay workers only

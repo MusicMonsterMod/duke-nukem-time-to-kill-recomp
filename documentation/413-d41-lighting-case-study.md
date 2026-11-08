@@ -200,7 +200,8 @@ actor polygon.
 ## 6. Child jobs (on the board)
 
 - D41A Light foundation (this note; Done 2026-11-08).
-- D41B Weapon and projectile lights (first part accepted, section 7; rest Todo).
+- D41B Weapon and projectile lights (sections 7 and 10; Done 2026-11-08).
+- D41I Fire and enemy weapon lights (split from D41B; Todo).
 - D41C Duke and first person in the light (section 8; Done 2026-11-08).
 - D41D Level light sources (emitters, animated light tables, per-level light
   files, light editor).
@@ -304,3 +305,75 @@ round props showed their facets under a light (D41C limits).
 - Limits: the world stays per-face (flat walls); separate meshes (limbs drawn
   as separate parts) do not share normals across their seam; normal and
   specular detail remain optional later work.
+
+## 10. D41B shot lights (accepted and closed 2026-11-08)
+
+User: "the brightness of the lighting is so beautiful but not intrusive. i
+love how the light follows the projectiles especially of the freezethrower".
+
+Sources (`recomp/src/ttk/dynamic_lights.inc`, Modernized Polymorph with
+DYNAMIC LIGHTS on; entry hooks registered as `ttk.lights` in
+`modern_controls.cpp`; no framework change):
+
+- Launch: the projectile launcher `0x800718ac` (a0 shooter, a1 origin
+  vector, a3 projectile type), for Duke and every enemy. A muzzle light at
+  the launch origin (the real muzzle point the round starts from) in the
+  type's colour, one per shooter and tic (shotgun pellets share it); enemy
+  flashes at 0.8 x radius. This replaces the D41B first part's
+  `player+0xbc` point for every weapon that launches rounds.
+- Impact: `0x8006f1b8` (a0 the round, a1 the point) is called when a round
+  meets a wall; rounds that hit a character do not call it (checked with the
+  pistol on a pig cop: the round ends without it; with monsters hidden,
+  every pistol, shotgun, Gatling, rifle and freezer round on the wall
+  called it). A short spark there; sparks within 600 units of one lit the
+  same tic merge (shotgun).
+- Weapons without rounds: the energy weapon (beam) and flamethrower fire no
+  launch; Duke's hand flash (player word 0 bit 3) lights them when no launch
+  of his came within a tic: green for the energy weapon, a flickering fire
+  light 700 units ahead along the view for the flamethrower, warm otherwise.
+- Rounds in flight (first part): RPG 8, freezer 13, energy round 15.
+- Blasts sized per source: barrel 9000 / 20 tics / 1.10, dynamite 8500 / 18
+  / 1.05, pipe bomb or Holy Hand Grenade (`0x800707cc`, one route) 7600 /
+  16, rocket 7000 / 16, gib 3800 / 8 / 0.65.
+
+Projectile types (lab `recomp/analysis/d41b/lab.py probe`, level 0, every
+weapon fired with monsters hidden; local only):
+
+| Type | Shot | Muzzle (rgb, radius, tics) | Impact | Flight |
+| ---: | --- | --- | --- | --- |
+| 0 | Desert Eagle | 0.85 0.58 0.28, 3400, 3 | warm, 1500, 2 | - |
+| 1 | Combat Shotgun pellets | 0.95 0.62 0.30, 4400, 3 | warm, 1100, 2 | - |
+| 2 | pig cop rounds | 0.85 0.58 0.28, 2800 (x0.8), 3 | warm, 1200, 2 | - |
+| 6 | Buffalo Rifle | 1.00 0.64 0.30, 4600, 3 | warm, 1600, 2 | - |
+| 7 | Gatling | 0.85 0.60 0.30, 3000, 2 | warm, 1300, 2 | - |
+| 8 | RPG | 1.00 0.62 0.30, 4800, 4 | (blast) | warm, 2800 |
+| 13 | Freezer | 0.55 0.50 1.25, 3000, 3 | violet-blue, 1900, 4 | violet-blue, 1800 |
+| 15 | energy round | 0.45 1.15 0.40, 3200, 3 | green, 2300, 4 | green, 2200 |
+| 4, 11, 12, 16, 17, 18 | pipe bomb, Holy Hand Grenade, dynamite, throwing knife, axe, crossbow bolt | none | none | none |
+| other | enemy guns not probed (turrets, flyers, bosses) | 0.80 0.56 0.28, 3000, 3 | warm, 1200, 2 | - |
+
+Values follow Quake's short muzzle flash (about 0.1 s) and EDuke32 Polymer's
+orange muzzle light, scaled to the D41A first values; all are first values
+for the playtest.
+
+Evidence (offscreen, private apartment card copies, `DNTTK_LIGHT_AMBIENT=55`
+for stills, local):
+
+- Build OK. `ttk-near-test` PASS, `ttk-flash-test`, `ttk-live-env-test`,
+  `test_player_profiles` OK; `ttk-controls-test` stops at the known D14
+  `hud_intact` check (line 1755); no test source changed.
+- Pistol, flamethrower, energy weapon, freezer, shotgun: the flash lights
+  Duke and the ground around the gun in the weapon's colour (energy weapon
+  changed from cyan to green and freezer to violet-blue after comparing
+  with the game's own effects). Pig cop by the club door: its shot lights
+  the wall and door frame around it for that tic.
+- 180 Hz, Gatling and pistol with pig cops firing: 4720 presents, 0 missed
+  redraws, 0 failed captures.
+- Before/after stills: `research/before-after/d41b-shot-lights/` (local;
+  the freezer still predates the violet tweak).
+
+Limits (moved to D41I): burning enemies and fire (no source found yet), the TTK flamethrower's
+flames themselves (only the jet light near Duke), enemy weapons other than
+the pig cop's type 2 take the default warm values, impacts on characters
+make no light (blood), and light still passes through walls (D41F).
+
